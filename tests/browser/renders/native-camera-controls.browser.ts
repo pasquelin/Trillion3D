@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { startServer, serverPort } from '../../kit/server/staticServer.ts';
+import { startServer } from '../../kit/server/staticServer.ts';
 import { launchChrome } from '../../../bench/runner/chrome.ts';
 import { sdkMounts, threeStackMounts } from '../support/renderHarness.ts';
 import {
@@ -26,11 +26,7 @@ const root = resolve(import.meta.dirname, '../../..');
 const out = measureOutput('native-camera-controls');
 await mkdir(out, { recursive: true });
 const cacheMounts = threeStackMounts(root, out);
-const server = await startServer({
-  port: 0,
-  captures: new Map(),
-  mounts: [...sdkMounts(root), ...cacheMounts],
-});
+const { server, port } = await startServer({ mounts: [...sdkMounts(root), ...cacheMounts] });
 const browser = await launchChrome({ headless: true });
 const errors: string[] = [];
 const centre = { x: 120, y: 80 };
@@ -60,7 +56,7 @@ try {
   const context = await browser.newContext({ viewport: { width: 480, height: 320 } });
   const page = await context.newPage();
   page.on('pageerror', (error) => errors.push(error.message));
-  await page.goto(`http://127.0.0.1:${serverPort(server)}`);
+  await page.goto(`http://127.0.0.1:${port}`);
   await page.evaluate(() => {
     document.body.innerHTML +=
       '<canvas id="viewer" style="width:240px;height:160px;display:block"></canvas>';

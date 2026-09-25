@@ -54,13 +54,14 @@ test('the CPU cut lists a blended caster at its shadow-only row', () => {
   const list = (n: number) => new Uint32Array(n);
   const cpuCasters = {
     frame: -1,
+    runs: 1,
     source: device.createBuffer({ size: 4, usage: 0 }),
     indirect: device.createBuffer({ size: 16, usage: 0 }),
     ...{ bases: list(1), lengths: list(1), commands: list(4), words: list(1) },
     ...{ marks: list(3), rowOf: new Int32Array(3), shown: [pages] },
   };
   const rt = {
-    lights: { runs: { count: 1 }, cpuCasters, plannedFrame: 9 },
+    lights: { cpuCasters, plannedFrame: 9 },
     run: { frame: 9 },
     layout: { rows },
   } as unknown as WebgpuPagesRuntime;

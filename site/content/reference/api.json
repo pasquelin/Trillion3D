@@ -7561,29 +7561,14 @@
         "desc": "Lights shaded in full — shadow read included — per pixel of a MOVING image (X2): the others are weighed without their shadow, and the shaded ones are drawn in proportion, so the estimate is unbiased and temporal antialiasing averages it. A still image shades every light of its tile and converges to the exact sum; there, this number plays no part."
       },
       {
-        "name": "shadowPagesPerFrame",
+        "name": "shadowPagesPerBatch",
         "type": "24",
-        "desc": "Shadow pages drawn at most per frame: the buffer ceiling, never a quality setting. The millisecond budget almost always stops first; this ceiling is only an ultimate bound, and the only limit on a device without a GPU clock."
+        "desc": "Shadow pages one GPU batch draws: the size of the per-batch buffers, never a limit on a frame. A frame draws every page it marks, in as many batches as that takes."
       },
       {
         "name": "shadowPage",
         "type": "128",
         "desc": "Side of a shadow page, in texels: the unit of the physical pool, of the virtual maps and of invalidation. A moving object only stales the pages its projected box covers."
-      },
-      {
-        "name": "shadowBudgetMs",
-        "type": "1",
-        "desc": "Shadows-stage budget, in GPU milliseconds per frame (X4, RX3). Pages invalidated beyond wait their turn; they are never lost, and their lag is published."
-      },
-      {
-        "name": "shadowAgingPerFrame",
-        "type": "0.05",
-        "desc": "Weight of waiting in a page's priority, per frame spent in queue: against starvation."
-      },
-      {
-        "name": "shadowCostBlend",
-        "type": "0.25",
-        "desc": "Share of a frame's sample in the average cost of a page: exponential smoothing of the timer."
       },
       {
         "name": "lampFaceSize",
@@ -13481,7 +13466,7 @@
     "members": [
       {
         "name": "settings",
-        "type": "{ readonly maxLights: 64; readonly tileSize: 16; readonly samplesPerPixel: 4; readonly shadowPagesPerFrame: 24; readonly shadowPage: 128; readonly shadowBudg...",
+        "type": "{ readonly maxLights: 64; readonly tileSize: 16; readonly samplesPerPixel: 4; readonly shadowPagesPerBatch: 24; readonly shadowPage: 128; readonly lampFaceSi...",
         "desc": "Published settings of direct lighting. These are named product choices, not buried constants: every runtime bound rereads them, and the diagnostic publishes them as-is."
       },
       {
@@ -14232,7 +14217,7 @@
     "kind": "Type",
     "title": "ShadowPlan",
     "signature": "type ShadowPlan = ReturnType<typeof createShadowPlan>",
-    "summary": "The frame's shadow work: which virtual pages are drawn, and which wait.",
+    "summary": "The frame's shadow work: which virtual pages are drawn.",
     "members": [
       {
         "name": "table",
@@ -14260,19 +14245,14 @@
         "desc": "The request reports read back: what the latest one named, allocated or refused."
       },
       {
-        "name": "budget",
-        "type": "{ readonly budgetMs: number; setBudgetMs(value: number): void; readonly msPerPage: number | null; suspend(): void; resume(): void; observe(gpuMs: number | nu...",
-        "desc": "The Shadows-stage millisecond budget and the measured cost of a page."
-      },
-      {
         "name": "counts",
         "type": "{ lights: number; sunLights: number; invalidatedPages: number; pendingPages: number; cachedPages: number; poolPages: number; waitedMs: number; waitedFrames: ...",
         "desc": "What the last plan did, in pages."
       },
       {
         "name": "admission",
-        "type": "{ list: Int32Array<ArrayBuffer>; readonly count: number; readonly viewLimit: number; run(pool: ShadowPool, table: ShadowTable, records: ShadowRecords, sun: S...",
-        "desc": "This frame's pages, in admission order."
+        "type": "{ list: Int32Array<ArrayBuffer>; keys: Int32Array<ArrayBuffer>; hostBytes: number; readonly count: number; run(pool: ShadowPool, table: ShadowTable, latest: ...",
+        "desc": "This frame's pages, light view by light view."
       },
       {
         "name": "worldChanged",
@@ -14305,16 +14285,6 @@
         "desc": "The frame plans no shadow: the held boxes enter the list at once."
       },
       {
-        "name": "observeCost",
-        "type": "(gpuMs: number | null, pages: number) => void",
-        "desc": "Timer of a frame's Shadows pass, reported to the pages it drew."
-      },
-      {
-        "name": "setBudgetMs",
-        "type": "(value: number) => void",
-        "desc": "Budget published by the host, in GPU milliseconds per frame."
-      },
-      {
         "name": "setPageInvalidation(on: boolean)",
         "type": "void",
         "desc": "Turns off per-page invalidation: a moving object stales every page of the lights it touches. On by default."
@@ -14342,17 +14312,17 @@
       {
         "name": "plan(store: SceneLightStore, view: ShadowViewpoint, sceneMin: ArrayLike<number>, sceneMax: ArrayLike<number>, frame: number, nowMs: number)",
         "type": "number",
-        "desc": "Plans a frame: stales what moved, reads the last report, admits the pages to draw."
+        "desc": "Plans a frame: stales what moved, reads the last report, admits every page to draw."
       },
       {
-        "name": "commit(modes?: ArrayLike<number>)",
+        "name": "commit(modes?: ArrayLike<number>, from?: number, to?: number)",
         "type": "void",
-        "desc": "The frame's pages were encoded, each in its `modes` entry: their draws land before anything reads them."
+        "desc": "Pages `[from, to)` of the frame's list were encoded, page `from + i` in `modes[i]`: their draws land before anything reads them. The last batch closes the list."
       },
       {
-        "name": "reissue()",
+        "name": "reissue(from?: number)",
         "type": "void",
-        "desc": "The frame's pages could not be encoded: they stay stale, and wait for the next frame."
+        "desc": "The frame's pages from `from` on could not be encoded: they stay stale, pending, ahead of every page that turns stale after them in the next frame's list (`admit.ts`)."
       },
       {
         "name": "reset()",
@@ -23761,14 +23731,9 @@
     "section": "types",
     "kind": "Function",
     "title": "createShadowPlan()",
-    "signature": "createShadowPlan(capacity: number, poolSide: number): ShadowPlan",
+    "signature": "createShadowPlan(poolSide: number): ShadowPlan",
     "summary": "The shadow scheduler of the virtual maps.",
     "parameters": [
-      {
-        "name": "capacity",
-        "type": "number",
-        "desc": ""
-      },
       {
         "name": "poolSide",
         "type": "number",
@@ -23779,7 +23744,7 @@
       "type": "ShadowPlan",
       "desc": ""
     },
-    "description": "The shading records the pages it reads; their report, read back frames later, allocates what is missing from the fixed pool. What moved stales the mapped pages it covers. A frame then draws the stale pages the image reads — coarse first, up to a millisecond budget —, and the rest waits, never lost, its lag published. A still scene, whose shading runs no more, asks for nothing and draws nothing. All arrays are allocated once; `plan()` allocates nothing."
+    "description": "The shading records the pages it reads; their report, read back frames later, allocates what is missing from the fixed pool. What moved stales the mapped pages it covers. A frame then draws every stale page the image reads, all of them in that frame (`admit.ts`): what holds the cost is the cache — a page is drawn again only when what it holds changed —, and the pool is the only limit. A still scene, whose shading runs no more, asks for nothing and draws nothing. All arrays are allocated once; `plan()` allocates nothing."
   },
   {
     "id": "createTerminalProgress",

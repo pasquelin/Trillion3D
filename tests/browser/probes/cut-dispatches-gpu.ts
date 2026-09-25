@@ -11,7 +11,7 @@ import assert from 'node:assert/strict';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { dansPageWebgpu, empaquetePage } from './pageWebgpu.ts';
-import { median } from '../../kit/median.ts';
+import { median } from '../../../scripts/median.ts';
 import type { executer } from './cutDispatchesPage.ts';
 
 declare global {

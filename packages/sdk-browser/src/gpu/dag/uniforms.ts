@@ -1,4 +1,4 @@
-import type { PackedDag } from './types.ts';
+import type { DagViewUniforms, PackedDag } from './types.ts';
 import {
   REQUEST_AHEAD,
   REQUEST_PRIORITY_MAX,
@@ -17,13 +17,16 @@ import {
   selectionListCap,
 } from './layout.ts';
 import type { SelectionResult } from '../core/selection.ts';
-import type { DagViewUniforms } from './types.ts';
-import { VIEW_LIGHT, VIEW_PAGES } from './shader/pagesWgsl.ts';
+import { VIEW_APPEND, VIEW_LIGHT, VIEW_PAGES } from './shader/pagesWgsl.ts';
 import { DAG_VIEW_WORDS } from './shader/viewsWgsl.ts';
 import { AHEAD_VIEW } from './shader/aheadWgsl.ts';
 
-/** The views one cut runs, the views its buffers hold, and the capacity of each descent queue. */
-export type DagCutViews = { count: number; capacity: number; queueCap: number };
+/** Word of view 0's block that says what kind of view the cut serves (`shader/pagesWgsl.ts`). */
+export const VIEW_FLAGS_WORD = 54;
+
+/** A light cut's views: how many it runs, how many it holds, its queues' bound, and whether it
+ *  appends to the requests an earlier batch of the frame listed (`VIEW_APPEND`). */
+export type DagCutViews = { count: number; capacity: number; queueCap: number; append?: boolean };
 
 /**
  * Arrays of a readback slot, reused from one read to the next: reallocating them on every
@@ -52,11 +55,8 @@ export const createDagOutputScratch = (): DagOutputScratch => ({
   seaux: new Uint32Array(REQUEST_PRIORITY_MAX + 1),
 });
 
-/**
- * The view ahead of a moving camera (`shader/aheadWgsl.ts`): block 1 repeats the camera's block with
- * the planes and view ahead, and block 0 says it is there. A block too short to hold it — a light
- * view's — never carries one.
- */
+/** The view ahead of a moving camera (`shader/aheadWgsl.ts`): block 1 repeats the camera's with the
+ *  planes and view ahead, block 0 says it is there; a light view's short block never carries one. */
 function writeAheadBlock(target: Float32Array, ints: Uint32Array, uniforms: DagViewUniforms) {
   const ahead = uniforms.ahead,
     at = AHEAD_VIEW * DAG_VIEW_WORDS;
@@ -108,7 +108,7 @@ export function writeDagUniforms(
   ints[61] = views?.capacity ?? 1;
   ints[62] = views?.queueCap ?? packed.nodeCount;
   const light = uniforms.light;
-  ints[54] = light ? VIEW_LIGHT | VIEW_PAGES : 0;
+  ints[VIEW_FLAGS_WORD] = light ? VIEW_LIGHT | VIEW_PAGES | (views?.append ? VIEW_APPEND : 0) : 0;
   writeAheadBlock(target, ints, uniforms);
   if (!light) return;
   ints[55] = light.rows;

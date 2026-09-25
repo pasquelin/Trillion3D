@@ -11,8 +11,8 @@ import { shadowsUnsettled } from '../pages/state/lights.ts';
 
 /** Convergence turns at most: beyond that, what is missing is published, never waited for forever. */
 const CONVERGE_LIMIT = 64;
-/** Images a barrier grants at most to waiting shadow pages, under their budget. A still camera
- *  whose pages have all just been voided by an arrived tile takes a few; a moving camera voids pages
+/** Images a barrier grants at most to the shadow pages' round trips: a report read, casters
+ *  loaded, pages staled by their arrival. A still camera takes a few; a moving camera voids pages
  *  every image and never converges: the bound is there for it. */
 const SHADOW_DRAIN_LIMIT = 64;
 /** Texture → shadow round-trips at most: each turn that redraws a sun page can move what the shadow
@@ -64,9 +64,8 @@ async function convergeTextures(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
  * Drains shadow maps: images are rendered until the pages the image reads are all mapped and
  * drawn — a report of the last one proves it —, whatever staled them: an arriving tile, a moving
  * camera or a geometry page that entered or left. Each image's request report is awaited before
- * the next is planned. The 1 ms budget stays that of the measured loop: during the barrier it is
- * suspended, otherwise a GPU timestamp arriving mid-drain tightens admission and two identical
- * captures diverge (#25, 0 / 1,392 / 6,278 px). Returns the number of frames drained.
+ * the next is planned; each image draws every page it marks (`admit.ts`), so what the drain waits
+ * for is the report's round trip, never a page queue. Returns the number of frames drained.
  *
  * A drawn page is also a light cut whose report asks for casters: the image after takes it, its
  * casters load, and a caster that enters residency stales the pages over it. The drain waits for
@@ -74,22 +73,16 @@ async function convergeTextures(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
  * taken, so its arrivals reach the plan here and not in the first still frame after the barrier.
  */
 async function drainShadows(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
-  const { lights, services } = rt,
-    { budget } = lights.plan;
-  budget.suspend();
+  const { lights, services } = rt;
   let drains = 0,
     offered = false;
-  try {
-    for (; drains < SHADOW_DRAIN_LIMIT && (offered || shadowsUnsettled(lights)); drains++) {
-      renderWebgpuPages(rt, rt.run.lastCamera!);
-      await gpuDevice.queue.onSubmittedWorkDone();
-      await lights.pageRequests?.settled();
-      await lights.lightCut?.settled();
-      offered = !!lights.lightCut?.reports.takeOffered();
-      await services.residency.pending;
-    }
-  } finally {
-    budget.resume();
+  for (; drains < SHADOW_DRAIN_LIMIT && (offered || shadowsUnsettled(lights)); drains++) {
+    renderWebgpuPages(rt, rt.run.lastCamera!);
+    await gpuDevice.queue.onSubmittedWorkDone();
+    await lights.pageRequests?.settled();
+    await lights.lightCut?.settled();
+    offered = !!lights.lightCut?.reports.takeOffered();
+    await services.residency.pending;
   }
   return drains;
 }
