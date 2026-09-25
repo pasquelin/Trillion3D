@@ -72,6 +72,7 @@ fn hardwareSkips(page:PageInfo,h:ClusterHeader,vertexIndex:u32)->bool{
  let world=page.world*vec4f(p,1.0);
  out.position=uni.viewProj*world;
  if(page.lineWidth>0.0){out.position=pageLine(page,h,id,uni.viewProj*page.world,out.position);}
+ if(page.sprite.y!=0.0){out.position=uni.viewProj*pageSprite(page,p);}
  out.id=page.packedBase|((vertexIndex/3u)&0xffu);
  if((page.flags&4u)!=0u){out.tc=vec3f(pageUv(page,h,id),0.0);}
  if((page.flags&128u)!=0u){out.tc.z=pageMaskAlpha(page,h,id);}
@@ -91,6 +92,7 @@ fn hardwareSkips(page:PageInfo,h:ClusterHeader,vertexIndex:u32)->bool{
  let world=page.world*vec4f(p,1.0);
  out.position=uni.viewProj*world;
  if(page.lineWidth>0.0){out.position=pageLine(page,h,id,uni.viewProj*page.world,out.position);}
+ if(page.sprite.y!=0.0){out.position=uni.viewProj*pageSprite(page,p);}
  out.id=page.packedBase|((vertexIndex/3u)&0xffu);
  if((page.flags&4u)!=0u){out.tc=vec3f(pageUv(page,h,id),0.0);}
  if((page.flags&128u)!=0u){out.tc.z=pageMaskAlpha(page,h,id);}

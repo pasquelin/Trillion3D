@@ -18,6 +18,7 @@ const VALUES = new Set([
   'dashSize',
   'gapSize',
   'scale',
+  'rotation',
 ]);
 
 /** One parameter value as a key: a texture by identity and its three counters — its picture's

@@ -3,7 +3,12 @@ import { createRenderEncoder } from '../pages/render/encoder.ts';
 import { clearValueOf } from '../../../../sdk-core/src/world/math/packedColour.ts';
 import { PAGE_INFO_STRIDE, clusterHash } from '../../visibility/buffer.ts';
 import { UNIFORM_STRIDE } from '../blend/uniforms.ts';
-import { ROW_DASH_WORD, ROW_INDEX_WORDS, ROW_LINE_WIDTH_WORD } from '../row/pageRow.ts';
+import {
+  ROW_DASH_WORD,
+  ROW_INDEX_WORDS,
+  ROW_LINE_WIDTH_WORD,
+  ROW_SPRITE_WORD,
+} from '../row/pageRow.ts';
 import { FALLBACK_CLUSTER_PAGE, FALLBACK_WIREFRAME } from '../pages/prepare/shaders.ts';
 import {
   bindGroupFor,
@@ -53,6 +58,9 @@ export function drawWebgpuFallback(rt: WebgpuPagesRuntime, device: GPUDevice) {
     // A dashed line page cuts its gaps like in every raster (`lineDash`); zero keeps every pixel.
     uniformPacked[base + 44] = rows.pageTableFloats![row * fallbackWords + ROW_DASH_WORD];
     uniformPacked[base + 45] = rows.pageTableFloats![row * fallbackWords + ROW_DASH_WORD + 1];
+    // A sprite page turns to face the camera like in every raster (`spriteAt`); zero does not.
+    uniformPacked[base + 46] = rows.pageTableFloats![row * fallbackWords + ROW_SPRITE_WORD];
+    uniformPacked[base + 47] = rows.pageTableFloats![row * fallbackWords + ROW_SPRITE_WORD + 1];
   }
   if (rows.packedCount && uniformBuffer)
     device.queue.writeBuffer(

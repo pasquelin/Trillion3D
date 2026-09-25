@@ -1,5 +1,5 @@
 import { PAGE_INFO_STRIDE } from '../../visibility/buffer.ts';
-import { ROW_ID_BASE_WORD, ROW_HIZ_SLOT_WORD, packedRowBase } from './pageRow.ts';
+import { ROW_ID_BASE_WORD, packedRowBase, restampHizSlot } from './pageRow.ts';
 import type { createPageRowWriter } from './pageRow.ts';
 import type { createWebgpuRowState } from './state.ts';
 
@@ -33,7 +33,7 @@ export function createWebgpuRowCommit(rows: Rows, writePageRow: Writer) {
       for (let row = start; row <= end; row++) {
         const base = row * rowWords;
         ints[base + ROW_ID_BASE_WORD] = packedRowBase(row);
-        ints[base + ROW_HIZ_SLOT_WORD] = row;
+        restampHizSlot(ints, base, row);
       }
       rows.markRowDirty(start, end);
       moved += end - start + 1;
