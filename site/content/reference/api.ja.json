@@ -2535,7 +2535,7 @@
       "onEvict": "キャッシュを離れる各ページを受け取ります。",
       "maxTransferBytes": "転送キューが保持できるバイト数。既定は 8 MiB。",
       "onDiagnostic": "各読み込みの各段階を受け取ります。",
-      "maxCachedBytes": "キャッシュの CPU 合計：ページ、マニフェストの表、転送キューを合わせた量。既定は 256 MiB。"
+      "maxCachedBytes": "キャッシュのページが保持できる CPU メモリのバイト数。マニフェストの表と転送キューはこれとは別に予約される。既定は 256 MiB。"
     }
   },
   "PanZoomCameraControls": {
@@ -4795,7 +4795,7 @@
       "options.onEvict": "キャッシュを離れる各ページを受け取ります。",
       "options.maxTransferBytes": "転送キューが保持できるバイト数。既定は 8 MiB。",
       "options.onDiagnostic": "各読み込みの各段階を受け取ります。",
-      "options.maxCachedBytes": "キャッシュの CPU 合計：ページ、マニフェストの表、転送キューを合わせた量。既定は 256 MiB。"
+      "options.maxCachedBytes": "キャッシュのページが保持できる CPU メモリのバイト数。マニフェストの表と転送キューはこれとは別に予約される。既定は 256 MiB。"
     }
   },
   "createPathGovernor": {
