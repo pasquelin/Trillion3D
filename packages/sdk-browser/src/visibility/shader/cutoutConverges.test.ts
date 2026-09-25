@@ -42,15 +42,19 @@ function resolve(current: Float64Array, history: Float64Array, frame: number, w:
  *  jittered sample — the sample is at `(−jx, +jy)` from the centre (`../../taa/weights.ts`). */
 function held(pixel: (px: number, py: number) => number) {
   const jitter = new Float64Array(2);
-  let image = new Float64Array(SIDE * SIDE);
-  for (let frame = 1; frame <= TAA_STILL_FRAMES; frame++) {
-    const sample = (frame - 1) % TAA_SAMPLES;
+  // A still image depends on its jitter rank alone: the second cycle replays the first.
+  const images = Array.from({ length: TAA_SAMPLES }, (_, sample) => {
     taaJitter(sample, jitter);
     const current = new Float64Array(SIDE * SIDE);
     for (let y = 0; y < SIDE; y++)
       for (let x = 0; x < SIDE; x++)
         current[y * SIDE + x] = pixel(x + 0.5 - jitter[0]!, y + 0.5 + jitter[1]!);
-    image = resolve(current, image, frame, weights[sample]!);
+    return current;
+  });
+  let image = new Float64Array(SIDE * SIDE);
+  for (let frame = 1; frame <= TAA_STILL_FRAMES; frame++) {
+    const sample = (frame - 1) % TAA_SAMPLES;
+    image = resolve(images[sample]!, image, frame, weights[sample]!);
   }
   return image;
 }
@@ -58,10 +62,11 @@ function held(pixel: (px: number, py: number) => number) {
 /** The hard cut at the sample, and the exact coverage of the pixel around it (16×16 points). */
 const hard = (alpha: Field) => (px: number, py: number) => +(alpha(px, py) >= THRESHOLD);
 const coverage = (alpha: Field) => (px: number, py: number) => {
+  const cut = hard(alpha);
   let inside = 0;
   for (let i = 0; i < SUB; i++)
     for (let j = 0; j < SUB; j++)
-      inside += hard(alpha)(px - 0.5 + (i + 0.5) / SUB, py - 0.5 + (j + 0.5) / SUB);
+      inside += cut(px - 0.5 + (i + 0.5) / SUB, py - 0.5 + (j + 0.5) / SUB);
   return inside / (SUB * SUB);
 };
 
