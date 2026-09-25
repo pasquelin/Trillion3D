@@ -59,3 +59,31 @@ test('a strip, a loop and a wireframe read their segments into quads; a zero seg
   const faces = drawnTriangles(geometry.box(1, 1, 1), 'triangles')!;
   assert.equal(faces.lines, undefined, 'faces stay faces');
 });
+
+// #359: a dashed line's quads carry each corner's distance along the line, the running length of
+// the segments before it — the reference's `computeLineDistances` —, a loop's closing segment
+// continuing the count. Any other line keeps no coordinate, and the same quads to the byte.
+test('a dashed line carries the distance along the line; a solid one is unchanged', () => {
+  const path = geometry.createBuffer({
+    position: new BufferAttribute(new Float32Array([0, 0, 0, 3, 0, 0, 3, 4, 0]), 3),
+  });
+  const u = (drawn: NonNullable<ReturnType<typeof drawnTriangles>>) =>
+    Array.from(drawn.uvs!).filter((_, i) => i % 2 === 0);
+  const strip = drawnTriangles(path, 'lineStrip', { dashed: true })!;
+  assert.deepEqual(u(strip), [0, 0, 3, 3, 3, 3, 7, 7]);
+  assert.ok(Array.from(strip.uvs!).every((v, i) => i % 2 === 0 || v === 0));
+  assert.deepEqual(u(drawnTriangles(path, 'lineLoop', { dashed: true })!).slice(8), [7, 7, 12, 12]);
+  // Segments count on from the one before, as the reference's `LineSegments` does.
+  const pairs = drawnTriangles(path, 'lineSegments', { dashed: true })!;
+  assert.deepEqual(u(pairs), [0, 0, 3, 3]);
+  for (const reading of ['lineStrip', 'lineLoop', 'lineSegments'] as const) {
+    const solid = drawnTriangles(path, reading)!,
+      dashed = drawnTriangles(path, reading, { dashed: true })!;
+    assert.equal(solid.uvs, null, `${reading}: a solid line pays nothing`);
+    assert.deepEqual(solid.positions, dashed.positions);
+    assert.deepEqual(solid.normals, dashed.normals);
+    assert.deepEqual(solid.indices, dashed.indices);
+  }
+  const faces = drawnTriangles(geometry.box(1, 1, 1), 'triangles', { dashed: true })!;
+  assert.deepEqual(faces, drawnTriangles(geometry.box(1, 1, 1), 'triangles'), 'faces stay faces');
+});
