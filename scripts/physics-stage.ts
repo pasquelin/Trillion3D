@@ -1,7 +1,7 @@
 import type { ProfileWindow } from '../site/examples/kit/profile.ts';
 
 /** A clock over the windows: the median of their p50s and of their p95s, and the worst p95. */
-export interface StageSpread {
+interface StageSpread {
   p50: number;
   p95: number;
   worstP95: number;
