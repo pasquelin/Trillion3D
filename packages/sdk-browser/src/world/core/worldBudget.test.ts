@@ -17,9 +17,7 @@ import {
   SHADOW_TABLE_ENTRIES,
   shadowPoolSide,
 } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
-import { createShadowTable } from '../../../../sdk-core/src/scene/light-shadow/table.ts';
-import { createShadowPool } from '../../../../sdk-core/src/scene/light-shadow/pool.ts';
-import { createShadowAdmission } from '../../../../sdk-core/src/scene/light-shadow/admit.ts';
+import { createShadowPlan } from '../../../../sdk-core/src/scene/light-shadow/plan.ts';
 import { DEFAULT_CACHED_BYTES } from '../../streaming/pageCache.ts';
 import { DEFAULT_PHYSICS_BUDGET } from '../../../../sdk-core/src/physics/index.ts';
 import { createBounceCascades, type FrameMetrics } from '../../../../sdk-core/src/index.ts';
@@ -97,11 +95,9 @@ test('the shadow share counts the fixed page table, the same on every screen', (
 });
 
 test('the CPU total counts the shadow table host mirror before the page cache', () => {
-  // What a real table and pool allocate at the largest pool, whatever the screen: one size.
-  const side = shadowPoolSide(Infinity, Infinity);
-  const table = createShadowTable(side * side).hostBytes;
-  const admission = createShadowAdmission(side * side).hostBytes;
-  const host = table + createShadowPool(side).hostBytes + admission + SHADOW_BATCH_HOST_BYTES;
+  // What a real table, pool and list allocate at the largest pool, whatever the screen: one size.
+  const { table, pool, admission } = createShadowPlan(shadowPoolSide(Infinity, Infinity));
+  const host = table.hostBytes + pool.hostBytes + admission.hostBytes + SHADOW_BATCH_HOST_BYTES;
   assert.equal(SHADOW_HOST_BYTES, host);
   assert.ok(SHADOW_HOST_BYTES > SHADOW_TABLE_ENTRIES * 5, 'the words and their change flags');
   assert.equal(DEFAULT_CPU_BUDGET, SHADOW_HOST_BYTES + DEFAULT_CACHED_BYTES);

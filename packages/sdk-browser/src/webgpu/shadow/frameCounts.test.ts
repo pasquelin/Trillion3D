@@ -164,13 +164,11 @@ test('a sampled cull count covers every batch of its frame', async () => {
   words[5] = 7;
   const { counts, encoder, mapped } = samplingDevice(words);
   const copies: number[][] = [];
-  encoder.copyBufferToBuffer = ((
-    _s: GPUBuffer,
-    _o: number,
-    _d: GPUBuffer,
-    at: number,
-    size: number,
-  ) => copies.push([at, size])) as GPUCommandEncoder['copyBufferToBuffer'];
+  Object.assign(encoder, {
+    copyBufferToBuffer: (_s: GPUBuffer, _o: number, _d: GPUBuffer, at: number, size: number) => {
+      copies.push([at, size]);
+    },
+  });
   const indirect = {} as GPUBuffer;
   counts.sample(encoder, indirect, 1, 40);
   counts.sample(encoder, indirect, 1, 40);
