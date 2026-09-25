@@ -4,11 +4,10 @@
 // (`addressingGpuPage.ts`) and the parented camera (`parented-camera-gpu.ts`) use it. Playwright
 // and esbuild are the repo's dev dependencies: the engine proves itself, with no other project
 // on the machine.
-import { createServer } from 'node:http';
 import * as esbuild from 'esbuild';
 import type { Format } from 'esbuild';
 import { launchChrome } from '../../../bench/runner/chrome.ts';
-import { serverPort } from '../../kit/server/staticServer.ts';
+import { blankPageServer } from '../../kit/server/blankPage.ts';
 import { ouvrirAppareil } from './webgpuDevice.ts';
 import { namedBufferEntries } from '../../../packages/sdk-browser/src/gpu/core/computeBindings.ts';
 
@@ -65,20 +64,13 @@ export async function dansPageWebgpu<A, R>(
   options: { titre?: string; script?: string | null; erreursPage?: string[] | null } = {},
 ) {
   const { titre = 'Trillion3D WebGPU', script = null, erreursPage = null } = options;
-  const balise = script ? '<script src="/page.js"></script>' : '';
-  const html = `<!doctype html><title>${titre}</title>${balise}`;
-  const server = createServer((request, response) => {
-    const sert = script && request.url === '/page.js';
-    response.writeHead(200, { 'content-type': sert ? 'text/javascript' : 'text/html' });
-    response.end(sert ? script : html);
-  });
-  await new Promise<void>((ready) => server.listen(0, '127.0.0.1', () => ready()));
+  const { server, port } = await blankPageServer(titre, script);
   const browser = await launchChrome({ headless: true });
   try {
     const page = await browser.newPage();
     if (erreursPage) page.on('pageerror', (error) => erreursPage.push(error.message));
     await page.addInitScript({ content: PAGE_INIT_SCRIPT });
-    await page.goto(`http://127.0.0.1:${serverPort(server)}/`);
+    await page.goto(`http://127.0.0.1:${port}/`);
     // `page.evaluate`'s `PageFunction<A, R>` runs `argument` through Playwright's `Unboxed<A>`,
     // which only differs from `A` when it carries a `JSHandle` — never the plain data this harness
     // sends. TypeScript cannot verify that for a free `A`, so the boundary is cast once here. The

@@ -27,7 +27,7 @@ test('each DAG buffer name owns its own binding, from 0 without a gap', () => {
 /** WGSL's own callables the selection shader uses: types, attributes, keywords and built-ins. */
 const WGSL_OWN = new Set(
   (
-    'abs asin atomicAdd atomicLoad atomicMax atomicOr atomicStore binding bitcast builtin clamp ' +
+    'abs asin atomicAdd atomicAnd atomicLoad atomicMax atomicOr atomicStore binding bitcast builtin clamp ' +
     'cross dot f32 floor for group i32 if length log2 mat3x3f mat4x4f max min normalize return ' +
     'round select sin sqrt transpose u32 vec2f vec3f vec4f vec2 vec3 vec4 while workgroupBarrier ' +
     'workgroup_size'

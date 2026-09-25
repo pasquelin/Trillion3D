@@ -66,11 +66,7 @@ export function explorerOptions(
     bounce: options.bounce === true,
     // Lights the source file carried: the engine declares them alone, the bench can silence them.
     importedLights: options.importedLights !== false,
-    // The Shadows-stage budget and page invalidation: without these options, the engine keeps
-    // its own published settings.
-    ...(typeof options.shadowBudgetMs === 'number'
-      ? { shadowBudgetMs: options.shadowBudgetMs }
-      : {}),
+    // Page invalidation: without the option, the engine keeps its own published setting.
     ...(options.shadowPages === false ? { shadowPageInvalidation: false } : {}),
     // Whether the loader opens the source images. Forwarded both ways since the engine's own
     // default became `'cache'` (#289): a witness side asks for `'host'` and has to be heard, or

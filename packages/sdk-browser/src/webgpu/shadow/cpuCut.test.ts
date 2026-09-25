@@ -3,11 +3,10 @@
 // cut's state outlives the frame, and a cluster the pool takes in restales the pages it covers.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { SHADOW_CULL_FLOATS } from '../../../../sdk-core/src/index.ts';
-import { DRAW_FULL } from '../../../../sdk-core/src/scene/light-shadow/pool.ts';
+import { VIEW } from '../../../../sdk-core/src/scene/light-shadow/lightShadow.fixture.ts';
 import { createWebgpuLightState } from '../pages/state/lights.ts';
 import { planImageShadows } from '../pages/render/encodeShadows.ts';
-import { encodeShadowCasters, redrawShortPages } from './casters.ts';
+import { encodeShadowCasters } from './casters.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 
 const SUN = {
@@ -19,20 +18,17 @@ const SUN = {
   castsShadow: true,
 };
 
-test('a plan read a second time in a frame returns its regions, not its pages', () => {
+test('a plan read a second time in a frame returns its pages, and plans nothing more', () => {
   const lights = createWebgpuLightState(32);
   lights.store.add(SUN);
-  const volumes = new Float32Array(4 * SHADOW_CULL_FLOATS);
-  // Two pages drawn in full over a static layer: four regions.
-  lights.regions.push(3, DRAW_FULL, volumes, new Uint32Array(volumes.buffer));
-  lights.regions.push(4, DRAW_FULL, volumes, new Uint32Array(volumes.buffer));
-  lights.shadowPages = 2;
+  const planned = lights.plan.plan(lights.store, VIEW, [-10, 0, -10], [10, 5, 10], 7, 0);
+  assert.ok(planned > 0, 'the floor pages of a new sun');
   lights.plannedFrame = 7;
   const rt = { lights, run: { frame: 7 } } as unknown as WebgpuPagesRuntime;
-  assert.equal(planImageShadows(rt, undefined as never), 4);
+  assert.equal(planImageShadows(rt, undefined as never), planned);
 });
 
-test('a frame on the CPU cut keeps the light cut, and a dropped cut lifts its view limit', () => {
+test('a frame on the CPU cut keeps the light cut', () => {
   const lights = createWebgpuLightState(32);
   const cut = { unsettled: true };
   lights.lightCut = cut as never;
@@ -49,10 +45,6 @@ test('a frame on the CPU cut keeps the light cut, and a dropped cut lifts its vi
     setup: { maxCorners: 0 },
     timing: {},
   } as unknown as WebgpuPagesRuntime;
-  encodeShadowCasters(rt, {} as GPUCommandEncoder, 0);
+  encodeShadowCasters(rt, {} as GPUCommandEncoder, 0, 0, 0, 0);
   assert.equal(lights.lightCut, cut, 'its waiting pages and its reports stay');
-  lights.plan.admission.setViewLimit(3);
-  lights.lightCut = undefined;
-  redrawShortPages(rt, 4, 64, false);
-  assert.equal(lights.plan.admission.viewLimit, 24, 'no cut left to limit the frame');
 });
