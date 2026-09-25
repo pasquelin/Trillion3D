@@ -13,6 +13,7 @@ import {
   FLAG_TRANSMISSIVE,
 } from '../../visibility/buffer.ts';
 import { WATER_RANK_SHIFT } from '../water/surfaceWgsl.ts';
+import { neverCulled } from '../../visibility/shader/spriteWgsl.ts';
 import { ensureWebgpuPositionBuffer } from '../core/positions.ts';
 import { ensureBlendIndexBuffer, ensureBlendNormalBuffer, ensureBlendUvBuffer } from './buffers.ts';
 import type { createWebgpuBlendState } from './state.ts';
@@ -68,9 +69,9 @@ export function prepareWebgpuBlend(
     // No transform is baked here: the item carries the live world matrix of its source mesh, and
     // its box is SET by the same path that will refresh it after a move. The world box stays
     // conservative under rotation, mirror, non-uniform scale and shear — `boxTransform` guarantees
-    // that, not a decomposition.
+    // that, not a decomposition. A surface never culled (`neverCulled`) takes none either.
     let worldBox: Float64Array | undefined;
-    if (copy.frustumCulled) {
+    if (copy.frustumCulled && !neverCulled(mat)) {
       if (!copy.geometry.boundingBox) copy.geometry.computeBoundingBox();
       if (copy.geometry.boundingBox) worldBox = new Float64Array(BOX_VALUES);
     }
