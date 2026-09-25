@@ -21,40 +21,38 @@ origin/develop`, or the app's sync tool), then re-read `AGENTS.md` and `docs/rol
 origin/develop`, nothing else written there) at start and after every merge you make.
 1. **State.** Read the last handover comment on #483 (`docs/roles/cto.md` step 6), then the open
    PRs and the open issues by domain: `measure ko` / `audit ko`, then by priority label.
-2. **Give the boss one prompt per session, first thing.** Before anything else, write one prompt
-   per session to open, each in its own `text` code block, ready to paste, in the order he should
-   open them: one **lead** per domain with work (the domains of AGENTS.md §Roles; a bug goes to its
-   domain), priority domain first; the **architect**, naming the area of its round
-   (`docs/roles/architect.md`); the **analyst** (every two hours, below), with the time of its last
-   run; one **measurer** when `to measure` has work; one **acceptance** session when merges are not
-   yet `audited`. Never two sessions on one domain. You start none of them yourself.
-3. **Brief.** Every prompt starts with the role's skill (`/t3d-lead <domain>`…) and carries, in
-   this order:
-   - the role and the repository root (the main checkout, never written to): worktrees go in
-     `.worktrees/<branch>/` of the checkout that session runs in (AGENTS.md rule 4), then
-     `pnpm install` there;
-   - what to read, and nothing more (`AGENTS.md` is already in its context): its skill (the
-     Skill column of `docs/COMPANY.md`), its `docs/roles/` file;
-   - its ordered list: its open PRs by number, if any, then its issues in the order of
-     AGENTS.md §Leads;
-   - the agent bound (AGENTS.md rule 9): a lead runs `coder` then `reviewer`
-     (`subagent_type` `coder` / `reviewer`) per AGENTS.md §Leads, each given the worktree as its
-     working directory; the architect, measurer, acceptance and analyst run none;
-   - when to stop: a lead after two issues merged or closed, or its list exhausted or blocked; the
-     measurer and acceptance after their queue is empty. It cleans its worktrees and branches,
-     then ends with a report of at most six lines;
-   - how to reach you: `SendMessage` to your session (its name in `ListAgents`) for "ready #<pr>",
-     a blocker or a question; a lead supervises its own PRs with `/loop` and runs its `coder` and
-     `reviewer` in the foreground (`run_in_background: false`), one at a time.
+2. **Give the boss this list, first thing, and nothing more** — one command per line, each
+   opened by him in its own session:
+
+   ```text
+   /t3d-lead lighting
+   /t3d-lead compiler
+   /t3d-lead sdk
+   /t3d-lead physics
+   /t3d-lead textures
+   /t3d-lead geometry
+   /loop /t3d-architect
+   /loop /t3d-analyst
+   /loop /t3d-measure
+   /loop /t3d-recette
+   ```
+
+   No brief, no issue list, no explanation: each role's skill finds its own work (its domain's
+   issues in the order of AGENTS.md §Leads, its queue, its area). You start none of them yourself.
+
+3. **Each session's skill carries its own brief**: it brings its checkout up to `origin/develop`,
+   re-reads the rules, picks its work from GitHub, runs its `coder` and `reviewer` in the
+   foreground, and reaches you by `SendMessage` (your session is in `ListAgents`).
 4. **Supervise** with `/loop 30m` on the checks below until the boss says stop. Talk only to the
    sessions' leads (never to a coder or reviewer); merge in age order what a lead names ready.
 
 ## Each supervision pass
 
-- **Activity:** every domain with work has a live lead session. A lead that ended, or a stuck
-  one after a `SendMessage`, gets a fresh prompt for the boss on the rest of its list (its state is
-  in GitHub labels). Never two leads on one domain. The analyst gets a new prompt once two hours
-  have passed since its last run.
+- **Activity:** every domain with work has a live lead session. A lead session that ended, or stays stuck after a `SendMessage`, is named to the boss with its command (`/t3d-lead <domain>`) to reopen; its state is in GitHub labels. Never two leads on one domain. The `/loop` sessions relaunch themselves.
+- **Open pull requests first, every pass:** a ready one is merged within minutes (age order); one
+  with no push for 20 minutes gets a `SendMessage` to its lead; one whose lead session is gone
+  is named to the boss at once with its command (`/t3d-lead <domain>`). No pull request stays
+  open past the hour of AGENTS.md rule 11.
 - **Flow:** each lead within AGENTS.md §Leads; one lead per issue. Name to each lead its
   green-but-unmerged, red, conflicting or stale PR; merge the ready ones in the order of
   AGENTS.md rule 11.
@@ -64,7 +62,7 @@ origin/develop`, nothing else written there) at start and after every merge you 
   three merges get a second fresh reviewer; if it stays above, stop the lead and tell the boss.
 - **Boss's adjustments:** every standing instruction the boss gives on how the company works is
   written, the same day, into the file that owns it (this skill, a `docs/roles/` file, AGENTS.md)
-  in the next rules PR (`docs/roles/cto.md`), `Part of` the company's open programme (such as #483), so a fresh session starts up
+  in the next rules PR (`docs/roles/cto.md`), closing its own rules issue (AGENTS.md rule 5), so a fresh session starts up
   to date. Replace or delete the line it changes, never pile a new one beside it: the files stay
   short, since every agent reads them.
 - **Priorities:** the priority labels of the leads' issues are the only order (`docs/roles/cto.md`
@@ -104,7 +102,7 @@ PRs, its audit-ko rate, its closures today; for acceptance and measurement, thei
 ## Hygiene
 
 No pollution, no technical debt: every lead removes its merged or stale worktrees and branches
-(local and remote) as soon as a PR merges or is abandoned, and before stopping. At the end of the
+(local and remote) as soon as a PR merges, and before stopping. At the end of the
 day, check `git worktree list` and `gh pr list` for leftovers and have their owners clean them.
 
 ## At the end of the day
