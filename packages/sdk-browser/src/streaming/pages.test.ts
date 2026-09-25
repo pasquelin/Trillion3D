@@ -165,3 +165,26 @@ test('an identical pin list resets nothing, a list that changes resets everythin
   assert.deepEqual(evicted, ['b.bin', 'a.bin']);
   streamer.dispose();
 });
+
+test('a streamer of its own holds `maxCachedBytes` of pages beside its reservations, and empties at dispose', async () => {
+  const { pages } = await servedPages(['a.bin', 'b.bin', 'c.bin']);
+  const evicted: string[] = [];
+  // Room for two 12-byte pages, whatever the manifest tables and the transfer queue reserve.
+  const streamer = createPageStreamer(
+    pages,
+    'http://cache/',
+    undefined,
+    1,
+    undefined,
+    (url) => evicted.push(url),
+    undefined,
+    undefined,
+    24,
+  );
+  await streamer.request(['a.bin', 'b.bin', 'c.bin']);
+  assert.deepEqual(evicted, ['a.bin']);
+  assert.equal(streamer.stats().maxCachedBytes, 24);
+  assert.equal(streamer.stats().residentBytes, 24);
+  streamer.dispose();
+  assert.equal(streamer.has('c.bin'), false);
+});

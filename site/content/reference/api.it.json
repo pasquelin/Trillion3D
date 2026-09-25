@@ -1146,7 +1146,7 @@
   },
   "createPageStreamer": {
     "summary": "Letture limitate, per priorità e senza duplicati.",
-    "description": "Una richiesta ancora in attesa in coda viene scartata quando il suo ultimo consumatore se ne va; una richiesta già in transito può arrivare nella cache. La cache è un insieme «usato meno di recente» limitato sia in voci che in byte; le voci fissate sopravvivono allo sfratto, quindi un chiamante mantiene la propria copertura mostrata trattenendola. La cache è `kept` quando il chiamante ne fornisce una (`pageCache.ts`): il lettore riserva allora le sue tabelle di manifesto e la sua coda di trasferimenti sul totale CPU della cache, scarta ciò che il catalogo non nomina più a quella dimensione, e vi lascia le pagine quando viene rilasciato, per la sessione successiva."
+    "description": "Una richiesta ancora in attesa in coda viene scartata quando il suo ultimo consumatore se ne va; una richiesta già in transito può arrivare nella cache. La cache è un insieme «usato meno di recente» limitato sia in voci che in byte; le voci fissate sopravvivono allo sfratto, quindi un chiamante mantiene la propria copertura mostrata trattenendola."
   },
   "createPathGovernor": {
     "summary": "Un regolatore."
@@ -4266,13 +4266,6 @@
   },
   "pageCarriesClusterError": {
     "summary": "Un cluster che porta la propria banda di errore sullo schermo non ha bisogno di gerarchia: la scelta è un test piatto per pagina."
-  },
-  "PageCacheHolder": {
-    "summary": "La presa di una sessione sulla cache: ciò che riserva dal totale e come espelle — oltre le pagine fissate e i trasferimenti — quando il totale scende.",
-    "members": {
-      "reservedBytes": "Byte che la sessione riserva dal totale: le tabelle del manifesto e la coda dei trasferimenti.",
-      "evict": "Espelle le pagine per ultimo uso finché non rientrano, oltre le pagine fissate e i trasferimenti della sessione."
-    }
   },
   "PageCutPage": {
     "summary": "Una pagina scritta da un `cut`: i suoi byte di indice e di geometria, le loro impronte, e il suo descrittore.",
