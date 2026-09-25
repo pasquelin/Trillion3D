@@ -52,3 +52,14 @@ test('a moved centre reaches the world, and a clone keeps it', () => {
     assert.equal((copy.material as Material).rotation, 0.3);
   }
 });
+
+test('a sprite wears only a sprite material, as the reference Sprite takes a SpriteMaterial', () => {
+  const kind = /A sprite wears a material\.sprite, not material\.meshStandard\./;
+  assert.throws(() => object.sprite(material.meshStandard()), kind);
+  const sprite = object.sprite();
+  assert.throws(() => (sprite.material = material.meshStandard()), kind);
+  assert.throws(() => (sprite.material = [material.sprite()]), /not a material list/);
+  const picture = material.sprite({ rotation: 1 });
+  sprite.material = picture;
+  assert.equal(sprite.material, picture);
+});

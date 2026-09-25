@@ -66,8 +66,7 @@ fn shadowVertex(vertexIndex:u32,instanceIndex:u32,blended:bool)->ShadowOut{
  let page=pages[pageIndex];
  out.instance=pageIndex;out.uv=vec2f(0.0);out.fromEmitter=vec3f(0.0);
  let kind=(page.flags&${FLAG_BLEND_CASTER}u)!=0u;
- // A sprite casts no shadow, as the reference's: its quad faces the camera, never the light.
- if(vertexIndex>=page.indexCount||kind!=blended||page.sprite.y!=0.0){out.position=vec4f(0.0,0.0,2.0,1.0);return out;}
+ if(vertexIndex>=page.indexCount||kind!=blended){out.position=vec4f(0.0,0.0,2.0,1.0);return out;}
  let h=pageHeader(page);
  let id=pageCorner(page,h,vertexIndex);
  let vertex=pagePosition(page,h,id);

@@ -166,6 +166,9 @@ The rules of #483, binding on every change to geometry, streaming, memory, shado
 ## Personal tools stay local
 
 The agent rules (`AGENTS.md`) and the agent roles (`docs/roles/`) are tool-neutral and tracked.
+The company's shared assistant skills and agents are tracked in `skills/` and aliased into the
+local `.claude/` by `pnpm install` (`pnpm run skills:link`, see `docs/COMPANY.md`); nothing in the
+workflow requires them, and `.claude/` itself stays local.
 Personal assistant instructions, prompts, generated knowledge indexes and local tool settings
 must remain untracked. The shared setup, validation and contribution workflow must work without
 any personal assistant or indexing tool. Do not introduce such requirements in documentation,

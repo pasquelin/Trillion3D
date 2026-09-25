@@ -26,9 +26,15 @@ export async function startModule(
   const full = { ...DEFAULT_PHYSICS_BUDGET, bodies: 64, memoryBytes: 64 << 20, ...budget };
   const opened = await openJolt(bytes, full.memoryBytes, pool);
   const jolt = startJolt(opened, full, pool?.count ?? 1);
-  /** The joints the module's gear linking has visited since it started (`jolt_link_visits`). */
-  const linkVisits = () => (opened.exports.jolt_link_visits as () => number)();
-  return { ...jolt, linkVisits };
+  /** A diagnostic count the module keeps since it started: the joints some work has visited. */
+  const count = (name: string) => () => (opened.exports[name] as () => number)();
+  /** By the gear linking, the step's path carry and the step's breaking (`jolt_*_visits`). */
+  const visits = {
+    link: count('jolt_link_visits'),
+    path: count('jolt_path_visits'),
+    break: count('jolt_break_visits'),
+  };
+  return { ...jolt, visits };
 }
 
 /** The threaded module stepped by `count` threads (Node workers); `close` stops them. */

@@ -1,6 +1,8 @@
 import type { PageRec } from '../../page/selection/selection.ts';
-import type { HostGeometry } from '../../host/resources.ts';
+
 import { hostPageBytes } from '../../host/pageObjects.ts';
+import { attachedPages } from '../../placement/autonomousPlacements.ts';
+import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts';
 
 /**
  * Decoded bytes nothing may evict: the root cover and the pages the host replaced, counted as the
@@ -17,7 +19,9 @@ export function createHeldFloor(env: {
   const { bootstrap, modifiedPages, byUrl } = env;
   let revision = 0,
     read = -1,
-    bytes = 0;
+    bytes = 0,
+    meshesRead = -1,
+    meshes = 0;
   return {
     /** What the root cover holds changed; the pool reads the same revision (`coverRevision`). */
     changed() {
@@ -30,7 +34,7 @@ export function createHeldFloor(env: {
       if (read === revision) return bytes;
       read = revision;
       bytes = 0;
-      const seen = new Set<HostGeometry>();
+      const seen = new Set<Geometry>();
       const add = ({ geometry }: PageRec) => {
         if (!geometry || seen.has(geometry)) return;
         seen.add(geometry);
@@ -39,6 +43,13 @@ export function createHeldFloor(env: {
       for (const rec of bootstrap) add(rec);
       for (const url of modifiedPages) for (const rec of byUrl.get(url) ?? []) add(rec);
       return bytes;
+    },
+    /** The display meshes the root cover hangs (`attachedPages`), read again only after
+     *  `changed`: a transparent page counts once per row that places it. */
+    meshes() {
+      if (meshesRead === revision) return meshes;
+      meshesRead = revision;
+      return (meshes = attachedPages(bootstrap));
     },
   };
 }

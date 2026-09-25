@@ -31,7 +31,7 @@ export function witnessRenderer(): { renderer: THREE.WebGLRenderer; canvas: HTML
 }
 
 /** The fixture's square: a lit one carries normals, a normal-mapped one its tangents. */
-function square(fixture: Fixture): G.GraphGeometry {
+function square(fixture: Fixture): G.Geometry {
   const geometry = G.planeGeometry(2, 2);
   if (fixture.tangents)
     geometry.setAttribute(

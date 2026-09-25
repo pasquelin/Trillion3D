@@ -6,10 +6,10 @@ import { dagRoots, DAG, MANIFEST_IDENTITY } from './pagesBackend.fixture.ts';
 import { submittedDraws } from '../cluster/batchMesh.ts';
 
 test('exact pages batch clusters of the same primitive in beauty mode and unbatch in diagnostic mode', () => {
-  const g1 = new G.GraphGeometry();
+  const g1 = new G.Geometry();
   g1.setAttribute('position', G.floatAttribute([-1, -1, 0, 1, -1, 0, 1, 1, 0, -1, 1, 0], 3));
   g1.setIndex(G.indices([0, 1, 2, 0, 2, 3]));
-  const g2 = new G.GraphGeometry();
+  const g2 = new G.Geometry();
   g2.setAttribute('position', G.floatAttribute([2, -1, 0, 4, -1, 0, 4, 1, 0, 2, 1, 0], 3));
   g2.setIndex(G.indices([0, 1, 2, 0, 2, 3]));
   const m1 = G.mesh(g1, G.basicSurface()),

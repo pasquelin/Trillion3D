@@ -60,8 +60,8 @@ fn drawnCounter()->u32{return liveCounter()+7u;}
 fn drawnGroups()->u32{return drawnCounter()+1u;}
 /** Index of the primitive's root node, deposited once and for all behind its stretch. */
 fn rootOf(w:u32)->u32{return bitcast<u32>(frames[w*FRAME+6u].y);}
-/** True on a primitive no camera culls (\`PackedDag.unculled\`), the word behind its record shift. */
-fn unculledOf(w:u32)->bool{return bitcast<u32>(frames[w*FRAME+6u].w)!=0u;}
+/** The primitive's sprite mark (\`PackedDag.sprite\`), the word behind its record shift. */
+fn spriteOf(w:u32)->u32{return bitcast<u32>(frames[w*FRAME+6u].w);}
 /** A range append, each entry tagged with the current view: the group count follows the
  *  opening of each sixty-four slice, so it equals \`ceil(total/64)\` without a one-thread kernel
  *  pulling it afterwards. What passes the list's capacity is dropped and said (\`dropWork\`). */

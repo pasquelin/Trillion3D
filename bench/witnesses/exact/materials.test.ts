@@ -20,7 +20,7 @@ function page(
   return { clusterId, declaration, lodError: 0, ...extra } as unknown as PageRec;
 }
 function indexedQuad() {
-  const geometry = new G.GraphGeometry();
+  const geometry = new G.Geometry();
   geometry.setAttribute('position', G.floatAttribute([0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0], 3));
   geometry.setIndex(G.indices([0, 1, 2, 0, 2, 3]));
   return geometry;
@@ -99,12 +99,12 @@ test('the screen-error view rewrites its colour from the error the page projects
 test('painting a page swaps the expanded triangles in under wireframe and the source elsewhere', () => {
   const geometry = indexedQuad(),
     declaration = G.standardSurface();
-  const mesh = G.mesh(new G.GraphGeometry(), declaration);
+  const mesh = G.mesh(new G.Geometry(), declaration);
   const wireframe = materials('wireframe').made;
   wireframe.paint(mesh, geometry, declaration, hashId('c1'));
   assert.equal(mesh.geometry, triangleGeometry(geometry, pageDiagnostics, hashId('c1')));
   assert.equal(mesh.geometry.getIndex(), null);
-  assert.equal(mesh.geometry.getAttribute('color').count, 6);
+  assert.equal(mesh.geometry.getAttribute('color')?.count, 6);
   materials('pages').made.paint(mesh, geometry, declaration);
   assert.equal(mesh.geometry, geometry, 'every other view draws the source geometry');
   wireframe.disposeMaterials();
@@ -115,7 +115,7 @@ test('painting a page swaps the expanded triangles in under wireframe and the so
 test('a transparent copy is repainted like a page, on its own identity, and given back on beauty', () => {
   const geometry = indexedQuad(),
     declaration = G.standardSurface({ transparent: true, opacity: 0.4 });
-  const copy = G.mesh(new G.GraphGeometry(), G.basicSurface());
+  const copy = G.mesh(new G.Geometry(), G.basicSurface());
   copy.userData.sourceGeometry = geometry;
   copy.userData.sourceMaterial = declaration;
   const wireframe = materials('wireframe', [copy]).made;

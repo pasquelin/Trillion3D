@@ -62,13 +62,13 @@ test('gear linking: a joint costs the same link work whatever the other joints',
     [0, 2, 4].forEach((i) => rig.wanted.add(joint.gear(wheels[i], wheels[i + 1], { ratio: 2 })));
     rig.run(1);
     const anchor = rig.cube(0, 0, 6);
-    const before = rig.linkVisits();
+    const before = rig.visits.link();
     for (let i = 0; i < plain; i++) rig.wanted.add(joint.point(anchor, null));
     rig.run(1);
-    const plainWork = rig.linkVisits() - before;
+    const plainWork = rig.visits.link() - before;
     rig.wanted.add(joint.hinge(wheels[0], null));
     rig.run(1);
-    return { plainWork, hingeWork: rig.linkVisits() - before - plainWork };
+    return { plainWork, hingeWork: rig.visits.link() - before - plainWork };
   }
   const [few, many] = [await work(4), await work(40)];
   assert.equal(few.plainWork, 0, 'a plain joint links no gear');

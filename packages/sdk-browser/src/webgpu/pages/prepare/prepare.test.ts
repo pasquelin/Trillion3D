@@ -18,7 +18,7 @@ import {
 import type { PageRec } from '../../../page/selection/selection.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 
-function triangle(material: G.GraphSurface, attributes: G.GraphGeometry['attributes']) {
+function triangle(material: G.GraphSurface, attributes: G.Geometry['attributes']) {
   return {
     array: Uint32Array.of(0, 1, 2),
     attributes,

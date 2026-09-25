@@ -61,7 +61,7 @@ test('a manifest with no page and no bundle yields empty indexes on both sides',
 });
 
 test('pagesBounds yields the same box as the reference, a « coarse » page excluded, a mesh without association reported', () => {
-  const geometry = new G.GraphGeometry();
+  const geometry = new G.Geometry();
   const meshFound = G.mesh(geometry, G.basicSurface());
   const meshMissing = G.mesh(geometry, G.basicSurface());
   const source = new G.Group();
@@ -96,7 +96,7 @@ test('pagesBounds yields the same box as the reference, a « coarse » page excl
 // `Box3.applyMatrix4`/`union`. Bit-exact on hostile matrices — negative scale, shear, singular
 // matrix, NaN — and a depth-3 hierarchy.
 test('pagesBounds agrees with the reference on hostile matrices, depth-3 hierarchy', () => {
-  const geometry = new G.GraphGeometry();
+  const geometry = new G.Geometry();
   const racine = new G.Group();
   racine.scale.set(-3, 1, 1); // negative scale
   const enfant = new G.Group();
@@ -138,7 +138,7 @@ test('pagesBounds agrees with the reference on hostile matrices, depth-3 hierarc
 // Batch M4a: no allocation per page — one working buffer for the whole loop. Checked by passing
 // the same `into` output from one call to the next: that is what comes back, never a new object.
 test('pagesBounds reuses the `into` output instead of allocating one per page', () => {
-  const geometry = new G.GraphGeometry();
+  const geometry = new G.Geometry();
   const mesh = G.mesh(geometry, G.basicSurface());
   const source = new G.Group();
   source.add(mesh);

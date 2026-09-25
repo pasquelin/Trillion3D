@@ -20,9 +20,12 @@ import { createWorldPoses } from './worldPoses.ts';
 import type { Cut } from './worldCuts.ts';
 import type { Seat } from './worldBatches.ts';
 import { boxTransform } from '../../../../sdk-core/src/index.ts';
-import { spriteAt } from '../../visibility/shader/spriteWgsl.ts';
+import { SPRITE_UNCULLED, spriteAt } from '../../visibility/shader/spriteWgsl.ts';
+import { dagFixture } from '../../page/selection/dag.fixture.ts';
+import { packed } from '../../gpu/dag/selectionHelpers.fixture.ts';
+import { primitiveFrameWords, primitiveWordAt } from '../../gpu/dag/worlds.ts';
 
-test('a sprite surface carries its turn and size rule, both sides, and a repaint writes them', () => {
+test('a sprite surface carries its turn and size rule, both sides, and a repaint writes its turn', () => {
   const picture = material.sprite({ rotation: 0.4, sizeAttenuation: false });
   const surface = hostSurface(picture, false, new Map(), 'sprite');
   assert.equal(surface.side, hostSide('double'), 'a quad turned to the camera has no back');
@@ -36,7 +39,8 @@ test('a sprite surface carries its turn and size rule, both sides, and a repaint
   picture.rotation = 1.2;
   picture.sizeAttenuation = true;
   repaintHostSurface(surface, picture);
-  assert.deepEqual(importHostSurface(surface)?.sprite, { rotation: 1.2, sizeAttenuation: true });
+  // The size rule sets the root mark, taken once at collection: a repaint never moves it.
+  assert.deepEqual(importHostSurface(surface)?.sprite, { rotation: 1.2, sizeAttenuation: false });
   // The same material worn by faces is no sprite.
   assert.equal(importHostSurface(hostSurface(picture, false, new Map()))?.sprite, undefined);
 });
@@ -48,6 +52,29 @@ test("a sprite's rotation written at run time repaints its entry in place", () =
   cutout.rotation = 0.8;
   assert.equal(table.entryOf(cutout), entry);
   assert.deepEqual(table.takeRepainted(), [{ entry, values: true }]);
+});
+
+// The root mark (`spriteMark`) is taken once, when a session collects its roots: a size rule
+// written at run time is a new entry, so the session opens again and every cut reads the new mark.
+test("a sprite's size rule written at run time is a new entry, whose roots carry the new mark", () => {
+  const table = createWorldMaterials();
+  const cutout = material.sprite({ transparent: false, alphaTest: 0.5 });
+  const marks: number[] = [];
+  for (const sizeAttenuation of [true, false, true]) {
+    const before = table.entryOf(cutout);
+    cutout.sizeAttenuation = sizeAttenuation;
+    const entry = table.entryOf(cutout);
+    if (marks.length) assert.notEqual(entry, before, 'copied on write, never repainted');
+    assert.deepEqual(table.takeRepainted(), []);
+    const fixture = dagFixture();
+    fixture.mesh.material = hostSurface(entry.material, false, new Map(), 'sprite');
+    const { roots, dag } = packed(fixture);
+    const frames = new Uint32Array(primitiveFrameWords(dag).buffer);
+    assert.equal(roots[0].sprite, dag.sprite[0], 'the CPU cut root and the packed DAG agree');
+    marks.push(frames[primitiveWordAt(0) + 3]);
+    fixture.geometry.dispose();
+  }
+  assert.deepEqual(marks, [1, SPRITE_UNCULLED | 1, 1], 'the GPU frame word follows');
 });
 
 test("a sprite's host mesh wears the sprite surface and is bounded by its radius", () => {

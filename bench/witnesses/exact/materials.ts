@@ -3,7 +3,6 @@ import type {
   HostDiagnosticMaterial,
   HostMaterials,
 } from '../../../packages/sdk-browser/src/host/resources.ts';
-import type { GraphGeometry } from '../../../packages/sdk-browser/src/host/graph/geometry.ts';
 import type { GraphMesh } from '../../../packages/sdk-browser/src/host/graph/mesh.ts';
 import { GraphSurface } from '../../../packages/sdk-browser/src/host/graph/surface.ts';
 import { Color } from '../../../packages/sdk-core/src/world/math/color.ts';
@@ -17,6 +16,7 @@ import {
 import { triangleGeometry } from '../../../packages/sdk-browser/src/diagnostic/triangleDiagnostic.ts';
 import { materialSide } from '../../../packages/sdk-browser/src/scene/materialSide.ts';
 import type { DiagnosticMode } from '../../../packages/sdk-core/src/index.ts';
+import type { Geometry } from '../../../packages/sdk-core/src/world/geometry/geometry.ts';
 
 type MaterialsOptions = {
   blendCopies: GraphMesh[];
@@ -86,22 +86,17 @@ export function createExactPagesMaterials(options: MaterialsOptions) {
     }
     return material as GraphSurface;
   };
-  const paint = (
-    mesh: GraphMesh,
-    sourceGeometry: GraphGeometry,
-    material: HostMaterials,
-    salt = 0,
-  ) => {
+  const paint = (mesh: GraphMesh, sourceGeometry: Geometry, material: HostMaterials, salt = 0) => {
     mesh.material = material;
     mesh.geometry =
       options.diagnostic === 'wireframe'
-        ? (triangleGeometry(sourceGeometry, pageDiagnostics, salt) as GraphGeometry)
+        ? (triangleGeometry(sourceGeometry, pageDiagnostics, salt) as Geometry)
         : sourceGeometry;
   };
   const paintBlend = () => {
     for (const copy of options.blendCopies) {
       // What the copy wore before any view, kept by the batches (`clusterBatches.ts`).
-      const sourceGeometry = copy.userData.sourceGeometry as GraphGeometry;
+      const sourceGeometry = copy.userData.sourceGeometry as Geometry;
       const sourceMaterial = copy.userData.sourceMaterial as HostMaterials;
       if (options.diagnostic === 'wireframe') {
         // A copy is told apart by its node number: a graph mesh carries no library `uuid`.
