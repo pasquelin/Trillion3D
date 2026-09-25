@@ -51,9 +51,11 @@ fn clipNear(pa:vec4f,pb:vec4f,pc:vec4f,ua:vec3f,ub:vec3f,uc:vec3f)->Clip{
  }
  return res;
 }
+// Each vec3f corner (UV, vertex alpha) shares its sixteen bytes with a word: the struct grows by
+// sixteen bytes over the UV alone, not thirty-two.
 struct Tri{ca:vec4f,cb:vec4f,cc:vec4f,cd:vec4f,
- a:vec2f,b:vec2f,c:vec2f,d:vec2f,ua:vec3f,ub:vec3f,uc:vec3f,ud:vec3f,lo:vec2f,hi:vec2f,
- ok:u32,row:u32,triangle:u32,quad:u32,area0:f32,area1:f32,}
+ ua:vec3f,ok:u32,ub:vec3f,row:u32,uc:vec3f,triangle:u32,ud:vec3f,quad:u32,
+ a:vec2f,b:vec2f,c:vec2f,d:vec2f,lo:vec2f,hi:vec2f,area0:f32,area1:f32,}
 fn setupTriangle(pageIndex:u32,triangle:u32,vp:mat4x4f,det:f32)->Tri{
  var t:Tri;t.ok=0u;t.row=pageIndex;t.triangle=triangle;t.quad=0u;
  let page=pages[pageIndex];
