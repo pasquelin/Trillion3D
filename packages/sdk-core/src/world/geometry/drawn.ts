@@ -1,9 +1,11 @@
 import { crossVector3, lengthSqVector3, normalizeVector3 } from '../../math/primitives/vector.ts';
 import { computeNormals } from './normals.ts';
-import { GeometryBuilder, fromArrays } from './builder.ts';
+import { GeometryBuilder } from './builder.ts';
 import type { Geometry } from './geometry.ts';
 import { edgesOf } from './lines.ts';
 import type { Primitive } from '../object/mesh.ts';
+import { drawnSprite } from './drawnSprite.ts';
+import { flatten } from './drawnFlat.ts';
 
 /** The triangles a mesh draws, as the page cutter reads them. `lines` says they are line quads
  *  (`quads`), which every raster widens on screen by the surface's `lineWidth`; a dashed line's
@@ -15,9 +17,19 @@ export interface DrawnTriangles {
   colors: Float32Array | null;
   indices: Uint32Array;
   lines?: boolean;
+  /** Set on a sprite's quad (`drawnSprite`): its farthest corner from the sprite's origin. */
+  spriteRadius?: number;
 }
 
 type V3 = [number, number, number];
+/** The material and object fields that change what a mesh draws (`drawnTriangles`). */
+type DrawnOptions = {
+  size?: number;
+  wireframe?: boolean;
+  flat?: boolean;
+  dashed?: boolean;
+  center?: readonly [number, number];
+};
 
 /**
  * What a mesh draws, as triangles: the engine rasterises triangles alone, so a point is a small
@@ -30,8 +42,10 @@ type V3 = [number, number, number];
 export function drawnTriangles(
   geometry: Geometry,
   reading: Primitive,
-  options: { size?: number; wireframe?: boolean; flat?: boolean; dashed?: boolean } = {},
+  options: DrawnOptions = {},
 ): DrawnTriangles | null {
+  if (reading === 'sprite')
+    return drawnSprite(drawnTriangles(geometry, 'triangles'), options.center);
   const position = geometry.attributes.position;
   if (!position || position.count === 0) return null;
   const p = Array.from(position.array);
@@ -160,35 +174,4 @@ function solids(b: GeometryBuilder): DrawnTriangles | null {
     colors: null,
     indices: new Uint32Array(b.indices),
   };
-}
-
-/** Every triangle its own corners, each carrying the face's normal: flat shading. */
-function flatten(d: Omit<DrawnTriangles, 'normals'>): DrawnTriangles {
-  const pick = (from: Float32Array | null, width: number) => {
-    if (!from) return null;
-    const out = new Float32Array(d.indices.length * width);
-    d.indices.forEach((v, k) => out.set(from.subarray(v * width, v * width + width), k * width));
-    return out;
-  };
-  const positions = pick(d.positions, 3)!;
-  const indices = new Uint32Array(d.indices.length).map((_, k) => k);
-  return {
-    positions,
-    normals: computeNormals(positions, null),
-    uvs: pick(d.uvs, 2),
-    colors: pick(d.colors, 4),
-    indices,
-  };
-}
-
-/** A builder's triangles as a geometry of flat faces: every corner its own, with its face's normal. */
-export function flatGeometry(b: GeometryBuilder) {
-  const flat = flatten({
-    positions: new Float32Array(b.positions),
-    uvs: new Float32Array(b.uvs),
-    colors: null,
-    indices: new Uint32Array(b.indices),
-  });
-  const list = (a: ArrayLike<number>) => Array.from(a);
-  return fromArrays(list(flat.positions), list(flat.normals), list(flat.uvs!), list(flat.indices));
 }

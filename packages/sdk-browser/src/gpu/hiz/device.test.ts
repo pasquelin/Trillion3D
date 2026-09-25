@@ -24,26 +24,32 @@ test('with no boxes attached the test encodes nothing, and once attached it clea
   const { device } = fakeDevice();
   const cleared: Array<{ bytes: number }> = [];
   let passes = 0;
+  const groups: unknown[] = [];
   const encoder = {
     clearBuffer(_buffer: unknown, _offset: number, size: number) {
       cleared.push({ bytes: size });
     },
     beginComputePass() {
       passes++;
-      return { setPipeline() {}, setBindGroup() {}, dispatchWorkgroups() {}, end() {} };
+      const setBindGroup = (index: number, group: unknown) => (groups[index] = group);
+      return { setPipeline() {}, setBindGroup, dispatchWorkgroups() {}, end() {} };
     },
   } as unknown as GPUCommandEncoder;
   const hiz = await createGpuHiz(device, 33, 19, 2);
   assert.ok(hiz);
   // The partition is not mounted: nothing is tested, so nothing is rejected and nothing is cleared.
-  assert.equal(hiz.encodeTest(device, encoder, 2, 2), 0);
+  const pages = {} as GPUBuffer;
+  assert.equal(hiz.encodeTest(device, encoder, 2, 2, pages), 0);
   assert.deepEqual(cleared, []);
   assert.equal(passes, 0);
   hiz.attach({} as GPUBuffer, {} as GPUBuffer);
-  assert.equal(hiz.encodeTest(device, encoder, 2, 2), 2);
+  assert.equal(hiz.encodeTest(device, encoder, 2, 2, pages), 2);
   // Rows the frame does not test are cleared first: none keeps a verdict.
   assert.deepEqual(cleared, [{ bytes: 8 }]);
   assert.equal(passes, 1);
+  // Group 1 is the page table, whose Hi-Z slot word marks a row never culled.
+  const [pagesGroup] = groups.slice(1) as [{ entries: GPUBindGroupEntry[] }];
+  assert.deepEqual(pagesGroup.entries, [{ binding: 0, resource: { buffer: pages } }]);
   // Mips the partition reads to express a rectangle in texels: offset then width.
   assert.deepEqual(hiz.levels()[0], { offset: 0, width: 33 });
   assert.equal(hiz.levels().length > 1, true);

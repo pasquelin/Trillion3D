@@ -8,11 +8,11 @@ import { cutDrawnTriangles, packDrawn } from './runtimeCut.ts';
 import { decodeGeometryPage } from '../../page/decode/geometryPage.ts';
 import { BufferAttribute } from '../../../../sdk-core/src/world/buffer/attribute.ts';
 import { LINE_DASH_GLSL, LINE_DASH_WGSL, lineDash } from '../../visibility/shader/lineWgsl.ts';
-import { runLineText } from '../../visibility/shader/lineClip.fixture.ts';
+import { runShaderText } from '../../visibility/shader/shaderText.fixture.ts';
 
 /** The depth layer of every page the world cuts from `drawn`. */
 async function layers(drawn: NonNullable<ReturnType<typeof drawnTriangles>>) {
-  const { primitive, urls } = await cutRuntimePrimitive(packDrawn(drawn), !!drawn.lines);
+  const { primitive, urls } = await cutRuntimePrimitive(packDrawn(drawn), drawn);
   urls.forEach((url) => URL.revokeObjectURL(url));
   return primitive.pages.map((page) => page.depthLayer ?? 0);
 }
@@ -64,8 +64,8 @@ test('a dashed line past 1024 units keeps its dashes at their distances', async 
   const along = [...new Set(Array.from(uv!).filter((_, i) => i % 2 === 0))].sort((a, b) => a - b);
   assert.deepEqual(along, [0, 1500, 3000]);
   const runs = [
-    runLineText<boolean>(LINE_DASH_WGSL),
-    runLineText<boolean>(LINE_DASH_GLSL),
+    runShaderText<boolean>(LINE_DASH_WGSL),
+    runShaderText<boolean>(LINE_DASH_GLSL),
     (at: number, [dashSize, gapSize]: number[]) => lineDash(at, dashSize, gapSize),
   ];
   // Across the second segment, as a raster interpolates its corners: dash 0.3, gap 0.2.
@@ -81,4 +81,24 @@ test('a dashed line past 1024 units keeps its dashes at their distances', async 
       const u = Math.fround(along[1] + t * (along[2] - along[1]));
       assert.equal(run(u, [0.3, 0.2]), drawn, `at ${at}`);
     }
+});
+
+// #364: a sprite's quad turns to the camera about its origin: its pages are bounded by the cube
+// and the ball of its radius there, which hold it however it turns.
+test("the pages of a sprite's quad are bounded by the cube of its radius", async () => {
+  const drawn = drawnTriangles(geometry.plane(1, 1), 'sprite', { center: [0.5, 0] })!;
+  const { primitive, urls } = await cutRuntimePrimitive(packDrawn(drawn), drawn);
+  urls.forEach((url) => URL.revokeObjectURL(url));
+  const r = Math.hypot(0.5, 1);
+  for (const page of primitive.pages) {
+    assert.deepEqual(
+      [page.min, page.max, page.sphere],
+      [
+        [-r, -r, -r],
+        [r, r, r],
+        [0, 0, 0, r],
+      ],
+    );
+    assert.equal(page.depthLayer, undefined);
+  }
 });
