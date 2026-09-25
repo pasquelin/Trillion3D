@@ -12860,6 +12860,11 @@
         "name": "groups?",
         "type": "{ start: number; count: number; materialIndex: number; }[] | undefined",
         "desc": "Index ranges drawn with one material each."
+      },
+      {
+        "name": "owner?",
+        "type": "'host' | undefined",
+        "desc": "`'host'` for a loaded scene's vertices, read at their value (`Geometry._owner`); unset for the world's."
       }
     ],
     "description": ""
