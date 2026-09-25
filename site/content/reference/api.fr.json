@@ -7113,8 +7113,8 @@
     "summary": "Ce qu’un contact donne à ses écouteurs : l’autre objet, l’impulsion et le point touché.",
     "members": {
       "other": "L’objet touché ; `null` une fois sorti de la scène.",
-      "impulse": "N·s : la vitesse d’approche selon la normale fois la masse réduite de la paire, estimée avant le solveur ; 0 sur `leave`.",
-      "point": "Le point de contact, repère du monde ; l’origine sur `leave`."
+      "impulse": "N·s : la vitesse d’approche selon la normale fois la masse réduite de la paire, estimée avant le solveur (côté corps mou : sa vitesse moyenne, et la masse de ses sommets qui ont touché) ; 0 sur `leave`, et entre un corps mou et un capteur.",
+      "point": "Le point de contact, repère du monde (celui d’un corps mou : la moyenne de ses sommets qui ont touché, son centre face à un capteur) ; l’origine sur `leave`."
     }
   },
   "ContactEventName": {
