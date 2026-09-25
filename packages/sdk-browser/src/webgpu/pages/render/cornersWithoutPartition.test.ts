@@ -3,46 +3,16 @@
 // the rows that changed in between.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { MANIFEST_IDENTITY } from '../../../backend/pagesBackend.fixture.ts';
-import { QUAD_MANIFEST } from '../../../backend/pagesBackendScenes.fixture.ts';
-import { collectClusterPages } from '../../../page/selection/selection.ts';
-import { packDagSelection } from '../../../gpu/dag/selection.ts';
 import { CORNER_VALUES } from '../../../gpu/partition/contract.ts';
 import { packPageCorners } from '../../visibility/corners.ts';
-import { mockGpu } from '../../../../../../tests/kit/gpu/mockGpu.ts';
-import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts';
-import { createWebgpuPagesRuntime } from '../runtime.ts';
-import { prepareWebgpuBackend } from '../prepare/prepare.ts';
-import { disposeWebgpuPages } from '../io/metrics.ts';
-import { fallbackToCpuCut } from '../io/drops.ts';
 import { renderWebgpuPages } from './render.ts';
 import { flushWebgpuPages } from './flush.ts';
-import { cameraAt, twoPlacesScene } from '../twoPlaces.fixture.ts';
-import type { ClusterManifest } from '../../../../../sdk-core/src/index.ts';
+import { cameraAt, twoPlacesRuntime } from '../twoPlaces.fixture.ts';
 
 test('#198: rows changed while the partition is absent reach the partition that appears', async () => {
-  installGpuGlobals();
-  const scene = twoPlacesScene();
-  const metadata: ClusterManifest = { ...QUAD_MANIFEST, ...scene.metadata, ...MANIFEST_IDENTITY };
-  const collected = collectClusterPages(scene.source, metadata, scene.indices, scene.associations);
-  const gpu = mockGpu({ packed: packDagSelection(collected.roots) });
-  const rt = createWebgpuPagesRuntime({
-    ...scene,
-    metadata,
-    gpuDevice: gpu.device,
-    maxResidentPages: 2,
-    viewport: [32, 32],
-  });
+  const { rt, dispose } = await twoPlacesRuntime();
   try {
-    await prepareWebgpuBackend(rt, gpu.device);
-    // The CPU cut names the rows the camera sees: a narrower view moves a page to another row.
-    fallbackToCpuCut(rt, 'rows follow the camera');
     const { rows } = rt.layout;
-    // Bounded: the two pages are resident at prepare, so a few images settle the cut.
-    for (let frame = 0; frame < 4 && rows.packedCount < 2; frame++) {
-      renderWebgpuPages(rt, cameraAt(10, 30));
-      await flushWebgpuPages(rt);
-    }
     assert.equal(rows.packedCount, 2, 'the wide view draws both rows');
     const partition = rt.vis.gpuPartition;
     assert.ok(partition && rt.vis.visView, 'the visibility pass encodes with its partition');
@@ -87,7 +57,6 @@ test('#198: rows changed while the partition is absent reach the partition that 
     // Row 0 now holds another page: the verdict its previous occupant left must not pass to it.
     assert.deepEqual(forgotten, [0, 0], 'the partition forgets row 0 history');
   } finally {
-    disposeWebgpuPages(rt);
-    scene.dispose();
+    dispose();
   }
 });
