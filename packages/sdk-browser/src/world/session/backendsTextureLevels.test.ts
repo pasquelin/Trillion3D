@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { prepareExplorerBackends } from './backends.ts';
-import type { BackendContext, RenderBackend } from '../../backend/types.ts';
+import { probeBackendContext } from './backends.fixture.ts';
+import type { RenderBackend } from '../../backend/types.ts';
 import type { ClusterManifest } from '../../../../sdk-core/src/index.ts';
 import type { ExplorerSession } from './session.ts';
 
@@ -17,56 +17,24 @@ const reserved: number[] = [];
 const metadata = (textures?: { url: string }) =>
   ({ primitives: [], textures }) as unknown as ClusterManifest;
 
-async function run(
+const pageSources = {
+  indices: new Map<string, Uint32Array>(),
+  streamer: {
+    read: async () => undefined,
+    readBytes: async () => undefined,
+    reserve: (bytes: () => number) => reserved.push(bytes()),
+  },
+  attachCap: 1,
+  cacheCap: 1,
+  preload: 'visible',
+} as never;
+
+const run = (
   options: { textureSource?: 'host' | 'cache' },
   cacheTextures?: { url: string },
   probe: Partial<RenderBackend> = {},
   session: Partial<ExplorerSession> = {},
-) {
-  let seen: BackendContext | undefined;
-  const backend = {
-    id: 'probe',
-    prepare: async () => {},
-    dispose: () => {},
-    ...probe,
-  } as unknown as RenderBackend;
-  const opened = {
-    canvas: { width: 4, height: 4 },
-    options: { ...options, importedLights: false },
-    scope: 'full',
-    metadata: metadata(cacheTextures),
-    diagnosticChannel: { enabled: false, detail: 'summary', emit: () => {} },
-    emit: () => {},
-    diagnose: () => {},
-    ...session,
-  } as unknown as ExplorerSession;
-  await prepareExplorerBackends(opened, {
-    source: {} as never,
-    associations: new Map(),
-    textureIndices: new Map(),
-    pageSources: {
-      indices: new Map<string, Uint32Array>(),
-      streamer: {
-        read: async () => undefined,
-        readBytes: async () => undefined,
-        reserve: (bytes: () => number) => reserved.push(bytes()),
-      },
-      attachCap: 1,
-      cacheCap: 1,
-      preload: 'visible',
-    } as never,
-    directGpu: false,
-    factories: [
-      (context) => {
-        seen = context;
-        return backend;
-      },
-    ],
-    backends: [],
-    base: 'http://localhost/cache/',
-  });
-  return seen!;
-}
+) => probeBackendContext(metadata(cacheTextures), pageSources, { options, probe, session });
 
 test('the baked-level reader follows the cache, not the texture-source option', async () => {
   // `createTextureLevelReader` needs the browser decoder to hand a level back; Node has none.
