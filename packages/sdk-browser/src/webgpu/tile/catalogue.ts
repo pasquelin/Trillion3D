@@ -34,7 +34,7 @@ export function previewsByAtlas(previews: readonly TexturePreview[]) {
  * the loader opens the source images for that very reason (`resolveTextureSource`), so the
  * texture has one; then in the lossless lane, the only one a host image can fill. Slot 0 is a
  * white texel, what a material without a map reads. A hosted texture every reader of which takes
- * its alpha for coverage NOW (`coverage`, the colour census's readers) reduces its mips weighted by
+ * its alpha for coverage (`coverage`, the colour census's readers) reduces its mips weighted by
  * alpha, as the compiler bakes its chain.
  */
 export function tileCatalogue(
@@ -69,7 +69,7 @@ export function tileCatalogue(
       layout: tileLayout(width, height),
       texture: map,
       lane: 'lossless',
-      source: { kind: 'host', map, coverage: () => !!coverage?.coverage(map) },
+      source: { kind: 'host', map, coverage },
     };
   });
   // The fill takes a lane the textures already open, so its one texel costs no layer of its
