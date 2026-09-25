@@ -83,7 +83,7 @@ bool runCommands(const uint32_t *w, uint32_t count) {
     }
     if (op == SOFT) {
       if (!addSoft(w)) return false;
-      w += SOFT_WORDS + w[20] * SOFT_VERTEX_WORDS + w[21];
+      w += SOFT_WORDS + w[19] * SOFT_VERTEX_WORDS + w[20];
       ++added;
       continue;
     }

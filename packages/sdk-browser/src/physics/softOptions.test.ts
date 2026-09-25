@@ -2,10 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { SOFT_STATE_WORDS } from '../../../sdk-core/src/physics/index.ts';
 import { plane } from '../../../sdk-core/src/world/geometry/basic.ts';
-import { addSoft, at, ropeLine, settle, softWorld } from './soft.fixture.ts';
-
-/** Laid flat: the plane's `+y` turned to the world's `−z`, so its `−z` is the world's down. */
-const FLAT = [-Math.SQRT1_2, 0, 0, Math.SQRT1_2];
+import { addSoft, at, FLAT, ropeLine, settle, softWorld } from './soft.fixture.ts';
 
 test('a rope bent stiff reaches out from its two pinned ends; folding freely, it hangs', async () => {
   // A fold edge only pulls against the second order of a sag: the stiff rope bows, yet reaches.
@@ -26,7 +23,8 @@ test('a cloth dropped flat on the floor rebounds by its restitution', async () =
   const rebound = async (restitution: number) => {
     const jolt = await softWorld();
     addSoft(jolt, plane(1, 1, 10, 10), { type: 'cloth' }, [0, 2, 0], {
-      ...{ restitution, quaternion: FLAT },
+      restitution,
+      quaternion: FLAT,
     });
     let touched = false,
       peak = 0;
@@ -52,7 +50,8 @@ test('a soft body takes its scale: a rope twice as long hangs twice as low, read
   const end = async (scale: [number, number, number]) => {
     const jolt = await softWorld();
     const record = addSoft(jolt, ropeLine(11, 1), { type: 'rope', pins: [0] }, [0, 3, 0], {
-      ...{ scale, linearDamping: 2 },
+      scale,
+      linearDamping: 2,
     });
     return at(settle(jolt, record, 3), 10)[1];
   };

@@ -2,11 +2,15 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   CommandWriter,
+  DAMPING,
   DEFAULT_MATTER,
   DEFAULT_PHYSICS_BUDGET,
   OP,
   ObjectPhysics,
+  SOFT_VERTEX_WORDS,
+  SOFT_WORDS,
   type PhysicsHost,
+  type SoftBodyOptions,
 } from '../../../sdk-core/src/physics/index.ts';
 import { plane } from '../../../sdk-core/src/world/geometry/basic.ts';
 import { Material } from '../../../sdk-core/src/world/material/material.ts';
@@ -30,9 +34,9 @@ function sceneOf(softVertices: number, host = {} as PhysicsHost) {
     scene,
     createPhysicsPoses(4, scene).state,
   );
-  const cloth = (segments: number) => {
+  const cloth = (segments: number, options: Partial<SoftBodyOptions> = {}) => {
     const mesh = new Mesh(plane(1, 1, segments, segments), new Material('meshStandard'));
-    mesh.physics = { type: 'cloth' };
+    mesh.physics = { type: 'cloth', ...options } as SoftBodyOptions;
     scene.add(mesh);
     return mesh as Bodied;
   };
@@ -90,15 +94,34 @@ test('a soft body the page moves is made again where it put it, never teleported
   assert.equal(writer.length, 0);
 });
 
-test('a soft body’s SOFT carries its own friction, restitution, pull and scale, else its material’s', () => {
-  const soft = (own: boolean) => {
-    const { writer, bodies, cloth } = sceneOf(100);
-    const mesh = cloth(1);
-    if (own) Object.assign(mesh.physics, { friction: 0.25, restitution: 0.75, gravityScale: 0.5 });
-    mesh.scale.set(2, 3, 4);
-    bodies.reconcile(new Set(), () => assert.fail('refused'));
-    return [...new Float32Array(writer.take().buffer).subarray(10, 16)];
-  };
-  assert.deepEqual(soft(true), [2, 3, 4, 0.25, 0.75, 0.5]);
-  assert.deepEqual(soft(false).slice(3), [DEFAULT_MATTER.friction, DEFAULT_MATTER.restitution, 1]);
+/** The SOFT words `obj.physics = options` writes for a 1 × 1 cloth scaled 2, 3, 4, as floats. */
+function softWords(options: Partial<SoftBodyOptions>, then = (_: Bodied) => {}) {
+  const { writer, bodies, cloth } = sceneOf(100);
+  const mesh = cloth(1, options);
+  mesh.scale.set(2, 3, 4);
+  then(mesh);
+  bodies.reconcile(new Set(), (e) => assert.fail(String(e)));
+  return new Float32Array(writer.take().buffer);
+}
+
+test('obj.physics gives a soft body its friction, restitution, pull and damping, else defaults', () => {
+  const own = { friction: 0.25, restitution: 0.75, gravityScale: 0.5, damping: { linear: 0.625 } };
+  // Scale, then friction, restitution, gravity scale, linear damping (softLayout.ts).
+  assert.deepEqual([...softWords(own).subarray(9, 16)], [2, 3, 4, 0.25, 0.75, 0.5, 0.625]);
+  assert.deepEqual(
+    [...softWords({}).subarray(12, 16)],
+    [DEFAULT_MATTER.friction, DEFAULT_MATTER.restitution, 1, Math.fround(DAMPING)],
+  );
+});
+
+test('obj.physics gives a soft body its stretch, bend, pressure, pins and mass, set or written', () => {
+  const words = softWords({ type: 'volume', stretch: 0.25, bend: 0.5, pressure: 0.5, pins: [0] });
+  assert.deepEqual([...words.subarray(16, 19)], [0.25, 0.5, 0.5], 'stretch, bend, pressure');
+  // The cloth's four vertices, `x, y, z, mass` each, follow the fixed words.
+  const mass = (w: Float32Array) =>
+    w.subarray(SOFT_WORDS, SOFT_WORDS + 4 * SOFT_VERTEX_WORDS).filter((_, i) => i % 4 === 3);
+  assert.equal(mass(words)[0], 0, 'the pin weighs nothing');
+  const sum = (w: Float32Array) => mass(w).reduce((a, b) => a + b);
+  assert.ok(Math.abs(sum(softWords({ mass: 2 })) - 2) < 1e-6, 'given');
+  assert.ok(Math.abs(sum(softWords({ mass: 2 }, (m) => (m.physics.mass = 3))) - 3) < 1e-6, 'set');
 });

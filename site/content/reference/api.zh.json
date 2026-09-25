@@ -2056,7 +2056,9 @@
   },
   "SoftBodyCommon": {
     "summary": "`obj.physics` 对软体接受的内容：它的顶点被逐个模拟。",
+    "description": "其材质与重力作用同刚体；没有角阻尼、形状、传感器、CCD 或碎片。",
     "members": {
+      "damping": "其顶点速度每秒损失的比例，`dv/dt = −c·v`，0 及以上。",
       "pins": "几何中被固定在原处的顶点索引：旗杆、绳钩。",
       "mass": "千克，按每个顶点承担的面积（绳：长度）分配到顶点；省略时为每 m² `SOFT_AREAL_DENSITY`（绳：每 m `SOFT_LINEAR_DENSITY`）。",
       "stretch": "边被拉时让步多少，m/N（刚度的倒数）：0 永不拉伸。",
