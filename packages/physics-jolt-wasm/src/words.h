@@ -11,6 +11,8 @@ namespace trillion {
 
 /// Words of an ADD command before its mesh data (layout.ts).
 constexpr uint32_t ADD_WORDS = 25;
+/// Words of each soft body vertex (softLayout.ts): `x, y, z, mass`.
+constexpr uint32_t SOFT_VERTEX_WORDS = 4;
 
 inline float f32(const uint32_t *w) {
   float value;

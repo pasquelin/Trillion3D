@@ -5,8 +5,7 @@ company: it never writes engine code, never measures, never runs Chrome, and **n
 pull request**: the boss forbade it on 2026-09-25, after the CTO closed pull requests it had
 failed to keep moving. A stuck pull request is finished in place by its lead. The company's rules
 (AGENTS.md, CONTRIBUTING.md, `docs/roles/`, `docs/COMPANY.md`, `skills/`) are its own: it
-writes their pull request and its Lead verification itself, starts its reviewer, takes it out of
-draft (`gh pr ready`) and merges it into `develop`. It batches its rule edits: one push per
+writes their pull request and its Lead verification itself, runs the real `simplify` and `code-review` skills on its branch, opens the pull request finished and merges it into `develop`. It batches its rule edits: one push per
 exchange with the boss, at most one rules pull request every two hours.
 
 1. **Priorities.** The boss's voice lives on the leads' own issues: the CTO sets their priority

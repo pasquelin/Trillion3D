@@ -1,14 +1,13 @@
 // Soft bodies (SOFT, `packages/sdk-core/src/physics/softLayout.ts`): cloths, ropes and volumes on
-// Jolt's soft bodies, made from the page's vertices, and their vertices written back after each
-// step in the frame of the geometry they came from.
+// Jolt's soft bodies, made from the page's vertices or restored from the compiler's cook, and their
+// vertices written back after each step in the frame of the geometry they came from.
 #include "binding.h"
-#include "words.h"
+#include "blob.h"
+#include "softSettings.h"
 
 #include <Jolt/Physics/SoftBody/SoftBodyCreationSettings.h>
 #include <Jolt/Physics/SoftBody/SoftBodyMotionProperties.h>
 
-#include <cfloat>
-#include <cmath>
 #include <cstring>
 
 using namespace JPH;
@@ -29,31 +28,22 @@ struct Soft {
 std::vector<Soft> softs;
 std::vector<uint32_t> state;
 
-/// A compliance from the words: `Infinity` is Jolt's "no constraint".
-float compliance(const uint32_t *w) { return std::isfinite(f32(w)) ? f32(w) : FLT_MAX; }
-
-/// The constraints of `shared`, `count` vertices: a rope's chain when no corner is given, else the
-/// triangles' edges; false when a corner names no vertex.
-bool constrain(SoftBodySharedSettings &shared, const uint32_t *w, uint32_t count) {
-  float stretch = compliance(w + 16), bend = compliance(w + 17);
-  const uint32_t corners = w[20], *c = w + SOFT_WORDS + count * SOFT_VERTEX_WORDS;
-  if (corners == 0) {
-    for (uint32_t i = 0; i + 1 < count; ++i) shared.mEdgeConstraints.emplace_back(i, i + 1, stretch);
-    // A rope's fold: each vertex held at its distance from the one after next.
-    for (uint32_t i = 0; bend < FLT_MAX && i + 2 < count; ++i)
-      shared.mEdgeConstraints.emplace_back(i, i + 2, bend);
-    shared.CalculateEdgeLengths();
+/// The settings a SOFT command carries into `shared`: restored from the cooked bytes it holds
+/// (`byteCount`), else built from its vertices and corners (`softSettings.h`), null when they make
+/// no soft body. False (with `world().error`) when the cooked bytes are unreadable.
+bool settingsOf(const uint32_t *w, Ref<SoftBodySharedSettings> &shared) {
+  const uint32_t count = w[19], corners = w[20], bytes = w[21], *v = w + SOFT_WORDS;
+  const uint32_t *c = v + count * SOFT_VERTEX_WORDS;
+  if (bytes == 0) {
+    shared = softSettings(v, count, vec3(w + 9), c, corners, f32(w + 16), f32(w + 17));
     return true;
   }
-  for (uint32_t i = 0; i + 2 < corners; i += 3) {
-    if (c[i] >= count || c[i + 1] >= count || c[i + 2] >= count) return false;
-    SoftBodySharedSettings::Face face(c[i], c[i + 1], c[i + 2]);
-    if (face.IsDegenerate()) return false;
-    shared.AddFace(face);
-  }
-  SoftBodySharedSettings::VertexAttributes attributes(stretch, stretch, bend);
-  using Bend = SoftBodySharedSettings::EBendType;
-  shared.CreateConstraints(&attributes, 1, bend < FLT_MAX ? Bend::Dihedral : Bend::None);
+  BlobIn blob(reinterpret_cast<const uint8_t *>(c + corners), bytes);
+  SoftBodySharedSettings::IDToSharedSettingsMap settings;
+  SoftBodySharedSettings::IDToMaterialMap materials;
+  SoftBodySharedSettings::SettingsResult restored = SoftBodySharedSettings::sRestoreWithMaterials(blob, settings, materials);
+  if (restored.HasError() || blob.IsFailed()) return (world().error = BAD_SHAPE, false);
+  shared = restored.Get();
   return true;
 }
 
@@ -72,24 +62,17 @@ float sixVolume(const SoftBodySharedSettings &shared) {
 
 bool addSoft(const uint32_t *w) {
   World &world = trillion::world();
-  uint32_t engine = w[1], index = engine & INDEX_MASK, count = w[19];
+  uint32_t engine = w[1], index = engine & INDEX_MASK;
   if (index >= world.slots.size() || world.slots[index].used || world.slots[index].refused)
     return (world.error = BAD_COMMAND, false);
-  Vec3 scale = vec3(w + 9);
-  Ref<SoftBodySharedSettings> shared = new SoftBodySharedSettings;
-  for (const uint32_t *v = w + SOFT_WORDS, *end = v + count * SOFT_VERTEX_WORDS; v < end; v += SOFT_VERTEX_WORDS) {
-    Float3 at;
-    (vec3(v) * scale).StoreFloat3(&at);
-    // A mass of 0 is a pin: held where it is.
-    shared->mVertices.emplace_back(at, Float3(0, 0, 0), f32(v + 3) > 0 ? 1.0f / f32(v + 3) : 0.0f);
-  }
-  if (count < 2 || !constrain(*shared, w, count)) {
+  Ref<SoftBodySharedSettings> shared;
+  if (!settingsOf(w, shared)) return false;
+  if (!shared) {
     world.slots[index] = {};
     world.slots[index].refused = true;
     world.refused.push_back(engine);
     return true;
   }
-  shared->Optimize();
   SoftBodyCreationSettings settings(shared, RVec3(vec3(w + 2)), quat(w + 5), MOVING);
   settings.mUserData = engine;
   settings.mFriction = f32(w + 12);
@@ -108,7 +91,7 @@ bool addSoft(const uint32_t *w) {
   slot.engine = engine;
   slot.used = slot.soft = true;
   world.engineOf[body->GetID().GetIndex()] = engine;
-  softs.push_back({index, engine, vec3(w + 2), Vec3::sReplicate(1) / scale, quat(w + 5).Conjugated()});
+  softs.push_back({index, engine, vec3(w + 2), Vec3::sReplicate(1) / vec3(w + 9), quat(w + 5).Conjugated()});
   return true;
 }
 

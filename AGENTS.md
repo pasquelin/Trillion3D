@@ -39,7 +39,7 @@ disagreement is reported to the maintainer.
    acceptance and analyst agents launch none.
 10. **Measurement outputs are deleted once published** (`.mesure/out/<issue>/`): the numbers live
     in the issue or the pull request, never on disk.
-11. **Small, short-lived pull requests.** One issue per pull request, about 500 hand-written lines at most (generated files excluded); an issue that needs more goes back to the CTO to be split (rule 5). A lead brings its conflicting PR up to date at every pick, never lets two of its PRs wait
+11. **A pull request is opened finished.** The coder and the reviewer work on the pushed branch, with no pull request; the lead opens the pull request (never a draft) only after the reviewer's `OK` and its Lead verification, so it waits only for CI and the CTO's merge: minutes, never hours. **Small, short-lived pull requests.** One issue per pull request, about 500 hand-written lines at most (generated files excluded); an issue that needs more goes back to the CTO to be split (rule 5). A lead brings its conflicting PR up to date at every pick, never lets two of its PRs wait
     on the same files, and keeps it open one hour at most: that is the limit, not a trigger. The
     CTO merges pull requests oldest first: a younger ready PR waits until every older one is merged. No pull request is closed unmerged.
 
@@ -57,7 +57,7 @@ writes that brief.
 | ---------- | --------- | -------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
 | CTO        | boss      | sets the priority labels from the boss's words, starts and supervises the agents, decides technique, opens issues, reports to the boss | writes code, measures                                        |
 | lead       | CTO       | owns one domain, runs its coder and reviewer, verifies, names ready, closes                                                            | writes code, measures                                        |
-| coder      | lead      | implements one issue, opens the pull request                                                                                           | merges, measures                                             |
+| coder      | lead      | implements one issue on its branch, pushes it                                                                                          | merges, measures                                             |
 | reviewer   | lead      | the real `simplify` and `code-review` skills, then the acceptance list                                                                 | merges, measures                                             |
 | architect  | CTO       | rounds through compiler, engine, site, scripts; writes each duplicate, bloat or tangle as a To-do on the owning domain's issue         | codes, owns a pull request, measures                         |
 | analyst    | CTO       | studies how the company works; reports bottlenecks and ranked proposals to the CTO                                                     | changes anything; what could lose quality waits for the boss |
@@ -99,7 +99,7 @@ finish, nothing new starts) so no work is cut midway.
 | ------------------------ | ---------- | --------------------------------------------------------- |
 | `🔴 critical` … `🟢 low` | CTO        | the only priority of the leads' issues (order: §Leads)    |
 | `in progress`            | lead       | taken: no other lead touches it                           |
-| `in review`              | lead       | pull request open, reviewer at work                       |
+| `in review`              | lead       | branch pushed, reviewer at work                           |
 | `to measure`             | lead       | closed engine issue waiting in the measurer's queue       |
 | `measuring`              | measurer   | being measured now                                        |
 | `measure ok`             | measurer   | measured, no regression; numbers in a comment             |

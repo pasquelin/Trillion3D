@@ -20,17 +20,13 @@ run by the measurer after the merge.
    added lines, generated and vendored paths of `.gitattributes` excepted: above, split the pull
    request (AGENTS.md rule 11).
 5. Commit in small steps: `type(scope): what changed (#<n>)`, nothing else in the message.
-6. Push, then open the pull request as a draft, `gh pr create --draft --base develop`, with the
-   body on `.github/PULL_REQUEST_TEMPLATE.md`:
+6. Push the branch, and open no pull request (AGENTS.md rule 11). Write its body in `.worktrees/logs/<n>-pr-body.md`, on `.github/PULL_REQUEST_TEMPLATE.md`:
    `Closes #<n>`, what changed,
    the proof run, and under "Local review before push" one line
    `/simplify: <what it found and what you fixed>` and one line `/code-review: <same>`, copied from
    the skills' own reports (CI refuses a body without them). The reviewer completes that section.
-   Run `PR_DRAFT=true scripts/check-pr-body.sh < <body file>` before every `gh pr create` or
-   `gh pr edit --body-file`: a draft is not asked for `## Lead verification`, which the lead
-   writes before marking it ready.
-7. Return the pull request URL and what remains unproven. Stop there.
+   Check it with `PR_DRAFT=true scripts/check-pr-body.sh < <body file>`; the lead adds `## Lead verification` and opens the pull request.
+7. Return the branch, the body file and what remains unproven. Stop there.
 
 On a fix round, the lead resumes you with `SendMessage` carrying the reviewer's findings: fix
-them on the same branch (pull the reviewer's commits first), rerun step 4, push, answer each
-finding on the pull request in one line.
+them on the same branch (pull the reviewer's commits first), rerun step 4, push, answer each finding in one line in the body file.
