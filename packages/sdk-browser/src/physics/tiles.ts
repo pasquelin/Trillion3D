@@ -1,4 +1,4 @@
-import { EngineError } from '../../../sdk-core/src/contracts/cache.ts';
+import type { EngineError } from '../../../sdk-core/src/contracts/cache.ts';
 import {
   BODY_INDEX,
   LAYER,
@@ -14,6 +14,7 @@ import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
 import type { createPhysicsBodies } from './bodies.ts';
 import { createCookedSoftBodies } from './cookedSoft.ts';
 import {
+  cookedBytes,
   isModel,
   locate,
   moversOf,
@@ -66,10 +67,7 @@ export function createTileStreamer(
     p.loading = true;
     fetching++;
     try {
-      const response = await fetch(new URL(p.tile.url, p.model.record.base).href);
-      if (!response.ok)
-        throw new EngineError('PHYSICS_FAILED', `Physics tile ${p.tile.url}: ${response.status}.`);
-      const bytes = new Uint8Array(await response.arrayBuffer());
+      const bytes = await cookedBytes(p.model, p.tile.url, 'Physics tile');
       if (!models.get(p.model)) return;
       p.id = bodies.claim(p.tile.triangles);
       const handle = p.id & BODY_INDEX;
@@ -172,8 +170,10 @@ export function createTileStreamer(
     },
     /** Every tile and cooked soft body out (physics turned off). */
     clear() {
-      for (const placed of models.values()) placed?.forEach(evict);
-      softs.clear();
+      for (const [model, placed] of models) {
+        placed?.forEach(evict);
+        softs.forget(model);
+      }
       models.clear();
     },
   };
