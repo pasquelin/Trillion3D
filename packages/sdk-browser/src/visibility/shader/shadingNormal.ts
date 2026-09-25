@@ -10,8 +10,7 @@ import {
   scaleVector3,
   transformDirectionVector3,
 } from '../../../../sdk-core/src/index.ts';
-import { attr2, sampleLinear } from '../math.ts';
-import type { triangleAt } from '../projection.ts';
+import { attr2, sampleLinear, triangleAt } from '../math.ts';
 import type { VisMaterial, VisPage } from '../types.ts';
 
 const normalScratch = new Float64Array(9);

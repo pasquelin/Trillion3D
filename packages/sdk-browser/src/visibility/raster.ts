@@ -1,9 +1,9 @@
-import { signedArea, triangleAt, type Projected } from './projection.ts';
+import { signedArea, type Projected } from './projection.ts';
 import { matrixWindingCw } from '../../../sdk-core/src/index.ts';
 import { uvTransformed } from '../../../sdk-core/src/texture/contract.ts';
 import { refreshSurface, surfaceSide } from '../page/surface.ts';
 import { DEPTH_CLEAR, depthNearer } from '../camera/depthConvention.ts';
-import { perspectiveBary, mapTexel } from './math.ts';
+import { triangleAt, perspectiveBary, mapTexel } from './math.ts';
 import {
   assertVisibilityPageTriangles,
   packVisibilityId,

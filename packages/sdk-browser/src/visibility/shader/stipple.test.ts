@@ -100,7 +100,7 @@ test('the uniform size covers its words, rounded to the matrix alignment', () =>
   const words = VIS_UNIFORMS_WGSL.replace(/.*viewProj:mat4x4f,/, '').match(/:(f32|u32)/g)!;
   const vec2 = (VIS_UNIFORMS_WGSL.match(/:vec2f/g) ?? []).length;
   const bytes = 64 + 4 * words.length + 8 * vec2;
-  assert.match(VIS_UNIFORMS_WGSL, /stipple:u32,\}$/);
+  assert.match(VIS_UNIFORMS_WGSL, /stipple:u32,pixelRatio:f32,\}$/);
   assert.equal(VIS_UNIFORM_BYTES, Math.ceil(bytes / 16) * 16);
 });
 

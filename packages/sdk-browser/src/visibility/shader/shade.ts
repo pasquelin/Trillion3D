@@ -1,6 +1,5 @@
 import { RASTER_BACKGROUND } from '../../page/raster.ts';
-import { backgroundRgb, uvDerivatives } from '../math.ts';
-import { triangleAt } from '../projection.ts';
+import { backgroundRgb, triangleAt, uvDerivatives } from '../math.ts';
 import { createVisibilityFrame } from '../frame.ts';
 import { shadePixel } from './shadePixel.ts';
 import { unpackVisibilityId, type VisPage } from '../types.ts';
