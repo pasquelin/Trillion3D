@@ -73,12 +73,13 @@ test('a version uploads the texture again, a sampling sets its sampler alone', (
 });
 
 // #362: a canvas redrawn and a video frame are copied into the texture already held, 120 frames
-// long; only a new size allocates the level again, still in the same texture.
+// long; only a new size allocates the level again, still in the same texture (its chain, the
+// reducer's, is `mips.test.ts`'s).
 test('120 new pictures copy in place into one texture, a new size reallocates it', () => {
   const { gl, calls } = context();
   const binder = new WebglClusterTextures(gl);
   const canvas = { width: 4, height: 2 };
-  const map = record({ image: canvas });
+  const map = record({ image: canvas, generateMipmaps: false });
   binder.bind(0, map, true);
   for (let frame = 0; frame < 120; frame++) {
     map.version++;
