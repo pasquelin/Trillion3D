@@ -12,14 +12,6 @@ import { hostSurface } from '../../world/core/worldSurface.ts';
 import { texture } from '../../world/texture/index.ts';
 import { material } from '../../../../sdk-core/src/world/material/index.ts';
 
-/** A triangle with the position, normal and UV a lit textured surface reads. */
-function texturedTriangle() {
-  const geometry = new G.Geometry().setIndex([0, 1, 2]);
-  for (const name of ['position', 'normal', 'uv'])
-    geometry.setAttribute(name, G.floatAttribute(new Float32Array(9), name === 'uv' ? 2 : 3));
-  return geometry;
-}
-
 /** A world surface wearing `map` as its normal map, as `bricks-with-a-normal-map` wears one. */
 const wearing = (map: ReturnType<typeof texture.data>) =>
   hostSurface(material.meshStandard({ normalMap: map }), false, new Map());
@@ -27,7 +19,7 @@ const wearing = (map: ReturnType<typeof texture.data>) =>
 test('a world texel map is drawn on WebGL2, uploaded as stored, with its box chain', () => {
   const pixels = new Uint8Array(4 * 4 * 4).fill(128);
   const scene = new G.GraphScene();
-  scene.add(G.mesh(texturedTriangle(), wearing(texture.data(pixels, 4, 4))));
+  scene.add(G.mesh(G.boxGeometry(), wearing(texture.data(pixels, 4, 4))));
   const gl = createTestContext();
   const draw = createSceneDraw(gl.gl, scene);
   draw.render({} as HostCamera);
@@ -52,7 +44,7 @@ test('a world texel map is drawn on WebGL2, uploaded as stored, with its box cha
 });
 
 test('texels the WebGL2 upload cannot read as stored are refused by name', () => {
-  const { attributes } = texturedTriangle();
+  const { attributes } = G.boxGeometry();
   const accepted = wearing(texture.data(new Uint8Array(16), 2, 2));
   assert.equal(clusterMaterialReason(accepted, attributes), undefined);
   for (const [map, reason] of [

@@ -1,15 +1,16 @@
-// The supersampled ground truth of a grazing material fixture (#443): the view the renderers draw,
-// cast on the CPU through `SAMPLES`² rays per pixel into the fixture's square and the square
-// behind it. Each ray reads the map's base level as its magnification filter does — bilinear,
-// repeated —, cut at the alpha cutoff; the rays of a pixel are averaged in linear light. No mip
-// level and no footprint: what a perfect sampler converges to, the reference both engines are
-// judged against, the witness no longer being the truth.
+// The ground truth of a grazing material fixture (#443): the view the renderers draw, cast on the
+// CPU from each pixel's centre into the fixture's square and the square behind it. Along the axis
+// the map is minified — the pixel's texture footprint, the screen axis that spans more texels —
+// `SAMPLES` reads of the base level are averaged in linear light, bilinear across it as a
+// magnification reads; the alpha cutoff then applies once, to that filtered alpha, as a pixel's
+// alpha test does. No mip level and no footprint cap: what a perfect anisotropic sampler returns,
+// the reference both engines are judged against. A magnified axis is never averaged: that would
+// be antialiasing, which no sampler does.
 //
 // A renderer's gap to it is counted as the measurer counts one (#443): pixels farther than one
-// 8-bit level on a channel. A pixel a silhouette crosses is not counted — the renderers draw it
-// with one sample, the truth with its coverage: that is antialiasing, not texture sampling.
-//
-// Pure: served to the harness page (`materialTruth.ts`) and run in Node by its unit test.
+// 8-bit level on a channel. A pixel a silhouette crosses is not counted: the renderers draw it
+// with one sample, and which surface it shows is geometry. Pure: served to the harness page
+// (`materialTruth.ts`) and run in Node by its unit test.
 import { Matrix4 } from '../../../packages/sdk-core/src/world/math/matrix4.ts';
 import { Vector3 } from '../../../packages/sdk-core/src/world/math/vector3.ts';
 import { Color } from '../../../packages/sdk-core/src/world/math/color.ts';
@@ -19,8 +20,10 @@ import {
 } from '../../../packages/sdk-core/src/math/primitives/color.ts';
 import { wrapLinear } from '../../../packages/sdk-browser/src/visibility/wrapModes.ts';
 
-/** Rays per pixel side: 256 rays a pixel, a step of 1/16 pixel. */
-const SAMPLES = 16;
+/** Reads along the minified axis of a pixel: converged to within one level on the foliage. */
+const SAMPLES = 32;
+/** The pixel's corners, `x, y` in half-pixels from its centre: a silhouette changes one. */
+const CORNERS = [-1, -1, 1, -1, -1, 1, 1, 1];
 
 /** A map as the square wears it: RGBA8 texels, row 0 at v = 0, addressed by repeat. */
 interface TruthMap {
@@ -33,16 +36,22 @@ interface TruthMap {
   uv: ArrayLike<number>;
 }
 
-/** One fixture's view: a white unlit 2×2 square wearing `map`, placed by `square`, over the 4×4
- *  square of colour `behind` at z = -1 when it declares one, over `clear` elsewhere. */
+/** A square facing +z in its own frame, of half-side `half`, placed in the world by `place`. */
+export interface TruthSquare {
+  place: Matrix4;
+  half: number;
+}
+
+/** One fixture's view: a white unlit square wearing `map`, over the square `behind` of its colour
+ *  when it declares one, over `clear` elsewhere. */
 export interface TruthView {
   size: number;
-  camera: { matrixWorld: Matrix4; projectionMatrixInverse: Matrix4 };
-  square: Matrix4;
+  camera: { projectionMatrix: Matrix4; matrixWorldInverse: Matrix4; matrixWorld: Matrix4 };
+  square: TruthSquare;
   map: TruthMap;
-  /** Alpha under which a ray passes through the square; 0 keeps every ray. */
+  /** Alpha under which the pixel shows what is behind the square; 0 keeps every pixel. */
   alphaTest: number;
-  behind?: number;
+  behind?: TruthSquare & { colour: number };
   clear: number;
 }
 
@@ -53,105 +62,111 @@ export interface Truth {
 }
 
 /** A renderer's gap to the truth: pixels farther than the level allowed, and the largest gap. */
-export interface TruthGap {
-  pixels: number;
-  max: number;
-}
-
-const linearOf = (hex: number) => new Color(hex).toArray();
-
-/** Adds `weight` times the linear RGBA of texel `(x, y)` into `out`. */
-function tap(
-  map: TruthMap,
-  linear: Float32Array,
-  x: number,
-  y: number,
-  weight: number,
-  out: Float64Array,
-) {
-  const i = (y * map.width + x) * 4;
-  for (let k = 0; k < 4; k++) out[k] += weight * linear[i + k];
-}
+export type TruthGap = { pixels: number; max: number };
 
 /** Linear RGB then alpha of the map at `(u, v)`, bilinear and repeated as the CPU mirror of the
  *  samplers reads it (`wrapLinear`), into `out`. */
 function bilinear(map: TruthMap, linear: Float32Array, u: number, v: number, out: Float64Array) {
   const [x0, x1, wx] = wrapLinear(u, map.width, 'repeat'),
     [y0, y1, wy] = wrapLinear(v, map.height, 'repeat');
-  out.fill(0);
-  tap(map, linear, x0, y0, (1 - wx) * (1 - wy), out);
-  tap(map, linear, x1, y0, wx * (1 - wy), out);
-  tap(map, linear, x0, y1, (1 - wx) * wy, out);
-  tap(map, linear, x1, y1, wx * wy, out);
+  const [a, b, c, d] = [
+    y0 * map.width + x0,
+    y0 * map.width + x1,
+    y1 * map.width + x0,
+    y1 * map.width + x1,
+  ];
+  for (let k = 0; k < 4; k++)
+    out[k] =
+      (1 - wy) * ((1 - wx) * linear[a * 4 + k] + wx * linear[b * 4 + k]) +
+      wy * ((1 - wx) * linear[c * 4 + k] + wx * linear[d * 4 + k]);
 }
 
-/** Where a ray between two points of the near and far planes meets, from its front (+z) side, the
- *  square of half-side `half` in the plane z = `z`: the fraction of the way, the point written in
- *  `at`; Infinity when it misses. */
-function hit(near: Vector3, far: Vector3, z: number, half: number, at: Vector3) {
-  const t = (z - near.z) / (far.z - near.z);
-  if (far.z >= near.z || t < 0 || t > 1) return Infinity;
-  at.lerpVectors(near, far, t);
-  return Math.abs(at.x) > half || Math.abs(at.y) > half ? Infinity : t;
+/** A square's plane seen from the screen: the inverse of its projection, a homography built once.
+ *  The function writes into `at` the plane point under NDC `(x, y)` and says whether it lies on
+ *  the square's front face, in front of the eye. */
+function onSquare({ camera }: TruthView, { place, half }: TruthSquare) {
+  const f = new Matrix4()
+    .multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse)
+    .multiply(place).elements;
+  // The plane z = 0 keeps columns 0, 1 and 3; the depth row is left out, an identity there.
+  // prettier-ignore
+  const g = new Matrix4().set(
+    f[0], f[4], 0, f[12], f[1], f[5], 0, f[13],
+    0, 0, 1, 0, f[3], f[7], 0, f[15],
+  ).invert().elements;
+  const eye = new Vector3(0, 0, 0).applyMatrix4(
+    place.clone().invert().multiply(camera.matrixWorld),
+  );
+  return (x: number, y: number, at: { x: number; y: number }) => {
+    const w = g[3] * x + g[7] * y + g[15];
+    at.x = (g[0] * x + g[4] * y + g[12]) / w;
+    at.y = (g[1] * x + g[5] * y + g[13]) / w;
+    return eye.z > 0 && w > 0 && Math.abs(at.x) <= half && Math.abs(at.y) <= half;
+  };
 }
 
-/** Renders `view` with `samples`² rays a pixel. */
+/** Renders `view`, `samples` reads a pixel along its minified axis. */
 export function groundTruth(view: TruthView, samples = SAMPLES): Truth {
-  const { size, map, camera } = view;
+  const { size, map, square } = view;
   const linear = Float32Array.from(map.data, (value, i) =>
     map.srgb && i % 4 !== 3 ? srgbToLinear(value / 255) : value / 255,
   );
-  const toWorld = new Matrix4().multiplyMatrices(
-    camera.matrixWorld,
-    camera.projectionMatrixInverse,
+  const front = onSquare(view, square),
+    back = view.behind && onSquare(view, view.behind);
+  const [behind, clear] = [view.behind?.colour ?? 0, view.clear].map((hex) =>
+    new Color(hex).toArray(),
   );
-  const toSquare = view.square.clone().invert().multiply(toWorld);
-  const [near, far, at] = [0, 0, 0].map(() => new Vector3());
-  const texel = new Float64Array(4),
-    sum = new Float64Array(3);
-  const [behind, clear] = [view.behind ?? 0, view.clear].map(linearOf);
-  const e = map.uv;
+  const at = { x: 0, y: 0 },
+    uv = [0, 0],
+    texel = new Float64Array(4),
+    sum = new Float64Array(4),
+    e = map.uv,
+    half = 1 / size;
   const truth: Truth = { rgba: new Uint8Array(size * size * 4), edge: new Uint8Array(size * size) };
-  /** The surface a ray meets first, geometry alone (0 none, 1 the square, 2 the one behind),
-   *  and its linear colour added into `sum`. The square behind is read first, in world space. */
-  const cast = (x: number, y: number) => {
-    let back = Infinity;
-    if (view.behind !== undefined) {
-      near.set(x, y, -1).applyMatrix4(toWorld);
-      far.set(x, y, 1).applyMatrix4(toWorld);
-      back = hit(near, far, -1, 2, at);
-    }
-    near.set(x, y, -1).applyMatrix4(toSquare);
-    far.set(x, y, 1).applyMatrix4(toSquare);
-    const square = hit(near, far, 0, 1, at);
-    const surface = square < back ? 1 : back < Infinity ? 2 : 0;
-    if (surface === 1) {
-      const u = (at.x + 1) / 2,
-        v = (at.y + 1) / 2;
-      bilinear(map, linear, e[0] * u + e[3] * v + e[6], e[1] * u + e[4] * v + e[7], texel);
-      if (texel[3] >= view.alphaTest) {
-        for (let k = 0; k < 3; k++) sum[k] += texel[k];
-        return surface;
-      }
-    }
-    const colour = back < Infinity ? behind : clear;
-    for (let k = 0; k < 3; k++) sum[k] += colour[k];
-    return surface;
+  /** The surface the geometry shows at `(x, y)`: 1 the square, 2 the one behind, 0 none. */
+  const surfaceAt = (x: number, y: number) => (front(x, y, at) ? 1 : back?.(x, y, at) ? 2 : 0);
+  /** The map's coordinate at `(x, y)` on the square's plane, in `uv`. */
+  const mapAt = (x: number, y: number) => {
+    front(x, y, at);
+    const u = (at.x / square.half + 1) / 2,
+      v = (at.y / square.half + 1) / 2;
+    uv[0] = e[0] * u + e[3] * v + e[6];
+    uv[1] = e[1] * u + e[4] * v + e[7];
+    return uv;
+  };
+  /** Texels spanned, squared, from `(x, y) - (dx, dy)` to `(x, y) + (dx, dy)`. */
+  const span = (x: number, y: number, dx: number, dy: number) => {
+    const [u0, v0] = mapAt(x - dx, y - dy);
+    const [u1, v1] = mapAt(x + dx, y + dy);
+    return ((u1 - u0) * map.width) ** 2 + ((v1 - v0) * map.height) ** 2;
   };
   for (let py = 0; py < size; py++)
     for (let px = 0; px < size; px++) {
-      sum.fill(0);
-      const pixel = py * size + px;
-      let first = -1;
-      for (let sy = 0; sy < samples; sy++)
-        for (let sx = 0; sx < samples; sx++) {
-          const x = ((px + (sx + 0.5) / samples) / size) * 2 - 1,
-            y = ((py + (sy + 0.5) / samples) / size) * 2 - 1;
-          const surface = cast(x, y);
-          if (first < 0) first = surface;
-          else if (surface !== first) truth.edge[pixel] = 1;
+      const pixel = py * size + px,
+        x = (2 * px + 1) * half - 1,
+        y = (2 * py + 1) * half - 1;
+      const surface = surfaceAt(x, y);
+      for (let c = 0; c < CORNERS.length; c += 2)
+        if (surfaceAt(x + CORNERS[c] * half, y + CORNERS[c + 1] * half) !== surface)
+          truth.edge[pixel] = 1;
+      let colour: ArrayLike<number> = surface === 2 ? behind : clear;
+      if (surface === 1) {
+        const across = span(x, y, half, 0),
+          up = span(x, y, 0, half);
+        // A footprint of one texel or less is magnified: one read, as the sampler's.
+        const reads = Math.max(across, up) > 1 ? samples : 1,
+          [ax, ay] = across >= up ? [2 * half, 0] : [0, 2 * half];
+        sum.fill(0);
+        for (let s = 0; s < reads; s++) {
+          const t = (s + 0.5) / reads - 0.5;
+          const [u, v] = mapAt(x + ax * t, y + ay * t);
+          bilinear(map, linear, u, v, texel);
+          for (let k = 0; k < 4; k++) sum[k] += texel[k] / reads;
         }
-      for (let k = 0; k < 3; k++) truth.rgba[pixel * 4 + k] = linearToSrgb8(sum[k] / samples ** 2);
+        if (sum[3] >= view.alphaTest) colour = sum;
+        else colour = back?.(x, y, at) ? behind : clear;
+      }
+      for (let k = 0; k < 3; k++) truth.rgba[pixel * 4 + k] = linearToSrgb8(colour[k]);
       truth.rgba[pixel * 4 + 3] = 255;
     }
   return truth;
