@@ -16,16 +16,16 @@ run by the measurer after the merge.
    with `--fix`, then a read against the issue's To do and Proof. Apply what they find.
 4. Gates: `pnpm run check:changed`, `pnpm run test:changed`, then the group your diff touches —
    `pnpm run validate --group quick` (sources), `--group typescript` (build and products),
-   `--group native` (Rust and the unit suite). `scripts/check-pr-size.sh` refuses more than 600
+   `--group native` (Rust and the unit suite). `node scripts/check-pr-size.ts` refuses more than 600
    added lines, generated and vendored paths of `.gitattributes` excepted: above, split the pull
    request (AGENTS.md rule 11).
 5. Commit in small steps: `type(scope): what changed (#<n>)`, nothing else in the message.
 6. Push the branch, and open no pull request (AGENTS.md rule 11). Write its body in `.worktrees/logs/<n>-pr-body.md`, on `.github/PULL_REQUEST_TEMPLATE.md`:
    `Closes #<n>`, what changed,
    the proof run, and under "Local review before push" one line
-   `/simplify: <what it found and what you fixed>` and one line `/code-review: <same>`, copied from
+   `Simplification pass: <what it found and what you fixed>` and one line `Correctness review: <same>`, copied from
    the skills' own reports (CI refuses a body without them). The reviewer completes that section.
-   Check it with `PR_DRAFT=true scripts/check-pr-body.sh < <body file>`; the lead adds `## Lead verification` and opens the pull request.
+   Check it with `PR_DRAFT=true node scripts/check-pr-body.ts < <body file>`; the lead adds `## Lead verification` and opens the pull request.
 7. Return the branch, the body file and what remains unproven. Stop there.
 
 On a fix round, the lead resumes you with `SendMessage` carrying the reviewer's findings: fix
