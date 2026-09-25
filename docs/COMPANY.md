@@ -13,8 +13,8 @@ turns those priorities into work, starts one **lead** agent per domain, and keep
 **reviewer** for one issue at a time, verify the result themselves, merge and close. After every
 merge, **measurement** checks performance and captures the live example, and **acceptance**
 re-reads the change as a safety net. An **architect** keeps the code small and logical; an
-**analyst** studies how the company works and proposes improvements, which only the boss can
-approve. GitHub is the single source of truth: issues, labels and pull requests.
+**analyst** studies how the company works and proposes improvements; the CTO applies those that lose
+no quality, the boss decides the others. GitHub is the single source of truth: issues, labels and pull requests.
 
 ## The roles
 
