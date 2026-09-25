@@ -7,7 +7,8 @@
  * front hides a guide, and the guide writes no depth of its own.
  */
 
-/** Floats of the view uniform: the matrix, the viewport in pixels, the near plane. */
+/** Floats of the view uniform: the matrix, the viewport and the image's jitter in pixels, the
+ *  near plane. */
 export const GUIDE_UNIFORM_FLOATS = 24;
 
 /** The clip-space near plane of the WebGPU engine's reversed depth (`z ≤ w`). */
@@ -26,6 +27,7 @@ export function writeGuideView(
   width: number,
   height: number,
   near: readonly number[],
+  jitter: ArrayLike<number> = [0, 0],
 ) {
   for (let i = 0; i < 12; i++) into[i] = viewProjection[i];
   for (let r = 0; r < 4; r++)
@@ -34,9 +36,32 @@ export function writeGuideView(
       viewProjection[4 + r] * anchor[1] +
       viewProjection[8 + r] * anchor[2] +
       viewProjection[12 + r];
-  into.set([width, height, 0, 0], 16);
+  into.set([width, height, jitter[0], jitter[1]], 16);
   into.set(near, 20);
   return into;
+}
+
+/**
+ * Depth slack of a guide at pixel `(x, y)` against the scene depth `depthAt`, the rule
+ * `jitterSlack` applies in GUIDE_WGSL. The scene was drawn with this image's jitter `(jx, jy)`
+ * pixels, the guide without it: the depth stored at a pixel is the surface's at `pixel − jitter`,
+ * off by `∇d · j`, which `|jx|·|∂d/∂x| + |jy|·|∂d/∂y|` bounds — exactly on a plane, so a grid on
+ * a floor or a box's edge neither shimmers nor half hides. Each slope is the smaller one-sided
+ * difference: a silhouette beside the pixel opens no hole. No jitter, no slack.
+ */
+export function jitterDepthSlack(
+  depthAt: (x: number, y: number) => number,
+  x: number,
+  y: number,
+  jitter: ArrayLike<number>,
+) {
+  const centre = depthAt(x, y);
+  const slope = (dx: number, dy: number) =>
+    Math.min(
+      Math.abs(depthAt(x + dx, y + dy) - centre),
+      Math.abs(centre - depthAt(x - dx, y - dy)),
+    );
+  return Math.abs(jitter[0]) * slope(1, 0) + Math.abs(jitter[1]) * slope(0, 1);
 }
 
 export const GUIDE_WGSL = /* wgsl */ `
@@ -68,7 +93,25 @@ struct Out { @builtin(position) position: vec4f, @location(0) color: vec4f };
   out.position = vec4f(c.xy + offset / half * c.w, c.zw);
   return out;
 }
-@fragment fn fragmentMain(in: Out) -> @location(0) vec4f { return in.color; }
+@group(0) @binding(1) var sceneDepth: texture_depth_2d;
+fn sceneAt(p: vec2i) -> f32 {
+  return textureLoad(sceneDepth, clamp(p, vec2i(0), vec2i(textureDimensions(sceneDepth)) - 1), 0);
+}
+fn slopeAlong(p: vec2i, axis: vec2i, centre: f32) -> f32 {
+  return min(abs(sceneAt(p + axis) - centre), abs(centre - sceneAt(p - axis)));
+}
+// The rule of jitterDepthSlack: the scene depth is off by at most the jitter times its slope.
+fn jitterSlack(p: vec2i, centre: f32) -> f32 {
+  return abs(view.viewport.z) * slopeAlong(p, vec2i(1, 0), centre)
+    + abs(view.viewport.w) * slopeAlong(p, vec2i(0, 1), centre);
+}
+// Reversed depth: the greater is nearer; the scene in front, beyond the slack, hides the guide.
+@fragment fn fragmentMain(in: Out) -> @location(0) vec4f {
+  let p = vec2i(floor(in.position.xy));
+  let scene = sceneAt(p);
+  if (in.position.z < scene - jitterSlack(p, scene)) { discard; }
+  return in.color;
+}
 `;
 
 export const GUIDE_GLSL_VERTEX = /* glsl */ `#version 300 es

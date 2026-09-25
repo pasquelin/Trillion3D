@@ -1,4 +1,3 @@
-import { DEPTH_COMPARE_OR_EQUAL } from '../camera/depthConvention.ts';
 import type { GuideSet } from './guideSet.ts';
 import { GUIDE_INSTANCE_FLOATS } from './guidePack.ts';
 import {
@@ -18,20 +17,35 @@ const STRIDE = GUIDE_INSTANCE_FLOATS * 4;
  * guide: a session whose page drew none never builds it. It draws on the display colour target,
  * AFTER temporal accumulation and composition, with the camera's unjittered view-projection: the
  * guides never enter the history the next image reprojects, so a moving camera cannot smear
- * them, and a still one does not make them shimmer. It reads the opaque depth, never writes it.
+ * them, and a still one does not make them shimmer. It reads the opaque depth as a texture and
+ * tests against it in the shader, allowing the depth the image's jitter moved
+ * (`jitterDepthSlack`): the scene was drawn jittered, the guides are not.
  */
 export function createWebgpuGuidePass(device: GPUDevice) {
   let pipeline: GPURenderPipeline | undefined,
     uniform: GPUBuffer | undefined,
     instances: GPUBuffer | undefined,
+    layout: GPUBindGroupLayout | undefined,
     group: GPUBindGroup | undefined,
+    boundDepth: GPUTextureView | undefined,
     uploaded: unknown;
   const view = new Float32Array(GUIDE_UNIFORM_FLOATS);
   const build = () => {
     const module = device.createShaderModule({ label: GUIDE_PASS, code: GUIDE_WGSL });
+    layout = device.createBindGroupLayout({
+      label: GUIDE_PASS,
+      entries: [
+        {
+          binding: 0,
+          visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
+          buffer: { type: 'uniform' },
+        },
+        { binding: 1, visibility: GPUShaderStage.FRAGMENT, texture: { sampleType: 'depth' } },
+      ],
+    });
     pipeline = device.createRenderPipeline({
       label: GUIDE_PASS,
-      layout: 'auto',
+      layout: device.createPipelineLayout({ bindGroupLayouts: [layout] }),
       vertex: {
         module,
         entryPoint: 'vertexMain',
@@ -50,21 +64,24 @@ export function createWebgpuGuidePass(device: GPUDevice) {
       },
       fragment: { module, entryPoint: 'fragmentMain', targets: [{ format: 'rgba8unorm' }] },
       primitive: { topology: 'triangle-list', cullMode: 'none' },
-      depthStencil: {
-        format: 'depth32float',
-        depthWriteEnabled: false,
-        depthCompare: DEPTH_COMPARE_OR_EQUAL,
-      },
     });
     uniform = device.createBuffer({
       label: GUIDE_PASS,
       size: GUIDE_UNIFORM_FLOATS * 4,
       usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
     });
+  };
+  /** The group binds the depth target, made again when a resize gave it a new view. */
+  const bind = (depth: GPUTextureView) => {
+    if (boundDepth === depth) return;
     group = device.createBindGroup({
-      layout: pipeline.getBindGroupLayout(0),
-      entries: [{ binding: 0, resource: { buffer: uniform } }],
+      layout: layout!,
+      entries: [
+        { binding: 0, resource: { buffer: uniform! } },
+        { binding: 1, resource: depth },
+      ],
     });
+    boundDepth = depth;
   };
   /** The instances, uploaded again only when the set packed anew; the buffer grows by doubling. */
   const upload = (packed: ReturnType<GuideSet['pack']>) => {
@@ -84,8 +101,8 @@ export function createWebgpuGuidePass(device: GPUDevice) {
   return {
     /**
      * Draws the visible guides over `color`, tested against `depth`, seen through the camera's
-     * own view-projection — never the jittered one; returns false, and encodes nothing, when none
-     * is shown.
+     * own view-projection — never the jittered one; `jitter` is the pixel offset `depth` was drawn
+     * with. Returns false, and encodes nothing, when none is shown.
      */
     encode(
       encoder: GPUCommandEncoder,
@@ -94,11 +111,13 @@ export function createWebgpuGuidePass(device: GPUDevice) {
       depth: GPUTextureView,
       camera: { viewProjection: ArrayLike<number> },
       [width, height]: readonly number[],
+      jitter: ArrayLike<number>,
     ) {
       const packed = guides.pack();
       if (!packed.count) return false;
       if (!pipeline) build();
       upload(packed);
+      bind(depth);
       writeGuideView(
         view,
         camera.viewProjection,
@@ -106,12 +125,12 @@ export function createWebgpuGuidePass(device: GPUDevice) {
         width,
         height,
         REVERSED_NEAR_PLANE,
+        jitter,
       );
       device.queue.writeBuffer(uniform!, 0, view);
       const pass = encoder.beginRenderPass({
         label: GUIDE_PASS,
         colorAttachments: [{ view: color, loadOp: 'load', storeOp: 'store' }],
-        depthStencilAttachment: { view: depth, depthReadOnly: true },
       });
       pass.setPipeline(pipeline!);
       pass.setBindGroup(0, group!);
@@ -123,7 +142,7 @@ export function createWebgpuGuidePass(device: GPUDevice) {
     dispose() {
       uniform?.destroy();
       instances?.destroy();
-      pipeline = uniform = instances = group = uploaded = undefined;
+      pipeline = layout = uniform = instances = group = boundDepth = uploaded = undefined;
     },
   };
 }
