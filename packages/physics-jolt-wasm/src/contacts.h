@@ -4,6 +4,8 @@
 
 #include "binding.h"
 
+#include <algorithm>
+
 namespace trillion {
 
 /// The key of the pair of engine ids `a` and `b`, in either order.
@@ -18,5 +20,14 @@ void pushLeave(uint64_t key);
 bool wantsEvents(uint32_t engine);
 /// The engine id of a body a contact names, or `~0u` when that body was removed since.
 uint32_t live(const JPH::BodyID &id);
+/// A body's inverse mass, 0 unless it is dynamic.
+inline float inverseMass(const JPH::Body &body) {
+  return body.IsDynamic() ? body.GetMotionProperties()->GetInverseMass() : 0.0f;
+}
+/// The impulse that stops an approach at `speed` along the normal between bodies of summed
+/// inverse mass `inverse`: an estimate made before the solver runs.
+inline float approachImpulse(float speed, float inverse) {
+  return inverse > 0 ? std::max(0.0f, speed) / inverse : 0.0f;
+}
 
 }  // namespace trillion

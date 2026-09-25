@@ -15,17 +15,14 @@ namespace trillion {
 
 namespace {
 
-/// One body the soft body's vertices touched this step: the sums of their contact points and
-/// normals, their count and their mass (infinite when one is pinned).
+/// One body the soft body's vertices touched this step, and the engine id it has: the sums of
+/// their contact points and normals, their count and their mass (infinite when one is pinned).
 struct Touch {
   BodyID id;
+  uint32_t engine;
   Vec3 point, normal;
   float count, mass;
 };
-
-float inverseMass(const Body &body) {
-  return body.IsDynamic() ? body.GetMotionProperties()->GetInverseMass() : 0.0f;
-}
 
 }  // namespace
 
@@ -36,8 +33,8 @@ SoftBodyValidateResult Listener::OnSoftBodyContactValidate(const Body &soft, con
   if (settings.mIsSensor)
     return wantsEvents(ia) || wantsEvents(ib) ? SoftBodyValidateResult::AcceptContact
                                               : SoftBodyValidateResult::RejectContact;
-  // XPBD holds a rigid body no heavier than the free vertices it lands on; a heavier one pushes
-  // between them, so it meets them as heavy as itself.
+  // XPBD holds a rigid body no heavier than the soft body's free vertices; a heavier one pushes
+  // between them, so it meets them as if they weighed what it weighs.
   float mass = world().slots[ia & INDEX_MASK].softMass, inverse = inverseMass(other);
   if (inverse > 0 && mass * inverse < 1) settings.mInvMassScale1 = mass * inverse;
   return SoftBodyValidateResult::AcceptContact;
@@ -45,58 +42,59 @@ SoftBodyValidateResult Listener::OnSoftBodyContactValidate(const Body &soft, con
 
 void Listener::OnSoftBodyContactAdded(const Body &soft, const SoftBodyManifold &manifold) {
   uint32_t ia = uint32_t(soft.GetUserData());
-  RMat44 com = soft.GetCenterOfMassTransform();
+  bool wanted = wantsEvents(ia);
   // Called for every soft body that touched anything, each step: the list is kept, never reallocated.
   thread_local std::vector<Touch> touches;
   touches.clear();
+  // The bodies no side of the pair listens to are left out at once.
+  auto touch = [&](const BodyID &id) -> Touch * {
+    auto found = std::find_if(touches.begin(), touches.end(), [&](const Touch &t) { return t.id == id; });
+    if (found != touches.end()) return &*found;
+    uint32_t engine = live(id);
+    bool kept = engine != ~0u && (wanted || wantsEvents(engine));
+    return &touches.emplace_back(Touch{id, kept ? engine : ~0u, Vec3::sZero(), Vec3::sZero(), 0, 0});
+  };
   for (const SoftBodyVertex &v : manifold.GetVertices()) {
     if (!manifold.HasContact(v)) continue;
-    BodyID id = manifold.GetContactBodyID(v);
-    auto found = std::find_if(touches.begin(), touches.end(), [&](const Touch &t) { return t.id == id; });
-    if (found == touches.end()) found = touches.insert(touches.end(), {id, Vec3::sZero(), Vec3::sZero(), 0, 0});
-    found->point += manifold.GetLocalContactPoint(v);
-    found->normal += manifold.GetContactNormal(v);
-    found->count += 1;
-    found->mass += v.mInvMass > 0 ? 1.0f / v.mInvMass : INFINITY;
-  }
-  // The vertices' mean point and normal, in the world.
-  for (Touch &touch : touches) {
-    touch.point = Vec3(com * (touch.point / touch.count));
-    touch.normal = com.Multiply3x3(touch.normal).NormalizedOr(Vec3::sZero());
+    Touch *t = touch(manifold.GetContactBodyID(v));
+    if (t->engine == ~0u) continue;
+    t->point += manifold.GetLocalContactPoint(v);
+    t->normal += manifold.GetContactNormal(v);
+    t->count += 1;
+    t->mass += v.mInvMass > 0 ? 1.0f / v.mInvMass : INFINITY;
   }
   // A sensor reports presence alone: at the soft body's centre, with no impulse.
-  for (uint32_t i = 0; i < manifold.GetNumSensorContacts(); ++i)
-    touches.push_back({manifold.GetSensorContactBodyID(i), Vec3(com.GetTranslation()), Vec3::sZero(), 1, 0});
+  for (uint32_t i = 0; i < manifold.GetNumSensorContacts(); ++i) touch(manifold.GetSensorContactBodyID(i));
+  RMat44 com = soft.GetCenterOfMassTransform();
   const BodyLockInterfaceNoLock &locks = world().system->GetBodyLockInterfaceNoLock();
   std::lock_guard guard(lock);
-  for (const Touch &touch : touches) {
-    uint32_t ib = live(touch.id);
-    if (ib == ~0u || (!wantsEvents(ia) && !wantsEvents(ib))) continue;
-    uint64_t key = pairKey(ia, ib);
-    world().softSeen.push_back(key);
-    if (!world().softPairs.emplace(key, ia).second) continue;
+  for (const Touch &t : touches) {
+    if (t.engine == ~0u) continue;
+    uint64_t key = pairKey(ia, t.engine);
+    auto [at, fresh] = world().softPairs.try_emplace(key, SoftPair{ia, world().step});
+    at->second.seen = world().step;
+    if (!fresh) continue;
     uint32_t &pair = world().pairs[key];
     pair = 1;
+    Vec3 point = t.count > 0 ? Vec3(com * (t.point / t.count)) : Vec3(com.GetTranslation());
     // Estimated before the solver, as a rigid pair's: the soft body's mean velocity (its last
-    // step's) against the other's at the point, which no soft body pushed yet, times the pair's
-    // reduced mass.
+    // step's) against the other's at the point, which no soft body pushed yet, along the vertices'
+    // mean normal, times the pair's reduced mass.
     float impulse = 0;
-    BodyLockRead other(locks, touch.id);
-    if (other.Succeeded() && touch.mass > 0) {
+    BodyLockRead other(locks, t.id);
+    if (other.Succeeded() && t.count > 0) {
       const Body &b = other.GetBody();
-      Vec3 relative = soft.GetLinearVelocity() - b.GetPointVelocity(RVec3(touch.point));
-      float inverse = 1.0f / touch.mass + inverseMass(b);
-      if (inverse > 0) impulse = std::max(0.0f, relative.Dot(touch.normal)) / inverse;
+      Vec3 normal = com.Multiply3x3(t.normal).NormalizedOr(Vec3::sZero());
+      Vec3 relative = soft.GetLinearVelocity() - b.GetPointVelocity(RVec3(point));
+      impulse = approachImpulse(relative.Dot(normal), 1.0f / t.mass + inverseMass(b));
     }
-    if (pushEvent(1, ia, ib, impulse, touch.point)) pair |= ENTERED;
+    if (pushEvent(1, ia, t.engine, impulse, point)) pair |= ENTERED;
     else ++world().dropped;
   }
 }
 
 void leaveSoft() {
   World &w = world();
-  if (w.softPairs.empty()) return;
-  std::sort(w.softSeen.begin(), w.softSeen.end());
   BodyInterface &bodies = w.system->GetBodyInterfaceNoLock();
   for (auto at = w.softPairs.begin(); at != w.softPairs.end();) {
     auto pair = w.pairs.find(at->first);
@@ -105,11 +103,11 @@ void leaveSoft() {
       at = w.softPairs.erase(at);
       continue;
     }
-    // A soft body asleep through the step keeps its pairs, as a rigid body keeps its own.
-    const Slot &soft = w.slots[at->second & INDEX_MASK];
-    bool stepped = bodies.IsActive(soft.id) ||
-                   std::find(w.deactivated.begin(), w.deactivated.end(), at->second) != w.deactivated.end();
-    if (!stepped || std::binary_search(w.softSeen.begin(), w.softSeen.end(), at->first)) {
+    // Touched this step, or its soft body asleep through it: kept, as a rigid body keeps its own.
+    uint32_t engine = at->second.soft;
+    if (at->second.seen == w.step ||
+        !(bodies.IsActive(w.slots[engine & INDEX_MASK].id) ||
+          std::find(w.deactivated.begin(), w.deactivated.end(), engine) != w.deactivated.end())) {
       ++at;
       continue;
     }
@@ -117,7 +115,6 @@ void leaveSoft() {
     w.pairs.erase(pair);
     at = w.softPairs.erase(at);
   }
-  w.softSeen.clear();
 }
 
 }  // namespace trillion

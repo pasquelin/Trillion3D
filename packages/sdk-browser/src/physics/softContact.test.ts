@@ -6,7 +6,7 @@ import { plane, sphere } from '../../../sdk-core/src/world/geometry/basic.ts';
 import type { Geometry } from '../../../sdk-core/src/world/geometry/geometry.ts';
 import type { SoftBodyOptions } from '../../../sdk-core/src/physics/index.ts';
 import { createCharacterDriver } from './characterDriver.ts';
-import { addBox, addSoft, FLAT, settle, softWorld, stepBox } from './soft.fixture.ts';
+import { addBox, addSoft, flatCloth, settle, softWorld, stepBox } from './soft.fixture.ts';
 
 /** The human character walking east from the origin for 3 s at a soft body placed at `position`
  *  and turned by `quaternion`: each step's feet, `x, z`. */
@@ -54,10 +54,7 @@ test('a rigid body four times heavier than the cloth it lands on is held by it, 
   // A 1 m cloth of 0.2 kg pinned at its corners, 1 m above the floor; a 0.2 m box dropped on it.
   const drop = async (mass: number) => {
     const jolt = await softWorld();
-    const corners = [0, 10, 110, 120];
-    addSoft(jolt, plane(1, 1, 10, 10), { type: 'cloth', pins: corners }, [0, 1, 0], {
-      quaternion: FLAT,
-    });
+    flatCloth(jolt, 1, [0, 10, 110, 120]);
     addBox(jolt, mass, 1.5);
     let y = 1.5;
     for (let s = 0; s < 180; s++) y = stepBox(jolt, y);
