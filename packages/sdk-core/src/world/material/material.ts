@@ -48,8 +48,9 @@ export interface MaterialParameters {
   flatShading?: boolean;
   /** Size of a dot, for the points material. */
   size?: number;
-  /** Whether dots get smaller with distance. */
+  /** Whether dots and sprites get smaller with distance. */
   sizeAttenuation?: boolean;
+  /** How far a sprite's picture is turned in the image, in radians, counter-clockwise. */ rotation?: number;
   /** Width of a line in CSS pixels, the same at every distance. */
   linewidth?: number;
   /** Length of a dash, in world units along the line. */

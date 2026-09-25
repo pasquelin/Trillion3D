@@ -37,8 +37,10 @@ export const material = {
   line: kind('line', { linewidth: 1 }),
   /** Draws dashed lines: `dashSize` drawn, then `gapSize` left empty, along the line. */
   lineDashed: kind('lineDashed', { linewidth: 1, dashSize: 3, gapSize: 1, scale: 1 }),
-  /** A flat picture that always faces the camera. */
-  sprite: kind('sprite'),
+  /** A flat picture that always faces the camera (`object.sprite`), see-through where its
+   *  picture is, turned in the image by `rotation` and smaller with distance unless
+   *  `sizeAttenuation` is false. */
+  sprite: kind('sprite', { rotation: 0, sizeAttenuation: true, transparent: true }),
   /** Invisible, except where shadows fall on it. */
   shadow: kind('shadow', { color: 0x000000, transparent: true, opacity: 0.5 }),
   /**
