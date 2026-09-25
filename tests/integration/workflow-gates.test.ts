@@ -43,9 +43,13 @@ function makeRepo() {
   return work;
 }
 
-const commit = (cwd: string, message: string) => {
-  writeFileSync(join(cwd, `${Date.now()}-${Math.random()}.txt`), message);
-  ok(cwd, 'add', '-A');
+const commit = (
+  cwd: string,
+  message: string,
+  files: Record<string, string> = { [`${Date.now()}-${Math.random()}.txt`]: message },
+) => {
+  for (const [name, text] of Object.entries(files)) writeFileSync(join(cwd, name), text);
+  ok(cwd, 'add', ...Object.keys(files));
   return git(cwd, 'commit', '-q', '-m', message);
 };
 
@@ -114,28 +118,23 @@ test('check-pr-body: a draft passes without Lead verification, a ready pull requ
   assert.match(checkBody(linked, 'true').stderr, /no "\/simplify:" line/);
 });
 
+const checkSize = (cwd: string) =>
+  spawnSync(new URL('scripts/check-pr-size.sh', repo).pathname, ['base'], {
+    cwd,
+    encoding: 'utf8',
+  });
+
 test('check-pr-size: more than 600 added lines fail, generated paths are not counted', () => {
   const work = makeRepo();
-  cpSync(new URL('.gitattributes', repo), join(work, '.gitattributes'));
   ok(work, 'switch', '-q', '-c', '12-thing');
-  commit(work, 'base');
+  commit(work, 'base', { '.gitattributes': readFileSync(new URL('.gitattributes', repo), 'utf8') });
   ok(work, 'tag', 'base');
-  writeFileSync(join(work, 'pnpm-lock.yaml'), 'x\n'.repeat(601));
-  writeFileSync(join(work, 'a.ts'), 'x\n'.repeat(600));
-  ok(work, 'add', 'pnpm-lock.yaml', 'a.ts');
-  ok(work, 'commit', '-q', '-m', 'lock and code');
-  const size = () =>
-    spawnSync(new URL('scripts/check-pr-size.sh', repo).pathname, ['base'], {
-      cwd: work,
-      encoding: 'utf8',
-    });
-  const accepted = size();
+  commit(work, 'lock and code', { 'pnpm-lock.yaml': 'x\n'.repeat(601), 'a.ts': 'x\n'.repeat(600) });
+  const accepted = checkSize(work);
   assert.equal(accepted.status, 0, accepted.stderr);
   assert.match(accepted.stdout, /added: 600 \(limit 600\)/);
-  writeFileSync(join(work, 'b.ts'), 'one more\n');
-  ok(work, 'add', 'b.ts');
-  ok(work, 'commit', '-q', '-m', 'one more');
-  const refused = size();
+  commit(work, 'one more', { 'b.ts': 'one more\n' });
+  const refused = checkSize(work);
   assert.equal(refused.status, 1);
   assert.match(refused.stdout, /added: 601 \(limit 600\)/);
   assert.match(refused.stderr, /AGENTS\.md rule 11: split the pull request, `Part of #n`/);
