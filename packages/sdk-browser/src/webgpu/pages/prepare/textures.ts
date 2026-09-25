@@ -2,7 +2,7 @@ import { importTextureIndices } from '../../../host/surfaceImport.ts';
 import { compteMateriauxEtTangentes } from '../io/catalogue.ts';
 import { prepareWebgpuGeometry } from '../../core/geometryPrepare.ts';
 import { collectWebgpuMaterialTextures } from '../../core/materialTextures.ts';
-import { tileCatalogue } from '../../tile/catalogue.ts';
+import { previewsByAtlas, tileCatalogue } from '../../tile/catalogue.ts';
 import { createWebgpuTileStreamer } from '../../tile/streamer.ts';
 import {
   chooseBlockFormat,
@@ -18,7 +18,6 @@ import {
   PREVIEW_ATLAS_DATA,
   PREVIEW_BASE,
   TEXTURE_PREVIEW_VERSION,
-  type TexturePreview,
 } from '../../../../../sdk-core/src/index.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import type { TileTexture } from '../../tile/atlas.ts';
@@ -61,7 +60,7 @@ export async function prepareWebgpuTextures(rt: WebgpuPagesRuntime, gpuDevice: G
     concatUv: vis.concatUv,
     concatNrm: vis.concatNrm,
   } = prepareWebgpuGeometry(gpuDevice, allPages, geometryBlocks));
-  const { maps, dataMaps } = collectWebgpuMaterialTextures(
+  const { maps, dataMaps, coverage } = collectWebgpuMaterialTextures(
     allPages,
     blendCopies,
     mapLayer,
@@ -78,11 +77,8 @@ export async function prepareWebgpuTextures(rt: WebgpuPagesRuntime, gpuDevice: G
     geometryWithoutTangents: compte.geometryWithoutTangents,
   });
   const textureStarted = performance.now();
-  // Sidecar levels, filed by the scene texture they cover and by atlas: the same texture can have
-  // an entry for each, reduced by that atlas's curve.
   const previews = rt.context.metadata.texturePreviews ?? [];
-  const byTexture = new Map<string, TexturePreview>();
-  for (const preview of previews) byTexture.set(`${preview.texture}/${preview.atlas}`, preview);
+  const previewAt = previewsByAtlas(previews);
   // The family is settled here, the chains in hand: the one the device samples AND the cache
   // holds kept chains in — a device with both features takes the family the cook wrote.
   const choice = chooseBlockFormat(gpuDevice.features, previews, rt.context.textureCompression);
@@ -92,10 +88,16 @@ export async function prepareWebgpuTextures(rt: WebgpuPagesRuntime, gpuDevice: G
   const ranks = importTextureIndices(rt.context.textureIndices);
   const previewOf = (atlas: number, list: typeof maps) => (index: number) => {
     const source = ranks?.get(list[index]);
-    return source === undefined ? undefined : byTexture.get(`${source}/${atlas}`);
+    return source === undefined ? undefined : previewAt(source, atlas);
   };
   const readLevel = rt.context.readTextureLevel;
-  const color = tileCatalogue(maps, previewOf(PREVIEW_ATLAS_COLOR, maps), readLevel, encoding);
+  const color = tileCatalogue(
+    maps,
+    previewOf(PREVIEW_ATLAS_COLOR, maps),
+    readLevel,
+    encoding,
+    coverage,
+  );
   const data = tileCatalogue(
     dataMaps,
     previewOf(PREVIEW_ATLAS_DATA, dataMaps),
