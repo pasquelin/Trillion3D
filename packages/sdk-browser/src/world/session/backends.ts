@@ -22,7 +22,7 @@ type Inputs = {
   /** The engine paths this session renders through, already chosen (`chooseBackends`). */
   factories: BackendFactory[];
   backends: RenderBackend[];
-  /** Manifest url base: that is what locates the resident-proxy cache object. */
+  /** Manifest url base: that is what locates the imported lights and the baked texture levels. */
   base: string;
 };
 
