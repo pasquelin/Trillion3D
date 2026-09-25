@@ -45,7 +45,7 @@ function readGeometry(saved: SavedGeometry): Geometry {
     return build(...saved.recipe.args);
   }
   const g = new Geometry();
-  g._owner = saved.owner === 'host' ? 'host' : 'world';
+  if (saved.owner === 'host') g._owner = 'host';
   for (const [name, a] of Object.entries(saved.attributes ?? {})) {
     const Typed = TYPED[a.type] ?? Float32Array;
     g.setAttribute(
