@@ -12,7 +12,7 @@ import type { WriteRevision } from './hookCore.ts';
 const mark = (): WriteRevision => ({ revision: 0 });
 
 function hooked() {
-  const parent = new G.GraphGroup();
+  const parent = new G.Group();
   const mesh = G.mesh();
   parent.add(mesh);
   const revision = mark();

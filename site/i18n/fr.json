@@ -327,7 +327,6 @@
       "a-walker-among-balls": "Un marcheur parmi les balles"
     },
     "missing": {
-      "colours-on-the-vertices": "couleurs par sommet sous WebGPU",
       "dashed-lines": "lignes pointillées",
       "floating-crates": "géométrie réécrite à chaque image",
       "thick-lines": "lignes épaisses",

@@ -55,11 +55,12 @@ export const FLAG_LIT = 1,
   FLAG_UNLIT_VIEW = 8192,
   /** The material transmits: the surface reads the already-drawn background instead of blending by alpha. */
   FLAG_TRANSMISSIVE = 16384,
+  /** The material reads its vertex colours and the geometry carries some: the base colour is
+   *  multiplied by the interpolated vertex colour, as the forward path does. */
+  FLAG_HAS_COLOR = 32768,
   /** A shadow-only row of a blended cluster (`../webgpu/row/blendCasters.ts`): the shadow raster
    *  keeps its texels in proportion to its coverage (`PageInfo.blendCoverage`). */
-  FLAG_BLEND_CASTER = 32768;
-// Bit 65536 is free: it carried wrap of a single map, which each texture's header now carries
-// (`wrapModes.ts`).
+  FLAG_BLEND_CASTER = 65536;
 export type VisPage = {
   array: Uint32Array;
   attributes: HostAttributes;
@@ -95,6 +96,8 @@ export type VisMaterial = {
   thickness: number;
   attenuationDistance: number;
   attenuationColor: [number, number, number];
+  /** The material multiplies its base colour by the geometry's `color` attribute, when it has one. */
+  vertexColors?: boolean;
   /** The surface model a non-physical family maps onto (`../scene/surfaceModel.ts`); physical if absent. */
   model?: number;
 };
