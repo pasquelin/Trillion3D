@@ -6743,7 +6743,7 @@
       "raycastTrees": "Số byte bộ nhớ CPU mà `raycast` giữ cho các cây tam giác, dùng chung cho mọi thế giới trên trang; vượt quá thì cây được dùng lâu nhất bị bỏ. Đặt nó để đổi giới hạn.",
       "gpu": "Số byte bộ nhớ GPU mà thế giới được giữ, mọi pool cộng lại; đặt để vẽ lại từng pool theo quy tắc chia (`split`). Tổng nhỏ hơn pool bóng đổ bị từ chối (`GPU_BUDGET_UNDER_SHADOW_POOL`). Không bao giờ đọc từ máy.",
       "cpu": "Số byte bộ nhớ CPU mà thế giới được giữ: trước hết là bản sao phía host của bảng trang bóng, rồi các trang đã giải mã, các bảng manifest, hàng đợi truyền của chúng và các bảng lát cắt của engine cộng lại. Một thay đổi áp dụng ngay: các trang rời đi theo lần dùng cuối cho đến khi vừa. Tổng không vượt quá bản sao bị từ chối (`CPU_BUDGET_UNDER_SHADOW_MIRROR`). Không bao giờ đọc từ máy.",
-      "split": "Cách chia hai tổng: pool bóng và các probe ánh sáng dội ở kích thước lớn nhất, rồi mỗi pool hình học và kết cấu một nửa, giới hạn ở trần của chúng; bản sao phía host của bảng bóng, rồi bộ đệm trang đã giải mã lấy phần còn lại của tổng CPU, toàn bộ, và trong phần đó phiên hiện tại dành riêng các bảng manifest, hàng đợi truyền của nó và các bảng lát cắt của engine. Kết quả của quy tắc, trước khi một pool được đặt riêng."
+      "split": "Cách chia hai tổng: pool bóng, các probe ánh sáng dội và các đích của chuỗi hiệu ứng ở kích thước lớn nhất, rồi mỗi pool hình học và kết cấu một nửa, giới hạn ở trần của chúng; bản sao phía host của bảng bóng, rồi bộ đệm trang đã giải mã lấy phần còn lại của tổng CPU, toàn bộ, và trong phần đó phiên hiện tại dành riêng các bảng manifest, hàng đợi truyền của nó và các bảng lát cắt của engine. Kết quả của quy tắc, trước khi một pool được đặt riêng."
     }
   },
   "world.camera": {

@@ -70,11 +70,10 @@ export function worldBudget(
   // What the last frame published, `null` or `undefined` when it held no such pool.
   const held = (key: string) => (frames.last as Record<string, number | null> | null)?.[key];
   const split = () => splitOf(pools);
-  /** What the GPU total leaves a pool beside the shadows, the bounce probes and the other pool
-   *  as asked. */
+  /** What the GPU total leaves a pool beside the fixed shares and the other pool as asked. */
   const room = (other: 'geometryPool' | 'texturePool', ceiling: number) => {
-    const shares = split();
-    const left = (pools.gpu ?? DEFAULT_GPU_BUDGET) - shares.shadowPool - shares.bounceProbes;
+    const { shadowPool, bounceProbes, effectTargets, ...shares } = split();
+    const left = (pools.gpu ?? DEFAULT_GPU_BUDGET) - shadowPool - bounceProbes - effectTargets;
     return Math.max(1, Math.min(ceiling, left - (pools[other] ?? shares[other])));
   };
   return {
@@ -107,8 +106,8 @@ export function worldBudget(
       pools.cpu = bytes;
       pools.pageCache.resize(pageCache);
     },
-    /** How the two totals are shared: the shadow pool and the bounce probes at their largest,
-     *  then half each to the geometry and texture pools, capped at their ceilings; the shadow
+    /** How the two totals are shared: the shadow pool, the bounce probes and the effect chain's
+     *  targets at their largest, then half each to the geometry and texture pools, capped at their ceilings; the shadow
      *  table's host mirror, then the decoded-page cache takes the whole rest of the CPU total,
      *  within which the session in place reserves its manifest tables, its transfer queue and the
      *  engine's cut tables. What the rule gives, before a pool set on its own. */

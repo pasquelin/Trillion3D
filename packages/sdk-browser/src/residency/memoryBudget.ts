@@ -2,12 +2,16 @@ import { DEFAULT_GEOMETRY_POOL_BUDGET } from './pools.ts';
 import { DEFAULT_TEXTURE_POOL_BUDGET } from '../webgpu/residency/memoryBudgets.ts';
 import { SHADOW_BUFFER_BYTES, shadowAtlasBytes } from '../gpu/shadow/atlas.ts';
 import { shadowTransmittanceBytes } from '../gpu/shadow/transmittance.ts';
-import { shadowPoolSide } from '../../../sdk-core/src/scene/light-shadow/virtual.ts';
+import {
+  PORTABLE_TEXTURE_SIDE,
+  shadowPoolSide,
+} from '../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { shadowTableHostBytes } from '../../../sdk-core/src/scene/light-shadow/table.ts';
 import { shadowPoolHostBytes } from '../../../sdk-core/src/scene/light-shadow/pool.ts';
 import { DEFAULT_CACHED_BYTES } from '../streaming/pageCache.ts';
 import { BOUNCE_SETTINGS } from '../../../sdk-core/src/bounce/contracts.ts';
 import { bounceProbeBytes } from '../bounce/limits.ts';
+import { effectChainBytesAt } from '../effects/targets.ts';
 
 /** The shadows at their largest — the pool on the largest screen, its static layer, its
  *  transmittance layer, and the fixed buffers beside it, the page table first: they never hold
@@ -28,12 +32,18 @@ export const SHADOW_HOST_BYTES =
  */
 export const BOUNCE_PROBE_BYTES =
   2 * bounceProbeBytes(BOUNCE_SETTINGS.cascadeLevels * BOUNCE_SETTINGS.cascadeSize ** 3);
-/** The GPU total by default: the bounce probes, then the three pools at their defaults. */
+/**
+ * GPU bytes of the effect chain's targets at their largest (`../effects/targets.ts`): two pass
+ * targets, the WebGL2 scene target and every kind's own, on the largest image — the texture side
+ * every WebGPU device guarantees, squared. Fixed whatever the canvas; held only while a chain has
+ * a pass, as the targets follow the image's size.
+ */
+export const EFFECT_TARGET_BYTES = effectChainBytesAt(PORTABLE_TEXTURE_SIDE);
+/** The GPU bytes reserved before the pools: the shadows, the probes, the effect targets. */
+const FIXED_GPU_BYTES = SHADOW_POOL_BYTES + BOUNCE_PROBE_BYTES + EFFECT_TARGET_BYTES;
+/** The GPU total by default: the fixed shares, then the two pools at their defaults. */
 export const DEFAULT_GPU_BUDGET =
-  SHADOW_POOL_BYTES +
-  BOUNCE_PROBE_BYTES +
-  DEFAULT_GEOMETRY_POOL_BUDGET +
-  DEFAULT_TEXTURE_POOL_BUDGET;
+  FIXED_GPU_BYTES + DEFAULT_GEOMETRY_POOL_BUDGET + DEFAULT_TEXTURE_POOL_BUDGET;
 /** The CPU total by default: the shadow page table's host mirror, then the decoded-page cache's
  *  default, what a world's cache held before the mirror was counted. */
 export const DEFAULT_CPU_BUDGET = SHADOW_HOST_BYTES + DEFAULT_CACHED_BYTES;
@@ -47,9 +57,10 @@ const checkTotal = (bytes: number, name: string) => {
  * - GPU: the shadow pool first, at its largest (`SHADOW_POOL_BYTES`), what the atlas, its
  *   static layer and its transmittance layer take on the largest screen, with the page table and
  *   the other fixed shadow buffers; then the bounce probe cascades at their largest
- *   (`BOUNCE_PROBE_BYTES`); the rest in two halves, the geometry pool and the texture pool, each
- *   no larger than its ceiling. The shadows and the probes never shrink: a total under the two
- *   is refused by name. A total that leaves the other two less than their floors — the
+ *   (`BOUNCE_PROBE_BYTES`), then the effect chain's targets at their largest
+ *   (`EFFECT_TARGET_BYTES`); the rest in two halves, the geometry pool and the texture pool, each
+ *   no larger than its ceiling. The three fixed shares never shrink: a total under them is
+ *   refused by name. A total that leaves the other two less than their floors — the
  *   root cover, one layer per lane — leaves them at those floors, which the pools' own clamps name.
  * - CPU: the shadow page table's host mirror first (`SHADOW_HOST_BYTES`), fixed whatever the
  *   screen; the decoded-page cache takes the rest (`pageCache.ts`), the session's manifest tables
@@ -63,12 +74,13 @@ const checkTotal = (bytes: number, name: string) => {
 export function splitMemoryBudget(gpu: number, cpu: number) {
   checkTotal(gpu, 'INVALID_GPU_BUDGET');
   checkTotal(cpu, 'INVALID_CPU_BUDGET');
-  if (gpu < SHADOW_POOL_BYTES + BOUNCE_PROBE_BYTES) throw new Error('GPU_BUDGET_UNDER_SHADOW_POOL');
+  if (gpu < FIXED_GPU_BYTES) throw new Error('GPU_BUDGET_UNDER_SHADOW_POOL');
   if (cpu <= SHADOW_HOST_BYTES) throw new Error('CPU_BUDGET_UNDER_SHADOW_MIRROR');
-  const half = Math.floor((gpu - SHADOW_POOL_BYTES - BOUNCE_PROBE_BYTES) / 2);
+  const half = Math.floor((gpu - FIXED_GPU_BYTES) / 2);
   return {
     shadowPool: SHADOW_POOL_BYTES,
     bounceProbes: BOUNCE_PROBE_BYTES,
+    effectTargets: EFFECT_TARGET_BYTES,
     geometryPool: Math.max(1, Math.min(DEFAULT_GEOMETRY_POOL_BUDGET, half)),
     texturePool: Math.max(1, Math.min(DEFAULT_TEXTURE_POOL_BUDGET, half)),
     shadowMirror: SHADOW_HOST_BYTES,
