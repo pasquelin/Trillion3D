@@ -148,7 +148,7 @@ function ensureStaticLayer(rt: WebgpuPagesRuntime) {
   if (!lights.mobility.layered || lights.staticLayer || lights.staticLayerPending || !device)
     return;
   lights.staticLayerPending = true;
-  const capacity = rt.layout.drawSlots,
+  const capacity = rt.layout.rows.casterSlots,
     side = lights.plan.pool.side;
   deviceMade(device, () => shadowLayerTexture(device, side))
     .then((texture) => {

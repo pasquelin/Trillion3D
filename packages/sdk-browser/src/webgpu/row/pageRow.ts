@@ -11,9 +11,11 @@ import {
 } from './pageRowMaterial.ts';
 import {
   assertVisibilityPageTriangles,
+  FLAG_BLEND_CASTER,
   PAGE_INFO_STRIDE,
   VIS_TRIANGLE_BITS,
 } from '../../visibility/buffer.ts';
+import { blendCoverage } from '../../gpu/shadow/transmittance.ts';
 
 export const ROW_ID_BASE_WORD = 27,
   ROW_HIZ_SLOT_WORD = 31;
@@ -21,6 +23,8 @@ export const ROW_ID_BASE_WORD = 27,
  *  reads to cut a masked material, and so what a colour tile's arrival is matched against. */
 export const ROW_MAP_LAYER_WORD = 22,
   ROW_FLAGS_WORD = 23;
+/** Row word of a blended caster's coverage (`PageInfo.blendCoverage`): the light it stops. */
+export const ROW_BLEND_COVERAGE_WORD = 57;
 /** Row word of the width a line page's quads widen to (`PageInfo.lineWidth`); zero for triangles. */
 export const ROW_LINE_WIDTH_WORD = 61;
 /** Row word that carries the line's placement (`PageInfo.placement`). */
@@ -80,7 +84,10 @@ export function createPageRowWriter(resources: PageRowResources) {
     // A page holding more triangles than the identifier's eight low bits would alias the next page.
     assertVisibilityPageTriangles(indexCount / 3, rec.url);
     ints[base + ROW_MAP_LAYER_WORD] = maps.map;
-    ints[base + ROW_FLAGS_WORD] = maps.flags;
+    // A blended cluster's row is a shadow caster's alone (`blendCasters.ts`): its flag and its
+    // coverage are what the shadow raster reads of it.
+    ints[base + ROW_FLAGS_WORD] = rec.transparent ? maps.flags | FLAG_BLEND_CASTER : maps.flags;
+    if (rec.transparent) floats[base + ROW_BLEND_COVERAGE_WORD] = blendCoverage(mat);
     ints[base + 24] = offsetWords;
     ints[base + ROW_INDEX_WORDS] = indexCount;
     ints[base + 26] = geo?.vertexBase ?? 0;

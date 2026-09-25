@@ -1972,6 +1972,16 @@
       "Look for": "留意"
     }
   },
+  "shadows-through-see-through-panes": {
+    "banner": "拖动不透明度：中间那块玻璃的阴影随之变化，0 时消失，1 时全黑。",
+    "controls": {
+      "opacity": "不透明度",
+      "sunHeight": "太阳高度"
+    },
+    "readouts": {
+      "Opacity of the middle pane": "中间玻璃的不透明度"
+    }
+  },
   "walk-with-collisions": {
     "banner": "点击以环顾四周，然后用 W A S D 行走、空格键跳跃：登上台阶和坡道，乘上平台，推动箱子，在冰面上松开按键就会滑行。",
     "controls": {

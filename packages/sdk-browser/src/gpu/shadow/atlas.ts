@@ -9,6 +9,7 @@ import { MAX_SHADOW_REGIONS, createShadowRecordPack } from './recordPack.ts';
 import { createCheckedShaderModule } from '../core/shaderModule.ts';
 import { DEPTH_COMPARE } from '../../camera/depthConvention.ts';
 import { SHADOW_REQUEST_WORDS } from '../../lighting/direct/shadowWgsl.ts';
+import { createShadowTransmittance, type ShadowTransmittance } from './transmittance.ts';
 
 export { MAX_SHADOW_PAGES, MAX_SHADOW_REGIONS } from './recordPack.ts';
 
@@ -42,7 +43,7 @@ export type GpuShadowAtlas = Awaited<ReturnType<typeof createGpuShadowAtlas>>;
  * and the shading reads the placeholder.
  */
 export async function createGpuShadowAtlas(device: GPUDevice, pageLayout: GPUBindGroupLayout) {
-  let texture: GPUTexture | undefined;
+  let texture: GPUTexture | undefined, transmittance: ShadowTransmittance | undefined;
   // Also storage: the occlusion test of the moving casters reads each region's matrix there.
   const faceUniform = device.createBuffer({
     label: 'Trillion3D shadow faces v1',
@@ -63,6 +64,7 @@ export async function createGpuShadowAtlas(device: GPUDevice, pageLayout: GPUBin
     { records, facePacked } = pack;
   const release = () => {
     texture?.destroy();
+    transmittance?.dispose();
     faceUniform.destroy();
     dataBuffer.destroy();
     requestBuffer.destroy();
@@ -127,6 +129,10 @@ export async function createGpuShadowAtlas(device: GPUDevice, pageLayout: GPUBin
       get texture() {
         return texture;
       },
+      /** The transmittance layer (`transmittance.ts`), from the first blended caster on. */
+      get transmittance() {
+        return transmittance;
+      },
       view: undefined as GPUTextureView | undefined,
       dataBuffer,
       requestBuffer,
@@ -148,6 +154,22 @@ export async function createGpuShadowAtlas(device: GPUDevice, pageLayout: GPUBin
         atlas.view = granted.createView();
         atlas.allocationBytes += shadowAtlasBytes(poolSide);
         pack.setPoolSide(poolSide);
+      },
+      /** Creates the transmittance layer, cleared by `encoder`, once the pool is sized: the
+       *  first frame a blended caster holds a row. */
+      ensureTransmittance(encoder: GPUCommandEncoder) {
+        if (transmittance || !texture) return transmittance;
+        const side = atlas.size / SHADOW_PAGE;
+        transmittance = createShadowTransmittance(
+          device,
+          module,
+          [pageLayout, faceLayout],
+          atlas.view!,
+          side,
+          encoder,
+        );
+        atlas.allocationBytes += transmittance.bytes;
+        return transmittance;
       },
       writePage: pack.writePage,
       writeLamp: pack.writeLamp,
