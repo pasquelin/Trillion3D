@@ -7112,6 +7112,7 @@
       "bodies": "Benda yang dipegang simulasi.",
       "active": "Benda aktif setelah tick terakhir.",
       "stepMs": "Milidetik worker per langkah tetap, tick terakhir: jam worker, tidak pernah dijumlahkan dengan jam halaman.",
+      "stepMaxMs": "Milidetik worker dari langkah tetap paling lambat pada tick terakhir: langkah lambat yang disembunyikan rata-rata.",
       "mainMs": "Milidetik halaman yang dipakai fisika pada bingkai terakhir (tahap CPU `physics`).",
       "poses": "Pose yang dikirim tick terakhir.",
       "events": "Peristiwa kontak yang dikirim tick terakhir.",
