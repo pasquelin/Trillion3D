@@ -193,9 +193,10 @@ The table gives each of the 64 shadow slices (`maxLights`) a fixed window of the
 light needs, a whole sun's 16 × 64 × 64 words (`SHADOW_TABLE_STRIDE`): 2^22 words, 16 MiB
 (`SHADOW_TABLE_ENTRIES`), so every shadow-casting light the contract accepts holds its range.
 The GPU total's shadow share counts it with the pool (`SHADOW_POOL_BYTES`). Its host mirror — the
-words, a change flag per word, and the pool's page records and eviction bitset at the largest pool,
-with the shadow batches' host lists (`SHADOW_BATCH_HOST_BYTES`), 21.0 MiB (`SHADOW_HOST_BYTES`,
-summed from `shadowTableHostBytes`, `shadowPoolHostBytes` and `batchBudget.ts`, which tests check
+words, a change flag per word, and the pool's page records, eviction bitset and frame list at the
+largest pool, with the shadow batches' host lists (`SHADOW_BATCH_HOST_BYTES`), 21.0 MiB
+(`SHADOW_HOST_BYTES`, summed from `shadowTableHostBytes`, `shadowPoolHostBytes`,
+`shadowAdmissionHostBytes` and `batchBudget.ts`, which tests check
 against real allocations) — is the CPU total's first share, before the decoded-page
 cache (`splitMemoryBudget`).
 
