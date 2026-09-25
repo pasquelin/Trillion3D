@@ -81,7 +81,7 @@ export function createPhysicsBodies(
       size = worldScaleOf(mesh);
     const matter = physicsMatterOf(mesh.material);
     if (isSoftType(p.type))
-      return hold(mesh, addSoftBody(writer, mesh, pose, size, matter, claim, softMaps));
+      return hold(mesh, addSoftBody(writer, mesh, pose, size, claim, softMaps, flagsOf(mesh)));
     const shape = resolveShape(mesh.geometry, size, p.type, p.shape);
     const id = claim(shape.triangles);
     writer.add({
