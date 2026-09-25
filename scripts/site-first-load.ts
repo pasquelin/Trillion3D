@@ -8,10 +8,11 @@
 // measured. A measurement, not a proof: it exits 0.
 import { resolve } from 'node:path';
 import type { Browser } from 'playwright';
-import { routeThree } from '../tests/kit/server/threeRoute.ts';
-import { median } from '../tests/kit/median.ts';
+import { routeThree } from './three-route.ts';
+import { median } from './median.ts';
 import { launchChrome } from '../bench/runner/chrome.ts';
-import { createDocsServer, listen } from './docs-serve.ts';
+import { createDocsServer } from './docs-serve.ts';
+import { listen } from './static-server.ts';
 import { SITE_OUTPUT } from './docs/site.ts';
 
 const DEFAULT_ROUTES = ['#/en/learn/home', '#/en/examples/observatory-streamed'];

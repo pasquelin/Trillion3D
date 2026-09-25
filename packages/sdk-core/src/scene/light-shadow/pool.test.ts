@@ -61,7 +61,7 @@ test('an entry mapped again after the pool evicted it counts as refetched, once'
 
 test('a lamp mip and a sun level are ranked within their own light before they compete', () => {
   const store = createSceneLightStore();
-  const plan = createShadowPlan(24, 2);
+  const plan = createShadowPlan(2);
   const view = { ...VIEW, pixelNear: 1 };
   store.add(SUN);
   store.add({ ...SUN, id: 'lamp', kind: 'point', position: [0, 3, 0], range: 20 });
