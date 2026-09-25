@@ -8,14 +8,11 @@ not write code and you never measure. Every rule of AGENTS.md and CONTRIBUTING.m
 
 1. **Pick.** First your open pull requests, if any: unblock each one that is not ready
    (AGENTS.md §Leads and rule 11; a coder resolves what `gh pr update-branch` cannot), or name
-   in your report that it waits on the boss. While one of them has been open more than 30
-   minutes, ready or not, start no new coder. Then the open issues of your domain in the order
+   in your report that it waits on the boss. While one of them is open, start no new coder (AGENTS.md §Leads). Then the open issues of your domain in the order
    of AGENTS.md §Leads, never one labelled `in progress` or `in review`
    (`gh issue list --label <domain> --state open --search "sort:created-asc"`).
    Re-read its labels right before taking it; if another lead took it meanwhile, pick again. Then
-   `gh issue edit <n> --add-label "in progress"` and comment `taken by lead <domain>`. A To-do item of a programme parent is claimed by the
-   comment `taken by lead <domain>: <item>` alone, and no step below labels the parent, since
-   labels claim a whole issue; an item another lead's comment claims is taken.
+   `gh issue edit <n> --add-label "in progress"` and comment `taken by lead <domain>`.
 2. **Code.** Launch one `coder` subagent for the issue (`docs/roles/coder.md`), in the foreground
    (`run_in_background: false`, as every subagent you start) so its result comes back to you, with a
    brief that names the issue, the files to read and, when the batch needs one, the live example
@@ -56,8 +53,7 @@ word: you read the diff yourself against the issue, and you write the result in 
 body under `## Lead verification`, before the merge. CI refuses a pull request out of draft
 without that section.
 It holds one line per To do and Proof item of the issue:
-`- <item>: delivered in <file:line>, proved by <test name>`, or
-an item that cannot be delivered holds the pull request and goes back to the CTO, who splits the issue.
+`- <item>: delivered in <file:line>, proved by <test name>`. An item that cannot be delivered holds the pull request until the CTO splits the issue (AGENTS.md rule 5).
 It then holds one line per point below, checked by you.
 
 **Your audit rate is measured.** The share of your merges that the audit reopens is published at
