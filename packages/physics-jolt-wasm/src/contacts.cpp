@@ -54,6 +54,7 @@ void leaveAll(uint32_t engine) {
       continue;
     }
     if (at->second & ENTERED) pushLeave(at->first);
+    world().softPairs.erase(at->first);
     at = world().pairs.erase(at);
   }
 }

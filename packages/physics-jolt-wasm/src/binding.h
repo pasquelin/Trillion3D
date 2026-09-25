@@ -83,11 +83,6 @@ private:
   JPH::Mutex lock;
 };
 
-/** A soft pair: its soft body's engine id, and the step that last saw it touch. */
-struct SoftPair {
-  uint32_t soft, seen;
-};
-
 struct World {
   JPH::TempAllocator *temp = nullptr;
   JPH::JobSystem *jobs = nullptr;
@@ -103,8 +98,8 @@ struct World {
   View view;
   /** Touching pairs by engine ids: sub-shape contacts counted, `ENTERED` once the page was told. */
   std::unordered_map<uint64_t, uint32_t> pairs;
-  /** The pairs of `pairs` a soft body is in (`softContacts.cpp`). */
-  std::unordered_map<uint64_t, SoftPair> softPairs;
+  /** The pairs of `pairs` a soft body is in, and the step that last saw each touch (`softContacts.cpp`). */
+  std::unordered_map<uint64_t, uint32_t> softPairs;
   /** Leaves that found the event buffer full: written first at the next step, never lost. */
   std::vector<uint64_t> leaving;
   /** This step's bodies whose shape was refused (engine ids), and its enters the buffer dropped. */

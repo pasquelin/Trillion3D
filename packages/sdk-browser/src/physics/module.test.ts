@@ -5,13 +5,12 @@ import {
   BODY_INDEX,
   CommandWriter,
   EVENT,
-  EVENT_WORDS,
   FLAG,
   GENERATION_SHIFT,
   POSE_WORDS,
   SHAPE,
 } from '../../../sdk-core/src/physics/index.ts';
-import { body, startModule, type Module } from './module.fixture.ts';
+import { body, events, startModule, type Module } from './module.fixture.ts';
 
 const id = (slot: number, generation: number) => slot | (generation << GENERATION_SHIFT);
 /** A floor in slot 0, then `boxes` boxes (events wanted when `listening`), stacked from y = 1. */
@@ -23,13 +22,6 @@ function pile(jolt: Module, boxes: number, listening = false) {
     writer.add(body(id(i, 1), 2, i * 1.05, 0.5, listening ? FLAG.events : 0));
   jolt.step(writer.take(), 0);
 }
-/** The (type, a, b) of the last step's events. */
-const events = (jolt: Module) => {
-  const words = jolt.events();
-  return Array.from({ length: words.length / EVENT_WORDS }, (_, r) =>
-    [0, 1, 2].map((k) => words[r * EVENT_WORDS + k]),
-  );
-};
 const step = (jolt: Module, writer?: CommandWriter) => jolt.step(writer?.take() ?? null, 1 / 60);
 
 test('a body added in the slot of one removed awake, in the same batch, is not reported asleep', async () => {
@@ -61,7 +53,7 @@ test('a body removed while touching sends its leave at once, under its own gener
   writer.add(body(id(1, 3), 2, 0.5, 0.5, FLAG.events));
   step(jolt, writer);
   const leaves = events(jolt).filter(([type]) => type === EVENT.end);
-  assert.deepEqual(leaves, [[EVENT.end, id(0, 1), id(1, 1)]]);
+  assert.deepEqual(leaves, [[EVENT.end, id(0, 1), id(1, 1), 0]]);
 });
 
 test('a step past the contact budgets says so', async () => {

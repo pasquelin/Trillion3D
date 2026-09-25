@@ -4,6 +4,7 @@ import {
   CAST,
   CAST_WORDS,
   DEFAULT_PHYSICS_BUDGET,
+  EVENT_WORDS,
   MISS,
   type PhysicsBudget,
 } from '../../../sdk-core/src/physics/index.ts';
@@ -71,6 +72,16 @@ export const body = (id: number, motion: number, y: number, half: number, flags 
   restitution: 0,
   gravityScale: 1,
 });
+
+/** The last step's events: `[type, a, b, impulse]` each. */
+export function events(jolt: Module) {
+  const words = jolt.events(),
+    floats = new Float32Array(words.buffer, words.byteOffset, words.length);
+  return Array.from({ length: words.length / EVENT_WORDS }, (_, r) => {
+    const at = r * EVENT_WORDS;
+    return [words[at], words[at + 1], words[at + 2], floats[at + 3]];
+  });
+}
 
 /** A ray down at `x` through the module, straight: its hit words. */
 export function castDown(jolt: Module, x: number) {
