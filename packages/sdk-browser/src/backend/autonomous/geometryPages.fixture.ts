@@ -11,7 +11,7 @@ const NAMES = [
 ] as const;
 
 /** Encoded page of one geometry: its source triangles `[start, start + count)`. */
-function encodePage(geometry: G.GraphGeometry, start: number, count: number) {
+function encodePage(geometry: G.Geometry, start: number, count: number) {
   const attributes: PageAttributes = {};
   for (const [page, graph] of NAMES) {
     const attribute = geometry.getAttribute(graph);
@@ -25,7 +25,7 @@ function encodePage(geometry: G.GraphGeometry, start: number, count: number) {
  * geometry of its mesh (`geometries[primitive.mesh]`) at `<page url>-geometry.bin`, the encoded
  * pages by that url, and the reader that serves them.
  */
-export function pagedManifest(metadata: ClusterManifest, geometries: readonly G.GraphGeometry[]) {
+export function pagedManifest(metadata: ClusterManifest, geometries: readonly G.Geometry[]) {
   const encoded = new Map<string, ReturnType<typeof encodeGeometryPage>>();
   const primitives = metadata.primitives.map((primitive) => ({
     ...primitive,

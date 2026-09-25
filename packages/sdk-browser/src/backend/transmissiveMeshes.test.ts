@@ -8,7 +8,7 @@ import { createBlendCopy } from '../cluster/blendCopyMesh.ts';
 import { dagRoots, DAG } from './pagesBackend.fixture.ts';
 
 test('transmissive materials stay as unsplit source meshes even when the cache pass is exact-clusters', () => {
-  const geometry = new G.GraphGeometry();
+  const geometry = new G.Geometry();
   geometry.setAttribute('position', G.floatAttribute([-1, -1, 0, 1, -1, 0, 1, 1, 0], 3));
   geometry.setIndex(G.indices([0, 1, 2]));
   const material = G.physicalSurface({
