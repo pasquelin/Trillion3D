@@ -7673,6 +7673,7 @@
         "packages/sdk-browser/src/gpu/shadow/pageHiz.ts",
         "packages/sdk-browser/src/gpu/shadow/recordPack.ts",
         "packages/sdk-browser/src/gpu/shadow/staticLayer.ts",
+        "packages/sdk-browser/src/gpu/shadow/transmittance.ts",
         "packages/sdk-browser/src/lighting/direct/shadowWgsl.ts",
         "packages/sdk-browser/src/webgpu/pages/render/encodeShadowPass.ts",
         "packages/sdk-browser/src/webgpu/shadow/pages.ts",
