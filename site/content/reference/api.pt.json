@@ -926,7 +926,8 @@
       "PHYSICS_FAILED": "Pediu-se à física mais do que um dos seus limites (`world.budget.physics`: corpos, triângulos, corpos decorativos, memória), ou um corpo dinâmico não era filho direto da cena (`PHYSICS_NESTED`), ou o módulo de física falhou (`PHYSICS_FAILED`): em `world.physics.error`.",
       "PHYSICS_FORMAT": "A física preparada de um modelo compilado (`physics.json`) é de outro formato, ou foi preparada por outro Jolt que não o do motor (`PHYSICS_FORMAT`): compile-o de novo. Foi pedido um raycast exato com a física desligada (`PHYSICS_OFF`).",
       "PHYSICS_OFF": "A física preparada de um modelo compilado (`physics.json`) é de outro formato, ou foi preparada por outro Jolt que não o do motor (`PHYSICS_FORMAT`): compile-o de novo. Foi pedido um raycast exato com a física desligada (`PHYSICS_OFF`).",
-      "NO_VEHICLE": "`world.controls.kind` recebeu `'vehicle'` enquanto `world.controls.vehicle` é `null`: não há nada para conduzir."
+      "NO_VEHICLE": "`world.controls.kind` recebeu `'vehicle'` enquanto `world.controls.vehicle` é `null`: não há nada para conduzir.",
+      "GUIDE_CEILING": "Uma chamada a `world.guides` manteria mais vértices do que `GUIDE_VERTEX_CEILING`; nada dela foi adicionado."
     }
   },
   "EngineProfiler": {
@@ -1226,6 +1227,42 @@
     "members": {
       "isGroup": "Sempre `true`: distingue um grupo.",
       "type": "O tipo do nó, `'Group'`."
+    }
+  },
+  "GuideHandle": {
+    "summary": "Um conjunto de guias que uma página desenhou; cada ajuste devolve o identificador.",
+    "members": {
+      "visible": "Se é desenhado; `setVisible` o escreve.",
+      "setVisible": "Mostra-o ou oculta-o; seus vértices continuam contando contra o limite.",
+      "setTransform": "Posiciona-o: dezesseis números por colunas, ou uma matriz — `node.matrixWorld` segue um nó.",
+      "remove": "Retira-o do mundo, devolvendo seus vértices; uma segunda chamada não faz nada."
+    }
+  },
+  "GuideLines": {
+    "summary": "Segmentos de linha a desenhar.",
+    "members": {
+      "positions": "Duas pontas por segmento, três números cada.",
+      "color": "A cor deles; branco por padrão.",
+      "width": "Largura na tela, em pixels."
+    }
+  },
+  "GuidePoints": {
+    "summary": "Pontos a desenhar.",
+    "members": {
+      "positions": "Três números por ponto.",
+      "color": "A cor deles; branco por padrão.",
+      "size": "Lado de cada ponto quadrado na tela, em pixels."
+    }
+  },
+  "Guides": {
+    "summary": "As guias de um mundo, como uma página as desenha: `world.guides`.",
+    "members": {
+      "ceiling": "O máximo de vértices que as guias mantêm juntas (`GUIDE_VERTEX_CEILING`).",
+      "vertexCount": "Vértices mantidos agora, dois por segmento e um por ponto, guias ocultas incluídas.",
+      "lines": "Desenha segmentos de linha, duas pontas cada; recusado acima do limite (`GUIDE_CEILING`).",
+      "points": "Desenha pontos quadrados, uma posição cada; recusado acima do limite (`GUIDE_CEILING`).",
+      "add": "Desenha as malhas de linhas e pontos de `object` — cada `helper` as constrói —, nas cores de seus materiais, posicionadas onde o objeto está agora; seus triângulos não são guias e são ignorados.",
+      "clear": "Remove todas as guias."
     }
   },
   "HALF_PI": {
@@ -3946,6 +3983,9 @@
       "error": "Porque a última sessão não pôde abrir, como erro nomeado do motor: o seu `code` é um dos documentados em `EngineError` (`WEBGPU_LOST` quando o WebGPU perdeu o dispositivo), ou `SESSION_OPEN_FAILED` para um motivo sem código próprio. Um `EngineError` de código documentado é o que foi lançado; qualquer outro erro é convertido, e o erro lançado fica então em `details.cause`. `null` desde o início de cada abertura, e quando nada é tentado.",
       "modes": "Cada modo de visão que o renderizador atual oferece."
     }
+  },
+  "world.guides": {
+    "summary": "Linhas, pontos e auxiliares desenhados sobre a imagem (`Guides`)."
   },
   "world.onFrame": {
     "summary": "Roda uma função antes de cada quadro, com o tempo do quadro.",
@@ -7029,6 +7069,10 @@
       "mars": "A de Marte.",
       "none": "Sem gravidade."
     }
+  },
+  "GUIDE_VERTEX_CEILING": {
+    "summary": "O máximo de vértices que as guias de um mundo mantêm juntas: dois por segmento, um por ponto.",
+    "description": "Declarado, não derivado: limita o único buffer de instâncias que a passagem envia a 64 Ki × 32 bytes = 2 MiB, seja o que for que uma página peça — uma grade de 16 000 linhas cabe, a nuvem de pontos de uma cidade escaneada não, e pertence à cena."
   },
   "GravityInput": {
     "summary": "Uma gravidade: o nome de uma predefinição, ou um vetor em m/s²."
