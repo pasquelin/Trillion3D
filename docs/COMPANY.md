@@ -40,8 +40,8 @@ and pull requests.
    - its open pull requests;
    - its `measure ko` / `audit ko` issues;
    - then its issues by priority label (AGENTS.md §Leads).
-3. For each issue, the lead runs one coder, who pushes its branch, then one reviewer on that branch. It then writes `## Lead verification`, one line per To-do item, opens the pull request finished, and tells the CTO once CI is green; the CTO merges it within minutes. CI refuses a PR without that section, and any PR without real `/simplify:` and
-   `/code-review:` lines.
+3. For each issue, the lead runs one coder, who pushes its branch, then one reviewer on that branch. It then writes `## Lead verification`, one line per To-do item, opens the pull request finished, and tells the CTO once CI is green; the CTO merges it within minutes. CI refuses a PR without that section, and any PR without real `Simplification pass:` and
+   `Correctness review:` lines.
 4. After the merge:
    - the issue closes;
    - measurement and acceptance check it, and reopen it with `measure ko` / `audit ko` if needed.
