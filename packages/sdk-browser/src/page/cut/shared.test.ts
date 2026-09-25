@@ -1,4 +1,4 @@
-// What the projection sharing of `cutSelects` must preserve: a stand-in without a sphere of its
+// What the projection sharing of `clusterPixels` must preserve: a stand-in without a sphere of its
 // own takes the cluster's, and the cut no longer projects that sphere more than once. The verdict
 // must stay the one the double projection used to yield — the same sphere written twice — and the
 // guards `projectedClusterError` no longer poses itself must stay posed by `projectedErrorAt` and
@@ -7,7 +7,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as G from '../../host/graph/graph.fixture.ts';
 import { clusterErrorPixels } from '../../../../sdk-core/src/index.ts';
-import { cutSelects, projectedClusterError } from '../selection/math.ts';
+import { clusterPixels, projectedClusterError } from '../selection/math.ts';
 
 const cam = G.perspectiveCamera(55, 16 / 9, 0.1, 200);
 cam.position.set(0.4, 1.1, 7);
@@ -26,18 +26,16 @@ test('a stand-in without a sphere of its own yields the verdict of the own spher
     [0, 0, 1e6, 1e-3],
   ])
     for (const own of [0, 1e-6, 0.02, 3, Infinity])
-      for (const parent of [0, 1e-6, 0.05, 9, Infinity, null, undefined])
-        for (const seuil of [0, 1e-9, 0.5, 4, 1e6]) {
-          const partage = { lodError: own, sphere, parentError: parent };
-          // The same data, but with an explicit stand-in sphere distinct in memory: that is the
-          // path that projects twice, the one from before the lot.
-          const explicite = { ...partage, parentSphere: [...sphere] };
-          assert.equal(
-            cutSelects(partage, E, STRETCH, FOCAL, NEAR, seuil),
-            cutSelects(explicite, E, STRETCH, FOCAL, NEAR, seuil),
-            `own=${own} parent=${parent} seuil=${seuil} sphere=${sphere}`,
-          );
-        }
+      for (const parent of [0, 1e-6, 0.05, 9, Infinity, null, undefined]) {
+        const partage = { lodError: own, sphere, parentError: parent };
+        // The same data, but with an explicit stand-in sphere distinct in memory: that is the
+        // path that projects twice, the one from before the lot.
+        const explicite = { ...partage, parentSphere: [...sphere] };
+        const a = clusterPixels(partage, E, STRETCH, FOCAL, NEAR, 1, new Float64Array(2)),
+          b = clusterPixels(explicite, E, STRETCH, FOCAL, NEAR, 1, new Float64Array(2));
+        for (const i of [0, 1])
+          assert.ok(Object.is(a[i], b[i]), `own=${own} parent=${parent} sphere=${sphere} [${i}]`);
+      }
 });
 
 test('without a sphere, only a null error stays null: everything else is infinity', () => {

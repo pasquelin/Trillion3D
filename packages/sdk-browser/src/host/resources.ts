@@ -1,10 +1,9 @@
 // The graph the engine reads is the engine's own (`graph/`): every name below is one of its
-// classes (the attributes are sdk-core's, `world/buffer/`), read by its `kind` and its fields,
+// classes (the geometry and its attributes are sdk-core's, `world/geometry/`, `world/buffer/`), read by its `kind` and its fields,
 // never by a library's brand. The plain data a reader shares with the witnesses — a colour, a
 // box, the diagnostic factory — stays a shape.
 // The 4×4 pose is `MatrixElements` (`matrixElements.ts`).
 import type { VertexAttribute } from '../../../sdk-core/src/world/buffer/attribute.ts';
-import type { GraphGeometry } from './graph/geometry.ts';
 import type { GraphMesh } from './graph/mesh.ts';
 import type { GraphSurface } from './graph/surface.ts';
 import type { GraphTexture } from './graph/texture.ts';
@@ -31,9 +30,6 @@ export type HostBox = {
   /** The lowest corner. */ readonly min: HostPoint;
   /** The highest corner. */ readonly max: HostPoint;
 };
-
-/** A geometry of the graph: its attributes, its triangle list and the local box over them. */
-export type HostGeometry = GraphGeometry;
 
 /** A host resource the engine frees when the graph it came from is released: a geometry, a
  *  surface, a texture. The engine never builds one, so freeing it is giving it back. */

@@ -48,8 +48,8 @@ export function pageCopies(
 }
 
 /**
- * The geometry pool wired into the WebGL2 backend (`pool.ts`): the cut charges each page's share
- * of the budget, page arrivals and departures go through the pool, the host sets its budget
+ * The geometry pool wired into the WebGL2 backend (`pool.ts`): each page asked for charges its
+ * share of the budget, page arrivals and departures go through the pool, the host sets its budget
  * mid-session and reads it in the frame metrics.
  */
 export function createAutonomousPool(env: {
@@ -64,27 +64,17 @@ export function createAutonomousPool(env: {
   residency: ReturnType<typeof createAutonomousResidency>;
   heldFloor: HeldFloor;
   instanceCount: () => number;
-  /** Fixes the threshold search on the last view (`render.ts`). */
-  settle: () => void;
 }) {
   const { context, byUrl, gate, geometryStore, residency, heldFloor } = env,
     { state } = geometryStore;
-  // The largest error a refinement reads, the one the DAG roots carry as parents: read once.
-  let rootError = 0;
-  for (const recs of byUrl.values())
-    for (const { parentError } of recs)
-      if (parentError != null && parentError < Infinity && parentError > rootError)
-        rootError = parentError;
   const budget = createGeometryBudget({
     budgetBytes: context.geometryPoolBytes,
     ceilingBytes: context.geometryPoolCeilingBytes,
     maxResidentPages: env.cap,
     descriptors: env.descriptors,
     rootUrls: env.bootstrapUrls,
-    rootError,
     copies: pageCopies(byUrl, env.bootstrapUrls, env.instanceCount),
     coverRevision: () => heldFloor.revision,
-    viewRevision: () => gate.revisions.view,
     state,
     floorBytes: heldFloor.bytes,
     kept: residency.keptUrls,
@@ -113,19 +103,12 @@ export function createAutonomousPool(env: {
       get geometryPoolClamp() {
         return budget.clamp;
       },
-      get budgetPixelError() {
-        return budget.budgetPixelError;
-      },
       /** No texture pool on this path: `world.budget.texturePool` reads `null`. */
       texturePoolBytes: null,
     },
     api: {
-      /** The pool's search owes another image. */
-      pendingFrame: async () => budget.settling,
-      /** Fixes the search, so `awaitPages` loads the pages of the fixed cut, then publishes the
-       *  pool's verdict, as on WebGPU. */
+      /** Publishes the pool's verdict, as on WebGPU. */
       async flush() {
-        env.settle();
         budget.flush();
       },
       dropPage(url: string) {

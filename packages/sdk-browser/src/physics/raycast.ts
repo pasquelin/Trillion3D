@@ -21,6 +21,8 @@ export interface PhysicsRaycastOptions {
   shape?: SweptShape;
   /** How far the ray reaches, world units. @defaultValue the camera's `far` */
   maxDistance?: number;
+  /** A body the ray or shape passes through: the asker's own, looking round itself. */
+  ignore?: Object3D;
 }
 
 /** A physics hit: the object — the compiled model, or the mesh of a body —, and the glTF material
@@ -54,6 +56,8 @@ export async function physicsRaycast(
   else if (shape?.type === 'box')
     floats.set([shape.halfExtents.x, shape.halfExtents.y, shape.halfExtents.z], 7);
   else if (shape) floats.set([shape.halfHeight, shape.radius], 7);
+  const ignored = options.ignore ? session.engineIdOf(options.ignore) : MISS;
+  words[10] = ignored < 0 ? MISS : ignored;
   const hit = await session.cast(words);
   const object: Object3D | null = hit[0] === MISS ? null : session.objectOf(hit[0]);
   if (!object) return null;

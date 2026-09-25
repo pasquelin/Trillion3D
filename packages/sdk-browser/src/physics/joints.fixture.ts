@@ -16,7 +16,7 @@ import { Mesh } from '../../../sdk-core/src/world/object/mesh.ts';
 import { Group } from '../../../sdk-core/src/world/object/object3d.ts';
 import { createPhysicsBodies } from './bodies.ts';
 import { createPhysicsJoints } from './joints.ts';
-import { startModule } from './module.fixture.ts';
+import { moduleRaycast, startModule } from './module.fixture.ts';
 import { physicsLink } from './physicsLink.ts';
 import { createPhysicsPoses } from './poses.ts';
 import { createPhysicsVehicles } from './vehicles.ts';
@@ -79,6 +79,8 @@ export async function jointRig(gravity: [number, number, number] = [0, -9.81, 0]
         vehicles.receive(jolt.vehicles().slice());
       }
     },
+    /** `world.raycast(ray, options)` against the bodies of the last step. */
+    raycast: moduleRaycast(jolt, bodies),
     /** A body's position after the last step. */
     at(mesh: Mesh) {
       const pose = poses.get(mesh.physics!._index);
@@ -86,8 +88,8 @@ export async function jointRig(gravity: [number, number, number] = [0, -9.81, 0]
     },
     /** A body's quaternion after the last step. */
     turn: (mesh: Mesh) => poses.get(mesh.physics!._index)!.slice(3, 7),
-    /** The joints the module's gear linking has visited so far: its cost, not its time. */
-    linkVisits: () => jolt.linkVisits(),
+    /** The joints the gear linking, the path carry and the breaking have visited: cost, not time. */
+    visits: jolt.visits,
     /** A body's turn about y after the last step, radians. */
     yaw(mesh: Mesh) {
       const pose = poses.get(mesh.physics!._index)!;

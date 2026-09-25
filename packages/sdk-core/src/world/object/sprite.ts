@@ -10,7 +10,9 @@ import { listen } from '../math/observed.ts';
  * image at draw time, about the sprite's position.
  *
  * Its size is its world scale on `x` and `y`; its turn in the image plane is its material's
- * `rotation`; its own rotation is not read. A sprite casts no shadow.
+ * `rotation`; its own rotation is not read. A sprite casts no shadow. Like the reference's
+ * `Sprite`, which takes only a `SpriteMaterial`, it wears only a `material.sprite`: any other
+ * material, given or set, throws a `TypeError` that names its kind.
  */
 export class Sprite extends Mesh {
   /** Always `true`: tells a sprite apart from any other mesh. */
@@ -22,8 +24,15 @@ export class Sprite extends Mesh {
    */
   readonly center = new Vector2(0.5, 0.5);
   constructor(material?: Material) {
-    super(plane(1, 1), material ?? materials.sprite(), 'sprite');
+    super(plane(1, 1), spriteMaterial(material ?? materials.sprite()), 'sprite');
     listen(this.center, () => this._link?.content(this));
+  }
+  /** The sprite's `material.sprite`; set another to change it. */
+  override get material(): Material | Material[] {
+    return super.material;
+  }
+  override set material(material: Material | Material[]) {
+    super.material = spriteMaterial(material);
   }
   /** A shallow clone shares this sprite's geometry and material, and keeps its centre. */
   protected override blank(): this {
@@ -32,4 +41,11 @@ export class Sprite extends Mesh {
     sprite.center.copy(this.center);
     return sprite as this;
   }
+}
+
+/** The one material a sprite wears: a `material.sprite`, or a `TypeError` naming what was given. */
+function spriteMaterial(material: Material | Material[]) {
+  if (!Array.isArray(material) && material.kind === 'sprite') return material;
+  const given = Array.isArray(material) ? 'a material list' : `material.${material.kind}`;
+  throw new TypeError(`A sprite wears a material.sprite, not ${given}.`);
 }
