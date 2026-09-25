@@ -12,8 +12,6 @@ import { createSparseInts } from '../../page/cut/sparseInts.ts';
  * reports nothing, and the last list stands — a still scene asks for nothing new. The view ahead
  * reports with every readback, an empty list once the camera stops.
  */
-export type LowerTier = ReturnType<typeof createLowerTier>;
-
 export function createLowerTier(options: {
   keyOf: (page: PageRec) => number;
   room: () => number;
