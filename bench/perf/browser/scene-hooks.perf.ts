@@ -1,10 +1,7 @@
-// Performance bench: the host scene watch on a large graph of the engine's own nodes.
-// The watch hooks a node by chaining a listener on its position, scale and rotation (`listen`),
-// which each write of those values calls; no field of the node is redefined. Those listeners must
-// not slow the matrix walk over the nodes: the listener-hooked graph is walked against its plain
-// twin, the witness, and the plain graph is walked as a case too, its gap to the witness being the
-// spread the hooked row is read against. The read the watch does per frame over the same nodes is
-// measured on its own.
+// Performance bench: the host scene watch on a large graph of the engine's own nodes. The watch
+// hooks a node by chaining listeners on its position, scale and rotation (`listen`), no field
+// redefined. The listener-hooked graph is walked against its plain twin, the witness; a plain case
+// gives the spread (A/A). The watch's per-frame read over the same nodes is measured on its own.
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import { mesure, rapport } from '../../core/index.ts';
 import { createHostSceneWatch } from '../../../packages/sdk-browser/src/host/scene/watch.ts';
