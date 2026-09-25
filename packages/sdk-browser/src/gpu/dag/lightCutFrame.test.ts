@@ -25,7 +25,7 @@ function lightCutFrame() {
       maxComputeWorkgroupsPerDimension: 65535,
       maxStorageBufferBindingSize: 1 << 27,
       maxBufferSize: 1 << 28,
-    } as GPUSupportedLimits,
+    },
   });
   const bytes = (buffer: GPUBuffer) => (buffer as unknown as FakeBuffer).getMappedRange();
   const encoder = {

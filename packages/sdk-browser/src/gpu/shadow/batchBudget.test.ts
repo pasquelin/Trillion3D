@@ -39,7 +39,9 @@ test('the GPU bytes the batches add are what the staging, flag slots and CPU lis
   writes.end();
   createLightCutRedraws((d) => device.createBuffer(d), target, DAG_MAX_VIEWS);
   const lists = createCpuCasterLists(device, 1);
-  const made = buffers.filter((buffer) => buffer !== target && buffer !== lists.source);
+  const made = buffers.filter(
+    (buffer) => buffer !== (target as unknown) && buffer !== (lists.source as unknown),
+  );
   const gpu = made.reduce((sum, { size }) => sum + size, 0);
   assert.equal(gpu, SHADOW_BATCH_GPU_BYTES);
   assert.ok(SHADOW_BATCH_GPU_BYTES < 5 * MiB, `${SHADOW_BATCH_GPU_BYTES} bytes`);
