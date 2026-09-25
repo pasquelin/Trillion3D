@@ -17,9 +17,14 @@
  * The ceiling that counts is TIME. An arrival carries a streaming packet whose cluster
  * count is not known in advance: neither index bytes nor page count therefore bound the
  * duration it costs. The drain rereads the clock after each delivery and yields as soon
- * as the ceiling is reached; the rest waits for the next frame. At least one delivery
+ * as the ceiling is reached; the rest waits for the next frame. At least one integration
  * always goes through, otherwise a page longer to integrate than the ceiling would never
  * enter.
+ *
+ * That ceiling is the frame's one integration budget (`FrameBudget`, CONTRIBUTING.md
+ * §Streaming rule 4): `open` starts its clock, what else a frame integrates before the
+ * drain — the cells of a partitioned scene (`scene/partition/cells.ts`) — spends from it,
+ * and the drain spends the rest and closes it.
  */
 import { planArrival, planArrivalHere, type ArrivalPlan } from './host.ts';
 
@@ -29,6 +34,10 @@ export type ArrivalTarget = {
   acceptPage?(url: string, array: Uint32Array, plan?: ArrivalPlan): void;
   pageSpecs?(url: string): Int32Array | undefined;
 };
+
+/** The one integration budget of a frame: whether one more integration is admitted — the
+ *  first always is, then while the frame's clock is within the ceiling —, and one counted. */
+export type FrameBudget = { admits(): boolean; spend(): void };
 
 type Arrival = {
   target: ArrivalTarget;
@@ -53,7 +62,17 @@ export function createArrivalQueue(byteBudget: number, countBudget: number, msBu
   // The same page may be seen by the cache then by the end of its download: while it waits,
   // it is queued only once per target. The wait is forgotten as soon as it is delivered.
   const waiting = new Map<ArrivalTarget, Set<string>>();
-  let head = 0;
+  let head = 0,
+    started = 0,
+    spent = 0,
+    opened = false;
+  const admits = () => spent === 0 || performance.now() - started < msBudget;
+  const spend = () => void spent++;
+  const open = () => {
+    opened = true;
+    started = performance.now();
+    spent = 0;
+  };
   /** Delivers an arrival with its plan, and removes its address from the waiting pages. */
   const deliver = (item: Arrival) => {
     item.done = true;
@@ -61,6 +80,10 @@ export function createArrivalQueue(byteBudget: number, countBudget: number, msBu
     item.target.acceptPage?.(item.url, item.array, item.plan);
   };
   return {
+    /** Opens the frame's budget: every integration until the drain shares its clock. */
+    open,
+    admits,
+    spend,
     /** Arrivals still waiting to drain. */
     get pending() {
       return items.length - head;
@@ -103,15 +126,16 @@ export function createArrivalQueue(byteBudget: number, countBudget: number, msBu
     },
     /**
      * Delivers arrivals up to the budget — at most `countBudget` pages, `byteBudget` index bytes
-     * and `msBudget` milliseconds spent integrating them. The following render synchronizes residency;
-     * calling `syncResident` here could draw a second frame. Returns the pages delivered.
+     * and what the frame's budget still admits (opened here unless `open` was called) —, then
+     * closes that budget. The following render synchronizes residency; calling `syncResident`
+     * here could draw a second frame. Returns the pages delivered.
      */
     drain() {
-      if (head >= items.length) return 0;
-      const started = performance.now();
+      if (!opened) open();
+      opened = false;
       let bytes = 0,
         count = 0;
-      while (head < items.length && bytes < byteBudget && count < countBudget) {
+      while (head < items.length && bytes < byteBudget && count < countBudget && admits()) {
         const item = items[head];
         if (!item.ready) {
           // Order is priority: an arrival whose plan has not returned holds back those that
@@ -126,9 +150,9 @@ export function createArrivalQueue(byteBudget: number, countBudget: number, msBu
         }
         head++;
         deliver(item);
+        spend();
         bytes += item.array.byteLength;
         count++;
-        if (performance.now() - started >= msBudget) break;
       }
       if (head >= items.length) {
         items.length = 0;

@@ -77,6 +77,9 @@ export function assertCacheReady(metadata: unknown, scope: AssetScope): number {
   if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata))
     throw new EngineError('INVALID_CACHE', 'cache manifest is not a JSON object', {});
   const value = metadata as Record<string, unknown>;
+  // The number first: an earlier format is refused by it, never by a field it wrote otherwise.
+  const formatVersion = (value.formatVersion ?? value.schema) as number;
+  assertFormat(formatVersion);
   if (
     !Array.isArray(value.primitives) ||
     !Number.isSafeInteger(value.selectedNodes) ||
@@ -84,8 +87,6 @@ export function assertCacheReady(metadata: unknown, scope: AssetScope): number {
     !Number.isFinite(value.selectedTriangles)
   )
     throw new EngineError('INVALID_CACHE', 'invalid cache schema', {});
-  const formatVersion = (value.formatVersion ?? value.schema) as number;
-  assertFormat(formatVersion);
   if (value.schema !== formatVersion)
     throw new EngineError('UNSUPPORTED_FORMAT', 'Cache schema and formatVersion differ', {
       schema: value.schema,
