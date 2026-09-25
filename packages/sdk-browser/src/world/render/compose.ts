@@ -60,7 +60,6 @@ export function createFrameComposer(
     toneMapped: true,
     toneCurve: 0,
     background: [0, 0, 0],
-    depth: false,
   };
   let keptRevision = 0;
   /** The engine's background, sRGB-encoded like everything the destinations store. */
@@ -127,8 +126,7 @@ export function createFrameComposer(
     const passes = passesOf(chained);
     const linear = passes.length ? effects!.begin(passes, width, height) : null;
     output.linear = !!linear;
-    const destination = target?.framebuffer ?? null;
-    output.framebuffer = linear?.framebuffer ?? destination;
+    output.framebuffer = (linear ?? target)?.framebuffer ?? null;
     output.width = width;
     output.height = height;
     encode(backend.scene.background as SceneColour);
@@ -137,10 +135,9 @@ export function createFrameComposer(
     if (linear) {
       display.toneMapped = output.toneMapped;
       display.toneCurve = TONE_MAPPING_RANK[output.toneMapping];
-      display.depth = !!guides?.visibleInstances();
       effects!.end(passes, target, display);
       // The guides land where the chain drew, over the depth it carried.
-      output.framebuffer = destination;
+      output.framebuffer = target?.framebuffer ?? null;
     }
     if (guides) {
       guidesDrawn = guides.revision;
