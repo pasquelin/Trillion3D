@@ -10,7 +10,11 @@ import {
   splitMemoryBudget,
 } from '../../residency/memoryBudget.ts';
 import { raycastTreeBudget } from '../../../../sdk-core/src/world/object/raycastTrees.ts';
-import { createPageCache, DEFAULT_CACHED_BYTES, type PageCache } from '../../streaming/pageCache.ts';
+import {
+  createPageCache,
+  DEFAULT_CACHED_BYTES,
+  type PageCache,
+} from '../../streaming/pageCache.ts';
 
 /** The pools a page asks for, and the two totals, kept to open every later session with them; and
  *  the world's decoded-page cache, which every session reads through — one reopened, on a device
