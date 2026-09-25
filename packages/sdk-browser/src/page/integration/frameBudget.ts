@@ -16,10 +16,10 @@ export function createFrameBudget(ms: number, now = () => performance.now()) {
   let started = 0,
     spent = 0;
   return {
-    /** Starts the clock: every piece until the next `open` shares it. */
+    /** Starts the clock: every piece until the next `open` shares it. Returns the time it read. */
     open() {
-      started = now();
       spent = 0;
+      return (started = now());
     },
     admits: () => spent === 0 || now() - started < ms,
     spend: () => void spent++,

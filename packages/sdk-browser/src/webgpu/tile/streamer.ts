@@ -101,8 +101,7 @@ export function createWebgpuTileStreamer(options: {
      * pool refusal is neither — nothing will come, the coarse level holds — and is counted.
      */
     pump(frame: number, unbounded = false) {
-      const started = now();
-      budget.open();
+      const started = budget.open();
       let served = 0,
         waiting = 0,
         bytes = 0,

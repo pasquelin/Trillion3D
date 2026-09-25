@@ -129,7 +129,8 @@ export function evaluateDagSelectionKernel(
     note(i);
     drawablePageIds.push(i);
   }
-  // The readout is returned SORTED, decreasing priority, as `parseDagOutput` returns it from the GPU.
+  // The readout is returned SORTED, decreasing priority, as `parseDagOutput` returns it from the GPU:
+  // every priority here is of the visible tier, so its raw order is `requestRank`'s.
   const rangs = pageIds.map((_, i) => i).sort((a, b) => priorites[b] - priorites[a]);
   const aheadRanks = aheadIds
     .map((_, i) => i)
