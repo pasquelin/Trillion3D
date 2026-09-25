@@ -9,8 +9,8 @@ merge; your only commits are examples' thumbnails (steps 6 and 7).
 
 1. **Queue.** `gh issue list --label "to measure" --state all`, oldest merge first (an issue a
    `Part of` pull request leaves open is measured too). Measuring never blocks anything: you only
-   add to the issue. Empty queue: open the stint's thumbnail pull request (step 7), then end with
-   your report (the CTO starts you again), never measure something else.
+   add to the issue. Empty queue: rank the costs (step 8), open the stint's thumbnail pull request
+   (step 7), then end with your report (the CTO starts you again), never measure anything else.
 2. `gh issue edit <n> --remove-label "to measure" --add-label "measuring"`.
 3. **Tree.** A worktree of your own on the merge commit:
    `git worktree add --detach .worktrees/measure-<n> <merge-sha>`, `pnpm install`, and
@@ -39,8 +39,8 @@ merge; your only commits are examples' thumbnails (steps 6 and 7).
    a body saying `Part of` each issue and "Thumbnail only" under `## Local review before push`.
    The lead of a named issue merges it.
 8. **Costs.** Once per stint, on the open-world scene at the screen's own resolution, rank the
-   frame's ten largest costs from the per-step profile (CPU and GPU, in ms) and put them in your
-   report; the CTO turns them into To-do items on the owning domains' issues.
+   frame's ten largest costs from the per-step profile (CPU and GPU, in ms), add each as a To-do
+   item on the owning domain's open issue, and list them in your report.
 
 ## Release
 

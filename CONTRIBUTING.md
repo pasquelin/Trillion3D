@@ -14,12 +14,11 @@
   antialiasing and the memory budgets are the foundation; the lighting is what they are for. It is
   reached by stages, each measured, and the strategy lives in `docs/ENGINE.md` § "Lighting: the target and the stages".
   A stage that is out of order is not out of scope.
-- **The bar, in this order: a perfect image, then a frame that never drops below 60 fps.** The
-  same engine runs on the web and in a native application, with the same image in both. A frame
-  holds 60 fps at the least and never needs more than 120, at the screen's own resolution and
-  pixel ratio (up to 4K); a lower internal resolution is allowed only when temporal reconstruction
-  makes the image proof show no loss; an open world opens and is crossed
-  without a hitch, a pop or a hole. A change that lowers the image or the frame rate is refused.
+- **The bar, in this order: a perfect image, then the frame rate.** The same engine runs on the
+  web and in a native application, with the same image in both. A frame holds 60 fps at the least
+  and never needs more than 120, at the screen's own resolution and pixel ratio (up to 4K); a
+  lower internal resolution is allowed only when temporal reconstruction makes the image proof
+  show no loss; an open world opens and is crossed without a hitch, a pop or a hole.
 - **Never copy another engine's code, shaders or assets into this repository.** Not one line, ever.
   Commercial engines are not open source and their sources are licence-covered; reimplement from
   public material only — papers, talks, documentation, observed behaviour. Third-party engines and
@@ -35,10 +34,10 @@
 - Under identical input, camera, quality and budgets, image quality and performance must equal or
   exceed the Three.js witness. Any measured regression blocks validation and merge. Measurement
   noise is not an exemption, and an unmeasured metric is never evidence of parity.
-- **Every millisecond counts, measured.** Each measuring stint ranks the frame's largest costs from
-  the per-step profile on a real scene; they become To-do items on the owning domain's issues:
-  small calculations repeated per frame or per page, allocations in a frame, a JavaScript kernel
-  that belongs in Rust or WebAssembly, work the compiler could bake once.
+- **Every millisecond counts, measured.** The frame's largest costs are ranked on a real scene
+  (`docs/roles/measurer.md` step 8): small calculations repeated per frame or per page,
+  allocations in a frame, a JavaScript kernel that belongs in Rust or WebAssembly, work the
+  compiler could bake once.
 - **Never optimise a path whose cost is not measured.** State its share of the frame first, on a real
   scene, or say plainly that it is unknown. A batch justified by a supposition is a batch to stop.
 - Measure the whole frame before a part of it: the engine publishes a per-step CPU profile
@@ -208,10 +207,10 @@ its contents locally. Pulling a deletion can remove a previously tracked copy in
    To-do item, `Part of #<issue>` otherwise (the remainder is a comment on the issue, which stays
    open). Describe what both
    local review passes found under "Local review before push". Replace `in progress` with `in review`.
-5. Obtain an independent review and resolve its findings before integration. The maintainer, or
-   whoever the maintainer entrusts with it, merges once the review holds and `validate` is green on
-   a head up to date with `develop`. Never push directly to `develop` or `main`, or rewrite
-   published history.
+5. Obtain an independent review and resolve its findings before integration. The domain's lead
+   (the CTO for the company's rules) merges into `develop` once the review holds and `validate` is
+   green on a head up to date with `develop`; `main` moves only on the maintainer's word. Never
+   push directly to `develop` or `main`, or rewrite published history.
 6. After merge, remove the worktree and merged branch, remove `in review` and close the issue;
    an engine batch is labelled `to measure` first. Every merge into `develop` is then re-read
    against this file; a finding reopens the issue, labelled `audit ko`, with the findings in a
