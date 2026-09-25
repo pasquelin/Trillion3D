@@ -12,6 +12,7 @@ import type { BackendDiagnostic } from '../../../backend/types.ts';
 import type { WebgpuPagesBackend } from '../runtime.ts';
 
 const COLOR = 'Trillion3D display color';
+type Backend = WebgpuPagesBackend & { pendingFrame(): Promise<boolean> };
 
 /** A quad backend drawn once at 32 × 32, on a device that answers the display colour made at
  *  48 × 48 with `refuse`, told whether the Hi-Z pyramid is alive; then resized to 48 × 48. */
@@ -35,21 +36,23 @@ async function resized(refuse: (hizAlive: boolean) => boolean) {
   );
   const viewport: [number, number] = [32, 32];
   const events: BackendDiagnostic[] = [];
-  const { fixture, backend } = quadBackend(gpu.device, {
+  const mounted = quadBackend(gpu.device, {
     viewport,
     onDiagnostic: (event: BackendDiagnostic) => events.push(event),
   });
+  const { fixture } = mounted,
+    backend = mounted.backend as Backend;
   await backend.prepare();
   const cam = camera();
   backend.render(cam);
-  await backend.flush?.();
+  await backend.flush();
   viewport[0] = viewport[1] = 48;
   const said = (phase: string) => events.filter((event) => event.phase === phase);
   const alive = (label: string) =>
     gpu.textures.filter((texture) => texture.label === label && !texture.destroyed);
   /** The frame drawn whole: both quad clusters, once its readback is in. */
   const complete = async () => {
-    await backend.flush?.();
+    await backend.flush();
     backend.render(cam);
     assert.deepEqual(backend.selectedPageIds().sort(), ['0', '1'], 'the frame is complete');
   };
@@ -60,7 +63,7 @@ async function resized(refuse: (hizAlive: boolean) => boolean) {
     fixture.geometry.dispose();
     fixture.material.dispose();
   };
-  return { gpu, backend: backend as WebgpuPagesBackend, cam, said, alive, complete, dispose };
+  return { gpu, backend, cam, said, alive, complete, dispose };
 }
 
 test('a refused target grant holds the frame, then draws it complete', async () => {
