@@ -4,11 +4,11 @@ import { createWebgpuBindIdentity } from '../core/bindIdentity.ts';
 import { ensureWebgpuVisibilityBindings } from './bindings.ts';
 import { ensureWebgpuShadeBindings } from '../core/shadeBindings.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
+import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 
 /** A device that counts its groups, and a runtime holding every resource the groups name. */
 function mount() {
-  let built = 0;
-  const device = { createBindGroup: () => ({ id: ++built }) } as unknown as GPUDevice;
+  const { device, bindGroups } = fakeDevice();
   const views = [{}, {}, {}],
     dataViews = [{}, {}, {}],
     pages = { buffer: {} };
@@ -39,7 +39,7 @@ function mount() {
   const ensure = () => {
     ensureWebgpuVisibilityBindings(rt, device);
     ensureWebgpuShadeBindings(rt, device);
-    return built;
+    return bindGroups.length;
   };
   return { vis, gpu, ensure };
 }

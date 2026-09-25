@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts';
 import { frameTargetAllocation } from './targets.ts';
 import { ensureTaaTargets } from '../../../taa/prepare.ts';
 import { frameTargetBytes } from '../../../scene/surfaceBuffer.ts';
@@ -24,7 +25,7 @@ function runtime() {
   };
   const rt = {
     setup: { reserveHiz: true },
-    gpu: { device: { limits: { maxTextureDimension2D: 8192 } }, temporal },
+    gpu: { device: fakeDevice({ limits: { maxTextureDimension2D: 8192 } }).device, temporal },
     capture: { capturing: false },
     capabilities: { unsupported: [] as string[] },
     diag: { diagnosticFailure: (phase: string) => failures.push(phase) },
