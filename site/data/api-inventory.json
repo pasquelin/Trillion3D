@@ -717,7 +717,6 @@
         "packages/sdk-browser/src/page/selection/template.ts",
         "packages/sdk-browser/src/placement/hidden.ts",
         "packages/sdk-browser/src/placement/update.ts",
-        "packages/sdk-browser/src/scene/partition/boxes.ts",
         "packages/sdk-browser/src/webgpu/pages/prepare/lightResources.ts",
         "packages/sdk-browser/src/webgpu/pages/render/transform.ts",
         "packages/sdk-browser/src/webgpu/shadow/bounds.ts",
@@ -829,7 +828,6 @@
       "affectedConsumers": [
         "bench/perf/browser/support/volumeBoxCases.ts",
         "packages/sdk-browser/src/page/selection/template.ts",
-        "packages/sdk-browser/src/scene/partition/boxes.ts",
         "packages/sdk-browser/src/webgpu/shadow/bounds.ts"
       ],
       "disposition": "retained",
@@ -2471,6 +2469,7 @@
         "bench/perf/browser/support/coreDiffs.ts",
         "bench/perf/browser/support/coreEquivalence.ts",
         "bench/perf/browser/support/coreHierarchy.ts",
+        "packages/sdk-browser/src/scene/partition/boxes.ts",
         "packages/sdk-browser/src/webgpu/core/transformShear.test.ts",
         "packages/sdk-browser/src/webgpu/pages/render/transform.ts"
       ],
@@ -3535,6 +3534,7 @@
         "packages/sdk-browser/src/host/graph/node.test.ts",
         "packages/sdk-browser/src/host/prepared/graph.ts",
         "packages/sdk-browser/src/lighting/contractLights.ts",
+        "packages/sdk-browser/src/page/integration/arrivalQueue.test.ts",
         "packages/sdk-browser/src/physics/cooked.test.ts",
         "packages/sdk-browser/src/physics/jointList.test.ts",
         "packages/sdk-browser/src/physics/joints.fixture.ts",
@@ -3544,6 +3544,7 @@
         "packages/sdk-browser/src/physics/water.test.ts",
         "packages/sdk-browser/src/scene/partition/boxes.test.ts",
         "packages/sdk-browser/src/scene/partition/cells.test.ts",
+        "packages/sdk-browser/src/scene/partition/sizing.test.ts",
         "packages/sdk-browser/src/scene/replicateInstances.ts",
         "packages/sdk-browser/src/webgl/cluster/sceneDraw.test.ts",
         "packages/sdk-browser/src/world/controls/transform.test.ts",
@@ -5008,6 +5009,7 @@
         "packages/sdk-browser/src/page/cut/cut.ts",
         "packages/sdk-browser/src/page/cut/logic.ts",
         "packages/sdk-browser/src/page/selection/diagnostic.ts",
+        "packages/sdk-browser/src/scene/partition/boxes.ts",
         "packages/sdk-browser/src/streaming/priority.ts",
         "tests/browser/probes/screen-error-cpu-gpu.ts",
         "tests/browser/probes/screenErrorBoundCases.ts"
@@ -5433,6 +5435,7 @@
         "packages/sdk-browser/src/scene/partition/cells.test.ts",
         "packages/sdk-browser/src/scene/partition/cells.ts",
         "packages/sdk-browser/src/scene/partition/rows.ts",
+        "packages/sdk-browser/src/scene/partition/sizing.test.ts",
         "packages/sdk-browser/src/scene/replicateInstances.ts",
         "packages/sdk-browser/src/webgpu/pages/render/transform.ts",
         "packages/sdk-browser/src/world/camera/camera.ts",
