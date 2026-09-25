@@ -7113,8 +7113,8 @@
     "summary": "Ciò che un contatto dà ai suoi ascoltatori: l’altro oggetto, l’impulso e dove ha toccato.",
     "members": {
       "other": "L’oggetto toccato; `null` una volta uscito dalla scena.",
-      "impulse": "N·s: la velocità di avvicinamento lungo la normale per la massa ridotta della coppia, stimata prima del solutore; 0 su `leave`.",
-      "point": "Il punto di contatto, riferimento del mondo; l’origine su `leave`."
+      "impulse": "N·s: la velocità di avvicinamento lungo la normale per la massa ridotta della coppia, stimata prima del solutore (dal lato di un corpo morbido: la sua velocità media e la massa dei suoi vertici che hanno toccato); 0 su `leave`, e tra un corpo morbido e un sensore.",
+      "point": "Il punto di contatto, riferimento del mondo (quello di un corpo morbido: la media dei suoi vertici che hanno toccato, il suo centro davanti a un sensore); l’origine su `leave`."
     }
   },
   "ContactEventName": {
