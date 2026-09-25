@@ -10,7 +10,8 @@ import {
 } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { SHADOW_FACTOR_WGSL } from './shadowFactorWgsl.ts';
 
-const POISSON_16 = [
+/** The PCF's taps, in texels around the read point. */
+export const POISSON_16 = [
   [-0.94201624, -0.39906216],
   [0.94558609, -0.76890725],
   [-0.094184101, -0.9293887],
@@ -71,10 +72,19 @@ fn requestShadowPage(e:u32){
  *
  * A tap whose bilinear footprint lies in one page is one hardware comparison in that page; one
  * that straddles a seam is split along it (\`shadowPcf\`): no seam, no guard band.
+ *
+ * Each comparison is multiplied by the transmittance layer's texel at its place (\`shadowThrough\`,
+ * \`../../gpu/shadow/transmittance.ts\`). A pool without that layer binds a one-texel stand-in,
+ * which the PCF never reads: its comparisons are those of before.
  */
-export const directShadowWgsl = (dataBinding: number, requestBinding: number | null) => `
+export const directShadowWgsl = (
+  dataBinding: number,
+  requestBinding: number | null,
+  transmittanceBinding: number,
+) => `
 ${SHADOW_DATA_WGSL}
 @group(0) @binding(${dataBinding}) var<storage,read> shadows:ShadowData;
+@group(0) @binding(${transmittanceBinding}) var shadowTransmittance:texture_2d<f32>;
 ${requestWgsl(requestBinding)}
 const PCF_TAPS:u32=${LIGHT_SETTINGS.pcfTaps}u;
 const SHADOW_BIAS:f32=${LIGHT_SETTINGS.shadowDepthBias};
@@ -120,8 +130,15 @@ fn shadowOffset(word:u32,p:vec2i)->vec2f{
 }
 /** Texels a side of the pool: its size is the world's, derived from the screen (\`shadowPoolSide\`). */
 fn shadowAtlasTexels()->f32{return f32(textureDimensions(shadowAtlas).x);}
-fn shadowCompare(offset:vec2f,t:vec2f,reference:f32)->f32{
- return textureSampleCompareLevel(shadowAtlas,shadowSampler,(offset+t)/shadowAtlasTexels(),reference);
+/** Light the translucent casters let through at atlas texel \`a\`, to a receiver behind them. */
+fn shadowThrough(a:vec2f,reference:f32)->f32{
+ let s=textureLoad(shadowTransmittance,vec2i(floor(a)),0);
+ return select(1.0,s.r,reference<=s.a);
+}
+fn shadowCompare(offset:vec2f,t:vec2f,reference:f32,through:bool)->f32{
+ let lit=textureSampleCompareLevel(shadowAtlas,shadowSampler,(offset+t)/shadowAtlasTexels(),reference);
+ if(!through){return lit;}
+ return lit*shadowThrough(offset+t,reference);
 }
 /** Offset of the neighbour page \`p\` and 1 when it is readable; else the home page's and 0. */
 fn shadowNeighbour(m:ShadowMap,p:vec2i,home:vec2f)->vec3f{
@@ -146,11 +163,14 @@ fn shadowPcf(m:ShadowMap,t:vec2f,reference:f32,home:vec2i,homeWord:u32,side:f32)
  let first=vec2f(home)*SHADOW_PAGE;
  let edge=(t-1.5<first)|(t+1.5>=first+SHADOW_PAGE);
  let offset=shadowOffset(homeWord,home);
+ let through=textureDimensions(shadowTransmittance).x>1u;
  var lit=0.0;
  if(!any(edge)){
   let texels=shadowAtlasTexels();let uv=(offset+t)/texels;
   for(var tap=0u;tap<PCF_TAPS;tap++){
-   lit+=textureSampleCompareLevel(shadowAtlas,shadowSampler,uv+POISSON[tap]/texels,reference);
+   var c=textureSampleCompareLevel(shadowAtlas,shadowSampler,uv+POISSON[tap]/texels,reference);
+   if(through){c*=shadowThrough(offset+t+POISSON[tap],reference);}
+   lit+=c;
   }
   return lit/f32(PCF_TAPS);
  }
@@ -168,10 +188,10 @@ fn shadowPcf(m:ShadowMap,t:vec2f,reference:f32,home:vec2i,homeWord:u32,side:f32)
   let h=clamp(at,first+0.5,first+SHADOW_PAGE-0.5);
   let n=select(min(at,seam-0.5),max(at,seam+0.5),up);
   let w=saturate(0.5+(seam-at)*toward);
-  var sum=w.x*w.y*shadowCompare(offset,h,reference);
-  if(edge.x){sum+=(1.0-w.x)*w.y*shadowCompare(nx.xy,vec2f(select(h.x,n.x,nx.z>0.0),h.y),reference);}
-  if(edge.y){sum+=w.x*(1.0-w.y)*shadowCompare(ny.xy,vec2f(h.x,select(h.y,n.y,ny.z>0.0)),reference);}
-  if(all(edge)){sum+=(1.0-w.x)*(1.0-w.y)*shadowCompare(nd.xy,select(h,n,nd.z>0.0),reference);}
+  var sum=w.x*w.y*shadowCompare(offset,h,reference,through);
+  if(edge.x){sum+=(1.0-w.x)*w.y*shadowCompare(nx.xy,vec2f(select(h.x,n.x,nx.z>0.0),h.y),reference,through);}
+  if(edge.y){sum+=w.x*(1.0-w.y)*shadowCompare(ny.xy,vec2f(h.x,select(h.y,n.y,ny.z>0.0)),reference,through);}
+  if(all(edge)){sum+=(1.0-w.x)*(1.0-w.y)*shadowCompare(nd.xy,select(h,n,nd.z>0.0),reference,through);}
   lit+=sum;
  }
  return lit/f32(PCF_TAPS);

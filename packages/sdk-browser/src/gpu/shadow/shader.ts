@@ -13,21 +13,22 @@ import {
 } from '../../webgpu/tile/wgsl.ts';
 import { VIS_BINDINGS } from '../../webgpu/core/bindLayout.ts';
 import { FLAG_BLEND_CASTER } from '../../visibility/types.ts';
-import { BLEND_COVERAGE_WGSL } from './blendCoverage.ts';
+import { BLEND_TRANSMITTANCE_WGSL, TRANSMITTANCE_CLEAR_WGSL } from './transmittance.ts';
 
 /**
  * Shadow depth passes. Group 0 is that of the visibility-buffer raster, but for one binding:
  * same page table, same cluster selection, same indirect buffer. Only the matrix changes, and
  * it comes from group 1 with a dynamic offset — one face per offset.
  *
- * The fragment stage writes nothing: it exists only to discard. An opacity-mask material —
+ * The depth's fragment stage writes nothing: it exists only to discard. An opacity-mask material —
  * foliage, grille, lattice — casts the shadow of its cutout and not the full silhouette of its
  * cluster, because the mask test is the raster's (`MASK_KEEP_WGSL`), read at the map level the
  * shadow texel asks for — its derivatives, not the camera's.
  *
  * A blended cluster casts from a row only this pass reads (`FLAG_BLEND_CASTER`,
- * `../../webgpu/row/blendCasters.ts`): it keeps the share of its texels its coverage names
- * (`blendCoverage.ts`), and the PCF of the read turns that share into a partial shadow.
+ * `../../webgpu/row/blendCasters.ts`), and never into the depth: `shadow_vs` skips its row, and
+ * `shadow_blend_vs` draws it alone, into the transmittance layer (`transmittance.ts`), where
+ * `shadow_blend_fs` writes the share of the light it lets through and its depth.
  *
  * It also discards the emitter envelope: a light that declares a radius accepts no depth from a
  * surface closer to its centre than that radius. The rule is Euclidean distance to the centre,
@@ -53,13 +54,16 @@ ${TILE_POOL_WGSL}
 ${COLOR_SAMPLE_WGSL}
 ${maskAlphaWgsl(true)}
 ${MASK_KEEP_WGSL}
-${BLEND_COVERAGE_WGSL}
-@vertex fn shadow_vs(@builtin(vertex_index) vertexIndex:u32,@builtin(instance_index) instanceIndex:u32)->ShadowOut{
+${BLEND_TRANSMITTANCE_WGSL}
+/** A caster's corner, or none when its row is not of the kind drawn: \`blended\` casters alone
+ *  into the transmittance layer, the others alone into the depth. */
+fn shadowVertex(vertexIndex:u32,instanceIndex:u32,blended:bool)->ShadowOut{
  var out:ShadowOut;
  let pageIndex=drawPage(instanceIndex);
  let page=pages[pageIndex];
  out.instance=pageIndex;out.uv=vec2f(0.0);out.fromEmitter=vec3f(0.0);
- if(vertexIndex>=page.indexCount){out.position=vec4f(0.0,0.0,2.0,1.0);return out;}
+ let kind=(page.flags&${FLAG_BLEND_CASTER}u)!=0u;
+ if(vertexIndex>=page.indexCount||kind!=blended){out.position=vec4f(0.0,0.0,2.0,1.0);return out;}
  let h=pageHeader(page);
  let id=pageCorner(page,h,vertexIndex);
  let vertex=pagePosition(page,h,id);
@@ -70,15 +74,32 @@ ${BLEND_COVERAGE_WGSL}
  if((page.flags&4u)!=0u){out.uv=pageUv(page,h,id);}
  return out;
 }
-/** Writes no colour: the pass has no target. It only discards the envelope, the cutout and the
- *  texels a blended caster lets the light through. */
+@vertex fn shadow_vs(@builtin(vertex_index) vertexIndex:u32,@builtin(instance_index) instanceIndex:u32)->ShadowOut{
+ return shadowVertex(vertexIndex,instanceIndex,false);
+}
+@vertex fn shadow_blend_vs(@builtin(vertex_index) vertexIndex:u32,@builtin(instance_index) instanceIndex:u32)->ShadowOut{
+ return shadowVertex(vertexIndex,instanceIndex,true);
+}
+/** False on the emitter envelope and on a cutout's hole: what no caster keeps. */
+fn shadowKeep(in:ShadowOut,gx:vec2f,gy:vec2f)->bool{
+ let radius=shadow.emitter.w;
+ if(radius>0.0&&dot(in.fromEmitter,in.fromEmitter)<radius*radius){return false;}
+ return maskKeep(pages[in.instance],in.uv,1.0,gx,gy,0.0);
+}
+/** Writes no colour: it only discards the envelope and the cutout. */
 @fragment fn shadow_fs(in:ShadowOut){
  let gx=dpdx(in.uv);let gy=dpdy(in.uv);
- let radius=shadow.emitter.w;
- if(radius>0.0&&dot(in.fromEmitter,in.fromEmitter)<radius*radius){discard;}
- if(!maskKeep(pages[in.instance],in.uv,1.0,gx,gy,0.0)){discard;}
- let blended=(pages[in.instance].flags&${FLAG_BLEND_CASTER}u)!=0u;
- if(blended&&!blendCasterKeep(pages[in.instance],in.uv,gx,gy,in.position.xy)){discard;}
+ if(!shadowKeep(in,gx,gy)){discard;}
+}
+/** A blended caster's texel of the transmittance layer, blended multiplicatively. */
+@fragment fn shadow_blend_fs(in:ShadowOut)->@location(0) vec4f{
+ let gx=dpdx(in.uv);let gy=dpdy(in.uv);
+ if(!shadowKeep(in,gx,gy)){discard;}
+ return blendTransmittance(pages[in.instance],in.uv,gx,gy,in.position.z);
+}
+/** The transmittance of a page cleared: all the light, no translucent caster. */
+@fragment fn shadow_clear_fs()->@location(0) vec4f{
+ return ${TRANSMITTANCE_CLEAR_WGSL};
 }
 /** Resets the slice to FAR without clearing the rest of the atlas. Face depth is reverse-Z
  *  like the camera's (\`../../camera/depthConvention.ts\`): far is zero. */

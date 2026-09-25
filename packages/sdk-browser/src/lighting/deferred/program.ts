@@ -33,6 +33,8 @@ export interface DirectLightResources {
   slices?: GPUBuffer;
   requests?: GPUBuffer;
   atlas?: GPUTextureView;
+  /** The pool's transmittance layer, once a blended caster made it. */
+  transmittance?: GPUTextureView;
   /** Probe grid and their coefficients; when absent, bounce is not of this frame. */
   bounceGrid?: GPUBuffer;
   probes?: GPUBuffer;
@@ -55,6 +57,7 @@ export interface DeferredBindings {
     slices: GPUBuffer;
     requests: GPUBuffer;
     atlasView: GPUTextureView;
+    transmittanceView: GPUTextureView;
     sampler: GPUSampler;
     proxy: GPUBuffer;
   };
@@ -89,6 +92,7 @@ export async function createDeferredProgram(
   let boundSurface: SurfaceBuffer | undefined,
     boundTiles: GPUBuffer | undefined,
     boundAtlas: GPUTextureView | undefined,
+    boundTransmittance: GPUTextureView | undefined,
     boundRequests: GPUBuffer | undefined,
     boundProbes: GPUBuffer | undefined,
     boundProxy: GPUBuffer | undefined,
@@ -131,6 +135,7 @@ export async function createDeferredProgram(
       const tiles = direct.tiles ?? placeholders.tiles,
         slices = direct.slices ?? placeholders.slices,
         atlas = direct.atlas ?? placeholders.atlasView,
+        transmittance = direct.transmittance ?? placeholders.transmittanceView,
         requests = direct.requests ?? placeholders.requests;
       const probes = direct.probes;
       const proxy = direct.proxy ?? placeholders.proxy;
@@ -140,6 +145,7 @@ export async function createDeferredProgram(
         boundSurface === surface &&
         boundTiles === tiles &&
         boundAtlas === atlas &&
+        boundTransmittance === transmittance &&
         boundRequests === requests &&
         boundProbes === probes &&
         boundProxy === proxy
@@ -148,6 +154,7 @@ export async function createDeferredProgram(
       boundSurface = surface;
       boundTiles = tiles;
       boundAtlas = atlas;
+      boundTransmittance = transmittance;
       boundRequests = requests;
       boundProbes = probes;
       boundProxy = proxy;
@@ -167,6 +174,7 @@ export async function createDeferredProgram(
           // a second copy, and its header says whether there is something to traverse.
           { binding: SUN_FAR_PROXY_BINDING, resource: { buffer: proxy } },
           { binding: CONTRACT_SHADOW_BINDINGS.requests, resource: { buffer: requests } },
+          { binding: CONTRACT_SHADOW_BINDINGS.transmittance, resource: transmittance },
         );
       if (sources.bounce && direct.bounceGrid && direct.probes)
         entries.push(
@@ -179,6 +187,7 @@ export async function createDeferredProgram(
       boundSurface = undefined;
       boundTiles = undefined;
       boundAtlas = undefined;
+      boundTransmittance = undefined;
       boundRequests = undefined;
       boundProbes = undefined;
       boundProxy = undefined;

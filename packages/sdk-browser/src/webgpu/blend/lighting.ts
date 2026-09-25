@@ -15,6 +15,7 @@ export function blendLightResources(rt: WebgpuPagesRuntime): BlendLighting {
     shadowData: contract.slices ?? placeholders.slices,
     shadowAtlas: contract.atlas ?? placeholders.atlasView,
     shadowSampler: placeholders.sampler,
+    shadowTransmittance: contract.transmittance ?? placeholders.transmittanceView,
     bounceGrid: contract.bounceGrid ?? placeholders.bounceGrid,
     probes: contract.probes ?? placeholders.probes,
     tileLights: contract.tiles ?? placeholders.tiles,
