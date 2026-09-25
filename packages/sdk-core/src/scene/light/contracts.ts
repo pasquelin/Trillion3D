@@ -128,7 +128,7 @@ export const LIGHT_SETTINGS = {
    * Offset of the sample point along the normal, in texels of the map read: half a texel, the
    * margin for what is not the receiver's plane — its curvature within a texel, the rounding of
    * both depths. The receiver's slope is covered by a depth margin over the PCF's reach, and
-   * past 45° by a further offset, in the same texels (`shadowDepthMargin`, `shadowNormalOffset`):
+   * past 45° by a further offset, in the same texels (`shadowDepthMargin`, `shadowNormalTexels`):
    * no bias is a length of the scene.
    */
   shadowNormalOffsetTexels: 0.5,
