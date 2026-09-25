@@ -3560,7 +3560,6 @@
       "anisotropy": "倾斜角度下的清晰度。",
       "flipY": "行是否被翻转。",
       "premultiplyAlpha": "颜色是否已预先乘以 alpha。",
-      "generateMipmaps": "是否生成更小的副本。",
       "colorSpace": "它的数值该如何被读取。",
       "transform": "采样器的 UV 变换,即 `KHR_texture_transform` 组合成的一个 3×3 矩阵。"
     }

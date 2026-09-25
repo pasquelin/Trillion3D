@@ -3674,7 +3674,6 @@
       "anisotropy": "Ketajaman pada kemiringan.",
       "flipY": "Apakah baris dibalik.",
       "premultiplyAlpha": "Apakah warna dikalikan awal.",
-      "generateMipmaps": "Apakah salinan lebih kecil dibuat.",
       "colorSpace": "Bagaimana angka-angkanya dibaca.",
       "transform": "Transform UV sampler, `KHR_texture_transform` disusun jadi tiga baris berisi tiga."
     }

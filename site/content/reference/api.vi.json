@@ -3674,7 +3674,6 @@
       "anisotropy": "Độ sắc nét khi nhìn xiên.",
       "flipY": "Các hàng có bị lật hay không.",
       "premultiplyAlpha": "Màu có được nhân trước hay không.",
-      "generateMipmaps": "Các bản sao nhỏ hơn có được tạo ra hay không.",
       "colorSpace": "Cách các con số của nó được đọc.",
       "transform": "Phép biến đổi UV của bộ lấy mẫu, `KHR_texture_transform` được dựng thành ba hàng ba cột."
     }
