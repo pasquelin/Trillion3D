@@ -1,11 +1,11 @@
 import test, { mock } from 'node:test';
 import assert from 'node:assert/strict';
 import { createWebgpuPageTracking } from '../row/pageTracking.ts';
-import { UPLOAD_SLICE_MS } from '../../backend/common.ts';
+import { STREAMING_FRAME_MS } from '../../backend/common.ts';
 import { createWebgpuResidencyQueue } from './queue.ts';
 import { lruCache, pageOf, tierEnsurer } from './residentEnsurer.fixture.ts';
 
-/** A pool whose every load outlasts the upload slice, on a clock the test owns. */
+/** A pool whose every load spends a frame's whole share, on a clock the test owns. */
 function slowCache(slots: number) {
   let clock = 0;
   mock.method(performance, 'now', () => clock);
@@ -13,7 +13,7 @@ function slowCache(slots: number) {
     load = cache.load,
     order: string[] = [];
   cache.load = async (url: string) => {
-    clock += UPLOAD_SLICE_MS;
+    clock += STREAMING_FRAME_MS;
     order.push(url);
     await load(url);
   };

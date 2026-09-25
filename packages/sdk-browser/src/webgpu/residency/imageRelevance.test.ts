@@ -1,13 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { frame, scene } from './sets.fixture.ts';
-import { createShadowTier } from './shadowTier.ts';
+import { createLowerTier } from './lowerTier.ts';
 import { createImageRelevance } from './imageRelevance.ts';
 import { createGroupClosure } from '../cut/groupClosure.ts';
 
 function world() {
   const w = scene();
-  const tier = createShadowTier({
+  const tier = createLowerTier({
     packedPages: w.packed,
     keyCount: w.tracking.keyCount,
     keyOf: w.tracking.keyOf,

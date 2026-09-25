@@ -3,6 +3,7 @@ import type { PageRec } from '../../page/selection/selection.ts';
 import { surfaceOf } from '../../page/surface.ts';
 import type { createWebgpuPageTracking } from '../row/pageTracking.ts';
 import { createWebgpuResidentEnsurer } from './residentEnsurer.ts';
+import type { FrameBudget } from './frameBudget.ts';
 
 /** Fields the residency ensurer never reads: shared across every fixture page. */
 const IDENTITY = { elements: IDENTITY_MATRIX4 };
@@ -54,11 +55,13 @@ export function lruCache(slots: number) {
   };
 }
 
-/** An ensurer over `cache` whose caster tier is `shadowPages`. */
+/** An ensurer over `cache` whose caster tier is `shadowPages`, and whose tier ahead is `aheadPages`. */
 export const tierEnsurer = (
   tracking: ReturnType<typeof createWebgpuPageTracking>,
   cache: unknown,
   shadowPages: () => readonly PageRec[],
+  aheadPages: () => readonly PageRec[] = () => [],
+  budget?: FrameBudget,
 ) =>
   createWebgpuResidentEnsurer({
     getCache: () => cache as never,
@@ -69,5 +72,6 @@ export const tierEnsurer = (
     isLost: () => false,
     traceEnabled: false,
     traceDiagnostic: () => {},
-    shadowPages,
+    lowerTiers: () => [shadowPages(), aheadPages()],
+    budget,
   });

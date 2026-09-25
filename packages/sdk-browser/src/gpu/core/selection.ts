@@ -8,7 +8,8 @@
 import { FRUSTUM_PLANE_VALUES, maxStretch } from '../../../../sdk-core/src/index.ts';
 import { sameElements } from '../../math/matrixElements.ts';
 import { pixelScaleOf } from '../../streaming/priority.ts';
-import type { EngineCamera } from '../../camera/world.ts';
+import type { CameraMotion, EngineCamera } from '../../camera/world.ts';
+import { aheadViewOf, copyAheadView, sameAheadView, type AheadView } from './aheadView.ts';
 
 const NONE = 0xffffffff,
   UNIFORM_BYTES = 256,
@@ -22,12 +23,10 @@ export const PAGE_CONE_FLOATS = 13,
 
 /**
  * `cameraStretch` is the camera half of the cut's object-to-view stretch, `perspective` the
- * projection's clip-w weight (`EngineCamera.perspective`), 1 when absent.
- *
- * `view` and `planes` are those of the render frame, and `cameraWorld` — the eye's world
- * position, ancestors resolved — is its ORIGIN: that is what the kernel's world matrices have
- * already lost. The camera is therefore at zero in the frame the kernel works in, and this
- * triplet only names that frame for a sample or an oracle.
+ * projection's clip-w weight (`EngineCamera.perspective`), 1 when absent. `view` and `planes` are
+ * those of the render frame, and `cameraWorld` — the eye's world position, ancestors resolved — is
+ * its ORIGIN: the camera is at zero in the frame the kernel works in, and this triplet only names
+ * that frame for a sample or an oracle.
  */
 export type SelectionUniforms = {
   planes: Float32Array;
@@ -38,12 +37,15 @@ export type SelectionUniforms = {
   cameraWorld: [number, number, number];
   cameraStretch?: number;
   perspective?: number;
+  /** The view ahead of a moving camera (`./aheadView.ts`); absent or null for a still one. */
+  ahead?: AheadView | null;
 };
 export type SelectionResult = {
   pageIds: number[];
-  /** Priority of each request, at the same rank as `pageIds`: the replacement's screen error,
-   *  quantized (`../dag/request.ts`). Only the ORACLE publishes it, for the correctness bench that
-   *  compares the two rankings; the GPU path returns only the order, which is what the host consumes. */
+  /** Requests of the view ahead, ranked as `pageIds` and after all of them (`../dag/request.ts`). */
+  aheadPageIds?: number[];
+  /** Priority of each request, at the same rank as `pageIds` (`../dag/request.ts`). Only the ORACLE
+   *  publishes it, for the bench that compares the two rankings; the GPU returns only the order. */
   requestPriorities?: number[];
   frustumRejected: number;
   lodLevel: number;
@@ -131,7 +133,7 @@ export function sameSelectionUniforms(a: SelectionUniforms, b: SelectionUniforms
     a.cameraWorld[2] !== b.cameraWorld[2]
   )
     return false;
-  if (!sameElements(a.view, b.view)) return false;
+  if (!sameElements(a.view, b.view) || !sameAheadView(a.ahead, b.ahead)) return false;
   for (let i = 0; i < 24; i++) if (a.planes[i] !== b.planes[i]) return false;
   return true;
 }
@@ -146,6 +148,7 @@ export function copySelectionUniforms(source: SelectionUniforms): SelectionUnifo
     cameraWorld: [source.cameraWorld[0], source.cameraWorld[1], source.cameraWorld[2]],
     cameraStretch: source.cameraStretch,
     perspective: source.perspective,
+    ahead: copyAheadView(source.ahead),
   };
 }
 
@@ -154,14 +157,14 @@ export function cameraSelectionUniforms(
   pixelError: number,
   viewport?: [number, number],
   into?: SelectionUniforms,
+  /** The camera's motion: given, a moving camera also sends its view ahead. */
+  motion?: CameraMotion,
 ): SelectionUniforms {
   const planes = into?.planes ?? planeScratch;
   const view = into?.view ?? viewScratch;
   // View and planes are those of the RENDER FRAME (`../../camera/renderOrigin.ts`): the kernel composes
-  // `view · world` in single precision, and the world matrices given to it are brought back to
-  // `cameraWorld`. Taking the absolute view here would mix the two frames in the same formula.
-  // Ancestors included: the frame entry set both halves once in the engine camera.
-  // Single precision only rounds here, as before: everything above is computed in double.
+  // `view · world` in single precision on world matrices brought back to `cameraWorld`; the absolute
+  // view would mix two frames. Single precision only rounds here: everything above is in double.
   planes.set(cam.planesRelative);
   view.set(cam.viewRelative);
   const pixelScale = pixelScaleOf(
@@ -170,14 +173,9 @@ export function cameraSelectionUniforms(
     into?.pixelScale ?? ([1, 1] as [number, number]),
   );
   const position = cam.eye;
-  const cameraWorld: [number, number, number] = into?.cameraWorld ?? [
-    position[0],
-    position[1],
-    position[2],
-  ];
+  const cameraWorld: [number, number, number] = into?.cameraWorld ?? [0, 0, 0];
   for (let axis = 0; axis < 3; axis++) cameraWorld[axis] = position[axis];
-  // The flat cut multiplies this by each primitive's own stretch, exactly like `selectVisiblePages`.
-  // Stretch reads only the linear part, which the render frame does not touch: same bits.
+  // Times each primitive's own stretch, as `selectVisiblePages`; the render frame keeps its bits.
   const cameraStretch = maxStretch(cam.viewRelative);
   if (into) {
     into.pixelError = pixelError;
@@ -185,6 +183,7 @@ export function cameraSelectionUniforms(
     into.cameraWorld = cameraWorld;
     into.cameraStretch = cameraStretch;
     into.perspective = cam.perspective;
+    into.ahead = motion ? aheadViewOf(cam, motion, into.ahead) : null;
     return into;
   }
   return {
@@ -196,5 +195,6 @@ export function cameraSelectionUniforms(
     cameraWorld: [cameraWorld[0], cameraWorld[1], cameraWorld[2]],
     cameraStretch,
     perspective: cam.perspective,
+    ahead: motion ? aheadViewOf(cam, motion) : null,
   };
 }

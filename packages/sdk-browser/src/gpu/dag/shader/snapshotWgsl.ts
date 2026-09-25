@@ -19,4 +19,13 @@ export const DAG_RELEVE_WGSL = `fn emitOne(page:u32,pixels:f32){
  if(slot>=views[0u].listCap){atomicOr(&out.overflow,1u);return;}
  out.pages[slot]=packRequest(page,quantizePriority(pixels));
 }
+/** A request of the view ahead (\`aheadWgsl.ts\`): the lower tier, and never more than half the
+ *  cap, so the camera's own requests keep the other half. Past it the request is dropped, never
+ *  declared: the sample stays whole for the camera, which alone decides truncation. */
+fn emitAhead(page:u32,pixels:f32){
+ if(atomicLoad(&out.count)>=views[0u].listCap/2u){return;}
+ let slot=atomicAdd(&out.count,1u);
+ if(slot>=views[0u].listCap){return;}
+ out.pages[slot]=packRequest(page,REQUEST_AHEAD|quantizePriority(pixels));
+}
 `;
