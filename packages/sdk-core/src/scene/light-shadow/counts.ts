@@ -4,9 +4,9 @@ import type { ShadowRecords } from './records.ts';
 
 /**
  * What the shadow scheduler did in a frame, in pages, never durations: pages staled, drawn, left
- * pending — 0 unless the frame could not encode its pages (`plan.reissue`) —, the lag of the oldest
- * page drawn since it went stale, pages the image reads straight from the cache, pages the pool
- * holds. Everything is allocated once.
+ * pending — past a moving frame's budget, or not encoded (`plan.reissue`) —, the lag of the oldest
+ * stale page the image reads, pages the image reads straight from the cache, pages the pool holds.
+ * Everything is allocated once.
  */
 export function createShadowCounts() {
   /** Frame (plus one) of the last page drawn for each slice's light. */
@@ -33,8 +33,8 @@ export function createShadowCounts() {
       counts.lights++;
       if (rank === LIGHT_KIND.directional) counts.sunLights++;
     },
-    /** After admission: the lag of the oldest stale page the image reads — every one of them is
-     *  drawn this frame —, and the pages read straight from the cache; one scan of the pool. */
+    /** After admission: the lag of the oldest stale page the image reads, and the pages read
+     *  straight from the cache; one scan of the pool. */
     endFrame(
       pool: ShadowPool,
       records: ShadowRecords,

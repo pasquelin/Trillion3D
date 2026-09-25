@@ -55,7 +55,7 @@ export function createShadowPlan(poolSide: number) {
     requests,
     /** What the last plan did, in pages. */
     counts,
-    /** This frame's pages, light view by light view. */
+    /** This frame's pages, the coarsest first, light view by light view. */
     admission,
     /** A node has moved: its box stales the pages it covers at the next plan. */
     worldChanged: changes.worldChanged,
@@ -91,7 +91,7 @@ export function createShadowPlan(poolSide: number) {
     receive(next: ShadowRequestReport) {
       if (!report || next.frame > report.frame) report = next;
     },
-    /** Plans a frame: stales what moved, reads the last report, admits every page to draw. */
+    /** Plans a frame: stales what moved, reads the last report, lists every page to draw. */
     plan(
       store: SceneLightStore,
       view: ShadowViewpoint,
@@ -152,7 +152,8 @@ export function createShadowPlan(poolSide: number) {
       }
       requests.floors(posed, view, nowMs, frame);
       const count = admission.run(pool, table, requests.latest, frame);
-      for (let i = 0; i < count; i++) {
+      // A light counts as drawn only for the pages the frame's budget draws (`frameEnd`).
+      for (let i = 0, end = admission.frameEnd(still); i < end; i++) {
         const slice = pool.slice[admission.list[i]];
         counts.drewLight(slice, records.kind[slice], frame);
       }
@@ -169,8 +170,9 @@ export function createShadowPlan(poolSide: number) {
       }
       if (to >= admission.count) admission.reset();
     },
-    /** The frame's pages from `from` on could not be encoded: they stay stale, pending, ahead of
-     *  every page that turns stale after them in the next frame's list (`admit.ts`). */
+    /** The frame's pages from `from` on were not drawn — past a moving frame's budget, or not
+     *  encoded: they stay stale, pending, ahead of every page that turns stale after them in the
+     *  next frame's list (`admit.ts`). */
     reissue(from = 0) {
       counts.pendingPages = Math.max(0, admission.count - from);
       admission.reset(from);
