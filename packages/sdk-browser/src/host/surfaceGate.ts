@@ -21,8 +21,8 @@ import { declaresCompileHook } from './materialHook.ts';
 import { physicalExtensionReason } from '../scene/physicalMaterialGate.ts';
 import { isTransmissive } from '../visibility/shader/material.ts';
 
-/** Raw texels the WebGL2 upload reads as they are stored, one byte per channel of four — the
- *  reading the WebGPU path shares (`textureRgba`); any other storage is named, never drawn blank. */
+/** Raw texels the WebGL2 upload reads as they are stored (`textureRgba`): one byte per channel of
+ *  four. Any other storage is named, never drawn blank. */
 const texelsReason = ({ format, image }: NonNullable<HostMap>) => {
   if (format !== HOST_FORMAT_RGBA) return `texel format ${format} is unsupported: RGBA only`;
   const { data, width, height } = image as { data?: unknown; width: number; height: number };
@@ -35,7 +35,7 @@ const texelsReason = ({ format, image }: NonNullable<HostMap>) => {
 const textureReason = (texture: HostMap) => {
   if (!texture) return;
   if (!texture.image) return 'texture image is unavailable';
-  const texels = texture.kind === 'texels' ? texelsReason(texture) : undefined;
+  const texels = texture.kind === 'texels' && texelsReason(texture);
   if (texels) return texels;
   if (texture.channel !== 0 && texture.channel !== 1)
     return `texture channel ${texture.channel} is unsupported`;
