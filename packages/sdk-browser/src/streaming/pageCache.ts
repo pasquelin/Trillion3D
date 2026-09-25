@@ -43,6 +43,8 @@ const checkBytes = (bytes: number) => {
 export function createPageCache(cpuBytes = DEFAULT_CACHED_BYTES) {
   checkBytes(cpuBytes);
   const pages = new Map<string, Uint8Array>();
+  /** The fingerprint each page's bytes were verified against when read: they leave with them. */
+  const fingerprints = new WeakMap<Uint8Array, string>();
   /** The one file kept whole beside the pages: its read, the bytes it takes off the total, and the
    *  cancellation that is the cache's, not a session's. */
   let slot:
@@ -92,17 +94,25 @@ export function createPageCache(cpuBytes = DEFAULT_CACHED_BYTES) {
     get budgetBytes() {
       return Math.max(0, total - cache.reservedBytes);
     },
-    /** Puts `array` as the most recently used page at `url`. */
-    touch(url: string, array: Uint8Array) {
+    /** Puts `array` as the most recently used page at `url`; `sha256` when it was just read and
+     *  verified. */
+    touch(url: string, array: Uint8Array, sha256?: string) {
       drop(url);
       pages.set(url, array);
       bytes += array.byteLength;
+      if (sha256) fingerprints.set(array, sha256);
     },
     drop,
-    /** Drops every page `sizes` names at another size: another page under the same url. */
-    dropResized(sizes: ReadonlyMap<string, { bytes: number }>) {
-      for (const [url, held] of pages)
-        if ((sizes.get(url)?.bytes ?? held.byteLength) !== held.byteLength) drop(url);
+    /** Drops every page held as other bytes than the file `catalog` names at its url: another
+     *  fingerprint or another size, or bytes never verified against one. A name alone is not a
+     *  file: another scene, another base or the same folder cooked again may reuse it at the same
+     *  size. The same fingerprint is the same bytes, verified at read, under any base. */
+    dropForeign(catalog: ReadonlyMap<string, { bytes: number; sha256: string }>) {
+      for (const [url, held] of pages) {
+        const page = catalog.get(url);
+        if (page && (fingerprints.get(held) !== page.sha256 || held.byteLength !== page.bytes))
+          drop(url);
+      }
     },
     /**
      * The read of the file `key` names, of `bytes` bytes — the scene's resident proxy —, kept whole
