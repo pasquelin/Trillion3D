@@ -6,7 +6,8 @@ import assert from 'node:assert/strict';
 import { createWebgpuPageTracking } from '../row/pageTracking.ts';
 import { createWebgpuResidencyQueue } from './queue.ts';
 import { createLowerTier } from './lowerTier.ts';
-import { lruCache, pageOf, tierEnsurer } from './residentEnsurer.fixture.ts';
+import { createWebgpuResidentEnsurer } from './residentEnsurer.ts';
+import { ensurerOptions, lruCache, pageOf } from './residentEnsurer.fixture.ts';
 import type { PageRec } from '../../page/selection/selection.ts';
 
 function banc(slots: number, visible: string[], ahead: string[]) {
@@ -26,12 +27,11 @@ function banc(slots: number, visible: string[], ahead: string[]) {
   const want = (list: PageRec[]) => {
     for (const page of list) tracking.wanted.add(tracking.keyOf(page), page);
   };
-  const ensure = tierEnsurer(
-    tracking,
-    cache,
-    () => [],
-    () => tier.pages,
-  );
+  // The real tier, with its own `has`: the ensurer reads it as the services give it.
+  const ensure = createWebgpuResidentEnsurer({
+    ...ensurerOptions(tracking, cache),
+    lowerTiers: () => [tier],
+  });
   // Readback ids: the camera's pages first, then the ones ahead (`../cut/adoption.ts`).
   const offerAhead = (count: number) =>
     tier.offerIds(next.slice(0, count).map((_, i) => camera.length + i));
