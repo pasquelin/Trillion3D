@@ -15,7 +15,12 @@ const ERROR_LADDER: usize = 16;
 /// `parent_error`: retained as soon as error exceeds threshold, otherwise
 /// children are retained because replacement is precisely this coarse root.
 pub(crate) fn selected(cluster: &DagCluster, threshold: f64) -> bool {
-    cluster.lod_error <= threshold && cluster.parent_error > threshold
+    in_cut(cluster.lod_error, cluster.parent_error, threshold)
+}
+
+/// The cut rule on a cluster's own and parent errors, for a reader of published pages.
+pub(crate) fn in_cut(lod_error: f64, parent_error: f64, threshold: f64) -> bool {
+    lod_error <= threshold && parent_error > threshold
 }
 
 fn triangles_at(dag: &[DagCluster], threshold: f64) -> usize {
