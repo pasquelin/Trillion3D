@@ -106,6 +106,12 @@ export function createWebgpuResidencySets(options: {
     },
     /** True when this image asks the cache for the key, even past the page budget. */
     requests: (key: number) => desired.has(key),
+    /** True when the pool accepted the page: the pinned cover, or the upload queue within the page
+     *  budget. A page past the budget is drawn by its nearest resident ancestor and never awaited. */
+    accepts: (page: PageRec) => {
+      const key = keyOf(page);
+      return bootstrapKey[key] === 1 || wanted.has(key);
+    },
     /** Applies one difference of what the cut asks for — its pages and the groups they close over
      *  (`../cut/groupClosure.ts`): only the pages that entered and left are touched. */
     applyCut(delta: IdDelta) {

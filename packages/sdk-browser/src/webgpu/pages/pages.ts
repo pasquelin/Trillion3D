@@ -146,6 +146,7 @@ export const webgpuPagesBackend: BackendFactory = (context) => {
     acceptPage(url, array, plan) {
       acceptPage(rt, url, array, plan, rt.services.affectsImage);
     },
+    hostTableBytes: () => rt.services.hostTableBytes(),
     dropPage(url) {
       dropPage(rt, url);
     },

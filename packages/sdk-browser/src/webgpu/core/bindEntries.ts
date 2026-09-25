@@ -58,6 +58,8 @@ export type BlendLighting = {
   tileLights: GPUBuffer;
   /** The resident proxy: the same far-shadow ray as the opaque resolve, not another. */
   proxy: GPUBuffer;
+  /** The bounce surface cache the water's reflection reads (`../../bounce/reflectWgsl.ts`). */
+  surfaceCache: GPUBuffer;
 };
 
 /** Resources of a transparent-mesh group: the mesh itself and the scene. */

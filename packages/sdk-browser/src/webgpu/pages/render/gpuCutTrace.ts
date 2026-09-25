@@ -107,7 +107,6 @@ export function traceGpuCutFrame(rt: WebgpuPagesRuntime, cam: EngineCamera) {
         },
         budget: { slots, limited: run.coverageBudgetLimited },
         selectedTriangles: run.selectedTriangles,
-        uncoveredTriangles: run.uncoveredTriangles,
         submittedTriangles: run.gpuMetricsReady ? run.submittedTriangles : null,
         drawCalls: run.gpuDrawCalls,
       },
