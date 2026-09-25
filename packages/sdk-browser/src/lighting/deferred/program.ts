@@ -33,8 +33,7 @@ export interface DirectLightResources {
   slices?: GPUBuffer;
   requests?: GPUBuffer;
   atlas?: GPUTextureView;
-  /** The pool's transmittance layer, once a blended caster made it. */
-  transmittance?: GPUTextureView;
+  transmittance?: { view: GPUTextureView; depthView: GPUTextureView };
   /** Probe grid and their coefficients; when absent, bounce is not of this frame. */
   bounceGrid?: GPUBuffer;
   probes?: GPUBuffer;
@@ -135,10 +134,11 @@ export async function createDeferredProgram(
       const tiles = direct.tiles ?? placeholders.tiles,
         slices = direct.slices ?? placeholders.slices,
         atlas = direct.atlas ?? placeholders.atlasView,
-        transmittance = direct.transmittance ?? placeholders.transmittanceView,
-        requests = direct.requests ?? placeholders.requests;
-      const probes = direct.probes;
-      const proxy = direct.proxy ?? placeholders.proxy;
+        transmittance = direct.transmittance?.view ?? placeholders.transmittanceView,
+        translucentDepth = direct.transmittance?.depthView ?? placeholders.atlasView,
+        requests = direct.requests ?? placeholders.requests,
+        probes = direct.probes,
+        proxy = direct.proxy ?? placeholders.proxy;
       if (boundHdr !== hdr) composeGroups.clear();
       boundHdr = hdr;
       if (
@@ -175,6 +175,7 @@ export async function createDeferredProgram(
           { binding: SUN_FAR_PROXY_BINDING, resource: { buffer: proxy } },
           { binding: CONTRACT_SHADOW_BINDINGS.requests, resource: { buffer: requests } },
           { binding: CONTRACT_SHADOW_BINDINGS.transmittance, resource: transmittance },
+          { binding: CONTRACT_SHADOW_BINDINGS.translucentDepth, resource: translucentDepth },
         );
       if (sources.bounce && direct.bounceGrid && direct.probes)
         entries.push(

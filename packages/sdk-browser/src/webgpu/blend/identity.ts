@@ -37,6 +37,7 @@ export function voidStaleBlendGroups(rt: WebgpuPagesRuntime, lighting?: BlendLig
   next[21] = gpu.bindGroupLayout;
   next[22] = gpu.uniformBuffer;
   next[23] = gpu.zeroUv;
+  // The translucent depth is made and dropped with it.
   next[24] = lighting?.shadowTransmittance;
   if (!blendState.identity.moved()) return;
   blendState.pagedGroup = undefined;

@@ -49,8 +49,9 @@ export type BlendLighting = {
   shadowData: GPUBuffer;
   shadowAtlas: GPUTextureView;
   shadowSampler: GPUSampler;
-  /** The pool's transmittance layer, or the one-texel stand-in. */
+  /** The pool's transmittance layer and its translucent depth, or the one-texel stand-ins. */
   shadowTransmittance: GPUTextureView;
+  shadowTranslucentDepth: GPUTextureView;
   bounceGrid: GPUBuffer;
   probes: GPUBuffer;
   /** Per-tile lamp lists: the blend pass reads the slice that concerns it. */
@@ -163,6 +164,7 @@ export function blendBindEntries(r: BlendBindResources): GPUBindGroupEntry[] {
     { binding: b.shadowAtlas, resource: r.shadowAtlas },
     { binding: b.shadowSampler, resource: r.shadowSampler },
     { binding: b.shadowTransmittance, resource: r.shadowTransmittance },
+    { binding: b.shadowTranslucentDepth, resource: r.shadowTranslucentDepth },
     { binding: b.bounceGrid, resource: { buffer: r.bounceGrid } },
     { binding: b.probes, resource: { buffer: r.probes } },
     { binding: b.tileLights, resource: { buffer: r.tileLights } },

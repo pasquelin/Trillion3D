@@ -92,7 +92,7 @@ export async function createGpuShadowAtlas(device: GPUDevice, pageLayout: GPUBin
       layout,
       vertex: { module, entryPoint: 'shadow_vs' },
       // No colour target: the fragment stage exists only to discard an opacity-mask cutout, and
-      // returns nothing. Its twin with the transmittance layer attached is `transmittance.ts`'s.
+      // returns nothing.
       fragment: { module, entryPoint: 'shadow_fs', targets: [] },
       primitive: { topology: 'triangle-list', cullMode: 'none' },
       depthStencil: depthState(DEPTH_COMPARE),
@@ -155,7 +155,14 @@ export async function createGpuShadowAtlas(device: GPUDevice, pageLayout: GPUBin
       ensureTransmittance(encoder: GPUCommandEncoder) {
         if (transmittance || !texture) return transmittance;
         const side = atlas.size / SHADOW_PAGE;
-        transmittance = createShadowTransmittance(device, module, layout, side, encoder);
+        transmittance = createShadowTransmittance(
+          device,
+          module,
+          [pageLayout, faceLayout],
+          atlas.view!,
+          side,
+          encoder,
+        );
         atlas.allocationBytes += transmittance.bytes;
         return transmittance;
       },

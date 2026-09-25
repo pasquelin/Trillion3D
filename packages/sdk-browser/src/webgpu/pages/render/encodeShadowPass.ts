@@ -7,6 +7,10 @@ import { shadowRegionGroup } from '../../shadow/regionGroups.ts';
 import { SHADOW_PAGE } from '../../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import { encodeShadowCasters } from '../../shadow/casters.ts';
+import {
+  SHADOW_TRANSMITTANCE_PASS,
+  type ShadowTransmittance,
+} from '../../../gpu/shadow/transmittance.ts';
 
 /** Pyramid slot of each region this frame, `HIZ_UNTESTED` for a region drawn as culled, and the
  *  region each slot was given to. */
@@ -59,9 +63,8 @@ function encodeOcclusion(rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder, cou
  * fills the clip square, so the rasterizer clips every caster at its edge and no other page of the
  * pool is touched; the scissor says the same square once more.
  *
- * Once a blended caster holds a row, the pool's pass also targets the transmittance layer
- * (`../../../gpu/shadow/transmittance.ts`): each region draws its list a second time, where only
- * the blended casters' corners survive, into that layer alone. Before, the pass is the one it was.
+ * Once a blended caster holds a row, the pass of the transmittance layer follows
+ * (`encodeTransmittance`). Before, the shadow passes are the ones they were.
  */
 export function encodeShadowAtlas(
   rt: WebgpuPagesRuntime,
@@ -79,15 +82,10 @@ export function encodeShadowAtlas(
   cull.counts.sample(encoder, cull.indirect, count, run.frame);
   lights.shadowDraws = count;
   const drawsBefore = run.gpuDrawCalls;
-  const transmittance = rt.services.blendCasters.used
-    ? shadows.ensureTransmittance(encoder)
-    : shadows.transmittance;
   const draw = (target: GPUTextureView, label: string, layer: boolean, tested: boolean) => {
-    // The static layer keeps depth alone: the blended casters' rows count as moving.
-    const through = layer ? undefined : transmittance;
     const pass = encoder.beginRenderPass({
       label,
-      colorAttachments: through ? [{ view: through.view, loadOp: 'load', storeOp: 'store' }] : [],
+      colorAttachments: [],
       depthStencilAttachment: { view: target, depthLoadOp: 'load', depthStoreOp: 'store' },
     });
     for (let region = 0; region < count; region++) {
@@ -101,30 +99,79 @@ export function encodeShadowAtlas(
       pass.setViewport(x, y, SHADOW_PAGE, SHADOW_PAGE, 0, 1);
       pass.setScissorRect(x, y, SHADOW_PAGE, SHADOW_PAGE);
       if (start === REGION_RESTORE) {
-        pass.setPipeline(through ? staticLayer!.restoreTransmit : staticLayer!.restore);
+        pass.setPipeline(staticLayer!.restore);
         pass.setBindGroup(0, staticLayer!.group);
       } else {
-        pass.setPipeline(through?.clear ?? shadows.clear);
+        pass.setPipeline(shadows.clear);
         pass.setBindGroup(0, group);
         pass.setBindGroup(1, shadows.faceGroup, [region * shadows.faceStride]);
       }
       pass.draw(3);
-      pass.setPipeline(through?.depth ?? shadows.depth);
+      pass.setPipeline(shadows.depth);
       pass.setBindGroup(0, group);
       pass.setBindGroup(1, shadows.faceGroup, [region * shadows.faceStride]);
       const commands = visible ? occlusion!.visibleIndirect : cull.indirect;
       pass.drawIndirect(commands, region * DRAW_INDIRECT_STRIDE);
       run.gpuDrawCalls += 2;
-      if (!through) continue;
-      pass.setPipeline(through.blend);
-      pass.drawIndirect(commands, region * DRAW_INDIRECT_STRIDE);
-      run.gpuDrawCalls++;
     }
     pass.end();
   };
   if (regions.layered) draw(staticLayer!.view, SHADOW_LAYER_PASS, true, false);
   const tested = encodeOcclusion(rt, encoder, count);
   draw(shadows.view, SHADOW_PASS, false, tested);
+  const transmittance = rt.services.blendCasters.used
+    ? shadows.ensureTransmittance(encoder)
+    : shadows.transmittance;
+  if (transmittance) encodeTransmittance(rt, device, encoder, count, transmittance, tested);
   lights.shadowDrawCalls = run.gpuDrawCalls - drawsBefore;
   return true;
+}
+
+/**
+ * The pass of the transmittance layer (`../../../gpu/shadow/transmittance.ts`), at half the pool's
+ * resolution: every page the pool's pass drew — cleared or restored — starts from all the light
+ * and no translucent depth (the static layer keeps no blended caster: their rows count as moving),
+ * then draws its list twice, where only the blended casters' corners survive: depth only, for the
+ * nearest translucent depth, then colour only, multiplied into the transmittance. Both test the
+ * pool's opaque depth, just drawn.
+ */
+export function encodeTransmittance(
+  rt: WebgpuPagesRuntime,
+  device: GPUDevice,
+  encoder: GPUCommandEncoder,
+  count: number,
+  layer: ShadowTransmittance,
+  tested: boolean,
+) {
+  const { lights, run } = rt,
+    { shadows, cull, regions, occlusion } = lights;
+  const pass = encoder.beginRenderPass({
+    label: SHADOW_TRANSMITTANCE_PASS,
+    colorAttachments: [{ view: layer.view, loadOp: 'load', storeOp: 'store' }],
+    depthStencilAttachment: { view: layer.depthView, depthLoadOp: 'load', depthStoreOp: 'store' },
+  });
+  pass.setBindGroup(2, layer.opaqueGroup);
+  const half = SHADOW_PAGE / 2;
+  for (let region = 0; region < count; region++) {
+    const start = regions.startOf(region);
+    if (start === REGION_STATIC) continue;
+    const visible = tested && start === REGION_RESTORE;
+    const group = shadowRegionGroup(rt, device, region, visible);
+    if (!group) continue;
+    const x = regions.x(region) / 2,
+      y = regions.y(region) / 2;
+    pass.setViewport(x, y, half, half, 0, 1);
+    pass.setScissorRect(x, y, half, half);
+    pass.setBindGroup(0, group);
+    pass.setBindGroup(1, shadows!.faceGroup, [region * shadows!.faceStride]);
+    pass.setPipeline(layer.clear);
+    pass.draw(3);
+    const commands = visible ? occlusion!.visibleIndirect : cull!.indirect;
+    for (const pipeline of [layer.depth, layer.blend]) {
+      pass.setPipeline(pipeline);
+      pass.drawIndirect(commands, region * DRAW_INDIRECT_STRIDE);
+    }
+    run.gpuDrawCalls += 3;
+  }
+  pass.end();
 }

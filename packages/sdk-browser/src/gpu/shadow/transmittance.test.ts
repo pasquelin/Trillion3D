@@ -1,50 +1,61 @@
-// #35: a blended caster's shadow is a transmittance beside the depth, multiplied into the PCF.
+// #35: a blended caster's shadow is a half-resolution transmittance and a 32-bit translucent depth
+// beside the pool, multiplied into the PCF.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   BLEND_TRANSMITTANCE_WGSL,
+  SHADOW_TRANSLUCENT_DEPTH_FORMAT,
   TRANSMITTANCE_BLEND,
   TRANSMITTANCE_CLEAR,
-  TRANSMITTANCE_DEPTH_KEEP,
   blendCoverage,
   castsBlendShadow,
-  createShadowTransmittance,
-  shadowTransmittanceBytes,
 } from './transmittance.ts';
 import { SHADOW_DEPTH_SHADER } from './shader.ts';
 import { POISSON_16, directShadowWgsl } from '../../lighting/direct/shadowWgsl.ts';
+import { LIGHT_SETTINGS } from '../../../../sdk-core/src/index.ts';
+import { SHADOW_PAGE } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import type { PageSurface } from '../../page/surface.ts';
-import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
 
-type Texel = [number, number, number, number];
+/** A texel of the layer: its transmittance and its translucent depth (reversed: nearer is more). */
+type Texel = { t: number; d: number };
 const f16 = (Math as unknown as { f16round(x: number): number }).f16round;
+const unorm8 = (x: number) => Math.round(Math.min(1, Math.max(0, x)) * 255) / 255;
 const surface = (opacity: number) =>
   ({ blending: 'normal', transmission: 0, opacity }) as unknown as PageSurface;
+const CLEAR: Texel = { t: TRANSMITTANCE_CLEAR.r, d: 0 };
 
-/** One blend component of the GPU, on the factors and operations the layer's state names. */
-function blendComponent(c: GPUBlendComponent, src: number, dst: number) {
-  const factor = (f: GPUBlendFactor | undefined) =>
-    f === 'zero' ? 0 : f === 'src' ? src : f === 'dst' ? dst : 1;
-  if (c.operation === 'max') return Math.max(src, dst);
-  return src * factor(c.srcFactor) + dst * factor(c.dstFactor);
+/** The GPU's colour blend on the layer's state, stored in 8 bits; its depth test keeps the
+ *  nearest, stored in 32. */
+function land(dst: Texel, coverage: number, depth: number): Texel {
+  const { srcFactor, dstFactor } = TRANSMITTANCE_BLEND.color,
+    src = 1 - coverage;
+  const factor = (f: GPUBlendFactor | undefined) => (f === 'zero' ? 0 : f === 'src' ? src : 1);
+  const t = unorm8(src * factor(srcFactor) + dst.t * factor(dstFactor));
+  return { t, d: Math.max(dst.d, Math.fround(depth)) };
 }
-/** The texel after the fragment `src` lands on `dst`, stored at half precision. */
-const land = (dst: Texel, src: Texel): Texel =>
-  dst.map((d, i) =>
-    f16(blendComponent(i < 3 ? TRANSMITTANCE_BLEND.color : TRANSMITTANCE_BLEND.alpha, src[i], d)),
-  ) as Texel;
-const clear = (): Texel => Object.values(TRANSMITTANCE_CLEAR) as Texel;
-/** What `blendTransmittance` returns: `1 − coverage`, and the depth lowered by one half step. */
-const fragment = (coverage: number, depth: number): Texel => {
-  const t = 1 - coverage;
-  return [t, t, t, depth * TRANSMITTANCE_DEPTH_KEEP];
-};
 
-/**
- * CPU oracle of `shadowPcf` away from a seam: the sixteen taps, each a bilinear depth comparison
- * (lit when the reference is in front, reversed depth) times `shadowThrough` at the tap's texel.
- */
-function pcf(depthAt: (x: number, y: number) => number, layerAt: (x: number, y: number) => Texel) {
+/** CPU oracle of `shadowThrough`: the four half-resolution texels around `a / 2`, kept in `a`'s
+ *  page, each its transmittance where the reference lies behind its depth, filtered bilinearly. */
+function through(layerAt: (i: number, j: number) => Texel, ax: number, ay: number, ref: number) {
+  const half = SHADOW_PAGE / 2;
+  const axis = (a: number) => {
+    const o = Math.floor(a / SHADOW_PAGE) * half;
+    const h = Math.min(Math.max(a / 2, o + 0.5), o + half - 0.5) - 0.5;
+    return [Math.floor(h), h - Math.floor(h)];
+  };
+  const [i, fx] = axis(ax),
+    [j, fy] = axis(ay);
+  const s = (di: number, dj: number) => {
+    const texel = layerAt(i + di, j + dj);
+    return ref < texel.d ? texel.t : 1;
+  };
+  const mix = (a: number, b: number, f: number) => a + (b - a) * f;
+  return mix(mix(s(0, 0), s(1, 0), fx), mix(s(0, 1), s(1, 1), fx), fy);
+}
+
+/** CPU oracle of `shadowPcf` away from a seam: the sixteen taps, each a bilinear depth comparison
+ *  of the full-resolution pool times `through` at the tap. */
+function pcf(depthAt: (x: number, y: number) => number, layerAt: (i: number, j: number) => Texel) {
   return (tx: number, ty: number, reference: number) => {
     let lit = 0;
     for (const [px, py] of POISSON_16) {
@@ -62,8 +73,7 @@ function pcf(depthAt: (x: number, y: number) => number, layerAt: (x: number, y: 
         [1, 1, fx * fy],
       ])
         compare += w * (reference > depthAt(x0 + dx, y0 + dy) ? 1 : 0);
-      const s = layerAt(Math.floor(tx + px), Math.floor(ty + py));
-      lit += compare * (reference <= s[3] ? s[0] : 1);
+      lit += compare * through(layerAt, tx + px, ty + py, reference);
     }
     return lit / POISSON_16.length;
   };
@@ -81,45 +91,45 @@ function spread(read: (x: number, y: number) => number) {
   return { low, high };
 }
 
-test('the shadow read multiplies each PCF comparison by the texel of the layer there', () => {
+test('the shadow read multiplies each PCF comparison by the half-resolution layer there', () => {
   const wgsl = directShadowWgsl(8, null, 18);
-  assert.match(wgsl, /var shadowTransmittance:texture_2d<f32>/);
-  assert.match(wgsl, /textureLoad\(shadowTransmittance,vec2i\(floor\(a\)\),0\)/);
-  assert.match(wgsl, /select\(1\.0,s\.r,reference<=s\.a\)/);
+  assert.match(wgsl, /@binding\(18\) var shadowTransmittance:texture_2d<f32>/);
+  assert.match(wgsl, /@binding\(19\) var shadowTranslucentDepth:texture_depth_2d/);
+  assert.match(wgsl, /clamp\(0\.5\*a,o\+0\.5,o\+\(0\.5\*SHADOW_PAGE-0\.5\)\)/, 'kept in its page');
+  assert.match(wgsl, /let behind=vec4f\(reference\)<d;/);
   assert.match(wgsl, /if\(through\)\{c\*=shadowThrough\(offset\+t\+POISSON\[tap\],reference\)/);
   assert.equal(wgsl.match(/,through\)/g)?.length, 4, 'every comparison split along a seam too');
   assert.ok(SHADOW_DEPTH_SHADER.includes(BLEND_TRANSMITTANCE_WGSL));
-  assert.match(BLEND_TRANSMITTANCE_WGSL, /vec4f\(vec3f\(1\.0-coverage\),depth\*/);
+  assert.match(BLEND_TRANSMITTANCE_WGSL, /return vec4f\(1\.0-coverage\);/);
+  assert.match(SHADOW_DEPTH_SHADER, /shadowHiddenByOpaque\(in\.position\)\)\{discard;\}/);
 });
 
 test('a filtered blended shadow is uniform over a constant opacity', () => {
-  const opacity = 5 / 16,
-    pane = 0.5,
-    floor = 0.2;
-  const layer = land(clear(), fragment(blendCoverage(surface(opacity)), pane));
+  const opacity = 5 / 16;
+  const layer = land(CLEAR, blendCoverage(surface(opacity)), 0.5);
   const read = pcf(
     () => 0,
     () => layer,
   );
-  const { low, high } = spread((x, y) => read(x, y, floor));
+  const { low, high } = spread((x, y) => read(x, y, 0.2));
   assert.equal(high - low, 0, 'no spatial variation');
-  assert.equal(low, f16(1 - opacity));
+  assert.ok(Math.abs(low - unorm8(1 - opacity)) < 1e-12, `${low}`);
   // The refused representation: the pane's depth kept on 5 texels of each 4×4 block, which the
   // same PCF averaged into a pattern swinging by a third of full shadow.
   const bayer = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
   const dithered = pcf(
-    (x, y) => (opacity * 16 > bayer[(y & 3) * 4 + (x & 3)] ? pane : 0),
-    () => clear(),
+    (x, y) => (opacity * 16 > bayer[(y & 3) * 4 + (x & 3)] ? 0.5 : 0),
+    () => CLEAR,
   );
-  const before = spread((x, y) => dithered(x, y, floor));
+  const before = spread((x, y) => dithered(x, y, 0.2));
   assert.ok(before.high - before.low > 0.3, `${before.low} to ${before.high}`);
 });
 
 test('opacity 0 lets all the light through, opacity 1 none', () => {
   assert.equal(castsBlendShadow(surface(0)), false, 'no row: the texel keeps its clear value');
-  assert.equal(clear()[0], 1);
-  const opaque = land(clear(), fragment(blendCoverage(surface(1)), 0.5));
-  assert.equal(opaque[0], 0);
+  assert.equal(CLEAR.t, 1);
+  const opaque = land(CLEAR, blendCoverage(surface(1)), 0.5);
+  assert.equal(opaque.t, 0);
   assert.equal(
     pcf(
       () => 0,
@@ -130,53 +140,47 @@ test('opacity 0 lets all the light through, opacity 1 none', () => {
 });
 
 test('two stacked panes multiply, whatever their order, and keep the nearest depth', () => {
-  const near = fragment(0.4, 0.7),
-    far = fragment(0.5, 0.3);
-  const a = land(land(clear(), near), far),
-    b = land(land(clear(), far), near);
-  assert.deepEqual(a, b);
-  assert.equal(a[0], f16(0.6 * 0.5));
-  assert.equal(a[3], f16(0.7 * TRANSMITTANCE_DEPTH_KEEP));
+  const a = land(land(CLEAR, 0.4, 0.7), 0.5, 0.3),
+    b = land(land(CLEAR, 0.5, 0.3), 0.4, 0.7);
+  assert.ok(Math.abs(a.t - b.t) <= 1 / 255, `${a.t} and ${b.t}`);
+  assert.ok(Math.abs(a.t - 0.6 * 0.5) <= 1 / 255);
+  assert.equal(a.d, Math.fround(0.7));
+  assert.equal(b.d, Math.fround(0.7));
 });
 
 test('a receiver in front of the pane, or on it, keeps its light', () => {
   const pane = 0.62;
-  const layer = land(clear(), fragment(0.75, pane));
+  const layer = land(CLEAR, 0.75, pane);
   const read = pcf(
     () => 0,
     () => layer,
   );
   assert.equal(read(10, 10, 0.9), 1, 'between the light and the pane');
-  assert.equal(read(10, 10, pane), 1, 'the pane itself, before any bias');
-  assert.equal(read(10, 10, 0.3), f16(0.25), 'behind it');
+  assert.equal(read(10, 10, Math.fround(pane)), 1, 'the pane itself, before any bias');
+  assert.equal(read(10, 10, 0.3), unorm8(0.25), 'behind it');
 });
 
-test('the opaque casters write depth as before; the blended ones write the layer alone', () => {
-  installGpuGlobals();
-  const pipelines: GPURenderPipelineDescriptor[] = [],
-    passes: GPURenderPassDescriptor[] = [];
-  const device = {
-    createTexture: () => ({ createView: () => ({}), destroy() {} }),
-    createRenderPipeline: (d: GPURenderPipelineDescriptor) => (pipelines.push(d), d),
-  } as unknown as GPUDevice;
-  const encoder = {
-    beginRenderPass: (d: GPURenderPassDescriptor) => (passes.push(d), { end() {} }),
-  } as unknown as GPUCommandEncoder;
-  const layer = createShadowTransmittance(device, {} as never, {} as never, 2, encoder);
-  const [clearing] = passes[0].colorAttachments as GPURenderPassColorAttachment[];
-  assert.deepEqual([clearing.loadOp, clearing.clearValue], ['clear', TRANSMITTANCE_CLEAR]);
-  assert.equal(layer.bytes, shadowTransmittanceBytes(2));
-  const of = (p: unknown) => p as GPURenderPipelineDescriptor;
-  const depth = of(layer.depth),
-    blend = of(layer.blend);
-  assert.equal(depth.vertex.entryPoint, 'shadow_vs');
-  assert.deepEqual(depth.depthStencil, {
-    format: 'depth32float',
-    depthWriteEnabled: true,
-    depthCompare: 'greater',
-  });
-  assert.equal([...depth.fragment!.targets][0]!.writeMask, 0, 'no colour from an opaque caster');
-  assert.equal(blend.vertex.entryPoint, 'shadow_blend_vs');
-  assert.equal(blend.depthStencil!.depthWriteEnabled, false, 'no depth from a blended one');
-  assert.equal([...blend.fragment!.targets][0]!.blend, TRANSMITTANCE_BLEND);
+test('a receiver 2 m behind a pane is attenuated anywhere in a 4 km sun range', () => {
+  assert.equal(SHADOW_TRANSLUCENT_DEPTH_FORMAT, 'depth32float');
+  const range = 4000,
+    bias = LIGHT_SETTINGS.shadowDepthBias / range;
+  let missed = 0,
+    missedHalf = 0;
+  for (let metres = 1; metres < range - 2; metres += 0.25) {
+    const pane = 1 - metres / range,
+      reference = 1 - (metres + 2) / range + bias;
+    const layer = land(CLEAR, 0.5, pane);
+    if (through(() => layer, 40, 40, reference) === 1) missed++;
+    // The refused layer: the depth lowered by one half-float step and stored at half precision.
+    if (!(reference <= f16(pane * (1 - 2 ** -11)))) missedHalf++;
+  }
+  assert.equal(missed, 0);
+  assert.ok(missedHalf > 0, 'the half-float depth missed some');
+});
+
+test("a tap near a page's edge never reads the neighbouring page of the layer", () => {
+  const half = SHADOW_PAGE / 2;
+  const layerAt = (i: number) => (i >= half ? land(CLEAR, 1, 0.9) : CLEAR);
+  assert.equal(through(layerAt, SHADOW_PAGE - 0.01, 10, 0.2), 1, 'last texel of page 0');
+  assert.equal(through(layerAt, SHADOW_PAGE + 0.01, 10, 0.2), 0, 'first texel of page 1');
 });

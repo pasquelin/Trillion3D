@@ -56,6 +56,11 @@ export function deferredLayoutEntries(
         visibility: GPUShaderStage.FRAGMENT,
         texture: { sampleType: 'unfilterable-float' },
       },
+      {
+        binding: CONTRACT_SHADOW_BINDINGS.translucentDepth,
+        visibility: GPUShaderStage.FRAGMENT,
+        texture: { sampleType: 'depth' },
+      },
     );
   // The shadow pages the resolve reads, recorded for the scheduler: only the opaque resolve asks.
   if (direct && marks)
@@ -92,7 +97,8 @@ export function createDeferredLayouts(device: GPUDevice, direct: boolean, bounce
 
 /**
  * Contract substitute resources: an empty tile list, shadow records that hold no light and an
- * empty page table, a request buffer nothing reads back, a one-texel pool and transmittance layer, and a probe grid at
+ * empty page table, a request buffer nothing reads back, a one-texel pool — which stands for the
+ * translucent depth too — and transmittance layer, and a probe grid at
  * zero. A device that refuses the real atlas thus keeps valid
  * bindings, and the light simply stays without shadow instead of failing the frame; a frame
  * without bounce reads a grid whose probe count is zero, hence an indirect irradiance of

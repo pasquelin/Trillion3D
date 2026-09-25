@@ -39,8 +39,9 @@ export const WATER_BINDINGS = {
   /** The blend view uniform, as written for the blend pass: projection, eye, tiles, flags. */
   uniform: 16,
   volumes: 17,
-  /** The shadow pool's transmittance layer, on the deferred resolve's number. */
+  /** The shadow pool's transmittance layer, on the deferred resolve's numbers. */
   shadowTransmittance: CONTRACT_SHADOW_BINDINGS.transmittance,
+  shadowTranslucentDepth: CONTRACT_SHADOW_BINDINGS.translucentDepth,
 };
 
 /**

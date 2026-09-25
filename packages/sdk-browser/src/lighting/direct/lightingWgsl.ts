@@ -10,8 +10,13 @@ import { INVERSE_PI } from '../shaderConstants.ts';
 import { FOG_WGSL } from '../fogShader.ts';
 
 /** Shadow bindings of the opaque resolve: records and page table, the request buffer, and the
- *  transmittance layer — on the number the water composite reads it at too. */
-export const CONTRACT_SHADOW_BINDINGS = { data: 8, requests: 14, transmittance: 18 };
+ *  transmittance layer's two textures — on the numbers the water composite reads them at too. */
+export const CONTRACT_SHADOW_BINDINGS = {
+  data: 8,
+  requests: 14,
+  transmittance: 18,
+  translucentDepth: 19,
+};
 
 /**
  * Base of the two lighting passes: contract types, shadow reads, and the contribution of a
