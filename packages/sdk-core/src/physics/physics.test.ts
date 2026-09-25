@@ -8,6 +8,7 @@ import { CommandWriter } from './commands.ts';
 import { JOLT_COMMIT, readCookedPhysics } from './cooked.ts';
 import { ADD_WORDS, OP, SHAPE, VIEW_WORDS } from './layout.ts';
 import { physicsMatterOf } from './matter.ts';
+import { ObjectPhysics } from './objectPhysics.ts';
 import { resolveShape } from './shape.ts';
 
 const one = { x: 1, y: 1, z: 1 };
@@ -28,6 +29,7 @@ test('ADD carries its fixed words at their layout offsets, then the mesh', () =>
     friction: 0.25,
     restitution: 0.75,
     gravityScale: 0.5,
+    damping: [0, 0.125],
     vertices: [0, 0, 0, 1, 0, 0, 0, 1, 0],
     indices: [0, 1, 2],
   });
@@ -36,8 +38,11 @@ test('ADD carries its fixed words at their layout offsets, then the mesh', () =>
   assert.equal(words.length, ADD_WORDS + 9 + 3);
   assert.deepEqual([...words.subarray(0, 6)], [OP.add, 7, 2, 1, SHAPE.triangles, 4]);
   assert.deepEqual([...floats.subarray(6, 9)], [1, 2, 3]);
-  assert.deepEqual([...floats.subarray(13, 21)], [0.5, 0.25, 0.125, 80, 600, 0.25, 0.75, 0.5]);
-  assert.deepEqual([words[21], words[22]], [3, 3]);
+  assert.deepEqual(
+    [...floats.subarray(13, 23)],
+    [0.5, 0.25, 0.125, 80, 600, 0.25, 0.75, 0.5, 0, 0.125],
+  );
+  assert.deepEqual([words[23], words[24]], [3, 3]);
   assert.deepEqual([...words.subarray(ADD_WORDS + 9)], [0, 1, 2]);
   assert.equal(writer.length, 0);
 });
@@ -49,6 +54,16 @@ test('VIEW carries the eye, the facing, the cone and the range', () => {
   assert.equal(words.length, VIEW_WORDS);
   assert.equal(words[0], OP.view);
   assert.deepEqual([...new Float32Array(words.buffer).subarray(1)], [1, 2, 3, 0, 0, -1, 0.5, 400]);
+});
+
+test('a body keeps the damping it declares, the simulation’s own left unset, and refuses a negative one', () => {
+  assert.deepEqual(new ObjectPhysics({ damping: { linear: 0 } }).damping, {
+    linear: 0,
+    angular: 0.05,
+  });
+  assert.deepEqual(new ObjectPhysics('dynamic').damping, { linear: 0.05, angular: 0.05 });
+  assert.throws(() => new ObjectPhysics({ damping: { angular: -0.1 } }), RangeError);
+  assert.throws(() => new ObjectPhysics({ damping: { linear: Number.NaN } }), RangeError);
 });
 
 test('the shape is the exact primitive a geometry was built as, scaled', () => {
