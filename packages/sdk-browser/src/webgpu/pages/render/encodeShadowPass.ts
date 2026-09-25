@@ -42,7 +42,8 @@ function encodeOcclusion(rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder, cou
     views: shadows.faceUniform,
     pyramid: pageHiz.pyramid,
   };
-  const rows = layout.rows.packedCount;
+  // A list holds the visibility rows and the blended casters' rows in use, at most.
+  const rows = layout.rows.packedCount + rt.services.blendCasters.used;
   occlusion.encode(encoder, inputs, count, (r) => slotOf[r], rows, setup.maxCorners, run.frame);
   return true;
 }

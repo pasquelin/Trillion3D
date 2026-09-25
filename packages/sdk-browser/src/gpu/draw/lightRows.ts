@@ -38,7 +38,9 @@ export function createLightRowMap(
     owned.push(buffer);
     return buffer;
   };
-  const rowOf = make(pages * 4, GPUBufferUsage.STORAGE);
+  // Also written from the host: a blended cluster's row is pinned there (`pin`).
+  const rowOf = make(pages * 4, GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST);
+  const pinned = new Uint32Array(1);
   const uniforms = make(16, GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST);
   const module = device.createShaderModule({ code: ROW_MAP_SHADER });
   const kinds = [
@@ -67,6 +69,15 @@ export function createLightRowMap(
   return {
     /** One word per catalogue page: the row that last carried it. */
     rowOf,
+    /**
+     * Page `page` casts from row `row`, which no draw record names: a blended cluster's caster row
+     * (`../../webgpu/row/blendCasters.ts`). The map rows above never name such a page, so the word
+     * stays until the next pin.
+     */
+    pin(page: number, row: number) {
+      pinned[0] = row;
+      device.queue.writeBuffer(rowOf, page * 4, pinned);
+    },
     /** Rows `[from, to]` were just uploaded: the next light run maps them. */
     markRows(from: number, to: number) {
       if (to < from) return;

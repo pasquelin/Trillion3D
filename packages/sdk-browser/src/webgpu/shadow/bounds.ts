@@ -46,7 +46,8 @@ export function packClusterSpheres(
 }
 
 /**
- * World sphere of every drawable row, in page-table row order.
+ * World sphere of every caster row — the drawable rows, then the blended casters' —, in page-table
+ * row order.
  *
  * That is the only geometric datum the shadow pass needs to drop a cluster: its sphere against a
  * light's range and against a face's cone. It is written exactly on the rows the page table just
@@ -55,16 +56,16 @@ export function packClusterSpheres(
  */
 function ensureClusterSpheres(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const { lights } = rt,
-    { drawSlots } = rt.layout;
-  if (lights.spheres && lights.spheres.rows === drawSlots) return lights.spheres;
+    { casterSlots } = rt.layout.rows;
+  if (lights.spheres && lights.spheres.rows === casterSlots) return lights.spheres;
   lights.spheres?.buffer.destroy();
   const buffer = device.createBuffer({
     label: 'Trillion3D cluster spheres v1',
-    size: Math.max(1, drawSlots) * CLUSTER_SPHERE_FLOATS * 4,
+    size: Math.max(1, casterSlots) * CLUSTER_SPHERE_FLOATS * 4,
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
   });
-  const packed = new Float32Array(drawSlots * CLUSTER_SPHERE_FLOATS);
-  lights.spheres = { buffer, packed, rows: drawSlots };
+  const packed = new Float32Array(casterSlots * CLUSTER_SPHERE_FLOATS);
+  lights.spheres = { buffer, packed, rows: casterSlots };
   return lights.spheres;
 }
 
@@ -109,9 +110,10 @@ export function uploadRowMobility(
   to: number,
 ) {
   const { lights, layout } = rt,
-    { drawSlots, rows, selectionRoots } = layout;
+    { rows, selectionRoots } = layout,
+    { casterSlots } = rows;
   const { mobility } = lights;
-  mobility.ensure(selectionRoots.length, drawSlots, (rank) => selectionRoots[rank].world.elements);
+  mobility.ensure(selectionRoots.length, casterSlots, (rank) => selectionRoots[rank].world.elements);
   if (!lights.mobilityRows || lights.mobilityRows.size !== mobility.rowWords.byteLength) {
     lights.mobilityRows?.destroy();
     lights.mobilityRows = device.createBuffer({
@@ -120,12 +122,12 @@ export function uploadRowMobility(
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
     });
     from = 0;
-    to = drawSlots - 1;
+    to = casterSlots - 1;
   }
   const buffer = lights.mobilityRows;
   mobility.writeRows(
     (row) => rows.packedRecs[row]?.placementIndex ?? -1,
-    drawSlots,
+    casterSlots,
     from,
     to,
     (first, count) => device.queue.writeBuffer(buffer, first * 4, mobility.rowWords, first, count),
