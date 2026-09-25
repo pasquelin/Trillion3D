@@ -7,6 +7,7 @@ import { effectsMoved } from '../pages/render/encodeEffects.ts';
 import { guidesMoved } from '../pages/render/encodeGuides.ts';
 import { grantPending } from '../../gpu/core/errorScope.ts';
 import { frameTargetsAwaited } from '../pages/prepare/targetGrant.ts';
+import { deviceAnswer } from './deviceAnswer.ts';
 
 /** What can still change the frame, one bit each; `unsettledReasons` names them. */
 const REASONS = [
@@ -161,7 +162,9 @@ export function holdWebgpuFrame(rt: WebgpuPagesRuntime, device: GPUDevice) {
       return false;
     }
   }
-  run.frameHeld = true;
+  // Held on an answer still in flight is not the still frame the page waits for (`frameHeld`):
+  // that answer asks the next frame.
+  run.frameHeld = deviceAnswer(rt) === undefined;
   run.frame++;
   const start = performance.now();
   let presented = false;
