@@ -95,6 +95,24 @@ bool addSoft(const uint32_t *w) {
   return true;
 }
 
+void teleportSoft(uint32_t index, Vec3 position, Quat rotation) {
+  World &world = trillion::world();
+  const Slot &slot = world.slots[index];
+  for (Soft &soft : softs) {
+    if (soft.index != index || soft.engine != slot.engine) continue;
+    // Jolt keeps the body at the centre of its vertices, not at the place it was made: the turn
+    // from the old place to the new one carries the body, and its vertices with it.
+    BodyInterface &bodies = world.system->GetBodyInterfaceNoLock();
+    const Quat turn = rotation * soft.inverse;
+    const Vec3 at = Vec3(bodies.GetPosition(slot.id));
+    const RVec3 moved(position + turn * (at - soft.origin));
+    bodies.SetPositionAndRotation(slot.id, moved, (turn * bodies.GetRotation(slot.id)).Normalized(), EActivation::Activate);
+    soft.origin = position;
+    soft.inverse = rotation.Conjugated();
+    return;
+  }
+}
+
 void writeSoft() {
   World &world = trillion::world();
   const BodyLockInterfaceNoLock &locks = world.system->GetBodyLockInterfaceNoLock();

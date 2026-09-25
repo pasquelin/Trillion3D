@@ -134,8 +134,9 @@ bool runCommands(const uint32_t *w, uint32_t count) {
       continue;
     }
     if (!slot.used) return (world.error = UNKNOWN_BODY, false);
-    // A soft body is moved by its vertices alone.
+    // A soft body is teleported with its vertices, else moved by them alone.
     if (slot.soft && (op == TELEPORT || op == MOVE_KINEMATIC || op == VELOCITY || op == IMPULSE)) {
+      if (op == TELEPORT) teleportSoft(index, vec3(w + 2), quat(w + 5));
       w += SIZES[op];
       continue;
     }
