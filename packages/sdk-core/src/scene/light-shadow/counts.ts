@@ -33,13 +33,8 @@ export function createShadowCounts() {
       counts.lights++;
       if (rank === LIGHT_KIND.directional) counts.sunLights++;
     },
-    /**
-     * After admission: the wait of the oldest stale page the image reads — every one of them is
-     * drawn this frame —, and the pages read straight from the cache; one scan of the pool. A stale
-     * page waits only while a report names it: its clock (`pool.since`, set when it turns stale)
-     * starts again at the first plan that finds it read, and stops whenever the latest report does
-     * not name it — a page stale for minutes that no one read has waited for nothing.
-     */
+    /** After admission: the wait of the oldest stale page the image reads, counted only while a
+     *  report names it (`pool.since`, `readFrame`), and the pages read straight from the cache. */
     endFrame(
       pool: ShadowPool,
       records: ShadowRecords,
@@ -59,13 +54,17 @@ export function createShadowCounts() {
           if (read && pool.valid[page]) counts.cachedPages++;
           continue;
         }
+        const unread = Number.isNaN(pool.since[page]);
         if (!read) {
-          pool.since[page] = NaN;
+          if (!unread) pool.since[page] = NaN;
           continue;
         }
-        if (Number.isNaN(pool.since[page])) pool.since[page] = nowMs;
+        if (unread) {
+          pool.since[page] = nowMs;
+          pool.readFrame[page] = frame;
+        }
         counts.waitedMs = Math.max(counts.waitedMs, nowMs - pool.since[page]);
-        counts.waitedFrames = Math.max(counts.waitedFrames, frame - pool.sinceFrame[page]);
+        counts.waitedFrames = Math.max(counts.waitedFrames, frame - pool.readFrame[page]);
       }
     },
     reset() {
