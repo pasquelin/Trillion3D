@@ -4,32 +4,50 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as G from '../../host/graph/graph.fixture.ts';
-import { drawSceneOnce, texturedTriangle } from './sceneFrame.fixture.ts';
+import { createSceneDraw } from './sceneDraw.ts';
+import { createTestContext } from '../core/testContext.fixture.ts';
+import { createHostDrawCamera, type HostCamera } from '../../camera/world.ts';
 import { clusterMaterialReason } from './compatibility.ts';
 import { hostSurface } from '../../world/core/worldSurface.ts';
 import { texture } from '../../world/texture/index.ts';
 import { material } from '../../../../sdk-core/src/world/material/index.ts';
 
+/** A triangle with the position, normal and UV a lit textured surface reads. */
+function texturedTriangle() {
+  const geometry = new G.Geometry().setIndex([0, 1, 2]);
+  for (const name of ['position', 'normal', 'uv'])
+    geometry.setAttribute(name, G.floatAttribute(new Float32Array(9), name === 'uv' ? 2 : 3));
+  return geometry;
+}
+
 /** A world surface wearing `map` as its normal map, as `bricks-with-a-normal-map` wears one. */
 const wearing = (map: ReturnType<typeof texture.data>) =>
   hostSurface(material.meshStandard({ normalMap: map }), false, new Map());
 
-test('a world texel map is drawn on WebGL2, uploaded as stored, with its mip chain', () => {
+test('a world texel map is drawn on WebGL2, uploaded as stored, with its box chain', () => {
   const pixels = new Uint8Array(4 * 4 * 4).fill(128);
   const scene = new G.GraphScene();
   scene.add(G.mesh(texturedTriangle(), wearing(texture.data(pixels, 4, 4))));
-  const uploads = drawSceneOnce(scene).of('texImage2D');
+  const gl = createTestContext();
+  const draw = createSceneDraw(gl.gl, scene);
+  draw.render({} as HostCamera);
+  draw.drawHostGeometry(createHostDrawCamera(), {
+    toneMapped: false,
+    framebuffer: null,
+    width: 8,
+    height: 4,
+  });
+  draw.dispose();
+  const uploads = gl.of('texImage2D');
   assert.ok(
     uploads.some((args) => (args[8] as ArrayBufferView | null)?.buffer === pixels.buffer),
     'uploaded as the bytes it holds',
   );
-  assert.deepEqual(
-    uploads.filter((args) => args[1] !== 0).map((args) => args.slice(1, 5)),
-    [
-      [1, 'RGBA8', 2, 2],
-      [2, 'RGBA8', 1, 1],
-    ],
-    'levels 2×2 and 1×1 allocated: a mip filter reads a complete texture',
+  // A normal map is bound as data: its chain is the plain box chain (#42), and complete.
+  assert.equal(
+    gl.of('generateMipmap').length,
+    1,
+    'no chain: a mip filter reads an incomplete texture',
   );
 });
 
