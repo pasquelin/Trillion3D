@@ -151,7 +151,7 @@ export function createShadowPlan(poolSide: number) {
         if (read.stamp === before && requests.complete) settledStamp = stampOf(store);
       }
       requests.floors(posed, view, nowMs, frame);
-      const count = admission.run(pool, table, requests.latest, frame);
+      const count = admission.run(pool, table, requests.latest, frame, records.isFloor);
       // A light counts as drawn only for the pages the frame's budget draws (`frameEnd`).
       for (let i = 0, end = admission.frameEnd(still); i < end; i++) {
         const slice = pool.slice[admission.list[i]];
