@@ -1,10 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { joint } from '../../../sdk-core/src/physics/index.ts';
-import { gap, jointRig } from './joints.fixture.ts';
-
-/** A pull no joint below holds: a 1000 kg cube weighs about 9810 N. */
-const WEAK = 500;
+import { WEAK, brokenPastForce, gap, jointRig, widestSwings } from './joints.fixture.ts';
 
 test('fixed: two bodies fall as one; the world holds a body still; past its force it breaks', async () => {
   const rig = await jointRig();
@@ -112,17 +109,7 @@ test('cone: a body on a ball joint swings no further than its cone', async () =>
     joint.cone(coned, null, { anchor: [0, 2, 0], axis: [0, -1, 0], limits: { max: 0.3 } }),
   );
   rig.wanted.add(joint.point(free, null, { anchor: [4, 2, 0] }));
-  rig.run(1);
-  rig.writer.velocity(coned.physics!._index, [4, 0, 0]);
-  rig.writer.velocity(free.physics!._index, [4, 0, 0]);
-  let widest = 0,
-    freest = 0;
-  for (let s = 0; s < 40; s++) {
-    rig.run(1);
-    const swing = (p: number[], x: number) => Math.atan2(Math.abs(p[0] - x), 2 - p[1]);
-    widest = Math.max(widest, swing(rig.at(coned), 0));
-    freest = Math.max(freest, swing(rig.at(free), 4));
-  }
+  const [widest, freest] = widestSwings(rig, coned, free);
   assert.ok(widest < 0.35, `held in its cone: ${widest}`);
   assert.ok(freest > 0.5, `a ball joint alone swings further: ${freest}`);
 });
@@ -151,18 +138,12 @@ test('joint options a kind lacks are refused', () => {
 test('every kind breaks when pulled past its force, and holds below it', async () => {
   const rig = await jointRig();
   const kinds = ['fixed', 'point', 'hinge', 'slider', 'distance', 'cone'] as const;
-  const made = kinds.flatMap((kind, i) =>
-    [WEAK, 1e6].map((breakForce, k) => {
-      const cube = rig.cube(i * 3, 1, k * 3);
-      const options = { anchor: [i * 3, 2, k * 3] as const, axis: [1, 0, 0] as const };
-      const made = joint[kind](cube, null, { ...options, breakForce });
-      rig.wanted.add(made);
-      return made;
-    }),
-  );
-  rig.run(20);
+  const broken = brokenPastForce(rig, kinds, (_, x, z) => ({
+    anchor: [x, 2, z] as const,
+    axis: [1, 0, 0] as const,
+  }));
   assert.deepEqual(
-    made.map((j) => j.broken),
+    broken,
     kinds.flatMap(() => [true, false]),
   );
 });

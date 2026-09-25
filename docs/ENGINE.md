@@ -184,8 +184,10 @@ frame, 2 560 held: 51 × 51 = 2 601 pages, a 6 528² depth texture of 163 MiB, a
 the static layer once something moves. The atlas stops at the 8 192-texel side every WebGPU device
 offers (4 096 pages, 256 MiB), reached at 1920 × 1080; above it the pages past the pool wait,
 read at the coarser level meanwhile, and are evicted least recently read first. A lamp face's finest mip is 32 × 32 pages (`lampFaceSize`).
-The table holds 2^20 words, 4 MiB (`shadowTableEntries`): sixteen suns or 128 point lights, and a
-light that finds no room is denied its shadow and counted (`shadowsDenied`).
+The table gives each of the 64 shadow slices (`maxLights`) a fixed window of the largest range a
+light needs, a whole sun's 16 × 64 × 64 words (`SHADOW_TABLE_STRIDE`): 2^22 words, 16 MiB
+(`SHADOW_TABLE_ENTRIES`), so every shadow-casting light the contract accepts holds its range.
+The GPU total's shadow share counts it with the pool (`SHADOW_POOL_BYTES`).
 
 - **A sun is a clipmap.** Level `L` has texels of `2^L` metres; its window is 64 × 64 pages around
   the camera (`sunLevelPages`), addressed by absolute page modulo the window, so a camera step keeps

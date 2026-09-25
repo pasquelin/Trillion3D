@@ -2787,7 +2787,6 @@
       "shadowNormalOffsetTexels": "Versatz des Abtastpunkts entlang der Normale, in Kachel-Texeln. Das schließt die Naht zwischen zwei Flächen eines Punktlichts und entfernt die streifende Akne; er ist in Texeln und nicht in Metern, um proportional zur Auflösung zu bleiben, die das Licht erhalten hat.",
       "shadowPagesPerFrame": "Höchstzahl der pro Bild gezeichneten Schattenseiten: die Puffergrenze, nie eine Qualitätseinstellung. Das Millisekundenbudget greift fast immer zuerst; diese Grenze ist nur eine letzte Schranke und die einzige auf einem Gerät ohne GPU-Uhr.",
       "lampFaceSize": "Seitenlänge der feinsten Mip-Stufe einer Lampenfläche in Texeln: 32 × 32 Seiten zu 128 (der Pool: `shadowPoolSide`).",
-      "shadowTableEntries": "Einträge der Schattenseitentabelle, ein Wort pro virtueller Seite: ein fester Puffer von 4 MiB. Er fasst sechzehn Sonnen oder 128 Punktlichter; ein Licht ohne Platz bekommt keinen Schatten und wird gezählt.",
       "shadowRequestCap": "Virtuelle Seiten, die die Schattierung pro Bild anfordern darf; der Rest fragt im nächsten Bild erneut.",
       "sunLevels": "Clipmap-Stufen eines gerichteten Lichts. Stufe `L` hat Texel von `2^L` Metern, und ein Pixel liest die Stufe, deren Texel höchstens seinem eigenen Fußabdruck entspricht: sechzehn Stufen decken ein Fern/Nah-Verhältnis von 2^15. Jenseits der letzten Stufe übernimmt der Fernschatten.",
       "sunLevelPages": "Seiten pro Seite des Ausschnitts einer Clipmap-Stufe um die Kamera. Eine Kapazität, keine Einstellung: jedes Pixel liest seine eigene Dichte, solange `height / tan(halfFovY)` höchstens `sunLevelPages · shadowPage / 2` = 4096 beträgt (eine 4K-Leinwand bei 55° vertikalem Feld); darüber lesen die äußeren Pixel die nächste Stufe mit halber Dichte."
@@ -5330,6 +5329,10 @@
   "Side": {
     "summary": "Welche Flächen ein Material zeichnet: `'front'`, `'back'` oder `'double'`."
   },
+  "SixDofAxis": {
+    "summary": "Die Achsen eines Gelenks mit sechs Freiheitsgraden: Gleiten entlang `x`, `y`, `z` und Drehen um sie.",
+    "description": "`x` liegt entlang der `axis` des Gelenks, `y` so nah an der Senkrechten der Welt, wie es rechtwinklig dazu sein kann."
+  },
   "sideOf": {
     "summary": "Die Seite, die ein Host-Material deklariert, einmal an der Grenze in die engine-eigene Aufzählung gelesen."
   },
@@ -7319,20 +7322,27 @@
     "description": "Es hält, solange beide Körper simuliert werden und bis es bricht.",
     "parameters": {
       "options": "Was `joint.*` annimmt. Punkte und Achsen liegen in der Welt und werden gelesen, wenn das Gelenk zum ersten Mal entsteht.",
-      "options.anchor": "Wo die Körper verbunden sind: der Stift eines Scharniers, die Kugel eines Punktgelenks, das Ende eines Abstands an `a`.",
-      "options.anchorB": "Das Ende eines Abstands an `b`.",
-      "options.axis": "Der Stift eines Scharniers, die Schiene eines Schiebegelenks, die Mitte eines Kegels.",
-      "options.limits": "Scharnier, Schiebegelenk, Abstand und Kegel: wie weit es sich bewegt. Ein Abstand hält standardmäßig seine Länge.",
-      "options.spring": "Scharnier, Schiebegelenk und Abstand: jenseits der Grenzen zieht eine Feder zurück statt einer Wand; `frequency` in Hz, `damping` von 0 (keine) bis 1 (kritisch).",
-      "options.motor": "Scharnier und Schiebegelenk: ein Motor, jederzeit über `joint.motor` änderbar.",
-      "options.breakForce": "Zug in Newton, ab dem das Gelenk bricht; weggelassen: nie."
+      "options.anchor": "Wo die Körper verbunden sind: der Stift eines Scharniers, die Kugel eines Punktgelenks, das Ende eines Abstands oder des Seils eines Flaschenzugs an `a`.",
+      "options.anchorB": "Das Ende eines Abstands oder des Seils eines Flaschenzugs an `b`.",
+      "options.axis": "Der Stift eines Scharniers, die Schiene eines Schiebegelenks, die Mitte eines Kegels oder Schwenk-Dreh-Gelenks, das `x` eines Gelenks mit sechs Freiheitsgraden, der Stift eines Zahnrads oder Ritzels (`a`).",
+      "options.axisB": "Der Stift eines Zahnrads an `b`, die Schiene einer Zahnstange (`b`).",
+      "options.limits": "Scharnier, Schiebegelenk, Abstand, Kegel, Schwenk-Dreh-Gelenk und Flaschenzug: wie weit es sich bewegt. Ein Abstand hält standardmäßig seine Länge, das Seil eines Flaschenzugs reicht von 0 bis zu seiner Länge.",
+      "options.axes": "Die Achsen eines Gelenks mit sechs Freiheitsgraden, die sich bewegen, frei (`'free'`) oder in Grenzen; die anderen sind gesperrt.",
+      "options.spring": "Scharnier, Schiebegelenk, Abstand und sechs Freiheitsgrade: jenseits der Grenzen zieht eine Feder zurück statt einer Wand; `frequency` in Hz, `damping` von 0 (keine) bis 1 (kritisch).",
+      "options.motor": "Scharnier, Schiebegelenk, Schwenk-Dreh-Gelenk (seine Verdrehung), sechs Freiheitsgrade und Pfad: ein Motor, jederzeit über `joint.motor` änderbar.",
+      "options.path": "Die Bahn eines Pfads: mindestens zwei Punkte, die von `b` (oder der Welt), wie sie beim Erzeugen stehen; `a` startet am Punkt der Bahn, der `anchor` am nächsten ist.",
+      "options.loop": "Die Bahn eines Pfads schließt sich zu einem Ring.",
+      "options.follow": "Das `a` eines Pfads dreht sich mit der Bahn, wie ein Wagen, statt frei, wie eine Perle.",
+      "options.over": "Die zwei Rollen eines Flaschenzugs in der Welt: Das Seil von `a` läuft zur ersten hinauf, das von `b` zur zweiten.",
+      "options.ratio": "Beim Zahnrad die Umdrehungen von `b` je Umdrehung von `a` (Zähne von `a` durch Zähne von `b`), gegenläufig; beim Ritzel Radiant je Meter Zahnstange, 1 / sein Radius; beim Flaschenzug Meter Seil von `b` je Meter Seil von `a`.",
+      "options.breakForce": "Zug in Newton, ab dem das Gelenk bricht (N·m Drehmoment zwischen den Zähnen eines Zahnrads oder einer Zahnstange); weggelassen, nie."
     },
     "members": {
       "kind": "Was das Gelenk ist.",
       "a": "Der erste Körper.",
       "b": "Der zweite Körper oder `null` für die Welt.",
       "options": "Womit es erzeugt wurde.",
-      "motor": "Der Motor eines Scharniers oder Schiebegelenks; `null` lässt es frei drehen oder gleiten.",
+      "motor": "Der Motor eines Scharniers, Schiebegelenks, Schwenk-Dreh-Gelenks, Gelenks mit sechs Freiheitsgraden oder Pfads; `null` lässt das Gelenk frei bewegen.",
       "broken": "Ob es gebrochen ist: über seine `breakForce` hinaus gezogen. Ein gebrochenes Gelenk hält nichts mehr.",
       "on": "Ruft `handler` auf, wenn das Gelenk bricht."
     }
@@ -7341,31 +7351,40 @@
     "summary": "Die Gelenke zwischen Körpern, jedes eine von Jolts eigenen Bedingungen."
   },
   "JointLimits": {
-    "summary": "Wie weit sich ein Gelenk bewegen darf: Radiant für ein Scharnier, Meter für ein Schiebegelenk oder einen Abstand, der halbe Kegelwinkel (`max`) für einen Kegel.",
+    "summary": "Wie weit sich ein Gelenk bewegen darf: Radiant für ein Scharnier oder eine Drehung, Meter für ein Schiebegelenk, einen Abstand oder das Seil eines Flaschenzugs, der halbe Kegelwinkel (`max`) für einen Kegel.",
     "members": {
-      "min": "Bei einem Scharnier von −π bis 0, bei einem Schiebegelenk 0 oder weniger.",
-      "max": "Bei einem Scharnier von 0 bis π, bei einem Schiebegelenk 0 oder mehr."
+      "min": "Beim Scharnier von −π bis 0, beim Schiebegelenk 0 oder weniger; die Verdrehung eines Schwenk-Dreh-Gelenks ab −π.",
+      "max": "Beim Scharnier von 0 bis π, beim Schiebegelenk 0 oder mehr; die Verdrehung eines Schwenk-Dreh-Gelenks bis π.",
+      "swing": "Der Kegel eines Schwenk-Dreh-Gelenks: wie weit seine `axis` schwingt, ein halber Winkel bis π."
     }
   },
   "JointMotor": {
-    "summary": "Der Motor eines Scharniers oder Schiebegelenks: Er treibt das Gelenk auf eine Geschwindigkeit oder eine Position.",
+    "summary": "Der Motor eines Gelenks: Er treibt es auf eine Geschwindigkeit oder eine Position.",
     "members": {
-      "mode": "`'velocity'`: rad/s oder m/s; `'position'`: Radiant oder Meter ab der Lage, in der das Gelenk entstand.",
+      "mode": "`'velocity'`: rad/s oder m/s; `'position'`: Radiant oder Meter ab der Lage, in der das Gelenk entstand — bei einem Pfad der Punkt entlang des Pfads (1.5: halb zwischen seinem zweiten und dritten).",
       "target": "Die zu erreichende Geschwindigkeit oder Position.",
-      "maxForce": "N·m für ein Scharnier, N für ein Schiebegelenk; weggelassen: unbegrenzt."
+      "maxForce": "N·m für eine Drehung, N für ein Gleiten; weggelassen, keine Grenze.",
+      "axis": "Die Achse, die er bei einem Gelenk mit sechs Freiheitsgraden antreibt."
     }
   },
   "JointOptions": {
     "summary": "Was `joint.*` annimmt.",
     "description": "Punkte und Achsen liegen in der Welt und werden gelesen, wenn das Gelenk zum ersten Mal entsteht.",
     "members": {
-      "anchor": "Wo die Körper verbunden sind: der Stift eines Scharniers, die Kugel eines Punktgelenks, das Ende eines Abstands an `a`.",
-      "anchorB": "Das Ende eines Abstands an `b`.",
-      "axis": "Der Stift eines Scharniers, die Schiene eines Schiebegelenks, die Mitte eines Kegels.",
-      "limits": "Scharnier, Schiebegelenk, Abstand und Kegel: wie weit es sich bewegt. Ein Abstand hält standardmäßig seine Länge.",
-      "spring": "Scharnier, Schiebegelenk und Abstand: jenseits der Grenzen zieht eine Feder zurück statt einer Wand; `frequency` in Hz, `damping` von 0 (keine) bis 1 (kritisch).",
-      "motor": "Scharnier und Schiebegelenk: ein Motor, jederzeit über `joint.motor` änderbar.",
-      "breakForce": "Zug in Newton, ab dem das Gelenk bricht; weggelassen: nie."
+      "anchor": "Wo die Körper verbunden sind: der Stift eines Scharniers, die Kugel eines Punktgelenks, das Ende eines Abstands oder des Seils eines Flaschenzugs an `a`.",
+      "anchorB": "Das Ende eines Abstands oder des Seils eines Flaschenzugs an `b`.",
+      "axis": "Der Stift eines Scharniers, die Schiene eines Schiebegelenks, die Mitte eines Kegels oder Schwenk-Dreh-Gelenks, das `x` eines Gelenks mit sechs Freiheitsgraden, der Stift eines Zahnrads oder Ritzels (`a`).",
+      "axisB": "Der Stift eines Zahnrads an `b`, die Schiene einer Zahnstange (`b`).",
+      "limits": "Scharnier, Schiebegelenk, Abstand, Kegel, Schwenk-Dreh-Gelenk und Flaschenzug: wie weit es sich bewegt. Ein Abstand hält standardmäßig seine Länge, das Seil eines Flaschenzugs reicht von 0 bis zu seiner Länge.",
+      "axes": "Die Achsen eines Gelenks mit sechs Freiheitsgraden, die sich bewegen, frei (`'free'`) oder in Grenzen; die anderen sind gesperrt.",
+      "spring": "Scharnier, Schiebegelenk, Abstand und sechs Freiheitsgrade: jenseits der Grenzen zieht eine Feder zurück statt einer Wand; `frequency` in Hz, `damping` von 0 (keine) bis 1 (kritisch).",
+      "motor": "Scharnier, Schiebegelenk, Schwenk-Dreh-Gelenk (seine Verdrehung), sechs Freiheitsgrade und Pfad: ein Motor, jederzeit über `joint.motor` änderbar.",
+      "path": "Die Bahn eines Pfads: mindestens zwei Punkte, die von `b` (oder der Welt), wie sie beim Erzeugen stehen; `a` startet am Punkt der Bahn, der `anchor` am nächsten ist.",
+      "loop": "Die Bahn eines Pfads schließt sich zu einem Ring.",
+      "follow": "Das `a` eines Pfads dreht sich mit der Bahn, wie ein Wagen, statt frei, wie eine Perle.",
+      "over": "Die zwei Rollen eines Flaschenzugs in der Welt: Das Seil von `a` läuft zur ersten hinauf, das von `b` zur zweiten.",
+      "ratio": "Beim Zahnrad die Umdrehungen von `b` je Umdrehung von `a` (Zähne von `a` durch Zähne von `b`), gegenläufig; beim Ritzel Radiant je Meter Zahnstange, 1 / sein Radius; beim Flaschenzug Meter Seil von `b` je Meter Seil von `a`.",
+      "breakForce": "Zug in Newton, ab dem das Gelenk bricht (N·m Drehmoment zwischen den Zähnen eines Zahnrads oder einer Zahnstange); weggelassen, nie."
     }
   },
   "joint": {
@@ -7376,7 +7395,13 @@
       "hinge": "Ein Stift bei `anchor` entlang `axis`: eine Tür, ein Rad. `limits` in Radiant.",
       "slider": "Eine Schiene entlang `axis`: eine Schublade, ein Kolben. `limits` in Metern.",
       "distance": "Hält `anchor` an `a` und `anchorB` an `b` in ihrem Abstand oder innerhalb von `limits`.",
-      "cone": "Ein Kugelgelenk, dessen `axis` innerhalb eines Kegels mit dem halben Winkel `limits.max` schwingt."
+      "cone": "Ein Kugelgelenk, dessen `axis` innerhalb eines Kegels mit dem halben Winkel `limits.max` schwingt.",
+      "swingTwist": "Eine Schulter: `axis` schwingt in einem Kegel mit halbem Winkel `limits.swing` und verdreht sich um sich selbst zwischen `limits.min` und `max`; sein Motor treibt die Verdrehung.",
+      "sixDof": "Sechs Achsen, jede gesperrt, frei oder begrenzt (`axes`): jedes Gelenk zwischen den anderen.",
+      "path": "`a` läuft auf einer glatten Bahn durch `path`, fest an `b` oder der Welt: eine Achterbahn.",
+      "pulley": "Ein Seil von `a` über zwei Rollen (`over`) hinunter zu `b`: Das eine steigt, wenn das andere sinkt.",
+      "gear": "Zwei Räder, die sich im Verhältnis `ratio` zusammen drehen, jedes um seinen eigenen Stift (`axis`, `axisB`) und von seinem eigenen Scharnier gehalten (das Rad als dessen `a`); ist `ratio` oder 1 / `ratio` ganzzahlig, behalten ihre Zähne auch die Phase, in der sie gemacht wurden.",
+      "rackAndPinion": "Ein Ritzel `a`, das sich um `axis` dreht, treibt eine Zahnstange `b` entlang `axisB`, jedes von seinem eigenen Scharnier oder Schiebegelenk gehalten (der Körper als dessen `a`), ihre Zähne in der Phase gehalten, in der sie gemacht wurden."
     }
   }
 }

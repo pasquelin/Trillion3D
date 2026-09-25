@@ -313,6 +313,7 @@
       "soft-bodies": "부드러운 물체",
       "rolling-on-terrain": "지형 위를 구르기",
       "hinges-and-joints": "경첩과 관절",
+      "gears-and-pulleys": "기어와 도르래",
       "walk-with-collisions": "충돌하며 걷기",
       "drive-a-car": "자동차 운전하기",
       "a-room-in-vr": "VR 속 방",
@@ -1077,7 +1078,8 @@
           "<code>anchor</code>는 물체들이 이어지는 지점이고 <code>axis</code>는 핀이나 레일의 방향입니다. 둘 다 세계 좌표이며 관절을 만들 때 읽힙니다.",
           "<code>limits</code>가 관절을 멈춥니다. 경첩은 라디안, 슬라이더는 미터. <code>spring</code>은 멈춤을 부드럽게 합니다.",
           "<code>motor</code>는 경첩이나 슬라이더를 속도나 위치로 움직입니다. <code>joint.motor</code>는 언제든 바꿀 수 있습니다.",
-          "<code>breakForce</code>는 관절이 끊어지는 당김의 크기(뉴턴)입니다. 끊어지면 <code>joint.broken</code>이 true가 되고 <code>joint.on('break', …)</code>가 호출됩니다."
+          "<code>breakForce</code>는 관절이 끊어지는 당김의 크기(뉴턴)입니다. 끊어지면 <code>joint.broken</code>이 true가 되고 <code>joint.on('break', …)</code>가 호출됩니다.",
+          "고급 관절은 움직임을 서로 묶습니다. <code>joint.gear(a, b, { ratio })</code>는 경첩에 달린 두 바퀴를 하나의 기어열처럼 돌리고, <code>joint.rackAndPinion</code>은 회전을 미끄러짐으로 바꾸고, <code>joint.pulley(a, b, { over })</code>는 한 줄에 두 짐을 매달고, <code>joint.path(a, b, { path })</code>는 수레를 궤도 위에 두며, <code>swingTwist</code>와 <code>sixDof</code>로 어깨와 나만의 관절을 만듭니다."
         ],
         "tryIt": "문과 서랍을 열고, 다리 위에 돌을 떨어뜨려 보세요. 다리 강도를 낮추고 다시 지으면 자기 무게로 부서집니다."
       },

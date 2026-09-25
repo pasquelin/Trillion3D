@@ -2031,5 +2031,19 @@
       "joints": "ジョイント",
       "broken": "壊れた数"
     }
+  },
+  "gears-and-pulleys": {
+    "banner": "からくりの速さを変え、リフトを上げ、バケツにおもりを入れてカウンターウェイトを持ち上げよう。",
+    "controls": {
+      "speed": "からくりの速さ (rad/s)",
+      "raiseLift": "リフトを上げる",
+      "addWeight": "おもりを落とす",
+      "emptyBucket": "バケツを空にする"
+    },
+    "readouts": {
+      "lift": "リフト",
+      "load": "おもり",
+      "rope": "ロープの移動"
+    }
   }
 }
