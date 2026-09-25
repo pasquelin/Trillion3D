@@ -12,11 +12,7 @@ export function createSampleEmitter(onSample: (sample: GpuTimingSample) => void)
 
 import type { TimingPart } from './encoder.ts';
 
-export function timingEntries(
-  parts: Iterable<TimingPart>,
-  initialTruncated: boolean,
-  partQueries: number,
-) {
+export function timingEntries(parts: Iterable<TimingPart>, initialTruncated: boolean) {
   let truncated = initialTruncated;
   let unresolvedParts = 0;
   const entries: TimingEntry[] = [];
@@ -29,7 +25,7 @@ export function timingEntries(
       continue;
     }
     for (let i = 0; i < part.names.length; i++)
-      entries.push({ slot: part.slot * partQueries + i * 2, name: part.names[i], part: part.slot });
+      entries.push({ slot: part.base + i * 2, name: part.names[i], part: part.slot });
   }
   return { entries, truncated, unresolvedParts };
 }
