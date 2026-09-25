@@ -84,7 +84,10 @@ export function createExplorerHostState(
   // compositor. The direct GPU path composes nothing.
   const gl = webglSurface?.context;
   const composition = gl
-    ? { compose: createFrameComposer(gl, camera), compositor: createComparisonCompositor(gl) }
+    ? {
+        compose: createFrameComposer(gl, camera, options.guides),
+        compositor: createComparisonCompositor(gl),
+      }
     : {
         compose: Object.assign(
           () => {

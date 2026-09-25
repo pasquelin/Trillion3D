@@ -165,6 +165,8 @@ export interface BackendContext {
    *  image sampled at the pixel centre, with no jitter and no history — the "before" of a comparison. */
   temporalAntialiasing?: boolean;
   sceneLighting?: Object3D;
+  /** The page's guides, held by its world (`guides/guideSet.ts`): drawn over the image. */
+  guides?: import('../guides/guideSet.ts').GuideSet;
   /** Contract lights, owned by the host and shared by every engine of the session. */
   sceneLights?: SceneLightStore;
   /** Identifiers of the lights the source file carried, in cache order; the host rereads them
