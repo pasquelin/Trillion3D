@@ -14,6 +14,8 @@ import { hostSurface } from '../../world/core/worldSurface.ts';
 import { texture } from '../../world/texture/index.ts';
 import { material } from '../../../../sdk-core/src/world/material/index.ts';
 
+const output = { toneMapped: false, framebuffer: null, width: 8, height: 4 };
+
 /** A test context; `draws`: per draw, the texture sampled, and the texture and level drawn. */
 function context(answers: Record<string, unknown> = {}) {
   const view = (name: string) =>
@@ -107,7 +109,6 @@ test('a still scene files each surface once across frames, a hidden opaque one i
   scene.add(G.mesh(geometry, G.standardSurface({ map, alphaTest: 0.5 })), hidden);
   const gl = context();
   const draw = createSceneDraw(gl.gl, scene);
-  const output = { toneMapped: false, framebuffer: null, width: 8, height: 4 };
   for (let frame = 0; frame < 3; frame++) {
     draw.render({} as HostCamera);
     draw.drawHostGeometry(createHostDrawCamera(), output);
@@ -128,12 +129,7 @@ test('a world texel map is uploaded as stored, with its box chain', () => {
   const gl = context();
   const draw = createSceneDraw(gl.gl, scene);
   draw.render({} as HostCamera);
-  draw.drawHostGeometry(createHostDrawCamera(), {
-    toneMapped: false,
-    framebuffer: null,
-    width: 8,
-    height: 4,
-  });
+  draw.drawHostGeometry(createHostDrawCamera(), output);
   draw.dispose();
   const uploaded = gl.of('texImage2D').map((args) => (args[8] as ArrayBufferView | null)?.buffer);
   assert.ok(uploaded.includes(pixels.buffer), 'uploaded as the bytes it holds');
