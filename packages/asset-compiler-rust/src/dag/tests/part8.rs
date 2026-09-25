@@ -5,6 +5,7 @@ use super::*;
 use crate::geometry_page::{Attribute, FLAG_NORMAL};
 
 /// A mesh with one normal per vertex.
+#[derive(Default)]
 pub(super) struct Shaded {
     pub positions: Vec<f32>,
     pub normals: Vec<f32>,
