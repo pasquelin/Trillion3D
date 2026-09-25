@@ -29,7 +29,12 @@ function session(viewport: [number, number], limit = Infinity) {
     get texture() {
       return texture;
     },
-    makePool: (side: number) => gpu.device.createTexture({ size: [side * 128, side * 128, 1] }),
+    makePool: (side: number) =>
+      gpu.device.createTexture({
+        size: [side * 128, side * 128, 1],
+        format: 'depth32float',
+        usage: 0,
+      }),
     sizePool(side: number, made: object) {
       texture = made;
       sized.push(side);
