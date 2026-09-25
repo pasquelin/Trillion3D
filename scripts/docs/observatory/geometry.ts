@@ -7,9 +7,17 @@ export interface SurfaceMesh {
   indices: number[];
 }
 
+/** One authored box: its material, centre and size, in metres. */
+export interface Block {
+  material: number;
+  center: number[];
+  size: number[];
+}
+
 /** Original parametric masonry, turned stone and metalwork, in metres; boxes and rings: sdk-core. */
 export function createWorkshop() {
   const surfaces = new Map<number, SurfaceMesh>();
+  const blocks: Block[] = [];
   function surface(material: number) {
     let mesh = surfaces.get(material);
     if (!mesh) {
@@ -61,6 +69,7 @@ export function createWorkshop() {
   }
   function block(material: number, center: number[], size: number[]) {
     const [width, height, depth] = size;
+    blocks.push({ material, center, size });
     add(material, geometry.box(width, height, depth).translate(center[0], center[1], center[2]));
   }
   function turned(
@@ -98,5 +107,5 @@ export function createWorkshop() {
       geometry.torus(radius, tube, 16, 96).rotateX(tilt).translate(center[0], center[1], center[2]),
     );
   }
-  return { surfaces, patch, block, turned, ring };
+  return { surfaces, blocks, patch, block, turned, ring };
 }
