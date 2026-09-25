@@ -21,7 +21,7 @@ export function addBox(jolt: Module, mass: number, y: number, flags = 0) {
 }
 
 /** Laid flat: the plane's `+y` turned to the world's `−z`, so its `−z` is the world's down. */
-export const FLAT = [-Math.SQRT1_2, 0, 0, Math.SQRT1_2];
+export const FLAT: [number, number, number, number] = [-Math.SQRT1_2, 0, 0, Math.SQRT1_2];
 
 /** A committed module with Earth's gravity and a floor in slot 0, its top at y = 0, turned by
  *  `quaternion` about its centre. */
