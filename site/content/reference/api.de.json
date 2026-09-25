@@ -6904,7 +6904,8 @@
       "recipe": "Das Familienmitglied und jedes Argument, mit dem sie gebaut wurde.",
       "attributes": "Jede Liste pro Eckpunkt, wenn kein Aufruf die Form neu baut.",
       "index": "Welche Eckpunkte jedes Dreieck bilden.",
-      "groups": "Index-Bereiche, die jeweils mit einem Material gezeichnet werden."
+      "groups": "Index-Bereiche, die jeweils mit einem Material gezeichnet werden.",
+      "owner": "`'host'` für die Eckpunkte einer geladenen Szene, nach ihrem Wert gelesen (`Geometry._owner`); nicht gesetzt für die der Welt."
     }
   },
   "SavedMaterial": {
