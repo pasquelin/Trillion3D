@@ -97,7 +97,6 @@ export function bindClusterMaterial(
       sharedMetalRough && unit === 2 ? undefined : texture,
       texture?.colorSpace === 'srgb',
       unit === 3 ? [128, 128, 255, 255] : undefined,
-      MAPS[unit] === 'map' || MAPS[unit] === 'emissiveMap',
     );
     if (!texture || (sharedMetalRough && unit === 2)) continue;
     matrices.set(MAP_UNIFORMS[unit], texture.transform);
