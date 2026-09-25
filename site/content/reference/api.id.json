@@ -2303,6 +2303,9 @@
     "summary": "Atlas yang dilayani sebuah pratinjau: warna (`rgba8unorm-srgb`, warna dasar dan emisif) atau data (`rgba8unorm`, metal-roughness, normal, oklusi).",
     "description": "Tekstur yang sama boleh punya satu entri masing-masing."
   },
+  "PREVIEW_ATLAS_COVERAGE": {
+    "summary": "Sebuah rantai atlas warna, untuk tekstur yang alpha-nya diambil setiap pembacanya sebagai cakupan (hanya warna dasar material MASK atau BLEND): satu-satunya rantai yang warnanya dibobot oleh alpha, dinamai terpisah dari rantai biasa (`reduce.rs`, `AtlasKind::Coverage`, #42)."
+  },
   "PREVIEW_ATLAS_DATA": {
     "summary": "Atlas data: peta metal-roughness, normal dan oklusi."
   },
@@ -3746,7 +3749,7 @@
       "sourceKind": "0 saat byte-nya berasal dari uri gambar, 1 saat berasal dari sourceBufferView.",
       "sourceBufferView": "View buffer scene yang disiapkan, atau -1 untuk sumber uri.",
       "sha256": "SHA-256 byte sumber yang diurai.",
-      "atlas": "Atlas yang dilayani entri ini: PREVIEW_ATLAS_COLOR atau PREVIEW_ATLAS_DATA.",
+      "atlas": "Rantai yang dibawa entri ini: PREVIEW_ATLAS_COLOR, PREVIEW_ATLAS_DATA, atau PREVIEW_ATLAS_COVERAGE, disampel di atlas warna.",
       "firstLevel": "Indeks tingkat pertama yang dibawa rantai mip sumbernya; 0 saat sudah muat di bawah PREVIEW_BASE dan sidecar-nya karena itu membawa resolusi penuhnya.",
       "bakedLevels": "Tingkat yang dipanggang jadi berkas di cache, dari 0 sampai bakedLevels - 1; firstLevel saat rantainya lengkap, 0 saat tidak ada yang ditulis dan mesin memuat gambar sumbernya.",
       "levels": "Tingkat yang dibawa berurutan, dari terhalus sampai 1x1, masing-masing sebuah view atas byte sidecar.",
