@@ -1,6 +1,12 @@
 import { MAX_SHADOW_SLICES } from '../light/contracts.ts';
 import { SHADOW_TABLE_ENTRIES as ENTRIES, SHADOW_TABLE_STRIDE as STRIDE } from './virtual.ts';
 
+/** Host bytes a table over `poolPages` pages allocates: a word and a change flag per entry, a
+ *  base and a size per slice, four changed words per pool page. `hostBytes` counts the arrays. */
+export function shadowTableHostBytes(poolPages: number) {
+  return ENTRIES * (4 + 1) + MAX_SHADOW_SLICES * (4 + 4) + poolPages * 4 * 4;
+}
+
 /**
  * THE PAGE TABLE, host side: one word per virtual page of every shadow light — the physical page
  * it maps to and whether that page's draw has landed — and the range each light holds in it.
@@ -36,6 +42,10 @@ export function createShadowTable(poolPages: number) {
   };
   return {
     words,
+    /** Bytes of every host array the table holds: what `shadowTableHostBytes` declares. */
+    get hostBytes() {
+      return [words, base, size, queued, changed].reduce((sum, a) => sum + a.byteLength, 0);
+    },
     get entries() {
       return ENTRIES;
     },
