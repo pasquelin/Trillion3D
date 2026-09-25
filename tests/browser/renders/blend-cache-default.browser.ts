@@ -36,8 +36,6 @@ await mkdir(out, { recursive: true });
 const carriedKey = (name: string) => `webgpu-${name}`;
 
 const { server, port } = await startServer({
-  port: 0,
-  captures: new Map(),
   mounts: [
     { prefix: '/sdk/', dir: resolve(root, 'dist') },
     { prefix: '/vendor/three/', dir: resolve(root, 'node_modules/three') },

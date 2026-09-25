@@ -23,7 +23,7 @@ export async function withRepoPage<T>(
     { prefix: '/scripts/', dir: resolve(root, 'scripts') },
     { prefix: '/packages/', dir: resolve(root, 'packages') },
   ];
-  const { server, port } = await startServer({ port: 0, mounts, captures: new Map() });
+  const { server, port } = await startServer({ mounts });
   const browser = await launchChrome({ headless }).catch((error: unknown) => {
     server.close();
     throw error;

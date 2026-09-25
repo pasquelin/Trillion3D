@@ -62,8 +62,6 @@ function cadence(result: CaseResult) {
 /** The engine's own CPU frame cost over the same frames; never added to a GPU duration. */
 const cpuFrame = (result: CaseResult) => spread(result.cpuRuns);
 const { server, port } = await startServer({
-  port: 0,
-  captures: new Map(),
   mounts: [
     { prefix: '/sdk/', dir: resolve(root, 'dist') },
     { prefix: '/vendor/three/', dir: resolve(root, 'node_modules/three') },

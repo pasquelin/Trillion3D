@@ -75,7 +75,7 @@ const mounts = [
   { prefix: '/sdk/', dir: join(ROOT, 'dist') },
 ].map((mount) => ({ ...mount, dir: resolve(mount.dir) }));
 
-const { server, port } = await startServer({ port: 0, mounts, captures: new Map() });
+const { server, port } = await startServer({ mounts });
 const browser = await launchChrome({ headless: true });
 let resultat;
 const erreursPage: string[] = [];

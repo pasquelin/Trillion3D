@@ -84,7 +84,7 @@ async function main() {
   const resources = flag('ressources');
   const mounts = options.resolveMounts(ROOT, sides, resources ? resolve(resources) : null);
   const captures = new Map<string, Capture>();
-  const { server, port } = await startServer({ port: 0, mounts, captures });
+  const { server, port } = await startServer({ mounts, captures });
   const browser = await launchChrome({
     headless: flag('visible', 'false') !== 'true',
     args: options.ENGINES.webgpu.flags,

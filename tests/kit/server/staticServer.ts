@@ -1,8 +1,5 @@
-// Static harness server, for `../../../bench/runner/bench.ts`. Nothing is written here: the server
-// reads the dists, the browser dependencies and the bench assets, and takes in the
-// RGBA captures the page posts to it. A TypeScript module under a mount is stripped of its types
-// by esbuild on the way out, so the page modules of `bench/runner/` and `tests/browser/support/` are served
-// as they are written, without a build step.
+// The bench harness server, on the one static server: the harness page, the RGBA captures the page
+// posts, and page modules served as TypeScript stripped of their types, without a build step.
 import { readFileSync } from 'node:fs';
 import type { IncomingMessage, Server, ServerResponse } from 'node:http';
 import { transformSync } from 'esbuild';
@@ -50,8 +47,7 @@ function takeCapture(
       h = Number(url.searchParams.get('h'));
     const complete = body.length === w * h * 4;
     captures.set(url.searchParams.get('file') ?? '', complete ? { body, w, h } : null);
-    res.statusCode = complete ? 200 : 400;
-    res.end(String(body.length));
+    reply(res, complete ? 200 : 400, undefined, String(body.length));
   });
   return true;
 }
@@ -71,14 +67,14 @@ const ISOLATION = {
 /** Listens on `port`, serves `mounts`, stores captures in `captures`. `isolation` sets COOP and
  *  COEP on each response. */
 export async function startServer({
-  port,
+  port = 0,
   mounts,
-  captures,
+  captures = new Map(),
   isolation = false,
 }: {
-  port: number;
+  port?: number;
   mounts: Mount[];
-  captures: Map<string, Capture>;
+  captures?: Map<string, Capture>;
   isolation?: boolean;
 }): Promise<{ server: Server; port: number }> {
   const server = staticServer({

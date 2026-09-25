@@ -10,8 +10,6 @@ const root = resolve(import.meta.dirname, '../../..');
 
 export async function openBenchPage(width: number, height: number) {
   const { server, port } = await startServer({
-    port: 0,
-    captures: new Map(),
     mounts: [
       ...resolveMounts(root, []),
       { prefix: '/sdk/', dir: resolve(root, 'dist') },
