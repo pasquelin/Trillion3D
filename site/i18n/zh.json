@@ -313,6 +313,7 @@
       "soft-bodies": "软体",
       "rolling-on-terrain": "在地形上滚动",
       "hinges-and-joints": "铰链与关节",
+      "gears-and-pulleys": "齿轮与滑轮",
       "walk-with-collisions": "带碰撞的行走",
       "drive-a-car": "驾驶一辆车",
       "a-room-in-vr": "VR里的一个房间",
@@ -328,6 +329,7 @@
     "missing": {
       "colours-on-the-vertices": "WebGPU上的逐顶点颜色",
       "dashed-lines": "虚线",
+      "floating-crates": "每帧重写的几何体",
       "thick-lines": "宽线",
       "a-line-that-draws-itself": "几何体的绘制范围",
       "shapes-from-an-svg": "SVG路径导入",
@@ -1078,7 +1080,8 @@
           "<code>anchor</code> 是物体相连的位置，<code>axis</code> 是销轴或滑轨的方向，二者都在世界坐标中，在创建关节时读取。",
           "<code>limits</code> 让关节停下：铰链用弧度，滑轨用米。<code>spring</code> 让止挡变软。",
           "<code>motor</code> 把铰链或滑轨驱动到某个速度或位置。随时修改 <code>joint.motor</code>。",
-          "<code>breakForce</code> 是关节断开的拉力（牛顿）：超过它，<code>joint.broken</code> 变为 true，并调用 <code>joint.on('break', …)</code>。"
+          "<code>breakForce</code> 是关节断开的拉力（牛顿）：超过它，<code>joint.broken</code> 变为 true，并调用 <code>joint.on('break', …)</code>。",
+          "高级关节把运动联系在一起：<code>joint.gear(a, b, { ratio })</code> 让两个铰链上的轮像一个齿轮组一样转动，<code>joint.rackAndPinion</code> 把转动变成滑动，<code>joint.pulley(a, b, { over })</code> 用一根绳挂起两个重物，<code>joint.path(a, b, { path })</code> 让车厢留在轨道上，<code>swingTwist</code> 和 <code>sixDof</code> 则能做出肩关节和你自己的关节。"
         ],
         "tryIt": "打开门和抽屉，再把石头扔到桥上。降低桥的强度并重建：它会在自身重量下断裂。"
       },

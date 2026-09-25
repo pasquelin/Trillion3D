@@ -18,6 +18,7 @@ const PHYSICS = new Set([
   'walk-through-a-temple',
   'create-and-dispose',
   'hinges-and-joints',
+  'gears-and-pulleys',
   'fly-over-a-model-town',
 ]);
 

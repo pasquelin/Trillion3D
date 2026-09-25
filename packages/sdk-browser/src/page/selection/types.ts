@@ -41,6 +41,9 @@ export type PageRec = {
    *  property of the bundle: one request makes dozens of clusters drawable at once. */
   streamUrl?: string;
   streamOffset?: number;
+  /** One record of each bundle its bundle is installed after, closed up to the root cover
+   *  (`./bundleDependencies.ts`): a request for this record brings the missing ones with it. */
+  dependencies?: readonly PageRec[];
   /** Coplanar depth layer, 0 for every cluster the compiler left alone. Always present, never
    *  undefined, so a page record keeps one shape through the selection loop. */
   depthLayer: number;

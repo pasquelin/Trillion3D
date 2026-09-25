@@ -313,6 +313,7 @@
       "soft-bodies": "Corpos moles",
       "rolling-on-terrain": "Rolando pelo terreno",
       "hinges-and-joints": "Dobradiças e juntas",
+      "gears-and-pulleys": "Engrenagens e polias",
       "walk-with-collisions": "Andar com colisões",
       "drive-a-car": "Dirigir um carro",
       "a-room-in-vr": "Uma sala em RV",
@@ -328,6 +329,7 @@
     "missing": {
       "colours-on-the-vertices": "cores por vértice no WebGPU",
       "dashed-lines": "linhas tracejadas",
+      "floating-crates": "geometria reescrita a cada quadro",
       "thick-lines": "linhas largas",
       "a-line-that-draws-itself": "intervalo de desenho de uma geometria",
       "shapes-from-an-svg": "importação de caminhos SVG",
@@ -1078,7 +1080,8 @@
           "<code>anchor</code> é onde os corpos se ligam e <code>axis</code> para onde aponta o pino ou o trilho, ambos no mundo, lidos quando a junta é criada.",
           "<code>limits</code> detém a junta: radianos para uma dobradiça, metros para um trilho. Um <code>spring</code> torna o batente macio.",
           "Um <code>motor</code> leva uma dobradiça ou um trilho a uma velocidade ou a uma posição. Mude <code>joint.motor</code> quando quiser.",
-          "<code>breakForce</code> é a tração, em newtons, a partir da qual a junta se rompe: <code>joint.broken</code> fica verdadeiro e <code>joint.on('break', …)</code> é chamado."
+          "<code>breakForce</code> é a tração, em newtons, a partir da qual a junta se rompe: <code>joint.broken</code> fica verdadeiro e <code>joint.on('break', …)</code> é chamado.",
+          "As juntas avançadas ligam movimentos: <code>joint.gear(a, b, { ratio })</code> gira duas rodas em dobradiças como um só trem, <code>joint.rackAndPinion</code> transforma um giro em deslize, <code>joint.pulley(a, b, { over })</code> pendura duas cargas na mesma corda, <code>joint.path(a, b, { path })</code> mantém um carrinho no trilho, e <code>swingTwist</code> e <code>sixDof</code> criam ombros e juntas sob medida."
         ],
         "tryIt": "Abra a porta e a gaveta, depois solte a pedra sobre a ponte. Diminua a resistência da ponte e reconstrua-a: ela quebra com o próprio peso."
       },
