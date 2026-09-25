@@ -46,7 +46,7 @@ approve. GitHub is the single source of truth: issues, labels and pull requests.
    - measurement and acceptance check it, and reopen it with `measure ko` / `audit ko` if needed.
 5. Limits at every moment:
    - one agent at a time per lead, and at most 3 open PRs per lead (resume at 2);
-   - one session per issue, and nobody idle;
+   - one lead per issue, and nobody idle;
    - no leftover worktree or branch.
 
 Quality is measured, not assumed. The CTO tracks, for each lead, the share of merges that come
