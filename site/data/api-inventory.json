@@ -894,8 +894,10 @@
         "packages/sdk-browser/src/host/prepared/graph.test.ts",
         "packages/sdk-browser/src/webgl/cluster/meshDepth.test.ts",
         "packages/sdk-browser/src/webgl/cluster/sceneDraw.test.ts",
+        "packages/sdk-browser/src/world/core/worldCuts.test.ts",
         "packages/sdk-browser/src/world/core/worldMirror.ts",
         "packages/sdk-browser/src/world/helper/index.ts",
+        "packages/sdk-browser/src/world/page/runtimePrimitive.test.ts",
         "packages/sdk-browser/src/world/saved/read.ts",
         "packages/sdk-browser/src/world/saved/saved.test.ts"
       ],
@@ -3127,6 +3129,7 @@
       "classification": "public",
       "affectedConsumers": [
         "packages/sdk-browser/src/world/controls/transform.test.ts",
+        "packages/sdk-browser/src/world/core/worldCuts.test.ts",
         "packages/sdk-browser/src/world/core/worldLiveTextures.test.ts",
         "packages/sdk-browser/src/world/core/worldRuntime.test.ts",
         "packages/sdk-browser/src/world/page/runtimePrimitive.test.ts",
@@ -4674,6 +4677,7 @@
       "proposedEnvironments": "browser",
       "classification": "public",
       "affectedConsumers": [
+        "packages/sdk-browser/src/world/core/worldCuts.test.ts",
         "packages/sdk-browser/src/world/core/worldLiveTextures.test.ts",
         "packages/sdk-browser/src/world/core/worldMaterials.test.ts",
         "packages/sdk-browser/src/world/core/worldMirror.test.ts",
@@ -5342,6 +5346,7 @@
       "classification": "public",
       "affectedConsumers": [
         "packages/sdk-browser/src/world/controls/transform.test.ts",
+        "packages/sdk-browser/src/world/core/worldCuts.test.ts",
         "packages/sdk-browser/src/world/core/worldLights.test.ts",
         "packages/sdk-browser/src/world/core/worldLiveTextures.test.ts",
         "packages/sdk-browser/src/world/core/worldRuntime.test.ts",
