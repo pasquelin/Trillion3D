@@ -160,6 +160,9 @@ export function groundTruth(view: TruthView, samples = SAMPLES): Truth {
 /** The gap of a bottom-left RGBA8 `image` to the truth: pixels farther than `levels` on a
  *  channel, silhouettes aside, and the largest gap there. */
 export function truthGap(image: ArrayLike<number>, truth: Truth, levels = 1): TruthGap {
+  // A short image — no frame read — would compare as NaN and count as no gap.
+  if (image.length < truth.rgba.length)
+    throw new Error(`image of ${image.length} bytes, the truth holds ${truth.rgba.length}`);
   const gap: TruthGap = { pixels: 0, max: 0 };
   for (let pixel = 0; pixel < truth.edge.length; pixel++) {
     if (truth.edge[pixel]) continue;
