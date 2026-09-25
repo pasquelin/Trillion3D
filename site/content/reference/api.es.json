@@ -761,7 +761,7 @@
     "description": "Lo que devuelve la API pública es una de estas copias: un host que escribe en la copia recibida no cambia nada en el motor, y un host que modifica una luz ya enviada tampoco cambia nada — el almacenamiento verificó su propia copia al entrar. La copia se hace donde el host lee, nunca en el camino de la imagen: los backends leen el registro mantenido y el búfer dispuesto, y no copian nada."
   },
   "CLUSTERED_BLEND_FORMAT_VERSION": {
-    "summary": "Formato de caché externo requerido para el BLEND en clústeres; los manifiestos de origen conservan su propio formato."
+    "summary": "Formato de caché externo requerido para el BLEND en clústeres (6 antes de que `selectedNodes` pasara a ser un recuento); los manifiestos de origen conservan su propio formato."
   },
   "clusterErrorAtDepth": {
     "summary": "El mismo error proyectado cuando ya se conocen la distancia del centro al eje de vista y su profundidad (−z de la vista): un nodo que fija suelo y techo en la misma esfera comparte su profundidad."
@@ -1694,7 +1694,7 @@
   },
   "FORMAT_VERSION": {
     "summary": "Formato de caché que lee este motor.",
-    "description": "El formato 5 lleva `scene-tables.json`, las tablas de nodos y materiales contra las que se verifica la escena preparada; los formatos 3 y 4 no tienen este producto y se rechazan por su número en lugar de leerse a medias."
+    "description": "El formato 5 añadió `scene-tables.json`, las tablas de nodos y materiales contra las que se verifica la escena preparada; el formato 7 lleva `selectedNodes` como un recuento, no como una lista (#404). Los formatos anteriores se rechazan por su número en lugar de leerse a medias."
   },
   "FrameInfo": {
     "summary": "Lo que recibe un gancho de fotograma: los segundos desde el último fotograma y desde el inicio del mundo.",
