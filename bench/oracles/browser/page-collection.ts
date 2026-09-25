@@ -34,7 +34,6 @@ type Primitive = ClusterManifest['primitives'][number];
 type ReferenceRoot = Omit<ClusterRoot<PageRec>, 'worldBox' | 'localBox'> & {
   worldBox: THREE.Box3;
   localBox: THREE.Box3;
-  forcedList: number[] | undefined;
 };
 
 /** `collectClusterPages` before batch F: `find` per mesh, `flatMap` of a spread, three
@@ -179,8 +178,6 @@ export function referenceCollectClusterPages(
         .applyMatrix4(new THREE.Matrix4().fromArray(mesh.matrixWorld.elements)),
       localBox: local.clone(),
       structure,
-      forced: structure ? new Uint8Array(structure.groupCount) : undefined,
-      forcedList: structure ? [] : undefined,
     });
     if (structure) for (const root of structure.roots) bootstrap.push(pages[root]);
   }

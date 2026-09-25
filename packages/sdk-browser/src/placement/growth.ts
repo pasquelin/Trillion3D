@@ -30,21 +30,14 @@ function pose(root: ClusterRoot<PageRec>, placement: PlacementOf) {
 }
 
 /** A parked root for row `index` of `rows`, cloned from `template`: shared clusters and tables,
- *  its own world, box, marks and forced groups; its local box is the template's. Its box is set when its row is taken. */
+ *  its own world and box; its local box is the template's. Its box is set when its row is taken. */
 function rowRoot(template: ClusterRoot<PageRec>, rows: PlacementRows, index: number) {
-  const culling = template.culling;
   const root: ClusterRoot<PageRec> = {
     ...template,
     pages: template.pages.map((page) => ({ ...page, mesh: undefined, attached: false })),
-    culling: culling && {
-      ...culling,
-      marks: culling.marks && new Int32Array(culling.marks.length),
-    },
     worldBox: template.worldBox && new Float64Array(BOX_VALUES),
     stretch: undefined,
     stretchKey: undefined,
-    forced: template.forced && new Uint8Array(template.forced.length),
-    forcedList: template.forcedList && [],
     parked: true,
   };
   pose(root, { rows, index });
