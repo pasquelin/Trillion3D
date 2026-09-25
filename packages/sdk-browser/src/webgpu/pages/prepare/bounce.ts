@@ -1,8 +1,5 @@
-import {
-  BOUNCE_SETTINGS,
-  PROBE_FLOATS,
-  type SceneProxy,
-} from '../../../../../sdk-core/src/index.ts';
+import { BOUNCE_SETTINGS, type SceneProxy } from '../../../../../sdk-core/src/index.ts';
+import { bounceProbeBytes } from '../../../bounce/limits.ts';
 import { createGpuBounceProbes } from '../../../bounce/probes.ts';
 import { grantCapability } from '../io/drops.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
@@ -109,7 +106,7 @@ function publish(rt: WebgpuPagesRuntime) {
     occupiedCells: probes?.occupancy.marked ?? null,
     mapCells: probes?.occupancy.cells ?? null,
     mapBytes: probes?.occupancy.bytes ?? null,
-    probeBytes: probes ? probes.cascades.probes * PROBE_FLOATS * 4 : null,
+    probeBytes: probes ? bounceProbeBytes(probes.cascades.probes) : null,
     // The target, the fraction the servo holds, and the last duration it saw.
     budgetMs: probes?.budget.budgetMs ?? bounce.budgetMs,
     budgetLoad: probes?.budget.load ?? null,

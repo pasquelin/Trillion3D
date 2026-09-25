@@ -534,6 +534,7 @@
         "packages/sdk-browser/src/bounce/surfaceWgsl.ts",
         "packages/sdk-browser/src/bounce/traceWgsl.ts",
         "packages/sdk-browser/src/bounce/uniform.ts",
+        "packages/sdk-browser/src/residency/memoryBudget.ts",
         "packages/sdk-browser/src/webgpu/pages/prepare/bounce.ts",
         "packages/sdk-browser/src/webgpu/pages/prepare/sunFar.ts",
         "packages/sdk-browser/src/webgpu/pages/runtime.ts",
@@ -1870,7 +1871,10 @@
       "currentEntryPoints": ["trillion3d (common)"],
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
-      "affectedConsumers": ["packages/sdk-browser/src/bounce/probes.ts"],
+      "affectedConsumers": [
+        "packages/sdk-browser/src/bounce/probes.ts",
+        "packages/sdk-browser/src/world/core/worldBudget.test.ts"
+      ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/bounce/cascades\".createBounceCascades"
     },
@@ -6730,9 +6734,8 @@
       "classification": "public",
       "affectedConsumers": [
         "packages/sdk-browser/src/bounce/gridWgsl.ts",
-        "packages/sdk-browser/src/bounce/probes.ts",
-        "packages/sdk-browser/src/lighting/deferred/setup.ts",
-        "packages/sdk-browser/src/webgpu/pages/prepare/bounce.ts"
+        "packages/sdk-browser/src/bounce/limits.ts",
+        "packages/sdk-browser/src/lighting/deferred/setup.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/bounce/contracts\".PROBE_FLOATS"
