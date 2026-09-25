@@ -104,6 +104,10 @@ export type VisMaterial = {
   /** Width in CSS pixels the rasters widen a line quad to (`shader/lineWgsl.ts`); absent or
    *  zero on a surface that draws triangles. */
   lineWidth?: number;
+  /** A dashed line's dash and gap along the line, in world units (`shader/lineWgsl.ts`,
+   *  `lineDash`); absent on any other surface. */
+  dashSize?: number;
+  gapSize?: number;
 };
 
 export type UnpackedVisibility = { pageIndex: number; triangleIndex: number };

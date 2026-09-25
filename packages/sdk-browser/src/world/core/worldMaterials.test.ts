@@ -103,3 +103,26 @@ test('a replaced placement vector is let go, and writing the same one back moves
   map.repeat.set(3, 3);
   assert.equal(map.placement, placement + 1, 'the new vector is');
 });
+
+// #359: a dashed line's dash, gap and scale are values: written at run time, they repaint its
+// entry in place (#335); a mesh material's copy never gains a dash field it did not declare.
+test('a dash, a gap or a scale written at run time repaints the entry in place', () => {
+  const table = createWorldMaterials();
+  const ink = material.lineDashed({ dashSize: 0.3, gapSize: 0.2 });
+  const entry = table.entryOf(ink);
+  for (const [field, value] of [
+    ['dashSize', 0.5],
+    ['gapSize', 0.1],
+    ['scale', 2],
+  ] as const) {
+    ink[field] = value;
+    assert.equal(table.entryOf(ink), entry, field);
+    assert.deepEqual(table.takeRepainted(), [{ entry, values: true }]);
+    assert.equal(entry.material[field], value);
+  }
+  const paint = material.meshStandard();
+  const painted = table.entryOf(paint);
+  paint.roughness = 0.4;
+  assert.equal(table.entryOf(paint), painted);
+  assert.equal('dashSize' in painted.material, false);
+});
