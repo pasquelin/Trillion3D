@@ -113,14 +113,12 @@ export type ClusterRoot<T> = {
   world: MatrixElements;
   pages: T[];
   /** `bounds`: per-node bounds derived from the nodes and the pages, once at prepare time.
-   *  `links`: parent of each node and leaf node of each cluster, the same shared prepare.
-   *  `marks`: the nodes forcing touches, owned by this placement and zeroed each image. */
+   *  `links`: parent of each node and leaf node of each cluster, the same shared prepare. */
   culling?: {
     nodes: Float64Array;
     stride: number;
     bounds: Float64Array;
     links?: CullingLinks;
-    marks?: Int32Array;
   };
   /** Root world box, six bounds flat (`packages/sdk-core/src/math/primitives/box.ts`). */
   worldBox?: Float64Array;
@@ -130,8 +128,6 @@ export type ClusterRoot<T> = {
   stretch?: number;
   stretchKey?: Float64Array;
   structure?: ClusterStructureIndex;
-  forced?: Uint8Array;
-  forcedList?: number[];
   /** What the root declares of its normal cones, once and for all at prepare time: `false` says
    *  none of its pages carry one, and the cut then stops reading `cone` per cluster. Absent or
    *  `true`, the cut tests every page as before. Whoever sets a cone on a page sets this flag on
@@ -155,8 +151,3 @@ export type ClusterRoot<T> = {
   /** The instance-buffer row this root reads its world from, when it was collected from one. */
   placement?: PlacementOf;
 };
-
-/** Rounds of climb toward a resident ancestor before the CPU cut's pinned root cover takes over
- *  (`../cut/repair.ts`). The GPU cut has none: it draws the nearest resident ancestor
- *  (`../cut/rule.ts`). */
-export const ESCALATION_ROUNDS = 3;

@@ -838,7 +838,6 @@
       "residency": "Résidence et streaming",
       "residentPages": "Pages résidentes",
       "requestedPages": "Pages demandées",
-      "budgetThreshold": "Seuil du budget",
       "texturesPending": "Textures en attente",
       "texturesEvicted": "Textures évincées",
       "gpuAllocations": "Allocations GPU suivies",

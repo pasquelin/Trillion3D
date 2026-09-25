@@ -113,7 +113,7 @@ export function createWebgpuResidencySets(options: {
       return bootstrapKey[key] === 1 || wanted.has(key);
     },
     /** Applies one difference of what the cut asks for — its pages and the groups they close over
-     *  (`../cut/groupClosure.ts`): only the pages that entered and left are touched. */
+     *  (`../../page/cut/groupClosure.ts`): only the pages that entered and left are touched. */
     applyCut(delta: IdDelta) {
       askedKeys.apply(delta);
     },

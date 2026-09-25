@@ -7,7 +7,8 @@ import assert from 'node:assert/strict';
 import * as G from '../host/graph/graph.fixture.ts';
 import { maxStretch } from '../../../sdk-core/src/index.ts';
 import { cameraSelectionUniforms } from '../gpu/core/selection.ts';
-import { cutSelects, projectedClusterError } from '../page/selection/math.ts';
+import { clusterPixels, projectedClusterError } from '../page/selection/math.ts';
+import { drawsCluster } from '../page/cut/rule.ts';
 import { cameraMoteur } from '../camera/camera.fixture.ts';
 
 const FULL: [number, number] = [2496, 1404],
@@ -63,8 +64,12 @@ test('the cut at half the viewport under one pixel is the cut at the full viewpo
       parentError: radius * 0.01 * (1 + (i % 6)),
       parentSphere: null,
     };
-    const atHalf = cutSelects(rec, e, stretch, half, cam.near, 1),
-      atFull = cutSelects(rec, e, stretch, full, cam.near, 2);
+    const selects = (focal: number, threshold: number) => {
+      const [own, parent] = clusterPixels(rec, e, stretch, focal, cam.near, 1, new Float64Array(2));
+      return drawsCluster(true, parent, own, true, threshold);
+    };
+    const atHalf = selects(half, 1),
+      atFull = selects(full, 2);
     assert.equal(atHalf, atFull, `cluster ${i}`);
     if (atHalf) selectedAtHalf++;
   }

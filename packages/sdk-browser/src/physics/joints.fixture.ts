@@ -16,7 +16,7 @@ import { Mesh } from '../../../sdk-core/src/world/object/mesh.ts';
 import { Group } from '../../../sdk-core/src/world/object/object3d.ts';
 import { createPhysicsBodies } from './bodies.ts';
 import { createPhysicsJoints } from './joints.ts';
-import { startModule } from './module.fixture.ts';
+import { moduleRaycast, startModule } from './module.fixture.ts';
 import { physicsLink } from './physicsLink.ts';
 import { createPhysicsPoses } from './poses.ts';
 import { createPhysicsVehicles } from './vehicles.ts';
@@ -79,6 +79,8 @@ export async function jointRig(gravity: [number, number, number] = [0, -9.81, 0]
         vehicles.receive(jolt.vehicles().slice());
       }
     },
+    /** `world.raycast(ray, options)` against the bodies of the last step. */
+    raycast: moduleRaycast(jolt, bodies),
     /** A body's position after the last step. */
     at(mesh: Mesh) {
       const pose = poses.get(mesh.physics!._index);

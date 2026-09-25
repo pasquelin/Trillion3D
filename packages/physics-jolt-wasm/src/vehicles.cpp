@@ -7,7 +7,9 @@
 #include "words.h"
 
 #include <Jolt/Physics/Body/BodyLock.h>
+#include <Jolt/Physics/Collision/Shape/BoxShape.h>
 #include <Jolt/Physics/Collision/Shape/OffsetCenterOfMassShape.h>
+#include <Jolt/Physics/Collision/Shape/StaticCompoundShape.h>
 #include <Jolt/Physics/Vehicle/MotorcycleController.h>
 #include <Jolt/Physics/Vehicle/TrackedVehicleController.h>
 #include <Jolt/Physics/Vehicle/VehicleCollisionTester.h>
@@ -195,39 +197,59 @@ VehicleConstraintSettings settingsOf(const uint32_t *w, const Body &body, Vehicl
   return settings;
 }
 
-/// Gives `body` the shape `shape` and the mass properties the body was made with for it (its
-/// mass, the shape's inertia scaled to it: `commands.cpp`), keeping its origin where it is; the
+/// Gives `body` the shape `shape` and the mass properties the body was made with for `mass` (its
+/// mass, that shape's inertia scaled to it: `commands.cpp`), keeping its origin where it is; the
 /// joints on it follow their anchors.
-void reshape(Body &body, const Shape *shape) {
+void reshape(Body &body, const Shape *shape, const Shape *mass) {
   Vec3 moved = shape->GetCenterOfMass() - body.GetShape()->GetCenterOfMass();
   MotionProperties &motion = *body.GetMotionProperties();
-  MassProperties mass = shape->GetMassProperties();
-  mass.ScaleToMass(1.0f / std::max(motion.GetInverseMass(), 1e-9f));
+  MassProperties properties = mass->GetMassProperties();
+  properties.ScaleToMass(1.0f / std::max(motion.GetInverseMass(), 1e-9f));
   world().system->GetBodyInterfaceNoLock().SetShape(body.GetID(), shape, false, EActivation::Activate);
-  motion.SetMassProperties(motion.GetAllowedDOFs(), mass);
+  motion.SetMassProperties(motion.GetAllowedDOFs(), properties);
   for (const Ref<Constraint> &constraint : world().system->GetConstraints())
     constraint->NotifyShapeChanged(body.GetID(), moved);
 }
 
-/// The body of the VEHICLE command `w` with its centre of mass lowered to the bottom of its shape,
-/// midway between its wheels along and across, as Jolt's vehicle samples build theirs
-/// (`OffsetCenterOfMassShape`): a body of even density has it at mid-height, where a machine's
-/// heavy engine, floor and axles are not.
+/// The body of the VEHICLE command `w` made a vehicle's. Its centre of mass is lowered to the
+/// bottom of its shape, midway between its wheels along and across, as Jolt's vehicle samples
+/// build theirs (`OffsetCenterOfMassShape`): a body of even density has it at mid-height, where a
+/// machine's heavy engine, floor and axles are not. And its running gear is made solid: Jolt only
+/// casts its wheels, so another body would slip under the body among them. A box over the wheels'
+/// footprint, from the body's bottom down to their lowest point raised by the suspension's travel
+/// (at full bump the body sinks less than that: it never touches flat ground), joins the shape;
+/// the mass and inertia stay the body's own shape's.
 void lower(Body &body, const uint32_t *w) {
-  float x = 0, z = 0, count = float(w[4]);
-  for (const uint32_t *wheel = w + VEHICLE_WORDS; wheel < w + VEHICLE_WORDS + w[4] * WHEEL_WORDS; wheel += WHEEL_WORDS)
+  const uint32_t *first = w + VEHICLE_WORDS, *end = first + w[4] * WHEEL_WORDS;
+  float x = 0, z = 0, count = float(w[4]), travel = f32(w + 5 + 26);
+  AABox gear;
+  for (const uint32_t *wheel = first; wheel < end; wheel += WHEEL_WORDS) {
     x += f32(wheel), z += f32(wheel + 2);
+    float radius = f32(wheel + 3), half = f32(wheel + 4) / 2;
+    gear.Encapsulate(vec3(wheel) - Vec3(half, radius, radius));
+    gear.Encapsulate(vec3(wheel) + Vec3(half, radius, radius));
+  }
   const Shape &shape = *body.GetShape();
   Vec3 centre = shape.GetCenterOfMass();
-  Vec3 low(x / count, centre.GetY() + shape.GetLocalBounds().mMin.GetY(), z / count);
-  reshape(body, new OffsetCenterOfMassShape(&shape, low - centre));
+  // Jolt's local bounds are about the centre of mass; the wheels are in the body's frame.
+  float bottom = centre.GetY() + shape.GetLocalBounds().mMin.GetY();
+  Vec3 low(x / count, bottom, z / count);
+  Ref<Shape> mass = new OffsetCenterOfMassShape(&shape, low - centre);
+  gear.mMin.SetY(gear.mMin.GetY() + travel);
+  gear.mMax.SetY(bottom);
+  if (gear.mMin.GetY() >= bottom) return reshape(body, mass, mass);
+  StaticCompoundShapeSettings solid;
+  solid.AddShape(Vec3::sZero(), Quat::sIdentity(), &shape);
+  solid.AddShape(gear.GetCenter(), Quat::sIdentity(), new BoxShape(gear.GetExtent()));
+  Ref<Shape> hull = solid.Create().Get();
+  reshape(body, new OffsetCenterOfMassShape(hull, low - hull->GetCenterOfMass()), mass);
 }
 
 void remove(Vehicle &vehicle) {
   if (vehicle.constraint) {
     world().system->RemoveStepListener(vehicle.constraint);
     world().system->RemoveConstraint(vehicle.constraint);
-    reshape(*vehicle.constraint->GetVehicleBody(), vehicle.shape);
+    reshape(*vehicle.constraint->GetVehicleBody(), vehicle.shape, vehicle.shape);
   }
   vehicle = Vehicle();
 }

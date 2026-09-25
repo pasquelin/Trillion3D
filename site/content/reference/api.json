@@ -4561,11 +4561,6 @@
         "desc": "Requested detail needs more pages than the GPU page budget holds: the rest draws coarser."
       },
       {
-        "name": "budgetPixelError?",
-        "type": "number | null | undefined",
-        "desc": "WebGL2 only: the screen-error floor its page budget imposes on the cut, in pixels — `0` when the requested detail fits, otherwise the coarser threshold the image is drawn at. Absent on WebGPU, where residency alone coarsens the image. Null on engines without a page budget."
-      },
-      {
         "name": "frameHeld?",
         "type": "boolean | null | undefined",
         "desc": "True when the frame was held: neither the scene, nor the view, nor the resources moved, no asynchronous work was pending, and no CPU stage ran. The displayed pixels are those of the original frame, bit-exact. What the held frame DID is published as-is, never copied from the last complete render: `drawCalls`, `triangles`, `submittedTriangles` and `totalSubmittedTriangles` count only present, and per-stage CPU and GPU durations are zero when the stage did not run, `null` when nothing timed it. An engine whose image is a scene the witness adapter draws counts what that adapter submitted in this frame — nothing, on a held one. What the held frame SHOWS remains described by the cut it redisplays: `clusters`, `selectedTriangles`, `frustumRejected`, `lodLevel` and `residentPages` are those of the original frame, since it is the same cut. Absent from an engine that does not hold its frames."
@@ -11481,8 +11476,8 @@
     "section": "types",
     "kind": "Type",
     "title": "PhysicsPrimitive",
-    "signature": "type PhysicsPrimitive = | { type: 'box'; halfExtents: readonly [number, number, number] }\n  | { type: 'sphere'; radius: number }\n  | { type: 'capsule'; halfHeight: number; radius: number }\n  | { type: 'cylinder'; halfHeight: number; radius: number }",
-    "summary": "An exact primitive: its sizes in the object's own frame.",
+    "signature": "type PhysicsPrimitive",
+    "summary": "An exact primitive: its sizes in the object's own frame (a cylinder tapers from its top's `radius` to a `radiusBottom` that differs, as `geometry.cylinder` draws one).",
     "description": ""
   },
   {
@@ -19713,11 +19708,6 @@
         "name": "coverageBudgetLimited?",
         "type": "boolean | null | undefined",
         "desc": "Requested detail needs more pages than the GPU page budget holds: the rest draws coarser."
-      },
-      {
-        "name": "budgetPixelError?",
-        "type": "number | null | undefined",
-        "desc": "WebGL2 only: the screen-error floor its page budget imposes on the cut, in pixels — `0` when the requested detail fits, otherwise the coarser threshold the image is drawn at. Absent on WebGPU, where residency alone coarsens the image. Null on engines without a page budget."
       },
       {
         "name": "frameHeld?",

@@ -388,7 +388,6 @@
       "residency": "रेज़िडेंसी और स्ट्रीमिंग",
       "residentPages": "मेमोरी में मौजूद पेज",
       "requestedPages": "माँगे गए पेज",
-      "budgetThreshold": "बजट की सीमा",
       "texturesPending": "बाक़ी बचे टेक्स्चर",
       "texturesEvicted": "हटाए गए टेक्स्चर",
       "gpuAllocations": "नज़र रखा गया GPU आवंटन",
