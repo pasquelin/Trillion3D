@@ -812,8 +812,8 @@ serialized with ordinary rendering; translucency is excluded.
 ## Proofs
 
 `pnpm run test:gpu` runs every hardware proof (`tests/browser/probes/`, `tests/browser/renders/`)
-with the repository's own Playwright and esbuild, the machine's Chrome and its WebGPU device, and
-the assets under `.mesure/assets/` ([TESTS.md](TESTS.md)). The material proof
+with the repository's own Playwright and esbuild, the machine's Chrome and its WebGPU device, and the
+assets under `.mesure/assets/` ([TESTS.md](TESTS.md)). The material proof
 (`tests/browser/renders/witness-materials.browser.ts`) renders twelve fixtures against the WebGL2
 witness within one level per channel, except blending over an opaque surface, where the engine
 blends in linear radiance and the witness in display space: the fixture declares that 45-level gap
