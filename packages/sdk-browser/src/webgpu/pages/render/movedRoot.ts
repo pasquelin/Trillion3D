@@ -19,8 +19,8 @@ export type MovedRootTarget = {
  * so the table, the corners, the draw items and the shadow spheres travel for them alone, and the
  * partition forgets their occlusion verdict (`../../visibility/corners.ts`) while the rest of the
  * scene keeps its own. Its windings are computed again. The temporal pyramid, one
- * image of the whole scene, no longer describes it. A transparent placement claims no row: the
- * transparent corners are sent again. Returns the rows rewritten.
+ * image of the whole scene, no longer describes it. A transparent placement claims no visibility
+ * row: its caster rows move, and the transparent corners are sent again. Returns the rows rewritten.
  *
  * The table's age does not move: it rewrote every row, every corner and every transparent corner,
  * and dropped the whole scene's occlusion history, each image a model moved (#358).
@@ -34,9 +34,11 @@ export function moveRootRows(rt: MovedRootTarget, root: ClusterRoot<PageRec>) {
   for (const page of root.pages) {
     const index = page.packedIndex!;
     page.windingEpoch = undefined;
-    const row = rows.rowOfPage[index];
+    // A blended cluster moves its caster row (`../../row/blendCasters.ts`), which is its own.
+    const row = page.transparent ? rows.blendRowOf[index] : rows.rowOfPage[index];
+    if (!floats || row < 0) continue;
     // A rank the CPU cut left behind may name another page since: only a row that is this page's.
-    if (!floats || row < 0 || row >= rows.packedCount || rows.packedPageIndex[row] !== index)
+    if (!page.transparent && (row >= rows.packedCount || rows.packedPageIndex[row] !== index))
       continue;
     floats.set(page.matrix.elements, row * ROW_WORDS);
     rows.markRowDirty(row);
