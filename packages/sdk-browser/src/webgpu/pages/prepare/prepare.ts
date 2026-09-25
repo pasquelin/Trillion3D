@@ -19,8 +19,7 @@ import { throwIfStopped } from '../io/lost.ts';
 import { prepareWebgpuTextures } from './textures.ts';
 import { prepareWebgpuVisibility } from './visibility.ts';
 import { prepareDirectLights } from './lights.ts';
-import { createWebgpuPagesCache } from './cache.ts';
-import { grantedGeometryPool } from '../../residency/poolGrants.ts';
+import { grantWebgpuPagesCache } from './cache.ts';
 import { prepareGpuTiming } from './timing.ts';
 import { reserveRootBoxes } from '../../../math/batchBoxes.ts';
 import { type WebgpuPagesRuntime } from '../runtime.ts';
@@ -86,25 +85,6 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
         : 'texture-only',
     imageReadbackDuringRender: false,
   });
-  // Out of memory absorbed: the geometry pool is the one the device grants, its cache allocated
-  // once, under the out-of-memory scope (`poolGrants.ts`).
-  const setup = rt.setup;
-  const granted = await grantedGeometryPool(
-    gpuDevice,
-    setup.geometryPool.budgetBytes,
-    setup.geometryPoolFor,
-    diag.engineDiagnostic,
-    (pool) => {
-      const cache = createWebgpuPagesCache(rt, gpuDevice, pool.slots);
-      return { cache, destroy: () => void cache.dispose() };
-    },
-  );
-  // Refused even at its floor, the root cover: refused by name, never allocated at the full request
-  // outside any scope.
-  if (!granted) throw new Error('WEBGPU_GEOMETRY_POOL_REFUSED');
-  setup.geometryPool = granted.pool;
-  gpu.cache = granted.made.cache;
-  throwIfStopped(rt);
   ({
     bindGroupLayout: gpu.bindGroupLayout,
     pipelineBack: gpu.pipelineBack,
@@ -158,6 +138,8 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
     diag.diagnosticFailure('material-pipeline-failed', error);
     dropVis(rt);
   }
+  // Every vertex buffer is allocated by now: the geometry pool is drawn from what they leave.
+  await grantWebgpuPagesCache(rt, gpuDevice);
   if (blendState.blendGpu.length && !vis.blendPipelines) dropVis(rt);
   if (context.gpuCanvas && !vis.visEnabled) throw new Error('WEBGPU_MATERIAL_PIPELINE_UNAVAILABLE');
   if (context.gpuCanvas && blendState.blendGpu.length && !vis.blendPipelines)

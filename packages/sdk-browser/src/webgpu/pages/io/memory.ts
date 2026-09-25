@@ -14,6 +14,7 @@ import {
   textureProbe,
 } from '../../residency/poolGrants.ts';
 import type { TexturePool } from '../../residency/memoryBudgets.ts';
+import { geometryPoolDrawer } from '../prepare/cache.ts';
 
 /**
  * Changes memory pools mid-session, like the reference's variables — but without emptying what they
@@ -72,12 +73,13 @@ export async function setWebgpuMemoryBudgets(
     }
   }
   if (budgets.geometryPoolBytes !== undefined) {
-    const bytes = budgets.geometryPoolBytes;
-    let pool: GeometryPool | undefined = setup.geometryPoolFor(bytes);
+    // The vertex buffers held beside the slots are geometry too: the pool is drawn from what the
+    // budget leaves them, the budget recorded staying the one declared.
+    const bytes = budgets.geometryPoolBytes,
+      draw = geometryPoolDrawer(rt);
+    let pool: GeometryPool | undefined = draw(bytes);
     if (pool.slots !== setup.slots && gpu.cache && device && !run.lost)
-      pool = await probed(
-        grantedGeometryPool(device, bytes, setup.geometryPoolFor, diagnose, geometryProbe(device)),
-      );
+      pool = await probed(grantedGeometryPool(device, bytes, draw, diagnose, geometryProbe(device)));
     if (pool && pool.slots !== setup.slots && gpu.cache && !run.lost) {
       // The root cover keeps its place before any other page: the pool never goes below it, and a
       // cut can only be completed from it.
