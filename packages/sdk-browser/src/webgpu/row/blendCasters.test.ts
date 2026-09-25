@@ -7,7 +7,6 @@ import { blendFixture } from '../../page/selection/blend.fixture.ts';
 import type { ClusterManifest } from '../../../../sdk-core/src/index.ts';
 import { collectClusterPages, type PageRec } from '../../page/selection/selection.ts';
 import { FLAG_BLEND_CASTER, PAGE_INFO_STRIDE } from '../../visibility/buffer.ts';
-import { BLEND_DITHER } from '../../gpu/shadow/blendCoverage.ts';
 import { createPageRowWriter, ROW_BLEND_COVERAGE_WORD, ROW_FLAGS_WORD } from './pageRow.ts';
 import { createBlendCasterRows, NO_ROW } from './blendCasters.ts';
 import { createWebgpuRowState } from './state.ts';
@@ -70,9 +69,6 @@ function mount(pages: PageRec[], blendSlots: number) {
   return { rows, writer, casters, map, pins, restaled };
 }
 
-/** Texels a 4×4 block keeps at `coverage`: the shadow raster's test, `coverage > threshold`. */
-const kept = (coverage: number) => BLEND_DITHER.filter((threshold) => coverage > threshold).length;
-
 test('a blended caster is listed in a shadow-only row and pinned where the light cull reads', () => {
   const pages = catalogue(0.4);
   const { rows, casters, map, pins, restaled } = mount(pages, 1);
@@ -107,8 +103,6 @@ test('a blended caster is listed in a shadow-only row and pinned where the light
   casters.pin(map);
   assert.deepEqual(pins.at(-1), [1, NO_ROW]);
   assert.equal(casters.used, 0);
-  // Its shadow keeps its opacity's share of the map texels, which the PCF averages.
-  assert.equal(kept(0.4), Math.round(0.4 * 16));
 });
 
 test('a blended caster at opacity 0 casts nothing', () => {
@@ -117,10 +111,9 @@ test('a blended caster at opacity 0 casts nothing', () => {
   casters.pin(map);
   assert.equal(rows.blendRowOf[1], -1, 'no caster row');
   assert.deepEqual(pins, []);
-  assert.equal(kept(0), 0, 'and a coverage of zero keeps no texel');
 });
 
-test('a blended caster at opacity 1 casts as the same surface declared opaque', () => {
+test('a blended caster at opacity 1 writes the row of the surface declared opaque, at full coverage', () => {
   const blend = mount(catalogue(1), 1);
   blend.casters.refresh();
   const row = blend.rows.blendRowOf[1];
@@ -142,7 +135,6 @@ test('a blended caster at opacity 1 casts as the same surface declared opaque', 
   a[ROW_FLAGS_WORD] = b[ROW_FLAGS_WORD];
   a[ROW_BLEND_COVERAGE_WORD] = b[ROW_BLEND_COVERAGE_WORD];
   assert.deepEqual(a, b, 'the same geometry, pose and material words as the opaque caster');
-  assert.equal(kept(1), 16, 'every texel keeps its depth: the opaque depth, to the bit');
 });
 
 test('the opaque visibility tables are the same with or without blended casters', () => {

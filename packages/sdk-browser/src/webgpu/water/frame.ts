@@ -80,6 +80,7 @@ export async function createWaterFrame(device: GPUDevice) {
       next[12] = lighting.bounceGrid;
       next[13] = lighting.probes;
       next[14] = lighting.proxy;
+      next[15] = lighting.shadowTransmittance;
       if (!identity.moved()) return true;
       surfaces = gpu.surfaces;
       from.texture = gpu.hdrTexture;
@@ -101,6 +102,7 @@ export async function createWaterFrame(device: GPUDevice) {
           { binding: b.shadowData, resource: { buffer: lighting.shadowData } },
           { binding: b.shadowAtlas, resource: lighting.shadowAtlas },
           { binding: b.shadowSampler, resource: lighting.shadowSampler },
+          { binding: b.shadowTransmittance, resource: lighting.shadowTransmittance },
           { binding: b.bounceGrid, resource: { buffer: lighting.bounceGrid } },
           { binding: b.probes, resource: { buffer: lighting.probes } },
           { binding: b.proxy, resource: { buffer: lighting.proxy } },

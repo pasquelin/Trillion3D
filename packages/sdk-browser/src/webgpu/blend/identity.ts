@@ -37,6 +37,7 @@ export function voidStaleBlendGroups(rt: WebgpuPagesRuntime, lighting?: BlendLig
   next[21] = gpu.bindGroupLayout;
   next[22] = gpu.uniformBuffer;
   next[23] = gpu.zeroUv;
+  next[24] = lighting?.shadowTransmittance;
   if (!blendState.identity.moved()) return;
   blendState.pagedGroup = undefined;
   for (const item of blendState.blendGpu) item.group = undefined;

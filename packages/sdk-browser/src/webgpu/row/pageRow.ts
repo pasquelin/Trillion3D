@@ -15,7 +15,7 @@ import {
   PAGE_INFO_STRIDE,
   VIS_TRIANGLE_BITS,
 } from '../../visibility/buffer.ts';
-import { blendCoverage } from '../../gpu/shadow/blendCoverage.ts';
+import { blendCoverage } from '../../gpu/shadow/transmittance.ts';
 
 export const ROW_ID_BASE_WORD = 27,
   ROW_HIZ_SLOT_WORD = 31;
@@ -23,7 +23,7 @@ export const ROW_ID_BASE_WORD = 27,
  *  reads to cut a masked material, and so what a colour tile's arrival is matched against. */
 export const ROW_MAP_LAYER_WORD = 22,
   ROW_FLAGS_WORD = 23;
-/** Row word of a blended caster's coverage (`PageInfo.blendCoverage`): what its shadow keeps. */
+/** Row word of a blended caster's coverage (`PageInfo.blendCoverage`): the light it stops. */
 export const ROW_BLEND_COVERAGE_WORD = 57;
 /** Row word of the width a line page's quads widen to (`PageInfo.lineWidth`); zero for triangles. */
 export const ROW_LINE_WIDTH_WORD = 61;

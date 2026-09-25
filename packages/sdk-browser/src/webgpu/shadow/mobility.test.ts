@@ -93,3 +93,19 @@ test('under the CPU cut, a page the pool takes in or gives back is a change for 
   flush(false);
   assert.deepEqual(changed, [1, 1], 'only the page that left since');
 });
+
+// #35: a blended caster's shadow lives in the transmittance layer, which the static layer does
+// not keep: its row is drawn over every restored page, as a moving caster's.
+test("a blended caster's row always counts as moving", () => {
+  const mobility = createShadowMobility();
+  mobility.ensure(2, 4, () => new Float64Array(16));
+  mobility.writeRows(
+    (row) => [0, 1, 0, 1][row],
+    4,
+    0,
+    3,
+    () => {},
+    2,
+  );
+  assert.deepEqual([...mobility.rowWords], [0, 0, 1, 1]);
+});
