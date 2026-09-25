@@ -71,6 +71,9 @@ export interface WebgpuLightState {
   shadowPixelError: number;
   /** Image whose shadow pages are planned: a plan is made once per image (`planImageShadows`). */
   plannedFrame: number;
+  /** The batch `runs` and `regions` hold, pages `[from, to)` of image `frame`'s plan; −1 once
+   *  they no longer do (`../../shadow/pages.ts`). */
+  packedBatch: { frame: number; from: number; to: number };
   /** Light views the last image's cuts ran, every batch together; zero on a still frame. */
   lightRuns: number;
   /** The GPU cut seen from the lights, once a frame has drawn a shadow under the GPU cut. */
@@ -126,6 +129,7 @@ export function createWebgpuLightState(
     shadowSlots: new Int32Array(0),
     shadowPixelError: 0,
     plannedFrame: -1,
+    packedBatch: { frame: -1, from: -1, to: -1 },
     lightRuns: 0,
     lightCut: undefined,
     cpuCasters: undefined,
@@ -168,7 +172,8 @@ export function uploadSceneLights(device: GPUDevice, lights: WebgpuLightState) {
 }
 
 /** Closes the frame's shadow work: what its batches drew joins the cumulative total a host reads
- *  across frames and settle drains; a batch that could not be encoded drew nothing. */
+ *  across frames and settle drains; the pages from a batch that could not be encoded on are not
+ *  counted (`encodeShadowBatches.ts`). */
 export function noteShadowFrame(lights: WebgpuLightState) {
   lights.shadowPagesTotal += lights.shadowPages;
 }
