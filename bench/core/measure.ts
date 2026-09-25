@@ -66,19 +66,6 @@ const ligne = ({
   motif,
 });
 
-/** A row without figures: a documented benchmark point whose description replaces measurement. */
-export function ligneDecrite({
-  name,
-  fichier,
-  motif,
-}: {
-  name: string;
-  fichier: string | string[];
-  motif: string | null;
-}): Mesure {
-  return { name, fichier, resultats: [ligne({ name, motif })] };
-}
-
 const compteTexte = (c: Compteur) => `${c.nombre} discrepancy(ies), ${c.ulpMax} ULP at most`;
 
 interface VerifieConf<Entree, Sortie> {
