@@ -2,31 +2,23 @@
 // physics, the fixtures' water and bodies, and the THROWAWAY STAND-INS the engine does not draw
 // yet. Served under `/runner/` and imported by URL; only types come from the packages.
 import type * as SdkBrowser from '../witnesses/measurement.ts';
-import type { FluidsPayload, FloatingBody } from './fluids.ts';
+import type { FluidsPayload, FluidsScene } from './fluids.ts';
 import type { PhysicsPrimitive } from '../../packages/sdk-core/src/physics/options.ts';
 import { posterCapture } from './measurePage.ts';
 
 type Sdk = typeof SdkBrowser;
 
-/** A primitive's drawn geometry, at its place in the body's frame. */
+/** A primitive's drawn geometry at its place in the body's frame: the fixture's bodies are boxes
+ *  and spheres. */
 function drawnPart(sdk: Sdk, part: PhysicsPrimitive & { position?: readonly number[] }) {
-  const shape =
-    part.type === 'sphere'
-      ? sdk.geometry.sphere(part.radius, 16, 12)
-      : part.type === 'box'
-        ? sdk.geometry.box(
-            part.halfExtents[0] * 2,
-            part.halfExtents[1] * 2,
-            part.halfExtents[2] * 2,
-          )
-        : null;
-  if (!shape) throw new Error(`fluids page: no drawn shape for ${part.type}`);
   const [x, y, z] = part.position ?? [0, 0, 0];
-  return shape.translate(x, y, z);
+  if (part.type !== 'box') return sdk.geometry.sphere(part.radius, 16, 12).translate(x, y, z);
+  const [a, b, c] = part.halfExtents;
+  return sdk.geometry.box(a * 2, b * 2, c * 2).translate(x, y, z);
 }
 
 /** A floating body: a mesh drawn as its shape, a compound's parts as children of the first. */
-function floatingMesh(sdk: Sdk, body: FloatingBody) {
+function floatingMesh(sdk: Sdk, body: FluidsScene['bodies'][number]) {
   const wood = sdk.material.meshStandard({
     color: '#b7793f',
     roughness: 0.8,

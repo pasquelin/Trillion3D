@@ -1,23 +1,13 @@
 #!/usr/bin/env node
-// =====================================================================================
 // Measurement benchmark common to all batches. One command, no server to start manually:
-//
 //   node bench/runner/bench.ts --moteur webgl --avant <ref-git|dist> --apres <ref-git|dist> \
 //        --vues generale,sol,rue --images 60 --pixelError 0,1 --max-pages 100000
-//
-// `--moteur` is `webgl`, `webgpu` or `webgl2`; `--moteur-avant` and `--moteur-apres` redefine it
-// per side, setting an engine against Three witness in a single run,
-// same poses, same lights, same cache. All options described in `README.md`.
-//
+// All options described in `README.md`.
 // Harness writes `mesure.json`, `resume.md` and one PNG per view, per threshold and per side, plus
 // A/A witness capture. A field is `null` when not measured: nothing is inferred.
-// Each series runs in a fresh page: previous WebGL context and heap are returned to browser
-// before next requests one.
 // Everything it launches — static server, Chromium — it stops, including on error.
-//
 // NO SERIOUS TIMING IS PROMISED HERE: harness records durations and machine load at start/end
 // of each series. Caller judges if machine was quiet.
-// =====================================================================================
 import { execFileSync } from 'node:child_process';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
@@ -25,15 +15,16 @@ import type { Page } from 'playwright';
 import { launchChrome } from './chrome.ts';
 import * as options from './options.ts';
 import { startServer, type Capture } from '../../tests/kit/server/staticServer.ts';
-import { resume } from './summary.ts';
+import { readBounds } from './page.ts';
+import { imageDiff, resume } from './summary.ts';
+import { benchLights } from './lamps.ts';
 import { measurementProvenance } from './report/provenance.ts';
 import { recordInputs, recordCuts } from './report/evidence.ts';
-import { playViews } from './viewSeries.ts';
+import { runSerie } from './series.ts';
 import { FLUIDS_SCENE } from './scene.ts';
-import { fluidsLines, runFluids } from './fluids.ts';
-import { limitsLines } from './limits.ts';
-import type * as Limits from './limits.ts';
-import type { Report, RunContext } from './report/types.ts';
+import { FLUIDS_BOUNDS, fluidsLines, runFluids } from './fluids.ts';
+import { limitsLines, readLimits } from './limits.ts';
+import type { Report, RunContext, Serie } from './report/types.ts';
 
 const ROOT = resolve(dirname(new URL(import.meta.url).pathname), '../..');
 const {
@@ -58,8 +49,7 @@ async function main() {
   options.applySceneFlag(flags);
   const sides = rawSides.map((side) => options.equipSide(side, flags, settings));
   const FLAGS = [...new Set(sides.flatMap((side) => side.engine.flags))];
-  // Measured scene is from named caches; without any, benchmark reference scene. The fluids
-  // scene is built in the page (`fluids.ts`): it reads no cache.
+  // Measured scene is from named caches; without any, benchmark reference scene; fluids, none.
   const fluids = flags.get('scene') === FLUIDS_SCENE;
   const scene = fluids ? FLUIDS_SCENE : options.sceneOf(sides.find((side) => side.cache)?.cache);
   const MANIFEST = options.assetsManifest(scene, !fluids && sides.some((side) => !side.cache));
@@ -124,19 +114,64 @@ async function main() {
     }
   };
   try {
-    // The browser limits, with every run: served under `/runner/`, imported by the page.
-    report.limits = await onFreshPage((page) =>
-      page.evaluate(
-        async ({ module, sdkUrl }) => ((await import(module)) as typeof Limits).probeLimits(sdkUrl),
-        { module: '/runner/limits.ts', sdkUrl: options.sdkEntryUrl(sides[0]) },
-      ),
-    );
-    if (!fluids) await playViews(CTX, report, sides, views, captures, onFreshPage);
-    else
-      for (const side of sides)
-        (report.fluids ??= []).push(
-          await onFreshPage((page) => runFluids(page, side, settings, OUT, captures)),
+    // The browser limits, with every run.
+    report.limits = await onFreshPage((page) => readLimits(page, options.sdkEntryUrl(sides[0])));
+    // The fluids scene has its own box and camera: it plays no view of the cache poses.
+    report.bounds = fluids
+      ? FLUIDS_BOUNDS
+      : await onFreshPage((page) =>
+          page.evaluate(readBounds, {
+            sdkUrl: options.sdkEntryUrl(sides[0]),
+            manifestUrl: sides[0].manifestUrl ?? MANIFEST,
+          }),
         );
+    if (fluids) report.fluids = await runFluids(sides, onFreshPage, settings, OUT, captures);
+    const bounds = report.bounds;
+    // Lights once bounds are known: geometric rule, no named scene.
+    CTX.lights = benchLights(bounds, settings);
+    report.lampes = CTX.lights ? CTX.lights.resume : null;
+    for (const pixelError of settings.pixelErrors)
+      for (const view of fluids ? [] : views) {
+        const index = options.VIEWS[view].index;
+        const pose = options.poseAt(bounds, index);
+        // Moving camera: one pose per measured frame along benchmark trajectory.
+        CTX.poses = settings.movingCamera
+          ? Array.from({ length: settings.frames }, (_, i) => options.poseAt(bounds, index + i))
+          : null;
+        const serie: Serie = {
+          view,
+          pixelError,
+          segment: options.VIEWS[view].segment,
+          index,
+          pose,
+          sides: {},
+        };
+        report.series.push(serie);
+        const files: Record<string, string> = {};
+        for (const side of sides) {
+          const { row, captureFile } = await onFreshPage((page) =>
+            runSerie(CTX, page, side, view, pixelError, pose, captures),
+          );
+          serie.sides[side.name] = row;
+          files[side.name] = captureFile;
+        }
+        // A/A witness: same side run twice, compared with itself. Shows what zero is.
+        const temoin = await onFreshPage((page) =>
+          runSerie(CTX, page, sides[0], view, pixelError, pose, captures, '-aa'),
+        );
+        serie.sides[`${sides[0].name}-aa`] = temoin.row;
+        serie.temoinAA = imageDiff(
+          captures.get(files[sides[0].name]),
+          captures.get(temoin.captureFile),
+        );
+        serie.ecartAvantApres = files.avant
+          ? imageDiff(captures.get(files.avant), captures.get(files.apres))
+          : null;
+        const avant = serie.sides.avant,
+          apres = serie.sides.apres;
+        serie.coupeIdentique =
+          avant && apres ? avant.selection.sha256 === apres.selection.sha256 : null;
+      }
   } finally {
     await new Promise((done) => server.close(done));
   }
@@ -144,8 +179,8 @@ async function main() {
   report.finishedAt = new Date().toISOString();
   recordCuts(report, sides, OUT);
   await writeFile(join(OUT, 'mesure.json'), JSON.stringify(report, null, 1));
-  const appendix = [...limitsLines(report.limits), ...fluidsLines(report.fluids)].join('\n');
-  await writeFile(join(OUT, 'resume.md'), `${resume(report)}\n${appendix}\n`);
+  const appendix = [...limitsLines(report.limits), ...fluidsLines(report.fluids)];
+  await writeFile(join(OUT, 'resume.md'), [resume(report), ...appendix].join('\n'));
   process.stdout.write(`\nJSON: ${join(OUT, 'mesure.json')}\nSummary: ${join(OUT, 'resume.md')}\n`);
   if (report.errors.length) {
     process.stdout.write(`${report.errors.length} page error(s) recorded in the JSON\n`);
