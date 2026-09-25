@@ -40,8 +40,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
     cap = hostCeiling < Infinity ? hostCeiling : pageDefault,
     scene = hostPageScene(blendCopies);
   // The cut drawn, the cut wanted, and what the image asks the pool for (`imageCut.ts`).
-  const lists = { shown: [] as PageRec[], desired: [] as PageRec[], requested: [] as PageRec[] },
-    { shown } = lists;
+  const lists = { shown: [] as PageRec[], desired: [] as PageRec[], requested: [] as PageRec[] };
   const baseMaterials = new Map(allPages.map((rec) => [rec, rec.declaration] as const)),
     colorMaterials = new Map<HostMaterial, HostMaterial>();
   const modifiedPages = new Set<string>();
@@ -140,7 +139,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
       );
       heldFloor.changed();
       ready = true;
-      for (const page of bootstrap) shown.push(page); // a spread overflows the stack on a large world
+      for (const page of bootstrap) lists.shown.push(page); // a spread overflows the stack
       sync();
       residency.keptChanged();
     },
@@ -182,7 +181,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
         lodLevel: state.lodLevel,
         submittedTriangles: geometryStore.state.submittedTriangles,
         totalSubmittedTriangles: hostDraw.counters()?.triangles ?? null,
-        drawCalls: attachedPages(shown),
+        drawCalls: attachedPages(lists.shown),
         coverageReady: ready,
         coverageBudgetLimited: state.overBudget || pool.budget.coverageBudgetLimited,
         frameHeld: state.frameHeld,
