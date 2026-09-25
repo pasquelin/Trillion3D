@@ -158,7 +158,8 @@ export async function measureFluids({
     const shot = await sdk.capture.buffer(world, { width, height });
     await posterCapture(captureFile, shot.data, shot.width, shot.height);
     const size = { width: canvas.width, height: canvas.height, dpr: devicePixelRatio };
-    return { ...result, bodies: stats().bodies, size };
+    // A context lost mid-run that threw nothing still voids the numbers: the row says so.
+    return { ...result, bodies: stats().bodies, size, lost };
   } finally {
     world.dispose();
     canvas.remove();

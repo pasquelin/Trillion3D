@@ -110,6 +110,7 @@ async function fluidsRow(
     physicsMainMs: distribution(result.physicsMainMs),
     canvas: result.size,
     png: capture ? payload.captureFile : null,
+    incidentsGpu: result.lost.length ? result.lost : null,
     charge: { debut: loadAtStart, fin: machineLoad() },
   };
 }
@@ -125,10 +126,10 @@ export async function runFluids(
 ) {
   const scene = fluidsScene(),
     rows: FluidsRow[] = [];
-  for (const side of sides) {
-    const payload = fluidsPayload(side, settings, scene);
-    rows.push(await onFreshPage((page) => fluidsRow(side.name, page, payload, out, captures)));
-  }
+  // Every side is checked before the first runs: a side that cannot draw the scene wastes none.
+  const payloads = sides.map((side) => fluidsPayload(side, settings, scene));
+  for (const [i, side] of sides.entries())
+    rows.push(await onFreshPage((page) => fluidsRow(side.name, page, payloads[i], out, captures)));
   return rows;
 }
 
@@ -154,6 +155,7 @@ export function fluidsLines(rows: FluidsRow[] | undefined) {
       `### ${r.side}: GPU passes`,
       '',
       ...passes(r.passesGpu),
+      ...(r.incidentsGpu ? [`- GPU incidents: ${r.incidentsGpu.join(', ')}`] : []),
       `- Machine load at start ${r.charge.debut.join(' ')}, at end ${r.charge.fin.join(' ')}`,
       '',
     ]),
