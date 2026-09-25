@@ -12,6 +12,10 @@ import { cookedBytes, tilePose, type Model } from './tilePlace.ts';
 
 /** How far, relatively, a model's scale may stray from the one its soft bodies were cooked at. */
 const SCALE_TOLERANCE = 1e-4;
+const near = (s: number, at: number) => Math.abs(s - at) <= SCALE_TOLERANCE * Math.abs(at);
+/** Whether `scale`, a soft body's world scale, is `at`, the one it was cooked at. */
+const fits = (scale: { x: number; y: number; z: number }, at: CookedSoftBody['scale']) =>
+  near(scale.x, at[0]) && near(scale.y, at[1]) && near(scale.z, at[2]);
 
 /**
  * The cooked soft bodies of the compiled models in a scene (`physics.json` `softBodies`): each
@@ -42,28 +46,24 @@ export function createCookedSoftBodies(
       settings.set(soft, (bytes = cookedBytes(model, soft.settings.url, 'Soft body settings')));
     return bytes;
   }
-  /** Whether `pose`, a world pose of `soft`, is at the scale it was cooked at. */
-  const fits = (pose: ReturnType<typeof tilePose>, { scale: at }: CookedSoftBody) =>
-    pose.scale.toArray().every((s, k) => Math.abs(s - at[k]) <= SCALE_TOLERANCE * Math.abs(at[k]));
-  /** `soft`'s world pose in `model` (scratch); at another scale than the one it was cooked at,
-   *  `soft` is listed refused in `opening`, and refused by name. */
-  function poseOf(model: Model, opening: Opening, soft: CookedSoftBody) {
-    const pose = tilePose({ model, instance: soft });
-    if (!fits(pose, soft)) {
-      opening.refused.push(soft);
-      throw new EngineError(
+  /** Lists `soft` refused in `opening`, and refuses it by name: at another scale than it was
+   *  cooked at. */
+  function refuse(opening: Opening, soft: CookedSoftBody) {
+    opening.refused.push(soft);
+    failed(
+      new EngineError(
         'PHYSICS_FAILED',
         `The soft body of node ${soft.node} was cooked at scale ${soft.scale.join(', ')}: its model is placed at another.`,
         { node: soft.node },
-      );
-    }
-    return pose;
+      ),
+    );
   }
   async function add(model: Model, opening: Opening, soft: CookedSoftBody) {
     const cooked = await settingsOf(model, soft);
     // Forgotten or opened again meanwhile: this opening's bodies are no longer wanted.
     if (held.get(model) !== opening) return;
-    const { position, quaternion } = poseOf(model, opening, soft);
+    const { position, quaternion, scale } = tilePose({ model, instance: soft });
+    if (!fits(scale, soft.scale)) return refuse(opening, soft);
     const p = new ObjectPhysics(soft.physics);
     const id = bodies.claim(0, soft.vertices);
     // Held at once: a throw below still leaves the slot for `forget` to release.
@@ -76,6 +76,9 @@ export function createCookedSoftBodies(
     writeSoftBody(writer, id, p, matter, pose, record, flags);
     invalidate();
   }
+  /** Restores `soft` in `opening`, a failure reported. */
+  const start = (model: Model, opening: Opening, soft: CookedSoftBody) =>
+    void add(model, opening, soft).catch((error) => failed(error as EngineError));
   const forget = (model: Model) => {
     held.get(model)?.made.forEach(({ slot }) => bodies.release(slot));
     held.delete(model);
@@ -85,8 +88,7 @@ export function createCookedSoftBodies(
     forget(model);
     const opening: Opening = { made: [], refused: [] };
     held.set(model, opening);
-    for (const soft of softBodies)
-      add(model, opening, soft).catch((error) => failed(error as EngineError));
+    for (const soft of softBodies) start(model, opening, soft);
   }
   return {
     open,
@@ -98,23 +100,30 @@ export function createCookedSoftBodies(
     moved(model: Model) {
       const opening = held.get(model);
       if (!opening) return;
-      const refused = opening.refused.splice(0);
-      opening.made = opening.made.filter(({ soft, physics, slot }) => {
-        try {
-          const { position, quaternion } = poseOf(model, opening, soft);
-          writer.teleport(slot, position, quaternion);
-          writer.flags(slot, flagsOf({ physics, visible: model.visible }));
-          return true;
-        } catch (error) {
-          bodies.release(slot);
-          failed(error as EngineError);
-          return false;
+      // Back at its scale, a refused body is made again.
+      if (opening.refused.length) {
+        const refused = opening.refused;
+        opening.refused = [];
+        for (const soft of refused)
+          if (fits(tilePose({ model, instance: soft }).scale, soft.scale))
+            start(model, opening, soft);
+          else opening.refused.push(soft);
+      }
+      // Compacted in place: a model moved every frame makes no new list.
+      const { made } = opening;
+      let kept = 0;
+      for (const body of made) {
+        const { position, quaternion, scale } = tilePose({ model, instance: body.soft });
+        if (!fits(scale, body.soft.scale)) {
+          bodies.release(body.slot);
+          refuse(opening, body.soft);
+          continue;
         }
-      });
-      for (const soft of refused)
-        if (fits(tilePose({ model, instance: soft }), soft))
-          add(model, opening, soft).catch((error) => failed(error as EngineError));
-        else opening.refused.push(soft);
+        writer.teleport(body.slot, position, quaternion);
+        writer.flags(body.slot, flagsOf({ physics: body.physics, visible: model.visible }));
+        made[kept++] = body;
+      }
+      made.length = kept;
     },
     /** The model a cooked soft body's engine id belongs to, or `null`: what a ray on it hits. */
     modelOf(id: number) {

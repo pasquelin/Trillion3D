@@ -13,11 +13,12 @@ import { fromArrays } from '../../../sdk-core/src/world/geometry/builder.ts';
 import type { Geometry } from '../../../sdk-core/src/world/geometry/geometry.ts';
 import { body, startModule, type Module } from './module.fixture.ts';
 
-/** The engine ids (generation 1) of the floor in slot 0, the soft body in slot 1, the box in
- *  slot 2. */
-export const FLOOR = 1 << 24,
-  CLOTH = 1 | FLOOR,
-  BOX = 2 | FLOOR;
+/** Generation 1 of an engine id. */
+const GENERATION = 1 << 24;
+/** The engine ids of the floor in slot 0, the soft body in slot 1, the box in slot 2. */
+export const FLOOR = GENERATION,
+  CLOTH = 1 | GENERATION,
+  BOX = 2 | GENERATION;
 
 /** A box of `mass` kg and 0.2 m in slot 2, its centre at `y`, with `flags`. */
 export function addBox(jolt: Module, mass: number, y: number, flags = 0) {
