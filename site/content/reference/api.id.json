@@ -249,21 +249,15 @@
     "members": {
       "isBufferAttribute": "Selalu `true`: membedakan sebuah atribut buffer dari yang lain.",
       "type": "Bagaimana nilainya dideklarasikan; sebuah atribut half-float disimpan pada presisi float.",
-      "normalized": "Apakah bilangan bulat dibaca sebagai nilai antara 0 dan 1.",
       "version": "Dinaikkan setiap penulisan yang dideklarasikan: apa yang dibandingkan dunia untuk melihat konten berubah.",
       "array": "Angka-angkanya sendiri.",
-      "itemSize": "Berapa angka yang menjadi milik satu vertex: 3 untuk sebuah posisi.",
       "count": "Berapa banyak vertex yang dijelaskan angka-angkanya.",
-      "needsUpdate": "`attribute.needsUpdate = true` setelah menulis `array`: dunia membacanya ulang.",
-      "getComponent": "Angka `component` dari vertex `index`.",
-      "getX": "Angka pertama dari vertex `i`.",
-      "getY": "Angka kedua dari vertex `i`.",
-      "getZ": "Angka ketiga dari vertex `i`.",
-      "getW": "Angka keempat dari vertex `i`.",
-      "setXYZ": "Menulis tiga angka untuk vertex `i`.",
-      "setXY": "Menulis dua angka untuk vertex `i`.",
-      "setX": "Menulis angka pertama vertex `i`.",
-      "clone": "Atribut baru dengan salinan angka-angkanya."
+      "needsUpdate": "`needsUpdate = true` setelah menulis `array`: pembaca mengunggahnya lagi.",
+      "clone": "Atribut baru dengan salinan angka, tipenya, normalisasinya, dan namanya.",
+      "kind": "Atribut ini memiliki buffernya sendiri.",
+      "updateRanges": "Rentang `array` yang ditulis sejak unggahan terakhir, dikirim tersendiri.",
+      "addUpdateRange": "Menandai `count` angka mulai dari `start` sebagai tertulis.",
+      "clearUpdateRanges": "Melupakan rentang tertulis setelah diunggah."
     }
   },
   "BufferNumbers": {
@@ -722,7 +716,7 @@
     }
   },
   "DAG_ERROR_MODEL": {
-    "summary": "Identitas cache untuk galat DAG per-cluster: galat QEM grup diproyeksikan lewat bola grup."
+    "summary": "Identitas cache untuk galat DAG per klaster: galat QEM absolut grup atas posisi, normal, dan koordinat tekstur, dibatasi pada bentang grup; cache v1 ditolak."
   },
   "DEFAULT_SCOPE": {
     "summary": "Cakupan tempat sebuah model dikompilasi saat tidak ada yang disebutkan: streaming per halaman."
@@ -1450,7 +1444,10 @@
       "array": "Angka setiap vertex, dikemas satu demi satu.",
       "stride": "Berapa banyak angka yang diambil tiap vertex.",
       "count": "Berapa banyak vertex yang dikemasnya.",
-      "attribute": "Satu atribut dibaca keluar dari kemasan itu, sebagai atribut float miliknya sendiri."
+      "attribute": "Satu atribut dibaca keluar dari kemasan itu, sebagai atributnya sendiri.",
+      "kind": "Satu penyimpanan yang dilihat beberapa atribut.",
+      "version": "Dinaikkan oleh `needsUpdate`.",
+      "needsUpdate": "`needsUpdate = true` setelah menulis `array`: pembaca mengunggahnya lagi."
     }
   },
   "Intersection": {
@@ -7156,19 +7153,6 @@
       "handbrake": "Apakah rem tangan ditarik."
     }
   },
-  "GraphAttribute": {
-    "members": {
-      "count": "Berapa banyak vertex.",
-      "array": "Penyimpanannya.",
-      "kind": "Atribut ini memiliki buffernya sendiri.",
-      "version": "Dinaikkan oleh `needsUpdate`.",
-      "updateRanges": "Rentang `array` yang ditulis sejak unggahan terakhir, dikirim tersendiri.",
-      "addUpdateRange": "Menandai `count` angka mulai dari `start` sebagai tertulis.",
-      "clearUpdateRanges": "Melupakan rentang tertulis setelah diunggah.",
-      "needsUpdate": "`needsUpdate = true` setelah menulis `array`: pembaca mengunggahnya lagi."
-    },
-    "summary": "Atribut yang memiliki penyimpanannya: `itemSize` angka per verteks, berurutan."
-  },
   "GraphGeometry": {
     "members": {
       "attributes": "Atribut vertex-nya.",
@@ -7263,34 +7247,6 @@
       "rotation": "Rotasi, dalam radian."
     },
     "summary": "Sebuah gambar dan keadaan sampler yang dipakai untuk membacanya, serta transformasi koordinatnya."
-  },
-  "GraphArray": {
-    "summary": "Array bertipe yang disimpan sebuah atribut."
-  },
-  "GraphElements": {
-    "summary": "Salah satu dari dua jenis atribut."
-  },
-  "GraphInterleavedAttribute": {
-    "summary": "Atribut yang melihat `itemSize` angka pada `offset` dari setiap verteks buffer berselang-seling.",
-    "members": {
-      "kind": "Atribut ini melihat buffer bersama.",
-      "data": "Buffer yang dilihatnya.",
-      "offset": "Tempat angka-angkanya dimulai di setiap verteks.",
-      "array": "Penyimpanan tempat elemen berada.",
-      "count": "Berapa banyak verteks.",
-      "needsUpdate": "`needsUpdate = true` setelah menulis `array`: pembaca mengunggahnya lagi."
-    }
-  },
-  "GraphInterleavedBuffer": {
-    "summary": "Satu penyimpanan yang dilihat beberapa atribut, satu verteks setiap `stride` angka.",
-    "members": {
-      "kind": "Satu penyimpanan yang dilihat beberapa atribut.",
-      "count": "Berapa banyak verteks.",
-      "version": "Dinaikkan oleh `needsUpdate`.",
-      "array": "Penyimpanan.",
-      "stride": "Angka per verteks.",
-      "needsUpdate": "`needsUpdate = true` setelah menulis `array`: pembaca mengunggahnya lagi."
-    }
   },
   "GraphMesh": {
     "summary": "Node yang digambar: geometri dan permukaannya, atau satu permukaan per grup geometri.",
@@ -7392,6 +7348,142 @@
       "pulley": "Tali dari `a` melewati dua roda (`over`) turun ke `b`: satu naik saat yang lain turun.",
       "gear": "Dua roda yang berputar bersama menurut `ratio`, masing-masing pada pasaknya sendiri (`axis`, `axisB`) dan ditahan engselnya sendiri (roda sebagai `a`-nya); bila `ratio` atau 1 / `ratio` bulat, gigi-giginya juga menjaga fase saat dibuat.",
       "rackAndPinion": "Pinion `a` yang berputar pada `axis` menggerakkan batang gigi `b` sepanjang `axisB`, masing-masing ditahan engsel atau peluncurnya sendiri (benda sebagai `a`-nya), giginya tetap pada fase saat dibuat."
+    }
+  },
+  "InterleavedBufferAttribute": {
+    "summary": "Atribut yang melihat `itemSize` angka pada `offset` dari setiap verteks buffer berselang-seling.",
+    "members": {
+      "isInterleavedBufferAttribute": "Selalu `true`: membedakan tampilan berselang-seling dari yang lain.",
+      "kind": "Atribut ini melihat buffer bersama.",
+      "data": "Buffer yang dilihatnya.",
+      "offset": "Tempat angka-angkanya dimulai di setiap verteks.",
+      "array": "Penyimpanan tempat elemen berada.",
+      "count": "Berapa banyak vertex yang dijelaskan angka-angkanya.",
+      "needsUpdate": "`needsUpdate = true` setelah menulis `array`: pembaca mengunggahnya lagi.",
+      "clone": "Angka miliknya sendiri, disalin keluar dari kemasan ke atribut yang memilikinya."
+    }
+  },
+  "VertexAttribute": {
+    "summary": "Salah satu dari dua jenis atribut: memiliki penyimpanannya sendiri atau melihat penyimpanan berselang-seling."
+  },
+  "VertexElements": {
+    "summary": "Elemen-elemen dari satu atribut vertex, dibaca dan ditulis per komponen.",
+    "members": {
+      "name": "Nama yang dikenal untuk sebuah target morph; kosong untuk yang lain.",
+      "itemSize": "Berapa angka yang menjadi milik satu vertex: 3 untuk sebuah posisi.",
+      "normalized": "Apakah bilangan bulat dibaca sebagai nilai antara 0 dan 1.",
+      "array": "Penyimpanan tempat elemen berada.",
+      "count": "Berapa banyak vertex yang dijelaskan angka-angkanya.",
+      "stored": "Angka `component` dari vertex `index` seperti yang disimpan; bilangan bulat ternormalisasi tanpa diskalakan.",
+      "getComponent": "Angka `component` dari vertex `index`, dibaca sebagai angka yang diwakilinya.",
+      "setComponent": "Menulis angka `component` dari vertex `index`.",
+      "getX": "Angka pertama dari vertex `i`.",
+      "getY": "Angka kedua dari vertex `i`.",
+      "getZ": "Angka ketiga dari vertex `i`.",
+      "getW": "Angka keempat dari vertex `i`.",
+      "setX": "Menulis angka pertama vertex `i`.",
+      "setY": "Menulis angka kedua vertex `i`.",
+      "setZ": "Menulis angka ketiga vertex `i`.",
+      "setW": "Menulis angka keempat vertex `i`.",
+      "setXY": "Menulis dua angka untuk vertex `i`.",
+      "setXYZ": "Menulis tiga angka untuk vertex `i`."
+    }
+  },
+  "VEHICLE_SPECS": {
+    "summary": "Tiga mesin tempat kendaraan bermula, menurut jenis.",
+    "members": {
+      "car": "Chevrolet Corvette C5: penggerak roda belakang, 0,32 N·m per kilogram, enam gigi.",
+      "motorcycle": "Yamaha XJ900 beserta pengendaranya: 0,26 N·m per kilogram, enam gigi.",
+      "tracked": "Sebuah M1 Abrams: turbin gas, 0,083 N·m per kilogram, empat gigi."
+    }
+  },
+  "Vehicle": {
+    "summary": "Sebuah kendaraan: bodi yang dibawa di atas roda oleh batasan kendaraan Jolt, dengan mesin, girboks, diferensial, suspensi, dan batang anti-guling, dibuat oleh `vehicle.*` dan ditambahkan ke simulasi oleh `world.physics.add`.",
+    "description": "Ia sebuah `VehicleDriver`: `world.controls.vehicle = car` mengemudikannya.",
+    "parameters": {
+      "options": "Yang diterima `vehicle.*`: roda, dan berapa pun nilai mesin (`VehicleSpec`).",
+      "options.wheels": "Roda: mesh, anak dari bodi, masing-masing diletakkan di pusatnya seperti bertumpu di tanah datar, porosnya sepanjang x bodi. Jari-jari dan lebarnya dibaca dari batasnya. Bodi menghadap −z: roda depan berbelok.",
+      "options.torquePerKg": "Torsi puncak mesin per kilogram bodi, N·m/kg.",
+      "options.idleRPM": "Putaran langsam mesin, rpm.",
+      "options.maxRPM": "Garis merah mesin, rpm.",
+      "options.torqueCurve": "Hingga lima titik `[rpm / maxRPM, torsi / puncak]`, pecahan putaran menaik.",
+      "options.gears": "Hingga enam rasio gigi maju, gigi pertama lebih dulu.",
+      "options.reverse": "Rasio gigi mundur.",
+      "options.finalDrive": "Rasio gigi akhir (reduksi sproket kendaraan rantai).",
+      "options.shiftUpRPM": "Girboks naik gigi di atas ini, rpm.",
+      "options.shiftDownRPM": "Dan turun gigi di bawah ini, rpm.",
+      "options.clutch": "Torsi kopling per rad/s selip, N·m·s.",
+      "options.suspensionFrequency": "Frekuensi suspensi, Hz.",
+      "options.suspensionDamping": "Rasio redaman, dari 0 (tanpa) hingga 1 (kritis).",
+      "options.suspensionTravel": "Jarak gerak roda dari terentang penuh hingga tertekan penuh, meter.",
+      "options.antiRoll": "Kekakuan tiap batang anti-guling dibanding pegas porosnya; 0 berarti tanpa batang.",
+      "options.turnRadius": "Jari-jari belok pada setir penuh, meter.",
+      "options.steerTime": "Detik dari tengah hingga setir penuh.",
+      "options.brakeGrip": "Gesekan saat rem mengunci roda.",
+      "options.drive": "Roda penggerak sebuah mobil.",
+      "options.trackTurn": "Kecepatan trek bagian dalam kendaraan rantai saat berbelok, dibanding trek luar.",
+      "options.maxLean": "Kemiringan terbesar sebuah motor, dalam radian."
+    },
+    "members": {
+      "kind": "Apa kendaraan itu.",
+      "body": "Bodi yang dibawa roda.",
+      "wheels": "Roda, anak dari bodi.",
+      "spec": "Mesinnya: milik jenisnya (`VEHICLE_SPECS`), dengan opsi di atasnya.",
+      "input": "Pedal dan setir yang diterimanya sekarang.",
+      "speed": "Meter per detik ke depan setelah langkah terakhir, negatif ke belakang.",
+      "rpm": "Putaran mesin per menit setelah langkah terakhir.",
+      "gear": "Gigi setelah langkah terakhir: 1 ke atas maju, −1 mundur, 0 netral.",
+      "drive": "Menerima pedal dan setir setiap kali sebuah tombol mengubahnya, saat mulai dikemudikan, dan semuanya lepas saat berhenti dikemudikan."
+    }
+  },
+  "VehicleKind": {
+    "summary": "Kendaraan fisika, masing-masing di atas batasan kendaraan Jolt."
+  },
+  "VehicleOptions": {
+    "summary": "Yang diterima `vehicle.*`: roda, dan berapa pun nilai mesin (`VehicleSpec`).",
+    "members": {
+      "wheels": "Roda: mesh, anak dari bodi, masing-masing diletakkan di pusatnya seperti bertumpu di tanah datar, porosnya sepanjang x bodi. Jari-jari dan lebarnya dibaca dari batasnya. Bodi menghadap −z: roda depan berbelok."
+    }
+  },
+  "VehicleSpec": {
+    "summary": "Terbuat dari apa sebuah kendaraan: mesin, girboks, suspensi, kemudi, dan rem, tiap nilai bawaan milik mesin sungguhan (`VEHICLE_SPECS`).",
+    "members": {
+      "torquePerKg": "Torsi puncak mesin per kilogram bodi, N·m/kg.",
+      "idleRPM": "Putaran langsam mesin, rpm.",
+      "maxRPM": "Garis merah mesin, rpm.",
+      "torqueCurve": "Hingga lima titik `[rpm / maxRPM, torsi / puncak]`, pecahan putaran menaik.",
+      "gears": "Hingga enam rasio gigi maju, gigi pertama lebih dulu.",
+      "reverse": "Rasio gigi mundur.",
+      "finalDrive": "Rasio gigi akhir (reduksi sproket kendaraan rantai).",
+      "shiftUpRPM": "Girboks naik gigi di atas ini, rpm.",
+      "shiftDownRPM": "Dan turun gigi di bawah ini, rpm.",
+      "clutch": "Torsi kopling per rad/s selip, N·m·s.",
+      "suspensionFrequency": "Frekuensi suspensi, Hz.",
+      "suspensionDamping": "Rasio redaman, dari 0 (tanpa) hingga 1 (kritis).",
+      "suspensionTravel": "Jarak gerak roda dari terentang penuh hingga tertekan penuh, meter.",
+      "antiRoll": "Kekakuan tiap batang anti-guling dibanding pegas porosnya; 0 berarti tanpa batang.",
+      "turnRadius": "Jari-jari belok pada setir penuh, meter.",
+      "steerTime": "Detik dari tengah hingga setir penuh.",
+      "brakeGrip": "Gesekan saat rem mengunci roda.",
+      "drive": "Roda penggerak sebuah mobil.",
+      "trackTurn": "Kecepatan trek bagian dalam kendaraan rantai saat berbelok, dibanding trek luar.",
+      "maxLean": "Kemiringan terbesar sebuah motor, dalam radian."
+    }
+  },
+  "VehicleSpecs": {
+    "summary": "Mesin awal setiap jenis kendaraan.",
+    "members": {
+      "car": "Chevrolet Corvette C5: penggerak roda belakang, 0,32 N·m per kilogram, enam gigi.",
+      "motorcycle": "Yamaha XJ900 beserta pengendaranya: 0,26 N·m per kilogram, enam gigi.",
+      "tracked": "M1 Abrams: turbin gas, 0,083 N·m per kilogram, empat gigi."
+    }
+  },
+  "vehicle": {
+    "summary": "Keluarga `vehicle`: sebuah bodi dan rodanya, dikemudikan oleh `world.controls` `'vehicle'`.",
+    "members": {
+      "car": "Tiga roda atau lebih pada dua poros atau lebih, yang depan berbelok, yang `drive` menggerakkan.",
+      "motorcycle": "Dua roda, yang depan berbelok, yang belakang menggerakkan; ia tetap tegak sendiri.",
+      "tracked": "Roda di dua rantai, kiri dan kanan, masing-masing digerakkan roda paling belakangnya; berbelok dengan memperlambat satu rantai, dan berputar di tempat saat diam."
     }
   }
 }

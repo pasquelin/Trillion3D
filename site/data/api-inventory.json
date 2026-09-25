@@ -877,17 +877,30 @@
     {
       "name": "BufferAttribute",
       "kind": "both",
-      "definingModule": "packages/sdk-core/src/world/buffer/index.ts",
+      "definingModule": "packages/sdk-core/src/world/buffer/attribute.ts",
       "currentEntryPoints": ["trillion3d (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
       "affectedConsumers": [
+        "bench/witnesses/exact/attachment.ts",
+        "packages/sdk-browser/src/host/graph/geometry.ts",
+        "packages/sdk-browser/src/host/graph/graph.fixture.ts",
+        "packages/sdk-browser/src/host/graph/graph.test.ts",
+        "packages/sdk-browser/src/host/graph/mesh.ts",
+        "packages/sdk-browser/src/host/pageDiagnostics.ts",
+        "packages/sdk-browser/src/host/pageObjects.ts",
+        "packages/sdk-browser/src/host/prepared/accessors.ts",
+        "packages/sdk-browser/src/host/prepared/geometry.ts",
+        "packages/sdk-browser/src/host/prepared/graph.test.ts",
+        "packages/sdk-browser/src/webgl/cluster/meshDepth.test.ts",
+        "packages/sdk-browser/src/webgl/cluster/sceneDraw.test.ts",
+        "packages/sdk-browser/src/world/core/worldMirror.ts",
         "packages/sdk-browser/src/world/helper/index.ts",
         "packages/sdk-browser/src/world/saved/read.ts",
         "packages/sdk-browser/src/world/saved/saved.test.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"packages/sdk-core/src/world/buffer/index\".BufferAttribute"
+      "bindingIdentity": "\"packages/sdk-core/src/world/buffer/attribute\".BufferAttribute"
     },
     {
       "name": "BufferNumbers",
@@ -903,13 +916,13 @@
     {
       "name": "BufferTypedArray",
       "kind": "type",
-      "definingModule": "packages/sdk-core/src/world/buffer/index.ts",
+      "definingModule": "packages/sdk-core/src/world/buffer/elements.ts",
       "currentEntryPoints": ["trillion3d (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"packages/sdk-core/src/world/buffer/index\".BufferTypedArray"
+      "bindingIdentity": "\"packages/sdk-core/src/world/buffer/elements\".BufferTypedArray"
     },
     {
       "name": "camera",
@@ -936,6 +949,7 @@
         "packages/sdk-browser/src/physics/jointList.test.ts",
         "packages/sdk-browser/src/physics/physics.test.ts",
         "packages/sdk-browser/src/physics/session.ts",
+        "packages/sdk-browser/src/physics/vehicleList.test.ts",
         "packages/sdk-browser/src/physics/view.ts",
         "packages/sdk-browser/src/physics/water.test.ts",
         "packages/sdk-browser/src/physics/worldPhysics.ts",
@@ -2197,7 +2211,8 @@
       "classification": "public",
       "affectedConsumers": [
         "bench/oracles/browser/page-collection.ts",
-        "packages/sdk-browser/src/page/selection/template.ts"
+        "packages/sdk-browser/src/page/selection/template.ts",
+        "packages/sdk-browser/src/world/core/worldSource.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/contracts/base\".DAG_ERROR_MODEL"
@@ -3379,39 +3394,6 @@
       "bindingIdentity": "\"packages/sdk-core/src/runtime/stageProfile\".GpuTimingMethod"
     },
     {
-      "name": "GraphArray",
-      "kind": "type",
-      "definingModule": "packages/sdk-browser/src/host/graph/attributes.ts",
-      "currentEntryPoints": ["trillion3d (browser condition)"],
-      "proposedEnvironments": "browser",
-      "classification": "public",
-      "affectedConsumers": [],
-      "disposition": "retained",
-      "bindingIdentity": "\"packages/sdk-browser/src/host/graph/attributes\".GraphArray"
-    },
-    {
-      "name": "GraphAttribute",
-      "kind": "both",
-      "definingModule": "packages/sdk-browser/src/host/graph/attributes.ts",
-      "currentEntryPoints": ["trillion3d (browser condition)"],
-      "proposedEnvironments": "browser",
-      "classification": "public",
-      "affectedConsumers": ["bench/witnesses/exact/attachment.ts"],
-      "disposition": "retained",
-      "bindingIdentity": "\"packages/sdk-browser/src/host/graph/attributes\".GraphAttribute"
-    },
-    {
-      "name": "GraphElements",
-      "kind": "type",
-      "definingModule": "packages/sdk-browser/src/host/graph/attributes.ts",
-      "currentEntryPoints": ["trillion3d (browser condition)"],
-      "proposedEnvironments": "browser",
-      "classification": "public",
-      "affectedConsumers": ["bench/witnesses/three/fromGraph.ts"],
-      "disposition": "retained",
-      "bindingIdentity": "\"packages/sdk-browser/src/host/graph/attributes\".GraphElements"
-    },
-    {
       "name": "GraphGeometry",
       "kind": "both",
       "definingModule": "packages/sdk-browser/src/host/graph/geometry.ts",
@@ -3428,28 +3410,6 @@
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-browser/src/host/graph/geometry\".GraphGeometry"
-    },
-    {
-      "name": "GraphInterleavedAttribute",
-      "kind": "both",
-      "definingModule": "packages/sdk-browser/src/host/graph/attributes.ts",
-      "currentEntryPoints": ["trillion3d (browser condition)"],
-      "proposedEnvironments": "browser",
-      "classification": "public",
-      "affectedConsumers": [],
-      "disposition": "retained",
-      "bindingIdentity": "\"packages/sdk-browser/src/host/graph/attributes\".GraphInterleavedAttribute"
-    },
-    {
-      "name": "GraphInterleavedBuffer",
-      "kind": "both",
-      "definingModule": "packages/sdk-browser/src/host/graph/attributes.ts",
-      "currentEntryPoints": ["trillion3d (browser condition)"],
-      "proposedEnvironments": "browser",
-      "classification": "public",
-      "affectedConsumers": [],
-      "disposition": "retained",
-      "bindingIdentity": "\"packages/sdk-browser/src/host/graph/attributes\".GraphInterleavedBuffer"
     },
     {
       "name": "GraphMesh",
@@ -3571,6 +3531,7 @@
         "packages/sdk-browser/src/physics/joints.fixture.ts",
         "packages/sdk-browser/src/physics/physics.test.ts",
         "packages/sdk-browser/src/physics/poses.test.ts",
+        "packages/sdk-browser/src/physics/vehicleList.test.ts",
         "packages/sdk-browser/src/physics/water.test.ts",
         "packages/sdk-browser/src/scene/partition/boxes.test.ts",
         "packages/sdk-browser/src/scene/partition/cells.test.ts",
@@ -4098,13 +4059,24 @@
     {
       "name": "InterleavedBuffer",
       "kind": "both",
-      "definingModule": "packages/sdk-core/src/world/buffer/index.ts",
+      "definingModule": "packages/sdk-core/src/world/buffer/attribute.ts",
       "currentEntryPoints": ["trillion3d (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": [],
+      "affectedConsumers": ["packages/sdk-browser/src/host/prepared/accessors.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"packages/sdk-core/src/world/buffer/index\".InterleavedBuffer"
+      "bindingIdentity": "\"packages/sdk-core/src/world/buffer/attribute\".InterleavedBuffer"
+    },
+    {
+      "name": "InterleavedBufferAttribute",
+      "kind": "both",
+      "definingModule": "packages/sdk-core/src/world/buffer/attribute.ts",
+      "currentEntryPoints": ["trillion3d (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": ["packages/sdk-browser/src/host/prepared/accessors.ts"],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/src/world/buffer/attribute\".InterleavedBufferAttribute"
     },
     {
       "name": "Intersection",
@@ -4241,8 +4213,7 @@
         "packages/sdk-browser/src/physics/jointFrames.ts",
         "packages/sdk-browser/src/physics/jointList.ts",
         "packages/sdk-browser/src/physics/joints.fixture.ts",
-        "packages/sdk-browser/src/physics/joints.ts",
-        "packages/sdk-browser/src/physics/session.ts"
+        "packages/sdk-browser/src/physics/joints.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/physics/joint\".Joint"
@@ -4731,6 +4702,8 @@
         "packages/sdk-browser/src/physics/joints.fixture.ts",
         "packages/sdk-browser/src/physics/physics.test.ts",
         "packages/sdk-browser/src/physics/poses.test.ts",
+        "packages/sdk-browser/src/physics/vehicleList.test.ts",
+        "packages/sdk-browser/src/physics/vehicles.fixture.ts",
         "packages/sdk-browser/src/physics/water.test.ts",
         "packages/sdk-browser/src/placement/backendSceneUpdates.ts",
         "packages/sdk-browser/src/world/api/sceneApi.ts",
@@ -4766,6 +4739,8 @@
         "packages/sdk-browser/src/physics/joints.fixture.ts",
         "packages/sdk-browser/src/physics/physics.test.ts",
         "packages/sdk-browser/src/physics/poses.test.ts",
+        "packages/sdk-browser/src/physics/vehicleList.test.ts",
+        "packages/sdk-browser/src/physics/vehicles.fixture.ts",
         "packages/sdk-browser/src/physics/water.test.ts",
         "packages/sdk-browser/src/placement/backendSceneUpdates.ts",
         "packages/sdk-browser/src/world/api/sceneApi.ts",
@@ -5080,6 +5055,8 @@
         "packages/sdk-browser/src/physics/joints.fixture.ts",
         "packages/sdk-browser/src/physics/physics.test.ts",
         "packages/sdk-browser/src/physics/poses.test.ts",
+        "packages/sdk-browser/src/physics/vehicleList.test.ts",
+        "packages/sdk-browser/src/physics/vehicles.fixture.ts",
         "packages/sdk-browser/src/physics/water.test.ts",
         "packages/sdk-browser/src/world/controls/transformHandles.ts",
         "packages/sdk-browser/src/world/core/worldBatches.ts",
@@ -5426,6 +5403,7 @@
         "packages/sdk-browser/src/physics/poses.ts",
         "packages/sdk-browser/src/physics/raycast.ts",
         "packages/sdk-browser/src/physics/session.ts",
+        "packages/sdk-browser/src/physics/simulatedIds.ts",
         "packages/sdk-browser/src/physics/tilePlace.ts",
         "packages/sdk-browser/src/physics/tiles.ts",
         "packages/sdk-browser/src/physics/worldPhysics.ts",
@@ -6847,6 +6825,7 @@
       "affectedConsumers": [
         "packages/sdk-browser/src/physics/bodies.ts",
         "packages/sdk-browser/src/physics/tilePlace.ts",
+        "packages/sdk-browser/src/physics/vehicles.ts",
         "packages/sdk-browser/src/world/controls/transform.ts",
         "packages/sdk-browser/src/world/controls/transformDrag.ts",
         "packages/sdk-browser/src/world/controls/transformMath.test.ts",
@@ -9312,6 +9291,7 @@
         "packages/sdk-browser/src/physics/cooked.test.ts",
         "packages/sdk-browser/src/physics/raycast.ts",
         "packages/sdk-browser/src/physics/tilePlace.ts",
+        "packages/sdk-browser/src/physics/vehicles.ts",
         "packages/sdk-browser/src/physics/worldPhysics.ts",
         "packages/sdk-browser/src/world/controls/transform.test.ts",
         "packages/sdk-browser/src/world/controls/transform.ts",
@@ -9343,6 +9323,46 @@
       "bindingIdentity": "\"packages/sdk-core/src/world/math/vector2\".Vector4"
     },
     {
+      "name": "vehicle",
+      "kind": "value",
+      "definingModule": "packages/sdk-core/src/physics/vehicle.ts",
+      "currentEntryPoints": ["trillion3d (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [
+        "packages/sdk-browser/src/physics/vehicleList.test.ts",
+        "packages/sdk-browser/src/physics/vehicles.fixture.ts"
+      ],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/src/physics/vehicle\".vehicle"
+    },
+    {
+      "name": "Vehicle",
+      "kind": "both",
+      "definingModule": "packages/sdk-core/src/physics/vehicle.ts",
+      "currentEntryPoints": ["trillion3d (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [
+        "packages/sdk-browser/src/physics/jointList.ts",
+        "packages/sdk-browser/src/physics/joints.fixture.ts",
+        "packages/sdk-browser/src/physics/vehicles.ts"
+      ],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/src/physics/vehicle\".Vehicle"
+    },
+    {
+      "name": "VEHICLE_SPECS",
+      "kind": "value",
+      "definingModule": "packages/sdk-core/src/physics/vehicleSpec.ts",
+      "currentEntryPoints": ["trillion3d (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/src/physics/vehicleSpec\".VEHICLE_SPECS"
+    },
+    {
       "name": "VehicleDriver",
       "kind": "type",
       "definingModule": "packages/sdk-core/src/physics/vehicle.ts",
@@ -9365,10 +9385,82 @@
       "classification": "public",
       "affectedConsumers": [
         "packages/sdk-browser/src/camera/controls/vehicleControls.ts",
+        "packages/sdk-browser/src/physics/vehicles.fixture.ts",
         "packages/sdk-browser/src/world/core/worldControlTargets.test.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/physics/vehicle\".VehicleInput"
+    },
+    {
+      "name": "VehicleKind",
+      "kind": "type",
+      "definingModule": "packages/sdk-core/src/physics/vehicle.ts",
+      "currentEntryPoints": ["trillion3d (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": ["packages/sdk-browser/src/physics/vehicles.fixture.ts"],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/src/physics/vehicle\".VehicleKind"
+    },
+    {
+      "name": "VehicleOptions",
+      "kind": "type",
+      "definingModule": "packages/sdk-core/src/physics/vehicle.ts",
+      "currentEntryPoints": ["trillion3d (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": ["packages/sdk-browser/src/physics/vehicles.fixture.ts"],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/src/physics/vehicle\".VehicleOptions"
+    },
+    {
+      "name": "VehicleSpec",
+      "kind": "type",
+      "definingModule": "packages/sdk-core/src/physics/vehicleSpec.ts",
+      "currentEntryPoints": ["trillion3d (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/src/physics/vehicleSpec\".VehicleSpec"
+    },
+    {
+      "name": "VehicleSpecs",
+      "kind": "type",
+      "definingModule": "packages/sdk-core/src/physics/vehicleSpec.ts",
+      "currentEntryPoints": ["trillion3d (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/src/physics/vehicleSpec\".VehicleSpecs"
+    },
+    {
+      "name": "VertexAttribute",
+      "kind": "type",
+      "definingModule": "packages/sdk-core/src/world/buffer/attribute.ts",
+      "currentEntryPoints": ["trillion3d (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [
+        "bench/witnesses/three/fromGraph.ts",
+        "packages/sdk-browser/src/host/graph/geometry.ts",
+        "packages/sdk-browser/src/host/prepared/accessors.ts",
+        "packages/sdk-browser/src/host/resources.ts"
+      ],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/src/world/buffer/attribute\".VertexAttribute"
+    },
+    {
+      "name": "VertexElements",
+      "kind": "both",
+      "definingModule": "packages/sdk-core/src/world/buffer/elements.ts",
+      "currentEntryPoints": ["trillion3d (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/src/world/buffer/elements\".VertexElements"
     },
     {
       "name": "viewToRenderOrigin",

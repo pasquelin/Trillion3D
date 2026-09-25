@@ -2,9 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createGpuPresenter } from './presentation.ts';
 import { claimGpuDevice } from './deviceOwners.ts';
+import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 
 test('presentation acquires a fresh canvas target after resizing, shared by fused and copy paths', () => {
-  Object.assign(globalThis, { GPUShaderStage: { FRAGMENT: 2 } });
   const sizes: number[][] = [],
     views: object[] = [],
     passes: GPURenderPassDescriptor[] = [];
@@ -32,13 +32,7 @@ test('presentation acquires a fresh canvas target after resizing, shared by fuse
       },
     }),
   } as unknown as HTMLCanvasElement;
-  const device = {
-    createBindGroupLayout: () => ({}),
-    createShaderModule: () => ({}),
-    createRenderPipeline: () => ({}),
-    createPipelineLayout: () => ({}),
-    createBindGroup: () => ({}),
-  } as unknown as GPUDevice;
+  const { device } = fakeDevice();
   const encoder = {
     beginRenderPass(descriptor: GPURenderPassDescriptor) {
       passes.push(descriptor);
@@ -67,7 +61,6 @@ test('presentation acquires a fresh canvas target after resizing, shared by fuse
 });
 
 test("a session's canvas is configured with the device itself, not the session's handle", () => {
-  Object.assign(globalThis, { GPUShaderStage: { FRAGMENT: 2 } });
   let given: GPUDevice | undefined;
   const canvas = {
     getContext: () => ({
@@ -75,14 +68,7 @@ test("a session's canvas is configured with the device itself, not the session's
       unconfigure() {},
     }),
   } as unknown as HTMLCanvasElement;
-  const made = () => ({});
-  const device = {
-    lost: new Promise(() => {}),
-    createBindGroupLayout: made,
-    createShaderModule: made,
-    createRenderPipeline: made,
-    createPipelineLayout: made,
-  } as unknown as GPUDevice;
+  const { device } = fakeDevice();
   const claim = claimGpuDevice(device, { error() {}, closedError() {}, lost() {} });
   createGpuPresenter(claim.device, canvas).dispose();
   assert.equal(given, device);

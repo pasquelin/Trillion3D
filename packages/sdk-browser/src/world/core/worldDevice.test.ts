@@ -38,7 +38,7 @@ test('a lost device is asked for again, and the session reopened on the new one'
     lostAt = NaN;
   const probe = async () => ({
     renderer: 'webgpu' as const,
-    gpuDevice: devices[asked++].device as unknown as GPUDevice,
+    gpuDevice: devices[asked++].device,
   });
   const held = holdWorldDevice(
     canvas,

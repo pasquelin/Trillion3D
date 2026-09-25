@@ -117,8 +117,10 @@ uint32_t jolt_step(uint32_t commandWords, float dt) {
   // A body removed awake was put to sleep by its removal: not a body of this step.
   w.deactivated.clear();
   trillion::moveCharacter(dt);
+  trillion::driveVehicles(dt);
   if (dt > 0) w.updateError = uint32_t(w.system->Update(dt, 1, w.temp, w.jobs));
   trillion::breakJoints(dt);
+  trillion::writeVehicles();
   trillion::writeCharacter();
   return trillion::writePoses();
 }
