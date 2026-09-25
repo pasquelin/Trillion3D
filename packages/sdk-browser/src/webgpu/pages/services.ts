@@ -140,7 +140,8 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
   // The two lower tiers: the casters the light cuts want, then the pages ahead of the camera.
   const tier = { keyOf: tracking.keyOf, room, closeOver: closure.closeOver };
   const shadowTier = createLowerTier(tier),
-    aheadTier = createLowerTier(tier);
+    aheadTier = createLowerTier(tier),
+    lowerTiers = [shadowTier.pages, aheadTier.pages];
   /** Whether an arrival can change the image; the held frame survives one that cannot. */
   const affectsImage = createImageRelevance({
     tracking,
@@ -158,7 +159,7 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     isLost: () => run.lost,
     traceEnabled: diag.traceEnabled,
     traceDiagnostic: diag.traceDiagnostic,
-    lowerTiers: () => [shadowTier.pages, aheadTier.pages],
+    lowerTiers: () => lowerTiers,
   });
   const residency = createWebgpuResidencyQueue({
     tracking,
@@ -173,7 +174,7 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     traceDiagnostic: diag.traceDiagnostic,
     diagnosticFailure: diag.diagnosticFailure,
   });
-  const publication = createWebgpuCutPublication(rt, residencySets, closure, aheadTier);
+  const publication = createWebgpuCutPublication(rt, residencySets, closure, aheadTier.offerIds);
   return {
     syncRows,
     syncRowsFromCut,
@@ -187,7 +188,6 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     ensureResident,
     residency,
     shadowTier,
-    aheadTier,
     affectsImage,
     queueCutResidency: residency.queueCutResidency,
     ...publication,
