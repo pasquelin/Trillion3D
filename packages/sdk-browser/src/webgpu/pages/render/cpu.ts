@@ -74,7 +74,7 @@ export function renderCpuCut(
   lightsEnd: number,
 ) {
   const { run, gpu, timing, services } = rt,
-    { bootstrapUrls, slots, viewport } = rt.setup,
+    { bootstrapUrls, slots } = rt.setup,
     gpuDevice = gpu.device!;
   // The CPU cut rewrites the lists itself: no held image leans on its own.
   run.gate.resourcesChanged();
