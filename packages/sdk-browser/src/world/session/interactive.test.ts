@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { startInteractiveExplorer } from './interactive.ts';
+import type { MeasuredWorldOptions } from './options.ts';
 
 const listeners = { addEventListener() {}, removeEventListener() {} };
 /** A browser frame queue that runs nothing by itself: each test calls what it asked. */
@@ -16,7 +17,18 @@ function start(
     requestAnimationFrame: (callback: () => void) => unknown;
     cancelAnimationFrame: (id: number) => void;
   },
-  { width = 4, height = 4, pixelRatio = 1, config = { ownControls: false, pixelRatio: 1 } } = {},
+  {
+    width = 4,
+    height = 4,
+    pixelRatio = 1,
+    config = { ownControls: false, pixelRatio: 1 },
+  }: {
+    width?: number;
+    height?: number;
+    pixelRatio?: number;
+    /** The host's options the loop reads; the rest of a world's options stays out of it. */
+    config?: Partial<MeasuredWorldOptions>;
+  } = {},
 ) {
   const view = {
     ...schedule,
