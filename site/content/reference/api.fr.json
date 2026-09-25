@@ -4156,7 +4156,7 @@
   "object.sprite": {
     "summary": "Une image plate toujours tournée vers la caméra, où qu’elle regarde : un carré d’une unité, dimensionné par l’échelle du sprite et tourné dans l’image par la `rotation` de son matériau.",
     "parameters": {
-      "material": "Ce que montre le carré : un `material.sprite`."
+      "material": "Ce que montre le carré : un `material.sprite` ; toute autre sorte lève une erreur."
     }
   },
   "Object3D": {
@@ -7615,10 +7615,11 @@
   },
   "Sprite": {
     "summary": "Une image plate toujours tournée vers la caméra : un carré d’une unité que chaque moteur de rendu tourne vers l’image au moment de dessiner, autour de la position du sprite.",
-    "description": "Sa taille est son échelle dans le monde sur `x` et `y` ; sa rotation dans le plan de l’image est la `rotation` de son matériau ; sa propre rotation n’est pas lue. Un sprite ne projette pas d’ombre.",
+    "description": "Sa taille est son échelle dans le monde sur `x` et `y` ; sa rotation dans le plan de l’image est la `rotation` de son matériau ; sa propre rotation n’est pas lue. Un sprite ne projette pas d’ombre. Comme le `Sprite` de la référence, qui ne prend qu’un `SpriteMaterial`, il ne porte qu’un `material.sprite` : tout autre matériau, donné ou affecté, lève une `TypeError` qui nomme sa sorte.",
     "members": {
       "isSprite": "Toujours `true` : distingue un sprite de tout autre maillage.",
-      "center": "Le point de l’image posé sur la position du sprite : `(0.5, 0.5)` son milieu, `(0, 0)` son coin en bas à gauche, `(0.5, 0)` le milieu de son bord du bas."
+      "center": "Le point de l’image posé sur la position du sprite : `(0.5, 0.5)` son milieu, `(0, 0)` son coin en bas à gauche, `(0.5, 0)` le milieu de son bord du bas.",
+      "material": "Le `material.sprite` du sprite ; affectez-en un autre pour le changer."
     }
   }
 }

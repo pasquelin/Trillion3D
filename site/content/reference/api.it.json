@@ -4148,7 +4148,7 @@
   "object.sprite": {
     "summary": "Un’immagine piatta sempre rivolta verso la camera, ovunque guardi: un quadrato di un’unità, grande quanto la scala dello sprite e ruotato nell’immagine dalla `rotation` del suo materiale.",
     "parameters": {
-      "material": "Cosa mostra il quadrato: un `material.sprite`."
+      "material": "Cosa mostra il quadrato: un `material.sprite`; qualsiasi altro tipo lancia un errore."
     }
   },
   "Object3D": {
@@ -7615,10 +7615,11 @@
   },
   "Sprite": {
     "summary": "Un’immagine piatta sempre rivolta verso la camera: un quadrato di un’unità che ogni renderer ruota verso l’immagine mentre disegna, attorno alla posizione dello sprite.",
-    "description": "La sua dimensione è la sua scala nel mondo su `x` e `y`; la sua rotazione nel piano dell’immagine è la `rotation` del suo materiale; la sua rotazione propria non viene letta. Uno sprite non proietta ombra.",
+    "description": "La sua dimensione è la sua scala nel mondo su `x` e `y`; la sua rotazione nel piano dell’immagine è la `rotation` del suo materiale; la sua rotazione propria non viene letta. Uno sprite non proietta ombra. Come lo `Sprite` di riferimento, che accetta solo uno `SpriteMaterial`, indossa solo un `material.sprite`: qualsiasi altro materiale, passato o assegnato, lancia un `TypeError` che ne nomina il tipo.",
     "members": {
       "isSprite": "Sempre `true`: distingue uno sprite da qualsiasi altra mesh.",
-      "center": "Il punto dell’immagine che poggia sulla posizione dello sprite: `(0.5, 0.5)` il suo centro, `(0, 0)` il suo angolo in basso a sinistra, `(0.5, 0)` il centro del suo bordo inferiore."
+      "center": "Il punto dell’immagine che poggia sulla posizione dello sprite: `(0.5, 0.5)` il suo centro, `(0, 0)` il suo angolo in basso a sinistra, `(0.5, 0)` il centro del suo bordo inferiore.",
+      "material": "Il `material.sprite` dello sprite; assegnane un altro per cambiarlo."
     }
   }
 }

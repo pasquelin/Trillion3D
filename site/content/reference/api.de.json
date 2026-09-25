@@ -4148,7 +4148,7 @@
   "object.sprite": {
     "summary": "Ein flaches Bild, das immer zur Kamera zeigt, wohin sie auch schaut: ein Einheitsquadrat, groß wie die Skalierung des Sprites und im Bild gedreht um die `rotation` seines Materials.",
     "parameters": {
-      "material": "Was das Quadrat zeigt: ein `material.sprite`."
+      "material": "Was das Quadrat zeigt: ein `material.sprite`; jede andere Art wirft einen Fehler."
     }
   },
   "Object3D": {
@@ -7615,10 +7615,11 @@
   },
   "Sprite": {
     "summary": "Ein flaches Bild, das immer zur Kamera zeigt: ein Einheitsquadrat, das jeder Renderer beim Zeichnen zum Bild dreht, um die Position des Sprites.",
-    "description": "Seine Größe ist seine Weltskalierung auf `x` und `y`; seine Drehung in der Bildebene ist die `rotation` seines Materials; seine eigene Drehung wird nicht gelesen. Ein Sprite wirft keinen Schatten.",
+    "description": "Seine Größe ist seine Weltskalierung auf `x` und `y`; seine Drehung in der Bildebene ist die `rotation` seines Materials; seine eigene Drehung wird nicht gelesen. Ein Sprite wirft keinen Schatten. Wie das `Sprite` der Referenz, das nur ein `SpriteMaterial` annimmt, trägt es nur ein `material.sprite`: jedes andere Material, übergeben oder zugewiesen, wirft einen `TypeError`, der seine Art nennt.",
     "members": {
       "isSprite": "Immer `true`: unterscheidet ein Sprite von jedem anderen Mesh.",
-      "center": "Der Punkt des Bildes, der auf der Position des Sprites liegt: `(0.5, 0.5)` seine Mitte, `(0, 0)` seine linke untere Ecke, `(0.5, 0)` die Mitte seiner unteren Kante."
+      "center": "Der Punkt des Bildes, der auf der Position des Sprites liegt: `(0.5, 0.5)` seine Mitte, `(0, 0)` seine linke untere Ecke, `(0.5, 0)` die Mitte seiner unteren Kante.",
+      "material": "Das `material.sprite` des Sprites; weise ein anderes zu, um es zu ändern."
     }
   }
 }

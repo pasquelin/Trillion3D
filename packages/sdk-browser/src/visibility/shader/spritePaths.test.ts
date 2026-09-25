@@ -1,6 +1,7 @@
 // #364: every path that draws a sprite turns its quad with the one text (`spriteWgsl.ts`), reads
-// the sprite's words where its row, item or uniform carries them, and the shadow passes draw no
-// sprite, as the reference's casts none. A surface that is no sprite carries zeros and draws as
+// the sprite's words where its row, item or uniform carries them. The shadow passes draw no
+// sprite, as the reference's casts none, because no light cut selects one
+// (`spriteShadowCut.test.ts`): their vertex stage reads no sprite word. A surface that is no sprite carries zeros and draws as
 // before: its expressions stay, character for character, what they were.
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -37,7 +38,7 @@ test('the WGSL and GLSL texts are statement for statement the same formula', () 
   assert.equal(body(SPRITE_WGSL), body(SPRITE_GLSL));
 });
 
-test('every WebGPU raster turns a sprite page, the shadow passes skip it', () => {
+test('every WebGPU raster turns a sprite page, the shadow vertex stage is as before', () => {
   assert.match(PAGE_INFO_STRUCT_WGSL, /normalScale:f32,sprite:vec2f,padMetalUv/);
   assert.equal(ROW_SPRITE_WORD, 36, 'the row words of PageInfo.sprite');
   assert.ok(PAGE_GEOMETRY_WGSL.includes(SPRITE_WGSL));
@@ -58,7 +59,11 @@ test('every WebGPU raster turns a sprite page, the shadow passes skip it', () =>
       ' if(page.sprite.y!=0.0){w0=pageSprite(page,p0);w1=pageSprite(page,p1);w2=pageSprite(page,p2);}\n var c0=uni.viewProj*w0;',
     ),
   );
-  assert.ok(SHADOW_DEPTH_SHADER.includes('||kind!=blended||page.sprite.y!=0.0){out.position='));
+  assert.ok(
+    SHADOW_DEPTH_SHADER.includes(
+      ' if(vertexIndex>=page.indexCount||kind!=blended){out.position=vec4f(0.0,0.0,2.0,1.0);return out;}',
+    ),
+  );
 });
 
 test('the transparent pass, the fallback and WebGL2 turn a sprite with the same text', () => {

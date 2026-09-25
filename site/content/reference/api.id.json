@@ -6319,7 +6319,7 @@
   "object.sprite": {
     "summary": "Gambar datar yang selalu menghadap kamera, ke mana pun kamera melihat: persegi satuan, sebesar skala sprite dan diputar di dalam gambar oleh `rotation` materialnya.",
     "parameters": {
-      "material": "Apa yang ditampilkan persegi: sebuah `material.sprite`."
+      "material": "Apa yang ditampilkan persegi: sebuah `material.sprite`; jenis lain melempar galat."
     }
   },
   "orthographicProjection": {
@@ -7616,10 +7616,11 @@
   },
   "Sprite": {
     "summary": "Gambar datar yang selalu menghadap kamera: persegi satuan yang diputar setiap renderer ke arah gambar saat menggambar, di sekitar posisi sprite.",
-    "description": "Ukurannya adalah skala dunianya pada `x` dan `y`; putarannya di bidang gambar adalah `rotation` materialnya; rotasinya sendiri tidak dibaca. Sprite tidak menghasilkan bayangan.",
+    "description": "Ukurannya adalah skala dunianya pada `x` dan `y`; putarannya di bidang gambar adalah `rotation` materialnya; rotasinya sendiri tidak dibaca. Sprite tidak menghasilkan bayangan. Seperti `Sprite` referensi, yang hanya menerima `SpriteMaterial`, ia hanya memakai `material.sprite`: material lain, diberikan atau diset, melempar `TypeError` yang menyebut jenisnya.",
     "members": {
       "isSprite": "Selalu `true`: membedakan sprite dari mesh lain mana pun.",
-      "center": "Titik gambar yang berada di posisi sprite: `(0.5, 0.5)` tengahnya, `(0, 0)` sudut kiri bawahnya, `(0.5, 0)` tengah tepi bawahnya."
+      "center": "Titik gambar yang berada di posisi sprite: `(0.5, 0.5)` tengahnya, `(0, 0)` sudut kiri bawahnya, `(0.5, 0)` tengah tepi bawahnya.",
+      "material": "`material.sprite` milik sprite; set yang lain untuk menggantinya."
     }
   }
 }

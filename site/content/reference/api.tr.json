@@ -6326,7 +6326,7 @@
   "object.sprite": {
     "summary": "Kamera nereye bakarsa baksın her zaman kameraya dönük düz bir resim: sprite'ın ölçeği kadar büyük ve malzemesinin `rotation` değeriyle görüntüde döndürülmüş birim kare.",
     "parameters": {
-      "material": "Karenin gösterdiği: bir `material.sprite`."
+      "material": "Karenin gösterdiği: bir `material.sprite`; başka her tür hata fırlatır."
     }
   },
   "orthographicProjection": {
@@ -7615,10 +7615,11 @@
   },
   "Sprite": {
     "summary": "Her zaman kameraya dönük düz bir resim: her çizicinin çizim anında sprite'ın konumu etrafında görüntüye doğru döndürdüğü birim kare.",
-    "description": "Boyutu `x` ve `y` üzerindeki dünya ölçeğidir; görüntü düzlemindeki dönüşü malzemesinin `rotation` değeridir; kendi dönüşü okunmaz. Bir sprite gölge düşürmez.",
+    "description": "Boyutu `x` ve `y` üzerindeki dünya ölçeğidir; görüntü düzlemindeki dönüşü malzemesinin `rotation` değeridir; kendi dönüşü okunmaz. Bir sprite gölge düşürmez. Yalnızca bir `SpriteMaterial` alan referansın `Sprite`’ı gibi, yalnızca bir `material.sprite` taşır: verilen ya da atanan başka her malzeme, türünü adlandıran bir `TypeError` fırlatır.",
     "members": {
       "isSprite": "Her zaman `true`: bir sprite'ı diğer tüm meshlerden ayırır.",
-      "center": "Resmin sprite'ın konumuna oturan noktası: `(0.5, 0.5)` ortası, `(0, 0)` sol alt köşesi, `(0.5, 0)` alt kenarının ortası."
+      "center": "Resmin sprite'ın konumuna oturan noktası: `(0.5, 0.5)` ortası, `(0, 0)` sol alt köşesi, `(0.5, 0)` alt kenarının ortası.",
+      "material": "Sprite’ın `material.sprite`’ı; değiştirmek için başka birini atayın."
     }
   }
 }
