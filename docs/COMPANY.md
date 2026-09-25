@@ -47,7 +47,7 @@ and pull requests.
    CI refuses a PR out of draft without that section, and any PR without real `/simplify:` and
    `/code-review:` lines.
 4. After the merge:
-   - the issue closes, or stays open with `Part of #n` when work remains;
+   - the issue closes;
    - measurement and acceptance check it, and reopen it with `measure ko` / `audit ko` if needed.
 5. Limits at every moment:
    - each lead within the limits of AGENTS.md §Leads;
