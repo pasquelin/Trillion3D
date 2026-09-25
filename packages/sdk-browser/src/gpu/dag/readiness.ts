@@ -24,9 +24,7 @@ export function createDagReadiness(packed: PackedDag) {
       packed.pageCones.byteOffset,
       packed.pageCount,
     );
-  const worlds = packed.cutLinks.map((l) =>
-    createCutReadiness(l.structure, l.links),
-  );
+  const worlds = packed.cutLinks.map((l) => createCutReadiness(l.structure, l.links));
   /** Placements `set` touched since the last settle. */
   const dirty = new Set<number>();
   const pages: number[] = [],
