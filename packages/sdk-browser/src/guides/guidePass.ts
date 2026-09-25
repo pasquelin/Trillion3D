@@ -9,7 +9,7 @@ import {
 } from './guideShaders.ts';
 
 /** Label of the guide pass: its GPU time is read under this name, apart from the beauty passes. */
-export const GUIDE_PASS = 'Trillion3D guides';
+const GUIDE_PASS = 'Trillion3D guides';
 
 const STRIDE = GUIDE_INSTANCE_FLOATS * 4;
 
