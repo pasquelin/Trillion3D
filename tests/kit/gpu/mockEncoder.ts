@@ -69,6 +69,7 @@ export function createMockCommandEncoderFactory(inputs: {
           currentBind = group;
         },
         setViewport() {},
+        setVertexBuffer() {},
         draw(vertexCount: number, instanceCount = 1, _firstVertex = 0, firstInstance = 0) {
           draws.push({
             vertexCount,

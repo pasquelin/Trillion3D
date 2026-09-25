@@ -522,6 +522,45 @@ values another material shares — is copied on write and opens the session agai
 `world.diagnostic.sessions` counts the sessions a world has opened, so a page and a test see a
 reopen.
 
+### Guides: lines, points and helpers over the image
+
+`world.guides` draws what a page shows _about_ its scene — an axis, a grid, a box, a measured
+segment, a light's cone — without adding it to the scene. A guide is not cut into pages: it is
+drawn by a small pass of its own after the image is composed, as quads of a fixed width in
+device pixels (the drawing buffer's, not CSS pixels), hidden by whatever stands in front of it (the scene's depth is read, never
+written). It never enters temporal accumulation, so it does not smear behind a moving camera
+nor shimmer on a still one.
+
+```js
+const grid = world.guides.add(helper.grid(20, 20), { width: 1.5 }); // any helper, as it stands
+const ruler = world.guides.lines({ positions: [0, 0, 0, 4, 0, 0], color: '#ffd24a', width: 3 });
+const marks = world.guides.points({ positions: [0, 0, 0, 4, 0, 0], color: '#ffd24a', size: 8 });
+ruler.setVisible(false); // kept, not drawn
+grid.setTransform(model.matrixWorld); // placed again, e.g. every frame to follow a node
+marks.remove();
+```
+
+- `add(object, { width, size })` reads the line and point meshes of an object — every `helper`
+  builds them — in their material colours; triangles, like an arrow's head, are not guides.
+  `lines` takes two ends per segment, `points` one position per dot.
+- Every call answers a handle: `setVisible(on)`, `setTransform(matrix)` (sixteen column-major
+  numbers or a matrix), `remove()`. `world.guides.clear()` removes them all. Placing a guide
+  at the pose it already holds changes nothing, so a page may re-place it every frame and a still
+  view is still held.
+- The guides of a world hold at most `GUIDE_VERTEX_CEILING` (65,536) vertices, two per segment and
+  one per dot, hidden ones included; a call beyond it throws `EngineError` `GUIDE_CEILING` and
+  adds nothing. `world.guides.vertexCount` reads what is held.
+- Off by default and free when unused: while no guide is shown the pass is not built and not
+  encoded, and a still view is held as before. Changing a guide redraws one frame and leaves
+  temporal accumulation as it was.
+- Both paths draw them: WebGPU over its display target with the reversed depth, WebGL2 over the
+  composed frame with the forward depth. The WebGPU scene depth is drawn with the sub-pixel jitter
+  of temporal accumulation and the guides without it, so a guide lying on a surface is tested
+  with the depth that jitter moved there (the jitter times the surface's depth slope): a grid on
+  a floor or a box's edges stay whole on a still view. Positions are packed relative to the first guide, in
+  double precision, so a guide far from the origin keeps its detail.
+- Text labels are not guides yet (#264).
+
 ## Installation and environment API
 
 The package is private and installed from this repository or a local tarball; it is not published
@@ -813,7 +852,9 @@ Nothing lights an opaque surface except a light the host declared. There is no f
 no constant sky and no authored scene lighting: a surface no declared light reaches is exactly zero,
 so a windowless corridor stays black at noon. Emission is a material property and is always added.
 `world.exposure` sets the camera exposure, applied to linear radiance before tone mapping; it is not
-a light and cannot brighten a surface no light reaches. `scene.background` is the colour behind every
+a light and cannot brighten a surface no light reaches. Debug views are untouched by both: a
+`material.meshNormal()` or `material.meshDepth()` surface is output as stored, with neither exposure
+nor `world.toneMapping`, on both renderers, as in the reference. `scene.background` is the colour behind every
 object, `null` for the default; set, or written through its methods (`scene.background.setHSL(...)`,
 `set`, `setRGB`, `setHex`), it shows at the next frame on every renderer, the session kept. A direct
 write of `.r`, `.g` or `.b` is not heard: set `scene.background` again after one. A picture
@@ -1157,7 +1198,10 @@ rack, { axis, axisB, ratio })` slides the rack along `axisB` by `1 / ratio` metr
   weight on a quarter of its mean cross-section (`SOFT_FOOTPRINT`, declared), or the most its skin
   holds if less. A pressure past what its skin holds within a tenth of its rest volume is refused
   with a `RangeError`: its edges give by their `stretch` and by the solver's own compliance, one
-  substep squared over a vertex's mass, so a light, finely cut skin holds less. A soft body is a
+  substep squared over a vertex's mass, so a light, finely cut skin holds less. `friction`,
+  `restitution`, `gravityScale` and `damping: { linear }` act as on a rigid body, on each vertex;
+  `shape`, `sensor`, `ccd`, `decorative` and an angular damping are refused with a `RangeError`
+  (its vertices do not turn). A soft body is a
   direct child of the scene; moved by the page, it is made again there; it takes no velocity,
   impulse, joint or vehicle, and sends no contact event. Rigid bodies and the character collide
   with its vertices: the character is turned aside or stopped, never pushing it; a rigid body

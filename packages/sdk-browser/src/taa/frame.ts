@@ -4,6 +4,7 @@ import { TAA_WEIGHTS, taaWeightTable } from './weights.ts';
 import { SAMPLED_RANKS } from '../lighting/direct/lightSamplingWgsl.ts';
 import type { EngineCamera } from '../camera/world.ts';
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts';
+import type { AccumulatedImage } from '../lighting/deferred/program.ts';
 
 /** What the temporal pass keeps from one image to the next on the CPU side. */
 export interface TaaFrameState {
@@ -106,8 +107,8 @@ const anchored = new Float64Array(16),
   weights = taaWeightTable();
 
 /**
- * Encodes this image's temporal pass and returns the view composition must read — that of the lit
- * image when the image does not accumulate. Writes the uniform, updates placement motion, advances
+ * Encodes this image's temporal pass and returns the accumulated image composition must read —
+ * `undefined` when the image does not accumulate, and composition reads the lit one. Writes the uniform, updates placement motion, advances
  * the jitter rank and keeps the view-projection without jitter for the next image.
  */
 export function encodeTaaPass(
@@ -116,10 +117,11 @@ export function encodeTaaPass(
   encoder: GPUCommandEncoder,
   cam: EngineCamera,
   current: GPUTextureView,
-): GPUTextureView {
+): AccumulatedImage | undefined {
   const temporal = rt.gpu.temporal,
     { gpu, vis, run } = rt;
-  if (!temporal?.frame.active || !gpu.depthView || !vis.visView || !vis.pageTable) return current;
+  if (!temporal?.frame.active || !gpu.depthView || !gpu.surfaces || !vis.visView || !vis.pageTable)
+    return undefined;
   const state = temporal.frame,
     scene = run.gate.revisions.scene;
   if (!state.hasHistory) temporal.motion.reset();
@@ -149,6 +151,7 @@ export function encodeTaaPass(
   inputs.ids = vis.visView;
   inputs.pages = vis.pageTable;
   inputs.motion = temporal.motion.buffer;
+  inputs.flags = gpu.surfaces.views()[3];
   const output = temporal.encode(encoder, inputs);
   run.gpuDrawCalls++;
   state.sceneSeen = scene;

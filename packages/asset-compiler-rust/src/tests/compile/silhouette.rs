@@ -106,21 +106,23 @@ impl Grid {
     }
 }
 
+/// The source vertices a cooked page draws, three per triangle, from its index object.
+pub(in crate::tests) fn page_indices(objects: &Path, page: &Value) -> Vec<u32> {
+    let raw = fs::read(objects.join(format!("{}.bin", page["sha256"].as_str().expect("sha"))));
+    raw.expect("index object")
+        .as_chunks::<4>()
+        .0
+        .iter()
+        .map(|b| u32::from_le_bytes(*b))
+        .collect()
+}
+
 /// Each cut of `primitive` against `mesh`, its source, one line per defect.
 pub(in crate::tests) fn cut_defects(objects: &Path, primitive: &Value, mesh: &Mesh) -> Vec<String> {
     let pages = primitive["pages"].as_array().expect("pages");
     let indices: Vec<Vec<u32>> = pages
         .iter()
-        .map(|page| {
-            let raw =
-                fs::read(objects.join(format!("{}.bin", page["sha256"].as_str().expect("sha"))));
-            raw.expect("index object")
-                .as_chunks::<4>()
-                .0
-                .iter()
-                .map(|b| u32::from_le_bytes(*b))
-                .collect()
-        })
+        .map(|page| page_indices(objects, page))
         .collect();
     let error = |page: &Value, key: &str| page[key].as_f64().unwrap_or(f64::INFINITY);
     let mut thresholds: Vec<f64> = pages.iter().map(|p| error(p, "lodError")).collect();
