@@ -35,6 +35,9 @@ const checkBudget = (bytes: number, name: string) => {
 /** A texture budget refused by name before any pool is drawn from it. */
 export const checkTexturePoolBudget = (bytes: number) =>
   checkBudget(bytes, 'INVALID_TEXTURE_POOL_BUDGET');
+/** A geometry budget refused by name before any pool is drawn from it. */
+export const checkGeometryPoolBudget = (bytes: number) =>
+  checkBudget(bytes, 'INVALID_GEOMETRY_POOL_BUDGET');
 
 /**
  * Geometry page-pool slots for a budget in bytes — `r.Nanite.Streaming.
@@ -42,9 +45,8 @@ export const checkTexturePoolBudget = (bytes: number) =>
  * resident root pages outside the pool: a budget smaller than that cover is raised to it, by name.
  * A scene smaller than the budget takes only what it has, and a page cap (`maxResidentPages`, the
  * one benches and tests use) also bounds it, as does the session ceiling (`ceilingSlots`, what the
- * drawable-page tables have sized). Geometry the session holds outside the slots (`heldBytes`: the
- * vertex buffers of what no page covers) is drawn from the budget first, so the slots and it never
- * sum past it. Only the DEVICE limit can refuse, when even root coverage does not fit.
+ * drawable-page tables have sized). Only the DEVICE limit can refuse, when even root coverage does
+ * not fit.
  */
 export function geometryPoolFor(options: {
   budgetBytes: number;
@@ -53,14 +55,12 @@ export function geometryPoolFor(options: {
   rootPages: number;
   maxResidentPages?: number;
   ceilingSlots?: number;
-  heldBytes?: number;
   limits?: Parameters<typeof pageBufferCap>[0];
 }): GeometryPool {
   const { budgetBytes, pageBytes, uniquePages, maxResidentPages, ceilingSlots, limits } = options;
-  const { heldBytes = 0 } = options;
-  checkBudget(budgetBytes, 'INVALID_GEOMETRY_POOL_BUDGET');
+  checkGeometryPoolBudget(budgetBytes);
   const floor = Math.max(1, options.rootPages);
-  let slots = Math.floor(Math.max(0, budgetBytes - heldBytes) / pageBytes),
+  let slots = Math.floor(budgetBytes / pageBytes),
     clamp: PoolClamp = null;
   if (maxResidentPages !== undefined && maxResidentPages < slots) {
     slots = maxResidentPages;
