@@ -2077,5 +2077,31 @@
     "words": {
       "credit": "Valle modellata in codice per questo esempio, CC0 — vedi assets/examples/CREDITS.md"
     }
+  },
+  "cloth-and-rope": {
+    "banner": "La bandiera pende dall’asta e le corde oscillano sotto la trave. Irrigidisci la bandiera, o lascia allungare le corde.",
+    "controls": {
+      "stiff": "Bandiera rigida",
+      "stretch": "Allungamento corde",
+      "again": "Ancora",
+      "slowMotion": "Rallentatore"
+    },
+    "readouts": {
+      "vertices": "Vertici",
+      "step": "Passo"
+    }
+  },
+  "soft-bodies": {
+    "banner": "Lascia cadere volumi morbidi sul gradino. Regola la pressione del loro gas, o 0 per quella predefinita.",
+    "controls": {
+      "pressure": "Pressione (Pa)",
+      "drop": "Lascia",
+      "again": "Ancora",
+      "slowMotion": "Rallentatore"
+    },
+    "readouts": {
+      "volumes": "Volumi",
+      "awake": "Svegli"
+    }
   }
 }

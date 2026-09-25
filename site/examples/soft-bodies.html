@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Soft bodies</title>
+    <meta name="thumbnail" content="3" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #1b222c;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <script type="module">
+      // Waits for #573: the simulated vertices are uploaded in place, so the volumes are drawn as they squash.
+      import { createWorld, geometry, material, object, light, math } from '../runtime/engine.js';
+      import { controls, readout, seeded } from '../runtime/kit.js';
+
+      const world = createWorld('view', { controls: 'orbit', physics: true });
+      world.scene.background = math.color('#e6ecf2');
+
+      const floor = object.mesh(geometry.box(30, 1, 30), material.meshStandard({ color: '#a4aab3', physics: 'stone' }));
+      floor.position.y = -0.5;
+      floor.physics = 'static';
+      floor.receiveShadow = true;
+      // A step to bounce down: the volumes squash on its edge.
+      const step = object.mesh(geometry.box(4, 1, 6), material.meshStandard({ color: '#7d8691', physics: 'stone' }));
+      step.position.set(-2, 0.5, 0);
+      step.physics = 'static';
+      world.scene.add(floor, step);
+
+      // Closed meshes held up by the gas inside: each vertex is simulated, the gas presses on
+      // every triangle, and a squeezed volume pushes back as its pressure rises.
+      const shapes = [geometry.sphere(0.6, 20, 14), geometry.box(1, 1, 1, 4, 4, 4), geometry.capsule(0.35, 0.8, 6, 12)];
+      const colours = ['#e0533d', '#3d8be0', '#e0b43d', '#4fb36d'].map((c) => material.meshStandard({ color: c, roughness: 0.5 }));
+      const next = seeded(11);
+      let volumes = [];
+      const drop = (count, pressure) => {
+        for (let i = 0; i < count; i++) {
+          const shape = shapes[Math.floor(next() * shapes.length)];
+          const mesh = object.mesh(shape, colours[Math.floor(next() * colours.length)]);
+          mesh.position.set(-2 + (next() - 0.5) * 3, 3 + volumes.length * 0.9, (next() - 0.5) * 4);
+          mesh.rotation.set(next() * 3, next() * 3, next() * 3);
+          // Left out, the pressure rests each volume's weight on a quarter of its cross-section.
+          mesh.physics = { type: 'volume', pressure: pressure > 0 ? pressure : undefined };
+          mesh.castShadow = true;
+          world.scene.add(mesh);
+          volumes.push(mesh);
+        }
+      };
+      const clear = () => {
+        for (const mesh of volumes) world.scene.remove(mesh);
+        volumes = [];
+      };
+
+      const sun = light.directional({ intensity: 3, castShadow: true });
+      sun.position.set(6, 12, 8);
+      world.scene.add(sun, light.hemisphere({ intensity: 1.2, color: '#ffffff', groundColor: '#8d948c' }));
+      world.camera.position.set(6, 5, 9);
+      world.controls.target.set(-1, 1, 0);
+
+      const settings = controls(
+        {
+          pressure: [0, 50, 0, 5],
+          drop: () => drop(6, settings.pressure),
+          again: () => (clear(), drop(12, settings.pressure)),
+          slowMotion: false,
+        },
+        ({ slowMotion }) => (world.physics.timeScale = slowMotion ? 0.25 : 1),
+        world,
+      );
+      drop(12, settings.pressure);
+
+      const count = readout('volumes'), awake = readout('awake');
+      world.onFrame(() => {
+        count(String(volumes.length));
+        awake(String(world.physics.stats.active));
+      });
+    </script>
+  </body>
+</html>
