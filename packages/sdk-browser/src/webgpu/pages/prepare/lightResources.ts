@@ -1,4 +1,4 @@
-import { FLAG_MASK, PAGE_INFO_STRIDE } from '../../../visibility/buffer.ts';
+import { FLAG_BLEND_CASTER, FLAG_MASK, PAGE_INFO_STRIDE } from '../../../visibility/buffer.ts';
 import type { DirectLightResources } from '../../../lighting/deferred/program.ts';
 import type { PageRec } from '../../../page/selection/selection.ts';
 import { ROW_FLAGS_WORD, ROW_MAP_LAYER_WORD } from '../../row/pageRow.ts';
@@ -10,17 +10,23 @@ import { changeBox, changeMax, changeMin, growClusterBox } from '../../shadow/bo
 const EVERYWHERE_MIN = [-1e30, -1e30, -1e30],
   EVERYWHERE_MAX = [1e30, 1e30, 1e30];
 const ROW_WORDS = PAGE_INFO_STRIDE / 4;
+/** The rows whose shadow reads their colour map's alpha: a cutout's, and a blended caster's. */
+const ALPHA_READERS = FLAG_MASK | FLAG_BLEND_CASTER;
 
 /** The page-table rows the invalidation reads: their words, and the record each row draws. */
 interface ShadowRowTable {
   rowCount: number;
+  /** The blended casters' rows, `[blendFirst, casterSlots)`. */
+  blendFirst: number;
+  casterSlots: number;
   pageTableInts: Uint32Array | undefined;
   packedRecs: ArrayLike<PageRec | undefined>;
 }
 
 /**
  * Colour tiles of textures `slots` are resident, or have left: the alpha cutout the shadow pass
- * reads has just changed for every masked surface that carries one of these textures, and a
+ * reads has just changed for every masked surface that carries one of these textures — and the
+ * coverage of every blended caster that does (`../../../gpu/shadow/blendCoverage.ts`) —, and a
  * map drawn at the previous level would describe foliage that is no longer the image's. The
  * pages the world box of those surfaces covers go back to waiting once the camera rests, under
  * the ordinary Shadows stage budget — and those alone: a colour tile of a texture no cutout
@@ -42,17 +48,32 @@ export function shadowsFollowTextures(
   const ints = rows.pageTableInts;
   if (!ints || !slots.size) return;
   boxEmpty(changeBox, 0);
-  let touched = false;
-  for (let row = 0; row < rows.rowCount; row++) {
+  const touched =
+    growAlphaReaders(ints, rows, slots, 0, rows.rowCount) |
+    growAlphaReaders(ints, rows, slots, rows.blendFirst, rows.casterSlots);
+  if (touched) lights.plan.representationChanged(changeMin, changeMax);
+}
+
+/** Grows the change box by rows `[from, to)` whose shadow reads the alpha of a map of `slots`;
+ *  1 when one did. */
+function growAlphaReaders(
+  ints: Uint32Array,
+  rows: ShadowRowTable,
+  slots: ReadonlySet<number>,
+  from: number,
+  to: number,
+) {
+  let touched = 0;
+  for (let row = from; row < to; row++) {
     const base = row * ROW_WORDS;
-    if (!(ints[base + ROW_FLAGS_WORD] & FLAG_MASK) || !slots.has(ints[base + ROW_MAP_LAYER_WORD]))
+    if (!(ints[base + ROW_FLAGS_WORD] & ALPHA_READERS) || !slots.has(ints[base + ROW_MAP_LAYER_WORD]))
       continue;
     const rec = rows.packedRecs[row];
     if (!rec) continue;
     growClusterBox(rec, changeBox);
-    touched = true;
+    touched = 1;
   }
-  if (touched) lights.plan.representationChanged(changeMin, changeMax);
+  return touched;
 }
 
 /**

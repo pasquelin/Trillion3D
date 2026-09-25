@@ -5,6 +5,7 @@ import type { createWebgpuRowCommit } from './commit.ts';
 import { createWebgpuRowSlots } from './slots.ts';
 import { rowHasGeometry } from './pageRow.ts';
 import { awaitsPageBytes } from './pageSlots.ts';
+import { createBlendCasterRows } from './blendCasters.ts';
 
 type Rows = ReturnType<typeof createWebgpuRowState>;
 type Mirror = ReturnType<typeof createWebgpuResidencyMirror>;
@@ -23,6 +24,9 @@ export function createWebgpuRowSync(
   onResidenceChange: (rec: PageRec) => void = () => {},
 ) {
   const slots = createWebgpuRowSlots(rows, packedPages, drawSlots, writePageRow, onResidenceChange);
+  /** The blended clusters' caster rows, behind the visibility rows: they follow the residency the
+   *  mirror reports (`follow`), and the table's age here, whichever cut draws the image. */
+  const blendCasters = createBlendCasterRows(rows, packedPages, writePageRow);
   /**
    * Rows for the drawable set. What the image owes the table now depends only on the pages whose
    * cache slot just changed, and on what the previous image's time budget left to write: the whole
@@ -34,6 +38,7 @@ export function createWebgpuRowSync(
     // The journal describes only this pass: what it named has already been applied or dropped.
     rows.clearResidencyChanges();
     mirror.sync();
+    blendCasters.refresh();
     // Rows still owed recall the pass even if the cache has moved nothing more: they carry pages the
     // previous image left outside residency, for lack of time.
     if (
@@ -55,6 +60,7 @@ export function createWebgpuRowSync(
   const syncRowsFromCut = (casters: readonly PageRec[] = []) => {
     if (!cacheReady() || !rows.pageTableFloats) return 0;
     mirror.sync();
+    blendCasters.refresh();
     // The CPU cut names its own rows, so this path never skips: `mirror.dirty` belongs to the ranks.
     mirror.dirty = true;
     let count = 0,
@@ -87,5 +93,5 @@ export function createWebgpuRowSync(
   };
   /** Rows the time budget deferred to a later image. */
   const rowsOwed = () => slots.pending;
-  return { syncRows, syncRowsFromCut, rowsOwed };
+  return { syncRows, syncRowsFromCut, rowsOwed, blendCasters };
 }
