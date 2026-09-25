@@ -161,3 +161,22 @@ test('a line surface carries its pixel width, both sides and one coplanar layer'
   assert.equal(faces.polygonOffset, false);
   assert.equal(importHostSurface(faces)?.lineWidth, 0);
 });
+
+// #359: a dashed line's surface carries its dash and gap, its `scale` folded in, and a repaint
+// writes them again (#335); a solid line's surface carries none.
+test('a dashed line surface carries its dash and gap, and a repaint writes them', () => {
+  const ink = material.lineDashed({ dashSize: 0.3, gapSize: 0.2, scale: 2 });
+  const lines = hostSurface(ink, false, new Map(), true);
+  assert.deepEqual([lines.dashSize, lines.gapSize], [0.15, 0.1]);
+  assert.deepEqual(
+    [importHostSurface(lines)?.dashSize, importHostSurface(lines)?.gapSize],
+    [0.15, 0.1],
+  );
+  Object.assign(ink, { dashSize: 1, gapSize: 0.5, scale: 1 });
+  repaintHostSurface(lines, ink);
+  assert.deepEqual([lines.dashSize, lines.gapSize], [1, 0.5]);
+  const solid = hostSurface(material.line(), false, new Map(), true);
+  assert.equal(solid.dashSize, undefined);
+  repaintHostSurface(solid, material.line());
+  assert.equal(importHostSurface(solid)?.dashSize, undefined);
+});
