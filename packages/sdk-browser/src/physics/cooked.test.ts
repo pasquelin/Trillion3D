@@ -117,7 +117,7 @@ const place = (collider: number, matter = {}) => ({
   ...matter,
 });
 const cooked = (colliders: object[], instances: object[]) => ({
-  formatVersion: 1,
+  formatVersion: 2,
   jolt: JOLT_COMMIT,
   colliders,
   instances,
