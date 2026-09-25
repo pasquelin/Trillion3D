@@ -13,8 +13,24 @@
  * refused rank sets bit 0: the snapshot is then TRUNCATED, and the frame refuses it whole
  * rather than adopt it amputated. Frame totals lose nothing — they describe the cut, not the
  * list that reports it (`totalsWgsl.ts`).
+ *
+ * A light cut's frame asks for a page ONCE, however many of its views and batches want it: every
+ * batch appends to one list (`VIEW_APPEND`) as long as the catalogue, and the same caster asked by
+ * each sun level and each batch filled it with repeats, so a late batch's own casters fell past it
+ * (`LIST_FULL`) and its coarse pages were drawn again every frame without ever being asked for.
+ * The test reads the page's bit before the atomic (`firstAsk`), as the shading's page requests do.
  */
-export const DAG_RELEVE_WGSL = `fn emitOne(page:u32,pixels:f32){emitWord(page,quantizePriority(pixels),true);}
+export const DAG_RELEVE_WGSL = `fn emitOne(page:u32,pixels:f32){
+ if(isLightCut()&&!firstAsk(page)){return;}
+ emitWord(page,quantizePriority(pixels),true);
+}
+/** True for the first ask of \`page\` in the frame's light cuts: its bit behind the per-view words
+ *  (\`dagWorkLayout\`, \`asked\`), cleared by the host at the frame's first cut. */
+fn firstAsk(page:u32)->bool{
+ let word=drawnGroupsMax()+1u+(page>>5u);let bit=1u<<(page&31u);
+ if((atomicLoad(&work[word])&bit)!=0u){return false;}
+ return (atomicOr(&work[word],bit)&bit)==0u;
+}
 /** One request word in the sample; past the cap it is dropped, and \`declare\` says truncated. */
 fn emitWord(page:u32,priority:u32,declare:bool){
  let slot=atomicAdd(&out.count,1u);
