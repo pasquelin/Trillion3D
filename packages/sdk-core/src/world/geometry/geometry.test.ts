@@ -112,6 +112,13 @@ test('a normalised normal that owns its list is turned as its stored numbers', (
   g.rotateZ(Math.PI / 2);
   // (127, 0, 0) turned is the unit (0, 1, 0), written as it is into the stored integers.
   assert.deepEqual(Array.from(g.attributes.normal.array), [0, 1, 0, 0, 0, 1, 0, 0, 1]);
+  // A view of an interleaved buffer is turned at the value it stands for, written normalised.
+  const pack = new InterleavedBuffer(new Int8Array([127, 0, 0, 0, 0, 127, 0, 0, 127]), 3);
+  const view = new Geometry()
+    .setAttribute('position', triangle())
+    .setAttribute('normal', new InterleavedBufferAttribute(pack, 3, 0, true));
+  view.rotateZ(Math.PI / 2);
+  assert.deepEqual(Array.from(pack.array), [0, 127, 0, 0, 0, 127, 0, 0, 127]);
 });
 
 test('a sphere reaches the farthest vertex from the centre of the box', () => {
