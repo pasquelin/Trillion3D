@@ -36,7 +36,7 @@ export function truthOf(
   reference: ArrayLike<number>,
   engine: ArrayLike<number>,
 ): { reading: TruthReading; images: { truth: string } } | undefined {
-  if (fixture.truth === undefined) return;
+  if (fixture.truth === undefined || engine.length === 0) return; // no frame: `held` names it
   const surface = fixture.material(),
     map = surface.map as G.GraphTexture,
     canvas = map.image as HTMLCanvasElement;
