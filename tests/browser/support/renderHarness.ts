@@ -5,7 +5,7 @@ import type { Page } from 'playwright';
 import { compileFullCache } from '../../../scripts/native-compiler.ts';
 import type { Mount } from '../../../scripts/static-server.ts';
 import type { MeasuredWorld } from '../../../packages/sdk-browser/src/world/session/explorer.ts';
-import { sceneMounts } from '../../kit/scenes/caches.ts';
+import { manifestUrlOf, sceneMounts } from '../../kit/scenes/caches.ts';
 
 // `window.scene` only exists in the page a proof evaluates code in, never in Node; declared here so
 // the `page.evaluate` callbacks of the proofs that open a scene (type-checked, though they run in
@@ -50,7 +50,8 @@ export interface GalleryScene {
   id: string;
   width: number;
   height: number;
-  manifestUrl: string;
+  /** The scene folder, relative to the repository root, under a scene root. */
+  scene: string;
   texturePoolBytes: number;
   position: [number, number, number];
   target: [number, number, number];
@@ -58,7 +59,7 @@ export interface GalleryScene {
 
 export async function openGalleryScene(page: Page, scene: GalleryScene): Promise<void> {
   await page.evaluate(
-    async ({ sdkUrl, scene }) => {
+    async ({ sdkUrl, manifestUrl, scene }) => {
       document.body.replaceChildren();
       document.body.style.margin = '0';
       const canvas = document.createElement('canvas');
@@ -67,7 +68,7 @@ export async function openGalleryScene(page: Page, scene: GalleryScene): Promise
       document.body.append(canvas);
       const { openMeasuredWorld, webgpuPagesBackend } = await import(sdkUrl);
       const world: MeasuredWorld = await openMeasuredWorld(scene.id, {
-        manifestUrl: scene.manifestUrl,
+        manifestUrl,
         scope: 'full',
         importedLights: true,
         interactive: false,
@@ -84,6 +85,6 @@ export async function openGalleryScene(page: Page, scene: GalleryScene): Promise
       await world.awaitPages();
       world.setPose({ ...world.homePose(), position: scene.position, target: scene.target });
     },
-    { sdkUrl: '/sdk/witnesses/measurement.js', scene },
+    { sdkUrl: '/sdk/witnesses/measurement.js', manifestUrl: manifestUrlOf(scene.scene), scene },
   );
 }
