@@ -4,7 +4,7 @@ name: Pull request body
 # the code gates of `quality.yml`. `synchronize` is listed because a required check is recorded per
 # commit: a new head with no run of this workflow would never become mergeable. A draft is not
 # asked for its Lead verification; `ready_for_review` and `converted_to_draft` re-read the body
-# when that state changes.
+# when that state changes. The size gate lives here too: it needs a diff, not a build.
 on:
   pull_request:
     branches: [develop, main]
@@ -22,9 +22,17 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
+      # The merge commit and its first parent, the base: enough for the size gate's diff.
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 2
       - name: Issue linked, local review filled, lead verified once ready
         env:
           BODY: ${{ github.event.pull_request.body }}
           PR_DRAFT: ${{ github.event.pull_request.draft }}
         run: printf '%s\n' "$BODY" | scripts/check-pr-body.sh
+      # A release into main carries every merged pull request: rule 11 bounds each step into
+      # develop.
+      - name: Pull request size (AGENTS.md rule 11)
+        if: (success() || failure()) && github.base_ref == 'develop'
+        run: scripts/check-pr-size.sh HEAD^1

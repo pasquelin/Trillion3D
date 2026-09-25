@@ -110,15 +110,25 @@ fn levelStep(src:u32,s:u32){
  vi=entryView(entry);
  let node=nodes[entryIndex(entry)];
  let w=node.worldIndex;
- if(outsideFrustum(slotOf(w)*FRAME,node.minimum,node.maximum)||pageMissed(w,node.minimum,node.maximum)){atomicAdd(&out.frustumRejected,1u);return;}
+ // A node of the view ahead is only that view's (\`aheadWgsl.ts\`); one the camera rejects is tried there.
+ if(aheadOn()&&vi==AHEAD_VIEW){descendAhead(src,node,w);return;}
+ if(outsideFrustum(slotOf(w)*FRAME,node.minimum,node.maximum)||pageMissed(w,node.minimum,node.maximum)){atomicAdd(&out.frustumRejected,1u);descendAhead(src,node,w);return;}
  // Too FINE: no replacement of the subtree is coarse enough yet, the manifest carries it.
  // Too COARSE: no cluster of the subtree is fine enough, packing derives it from the pages —
  // unless the subtree is open, holding the nearest resident ancestor of something missing
  // (\`floorWgsl.ts\`). The trunk-reject count moves for neither: a subtree dropped here is
  // not dropped by the trunk, and the readout would say something other than what it names.
  let e=views[vi].view*worlds[w];let stretch=stretchOf(w);let focal=focalPixels();
- if(node.maxParentError>=0.0&&projected(node.maxParentError,node.sphere,e,stretch,focal)<=views[vi].pixelError){atomicAdd(&out.frustumRejected,1u);return;}
- if(floorPrunes(node.open,node.floorSphere,node.errorFloor,e,stretch,focal)){return;}
+ if(tooCoarse(node,e,stretch,focal)){atomicAdd(&out.frustumRejected,1u);descendAhead(src,node,w);return;}
+ if(floorPrunes(node.open,node.floorSphere,node.errorFloor,e,stretch,focal)){descendAhead(src,node,w);return;}
+ descend(src,node);
+}
+/** Too coarse under the view \`vi\`: no cluster of the subtree is fine enough. */
+fn tooCoarse(node:CullNode,e:mat4x4f,stretch:f32,focal:f32)->bool{
+ return node.maxParentError>=0.0&&projected(node.maxParentError,node.sphere,e,stretch,focal)<=views[vi].pixelError;
+}
+/** A kept node opens its children, or deposits its pages, under the current view \`vi\`. */
+fn descend(src:u32,node:CullNode){
  if(node.childCount>0u){queueAppend((src+1u)%${LEVEL_QUEUES}u,node.firstChild,node.childCount);return;}
  spanAppend(candCounter(),candGroups(),candBase(),node.firstPage,node.pageCount);
 }
