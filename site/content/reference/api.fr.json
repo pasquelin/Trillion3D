@@ -4177,7 +4177,9 @@
   },
   "SoftBodyCommon": {
     "summary": "Ce que `obj.physics` accepte pour un corps souple : ses sommets sont simulés un par un.",
+    "description": "Sa matière et son poids comme ceux d’un corps rigide ; ni amortissement angulaire, ni forme, ni capteur, ni CCD, ni débris.",
     "members": {
+      "damping": "La part de la vitesse de ses sommets perdue par seconde, `dv/dt = −c·v`, 0 et plus.",
       "pins": "Indices des sommets de la géométrie tenus là où ils sont : la hampe d’un drapeau, le crochet d’une corde.",
       "mass": "Kilogrammes, répartis sur les sommets selon l’aire (une corde : la longueur) que chacun porte ; omis, `SOFT_AREAL_DENSITY` par m² (une corde : `SOFT_LINEAR_DENSITY` par m).",
       "stretch": "Combien une arête cède quand on la tire, m/N (l’inverse de sa raideur) : 0 ne s’étire jamais.",
