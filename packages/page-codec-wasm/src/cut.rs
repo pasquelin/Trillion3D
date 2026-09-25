@@ -1,5 +1,5 @@
 //! Node walk of the CPU cut: the descent of `traverse` in
-//! `packages/sdk-browser/src/page/cut/visit.ts`, outside the forcing fallback, without its pages.
+//! `packages/sdk-browser/src/page/cut/visit.ts`, without its pages.
 //!
 //! It pops the same stack in the same order, runs the same node tests (`cut_error.rs`) and writes
 //! each leaf it reaches as the stack entry that reached it — `node << 2 | settled << 1 | inside` —
@@ -41,11 +41,13 @@ fn child_range(first: f64, children: f64, count: usize) -> Option<(usize, usize)
 }
 
 /// The descent of `traverse` over `nodes` (`stride` floats each) and their `bounds`, from node 0.
-/// `stack` is the JavaScript stack's capacity, `leaves` the output list.
+/// `open` is each node's open count (`packages/sdk-browser/src/page/cut/readiness.ts`), empty when
+/// no node is open. `stack` is the JavaScript stack's capacity, `leaves` the output list.
 pub fn walk(
     nodes: &[f64],
     stride: usize,
     bounds: &[f64],
+    open: &[u32],
     lens: &Lens,
     stack: &mut [u32],
     leaves: &mut [u32],
@@ -54,7 +56,11 @@ pub fn walk(
         return Err(Bail);
     }
     let count = nodes.len() / stride;
-    if count == 0 || bounds.len() < count * BOUND_STRIDE || count > (u32::MAX >> 2) as usize {
+    if count == 0
+        || bounds.len() < count * BOUND_STRIDE
+        || (!open.is_empty() && open.len() < count)
+        || count > (u32::MAX >> 2) as usize
+    {
         return Err(Bail);
     }
     let mut out = Walk {
@@ -101,7 +107,9 @@ pub fn walk(
                 continue;
             }
             let decision = subtree_decision(bounds, node, lens).map_err(|_| Bail)?;
-            if decision < 0 {
+            // An open subtree holds a cluster the cut rule may draw above the threshold: its
+            // floor never rejects it.
+            if decision < 0 && open.get(node).is_none_or(|&n| n == 0) {
                 continue;
             }
             settled = decision > 0;
