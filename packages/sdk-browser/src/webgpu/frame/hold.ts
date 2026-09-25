@@ -5,7 +5,7 @@ import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 import { shadowsUnsettled } from '../pages/state/lights.ts';
 import { effectsMoved } from '../pages/render/encodeEffects.ts';
 import { guidesMoved } from '../pages/render/encodeGuides.ts';
-import { deviceAnswer } from './deviceAnswer.ts';
+import { grantPending } from '../../gpu/core/errorScope.ts';
 import { frameTargetsAwaited } from '../pages/prepare/targetGrant.ts';
 
 /** What can still change the frame, one bit each; `unsettledReasons` names them. */
@@ -133,7 +133,8 @@ function recordHeldFrameWork(rt: WebgpuPagesRuntime, presented: boolean, submitM
  * it waited for those answers before it began.
  */
 const awaitsDevice = (rt: WebgpuPagesRuntime) =>
-  (deviceAnswer(rt) !== undefined || frameTargetsAwaited(rt)) && !rt.capture.capturing;
+  (grantPending(rt.lights.shadowGrant) !== undefined || frameTargetsAwaited(rt)) &&
+  !rt.capture.capturing;
 
 /**
  * The held frame. No CPU step is executed and nothing is re-encoded: the previous frame's colour

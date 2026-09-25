@@ -118,6 +118,13 @@ test('under pressure, Hi-Z goes first: the targets are granted without it, all o
         `${label} is granted at the new size`,
       );
     assert.equal(s.said('frame-targets-refused').length, 0);
+    // Its pass writes one target fewer: the visibility pipelines are made again for it.
+    const targets = (
+      s.gpu.given as Array<{ vertex?: { entryPoint: string }; fragment?: { targets: [] } }>
+    )
+      .filter((made) => made?.vertex?.entryPoint === 'vis_vs')
+      .map((made) => made.fragment?.targets.length);
+    assert.deepEqual([targets[0], targets.at(-1)], [2, 1]);
     await s.complete();
   } finally {
     s.dispose();
@@ -187,6 +194,8 @@ test('a visibility target the device cannot make is refused by name, once, the m
     }
     const refused = events.filter((event) => event.phase === 'frame-targets-refused');
     assert.equal(refused.length, 1, 'asked once, not every frame');
+    assert.equal(refused[0]?.context.code, 'WEBGPU_FRAME_TARGETS_REFUSED');
+    assert.deepEqual([refused[0]?.context.width, refused[0]?.context.height], [48, 48]);
     assert.equal(backend.metrics().frameHeld, true, 'the previous image stays');
     assert.equal(backend.capabilities.materials, materials, 'the visibility buffer is kept');
   } finally {
