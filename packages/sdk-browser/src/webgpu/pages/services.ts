@@ -39,6 +39,7 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     onOffsetChange: (page, words) => (
       rows.touchPage(page),
       updateTransparentSpan(rt, page, words),
+      blendCasters.follow(page),
       rt.lights.residence.notePool(page, packedPages.length)
     ),
   });
@@ -60,7 +61,7 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
   // The residency mirror is the only incremental state of this path: its journal is checked against
   // the cache on every flush, and rebuilt at the slightest disagreement rather than drifting.
   const commit = createWebgpuRowCommit(rows, writePageRow);
-  const { syncRows, syncRowsFromCut, rowsOwed } = createWebgpuRowSync(
+  const { syncRows, syncRowsFromCut, rowsOwed, blendCasters } = createWebgpuRowSync(
     rows,
     mirror,
     packedPages,
@@ -173,6 +174,7 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     syncRows,
     syncRowsFromCut,
     rowsOwed,
+    blendCasters,
     pageSource,
     hasBytes,
     poolHolds,
