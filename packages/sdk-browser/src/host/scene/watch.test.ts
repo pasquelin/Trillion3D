@@ -12,7 +12,7 @@ import { exactPagesBackend } from '../../../../../bench/witnesses/measurement.ts
 import { quadRootsContext, frontCamera } from '../../backend/pagesBackendScenes.fixture.ts';
 
 function graphe() {
-  const source = new G.GraphGroup();
+  const source = new G.Group();
   const mesh = G.mesh(new G.GraphGeometry(), G.basicSurface());
   const lampe = G.pointLight(0xffffff, 1);
   const soleil = G.directionalLight(0xffffff, 1);
@@ -22,9 +22,9 @@ function graphe() {
 }
 
 /** The reread nodes: the source models of what is drawn, the lamps, and their ancestors. */
-const dessine = (...meshes: G.GraphNode[]) => meshes.map((sourceMesh) => ({ sourceMesh }));
+const dessine = (...meshes: G.Object3D[]) => meshes.map((sourceMesh) => ({ sourceMesh }));
 
-function veille(source: G.GraphNode, ...meshes: G.GraphNode[]) {
+function veille(source: G.Object3D, ...meshes: G.Object3D[]) {
   const watch = createHostSceneWatch();
   watch.observe(source, dessine(...meshes));
   return watch;
@@ -54,7 +54,7 @@ test('visibility written directly by the host is seen; a reparent reshapes', () 
   mesh.visible = false;
   assert.equal(watch.take(), 'moved');
   assert.equal(watch.take(), 0);
-  new G.GraphGroup().add(mesh);
+  new G.Group().add(mesh);
   assert.equal(watch.take(), 'reshaped', 'the ancestor chain changed');
   assert.equal(watch.take(), 0);
 });
@@ -116,7 +116,7 @@ test('a write the engine made itself is settled with its revision, not announced
   gate.readScene(source, dessins);
   assert.equal(gate.revisions.scene, before + 1, 'and none after');
   // A structural engine write settled the same way leaves no reshape pending either.
-  new G.GraphGroup().add(mesh);
+  new G.Group().add(mesh);
   gate.sceneChanged();
   gate.readScene(source, dessins);
   gate.readScene(source, dessins);
@@ -128,7 +128,7 @@ test('a lamp retargeted by the host: the new target is hooked, its later pose is
   const { source, soleil } = graphe();
   gate.readScene(source, []);
   gate.readScene(source, []);
-  const cible = new G.GraphNode();
+  const cible = new G.Object3D();
   soleil.target = cible;
   gate.readScene(source, []); // the retarget is a scene change: the list is rebuilt at once
   const after = gate.revisions.scene;

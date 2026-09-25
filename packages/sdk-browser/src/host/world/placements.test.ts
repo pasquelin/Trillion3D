@@ -15,10 +15,10 @@ import { assertBits } from '../../../../../tests/kit/assert/bits.ts';
 /** A host scene that NOBODY has walked up: rotated root, parent with negative and non-uniform
  *  scale, leaf sheared by that scale, plus a node whose matrix is set. */
 function scene() {
-  const racine = new G.GraphGroup(),
-    parent = new G.GraphGroup(),
+  const racine = new G.Group(),
+    parent = new G.Group(),
     feuille = G.mesh(),
-    pose = new G.GraphGroup();
+    pose = new G.Group();
   racine.position.set(3, -4, 5);
   racine.quaternion.copy(new G.Quaternion().setFromEuler(new G.Euler(0.4, 0.1, -0.2)));
   parent.scale.set(-2, 0.5, 3);
@@ -76,7 +76,7 @@ test('`refresh` rewrites the returned matrix instead of returning another: the h
 test('a node outside the indexed subtree is refused by a named error', () => {
   const { racine } = scene();
   const worlds = hostWorldPlacements(racine);
-  const etranger = new G.GraphGroup();
+  const etranger = new G.Group();
   etranger.name = 'foreign';
   assert.throws(
     () => worlds.of(etranger),
@@ -86,7 +86,7 @@ test('a node outside the indexed subtree is refused by a named error', () => {
 
 test("page records and cluster roots carry the engine's matrix, not the host's", () => {
   const fixture = blendFixture();
-  const parent = new G.GraphGroup();
+  const parent = new G.Group();
   parent.scale.set(2, -1, 0.5);
   parent.add(fixture.source);
   fixture.mesh.position.set(4, -2, 7);
