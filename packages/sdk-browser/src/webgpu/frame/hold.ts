@@ -3,6 +3,7 @@ import { CPU_STEP } from '../pages/render/cpuStepTable.ts';
 import { beginTaaFrame, taaSettled } from '../../taa/frame.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 import { shadowsUnsettled } from '../pages/state/lights.ts';
+import { shadowPoolPending } from '../shadow/poolSize.ts';
 
 /** What can still change the frame, one bit each; `unsettledReasons` names them. */
 const REASONS = [
@@ -122,6 +123,15 @@ function recordHeldFrameWork(rt: WebgpuPagesRuntime, presented: boolean, submitM
 }
 
 /**
+ * A frame that casts a shadow while the device still answers for its shadow pool (`poolSize.ts`)
+ * would be drawn without it, an incomplete image (#483): it is held instead, showing the previous
+ * image or nothing yet, and `pendingWebgpuFrame` asks the next frame once the device answered. A
+ * capture is never held: it waited for that answer before it began.
+ */
+const awaitsShadowPool = (rt: WebgpuPagesRuntime) =>
+  shadowPoolPending(rt) !== undefined && !rt.capture.capturing;
+
+/**
  * The held frame. No CPU step is executed and nothing is re-encoded: the previous frame's colour
  * target IS this frame, to the bit, since nothing it depends on has moved. It is simply
  * redisplayed.
@@ -133,20 +143,23 @@ function recordHeldFrameWork(rt: WebgpuPagesRuntime, presented: boolean, submitM
  */
 export function holdWebgpuFrame(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const { run, gpu } = rt;
-  // Still frame: nothing it depends on has moved and nothing is in flight. That is the frame
-  // input of temporal accumulation, which restarts there in a fixed phase and converges over a
-  // full cycle of those frames before one of them can be held (`TAA_STILL_FRAMES`).
-  const quiet = run.gate.held() && unsettledMask(rt) === 0;
-  beginTaaFrame(rt, run.gate.cam, quiet);
-  if (!quiet || !taaSettled(rt)) {
-    run.frameHeld = false;
-    return false;
+  if (!awaitsShadowPool(rt)) {
+    // Still frame: nothing it depends on has moved and nothing is in flight. That is the frame
+    // input of temporal accumulation, which restarts there in a fixed phase and converges over a
+    // full cycle of those frames before one of them can be held (`TAA_STILL_FRAMES`).
+    const quiet = run.gate.held() && unsettledMask(rt) === 0;
+    beginTaaFrame(rt, run.gate.cam, quiet);
+    if (!quiet || !taaSettled(rt)) {
+      run.frameHeld = false;
+      return false;
+    }
   }
   run.frameHeld = true;
   run.frame++;
   const start = performance.now();
   let presented = false;
-  if (gpu.presenter && gpu.colorTexture) {
+  // Nothing drawn yet — a first frame waiting on its shadow pool —: nothing is shown.
+  if (gpu.presenter && gpu.colorTexture && run.imageRevision > 0) {
     const encoder = device.createCommandEncoder({ label: 'Trillion3D held frame' });
     gpu.presenter.present(encoder, gpu.colorTexture, gpu.targetSize[0], gpu.targetSize[1]);
     device.queue.submit([encoder.finish()]);

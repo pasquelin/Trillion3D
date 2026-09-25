@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { sha256Hex } from '../measurement/sha256Hex.ts';
 import { createPageStreamer } from './pages.ts';
+import { servedPages } from './servedPages.fixture.ts';
 
 /** Three verified pages served whole, two workers, room for two resident pages. */
 async function twoOfThreeStreamer(onEvict?: (url: string) => void) {
@@ -23,20 +24,8 @@ async function twoOfThreeStreamer(onEvict?: (url: string) => void) {
 }
 
 test('streamer fetches only requested pages and counts hits', async () => {
-  const bytes = new Uint8Array([1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0]);
-  const sha = await sha256Hex(bytes.buffer);
-  const fetched: string[] = [];
-  globalThis.fetch = async (url) => {
-    fetched.push(String(url));
-    return new Response(bytes, { status: 200 });
-  };
-  const streamer = createPageStreamer(
-    [
-      { url: 'a.bin', bytes: bytes.byteLength, sha256: sha },
-      { url: 'b.bin', bytes: bytes.byteLength, sha256: sha },
-    ],
-    'http://cache/',
-  );
+  const { pages, fetched } = await servedPages(['a.bin', 'b.bin']);
+  const streamer = createPageStreamer(pages, 'http://cache/');
   await streamer.request(['a.bin']);
   assert.deepEqual(fetched, ['http://cache/a.bin']);
   assert.equal(streamer.get('a.bin')?.[0], 1);
@@ -175,4 +164,27 @@ test('an identical pin list resets nothing, a list that changes resets everythin
   await streamer.request(['b.bin']);
   assert.deepEqual(evicted, ['b.bin', 'a.bin']);
   streamer.dispose();
+});
+
+test('a streamer of its own holds `maxCachedBytes` of pages beside its reservations, and empties at dispose', async () => {
+  const { pages } = await servedPages(['a.bin', 'b.bin', 'c.bin']);
+  const evicted: string[] = [];
+  // Room for two 12-byte pages, whatever the manifest tables and the transfer queue reserve.
+  const streamer = createPageStreamer(
+    pages,
+    'http://cache/',
+    undefined,
+    1,
+    undefined,
+    (url) => evicted.push(url),
+    undefined,
+    undefined,
+    24,
+  );
+  await streamer.request(['a.bin', 'b.bin', 'c.bin']);
+  assert.deepEqual(evicted, ['a.bin']);
+  assert.equal(streamer.stats().maxCachedBytes, 24);
+  assert.equal(streamer.stats().residentBytes, 24);
+  streamer.dispose();
+  assert.equal(streamer.has('c.bin'), false);
 });
