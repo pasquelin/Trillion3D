@@ -2059,6 +2059,50 @@
       "localBounds": "Hộp của nội dung riêng của node này, khung cục bộ; một node thông thường không chứa cái nào cả."
     }
   },
+  "SOFT_AREAL_DENSITY": {
+    "summary": "Vải bông dệt trung bình, kg/m²: định lượng vải từ 0,15 đến 0,25.",
+    "description": "Tấm vải rơi như nhau với mọi khối lượng; nó đè lên các ghim và những gì nó gặp. Lớp vỏ của một khối được coi là tấm vải như thế."
+  },
+  "SOFT_FOOTPRINT": {
+    "summary": "Được khai báo: phần tiết diện trung bình — một phần tư diện tích của nó, với mọi hình lồi (Cauchy) — mà khối nằm yên trên mặt đất lún xuống, khí bên trong đỡ trọng lượng của nó ở đó.",
+    "description": "Áp suất mặc định khi đó là `4·m·g / (share·area)`: 31 Pa cho lớp vỏ `SOFT_AREAL_DENSITY`. Nửa phần, gấp đôi áp suất. Áp suất cao hơn nhiều so với áp suất của trọng lượng làm nó phồng quá hình dạng nghỉ: mỗi bước dời một đỉnh `pressure·dt² / (kg/m²)`, nhiều hơn các cạnh khi đó giữ được."
+  },
+  "SOFT_LINEAR_DENSITY": {
+    "summary": "Dây polyamide 10 mm, kg/m: bảng của nhà sản xuất cho 0,06 đến 0,07."
+  },
+  "SoftBodyCommon": {
+    "summary": "Những gì `obj.physics` nhận cho một vật mềm: các đỉnh được mô phỏng từng cái một.",
+    "members": {
+      "pins": "Chỉ số các đỉnh của hình học được giữ nguyên chỗ: cán cờ, móc dây.",
+      "mass": "Kilôgam, chia cho các đỉnh theo diện tích (dây: chiều dài) mà mỗi đỉnh mang; nếu bỏ qua, `SOFT_AREAL_DENSITY` mỗi m² (dây: `SOFT_LINEAR_DENSITY` mỗi m).",
+      "stretch": "Một cạnh chịu giãn bao nhiêu khi bị kéo, m/N (nghịch đảo độ cứng): 0 không bao giờ giãn.",
+      "bend": "Nó chịu gập bao nhiêu, rad/(N·m) (dây: m/N); `Infinity` gập tự do."
+    }
+  },
+  "SoftBodyOptions": {
+    "summary": "Tùy chọn của vật mềm: tấm vải, sợi dây, hoặc khối với áp suất khí của nó."
+  },
+  "SoftBodyType": {
+    "summary": "Vật mềm: tấm vải (các tam giác, hở), sợi dây (các đỉnh, mỗi đỉnh nối với đỉnh kế tiếp) hoặc khối (các tam giác kín, được khí bên trong đỡ)."
+  },
+  "SoftSettings": {
+    "summary": "Tùy chọn của vật mềm sau khi đọc: mọi giá trị mặc định đã điền.",
+    "members": {
+      "type": "Nó là gì.",
+      "pins": "Các đỉnh của hình học được giữ nguyên chỗ.",
+      "mass": "Kilôgam, `undefined` cho khối lượng theo mật độ mặc định.",
+      "stretch": "m/N.",
+      "bend": "rad/(N·m), với dây là m/N.",
+      "pressure": "Pa; `undefined` cho áp suất mặc định của khối (`SOFT_FOOTPRINT`)."
+    }
+  },
+  "SoftVolumeOptions": {
+    "summary": "Tùy chọn của khối: một lưới kín được khí bên trong đỡ.",
+    "members": {
+      "type": "Một khối.",
+      "pressure": "Áp suất của khí cao hơn áp suất không khí khi nghỉ, Pa; khi bị ép, nó tăng lên khi thể tích giảm (định luật Boyle). Các tam giác phải hướng ra ngoài. Nếu bỏ qua, áp suất đặt trọng lượng của khối lên `SOFT_FOOTPRINT` tiết diện trung bình của nó."
+    }
+  },
   "TransformNode": {
     "summary": "Một nút cảnh được đọc qua các ma trận của bản tham chiếu, lưu trong cây biến đổi của engine.",
     "members": {
@@ -6958,7 +7002,8 @@
       "threads": "Số luồng chạy mô phỏng, kể cả luồng của worker vật lý. Trên 1 cần trang được cô lập cross-origin (bộ nhớ dùng chung); nếu không, mô phỏng chạy trên một luồng. Không bao giờ vượt quá số lõi logic của máy trừ lõi của trang.",
       "bodyPairs": "Các cặp vật thể có hộp bao chồng lên nhau trong một bước. Một đống dày có khoảng bốn cặp mỗi vật; bước nào tìm thấy nhiều hơn sẽ bỏ sót tiếp xúc và báo `PHYSICS_BUDGET`.",
       "contactConstraints": "Các cặp chạm nhau được giải trong một bước. Một đống đã nằm yên có khoảng hai cặp mỗi vật; bước nào tìm thấy nhiều hơn sẽ bỏ sót tiếp xúc và báo `PHYSICS_BUDGET`.",
-      "contactEvents": "Các sự kiện tiếp xúc (`enter`, `leave`) mà một bước báo về. Một `enter` vượt quá bị bỏ và được đếm (`world.physics.stats.droppedEvents`), `leave` của nó không bao giờ được gửi; một `leave` chỉ bị hoãn."
+      "contactEvents": "Các sự kiện tiếp xúc (`enter`, `leave`) mà một bước báo về. Một `enter` vượt quá bị bỏ và được đếm (`world.physics.stats.droppedEvents`), `leave` của nó không bao giờ được gửi; một `leave` chỉ bị hoãn.",
+      "softVertices": "Đỉnh của mọi vật mềm cùng lúc (vải, dây, khối). Mỗi đỉnh được giải ở mỗi bước và được trang đọc lại, 12 byte mỗi bước."
     }
   },
   "GRAVITY_PRESETS": {
@@ -6980,7 +7025,7 @@
     "summary": "Vật lý của một vật, như `obj.physics` giữ: bản ghi sống về vật là gì và làm gì.",
     "description": "Việc ghi đến mô phỏng ở bước kế tiếp; `velocity` đọc những gì bước cuối để lại.",
     "members": {
-      "type": "Cách vật di chuyển; gán lại `obj.physics` để thay đổi.",
+      "type": "Cách vật di chuyển, hoặc nó là vật mềm nào; gán lại `obj.physics` để thay đổi.",
       "shape": "Hình đã khai báo, nếu có.",
       "sensor": "Vật có chỉ báo va chạm không.",
       "ccd": "Va chạm liên tục có bật không.",
@@ -6995,7 +7040,9 @@
       "applyImpulse": "Đẩy vật ngay, một xung lực tính bằng N·s qua khối tâm; đánh thức nó.",
       "wake": "Đánh thức vật, dù đang ngủ hay không.",
       "on": "Gọi `handler` khi có sự kiện va chạm của vật này.",
-      "listens": "Có trình xử lý va chạm nào không."
+      "listens": "Có trình xử lý va chạm nào không.",
+      "soft": "Thiết lập của một vật mềm, mọi giá trị mặc định đã điền; `null` với vật cứng.",
+      "vertices": "Các đỉnh của vật mềm như tick cuối để lại: `x, y, z` cho mỗi đỉnh của hình học, trong hệ riêng của hình học; `null` với vật cứng, và cho đến tick đầu tiên của nó."
     }
   },
   "PHYSICS_MATERIALS": {
@@ -7034,7 +7081,8 @@
       "threads": "Số luồng chạy mô phỏng, kể cả luồng của worker vật lý. Trên 1 cần trang được cô lập cross-origin (bộ nhớ dùng chung); nếu không, mô phỏng chạy trên một luồng. Không bao giờ vượt quá số lõi logic của máy trừ lõi của trang.",
       "bodyPairs": "Các cặp vật thể có hộp bao chồng lên nhau trong một bước. Một đống dày có khoảng bốn cặp mỗi vật; bước nào tìm thấy nhiều hơn sẽ bỏ sót tiếp xúc và báo `PHYSICS_BUDGET`.",
       "contactConstraints": "Các cặp chạm nhau được giải trong một bước. Một đống đã nằm yên có khoảng hai cặp mỗi vật; bước nào tìm thấy nhiều hơn sẽ bỏ sót tiếp xúc và báo `PHYSICS_BUDGET`.",
-      "contactEvents": "Các sự kiện tiếp xúc (`enter`, `leave`) mà một bước báo về. Một `enter` vượt quá bị bỏ và được đếm (`world.physics.stats.droppedEvents`), `leave` của nó không bao giờ được gửi; một `leave` chỉ bị hoãn."
+      "contactEvents": "Các sự kiện tiếp xúc (`enter`, `leave`) mà một bước báo về. Một `enter` vượt quá bị bỏ và được đếm (`world.physics.stats.droppedEvents`), `leave` của nó không bao giờ được gửi; một `leave` chỉ bị hoãn.",
+      "softVertices": "Đỉnh của mọi vật mềm cùng lúc (vải, dây, khối). Mỗi đỉnh được giải ở mỗi bước và được trang đọc lại, 12 byte mỗi bước."
     }
   },
   "PhysicsHost": {
@@ -7060,7 +7108,7 @@
     }
   },
   "PhysicsOption": {
-    "summary": "Những gì có thể gán cho `obj.physics`."
+    "summary": "Những gì `obj.physics` có thể nhận: một vật cứng, hoặc một vật mềm (`SoftBodyOptions`)."
   },
   "PhysicsShape": {
     "summary": "Một hình va chạm, khi hình suy ra từ hình học không phù hợp.",

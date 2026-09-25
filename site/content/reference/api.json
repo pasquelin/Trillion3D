@@ -3134,6 +3134,11 @@
         "name": "threads",
         "type": "number",
         "desc": "Threads that step the simulation, the physics worker's included. Above 1 it needs a cross-origin isolated page (shared memory); elsewhere the simulation steps on one. Never more than the machine's logical cores minus the page's own."
+      },
+      {
+        "name": "softVertices",
+        "type": "number",
+        "desc": "Vertices of every soft body at once (cloths, ropes, volumes). Each one is solved every step and read back to the page, 12 bytes a step."
       }
     ],
     "description": ""
@@ -9512,8 +9517,13 @@
     "members": [
       {
         "name": "type",
-        "type": "PhysicsType",
-        "desc": "How the body moves; set `obj.physics` again to change it."
+        "type": "PhysicsType | SoftBodyType",
+        "desc": "How the body moves, or the soft body it is; set `obj.physics` again to change it."
+      },
+      {
+        "name": "soft",
+        "type": "Readonly<SoftSettings> | null",
+        "desc": "A soft body's settings, every default filled; `null` for a rigid body."
       },
       {
         "name": "shape?",
@@ -9539,6 +9549,11 @@
         "name": "damping",
         "type": "{ readonly linear: number; readonly angular: number; }",
         "desc": "The share of its speed lost per second by itself, linear and angular (`dv/dt = −c·v`)."
+      },
+      {
+        "name": "vertices",
+        "type": "Float32Array<ArrayBufferLike> | null",
+        "desc": "A soft body's vertices as the last tick left them: `x, y, z` per vertex of its geometry, in the geometry's own frame; `null` for a rigid body, and until its first tick."
       },
       {
         "name": "velocity",
@@ -11189,6 +11204,11 @@
         "name": "threads",
         "type": "number",
         "desc": "Threads that step the simulation, the physics worker's included. Above 1 it needs a cross-origin isolated page (shared memory); elsewhere the simulation steps on one. Never more than the machine's logical cores minus the page's own."
+      },
+      {
+        "name": "softVertices",
+        "type": "number",
+        "desc": "Vertices of every soft body at once (cloths, ropes, volumes). Each one is solved every step and read back to the page, 12 bytes a step."
       }
     ],
     "description": ""
@@ -11282,8 +11302,8 @@
     "section": "types",
     "kind": "Type",
     "title": "PhysicsOption",
-    "signature": "type PhysicsOption = PhysicsType | PhysicsBodyOptions",
-    "summary": "What `obj.physics` may be set to.",
+    "signature": "type PhysicsOption = PhysicsType | PhysicsBodyOptions | SoftBodyOptions",
+    "summary": "What `obj.physics` may be set to: a rigid body, or a soft one (`SoftBodyOptions`).",
     "description": ""
   },
   {
@@ -12529,6 +12549,39 @@
     "title": "SLICE_WORDS",
     "signature": "const SLICE_WORDS: 1",
     "summary": "Index words of the record.",
+    "description": ""
+  },
+  {
+    "id": "SOFT_AREAL_DENSITY",
+    "module": "packages/sdk-core/src/physics/soft.ts",
+    "exports": ["SOFT_AREAL_DENSITY"],
+    "section": "types",
+    "kind": "Constant",
+    "title": "SOFT_AREAL_DENSITY",
+    "signature": "const SOFT_AREAL_DENSITY: 0.2",
+    "summary": "A medium woven cotton, kg/m²: textile weights run 0.15 to 0.25.",
+    "description": "A cloth falls the same at any mass; it weighs against its pins and what it meets. A volume's skin is taken as such a cloth."
+  },
+  {
+    "id": "SOFT_FOOTPRINT",
+    "module": "packages/sdk-core/src/physics/soft.ts",
+    "exports": ["SOFT_FOOTPRINT"],
+    "section": "types",
+    "kind": "Constant",
+    "title": "SOFT_FOOTPRINT",
+    "signature": "const SOFT_FOOTPRINT: 0.25",
+    "summary": "Declared: the share of its mean cross-section — a quarter of its area, for any convex shape (Cauchy) — a volume at rest on the ground sags onto, its gas pressing its weight there.",
+    "description": "Its default pressure is then `4·m·g / (share·area)`: 31 Pa for a skin of `SOFT_AREAL_DENSITY`. Half the share, twice the pressure. A pressure far above its weight's swells it past its rest shape: each step moves a vertex by `pressure·dt² / (kg/m²)`, more than its edges then hold."
+  },
+  {
+    "id": "SOFT_LINEAR_DENSITY",
+    "module": "packages/sdk-core/src/physics/soft.ts",
+    "exports": ["SOFT_LINEAR_DENSITY"],
+    "section": "types",
+    "kind": "Constant",
+    "title": "SOFT_LINEAR_DENSITY",
+    "signature": "const SOFT_LINEAR_DENSITY: 0.065",
+    "summary": "A 10 mm polyamide rope, kg/m: makers' tables give 0.06 to 0.07.",
     "description": ""
   },
   {
@@ -14496,6 +14549,127 @@
         "name": "roots",
         "type": "number",
         "desc": "How many roots."
+      }
+    ],
+    "description": ""
+  },
+  {
+    "id": "SoftBodyCommon",
+    "module": "packages/sdk-core/src/physics/soft.ts",
+    "exports": ["SoftBodyCommon"],
+    "section": "types",
+    "kind": "Type",
+    "title": "SoftBodyCommon",
+    "signature": "interface SoftBodyCommon",
+    "summary": "What `obj.physics` accepts for a soft body: its vertices are simulated one by one.",
+    "members": [
+      {
+        "name": "pins?",
+        "type": "readonly number[] | undefined",
+        "desc": "Indices of the geometry's vertices held where they are: a flag's pole, a rope's hook."
+      },
+      {
+        "name": "mass?",
+        "type": "number | undefined",
+        "desc": "Kilograms, spread over the vertices by the area (a rope: the length) each one holds; left out, `SOFT_AREAL_DENSITY` per m² (a rope: `SOFT_LINEAR_DENSITY` per m)."
+      },
+      {
+        "name": "stretch?",
+        "type": "number | undefined",
+        "desc": "How much an edge gives when pulled, m/N (the inverse of its stiffness): 0 never stretches."
+      },
+      {
+        "name": "bend?",
+        "type": "number | undefined",
+        "desc": "How much it gives when folded, rad/(N·m) (a rope: m/N); `Infinity` folds freely."
+      }
+    ],
+    "description": ""
+  },
+  {
+    "id": "SoftBodyOptions",
+    "module": "packages/sdk-core/src/physics/soft.ts",
+    "exports": ["SoftBodyOptions"],
+    "section": "types",
+    "kind": "Type",
+    "title": "SoftBodyOptions",
+    "signature": "type SoftBodyOptions = (SoftBodyCommon & { type: 'cloth' | 'rope' }) | SoftVolumeOptions",
+    "summary": "A soft body's options: a cloth, a rope, or a volume with the pressure of its gas.",
+    "description": ""
+  },
+  {
+    "id": "SoftBodyType",
+    "module": "packages/sdk-core/src/physics/soft.ts",
+    "exports": ["SoftBodyType"],
+    "section": "types",
+    "kind": "Type",
+    "title": "SoftBodyType",
+    "signature": "type SoftBodyType = 'cloth' | 'rope' | 'volume'",
+    "summary": "A soft body: a cloth (its triangles, open), a rope (its vertices, each joined to the next), or a volume (its closed triangles, held up by the gas inside).",
+    "description": ""
+  },
+  {
+    "id": "SoftSettings",
+    "module": "packages/sdk-core/src/physics/soft.ts",
+    "exports": ["SoftSettings"],
+    "section": "types",
+    "kind": "Type",
+    "title": "SoftSettings",
+    "signature": "interface SoftSettings",
+    "summary": "A soft body's options once read: every default filled.",
+    "members": [
+      {
+        "name": "type",
+        "type": "SoftBodyType",
+        "desc": "What it is."
+      },
+      {
+        "name": "pins",
+        "type": "readonly number[]",
+        "desc": "The geometry's vertices held in place."
+      },
+      {
+        "name": "mass",
+        "type": "number | undefined",
+        "desc": "Kilograms, `undefined` for the default density's."
+      },
+      {
+        "name": "stretch",
+        "type": "number",
+        "desc": "m/N."
+      },
+      {
+        "name": "bend",
+        "type": "number",
+        "desc": "rad/(N·m), a rope's m/N."
+      },
+      {
+        "name": "pressure",
+        "type": "number | undefined",
+        "desc": "Pa; `undefined` for a volume's default (`SOFT_FOOTPRINT`)."
+      }
+    ],
+    "description": ""
+  },
+  {
+    "id": "SoftVolumeOptions",
+    "module": "packages/sdk-core/src/physics/soft.ts",
+    "exports": ["SoftVolumeOptions"],
+    "section": "types",
+    "kind": "Type",
+    "title": "SoftVolumeOptions",
+    "signature": "interface SoftVolumeOptions extends SoftBodyCommon",
+    "summary": "A volume's options: a closed mesh held up by the gas inside.",
+    "members": [
+      {
+        "name": "type",
+        "type": "'volume'",
+        "desc": "A volume."
+      },
+      {
+        "name": "pressure?",
+        "type": "number | undefined",
+        "desc": "The gas's pressure above the air's at rest, Pa; squeezed, it rises as the volume falls (Boyle's law). The triangles must face out. Left out, the pressure that rests the volume's weight on `SOFT_FOOTPRINT` of its mean cross-section."
       }
     ],
     "description": ""

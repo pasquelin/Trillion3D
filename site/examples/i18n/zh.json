@@ -2077,5 +2077,31 @@
     "words": {
       "credit": "山谷为本示例用代码建模，CC0 — 见 assets/examples/CREDITS.md"
     }
+  },
+  "cloth-and-rope": {
+    "banner": "旗子挂在旗杆上，绳子在横梁下摆动。让旗子变硬，或让绳子可以拉伸。",
+    "controls": {
+      "stiff": "硬旗",
+      "stretch": "绳子拉伸",
+      "again": "再来",
+      "slowMotion": "慢动作"
+    },
+    "readouts": {
+      "vertices": "顶点",
+      "step": "步长"
+    }
+  },
+  "soft-bodies": {
+    "banner": "把软软的体扔到台阶上。设置它们气体的压力，0 表示默认值。",
+    "controls": {
+      "pressure": "压力（Pa）",
+      "drop": "投放",
+      "again": "再来",
+      "slowMotion": "慢动作"
+    },
+    "readouts": {
+      "volumes": "体",
+      "awake": "活动"
+    }
   }
 }

@@ -1121,6 +1121,21 @@ rack, { axis, axisB, ratio })` slides the rack along `axisB` by `1 / ratio` metr
   from, the time a hand takes to full lock, the brakes' grip, a motorcycle's lean and a track's
   turn; any of them is an option. A wheel that is not a child of the body, a wrong wheel count or
   more than six gears throws `RangeError`. Live example: [drive a car](../site/examples/drive-a-car.html).
+- **Soft bodies.** `mesh.physics = { type: 'cloth' | 'rope' | 'volume', pins, mass, stretch,
+bend }` simulates the mesh's vertices one by one on Jolt's soft bodies. A cloth is its triangles;
+  a rope its vertices in order, each joined to the next; a volume its closed triangles, facing
+  out, held up by the gas inside (`pressure`, Pa above the air's at rest, rising as it is squeezed).
+  Vertices at one position are one (a sphere's seam never tears). `pins` are the geometry's vertex
+  indices held where they are. `mass` is spread over the vertices by the area (a rope: the length)
+  each holds; left out, a medium woven cotton (`SOFT_AREAL_DENSITY`, 0.2 kg/m²) or a 10 mm
+  polyamide rope (`SOFT_LINEAR_DENSITY`, 0.065 kg/m). `stretch` and `bend` are how much an edge
+  gives when pulled and a fold when bent (compliances, the inverse of stiffness; Jolt's own
+  defaults: 0 never stretches, `Infinity` folds freely). A volume's default pressure rests its
+  weight on a quarter of its mean cross-section (`SOFT_FOOTPRINT`, declared). A soft body is a
+  direct child of the scene; moved by the page, it is made again there; it takes no velocity,
+  impulse, joint or vehicle. `mesh.physics.vertices` reads its vertices as the last tick left
+  them, `x, y, z` per geometry vertex in the geometry's frame. The drawn mesh does not follow them
+  yet: it waits for geometry written every frame to be uploaded in place (#573).
 - **Stillness.** A body that sleeps sends nothing: once every body sleeps, the worker stops
   ticking and the world draws no frame.
 - **Distance and view.** Beyond the camera's draw distance (`camera.far`), a body is frozen with its
@@ -1135,8 +1150,8 @@ rack, { axis, axisB, ratio })` slides the rack along `axisB` by `1 / ratio` metr
   page's own; one elsewhere). The defaults are `DEFAULT_PHYSICS_BUDGET`. A request past one is
   refused with `PHYSICS_BUDGET` on `world.physics.error`; a step that finds more pairs or contacts
   than its budget says so the same way, and an `enter` past the events budget is counted in
-  `stats.droppedEvents` (its `leave` is then never sent). The soft-body budget arrives with soft
-  bodies.
+  `stats.droppedEvents` (its `leave` is then never sent). `softVertices` bounds the vertices of
+  every soft body at once (declared: four cloths of 64 × 64).
 - **Cost.** The `physics` CPU stage is the page's share (`stats.mainMs`); the worker's step is
   `stats.stepMs` (the mean of the last tick's steps) and `stats.stepMaxMs` (its slowest), on its
   own clock: the two are never added.
