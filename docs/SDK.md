@@ -966,8 +966,10 @@ as `world.budget.split`:
 - CPU: the shadow page table's host mirror first (20.8 MiB, fixed whatever the screen), then the
   decoded-page cache takes the whole rest (`split.pageCache`); within it the session in place
   reserves its manifest tables (a fixed reckoning per catalogue entry, not a measured heap size)
-  and its transfer queue, and the engine's cut tables (group closure and residency readiness,
-  sized by the scene's placed pages) once the scene is prepared. A change applies at once: pages
+  and its transfer queue, and the engine's cut tables (group closure, residency readiness, the
+  residency sets and the cut's differences), which follow what the view asks for and the pool
+  holds, never the size of the world, and are read each time the cache weighs itself. A change
+  applies at once: pages
   leave by last use until they fit, save those the frame keeps. The default total is the mirror
   plus the cache's own default; a total not above the mirror is refused
   (`CPU_BUDGET_UNDER_SHADOW_MIRROR`).
@@ -1202,7 +1204,7 @@ rack, { axis, axisB, ratio })` slides the rack along `axisB` by `1 / ratio` metr
   vehicle's `clutch`, `drive`, `turnRadius`, `antiRoll` or `maxLean`) or a `suspensionTravel` not
   longer than its sag, `9.81 / (2π suspensionFrequency)²`. Live example: [drive a car](../site/examples/drive-a-car.html).
 - **Soft bodies.** `mesh.physics = { type: 'cloth' | 'rope' | 'volume', pins, mass, stretch,
-  bend }` simulates the mesh's vertices one by one on Jolt's soft bodies. A cloth is its triangles;
+bend }` simulates the mesh's vertices one by one on Jolt's soft bodies. A cloth is its triangles;
   a rope its vertices in order, each joined to the next; a volume its closed triangles, facing
   out, held up by the gas inside (`pressure`, Pa above the air's at rest, rising as it is squeezed).
   Vertices at one position are one (a sphere's seam never tears). `pins` are the geometry's vertex

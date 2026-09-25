@@ -29,9 +29,9 @@ export function createWebgpuPageTracking(allPages: PageRec[]) {
    * holds pinned for it.
    */
   const wantedPages: PageRec[] = [];
-  const wanted = createDenseKeySet(keyCount, wantedPages);
-  const keep = createDenseKeySet(keyCount);
-  const pinned = createDenseKeySet(keyCount);
+  const wanted = createDenseKeySet(wantedPages);
+  const keep = createDenseKeySet();
+  const pinned = createDenseKeySet();
   /**
    * Keys something outside the residency path unpinned — a host page drop. The pin step drains this
    * and puts back the ones the image still keeps, so a dropped page that comes back is pinned again.
