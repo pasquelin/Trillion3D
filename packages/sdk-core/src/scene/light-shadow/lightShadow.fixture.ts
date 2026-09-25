@@ -28,7 +28,7 @@ export const SUN: SceneLight = {
 const SCENE_MIN = [-50, 0, -50],
   SCENE_MAX = [50, 10, 50];
 
-/** The fixture's view moved by `step` hairs: no extent moves by a page, the camera does not rest. */
+/** The fixture's view moved by `step` hairs: no extent moves by a page, the camera moves. */
 export const nudged = (step: number): ShadowViewpoint => ({
   ...VIEW,
   position: [VIEW.position[0] + step * 1e-6, VIEW.position[1], VIEW.position[2]],
