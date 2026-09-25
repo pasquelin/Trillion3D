@@ -72,13 +72,9 @@ export async function prepareWebgpuVisibility(rt: WebgpuPagesRuntime, gpuDevice:
   if (await validated(gpuDevice, size, 'out-of-memory')) vis.gpuHiz = hiz;
   else if (hiz) {
     hiz.dispose();
-    diag.engineDiagnostic('gpu-out-of-memory', 'The device refused the Hi-Z pyramid', {
-      kind: 'warning',
-      pool: 'frame-targets',
-      dropped: 'hi-z',
-    });
+    const dropped = { kind: 'warning', pool: 'frame-targets', dropped: 'hi-z' } as const;
+    diag.engineDiagnostic('gpu-out-of-memory', 'The device refused the Hi-Z pyramid', dropped);
   }
-  // Kept: a Hi-Z dropped for the frame targets makes these pipelines again without it.
   vis.visModule = visModule;
   let rasterPipelines;
   try {
