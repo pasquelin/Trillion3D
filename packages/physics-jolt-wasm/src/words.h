@@ -10,7 +10,7 @@
 namespace trillion {
 
 /// Words of an ADD command before its mesh data (layout.ts).
-constexpr uint32_t ADD_WORDS = 23;
+constexpr uint32_t ADD_WORDS = 25;
 
 inline float f32(const uint32_t *w) {
   float value;

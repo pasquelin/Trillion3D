@@ -6983,6 +6983,7 @@
       "sensor": "Si el cuerpo solo informa de contactos.",
       "ccd": "Si la colisión continua está activa.",
       "decorative": "Si el cuerpo es escombro decorativo.",
+      "damping": "La parte de su velocidad que pierde por sí mismo cada segundo, lineal y angular (`dv/dt = −c·v`).",
       "velocity": "Velocidad lineal, m/s, como la dejó el último paso; escríbela para lanzar el cuerpo.",
       "asleep": "Si el cuerpo duerme: en reposo y sin simular hasta que algo lo despierte.",
       "mass": "Masa en kilogramos; `undefined` toma la densidad del material por el volumen.",
@@ -7017,7 +7018,8 @@
       "ccd": "Colisión continua, para cuerpos pequeños y rápidos que atravesarían paredes finas.",
       "decorative": "Escombros: solo choca con el mundo estático y solo se simula al alcance y a la vista. Limitado por `budget.physics.decorative`.",
       "friction": "Sustituye la fricción del material, de 0 en adelante.",
-      "restitution": "Sustituye la restitución del material, de 0 a 1."
+      "restitution": "Sustituye la restitución del material, de 0 a 1.",
+      "damping": "Cuánta velocidad pierde el cuerpo por sí mismo, por segundo, como por el aire y la rodadura: `dv/dt = −c·v`, 0 o más, lineal y angular por separado; 0 lo conserva todo. Se fija al crear el cuerpo: vuelve a asignar `obj.physics` para cambiarlo."
     }
   },
   "PhysicsBudget": {

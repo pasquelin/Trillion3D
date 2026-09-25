@@ -6983,6 +6983,7 @@
       "sensor": "Ob der Körper nur Kontakte meldet.",
       "ccd": "Ob kontinuierliche Kollision an ist.",
       "decorative": "Ob der Körper dekorativer Trümmer ist.",
+      "damping": "Der Anteil seiner Geschwindigkeit, den er pro Sekunde von selbst verliert, linear und im Drehen (`dv/dt = −c·v`).",
       "velocity": "Lineare Geschwindigkeit, m/s, wie der letzte Schritt sie ließ; schreibe sie, um den Körper zu werfen.",
       "asleep": "Ob der Körper schläft: in Ruhe und nicht mehr simuliert, bis ihn etwas weckt.",
       "mass": "Masse in Kilogramm; `undefined` nimmt die Dichte des Materials mal das Volumen.",
@@ -7017,7 +7018,8 @@
       "ccd": "Kontinuierliche Kollision, für schnelle kleine Körper, die sonst dünne Wände durchdringen.",
       "decorative": "Trümmer: trifft nur die statische Welt und wird nur in Reichweite und im Blick simuliert. Begrenzt durch `budget.physics.decorative`.",
       "friction": "Überschreibt die Reibung des Materials, ab 0.",
-      "restitution": "Überschreibt den Rückprall des Materials, 0 bis 1."
+      "restitution": "Überschreibt den Rückprall des Materials, 0 bis 1.",
+      "damping": "Wie viel seiner Geschwindigkeit der Körper pro Sekunde von selbst verliert, wie durch Luft und Rollen: `dv/dt = −c·v`, 0 und mehr, linear und im Drehen getrennt; 0 behält alles. Beim Erzeugen gesetzt: `obj.physics` neu setzen, um es zu ändern."
     }
   },
   "PhysicsBudget": {
