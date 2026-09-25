@@ -44,9 +44,10 @@ const CAP: number = LIGHT_SETTINGS.shadowRequestCap;
  * Every page named asks for its light's floor under it too (`sunFloorLevel`, `LAMP_FLOOR_MIP`):
  * what a reader falls back to last when that page is withdrawn. So the floor is mapped first, never
  * evicted while anything above it is read, and drawn in the frame it goes stale (`admit.ts`). The
- * floor covers all the light reaches: a sun asks every frame for the floor pages its view reaches
- * (`floors`); a moved lamp, for those of the faces the latest report named — a face no receiver
- * reads costs no view —, and a lamp no report has read yet, for every face's.
+ * floor covers all the light reaches, so it needs no report to know what the view will read: a
+ * sun asks every frame for the floor pages its view reaches (`floors`), and a new, moved or
+ * reshaped lamp for each face's until a report written at its pose is read — a report from a past
+ * pose names only the pages that pose's receivers read. The read faces' go first (`admit.ts`).
  *
  * A report read against another table layout is dropped: its words name ranges that moved. A sun
  * entry is read with the extents of the frame that wrote it, and dropped when its page has since
@@ -62,9 +63,8 @@ export function createShadowRequests(
     scratch = new Int32Array(4),
     /** What the entry being read names: its view, then its page. */
     at = new Int32Array(3),
-    /** Per slice, the lamp faces the latest report named, and the layout epoch it was read at. */
-    faces = new Int32Array(records.taken.length),
-    facesAt = new Int32Array(records.taken.length);
+    /** Per slice, a bit per face the latest report read (a sun's is 0); all past its list. */
+    faces = new Int32Array(records.taken.length);
   let reportFrame = -1;
   /** Entries read, allocated, refused for want of a page, and asked past the list (`unlisted`). */
   const counts = { requested: 0, allocated: 0, refused: 0, unlisted: 0, latest: -1 };
@@ -140,8 +140,7 @@ export function createShadowRequests(
       if (report.layoutEpoch !== table.layoutEpoch) return;
       counts.latest = reportFrame = report.frame;
       needs.clear();
-      faces.fill(0);
-      facesAt.fill(report.layoutEpoch);
+      faces.fill(counts.unlisted > 0 ? -1 : 0);
       for (let i = 0; i < counts.requested; i++) {
         const entry = report.entries[i],
           word = table.words[entry];
@@ -156,23 +155,24 @@ export function createShadowRequests(
           slice = table.sliceAt(entry);
           if (slice < 0 || !decode(entry, slice)) continue;
         }
-        if (!isSun(slice)) faces[slice] |= 1 << (at[0] >> 4);
+        faces[slice] |= 1 << (isSun(slice) ? 0 : at[0] >> 4);
         ask(entry, slice);
         askFloor(slice);
       }
       needs.allocate(reportFrame, nowMs, frame, counts);
     },
+    /** Whether the latest report read `face` of `slice` (0 for a sun). */
+    reads: (slice: number, face: number) => (faces[slice] & (1 << face)) !== 0,
     /** Asks, as if the latest report named them, for the floor pages a reader may need that no
-     *  report names yet: a sun's within the view's far distance (`sun.floorReach`), whatever moved,
-     *  and a lamp's posed after that report, of the faces it named — of every face until a report
-     *  reads the lamp. Evicts only what that report did not name; the next one may evict it. */
+     *  report names yet: every sun's within the view's far distance (`sun.floorReach`), whatever
+     *  moved, and each face's of a lamp posed after that report — new, moved or reshaped: what it
+     *  named was read at a past pose. Evicts only what it did not name; the next may evict it. */
     floors(posed: ArrayLike<number>, view: ShadowViewpoint, nowMs: number, frame: number) {
       reportFrame = counts.latest;
       for (let slice = 0; slice < posed.length; slice++) {
         if (records.kind[slice] < 0) continue;
         if (!isSun(slice) && posed[slice] <= counts.latest) continue;
         needs.clear();
-        const read = facesAt[slice] >= table.claimedAt(slice) ? faces[slice] : -1;
         if (isSun(slice)) {
           const level = sunFloorLevel(sun.finest[slice]);
           sun.floorReach(slice, view, scratch);
@@ -184,17 +184,17 @@ export function createShadowRequests(
               ask(table.baseOf(slice) + sunEntry(level, x, y), slice);
             }
         } else
-          for (let face = 0; face < lampFacesOf(records.kind[slice]); face++)
-            if (read & (1 << face)) {
-              at[0] = face * 16;
-              askFloor(slice);
-            }
+          for (let face = 0; face < lampFacesOf(records.kind[slice]); face++) {
+            at[0] = face * 16;
+            askFloor(slice);
+          }
         needs.allocate(reportFrame, nowMs, frame, counts);
       }
     },
     reset() {
       counts.requested = counts.allocated = counts.refused = counts.unlisted = 0;
       counts.latest = -1;
+      faces.fill(0);
     },
   };
 }

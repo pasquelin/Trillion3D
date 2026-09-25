@@ -2,6 +2,7 @@ import { LIGHT_KIND, LIGHT_SETTINGS } from '../light/contracts.ts';
 import type { ShadowBudget } from './budget.ts';
 import type { ShadowPool } from './pool.ts';
 import type { ShadowRecords } from './records.ts';
+import type { createShadowRequests } from './requests.ts';
 import type { ShadowTable } from './table.ts';
 import type { SunLevels } from './sunLevels.ts';
 import { LAMP_MIPS, SUN_LEVELS, isFloorView, lampCoarseness, sunCoarseness } from './virtual.ts';
@@ -41,8 +42,10 @@ export const viewKeyOf = (pool: ShadowPool, page: number) =>
  * moving casters or for detail, waits its turn like any page: redrawing it every frame something
  * moves would starve the finer ones. Only the pool's ceiling and the view limit can hold an unread
  * floor back — when the frame's floors exceed the one or span more views than the light cut holds:
- * they go oldest first by their wait, so the one held back leads the next frame, and meanwhile its
- * face reads no shadow — never one at a past pose.
+ * the floors of the faces the latest report read go first (`requests.reads`), then the others,
+ * each oldest first by its wait, so a read face keeps its floor within the view limit — a face
+ * nobody reads yields its view —, the one held back leads its rank the next frame, and meanwhile
+ * its face reads no shadow — never one at a past pose.
  *
  * **A moving light draws coarse first.** A finer page's wait counts from its light's pose (`posed`,
  * the frame the plan saw it claimed, moved or reshaped in), not from when it went stale: a page
@@ -56,7 +59,9 @@ export function createShadowAdmission(capacity: number, poolPages: number) {
     floors = new Int32Array(capacity),
     score = new Float64Array(poolPages),
     list = new Int32Array(capacity),
-    views = new Float64Array(capacity);
+    views = new Float64Array(capacity),
+    /** Ranks an unread floor of a face the latest report read above any wait in frames. */
+    readFirst = 2 ** 40;
   let count = 0,
     viewLimit = capacity,
     spent = 0,
@@ -115,7 +120,7 @@ export function createShadowAdmission(capacity: number, poolPages: number) {
       records: ShadowRecords,
       sun: SunLevels,
       budget: ShadowBudget,
-      latest: number,
+      report: Pick<ReturnType<typeof createShadowRequests>, 'latest' | 'reads'>,
       frame: number,
       posed: ArrayLike<number>,
     ) {
@@ -126,18 +131,25 @@ export function createShadowAdmission(capacity: number, poolPages: number) {
       spent = opened = 0;
       for (let page = 0; page < pool.pages; page++) {
         if (pool.owner[page] < 0 || !pool.dirty[page]) continue;
-        if (pool.requested[page] < latest) {
+        if (pool.requested[page] < report.latest) {
           pool.withdraw(table, page);
           continue;
         }
         found++;
         const since = pool.sinceFrame[page],
           pose = posed[pool.slice[page]];
-        // Only the best `capacity` can be drawn. An unread floor first, oldest first; a read one
-        // is ranked with the finer pages.
-        if (!pool.valid[page] && isFloor(records, sun, page, pool))
-          unread = rank(floors, unread, page, frame - since);
-        else
+        // Only the best `capacity` can be drawn. An unread floor first — a read face's before the
+        // others, each oldest first —; a read one is ranked with the finer pages.
+        if (!pool.valid[page] && isFloor(records, sun, page, pool)) {
+          const slice = pool.slice[page],
+            face = records.kind[slice] === LIGHT_KIND.directional ? 0 : pool.view[page] >> 4;
+          unread = rank(
+            floors,
+            unread,
+            page,
+            (report.reads(slice, face) ? readFirst : 0) + frame - since,
+          );
+        } else
           kept = rank(
             candidates,
             kept,
