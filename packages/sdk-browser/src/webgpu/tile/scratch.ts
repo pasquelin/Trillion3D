@@ -1,7 +1,7 @@
 import type { Texture } from '../../../../sdk-core/src/index.ts';
 import { textureRgba } from '../../visibility/types.ts';
 import { premultipliedByte } from '../../visibility/math.ts';
-import { generateMaterialMips, mipLevelCountFor } from '../../texture/mips.ts';
+import { generateMaterialMips, mipLevelCountFor, weighsColourByAlpha } from '../../texture/mips.ts';
 import { writeRgba } from './write.ts';
 import { textureBytesOf } from '../../gpu/core/deviceLedger.ts';
 
@@ -34,6 +34,8 @@ export function createTileScratch(
     width: number;
     height: number;
     format: GPUTextureFormat;
+    /** The atlas the texture serves: the colour one weighs its mip colours by alpha. */
+    atlas: 'color' | 'data';
     errorCode: string;
   },
 ): TileScratch {
@@ -76,7 +78,8 @@ export function createTileScratch(
         [width, height],
       );
     }
-    generateMaterialMips(device, texture, format, width, height, map.premultiplyAlpha);
+    const weighted = weighsColourByAlpha(options.atlas, map.premultiplyAlpha);
+    generateMaterialMips(device, texture, format, width, height, weighted);
   };
   fill();
   return {
