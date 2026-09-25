@@ -71,7 +71,7 @@ dispose them before the next route. `docs/` holds the repository documentation o
   The compiled scenes live under `site/assets/examples/`, each `<scene>/source` beside its
   `cache`, built by `scripts/docs-examples-assets.ts` with this checkout's native compiler. Git
   tracks no cache: `pnpm run compile:caches` (`scripts/site-caches.ts`) compiles each one missing
-  or older than its source, as the site build, the unit test runners and `test:gpu` do first; the
+  or stale, as the site deploy, the unit test runners and `test:gpu` do first; the
   models that some scenes import, and their licences, are listed in
   `site/assets/examples/CREDITS.md`.
 
@@ -144,8 +144,8 @@ and only from `main`:
 gh workflow run pages.yml -f deploy=true --ref main
 ```
 
-The build compiles the native compiler, then the scene caches, and fetches the published report
-(see [Benchmark reports](#benchmark-reports)). The deploy job refuses an output without `index.html` or `runtime/portal.js`, or with fewer files
+A deploying run builds the native compiler, then the scene caches (`pnpm run compile:caches`).
+The deploy job refuses an output without `index.html` or `runtime/portal.js`, or with fewer files
 than the build copies, pre-compresses the text files beside their originals, sends the tree over
 SSH with `rsync --delete-delay --delay-updates` — excluding `openworld/`, which the open world's
 own repository publishes and this deploy must never delete —, then checks that the site root and the portal
@@ -241,8 +241,9 @@ families first, the constant families under "Constants", then the maths, the Nod
 every other public type. To document a symbol, write its TSDoc in the source, run
 `node scripts/generate-api-reference.ts`, and add its text in every other language to
 `site/content/reference/api.<language>.json` (keyed by entry id; rows by name), which only
-translators write. Git tracks neither `api.json` nor `site/data/api-inventory.json`: `pnpm run
-generate:api` writes both, as the site build, the test runners and `validate` do first; and
+translators write. Git tracks neither `api.json` nor `site/data/api-inventory.json`: `pnpm install`
+writes both, and `pnpm run generate:api`, the site build, the test runners and `validate` rewrite
+them first when a source is newer; and
 `scripts/docs-api-reference.test.ts` on an export, a family member or a row without an entry or a
 summary, on two entries sharing a summary and on a thrown error code left unexplained; `check:i18n`
 on a translation missing a text or naming one English does not show. The written notes of `site/content/entries/*.ts` (matrices, vectors, bounds…) only add a
@@ -312,8 +313,8 @@ function mappings in the catalogue limited to functions actually called by the e
 ## Benchmark reports
 
 The Measurements route (`#/en/reports` or `#/fr/reports`) reads the one published campaign from
-`site/reports/`, which git does not track: `bench/runner/publishReport.ts` stages it, the site
-build of `pages.yml` fetches it from the release `report`, and a build with neither lists none. Shared React components own its presentation; the modules of `site/reports/` own
+`site/reports/`, which `bench/runner/publishReport.ts` replaces. Shared React components own its
+presentation; the modules of `site/reports/` own
 the contract, metric semantics, comparison eligibility and bilingual labels. See the
 [report pipeline](../bench/runner/README.md#published-reports) for export and staging. The page is
 a `DocPage`, its sidebar the parts of the campaign. Campaign data is independent of the site build.

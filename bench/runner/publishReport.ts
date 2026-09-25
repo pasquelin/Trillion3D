@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 // Stage a campaign's evidence as the site's one report (CONTRIBUTING.md, "Measure before
-// optimising"): it replaces the campaign staged before it. Git tracks neither; no network
-// publication occurs here (bench/runner/README.md, "Published reports").
+// optimising"): it replaces the campaign staged before it. No network publication occurs here.
 import {
   cpSync,
   existsSync,

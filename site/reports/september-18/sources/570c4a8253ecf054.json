@@ -1,0 +1,2383 @@
+{
+  "startedAt": "2026-09-18T10:48:02.743Z",
+  "head": "810e8b51a55cb2b67d5db2cd388f9d274ecf08f7",
+  "scene": "emerald-square",
+  "engine": "webgpu",
+  "pathVersion": 5,
+  "settings": {
+    "engine": "webgpu",
+    "frames": 60,
+    "warmup": 8,
+    "pixelErrors": [1],
+    "maxPages": 100000,
+    "width": 2496,
+    "height": 1404,
+    "port": 55593,
+    "stageProfile": true,
+    "trace": false,
+    "profileFrames": 120,
+    "textureSource": "host",
+    "temporalAntialiasing": true,
+    "visible": false,
+    "bounce": false,
+    "lights": 0,
+    "lightShadows": true,
+    "lightIntensity": 40,
+    "movingLight": false,
+    "importedLights": true,
+    "sun": true,
+    "shadowBudgetMs": null,
+    "shadowPages": true,
+    "shadowDigest": false,
+    "movingNode": null,
+    "movingNodeRadius": 1,
+    "movingCamera": true,
+    "instances": 1,
+    "isolation": false,
+    "mathPath": "auto"
+  },
+  "flags": [
+    "--disable-backgrounding-occluded-windows",
+    "--disable-renderer-backgrounding",
+    "--disable-background-timer-throttling",
+    "--enable-gpu-benchmarking",
+    "--enable-unsafe-webgpu"
+  ],
+  "sides": {
+    "apres": {
+      "from": "dossier",
+      "moteur": "webgpu-page-raster",
+      "variante": null,
+      "erreur": "certifiee"
+    }
+  },
+  "series": [
+    {
+      "view": "generale",
+      "pixelError": 1,
+      "segment": "Vue générale du modèle",
+      "index": 0,
+      "pose": {
+        "position": [165.64747193008407, 56, 179.50600116298307],
+        "target": [-0.04997214540716044, 4, -0.025006399620522757],
+        "fov": 55,
+        "near": 0.01722998745084001,
+        "far": 3445.997490168002
+      },
+      "sides": {
+        "apres": {
+          "cpuFrameMs": {
+            "mean": 0.4966666658719381,
+            "p50": 0.5,
+            "p95": 0.7999999821186066,
+            "p99": 1.7000000178813934,
+            "max": 1.7000000178813934
+          },
+          "cpuSelectMs": null,
+          "moteur": "webgpu-page-raster",
+          "gpuFrameMs": null,
+          "imageSyncMs": null,
+          "rafIntervalMs": null,
+          "profilParEtape": {
+            "version": 1,
+            "enabled": true,
+            "backend": "webgpu-page-raster",
+            "cpuFrames": 120,
+            "gpuSamples": 40,
+            "windowFrames": 120,
+            "gpuMethod": "timestamp-query",
+            "gpuReason": null,
+            "gpuImageMs": { "p50": 9.157651, "p95": 11.254287 },
+            "overheadMs": { "p50": 0, "p95": 0 },
+            "stages": [
+              {
+                "stage": "animations",
+                "label": "Animations et transformations",
+                "cpuMs": { "p50": 0.6000000238418579, "p95": 0.7999999821186066 },
+                "gpuMs": null
+              },
+              {
+                "stage": "lights",
+                "label": "Éclairage : préparation des listes et des ombres",
+                "cpuMs": { "p50": 0, "p95": 0 },
+                "gpuMs": null
+              },
+              {
+                "stage": "cutAdoption",
+                "label": "Adoption de la coupe",
+                "cpuMs": { "p50": 0, "p95": 0 },
+                "gpuMs": null
+              },
+              {
+                "stage": "selection",
+                "label": "Sélection et visibilité",
+                "cpuMs": { "p50": 0, "p95": 0.5 },
+                "gpuMs": { "p50": 0.627033, "p95": 0.682157 },
+                "counts": { "grappesRejetees": 6309, "pagesVoulues": 16958, "grappesDuDag": 163316 }
+              },
+              {
+                "stage": "transparents",
+                "label": "Transparents",
+                "cpuMs": { "p50": 0, "p95": 0 },
+                "gpuMs": null
+              },
+              {
+                "stage": "residency",
+                "label": "Admission et file de résidence",
+                "cpuMs": { "p50": 0.09999999403953552, "p95": 0.4999999701976776 },
+                "gpuMs": null
+              },
+              {
+                "stage": "hostPages",
+                "label": "Listes de pages rendues à l’hôte",
+                "cpuMs": { "p50": 0.30000001192092896, "p95": 0.800000011920929 },
+                "gpuMs": null
+              },
+              {
+                "stage": "uploads",
+                "label": "Téléversements",
+                "cpuMs": { "p50": 0.10000002384185791, "p95": 1.0999999940395355 },
+                "gpuMs": null
+              },
+              {
+                "stage": "textures",
+                "label": "Textures : ordre et transferts vers les atlas",
+                "cpuMs": null,
+                "gpuMs": null,
+                "cpuReason": "file vide : aucun ordre à calculer",
+                "gpuReason": "les transferts passent par la file de la carte, sans passe horodatée",
+                "counts": {
+                  "couchesAuNiveauVoulu": 103,
+                  "couchesVisibles": 103,
+                  "niveauxManquants": 0,
+                  "octetsEngages": 4989369936,
+                  "evictions": 0
+                }
+              },
+              {
+                "stage": "partition",
+                "label": "Partition occulteurs / testés",
+                "cpuMs": { "p50": 0, "p95": 0.09999999403953552 },
+                "gpuMs": { "p50": 0.12779, "p95": 0.153997 },
+                "counts": {
+                  "lignes": 60677,
+                  "occulteurs": 58744,
+                  "testees": 1845,
+                  "bornesToutes": 60036,
+                  "historiqueOcculteurs": 58744,
+                  "sansHistorique": 0,
+                  "imageRelevee": 203
+                }
+              },
+              {
+                "stage": "encode",
+                "label": "Encodage des passes",
+                "cpuMs": { "p50": 0.20000001788139343, "p95": 0.7000000178813934 },
+                "gpuMs": null,
+                "counts": {
+                  "lignesTeleversees": 0,
+                  "fichesTeleversees": 0,
+                  "appelsDeDessin": 18,
+                  "appelsDeMelange": 0,
+                  "lancementsDeCalcul": 0
+                }
+              },
+              {
+                "stage": "submit",
+                "label": "Soumission",
+                "cpuMs": { "p50": 0, "p95": 0 },
+                "gpuMs": null
+              },
+              {
+                "stage": "hiZ",
+                "label": "Hi-Z (occultation)",
+                "cpuMs": null,
+                "gpuMs": { "p50": 0.18374800000000002, "p95": 0.195164 }
+              },
+              {
+                "stage": "geometry",
+                "label": "Géométrie",
+                "cpuMs": null,
+                "gpuMs": { "p50": 3.992105, "p95": 5.113256 }
+              },
+              {
+                "stage": "coplanar",
+                "label": "Couches coplanaires",
+                "cpuMs": null,
+                "gpuMs": null,
+                "cpuReason": "décidées par la coupe, sans borne propre",
+                "gpuReason": "dessinées dans les passes de géométrie, sans passe propre"
+              },
+              {
+                "stage": "shadows",
+                "label": "Ombres",
+                "cpuMs": null,
+                "gpuMs": { "p50": 1.937678, "p95": 2.785207 },
+                "counts": {
+                  "lampesRedessinees": 1,
+                  "cartesReutilisees": 0,
+                  "facesRedessinees": 1,
+                  "appelsDeDessin": 2,
+                  "soleilsRedessines": 1,
+                  "cascadesRedessinees": 1,
+                  "regionsRedessinees": 1,
+                  "pagesInvalidees": 64,
+                  "pagesRedessinees": 64,
+                  "pagesEnAttente": 192,
+                  "retardMaxMs": 34.80000001192093,
+                  "retardMaxImages": 2
+                }
+              },
+              {
+                "stage": "sunFarShadows",
+                "label": "Ombres lointaines (soleil contre le proxy)",
+                "cpuMs": null,
+                "gpuMs": null,
+                "cpuReason": "aucun travail processeur : le rayon lointain est tiré par la résolution différée",
+                "gpuReason": "mesurée dans l’étape « Éclairage (résolution) », qui tire le rayon lointain",
+                "counts": {
+                  "trianglesDuProxy": 94648,
+                  "pixelsTestes": 0,
+                  "pixelsAssombris": 0,
+                  "imageRelevee": 203
+                }
+              },
+              {
+                "stage": "lightLists",
+                "label": "Listes de lampes",
+                "cpuMs": null,
+                "gpuMs": { "p50": 1.896388, "p95": 3.002954 },
+                "counts": { "lampesActives": 1 }
+              },
+              {
+                "stage": "bounce",
+                "label": "Rebond (sondes d'irradiance)",
+                "cpuMs": null,
+                "gpuMs": null,
+                "cpuReason": "the bounce is off by default; create the explorer with bounce: true",
+                "gpuReason": "the bounce is off by default; create the explorer with bounce: true",
+                "counts": {
+                  "sondesMisesAJour": 0,
+                  "rayonsParImage": 0,
+                  "sondesDesCascades": 0,
+                  "maillesMisesAJour": 0,
+                  "maillesDuCache": 0,
+                  "fractionDuBudget": 0
+                }
+              },
+              {
+                "stage": "lighting",
+                "label": "Éclairage (résolution)",
+                "cpuMs": null,
+                "gpuMs": { "p50": 4.164561, "p95": 6.074907 }
+              },
+              {
+                "stage": "antialiasing",
+                "label": "Antialiasing temporel",
+                "cpuMs": null,
+                "gpuMs": { "p50": 4.433725, "p95": 6.33407 }
+              },
+              {
+                "stage": "present",
+                "label": "Présentation",
+                "cpuMs": null,
+                "gpuMs": { "p50": 4.483973, "p95": 6.366069 }
+              }
+            ]
+          },
+          "passesGpu": {
+            "releves": 41,
+            "blocs": {
+              "visibilityMs": {
+                "mean": 2.857478512195122,
+                "p50": 2.7197490000000006,
+                "p95": 3.8087750000000002,
+                "p99": 4.051855,
+                "max": 4.051855
+              },
+              "materialsMs": {
+                "mean": 1.8031115853658541,
+                "p50": 1.940554,
+                "p95": 2.660542,
+                "p99": 2.806583,
+                "max": 2.806583
+              },
+              "otherMs": {
+                "mean": 16.201265365853654,
+                "p50": 17.455773999999998,
+                "p95": 24.786039000000002,
+                "p99": 28.449939999999998,
+                "max": 28.449939999999998
+              }
+            },
+            "passes": [
+              {
+                "name": "Trillion3D HDR composition + present",
+                "bloc": "other",
+                "gpuMs": {
+                  "mean": 4.278429682926829,
+                  "p50": 4.483973,
+                  "p95": 6.366069,
+                  "p99": 7.893587,
+                  "max": 7.893587
+                }
+              },
+              {
+                "name": "Trillion3D temporal antialiasing",
+                "bloc": "other",
+                "gpuMs": {
+                  "mean": 4.234575804878048,
+                  "p50": 4.433725,
+                  "p95": 6.33407,
+                  "p99": 7.863713,
+                  "max": 7.863713
+                }
+              },
+              {
+                "name": "Trillion3D deferred lighting",
+                "bloc": "other",
+                "gpuMs": {
+                  "mean": 3.985716658536585,
+                  "p50": 4.164561,
+                  "p95": 6.074907,
+                  "p99": 7.611051,
+                  "max": 7.611051
+                }
+              },
+              {
+                "name": "Trillion3D material surfaces v1",
+                "bloc": "materials",
+                "gpuMs": {
+                  "mean": 1.8031115853658541,
+                  "p50": 1.940554,
+                  "p95": 2.660542,
+                  "p99": 2.806583,
+                  "max": 2.806583
+                }
+              },
+              {
+                "name": "Trillion3D light tiles v1",
+                "bloc": "other",
+                "gpuMs": {
+                  "mean": 1.8457219512195122,
+                  "p50": 1.896388,
+                  "p95": 3.002954,
+                  "p99": 3.439532,
+                  "max": 3.439532
+                }
+              },
+              {
+                "name": "Trillion3D visibility primary",
+                "bloc": "visibility",
+                "gpuMs": {
+                  "mean": 1.9667544634146341,
+                  "p50": 1.868637,
+                  "p95": 2.782248,
+                  "p99": 3.054287,
+                  "max": 3.054287
+                }
+              },
+              {
+                "name": "Trillion3D shadow atlas v1",
+                "bloc": "other",
+                "gpuMs": {
+                  "mean": 1.797942097560976,
+                  "p50": 1.837555,
+                  "p95": 2.757083,
+                  "p99": 2.872539,
+                  "max": 2.872539
+                }
+              },
+              {
+                "name": "Trillion3D draw compaction",
+                "bloc": "visibility",
+                "gpuMs": {
+                  "mean": 0.3673470243902439,
+                  "p50": 0.425786,
+                  "p95": 0.462077,
+                  "p99": 0.466033,
+                  "max": 0.466033
+                }
+              },
+              {
+                "name": "Trillion3D HiZ pyramid",
+                "bloc": "visibility",
+                "gpuMs": {
+                  "mean": 0.14444400000000002,
+                  "p50": 0.144123,
+                  "p95": 0.153498,
+                  "p99": 0.156247,
+                  "max": 0.156247
+                }
+              },
+              {
+                "name": "Trillion3D partition",
+                "bloc": "visibility",
+                "gpuMs": {
+                  "mean": 0.12054682926829269,
+                  "p50": 0.12779,
+                  "p95": 0.153997,
+                  "p99": 0.154789,
+                  "max": 0.154789
+                }
+              },
+              {
+                "name": "Trillion3D DAG selection",
+                "bloc": "visibility",
+                "gpuMs": {
+                  "mean": 0.06808743089430891,
+                  "p50": 0.076124,
+                  "p95": 0.089957,
+                  "p99": 0.097539,
+                  "max": 0.107623
+                }
+              },
+              {
+                "name": "Trillion3D HiZ test",
+                "bloc": "visibility",
+                "gpuMs": {
+                  "mean": 0.040567390243902435,
+                  "p50": 0.040207,
+                  "p95": 0.043167,
+                  "p99": 0.052291,
+                  "max": 0.052291
+                }
+              },
+              {
+                "name": "Trillion3D shadow cull",
+                "bloc": "other",
+                "gpuMs": {
+                  "mean": 0.04639143902439025,
+                  "p50": 0.024917,
+                  "p95": 0.033334,
+                  "p99": 0.638531,
+                  "max": 0.638531
+                }
+              },
+              {
+                "name": "Trillion3D rest truncation",
+                "bloc": "other",
+                "gpuMs": {
+                  "mean": 0.012487731707317077,
+                  "p50": 0.0135,
+                  "p95": 0.016167,
+                  "p99": 0.017083,
+                  "max": 0.017083
+                }
+              },
+              {
+                "name": "Trillion3D visibility secondary",
+                "bloc": "visibility",
+                "gpuMs": {
+                  "mean": 0.013556512195121955,
+                  "p50": 0.008957,
+                  "p95": 0.02454,
+                  "p99": 0.025042,
+                  "max": 0.025042
+                }
+              }
+            ]
+          },
+          "preparationMs": 1986,
+          "reseau": {
+            "json": 400642,
+            "bin": 260170288,
+            "wasm": 44509,
+            "gltf": 594952,
+            "js": 2111602
+          },
+          "variante": null,
+          "erreur": "certifiee",
+          "selectedTriangles": 2040372,
+          "uncoveredTriangles": 0,
+          "drawnTriangles": 2040372,
+          "submittedTriangles": null,
+          "totalSubmittedTriangles": null,
+          "imageDuReleve": 59,
+          "imageTenue": false,
+          "repliSelectionGpu": false,
+          "hiZ": {
+            "tested": 1845,
+            "rejected": 1845,
+            "beyond16Texels": 1285,
+            "testedTriangles": 210269,
+            "rejectedTriangles": 210269,
+            "beyond16TexelsTriangles": 151649,
+            "image": 203
+          },
+          "selection": {
+            "source": "selectedPageIds",
+            "sha256": "969c3704038da8b14a9e43f4c12955819f69b916dc5cd11ec617d5a7f9e7a349",
+            "taille": 16505
+          },
+          "geometrieOctets": 242888964,
+          "budgetPages": {
+            "demande": 100000,
+            "residentes": 19724,
+            "couvertureLimiteeParBudget": false
+          },
+          "cheminCalcul": {
+            "contract": 1,
+            "mode": "auto",
+            "wasmAvailable": true,
+            "wasmSimd": true,
+            "clockResolutionMs": null,
+            "clockCoarse": true,
+            "unavailableReason": null,
+            "operations": {
+              "boxTransformBatch": {
+                "path": "js",
+                "jsNsPerElement": 726.0992323597288,
+                "wasmNsPerElement": null,
+                "jsSamples": 2,
+                "wasmSamples": 0,
+                "switches": 0,
+                "elements": 4958
+              }
+            }
+          },
+          "lampes": {
+            "nombre": 1,
+            "ponctuelles": 0,
+            "soleil": true,
+            "ombres": true,
+            "maille": 0,
+            "intensite": 40,
+            "mobile": false
+          },
+          "lampesFichier": { "nombre": 0, "ids": [] },
+          "lampesTemoin": null,
+          "atlasOmbres": null,
+          "objetMobile": null,
+          "charge": {
+            "debut": [4.494140625, 5.32861328125, 5.90771484375],
+            "fin": [5.06787109375, 5.4306640625, 5.9375]
+          },
+          "captureStatus": 200,
+          "incidentsGpu": null,
+          "canvas": { "width": 2496, "height": 1404 },
+          "metrics": {
+            "rafIntervalMs": null,
+            "cpuFrameMs": 1.100000023841858,
+            "cpuSelectMs": null,
+            "cpuSelectNodesTested": null,
+            "cpuSubmitMs": 0.29999998211860657,
+            "gpuMs": null,
+            "drawCalls": 18,
+            "triangles": null,
+            "clusters": null,
+            "selectedTriangles": 2040372,
+            "residentPages": 19724,
+            "geometryAllocationBytes": 242888964,
+            "vramBytes": null,
+            "pageLoads": 340,
+            "pageBytesRead": 30496440,
+            "pagesDetached": null,
+            "cacheEvictions": 0,
+            "hizCountedFrame": 203,
+            "hizTestedClusters": 1845,
+            "hizRejectedClusters": 1845,
+            "hizOversizedClusters": 1285,
+            "hizTestedTriangles": 210269,
+            "hizRejectedTriangles": 210269,
+            "hizOversizedTriangles": 151649,
+            "gpuFrameMs": 10.605671,
+            "gpuHostGapMs": 0,
+            "uncoveredTriangles": 0,
+            "drawnTriangles": 2040372,
+            "lightsActive": 1,
+            "shadowsUpdated": 1,
+            "shadowFacesDrawn": 1,
+            "shadowDrawCalls": 2,
+            "shadowPagesDrawn": 64,
+            "shadowPagesPending": 192,
+            "shadowWaitMs": 34.80000001192093,
+            "gpuLightListsMs": 2.557544,
+            "gpuShadowsMs": 2.510337,
+            "gpuLightingMs": 7.611051,
+            "textureInFlight": 0,
+            "textureSlicesUploaded": 2559,
+            "textureBytesLastFrame": 16777216,
+            "textureLevelsUploaded": 2262,
+            "textureAtlasBytesCalculated": 6688572304,
+            "textureAtlasClassesUsed": 2,
+            "pagesDecodedOffThread": 336,
+            "pagesDecodedWasm": 0,
+            "pageDecodeMs": 18.19999995827675,
+            "coverageReady": true,
+            "coverageBudgetLimited": false,
+            "frustumRejected": 6309,
+            "lodLevel": 6,
+            "frameHeld": false,
+            "submittedTriangles": null,
+            "transparentMeshes": 0,
+            "transparentFrustumRejected": 0,
+            "transparentDrawCalls": 0,
+            "transparentSubmittedTriangles": 0,
+            "gpuSelectionFallback": false,
+            "textureUploaded": 297,
+            "texturePending": 0,
+            "textureSkipped": 0,
+            "textureResidentBytes": 4989369936,
+            "textureBudgetBytes": 6688572304,
+            "textureAtWantedLevel": 103,
+            "textureLayers": 127,
+            "textureMissingLevels": 0,
+            "textureEvictions": 0,
+            "streamingError": null,
+            "totalSubmittedTriangles": null,
+            "pagesRequested": 368,
+            "pagesLoading": 0,
+            "cacheHits": 0,
+            "cacheMisses": 368,
+            "pagesPlannedOffThread": 112,
+            "pagePlanMs": 1.300000011920929
+          }
+        },
+        "apres-aa": {
+          "cpuFrameMs": {
+            "mean": 0.5066666667660077,
+            "p50": 0.5,
+            "p95": 0.6000000238418579,
+            "p99": 1.7000000178813934,
+            "max": 1.7000000178813934
+          },
+          "cpuSelectMs": null,
+          "moteur": "webgpu-page-raster",
+          "gpuFrameMs": null,
+          "imageSyncMs": null,
+          "rafIntervalMs": null,
+          "profilParEtape": {
+            "version": 1,
+            "enabled": true,
+            "backend": "webgpu-page-raster",
+            "cpuFrames": 120,
+            "gpuSamples": 40,
+            "windowFrames": 120,
+            "gpuMethod": "timestamp-query",
+            "gpuReason": null,
+            "gpuImageMs": { "p50": 9.306691, "p95": 11.440575 },
+            "overheadMs": { "p50": 0, "p95": 0 },
+            "stages": [
+              {
+                "stage": "animations",
+                "label": "Animations et transformations",
+                "cpuMs": { "p50": 0.699999988079071, "p95": 0.800000011920929 },
+                "gpuMs": null
+              },
+              {
+                "stage": "lights",
+                "label": "Éclairage : préparation des listes et des ombres",
+                "cpuMs": { "p50": 0, "p95": 0 },
+                "gpuMs": null
+              },
+              {
+                "stage": "cutAdoption",
+                "label": "Adoption de la coupe",
+                "cpuMs": { "p50": 0, "p95": 0.09999999403953552 },
+                "gpuMs": null
+              },
+              {
+                "stage": "selection",
+                "label": "Sélection et visibilité",
+                "cpuMs": { "p50": 0, "p95": 0.5 },
+                "gpuMs": { "p50": 0.6016980000000001, "p95": 0.688531 },
+                "counts": { "grappesRejetees": 6309, "pagesVoulues": 16958, "grappesDuDag": 163316 }
+              },
+              {
+                "stage": "transparents",
+                "label": "Transparents",
+                "cpuMs": { "p50": 0, "p95": 0 },
+                "gpuMs": null
+              },
+              {
+                "stage": "residency",
+                "label": "Admission et file de résidence",
+                "cpuMs": { "p50": 0.09999999403953552, "p95": 0.5 },
+                "gpuMs": null
+              },
+              {
+                "stage": "hostPages",
+                "label": "Listes de pages rendues à l’hôte",
+                "cpuMs": { "p50": 0.30000001192092896, "p95": 0.7999999821186066 },
+                "gpuMs": null
+              },
+              {
+                "stage": "uploads",
+                "label": "Téléversements",
+                "cpuMs": { "p50": 0.10000002384185791, "p95": 1.0999999940395355 },
+                "gpuMs": null
+              },
+              {
+                "stage": "textures",
+                "label": "Textures : ordre et transferts vers les atlas",
+                "cpuMs": null,
+                "gpuMs": null,
+                "cpuReason": "file vide : aucun ordre à calculer",
+                "gpuReason": "les transferts passent par la file de la carte, sans passe horodatée",
+                "counts": {
+                  "couchesAuNiveauVoulu": 103,
+                  "couchesVisibles": 103,
+                  "niveauxManquants": 0,
+                  "octetsEngages": 4989369936,
+                  "evictions": 0
+                }
+              },
+              {
+                "stage": "partition",
+                "label": "Partition occulteurs / testés",
+                "cpuMs": { "p50": 0, "p95": 0.09999999403953552 },
+                "gpuMs": { "p50": 0.126623, "p95": 0.153081 },
+                "counts": {
+                  "lignes": 60677,
+                  "occulteurs": 58741,
+                  "testees": 1848,
+                  "bornesToutes": 60036,
+                  "historiqueOcculteurs": 58741,
+                  "sansHistorique": 0,
+                  "imageRelevee": 199
+                }
+              },
+              {
+                "stage": "encode",
+                "label": "Encodage des passes",
+                "cpuMs": { "p50": 0.20000001788139343, "p95": 0.7999999821186066 },
+                "gpuMs": null,
+                "counts": {
+                  "lignesTeleversees": 0,
+                  "fichesTeleversees": 0,
+                  "appelsDeDessin": 18,
+                  "appelsDeMelange": 0,
+                  "lancementsDeCalcul": 0
+                }
+              },
+              {
+                "stage": "submit",
+                "label": "Soumission",
+                "cpuMs": { "p50": 0.09999999403953552, "p95": 0.19999998807907104 },
+                "gpuMs": null
+              },
+              {
+                "stage": "hiZ",
+                "label": "Hi-Z (occultation)",
+                "cpuMs": null,
+                "gpuMs": { "p50": 0.186414, "p95": 0.196998 }
+              },
+              {
+                "stage": "geometry",
+                "label": "Géométrie",
+                "cpuMs": null,
+                "gpuMs": { "p50": 4.069768999999999, "p95": 5.100839000000001 }
+              },
+              {
+                "stage": "coplanar",
+                "label": "Couches coplanaires",
+                "cpuMs": null,
+                "gpuMs": null,
+                "cpuReason": "décidées par la coupe, sans borne propre",
+                "gpuReason": "dessinées dans les passes de géométrie, sans passe propre"
+              },
+              {
+                "stage": "shadows",
+                "label": "Ombres",
+                "cpuMs": null,
+                "gpuMs": { "p50": 1.9259300000000001, "p95": 2.77875 },
+                "counts": {
+                  "lampesRedessinees": 1,
+                  "cartesReutilisees": 0,
+                  "facesRedessinees": 1,
+                  "appelsDeDessin": 2,
+                  "soleilsRedessines": 1,
+                  "cascadesRedessinees": 1,
+                  "regionsRedessinees": 1,
+                  "pagesInvalidees": 64,
+                  "pagesRedessinees": 64,
+                  "pagesEnAttente": 192,
+                  "retardMaxMs": 34.900000005960464,
+                  "retardMaxImages": 2
+                }
+              },
+              {
+                "stage": "sunFarShadows",
+                "label": "Ombres lointaines (soleil contre le proxy)",
+                "cpuMs": null,
+                "gpuMs": null,
+                "cpuReason": "aucun travail processeur : le rayon lointain est tiré par la résolution différée",
+                "gpuReason": "mesurée dans l’étape « Éclairage (résolution) », qui tire le rayon lointain",
+                "counts": {
+                  "trianglesDuProxy": 94648,
+                  "pixelsTestes": 0,
+                  "pixelsAssombris": 0,
+                  "imageRelevee": 199
+                }
+              },
+              {
+                "stage": "lightLists",
+                "label": "Listes de lampes",
+                "cpuMs": null,
+                "gpuMs": { "p50": 1.917638, "p95": 2.636752 },
+                "counts": { "lampesActives": 1 }
+              },
+              {
+                "stage": "bounce",
+                "label": "Rebond (sondes d'irradiance)",
+                "cpuMs": null,
+                "gpuMs": null,
+                "cpuReason": "the bounce is off by default; create the explorer with bounce: true",
+                "gpuReason": "the bounce is off by default; create the explorer with bounce: true",
+                "counts": {
+                  "sondesMisesAJour": 0,
+                  "rayonsParImage": 0,
+                  "sondesDesCascades": 0,
+                  "maillesMisesAJour": 0,
+                  "maillesDuCache": 0,
+                  "fractionDuBudget": 0
+                }
+              },
+              {
+                "stage": "lighting",
+                "label": "Éclairage (résolution)",
+                "cpuMs": null,
+                "gpuMs": { "p50": 4.119978, "p95": 6.321819 }
+              },
+              {
+                "stage": "antialiasing",
+                "label": "Antialiasing temporel",
+                "cpuMs": null,
+                "gpuMs": { "p50": 4.382933, "p95": 6.575609 }
+              },
+              {
+                "stage": "present",
+                "label": "Présentation",
+                "cpuMs": null,
+                "gpuMs": { "p50": 4.437892, "p95": 6.620482 }
+              }
+            ]
+          },
+          "passesGpu": {
+            "releves": 41,
+            "blocs": {
+              "visibilityMs": {
+                "mean": 2.9192500000000003,
+                "p50": 2.731415,
+                "p95": 3.8909409999999998,
+                "p99": 4.079147,
+                "max": 4.079147
+              },
+              "materialsMs": {
+                "mean": 1.803855682926829,
+                "p50": 1.894971,
+                "p95": 2.672085,
+                "p99": 2.728709,
+                "max": 2.728709
+              },
+              "otherMs": {
+                "mean": 16.254527731707316,
+                "p50": 17.370525999999998,
+                "p95": 24.134966000000002,
+                "p99": 28.698436,
+                "max": 28.698436
+              }
+            },
+            "passes": [
+              {
+                "name": "Trillion3D HDR composition + present",
+                "bloc": "other",
+                "gpuMs": {
+                  "mean": 4.307043951219511,
+                  "p50": 4.437892,
+                  "p95": 6.620482,
+                  "p99": 7.956962,
+                  "max": 7.956962
+                }
+              },
+              {
+                "name": "Trillion3D temporal antialiasing",
+                "bloc": "other",
+                "gpuMs": {
+                  "mean": 4.264372999999998,
+                  "p50": 4.382933,
+                  "p95": 6.575609,
+                  "p99": 7.919338,
+                  "max": 7.919338
+                }
+              },
+              {
+                "name": "Trillion3D deferred lighting",
+                "bloc": "other",
+                "gpuMs": {
+                  "mean": 4.01511556097561,
+                  "p50": 4.119978,
+                  "p95": 6.321819,
+                  "p99": 7.661341,
+                  "max": 7.661341
+                }
+              },
+              {
+                "name": "Trillion3D light tiles v1",
+                "bloc": "other",
+                "gpuMs": {
+                  "mean": 1.8225220000000004,
+                  "p50": 1.917638,
+                  "p95": 2.636752,
+                  "p99": 3.614737,
+                  "max": 3.614737
+                }
+              },
+              {
+                "name": "Trillion3D material surfaces v1",
+                "bloc": "materials",
+                "gpuMs": {
+                  "mean": 1.803855682926829,
+                  "p50": 1.894971,
+                  "p95": 2.672085,
+                  "p99": 2.728709,
+                  "max": 2.728709
+                }
+              },
+              {
+                "name": "Trillion3D shadow atlas v1",
+                "bloc": "other",
+                "gpuMs": {
+                  "mean": 1.801543804878049,
+                  "p50": 1.874514,
+                  "p95": 2.751,
+                  "p99": 2.974164,
+                  "max": 2.974164
+                }
+              },
+              {
+                "name": "Trillion3D visibility primary",
+                "bloc": "visibility",
+                "gpuMs": {
+                  "mean": 2.0227425365853655,
+                  "p50": 1.868055,
+                  "p95": 2.854874,
+                  "p99": 3.153786,
+                  "max": 3.153786
+                }
+              },
+              {
+                "name": "Trillion3D draw compaction",
+                "bloc": "visibility",
+                "gpuMs": {
+                  "mean": 0.3667505365853658,
+                  "p50": 0.406368,
+                  "p95": 0.463825,
+                  "p99": 0.472367,
+                  "max": 0.472367
+                }
+              },
+              {
+                "name": "Trillion3D HiZ pyramid",
+                "bloc": "visibility",
+                "gpuMs": {
+                  "mean": 0.14487285365853658,
+                  "p50": 0.146164,
+                  "p95": 0.15379,
+                  "p99": 0.156872,
+                  "max": 0.156872
+                }
+              },
+              {
+                "name": "Trillion3D partition",
+                "bloc": "visibility",
+                "gpuMs": {
+                  "mean": 0.12139443902439023,
+                  "p50": 0.126623,
+                  "p95": 0.153081,
+                  "p99": 0.154748,
+                  "max": 0.154748
+                }
+              },
+              {
+                "name": "Trillion3D DAG selection",
+                "bloc": "visibility",
+                "gpuMs": {
+                  "mean": 0.06925095121951222,
+                  "p50": 0.076749,
+                  "p95": 0.093414,
+                  "p99": 0.100498,
+                  "max": 0.105581
+                }
+              },
+              {
+                "name": "Trillion3D HiZ test",
+                "bloc": "visibility",
+                "gpuMs": {
+                  "mean": 0.04138443902439024,
+                  "p50": 0.040375,
+                  "p95": 0.045166,
+                  "p99": 0.055332,
+                  "max": 0.055332
+                }
+              },
+              {
+                "name": "Trillion3D shadow cull",
+                "bloc": "other",
+                "gpuMs": {
+                  "mean": 0.031177414634146333,
+                  "p50": 0.024083,
+                  "p95": 0.0335,
+                  "p99": 0.469118,
+                  "max": 0.469118
+                }
+              },
+              {
+                "name": "Trillion3D rest truncation",
+                "bloc": "other",
+                "gpuMs": {
+                  "mean": 0.012752000000000001,
+                  "p50": 0.013667,
+                  "p95": 0.016333,
+                  "p99": 0.017584,
+                  "max": 0.017584
+                }
+              },
+              {
+                "name": "Trillion3D visibility secondary",
+                "bloc": "visibility",
+                "gpuMs": {
+                  "mean": 0.014352341463414634,
+                  "p50": 0.009791,
+                  "p95": 0.025333,
+                  "p99": 0.028042,
+                  "max": 0.028042
+                }
+              }
+            ]
+          },
+          "preparationMs": 1999.5,
+          "reseau": {
+            "json": 400642,
+            "bin": 260170288,
+            "wasm": 44509,
+            "gltf": 594952,
+            "js": 2111602
+          },
+          "variante": null,
+          "erreur": "certifiee",
+          "selectedTriangles": 2040372,
+          "uncoveredTriangles": 0,
+          "drawnTriangles": 2040372,
+          "submittedTriangles": null,
+          "totalSubmittedTriangles": null,
+          "imageDuReleve": 59,
+          "imageTenue": false,
+          "repliSelectionGpu": false,
+          "hiZ": {
+            "tested": 1848,
+            "rejected": 1848,
+            "beyond16Texels": 1288,
+            "testedTriangles": 210616,
+            "rejectedTriangles": 210616,
+            "beyond16TexelsTriangles": 151996,
+            "image": 199
+          },
+          "selection": {
+            "source": "selectedPageIds",
+            "sha256": "969c3704038da8b14a9e43f4c12955819f69b916dc5cd11ec617d5a7f9e7a349",
+            "taille": 16505
+          },
+          "geometrieOctets": 242888964,
+          "budgetPages": {
+            "demande": 100000,
+            "residentes": 19724,
+            "couvertureLimiteeParBudget": false
+          },
+          "cheminCalcul": {
+            "contract": 1,
+            "mode": "auto",
+            "wasmAvailable": true,
+            "wasmSimd": true,
+            "clockResolutionMs": null,
+            "clockCoarse": true,
+            "unavailableReason": null,
+            "operations": {
+              "boxTransformBatch": {
+                "path": "js",
+                "jsNsPerElement": 746.2686543120353,
+                "wasmNsPerElement": null,
+                "jsSamples": 2,
+                "wasmSamples": 0,
+                "switches": 0,
+                "elements": 4958
+              }
+            }
+          },
+          "lampes": {
+            "nombre": 1,
+            "ponctuelles": 0,
+            "soleil": true,
+            "ombres": true,
+            "maille": 0,
+            "intensite": 40,
+            "mobile": false
+          },
+          "lampesFichier": { "nombre": 0, "ids": [] },
+          "lampesTemoin": null,
+          "atlasOmbres": null,
+          "objetMobile": null,
+          "charge": {
+            "debut": [5.06787109375, 5.4306640625, 5.9375],
+            "fin": [5.38232421875, 5.48974609375, 5.955078125]
+          },
+          "captureStatus": 200,
+          "incidentsGpu": null,
+          "canvas": { "width": 2496, "height": 1404 },
+          "metrics": {
+            "rafIntervalMs": null,
+            "cpuFrameMs": 1,
+            "cpuSelectMs": null,
+            "cpuSelectNodesTested": null,
+            "cpuSubmitMs": 0.09999999403953552,
+            "gpuMs": null,
+            "drawCalls": 18,
+            "triangles": null,
+            "clusters": null,
+            "selectedTriangles": 2040372,
+            "residentPages": 19724,
+            "geometryAllocationBytes": 242888964,
+            "vramBytes": null,
+            "pageLoads": 340,
+            "pageBytesRead": 30496440,
+            "pagesDetached": null,
+            "cacheEvictions": 0,
+            "hizCountedFrame": 199,
+            "hizTestedClusters": 1848,
+            "hizRejectedClusters": 1848,
+            "hizOversizedClusters": 1288,
+            "hizTestedTriangles": 210616,
+            "hizRejectedTriangles": 210616,
+            "hizOversizedTriangles": 151996,
+            "gpuFrameMs": 10.713377,
+            "gpuHostGapMs": 0,
+            "uncoveredTriangles": 0,
+            "drawnTriangles": 2040372,
+            "lightsActive": 1,
+            "shadowsUpdated": 1,
+            "shadowFacesDrawn": 1,
+            "shadowDrawCalls": 2,
+            "shadowPagesDrawn": 64,
+            "shadowPagesPending": 192,
+            "shadowWaitMs": 34.900000005960464,
+            "gpuLightListsMs": 2.636752,
+            "gpuShadowsMs": 2.522961,
+            "gpuLightingMs": 7.638551,
+            "textureInFlight": 0,
+            "textureSlicesUploaded": 2559,
+            "textureBytesLastFrame": 16777216,
+            "textureLevelsUploaded": 2262,
+            "textureAtlasBytesCalculated": 6688572304,
+            "textureAtlasClassesUsed": 2,
+            "pagesDecodedOffThread": 336,
+            "pagesDecodedWasm": 0,
+            "pageDecodeMs": 17.800000190734863,
+            "coverageReady": true,
+            "coverageBudgetLimited": false,
+            "frustumRejected": 6309,
+            "lodLevel": 6,
+            "frameHeld": false,
+            "submittedTriangles": null,
+            "transparentMeshes": 0,
+            "transparentFrustumRejected": 0,
+            "transparentDrawCalls": 0,
+            "transparentSubmittedTriangles": 0,
+            "gpuSelectionFallback": false,
+            "textureUploaded": 297,
+            "texturePending": 0,
+            "textureSkipped": 0,
+            "textureResidentBytes": 4989369936,
+            "textureBudgetBytes": 6688572304,
+            "textureAtWantedLevel": 103,
+            "textureLayers": 127,
+            "textureMissingLevels": 0,
+            "textureEvictions": 0,
+            "streamingError": null,
+            "totalSubmittedTriangles": null,
+            "pagesRequested": 368,
+            "pagesLoading": 0,
+            "cacheHits": 0,
+            "cacheMisses": 368,
+            "pagesPlannedOffThread": 112,
+            "pagePlanMs": 1.5999999642372131
+          }
+        }
+      },
+      "temoinAA": { "pixels": 0, "maxCanal": 0, "total": 3504384 },
+      "ecartAvantApres": null,
+      "coupeIdentique": null
+    },
+    {
+      "view": "sol",
+      "pixelError": 1,
+      "segment": "Déplacement au niveau de référence",
+      "index": 120,
+      "pose": {
+        "position": [11.456794804279731, 2.4, 18.388430273467023],
+        "target": [-0.04997214540716044, 4, -0.025006399620522757],
+        "fov": 55,
+        "near": 0.01722998745084001,
+        "far": 3445.997490168002
+      },
+      "sides": {
+        "apres": {
+          "cpuFrameMs": {
+            "mean": 0.38333333283662796,
+            "p50": 0.3999999761581421,
+            "p95": 0.5,
+            "p99": 1.2999999821186066,
+            "max": 1.2999999821186066
+          },
+          "cpuSelectMs": null,
+          "moteur": "webgpu-page-raster",
+          "gpuFrameMs": null,
+          "imageSyncMs": null,
+          "rafIntervalMs": null,
+          "profilParEtape": {
+            "version": 1,
+            "enabled": true,
+            "backend": "webgpu-page-raster",
+            "cpuFrames": 120,
+            "gpuSamples": 40,
+            "windowFrames": 120,
+            "gpuMethod": "timestamp-query",
+            "gpuReason": null,
+            "gpuImageMs": { "p50": 10.525048, "p95": 13.593626 },
+            "overheadMs": { "p50": 0, "p95": 0 },
+            "stages": [
+              {
+                "stage": "animations",
+                "label": "Animations et transformations",
+                "cpuMs": { "p50": 0.5, "p95": 0.699999988079071 },
+                "gpuMs": null
+              },
+              {
+                "stage": "lights",
+                "label": "Éclairage : préparation des listes et des ombres",
+                "cpuMs": { "p50": 0, "p95": 0 },
+                "gpuMs": null
+              },
+              {
+                "stage": "cutAdoption",
+                "label": "Adoption de la coupe",
+                "cpuMs": { "p50": 0, "p95": 0 },
+                "gpuMs": null
+              },
+              {
+                "stage": "selection",
+                "label": "Sélection et visibilité",
+                "cpuMs": { "p50": 0, "p95": 0.4000000059604645 },
+                "gpuMs": { "p50": 0.690697, "p95": 0.7389460000000001 },
+                "counts": { "grappesRejetees": 4282, "pagesVoulues": 8992, "grappesDuDag": 163316 }
+              },
+              {
+                "stage": "transparents",
+                "label": "Transparents",
+                "cpuMs": { "p50": 0, "p95": 0 },
+                "gpuMs": null
+              },
+              {
+                "stage": "residency",
+                "label": "Admission et file de résidence",
+                "cpuMs": { "p50": 0, "p95": 0.30000001192092896 },
+                "gpuMs": null
+              },
+              {
+                "stage": "hostPages",
+                "label": "Listes de pages rendues à l’hôte",
+                "cpuMs": { "p50": 0.09999999403953552, "p95": 0.30000001192092896 },
+                "gpuMs": null
+              },
+              {
+                "stage": "uploads",
+                "label": "Téléversements",
+                "cpuMs": { "p50": 0, "p95": 1.4000000059604645 },
+                "gpuMs": null
+              },
+              {
+                "stage": "textures",
+                "label": "Textures : ordre et transferts vers les atlas",
+                "cpuMs": null,
+                "gpuMs": null,
+                "cpuReason": "file vide : aucun ordre à calculer",
+                "gpuReason": "les transferts passent par la file de la carte, sans passe horodatée",
+                "counts": {
+                  "couchesAuNiveauVoulu": 72,
+                  "couchesVisibles": 72,
+                  "niveauxManquants": 0,
+                  "octetsEngages": 4989369936,
+                  "evictions": 0
+                }
+              },
+              {
+                "stage": "partition",
+                "label": "Partition occulteurs / testés",
+                "cpuMs": { "p50": 0, "p95": 0.09999999403953552 },
+                "gpuMs": { "p50": 0.147165, "p95": 0.164872 },
+                "counts": {
+                  "lignes": 73253,
+                  "occulteurs": 73218,
+                  "testees": 35,
+                  "bornesToutes": 31760,
+                  "historiqueOcculteurs": 73218,
+                  "sansHistorique": 0,
+                  "imageRelevee": 203
+                }
+              },
+              {
+                "stage": "encode",
+                "label": "Encodage des passes",
+                "cpuMs": { "p50": 0.19999998807907104, "p95": 0.5999999940395355 },
+                "gpuMs": null,
+                "counts": {
+                  "lignesTeleversees": 0,
+                  "fichesTeleversees": 0,
+                  "appelsDeDessin": 18,
+                  "appelsDeMelange": 0,
+                  "lancementsDeCalcul": 0
+                }
+              },
+              {
+                "stage": "submit",
+                "label": "Soumission",
+                "cpuMs": { "p50": 0, "p95": 0 },
+                "gpuMs": null
+              },
+              {
+                "stage": "hiZ",
+                "label": "Hi-Z (occultation)",
+                "cpuMs": null,
+                "gpuMs": { "p50": 0.184998, "p95": 0.19378900000000002 }
+              },
+              {
+                "stage": "geometry",
+                "label": "Géométrie",
+                "cpuMs": null,
+                "gpuMs": { "p50": 3.7938590000000003, "p95": 5.779289 }
+              },
+              {
+                "stage": "coplanar",
+                "label": "Couches coplanaires",
+                "cpuMs": null,
+                "gpuMs": null,
+                "cpuReason": "décidées par la coupe, sans borne propre",
+                "gpuReason": "dessinées dans les passes de géométrie, sans passe propre"
+              },
+              {
+                "stage": "shadows",
+                "label": "Ombres",
+                "cpuMs": null,
+                "gpuMs": { "p50": 2.4997119999999997, "p95": 3.313783 },
+                "counts": {
+                  "lampesRedessinees": 1,
+                  "cartesReutilisees": 0,
+                  "facesRedessinees": 1,
+                  "appelsDeDessin": 2,
+                  "soleilsRedessines": 1,
+                  "cascadesRedessinees": 1,
+                  "regionsRedessinees": 1,
+                  "pagesInvalidees": 64,
+                  "pagesRedessinees": 64,
+                  "pagesEnAttente": 192,
+                  "retardMaxMs": 43,
+                  "retardMaxImages": 2
+                }
+              },
+              {
+                "stage": "sunFarShadows",
+                "label": "Ombres lointaines (soleil contre le proxy)",
+                "cpuMs": null,
+                "gpuMs": null,
+                "cpuReason": "aucun travail processeur : le rayon lointain est tiré par la résolution différée",
+                "gpuReason": "mesurée dans l’étape « Éclairage (résolution) », qui tire le rayon lointain",
+                "counts": {
+                  "trianglesDuProxy": 94648,
+                  "pixelsTestes": 0,
+                  "pixelsAssombris": 0,
+                  "imageRelevee": 203
+                }
+              },
+              {
+                "stage": "lightLists",
+                "label": "Listes de lampes",
+                "cpuMs": null,
+                "gpuMs": { "p50": 2.920163, "p95": 3.642778 },
+                "counts": { "lampesActives": 1 }
+              },
+              {
+                "stage": "bounce",
+                "label": "Rebond (sondes d'irradiance)",
+                "cpuMs": null,
+                "gpuMs": null,
+                "cpuReason": "the bounce is off by default; create the explorer with bounce: true",
+                "gpuReason": "the bounce is off by default; create the explorer with bounce: true",
+                "counts": {
+                  "sondesMisesAJour": 0,
+                  "rayonsParImage": 0,
+                  "sondesDesCascades": 0,
+                  "maillesMisesAJour": 0,
+                  "maillesDuCache": 0,
+                  "fractionDuBudget": 0
+                }
+              },
+              {
+                "stage": "lighting",
+                "label": "Éclairage (résolution)",
+                "cpuMs": null,
+                "gpuMs": { "p50": 6.986684, "p95": 8.362039 }
+              },
+              {
+                "stage": "antialiasing",
+                "label": "Antialiasing temporel",
+                "cpuMs": null,
+                "gpuMs": { "p50": 7.226515, "p95": 8.640284 }
+              },
+              {
+                "stage": "present",
+                "label": "Présentation",
+                "cpuMs": null,
+                "gpuMs": { "p50": 7.275347, "p95": 8.963988 }
+              }
+            ]
+          },
+          "passesGpu": {
+            "releves": 41,
+            "blocs": {
+              "visibilityMs": {
+                "mean": 2.3863072439024386,
+                "p50": 2.1805480000000004,
+                "p95": 3.674655,
+                "p99": 3.7885680000000006,
+                "max": 3.7885680000000006
+              },
+              "materialsMs": {
+                "mean": 2.775988195121951,
+                "p50": 2.690459,
+                "p95": 3.23366,
+                "p99": 3.318824,
+                "max": 3.318824
+              },
+              "otherMs": {
+                "mean": 27.038393975609758,
+                "p50": 26.783465,
+                "p95": 32.696999,
+                "p99": 33.451614,
+                "max": 33.451614
+              }
+            },
+            "passes": [
+              {
+                "name": "Trillion3D HDR composition + present",
+                "bloc": "other",
+                "gpuMs": {
+                  "mean": 7.363716829268289,
+                  "p50": 7.325596,
+                  "p95": 8.963988,
+                  "p99": 9.750226,
+                  "max": 9.750226
+                }
+              },
+              {
+                "name": "Trillion3D temporal antialiasing",
+                "bloc": "other",
+                "gpuMs": {
+                  "mean": 7.285301317073171,
+                  "p50": 7.276889,
+                  "p95": 8.640284,
+                  "p99": 8.982446,
+                  "max": 8.982446
+                }
+              },
+              {
+                "name": "Trillion3D deferred lighting",
+                "bloc": "other",
+                "gpuMs": {
+                  "mean": 7.032300195121952,
+                  "p50": 7.032226,
+                  "p95": 8.362039,
+                  "p99": 8.744575,
+                  "max": 8.744575
+                }
+              },
+              {
+                "name": "Trillion3D light tiles v1",
+                "bloc": "other",
+                "gpuMs": {
+                  "mean": 2.927974609756097,
+                  "p50": 2.920163,
+                  "p95": 3.642778,
+                  "p99": 4.040229,
+                  "max": 4.040229
+                }
+              },
+              {
+                "name": "Trillion3D material surfaces v1",
+                "bloc": "materials",
+                "gpuMs": {
+                  "mean": 2.775988195121951,
+                  "p50": 2.690459,
+                  "p95": 3.23366,
+                  "p99": 3.318824,
+                  "max": 3.318824
+                }
+              },
+              {
+                "name": "Trillion3D shadow atlas v1",
+                "bloc": "other",
+                "gpuMs": {
+                  "mean": 2.3837816829268297,
+                  "p50": 2.500545,
+                  "p95": 3.21191,
+                  "p99": 3.368991,
+                  "max": 3.368991
+                }
+              },
+              {
+                "name": "Trillion3D visibility primary",
+                "bloc": "visibility",
+                "gpuMs": {
+                  "mean": 1.4585346585365855,
+                  "p50": 1.222231,
+                  "p95": 2.580878,
+                  "p99": 2.716876,
+                  "max": 2.716876
+                }
+              },
+              {
+                "name": "Trillion3D draw compaction",
+                "bloc": "visibility",
+                "gpuMs": {
+                  "mean": 0.4273125853658537,
+                  "p50": 0.517951,
+                  "p95": 0.549117,
+                  "p99": 0.553866,
+                  "max": 0.553866
+                }
+              },
+              {
+                "name": "Trillion3D HiZ pyramid",
+                "bloc": "visibility",
+                "gpuMs": {
+                  "mean": 0.14999770731707315,
+                  "p50": 0.151039,
+                  "p95": 0.159123,
+                  "p99": 0.159788,
+                  "max": 0.159788
+                }
+              },
+              {
+                "name": "Trillion3D partition",
+                "bloc": "visibility",
+                "gpuMs": {
+                  "mean": 0.12777439024390244,
+                  "p50": 0.147165,
+                  "p95": 0.164872,
+                  "p99": 0.173914,
+                  "max": 0.173914
+                }
+              },
+              {
+                "name": "Trillion3D DAG selection",
+                "bloc": "visibility",
+                "gpuMs": {
+                  "mean": 0.05975520325203255,
+                  "p50": 0.072291,
+                  "p95": 0.083999,
+                  "p99": 0.090249,
+                  "max": 0.091958
+                }
+              },
+              {
+                "name": "Trillion3D HiZ test",
+                "bloc": "visibility",
+                "gpuMs": {
+                  "mean": 0.033885756097560976,
+                  "p50": 0.033916,
+                  "p95": 0.038875,
+                  "p99": 0.041417,
+                  "max": 0.041417
+                }
+              },
+              {
+                "name": "Trillion3D rest truncation",
+                "bloc": "other",
+                "gpuMs": {
+                  "mean": 0.014271,
+                  "p50": 0.015582,
+                  "p95": 0.019124,
+                  "p99": 0.020333,
+                  "max": 0.020333
+                }
+              },
+              {
+                "name": "Trillion3D shadow cull",
+                "bloc": "other",
+                "gpuMs": {
+                  "mean": 0.03104834146341464,
+                  "p50": 0.015291,
+                  "p95": 0.022375,
+                  "p99": 0.648656,
+                  "max": 0.648656
+                }
+              },
+              {
+                "name": "Trillion3D visibility secondary",
+                "bloc": "visibility",
+                "gpuMs": {
+                  "mean": 0.009536536585365855,
+                  "p50": 0.00975,
+                  "p95": 0.013749,
+                  "p99": 0.014042,
+                  "max": 0.014042
+                }
+              }
+            ]
+          },
+          "preparationMs": 2011.5999999940395,
+          "reseau": {
+            "json": 400642,
+            "bin": 242919772,
+            "wasm": 44509,
+            "gltf": 594952,
+            "js": 2111602
+          },
+          "variante": null,
+          "erreur": "certifiee",
+          "selectedTriangles": 1099276,
+          "uncoveredTriangles": 0,
+          "drawnTriangles": 1099276,
+          "submittedTriangles": null,
+          "totalSubmittedTriangles": null,
+          "imageDuReleve": 59,
+          "imageTenue": false,
+          "repliSelectionGpu": false,
+          "hiZ": {
+            "tested": 35,
+            "rejected": 35,
+            "beyond16Texels": 34,
+            "testedTriangles": 4024,
+            "rejectedTriangles": 4024,
+            "beyond16TexelsTriangles": 3912,
+            "image": 203
+          },
+          "selection": {
+            "source": "selectedPageIds",
+            "sha256": "7d7b058e8902d5e223dbd47b3d18ca08c7e9c20feaa167a4cb86f019744dddc9",
+            "taille": 9251
+          },
+          "geometrieOctets": 242888964,
+          "budgetPages": {
+            "demande": 100000,
+            "residentes": 6327,
+            "couvertureLimiteeParBudget": false
+          },
+          "cheminCalcul": {
+            "contract": 1,
+            "mode": "auto",
+            "wasmAvailable": true,
+            "wasmSimd": true,
+            "clockResolutionMs": null,
+            "clockCoarse": true,
+            "unavailableReason": null,
+            "operations": {
+              "boxTransformBatch": {
+                "path": "js",
+                "jsNsPerElement": 726.0992323597288,
+                "wasmNsPerElement": null,
+                "jsSamples": 2,
+                "wasmSamples": 0,
+                "switches": 0,
+                "elements": 4958
+              }
+            }
+          },
+          "lampes": {
+            "nombre": 1,
+            "ponctuelles": 0,
+            "soleil": true,
+            "ombres": true,
+            "maille": 0,
+            "intensite": 40,
+            "mobile": false
+          },
+          "lampesFichier": { "nombre": 0, "ids": [] },
+          "lampesTemoin": null,
+          "atlasOmbres": null,
+          "objetMobile": null,
+          "charge": {
+            "debut": [5.38232421875, 5.48974609375, 5.955078125],
+            "fin": [6.181640625, 5.66796875, 6.01318359375]
+          },
+          "captureStatus": 200,
+          "incidentsGpu": null,
+          "canvas": { "width": 2496, "height": 1404 },
+          "metrics": {
+            "rafIntervalMs": null,
+            "cpuFrameMs": 1.300000011920929,
+            "cpuSelectMs": null,
+            "cpuSelectNodesTested": null,
+            "cpuSubmitMs": 0.19999998807907104,
+            "gpuMs": null,
+            "drawCalls": 18,
+            "triangles": null,
+            "clusters": null,
+            "selectedTriangles": 1099276,
+            "residentPages": 6327,
+            "geometryAllocationBytes": 242888964,
+            "vramBytes": null,
+            "pageLoads": 196,
+            "pageBytesRead": 13289124,
+            "pagesDetached": null,
+            "cacheEvictions": 0,
+            "hizCountedFrame": 203,
+            "hizTestedClusters": 35,
+            "hizRejectedClusters": 35,
+            "hizOversizedClusters": 34,
+            "hizTestedTriangles": 4024,
+            "hizRejectedTriangles": 4024,
+            "hizOversizedTriangles": 3912,
+            "gpuFrameMs": 13.994329,
+            "gpuHostGapMs": 0,
+            "uncoveredTriangles": 0,
+            "drawnTriangles": 1099276,
+            "lightsActive": 1,
+            "shadowsUpdated": 1,
+            "shadowFacesDrawn": 1,
+            "shadowDrawCalls": 2,
+            "shadowPagesDrawn": 64,
+            "shadowPagesPending": 192,
+            "shadowWaitMs": 43,
+            "gpuLightListsMs": 4.040229,
+            "gpuShadowsMs": 2.9498300000000004,
+            "gpuLightingMs": 8.362039,
+            "textureInFlight": 0,
+            "textureSlicesUploaded": 2559,
+            "textureBytesLastFrame": 16777216,
+            "textureLevelsUploaded": 2262,
+            "textureAtlasBytesCalculated": 6688572304,
+            "textureAtlasClassesUsed": 2,
+            "pagesDecodedOffThread": 192,
+            "pagesDecodedWasm": 0,
+            "pageDecodeMs": 8.099999994039536,
+            "coverageReady": true,
+            "coverageBudgetLimited": false,
+            "frustumRejected": 4282,
+            "lodLevel": 6,
+            "frameHeld": false,
+            "submittedTriangles": null,
+            "transparentMeshes": 0,
+            "transparentFrustumRejected": 0,
+            "transparentDrawCalls": 0,
+            "transparentSubmittedTriangles": 0,
+            "gpuSelectionFallback": false,
+            "textureUploaded": 297,
+            "texturePending": 0,
+            "textureSkipped": 0,
+            "textureResidentBytes": 4989369936,
+            "textureBudgetBytes": 6688572304,
+            "textureAtWantedLevel": 72,
+            "textureLayers": 127,
+            "textureMissingLevels": 0,
+            "textureEvictions": 0,
+            "streamingError": null,
+            "totalSubmittedTriangles": null,
+            "pagesRequested": 224,
+            "pagesLoading": 0,
+            "cacheHits": 0,
+            "cacheMisses": 224,
+            "pagesPlannedOffThread": 28,
+            "pagePlanMs": 0.9000000059604645
+          }
+        },
+        "apres-aa": {
+          "cpuFrameMs": {
+            "mean": 0.3850000003973643,
+            "p50": 0.4000000059604645,
+            "p95": 0.5,
+            "p99": 1.4000000059604645,
+            "max": 1.4000000059604645
+          },
+          "cpuSelectMs": null,
+          "moteur": "webgpu-page-raster",
+          "gpuFrameMs": null,
+          "imageSyncMs": null,
+          "rafIntervalMs": null,
+          "profilParEtape": {
+            "version": 1,
+            "enabled": true,
+            "backend": "webgpu-page-raster",
+            "cpuFrames": 120,
+            "gpuSamples": 40,
+            "windowFrames": 120,
+            "gpuMethod": "timestamp-query",
+            "gpuReason": null,
+            "gpuImageMs": { "p50": 10.716253, "p95": 14.946481 },
+            "overheadMs": { "p50": 0, "p95": 0 },
+            "stages": [
+              {
+                "stage": "animations",
+                "label": "Animations et transformations",
+                "cpuMs": { "p50": 0.5, "p95": 0.7000000178813934 },
+                "gpuMs": null
+              },
+              {
+                "stage": "lights",
+                "label": "Éclairage : préparation des listes et des ombres",
+                "cpuMs": { "p50": 0, "p95": 0 },
+                "gpuMs": null
+              },
+              {
+                "stage": "cutAdoption",
+                "label": "Adoption de la coupe",
+                "cpuMs": { "p50": 0, "p95": 0 },
+                "gpuMs": null
+              },
+              {
+                "stage": "selection",
+                "label": "Sélection et visibilité",
+                "cpuMs": { "p50": 0, "p95": 0.5 },
+                "gpuMs": { "p50": 0.6987410000000001, "p95": 1.097068 },
+                "counts": { "grappesRejetees": 4282, "pagesVoulues": 8992, "grappesDuDag": 163316 }
+              },
+              {
+                "stage": "transparents",
+                "label": "Transparents",
+                "cpuMs": { "p50": 0, "p95": 0 },
+                "gpuMs": null
+              },
+              {
+                "stage": "residency",
+                "label": "Admission et file de résidence",
+                "cpuMs": { "p50": 0, "p95": 0.30000001192092896 },
+                "gpuMs": null
+              },
+              {
+                "stage": "hostPages",
+                "label": "Listes de pages rendues à l’hôte",
+                "cpuMs": { "p50": 0.09999999403953552, "p95": 0.3999999761581421 },
+                "gpuMs": null
+              },
+              {
+                "stage": "uploads",
+                "label": "Téléversements",
+                "cpuMs": { "p50": 0, "p95": 1.4000000059604645 },
+                "gpuMs": null
+              },
+              {
+                "stage": "textures",
+                "label": "Textures : ordre et transferts vers les atlas",
+                "cpuMs": null,
+                "gpuMs": null,
+                "cpuReason": "file vide : aucun ordre à calculer",
+                "gpuReason": "les transferts passent par la file de la carte, sans passe horodatée",
+                "counts": {
+                  "couchesAuNiveauVoulu": 72,
+                  "couchesVisibles": 72,
+                  "niveauxManquants": 0,
+                  "octetsEngages": 4989369936,
+                  "evictions": 0
+                }
+              },
+              {
+                "stage": "partition",
+                "label": "Partition occulteurs / testés",
+                "cpuMs": { "p50": 0, "p95": 0.09999999403953552 },
+                "gpuMs": { "p50": 0.133748, "p95": 0.16408 },
+                "counts": {
+                  "lignes": 73253,
+                  "occulteurs": 73218,
+                  "testees": 35,
+                  "bornesToutes": 31760,
+                  "historiqueOcculteurs": 73218,
+                  "sansHistorique": 0,
+                  "imageRelevee": 203
+                }
+              },
+              {
+                "stage": "encode",
+                "label": "Encodage des passes",
+                "cpuMs": { "p50": 0.19999998807907104, "p95": 1 },
+                "gpuMs": null,
+                "counts": {
+                  "lignesTeleversees": 0,
+                  "fichesTeleversees": 0,
+                  "appelsDeDessin": 18,
+                  "appelsDeMelange": 0,
+                  "lancementsDeCalcul": 0
+                }
+              },
+              {
+                "stage": "submit",
+                "label": "Soumission",
+                "cpuMs": { "p50": 0, "p95": 0.09999999403953552 },
+                "gpuMs": null
+              },
+              {
+                "stage": "hiZ",
+                "label": "Hi-Z (occultation)",
+                "cpuMs": null,
+                "gpuMs": { "p50": 0.181538, "p95": 0.19087300000000001 }
+              },
+              {
+                "stage": "geometry",
+                "label": "Géométrie",
+                "cpuMs": null,
+                "gpuMs": { "p50": 3.948525, "p95": 5.894742 }
+              },
+              {
+                "stage": "coplanar",
+                "label": "Couches coplanaires",
+                "cpuMs": null,
+                "gpuMs": null,
+                "cpuReason": "décidées par la coupe, sans borne propre",
+                "gpuReason": "dessinées dans les passes de géométrie, sans passe propre"
+              },
+              {
+                "stage": "shadows",
+                "label": "Ombres",
+                "cpuMs": null,
+                "gpuMs": { "p50": 2.548295, "p95": 3.426073 },
+                "counts": {
+                  "lampesRedessinees": 1,
+                  "cartesReutilisees": 0,
+                  "facesRedessinees": 1,
+                  "appelsDeDessin": 2,
+                  "soleilsRedessines": 1,
+                  "cascadesRedessinees": 1,
+                  "regionsRedessinees": 1,
+                  "pagesInvalidees": 64,
+                  "pagesRedessinees": 64,
+                  "pagesEnAttente": 192,
+                  "retardMaxMs": 56.599999994039536,
+                  "retardMaxImages": 2
+                }
+              },
+              {
+                "stage": "sunFarShadows",
+                "label": "Ombres lointaines (soleil contre le proxy)",
+                "cpuMs": null,
+                "gpuMs": null,
+                "cpuReason": "aucun travail processeur : le rayon lointain est tiré par la résolution différée",
+                "gpuReason": "mesurée dans l’étape « Éclairage (résolution) », qui tire le rayon lointain",
+                "counts": {
+                  "trianglesDuProxy": 94648,
+                  "pixelsTestes": 0,
+                  "pixelsAssombris": 0,
+                  "imageRelevee": 203
+                }
+              },
+              {
+                "stage": "lightLists",
+                "label": "Listes de lampes",
+                "cpuMs": null,
+                "gpuMs": { "p50": 2.894289, "p95": 3.596237 },
+                "counts": { "lampesActives": 1 }
+              },
+              {
+                "stage": "bounce",
+                "label": "Rebond (sondes d'irradiance)",
+                "cpuMs": null,
+                "gpuMs": null,
+                "cpuReason": "the bounce is off by default; create the explorer with bounce: true",
+                "gpuReason": "the bounce is off by default; create the explorer with bounce: true",
+                "counts": {
+                  "sondesMisesAJour": 0,
+                  "rayonsParImage": 0,
+                  "sondesDesCascades": 0,
+                  "maillesMisesAJour": 0,
+                  "maillesDuCache": 0,
+                  "fractionDuBudget": 0
+                }
+              },
+              {
+                "stage": "lighting",
+                "label": "Éclairage (résolution)",
+                "cpuMs": null,
+                "gpuMs": { "p50": 6.939352, "p95": 9.09332 }
+              },
+              {
+                "stage": "antialiasing",
+                "label": "Antialiasing temporel",
+                "cpuMs": null,
+                "gpuMs": { "p50": 7.199307, "p95": 9.648603 }
+              },
+              {
+                "stage": "present",
+                "label": "Présentation",
+                "cpuMs": null,
+                "gpuMs": { "p50": 7.25314, "p95": 9.709018 }
+              }
+            ]
+          },
+          "passesGpu": {
+            "releves": 41,
+            "blocs": {
+              "visibilityMs": {
+                "mean": 2.529468487804878,
+                "p50": 2.3106319999999996,
+                "p95": 3.8742739999999998,
+                "p99": 4.174438,
+                "max": 4.174438
+              },
+              "materialsMs": {
+                "mean": 2.7954856829268295,
+                "p50": 2.705167,
+                "p95": 3.224492,
+                "p99": 3.375241,
+                "max": 3.375241
+              },
+              "otherMs": {
+                "mean": 27.848915707317076,
+                "p50": 26.562389,
+                "p95": 35.079714,
+                "p99": 37.157809,
+                "max": 37.157809
+              }
+            },
+            "passes": [
+              {
+                "name": "Trillion3D HDR composition + present",
+                "bloc": "other",
+                "gpuMs": {
+                  "mean": 7.618649951219513,
+                  "p50": 7.25314,
+                  "p95": 9.709018,
+                  "p99": 10.742128,
+                  "max": 10.742128
+                }
+              },
+              {
+                "name": "Trillion3D temporal antialiasing",
+                "bloc": "other",
+                "gpuMs": {
+                  "mean": 7.533584487804877,
+                  "p50": 7.199307,
+                  "p95": 9.648603,
+                  "p99": 10.053264,
+                  "max": 10.053264
+                }
+              },
+              {
+                "name": "Trillion3D deferred lighting",
+                "bloc": "other",
+                "gpuMs": {
+                  "mean": 7.218453951219511,
+                  "p50": 6.939352,
+                  "p95": 9.09332,
+                  "p99": 9.353065,
+                  "max": 9.353065
+                }
+              },
+              {
+                "name": "Trillion3D light tiles v1",
+                "bloc": "other",
+                "gpuMs": {
+                  "mean": 2.931934902439025,
+                  "p50": 2.894289,
+                  "p95": 3.596237,
+                  "p99": 4.254602,
+                  "max": 4.254602
+                }
+              },
+              {
+                "name": "Trillion3D material surfaces v1",
+                "bloc": "materials",
+                "gpuMs": {
+                  "mean": 2.7954856829268295,
+                  "p50": 2.705167,
+                  "p95": 3.224492,
+                  "p99": 3.375241,
+                  "max": 3.375241
+                }
+              },
+              {
+                "name": "Trillion3D shadow atlas v1",
+                "bloc": "other",
+                "gpuMs": {
+                  "mean": 2.517033731707316,
+                  "p50": 2.534378,
+                  "p95": 3.405615,
+                  "p99": 4.009146,
+                  "max": 4.009146
+                }
+              },
+              {
+                "name": "Trillion3D visibility primary",
+                "bloc": "visibility",
+                "gpuMs": {
+                  "mean": 1.525024707317073,
+                  "p50": 1.238481,
+                  "p95": 2.644835,
+                  "p99": 3.236701,
+                  "max": 3.236701
+                }
+              },
+              {
+                "name": "Trillion3D draw compaction",
+                "bloc": "visibility",
+                "gpuMs": {
+                  "mean": 0.4460826097560975,
+                  "p50": 0.521826,
+                  "p95": 0.548324,
+                  "p99": 0.887779,
+                  "max": 0.887779
+                }
+              },
+              {
+                "name": "Trillion3D HiZ pyramid",
+                "bloc": "visibility",
+                "gpuMs": {
+                  "mean": 0.15783412195121949,
+                  "p50": 0.148498,
+                  "p95": 0.156789,
+                  "p99": 0.569325,
+                  "max": 0.569325
+                }
+              },
+              {
+                "name": "Trillion3D partition",
+                "bloc": "visibility",
+                "gpuMs": {
+                  "mean": 0.12703146341463417,
+                  "p50": 0.133748,
+                  "p95": 0.16408,
+                  "p99": 0.209497,
+                  "max": 0.209497
+                }
+              },
+              {
+                "name": "Trillion3D DAG selection",
+                "bloc": "visibility",
+                "gpuMs": {
+                  "mean": 0.07701200813008133,
+                  "p50": 0.069456,
+                  "p95": 0.221456,
+                  "p99": 0.258122,
+                  "max": 0.679949
+                }
+              },
+              {
+                "name": "Trillion3D HiZ test",
+                "bloc": "visibility",
+                "gpuMs": {
+                  "mean": 0.03336831707317072,
+                  "p50": 0.033207,
+                  "p95": 0.039458,
+                  "p99": 0.040791,
+                  "max": 0.040791
+                }
+              },
+              {
+                "name": "Trillion3D rest truncation",
+                "bloc": "other",
+                "gpuMs": {
+                  "mean": 0.013780268292682927,
+                  "p50": 0.0155,
+                  "p95": 0.017582,
+                  "p99": 0.019041,
+                  "max": 0.019041
+                }
+              },
+              {
+                "name": "Trillion3D shadow cull",
+                "bloc": "other",
+                "gpuMs": {
+                  "mean": 0.015478414634146339,
+                  "p50": 0.014499,
+                  "p95": 0.020999,
+                  "p99": 0.025374,
+                  "max": 0.025374
+                }
+              },
+              {
+                "name": "Trillion3D visibility secondary",
+                "bloc": "visibility",
+                "gpuMs": {
+                  "mean": 0.009091243902439027,
+                  "p50": 0.009625,
+                  "p95": 0.012832,
+                  "p99": 0.014791,
+                  "max": 0.014791
+                }
+              }
+            ]
+          },
+          "preparationMs": 2060.0999999940395,
+          "reseau": {
+            "json": 400642,
+            "bin": 242919772,
+            "wasm": 44509,
+            "gltf": 594952,
+            "js": 2111602
+          },
+          "variante": null,
+          "erreur": "certifiee",
+          "selectedTriangles": 1099276,
+          "uncoveredTriangles": 0,
+          "drawnTriangles": 1099276,
+          "submittedTriangles": null,
+          "totalSubmittedTriangles": null,
+          "imageDuReleve": 59,
+          "imageTenue": false,
+          "repliSelectionGpu": false,
+          "hiZ": {
+            "tested": 35,
+            "rejected": 35,
+            "beyond16Texels": 34,
+            "testedTriangles": 4024,
+            "rejectedTriangles": 4024,
+            "beyond16TexelsTriangles": 3912,
+            "image": 203
+          },
+          "selection": {
+            "source": "selectedPageIds",
+            "sha256": "7d7b058e8902d5e223dbd47b3d18ca08c7e9c20feaa167a4cb86f019744dddc9",
+            "taille": 9251
+          },
+          "geometrieOctets": 242888964,
+          "budgetPages": {
+            "demande": 100000,
+            "residentes": 6327,
+            "couvertureLimiteeParBudget": false
+          },
+          "cheminCalcul": {
+            "contract": 1,
+            "mode": "auto",
+            "wasmAvailable": true,
+            "wasmSimd": true,
+            "clockResolutionMs": null,
+            "clockCoarse": true,
+            "unavailableReason": null,
+            "operations": {
+              "boxTransformBatch": {
+                "path": "js",
+                "jsNsPerElement": 766.4380822752983,
+                "wasmNsPerElement": null,
+                "jsSamples": 2,
+                "wasmSamples": 0,
+                "switches": 0,
+                "elements": 4958
+              }
+            }
+          },
+          "lampes": {
+            "nombre": 1,
+            "ponctuelles": 0,
+            "soleil": true,
+            "ombres": true,
+            "maille": 0,
+            "intensite": 40,
+            "mobile": false
+          },
+          "lampesFichier": { "nombre": 0, "ids": [] },
+          "lampesTemoin": null,
+          "atlasOmbres": null,
+          "objetMobile": null,
+          "charge": {
+            "debut": [6.181640625, 5.66796875, 6.01318359375],
+            "fin": [5.99951171875, 5.6455078125, 6.00048828125]
+          },
+          "captureStatus": 200,
+          "incidentsGpu": null,
+          "canvas": { "width": 2496, "height": 1404 },
+          "metrics": {
+            "rafIntervalMs": null,
+            "cpuFrameMs": 0.9000000059604645,
+            "cpuSelectMs": null,
+            "cpuSelectNodesTested": null,
+            "cpuSubmitMs": 0.19999998807907104,
+            "gpuMs": null,
+            "drawCalls": 18,
+            "triangles": null,
+            "clusters": null,
+            "selectedTriangles": 1099276,
+            "residentPages": 6327,
+            "geometryAllocationBytes": 242888964,
+            "vramBytes": null,
+            "pageLoads": 196,
+            "pageBytesRead": 13289124,
+            "pagesDetached": null,
+            "cacheEvictions": 0,
+            "hizCountedFrame": 203,
+            "hizTestedClusters": 35,
+            "hizRejectedClusters": 35,
+            "hizOversizedClusters": 34,
+            "hizTestedTriangles": 4024,
+            "hizRejectedTriangles": 4024,
+            "hizOversizedTriangles": 3912,
+            "gpuFrameMs": 14.21395,
+            "gpuHostGapMs": 0,
+            "uncoveredTriangles": 0,
+            "drawnTriangles": 1099276,
+            "lightsActive": 1,
+            "shadowsUpdated": 1,
+            "shadowFacesDrawn": 1,
+            "shadowDrawCalls": 2,
+            "shadowPagesDrawn": 64,
+            "shadowPagesPending": 192,
+            "shadowWaitMs": 56.599999994039536,
+            "gpuLightListsMs": 4.254602,
+            "gpuShadowsMs": 3.287365,
+            "gpuLightingMs": 8.739075,
+            "textureInFlight": 0,
+            "textureSlicesUploaded": 2559,
+            "textureBytesLastFrame": 16777216,
+            "textureLevelsUploaded": 2262,
+            "textureAtlasBytesCalculated": 6688572304,
+            "textureAtlasClassesUsed": 2,
+            "pagesDecodedOffThread": 192,
+            "pagesDecodedWasm": 0,
+            "pageDecodeMs": 9.700000017881393,
+            "coverageReady": true,
+            "coverageBudgetLimited": false,
+            "frustumRejected": 4282,
+            "lodLevel": 6,
+            "frameHeld": false,
+            "submittedTriangles": null,
+            "transparentMeshes": 0,
+            "transparentFrustumRejected": 0,
+            "transparentDrawCalls": 0,
+            "transparentSubmittedTriangles": 0,
+            "gpuSelectionFallback": false,
+            "textureUploaded": 297,
+            "texturePending": 0,
+            "textureSkipped": 0,
+            "textureResidentBytes": 4989369936,
+            "textureBudgetBytes": 6688572304,
+            "textureAtWantedLevel": 72,
+            "textureLayers": 127,
+            "textureMissingLevels": 0,
+            "textureEvictions": 0,
+            "streamingError": null,
+            "totalSubmittedTriangles": null,
+            "pagesRequested": 224,
+            "pagesLoading": 0,
+            "cacheHits": 0,
+            "cacheMisses": 224,
+            "pagesPlannedOffThread": 26,
+            "pagePlanMs": 1.0000000596046448
+          }
+        }
+      },
+      "temoinAA": { "pixels": 0, "maxCanal": 0, "total": 3504384 },
+      "ecartAvantApres": null,
+      "coupeIdentique": null
+    }
+  ],
+  "errors": [],
+  "bounds": {
+    "min": { "x": -115.11764164227608, "y": -4.9280338111150135, "z": -115.10898560641769 },
+    "max": { "x": 115.01769735146176, "y": 108.2506907284246, "z": 115.05897280717664 }
+  },
+  "lampes": {
+    "nombre": 1,
+    "ponctuelles": 0,
+    "soleil": true,
+    "ombres": true,
+    "maille": 0,
+    "intensite": 40,
+    "mobile": false
+  },
+  "finishedAt": "2026-09-18T10:48:37.437Z"
+}
