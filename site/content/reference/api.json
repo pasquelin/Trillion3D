@@ -13205,7 +13205,7 @@
     "members": [
       {
         "name": "color",
-        "type": "Rgb",
+        "type": "LinearRgb",
         "desc": "The radiance the fog fades toward, linear RGB."
       },
       {
@@ -13456,7 +13456,7 @@
     "members": [
       {
         "name": "color",
-        "type": "Rgb",
+        "type": "LinearRgb",
         "desc": "The radiance the fog fades toward, linear RGB."
       },
       {
