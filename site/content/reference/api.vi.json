@@ -939,7 +939,8 @@
       "PHYSICS_FAILED": "Vật lý bị yêu cầu vượt một giới hạn (`world.budget.physics`: vật thể, tam giác, vật trang trí, bộ nhớ), hoặc một vật động không phải con trực tiếp của cảnh (`PHYSICS_NESTED`), hoặc mô-đun vật lý lỗi (`PHYSICS_FAILED`): trên `world.physics.error`.",
       "PHYSICS_FORMAT": "Vật lý đã chuẩn bị của một mô hình đã biên dịch (`physics.json`) thuộc định dạng khác, hoặc được chuẩn bị bằng một Jolt khác với của engine (`PHYSICS_FORMAT`): hãy biên dịch lại. Một raycast chính xác được yêu cầu khi vật lý đang tắt (`PHYSICS_OFF`).",
       "PHYSICS_OFF": "Vật lý đã chuẩn bị của một mô hình đã biên dịch (`physics.json`) thuộc định dạng khác, hoặc được chuẩn bị bằng một Jolt khác với của engine (`PHYSICS_FORMAT`): hãy biên dịch lại. Một raycast chính xác được yêu cầu khi vật lý đang tắt (`PHYSICS_OFF`).",
-      "NO_VEHICLE": "`world.controls.kind` được đặt thành `'vehicle'` trong khi `world.controls.vehicle` là `null`: không có gì để lái."
+      "NO_VEHICLE": "`world.controls.kind` được đặt thành `'vehicle'` trong khi `world.controls.vehicle` là `null`: không có gì để lái.",
+      "GUIDE_CEILING": "Một lệnh gọi `world.guides` sẽ giữ nhiều đỉnh hơn `GUIDE_VERTEX_CEILING`; không phần nào của nó được thêm vào."
     }
   },
   "EngineProfiler": {
@@ -1237,6 +1238,42 @@
     "members": {
       "isGroup": "Luôn là `true`: phân biệt một nhóm.",
       "type": "Loại node đó, `'Group'`."
+    }
+  },
+  "GuideHandle": {
+    "summary": "Một nhóm đường dẫn mà trang đã vẽ; mỗi hàm đặt trả về chính tay cầm.",
+    "members": {
+      "visible": "Nó có được vẽ hay không; `setVisible` ghi giá trị này.",
+      "setVisible": "Hiện hoặc ẩn nó; các đỉnh của nó vẫn được tính vào giới hạn.",
+      "setTransform": "Đặt nó: mười sáu số theo cột, hoặc một ma trận — `node.matrixWorld` bám theo một nút.",
+      "remove": "Gỡ nó khỏi thế giới, trả lại các đỉnh; lần gọi thứ hai không làm gì."
+    }
+  },
+  "GuideLines": {
+    "summary": "Các đoạn thẳng cần vẽ.",
+    "members": {
+      "positions": "Hai đầu mỗi đoạn, mỗi đầu ba số.",
+      "color": "Màu của chúng; mặc định là trắng.",
+      "width": "Độ rộng trên màn hình, tính bằng pixel."
+    }
+  },
+  "GuidePoints": {
+    "summary": "Các điểm cần vẽ.",
+    "members": {
+      "positions": "Ba số cho mỗi điểm.",
+      "color": "Màu của chúng; mặc định là trắng.",
+      "size": "Cạnh của mỗi điểm vuông trên màn hình, tính bằng pixel."
+    }
+  },
+  "Guides": {
+    "summary": "Các đường dẫn của một thế giới, như trang vẽ chúng: `world.guides`.",
+    "members": {
+      "ceiling": "Số đỉnh tối đa mà các đường dẫn giữ cùng lúc (`GUIDE_VERTEX_CEILING`).",
+      "vertexCount": "Số đỉnh đang giữ, hai cho mỗi đoạn và một cho mỗi điểm, kể cả đường dẫn bị ẩn.",
+      "lines": "Vẽ các đoạn thẳng, mỗi đoạn hai đầu; bị từ chối khi vượt giới hạn (`GUIDE_CEILING`).",
+      "points": "Vẽ các điểm vuông, mỗi điểm một vị trí; bị từ chối khi vượt giới hạn (`GUIDE_CEILING`).",
+      "add": "Vẽ các lưới đường và điểm của `object` — mỗi `helper` đều dựng chúng — theo màu vật liệu, đặt ở nơi đối tượng đang đứng; các tam giác của nó không phải đường dẫn và bị bỏ qua.",
+      "clear": "Gỡ mọi đường dẫn."
     }
   },
   "HALF_PI": {
@@ -6702,6 +6739,9 @@
       "modes": "Mọi chế độ khung nhìn mà trình dựng hình hiện tại cung cấp."
     }
   },
+  "world.guides": {
+    "summary": "Đường, điểm và công cụ trợ giúp vẽ đè lên hình ảnh (`Guides`)."
+  },
   "world.raycast": {
     "summary": "Vật thể gần nhất dưới một điểm của canvas (pixel CSS) hoặc dọc theo một tia trong thế giới, hoặc `null`: node mà trang đã thêm, điểm trong thế giới và pháp tuyến bị chạm, khoảng cách (`worldRaycast`).",
     "parameters": {
@@ -6929,6 +6969,10 @@
       "mars": "Của Sao Hỏa.",
       "none": "Không trọng lực."
     }
+  },
+  "GUIDE_VERTEX_CEILING": {
+    "summary": "Số đỉnh tối đa mà các đường dẫn của một thế giới giữ cùng lúc: hai cho mỗi đoạn, một cho mỗi điểm.",
+    "description": "Được khai báo, không suy ra: nó giới hạn bộ đệm thể hiện duy nhất mà lượt vẽ tải lên ở 64 Ki × 32 byte = 2 MiB, bất kể trang yêu cầu gì — một lưới 16 000 đường vừa đủ, đám mây điểm của một thành phố được quét thì không, và thuộc về cảnh."
   },
   "GravityInput": {
     "summary": "Một trọng lực: tên thiết lập sẵn, hoặc vectơ tính bằng m/s²."
