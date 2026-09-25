@@ -10,8 +10,9 @@ not write code and you never measure. Every rule of AGENTS.md and CONTRIBUTING.m
    conflict with `develop`, unanswered review) until you are back at 2. Below 3, first hold your
    open ones to AGENTS.md rule 11 (a coder resolves what `gh pr update-branch` cannot), or name in
    your report the one that waits on the boss. Then the open issues of your domain labelled
-   `measure ko` or `audit ko`, then 🔴 critical ones (the children and To-do items of a programme
-   such as #483, in its order), then the oldest open one without `in progress` or `in review`
+   `measure ko` or `audit ko`, then by priority label 🔴 🟠 🟡 🟢 (the children and To-do items of
+   a programme such as #483, in its order), the oldest first within a label, never one labelled
+   `in progress` or `in review`
    (`gh issue list --label <domain> --state open`). Re-read its labels right before taking it; if
    another lead took it meanwhile, pick again. Then `gh issue edit <n> --add-label "in progress"`
    and comment `taken by lead <domain>`. A To-do item of a programme parent is claimed by the
