@@ -12,7 +12,7 @@ import { galleryMounts } from './support/renderHarness.ts';
 const ROOT = fileURLToPath(new URL('../../', import.meta.url));
 const BROWSER = join(ROOT, 'tests/browser');
 /** A string literal, a path or a URL, that starts under a scene root. */
-const SCENE_PATH = new RegExp(`['\`]/?((?:${SCENE_ROOTS.join('|')})/[^'\`$]+)`, 'g');
+const SCENE_PATH = new RegExp(`['"\`]/?((?:${SCENE_ROOTS.join('|')})/[^'"\`$]+)`, 'g');
 
 const named = readdirSync(BROWSER, { recursive: true })
   .map(String)
@@ -24,15 +24,19 @@ const named = readdirSync(BROWSER, { recursive: true })
     })),
   );
 
-test('every scene a browser file names has its source where it names it', () => {
+// A path into a cache, the URL the #683 proof read by hand, is refused: a proof names the scene
+// folder and derives what it reads from it, so the path its server serves is never written twice.
+test('every scene a browser file names is a scene folder with its source, never a cache path', () => {
   assert.ok(named.length > 0, 'no browser file names a scene');
-  for (const { file, path } of named) assert.ok(hasSource(path), `${file}: ${path} has no source`);
+  for (const { file, path } of named) {
+    assert.ok(!path.includes('/cache/'), `${file}: ${path} reaches into a cache; name the scene`);
+    assert.ok(hasSource(path), `${file}: ${path} has no source`);
+  }
 });
 
-test('a gallery proof reads each named scene where its server serves it', () => {
+test('the gallery mounts serve each named scene its manifest URL names', () => {
   const mounts = galleryMounts(ROOT);
-  for (const { path } of named) {
-    const scene = path.split('/cache/')[0];
+  for (const { path: scene } of named) {
     const url = manifestUrlOf(scene);
     const mount = mounts.find(({ prefix }) => url.startsWith(prefix));
     assert.ok(mount, `${url} lies under no mount`);
