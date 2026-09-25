@@ -55,8 +55,7 @@
   and compiles them), on the scene that exercises the change, in seconds to a minute. The full
   campaign — every view, every scene, the run-to-run spread, the frame envelope — runs once, on the
   release pull request from `develop` to `main`, and its numbers are the ones published. The site
-  keeps one report, the latest: a new campaign replaces it, never a second report beside it, and
-  an image it shows twice is stored once.
+  keeps one report, the latest, each image stored once.
 - **One measuring queue per machine.** Browser proofs, GPU probes and benchmarks never run
   concurrently: two Chrome instances pollute each other's numbers and saturate the machine. They
   run one at a time, in one queue, on merged batches, and never block a pull request: the issue

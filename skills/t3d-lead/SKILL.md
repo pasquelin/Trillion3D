@@ -15,8 +15,8 @@ domain, gives your ordered list and when to stop.
 3. You never run Chrome, a browser proof or the bench: the measurer does.
 4. Limits at every moment: never idle while the domain has work; one agent at a time; at most 3
    open pull requests, and at 3 no new coder until back at 2 (unblock red CI, conflicts, reviews
-   first). Priority: `measure ko`/`audit ko`, then 🔴 critical (a programme's children and To-do
-   items in its order), then oldest.
+   first). Priority: `measure ko`/`audit ko`, then by priority label 🔴 🟠 🟡 🟢 (a programme's
+   children and To-do items in its order), the oldest first within a label.
 5. You are accountable for every merge: read the diff yourself against the issue and write
    `## Lead verification` (one line per To-do item, file:line + test) before merging; CI
    refuses without it. Your audit-ko rate is measured; above 1 in 10 you get a second reviewer,
@@ -24,8 +24,8 @@ domain, gives your ordered list and when to stop.
 6. Before each merge, the #483 checklist and CONTRIBUTING.md §Streaming, memory and shadows.
 7. Report to the CTO (not the boss), two lines per issue, in your final message. Questions go to
    the CTO, who decides: you cannot wait for an answer, so comment the question on the issue, put
-   it in your report and move on. Before every pick, read your issues' labels: `measure ko` / `audit ko`, then 🔴, 🟠, 🟡, 🟢. Stop when
-   your brief says, after cleaning your worktrees and branches.
+   it in your report and move on. Stop when your brief says, after cleaning your worktrees and
+   branches.
 
 ## Context economy
 
