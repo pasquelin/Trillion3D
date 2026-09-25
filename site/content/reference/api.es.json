@@ -4140,6 +4140,50 @@
       "localBounds": "La caja del contenido propio de este nodo, en su sistema local; un nodo simple no tiene ninguna."
     }
   },
+  "SOFT_AREAL_DENSITY": {
+    "summary": "Un algodón tejido medio, kg/m²: los gramajes textiles van de 0,15 a 0,25.",
+    "description": "Una tela cae igual con cualquier masa; pesa contra sus alfileres y lo que encuentra. La piel de un volumen se toma como una tela así."
+  },
+  "SOFT_FOOTPRINT": {
+    "summary": "Declarada: la parte de su sección media — un cuarto de su área, para cualquier forma convexa (Cauchy) — sobre la que se hunde un volumen en reposo en el suelo, con su gas apoyando allí su peso.",
+    "description": "Su presión por defecto es entonces `4·m·g / (share·area)`: 31 Pa para una piel de `SOFT_AREAL_DENSITY`. Mitad de parte, doble de presión. Una presión muy por encima de la de su peso lo hincha más allá de su forma en reposo: cada paso mueve un vértice `pressure·dt² / (kg/m²)`, más de lo que sus aristas sostienen entonces."
+  },
+  "SOFT_LINEAR_DENSITY": {
+    "summary": "Una cuerda de poliamida de 10 mm, kg/m: las tablas de los fabricantes dan de 0,06 a 0,07."
+  },
+  "SoftBodyCommon": {
+    "summary": "Lo que `obj.physics` acepta para un cuerpo blando: sus vértices se simulan uno a uno.",
+    "members": {
+      "pins": "Índices de los vértices de la geometría que se sostienen donde están: el mástil de una bandera, el gancho de una cuerda.",
+      "mass": "Kilogramos, repartidos entre los vértices según el área (una cuerda: la longitud) que sostiene cada uno; si se omite, `SOFT_AREAL_DENSITY` por m² (una cuerda: `SOFT_LINEAR_DENSITY` por m).",
+      "stretch": "Cuánto cede una arista al tirar de ella, m/N (la inversa de su rigidez): 0 nunca se estira.",
+      "bend": "Cuánto cede al doblarse, rad/(N·m) (una cuerda: m/N); `Infinity` se dobla libremente."
+    }
+  },
+  "SoftBodyOptions": {
+    "summary": "Las opciones de un cuerpo blando: una tela, una cuerda, o un volumen con la presión de su gas."
+  },
+  "SoftBodyType": {
+    "summary": "Un cuerpo blando: una tela (sus triángulos, abierta), una cuerda (sus vértices, cada uno unido al siguiente) o un volumen (sus triángulos cerrados, sostenido por el gas de dentro)."
+  },
+  "SoftSettings": {
+    "summary": "Las opciones de un cuerpo blando una vez leídas: cada valor por defecto puesto.",
+    "members": {
+      "type": "Lo que es.",
+      "pins": "Los vértices de la geometría sostenidos en su sitio.",
+      "mass": "Kilogramos, `undefined` para los de la densidad por defecto.",
+      "stretch": "m/N.",
+      "bend": "rad/(N·m); en una cuerda, m/N.",
+      "pressure": "Pa; `undefined` para la presión por defecto de un volumen (`SOFT_FOOTPRINT`)."
+    }
+  },
+  "SoftVolumeOptions": {
+    "summary": "Las opciones de un volumen: una malla cerrada sostenida por el gas de dentro.",
+    "members": {
+      "type": "Un volumen.",
+      "pressure": "La presión del gas por encima de la del aire en reposo, Pa; al apretarlo, sube cuando el volumen baja (ley de Boyle). Los triángulos deben mirar hacia fuera. Si se omite, la presión que apoya el peso del volumen sobre `SOFT_FOOTPRINT` de su sección media."
+    }
+  },
   "TransformNode": {
     "summary": "Un nodo de escena leído a través de las matrices de la referencia, guardado en el árbol de transformaciones del motor.",
     "members": {
@@ -6957,7 +7001,8 @@
       "threads": "Hilos que avanzan la simulación, incluido el del worker de física. Por encima de 1 necesita una página aislada entre orígenes (memoria compartida); si no, la simulación avanza en uno. Nunca más que los núcleos lógicos de la máquina menos el de la página.",
       "bodyPairs": "Pares de cuerpos cuyas cajas se solapan en un paso. Una pila densa tiene unos cuatro por cuerpo; un paso que encuentra más pierde contactos y lanza `PHYSICS_BUDGET`.",
       "contactConstraints": "Pares en contacto resueltos en un paso. Una pila asentada tiene unos dos por cuerpo; un paso que encuentra más pierde contactos y lanza `PHYSICS_BUDGET`.",
-      "contactEvents": "Eventos de contacto (`enter`, `leave`) que informa un paso. Un `enter` que lo supera se descarta y se cuenta (`world.physics.stats.droppedEvents`), y su `leave` nunca se envía; un `leave` solo se retrasa."
+      "contactEvents": "Eventos de contacto (`enter`, `leave`) que informa un paso. Un `enter` que lo supera se descarta y se cuenta (`world.physics.stats.droppedEvents`), y su `leave` nunca se envía; un `leave` solo se retrasa.",
+      "softVertices": "Vértices de todos los cuerpos blandos a la vez (telas, cuerdas, volúmenes). Cada uno se resuelve en cada paso y la página lo lee de vuelta, 12 bytes por paso."
     }
   },
   "GRAVITY_PRESETS": {
@@ -6979,7 +7024,7 @@
     "summary": "La física de un objeto, como la guarda `obj.physics`: un registro vivo de lo que el cuerpo es y hace.",
     "description": "Las escrituras llegan a la simulación en el paso siguiente; `velocity` lee lo que dejó el último paso.",
     "members": {
-      "type": "Cómo se mueve el cuerpo; vuelve a asignar `obj.physics` para cambiarlo.",
+      "type": "Cómo se mueve el cuerpo, o el cuerpo blando que es; vuelve a asignar `obj.physics` para cambiarlo.",
       "shape": "La forma declarada, si hubo una.",
       "sensor": "Si el cuerpo solo informa de contactos.",
       "ccd": "Si la colisión continua está activa.",
@@ -6994,7 +7039,9 @@
       "applyImpulse": "Empuja el cuerpo de golpe, un impulso en N·s por su centro de masa; lo despierta.",
       "wake": "Despierta el cuerpo, dormido o no.",
       "on": "Llama a `handler` en un evento de contacto de este cuerpo.",
-      "listens": "Si hay algún manejador de contacto."
+      "listens": "Si hay algún manejador de contacto.",
+      "soft": "Los ajustes de un cuerpo blando, con cada valor por defecto puesto; `null` para un cuerpo rígido.",
+      "vertices": "Los vértices de un cuerpo blando tal como los dejó el último tick: `x, y, z` por vértice de su geometría, en el marco propio de la geometría; `null` para un cuerpo rígido, y hasta su primer tick."
     }
   },
   "PHYSICS_MATERIALS": {
@@ -7033,7 +7080,8 @@
       "threads": "Hilos que avanzan la simulación, incluido el del worker de física. Por encima de 1 necesita una página aislada entre orígenes (memoria compartida); si no, la simulación avanza en uno. Nunca más que los núcleos lógicos de la máquina menos el de la página.",
       "bodyPairs": "Pares de cuerpos cuyas cajas se solapan en un paso. Una pila densa tiene unos cuatro por cuerpo; un paso que encuentra más pierde contactos y lanza `PHYSICS_BUDGET`.",
       "contactConstraints": "Pares en contacto resueltos en un paso. Una pila asentada tiene unos dos por cuerpo; un paso que encuentra más pierde contactos y lanza `PHYSICS_BUDGET`.",
-      "contactEvents": "Eventos de contacto (`enter`, `leave`) que informa un paso. Un `enter` que lo supera se descarta y se cuenta (`world.physics.stats.droppedEvents`), y su `leave` nunca se envía; un `leave` solo se retrasa."
+      "contactEvents": "Eventos de contacto (`enter`, `leave`) que informa un paso. Un `enter` que lo supera se descarta y se cuenta (`world.physics.stats.droppedEvents`), y su `leave` nunca se envía; un `leave` solo se retrasa.",
+      "softVertices": "Vértices de todos los cuerpos blandos a la vez (telas, cuerdas, volúmenes). Cada uno se resuelve en cada paso y la página lo lee de vuelta, 12 bytes por paso."
     }
   },
   "PhysicsHost": {
@@ -7059,7 +7107,7 @@
     }
   },
   "PhysicsOption": {
-    "summary": "Lo que puede recibir `obj.physics`."
+    "summary": "Lo que `obj.physics` puede recibir: un cuerpo rígido, o uno blando (`SoftBodyOptions`)."
   },
   "PhysicsShape": {
     "summary": "Una forma de colisión, cuando la deducida de la geometría no sirve.",

@@ -2077,5 +2077,31 @@
     "words": {
       "credit": "Thung lũng được dựng bằng mã cho ví dụ này, CC0 — xem assets/examples/CREDITS.md"
     }
+  },
+  "cloth-and-rope": {
+    "banner": "Lá cờ treo trên cột và các sợi dây đung đưa dưới xà. Làm lá cờ cứng lại, hoặc để dây giãn ra.",
+    "controls": {
+      "stiff": "Cờ cứng",
+      "stretch": "Độ giãn của dây",
+      "again": "Lại",
+      "slowMotion": "Chậm"
+    },
+    "readouts": {
+      "vertices": "Đỉnh",
+      "step": "Bước"
+    }
+  },
+  "soft-bodies": {
+    "banner": "Thả các khối mềm lên bậc thềm. Chỉnh áp suất khí của chúng, hoặc 0 để dùng mặc định.",
+    "controls": {
+      "pressure": "Áp suất (Pa)",
+      "drop": "Thả",
+      "again": "Lại",
+      "slowMotion": "Chậm"
+    },
+    "readouts": {
+      "volumes": "Khối",
+      "awake": "Đang chạy"
+    }
   }
 }
