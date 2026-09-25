@@ -55,7 +55,7 @@ export class WebglClusterRenderer {
   backdropPasses = 0;
   /** The display curve's rank (`TONE_MAPPING_RANK`), written by the owner before a frame. */
   toneCurve: number = TONE_MAPPING_RANK.aces;
-  private pass: ClusterMaterialPass;
+  readonly pass: ClusterMaterialPass;
   constructor(gl: WebGL2RenderingContext) {
     this.gl = gl;
     const program = (this.program = createClusterProgram(gl));
@@ -160,7 +160,7 @@ export class WebglClusterRenderer {
     // each record is brought up to its host texture at its first binding of the image.
     this.textures.invalidateBindings();
     this.instanced = undefined;
-    this.pass.beginFrame(camera);
+    this.pass.beginFrame(camera, gl.getParameter(gl.VIEWPORT) as Int32Array);
     this.geometry.beginFrame();
     this.triangles = 0;
     let backdropSubmissions = 0,

@@ -10,8 +10,9 @@ import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 /** Uniform stride of the fallback path, which keeps one record per primitive. */
 export const UNIFORM_STRIDE = 256;
 /** `viewProj`, the view point, lamp tiles, view flags, the item offset, the texture-feedback
- *  phase, the pixel scale, the target size and the eye: 128 bytes. */
-export const BLEND_VIEW_SIZE = 128;
+ *  phase, the pixel scale, the target size, the eye and the host's pixel ratio: 132 bytes, 144
+ *  with the struct's alignment. */
+export const BLEND_VIEW_SIZE = 144;
 
 /** Diagnostic bits that the WHOLE pass carries: they do not depend on the item. */
 function diagnosticBits(diagnostic: DiagnosticMode) {
@@ -30,7 +31,7 @@ function diagnosticBits(diagnostic: DiagnosticMode) {
 }
 
 /**
- * VIEW uniform of the transparent pass: one hundred and twenty-eight bytes, once per image.
+ * VIEW uniform of the transparent pass: one hundred and forty-four bytes, once per image.
  *
  * Everything that belonged to an item — its matrix, its colour, its six maps — now lives in the
  * record the shader reads at the rank the vertex index carries (`items.ts`). What
@@ -85,6 +86,8 @@ export function writeBlendView(rt: WebgpuPagesRuntime, device: GPUDevice) {
   packed[27] = rt.gpu.targetSize[1];
   // The eye the fog is measured from, the opaque resolve's (`encodeLights.ts`).
   packed.set(tiles.subarray(5, 8), 28);
+  // Image pixels per CSS pixel: a line's width counts CSS pixels (`lineClip`).
+  packed[32] = rt.setup.pixelRatio();
   device.queue.writeBuffer(
     buffer,
     0,

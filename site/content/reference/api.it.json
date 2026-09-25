@@ -545,21 +545,15 @@
     "members": {
       "isBufferAttribute": "Sempre `true`: distingue un attributo di buffer da tutto il resto.",
       "type": "Come sono stati dichiarati i valori; un attributo in semi-float è mantenuto in precisione float.",
-      "normalized": "Se i numeri interi si leggono come valori tra 0 e 1.",
       "version": "Incrementato a ogni scrittura dichiarata: ciò che il mondo confronta per vedere che il contenuto è cambiato.",
       "array": "I numeri stessi.",
-      "itemSize": "Quanti numeri appartengono a un vertice: 3 per una posizione.",
       "count": "Quanti vertici descrivono i numeri.",
-      "needsUpdate": "`attribute.needsUpdate = true` dopo aver scritto `array`: il mondo lo rilegge.",
-      "getComponent": "Il numero `component` del vertice `index`.",
-      "getX": "Il primo numero del vertice `i`.",
-      "getY": "Il secondo numero del vertice `i`.",
-      "getZ": "Il terzo numero del vertice `i`.",
-      "getW": "Il quarto numero del vertice `i`.",
-      "setXYZ": "Scrive tre numeri per il vertice `i`.",
-      "setXY": "Scrive due numeri per il vertice `i`.",
-      "setX": "Scrive il primo numero del vertice `i`.",
-      "clone": "Un nuovo attributo con una copia dei numeri."
+      "needsUpdate": "`needsUpdate = true` dopo aver scritto `array`: un lettore lo ricarica.",
+      "clone": "Un nuovo attributo con una copia dei numeri, del loro tipo, della normalizzazione e del nome.",
+      "kind": "L’attributo possiede il suo buffer.",
+      "updateRanges": "Intervalli di `array` scritti dall’ultimo caricamento, inviati da soli.",
+      "addUpdateRange": "Segna `count` numeri scritti a partire da `start`.",
+      "clearUpdateRanges": "Dimentica gli intervalli scritti, una volta caricati."
     }
   },
   "BufferNumbers": {
@@ -1745,8 +1739,8 @@
       "transparentDrawCalls": "Chiamate di disegno trasparenti.",
       "transparentSubmittedTriangles": "Triangoli trasparenti inviati.",
       "coverageReady": "Il ripiego GPU iniziale completo è disponibile; nullo per motori senza questa garanzia.",
-      "coverageBudgetLimited": "Il dettaglio richiesto non può coesistere con il ripiego fissato nel budget di pagine GPU.",
-      "budgetPixelError": "Soglia minima di errore sullo schermo che il budget di pagine GPU impone al taglio, in pixel: `0` quando il dettaglio richiesto rientra, altrimenti la soglia più grossolana a cui viene disegnata l'immagine. Nullo per motori senza budget di pagine.",
+      "coverageBudgetLimited": "Il dettaglio richiesto chiede più pagine di quante ne contenga il budget di pagine GPU: il resto viene disegnato più grossolano.",
+      "budgetPixelError": "Solo WebGL2: soglia minima di errore sullo schermo che il suo budget di pagine impone al taglio, in pixel — `0` quando il dettaglio richiesto rientra, altrimenti la soglia più grossolana a cui viene disegnata l'immagine. Assente su WebGPU, dove solo la residenza rende l'immagine più grossolana. Nullo per motori senza budget di pagine.",
       "frameHeld": "Vero quando il fotogramma è stato mantenuto: né la scena, né la vista, né le risorse si sono mosse, nessun lavoro asincrono era in attesa, e nessuna fase CPU è girata. I pixel mostrati sono quelli del fotogramma originale, bit per bit. Ciò che HA FATTO il fotogramma mantenuto viene pubblicato così com'è, mai copiato dall'ultimo rendering completo: `drawCalls`, `triangles`, `submittedTriangles` e `totalSubmittedTriangles` contano solo la presentazione, e le durate CPU e GPU per fase valgono zero quando la fase non è girata, `null` quando nulla l'ha cronometrata. Un motore la cui immagine è una scena disegnata dall'adattatore testimone conta ciò che quell'adattatore ha inviato in quel fotogramma — nulla, per un fotogramma mantenuto. Ciò che MOSTRA il fotogramma mantenuto resta descritto dal taglio che ripropone: `clusters`, `selectedTriangles`, `frustumRejected`, `lodLevel` e `residentPages` sono quelli del fotogramma originale, poiché è lo stesso taglio. Assente in un motore che non mantiene i propri fotogrammi.",
       "streamingError": "Errore di caricamento persistente; gli URL falliti chiedono di ricaricare l'esploratore dopo tre tentativi.",
       "gpuPassMs": "Ultima misurazione di pass GPU di questo motore; nullo quando il dispositivo non sa fare timestamp.",
@@ -2473,7 +2467,10 @@
       "array": "I numeri di ogni vertice, disposti uno dopo l'altro.",
       "stride": "Quanti numeri occupa ogni vertice.",
       "count": "Quanti vertici imballa.",
-      "attribute": "Un attributo estratto dal pacchetto, come attributo di float a parte."
+      "attribute": "Un attributo estratto dal pacchetto, come attributo a parte.",
+      "kind": "Una memoria che più attributi osservano.",
+      "version": "Incrementato da `needsUpdate`.",
+      "needsUpdate": "`needsUpdate = true` dopo aver scritto `array`: un lettore lo ricarica."
     }
   },
   "invertMatrix4": {
@@ -2983,7 +2980,7 @@
       "parameters.flatShading": "Dà a ogni triangolo un'unica tinta piatta, per mostrare le sue faccette.",
       "parameters.size": "Dimensione di un punto, per il materiale a punti.",
       "parameters.sizeAttenuation": "Se i punti si rimpiccioliscono con la distanza.",
-      "parameters.linewidth": "Larghezza di una linea.",
+      "parameters.linewidth": "Larghezza di una linea in pixel CSS, la stessa a ogni distanza.",
       "parameters.dashSize": "Lunghezza di un trattino.",
       "parameters.gapSize": "Lunghezza dello spazio tra due trattini.",
       "parameters.vertexColors": "Se la lista `color` per vertice della geometria tinge la superficie.",
@@ -3021,7 +3018,7 @@
       "parameters.flatShading": "Dà a ogni triangolo un'unica tinta piatta, per mostrare le sue faccette.",
       "parameters.size": "Dimensione di un punto, per il materiale a punti.",
       "parameters.sizeAttenuation": "Se i punti si rimpiccioliscono con la distanza.",
-      "parameters.linewidth": "Larghezza di una linea.",
+      "parameters.linewidth": "Larghezza di una linea in pixel CSS, la stessa a ogni distanza.",
       "parameters.dashSize": "Lunghezza di un trattino.",
       "parameters.gapSize": "Lunghezza dello spazio tra due trattini.",
       "parameters.vertexColors": "Se la lista `color` per vertice della geometria tinge la superficie.",
@@ -3059,7 +3056,7 @@
       "parameters.flatShading": "Dà a ogni triangolo un'unica tinta piatta, per mostrare le sue faccette.",
       "parameters.size": "Dimensione di un punto, per il materiale a punti.",
       "parameters.sizeAttenuation": "Se i punti si rimpiccioliscono con la distanza.",
-      "parameters.linewidth": "Larghezza di una linea.",
+      "parameters.linewidth": "Larghezza di una linea in pixel CSS, la stessa a ogni distanza.",
       "parameters.dashSize": "Lunghezza di un trattino.",
       "parameters.gapSize": "Lunghezza dello spazio tra due trattini.",
       "parameters.vertexColors": "Se la lista `color` per vertice della geometria tinge la superficie.",
@@ -3097,7 +3094,7 @@
       "parameters.flatShading": "Dà a ogni triangolo un'unica tinta piatta, per mostrare le sue faccette.",
       "parameters.size": "Dimensione di un punto, per il materiale a punti.",
       "parameters.sizeAttenuation": "Se i punti si rimpiccioliscono con la distanza.",
-      "parameters.linewidth": "Larghezza di una linea.",
+      "parameters.linewidth": "Larghezza di una linea in pixel CSS, la stessa a ogni distanza.",
       "parameters.dashSize": "Lunghezza di un trattino.",
       "parameters.gapSize": "Lunghezza dello spazio tra due trattini.",
       "parameters.vertexColors": "Se la lista `color` per vertice della geometria tinge la superficie.",
@@ -3135,7 +3132,7 @@
       "parameters.flatShading": "Dà a ogni triangolo un'unica tinta piatta, per mostrare le sue faccette.",
       "parameters.size": "Dimensione di un punto, per il materiale a punti.",
       "parameters.sizeAttenuation": "Se i punti si rimpiccioliscono con la distanza.",
-      "parameters.linewidth": "Larghezza di una linea.",
+      "parameters.linewidth": "Larghezza di una linea in pixel CSS, la stessa a ogni distanza.",
       "parameters.dashSize": "Lunghezza di un trattino.",
       "parameters.gapSize": "Lunghezza dello spazio tra due trattini.",
       "parameters.vertexColors": "Se la lista `color` per vertice della geometria tinge la superficie.",
@@ -3173,7 +3170,7 @@
       "parameters.flatShading": "Dà a ogni triangolo un'unica tinta piatta, per mostrare le sue faccette.",
       "parameters.size": "Dimensione di un punto, per il materiale a punti.",
       "parameters.sizeAttenuation": "Se i punti si rimpiccioliscono con la distanza.",
-      "parameters.linewidth": "Larghezza di una linea.",
+      "parameters.linewidth": "Larghezza di una linea in pixel CSS, la stessa a ogni distanza.",
       "parameters.dashSize": "Lunghezza di un trattino.",
       "parameters.gapSize": "Lunghezza dello spazio tra due trattini.",
       "parameters.vertexColors": "Se la lista `color` per vertice della geometria tinge la superficie.",
@@ -3211,7 +3208,7 @@
       "parameters.flatShading": "Dà a ogni triangolo un'unica tinta piatta, per mostrare le sue faccette.",
       "parameters.size": "Dimensione di un punto, per il materiale a punti.",
       "parameters.sizeAttenuation": "Se i punti si rimpiccioliscono con la distanza.",
-      "parameters.linewidth": "Larghezza di una linea.",
+      "parameters.linewidth": "Larghezza di una linea in pixel CSS, la stessa a ogni distanza.",
       "parameters.dashSize": "Lunghezza di un trattino.",
       "parameters.gapSize": "Lunghezza dello spazio tra due trattini.",
       "parameters.vertexColors": "Se la lista `color` per vertice della geometria tinge la superficie.",
@@ -3249,7 +3246,7 @@
       "parameters.flatShading": "Dà a ogni triangolo un'unica tinta piatta, per mostrare le sue faccette.",
       "parameters.size": "Dimensione di un punto, per il materiale a punti.",
       "parameters.sizeAttenuation": "Se i punti si rimpiccioliscono con la distanza.",
-      "parameters.linewidth": "Larghezza di una linea.",
+      "parameters.linewidth": "Larghezza di una linea in pixel CSS, la stessa a ogni distanza.",
       "parameters.dashSize": "Lunghezza di un trattino.",
       "parameters.gapSize": "Lunghezza dello spazio tra due trattini.",
       "parameters.vertexColors": "Se la lista `color` per vertice della geometria tinge la superficie.",
@@ -3287,7 +3284,7 @@
       "parameters.flatShading": "Dà a ogni triangolo un'unica tinta piatta, per mostrare le sue faccette.",
       "parameters.size": "Dimensione di un punto, per il materiale a punti.",
       "parameters.sizeAttenuation": "Se i punti si rimpiccioliscono con la distanza.",
-      "parameters.linewidth": "Larghezza di una linea.",
+      "parameters.linewidth": "Larghezza di una linea in pixel CSS, la stessa a ogni distanza.",
       "parameters.dashSize": "Lunghezza di un trattino.",
       "parameters.gapSize": "Lunghezza dello spazio tra due trattini.",
       "parameters.vertexColors": "Se la lista `color` per vertice della geometria tinge la superficie.",
@@ -3325,7 +3322,7 @@
       "parameters.flatShading": "Dà a ogni triangolo un'unica tinta piatta, per mostrare le sue faccette.",
       "parameters.size": "Dimensione di un punto, per il materiale a punti.",
       "parameters.sizeAttenuation": "Se i punti si rimpiccioliscono con la distanza.",
-      "parameters.linewidth": "Larghezza di una linea.",
+      "parameters.linewidth": "Larghezza di una linea in pixel CSS, la stessa a ogni distanza.",
       "parameters.dashSize": "Lunghezza di un trattino.",
       "parameters.gapSize": "Lunghezza dello spazio tra due trattini.",
       "parameters.vertexColors": "Se la lista `color` per vertice della geometria tinge la superficie.",
@@ -3363,7 +3360,7 @@
       "parameters.flatShading": "Dà a ogni triangolo un'unica tinta piatta, per mostrare le sue faccette.",
       "parameters.size": "Dimensione di un punto, per il materiale a punti.",
       "parameters.sizeAttenuation": "Se i punti si rimpiccioliscono con la distanza.",
-      "parameters.linewidth": "Larghezza di una linea.",
+      "parameters.linewidth": "Larghezza di una linea in pixel CSS, la stessa a ogni distanza.",
       "parameters.dashSize": "Lunghezza di un trattino.",
       "parameters.gapSize": "Lunghezza dello spazio tra due trattini.",
       "parameters.vertexColors": "Se la lista `color` per vertice della geometria tinge la superficie.",
@@ -3401,7 +3398,7 @@
       "parameters.flatShading": "Dà a ogni triangolo un'unica tinta piatta, per mostrare le sue faccette.",
       "parameters.size": "Dimensione di un punto, per il materiale a punti.",
       "parameters.sizeAttenuation": "Se i punti si rimpiccioliscono con la distanza.",
-      "parameters.linewidth": "Larghezza di una linea.",
+      "parameters.linewidth": "Larghezza di una linea in pixel CSS, la stessa a ogni distanza.",
       "parameters.dashSize": "Lunghezza di un trattino.",
       "parameters.gapSize": "Lunghezza dello spazio tra due trattini.",
       "parameters.vertexColors": "Se la lista `color` per vertice della geometria tinge la superficie.",
@@ -3439,7 +3436,7 @@
       "parameters.flatShading": "Dà a ogni triangolo un'unica tinta piatta, per mostrare le sue faccette.",
       "parameters.size": "Dimensione di un punto, per il materiale a punti.",
       "parameters.sizeAttenuation": "Se i punti si rimpiccioliscono con la distanza.",
-      "parameters.linewidth": "Larghezza di una linea.",
+      "parameters.linewidth": "Larghezza di una linea in pixel CSS, la stessa a ogni distanza.",
       "parameters.dashSize": "Lunghezza di un trattino.",
       "parameters.gapSize": "Lunghezza dello spazio tra due trattini.",
       "parameters.vertexColors": "Se la lista `color` per vertice della geometria tinge la superficie.",
@@ -3477,7 +3474,7 @@
       "parameters.flatShading": "Dà a ogni triangolo un'unica tinta piatta, per mostrare le sue faccette.",
       "parameters.size": "Dimensione di un punto, per il materiale a punti.",
       "parameters.sizeAttenuation": "Se i punti si rimpiccioliscono con la distanza.",
-      "parameters.linewidth": "Larghezza di una linea.",
+      "parameters.linewidth": "Larghezza di una linea in pixel CSS, la stessa a ogni distanza.",
       "parameters.dashSize": "Lunghezza di un trattino.",
       "parameters.gapSize": "Lunghezza dello spazio tra due trattini.",
       "parameters.vertexColors": "Se la lista `color` per vertice della geometria tinge la superficie.",
@@ -3535,7 +3532,7 @@
       "parameters.flatShading": "Dà a ogni triangolo un'unica tinta piatta, per mostrare le sue faccette.",
       "parameters.size": "Dimensione di un punto, per il materiale a punti.",
       "parameters.sizeAttenuation": "Se i punti si rimpiccioliscono con la distanza.",
-      "parameters.linewidth": "Larghezza di una linea.",
+      "parameters.linewidth": "Larghezza di una linea in pixel CSS, la stessa a ogni distanza.",
       "parameters.dashSize": "Lunghezza di un trattino.",
       "parameters.gapSize": "Lunghezza dello spazio tra due trattini.",
       "parameters.vertexColors": "Se la lista `color` per vertice della geometria tinge la superficie.",
@@ -3598,7 +3595,7 @@
       "flatShading": "Dà a ogni triangolo un'unica tinta piatta, per mostrare le sue faccette.",
       "size": "Dimensione di un punto, per il materiale a punti.",
       "sizeAttenuation": "Se i punti si rimpiccioliscono con la distanza.",
-      "linewidth": "Larghezza di una linea.",
+      "linewidth": "Larghezza di una linea in pixel CSS, la stessa a ogni distanza.",
       "dashSize": "Lunghezza di un trattino.",
       "gapSize": "Lunghezza dello spazio tra due trattini.",
       "vertexColors": "Se la lista `color` per vertice della geometria tinge la superficie.",
@@ -6484,8 +6481,8 @@
       "transparentDrawCalls": "Chiamate di disegno trasparenti.",
       "transparentSubmittedTriangles": "Triangoli trasparenti inviati.",
       "coverageReady": "Il ripiego GPU iniziale completo è disponibile; nullo per motori senza questa garanzia.",
-      "coverageBudgetLimited": "Il dettaglio richiesto non può coesistere con il ripiego fissato nel budget di pagine GPU.",
-      "budgetPixelError": "Soglia minima di errore sullo schermo che il budget di pagine GPU impone al taglio, in pixel: `0` quando il dettaglio richiesto rientra, altrimenti la soglia più grossolana a cui viene disegnata l'immagine. Nullo per motori senza budget di pagine.",
+      "coverageBudgetLimited": "Il dettaglio richiesto chiede più pagine di quante ne contenga il budget di pagine GPU: il resto viene disegnato più grossolano.",
+      "budgetPixelError": "Solo WebGL2: soglia minima di errore sullo schermo che il suo budget di pagine impone al taglio, in pixel — `0` quando il dettaglio richiesto rientra, altrimenti la soglia più grossolana a cui viene disegnata l'immagine. Assente su WebGPU, dove solo la residenza rende l'immagine più grossolana. Nullo per motori senza budget di pagine.",
       "frameHeld": "Vero quando il fotogramma è stato mantenuto: né la scena, né la vista, né le risorse si sono mosse, nessun lavoro asincrono era in attesa, e nessuna fase CPU è girata. I pixel mostrati sono quelli del fotogramma originale, bit per bit. Ciò che HA FATTO il fotogramma mantenuto viene pubblicato così com'è, mai copiato dall'ultimo rendering completo: `drawCalls`, `triangles`, `submittedTriangles` e `totalSubmittedTriangles` contano solo la presentazione, e le durate CPU e GPU per fase valgono zero quando la fase non è girata, `null` quando nulla l'ha cronometrata. Un motore la cui immagine è una scena disegnata dall'adattatore testimone conta ciò che quell'adattatore ha inviato in quel fotogramma — nulla, per un fotogramma mantenuto. Ciò che MOSTRA il fotogramma mantenuto resta descritto dal taglio che ripropone: `clusters`, `selectedTriangles`, `frustumRejected`, `lodLevel` e `residentPages` sono quelli del fotogramma originale, poiché è lo stesso taglio. Assente in un motore che non mantiene i propri fotogrammi.",
       "streamingError": "Errore di caricamento persistente; gli URL falliti chiedono di ricaricare l'esploratore dopo tre tentativi.",
       "gpuPassMs": "Ultima misurazione di pass GPU di questo motore; nullo quando il dispositivo non sa fare timestamp.",
@@ -7155,19 +7152,6 @@
       "handbrake": "Se il freno a mano è tirato."
     }
   },
-  "GraphAttribute": {
-    "members": {
-      "count": "Quanti vertici.",
-      "array": "La memorizzazione.",
-      "kind": "L’attributo possiede il suo buffer.",
-      "version": "Incrementato da `needsUpdate`.",
-      "updateRanges": "Intervalli di `array` scritti dall’ultimo caricamento, inviati da soli.",
-      "addUpdateRange": "Segna `count` numeri scritti a partire da `start`.",
-      "clearUpdateRanges": "Dimentica gli intervalli scritti, una volta caricati.",
-      "needsUpdate": "`needsUpdate = true` dopo aver scritto `array`: un lettore lo ricarica."
-    },
-    "summary": "Un attributo che possiede la sua memoria: `itemSize` numeri per vertice, uno dopo l’altro."
-  },
   "GraphGeometry": {
     "members": {
       "attributes": "I suoi attributi di vertici.",
@@ -7262,34 +7246,6 @@
       "rotation": "La rotazione, in radianti."
     },
     "summary": "Un’immagine e lo stato di campionamento con cui è letta, e la trasformazione delle sue coordinate."
-  },
-  "GraphArray": {
-    "summary": "Gli array tipizzati che un attributo contiene."
-  },
-  "GraphElements": {
-    "summary": "L’uno o l’altro tipo di attributo."
-  },
-  "GraphInterleavedAttribute": {
-    "summary": "Un attributo che osserva `itemSize` numeri a `offset` di ogni vertice di un buffer interlacciato.",
-    "members": {
-      "kind": "L’attributo osserva un buffer condiviso.",
-      "data": "Il buffer che osserva.",
-      "offset": "Dove iniziano i suoi numeri in ogni vertice.",
-      "array": "La memoria in cui vivono gli elementi.",
-      "count": "Quanti vertici.",
-      "needsUpdate": "`needsUpdate = true` dopo aver scritto `array`: un lettore lo ricarica."
-    }
-  },
-  "GraphInterleavedBuffer": {
-    "summary": "Una memoria che più attributi osservano, un vertice ogni `stride` numeri.",
-    "members": {
-      "kind": "Una memoria che più attributi osservano.",
-      "count": "Quanti vertici.",
-      "version": "Incrementato da `needsUpdate`.",
-      "array": "La memoria.",
-      "stride": "Numeri per vertice.",
-      "needsUpdate": "`needsUpdate = true` dopo aver scritto `array`: un lettore lo ricarica."
-    }
   },
   "GraphMesh": {
     "summary": "Un nodo disegnato: una geometria e la sua superficie, o una superficie per gruppo della geometria.",
@@ -7391,6 +7347,45 @@
       "pulley": "Una fune da `a` su due ruote (`over`) fino a `b`: uno sale mentre l’altro scende.",
       "gear": "Due ruote che girano insieme secondo `ratio`, ciascuna attorno al proprio perno (`axis`, `axisB`) e tenuta dal suo cardine (la ruota come suo `a`); quando `ratio` o 1 / `ratio` è intero, i loro denti mantengono anche la fase in cui sono stati creati.",
       "rackAndPinion": "Un pignone `a` che ruota attorno ad `axis` muove una cremagliera `b` lungo `axisB`, ciascuno tenuto dal suo cardine o giunto prismatico (il corpo come suo `a`), i denti mantenuti nella fase in cui sono stati creati."
+    }
+  },
+  "InterleavedBufferAttribute": {
+    "summary": "Un attributo che osserva `itemSize` numeri a `offset` di ogni vertice di un buffer interlacciato.",
+    "members": {
+      "isInterleavedBufferAttribute": "Sempre `true`: distingue una vista interlacciata da tutto il resto.",
+      "kind": "L’attributo osserva un buffer condiviso.",
+      "data": "Il buffer che osserva.",
+      "offset": "Dove iniziano i suoi numeri in ogni vertice.",
+      "array": "La memoria in cui vivono gli elementi.",
+      "count": "Quanti vertici descrivono i numeri.",
+      "needsUpdate": "`needsUpdate = true` dopo aver scritto `array`: un lettore lo ricarica.",
+      "clone": "I suoi numeri, copiati fuori dal pacchetto in un attributo che li possiede."
+    }
+  },
+  "VertexAttribute": {
+    "summary": "L’uno o l’altro tipo di attributo: proprietario della sua memoria o vista su una memoria interlacciata."
+  },
+  "VertexElements": {
+    "summary": "Gli elementi di un attributo di vertice, letti e scritti per componente.",
+    "members": {
+      "name": "Il nome con cui è noto un bersaglio di morph; vuoto per gli altri.",
+      "itemSize": "Quanti numeri appartengono a un vertice: 3 per una posizione.",
+      "normalized": "Se i numeri interi si leggono come valori tra 0 e 1.",
+      "array": "La memoria in cui vivono gli elementi.",
+      "count": "Quanti vertici descrivono i numeri.",
+      "stored": "Il numero `component` del vertice `index` così com’è memorizzato; un intero normalizzato non scalato.",
+      "getComponent": "Il numero `component` del vertice `index`, letto come il numero che rappresenta.",
+      "setComponent": "Scrive il numero `component` del vertice `index`.",
+      "getX": "Il primo numero del vertice `i`.",
+      "getY": "Il secondo numero del vertice `i`.",
+      "getZ": "Il terzo numero del vertice `i`.",
+      "getW": "Il quarto numero del vertice `i`.",
+      "setX": "Scrive il primo numero del vertice `i`.",
+      "setY": "Scrive il secondo numero del vertice `i`.",
+      "setZ": "Scrive il terzo numero del vertice `i`.",
+      "setW": "Scrive il quarto numero del vertice `i`.",
+      "setXY": "Scrive due numeri per il vertice `i`.",
+      "setXYZ": "Scrive tre numeri per il vertice `i`."
     }
   }
 }
