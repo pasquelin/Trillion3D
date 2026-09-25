@@ -106,7 +106,7 @@ export class WebglClusterTextures {
         record.sampling = texture.sampling;
         this.setSampler(texture);
       }
-      if (rule) this.mips.reduce(unit, record, (record.weighted = weighted), false);
+      if (rule) this.mips.reduce(unit, record, (record.weighted = weighted), false, true);
     }
     this.bound[unit] = record.texture;
   }

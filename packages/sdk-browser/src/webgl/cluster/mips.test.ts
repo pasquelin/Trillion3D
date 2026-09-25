@@ -80,13 +80,15 @@ test('a chain follows the coverage rule of its readers, switched after its image
   image();
   surface.alphaTest = 0.5;
   image();
-  binder.file(G.standardSurface({ map: host }));
-  image();
-  assert.deepEqual(gl.rules(), [1, 0, 1, 0], 'weighted once, opaque, masked, an opaque reader');
   assert.equal(gl.of('texImage2D').filter((args) => args.at(-1) !== null).length, 1, 'uploads');
+  // While it weighs: a linear-tagged map by its role, a data binding of the same texture plain.
   binder.bind(1, map, false, undefined, true);
   binder.bind(2, map, true, undefined, false);
-  assert.deepEqual(gl.rules().slice(4), [0, 0], 'a data binding of the same texture is plain');
+  binder.file(G.standardSurface({ map: host }));
+  image();
+  assert.deepEqual(gl.rules(), [1, 0, 1, 1, 0, 0], 'masked, opaque, masked, an opaque reader');
+  const held = gl.of('createTexture').length - gl.of('deleteTexture').length;
+  assert.equal(held, 3, 'three chains, no scratch kept after a switched rule: no live picture');
 });
 
 // The readers are filed once — the scene's census at its first draw, hidden meshes included, as

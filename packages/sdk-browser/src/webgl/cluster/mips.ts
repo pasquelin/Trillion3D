@@ -54,7 +54,7 @@ export class WebglMipReducer {
   /** Per format, whether a framebuffer holds its levels. */
   private drawable = new Map<number, boolean>();
   /** The copy of the level above: kept while a chain is refilled in place — a live picture —,
-   *  returned after a new chain's reduction. */
+   *  returned after any other reduction. */
   private scratch: { key: string; texture: WebGLTexture } | undefined;
   private drop() {
     if (this.scratch) this.gl.deleteTexture(this.scratch.texture);
@@ -64,14 +64,16 @@ export class WebglMipReducer {
     this.gl = gl;
   }
   /** Builds levels 1… of `chain.texture`, bound on the active `unit`'s TEXTURE_2D, each from the
-   *  one above, `weighted` or not; `allocate` first gives them storage (a new size or chain). */
-  reduce(unit: number, chain: Chain, weighted: boolean, allocate: boolean) {
+   *  one above, `weighted` or not; `allocate` first gives them storage (a new size or chain), and
+   *  `release` returns the scratch — kept only for a picture refilled in place. */
+  reduce(unit: number, chain: Chain, weighted: boolean, allocate: boolean, release = allocate) {
     const gl = this.gl,
       { texture, format, width, height } = chain;
     const levels = mipLevelCountFor(width, height);
     if (levels === 1) return;
     const store = (level: number, [w, h]: [number, number]) =>
       gl.texImage2D(gl.TEXTURE_2D, level, format, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+    if (this.drawable.get(format) === false) return gl.generateMipmap(gl.TEXTURE_2D);
     for (let level = 1; allocate && level < levels; level++)
       store(level, levelSize(width, height, level));
     const built = (this.built ??= buildReducer(gl));
@@ -114,7 +116,7 @@ export class WebglMipReducer {
     attach(gl.READ_FRAMEBUFFER, 0, null);
     attach(gl.DRAW_FRAMEBUFFER, 0, null);
     gl.bindTexture(gl.TEXTURE_2D, texture);
-    if (allocate) this.drop();
+    if (release) this.drop();
     if (!drawn) gl.generateMipmap(gl.TEXTURE_2D);
     gl.bindFramebuffer(gl.READ_FRAMEBUFFER, saved.read);
     gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, saved.draw);
