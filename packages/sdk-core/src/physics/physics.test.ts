@@ -6,7 +6,7 @@ import { capsule } from '../world/geometry/round.ts';
 import { Material } from '../world/material/material.ts';
 import { CommandWriter } from './commands.ts';
 import { JOLT_COMMIT, readCookedPhysics } from './cooked.ts';
-import { ADD_WORDS, OP, SHAPE, VIEW_WORDS } from './layout.ts';
+import { ADD_WORDS, OP, RESTORE_WORDS, SHAPE, VIEW_WORDS } from './layout.ts';
 import { physicsMatterOf } from './matter.ts';
 import { ObjectPhysics } from './objectPhysics.ts';
 import { resolveShape } from './shape.ts';
@@ -45,6 +45,14 @@ test('ADD carries its fixed words at their layout offsets, then the mesh', () =>
   assert.deepEqual([words[23], words[24]], [3, 3]);
   assert.deepEqual([...words.subarray(ADD_WORDS + 9)], [0, 1, 2]);
   assert.equal(writer.length, 0);
+});
+
+test('RESTORE carries its handle and byte count, then the bytes padded to whole words', () => {
+  const writer = new CommandWriter();
+  writer.restore(3, Uint8Array.of(9, 8, 7, 6, 5));
+  const words = writer.take();
+  assert.deepEqual([...words.subarray(0, RESTORE_WORDS)], [OP.restore, 3, 5]);
+  assert.deepEqual([...new Uint8Array(words.buffer, RESTORE_WORDS * 4)], [9, 8, 7, 6, 5, 0, 0, 0]);
 });
 
 test('VIEW carries the eye, the facing, the cone and the range', () => {
