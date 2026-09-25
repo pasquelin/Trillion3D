@@ -1,6 +1,7 @@
 // The ground truth of a grazing material fixture (#443): the view the renderers draw, cast on the
 // CPU from each pixel's centre into the fixture's square and the square behind it. Along the axis
-// the map is minified — the pixel's texture footprint, the screen axis that spans more texels —
+// the map is minified — the pixel's texture footprint, the screen axis that spans more texels, on
+// the tangent the exact derivatives lay at the pixel's centre, as a sampler reads it —
 // `SAMPLES` reads of the base level are averaged in linear light, bilinear across it as a
 // magnification reads; the alpha cutoff then applies once, to that filtered alpha, as a pixel's
 // alpha test does. No mip level and no footprint cap: what a perfect anisotropic sampler returns,
@@ -67,7 +68,8 @@ export type TruthGap = { pixels: number; max: number };
 function bilinear(
   map: TruthMap,
   linear: Float32Array,
-  [u, v]: number[],
+  u: number,
+  v: number,
   w: number,
   out: Float64Array,
 ) {
@@ -83,8 +85,9 @@ function bilinear(
 }
 
 /** A square's plane seen from the screen: the inverse of its projection, a homography built once.
- *  The function writes into `at` the plane point under NDC `(x, y)` and says whether it lies on
- *  the square's front face, in front of the eye. */
+ *  The function writes into `at` the plane point under NDC `(x, y)`, into `slope` when given its
+ *  derivatives along NDC x then y — exact, as the engine's (`uvGradients`) —, and says whether it
+ *  lies on the square's front face, in front of the eye. */
 function onSquare({ camera }: TruthView, { place, half }: TruthSquare) {
   const f = new Matrix4()
     .multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse)
@@ -98,10 +101,15 @@ function onSquare({ camera }: TruthView, { place, half }: TruthSquare) {
   const eye = new Vector3(0, 0, 0).applyMatrix4(
     place.clone().invert().multiply(camera.matrixWorld),
   );
-  return (x: number, y: number, at: { x: number; y: number }) => {
+  return (x: number, y: number, at: { x: number; y: number }, slope?: number[]) => {
     const w = g[3] * x + g[7] * y + g[15];
     at.x = (g[0] * x + g[4] * y + g[12]) / w;
     at.y = (g[1] * x + g[5] * y + g[13]) / w;
+    if (slope)
+      for (const i of [0, 1]) {
+        slope[2 * i] = (g[4 * i] - at.x * g[4 * i + 3]) / w;
+        slope[2 * i + 1] = (g[4 * i + 1] - at.y * g[4 * i + 3]) / w;
+      }
     return eye.z > 0 && w > 0 && Math.abs(at.x) <= half && Math.abs(at.y) <= half;
   };
 }
@@ -118,28 +126,19 @@ export function groundTruth(view: TruthView, samples = SAMPLES): Truth {
     new Color(hex).toArray(),
   );
   const at = { x: 0, y: 0 },
-    uv = [0, 0],
+    slope = [0, 0, 0, 0],
     sum = new Float64Array(4),
     e = map.uv,
-    pixel = 1 / size;
+    pixel = 1 / size,
+    // The square's plane point to its UV, `(p / half + 1) / 2`: this much per plane unit.
+    toUv = 1 / (2 * square.half);
   const truth: Truth = { rgba: new Uint8Array(size * size * 4), edge: new Uint8Array(size * size) };
   /** The surface the geometry shows at `(x, y)`: 1 the square, 2 the one behind, 0 none. */
   const surfaceAt = (x: number, y: number) => (front(x, y, at) ? 1 : back?.(x, y, at) ? 2 : 0);
-  /** The map's coordinate at `(x, y)` on the square's plane, in `uv`. */
-  const mapAt = (x: number, y: number) => {
-    front(x, y, at);
-    const u = (at.x / square.half + 1) / 2,
-      v = (at.y / square.half + 1) / 2;
-    uv[0] = e[0] * u + e[3] * v + e[6];
-    uv[1] = e[1] * u + e[4] * v + e[7];
-    return uv;
-  };
-  /** Texels spanned, squared, from `(x, y) - (dx, dy)` to `(x, y) + (dx, dy)`. */
-  const span = (x: number, y: number, dx: number, dy: number) => {
-    const [u0, v0] = mapAt(x - dx, y - dy);
-    const [u1, v1] = mapAt(x + dx, y + dy);
-    return ((u1 - u0) * map.width) ** 2 + ((v1 - v0) * map.height) ** 2;
-  };
+  /** The map's coordinate moved by a plane move `(a, b)`, through its UV transform. */
+  const moved = (a: number, b: number) => [e[0] * a + e[3] * b, e[1] * a + e[4] * b];
+  /** Texels spanned, squared, by a map move. */
+  const texels = ([du, dv]: number[]) => (du * map.width) ** 2 + (dv * map.height) ** 2;
   for (let py = 0; py < size; py++)
     for (let px = 0; px < size; px++) {
       const index = py * size + px,
@@ -152,16 +151,24 @@ export function groundTruth(view: TruthView, samples = SAMPLES): Truth {
           if (surfaceAt(x + cx * pixel, y + cy * pixel) !== surface) truth.edge[index] = 1;
       let colour: ArrayLike<number> = surface === 2 ? behind : clear;
       if (surface === 1) {
-        const across = span(x, y, pixel, 0),
-          up = span(x, y, 0, pixel);
+        front(x, y, at, slope);
+        const [su, sv] = moved(at.x * toUv + 0.5, at.y * toUv + 0.5),
+          u = su + e[6],
+          v = sv + e[7];
+        // The pixel's footprint on the map, one pixel along each screen axis, on the tangent at
+        // its centre as a sampler's derivatives lay it — the curve a pixel's edges trace departs
+        // from it, and no sampler follows that curve.
+        const step = 2 * pixel * toUv,
+          across = moved(slope[0] * step, slope[1] * step),
+          up = moved(slope[2] * step, slope[3] * step);
+        const [lx, ly] = [texels(across), texels(up)];
         // A footprint of one texel or less is magnified: one read, as the sampler's.
-        const reads = Math.max(across, up) > 1 ? samples : 1,
-          ax = across >= up ? 2 * pixel : 0,
-          ay = 2 * pixel - ax;
+        const reads = Math.max(lx, ly) > 1 ? samples : 1,
+          [du, dv] = lx >= ly ? across : up;
         sum.fill(0);
         for (let s = 0; s < reads; s++) {
           const t = (s + 0.5) / reads - 0.5;
-          bilinear(map, linear, mapAt(x + ax * t, y + ay * t), 1 / reads, sum);
+          bilinear(map, linear, u + du * t, v + dv * t, 1 / reads, sum);
         }
         colour = sum[3] >= view.alphaTest ? sum : back?.(x, y, at) ? behind : clear;
       }
