@@ -30,10 +30,9 @@ export const poolGeometrie = (m: Partial<FrameMetrics>): PoolGeometrie => ({
 });
 
 /** The page budget as the last frame saw it: the cap asked, the pages held, whether the requested
- *  cut fits, and the rung of the screen-error ladder the image is drawn at (0 when it fits). */
+ *  cut fits. */
 export const budgetPages = (m: Partial<FrameMetrics>, maxPages: number | null): BudgetPages => ({
   demande: maxPages ?? null,
   residentes: m.residentPages ?? null,
   couvertureLimiteeParBudget: m.coverageBudgetLimited ?? null,
-  seuilBudget: m.budgetPixelError ?? null,
 });

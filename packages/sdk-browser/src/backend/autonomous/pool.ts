@@ -1,11 +1,9 @@
 import type { GeometryPageDescriptor } from '../../../../sdk-core/src/index.ts';
 import type { BackendDiagnostic } from '../types.ts';
-import type { BudgetSearch } from '../../page/cut/cut.ts';
 import { drawGeometryPool } from './poolDraw.ts';
 import type { GeometryPool, PoolClamp } from '../../residency/pools.ts';
 import { coverageBudgetEvent, sendCoverageBudget } from '../../diagnostic/engineDiagnostic.ts';
 import { createResidentOrder } from './poolOrder.ts';
-import { createPoolSearch } from './poolSearch.ts';
 
 /**
  * The geometry copies a page holds once resident: one per record that owns its geometry — every
@@ -28,13 +26,9 @@ export type PoolEnvironment = {
   descriptors: ReadonlyMap<string, GeometryPageDescriptor>;
   /** Pages of the root cover, held outside the order and never evicted. */
   rootUrls: ReadonlySet<string>;
-  /** The largest error the DAG roots carry as parents: the search's ceiling (`poolSearch.ts`). */
-  rootError: number;
   copies: PageCopies;
   /** Moves when an instance, grown rows or a replaced page change what the root cover holds. */
   coverRevision: () => number;
-  /** Moves when the view does: a pool limited by the root cover is probed again. */
-  viewRevision: () => number;
   /** Decoded bytes the pages hold, which the geometry store keeps. */
   state: { readonly allocationBytes: number };
   /** Decoded bytes nothing may evict — the root cover and the pages the host replaced —, read
@@ -53,30 +47,22 @@ export type PoolEnvironment = {
  * always held, the page cap and the session ceiling applied. A slot holds one geometry COPY: a
  * page drawn by three classic instances fills three, since each holds its own (`PageCopies`).
  *
- * The slots bound the cut in the image that draws it: the cut charges the copies of each page it
- * asks for (`slotsOf`), the root cover held beforehand, and draws coarser until they fit
- * (`search`, `poolSearch.ts`), so a smaller budget takes effect in the image that follows it. A
- * refinement holds more for a while: the resident ancestors drawn in place of missing pages stay
- * beside the pages replacing them, and leave with the cut that follows the last arrival.
+ * The slots bound what the image asks for, never the cut: the cut is drawn at the host's threshold,
+ * and the pages it asks for are admitted in their order (`./requests.ts`, coarsest first), each
+ * charging its copies, the root cover held beforehand, while they fit (`admit`). What does not fit
+ * is not asked for: the cut rule draws its nearest resident ancestor instead
+ * (`../../page/cut/rule.ts`). A refinement holds more for a while: the resident ancestors drawn in
+ * place of missing pages stay beside the pages replacing them, and leave with the cut that follows
+ * the last arrival.
  *
  * The bytes bound what stays resident, as the slots do (`poolOrder.ts`). Under the budget nothing
  * is walked: an arrival costs two set insertions, an image one comparison of bytes.
  */
 export function createGeometryBudget(env: PoolEnvironment) {
-  const { rootUrls, copies, state, kept, drop, floorBytes, rootError, onDiagnostic } = env;
+  const { rootUrls, copies, state, kept, drop, floorBytes, onDiagnostic } = env;
   const drawn = drawGeometryPool(env),
-    current = drawn.current;
-  const thresholds = createPoolSearch({
-    budget: () => {
-      const { slots, clamp } = current();
-      return clamp === 'scene' ? 0 : slots;
-    },
-    held: copies.root,
-    shares: drawn.shares,
-    rootError,
-    coverRevision: env.coverRevision,
-    viewRevision: env.viewRevision,
-  });
+    current = drawn.current,
+    shares = drawn.shares;
   let limited = false,
     event: Record<string, unknown> | undefined;
   // What the pool may hold above its slots: only what nothing may evict.
@@ -87,38 +73,48 @@ export function createGeometryBudget(env: PoolEnvironment) {
     limit: () => current().allocatedBytes,
     floorBytes,
   });
-  /** The cut's search under the slots. The verdict moves as soon as a pass tried the host's
-   *  threshold, fixed search or not; a change waits for `flush`. */
-  const search: BudgetSearch = (pass, floor, cam) => {
-    thresholds.search(pass, floor, cam);
-    const verdict = thresholds.verdict;
-    if (verdict === 'untried' || (verdict === 'over') === limited) return;
-    limited = !limited;
-    event = coverageBudgetEvent(limited, thresholds.requiredSlots, current().slots, true, floor);
+  let used = 0,
+    room = 0;
+  /** Charges `requested` in its order, the root cover held beforehand, against the slots it leaves;
+   *  returns how many fit. Sets `used` and `room`, never the verdict. */
+  const fit = (requested: readonly { url: string }[]) => {
+    const { slots, clamp } = current();
+    room = clamp === 'scene' ? Infinity : slots;
+    used = copies.root();
+    let admitted = requested.length;
+    for (let i = 0; i < requested.length; i++) {
+      used += shares.get(requested[i].url) ?? 0;
+      if (used > room && admitted === requested.length) admitted = i;
+    }
+    return admitted;
   };
   return {
-    search,
-    slotsOf: thresholds.slotsOf,
+    /**
+     * Admits `requested` in its order while the copies it charges fit the slots the root cover
+     * leaves; returns how many are admitted. The verdict — whether all of it fits — moves here and
+     * waits for `flush`. `pixelError` is the host's threshold the cut was drawn at.
+     */
+    admit(requested: readonly { url: string }[], pixelError: number) {
+      const admitted = fit(requested);
+      if (used > room !== limited) {
+        limited = !limited;
+        event = coverageBudgetEvent(limited, used, current().slots, true, pixelError);
+      }
+      return admitted;
+    },
+    /** How many of `requested` fit the pool as drawn now, the verdict left to the next `admit`. */
+    fit,
     /** The pool as drawn from the budget; its `allocatedBytes` is the most it may hold. */
     get held(): GeometryPool {
       return current();
     },
-    /** The floor the pool puts under the cut's screen error, 0 when the requested detail fits. */
-    get budgetPixelError() {
-      return thresholds.pixelError;
-    },
-    /** Why the pool does not make the budget: `root-cover` while even the cut at the search's
-     *  ceiling overflows its slots, as on WebGPU; the drawn pool's reason otherwise. */
+    /** Why the pool does not make the budget: the drawn pool's reason. */
     get clamp(): PoolClamp {
-      return thresholds.rootCover ? 'root-cover' : current().clamp;
+      return current().clamp;
     },
-    /** The cut at the requested threshold did not fit the slots, as of the last pass that tried it. */
+    /** The cut the image asked for did not fit the slots, as of the last admission. */
     get coverageBudgetLimited() {
       return limited;
-    },
-    /** The search owes another image: a finer step is left to try, or the budget changed. */
-    get settling() {
-      return thresholds.settling;
     },
     /** Publishes the verdict the last images changed, as `coverage-budget`. */
     flush() {

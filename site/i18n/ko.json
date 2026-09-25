@@ -838,7 +838,6 @@
       "residency": "상주와 스트리밍",
       "residentPages": "상주 페이지",
       "requestedPages": "요청된 페이지",
-      "budgetThreshold": "예산 임계값",
       "texturesPending": "대기 중인 텍스처",
       "texturesEvicted": "제거된 텍스처",
       "gpuAllocations": "추적 중인 GPU 할당",

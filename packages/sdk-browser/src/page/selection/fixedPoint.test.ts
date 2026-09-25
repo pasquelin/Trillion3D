@@ -1,8 +1,6 @@
-// Still pose: the cut is a fixed point, and the walk that finds it must be counted once.
-// The forcing fallback redescends the tree after abandoning a first descent; frustum rejections
-// from that abandoned descent were added to those of the kept descent. Two frames carrying
-// exactly the same cut then reported two different walks, and the held-frame gate never saw
-// them as identical.
+// Still pose: the cut is a fixed point, and the walk that finds it must be counted once. A missing
+// page changes what the cut rule draws in its place, never the walk: two frames carrying exactly
+// the same cut report the same walk, or the held-frame gate never sees them as identical.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as G from '../../host/graph/graph.fixture.ts';
@@ -56,18 +54,18 @@ test('identical pose: two consecutive cuts return the same cut, page for page', 
   }
 });
 
-test('the forcing fallback does not count the descent it abandons', () => {
+test("a missing page changes the cut drawn, not the walk's count", () => {
   const { pages, tour } = coupe();
   const sansRepli = tour();
   const rejets = sansRepli.frustumRejected;
   // The list is reused from one cut to the next: its contents are read before the next cut.
   const ids = identifiants(sansRepli.shown);
   assert.ok(rejets > 0, 'the view must reject clusters for the count to mean anything');
-  // A missing page arms the fallback: the cut changes, the number of clusters outside the frustum does not.
+  // A missing page: its ancestor is drawn, the number of clusters outside the frustum stays.
   pages.find((page) => page.url === 'leaf0')!.array = undefined;
   const avecRepli = tour();
-  assert.notEqual(identifiants(avecRepli.shown), ids, 'the fallback did not arm');
-  assert.equal(avecRepli.frustumRejected, rejets, 'the abandoned descent is counted twice');
+  assert.notEqual(identifiants(avecRepli.shown), ids, 'the ancestor was not drawn');
+  assert.equal(avecRepli.frustumRejected, rejets, 'the walk was counted differently');
 });
 
 test('the held-frame gate rests on the cut, not on the walk counter', () => {

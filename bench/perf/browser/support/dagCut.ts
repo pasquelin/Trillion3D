@@ -9,10 +9,6 @@ import type {
   ClusterRoot,
   PageRec,
 } from '../../../../packages/sdk-browser/src/page/selection/types.ts';
-import {
-  createSelectionResult,
-  type SelectionResult,
-} from '../../../../packages/sdk-browser/src/page/cut/state.ts';
 
 export type DagPage = Pick<
   PageRec,
@@ -75,44 +71,6 @@ export function dag({
   return pages;
 }
 
-/** Errors of the three levels `dagLevels` builds: seen from nine units at 1280 x 720, the fine
- *  level is under a pixel and the coarse one over it. */
-export const DAG_LEVEL_ERRORS = { fine: 0.01, coarse: 0.02, top: 0.08 };
-
-/**
- * Three levels on one sphere: `fine` pages whose parent error is that of `coarse` pages, under one
- * top page, resident. `coarseResident` says whether the coarse pages start resident; the fine ones
- * start missing.
- */
-export function dagLevels(
-  fine: number,
-  coarse: number,
-  { coarseResident = true }: { coarseResident?: boolean } = {},
-) {
-  const { fine: fineError, coarse: coarseError, top: topError } = DAG_LEVEL_ERRORS;
-  const sphere = [0, 0, 0, 0.5],
-    level = (count: number, error: number, parent: number | null, resident: boolean) =>
-      Array.from({ length: count }, (_, i) => ({
-        url: `${error}-${i}.bin`,
-        level: Math.log2(error / fineError),
-        triangles: 1,
-        min: [-0.5, -0.5, -0.5],
-        max: [0.5, 0.5, 0.5],
-        sphere,
-        lodError: error,
-        parentError: parent,
-        parentSphere: parent === null ? null : sphere,
-        group: null,
-        source: null,
-        array: resident ? new Uint32Array(3) : undefined,
-      })) as DagPage[];
-  return [
-    ...level(1, topError, null, true),
-    ...level(coarse, coarseError, topError, coarseResident),
-    ...level(fine, fineError, coarseError, false),
-  ];
-}
-
 /** A selection root without a culling hierarchy: descent takes the pages in order. */
 export function racine(pages: DagPage[]): ClusterRoot<DagPage> {
   const monde = new THREE.Matrix4();
@@ -125,39 +83,11 @@ export function racine(pages: DagPage[]): ClusterRoot<DagPage> {
   return { world: monde, pages, worldBox: box, localBox: box };
 }
 
-/** The visible state of a cut: displayed and requested pages in order, and its counters. */
-export function etatDeCoupe(result: SelectionResult<DagPage>) {
-  return {
-    shown: result.shown.map((rec) => rec.url),
-    wanted: result.wanted.map((rec) => rec.url),
-    visible: result.visible,
-    selectedTriangles: result.selectedTriangles,
-    displayedTriangles: result.displayedTriangles,
-    frustumRejected: result.frustumRejected,
-    nodesTested: result.nodesTested,
-    lodLevel: result.lodLevel,
-    complete: result.complete,
-    pixelError: result.pixelError,
-  };
-}
-
-/** The camera the budget tests see a DAG through: `distance` units from its centre, 60°, 16:9. */
+/** The camera the pool tests see a DAG through: `distance` units from its centre, 60°, 16:9. */
 export function dagCamera(distance = 9) {
   const cam = new THREE.PerspectiveCamera(60, 16 / 9, 0.1, 200);
   cam.position.set(0, 0, distance);
   cam.lookAt(0, 0, 0);
   cam.updateMatrixWorld();
   return cam;
-}
-
-/** A cut at `pixelError` under `pageBudget` slots, into a fresh result. */
-export function dagAsk(pixelError: number, pageBudget: number) {
-  return {
-    pixelError,
-    viewport: [1280, 720] as [number, number],
-    holdResident: true,
-    pageBudget,
-    wanted: [] as DagPage[],
-    result: createSelectionResult<DagPage>(),
-  };
 }

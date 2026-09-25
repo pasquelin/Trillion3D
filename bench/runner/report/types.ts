@@ -45,7 +45,6 @@ export interface BudgetPages {
   demande: number | null;
   residentes: number | null;
   couvertureLimiteeParBudget: boolean | null;
-  seuilBudget: number | null;
 }
 
 /** The geometry pool as the engine held it (`seriesPools.ts`). */
