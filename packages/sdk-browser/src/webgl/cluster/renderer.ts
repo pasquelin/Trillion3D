@@ -30,7 +30,7 @@ export class WebglClusterRenderer {
   private gl: WebGL2RenderingContext;
   private program: WebGLProgram;
   private geometry: WebglClusterGeometry;
-  private textures: WebglClusterTextures;
+  readonly textures: WebglClusterTextures;
   private uniforms = new Map<string, WebGLUniformLocation | null>();
   private normal = new Float32Array(9);
   /** Model-view in double precision, the normal matrix read from it; the program gets floats. */
@@ -144,7 +144,6 @@ export class WebglClusterRenderer {
     srgbDestination: boolean,
     diagnosticMeshes: readonly WholeMesh[] = [],
     copies: readonly SceneCopy[] = [],
-    hidden: readonly WholeMesh[] = [],
   ) {
     const gl = this.gl;
     const lightReason = unsupportedClusterLight(scene);
@@ -158,8 +157,8 @@ export class WebglClusterRenderer {
     gl.uniform1i(this.at('toneCurve'), this.toneCurve);
     gl.uniform1i(this.at('lightCount'), this.lights.upload(scene, camera.view));
     // Units unknown at frame start (the backdrop pass touches only its own); a record follows its
-    // host at its first binding, its chain every surface the scene holds, `hidden` included (#42).
-    this.textures.beginFrame([meshes, diagnosticMeshes, copies, hidden]);
+    // host at its first binding, its chain the readers' rule, reread once per image (#42).
+    this.textures.beginFrame();
     this.instanced = undefined;
     this.pass.beginFrame(camera, gl.getParameter(gl.VIEWPORT) as Int32Array);
     this.geometry.beginFrame();
