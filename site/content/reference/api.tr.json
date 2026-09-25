@@ -3560,7 +3560,6 @@
       "anisotropy": "Eğik açıda keskinlik.",
       "flipY": "Satırların çevrilip çevrilmediği.",
       "premultiplyAlpha": "Rengin önceden çarpılıp çarpılmadığı.",
-      "generateMipmaps": "Daha küçük kopyaların yapılıp yapılmadığı.",
       "colorSpace": "Sayılarının nasıl okunduğu.",
       "transform": "Örnekleyicinin UV dönüşümü, üçe üç satıra bileşik `KHR_texture_transform`."
     }

@@ -5998,7 +5998,6 @@
       "anisotropy": "Schärfe schräg gesehen.",
       "flipY": "Ob die Zeilen umgedreht sind.",
       "premultiplyAlpha": "Ob die Farbe vormultipliziert ist.",
-      "generateMipmaps": "Ob kleinere Kopien erstellt werden.",
       "colorSpace": "Wie ihre Zahlen gelesen werden.",
       "transform": "Transformation der UV des Samplers, `KHR_texture_transform`, zu drei Dreierzeilen zusammengesetzt."
     }

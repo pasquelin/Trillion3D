@@ -3560,7 +3560,6 @@
       "anisotropy": "斜めから見たときの鮮明さ。",
       "flipY": "行が反転されるかどうか。",
       "premultiplyAlpha": "色があらかじめ乗算されているかどうか。",
-      "generateMipmaps": "より小さいコピーが作られるかどうか。",
       "colorSpace": "その数値がどう読まれるか。",
       "transform": "サンプラーのUV変換。`KHR_texture_transform`が3×3の行列にまとめられたもの。"
     }

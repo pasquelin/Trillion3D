@@ -5998,7 +5998,6 @@
       "anisotropy": "Nitidezza vista di lato.",
       "flipY": "Se le righe sono capovolte.",
       "premultiplyAlpha": "Se il colore è premoltiplicato.",
-      "generateMipmaps": "Se vengono fatte copie più piccole.",
       "colorSpace": "Come vengono letti i suoi numeri.",
       "transform": "Trasformazione delle UV del campionatore, `KHR_texture_transform` composto in tre righe di tre."
     }

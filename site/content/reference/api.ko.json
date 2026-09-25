@@ -3560,7 +3560,6 @@
       "anisotropy": "비스듬히 볼 때의 선명도.",
       "flipY": "행이 뒤집히는지 여부.",
       "premultiplyAlpha": "색상이 알파로 미리 곱해져 있는지 여부.",
-      "generateMipmaps": "더 작은 사본들이 만들어지는지 여부.",
       "colorSpace": "그 숫자들이 어떻게 읽히는가.",
       "transform": "샘플러의 UV 변환, `KHR_texture_transform`이 3×3 행렬로 합쳐진 것."
     }
