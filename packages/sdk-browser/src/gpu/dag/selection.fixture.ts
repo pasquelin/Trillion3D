@@ -1,12 +1,7 @@
 import { evaluateDagSelectionKernel, type PackedDag } from './selection.ts';
 import { bytesOf, compactDrawnPages } from '../../../../../tests/kit/gpu/globals.ts';
 import { readDagUniforms } from '../../../../../tests/kit/gpu/mockCompute.ts';
-import {
-  SELECTION_HEADER_WORDS,
-  childBase,
-  residentFlags,
-  writeTriangleTotals,
-} from './layout.ts';
+import { SELECTION_HEADER_WORDS, childBase, residentFlags, writeTriangleTotals } from './layout.ts';
 import { DAG_UNIFORM_BYTES } from './shader/viewsWgsl.ts';
 import { DAG_BINDING } from './shader/bindings.ts';
 

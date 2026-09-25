@@ -16,7 +16,7 @@ const backends: Record<string, (dag: RuleDag, threshold: number) => CutBackend> 
 /** A reproducible sequence in [0, 1). */
 function random(seed: number) {
   let s = seed >>> 0;
-  return () => ((s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 2 ** 32);
+  return () => (s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 2 ** 32;
 }
 
 const isRoot = (page: number) => dag.pages[page].group === null;
@@ -72,7 +72,10 @@ for (const [name, backend] of Object.entries(backends)) {
 
   test(`${name}: the full cut spans several levels and draws what it wants`, () => {
     const { drawn, wanted } = cut(full());
-    assert.deepEqual([...drawn].sort((a, b) => a - b), [...wanted].sort((a, b) => a - b));
+    assert.deepEqual(
+      [...drawn].sort((a, b) => a - b),
+      [...wanted].sort((a, b) => a - b),
+    );
     assert.ok(new Set(wanted.map((p) => dag.pages[p].level)).size >= 3);
     assert.equal(coverFault(dag, drawn), -1);
   });
@@ -117,16 +120,27 @@ for (const [name, backend] of Object.entries(backends)) {
       s = dag.structure;
     const crossing = wanted.filter((p) => {
       const g = dag.pages[p].group;
-      return g !== null && [...s.outputs.subarray(s.outputOffsets[g], s.outputOffsets[g + 1])].some((o) => pruned.has(o));
+      return (
+        g !== null &&
+        [...s.outputs.subarray(s.outputOffsets[g], s.outputOffsets[g + 1])].some((o) =>
+          pruned.has(o),
+        )
+      );
     });
-    assert.ok(crossing.length > 0, 'no replacement lies in a pruned subtree: the proof covers nothing');
+    assert.ok(
+      crossing.length > 0,
+      'no replacement lies in a pruned subtree: the proof covers nothing',
+    );
     for (const missing of crossing) {
       const resident = full();
       resident[missing] = 0;
       check(`crossing without ${missing}`, cut(resident), resident);
       check(`holding without ${missing}`, cut(resident), resident);
       const back = cut(full());
-      assert.deepEqual(back.drawn.sort((a, b) => a - b), [...wanted].sort((a, b) => a - b));
+      assert.deepEqual(
+        back.drawn.sort((a, b) => a - b),
+        [...wanted].sort((a, b) => a - b),
+      );
     }
   });
 }

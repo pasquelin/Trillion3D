@@ -35,7 +35,12 @@ export function stripCamera(dag: RuleDag) {
 
 /** The kernel uniforms of the strip camera, the packing's worlds brought to its render frame. */
 function stripUniforms(dag: RuleDag, threshold: number) {
-  const root = { world: dag.world, pages: dag.pages, culling: dag.culling, structure: dag.structure };
+  const root = {
+    world: dag.world,
+    pages: dag.pages,
+    culling: dag.culling,
+    structure: dag.structure,
+  };
   const packed = packDagSelection([root]),
     cam = stripCamera(dag);
   packedWorldsToRenderOrigin(packed, [root], cam.eye);

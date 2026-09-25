@@ -283,16 +283,15 @@ level, a lamp face at one mip — form a run, and every run of the frame is sele
 of the cluster cut: the camera's kernels, pipelines, clusters and residency bits, with flags,
 counters and output of its own (`gpu/dag/lightCut.ts`). Each work item — a queued node, a candidate
 page, a live cluster — carries its view's index; each view reads its own uniform block and owns its
-own per-primitive threshold, fallback and planes, in a row it keeps from one frame to the next
-whatever its rank in the cut (`gpu/dag/lightCutRows.ts`); the frame pays the
+own per-primitive frustum planes, and nothing carries from one frame to the next; the frame pays the
 waits between the cut's dispatches once, not once per view. Each view's drawn clusters land in their
 own range of one log, which the light compaction walks view by view. Its budget is fixed: the lists
 and queues are the camera cut's size whatever the view count (at most `shadowPagesPerFrame`, since a
 view holds at least one drawn page, and at most what the device's dispatch and binding limits hold,
 `gpu/dag/lightCutCapacity.ts`); work several views together push past them is dropped. The
 pages a frame drew while its cut dropped work are drawn again, and the pages a frame may draw are
-bisected between the most a frame drew whole and the fewest one dropped with. A view that drew a
-placement coarser than it wanted, a cluster of it not resident, drew every page of that view with
+bisected between the most a frame drew whole and the fewest one dropped with. A view that wanted a
+cluster not resident drew its nearest resident ancestor instead, and every page of that view with
 it: those pages, and only that view's, are drawn again once residency changes, not only the pages
 over the missing cluster; a frame whose requests found no readback free draws them again at once
 (`gpu/dag/lightCutRedraws.ts`, `light-cut-redraw`). A run's window is the square that bounds its pages, cut in eight by eight cells
@@ -300,8 +299,8 @@ of whole pages; a node or cluster that covers no cell a drawn page lies in is dr
 counted in the view's texels against the camera's pixel threshold — a texel of the level a pixel
 reads is at most that pixel —, and the normal cone is off, since the shadow raster culls no face. The
 light's mask is compacted over the same draw items as the camera's, and each page culls that list
-against its own box or cone. The camera's cut, its escalation and its pinned fallback are untouched:
-a caster the light wants and the pool lacks raises the light's own threshold. What the light cuts
+against its own box or cone. A caster the light wants and the pool lacks is drawn through its
+nearest resident ancestor, by the camera's rule (`page/cut/rule.ts`). What the light cuts
 request is a second residency tier, loaded after the camera's pages into slots no one holds and never
 pinned. The CPU cut does the same, reading the run's view as a camera (`webgpu/shadow/cpuCasters.ts`);
 its casters take rows behind its own (#10, #26).
@@ -391,11 +390,10 @@ frame composer asks each backend to draw its whole image through `drawHostGeomet
 
 The geometry pool holds `floor(bytes / pageBytes)` slots, the root cover pinned for the backend's
 lifetime; the texture pool is split between the colour and data atlases in layers. When a view asks
-beyond the geometry pool, the cut's screen error climbs a ladder that doubles what the image was
-drawn at (1 px at least on a first overflow, up to 4096) and comes back down rung by rung to 0.125
-px once the requested cut fits under 70 % of the slots. The ladder moves only on a cut sampled at
-the rung in force, and a rung that overflowed is not asked again until the view or the pool changes,
-so a still camera settles instead of alternating between two cuts.
+beyond the geometry pool, the WebGPU cut keeps the host's screen error: the pool loads what fits,
+coarsest first, and the surface of what it leaves out is drawn by its nearest resident ancestor
+(the cut rule, below). Residency does the coarsening; `coverage-budget` only says that the image
+asks for more than the slots hold.
 
 A pool resize (`explorer.setMemoryBudgets`) copies pages and tiles on the GPU into the new pool —
 root cover first, then pinned pages, then the most recent — evicts only what no longer fits, and
@@ -403,7 +401,7 @@ rebuilds every bind group that named the old pool on the next image. At prepare 
 once, under an out-of-memory error scope; at a resize, where the old pool lives until the copy, the
 new one is first probed under that scope (`webgpu/residency/poolGrants.ts`). A refusal halves the
 pool's bytes and draws it again by its own rule, down to its floor, so the pool in place is never
-replaced by an invalid one and the budget ladder draws the rest coarser. The world's GPU and CPU totals reach the pools through one fixed
+replaced by an invalid one and what no longer fits is drawn by its resident ancestors. The world's GPU and CPU totals reach the pools through one fixed
 split (`residency/memoryBudget.ts`). The geometry pool can grow up to
 `geometryPoolCeilingBytes`, because its per-row tables are sized once at that ceiling. The WebGL2
 engine draws its geometry pool by the same rule (`sessionGeometryPool`: slots of the largest decoded
@@ -457,6 +455,26 @@ and keeps them retained with the cut, even when the parent is outside it. The co
 list that misses a parent's bundle or is not closed, so every page the pool walks has its bytes
 requested. Until they arrive, or when a dependency does not fit, the page is not loaded and stays
 drawn through its resident ancestor. Both tiers of the residency queue share this one path.
+
+**One cut rule per cluster** (`page/cut/rule.ts`, #486). The GPU cut draws a cluster when it is
+resident, its parent group is coarser than the threshold, and either its own error meets the
+threshold or the group finer than it is not resident:
+`draw(c) = resident(c) && parentError(c) > t && (clusterError(c) <= t || !resident(childGroup(c)))`.
+The same expression is compiled into the kernel (`dagMask`) and run by its CPU model
+(`gpu/dag/oracle/oracle.ts`); the threshold is always the host's. Residency is read by group
+(`page/cut/readiness.ts`): a group counts as resident when every cluster it replaces is, and so is
+every group above it — a cluster nothing replaces standing for itself. A group then draws all its
+outputs or all its members, never both and never neither, so every surface is drawn exactly once,
+by the wanted cluster or its nearest resident ancestor, and a missing page coarsens its own
+neighbourhood by one level, never its whole primitive. The host derives both bit sets from the
+pool's residency and uploads what changed (`gpu/dag/readiness.ts`). Because a group needs all its
+members, the cut asks the cache for whole groups closed upward, the group-mates a view never keeps
+included (`webgpu/cut/groupClosure.ts`); otherwise the surface of a group straddling the frustum
+or the normal cone would stay one level coarse. Top-down pruning drops a subtree whose error floor
+is above the threshold only when none of its clusters has a missing finer group: each culling node
+carries that count (`NODE_OPEN`), so the nearest resident ancestor of a missing page is always a
+candidate. No frame waits for coverage once the root cover is resident. The CPU cut and the WebGL2
+page path still use their own fallbacks until they take the same rule.
 Shared URLs occupy one slot across instances. Two counters say different things:
 
 | Field            | Meaning                                                                                         | Reported by          |
@@ -464,7 +482,7 @@ Shared URLs occupy one slot across instances. Two counters say different things:
 | `pagesDetached`  | clusters that left the drawn cut since the backend was created: cut churn, not memory pressure  | the WebGL page paths |
 | `cacheEvictions` | pages actually evicted from the cache that feeds the drawn geometry: the memory-pressure signal | every backend        |
 
-`coverageReady`, `coverageBudgetLimited`, `budgetPixelError` and `streamingError` report coverage;
+`coverageReady`, `coverageBudgetLimited`, `budgetPixelError` (WebGL2 only) and `streamingError` report coverage;
 the `coverage-*` diagnostics trace bootstrap, budget, upload and streaming failures. A failed URL is
 retried at most three times per session; an initial cover read failure rejects preparation.
 

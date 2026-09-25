@@ -3,49 +3,14 @@ import {
   sameSelectionUniforms,
   type GpuCut,
   type GpuSelection,
-  type ResidencyChanges,
   type SelectionUniforms,
 } from '../core/selection.ts';
-import { RESIDENCY_RANGE_MAX, coalesceResidencyRanges } from '../../webgpu/residency/ranges.ts';
 import { primitiveWordAt, refreshWorldStretch, worldsChanged } from './worlds.ts';
-import { childBase, residentBase, residentWords } from './layout.ts';
-import { DAG_NODE_FLOATS } from './types.ts';
-import { createDagReadiness } from './readiness.ts';
+import { createDagResidencyUpload } from './residencyUpload.ts';
 import { createDagDispatch } from './dispatch.ts';
 import type { createDagResources } from './resources.ts';
 
 type DagResources = NonNullable<Awaited<ReturnType<typeof createDagResources>>>;
-
-/**
- * One of the cut rule's residency bit sets: one word for thirty-two clusters, which is by itself
- * its own mirror — the comparison rereads the bit it is about to write, with no parallel array.
- * Only pages `changes` names are visited, all of them when it names none reliably.
- * `touched` receives the word ranks touched, increasing and without repetition: those are what
- * the top writes, not the pages. Returns their count.
- */
-export function updateResidencyBits(
-  next: ArrayLike<number>,
-  bits: Uint32Array,
-  base: number,
-  changes: ResidencyChanges | undefined,
-  touched: Int32Array,
-) {
-  let count = 0,
-    last = -1;
-  const apply = (j: number) => {
-    const word = j >>> 5,
-      mask = 1 << (j & 31),
-      current = bits[base + word];
-    if (((current & mask) !== 0) === !!next[j]) return;
-    bits[base + word] = next[j] ? current | mask : current & ~mask;
-    if (word === last) return;
-    touched[count++] = word;
-    last = word;
-  };
-  if (changes?.sorted) for (let i = 0; i < changes.count; i++) apply(changes.pages[i]);
-  else for (let j = 0; j < next.length; j++) apply(j);
-  return count;
-}
 
 export function createDagRuntime(resources: DagResources): GpuSelection {
   const {
@@ -59,8 +24,6 @@ export function createDagRuntime(resources: DagResources): GpuSelection {
     flags,
     worlds,
     frames,
-    pageCones,
-    nodes,
   } = resources;
   const state = {
     last: null as GpuCut | null,
@@ -87,27 +50,8 @@ export function createDagRuntime(resources: DagResources): GpuSelection {
   const fail = () => ((state.dead = true), voidCuts());
   const previousWorlds = packed.worlds.slice(),
     frameInts = new Uint32Array(frameData.buffer);
-  // Residency bits extend the cold records in their buffer: one view, mirror and write source.
-  const bits = new Uint32Array(
-    packed.pageCones.buffer,
-    packed.pageCones.byteOffset,
-    packed.pageCones.length,
-  );
-  // The cut rule's residency, derived from the pool's (`readiness.ts`).
-  const readiness = residentCut ? createDagReadiness(packed) : undefined;
-  /** Words the last apply actually changed, and the ranges that cover them. */
-  const touched = new Int32Array(Math.max(1, residentWords(pageCount), nodeCount));
-  const ranges = new Int32Array(RESIDENCY_RANGE_MAX * 2);
-  /** Writes the ranges `count` sorted ranks of `touched` span, `stride` words each from `base`. */
-  const upload = (target: GPUBuffer, source: Float32Array, base: number, stride: number, count: number) => {
-    const spans = coalesceResidencyRanges(touched, count, ranges);
-    for (let r = 0; r < spans; r++) {
-      const from = (base + ranges[r * 2] * stride) * 4,
-        bytes = (ranges[r * 2 + 1] - ranges[r * 2] + 1) * stride * 4;
-      device.queue.writeBuffer(target, from, source.buffer as ArrayBuffer, source.byteOffset + from, bytes);
-    }
-  };
-  const changed = { pages: new Int32Array(Math.max(1, pageCount)), count: 0, sorted: true };
+  // The cut rule's residency, derived from the pool's and uploaded by difference.
+  const uploadResidency = residentCut ? createDagResidencyUpload(resources) : undefined;
   const dispatch = createDagDispatch(resources, state, fail);
   const selection: GpuSelection = {
     residentCut,
@@ -155,20 +99,9 @@ export function createDagRuntime(resources: DagResources): GpuSelection {
       voidCuts();
     },
     updateResidency(next, changes) {
-      if (state.disposed || state.dead || !readiness) return false;
+      if (state.disposed || state.dead || !uploadResidency) return false;
       if (next.length !== pageCount) throw new Error('GPU_SELECTION_RESIDENCY_COUNT_CHANGED');
-      const settled = readiness.apply(next, changes);
-      if (!settled.pages.length && !settled.nodes.length) return false;
-      // One write per contiguous range, never one per page or node: a thousand small writes are
-      // not worth the single one they replace.
-      changed.pages.set(settled.pages);
-      changed.count = settled.pages.length;
-      const words = [residentBase(pageCount), childBase(pageCount)];
-      [readiness.ready, readiness.childReady].forEach((set, k) =>
-        upload(pageCones, packed.pageCones, words[k], 1, updateResidencyBits(set, bits, words[k], changed, touched)),
-      );
-      touched.set(settled.nodes);
-      upload(nodes, packed.nodes, 0, DAG_NODE_FLOATS, settled.nodes.length);
+      if (!uploadResidency(next, changes)) return false;
       voidCuts();
       return true;
     },

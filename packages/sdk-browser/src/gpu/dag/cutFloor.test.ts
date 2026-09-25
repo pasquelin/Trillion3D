@@ -41,7 +41,8 @@ function coupeSansElagage(packed: ReturnType<typeof packDagSelection>, uniforms:
   const retenues: number[] = [];
   for (let i = 0; i < packed.pageCount; i++) {
     const w = worldOf(records, i);
-    if (visible(i) && draws(i, frames.pixelError, true, true) && !coneRejects(i, w)) retenues.push(i);
+    if (visible(i) && draws(i, frames.pixelError, true, true) && !coneRejects(i, w))
+      retenues.push(i);
   }
   return retenues;
 }
