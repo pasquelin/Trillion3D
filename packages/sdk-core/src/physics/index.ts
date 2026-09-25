@@ -23,11 +23,8 @@ export * from './vehicleLayout.ts';
 export {
   Vehicle,
   vehicle,
-  type VehicleDriver,
   type VehicleInput,
   type VehicleKind,
   type VehicleOptions,
-  VEHICLE_SPECS,
-  type VehicleSpec,
 } from './vehicle.ts';
 export { writeDrive, writeUnvehicle, writeVehicle } from './vehicleCommands.ts';

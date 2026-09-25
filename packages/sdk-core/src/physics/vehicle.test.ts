@@ -5,7 +5,10 @@ import { Material } from '../world/material/material.ts';
 import { Mesh } from '../world/object/mesh.ts';
 import { Group } from '../world/object/object3d.ts';
 import { vehicle, type VehicleKind } from './vehicle.ts';
-import { WHEEL_ROLE, WHEEL_WORDS } from './vehicleLayout.ts';
+import { CommandWriter } from './commands.ts';
+import { OP } from './layout.ts';
+import { writeVehicle } from './vehicleCommands.ts';
+import { VEHICLE_WORDS, WHEEL_ROLE, WHEEL_WORDS } from './vehicleLayout.ts';
 import { VEHICLE_SPECS } from './vehicleSpec.ts';
 import { wheelsOf } from './vehicleWheels.ts';
 
@@ -101,4 +104,21 @@ test('a motorcycle drives its rear wheel; a tracked vehicle its rearmost wheel o
     sprocket,
     sprocket,
   ]);
+});
+
+test('VEHICLE carries its header, the spec, then its wheels, at their layout offsets', () => {
+  const { body, wheels } = rig(FOUR);
+  const writer = new CommandWriter();
+  writeVehicle(writer, 9, 3, vehicle.car(body, { wheels, idleRPM: 800 }));
+  const words = writer.take(),
+    floats = new Float32Array(words.buffer);
+  assert.equal(words.length, VEHICLE_WORDS + 4 * WHEEL_WORDS);
+  assert.deepEqual([...words.subarray(0, 5)], [OP.vehicle, 9, 0, 3, 4]);
+  assert.equal(floats[6], 800, 'the options over the machine');
+  // The first wheel follows the spec: its centre, radius and width, its role.
+  const wheel = [...floats.subarray(VEHICLE_WORDS, VEHICLE_WORDS + WHEEL_WORDS)];
+  assert.deepEqual(
+    wheel.map((n) => +n.toFixed(5)),
+    [-0.8, -0.3, -1.25, 0.3, 0.2, WHEEL_ROLE.steers],
+  );
 });
