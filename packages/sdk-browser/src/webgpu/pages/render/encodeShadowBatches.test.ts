@@ -98,8 +98,9 @@ test('the batch composed last is not composed again in its image, any other is',
 });
 
 // At the cap, the pages past the last batch are pending, and drawn within the bound of `admit.ts`:
-// a view late in the list is not beaten every frame by the views ahead of it re-marked meanwhile. 64 suns turning every frame re-mark every floor page every frame; batches
-// of one page (the smallest a bisected view limit leaves) hold fewer pages than the frame marks.
+// a view late in the list is not beaten every frame by the views ahead of it re-marked meanwhile.
+// 64 suns turning every frame re-mark every floor page every frame; batches of one page (the
+// smallest a bisected view limit leaves) hold fewer pages than the frame marks.
 test('at the cap, every sun turning every frame is drawn within the bound, none starved', () => {
   const { rt, lights, pages } = frame(64);
   const { plan, store } = lights;

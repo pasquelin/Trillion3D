@@ -30,19 +30,21 @@ export const shadowAdmissionHostBytes = (pages: number) => pages * (4 + 4 + 8);
  * it. It waits unreadable (`pool.withdraw`, the one staleness mechanism): a pass that reads without
  * asking — blend, water — would otherwise read its old depth for as long as no report names it.
  *
- * The list holds the pages of one age (below) light view by light view, each view's pages in page
- * order: what the light cut selects casters for once. The GPU draws it in the batches its buffers hold
+ * The list holds the pages light view by light view, each view's pages in page order: what the
+ * light cut selects casters for once. The GPU draws it in the batches its buffers hold
  * (`batchEnd`), every batch in the frame. All arrays are allocated once.
  *
- * NO PAGE WAITS FOREVER. The list orders the pages by age first — the frames since each turned
- * stale (`pool.sinceFrame`), the oldest first —, then by view. A frame that cannot draw the whole
- * list — its batches past the most its memory holds, a batch that cannot be encoded — stops at a
- * page and leaves the rest pending (`plan.reissue`). The pages ahead of a pending page turned
- * stale before it, or in its frame: no page that turns stale later passes it, whatever its view,
- * so they are fewer each frame, never more. A frame draws at least one page per batch, so a page
- * that stays read is drawn within ⌈pool pages / batches a frame draws⌉ + 1 frames of being listed:
- * 25 for the largest pool (4 096 pages, `MAX_SHADOW_BATCHES` 171), when every batch holds one
- * page.
+ * NO PAGE WAITS FOREVER. A frame that cannot draw the whole list — its batches past the most its
+ * memory holds, a batch that cannot be encoded — stops at a page and leaves the rest pending
+ * (`reset(stopped)`, `plan.reissue`). Until a frame draws its whole list again, the list orders
+ * the pages by age first — the frames since each turned stale (`pool.sinceFrame`), the oldest
+ * first —, then by view. The pages ahead of a pending page turned stale before it, or in its
+ * frame: no page that turns stale later passes it, whatever its view, so they are fewer each
+ * frame, never more. A frame draws at least one page per batch, so a page that stays read is
+ * drawn within ⌈pool pages / batches a frame draws⌉ + 1 frames of being listed: 25 for the
+ * largest pool (4 096 pages, `MAX_SHADOW_BATCHES` 171), when every batch holds one page. While
+ * nothing waits, the list is the view order alone: pages of one view that turned stale in
+ * different frames are not split apart.
  */
 export function createShadowAdmission(poolPages: number) {
   const list = new Int32Array(poolPages),
@@ -52,7 +54,9 @@ export function createShadowAdmission(poolPages: number) {
     order = new Float64Array(poolPages),
     /** A sort key's weight of one frame of age: a multiple of the pool's pages, past any view. */
     ageWeight = poolPages * VIEW_KEYS;
-  let count = 0;
+  let count = 0,
+    /** The last frame left pages pending: the next list puts the oldest first. */
+    waiting = false;
   return {
     list,
     keys,
@@ -68,7 +72,7 @@ export function createShadowAdmission(poolPages: number) {
         if (pool.owner[page] < 0 || !pool.dirty[page]) continue;
         if (pool.requested[page] < latest) pool.withdraw(table, page);
         else {
-          const age = Math.min(frame - pool.sinceFrame[page], MAX_AGE);
+          const age = waiting ? Math.min(Math.max(0, frame - pool.sinceFrame[page]), MAX_AGE) : 0;
           order[count++] = viewKeyOf(pool, page) * poolPages + page - age * ageWeight;
         }
       }
@@ -95,8 +99,10 @@ export function createShadowAdmission(poolPages: number) {
       }
       return to;
     },
-    /** Closes the list: what the frame left undrawn stays stale, and ages. */
-    reset() {
+    /** Closes the list. The frame drew it up to `stopped`: what it left undrawn stays stale, and
+     *  the next list is ordered by age. */
+    reset(stopped = count) {
+      waiting = stopped < count;
       count = 0;
     },
   };

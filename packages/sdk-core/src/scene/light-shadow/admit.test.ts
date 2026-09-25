@@ -44,8 +44,26 @@ test('a page left undrawn is drawn within a bounded number of frames, whatever i
     // Re-marked at once, in a view just past the page the frame stopped at.
     pool.stale(drawn, 0, frame);
     pool.view[drawn] = pool.view[admission.list[1]] + 1;
-    admission.reset();
+    admission.reset(1);
     for (let page = 0; page < pool.pages; page++)
       assert.ok(frame - lastDrawn[page] <= bound, `page ${page} undrawn since ${lastDrawn[page]}`);
   }
+});
+
+// While nothing waits, the list is the view order alone: a view's pages that turned stale in
+// different frames stay together, one light cut for them all.
+test('a frame that drew its whole list lists the next by view, whatever the pages age', () => {
+  const pool = createShadowPool(2),
+    table = createShadowTable(pool.pages),
+    admission = createShadowAdmission(pool.pages);
+  pool.beginAllocation(0);
+  // Views 0, 1, 0, 1: each page turned stale a frame later than the one before.
+  for (let entry = 0; entry < pool.pages; entry++)
+    pool.view[pool.take(table, entry, 0, 0, entry)] = entry % 2;
+  admission.run(pool, table, 0, pool.pages);
+  assert.deepEqual([...admission.keys], [0, 0, 1, 1], 'one run a view');
+  // Left undrawn past the first page, the pages oldest first list the next frame.
+  admission.reset(1);
+  admission.run(pool, table, 0, pool.pages + 1);
+  assert.deepEqual([...admission.list], [0, 1, 2, 3], 'the oldest first');
 });
