@@ -7046,8 +7046,8 @@
     "summary": "Was ein Kontakt seinen Zuhörern gibt: das andere Objekt, den Impuls und den Berührungspunkt.",
     "members": {
       "other": "Das berührte Objekt; `null`, sobald es die Szene verlassen hat.",
-      "impulse": "N·s: die Annäherungsgeschwindigkeit entlang der Normalen mal die reduzierte Masse des Paars, vor dem Löser geschätzt; 0 bei `leave`.",
-      "point": "Der Kontaktpunkt im Weltrahmen; der Ursprung bei `leave`."
+      "impulse": "N·s: die Annäherungsgeschwindigkeit entlang der Normalen mal die reduzierte Masse des Paars, vor dem Löser geschätzt (auf der Seite eines weichen Körpers: seine mittlere Geschwindigkeit und die Masse seiner berührenden Vertices); 0 bei `leave` und zwischen einem weichen Körper und einem Sensor.",
+      "point": "Der Kontaktpunkt im Weltrahmen (bei einem weichen Körper: das Mittel seiner berührenden Vertices, vor einem Sensor sein Zentrum); der Ursprung bei `leave`."
     }
   },
   "ContactEventName": {
