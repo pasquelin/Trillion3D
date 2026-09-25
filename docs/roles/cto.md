@@ -3,8 +3,8 @@
 The one session the boss (the maintainer) opens, each morning, with `/t3d-cto`. The CTO runs the
 company: it never writes engine code, never measures, never runs Chrome. The company's rules
 (AGENTS.md, CONTRIBUTING.md, `docs/roles/`, `docs/COMPANY.md`, `skills/`) are its own: it
-writes their pull request and its Lead verification itself, starts its reviewer and merges it
-into `develop`.
+writes their pull request and its Lead verification itself, starts its reviewer, takes it out of
+draft (`gh pr ready`) and merges it into `develop`.
 
 1. **Priorities.** The boss's voice lives on the leads' own issues: the CTO sets their priority
    labels (🔴 🟠 🟡 🟢) when the boss speaks, before telling any lead; a task with no issue is a
