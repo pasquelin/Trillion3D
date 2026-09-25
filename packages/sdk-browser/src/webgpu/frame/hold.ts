@@ -3,6 +3,7 @@ import { CPU_STEP } from '../pages/render/cpuStepTable.ts';
 import { beginTaaFrame, taaSettled } from '../../taa/frame.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 import { shadowsUnsettled } from '../pages/state/lights.ts';
+import { guidesMoved } from '../pages/render/encodeGuides.ts';
 
 /** What can still change the frame, one bit each; `unsettledReasons` names them. */
 const REASONS = [
@@ -138,7 +139,8 @@ export function holdWebgpuFrame(rt: WebgpuPagesRuntime, device: GPUDevice) {
   // full cycle of those frames before one of them can be held (`TAA_STILL_FRAMES`).
   const quiet = run.gate.held() && unsettledMask(rt) === 0;
   beginTaaFrame(rt, run.gate.cam, quiet);
-  if (!quiet || !taaSettled(rt)) {
+  // Guides the page changed are drawn by a full image; the accumulation stays still for it.
+  if (!quiet || !taaSettled(rt) || guidesMoved(rt)) {
     run.frameHeld = false;
     return false;
   }
