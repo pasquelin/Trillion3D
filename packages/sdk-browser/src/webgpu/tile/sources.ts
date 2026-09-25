@@ -155,19 +155,26 @@ export function createTileSources(options: {
      * of its own size, refilled in place from now on —, and its tail and resident tiles are
      * copied again from it, in one submit. A texture whose picture never moves never gets here;
      * one whose size moved is not copied — false —: only a new session lays its tiles out again.
+     * `keep` false copies the same picture again under its readers' new coverage rule (#42): a
+     * texture that is not live yet stays so, its working texture returned after the submit.
      */
-    refresh(atlas: WebgpuTileAtlas, slot: number) {
+    refresh(atlas: WebgpuTileAtlas, slot: number, keep = true) {
       if (!pictureFits(atlas.textures[slot])) return false;
       const id = scratchId(atlas, slot);
       let scratch = live.get(id);
+      const transient = !scratch && !keep;
       if (scratch) scratch.fill();
       else {
-        live.set(id, (scratch = build(atlas, slot)));
-        liveBytes += scratch.bytes;
+        scratch = build(atlas, slot);
+        if (keep) {
+          live.set(id, scratch);
+          liveBytes += scratch.bytes;
+        }
       }
       const encoder = device.createCommandEncoder({ label: 'Trillion3D live texture' });
       copyLiveTexture(encoder, atlas, slot, scratch.texture);
       device.queue.submit([encoder.finish()]);
+      if (transient) scratch.destroy();
       return true;
     },
     /** Bytes the live textures' working textures hold, mips included, beside the pool. */
