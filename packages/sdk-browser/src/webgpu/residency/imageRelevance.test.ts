@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { frame, scene } from './sets.fixture.ts';
 import { createShadowTier } from './shadowTier.ts';
 import { createImageRelevance } from './imageRelevance.ts';
-import { createGroupClosure } from '../cut/groupClosure.ts';
+import { createGroupClosure } from '../../page/cut/groupClosure.ts';
 
 function world() {
   const w = scene();

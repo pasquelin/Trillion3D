@@ -15,20 +15,16 @@ import type { ClusterCut } from '../selection/math.ts';
  * threshold too, and the decision taken at the node is word for word the one the descent would
  * have returned.
  */
-export const BOUND_STRIDE = 13;
+export const BOUND_STRIDE = 12;
 export const OWN_FLOOR = 0,
   OWN_CEIL = 1,
   PARENT_FLOOR = 2,
   OWN_SPHERE = 3,
   PARENT_SPHERE = 7,
-  /** 1 when every cluster of the subtree has a producer group. The forcing fallback draws
-   *  unconditionally a cluster that nothing produced: a subtree that contains one cannot be
-   *  rejected on own error alone. */
-  ALL_SOURCED = 11,
   /** 1 when the subtree carries a cluster that NOTHING replaces — the coarsest cover. Its
    *  replacement error projects to infinity, so no ceiling certifies the subtree
    *  (`../../gpu/dag/hierarchy.ts`). */
-  HAS_ROOT = 12;
+  HAS_ROOT = 11;
 
 /** Grows the bounding sphere stored at `at` to cover the one read at `from`.
  *  Negative radius: accumulator still empty. */
@@ -83,8 +79,6 @@ function foldPage(values: Float64Array, at: number, rec: ClusterCut) {
     else if (own > values[at + OWN_CEIL]) values[at + OWN_CEIL] = own;
   }
   if (sphere) growSphere(values, at + OWN_SPHERE, sphere, 0);
-  const producer = rec.source;
-  if (producer === undefined || producer === null || producer < 0) values[at + ALL_SOURCED] = 0;
   // A cluster that nothing replaces projects to infinity: it lowers no floor.
   const parent = rec.parentError;
   if (parent === undefined || parent === null || !Number.isFinite(parent)) {
@@ -106,7 +100,6 @@ function foldChild(values: Float64Array, at: number, from: number) {
     values[at + PARENT_FLOOR] = values[from + PARENT_FLOOR];
   growSphere(values, at + OWN_SPHERE, values, from + OWN_SPHERE);
   growSphere(values, at + PARENT_SPHERE, values, from + PARENT_SPHERE);
-  if (values[from + ALL_SOURCED] === 0) values[at + ALL_SOURCED] = 0;
   if (values[from + HAS_ROOT] === 1) values[at + HAS_ROOT] = 1;
 }
 
@@ -129,7 +122,6 @@ export function cullingBounds(
     values[at + PARENT_FLOOR] = Infinity;
     values[at + OWN_SPHERE + 3] = -1;
     values[at + PARENT_SPHERE + 3] = -1;
-    values[at + ALL_SOURCED] = 1;
     values[at + HAS_ROOT] = 0;
     const children = nodes[base + 12];
     if (children > 0) {

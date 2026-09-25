@@ -4,7 +4,7 @@
  * event records the module writes back. Every word is 32 bits, read as `uint32` or `float32` in
  * place. A change to any layout below bumps `PHYSICS_LAYOUT_VERSION` and the module with it.
  */
-export const PHYSICS_LAYOUT_VERSION = 13;
+export const PHYSICS_LAYOUT_VERSION = 14;
 
 /** Command opcodes, the first word of each command. */
 export const OP = {
@@ -72,12 +72,12 @@ export const PART_WORDS = 11;
 export const RESTORE_WORDS = 3;
 
 /**
- * A scene query (`jolt_cast`): `kind, origin x, y, z, travel x, y, z, a, b, c` — a ray, or a
- * sphere (radius `a`), box (half extents `a, b, c`) or capsule (half height `a`, radius `b`) swept
- * along `travel`. Its hit: `engine id, fraction, point x, y, z, normal x, y, z`; a miss names no
+ * A scene query (`jolt_cast`): `kind, origin x, y, z, travel x, y, z, a, b, c, ignored` — a ray,
+ * or a sphere (radius `a`), box (half extents `a, b, c`) or capsule (half height `a`, radius `b`)
+ * swept along `travel`, through the body whose engine id is `ignored` (`MISS`: none). Its hit: `engine id, fraction, point x, y, z, normal x, y, z`; a miss names no
  * body (`0xFFFFFFFF`). A tile's glTF material is its collider's, read from `physics.json`.
  */
-export const CAST_WORDS = 10;
+export const CAST_WORDS = 11;
 export const HIT_WORDS = 8;
 export const CAST = { ray: 0, sphere: 1, box: 2, capsule: 3 } as const;
 export const MISS = 0xffffffff;
@@ -133,8 +133,8 @@ export const GENERATIONS = 128;
  * qz, qw, a, b, c, mass, density, friction, restitution, gravityScale, linearDamping,
  * angularDamping, vertexCount, indexCount`,
  * followed by `vertexCount × 3` floats and `indexCount` indices. `a, b, c` are the primitive's
- * sizes (box half extents; sphere radius; capsule and cylinder half height, radius); a mass of 0
- * takes `density × volume`.
+ * sizes (box half extents; sphere radius; capsule and cylinder half height, radius; a tapered
+ * cylinder's bottom radius, 0 for none); a mass of 0 takes `density × volume`.
  */
 export const ADD_WORDS = 25;
 /** The simulation's own damping, per second, linear and angular alike: what ADD carries for a
