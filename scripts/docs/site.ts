@@ -5,7 +5,9 @@
  */
 import { copyFile, mkdir, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises';
 import { extname, relative, resolve } from 'node:path';
+import { generateApiFiles } from '../generate-api-reference.ts';
 import { gitPathsSync } from '../git-paths.ts';
+import { compileSiteCaches } from '../site-caches.ts';
 import { buildFlags } from './build-flags.ts';
 import { FRAMED_MEASUREMENT_TAG, withMeasurement } from './measurement.ts';
 import { buildPortal } from './build-portal.ts';
@@ -119,9 +121,11 @@ export async function copyStatics(source: string, out: string, published = false
   await prune(out, [...STATIC_ENTRIES, ...METADATA_ENTRIES, ...BUILT_FOLDERS]);
 }
 
-/** Builds the whole site from `root` into `out`; only the deployed build is `published`, and
- * carries the audience measurement (`measurement.ts`). */
+/** Builds the whole site from `root` into `out`, stale API files and caches first; only the
+ * deployed build is `published`, and carries the audience measurement (`measurement.ts`). */
 export async function buildSite(root = ROOT, out = SITE_OUTPUT, published = false) {
+  await generateApiFiles();
+  compileSiteCaches(false);
   await buildBundles(root, out);
   await copyStatics(resolve(root, 'site'), out, published);
 }
