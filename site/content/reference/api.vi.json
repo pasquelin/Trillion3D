@@ -7047,8 +7047,8 @@
     "summary": "Những gì một va chạm trao cho người nghe: vật kia, xung lực và điểm chạm.",
     "members": {
       "other": "Vật bị chạm; `null` khi nó đã rời cảnh.",
-      "impulse": "N·s: tốc độ tiến lại theo pháp tuyến nhân khối lượng rút gọn của cặp, ước lượng trước bộ giải; 0 khi `leave`.",
-      "point": "Điểm tiếp xúc, hệ thế giới; gốc tọa độ khi `leave`."
+      "impulse": "N·s: tốc độ tiến lại theo pháp tuyến nhân khối lượng rút gọn của cặp, ước lượng trước bộ giải (phía vật mềm: vận tốc trung bình của nó và khối lượng các đỉnh đã chạm); 0 khi `leave`, và giữa vật mềm với cảm biến.",
+      "point": "Điểm tiếp xúc, hệ thế giới (của vật mềm: trung bình các đỉnh đã chạm, tâm của nó khi gặp cảm biến); gốc tọa độ khi `leave`."
     }
   },
   "ContactEventName": {
