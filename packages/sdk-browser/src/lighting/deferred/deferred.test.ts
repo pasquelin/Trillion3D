@@ -2,60 +2,16 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createDeferredLighting } from './deferred.ts';
 import type { SurfaceBuffer } from '../../scene/surfaceBuffer.ts';
+import { fakeDevice, written } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 
 function gpuHarness() {
-  Object.assign(globalThis, {
-    GPUBufferUsage: { UNIFORM: 64, COPY_DST: 8, STORAGE: 128 },
-    GPUShaderStage: { FRAGMENT: 2 },
-    GPUTextureUsage: { TEXTURE_BINDING: 4, RENDER_ATTACHMENT: 16 },
-  });
-  const pipelines = new Map<GPURenderPipeline, GPURenderPipelineDescriptor>();
+  const { device, buffers, writes, destroyed } = fakeDevice();
   const passes: {
     descriptor: GPURenderPassDescriptor;
     pipeline?: GPURenderPipeline;
     draws: number[];
     ended: boolean;
   }[] = [];
-  const writes: Float32Array[] = [];
-  let destroyed = false;
-  const uniform = {
-    destroy() {
-      destroyed = true;
-    },
-  } as GPUBuffer;
-  const device = {
-    createBuffer() {
-      return uniform;
-    },
-    createShaderModule() {
-      return { getCompilationInfo: async () => ({ messages: [] }) } as unknown as GPUShaderModule;
-    },
-    createBindGroupLayout() {
-      return {} as GPUBindGroupLayout;
-    },
-    createTexture() {
-      return { createView: () => ({}) as GPUTextureView, destroy() {} } as unknown as GPUTexture;
-    },
-    createSampler() {
-      return {} as GPUSampler;
-    },
-    createPipelineLayout() {
-      return {} as GPUPipelineLayout;
-    },
-    async createRenderPipelineAsync(descriptor: GPURenderPipelineDescriptor) {
-      const pipeline = {} as GPURenderPipeline;
-      pipelines.set(pipeline, descriptor);
-      return pipeline;
-    },
-    createBindGroup() {
-      return {} as GPUBindGroup;
-    },
-    queue: {
-      writeBuffer(_buffer: GPUBuffer, _offset: number, data: Float32Array) {
-        writes.push(data.slice());
-      },
-    },
-  } as unknown as GPUDevice;
   const encoder = {
     beginRenderPass(descriptor: GPURenderPassDescriptor) {
       const record: {
@@ -86,11 +42,14 @@ function gpuHarness() {
     encoder,
     view,
     surface,
-    pipelines,
     passes,
-    writes,
+    /** Each view uniform write, as the floats it sent. */
+    get writes() {
+      return writes.map((write) => written(write) as Float32Array);
+    },
+    /** Whether the view uniform, the first buffer made, was destroyed. */
     get destroyed() {
-      return destroyed;
+      return destroyed.includes(buffers[0]!);
     },
   };
 }
@@ -115,7 +74,8 @@ test('composition presents and preserves the capture target in one fullscreen dr
   );
   assert.deepEqual(pass.draws, [3]);
   assert.equal(pass.ended, true);
-  const descriptor = h.pipelines.get(pass.pipeline!)!;
+  // The fake's render pipeline is its descriptor.
+  const descriptor = pass.pipeline as unknown as GPURenderPipelineDescriptor;
   assert.deepEqual(
     Array.from(descriptor.fragment!.targets).map((target) => target!.format),
     ['rgba8unorm', 'bgra8unorm'],
@@ -140,7 +100,9 @@ test('composition without presentation keeps its capture-only output and clear c
     { view: capture, loadOp: 'clear', storeOp: 'store', clearValue: clear },
   ]);
   assert.deepEqual(
-    Array.from(h.pipelines.get(pass.pipeline!)!.fragment!.targets).map((target) => target!.format),
+    Array.from((pass.pipeline as unknown as GPURenderPipelineDescriptor).fragment!.targets).map(
+      (target) => target!.format,
+    ),
     ['rgba8unorm'],
   );
   assert.deepEqual(pass.draws, [3]);

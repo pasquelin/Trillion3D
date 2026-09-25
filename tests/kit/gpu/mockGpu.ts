@@ -105,9 +105,7 @@ export function mockGpu({
         usage,
         views,
         destroyed: false,
-        destroy() {
-          tex.destroyed = true;
-        },
+        destroy: () => void (tex.destroyed = true),
         createView(desc?: { dimension?: string }) {
           const view = { format, ...desc };
           views.push(view);

@@ -2045,5 +2045,27 @@
       "load": "重物",
       "rope": "绳子走过"
     }
+  },
+  "drive-a-car": {
+    "banner": "W 或 ↑ 加速，S 或 ↓ 刹车、停下后倒车，A D 或 ← → 转向，空格拉手刹。在面板中选择跑车、摩托车或坦克。",
+    "controls": {
+      "vehicle": "车辆",
+      "reset": "放回车轮上"
+    },
+    "readouts": {
+      "speed": "速度",
+      "gear": "挡位",
+      "rpm": "发动机 (转/分)"
+    },
+    "choices": {
+      "vehicle": {
+        "car": "跑车",
+        "motorcycle": "摩托车",
+        "tracked": "坦克"
+      }
+    },
+    "words": {
+      "credit": "山谷为本示例用代码建模，CC0 — 见 assets/examples/CREDITS.md"
+    }
   }
 }

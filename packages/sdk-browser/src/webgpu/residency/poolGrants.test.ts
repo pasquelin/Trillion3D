@@ -1,7 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
-import { asWebgpuDevice } from '../../../../../tests/kit/gpu/webgpuDevice.ts';
+import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 import { geometryPoolFor } from '../../residency/pools.ts';
 import { texturePoolFor } from './memoryBudgets.ts';
 import { laneCounts, poolEncoding } from '../../texture/blockFormats.ts';
@@ -14,22 +13,20 @@ import {
 
 /** A device that refuses, as out of memory, every buffer or texture past `limit` bytes. */
 function refusingDevice(limit: number) {
-  const made: Array<{ bytes: number; destroyed: boolean }> = [];
-  const resource = (bytes: number) => {
-    const entry = { bytes, destroyed: false };
-    made.push(entry);
-    if (bytes > limit) gpu.raise('Out of memory', { message: 'Out of memory' });
-    return { destroy: () => void (entry.destroyed = true), createView: () => ({}) };
+  const bytes = ({ size }: GPUBufferDescriptor | GPUTextureDescriptor) => {
+    if (typeof size === 'number') return size;
+    const { width, height = 1, depthOrArrayLayers = 1 } = size as GPUExtent3DDict;
+    return width * height * depthOrArrayLayers * 4;
   };
-  const gpu = asWebgpuDevice({
+  const gpu = fakeDevice({
     limits: {},
-    createBuffer: ({ size }: { size: number }) => resource(size),
-    createTexture: ({
-      size,
-    }: {
-      size: { width: number; height: number; depthOrArrayLayers: number };
-    }) => resource(size.width * size.height * size.depthOrArrayLayers * 4),
+    refuse: (descriptor) => (bytes(descriptor) > limit ? 'oom' : undefined),
   });
+  const made = () =>
+    [...gpu.buffers, ...gpu.textures].map((resource) => ({
+      bytes: bytes(resource as GPUBufferDescriptor | GPUTextureDescriptor),
+      destroyed: gpu.destroyed.includes(resource),
+    }));
   return { ...gpu, made };
 }
 
@@ -46,14 +43,13 @@ const geometry = (budgetBytes: number) =>
   geometryPoolFor({ budgetBytes, pageBytes: 8, uniquePages: 100, rootPages: 2 });
 
 test('a geometry pool the device refuses is drawn at half its bytes until granted, and said', async () => {
-  installGpuGlobals();
   const { device, made, scopes } = refusingDevice(200);
   const { seen, diagnose } = diagnostics();
   const granted = await grantedGeometryPool(device, 800, geometry, diagnose, geometryProbe(device));
   // 800 → 400 → 200 bytes: the first two refused, the third granted.
   assert.equal(granted?.pool.allocatedBytes, 200);
   assert.deepEqual(
-    made.map((entry) => [entry.bytes, entry.destroyed]),
+    made().map((entry) => [entry.bytes, entry.destroyed]),
     [
       [800, true],
       [400, true],
@@ -68,7 +64,6 @@ test('a geometry pool the device refuses is drawn at half its bytes until grante
 });
 
 test('a pool granted at once is drawn as asked and says nothing', async () => {
-  installGpuGlobals();
   const { device } = refusingDevice(Infinity);
   const { seen, diagnose } = diagnostics();
   const probe = geometryProbe(device);
@@ -78,7 +73,6 @@ test('a pool granted at once is drawn as asked and says nothing', async () => {
 });
 
 test('a pool refused even at its floor is not drawn: the caller keeps what it holds', async () => {
-  installGpuGlobals();
   const { device } = refusingDevice(8);
   const { seen, diagnose } = diagnostics();
   // Two root pages of 8 bytes: the floor is 16 bytes, which the device refuses.
@@ -93,7 +87,6 @@ test('a pool refused even at its floor is not drawn: the caller keeps what it ho
 });
 
 test('a texture pool the device refuses is drawn with fewer layers, down to one per lane', async () => {
-  installGpuGlobals();
   const encoding = poolEncoding(undefined);
   const lanes = { ...laneCounts(), lossless: 20_000 };
   const poolFor = (bytes: number) =>

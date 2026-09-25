@@ -249,21 +249,15 @@
     "members": {
       "isBufferAttribute": "常に`true`: 他の何かとバッファ属性を区別する。",
       "type": "値がどう宣言されたか。半精度浮動小数点の属性も単精度で保持される。",
-      "normalized": "整数値が0から1の間の値として読まれるかどうか。",
       "version": "宣言された書き込みのたびに増える: 世界が、内容が変わったかを見るために比較するもの。",
       "array": "数値そのもの。",
-      "itemSize": "1つの頂点に属する数値の数: 位置なら3。",
       "count": "これらの数値が表す頂点の数。",
-      "needsUpdate": "`array`を書き込んだ後の`attribute.needsUpdate = true`: 世界がそれを読み直す。",
-      "getComponent": "頂点`index`の`component`番目の数値。",
-      "getX": "頂点`i`の1番目の数値。",
-      "getY": "頂点`i`の2番目の数値。",
-      "getZ": "頂点`i`の3番目の数値。",
-      "getW": "頂点`i`の4番目の数値。",
-      "setXYZ": "頂点`i`に3つの数値を書き込む。",
-      "setXY": "頂点`i`に2つの数値を書き込む。",
-      "setX": "頂点`i`の1番目の数値を書き込む。",
-      "clone": "数値のコピーを持つ新しい属性。"
+      "needsUpdate": "`array` を書いた後に `needsUpdate = true`：読み手が再アップロードする。",
+      "clone": "数値とその型、正規化、名前のコピーを持つ新しい属性。",
+      "kind": "属性が自分のバッファを所有する。",
+      "updateRanges": "前回のアップロード以降に書き込まれた `array` の範囲。単独で送られる。",
+      "addUpdateRange": "`start` から `count` 個の数値を書き込み済みとして印を付ける。",
+      "clearUpdateRanges": "アップロード後、書き込まれた範囲を忘れる。"
     }
   },
   "BufferNumbers": {
@@ -715,7 +709,7 @@
     }
   },
   "DAG_ERROR_MODEL": {
-    "summary": "クラスターごとのDAG誤差に対するキャッシュ識別子: グループの球に投影された、グループのQEM誤差。"
+    "summary": "クラスタごとの DAG 誤差のキャッシュ識別子：位置・法線・テクスチャ座標にわたるグループの絶対 QEM 誤差をグループの範囲で制限したもの。v1 のキャッシュは拒否されます。"
   },
   "DEFAULT_SCOPE": {
     "summary": "何も指定されなかったときにモデルがコンパイルされる範囲: ページ単位でストリーミングされる。"
@@ -1442,7 +1436,10 @@
       "array": "すべての頂点の数値を、次々に詰めたもの。",
       "stride": "各頂点が占める数値の個数。",
       "count": "それが詰め込む頂点数。",
-      "attribute": "そのまとまりから取り出された1つの属性。それ自身の浮動小数点属性として。"
+      "attribute": "そのまとまりから取り出された1つの属性。それ自身の属性として。",
+      "kind": "複数の属性が参照する 1 つのストレージ。",
+      "version": "`needsUpdate` で増える。",
+      "needsUpdate": "`array` を書いた後に `needsUpdate = true`：読み手が再アップロードする。"
     }
   },
   "JobProgress": {
@@ -7155,19 +7152,6 @@
       "handbrake": "サイドブレーキが引かれているか。"
     }
   },
-  "GraphAttribute": {
-    "members": {
-      "count": "頂点数。",
-      "array": "保存領域。",
-      "kind": "属性が自分のバッファを所有する。",
-      "version": "`needsUpdate` で増える。",
-      "updateRanges": "前回のアップロード以降に書き込まれた `array` の範囲。単独で送られる。",
-      "addUpdateRange": "`start` から `count` 個の数値を書き込み済みとして印を付ける。",
-      "clearUpdateRanges": "アップロード後、書き込まれた範囲を忘れる。",
-      "needsUpdate": "`array` を書いた後に `needsUpdate = true`：読み手が再アップロードする。"
-    },
-    "summary": "自分のストレージを持つ属性：頂点ごとに `itemSize` 個の数値が順に並ぶ。"
-  },
   "GraphGeometry": {
     "members": {
       "attributes": "その頂点属性。",
@@ -7262,34 +7246,6 @@
       "rotation": "回転（ラジアン）。"
     },
     "summary": "画像と、それを読むサンプラー状態、そして座標の変換。"
-  },
-  "GraphArray": {
-    "summary": "属性が保持する型付き配列。"
-  },
-  "GraphElements": {
-    "summary": "いずれかの種類の属性。"
-  },
-  "GraphInterleavedAttribute": {
-    "summary": "インターリーブバッファの各頂点の `offset` にある `itemSize` 個の数値を参照する属性。",
-    "members": {
-      "kind": "属性が共有バッファを参照する。",
-      "data": "参照しているバッファ。",
-      "offset": "各頂点内で数値が始まる位置。",
-      "array": "要素が置かれるストレージ。",
-      "count": "頂点の数。",
-      "needsUpdate": "`array` を書いた後に `needsUpdate = true`：読み手が再アップロードする。"
-    }
-  },
-  "GraphInterleavedBuffer": {
-    "summary": "複数の属性が参照する 1 つのストレージ。`stride` 個の数値ごとに 1 頂点。",
-    "members": {
-      "kind": "複数の属性が参照する 1 つのストレージ。",
-      "count": "頂点の数。",
-      "version": "`needsUpdate` で増える。",
-      "array": "ストレージ。",
-      "stride": "頂点あたりの数値の数。",
-      "needsUpdate": "`array` を書いた後に `needsUpdate = true`：読み手が再アップロードする。"
-    }
   },
   "GraphMesh": {
     "summary": "描画されるノード：ジオメトリとそのサーフェス、またはジオメトリグループごとに 1 つのサーフェス。",
@@ -7391,6 +7347,142 @@
       "pulley": "`a` から 2 つの車輪(`over`)を越えて `b` へ下りるロープ:片方が下がるともう片方が上がります。",
       "gear": "`ratio` の比で一緒に回る 2 つの車輪。それぞれ自分のピン(`axis`、`axisB`)の周りを回り、自分の蝶番(車輪をその `a` として)で支えられます。`ratio` か 1 / `ratio` が整数なら、歯は作られたときの位相も保ちます。",
       "rackAndPinion": "`axis` の周りを回るピニオン `a` が、ラック `b` を `axisB` に沿って動かします。それぞれ自分の蝶番かスライダー(物体をその `a` として)で支えられ、歯は作られたときの位相に保たれます。"
+    }
+  },
+  "InterleavedBufferAttribute": {
+    "summary": "インターリーブバッファの各頂点の `offset` にある `itemSize` 個の数値を参照する属性。",
+    "members": {
+      "isInterleavedBufferAttribute": "常に`true`: インターリーブビューを他の何かと区別する。",
+      "kind": "属性が共有バッファを参照する。",
+      "data": "参照しているバッファ。",
+      "offset": "各頂点内で数値が始まる位置。",
+      "array": "要素が置かれるストレージ。",
+      "count": "これらの数値が表す頂点の数。",
+      "needsUpdate": "`array` を書いた後に `needsUpdate = true`：読み手が再アップロードする。",
+      "clone": "まとまりから、それを所有する属性へコピーされた自身の数値。"
+    }
+  },
+  "VertexAttribute": {
+    "summary": "いずれかの種類の属性: 自身のストレージを持つか、インターリーブされたものを参照する。"
+  },
+  "VertexElements": {
+    "summary": "1つの頂点属性の要素。成分ごとに読み書きされる。",
+    "members": {
+      "name": "モーフターゲットが知られる名前。他は空。",
+      "itemSize": "1つの頂点に属する数値の数: 位置なら3。",
+      "normalized": "整数値が0から1の間の値として読まれるかどうか。",
+      "array": "要素が置かれるストレージ。",
+      "count": "これらの数値が表す頂点の数。",
+      "stored": "頂点`index`の`component`番目の数値を格納されたまま。正規化された整数はスケールされない。",
+      "getComponent": "頂点`index`の`component`番目の数値。それが表す数として読まれる。",
+      "setComponent": "頂点`index`の`component`番目の数値を書き込む。",
+      "getX": "頂点`i`の1番目の数値。",
+      "getY": "頂点`i`の2番目の数値。",
+      "getZ": "頂点`i`の3番目の数値。",
+      "getW": "頂点`i`の4番目の数値。",
+      "setX": "頂点`i`の1番目の数値を書き込む。",
+      "setY": "頂点`i`の2番目の数値を書き込む。",
+      "setZ": "頂点`i`の3番目の数値を書き込む。",
+      "setW": "頂点`i`の4番目の数値を書き込む。",
+      "setXY": "頂点`i`に2つの数値を書き込む。",
+      "setXYZ": "頂点`i`に3つの数値を書き込む。"
+    }
+  },
+  "VEHICLE_SPECS": {
+    "summary": "乗り物の出発点となる 3 つの機械（種類ごと）。",
+    "members": {
+      "car": "シボレー・コルベット C5：後輪駆動、1 kg あたり 0.32 N·m、6 速。",
+      "motorcycle": "ヤマハ XJ900 とライダー：1 kg あたり 0.26 N·m、6 速。",
+      "tracked": "M1 エイブラムス：ガスタービン、1 kg あたり 0.083 N·m、4 速。"
+    }
+  },
+  "Vehicle": {
+    "summary": "乗り物：Jolt の車両コンストレイントが車輪で支えるボディ。エンジン、ギアボックス、デフ、サスペンション、スタビライザーを備え、`vehicle.*` で作り、`world.physics.add` でシミュレーションに加えます。",
+    "description": "`VehicleDriver` です：`world.controls.vehicle = car` で運転できます。",
+    "parameters": {
+      "options": "`vehicle.*` が受け取るもの：車輪と、機械の値をいくつでも（`VehicleSpec`）。",
+      "options.wheels": "車輪：ボディの子のメッシュ。平らな地面に接した状態の中心に置き、車軸はボディの x に沿わせます。半径と幅はその境界から読み取ります。ボディは −z を向き、前側の車輪が操舵されます。",
+      "options.torquePerKg": "ボディ 1 kg あたりのエンジン最大トルク（N·m/kg）。",
+      "options.idleRPM": "エンジンのアイドル回転（rpm）。",
+      "options.maxRPM": "エンジンのレッドライン（rpm）。",
+      "options.torqueCurve": "最大 5 点の `[rpm / maxRPM, トルク / ピーク]`、回転の割合は昇順。",
+      "options.gears": "最大 6 段の前進ギア比、1 速から。",
+      "options.reverse": "後退ギアの比。",
+      "options.finalDrive": "最終減速比（装軌車ではスプロケットの減速）。",
+      "options.shiftUpRPM": "これを超えるとシフトアップ（rpm）。",
+      "options.shiftDownRPM": "これを下回るとシフトダウン（rpm）。",
+      "options.clutch": "滑り 1 rad/s あたりのクラッチトルク（N·m·s）。",
+      "options.suspensionFrequency": "サスペンションの固有振動数（Hz）。",
+      "options.suspensionDamping": "減衰比、0（なし）から 1（臨界）まで。",
+      "options.suspensionTravel": "伸び切りから縮み切りまでのホイールストローク（m）。",
+      "options.antiRoll": "各スタビライザーの剛性をその車軸のばねに対する比で。0 はなし。",
+      "options.turnRadius": "フルロック時の回転半径（m）。",
+      "options.steerTime": "中央からフルロックまでの秒数。",
+      "options.brakeGrip": "ブレーキが車輪をロックする摩擦。",
+      "options.drive": "車の駆動輪。",
+      "options.trackTurn": "旋回中の装軌車の内側履帯の速さ（外側に対する比）。",
+      "options.maxLean": "バイクの最大バンク角（ラジアン）。"
+    },
+    "members": {
+      "kind": "乗り物の種類。",
+      "body": "車輪が支えるボディ。",
+      "wheels": "車輪（ボディの子）。",
+      "spec": "機械：種類ごとのもの（`VEHICLE_SPECS`）にオプションを重ねたもの。",
+      "input": "いま受け取っているペダルとハンドル。",
+      "speed": "直前のステップ後の前方への速さ（m/s）、後退は負。",
+      "rpm": "直前のステップ後のエンジン回転数（毎分）。",
+      "gear": "直前のステップ後のギア：1 以上が前進、−1 が後退、0 がニュートラル。",
+      "drive": "キーが変えるたび、運転され始めたとき、そして運転されなくなったときはすべて離した状態で、ペダルとハンドルを受け取ります。"
+    }
+  },
+  "VehicleKind": {
+    "summary": "物理エンジンの乗り物。どれも Jolt の車両コンストレイントの上にあります。"
+  },
+  "VehicleOptions": {
+    "summary": "`vehicle.*` が受け取るもの：車輪と、機械の値をいくつでも（`VehicleSpec`）。",
+    "members": {
+      "wheels": "車輪：ボディの子のメッシュ。平らな地面に接した状態の中心に置き、車軸はボディの x に沿わせます。半径と幅はその境界から読み取ります。ボディは −z を向き、前側の車輪が操舵されます。"
+    }
+  },
+  "VehicleSpec": {
+    "summary": "乗り物の中身：エンジン、ギアボックス、サスペンション、ステアリング、ブレーキ。既定値はどれも実在の機械のもの（`VEHICLE_SPECS`）。",
+    "members": {
+      "torquePerKg": "ボディ 1 kg あたりのエンジン最大トルク（N·m/kg）。",
+      "idleRPM": "エンジンのアイドル回転（rpm）。",
+      "maxRPM": "エンジンのレッドライン（rpm）。",
+      "torqueCurve": "最大 5 点の `[rpm / maxRPM, トルク / ピーク]`、回転の割合は昇順。",
+      "gears": "最大 6 段の前進ギア比、1 速から。",
+      "reverse": "後退ギアの比。",
+      "finalDrive": "最終減速比（装軌車ではスプロケットの減速）。",
+      "shiftUpRPM": "これを超えるとシフトアップ（rpm）。",
+      "shiftDownRPM": "これを下回るとシフトダウン（rpm）。",
+      "clutch": "滑り 1 rad/s あたりのクラッチトルク（N·m·s）。",
+      "suspensionFrequency": "サスペンションの固有振動数（Hz）。",
+      "suspensionDamping": "減衰比、0（なし）から 1（臨界）まで。",
+      "suspensionTravel": "伸び切りから縮み切りまでのホイールストローク（m）。",
+      "antiRoll": "各スタビライザーの剛性をその車軸のばねに対する比で。0 はなし。",
+      "turnRadius": "フルロック時の回転半径（m）。",
+      "steerTime": "中央からフルロックまでの秒数。",
+      "brakeGrip": "ブレーキが車輪をロックする摩擦。",
+      "drive": "車の駆動輪。",
+      "trackTurn": "旋回中の装軌車の内側履帯の速さ（外側に対する比）。",
+      "maxLean": "バイクの最大バンク角（ラジアン）。"
+    }
+  },
+  "VehicleSpecs": {
+    "summary": "各種類の乗り物が最初に持つ機械。",
+    "members": {
+      "car": "シボレー・コルベット C5：後輪駆動、1 キログラムあたり 0.32 N·m、6 速。",
+      "motorcycle": "ヤマハ XJ900 とライダー：1 キログラムあたり 0.26 N·m、6 速。",
+      "tracked": "M1 エイブラムス：ガスタービン、1 キログラムあたり 0.083 N·m、4 速。"
+    }
+  },
+  "vehicle": {
+    "summary": "`vehicle` ファミリー：ボディとその車輪を `world.controls` `'vehicle'` で運転します。",
+    "members": {
+      "car": "2 本以上の車軸に 3 輪以上。前輪が操舵され、`drive` の車輪が駆動されます。",
+      "motorcycle": "2 輪、前輪が操舵、後輪が駆動。自分で直立を保ちます。",
+      "tracked": "左右 2 本の履帯に載った車輪。各履帯は最後尾の車輪で駆動されます。片側の履帯を遅くして曲がり、停止中はその場で旋回します。"
     }
   }
 }
