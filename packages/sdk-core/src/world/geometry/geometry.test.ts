@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { Geometry } from './geometry.ts';
+import { Geometry, type GeometryOwner } from './geometry.ts';
 import { withRecipe } from './builder.ts';
 import { drawnTriangles } from './drawn.ts';
 import { edges, wireframe } from './lines.ts';
@@ -42,7 +42,8 @@ test('a copied geometry keeps every value it held: lists, morphs, groups, range,
   assert.deepEqual(box(copy), box(g));
   assert.equal(copy.boundingSphere!.radius, g.boundingSphere!.radius);
   assert.deepEqual(copy.recipe, { type: 'triangle', args: [1] });
-  assert.equal(new Geometry('host').toNonIndexed().owner, 'host', 'a copy keeps its owner');
+  assert.equal(owned('host').setIndex([0]).toNonIndexed()._owner, 'host', 'keeps its owner');
+  assert.equal(owned('host').clone()._owner, 'host', 'a copy keeps its owner');
 });
 
 test('a normalised position is bounded and drawn as its stored numbers, an interleaved one through its stride', () => {
@@ -83,11 +84,13 @@ test('a two-wide position is drawn with z = 1, a moved one as its stored numbers
 const triangle = () => new BufferAttribute(new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]), 3);
 const normalised = (array: Int8Array | Uint8Array | Int16Array | Uint16Array, itemSize: number) =>
   new BufferAttribute(array, itemSize, true);
+/** An empty geometry built by `owner`, as its maker marks it. */
+const owned = (owner: GeometryOwner) => Object.assign(new Geometry(), { _owner: owner });
 
 test('a world geometry draws the normalised colour, normal and uv it owns as stored, a host one at their value', () => {
-  const shaded = (owner: 'world' | 'host') =>
+  const shaded = (owner: GeometryOwner) =>
     drawnTriangles(
-      new Geometry(owner)
+      owned(owner)
         .setAttribute('position', triangle())
         .setAttribute('normal', normalised(new Int8Array([0, 0, 127, 0, 0, 127, 0, 0, -128]), 3))
         .setAttribute('uv', normalised(new Uint16Array([0, 0, 65535, 0, 0, 65535]), 2))
@@ -105,27 +108,27 @@ test('a world geometry draws the normalised colour, normal and uv it owns as sto
 });
 
 test('a normalised position gives its edges as stored in a world geometry, at its value in a host one', () => {
-  const lines = (owner: 'world' | 'host', of: typeof wireframe) =>
+  const lines = (owner: GeometryOwner, of: typeof wireframe) =>
     Array.from(
       of(
-        new Geometry(owner).setAttribute(
+        owned(owner).setAttribute(
           'position',
           normalised(new Int16Array([0, 0, 0, 32767, 0, 0, 0, 32767, 0]), 3),
         ),
       ).attributes.position.array,
     );
-  const [o, s] = [0, 32767];
-  const world = [o, o, o, s, o, o, s, o, o, o, s, o, o, s, o, o, o, o];
+  // prettier-ignore
+  const world = [0, 0, 0, 32767, 0, 0, 32767, 0, 0, 0, 32767, 0, 0, 32767, 0, 0, 0, 0];
+  const host = [0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0];
   assert.deepEqual(lines('world', wireframe), world);
   assert.deepEqual(lines('world', edges), world);
-  const host = world.map((n) => n / s);
   assert.deepEqual(lines('host', wireframe), host);
   assert.deepEqual(lines('host', edges), host);
 });
 
 test('a world geometry turns a normalised normal it owns as stored, a host one and a view at their value', () => {
-  const turned = (owner: 'world' | 'host') => {
-    const g = new Geometry(owner)
+  const turned = (owner: GeometryOwner) => {
+    const g = owned(owner)
       .setAttribute('position', triangle())
       .setAttribute('normal', normalised(new Int8Array([127, 0, 0, 0, 0, 127, 0, 0, 127]), 3));
     return Array.from(g.rotateZ(Math.PI / 2).attributes.normal.array);

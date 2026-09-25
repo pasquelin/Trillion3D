@@ -49,7 +49,7 @@ const itemSize = (name: string) => ({ position: 3, color: 4 })[name] ?? 2;
 test('a page mesh built here is a node the host graph accepts, posed and ordered as asked', () => {
   const scene = hostPageScene();
   const geometry = hostPageGeometry(page(), itemSize, [0, 0, 0], [1, 1, 0]);
-  assert.equal(geometry.owner, 'host', 'a page geometry is read as the host reads it');
+  assert.equal(geometry._owner, 'host', 'a page geometry is read as the host reads it');
   const declaration = hostPageSurface(CONTRACT, false);
   const mesh = hostPageMesh(geometry, declaration, 7);
   scene.add(mesh);
