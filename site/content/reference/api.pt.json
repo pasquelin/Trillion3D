@@ -2055,7 +2055,9 @@
   },
   "SoftBodyCommon": {
     "summary": "O que `obj.physics` aceita para um corpo mole: os seus vértices são simulados um a um.",
+    "description": "Sua matéria e sua atração como as de um corpo rígido; sem amortecimento angular, forma, sensor, CCD nem detritos.",
     "members": {
+      "damping": "A parte da velocidade dos seus vértices perdida por segundo, `dv/dt = −c·v`, 0 ou mais.",
       "pins": "Índices dos vértices da geometria mantidos onde estão: o mastro de uma bandeira, o gancho de uma corda.",
       "mass": "Quilogramas, repartidos pelos vértices segundo a área (uma corda: o comprimento) que cada um segura; omitidos, `SOFT_AREAL_DENSITY` por m² (uma corda: `SOFT_LINEAR_DENSITY` por m).",
       "stretch": "Quanto uma aresta cede ao ser puxada, m/N (o inverso da sua rigidez): 0 nunca estica.",

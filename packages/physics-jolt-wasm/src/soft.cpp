@@ -35,8 +35,8 @@ float compliance(const uint32_t *w) { return std::isfinite(f32(w)) ? f32(w) : FL
 /// The constraints of `shared`, `count` vertices: a rope's chain when no corner is given, else the
 /// triangles' edges; false when a corner names no vertex.
 bool constrain(SoftBodySharedSettings &shared, const uint32_t *w, uint32_t count) {
-  float stretch = compliance(w + 17), bend = compliance(w + 18);
-  const uint32_t corners = w[21], *c = w + SOFT_WORDS + count * SOFT_VERTEX_WORDS;
+  float stretch = compliance(w + 16), bend = compliance(w + 17);
+  const uint32_t corners = w[20], *c = w + SOFT_WORDS + count * SOFT_VERTEX_WORDS;
   if (corners == 0) {
     for (uint32_t i = 0; i + 1 < count; ++i) shared.mEdgeConstraints.emplace_back(i, i + 1, stretch);
     // A rope's fold: each vertex held at its distance from the one after next.
@@ -72,10 +72,10 @@ float sixVolume(const SoftBodySharedSettings &shared) {
 
 bool addSoft(const uint32_t *w) {
   World &world = trillion::world();
-  uint32_t engine = w[1], index = engine & INDEX_MASK, count = w[20];
+  uint32_t engine = w[1], index = engine & INDEX_MASK, count = w[19];
   if (index >= world.slots.size() || world.slots[index].used || world.slots[index].refused)
     return (world.error = BAD_COMMAND, false);
-  Vec3 scale = vec3(w + 10);
+  Vec3 scale = vec3(w + 9);
   Ref<SoftBodySharedSettings> shared = new SoftBodySharedSettings;
   for (const uint32_t *v = w + SOFT_WORDS, *end = v + count * SOFT_VERTEX_WORDS; v < end; v += SOFT_VERTEX_WORDS) {
     Float3 at;
@@ -90,14 +90,14 @@ bool addSoft(const uint32_t *w) {
     return true;
   }
   shared->Optimize();
-  SoftBodyCreationSettings settings(shared, RVec3(vec3(w + 3)), quat(w + 6), MOVING);
+  SoftBodyCreationSettings settings(shared, RVec3(vec3(w + 2)), quat(w + 5), MOVING);
   settings.mUserData = engine;
-  settings.mFriction = f32(w + 13);
-  settings.mRestitution = f32(w + 14);
-  settings.mGravityFactor = f32(w + 15);
-  settings.mLinearDamping = f32(w + 16);
+  settings.mFriction = f32(w + 12);
+  settings.mRestitution = f32(w + 13);
+  settings.mGravityFactor = f32(w + 14);
+  settings.mLinearDamping = f32(w + 15);
   // Jolt's pressure is n·R·T, the gauge pressure times the volume (Boyle): given at rest.
-  settings.mPressure = f32(w + 19) * std::max(0.0f, sixVolume(*shared) / 6.0f);
+  settings.mPressure = f32(w + 18) * std::max(0.0f, sixVolume(*shared) / 6.0f);
   BodyInterface &bodies = world.system->GetBodyInterfaceNoLock();
   Body *body = bodies.CreateSoftBody(settings);
   if (!body) return (world.error = BODY_LIMIT, false);
@@ -106,10 +106,9 @@ bool addSoft(const uint32_t *w) {
   slot = {};
   slot.id = body->GetID();
   slot.engine = engine;
-  slot.flags = w[2];
   slot.used = slot.soft = true;
   world.engineOf[body->GetID().GetIndex()] = engine;
-  softs.push_back({index, engine, vec3(w + 3), Vec3::sReplicate(1) / scale, quat(w + 6).Conjugated()});
+  softs.push_back({index, engine, vec3(w + 2), Vec3::sReplicate(1) / scale, quat(w + 5).Conjugated()});
   return true;
 }
 
