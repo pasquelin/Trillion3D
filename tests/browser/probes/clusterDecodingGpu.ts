@@ -32,7 +32,7 @@ export interface ClusterPage {
   indexCount: number;
 }
 
-const SHADER = `${PAGE_INFO_STRUCT_WGSL}
+export const CLUSTER_DECODING_SHADER = `${PAGE_INFO_STRUCT_WGSL}
 @group(0) @binding(0) var<storage, read> indices:array<u32>;
 @group(0) @binding(1) var<storage, read_write> out:array<u32>;
 @group(0) @binding(2) var<storage, read> pages:array<PageInfo>;
@@ -164,7 +164,7 @@ export async function decodageClusterGpu(pages: ClusterPage[]) {
   row[ROW_FLAGS_WORD] = FLAG_CLUSTER_PAGE;
   row[ROW_OFFSET_WORD] = SLOT_WORDS;
   return await dansPageWebgpu(executer, {
-    shader: SHADER,
+    shader: CLUSTER_DECODING_SHADER,
     pages: pages.map((page) => ({ ...page, octets: Array.from(page.octets) })),
     vertexWords: VERTEX_WORDS,
     triangleWords: TRIANGLE_WORDS,
