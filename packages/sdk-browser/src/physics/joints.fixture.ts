@@ -3,6 +3,7 @@ import {
   BODY_INDEX,
   CommandWriter,
   DEFAULT_PHYSICS_BUDGET,
+  joint,
   POSE_WORDS,
   type Joint,
   type PhysicsHost,
@@ -85,3 +86,52 @@ export async function jointRig(gravity: [number, number, number] = [0, -9.81, 0]
 /** The distance between two points. */
 export const gap = (p: ArrayLike<number>, q: ArrayLike<number>) =>
   Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2]);
+
+/** A pull no joint in these tests holds: a 1000 kg cube weighs about 9810 N. */
+export const WEAK = 500;
+
+export type Rig = Awaited<ReturnType<typeof jointRig>>;
+
+/**
+ * Pushes two cubes hung 2 m below their anchors at x 0 and 4 sideways, and returns the widest
+ * swing from the vertical each reached over 40 steps, radians.
+ */
+export function widestSwings(rig: Rig, coned: Mesh, free: Mesh): [number, number] {
+  rig.run(1);
+  rig.writer.velocity(coned.physics!._index, [4, 0, 0]);
+  rig.writer.velocity(free.physics!._index, [4, 0, 0]);
+  let widest = 0,
+    freest = 0;
+  for (let s = 0; s < 40; s++) {
+    rig.run(1);
+    const swing = (p: number[], x: number) => Math.atan2(Math.abs(p[0] - x), 2 - p[1]);
+    widest = Math.max(widest, swing(rig.at(coned), 0));
+    freest = Math.max(freest, swing(rig.at(free), 4));
+  }
+  return [widest, freest];
+}
+
+/**
+ * Makes each kind twice on a cube at `x, 1, z` — breaking at `WEAK`, then at 1e6 N — steps 20
+ * times and returns which broke, in that order.
+ */
+export function brokenPastForce<K extends keyof typeof joint>(
+  rig: Rig,
+  kinds: readonly K[],
+  options: (kind: K, x: number, z: number) => object,
+) {
+  const made = kinds.flatMap((kind, i) =>
+    [WEAK, 1e6].map((breakForce, k) => {
+      const [x, z] = [i * 3, k * 3];
+      const cube = rig.cube(x, 1, z);
+      const made = (joint[kind] as (a: Mesh, b: null, o: object) => Joint)(cube, null, {
+        ...options(kind, x, z),
+        breakForce,
+      });
+      rig.wanted.add(made);
+      return made;
+    }),
+  );
+  rig.run(20);
+  return made.map((j) => j.broken);
+}
