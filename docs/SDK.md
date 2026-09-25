@@ -1048,9 +1048,11 @@ rack, { axis, axisB, ratio })` slides the rack along `axisB` by `1 / ratio` metr
   (`remove(v)` takes it out, the body left without wheels). The wheels are meshes, children of the
   body, placed at their centre as they rest on flat ground, the axle along the body's x; each one's
   radius and width are read from its bounds, and the simulation turns, steers and lifts it on its
-  suspension every tick. The body faces −z: the forward wheels steer. A car has three wheels or
+  suspension every tick. As Jolt's own vehicle samples build theirs, the body's centre of mass is
+  lowered to the bottom of its shape, midway between its wheels, and given back when the vehicle
+  leaves. The body faces −z: the forward wheels steer. A car has three wheels or
   more, one differential per driven axle (`drive: 'front' | 'rear' | 'all'`) and the handbrake on
-  its rear wheels; a motorcycle two, driven at the rear, and it leans to stay up; a tracked
+  its rear wheels; a motorcycle two, driven at the rear, and it leans into a turn; a tracked
   vehicle two or more a side, each track driven by its rearmost wheel, steered by slowing one
   track and pivoting on the spot at a standstill. A vehicle is a `VehicleDriver`:
   `world.controls.vehicle = v` drives it with the keys; `v.drive(input)` from code does the same.
