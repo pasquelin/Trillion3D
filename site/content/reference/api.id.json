@@ -2228,6 +2228,13 @@
       "depthLayer": "Lapisan kedalaman koplanar, 0 untuk setiap cluster yang dibiarkan kompiler. Sebuah cluster lapisan n digambar dengan bias kedalaman n langkah lapisan penuh, yang menentukan pemenang antara dua permukaan opaque yang berbagi sebuah bidang persis. Tidak ada dan 0 berarti hal yang sama: gambar yang tidak disentuh."
     }
   },
+  "PageCacheHolder": {
+    "summary": "Pegangan sesi atas cache: apa yang dipesannya dari total, dan cara ia mengusir — melewati halaman yang disematkan dan transfernya — saat total menyusut.",
+    "members": {
+      "reservedBytes": "Byte yang dipesan sesi dari total: tabel manifes dan antrean transfernya.",
+      "evict": "Mengusir halaman menurut penggunaan terakhir hingga muat, melewati halaman yang disematkan dan transfer sesi."
+    }
+  },
   "PageCutPage": {
     "summary": "Satu halaman yang ditulis sebuah `cut`: indeks dan byte geometrinya, digest-nya, dan deskriptornya.",
     "members": {
