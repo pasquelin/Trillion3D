@@ -4,9 +4,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as G from '../../host/graph/graph.fixture.ts';
 import { clusterSphereValid, pageCarriesClusterError } from '../../../../sdk-core/src/index.ts';
-import { cutSelects, projectedClusterError, type ClusterCut } from './math.ts';
+import { clusterPixels, projectedClusterError, type ClusterCut } from './math.ts';
+import { drawsCluster } from '../cut/rule.ts';
 import {
-  cutSelectsAtZero,
+  pixelsAtZero,
   errorFloorAt,
   projectedErrorAt,
   viewDepth,
@@ -15,7 +16,6 @@ import {
   viewLateralOf,
 } from './projection.ts';
 import {
-  referenceCutSelects,
   referenceErrorFloorPixels,
   referenceProjectCentre,
   referenceProjectedClusterError,
@@ -55,11 +55,11 @@ function* records(): Generator<ClusterCut> {
 }
 
 /** Verdict of a path: its value, or the fact that it refused the data. */
-function verdict(run: () => boolean) {
+function verdict<V>(run: () => V): { value: V | undefined; threw: boolean } {
   try {
     return { value: run(), threw: false };
   } catch {
-    return { value: false, threw: true };
+    return { value: undefined, threw: true };
   }
 }
 
@@ -76,23 +76,46 @@ function prepared(rec: ClusterCut) {
   return parent === 0 || clusterSphereValid(rec.parentSphere ?? rec.sphere);
 }
 
-test('the general cut path is the pre-lot one, at the same bits', () => {
-  for (const rec of records())
-    for (const limit of [0, 1, 7.5]) {
-      const optimise = verdict(() => cutSelects(rec, view, STRETCH, FOCAL, NEAR, limit));
-      const reference = verdict(() => referenceCutSelects(rec, view, STRETCH, FOCAL, NEAR, limit));
-      assert.deepEqual(optimise, reference, JSON.stringify(rec) + ` seuil ${limit}`);
-    }
+/** `[own, parent]` of the general path, copied out of its buffer. */
+const pixels = (rec: ClusterCut) =>
+  Array.from(clusterPixels(rec, view, STRETCH, FOCAL, NEAR, 1, new Float64Array(2)));
+
+test('the cut rule reads the pre-lot projections, at the same bits', () => {
+  for (const rec of records()) {
+    const shared = verdict(() => pixels(rec));
+    const reference = verdict(() => [
+      referenceProjectedClusterError(rec.lodError ?? 0, rec.sphere, 0, view, STRETCH, FOCAL, NEAR),
+      referenceProjectedClusterError(
+        rec.parentError,
+        rec.parentSphere ?? rec.sphere,
+        0,
+        view,
+        STRETCH,
+        FOCAL,
+        NEAR,
+      ),
+    ]);
+    assert.equal(shared.threw, reference.threw, JSON.stringify(rec));
+    if (!shared.threw)
+      shared.value!.forEach((v, i) =>
+        assert.ok(Object.is(v, reference.value![i]), `${JSON.stringify(rec)} [${i}]`),
+      );
+  }
 });
 
-test('at a zero threshold, the cut without projection decides like the one that projects', () => {
+test('at a zero threshold, the rule decides without projection as it does on the projections', () => {
   let vus = 0;
   for (const rec of records()) {
     if (!prepared(rec)) continue;
     vus++;
-    const sansProjection = verdict(() => cutSelectsAtZero(rec));
-    const avec = verdict(() => cutSelects(rec, view, STRETCH, FOCAL, NEAR, 0));
-    assert.deepEqual(sansProjection, avec, JSON.stringify(rec));
+    const zero = pixelsAtZero(rec, new Float64Array(2)),
+      projected = pixels(rec);
+    for (const childResident of [true, false])
+      assert.equal(
+        drawsCluster(true, zero[1], zero[0], childResident, 0),
+        drawsCluster(true, projected[1], projected[0], childResident, 0),
+        `${JSON.stringify(rec)} child ${childResident}`,
+      );
   }
   // Guard of the test itself: the prepared domain is not empty.
   assert.ok(vus > 100, `only ${vus} prepared records`);
@@ -101,8 +124,8 @@ test('at a zero threshold, the cut without projection decides like the one that 
 test('a malformed own error is refused on both sides when the sphere is there', () => {
   for (const lodError of [-1, Number.NaN]) {
     const rec: ClusterCut = { lodError, sphere: [0, 0, 20, 1], parentError: 1 };
-    assert.throws(() => cutSelectsAtZero(rec));
-    assert.throws(() => cutSelects(rec, view, STRETCH, FOCAL, NEAR, 0));
+    assert.throws(() => pixelsAtZero(rec, new Float64Array(2)));
+    assert.throws(() => pixels(rec));
   }
 });
 
@@ -116,7 +139,7 @@ test("the shared quantities yield the general path's projections, at the same bi
     assert.equal(depth, -centre[2]);
     for (const error of ERRORS) {
       assert.deepEqual(
-        verdict(() =>
+        verdict((): boolean =>
           Object.is(
             projectedErrorAt(
               error as number | null | undefined,
