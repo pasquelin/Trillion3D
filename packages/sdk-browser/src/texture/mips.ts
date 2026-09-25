@@ -47,7 +47,7 @@ const programs = new WeakMap<GPUDevice, MipProgram>();
  * compiler bakes, and its reasons (`packages/asset-compiler-rust/src/texture_preview/reduce.rs`,
  * `halve`, #42).
  */
-const MIP_SHADER = `
+export const MIP_SHADER = `
  @group(0) @binding(0) var source:texture_2d<f32>;
  @group(0) @binding(1) var<uniform> extent:vec4u;
  override weighted:bool;
