@@ -1542,9 +1542,6 @@
       "tileSize": "Cạnh tính bằng điểm ảnh của một ô màn hình trong danh sách nguồn sáng.",
       "samplesPerPixel": "Số nguồn sáng được tô bóng đầy đủ — kể cả đọc bóng đổ — cho mỗi điểm ảnh của một hình ảnh ĐANG CHUYỂN ĐỘNG (X2): những nguồn còn lại được cân nhắc mà không có bóng đổ của chúng, và những nguồn được tô bóng thì được vẽ theo tỉ lệ, nên ước lượng không thiên lệch và khử răng cưa theo thời gian sẽ lấy trung bình nó. Một hình ảnh đứng yên tô bóng mọi nguồn sáng trong ô của nó và hội tụ về tổng chính xác; ở đó, con số này không có vai trò gì.",
       "shadowPage": "Cạnh của một trang bóng, tính bằng texel: đơn vị của bể vật lý, của các bản đồ ảo và của việc vô hiệu hóa. Một vật chuyển động chỉ làm cũ các trang mà hộp chiếu của nó phủ.",
-      "shadowBudgetMs": "Ngân sách chặng bóng đổ, tính bằng mili giây GPU mỗi khung hình (X4, RX3). Các trang bị mất hiệu lực vượt quá sẽ chờ đến lượt; chúng không bao giờ bị mất, và độ trễ của chúng được công bố.",
-      "shadowAgingPerFrame": "Trọng số của việc chờ đợi trong độ ưu tiên của một trang, cho mỗi khung hình dành trong hàng đợi: chống lại tình trạng đói tài nguyên.",
-      "shadowCostBlend": "Tỉ lệ của mẫu một khung hình trong chi phí trung bình của một trang: làm mượt theo hàm mũ của bộ đếm thời gian.",
       "pcfTaps": "Số lần lấy mẫu PCF cho mỗi điểm ảnh và mỗi nguồn sáng có bóng đổ (X2).",
       "spotEdgeSoftness": "Độ rộng của cạnh được làm mềm của một hình nón spot, tính bằng đơn vị cosin: chống lại hiện tượng răng cưa từng bậc.",
       "sunFarShadowOffsetMetres": "Độ lệch của gốc tia bóng đổ xa dọc theo pháp tuyến, tính bằng mét. Nó chỉ có tác dụng rời khỏi mặt phẳng của bề mặt được chiếu sáng; phương thuốc thực sự chống lại hiện tượng tự đổ bóng là điểm bắt đầu dọc theo tia, ở dưới đây.",
@@ -1555,7 +1552,7 @@
       "shadowNearFraction": "Mặt phẳng gần của một lát: một phân số của tầm, không bao giờ nhỏ hơn sàn này.",
       "shadowNearMin": "Khoảng cách bóng đổ gần nhất.",
       "shadowNormalOffsetTexels": "Độ lệch của điểm lấy mẫu dọc theo pháp tuyến, tính bằng texel của lát. Đây là thứ khép kín đường nối giữa hai mặt của một nguồn sáng điểm và loại bỏ hiện tượng mụn ở góc xiên; nó tính bằng texel chứ không phải mét để giữ tỉ lệ với độ phân giải mà nguồn sáng đó đạt được.",
-      "shadowPagesPerFrame": "Số trang bóng vẽ tối đa mỗi khung hình: trần của bộ đệm, không bao giờ là thiết lập chất lượng. Ngân sách mili giây gần như luôn dừng trước; trần này chỉ là giới hạn cuối cùng, và là giới hạn duy nhất trên thiết bị không có đồng hồ GPU.",
+      "shadowPagesPerBatch": "Số trang bóng một lô GPU vẽ: kích thước bộ đệm của một lô, không bao giờ là giới hạn của khung hình. Một khung hình vẽ mọi trang nó đánh dấu, trong bao nhiêu lô cần thiết.",
       "lampFaceSize": "Cạnh của mip mịn nhất của một mặt đèn, tính bằng texel: 32 × 32 trang 128 (bể: `shadowPoolSide`).",
       "shadowRequestCap": "Số trang ảo mà phép tô bóng được yêu cầu mỗi khung hình; phần còn lại yêu cầu lại ở khung sau.",
       "sunLevels": "Các mức clipmap của một đèn định hướng. Mức `L` có texel `2^L` mét, và một điểm ảnh đọc mức có texel không lớn hơn dấu chân của chính nó: mười sáu mức phủ tỉ lệ xa/gần 2^15. Sau mức cuối, bóng xa đảm nhận.",
@@ -3113,21 +3110,18 @@
     }
   },
   "ShadowPlan": {
-    "summary": "Công việc bóng của khung: những trang ảo nào được vẽ, và trang nào chờ.",
+    "summary": "Công việc bóng của khung hình: trang ảo nào được vẽ.",
     "members": {
-      "budget": "Ngân sách mili giây của giai đoạn Bóng và chi phí đo được của một trang.",
       "counts": "Những gì kế hoạch trước đã làm, tính theo trang.",
       "worldChanged": "Một nút đã di chuyển: hộp của nó làm cũ các trang nó phủ ở kế hoạch tiếp theo.",
       "representationChanged": "Cùng thế giới ở độ chính xác khác: hộp của nó chờ camera dừng.",
       "resting": "Camera đứng yên ở lần lập kế hoạch cuối: góc nhìn của nó giống lần trước đó.",
       "deferredChanges": "Đúng khi một thay đổi biểu diễn đang chờ camera dừng.",
       "releaseDeferred": "Khung không lập kế hoạch bóng nào: các hộp đang giữ vào danh sách ngay.",
-      "observeCost": "Bộ đếm thời gian của lượt Bóng trong một khung, chia cho các trang nó đã vẽ.",
-      "setBudgetMs": "Ngân sách do máy chủ công bố, tính bằng mili giây GPU mỗi khung.",
       "setPageInvalidation": "Tắt vô hiệu hóa theo trang: một vật chuyển động làm cũ mọi trang của các đèn nó chạm vào. Bật theo mặc định.",
       "pageInvalidation": "Liệu một vật chuyển động chỉ làm cũ các trang mà hộp của nó phủ.",
-      "plan": "Lập kế hoạch cho một khung: làm cũ những gì đã di chuyển, đọc báo cáo mới nhất, nhận các trang cần vẽ.",
-      "reissue": "Các trang của khung không mã hóa được: chúng vẫn cũ và chờ khung tiếp theo.",
+      "plan": "Lập kế hoạch một khung hình: làm cũ những gì đã di chuyển, đọc báo cáo mới nhất, nhận mọi trang cần vẽ.",
+      "reissue": "Các trang của khung hình từ `from` trở đi không mã hóa được: chúng vẫn cũ, chờ, và khung hình kế tiếp vẽ chúng.",
       "reset": "Bắt đầu lại.",
       "setThreshold": "Ngưỡng mà các lát cắt ánh sáng chọn vật đổ bóng (`thresholds.ts`).",
       "table": "Bảng trang: một từ cho mỗi trang ảo, và khoảng mà mỗi đèn giữ trong đó.",
@@ -3135,11 +3129,11 @@
       "sun": "Clipmap của mỗi mặt trời: hệ khung, khoảng độ sâu, mức mịn nhất và các vùng của nó.",
       "records": "Các lát bóng, một cho mỗi đèn đổ bóng.",
       "requests": "Các báo cáo yêu cầu đã đọc về: những gì báo cáo mới nhất nêu, cấp phát hoặc từ chối.",
-      "admission": "Các trang của khung này, theo thứ tự tiếp nhận.",
+      "admission": "Các trang của khung hình này, theo từng góc nhìn ánh sáng.",
       "stamp": "Những gì phép tô bóng, các đèn và góc nhìn trao cho ảnh kế tiếp: một báo cáo đóng dấu bằng nó mà không nêu gì mới chứng minh ảnh chỉ đọc những gì đã vẽ.",
       "settled": "Đúng khi một báo cáo chứng minh trạng thái hiện tại không yêu cầu gì: ảnh có thể được giữ.",
       "receive": "Một báo cáo yêu cầu đã trả về; kế hoạch tiếp theo đọc nó. Báo cáo mới hơn thay báo cáo chưa đọc.",
-      "commit": "Các trang của khung đã được mã hóa, mỗi trang trong mục `modes` của nó: các lệnh vẽ hoàn tất trước khi có gì đọc chúng."
+      "commit": "Các trang `[from, to)` trong danh sách của khung hình đã được mã hóa, trang `from + i` trong `modes[i]`: bản vẽ của chúng xong trước khi có ai đọc. Lô cuối đóng danh sách."
     }
   },
   "ShadowViewpoint": {
@@ -4685,7 +4679,7 @@
   },
   "createShadowPlan": {
     "summary": "Bộ lập lịch bóng của các bản đồ ảo.",
-    "description": "Phép tô bóng ghi lại các trang nó đọc; báo cáo của nó, đọc về vài khung sau, cấp phát từ bể cố định những gì còn thiếu. Những gì di chuyển làm cũ các trang đã ánh xạ mà nó phủ. Một khung sau đó vẽ các trang cũ mà ảnh đọc — trang thô trước, trong ngân sách mili giây —, phần còn lại chờ, không bao giờ mất, độ trễ được công bố. Một cảnh đứng yên, có phép tô bóng không còn chạy, không yêu cầu gì và không vẽ gì. Mọi mảng được cấp phát một lần; `plan()` không cấp phát gì."
+    "description": "Tô bóng ghi lại các trang nó đọc; báo cáo của chúng, được đọc lại vài khung hình sau, cấp phát phần thiếu từ pool cố định. Những gì di chuyển làm cũ các trang đã ánh xạ mà nó phủ. Sau đó một khung hình vẽ mọi trang cũ mà ảnh đọc, tất cả trong khung hình đó: thứ giữ chi phí là bộ nhớ đệm — một trang chỉ được vẽ lại khi nội dung của nó thay đổi —, và pool là giới hạn duy nhất. Một cảnh tĩnh, có tô bóng không còn chạy, không yêu cầu gì và không vẽ gì. Mọi mảng được cấp phát một lần; `plan()` không cấp phát gì."
   },
   "createTerminalProgress": {
     "summary": "Một thanh tiến trình trong terminal theo dõi các sự kiện của trình biên dịch.",

@@ -1168,7 +1168,7 @@
   },
   "createShadowPlan": {
     "summary": "Der Schattenplaner der virtuellen Karten.",
-    "description": "Die Schattierung vermerkt die Seiten, die sie liest; ihr Bericht, Bilder später zurückgelesen, weist aus dem festen Pool zu, was fehlt. Was sich bewegt hat, macht die abgebildeten Seiten ungültig, die es bedeckt. Ein Bild zeichnet dann die ungültigen Seiten, die das Bild liest — grobe zuerst, bis zu einem Millisekundenbudget —, und der Rest wartet, nie verloren, seine Verzögerung veröffentlicht. Eine ruhende Szene, deren Schattierung nicht mehr läuft, fordert nichts an und zeichnet nichts. Alle Arrays werden einmal angelegt; `plan()` alloziert nichts."
+    "description": "Die Schattierung vermerkt die Seiten, die sie liest; ihr Bericht, Bilder später zurückgelesen, weist aus dem festen Pool zu, was fehlt. Was sich bewegt hat, macht die abgebildeten Seiten ungültig, die es bedeckt. Ein Bild zeichnet dann jede ungültige Seite, die das Bild liest, alle in diesem Bild: die Kosten hält der Cache — eine Seite wird nur neu gezeichnet, wenn sich ihr Inhalt geändert hat —, und der Pool ist die einzige Grenze. Eine ruhende Szene, deren Schattierung nicht mehr läuft, fordert nichts an und zeichnet nichts. Alle Arrays werden einmal angelegt; `plan()` alloziert nichts."
   },
   "createTerminalProgress": {
     "summary": "Ein Fortschrittsbalken im Terminal, der die Ereignisse des Compilers verfolgt.",
@@ -2761,9 +2761,6 @@
       "tileSize": "Seitenlänge in Pixeln einer Bildschirmkachel der Lichtliste.",
       "samplesPerPixel": "Vollständig beleuchtete Lichter — Schattenlesung eingeschlossen — pro Pixel eines BEWEGTEN Bildes (X2): die anderen werden ohne ihren Schatten gewichtet, und die beleuchteten werden proportional ausgelost, sodass die Schätzung unverzerrt ist und die zeitliche Kantenglättung sie mittelt. Ein unbewegtes Bild beleuchtet jedes Licht seiner Kachel und konvergiert zur exakten Summe; dort spielt diese Zahl keine Rolle.",
       "shadowPage": "Seitenlänge einer Schattenseite in Texeln: die Einheit des physischen Pools, der virtuellen Karten und der Invalidierung. Ein bewegtes Objekt macht nur die Seiten ungültig, die seine projizierte Box bedeckt.",
-      "shadowBudgetMs": "Budget der Schattenphase, in GPU-Millisekunden pro Bild (X4, RX3). Darüber hinaus ungültig gemachte Seiten warten auf ihre Reihe; sie gehen nie verloren, und ihre Verzögerung wird veröffentlicht.",
-      "shadowAgingPerFrame": "Gewicht der Wartezeit in der Priorität einer Seite, pro in der Warteschlange verbrachtem Bild: gegen das Verhungern.",
-      "shadowCostBlend": "Anteil der Messung eines Bildes an den durchschnittlichen Kosten einer Seite: eine exponentielle Glättung der Zeitmessung.",
       "pcfTaps": "PCF-Abtastungen pro Pixel und pro Schattenlicht (X2).",
       "spotEdgeSoftness": "Breite des weichgezeichneten Randes des Kegels eines Spots, in Kosinuseinheiten: gegen den Treppeneffekt.",
       "sunFarShadowOffsetMetres": "Versatz des Ursprungs des fernen Schattenstrahls entlang der Normale, in Metern. Er dient nur dazu, die Ebene der beleuchteten Oberfläche zu verlassen; das wahre Mittel gegen Selbstverschattung ist der Start entlang des Strahls, weiter unten.",
@@ -2774,7 +2771,7 @@
       "shadowNearFraction": "Nahebene einer Kachel: ein Anteil der Reichweite, nie weniger als dieser Mindestwert.",
       "shadowNearMin": "Nächste Schattenentfernung.",
       "shadowNormalOffsetTexels": "Versatz des Abtastpunkts entlang der Normale, in Kachel-Texeln. Das schließt die Naht zwischen zwei Flächen eines Punktlichts und entfernt die streifende Akne; er ist in Texeln und nicht in Metern, um proportional zur Auflösung zu bleiben, die das Licht erhalten hat.",
-      "shadowPagesPerFrame": "Höchstzahl der pro Bild gezeichneten Schattenseiten: die Puffergrenze, nie eine Qualitätseinstellung. Das Millisekundenbudget greift fast immer zuerst; diese Grenze ist nur eine letzte Schranke und die einzige auf einem Gerät ohne GPU-Uhr.",
+      "shadowPagesPerBatch": "Schattenseiten, die ein GPU-Stapel zeichnet: die Größe der Puffer eines Stapels, nie eine Grenze des Bildes. Ein Bild zeichnet jede Seite, die es markiert, in so vielen Stapeln wie nötig.",
       "lampFaceSize": "Seitenlänge der feinsten Mip-Stufe einer Lampenfläche in Texeln: 32 × 32 Seiten zu 128 (der Pool: `shadowPoolSide`).",
       "shadowRequestCap": "Virtuelle Seiten, die die Schattierung pro Bild anfordern darf; der Rest fragt im nächsten Bild erneut.",
       "sunLevels": "Clipmap-Stufen eines gerichteten Lichts. Stufe `L` hat Texel von `2^L` Metern, und ein Pixel liest die Stufe, deren Texel höchstens seinem eigenen Fußabdruck entspricht: sechzehn Stufen decken ein Fern/Nah-Verhältnis von 2^15. Jenseits der letzten Stufe übernimmt der Fernschatten.",
@@ -5325,21 +5322,18 @@
     }
   },
   "ShadowPlan": {
-    "summary": "Die Schattenarbeit des Bildes: welche virtuellen Seiten gezeichnet werden und welche warten.",
+    "summary": "Die Schattenarbeit des Bildes: welche virtuellen Seiten gezeichnet werden.",
     "members": {
-      "budget": "Das Millisekundenbudget der Schattenstufe und die gemessenen Kosten einer Seite.",
       "counts": "Was der letzte Plan getan hat, in Seiten.",
       "worldChanged": "Ein Knoten hat sich bewegt: seine Box macht beim nächsten Plan die Seiten ungültig, die sie bedeckt.",
       "representationChanged": "Dieselbe Welt mit anderer Genauigkeit: ihre Box wartet, bis die Kamera ruht.",
       "resting": "Die Kamera ruhte beim letzten Plan: ihre Ansicht war die des Plans davor.",
       "deferredChanges": "Wahr, solange eine Darstellungsänderung darauf wartet, dass die Kamera ruht.",
       "releaseDeferred": "Das Bild plant keinen Schatten: die gehaltenen Boxen kommen sofort in die Liste.",
-      "observeCost": "Zeitmesser des Schattendurchgangs eines Bildes, auf die gezeichneten Seiten umgelegt.",
-      "setBudgetMs": "Vom Host veröffentlichtes Budget in GPU-Millisekunden pro Bild.",
       "setPageInvalidation": "Schaltet die Invalidierung pro Seite ab: ein bewegtes Objekt macht jede Seite der Lichter ungültig, die es berührt. Standardmäßig aktiv.",
       "pageInvalidation": "Ob ein bewegtes Objekt nur die Seiten ungültig macht, die seine Box bedeckt.",
-      "plan": "Plant ein Bild: macht Bewegtes ungültig, liest den letzten Bericht, lässt die zu zeichnenden Seiten zu.",
-      "reissue": "Die Seiten des Bildes konnten nicht kodiert werden: sie bleiben ungültig und warten auf das nächste Bild.",
+      "plan": "Plant ein Bild: macht ungültig, was sich bewegt hat, liest den letzten Bericht, lässt jede zu zeichnende Seite zu.",
+      "reissue": "Die Seiten des Bildes ab `from` konnten nicht kodiert werden: sie bleiben ungültig, ausstehend, und das nächste Bild zeichnet sie.",
       "reset": "Beginnt neu.",
       "setThreshold": "Die Schwelle, bei der die Lichtschnitte ihre Schattenwerfer wählen (`thresholds.ts`).",
       "table": "Die Seitentabelle: ein Wort pro virtueller Seite und der Bereich, den jedes Licht darin hält.",
@@ -5347,11 +5341,11 @@
       "sun": "Die Clipmap jeder Sonne: ihr Bezugssystem, Tiefenbereich, feinste Stufe und Ausschnitte.",
       "records": "Die Schattenscheiben, eine pro schattenwerfendem Licht.",
       "requests": "Die zurückgelesenen Anforderungsberichte: was der letzte nannte, zuwies oder ablehnte.",
-      "admission": "Die Seiten dieses Bildes in Zulassungsreihenfolge.",
+      "admission": "Die Seiten dieses Bildes, Lichtansicht für Lichtansicht.",
       "stamp": "Was Schattierung, Lichter und Ansicht dem nächsten Bild übergeben: ein damit gestempelter Bericht, der nichts Neues nennt, beweist, dass das Bild nur Gezeichnetes liest.",
       "settled": "Wahr, sobald ein Bericht beweist, dass der aktuelle Zustand nichts anfordert: das Bild darf gehalten werden.",
       "receive": "Ein Anforderungsbericht kam zurück; der nächste Plan liest ihn. Ein neuerer ersetzt einen ungelesenen.",
-      "commit": "Die Seiten des Bildes wurden kodiert, jede in ihrem `modes`-Eintrag: ihre Zeichnungen landen, bevor etwas sie liest."
+      "commit": "Die Seiten `[from, to)` der Liste des Bildes wurden kodiert, Seite `from + i` in `modes[i]`: ihre Zeichnungen landen, bevor sie jemand liest. Der letzte Stapel schließt die Liste."
     }
   },
   "ShadowViewpoint": {

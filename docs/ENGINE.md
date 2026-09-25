@@ -13,7 +13,7 @@ comparison views, which reach the witnesses through `bench/witnesses/measurement
 A world opens one internal session on itself (`openMeasuredWorld`, `createMeasuredWorldJob`). Its
 options beyond `WorldOptions` — `maxResidentPages`, `pageFetchWorkers`, `replicaCount`, `backends`,
 `preload`, `comparisonLayout`, `comparisonPair`, `gpu`, `temporalAntialiasing`, `bounce`,
-`bounceBudgetMs`, `shadowBudgetMs`, `shadowPageInvalidation`, `importedLights`, `textureSource`,
+`bounceBudgetMs`, `shadowPageInvalidation`, `importedLights`, `textureSource`,
 `textureCompression`, `mathPath` — stay on it; a published world always runs the defaults. The
 comparison layouts (`single`, `side-by-side`, `wipe`, `toggle`, `difference`) render two backends to
 detached targets with the same camera: a bench and proof tool, never a performance verdict.
@@ -186,8 +186,9 @@ frame, 2 560 held: 51 × 51 = 2 601 pages, a 6 528² depth texture of 163 MiB, a
 the static layer once something moves, and half as much for the transmittance layer once a blended
 surface casts (8 bytes per 4 page texels, 81 MiB). The atlas stops at the 8 192-texel side every
 WebGPU device offers (4 096 pages, 256 MiB, and 128 MiB of transmittance), reached at 1920 × 1080;
-above it the pages past the pool wait,
-read at the coarser level meanwhile, and are evicted least recently read first. A lamp face's finest mip is 32 × 32 pages (`lampFaceSize`).
+the pool is the only limit on the pages a frame holds: what it cannot hold is refused at allocation
+and published as memory (`shadowPagesOverflow`, #542), read at the coarser level meanwhile, and
+pages are evicted least recently read first. A lamp face's finest mip is 32 × 32 pages (`lampFaceSize`).
 The table gives each of the 64 shadow slices (`maxLights`) a fixed window of the largest range a
 light needs, a whole sun's 16 × 64 × 64 words (`SHADOW_TABLE_STRIDE`): 2^22 words, 16 MiB
 (`SHADOW_TABLE_ENTRIES`), so every shadow-casting light the contract accepts holds its range.
@@ -220,17 +221,26 @@ cache (`splitMemoryBudget`).
   equals; a page the latest report named is never evicted, and coarse levels are served first.
   Meanwhile the pixel reads the next coarser level. Blend and water surfaces read what the opaque
   pixels asked for, and keep their early depth reject.
-- **Only stale pages the image reads are drawn**, coarse first, under the Shadows budget
-  (`shadowBudgetMs`, 1.0 ms, measured on the timestamps of the pages' draws and of the light cuts
-  that select their casters) and at most `shadowPagesPerFrame`
-  (24) a frame. One flag says whether a page is read, the table word's valid bit: a page whose
+- **Every stale page the image reads is drawn, in the frame that marks it** (#489). There is no
+  per-frame page cap, no millisecond budget and no priority: the cost is held by caching — a page
+  is drawn again only when what it holds changed —, never by deferring a page and showing a coarse
+  or stale one as current. The frame draws its pages in as many batches as the per-batch buffers
+  take (`shadowPagesPerBatch`, 24 pages, in the views one light cut runs at once), all in its one
+  command buffer, each batch's buffer writes landing in command order
+  (`gpu/shadow/batchWrites.ts`, `webgpu/pages/render/encodeShadowBatches.ts`); pending pages are 0
+  unless a batch could not be encoded. One flag says whether a page is read, the table word's valid
+  bit: a page whose
   depth is wrong is withdrawn (`pool.withdraw`) until its redraw lands, and the pixel reads the
   next coarser level. A light that moves or changes, or a sun whose clipmap moves its projection,
   stales every page it maps, and withdraws them: their depth belongs to the old projection. An
-  object that moves stales only the mapped pages its projected box covers: a static caster that
+  object that moves, is added or is removed stales only the mapped pages its projected box — where
+  it was and where it is — covers, drawn in that frame, so no shadow stitches past poses or outlives
+  its caster: a static caster that
   moves withdraws them, since their static layer is wrong; an object already moving leaves them
-  read, since their static layer still holds — a static shadow never vanishes while something near
-  it moves, only the moving caster's own shadow lags until the redraw. A representation change
+  read until their redraw lands, since their static layer still holds — a static shadow never
+  vanishes while something near it moves. A camera move scrolls the clipmap: the pages still inside
+  keep their content, only the pages entering are drawn, and nothing else is staled. A
+  representation change
   stales them once the camera rests, and a threshold change only the pages drawn at another
   threshold than the one at rest; both leave them read. A stale page no report names is withdrawn,
   since blend and water read without asking. A page never drawn is not read. A report that names more pages than the pool holds — the pool never
@@ -242,31 +252,21 @@ cache (`splitMemoryBudget`).
   `shadowPagesDrawn`, `shadowPagesPending` and `shadowWaitMs` publish the work;
   `diagnostic.shadowAtlas(world)` returns the pool's raw depth hash. A still scene runs no resolve
   and asks for nothing; the image holds once a report proves it reads only pages drawn.
-- **The floor is drawn first.** Every page a report names asks for its light's floor under it
+- **The floor is always current.** Every page a report names asks for its light's floor under it
   too — a sun's last clipmap level, a lamp face's one-page mip —: mapped first, never evicted while
-  anything above it is read, and admitted first when not read — never drawn, or withdrawn —,
-  whatever the budget, which pays it before any finer page: the floors of the faces the latest
-  report read first, then the others, each oldest first, so a read face keeps a current floor
-  within the view limit while a moving lamp asks for all six; a floor still read,
-  stale for its moving casters or for detail, waits its turn like any page, so an object that
-  keeps moving never starves the finer pages. The floor covers all the light reaches, so it needs
+  anything above it is read, and drawn in the frame it goes stale, like every page read. The floor
+  covers all the light reaches, so it needs
   no report to know what the view will read: a sun asks every frame for the floor pages its view
   reaches — the camera brings new ones in without any pose —, and a new, moved or reshaped lamp for
   the floor of each face until a report written at its current pose comes back, as if the latest
   report named them: a report from a past pose names only the faces that pose's receivers read.
-  So a pixel that falls back past a withdrawn page reads a current floor. When the frame's floors
-  exceed the page cap or span more views than the light cut holds, those held back lead their rank
-  the next frame, and meanwhile their face reads no shadow — never one at a past pose. A new light
-  likewise has no floor until its first draw.
+  So a pixel that falls back past a withdrawn page reads a current floor.
 - **A moving light follows within the frame.** A move is a change of what shapes its depth —
   kind, position, direction, range, cone, a rect's frame and size, the emitter radius, whether it
   casts —; an intensity, colour or penumbra change re-poses nothing and withdraws no page. A move
   withdraws every page of its past pose, the floor too, so none is read again before it is drawn
   at the new one: the shading samples every page with the light's current matrices. The frame
-  draws its floors, then the pages the latest report named, coarsest first within the budget: a
-  finer page's wait counts from the light's pose, not from when it went stale, so no finer page
-  overtakes a coarser one while the light keeps moving. Its finer pages come as the budget allows,
-  and once it stops.
+  draws them all — its floors and every page the latest report named — at the new pose.
 
 **Moving objects redraw their own casters, never the static set under them.** A placement turns
 moving the first time its pose or its row's flag actually changes (`webgpu/shadow/mobility.ts`) —
@@ -292,11 +292,12 @@ page, a live cluster — carries its view's index; each view reads its own unifo
 own per-primitive frustum planes, and nothing carries from one frame to the next; the frame pays the
 waits between the cut's dispatches once, not once per view. Each view's drawn clusters land in their
 own range of one log, which the light compaction walks view by view. Its budget is fixed: the lists
-and queues are the camera cut's size whatever the view count (at most `shadowPagesPerFrame`, since a
+and queues are the camera cut's size whatever the view count (at most `shadowPagesPerBatch`, since a
 view holds at least one drawn page, and at most what the device's dispatch and binding limits hold,
 `gpu/dag/lightCutCapacity.ts`); work several views together push past them is dropped. The
-pages a frame drew while its cut dropped work are drawn again, and the pages a frame may draw are
-bisected between the most a frame drew whole and the fewest one dropped with. A view that wanted a
+pages a batch drew while its cut dropped work are drawn again, and the views one batch draws in are
+bisected between the most a batch drew whole and the fewest one dropped with: a bound on a batch,
+never on the frame, which draws as many batches as its pages take. A view that wanted a
 cluster not resident drew its nearest resident ancestor instead, and every page of that view with
 it: those pages, and only that view's, are drawn again once residency changes, not only the pages
 over the missing cluster; a frame whose requests found no readback free draws them again at once

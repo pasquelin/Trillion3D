@@ -1168,7 +1168,7 @@
   },
   "createShadowPlan": {
     "summary": "El planificador de sombras de los mapas virtuales.",
-    "description": "El sombreado anota las páginas que lee; su informe, leído de vuelta imágenes después, asigna del pool fijo lo que falta. Lo que se movió invalida las páginas asignadas que cubre. Una imagen dibuja entonces las páginas invalidadas que lee la imagen — primero las gruesas, hasta un presupuesto en milisegundos —, y el resto espera, nunca perdido, con su retraso publicado. Una escena quieta, cuyo sombreado ya no corre, no pide nada ni dibuja nada. Todos los arrays se asignan una vez; `plan()` no asigna nada."
+    "description": "El sombreado anota las páginas que lee; su informe, releído unos fotogramas después, asigna lo que falta del pool fijo. Lo que se movió invalida las páginas asignadas que cubre. Un fotograma dibuja entonces cada página caducada que lee la imagen, todas en ese fotograma: lo que contiene el coste es la caché —una página solo se redibuja cuando cambia lo que contiene—, y el pool es el único límite. Una escena quieta, cuyo sombreado ya no se ejecuta, no pide nada y no dibuja nada. Todos los arrays se reservan una vez; `plan()` no reserva nada."
   },
   "createTerminalProgress": {
     "summary": "Una barra de progreso en la terminal que sigue los eventos del compilador.",
@@ -2761,9 +2761,6 @@
       "tileSize": "Lado en píxeles de una tesela de pantalla de la lista de luces.",
       "samplesPerPixel": "Luces iluminadas por completo — lectura de sombra incluida — por píxel de una imagen EN MOVIMIENTO (X2): las demás se ponderan sin su sombra, y las que se iluminan se sortean en proporción, así que la estimación no tiene sesgo y el antialiasing temporal las promedia. Una imagen inmóvil ilumina cada luz de su tesela y converge hacia la suma exacta; ahí, este número no juega ningún papel.",
       "shadowPage": "Lado de una página de sombra, en téxeles: la unidad del pool físico, de los mapas virtuales y de la invalidación. Un objeto en movimiento solo invalida las páginas que cubre su caja proyectada.",
-      "shadowBudgetMs": "Presupuesto de la etapa de sombras, en milisegundos de GPU por fotograma (X4, RX3). Las páginas invalidadas más allá esperan su turno; nunca se pierden, y su retraso se publica.",
-      "shadowAgingPerFrame": "Peso de la espera en la prioridad de una página, por fotograma pasado en cola: contra el abandono.",
-      "shadowCostBlend": "Parte de la medida de un fotograma en el coste medio de una página: un suavizado exponencial del cronómetro.",
       "pcfTaps": "Muestras PCF por píxel y por luz con sombra (X2).",
       "spotEdgeSoftness": "Anchura del borde suavizado del cono de un foco, en unidades de coseno: contra el efecto escalera.",
       "sunFarShadowOffsetMetres": "Desplazamiento del origen del rayo de sombra lejana a lo largo de la normal, en metros. Solo sirve para salir del plano de la superficie iluminada; el verdadero remedio contra el autosombreado es el inicio a lo largo del rayo, más abajo.",
@@ -2774,7 +2771,7 @@
       "shadowNearFraction": "Plano cercano de una porción: una parte del alcance, nunca menos que este suelo.",
       "shadowNearMin": "Distancia de sombra más cercana.",
       "shadowNormalOffsetTexels": "Desplazamiento del punto de muestreo a lo largo de la normal, en texels de porción. Esto cierra la costura entre dos caras de una luz puntual y quita el acné rasante; está en texels y no en metros para permanecer proporcional a la resolución que ha obtenido la luz.",
-      "shadowPagesPerFrame": "Páginas de sombra dibujadas como máximo por imagen: el tope del búfer, nunca un ajuste de calidad. El presupuesto en milisegundos casi siempre se detiene antes; este tope es solo un límite último, y el único en un dispositivo sin reloj de GPU.",
+      "shadowPagesPerBatch": "Páginas de sombra que dibuja un lote de GPU: el tamaño de los búferes de un lote, nunca un límite del fotograma. Un fotograma dibuja cada página que marca, en tantos lotes como haga falta.",
       "lampFaceSize": "Lado del mip más fino de una cara de lámpara, en téxeles: 32 × 32 páginas de 128 (el pool: `shadowPoolSide`).",
       "shadowRequestCap": "Páginas virtuales que el sombreado puede pedir por imagen; el resto vuelve a pedirlas en la siguiente.",
       "sunLevels": "Niveles de clipmap de una luz direccional. El nivel `L` tiene téxeles de `2^L` metros, y un píxel lee el nivel cuyo téxel no supera su propia huella: dieciséis niveles cubren una razón lejos/cerca de 2^15. Más allá del último nivel, toma el relevo la sombra lejana.",
@@ -5325,21 +5322,18 @@
     }
   },
   "ShadowPlan": {
-    "summary": "El trabajo de sombras de la imagen: qué páginas virtuales se dibujan y cuáles esperan.",
+    "summary": "El trabajo de sombras del fotograma: qué páginas virtuales se dibujan.",
     "members": {
-      "budget": "El presupuesto en milisegundos de la etapa Sombras y el coste medido de una página.",
       "counts": "Lo que hizo el último plan, en páginas.",
       "worldChanged": "Un nodo se movió: su caja invalida las páginas que cubre en el siguiente plan.",
       "representationChanged": "El mismo mundo con otra precisión: su caja espera a que la cámara se detenga.",
       "resting": "La cámara estaba en reposo en el último plan: su vista era la del plan anterior.",
       "deferredChanges": "Verdadero mientras un cambio de representación espera a que la cámara se detenga.",
       "releaseDeferred": "La imagen no planifica ninguna sombra: las cajas retenidas entran en la lista de inmediato.",
-      "observeCost": "Temporizador del pase Sombras de una imagen, repartido entre las páginas que dibujó.",
-      "setBudgetMs": "Presupuesto publicado por el anfitrión, en milisegundos de GPU por imagen.",
       "setPageInvalidation": "Desactiva la invalidación por página: un objeto en movimiento invalida todas las páginas de las luces que toca. Activa por defecto.",
       "pageInvalidation": "Si un objeto en movimiento invalida solo las páginas que cubre su caja.",
-      "plan": "Planifica una imagen: invalida lo que se movió, lee el último informe, admite las páginas que dibujar.",
-      "reissue": "Las páginas de la imagen no pudieron codificarse: siguen invalidadas y esperan a la siguiente imagen.",
+      "plan": "Planifica un fotograma: invalida lo que se movió, lee el último informe y admite cada página que dibujar.",
+      "reissue": "Las páginas del fotograma a partir de `from` no pudieron codificarse: siguen caducadas, pendientes, y el fotograma siguiente las dibuja.",
       "reset": "Vuelve a empezar.",
       "setThreshold": "El umbral al que los cortes de luz eligen sus proyectores de sombra (`thresholds.ts`).",
       "table": "La tabla de páginas: una palabra por página virtual, y el rango que ocupa cada luz en ella.",
@@ -5347,11 +5341,11 @@
       "sun": "El clipmap de cada sol: su marco, rango de profundidad, nivel más fino y extensiones.",
       "records": "Las porciones de sombra, una por luz que proyecta sombra.",
       "requests": "Los informes de peticiones leídos de vuelta: lo que nombró el último, asignó o rechazó.",
-      "admission": "Las páginas de esta imagen, en orden de admisión.",
+      "admission": "Las páginas de este fotograma, vista de luz por vista de luz.",
       "stamp": "Lo que el sombreado, las luces y la vista entregan a la siguiente imagen: un informe sellado con él que no nombra nada nuevo prueba que la imagen solo lee lo dibujado.",
       "settled": "Verdadero cuando un informe prueba que el estado actual no pide nada: la imagen puede mantenerse.",
       "receive": "Volvió un informe de peticiones; el siguiente plan lo lee. Uno más reciente sustituye a uno no leído.",
-      "commit": "Las páginas de la imagen se codificaron, cada una en su entrada `modes`: sus dibujos llegan antes de que nada los lea."
+      "commit": "Las páginas `[from, to)` de la lista del fotograma se codificaron, la página `from + i` en `modes[i]`: sus dibujos llegan antes de que nadie las lea. El último lote cierra la lista."
     }
   },
   "ShadowViewpoint": {
