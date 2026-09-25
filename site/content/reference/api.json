@@ -11345,6 +11345,11 @@
         "desc": "Worker milliseconds per fixed step, last tick: the worker's clock, never added to the page's."
       },
       {
+        "name": "stepMaxMs",
+        "type": "number",
+        "desc": "Worker milliseconds of the slowest fixed step of the last tick: a slow step the mean hides."
+      },
+      {
         "name": "mainMs",
         "type": "number",
         "desc": "Page milliseconds the physics took in the last frame (the `physics` CPU stage)."

@@ -2,6 +2,7 @@ import { BOUNCE_SETTINGS } from '../../../sdk-core/src/index.ts';
 import { BOUNCE_GRID_WGSL } from './gridWgsl.ts';
 import { residentProxyWgsl } from './nodeWgsl.ts';
 import { BOUNCE_TRACE_WGSL } from './traceWgsl.ts';
+import { SURFACE_RAY_WGSL } from './reflectWgsl.ts';
 import { HASH_UNIT_WGSL } from '../math/hashUnitWgsl.ts';
 
 /** Threads of a probe-pass workgroup: one group per probe, one thread per ray. */
@@ -58,19 +59,7 @@ fn rayDirection(slot:u32,jitter:f32,rotation:f32)->vec3f{
  let angle=index*GOLDEN_ANGLE+rotation;
  return vec3f(radius*cos(angle),radius*sin(angle),z);
 }
-/**
- * Radiance a ray brings back: nothing if it hits nothing, the hit texel otherwise. It is a
- * read, not a compute: the surface cache already holds the outgoing radiance of that face.
- */
-fn rayRadiance(origin:vec3f,direction:vec3f,reach:f32)->vec4f{
- let hit=traceProxy(origin,direction,reach);
- if(!hit.found){return vec4f(0.0,0.0,0.0,reach);}
- // The face that counts is the one looking at the ray: the proxy is two-sided by construction.
- let face=select(0u,1u,dot(proxyNormal(hit.triangle),direction)>0.0);
- let texel=hit.triangle*2u+face;
- if(texel>=arrayLength(&surface)){return vec4f(0.0,0.0,0.0,hit.distance);}
- return vec4f(surface[texel].rgb,hit.distance);
-}
+${SURFACE_RAY_WGSL}
 /** Partial sums of a group: nine basis accumulators, four of distance, one of travel. */
 var<workgroup> partial:array<array<vec3f,${BOUNCE_WORKGROUP}>,13>;
 var<workgroup> partialTravelled:array<f32,${BOUNCE_WORKGROUP}>;
