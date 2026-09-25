@@ -39,8 +39,9 @@ export function createPageParents(roots: readonly ClusterRoot<PageRec>[]) {
  * parents (`createPageParents`); the bytes come by bundle, so the request reads the compiled bundle
  * lists (`PageRec.dependencies`, `../cut/pending.ts`). The cook refuses a bundle list that misses
  * the bundle of a parent or is not closed, so the bundles of every page walked here are requested
- * and retained with the page. Loading whole bundles here instead would spend pool slots on
- * siblings nothing draws.
+ * and retained with the page. The group-mates the cut rule needs are asked for by the cut itself
+ * (`../cut/groupClosure.ts`), each admitted in its own right: whole bundles are never loaded, their
+ * other clusters would spend pool slots nothing draws.
  *
  * `admit` returns the number of pages it loaded, or -1 when a dependency has no bytes yet or was
  * reclaimed before the page could follow it: the page then waits for its requested bytes, drawn
