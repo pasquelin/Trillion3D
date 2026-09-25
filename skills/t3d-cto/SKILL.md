@@ -17,8 +17,9 @@ must take, a winding down or his question: never a running account of agent even
    - one **lead** per domain with work (geometry, lighting, compiler, physics, sdk; a bug goes to
      its domain);
    - the **architect** (the `architecture` domain; keep it off areas where a lead has an open PR);
-   - the **analyst**, at the start of the session and then every two hours; check its proposals for quality risk, put them to the boss,
-     apply only what the boss approves;
+   - the **analyst**, at the start of the session and then every two hours; apply at once every proposal that
+     loses no product quality, optimisation or performance (the engine first); put any other to
+     the boss;
    - one **measurer** when `to measure` has work, and one **acceptance** agent when merges are
      not yet `audited`.
 3. **Brief.** Every brief carries, in this order:

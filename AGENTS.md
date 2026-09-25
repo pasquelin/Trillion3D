@@ -49,17 +49,17 @@ only to it, tests the result and sets priorities. Every other role is a **backgr
 CTO starts with the Agent tool and supervises; the boss never opens another session. Each role is
 `docs/roles/<role>.md`, and its skill in `skills/` is the agent's brief.
 
-| Role       | Started by | Does                                                                                                                                      | Never                                                         |
-| ---------- | ---------- | ----------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
-| CTO        | boss       | turns priorities into the pinned Priorities issue, starts and supervises the agents, decides technique, opens issues, reports to the boss | writes code, measures                                         |
-| lead       | CTO        | owns one domain, runs its coder and reviewer, verifies, merges, closes                                                                    | writes code, measures                                         |
-| coder      | lead       | implements one issue, opens the pull request                                                                                              | merges, measures                                              |
-| reviewer   | lead       | the real `simplify` and `code-review` skills, then the acceptance list                                                                    | merges, measures                                              |
-| architect  | CTO        | the `architecture` domain: finds duplicates, bloat and tangles through the graph, proposes, delivers behaviour-preserving refactors       | changes behaviour, measures                                   |
-| analyst    | CTO        | studies how the company works; reports bottlenecks and ranked proposals to the CTO                                                        | changes anything; nothing applies without the boss's approval |
-| measurer   | CTO        | budgets, browser proofs, example captures and thumbnails, after merge                                                                     | edits code, merges                                            |
-| acceptance | CTO        | re-reads every merge and judges the example captures; a safety net                                                                        | edits code, merges, measures                                  |
-| writer     | CTO        | writes one issue on the template, when rule 5 allows one                                                                                  | codes, measures                                               |
+| Role       | Started by | Does                                                                                                                                      | Never                                                        |
+| ---------- | ---------- | ----------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| CTO        | boss       | turns priorities into the pinned Priorities issue, starts and supervises the agents, decides technique, opens issues, reports to the boss | writes code, measures                                        |
+| lead       | CTO        | owns one domain, runs its coder and reviewer, verifies, merges, closes                                                                    | writes code, measures                                        |
+| coder      | lead       | implements one issue, opens the pull request                                                                                              | merges, measures                                             |
+| reviewer   | lead       | the real `simplify` and `code-review` skills, then the acceptance list                                                                    | merges, measures                                             |
+| architect  | CTO        | the `architecture` domain: finds duplicates, bloat and tangles through the graph, proposes, delivers behaviour-preserving refactors       | changes behaviour, measures                                  |
+| analyst    | CTO        | studies how the company works; reports bottlenecks and ranked proposals to the CTO                                                        | changes anything; what could lose quality waits for the boss |
+| measurer   | CTO        | budgets, browser proofs, example captures and thumbnails, after merge                                                                     | edits code, merges                                           |
+| acceptance | CTO        | re-reads every merge and judges the example captures; a safety net                                                                        | edits code, merges, measures                                 |
+| writer     | CTO        | writes one issue on the template, when rule 5 allows one                                                                                  | codes, measures                                              |
 
 Domains: geometry, lighting, compiler, physics, sdk, and architecture (the architect's). A bug goes to its domain's lead; there is no
 bug domain. There is one CTO session, one measurer and one acceptance agent. Every agent reports
@@ -76,7 +76,8 @@ no work is cut midway.
   pull requests (red CI, conflict with `develop`, unanswered review) and resumes only once it is
   back at 2.
 - **Programmes.** A parent issue that states rules and an order (such as #483) binds every lead
-  working on its children: the order is kept, and each merge passes its checklist.
+  working on its children: the order is kept, and each merge passes its checklist. A new step
+  is a To-do item of the parent, worked as `Part of #parent`, never a child issue of its own.
 
 ## Labels: the only channel between sessions
 
