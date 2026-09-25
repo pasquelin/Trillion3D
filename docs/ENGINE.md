@@ -335,7 +335,9 @@ real allocations) — is the CPU total's first share, before the decoded-page ca
   that waits for nothing, and the diagnostic counts it (`shadowPagesOverflow`). A page is drawn
   with its own projection into its physical page — viewport and scissor —, so no other page of the
   pool is touched. `shadowPagesRequested`, `shadowPagesCached`, `shadowPoolPages`,
-  `shadowPagesDrawn`, `shadowPagesPending` and `shadowWaitMs` publish the work;
+  `shadowPagesDrawn`, `shadowPagesPending` and `shadowWaitMs` publish the work — the last, how
+  long the oldest stale page the image reads has waited for its draw, counted only while a report
+  names it (#489);
   `diagnostic.shadowAtlas(world)` returns the pool's raw depth hash. A still scene runs no resolve
   and asks for nothing; the image holds once a report proves it reads only pages drawn.
 - **The floor is always current.** Every page a report names asks for its light's floor under it
