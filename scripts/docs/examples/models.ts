@@ -1,18 +1,11 @@
 import { copyFile, cp, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { writeAvenue } from './avenue.ts';
-import { writeChessObj } from './chess-obj.ts';
-import { writeChessSet } from './chess-set.ts';
-import { writeCourtyard } from './courtyard.ts';
-import { writeFlag } from './flag.ts';
 import { geometry } from '../../../packages/sdk-core/src/world/geometry/index.ts';
 import { appendSurfacesGltf } from './gltf.ts';
+import { codeScenes } from './code-scenes.ts';
 import { fromGeometry, merge } from './mesh.ts';
 import { placeObj, writeBoxesObj, type BoxRow } from './obj.ts';
 import type { GltfDocument } from './gltf-types.ts';
-import { writeRing } from './ring.ts';
-import { writeTerrain } from './terrain.ts';
-import { writeTerrainTiles } from './terrain-tiles.ts';
 
 /**
  * The scenes built around an imported model (`site/assets/examples/models/`, credited in
@@ -167,24 +160,12 @@ async function crates(models: string, directory: string) {
   });
 }
 
-/** A scene modelled in code: it reads no model, its writer draws every file of its folder. */
-const inCode =
-  (write: (directory: string) => Promise<void>) => (_models: string, directory: string) =>
-    write(directory);
-
 export const modelScenes = {
   bust,
   'marble-bust': marbleBust,
   'street-corner': streetCorner,
   crates,
-  'a-model-from-obj': inCode(writeChessObj),
-  'a-model-from-usdz': inCode(writeChessSet),
-  'compressed-textures': inCode(writeCourtyard),
-  'detail-by-pixel-error': inCode(writeAvenue),
-  'ten-thousand-objects': inCode(writeRing),
-  terrain: inCode(writeTerrain),
-  'terrain-tiles': inCode(writeTerrainTiles),
-  flag: inCode(writeFlag),
+  ...codeScenes,
 };
 
 /** Assembles the source folder of the model scenes `names` under `examples` from `models`. */
