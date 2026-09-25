@@ -9,6 +9,11 @@ test('a baked level is addressed by digest, atlas, rank and format, from the man
   assert.equal(textureLevelUrl(TEMPLATE, SHA, 0, 3, 'png'), `../../textures/${SHA}/srgb-3.png`);
   assert.equal(textureLevelUrl(TEMPLATE, SHA, 1, 0, 'bc7'), `../../textures/${SHA}/linear-0.bc7`);
   assert.equal(textureLevelUrl(TEMPLATE, SHA, 0, 2, 'astc'), `../../textures/${SHA}/srgb-2.astc`);
+  // #42: the chain weighted by coverage is another file than the plain one of the same image.
+  assert.equal(
+    textureLevelUrl(TEMPLATE, SHA, 2, 3, 'png'),
+    `../../textures/${SHA}/srgb-coverage-3.png`,
+  );
 });
 
 // Behaviour: the file a chain's layout names in the family a session samples — the lossless one
@@ -23,7 +28,7 @@ test('the level format follows the family and the layout, lossless when either s
 });
 
 test('an unknown atlas, an invalid digest or rank, a template without a field are rejected', () => {
-  assert.throws(() => textureLevelUrl(TEMPLATE, SHA, 2, 0, 'png'), /unknown atlas/);
+  assert.throws(() => textureLevelUrl(TEMPLATE, SHA, 3, 0, 'png'), /unknown atlas/);
   assert.throws(() => textureLevelUrl(TEMPLATE, 'abc', 0, 0, 'png'), /invalid address/);
   assert.throws(() => textureLevelUrl(TEMPLATE, SHA, 0, -1, 'png'), /invalid address/);
   assert.throws(() => textureLevelUrl(TEMPLATE, SHA, 0, 1.5, 'png'), /invalid address/);

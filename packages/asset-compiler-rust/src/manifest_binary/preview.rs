@@ -6,14 +6,14 @@ use crate::texture_preview::Layout;
 ///
 /// Entry names texture and `source.gltf` image it covers, source
 /// dimensions, origin kind — 0 for `uri`, 1 for buffer view whose index follows —
-/// then rank of first carried level, count, pixel start and length, atlas
-/// it serves — 0 color, 1 data — and count of levels baked into files under
-/// `textures/<sha>/`, from 0 to `baked - 1`.
+/// then rank of first carried level, count, pixel start and length, chain it
+/// holds — 0 color, 1 data, 2 color weighted by coverage (`AtlasKind`) — and
+/// count of levels baked into files under `textures/<sha>/`, from 0 to `baked - 1`.
 /// `uri` itself not copied: read from `images[image]` named by entry,and
 /// duplicating it would create two truths. Levels not described one by one: their
 /// dimensions re-deduced from source dimensions, so reader recomputes
 /// declared geometry instead of trusting it. Entries strictly increasing by texture index
-/// then atlas, ranges contiguous without gaps, re-checked by reader. The block
+/// then the atlas that samples the chain, ranges contiguous without gaps, re-checked by reader. The block
 /// columns carry the same tails compressed, entry after entry with no offset
 /// written: an entry whose layout word says lossless has no bytes there, the
 /// others' lengths follow from the dimensions, and the reader re-derives them.
@@ -21,7 +21,9 @@ pub(super) fn encode_previews(previews: &[TexturePreview], columns: &mut [Column
     let mut previous: Option<(u32, u32)> = None;
     let mut offset: u32 = 0;
     for preview in previews {
-        let key = (preview.texture, preview.kind.word());
+        // Keyed by the atlas that samples the chain: a texture has one colour-atlas
+        // entry, plain or coverage, never both.
+        let key = (preview.texture, preview.kind.atlas().word());
         if previous.is_some_and(|last| last >= key) {
             return Err(bad(format!(
                 "Texture preview {} does not follow the previous (texture, atlas) pair",

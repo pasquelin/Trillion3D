@@ -2285,6 +2285,9 @@
     "summary": "Bir önizlemenin hizmet ettiği atlas: renk (`rgba8unorm-srgb`, temel renk ve emissive) ya da veri (`rgba8unorm`, metal-pürüzlülük, normal, gizlenme).",
     "description": "Aynı doku, her birinden bir girdiye sahip olabilir."
   },
+  "PREVIEW_ATLAS_COVERAGE": {
+    "summary": "Renk atlasının bir zinciri; her okuyucusunun alfasını kaplama olarak aldığı bir doku için (yalnızca MASK veya BLEND malzemelerinin temel rengi): renkleri alfaya göre ağırlıklandırılan tek zincir, düz olandan ayrı adlandırılır (`reduce.rs`, `AtlasKind::Coverage`, #42)."
+  },
   "PREVIEW_ATLAS_DATA": {
     "summary": "Veri atlası: metal-pürüzlülük, normal ve gizlenme haritaları."
   },
@@ -3664,7 +3667,7 @@
       "sourceKind": "Baytlar bir görsel uri'sinden geldiğinde 0, sourceBufferView'dan geldiğinde 1.",
       "sourceBufferView": "Hazırlanmış sahnenin tampon görünümü, ya da uri kaynağı için -1.",
       "sha256": "Çözülmüş kaynak baytların SHA-256'sı.",
-      "atlas": "Bu girdinin hizmet ettiği atlas: PREVIEW_ATLAS_COLOR ya da PREVIEW_ATLAS_DATA.",
+      "atlas": "Bu girdinin taşıdığı zincir: PREVIEW_ATLAS_COLOR, PREVIEW_ATLAS_DATA ya da PREVIEW_ATLAS_COVERAGE; renk atlasında örneklenir.",
       "firstLevel": "Kaynağın mip zincirinde taşınan ilk seviyenin indeksi; zaten PREVIEW_BASE'in altına sığdığında ve yardımcı dosya böylece tam çözünürlüğünü taşıdığında 0.",
       "bakedLevels": "0'dan bakedLevels - 1'e kadar, önbellekte dosyalara pişirilen seviyeler; zincir tamamlandığında firstLevel, hiçbir şey yazılmadığında ve motor kaynak görseli yüklediğinde 0.",
       "levels": "Sırayla, en inceden 1x1'e kadar taşınan seviyeler, her biri yardımcı dosya baytları üzerinde bir görünüm.",

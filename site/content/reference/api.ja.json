@@ -2285,6 +2285,9 @@
     "summary": "プレビューが仕えるアトラス: 色用(`rgba8unorm-srgb`、ベースカラーと発光)、あるいはデータ用(`rgba8unorm`、メタル・ラフネス、法線、オクルージョン)。",
     "description": "同じテクスチャがそれぞれ1つずつエントリを持つことがある。"
   },
+  "PREVIEW_ATLAS_COVERAGE": {
+    "summary": "カラーアトラスのチェーンの一つ。すべての読み手がアルファをカバレッジとして扱うテクスチャ(MASKまたはBLENDマテリアルのベースカラーのみ)用: 色がアルファで重み付けされる唯一のチェーンで、通常のチェーンとは別の名前を持つ(`reduce.rs`、`AtlasKind::Coverage`、#42)。"
+  },
   "PREVIEW_ATLAS_DATA": {
     "summary": "データアトラス: メタル・ラフネス、法線、オクルージョンマップ。"
   },
@@ -3664,7 +3667,7 @@
       "sourceKind": "バイト列が画像uriから来た場合は0、sourceBufferViewから来た場合は1。",
       "sourceBufferView": "準備済みシーンのバッファビュー。uriソースの場合は-1。",
       "sha256": "デコードされた元バイト列のSHA-256。",
-      "atlas": "このエントリが仕えるアトラス: PREVIEW_ATLAS_COLORかPREVIEW_ATLAS_DATA。",
+      "atlas": "このエントリが持つチェーン: PREVIEW_ATLAS_COLOR、PREVIEW_ATLAS_DATA、またはカラーアトラスでサンプリングされるPREVIEW_ATLAS_COVERAGE。",
       "firstLevel": "元データのミップチェーンで運ばれる最初のレベルのインデックス; すでにPREVIEW_BASE以下に収まっており、サイドカーがその完全な解像度を運んでいる場合は0。",
       "bakedLevels": "キャッシュ内でファイルに焼き込まれたレベル数、0からbakedLevels - 1まで; チェーンが完全であればfirstLevel、何も書き込まれずエンジンが元画像を読み込む場合は0。",
       "levels": "順番に運ばれるレベル。最も細かいものから1×1まで、それぞれサイドカーのバイト列に対するビュー。",

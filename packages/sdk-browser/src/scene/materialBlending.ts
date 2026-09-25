@@ -91,3 +91,8 @@ export const BLEND_EQUATIONS: Record<Blending, GPUBlendState | undefined> = {
   multiply: { color: MULTIPLY, alpha: MULTIPLY },
   none: undefined,
 };
+
+/** A mode whose colour weighs the source by its alpha (`normal`, `additive`): its alpha is
+ *  coverage. The others draw the colour under alpha 0 as it is. */
+export const weighsByAlpha = (blending: Blending | undefined) =>
+  !!blending && BLEND_EQUATIONS[blending]?.color.srcFactor === 'src-alpha';
