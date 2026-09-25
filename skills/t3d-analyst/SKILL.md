@@ -8,10 +8,10 @@ from pick to close, where time and tokens go, and why work comes back. `AGENTS.m
 
 ## What you measure (from GitHub and the sessions, never by guessing)
 
-First read what changed in the company's rules since your last run (`git log --since="3 hours ago"
--p -- AGENTS.md CONTRIBUTING.md docs/roles docs/COMPANY.md skills`): judge today's flow against
-the rules now in force, never re-propose one already applied, and say whether the last
-applied proposals moved their numbers.
+First read what changed in the company's rules since your last run (`git log --oneline
+--since="<your last run>" -- AGENTS.md CONTRIBUTING.md docs/roles docs/COMPANY.md skills`, then
+`git show` only the commits you need): judge today's flow against the rules now in force, never
+re-propose one already applied, and say whether the last applied proposals moved their numbers.
 
 - **Flow:** per issue, the time from `in progress` to merge to close; waits (PR green but not
   merged, conflicts, CI queue, permission prompts, idle leads).
