@@ -1,3 +1,4 @@
+import type { Fog } from '../core/sceneFog.ts';
 import { BufferAttribute } from '../../../../sdk-core/src/world/buffer/index.ts';
 import { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts';
 import { RECIPES } from '../../../../sdk-core/src/world/geometry/recipes.ts';
@@ -19,7 +20,7 @@ import {
 /** What reading a scene needs of the scene it fills: its root, its load door, its surroundings. */
 type Target = Object3D & {
   background: unknown;
-  fog: { color: Color; near: number; far: number } | null;
+  fog: Fog | null;
   load(url: string): Promise<Object3D>;
 };
 
@@ -120,10 +121,6 @@ export async function readScene(scene: Target, json: unknown, camera?: Camera) {
   if (before.length) scene.remove(...before);
   if (children.length) scene.add(...children);
   scene.background = json.background && new Color().setRGB(...json.background);
-  scene.fog = json.fog && {
-    color: new Color().setRGB(...json.fog.color),
-    near: json.fog.near,
-    far: json.fog.far,
-  };
+  scene.fog = json.fog && { ...json.fog, color: new Color().setRGB(...json.fog.color) };
   if (camera && json.camera) readCamera(json.camera, camera);
 }

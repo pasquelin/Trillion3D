@@ -93,7 +93,7 @@ test('reference backend wireframe expands source triangles instead of MeshBasicM
       primitives: [],
       sourceTriangles: 2,
       selectedTriangles: 2,
-      selectedNodes: [],
+      selectedNodes: 0,
       totalNodes: 0,
       schema: 1,
       status: 'ready',
