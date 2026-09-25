@@ -10,7 +10,7 @@ import { layerSlot, sampledFlag, type MaterialLayers } from '../row/pageRowMater
  * rank instead of a dynamically offset uniform: nothing left to write per frame, and no bind
  * group per draw.
  */
-export const BLEND_ITEM_WORDS = 40;
+export const BLEND_ITEM_WORDS = 44;
 
 /** Atlas tables the record cites: each texture's slot, per atlas, and the atlases. */
 export type BlendAtlasTables = MaterialLayers;
@@ -59,7 +59,10 @@ export function writeBlendItemRecord(
   floats[base + 37] = mat.emissive[1];
   floats[base + 38] = mat.emissive[2];
   floats[base + 39] = 0;
+  // A dashed line's dash and gap (`lineDash`), zero on any other item; two words of alignment.
+  floats[base + 40] = mat.dashSize ?? 0;
+  floats[base + 41] = mat.gapSize ?? 0;
 }
 
 /** WGSL declaration of the record, written once for the shader and for the layout. */
-export const BLEND_ITEM_WGSL = `struct BlendItem{world:mat4x4f,color:vec4f,indexCount:u32,vertexBase:u32,flags:u32,mapIndex:u32,emissiveIndex:u32,lineWidth:f32,alphaTest:f32,aoIntensity:f32,roughness:f32,metalness:f32,normalScale:vec2f,roughIndex:u32,metalIndex:u32,normalIndex:u32,aoIndex:u32,emissive:vec4f,}`;
+export const BLEND_ITEM_WGSL = `struct BlendItem{world:mat4x4f,color:vec4f,indexCount:u32,vertexBase:u32,flags:u32,mapIndex:u32,emissiveIndex:u32,lineWidth:f32,alphaTest:f32,aoIntensity:f32,roughness:f32,metalness:f32,normalScale:vec2f,roughIndex:u32,metalIndex:u32,normalIndex:u32,aoIndex:u32,emissive:vec4f,dash:vec2f,}`;
