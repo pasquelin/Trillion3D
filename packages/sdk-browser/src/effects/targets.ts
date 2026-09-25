@@ -14,8 +14,10 @@ export function countKinds(passes: readonly EffectPass[], counts: Record<EffectK
   return counts;
 }
 
-/** Pass targets a chain of `passes` passes holds: each pass writes the next of two, in turn. */
-export const effectPassTargets = (passes: number) => Math.min(passes, 2);
+/** Pass targets a chain holds at most: each pass writes the next of two, in turn. */
+const PASS_TARGETS = 2;
+/** Pass targets a chain of `passes` passes holds. */
+export const effectPassTargets = (passes: number) => Math.min(passes, PASS_TARGETS);
 
 /** Bytes per pixel of every pass target: `rgba16float`, the bloom's own format. */
 const PASS_TEXEL_BYTES = BLOOM_TEXEL_BYTES;
@@ -46,7 +48,7 @@ export const EFFECT_KINDS = Object.keys(EFFECT_KIND_BYTES) as readonly EffectKin
 /** Bytes of every target a chain may hold on a `width × height` image: two pass targets, the
  *  WebGL2 scene target, and every kind's own. */
 export function effectChainBytesAt(width: number, height: number) {
-  let bytes = effectTargetBytes(width, height, effectPassTargets(Infinity), true);
+  let bytes = effectTargetBytes(width, height, PASS_TARGETS, true);
   for (const kind of EFFECT_KINDS) bytes += EFFECT_KIND_BYTES[kind](width, height);
   return bytes;
 }

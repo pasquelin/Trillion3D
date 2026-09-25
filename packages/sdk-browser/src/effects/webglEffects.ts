@@ -181,6 +181,8 @@ export function createWebglEffects(gl: WebGL2RenderingContext) {
       made.output.draw(image, made.scene, out);
       draws = made.draws + 1;
       gl.bindVertexArray(null);
+      // Dithering back at the context's default: the frames after the chain draw as without it.
+      gl.enable(gl.DITHER);
     },
     /** Frees the targets; the programs stay. */
     release() {

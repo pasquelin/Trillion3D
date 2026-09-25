@@ -5,7 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { EffectChain } from '../../../../../sdk-core/src/world/effect/chain.ts';
 import { effect } from '../../../../../sdk-core/src/world/effect/index.ts';
-import { holdWebgpuFrame, keepWebgpuFrame } from '../../frame/hold.ts';
+import { holdWebgpuFrame, keepWebgpuFrame, unsettledMask } from '../../frame/hold.ts';
 import { settledRt } from '../../frame/hold.fixture.ts';
 import { encodeEffects } from './encodeEffects.ts';
 import { fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts';
@@ -62,6 +62,7 @@ test('a held frame with a chain does no work; a change of the chain draws it aga
   bloom.intensity = 0.3;
   assert.equal(holdWebgpuFrame(rt, device), false, 'a setting changed: the image is out of date');
   assert.equal(rt.run.frameHeld, false);
+  assert.equal(unsettledMask(rt), 0, 'the chain runs after the resolve: accumulation stays still');
 });
 
 test('compiling programs keep the frame from being held', () => {

@@ -75,15 +75,19 @@ export function noticeEffectBudget(
   notices: Pick<WorldNotices, 'say'>,
 ) {
   let said = 0;
+  // The excess of the last sizes read: a frame whose sizes did not move recomputes nothing.
+  let read: { width: number; height: number; canvas: BudgetCanvas; excess: number } | undefined;
   return () => {
-    const { canvas } = budget;
-    const excess = chain.size ? effectTargetExcess(drawn.width, drawn.height, canvas) : 0;
+    const { canvas } = budget,
+      { width, height } = drawn;
+    if (read?.width !== width || read.height !== height || read.canvas !== canvas)
+      read = { width, height, canvas, excess: effectTargetExcess(width, height, canvas) };
+    const excess = chain.size ? read.excess : 0;
     if (excess <= said) {
       if (!excess) said = 0;
       return;
     }
     said = excess;
-    const { width, height } = drawn;
     notices.say(
       'effect-targets-over-budget',
       `effect targets over budget: ${excess} bytes past the reserve of the declared ` +

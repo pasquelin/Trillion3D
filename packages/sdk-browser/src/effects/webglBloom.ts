@@ -2,7 +2,11 @@ import type { Bloom } from '../../../sdk-core/src/world/effect/bloom.ts';
 import type { WebglEffectKind } from './webglEffects.ts';
 import { FULLSCREEN_VERTEX } from '../webgl/core/fullscreenPass.ts';
 import { createWebglProgram } from '../webgl/core/program.ts';
-import { createWebglRenderTarget, type WebglRenderTarget } from '../webgl/core/renderTarget.ts';
+import {
+  bindWebglTarget,
+  createWebglRenderTarget,
+  type WebglRenderTarget,
+} from '../webgl/core/renderTarget.ts';
 import { bloomBlend, bloomLevelBytes, bloomLevelSizes } from './bloomFilter.ts';
 import { BLOOM_GLSL } from './bloomGlsl.ts';
 
@@ -49,16 +53,15 @@ export function createWebglBloom(gl: WebGL2RenderingContext): WebglEffectKind<Bl
     sizes: (readonly [number, number])[] = [],
     width = 0,
     height = 0;
+  /** Frees the levels; nothing to do, and nothing allocated, once they are free. */
   const release = () => {
+    if (!width) return;
     for (const level of levels) level.dispose();
     levels = [];
     sizes = [];
     width = height = 0;
   };
-  const into = (target: WebglRenderTarget) => {
-    gl.bindFramebuffer(gl.FRAMEBUFFER, target.framebuffer);
-    gl.viewport(0, 0, target.width, target.height);
-  };
+  const into = (target: WebglRenderTarget) => bindWebglTarget(gl, target);
   const read = (unit: number, texture: WebGLTexture) => {
     gl.activeTexture(gl.TEXTURE0 + unit);
     gl.bindTexture(gl.TEXTURE_2D, texture);
