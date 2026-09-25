@@ -52,3 +52,13 @@ export const PAGE_NORMAL_WGSL = `fn pageNormal(page:PageInfo,h:ClusterHeader,ver
  if(${QUANTIZED}){return clusterNormal(h,page.pageOffset,vertex);}
  return vertN(page.vertexBase,vertex);
 }`;
+
+/**
+ * Vertex colour of a page, which the surface resolve alone reads: quantized on the page, at the
+ * tail of the source normal buffer otherwise. Declared after `vertColor`
+ * (`../../webgpu/core/vertexColors.ts`), which supplies the second half.
+ */
+export const PAGE_COLOR_WGSL = `fn pageColor(page:PageInfo,h:ClusterHeader,vertex:u32)->vec4f{
+ if(${QUANTIZED}){return clusterColor(h,page.pageOffset,vertex);}
+ return vertColor(page.vertexBase+vertex);
+}`;

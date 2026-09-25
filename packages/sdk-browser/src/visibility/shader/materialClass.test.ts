@@ -7,7 +7,14 @@ import {
   MATERIAL_CLASS_WGSL,
   materialClassKey,
 } from './materialClass.ts';
-import { FLAG_HAS_MAP, FLAG_HAS_NORMAL, FLAG_HAS_UV, FLAG_MASK, SHADE_SHADER } from '../buffer.ts';
+import {
+  FLAG_HAS_COLOR,
+  FLAG_HAS_MAP,
+  FLAG_HAS_NORMAL,
+  FLAG_HAS_UV,
+  FLAG_MASK,
+  SHADE_SHADER,
+} from '../buffer.ts';
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
 import { DIAGNOSTICS } from '../../../../sdk-core/src/index.ts';
 import { createExplorerDiagnosticApi } from '../../world/api/diagnosticApi.ts';
@@ -55,6 +62,24 @@ test('the resolve shader tests class overrides, never the page flags, for what a
   assert.equal(
     MATERIAL_CLASS_WGSL.match(/override [A-Z_]+:bool=\(CLASS_KEY&\d+u\)!=0u;/g)?.length,
     Object.keys(CLASS_FEATURE).length,
+  );
+});
+
+// #347: the resolve multiplied nothing by the vertex colour, and WebGPU drew white where the
+// forward path drew the gradient. A class with vertex colours multiplies the base colour by the
+// perspective-correct interpolation of the three corners, read on the page where it is quantized.
+test('a class with vertex colours multiplies its base colour by them, and no other class does', () => {
+  assert.equal(materialClassKey(FLAG_HAS_COLOR, noMaps), CLASS_FEATURE.HAS_VERTEX_COLOR);
+  const fragment = SHADE_SHADER.slice(SHADE_SHADER.indexOf('fn shade_fs'));
+  const multiply =
+    'if(HAS_VERTEX_COLOR){rgb*=(pageColor(page,h,i0)*bary.x+pageColor(page,h,i1)*bary.y+pageColor(page,h,i2)*bary.z).xyz;}';
+  assert.equal(fragment.split(multiply).length - 1, 1);
+  // After the base map, before any view or light reads `rgb`.
+  assert.ok(fragment.indexOf(multiply) > fragment.indexOf('rgb=rgb*colorSample(page.mapIndex'));
+  assert.ok(fragment.indexOf(multiply) < fragment.indexOf('if(uni.mode==1u)'));
+  assert.match(
+    SHADE_SHADER,
+    /fn pageColor\(page:PageInfo,h:ClusterHeader,vertex:u32\)->vec4f\{\n if\(\(page\.flags&32u\)!=0u\)\{return clusterColor\(h,page\.pageOffset,vertex\);\}\n return vertColor\(page\.vertexBase\+vertex\);/,
   );
 });
 
