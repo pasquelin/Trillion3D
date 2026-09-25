@@ -34,7 +34,7 @@ try {
     id: 'observatory',
     width: 800,
     height: 520,
-    manifestUrl: '/site/assets/gallery/signature-architecture/cache/native/full/manifest.json',
+    scene: 'site/assets/gallery/signature-architecture',
     texturePoolBytes: 128 * 1024 * 1024,
     position: [19, 13, 22],
     target: [0, 3, 0],
