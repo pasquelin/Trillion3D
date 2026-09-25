@@ -1197,7 +1197,7 @@
   },
   "createShadowPlan": {
     "summary": "Lo scheduler delle ombre delle mappe virtuali.",
-    "description": "L’ombreggiatura annota le pagine che legge; il suo rapporto, riletto fotogrammi dopo, assegna dal pool fisso ciò che manca. Ciò che si è mosso invalida le pagine mappate che copre. Un fotogramma disegna allora le pagine invalidate che l’immagine legge — prima le grossolane, fino a un budget in millisecondi —, e il resto attende, mai perso, con il suo ritardo pubblicato. Una scena ferma, la cui ombreggiatura non gira più, non chiede nulla e non disegna nulla. Tutti gli array sono allocati una volta; `plan()` non alloca nulla."
+    "description": "L’ombreggiatura annota le pagine che legge; il loro rapporto, riletto qualche fotogramma dopo, alloca ciò che manca dal pool fisso. Ciò che si è mosso invalida le pagine allocate che copre. Un fotogramma disegna poi ogni pagina scaduta che l’immagine legge, tutte in quel fotogramma: a contenere il costo è la cache — una pagina viene ridisegnata solo quando cambia ciò che contiene —, e il pool è l’unico limite. Una scena ferma, la cui ombreggiatura non gira più, non chiede nulla e non disegna nulla. Tutti gli array sono allocati una volta; `plan()` non alloca nulla."
   },
   "createTerminalProgress": {
     "summary": "Una barra di avanzamento nel terminale che segue gli eventi del compilatore.",
@@ -2871,9 +2871,6 @@
       "tileSize": "Lato in pixel di una tessera di schermo della lista di luci.",
       "samplesPerPixel": "Luci illuminate per intero — lettura dell'ombra inclusa — per pixel di un'immagine IN MOVIMENTO (X2): le altre sono pesate senza la loro ombra, e quelle illuminate sono estratte a sorte in proporzione, quindi la stima è senza distorsioni e l'antialiasing temporale ne fa la media. Un'immagine ferma illumina ogni luce della sua tessera e converge verso la somma esatta; lì, questo numero non gioca alcun ruolo.",
       "shadowPage": "Lato di una pagina d’ombra, in texel: l’unità del pool fisico, delle mappe virtuali e dell’invalidazione. Un oggetto in movimento invalida solo le pagine coperte dal suo box proiettato.",
-      "shadowBudgetMs": "Budget della fase delle ombre, in millisecondi GPU per fotogramma (X4, RX3). Le pagine invalidate oltre attendono il proprio turno; non sono mai perse, e il loro ritardo è pubblicato.",
-      "shadowAgingPerFrame": "Peso dell'attesa nella priorità di una pagina, per fotogramma trascorso in coda: contro l'abbandono.",
-      "shadowCostBlend": "Quota della misura di un fotogramma nel costo medio di una pagina: un'attenuazione esponenziale del cronometro.",
       "pcfTaps": "Campionamenti PCF per pixel e per luce con ombra (X2).",
       "spotEdgeSoftness": "Larghezza del bordo sfumato del cono di uno spot, in unità di coseno: contro l'effetto a scalini.",
       "sunFarShadowOffsetMetres": "Scarto dell'origine del raggio d'ombra lontana lungo la normale, in metri. Serve solo a lasciare il piano della superficie illuminata; il vero rimedio contro l'autoombreggiatura è la partenza lungo il raggio, più in basso.",
@@ -2884,7 +2881,7 @@
       "shadowNearFraction": "Piano vicino di una fetta: una quota della portata, mai meno di questa soglia minima.",
       "shadowNearMin": "Distanza d'ombra più vicina.",
       "shadowNormalOffsetTexels": "Scarto del punto di campionamento lungo la normale, in texel di fetta. Questo chiude la cucitura tra due facce di una luce puntiforme e rimuove l'acne radente; è in texel e non in metri per restare proporzionale alla risoluzione ottenuta dalla luce.",
-      "shadowPagesPerFrame": "Pagine d’ombra disegnate al massimo per fotogramma: il tetto del buffer, mai un’impostazione di qualità. Il budget in millisecondi si ferma quasi sempre prima; questo tetto è solo un limite estremo, e l’unico su un dispositivo senza orologio GPU.",
+      "shadowPagesPerBatch": "Pagine d’ombra che un lotto GPU disegna: la dimensione dei buffer di un lotto, mai un limite del fotogramma. Un fotogramma disegna ogni pagina che marca, in tanti lotti quanti servono.",
       "lampFaceSize": "Lato del mip più fine di una faccia di lampada, in texel: 32 × 32 pagine da 128 (il pool: `shadowPoolSide`).",
       "shadowRequestCap": "Pagine virtuali che l’ombreggiatura può chiedere per fotogramma; le altre richiedono al fotogramma successivo.",
       "sunLevels": "Livelli di clipmap di una luce direzionale. Il livello `L` ha texel di `2^L` metri, e un pixel legge il livello il cui texel non supera la propria impronta: sedici livelli coprono un rapporto lontano/vicino di 2^15. Oltre l’ultimo livello subentra l’ombra lontana.",
@@ -5437,21 +5434,18 @@
     }
   },
   "ShadowPlan": {
-    "summary": "Il lavoro d’ombra del fotogramma: quali pagine virtuali vengono disegnate e quali attendono.",
+    "summary": "Il lavoro d’ombra del fotogramma: quali pagine virtuali vengono disegnate.",
     "members": {
-      "budget": "Il budget in millisecondi della fase Ombre e il costo misurato di una pagina.",
       "counts": "Ciò che ha fatto l’ultimo piano, in pagine.",
       "worldChanged": "Un nodo si è mosso: il suo box invalida le pagine che copre al piano successivo.",
       "representationChanged": "Lo stesso mondo a un’altra precisione: il suo box attende che la camera si fermi.",
       "resting": "La camera era ferma all'ultimo piano: la sua vista era quella del piano precedente.",
       "deferredChanges": "Vero finché un cambio di rappresentazione attende che la camera si fermi.",
       "releaseDeferred": "Il fotogramma non pianifica alcuna ombra: i riquadri trattenuti entrano subito nella lista.",
-      "observeCost": "Timer del passaggio Ombre di un fotogramma, ripartito sulle pagine che ha disegnato.",
-      "setBudgetMs": "Budget pubblicato dall’host, in millisecondi GPU per fotogramma.",
       "setPageInvalidation": "Disattiva l’invalidazione per pagina: un oggetto in movimento invalida ogni pagina delle luci che tocca. Attiva per impostazione predefinita.",
       "pageInvalidation": "Se un oggetto in movimento invalida solo le pagine coperte dal suo box.",
-      "plan": "Pianifica un fotogramma: invalida ciò che si è mosso, legge l’ultimo rapporto, ammette le pagine da disegnare.",
-      "reissue": "Le pagine del fotogramma non sono state codificate: restano invalidate e attendono il fotogramma successivo.",
+      "plan": "Pianifica un fotogramma: invalida ciò che si è mosso, legge l’ultimo rapporto, ammette ogni pagina da disegnare.",
+      "reissue": "Le pagine del fotogramma da `from` in poi non hanno potuto essere codificate: restano scadute, in attesa, e il fotogramma successivo le disegna.",
       "reset": "Ricomincia.",
       "setThreshold": "La soglia a cui i tagli di luce scelgono i proiettori d’ombra (`thresholds.ts`).",
       "table": "La tabella delle pagine: una parola per pagina virtuale, e l’intervallo che ogni luce vi occupa.",
@@ -5459,11 +5453,11 @@
       "sun": "Il clipmap di ogni sole: il suo riferimento, intervallo di profondità, livello più fine ed estensioni.",
       "records": "Le fette d’ombra, una per luce che proietta ombra.",
       "requests": "I rapporti di richieste riletti: ciò che l’ultimo ha nominato, assegnato o rifiutato.",
-      "admission": "Le pagine di questo fotogramma, in ordine di ammissione.",
+      "admission": "Le pagine di questo fotogramma, vista di luce per vista di luce.",
       "stamp": "Ciò che ombreggiatura, luci e vista passano all’immagine successiva: un rapporto timbrato con esso che non nomina nulla di nuovo prova che l’immagine legge solo ciò che è disegnato.",
       "settled": "Vero quando un rapporto prova che lo stato attuale non chiede nulla: l’immagine può essere mantenuta.",
       "receive": "È tornato un rapporto di richieste; il piano successivo lo legge. Uno più recente sostituisce uno non letto.",
-      "commit": "Le pagine del fotogramma sono state codificate, ciascuna nella sua voce `modes`: i loro disegni arrivano prima che qualcosa le legga."
+      "commit": "Le pagine `[from, to)` della lista del fotogramma sono state codificate, la pagina `from + i` in `modes[i]`: i loro disegni arrivano prima che qualcuno le legga. L’ultimo lotto chiude la lista."
     }
   },
   "ShadowViewpoint": {

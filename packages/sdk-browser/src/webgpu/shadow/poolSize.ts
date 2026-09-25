@@ -4,7 +4,7 @@ import {
   shadowPoolSide,
 } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { anyCastsShadow } from '../../../../sdk-core/src/scene/light-shadow/casters.ts';
-import { MAX_SHADOW_PAGES, shadowAtlasBytes } from '../../gpu/shadow/atlas.ts';
+import { shadowAtlasBytes } from '../../gpu/shadow/atlas.ts';
 import { grantedShadowPool } from '../residency/poolGrants.ts';
 import type { PoolClamp } from '../../residency/pools.ts';
 import { createShadowRegionList } from './regions.ts';
@@ -83,8 +83,7 @@ export function sizeShadowPool(rt: WebgpuPagesRuntime) {
       const { side, clamp } = granted.pool;
       if (side !== lights.plan.pool.side) {
         const before = lights.plan;
-        lights.plan = createShadowPlan(MAX_SHADOW_PAGES, side);
-        lights.plan.setBudgetMs(before.budget.budgetMs);
+        lights.plan = createShadowPlan(side);
         lights.plan.setPageInvalidation(before.pageInvalidation);
         lights.regions = createShadowRegionList(side);
       }

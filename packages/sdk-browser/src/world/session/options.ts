@@ -137,9 +137,6 @@ export interface MeasuredWorldOptions {
    *  frame to split its duration, and therefore renders an image different from production.
    *  Absent by default; refused outside `diagnosticDetail: 'trace'`. */
   diagnosticGpuVariant?: DiagnosticGpuVariant;
-  /** Shadows-step budget, in GPU milliseconds per frame. 1.0 by default: invalidated pages
-   *  beyond that wait their turn, never lost, their lag published. */
-  shadowBudgetMs?: number;
   /** Page-by-page shadow-map invalidation. On by default; `false` restarts the whole face
    *  as soon as an object moves in its range, as before the virtualized-shadows batch. */
   shadowPageInvalidation?: boolean;

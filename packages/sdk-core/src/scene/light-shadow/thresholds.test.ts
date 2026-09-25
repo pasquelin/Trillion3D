@@ -9,7 +9,7 @@ import { SUN, cycle, planFrame, sunPages } from './lightShadow.fixture.ts';
 test('at rest, only the pages drawn at another threshold than the current one go stale', () => {
   const store = createSceneLightStore();
   store.add(SUN);
-  const plan = createShadowPlan(24, 32);
+  const plan = createShadowPlan(32);
   plan.setThreshold(1);
   planFrame(plan, store, 0);
   const read = sunPages(plan, store.sliceOf(0), 0, [

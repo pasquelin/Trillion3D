@@ -1,6 +1,5 @@
 import { createGpuTiming } from '../../../gpu/timing/timing.ts';
-import { addGpuPasses, bounceGpuMs, shadowPagesGpuMs } from '../../../stage/mapping.ts';
-import { PAGES_RING } from '../state/lights.ts';
+import { addGpuPasses, bounceGpuMs } from '../../../stage/mapping.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 
 /** Starts the per-pass GPU timer and reports whether the device can measure at all. */
@@ -26,12 +25,6 @@ export function prepareGpuTiming(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
       // The bounce budget is a duration: it reads here the timer of its own stage, the per-pass
       // profile's, and corrects the next image's batch. Never an estimate.
       rt.bounce.probes?.observeGpuMs(bounceGpuMs(timing.lastGpuPassMs));
-      // The shadow budget is set the same way: the measured duration of the Shadows stage and of
-      // the light cuts that chose its casters, reported against the pages this image had redrawn.
-      rt.lights.plan.observeCost(
-        shadowPagesGpuMs(timing.lastGpuPassMs),
-        rt.lights.pagesByFrame[sample.frame % PAGES_RING],
-      );
       timing.lastGpuHostGapMs = sample.hostGapMs;
       // The sample describes an image already past: it is filed by stage without ever blocking this one.
       // The image envelope is published separately: on a device that overlaps passes, the sum of stages
