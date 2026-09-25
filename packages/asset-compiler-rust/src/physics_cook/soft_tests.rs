@@ -13,7 +13,7 @@ use std::collections::{BTreeMap, BTreeSet};
 /// (−0.5, −0.5), pinned at its top corners (6, 8), bend 0.01 rad/(N·m). The module test builds it
 /// on the page and restores these bytes (`packages/sdk-browser/src/physics/cookedSoft.test.ts`).
 const GOLDEN: &str = "../../tests/fixtures/physics/cloth-settings.bin";
-fn cloth() -> (Vec<f32>, Vec<u32>) {
+pub(super) fn cloth() -> (Vec<f32>, Vec<u32>) {
     let pos = (0..9).flat_map(|v| [(v % 3) as f32 * 0.5 - 0.5, (v / 3) as f32 * 0.5 - 0.5, 0.0]);
     let cells = [0u32, 1, 3, 4];
     let triangles = cells
@@ -21,7 +21,7 @@ fn cloth() -> (Vec<f32>, Vec<u32>) {
         .flat_map(|&a| [a, a + 1, a + 4, a, a + 4, a + 3]);
     (pos.collect(), triangles.collect())
 }
-fn declared(kind: &'static str, pins: &[f64]) -> SoftDeclared {
+pub(super) fn declared(kind: &'static str, pins: &[f64]) -> SoftDeclared {
     let (mass, stretch, bend, pressure) = (None, 0.0, 0.01, None);
     SoftDeclared {
         kind,
