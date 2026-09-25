@@ -1695,6 +1695,10 @@
       "autoForward": "CROCIERA, disattivata per impostazione predefinita: la camera vola in avanti a `movementSpeed` senza alcun tasto premuto, come un aereo. W aggiunge allora `movementSpeed` (il doppio della velocità) e S lo toglie (la camera resta ferma); non vola mai all'indietro. Nulla si muove prima del prossimo `update`, così un host che ridisegna su `change` richiede un fotogramma quando attiva la crociera."
     }
   },
+  "Fog": {
+    "summary": "Nebbia su ogni superficie: lineare da `near` a `far`, oppure che si infittisce con la distanza secondo `density`, diradandosi in altezza sopra `baseHeight` quando `heightFalloff` è impostato.",
+    "description": "Il colore è la luce che la nebbia diffonde verso l’occhio, esposta e passata per la curva di visualizzazione come quella di una superficie."
+  },
   "FORMAT_VERSION": {
     "summary": "Formato di cache letto da questo motore.",
     "description": "Il formato 5 porta `scene-tables.json`, le tabelle di nodi e materiali contro cui viene verificata la scena preparata; i formati 3 e 4 non hanno questo prodotto e vengono rifiutati in base al loro numero piuttosto che letti a metà."
@@ -4994,8 +4998,8 @@
     "members": {
       "isScene": "Sempre `true`: distingue la radice della scena da qualsiasi altro oggetto.",
       "environment": "Un'immagine dell'ambiente riflessa dalle superfici brillanti; `null` per nessuna.",
-      "fog": "Una nebbia che fonde gli oggetti in `color` tra `near` e `far`; `null` per nessuna.",
       "background": "Ciò che riempie l’immagine dietro ogni oggetto: un colore, o `null` per quello predefinito. Una modifica appare al fotogramma successivo, mantenendo la sessione: un nuovo colore assegnato qui, o quello attuale scritto con i suoi metodi (`set`, `setRGB`, `setHex`, `setHSL`...). Una scrittura diretta di `.r`, `.g` o `.b` non viene rilevata: riassegna `background` dopo. Un’immagine, o qualsiasi valore senza `getHex`, viene rifiutata (`UNSUPPORTED_SCENE_UPDATE`): nessun percorso la disegna.",
+      "fog": "Nebbia su ogni superficie, opaca o trasparente, su entrambi i renderer; `null`, il predefinito, per nessuna, senza costo. `{ color, near, far }` sfuma gli oggetti in `color` da `near` a `far`, distanze dalla telecamera; `{ color, density }` si infittisce di `density` per unità di distanza; aggiungi `heightFalloff` (e `baseHeight`, 0 per impostazione predefinita) e si posa a terra, diradandosi sopra `baseHeight` — divisa per e ogni `1 / heightFalloff` unità verso l’alto. Un cambiamento si vede al fotogramma successivo: una nuova nebbia impostata qui, o il suo colore scritto con i suoi metodi. Una scrittura diretta di `near`, `far`, `density`... non viene sentita: reimposta `fog` dopo. Una nebbia fuori intervallo — `far` non oltre `near`, una densità negativa — è rifiutata (`INVALID_SCENE_ENVIRONMENT`).",
       "load": "Carica un modello compilato — l'URL del suo manifesto — e lo aggiunge a questa scena.",
       "toJSON": "La scena come JSON semplice e versionato: i suoi oggetti, le forme tramite la chiamata che le ha costruite, i materiali, le luci e i modelli caricati tramite indirizzo; anche la posa di `camera` quando ne viene data una.",
       "fromJSON": "Sostituisce il contenuto della scena con una scena salvata da `toJSON`, mantenendo i suoi segni `helper`; si risolve quando i suoi modelli sono caricati. Un altro formato o un'altra versione viene rifiutato (`UNSUPPORTED_SCENE_FORMAT`). Le chiamate fatte mentre se ne legge una vengono eseguite una dopo l'altra, in ordine, ciascuna su ciò che ha lasciato la precedente: due scene salvate non si mescolano mai."
@@ -5034,8 +5038,21 @@
     "members": {
       "exposure": "Moltiplicatore della radianza lineare, applicato prima della curva.",
       "toneMapping": "La curva di visualizzazione; `DEFAULT_TONE_MAPPING` se manca.",
-      "irradiance": "L'irradianza che arriva da tutte le direzioni, in 27 numeri: nove coefficienti, ciascuno una tripletta RGB, nell'ordine delle bande costante, `y`, `z`, `x`, `xy`, `yz`, `3z² − 1`, `xz`, `x² − y²`. Assente, o tutta nulla, nulla illumina una superficie tranne le lampade dichiarate."
+      "irradiance": "L'irradianza che arriva da tutte le direzioni, in 27 numeri: nove coefficienti, ciascuno una tripletta RGB, nell'ordine delle bande costante, `y`, `z`, `x`, `xy`, `yz`, `3z² − 1`, `xz`, `x² − y²`. Assente, o tutta nulla, nulla illumina una superficie tranne le lampade dichiarate.",
+      "fog": "Nebbia di distanza o di altezza su ogni superficie (`SceneFog`); assente, nessuna."
     }
+  },
+  "SceneExponentialFog": {
+    "summary": "Nebbia che si infittisce con la distanza: `density` per unità della scena; con `heightFalloff`, si dirada sopra `baseHeight`, divisa per e ogni `1 / heightFalloff` unità verso l’alto.",
+    "members": {
+      "color": "La radianza verso cui la nebbia sfuma gli oggetti, in RGB lineare.",
+      "density": "Estinzione per unità della scena, a `baseHeight`; ≥ 0.",
+      "heightFalloff": "Quanto in fretta la densità cala con l’altezza, per unità della scena; 0, il predefinito, la tiene uniforme a ogni altezza.",
+      "baseHeight": "L’altezza a cui la densità vale `density`; 0 per impostazione predefinita."
+    }
+  },
+  "SceneFog": {
+    "summary": "Nebbia di distanza o di altezza, come la legge l’illuminazione."
   },
   "SceneLight": {
     "summary": "Una luce di scena, versione 2.",
@@ -5060,6 +5077,14 @@
     "summary": "Ciò che l'host chiede di vedere.",
     "description": "`lit` è la vera illuminazione e solo essa; `unlit` è la vista di diagnostica in albedo grezzo — il colore del materiale così com'è, senza luce, senza ambientale e senza emissione — per i banchi di prova di geometria che confrontano immagini pixel per pixel. `auto`, per impostazione predefinita, dà `unlit` finché nessuna luce è dichiarata e `lit` non appena ce n'è una. `bounce` è la terza vista di diagnostica: la sola irradianza indiretta, moltiplicata per l'esposizione e restituita in valori lineari senza ACES né sRGB. È ciò che il banco confronta con l'oracolo del compilatore; non è un'immagine da guardare, ed è nera senza rimbalzo impostato."
   },
+  "SceneLinearFog": {
+    "summary": "Nebbia che inizia a `near` e nasconde tutto da `far` in poi, distanze dall’occhio.",
+    "members": {
+      "color": "La radianza verso cui la nebbia sfuma gli oggetti, in RGB lineare.",
+      "near": "Distanza dall’occhio dove la nebbia inizia.",
+      "far": "Distanza dall’occhio oltre la quale si vede solo nebbia."
+    }
+  },
   "SceneLightStore": {
     "summary": "Le luci di una scena così come le legge la GPU, ordinate e mantenute aggiornate.",
     "members": {
@@ -5071,6 +5096,7 @@
       "ids": "Il nome della luce di ogni posto.",
       "count": "Quante luci.",
       "epoch": "Incrementato quando cambia l'insieme delle luci.",
+      "transportEpoch": "Aumenta con l’epoca, tranne per un cambio della sola nebbia: la nebbia è un termine del raggio di vista, non del trasporto della luce, quindi ciò che tiene in cache la luce trasportata (le sonde di rimbalzo) la conserva.",
       "environment": "L'ambiente della scena.",
       "lightingView": "Vista richiesta dall'host, così com'è: `auto` finché non ha richiesto nulla.",
       "unlit": "Vero quando l'immagine deve uscire in albedo grezzo, senza luce. È il comportamento predefinito finché nessuna luce è dichiarata: una scena senza sorgente non ha nulla da illuminare, e un'immagine nera non aiuterebbe nessun banco di prova di geometria. Non appena esiste una luce, la vera illuminazione prende il sopravvento — salvo che l'host abbia richiesto esplicitamente la vista di diagnostica.",
@@ -5604,7 +5630,7 @@
       "baseMetal": "Colore di base in RGB, A per il metallo.",
       "normalRough": "Normale XYZ nel mondo, A per la ruvidità.",
       "emissiveAo": "Emissione RGB, A per l'occlusione ambientale.",
-      "flags": "0 sfondo, 1 senza luce, 2 letture, 3 diagnostica nello spazio di visualizzazione.",
+      "flags": "0 sfondo, 1 non illuminato (nella nebbia), 2 letto, 3 mostrato così com’è: una diagnostica, una vista delle normali o della profondità.",
       "views": "Le sue viste di texture GPU.",
       "dispose": "La libera."
     }
@@ -6833,7 +6859,7 @@
       "format": "Sempre `'trillion3d-scene'`.",
       "formatVersion": "La versione di questa struttura; un'altra viene rifiutata.",
       "background": "Il colore di sfondo, oppure `null`.",
-      "fog": "La nebbia, oppure `null`.",
+      "fog": "La nebbia, il suo colore in componenti lineari, oppure `null`.",
       "camera": "La telecamera salvata con la scena, oppure `null`.",
       "geometries": "Ogni forma, una sola volta, per quante mesh la usino.",
       "materials": "Ogni materiale, una sola volta, per quante mesh lo usino.",

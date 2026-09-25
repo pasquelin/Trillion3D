@@ -46,7 +46,7 @@ export interface SurfaceBuffer {
   readonly normalRough: GPUTexture;
   /** RGB emission, A ambient occlusion. */
   readonly emissiveAo: GPUTexture;
-  /** 0 background, 1 unlit, 2 reads, 3 display-space diagnostic. */
+  /** 0 background, 1 unlit (fogged), 2 reads, 3 shown as-is: a diagnostic, a normal or depth view. */
   readonly flags: GPUTexture;
   /** Its GPU texture views. */
   views(): GPUTextureView[];
