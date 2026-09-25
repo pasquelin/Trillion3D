@@ -45,7 +45,7 @@ export function drawnTriangles(
     for (let i = 0; i + 1 < corners.length; i += step) segments.push(corners[i], corners[i + 1]);
     if (reading === 'lineLoop' && corners.length > 2)
       segments.push(corners[corners.length - 1], corners[0]);
-    return quads(p, segments, options.dashed);
+    return quads(p, segments, options.dashed, reading === 'lineLoop' && corners.length > 2);
   }
   if (corners.length < 3) return null;
   if (options.wireframe) {
@@ -93,10 +93,15 @@ function points(p: number[], r: number) {
  *
  * `dashed`: each corner also carries, as `(u, 0)`, its distance along the line — the running
  * length of the segments before it, in their order, as the reference's `computeLineDistances`
- * measures it, a loop's closing segment continuing the count. Only a dashed line pays it: any
- * other line's quads keep no coordinate.
+ * measures it; a `loop`'s closing segment runs back from the total to its first vertex's 0, as
+ * the reference draws it. Only a dashed line pays it: any other line's quads keep no coordinate.
  */
-function quads(p: number[], segments: number[], dashed = false): DrawnTriangles | null {
+function quads(
+  p: number[],
+  segments: number[],
+  dashed = false,
+  loop = false,
+): DrawnTriangles | null {
   const positions: number[] = [],
     normals: number[] = [],
     uvs: number[] = [],
@@ -110,6 +115,7 @@ function quads(p: number[], segments: number[], dashed = false): DrawnTriangles 
     if (length === 0) continue;
     normalizeVector3(d);
     const first = positions.length / 3;
+    const end = loop && s + 2 === segments.length ? 0 : distance + length;
     for (const [at, side] of [
       [a, 1],
       [a, -1],
@@ -118,7 +124,7 @@ function quads(p: number[], segments: number[], dashed = false): DrawnTriangles 
     ]) {
       positions.push(p[at], p[at + 1], p[at + 2]);
       normals.push(d[0] * side, d[1] * side, d[2] * side);
-      if (dashed) uvs.push(at === a ? distance : distance + length, 0);
+      if (dashed) uvs.push(at === a ? distance : end, 0);
     }
     distance += length;
     indices.push(first, first + 1, first + 3, first, first + 3, first + 2);
