@@ -48,12 +48,11 @@ export type SelectionResult = {
   frustumRejected: number;
   lodLevel: number;
   drawablePageIds?: number[];
-  /** Triangle totals HELD BY THE GPU, where the verdict is given: what the cut rule draws, twice —
-   *  `selected` and `drawn` —, its blend share, and the uncovered share, zero since the rule never
-   *  leaves a surface undrawn. The only source of these totals: the CPU sums none. */
+  /** Triangle totals HELD BY THE GPU, where the verdict is given: what the cut rule draws — one
+   *  counter, read as both `selected` and `drawn` — and its blend share. The only source of these
+   *  totals: the CPU sums none. */
   selectedTriangles: number;
   drawnTriangles: number;
-  uncoveredTriangles: number;
   transparentTriangles: number;
   /** True when the cut exceeded the sample cap: the lists are truncated, and the frame must go
    *  back through the CPU cut rather than adopt them (`../dag/layout.ts`). */
