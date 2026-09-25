@@ -100,13 +100,13 @@ test('a cooked soft body and a tile the worker refuses give their slots and budg
     await landed(); // opened: its cloth made in the first slot
     session.frame(camera);
     await landed(); // its tile loaded in the second
-    const [soft, tile] = [0, 1].map((index) => index | (1 << GENERATION_SHIFT));
-    assert.deepEqual([session.objectOf(soft), session.objectOf(tile)], [model, model]);
+    const [soft, ground] = [0, 1].map((index) => index | (1 << GENERATION_SHIFT));
+    assert.deepEqual([session.objectOf(soft), session.objectOf(ground)], [model, model]);
     const refusal = { type: 'error', code: 'PHYSICS_FAILED', message: '', fatal: false };
-    worker.onmessage({ data: { ...refusal, bodies: [soft, tile] } });
+    worker.onmessage({ data: { ...refusal, bodies: [soft, ground] } });
     worker.onmessage({ data: idleTick });
     assert.equal(session.stats.bodies, 0, 'both slots given back, their budget with them');
-    assert.deepEqual([session.objectOf(soft), session.objectOf(tile)], [null, null]);
+    assert.deepEqual([session.objectOf(soft), session.objectOf(ground)], [null, null]);
     // Its model moved: nothing refused is carried, nor made again.
     const carried: number[] = [];
     const { writer } = session;
