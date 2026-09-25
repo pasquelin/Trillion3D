@@ -12,7 +12,7 @@ import {
   UV_GRADIENTS_WGSL,
   VIS_UNIFORMS_WGSL,
 } from '../../visibility/shader/pageWgsl.ts';
-import { PAGE_GEOMETRY_WGSL } from '../../visibility/shader/pageGeometryWgsl.ts';
+import { PAGE_GEOMETRY_WGSL, PAGE_SCREEN_WGSL } from '../../visibility/shader/pageGeometryWgsl.ts';
 import { SMALL_BINDINGS } from '../../webgpu/core/bindLayout.ts';
 import { RASTER_TRI_WGSL } from './triWgsl.ts';
 import { COMPUTE_TAKES_WGSL } from './contract.ts';
@@ -61,6 +61,7 @@ fn pixelCount()->u32{return u32(uni.viewport.x)*u32(uni.viewport.y);}
 fn pageTransform(page:PageInfo)->mat4x4f{return uni.viewProj*page.world;}
 fn pageWinding(page:PageInfo)->f32{return determinant(mat3x3f(page.world[0].xyz,page.world[1].xyz,page.world[2].xyz));}
 ${PAGE_GEOMETRY_WGSL}
+${PAGE_SCREEN_WGSL}
 ${EDGE_WGSL}
 ${COMPUTE_TAKES_WGSL}
 ${MASK_KEEP_WGSL}

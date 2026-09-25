@@ -7,7 +7,7 @@ import {
   PAGE_INFO_STRUCT_WGSL,
   UV_GRADIENTS_WGSL,
 } from './pageWgsl.ts';
-import { PAGE_GEOMETRY_WGSL, PAGE_NORMAL_WGSL } from './pageGeometryWgsl.ts';
+import { PAGE_GEOMETRY_WGSL, PAGE_NORMAL_WGSL, PAGE_SCREEN_WGSL } from './pageGeometryWgsl.ts';
 import {
   COLOR_SAMPLE_WGSL,
   DATA_SAMPLE_WGSL,
@@ -41,6 +41,7 @@ ${tileDeclarations(SHADE_BINDINGS.data, 'data')}
 ${MATERIAL_CLASS_WGSL}
 ${TRIANGLE_PALETTE_WGSL}
 ${PAGE_GEOMETRY_WGSL}
+${PAGE_SCREEN_WGSL}
 fn vertN(base:u32,idx:u32)->vec3f{let i=(base+idx)*7u;return vec3f(normals[i],normals[i+1u],normals[i+2u]);}
 fn vertT(base:u32,idx:u32)->vec4f{let i=(base+idx)*7u+3u;return vec4f(normals[i],normals[i+1u],normals[i+2u],normals[i+3u]);}
 ${PAGE_NORMAL_WGSL}

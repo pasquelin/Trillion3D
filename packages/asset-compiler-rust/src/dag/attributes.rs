@@ -62,6 +62,8 @@ pub(super) struct Welds<'a> {
     exact: Vec<u32>,
     /// Empty without a texture set: no vertex is then on a seam.
     seams: Vec<bool>,
+    /// Per vertex, the extent of its part (`vanished::part_extents`).
+    extents: Vec<f64>,
     weighted: Vec<Attribute<'a>>,
     normals: Option<&'a [f32]>,
 }
@@ -76,6 +78,7 @@ impl<'a> Welds<'a> {
         });
         Self {
             exact: weld_exact(positions, attributes.carried, indices),
+            extents: super::vanished::part_extents(positions, indices, &weld),
             weld,
             weld_seam,
             seams,
@@ -100,6 +103,7 @@ impl<'a> Welds<'a> {
             weld: &self.weld,
             exact: &self.exact,
             weld_seam: self.weld_seam.as_deref().unwrap_or(&self.weld),
+            extents: &self.extents,
         }
     }
 }
