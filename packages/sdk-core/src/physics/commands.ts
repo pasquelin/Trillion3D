@@ -67,10 +67,10 @@ export class CommandWriter {
   }
   /** A command of whole words, then floats (the vehicles', `vehicleCommands.ts`), then bytes padded
    *  with zeros to whole words (a cooked shape's or soft body's Jolt binary state). */
-  put(words: readonly number[], floats: ArrayLike<number>, bytes?: Uint8Array) {
+  put(words: ArrayLike<number>, floats: ArrayLike<number>, bytes?: Uint8Array) {
     const padded = Math.ceil((bytes?.length ?? 0) / 4);
     this.reserve(words.length + floats.length + padded);
-    for (const word of words) this.words[this.length++] = word >>> 0;
+    for (let i = 0; i < words.length; i++) this.words[this.length++] = words[i] >>> 0;
     for (let i = 0; i < floats.length; i++) this.floats[this.length++] = floats[i];
     if (!bytes?.length) return;
     this.words[this.length + padded - 1] = 0;
