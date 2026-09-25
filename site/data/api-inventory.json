@@ -4197,6 +4197,7 @@
       "classification": "public",
       "affectedConsumers": [
         "packages/sdk-browser/src/physics/advancedJoints.test.ts",
+        "packages/sdk-browser/src/physics/advancedOptions.test.ts",
         "packages/sdk-browser/src/physics/damping.test.ts",
         "packages/sdk-browser/src/physics/gearPhase.test.ts",
         "packages/sdk-browser/src/physics/jointList.test.ts",
@@ -4268,7 +4269,7 @@
       "currentEntryPoints": ["trillion3d (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": [],
+      "affectedConsumers": ["packages/sdk-browser/src/physics/advancedOptions.test.ts"],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/physics/jointOptions\".JointOptions"
     },
