@@ -138,7 +138,8 @@ export function createCookedSoftBodies(
         const at = made.findIndex((body) => body.id === id);
         if (at < 0) continue;
         made.splice(at, 1);
-        return bodies.release(id & BODY_INDEX);
+        bodies.release(id & BODY_INDEX);
+        return;
       }
     },
   };
