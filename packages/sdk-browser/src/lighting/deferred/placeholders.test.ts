@@ -13,3 +13,10 @@ test('the empty shadow records fill the smallest ShadowData binding WGSL accepts
   const records = MAX_SHADOW_SLICES * SHADOW_RECORD_FLOATS * 4;
   assert.ok(slices.size >= Math.ceil((records + 4) / 16) * 16);
 });
+
+// #456: the stand-in is bound only beside the empty records, which name no light: nothing writes
+// it, and the half-megabyte request buffer of the atlas would be memory no budget counts.
+test('the unread request stand-in is one word, not a request buffer', () => {
+  const { device } = fakeDevice();
+  assert.equal(createDeferredPlaceholders(device).requests.size, 4);
+});
