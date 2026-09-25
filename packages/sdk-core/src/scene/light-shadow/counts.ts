@@ -3,10 +3,10 @@ import type { ShadowPool } from './pool.ts';
 import type { ShadowRecords } from './records.ts';
 
 /**
- * What the shadow scheduler did in a frame, in pages, never durations: pages staled, drawn, left
- * pending — 0 unless the frame could not encode its pages (`plan.reissue`) —, how long the oldest
- * stale page the image reads has waited for its draw, pages the image reads straight from the
- * cache, pages the pool holds. Everything is allocated once.
+ * What the shadow scheduler did in a frame, in pages: pages staled, drawn, left pending — 0 unless
+ * the frame could not encode its pages (`plan.reissue`) —, pages the image reads straight from the
+ * cache, pages the pool holds; and its one wait, in ms and frames, of the oldest stale page the
+ * image reads. Everything is allocated once.
  */
 export function createShadowCounts() {
   /** Frame (plus one) of the last page drawn for each slice's light. */
