@@ -1,8 +1,9 @@
 /**
- * Runs the `lineClip` text of a shader (`lineWgsl.ts`) on the CPU: a small reader of the few
- * statements and expressions it is written in — declarations, one early return, arithmetic on
- * scalars and vectors, swizzles, `select`, `?:`, `length` and the vector constructors. The tests
- * then measure what the real text does, in WGSL and in GLSL, instead of a copy of its formula.
+ * Runs a line function of a shader (`lineWgsl.ts`: `lineClip`, `lineDash`) on the CPU: a small
+ * reader of the few statements and expressions they are written in — declarations, one early
+ * return, arithmetic on scalars and vectors, swizzles, `select`, `?:`, `length`, `floor` and the
+ * vector constructors. The tests then measure what the real text does, in WGSL and in GLSL,
+ * instead of a copy of its formula.
  */
 type Value = number | number[] | boolean;
 
@@ -31,6 +32,7 @@ const AXES = 'xyzw';
 const CALLS: Record<string, (...args: Value[]) => Value> = {
   select: (a, b, c) => (c ? b : a),
   length: (v) => Math.hypot(...(v as number[])),
+  floor: (v) => Math.floor(v as number),
 };
 const vector = (...args: Value[]) => args.flat() as number[];
 
@@ -133,8 +135,9 @@ function topLevel(text: string) {
   return [...parts, text.slice(start)];
 }
 
-/** The `lineClip` of `source` as a function: clip position, clip direction, width, viewport. */
-export function runLineClip(source: string) {
+/** The function `source` declares, run on its arguments: `lineClip` returns a clip position,
+ *  `lineDash` whether the pixel is drawn. */
+export function runLineText<Result = number[]>(source: string) {
   const open = source.indexOf('{');
   const params = topLevel(source.slice(source.indexOf('(') + 1, source.indexOf(')')));
   const names = params.map((p) => p.trim().split(/[\s:]+/)[p.includes(':') ? 0 : 1]);
@@ -143,22 +146,22 @@ export function runLineClip(source: string) {
     .split(/;|\n/)
     .map((s) => s.trim())
     .filter((s) => s && s !== '}');
-  return (...args: Value[]): number[] => {
+  return (...args: Value[]): Result => {
     const scope: Record<string, Value> = {};
     names.forEach((name, i) => (scope[name] = args[i]));
     for (const statement of statements) {
       const guarded = statement.match(/^if\((.*)\)\{?return (.*?)\}?$/);
       if (guarded) {
-        if (evaluate(guarded[1], scope)) return evaluate(guarded[2], scope) as number[];
+        if (evaluate(guarded[1], scope)) return evaluate(guarded[2], scope) as Result;
         continue;
       }
-      if (statement.startsWith('return ')) return evaluate(statement.slice(7), scope) as number[];
+      if (statement.startsWith('return ')) return evaluate(statement.slice(7), scope) as Result;
       const declared = statement.replace(/^(let|var|float|vec[234])\s+/, '');
       for (const part of topLevel(declared)) {
         const [name, ...expression] = part.split('=');
         scope[name.trim()] = evaluate(expression.join('='), scope);
       }
     }
-    throw new Error('lineClip returned nothing');
+    throw new Error('the line function returned nothing');
   };
 }
