@@ -8,14 +8,13 @@ const top = (block: Block) => block.center[1] + block.size[1] / 2;
 
 test('each arcade plinth rests on the paving stone under it, centred on it', () => {
   const { blocks } = createObservatory();
-  const stones = blocks.filter((block) => block.size.every((side, i) => side === paving.size[i]));
+  const stones = blocks.filter((block) => block.size === paving.size);
   // A foot: a block narrower than a stone, over one, whose base reaches down to its top.
   const feet = blocks.flatMap((block) => {
     if (block.size[0] >= paving.size[0] || block.size[2] >= paving.size[2]) return [];
     const stone = stones.find((candidate) =>
       [0, 2].every(
-        (axis) =>
-          Math.abs(block.center[axis] - candidate.center[axis]) <= candidate.size[axis] / 2,
+        (axis) => Math.abs(block.center[axis] - candidate.center[axis]) <= candidate.size[axis] / 2,
       ),
     );
     return stone && bottom(block) <= top(stone) + 1e-9 && top(block) > top(stone)
