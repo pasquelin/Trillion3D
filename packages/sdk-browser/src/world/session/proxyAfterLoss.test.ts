@@ -79,3 +79,33 @@ test('a missing proxy is asked once, as a 404 another request would meet again',
   assert.deepEqual(fetched, [proxyUrl]);
   session.close();
 });
+
+test('a session reopened while the proxy is in flight joins that read, fetching it once', async () => {
+  const { metadata, fetched, asked, release } = await servedScene(0, { held: ['proxy.bin'] });
+  const pageCache = createPageCache();
+  const before = await openSession(metadata, pageCache);
+  const lost = before.context.readSceneProxy!();
+  await asked(proxyUrl);
+  before.close();
+  const after = await openSession(metadata, pageCache);
+  const relit = after.context.readSceneProxy!();
+  release('proxy.bin');
+  await Promise.all([lost, relit]);
+  assert.deepEqual(fetched, [proxyUrl]);
+  assert.equal(pageCache.keptBytes, metadata.proxy!.bytes);
+  after.close();
+});
+
+test('a proxy that lands after another scene was loaded is not kept', async () => {
+  const { metadata, asked, release } = await servedScene(0, { held: ['proxy.bin'] });
+  const pageCache = createPageCache();
+  const first = await openSession(metadata, pageCache);
+  const late = first.context.readSceneProxy!();
+  await asked(proxyUrl);
+  first.close();
+  const second = await openSession({ ...metadata, proxy: undefined }, pageCache);
+  release('proxy.bin');
+  await late;
+  assert.equal(pageCache.keptBytes, 0, "the first scene's proxy does not come back");
+  second.close();
+});

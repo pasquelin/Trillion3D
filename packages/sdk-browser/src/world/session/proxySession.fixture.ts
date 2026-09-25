@@ -17,7 +17,8 @@ const page = new Uint8Array([1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0]);
 /**
  * A scene of `pages` 12-byte pages and a proxy of `triangles` triangles and no node, served under
  * any root by a `fetch` that records every url it is asked: a file `held` names is answered once
- * `release(file)` is called, one `missing` names by a 404. `asked(url)` settles once it is asked.
+ * `release(file)` is called, and at once after, one `missing` names by a 404. `asked(url)` settles
+ * once it is asked.
  */
 export async function servedScene(
   pages: number,
@@ -43,7 +44,8 @@ export async function servedScene(
   const served = new Map<string, Uint8Array>(urls.map((url) => [url, page]));
   served.set('proxy.bin', new Uint8Array(words.buffer));
   const fetched: string[] = [],
-    released = new Map<string, () => void>(),
+    released = new Map<string, Array<() => void>>(),
+    freed = new Set<string>(),
     heard = new Map<string, Array<() => void>>();
   const asked = (url: string) =>
     fetched.includes(url)
@@ -54,11 +56,17 @@ export async function servedScene(
       file = url.slice(url.lastIndexOf('/') + 1);
     fetched.push(url);
     for (const resolve of heard.get(url) ?? []) resolve();
-    if (held.includes(file)) await new Promise<void>((resolve) => released.set(file, resolve));
+    if (held.includes(file) && !freed.has(file))
+      await new Promise<void>((resolve) =>
+        released.set(file, [...(released.get(file) ?? []), resolve]),
+      );
     if (missing.includes(file)) return new Response(null, { status: 404 });
     return new Response(served.get(file)!.slice(), { status: 200 });
   };
-  const release = (file: string) => released.get(file)?.();
+  const release = (file: string) => {
+    freed.add(file);
+    for (const resolve of released.get(file) ?? []) resolve();
+  };
   return { metadata, urls, fetched, asked, release };
 }
 
