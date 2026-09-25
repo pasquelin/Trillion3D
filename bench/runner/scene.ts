@@ -15,6 +15,8 @@ export const DEFAULT_SCENE = 'sponza';
 
 /** The fluids scene (`fluids.ts`): built in the page through the public API, it has no cache. */
 export const FLUIDS_SCENE = 'fluids';
+/** Whether a scene reads a compiled cache. */
+export const readsCache = (scene: string) => scene !== FLUIDS_SCENE;
 
 /** The scenes the campaign plays, in this order, as soon as their cache is there. */
 export const REFERENCE_SCENES = ['sponza', 'normal-tangent-mirror-test'];
@@ -47,14 +49,16 @@ export function scenesOf(flags: Map<string, string>, assets: string = ASSETS) {
 /** `--scene nom` sets the assets cache on each side that does not have its own. */
 export function applySceneFlag(flags: Map<string, string>, assets: string = ASSETS) {
   const scene = flags.get('scene');
-  if (!scene || scene === 'true' || scene === FLUIDS_SCENE) return;
+  if (!scene || scene === 'true' || !readsCache(scene)) return;
   const derived = sceneDerived(scene, assets);
   if (!flags.has('cache-apres')) flags.set('cache-apres', derived);
   if (flags.has('avant') && !flags.has('cache-avant')) flags.set('cache-avant', derived);
 }
 
-/** Scene name of a side, inferred from the cache: the "derived" folder carries `<name>-derived`. */
-export function sceneOf(cache: string | undefined) {
+/** Scene name of a side, inferred from the cache: the "derived" folder carries `<name>-derived`.
+ *  `named`, the `--scene` flag, names a scene that reads no cache. */
+export function sceneOf(cache: string | undefined, named?: string) {
+  if (named && !readsCache(named)) return named;
   if (!cache) return DEFAULT_SCENE;
   const name = basename(resolve(cache));
   return name.endsWith('-derived') ? name.slice(0, -'-derived'.length) : name;
@@ -62,7 +66,8 @@ export function sceneOf(cache: string | undefined) {
 
 /** Manifest URL of an assets scene cache. Required only if a side reads it. */
 export function assetsManifest(scene: string, needed: boolean) {
-  if (needed && !cachePret(scene, ASSETS)) throw new Error(`cache absent : ${sceneDerived(scene)}`);
+  if (needed && readsCache(scene) && !cachePret(scene, ASSETS))
+    throw new Error(`cache absent : ${sceneDerived(scene)}`);
   return `/benchmark-assets/${scene}-derived/native/full/manifest.json`;
 }
 
