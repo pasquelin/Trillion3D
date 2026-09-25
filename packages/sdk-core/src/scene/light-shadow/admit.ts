@@ -9,8 +9,6 @@ const LIGHT_VIEWS = 4096;
  *  pages of one view share one caster selection. */
 const viewKeyOf = (pool: ShadowPool, page: number) =>
   pool.slice[page] * LIGHT_VIEWS + pool.view[page];
-/** The span of view keys, a sun level negative or not. */
-const VIEW_KEYS = 2 * MAX_SHADOW_SLICES * LIGHT_VIEWS;
 /** The most frames a page's age counts: past any bound a frame of one-page batches reaches. Its
  *  heaviest sort key, of the largest pool (4 096 pages), stays exact: under 2^53. */
 const MAX_AGE = 4095;
@@ -52,8 +50,9 @@ export function createShadowAdmission(poolPages: number) {
     keys = new Int32Array(poolPages),
     /** One exact sort key per admitted page: its age, then its view, then the page. */
     order = new Float64Array(poolPages),
-    /** A sort key's weight of one frame of age: a multiple of the pool's pages, past any view. */
-    ageWeight = poolPages * VIEW_KEYS;
+    /** A sort key's weight of one frame of age: a multiple of the pool's pages, past the span of
+     *  view keys, a sun level negative or not. */
+    ageWeight = poolPages * 2 * MAX_SHADOW_SLICES * LIGHT_VIEWS;
   let count = 0,
     /** The last frame left pages pending: the next list puts the oldest first. */
     waiting = false;
