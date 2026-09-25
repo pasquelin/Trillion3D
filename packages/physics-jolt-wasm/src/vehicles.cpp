@@ -23,7 +23,7 @@ namespace {
 
 enum Kind : uint32_t { CAR, MOTORCYCLE, TRACKED };
 enum Role : uint32_t { STEERS = 1, DRIVEN = 2, HANDBRAKE = 4, SPROCKET = 8 };
-constexpr uint32_t TORQUE_POINTS = 5, MAX_GEARS = 6, WHEEL_WORDS = 6, STATE_WORDS = 5;
+constexpr uint32_t TORQUE_POINTS = 5, MAX_GEARS = 6, WHEEL_WORDS = 6;
 /// The engine's objects face −z, up +y: so do its vehicles, in their body's frame.
 const Vec3 FORWARD(0, 0, -1), UP(0, 1, 0), RIGHT(1, 0, 0);
 /// Brakes are sized on Earth, whatever the world's gravity (vehicleSpec.ts BRAKES), m/s².
@@ -216,7 +216,7 @@ void add(const uint32_t *w) {
 /// Hands the driver's input to the controller: the brake pedal backs a vehicle up once it stands
 /// still, the accelerator brakes one rolling back first, and a steered tracked vehicle slows its
 /// inner track, or turns on the spot at a standstill (Jolt's vehicle samples).
-void steer(Vehicle &v, float dt) {
+void applyInput(Vehicle &v, float dt) {
   const Body &body = *v.constraint->GetVehicleBody();
   float speed = (body.GetRotation().Conjugated() * body.GetLinearVelocity()).Dot(FORWARD);
   float turn = dt * v.steerRate;
@@ -272,7 +272,7 @@ void driveVehicles(float dt) {
   BodyInterface &bodies = world().system->GetBodyInterfaceNoLock();
   for (Vehicle &vehicle : vehicles) {
     if (!vehicle.constraint) continue;
-    steer(vehicle, dt);
+    applyInput(vehicle, dt);
     // A vehicle driven, or whose wheel still turns back, stays awake.
     if (vehicle.throttle > 0 || vehicle.brake > 0 || vehicle.handbrake > 0 || vehicle.steered != 0)
       bodies.ActivateBody(vehicle.constraint->GetVehicleBody()->GetID());
