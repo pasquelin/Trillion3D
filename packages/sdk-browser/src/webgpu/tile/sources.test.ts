@@ -85,15 +85,7 @@ test('a hosted texture is reduced weighted only when every reader takes it for c
   } as unknown as WebgpuTileAtlas;
   // One device per texture: the reduction pipeline it builds says the rule that texture took.
   const ruleOf = (slot: number) => {
-    const { device } = mockGpu();
-    const rules: unknown[] = [];
-    const create = device.createRenderPipeline.bind(device);
-    Object.assign(device, {
-      createRenderPipeline: (descriptor: GPURenderPipelineDescriptor) => {
-        rules.push(descriptor.fragment?.constants?.weighted);
-        return create(descriptor);
-      },
-    });
+    const { device, pipelines } = mockGpu();
     const sources = createTileSources({
       device,
       encoding,
@@ -104,7 +96,7 @@ test('a hosted texture is reduced weighted only when every reader takes it for c
       device.createCommandEncoder(),
     );
     assert.equal(served, 'served');
-    return rules;
+    return pipelines.map((pipeline) => pipeline.fragment?.constants?.weighted);
   };
   assert.deepEqual(
     census.maps.map((_, index) => ruleOf(index + 1)),

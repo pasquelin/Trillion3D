@@ -41,7 +41,7 @@ const programs = new WeakMap<GPUDevice, MipProgram>();
  * Sorted decreasing, the median is the mean of the two middle values: `u` is the second, `v` the
  * third, six comparisons with neither a sort nor a branch.
  *
- * Under `weighted` (`weighsColourByAlpha`), four texels whose alphas differ average their colours
+ * Under `weighted`, four texels whose alphas differ average their colours
  * weighted by alpha, and `select` keeps the plain mean everywhere else, byte for byte: the rule the
  * compiler bakes, and its reasons (`packages/asset-compiler-rust/src/texture_preview/reduce.rs`,
  * `halve`, #42).
@@ -65,16 +65,6 @@ const MIP_SHADER = `
   return vec4f(select(mean.rgb,premultiplied,weighted&&any(a!=vec4f(s0.w))),(u+v)*0.5);
  }`;
 
-/**
- * Whether a reduction weighs colours by alpha: only for a texture every reader of which takes its
- * alpha for coverage, as the compiler's `AtlasKind::Coverage` — any other reader draws the RGB
- * under alpha 0, which weighting would change —, and only while its texels hold straight alpha: a
- * texture uploaded premultiplied already carries the weight, and weighing it again would darken it.
- */
-export function weighsColourByAlpha(coverage: boolean, premultiplied: boolean) {
-  return coverage && !premultiplied;
-}
-
 function mipProgram(device: GPUDevice): MipProgram {
   const held = programs.get(device);
   if (held) return held;
@@ -94,16 +84,13 @@ function mipProgram(device: GPUDevice): MipProgram {
   return built;
 }
 
-function mipPipeline(
-  program: MipProgram,
-  device: GPUDevice,
-  format: GPUTextureFormat,
-  weighted: boolean,
-) {
+/** The bind group layout and the pipeline of one format and one colour rule. */
+function mipPipeline(device: GPUDevice, format: GPUTextureFormat, weighted: boolean) {
+  const program = mipProgram(device);
+  const { layout, module } = program;
   const key = `${format}${weighted ? ' weighted' : ''}`;
   const held = program.pipelines.get(key);
-  if (held) return held;
-  const { module } = program;
+  if (held) return { layout, pipeline: held };
   const pipeline = device.createRenderPipeline({
     layout: program.pipelineLayout,
     vertex: { module, entryPoint: 'vs' },
@@ -116,7 +103,7 @@ function mipPipeline(
     primitive: { topology: 'triangle-list' },
   });
   program.pipelines.set(key, pipeline);
-  return pipeline;
+  return { layout, pipeline };
 }
 
 /**
@@ -143,8 +130,9 @@ function mipUniforms(device: GPUDevice, size: number) {
   return buffer;
 }
 
-/** Generates the mip chain of a 2D texture: averaged colour — weighted by alpha when `weighted`
- * (`weighsColourByAlpha`) —, median alpha so that threshold coverage survives every level.
+/** Generates the mip chain of a 2D texture: averaged colour — weighted by alpha when `weighted`,
+ * for a texture every reader takes for coverage, in straight alpha (`../webgpu/tile/scratch.ts`) —,
+ * median alpha so that threshold coverage survives every level.
  * Commands are submitted without being awaited: the device queue runs them in order, therefore
  * before any copy that will read a level. */
 export function generateMaterialMips(
@@ -158,9 +146,7 @@ export function generateMaterialMips(
   const levels = mipLevelCountFor(width, height);
   if (levels === 1) return;
   const shared = sharedGpuDevice(device);
-  const program = mipProgram(shared);
-  const { layout } = program;
-  const pipeline = mipPipeline(program, shared, format, weighted);
+  const { layout, pipeline } = mipPipeline(shared, format, weighted);
   const stride = Math.max(256, device.limits.minUniformBufferOffsetAlignment ?? 256);
   // One uniform per reduced level: the extent of the source level, so as not to read off the image.
   const packed = new Uint32Array(((levels - 1) * stride) / 4);

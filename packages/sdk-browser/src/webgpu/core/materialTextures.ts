@@ -30,11 +30,12 @@ export function collectWebgpuMaterialTextures(
   const seen = new Set<PageSurface>();
   const addColor = adder(mapLayer, maps);
   const addData = adder(dataLayer, dataMaps);
-  const readsCoverage = new Map<Texture, boolean>();
+  /** Per colour texture, whether every reader so far takes its alpha for coverage. */
+  const coverage = new Map<Texture, boolean>();
   const readColor = (texture: Texture | undefined, asCoverage: boolean) => {
     if (!texture) return;
     addColor(texture);
-    readsCoverage.set(texture, (readsCoverage.get(texture) ?? true) && asCoverage);
+    coverage.set(texture, (coverage.get(texture) ?? true) && asCoverage);
   };
   const collect = (mat: PageSurface) => {
     if (seen.has(mat)) return;
@@ -48,6 +49,5 @@ export function collectWebgpuMaterialTextures(
   };
   for (const rec of allPages) collect(rec.material);
   for (const copy of blendCopies) collect(copy.surface);
-  const coverage = new Set(maps.filter((texture) => readsCoverage.get(texture)));
-  return { maps, dataMaps, coverage };
+  return { maps, dataMaps, coverage: coverage as ReadonlyMap<Texture, boolean> };
 }

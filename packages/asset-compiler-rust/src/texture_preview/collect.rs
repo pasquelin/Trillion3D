@@ -59,12 +59,12 @@ impl Role {
             Self::Occlusion => material.get("occlusionTexture"),
         }
     }
-    /// The chain the role asks for: a colour role whose alpha the shader reads —
+    /// The chain the role asks for: the one role whose alpha the shader reads —
     /// the base colour of a MASK or BLEND material, `channels` says it — takes
     /// that alpha for coverage.
     fn kind(self, opaque: bool) -> AtlasKind {
         match self {
-            Self::BaseColor | Self::Emissive if self.channels(opaque)[3] => AtlasKind::Coverage,
+            Self::BaseColor if self.channels(opaque)[3] => AtlasKind::Coverage,
             Self::BaseColor | Self::Emissive => AtlasKind::Color,
             _ => AtlasKind::Data,
         }

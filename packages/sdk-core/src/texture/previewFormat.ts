@@ -44,6 +44,9 @@ export const PREVIEW_ATLAS_COLOR = 0,
   PREVIEW_ATLAS_COVERAGE = 2;
 /** The `{kind}` a baked level's path carries for each atlas, as `bake.rs` names them. */
 export const PREVIEW_ATLAS_NAMES = ['srgb', 'linear', 'srgb-coverage'] as const;
+/** The atlas an entry's chain is sampled in: a coverage chain is the colour atlas's. */
+export const previewAtlasOf = (atlas: number) =>
+  atlas === PREVIEW_ATLAS_COVERAGE ? PREVIEW_ATLAS_COLOR : atlas;
 /** The block families a chain may be baked in, in the order of their sidecar columns and of an
  *  entry's layout words, each named by its RGBA codec; `png` is the lossless file beside them. */
 export const PREVIEW_BLOCK_FORMATS = ['bc7', 'astc'] as const;

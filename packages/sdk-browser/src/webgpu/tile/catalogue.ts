@@ -1,7 +1,6 @@
 import type { Texture } from '../../../../sdk-core/src/index.ts';
 import {
-  PREVIEW_ATLAS_COLOR,
-  PREVIEW_ATLAS_DATA,
+  previewAtlasOf,
   previewIsWhole,
   type TexturePreview,
 } from '../../../../sdk-core/src/index.ts';
@@ -19,11 +18,9 @@ import type { TileTexture } from './atlas.ts';
  */
 export function previewsByAtlas(previews: readonly TexturePreview[]) {
   const filed = new Map<string, TexturePreview>();
-  for (const preview of previews) {
-    const atlas = preview.atlas === PREVIEW_ATLAS_DATA ? PREVIEW_ATLAS_DATA : PREVIEW_ATLAS_COLOR;
-    filed.set(`${preview.texture}/${atlas}`, preview);
-  }
-  return filed;
+  for (const preview of previews)
+    filed.set(`${preview.texture}/${previewAtlasOf(preview.atlas)}`, preview);
+  return (texture: number, atlas: number) => filed.get(`${texture}/${atlas}`);
 }
 
 /**
@@ -47,7 +44,7 @@ export function tileCatalogue(
   previewFor: (index: number) => TexturePreview | undefined,
   readLevel: TextureLevelReader | undefined,
   encoding: PoolEncoding,
-  coverage: ReadonlySet<Texture> = new Set(),
+  coverage: ReadonlyMap<Texture, boolean> = new Map(),
 ): TileTexture[] {
   const textures = maps.map((map, index): TileTexture => {
     const preview = previewFor(index);
@@ -74,7 +71,7 @@ export function tileCatalogue(
       layout: tileLayout(width, height),
       texture: map,
       lane: 'lossless',
-      source: { kind: 'host', map, coverage: coverage.has(map) },
+      source: { kind: 'host', map, coverage: coverage.get(map) ?? false },
     };
   });
   // The fill takes a lane the textures already open, so its one texel costs no layer of its
