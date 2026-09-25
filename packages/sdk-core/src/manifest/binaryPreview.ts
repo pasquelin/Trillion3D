@@ -52,7 +52,7 @@ export function checkEntryHeader(
   firstLevel: number,
 ) {
   const { texture, atlas, width, height, bakedLevels } = header;
-  if (!Number.isInteger(atlas) || atlas < 0 || atlas >= format.PREVIEW_ATLAS_NAMES.length)
+  if (format.PREVIEW_ATLAS_NAMES[atlas] === undefined)
     throw new EngineError('INVALID_CACHE', 'A texture preview names an unknown atlas', {
       entry,
       atlas,
