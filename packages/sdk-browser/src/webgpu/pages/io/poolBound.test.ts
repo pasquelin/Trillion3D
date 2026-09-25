@@ -32,14 +32,14 @@ async function stream(
   each: (metrics: ReturnType<typeof backend.metrics>) => void,
 ) {
   let before = -1,
-    resident = backend.metrics().residentPages;
+    resident = backend.metrics().residentPages ?? 0;
   for (let round = 0; round < 8 && resident !== before; round++) {
     before = resident;
     backend.render(camera());
     const metrics = backend.metrics();
     each(metrics);
-    resident = metrics.residentPages;
-    await backend.flush();
+    resident = metrics.residentPages ?? 0;
+    await backend.flush!();
   }
   return resident;
 }
@@ -47,7 +47,7 @@ async function stream(
 /** What an image holds is under the budget, or the budget is under the root cover and the pool
  *  holds that cover alone, by name. */
 function assertBounded(budget: number, floor: number) {
-  return (metrics: { geometryAllocationBytes: number | null; geometryPoolClamp: unknown }) => {
+  return (metrics: { geometryAllocationBytes?: number | null; geometryPoolClamp?: unknown }) => {
     const held = metrics.geometryAllocationBytes!;
     if (budget >= floor) assert.ok(held <= budget, `${held} bytes held under a ${budget} budget`);
     else assert.deepEqual([held, metrics.geometryPoolClamp], [floor, 'root-cover']);
