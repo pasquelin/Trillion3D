@@ -3,6 +3,7 @@ import { hizRejectsFlat } from './occlusion.ts';
 import { boundsFor, projectBoxesFlat } from './projection.ts';
 import { createHizCounts, hizOversizedFlat, resetHizCounts, type HizCounts } from './counts.ts';
 import type { HizPage, HizPyramid } from './types.ts';
+import { neverCulled } from '../visibility/shader/spriteWgsl.ts';
 import type { EngineCamera } from '../camera/world.ts';
 
 /** Counts nobody reads: what `filterUnoccluded` hands `countUnoccluded` when only the cut matters. */
@@ -45,7 +46,8 @@ export function countUnoccluded<T extends HizPage & { array?: ArrayLike<number> 
       counts.oversized++;
       counts.oversizedTriangles += triangles;
     }
-    if (hizRejectsFlat(pyramid, bounds, base, bias)) {
+    // A page never culled has no world bound its quad keeps to: no pyramid rejects it.
+    if (!neverCulled(page.material) && hizRejectsFlat(pyramid, bounds, base, bias)) {
       counts.rejected++;
       counts.rejectedTriangles += triangles;
       continue;

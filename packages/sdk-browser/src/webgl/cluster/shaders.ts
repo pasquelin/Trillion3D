@@ -5,6 +5,7 @@ import { PROBE_IRRADIANCE_GLSL } from './probe.ts';
 import { INVERSE_PI, PI, ROUGHNESS_FLOOR } from '../../lighting/shaderConstants.ts';
 import { FOG_GLSL } from '../../lighting/fogShader.ts';
 import { LINE_CLIP_GLSL, LINE_DASH_GLSL } from '../../visibility/shader/lineWgsl.ts';
+import { SPRITE_GLSL } from '../../visibility/shader/spriteWgsl.ts';
 
 // An instanced mesh places each copy by its own matrix before the mesh's: the position first,
 // then the normal, scaled back by the matrix's axes before it is turned — the reference's order.
@@ -14,13 +15,16 @@ import { LINE_CLIP_GLSL, LINE_DASH_GLSL } from '../../visibility/shader/lineWgsl
 // rounds a negated product-sum otherwise, and the flat normals its derivatives give move by an ulp.
 // A line surface (`lineWidth` above zero) widens its quads on screen after the projection
 // (`lineClip`, `../../visibility/shader/lineWgsl.ts`), along the direction its normal carries.
+// A sprite surface (`sprite.y` not zero) turns its quad to face the camera in view space
+// (`spriteAt`, `../../visibility/shader/spriteWgsl.ts`), about the origin of its placement.
 export const CLUSTER_VERTEX = `#version 300 es
 precision highp float;
 in vec3 position;in vec3 normal;in vec2 uv;in vec2 uv1;in vec4 color;in mat4 instanceMatrix;
 uniform mat4 modelViewMatrix,projectionMatrix;uniform mat3 normalMatrix;uniform bool instanced;
-uniform float lineWidth,pixelRatio;uniform vec2 viewport;
+uniform float lineWidth,pixelRatio;uniform vec2 viewport,sprite;
 out vec3 toEye;out vec3 viewNormal;out vec2 texcoord0;out vec2 texcoord1;out vec4 vertexColor;
 ${LINE_CLIP_GLSL}
+${SPRITE_GLSL}
 void main(){vec4 view;vec3 objectNormal=normal;
 if(instanced){view=modelViewMatrix*(instanceMatrix*vec4(position,1.0));mat3 im=mat3(instanceMatrix);
 objectNormal/=vec3(dot(im[0],im[0]),dot(im[1],im[1]),dot(im[2],im[2]));objectNormal=im*objectNormal;}
@@ -28,7 +32,9 @@ else view=modelViewMatrix*vec4(position,1.0);toEye=-view.xyz;
 viewNormal=normalize(normalMatrix*objectNormal);
 texcoord0=uv;texcoord1=uv1;vertexColor=color;gl_Position=projectionMatrix*view;
 if(lineWidth>0.0){vec4 along=instanced?instanceMatrix*vec4(normal,0.0):vec4(normal,0.0);
-gl_Position=lineClip(gl_Position,projectionMatrix*(modelViewMatrix*along),lineWidth,viewport,pixelRatio);}}`;
+gl_Position=lineClip(gl_Position,projectionMatrix*(modelViewMatrix*along),lineWidth,viewport,pixelRatio);}
+if(sprite.y!=0.0){view=spriteAt(projectionMatrix,instanced?modelViewMatrix*instanceMatrix:modelViewMatrix,position.xy,sprite);
+toEye=-view.xyz;gl_Position=projectionMatrix*view;}}`;
 
 // The view vector reads the camera as one homogeneous point (`EngineCamera.viewPoint`), in view
 // space: the origin under a perspective projection, +z under an orthographic one — its weight p
