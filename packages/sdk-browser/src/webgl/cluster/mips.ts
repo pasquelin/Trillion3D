@@ -43,9 +43,9 @@ function buildReducer(gl: WebGL2RenderingContext) {
 }
 
 /**
- * WebGL2 material mips (#42), not `generateMipmap`'s box: one draw per level from a scratch copy of
- * the level above — #709 sampled the texture it drew into, a loop the browser refused, and left
- * every level empty (alpha 0). A format no framebuffer holds (asked once) keeps the box chain.
+ * WebGL2 material mips (#42), drawn over `generateMipmap`'s box: one draw per level from a scratch
+ * copy of the level above — #709 sampled the texture it drew into, a loop the browser refused, and
+ * left every level empty (alpha 0). A format no framebuffer holds (asked once) keeps the box chain.
  * sRGB is read decoded, written encoded; the state touched is restored, so it runs mid-pass.
  */
 export class WebglMipReducer {
@@ -53,29 +53,31 @@ export class WebglMipReducer {
   private built: ReturnType<typeof buildReducer> | undefined;
   /** Per format, whether a framebuffer holds its levels. */
   private drawable = new Map<number, boolean>();
-  /** The copy of the level above: kept while a chain is refilled in place — a live picture —,
-   *  returned after any other reduction. */
-  private scratch: { key: string; texture: WebGLTexture } | undefined;
-  private drop() {
-    if (this.scratch) this.gl.deleteTexture(this.scratch.texture);
-    this.scratch = undefined;
+  /** Per format, the copy of the level above, at the largest size seen (`extent` clamps): kept
+   *  while a chain is refilled in place — a live picture —, returned after any other reduction. */
+  private scratches = new Map<number, { texture: WebGLTexture; width: number; height: number }>();
+  private drop(format?: number) {
+    for (const [held, { texture }] of this.scratches)
+      if (format === undefined || held === format) {
+        this.gl.deleteTexture(texture);
+        this.scratches.delete(held);
+      }
   }
   constructor(gl: WebGL2RenderingContext) {
     this.gl = gl;
   }
   /** Builds levels 1… of `chain.texture`, bound on the active `unit`'s TEXTURE_2D, each from the
-   *  one above, `weighted` or not; `allocate` first gives them storage (a new size or chain), and
-   *  `release` returns the scratch — kept only for a picture refilled in place. */
+   *  one above, `weighted` or not; `allocate`: a new size or chain, and `release` returns the
+   *  scratch — kept only for a picture refilled in place. */
   reduce(unit: number, chain: Chain, weighted: boolean, allocate: boolean, release = allocate) {
     const gl = this.gl,
       { texture, format, width, height } = chain;
     const levels = mipLevelCountFor(width, height);
     if (levels === 1) return;
-    const store = (level: number, [w, h]: [number, number]) =>
-      gl.texImage2D(gl.TEXTURE_2D, level, format, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
-    if (this.drawable.get(format) === false) return gl.generateMipmap(gl.TEXTURE_2D);
-    for (let level = 1; allocate && level < levels; level++)
-      store(level, levelSize(width, height, level));
+    // A new chain is first the box chain, at the sizes GL derives from level 0: complete, so its
+    // levels attach, and what stays wherever a draw below is refused — never an empty level.
+    if (allocate || this.drawable.get(format) === false) gl.generateMipmap(gl.TEXTURE_2D);
+    if (this.drawable.get(format) === false) return;
     const built = (this.built ??= buildReducer(gl));
     const saved = {
       program: gl.getParameter(gl.CURRENT_PROGRAM) as WebGLProgram | null,
@@ -86,12 +88,16 @@ export class WebglMipReducer {
       mask: gl.getParameter(gl.COLOR_WRITEMASK) as boolean[],
       toggles: FULLSCREEN_DISABLED.map((name) => gl.isEnabled(gl[name])),
     };
-    const key = `${format}/${width}/${height}`,
-      fresh = this.scratch?.key !== key;
-    if (fresh) this.drop();
-    gl.bindTexture(gl.TEXTURE_2D, (this.scratch ??= { key, texture: gl.createTexture()! }).texture);
-    if (fresh) store(0, [width, height]);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    let scratch = this.scratches.get(format);
+    if (!scratch || scratch.width < width || scratch.height < height) {
+      const w = Math.max(width, scratch?.width ?? 0),
+        h = Math.max(height, scratch?.height ?? 0);
+      this.drop(format);
+      this.scratches.set(format, (scratch = { texture: gl.createTexture()!, width: w, height: h }));
+      gl.bindTexture(gl.TEXTURE_2D, scratch.texture);
+      gl.texImage2D(gl.TEXTURE_2D, 0, format, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    } else gl.bindTexture(gl.TEXTURE_2D, scratch.texture);
     setFullscreenPassState(gl);
     gl.useProgram(built.program);
     gl.uniform1i(built.source, unit);
@@ -99,25 +105,26 @@ export class WebglMipReducer {
     gl.bindVertexArray(built.vertexArray);
     gl.bindFramebuffer(gl.READ_FRAMEBUFFER, built.read);
     gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, built.draw);
-    const attach = (target: number, level: number, image: WebGLTexture | null = texture) =>
-      gl.framebufferTexture2D(target, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, image, level);
-    let drawn = true;
-    for (let level = 1; level < levels; level++) {
+    /** Level `level` read, the one below it drawn. */
+    const attach = (level: number, image: WebGLTexture | null = texture) =>
+      [gl.READ_FRAMEBUFFER, gl.DRAW_FRAMEBUFFER].forEach((target, below) =>
+        gl.framebufferTexture2D(target, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, image, level + below),
+      );
+    attach(0);
+    const drawable = this.drawable.get(format) ?? this.check(format);
+    for (let level = 1; drawable && level < levels; level++) {
       const [sw, sh] = levelSize(width, height, level - 1),
         [w, h] = levelSize(width, height, level);
-      attach(gl.READ_FRAMEBUFFER, level - 1);
-      attach(gl.DRAW_FRAMEBUFFER, level);
-      if (!(drawn = this.drawable.get(format) ?? this.check(format))) break;
+      attach(level - 1);
       gl.copyTexSubImage2D(gl.TEXTURE_2D, 0, 0, 0, 0, 0, sw, sh);
       gl.uniform2i(built.extent, sw, sh);
       gl.viewport(0, 0, w, h);
       gl.drawArrays(gl.TRIANGLES, 0, 3);
     }
-    attach(gl.READ_FRAMEBUFFER, 0, null);
-    attach(gl.DRAW_FRAMEBUFFER, 0, null);
+    attach(0, null);
     gl.bindTexture(gl.TEXTURE_2D, texture);
-    if (release) this.drop();
-    if (!drawn) gl.generateMipmap(gl.TEXTURE_2D);
+    if (release) this.drop(format);
+    if (!drawable && !allocate) gl.generateMipmap(gl.TEXTURE_2D);
     gl.bindFramebuffer(gl.READ_FRAMEBUFFER, saved.read);
     gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, saved.draw);
     gl.bindVertexArray(saved.vertexArray);
