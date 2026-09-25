@@ -1,7 +1,8 @@
 // #42: a hosted colour texture's chain follows its readers' coverage rule after prepare. A host
 // that switches a surface from masked to opaque sees the texture reduced again, plain, and copied
 // into its places at the next image's follow — signalled as a landed tile, its working texture
-// returned —, with no new prepare; a still rule reduces nothing.
+// returned —, with no new prepare; a still rule reduces nothing, and a picture that moves in the
+// same image is reduced once.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createWebgpuTileStreamer } from './streamer.ts';
@@ -9,13 +10,13 @@ import { tileCatalogue } from './catalogue.ts';
 import { poolEncoding } from '../../texture/blockFormats.ts';
 import { CoverageReaders } from '../../texture/coverage.ts';
 import { surfaceOf } from '../../page/surface.ts';
-import { importHostTexture } from '../../host/textureImport.ts';
+import { hostTextureWritten, importHostTexture } from '../../host/textureImport.ts';
 import type { HostTexture } from '../../host/resources.ts';
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
 import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts';
 import * as G from '../../host/graph/graph.fixture.ts';
 
-test('a surface switched from masked to opaque after prepare reduces its hosted map again', () => {
+test('a surface switched from masked to opaque after prepare reduces its hosted map again', async () => {
   installGpuGlobals();
   const host = G.dataTexture(new Uint8Array(4 * 4 * 4), 4, 4);
   host.generateMipmaps = true;
@@ -56,6 +57,12 @@ test('a surface switched from masked to opaque after prepare reduces its hosted 
   );
   textures.followSampling();
   assert.equal(scratches().length, 2, 'once');
+  material.alphaTest = 0.5;
+  host.needsUpdate = true;
+  hostTextureWritten();
+  await Promise.resolve();
+  textures.followSampling();
+  assert.equal(scratches().length, 3, 'reduced once, by its new picture, never twice');
   textures.destroy();
   material.dispose();
 });

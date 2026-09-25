@@ -59,7 +59,16 @@ export class WebglClusterTextures {
         this.anisotropy.MAX_TEXTURE_MAX_ANISOTROPY_EXT,
       ) as number;
   }
-  bind(unit: number, texture?: Texture, color = false, fallback = [255, 255, 255, 255]) {
+  /** Binds `texture` on `unit`, decoded from sRGB when `color`; `reader`: a colour map (base or
+   *  emissive), whose chain follows its readers' coverage rule (#42) — held apart from a data
+   *  binding of the same texture, as the WebGPU colour and data atlases hold it. */
+  bind(
+    unit: number,
+    texture?: Texture,
+    color = false,
+    fallback = [255, 255, 255, 255],
+    reader = color,
+  ) {
     const gl = this.gl;
     if (!texture) {
       const key = fallback.join(',');
@@ -91,18 +100,18 @@ export class WebglClusterTextures {
     }
     // Brought up to its host at this bind, then uploaded or set again by its counters.
     followHostTexture(texture);
-    const key = `${texture.id}:${color ? 'srgb' : 'linear'}`;
+    const key = `${texture.id}:${color ? 'srgb' : 'linear'}${reader ? ':map' : ''}`,
+      weighted = reader && this.readers.weighs(texture);
     let record = this.records.get(key);
     if (!record || record.version !== texture.version) {
-      record = this.upload(unit, texture, color, record);
+      record = this.upload(unit, texture, color, weighted, record);
       this.records.set(key, record);
     } else {
       if (this.bound[unit] !== record.texture) {
         gl.activeTexture(gl.TEXTURE0 + unit);
         gl.bindTexture(gl.TEXTURE_2D, record.texture);
       }
-      const weighted = color && this.readers.weighs(texture),
-        sampling = record.sampling !== texture.sampling,
+      const sampling = record.sampling !== texture.sampling,
         rule = record.weighted !== undefined && record.weighted !== weighted;
       // `setSampler` and the chain write the texture bound on the ACTIVE unit: select it even
       // when the texture is already bound there, or they land on another unit's texture.
@@ -111,7 +120,7 @@ export class WebglClusterTextures {
         record.sampling = texture.sampling;
         this.setSampler(texture);
       }
-      if (rule) this.mips.reduce(unit, record, weighted, false);
+      if (rule) this.mips.reduce(unit, record, (record.weighted = weighted), false);
     }
     this.bound[unit] = record.texture;
   }
@@ -122,7 +131,13 @@ export class WebglClusterTextures {
    * (`texture.data`) upload through the byte overload, read as the WebGPU path reads them
    * (`textureRgba`); anything else is an image the browser decodes.
    */
-  private upload(unit: number, texture: Texture, color: boolean, held?: TextureRecord) {
+  private upload(
+    unit: number,
+    texture: Texture,
+    color: boolean,
+    weighted: boolean,
+    held?: TextureRecord,
+  ) {
     const gl = this.gl;
     const target = held?.texture ?? gl.createTexture()!;
     gl.activeTexture(gl.TEXTURE0 + unit);
@@ -160,9 +175,10 @@ export class WebglClusterTextures {
       height,
       format,
     };
-    const weighted = color && this.readers.weighs(texture);
-    if (texture.generateMipmaps)
+    if (texture.generateMipmaps) {
       this.mips.reduce(unit, record, weighted, !inPlace || held?.weighted === undefined);
+      record.weighted = weighted;
+    }
     if (!held || held.sampling !== texture.sampling) this.setSampler(texture);
     return record;
   }
@@ -182,8 +198,8 @@ export class WebglClusterTextures {
       );
   }
   /** A new frame: the host's texture units are unknown, and the readers of the colour maps are
-   *  the surfaces of every visible mesh it holds, in the frustum or not — the rule never follows
-   *  the camera; hiding a reader changes it. */
+   *  the surfaces of every mesh the scene holds, drawn or hidden, in the frustum or not — as the
+   *  WebGPU census, the rule never follows the camera nor visibility. */
   beginFrame(meshes: readonly (readonly { material: HostMaterials }[])[]) {
     this.bound.length = 0;
     this.readers.clear();

@@ -2,7 +2,7 @@
 // colours weighted by alpha for a map every surface of the frame takes for coverage, plain
 // otherwise —, never through `generateMipmap`'s box filter; and a surface switched between masked
 // and opaque after its first image reduces the same texture again, with no new upload. A data
-// binding of the same texture never weighs.
+// binding of the same texture never weighs, whatever its colour space: the WebGPU atlases' rule.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { WebglClusterTextures } from './textures.ts';
@@ -60,7 +60,13 @@ test('a chain is reduced by the coverage rule of the surfaces the frame draws', 
   masked.alphaTest = 0.5;
   image(masked);
   binder.bind(1, map);
-  assert.deepEqual(calls.rules.slice(4), [1, 0], 'its linear record, a data map, stays plain');
+  binder.bind(2, map, false, undefined, true);
+  binder.bind(3, map, true, undefined, false);
+  assert.deepEqual(
+    calls.rules.slice(4),
+    [1, 0, 1, 0],
+    'the role decides, never the sRGB tag: a linear base map weighs, an sRGB data map is plain',
+  );
   masked.dispose();
   opaque.dispose();
 });
