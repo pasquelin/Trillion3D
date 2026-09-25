@@ -1,0 +1,186 @@
+//! Soft bodies cooked as the page builds them: their vertices weighed and pinned alike, their
+//! settings Jolt's own bytes (a golden file the physics module's tests restore), and a declaring
+//! node listed as a soft body in `physics.json`, never as static ground.
+use super::soft_record::{soft_record, SoftDeclared};
+use super::soft_settings;
+use super::stage_physics;
+use crate::compiler_coplanar::DepthLayerScene;
+use crate::Options;
+use serde_json::{json, Value};
+use std::collections::{BTreeMap, BTreeSet};
+use std::sync::{atomic::AtomicBool, Arc};
+
+/// The golden cloth: a 1 m square of 2 × 2 squares in the xy plane, its vertices row by row from
+/// (−0.5, −0.5), pinned at its top corners (6, 8), bend 0.01 rad/(N·m). The module test builds it
+/// on the page and restores these bytes (`packages/sdk-browser/src/physics/cookedSoft.test.ts`).
+const GOLDEN: &str = "../../tests/fixtures/physics/cloth-settings.bin";
+fn cloth() -> (Vec<f32>, Vec<u32>) {
+    let pos = (0..9).flat_map(|v| [(v % 3) as f32 * 0.5 - 0.5, (v / 3) as f32 * 0.5 - 0.5, 0.0]);
+    let cells = [0u32, 1, 3, 4];
+    let triangles = cells
+        .iter()
+        .flat_map(|&a| [a, a + 1, a + 4, a, a + 4, a + 3]);
+    (pos.collect(), triangles.collect())
+}
+fn declared(kind: &'static str, pins: &[f64]) -> SoftDeclared {
+    let (mass, stretch, bend, pressure) = (None, 0.0, 0.01, None);
+    SoftDeclared {
+        kind,
+        pins: pins.to_vec(),
+        mass,
+        stretch,
+        bend,
+        pressure,
+    }
+}
+
+// Behaviour: the cloth's vertices weigh the area each holds at 0.2 kg/m², its pins nothing, and
+// its settings cook to the same bytes twice, the golden ones (`TRILLION3D_WRITE_GOLDEN` rewrites
+// them).
+#[test]
+fn a_cloth_cooks_to_the_golden_settings() {
+    let (pos, triangles) = cloth();
+    let record = soft_record(
+        &pos,
+        Some(&triangles),
+        [1.0; 3],
+        &declared("cloth", &[6.0, 8.0]),
+    )
+    .unwrap();
+    let masses: Vec<f32> = record.vertices.iter().skip(3).step_by(4).copied().collect();
+    let total: f32 = masses.iter().sum();
+    assert!(
+        (masses[6], masses[8]) == (0.0, 0.0) && masses[4] > masses[0],
+        "{masses:?}"
+    );
+    // The pins held a third of one triangle and of two, 0.125 m² of the whole square.
+    assert!((total - 0.2 * (1.0 - 0.125)).abs() < 1e-6, "{total}");
+    let cook = || soft_settings(&record.vertices, [1.0; 3], &record.indices, 0.0, 0.01).unwrap();
+    let first = cook();
+    assert_eq!(first, cook());
+    if std::env::var_os("TRILLION3D_WRITE_GOLDEN").is_some() {
+        std::fs::write(GOLDEN, &first).unwrap();
+    }
+    assert_eq!(
+        first,
+        std::fs::read(GOLDEN).unwrap(),
+        "golden soft settings moved: {GOLDEN}"
+    );
+}
+
+// Behaviour: as on the page, vertices at one position are one, a rope weighs its scaled length,
+// a declared mass is spread, and a pin past the vertices or a lone point is refused in its words.
+#[test]
+fn a_primitive_is_welded_weighed_and_pinned_as_the_page_does() {
+    let seam = [0.0f32, 0., 0., 1., 0., 0., 1., 0., 0., 2., 0., 0.];
+    let rope = soft_record(&seam, None, [2.0, 1.0, 1.0], &declared("rope", &[0.0])).unwrap();
+    let masses: Vec<f32> = rope.vertices.iter().skip(3).step_by(4).copied().collect();
+    assert_eq!(
+        rope.vertices.len(),
+        3 * 4,
+        "the seam's two vertices are one"
+    );
+    assert_eq!(
+        masses,
+        [0.0, 0.065 * 2.0, 0.065],
+        "4 m of rope, its hook held"
+    );
+    let heavy = SoftDeclared {
+        mass: Some(3.0),
+        ..declared("rope", &[])
+    };
+    let spread = soft_record(&seam, None, [1.0; 3], &heavy).unwrap();
+    assert_eq!(spread.vertices.iter().skip(3).step_by(4).sum::<f32>(), 3.0);
+    let pin = soft_record(&seam, None, [1.0; 3], &declared("rope", &[4.0]));
+    assert_eq!(
+        pin.err().unwrap(),
+        "A soft body's pin 4 names no vertex of its 4."
+    );
+    let lone = soft_record(&seam[..3], None, [1.0; 3], &declared("rope", &[]));
+    assert_eq!(lone.err().unwrap(), "A soft rope needs more vertices.");
+}
+
+/// Little-endian bytes of `values`.
+fn bytes<T: Copy>(values: &[T], le: fn(T) -> [u8; 4]) -> Vec<u8> {
+    values.iter().flat_map(|v| le(*v)).collect()
+}
+
+// Behaviour: a node declaring a cloth in `extras.physics` is listed in `physics.json` with its
+// cooked settings, placed by its node, and no static collider stands where it hangs; the floor
+// beside it stays static ground, and a soft body of two primitives is refused by name.
+#[test]
+fn a_declared_cloth_is_a_soft_body_of_physics_json_not_static_ground() {
+    let (pos, triangles) = cloth();
+    let mut bin = bytes(&pos, f32::to_le_bytes);
+    bin.extend(bytes(&triangles, u32::to_le_bytes));
+    let physics = json!({"type":"cloth","pins":[6, 8],"bend":0.01,"gravityScale":0.5});
+    let primitive = json!({"attributes":{"POSITION":0},"indices":1});
+    let g = json!({
+        "bufferViews":[{"buffer":0,"byteLength":108},{"buffer":0,"byteOffset":108,"byteLength":96}],
+        "accessors":[{"bufferView":0,"componentType":5126,"type":"VEC3","count":9},
+            {"bufferView":1,"componentType":5125,"type":"SCALAR","count":24}],
+        "meshes":[{"primitives":[primitive]},{"primitives":[primitive, primitive]}],
+        "nodes":[{"mesh":0,"translation":[0, 2, 0],"extras":{"physics":physics}},{"mesh":0},
+            {"mesh":1,"extras":{"physics":{"type":"cloth"}}}],
+    });
+    let root =
+        std::path::Path::new(env!("OUT_DIR")).join(format!("soft-cook-{}", std::process::id()));
+    let o = Options {
+        source: root.join("source"),
+        cache: root.join("cache"),
+        resource_base: "/assets/".into(),
+        scope: "full".into(),
+        triangle_budget: 1000,
+        threads: 1,
+        ram_budget_mb: 64,
+        simplification: "none".into(),
+        texture_formats: Vec::new(),
+        cancelled: Arc::new(AtomicBool::new(false)),
+    };
+    std::fs::create_dir_all(o.cache.join("native/objects")).unwrap();
+    let (chosen, mesh_map) = (BTreeSet::from([0, 1, 2]), BTreeMap::from([(0, 0), (1, 1)]));
+    let scene = DepthLayerScene {
+        o: &o,
+        g: &g,
+        bin: &bin,
+        chosen: &chosen,
+        mesh_map: &mesh_map,
+        cluster_planes: &[],
+    };
+    let primitives = [
+        json!({"mesh":0,"primitive":0}),
+        json!({"mesh":1,"primitive":0}),
+    ];
+    let collision = json!({"kind":"mesh","tiles":[],"triangles":8});
+    stage_physics(&scene, &primitives, &[collision.clone(), collision], &root).unwrap();
+    let written: Value =
+        serde_json::from_slice(&std::fs::read(root.join("physics.json")).unwrap()).unwrap();
+    let soft = &written["softBodies"][0];
+    assert_eq!((&soft["node"], &soft["vertices"]), (&json!(0), &json!(9)));
+    assert_eq!(
+        soft["physics"]["pins"],
+        json!([6, 8]),
+        "the options, for the page to read"
+    );
+    assert_eq!(soft["position"], json!([0.0, 2.0, 0.0]));
+    let sha = soft["settings"]["sha256"].as_str().unwrap();
+    let stored = std::fs::read(o.cache.join(format!("native/objects/{sha}.bin"))).unwrap();
+    assert_eq!(
+        stored,
+        std::fs::read(GOLDEN).unwrap(),
+        "the cooked cloth is the golden one"
+    );
+    let placed: Vec<&Value> = written["instances"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|i| &i["node"])
+        .collect();
+    assert_eq!(placed, [&json!(1)], "the floor alone is static ground");
+    let refused = &written["report"]["softRefused"];
+    assert_eq!(
+        refused,
+        &json!([{"node":2,"reason":"A soft body is one primitive: its mesh holds 2."}])
+    );
+    std::fs::remove_dir_all(root).unwrap();
+}
