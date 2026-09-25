@@ -618,6 +618,24 @@ costs the subtree it starts from, never the other nodes of the hierarchy. The sc
 one hierarchy that holds none of them: a dropped object frees its slot when it is collected, and
 `destroy()` frees a subtree at once.
 
+The engine's graph is built of the same classes: a bare node is an `Object3D` and a group a
+`Group`, and every function of the browser facade that takes or returns a node of that graph names
+`Object3D`. `GraphNode` is abstract: it is only the base of the graph's nodes that draw, look or
+light (`GraphMesh`, and the camera and light classes the engine builds), which add a `kind` and a
+creation number.
+
+`clone(recursive)` of an `Object3D` returns a node of the same class — a `Group` stays a `Group`, a
+`Light` a `Light`, a `Camera` a `Camera`, a graph node its own kind — holding the source's name,
+pose, matrices, flags and `userData`, and a `clone` of each child unless `recursive` is `false`;
+`copy(source, recursive)` writes the same values into an existing node. A class whose constructor
+takes arguments says how an empty one is made (`blank`). A `Light` also keeps its colours,
+intensity, range, cone, coefficients and target; a `Camera` its optics (`fov`, `near`, `far`,
+`aspect`, `zoom` and the orthographic box); a `Mesh` its primitive, and shares its geometry and
+material. A `Scene` and a `LoadedModel` cannot be cloned: `clone` throws `UNSUPPORTED_SCENE_UPDATE`.
+`cloneObject` stays the deep copy: it shares nothing with the source, a mesh's geometry and
+materials included. The former aliases of the node, `HostNode`,
+`HostTraversable` and `HostGraphNode`, are removed: write `Object3D`.
+
 ## Batch math for hosts
 
 A host that moves ten thousand instances or culls ten thousand boxes would otherwise write the loop
@@ -865,14 +883,17 @@ once they arrived (`geometryAllocationBytes` shows it; no pool is reserved, so
 `texturePoolBytes` is `null` in its metrics, and `world.budget.texturePool` reads `null`.
 
 **One GPU total, one CPU total.** `world.budget.gpu` is every GPU pool together, and
-`world.budget.cpu` the decoded pages the world keeps in CPU memory. A fixed rule splits them, published
+`world.budget.cpu` what the world keeps in CPU memory. A fixed rule splits them, published
 as `world.budget.split`:
 
 - GPU: the shadow pool first, at its largest (the largest screen's side and its static layer); the rest
   in two halves, geometry and textures, each capped at its ceiling. At the defaults the split gives
   each pool its own default, so a page that sets nothing sees no change. The shadows never shrink:
   a total under the shadow pool is refused (`GPU_BUDGET_UNDER_SHADOW_POOL`).
-- CPU: the decoded-page cache takes the whole total, taken by the next scene load.
+- CPU: the shadow page table's host mirror first (20.8 MiB, fixed whatever the screen), then the
+  decoded-page cache takes the rest, taken by the next scene load. The default total is the mirror
+  plus the cache's own default; a total not above the mirror is refused
+  (`CPU_BUDGET_UNDER_SHADOW_MIRROR`).
 
 ```js
 world.budget.gpu = 1024 * 1024 * 1024; // one total: every pool redrawn by the split

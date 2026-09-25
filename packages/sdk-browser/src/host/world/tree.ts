@@ -1,5 +1,3 @@
-import type { HostNode } from '../resources.ts';
-import type { HostGraphNode } from '../scene/graphNodes.ts';
 import {
   EngineError,
   HIERARCHY_ROOT,
@@ -13,6 +11,7 @@ import {
 } from '../../../../sdk-core/src/index.ts';
 import { pushHostPose } from './pose.ts';
 import { createHierarchyLot, type HierarchyLot } from '../../math/batchHierarchy.ts';
+import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 
 /**
  * World matrices of a HOST SUBTREE, computed by the engine in ITS OWN transform tree.
@@ -52,13 +51,13 @@ export interface HostWorldTree {
    * lot, the returned view is the tree's own storage and stays valid for the index's whole life:
    * a caller may hold it once and reread it after every pass, with nothing to copy.
    */
-  world(node: HostNode): Float64Array;
+  world(node: Object3D): Float64Array;
   /** Recomputes the index from the local poses the host carries at this instant. */
   refresh(): void;
 }
 
 /** Nodes of the subtree and of its root's ancestors: the EXACT size the lot must carry. */
-function hostWorldNodeCount(source: HostGraphNode) {
+function hostWorldNodeCount(source: Object3D) {
   let n = 0;
   for (let walk = source.parent; walk; walk = walk.parent) n++;
   source.traverse(() => n++);
@@ -66,19 +65,19 @@ function hostWorldNodeCount(source: HostGraphNode) {
 }
 
 /** Hierarchy lot that carries this subtree, or `null` when it is empty. */
-export async function hostWorldLot(source: HostGraphNode) {
+export async function hostWorldLot(source: Object3D) {
   const n = hostWorldNodeCount(source);
   return n ? await createHierarchyLot(n) : null;
 }
 
 /** Nodes ranked parents before children, and each one's parent index (`-1` for the root). */
-function collect(source: HostGraphNode) {
-  const nodes: HostGraphNode[] = [];
+function collect(source: Object3D) {
+  const nodes: Object3D[] = [];
   for (let walk = source.parent; walk; walk = walk.parent) nodes.push(walk);
   nodes.reverse();
   // The reference's `traverse` is a prefix walk: a parent is always seen before its children.
   source.traverse((object) => nodes.push(object));
-  const index = new Map<HostNode, number>();
+  const index = new Map<Object3D, number>();
   for (let rank = 0; rank < nodes.length; rank++) index.set(nodes[rank], rank);
   const parents = new Int32Array(nodes.length);
   for (let rank = 0; rank < nodes.length; rank++) {
@@ -89,20 +88,20 @@ function collect(source: HostGraphNode) {
 }
 
 /** Engine tree mirroring the host structure: one node per host node, at the same rank. */
-function socle(nodes: readonly HostGraphNode[], parents: Int32Array) {
+function socle(nodes: readonly Object3D[], parents: Int32Array) {
   const tree = createTransformTree(Math.max(1, nodes.length));
   for (let rank = 0; rank < nodes.length; rank++) addTransformNode(tree, parents[rank]);
   return tree;
 }
 
 /** Host poses pushed where they moved, then the world pass over what that marked. */
-function parArbre(nodes: readonly HostGraphNode[], tree: TransformTree) {
+function parArbre(nodes: readonly Object3D[], tree: TransformTree) {
   for (let rank = 0; rank < nodes.length; rank++) pushHostPose(tree, rank, nodes[rank]);
   updateNodeMatrixWorld(tree, 0);
 }
 
 /** Local poses written into the arena buffers, then the lot run by the governor. */
-function parLot(nodes: readonly HostGraphNode[], parents: Int32Array, lot: HierarchyLot) {
+function parLot(nodes: readonly Object3D[], parents: Int32Array, lot: HierarchyLot) {
   const positions = lot.positions,
     rotations = lot.rotations,
     scales = lot.scales,
@@ -127,7 +126,7 @@ function parLot(nodes: readonly HostGraphNode[], parents: Int32Array, lot: Hiera
 }
 
 /** True when each node recomposes its local matrix: the only shape the lot can receive. */
-function composent(nodes: readonly HostGraphNode[]) {
+function composent(nodes: readonly Object3D[]) {
   for (const node of nodes) if (!node.matrixAutoUpdate) return false;
   return true;
 }
@@ -136,7 +135,7 @@ function composent(nodes: readonly HostGraphNode[]) {
  * World-matrix index of `source`, recomputed a first time before it is returned. `lot` is the
  * hierarchy buffer reserved for this subtree; without it, the pass is that of the tree.
  */
-export function hostWorldTree(source: HostGraphNode, lot?: HierarchyLot | null): HostWorldTree {
+export function hostWorldTree(source: Object3D, lot?: HierarchyLot | null): HostWorldTree {
   const { nodes, index, parents } = collect(source);
   const enLot = lot?.holds(nodes.length) ? lot : null;
   let tree: TransformTree | null = null,

@@ -12,15 +12,15 @@ import { assertBits } from '../../../../../tests/kit/assert/bits.ts';
 
 /** Parent → child → grandchild → great-grandchild chain, hostile transforms included. */
 function hostileHierarchy() {
-  const racine = new G.GraphGroup();
+  const racine = new G.Group();
   racine.position.set(1, -2, 3);
   racine.scale.set(-1, 2, 0.5); // negative and non-uniform scale
-  const enfant = new G.GraphGroup();
+  const enfant = new G.Group();
   enfant.matrixAutoUpdate = false;
   // Matrix set by hand, column-major: x shear along y, zero scale on z.
   enfant.matrix.set(1, 0.7, 0, 5, 0, 1, 0, -Infinity, 0, 0, 0, 0, 0, 0, 0, 1);
   racine.add(enfant);
-  const petitEnfant = new G.GraphGroup();
+  const petitEnfant = new G.Group();
   petitEnfant.position.set(NaN, 0, -0);
   enfant.add(petitEnfant);
   const feuille = G.mesh(new G.GraphGeometry(), G.basicSurface());
@@ -47,9 +47,9 @@ test('resolveHostSubtree is idempotent: a second call changes no bit', () => {
 });
 
 test('resolveHostSubtree always forces recompute (force: true): a local matrix rewritten by hand, without updateMatrix, is still taken', () => {
-  const parent = new G.GraphGroup();
+  const parent = new G.Group();
   parent.matrixAutoUpdate = false; // the host sets its own local matrix
-  const enfant = new G.GraphGroup();
+  const enfant = new G.Group();
   parent.add(enfant);
   resolveHostSubtree(parent); // first resolution: matrixWorld = identity for both
   // The host rewrites the local matrix directly: nothing marks the node dirty.
@@ -112,7 +112,7 @@ const POSES: [number[], number[], number[]][] = [
 test('hostLocalInto yields updateMatrix’s local matrix, bit-exact, on hostile poses', () => {
   const obtenu = new Float64Array(16);
   for (const [position, quaternion, echelle] of POSES) {
-    const node = new G.GraphNode();
+    const node = new G.Object3D();
     node.position.fromArray(position);
     node.quaternion.fromArray(quaternion);
     node.scale.fromArray(echelle);
@@ -123,7 +123,7 @@ test('hostLocalInto yields updateMatrix’s local matrix, bit-exact, on hostile 
 });
 
 test('hostLocalInto yields the SET matrix when the host cut recomposition, without ever recomposing it', () => {
-  const node = new G.GraphNode();
+  const node = new G.Object3D();
   node.matrixAutoUpdate = false;
   // A shear: no translation-rotation-scale pose yields it, so recomposing would show.
   node.matrix.set(1, 0.7, 0, 5, 0, 1, 0, -3, 0, 0, 0, 0, 0, 0, 0, 1);
@@ -134,7 +134,7 @@ test('hostLocalInto yields the SET matrix when the host cut recomposition, witho
 });
 
 test('hostLocalInto writes nothing into the host node: its local matrix stays the one it carried', () => {
-  const node = new G.GraphNode();
+  const node = new G.Object3D();
   node.position.set(1, 2, 3);
   const avant = node.matrix.elements.slice(); // identity: `updateMatrix` has never been called
   hostLocalInto(new Float64Array(16), node);
