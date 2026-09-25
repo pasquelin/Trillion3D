@@ -3,28 +3,21 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts';
-import { mockGpu } from '../../../../../../tests/kit/gpu/mockGpu.ts';
 import { coarseQuadScene } from '../testOccluder.fixture.ts';
 import { webgpuPagesBackend } from '../pages.ts';
 import type { BackendDiagnostic } from '../../../backend/types.ts';
+import { refusing } from './refusing.fixture.ts';
 
 /** The coarse quad — one root page over two leaves, a pool of three slots at most and one at its
  *  floor — on a device that runs `during` when the geometry pool's first buffer is made, inside
  *  the grant's out-of-memory scope. */
 function granting(during: (raise: (message: string) => void) => void) {
   installGpuGlobals();
-  const gpu = mockGpu();
-  const device = gpu.device as unknown as Record<string, (d: { label?: string }) => unknown>;
-  const make = device.createBuffer;
   let first = true;
-  device.createBuffer = function (this: unknown, descriptor: { label?: string }) {
-    const made = make.call(this, descriptor);
-    if (first && descriptor.label?.includes('geometry page cache')) {
-      first = false;
-      during((message) => gpu.raise(message));
-    }
-    return made;
-  };
+  const gpu = refusing('createBuffer', 'geometry page cache', (raise) => {
+    if (first) during(raise);
+    first = false;
+  });
   const events: BackendDiagnostic[] = [];
   const fixture = coarseQuadScene();
   const backend = webgpuPagesBackend({

@@ -19,10 +19,10 @@ export function createPageStreamerWith(
   base: string,
   options: PageStreamerOptions = {},
 ) {
-  const { cache: kept, signal, maxPages, onEvict, onDiagnostic } = options,
-    { workerCount = 8, maxTransferBytes = 8 * 1024 * 1024 } = options;
+  const { cache: kept, signal, maxPages, onEvict, onDiagnostic, maxCachedBytes } = options;
+  const { workerCount = 8, maxTransferBytes = 8 * 1024 * 1024 } = options;
   const catalog = new Map(pages.map((page) => [page.url, page]));
-  const store = kept ?? createPageCache(options.maxCachedBytes),
+  const store = kept ?? createPageCache(maxCachedBytes),
     cache = store.pages,
     jobs = new Map<string, Job>(),
     queue: Job[] = [];
