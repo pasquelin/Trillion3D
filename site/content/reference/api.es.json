@@ -5444,7 +5444,7 @@
       "representationChanged": "El mismo mundo con otra precisión: su caja espera a que la cámara se detenga.",
       "resting": "La cámara estaba en reposo en el último plan: su vista era la del plan anterior.",
       "deferredChanges": "Verdadero mientras un cambio de representación espera a que la cámara se detenga.",
-      "releaseDeferred": "La imagen no planifica ninguna sombra: las cajas retenidas entran en la lista de inmediato.",
+      "releaseDeferred": "La imagen no planifica ninguna sombra: la unión retenida entra en la lista de inmediato.",
       "setPageInvalidation": "Desactiva la invalidación por página: un objeto en movimiento invalida todas las páginas de las luces que toca. Activa por defecto.",
       "pageInvalidation": "Si un objeto en movimiento invalida solo las páginas que cubre su caja.",
       "plan": "Planifica un fotograma: invalida lo que se movió, lee el último informe y admite cada página que dibujar.",
