@@ -18,6 +18,7 @@ import {
   SHADOW_BATCH_GPU_BYTES,
   SHADOW_BATCH_HOST_BYTES,
   SHADOW_BATCH_WRITE_BYTES,
+  SHADOW_COUNT_SAMPLERS,
   SHADOW_FLAG_FRAMES,
 } from './batchBudget.ts';
 
@@ -41,8 +42,7 @@ test('the GPU bytes the batches add are what the staging, flags, CPU lists and c
   createLightCutRedraws((d) => device.createBuffer(d), target, DAG_MAX_VIEWS);
   const lists = createCpuCasterLists(device, 1);
   // The cull's and the occlusion test's count samples.
-  createGpuShadowCullCounts(device);
-  createGpuShadowCullCounts(device);
+  for (let k = 0; k < SHADOW_COUNT_SAMPLERS; k++) createGpuShadowCullCounts(device);
   const made = buffers.filter(
     (buffer) => buffer !== (target as unknown) && buffer !== (lists.source as unknown),
   );

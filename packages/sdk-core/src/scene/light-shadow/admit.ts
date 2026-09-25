@@ -6,6 +6,9 @@ import { ringOf } from './virtual.ts';
  *  pages of one view share one caster selection. */
 const viewKeyOf = (pool: ShadowPool, page: number) => pool.slice[page] * 4096 + pool.view[page];
 
+/** Host bytes the admission of a `pages`-page pool allocates: its list, view keys and sort keys. */
+export const shadowAdmissionHostBytes = (pages: number) => pages * (4 + 4 + 8);
+
 /**
  * THE PAGES A FRAME DRAWS: every stale page the latest request report named — what the image
  * reads now —, all of them, in the frame that marks them. There is no per-frame page cap, no
@@ -37,11 +40,14 @@ export function createShadowAdmission(poolPages: number) {
     /** One exact sort key per admitted page: its view, then the page itself. */
     order = new Float64Array(poolPages);
   let count = 0,
+    /** Where the list starts in `order`: at `resume`, wrapping around. */
+    start = 0,
     /** The sort key the next list starts at: the first page the last frame left undrawn. */
     resume = -Infinity;
   return {
     list,
     keys,
+    hostBytes: list.byteLength + keys.byteLength + order.byteLength,
     get count() {
       return count;
     },
@@ -54,13 +60,14 @@ export function createShadowAdmission(poolPages: number) {
         else order[count++] = viewKeyOf(pool, page) * poolPages + page;
       }
       order.subarray(0, count).sort();
-      let start = 0;
+      start = 0;
       while (start < count && order[start] < resume) start++;
-      if (start === count) start = 0;
-      for (let i = 0, at = start; i < count; i++, at = at + 1 === count ? 0 : at + 1) {
-        // A sun level may be negative: the page is the key's remainder, taken positive.
-        list[i] = ringOf(order[at], poolPages);
-        keys[i] = (order[at] - list[i]) / poolPages;
+      for (let i = 0; i < count; i++) {
+        const key = order[(start + i) % count];
+        // A sun level may be negative: the page is the key's remainder, taken positive, and the
+        // view what is left, an exact integer.
+        list[i] = ringOf(key, poolPages);
+        keys[i] = (key - list[i]) / poolPages;
       }
       return count;
     },
@@ -80,7 +87,7 @@ export function createShadowAdmission(poolPages: number) {
     },
     /** Closes the list. The frame drew it up to `stopped`: the next list starts at that page. */
     reset(stopped = count) {
-      resume = stopped < count ? keys[stopped] * poolPages + list[stopped] : -Infinity;
+      resume = stopped < count ? order[(start + stopped) % count] : -Infinity;
       count = 0;
     },
   };

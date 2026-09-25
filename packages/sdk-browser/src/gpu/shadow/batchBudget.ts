@@ -67,10 +67,11 @@ const FLAG_GPU_BYTES = MAX_SHADOW_BATCHES * 4,
 const CPU_RUN_HOST_BYTES = 4 + 4 + DRAW_INDIRECT_STRIDE,
   CPU_RUN_GPU_BYTES = DRAW_INDIRECT_STRIDE;
 
-/** A sampled frame's region commands, every batch's (`cullCounts.ts`): one for the cull, one for
- *  the occlusion test. */
+/** A sampled frame's region commands, every batch's (`cullCounts.ts`), and the samplers that copy
+ *  them: the cull's and the occlusion test's. */
 export const SHADOW_COUNT_SAMPLE_BYTES =
-  MAX_SHADOW_BATCHES * MAX_SHADOW_REGIONS * DRAW_INDIRECT_STRIDE;
+    MAX_SHADOW_BATCHES * MAX_SHADOW_REGIONS * DRAW_INDIRECT_STRIDE,
+  SHADOW_COUNT_SAMPLERS = 2;
 
 /** GPU bytes the batches add, at their largest: staging, flag words, CPU cut commands, and the
  *  cull and occlusion count samples. */
@@ -78,7 +79,7 @@ export const SHADOW_BATCH_GPU_BYTES =
   SHADOW_STAGING_BYTES +
   SHADOW_FLAG_FRAMES * FLAG_GPU_BYTES +
   MAX_SHADOW_RUNS * CPU_RUN_GPU_BYTES +
-  2 * SHADOW_COUNT_SAMPLE_BYTES;
+  SHADOW_COUNT_SAMPLERS * SHADOW_COUNT_SAMPLE_BYTES;
 /** Host bytes the batches add, at their largest: the flag frames' pages, the CPU cut's faces. */
 export const SHADOW_BATCH_HOST_BYTES =
   SHADOW_FLAG_FRAMES * FLAG_HOST_BYTES + MAX_SHADOW_RUNS * CPU_RUN_HOST_BYTES;
