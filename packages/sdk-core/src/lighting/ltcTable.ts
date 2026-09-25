@@ -14,7 +14,7 @@ const CELL_FLOATS = 8;
 const KEPT = 6;
 
 /** The nearest half float of `value`, its sixteen bits. */
-function toHalf(value: number) {
+export function toHalf(value: number) {
   const bits = new Uint32Array(Float32Array.of(value).buffer)[0];
   const sign = (bits >>> 16) & 0x8000,
     exponent = ((bits >>> 23) & 0xff) - 112,
@@ -26,7 +26,7 @@ function toHalf(value: number) {
 }
 
 /** The value of a half float's sixteen bits. */
-function fromHalf(bits: number) {
+export function fromHalf(bits: number) {
   const exponent = (bits >> 10) & 31,
     fraction = bits & 1023;
   const magnitude = exponent ? (1 + fraction / 1024) * 2 ** (exponent - 15) : fraction * 2 ** -24;

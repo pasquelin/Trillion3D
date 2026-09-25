@@ -43,7 +43,10 @@ export function createWebgpuPagesLayout(setup: WebgpuPagesSetup) {
   // Visibility IDs reserve 24 bits for row+1 (zero means background) and 8 for the triangle.
   // Rows are the visibility buffer's, and only opaque clusters ever claim one.
   const drawSlots = Math.max(1, Math.min(VIS_MAX_PAGES, opaquePageCount || 1, slots * maxCopies));
-  const rows = createWebgpuRowState(packedPages, drawSlots);
+  // Blended clusters cast from rows behind them, which only the shadow pass reads: as many as the
+  // pool can hold resident at once, and none in a scene that blends nothing.
+  const blendSlots = Math.min(packedPages.length - opaquePageCount, slots * maxCopies);
+  const rows = createWebgpuRowState(packedPages, drawSlots, blendSlots);
   /** Every triangle of every drawable row: the bound a raster list cannot exceed. */
   const rasterCapacity = drawSlots * Math.ceil(Math.max(1, pageBytes / 4) / 3);
   /** World-space corners per ROW, in single precision: what the GPU partition reads. They are
