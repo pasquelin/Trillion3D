@@ -109,7 +109,7 @@ function extractRotationRows(world: ArrayLike<number>, at: number) {
  * when `parentWorld` is given. `viewer` and `up` are those of `lookAtNode`; the world matrices
  * must already be resolved.
  */
-export function lookAtQuaternion(
+function lookAtQuaternion(
   out: Float64Array,
   world: ArrayLike<number>,
   at: number,

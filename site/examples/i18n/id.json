@@ -360,6 +360,22 @@
       "up": "ATAS"
     }
   },
+  "a-town-in-the-fog": {
+    "banner": "Seret untuk melihat sekeliling. Pilih kabutnya, jangkauannya, dan warnanya.",
+    "controls": {
+      "fog": "Kabut",
+      "reach": "Jangkauan",
+      "height": "Ketinggian",
+      "colour": "Warna"
+    },
+    "choices": {
+      "fog": {
+        "distance": "jarak",
+        "thick": "tebal",
+        "ground": "di tanah"
+      }
+    }
+  },
   "a-tube-along-a-spline": {
     "banner": "Geser untuk melihat sekeliling. Manik-manik meluncur di sepanjang tabung.",
     "controls": {
@@ -1785,7 +1801,7 @@
     }
   },
   "walk-through-a-temple": {
-    "banner": "Tekan Main, lalu lari dengan W A S D dan lompat dengan Spasi.",
+    "banner": "Tekan Main, lalu lari dengan W A S D dan lompat dengan Spasi. Lepas lebih awal: di atas batu kamu meluncur sedikit sebelum berhenti.",
     "controls": {
       "keys": "Kendali karakter mesin: Main di menu mengunci mouse untuk melihat, W A S D untuk berlari (Z Q S D di AZERTY), Shift untuk berlari kencang, Spasi untuk melompat, Esc melepas mouse. Halaman menambahkan R untuk berlari lagi, M untuk membisukan.",
       "look": "Pandang",
@@ -1809,6 +1825,26 @@
       "finished": "{taken} / {orbs} bola · R untuk lari lagi",
       "muted": "M bisu",
       "sound": "M suara"
+    }
+  },
+  "watch-a-world-load": {
+    "banner": "Lihat bilah terisi saat dunia tiba. Tekan Muat ulang untuk melihatnya dari bita pertama.",
+    "controls": {
+      "loadAgain": "Muat ulang"
+    },
+    "readouts": {
+      "phase": "Langkah",
+      "bytes": "Bita",
+      "pages": "Halaman pertama"
+    },
+    "words": {
+      "credit": "Jalan raya guci dibuat dengan kode untuk contoh ini, CC0 — lihat assets/examples/CREDITS.md",
+      "bytes": "membaca bita",
+      "manifest": "manifes terbaca",
+      "tables": "tabel adegan terbaca",
+      "resources": "berkas adegan",
+      "pages": "halaman pertama",
+      "ready": "siap"
     }
   },
   "waves-of-points": {
@@ -1937,7 +1973,7 @@
     }
   },
   "walk-with-collisions": {
-    "banner": "Klik untuk melihat sekeliling, lalu berjalan dengan W A S D dan melompat dengan Spasi: naiki tangga dan landaian, tumpangi platform, dorong kotak-kotaknya.",
+    "banner": "Klik untuk melihat sekeliling, lalu berjalan dengan W A S D dan melompat dengan Spasi: naiki tangga dan landaian, tumpangi platform, dorong kotak-kotaknya, dan lepaskan tombol di atas es untuk meluncur.",
     "controls": {
       "pushStrength": "Gaya dorong (N)",
       "platformSpeed": "Kecepatan platform",
@@ -1994,6 +2030,20 @@
     "readouts": {
       "joints": "Sambungan",
       "broken": "Patah"
+    }
+  },
+  "gears-and-pulleys": {
+    "banner": "Ubah kecepatan mekanisme, naikkan lift, dan jatuhkan beban ke ember untuk mengangkat pemberat.",
+    "controls": {
+      "speed": "Kecepatan mekanisme (rad/s)",
+      "raiseLift": "Naikkan lift",
+      "addWeight": "Jatuhkan beban",
+      "emptyBucket": "Kosongkan ember"
+    },
+    "readouts": {
+      "lift": "Lift",
+      "load": "Beban",
+      "rope": "Tali berjalan"
     }
   }
 }

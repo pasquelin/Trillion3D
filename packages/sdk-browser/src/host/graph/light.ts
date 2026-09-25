@@ -3,8 +3,9 @@
  * until a scene says otherwise, the node a directional or spot light aims at included.
  */
 import { Color } from '../../../../sdk-core/src/world/math/color.ts';
+import { Vector3 } from '../../../../sdk-core/src/world/math/vector3.ts';
+import { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 import { GraphNode, type GraphLightKind } from './node.ts';
-import { GraphVector } from './vector.ts';
 
 export type { GraphLightKind } from './node.ts';
 
@@ -27,7 +28,7 @@ export class GraphLight extends GraphNode {
   /** How soft a spot light's edge is, 0 to 1. */
   penumbra?: number;
   /** What a directional or spot light aims at. */
-  declare target?: GraphNode;
+  declare target?: Object3D;
   /** The kind of light. */
   override readonly kind: GraphLightKind;
   constructor(kind: GraphLightKind, colour = new Color().setRGB(1, 1, 1)) {
@@ -46,7 +47,7 @@ export class GraphLight extends GraphNode {
       // Stands one unit up until placed, and aims at the origin, as the reference's light does.
       this.position.set(0, 1, 0);
       this.updateMatrix();
-      this.target = new GraphNode();
+      this.target = new Object3D();
     }
   }
   protected override get looksDownNegativeZ() {
@@ -132,7 +133,7 @@ export class GraphRectLight extends GraphNode {
 /** Nine spherical-harmonic coefficients of an environment's irradiance, band after band. */
 class GraphIrradiance {
   /** One RGB triple per coefficient. */
-  readonly coefficients = Array.from({ length: 9 }, () => new GraphVector());
+  readonly coefficients = Array.from({ length: 9 }, () => new Vector3());
   /** Reads the twenty-seven numbers, coefficient after coefficient. */
   fromArray(array: ArrayLike<number>, offset = 0) {
     this.coefficients.forEach((c, k) => c.fromArray(array, offset + k * 3));

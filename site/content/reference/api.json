@@ -1317,6 +1317,16 @@
         "name": "texturePreviewAstc",
         "type": "ColumnKind",
         "desc": "The previews' ASTC blocks."
+      },
+      {
+        "name": "bundleDependencyCount",
+        "type": "ColumnKind",
+        "desc": "How many bundles each bundle depends on."
+      },
+      {
+        "name": "bundleDependency",
+        "type": "ColumnKind",
+        "desc": "The bundles each bundle depends on, closed to the root cover."
       }
     ],
     "description": ""
@@ -1542,6 +1552,11 @@
         "name": "projection",
         "type": "'perspective' | 'orthographic'",
         "desc": "`'perspective'` makes far things small; `'orthographic'` keeps every size."
+      },
+      {
+        "name": "copy(source: Object3D, recursive?: boolean)",
+        "type": "Camera",
+        "desc": "Takes `source`'s node values and, from a camera, its optics; its own `projection` stays."
       },
       {
         "name": "updateProjectionMatrix()",
@@ -1942,7 +1957,7 @@
         "desc": "Lives `delta` seconds; returns whether the camera moved, and emits `change` when it did."
       }
     ],
-    "description": "The pointer turns the head as in first person (`look.ts`). The keys, by `KeyboardEvent.code` so every keyboard layout plays the same keys: W/S or the up and down arrows walk forward and back, A/D or the side arrows strafe, Shift sprints, Space jumps. The body does not start or stop at once: it gathers speed over `responseTime` and brakes over `stopTime`, keeps its momentum in the air, rises under `gravity` and falls under `fallGravity`, climbs ledges up to `stepHeight`, slides along walls and stands on slopes up to `maxSlope` (`sdk-core/src/collision/characterBody.ts`). The camera is the eye, `eyeHeight` above the feet, bobbing with the stride by `headBob` and dipping on a landing by `landingDip` (`sdk-core/src/collision/characterEye.ts`); both ride on the eye after the body's step and never move the body. A host that moves the camera itself teleports the body there, at rest. A still character — grounded, no speed, no key, no dip left — emits nothing, so the scene stays still."
+    "description": "The pointer turns the head as in first person (`look.ts`). The keys, by `KeyboardEvent.code` so every keyboard layout plays the same keys: W/S or the up and down arrows walk forward and back, A/D or the side arrows strafe, Shift sprints, Space jumps. The body does not start or stop at once: it gathers speed over `responseTime` and brakes over `stopTime`, never faster than the friction of its floor lets a sole push, so a stop glides a little on stone and far on ice; it keeps its momentum in the air, rises under `gravity` and falls under `fallGravity`, climbs ledges up to `stepHeight`, slides along walls and stands on slopes up to `maxSlope` (`sdk-core/src/collision/characterBody.ts`, `characterDrive.ts`). The camera is the eye, `eyeHeight` above the feet, bobbing with the stride by `headBob` and dipping on a landing by `landingDip` (`sdk-core/src/collision/characterEye.ts`); both ride on the eye after the body's step and never move the body. A host that moves the camera itself teleports the body there, at rest. A still character — grounded, no speed, no key, no dip left — emits nothing, so the scene stays still."
   },
   {
     "id": "CharacterCollision",
@@ -2105,7 +2120,7 @@
       },
       {
         "name": "selectedNodes",
-        "type": "number[]",
+        "type": "number",
         "desc": "Nodes kept."
       },
       {
@@ -2518,7 +2533,7 @@
       },
       {
         "name": "selectedNodes",
-        "type": "number[]",
+        "type": "number",
         "desc": "Nodes kept."
       },
       {
@@ -2878,6 +2893,11 @@
         "desc": "Bundles."
       },
       {
+        "name": "bundleDependencies",
+        "type": "number",
+        "desc": "Bundle dependencies, every bundle's list concatenated."
+      },
+      {
         "name": "previews",
         "type": "number",
         "desc": "Texture previews."
@@ -2958,7 +2978,7 @@
     "section": "math",
     "kind": "Type",
     "title": "Curve",
-    "signature": "class Curve\nnew Curve(): Curve",
+    "signature": "abstract class Curve",
     "summary": "A parametric curve over `t ∈ [0, 1]`.",
     "members": [
       {
@@ -4347,6 +4367,17 @@
     "description": "Keys translate along its own axes and turn it about them, roll included; a drag looks around. Nothing is integrated until the host calls `update(delta)` with the seconds elapsed, and `update` returns — and emits — only when a key is held, a stick input set or a drag pending, so a released stick leaves the scene still. `autoForward` is the one exception: a cruising camera moves on every `update`, and asks for the next frame by emitting `change` each time. KEYS, by `KeyboardEvent.code`: W/S forward and back, A/D left and right, R/F up and down, arrows pitch and yaw, Q/E roll. Nothing bounds a turn: holding a key loops or rolls the camera round and round, so a loop, a barrel roll, an Immelmann or a split-S is flown as it is on a stick. `inputResponse` gives the keys that stick's travel. `dragToLook` (the default) looks while a pointer is held; set false and the pointer looks as soon as it moves over the surface; set `pointerLook` false and it never turns the view at all, the keys alone steer. A key pressed while Ctrl or Meta is down is ignored, so a browser shortcut (Ctrl+W, Cmd+S) never steers; the modifier must be released before the key that follows it counts."
   },
   {
+    "id": "Fog",
+    "module": "packages/sdk-browser/src/world/core/sceneFog.ts",
+    "exports": ["Fog"],
+    "section": "world",
+    "kind": "Type",
+    "title": "Fog",
+    "signature": "type Fog = | (Omit<SceneLinearFog, 'color'> & { color: Color })\n  | (Omit<SceneExponentialFog, 'color'> & { color: Color })",
+    "summary": "Fog over every surface: linear from `near` to `far`, or thickening with distance by `density`, thinning out with height above `baseHeight` when `heightFalloff` is set.",
+    "description": "The colour is light the fog scatters toward the eye, exposed and tone-mapped like a surface's."
+  },
+  {
     "id": "FrameInfo",
     "module": "packages/sdk-browser/src/world/core/worldFrames.ts",
     "exports": ["FrameInfo"],
@@ -4542,12 +4573,12 @@
       {
         "name": "coverageBudgetLimited?",
         "type": "boolean | null | undefined",
-        "desc": "Requested detail cannot coexist with the pinned fallback within the GPU page budget."
+        "desc": "Requested detail needs more pages than the GPU page budget holds: the rest draws coarser."
       },
       {
         "name": "budgetPixelError?",
         "type": "number | null | undefined",
-        "desc": "Screen-error floor the GPU page budget imposes on the cut, in pixels: `0` when the requested detail fits, otherwise the coarser threshold the image is drawn at. Null on engines without a page budget."
+        "desc": "WebGL2 only: the screen-error floor its page budget imposes on the cut, in pixels — `0` when the requested detail fits, otherwise the coarser threshold the image is drawn at. Absent on WebGPU, where residency alone coarsens the image. Null on engines without a page budget."
       },
       {
         "name": "frameHeld?",
@@ -4689,7 +4720,7 @@
     "kind": "Constant",
     "title": "GEOMETRY_PAGE_FORMAT_VERSION",
     "signature": "const GEOMETRY_PAGE_FORMAT_VERSION: 3",
-    "summary": "The geometry-page format a version-7 sidecar names, as the manifest's `geometryPages` declares it once and every page header opens with.",
+    "summary": "The geometry-page format a version-8 sidecar names, as the manifest's `geometryPages` declares it once and every page header opens with.",
     "description": ""
   },
   {
@@ -5206,49 +5237,6 @@
     "description": ""
   },
   {
-    "id": "GraphAngles",
-    "module": "packages/sdk-browser/src/host/graph/rotation.ts",
-    "exports": ["GraphAngles"],
-    "section": "types",
-    "kind": "Type",
-    "title": "GraphAngles",
-    "signature": "class GraphAngles\nnew GraphAngles(): GraphAngles",
-    "summary": "The same orientation as three angles and their order, announcing its writes the same way.",
-    "members": [
-      {
-        "name": "x",
-        "type": "number",
-        "desc": "The first angle, in radians."
-      },
-      {
-        "name": "y",
-        "type": "number",
-        "desc": "The second angle, in radians."
-      },
-      {
-        "name": "z",
-        "type": "number",
-        "desc": "The third angle, in radians."
-      },
-      {
-        "name": "order",
-        "type": "string",
-        "desc": "The order the three angles turn in, `'XYZ'` unless set."
-      },
-      {
-        "name": "set(x: number, y: number, z: number, order?: string)",
-        "type": "GraphAngles",
-        "desc": "Writes the three angles, and the order when given; announced once."
-      },
-      {
-        "name": "setFromRotation(q: GraphRotation, quiet?: boolean)",
-        "type": "GraphAngles",
-        "desc": "The angles of `q` in this order (the core `Euler`); announced unless `quiet`."
-      }
-    ],
-    "description": ""
-  },
-  {
     "id": "GraphArray",
     "module": "packages/sdk-browser/src/host/graph/attributes.ts",
     "exports": ["GraphArray"],
@@ -5633,7 +5621,7 @@
         "desc": "One zero weight per morph target of the first morphed attribute, named by rank."
       },
       {
-        "name": "copy(source: HostGraphNode, recursive?: boolean)",
+        "name": "copy(source: GraphNode, recursive?: boolean)",
         "type": "HostMesh",
         "desc": "Takes `source`'s values, and copies of its children unless told not to."
       }
@@ -5647,11 +5635,11 @@
     "section": "types",
     "kind": "Type",
     "title": "GraphNode",
-    "signature": "class GraphNode\nnew GraphNode(): HostGraphNode",
-    "summary": "A node of the graph: its name, its pose, its world matrix, its parent and its children.",
+    "signature": "abstract class GraphNode extends Object3D",
+    "summary": "A node of the graph: the core's node, told apart by its `kind`, copied by the core's `clone`.",
     "members": [
       {
-        "name": "id",
+        "name": "serial",
         "type": "number",
         "desc": "The node's number, unique in the session."
       },
@@ -5659,161 +5647,6 @@
         "name": "kind",
         "type": "GraphNodeKind",
         "desc": "What the node is: what every reader of the graph narrows on."
-      },
-      {
-        "name": "name",
-        "type": "string",
-        "desc": "A name to find the node by."
-      },
-      {
-        "name": "parent",
-        "type": "GraphNode | null",
-        "desc": "The node holding this one."
-      },
-      {
-        "name": "children",
-        "type": "GraphNode[]",
-        "desc": "The nodes this one holds, in order."
-      },
-      {
-        "name": "up",
-        "type": "GraphVector",
-        "desc": "Which way is up for `lookAt`."
-      },
-      {
-        "name": "position",
-        "type": "GraphVector",
-        "desc": "Where the node stands, from its parent."
-      },
-      {
-        "name": "rotation",
-        "type": "GraphAngles",
-        "desc": "How the node is turned, as three angles."
-      },
-      {
-        "name": "quaternion",
-        "type": "GraphRotation",
-        "desc": "How the node is turned, as a quaternion."
-      },
-      {
-        "name": "scale",
-        "type": "GraphVector",
-        "desc": "How the node is stretched on each axis."
-      },
-      {
-        "name": "matrix",
-        "type": "Matrix4",
-        "desc": "The local matrix: composed from the pose while `matrixAutoUpdate` holds."
-      },
-      {
-        "name": "matrixWorld",
-        "type": "Matrix4",
-        "desc": "The world matrix, as last resolved."
-      },
-      {
-        "name": "matrixAutoUpdate",
-        "type": "boolean",
-        "desc": "False when `matrix` IS the pose and nothing recomposes it."
-      },
-      {
-        "name": "matrixWorldAutoUpdate",
-        "type": "boolean",
-        "desc": "False when nothing writes `matrixWorld`."
-      },
-      {
-        "name": "matrixWorldNeedsUpdate",
-        "type": "boolean",
-        "desc": "Set when the local matrix changed and the world matrix has not followed."
-      },
-      {
-        "name": "visible",
-        "type": "boolean",
-        "desc": "Whether the node and its children are drawn."
-      },
-      {
-        "name": "castShadow",
-        "type": "boolean",
-        "desc": "Whether it casts shadows."
-      },
-      {
-        "name": "receiveShadow",
-        "type": "boolean",
-        "desc": "Whether shadows fall on it."
-      },
-      {
-        "name": "frustumCulled",
-        "type": "boolean",
-        "desc": "Whether a renderer may skip it outside the view."
-      },
-      {
-        "name": "renderOrder",
-        "type": "number",
-        "desc": "Drawing order among see-through things."
-      },
-      {
-        "name": "userData",
-        "type": "Record<string, unknown>",
-        "desc": "Free room for the data of whoever built the node."
-      },
-      {
-        "name": "add(...nodes: GraphNode[])",
-        "type": "HostGraphNode",
-        "desc": "Makes `nodes` children of this one, each taken off its previous parent first."
-      },
-      {
-        "name": "remove(...nodes: GraphNode[])",
-        "type": "HostGraphNode",
-        "desc": "Takes `nodes` off this one."
-      },
-      {
-        "name": "removeFromParent()",
-        "type": "HostGraphNode",
-        "desc": "Takes this node off its parent."
-      },
-      {
-        "name": "clear()",
-        "type": "HostGraphNode",
-        "desc": "Takes every child off this node."
-      },
-      {
-        "name": "traverse(visit: (node: GraphNode) => void)",
-        "type": "void",
-        "desc": "Calls `visit` on this node, then on every node below it, in order."
-      },
-      {
-        "name": "updateMatrix()",
-        "type": "void",
-        "desc": "Composes the local matrix from the pose."
-      },
-      {
-        "name": "updateMatrixWorld(force?: boolean)",
-        "type": "void",
-        "desc": "Resolves the world matrices of the subtree, this node's parent taken as it stands."
-      },
-      {
-        "name": "updateWorldMatrix(ancestors: boolean, descendants: boolean)",
-        "type": "void",
-        "desc": "Resolves this node's world matrix, its ancestors' first when asked, its subtree after."
-      },
-      {
-        "name": "applyMatrix4(m: { elements: ArrayLike<number>; })",
-        "type": "void",
-        "desc": "Applies `m` on top of the node's pose, then reads the pose back out of the product."
-      },
-      {
-        "name": "lookAt(x: number | { x: number; y: number; z: number; }, y?: number, z?: number)",
-        "type": "void",
-        "desc": "Turns the node toward a world point, given as a point or as its three numbers."
-      },
-      {
-        "name": "clone(recursive?: boolean)",
-        "type": "HostGraphNode",
-        "desc": "A node of the same kind with the same values; its children copied too unless told not."
-      },
-      {
-        "name": "copy(source: HostGraphNode, recursive?: boolean)",
-        "type": "HostGraphNode",
-        "desc": "Takes `source`'s values, and copies of its children unless told not to."
       }
     ],
     "description": ""
@@ -5825,102 +5658,8 @@
     "section": "types",
     "kind": "Type",
     "title": "GraphNodeKind",
-    "signature": "type GraphNodeKind = | 'node'\n  | 'scene'\n  | 'group'\n  | 'mesh'\n  | 'instancedMesh'\n  | 'camera'\n  | GraphLightKind\n  | 'ambient'\n  | 'rect'\n  | 'probe'",
-    "summary": "What a node of the graph is: a bare node, the root, a group, a drawn mesh (at one placement or several), an eye, or one of the lights a scene declares.",
-    "description": ""
-  },
-  {
-    "id": "GraphRotation",
-    "module": "packages/sdk-browser/src/host/graph/rotation.ts",
-    "exports": ["GraphRotation"],
-    "section": "types",
-    "kind": "Type",
-    "title": "GraphRotation",
-    "signature": "class GraphRotation\nnew GraphRotation(x?: number, y?: number, z?: number, w?: number): GraphRotation",
-    "summary": "An orientation `(x, y, z, w)` whose writes call `_onChangeCallback`.",
-    "parameters": [
-      {
-        "name": "x",
-        "type": "number",
-        "default": "0",
-        "desc": ""
-      },
-      {
-        "name": "y",
-        "type": "number",
-        "default": "0",
-        "desc": ""
-      },
-      {
-        "name": "z",
-        "type": "number",
-        "default": "0",
-        "desc": ""
-      },
-      {
-        "name": "w",
-        "type": "number",
-        "default": "1",
-        "desc": ""
-      }
-    ],
-    "members": [
-      {
-        "name": "x",
-        "type": "number",
-        "desc": "The first number."
-      },
-      {
-        "name": "y",
-        "type": "number",
-        "desc": "The second number."
-      },
-      {
-        "name": "z",
-        "type": "number",
-        "desc": "The third number."
-      },
-      {
-        "name": "w",
-        "type": "number",
-        "desc": "The fourth number."
-      },
-      {
-        "name": "set(x: number, y: number, z: number, w: number)",
-        "type": "GraphRotation",
-        "desc": "Writes the four numbers, announced once."
-      },
-      {
-        "name": "copy(q: { readonly x: number; readonly y: number; readonly z: number; readonly w: number; })",
-        "type": "GraphRotation",
-        "desc": "Takes another rotation's numbers."
-      },
-      {
-        "name": "fromArray(array: ArrayLike<number>, offset?: number)",
-        "type": "GraphRotation",
-        "desc": "Reads four numbers from a list."
-      },
-      {
-        "name": "setFromAngles(angles: GraphAngles, quiet?: boolean)",
-        "type": "GraphRotation",
-        "desc": "The rotation of `angles`, in their order (`localTurnQuaternion`); announced unless `quiet`."
-      },
-      {
-        "name": "setFromRotationMatrix(m: ArrayLike<number>)",
-        "type": "GraphRotation",
-        "desc": "The rotation of the upper 3×3 of a column-major matrix whose columns are unit length."
-      },
-      {
-        "name": "premultiply(q: GraphRotation)",
-        "type": "GraphRotation",
-        "desc": "Becomes `q` followed by this rotation, `q · this`."
-      },
-      {
-        "name": "invert()",
-        "type": "GraphRotation",
-        "desc": "Becomes the opposite turn."
-      }
-    ],
+    "signature": "type GraphNodeKind = 'scene' | 'mesh' | 'instancedMesh' | 'camera' | GraphLightKind | 'ambient' | 'rect' | 'probe'",
+    "summary": "What a node of the graph is: the root, a drawn mesh (at one placement or several), an eye, or one of the lights a scene declares.",
     "description": ""
   },
   {
@@ -6221,104 +5960,6 @@
         "name": "clone()",
         "type": "HostTexture",
         "desc": "A texture of the same image and state, announced as changed."
-      }
-    ],
-    "description": ""
-  },
-  {
-    "id": "GraphVector",
-    "module": "packages/sdk-browser/src/host/graph/vector.ts",
-    "exports": ["GraphVector"],
-    "section": "types",
-    "kind": "Type",
-    "title": "GraphVector",
-    "signature": "class GraphVector\nnew GraphVector(x?: number, y?: number, z?: number): GraphVector",
-    "summary": "Three numbers of a pose or a point: plain data fields, and the operations a controller uses.",
-    "parameters": [
-      {
-        "name": "x",
-        "type": "number",
-        "default": "0",
-        "desc": ""
-      },
-      {
-        "name": "y",
-        "type": "number",
-        "default": "0",
-        "desc": ""
-      },
-      {
-        "name": "z",
-        "type": "number",
-        "default": "0",
-        "desc": ""
-      }
-    ],
-    "members": [
-      {
-        "name": "x",
-        "type": "number",
-        "desc": "Left to right."
-      },
-      {
-        "name": "y",
-        "type": "number",
-        "desc": "Bottom to top."
-      },
-      {
-        "name": "z",
-        "type": "number",
-        "desc": "Back to front."
-      },
-      {
-        "name": "set(x: number, y: number, z: number)",
-        "type": "GraphVector",
-        "desc": "Writes the three numbers."
-      },
-      {
-        "name": "copy(v: HostPoint)",
-        "type": "GraphVector",
-        "desc": "Takes another point's numbers."
-      },
-      {
-        "name": "clone()",
-        "type": "GraphVector",
-        "desc": "A copy."
-      },
-      {
-        "name": "add(v: HostPoint)",
-        "type": "GraphVector",
-        "desc": "Adds another vector."
-      },
-      {
-        "name": "sub(v: HostPoint)",
-        "type": "GraphVector",
-        "desc": "Takes another vector away."
-      },
-      {
-        "name": "multiplyScalar(s: number)",
-        "type": "GraphVector",
-        "desc": "Scales the three numbers."
-      },
-      {
-        "name": "length()",
-        "type": "number",
-        "desc": "Its length."
-      },
-      {
-        "name": "setLength(length: number)",
-        "type": "GraphVector",
-        "desc": "Keeps the direction, sets the length."
-      },
-      {
-        "name": "distanceTo(v: HostPoint)",
-        "type": "number",
-        "desc": "Distance to a point."
-      },
-      {
-        "name": "fromArray(array: ArrayLike<number>, offset?: number)",
-        "type": "GraphVector",
-        "desc": "Reads three numbers from a list."
       }
     ],
     "description": ""
@@ -6849,17 +6490,6 @@
     "description": ""
   },
   {
-    "id": "HostGraphNode",
-    "module": "packages/sdk-browser/src/host/scene/graphNodes.ts",
-    "exports": ["HostGraphNode"],
-    "section": "types",
-    "kind": "Type",
-    "title": "HostGraphNode",
-    "signature": "type HostGraphNode = GraphNode",
-    "summary": "A node of the graph as a walk sees it: its identity, its local pose, its world matrix and its chain.",
-    "description": "The engine computes its OWN world matrices from the local poses (`../world/tree.ts`)."
-  },
-  {
     "id": "HostMaterial",
     "module": "packages/sdk-browser/src/host/resources.ts",
     "exports": ["HostMaterial"],
@@ -6890,17 +6520,6 @@
     "title": "HostMesh",
     "signature": "type HostMesh = GraphMesh",
     "summary": "A drawn node of the graph, held by identity: the draw record, the transparent table and the selection sets name the mesh the engine placed.",
-    "description": ""
-  },
-  {
-    "id": "HostNode",
-    "module": "packages/sdk-browser/src/host/resources.ts",
-    "exports": ["HostNode"],
-    "section": "types",
-    "kind": "Type",
-    "title": "HostNode",
-    "signature": "type HostNode = GraphNode",
-    "summary": "A node of the graph, held by identity: walked, placed and posed through its own fields.",
     "description": ""
   },
   {
@@ -7072,17 +6691,6 @@
     "title": "HostTexture",
     "signature": "type HostTexture = GraphTexture",
     "summary": "A texture of the graph: a decoded picture or raw texels, and the sampler state it declares.",
-    "description": ""
-  },
-  {
-    "id": "HostTraversable",
-    "module": "packages/sdk-browser/src/host/resources.ts",
-    "exports": ["HostTraversable"],
-    "section": "types",
-    "kind": "Type",
-    "title": "HostTraversable",
-    "signature": "type HostTraversable = GraphNode",
-    "summary": "A node the engine walks: the subtree under it, itself first.",
     "description": ""
   },
   {
@@ -7339,39 +6947,77 @@
         "name": "options.anchor?",
         "type": "Vec3Input",
         "default": "a's position",
-        "desc": "Where the bodies connect: the hinge's pin, the ball of a point joint, the end of a distance on `a`."
+        "desc": "Where the bodies connect: the hinge's pin, the ball of a point joint, the end of a distance or of a pulley's rope on `a`."
       },
       {
         "name": "options.anchorB?",
         "type": "Vec3Input",
-        "default": "b's position, or `anchor` with the world",
-        "desc": "The end of a distance on `b`."
+        "default": "b's position, or `anchor`\nwith the world",
+        "desc": "The end of a distance or of a pulley's rope on `b`."
       },
       {
         "name": "options.axis?",
         "type": "Vec3Input",
-        "default": "[0, 1, 0]",
-        "desc": "A hinge's pin, a slider's rail, a cone's middle."
+        "default": "[0, 1, 0]; a six-DOF's [1, 0, 0]",
+        "desc": "A hinge's pin, a slider's rail, a cone's or a swing-twist's middle, a six-DOF's `x`, a gear's or a pinion's pin (`a`)."
+      },
+      {
+        "name": "options.axisB?",
+        "type": "Vec3Input",
+        "default": "`axis`",
+        "desc": "A gear's pin on `b`, a rack's rail (`b`)."
       },
       {
         "name": "options.limits?",
         "type": "JointLimits",
-        "desc": "Hinge, slider, distance and cone: how far it moves. A distance's default is its length."
+        "desc": "Hinge, slider, distance, cone, swing-twist and pulley: how far it moves. A distance's default is its length, a pulley's rope from 0 to its length."
+      },
+      {
+        "name": "options.axes?",
+        "type": "Partial<Record<SixDofAxis, JointLimits | 'free'>>",
+        "desc": "A six-DOF's axes that move, freely (`'free'`) or within limits; the others are locked."
       },
       {
         "name": "options.spring?",
         "type": "{ frequency: number; damping?: number; }",
-        "desc": "Hinge, slider and distance: past the limits, a spring pulls it back instead of a wall; `frequency` in Hz, `damping` from 0 (none) to 1 (critical)."
+        "desc": "Hinge, slider, distance and six-DOF: past the limits, a spring pulls it back instead of a wall; `frequency` in Hz, `damping` from 0 (none) to 1 (critical)."
       },
       {
         "name": "options.motor?",
         "type": "JointMotor",
-        "desc": "Hinge and slider: a motor, changed at any time through `joint.motor`."
+        "desc": "Hinge, slider, swing-twist (its twist), six-DOF and path: a motor, changed at any time through `joint.motor`."
+      },
+      {
+        "name": "options.path?",
+        "type": "readonly Vec3Input[]",
+        "desc": "A path's track: at least two points, `b`'s (or the world's) as they stand when made; `a` starts at the point of it nearest `anchor`."
+      },
+      {
+        "name": "options.loop?",
+        "type": "boolean",
+        "desc": "A path's track closes on itself."
+      },
+      {
+        "name": "options.follow?",
+        "type": "boolean",
+        "default": "true",
+        "desc": "A path's `a` turns with the track, as a cart does, rather than freely, as a bead."
+      },
+      {
+        "name": "options.over?",
+        "type": "readonly [Vec3Input, Vec3Input]",
+        "desc": "A pulley's two wheels in the world: `a`'s rope runs up to the first, `b`'s to the second."
+      },
+      {
+        "name": "options.ratio?",
+        "type": "number",
+        "default": "1",
+        "desc": "A gear's turns of `b` per turn of `a` (the teeth of `a` over those of `b`), the other way round; a pinion's radians per metre of rack, 1 / its radius; a pulley's metres of `b`'s rope per metre of `a`'s."
       },
       {
         "name": "options.breakForce?",
         "type": "number",
-        "desc": "Newtons of pull past which the joint breaks; left out, never."
+        "desc": "Newtons of pull past which the joint breaks (N·m of torque between a gear's or a rack's teeth); left out, never."
       }
     ],
     "members": [
@@ -7398,7 +7044,7 @@
       {
         "name": "motor",
         "type": "JointMotor | null",
-        "desc": "The motor, a hinge's or a slider's; `null` lets the joint turn or slide freely."
+        "desc": "The motor of a hinge, a slider, a swing-twist, a six-DOF or a path; `null` lets the joint move freely."
       },
       {
         "name": "broken",
@@ -7414,71 +7060,58 @@
     "description": "It holds while both bodies are simulated, and until it breaks."
   },
   {
-    "id": "JointHost",
-    "module": "packages/sdk-core/src/physics/joint.ts",
-    "exports": ["JointHost"],
-    "section": "types",
-    "kind": "Type",
-    "title": "JointHost",
-    "signature": "interface JointHost",
-    "summary": "The world's side of a joint: what a write on it asks of the simulation.",
-    "members": [
-      {
-        "name": "motor(joint: Joint)",
-        "type": "void",
-        "desc": "The motor changed."
-      }
-    ],
-    "description": ""
-  },
-  {
     "id": "JointKind",
-    "module": "packages/sdk-core/src/physics/joint.ts",
+    "module": "packages/sdk-core/src/physics/jointOptions.ts",
     "exports": ["JointKind"],
     "section": "types",
     "kind": "Type",
     "title": "JointKind",
-    "signature": "type JointKind = 'fixed' | 'point' | 'hinge' | 'slider' | 'distance' | 'cone'",
+    "signature": "type JointKind = | 'fixed'\n  | 'point'\n  | 'hinge'\n  | 'slider'\n  | 'distance'\n  | 'cone'\n  | 'swingTwist'\n  | 'sixDof'\n  | 'path'\n  | 'pulley'\n  | 'gear'\n  | 'rackAndPinion'",
     "summary": "The joints between bodies, each one of Jolt's own constraints.",
     "description": ""
   },
   {
     "id": "JointLimits",
-    "module": "packages/sdk-core/src/physics/joint.ts",
+    "module": "packages/sdk-core/src/physics/jointOptions.ts",
     "exports": ["JointLimits"],
     "section": "types",
     "kind": "Type",
     "title": "JointLimits",
     "signature": "interface JointLimits",
-    "summary": "How far a joint may move: radians for a hinge, metres for a slider or a distance, the cone's half angle (`max`) for a cone.",
+    "summary": "How far a joint may move: radians for a hinge or a turn, metres for a slider, a distance or a pulley's rope, the cone's half angle (`max`) for a cone.",
     "members": [
       {
         "name": "min?",
         "type": "number | undefined",
-        "desc": "A hinge's from −π to 0, a slider's 0 or below."
+        "desc": "A hinge's from −π to 0, a slider's 0 or below; a swing-twist's twist from −π."
       },
       {
         "name": "max?",
         "type": "number | undefined",
-        "desc": "A hinge's from 0 to π, a slider's 0 or above."
+        "desc": "A hinge's from 0 to π, a slider's 0 or above; a swing-twist's twist up to π."
+      },
+      {
+        "name": "swing?",
+        "type": "number | undefined",
+        "desc": "A swing-twist's cone: how far its `axis` swings, a half angle up to π."
       }
     ],
     "description": ""
   },
   {
     "id": "JointMotor",
-    "module": "packages/sdk-core/src/physics/joint.ts",
+    "module": "packages/sdk-core/src/physics/jointOptions.ts",
     "exports": ["JointMotor"],
     "section": "types",
     "kind": "Type",
     "title": "JointMotor",
     "signature": "interface JointMotor",
-    "summary": "A hinge's or a slider's motor: it drives the joint to a velocity or to a position.",
+    "summary": "A joint's motor: it drives the joint to a velocity or to a position.",
     "members": [
       {
         "name": "mode",
         "type": "'position' | 'velocity'",
-        "desc": "`'velocity'`: rad/s or m/s; `'position'`: radians or metres from where the joint was made."
+        "desc": "`'velocity'`: rad/s or m/s; `'position'`: radians or metres from where the joint was made — for a path, the point along it (1.5: halfway between its second and third)."
       },
       {
         "name": "target",
@@ -7488,14 +7121,19 @@
       {
         "name": "maxForce?",
         "type": "number | undefined",
-        "desc": "N·m for a hinge, N for a slider; left out, no bound."
+        "desc": "N·m for a turn, N for a slide; left out, no bound."
+      },
+      {
+        "name": "axis?",
+        "type": "SixDofAxis | undefined",
+        "desc": "A six-DOF's axis it drives."
       }
     ],
     "description": ""
   },
   {
     "id": "JointOptions",
-    "module": "packages/sdk-core/src/physics/joint.ts",
+    "module": "packages/sdk-core/src/physics/jointOptions.ts",
     "exports": ["JointOptions"],
     "section": "types",
     "kind": "Type",
@@ -7506,37 +7144,72 @@
       {
         "name": "anchor?",
         "type": "Vec3Input | undefined",
-        "desc": "Where the bodies connect: the hinge's pin, the ball of a point joint, the end of a distance on `a`."
+        "desc": "Where the bodies connect: the hinge's pin, the ball of a point joint, the end of a distance or of a pulley's rope on `a`."
       },
       {
         "name": "anchorB?",
         "type": "Vec3Input | undefined",
-        "desc": "The end of a distance on `b`."
+        "desc": "The end of a distance or of a pulley's rope on `b`."
       },
       {
         "name": "axis?",
         "type": "Vec3Input | undefined",
-        "desc": "A hinge's pin, a slider's rail, a cone's middle."
+        "desc": "A hinge's pin, a slider's rail, a cone's or a swing-twist's middle, a six-DOF's `x`, a gear's or a pinion's pin (`a`)."
+      },
+      {
+        "name": "axisB?",
+        "type": "Vec3Input | undefined",
+        "desc": "A gear's pin on `b`, a rack's rail (`b`)."
       },
       {
         "name": "limits?",
         "type": "JointLimits | undefined",
-        "desc": "Hinge, slider, distance and cone: how far it moves. A distance's default is its length."
+        "desc": "Hinge, slider, distance, cone, swing-twist and pulley: how far it moves. A distance's default is its length, a pulley's rope from 0 to its length."
+      },
+      {
+        "name": "axes?",
+        "type": "Partial<Record<SixDofAxis, JointLimits | 'free'>> | undefined",
+        "desc": "A six-DOF's axes that move, freely (`'free'`) or within limits; the others are locked."
       },
       {
         "name": "spring?",
         "type": "{ frequency: number; damping?: number; } | undefined",
-        "desc": "Hinge, slider and distance: past the limits, a spring pulls it back instead of a wall; `frequency` in Hz, `damping` from 0 (none) to 1 (critical)."
+        "desc": "Hinge, slider, distance and six-DOF: past the limits, a spring pulls it back instead of a wall; `frequency` in Hz, `damping` from 0 (none) to 1 (critical)."
       },
       {
         "name": "motor?",
         "type": "JointMotor | null | undefined",
-        "desc": "Hinge and slider: a motor, changed at any time through `joint.motor`."
+        "desc": "Hinge, slider, swing-twist (its twist), six-DOF and path: a motor, changed at any time through `joint.motor`."
+      },
+      {
+        "name": "path?",
+        "type": "readonly Vec3Input[] | undefined",
+        "desc": "A path's track: at least two points, `b`'s (or the world's) as they stand when made; `a` starts at the point of it nearest `anchor`."
+      },
+      {
+        "name": "loop?",
+        "type": "boolean | undefined",
+        "desc": "A path's track closes on itself."
+      },
+      {
+        "name": "follow?",
+        "type": "boolean | undefined",
+        "desc": "A path's `a` turns with the track, as a cart does, rather than freely, as a bead."
+      },
+      {
+        "name": "over?",
+        "type": "readonly [Vec3Input, Vec3Input] | undefined",
+        "desc": "A pulley's two wheels in the world: `a`'s rope runs up to the first, `b`'s to the second."
+      },
+      {
+        "name": "ratio?",
+        "type": "number | undefined",
+        "desc": "A gear's turns of `b` per turn of `a` (the teeth of `a` over those of `b`), the other way round; a pinion's radians per metre of rack, 1 / its radius; a pulley's metres of `b`'s rope per metre of `a`'s."
       },
       {
         "name": "breakForce?",
         "type": "number | undefined",
-        "desc": "Newtons of pull past which the joint breaks; left out, never."
+        "desc": "Newtons of pull past which the joint breaks (N·m of torque between a gear's or a rack's teeth); left out, never."
       }
     ],
     "description": "Points and axes are in the world, read when the joint is first made."
@@ -7797,11 +7470,6 @@
         "name": "lampFaceSize",
         "type": "4096",
         "desc": "Side of a lamp face's finest mip, in texels: 32 × 32 pages of 128 (the pool: `shadowPoolSide`)."
-      },
-      {
-        "name": "shadowTableEntries",
-        "type": "number",
-        "desc": "Entries of the shadow page table, one word per virtual page: a fixed 4 MiB buffer. It holds sixteen suns or 128 point lights; a light that finds no room is denied its shadow, and counted."
       },
       {
         "name": "shadowRequestCap",
@@ -8096,6 +7764,11 @@
         "desc": "Which kind of light this is: `'point'`, `'spot'`, `'directional'`…"
       },
       {
+        "name": "copy(source: Object3D, recursive?: boolean)",
+        "type": "Light",
+        "desc": "Takes `source`'s node values and, from a light, its numbers, colours, coefficients and aim; its own `kind` stays."
+      },
+      {
         "name": "needsUpdate",
         "type": "boolean",
         "desc": "`light.needsUpdate = true` after writing `sh` in place: the world reads it again."
@@ -8317,7 +7990,7 @@
       {
         "name": "onProgress?",
         "type": "((event: JobProgress) => void) | undefined",
-        "desc": "Hears how far the load has got: `manifest` once the manifest is read, then `resources` as each file the scene reads lands (`completed` of `total` known so far). The event is a `JobProgress`: a `createJob` wrapping the load passes its `progress` here."
+        "desc": "Hears how far the load has got: `bytes` at each chunk of every file read, up to `completed === total`; `manifest` once the manifest is read, `tables` once the scene tables are, then `resources` as each file the scene reads lands (`completed` of `total` known so far). The event is a `JobProgress`: a `createJob` wrapping the load passes its `progress` here, and `world.awaitPages` hears the first pages on the same shape."
       }
     ],
     "description": ""
@@ -8406,9 +8079,9 @@
     "section": "types",
     "kind": "Constant",
     "title": "MANIFEST_BINARY_VERSION",
-    "signature": "const MANIFEST_BINARY_VERSION: 7",
+    "signature": "const MANIFEST_BINARY_VERSION: 8",
     "summary": "Version 4 turns the fixed 16×16 preview entries into the variable progressive levels: the pixel column has no stride any more, each entry naming its own byte range.",
-    "description": "A file of another version is refused whole: a reader that sliced the wrong range would show one texture's levels on another. Version 5 widens a preview entry from ten to twelve words — the atlas it serves and how many levels are baked as files under `textures/` — and its pixels follow the graphics card's mip rule; a version-4 reader would stride through the entries wrongly, so it refuses this file. Version 6 keeps every column and names another geometry page in the geometry descriptor: the quantized `WGP3` page (`geometryPage.ts`) in place of the float `WGP2` page, whose bytes a version-6 reader would refuse one by one at decode; refusing the file says it once. Version 7 widens a preview entry to fourteen words — the layout each block family holds the chain in, or none — and adds two columns: the tails block-compressed, BC family then ASTC, each kept entry's range following from its dimensions; a version-6 reader would not know them, so it refuses."
+    "description": "A file of another version is refused whole: a reader that sliced the wrong range would show one texture's levels on another. Version 5 widens a preview entry from ten to twelve words — the atlas it serves and how many levels are baked as files under `textures/` — and its pixels follow the graphics card's mip rule; a version-4 reader would stride through the entries wrongly, so it refuses this file. Version 6 keeps every column and names another geometry page in the geometry descriptor: the quantized `WGP3` page (`geometryPage.ts`) in place of the float `WGP2` page, whose bytes a version-6 reader would refuse one by one at decode; refusing the file says it once. Version 7 widens a preview entry to fourteen words — the layout each block family holds the chain in, or none — and adds two columns: the tails block-compressed, BC family then ASTC, each kept entry's range following from its dimensions; a version-6 reader would not know them, so it refuses. Version 8 adds the page dependencies of the streaming bundles: a count per bundle, then the flat lists, closed up to the root cover (`docs/FORMAT.md` §Cluster DAG), that WebGPU requests and retains with a bundle. A version-7 reader cannot read the lists, so it refuses."
   },
   {
     "id": "MATH_PATH_CONTRACT",
@@ -8709,7 +8382,7 @@
       {
         "name": "parameters.linewidth?",
         "type": "number",
-        "desc": "Width of a line."
+        "desc": "Width of a line in CSS pixels, the same at every distance."
       },
       {
         "name": "parameters.dashSize?",
@@ -9013,7 +8686,7 @@
       {
         "name": "linewidth?",
         "type": "number | undefined",
-        "desc": "Width of a line."
+        "desc": "Width of a line in CSS pixels, the same at every distance."
       },
       {
         "name": "dashSize?",
@@ -9692,7 +9365,7 @@
       },
       {
         "name": "scene",
-        "type": "{ source: GraphNode; sceneLightingSource: GraphNode; associations: Map<GraphNode, { meshes?: number; primitives?: number; placements?: PlacementRows; }>; tex...",
+        "type": "{ source: Object3D; sceneLightingSource: Object3D; associations: Map<Object3D, { meshes?: number; primitives?: number; placements?: PlacementRows; }>; textur...",
         "desc": "The scene graph built from the cache's scene tables."
       },
       {
@@ -9771,7 +9444,7 @@
     "section": "object",
     "kind": "Type",
     "title": "Object3D",
-    "signature": "class Object3D extends SceneNode\nnew Object3D(): Object3D",
+    "signature": "class Object3D extends TransformNode\nnew Object3D(): Object3D",
     "summary": "A node of the scene, as a page writes it: `position`, `rotation`, `quaternion` and `scale` are live values whose writes land in the engine's transform tree, and reach the world it is in.",
     "members": [
       {
@@ -9830,6 +9503,11 @@
         "desc": "Drawing order among see-through things."
       },
       {
+        "name": "frustumCulled",
+        "type": "boolean",
+        "desc": "Whether a renderer may skip it outside the view."
+      },
+      {
         "name": "userData",
         "type": "Record<string, unknown>",
         "desc": "Free room for the page's own data."
@@ -9850,16 +9528,6 @@
         "desc": "Attached children in insertion order. The returned list cannot be mutated."
       },
       {
-        "name": "matrix",
-        "type": "Matrix4",
-        "desc": "Local matrix, a view of this node's slot of the transform tree."
-      },
-      {
-        "name": "matrixWorld",
-        "type": "Matrix4",
-        "desc": "World matrix as last composed (`updateMatrixWorld`), a view of the tree."
-      },
-      {
         "name": "add(...objects: Object3D[])",
         "type": "Object3D",
         "desc": "Makes objects children of this node."
@@ -9870,9 +9538,24 @@
         "desc": "Takes children off this node."
       },
       {
+        "name": "destroy()",
+        "type": "void",
+        "desc": "Frees the node and all below it now, rather than when they are collected."
+      },
+      {
         "name": "removeFromParent()",
         "type": "Object3D",
         "desc": "Takes the node off its parent."
+      },
+      {
+        "name": "clone(recursive?: boolean)",
+        "type": "Object3D",
+        "desc": "A node of this class with the same values, and copies of its children unless told not to."
+      },
+      {
+        "name": "copy(source: Object3D, recursive?: boolean)",
+        "type": "Object3D",
+        "desc": "Takes `source`'s values, and copies of its children unless told not to."
       },
       {
         "name": "clear()",
@@ -9895,9 +9578,14 @@
         "desc": "The first node below with this name."
       },
       {
-        "name": "updateMatrixWorld(_force?: boolean)",
+        "name": "updateMatrix()",
         "type": "void",
-        "desc": "Composes this node's world matrix and its descendants', the parent's taken as it stands."
+        "desc": "Composes the local matrix from the pose."
+      },
+      {
+        "name": "applyMatrix4(m: { elements: ArrayLike<number>; })",
+        "type": "void",
+        "desc": "Applies `m` on top of the node's pose, then reads the pose back out of the product."
       },
       {
         "name": "lookAt(x: number | { x: number; y: number; z: number; }, y?: number, z?: number)",
@@ -9930,29 +9618,9 @@
         "desc": "Moves the node along its own `axis`."
       },
       {
-        "name": "getWorldPosition(out?: Vector3)",
-        "type": "Vector3",
-        "desc": "Where the node stands in the world."
-      },
-      {
-        "name": "getWorldQuaternion(out?: Quaternion)",
-        "type": "Quaternion",
-        "desc": "How the node is turned in the world."
-      },
-      {
         "name": "getWorldDirection(out?: Vector3)",
         "type": "Vector3",
         "desc": "The way the node faces in the world."
-      },
-      {
-        "name": "localToWorld(v: Vector3)",
-        "type": "Vector3",
-        "desc": "A point of the node's frame, in the world."
-      },
-      {
-        "name": "worldToLocal(v: Vector3)",
-        "type": "Vector3",
-        "desc": "A point of the world, in the node's frame."
       },
       {
         "name": "localBounds()",
@@ -11441,12 +11109,12 @@
     "section": "math",
     "kind": "Type",
     "title": "Path",
-    "signature": "class Path extends Curve\nnew Path(points?: (Vec3Input | readonly [number, number])[]): Path",
+    "signature": "class Path extends Curve\nnew Path(points?: (readonly [number, number] | Vec3Input)[]): Path",
     "summary": "Straight segments through every point, parameterised by arc length.",
     "parameters": [
       {
         "name": "points",
-        "type": "(Vec3Input | readonly [number, number])[]",
+        "type": "(readonly [number, number] | Vec3Input)[]",
         "default": "[]",
         "desc": ""
       }
@@ -12789,8 +12457,8 @@
     "section": "types",
     "kind": "Constant",
     "title": "SCENE_ENVIRONMENT_FLOATS",
-    "signature": "const SCENE_ENVIRONMENT_FLOATS: 36",
-    "summary": "Floats of the environment in the GPU buffer.",
+    "signature": "const SCENE_ENVIRONMENT_FLOATS: 44",
+    "summary": "Floats of the environment in the GPU buffer: the coefficients, then the fog's block.",
     "description": ""
   },
   {
@@ -13325,8 +12993,8 @@
       },
       {
         "name": "fog",
-        "type": "{ color: [number, number, number]; near: number; far: number; } | null",
-        "desc": "The fog, or `null`."
+        "type": "SceneFog | null",
+        "desc": "The fog, its colour in linear components, or `null`."
       },
       {
         "name": "camera",
@@ -13407,14 +13075,14 @@
         "desc": "A picture of the surroundings that shiny surfaces reflect; `null` for none."
       },
       {
-        "name": "fog",
-        "type": "{ color: Color; near: number; far: number; } | null",
-        "desc": "Fog that fades objects into `color` between `near` and `far`; `null` for none."
-      },
-      {
         "name": "background",
         "type": "Color | null",
         "desc": "What fills the image behind every object: a colour, or `null` for the default. A change shows at the next frame, the session kept: a new colour set here, or the one held written through its methods (`set`, `setRGB`, `setHex`, `setHSL`...). A direct write of `.r`, `.g` or `.b` is not heard: set `background` again after one. A picture, or any value without `getHex`, is refused (`UNSUPPORTED_SCENE_UPDATE`): no path draws one."
+      },
+      {
+        "name": "fog",
+        "type": "Fog | null",
+        "desc": "Fog over every surface, opaque and transparent, on both renderers; `null`, the default, for none, at no cost. `{ color, near, far }` fades objects into `color` from `near` to `far`, distances from the camera; `{ color, density }` thickens by `density` per unit of distance; add `heightFalloff` (and `baseHeight`, 0 by default) and it lies on the ground, thinning out above `baseHeight` — divided by e every `1 / heightFalloff` units up. A change shows at the next frame: a new fog set here, or its colour written through its methods. A direct write of `near`, `far`, `density`... is not heard: set `fog` again after one. A fog out of range — `far` not beyond `near`, a negative density — is refused (`INVALID_SCENE_ENVIRONMENT`)."
       },
       {
         "name": "load(manifestUrl: string, options?: LoadOptions)",
@@ -13458,8 +13126,57 @@
         "name": "irradiance?",
         "type": "readonly number[] | undefined",
         "desc": "The irradiance arriving from every direction, as 27 numbers: nine coefficients, each an RGB triple, in the band order constant, `y`, `z`, `x`, `xy`, `yz`, `3z² − 1`, `xz`, `x² − y²`. Absent, or all zero, nothing lights a surface but the declared lamps."
+      },
+      {
+        "name": "fog?",
+        "type": "SceneFog | undefined",
+        "desc": "Distance or height fog over every surface (`SceneFog`); absent, none."
       }
     ],
+    "description": ""
+  },
+  {
+    "id": "SceneExponentialFog",
+    "module": "packages/sdk-core/src/scene/core/fog.ts",
+    "exports": ["SceneExponentialFog"],
+    "section": "types",
+    "kind": "Type",
+    "title": "SceneExponentialFog",
+    "signature": "interface SceneExponentialFog",
+    "summary": "Fog thickening with distance: `density` per scene unit; with `heightFalloff`, it thins out above `baseHeight`, divided by e every `1 / heightFalloff` units up.",
+    "members": [
+      {
+        "name": "color",
+        "type": "LinearRgb",
+        "desc": "The radiance the fog fades toward, linear RGB."
+      },
+      {
+        "name": "density",
+        "type": "number",
+        "desc": "Extinction per scene unit, at `baseHeight`; ≥ 0."
+      },
+      {
+        "name": "heightFalloff?",
+        "type": "number | undefined",
+        "desc": "How fast the density falls off with height, per scene unit; 0, the default, keeps it uniform at every height."
+      },
+      {
+        "name": "baseHeight?",
+        "type": "number | undefined",
+        "desc": "The height the density is `density` at; 0 by default."
+      }
+    ],
+    "description": ""
+  },
+  {
+    "id": "SceneFog",
+    "module": "packages/sdk-core/src/scene/core/fog.ts",
+    "exports": ["SceneFog"],
+    "section": "types",
+    "kind": "Type",
+    "title": "SceneFog",
+    "signature": "type SceneFog = SceneLinearFog | SceneExponentialFog",
+    "summary": "Distance or height fog, as the lighting reads it.",
     "description": ""
   },
   {
@@ -13591,6 +13308,11 @@
         "desc": "Bumped when the set of lights changes."
       },
       {
+        "name": "transportEpoch",
+        "type": "number",
+        "desc": "Bumped with the epoch, except by a change of the fog alone: fog is a view-ray term, not light transport, so what caches transported light (the bounce probes) keeps it."
+      },
+      {
         "name": "environment",
         "type": "SceneEnvironment | undefined",
         "desc": "The scene's environment."
@@ -13663,6 +13385,34 @@
     "signature": "type SceneLightingView = 'auto' | 'lit' | 'unlit' | 'bounce'",
     "summary": "What the host asks to see.",
     "description": "`lit` is real lighting and that alone; `unlit` is the raw-albedo diagnostic view — material colour as-is, with no light, no ambient and no emission — for geometry benches that compare images pixel-exact. `auto`, the default, yields `unlit` as long as no light is declared and `lit` as soon as there is one. `bounce` is the third diagnostic view: indirect irradiance alone, multiplied by exposure and output as linear values without ACES or sRGB. This is what the harness compares to the compiler oracle; it is not an image to look at, and it is black without a rigged bounce."
+  },
+  {
+    "id": "SceneLinearFog",
+    "module": "packages/sdk-core/src/scene/core/fog.ts",
+    "exports": ["SceneLinearFog"],
+    "section": "types",
+    "kind": "Type",
+    "title": "SceneLinearFog",
+    "signature": "interface SceneLinearFog",
+    "summary": "Fog that starts at `near` and hides everything from `far` on, distances from the eye.",
+    "members": [
+      {
+        "name": "color",
+        "type": "LinearRgb",
+        "desc": "The radiance the fog fades toward, linear RGB."
+      },
+      {
+        "name": "near",
+        "type": "number",
+        "desc": "Distance from the eye where the fog starts."
+      },
+      {
+        "name": "far",
+        "type": "number",
+        "desc": "Distance from the eye where nothing but the fog is seen."
+      }
+    ],
+    "description": ""
   },
   {
     "id": "SceneLink",
@@ -13778,12 +13528,12 @@
       {
         "name": "localMatrix",
         "type": "Readonly<Float64Array<ArrayBufferLike>>",
-        "desc": "Read-only by contract; use setLocalMatrix to mark the transform dirty."
+        "desc": "Read-only by contract, valid while the node lives; setLocalMatrix marks the transform dirty."
       },
       {
         "name": "worldMatrix",
         "type": "Readonly<Float64Array<ArrayBufferLike>>",
-        "desc": "Current world matrix; call updateWorldMatrix after changing a pose."
+        "desc": "Current world matrix, valid while the node lives; updateWorldMatrix after a pose change."
       },
       {
         "name": "add(child: SceneNode)",
@@ -14046,7 +13796,7 @@
       {
         "name": "register(node: T)",
         "type": "T",
-        "desc": "Makes a node built on `reserve` reachable by its index and its identifier."
+        "desc": "Makes a node built on `reserve` reachable by its identifier."
       },
       {
         "name": "node(id: string)",
@@ -14063,18 +13813,13 @@
     "section": "types",
     "kind": "Type",
     "title": "SceneState",
-    "signature": "type SceneState",
+    "signature": "type SceneState = {\n  /** The transform tree. */\n  tree: TransformTree;\n  /** Nodes by name. */\n  ids: Map<string, SceneNode>;\n  /** The next free name number. */\n  nextId: number;\n  /** The scene root. */\n  root?: SceneRoot;\n}",
     "summary": "What every node of one scene shares: its transform tree and its indexes.",
     "members": [
       {
         "name": "tree",
         "type": "TransformTree",
         "desc": "The transform tree."
-      },
-      {
-        "name": "nodes",
-        "type": "Map<number, SceneNode>",
-        "desc": "Nodes by slot."
       },
       {
         "name": "ids",
@@ -14250,6 +13995,16 @@
         "desc": "GPU time of shadows."
       },
       {
+        "name": "gpuShadowCullMs?",
+        "type": "number | null | undefined",
+        "desc": "GPU time of choosing the casters of the shadow pages a frame draws: the light cut, the per-page cull, and the occlusion test of moving casters with the pyramids it reads."
+      },
+      {
+        "name": "gpuShadowRasterMs?",
+        "type": "number | null | undefined",
+        "desc": "GPU time of drawing those casters into the pages: the static layer, then the pool."
+      },
+      {
         "name": "gpuLightingMs?",
         "type": "number | null | undefined",
         "desc": "GPU time of lighting."
@@ -14269,7 +14024,7 @@
     "members": [
       {
         "name": "table",
-        "type": "{ words: Uint32Array<ArrayBuffer>; readonly entries: number; readonly layoutEpoch: number; readonly version: number; baseOf: (slice: number) => number; claim...",
+        "type": "{ words: Uint32Array<ArrayBuffer>; readonly hostBytes: number; readonly entries: number; readonly layoutEpoch: number; readonly version: number; baseOf: (sli...",
         "desc": "The page table: one word per virtual page, and the range each light holds in it."
       },
       {
@@ -14299,7 +14054,7 @@
       },
       {
         "name": "counts",
-        "type": "{ denied: number; lights: number; sunLights: number; invalidatedPages: number; pendingPages: number; cachedPages: number; poolPages: number; waitedMs: number...",
+        "type": "{ lights: number; sunLights: number; invalidatedPages: number; pendingPages: number; cachedPages: number; poolPages: number; waitedMs: number; waitedFrames: ...",
         "desc": "What the last plan did, in pages."
       },
       {
@@ -14335,7 +14090,7 @@
       {
         "name": "releaseDeferred",
         "type": "() => void",
-        "desc": "The frame plans no shadow: the held union enters the list at once."
+        "desc": "The frame plans no shadow: the held boxes enter the list at once."
       },
       {
         "name": "observeCost",
@@ -14564,6 +14319,17 @@
     "description": ""
   },
   {
+    "id": "SixDofAxis",
+    "module": "packages/sdk-core/src/physics/jointOptions.ts",
+    "exports": ["SixDofAxis"],
+    "section": "types",
+    "kind": "Type",
+    "title": "SixDofAxis",
+    "signature": "type SixDofAxis = 'x' | 'y' | 'z' | 'turnX' | 'turnY' | 'turnZ'",
+    "summary": "A six-DOF joint's axes: slides along `x`, `y`, `z` and turns about them.",
+    "description": "`x` lies along the joint's `axis`, `y` as close to the world's up as it can square to it."
+  },
+  {
     "id": "SlimClusterManifest",
     "module": "packages/sdk-core/src/manifest/binaryTypes.ts",
     "exports": ["SlimClusterManifest"],
@@ -14635,7 +14401,7 @@
       },
       {
         "name": "selectedNodes",
-        "type": "number[]",
+        "type": "number",
         "desc": "Nodes kept."
       },
       {
@@ -14809,6 +14575,11 @@
         "name": "bundleBytes",
         "type": "number",
         "desc": "Target bundle size."
+      },
+      {
+        "name": "maxDependencies",
+        "type": "number",
+        "desc": "Largest dependency count of a bundle: the bound the compiler publishes."
       },
       {
         "name": "pages",
@@ -15216,6 +14987,11 @@
         "name": "count",
         "type": "number",
         "desc": "Clusters it holds."
+      },
+      {
+        "name": "dependencies",
+        "type": "number[]",
+        "desc": "The bundles holding the parents of its clusters, closed up to the pinned root cover and ascending: it is installed after every one of them."
       }
     ],
     "description": ""
@@ -15244,6 +15020,11 @@
         "name": "bundleBytes",
         "type": "number",
         "desc": "Target bundle size."
+      },
+      {
+        "name": "maxDependencies",
+        "type": "number",
+        "desc": "Largest dependency count of a bundle, as the compiler published it."
       },
       {
         "name": "pages",
@@ -15392,7 +15173,7 @@
       {
         "name": "flags",
         "type": "GPUTexture",
-        "desc": "0 background, 1 unlit, 2 reads, 3 display-space diagnostic."
+        "desc": "0 background, 1 unlit (fogged), 2 reads, 3 shown as-is: a diagnostic, a normal or depth view."
       },
       {
         "name": "views()",
@@ -16366,6 +16147,11 @@
         "name": "textureScratchBuilds?",
         "type": "number | null | undefined",
         "desc": "Scratch textures built."
+      },
+      {
+        "name": "textureLiveBytes?",
+        "type": "number | null | undefined",
+        "desc": "Bytes the live textures keep: one working texture each, of its own size. Deducted from `texturePoolBytes`."
       }
     ],
     "description": "These fields live apart from `FrameMetrics` because they describe another queue than the frame: tiles arrive at their own pace, bounded by bytes and by frame, and the pool is sized once. All optional: an engine without textures leaves them absent, `null` says \"unmeasured\", never an estimate."
@@ -16842,6 +16628,87 @@
     "description": ""
   },
   {
+    "id": "TransformNode",
+    "module": "packages/sdk-core/src/world/object/transformNode.ts",
+    "exports": ["TransformNode"],
+    "section": "object",
+    "kind": "Type",
+    "title": "TransformNode",
+    "signature": "class TransformNode extends SceneNode\nnew TransformNode(state: SceneState, id: string, index: number, visible?: boolean): TransformNode",
+    "summary": "A scene node read through the reference's matrices, kept in the engine's transform tree.",
+    "parameters": [
+      {
+        "name": "state",
+        "type": "SceneState",
+        "desc": ""
+      },
+      {
+        "name": "id",
+        "type": "string",
+        "desc": ""
+      },
+      {
+        "name": "index",
+        "type": "number",
+        "desc": ""
+      },
+      {
+        "name": "visible",
+        "type": "boolean",
+        "default": "true",
+        "desc": ""
+      }
+    ],
+    "members": [
+      {
+        "name": "matrix",
+        "type": "Matrix4",
+        "desc": "Local matrix, a view of this node's slot of the transform tree."
+      },
+      {
+        "name": "matrixWorld",
+        "type": "Matrix4",
+        "desc": "World matrix as last composed (`updateMatrixWorld`), a view of the tree."
+      },
+      {
+        "name": "matrixAutoUpdate",
+        "type": "boolean",
+        "desc": "False when `matrix` IS the pose and nothing recomposes it."
+      },
+      {
+        "name": "matrixWorldNeedsUpdate",
+        "type": "boolean",
+        "desc": "Set when the local matrix changed and the world matrix has not followed."
+      },
+      {
+        "name": "updateMatrixWorld(force?: boolean)",
+        "type": "void",
+        "desc": "Resolves the world matrices of the subtree, this node's parent taken as it stands."
+      },
+      {
+        "name": "getWorldPosition(out?: Vector3)",
+        "type": "Vector3",
+        "desc": "Where the node stands in the world."
+      },
+      {
+        "name": "getWorldQuaternion(out?: Quaternion)",
+        "type": "Quaternion",
+        "desc": "How the node is turned in the world."
+      },
+      {
+        "name": "localToWorld(v: Vector3)",
+        "type": "Vector3",
+        "desc": "A point of the node's frame, in the world."
+      },
+      {
+        "name": "worldToLocal(v: Vector3)",
+        "type": "Vector3",
+        "desc": "A point of the world, in the node's frame."
+      }
+    ],
+    "description": ""
+  },
+  {
     "id": "TransformSnap",
     "module": "packages/sdk-browser/src/world/controls/transformMath.ts",
     "exports": ["TransformSnap"],
@@ -16966,29 +16833,24 @@
         "desc": "How many freed indices wait."
       },
       {
-        "name": "order",
+        "name": "firstChild",
         "type": "Int32Array<ArrayBufferLike>",
-        "desc": "Update order, parents before children, and each node's rank in that order."
+        "desc": "Each node's children as a linked list, −1 for none: a subtree walk costs the subtree."
       },
       {
-        "name": "orderAt",
+        "name": "lastChild",
         "type": "Int32Array<ArrayBufferLike>",
-        "desc": "Each node's rank in `order`."
+        "desc": "Last child, where an attach links."
       },
       {
-        "name": "orderCount",
-        "type": "number",
-        "desc": "Nodes in `order`."
-      },
-      {
-        "name": "orderDirty",
-        "type": "boolean",
-        "desc": "Whether `order` must be rebuilt."
-      },
-      {
-        "name": "depth",
+        "name": "nextSibling",
         "type": "Int32Array<ArrayBufferLike>",
-        "desc": "Traversal work buffers: depth, ancestor chain, buckets, stamps."
+        "desc": "Next child of the same parent."
+      },
+      {
+        "name": "previousSibling",
+        "type": "Int32Array<ArrayBufferLike>",
+        "desc": "Previous child of the same parent."
       },
       {
         "name": "chain",
@@ -16996,14 +16858,9 @@
         "desc": "Ancestor chain buffer."
       },
       {
-        "name": "buckets",
-        "type": "Int32Array<ArrayBufferLike>",
-        "desc": "Bucket buffer."
-      },
-      {
         "name": "stamp",
         "type": "Uint32Array<ArrayBufferLike>",
-        "desc": "Stamp buffer."
+        "desc": "Stamp buffer: what a traversal passes from a parent to its children."
       },
       {
         "name": "call",
@@ -17011,7 +16868,7 @@
         "desc": "Current traversal number."
       }
     ],
-    "description": "`localViews[i]` and `worldViews[i]` are sixteen-number views on `local` and `world`, created at growth and never during an update: the GPU reads the whole buffer, the kernel formulas read a node's view. Writes go through the setters, which mark what they change. A growth replaces every array: a caller rereads `tree.world` or `tree.worldViews` after an add."
+    "description": "`localViews[i]` and `worldViews[i]` are sixteen-number views on `local` and `world`, created at growth and never during an update: the GPU reads the whole buffer, the kernel formulas read a node's view. Writes go through the setters, which mark what they change. Each node lists its children, so a subtree walk never reads outside the subtree (`links.ts`). A growth replaces every array: a caller rereads `tree.world` or `tree.worldViews` after an add."
   },
   {
     "id": "TransparentOcclusionAudit",
@@ -18140,8 +17997,15 @@
     "section": "world",
     "kind": "Function",
     "title": "world.awaitPages()",
-    "signature": "world.awaitPages(): Promise<void>",
+    "signature": "world.awaitPages(options?: { onProgress?: (event: JobProgress) => void; }): Promise<void>",
     "summary": "Resolves once the pages the current view reads are resident (`awaitViewPages`).",
+    "parameters": [
+      {
+        "name": "options?",
+        "type": "{ onProgress?: (event: JobProgress) => void; }",
+        "desc": "`onProgress` hears `pages`, `completed` of `total`, as they land."
+      }
+    ],
     "returns": {
       "type": "Promise<void>",
       "desc": ""
@@ -18440,12 +18304,12 @@
       {
         "name": "responseTime",
         "type": "number",
-        "desc": "Character only: seconds to reach 95 % of the wished speed on the ground; 0.12 by default."
+        "desc": "Character only: seconds the legs take to reach 95 % of the wished speed on the ground; 0.12 by default. The floor's friction bounds the start first: a sole pushes at most `μ g`, `μ` a rubber sole's grip on the floor's `material.physics` (stone without physics), so a jog is reached in 0.45 s on stone and 2.2 s on ice."
       },
       {
         "name": "stopTime",
         "type": "number",
-        "desc": "Character only: seconds to lose 95 % of the speed once no key is held, on the ground; 0.08 by default."
+        "desc": "Character only: seconds the legs take to lose 95 % of the speed once no key is held, on the ground; 0.12 by default. The floor's friction bounds the stop first: a jog glides `v² / (2 μ g)`, 0.8 m on stone and 3.8 m on ice; a longer time brakes more gently."
       },
       {
         "name": "capsuleRadius",
@@ -18677,7 +18541,7 @@
     "section": "world",
     "kind": "Constant",
     "title": "world.budget",
-    "signature": "world.budget: { physics: PhysicsBudget; gpu: number; cpu: number; readonly split: { shadowPool: number; geometryPool: number; texturePool: number; pageCache: number; }; re...",
+    "signature": "world.budget: { physics: PhysicsBudget; gpu: number; cpu: number; readonly split: { shadowPool: number; geometryPool: number; texturePool: number; shadowMirror: number; pa...",
     "summary": "The world's memory pools, read and set in bytes, and the physics envelopes.",
     "members": [
       {
@@ -18688,17 +18552,17 @@
       {
         "name": "gpu",
         "type": "number",
-        "desc": "Bytes of GPU memory the world may hold, all pools together; set it to redraw every pool by the split rule (`split`). Never read from the machine."
+        "desc": "Bytes of GPU memory the world may hold, all pools together; set it to redraw every pool by the split rule (`split`). A total under the shadow pool is refused (`GPU_BUDGET_UNDER_SHADOW_POOL`). Never read from the machine."
       },
       {
         "name": "cpu",
         "type": "number",
-        "desc": "Bytes of CPU memory the world may hold: its decoded pages, its manifest tables and its transfer queue together. A change applies at once: pages leave by last use until they fit."
+        "desc": "Bytes of CPU memory the world may hold: the shadow page table's host mirror, then the decoded pages, their manifest tables and their transfer queue together. A change applies at once: pages leave by last use until they fit. A total not above the mirror is refused (`CPU_BUDGET_UNDER_SHADOW_MIRROR`). Never read from the machine."
       },
       {
         "name": "split",
-        "type": "{ shadowPool: number; geometryPool: number; texturePool: number; pageCache: number; }",
-        "desc": "How the two totals are shared: the shadow pool at its largest, then half each to the geometry and texture pools, capped at their ceilings; the decoded-page cache takes the CPU total, less the manifest tables and the transfer queue of the session in place. What the rule gives, before a pool set on its own."
+        "type": "{ shadowPool: number; geometryPool: number; texturePool: number; shadowMirror: number; pageCache: number; }",
+        "desc": "How the two totals are shared: the shadow pool at its largest, then half each to the geometry and texture pools, capped at their ceilings; the shadow table's host mirror, then the decoded-page cache takes the rest of the CPU total, less the manifest tables and the transfer queue of the session in place. What the rule gives, before a pool set on its own."
       },
       {
         "name": "geometryPoolCeiling",
@@ -19084,12 +18948,12 @@
       {
         "name": "coverageBudgetLimited?",
         "type": "boolean | null | undefined",
-        "desc": "Requested detail cannot coexist with the pinned fallback within the GPU page budget."
+        "desc": "Requested detail needs more pages than the GPU page budget holds: the rest draws coarser."
       },
       {
         "name": "budgetPixelError?",
         "type": "number | null | undefined",
-        "desc": "Screen-error floor the GPU page budget imposes on the cut, in pixels: `0` when the requested detail fits, otherwise the coarser threshold the image is drawn at. Null on engines without a page budget."
+        "desc": "WebGL2 only: the screen-error floor its page budget imposes on the cut, in pixels — `0` when the requested detail fits, otherwise the coarser threshold the image is drawn at. Absent on WebGPU, where residency alone coarsens the image. Null on engines without a page budget."
       },
       {
         "name": "frameHeld?",
@@ -19262,6 +19126,16 @@
         "desc": "GPU time of shadows."
       },
       {
+        "name": "gpuShadowCullMs?",
+        "type": "number | null | undefined",
+        "desc": "GPU time of choosing the casters of the shadow pages a frame draws: the light cut, the per-page cull, and the occlusion test of moving casters with the pyramids it reads."
+      },
+      {
+        "name": "gpuShadowRasterMs?",
+        "type": "number | null | undefined",
+        "desc": "GPU time of drawing those casters into the pages: the static layer, then the pool."
+      },
+      {
         "name": "gpuLightingMs?",
         "type": "number | null | undefined",
         "desc": "GPU time of lighting."
@@ -19400,6 +19274,11 @@
         "name": "textureScratchBuilds?",
         "type": "number | null | undefined",
         "desc": "Scratch textures built."
+      },
+      {
+        "name": "textureLiveBytes?",
+        "type": "number | null | undefined",
+        "desc": "Bytes the live textures keep: one working texture each, of its own size. Deducted from `texturePoolBytes`."
       },
       {
         "name": "gpuAllocatedBytes?",
@@ -21236,7 +21115,7 @@
     "section": "budget",
     "kind": "Function",
     "title": "budget.memory()",
-    "signature": "budget.memory(world: World): { gpu: number; cpu: number; split: { shadowPool: number; geometryPool: number; texturePool: number; pageCache: number; }; geometryPool: number; texturePool: ...",
+    "signature": "budget.memory(world: World): { gpu: number; cpu: number; split: { shadowPool: number; geometryPool: number; texturePool: number; shadowMirror: number; pageCache: number; }; geometryPool:...",
     "summary": "The memory budgets a world holds right now: the GPU and CPU totals, how the rule splits them, both pools and the largest each may grow to.",
     "parameters": [
       {
@@ -21246,7 +21125,7 @@
       }
     ],
     "returns": {
-      "type": "{ gpu: number; cpu: number; split: { shadowPool: number; geometryPool: number; texturePool: number; pageCache: number; }; geometryPool: number; texturePool: ...",
+      "type": "{ gpu: number; cpu: number; split: { shadowPool: number; geometryPool: number; texturePool: number; shadowMirror: number; pageCache: number; }; geometryPool:...",
       "desc": ""
     },
     "description": ""
@@ -22930,7 +22809,7 @@
       "type": "SceneLightStore",
       "desc": ""
     },
-    "description": "The buffer is allocated once for `maxLights` lights and is never reallocated; adding, setting or removing a light only writes its sixteen floats and increments its revision. Per-light `revision` is what the shadow scheduler reads to know that a light has changed: no structure is rebuilt per frame."
+    "description": "The buffer is allocated once for `maxLights` lights and is never reallocated; adding, setting or removing a light only writes its sixteen floats and increments its revision. Per-light `revision` tells a reader that a light has changed: no structure is rebuilt per frame. The shadow scheduler reads the light's shape itself, so a change of intensity or colour stales no shadow page."
   },
   {
     "id": "createSceneRoot",
@@ -25997,6 +25876,36 @@
         "name": "cone",
         "type": "(a: Object3D, b: Object3D | null, options?: JointOptions) => Joint",
         "desc": "A ball joint whose `axis` swings within a cone of half angle `limits.max`."
+      },
+      {
+        "name": "swingTwist",
+        "type": "(a: Object3D, b: Object3D | null, options?: JointOptions) => Joint",
+        "desc": "A shoulder: `axis` swings within a cone of half angle `limits.swing` and twists about itself between `limits.min` and `max`; its motor drives the twist."
+      },
+      {
+        "name": "sixDof",
+        "type": "(a: Object3D, b: Object3D | null, options?: JointOptions) => Joint",
+        "desc": "Six axes, each locked, free or limited (`axes`): any joint in between the others."
+      },
+      {
+        "name": "path",
+        "type": "(a: Object3D, b: Object3D | null, options?: JointOptions) => Joint",
+        "desc": "`a` runs along a smooth track through `path`, fixed to `b` or the world: a roller coaster."
+      },
+      {
+        "name": "pulley",
+        "type": "(a: Object3D, b: Object3D | null, options?: JointOptions) => Joint",
+        "desc": "A rope from `a` over two wheels (`over`) down to `b`: one rises as the other falls."
+      },
+      {
+        "name": "gear",
+        "type": "(a: Object3D, b: Object3D | null, options?: JointOptions) => Joint",
+        "desc": "Two wheels turning together by `ratio`, each about its own pin (`axis`, `axisB`) and held by its own hinge (the wheel as its `a`); when `ratio` or 1 / `ratio` is whole, their teeth also keep the phase they were made in."
+      },
+      {
+        "name": "rackAndPinion",
+        "type": "(a: Object3D, b: Object3D | null, options?: JointOptions) => Joint",
+        "desc": "A pinion `a` turning about `axis` drives a rack `b` along `axisB`, each held by its own hinge or slider (the body as its `a`), their teeth kept in the phase they were made in."
       }
     ],
     "description": ""
@@ -27219,7 +27128,7 @@
       {
         "name": "parameters.linewidth?",
         "type": "number",
-        "desc": "Width of a line."
+        "desc": "Width of a line in CSS pixels, the same at every distance."
       },
       {
         "name": "parameters.dashSize?",
@@ -27404,7 +27313,7 @@
       {
         "name": "parameters.linewidth?",
         "type": "number",
-        "desc": "Width of a line."
+        "desc": "Width of a line in CSS pixels, the same at every distance."
       },
       {
         "name": "parameters.dashSize?",
@@ -27589,7 +27498,7 @@
       {
         "name": "parameters.linewidth?",
         "type": "number",
-        "desc": "Width of a line."
+        "desc": "Width of a line in CSS pixels, the same at every distance."
       },
       {
         "name": "parameters.dashSize?",
@@ -27774,7 +27683,7 @@
       {
         "name": "parameters.linewidth?",
         "type": "number",
-        "desc": "Width of a line."
+        "desc": "Width of a line in CSS pixels, the same at every distance."
       },
       {
         "name": "parameters.dashSize?",
@@ -27959,7 +27868,7 @@
       {
         "name": "parameters.linewidth?",
         "type": "number",
-        "desc": "Width of a line."
+        "desc": "Width of a line in CSS pixels, the same at every distance."
       },
       {
         "name": "parameters.dashSize?",
@@ -28144,7 +28053,7 @@
       {
         "name": "parameters.linewidth?",
         "type": "number",
-        "desc": "Width of a line."
+        "desc": "Width of a line in CSS pixels, the same at every distance."
       },
       {
         "name": "parameters.dashSize?",
@@ -28329,7 +28238,7 @@
       {
         "name": "parameters.linewidth?",
         "type": "number",
-        "desc": "Width of a line."
+        "desc": "Width of a line in CSS pixels, the same at every distance."
       },
       {
         "name": "parameters.dashSize?",
@@ -28514,7 +28423,7 @@
       {
         "name": "parameters.linewidth?",
         "type": "number",
-        "desc": "Width of a line."
+        "desc": "Width of a line in CSS pixels, the same at every distance."
       },
       {
         "name": "parameters.dashSize?",
@@ -28699,7 +28608,7 @@
       {
         "name": "parameters.linewidth?",
         "type": "number",
-        "desc": "Width of a line."
+        "desc": "Width of a line in CSS pixels, the same at every distance."
       },
       {
         "name": "parameters.dashSize?",
@@ -28884,7 +28793,7 @@
       {
         "name": "parameters.linewidth?",
         "type": "number",
-        "desc": "Width of a line."
+        "desc": "Width of a line in CSS pixels, the same at every distance."
       },
       {
         "name": "parameters.dashSize?",
@@ -29069,7 +28978,7 @@
       {
         "name": "parameters.linewidth?",
         "type": "number",
-        "desc": "Width of a line."
+        "desc": "Width of a line in CSS pixels, the same at every distance."
       },
       {
         "name": "parameters.dashSize?",
@@ -29254,7 +29163,7 @@
       {
         "name": "parameters.linewidth?",
         "type": "number",
-        "desc": "Width of a line."
+        "desc": "Width of a line in CSS pixels, the same at every distance."
       },
       {
         "name": "parameters.dashSize?",
@@ -29439,7 +29348,7 @@
       {
         "name": "parameters.linewidth?",
         "type": "number",
-        "desc": "Width of a line."
+        "desc": "Width of a line in CSS pixels, the same at every distance."
       },
       {
         "name": "parameters.dashSize?",
@@ -29624,7 +29533,7 @@
       {
         "name": "parameters.linewidth?",
         "type": "number",
-        "desc": "Width of a line."
+        "desc": "Width of a line in CSS pixels, the same at every distance."
       },
       {
         "name": "parameters.dashSize?",
@@ -30180,12 +30089,12 @@
     "section": "math",
     "kind": "Function",
     "title": "math.path()",
-    "signature": "math.path(points: (Vec3Input | readonly [number, number])[]): Path",
+    "signature": "math.path(points: (readonly [number, number] | Vec3Input)[]): Path",
     "summary": "Straight segments through the points, 2D points lying in the `z = 0` plane.",
     "parameters": [
       {
         "name": "points",
-        "type": "(Vec3Input | readonly [number, number])[]",
+        "type": "(readonly [number, number] | Vec3Input)[]",
         "desc": "The corners, 2D or 3D."
       }
     ],
@@ -32930,7 +32839,7 @@
     "title": "texture",
     "signature": "const texture",
     "summary": "The `texture` family: an image and how it is sampled.",
-    "description": "Colour images are sRGB, data images are linear; `needsUpdate` after writing the pixels makes the samplers read them again."
+    "description": "Colour images are sRGB, data images are linear; `needsUpdate` after writing the pixels makes the samplers read them again, copied in place into the texture already on the GPU — only a new size builds it again. A video is live: its frames arrive by themselves."
   },
   {
     "id": "texture.image",
@@ -33012,7 +32921,7 @@
       "type": "Texture",
       "desc": ""
     },
-    "description": ""
+    "description": "After drawing on the canvas again, set `needsUpdate`: the new pixels are copied into the texture already on the GPU, nothing rebuilt."
   },
   {
     "id": "texture.video",
@@ -33022,7 +32931,7 @@
     "kind": "Function",
     "title": "texture.video()",
     "signature": "texture.video(v: HTMLVideoElement): Texture",
-    "summary": "A texture that shows a playing video.",
+    "summary": "A texture that shows a playing video, or a camera stream played in a video.",
     "parameters": [
       {
         "name": "v",
@@ -33034,7 +32943,7 @@
       "type": "Texture",
       "desc": ""
     },
-    "description": ""
+    "description": "Each new frame is copied into the texture already on the GPU by itself; a paused video costs nothing."
   },
   {
     "id": "texture.depth",
@@ -33730,8 +33639,8 @@
     "section": "math-utilities",
     "kind": "Function",
     "title": "updateNodeMatrixWorld()",
-    "signature": "updateNodeMatrixWorld(tree: TransformTree, node: number, force?: boolean): void",
-    "summary": "`node.updateMatrixWorld(force)`: the node and its whole subtree, parents first.",
+    "signature": "updateNodeMatrixWorld(tree: TransformTree, node: number, force?: boolean): number",
+    "summary": "`node.updateMatrixWorld(force)`: the node and its whole subtree, parents first, and how many nodes it walked — the subtree, whatever else shares the tree.",
     "parameters": [
       {
         "name": "tree",
@@ -33750,7 +33659,11 @@
         "desc": ""
       }
     ],
-    "description": "A node is reached if it updates automatically, if it is marked, or if `force` — that of the call for `node`, otherwise \"the parent was reached\". Ancestors of `node` are not reread. The stamp of a visited node is `2 · traversal + reached`: one read tells the child whether it is in the subtree and what its parent passes it."
+    "returns": {
+      "type": "number",
+      "desc": ""
+    },
+    "description": "A node is reached if it updates automatically, if it is marked, or if `force` — that of the call for `node`, otherwise \"the parent was reached\". Ancestors of `node` are not reread. The stamp of a walked node is `2 · traversal + reached`: what its children read of it."
   },
   {
     "id": "updateNodeWorldMatrix",

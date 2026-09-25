@@ -21,7 +21,7 @@ export function versPage(name: string, packed: PackedDag, uniforms: SelectionUni
   const blockCount = Math.ceil(Math.max(1, packed.pageCount) / SELECTION_WORKGROUP);
   return {
     name,
-    travail: dagWorkLayout(blockCount, Math.max(1, packed.worldCount)),
+    travail: dagWorkLayout(blockCount),
     pageCount: packed.pageCount,
     nodeCount: packed.nodeCount,
     worldCount: Math.max(1, packed.worldCount),

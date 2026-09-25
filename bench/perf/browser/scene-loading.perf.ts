@@ -39,12 +39,12 @@ const videMetadata: ClusterManifest = {
   scope: DEFAULT_SCOPE,
   sourceTriangles: 0,
   selectedTriangles: 0,
-  selectedNodes: [],
+  selectedNodes: 0,
   totalNodes: 0,
   primitives: [],
 };
 const videScene: ChargementScene = {
-  source: new G.GraphGroup(),
+  source: new G.Group(),
   associations: new Map(),
   metadata: videMetadata,
   indices: new Map(),

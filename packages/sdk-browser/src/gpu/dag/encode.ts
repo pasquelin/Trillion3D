@@ -1,5 +1,4 @@
 import { SELECTION_WORKGROUP as WORKGROUP } from '../core/selection.ts';
-import { ESCALATION_ROUNDS } from '../../page/selection/types.ts';
 import type { createDagResources } from './resources.ts';
 
 /** The cut's resources, as it encodes them. A light cut brings its own flags, work, frames, output
@@ -65,8 +64,6 @@ function encodeOnce(
     clearDrawnPipeline,
     levelPipelines,
     wantedPipeline,
-    escalatePipeline,
-    checkPipeline,
     maskPipeline,
     drawPrefixPipeline,
     drawScatterPipeline,
@@ -137,10 +134,6 @@ function encodeOnce(
   if (light) {
     live.setPipeline(viewOffsetsPipeline);
     live.dispatchWorkgroups(1);
-  }
-  if (residentCut) {
-    for (let round = 0; round < ESCALATION_ROUNDS; round++) runLive(escalatePipeline);
-    runLive(checkPipeline);
   }
   runLive(maskPipeline);
   // The drawable-page list is compacted here, in increasing order: the snapshot no longer

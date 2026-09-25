@@ -70,7 +70,6 @@ export { gpuPassBlockOf, gpuPassStageOf } from '../../sdk-browser/src/stage/mapp
 export type { GpuPassBlock } from '../../sdk-browser/src/stage/mapping.ts';
 export { gpuPassBlockTotals } from '../../sdk-browser/src/gpu/core/passBlocks.ts';
 export type { GpuPassBlockTotals } from '../../sdk-browser/src/gpu/core/passBlocks.ts';
-export { GraphAngles, GraphRotation } from '../../sdk-browser/src/host/graph/rotation.ts';
 export {
   GraphAttribute,
   GraphInterleavedAttribute,
@@ -83,7 +82,6 @@ export { GraphNode } from '../../sdk-browser/src/host/graph/node.ts';
 export type { GraphNodeKind } from '../../sdk-browser/src/host/graph/nodeKind.ts';
 export { GraphSurface } from '../../sdk-browser/src/host/graph/surface.ts';
 export { GraphTexture } from '../../sdk-browser/src/host/graph/texture.ts';
-export { GraphVector } from '../../sdk-browser/src/host/graph/vector.ts';
 export type {
   GravityInput,
   WorldPhysics,
@@ -103,30 +101,24 @@ export type {
   HostMaterial,
   HostMaterials,
   HostMesh,
-  HostNode,
   HostPoint,
   HostScene,
   HostTexture,
-  HostTraversable,
 } from '../../sdk-browser/src/host/resources.ts';
 export { enginePose, readCameraWorld } from '../../sdk-browser/src/camera/world.ts';
 export type { HostDrawCamera, HostCamera } from '../../sdk-browser/src/camera/world.ts';
 export type { HostDrawOutput } from '../../sdk-browser/src/webgl/core/renderTarget.ts';
-export type {
-  HostGraphNode,
-  HostRotation,
-  HostVector,
-} from '../../sdk-browser/src/host/scene/graphNodes.ts';
 export type { HostNodeMatrix, MatrixElements } from '../../sdk-browser/src/math/matrixElements.ts';
 export type { HostRetentionDelta, StreamPage } from '../../sdk-browser/src/streaming/types.ts';
+export type { HostRotation, HostVector } from '../../sdk-browser/src/host/scene/graphNodes.ts';
 export { joint, Joint } from '../../sdk-core/src/physics/joint.ts';
 export type {
-  JointHost,
   JointKind,
   JointLimits,
   JointMotor,
   JointOptions,
-} from '../../sdk-core/src/physics/joint.ts';
+  SixDofAxis,
+} from '../../sdk-core/src/physics/jointOptions.ts';
 export type { OrbitCameraControls } from '../../sdk-browser/src/camera/controls/orbitControls.ts';
 export type { PanZoomCameraControls } from '../../sdk-browser/src/camera/controls/panZoomControls.ts';
 export type { PartitionAudit } from '../../sdk-browser/src/webgpu/core/partitionAudit.ts';

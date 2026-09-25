@@ -6,10 +6,10 @@ import type { WorldRenderer } from '../capability/worldReady.ts';
 import { holdWorldDevice, worldRecovered } from './worldDevice.ts';
 import { createWorldFrames, type BeforeFrameInfo, type FrameInfo } from './worldFrames.ts';
 import { createWorldRuntime } from './worldRuntime.ts';
-import { Scene, type LoadOptions } from './scene.ts';
+import { Scene, sceneFogOf, type LoadOptions } from './scene.ts';
 import { worldModelLoader } from './worldLoader.ts';
 import { createWorldRaycast } from './worldRaycast.ts';
-import { awaitViewPages, registerWorld } from './worldSession.ts';
+import { awaitViewPages, registerWorld, type JobProgress } from './worldSession.ts';
 import { sessionOptions, type WorldOptions } from './worldOptions.ts';
 import { worldControlsHandle, worldDiagnostic } from './worldHandles.ts';
 import { sessionPools, worldBudget, worldPools } from './worldBudget.ts';
@@ -70,12 +70,11 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
     },
     frame: frames.dispatch,
     drawn: () => frames.last !== null,
-    display: () => ({ exposure, toneMapping }),
+    display: () => ({ exposure, toneMapping, fog: sceneFogOf(scene.fog) }),
     diagnostic,
   });
   const physics = createWorldPhysics(runtime, scene, () => camera, options.physics);
-  /** The camera outside the scene still redraws when it moves. */
-  const adopt = cameraAdopter(invalidate);
+  const adopt = cameraAdopter(invalidate); // a camera outside the scene redraws when it moves
   adopt(camera);
   const controls = worldControlsHandle(
     options.controls ?? 'none',
@@ -147,8 +146,7 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
     set temporalAntialiasing(on: boolean) {
       switches.temporalAntialiasing = on;
     },
-    /** Bodies, gravity and time of the physics (Jolt, in a worker). */
-    physics: physics.handle,
+    /** Bodies, gravity and time of the physics (Jolt, in a worker). */ physics: physics.handle,
     /** The world's memory pools, read and set in bytes, and the physics envelopes. */
     budget: worldBudget(pools, runtime, frames, () => device.renderer, physics.budget),
     diagnostic: diagnostic.handle,
@@ -178,8 +176,10 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
       invalidate();
     },
     ...worldTelemetry(live),
-    /** Resolves once the pages the current view reads are resident (`awaitViewPages`). */
-    awaitPages: () => awaitViewPages(runtime, live),
+    /** Resolves once the pages the current view reads are resident (`awaitViewPages`).
+     *  @param options - `onProgress` hears `pages`, `completed` of `total`, as they land. */
+    awaitPages: (options?: { onProgress?: (event: JobProgress) => void }) =>
+      awaitViewPages(runtime, live, options?.onProgress),
     /** Stops the world and gives back all it took: GPU memory, loop, controls. */ dispose() {
       if (disposed) return;
       disposed = true;
