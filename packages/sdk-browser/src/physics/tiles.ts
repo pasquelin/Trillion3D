@@ -157,8 +157,8 @@ export function createTileStreamer(
         failed(physicsBudgetError('triangles', budget.triangles, asked));
       refused = asked > budget.triangles;
     },
-    /** The model a tile body's engine id belongs to, or `null`. */
-    modelOf: (id: number) => byIndex.get(id & BODY_INDEX)?.model ?? null,
+    /** The model a tile body's or a cooked soft body's engine id belongs to, or `null`. */
+    modelOf: (id: number) => byIndex.get(id & BODY_INDEX)?.model ?? softs.modelOf(id),
     /** The glTF material of a tile body's triangles, `-1` for none or for another body. */
     materialOf: (id: number) => byIndex.get(id & BODY_INDEX)?.material ?? -1,
     /** A model moved: its resident tiles follow. */

@@ -1,6 +1,6 @@
 //! The cook's soft records against the page's: `soft_record.rs` mirrors `softBodyOf`
 //! (`packages/sdk-core/src/physics/soft.ts`), and both read the same golden records. This test
-//! writes them from the cook; `soft.test.ts` rebuilds each on the page and requires the same
+//! writes them from the cook; `softCook.test.ts` rebuilds each on the page and requires the same
 //! vertices, masses and corners bit for bit, and the same pressure.
 use super::soft_record::{soft_record, SoftDeclared, SoftRecord};
 use super::soft_tests::{declared, golden_record};
