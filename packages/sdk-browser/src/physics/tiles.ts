@@ -42,26 +42,22 @@ export function createTileStreamer(
   invalidate: () => void,
   failed: (error: EngineError) => void,
 ) {
-  const models = new Map<Model, Placed[] | null>();
+  /** Each open model's tiles, empty until its file lands: the array is its opening, so one that
+   *  left and came back while its file was on its way lands once, from the later opening. */
+  const models = new Map<Model, Placed[]>();
   const byIndex = new Map<number, Placed>();
-  /** Each model's last opening: one that left and came back while its file was on its way lands
-   *  once, from the later opening; the earlier places nothing. */
-  const openings = new WeakMap<Model, object>();
-  /** Tiles the worker refused: not loaded again until their model opens again. */
-  const refusedTiles = new WeakSet<Placed>();
   const softs = createCookedSoftBodies(writer, bodies, invalidate, failed);
   let fetching = 0,
     refused = false;
   async function open(model: Model) {
-    const opening = {};
-    openings.set(model, opening);
-    models.set(model, null);
+    const placed: Placed[] = [];
+    models.set(model, placed);
     const response = await fetch(new URL('physics.json', model.record.base).href);
     // A model compiled before the cook has no file: it collides nowhere, as before.
     if (!response.ok) return;
     const cooked = readCookedPhysics(await response.json());
-    if (!models.has(model) || openings.get(model) !== opening) return;
-    models.set(model, placedOf(model, cooked));
+    if (models.get(model) !== placed) return;
+    placed.push(...placedOf(model, cooked));
     softs.open(model, cooked.softBodies);
     invalidate();
   }
@@ -72,8 +68,8 @@ export function createTileStreamer(
     p.id = -1;
   };
   /** Everything `model` holds out: its tiles and its cooked soft bodies. */
-  const drop = (model: Model, placed: Placed[] | null) => {
-    placed?.forEach(evict);
+  const drop = (model: Model, placed: Placed[]) => {
+    placed.forEach(evict);
     softs.forget(model);
   };
   async function load(p: Placed) {
@@ -141,7 +137,7 @@ export function createTileStreamer(
       const wanted: [number, Placed][] = [],
         movers = moversOf(bodies.meshes);
       for (const placed of models.values())
-        for (const p of placed ?? []) {
+        for (const p of placed) {
           let near = boxPointDistance(p.box, 0, eye[0], eye[1], eye[2]);
           if (near > range) near = Infinity;
           for (let m = 0; m < movers.length; m += 4)
@@ -156,7 +152,7 @@ export function createTileStreamer(
       let room = budget.triangles - bodies.count.triangles,
         asked = bodies.count.triangles;
       for (const [, p] of wanted) {
-        if (p.id >= 0 || p.loading || refusedTiles.has(p)) continue;
+        if (p.id >= 0 || p.loading) continue;
         asked += p.tile.triangles;
         if (p.tile.triangles > room) continue;
         room -= p.tile.triangles;
@@ -174,7 +170,8 @@ export function createTileStreamer(
       const p = byIndex.get(id & BODY_INDEX);
       if (p?.id !== id) return softs.refused(id);
       evict(p);
-      refusedTiles.add(p);
+      const placed = models.get(p.model)!;
+      placed.splice(placed.indexOf(p), 1);
     },
     /** The glTF material of a tile body's triangles, `-1` for none or for another body. */
     materialOf: (id: number) => byIndex.get(id & BODY_INDEX)?.material ?? -1,
