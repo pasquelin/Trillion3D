@@ -10,15 +10,15 @@ import { assertBits } from '../../../../../tests/kit/assert/bits.ts';
 
 /** Root → posed child → grandchild → leaf chain, hostile poses included. */
 function chaineHostile() {
-  const racine = new G.GraphGroup();
+  const racine = new G.Group();
   racine.position.set(1, -2, 3);
   racine.scale.set(-1, 2, 0.5);
   racine.quaternion.set(0, 1, 0, 0); // half-turn: w = 0
-  const enfant = new G.GraphGroup();
+  const enfant = new G.Group();
   enfant.matrixAutoUpdate = false; // the host SETS the local matrix: nothing recomposes it
   enfant.matrix.set(1, 0.7, 0, 5, 0, 1, 0, -2, 0, 0, 3, 0, 0, 0, 0, 1);
   racine.add(enfant);
-  const petitEnfant = new G.GraphGroup();
+  const petitEnfant = new G.Group();
   petitEnfant.position.set(-0, 0.25, -7);
   petitEnfant.scale.set(0, 1e150, -3);
   enfant.add(petitEnfant);
@@ -54,10 +54,10 @@ test('hostWorldChainInto retakes a stale ancestor, like the reference that walks
   // Clean chain, no extreme scale: a root move must show in the leaf translation, otherwise
   // the test would prove nothing.
   const chaine = () => {
-    const racine = new G.GraphGroup();
+    const racine = new G.Group();
     racine.position.set(1, -2, 3);
     racine.scale.set(-1, 2, 0.5);
-    const feuille = new G.GraphGroup();
+    const feuille = new G.Group();
     feuille.position.set(2, -2, 2);
     racine.add(feuille);
     return { racine, feuille };
@@ -78,10 +78,10 @@ test('hostWorldChainInto retakes a stale ancestor, like the reference that walks
 test('hostWorldChainInto holds a chain deeper than its starting buffer, without losing a bit', () => {
   // The ancestor array starts at sixty-four slots: two hundred and fifty nodes force it to grow
   // three times, and the result must stay that of the reference.
-  let node = new G.GraphGroup();
+  let node = new G.Group();
   const racine = node;
   for (let rang = 1; rang < 250; rang++) {
-    const enfant = new G.GraphGroup();
+    const enfant = new G.Group();
     enfant.position.set(rang, -rang, 1 / rang);
     enfant.scale.set(rang % 3 === 0 ? -1 : 1, 1, 1);
     node.add(enfant);
@@ -94,7 +94,7 @@ test('hostWorldChainInto holds a chain deeper than its starting buffer, without 
 });
 
 test('hostWorldChainInto on a root returns its local matrix alone, like the reference', () => {
-  const racine = new G.GraphGroup();
+  const racine = new G.Group();
   racine.position.set(-0, 4, 5);
   racine.scale.set(-1, -1, -1);
   const obtenu = new Float64Array(16);

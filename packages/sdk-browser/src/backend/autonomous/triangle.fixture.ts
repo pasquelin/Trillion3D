@@ -15,7 +15,7 @@ export function triangleBackend(
   geometry.setAttribute('position', new G.GraphAttribute(position, 3));
   geometry.setIndex(G.indices([0, 1, 2]));
   const mesh = G.mesh(geometry, material),
-    source = new G.GraphGroup();
+    source = new G.Group();
   source.add(mesh);
   const page = {
     id: 0,

@@ -19,7 +19,7 @@ import { type ClusterManifest } from '../../../../sdk-core/src/index.ts';
 import { assertSceneTables } from '../../../../sdk-core/src/scene/core/tableContracts.ts';
 import { buildPreparedScene } from './build.ts';
 import { threeGraph } from '../../../../../bench/witnesses/three/fromGraphNodes.ts';
-import type { GraphNode } from '../graph/node.ts';
+import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 import { caches, describe, describeShape, serveFiles, type Ranks } from './scenes.fixture.ts';
 
 async function witness(folder: URL, document: string, text?: string) {
@@ -47,7 +47,7 @@ async function prepared(folder: URL, document: string, written?: unknown) {
   const textures = built.textureIndices as Map<object, number>;
   const ranks: Ranks = (object) =>
     textures.has(object) ? { textures: textures.get(object) } : meshes.get(object);
-  const source = built.source as unknown as GraphNode;
+  const source = built.source as unknown as Object3D;
   return {
     shape: describeShape(source, ranks),
     whole: describe(threeGraph(source), () => undefined),
