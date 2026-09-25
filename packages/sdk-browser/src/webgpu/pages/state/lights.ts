@@ -37,6 +37,8 @@ export interface WebgpuLightState {
   buffer: GPUBuffer | undefined;
   tiles: GpuLightTiles | undefined;
   shadows: GpuShadowAtlas | undefined;
+  /** The shadow pool's grant, once asked: `settled` once the device granted or refused it. */
+  shadowGrant: { settled: boolean; done: Promise<void> } | undefined;
   /** The return path of the pages the resolve reads; absent while the pool does not exist. */
   pageRequests: ShadowPageRequests | undefined;
   /** Residency flips, compared plan to plan (`../../shadow/residence.ts`). */
@@ -108,6 +110,7 @@ export function createWebgpuLightState(
     buffer: undefined,
     tiles: undefined,
     shadows: undefined,
+    shadowGrant: undefined,
     pageRequests: undefined,
     sceneBox: createShadowSceneBox(),
     residence: createShadowResidence(),
