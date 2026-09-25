@@ -23,7 +23,7 @@ float stepHeight = 0;
 /** The velocity the last CHARACTER_MOVE asked for, and whether it is owed to this step. */
 Vec3 wished = Vec3::sZero();
 bool due = false, grounded = false;
-/** `present, feet x y z, ground state, ground velocity x y z` (layout.ts). */
+/** `present, feet x y z, ground state, ground velocity x y z, ground friction` (layout.ts). */
 float state[CHARACTER_STATE_WORDS] = {};
 
 /// The inner capsule is placed, never simulated: kept asleep, it never counts as a body awake,
@@ -102,13 +102,19 @@ void moveCharacter(float dt) {
 void writeCharacter() {
   state[0] = character ? 1.0f : 0.0f;
   if (!character) return;
+  World &world = trillion::world();
   // What the body stands on moved during the step: its velocity is the next step's to follow.
   character->UpdateGroundVelocity();
   RVec3 feet = character->GetPosition();
   Vec3 ground = character->GetGroundVelocity();
+  // The friction of the body the feet stand on, -1 when none: the driver bounds the step by it.
+  BodyID floor = character->GetGroundBodyID();
+  float friction =
+      floor.IsInvalid() ? -1.0f : world.system->GetBodyInterfaceNoLock().GetFriction(floor);
   float values[CHARACTER_STATE_WORDS - 1] = {
       float(feet.GetX()), float(feet.GetY()), float(feet.GetZ()),
-      float(int(character->GetGroundState())), ground.GetX(), ground.GetY(), ground.GetZ()};
+      float(int(character->GetGroundState())), ground.GetX(), ground.GetY(), ground.GetZ(),
+      friction};
   std::memcpy(state + 1, values, sizeof(values));
 }
 

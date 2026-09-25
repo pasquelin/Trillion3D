@@ -11,22 +11,11 @@ import { SAMPLE_MAG_NEAREST, SAMPLE_TRANSFORMED } from './sampling.ts';
 import type { Texture } from '../../../../sdk-core/src/index.ts';
 import { slotSampled } from './samplingHeaders.ts';
 import { entryLevel, entryPlace, MAX_LEVELS, packEntry, tileLayout } from '../../texture/tiles.ts';
-import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
+import { fakeDevice, type FakeWrite } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 
-installGpuGlobals();
-
-/** A dummy device: it journals every buffer write, in words. */
-function fakeDevice() {
-  const writes: Array<[number, number]> = [];
-  const device = {
-    createBuffer: () => ({ destroy: () => {} }) as unknown as GPUBuffer,
-    queue: {
-      writeBuffer: (_b: GPUBuffer, offset: number, _d: unknown, from?: number, size?: number) =>
-        writes.push([offset / 4, size ?? -1]),
-    },
-  } as unknown as Pick<GPUDevice, 'createBuffer' | 'queue'>;
-  return { device, writes };
-}
+/** The writes of a device, in words: first word written, and the word count or -1 for all. */
+const words = (writes: FakeWrite[]) =>
+  writes.map(({ offset, size }) => [offset / 4, size ?? -1] as [number, number]);
 
 const layouts = () => [tileLayout(1, 1), tileLayout(2048, 1024), tileLayout(512, 512)];
 
@@ -99,7 +88,7 @@ test('a leaving tile gives its entries back to the finest resident ancestor, or 
   writes.length = 0;
   table.flush(device);
   assert.equal(writes.length, 1, 'one write per touched texture');
-  const [from, size] = writes[0];
+  const [from, size] = words(writes)[0];
   assert.equal(from, table.words[2] + 171, 'from the first entry of texture 2');
   assert.equal(size, 21);
   table.flush(device);
@@ -112,7 +101,7 @@ test("a texture's queue is posted in its header with its lane, and sent alone", 
   writes.length = 0;
   table.setTail(1, { x: 4, y: 2, layer: 1 }, 2);
   table.flush(device);
-  assert.deepEqual(writes, [[PAGE_HEADER_WORDS + PAGE_SLOT_WORDS + 3, 1]]);
+  assert.deepEqual(words(writes), [[PAGE_HEADER_WORDS + PAGE_SLOT_WORDS + 3, 1]]);
   assert.equal(
     table.words[PAGE_HEADER_WORDS + PAGE_SLOT_WORDS + 3],
     4 | (2 << 8) | (1 << 16) | (2 << 24),
@@ -145,12 +134,16 @@ test("a texture's sampling rides in its header, and only the words that moved ar
   writes.length = 0;
   assert.equal(table.setSampling(2, map, false), false, 'nothing moved');
   table.flush(device);
-  assert.deepEqual(writes, [], 'nothing moved, nothing sent');
+  assert.deepEqual(words(writes), [], 'nothing moved, nothing sent');
   map.magFilter = 'nearest';
   map.transform[0] = map.transform[4] = 4;
   assert.equal(table.setSampling(2, map, false), true);
   table.flush(device);
-  assert.deepEqual(writes, [[header + 2, 6]], 'the filter word to the second scale, one span');
+  assert.deepEqual(
+    words(writes),
+    [[header + 2, 6]],
+    'the filter word to the second scale, one span',
+  );
   assert.equal(
     table.words[header + 2],
     last | ((SAMPLE_MAG_NEAREST | SAMPLE_TRANSFORMED) << PAGE_FILTER_SHIFT),
@@ -161,5 +154,5 @@ test("a texture's sampling rides in its header, and only the words that moved ar
   map.transform[6] = 0.5;
   table.setSampling(2, map, false);
   table.flush(device);
-  assert.deepEqual(writes, [[transform + 4, 1]], 'an offset alone sends its word');
+  assert.deepEqual(words(writes), [[transform + 4, 1]], 'an offset alone sends its word');
 });

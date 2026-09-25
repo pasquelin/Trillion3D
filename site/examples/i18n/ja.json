@@ -360,6 +360,22 @@
       "up": "上"
     }
   },
+  "a-town-in-the-fog": {
+    "banner": "ドラッグして見回す。霧の種類、届く距離、色を選ぶ。",
+    "controls": {
+      "fog": "霧",
+      "reach": "距離",
+      "height": "高さ",
+      "colour": "色"
+    },
+    "choices": {
+      "fog": {
+        "distance": "距離",
+        "thick": "濃霧",
+        "ground": "地霧"
+      }
+    }
+  },
   "a-tube-along-a-spline": {
     "banner": "ドラッグして見回そう。ビーズが管にそって進むよ。",
     "controls": {
@@ -1785,7 +1801,7 @@
     }
   },
   "walk-through-a-temple": {
-    "banner": "プレイをおして、W A S Dで走り、スペースでジャンプしよう。",
+    "banner": "プレイをおして、W A S Dで走り、スペースでジャンプしよう。早めに離そう：石の上では止まる前に少し滑る。",
     "controls": {
       "keys": "エンジンのキャラクター操作: メニューの「プレイ」でマウスを固定して見回す、W A S D で走る（AZERTYなら Z Q S D）、Shift でダッシュ、スペースでジャンプ、Esc でマウスを放す。このページは、R で走りなおし、M で音を消すのを足している。",
       "look": "視点",
@@ -1809,6 +1825,26 @@
       "finished": "{taken} / {orbs} オーブ · R で走りなおす",
       "muted": "M 消音",
       "sound": "M 音あり"
+    }
+  },
+  "watch-a-world-load": {
+    "banner": "世界が届くあいだにバーが満ちていくのを見てね。最初のバイトから見るには「もう一度読み込む」を押してね。",
+    "controls": {
+      "loadAgain": "もう一度読み込む"
+    },
+    "readouts": {
+      "phase": "段階",
+      "bytes": "バイト",
+      "pages": "最初のページ"
+    },
+    "words": {
+      "credit": "この例のためにコードで作ったつぼの並木道、CC0 — assets/examples/CREDITS.md を見てね",
+      "bytes": "バイトを読み込み中",
+      "manifest": "マニフェストを読んだ",
+      "tables": "シーンのテーブルを読んだ",
+      "resources": "シーンのファイル",
+      "pages": "最初のページ",
+      "ready": "準備完了"
     }
   },
   "waves-of-points": {
@@ -1937,7 +1973,7 @@
     }
   },
   "walk-with-collisions": {
-    "banner": "クリックして見回し、W A S D で歩き、スペースでジャンプ：階段と坂を登り、台に乗り、箱を押そう。",
+    "banner": "クリックして見回し、W A S D で歩き、スペースでジャンプ：階段と坂を登り、台に乗り、箱を押し、氷の上でキーを離して滑ってみよう。",
     "controls": {
       "pushStrength": "押す力 (N)",
       "platformSpeed": "台の速さ",
@@ -1994,6 +2030,20 @@
     "readouts": {
       "joints": "ジョイント",
       "broken": "壊れた数"
+    }
+  },
+  "gears-and-pulleys": {
+    "banner": "からくりの速さを変え、リフトを上げ、バケツにおもりを入れてカウンターウェイトを持ち上げよう。",
+    "controls": {
+      "speed": "からくりの速さ (rad/s)",
+      "raiseLift": "リフトを上げる",
+      "addWeight": "おもりを落とす",
+      "emptyBucket": "バケツを空にする"
+    },
+    "readouts": {
+      "lift": "リフト",
+      "load": "おもり",
+      "rope": "ロープの移動"
     }
   }
 }

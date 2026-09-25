@@ -48,6 +48,12 @@ export function createPhysicsSession(
   const poses = createPhysicsPoses(budget.bodies, root);
   const bodies = createPhysicsBodies(writer, budget, host, root, poses.state);
   const joints = createPhysicsJoints(writer, bodies, invalidate);
+  /** A body out of the simulation (asleep decorative, refused) takes its joints out with it. */
+  const retire = (index: number) => {
+    bodies.retire(index);
+    dirty = true;
+  };
+  const posed = { meshes: bodies.meshes, generation: bodies.generation, retire };
   const view = createPhysicsView();
   const stats = emptyPhysicsStats();
   /** The character's inner capsule is the slot past the page's; its contacts name the camera. */
@@ -70,9 +76,9 @@ export function createPhysicsSession(
     const words = new Uint32Array(m.buffer);
     // Simulated time in page time; a tick sent before a clock stopped at 0 is drawn at once.
     const ms = clock.timeScale > 0 ? (m.seconds * 1000) / clock.timeScale : 0;
-    const moved = poses.receive(words, m.poses, bodies, ms);
+    const moved = poses.receive(words, m.poses, posed, ms);
     emitContacts(words, eventsAt(budget), m.events, bodies.meshOf, touched);
-    waves.received(m.water, m.active, began);
+    waves.received(m.water, m.active, began, m.waterEpoch);
     if (m.character) character.hear?.(m.character);
     // The last tick before sleep changes the count even when it moves nothing: a frame shows it.
     const changed = moved > 0 || m.active !== stats.active || m.character !== null;
@@ -98,9 +104,7 @@ export function createPhysicsSession(
       // Bodies whose shape the module refused leave the simulation; the world runs on, unless the
       // error is fatal: then the simulation stopped, and the world ends this session.
       const refused = (data.bodies ?? []).map(bodies.meshOf).filter((mesh) => mesh !== null);
-      for (const mesh of refused) bodies.retire(mesh.physics._index);
-      // A joint made on a refused body is made again once the body is.
-      if (refused.length) dirty = true;
+      for (const mesh of refused) retire(mesh.physics._index);
       const names = refused.map((mesh) => mesh.name);
       failed(new EngineError(data.code, data.message, names.length ? { names } : {}), data.fatal);
     }
@@ -124,8 +128,7 @@ export function createPhysicsSession(
     /** The water the bodies float in, or none: buoyancy runs in the worker, before each step, on
      *  the awake bodies; every dynamic body is woken, so one at rest floats or falls. */
     setWater(water: WaterSpec | null) {
-      worker.postMessage({ type: 'water', water });
-      waves.reset();
+      worker.postMessage({ type: 'water', water, epoch: waves.reset() });
       for (const mesh of bodies.meshes)
         if (mesh?.physics.type === 'dynamic') writer.wake(mesh.physics._index);
     },

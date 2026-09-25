@@ -218,6 +218,7 @@
       "observatory-streamed": "Streamed clusters",
       "memory-on-a-budget": "Memory budget",
       "detail-by-pixel-error": "Detail by pixel error",
+      "watch-a-world-load": "Watch a world load",
       "ten-thousand-objects": "Ten thousand objects",
       "compressed-textures": "Compressed textures",
       "what-hides-what": "What hides what",
@@ -312,6 +313,7 @@
       "soft-bodies": "Soft bodies",
       "rolling-on-terrain": "Rolling on terrain",
       "hinges-and-joints": "Hinges and joints",
+      "gears-and-pulleys": "Gears and pulleys",
       "walk-with-collisions": "Walk with collisions",
       "drive-a-car": "Drive a car",
       "a-room-in-vr": "A room in VR",
@@ -325,8 +327,8 @@
       "a-walker-among-balls": "A walker among balls"
     },
     "missing": {
-      "colours-on-the-vertices": "per-vertex colours on WebGPU",
       "dashed-lines": "dashed lines",
+      "floating-crates": "geometry rewritten every frame",
       "thick-lines": "wide lines",
       "a-line-that-draws-itself": "geometry draw range",
       "shapes-from-an-svg": "SVG path import",
@@ -339,9 +341,6 @@
       "a-capped-section": "clipping planes: stencil caps",
       "decals-on-a-surface": "picking (raycast)",
       "sculpt-a-sphere": "picking (raycast)",
-      "a-video-on-a-screen": "live video textures",
-      "the-webcam-as-a-texture": "live video textures",
-      "four-ways-to-blend": "every blending mode",
       "avif-textures": "more source importers: AVIF images",
       "object-space-normals": "object-space normal maps",
       "a-bumpy-surface": "bump, displacement and parallax maps",
@@ -412,7 +411,6 @@
       "a-medical-scan": "volume rendering",
       "a-city-from-3d-tiles": "3D Tiles input",
       "rendering-in-a-worker": "OffscreenCanvas worker rendering",
-      "a-video-panorama": "live video textures",
       "an-atmospheric-sky": "sky model",
       "chrome-in-a-room": "environment lighting (IBL)",
       "lit-by-an-hdr-image": "environment lighting (IBL)",
@@ -428,8 +426,6 @@
       "reflections-from-the-screen": "screen-space reflections",
       "an-ocean": "render to texture: water reflection and refraction",
       "a-raging-sea": "custom shader materials",
-      "a-town-in-the-fog": "fog",
-      "fog-on-the-ground": "fog: height fog",
       "fog-that-scatters-light": "volumetric fog and light shafts",
       "a-cloud-in-a-box": "volume rendering",
       "a-fire-in-a-volume": "volume rendering",
@@ -1081,7 +1077,8 @@
           "<code>anchor</code> is where the bodies connect and <code>axis</code> the way the pin or the rail points, both in the world, read when the joint is made.",
           "<code>limits</code> stop the joint: radians for a hinge, metres for a slider. A <code>spring</code> makes the stop soft.",
           "A <code>motor</code> drives a hinge or a slider to a speed or a position. Change <code>joint.motor</code> at any time.",
-          "<code>breakForce</code> is the pull, in newtons, past which the joint snaps: <code>joint.broken</code> turns true and <code>joint.on('break', …)</code> is called."
+          "<code>breakForce</code> is the pull, in newtons, past which the joint snaps: <code>joint.broken</code> turns true and <code>joint.on('break', …)</code> is called.",
+          "Advanced joints tie motions together: <code>joint.gear(a, b, { ratio })</code> turns two hinged wheels as one train, <code>joint.rackAndPinion</code> turns a wheel into a slide, <code>joint.pulley(a, b, { over })</code> hangs two loads on one rope, <code>joint.path(a, b, { path })</code> keeps a cart on its track, and <code>swingTwist</code> and <code>sixDof</code> make shoulders and joints of your own."
         ],
         "tryIt": "Open the door and the drawer, then drop the stone on the bridge. Lower the bridge strength and rebuild it: it breaks under its own weight."
       },

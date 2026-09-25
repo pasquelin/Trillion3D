@@ -23,7 +23,7 @@ const DEPLACE_ET_TOURNE = POSES_PARENT[2] as Pose;
 
 test('enterFrame copies the pose before the view fingerprint: a rig moved alone, never walked by the host, replays the frame', () => {
   const gate = createWebglFrameGate();
-  const source = new G.GraphNode();
+  const source = new G.Object3D();
   const rig = creeRig();
   const motion: CameraMotion = {};
   const image = () => {
@@ -46,7 +46,7 @@ test('enterFrame copies the pose before the view fingerprint: a rig moved alone,
 
 test('enterFrame resolves the pose before the adaptive threshold: the measured speed is that of the world eye', () => {
   const gate = createFrameGateCore(1);
-  const source = new G.GraphNode();
+  const source = new G.Object3D();
   const rig = creeRig();
   const motion: CameraMotion = {};
   poseRig(rig, DEPLACE_ET_TOURNE, false); // never walked: only `enterFrame` can see it.

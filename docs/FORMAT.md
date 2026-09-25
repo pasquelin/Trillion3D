@@ -34,7 +34,7 @@ Required fields consumed by the browser adapter:
 - `schema` / `formatVersion` — must agree: `6` when the cache contains `clustered-blend`, otherwise `5`
 - `status` — `ready`
 - `scope` — `slice` or `full`
-- `selectedTriangles`, `selectedNodes`
+- `selectedTriangles`, `selectedNodes` — how many triangles and nodes were kept: counts, not lists, so they do not grow with the number of placed objects
 - `primitives[]` — `{ mesh, primitive, pass, clusterStrategy, pages, culling, structure, streams, dag, topology }`
   - `pass` is `exact-clusters` for opaque/MASK geometry, `clustered-blend` for static BLEND geometry, or `shared-blend` for unsplit source geometry (`KHR_materials_transmission` with `transmissionFactor > 0`, skins / `JOINTS_0` / `WEIGHTS_0`, and morph targets).
   - `clusterStrategy` is `dag-groups` on every primitive the DAG covers, and `null` on a `shared-blend` primitive, which carries no pages.
@@ -42,13 +42,13 @@ Required fields consumed by the browser adapter:
   - `simplification` is `true` when the compiler ran with `qem-endpoints`.
 - `binary` — `{ version, url, sha256, bytes, pageUrl, geometryUrl, bundleUrl, texturePreviews, texturePreviewBytes, texturePreviewBc7Bytes, texturePreviewAstcBytes }`, the descriptor of the [binary sidecar](#clustersbin). Absent from caches compiled before the sidecar, which carry every array inline; the reader accepts both.
 
-Written for the compiler alone, ignored by the browser: `files` — `{ "<name>": { sha256, bytes } }`, one entry per other product of the key folder (`source.gltf`, `source.bin`, `proxy.bin`, `lights.json`, `scene-tables.json`, `scene.gltf`, `scene.bin`), which a later job of the same key checks before keeping the folder instead of rewriting it ([COMPILER.md](COMPILER.md#reusing-a-compiled-folder)).
+Written for the compiler alone, ignored by the browser: `files` — `{ "<name>": { sha256, bytes } }`, one entry per other product of the key folder (`source.gltf`, `source.bin`, `proxy.bin`, `lights.json`, `scene-tables.json` and its `scene-cell-<n>.json`, `scene.gltf`, `scene.bin`), which a later job of the same key checks before keeping the folder instead of rewriting it ([COMPILER.md](COMPILER.md#reusing-a-compiled-folder)).
 
 ### `clusters.bin`
 
 Per-cluster numbers are the bulk of a manifest: tens of thousands of clusters with a dozen values each. When `binary` is present the compiler writes them as typed-array columns instead, and `clusters.json` keeps only what a human or a tool reads — primitives, materials, passes, reports, and the counts needed to find each primitive's slice of the columns. Emerald Square falls from 48.4 MB of JSON to 387 KB plus a 17.0 MB sidecar, and the reader maps the columns instead of tokenizing them.
 
-The file is little-endian: `u32` magic `WGMB` (`0x424d4757`), `u32` version `7`, `u32` column count `26`, `u32` reserved, then one `(byteOffset, byteLength)` `u32` pair per column, then the payloads, each starting on an 8-byte boundary. Lengths and spheres stay `f64` — they decide a cut, so truncating them would change the image. A digest is stored as its 64 ASCII hexadecimal characters, and an object URL is rebuilt from the `pageUrl` / `geometryUrl` / `bundleUrl` templates by substituting `{sha}` — and a texture level from `textures.url` by substituting `{sha}`, `{kind}`, `{level}` and `{format}` —, which is why no URL is stored at all.
+The file is little-endian: `u32` magic `WGMB` (`0x424d4757`), `u32` version `8`, `u32` column count `28`, `u32` reserved, then one `(byteOffset, byteLength)` `u32` pair per column, then the payloads, each starting on an 8-byte boundary. Lengths and spheres stay `f64` — they decide a cut, so truncating them would change the image. A digest is stored as its 64 ASCII hexadecimal characters, and an object URL is rebuilt from the `pageUrl` / `geometryUrl` / `bundleUrl` templates by substituting `{sha}` — and a texture level from `textures.url` by substituting `{sha}`, `{kind}`, `{level}` and `{format}` —, which is why no URL is stored at all.
 
 Indices inside a column stay local to the primitive: a group names the pages of its primitive, a page names the bundle of its primitive. Each primitive declares only its own counts in `primitives[].binary` — `pages`, and the `culling`, `structure` and `streams` counts — and the reader derives its base offsets by prefix sum, so the small JSON carries no offset to maintain. A reader refuses a missing magic, an unknown version, a different column count, a column out of bounds, a column whose length contradicts the declared counts, or a file whose size does not match `bytes`; it refuses the version before fetching the columns.
 
@@ -72,9 +72,9 @@ Level 0 partitions the source triangles into clusters of at most 128 triangles, 
 
 `culling` — `{ stride, count, nodes }`, a flat BVH over the primitive's clusters. `stride` is 15 numbers per node and node 0 is the root: `min[3]`, `max[3]`, `sphere[4]`, `maxParentError` (`-1` when the subtree holds a cluster with no replacement), `firstChild`, `childCount`, `firstPage`, `pageCount`. A leaf has `childCount` 0. Pages follow the culling order, so every node owns a contiguous page range.
 
-`streams` — `{ version, pinned, bundleBytes, pages[] }`. A bundle is `{ url, sha256, bytes, count }` and groups clusters of one level that the culling order already placed next to each other, targeting 128 KiB. The first `pinned` bundles hold exactly the root clusters, so keeping them resident guarantees a complete, if coarse, cover. Pinned bundles are then concatenated across primitives into shared objects of at most 1 MiB, so a first frame waits on a handful of requests instead of one per primitive; each entry names the shared object and every cluster keeps its own `streamOffset` inside it, unchanged for the reader. A cluster stays individually addressable through its own `url` and through `streamOffset` inside its bundle.
+`streams` — `{ version, pinned, bundleBytes, maxDependencies, pages[] }`. A bundle is `{ url, sha256, bytes, count, dependencies }` and groups clusters of one level, targeting 128 KiB: the root clusters first, then the levels from the coarsest to the finest, each level ordered by the first bundle holding a parent of the cluster and then by culling rank, so siblings share a bundle. `dependencies` lists, ascending, the bundles holding the parents of its clusters — the outputs of the group that replaces each of them — closed transitively up to the root cover. On WebGPU, a request for a bundle brings the missing bundles of its list, and the host keeps them retained with it; a cluster then enters the GPU pool only after its parents, whose bundles the list names ([ENGINE.md](ENGINE.md), residency). The WebGL2 page path does not read the lists yet. A pinned bundle lists nothing, every other one reaches a pinned bundle, and `maxDependencies` is the longest list, the bound the compiler publishes. In `clusters.bin` a count per bundle (`bundleDependencyCount`) precedes the flat lists (`bundleDependency`); sidecar version 8 added them, and a reader of version 7, which cannot read them, refuses the file. The first `pinned` bundles hold exactly the root clusters, so keeping them resident guarantees a complete, if coarse, cover. Pinned bundles are then concatenated across primitives into shared objects of at most 1 MiB, so a first frame waits on a handful of requests instead of one per primitive; each entry names the shared object and every cluster keeps its own `streamOffset` inside it, unchanged for the reader. A cluster stays individually addressable through its own `url` and through `streamOffset` inside its bundle.
 
-`dag` — a report, not a contract: `{ depth, clusterTriangles, groupMin, groupMax, levels[], groups[], warnings[], stalls[], rootTriangles, cause, seamVertices, lockedVertices, uvIslands }`, where `groups[]` tallies per level why a group reduced or did not (`reduced`, `tooSmall`, `seamLocked`, `borderLocked`, `unreducible`, `borderLost`, `unusableError`; the causes are defined in [COMPILER.md](COMPILER.md), _The corpus_) and how many reductions needed a retry (`welded`: indices welded by position and by every texture set the pages carry, `relocked`: extra locks to keep the border). `stalls[]` lists every stalled group as `{ level, cause, triangles, seamVertices, lockedVertices, uvIslands }`: the level it was built for, its cause (`too-small`, `seam-locked`, `border-locked`, `unreducible`, `border-lost`, `unusable-error`), its live triangles, its positions written under several texture coordinates, those it shares with another group of the level, and its connected texture islands. `rootTriangles` counts the level-0 triangles no coarser level replaces; `cause` is the cause of the stalled groups holding the most triangles (`null` without a stall); `seamVertices`, `lockedVertices` and `uvIslands` are summed over the stalled groups. Wall-clock times are not in the cache, which a rebuild reproduces byte for byte: the primitive's stage timings travel on its `primitive` progress event ([COMPILER.md](COMPILER.md), _Events_). `warnings[]` names a DAG that did not climb — `DAG_FLAT` (several clusters, no coarse level) or `DAG_ROOTS` (more than one root per eight pages on a primitive of eight clusters or more) — with `roots`, `pages`, the `groups` tally summed over every level, and `rootTriangles`, `cause`, `seamVertices`, `lockedVertices`, `uvIslands` as above; the compiler also carries it on the primitive's progress event, and the engine reports it as the `dag-warnings` diagnostic when the cache is opened, with the stall summary of every primitive holding a stalled group (`stalled[]`), warned about or not.
+`dag` — a report, not a contract: `{ depth, clusterTriangles, groupMin, groupMax, levels[], groups[], warnings[], stalls[], rootTriangles, cause, seamVertices, lockedVertices, uvIslands }`, where `groups[]` tallies per level why a group reduced or did not (`reduced`, `tooSmall`, `seamLocked`, `borderLocked`, `unreducible`, `borderLost`, `unusableError`; the causes are defined in [COMPILER.md](COMPILER.md), _The corpus_) and how many reductions needed a retry (`relocked`: extra locks to keep the border or a face lit from its side). `levels[]` gives per level `{ level, clusters, triangles, roots, errorMin, errorMedian, errorMax, normalDeviationMax }`, the last the largest angle, in degrees, between a face and the normal its centre is shaded with ([COMPILER.md](COMPILER.md), _Invocation_). `stalls[]` lists every stalled group as `{ level, cause, triangles, seamVertices, lockedVertices, uvIslands }`: the level it was built for, its cause (`too-small`, `seam-locked`, `border-locked`, `unreducible`, `border-lost`, `unusable-error`), its live triangles, its positions written under several texture coordinates, those it shares with another group of the level, and its connected texture islands. `rootTriangles` counts the level-0 triangles no coarser level replaces; `cause` is the cause of the stalled groups holding the most triangles (`null` without a stall); `seamVertices`, `lockedVertices` and `uvIslands` are summed over the stalled groups. Wall-clock times are not in the cache, which a rebuild reproduces byte for byte: the primitive's stage timings travel on its `primitive` progress event ([COMPILER.md](COMPILER.md), _Events_). `warnings[]` names a DAG that did not climb — `DAG_FLAT` (several clusters, no coarse level) or `DAG_ROOTS` (more than one root per eight pages on a primitive of eight clusters or more) — with `roots`, `pages`, the `groups` tally summed over every level, and `rootTriangles`, `cause`, `seamVertices`, `lockedVertices`, `uvIslands` as above; the compiler also carries it on the primitive's progress event, and the engine reports it as the `dag-warnings` diagnostic when the cache is opened, with the stall summary of every primitive holding a stalled group (`stalled[]`), warned about or not.
 
 Static BLEND geometry joins the DAG on the same terms as opaque geometry but keeps its transparent forward pass, original material flags, vertex attributes and source mesh sorting; `start` restores the source draw order that spatial clustering would otherwise scramble. Simplification changes indices only: it keeps existing vertices and locks every vertex shared with another group, so group borders stay watertight. A group that cannot be reduced keeps its children. The positional error does not bound texture-alpha or compositing error: `pixelError=0` is the exact-geometry comparison, and nonzero error settings require a visual check. Transmission remains unsplit because its refraction semantics are separate from alpha blending.
 
@@ -86,7 +86,7 @@ The compiler validates selected accessors against their own `bufferView` length,
 
 Each page is a tightly packed little-endian `u32` index buffer covering at most 128 triangles (384 indices) of one DAG cluster. The runtime verifies SHA-256 and byte length before attaching a page. A streaming bundle is the concatenation of those index buffers for the clusters it holds, in the order their `streamOffset` values give.
 
-Static opaque, alpha-mask and clustered BLEND primitives can additionally carry `pages[].geometry`: an independently decodable quantized cluster page with URL, SHA-256, byte length, vertex/index counts, attribute flags and decoded-byte estimate (`uncompressedBytes`: the page once unpacked to float attributes and 32-bit indices, what a reader that expands the page holds; `bytes` is what a reader that decodes in place keeps resident). The manifest declares the page format once, at its top: `geometryPages: { formatVersion: 3, codec: "quantized" }`. This geometry-page version is independent of the outer cache version: the optional fields and `autonomousScene` are additive, while `clustered-blend` requires outer cache format 6. A reader of a cache whose `geometryPages` is missing or of another format refuses it whole, as it refuses a sidecar of another version than 7 — the sidecar names only this page — and every page header opens with the same version. The index pages remain available for existing backends.
+Static opaque, alpha-mask and clustered BLEND primitives can additionally carry `pages[].geometry`: an independently decodable quantized cluster page with URL, SHA-256, byte length, vertex/index counts, attribute flags and decoded-byte estimate (`uncompressedBytes`: the page once unpacked to float attributes and 32-bit indices, what a reader that expands the page holds; `bytes` is what a reader that decodes in place keeps resident). The manifest declares the page format once, at its top: `geometryPages: { formatVersion: 3, codec: "quantized" }`. This geometry-page version is independent of the outer cache version: the optional fields and `autonomousScene` are additive, while `clustered-blend` requires outer cache format 6. A reader of a cache whose `geometryPages` is missing or of another format refuses it whole, as it refuses a sidecar of another version than 8 — the sidecar names only this page — and every page header opens with the same version. The index pages remain available for existing backends.
 
 #### Quantized cluster page (`WGP3`)
 
@@ -131,22 +131,24 @@ An image whose decode fails has no entry: its textures load from the source as b
 
 `scene-tables.json`, beside `clusters.json`, says what the prepared scene is made of, and it is the
 only thing the runtime builds that scene from: no glTF is parsed in the browser. Its own version
-governs it — `version` 2, `nodeTableVersion` 2, `materialTableVersion` 4, `geometryTableVersion` 1 —
+governs it — `version` 3, `nodeTableVersion` 3, `materialTableVersion` 4, `geometryTableVersion` 1 —
 and an unknown one is refused rather than half-read (`assertSceneTables`, `UNSUPPORTED_SCENE_TABLES`).
 Every value is read from the `source.gltf` the same compilation publishes (and, for its layout, from
 `scene.gltf` when one is written): the slice's nodes, the cutout answers already applied, the mesh
 ranks already remapped.
 
 - `scene` — `{ name, nodes }`: the scene the document opens (`scene`, else the first) and its roots.
-- `nodes[]` — every node at its glTF rank: `{ name, children, mesh, light, camera, weights,
-  matrix, translation, rotation, scale }` (`weights` overrides its mesh's morph weights). The pose is the LOCAL one exactly as declared, each part `null` when silent:
+- `nodes[]` — every node the partition's cells do not place, in glTF order, renumbered without
+  them (every node, at its glTF rank, when `partition` is `null`): `{ name, children, mesh, light, camera, weights,
+matrix, translation, rotation, scale }` (`weights` overrides its mesh's morph weights). The pose is the LOCAL one exactly as declared, each part `null` when silent:
   the runtime composes world matrices from it the way it always has, so they are the same bits.
   Several nodes naming one mesh is what instancing is here.
+- `partition` — `null`, or the world partition (below): the cells that place the other nodes.
 - `lights[]` — the `KHR_lights_punctual` lights the nodes hang: `{ name, type, color, intensity,
-  range, innerConeAngle, outerConeAngle }`, each silent field `null` (the specification's default
+range, innerConeAngle, outerConeAngle }`, each silent field `null` (the specification's default
   applies). `lights.json` stays the radiometric product the engine lights with.
 - `cameras[]` — the cameras the nodes carry: `{ name, type, yfov, aspectRatio, xmag, ymag, znear,
-  zfar }`, each silent field `null`.
+zfar }`, each silent field `null`.
 - `materials[]` — the surface fields the engine reads: `lit`, `baseColor`, `metalness`,
   `roughness`, `doubleSided`, `backSide`, `alphaTest`, the six map slots (`map`, `metalnessMap`,
   `roughnessMap`, `normalMap`, `aoMap`, `emissiveMap`), `normalScale`, `normalScaleY`,
@@ -161,7 +163,7 @@ ranks already remapped.
   glTF material rank, and `derivativeTangents` says which variant the entry was written for. A
   primitive that declares no material wears an entry holding the glTF default one.
 - `textures[]` — at the glTF texture rank: `{ name, sampler, image, wrapS, wrapT, magFilter,
-  minFilter }`, `image` the source an `EXT_texture_webp` then `EXT_texture_avif` names before the
+minFilter }`, `image` the source an `EXT_texture_webp` then `EXT_texture_avif` names before the
   core `source`, as the loader reads it; in the engine's words (`clamp`/`repeat`/`mirror`, `linear-mip-linear`…), with the
   specification's defaults where the sampler is silent; `sampler` is the glTF sampler rank, which
   together with the image's source decides which textures are one. A map slot is
@@ -173,13 +175,71 @@ ranks already remapped.
 - `documents` — the geometry layout of each published document, keyed by its file name
   (`source.gltf`, and `scene.gltf` when written): `{ buffer, views, accessors, meshes, images }`.
   `buffer` names the one binary the document is published with; a view is `{ offset, length,
-  stride }` into it; an accessor `{ view, offset, componentType, normalized, count, type, min, max,
-  sparse }`, `sparse` being `{ count, indices: { view, offset, componentType }, values: { view,
-  offset } }` or `null`; a mesh `{ name, weights, primitives }`, each primitive `{ attributes,
-  targets, indices, material }` — accessor ranks by glTF semantic, its morph targets (each a set of
+stride }` into it; an accessor `{ view, offset, componentType, normalized, count, type, min, max,
+sparse }`, `sparse` being `{ count, indices: { view, offset, componentType }, values: { view,
+offset } }` or `null`; a mesh `{ name, weights, primitives }`, each primitive `{ attributes,
+targets, indices, material }` — accessor ranks by glTF semantic, its morph targets (each a set of
   accessor ranks, `null` for none), and the rank of the surface it wears in `materials[]`, for that
   document's own tangent variant; an image
   `{ name, uri, view, mimeType }`, an address relative to the document or a view of its binary.
+
+### World partition
+
+A node that only places a mesh — a leaf the scene reaches, carrying no light, no camera, no skin
+and no morph weights, that no animation moves, whose mesh declares its position bounds and does
+not morph — is a **placement**. When the placements of a scene weigh more than one stream unit
+(`STREAM_BUNDLE_BYTES`, 128 KiB, the budget of a geometry bundle), the compiler moves them out of
+`nodes[]` into spatial cells (`packages/asset-compiler-rust/src/compiler_tables/partition.rs`), and
+the runtime reads the cells by distance to its camera instead of reading every node before its
+first frame. A scene whose placements fit one unit keeps them in `nodes[]` and has `partition:
+null`: its tables are the ones it always had.
+
+The placements are halved along the widest spread of their centres until a cell's descriptors fit
+the unit. `partition` is `{ version: 1, bounds, meshes, cells }`: `bounds` the box around every cell
+at the declared poses (scene frame, `[minX, minY, minZ, maxX, maxY, maxZ]`), `meshes` the mesh
+ranks the cells place, and per cell `{ url, sha256, bytes, parents, meshes }` — its file beside the
+tables (`scene-cell-<n>.json`), fingerprint and size (the reader verifies them as it verifies a
+page), `parents`, `[[rank, box], …]`: for each core node its placements hang under (`null`, the
+scene), the box around them **in that node's frame**, and `meshes`, `[[rank, count], …]` in rank
+order: how many placements of each mesh it holds, which the runtime sizes its rows by before
+reading any cell. A cell file is `{ version: 1, nodes }`, each node `{ parent, mesh, matrix, translation,
+rotation, scale }`: `parent` the rank in `nodes[]` of the core node it hangs under (`null`, the
+scene), its mesh, and its local pose exactly as declared, each part `null` when silent. A
+placement's name is not kept: it is a row, not a host node. The cells are products of the key
+folder, recorded in the manifest's `files`.
+
+**Reading the cells.** Each mesh the cells place is drawn by one host mesh per primitive whose
+instance buffer the cells fill (`packages/sdk-browser/src/scene/partition/`): a placement takes a
+row at the world matrix the engine composes for a child of its parent — the same bits a host node
+there would carry, proven against the host loader on `site/assets/examples/ten-thousand-objects`
+(`host/prepared/partition.test.ts`) — and gives it back, parked, when its cell leaves. A page may
+move a core parent (`getObjectByName`): the rows under it are rewritten, and the cell's box is
+that parent's box under its current matrix (`boxes.ts`), so the cell is read where its placements
+stand. A cell is read while the camera can draw any of it: its **reach** is the far plane met on the frustum's
+diagonal, `far·√w`, with `w = 1 + tan²(fov/2)·(1 + aspect²)` the off-axis stretch of the frustum.
+The error target does not shorten it: nothing coarser stands for a cell that is not read (the
+proxy of #23), so an object dropped below the target would be missing from the image, not
+replaced. An orthographic camera reads every cell. Before its first frame a session reads the cells within
+the reach of the camera the page draws with (a world hands its camera to the session it opens; a
+bare explorer, which has none, reads for its framing camera, which sees the whole scene), and
+nothing else. Then, before every frame, cells within the reach are
+asked for nearest first, those within `1.25 × reach` at the prefetch priority, and a read cell
+leaves once its box is past `1.5 × reach` (`AHEAD` and `KEEP` in `plan.ts`): margins of the reach,
+never of the cell, so a cell cut wider than the view is kept only while its box meets that sphere. The cells are read through the session's page streamer
+— one request queue — and placed within the arrival budget (`ARRIVAL_BUDGET_MS`), one cell at
+least per frame. The rows are sized once, when a session opens and before its engines read them,
+for every placement its camera's reach can hold at once (`residentRows`): two cells held together
+are within `2 × 1.5 × reach` of each other, so the largest sum of `meshes` over the cells that close
+to any one cell bounds each mesh's rows — set by the reach and the cells' size, not by the world.
+Nothing grows under a drawing engine: a camera whose reach later outgrows the rows, or parents
+moved so close together that a cell is short of them, asks the session's owner, once, to open it
+again sized for that reach and where the cells stand (the world does). A session no owner
+can open again (a bare explorer) sizes its rows for every placement, and rows that hold every
+placement never ask. A session drawing on demand draws again, camera still, until the cells it
+asked for within reach are read and placed. A partitioned scene is not
+replicated (`UNSUPPORTED_SCENE_UPDATE`).
+
+The merged, simplified proxy of a far cell (HLOD) is not part of this format: #23 carries it.
 
 The runtime builds its host scene from these alone (`packages/sdk-browser/src/host/prepared/`):
 attributes viewed on the binary, the local box the positions declare, textures folded on image
@@ -187,22 +247,24 @@ source and sampler, surfaces and their vertex-colour and flat-shading variants, 
 cameras and lights assembled and named as the host loader assembled and named them — proven equal to the
 loader's graph, field by field and byte by byte, on every cache `site/assets` publishes
 (`packages/sdk-browser/src/host/prepared/build.test.ts`). A layout that names a document the tables
-do not carry, or a view outside its binary, is `PREPARED_SCENE_MISMATCH`.
+do not carry, a view outside its binary, or a cell placing a mesh `partition.meshes` does not
+name, is `PREPARED_SCENE_MISMATCH`.
 
 ## `physics.json` — cooked colliders
 
 Written beside `clusters.json` by the compiler's `physics-cook` stage ([COMPILER.md](COMPILER.md)),
-with a `formatVersion` of its own (1): a reader refuses any other (`PHYSICS_FORMAT`). The shapes it
+with a `formatVersion` of its own (2): a reader refuses any other (`PHYSICS_FORMAT`, recompile the
+model). Format 1 carried the declared `bodies`, and no matter on an instance. The shapes it
 names are Jolt's binary state (`Shape::SaveWithChildren`), readable only by the Jolt that wrote them:
 the file names that commit in `jolt`, and the engine refuses a file cooked by another. `stage` names
 the stage and its version.
 
-| Field       | Content                                                                                                                                                                                                                                                                                               |
-| ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `colliders` | One per compiled primitive with a DAG: `primitive`, `material` (glTF index), `kind` (`mesh` or `heightField`), `tolerance` (the object's DAG error the level holds), `hausdorff` (measured to level 0, at or under `tolerance`), `triangles`, `tiles`                                                 |
-| `tiles`     | One Jolt shape each, a SHA-addressed object like a page: `url`, `sha256`, `bytes`, `triangles`, `bounds` (min and max in the primitive's frame). Every triangle of a tile is of its collider's `material`: an exact hit reports that one                                                              |
-| `instances` | Static placements: `node`, `collider`, `position`, `rotation` (x, y, z, w), `scale`, and the `friction` and `restitution` of the `physicsMaterial` the node's `KHR_physics_rigid_bodies` collider names, if any. A node whose matrix shears cannot be a body pose: it is counted in `report.unplaced` |
-| `report`    | Counts, the largest tolerance and the largest measured distance                                                                                                                                                                                                                                       |
+| Field       | Content                                                                                                                                                                                                                                                                                                                                                 |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `colliders` | One per compiled primitive with a DAG: `primitive`, `material` (glTF index), `kind` (`mesh` or `heightField`), `tolerance` (the object's DAG error the level holds), `hausdorff` (measured to level 0, at or under `tolerance`), `triangles`, `tiles`                                                                                                   |
+| `tiles`     | One Jolt shape each, a SHA-addressed object like a page: `url`, `sha256`, `bytes`, `triangles`, `bounds` (min and max in the primitive's frame). Every triangle of a tile is of its collider's `material`: an exact hit reports that one. A tile of small triangles is a `MeshShape` cooked a power of two larger inside a `ScaledShape` of the inverse |
+| `instances` | Static placements: `node`, `collider`, `position`, `rotation` (x, y, z, w), `scale`, and the `friction` and `restitution` of the `physicsMaterial` the node's `KHR_physics_rigid_bodies` collider names, if any. A node whose matrix shears cannot be a body pose: it is counted in `report.unplaced`                                                   |
+| `report`    | Counts, the largest tolerance and the largest measured distance, and `refused`: each primitive whose collider Jolt refused (`primitive`, `mesh`, `meshPrimitive`, `reason`, Jolt's error). Such a primitive has no collider and is drawn all the same: a refusal never fails the compile                                                                |
 
 The manifest's `physics` field names the file, its format, the Jolt commit, the report and every
 object the file cites (`objects[].sha256`), so a prune keeps them.

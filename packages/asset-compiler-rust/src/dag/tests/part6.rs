@@ -13,28 +13,20 @@ fn soup(n: usize) -> (Vec<f32>, Vec<u32>) {
     (soup_positions, (0..indices.len() as u32).collect())
 }
 
-// Behavior: vertex soup ascends to single root — position welding
-// takes over when raw reduction yields no fewer clusters —, and coarse levels
-// cite only vertices retained by welding.
+// Behavior: vertex soup ascends to single root — permissive mode collapses the position copies
+// no weld joins any more — and its coarse levels cite only source vertices.
 #[test]
 fn a_vertex_soup_still_climbs_to_a_single_root() {
     let (positions, indices) = soup(64);
-    let (dag, _, tallies) = build_of(&positions, &indices);
+    let (dag, _, _) = build_of(&positions, &indices);
     let depth = dag.iter().map(|c| c.level).max().unwrap_or(0);
     assert!(depth > 0, "soup must have coarse levels");
     assert_eq!(dag.iter().filter(|c| c.is_root()).count(), 1, "single root");
-    assert!(
-        tallies.iter().any(|t| t.welded > 0),
-        "at least one group had to weld"
-    );
-    let weld = weld_positions(&positions, &indices);
     for cluster in dag.iter().filter(|c| c.level > 0) {
-        for &id in &cluster.indices {
-            assert_eq!(
-                weld[id as usize], id,
-                "a coarse level cites the canonical copy"
-            );
-        }
+        assert!(cluster
+            .indices
+            .iter()
+            .all(|&id| (id as usize) < indices.len()));
     }
 }
 

@@ -59,7 +59,7 @@ test('the shape is the exact primitive a geometry was built as, scaled', () => {
   assert.deepEqual(pill.size, [0.5, 0.3, 0]);
 });
 
-test('a compound places its primitives in the body, scaled; a stretched one is refused', () => {
+test('a compound places its primitives in the body, scaled; a stretched or mirrored one is refused', () => {
   const raft = resolveShape(box(), { x: 2, y: 2, z: 2 }, 'dynamic', {
     type: 'compound',
     parts: [
@@ -72,10 +72,15 @@ test('a compound places its primitives in the body, scaled; a stretched one is r
     { shape: SHAPE.box, size: [2, 0.2, 2], position: [0, 1, 0], quaternion: [0, 0, 0, 1] },
     { shape: SHAPE.cylinder, size: [2, 0.4, 0], position: [0, 0, 0], quaternion: [0, 0, 0.6, 0.8] },
   ]);
-  const stretched = { x: 1, y: 2, z: 1 };
-  assert.throws(() => resolveShape(box(), stretched, 'dynamic', { type: 'compound', parts: [] }), {
-    code: 'PHYSICS_FAILED',
-  });
+  // A mirror would move each part to its image and leave its turn as it was: no longer the shape.
+  for (const scale of [
+    { x: 1, y: 2, z: 1 },
+    { x: -1, y: 1, z: 1 },
+    { x: -2, y: -2, z: -2 },
+  ])
+    assert.throws(() => resolveShape(box(), scale, 'dynamic', { type: 'compound', parts: [] }), {
+      code: 'PHYSICS_FAILED',
+    });
 });
 
 test('any other mesh is triangles when static and a hull when it moves', () => {
@@ -104,13 +109,22 @@ test('a dynamic body declared as triangles is refused: triangles hold no mass', 
 });
 
 test('physics.json of another format, or cooked by another Jolt, is refused by name', () => {
-  const file = { formatVersion: 1, jolt: JOLT_COMMIT, colliders: [], instances: [] };
+  const file = { formatVersion: 2, jolt: JOLT_COMMIT, colliders: [], instances: [] };
   assert.equal(readCookedPhysics(file).colliders.length, 0);
   for (const wrong of [
-    { ...file, formatVersion: 2 },
+    { ...file, formatVersion: 3 },
     { ...file, jolt: '0'.repeat(40) },
   ])
     assert.throws(() => readCookedPhysics(wrong), { code: 'PHYSICS_FORMAT' });
+});
+
+test('a physics.json cooked before the matter came from the source is refused: recompile', () => {
+  // Format 1, as the cook wrote it before #475: its dynamic `bodies`, no matter on an instance.
+  const old = { formatVersion: 1, jolt: JOLT_COMMIT, colliders: [], instances: [], bodies: [] };
+  assert.throws(() => readCookedPhysics(old), {
+    code: 'PHYSICS_FORMAT',
+    message: /format 1 is not 2: recompile the model/,
+  });
 });
 
 test('JOLT_COMMIT is the pin of the Jolt submodule the compiler cooks with', () => {

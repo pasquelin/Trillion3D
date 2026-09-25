@@ -54,7 +54,7 @@ function witnessCamera(camera: G.GraphCamera) {
 }
 
 /** The prepared scene of one fixture: its square, what stands behind it, and the sun when lit. */
-export function sceneOf(fixture: Fixture, sun: G.GraphNode): ScenePreparee {
+export function sceneOf(fixture: Fixture, sun: G.Object3D): ScenePreparee {
   const builder = batisseur();
   const material = fixture.material();
   const mesh = G.mesh(square(fixture), material);

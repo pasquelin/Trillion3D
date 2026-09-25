@@ -9,6 +9,7 @@ import { fixturePages, fixtureUniforms } from './adopter.fixture.ts';
 import type { CutDelta } from './delta.ts';
 import type { WebgpuPagesCore } from '../pages/runtime.ts';
 import type { WebgpuResidencySets } from '../residency/sets.ts';
+import { createGroupClosure } from './groupClosure.ts';
 
 function banc() {
   const packedPages = fixturePages(4);
@@ -51,7 +52,11 @@ function banc() {
       rows: { watchTouched: () => {} },
     },
   } as unknown as WebgpuPagesCore;
-  const publication = createWebgpuCutPublication(rt, residencySets);
+  const publication = createWebgpuCutPublication(
+    rt,
+    residencySets,
+    createGroupClosure([], packedPages),
+  );
   return {
     publication,
     run,

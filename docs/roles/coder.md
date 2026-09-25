@@ -10,13 +10,14 @@ run by the measurer after the merge.
    `git worktree add .worktrees/<n>-<short-name> -b <n>-<short-name> origin/develop`, then
    `pnpm install` there — it links AGENTS.md and `docs/roles/` into the tree. Work only there.
 3. Code and test as CONTRIBUTING.md requires: one test per changed behaviour, no dead code, 200
-   lines per file, English everywhere.
+   lines per file, English everywhere. Then review your diff twice: first `/simplify` (what is
+   duplicated, needless or at the wrong depth), then correctness against the issue.
 4. Gates: `pnpm run check:changed`, `pnpm run test:changed`, then the group your diff touches —
    `pnpm run validate --group quick` (sources), `--group typescript` (build and products),
    `--group native` (Rust and the unit suite).
 5. Commit in small steps: `type(scope): what changed (#<n>)`, nothing else in the message.
 6. Push, then `gh pr create --base develop` with the body on `.github/PULL_REQUEST_TEMPLATE.md`:
-   `Closes #<n>`, what changed, the proof run, and under "Local review before push" what you
+   `Closes #<n>` (or `Part of #<n>` when the brief leaves part of the issue out), what changed, the proof run, and under "Local review before push" what you
    checked of your own diff. The reviewer completes that section.
 7. Return the pull request URL and what remains unproven. Stop there.
 

@@ -1,6 +1,4 @@
 import { BOX_VALUES, boxTransform, type ClusterManifest } from '../../../../sdk-core/src/index.ts';
-import type { HostNode } from '../../host/resources.ts';
-import type { HostGraphNode } from '../../host/scene/graphNodes.ts';
 import { meshSurface } from '../surface.ts';
 import type { BlendCopy } from '../../cluster/blendCopyContract.ts';
 import { createBlendCopyRecord } from '../../cluster/blendCopyRecord.ts';
@@ -8,16 +6,18 @@ import { objects, quantizationErrorOf } from './helpers.ts';
 import { primitiveFinder } from '../../scene/primitiveLookup.ts';
 import { createPrimitiveTemplates } from './template.ts';
 import { indexPageRequests } from './requests.ts';
+import { linkBundleDependencies } from './bundleDependencies.ts';
 import { hostWorldPlacements } from '../../host/world/placements.ts';
 import type { PageRec, ClusterRoot } from './types.ts';
 import { placementsOf } from '../../placement/roots.ts';
 import type { PlacementRows } from '../../placement/rows.ts';
+import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 
 export function collectClusterPages(
-  source: HostGraphNode,
+  source: Object3D,
   metadata: ClusterManifest,
   indices: Map<string, Uint32Array>,
-  associations: Map<HostNode, { meshes?: number; primitives?: number; placements?: PlacementRows }>,
+  associations: Map<Object3D, { meshes?: number; primitives?: number; placements?: PlacementRows }>,
   options: { allowMissing?: boolean; blendCopy?: typeof createBlendCopyRecord } = {},
 ) {
   // World matrices of pages and roots are the ENGINE's, computed from the host's local poses:
@@ -113,6 +113,7 @@ export function collectClusterPages(
         allPages.push(rec);
         return rec;
       });
+      linkBundleDependencies(primitive, pages);
       const worldBox = new Float64Array(BOX_VALUES);
       boxTransform(worldBox, 0, shape.local, 0, world.elements);
       roots.push({

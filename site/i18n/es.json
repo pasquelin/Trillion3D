@@ -218,6 +218,7 @@
       "observatory-streamed": "Clústeres en streaming",
       "memory-on-a-budget": "Presupuesto de memoria",
       "detail-by-pixel-error": "Detalle por error de píxel",
+      "watch-a-world-load": "Ver cargar un mundo",
       "ten-thousand-objects": "Diez mil objetos",
       "compressed-textures": "Texturas comprimidas",
       "what-hides-what": "Qué oculta a qué",
@@ -312,6 +313,7 @@
       "soft-bodies": "Cuerpos blandos",
       "rolling-on-terrain": "Rodar sobre el terreno",
       "hinges-and-joints": "Bisagras y articulaciones",
+      "gears-and-pulleys": "Engranajes y poleas",
       "walk-with-collisions": "Caminar con colisiones",
       "drive-a-car": "Conducir un coche",
       "a-room-in-vr": "Una habitación en RV",
@@ -325,8 +327,8 @@
       "a-walker-among-balls": "Un caminante entre pelotas"
     },
     "missing": {
-      "colours-on-the-vertices": "colores por vértice en WebGPU",
       "dashed-lines": "líneas discontinuas",
+      "floating-crates": "geometría reescrita en cada fotograma",
       "thick-lines": "líneas anchas",
       "a-line-that-draws-itself": "rango de dibujo de una geometría",
       "shapes-from-an-svg": "importación de trazados SVG",
@@ -339,9 +341,6 @@
       "a-capped-section": "planos de corte: tapas por stencil",
       "decals-on-a-surface": "selección por rayo (raycast)",
       "sculpt-a-sphere": "selección por rayo (raycast)",
-      "a-video-on-a-screen": "texturas de vídeo en directo",
-      "the-webcam-as-a-texture": "texturas de vídeo en directo",
-      "four-ways-to-blend": "todos los modos de mezcla",
       "avif-textures": "más importadores de origen: imágenes AVIF",
       "object-space-normals": "mapas de normales en espacio objeto",
       "a-bumpy-surface": "mapas de relieve, desplazamiento y paralaje",
@@ -412,7 +411,6 @@
       "a-medical-scan": "render volumétrico",
       "a-city-from-3d-tiles": "entrada de 3D Tiles",
       "rendering-in-a-worker": "render en un worker (OffscreenCanvas)",
-      "a-video-panorama": "texturas de vídeo en directo",
       "an-atmospheric-sky": "modelo de cielo",
       "chrome-in-a-room": "iluminación por entorno (IBL)",
       "lit-by-an-hdr-image": "iluminación por entorno (IBL)",
@@ -428,8 +426,6 @@
       "reflections-from-the-screen": "reflejos en espacio pantalla",
       "an-ocean": "render a una textura: reflejo y refracción del agua",
       "a-raging-sea": "materiales con shader a medida",
-      "a-town-in-the-fog": "niebla",
-      "fog-on-the-ground": "niebla: niebla por altura",
       "fog-that-scatters-light": "niebla volumétrica y rayos de luz",
       "a-cloud-in-a-box": "render volumétrico",
       "a-fire-in-a-volume": "render volumétrico",
@@ -1081,7 +1077,8 @@
           "<code>anchor</code> es donde se unen los cuerpos y <code>axis</code> hacia dónde apunta el eje o el riel, ambos en el mundo, leídos al crear la unión.",
           "<code>limits</code> detiene la unión: radianes para una bisagra, metros para un riel. Un <code>spring</code> hace suave el tope.",
           "Un <code>motor</code> lleva una bisagra o un riel a una velocidad o a una posición. Cambia <code>joint.motor</code> cuando quieras.",
-          "<code>breakForce</code> es el tirón, en newtons, a partir del cual la unión se rompe: <code>joint.broken</code> pasa a verdadero y se llama a <code>joint.on('break', …)</code>."
+          "<code>breakForce</code> es el tirón, en newtons, a partir del cual la unión se rompe: <code>joint.broken</code> pasa a verdadero y se llama a <code>joint.on('break', …)</code>.",
+          "Las uniones avanzadas enlazan movimientos: <code>joint.gear(a, b, { ratio })</code> hace girar dos ruedas con bisagra como un solo tren, <code>joint.rackAndPinion</code> convierte un giro en un deslizamiento, <code>joint.pulley(a, b, { over })</code> cuelga dos cargas de una misma cuerda, <code>joint.path(a, b, { path })</code> mantiene un vagón en su vía, y <code>swingTwist</code> y <code>sixDof</code> crean hombros y uniones a tu medida."
         ],
         "tryIt": "Abre la puerta y el cajón, luego deja caer la piedra sobre el puente. Baja la resistencia del puente y reconstrúyelo: se rompe bajo su propio peso."
       },

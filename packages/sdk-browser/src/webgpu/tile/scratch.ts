@@ -1,7 +1,9 @@
 import type { Texture } from '../../../../sdk-core/src/index.ts';
-import type { TextureRgba } from '../../visibility/types.ts';
+import { textureRgba } from '../../visibility/types.ts';
+import { premultipliedByte } from '../../visibility/math.ts';
 import { generateMaterialMips, mipLevelCountFor } from '../../texture/mips.ts';
 import { writeRgba } from './write.ts';
+import { textureBytesOf } from '../../gpu/core/deviceLedger.ts';
 
 /**
  * Working texture of a host texture: the whole source, transferred once, and its mip chain built
@@ -12,23 +14,31 @@ import { writeRgba } from './write.ts';
  * scene that gives its texels in memory. It costs the whole source every time a tile of that
  * texture is missing, and that is intended: GPU memory held stays that of the pool, and the
  * price is paid in transfer, measured, never in resident bytes. The cache's cooked chain is the
- * reference path; this one exists only so that no scene is refused.
+ * reference path; this one exists only so that no scene is refused. A LIVE texture — one whose
+ * picture moved since the session opened: a video, a canvas redrawn — keeps its working texture,
+ * one of its own size, refilled in place at each new picture (`fill`, #362).
  */
-export type TileScratch = { texture: GPUTexture; destroy(): void };
+export type TileScratch = {
+  texture: GPUTexture;
+  /** Bytes it holds, mips included (`textureBytesOf`). */
+  bytes: number;
+  /** Writes the source's current picture again, mips included: what a live texture keeps. */
+  fill(): void;
+  destroy(): void;
+};
 
 export function createTileScratch(
   device: GPUDevice,
   options: {
     map: Texture;
-    rgba: TextureRgba | null;
     width: number;
     height: number;
     format: GPUTextureFormat;
     errorCode: string;
   },
 ): TileScratch {
-  const { width, height, format, rgba } = options;
-  const texture = device.createTexture({
+  const { width, height, format } = options;
+  const descriptor: GPUTextureDescriptor = {
     label: 'Trillion3D texture scratch',
     size: { width, height, depthOrArrayLayers: 1 },
     format,
@@ -38,16 +48,53 @@ export function createTileScratch(
       GPUTextureUsage.COPY_DST |
       GPUTextureUsage.COPY_SRC |
       GPUTextureUsage.RENDER_ATTACHMENT,
-  });
-  if (rgba) {
-    if (rgba.width !== width || rgba.height !== height) throw new Error('TEXTURE_SOURCE_SIZE');
-    writeRgba(device.queue, texture, [0, 0, 0], rgba.data, width, height);
-  } else {
-    const image = options.map.image as GPUCopyExternalImageSource | undefined;
-    if (!image || typeof device.queue.copyExternalImageToTexture !== 'function')
-      throw new Error(options.errorCode);
-    device.queue.copyExternalImageToTexture({ source: image }, { texture }, [width, height]);
+  };
+  const texture = device.createTexture(descriptor);
+  /** Sends the picture as it is now and builds its mips again, in the same texture. `flipY` and
+   *  `premultiplyAlpha` as the WebGL2 upload (`UNPACK_FLIP_Y_WEBGL`,
+   *  `UNPACK_PREMULTIPLY_ALPHA_WEBGL`): the picture's last row lands at v = 0 (#362). */
+  const fill = () => {
+    const { map } = options;
+    const rgba = textureRgba(map);
+    if (rgba) {
+      if (rgba.width !== width || rgba.height !== height) throw new Error('TEXTURE_SOURCE_SIZE');
+      const texels = uploadedRgba(map, rgba.data, width, height);
+      writeRgba(device.queue, texture, [0, 0, 0], texels, width, height);
+    } else {
+      const image = map.image as GPUCopyExternalImageSource | undefined;
+      if (!image || typeof device.queue.copyExternalImageToTexture !== 'function')
+        throw new Error(options.errorCode);
+      device.queue.copyExternalImageToTexture(
+        { source: image, flipY: map.flipY },
+        { texture, premultipliedAlpha: map.premultiplyAlpha },
+        [width, height],
+      );
+    }
+    generateMaterialMips(device, texture, format, width, height);
+  };
+  fill();
+  return {
+    texture,
+    bytes: textureBytesOf(descriptor) ?? 0,
+    fill,
+    destroy: () => texture.destroy(),
+  };
+}
+
+/** RGBA8 texels as the WebGL2 upload stores them: rows in reverse order under `flipY`, colour
+ *  times alpha under `premultiplyAlpha` (`premultipliedByte`, the CPU twin's rule). The source
+ *  itself when neither is asked. */
+function uploadedRgba(map: Texture, data: Uint8Array, width: number, height: number) {
+  if (!map.flipY && !map.premultiplyAlpha) return data;
+  const row = width * 4,
+    out = new Uint8Array(row * height);
+  for (let y = 0; y < height; y++) {
+    const from = y * row,
+      to = (map.flipY ? height - 1 - y : y) * row;
+    out.set(data.subarray(from, from + row), to);
+    if (map.premultiplyAlpha)
+      for (let x = to; x < to + row; x += 4)
+        for (let c = 0; c < 3; c++) out[x + c] = premultipliedByte(out[x + c], out[x + 3]);
   }
-  generateMaterialMips(device, texture, format, width, height);
-  return { texture, destroy: () => texture.destroy() };
+  return out;
 }

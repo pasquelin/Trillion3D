@@ -63,7 +63,7 @@ compares one integer; visibility, parent and a light's numbers are compared per 
 What the engine computes — matrices, vectors, colours, its camera, the side of a material — it
 builds on `sdk-core`. A resource crosses the host boundary as the shapes of
 `packages/sdk-browser/src/host/resources.ts` (`HostMaterial`, `HostTexture`, `HostAttributes`,
-`HostMesh`, `HostNode`, `HostScene`) and is read in one place,
+`HostMesh`, `HostScene`; a node is the core's `Object3D`) and is read in one place,
 `packages/sdk-browser/src/host/surfaceImport.ts`, into the engine's own `Material` and `Texture`
 (`packages/sdk-core/src/contracts/material.ts`, `packages/sdk-core/src/texture/contract.ts`). Every
 pass, page row, tile pool and transparent item computes on those records alone; a page carries
@@ -124,8 +124,10 @@ to the capture target and the canvas in one pass.
 The reconstruction runs one pass per **material class**, the published visibility-buffer design,
 instead of one program that tests every feature per pixel. A class is the set of features the
 resolve would branch on — UV, base map, alpha cut-out, roughness, metalness, occlusion, emissive and
-normal maps, vertex normals, double-sidedness, tangents — an eleven-bit word carried by every page
-row. Pipelines are compiled at preparation, never on the frame that first draws a class. Each frame
+normal maps, vertex normals, double-sidedness, tangents, filtered sampling, vertex colours — a
+thirteen-bit word carried by every page row. A vertex-coloured class multiplies the base colour by
+the page's `COLOR_0` when its material asks for vertex colours, as the transparent pass and the
+WebGL2 path do; geometry read as floats carries its colours at the tail of its UV buffer, which every page-geometry pass binds. A masked surface is cut at base map alpha times vertex alpha, as the reference cuts. Pipelines are compiled at preparation, never on the frame that first draws a class. Each frame
 the `Trillion3D material depth` pass writes every pixel's class as an exact depth value, then one full-screen
 triangle per present class runs under `depthCompare: 'equal'`, so the hardware keeps that class's
 pixels and its fragment stage reads only the maps it has. The `material-classes-ready` diagnostic
@@ -184,8 +186,14 @@ frame, 2 560 held: 51 × 51 = 2 601 pages, a 6 528² depth texture of 163 MiB, a
 the static layer once something moves. The atlas stops at the 8 192-texel side every WebGPU device
 offers (4 096 pages, 256 MiB), reached at 1920 × 1080; above it the pages past the pool wait,
 read at the coarser level meanwhile, and are evicted least recently read first. A lamp face's finest mip is 32 × 32 pages (`lampFaceSize`).
-The table holds 2^20 words, 4 MiB (`shadowTableEntries`): sixteen suns or 128 point lights, and a
-light that finds no room is denied its shadow and counted (`shadowsDenied`).
+The table gives each of the 64 shadow slices (`maxLights`) a fixed window of the largest range a
+light needs, a whole sun's 16 × 64 × 64 words (`SHADOW_TABLE_STRIDE`): 2^22 words, 16 MiB
+(`SHADOW_TABLE_ENTRIES`), so every shadow-casting light the contract accepts holds its range.
+The GPU total's shadow share counts it with the pool (`SHADOW_POOL_BYTES`). Its host mirror — the
+words, a change flag per word, and the pool's page records and eviction bitset at the largest pool,
+20.8 MiB (`SHADOW_HOST_BYTES`, summed from `shadowTableHostBytes` and `shadowPoolHostBytes`, which
+a test checks against real allocations) — is the CPU total's first share, before the decoded-page
+cache (`splitMemoryBudget`).
 
 - **A sun is a clipmap.** Level `L` has texels of `2^L` metres; its window is 64 × 64 pages around
   the camera (`sunLevelPages`), addressed by absolute page modulo the window, so a camera step keeps
@@ -213,13 +221,17 @@ light that finds no room is denied its shadow and counted (`shadowsDenied`).
 - **Only stale pages the image reads are drawn**, coarse first, under the Shadows budget
   (`shadowBudgetMs`, 1.0 ms, measured on the timestamps of the pages' draws and of the light cuts
   that select their casters) and at most `shadowPagesPerFrame`
-  (24) a frame. A light that moves or changes, or a sun whose clipmap moves its projection, stales
-  every page it maps, and none is read until redrawn: its depth belongs to the old projection. An
-  object that moves stales only the mapped pages its projected box covers; a representation change
+  (24) a frame. One flag says whether a page is read, the table word's valid bit: a page whose
+  depth is wrong is withdrawn (`pool.withdraw`) until its redraw lands, and the pixel reads the
+  next coarser level. A light that moves or changes, or a sun whose clipmap moves its projection,
+  stales every page it maps, and withdraws them: their depth belongs to the old projection. An
+  object that moves stales only the mapped pages its projected box covers: a static caster that
+  moves withdraws them, since their static layer is wrong; an object already moving leaves them
+  read, since their static layer still holds — a static shadow never vanishes while something near
+  it moves, only the moving caster's own shadow lags until the redraw. A representation change
   stales them once the camera rests, and a threshold change only the pages drawn at another
-  threshold than the one at rest. Such a page is still read until its redraw lands, while a
-  report names it; one no report names is withdrawn, since blend and water read without asking. A
-  page never drawn is not read. A report that names more pages than the pool holds — the pool never
+  threshold than the one at rest; both leave them read. A stale page no report names is withdrawn,
+  since blend and water read without asking. A page never drawn is not read. A report that names more pages than the pool holds — the pool never
   holds more than a report lists (`shadowRequestCap`) — maps the coarsest, then by table entry — never in the GPU's append order —, and the rest read
   coarser:
   that waits for nothing, and the diagnostic counts it (`shadowPagesOverflow`). A page is drawn
@@ -228,6 +240,29 @@ light that finds no room is denied its shadow and counted (`shadowsDenied`).
   `shadowPagesDrawn`, `shadowPagesPending` and `shadowWaitMs` publish the work;
   `diagnostic.shadowAtlas(world)` returns the pool's raw depth hash. A still scene runs no resolve
   and asks for nothing; the image holds once a report proves it reads only pages drawn.
+- **The floor is drawn first.** Every page a report names asks for its light's floor under it
+  too — a sun's last clipmap level, a lamp face's one-page mip —: mapped first, never evicted while
+  anything above it is read, and admitted first when not read — never drawn, or withdrawn —,
+  oldest first, whatever the budget, which pays it before any finer page; a floor still read,
+  stale for its moving casters or for detail, waits its turn like any page, so an object that
+  keeps moving never starves the finer pages. The floor covers all the light reaches, so it needs
+  no report to know what the view will read: a sun asks every frame for the floor pages its view
+  reaches — the camera brings new ones in without any pose —, and a new, moved or reshaped lamp for
+  the floor of each face until a report written at its current pose comes back, as if the latest
+  report named them: a report from a past pose names only the faces that pose's receivers read.
+  So a pixel that falls back past a withdrawn page reads a current floor. When the frame's floors
+  exceed the page cap or span more views than the light cut holds, those held back go first the
+  next frame, and meanwhile their face reads no shadow — never one at a past pose. A new light
+  likewise has no floor until its first draw.
+- **A moving light follows within the frame.** A move is a change of what shapes its depth —
+  kind, position, direction, range, cone, a rect's frame and size, the emitter radius, whether it
+  casts —; an intensity, colour or penumbra change re-poses nothing and withdraws no page. A move
+  withdraws every page of its past pose, the floor too, so none is read again before it is drawn
+  at the new one: the shading samples every page with the light's current matrices. The frame
+  draws its floors, then the pages the latest report named, coarsest first within the budget: a
+  finer page's wait counts from the light's pose, not from when it went stale, so no finer page
+  overtakes a coarser one while the light keeps moving. Its finer pages come as the budget allows,
+  and once it stops.
 
 **Moving objects redraw their own casters, never the static set under them.** A placement turns
 moving the first time its pose or its row's flag actually changes (`webgpu/shadow/mobility.ts`) —
@@ -250,16 +285,15 @@ level, a lamp face at one mip — form a run, and every run of the frame is sele
 of the cluster cut: the camera's kernels, pipelines, clusters and residency bits, with flags,
 counters and output of its own (`gpu/dag/lightCut.ts`). Each work item — a queued node, a candidate
 page, a live cluster — carries its view's index; each view reads its own uniform block and owns its
-own per-primitive threshold, fallback and planes, in a row it keeps from one frame to the next
-whatever its rank in the cut (`gpu/dag/lightCutRows.ts`); the frame pays the
+own per-primitive frustum planes, and nothing carries from one frame to the next; the frame pays the
 waits between the cut's dispatches once, not once per view. Each view's drawn clusters land in their
 own range of one log, which the light compaction walks view by view. Its budget is fixed: the lists
 and queues are the camera cut's size whatever the view count (at most `shadowPagesPerFrame`, since a
 view holds at least one drawn page, and at most what the device's dispatch and binding limits hold,
 `gpu/dag/lightCutCapacity.ts`); work several views together push past them is dropped. The
 pages a frame drew while its cut dropped work are drawn again, and the pages a frame may draw are
-bisected between the most a frame drew whole and the fewest one dropped with. A view that drew a
-placement coarser than it wanted, a cluster of it not resident, drew every page of that view with
+bisected between the most a frame drew whole and the fewest one dropped with. A view that wanted a
+cluster not resident drew its nearest resident ancestor instead, and every page of that view with
 it: those pages, and only that view's, are drawn again once residency changes, not only the pages
 over the missing cluster; a frame whose requests found no readback free draws them again at once
 (`gpu/dag/lightCutRedraws.ts`, `light-cut-redraw`). A run's window is the square that bounds its pages, cut in eight by eight cells
@@ -267,8 +301,8 @@ of whole pages; a node or cluster that covers no cell a drawn page lies in is dr
 counted in the view's texels against the camera's pixel threshold — a texel of the level a pixel
 reads is at most that pixel —, and the normal cone is off, since the shadow raster culls no face. The
 light's mask is compacted over the same draw items as the camera's, and each page culls that list
-against its own box or cone. The camera's cut, its escalation and its pinned fallback are untouched:
-a caster the light wants and the pool lacks raises the light's own threshold. What the light cuts
+against its own box or cone. A caster the light wants and the pool lacks is drawn through its
+nearest resident ancestor, by the camera's rule (`page/cut/rule.ts`). What the light cuts
 request is a second residency tier, loaded after the camera's pages into slots no one holds and never
 pinned. The CPU cut does the same, reading the run's view as a camera (`webgpu/shadow/cpuCasters.ts`);
 its casters take rows behind its own (#10, #26).
@@ -314,6 +348,36 @@ bounce is **off by default**: its stage costs about 1.1 ms, above the one-millis
 transparency and specular are not bounced. `setLightingView('bounce')` outputs the indirect
 irradiance alone, the quantity `bench/runner/oracle.ts` compares.
 
+## Fog
+
+`scene.fog` is a term of the one lighting model, not a post effect: every program that lights a
+surface hands its lit colour `L` through the same law before the display chain — the opaque resolve
+(`lighting/deferred/shaders.ts`), the blended surfaces (`webgpu/blend/shader.ts`), the water
+composite and the WebGL2 program. The pixel reaches the eye as `mix(color, L, T)`, `color` the
+radiance the medium scatters toward the eye (exposed and tone-mapped like a surface's), `T` the
+transmittance over the distance `d` from the camera's position to the surface point:
+
+- linear, `{ color, near, far }`: `T = clamp((far − d) / (far − near), 0, 1)`;
+- exponential, `{ color, density }`: `T = exp(−density · d)`, a uniform medium (Beer-Lambert);
+- height fog, `{ color, density, heightFalloff, baseHeight }`: the density
+  `density · exp(−heightFalloff · (y − baseHeight))` integrated along the ray in closed form,
+  `τ = density · d · (ρ(eye) − ρ(P)) / (heightFalloff · Δy)`, the two densities' mean where the ratio
+  would lose its 32-bit precision (Wenzel, SIGGRAPH 2006; Quilez, "Better fog").
+
+One text of the law serves both languages (`lighting/fogShader.ts`). The fog travels with the
+environment (`SceneEnvironment.fog`, `packages/sdk-core/src/scene/core/fog.ts`): two `vec4`s behind
+the irradiance in the contract light buffer on WebGPU, `fogColor` and `fogLaw` uniforms on WebGL2,
+written only when the environment changes. The eye rides with the frame's view: `display.yzw` of the
+deferred view, `eye` of the blend view, the view space origin on WebGL2. With no fog the block's mode
+is zero and every program returns `L` untouched, one uniform branch per pixel. An unlit material
+(basic, matcap) is fogged like a lit one, its colour standing for `L`, as in the reference; a normal
+or depth material and the diagnostic views, the unlit view among them, are not. Fog is a view-ray
+term, not light transport: a change of fog alone leaves the bounce probes converged (the store's
+`transportEpoch`). A world writes the fog with the lights before the next frame,
+like exposure; a fog set again, or its colour written through its methods, is heard.
+`lighting/fogShader.test.ts` evaluates both shader texts against a numerical integration.
+Volumetric fog and light shafts belong to the lighting strategy below.
+
 ## Transparent surfaces
 
 WebGPU filters transparent meshes against the camera frustum before uploading their uniforms or
@@ -358,11 +422,10 @@ frame composer asks each backend to draw its whole image through `drawHostGeomet
 
 The geometry pool holds `floor(bytes / pageBytes)` slots, the root cover pinned for the backend's
 lifetime; the texture pool is split between the colour and data atlases in layers. When a view asks
-beyond the geometry pool, the cut's screen error climbs a ladder that doubles what the image was
-drawn at (1 px at least on a first overflow, up to 4096) and comes back down rung by rung to 0.125
-px once the requested cut fits under 70 % of the slots. The ladder moves only on a cut sampled at
-the rung in force, and a rung that overflowed is not asked again until the view or the pool changes,
-so a still camera settles instead of alternating between two cuts.
+beyond the geometry pool, the WebGPU cut keeps the host's screen error: the pool loads what fits,
+coarsest first, and the surface of what it leaves out is drawn by its nearest resident ancestor
+(the cut rule, below). Residency does the coarsening; `coverage-budget` only says that the image
+asks for more than the slots hold.
 
 A pool resize (`explorer.setMemoryBudgets`) copies pages and tiles on the GPU into the new pool —
 root cover first, then pinned pages, then the most recent — evicts only what no longer fits, and
@@ -370,7 +433,7 @@ rebuilds every bind group that named the old pool on the next image. At prepare 
 once, under an out-of-memory error scope; at a resize, where the old pool lives until the copy, the
 new one is first probed under that scope (`webgpu/residency/poolGrants.ts`). A refusal halves the
 pool's bytes and draws it again by its own rule, down to its floor, so the pool in place is never
-replaced by an invalid one and the budget ladder draws the rest coarser. The world's GPU and CPU totals reach the pools through one fixed
+replaced by an invalid one and what no longer fits is drawn by its resident ancestors. The world's GPU and CPU totals reach the pools through one fixed
 split (`residency/memoryBudget.ts`). The geometry pool can grow up to
 `geometryPoolCeilingBytes`, because its per-row tables are sized once at that ceiling. The WebGL2
 engine draws its geometry pool by the same rule (`sessionGeometryPool`: slots of the largest decoded
@@ -415,6 +478,35 @@ Backends without pools throw `UNSUPPORTED_MEMORY_BUDGETS`.
 
 A region keeps a complete resident representation until every replacement page is uploaded; if old
 and new detail cannot coexist, the renderer returns to the root cover before reclaiming slots.
+On WebGPU a page enters the pool only after the pages it depends on, the clusters of the group
+that replaces it, read from the compiled group links (`webgpu/residency/admission.ts`): loading a
+wanted page or a shadow caster brings its missing dependencies first, each after its own, up to
+the pinned root cover. The bytes come first: the host's request for a page lists the missing
+bundles its bundle depends on (`streams.pages[].dependencies`, [FORMAT.md](FORMAT.md#cluster-dag))
+and keeps them retained with the cut, even when the parent is outside it. The compiler refuses a
+list that misses a parent's bundle or is not closed, so every page the pool walks has its bytes
+requested. Until they arrive, or when a dependency does not fit, the page is not loaded and stays
+drawn through its resident ancestor. Both tiers of the residency queue share this one path.
+
+**One cut rule per cluster** (`page/cut/rule.ts`, #486). The GPU cut draws a cluster when it is
+resident, its parent group is coarser than the threshold, and either its own error meets the
+threshold or the group finer than it is not resident:
+`draw(c) = resident(c) && parentError(c) > t && (clusterError(c) <= t || !resident(childGroup(c)))`.
+The same expression is compiled into the kernel (`dagMask`) and run by its CPU model
+(`gpu/dag/oracle/oracle.ts`); the threshold is always the host's. Residency is read by group
+(`page/cut/readiness.ts`): a group counts as resident when every cluster it replaces is, and so is
+every group above it — a cluster nothing replaces standing for itself. A group then draws all its
+outputs or all its members, never both and never neither, so every surface is drawn exactly once,
+by the wanted cluster or its nearest resident ancestor, and a missing page coarsens its own
+neighbourhood by one level, never its whole primitive. The host derives both bit sets from the
+pool's residency and uploads what changed (`gpu/dag/readiness.ts`). Because a group needs all its
+members, the cut asks the cache for whole groups closed upward, the group-mates a view never keeps
+included (`webgpu/cut/groupClosure.ts`); otherwise the surface of a group straddling the frustum
+or the normal cone would stay one level coarse. Top-down pruning drops a subtree whose error floor
+is above the threshold only when none of its clusters has a missing finer group: each culling node
+carries that count (`NODE_OPEN`), so the nearest resident ancestor of a missing page is always a
+candidate. No frame waits for coverage once the root cover is resident. The CPU cut and the WebGL2
+page path still use their own fallbacks until they take the same rule.
 Shared URLs occupy one slot across instances. Two counters say different things:
 
 | Field            | Meaning                                                                                         | Reported by          |
@@ -422,7 +514,7 @@ Shared URLs occupy one slot across instances. Two counters say different things:
 | `pagesDetached`  | clusters that left the drawn cut since the backend was created: cut churn, not memory pressure  | the WebGL page paths |
 | `cacheEvictions` | pages actually evicted from the cache that feeds the drawn geometry: the memory-pressure signal | every backend        |
 
-`coverageReady`, `coverageBudgetLimited`, `budgetPixelError` and `streamingError` report coverage;
+`coverageReady`, `coverageBudgetLimited`, `budgetPixelError` (WebGL2 only) and `streamingError` report coverage;
 the `coverage-*` diagnostics trace bootstrap, budget, upload and streaming failures. A failed URL is
 retried at most three times per session; an initial cover read failure rejects preparation.
 

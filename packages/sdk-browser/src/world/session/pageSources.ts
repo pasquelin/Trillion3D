@@ -1,6 +1,6 @@
 import { DEFAULT_CACHED_PAGES, DEFAULT_PAGE_WORKERS } from '../../backend/common.ts';
 import { configurePageDecoders } from '../../page/decode/host.ts';
-import { createPageStreamer } from '../../streaming/pages.ts';
+import { createPageStreamer, type StreamPage } from '../../streaming/pages.ts';
 import { loadClusterPages } from '../../cluster/pages.ts';
 import { createDiagnosticChannel } from '../../diagnostic/channel.ts';
 import type { RenderBackend, MeasuredWorldOptions } from '../../backend/types.ts';
@@ -18,6 +18,8 @@ export async function createExplorerPageSources(
   backends: RenderBackend[],
   diagnosticChannel: ReturnType<typeof createDiagnosticChannel>,
   progress: Progress,
+  /** Files read through the same queue beside the pages: a partition's cells. */
+  extra: readonly StreamPage[] = [],
 ) {
   const { pages, geometryPages, geometryUrls, pageIdByUrl } = indexManifestPages(metadata);
   const exactPages = pages.filter((page) => (page.role ?? 'exact') !== 'coarse');
@@ -41,7 +43,7 @@ export async function createExplorerPageSources(
   // The decode pool never exceeds the already-in-force transfer admission.
   configurePageDecoders(options.pageFetchWorkers ?? DEFAULT_PAGE_WORKERS);
   const streamer = createPageStreamer(
-    [...pages, ...geometryPages, ...bundles],
+    [...pages, ...geometryPages, ...bundles, ...extra],
     base,
     signal,
     options.pageFetchWorkers ?? DEFAULT_PAGE_WORKERS,

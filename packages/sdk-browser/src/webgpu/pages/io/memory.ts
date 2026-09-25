@@ -48,10 +48,16 @@ export async function setWebgpuMemoryBudgets(
   // Tiles first: their copy is synchronous, the pages' waits for in-flight loads.
   if (budgets.texturePoolBytes !== undefined) {
     checkTexturePoolBudget(budgets.texturePoolBytes);
-    setup.texturePoolBudget = budgets.texturePoolBytes;
     const pools = setup.texturePools;
-    if (pools) {
-      const bytes = budgets.texturePoolBytes;
+    // Before prepare nothing is granted yet: the budget is kept, and prepare draws it.
+    if (!pools) setup.texturePoolBudget = budgets.texturePoolBytes;
+    else {
+      // A live texture's working texture (#362) is texture memory too: the pool is drawn from
+      // what the budget leaves it, the budget recorded staying the one declared.
+      const live = vis.textures?.sources.liveBytes ?? 0,
+        deducted = Math.min(live, budgets.texturePoolBytes - 1),
+        bytes = budgets.texturePoolBytes - deducted;
+      pools.liveBytes = live;
       let pool: TexturePool | undefined = pools.poolFor(bytes);
       if (!sameLayers(pool, pools.pool) && vis.textures && device && !run.lost)
         pool = await probed(
@@ -60,6 +66,8 @@ export async function setWebgpuMemoryBudgets(
       if (pool) {
         if (vis.textures && !run.lost) evictedTiles = vis.textures.resize(pool.layers);
         pools.pool = pool;
+        // What the device granted, not what was asked: a refusal keeps the budget in place.
+        setup.texturePoolBudget = pool.budgetBytes + deducted;
       }
     }
   }
@@ -97,4 +105,18 @@ export async function setWebgpuMemoryBudgets(
   };
   diag.engineDiagnostic('memory-budgets', 'Memory pools set', report);
   return report;
+}
+
+/**
+ * A texture turned live since the pool was drawn (#362): the pool is drawn again under the same
+ * budget, less the new working texture, as `setMemoryBudgets` draws it — tiles kept, out of
+ * memory absorbed. Once per texture turned live; a still scene reads one number.
+ */
+export function followLiveTextures(rt: WebgpuPagesRuntime) {
+  const pools = rt.setup.texturePools,
+    live = rt.vis.textures?.sources.liveBytes ?? 0;
+  if (!pools || live === (pools.liveBytes ?? 0)) return;
+  setWebgpuMemoryBudgets(rt, { texturePoolBytes: rt.setup.texturePoolBudget }).catch((error) =>
+    rt.diag.diagnosticFailure('texture-live-budget', error),
+  );
 }

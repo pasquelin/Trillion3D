@@ -1,6 +1,5 @@
-import type { HostTexture, HostTraversable } from '../../host/resources.ts';
-import type { HostGraphNode } from '../../host/scene/graphNodes.ts';
-import { DEFAULT_CLEAR_COLOR, isCancelled } from '../../backend/common.ts';
+import type { HostTexture } from '../../host/resources.ts';
+import { DEFAULT_CLEAR_COLOR, DEFAULT_PIXEL_RATIO, isCancelled } from '../../backend/common.ts';
 import { createSceneLightStore, dagWarningsDiagnostic } from '../../../../sdk-core/src/index.ts';
 import { createSceneProxyReader } from '../../scene/proxyLoad.ts';
 import { createTextureLevelReader } from '../../texture/levelReader.ts';
@@ -9,10 +8,11 @@ import { declareImportedLights, loadImportedLights } from '../../lighting/import
 import type { BackendContext, BackendFactory, RenderBackend } from '../../backend/types.ts';
 import type { createExplorerPageSources } from './pageSources.ts';
 import type { ExplorerSession } from './session.ts';
+import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 
 type Inputs = {
-  source: HostGraphNode;
-  sceneLightingSource?: HostTraversable;
+  source: Object3D;
+  sceneLightingSource?: Object3D;
   associations: BackendContext['associations'];
   textureIndices: Map<HostTexture, number>;
   pageSources: Awaited<ReturnType<typeof createExplorerPageSources>>;
@@ -92,6 +92,8 @@ export async function prepareExplorerBackends(session: ExplorerSession, inputs: 
     preparationStep: (step) => diagnose('backend-preparation-step', step, { kind: 'preparation' }),
     diagnosticDetail: diagnosticChannel.detail,
     viewport,
+    // The ratio the drawing buffer was sized at (`devicePixels`), live: a resize rewrites it.
+    pixelRatio: () => options.pixelRatio ?? DEFAULT_PIXEL_RATIO,
     gpuDevice,
     webglContext,
     gpuCanvas: directGpu ? canvas : undefined,

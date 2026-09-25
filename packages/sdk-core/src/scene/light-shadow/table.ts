@@ -1,14 +1,20 @@
-import { LIGHT_SETTINGS, MAX_SHADOW_SLICES } from '../light/contracts.ts';
+import { MAX_SHADOW_SLICES } from '../light/contracts.ts';
+import { SHADOW_TABLE_ENTRIES as ENTRIES, SHADOW_TABLE_STRIDE as STRIDE } from './virtual.ts';
 
-const ENTRIES: number = LIGHT_SETTINGS.shadowTableEntries;
+/** Host bytes a table over `poolPages` pages allocates: a word and a change flag per entry, a
+ *  base and a size per slice, four changed words per pool page. `hostBytes` counts the arrays. */
+export function shadowTableHostBytes(poolPages: number) {
+  return ENTRIES * (4 + 1) + MAX_SHADOW_SLICES * (4 + 4) + poolPages * 4 * 4;
+}
 
 /**
  * THE PAGE TABLE, host side: one word per virtual page of every shadow light — the physical page
  * it maps to and whether that page's draw has landed — and the range each light holds in it.
  *
  * The words are the GPU buffer's mirror, and a frame uploads only the words it changed, grouped
- * in contiguous runs. A light's range is claimed first-fit when it takes a slice and freed when
- * it leaves: the table is fixed, and a light that finds no room is denied its shadow.
+ * in contiguous runs. Each slice owns a fixed span of `SHADOW_TABLE_STRIDE` words, the largest
+ * range a light needs: a light's range starts at its slice's span, so every slice finds room and
+ * no shadow light is ever denied for want of table.
  */
 export function createShadowTable(poolPages: number) {
   /** Words rewritten in one frame before the upload falls back to the whole table. */
@@ -22,20 +28,6 @@ export function createShadowTable(poolPages: number) {
     whole = true,
     layoutEpoch = 0,
     version = 0;
-  /** First free offset where `count` words fit between the ranges already held. */
-  const fit = (count: number) => {
-    let at = 0;
-    for (let moved = true; moved;) {
-      moved = false;
-      for (let slice = 0; slice < MAX_SHADOW_SLICES; slice++) {
-        if (base[slice] < 0 || base[slice] >= at + count || base[slice] + size[slice] <= at)
-          continue;
-        at = base[slice] + size[slice];
-        moved = true;
-      }
-    }
-    return at + count <= ENTRIES ? at : -1;
-  };
   const write = (entry: number, value: number) => {
     if (words[entry] === value) return;
     words[entry] = value;
@@ -50,6 +42,10 @@ export function createShadowTable(poolPages: number) {
   };
   return {
     words,
+    /** Bytes of every host array the table holds: what `shadowTableHostBytes` declares. */
+    get hostBytes() {
+      return [words, base, size, queued, changed].reduce((sum, a) => sum + a.byteLength, 0);
+    },
     get entries() {
       return ENTRIES;
     },
@@ -62,16 +58,12 @@ export function createShadowTable(poolPages: number) {
       return version;
     },
     baseOf: (slice: number) => base[slice],
-    /** Claims `count` words for `slice`; false when the table has no such room. */
+    /** Claims `count` words, at most `SHADOW_TABLE_STRIDE`, at the start of `slice`'s span. */
     claim(slice: number, count: number) {
-      if (base[slice] >= 0 && size[slice] === count) return true;
-      this.release(slice);
-      const at = fit(count);
-      if (at < 0) return false;
-      base[slice] = at;
+      if (base[slice] >= 0 && size[slice] === count) return;
+      base[slice] = slice * STRIDE;
       size[slice] = count;
       layoutEpoch++;
-      return true;
     },
     /** Frees the range of `slice`; its words must already be unmapped by the caller. */
     release(slice: number) {
@@ -82,10 +74,8 @@ export function createShadowTable(poolPages: number) {
     },
     /** The slice whose range holds `entry`, or −1. */
     sliceAt(entry: number) {
-      for (let slice = 0; slice < MAX_SHADOW_SLICES; slice++)
-        if (base[slice] >= 0 && entry >= base[slice] && entry < base[slice] + size[slice])
-          return slice;
-      return -1;
+      const slice = Math.floor(entry / STRIDE);
+      return base[slice] >= 0 && entry - base[slice] < size[slice] ? slice : -1;
     },
     write,
     /**

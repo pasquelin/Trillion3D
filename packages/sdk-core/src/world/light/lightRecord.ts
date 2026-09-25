@@ -5,7 +5,7 @@ import {
   addUniformIrradiance,
 } from '../../scene/core/environment.ts';
 import { Vector3 } from '../math/vector3.ts';
-import type { Light } from './light.ts';
+import { Light } from './light.ts';
 
 /** The kinds that are lamps — a position or a direction the engine's light store holds. */
 const LAMPS = new Set(['point', 'spot', 'directional', 'rectArea']);
@@ -80,4 +80,29 @@ export function addLightIrradiance(light: Light, sh: number[]) {
     addHemisphereIrradiance(sh, colour, ground, aim.normalize().toArray());
   } else return false;
   return true;
+}
+
+/**
+ * The node of a lamp the engine's store describes — a light the source file carried — which a
+ * page then edits, moves or removes like one of its own: same kind, colour, intensity, range and
+ * cone, its target one unit along its direction.
+ */
+export function lightFromRecord(record: SceneLight): Light {
+  const along = record.direction ?? [0, -1, 0];
+  const at = record.position ?? [-along[0], -along[1], -along[2]];
+  const node = new Light(record.kind === 'rect' ? 'rectArea' : record.kind, {
+    width: record.size?.[0],
+    height: record.size?.[1],
+    color: record.color,
+    intensity: record.intensity,
+    castShadow: record.castsShadow,
+    position: at,
+    target: [at[0] + along[0], at[1] + along[1], at[2] + along[2]],
+    distance: record.range,
+    angle: record.coneAngle,
+    penumbra: record.penumbra,
+    radius: record.emitterRadius,
+  });
+  node.name = record.id;
+  return node;
 }
