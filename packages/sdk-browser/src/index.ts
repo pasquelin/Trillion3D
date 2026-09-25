@@ -140,7 +140,7 @@ export { framingFromBounds } from './camera/framing.ts';
 export { presentationColorDiagnostic } from './diagnostic/presentationDiagnostic.ts';
 export { createGpuPageCache, httpPageSource } from './gpu/page/pages.ts';
 export type { ResidentPage } from './gpu/page/pages.ts';
-export { createPageStreamer } from './streaming/pages.ts';
+export { createPageStreamer } from './streaming/pageStreamer.ts';
 export type { ComparisonLayout } from './measurement/comparison.ts';
 export { COMPARISON_LIBRARIES, LOD_QUALITY } from '../../sdk-core/src/index.ts';
 // A job around a load — cancellation, a status to observe — for pages built on the runtime.

@@ -34,6 +34,23 @@ export interface StreamPage {
   /** Fingerprint of its bytes. */
   sha256: string;
 }
+// How a page streamer reads (`createPageStreamer`). `cache` is the decoded-page cache its owner
+// keeps across sessions: off its CPU total, the streamer reserves its manifest tables, its
+// transfer queue (`maxTransferBytes`, 8 MiB by default) and the engine's tables (`reserve`), and
+// leaves the pages to the next session. Without it, the streamer's own cache holds
+// `maxCachedBytes` of pages beside those reservations, emptied at dispose. `workerCount` reads
+// (8 by default) run at once, `maxPages` bounds the resident entries, `onEvict` hears each page
+// that leaves, `onDiagnostic` each step.
+export type PageStreamerOptions = {
+  cache?: PageCache;
+  signal?: AbortSignal;
+  workerCount?: number;
+  maxPages?: number;
+  onEvict?: (url: string) => void;
+  maxTransferBytes?: number;
+  onDiagnostic?: (diagnostic: BackendDiagnostic) => void;
+  maxCachedBytes?: number;
+};
 export type Job = {
   url: string;
   priority: number;

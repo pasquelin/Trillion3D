@@ -1,28 +1,28 @@
 import { createStreamingFetcher } from './fetch.ts';
 import { createStreamingQueue } from './queue.ts';
-import type { BackendDiagnostic } from '../backend/types.ts';
-import type { StreamContext, Job, StreamPage } from './types.ts';
+import type { StreamContext, Job, StreamPage, PageStreamerOptions } from './types.ts';
 import { createStreamingCache } from './cache.ts';
 import { createIndexViews } from './indexView.ts';
-import { createPageCache, manifestTableBytes, type PageCache } from './pageCache.ts';
-/** The page streamer (`pages.ts`) reading through `kept`, the decoded-page cache its owner keeps
- *  across sessions: off its CPU total, the streamer reserves its manifest tables, transfer queue
- *  and the engine's tables (`reserve`), drops what the catalogue names at another size, and leaves
- *  the pages to the next session. Without `kept`, its own holds `ownBytes`, emptied at dispose. */
-export function createPageStreamerWith(
-  kept: PageCache | undefined,
+import { createPageCache, manifestTableBytes } from './pageCache.ts';
+/** Bounded, prioritized and deduplicated reads. A request still waiting in the queue is dropped once
+ *  its last consumer leaves; one already transferring is allowed to land in the cache.
+ *  The cache is a least-recently-used set bounded by both entries and bytes; pinned entries survive
+ *  eviction, so a caller keeps its displayed cover by retaining it. */
+export const createPageStreamer = (
   pages: readonly StreamPage[],
   base: string,
-  signal?: AbortSignal,
-  workerCount = 8,
-  maxPages?: number,
-  onEvict?: (url: string) => void,
-  maxTransferBytes = 8 * 1024 * 1024,
-  onDiagnostic?: (diagnostic: BackendDiagnostic) => void,
-  ownBytes?: number,
+  options?: Omit<PageStreamerOptions, 'cache'>,
+) => createPageStreamerWith(pages, base, options);
+/** `createPageStreamer` reading through `options.cache`, the page cache a world keeps. */
+export function createPageStreamerWith(
+  pages: readonly StreamPage[],
+  base: string,
+  options: PageStreamerOptions = {},
 ) {
+  const { cache: kept, signal, maxPages, onEvict, onDiagnostic } = options,
+    { workerCount = 8, maxTransferBytes = 8 * 1024 * 1024 } = options;
   const catalog = new Map(pages.map((page) => [page.url, page]));
-  const store = kept ?? createPageCache(ownBytes),
+  const store = kept ?? createPageCache(options.maxCachedBytes),
     cache = store.pages,
     jobs = new Map<string, Job>(),
     queue: Job[] = [];
