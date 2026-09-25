@@ -327,7 +327,6 @@
       "a-walker-among-balls": "A walker among balls"
     },
     "missing": {
-      "dashed-lines": "dashed lines",
       "floating-crates": "geometry rewritten every frame",
       "thick-lines": "wide lines",
       "a-line-that-draws-itself": "geometry draw range",
