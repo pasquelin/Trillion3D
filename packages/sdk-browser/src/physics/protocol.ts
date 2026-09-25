@@ -74,6 +74,9 @@ export interface PhysicsResults {
   character: CharacterReport | null;
   /** The vehicles after the tick's last step (`vehicleLayout.ts`), or `null` without one. */
   vehicles: Uint32Array | null;
+  /** The soft bodies the tick moved, each where its last step left it (`softLayout.ts`), or
+   *  `null` when none moved. */
+  soft: Uint32Array | null;
 }
 
 /**
