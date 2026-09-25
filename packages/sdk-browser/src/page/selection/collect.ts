@@ -142,7 +142,7 @@ export function collectClusterPages(
         boxes: true,
         parked,
         placement,
-        ...(spriteMark(surface) ? { sprite: spriteMark(surface) } : {}),
+        sprite: spriteMark(surface) || undefined,
       });
       // The clusters nothing replaces are the coarsest complete cover; they stay resident so the cut
       // always has something to fall back on.

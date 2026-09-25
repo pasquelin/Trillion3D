@@ -109,7 +109,7 @@ export function selectVisiblePages<T extends PageRecord>(
       if (state.over) return;
       // A parked instance-buffer row places nothing: its root waits in the tables, untested. A
       // light's cut takes no sprite: it casts no shadow.
-      if (root.parked || castsNoShadow(state, root)) continue;
+      if (root.parked || castsNoShadow(root.sprite, state.light)) continue;
       const box = root.worldBox;
       if (
         box &&
