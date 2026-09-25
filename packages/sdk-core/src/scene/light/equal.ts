@@ -1,4 +1,5 @@
 import type { SceneEnvironment, SceneLight } from './contracts.ts';
+import { sameSceneFog } from '../core/fog.ts';
 
 /** Two optional contract vectors: both absent, or identical component by component. */
 function sameVector(a: readonly number[] | undefined, b: readonly number[] | undefined) {
@@ -60,6 +61,7 @@ export function sameSceneEnvironment(a: SceneEnvironment, b: SceneEnvironment) {
   return (
     a.exposure === b.exposure &&
     a.toneMapping === b.toneMapping &&
-    sameVector(a.irradiance, b.irradiance)
+    sameVector(a.irradiance, b.irradiance) &&
+    sameSceneFog(a.fog, b.fog)
   );
 }
