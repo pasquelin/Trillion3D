@@ -1,10 +1,10 @@
 import type { SceneLight, SceneLightStore } from '../../../sdk-core/src/index.ts';
 import { GraphAmbientLight, GraphLight, GraphLightProbe } from '../host/graph/light.ts';
-import { GraphGroup } from '../host/graph/mesh.ts';
 import type { GraphScene } from '../host/graph/scene.ts';
 import { Color } from '../../../sdk-core/src/world/math/color.ts';
 import { createUnlitAlbedo } from './unlitAlbedo.ts';
 import { createLight, writeLight, type ContractLight } from './lightWrite.ts';
+import { Group } from '../../../sdk-core/src/world/object/object3d.ts';
 
 /** The node a light aims at, carried in the graph beside it: a sun's or a spot's, none for a rectangle. */
 const aimOf = (light: ContractLight) => (light instanceof GraphLight ? light.target : undefined);
@@ -30,7 +30,7 @@ const UNLIT_IRRADIANCE = Math.PI;
  * disappears: two stacked light sets would be nobody's lighting.
  */
 function createContractLights(scene: GraphScene, store: SceneLightStore | undefined) {
-  const group = new GraphGroup();
+  const group = new Group();
   group.visible = false;
   scene.add(group);
   const ambient = new GraphAmbientLight(new Color().setRGB(1, 1, 1), UNLIT_IRRADIANCE);

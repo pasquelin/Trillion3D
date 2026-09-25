@@ -65,8 +65,8 @@ test('an engine that cannot move a node refuses with a named error', () => {
 
 /** The strict minimum `setWebgpuTransform` reads: a scene, a frame gate, a scheduler. */
 function banc() {
-  const source = new G.GraphNode();
-  const node = new G.GraphNode();
+  const source = new G.Object3D();
+  const node = new G.Object3D();
   node.name = 'volet';
   source.add(node);
   const worlds = hostWorldPlacements(source);
@@ -90,7 +90,7 @@ function banc() {
 }
 
 /** What the frame would draw of this node: the world matrix THE ENGINE holds for it. */
-const image = (b: { node: G.GraphNode; worlds: HostWorldPlacements }) =>
+const image = (b: { node: G.Object3D; worlds: HostWorldPlacements }) =>
   Array.from(b.worlds.of(b.node).elements).join(',');
 
 test('a pose changes the held frame: the gate refuses to serve the previous one again', () => {

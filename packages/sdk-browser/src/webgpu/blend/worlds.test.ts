@@ -16,7 +16,7 @@ import type { BlendGpuItem } from './state.ts';
 function item(position: G.Vector3, cullable = true) {
   const geometry = new G.GraphGeometry();
   geometry.boundingBox = new G.Box3(new G.Vector3(-1, -1, -1), new G.Vector3(1, 1, 1));
-  const parent = new G.GraphGroup();
+  const parent = new G.Group();
   const mesh = G.mesh(geometry);
   mesh.position.copy(position);
   parent.add(mesh);

@@ -1,5 +1,4 @@
-import type { HostTexture, HostTraversable } from '../../host/resources.ts';
-import type { HostGraphNode } from '../../host/scene/graphNodes.ts';
+import type { HostTexture } from '../../host/resources.ts';
 import { DEFAULT_CLEAR_COLOR, isCancelled } from '../../backend/common.ts';
 import { createSceneLightStore, dagWarningsDiagnostic } from '../../../../sdk-core/src/index.ts';
 import { createSceneProxyReader } from '../../scene/proxyLoad.ts';
@@ -9,10 +8,11 @@ import { declareImportedLights, loadImportedLights } from '../../lighting/import
 import type { BackendContext, BackendFactory, RenderBackend } from '../../backend/types.ts';
 import type { createExplorerPageSources } from './pageSources.ts';
 import type { ExplorerSession } from './session.ts';
+import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 
 type Inputs = {
-  source: HostGraphNode;
-  sceneLightingSource?: HostTraversable;
+  source: Object3D;
+  sceneLightingSource?: Object3D;
   associations: BackendContext['associations'];
   textureIndices: Map<HostTexture, number>;
   pageSources: Awaited<ReturnType<typeof createExplorerPageSources>>;

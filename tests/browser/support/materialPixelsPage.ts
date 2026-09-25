@@ -36,7 +36,7 @@ interface Sides {
   renderer: THREE.WebGLRenderer;
   canvas: HTMLCanvasElement;
   camera: G.GraphCamera;
-  sun: G.GraphNode;
+  sun: G.Object3D;
   stores: { none: SdkCore.SceneLightStore; sun: SdkCore.SceneLightStore };
 }
 

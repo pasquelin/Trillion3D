@@ -76,7 +76,7 @@ ${BLEND_COVERAGE_WGSL}
  let gx=dpdx(in.uv);let gy=dpdy(in.uv);
  let radius=shadow.emitter.w;
  if(radius>0.0&&dot(in.fromEmitter,in.fromEmitter)<radius*radius){discard;}
- if(!maskKeep(pages[in.instance],in.uv,gx,gy,0.0)){discard;}
+ if(!maskKeep(pages[in.instance],in.uv,1.0,gx,gy,0.0)){discard;}
  let blended=(pages[in.instance].flags&${FLAG_BLEND_CASTER}u)!=0u;
  if(blended&&!blendCasterKeep(pages[in.instance],in.uv,gx,gy,in.position.xy)){discard;}
 }

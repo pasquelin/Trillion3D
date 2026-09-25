@@ -13,11 +13,12 @@ import {
   type GraphAnyLight,
 } from '../../../packages/sdk-browser/src/host/graph/kinds.ts';
 import type { GraphMesh } from '../../../packages/sdk-browser/src/host/graph/mesh.ts';
-import type { GraphNode } from '../../../packages/sdk-browser/src/host/graph/node.ts';
 import { resolveCameraWorld } from '../../../packages/sdk-browser/src/camera/world.ts';
 import type { HostMaterials } from '../../../packages/sdk-browser/src/host/resources.ts';
 import type { GraphGeometry } from '../../../packages/sdk-browser/src/host/graph/geometry.ts';
 import { threeGeometry, threeMaterials } from './fromGraph.ts';
+import { Group, type Object3D } from '../../../packages/sdk-core/src/world/object/object3d.ts';
+import type { GraphNodeKind } from '../../../packages/sdk-browser/src/host/graph/nodeKind.ts';
 
 const cameras = new WeakMap<GraphCamera, THREE.PerspectiveCamera | THREE.OrthographicCamera>();
 
@@ -37,7 +38,7 @@ export function threeMeshCopy(mesh: {
 }
 
 /** The optics and pose fields every node kind shares, copied from the engine's node. */
-function place<T extends THREE.Object3D>(into: T, node: GraphNode): T {
+function place<T extends THREE.Object3D>(into: T, node: Object3D): T {
   into.name = node.name;
   into.up.copy(node.up);
   into.position.copy(node.position);
@@ -98,8 +99,8 @@ function threeSurroundingLight(light: Exclude<GraphAnyLight, GraphLight>) {
 
 /** A node of the library for one engine node, of the class its `kind` names, its children not
  *  included: the one place an engine kind is given a library's class. */
-function threeNode(node: GraphNode): THREE.Object3D {
-  switch (node.kind) {
+function threeNode(node: Object3D): THREE.Object3D {
+  switch ((node as { kind?: GraphNodeKind }).kind) {
     case 'mesh':
     case 'instancedMesh': {
       const source = node as GraphMesh;
@@ -123,10 +124,8 @@ function threeNode(node: GraphNode): THREE.Object3D {
     }
     case 'camera':
       return place(threeCameraOf(node as GraphCamera), node);
-    case 'group':
-      return place(new THREE.Group(), node);
     default:
-      return place(new THREE.Object3D(), node);
+      return place(node instanceof Group ? new THREE.Group() : new THREE.Object3D(), node);
   }
 }
 
@@ -134,10 +133,10 @@ function threeNode(node: GraphNode): THREE.Object3D {
  * The library's copy of a whole engine graph: every node of the same kind, pose and name, the
  * resources shared as the engine shares them, and each light aiming at the copy of its target.
  */
-export function threeGraph(root: GraphNode | THREE.Object3D): THREE.Object3D {
+export function threeGraph(root: Object3D | THREE.Object3D): THREE.Object3D {
   if (root instanceof THREE.Object3D) return root;
-  const copies = new Map<GraphNode, THREE.Object3D>();
-  const copy = (node: GraphNode): THREE.Object3D => {
+  const copies = new Map<Object3D, THREE.Object3D>();
+  const copy = (node: Object3D): THREE.Object3D => {
     const made = threeNode(node);
     copies.set(node, made);
     for (const child of node.children) made.add(copy(child));

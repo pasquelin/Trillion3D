@@ -1,8 +1,8 @@
-import type { HostGraphNode } from './graphNodes.ts';
 import { isLightNode, isPlacedLight } from '../graph/kinds.ts';
 import type { WriteRevision } from './hookCore.ts';
 import { hookHostNode, unhookHostNode } from './hooks.ts';
 import { scan, snapshot, type NodeState, type WatchVerdict } from './scan.ts';
+import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 
 /**
  * Mark of a node the engine created itself — an instance copy, for example. The host never
@@ -16,13 +16,13 @@ export type WatchedSources = ReadonlyArray<unknown>;
 
 /** Source node of an entry, when it names one. */
 function sourceOf(entry: unknown) {
-  const shaped = entry as { sourceMesh?: HostGraphNode } | undefined | null;
+  const shaped = entry as { sourceMesh?: Object3D } | undefined | null;
   return shaped ? shaped.sourceMesh : undefined;
 }
 
 /** Walks a node's chain up to the root: an ancestor's pose is the node's. */
-function withAncestors(node: HostGraphNode | undefined, into: Set<HostGraphNode>) {
-  let walk: HostGraphNode | null = node ?? null;
+function withAncestors(node: Object3D | undefined, into: Set<Object3D>) {
+  let walk: Object3D | null = node ?? null;
   while (walk && !into.has(walk)) {
     into.add(walk);
     walk = walk.parent;
@@ -61,8 +61,8 @@ export function createHostSceneWatch() {
      * that made the list stale is what announced it, and a node that enters the list is read
      * as-is by that same frame.
      */
-    observe(source: HostGraphNode, drawn: WatchedSources) {
-      const set = new Set<HostGraphNode>();
+    observe(source: Object3D, drawn: WatchedSources) {
+      const set = new Set<Object3D>();
       source.traverse((object) => {
         if (!isLightNode(object)) return;
         withAncestors(object, set);
