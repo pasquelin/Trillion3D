@@ -59,16 +59,18 @@ export function buildWorldMirror(input: MirrorInput) {
   const geometries = new Map<Cut, GraphGeometry>(),
     // One surface per material, and a second one when the material asks for vertex colours and
     // is worn by geometries with and without them: the material decides, as in the reference
-    // (`material.vertexColors`), and a geometry with no colour has none to tint by.
+    // (`material.vertexColors`), and a geometry with no colour has none to tint by. A third when
+    // it is worn by lines: the line surface is widened and lifted (`hostSurface`).
     surfaces = new Map<Material, GraphSurface[]>(),
     textures: HostTextures = new Map();
   const meshOf = (cut: Cut, material: Material) => {
     let geometry = geometries.get(cut);
     if (!geometry) geometries.set(cut, (geometry = hostGeometry(cut.drawn)));
-    const tinted = !!material.vertexColors && !!cut.drawn.colors;
+    const tinted = !!material.vertexColors && !!cut.drawn.colors,
+      lines = !!cut.drawn.lines;
     let worn = surfaces.get(material);
     if (!worn) surfaces.set(material, (worn = []));
-    const surface = (worn[+tinted] ??= hostSurface(material, tinted, textures));
+    const surface = (worn[lines ? 2 : +tinted] ??= hostSurface(material, tinted, textures, lines));
     return new GraphMesh(geometry, surface);
   };
   for (const { cut, material, rows, name } of input.placed) {
