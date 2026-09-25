@@ -2,6 +2,7 @@ import { createCheckedShaderModule } from '../core/shaderModule.ts';
 import { SHADOW_LIGHT_CULL_SHADER } from './cullShader.ts';
 import type { DrawnLog } from '../dag/types.ts';
 import { shadowBatchWrites } from './batchWrites.ts';
+import { LIGHT_CULL_ARG_WORDS, LIGHT_CULL_UNIFORM_WORDS } from './batchBudget.ts';
 
 /** What the light cull reads beside the cut's log: spheres, mobility words, draw records, and the
  *  page → row map with the pass prelude that refreshes it (`../draw/lightRows.ts`). */
@@ -67,15 +68,16 @@ export async function createShadowLightCull(device: GPUDevice, targets: CullTarg
     compute: { module, entryPoint: 'shadowCullLight' },
   });
   const uniforms = device.createBuffer({
-    size: 32,
+    size: LIGHT_CULL_UNIFORM_WORDS * 4,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
   const args = device.createBuffer({
-    size: 12,
+    size: LIGHT_CULL_ARG_WORDS * 4,
     usage: GPUBufferUsage.INDIRECT | GPUBufferUsage.COPY_DST,
   });
-  const uniData = new Uint32Array(8),
-    argData = new Uint32Array([0, 0, 1]);
+  const uniData = new Uint32Array(LIGHT_CULL_UNIFORM_WORDS),
+    argData = new Uint32Array(LIGHT_CULL_ARG_WORDS);
+  argData[2] = 1;
   let bound: GPUBuffer[] = [],
     group: GPUBindGroup | undefined;
   return {

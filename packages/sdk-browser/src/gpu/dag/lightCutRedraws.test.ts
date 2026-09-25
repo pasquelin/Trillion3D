@@ -3,18 +3,22 @@ import assert from 'node:assert/strict';
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
 import { createLightCutRedraws } from './lightCutRedraws.ts';
 import { COARSER_VIEWS, WORK_DROPPED } from './shader/viewsWgsl.ts';
+import { MAX_SHADOW_BATCHES, SHADOW_FLAG_FRAMES } from '../shadow/batchBudget.ts';
 
 const coarserView = (view: number) => (1 << (COARSER_VIEWS + view)) >>> 0;
 
 /** A light cut's flag readback whose word is `flag.value`, and one frame through it. */
 function redrawsWith(flag: { value: number }) {
   installGpuGlobals();
-  const buffer = () =>
-    ({
+  const made: GPUBufferDescriptor[] = [];
+  const buffer = (descriptor: GPUBufferDescriptor) => {
+    made.push(descriptor);
+    return {
       mapAsync: () => Promise.resolve(),
-      getMappedRange: () => new Uint32Array([flag.value]).buffer,
+      getMappedRange: () => new Uint32Array(descriptor.size / 4).fill(flag.value).buffer,
       unmap() {},
-    }) as unknown as GPUBuffer;
+    } as unknown as GPUBuffer;
+  };
   const redraws = createLightCutRedraws(buffer, {} as GPUBuffer, 24);
   const encoder = { copyBufferToBuffer() {} } as unknown as GPUCommandEncoder;
   const taken = () => {
@@ -27,7 +31,7 @@ function redrawsWith(flag: { value: number }) {
     await redraws.settled();
     return taken();
   };
-  return { redraws, encoder, frame, taken };
+  return { redraws, encoder, frame, taken, made };
 }
 
 // A frame whose light cut dropped work drew its pages without all their casters: they are drawn
@@ -116,17 +120,41 @@ test('only the pages of a frame that dropped work are withdrawn until they are r
   assert.deepEqual(await drawn(5, false), [[5, false]], 'coarse: still read');
 });
 
-// A frame draws as many batches as its pages take (#489): each batch's flag rides in a slot of its
-// own, however many are in flight, and none of their pages is drawn again for want of a slot.
-test('twenty batches in flight each keep a flag slot, and none is drawn again for want of one', async () => {
-  const { redraws, encoder, taken } = redrawsWith({ value: 0 });
-  const settles = Array.from({ length: 20 }, (_, k) => redraws.encode(encoder, [k], [0], 1, true));
+// A frame draws as many batches as its pages take (#489): each frame's flag words ride in one slot
+// sized for the most batches a frame draws, the slots are made once, and none grows at run time.
+test('the flag slots are made once, for the most batches a frame draws, and never grow', async () => {
+  const { redraws, encoder, taken, made } = redrawsWith({ value: 0 });
+  assert.equal(made.length, SHADOW_FLAG_FRAMES, 'one slot per frame in flight, made at creation');
   assert.ok(
-    settles.every((settle) => settle !== undefined),
-    'every batch copies its flag',
+    made.every(({ size }) => size === MAX_SHADOW_BATCHES * 4),
+    'a word per batch',
   );
-  assert.deepEqual(taken(), [], 'nothing drawn again');
-  for (const settle of settles) settle!(true);
+  const settles = [];
+  for (let frame = 0; frame < SHADOW_FLAG_FRAMES; frame++) {
+    const settle = redraws.encode(encoder, [0], [0], 1, true);
+    for (let batch = 1; batch < MAX_SHADOW_BATCHES; batch++)
+      assert.equal(redraws.encode(encoder, [batch], [0], 1, true), undefined, 'same slot');
+    assert.ok(settle, 'the first batch opens the frame');
+    settle(true);
+    settles.push(settle);
+  }
+  assert.equal(made.length, SHADOW_FLAG_FRAMES, 'nothing made at run time');
+  assert.deepEqual(taken(), [], 'no batch drawn again for want of a slot');
   await redraws.settled();
   assert.deepEqual(taken(), [], 'whole: nothing drawn again once read');
+});
+
+// A GPU so far behind that every slot is still being read: the frame cannot know what its cuts
+// drew short, so its pages are drawn again, withdrawn meanwhile — never read on a guess.
+test('a frame that finds every flag slot still read draws its pages again, withdrawn', () => {
+  const { redraws, encoder } = redrawsWith({ value: 0 });
+  for (let frame = 0; frame < SHADOW_FLAG_FRAMES; frame++)
+    redraws.encode(encoder, [frame], [0], 1, true)!(true);
+  assert.equal(redraws.encode(encoder, [40, 41], [0, 0], 2, true), undefined);
+  const seen: [number, boolean][] = [];
+  redraws.takeRedraw((page, withdraw) => seen.push([page, withdraw]));
+  assert.deepEqual(seen, [
+    [40, true],
+    [41, true],
+  ]);
 });

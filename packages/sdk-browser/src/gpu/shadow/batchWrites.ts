@@ -1,5 +1,4 @@
-/** Bytes of the first staging buffer: a few batches of face uniforms, volumes and commands. */
-const FIRST_STAGING_BYTES = 1 << 16;
+import { SHADOW_BATCH_WRITE_BYTES, SHADOW_STAGING_BYTES } from './batchBudget.ts';
 
 type Words = Uint32Array<ArrayBuffer> | Int32Array<ArrayBuffer> | Float32Array<ArrayBuffer>;
 
@@ -14,31 +13,30 @@ type Words = Uint32Array<ArrayBuffer> | Int32Array<ArrayBuffer> | Float32Array<A
  * and each later batch's copy replaces them in order.
  *
  * A write while staged must come outside any pass: every caller writes before it opens its pass.
- * The staging buffer grows by doubling; one it outgrew is destroyed at the next frame's `stage`,
- * once the frame that copied from it is submitted.
+ * The staging buffer is made once, at the first staged write, at its largest: every batch of the
+ * largest frame but the first, each at most `SHADOW_BATCH_WRITE_BYTES` (`batchBudget.ts`). It never
+ * grows; a batch that would write more is a defect, refused by name.
  */
 function createBatchWrites(device: GPUDevice) {
   let encoder: GPUCommandEncoder | undefined,
     staging: GPUBuffer | undefined,
-    at = 0;
-  const retired: GPUBuffer[] = [];
+    at = 0,
+    batchStart = 0;
   const room = (bytes: number) => {
-    if (staging && at + bytes <= staging.size) return staging;
-    if (staging) retired.push(staging);
-    const size = Math.max(FIRST_STAGING_BYTES, 2 * (staging?.size ?? 0), at + bytes);
-    staging = device.createBuffer({
+    if (at + bytes - batchStart > SHADOW_BATCH_WRITE_BYTES || at + bytes > SHADOW_STAGING_BYTES)
+      throw new Error(`SHADOW_BATCH_WRITES_OVERFLOW: ${bytes} bytes at ${at}`);
+    staging ??= device.createBuffer({
       label: 'Trillion3D shadow batch staging v1',
-      size,
+      size: SHADOW_STAGING_BYTES,
       usage: GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
     });
-    at = 0;
     return staging;
   };
   return {
-    /** From now until `end`, writes land in `into`'s command order. */
+    /** From now until `end`, writes land in `into`'s command order: one batch's writes. */
     stage(into: GPUCommandEncoder) {
-      if (!encoder) for (const old of retired.splice(0)) old.destroy();
       if (!encoder) at = 0;
+      batchStart = at;
       encoder = into;
     },
     /** Writes land before the command buffer again. */
