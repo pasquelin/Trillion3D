@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as G from '../../host/graph/graph.fixture.ts';
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
+import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 import { depthLayerUnits } from '../../../../sdk-core/src/index.ts';
 import { BASE_SLOTS, DRAW_ITEM_U32, MAX_DRAW_SLOTS, slotCount } from '../../gpu/draw/draw.ts';
 import { ROW_INDEX_WORDS } from '../row/pageRow.ts';
@@ -71,7 +72,7 @@ test("drawVis draws each coplanar layer's slots by their own indirect command", 
       drawCalls.push(offset);
     },
   } as unknown as GPURenderPassEncoder;
-  const device = { createBindGroup: (desc: unknown) => desc } as unknown as GPUDevice;
+  const { device } = fakeDevice();
   const rt = {
     vis: {
       drawLayerSlots: 2,
@@ -117,12 +118,7 @@ test('visUniformSlots grows the visibility uniform slot count with the scene’s
 
 // shaders.ts
 test('createWebgpuVisibilityShaders sizes the visibility uniform buffer for the scene’s coplanar layer count', async () => {
-  installGpuGlobals();
-  const device = {
-    createBuffer: ({ size, usage }: { size: number; usage: number }) => ({ size, usage }),
-    createBindGroupLayout: () => ({}),
-    createShaderModule: () => ({ getCompilationInfo: async () => ({ messages: [] }) }),
-  } as unknown as GPUDevice;
+  const { device } = fakeDevice();
   const uniformSlots = visUniformSlots({ drawLayerSlots: 3 } as WebgpuVisState);
   const shaders = await createWebgpuVisibilityShaders(device, 8, uniformSlots);
   assert.equal(uniformSlots, 19);
