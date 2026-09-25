@@ -97,9 +97,10 @@ export async function createDeferredProgram(
     boundProbes: GPUBuffer | undefined,
     boundProxy: GPUBuffer | undefined,
     boundHdr: GPUTextureView | undefined,
+    /** The bound surface's flags: the share the lit image is composed with. */
+    boundFlags: GPUTextureView | undefined,
     lightGroup: GPUBindGroup | undefined;
-  // One per colour and share read; weak, and keyed by every view the group reads, so a new surface
-  // or lit image needs no reset.
+  // One per colour and share read, weakly keyed by every view it reads: nothing to reset.
   type Composition = { group: GPUBindGroup; draw: GPURenderPipeline; present: GPURenderPipeline };
   let composed = new WeakMap<GPUTextureView, WeakMap<GPUTextureView, Composition>>();
   return {
@@ -110,9 +111,9 @@ export async function createDeferredProgram(
     /** The pipelines and group reading the lit image and its surface flags, or an accumulated
      *  image and its as-is share; `undefined` before `bind`. */
     composition(accumulated?: AccumulatedImage) {
-      const view = accumulated?.color ?? boundHdr;
-      if (!view || !boundSurface) return undefined;
-      const share = accumulated?.share ?? boundSurface.views()[3];
+      const view = accumulated?.color ?? boundHdr,
+        share = accumulated?.share ?? boundFlags;
+      if (!view || !share || !boundSurface) return undefined;
       let byShare = composed.get(view);
       if (!byShare) composed.set(view, (byShare = new WeakMap()));
       const kept = byShare.get(share);
@@ -157,6 +158,7 @@ export async function createDeferredProgram(
       )
         return;
       boundSurface = surface;
+      boundFlags = surface.views()[3];
       boundTiles = tiles;
       boundAtlas = atlas;
       boundTransmittance = transmittance;
@@ -191,7 +193,7 @@ export async function createDeferredProgram(
     },
     release() {
       boundSurface = boundTiles = boundAtlas = boundTransmittance = undefined;
-      boundRequests = boundProbes = boundProxy = boundHdr = lightGroup = undefined;
+      boundRequests = boundProbes = boundProxy = boundHdr = boundFlags = lightGroup = undefined;
       composed = new WeakMap();
     },
   };
