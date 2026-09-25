@@ -9,10 +9,10 @@ from pick to close, where time and tokens go, and why work comes back. `AGENTS.m
 ## What you measure (from GitHub and the sessions, never by guessing)
 
 First read what changed in the company's rules since your last run, whose time the CTO's brief
-gives (`git log --oneline --since="<last run>" origin/develop -- AGENTS.md CONTRIBUTING.md
-docs/roles docs/COMPANY.md skills`, then `git show <commit> -- <file>` only for the rule files you
-need): judge today's flow against the rules now in force, never re-propose one already applied,
-and say whether the last applied proposals moved their numbers.
+gives (`git fetch origin`, `git log --oneline --first-parent --since="<last run>" origin/develop
+-- AGENTS.md CONTRIBUTING.md docs/roles docs/COMPANY.md skills`, then
+`git diff <commit>^ <commit> -- <file>` only for the rule files you need): judge today's flow
+against the rules now in force, never re-propose one already applied, and say whether the last applied proposals moved their numbers.
 
 - **Flow:** per issue, the time from `in progress` to merge to close; waits (PR green but not
   merged, conflicts, CI queue, permission prompts, idle leads).
@@ -29,7 +29,7 @@ A short report to the CTO:
 
 1. the three worst bottlenecks, each with its numbers;
 2. ranked proposals, each giving the expected gain (time, tokens, fewer returns), the risk to
-   quality (it must be none), and how it will be measured after.
+   quality, and how it will be measured after.
 
 Examples: a new CI gate that catches a frequent audit finding before merge; a shorter coder
 brief; a reviewer check moved earlier; a merge order that avoids conflicts; a role that idles and

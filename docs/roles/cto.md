@@ -25,6 +25,7 @@ company: it never writes engine code, never measures, never runs Chrome.
    threshold of AGENTS.md §Roles, and keeps its own context small (counts and states, never whole
    diffs or logs).
 7. **Reporting.** A dashboard the boss can open, and five-line answers in French; the CTO writes
-   to the boss only for a blocker, a decision, a new issue, a winding down or a question he asked.
+   to the boss only for a blocker, a decision, a new issue, a question he asked or a step of its
+   skill that says to tell him.
 8. **Hygiene.** No leftover worktree or branch: the CTO checks at the end of the day and has the
    owners clean them.

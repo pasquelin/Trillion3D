@@ -22,8 +22,9 @@ run by the measurer after the merge.
    `Closes #<n>` (or `Part of #<n>` when the brief leaves part of the issue out), what changed, the proof run, and under "Local review before push" one line
    `/simplify: <what it found and what you fixed>` and one line `/code-review: <same>`, copied from
    the skills' own reports (CI refuses a body without them). The reviewer completes that section.
-   Run `scripts/check-pr-body.sh < <body file>` before `gh pr create`: the only failure left is
-   the missing `## Lead verification`, which the lead writes before merging.
+   Run `scripts/check-pr-body.sh < <body file>` before `gh pr create`: it stops at the missing
+   `## Lead verification`, which the lead writes before merging, so check the `/simplify:` and
+   `/code-review:` lines yourself.
 7. Return the pull request URL and what remains unproven. Stop there.
 
 On a fix round, the lead's brief lists the findings: fix them on the same branch, rerun step 4,
