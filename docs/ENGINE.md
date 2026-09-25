@@ -234,11 +234,15 @@ cache (`splitMemoryBudget`).
   (`MAX_SHADOW_BATCHES`), each in at most 24 light views. The staging of every batch but the first
   is 170 × 26 556 bytes, 4.31 MiB, made at the first frame that needs it; the light cut's flag
   words, a word per batch for 4 frames in flight, 2 736 bytes; the CPU cut's commands for 4 104
-  faces, 65 664 bytes — 4.37 MiB of GPU memory in the shadow share (`SHADOW_POOL_BYTES`), and
-  178 KiB of host memory in the CPU total's (`SHADOW_HOST_BYTES`). A frame that needs more
-  batches — only when a light cut dropped work and its view limit cut batches short — draws 171
-  and leaves the rest pending, drawn the next frame: a declared limit, counted in
-  `shadowPagesPending`, which is otherwise 0 unless a batch could not be encoded. One flag says
+  faces, 65 664 bytes; the region commands of every batch a sampled frame copies for the cull and
+  occlusion counts, 2 × 131 328 bytes — 4.62 MiB of GPU memory in the shadow share
+  (`SHADOW_POOL_BYTES`), and 178 KiB of host memory in the CPU total's (`SHADOW_HOST_BYTES`). A
+  frame that needs more batches — only when a light cut dropped work and its view limit cut
+  batches short — draws 171 and leaves the rest pending: a declared limit, counted in
+  `shadowPagesPending`, which is otherwise 0 unless a batch could not be encoded. The next frame's
+  list starts where the last one stopped and wraps around (`admit.ts`), so views re-marked every
+  frame cannot keep the pages behind them waiting: a page that stays read is drawn within
+  ⌈4 096 / 171⌉ = 24 frames at worst, one page a batch. One flag says
   whether a page is read, the table word's valid
   bit: a page whose
   depth is wrong is withdrawn (`pool.withdraw`) until its redraw lands, and the pixel reads the
