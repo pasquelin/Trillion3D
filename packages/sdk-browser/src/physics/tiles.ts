@@ -32,7 +32,8 @@ const FETCHES = 8;
  * The cooked collision of the compiled models in a scene (`physics.json`), streamed into the
  * simulation within `budget.physics.triangles`: tiles load around the eye up to the active range
  * — the camera's draw distance, the scene's own — and around every moving body, nearest first,
- * and leave once no longer wanted. A tile is restored from Jolt's binary state, never rebuilt.
+ * and leave once no longer wanted. A tile is restored from Jolt's binary state, never rebuilt;
+ * so are the soft bodies a model was cooked with (`cookedSoft.ts`), made as it opens.
  */
 export function createTileStreamer(
   writer: CommandWriter,
@@ -161,9 +162,10 @@ export function createTileStreamer(
     modelOf: (id: number) => byIndex.get(id & BODY_INDEX)?.model ?? softs.modelOf(id),
     /** The glTF material of a tile body's triangles, `-1` for none or for another body. */
     materialOf: (id: number) => byIndex.get(id & BODY_INDEX)?.material ?? -1,
-    /** A model moved: its resident tiles follow. */
+    /** A model moved: its resident tiles follow, its cooked soft bodies are made again. */
     moved(node: Object3D) {
       node.traverse((child) => {
+        if (isModel(child)) softs.moved(child);
         for (const p of (isModel(child) && models.get(child)) || []) {
           locate(p);
           if (p.id < 0) continue;

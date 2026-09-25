@@ -18,9 +18,6 @@ export type Model = Object3D & { isLoadedModel: true; record: { base: string } }
 export const isModel = (node: Object3D): node is Model =>
   (node as { isLoadedModel?: boolean }).isLoadedModel === true;
 
-/** Where a node of the model places what was cooked for it, in the model's frame. */
-type CookedPlacement = Pick<CookedInstance, 'position' | 'rotation' | 'scale'>;
-
 /** One cooked tile placed by one instance: its world box, and whether its body is in. */
 export interface Placed {
   model: Model;
@@ -76,7 +73,7 @@ export function placedOf(model: Model, cooked: CookedPhysics): Placed[] {
 
 /** A tile's — or a cooked soft body's — world pose: its model's world matrix times its placement,
  *  as position, turn, scale (scratch shared by every caller: read them at once). */
-export function tilePose(p: { model: Model; instance: CookedPlacement }) {
+export function tilePose(p: { model: Model; instance: Omit<CookedInstance, 'collider'> }) {
   const { position: t, rotation: r, scale: s } = p.instance;
   position.set(t[0], t[1], t[2]);
   local.compose(position, turn.set(r[0], r[1], r[2], r[3]), size.set(s[0], s[1], s[2]));

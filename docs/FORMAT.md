@@ -301,8 +301,9 @@ additive: a file cooked before it has none, and format 2 still reads it. Each en
 `report.softBodies` counts them; `report.softRefused` lists each declaring node the cook refused
 (`node`, `reason`, in the words the page would refuse it with): it has no body and no static
 collider, and is drawn all the same. The page restores the settings and copies them into one SOFT
-command (`packages/sdk-core/src/physics/softLayout.ts`); it builds nothing. A model placed at another
-scale than its nodes were cooked at has its soft bodies refused (`PHYSICS_FAILED`), for Jolt scales
+command (`packages/sdk-core/src/physics/softLayout.ts`); it builds nothing. A model the page moves
+has its soft bodies made again where it now is, as a page-built one is; placed or rescaled at
+another scale than its nodes were cooked at, it has them refused (`PHYSICS_FAILED`), for Jolt scales
 no soft body once made.
 
 ## Source glTF

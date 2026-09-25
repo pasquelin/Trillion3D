@@ -9,8 +9,9 @@ import { createPhysicsBodies } from './bodies.ts';
 import { createPhysicsPoses } from './poses.ts';
 import { createTileStreamer } from './tiles.ts';
 
-/** Lets the fetches in flight land. */
-export const landed = () => new Promise((resolve) => setTimeout(resolve, 10));
+/** Lets the fetches in flight land: `streamedModel`'s fetch answers in microtasks alone, so the
+ *  next turn of the event loop comes once every answer has been read. */
+export const landed = () => new Promise(setImmediate);
 
 /**
  * A model at the origin, scaled by `scale`, whose `physics.json` is `file` and every other file
@@ -26,9 +27,9 @@ export async function streamedModel(
   const fetched: string[] = [];
   globalThis.fetch = (async (url: string) => {
     fetched.push(url.split('/').pop()!);
-    const json = url.endsWith('physics.json');
-    return new Response(json ? JSON.stringify(file) : new Uint8Array(bytes));
-  }) as typeof fetch;
+    const json = async () => JSON.parse(JSON.stringify(file));
+    return { ok: true, json, arrayBuffer: async () => bytes.slice().buffer };
+  }) as unknown as typeof fetch;
   const limits = { ...DEFAULT_PHYSICS_BUDGET, bodies: 8, ...budget };
   const [scene, writer, errors] = [new Group(), new CommandWriter(), [] as { code: string }[]];
   const { state } = createPhysicsPoses(limits.bodies, scene);

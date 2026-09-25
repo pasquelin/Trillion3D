@@ -33,6 +33,8 @@ const cookedCloth = (bytes: number): CookedSoftBody => ({
 });
 /** Its nine vertices, each its own: no two at one position. */
 const own = { map: Uint32Array.from({ length: 9 }, (_, v) => v) };
+/** The codes of the errors raised. */
+const codes = (errors: { code: string }[]) => errors.map((e) => e.code);
 
 test('a cooked cloth restores to the settings the page builds: laid flat, it swings the same', async () => {
   const built = await softWorld();
@@ -58,8 +60,7 @@ async function opened(softVertices = DEFAULT_PHYSICS_BUDGET.softVertices, scale 
     instances: [],
     softBodies: [cookedCloth(bytes.length)],
   };
-  const opening = await streamedModel(file, bytes, { softVertices }, scale);
-  return { ...opening, bytes };
+  return { ...(await streamedModel(file, bytes, { softVertices }, scale)), bytes };
 }
 
 test('a compiled model’s cooked cloth is made from its settings alone and moves from the first steps', async () => {
@@ -96,37 +97,29 @@ test('a model opened again before its settings arrive holds its cooked cloth onc
   assert.equal(bodies.count.softVertices, 9 + 9, 'the streamer’s cloth, and this opening’s once');
 });
 
-test('a model rescaled while its cooked cloth’s settings arrive has it refused by name', async () => {
-  const { model, writer, bodies } = await opened();
-  const errors: { code: string }[] = [];
-  const softs = createCookedSoftBodies(
-    writer,
-    bodies,
-    () => {},
-    (e) => errors.push(e),
-  );
-  softs.open(model, [cookedCloth(1)]);
+test('a model moved after its cooked cloth landed takes it along; rescaled, has it refused', async () => {
+  const { model, writer, bodies, tiles, errors } = await opened();
+  writer.take();
+  model.position.set(5, 0, 0);
+  model.updateMatrixWorld(true);
+  tiles.moved(model);
+  await landed();
+  const words = writer.take();
+  assert.deepEqual([words[0], words[2]], [OP.remove, OP.soft], 'out, and made again');
+  assert.deepEqual([...new Float32Array(words.buffer, 4 * 4, 3)], [5, 2, 0], 'where it now is');
   model.scale.setScalar(2);
   model.updateMatrixWorld(true);
+  tiles.moved(model);
   await landed();
-  assert.deepEqual(
-    errors.map((e) => e.code),
-    ['PHYSICS_FAILED'],
-  );
-  assert.equal(bodies.count.softVertices, 9, 'the streamer’s cloth alone');
+  assert.deepEqual(codes(errors), ['PHYSICS_FAILED']);
+  assert.equal(bodies.count.softVertices, 0, 'no body left at the old scale');
 });
 
 test('a cooked soft body past the budget, or its model scaled from its cook, is refused by name', async () => {
   const over = await opened(8);
-  assert.deepEqual(
-    over.errors.map((e) => e.code),
-    ['PHYSICS_BUDGET'],
-  );
+  assert.deepEqual(codes(over.errors), ['PHYSICS_BUDGET']);
   assert.equal(over.writer.length, 0);
   const scaled = await opened(undefined, 2);
-  assert.deepEqual(
-    scaled.errors.map((e) => e.code),
-    ['PHYSICS_FAILED'],
-  );
+  assert.deepEqual(codes(scaled.errors), ['PHYSICS_FAILED']);
   assert.equal(scaled.bodies.count.softVertices, 0);
 });
