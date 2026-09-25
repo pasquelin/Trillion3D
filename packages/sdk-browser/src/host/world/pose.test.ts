@@ -19,8 +19,8 @@ function mirror() {
   const tree = createTransformTree(2);
   addTransformNode(tree);
   addTransformNode(tree, 0);
-  const root = new G.GraphGroup(),
-    child = new G.GraphGroup();
+  const root = new G.Group(),
+    child = new G.Group();
   root.add(child);
   return { tree, root, child };
 }

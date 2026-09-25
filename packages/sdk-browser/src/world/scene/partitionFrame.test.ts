@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import type { RenderBackend } from '../../backend/types.ts';
 import { hostFramingCamera } from '../../host/scene/graphObjects.ts';
 import type { TableCell } from '../../../../sdk-core/src/scene/core/tablePartition.ts';
-import { GraphGroup } from '../../host/graph/mesh.ts';
+import { Group } from '../../../../sdk-core/src/world/object/object3d.ts';
 import { createPartitionCells, type PartitionCells } from '../../scene/partition/cells.ts';
 import { cellReach } from '../../scene/partition/plan.ts';
 import { placedMesh } from '../../scene/partition/rows.ts';
@@ -83,7 +83,7 @@ test('a pebble far below any error target is read while the far plane lets it be
       cells: [{ ...pebble, parents: [[null, [200, 0, 0, 200.01, 0.01, 0.01]] as const] }],
     },
     base: 'https://cache.test/key/',
-    root: new GraphGroup(),
+    root: new Group(),
     parents: [],
     meshes: new Map([[0, placedMesh([{ meshes: 0, primitives: 0 }])]]),
   });
@@ -143,7 +143,7 @@ function grid(side: number) {
     loading: () => false,
     request: async () => {},
   } as unknown as ReturnType<typeof createPageStreamer>;
-  const root = new GraphGroup();
+  const root = new Group();
   const partitioned = createPartitionCells({
     partition,
     base: 'https://cache.test/key/',

@@ -1,6 +1,6 @@
 import { MATRIX_VALUES, multiplyMatrix4 } from '../../../../sdk-core/src/index.ts';
-import type { HostGraphNode } from '../scene/graphNodes.ts';
 import { hostLocalInto } from './matrices.ts';
+import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 
 /**
  * World matrix of ONE host node, computed by the engine from the local poses of its ancestor
@@ -19,21 +19,21 @@ import { hostLocalInto } from './matrices.ts';
  */
 
 const local = new Float64Array(MATRIX_VALUES);
-let chain: (HostGraphNode | undefined)[] = new Array(64);
+let chain: (Object3D | undefined)[] = new Array(64);
 
 /** World matrix of `node` written into `out`, which is returned. `out` may be any buffer. */
-export function hostWorldChainInto(out: Float64Array, node: HostGraphNode) {
+export function hostWorldChainInto(out: Float64Array, node: Object3D) {
   let depth = 0;
-  for (let walk: HostGraphNode | null = node; walk; walk = walk.parent) {
+  for (let walk: Object3D | null = node; walk; walk = walk.parent) {
     if (depth === chain.length) chain = chain.concat(new Array<undefined>(chain.length));
     chain[depth++] = walk;
   }
   // `chain[depth - 1]` is the root: its world matrix is its local matrix, as in the
   // reference. The product is computed IN PLACE — `multiplyMatrix4` reads its thirty-two inputs
   // before writing any output, so `out` can be both the parent's world and the child's.
-  hostLocalInto(out, chain[depth - 1] as HostGraphNode);
+  hostLocalInto(out, chain[depth - 1] as Object3D);
   for (let rank = depth - 2; rank >= 0; rank--) {
-    hostLocalInto(local, chain[rank] as HostGraphNode);
+    hostLocalInto(local, chain[rank] as Object3D);
     multiplyMatrix4(out, out, local);
   }
   // The chain is released: keeping host nodes here would retain its scene after an unload.

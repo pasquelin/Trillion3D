@@ -9,7 +9,7 @@ import { createFrameGateCore } from './gateCore.ts';
 
 /** A source graph and the entry list that names the node the engine draws. */
 function scene() {
-  const source = new G.GraphGroup(),
+  const source = new G.Group(),
     mesh = G.mesh();
   mesh.name = 'drawn';
   source.add(mesh);

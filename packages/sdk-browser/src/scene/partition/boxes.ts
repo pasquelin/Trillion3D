@@ -14,7 +14,7 @@ import {
   multiplyMatrix4,
 } from '../../../../sdk-core/src/index.ts';
 import type { TableCell } from '../../../../sdk-core/src/scene/core/tablePartition.ts';
-import type { GraphNode } from '../../host/graph/node.ts';
+import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 import { hostWorldChainInto } from '../../host/world/chain.ts';
 
 const rootWorld = new Float64Array(MATRIX_VALUES),
@@ -30,8 +30,8 @@ const rootWorld = new Float64Array(MATRIX_VALUES),
  */
 export function createCellBoxes(
   cells: readonly TableCell[],
-  root: GraphNode,
-  parents: readonly GraphNode[],
+  root: Object3D,
+  parents: readonly Object3D[],
 ) {
   const boxed = cells.map((cell) => ({ meshes: cell.meshes, bounds: new Float64Array(6) }));
   /** Each core parent's matrix relative to the root when its boxes were last written. */
