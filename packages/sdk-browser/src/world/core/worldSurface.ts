@@ -86,15 +86,28 @@ function familySurface(family: GraphSurfaceFamily, material: Material, vertexCol
   return surface;
 }
 
+/** A dashed line's dash and gap along its distance (`lineDash`, `../../visibility/shader/lineWgsl.ts`),
+ *  its `scale` folded in: the reference stretches the distance by it, the same as shortening both.
+ *  A `scale` of zero or less stretches the reference's dash to infinity, a solid line: a dash of
+ *  zero, which `lineDash` keeps whole. */
+function writeDash(surface: GraphSurface, material: Material) {
+  const scale = (material.scale as number | undefined) ?? 1;
+  const solid = !(scale > 0);
+  surface.dashSize = solid ? 0 : ((material.dashSize as number | undefined) ?? 0) / scale;
+  surface.gapSize = solid ? 0 : ((material.gapSize as number | undefined) ?? 0) / scale;
+}
+
 /**
  * The raster state of a surface that draws line quads (`drawn.ts`): its `linewidth` in CSS
- * pixels (the rasters scale it by the host's pixel ratio each frame), both sides in one pass — a quad widened on screen has no face to cull —, and one
+ * pixels (the rasters scale it by the host's pixel ratio each frame), a dashed line's dash and
+ * gap, both sides in one pass — a quad widened on screen has no face to cull —, and one
  * coplanar layer over the faces the lines lie on: the pages the world cuts for it carry the layer
  * on WebGPU (`../page/runtimePrimitive.ts`), and this polygon offset gives it on WebGL2, signed
  * for its forward depth (nearer is smaller).
  */
 function drawLines(surface: GraphSurface, material: Material) {
   surface.lineWidth = (material.linewidth as number | undefined) ?? 1;
+  if (material.kind === 'lineDashed') writeDash(surface, material);
   surface.side = hostSide('double');
   surface.forceSinglePass = true;
   surface.polygonOffset = true;
@@ -131,7 +144,8 @@ export function hostSurface(
 }
 
 /**
- * Writes a material's value fields — colour, glow, metalness, roughness — and its maps' sampling
+ * Writes a material's value fields — colour, glow, metalness, roughness, a dashed line's dash and
+ * gap — and its maps' sampling
  * into the surface built for it, as `hostSurface` wrote them, and bumps the surface's version:
  * every reader of the surface (`page/surface.ts`) takes them at its next read, nothing built again
  * (#335). A map whose version moved sends its picture again; one whose placement alone moved is
@@ -146,5 +160,6 @@ export function repaintHostSurface(surface: GraphSurface, material: Material) {
     .multiplyScalar(material.emissiveIntensity);
   if (typeof surface.metalness === 'number') surface.metalness = material.metalness;
   if (typeof surface.roughness === 'number') surface.roughness = material.roughness;
+  if (typeof surface.dashSize === 'number') writeDash(surface, material);
   surface.needsUpdate = true;
 }
