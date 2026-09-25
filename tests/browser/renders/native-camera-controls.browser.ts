@@ -26,11 +26,7 @@ const root = resolve(import.meta.dirname, '../../..');
 const out = measureOutput('native-camera-controls');
 await mkdir(out, { recursive: true });
 const cacheMounts = threeStackMounts(root, out);
-const { server, port } = await startServer({
-  port: 0,
-  captures: new Map(),
-  mounts: [...sdkMounts(root), ...cacheMounts],
-});
+const { server, port } = await startServer({ mounts: [...sdkMounts(root), ...cacheMounts] });
 const browser = await launchChrome({ headless: true });
 const errors: string[] = [];
 const centre = { x: 120, y: 80 };
