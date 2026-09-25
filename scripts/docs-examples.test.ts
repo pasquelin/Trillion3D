@@ -34,10 +34,9 @@ test('no Markdown page links an example parked until the engine draws it', () =>
       .filter(({ status }) => status === 'waiting-engine')
       .map(({ file }) => fileURLToPath(new URL(file, site))),
   );
-  const links = markdownLinks(fileURLToPath(new URL('..', import.meta.url))).local;
-  const found = links.filter(({ dest }) => parked.has(dest));
+  const links = markdownLinks().local.filter(({ dest }) => parked.has(dest));
   assert.deepEqual(
-    found.map(({ file, target }) => `${file}: ${target}`),
+    links.map(({ file, target }) => `${file}: ${target}`),
     [],
   );
 });
