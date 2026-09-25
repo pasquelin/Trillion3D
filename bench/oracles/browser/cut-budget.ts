@@ -2,7 +2,6 @@
 // Unit tests import them to check that the zero-threshold paths yield the exact same
 // decision, and that the shared distance does not change a bit.
 import { clusterErrorPixels } from '../../../packages/sdk-core/src/index.ts';
-import type { ClusterCut } from '../../../packages/sdk-browser/src/page/selection/math.ts';
 
 /** Bound-array offsets read at fixed slots, as `packages/sdk-browser/src/page/cut/bounds.ts` lays them out. */
 interface BoundSlots {
@@ -63,33 +62,6 @@ export function referenceErrorFloorPixels(
   const far = -c[2] + radius * stretch;
   if (!(far > 0)) return Infinity;
   return (error * stretch * focal) / far;
-}
-
-/** `cutSelects` from before batch 4c: two projections, whatever the threshold. */
-export function referenceCutSelects(
-  rec: ClusterCut,
-  e: ArrayLike<number>,
-  stretch: number,
-  focal: number,
-  near: number,
-  pixelError: number,
-) {
-  if (
-    referenceProjectedClusterError(rec.lodError ?? 0, rec.sphere, 0, e, stretch, focal, near) >
-    pixelError
-  )
-    return false;
-  return (
-    referenceProjectedClusterError(
-      rec.parentError,
-      rec.parentSphere ?? rec.sphere,
-      0,
-      e,
-      stretch,
-      focal,
-      near,
-    ) > pixelError
-  );
 }
 
 /** `nodeDecision` from before batch 4c, bounds read at the same offsets. */
