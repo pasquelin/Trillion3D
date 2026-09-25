@@ -1126,7 +1126,10 @@ rack, { axis, axisB, ratio })` slides the rack along `axisB` by `1 / ratio` metr
   radius and width are read from its bounds, and the simulation turns, steers and lifts it on its
   suspension every tick. As Jolt's own vehicle samples build theirs, the body's centre of mass is
   lowered to the bottom of its shape, midway between its wheels, and given back when the vehicle
-  leaves. The body faces −z: the forward wheels steer. A car has three wheels or
+  leaves. Its running gear is solid: a box over the wheels' footprint, from the body's bottom down
+  to their lowest point raised by the suspension's travel, joins its shape while it is a vehicle,
+  so another body never slips under it among its wheels, which Jolt only casts; its mass and
+  inertia stay its own shape's. The body faces −z: the forward wheels steer. A car has three wheels or
   more, one differential per driven axle (`drive: 'front' | 'rear' | 'all'`) and the handbrake on
   its rear wheels; a motorcycle two, driven at the rear, and it leans into a turn; a tracked
   vehicle two or more a side, each track driven by its rearmost wheel, steered by slowing one

@@ -95,25 +95,39 @@
         part(tread, geometry.box(radius * 1.5, width * 1.08, radius * 0.18), tyre, [0, 0, 0]);
         return tread;
       };
-      // A body: its box collides and carries the mass; the rest is drawn on it.
+      // A body: its box carries the mass. It and every part drawn with `solid` make its collision
+      // shape, so that what is seen is what collides; its wheels are the vehicle's own.
+      const hulls = new Map();
       const chassis = (size, color) => {
         const body = object.mesh(geometry.box(...size), paint(color));
         body.castShadow = body.receiveShadow = true;
+        hulls.set(body, [{ type: 'box', halfExtents: size.map((side) => side / 2) }]);
         return body;
       };
+      const drawn = {
+        box: ({ halfExtents }) => geometry.box(...halfExtents.map((half) => half * 2)),
+        sphere: ({ radius }) => geometry.sphere(radius, 20, 14),
+        cylinder: ({ radius, halfHeight }) => geometry.cylinder(radius, radius, halfHeight * 2, 16),
+      };
+      const solid = (body, shape, look, at, turn) => {
+        const mesh = part(body, drawn[shape.type](shape), look, at, turn);
+        hulls.get(body).push({ ...shape, position: at, quaternion: mesh.quaternion.toArray() });
+      };
+      const block = (body, size, look, at, turn) =>
+        solid(body, { type: 'box', halfExtents: size.map((side) => side / 2) }, look, at, turn);
 
       // The sports car, 1,470 kg: the C5 Corvette the engine's car is drawn from.
       const car = chassis([1.86, 0.45, 4.5], '#c8102e');
-      part(
+      block(
         car,
-        geometry.box(1.4, 0.42, 1.9),
+        [1.4, 0.42, 1.9],
         paint('#15191f', { roughness: 0.1, metalness: 0.6 }),
         [0, 0.43, 0.25],
       );
-      part(car, geometry.box(1.7, 0.06, 0.3), paint('#15191f'), [0, 0.4, 2.15]);
+      block(car, [1.7, 0.06, 0.3], paint('#15191f'), [0, 0.4, 2.15]);
       for (const x of [-0.65, 0.65]) {
-        part(car, geometry.box(0.35, 0.1, 0.05), glow('#fff4d6'), [x, 0.05, -2.26]);
-        part(car, geometry.box(0.35, 0.1, 0.05), glow('#ff2a2a'), [x, 0.08, 2.26]);
+        block(car, [0.35, 0.1, 0.05], glow('#fff4d6'), [x, 0.05, -2.26]);
+        block(car, [0.35, 0.1, 0.05], glow('#ff2a2a'), [x, 0.08, 2.26]);
       }
       const carWheels = [-1.35, 1.35].flatMap((z) =>
         [-0.8, 0.8].map((x) => wheel(car, [x, -0.2, z], 0.33, 0.26)),
@@ -121,24 +135,24 @@
 
       // The motorcycle and its rider, 319 kg together.
       const bike = chassis([0.34, 0.45, 1.3], '#1f4fd1');
-      part(bike, geometry.box(0.4, 0.22, 0.55), paint('#1f4fd1'), [0, 0.32, -0.2]);
-      part(bike, geometry.box(0.7, 0.05, 0.05), paint('#2b303a'), [0, 0.62, -0.55]);
-      part(bike, geometry.box(0.4, 0.62, 0.3), paint('#2b2f36'), [0, 0.72, 0.2], [-0.35, 0, 0]);
-      part(bike, geometry.sphere(0.16, 20, 14), paint('#f2c14e'), [0, 1.15, 0.05]);
-      part(bike, geometry.box(0.12, 0.08, 0.05), glow('#fff4d6'), [0, 0.25, -0.67]);
+      block(bike, [0.4, 0.22, 0.55], paint('#1f4fd1'), [0, 0.32, -0.2]);
+      block(bike, [0.7, 0.05, 0.05], paint('#2b303a'), [0, 0.62, -0.55]);
+      block(bike, [0.4, 0.62, 0.3], paint('#2b2f36'), [0, 0.72, 0.2], [-0.35, 0, 0]);
+      solid(bike, { type: 'sphere', radius: 0.16 }, paint('#f2c14e'), [0, 1.15, 0.05]);
+      block(bike, [0.12, 0.08, 0.05], glow('#fff4d6'), [0, 0.25, -0.67]);
       const bikeWheels = [-0.72, 0.72].map((z) => wheel(bike, [0, -0.3, z], 0.31, 0.14));
 
       // The tank, 61 t: an M1 Abrams' hull, turret and gun, on six road wheels a side.
       const tank = chassis([3.6, 1, 7], '#5b6b3a');
-      part(tank, geometry.box(2.6, 0.7, 3.2), paint('#56663a'), [0, 0.85, 0.3]);
-      part(
+      block(tank, [2.6, 0.7, 3.2], paint('#56663a'), [0, 0.85, 0.3]);
+      solid(
         tank,
-        geometry.cylinder(0.12, 0.14, 4.5, 16),
+        { type: 'cylinder', radius: 0.13, halfHeight: 2.25 },
         paint('#4a5630'),
         [0, 0.9, -3.5],
         [Math.PI / 2, 0, 0],
       );
-      for (const x of [-1.55, 1.55]) part(tank, geometry.box(0.62, 0.12, 7.2), tyre, [x, -0.05, 0]);
+      for (const x of [-1.55, 1.55]) block(tank, [0.62, 0.12, 7.2], tyre, [x, -0.05, 0]);
       const tankWheels = [-2.75, -1.65, -0.55, 0.55, 1.65, 2.75].flatMap((z) =>
         [-1.55, 1.55].map((x) => wheel(tank, [x, -0.6, z], 0.42, 0.6)),
       );
@@ -182,17 +196,25 @@
           await new Promise((wait) => setTimeout(wait, 100));
         }
       };
-      // Parked, or put back on its wheels: set a little above the ground, level, and simulated
-      // anew (setting `physics` again makes the body, and the vehicle with it, afresh).
-      const park = async ({ body, mass, radius, wheels: [first], start: [x, z] }) => {
+      // Parked at `[x, z]`: set a little above what the ray meets there, level, facing `yaw`, and
+      // simulated anew (setting `physics` again makes the body, and the vehicle with it, afresh).
+      // Put back on its wheels, a vehicle stays where it stands, never on its start another may
+      // have driven to since: the ray meets the vehicle itself, and it drops back onto its wheels.
+      const park = async ({ body, mass, radius, wheels: [first] }, [x, z], yaw = 0) => {
         body.position.set(x, (await groundAt(x, z)) + radius - first.position.y + 0.3, z);
-        body.quaternion.set(0, 0, 0, 1);
-        body.physics = { mass };
+        body.quaternion.set(0, Math.sin(yaw / 2), 0, Math.cos(yaw / 2));
+        body.physics = { mass, shape: { type: 'compound', parts: hulls.get(body) } };
+      };
+      const heading = math.vector3();
+      const right = (entry) => {
+        const { position, quaternion } = entry.body;
+        heading.set(0, 0, -1).applyQuaternion(quaternion);
+        return park(entry, [position.x, position.z], Math.atan2(-heading.x, -heading.z));
       };
       world.camera.position.set(0, 30, 60);
       world.camera.lookAt(0, 0, 0);
       for (const entry of Object.values(fleet)) {
-        await park(entry);
+        await park(entry, entry.start);
         world.scene.add(entry.body);
         world.physics.add(entry.driver);
       }
@@ -203,7 +225,7 @@
       controls(
         {
           vehicle: ['car', 'motorcycle', 'tracked'],
-          reset: () => park(driven),
+          reset: () => right(driven),
         },
         ({ vehicle: kind }) => {
           driven = fleet[kind];
