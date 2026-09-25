@@ -52,6 +52,8 @@ export class WebglClusterTextures {
   private mips: WebglMipReducer;
   private readers = new CoverageReaders();
   private declarations = new WeakSet<object>();
+  /** The colour maps holding a chain under the readers' rule: the only ones reread per image. */
+  private chained = new Set<Texture>();
   constructor(gl: WebGL2RenderingContext) {
     this.gl = gl;
     this.mips = new WebglMipReducer(gl);
@@ -92,6 +94,7 @@ export class WebglClusterTextures {
     if (!record || record.version !== texture.version) {
       record = this.upload(unit, texture, color, weighted, record);
       this.records.set(key, record);
+      if (record.weighted !== undefined && reader) this.chained.add(texture);
     } else {
       if (this.bound[unit] !== record.texture) {
         gl.activeTexture(gl.TEXTURE0 + unit);
@@ -180,17 +183,18 @@ export class WebglClusterTextures {
     this.declarations.add(material);
     this.readers.read(surfaceOf(material));
   }
-  /** A new frame: the host's texture units are unknown, and the readers are reread once, as the
-   *  host declares them now — WebGPU's cadence, once per followed image (`coverageRules`). */
+  /** A new frame: the host's texture units are unknown, and the readers of the chained maps are
+   *  reread once, as the host declares them now — WebGPU's cadence (`coverageRules`). */
   beginFrame() {
     this.bound.length = 0;
-    this.readers.follow();
+    this.readers.follow(this.chained);
   }
   dispose() {
     for (const record of this.records.values()) this.gl.deleteTexture(record.texture);
     for (const texture of this.fallbacks.values()) this.gl.deleteTexture(texture);
     this.records.clear();
     this.fallbacks.clear();
+    this.chained.clear();
     this.mips.dispose();
   }
 }

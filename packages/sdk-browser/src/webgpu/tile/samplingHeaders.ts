@@ -94,8 +94,10 @@ function coverageRules(atlas: WebgpuTileAtlas) {
   for (const [slot, { source }] of atlas.textures.entries())
     if (source.kind === 'host' && (readers ??= source.coverage))
       hosts.set(slot, { map: source.map, rule: weighs(source.map) });
+  // Only the host maps' readers are reread: a baked chain never moves (none: nothing to reread).
+  const maps = [...hosts.values()].map(({ map }) => map);
   return {
-    follow: () => readers?.follow(),
+    follow: () => readers?.follow(maps),
     copied(slot: number) {
       const host = hosts.get(slot);
       if (host) host.rule = weighs(host.map);
