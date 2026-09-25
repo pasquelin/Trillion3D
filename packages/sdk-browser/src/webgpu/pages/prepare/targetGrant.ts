@@ -1,5 +1,6 @@
 import { deviceMade } from '../../../gpu/core/errorScope.ts';
 import { dropGpuHiz } from '../io/drops.ts';
+import { throwIfStopped } from '../io/lost.ts';
 import { backdropBytes } from '../../transparent/transmission.ts';
 import { frameTargetAllocation, makeTargets, releaseTargets, targetsFit } from './targets.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
@@ -71,7 +72,10 @@ export function requestFrameTargets(rt: WebgpuPagesRuntime, device: GPUDevice, r
 export async function grantFrameTargets(rt: WebgpuPagesRuntime, device: GPUDevice) {
   await frameTargetsPending(rt);
   await requestFrameTargets(rt, device, true);
-  if (frameTargetsAwaited(rt)) throw new Error('WEBGPU_FRAME_TARGETS_REFUSED');
+  if (!frameTargetsAwaited(rt)) return;
+  // A session stopped meanwhile says so, rather than a refusal.
+  throwIfStopped(rt);
+  throw new Error('WEBGPU_FRAME_TARGETS_REFUSED');
 }
 
 /**
@@ -91,9 +95,11 @@ async function grantTargets(
   requestedBytes: number,
 ) {
   const { vis, diag, run } = rt;
-  const make = () => makeTargets(rt, device, width, height, requestedBytes);
+  const make = () => makeTargets(rt, device, width, height, requestedBytes),
+    stopped = () => run.lost || rt.signal.aborted;
   let made = await deviceMade(device, make);
-  if (!made) {
+  // A session stopped meanwhile asks nothing again, and keeps its Hi-Z.
+  if (!made && !stopped()) {
     const dropped = vis.gpuHiz ? 'hi-z' : null;
     diag.engineDiagnostic('gpu-out-of-memory', 'The device refused the frame targets', {
       kind: 'warning',
@@ -106,7 +112,7 @@ async function grantTargets(
       made = await deviceMade(device, make);
     }
   }
-  if (run.lost || rt.signal.aborted) {
+  if (stopped()) {
     made?.destroy();
     return false;
   }
