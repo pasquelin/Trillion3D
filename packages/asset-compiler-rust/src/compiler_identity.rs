@@ -120,6 +120,18 @@ mod tests {
         assert!(inputs.contains(&"src/compiler_identity.rs"));
     }
 
+    // Behaviour: the runtime reads the error model the compiler writes. A mismatch would make
+    // every fresh cache STALE_CACHE, or let a stale one through.
+    #[test]
+    fn the_runtime_names_the_same_error_model() {
+        let contract = include_str!("../../sdk-core/src/contracts/base.ts");
+        let line = format!("export const DAG_ERROR_MODEL = '{DAG_ERROR_MODEL}';");
+        assert!(
+            contract.contains(&line),
+            "sdk-core does not declare {DAG_ERROR_MODEL}"
+        );
+    }
+
     // Behaviour: shapes cooked by another Jolt are another product: the key moves with the commit.
     #[test]
     fn another_jolt_is_another_key() {
