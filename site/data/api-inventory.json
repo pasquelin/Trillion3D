@@ -4193,11 +4193,14 @@
       "classification": "public",
       "affectedConsumers": [
         "packages/sdk-browser/src/physics/advancedJoints.test.ts",
+        "packages/sdk-browser/src/physics/damping.test.ts",
         "packages/sdk-browser/src/physics/gearPhase.test.ts",
         "packages/sdk-browser/src/physics/jointList.test.ts",
         "packages/sdk-browser/src/physics/jointSprings.test.ts",
         "packages/sdk-browser/src/physics/joints.fixture.ts",
-        "packages/sdk-browser/src/physics/joints.test.ts"
+        "packages/sdk-browser/src/physics/joints.test.ts",
+        "packages/sdk-browser/src/physics/pathEnergy.test.ts",
+        "scripts/docs-examples-coaster.test.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/physics/joint\".joint"
@@ -4247,7 +4250,10 @@
       "currentEntryPoints": ["trillion3d (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": ["packages/sdk-browser/src/physics/joints.ts"],
+      "affectedConsumers": [
+        "packages/sdk-browser/src/physics/joints.ts",
+        "packages/sdk-browser/src/physics/pathEnergy.test.ts"
+      ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/physics/jointOptions\".JointMotor"
     },
