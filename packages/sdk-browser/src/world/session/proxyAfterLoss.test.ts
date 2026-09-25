@@ -90,11 +90,15 @@ test('a proxy whose bytes are not the announced ones fails, naming the file and 
   const announced = '0'.repeat(64);
   metadata.proxy!.sha256 = announced;
   const session = await openSession(metadata, createPageCache());
-  await assert.rejects(
-    session.context.readSceneProxy!(),
-    new RegExp(
-      `${base}proxy\\.bin after 3 attempts: .*SHA-256 [0-9a-f]{64}, ${announced} announced`,
-    ),
-  );
+  await assert.rejects(session.context.readSceneProxy!(), (error: Error) => {
+    assert.match(
+      error.message,
+      new RegExp(
+        `${base}proxy\\.bin after 3 attempts: .*SHA-256 [0-9a-f]{64}, ${announced} announced`,
+      ),
+    );
+    assert.equal((error.cause as { code?: string }).code, 'INVALID_CACHE');
+    return true;
+  });
   session.close();
 });
