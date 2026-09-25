@@ -165,3 +165,32 @@ test('targets that fit ask nothing of the device and keep no promise: the steady
   assert.equal(requestFrameTargets(rt, {} as GPUDevice), undefined);
   assert.equal(rt.gpu.targetGrant, undefined);
 });
+
+test('a visibility target the device cannot make at a new size drops the buffer once, frames drawn', async () => {
+  installGpuGlobals();
+  const { device } = refusing('createTexture', 'Trillion3D visibility', (_, { size }) => {
+    if (size?.width === 48) throw new TypeError('refused');
+  });
+  const events: BackendDiagnostic[] = [];
+  const viewport: [number, number] = [32, 32];
+  const { fixture, backend } = quadBackend(device, {
+    viewport,
+    onDiagnostic: (event: BackendDiagnostic) => events.push(event),
+  });
+  try {
+    await backend.prepare();
+    backend.render(camera());
+    viewport[0] = viewport[1] = 48;
+    for (let i = 0; i < 3; i++) {
+      backend.render(camera());
+      await (backend as Backend).pendingFrame();
+    }
+    assert.equal(backend.metrics().frameHeld, false, 'the frame is drawn, not held for ever');
+    const failed = events.filter((event) => event.phase === 'visibility-target-failed');
+    assert.equal(failed.length, 1, 'asked once, not every frame');
+  } finally {
+    backend.dispose();
+    fixture.geometry.dispose();
+    fixture.material.dispose();
+  }
+});
