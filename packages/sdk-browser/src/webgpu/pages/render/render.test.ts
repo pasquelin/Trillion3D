@@ -120,14 +120,15 @@ function root(name: string, count: number, transparent = false): ClusterRoot<Pag
   return { world, pages };
 }
 
-/** A terrain of `terrain` rows, then a model of `model` rows, every cluster resident. */
-function scene(terrain: number, model: number) {
+/** A terrain of `terrain` rows, then a model of `model` rows, every cluster resident; then
+ *  `blendSlots` shadow-only rows for the glass. */
+function scene(terrain: number, model: number, blendSlots = 0) {
   const ground = root('t', terrain),
     moving = root('m', model),
     glass = root('g', 2, true);
   const pages = [...ground.pages, ...moving.pages, ...glass.pages];
-  const rows = createWebgpuRowState(pages, terrain + model);
-  rows.pageTableFloats = new Float32Array((terrain + model) * ROW_WORDS);
+  const rows = createWebgpuRowState(pages, terrain + model, blendSlots);
+  rows.pageTableFloats = new Float32Array(rows.casterSlots * ROW_WORDS);
   for (let row = 0; row < terrain + model; row++) {
     rows.rowOfPage[row] = row;
     rows.packedPageIndex[row] = row;
@@ -176,4 +177,16 @@ test('a transparent model claims no row: its corners are sent again, no row is',
   assert.equal(moveRootRows(rt, glass), 0);
   assert.equal(rows.dirtyTo, -1);
   assert.equal(rt.blendState.occlusionEpoch, -1);
+});
+
+test('a moved blended model moves its shadow caster rows, and those alone (#35)', () => {
+  const { rt, rows, glass } = scene(4, 2, 2);
+  // The glass casts from the rows behind the visibility rows, in reverse order.
+  rows.blendRowOf[6] = 7;
+  rows.blendRowOf[7] = 6;
+  (glass.world.elements as Float64Array)[12] = 5;
+  assert.equal(moveRootRows(rt, glass), 2);
+  assert.deepEqual([rows.dirtyFrom, rows.dirtyTo], [6, 7], 'the caster rows travel, no other');
+  for (let row = 0; row < rows.casterSlots; row++)
+    assert.equal(rows.pageTableFloats![row * ROW_WORDS + 12], row >= 6 ? 5 : 0, `row ${row}`);
 });

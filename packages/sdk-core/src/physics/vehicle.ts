@@ -1,4 +1,5 @@
 import type { Object3D } from '../world/object/object3d.ts';
+import { GRAVITY_PRESETS } from './options.ts';
 import { MAX_GEARS, TORQUE_POINTS } from './vehicleLayout.ts';
 import { VEHICLE_SPECS, type VehicleSpec } from './vehicleSpec.ts';
 
@@ -38,8 +39,29 @@ export interface VehicleOptions extends Partial<VehicleSpec> {
   wheels: readonly Object3D[];
 }
 
-/** Throws `RangeError` on what no vehicle of its kind can be made of. */
-function refuse({ kind, body, wheels, spec }: Vehicle) {
+/** The options a kind never reads (`vehicles.cpp`), and why: given, they would be ignored. */
+const IGNORED: Readonly<Record<VehicleKind, Partial<Record<keyof VehicleSpec, string>>>> = {
+  car: {
+    trackTurn: 'it has no tracks',
+    maxLean: 'it does not lean',
+  },
+  motorcycle: {
+    drive: 'its rear wheel drives',
+    trackTurn: 'it has no tracks',
+    antiRoll: 'its two wheels are in line, on no shared axle',
+  },
+  tracked: {
+    clutch: 'its engine drives its tracks',
+    drive: 'the rearmost wheel of each track drives',
+    turnRadius: 'it has no steered wheels, it steers by its tracks',
+    antiRoll: 'its wheels carry no anti-roll bars',
+    maxLean: 'it does not lean',
+  },
+};
+
+/** Throws `RangeError` on what no vehicle of its kind can be made of, or an option it would
+ *  ignore (`options`, as given; `IGNORED`). */
+function refuse({ kind, body, wheels, spec }: Vehicle, options: Partial<VehicleSpec>) {
   const fail = (why: string) => {
     throw new RangeError(`A ${kind}: ${why}.`);
   };
@@ -53,6 +75,15 @@ function refuse({ kind, body, wheels, spec }: Vehicle) {
   if (spec.gears.length < 1 || spec.gears.length > MAX_GEARS) fail(`1 to ${MAX_GEARS} gears`);
   const points = spec.torqueCurve.length;
   if (points < 1 || points > TORQUE_POINTS) fail(`1 to ${TORQUE_POINTS} torque curve points`);
+  for (const [option, why] of Object.entries(IGNORED[kind]))
+    if (options[option as keyof VehicleSpec] !== undefined) fail(`no ${option}: ${why}`);
+  // A spring sags `g / (2π f)²` under its share of the weight (the static deflection of a ride
+  // frequency, on Earth); past its travel the body would rest on its bump stops.
+  const sag = GRAVITY_PRESETS.earth / (2 * Math.PI * spec.suspensionFrequency) ** 2;
+  if (!(sag < spec.suspensionTravel))
+    fail(
+      `a suspensionTravel longer than its sag, g / (2π suspensionFrequency)² = ${sag.toFixed(3)} m`,
+    );
 }
 
 const clamp = (value: number, min: number, max: number) =>
@@ -84,7 +115,7 @@ export class Vehicle implements VehicleDriver {
     this.body = body;
     this.wheels = [...wheels];
     this.spec = Object.freeze({ ...VEHICLE_SPECS[kind], ...spec });
-    refuse(this);
+    refuse(this, spec);
   }
   /** The pedals and the wheel it hears now. */
   get input(): Readonly<VehicleInput> {

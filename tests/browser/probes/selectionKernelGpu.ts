@@ -2,7 +2,10 @@
 // by `packDagSelection`, uniforms from `writeDagUniforms`, passes `dagPrepare` through `dagMask`
 // in engine order (non-resident cut), then a readback of the GPU output.
 import { DAG_SELECTION_SHADER } from '../../../packages/sdk-browser/src/gpu/dag/shader/shader.ts';
-import { dagBindEntries } from '../../../packages/sdk-browser/src/gpu/dag/shader/bindings.ts';
+import {
+  DAG_BINDING,
+  dagBindEntries,
+} from '../../../packages/sdk-browser/src/gpu/dag/shader/bindings.ts';
 import { dansPageWebgpu } from './pageWebgpu.ts';
 import { SELECTION_WORKGROUP } from '../../../packages/sdk-browser/src/gpu/core/selection.ts';
 import type { SelectionUniforms } from '../../../packages/sdk-browser/src/gpu/core/selection.ts';
@@ -27,6 +30,7 @@ async function executer({
   totaux,
   bitsPage,
   layoutEntries,
+  bindings,
 }: ExecuterEntree): Promise<ExecutionResultat> {
   const appareil = await globalThis.ouvrirAppareil();
   if (!appareil) return { indisponible: 'no WebGPU adapter' };
@@ -60,17 +64,18 @@ async function executer({
     // The `work` layout is the one the engine lays down, computed on the Node side and
     // carried with the case: the page has no module to import, and the bench cannot derive another.
     const travail = c.travail;
-    const buffers = [
-      tampon(64, c.clusters),
-      tampon(64, c.nodes),
-      tampon(256, c.uniforms, GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST),
-      tampon(Math.max(16, (c.nodeCount * 3 + c.pageCount * 4) * 4)),
-      tampon(sortieOctets),
-      tampon(Math.max(8, travail.words * 4)),
-      tampon(64, c.worlds),
-      tampon(16, c.frames),
-      tampon(48, c.pageCones),
-    ];
+    // Each buffer under its WGSL name: `namedBufferEntries` lays it at that name's binding.
+    const buffers = {
+      clusters: { buffer: tampon(64, c.clusters) },
+      nodes: { buffer: tampon(64, c.nodes) },
+      views: { buffer: tampon(256, c.uniforms, GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST) },
+      flags: { buffer: tampon(Math.max(16, (c.nodeCount * 3 + c.pageCount * 4) * 4)) },
+      out: { buffer: tampon(sortieOctets) },
+      work: { buffer: tampon(Math.max(8, travail.words * 4)) },
+      worlds: { buffer: tampon(64, c.worlds) },
+      frames: { buffer: tampon(16, c.frames) },
+      cold: { buffer: tampon(48, c.pageCones) },
+    };
     const lecture = device.createBuffer({
       size: sortieOctets,
       usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
@@ -84,7 +89,7 @@ async function executer({
     });
     const group = device.createBindGroup({
       layout,
-      entries: buffers.map((buffer, binding) => ({ binding, resource: { buffer } })),
+      entries: globalThis.namedBufferEntries(bindings, buffers),
     });
     const encoder = device.createCommandEncoder();
     const tete = encoder.beginComputePass();
@@ -110,8 +115,8 @@ async function executer({
     fin.setPipeline(maskPipeline);
     fin.dispatchWorkgroups(groupes(c.pageCount));
     fin.end();
-    encoder.copyBufferToBuffer(buffers[4], 0, lecture, 0, sortieOctets);
-    encoder.copyBufferToBuffer(buffers[5], 0, compteurs, 0, octetsTravail);
+    encoder.copyBufferToBuffer(buffers.out.buffer, 0, lecture, 0, sortieOctets);
+    encoder.copyBufferToBuffer(buffers.work.buffer, 0, compteurs, 0, octetsTravail);
     device.queue.submit([encoder.finish()]);
     await lecture.mapAsync(GPUMapMode.READ);
     const ints = new Uint32Array(lecture.getMappedRange().slice(0));
@@ -138,7 +143,8 @@ async function executer({
       candidates: compteursLus[travail.candCounter],
       vivantes: compteursLus[travail.liveCounter],
     });
-    for (const buffer of [...buffers, lecture, compteurs]) buffer.destroy();
+    for (const buffer of [...Object.values(buffers).map((b) => b.buffer), lecture, compteurs])
+      buffer.destroy();
   }
   const info = await appareil.fermer();
   return { adaptateur: info.court, resultats, erreurs };
@@ -162,6 +168,7 @@ export async function selectionGpu(
     entete: SELECTION_HEADER_WORDS,
     bitsPage: REQUEST_PAGE_MAX,
     layoutEntries: dagBindEntries(),
+    bindings: DAG_BINDING,
     totaux: {
       selected: OUT_SELECTED_TRIANGLES,
       transparent: OUT_TRANSPARENT_TRIANGLES,
