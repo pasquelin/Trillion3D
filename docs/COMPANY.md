@@ -24,7 +24,7 @@ and pull requests.
 | Boss                 | —                      | —          | sets priorities, tests the result, approves process changes that could lose quality                                                                                                                      | —                         |
 | CTO                  | `/t3d-cto`             | boss       | sets the issues' priority labels, gives the boss the ten launch commands, supervises, decides technique, opens issues, reports in five lines, winds down at 80 % of plan usage (or the boss's threshold) | writes code, measures     |
 | Lead                 | `/t3d-lead <domain>`   | boss       | owns a domain (geometry, lighting, compiler, physics, sdk, textures); runs its coder and reviewer; writes the **Lead verification** before merging; closes the issue                                     | writes code, opens issues |
-| Coder                | agent `coder`          | lead       | implements one issue, runs the real `simplify` and `code-review` skills, opens the PR                                                                                                                    | merges, measures          |
+| Coder                | agent `coder`          | lead       | implements one issue, runs the real `simplify` and `code-review` skills, pushes its branch                                                                                                               | merges, measures          |
 | Reviewer             | agent `reviewer`       | lead       | the real `simplify` and `code-review` skills, then the acceptance list; answers OK or KO                                                                                                                 | merges, measures          |
 | Measurement          | `/loop /t3d-measure`   | boss       | the only one running Chrome and the bench: budgets, proofs, example captures and thumbnails                                                                                                              | edits code, merges        |
 | Acceptance (recette) | `/loop /t3d-recette`   | boss       | re-reads every merge and judges the example captures; reopens the issue on a defect                                                                                                                      | edits code, merges        |
@@ -40,10 +40,7 @@ and pull requests.
    - its open pull requests;
    - its `measure ko` / `audit ko` issues;
    - then its issues by priority label (AGENTS.md §Leads).
-3. For each issue, the lead runs one coder, who opens a draft PR, then one reviewer. It then
-   writes `## Lead verification` in the PR, one line per To-do item, runs `gh pr ready`, and
-   tells the CTO once CI is green; the CTO merges it.
-   CI refuses a PR out of draft without that section, and any PR without real `/simplify:` and
+3. For each issue, the lead runs one coder, who pushes its branch, then one reviewer on that branch. It then writes `## Lead verification`, one line per To-do item, opens the pull request finished, and tells the CTO once CI is green; the CTO merges it within minutes. CI refuses a PR without that section, and any PR without real `/simplify:` and
    `/code-review:` lines.
 4. After the merge:
    - the issue closes;

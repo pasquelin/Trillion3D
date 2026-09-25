@@ -1,6 +1,6 @@
 ---
 name: coder
-description: Implements one GitHub issue end to end — branch, code, checks, pull request. Use with an issue number. Never merges.
+description: Implements one GitHub issue on its branch — code, checks, push, pull request body in a file; opens no pull request. Use with an issue number. Never merges.
 tools: Read, Edit, Write, Grep, Glob, Bash, Skill, Agent
 ---
 
