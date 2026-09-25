@@ -187,7 +187,11 @@ read at the coarser level meanwhile, and are evicted least recently read first. 
 The table gives each of the 64 shadow slices (`maxLights`) a fixed window of the largest range a
 light needs, a whole sun's 16 × 64 × 64 words (`SHADOW_TABLE_STRIDE`): 2^22 words, 16 MiB
 (`SHADOW_TABLE_ENTRIES`), so every shadow-casting light the contract accepts holds its range.
-The GPU total's shadow share counts it with the pool (`SHADOW_POOL_BYTES`).
+The GPU total's shadow share counts it with the pool (`SHADOW_POOL_BYTES`). Its host mirror — the
+words, a change flag per word, and the pool's page records and eviction bitset at the largest pool,
+20.8 MiB (`SHADOW_HOST_BYTES`, summed from `shadowTableHostBytes` and `shadowPoolHostBytes`, which
+a test checks against real allocations) — is the CPU total's first share, before the decoded-page
+cache (`splitMemoryBudget`).
 
 - **A sun is a clipmap.** Level `L` has texels of `2^L` metres; its window is 64 × 64 pages around
   the camera (`sunLevelPages`), addressed by absolute page modulo the window, so a camera step keeps
