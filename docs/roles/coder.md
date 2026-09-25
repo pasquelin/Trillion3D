@@ -30,4 +30,4 @@ run by the measurer after the merge.
 7. Return the pull request URL and what remains unproven. Stop there.
 
 On a fix round, the lead resumes you with `SendMessage` carrying the reviewer's findings: fix
-them on the same branch, rerun step 4, push, answer each finding on the pull request in one line.
+them on the same branch (pull the reviewer's commits first), rerun step 4, push, answer each finding on the pull request in one line.

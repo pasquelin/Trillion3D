@@ -38,7 +38,7 @@ and pull requests.
 1. The boss tells the CTO what matters. The CTO sets the priority labels (🔴 🟠 🟡 🟢) of the
    issues concerned, each owned by one lead.
 2. Each lead takes, in order:
-   - its open pull request;
+   - its open pull requests;
    - its `measure ko` / `audit ko` issues;
    - then its issues by priority label (AGENTS.md §Leads).
 3. For each issue, the lead runs one coder, then one reviewer. It then writes
