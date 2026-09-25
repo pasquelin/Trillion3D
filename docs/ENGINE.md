@@ -295,9 +295,9 @@ real allocations) — is the CPU total's first share, before the decoded-page ca
   Meanwhile the pixel reads the next coarser level. Blend and water surfaces read what the opaque
   pixels asked for, and keep their early depth reject.
 - **Every stale page the image reads is listed in the frame that marks it, the coarsest first, and
-  drawn in that frame at rest** (#489, #525). While the camera moves, a frame draws one batch's
-  pages — the shadow raster's fixed budget, a count of pages, never a time read off the machine
-  (`admit.ts`, `frameEnd`) — and the rest waits, the oldest first, read meanwhile at the coarser
+  drawn in that frame at rest** (#489, #525). While the camera moves, a frame draws its lights'
+  floors, which lead the list, and one batch's pages past them — the shadow raster's fixed budget,
+  a count of pages, never a time read off the machine (`admit.ts`, `frameEnd`) — and the rest waits, the oldest first, read meanwhile at the coarser
   current level it falls back to; a stale page whose depth is wrong is never read. The first
   frame the camera rests draws every page left, so the still image is the one every page drawn
   gives. Otherwise the cost is held by caching — a page is drawn again only when what it holds
