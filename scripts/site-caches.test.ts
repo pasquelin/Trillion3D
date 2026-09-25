@@ -1,11 +1,10 @@
 import assert from 'node:assert/strict';
-import { mkdirSync, mkdtempSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import test from 'node:test';
 import { assertUntracked } from './git-paths.ts';
 import { COOKED_SCENES, isStale, sourceOf } from './site-caches.ts';
-import { existsSync } from 'node:fs';
 
 const root = resolve(import.meta.dirname, '..');
 
@@ -23,10 +22,15 @@ test('a cache is compiled again when missing, compiled otherwise, or older than 
     assert.equal(isStale(scene, temporary, 0), true, 'no cache yet');
     writeFileSync(stamp, JSON.stringify({ source: 'source', simplification: 'none', budget: '1' }));
     assert.equal(isStale(scene, temporary, 0), true, 'another triangle budget');
-    writeFileSync(
-      stamp,
-      JSON.stringify({ source: 'source', simplification: 'none', budget: '150000' }),
-    );
+    const current = {
+      source: 'source',
+      simplification: 'none',
+      budget: '150000',
+      files: ['a.png'],
+    };
+    writeFileSync(stamp, JSON.stringify({ ...current, files: ['b.png'] }));
+    assert.equal(isStale(scene, temporary, 0), true, 'a source file removed or renamed since');
+    writeFileSync(stamp, JSON.stringify(current));
     assert.equal(isStale(scene, temporary, 0), false, 'newer than its source and its compiler');
     assert.equal(isStale(scene, temporary, Date.now() + 1e4), true, 'a compiler built since');
     utimesSync(texture, new Date(), new Date(Date.now() + 1e4));
