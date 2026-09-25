@@ -34,6 +34,8 @@ struct Joint {
   Vec3 axisA = Vec3::sZero(), axisB = Vec3::sZero();
   /** A gear's or a rack and pinion's body order and phase correction. */
   GearOrder order;
+  /** A path's fraction where its body stood when the step began (`carryAlongPath`). */
+  float along = 0;
 };
 
 std::vector<Joint> joints;
@@ -231,6 +233,16 @@ void dropJoints(uint32_t index) {
   for (Joint &joint : joints)
     if (joint.constraint && (joint.a == index || joint.b == index)) remove(joint);
   link();
+}
+
+void notePaths() {
+  for (Joint &joint : joints)
+    if (joint.constraint && joint.kind == PATH) joint.along = pathFraction(joint.constraint);
+}
+
+void carryPaths() {
+  for (Joint &joint : joints)
+    if (joint.constraint && joint.kind == PATH) carryAlongPath(joint.constraint, joint.along);
 }
 
 void breakJoints(float dt) {
