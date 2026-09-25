@@ -18,6 +18,8 @@ export function createShadowTier(options: {
 }) {
   const { packedPages, keyOf, room, closeOver } = options;
   const pages: PageRec[] = [];
+  /** The CPU light cuts' packed ids, reused from one report to the next. */
+  const ids: number[] = [];
   const stamps = new Uint32Array(Math.max(1, options.keyCount));
   let stamp = 0;
   const begin = () => {
@@ -40,18 +42,20 @@ export function createShadowTier(options: {
     /** True when the last light-cut report names this key: a caster a light still wants. */
     has: (key: number) => stamp !== 0 && stamps[key] === stamp,
     /** The light cuts' GPU requests: page indices of the packed catalogue. */
-    offerIds(ids: ArrayLike<number>) {
+    offerIds(requested: ArrayLike<number>) {
       begin();
-      closeOver(ids, push);
+      closeOver(requested, push);
     },
     /** The CPU light cuts' wanted pages, one list per redrawn face. */
     offerPages(lists: ReadonlyArray<readonly PageRec[]>, count: number) {
       begin();
+      ids.length = 0;
       for (let run = 0; run < count; run++)
-        closeOver(
-          lists[run].map((rec) => rec.packedIndex ?? -1).filter((id) => id >= 0),
-          push,
-        );
+        for (const rec of lists[run]) {
+          const id = rec.packedIndex ?? -1;
+          if (id >= 0) ids.push(id);
+        }
+      closeOver(ids, push);
     },
   };
 }
