@@ -158,7 +158,7 @@ export function createShadowPlan(capacity: number, poolSide: number) {
         if (read.stamp === before && requests.complete) settledStamp = stampOf(store);
       }
       requests.floors(posed, view, nowMs, frame);
-      const left = admission.run(pool, table, records, sun, budget, requests.latest, frame, posed);
+      const left = admission.run(pool, table, records, sun, budget, requests, frame, posed);
       for (let i = 0; i < admission.count; i++) {
         const slice = pool.slice[admission.list[i]];
         counts.drewLight(slice, records.kind[slice], frame);
