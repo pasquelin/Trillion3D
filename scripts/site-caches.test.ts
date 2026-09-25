@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import test from 'node:test';
 import { assertUntracked } from './git-paths.ts';
+import { SCENE_ROOTS } from '../tests/kit/scenes/caches.ts';
 import { COOKED_SCENES, isStale, sourceOf } from './site-caches.ts';
 
 const root = resolve(import.meta.dirname, '..');
@@ -40,9 +41,10 @@ test('a cache is compiled again when missing, compiled otherwise, or older than 
   }
 });
 
-test('every cooked scene has its source committed, and git never tracks its cache', () => {
+test('every cooked scene has its source committed under a scene root, its cache untracked', () => {
   for (const scene of Object.values(COOKED_SCENES)) {
     assert.ok(existsSync(sourceOf(scene)), scene.directory);
+    assert.ok(SCENE_ROOTS.some((folder) => scene.directory.startsWith(`${folder}/`)));
     assertUntracked([`${scene.directory}/cache/native/full/manifest.json`], root);
   }
 });
