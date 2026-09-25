@@ -7387,5 +7387,102 @@
       "setXY": "정점 `i`에 두 개의 숫자를 쓴다.",
       "setXYZ": "정점 `i`에 세 개의 숫자를 쓴다."
     }
+  },
+  "VEHICLE_SPECS": {
+    "summary": "차량이 출발하는 세 가지 기계, 종류별.",
+    "members": {
+      "car": "쉐보레 콜벳 C5: 후륜구동, 킬로그램당 0.32 N·m, 6단.",
+      "motorcycle": "야마하 XJ900과 라이더: 킬로그램당 0.26 N·m, 6단.",
+      "tracked": "M1 에이브럼스: 가스 터빈, 킬로그램당 0.083 N·m, 4단."
+    }
+  },
+  "Vehicle": {
+    "summary": "차량: Jolt의 차량 제약이 바퀴 위에 싣는 바디로, 엔진, 변속기, 차동장치, 서스펜션, 스태빌라이저를 갖추며 `vehicle.*`로 만들고 `world.physics.add`로 시뮬레이션에 추가합니다.",
+    "description": "`VehicleDriver`입니다: `world.controls.vehicle = car`가 운전합니다.",
+    "parameters": {
+      "options": "`vehicle.*`가 받는 것: 바퀴, 그리고 원하는 만큼의 기계 값(`VehicleSpec`).",
+      "options.wheels": "바퀴: 바디의 자식인 메시로, 평평한 땅에 놓인 그대로 중심에 두고 축은 바디의 x를 따릅니다. 반지름과 폭은 경계에서 읽습니다. 바디는 −z를 향하며 앞쪽 바퀴가 조향됩니다.",
+      "options.torquePerKg": "바디 킬로그램당 엔진 최대 토크, N·m/kg.",
+      "options.idleRPM": "엔진 공회전, rpm.",
+      "options.maxRPM": "엔진 레드라인, rpm.",
+      "options.torqueCurve": "최대 다섯 점 `[rpm / maxRPM, 토크 / 최대]`, 회전 비율은 오름차순.",
+      "options.gears": "최대 여섯 개의 전진 기어비, 1단부터.",
+      "options.reverse": "후진 기어비.",
+      "options.finalDrive": "종감속비(궤도 차량에서는 스프로킷 감속).",
+      "options.shiftUpRPM": "이보다 높으면 고단으로 변속, rpm.",
+      "options.shiftDownRPM": "그리고 이보다 낮으면 저단으로 변속, rpm.",
+      "options.clutch": "미끄럼 rad/s당 클러치 토크, N·m·s.",
+      "options.suspensionFrequency": "서스펜션 진동수, Hz.",
+      "options.suspensionDamping": "감쇠비, 0(없음)부터 1(임계)까지.",
+      "options.suspensionTravel": "완전히 늘어난 상태에서 완전히 눌린 상태까지 바퀴의 행정, m.",
+      "options.antiRoll": "각 스태빌라이저의 강성을 그 축 스프링에 대한 비율로; 0은 없음.",
+      "options.turnRadius": "끝까지 조향했을 때의 회전 반경, m.",
+      "options.steerTime": "가운데에서 끝까지 조향하는 데 걸리는 초.",
+      "options.brakeGrip": "브레이크가 바퀴를 잠그는 마찰.",
+      "options.drive": "자동차의 구동 바퀴.",
+      "options.trackTurn": "궤도 차량이 회전할 때 안쪽 궤도의 속도, 바깥쪽에 대한 비율.",
+      "options.maxLean": "오토바이의 최대 기울기, 라디안."
+    },
+    "members": {
+      "kind": "차량의 종류.",
+      "body": "바퀴가 싣는 바디.",
+      "wheels": "바퀴, 바디의 자식.",
+      "spec": "기계: 그 종류의 것(`VEHICLE_SPECS`)에 옵션을 덮은 것.",
+      "input": "지금 받는 페달과 핸들.",
+      "speed": "마지막 스텝 뒤 앞쪽으로의 초속(m), 뒤쪽은 음수.",
+      "rpm": "마지막 스텝 뒤 엔진의 분당 회전수.",
+      "gear": "마지막 스텝 뒤 기어: 1 이상 전진, −1 후진, 0 중립.",
+      "drive": "키가 바꿀 때마다, 운전되기 시작할 때, 그리고 운전이 끝날 때는 모두 놓은 상태로 페달과 핸들을 받습니다."
+    }
+  },
+  "VehicleKind": {
+    "summary": "물리 엔진의 차량, 모두 Jolt의 차량 제약 위에 있습니다."
+  },
+  "VehicleOptions": {
+    "summary": "`vehicle.*`가 받는 것: 바퀴, 그리고 원하는 만큼의 기계 값(`VehicleSpec`).",
+    "members": {
+      "wheels": "바퀴: 바디의 자식인 메시로, 평평한 땅에 놓인 그대로 중심에 두고 축은 바디의 x를 따릅니다. 반지름과 폭은 경계에서 읽습니다. 바디는 −z를 향하며 앞쪽 바퀴가 조향됩니다."
+    }
+  },
+  "VehicleSpec": {
+    "summary": "차량의 구성: 엔진, 변속기, 서스펜션, 조향, 브레이크, 기본값은 모두 실제 기계의 것(`VEHICLE_SPECS`).",
+    "members": {
+      "torquePerKg": "바디 킬로그램당 엔진 최대 토크, N·m/kg.",
+      "idleRPM": "엔진 공회전, rpm.",
+      "maxRPM": "엔진 레드라인, rpm.",
+      "torqueCurve": "최대 다섯 점 `[rpm / maxRPM, 토크 / 최대]`, 회전 비율은 오름차순.",
+      "gears": "최대 여섯 개의 전진 기어비, 1단부터.",
+      "reverse": "후진 기어비.",
+      "finalDrive": "종감속비(궤도 차량에서는 스프로킷 감속).",
+      "shiftUpRPM": "이보다 높으면 고단으로 변속, rpm.",
+      "shiftDownRPM": "그리고 이보다 낮으면 저단으로 변속, rpm.",
+      "clutch": "미끄럼 rad/s당 클러치 토크, N·m·s.",
+      "suspensionFrequency": "서스펜션 진동수, Hz.",
+      "suspensionDamping": "감쇠비, 0(없음)부터 1(임계)까지.",
+      "suspensionTravel": "완전히 늘어난 상태에서 완전히 눌린 상태까지 바퀴의 행정, m.",
+      "antiRoll": "각 스태빌라이저의 강성을 그 축 스프링에 대한 비율로; 0은 없음.",
+      "turnRadius": "끝까지 조향했을 때의 회전 반경, m.",
+      "steerTime": "가운데에서 끝까지 조향하는 데 걸리는 초.",
+      "brakeGrip": "브레이크가 바퀴를 잠그는 마찰.",
+      "drive": "자동차의 구동 바퀴.",
+      "trackTurn": "궤도 차량이 회전할 때 안쪽 궤도의 속도, 바깥쪽에 대한 비율.",
+      "maxLean": "오토바이의 최대 기울기, 라디안."
+    }
+  },
+  "VehicleSpecs": {
+    "summary": "각 종류의 차량이 처음 갖는 기계.",
+    "members": {
+      "car": "쉐보레 콜벳 C5: 후륜구동, 킬로그램당 0.32 N·m, 6단.",
+      "motorcycle": "야마하 XJ900과 라이더: 킬로그램당 0.26 N·m, 6단.",
+      "tracked": "M1 에이브럼스: 가스 터빈, 킬로그램당 0.083 N·m, 4단."
+    }
+  },
+  "vehicle": {
+    "summary": "`vehicle` 패밀리: 바디와 그 바퀴를 `world.controls` `'vehicle'`로 운전합니다.",
+    "members": {
+      "car": "두 개 이상의 축에 세 개 이상의 바퀴, 앞바퀴가 조향되고 `drive` 바퀴가 구동됩니다.",
+      "motorcycle": "두 바퀴, 앞바퀴는 조향, 뒷바퀴는 구동; 스스로 똑바로 섭니다.",
+      "tracked": "좌우 두 궤도 위의 바퀴, 각 궤도는 가장 뒤 바퀴로 구동됩니다; 한쪽 궤도를 늦춰 돌고, 멈춰 있을 때는 제자리에서 돕니다."
+    }
   }
 }
