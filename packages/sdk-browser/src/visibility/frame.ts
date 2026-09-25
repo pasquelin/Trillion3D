@@ -1,5 +1,5 @@
 import type { DepthCamera } from '../camera/depthConvention.ts';
-import { triangleAt } from './projection.ts';
+import { triangleAt } from './math.ts';
 import { unpackVisibilityId, type VisPage } from './types.ts';
 import { DEFAULT_PIXEL_RATIO } from '../backend/common.ts';
 

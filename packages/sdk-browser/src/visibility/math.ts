@@ -61,6 +61,8 @@ const SRGB8_LINEAIRE = new Float64Array(256);
 for (let octet = 0; octet < 256; octet++) SRGB8_LINEAIRE[octet] = srgbToLinear(octet / 255);
 
 export { linearToSrgb8 } from '../../../sdk-core/src/math/primitives/color.ts';
+/** The projected triangle of a page, which the projection owns (`./projection.ts`). */
+export { triangleAt } from './projection.ts';
 
 /**
  * Rank of the texel a map reads at a coordinate, not its components: that byte indexes the sRGB
