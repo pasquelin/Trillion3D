@@ -1,13 +1,6 @@
-import { createServer } from 'node:http';
-import { readFile } from 'node:fs/promises';
-import { extname, join, normalize } from 'node:path';
-
-const MIME: Record<string, string> = {
-  '.html': 'text/html; charset=utf-8',
-  '.js': 'text/javascript; charset=utf-8',
-  '.json': 'application/json',
-  '.wasm': 'application/wasm',
-};
+import type { Server } from 'node:http';
+import { relative } from 'node:path';
+import { contentType, reply, staticServer } from './static-server.ts';
 
 /** One HTTP request the fixture server served, kept as evidence of what the browser proof reached. */
 export interface RequestRecord {
@@ -20,32 +13,18 @@ export function installedServer(
   html: string,
   requests: RequestRecord[],
   allowNodeModules: boolean,
-) {
-  return createServer(async (request, response) => {
-    response.setHeader('access-control-allow-origin', '*');
-    const url = new URL(request.url ?? '/', 'http://fixture');
-    const relative = normalize(decodeURIComponent(url.pathname)).replace(/^\/+/, '');
-    if (!relative) {
-      response.writeHead(200, { 'content-type': MIME['.html'] });
-      response.end(html);
-      return;
-    }
-    if (relative === 'favicon.ico') return response.writeHead(204).end();
-    if (relative.startsWith('..') || (!allowNodeModules && relative.includes('node_modules'))) {
-      requests.push({ path: url.pathname, status: 403 });
-      return response.writeHead(403).end();
-    }
-    try {
-      const body = await readFile(join(root, relative));
-      requests.push({ path: url.pathname, status: 200 });
-      response.writeHead(200, {
-        'content-type': MIME[extname(relative)] ?? 'application/octet-stream',
-      });
-      response.end(body);
-    } catch {
-      requests.push({ path: url.pathname, status: 404 });
-      response.writeHead(404).end();
-    }
+): Server {
+  return staticServer({
+    mounts: [{ prefix: '/', dir: root }],
+    headers: { 'access-control-allow-origin': '*' },
+    refuse: (file) => !allowNodeModules && relative(root, file).includes('node_modules'),
+    answer: (_request, response, { pathname }) => {
+      if (pathname === '/') return reply(response, 200, contentType('.html'), html);
+      if (pathname === '/favicon.ico') return reply(response, 204);
+      // `close`, not `finish`: a response cut short never finishes, and must still be evidence.
+      response.once('close', () => requests.push({ path: pathname, status: response.statusCode }));
+      return false;
+    },
   });
 }
 

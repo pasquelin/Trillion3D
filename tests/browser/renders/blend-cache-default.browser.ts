@@ -35,9 +35,7 @@ await mkdir(out, { recursive: true });
 /** The capture of a scene on the WebGPU machine, carried into the other one to be compared. */
 const carriedKey = (name: string) => `webgpu-${name}`;
 
-const server = await startServer({
-  port: 0,
-  captures: new Map(),
+const { server, port } = await startServer({
   mounts: [
     { prefix: '/sdk/', dir: resolve(root, 'dist') },
     { prefix: '/vendor/three/', dir: resolve(root, 'node_modules/three') },
@@ -50,7 +48,7 @@ const errors: string[] = [];
 try {
   const machine = async (webgpu: boolean, carried: Array<[string, number[]]> = []) => {
     const label = machineLabel(webgpu);
-    const { context, page } = await openMachine({ browser, server, webgpu, errors });
+    const { context, page } = await openMachine({ browser, port, webgpu, errors });
     // Captures of the other machine, carried in so the two are compared where they both live.
     await page.evaluate((entries: Array<[string, number[]]>) => {
       const store = (window.proof ??= { images: {} });
