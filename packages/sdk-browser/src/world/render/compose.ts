@@ -9,6 +9,7 @@ import { createHostDrawCamera, readHostDrawCamera, type HostCamera } from '../..
 import { createBackendPresenter } from './composeSurface.ts';
 import { createHeldFrame } from './heldFrame.ts';
 import { createWebglGuideDraw } from '../../guides/guideGl.ts';
+import { DEFAULT_PIXEL_RATIO } from '../../backend/common.ts';
 import type { GuideSet } from '../../guides/guideSet.ts';
 import type { SceneColour } from '../../webgl/cluster/lights.ts';
 import {
@@ -33,17 +34,18 @@ export type ComposedChain = { chain: EffectChain; shown: () => boolean };
  * chain's target instead, and the chain brings its image to the destination
  * (`../../effects/webglEffects.ts`); the copy kept is the chain's image, and a chain changed
  * since it was kept is drawn again. The page's `guides` are drawn over the image the destination
- * got, the chain's included, before that copy is kept; a change to them spares no redraw.
+ * got, the chain's included, before that copy is kept, at the host's `pixelRatio`; a change to
+ * them spares no redraw.
  * Nothing here belongs to a rendering library.
  */
 export function createFrameComposer(
   gl: WebGL2RenderingContext,
   camera: HostCamera,
-  layers: { effects?: ComposedChain; guides?: GuideSet } = {},
+  layers: { effects?: ComposedChain; guides?: GuideSet; pixelRatio?: () => number } = {},
 ) {
-  const { effects: composed, guides } = layers;
+  const { effects: composed, guides, pixelRatio = () => DEFAULT_PIXEL_RATIO } = layers;
   const heldFrame = createHeldFrame(gl);
-  const guideDraw = createWebglGuideDraw(gl);
+  const guideDraw = createWebglGuideDraw(gl, pixelRatio);
   let guidesDrawn = guides?.revision ?? 0;
   const present = createBackendPresenter(gl);
   const effects = composed && createWebglEffects(gl);
