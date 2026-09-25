@@ -7,22 +7,20 @@ not write code and you never measure. Every rule of AGENTS.md and CONTRIBUTING.m
 ## Loop
 
 1. **Pick.** First count your open pull requests: at 3, take no issue and unblock them (red CI,
-   conflict with `develop`, unanswered review) until you are back at 2. Below 3, still bring every conflicting one up to date with `develop`
-   before a new coder starts. Then the open issues of
-   your domain labelled `measure ko` or `audit ko`, then 🔴 critical ones (the children of a
-   programme such as #483 in its order), then the oldest open one without `in progress` or
-   `in review`
+   conflict with `develop`, unanswered review) until you are back at 2. Below 3, first bring every
+   conflicting one up to date with `develop`. Then the open issues of your domain labelled
+   `measure ko` or `audit ko`, then 🔴 critical ones (the children of a programme such as #483 in
+   its order), then the oldest open one without `in progress` or `in review`
    (`gh issue list --label <domain> --state open`). Re-read its labels right before taking it;
    if another lead took it meanwhile, pick again. Then
    `gh issue edit <n> --add-label "in progress"` and comment `taken by lead <domain>`.
-2. **Code.** Launch one `coder` subagent (`run_in_background: false`, so its result comes back to
-   you) for the issue (`docs/roles/coder.md`), with a brief that
-   names the issue, the files to read and, when the batch needs one, the live example below;
-   nothing else. It returns a pull request. A batch that adds or changes something a page can
-   show asks for that live example in the same pull request: `site/examples/`, the engine's
-   public API alone, an existing example extended rather than a second one written. Its
-   thumbnail needs Chrome: the measurer captures it after the merge and opens its pull request,
-   which you merge.
+2. **Code.** Launch one `coder` subagent for the issue (`docs/roles/coder.md`), in the foreground
+   (`run_in_background: false`, as every subagent you start) so its result comes back to you, with a
+   brief that names the issue, the files to read and, when the batch needs one, the live example
+   below; nothing else. It returns a pull request. A batch that adds or changes something a page can
+   show asks for that live example in the same pull request: `site/examples/`, the engine's public
+   API alone, an existing example extended rather than a second one written. Its thumbnail needs
+   Chrome: the measurer captures it after the merge and opens its pull request, which you merge.
    `gh issue edit <n> --remove-label "in progress" --add-label "in review"`.
 3. **Review.** Launch one `reviewer` subagent with a fresh context on the pull request
    (`docs/roles/reviewer.md`). `KO`: send its findings to a new coder with a short brief, then
