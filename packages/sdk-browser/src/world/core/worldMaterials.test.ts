@@ -14,7 +14,7 @@ test('600 frames of a live emissive intensity repaint one entry in place', () =>
   for (let frame = 0; frame < 600; frame++) {
     lamp.emissiveIntensity = 1.5 + Math.sin(frame);
     assert.equal(table.entryOf(lamp), entry, `frame ${frame} keeps the entry`);
-    assert.deepEqual(table.takeRepainted(), [entry]);
+    assert.deepEqual(table.takeRepainted(), [{ entry, values: true }]);
     assert.equal(entry.material.emissiveIntensity, lamp.emissiveIntensity, 'the value follows');
   }
   lamp.color.set(0x00ff00);
@@ -81,7 +81,11 @@ test('a map’s sampling or placement repaints its entry, a new offset vector he
     assert.equal(map[counter], count + 1, `${write}: counted as ${counter}`);
     assert.equal(map.version, version, 'no picture to send');
     assert.equal(table.entryOf(paint), entry, 'the entry kept');
-    assert.deepEqual(table.takeRepainted(), [entry], `${write}: repainted`);
+    assert.deepEqual(
+      table.takeRepainted(),
+      [{ entry, values: false }],
+      `${write}: repainted, no value`,
+    );
   }
 });
 
