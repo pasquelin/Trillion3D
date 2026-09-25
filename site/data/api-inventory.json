@@ -887,6 +887,17 @@
       "bindingIdentity": "\"packages/sdk-browser/src/world/budget/index\".budget"
     },
     {
+      "name": "BudgetCanvas",
+      "kind": "type",
+      "definingModule": "packages/sdk-browser/src/residency/memoryBudget.ts",
+      "currentEntryPoints": ["trillion3d (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-browser/src/residency/memoryBudget\".BudgetCanvas"
+    },
+    {
       "name": "buffer",
       "kind": "value",
       "definingModule": "packages/sdk-core/src/world/buffer/index.ts",

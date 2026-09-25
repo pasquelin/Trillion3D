@@ -31,7 +31,9 @@ export const BOUNCE_PROBE_BYTES =
   2 * bounceProbeBytes(BOUNCE_SETTINGS.cascadeLevels * BOUNCE_SETTINGS.cascadeSize ** 3);
 /** The largest canvas a budget declares: the effect chain's targets are reserved at its size. */
 export interface BudgetCanvas {
+  /** Width in pixels of the drawing buffer. */
   readonly width: number;
+  /** Height in pixels of the drawing buffer. */
   readonly height: number;
 }
 /** The largest canvas a budget declares by default, in pixels of the drawing buffer: 3840 × 2160. */

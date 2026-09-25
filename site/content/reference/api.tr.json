@@ -266,6 +266,13 @@
       "out": "`6 · n` sayı: dönüştürülmüş kutular."
     }
   },
+  "BudgetCanvas": {
+    "summary": "Bir bütçenin bildirdiği en büyük tuval: efekt zincirinin hedefleri onun boyutunda ayrılır.",
+    "members": {
+      "width": "Çizim arabelleğinin piksel cinsinden genişliği.",
+      "height": "Çizim arabelleğinin piksel cinsinden yüksekliği."
+    }
+  },
   "BufferAttribute": {
     "summary": "Köşe başına değerlerin tipli bir dizisi, köşe başına `itemSize` sayı: sayfa kodeğinin `PageAttribute`'u (`page-codec/pageAttributes.ts`), bir sayfanın içine yazdığıyla birlikte.",
     "members": {

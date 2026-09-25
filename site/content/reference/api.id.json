@@ -266,6 +266,13 @@
       "out": "`6 · n` angka: kotak yang sudah ditransformasi."
     }
   },
+  "BudgetCanvas": {
+    "summary": "Kanvas terbesar yang dinyatakan anggaran: target rantai efek dicadangkan pada ukurannya.",
+    "members": {
+      "width": "Lebar dalam piksel buffer gambar.",
+      "height": "Tinggi dalam piksel buffer gambar."
+    }
+  },
   "BufferAttribute": {
     "summary": "Larik bertipe berisi nilai per-vertex, `itemSize` angka per vertex: `PageAttribute` milik codec halaman (`page-codec/pageAttributes.ts`), dengan apa yang ditulis sebuah halaman ke dalamnya.",
     "members": {

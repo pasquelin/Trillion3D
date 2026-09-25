@@ -15,6 +15,13 @@
       "clipTime": "A che punto della clip è l'azione, secondo la sua modalità di loop."
     }
   },
+  "BudgetCanvas": {
+    "summary": "La tela più grande che un budget dichiara: i target della catena di effetti sono riservati alla sua dimensione.",
+    "members": {
+      "width": "Larghezza in pixel del buffer di disegno.",
+      "height": "Altezza in pixel del buffer di disegno."
+    }
+  },
   "adaptivePixelError": {
     "summary": "La soglia adattiva sale con la velocità della camera così che una vista in movimento possa semplificare; una vista ferma mantiene il pixelError di base."
   },

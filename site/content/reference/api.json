@@ -1082,6 +1082,29 @@
     "description": ""
   },
   {
+    "id": "BudgetCanvas",
+    "module": "packages/sdk-browser/src/residency/memoryBudget.ts",
+    "exports": ["BudgetCanvas"],
+    "section": "types",
+    "kind": "Type",
+    "title": "BudgetCanvas",
+    "signature": "interface BudgetCanvas",
+    "summary": "The largest canvas a budget declares: the effect chain's targets are reserved at its size.",
+    "members": [
+      {
+        "name": "width",
+        "type": "number",
+        "desc": "Width in pixels of the drawing buffer."
+      },
+      {
+        "name": "height",
+        "type": "number",
+        "desc": "Height in pixels of the drawing buffer."
+      }
+    ],
+    "description": ""
+  },
+  {
     "id": "BufferAttribute",
     "module": "packages/sdk-core/src/world/buffer/attribute.ts",
     "exports": ["BufferAttribute"],
