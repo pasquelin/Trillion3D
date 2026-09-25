@@ -104,7 +104,10 @@ const BUNDLE_STEPS: readonly SiteStep[] = [
   {
     name: 'runtime',
     // The engine's sources and the folders of `site/` the portal imports from.
-    reads: ['packages', 'THIRD_PARTY_NOTICES.md', 'site/examples', 'site/i18n', ...STYLE_SOURCES],
+    reads: [
+      'packages',
+      ...['app', 'content', 'demos', 'examples', 'i18n', 'reports'].map((name) => `site/${name}`),
+    ],
     run: async (root, out) => {
       const runtime = await emptied(out, 'runtime');
       await buildRuntime(root, runtime);
