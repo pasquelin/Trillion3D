@@ -364,6 +364,36 @@ bounce is **off by default**: its stage costs about 1.1 ms, above the one-millis
 transparency and specular are not bounced. `setLightingView('bounce')` outputs the indirect
 irradiance alone, the quantity `bench/runner/oracle.ts` compares.
 
+## Fog
+
+`scene.fog` is a term of the one lighting model, not a post effect: every program that lights a
+surface hands its lit colour `L` through the same law before the display chain — the opaque resolve
+(`lighting/deferred/shaders.ts`), the blended surfaces (`webgpu/blend/shader.ts`), the water
+composite and the WebGL2 program. The pixel reaches the eye as `mix(color, L, T)`, `color` the
+radiance the medium scatters toward the eye (exposed and tone-mapped like a surface's), `T` the
+transmittance over the distance `d` from the camera's position to the surface point:
+
+- linear, `{ color, near, far }`: `T = clamp((far − d) / (far − near), 0, 1)`;
+- exponential, `{ color, density }`: `T = exp(−density · d)`, a uniform medium (Beer-Lambert);
+- height fog, `{ color, density, heightFalloff, baseHeight }`: the density
+  `density · exp(−heightFalloff · (y − baseHeight))` integrated along the ray in closed form,
+  `τ = density · d · (ρ(eye) − ρ(P)) / (heightFalloff · Δy)`, the two densities' mean where the ratio
+  would lose its 32-bit precision (Wenzel, SIGGRAPH 2006; Quilez, "Better fog").
+
+One text of the law serves both languages (`lighting/fogShader.ts`). The fog travels with the
+environment (`SceneEnvironment.fog`, `packages/sdk-core/src/scene/core/fog.ts`): two `vec4`s behind
+the irradiance in the contract light buffer on WebGPU, `fogColor` and `fogLaw` uniforms on WebGL2,
+written only when the environment changes. The eye rides with the frame's view: `display.yzw` of the
+deferred view, `eye` of the blend view, the view space origin on WebGL2. With no fog the block's mode
+is zero and every program returns `L` untouched, one uniform branch per pixel. An unlit material
+(basic, matcap) is fogged like a lit one, its colour standing for `L`, as in the reference; a normal
+or depth material and the diagnostic views, the unlit view among them, are not. Fog is a view-ray
+term, not light transport: a change of fog alone leaves the bounce probes converged (the store's
+`transportEpoch`). A world writes the fog with the lights before the next frame,
+like exposure; a fog set again, or its colour written through its methods, is heard.
+`lighting/fogShader.test.ts` evaluates both shader texts against a numerical integration.
+Volumetric fog and light shafts belong to the lighting strategy below.
+
 ## Transparent surfaces
 
 WebGPU filters transparent meshes against the camera frustum before uploading their uniforms or

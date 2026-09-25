@@ -427,8 +427,6 @@
       "reflections-from-the-screen": "reflejos en espacio pantalla",
       "an-ocean": "render a una textura: reflejo y refracción del agua",
       "a-raging-sea": "materiales con shader a medida",
-      "a-town-in-the-fog": "niebla",
-      "fog-on-the-ground": "niebla: niebla por altura",
       "fog-that-scatters-light": "niebla volumétrica y rayos de luz",
       "a-cloud-in-a-box": "render volumétrico",
       "a-fire-in-a-volume": "render volumétrico",

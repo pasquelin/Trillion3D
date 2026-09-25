@@ -360,6 +360,22 @@
       "up": "위"
     }
   },
+  "a-town-in-the-fog": {
+    "banner": "드래그해서 둘러보세요. 안개의 종류, 거리, 색을 고르세요.",
+    "controls": {
+      "fog": "안개",
+      "reach": "거리",
+      "height": "높이",
+      "colour": "색"
+    },
+    "choices": {
+      "fog": {
+        "distance": "거리",
+        "thick": "짙은",
+        "ground": "지면"
+      }
+    }
+  },
   "a-tube-along-a-spline": {
     "banner": "끌어서 둘러봐. 구슬이 관을 따라 달려.",
     "controls": {

@@ -427,8 +427,6 @@
       "reflections-from-the-screen": "screen-space reflections",
       "an-ocean": "render to texture: water reflection and refraction",
       "a-raging-sea": "custom shader materials",
-      "a-town-in-the-fog": "fog",
-      "fog-on-the-ground": "fog: height fog",
       "fog-that-scatters-light": "volumetric fog and light shafts",
       "a-cloud-in-a-box": "volume rendering",
       "a-fire-in-a-volume": "volume rendering",

@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>A town in the fog</title>
+    <meta name="thumbnail" content="2" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #b9c3cc;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <script type="module">
+      import { createWorld, geometry, material, object, light, math } from '../runtime/engine.js';
+      import { controls } from '../runtime/kit.js';
+
+      const world = createWorld('view', { controls: 'orbit' });
+
+      // A long street of houses, rows of them, running far past where the fog lets you see.
+      const ground = object.mesh(geometry.box(80, 0.2, 400), material.meshStandard({ color: '#6d7266', roughness: 0.95 }));
+      ground.position.set(0, -0.1, -170);
+      world.scene.add(ground);
+      const walls = ['#d9cbb4', '#c9b8a0', '#e3dccf', '#b8a58c'].map((color) => material.meshStandard({ color, roughness: 0.8 }));
+      const roofs = ['#8a4b3c', '#5b5f66', '#7a5a45'].map((color) => material.meshStandard({ color, roughness: 0.7 }));
+      const house = geometry.box(1, 1, 1),
+        roof = geometry.cone(0.8, 1, 4);
+      for (let row = 0; row < 40; row++)
+        for (const side of [-1, 1]) {
+          const height = 3 + ((row * 7 + side * 3 + 20) % 5),
+            x = side * (7 + (row % 3)),
+            z = 20 - row * 9;
+          const body = object.mesh(house, walls[(row + side + 4) % walls.length]);
+          body.scale.set(6, height, 6);
+          body.position.set(x, height / 2, z);
+          const top = object.mesh(roof, roofs[row % roofs.length]);
+          top.scale.set(6, 2.5, 6);
+          top.rotation.y = Math.PI / 4;
+          top.position.set(x, height + 1.25, z);
+          world.scene.add(body, top);
+        }
+
+      // A pale sun through the haze and a sky light over the ground.
+      const sun = light.directional({ intensity: 1.6, castShadow: true });
+      sun.position.set(30, 40, 20);
+      world.scene.add(sun, light.hemisphere({ color: '#c6d2dd', groundColor: '#4a4a42', intensity: 0.9 }));
+      world.camera.position.set(0, 4, 32);
+      world.camera.lookAt(0, 3, 0);
+      world.controls.target.set(0, 3, 0);
+
+      // A linear display curve keeps the fog's colour the sky's, so the far houses melt into it.
+      world.toneMapping = 'linear';
+      const colour = math.color();
+      controls({
+        fog: ['distance', 'thick', 'ground'],
+        reach: [20, 300, 120],
+        height: [0.05, 1, 0.3],
+        colour: '#b9c3cc',
+      }, (values) => {
+        colour.set(values.colour);
+        world.scene.background = colour;
+        // Distance fog fades from 10 m to `reach`; thick fog absorbs the same share every metre;
+        // ground fog is thick at the street and thins out with height, `height` per metre.
+        const density = 3 / values.reach;
+        world.scene.fog =
+          values.fog === 'distance' ? { color: colour, near: 10, far: values.reach }
+          : values.fog === 'thick' ? { color: colour, density }
+          : { color: colour, density: density * 2, heightFalloff: values.height, baseHeight: 0 };
+      }, world);
+    </script>
+  </body>
+</html>

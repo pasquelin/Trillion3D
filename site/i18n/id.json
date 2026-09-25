@@ -1611,8 +1611,6 @@
       "reflections-from-the-screen": "pantulan screen-space",
       "an-ocean": "render ke tekstur: pantulan dan pembiasan air",
       "a-raging-sea": "material shader kustom",
-      "a-town-in-the-fog": "kabut",
-      "fog-on-the-ground": "kabut: kabut ketinggian",
       "fog-that-scatters-light": "kabut volumetrik dan berkas cahaya",
       "a-cloud-in-a-box": "rendering volume",
       "a-fire-in-a-volume": "rendering volume",

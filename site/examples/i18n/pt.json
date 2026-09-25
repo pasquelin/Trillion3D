@@ -360,6 +360,22 @@
       "up": "CIMA"
     }
   },
+  "a-town-in-the-fog": {
+    "banner": "Arraste para olhar em volta. Escolha a névoa, o seu alcance e a sua cor.",
+    "controls": {
+      "fog": "Névoa",
+      "reach": "Alcance",
+      "height": "Altura",
+      "colour": "Cor"
+    },
+    "choices": {
+      "fog": {
+        "distance": "distância",
+        "thick": "espessa",
+        "ground": "rente ao chão"
+      }
+    }
+  },
   "a-tube-along-a-spline": {
     "banner": "Arraste para olhar em volta. As contas andam ao longo do tubo.",
     "controls": {

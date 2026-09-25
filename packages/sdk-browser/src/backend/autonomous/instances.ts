@@ -105,8 +105,9 @@ export function createAutonomousInstances(env: InstanceEnvironment) {
         pages: root.pages.map((page) => mapped.get(page)!),
       }));
       const addedBootstrap = baseBootstrap.map((page) => mapped.get(page)!);
-      roots.push(...addedRoots);
-      bootstrap.push(...addedBootstrap);
+      // One by one: a spread of a large world's roots overflows the stack.
+      for (const root of addedRoots) roots.push(root);
+      for (const page of addedBootstrap) bootstrap.push(page);
       instances.set(id, {
         roots: addedRoots,
         pages: [...mapped.values()],

@@ -360,6 +360,22 @@
       "up": "上"
     }
   },
+  "a-town-in-the-fog": {
+    "banner": "ドラッグして見回す。霧の種類、届く距離、色を選ぶ。",
+    "controls": {
+      "fog": "霧",
+      "reach": "距離",
+      "height": "高さ",
+      "colour": "色"
+    },
+    "choices": {
+      "fog": {
+        "distance": "距離",
+        "thick": "濃霧",
+        "ground": "地霧"
+      }
+    }
+  },
   "a-tube-along-a-spline": {
     "banner": "ドラッグして見回そう。ビーズが管にそって進むよ。",
     "controls": {

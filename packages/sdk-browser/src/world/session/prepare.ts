@@ -7,8 +7,10 @@ import { prepareExplorerBackends } from './backends.ts';
 import { createExplorerCamera } from '../camera/camera.ts';
 import { createExplorerPageSources } from './pageSources.ts';
 import { loadPreparedScene } from '../scene/scene.ts';
+import { primePartitions } from '../scene/partitionFrame.ts';
 import type { ExplorerSession } from './session.ts';
 import type { WebglSurface } from '../../webgl/core/surface.ts';
+import type { HostCamera } from '../../camera/world.ts';
 
 export type ExplorerResources = {
   source?: BackendContext['source'];
@@ -26,10 +28,14 @@ export type ExplorerSource = {
   base: string;
   metadata: import('../../../../sdk-core/src/index.ts').ClusterManifest;
   scene: ExplorerScene;
+  /** Puts the session's camera where the page draws from, before anything is read for it: a
+   *  partitioned scene reads and sizes its cells for that camera, not the framing one. */
+  placeCamera?: (camera: HostCamera) => void;
 };
 
 type Inputs = {
   scene?: ExplorerScene;
+  placeCamera?: ExplorerSource['placeCamera'];
   manifestUrl: string;
   metadataUrl: string;
   base: string;
@@ -93,6 +99,7 @@ export async function prepareExplorer(session: ExplorerSession, inputs: Inputs) 
     backends,
     diagnosticChannel,
     progress,
+    loadedScene.partitions.flatMap((cells) => cells.pages),
   );
   const directGpu = directWebgpu(options, choice.factories, gpuDevice);
   await configureExplorer(session, {
@@ -106,6 +113,36 @@ export async function prepareExplorer(session: ExplorerSession, inputs: Inputs) 
     pageSources,
     resources,
   });
+  // Framing replays the buffer reserved at load, then returns it: it is its last reader.
+  const cameraState = createExplorerCamera(
+    source,
+    autonomous,
+    loadedScene.associations,
+    metadata,
+    canvas,
+    options,
+    loadedScene.framingLot,
+  );
+  loadedScene.framingLot?.release();
+  // The cells the first camera needs are placed before the engines read their rows: the first
+  // frame reads them and nothing further (`partitionFrame.ts`). That camera is the page's when it
+  // hands one in (a world), else the framing one, which sees the whole scene.
+  inputs.placeCamera?.(cameraState.camera);
+  if (loadedScene.partitions.length) {
+    const bytes = await primePartitions(
+      loadedScene.partitions,
+      cameraState.camera,
+      pageSources.streamer,
+      !!options.onRowsOutgrown,
+      signal,
+    );
+    diagnose('partition', 'Cells read before the first frame', {
+      kind: 'preparation',
+      scope,
+      bytes,
+      cells: loadedScene.partitions.map((cells) => cells.stats()),
+    });
+  }
   const { viewport, context } = await prepareExplorerBackends(session, {
     source,
     sceneLightingSource: loadedScene.sceneLightingSource,
@@ -119,19 +156,9 @@ export async function prepareExplorer(session: ExplorerSession, inputs: Inputs) 
     backends,
     base,
   });
-  // Framing replays the buffer reserved at load, then returns it: it is its last reader.
-  const cameraState = createExplorerCamera(
-    source,
-    autonomous,
-    loadedScene.associations,
-    metadata,
-    canvas,
-    options,
-    loadedScene.framingLot,
-  );
-  loadedScene.framingLot?.release();
   return {
     source,
+    partitions: loadedScene.partitions,
     pageSources,
     capabilities,
     directGpu,

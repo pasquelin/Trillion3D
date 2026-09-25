@@ -427,8 +427,6 @@
       "reflections-from-the-screen": "スクリーン空間の反射",
       "an-ocean": "テクスチャへの描画:水の反射と屈折",
       "a-raging-sea": "自作シェーダーのマテリアル",
-      "a-town-in-the-fog": "霧",
-      "fog-on-the-ground": "霧:高さによる霧",
       "fog-that-scatters-light": "ボリューム霧と光の筋",
       "a-cloud-in-a-box": "ボリュームレンダリング",
       "a-fire-in-a-volume": "ボリュームレンダリング",
