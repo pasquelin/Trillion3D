@@ -78,7 +78,7 @@ export function createWorldPhysics(
       ({ createPhysicsSession }) => {
         if (!wanted || session) return;
         const frozen = Object.freeze({ ...budget }); // sizes the session's arrays for its life
-        session = createPhysicsSession(root, frozen, invalidate, failed, joints.joints);
+        session = createPhysicsSession(root, frozen, invalidate, failed, joints);
         session.writer.gravity(gravity.elements);
         if (water) session.setWater(water);
         clock();
