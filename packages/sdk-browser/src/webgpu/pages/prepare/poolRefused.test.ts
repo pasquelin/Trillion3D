@@ -8,20 +8,7 @@ import { setWebgpuMemoryBudgets } from '../io/memory.ts';
 import { texturePoolFor } from '../../residency/memoryBudgets.ts';
 import { laneCounts, poolEncoding } from '../../../texture/blockFormats.ts';
 import type { BackendDiagnostic } from '../../../backend/types.ts';
-
-/** The shared test device, refusing as out of memory every `kind` creation whose label holds
- *  `label`. */
-function refusing(kind: 'createTexture' | 'createBuffer', label: string) {
-  const gpu = mockGpu();
-  const device = gpu.device as unknown as Record<string, (d: { label?: string }) => unknown>;
-  const make = device[kind];
-  device[kind] = function (this: unknown, descriptor: { label?: string }) {
-    const made = make.call(this, descriptor);
-    if (descriptor.label?.includes(label)) gpu.raise('Out of memory');
-    return made;
-  };
-  return gpu;
-}
+import { refusing } from './refusing.fixture.ts';
 
 test('a texture pool refused even at its floor at prepare is refused by name, never allocated in full', async () => {
   installGpuGlobals();
