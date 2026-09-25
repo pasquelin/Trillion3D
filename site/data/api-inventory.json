@@ -1422,6 +1422,7 @@
         "packages/sdk-browser/src/world/scene/pagesBounds.ts",
         "packages/sdk-browser/src/world/scene/scene.test.ts",
         "packages/sdk-browser/src/world/scene/scene.ts",
+        "packages/sdk-browser/src/world/session/backends.fixture.ts",
         "packages/sdk-browser/src/world/session/backendsTextureLevels.test.ts",
         "packages/sdk-browser/src/world/session/manifest.ts",
         "packages/sdk-browser/src/world/session/pageSources.ts",
@@ -2833,6 +2834,7 @@
         "packages/sdk-browser/src/scene/manifestLoad.ts",
         "packages/sdk-browser/src/scene/partition/rows.ts",
         "packages/sdk-browser/src/scene/tables.ts",
+        "packages/sdk-browser/src/streaming/fetch.ts",
         "packages/sdk-browser/src/webgl/cluster/refusal.ts",
         "packages/sdk-browser/src/webgpu/core/transformFiniteTransform.test.ts",
         "packages/sdk-browser/src/webgpu/pages/render/transform.ts",
@@ -7080,7 +7082,10 @@
       "currentEntryPoints": ["trillion3d (common)"],
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
-      "affectedConsumers": ["packages/sdk-browser/src/bounce/traceWgsl.ts"],
+      "affectedConsumers": [
+        "packages/sdk-browser/src/bounce/traceWgsl.ts",
+        "packages/sdk-browser/src/world/session/proxyAfterLoss.test.ts"
+      ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/contracts/proxy\".PROXY_TRIANGLE_FLOATS"
     },
@@ -7499,7 +7504,7 @@
       "currentEntryPoints": ["trillion3d (common)"],
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
-      "affectedConsumers": [],
+      "affectedConsumers": ["packages/sdk-browser/src/world/session/proxyAfterLoss.test.ts"],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/contracts/proxy\".SCENE_PROXY_HEADER_WORDS"
     },
