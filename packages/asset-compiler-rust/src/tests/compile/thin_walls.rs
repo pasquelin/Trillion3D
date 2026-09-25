@@ -7,7 +7,7 @@ use super::silhouette::{cut_defects, Mesh};
 use super::*;
 
 /// One node drawing every mesh as a primitive of its own material, positions and normals as `f32`.
-fn mesh_fixture(tag: &str, meshes: &[Mesh]) -> (PathBuf, Options) {
+pub(super) fn mesh_fixture(tag: &str, meshes: &[Mesh]) -> (PathBuf, Options) {
     let (mut buffer, mut primitives) = (GltfBuffer::default(), vec![]);
     let vec3 = |points: &[[f64; 3]]| -> Vec<u8> {
         points

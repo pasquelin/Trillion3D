@@ -103,7 +103,9 @@ fn thin_strip(seed: u64) -> Case {
 }
 
 /// Parallel slats a quad wide, disjoint, each short enough that a cluster spans several: the
-/// group borders cut the slats and lock their vertices.
+/// group borders cut the slats and lock their vertices. Near the top, halving a group would
+/// remove slats longer than its error: a coarse level never destroys a part, so the group stays
+/// roots (`unusable-error`, #484).
 fn slats(seed: u64) -> Case {
     let mut rng = seeded(seed);
     let (count, length) = (rng.between(48, 96), rng.between(24, 48));
@@ -176,7 +178,7 @@ pub(super) fn cases() -> Vec<(Generator, Expect)> {
         (unwelded_duplicates, Expect::ONE_ROOT),
         (degenerate_triangles, Expect::ONE_ROOT),
         (thin_strip, Expect::ONE_ROOT),
-        (slats, Expect::ONE_ROOT),
+        (slats, Expect::stalled(&["unusable-error"])),
         (smaller_than_cluster, Expect::ONE_ROOT),
         (exactly_one_cluster, Expect::ONE_ROOT),
         (huge_flat_plane, Expect::ONE_ROOT),
