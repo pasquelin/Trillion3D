@@ -136,15 +136,14 @@ export function createPartitionCells(inputs: Inputs) {
       budget: FrameBudget,
     ) {
       followParents();
-      const cellBoxes = boxes();
       const local = inCellFrame(hostWorldChainInto(rootWorld, root), eye, reach);
+      const plan = planCells(boxes(), local.eye, local.reach, new Set(held.keys()));
       const beyond = local.reach > Math.max(sized, wanted);
       if (beyond) wanted = local.reach;
       if (beyond || (!short && sized < Infinity && outstretched(boxes.stretch, stretched))) {
         short = true;
         io.outgrown?.();
       }
-      const plan = planCells(cellBoxes, local.eye, local.reach, new Set(held.keys()));
       plan.leave.forEach(leave);
       waiting = 0;
       let later = false;
