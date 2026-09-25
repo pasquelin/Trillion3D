@@ -21,18 +21,43 @@
   <body>
     <canvas id="view"></canvas>
     <script type="module">
-      import { createWorld, geometry, material, object, light, math, helper, camera } from '../runtime/engine.js';
+      import {
+        createWorld,
+        geometry,
+        material,
+        object,
+        light,
+        math,
+        helper,
+        camera,
+      } from '../runtime/engine.js';
       import { controls, readout } from '../runtime/kit.js';
 
       const world = createWorld('view', { controls: 'orbit' });
       world.scene.background = math.color('#14161c');
-      const matte = (color, roughness = 0.7, metalness = 0) => material.meshStandard({ color, roughness, metalness });
+      const matte = (color, roughness = 0.7, metalness = 0) =>
+        material.meshStandard({ color, roughness, metalness });
 
       // A small film set: a studio sweep curving from the floor up into a backdrop, a sculpture on
       // its plinth, a few props, a spotlight on its stand and a film camera on a dolly track.
       const floor = object.mesh(geometry.cylinder(9, 9, 0.2, 96), matte('#3b3d45', 0.85));
       floor.position.y = -0.1;
-      const sweep = object.mesh(geometry.lathe([[7.2, 6.5], [7.2, 1.4], [7.05, 0.8], [6.7, 0.35], [6.2, 0.1], [5.6, 0.01]], 64, 2.1, 3.4), matte('#d8d2c8', 0.9));
+      const sweep = object.mesh(
+        geometry.lathe(
+          [
+            [7.2, 6.5],
+            [7.2, 1.4],
+            [7.05, 0.8],
+            [6.7, 0.35],
+            [6.2, 0.1],
+            [5.6, 0.01],
+          ],
+          64,
+          2.1,
+          3.4,
+        ),
+        matte('#d8d2c8', 0.9),
+      );
       world.scene.add(floor, sweep);
       const plinth = object.mesh(geometry.cylinder(0.7, 0.8, 0.8, 48), matte('#ece6dc', 0.4));
       plinth.position.y = 0.4;
@@ -40,13 +65,34 @@
       knot.position.y = 1.55;
       const ball = object.mesh(geometry.sphere(0.6, 64, 32), matte('#2f8f83', 0.25));
       ball.position.set(-2.4, 0.6, -0.8);
-      const vase = object.mesh(geometry.lathe([[0.001, 0], [0.42, 0], [0.62, 0.45], [0.4, 1.1], [0.28, 1.4], [0.38, 1.62]], 64), matte('#f2b134', 0.35));
+      const vase = object.mesh(
+        geometry.lathe(
+          [
+            [0.001, 0],
+            [0.42, 0],
+            [0.62, 0.45],
+            [0.4, 1.1],
+            [0.28, 1.4],
+            [0.38, 1.62],
+          ],
+          64,
+        ),
+        matte('#f2b134', 0.35),
+      );
       vase.position.set(2.3, 0, -1.2);
       world.scene.add(plinth, knot, ball, vase);
 
       // The spotlight: a stand, a housing turned toward the sculpture, and the light inside it.
-      const SPOT = [-3.4, 3.3, 1.6], AIM = [0, 1.5, 0];
-      const spot = light.spot({ color: '#dfe8ff', intensity: 160, distance: 5.5, angle: 0.36, penumbra: 0.45, position: SPOT });
+      const SPOT = [-3.4, 3.3, 1.6],
+        AIM = [0, 1.5, 0];
+      const spot = light.spot({
+        color: '#dfe8ff',
+        intensity: 160,
+        distance: 5.5,
+        angle: 0.36,
+        penumbra: 0.45,
+        position: SPOT,
+      });
       spot.lookAt(...AIM);
       const metal = matte('#2a2c33', 0.4, 0.7);
       const pole = object.mesh(geometry.cylinder(0.05, 0.05, SPOT[1], 16), metal);
@@ -54,14 +100,16 @@
       const housing = object.mesh(geometry.cylinder(0.14, 0.26, 0.5, 32), metal);
       housing.position.set(...SPOT);
       // Its narrow end points away from the target: the direction's two angles, yaw then pitch.
-      const back = SPOT.map((value, axis) => value - AIM[axis]), reach = Math.hypot(...back);
+      const back = SPOT.map((value, axis) => value - AIM[axis]),
+        reach = Math.hypot(...back);
       housing.rotation.order = 'YXZ';
       housing.rotation.set(Math.acos(back[1] / reach), Math.atan2(back[0], back[2]), 0);
       world.scene.add(spot, pole, housing);
 
       // The film camera: a body, two reels and a lens on a head that rides a track and keeps the
       // sculpture in frame. A real camera of the engine travels with it; its helper draws what it sees.
-      const rig = object.group(), dark = matte('#1c1d22', 0.5, 0.5);
+      const rig = object.group(),
+        dark = matte('#1c1d22', 0.5, 0.5);
       const body = object.mesh(geometry.box(0.34, 0.36, 0.6), dark);
       body.position.y = 1.55;
       const lens = object.mesh(geometry.cylinder(0.1, 0.12, 0.3, 24), matte('#0c0c10', 0.2, 0.8));
@@ -87,48 +135,73 @@
 
       // Light: a low golden key raking across the set, casting long shadows; a cool fill from
       // the sky; a small magenta bulb circling the sculpture.
-      const sun = light.directional({ color: '#ffc27a', intensity: 3, position: [6.2, 3.6, 3.4], castShadow: true });
+      const sun = light.directional({
+        color: '#ffc27a',
+        intensity: 3,
+        position: [6.2, 3.6, 3.4],
+        castShadow: true,
+      });
       sun.lookAt(0, 0, 0);
-      const sky = light.hemisphere({ color: '#8fb0ff', groundColor: '#3a2e28', intensity: 0.6, position: [0, 5.2, 0] });
+      const sky = light.hemisphere({
+        color: '#8fb0ff',
+        groundColor: '#3a2e28',
+        intensity: 0.6,
+        position: [0, 5.2, 0],
+      });
       const bulb = light.point({ color: '#ff5ab4', intensity: 10, distance: 6 });
-      const glass = object.mesh(geometry.sphere(0.09, 24, 12), material.meshStandard({ color: '#000000', emissive: '#ff5ab4', emissiveIntensity: 4 }));
+      const glass = object.mesh(
+        geometry.sphere(0.09, 24, 12),
+        material.meshStandard({ color: '#000000', emissive: '#ff5ab4', emissiveIntensity: 4 }),
+      );
       world.scene.add(sun, sky, bulb, glass);
 
-      // The helpers, by family, drawn as guides: lines and dots of a fixed width on the screen,
+      // The helpers, by family, drawn as guides: lines and dots of a fixed CSS width on the screen,
       // over the picture and hidden by what stands in front of them, never part of the scene.
       const guide = (mark, width) => world.guides.add(mark, { width });
       // A box outline a touch larger than the object's box, grown about its centre.
       const outline = (target) => {
-        const bounds = math.box3().setFromObject(target), centre = bounds.getCenter(math.vector3());
+        const bounds = math.box3().setFromObject(target),
+          centre = bounds.getCenter(math.vector3());
         bounds.min.lerp(centre, -0.06);
         bounds.max.lerp(centre, -0.06);
         return guide(helper.box(bounds, '#ffd24a'), 2);
       };
       // Ten normals of the ball: a short line out of its surface, a dot at each tip.
-      const shafts = [], tips = [];
+      const shafts = [],
+        tips = [];
       for (let k = 0; k < 10; k++) {
-        const phi = Math.acos(1 - ((k + 0.5) / 10) * 1.6), theta = k * 2.4;
-        const out = [Math.sin(phi) * Math.cos(theta), Math.cos(phi), Math.sin(phi) * Math.sin(theta)];
+        const phi = Math.acos(1 - ((k + 0.5) / 10) * 1.6),
+          theta = k * 2.4;
+        const out = [
+          Math.sin(phi) * Math.cos(theta),
+          Math.cos(phi),
+          Math.sin(phi) * Math.sin(theta),
+        ];
         const from = [-2.4 + out[0] * 0.62, 0.6 + out[1] * 0.62, -0.8 + out[2] * 0.62];
         const to = from.map((value, axis) => value + out[axis] * 0.45);
         shafts.push(...from, ...to);
         tips.push(...to);
       }
-      // A helper that follows a light or a camera is placed again every frame, where it stands.
-      const follows = [];
-      const following = (mark, width) => {
-        const handle = guide(mark, width);
-        follows.push({ mark, handle });
-        return handle;
-      };
       const lifted = (mark, y) => ((mark.position.y = y), mark);
       const families = {
-        grid: [guide(lifted(helper.grid(16, 32, '#8a8f9c', '#4c505c'), 0.01), 1), guide(lifted(helper.polarGrid(1.6, 16, 4, '#c9b27a'), 0.02), 1.5)],
+        grid: [
+          guide(lifted(helper.grid(16, 32, '#8a8f9c', '#4c505c'), 0.01), 1),
+          guide(lifted(helper.polarGrid(1.6, 16, 4, '#c9b27a'), 0.02), 1.5),
+        ],
         axes: [guide(lifted(helper.axes(2.2), 0.02), 3)],
         bounds: [outline(knot), outline(ball), outline(vase)],
-        normals: [world.guides.lines({ positions: shafts, color: '#7ef0d8', width: 2 }), world.guides.points({ positions: tips, color: '#7ef0d8', size: 7 })],
-        lights: [following(helper.directionalLight(sun, 0.8), 2), following(helper.spotLight(spot), 1.5), following(helper.pointLight(bulb, 0.3), 1.5), following(helper.hemisphereLight(sky, 0.5), 1.5)],
-        camera: [following(helper.camera(filming), 2)],
+        normals: [
+          world.guides.lines({ positions: shafts, color: '#7ef0d8', width: 2 }),
+          world.guides.points({ positions: tips, color: '#7ef0d8', size: 7 }),
+        ],
+        // A light's or a camera's helper follows it by itself: the engine moves it when it moves.
+        lights: [
+          guide(helper.directionalLight(sun, 0.8), 2),
+          guide(helper.spotLight(spot), 1.5),
+          guide(helper.pointLight(bulb, 0.3), 1.5),
+          guide(helper.hemisphereLight(sky, 0.5), 1.5),
+        ],
+        camera: [guide(helper.camera(filming), 2)],
       };
       for (const handle of Object.values(families).flat()) handle.setVisible(false);
 
@@ -143,53 +216,67 @@
 
       // The opening reveals the helpers one family after the other; the choice then takes over.
       const ORDER = ['grid', 'axes', 'bounds', 'normals', 'lights', 'camera'];
-      const CHOICES = { everything: ORDER, 'lights and camera': ['lights', 'camera'], 'shapes and bounds': ['grid', 'axes', 'bounds', 'normals'], nothing: [] };
-      let revealed = 0, count = null;
+      const CHOICES = {
+        everything: ORDER,
+        'lights and camera': ['lights', 'camera'],
+        'shapes and bounds': ['grid', 'axes', 'bounds', 'normals'],
+        nothing: [],
+      };
+      let revealed = 0,
+        count = null;
       const show = (names) => {
-        for (const [name, handles] of Object.entries(families)) for (const handle of handles) handle.setVisible(names.includes(name));
+        for (const [name, handles] of Object.entries(families))
+          for (const handle of handles) handle.setVisible(names.includes(name));
         count?.(String(names.reduce((sum, name) => sum + families[name].length, 0)));
         world.invalidate();
       };
-      const ui = controls({
-        helpers: Object.keys(CHOICES),
-        dolly: true,
-        bulb: true,
-      }, (values, key) => {
-        if (key === 'helpers') {
-          revealed = ORDER.length;
-          show(CHOICES[values.helpers]);
-        }
-        bulb.intensity = values.bulb ? 10 : 0;
-        glass.visible = values.bulb;
-        world.invalidate();
-      }, world);
+      const ui = controls(
+        {
+          helpers: Object.keys(CHOICES),
+          dolly: true,
+          bulb: true,
+        },
+        (values, key) => {
+          if (key === 'helpers') {
+            revealed = ORDER.length;
+            show(CHOICES[values.helpers]);
+          }
+          bulb.intensity = values.bulb ? 10 : 0;
+          glass.visible = values.bulb;
+          world.invalidate();
+        },
+        world,
+      );
       count = readout('helpersShown');
       count('0');
 
-      let time = 0, dolly = 0, clock = 0;
+      let time = 0,
+        dolly = 0,
+        clock = 0;
       world.onFrame(({ delta }) => {
         const step = Math.min(delta, 0.05);
         time += step;
-        if (revealed < ORDER.length && time > 0.8 + revealed * 0.55) show(ORDER.slice(0, ++revealed));
-        // The bulb circles the sculpture; its helper follows it.
+        if (revealed < ORDER.length && time > 0.8 + revealed * 0.55)
+          show(ORDER.slice(0, ++revealed));
+        // The bulb circles the sculpture; its helper follows it, as the camera's follows the dolly.
         const turn = time * 0.7;
-        bulb.position.set(Math.cos(turn) * 1.7, 2.1 + 0.3 * Math.sin(turn * 2), Math.sin(turn) * 1.7);
+        bulb.position.set(
+          Math.cos(turn) * 1.7,
+          2.1 + 0.3 * Math.sin(turn * 2),
+          Math.sin(turn) * 1.7,
+        );
         glass.position.copy(bulb.position);
         // The dolly rides its track, the head turned toward the sculpture, the reels running.
         if (ui.dolly) dolly += step * 0.35;
         clock += step * 4;
-        const z = Math.sin(dolly) * 3, yaw = Math.atan2(4.1, z);
+        const z = Math.sin(dolly) * 3,
+          yaw = Math.atan2(4.1, z);
         rig.position.set(4.1, 0, z);
         rig.rotation.set(0, yaw, 0);
         reels.forEach((reel) => reel.rotation.set(clock, 0, Math.PI / 2));
         // The engine's camera sits in the lens, looking where the rig looks: down its own -z.
         filming.position.set(4.1 - Math.sin(yaw) * 0.55, 1.55, z - Math.cos(yaw) * 0.55);
         filming.rotation.set(0, yaw, 0);
-        for (const { mark, handle } of follows) {
-          mark.update();
-          mark.updateWorldMatrix(false, false);
-          handle.setTransform(mark.matrixWorld);
-        }
         world.invalidate();
       });
     </script>
