@@ -63,7 +63,7 @@ export class EffectChain {
       throw new RangeError(`EFFECT_INDEX:${index}`);
     this.list.splice(index, 0, pass);
     pass._chain = this;
-    this._touch();
+    this.reordered();
     return this;
   }
   /**
@@ -75,7 +75,7 @@ export class EffectChain {
     if (index < 0) return false;
     this.list.splice(index, 1);
     pass._chain = null;
-    this._touch();
+    this.reordered();
     return true;
   }
   /** Takes every pass out: the image is the one without the chain again. */
@@ -83,7 +83,7 @@ export class EffectChain {
     if (!this.list.length) return;
     for (const pass of this.list) pass._chain = null;
     this.list.length = 0;
-    this._touch();
+    this.reordered();
   }
   /**
    * The passes of one stage, in chain order: the list an engine runs. Kept from change to change,
@@ -95,10 +95,14 @@ export class EffectChain {
     if (!passes) this.byStage.set(stage, (passes = this.list.filter((p) => p.stage === stage)));
     return passes;
   }
-  /** @internal The chain or one of its passes changed. */
+  /** The list changed: the stage lists are made again at their next read. */
+  private reordered() {
+    this.byStage.clear();
+    this._touch();
+  }
+  /** @internal The chain or one of its passes changed; a pass never changes stage. */
   _touch() {
     this.count++;
-    this.byStage.clear();
     this.notify();
   }
 }
