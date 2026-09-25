@@ -6,12 +6,13 @@ import { transformPointsBatch } from '../../math/batch/points.ts';
 import { normalMatrix3 } from '../../math/matrix/matrix3.ts';
 import { applyMatrix3Vector3, normalizeVector3 } from '../../math/primitives/vector.ts';
 
-/** Moves every position by `m` and turns every normal by its normal matrix, in place; a
- *  normalised or interleaved position is read and written as the number it stands for. */
+/** Moves every position by `m` and turns every normal by its normal matrix, in place. A position
+ *  that owns its list is moved as its stored numbers, three at a time, as the world's geometry
+ *  always was; an interleaved one is read and written vertex by vertex. */
 export function transformVertices(attributes: Record<string, VertexAttribute>, m: Matrix4) {
   const position = attributes.position,
     normal = attributes.normal;
-  if (position?.kind === 'attribute' && !position.normalized && position.itemSize === 3) {
+  if (position?.kind === 'attribute') {
     const points = position.array as Float32Array;
     transformPointsBatch(points, m.elements, points, position.count);
   } else if (position) {

@@ -692,8 +692,8 @@ The engine draws a world's `Geometry` itself. Its `attributes` hold any `VertexA
 `morphAttributes` lists one attribute per morph target for each morphed attribute, and
 `morphTargetsRelative` says that the targets hold displacements. `drawRange`, `name`, `userData`
 and `kind` (`'geometry'`) complete it. `computeBoundingBox()` and `computeBoundingSphere()` span
-every vertex and every shape a morph target gives it. They read a normalised or interleaved position
-as the value it stands for, and a normalised position is also drawn at that value. The sphere is
+every vertex and every shape a morph target gives it. A position that owns its list is read, drawn
+and moved as its stored numbers, as before; an interleaved one as the value it stands for. The sphere is
 centred on the box and reaches the farthest vertex. Setting an attribute other than `position`, the
 index or a group keeps the bounds. `clone()` copies every list, morph target, group, range, data,
 bound and recipe. `toNonIndexed()` gives every corner a vertex of its own. `dispose()` runs each
@@ -1197,7 +1197,7 @@ rack, { axis, axisB, ratio })` slides the rack along `axisB` by `1 / ratio` metr
   vehicle's `clutch`, `drive`, `turnRadius`, `antiRoll` or `maxLean`) or a `suspensionTravel` not
   longer than its sag, `9.81 / (2π suspensionFrequency)²`. Live example: [drive a car](../site/examples/drive-a-car.html).
 - **Soft bodies.** `mesh.physics = { type: 'cloth' | 'rope' | 'volume', pins, mass, stretch,
-  bend }` simulates the mesh's vertices one by one on Jolt's soft bodies. A cloth is its triangles;
+bend }` simulates the mesh's vertices one by one on Jolt's soft bodies. A cloth is its triangles;
   a rope its vertices in order, each joined to the next; a volume its closed triangles, facing
   out, held up by the gas inside (`pressure`, Pa above the air's at rest, rising as it is squeezed).
   Vertices at one position are one (a sphere's seam never tears). `pins` are the geometry's vertex

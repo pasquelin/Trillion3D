@@ -1126,7 +1126,7 @@
       "addGroup": "メッシュのマテリアル番号`materialIndex`を使って、`start`から`count`個のインデックスを描く。",
       "clearGroups": "すべてのマテリアルグループを削除する。",
       "computeVertexNormals": "スムーズな法線: 各頂点が、それを共有する面を面積で重みづけして平均する。",
-      "computeBoundingBox": "すべての頂点とモーフターゲットが与えるすべての形を囲む箱を測り、`boundingBox` に保つ。正規化された位置はその尺度で測る。",
+      "computeBoundingBox": "すべての頂点とモーフターゲットが与えるすべての形を囲む箱を測り、`boundingBox` に保つ。",
       "computeBoundingSphere": "箱を中心とし、モーフの有無を問わず最も遠い頂点まで届く球を測り、`boundingSphere` に保つ。",
       "applyMatrix4": "すべての位置を動かし、すべての法線を回す: ジオメトリ自体が変わり、姿勢は変わらない。",
       "translate": "すべての頂点を`(x, y, z)`だけ動かす。",
