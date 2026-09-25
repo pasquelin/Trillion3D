@@ -40,16 +40,12 @@ export function createWebgpuResidentEnsurer({
   traceDiagnostic,
   lowerTiers,
 }: EnsureOptions) {
-  /** The published share of the main thread (`STREAMING_FRAME_MS`): past it (`budget.admits()`
-   *  false), a job yields a task and starts a new share — a due frame goes through, and the job
-   *  resumes without waiting for one, so a hidden tab loads too. Opened only after a yield, never by
-   *  a job: the next job may start in the task the last one ended in. Read synchronously first, so
-   *  a page within the share costs no promise. */
+  /** The published share of the main thread (`STREAMING_FRAME_MS`), read synchronously: past it a
+   *  job yields a task and starts a new share — a due frame goes through, and the job resumes
+   *  without waiting for one, so a hidden tab loads too. Opened only after a yield, never by a job:
+   *  the next job may start in the task the last one ended in. */
   const budget = createFrameBudget(STREAMING_FRAME_MS);
-  const nextShare = async () => {
-    await yieldToEventLoop();
-    budget.open();
-  };
+  const nextShare = () => yieldToEventLoop().then(budget.open);
   /** One job's lower tiers in order, each page once: a page an earlier tier names — a caster also
    *  ahead of the camera — is counted and loaded once. A copy: a tier's list is rewritten in place
    *  by every report taken while this job loads, and a loop resumed on another list keeps neither
