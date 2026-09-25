@@ -36,7 +36,9 @@ function gpuHarness() {
     },
   } as unknown as GPUCommandEncoder;
   const view = () => ({}) as GPUTextureView;
-  const surface = { views: () => [view(), view(), view(), view()] } as unknown as SurfaceBuffer;
+  // Stable views, as a real surface keeps: a composition is keyed by the flags view it reads.
+  const surfaceViews = [view(), view(), view(), view()],
+    surface = { views: () => surfaceViews } as unknown as SurfaceBuffer;
   return {
     device,
     bindGroups,
@@ -160,14 +162,15 @@ test('an image is composed with the share it read, one group per pair (#349)', a
       color: target,
       share: shares[frame % 2],
     });
-  lighting.compose(h.encoder, h.view(), [0, 0, 0, 1], undefined, { color: target });
+  for (let frame = 0; frame < 2; frame++)
+    lighting.compose(h.encoder, h.view(), [0, 0, 0, 1], undefined, { color: target });
   const made = h.bindGroups.slice(before).map((group) => Array.from(group.entries));
   assert.equal(made.length, 3, "two shares, then the still image's flags, each bound once");
   assert.deepEqual(
     made.slice(0, 2).map((entries) => entries[2]!.resource),
     shares,
   );
-  assert.ok(!shares.includes(made[2][2]!.resource as GPUTextureView), 'no share: the flags');
+  assert.equal(made[2][2]!.resource, h.surface.views()[3], 'no share: the flags');
   assert.ok(made.every((entries) => entries[0]!.resource === target));
   lighting.dispose();
 });
