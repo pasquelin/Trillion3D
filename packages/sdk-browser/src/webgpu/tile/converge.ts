@@ -64,8 +64,9 @@ async function convergeTextures(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
  * Drains shadow maps: images are rendered until the pages the image reads are all mapped and
  * drawn — a report of the last one proves it —, whatever staled them: an arriving tile, a moving
  * camera or a geometry page that entered or left. Each image's request report is awaited before
- * the next is planned; each image draws every page it marks (`admit.ts`), so what the drain waits
- * for is the report's round trip, never a page queue. Returns the number of frames drained.
+ * the next is planned; each image, the camera at rest, draws every page it marks (`admit.ts`), so
+ * what the drain waits for is the report's round trip, never a page queue. Returns the number of
+ * frames drained.
  *
  * A drawn page is also a light cut whose report asks for casters: the image after takes it, its
  * casters load, and a caster that enters residency stales the pages over it. The drain waits for
