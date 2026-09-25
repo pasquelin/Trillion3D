@@ -10,6 +10,7 @@ import { DAG_MAX_VIEWS } from '../dag/shader/viewsWgsl.ts';
 import { createCpuCasterLists } from '../../webgpu/shadow/cpuCasters.ts';
 import { SHADOW_HOST_BYTES, SHADOW_POOL_BYTES } from '../../residency/memoryBudget.ts';
 import { shadowBatchWrites } from './batchWrites.ts';
+import { createGpuShadowCullCounts } from './cullCounts.ts';
 import { MAX_SHADOW_PAGES } from './recordPack.ts';
 import {
   MAX_SHADOW_BATCHES,
@@ -30,7 +31,7 @@ test('a frame draws at most the largest pool in full batches, each in one cut of
   assert.equal(MAX_SHADOW_RUNS, MAX_SHADOW_BATCHES * DAG_MAX_VIEWS);
 });
 
-test('the GPU bytes the batches add are what the staging, flag slots and CPU lists allocate', () => {
+test('the GPU bytes the batches add are what the staging, flags, CPU lists and counts allocate', () => {
   const { device, buffers } = fakeDevice();
   const target = device.createBuffer({ size: SHADOW_BATCH_WRITE_BYTES, usage: 0 });
   const writes = shadowBatchWrites(device);
@@ -39,6 +40,9 @@ test('the GPU bytes the batches add are what the staging, flag slots and CPU lis
   writes.end();
   createLightCutRedraws((d) => device.createBuffer(d), target, DAG_MAX_VIEWS);
   const lists = createCpuCasterLists(device, 1);
+  // The cull's and the occlusion test's count samples.
+  createGpuShadowCullCounts(device);
+  createGpuShadowCullCounts(device);
   const made = buffers.filter(
     (buffer) => buffer !== (target as unknown) && buffer !== (lists.source as unknown),
   );

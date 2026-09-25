@@ -61,11 +61,12 @@ export function createGpuPeriodicReadback(read: (mapped: ArrayBuffer) => void) {
     sampled(frame: number) {
       lastSampledFrame = frame;
     },
-    /** Encodes the copy of `size` bytes from `source`, to be mapped once the frame is submitted. */
-    copy(encoder: GPUCommandEncoder, source: GPUBuffer, offset: number, size: number) {
+    /** Encodes the copy of `size` bytes from `source` at `at` in the sample, to be mapped once the
+     *  frame is submitted. A frame may copy several ranges: the sample ends at the last. */
+    copy(encoder: GPUCommandEncoder, source: GPUBuffer, offset: number, size: number, at = 0) {
       if (!buffer) return;
-      encoder.copyBufferToBuffer(source, offset, buffer, 0, size);
-      bytes = size;
+      encoder.copyBufferToBuffer(source, offset, buffer, at, size);
+      bytes = at + size;
       copyEncoded = true;
     },
     /** Requests mapping of the encoded copy. No effect on a frame that encoded none. */

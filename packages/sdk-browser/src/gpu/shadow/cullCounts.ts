@@ -1,6 +1,6 @@
 import { DRAW_INDIRECT_STRIDE } from '../draw/draw.ts';
 import { createGpuPeriodicReadback } from '../core/periodicReadback.ts';
-import { MAX_SHADOW_REGIONS } from './recordPack.ts';
+import { SHADOW_COUNT_SAMPLE_BYTES } from './batchBudget.ts';
 
 /** Words of one indirect draw command; the instance count is its second word. */
 const COMMAND_WORDS = DRAW_INDIRECT_STRIDE / 4;
@@ -23,11 +23,16 @@ export function sumKeptClusters(words: Uint32Array, regions: number) {
  * Periodic sample of what the shadow region culls kept: the indirect commands the cull wrote,
  * copied one frame in fifteen and mapped after submission, never waited for. A diagnostic
  * count for the profile, outside the measured pass: the other fourteen frames copy nothing.
+ *
+ * The sampled frame copies every batch's commands after the last (`SHADOW_COUNT_SAMPLE_BYTES`,
+ * sized for the most batches a frame draws), so the count covers all the frame's pages.
  */
 export function createGpuShadowCullCounts(device: GPUDevice) {
   const counted: ShadowCullCounts = { frame: -1, regions: 0, kept: 0 };
   let sampledRegions = 0,
-    sampledFrame = -1;
+    sampledFrame = -1,
+    /** The sampled frame's copies are still being encoded: its later batches join them. */
+    open = false;
   // The three fields move together, when the sample returns: a count is never named by a
   // frame it does not describe.
   const reader = createGpuPeriodicReadback((mapped) => {
@@ -38,21 +43,32 @@ export function createGpuShadowCullCounts(device: GPUDevice) {
   reader.adopt(
     device.createBuffer({
       label: 'Trillion3D shadow cull counts readback',
-      size: MAX_SHADOW_REGIONS * DRAW_INDIRECT_STRIDE,
+      size: SHADOW_COUNT_SAMPLE_BYTES,
       usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
     }),
   );
   return {
-    /** Encodes the copy of this frame's `regions` commands, when a sample is due. */
+    /** Encodes the copy of a batch's `regions` commands, when the frame is sampled. */
     sample(encoder: GPUCommandEncoder, indirect: GPUBuffer, regions: number, frame: number) {
-      if (!regions || !reader.due(frame)) return;
-      reader.copy(encoder, indirect, 0, regions * DRAW_INDIRECT_STRIDE);
-      sampledRegions = regions;
-      sampledFrame = frame;
-      reader.sampled(frame);
+      if (!regions) return;
+      if (!open || sampledFrame !== frame) {
+        if (!reader.due(frame)) return;
+        open = true;
+        sampledRegions = 0;
+        sampledFrame = frame;
+        reader.sampled(frame);
+      }
+      const at = sampledRegions * DRAW_INDIRECT_STRIDE,
+        size = regions * DRAW_INDIRECT_STRIDE;
+      if (at + size > SHADOW_COUNT_SAMPLE_BYTES) return;
+      reader.copy(encoder, indirect, 0, size, at);
+      sampledRegions += regions;
     },
     /** Requests mapping of the sample, once the frame that copied it is submitted. */
-    submitted: reader.submitted,
+    submitted() {
+      open = false;
+      reader.submitted();
+    },
     /** Counts of the last sampled frame, or nothing until one has come back. */
     counts(): ShadowCullCounts | undefined {
       return reader.ready ? counted : undefined;
