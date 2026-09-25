@@ -55,6 +55,7 @@ export class WebglClusterOwner {
     diagnosticMeshes: readonly WholeMesh[] = [],
     copies: readonly SceneCopy[] = [],
     linear = false,
+    hidden: readonly WholeMesh[] = [],
   ) {
     if (linear) this.linear ??= new WebglClusterRenderer(this.context, this.display);
     const renderer = (this.renderer = linear ? this.linear! : this.display);
@@ -68,6 +69,7 @@ export class WebglClusterOwner {
       srgbDestination,
       diagnosticMeshes,
       copies,
+      hidden,
     );
   }
   private release() {
