@@ -81,7 +81,10 @@ function evaluate(text: string, scope: Record<string, Value>): Value {
     return left;
   };
   const unary = (): Value => {
-    if (peek() === '-') return take() && lift(0, unary(), (x, y) => x - y);
+    if (peek() === '-') {
+      take();
+      return lift(0, unary(), (x, y) => x - y);
+    }
     let value = primary();
     while (peek() === '.') {
       take();
