@@ -8,9 +8,10 @@ import { groundTruth, truthGap, type TruthGap } from './groundTruth.ts';
 import { SIZE, type Fixture } from './materialFixtureShape.ts';
 import { CLEAR_COLOR } from './materialPixelsRender.ts';
 
-/** Both renderers' gaps to the truth, and the pixels the engine may show over one level. */
+/** Both renderers' gaps to the truth, and the pixels the engine may show over one level — `null`
+ *  when the gaps are only reported. */
 export interface TruthReading {
-  tolerance: number;
+  tolerance: number | null;
   reference: TruthGap;
   engine: TruthGap;
 }

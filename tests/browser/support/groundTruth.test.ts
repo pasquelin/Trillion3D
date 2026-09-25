@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { Matrix4 } from '../../../packages/sdk-core/src/world/math/matrix4.ts';
 import { cameraFace } from './sharedSceneProof.ts';
+import { backgroundRgb } from '../../../packages/sdk-browser/src/visibility/math.ts';
 import { groundTruth, truthGap, truthVerdict, type TruthView } from './groundTruth.ts';
 
 const SIZE = 24;
@@ -30,14 +31,13 @@ const view = (texels: number[][], extra: Partial<TruthView> = {}, repeat = 1): T
 });
 const rgb = (image: Uint8Array, x: number, y: number) =>
   Array.from(image.subarray((y * SIZE + x) * 4, (y * SIZE + x) * 4 + 3));
-const bytes = (hex: number) => [16, 8, 0].map((shift) => (hex >> shift) & 255);
 const CENTRE = SIZE >> 1;
 
 test('the square shows its texel, the clear colour lies around it, a silhouette is an edge', () => {
   const red = [255, 0, 0, 255];
   const truth = groundTruth(view([red, red]), 4);
   assert.deepEqual(rgb(truth.rgba, CENTRE, CENTRE), [255, 0, 0]);
-  assert.deepEqual(rgb(truth.rgba, 0, 0), bytes(CLEAR));
+  assert.deepEqual(rgb(truth.rgba, 0, 0), backgroundRgb(CLEAR));
   assert.equal(truth.edge[CENTRE * SIZE + CENTRE], 0);
   assert.equal(truth.edge[0], 0);
   const edges = truth.edge.reduce((sum, edge) => sum + edge, 0);
@@ -45,7 +45,7 @@ test('the square shows its texel, the clear colour lies around it, a silhouette 
   const turned = new Matrix4().makeRotationX((-75 * Math.PI) / 180);
   const grazing = groundTruth(view([red, red], { square: turned }), 4);
   assert.deepEqual(rgb(grazing.rgba, CENTRE, CENTRE), [255, 0, 0]);
-  assert.deepEqual(rgb(grazing.rgba, CENTRE, 3), bytes(CLEAR), 'turned away: a thin band');
+  assert.deepEqual(rgb(grazing.rgba, CENTRE, 3), backgroundRgb(CLEAR), 'turned away: a thin band');
 });
 
 test('texels finer than a pixel mix in linear light, as a perfect sampler converges', () => {
@@ -72,7 +72,7 @@ test('a texel under the cutoff lets the ray through to the square behind', () =>
     view([clearTexel, clearTexel], { alphaTest: 0.5, behind: BEHIND }),
     4,
   );
-  assert.deepEqual(rgb(through.rgba, CENTRE, CENTRE), bytes(BEHIND));
+  assert.deepEqual(rgb(through.rgba, CENTRE, CENTRE), backgroundRgb(BEHIND));
   const kept = groundTruth(view([clearTexel, clearTexel], { behind: BEHIND }), 4);
   assert.deepEqual(rgb(kept.rgba, CENTRE, CENTRE), [0, 255, 0], 'no cutoff: the texel is shown');
 });

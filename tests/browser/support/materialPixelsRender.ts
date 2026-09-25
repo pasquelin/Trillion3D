@@ -3,6 +3,7 @@
 // comparison) to keep each file under the line gate.
 import * as THREE from 'three';
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
+import { backgroundRgb } from '../../../packages/sdk-browser/src/visibility/math.ts';
 import { asHostLibrary } from '../../../packages/sdk-browser/src/host/resources.ts';
 import { batisseur, engine, libere, type ScenePreparee } from './sharedSceneProof.ts';
 import { jusquaTenue, PLAFOND } from './sceneImageProof.ts';
@@ -17,6 +18,19 @@ import type * as SdkCore from '../../../packages/sdk-core/src/index.ts';
 
 /** Background the page and both engines clear to, so an uncovered pixel is one colour. */
 export const CLEAR_COLOR = 0x2a303c;
+
+/** The display background, one 8-bit step either way per channel. */
+const CLEAR_RGB = backgroundRgb(CLEAR_COLOR);
+const isClear = (pixels: ArrayLike<number>, i: number) =>
+  CLEAR_RGB.every((c, k) => Math.abs(pixels[i + k] - c) <= 1);
+
+/** Pixels where `engine` shows the background and `reference` does not. */
+export function holesOf(reference: ArrayLike<number>, engine: ArrayLike<number>) {
+  let holes = 0;
+  for (let i = 0; i < reference.length; i += 4)
+    if (isClear(engine, i) && !isClear(reference, i)) holes++;
+  return holes;
+}
 
 /** The witness renderer, configured as the explorer configures its own. */
 export function witnessRenderer(): { renderer: THREE.WebGLRenderer; canvas: HTMLCanvasElement } {

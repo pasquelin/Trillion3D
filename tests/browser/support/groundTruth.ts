@@ -12,10 +12,12 @@
 // Pure: served to the harness page (`materialTruth.ts`) and run in Node by its unit test.
 import { Matrix4 } from '../../../packages/sdk-core/src/world/math/matrix4.ts';
 import { Vector3 } from '../../../packages/sdk-core/src/world/math/vector3.ts';
+import { Color } from '../../../packages/sdk-core/src/world/math/color.ts';
 import {
   linearToSrgb8,
   srgbToLinear,
 } from '../../../packages/sdk-core/src/math/primitives/color.ts';
+import { wrapLinear } from '../../../packages/sdk-browser/src/visibility/wrapModes.ts';
 
 /** Rays per pixel side: 256 rays a pixel, a step of 1/16 pixel. */
 const SAMPLES = 16;
@@ -56,36 +58,42 @@ export interface TruthGap {
   max: number;
 }
 
-const linearOf = (hex: number) =>
-  [16, 8, 0].map((shift) => srgbToLinear(((hex >> shift) & 255) / 255));
-const wrap = (i: number, n: number) => ((i % n) + n) % n;
+const linearOf = (hex: number) => new Color(hex).toArray();
 
-/** Linear RGB then alpha of the map at texel coordinates `(s, t)`, bilinear, into `out`. */
-function bilinear(map: TruthMap, linear: Float32Array, s: number, t: number, out: Float64Array) {
-  const x = s - 0.5,
-    y = t - 0.5,
-    x0 = Math.floor(x),
-    y0 = Math.floor(y),
-    fx = x - x0,
-    fy = y - y0;
-  out.fill(0);
-  for (const [dx, dy, weight] of [
-    [0, 0, (1 - fx) * (1 - fy)],
-    [1, 0, fx * (1 - fy)],
-    [0, 1, (1 - fx) * fy],
-    [1, 1, fx * fy],
-  ]) {
-    const i = (wrap(y0 + dy, map.height) * map.width + wrap(x0 + dx, map.width)) * 4;
-    for (let k = 0; k < 4; k++) out[k] += weight * linear[i + k];
-  }
+/** Adds `weight` times the linear RGBA of texel `(x, y)` into `out`. */
+function tap(
+  map: TruthMap,
+  linear: Float32Array,
+  x: number,
+  y: number,
+  weight: number,
+  out: Float64Array,
+) {
+  const i = (y * map.width + x) * 4;
+  for (let k = 0; k < 4; k++) out[k] += weight * linear[i + k];
 }
 
-/** Where a ray between two points of the near and far planes crosses the plane z = `z` from
- *  its front (+z) side, as a fraction of the way; Infinity when it never does. */
-const crossing = (near: Vector3, far: Vector3, z: number) => {
+/** Linear RGB then alpha of the map at `(u, v)`, bilinear and repeated as the CPU mirror of the
+ *  samplers reads it (`wrapLinear`), into `out`. */
+function bilinear(map: TruthMap, linear: Float32Array, u: number, v: number, out: Float64Array) {
+  const [x0, x1, wx] = wrapLinear(u, map.width, 'repeat'),
+    [y0, y1, wy] = wrapLinear(v, map.height, 'repeat');
+  out.fill(0);
+  tap(map, linear, x0, y0, (1 - wx) * (1 - wy), out);
+  tap(map, linear, x1, y0, wx * (1 - wy), out);
+  tap(map, linear, x0, y1, (1 - wx) * wy, out);
+  tap(map, linear, x1, y1, wx * wy, out);
+}
+
+/** Where a ray between two points of the near and far planes meets, from its front (+z) side, the
+ *  square of half-side `half` in the plane z = `z`: the fraction of the way, the point written in
+ *  `at`; Infinity when it misses. */
+function hit(near: Vector3, far: Vector3, z: number, half: number, at: Vector3) {
   const t = (z - near.z) / (far.z - near.z);
-  return far.z < near.z && t >= 0 && t <= 1 ? t : Infinity;
-};
+  if (far.z >= near.z || t < 0 || t > 1) return Infinity;
+  at.lerpVectors(near, far, t);
+  return Math.abs(at.x) > half || Math.abs(at.y) > half ? Infinity : t;
+}
 
 /** Renders `view` with `samples`² rays a pixel. */
 export function groundTruth(view: TruthView, samples = SAMPLES): Truth {
@@ -98,31 +106,29 @@ export function groundTruth(view: TruthView, samples = SAMPLES): Truth {
     camera.projectionMatrixInverse,
   );
   const toSquare = view.square.clone().invert().multiply(toWorld);
-  const [near, far, nearWorld, farWorld] = [0, 0, 0, 0].map(() => new Vector3());
+  const [near, far, at] = [0, 0, 0].map(() => new Vector3());
   const texel = new Float64Array(4),
     sum = new Float64Array(3);
   const [behind, clear] = [view.behind ?? 0, view.clear].map(linearOf);
   const e = map.uv;
   const truth: Truth = { rgba: new Uint8Array(size * size * 4), edge: new Uint8Array(size * size) };
   /** The surface a ray meets first, geometry alone (0 none, 1 the square, 2 the one behind),
-   *  and its linear colour added into `sum`. */
+   *  and its linear colour added into `sum`. The square behind is read first, in world space. */
   const cast = (x: number, y: number) => {
+    let back = Infinity;
+    if (view.behind !== undefined) {
+      near.set(x, y, -1).applyMatrix4(toWorld);
+      far.set(x, y, 1).applyMatrix4(toWorld);
+      back = hit(near, far, -1, 2, at);
+    }
     near.set(x, y, -1).applyMatrix4(toSquare);
     far.set(x, y, 1).applyMatrix4(toSquare);
-    nearWorld.set(x, y, -1).applyMatrix4(toWorld);
-    farWorld.set(x, y, 1).applyMatrix4(toWorld);
-    let square = crossing(near, far, 0);
-    const at = near.lerp(far, square === Infinity ? 0 : square);
-    if (Math.abs(at.x) > 1 || Math.abs(at.y) > 1) square = Infinity;
-    let back = view.behind === undefined ? Infinity : crossing(nearWorld, farWorld, -1);
-    const hit = nearWorld.lerp(farWorld, back === Infinity ? 0 : back);
-    if (Math.abs(hit.x) > 2 || Math.abs(hit.y) > 2) back = Infinity;
+    const square = hit(near, far, 0, 1, at);
     const surface = square < back ? 1 : back < Infinity ? 2 : 0;
     if (surface === 1) {
-      const [u, v] = [(at.x + 1) / 2, (at.y + 1) / 2];
-      const s = (e[0] * u + e[3] * v + e[6]) * map.width,
-        t = (e[1] * u + e[4] * v + e[7]) * map.height;
-      bilinear(map, linear, s, t, texel);
+      const u = (at.x + 1) / 2,
+        v = (at.y + 1) / 2;
+      bilinear(map, linear, e[0] * u + e[3] * v + e[6], e[1] * u + e[4] * v + e[7], texel);
       if (texel[3] >= view.alphaTest) {
         for (let k = 0; k < 3; k++) sum[k] += texel[k];
         return surface;
@@ -169,8 +175,8 @@ export function truthGap(image: ArrayLike<number>, truth: Truth, levels = 1): Tr
 /** The proof of #443: the engine within `tolerance` pixels of the truth, and no farther from it
  *  than the witness. Undefined when it holds, else what fails. */
 export function truthVerdict(engine: TruthGap, witness: TruthGap, tolerance: number) {
-  if (engine.pixels > tolerance)
-    return `engine ${engine.pixels} px from the ground truth, tolerance ${tolerance} px`;
+  const gap = `engine ${engine.pixels} px from the ground truth`;
+  if (engine.pixels > tolerance) return `${gap}, tolerance ${tolerance} px`;
   if (engine.pixels > witness.pixels)
-    return `engine ${engine.pixels} px from the ground truth, farther than the witness's ${witness.pixels} px`;
+    return `${gap}, farther than the witness's ${witness.pixels} px`;
 }
