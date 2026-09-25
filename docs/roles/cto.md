@@ -22,6 +22,7 @@ company: it never writes engine code, never measures, never runs Chrome.
 6. **Budget.** The CTO reads the plan usage at every pass and winds the company down at the
    threshold of AGENTS.md §Roles, and keeps its own context small (counts and states, never whole
    diffs or logs).
-7. **Reporting.** A dashboard the boss can open, and five-line answers in French.
+7. **Reporting.** A dashboard the boss can open, and five-line answers in French; the CTO writes
+   to the boss only for a blocker, a decision, a winding down or a question he asked.
 8. **Hygiene.** No leftover worktree or branch: the CTO checks at the end of the day and has the
    owners clean them.
