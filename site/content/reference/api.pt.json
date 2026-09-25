@@ -368,6 +368,7 @@
       "top": "Borda superior da caixa ortográfica.",
       "bottom": "Borda inferior da caixa ortográfica.",
       "projection": "`'perspective'` faz coisas distantes ficarem pequenas; `'orthographic'` mantém todo tamanho.",
+      "copy": "Toma os valores de nó de `source` e, de uma câmera, sua óptica; sua própria `projection` permanece.",
       "updateProjectionMatrix": "Mantido para páginas escritas contra um renderizador que precise dele: toda escrita de ótica já redesenha.",
       "rayThrough": "O raio do mundo que passa por um ponto da imagem, segundo a projeção própria do motor (`engineCamera.ts`): a partir do olho ao longo da vista para uma câmera em perspectiva, reto no eixo da vista a partir da caixa para uma ortográfica. Sua direção é um vetor unitário.",
       "set": "Coloca o olho em `pose.position`, olhando para `pose.target`, no campo que ela nomeia."
@@ -1592,6 +1593,7 @@
       "height": "Altura de uma luz retangular.",
       "radius": "Raio da esfera emissora; `emitterRadius` no armazenamento do motor.",
       "kind": "Que tipo de luz é: `'point'`, `'spot'`, `'directional'`…",
+      "copy": "Toma os valores de nó de `source` e, de uma luz, seus números, cores, coeficientes e alvo; seu próprio `kind` permanece.",
       "needsUpdate": "`light.needsUpdate = true` depois de escrever `sh` no lugar: o mundo o relê.",
       "lookAt": "Mira a luz em um ponto do mundo: uma luz direcional ou spot move seu `target` até lá — sua direção é lida a partir dele —, e o nó também gira, o que é o que um retângulo usa para se voltar."
     }

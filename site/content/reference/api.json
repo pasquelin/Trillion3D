@@ -1544,6 +1544,11 @@
         "desc": "`'perspective'` makes far things small; `'orthographic'` keeps every size."
       },
       {
+        "name": "copy(source: Object3D, recursive?: boolean)",
+        "type": "Camera",
+        "desc": "Takes `source`'s node values and, from a camera, its optics; its own `projection` stays."
+      },
+      {
         "name": "updateProjectionMatrix()",
         "type": "void",
         "desc": "Kept for pages written against a renderer that needs it: every optic write already redraws."
@@ -7653,6 +7658,11 @@
         "name": "kind",
         "type": "string",
         "desc": "Which kind of light this is: `'point'`, `'spot'`, `'directional'`…"
+      },
+      {
+        "name": "copy(source: Object3D, recursive?: boolean)",
+        "type": "Light",
+        "desc": "Takes `source`'s node values and, from a light, its numbers, colours, coefficients and aim; its own `kind` stays."
       },
       {
         "name": "needsUpdate",

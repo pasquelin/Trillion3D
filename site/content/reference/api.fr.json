@@ -644,6 +644,7 @@
       "top": "Bord du haut de la boîte orthographique.",
       "bottom": "Bord du bas de la boîte orthographique.",
       "projection": "`'perspective'` rend petit ce qui est loin ; `'orthographic'` garde toutes les tailles.",
+      "copy": "Prend les valeurs de nœud de `source` et, d’une caméra, son optique ; sa propre `projection` reste.",
       "updateProjectionMatrix": "Gardé pour les pages écrites pour un moteur de rendu qui en a besoin : chaque écriture d’optique redessine déjà.",
       "set": "Place l’œil en `pose.position`, qui regarde `pose.target`, avec le champ qu’elle donne.",
       "rayThrough": "Le rayon du monde qui passe par un point de l’image, selon la projection du moteur (`engineCamera.ts`) : depuis l’œil le long de la vue pour une caméra en perspective, droit dans l’axe de la vue depuis la boîte pour une caméra orthographique. Sa direction est un vecteur unitaire."
@@ -2724,6 +2725,7 @@
       "height": "Hauteur d’une lumière rectangulaire.",
       "radius": "Rayon de la sphère qui émet ; `emitterRadius` dans le stockage du moteur.",
       "kind": "Quel genre de lumière c’est : `'point'`, `'spot'`, `'directional'`…",
+      "copy": "Prend les valeurs de nœud de `source` et, d’une lumière, ses nombres, couleurs, coefficients et visée ; son propre `kind` reste.",
       "needsUpdate": "`light.needsUpdate = true` après avoir écrit `sh` sur place : le monde le relit.",
       "lookAt": "Vise un point du monde avec la lumière : une lumière directionnelle ou un spot y déplace sa `target` — sa direction en découle —, et le nœud tourne aussi, ce qui oriente un rectangle."
     }

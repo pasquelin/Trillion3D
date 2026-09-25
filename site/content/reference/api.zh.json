@@ -368,6 +368,7 @@
       "top": "正交视野盒的上边界。",
       "bottom": "正交视野盒的下边界。",
       "projection": "`'perspective'` 会让远处的物体变小;`'orthographic'` 则保持所有尺寸不变。",
+      "copy": "取 `source` 的节点值，若为相机则取其光学参数；自身的 `projection` 保持不变。",
       "updateProjectionMatrix": "为了兼容那些针对需要它的渲染器而写的页面而保留:任何光学参数的写入本身就已经会触发重绘。",
       "rayThrough": "穿过画面上某一点的世界射线，按引擎自己的投影计算（`engineCamera.ts`）：透视相机从眼睛出发沿视线方向，正交相机从盒子出发笔直沿视线方向。它的方向是单位向量。",
       "set": "把眼睛放在 `pose.position`,朝向 `pose.target` 看,并使用指定的视场角。"
@@ -1592,6 +1593,7 @@
       "height": "矩形光源的高度。",
       "radius": "发光球体的半径;在引擎的存储中对应 `emitterRadius`。",
       "kind": "这是哪一种光源:`'point'`、`'spot'`、`'directional'`……",
+      "copy": "取 `source` 的节点值，若为灯光则取其数值、颜色、系数和瞄准；自身的 `kind` 保持不变。",
       "needsUpdate": "原地写入 `sh` 之后设置 `light.needsUpdate = true`:世界会重新读取它。",
       "lookAt": "让光源瞄准世界中的某一点:定向光或聚光灯会把它的 `target` 移动到那里——其方向由此读取——同时该节点本身也会转动,矩形光源正是依据这个朝向来确定其朝向的。"
     }
