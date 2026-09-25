@@ -35,6 +35,11 @@ fn lossless_astc(texture: u32, width: u32, height: u32, fill: u8) -> TexturePrev
     entry.blocks[1] = Vec::new();
     entry
 }
+/// The entries encoded into fresh columns.
+fn encode(previews: &[TexturePreview]) -> Result<()> {
+    let mut columns: Vec<Column> = (0..COLUMNS).map(|_| Column::default()).collect();
+    crate::manifest_binary::preview::encode_previews(previews, &mut columns)
+}
 
 // Behavior 9 (a): sidecar does round-trip write/read of preview section —
 // each field written by `split` reads back identical bit-for-bit, without decoder.
@@ -116,17 +121,12 @@ fn texture_previews_round_trip_through_the_binary_columns() {
 // is refused.
 #[test]
 fn encode_previews_rejects_the_wrong_block_byte_length() {
-    let mut columns: Vec<Column> = (0..COLUMNS).map(|_| Column::default()).collect();
     let mut malformed = preview(0, 4, 4, 1);
     malformed.blocks[1].pop();
-    assert!(crate::manifest_binary::preview::encode_previews(&[malformed], &mut columns).is_err());
-    let mut columns: Vec<Column> = (0..COLUMNS).map(|_| Column::default()).collect();
+    assert!(encode(&[malformed]).is_err());
     let mut lossless_with_bytes = preview(0, 4, 4, 1);
     lossless_with_bytes.layouts[0] = None;
-    assert!(
-        crate::manifest_binary::preview::encode_previews(&[lossless_with_bytes], &mut columns)
-            .is_err()
-    );
+    assert!(encode(&[lossless_with_bytes]).is_err());
 }
 
 // Behavior 9 (b): file from earlier version (here 3, fixed-length previews)
@@ -143,65 +143,49 @@ fn a_sidecar_of_an_older_version_is_refused() {
 // can have one entry per atlas, color before data, never same atlas twice.
 #[test]
 fn encode_previews_rejects_a_decreasing_texture_index() {
-    let mut columns: Vec<Column> = (0..COLUMNS).map(|_| Column::default()).collect();
-    let previews = vec![preview(3, 4, 4, 1), preview(2, 4, 4, 1)];
-    let error =
-        crate::manifest_binary::preview::encode_previews(&previews, &mut columns).unwrap_err();
+    let error = encode(&[preview(3, 4, 4, 1), preview(2, 4, 4, 1)]).unwrap_err();
     assert_eq!(error.code, "INVALID_MANIFEST");
-    let mut columns: Vec<Column> = (0..COLUMNS).map(|_| Column::default()).collect();
     let mut data = preview(2, 4, 4, 1);
     data.kind = AtlasKind::Data;
-    let both = vec![preview(2, 4, 4, 1), data];
-    crate::manifest_binary::preview::encode_previews(&both, &mut columns)
-        .expect("one entry per atlas");
-    let mut columns: Vec<Column> = (0..COLUMNS).map(|_| Column::default()).collect();
-    let twice = vec![preview(2, 4, 4, 1), preview(2, 4, 4, 1)];
-    assert!(crate::manifest_binary::preview::encode_previews(&twice, &mut columns).is_err());
+    encode(&[preview(2, 4, 4, 1), data]).expect("one entry per atlas");
+    assert!(encode(&[preview(2, 4, 4, 1), preview(2, 4, 4, 1)]).is_err());
 }
 
 // #42: a coverage chain is its texture's colour-atlas entry — before the data one, and never
 // beside a plain colour one, which the engine could not tell apart from it.
 #[test]
 fn encode_previews_keeps_one_colour_entry_per_texture() {
-    let encode = |previews: Vec<TexturePreview>| {
-        let mut columns: Vec<Column> = (0..COLUMNS).map(|_| Column::default()).collect();
-        crate::manifest_binary::preview::encode_previews(&previews, &mut columns)
-    };
     let with = |kind| TexturePreview {
         kind,
         ..preview(2, 4, 4, 1)
     };
     use AtlasKind::{Color, Coverage, Data};
-    encode(vec![with(Coverage), with(Data)]).expect("coverage then data");
-    assert!(encode(vec![with(Data), with(Coverage)]).is_err());
-    assert!(encode(vec![with(Color), with(Coverage)]).is_err());
+    encode(&[with(Coverage), with(Data)]).expect("coverage then data");
+    assert!(encode(&[with(Data), with(Coverage)]).is_err());
+    assert!(encode(&[with(Color), with(Coverage)]).is_err());
 }
 
 // Behavior 9 (g): more baked levels than tail leaves above it refused.
 #[test]
 fn encode_previews_rejects_more_baked_levels_than_the_tail_leaves() {
-    let mut columns: Vec<Column> = (0..COLUMNS).map(|_| Column::default()).collect();
     let mut malformed = preview(0, 128, 128, 1);
     malformed.baked_levels += 1;
-    assert!(crate::manifest_binary::preview::encode_previews(&[malformed], &mut columns).is_err());
+    assert!(encode(&[malformed]).is_err());
 }
 
 // Behavior 9 (d): zero source dimension refused.
 #[test]
 fn encode_previews_rejects_a_null_dimension() {
-    let mut columns: Vec<Column> = (0..COLUMNS).map(|_| Column::default()).collect();
-    let previews = vec![preview(0, 0, 4, 1)];
-    assert!(crate::manifest_binary::preview::encode_previews(&previews, &mut columns).is_err());
+    assert!(encode(&[preview(0, 0, 4, 1)]).is_err());
 }
 
 // Behavior 9 (e): wrong pixel byte count — false level shift viewed
 // from level constants — refused.
 #[test]
 fn encode_previews_rejects_the_wrong_pixel_byte_length() {
-    let mut columns: Vec<Column> = (0..COLUMNS).map(|_| Column::default()).collect();
     let mut malformed = preview(0, 4, 4, 1);
     malformed.pixels.pop();
-    assert!(crate::manifest_binary::preview::encode_previews(&[malformed], &mut columns).is_err());
+    assert!(encode(&[malformed]).is_err());
 }
 
 // Behavior 9 (f): entry whose announced first level contradicts dimensions
@@ -209,10 +193,8 @@ fn encode_previews_rejects_the_wrong_pixel_byte_length() {
 // not at fault: declared geometry, not pixel size, lies here.
 #[test]
 fn encode_previews_rejects_a_first_level_that_disagrees_with_the_dimensions() {
-    let mut columns: Vec<Column> = (0..COLUMNS).map(|_| Column::default()).collect();
     let mut malformed = preview(0, 128, 128, 1);
     malformed.first_level += 1;
-    let error =
-        crate::manifest_binary::preview::encode_previews(&[malformed], &mut columns).unwrap_err();
+    let error = encode(&[malformed]).unwrap_err();
     assert_eq!(error.code, "INVALID_MANIFEST");
 }

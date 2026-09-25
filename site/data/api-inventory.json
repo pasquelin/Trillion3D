@@ -6519,9 +6519,23 @@
       "currentEntryPoints": ["trillion3d (common)"],
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
-      "affectedConsumers": ["packages/sdk-browser/src/webgpu/pages/prepare/textures.ts"],
+      "affectedConsumers": [
+        "packages/sdk-browser/src/webgpu/pages/prepare/textures.ts",
+        "packages/sdk-browser/src/webgpu/tile/catalogue.test.ts"
+      ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/texture/previewFormat\".PREVIEW_ATLAS_COLOR"
+    },
+    {
+      "name": "PREVIEW_ATLAS_COVERAGE",
+      "kind": "value",
+      "definingModule": "packages/sdk-core/src/texture/previewFormat.ts",
+      "currentEntryPoints": ["trillion3d (common)"],
+      "proposedEnvironments": "common, browser, node, worker",
+      "classification": "public",
+      "affectedConsumers": ["packages/sdk-browser/src/webgpu/tile/catalogue.test.ts"],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/src/texture/previewFormat\".PREVIEW_ATLAS_COVERAGE"
     },
     {
       "name": "PREVIEW_ATLAS_DATA",
@@ -6530,7 +6544,10 @@
       "currentEntryPoints": ["trillion3d (common)"],
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
-      "affectedConsumers": ["packages/sdk-browser/src/webgpu/pages/prepare/textures.ts"],
+      "affectedConsumers": [
+        "packages/sdk-browser/src/webgpu/pages/prepare/textures.ts",
+        "packages/sdk-browser/src/webgpu/tile/catalogue.test.ts"
+      ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/texture/previewFormat\".PREVIEW_ATLAS_DATA"
     },
@@ -8885,7 +8902,6 @@
       "affectedConsumers": [
         "packages/sdk-browser/src/texture/blockFormats.ts",
         "packages/sdk-browser/src/texture/skip.test.ts",
-        "packages/sdk-browser/src/webgpu/pages/prepare/textures.ts",
         "packages/sdk-browser/src/webgpu/tile/catalogue.test.ts",
         "packages/sdk-browser/src/webgpu/tile/catalogue.ts",
         "tests/fixtures/manifestBinaryPreview.ts"
