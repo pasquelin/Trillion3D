@@ -1,4 +1,4 @@
-import type { CutDelta } from './delta.ts';
+import type { IdDelta } from './delta.ts';
 
 /**
  * The keys one cut holds, counted per placement.
@@ -22,7 +22,7 @@ export function createHeldKeys(options: {
   // enters or leaves, every frame.
   const refs = new Int32Array(Math.max(1, keyCount));
   return {
-    apply(delta: CutDelta) {
+    apply(delta: IdDelta) {
       for (let i = 0; i < delta.exitedCount; i++) {
         const id = delta.exited[i],
           key = keyOfPageId[id];

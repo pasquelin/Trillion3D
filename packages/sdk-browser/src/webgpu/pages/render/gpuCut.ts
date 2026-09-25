@@ -58,10 +58,9 @@ export function renderGpuCut(
   run.cpuSelectMs = null;
   marks.cpuStart = cpuStart;
   marks.lightsEnd = lightsEnd;
-  // `budgetPixelError` carries the previous frame's verdict, the same feedback `pageBudget` applies
-  // on the CPU path.
-  const budgeted = Math.max(pixelError, run.budgetPixelError);
-  cameraSelectionUniforms(cam, budgeted, viewport, run.selectionUniforms);
+  // The host's threshold, and no other: residency coarsens, one DAG level where a page is missing
+  // (`../../../page/cut/rule.ts`).
+  cameraSelectionUniforms(cam, pixelError, viewport, run.selectionUniforms);
   // An image that adopts no readback moves no page; the adoption reports what it actually moved.
   run.pagesEntered = 0;
   run.pagesExited = 0;
@@ -73,17 +72,16 @@ export function renderGpuCut(
   // One cut covers both passes: the image sweeps no DAG of its own for the transparents any more.
   marks.transparentSelectEnd = marks.adoptEnd;
   if (run.gpuMetricsReady) run.visible = run.desired.length;
-  admitGpuCut(rt, pixelError);
-  if (!services.bootstrapState.ready || gpu.cutIncomplete) {
-    // The image is not complete: nothing can be held on it. Origin of the resource change: bootstrap
-    // does not yet have all its pages — or a wanted page has not arrived yet, which puts the image
-    // in wait without ever dropping GPU selection.
+  admitGpuCut(rt);
+  if (!services.bootstrapState.ready) {
+    // The root cover is not resident yet: nothing can be drawn, nor held. Origin of the resource
+    // change: bootstrap does not yet have all its pages. Once it has, every surface is drawn by a
+    // resident representation (`../../../page/cut/rule.ts`), and no frame waits again.
     run.gate.resourcesChanged();
     run.gpuMetricsReady = false;
     marks.admissionEnd = performance.now();
-    // Incomplete coverage never reaches the screen: the displayed image stays the previous one. But
-    // the wait keeps asking for missing pages, syncing residency and sending selection — that is the
-    // only send that can produce the complete sample of the resume.
+    // The wait keeps asking for missing pages, syncing residency and sending selection — that is
+    // the only send that can produce the sample of the resume.
     // Overflow or a lost send take from the wait every way to succeed: it can no longer wait for a
     // sample nobody will produce, and the CPU cut takes the image back.
     if (!streamCutResidency(rt, gpuDevice, run.gpuSelection)) return withoutCandidateCapacity(rt);
