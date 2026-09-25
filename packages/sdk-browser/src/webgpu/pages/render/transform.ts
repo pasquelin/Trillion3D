@@ -121,7 +121,6 @@ export function setWebgpuTransform(rt: WebgpuPagesRuntime, nodeName: string, mat
     underNode[i] = isUnder(root.pages[0]?.sourceMesh, node) ? 1 : 0;
     if (!underNode[i] || !root.worldBox) continue;
     boxUnionBatch(moved, root.worldBox, 1);
-    promoted = lights.mobility.move(i) === MOVE_PROMOTED || promoted;
   }
   // The local matrix is authoritative, not the three fields: not every matrix is a
   // translation-rotation-scale product. A shear — two non-orthogonal axes, which a non-uniform
@@ -150,7 +149,10 @@ export function setWebgpuTransform(rt: WebgpuPagesRuntime, nodeName: string, mat
     if (!underNode[i]) continue;
     const root = roots[i];
     moveRootRows(rt, root);
-    if (!root.localBox || !root.worldBox) continue;
+    if (!root.worldBox) continue;
+    // A node moved: each root under it moved, at the pose it now reads.
+    promoted = lights.mobility.move(i, root.world.elements, true) === MOVE_PROMOTED || promoted;
+    if (!root.localBox) continue;
     if (!enLot) boxTransform(root.worldBox, 0, root.localBox, 0, root.world.elements);
     boxUnionBatch(moved, root.worldBox, 1);
   }

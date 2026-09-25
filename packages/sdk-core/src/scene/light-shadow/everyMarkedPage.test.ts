@@ -11,7 +11,7 @@ import { SUN, VIEW, cycleDrawn, planFrame } from './lightShadow.fixture.ts';
 import { covers, currentPage, entriesOf, sunBlock, type SunPage } from './sunView.fixture.ts';
 
 /** A sun over the fixture scene, planned once, and three levels of `side²` pages it reads. */
-function sunScene(side = 8) {
+function sunReading(side = 8) {
   const store = createSceneLightStore();
   const plan = createShadowPlan(32);
   store.add(SUN);
@@ -37,7 +37,7 @@ function assertCurrent(
 }
 
 test('a camera sweep: each frame reads current pages, and draws only the pages entering', () => {
-  const { store, plan, slice, read } = sunScene(6);
+  const { store, plan, slice, read } = sunReading(6);
   const step = sunPageMetres(plan.sun.finest[slice] + 2);
   const eye = (frame: number) => [(frame - 1) * step, 5, 0] as const;
   let named = read(eye(1));
@@ -57,7 +57,7 @@ test('a camera sweep: each frame reads current pages, and draws only the pages e
 });
 
 test('a caster moving every frame redraws its old and new bounds in the frame of the move', () => {
-  const { store, plan, slice, read } = sunScene();
+  const { store, plan, slice, read } = sunReading();
   const named = read();
   for (let frame = 1; frame < 4; frame++)
     cycleDrawn(plan, store, frame, () => entriesOf(plan, slice, named));
@@ -78,7 +78,7 @@ test('a caster moving every frame redraws its old and new bounds in the frame of
 });
 
 test('casters created and freed every frame leave no page holding a freed caster', () => {
-  const { store, plan, slice, read } = sunScene();
+  const { store, plan, slice, read } = sunReading();
   const named = read();
   for (let frame = 1; frame < 4; frame++)
     cycleDrawn(plan, store, frame, () => entriesOf(plan, slice, named));
@@ -101,7 +101,7 @@ test('casters created and freed every frame leave no page holding a freed caster
 });
 
 test('a still camera under still lights draws nothing once the frame that reads converges', () => {
-  const { store, plan, slice, read } = sunScene();
+  const { store, plan, slice, read } = sunReading();
   const named = read();
   cycleDrawn(plan, store, 1, () => entriesOf(plan, slice, named));
   const first = cycleDrawn(plan, store, 2, () => entriesOf(plan, slice, named));
