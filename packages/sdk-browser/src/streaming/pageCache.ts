@@ -36,20 +36,15 @@ const checkBytes = (bytes: number) => {
  *
  * The total is shared by a fixed rule: the session reading through it reserves its manifest
  * tables, its transfer queue and the engine's tables (`manifestTableBytes`, `maxTransferBytes`, the
- * streamer's `reserve`), the files kept whole beside them theirs (`keep`), and the pages hold the
+ * streamer's `reserve`), the scene's resident proxy its own (`keep`), and the pages hold the
  * rest (`budgetBytes`). A total set lower applies at once: pages leave by last use until they fit,
  * save those the session pins.
  */
 export function createPageCache(cpuBytes = DEFAULT_CACHED_BYTES) {
   checkBytes(cpuBytes);
   const pages = new Map<string, Uint8Array>();
-  /** Files kept whole beside the pages, by url, and the bytes each takes off the total. */
-  const kept = new Map<string, { bytes: number; array?: Uint8Array }>();
-  let keptBytes = 0;
-  const unkeep = (url: string) => {
-    keptBytes -= kept.get(url)?.bytes ?? 0;
-    kept.delete(url);
-  };
+  /** The one file kept whole beside the pages, and the bytes it takes off the total. */
+  let slot: { url: string; bytes: number; array?: Uint8Array } | undefined;
   let bytes = 0,
     total = cpuBytes,
     holder: Holder | undefined;
@@ -82,9 +77,9 @@ export function createPageCache(cpuBytes = DEFAULT_CACHED_BYTES) {
     get cpuBytes() {
       return total;
     },
-    /** Bytes reserved off the total: the session's in place, and the kept files'. */
+    /** Bytes reserved off the total: the session's in place, and the kept file's. */
     get reservedBytes() {
-      return (holder?.reserved() ?? 0) + keptBytes;
+      return (holder?.reserved() ?? 0) + cache.keptBytes;
     },
     /** Bytes the pages may hold: the total less what the session reserves. */
     get budgetBytes() {
@@ -103,25 +98,27 @@ export function createPageCache(cpuBytes = DEFAULT_CACHED_BYTES) {
         if ((sizes.get(url)?.bytes ?? held.byteLength) !== held.byteLength) drop(url);
     },
     /**
-     * A file kept whole beside the pages — a scene's resident proxy —, never evicted: `bytes` come
-     * off the total from the moment it is asked, while it is in flight; `array` once it lands. It
-     * stays kept, across sessions, until `keepOnly` no longer names it.
+     * Keeps `url` whole beside the pages — the scene's resident proxy —, in place of any other, never
+     * evicted: an announced size comes off the total from the moment it is asked, while it is in
+     * flight, then the bytes that landed. It stays kept, across sessions, until `keepOnly` no
+     * longer names it.
      */
-    keep(url: string, bytes: number, array?: Uint8Array) {
-      unkeep(url);
-      kept.set(url, { bytes, array });
-      keptBytes += bytes;
+    keep(url: string, held: number | Uint8Array) {
+      slot =
+        typeof held === 'number'
+          ? { url, bytes: held }
+          : { url, bytes: held.byteLength, array: held };
       evict();
     },
-    /** Bytes the kept files take off the total. */
+    /** Bytes the kept file takes off the total. */
     get keptBytes() {
-      return keptBytes;
+      return slot?.bytes ?? 0;
     },
-    /** The bytes of a kept file that landed. */
-    kept: (url: string) => kept.get(url)?.array,
-    /** Keeps only the files `urls` names: those of a scene gone leave, or one that failed. */
-    keepOnly(urls: readonly string[]) {
-      for (const url of kept.keys()) if (!urls.includes(url)) unkeep(url);
+    /** The bytes kept for `url`, once they landed. */
+    kept: (url: string) => (slot?.url === url ? slot.array : undefined),
+    /** Lets the kept file go unless it is `url`'s: a scene gone, or a read that failed. */
+    keepOnly(url?: string) {
+      if (slot?.url !== url) slot = undefined;
     },
     /** Sets the total, and evicts at once what no longer fits. */
     resize(cpu: number) {
@@ -139,8 +136,8 @@ export function createPageCache(cpuBytes = DEFAULT_CACHED_BYTES) {
     /** Empties the cache: its owner is gone. */
     clear() {
       pages.clear();
-      kept.clear();
-      bytes = keptBytes = 0;
+      slot = undefined;
+      bytes = 0;
     },
   };
   return cache;
