@@ -21,14 +21,10 @@ test('a cache is compiled again when missing, compiled otherwise, or older than 
     writeFileSync(texture, '');
     utimesSync(texture, 1, 1);
     assert.equal(isStale(scene, temporary, 0), true, 'no cache yet');
-    writeFileSync(stamp, JSON.stringify({ source: 'source', simplification: 'none', budget: '1' }));
+    const options = { source: 'source', simplification: 'none' };
+    writeFileSync(stamp, JSON.stringify({ ...options, budget: '1' }));
     assert.equal(isStale(scene, temporary, 0), true, 'another triangle budget');
-    const current = {
-      source: 'source',
-      simplification: 'none',
-      budget: '150000',
-      files: ['a.png'],
-    };
+    const current = { ...options, budget: '150000', files: ['a.png'] };
     writeFileSync(stamp, JSON.stringify({ ...current, files: ['b.png'] }));
     assert.equal(isStale(scene, temporary, 0), true, 'a source file removed or renamed since');
     writeFileSync(stamp, JSON.stringify(current));
