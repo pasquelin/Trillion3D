@@ -76,6 +76,8 @@ export type StreamContext = {
     dropped: number;
     disposed: boolean;
     cachedBytes: number;
+    /** Bytes the engine's own tables take from the cache's share (`reserve`). */
+    reservedBytes: number;
   };
   emit: (phase: string, message: string, context: () => Record<string, unknown>) => void;
   abortError: () => DOMException;

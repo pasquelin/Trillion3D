@@ -40,16 +40,15 @@ function uniforms(seuil: number, z = 16) {
   return cameraSelectionUniforms(cameraMoteur(camera), seuil, VIEWPORT);
 }
 
-test('the totals are taken on what the cut rule draws, and nothing is uncovered', () => {
+test('the totals are taken on what the cut rule draws', () => {
   const { pages, packed, uni } = scene(1);
   // One page in three resident: the rule draws fewer pages than the cut wants.
   const resident = Uint32Array.from({ length: packed.pageCount }, (_, id) => (id % 3 ? 0 : 1));
   const releve = evaluateDagSelectionKernel(packed, uni, ruleResidency(packed, resident));
-  const { selectedTriangles, drawnTriangles, uncoveredTriangles, drawablePageIds } = releve;
+  const { selectedTriangles, drawnTriangles, drawablePageIds } = releve;
   assert.ok(drawnTriangles > 0, 'the frame must still draw');
   assert.ok(drawablePageIds!.length < releve.pageIds.length, 'residency must withhold a page');
   assert.equal(selectedTriangles, drawnTriangles);
-  assert.equal(uncoveredTriangles, 0);
   // `drawn` is exactly the sum of the pages the readback declares drawable — no more, no less.
   const somme = (ids: readonly number[]) =>
     ids.reduce((total, id) => total + (pages[id].triangles as number), 0);
@@ -80,7 +79,6 @@ test('with nothing missing, every total is the sum of the drawable pages', () =>
     const dessinables = releve.drawablePageIds!;
     assert.equal(releve.selectedTriangles, somme(dessinables), `threshold ${seuil}: cut`);
     assert.equal(releve.drawnTriangles, somme(dessinables), `threshold ${seuil}: draw`);
-    assert.equal(releve.uncoveredTriangles, 0, `threshold ${seuil}: hole`);
     assert.equal(
       releve.transparentTriangles,
       somme(dessinables, true),

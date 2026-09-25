@@ -909,9 +909,10 @@ as `world.budget.split`:
   each pool its own default, so a page that sets nothing sees no change. The shadows never shrink:
   a total under the shadow pool is refused (`GPU_BUDGET_UNDER_SHADOW_POOL`).
 - CPU: the shadow page table's host mirror first (20.8 MiB, fixed whatever the screen), then the
-  decoded-page cache takes the rest, taken by the next scene load. The default total is the mirror
-  plus the cache's own default; a total not above the mirror is refused
-  (`CPU_BUDGET_UNDER_SHADOW_MIRROR`).
+  decoded-page cache takes the rest, taken by the next scene load. The engine's cut tables (group
+  closure and residency readiness, sized by the scene's placed pages) come out of that cache share
+  once the scene is prepared. The default total is the mirror plus the cache's own default; a total
+  not above the mirror is refused (`CPU_BUDGET_UNDER_SHADOW_MIRROR`).
 
 ```js
 world.budget.gpu = 1024 * 1024 * 1024; // one total: every pool redrawn by the split

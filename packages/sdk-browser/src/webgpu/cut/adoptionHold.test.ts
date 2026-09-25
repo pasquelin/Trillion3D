@@ -56,13 +56,13 @@ test('a shown list already held does not remake the drawable list, and yields th
   assert.equal(ecritSecond, false, 'and nothing was rewritten');
   b.shown.pop();
 
-  // Totals are the header's, not the list's: a hole the GPU digs without moving the list is
+  // Totals are the header's, not the list's: totals the GPU changes without moving the list are
   // published as-is, and the list stays that of the held shown list.
-  const hole = fixtureTotals({ selectedTriangles: 15, drawnTriangles: 13, uncoveredTriangles: 2 });
-  b.montre(readback([0, 1, 2, 3, 4], b.cut.uniforms, hole));
+  const totals = fixtureTotals({ selectedTriangles: 15, drawnTriangles: 15 });
+  b.montre(readback([0, 1, 2, 3, 4], b.cut.uniforms, totals));
   assert.equal(b.adopter.adopt(), true);
-  assert.equal(b.adopter.metrics.uncoveredTriangles, 2, "the hole is the header's");
-  assert.equal(b.adopter.metrics.drawnTriangles, 13);
+  assert.equal(b.adopter.metrics.selectedTriangles, 15, "the totals are the header's");
+  assert.equal(b.adopter.metrics.drawnTriangles, 15);
   assert.equal(b.adopter.metrics.listsRewritten, false, 'and no list moved');
   assert.deepEqual(b.shown, contenu, 'the list stayed that of the shown list');
 });

@@ -7,8 +7,10 @@ import { renderWebgpuPages } from '../render/render.ts';
 import { defaultEngineCamera } from '../../../camera/world.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 
-/** What the image waits for when the budget has taken its cut: nothing, and always the same nothing. */
-const EMPTY_CUT: readonly PageRec[] = [];
+/** The cut the host keeps: the requested one, or past the page budget the part the pool accepted —
+ *  the rest is drawn by its nearest resident ancestor and never fetched. */
+const retainedCut = (rt: WebgpuPagesRuntime): readonly PageRec[] =>
+  rt.run.coverageBudgetLimited ? rt.services.residencySets.wantedPages : rt.run.desired;
 
 /**
  * The contract's light store has changed. Nothing is recomputed here: the next image rereads the
@@ -128,13 +130,11 @@ export function pendingUrls(rt: WebgpuPagesRuntime) {
   held.limited = run.coverageBudgetLimited;
   held.ready = ready;
   // Until pinned coverage is there, that is what we wait for. Then the cut itself holds the list of
-  // its rows without bytes: those are the only ones to walk, and a fully arrived cut — the ordinary
-  // case — walks none.
+  // its rows without bytes that the pool accepted: those are the only ones to walk, and a fully
+  // arrived cut — the ordinary case — walks none.
   const waiting = !ready
     ? awaitedPages(rt.setup.bootstrap, run.awaitedScratch)
-    : run.coverageBudgetLimited
-      ? EMPTY_CUT
-      : rt.services.cutPending.records;
+    : rt.services.cutPending.records;
   return collectPendingUrls(waiting, run.hostPendingScratch, rt.setup.requestStamps);
 }
 
@@ -165,7 +165,7 @@ export function pageUrls(rt: WebgpuPagesRuntime) {
   stamps.begin();
   stamps.mark(rt.setup.bootstrap, urlScratch);
   stamps.mark(run.shown, urlScratch);
-  if (!run.coverageBudgetLimited) withClosure(run.desired, (list) => stamps.mark(list, urlScratch));
+  withClosure(retainedCut(rt), (list) => stamps.mark(list, urlScratch));
   return urlScratch;
 }
 
@@ -192,6 +192,6 @@ export function retainedRanks(rt: WebgpuPagesRuntime) {
   ranks.begin();
   ranks.mark(rt.setup.bootstrap);
   ranks.mark(run.shown);
-  if (!run.coverageBudgetLimited) withClosure(run.desired, ranks.mark);
+  withClosure(retainedCut(rt), ranks.mark);
   return ranks.finish();
 }
