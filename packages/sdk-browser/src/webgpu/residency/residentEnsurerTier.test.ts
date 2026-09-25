@@ -5,19 +5,33 @@ import { STREAMING_FRAME_MS } from '../../backend/common.ts';
 import { createWebgpuResidencyQueue } from './queue.ts';
 import { lruCache, pageOf, tierEnsurer } from './residentEnsurer.fixture.ts';
 
-/** A pool whose every load spends a whole main-thread share, on a clock the test owns. */
-function slowCache(slots: number) {
+/** A pool whose every load spends `cost` of the main-thread share (a whole one by default), on a
+ *  clock the test owns. `perTask` counts the loads between two yields: each posts one message
+ *  (`yieldToEventLoop`). */
+function slowCache(slots: number, cost = STREAMING_FRAME_MS) {
   let clock = 0;
   mock.method(performance, 'now', () => clock);
+  const yields = mock.method(MessagePort.prototype, 'postMessage');
   const cache = lruCache(slots),
     load = cache.load,
-    order: string[] = [];
+    order: string[] = [],
+    perTask: number[] = [];
   cache.load = async (url: string) => {
-    clock += STREAMING_FRAME_MS;
+    const task = yields.mock.callCount();
+    perTask[task] = (perTask[task] ?? 0) + 1;
+    clock += cost;
     order.push(url);
     await load(url);
   };
-  return { cache, order };
+  return { cache, order, perTask };
+}
+
+/** Twelve pages the camera wants. */
+function burst() {
+  const pages = Array.from({ length: 12 }, (_, i) => pageOf(`p${i}`));
+  const tracking = createWebgpuPageTracking(pages);
+  for (const page of pages) tracking.wanted.add(tracking.keyOf(page), page);
+  return { pages, tracking };
 }
 
 test('a barrier, which passes no camera probe, posts every caster before it resolves', async () => {
@@ -37,24 +51,10 @@ test('a barrier, which passes no camera probe, posts every caster before it reso
 });
 
 test('a task starts no page past the published share', async () => {
-  const pages = Array.from({ length: 12 }, (_, i) => pageOf(`p${i}`));
-  const tracking = createWebgpuPageTracking(pages);
-  for (const page of pages) tracking.wanted.add(tracking.keyOf(page), page);
-  let clock = 0;
-  mock.method(performance, 'now', () => clock);
-  // Each yield posts one message (`yieldToEventLoop`): the pages loaded between two are one task's.
-  const yields = mock.method(MessagePort.prototype, 'postMessage');
-  const cost = STREAMING_FRAME_MS * 0.3,
-    perTask: number[] = [];
-  const cache = lruCache(16),
-    load = cache.load;
-  cache.load = async (url: string) => {
-    const task = yields.mock.callCount();
-    perTask[task] = (perTask[task] ?? 0) + 1;
-    clock += cost;
-    await load(url);
-  };
+  const { pages, tracking } = burst();
+  const cost = STREAMING_FRAME_MS * 0.3;
   try {
+    const { cache, perTask } = slowCache(16, cost);
     await tierEnsurer(tracking, cache, () => [])(pages, 1, 1);
     const tasks = perTask.filter(Boolean);
     assert.equal(cache.resident.size, 12, 'every page admitted');
@@ -67,9 +67,7 @@ test('a task starts no page past the published share', async () => {
 });
 
 test('a hidden tab, where no frame comes, loads a whole burst, a share per task', async () => {
-  const pages = Array.from({ length: 12 }, (_, i) => pageOf(`p${i}`));
-  const tracking = createWebgpuPageTracking(pages);
-  for (const page of pages) tracking.wanted.add(tracking.keyOf(page), page);
+  const { pages, tracking } = burst();
   const frames = globalThis as { requestAnimationFrame?: unknown };
   frames.requestAnimationFrame = () => 0;
   try {
