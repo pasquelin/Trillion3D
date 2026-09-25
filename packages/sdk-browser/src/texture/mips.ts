@@ -61,8 +61,8 @@ const MIP_SHADER = `
   let u=min(max(s0.w,s1.w),max(s2.w,s3.w));
   let v=max(min(s0.w,s1.w),min(s2.w,s3.w));
   let a=vec4f(s0.w,s1.w,s2.w,s3.w);
-  let premultiplied=(s0.rgb*s0.w+s1.rgb*s1.w+s2.rgb*s2.w+s3.rgb*s3.w)/dot(a,vec4f(1.0));
-  return vec4f(select(mean.rgb,premultiplied,weighted&&any(a!=vec4f(s0.w))),(u+v)*0.5);
+  let byAlpha=(s0.rgb*s0.w+s1.rgb*s1.w+s2.rgb*s2.w+s3.rgb*s3.w)/dot(a,vec4f(1.0));
+  return vec4f(select(mean.rgb,byAlpha,weighted&&any(a!=vec4f(s0.w))),(u+v)*0.5);
  }`;
 
 function mipProgram(device: GPUDevice): MipProgram {
