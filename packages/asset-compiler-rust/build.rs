@@ -34,6 +34,8 @@ fn physics_cook(output: &Path) -> String {
         "cook",
         "src/blob.h",
         "src/mesh.h",
+        "src/softSettings.h",
+        "src/words.h",
         "CMakeLists.txt",
         "JoltPhysics/Jolt",
     ] {
