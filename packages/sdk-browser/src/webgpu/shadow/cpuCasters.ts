@@ -107,7 +107,8 @@ export function selectCpuCasters(rt: WebgpuPagesRuntime, device: GPUDevice, cam:
   lists.runs = 0;
   forEachShadowBatch(rt, (from, to, runBase) => {
     writeShadowPages(lights, lights.shadowSlots, cam.eye, lights.shadowPixelError, from, to);
-    holdRuns(lists, (lists.runs = runBase + runs.count));
+    lists.runs = runBase + runs.count;
+    holdRuns(lists, lists.runs);
     for (let r = 0; r < runs.count; r++) {
       const face = runs.list[r],
         at = runBase + r;
