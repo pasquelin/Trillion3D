@@ -4,7 +4,8 @@
 // pages backend where the fixture names them (glass, #479) — and read pixel by pixel at the points
 // that exercise its feature — base colour, its map, alpha MASK at its cutoff, BLEND, emissive,
 // metal-roughness, normal map, double-sided, glass. A gap outside the fixture's declared window,
-// a missing render diagnostic, a GPU failure or an engine image that never holds turns the run red.
+// a missing render diagnostic, a GPU failure or an engine image that never holds turns the run red,
+// and so does a grazing fixture farther than its tolerance from its ground truth (#443).
 //
 // The harness server of `bench/runner` serves the page and its import map, the SDK, the page
 // modules of `tests/` and the engine sources they import; nothing outside this repository is
@@ -17,6 +18,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { withRepoPage } from '../../kit/server/repoPage.ts';
 import { ANISOTROPY_GAIN, fixtures } from '../support/materialFixtures.ts';
+import { truthVerdict } from '../support/groundTruth.ts';
 import type { run as runOnPage } from '../support/materialPixelsPage.ts';
 import { measureOutput } from '../../../bench/core/paths.ts';
 
@@ -110,6 +112,18 @@ for (const side of ['reference', 'engine'] as const) {
     `${side}: anisotropy 16 spreads ${sharp} levels, anisotropy 1 ${flat}; ` +
       `at least ${ANISOTROPY_GAIN} more expected`,
   );
+}
+// #443: the grazing fixtures against their supersampled ground truth — the witness is not the
+// truth: the engine within the fixture's tolerance and no farther from it than the witness.
+for (const { name, truth } of result.results) {
+  if (!truth) continue;
+  const { tolerance, engine, reference } = truth;
+  console.log(
+    `${name}: ground truth gap, engine ${engine.pixels} px (max ${engine.max}), ` +
+      `witness ${reference.pixels} px (max ${reference.max}), tolerance ${tolerance ?? '—'}`,
+  );
+  const failure = tolerance === null ? undefined : truthVerdict(engine, reference, tolerance);
+  assert.equal(failure, undefined, `${name}: ${failure}`);
 }
 console.log(
   `OK: ${result.results.length} material fixtures agree with their reference — ${result.gpu}`,

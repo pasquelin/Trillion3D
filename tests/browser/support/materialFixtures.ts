@@ -135,6 +135,8 @@ export const fixtures: Fixture[] = [
       points: GRAZING_ROW,
       difference: [0, 255],
       reason: 'judged by the contrast each engine gains from anisotropy, not texel by texel',
+      // #443: 16× is judged against the ground truth, 1× only reported beside it.
+      truth: anisotropy === 16 ? 0 : null,
     }),
   ),
   // Review of #389: the camera raster alone cuts, on the colour read's alpha as the witness does
@@ -147,6 +149,7 @@ export const fixtures: Fixture[] = [
       points: GRAZING_ROW,
       difference: [0, degrees < 88 ? 2 : 255],
       reason: 'the same leaves and gaps, a leaf edge mixed by two footprints: no hole',
+      truth: 4,
     }),
   ),
   unlit('double-sided back face', () => ({ color: 0x2299cc, side: G.DOUBLE_SIDE }), {

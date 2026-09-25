@@ -11,6 +11,7 @@ import { cameraFace, releaseScene } from './sharedSceneProof.ts';
 import { ouvrirAppareil } from '../probes/webgpuDevice.ts';
 import { fixtures } from './materialFixtures.ts';
 import { SUN, WITNESS_PAIR, type Fixture, type Renderer } from './materialFixtureShape.ts';
+import { truthOf, type TruthReading } from './materialTruth.ts';
 import {
   witnessRenderer,
   sceneOf,
@@ -58,7 +59,9 @@ interface Comparison {
   samples: Reading[];
   /** Pixels where the engine shows the background and the reference a surface (`behind`). */
   holes?: number;
-  /** Each renderer's image, by its name. */
+  /** Both renderers against the supersampled ground truth, where the fixture declares one. */
+  truth?: TruthReading;
+  /** Each renderer's image, by its name, and the ground truth's. */
   images: Record<string, string>;
 }
 
@@ -110,6 +113,7 @@ async function compare(fixture: Fixture, sides: Sides): Promise<Comparison> {
   const pair = fixture.pair ?? WITNESS_PAIR;
   const reference = await drawn(pair[0], fixture, sides, events);
   const engine = await drawn(pair[1], fixture, sides, events);
+  const truth = truthOf(fixture, sides.camera, reference.pixels, engine.pixels);
   const { name, difference, reason } = fixture;
   return {
     name,
@@ -129,7 +133,8 @@ async function compare(fixture: Fixture, sides: Sides): Promise<Comparison> {
       };
     }),
     holes: fixture.behind !== undefined ? holesOf(reference.pixels, engine.pixels) : undefined,
-    images: { [pair[0]]: reference.dataUrl, [pair[1]]: engine.dataUrl },
+    truth: truth?.reading,
+    images: { [pair[0]]: reference.dataUrl, [pair[1]]: engine.dataUrl, ...truth?.images },
   };
 }
 
