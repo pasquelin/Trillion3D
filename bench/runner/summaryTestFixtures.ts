@@ -70,7 +70,6 @@ export const baseSide: Partial<Row> = {
     demande: 32,
     residentes: null,
     couvertureLimiteeParBudget: null,
-    seuilBudget: null,
   },
   geometrieOctets: null,
   charge: { debut: [], fin: [] },

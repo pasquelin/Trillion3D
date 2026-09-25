@@ -5011,7 +5011,6 @@
       "affectedConsumers": [
         "bench/oracles/browser/core-math-priority.ts",
         "bench/perf/browser/residency.perf.ts",
-        "packages/sdk-browser/src/backend/autonomous/poolSearch.ts",
         "packages/sdk-browser/src/gpu/core/selection.ts",
         "packages/sdk-browser/src/gpu/dag/pack.ts",
         "packages/sdk-browser/src/gpu/dag/request.test.ts",
