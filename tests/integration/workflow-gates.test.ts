@@ -84,7 +84,7 @@ test('the tool-installed hook of the same name still runs behind core.hooksPath'
 });
 
 const checkBody = (body: string, draft = '') =>
-  spawnSync(new URL('scripts/check-pr-body.sh', repo).pathname, [], {
+  spawnSync(process.execPath, [new URL('scripts/check-pr-body.ts', repo).pathname], {
     input: body,
     encoding: 'utf8',
     env: { ...process.env, PR_DRAFT: draft },
@@ -95,18 +95,35 @@ const verify = (body: string) =>
   body.replace('## Not proven', '- Item: delivered in a.ts:1, proved by a test\n\n## Not proven');
 const review = (body: string) =>
   body
-    .replace('- `/simplify`:', '- `/simplify`: nothing to change')
-    .replace('- `/code-review`:', '- `/code-review`: one fix');
+    .replace('- Simplification pass:', '- Simplification pass: nothing to change')
+    .replace('- Correctness review:', '- Correctness review: one fix');
 
 test('check-pr-body: the untouched template is refused, a filled one accepted', () => {
   assert.match(checkBody(template).stderr, /must start with "Closes #<issue>"/);
   assert.match(checkBody(linked).stderr, /"Lead verification" is missing or empty/);
   const verified = verify(linked);
-  assert.match(checkBody(verified).stderr, /no "\/simplify:" line/);
+  assert.match(checkBody(verified).stderr, /no "Simplification pass:" line/);
   const filled = review(verified);
   assert.equal(checkBody(filled).status, 0);
+  const noCorrectness = filled.replace('- Correctness review: one fix', '');
+  assert.match(checkBody(noCorrectness).stderr, /no "Correctness review:" line/);
+});
+
+test('check-pr-body: "Part of" is refused, alone or beside "Closes"', () => {
+  const filled = review(verify(linked));
   const both = filled.replace('## What changed', 'Part of #65\n\n## What changed');
-  assert.match(checkBody(both).stderr, /both "Closes" and "Part of"/);
+  assert.match(checkBody(both).stderr, /says "Part of #<issue>".*back to the CTO/);
+  const partOnly = filled.replace('Closes #65', 'Part of #65');
+  assert.equal(checkBody(partOnly).status, 1);
+  assert.doesNotMatch(checkBody(template).stderr, /Part of/);
+});
+
+test('check-pr-body: the old tool-named lines no longer stand for the review', () => {
+  const tooled = verify(linked).replace(
+    '- Simplification pass:\n- Correctness review:',
+    '- `/simplify`: nothing to change\n- `/code-review`: one fix',
+  );
+  assert.match(checkBody(tooled).stderr, /no "Simplification pass:" line/);
 });
 
 test('check-pr-body: a draft passes without Lead verification, a ready pull request needs it', () => {
@@ -115,11 +132,11 @@ test('check-pr-body: a draft passes without Lead verification, a ready pull requ
   assert.match(checkBody(reviewed, 'false').stderr, /"Lead verification" is missing or empty/);
   assert.equal(checkBody(verify(reviewed), 'false').status, 0);
   assert.match(checkBody(template, 'true').stderr, /must start with "Closes #<issue>"/);
-  assert.match(checkBody(linked, 'true').stderr, /no "\/simplify:" line/);
+  assert.match(checkBody(linked, 'true').stderr, /no "Simplification pass:" line/);
 });
 
 const checkSize = (cwd: string) =>
-  spawnSync(new URL('scripts/check-pr-size.sh', repo).pathname, ['base'], {
+  spawnSync(process.execPath, [new URL('scripts/check-pr-size.ts', repo).pathname, 'base'], {
     cwd,
     encoding: 'utf8',
   });
@@ -152,5 +169,6 @@ test("check-pr-size: more than 600 hand-written lines fail, with the base's attr
   const refused = checkSize(work);
   assert.equal(refused.status, 1);
   assert.match(refused.stdout, /added: 601 \(limit 600\)/);
-  assert.match(refused.stderr, /AGENTS\.md rule 11: split the pull request, `Part of #n`/);
+  assert.match(refused.stderr, /AGENTS\.md rule 11: the issue goes back to the CTO/);
+  assert.doesNotMatch(refused.stderr, /Part of/);
 });
