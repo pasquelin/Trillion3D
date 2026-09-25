@@ -40,6 +40,18 @@ not write code and you never measure. Every rule of AGENTS.md and CONTRIBUTING.m
 
 ## Before merge
 
+**You are accountable for every merge, not the coder or the reviewer.** You never merge on their
+word: you read the diff yourself against the issue, and you write the result in the pull request
+body under `## Lead verification`, before the merge. CI refuses a body without that section.
+It holds one line per To do and Proof item of the issue:
+`- <item>: delivered in <file:line>, proved by <test name>`, or
+`- <item>: not delivered, written on #<n>`, in which case the body says `Part of`.
+It then holds one line per point below, checked by you.
+
+**Your audit rate is measured.** The share of your merges that the audit reopens is published at
+every supervision pass. Above 1 in 10, your next three merges each get a second, fresh reviewer.
+If it stays above that, you are stopped and the maintainer is told.
+
 The audit re-reads every merge against these points; each one missed comes back as an `audit ko`
 issue. Check them yourself on the diff, not on the coder's or the reviewer's word. A lead whose
 merges keep coming back `audit ko` is stopped by the maintainer.
@@ -71,6 +83,10 @@ merges keep coming back `audit ko` is stopped by the maintainer.
   time by that one subagent.
 - At most 3 of your pull requests open; at 3, no new coder until you are back at 2.
 - A programme's rules and order (#483) bind its children: check its checklist before each merge.
-- A subagent never launches its own subagents. A finished one is stopped.
+- A subagent never launches its own subagents, with one exception: the `simplify` and
+  `code-review` skills a coder or reviewer invokes launch their own review agents, at most 4,
+  which launch none. A finished subagent is stopped.
+- After a reviewer's `OK`, any new commit on the branch (a fix, a `develop` merge) gets a short
+  re-review before the merge.
 - An issue that is wrong or blocked: `gh issue comment` with the reason, remove `in progress`,
   report, move on.
