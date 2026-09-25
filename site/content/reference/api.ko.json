@@ -2041,6 +2041,50 @@
       "localBounds": "이 노드 자체 콘텐츠가 차지하는 박스, 로컬 프레임; 일반 노드는 아무것도 담지 않는다."
     }
   },
+  "SOFT_AREAL_DENSITY": {
+    "summary": "중간 무게의 평직 면, kg/m²: 직물 무게는 0.15에서 0.25.",
+    "description": "천은 어떤 질량에서도 똑같이 떨어진다. 무게는 핀과 닿는 것에 실린다. 부피의 겉면도 이런 천으로 본다."
+  },
+  "SOFT_FOOTPRINT": {
+    "summary": "선언값: 땅에 놓인 부피가 주저앉는 평균 단면의 비율. 어떤 볼록 모양이든 면적의 4분의 1(코시). 그곳에서 내부 기체가 무게를 받친다.",
+    "description": "기본 압력은 `4·m·g / (share·area)`: `SOFT_AREAL_DENSITY` 겉면이면 31 Pa. 비율이 절반이면 압력은 두 배. 무게의 압력보다 훨씬 높은 압력은 휴식 모양 너머로 부풀린다. 매 단계 꼭짓점이 `pressure·dt² / (kg/m²)`만큼 움직여 그때 모서리가 붙잡는 것보다 크기 때문이다."
+  },
+  "SOFT_LINEAR_DENSITY": {
+    "summary": "10 mm 폴리아미드 밧줄, kg/m: 제조사 표는 0.06에서 0.07."
+  },
+  "SoftBodyCommon": {
+    "summary": "연체로서 `obj.physics`가 받는 것: 꼭짓점이 하나씩 시뮬레이션된다.",
+    "members": {
+      "pins": "제자리에 고정할 지오메트리 꼭짓점 인덱스: 깃발의 깃대, 밧줄의 고리.",
+      "mass": "킬로그램. 각 꼭짓점이 맡는 면적(밧줄은 길이)에 따라 나눈다. 생략하면 m²당 `SOFT_AREAL_DENSITY`(밧줄은 m당 `SOFT_LINEAR_DENSITY`).",
+      "stretch": "모서리를 당길 때 늘어나는 정도, m/N(강성의 역수): 0은 절대 늘어나지 않는다.",
+      "bend": "접을 때 굽는 정도, rad/(N·m)(밧줄은 m/N). `Infinity`는 자유롭게 접힌다."
+    }
+  },
+  "SoftBodyOptions": {
+    "summary": "연체의 옵션: 천, 밧줄 또는 기체 압력을 가진 부피."
+  },
+  "SoftBodyType": {
+    "summary": "연체: 천(삼각형, 열린), 밧줄(꼭짓점, 각각 다음과 연결) 또는 부피(닫힌 삼각형, 내부 기체가 받침)."
+  },
+  "SoftSettings": {
+    "summary": "읽은 뒤의 연체 옵션: 모든 기본값이 채워져 있다.",
+    "members": {
+      "type": "종류.",
+      "pins": "제자리에 고정된 지오메트리 꼭짓점.",
+      "mass": "킬로그램. `undefined`는 기본 밀도에 따른 값.",
+      "stretch": "m/N.",
+      "bend": "rad/(N·m), 밧줄은 m/N.",
+      "pressure": "Pa. `undefined`는 부피의 기본 압력(`SOFT_FOOTPRINT`)."
+    }
+  },
+  "SoftVolumeOptions": {
+    "summary": "부피의 옵션: 내부 기체가 받치는 닫힌 메시.",
+    "members": {
+      "type": "부피.",
+      "pressure": "휴식 상태에서 공기보다 높은 기체의 압력, Pa. 눌리면 부피가 줄면서 올라간다(보일 법칙). 삼각형은 바깥을 향해야 한다. 생략하면 부피의 무게를 평균 단면의 `SOFT_FOOTPRINT`에 싣는 압력."
+    }
+  },
   "TransformNode": {
     "summary": "레퍼런스의 행렬로 읽는 장면 노드로, 엔진의 변환 트리에 보관된다.",
     "members": {
@@ -6957,7 +7001,8 @@
       "threads": "시뮬레이션을 진행하는 스레드 수(물리 워커의 스레드 포함). 1보다 크면 교차 출처 격리된 페이지(공유 메모리)가 필요하며, 그렇지 않으면 하나로 진행합니다. 기기의 논리 코어 수에서 페이지 몫을 뺀 수를 넘지 않습니다.",
       "bodyPairs": "한 스텝에서 경계가 겹치는 물체 쌍. 빽빽한 더미는 물체당 약 네 쌍; 더 많이 찾은 스텝은 접촉을 놓치고 `PHYSICS_BUDGET`을 냅니다.",
       "contactConstraints": "한 스텝에서 풀리는 맞닿은 쌍. 가라앉은 더미는 물체당 약 두 쌍; 더 많이 찾은 스텝은 접촉을 놓치고 `PHYSICS_BUDGET`을 냅니다.",
-      "contactEvents": "한 스텝이 보고하는 접촉 이벤트(`enter`, `leave`). 한도를 넘는 `enter`는 버려지고 집계되며(`world.physics.stats.droppedEvents`) 그 `leave`는 보내지지 않습니다. `leave`는 늦춰질 뿐입니다."
+      "contactEvents": "한 스텝이 보고하는 접촉 이벤트(`enter`, `leave`). 한도를 넘는 `enter`는 버려지고 집계되며(`world.physics.stats.droppedEvents`) 그 `leave`는 보내지지 않습니다. `leave`는 늦춰질 뿐입니다.",
+      "softVertices": "모든 연체의 동시 꼭짓점 수(천, 밧줄, 부피). 각 꼭짓점은 매 단계 풀리고 페이지로 다시 읽힌다. 단계당 12바이트."
     }
   },
   "GRAVITY_PRESETS": {
@@ -6979,7 +7024,7 @@
     "summary": "한 물체의 물리, `obj.physics`가 가진 것: 물체가 무엇이고 무엇을 하는지의 살아 있는 기록.",
     "description": "쓰기는 다음 스텝에 시뮬레이션에 닿습니다. `velocity`는 마지막 스텝이 남긴 값을 읽습니다.",
     "members": {
-      "type": "물체가 움직이는 방식. 바꾸려면 `obj.physics`를 다시 설정하세요.",
+      "type": "물체가 움직이는 방식 또는 어떤 연체인지. 바꾸려면 `obj.physics`를 다시 설정하세요.",
       "shape": "선언된 모양(있다면).",
       "sensor": "물체가 접촉만 알리는지.",
       "ccd": "연속 충돌이 켜져 있는지.",
@@ -6994,7 +7039,9 @@
       "applyImpulse": "물체를 즉시 밉니다. 질량 중심을 지나는 N·s 충격량이며, 물체를 깨웁니다.",
       "wake": "물체를 깨웁니다. 자고 있든 아니든.",
       "on": "이 물체의 접촉 이벤트에서 `handler`를 호출합니다.",
-      "listens": "접촉 핸들러가 설정되었는지."
+      "listens": "접촉 핸들러가 설정되었는지.",
+      "soft": "연체의 설정. 모든 기본값이 채워져 있다. 강체는 `null`.",
+      "vertices": "마지막 틱이 남긴 연체의 꼭짓점: 지오메트리 꼭짓점마다 `x, y, z`, 지오메트리 자체 좌표계로. 강체는 `null`, 첫 틱 전까지도 `null`."
     }
   },
   "PHYSICS_MATERIALS": {
@@ -7033,7 +7080,8 @@
       "threads": "시뮬레이션을 진행하는 스레드 수(물리 워커의 스레드 포함). 1보다 크면 교차 출처 격리된 페이지(공유 메모리)가 필요하며, 그렇지 않으면 하나로 진행합니다. 기기의 논리 코어 수에서 페이지 몫을 뺀 수를 넘지 않습니다.",
       "bodyPairs": "한 스텝에서 경계가 겹치는 물체 쌍. 빽빽한 더미는 물체당 약 네 쌍; 더 많이 찾은 스텝은 접촉을 놓치고 `PHYSICS_BUDGET`을 냅니다.",
       "contactConstraints": "한 스텝에서 풀리는 맞닿은 쌍. 가라앉은 더미는 물체당 약 두 쌍; 더 많이 찾은 스텝은 접촉을 놓치고 `PHYSICS_BUDGET`을 냅니다.",
-      "contactEvents": "한 스텝이 보고하는 접촉 이벤트(`enter`, `leave`). 한도를 넘는 `enter`는 버려지고 집계되며(`world.physics.stats.droppedEvents`) 그 `leave`는 보내지지 않습니다. `leave`는 늦춰질 뿐입니다."
+      "contactEvents": "한 스텝이 보고하는 접촉 이벤트(`enter`, `leave`). 한도를 넘는 `enter`는 버려지고 집계되며(`world.physics.stats.droppedEvents`) 그 `leave`는 보내지지 않습니다. `leave`는 늦춰질 뿐입니다.",
+      "softVertices": "모든 연체의 동시 꼭짓점 수(천, 밧줄, 부피). 각 꼭짓점은 매 단계 풀리고 페이지로 다시 읽힌다. 단계당 12바이트."
     }
   },
   "PhysicsHost": {
@@ -7059,7 +7107,7 @@
     }
   },
   "PhysicsOption": {
-    "summary": "`obj.physics`에 설정할 수 있는 것."
+    "summary": "`obj.physics`에 설정할 수 있는 것: 강체 또는 연체(`SoftBodyOptions`)."
   },
   "PhysicsShape": {
     "summary": "지오메트리에서 추론한 모양이 맞지 않을 때의 충돌 모양.",
