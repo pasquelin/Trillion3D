@@ -52,8 +52,7 @@ export function createImageCut(options: {
   return Object.assign(cut, {
     /** Bytes of the cut's host tables: the requests' closure and the rule's readiness of each
      *  placement, all sized by what the view asks for and the pool holds. */
-    hostBytes: () =>
-      requests.hostBytes + roots.reduce((bytes, root) => bytes + heldHostBytes(root), 0),
+    hostBytes: () => requests.hostBytes + heldHostBytes(roots),
     /** Cuts the last requests to the pool drawn since; true when they lost pages, which what the
      *  image keeps must then forget before the pool trims. */
     readmit() {

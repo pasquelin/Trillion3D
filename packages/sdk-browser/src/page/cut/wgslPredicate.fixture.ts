@@ -8,6 +8,8 @@
  * function of the same source, called by its text; nothing else parses — a float literal, an
  * unknown name or function, a statement — so a kernel edit that leaves this subset fails loudly.
  * `f32` arguments are rounded to f32 first, as the kernel receives them, and `u32` wrapped.
+ * The line and sprite shaders' float-vector reader is another subset, of other statements
+ * (`../../visibility/shader/shaderText.fixture.ts`).
  */
 type Value = boolean | number | object;
 type Env = Record<string, Value>;
