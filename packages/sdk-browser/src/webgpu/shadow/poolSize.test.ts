@@ -129,6 +129,7 @@ test('a shadow pool refused even at its floor leaves the frame whole and says sh
     'shadows lost are never silent: the page is told they are off',
   );
   assert.equal(s.lights.shadowGrant?.settled, true, 'the grant settled: no frame waits on it');
+  assert.match(String(s.lights.shadowReason), /refused/, "every frame's shadow report says so");
   await s.size();
   assert.equal(s.said.length, 2, 'a refusal is asked once, not every frame');
   assert.equal(s.uncaptured, 0);
