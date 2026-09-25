@@ -94,12 +94,19 @@ test('a gap counts the pixels over one level on a channel, never a silhouette', 
   assert.deepEqual(truthGap(image, truth), { pixels: 1, max: 3 }, 'the edge pixel is not read');
 });
 
-test('the engine passes within tolerance and no farther from the truth than the witness', () => {
+// The CTO's verdict (#443): no sampler reaches an ideal truth at a grazing angle, the witness's
+// hardware included; the engine passes when it is no farther from it than the witness, give or
+// take CONTRIBUTING's tolerance.
+test('the engine passes within tolerance of the witness gap to the truth', () => {
   const gap = (pixels: number) => ({ pixels, max: 9 });
   assert.equal(truthVerdict(gap(0), gap(5), 0), undefined);
-  assert.equal(truthVerdict(gap(3), gap(3), 4), undefined);
-  assert.match(truthVerdict(gap(1), gap(5), 0)!, /1 px from the ground truth, tolerance 0 px/);
-  assert.match(truthVerdict(gap(3), gap(2), 4)!, /farther than the witness's 2 px/);
+  assert.equal(truthVerdict(gap(183), gap(183), 0), undefined);
+  assert.equal(truthVerdict(gap(87), gap(83), 4), undefined);
+  assert.match(
+    truthVerdict(gap(184), gap(183), 0)!,
+    /engine 184 px .* the witness 183 px, tolerance 0/,
+  );
+  assert.match(truthVerdict(gap(88), gap(83), 4)!, /engine 88 px/);
 });
 
 // The review of #443: a truth that averaged a magnified axis too, and cut each ray, could be met by
