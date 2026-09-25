@@ -76,8 +76,9 @@ export const LIGHT_SETTINGS = {
    */
   samplesPerPixel: 4,
   /**
-   * Shadow pages one GPU batch draws: the size of the per-batch buffers, never a limit on a frame.
-   * A frame draws every page it marks, in as many batches as that takes.
+   * Shadow pages one GPU batch draws: the size of the per-batch buffers, and what a frame draws
+   * while the camera moves — the shadow raster's fixed budget. A frame at rest draws every page
+   * it marks, in as many batches as that takes.
    */
   shadowPagesPerBatch: 24,
   /**
