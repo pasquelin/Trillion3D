@@ -15,6 +15,9 @@ export const PI = shaderFloat(Math.PI);
 export const INVERSE_PI = shaderFloat(1 / Math.PI);
 /** The vector form factor's normalisation, 1/(2π) (`direct/rectLightWgsl.ts`). */
 export const INVERSE_TWO_PI = shaderFloat(1 / (2 * Math.PI));
+/** The smoothest roughness a lit surface is shaded at: every shading path clamps to it, and the
+ *  deferred resolve reads a surface at it as a mirror (`../bounce/reflectWgsl.ts`). */
+export const ROUGHNESS_FLOOR = shaderFloat(0.0525);
 
 /** A 3×3 matrix, nine numbers column after column. */
 type Matrix3 = readonly number[];

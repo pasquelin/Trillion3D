@@ -324,10 +324,10 @@
       "controllers-in-vr": "VR手柄",
       "ar-on-the-table": "桌上的AR",
       "shadows-case-by-case": "阴影，逐个情形",
+      "shadows-through-see-through-panes": "透过半透明玻璃的阴影",
       "a-walker-among-balls": "球堆里的行走者"
     },
     "missing": {
-      "dashed-lines": "虚线",
       "floating-crates": "每帧重写的几何体",
       "thick-lines": "宽线",
       "a-line-that-draws-itself": "几何体的绘制范围",

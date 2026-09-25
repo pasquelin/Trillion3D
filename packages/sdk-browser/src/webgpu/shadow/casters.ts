@@ -49,6 +49,8 @@ export function encodeShadowCasters(
   if (light && runs.count > light.capacity) return false;
   if (light) {
     const map = gpuDraw.lightRows(light.pageCount);
+    // The blended casters' rows are no draw record's: their pages are pinned in the map instead.
+    rt.services.blendCasters.pin(map);
     // Each region reads its own view's range of the one log the cut writes.
     for (let r = 0; r < runs.count; r++) {
       const { first, count } = runs.list[r];
@@ -62,6 +64,8 @@ export function encodeShadowCasters(
     lightSource.items = gpuDraw.itemsBuffer;
     lightSource.rowOf = map.rowOf;
     lightSource.log = light.drawnLog;
+    lightSource.blendFirst = layout.rows.blendFirst;
+    lightSource.blendEnd = layout.rows.casterSlots;
     lightSource.refreshRows = (pass) => map.encode(pass, rows);
     cull.encodeLight(encoder, lightSource, regions, rows);
     lights.lightRuns = runs.count;

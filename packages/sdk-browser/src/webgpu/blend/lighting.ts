@@ -15,9 +15,12 @@ export function blendLightResources(rt: WebgpuPagesRuntime): BlendLighting {
     shadowData: contract.slices ?? placeholders.slices,
     shadowAtlas: contract.atlas ?? placeholders.atlasView,
     shadowSampler: placeholders.sampler,
+    shadowTransmittance: contract.transmittance?.view ?? placeholders.transmittanceView,
+    shadowTranslucentDepth: contract.transmittance?.depthView ?? placeholders.atlasView,
     bounceGrid: contract.bounceGrid ?? placeholders.bounceGrid,
     probes: contract.probes ?? placeholders.probes,
     tileLights: contract.tiles ?? placeholders.tiles,
     proxy: contract.proxy ?? placeholders.proxy,
+    surfaceCache: contract.surfaceCache ?? placeholders.surfaceCache,
   };
 }

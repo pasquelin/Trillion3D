@@ -110,6 +110,7 @@ export function createPhysicsBodies(
       friction: p.friction ?? matter.friction,
       restitution: p.restitution ?? matter.restitution,
       gravityScale: p.gravityScale,
+      damping: [p.damping.linear, p.damping.angular],
       vertices: shape.vertices,
       indices: shape.indices,
       parts: shape.parts,

@@ -3,9 +3,6 @@ import { LINE_DEPTH_LAYER } from '../../../../sdk-core/src/lod/depthLayer.ts';
 import type { PageCutPayload } from '../../../../sdk-core/src/page/decodeContracts.ts';
 import { cutPagesOffThread } from '../../page/decode/host.ts';
 
-/** Texture coordinates sit on the format's fixed grid of 2^-14. */
-const UV_EXPONENT = -14;
-
 /** A runtime primitive, and the addresses its pages are served from until it is released. */
 export type RuntimePrimitive = { primitive: Primitive; urls: string[] };
 
@@ -53,7 +50,7 @@ function servePrimitive(cut: PageCutPayload, lines: boolean): RuntimePrimitive {
     structure: { version: 1, roots: pages.map((page) => page.id), groups: [] },
     quantization: {
       positionExponent: cut.positionExponent,
-      uvExponent: UV_EXPONENT,
+      uvExponent: cut.uvExponent,
       maxPositionError: cut.maxPositionError,
     },
   };

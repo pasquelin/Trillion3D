@@ -4,6 +4,7 @@
 // after the step and reported. Word layouts: layout.ts (JOINT, UNJOINT, MOTOR).
 #include "binding.h"
 #include "joints.h"
+#include "jointIndex.h"
 #include "words.h"
 
 #include <Jolt/Physics/Constraints/ConeConstraint.h>
@@ -34,11 +35,18 @@ struct Joint {
   Vec3 axisA = Vec3::sZero(), axisB = Vec3::sZero();
   /** A gear's or a rack and pinion's body order and phase correction. */
   GearOrder order;
+  /** A path's fraction where its body stood when the step began (`carryAlongPath`). */
+  float along = 0;
 };
 
 std::vector<Joint> joints;
+/** Each joint under its body ends (the world's none): what `link` and `dropJoints` walk. */
+JointIndex ends;
 /** This step's broken joints, by id. */
 std::vector<uint32_t> broken;
+/** The joints `link` has visited since the module started: a diagnostic, read by the tests only
+ *  (`jolt_link_visits`), so its cost is counted, never timed. */
+uint32_t linkVisits = 0;
 
 /// A body's frame from the words (`point, axis, normal` in its own frame), its point moved from
 /// the body's origin to its centre of mass (Jolt's `LocalToBodyCOM`); the world's frame as given.
@@ -150,15 +158,61 @@ float pull(const Joint &joint) {
   }
 }
 
-void remove(Joint &joint) {
-  if (joint.constraint) world().system->RemoveConstraint(joint.constraint);
+/// The hinge or slider (`kind`) that holds the body in `slot` as its `a`, about `axis` in that
+/// body's frame — of several, the one in the lowest joint slot; null when none does.
+const Constraint *holder(uint32_t kind, uint32_t slot, Vec3 axis) {
+  uint32_t first = UINT32_MAX;
+  for (uint32_t i : ends.at(slot, kind)) {
+    ++linkVisits;
+    const Joint &joint = joints[i];
+    if (i < first && joint.a == slot && joint.axisA.Dot(axis) > 0.999f) first = i;
+  }
+  return first == UINT32_MAX ? nullptr : joints[first].constraint.GetPtr();
+}
+
+/// Hands a gear its wheels' hinges, or a rack and pinion its pinion's hinge and its rack's
+/// slider, those that hold the body as their `a` about the same axis, so Jolt keeps the teeth in
+/// the phase they were made in; none when one is missing.
+void link(Joint &joint) {
+  if (!joint.order.inPhase) return;
+  ++linkVisits;
+  const Constraint *onA = holder(HINGE, joint.a, joint.axisA);
+  const Constraint *onB = holder(joint.kind == GEAR ? HINGE : SLIDER, joint.b, joint.axisB);
+  if (!onA || !onB) onA = onB = nullptr;
+  bool aFirst = joint.order.aFirst;
+  linkGear(joint.constraint, joint.kind, aFirst ? onA : onB, aFirst ? onB : onA);
+}
+
+/// Relinks the gears and racks on a hinge's or a slider's `a` body, once it is made or taken out:
+/// none keeps one gone. Other kinds hold no gear.
+void relinkGearsOn(const Joint &joint) {
+  if (joint.kind != HINGE && joint.kind != SLIDER) return;
+  for (uint32_t kind : {GEAR, RACK_AND_PINION})
+    for (uint32_t i : ends.at(joint.a, kind)) link(joints[i]);
+}
+
+/// Files the joint at `index` under its body ends, or takes it out of them.
+void file(uint32_t index, bool in) {
+  const Joint &joint = joints[index];
+  for (uint32_t slot : {joint.a, joint.b})
+    if (slot != WORLD_BODY) in ? ends.add(slot, joint.kind, index) : ends.remove(slot, joint.kind, index);
+}
+
+/// Takes out the joint at `index`, if any, and relinks the gears it held.
+void take(uint32_t index) {
+  Joint &joint = joints[index];
+  if (!joint.constraint) return;
+  file(index, false);
+  world().system->RemoveConstraint(joint.constraint);
+  Joint gone = joint;
   joint = Joint();
+  relinkGearsOn(gone);
 }
 
 void add(const uint32_t *w) {
   uint32_t id = w[1], index = id & INDEX_MASK, kind = w[2];
   if (index >= joints.size()) joints.resize(index + 1);
-  remove(joints[index]);
+  take(index);
   BodyID a, b;
   // A body refused or gone since the page wrote the joint: the page removes the joint in turn.
   if (kind > RACK_AND_PINION || !bodyOf(w[3], a) || !bodyOf(w[4], b) || a == b) return;
@@ -180,29 +234,9 @@ void add(const uint32_t *w) {
   world().system->AddConstraint(joint.constraint);
   bodies.ActivateConstraint(joint.constraint);
   drive(joint, w[5], f32(w + 30), f32(w + 31), w[6]);
-}
-
-/// The hinge or slider (`kind`) that holds the body in `slot` as its `a`, about `axis` in that
-/// body's frame; null when none does.
-const Constraint *holder(uint32_t kind, uint32_t slot, Vec3 axis) {
-  for (const Joint &joint : joints)
-    if (joint.constraint && joint.kind == kind && joint.a == slot && joint.axisA.Dot(axis) > 0.999f)
-      return joint.constraint.GetPtr();
-  return nullptr;
-}
-
-/// Hands each gear its wheels' hinges and each rack and pinion its pinion's hinge and its rack's
-/// slider, those that hold the body as their `a` about the same axis, so Jolt keeps the teeth in
-/// the phase they were made in. Run whenever a joint is made or taken out: none keeps one gone.
-void link() {
-  for (Joint &joint : joints) {
-    if (!joint.constraint || !joint.order.inPhase) continue;
-    const Constraint *onA = holder(HINGE, joint.a, joint.axisA);
-    const Constraint *onB = holder(joint.kind == GEAR ? HINGE : SLIDER, joint.b, joint.axisB);
-    if (!onA || !onB) onA = onB = nullptr;
-    bool aFirst = joint.order.aFirst;
-    linkGear(joint.constraint, joint.kind, aFirst ? onA : onB, aFirst ? onB : onA);
-  }
+  file(index, true);
+  if (kind == GEAR || kind == RACK_AND_PINION) link(joint);
+  else relinkGearsOn(joint);
 }
 
 }  // namespace
@@ -213,14 +247,10 @@ uint32_t jointCommand(const uint32_t *w) {
   Joint *joint = index < joints.size() && joints[index].constraint && joints[index].id == w[1] ? &joints[index] : nullptr;
   if (w[0] == JOINT) {
     add(w);
-    link();
     return JOINT_WORDS + w[7];
   }
   if (w[0] == UNJOINT) {
-    if (joint) {
-      remove(*joint);
-      link();
-    }
+    if (joint) take(index);
     return UNJOINT_WORDS;
   }
   if (joint) drive(*joint, w[2], f32(w + 4), f32(w + 5), w[3]);
@@ -228,20 +258,31 @@ uint32_t jointCommand(const uint32_t *w) {
 }
 
 void dropJoints(uint32_t index) {
+  for (uint32_t kind = FIXED; kind <= RACK_AND_PINION; kind++) {
+    // A copy: taking a joint out changes the list.
+    std::vector<uint32_t> held = ends.at(index, kind);
+    for (uint32_t i : held) take(i);
+  }
+}
+
+void notePaths() {
   for (Joint &joint : joints)
-    if (joint.constraint && (joint.a == index || joint.b == index)) remove(joint);
-  link();
+    if (joint.constraint && joint.kind == PATH) joint.along = pathFraction(joint.constraint);
+}
+
+void carryPaths() {
+  for (Joint &joint : joints)
+    if (joint.constraint && joint.kind == PATH) carryAlongPath(joint.constraint, joint.along);
 }
 
 void breakJoints(float dt) {
   broken.clear();
   if (dt <= 0) return;
-  for (Joint &joint : joints)
-    if (joint.constraint && joint.breakForce > 0 && pull(joint) > joint.breakForce * dt) {
-      broken.push_back(joint.id);
-      remove(joint);
+  for (uint32_t i = 0; i < joints.size(); i++)
+    if (joints[i].constraint && joints[i].breakForce > 0 && pull(joints[i]) > joints[i].breakForce * dt) {
+      broken.push_back(joints[i].id);
+      take(i);
     }
-  if (!broken.empty()) link();
 }
 
 }  // namespace trillion
@@ -251,5 +292,7 @@ extern "C" {
 /// The joints the last step broke: their count, then each joint id.
 uint32_t jolt_broken_count() { return uint32_t(trillion::broken.size()); }
 uint32_t jolt_broken(uint32_t i) { return trillion::broken[i]; }
+/// The joints the gear linking has visited since the module started: the tests' measure of its cost.
+uint32_t jolt_link_visits() { return trillion::linkVisits; }
 
 }  // extern "C"

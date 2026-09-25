@@ -6,8 +6,13 @@ import {
   WORLD_AT_WGSL,
 } from '../../lighting/deferred/shaders.ts';
 import { STANDARD_LIGHTING_WGSL } from '../../lighting/standardLighting.ts';
-import { declaredLightingWgsl } from '../../lighting/direct/lightingWgsl.ts';
+import { ROUGHNESS_FLOOR } from '../../lighting/shaderConstants.ts';
+import {
+  CONTRACT_SHADOW_BINDINGS,
+  declaredLightingWgsl,
+} from '../../lighting/direct/lightingWgsl.ts';
 import { bounceApplyWgsl } from '../../bounce/applyWgsl.ts';
+import { BOUNCE_SURFACE_BINDING, bounceReflectionWgsl } from '../../bounce/reflectWgsl.ts';
 import { SUN_FAR_PROXY_BINDING } from '../../gpu/shadow/sunFarShadowWgsl.ts';
 import { FLAG_UNLIT_VIEW } from '../../visibility/buffer.ts';
 import { BLEND_VIEW_WGSL } from '../blend/shader.ts';
@@ -36,6 +41,10 @@ export const WATER_BINDINGS = {
   /** The blend view uniform, as written for the blend pass: projection, eye, tiles, flags. */
   uniform: 16,
   volumes: 17,
+  /** The shadow pool's transmittance layer, on the deferred resolve's numbers. */
+  shadowTransmittance: CONTRACT_SHADOW_BINDINGS.transmittance,
+  shadowTranslucentDepth: CONTRACT_SHADOW_BINDINGS.translucentDepth,
+  surface: BOUNCE_SURFACE_BINDING,
 };
 
 /**
@@ -67,8 +76,9 @@ ${CONTRACT_BINDINGS_WGSL}
 @group(0) @binding(${WATER_BINDINGS.uniform}) var<uniform> uni:BlendView;
 @group(0) @binding(${WATER_BINDINGS.volumes}) var<storage,read> volumes:array<Volume>;
 ${STANDARD_LIGHTING_WGSL}
-${declaredLightingWgsl(WATER_BINDINGS.proxy, WATER_BINDINGS.shadowData)}
+${declaredLightingWgsl(WATER_BINDINGS.proxy, WATER_BINDINGS.shadowData, WATER_BINDINGS.shadowTransmittance)}
 ${bounceApplyWgsl(WATER_BINDINGS.bounceGrid, WATER_BINDINGS.probes)}
+${bounceReflectionWgsl(WATER_BINDINGS.surface)}
 ${WATER_UNPACK_WGSL}
 ${FULLSCREEN_VERTEX}
 ${WORLD_AT_WGSL}
@@ -125,7 +135,7 @@ fn transmittedBackdrop(vol:Volume,P:vec3f,N:vec3f,V:vec3f,straight:vec2i,fragZ:f
  // whose normal comes from screen derivatives, can arrive turned the wrong way, and refraction
  // would then go through the wrong way while Fresnel would yield a black mirror.
  let Nv=select(-normal.xyz,normal.xyz,dot(normal.xyz,V)>0.0);
- let rough=clamp(normal.a,0.0525,1.0);
+ let rough=clamp(normal.a,${ROUGHNESS_FLOOR},1.0);
  let metal=clamp(base.a,0.0,1.0);
  let ao=emissiveAo.a;
  // A transmissive material is a physical one, hence lit; only the unlit view keeps raw albedo.
@@ -137,10 +147,11 @@ fn transmittedBackdrop(vol:Volume,P:vec3f,N:vec3f,V:vec3f,straight:vec2i,fragZ:f
  let F=f0+(1.0-f0)*pow(clamp(1.0-max(dot(Nv,V),0.0),0.0,1.0),5.0);
  if(!unlit){
   lit=declaredLighting(base.rgb,metal,rough,Nv,V,P,ao,pixel.xy)+bounceLighting(base.rgb,metal,Nv,P,ao)+environmentLighting(base.rgb,metal,Nv,ao)+emissiveAo.rgb;
-  // Environment reflection weighted by Fresnel — probe irradiance in the mirror direction, exactly
-  // zero when the scene carries none — and the specular of the declared lights on a null albedo:
-  // the diffuse lobe cancels, the dielectric specular lobe stays.
-  reflected=F*sampleBounce(P,reflect(-V,Nv))*INVERSE_PI+declaredLighting(vec3f(0.0),0.0,rough,Nv,V,P,ao,pixel.xy);
+  // What the mirror direction sees, weighted by Fresnel — the engine's one reflection model: the
+  // proxy traced at the roughness floor, the probe irradiance over π above it, exactly zero without
+  // bounce — and the specular of the declared lights on a null albedo: the diffuse lobe cancels,
+  // the dielectric specular lobe stays.
+  reflected=F*reflectedRadiance(P,Nv,reflect(-V,Nv),rough)+declaredLighting(vec3f(0.0),0.0,rough,Nv,V,P,ao,pixel.xy);
  }
  let through=transmittedBackdrop(vol,P,Nv,V,coord,fragZ);
  // The glTF composition, a = alpha + t(1-alpha) with a·C carrying the whole transmitted share,

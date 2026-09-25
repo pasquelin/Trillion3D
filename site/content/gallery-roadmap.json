@@ -89,9 +89,7 @@
     {
       "id": "dashed-lines",
       "theme": "geometry",
-      "file": "examples/dashed-lines.html",
-      "status": "waiting-engine",
-      "issue": 359
+      "file": "examples/dashed-lines.html"
     },
     {
       "id": "shapes-cut-and-extruded",
@@ -539,6 +537,11 @@
       "id": "shadows-case-by-case",
       "theme": "lights",
       "file": "examples/shadows-case-by-case.html"
+    },
+    {
+      "id": "shadows-through-see-through-panes",
+      "theme": "lights",
+      "file": "examples/shadows-through-see-through-panes.html"
     },
     {
       "id": "flat-shadows-on-the-floor",

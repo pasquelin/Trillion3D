@@ -9,7 +9,16 @@ import { composesWithBackground } from '../../scene/materialBlending.ts';
 /** The parameters a session reads as values — a page-table row's colour and numbers, a host
  *  surface's uniforms — and so the only ones written in place: none of them changes a shader, a
  *  resolve class or which pass draws the surface. */
-const VALUES = new Set(['color', 'emissive', 'emissiveIntensity', 'metalness', 'roughness']);
+const VALUES = new Set([
+  'color',
+  'emissive',
+  'emissiveIntensity',
+  'metalness',
+  'roughness',
+  'dashSize',
+  'gapSize',
+  'scale',
+]);
 
 /** One parameter value as a key: a texture by identity and its three counters — its picture's
  *  `version` left out when `pictures` is false —, a colour or a vector by its numbers, anything
@@ -76,6 +85,8 @@ export function createWorldMaterials() {
     if (!opaque(material) || !opaque(entry.material)) return false;
     if (materialKey(material, false) !== materialKey(entry.material, false)) return false;
     for (const field of VALUES) {
+      // A field the kind does not declare — a dash on a mesh material — is never added to its copy.
+      if (!(field in material)) continue;
       const value = material[field];
       if (value instanceof Color) (entry.material[field] as Color).copy(value);
       else entry.material[field] = value;

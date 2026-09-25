@@ -2,8 +2,9 @@
  * Reference encoder for the `WGP3` quantized cluster page (`docs/FORMAT.md`). The compiler that
  * ships pages is the native one in `asset-compiler-rust`; this independent implementation exists
  * so the browser decoders in `sdk-browser/` are tested against something other than themselves.
- * It quantizes on the same grids — a primitive position exponent, a fixed texture grid of 2^-14,
- * octahedral normal bytes, colour bytes — and packs the same streams, without sharing a line.
+ * It quantizes on the same grids — a primitive position exponent, a texture grid of 2^-14 (the
+ * compiler's, coarser only where a caller passes a primitive's own), octahedral normal bytes,
+ * colour bytes — and packs the same streams, without sharing a line.
  */
 import { bitsFor, ceil32, octEncode, Packer, quantize, type QuantizedGrid } from './pageGrids.ts';
 import {
@@ -16,18 +17,21 @@ import {
 const MAGIC = 0x33504757,
   VERSION = 3,
   HEADER_WORDS = 24,
-  UV_EXPONENT = -14,
   COLOR_EXPONENT = -8;
+/** The format's texture grid, 2^-14: a quarter of a texel on a 4096-wide map. */
+export const UV_EXPONENT = -14;
 
 /**
  * Encodes one page from source indices and `{ array, itemSize }` attributes (`POSITION`
  * required). Returns the bytes and the manifest counts. Corners are renumbered by first use,
- * then vertices that land on the same cells are kept once.
+ * then vertices that land on the same cells are kept once. Texture coordinates sit on
+ * `2 ** uvExponent`, which the header carries for every decoder.
  */
 export function encodeGeometryPage(
   sourceIndices: ArrayLike<number>,
   attributes: PageAttributes,
   positionExponent = -16,
+  uvExponent = UV_EXPONENT,
 ) {
   const position = attributes.POSITION;
   if (!position || position.itemSize !== 3 || !position.array.length)
@@ -107,7 +111,7 @@ export function encodeGeometryPage(
       cells.forEach((cell, i) => (cell.c = record.cells.slice(i * 4, i * 4 + 4)));
     } else {
       const set = bit === 2 ? 0 : 1,
-        q = quantize(values, 2, UV_EXPONENT);
+        q = quantize(values, 2, uvExponent);
       uvRecords[set] = q;
       cells.forEach((cell, i) => (cell.uv[set] = q.cells.slice(i * 2, i * 2 + 2)));
     }
@@ -168,8 +172,8 @@ export function encodeGeometryPage(
     head.setUint32(i * 4, word, true),
   );
   record(5, positions, 3, positionExponent);
-  record(9, uvRecords[0], 2, UV_EXPONENT);
-  record(12, uvRecords[1], 2, UV_EXPONENT);
+  record(9, uvRecords[0], 2, uvExponent);
+  record(12, uvRecords[1], 2, uvExponent);
   record(15, colorRecord, 4, COLOR_EXPONENT);
   head.setFloat32(80, error, true);
   pack.words.forEach((word, i) => head.setUint32((HEADER_WORDS + i) * 4, word, true));

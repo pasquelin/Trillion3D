@@ -1972,6 +1972,16 @@
       "Look for": "À observer"
     }
   },
+  "shadows-through-see-through-panes": {
+    "banner": "Faites glisser l'opacité : l'ombre de la vitre du milieu la suit, absente à 0 et pleine à 1.",
+    "controls": {
+      "opacity": "Opacité",
+      "sunHeight": "Hauteur du soleil"
+    },
+    "readouts": {
+      "Opacity of the middle pane": "Opacité de la vitre du milieu"
+    }
+  },
   "walk-with-collisions": {
     "banner": "Cliquez pour regarder autour, puis marchez avec Z Q S D et sautez avec Espace : montez l’escalier et la rampe, montez sur la plateforme, poussez les caisses, et lâchez les touches sur la glace pour glisser.",
     "controls": {

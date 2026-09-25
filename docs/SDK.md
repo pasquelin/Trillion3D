@@ -1040,7 +1040,7 @@ linearDrag, angularDrag, current }` (or `null`) is the water the bodies float in
   goes on from where it is. Live: [floating crates](../site/examples/floating-crates.html).
   `createWorld(canvas, { physics: { gravity, budget } })` sets them at creation.
 - **Bodies.** `mesh.physics = 'static' | 'dynamic' | 'kinematic'` or options `{ type, mass, shape,
-gravityScale, sensor, ccd, decorative, friction, restitution }`. The shape is read from the
+gravityScale, sensor, ccd, decorative, friction, restitution, damping }`. The shape is read from the
   geometry: a box, sphere, capsule or cylinder is that exact primitive (scaled); any other mesh is
   its triangles when static and its convex hull, computed in the worker, when it moves; a dynamic
   body declared `{ type: 'triangles' }` is refused (no volume, no mass), and a shape the worker
@@ -1052,7 +1052,10 @@ gravityScale, sensor, ccd, decorative, friction, restitution }`. The shape is re
 - **Mass and matter.** `mass` in kilograms, or the material's density times the shape's volume.
   A material carries `physics: 'wood' | 'metal' | 'rubber' | 'ice' | 'stone' | 'glass'` and its own
   `density`, `friction` and `restitution` over the preset; a body's `friction` and `restitution`
-  override both.
+  override both. `damping: { linear, angular }` is the share of its speed a body loses by itself
+  each second (`dv/dt = −c·v`, the simulation's 0.05 each when left out, 0 keeps every bit; a
+  negative one throws `RangeError`); set at creation, like `sensor`. A body declares its own air
+  and rolling loss there (live: [ride a roller coaster](../site/examples/ride-a-roller-coaster.html)).
 - **Motion and events.** `mesh.physics.velocity` (read as the last step left it, written to launch
   the body), `applyImpulse(x, y, z)`, `wake()`, `asleep`, and `on('contact' | 'enter' | 'leave')`:
   the other object, an impulse estimate (approach speed times the pair's reduced mass) and the
@@ -1080,7 +1083,11 @@ gravityScale, sensor, ccd, decorative, friction, restitution }`. The shape is re
   its motor drives. `joint.path(a, b, { path, loop, follow })` runs `a` along a smooth track
   through the points of `path` (at least two, fixed to `b` or the world), turning with it unless
   `follow` is `false`; its motor drives `a` at a speed along the track, or to a point of it (1.5:
-  halfway between the second and the third). `joint.pulley(a, b, { over, ratio })` hangs `a` and
+  halfway between the second and the third). A track fixed in the world does no work: its bends
+  turn `a` without slowing it, and a body with no damping keeps its energy along it to within one
+  step of gravity's work. Not on a track fixed to a moving body, nor for a body held off its centre
+  while it spins: there each bend still takes v²·dt / R² of its kinetic energy per second (v its
+  speed, R the bend's radius, dt the step). `joint.pulley(a, b, { over, ratio })` hangs `a` and
   `b` on one rope over two wheels in the world, the rope from 0 up to its length unless `limits`
   says otherwise. `joint.gear(a, b, { axis, axisB, ratio })` turns `b` `ratio` times per turn of
   `a` (the teeth of `a` over those of `b`), the other way round; `joint.rackAndPinion(pinion,
@@ -1132,7 +1139,8 @@ rack, { axis, axisB, ratio })` slides the rack along `axisB` by `1 / ratio` metr
   `stats.droppedEvents` (its `leave` is then never sent). The soft-body budget arrives with soft
   bodies.
 - **Cost.** The `physics` CPU stage is the page's share (`stats.mainMs`); the worker's step is
-  `stats.stepMs`, on its own clock: the two are never added.
+  `stats.stepMs` (the mean of the last tick's steps) and `stats.stepMaxMs` (its slowest), on its
+  own clock: the two are never added.
 - **Compiled models.** A model loaded with `scene.load()` collides with its own triangles once the
   physics is on: the compiler cooked them (`physics.json`, [FORMAT.md](FORMAT.md)) and the physics
   streams its tiles in, restored from Jolt's binary state, around the eye up to `camera.far` and
@@ -1154,8 +1162,9 @@ rack, { axis, axisB, ratio })` slides the rack along `axisB` by `1 / ratio` metr
 
 - `scene.load` reads a versioned compiled manifest; non-triangle primitives, skinning, morph targets
   and non-standard glTF extensions are not drawn.
-- Specular environment-map IBL, area lights and screen-space reflections are not implemented; the
-  bounce lighting exists but is off by default ([ENGINE.md](ENGINE.md#light-that-bounces)).
+- Specular environment-map IBL and screen-space reflections are not implemented; the
+  bounce lighting exists but is off by default ([ENGINE.md](ENGINE.md#light-that-bounces)), and only
+  with it on does a surface at the roughness floor reflect the scene, at the proxy's detail.
 - Transparent surfaces are lit from the source file's own light graph with a fixed ambient, not yet
   by the declared-light rule above.
 - A lost device is reported, not recovered: full device-loss recovery and cross-API fallback are not

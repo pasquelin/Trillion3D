@@ -324,10 +324,10 @@
       "controllers-in-vr": "VRのコントローラー",
       "ar-on-the-table": "テーブルの上のAR",
       "shadows-case-by-case": "影をケースごとに",
+      "shadows-through-see-through-panes": "透けるガラスが落とす影",
       "a-walker-among-balls": "ボールの中を歩く人"
     },
     "missing": {
-      "dashed-lines": "破線",
       "floating-crates": "毎フレーム書き換えるジオメトリ",
       "thick-lines": "太い線",
       "a-line-that-draws-itself": "ジオメトリの描画範囲",

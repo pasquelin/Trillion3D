@@ -8240,12 +8240,17 @@
       {
         "name": "parameters.dashSize?",
         "type": "number",
-        "desc": "Length of a dash."
+        "desc": "Length of a dash, in world units along the line."
       },
       {
         "name": "parameters.gapSize?",
         "type": "number",
-        "desc": "Length of the gap between two dashes."
+        "desc": "Length of the gap between two dashes, in world units along the line."
+      },
+      {
+        "name": "parameters.scale?",
+        "type": "number",
+        "desc": "How much the distance along a dashed line is stretched: 2 draws dashes and gaps half as long."
       },
       {
         "name": "parameters.vertexColors?",
@@ -8544,12 +8549,17 @@
       {
         "name": "dashSize?",
         "type": "number | undefined",
-        "desc": "Length of a dash."
+        "desc": "Length of a dash, in world units along the line."
       },
       {
         "name": "gapSize?",
         "type": "number | undefined",
-        "desc": "Length of the gap between two dashes."
+        "desc": "Length of the gap between two dashes, in world units along the line."
+      },
+      {
+        "name": "scale?",
+        "type": "number | undefined",
+        "desc": "How much the distance along a dashed line is stretched: 2 draws dashes and gaps half as long."
       },
       {
         "name": "vertexColors?",
@@ -9526,6 +9536,11 @@
         "desc": "Whether the body is decorative debris."
       },
       {
+        "name": "damping",
+        "type": "{ readonly linear: number; readonly angular: number; }",
+        "desc": "The share of its speed lost per second by itself, linear and angular (`dv/dt = −c·v`)."
+      },
+      {
         "name": "velocity",
         "type": "Vector3",
         "desc": "Linear velocity, m/s, as the last step left it; write it to launch the body."
@@ -10275,7 +10290,7 @@
     "kind": "Type",
     "title": "PageCutPayload",
     "signature": "interface PageCutPayload",
-    "summary": "What a `cut` returns: its pages, and the position grid they were quantized on.",
+    "summary": "What a `cut` returns: its pages, and the grids they were quantized on.",
     "members": [
       {
         "name": "pages",
@@ -10286,6 +10301,11 @@
         "name": "positionExponent",
         "type": "number",
         "desc": "Grid step of positions, as a power of two."
+      },
+      {
+        "name": "uvExponent",
+        "type": "number",
+        "desc": "Grid step of texture coordinates, as a power of two."
       },
       {
         "name": "maxPositionError",
@@ -11111,6 +11131,11 @@
         "name": "restitution?",
         "type": "number | undefined",
         "desc": "Overrides the material's restitution (bounciness), 0 to 1."
+      },
+      {
+        "name": "damping?",
+        "type": "{ linear?: number; angular?: number; } | undefined",
+        "desc": "How much of its speed the body loses by itself, per second, as air and rolling do: `dv/dt = −c·v`, 0 and up, linear and angular apart; 0 keeps every bit. Set when the body is made: set `obj.physics` again to change it."
       }
     ],
     "description": ""
@@ -11318,6 +11343,11 @@
         "name": "stepMs",
         "type": "number",
         "desc": "Worker milliseconds per fixed step, last tick: the worker's clock, never added to the page's."
+      },
+      {
+        "name": "stepMaxMs",
+        "type": "number",
+        "desc": "Worker milliseconds of the slowest fixed step of the last tick: a slow step the mean hides."
       },
       {
         "name": "mainMs",
@@ -17746,7 +17776,7 @@
       {
         "name": "options.clutch?",
         "type": "number",
-        "desc": "Clutch torque per rad/s of slip, N·m·s."
+        "desc": "Clutch torque per rad/s of slip, N·m·s; cars and motorcycles only, refused on a tracked vehicle: its engine drives its tracks without a clutch (Jolt's tracked controller)."
       },
       {
         "name": "options.suspensionFrequency?",
@@ -17761,17 +17791,17 @@
       {
         "name": "options.suspensionTravel?",
         "type": "number",
-        "desc": "Wheel travel from full droop to full bump, m."
+        "desc": "Wheel travel from full droop to full bump, m; longer than the sag of the ride frequency on Earth, `9.81 / (2π suspensionFrequency)²`, or refused: past it the body rests on its bump stops."
       },
       {
         "name": "options.antiRoll?",
         "type": "number",
-        "desc": "Each anti-roll bar's stiffness over its axle's spring stiffness; 0 is none."
+        "desc": "Each anti-roll bar's stiffness over its axle's spring stiffness; 0 is none. Cars only, refused on a motorcycle (its two wheels share no axle) and a tracked vehicle (its wheels carry no bars)."
       },
       {
         "name": "options.turnRadius?",
         "type": "number",
-        "desc": "The full-lock turning radius, m."
+        "desc": "The full-lock turning radius, m; refused on a tracked vehicle, which steers by its tracks."
       },
       {
         "name": "options.steerTime?",
@@ -17786,17 +17816,17 @@
       {
         "name": "options.drive?",
         "type": "'front' | 'all' | 'rear'",
-        "desc": "A car's driven wheels."
+        "desc": "A car's driven wheels; refused on a motorcycle (its rear wheel drives) and a tracked vehicle (the rearmost wheel of each track drives)."
       },
       {
         "name": "options.trackTurn?",
         "type": "number",
-        "desc": "A tracked vehicle's inner track speed while steering, over the outer's."
+        "desc": "A tracked vehicle's inner track speed while steering on the move, over the outer's; at a standstill it pivots, its inner track reversed, whatever this ratio. Refused on a car or a motorcycle."
       },
       {
         "name": "options.maxLean?",
         "type": "number",
-        "desc": "A motorcycle's greatest lean, radians."
+        "desc": "A motorcycle's greatest lean, radians; refused on a car or a tracked vehicle."
       }
     ],
     "members": [
@@ -17986,7 +18016,7 @@
       {
         "name": "clutch",
         "type": "number",
-        "desc": "Clutch torque per rad/s of slip, N·m·s."
+        "desc": "Clutch torque per rad/s of slip, N·m·s; cars and motorcycles only, refused on a tracked vehicle: its engine drives its tracks without a clutch (Jolt's tracked controller)."
       },
       {
         "name": "suspensionFrequency",
@@ -18001,17 +18031,17 @@
       {
         "name": "suspensionTravel",
         "type": "number",
-        "desc": "Wheel travel from full droop to full bump, m."
+        "desc": "Wheel travel from full droop to full bump, m; longer than the sag of the ride frequency on Earth, `9.81 / (2π suspensionFrequency)²`, or refused: past it the body rests on its bump stops."
       },
       {
         "name": "antiRoll",
         "type": "number",
-        "desc": "Each anti-roll bar's stiffness over its axle's spring stiffness; 0 is none."
+        "desc": "Each anti-roll bar's stiffness over its axle's spring stiffness; 0 is none. Cars only, refused on a motorcycle (its two wheels share no axle) and a tracked vehicle (its wheels carry no bars)."
       },
       {
         "name": "turnRadius",
         "type": "number",
-        "desc": "The full-lock turning radius, m."
+        "desc": "The full-lock turning radius, m; refused on a tracked vehicle, which steers by its tracks."
       },
       {
         "name": "steerTime",
@@ -18026,17 +18056,17 @@
       {
         "name": "drive",
         "type": "'front' | 'all' | 'rear'",
-        "desc": "A car's driven wheels."
+        "desc": "A car's driven wheels; refused on a motorcycle (its rear wheel drives) and a tracked vehicle (the rearmost wheel of each track drives)."
       },
       {
         "name": "trackTurn",
         "type": "number",
-        "desc": "A tracked vehicle's inner track speed while steering, over the outer's."
+        "desc": "A tracked vehicle's inner track speed while steering on the move, over the outer's; at a standstill it pivots, its inner track reversed, whatever this ratio. Refused on a car or a motorcycle."
       },
       {
         "name": "maxLean",
         "type": "number",
-        "desc": "A motorcycle's greatest lean, radians."
+        "desc": "A motorcycle's greatest lean, radians; refused on a car or a tracked vehicle."
       }
     ],
     "description": ""
@@ -27491,12 +27521,17 @@
       {
         "name": "parameters.dashSize?",
         "type": "number",
-        "desc": "Length of a dash."
+        "desc": "Length of a dash, in world units along the line."
       },
       {
         "name": "parameters.gapSize?",
         "type": "number",
-        "desc": "Length of the gap between two dashes."
+        "desc": "Length of the gap between two dashes, in world units along the line."
+      },
+      {
+        "name": "parameters.scale?",
+        "type": "number",
+        "desc": "How much the distance along a dashed line is stretched: 2 draws dashes and gaps half as long."
       },
       {
         "name": "parameters.vertexColors?",
@@ -27676,12 +27711,17 @@
       {
         "name": "parameters.dashSize?",
         "type": "number",
-        "desc": "Length of a dash."
+        "desc": "Length of a dash, in world units along the line."
       },
       {
         "name": "parameters.gapSize?",
         "type": "number",
-        "desc": "Length of the gap between two dashes."
+        "desc": "Length of the gap between two dashes, in world units along the line."
+      },
+      {
+        "name": "parameters.scale?",
+        "type": "number",
+        "desc": "How much the distance along a dashed line is stretched: 2 draws dashes and gaps half as long."
       },
       {
         "name": "parameters.vertexColors?",
@@ -27861,12 +27901,17 @@
       {
         "name": "parameters.dashSize?",
         "type": "number",
-        "desc": "Length of a dash."
+        "desc": "Length of a dash, in world units along the line."
       },
       {
         "name": "parameters.gapSize?",
         "type": "number",
-        "desc": "Length of the gap between two dashes."
+        "desc": "Length of the gap between two dashes, in world units along the line."
+      },
+      {
+        "name": "parameters.scale?",
+        "type": "number",
+        "desc": "How much the distance along a dashed line is stretched: 2 draws dashes and gaps half as long."
       },
       {
         "name": "parameters.vertexColors?",
@@ -28046,12 +28091,17 @@
       {
         "name": "parameters.dashSize?",
         "type": "number",
-        "desc": "Length of a dash."
+        "desc": "Length of a dash, in world units along the line."
       },
       {
         "name": "parameters.gapSize?",
         "type": "number",
-        "desc": "Length of the gap between two dashes."
+        "desc": "Length of the gap between two dashes, in world units along the line."
+      },
+      {
+        "name": "parameters.scale?",
+        "type": "number",
+        "desc": "How much the distance along a dashed line is stretched: 2 draws dashes and gaps half as long."
       },
       {
         "name": "parameters.vertexColors?",
@@ -28231,12 +28281,17 @@
       {
         "name": "parameters.dashSize?",
         "type": "number",
-        "desc": "Length of a dash."
+        "desc": "Length of a dash, in world units along the line."
       },
       {
         "name": "parameters.gapSize?",
         "type": "number",
-        "desc": "Length of the gap between two dashes."
+        "desc": "Length of the gap between two dashes, in world units along the line."
+      },
+      {
+        "name": "parameters.scale?",
+        "type": "number",
+        "desc": "How much the distance along a dashed line is stretched: 2 draws dashes and gaps half as long."
       },
       {
         "name": "parameters.vertexColors?",
@@ -28416,12 +28471,17 @@
       {
         "name": "parameters.dashSize?",
         "type": "number",
-        "desc": "Length of a dash."
+        "desc": "Length of a dash, in world units along the line."
       },
       {
         "name": "parameters.gapSize?",
         "type": "number",
-        "desc": "Length of the gap between two dashes."
+        "desc": "Length of the gap between two dashes, in world units along the line."
+      },
+      {
+        "name": "parameters.scale?",
+        "type": "number",
+        "desc": "How much the distance along a dashed line is stretched: 2 draws dashes and gaps half as long."
       },
       {
         "name": "parameters.vertexColors?",
@@ -28601,12 +28661,17 @@
       {
         "name": "parameters.dashSize?",
         "type": "number",
-        "desc": "Length of a dash."
+        "desc": "Length of a dash, in world units along the line."
       },
       {
         "name": "parameters.gapSize?",
         "type": "number",
-        "desc": "Length of the gap between two dashes."
+        "desc": "Length of the gap between two dashes, in world units along the line."
+      },
+      {
+        "name": "parameters.scale?",
+        "type": "number",
+        "desc": "How much the distance along a dashed line is stretched: 2 draws dashes and gaps half as long."
       },
       {
         "name": "parameters.vertexColors?",
@@ -28786,12 +28851,17 @@
       {
         "name": "parameters.dashSize?",
         "type": "number",
-        "desc": "Length of a dash."
+        "desc": "Length of a dash, in world units along the line."
       },
       {
         "name": "parameters.gapSize?",
         "type": "number",
-        "desc": "Length of the gap between two dashes."
+        "desc": "Length of the gap between two dashes, in world units along the line."
+      },
+      {
+        "name": "parameters.scale?",
+        "type": "number",
+        "desc": "How much the distance along a dashed line is stretched: 2 draws dashes and gaps half as long."
       },
       {
         "name": "parameters.vertexColors?",
@@ -28971,12 +29041,17 @@
       {
         "name": "parameters.dashSize?",
         "type": "number",
-        "desc": "Length of a dash."
+        "desc": "Length of a dash, in world units along the line."
       },
       {
         "name": "parameters.gapSize?",
         "type": "number",
-        "desc": "Length of the gap between two dashes."
+        "desc": "Length of the gap between two dashes, in world units along the line."
+      },
+      {
+        "name": "parameters.scale?",
+        "type": "number",
+        "desc": "How much the distance along a dashed line is stretched: 2 draws dashes and gaps half as long."
       },
       {
         "name": "parameters.vertexColors?",
@@ -29156,12 +29231,17 @@
       {
         "name": "parameters.dashSize?",
         "type": "number",
-        "desc": "Length of a dash."
+        "desc": "Length of a dash, in world units along the line."
       },
       {
         "name": "parameters.gapSize?",
         "type": "number",
-        "desc": "Length of the gap between two dashes."
+        "desc": "Length of the gap between two dashes, in world units along the line."
+      },
+      {
+        "name": "parameters.scale?",
+        "type": "number",
+        "desc": "How much the distance along a dashed line is stretched: 2 draws dashes and gaps half as long."
       },
       {
         "name": "parameters.vertexColors?",
@@ -29341,12 +29421,17 @@
       {
         "name": "parameters.dashSize?",
         "type": "number",
-        "desc": "Length of a dash."
+        "desc": "Length of a dash, in world units along the line."
       },
       {
         "name": "parameters.gapSize?",
         "type": "number",
-        "desc": "Length of the gap between two dashes."
+        "desc": "Length of the gap between two dashes, in world units along the line."
+      },
+      {
+        "name": "parameters.scale?",
+        "type": "number",
+        "desc": "How much the distance along a dashed line is stretched: 2 draws dashes and gaps half as long."
       },
       {
         "name": "parameters.vertexColors?",
@@ -29401,7 +29486,7 @@
     "kind": "Function",
     "title": "material.lineDashed()",
     "signature": "material.lineDashed(parameters?: MaterialParameters): Material",
-    "summary": "Draws dashed lines.",
+    "summary": "Draws dashed lines: `dashSize` drawn, then `gapSize` left empty, along the line.",
     "parameters": [
       {
         "name": "parameters?",
@@ -29526,12 +29611,17 @@
       {
         "name": "parameters.dashSize?",
         "type": "number",
-        "desc": "Length of a dash."
+        "desc": "Length of a dash, in world units along the line."
       },
       {
         "name": "parameters.gapSize?",
         "type": "number",
-        "desc": "Length of the gap between two dashes."
+        "desc": "Length of the gap between two dashes, in world units along the line."
+      },
+      {
+        "name": "parameters.scale?",
+        "type": "number",
+        "desc": "How much the distance along a dashed line is stretched: 2 draws dashes and gaps half as long."
       },
       {
         "name": "parameters.vertexColors?",
@@ -29711,12 +29801,17 @@
       {
         "name": "parameters.dashSize?",
         "type": "number",
-        "desc": "Length of a dash."
+        "desc": "Length of a dash, in world units along the line."
       },
       {
         "name": "parameters.gapSize?",
         "type": "number",
-        "desc": "Length of the gap between two dashes."
+        "desc": "Length of the gap between two dashes, in world units along the line."
+      },
+      {
+        "name": "parameters.scale?",
+        "type": "number",
+        "desc": "How much the distance along a dashed line is stretched: 2 draws dashes and gaps half as long."
       },
       {
         "name": "parameters.vertexColors?",
@@ -29896,12 +29991,17 @@
       {
         "name": "parameters.dashSize?",
         "type": "number",
-        "desc": "Length of a dash."
+        "desc": "Length of a dash, in world units along the line."
       },
       {
         "name": "parameters.gapSize?",
         "type": "number",
-        "desc": "Length of the gap between two dashes."
+        "desc": "Length of the gap between two dashes, in world units along the line."
+      },
+      {
+        "name": "parameters.scale?",
+        "type": "number",
+        "desc": "How much the distance along a dashed line is stretched: 2 draws dashes and gaps half as long."
       },
       {
         "name": "parameters.vertexColors?",

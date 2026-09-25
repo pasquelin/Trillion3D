@@ -84,7 +84,7 @@ export function createPhysicsSession(
     Object.assign(stats, { active: m.active, poses: m.poses, events: m.events });
     stats.droppedEvents += m.dropped;
     stats.bodies = bodies.count.bodies;
-    stats.stepMs = m.steps ? m.stepMs / m.steps : stats.stepMs;
+    if (m.steps) Object.assign(stats, { stepMs: m.stepMs / m.steps, stepMaxMs: m.stepMaxMs });
     worker.postMessage({ type: 'buffer', buffer: m.buffer }, [m.buffer]);
     received += performance.now() - began;
     if (changed) invalidate();
