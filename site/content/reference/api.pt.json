@@ -709,7 +709,7 @@
     }
   },
   "DAG_ERROR_MODEL": {
-    "summary": "Identidade de cache para os erros de DAG por cluster: erro QEM do grupo projetado através da esfera do grupo."
+    "summary": "Identidade do cache para os erros do DAG por cluster: erro QEM absoluto do grupo sobre posições, normais e coordenadas de textura, limitado à extensão do grupo; um cache v1 é recusado."
   },
   "DEFAULT_SCOPE": {
     "summary": "O escopo em que um modelo é compilado quando nenhum é nomeado: transmitido em páginas."
