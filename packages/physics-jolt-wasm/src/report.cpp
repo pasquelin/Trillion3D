@@ -120,7 +120,8 @@ uint32_t writePoses() {
     Slot &slot = w.slots[engine & INDEX_MASK];
     if (!slot.used || slot.engine != engine || slot.frozen) continue;
     BodyLockRead lock(locks, slot.id);
-    if (lock.Succeeded() && lock.GetBody().IsDynamic()) emit(engine & INDEX_MASK, lock.GetBody(), true);
+    if (lock.Succeeded() && lock.GetBody().IsDynamic() && lock.GetBody().IsRigidBody())
+      emit(engine & INDEX_MASK, lock.GetBody(), true);
   }
   return count;
 }

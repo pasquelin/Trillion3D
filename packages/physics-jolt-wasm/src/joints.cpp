@@ -65,7 +65,8 @@ bool bodyOf(uint32_t engine, BodyID &id) {
   if (engine == WORLD_BODY) return (id = BodyID(), true);
   uint32_t index = engine & INDEX_MASK;
   const std::vector<Slot> &slots = world().slots;
-  if (index >= slots.size() || !slots[index].used || slots[index].engine != engine) return false;
+  if (index >= slots.size() || !slots[index].used || slots[index].engine != engine || slots[index].soft)
+    return false;
   return (id = slots[index].id, true);
 }
 

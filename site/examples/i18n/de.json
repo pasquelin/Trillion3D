@@ -2077,5 +2077,31 @@
     "words": {
       "credit": "Tal für dieses Beispiel im Code modelliert, CC0 — siehe assets/examples/CREDITS.md"
     }
+  },
+  "cloth-and-rope": {
+    "banner": "Die Fahne hängt am Mast, und die Seile schwingen unter dem Balken. Mach die Fahne steif oder lass die Seile dehnen.",
+    "controls": {
+      "stiff": "Steife Fahne",
+      "stretch": "Seildehnung",
+      "again": "Nochmal",
+      "slowMotion": "Zeitlupe"
+    },
+    "readouts": {
+      "vertices": "Eckpunkte",
+      "step": "Schritt"
+    }
+  },
+  "soft-bodies": {
+    "banner": "Lass weiche Volumen auf die Stufe fallen. Stell den Druck ihres Gases ein, oder 0 für den Standard.",
+    "controls": {
+      "pressure": "Druck (Pa)",
+      "drop": "Fallen lassen",
+      "again": "Nochmal",
+      "slowMotion": "Zeitlupe"
+    },
+    "readouts": {
+      "volumes": "Volumen",
+      "awake": "Wach"
+    }
   }
 }
