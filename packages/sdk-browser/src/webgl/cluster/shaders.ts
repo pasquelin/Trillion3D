@@ -117,10 +117,9 @@ function variant(text: string, from: string, to: string) {
  * The fragment program of a draw into the effect chain's target (`../../effects/webglEffects.ts`):
  * `CLUSTER_FRAGMENT` with its last line changed, compiled only while a chain has a pass. It writes
  * linear radiance — the curve and the encoding come after the passes — whose alpha is coverage:
- * an opaque or none-blended surface (`covering`) covers its pixel whatever its alpha, and the
- * modes that filter the background are refused (`./materialBinding.ts`). Its second output marks
- * the coverage of the surfaces the curve skips (`toneMapped` false), blended as the colour is, so
- * the display chain leaves them as drawn.
+ * a `covering` surface covers its pixel whatever its alpha (`coversLinear`, `./materialBinding.ts`).
+ * Its second output marks the coverage of the surfaces the curve skips (`toneMapped` false),
+ * blended as the colour is, so the display chain leaves them as drawn.
  */
 export const CLUSTER_LINEAR_FRAGMENT = variant(
   variant(

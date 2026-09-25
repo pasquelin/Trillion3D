@@ -182,11 +182,10 @@ revision and asks for a frame.
   program's vertex arrays and maps: without a chain, the program and its uniforms are the ones
   drawn before the chain existed. Its second output marks, one byte a pixel, the coverage of the
   surfaces whose material skips the curve (`toneMapped: false`); the output program leaves that
-  share as drawn. An opaque or none-blended surface covers its pixel whatever its alpha, and
-  coverage past one (additive light over a covered pixel) is read as light, not divided out.
-  Multiply and subtractive surfaces filter the background the display target holds and the linear
-  target does not: the chain refuses them by name rather than draw another mode. A context that
-  cannot render half floats draws without the chain.
+  share as drawn. Coverage past one is read as light (`effects/webglOutput.ts`); which surfaces
+  cover, and the multiply and subtractive modes the chain refuses, are `coversLinear`'s
+  (`webgl/cluster/materialBinding.ts`). A context that cannot render half floats draws without
+  the chain.
 - **Kinds**: each renderer holds one table from pass kind to implementation (`WEBGPU_KINDS`,
   `WEBGL_KINDS`); a new built-in or the custom pass is one entry. The kinds of a chain share its two
   pass targets; each holds its own resources besides, sized for the passes of its kind — the
