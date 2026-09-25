@@ -2228,13 +2228,6 @@
       "depthLayer": "Lớp độ sâu đồng phẳng, bằng 0 cho mọi cụm mà trình biên dịch để nguyên. Một cụm ở lớp n được vẽ với độ lệch chuẩn về độ sâu bằng n bước lớp đầy đủ, đó là thứ quyết định người thắng giữa hai bề mặt không trong suốt chia sẻ đúng một mặt phẳng. Vắng mặt và bằng 0 có nghĩa như nhau: bản vẽ không bị động chạm."
     }
   },
-  "PageCacheHolder": {
-    "summary": "Phần giữ của một phiên trên bộ đệm: phần nó dành riêng khỏi tổng, và cách nó loại bỏ — bỏ qua các trang được ghim và các lần truyền — khi tổng giảm.",
-    "members": {
-      "reservedBytes": "Số byte phiên dành riêng khỏi tổng: các bảng manifest và hàng đợi truyền của nó.",
-      "evict": "Loại bỏ trang theo lần dùng cuối cho đến khi vừa, bỏ qua các trang được ghim và các lần truyền của phiên."
-    }
-  },
   "PageCutPage": {
     "summary": "Một trang mà một `cut` đã ghi: các byte chỉ số và hình học của nó, khối tóm tắt của chúng, và bộ mô tả của nó.",
     "members": {
@@ -4621,7 +4614,7 @@
   },
   "createPageStreamer": {
     "summary": "Các lần đọc có giới hạn, ưu tiên và không trùng lặp.",
-    "description": "Một yêu cầu vẫn còn chờ trong hàng đợi bị loại bỏ ngay khi người tiêu thụ cuối cùng của nó rời đi; một yêu cầu đã đang trong quá trình truyền được phép đáp xuống bộ nhớ đệm. Bộ nhớ đệm là một tập hợp ít-được-dùng-gần-đây-nhất bị giới hạn bởi cả số mục lẫn số byte; các mục được ghim sống sót qua việc loại bỏ, nên một bên gọi giữ được ảnh bìa đang hiển thị của mình bằng cách giữ nó lại. Bộ nhớ đệm là `kept` khi bên gọi trao một cái (`pageCache.ts`): khi đó bộ đọc dành trước các bảng manifest và hàng đợi truyền của nó từ tổng CPU của bộ nhớ đệm, bỏ những gì danh mục không còn gọi tên ở kích thước đó, và để lại các trang ở đó khi được giải phóng, cho phiên kế tiếp."
+    "description": "Một yêu cầu vẫn còn chờ trong hàng đợi bị loại bỏ ngay khi người tiêu thụ cuối cùng của nó rời đi; một yêu cầu đã đang trong quá trình truyền được phép đáp xuống bộ nhớ đệm. Bộ nhớ đệm là một tập hợp ít-được-dùng-gần-đây-nhất bị giới hạn bởi cả số mục lẫn số byte; các mục được ghim sống sót qua việc loại bỏ, nên một bên gọi giữ được ảnh bìa đang hiển thị của mình bằng cách giữ nó lại."
   },
   "createPathGovernor": {
     "summary": "Một bộ điều tiết."

@@ -2210,13 +2210,6 @@
       "depthLayer": "Camada de profundidade coplanar, 0 para cada cluster que o compilador deixou intacto. Um cluster da camada n desenha com um viés de profundidade de n passos de camada inteiros, o que decide o vencedor entre duas superfícies opacas que compartilham exatamente um plano. Ausente e 0 significam a mesma coisa: o desenho intocado."
     }
   },
-  "PageCacheHolder": {
-    "summary": "A reserva de uma sessão sobre o cache: o que ela separa do total e como remove — sem tocar nas páginas fixadas e nas transferências — quando o total diminui.",
-    "members": {
-      "reservedBytes": "Bytes que a sessão separa do total: suas tabelas de manifesto e sua fila de transferências.",
-      "evict": "Remove páginas por último uso até caberem, sem tocar nas páginas fixadas e nas transferências da sessão."
-    }
-  },
   "PageCutPage": {
     "summary": "Uma página que um `cut` escreveu: seus bytes de índice e geometria, seus digests, e seu descritor.",
     "members": {
@@ -4625,7 +4618,7 @@
   },
   "createPageStreamer": {
     "summary": "Leituras limitadas, priorizadas e deduplicadas.",
-    "description": "Uma requisição ainda esperando na fila é descartada assim que seu último consumidor sai; uma já em transferência tem permissão de chegar ao cache. O cache é um conjunto de menos-recentemente-usado limitado tanto por entradas quanto por bytes; entradas fixadas sobrevivem à remoção, então um chamador mantém sua cobertura exibida ao retê-la. O cache é `kept` quando o chamador entrega um (`pageCache.ts`): o leitor reserva então suas tabelas de manifesto e sua fila de transferências do total de CPU do cache, descarta o que o catálogo não nomeia mais com esse tamanho, e deixa as páginas ali ao ser liberado, para a próxima sessão."
+    "description": "Uma requisição ainda esperando na fila é descartada assim que seu último consumidor sai; uma já em transferência tem permissão de chegar ao cache. O cache é um conjunto de menos-recentemente-usado limitado tanto por entradas quanto por bytes; entradas fixadas sobrevivem à remoção, então um chamador mantém sua cobertura exibida ao retê-la."
   },
   "createPathGovernor": {
     "summary": "Um regulador."
