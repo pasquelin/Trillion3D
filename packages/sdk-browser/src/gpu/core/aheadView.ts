@@ -2,6 +2,7 @@ import {
   FRUSTUM_PLANE_VALUES,
   frustumFarPlane,
   frustumPlanesFromMatrix,
+  matrixAtRenderOrigin,
   multiplyMatrix4,
 } from '../../../../sdk-core/src/index.ts';
 import { PREFETCH_HORIZON_MS } from '../../backend/common.ts';
@@ -26,7 +27,8 @@ export type AheadView = { planes: Float32Array; view: Float32Array };
 
 const projection = new Float64Array(16),
   clip = new Float64Array(16),
-  planes = new Float64Array(FRUSTUM_PLANE_VALUES);
+  planes = new Float64Array(FRUSTUM_PLANE_VALUES),
+  back = new Float64Array(3);
 
 /** A projection scale `cot(half field)` opened by `turn` radians; a field past the half turn takes
  *  zero, and its side planes keep only what is in front of the eye. */
@@ -63,10 +65,11 @@ export function aheadViewOf(cam: EngineCamera, motion: CameraMotion, into?: Ahea
     if (toward > 0) planes[i * 4 + 3] += toward;
   }
   out.planes.set(planes);
-  out.view.set(view);
-  for (let row = 0; row < 3; row++)
-    out.view[12 + row] =
-      view[12 + row] - (view[row] * dx + view[4 + row] * dy + view[8 + row] * dz);
+  // The eye moved by `d` sees the world moved back by it.
+  back[0] = -dx;
+  back[1] = -dy;
+  back[2] = -dz;
+  matrixAtRenderOrigin(out.view, view, back);
   return out;
 }
 

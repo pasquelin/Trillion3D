@@ -39,13 +39,16 @@ const FRAME:u32=7u;
 /** Frustum planes live in the primitive's own space, so no box is ever transformed.
  *  GPU mirror of \`frustumExcludesBox\` (sdk-core, packages/sdk-core/src/math/frustum/box.ts): same corners, same sum. */
 fn outsideFrustum(base:u32,bmin:vec3f,bmax:vec3f)->bool{
- for(var i=0u;i<6u;i++){
-  let plane=frames[base+i];
-  let px=select(bmin.x,bmax.x,plane.x>0.0);let py=select(bmin.y,bmax.y,plane.y>0.0);let pz=select(bmin.z,bmax.z,plane.z>0.0);
-  if(dot(plane.xyz,vec3f(px,py,pz))+plane.w<0.0){return true;}
- }
+ for(var i=0u;i<6u;i++){if(outsidePlane(frames[base+i],bmin,bmax)){return true;}}
  return false;
 }
+/** True when the box lies wholly behind the plane: its corner furthest along the normal is. */
+fn outsidePlane(plane:vec4f,bmin:vec3f,bmax:vec3f)->bool{
+ let px=select(bmin.x,bmax.x,plane.x>0.0);let py=select(bmin.y,bmax.y,plane.y>0.0);let pz=select(bmin.z,bmax.z,plane.z>0.0);
+ return dot(plane.xyz,vec3f(px,py,pz))+plane.w<0.0;
+}
+/** True on a primitive no camera culls (\`SPRITE_UNCULLED\`). */
+fn unculledOf(w:u32)->bool{return (spriteOf(w)&${SPRITE_UNCULLED}u)!=0u;}
 /** GPU mirror of \`isConformal\` (../../../page/cone/cone.ts): 3x3 divided by the sum of its absolute values,
  *  relative tolerances only; null, infinite or NaN sum (read at the bit): cluster kept. */
 fn isConformal(m:mat3x3f)->bool{
@@ -123,8 +126,8 @@ fn dagPrepare(@builtin(global_invocation_id) id:vec3u){
  let root=select(rootOf(w),0xffffffffu,isLightCut()&&spriteOf(w)!=0u);
  flags[queueBase(0u)+t]=select(packEntry(vi,root),root,root==0xffffffffu);
  let m=transpose(worlds[w]);let base=slot*FRAME;
- // A primitive a camera never culls (\`SPRITE_UNCULLED\`) takes six planes no box leaves.
- let open=!isLightCut()&&(spriteOf(w)&${SPRITE_UNCULLED}u)!=0u;
+ // A primitive a camera never culls (\`unculledOf\`) takes six planes no box leaves.
+ let open=!isLightCut()&&unculledOf(w);
  for(var i=0u;i<6u;i++){frames[base+i]=select(m*views[vi].planes[i],vec4f(0.0,0.0,0.0,1.0),open);}
 }
 @compute @workgroup_size(64)
