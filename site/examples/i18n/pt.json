@@ -2085,5 +2085,31 @@
     "words": {
       "credit": "Vale modelado em código para este exemplo, CC0 — ver assets/examples/CREDITS.md"
     }
+  },
+  "cloth-and-rope": {
+    "banner": "A bandeira pende do mastro e as cordas balançam sob a viga. Torna a bandeira rígida, ou deixa as cordas esticar.",
+    "controls": {
+      "stiff": "Bandeira rígida",
+      "stretch": "Estiramento das cordas",
+      "again": "De novo",
+      "slowMotion": "Câmara lenta"
+    },
+    "readouts": {
+      "vertices": "Vértices",
+      "step": "Passo"
+    }
+  },
+  "soft-bodies": {
+    "banner": "Larga volumes moles no degrau. Ajusta a pressão do gás deles, ou 0 para a padrão.",
+    "controls": {
+      "pressure": "Pressão (Pa)",
+      "drop": "Largar",
+      "again": "De novo",
+      "slowMotion": "Câmara lenta"
+    },
+    "readouts": {
+      "volumes": "Volumes",
+      "awake": "Acordados"
+    }
   }
 }

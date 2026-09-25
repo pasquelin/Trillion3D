@@ -2085,5 +2085,31 @@
     "words": {
       "credit": "이 예제를 위해 코드로 만든 계곡, CC0 — assets/examples/CREDITS.md 참고"
     }
+  },
+  "cloth-and-rope": {
+    "banner": "깃발은 깃대에 매달리고 밧줄은 들보 아래에서 흔들린다. 깃발을 뻣뻣하게 하거나 밧줄이 늘어나게 해 보세요.",
+    "controls": {
+      "stiff": "뻣뻣한 깃발",
+      "stretch": "밧줄 늘어남",
+      "again": "다시",
+      "slowMotion": "슬로 모션"
+    },
+    "readouts": {
+      "vertices": "꼭짓점",
+      "step": "스텝"
+    }
+  },
+  "soft-bodies": {
+    "banner": "말랑한 부피를 계단 위에 떨어뜨리세요. 기체 압력을 정하고, 0이면 기본값입니다.",
+    "controls": {
+      "pressure": "압력 (Pa)",
+      "drop": "떨어뜨리기",
+      "again": "다시",
+      "slowMotion": "슬로 모션"
+    },
+    "readouts": {
+      "volumes": "부피",
+      "awake": "활성"
+    }
   }
 }
