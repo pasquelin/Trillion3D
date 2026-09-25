@@ -10,7 +10,8 @@ contribution workflow never requires it.
 
 The boss sets priorities and tests the result. A **CTO** session, the only one the boss opens,
 turns those priorities into work, starts one **lead** agent per domain, and keeps the company honest. Leads run a **coder** and a
-**reviewer** for one issue at a time, verify the result themselves, merge and close. After every
+**reviewer** for one issue at a time, verify the result themselves, name it ready for the CTO to
+merge, and close the issue. After every
 merge, **measurement** checks performance and captures the live example, and **acceptance**
 re-reads the change as a safety net. An **architect** keeps the code small and logical; an
 **analyst** studies how the company works and proposes improvements; the CTO applies those that
@@ -41,7 +42,8 @@ and pull requests.
    - its `measure ko` / `audit ko` issues;
    - then its issues by priority label (AGENTS.md §Leads).
 3. For each issue, the lead runs one coder, then one reviewer. It then writes
-   `## Lead verification` in the PR, one line per To-do item, and merges when CI is green.
+   `## Lead verification` in the PR, one line per To-do item, and names it ready when CI is
+   green; the CTO merges it.
    CI refuses a PR without that section, or without real `/simplify:` and `/code-review:` lines.
 4. After the merge:
    - the issue closes, or stays open with `Part of #n` when work remains;

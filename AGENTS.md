@@ -84,7 +84,8 @@ finish, nothing new starts) so no work is cut midway.
 
 - **Never idle.** A lead with work in its domain (an open issue, a pull request to unblock) is
   always working on it; `measure ko` and `audit ko` first, then its issues by priority label, 🔴
-  first, the oldest first within a label.
+  first; within a label, a programme's children and To-do items in its order, the others oldest
+  first; an issue with no priority label last.
 - **One agent at a time.** A lead runs one coder or one reviewer subagent at a time, never two.
 - **At most 3 pull requests waiting per lead.** At 3, the lead starts no coder: it unblocks its own
   pull requests (red CI, conflict with `develop`, unanswered review) and resumes only once it is
@@ -97,7 +98,7 @@ finish, nothing new starts) so no work is cut midway.
 
 | Label                    | Set by   | Means                                                     |
 | ------------------------ | -------- | --------------------------------------------------------- |
-| `🔴 critical` … `🟢 low` | CTO      | the only order of the leads' issues, 🔴 first             |
+| `🔴 critical` … `🟢 low` | CTO      | the only priority of the leads' issues (order: §Leads)    |
 | `in progress`            | lead     | taken: no other lead touches it                           |
 | `in review`              | lead     | pull request open, reviewer at work                       |
 | `to measure`             | lead     | closed engine issue waiting in the measurer's queue       |
