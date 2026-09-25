@@ -131,7 +131,7 @@ export function writeShadowPages(
       );
     }
     if (fresh) {
-      runs.open(region, near, keys[page]);
+      runs.open(region, near);
       open = i;
     }
     pageViews[i] = runs.count - 1;

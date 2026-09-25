@@ -57,7 +57,7 @@ fn hardwareSkips(page:PageInfo,h:ClusterHeader,vertexIndex:u32)->bool{
  let triangle=vertexIndex/3u;
  let ia=pageCorner(page,h,triangle*3u);let ib=pageCorner(page,h,triangle*3u+1u);let ic=pageCorner(page,h,triangle*3u+2u);
  let vp=uni.viewProj*page.world;
- return computeTakes(vp*vec4f(pagePosition(page,h,ia),1.0),vp*vec4f(pagePosition(page,h,ib),1.0),vp*vec4f(pagePosition(page,h,ic),1.0));
+ return computeTakes(pageClip(vp,page,h,ia),pageClip(vp,page,h,ib),pageClip(vp,page,h,ic));
 }
 @vertex fn vis_vs(@builtin(vertex_index) vertexIndex:u32,@builtin(instance_index) instanceIndex:u32)->VSOut{
  var out:VSOut;
@@ -71,6 +71,7 @@ fn hardwareSkips(page:PageInfo,h:ClusterHeader,vertexIndex:u32)->bool{
  let p=pagePosition(page,h,id);
  let world=page.world*vec4f(p,1.0);
  out.position=uni.viewProj*world;
+ if(page.lineWidth>0.0){out.position=pageLine(page,h,id,uni.viewProj*page.world,out.position);}
  out.id=page.packedBase|((vertexIndex/3u)&0xffu);
  if((page.flags&4u)!=0u){out.tc=vec3f(pageUv(page,h,id),0.0);}
  if((page.flags&128u)!=0u){out.tc.z=pageMaskAlpha(page,h,id);}
@@ -89,6 +90,7 @@ fn hardwareSkips(page:PageInfo,h:ClusterHeader,vertexIndex:u32)->bool{
  let p=pagePosition(page,h,id);
  let world=page.world*vec4f(p,1.0);
  out.position=uni.viewProj*world;
+ if(page.lineWidth>0.0){out.position=pageLine(page,h,id,uni.viewProj*page.world,out.position);}
  out.id=page.packedBase|((vertexIndex/3u)&0xffu);
  if((page.flags&4u)!=0u){out.tc=vec3f(pageUv(page,h,id),0.0);}
  if((page.flags&128u)!=0u){out.tc.z=pageMaskAlpha(page,h,id);}

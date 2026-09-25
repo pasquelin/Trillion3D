@@ -57,8 +57,8 @@ test('each mode composes source and background by its own equation', () => {
 
 // One refusal: what the admission gate names is what a draw would throw, word for word.
 test('the gate and the draws refuse a blending by the same words', () => {
-  const position = new G.GraphAttribute(new Float32Array(9), 3),
-    normal = new G.GraphAttribute(new Float32Array(9), 3);
+  const position = new G.BufferAttribute(new Float32Array(9), 3),
+    normal = new G.BufferAttribute(new Float32Array(9), 3);
   const refusal = (mode: Parameters<typeof drawnBlending>[0], transmissive: boolean) => {
     try {
       drawnBlending(mode, transmissive);

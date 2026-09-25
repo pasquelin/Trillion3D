@@ -8,7 +8,7 @@ import { GraphInstancedMesh, GraphMesh } from '../../host/graph/mesh.ts';
 import { GraphCamera } from '../../host/graph/camera.ts';
 import { readHostDrawCamera } from '../../camera/world.ts';
 import { GraphGeometry } from '../../host/graph/geometry.ts';
-import { GraphAttribute } from '../../host/graph/attributes.ts';
+import { BufferAttribute } from '../../../../sdk-core/src/world/buffer/attribute.ts';
 import { GraphSurface } from '../../host/graph/surface.ts';
 import { Group } from '../../../../sdk-core/src/world/object/object3d.ts';
 
@@ -16,9 +16,9 @@ const OUTPUT = { toneMapped: false, framebuffer: null, width: 8, height: 4 };
 
 /** A mesh of `corners` indices — its count names it in the recorded draws. */
 function mesh(corners: number, renderOrder: number, surface = new GraphSurface('standard')) {
-  const geometry = new GraphGeometry().setIndex(new GraphAttribute(new Uint32Array(corners), 1));
-  geometry.setAttribute('position', new GraphAttribute(new Float32Array(9), 3));
-  geometry.setAttribute('normal', new GraphAttribute(new Float32Array(9), 3));
+  const geometry = new GraphGeometry().setIndex(new BufferAttribute(new Uint32Array(corners), 1));
+  geometry.setAttribute('position', new BufferAttribute(new Float32Array(9), 3));
+  geometry.setAttribute('normal', new BufferAttribute(new Float32Array(9), 3));
   const made = new GraphMesh(geometry, surface);
   made.renderOrder = renderOrder;
   made.frustumCulled = false;
@@ -153,5 +153,34 @@ test('a transmissive copy draws over the backdrop the opaque meshes were drawn i
   assert.equal(submitted[transmits].args[1], 1, 'the glass is drawn transmitting');
   assert.ok(transmits < at(9));
   assert.deepEqual(draw.counters(), { triangles: 7 });
+  draw.dispose();
+});
+
+// #348: a line's width counts CSS pixels. The WebGL2 program widens a line surface's quads by its
+// `lineWidth` times the host's pixel ratio, read each frame, in the viewport of the image.
+test('a line surface draws with its CSS width and the host pixel ratio', () => {
+  const context = createTestContext(),
+    scene = new GraphScene(),
+    lines = new GraphSurface('basic', { side: 2 });
+  lines.lineWidth = 3;
+  scene.add(mesh(6, 0, lines));
+  let ratio = 2;
+  const draw = createSceneDraw(context.gl, scene, [], () => ratio);
+  const uniform = (name: string) =>
+    context
+      .of('uniform1f')
+      .filter((args) => (args[0] as { uniform: string }).uniform === name)
+      .map((args) => args[1]);
+  for (const frame of [2, 1.5]) {
+    ratio = frame;
+    draw.render({} as HostCamera);
+    draw.drawHostGeometry(createHostDrawCamera(), OUTPUT);
+  }
+  assert.deepEqual(uniform('pixelRatio'), [2, 1.5], 'each frame reads the ratio');
+  assert.deepEqual(uniform('lineWidth'), [3]);
+  const viewport = context
+    .of('uniform2f')
+    .find((args) => (args[0] as { uniform: string }).uniform === 'viewport');
+  assert.deepEqual(viewport?.slice(1), [8, 4]);
   draw.dispose();
 });

@@ -19,7 +19,9 @@ export const SHADE_SHADER = `${SHADE_DECL_WGSL}
  let i0=pageCorner(page,h,tri*3u);let i1=pageCorner(page,h,tri*3u+1u);let i2=pageCorner(page,h,tri*3u+2u);
  let p0=pagePosition(page,h,i0);let p1=pagePosition(page,h,i1);let p2=pagePosition(page,h,i2);
  let w0=page.world*vec4f(p0,1.0);let w1=page.world*vec4f(p1,1.0);let w2=page.world*vec4f(p2,1.0);
- let c0=uni.viewProj*w0;let c1=uni.viewProj*w1;let c2=uni.viewProj*w2;
+ var c0=uni.viewProj*w0;var c1=uni.viewProj*w1;var c2=uni.viewProj*w2;
+ // A line page's triangle is the quad the rasters widened (\`pageLine\`): its corners are read the same way.
+ if(page.lineWidth>0.0){let vp=uni.viewProj*page.world;c0=pageLine(page,h,i0,vp,c0);c1=pageLine(page,h,i1,vp,c1);c2=pageLine(page,h,i2,vp,c2);}
  let s0=framebuffer(c0);let s1=framebuffer(c1);let s2=framebuffer(c2);
  let p=vec2f(pos.x,pos.y);
  let area=edge(s1.xy,s2.xy,s0.xy);
@@ -125,10 +127,11 @@ export const SHADE_SHADER = `${SHADE_DECL_WGSL}
    if(DOUBLE_SIDED&&HAS_VERTEX_NORMAL){T*=face;B*=face;}
    N=uniteOuZero(T*mapN.x+B*mapN.y+N*mapN.z);
   }
- // The models that show something other than light leave unlit (\`../../scene/surfaceModel.ts\`).
+ // The models that show something other than light leave unlit (\`../../scene/surfaceModel.ts\`):
+ // a matcap as an unlit material, seen through the fog; a normal or depth view as-is, never fogged.
  if(model==${SURFACE_MODEL.normal}u){rgb=viewNormal(N)*0.5+0.5;}
  if(model==${SURFACE_MODEL.depth}u){let w=dot(bary,vec3f(c0.w,c1.w,c2.w));let r=uni.depthRamp;rgb=vec3f(clamp(r.x*w+r.y+r.z*dot(bary,vec3f(c0.z,c1.z,c2.z))/w,0.0,1.0));}
- if(model>=${SURFACE_MODEL.normal}u){return SurfaceOut(vec4f(rgb,0.0),vec4f(N,1.0),vec4f(0.0,0.0,0.0,1.0),1u,request);}
+ if(model>=${SURFACE_MODEL.normal}u){return SurfaceOut(vec4f(rgb,0.0),vec4f(N,1.0),vec4f(0.0,0.0,0.0,1.0),select(3u,1u,model==${SURFACE_MODEL.matcap}u),request);}
  var flag=select(1u,2u,(page.flags&1u)!=0u);
  if(flag==2u&&model==${SURFACE_MODEL.diffuse}u){flag=${MODEL_FLAG.diffuse}u;}
  if(flag==2u&&model==${SURFACE_MODEL.toon}u){flag=${MODEL_FLAG.toon}u;}
