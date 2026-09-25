@@ -97,10 +97,12 @@ export async function createDeferredProgram(
     boundProbes: GPUBuffer | undefined,
     boundProxy: GPUBuffer | undefined,
     boundHdr: GPUTextureView | undefined,
+    /** The bound surface's flags: the share the lit image is composed with. */
+    boundFlags: GPUTextureView | undefined,
     lightGroup: GPUBindGroup | undefined;
-  // One composition per source read: the lit image or a TAA history, three at most.
+  // One per colour and share read, weakly keyed by every view it reads: nothing to reset.
   type Composition = { group: GPUBindGroup; draw: GPURenderPipeline; present: GPURenderPipeline };
-  const composed = new Map<GPUTextureView, Composition>();
+  let composed = new WeakMap<GPUTextureView, WeakMap<GPUTextureView, Composition>>();
   return {
     light,
     get lightGroup() {
@@ -109,21 +111,24 @@ export async function createDeferredProgram(
     /** The pipelines and group reading the lit image and its surface flags, or an accumulated
      *  image and its as-is share; `undefined` before `bind`. */
     composition(accumulated?: AccumulatedImage) {
-      const view = accumulated?.color ?? boundHdr;
-      if (!view || !boundSurface) return undefined;
-      let composition = composed.get(view);
-      if (!composition) {
-        const { layout, draw, present } = compositions[accumulated ? 'accumulated' : 'still'];
-        const group = device.createBindGroup({
-          layout,
-          entries: [
-            { binding: 0, resource: view },
-            { binding: 1, resource: { buffer: bindings.uniform } },
-            { binding: 2, resource: accumulated?.share ?? boundSurface.views()[3] },
-          ],
-        });
-        composed.set(view, (composition = { group, draw, present }));
-      }
+      const view = accumulated?.color ?? boundHdr,
+        share = accumulated?.share ?? boundFlags;
+      if (!view || !share || !boundSurface) return undefined;
+      let byShare = composed.get(view);
+      if (!byShare) composed.set(view, (byShare = new WeakMap()));
+      const kept = byShare.get(share);
+      if (kept) return kept;
+      const { layout, draw, present } = compositions[accumulated ? 'accumulated' : 'still'];
+      const group = device.createBindGroup({
+        layout,
+        entries: [
+          { binding: 0, resource: view },
+          { binding: 1, resource: { buffer: bindings.uniform } },
+          { binding: 2, resource: share },
+        ],
+      });
+      const composition = { group, draw, present };
+      byShare.set(share, composition);
       return composition;
     },
     bind(
@@ -141,7 +146,6 @@ export async function createDeferredProgram(
         requests = direct.requests ?? placeholders.requests,
         probes = direct.probes,
         proxy = direct.proxy ?? placeholders.proxy;
-      if (boundHdr !== hdr || boundSurface !== surface) composed.clear();
       boundHdr = hdr;
       if (
         boundSurface === surface &&
@@ -154,6 +158,7 @@ export async function createDeferredProgram(
       )
         return;
       boundSurface = surface;
+      boundFlags = surface.views()[3];
       boundTiles = tiles;
       boundAtlas = atlas;
       boundTransmittance = transmittance;
@@ -188,8 +193,8 @@ export async function createDeferredProgram(
     },
     release() {
       boundSurface = boundTiles = boundAtlas = boundTransmittance = undefined;
-      boundRequests = boundProbes = boundProxy = boundHdr = lightGroup = undefined;
-      composed.clear();
+      boundRequests = boundProbes = boundProxy = boundHdr = boundFlags = lightGroup = undefined;
+      composed = new WeakMap();
     },
   };
 }

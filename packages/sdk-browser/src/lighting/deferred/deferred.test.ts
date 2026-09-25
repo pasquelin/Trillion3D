@@ -5,7 +5,7 @@ import type { SurfaceBuffer } from '../../scene/surfaceBuffer.ts';
 import { fakeDevice, written } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 
 function gpuHarness() {
-  const { device, buffers, writes, destroyed } = fakeDevice();
+  const { device, buffers, writes, destroyed, bindGroups } = fakeDevice();
   const passes: {
     descriptor: GPURenderPassDescriptor;
     pipeline?: GPURenderPipeline;
@@ -36,9 +36,12 @@ function gpuHarness() {
     },
   } as unknown as GPUCommandEncoder;
   const view = () => ({}) as GPUTextureView;
-  const surface = { views: () => [view(), view(), view(), view()] } as unknown as SurfaceBuffer;
+  // Stable views, as a real surface keeps: a composition is keyed by the flags view it reads.
+  const surfaceViews = [view(), view(), view(), view()],
+    surface = { views: () => surfaceViews } as unknown as SurfaceBuffer;
   return {
     device,
+    bindGroups,
     encoder,
     view,
     surface,
@@ -143,5 +146,37 @@ test('the rank of a sampled image rides in the fourth viewport slot, zero withou
   assert.deepEqual([...h.writes[0].slice(28, 32)], [3, 2, 1, 1]);
   lighting.update(matrix, [1, 2, 3], 800, 600, 0x204060, false);
   assert.deepEqual([...h.writes[1].slice(20, 24)], [800, 600, 0, 0]);
+  lighting.dispose();
+});
+
+test('an image is composed with the share it read, one group per pair (#349)', async () => {
+  const h = gpuHarness(),
+    lighting = await createDeferredLighting(h.device, {} as GPUBuffer);
+  const hdr = h.view();
+  lighting.bind(h.surface, h.view(), hdr, false);
+  // The two TAA histories, each its colour beside its share, written in turn.
+  const images = [0, 1].map(() => ({ color: h.view(), share: h.view() }));
+  for (let frame = 0; frame < 4; frame++)
+    lighting.compose(h.encoder, h.view(), [0, 0, 0, 1], undefined, images[frame % 2]);
+  for (let frame = 0; frame < 2; frame++) lighting.compose(h.encoder, h.view(), [0, 0, 0, 1]);
+  // A new surface under the same lit image: its flags are read, not the old surface's.
+  const flags = [h.view(), h.view(), h.view(), h.view()],
+    resized = { views: () => flags } as unknown as SurfaceBuffer;
+  lighting.bind(resized, h.view(), hdr, false);
+  lighting.compose(h.encoder, h.view(), [0, 0, 0, 1]);
+  // A composition group reads three resources; the lighting groups read more.
+  const composed = h.bindGroups
+    .map((group) => Array.from(group.entries))
+    .filter((entries) => entries.length === 3);
+  assert.equal(composed.length, 4, 'each history, the lit image, then its new flags, bound once');
+  assert.deepEqual(
+    composed.map((entries) => [entries[0]!.resource, entries[2]!.resource]),
+    [
+      [images[0].color, images[0].share],
+      [images[1].color, images[1].share],
+      [hdr, h.surface.views()[3]],
+      [hdr, flags[3]],
+    ],
+  );
   lighting.dispose();
 });
