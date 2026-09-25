@@ -1,4 +1,5 @@
 import type { Server } from 'node:http';
+import { relative } from 'node:path';
 import { contentType, reply, staticServer } from './static-server.ts';
 
 const CHARSET = ['.html', '.js'];
@@ -19,24 +20,14 @@ export function installedServer(
     mounts: [{ prefix: '/', dir: root }],
     headers: { 'access-control-allow-origin': '*' },
     charset: CHARSET,
+    refuse: (file) => !allowNodeModules && relative(root, file).includes('node_modules'),
     answer: (_request, response, { pathname }) => {
       if (pathname === '/') return reply(response, 200, contentType('.html', CHARSET), html);
       if (pathname === '/favicon.ico') return reply(response, 204);
       response.once('finish', () => requests.push({ path: pathname, status: response.statusCode }));
-      return (
-        !allowNodeModules && decoded(pathname).includes('node_modules') && reply(response, 403)
-      );
+      return false;
     },
   });
-}
-
-/** `pathname` decoded, as the file lookup reads it; a malformed one as it came (its lookup fails). */
-function decoded(pathname: string): string {
-  try {
-    return decodeURIComponent(pathname);
-  } catch {
-    return pathname;
-  }
 }
 
 export const evidenceRequests = (requests: RequestRecord[]): RequestRecord[] =>
