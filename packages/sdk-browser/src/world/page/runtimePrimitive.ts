@@ -1,4 +1,5 @@
 import type { Page, Primitive } from '../../../../sdk-core/src/index.ts';
+import { LINE_DEPTH_LAYER } from '../../../../sdk-core/src/lod/depthLayer.ts';
 import type { PageCutPayload } from '../../../../sdk-core/src/page/decodeContracts.ts';
 import { cutPagesOffThread } from '../../page/decode/host.ts';
 
@@ -15,8 +16,9 @@ function served(bytes: ArrayBuffer, sha256: string, urls: string[]) {
   return { url, sha256, bytes: bytes.byteLength };
 }
 
-/** The pages of a cut, served at addresses of their own: the primitive a manifest lists. */
-function servePrimitive(cut: PageCutPayload): RuntimePrimitive {
+/** The pages of a cut, served at addresses of their own: the primitive a manifest lists. The
+ *  pages of line quads draw one coplanar layer over the faces they lie on (`LINE_DEPTH_LAYER`). */
+function servePrimitive(cut: PageCutPayload, lines: boolean): RuntimePrimitive {
   const urls: string[] = [];
   const pages: Page[] = cut.pages.map((page, id) => ({
     id,
@@ -33,6 +35,7 @@ function servePrimitive(cut: PageCutPayload): RuntimePrimitive {
     parentSphere: null,
     group: null,
     source: null,
+    ...(lines ? { depthLayer: LINE_DEPTH_LAYER } : {}),
     geometry: {
       ...served(page.geometry, page.geometrySha256, urls),
       vertexCount: page.vertexCount,
@@ -63,6 +66,9 @@ function servePrimitive(cut: PageCutPayload): RuntimePrimitive {
  * then enter the session like a compiled model's: read by the streamer at their address, held
  * in the same pools under the same budgets, evicted by the same rules.
  */
-export async function cutRuntimePrimitive(packed: ArrayBuffer): Promise<RuntimePrimitive> {
-  return servePrimitive(await cutPagesOffThread(packed));
+export async function cutRuntimePrimitive(
+  packed: ArrayBuffer,
+  lines: boolean,
+): Promise<RuntimePrimitive> {
+  return servePrimitive(await cutPagesOffThread(packed), lines);
 }
