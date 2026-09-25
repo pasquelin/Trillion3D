@@ -48,10 +48,7 @@ origin/develop`, nothing else written there) at start and after every merge you 
 
 ## Each supervision pass
 
-- **Activity:** every domain with work has a live lead session. A lead that ended, or a stuck
-  one after a `SendMessage`, gets a fresh prompt for the boss on the rest of its list (its state is
-  in GitHub labels). Never two leads on one domain. The analyst gets a new prompt once two hours
-  have passed since its last run.
+- **Activity:** every domain with work has a live lead session. A lead session that ended, or stays stuck after a `SendMessage`, is named to the boss with its command (`/t3d-lead <domain>`) to reopen; its state is in GitHub labels. Never two leads on one domain. The `/loop` sessions relaunch themselves.
 - **Flow:** each lead within AGENTS.md §Leads; one lead per issue. Name to each lead its
   green-but-unmerged, red, conflicting or stale PR; merge the ready ones in the order of
   AGENTS.md rule 11.
@@ -101,7 +98,7 @@ PRs, its audit-ko rate, its closures today; for acceptance and measurement, thei
 ## Hygiene
 
 No pollution, no technical debt: every lead removes its merged or stale worktrees and branches
-(local and remote) as soon as a PR merges or is abandoned, and before stopping. At the end of the
+(local and remote) as soon as a PR merges, and before stopping. At the end of the
 day, check `git worktree list` and `gh pr list` for leftovers and have their owners clean them.
 
 ## At the end of the day
