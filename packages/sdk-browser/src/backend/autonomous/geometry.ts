@@ -21,6 +21,7 @@ type GeometryEnvironment = {
   bootstrap: PageRec[];
   shown: PageRec[];
   desired: PageRec[];
+  requested: PageRec[];
   byUrl: Map<string, PageRec[]>;
   descriptors: Map<string, GeometryPageDescriptor>;
   baseMaterials: Map<PageRec, HostMaterials>;
@@ -59,8 +60,7 @@ export function createAutonomousGeometry(env: GeometryEnvironment) {
     modifiedPages,
   } = env;
   const state = { allocationBytes: 0, submittedTriangles: 0, residentPages: 0 };
-  // The set of displayed pages, reused from frame to frame rather than rebuilt.
-  const affichees = new Set<PageRec>();
+  const affichees = new Set<PageRec>(); // displayed pages, reused from frame to frame
   // Pages actually attached to the scene, held by `attach` and `detach`. A frame detaches
   // only a delta bounded by the cut: it no longer has to scan the whole DAG to find it.
   const attachees = new Set<PageRec>();
@@ -131,7 +131,7 @@ export function createAutonomousGeometry(env: GeometryEnvironment) {
       }
       baseMaterials.delete(rec);
     }
-    for (const list of [allPages, bootstrap, shown, desired])
+    for (const list of [allPages, bootstrap, shown, desired, env.requested])
       for (let i = list.length - 1; i >= 0; i--) if (removed.has(list[i])) list.splice(i, 1);
   };
   const storeGeometryPage = (url: string, data: DecodedGeometryPage) => {
