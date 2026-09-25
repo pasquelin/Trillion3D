@@ -4,7 +4,7 @@ import {
   type SceneProxy,
 } from '../../../sdk-core/src/index.ts';
 import { fetchVerified } from '../cluster/pages.ts';
-import { cacheIdentity, type PageCache } from '../streaming/pageCache.ts';
+import type { PageCache } from '../streaming/pageCache.ts';
 
 /**
  * Read the resident proxy's cache object, next to the manifest that names it, and keep it whole in
@@ -35,7 +35,7 @@ export function createSceneProxyReader(
     return undefined;
   }
   const url = new URL(proxy.url, base).href;
-  const key = cacheIdentity(url, proxy.sha256);
+  const key = `${url}#${proxy.sha256}`;
   cache?.keepOnly(key);
   const read = (readSignal = signal) => fetchVerified(url, proxy, readSignal);
   return async (): Promise<SceneProxy> => {

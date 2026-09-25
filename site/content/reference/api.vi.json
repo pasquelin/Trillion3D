@@ -2543,6 +2543,19 @@
       "workers": "Có bao nhiêu worker lấy và giải mã các trang cùng lúc."
     }
   },
+  "PageStreamerOptions": {
+    "summary": "Cách một bộ đọc trang đọc (`createPageStreamer`).",
+    "description": "Bên cạnh các trang, bộ nhớ đệm của nó dành chỗ cho các bảng manifest và hàng đợi truyền; mỗi thành phần đều có giá trị mặc định.",
+    "members": {
+      "signal": "Hủy mọi lượt đọc khi bị dừng.",
+      "workerCount": "Số lượt đọc chạy cùng lúc; mặc định 8.",
+      "maxPages": "Số trang tối đa giữ cùng lúc; khi vắng thì chỉ giới hạn theo byte.",
+      "onEvict": "Nghe mỗi trang rời khỏi bộ nhớ đệm.",
+      "maxTransferBytes": "Số byte hàng đợi truyền được giữ; mặc định 8 MiB.",
+      "onDiagnostic": "Nghe từng bước của mỗi lượt đọc.",
+      "maxCachedBytes": "Tổng CPU của bộ nhớ đệm: các trang, bảng manifest và hàng đợi truyền cộng lại; mặc định 256 MiB."
+    }
+  },
   "PanZoomCameraControls": {
     "summary": "PAN-ZOOM PHẲNG, góc nhìn phẳng: camera không bao giờ xoay.",
     "description": "Dù nó hướng theo chiều nào khi bộ điều khiển được tạo ra thì đó chính là chiều nó giữ nguyên, và mỗi cử chỉ trượt góc nhìn trên mặt phẳng mà camera hướng tới hoặc di chuyển nó gần hơn tới mặt phẳng đó — một bản vẽ mặt bằng, một mặt cắt đứng, một bản đồ. Bất kỳ cú kéo nào cũng lia, bánh xe và chụm hai ngón để phóng to thu nhỏ giữa `minDistance` và `maxDistance`, và các phím mũi tên lia theo một bước cố định cho người xem không có con trỏ. `rotateSpeed` được kế thừa từ hợp đồng trục xoay và không làm gì ở đây cả: không có phép xoay nào để tăng tốc. `enablePan` và `enableZoom` bật hai cử chỉ đang tồn tại.",
@@ -4763,7 +4776,17 @@
   },
   "createPageStreamer": {
     "summary": "Các lần đọc có giới hạn, ưu tiên và không trùng lặp.",
-    "description": "Một yêu cầu vẫn còn chờ trong hàng đợi bị loại bỏ ngay khi người tiêu thụ cuối cùng của nó rời đi; một yêu cầu đã đang trong quá trình truyền được phép đáp xuống bộ nhớ đệm. Bộ nhớ đệm là một tập hợp ít-được-dùng-gần-đây-nhất bị giới hạn bởi cả số mục lẫn số byte; các mục được ghim sống sót qua việc loại bỏ, nên một bên gọi giữ được ảnh bìa đang hiển thị của mình bằng cách giữ nó lại."
+    "description": "Một yêu cầu vẫn còn chờ trong hàng đợi bị loại bỏ ngay khi người tiêu thụ cuối cùng của nó rời đi; một yêu cầu đã đang trong quá trình truyền được phép đáp xuống bộ nhớ đệm. Bộ nhớ đệm là một tập hợp ít-được-dùng-gần-đây-nhất bị giới hạn bởi cả số mục lẫn số byte; các mục được ghim sống sót qua việc loại bỏ, nên một bên gọi giữ được ảnh bìa đang hiển thị của mình bằng cách giữ nó lại.",
+    "parameters": {
+      "options": "Cách một bộ đọc trang đọc (`createPageStreamer`). Bên cạnh các trang, bộ nhớ đệm của nó dành chỗ cho các bảng manifest và hàng đợi truyền; mỗi thành phần đều có giá trị mặc định.",
+      "options.signal": "Hủy mọi lượt đọc khi bị dừng.",
+      "options.workerCount": "Số lượt đọc chạy cùng lúc; mặc định 8.",
+      "options.maxPages": "Số trang tối đa giữ cùng lúc; khi vắng thì chỉ giới hạn theo byte.",
+      "options.onEvict": "Nghe mỗi trang rời khỏi bộ nhớ đệm.",
+      "options.maxTransferBytes": "Số byte hàng đợi truyền được giữ; mặc định 8 MiB.",
+      "options.onDiagnostic": "Nghe từng bước của mỗi lượt đọc.",
+      "options.maxCachedBytes": "Tổng CPU của bộ nhớ đệm: các trang, bảng manifest và hàng đợi truyền cộng lại; mặc định 256 MiB."
+    }
   },
   "createPathGovernor": {
     "summary": "Một bộ điều tiết."

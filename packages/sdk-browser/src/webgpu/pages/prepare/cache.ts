@@ -45,11 +45,11 @@ function createWebgpuPagesCache(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice, sl
  */
 export async function grantWebgpuPagesCache(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
   const { setup, gpu, diag, run, signal } = rt;
-  let held: { pool: GeometryPool; cache: GpuPageCache } | undefined;
-  for (;;) {
-    const asked = setup.geometryPool.budgetBytes,
-      { bytes, declared } = geometryBudgetBeside(rt, asked);
-    const granted = await grantedGeometryPool(
+  let held: { pool: GeometryPool; cache: GpuPageCache } | undefined, granted, asked;
+  do {
+    asked = setup.geometryPool.budgetBytes;
+    const { bytes, declared } = geometryBudgetBeside(rt, asked);
+    granted = await grantedGeometryPool(
       gpuDevice,
       bytes,
       setup.geometryPoolFor,
@@ -63,8 +63,7 @@ export async function grantWebgpuPagesCache(rt: WebgpuPagesRuntime, gpuDevice: G
       held?.cache.dispose();
       held = { pool: declared(granted.pool), cache: granted.made.cache };
     } else if (!held) throw new Error('WEBGPU_GEOMETRY_POOL_REFUSED');
-    if (!granted || setup.geometryPool.budgetBytes === asked || signal.aborted || run.lost) break;
-  }
+  } while (granted && setup.geometryPool.budgetBytes !== asked && !signal.aborted && !run.lost);
   setup.geometryPool = held.pool;
   gpu.cache = held.cache;
   throwIfStopped(rt);
