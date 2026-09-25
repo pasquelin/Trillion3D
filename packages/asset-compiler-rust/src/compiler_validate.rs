@@ -3,6 +3,14 @@ use super::*;
 pub(super) fn invalid(message: impl Into<String>) -> CompilerError {
     CompilerError::new("INVALID_GLTF", message)
 }
+impl CompilerError {
+    /// The same refusal, naming the source glTF mesh and primitive it was raised in: page ids
+    /// restart at 0 in every primitive, so a page named alone is ambiguous in a cook of several.
+    pub(super) fn within(mut self, mesh: &usize, primitive: &usize) -> Self {
+        self.message = format!("glTF mesh {mesh} primitive {primitive}: {}", self.message);
+        self
+    }
+}
 pub(super) fn required_index(v: Option<&Value>, field: &str) -> Result<usize> {
     let raw = v
         .and_then(Value::as_u64)
