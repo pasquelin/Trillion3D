@@ -23,7 +23,7 @@ export type WebglClusterScene = {
   traverse(visitor: (entry: MatrixNode) => void): void;
   /** Host background: a colour clears the transmission backdrop, anything else clears to black. */
   background?: SceneColour | object;
-  /** The contract's fog, over every lit surface; none when absent. */
+  /** The contract's fog, over every drawn surface; none when absent. */
   fog?: SceneFog | null;
 };
 

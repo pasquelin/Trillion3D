@@ -1028,7 +1028,7 @@
     }
   },
   "Fog": {
-    "summary": "Kabut di atas setiap permukaan yang diterangi: linear dari `near` ke `far`, atau makin tebal seiring jarak menurut `density`, menipis ke atas di atas `baseHeight` bila `heightFalloff` diberikan.",
+    "summary": "Kabut di atas setiap permukaan: linear dari `near` ke `far`, atau makin tebal seiring jarak menurut `density`, menipis ke atas di atas `baseHeight` bila `heightFalloff` diberikan.",
     "description": "Warnanya adalah cahaya yang dihamburkan kabut ke arah mata, diekspos dan dilewatkan kurva tampilan seperti cahaya sebuah permukaan."
   },
   "FrameInfo": {
@@ -2842,7 +2842,7 @@
       "isScene": "Selalu `true`: membedakan root scene dari objek lain.",
       "environment": "Sebuah gambar lingkungan yang dipantulkan permukaan mengkilap; `null` untuk tidak ada.",
       "background": "Yang mengisi gambar di belakang setiap objek: sebuah warna, atau `null` untuk bawaan. Perubahan tampil pada bingkai berikutnya, sesi tetap dipertahankan: warna baru yang diatur di sini, atau warna yang ada ditulis lewat metodenya (`set`, `setRGB`, `setHex`, `setHSL`...). Penulisan langsung ke `.r`, `.g`, atau `.b` tidak terdengar: atur ulang `background` sesudahnya. Gambar, atau nilai apa pun tanpa `getHex`, ditolak (`UNSUPPORTED_SCENE_UPDATE`): tidak ada jalur yang menggambarnya.",
-      "fog": "Kabut di atas setiap permukaan yang diterangi, buram maupun transparan, di kedua perender; `null`, bawaannya, berarti tanpa kabut, tanpa biaya. `{ color, near, far }` memudarkan objek ke `color` dari `near` hingga `far`, jarak dari kamera; `{ color, density }` menebal `density` per satuan jarak; tambahkan `heightFalloff` (dan `baseHeight`, bawaannya 0) dan kabut menempel di tanah, menipis di atas `baseHeight` — dibagi e setiap `1 / heightFalloff` satuan ke atas. Perubahan tampak di bingkai berikutnya: kabut baru yang diberikan di sini, atau warnanya yang ditulis lewat metodenya. Penulisan langsung `near`, `far`, `density`... tidak terdengar: berikan `fog` lagi sesudahnya. Kabut di luar rentang — `far` tidak melewati `near`, kerapatan negatif — ditolak (`INVALID_SCENE_ENVIRONMENT`).",
+      "fog": "Kabut di atas setiap permukaan, buram maupun transparan, di kedua perender; `null`, bawaannya, berarti tanpa kabut, tanpa biaya. `{ color, near, far }` memudarkan objek ke `color` dari `near` hingga `far`, jarak dari kamera; `{ color, density }` menebal `density` per satuan jarak; tambahkan `heightFalloff` (dan `baseHeight`, bawaannya 0) dan kabut menempel di tanah, menipis di atas `baseHeight` — dibagi e setiap `1 / heightFalloff` satuan ke atas. Perubahan tampak di bingkai berikutnya: kabut baru yang diberikan di sini, atau warnanya yang ditulis lewat metodenya. Penulisan langsung `near`, `far`, `density`... tidak terdengar: berikan `fog` lagi sesudahnya. Kabut di luar rentang — `far` tidak melewati `near`, kerapatan negatif — ditolak (`INVALID_SCENE_ENVIRONMENT`).",
       "load": "Memuat sebuah model terkompilasi — URL manifestnya — dan menambahkannya ke scene ini.",
       "toJSON": "Scene sebagai JSON sederhana berversi: objeknya, bentuk lewat panggilan yang membangunnya, material, cahaya, dan model yang dimuat lewat alamatnya; pose `camera` juga jika diberikan.",
       "fromJSON": "Mengganti isi scene dengan scene yang disimpan `toJSON`, penanda `helper`-nya tetap dipertahankan; selesai setelah model-modelnya dimuat. Format atau versi lain ditolak (`UNSUPPORTED_SCENE_FORMAT`). Panggilan yang dilakukan selama pembacaan berjalan satu per satu, berurutan, masing-masing pada hasil yang ditinggalkan panggilan sebelumnya: dua scene tersimpan tidak pernah bercampur."
@@ -2862,7 +2862,7 @@
       "exposure": "Pengali radiansi linear, diterapkan sebelum kurva.",
       "toneMapping": "Kurva tampilan; `DEFAULT_TONE_MAPPING` saat tidak ada.",
       "irradiance": "Iradiansi yang tiba dari setiap arah, sebagai 27 angka: sembilan koefisien, masing-masing sebuah triple RGB, dalam urutan pita konstan, `y`, `z`, `x`, `xy`, `yz`, `3z² − 1`, `xz`, `x² − y²`. Tidak ada, atau semua nol, tidak ada yang menyinari sebuah permukaan selain lampu yang dideklarasikan.",
-      "fog": "Kabut jarak atau ketinggian di atas setiap permukaan yang diterangi (`SceneFog`); bila tidak ada, tanpa kabut."
+      "fog": "Kabut jarak atau ketinggian di atas setiap permukaan (`SceneFog`); bila tidak ada, tanpa kabut."
     }
   },
   "SceneExponentialFog": {
@@ -2907,6 +2907,7 @@
       "ids": "Nama cahaya tiap slot.",
       "count": "Berapa banyak cahaya.",
       "epoch": "Dinaikkan saat set cahaya berubah.",
+      "transportEpoch": "Naik bersama epoch, kecuali oleh perubahan kabut saja: kabut adalah suku sinar pandang, bukan transpor cahaya, jadi yang menyimpan cahaya yang ditranspor (probe pantulan) tetap menyimpannya.",
       "environment": "Lingkungan scene itu.",
       "lightingView": "View yang diminta host, apa adanya: `auto` selama tidak meminta apa pun.",
       "unlit": "Benar saat gambar harus keluar sebagai albedo mentah, tanpa cahaya. Ini perilaku bawaan selama tidak ada cahaya yang dideklarasikan: sebuah scene tanpa sumber tidak punya apa pun untuk disinari, dan sebuah gambar hitam tidak akan membantu benchmark geometri apa pun. Begitu ada sebuah cahaya, pencahayaan sungguhan mengambil alih — kecuali host secara eksplisit meminta tampilan diagnostik.",
@@ -3335,7 +3336,7 @@
       "baseMetal": "Warna dasar RGB, metalness A.",
       "normalRough": "Normal dunia XYZ, roughness A.",
       "emissiveAo": "Emisi RGB, ambient occlusion A.",
-      "flags": "0 latar belakang, 1 tanpa cahaya, 2 pembacaan, 3 diagnostik ruang tampilan.",
+      "flags": "0 latar, 1 tanpa pencahayaan (berkabut), 2 dibaca, 3 ditampilkan apa adanya: diagnostik, tampilan normal atau kedalaman.",
       "views": "View tekstur GPU-nya.",
       "dispose": "Membebaskannya."
     }

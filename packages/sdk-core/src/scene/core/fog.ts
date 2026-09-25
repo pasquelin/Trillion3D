@@ -1,8 +1,8 @@
 /**
  * FOG: THE LIGHT A MEDIUM ABSORBS AND SCATTERS BETWEEN A SURFACE AND THE EYE.
  *
- * A term of the one lighting model, applied per pixel to every lit surface, opaque and
- * transparent alike: the surface's radiance `L` reaches the eye as `mix(color, L, T)`, where `T`
+ * A term of the one lighting model, applied per pixel to every surface, opaque and
+ * transparent, lit or unlit, alike — a normal or depth view excepted: the surface's radiance `L` reaches the eye as `mix(color, L, T)`, where `T`
  * is the transmittance along the view ray and `color` the radiance the medium scatters toward
  * the eye. Three laws give `T` at a distance `d` from the eye:
  * - linear: `T = clamp((far − d) / (far − near), 0, 1)`;

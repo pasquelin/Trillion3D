@@ -151,12 +151,16 @@ ${BLEND_SURFACE_WGSL}
  let unlit=(flags&${FLAG_UNLIT_VIEW}u)!=0u;
  let V=normalize(uni.camPos.xyz-in.view*uni.camPos.w);
  let clamped=clamp(s.rough,0.0525,1.0);
- if(!unlit&&(flags&1u)!=0u){
-  let m=clamp(s.metal,0.0,1.0);
-  // A pixel's footprint at the surface: its distance times the pixel's angle, or the pixel
-  // itself under an orthographic camera.
-  shadowFootprint=select(uni.pixelScale,uni.pixelScale*length(uni.camPos.xyz-in.view),uni.camPos.w!=0.0);
-  rgb=fogged(declaredLighting(rgb,m,clamped,s.N,V,in.view,s.ao,in.position.xy)+bounceLighting(rgb,m,s.N,in.view,s.ao)+environmentLighting(rgb,m,s.N,s.ao)+s.emissive,in.view,uni.eye.xyz);
+ if(!unlit){
+  if((flags&1u)!=0u){
+   let m=clamp(s.metal,0.0,1.0);
+   // A pixel's footprint at the surface: its distance times the pixel's angle, or the pixel
+   // itself under an orthographic camera.
+   shadowFootprint=select(uni.pixelScale,uni.pixelScale*length(uni.camPos.xyz-in.view),uni.camPos.w!=0.0);
+   rgb=declaredLighting(rgb,m,clamped,s.N,V,in.view,s.ao,in.position.xy)+bounceLighting(rgb,m,s.N,in.view,s.ao)+environmentLighting(rgb,m,s.N,s.ao)+s.emissive;
+  }
+  // Lit or unlit, the surface is seen through the fog.
+  rgb=fogged(rgb,in.view,uni.eye.xyz);
  }
  return BlendOut(vec4f(rgb,s.alpha),s.request);
 }
