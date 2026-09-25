@@ -52,8 +52,6 @@ struct Slot {
   bool frozen = false;
   /** A soft body (`soft.cpp`): it takes no pose, velocity, impulse, joint or vehicle. */
   bool soft = false;
-  /** A soft body's mass, its pinned vertices left out (kg). */
-  float softMass = 0;
   JPH::Vec3 linear = JPH::Vec3::sZero(), angular = JPH::Vec3::sZero();
 };
 

@@ -90,3 +90,21 @@ test('a soft body removed while it touches sends its leave, and a sensor lets it
   // Laid flat, the cloth's own −z is the world's down: it fell its metre to the floor.
   assert.ok(at(settle(through, record, 2), 60)[2] < -0.95, 'it falls through the sensor');
 });
+
+test('a body taken away from a soft body asleep leaves it, though the soft body sleeps on', async () => {
+  const jolt = await softWorld();
+  // A cloth that fell on a kinematic table, 0.6 m high, and came to rest over it.
+  const add = new CommandWriter();
+  add.add(body(BOX, 1, 0.3, 0.3));
+  jolt.step(add.take(), 0);
+  flatCloth(jolt, 1, [], true);
+  let last = until(jolt, EVENT.begin, CLOTH, BOX)?.[0];
+  for (let s = 0; s < 1800 && jolt.active() > 0; s++)
+    for (const e of step(jolt)) if (e[1] + e[2] === CLOTH + BOX) last = e[0];
+  assert.equal(jolt.active(), 0, 'asleep');
+  assert.equal(last, EVENT.begin, 'asleep, the cloth still lies on the table');
+  assert.equal(step(jolt).length, 0, 'asleep, nothing is sent');
+  const writer = new CommandWriter();
+  writer.teleport(2, [5, 0.3, 0], [0, 0, 0, 1]);
+  assert.ok(until(jolt, EVENT.end, CLOTH, BOX, 1, writer.take()), 'taken away, it leaves');
+});
