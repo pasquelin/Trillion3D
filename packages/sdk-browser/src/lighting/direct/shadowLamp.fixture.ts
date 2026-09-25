@@ -73,7 +73,9 @@ export function lampOver(light: SceneLight, planes: { at: Vec; normal: Vec }[], 
     const [x, y, , w] = transformHomogeneousPoint([0, 0, 0, 0], matrix, Q[0], Q[1], Q[2]);
     const ndc = [x / w, y / w],
       side = (LAMP_SIDE >> mip) * SHADOW_PAGE;
-    if (develop && Math.max(Math.abs(ndc[0]), Math.abs(ndc[1])) > 1) return { ndc, lit: 1 };
+    // Off its face a spot is outside its cone; so was develop's point light, a rounding past it.
+    if ((develop || !point) && Math.max(Math.abs(ndc[0]), Math.abs(ndc[1])) > 1)
+      return { ndc, lit: 1 };
     const facing = dot(N, [m[o + 3], m[o + 7], m[o + 11]]);
     const slope = Math.sqrt(Math.max(1 - facing * facing, 0)) / (dot(d, d) * cosine);
     // The shader adds `k·margin` to a depth of `k/w` plus a constant: in the axial metres the map
