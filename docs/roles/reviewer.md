@@ -32,7 +32,7 @@ merge and never run Chrome, a browser proof or the bench.
    (`git fetch origin`, `git merge origin/develop`), then the gates: `pnpm run check:changed`,
    `pnpm run test:changed`, the validate group the diff touches. Push once: one CI run covers the
    update and the fixes.
-5. Fill "Local review before push" in the body file: one line `/simplify: …` and one line
-   `/code-review: …` with what each skill found and fixed, copied from its report (CI refuses a
+5. Fill "Local review before push" in the body file: one line `Simplification pass: …` and one line
+   `Correctness review: …` with what each skill found and fixed, copied from its report (CI refuses a
    body without them), then the auditor-list result.
 6. Answer the lead with the findings in short lines and a last line: `OK` when the branch is ready to become a pull request, `KO` with what the coder must change otherwise. Remove your worktree.

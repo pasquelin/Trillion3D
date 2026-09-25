@@ -30,7 +30,7 @@ not write code and you never measure. Every rule of AGENTS.md and CONTRIBUTING.m
    them once that coder's run has ended, then review again. Three rounds at most; past that,
    report to the CTO and stop.
 4. **Merge.** With the reviewer's `OK`, the example of step 2 when the batch has one, and every
-   point of "Before merge" below checked by you on the diff: write `## Lead verification` in the body file, check it with `scripts/check-pr-body.sh`, then open the pull request finished: `gh pr create --base develop --body-file .worktrees/logs/<n>-pr-body.md` (never a draft). Wait for every check to be green (`gh pr checks <pr> --watch`), then send "ready #<pr>" to the CTO, who merges it in
+   point of "Before merge" below checked by you on the diff: write `## Lead verification` in the body file, check it with `node scripts/check-pr-body.ts`, then open the pull request finished: `gh pr create --base develop --body-file .worktrees/logs/<n>-pr-body.md` (never a draft). Wait for every check to be green (`gh pr checks <pr> --watch`), then send "ready #<pr>" to the CTO, who merges it in
    age order (AGENTS.md §Roles, rule 11); step 1 may start meanwhile, step 5 follows the merge. On a red check, resume the coder on the branch at once; the pull request stays open and is never closed.
 5. **Hand over**, once the CTO has merged. `gh issue edit <n> --remove-label "in review"`, add
    `to measure` for an engine batch (`packages/`, compiler, format, shaders, a published number) or
