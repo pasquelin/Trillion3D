@@ -1,1 +1,0 @@
-{"count":1,"counts":{},"lights":[{"castsShadow":true,"color":[1.0,0.88,0.69],"direction":[0.35807571426437435,-0.6931135713965851,-0.6255999999999433],"id":"Late afternoon sun","intensity":3.513909224011713,"kind":"directional"}],"rejected":{},"sceneLightVersion":2,"units":{"lumensPerWatt":683.0,"maxRange":10000.0,"rangeCutoffIrradiance":0.01},"version":1}

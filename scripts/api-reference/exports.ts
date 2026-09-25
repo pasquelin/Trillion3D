@@ -131,7 +131,7 @@ class ReferenceWalk {
  * the common binding is listed as `<name>-common`.
  */
 export function buildReference(families: ReadonlySet<string>): PortalEntry[] {
-  const program = apiProgram(PUBLIC_ENTRIES);
+  const program = apiProgram();
   const shapes = new Shapes(program.getTypeChecker());
   const bindings = new Map<string, { symbol: ts.Symbol; entries: ExportEntry[] }[]>();
   for (const [entry, module] of entryModules(program, PUBLIC_ENTRIES))
