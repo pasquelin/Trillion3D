@@ -122,7 +122,7 @@ test('camera exactly on the fragment point (vLen folded to 1)', () => {
 });
 
 test('vertex normals carried by the page, with and without doubleSided', () => {
-  const normal = new G.GraphAttribute(
+  const normal = new G.BufferAttribute(
     new Float32Array([0, 0, 1, 0.2, 0.8, 0.1, -0.3, 0.4, 0.9]),
     3,
   );
@@ -135,14 +135,14 @@ test('visibilityLighting reads Nx/Ny/Nz from normal[0]/[1]/[2], not permuted', (
   // Vertex normal with three distinct, non-symmetric components: any permutation of Nx/Ny/Nz in
   // `shadeLit` would drift from the oracle, which reads n.x/n.y/n.z in that order.
   const valeurs = [0.15, 0.55, 0.82];
-  const normal = new G.GraphAttribute(Float32Array.from([...valeurs, ...valeurs, ...valeurs]), 3);
+  const normal = new G.BufferAttribute(Float32Array.from([...valeurs, ...valeurs, ...valeurs]), 3);
   const page = pageOf({ attributes: { normal } });
   assertSameShading({ page }, 'Nx/Ny/Nz not permuted');
 });
 
 test('normal map with a tangent carried by the page', () => {
-  const normal = new G.GraphAttribute(new Float32Array([0, 0, 1, 0, 0, 1, 0, 0, 1]), 3);
-  const tangent = new G.GraphAttribute(
+  const normal = new G.BufferAttribute(new Float32Array([0, 0, 1, 0, 0, 1, 0, 0, 1]), 3);
+  const tangent = new G.BufferAttribute(
     new Float32Array([1, 0, 0, 1, 0.1, 0, 0, 1, 1, 0, -0.1, -1]),
     4,
   );
@@ -156,7 +156,7 @@ test('normal map with a tangent carried by the page', () => {
 });
 
 test('normal map without a tangent: derived from the UVs carried by the page', () => {
-  const uv = new G.GraphAttribute(new Float32Array([0, 0, 1, 0, 0.5, 1]), 2);
+  const uv = new G.BufferAttribute(new Float32Array([0, 0, 1, 0, 0.5, 1]), 2);
   const page = pageOf({ attributes: { uv } });
   const mat = litMaterial({ normalMap: fakeTexture([10, 250, 5, 255]) });
   assertSameShading({ page, mat }, 'normalMap without tangent');

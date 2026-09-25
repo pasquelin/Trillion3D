@@ -545,21 +545,15 @@
     "members": {
       "isBufferAttribute": "Toujours `true` : distingue un attribut de tampon de tout le reste.",
       "type": "Comment les valeurs ont été déclarées ; un attribut en demi-flottants est gardé en précision flottante.",
-      "normalized": "Si les nombres entiers se lisent comme des valeurs entre 0 et 1.",
       "version": "Augmenté à chaque écriture déclarée : ce que le monde compare pour voir que le contenu a changé.",
       "array": "Les nombres eux-mêmes.",
-      "itemSize": "Combien de nombres appartiennent à un sommet : 3 pour une position.",
       "count": "Combien de sommets décrivent les nombres.",
-      "needsUpdate": "`attribute.needsUpdate = true` après avoir écrit `array` : le monde le relit.",
-      "getComponent": "Le nombre `component` du sommet `index`.",
-      "getX": "Le premier nombre du sommet `i`.",
-      "getY": "Le deuxième nombre du sommet `i`.",
-      "getZ": "Le troisième nombre du sommet `i`.",
-      "getW": "Le quatrième nombre du sommet `i`.",
-      "setXYZ": "Écrit trois nombres pour le sommet `i`.",
-      "setXY": "Écrit deux nombres pour le sommet `i`.",
-      "setX": "Écrit le premier nombre du sommet `i`.",
-      "clone": "Un nouvel attribut avec une copie des nombres."
+      "needsUpdate": "`needsUpdate = true` après avoir écrit `array` : un lecteur l’envoie de nouveau.",
+      "clone": "Un nouvel attribut avec une copie des nombres, de leur type, de leur normalisation et de son nom.",
+      "kind": "L’attribut possède son tampon.",
+      "updateRanges": "Plages de `array` écrites depuis le dernier envoi, envoyées seules.",
+      "addUpdateRange": "Marque `count` nombres écrits à partir de `start`.",
+      "clearUpdateRanges": "Oublie les plages écrites, une fois envoyées."
     }
   },
   "BufferNumbers": {
@@ -2477,7 +2471,10 @@
       "array": "Les nombres de chaque sommet, rangés les uns après les autres.",
       "stride": "Combien de nombres prend chaque sommet.",
       "count": "Combien de sommets il emballe.",
-      "attribute": "Un attribut extrait du paquet, en attribut de flottants à part."
+      "attribute": "Un attribut extrait du paquet, en attribut à part.",
+      "kind": "Un stockage que regardent plusieurs attributs.",
+      "version": "Incrémenté par `needsUpdate`.",
+      "needsUpdate": "`needsUpdate = true` après avoir écrit `array` : un lecteur l’envoie de nouveau."
     }
   },
   "invertMatrix4": {
@@ -7129,19 +7126,6 @@
       "handbrake": "Si le frein à main est tiré."
     }
   },
-  "GraphAttribute": {
-    "members": {
-      "count": "Combien de sommets.",
-      "array": "Le stockage.",
-      "kind": "L’attribut possède son tampon.",
-      "version": "Incrémenté par `needsUpdate`.",
-      "updateRanges": "Plages de `array` écrites depuis le dernier envoi, envoyées seules.",
-      "addUpdateRange": "Marque `count` nombres écrits à partir de `start`.",
-      "clearUpdateRanges": "Oublie les plages écrites, une fois envoyées.",
-      "needsUpdate": "`needsUpdate = true` après avoir écrit `array` : un lecteur l’envoie de nouveau."
-    },
-    "summary": "Un attribut qui possède son stockage : `itemSize` nombres par sommet, l’un après l’autre."
-  },
   "GraphGeometry": {
     "members": {
       "attributes": "Ses attributs de sommets.",
@@ -7236,34 +7220,6 @@
       "rotation": "La rotation, en radians."
     },
     "summary": "Une image et l’état d’échantillonnage avec lequel elle est lue, et la transformation de ses coordonnées."
-  },
-  "GraphArray": {
-    "summary": "Les tableaux typés que tient un attribut."
-  },
-  "GraphElements": {
-    "summary": "L’un ou l’autre genre d’attribut."
-  },
-  "GraphInterleavedAttribute": {
-    "summary": "Un attribut qui regarde `itemSize` nombres à `offset` de chaque sommet d’un tampon entrelacé.",
-    "members": {
-      "kind": "L’attribut regarde un tampon partagé.",
-      "data": "Le tampon qu’il regarde.",
-      "offset": "Où ses nombres commencent dans chaque sommet.",
-      "array": "Le stockage où vivent les éléments.",
-      "count": "Combien de sommets.",
-      "needsUpdate": "`needsUpdate = true` après avoir écrit `array` : un lecteur l’envoie de nouveau."
-    }
-  },
-  "GraphInterleavedBuffer": {
-    "summary": "Un stockage que regardent plusieurs attributs, un sommet tous les `stride` nombres.",
-    "members": {
-      "kind": "Un stockage que regardent plusieurs attributs.",
-      "count": "Combien de sommets.",
-      "version": "Incrémenté par `needsUpdate`.",
-      "array": "Le stockage.",
-      "stride": "Nombres par sommet.",
-      "needsUpdate": "`needsUpdate = true` après avoir écrit `array` : un lecteur l’envoie de nouveau."
-    }
   },
   "GraphMesh": {
     "summary": "Un nœud dessiné : une géométrie et sa surface, ou une surface par groupe de la géométrie.",
@@ -7365,6 +7321,45 @@
       "pulley": "Une corde de `a` passant sur deux roues (`over`) jusqu’à `b` : l’un monte quand l’autre descend.",
       "gear": "Deux roues qui tournent ensemble selon `ratio`, chacune autour de son axe (`axis`, `axisB`) et tenue par sa charnière (la roue en est le `a`) ; quand `ratio` ou 1 / `ratio` est entier, leurs dents gardent aussi la phase où elles ont été faites.",
       "rackAndPinion": "Un pignon `a` qui tourne autour d’`axis` entraîne une crémaillère `b` le long d’`axisB`, chacun tenu par sa charnière ou sa glissière (le corps en est le `a`), leurs dents gardées dans la phase où elles ont été faites."
+    }
+  },
+  "InterleavedBufferAttribute": {
+    "summary": "Un attribut qui regarde `itemSize` nombres à `offset` de chaque sommet d’un tampon entrelacé.",
+    "members": {
+      "isInterleavedBufferAttribute": "Toujours `true` : distingue une vue entrelacée de tout le reste.",
+      "kind": "L’attribut regarde un tampon partagé.",
+      "data": "Le tampon qu’il regarde.",
+      "offset": "Où ses nombres commencent dans chaque sommet.",
+      "array": "Le stockage où vivent les éléments.",
+      "count": "Combien de sommets décrivent les nombres.",
+      "needsUpdate": "`needsUpdate = true` après avoir écrit `array` : un lecteur l’envoie de nouveau.",
+      "clone": "Ses propres nombres, copiés hors du paquet dans un attribut qui les possède."
+    }
+  },
+  "VertexAttribute": {
+    "summary": "L’un ou l’autre genre d’attribut : qui possède son stockage ou qui regarde un stockage entrelacé."
+  },
+  "VertexElements": {
+    "summary": "Les éléments d’un attribut de sommet, lus et écrits composante par composante.",
+    "members": {
+      "name": "Le nom sous lequel une cible de morphose est connue ; vide pour les autres.",
+      "itemSize": "Combien de nombres appartiennent à un sommet : 3 pour une position.",
+      "normalized": "Si les nombres entiers se lisent comme des valeurs entre 0 et 1.",
+      "array": "Le stockage où vivent les éléments.",
+      "count": "Combien de sommets décrivent les nombres.",
+      "stored": "Le nombre `component` du sommet `index` tel qu’il est stocké, un entier normalisé non mis à l’échelle.",
+      "getComponent": "Le nombre `component` du sommet `index`, lu comme le nombre qu’il représente.",
+      "setComponent": "Écrit le nombre `component` du sommet `index`.",
+      "getX": "Le premier nombre du sommet `i`.",
+      "getY": "Le deuxième nombre du sommet `i`.",
+      "getZ": "Le troisième nombre du sommet `i`.",
+      "getW": "Le quatrième nombre du sommet `i`.",
+      "setX": "Écrit le premier nombre du sommet `i`.",
+      "setY": "Écrit le deuxième nombre du sommet `i`.",
+      "setZ": "Écrit le troisième nombre du sommet `i`.",
+      "setW": "Écrit le quatrième nombre du sommet `i`.",
+      "setXY": "Écrit deux nombres pour le sommet `i`.",
+      "setXYZ": "Écrit trois nombres pour le sommet `i`."
     }
   }
 }

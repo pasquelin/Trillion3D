@@ -249,21 +249,15 @@
     "members": {
       "isBufferAttribute": "Sempre `true`: distingue um atributo de buffer de qualquer outra coisa.",
       "type": "Como os valores foram declarados; um atributo de meia precisão é mantido em precisão float.",
-      "normalized": "Se números inteiros são lidos como valores entre 0 e 1.",
       "version": "Incrementado a cada escrita declarada: o que o mundo compara para ver se o conteúdo mudou.",
       "array": "Os próprios números.",
-      "itemSize": "Quantos números pertencem a um vértice: 3 para uma posição.",
       "count": "Quantos vértices os números descrevem.",
-      "needsUpdate": "`attribute.needsUpdate = true` depois de escrever `array`: o mundo o relê.",
-      "getComponent": "Número `component` do vértice `index`.",
-      "getX": "O primeiro número do vértice `i`.",
-      "getY": "O segundo número do vértice `i`.",
-      "getZ": "O terceiro número do vértice `i`.",
-      "getW": "O quarto número do vértice `i`.",
-      "setXYZ": "Escreve três números para o vértice `i`.",
-      "setXY": "Escreve dois números para o vértice `i`.",
-      "setX": "Escreve o primeiro número do vértice `i`.",
-      "clone": "Um novo atributo com uma cópia dos números."
+      "needsUpdate": "`needsUpdate = true` depois de escrever `array`: um leitor envia-o de novo.",
+      "clone": "Um novo atributo com uma cópia dos números, do seu tipo, da normalização e do nome.",
+      "kind": "O atributo possui o seu buffer.",
+      "updateRanges": "Intervalos de `array` escritos desde o último envio, enviados sozinhos.",
+      "addUpdateRange": "Marca `count` números escritos a partir de `start`.",
+      "clearUpdateRanges": "Esquece os intervalos escritos, depois de enviados."
     }
   },
   "BufferNumbers": {
@@ -1438,7 +1432,10 @@
       "array": "Os números de cada vértice, empacotados um após o outro.",
       "stride": "Quantos números cada vértice ocupa.",
       "count": "Quantos vértices ele empacota.",
-      "attribute": "Um atributo lido de dentro do pacote, como seu próprio atributo float."
+      "attribute": "Um atributo lido de dentro do pacote, como seu próprio atributo.",
+      "kind": "Um armazenamento que vários atributos observam.",
+      "version": "Incrementado por `needsUpdate`.",
+      "needsUpdate": "`needsUpdate = true` depois de escrever `array`: um leitor envia-o de novo."
     }
   },
   "JobProgress": {
@@ -7129,19 +7126,6 @@
       "handbrake": "Se o travão de mão está puxado."
     }
   },
-  "GraphAttribute": {
-    "members": {
-      "count": "Quantos vértices.",
-      "array": "O armazenamento.",
-      "kind": "O atributo possui o seu buffer.",
-      "version": "Incrementado por `needsUpdate`.",
-      "updateRanges": "Intervalos de `array` escritos desde o último envio, enviados sozinhos.",
-      "addUpdateRange": "Marca `count` números escritos a partir de `start`.",
-      "clearUpdateRanges": "Esquece os intervalos escritos, depois de enviados.",
-      "needsUpdate": "`needsUpdate = true` depois de escrever `array`: um leitor envia-o de novo."
-    },
-    "summary": "Um atributo que possui o seu armazenamento: `itemSize` números por vértice, um após o outro."
-  },
   "GraphGeometry": {
     "members": {
       "attributes": "Seus atributos de vértice.",
@@ -7236,34 +7220,6 @@
       "rotation": "A rotação, em radianos."
     },
     "summary": "Uma imagem e o estado de amostragem com que é lida, e a transformação das suas coordenadas."
-  },
-  "GraphArray": {
-    "summary": "Os arrays tipados que um atributo guarda."
-  },
-  "GraphElements": {
-    "summary": "Qualquer um dos dois tipos de atributo."
-  },
-  "GraphInterleavedAttribute": {
-    "summary": "Um atributo que observa `itemSize` números em `offset` de cada vértice de um buffer intercalado.",
-    "members": {
-      "kind": "O atributo observa um buffer partilhado.",
-      "data": "O buffer que observa.",
-      "offset": "Onde os seus números começam em cada vértice.",
-      "array": "O armazenamento onde vivem os elementos.",
-      "count": "Quantos vértices.",
-      "needsUpdate": "`needsUpdate = true` depois de escrever `array`: um leitor envia-o de novo."
-    }
-  },
-  "GraphInterleavedBuffer": {
-    "summary": "Um armazenamento que vários atributos observam, um vértice a cada `stride` números.",
-    "members": {
-      "kind": "Um armazenamento que vários atributos observam.",
-      "count": "Quantos vértices.",
-      "version": "Incrementado por `needsUpdate`.",
-      "array": "O armazenamento.",
-      "stride": "Números por vértice.",
-      "needsUpdate": "`needsUpdate = true` depois de escrever `array`: um leitor envia-o de novo."
-    }
   },
   "GraphMesh": {
     "summary": "Um nó desenhado: uma geometria e a sua superfície, ou uma superfície por grupo da geometria.",
@@ -7365,6 +7321,45 @@
       "pulley": "Uma corda de `a` sobre duas rodas (`over`) até `b`: um sobe quando o outro desce.",
       "gear": "Duas rodas que giram juntas segundo `ratio`, cada uma em torno do próprio pino (`axis`, `axisB`) e presa pela sua dobradiça (a roda como seu `a`); quando `ratio` ou 1 / `ratio` é inteiro, os dentes também mantêm a fase em que foram feitos.",
       "rackAndPinion": "Um pinhão `a` girando em torno de `axis` move uma cremalheira `b` ao longo de `axisB`, cada um preso pela sua dobradiça ou corrediça (o corpo como seu `a`), os dentes mantidos na fase em que foram feitos."
+    }
+  },
+  "InterleavedBufferAttribute": {
+    "summary": "Um atributo que observa `itemSize` números em `offset` de cada vértice de um buffer intercalado.",
+    "members": {
+      "isInterleavedBufferAttribute": "Sempre `true`: distingue uma vista intercalada de qualquer outra coisa.",
+      "kind": "O atributo observa um buffer partilhado.",
+      "data": "O buffer que observa.",
+      "offset": "Onde os seus números começam em cada vértice.",
+      "array": "O armazenamento onde vivem os elementos.",
+      "count": "Quantos vértices os números descrevem.",
+      "needsUpdate": "`needsUpdate = true` depois de escrever `array`: um leitor envia-o de novo.",
+      "clone": "Os seus próprios números, copiados para fora do pacote num atributo que os possui."
+    }
+  },
+  "VertexAttribute": {
+    "summary": "Qualquer um dos dois tipos de atributo: dono do seu armazenamento ou vista de um intercalado."
+  },
+  "VertexElements": {
+    "summary": "Os elementos de um atributo de vértice, lidos e escritos por componente.",
+    "members": {
+      "name": "O nome pelo qual um alvo de morph é conhecido; vazio para os outros.",
+      "itemSize": "Quantos números pertencem a um vértice: 3 para uma posição.",
+      "normalized": "Se números inteiros são lidos como valores entre 0 e 1.",
+      "array": "O armazenamento onde vivem os elementos.",
+      "count": "Quantos vértices os números descrevem.",
+      "stored": "Número `component` do vértice `index` tal como está armazenado; um inteiro normalizado sem escala.",
+      "getComponent": "Número `component` do vértice `index`, lido como o número que representa.",
+      "setComponent": "Escreve o número `component` do vértice `index`.",
+      "getX": "O primeiro número do vértice `i`.",
+      "getY": "O segundo número do vértice `i`.",
+      "getZ": "O terceiro número do vértice `i`.",
+      "getW": "O quarto número do vértice `i`.",
+      "setX": "Escreve o primeiro número do vértice `i`.",
+      "setY": "Escreve o segundo número do vértice `i`.",
+      "setZ": "Escreve o terceiro número do vértice `i`.",
+      "setW": "Escreve o quarto número do vértice `i`.",
+      "setXY": "Escreve dois números para o vértice `i`.",
+      "setXYZ": "Escreve três números para o vértice `i`."
     }
   }
 }

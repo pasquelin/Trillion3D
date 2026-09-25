@@ -1,5 +1,5 @@
 /**
- * THE GEOMETRY OF THE ENGINE'S OWN GRAPH: the attributes a mesh draws (`attributes.ts`), the
+ * THE GEOMETRY OF THE ENGINE'S OWN GRAPH: the attributes a mesh draws (sdk-core's `world/buffer/`), the
  * triangle list they are indexed through, the morph targets that move them, and the local box and
  * sphere computed over them — every vertex spanned, the morph targets included, as the reference
  * spans them.
@@ -12,11 +12,15 @@ import {
 import { Box3 } from '../../../../sdk-core/src/world/math/box3.ts';
 import { Sphere } from '../../../../sdk-core/src/world/math/volumes.ts';
 import { Vector3 } from '../../../../sdk-core/src/world/math/vector3.ts';
-import { GraphAttribute, type GraphArray, type GraphElements } from './attributes.ts';
+import {
+  ownAttribute,
+  type BufferAttribute,
+  type VertexAttribute,
+} from '../../../../sdk-core/src/world/buffer/attribute.ts';
 import { Releasable } from './resource.ts';
 
 /** The box of an attribute's vertices, written into `into` (six numbers). */
-function spanInto(into: Float64Array, attribute: GraphElements) {
+function spanInto(into: Float64Array, attribute: VertexAttribute) {
   boxEmpty(into, 0);
   for (let i = 0; i < attribute.count; i++)
     boxExpandByPoint(
@@ -31,16 +35,6 @@ function spanInto(into: Float64Array, attribute: GraphElements) {
 /** Grows the box `into` by `point` (three numbers at `at`). */
 const grow = (into: Float64Array, point: ArrayLike<number>, at: number) =>
   boxExpandByPoint(into, 0, point[at], point[at + 1], point[at + 2]);
-
-/** `source`'s elements in a buffer of its type and their own: every vertex, or those `order` lists. */
-function ownElements(source: GraphElements, order?: ArrayLike<number>) {
-  const count = order ? order.length : source.count,
-    size = source.itemSize;
-  const array = new (source.array.constructor as new (length: number) => GraphArray)(count * size);
-  for (let i = 0; i < count; i++)
-    for (let c = 0; c < size; c++) array[i * size + c] = source.stored(order ? order[i] : i, c);
-  return Object.assign(new GraphAttribute(array, size, source.normalized), { name: source.name });
-}
 
 /** Scratch of the bounds below. */
 const whole = new Float64Array(6),
@@ -57,11 +51,11 @@ export class GraphGeometry extends Releasable {
   /** Its name. */
   name = '';
   /** The triangle list, or `null` to draw the vertices in order. */
-  index: GraphAttribute | null = null;
+  index: BufferAttribute | null = null;
   /** Its vertex attributes, by name. */
-  attributes: Record<string, GraphElements> = {};
+  attributes: Record<string, VertexAttribute> = {};
   /** Per morphed attribute, one attribute per morph target. */
-  morphAttributes: Record<string, GraphElements[]> = {};
+  morphAttributes: Record<string, VertexAttribute[]> = {};
   /** True when a morph target holds displacements, not positions. */
   morphTargetsRelative = false;
   /** Ranges of the index drawn with one surface each. */
@@ -80,7 +74,7 @@ export class GraphGeometry extends Releasable {
     return this.index;
   }
   /** Sets the triangle list. */
-  setIndex(index: GraphAttribute | null) {
+  setIndex(index: BufferAttribute | null) {
     this.index = index;
     return this;
   }
@@ -89,7 +83,7 @@ export class GraphGeometry extends Releasable {
     return this.attributes[name];
   }
   /** Names an attribute. */
-  setAttribute(name: string, attribute: GraphElements) {
+  setAttribute(name: string, attribute: VertexAttribute) {
     this.attributes[name] = attribute;
     return this;
   }
@@ -104,8 +98,8 @@ export class GraphGeometry extends Releasable {
   }
   /** A geometry holding copies of every buffer, its groups, range and bounds. */
   clone() {
-    const copy = this.shaped((attribute) => ownElements(attribute));
-    copy.index = this.index && ownElements(this.index);
+    const copy = this.shaped((attribute) => ownAttribute(attribute));
+    copy.index = this.index && ownAttribute(this.index);
     copy.boundingBox = this.boundingBox?.clone() ?? null;
     copy.boundingSphere = this.boundingSphere?.clone() ?? null;
     return copy;
@@ -114,12 +108,12 @@ export class GraphGeometry extends Releasable {
   toNonIndexed() {
     const order = this.index?.array;
     if (!order) return this.clone();
-    const copy = this.shaped((attribute) => ownElements(attribute, order));
+    const copy = this.shaped((attribute) => ownAttribute(attribute, order));
     copy.groups = [];
     return copy;
   }
   /** A new geometry of the same name, groups, range and data, its attributes made by `own`. */
-  private shaped(own: (attribute: GraphElements) => GraphAttribute) {
+  private shaped(own: (attribute: VertexAttribute) => BufferAttribute) {
     const copy = new GraphGeometry();
     copy.name = this.name;
     for (const [name, attribute] of Object.entries(this.attributes))

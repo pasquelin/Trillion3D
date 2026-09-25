@@ -873,17 +873,30 @@
     {
       "name": "BufferAttribute",
       "kind": "both",
-      "definingModule": "packages/sdk-core/src/world/buffer/index.ts",
+      "definingModule": "packages/sdk-core/src/world/buffer/attribute.ts",
       "currentEntryPoints": ["trillion3d (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
       "affectedConsumers": [
+        "bench/witnesses/exact/attachment.ts",
+        "packages/sdk-browser/src/host/graph/geometry.ts",
+        "packages/sdk-browser/src/host/graph/graph.fixture.ts",
+        "packages/sdk-browser/src/host/graph/graph.test.ts",
+        "packages/sdk-browser/src/host/graph/mesh.ts",
+        "packages/sdk-browser/src/host/pageDiagnostics.ts",
+        "packages/sdk-browser/src/host/pageObjects.ts",
+        "packages/sdk-browser/src/host/prepared/accessors.ts",
+        "packages/sdk-browser/src/host/prepared/geometry.ts",
+        "packages/sdk-browser/src/host/prepared/graph.test.ts",
+        "packages/sdk-browser/src/webgl/cluster/meshDepth.test.ts",
+        "packages/sdk-browser/src/webgl/cluster/sceneDraw.test.ts",
+        "packages/sdk-browser/src/world/core/worldMirror.ts",
         "packages/sdk-browser/src/world/helper/index.ts",
         "packages/sdk-browser/src/world/saved/read.ts",
         "packages/sdk-browser/src/world/saved/saved.test.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"packages/sdk-core/src/world/buffer/index\".BufferAttribute"
+      "bindingIdentity": "\"packages/sdk-core/src/world/buffer/attribute\".BufferAttribute"
     },
     {
       "name": "BufferNumbers",
@@ -899,13 +912,13 @@
     {
       "name": "BufferTypedArray",
       "kind": "type",
-      "definingModule": "packages/sdk-core/src/world/buffer/index.ts",
+      "definingModule": "packages/sdk-core/src/world/buffer/elements.ts",
       "currentEntryPoints": ["trillion3d (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": [],
+      "affectedConsumers": ["packages/sdk-browser/src/host/pageObjects.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"packages/sdk-core/src/world/buffer/index\".BufferTypedArray"
+      "bindingIdentity": "\"packages/sdk-core/src/world/buffer/elements\".BufferTypedArray"
     },
     {
       "name": "camera",
@@ -3353,39 +3366,6 @@
       "bindingIdentity": "\"packages/sdk-core/src/runtime/stageProfile\".GpuTimingMethod"
     },
     {
-      "name": "GraphArray",
-      "kind": "type",
-      "definingModule": "packages/sdk-browser/src/host/graph/attributes.ts",
-      "currentEntryPoints": ["trillion3d (browser condition)"],
-      "proposedEnvironments": "browser",
-      "classification": "public",
-      "affectedConsumers": [],
-      "disposition": "retained",
-      "bindingIdentity": "\"packages/sdk-browser/src/host/graph/attributes\".GraphArray"
-    },
-    {
-      "name": "GraphAttribute",
-      "kind": "both",
-      "definingModule": "packages/sdk-browser/src/host/graph/attributes.ts",
-      "currentEntryPoints": ["trillion3d (browser condition)"],
-      "proposedEnvironments": "browser",
-      "classification": "public",
-      "affectedConsumers": ["bench/witnesses/exact/attachment.ts"],
-      "disposition": "retained",
-      "bindingIdentity": "\"packages/sdk-browser/src/host/graph/attributes\".GraphAttribute"
-    },
-    {
-      "name": "GraphElements",
-      "kind": "type",
-      "definingModule": "packages/sdk-browser/src/host/graph/attributes.ts",
-      "currentEntryPoints": ["trillion3d (browser condition)"],
-      "proposedEnvironments": "browser",
-      "classification": "public",
-      "affectedConsumers": ["bench/witnesses/three/fromGraph.ts"],
-      "disposition": "retained",
-      "bindingIdentity": "\"packages/sdk-browser/src/host/graph/attributes\".GraphElements"
-    },
-    {
       "name": "GraphGeometry",
       "kind": "both",
       "definingModule": "packages/sdk-browser/src/host/graph/geometry.ts",
@@ -3402,28 +3382,6 @@
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-browser/src/host/graph/geometry\".GraphGeometry"
-    },
-    {
-      "name": "GraphInterleavedAttribute",
-      "kind": "both",
-      "definingModule": "packages/sdk-browser/src/host/graph/attributes.ts",
-      "currentEntryPoints": ["trillion3d (browser condition)"],
-      "proposedEnvironments": "browser",
-      "classification": "public",
-      "affectedConsumers": [],
-      "disposition": "retained",
-      "bindingIdentity": "\"packages/sdk-browser/src/host/graph/attributes\".GraphInterleavedAttribute"
-    },
-    {
-      "name": "GraphInterleavedBuffer",
-      "kind": "both",
-      "definingModule": "packages/sdk-browser/src/host/graph/attributes.ts",
-      "currentEntryPoints": ["trillion3d (browser condition)"],
-      "proposedEnvironments": "browser",
-      "classification": "public",
-      "affectedConsumers": [],
-      "disposition": "retained",
-      "bindingIdentity": "\"packages/sdk-browser/src/host/graph/attributes\".GraphInterleavedBuffer"
     },
     {
       "name": "GraphMesh",
@@ -4069,13 +4027,30 @@
     {
       "name": "InterleavedBuffer",
       "kind": "both",
-      "definingModule": "packages/sdk-core/src/world/buffer/index.ts",
+      "definingModule": "packages/sdk-core/src/world/buffer/attribute.ts",
       "currentEntryPoints": ["trillion3d (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": [],
+      "affectedConsumers": [
+        "packages/sdk-browser/src/host/graph/graph.test.ts",
+        "packages/sdk-browser/src/host/prepared/accessors.ts"
+      ],
       "disposition": "retained",
-      "bindingIdentity": "\"packages/sdk-core/src/world/buffer/index\".InterleavedBuffer"
+      "bindingIdentity": "\"packages/sdk-core/src/world/buffer/attribute\".InterleavedBuffer"
+    },
+    {
+      "name": "InterleavedBufferAttribute",
+      "kind": "both",
+      "definingModule": "packages/sdk-core/src/world/buffer/attribute.ts",
+      "currentEntryPoints": ["trillion3d (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [
+        "packages/sdk-browser/src/host/graph/graph.test.ts",
+        "packages/sdk-browser/src/host/prepared/accessors.ts"
+      ],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/src/world/buffer/attribute\".InterleavedBufferAttribute"
     },
     {
       "name": "Intersection",
@@ -9274,6 +9249,33 @@
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/physics/vehicle\".VehicleInput"
+    },
+    {
+      "name": "VertexAttribute",
+      "kind": "type",
+      "definingModule": "packages/sdk-core/src/world/buffer/attribute.ts",
+      "currentEntryPoints": ["trillion3d (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [
+        "bench/witnesses/three/fromGraph.ts",
+        "packages/sdk-browser/src/host/graph/geometry.ts",
+        "packages/sdk-browser/src/host/prepared/accessors.ts",
+        "packages/sdk-browser/src/host/resources.ts"
+      ],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/src/world/buffer/attribute\".VertexAttribute"
+    },
+    {
+      "name": "VertexElements",
+      "kind": "both",
+      "definingModule": "packages/sdk-core/src/world/buffer/elements.ts",
+      "currentEntryPoints": ["trillion3d (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/src/world/buffer/elements\".VertexElements"
     },
     {
       "name": "viewToRenderOrigin",
