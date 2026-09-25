@@ -266,6 +266,13 @@
       "out": "`6 · n` số: các hộp đã được biến đổi."
     }
   },
+  "BudgetCanvas": {
+    "summary": "Canvas lớn nhất mà ngân sách khai báo: các đích của chuỗi hiệu ứng được dành sẵn theo kích thước của nó.",
+    "members": {
+      "width": "Chiều rộng tính bằng pixel của bộ đệm vẽ.",
+      "height": "Chiều cao tính bằng pixel của bộ đệm vẽ."
+    }
+  },
   "BufferAttribute": {
     "summary": "Một mảng có kiểu chứa các giá trị theo từng đỉnh, `itemSize` số mỗi đỉnh: `PageAttribute` của bộ mã hóa trang (`page-codec/pageAttributes.ts`), cùng với những gì một trang ghi vào đó.",
     "members": {
