@@ -1554,6 +1554,11 @@
         "desc": "`'perspective'` makes far things small; `'orthographic'` keeps every size."
       },
       {
+        "name": "copy(source: Object3D, recursive?: boolean)",
+        "type": "Camera",
+        "desc": "Takes `source`'s node values and, from a camera, its optics; its own `projection` stays."
+      },
+      {
         "name": "updateProjectionMatrix()",
         "type": "void",
         "desc": "Kept for pages written against a renderer that needs it: every optic write already redraws."
@@ -2973,7 +2978,7 @@
     "section": "math",
     "kind": "Type",
     "title": "Curve",
-    "signature": "class Curve\nnew Curve(): Curve",
+    "signature": "abstract class Curve",
     "summary": "A parametric curve over `t ∈ [0, 1]`.",
     "members": [
       {
@@ -5605,7 +5610,7 @@
         "desc": "One zero weight per morph target of the first morphed attribute, named by rank."
       },
       {
-        "name": "copy(source: HostGraphNode, recursive?: boolean)",
+        "name": "copy(source: GraphNode, recursive?: boolean)",
         "type": "HostMesh",
         "desc": "Takes `source`'s values, and copies of its children unless told not to."
       }
@@ -5619,8 +5624,8 @@
     "section": "types",
     "kind": "Type",
     "title": "GraphNode",
-    "signature": "class GraphNode extends Object3D\nnew GraphNode(): HostGraphNode",
-    "summary": "A node of the graph: the core's node, told apart by its `kind`, copied as the reference copies.",
+    "signature": "abstract class GraphNode extends Object3D",
+    "summary": "A node of the graph: the core's node, told apart by its `kind`, copied by the core's `clone`.",
     "members": [
       {
         "name": "serial",
@@ -5631,31 +5636,6 @@
         "name": "kind",
         "type": "GraphNodeKind",
         "desc": "What the node is: what every reader of the graph narrows on."
-      },
-      {
-        "name": "parent",
-        "type": "GraphNode | null",
-        "desc": "The node holding this one."
-      },
-      {
-        "name": "children",
-        "type": "readonly GraphNode[]",
-        "desc": "The nodes this one holds, in order."
-      },
-      {
-        "name": "traverse(visit: (node: GraphNode) => void)",
-        "type": "void",
-        "desc": "Calls `visit` on this node, then on every node below it, in order."
-      },
-      {
-        "name": "clone(recursive?: boolean)",
-        "type": "HostGraphNode",
-        "desc": "A node of the same kind with the same values; its children copied too unless told not."
-      },
-      {
-        "name": "copy(source: HostGraphNode, recursive?: boolean)",
-        "type": "HostGraphNode",
-        "desc": "Takes `source`'s values, and copies of its children unless told not to."
       }
     ],
     "description": ""
@@ -5667,8 +5647,8 @@
     "section": "types",
     "kind": "Type",
     "title": "GraphNodeKind",
-    "signature": "type GraphNodeKind = | 'node'\n  | 'scene'\n  | 'group'\n  | 'mesh'\n  | 'instancedMesh'\n  | 'camera'\n  | GraphLightKind\n  | 'ambient'\n  | 'rect'\n  | 'probe'",
-    "summary": "What a node of the graph is: a bare node, the root, a group, a drawn mesh (at one placement or several), an eye, or one of the lights a scene declares.",
+    "signature": "type GraphNodeKind = 'scene' | 'mesh' | 'instancedMesh' | 'camera' | GraphLightKind | 'ambient' | 'rect' | 'probe'",
+    "summary": "What a node of the graph is: the root, a drawn mesh (at one placement or several), an eye, or one of the lights a scene declares.",
     "description": ""
   },
   {
@@ -6499,17 +6479,6 @@
     "description": ""
   },
   {
-    "id": "HostGraphNode",
-    "module": "packages/sdk-browser/src/host/scene/graphNodes.ts",
-    "exports": ["HostGraphNode"],
-    "section": "types",
-    "kind": "Type",
-    "title": "HostGraphNode",
-    "signature": "type HostGraphNode = GraphNode",
-    "summary": "A node of the graph as a walk sees it: its identity, its local pose, its world matrix and its chain.",
-    "description": "The engine computes its OWN world matrices from the local poses (`../world/tree.ts`)."
-  },
-  {
     "id": "HostMaterial",
     "module": "packages/sdk-browser/src/host/resources.ts",
     "exports": ["HostMaterial"],
@@ -6540,17 +6509,6 @@
     "title": "HostMesh",
     "signature": "type HostMesh = GraphMesh",
     "summary": "A drawn node of the graph, held by identity: the draw record, the transparent table and the selection sets name the mesh the engine placed.",
-    "description": ""
-  },
-  {
-    "id": "HostNode",
-    "module": "packages/sdk-browser/src/host/resources.ts",
-    "exports": ["HostNode"],
-    "section": "types",
-    "kind": "Type",
-    "title": "HostNode",
-    "signature": "type HostNode = GraphNode",
-    "summary": "A node of the graph, held by identity: walked, placed and posed through its own fields.",
     "description": ""
   },
   {
@@ -6722,17 +6680,6 @@
     "title": "HostTexture",
     "signature": "type HostTexture = GraphTexture",
     "summary": "A texture of the graph: a decoded picture or raw texels, and the sampler state it declares.",
-    "description": ""
-  },
-  {
-    "id": "HostTraversable",
-    "module": "packages/sdk-browser/src/host/resources.ts",
-    "exports": ["HostTraversable"],
-    "section": "types",
-    "kind": "Type",
-    "title": "HostTraversable",
-    "signature": "type HostTraversable = GraphNode",
-    "summary": "A node the engine walks: the subtree under it, itself first.",
     "description": ""
   },
   {
@@ -7804,6 +7751,11 @@
         "name": "kind",
         "type": "string",
         "desc": "Which kind of light this is: `'point'`, `'spot'`, `'directional'`…"
+      },
+      {
+        "name": "copy(source: Object3D, recursive?: boolean)",
+        "type": "Light",
+        "desc": "Takes `source`'s node values and, from a light, its numbers, colours, coefficients and aim; its own `kind` stays."
       },
       {
         "name": "needsUpdate",
@@ -9402,7 +9354,7 @@
       },
       {
         "name": "scene",
-        "type": "{ source: GraphNode; sceneLightingSource: GraphNode; associations: Map<GraphNode, { meshes?: number; primitives?: number; placements?: PlacementRows; }>; tex...",
+        "type": "{ source: Object3D; sceneLightingSource: Object3D; associations: Map<Object3D, { meshes?: number; primitives?: number; placements?: PlacementRows; }>; textur...",
         "desc": "The scene graph built from the cache's scene tables."
       },
       {
@@ -9585,6 +9537,16 @@
         "desc": "Takes the node off its parent."
       },
       {
+        "name": "clone(recursive?: boolean)",
+        "type": "Object3D",
+        "desc": "A node of this class with the same values, and copies of its children unless told not to."
+      },
+      {
+        "name": "copy(source: Object3D, recursive?: boolean)",
+        "type": "Object3D",
+        "desc": "Takes `source`'s values, and copies of its children unless told not to."
+      },
+      {
         "name": "clear()",
         "type": "Object3D",
         "desc": "Takes every child off this node."
@@ -9645,29 +9607,9 @@
         "desc": "Moves the node along its own `axis`."
       },
       {
-        "name": "getWorldPosition(out?: Vector3)",
-        "type": "Vector3",
-        "desc": "Where the node stands in the world."
-      },
-      {
-        "name": "getWorldQuaternion(out?: Quaternion)",
-        "type": "Quaternion",
-        "desc": "How the node is turned in the world."
-      },
-      {
         "name": "getWorldDirection(out?: Vector3)",
         "type": "Vector3",
         "desc": "The way the node faces in the world."
-      },
-      {
-        "name": "localToWorld(v: Vector3)",
-        "type": "Vector3",
-        "desc": "A point of the node's frame, in the world."
-      },
-      {
-        "name": "worldToLocal(v: Vector3)",
-        "type": "Vector3",
-        "desc": "A point of the world, in the node's frame."
       },
       {
         "name": "localBounds()",
@@ -16649,6 +16591,26 @@
         "name": "updateMatrixWorld(force?: boolean)",
         "type": "void",
         "desc": "Resolves the world matrices of the subtree, this node's parent taken as it stands."
+      },
+      {
+        "name": "getWorldPosition(out?: Vector3)",
+        "type": "Vector3",
+        "desc": "Where the node stands in the world."
+      },
+      {
+        "name": "getWorldQuaternion(out?: Quaternion)",
+        "type": "Quaternion",
+        "desc": "How the node is turned in the world."
+      },
+      {
+        "name": "localToWorld(v: Vector3)",
+        "type": "Vector3",
+        "desc": "A point of the node's frame, in the world."
+      },
+      {
+        "name": "worldToLocal(v: Vector3)",
+        "type": "Vector3",
+        "desc": "A point of the world, in the node's frame."
       }
     ],
     "description": ""

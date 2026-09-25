@@ -3,13 +3,14 @@ import type {
   HostGraphMaterial,
   HostGraphTexture,
 } from '../host/scene/graphResources.ts';
-import type { HostGraphMesh, HostGraphNode } from '../host/scene/graphNodes.ts';
+import type { HostGraphMesh } from '../host/scene/graphNodes.ts';
 import { isDrawnNode } from '../host/graph/kinds.ts';
 import { isGraphTexture } from '../host/graph/texture.ts';
+import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
 
 /** Meshes of a subtree, in preorder. Nothing is lifted here: the world matrices the
  *  engine needs are its own (`../host/world/placements.ts`), and the host scene stays as it left it. */
-export function meshes(node: HostGraphNode) {
+export function meshes(node: Object3D) {
   const found: HostGraphMesh[] = [];
   node.traverse((object) => {
     if (isDrawnNode(object)) found.push(object);

@@ -74,12 +74,19 @@ class ReferenceWalk {
         ...shapes.members(checker.getDeclaredTypeOfSymbol(symbol), symbol),
         ...shapes.members(statics, symbol).filter((member) => member.name !== 'prototype'),
       ];
-      const creation = constructs.map((signature) => shapes.call(`new ${name}`, signature));
+      // An abstract class is only a base: no page makes one, so it lists no `new`.
+      const abstract = !!node && ts.getCombinedModifierFlags(node) & ts.ModifierFlags.Abstract;
+      const creation = abstract
+        ? []
+        : constructs.map((signature) => shapes.call(`new ${name}`, signature));
       entry(
         {
           kind: 'Type',
           title,
-          signature: [`class ${name}${heritageOf(node)}`, ...creation].join('\n'),
+          signature: [
+            `${abstract ? 'abstract ' : ''}class ${name}${heritageOf(node)}`,
+            ...creation,
+          ].join('\n'),
           members: rows.map((row) => shapes.row(row, symbol)),
         },
         constructs[0],

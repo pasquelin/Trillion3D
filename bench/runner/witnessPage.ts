@@ -20,9 +20,9 @@
 // off` on both sides, otherwise the measured delta first carries the shadows only the
 // engine draws.
 import type { MeasuredWorld } from '../witnesses/measurement.ts';
-import type { GraphGroup } from '../../packages/sdk-browser/src/host/graph/mesh.ts';
 import type { GraphLight } from '../../packages/sdk-browser/src/host/graph/light.ts';
 import type { SceneLight } from '../../packages/sdk-core/src/scene/light/contracts.ts';
+import type { Group } from '../../packages/sdk-core/src/world/object/object3d.ts';
 
 /** Physical inverse-square of the contract: `directIncidence` knows no other falloff. */
 const DECAY = 2;
@@ -39,7 +39,7 @@ function penombre(coneAngle: number, douceur: number) {
 
 /** The graph classes the witness entry exports (`../witnesses/measurement.ts`): this module is
  *  served alone to the page, so it builds with the ones the page's dist hands it. */
-export type WitnessGraph = { GraphGroup: typeof GraphGroup; GraphLight: typeof GraphLight };
+export type WitnessGraph = { Group: typeof Group; GraphLight: typeof GraphLight };
 
 /** The light of the declared kind. Three kinds in the contract, three here, and nothing else. */
 export function creer(graph: WitnessGraph, light: SceneLight): GraphLight {
@@ -118,7 +118,7 @@ const resume = (lights: SceneLight[]) => ({
  * tracking then returns `null`, never an invented count.
  */
 export function creerEclairageTemoin(graph: WitnessGraph) {
-  const groupe = new graph.GraphGroup();
+  const groupe = new graph.Group();
   const poses = new Map<string, GraphLight>();
   let signature: string | null = null;
   return {

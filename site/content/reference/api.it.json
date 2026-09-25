@@ -644,6 +644,7 @@
       "top": "Bordo superiore del riquadro ortografico.",
       "bottom": "Bordo inferiore del riquadro ortografico.",
       "projection": "`'perspective'` rimpicciolisce ciò che è lontano; `'orthographic'` mantiene tutte le dimensioni.",
+      "copy": "Prende i valori di nodo di `source` e, da una camera, la sua ottica; la propria `projection` resta.",
       "updateProjectionMatrix": "Mantenuto per le pagine scritte per un motore di rendering che ne ha bisogno: ogni scrittura di ottica già ridisegna.",
       "rayThrough": "Il raggio del mondo che passa per un punto dell'immagine, secondo la proiezione propria del motore (`engineCamera.ts`): dall'occhio lungo la vista per una telecamera prospettica, dritto lungo la vista dalla scatola per una ortografica. La sua direzione è un vettore unitario.",
       "set": "Posiziona l'occhio a `pose.position`, rivolto verso `pose.target`, con il campo indicato."
@@ -2383,10 +2384,6 @@
   "HostGeometry": {
     "summary": "Una geometria dell'host: i suoi attributi, e la scatola locale che l'host ha calcolato su di essa."
   },
-  "HostGraphNode": {
-    "summary": "Un nodo del grafo dell'host così come lo vede un percorso: la sua identità, la sua posa locale, la matrice del mondo che l'host ha risolto per esso, e la sua catena.",
-    "description": "Il motore calcola le PROPRIE matrici del mondo a partire dalle pose locali (`../world/tree.ts`); `matrixWorld` viene letta dove è la risoluzione propria dell'HOST che un confine gli restituisce. PERCHÉ `HostPlaced` (`../resources.ts`) DESCRIVE ANCHE UN NODO POSIZIONATO. I due non sono una copia: si appoggiano sulle due risoluzioni diverse offerte da un host. `HostPlaced` richiede `updateWorldMatrix(ancestors, descendants)` — la catena di UN nodo, ciò che restituiscono un posizionamento e un percorso di visibilità; questo richiede `updateMatrixWorld(force)` — il SOTTOALBERO sotto un nodo, ciò che risolvono in una chiamata un percorso, un'unione di limiti e una replica. Un host che offre solo una delle due soddisfa solo il contratto a cui risponde, quindi nessuno dei due può sostituire l'altro."
-  },
   "HostMaterial": {
     "summary": "Un materiale dell'host così come lo legge il motore: i parametri di superficie condivisi da ogni materiale dell'host, letti una volta al confine nel `VisMaterial` del motore; solo `sideOf` legge `side`."
   },
@@ -2395,9 +2392,6 @@
   },
   "HostMesh": {
     "summary": "Una mesh dell'host, mantenuta dalla sua identità: il record di disegno, la tabella trasparente e gli insiemi di selezione nominano la superficie posizionata dall'host."
-  },
-  "HostNode": {
-    "summary": "Un nodo del grafo di scena dell'host, mantenuto dalla sua identità e dai due campi di cui un percorso ha bisogno."
   },
   "HostNodeMatrix": {
     "summary": "Gli stessi sedici float, MODIFICABILI termine per termine: la posa che un confine rimette su un nodo dell'host o su una camera dell'host che ripristina.",
@@ -2449,9 +2443,6 @@
   },
   "HostTexture": {
     "summary": "Una texture dell'host: l'immagine decodificata dall'host e lo stato di campionamento dichiarato, mantenuta anch'essa dalla sua identità."
-  },
-  "HostTraversable": {
-    "summary": "Un nodo dell'host percorso dal motore: il sottoalbero sottostante, esso per primo, nell'ordine proprio dell'host."
   },
   "HostVector": {
     "summary": "Tre numeri di una posa, così come li tiene l'host e li restituisce un confine.",
@@ -2729,6 +2720,7 @@
       "height": "Altezza di una luce rettangolare.",
       "radius": "Raggio della sfera che emette; `emitterRadius` nella memorizzazione del motore.",
       "kind": "Che tipo di luce è: `'point'`, `'spot'`, `'directional'`…",
+      "copy": "Prende i valori di nodo di `source` e, da una luce, i suoi numeri, colori, coefficienti e mira; il proprio `kind` resta.",
       "needsUpdate": "`light.needsUpdate = true` dopo aver scritto `sh` sul posto: il mondo lo rilegge.",
       "lookAt": "Punta con la luce verso un punto del mondo: una luce direzionale o uno spot vi sposta il proprio `target` — la sua direzione ne deriva —, e il nodo ruota anch'esso, il che orienta un rettangolo."
     }
@@ -4113,6 +4105,8 @@
       "remove": "Rimuove figli da questo nodo.",
       "destroy": "Libera subito il nodo e tutto ciò che sta sotto, invece che alla loro raccolta.",
       "removeFromParent": "Rimuove il nodo dal suo genitore.",
+      "clone": "Un nodo dello stesso tipo con gli stessi valori; anche i figli copiati salvo indicazione contraria.",
+      "copy": "Prende i valori di `source`, e copie dei suoi figli salvo indicazione contraria.",
       "clear": "Rimuove tutti i figli di questo nodo.",
       "traverse": "Chiama `fn` su questo nodo e su tutti quelli sottostanti.",
       "traverseVisible": "Chiama `fn` su ogni nodo visibile da qui.",
@@ -4125,11 +4119,7 @@
       "rotateY": "Ruota il nodo attorno al proprio asse y.",
       "rotateZ": "Ruota il nodo attorno al proprio asse z.",
       "translateOnAxis": "Sposta il nodo lungo il proprio `axis`.",
-      "getWorldPosition": "Dove si trova il nodo nel mondo.",
-      "getWorldQuaternion": "Come è ruotato il nodo nel mondo.",
       "getWorldDirection": "In quale direzione guarda il nodo nel mondo.",
-      "localToWorld": "Un punto dal sistema del nodo, nel mondo.",
-      "worldToLocal": "Un punto dal mondo, nel sistema del nodo.",
       "localBounds": "La scatola del contenuto proprio di questo nodo, nel suo sistema locale; un semplice nodo non ne ha una."
     }
   },
@@ -4140,7 +4130,11 @@
       "matrixWorld": "Matrice nel mondo così come composta l'ultima volta (`updateMatrixWorld`), una vista sull'albero.",
       "matrixAutoUpdate": "Falso quando `matrix` È la posa e nulla la ricompone.",
       "matrixWorldNeedsUpdate": "Impostato quando la matrice locale è cambiata e la matrice del mondo non l’ha seguita.",
-      "updateMatrixWorld": "Compone la matrice nel mondo di questo nodo e dei suoi discendenti, prendendo quella del genitore così com'è."
+      "updateMatrixWorld": "Compone la matrice nel mondo di questo nodo e dei suoi discendenti, prendendo quella del genitore così com'è.",
+      "getWorldPosition": "Dove si trova il nodo nel mondo.",
+      "getWorldQuaternion": "Come è ruotato il nodo nel mondo.",
+      "localToWorld": "Un punto dal sistema del nodo, nel mondo.",
+      "worldToLocal": "Un punto dal mondo, nel sistema del nodo."
     }
   },
   "OcclusionFrameMetrics": {
@@ -7177,14 +7171,9 @@
   "GraphNode": {
     "members": {
       "serial": "Il numero del nodo, unico nella sessione.",
-      "kind": "Che cosa è il nodo: ciò su cui ogni lettore del grafo si restringe.",
-      "parent": "Il suo genitore.",
-      "children": "I nodi che questo contiene, in ordine.",
-      "traverse": "Il sottoalbero sotto il nodo, esso per primo, nell'ordine proprio dell'host.",
-      "clone": "Un nodo dello stesso tipo con gli stessi valori; anche i figli copiati salvo indicazione contraria.",
-      "copy": "Prende i valori di `source`, e copie dei suoi figli salvo indicazione contraria."
+      "kind": "Che cosa è il nodo: ciò su cui ogni lettore del grafo si restringe."
     },
-    "summary": "Un nodo del grafo: il suo nome, la sua posa, la sua matrice del mondo, il suo genitore e i suoi figli."
+    "summary": "Un nodo del grafo: il nodo del nucleo, distinto dal suo `kind`, copiato dal `clone` del nucleo."
   },
   "GraphSurface": {
     "members": {
@@ -7289,7 +7278,7 @@
     }
   },
   "GraphNodeKind": {
-    "summary": "Che cosa è un nodo del grafo: un nodo semplice, la radice, un gruppo, una mesh disegnata (in una collocazione o in più), un occhio, o una delle luci che una scena dichiara."
+    "summary": "Che cosa è un nodo del grafo: la radice, una mesh disegnata (in una collocazione o in più), un occhio, o una delle luci che una scena dichiara."
   },
   "Joint": {
     "summary": "Un giunto tra due corpi, o tra un corpo e il mondo (`b` null), creato con `joint.*` e aggiunto alla simulazione con `world.physics.add`.",

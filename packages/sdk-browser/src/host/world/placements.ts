@@ -1,8 +1,7 @@
 import { EngineError } from '../../../../sdk-core/src/index.ts';
-import type { HostNode } from '../resources.ts';
-import type { HostGraphNode } from '../scene/graphNodes.ts';
 import { hostWorldTree, type HostWorldTree } from './tree.ts';
 import type { MatrixElements } from '../../math/matrixElements.ts';
+import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 
 /**
  * World matrices THE ENGINE owns for the drawn nodes of the host scene.
@@ -23,7 +22,7 @@ import type { MatrixElements } from '../../math/matrixElements.ts';
 export interface HostWorldPlacements {
   /** Engine world matrix for `node`: the same object from call to call, its numbers always
    *  those of the last pass. Throws for a node outside the indexed subtree. */
-  of(node: HostNode): MatrixElements;
+  of(node: Object3D): MatrixElements;
   /** Recomputes the index from the host's local poses. Every pose already handed out reads the
    *  result: they are views on it. */
   refresh(): void;
@@ -43,13 +42,13 @@ function assertStable(tree: HostWorldTree) {
 
 /** World-matrix index of `source`, ready to be read: the pass is that of the core tree
  *  (`tree.ts`), which accepts both a node that recomposes its pose and a posed node. */
-export function hostWorldPlacements(source: HostGraphNode): HostWorldPlacements {
+export function hostWorldPlacements(source: Object3D): HostWorldPlacements {
   // No lot: the pass runs on the tree, whose per-node views stay valid for the index's life.
   const tree = hostWorldTree(source);
   assertStable(tree);
   // Requested nodes, and them alone. One table, node → pose: the rank of a parallel list would
   // be a third way of saying the same thing, and one more to keep in agreement.
-  const matrices = new Map<HostNode, MatrixElements>();
+  const matrices = new Map<Object3D, MatrixElements>();
   return {
     of(node) {
       const held = matrices.get(node);

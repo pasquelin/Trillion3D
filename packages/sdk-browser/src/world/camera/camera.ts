@@ -4,15 +4,15 @@ import { emptyWorldBox, hostWorldBounds } from '../../host/world/bounds.ts';
 import { framingFromBounds } from '../../camera/framing.ts';
 import { DEFAULT_FOV } from '../../backend/common.ts';
 import type { BackendContext, MeasuredWorldOptions } from '../../backend/types.ts';
-import type { HostGraphNode } from '../../host/scene/graphNodes.ts';
 import { hostBox, hostFramingCamera, hostPoint } from '../../host/scene/graphObjects.ts';
 import { sphereFromBounds, type ClusterManifest } from '../../../../sdk-core/src/index.ts';
+import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 
 /** Framing centre and radius: midpoint of the bounds and the half-diagonal, reread from a single sphere. */
 const framingSphere = new Float64Array(4);
 
 export function createExplorerCamera(
-  source: HostGraphNode,
+  source: Object3D,
   autonomous: boolean,
   associations: BackendContext['associations'],
   metadata: ClusterManifest,

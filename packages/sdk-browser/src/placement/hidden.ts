@@ -1,7 +1,7 @@
 import { BOX_VALUES, boxEmpty, boxIsEmpty, boxUnionBatch } from '../../../sdk-core/src/index.ts';
-import type { HostNode } from '../host/resources.ts';
 import type { ClusterRoot } from '../page/selection/types.ts';
 import { rowParked, type PlacementOf } from './rows.ts';
+import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
 
 /** A see-through draw — a WebGPU blend item, a WebGL2 blended copy — as visibility reads it:
  *  hidden with its source node, parked with its row. */
@@ -11,8 +11,8 @@ export type SeeThrough = { hidden?: boolean; readonly placement?: PlacementOf };
 export const notDrawn = (entry: SeeThrough) => !!entry.hidden || rowParked(entry.placement);
 
 /** True when `node` and every node above it are visible. */
-export function shownChain(node: HostNode) {
-  for (let walk: HostNode | null = node; walk; walk = walk.parent) if (!walk.visible) return false;
+export function shownChain(node: Object3D) {
+  for (let walk: Object3D | null = node; walk; walk = walk.parent) if (!walk.visible) return false;
   return true;
 }
 
@@ -22,10 +22,10 @@ export function shownChain(node: HostNode) {
  */
 function followHidden<E extends { hidden?: boolean }>(
   entries: readonly E[],
-  sourceOf: (entry: E) => HostNode | undefined,
+  sourceOf: (entry: E) => Object3D | undefined,
   flipped: (entry: E, rank: number) => void,
 ) {
-  let last: HostNode | undefined,
+  let last: Object3D | undefined,
     lastHidden = false;
   for (let rank = 0; rank < entries.length; rank++) {
     const entry = entries[rank],
@@ -55,11 +55,11 @@ const moved = new Float64Array(BOX_VALUES),
  * `seeThrough.flipped` hears it. Read once per scene revision, never per frame. Returns the box
  * of the roots that flipped, where the shadow pages must be drawn again, or `null`.
  */
-export function followHostVisibility<T extends { sourceMesh?: HostNode }, S extends SeeThrough>(
+export function followHostVisibility<T extends { sourceMesh?: Object3D }, S extends SeeThrough>(
   roots: readonly ClusterRoot<T>[],
   seeThrough: {
     entries: readonly S[];
-    sourceOf: (entry: S) => HostNode | undefined;
+    sourceOf: (entry: S) => Object3D | undefined;
     flipped?: (entry: S) => void;
   },
   park?: (rank: number, parked: boolean) => void,

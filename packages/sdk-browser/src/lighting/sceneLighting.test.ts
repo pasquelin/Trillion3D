@@ -6,8 +6,8 @@ import { installSceneLighting } from './sceneLighting.ts';
 import { hostAimNode, lighting } from '../../../../bench/witnesses/three/displayObjects.ts';
 
 test('Three reference adapter copies the authored directional target in world space', () => {
-  const source = new G.GraphGroup(),
-    parent = new G.GraphGroup();
+  const source = new G.Group(),
+    parent = new G.Group();
   parent.position.set(4, 0, 0);
   source.add(parent);
   const sun = G.directionalLight(0xffffff, 2);
@@ -26,7 +26,7 @@ test('Three reference adapter copies the authored directional target in world sp
 
 test('a source without a declared light installs no light at all', () => {
   const scene = new THREE.Scene();
-  installSceneLighting(scene, new G.GraphGroup(), hostAimNode);
+  installSceneLighting(scene, new G.Group(), hostAimNode);
   assert.equal(
     scene.children.filter((object) => (object as THREE.Light).isLight).length,
     0,
@@ -36,9 +36,9 @@ test('a source without a declared light installs no light at all', () => {
 
 test('placing the lights leaves the display background to the boundary that owns the graph', () => {
   const scene = new THREE.Scene();
-  installSceneLighting(scene, new G.GraphGroup(), hostAimNode);
+  installSceneLighting(scene, new G.Group(), hostAimNode);
   assert.equal(scene.background, null, 'the light placement declares no clear colour');
-  lighting(scene, 0x112233, new G.GraphGroup());
+  lighting(scene, 0x112233, new G.Group());
   const background: THREE.Color | null = scene.background as THREE.Color | null;
   assert.equal(
     background?.getHex(),
@@ -48,7 +48,7 @@ test('placing the lights leaves the display background to the boundary that owns
 });
 
 test('a light that aims carries its own target: the source graph keeps the one it declared', () => {
-  const source = new G.GraphGroup();
+  const source = new G.Group();
   const sun = G.directionalLight(0xffffff, 1);
   source.add(sun);
   source.add(sun.target!);
