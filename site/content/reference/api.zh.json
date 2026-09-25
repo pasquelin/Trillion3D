@@ -7446,7 +7446,7 @@
       "offset": "`matrix` 由之组成的值。",
       "matrixAutoUpdate": "宿主是否会重建 `matrix`。",
       "matrix": "采样器的 UV 变换,即 `KHR_texture_transform` 组合成的三行矩阵;当宿主自己负责更新时,它会根据偏移、重复和旋转重新计算这个矩阵。",
-      "generateMipmaps": "是否生成更小的副本。",
+      "generateMipmaps": "是否要求生成更小的副本；只要 `minFilter` 读取它们，引擎就会生成。",
       "premultiplyAlpha": "颜色是否已预先乘以 alpha。",
       "flipY": "上传时行是否被翻转。",
       "version": "每次内容变化时由宿主递增:某次上传据此比较,以跳过重复拷贝。",

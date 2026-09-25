@@ -9,34 +9,29 @@ import type { HostTexture } from '../../host/resources.ts';
 import * as G from '../../host/graph/graph.fixture.ts';
 import { createTestContext } from '../core/testContext.fixture.ts';
 
-type Held = { picture?: Uint8Array; chain: boolean; minFilter: string };
-
-/** A WebGL2 double that samples a unit as GL does: its level 0, or black when its min filter
- *  reads levels the texture does not have. */
+/** A WebGL2 double that samples a unit as GL does, replayed from the calls it recorded: its
+ *  level 0, or black when its min filter reads levels the texture does not have. */
 function sampledContext() {
-  const held = new Map<unknown, Held>(),
-    units = new Map<unknown, unknown>();
-  let active: unknown;
-  const bound = () => held.get(units.get(active))!;
-  const { gl } = createTestContext({
-    answers: {
-      activeTexture: (unit: unknown) => void (active = unit),
-      bindTexture: (_target: unknown, texture: unknown) => {
-        units.set(active, texture);
-        if (!held.has(texture)) held.set(texture, { chain: false, minFilter: '' });
-      },
-      // A new level 0 leaves the levels below it stale: the chain is built again or missing.
-      texImage2D: (...args: unknown[]) =>
-        Object.assign(bound(), { picture: args[8] as Uint8Array, chain: false }),
-      generateMipmap: () => void (bound().chain = true),
-      texParameteri: (_target: unknown, name: string, value: string) => {
-        if (name === 'TEXTURE_MIN_FILTER') bound().minFilter = value;
-      },
-    },
-  });
+  const { gl, calls } = createTestContext();
   const sample = (unit: number) => {
+    const held = new Map<unknown, { picture?: Uint8Array; chain?: boolean; minFilter?: string }>(),
+      units = new Map<unknown, unknown>();
+    let active: unknown;
+    const bound = () => held.get(units.get(active)) ?? {};
+    for (const { name, args } of calls)
+      if (name === 'activeTexture') active = args[0];
+      else if (name === 'bindTexture') {
+        units.set(active, args[1]);
+        if (!held.has(args[1])) held.set(args[1], {});
+      }
+      // A new level 0 leaves the levels below it stale: the chain is built again or missing.
+      else if (name === 'texImage2D')
+        Object.assign(bound(), { picture: args[8] as Uint8Array, chain: false });
+      else if (name === 'generateMipmap') bound().chain = true;
+      else if (name === 'texParameteri' && args[1] === 'TEXTURE_MIN_FILTER')
+        bound().minFilter = args[2] as string;
     const { picture, chain, minFilter } = held.get(units.get(`TEXTURE0${unit}`))!;
-    return minFilter.includes('MIPMAP') && !chain ? [0, 0, 0, 0] : [...picture!.slice(0, 4)];
+    return minFilter?.includes('MIPMAP') && !chain ? [0, 0, 0, 0] : [...picture!.slice(0, 4)];
   };
   return { gl, sample };
 }

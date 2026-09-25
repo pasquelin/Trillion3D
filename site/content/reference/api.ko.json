@@ -7428,7 +7428,7 @@
       "offset": "`matrix`를 구성하는 값.",
       "matrixAutoUpdate": "호스트가 `matrix`를 재구축하는지 여부.",
       "matrix": "샘플러의 UV 변환. `KHR_texture_transform`이 세 개의 행으로 합쳐진 것; 업데이트를 호스트가 소유할 때는 오프셋, 반복, 회전으로부터 이를 다시 계산한다.",
-      "generateMipmaps": "더 작은 사본들이 만들어지는지 여부.",
+      "generateMipmaps": "더 작은 사본들을 요청하는지 여부. `minFilter`가 그것들을 읽을 때마다 엔진이 만듭니다.",
       "premultiplyAlpha": "색상이 알파로 미리 곱해져 있는지 여부.",
       "flipY": "업로드 시 행이 뒤집히는지 여부.",
       "version": "내용이 바뀔 때마다 호스트가 증가시킨다: 업로드가 다시 복사할 필요가 있는지 비교하는 값.",

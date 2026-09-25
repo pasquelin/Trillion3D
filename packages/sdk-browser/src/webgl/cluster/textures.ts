@@ -11,8 +11,9 @@ import { WebglMipReducer } from './mips.ts';
 /**
  * A texture as uploaded, at its counters (#360, #361) and its size: a new version uploads the
  * picture again — in place at the same size and format (#362) —, a new `sampling` sets the sampler
- * alone. Its mip chain exists whenever its `minFilter` reads one (`mipFiltered`, #732). The placement is not uploaded here — the material binding uploads the UV matrix at every
- * draw (`materialBinding.ts`).
+ * alone. Its mip chain exists whenever its `minFilter` reads one (`mipFiltered`, #732). The
+ * placement is not uploaded here — the material binding uploads the UV matrix at every draw
+ * (`materialBinding.ts`).
  */
 type TextureRecord = {
   texture: WebGLTexture;
@@ -99,17 +100,20 @@ export class WebglClusterTextures {
         gl.activeTexture(gl.TEXTURE0 + unit);
         gl.bindTexture(gl.TEXTURE_2D, record.texture);
       }
+      // The chain a mip filter reads, under its readers' rule: built when a sampling moved to a
+      // mip filter over a picture uploaded without one, reduced again when the rule switched.
       const sampling = record.sampling !== texture.sampling,
-        // A sampling moved to a mip filter asks for the chain its picture was uploaded without.
-        chain = record.weighted === undefined && mipFiltered(texture.minFilter),
-        rule = record.weighted !== undefined && record.weighted !== weighted;
+        mips = record.weighted !== weighted && mipFiltered(texture.minFilter);
       // `setSampler` and the chain write the ACTIVE unit's texture: select it even if bound there.
-      if (sampling || chain || rule) gl.activeTexture(gl.TEXTURE0 + unit);
+      if (sampling || mips) gl.activeTexture(gl.TEXTURE0 + unit);
       if (sampling) {
         record.sampling = texture.sampling;
         this.setSampler(texture);
       }
-      if (chain || rule) this.mips.reduce(unit, record, (record.weighted = weighted), chain);
+      if (mips) {
+        const allocate = record.weighted === undefined;
+        this.mips.reduce(unit, record, (record.weighted = weighted), allocate);
+      }
     }
     this.bound[unit] = record.texture;
   }

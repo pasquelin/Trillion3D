@@ -7447,7 +7447,7 @@
       "offset": "Những gì `matrix` được ghép từ đó.",
       "matrixAutoUpdate": "Ứng dụng chủ có tự dựng lại `matrix` hay không.",
       "matrix": "Phép biến đổi UV của bộ lấy mẫu, `KHR_texture_transform` được dựng thành ba hàng; ứng dụng chủ tính lại nó từ độ lệch, độ lặp lại và góc xoay khi nó sở hữu việc cập nhật.",
-      "generateMipmaps": "Các bản sao nhỏ hơn có được tạo ra hay không.",
+      "generateMipmaps": "Có yêu cầu các bản sao nhỏ hơn hay không; engine luôn tạo chúng khi `minFilter` đọc chúng.",
       "premultiplyAlpha": "Màu có được nhân trước với alpha hay không.",
       "flipY": "Các hàng có bị lật khi tải lên hay không.",
       "version": "Tăng lên bởi ứng dụng chủ ở mỗi thay đổi nội dung: điều mà một lần tải lên so sánh để bỏ qua việc sao chép lại.",
