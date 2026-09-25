@@ -108,6 +108,10 @@ export type VisMaterial = {
    *  `lineDash`); absent on any other surface. */
   dashSize?: number;
   gapSize?: number;
+  /** A sprite's quad, which every raster turns to face the camera (`shader/spriteWgsl.ts`): its
+   *  turn in the image in radians, and whether it shrinks with distance; absent on any other
+   *  surface. */
+  sprite?: { rotation: number; sizeAttenuation: boolean };
 };
 
 export type UnpackedVisibility = { pageIndex: number; triangleIndex: number };

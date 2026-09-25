@@ -114,6 +114,7 @@ export type {
 } from '../../sdk-browser/src/world/saved/format.ts';
 export type { SceneLink } from '../../sdk-core/src/world/object/sceneLink.ts';
 export { Spherical, Vector2, Vector4 } from '../../sdk-core/src/world/math/vector2.ts';
+export { Sprite } from '../../sdk-core/src/world/object/sprite.ts';
 export { Texture } from '../../sdk-core/src/world/texture/texture.ts';
 export type {
   TransformControls,
