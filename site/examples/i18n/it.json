@@ -2111,5 +2111,19 @@
       "volumes": "Volumi",
       "awake": "Svegli"
     }
+  },
+  "a-cooked-flag": {
+    "banner": "La bandiera è stata precalcolata con il suo modello: viene ripristinata al caricamento e ricade subito dall'asta. Ricaricala per rivederlo.",
+    "controls": {
+      "again": "Ancora",
+      "slowMotion": "Rallentatore"
+    },
+    "readouts": {
+      "bodies": "Corpi",
+      "step": "Passo"
+    },
+    "words": {
+      "credit": "Bandiera su un'asta modellata in codice per questo esempio, CC0 — vedi assets/examples/CREDITS.md"
+    }
   }
 }
