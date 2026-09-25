@@ -107,9 +107,10 @@ requested, in a lower request tier ranked after every visible request, at most h
 The host serves those pages through the one residency queue as a lower tier after the camera's and
 the light cuts' (`webgpu/residency/lowerTier.ts`): never pinned, never evicting a camera page, and
 replaced by an empty list once the camera stops. A still camera sends no view ahead and cuts as
-before. Admission spends the published main-thread share `STREAMING_FRAME_MS` (1 ms) per display
-frame and resumes on the next frame (`webgpu/residency/frameBudget.ts`); fetching and decoding stay
-in workers. WebGL2 keeps its own path (#490).
+before. Admission holds the main thread for the published share `STREAMING_FRAME_MS` (1 ms) at most,
+then yields a task and resumes at once (`page/integration/frameBudget.ts`, the arrival queue's
+budget): a due frame waits on it no longer, and a hidden tab, where no frame comes, still loads.
+Fetching and decoding stay in workers. WebGL2 keeps its own path (#490).
 
 **Occlusion** is two-phase Hi-Z. Pass 1 draws the rows the previous frame drew that the previous
 frame's pyramid does not hide; a pyramid is built from that depth (background at the far plane, min

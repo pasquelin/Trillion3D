@@ -16,10 +16,12 @@ export const DEFAULT_FOV = 55,
   /** Milliseconds a frame spends at most integrating arrived pages. */
   ARRIVAL_BUDGET_MS = 2,
   /**
-   * The residency queue's PUBLISHED main-thread share of one display frame, in milliseconds: its
-   * admissions stop there and resume on the next frame (`../webgpu/residency/frameBudget.ts`). Half
-   * of the programme's 2 ms main-thread frame (#483); the cut, the physics page stage and the encode
-   * share the other half. Fetching and decoding run in workers and spend none of it.
+   * The residency queue's PUBLISHED main-thread share, in milliseconds: the longest its admissions
+   * hold the main thread before they yield a task (`../page/integration/frameBudget.ts`), so a due
+   * frame never waits on streaming longer. The next task resumes at once, in a visible tab as in a
+   * hidden one, where no frame comes. Half of the programme's 2 ms main-thread frame (#483); the
+   * cut, the physics page stage and the encode share the other half. Fetching and decoding run in
+   * workers and spend none of it.
    */
   STREAMING_FRAME_MS = 1,
   /**
