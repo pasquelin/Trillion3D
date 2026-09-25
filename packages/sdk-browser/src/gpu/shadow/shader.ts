@@ -87,7 +87,7 @@ fn shadowVertex(vertexIndex:u32,instanceIndex:u32,blended:bool)->ShadowOut{
 fn shadowKeep(in:ShadowOut,gx:vec2f,gy:vec2f)->bool{
  let radius=shadow.emitter.w;
  if(radius>0.0&&dot(in.fromEmitter,in.fromEmitter)<radius*radius){return false;}
- return maskKeep(pages[in.instance],in.uv,1.0,gx,gy,0.0);
+ return maskKeep(pages[in.instance],in.uv,1.0,gx,gy);
 }
 /** Writes no colour: it only discards the envelope and the cutout. */
 @fragment fn shadow_fs(in:ShadowOut){
