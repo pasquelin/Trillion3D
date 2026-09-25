@@ -2,7 +2,7 @@
 use super::{
     OracleCamera, OracleJob, OracleLight, KIND_POINT, KIND_SPOT, KIND_SUN, ORACLE_VERSION,
 };
-use crate::shared_math::length;
+use crate::shared_math::{divide, length};
 use crate::{CompilerError, Result};
 use serde_json::Value;
 use std::path::PathBuf;
@@ -52,7 +52,7 @@ fn light_of(value: &Value) -> Result<OracleLight> {
         if norm <= 0.0 {
             return Err(bad("light.direction has no length"));
         }
-        [raw[0] / norm, raw[1] / norm, raw[2] / norm]
+        divide(raw, norm)
     };
     Ok(OracleLight {
         kind,
