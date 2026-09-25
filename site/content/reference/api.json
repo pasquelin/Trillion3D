@@ -3081,8 +3081,8 @@
     "section": "types",
     "kind": "Constant",
     "title": "DAG_ERROR_MODEL",
-    "signature": "const DAG_ERROR_MODEL: 'dag-group-qem-v1'",
-    "summary": "Cache identity for per-cluster DAG errors: group QEM error projected through the group sphere.",
+    "signature": "const DAG_ERROR_MODEL: 'dag-group-qem-v2'",
+    "summary": "Cache identity for per-cluster DAG errors: absolute group QEM error over positions, normals and texture coordinates, clamped to the group's extent; a v1 cache is refused.",
     "description": ""
   },
   {
