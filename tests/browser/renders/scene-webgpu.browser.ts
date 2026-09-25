@@ -16,7 +16,7 @@ const out = measureOutput('webgpu-visual', run);
 // The harness page and its import map, the trajectory under `/runner/`, and the engine this run
 // proves — `routeBaseline` intercepts `/dist/sdk-browser/`, so the engine keeps that prefix.
 const mounts = [...resolveMounts(ROOT, []), { prefix: '/dist/', dir: resolve(ROOT, 'dist') }];
-const { server, port } = await startServer({ port: 0, mounts, captures: new Map() });
+const { server, port } = await startServer({ mounts });
 const harnessUrl = `http://127.0.0.1:${port}`;
 const provenance = await sceneProvenance(harnessUrl),
   taa = process.env.WEBGPU_TAA !== 'off';
