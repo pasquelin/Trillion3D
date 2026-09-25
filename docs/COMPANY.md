@@ -8,8 +8,7 @@ contribution workflow never requires it.
 
 ## The idea in one paragraph
 
-The boss sets priorities and tests the result. A **CTO** session, the only one the boss opens,
-turns those priorities into work, starts one **lead** agent per domain, and keeps the company honest. Leads run a **coder** and a
+The boss sets priorities and tests the result. The boss opens the **CTO** session; it gives him ten launch commands, and he opens one session per command: a **lead** per domain, the architect, the analyst, measurement and acceptance. The CTO keeps the company honest and merges. Leads run a **coder** and a
 **reviewer** for one issue at a time, verify the result themselves, name it ready for the CTO to
 merge, and close the issue. After every
 merge, **measurement** checks performance and captures the live example, and **acceptance**
@@ -20,18 +19,18 @@ and pull requests.
 
 ## The roles
 
-| Role                 | Skill                   | Started by | Does                                                                                                                                                                                   | Never                     |
-| -------------------- | ----------------------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------- |
-| Boss                 | —                       | —          | sets priorities, tests the result, approves process changes that could lose quality                                                                                                    | —                         |
-| CTO                  | `/t3d-cto`              | boss       | sets the issues' priority labels, starts and supervises the agents, decides technique, opens issues, reports in five lines, winds down at 80 % of plan usage (or the boss's threshold) | writes code, measures     |
-| Lead                 | agent (`t3d-lead`)      | CTO        | owns a domain (geometry, lighting, compiler, physics, sdk, textures); runs its coder and reviewer; writes the **Lead verification** before merging; closes the issue                   | writes code, opens issues |
-| Coder                | agent `coder`           | lead       | implements one issue, runs the real `simplify` and `code-review` skills, opens the PR                                                                                                  | merges, measures          |
-| Reviewer             | agent `reviewer`        | lead, CTO  | the real `simplify` and `code-review` skills, then the acceptance list; answers OK or KO                                                                                               | merges, measures          |
-| Measurement          | agent (`t3d-measure`)   | CTO        | the only one running Chrome and the bench: budgets, proofs, example captures and thumbnails                                                                                            | edits code, merges        |
-| Acceptance (recette) | agent (`t3d-recette`)   | CTO        | re-reads every merge and judges the example captures; reopens the issue on a defect                                                                                                    | edits code, merges        |
-| Architect            | agent (`t3d-architect`) | CTO        | rounds through compiler, engine, site, scripts; writes findings as To-do items on the domains' issues, which the leads implement                                                       | codes, owns a PR          |
-| Analyst              | agent (`t3d-analyst`)   | CTO        | measures flow, returns and cost; proposes ranked process changes                                                                                                                       | applies anything          |
-| Writer               | `/t3d-writer`           | CTO only   | writes an issue on the template                                                                                                                                                        | codes                     |
+| Role                 | Skill                  | Started by | Does                                                                                                                                                                                                     | Never                     |
+| -------------------- | ---------------------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------- |
+| Boss                 | —                      | —          | sets priorities, tests the result, approves process changes that could lose quality                                                                                                                      | —                         |
+| CTO                  | `/t3d-cto`             | boss       | sets the issues' priority labels, gives the boss the ten launch commands, supervises, decides technique, opens issues, reports in five lines, winds down at 80 % of plan usage (or the boss's threshold) | writes code, measures     |
+| Lead                 | `/t3d-lead <domain>`   | boss       | owns a domain (geometry, lighting, compiler, physics, sdk, textures); runs its coder and reviewer; writes the **Lead verification** before merging; closes the issue                                     | writes code, opens issues |
+| Coder                | agent `coder`          | lead       | implements one issue, runs the real `simplify` and `code-review` skills, opens the PR                                                                                                                    | merges, measures          |
+| Reviewer             | agent `reviewer`       | lead       | the real `simplify` and `code-review` skills, then the acceptance list; answers OK or KO                                                                                                                 | merges, measures          |
+| Measurement          | `/loop /t3d-measure`   | boss       | the only one running Chrome and the bench: budgets, proofs, example captures and thumbnails                                                                                                              | edits code, merges        |
+| Acceptance (recette) | `/loop /t3d-recette`   | boss       | re-reads every merge and judges the example captures; reopens the issue on a defect                                                                                                                      | edits code, merges        |
+| Architect            | `/loop /t3d-architect` | boss       | rounds through compiler, engine, site, scripts; writes findings as To-do items on the domains' issues, which the leads implement                                                                         | codes, owns a PR          |
+| Analyst              | `/loop /t3d-analyst`   | boss       | measures flow, returns and cost; proposes ranked process changes                                                                                                                                         | applies anything          |
+| Writer               | `/t3d-writer`          | CTO only   | writes an issue on the template                                                                                                                                                                          | codes                     |
 
 ## How work flows
 
@@ -47,7 +46,7 @@ and pull requests.
    CI refuses a PR out of draft without that section, and any PR without real `/simplify:` and
    `/code-review:` lines.
 4. After the merge:
-   - the issue closes, or stays open with `Part of #n` when work remains;
+   - the issue closes;
    - measurement and acceptance check it, and reopen it with `measure ko` / `audit ko` if needed.
 5. Limits at every moment:
    - each lead within the limits of AGENTS.md §Leads;

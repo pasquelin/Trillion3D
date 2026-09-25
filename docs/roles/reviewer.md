@@ -12,8 +12,7 @@ merge and never run Chrome, a browser proof or the bench.
 3. **Correctness pass** — invoke the real `code-review` skill with `--fix`. Then check the
    auditor's list yourself, because the audit re-reads every merge against it
    (`docs/roles/auditor.md` step 3):
-   - every To do and Proof item of the issue is delivered, or the body says `Part of #<n>` and the
-     rest is written on the issue; the body never says both `Closes` and `Part of`;
+   - every To do and Proof item of the issue is delivered, and the body says `Closes #<n>`;
    - each changed behaviour has a test that fails on `develop`, on the issue's fixture, waiting
      for events, never a fixed delay, and never comparing a result with itself;
    - labels are right, docs and translations follow, an added example has its thumbnail or
