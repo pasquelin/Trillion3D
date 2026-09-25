@@ -6,7 +6,7 @@
 // the arithmetic. The Chromium harness is that of `pageWebgpu.ts`.
 import { COTANGENT_FRAME_WGSL } from '../../../packages/sdk-browser/src/cluster/decodeWgsl.ts';
 import { PAGE_GEOMETRY_WGSL } from '../../../packages/sdk-browser/src/visibility/shader/pageGeometryWgsl.ts';
-import { PAGE_INFO_WGSL } from '../../../packages/sdk-browser/src/visibility/shader/pageWgsl.ts';
+import { PAGE_INFO_STRUCT_WGSL } from '../../../packages/sdk-browser/src/visibility/shader/pageWgsl.ts';
 import { ROW_FLAGS_WORD } from '../../../packages/sdk-browser/src/webgpu/row/pageRow.ts';
 import {
   FLAG_CLUSTER_PAGE,
@@ -32,16 +32,12 @@ export interface ClusterPage {
   indexCount: number;
 }
 
-/** The decode kernel. It declares the camera uniform `uni` the page geometry's screen routines
- *  read (`pageLine`, `pageSprite`), as every pass that includes it does: the decode never calls
- *  them, so the binding stays out of the kernel's interface and nothing is bound there. */
-export const CLUSTER_DECODING_SHADER = `${PAGE_INFO_WGSL}
+export const CLUSTER_DECODING_SHADER = `${PAGE_INFO_STRUCT_WGSL}
 @group(0) @binding(0) var<storage, read> indices:array<u32>;
 @group(0) @binding(1) var<storage, read_write> out:array<u32>;
 @group(0) @binding(2) var<storage, read> pages:array<PageInfo>;
 @group(0) @binding(3) var<storage, read> positions:array<f32>;
 @group(0) @binding(4) var<storage, read> uvs:array<f32>;
-@group(0) @binding(5) var<uniform> uni:Uniforms;
 ${PAGE_GEOMETRY_WGSL}
 ${COTANGENT_FRAME_WGSL}
 fn put(at:u32,v:f32){out[at]=bitcast<u32>(v);}
