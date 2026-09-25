@@ -8,10 +8,8 @@ import { SELECTION_WORKGROUP } from '../../../packages/sdk-browser/src/gpu/core/
 import type { SelectionUniforms } from '../../../packages/sdk-browser/src/gpu/core/selection.ts';
 import { REQUEST_PAGE_MAX } from '../../../packages/sdk-browser/src/gpu/dag/request.ts';
 import {
-  OUT_DRAWN_TRIANGLES,
   OUT_SELECTED_TRIANGLES,
   OUT_TRANSPARENT_TRIANGLES,
-  OUT_UNCOVERED_TRIANGLES,
   SELECTION_HEADER_WORDS,
 } from '../../../packages/sdk-browser/src/gpu/dag/layout.ts';
 import type { PackedDag } from '../../../packages/sdk-browser/src/gpu/dag/types.ts';
@@ -82,6 +80,12 @@ async function executer({
       size: octetsTravail,
       usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
     });
+    // Draw flags `dagMask` leaves behind the descent queue (`queueCap` = node count), one per page.
+    const octetsDrapeaux = c.pageCount * 4;
+    const drapeaux = device.createBuffer({
+      size: Math.max(4, octetsDrapeaux),
+      usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
+    });
     const group = device.createBindGroup({
       layout,
       entries: buffers.map((buffer, binding) => ({ binding, resource: { buffer } })),
@@ -112,6 +116,8 @@ async function executer({
     fin.end();
     encoder.copyBufferToBuffer(buffers[4], 0, lecture, 0, sortieOctets);
     encoder.copyBufferToBuffer(buffers[5], 0, compteurs, 0, octetsTravail);
+    if (octetsDrapeaux)
+      encoder.copyBufferToBuffer(buffers[3], c.nodeCount * 4, drapeaux, 0, octetsDrapeaux);
     device.queue.submit([encoder.finish()]);
     await lecture.mapAsync(GPUMapMode.READ);
     const ints = new Uint32Array(lecture.getMappedRange().slice(0));
@@ -119,6 +125,9 @@ async function executer({
     await compteurs.mapAsync(GPUMapMode.READ);
     const compteursLus = new Uint32Array(compteurs.getMappedRange().slice(0));
     compteurs.unmap();
+    await drapeaux.mapAsync(GPUMapMode.READ);
+    const dessine = new Uint32Array(drapeaux.getMappedRange().slice(0));
+    drapeaux.unmap();
     const count = Math.min(ints[0], c.pageCount);
     resultats.push({
       name: c.name,
@@ -133,12 +142,11 @@ async function executer({
       // Totals the GPU holds: this is where they are compared to the oracle's.
       selectedTriangles: ints[totaux.selected],
       transparentTriangles: ints[totaux.transparent],
-      drawnTriangles: ints[totaux.drawn],
-      uncoveredTriangles: ints[totaux.uncovered],
+      dessinees: Array.from(dessine.subarray(0, c.pageCount).keys()).filter((i) => dessine[i]),
       candidates: compteursLus[travail.candCounter],
       vivantes: compteursLus[travail.liveCounter],
     });
-    for (const buffer of [...buffers, lecture, compteurs]) buffer.destroy();
+    for (const buffer of [...buffers, lecture, compteurs, drapeaux]) buffer.destroy();
   }
   const info = await appareil.fermer();
   return { adaptateur: info.court, resultats, erreurs };
@@ -150,14 +158,19 @@ async function executer({
  * `dagWanted` live ones. `shader` replaces the kernel text to compare two versions.
  */
 export async function selectionGpu(
-  cas: Array<{ name: string; packed: PackedDag; uniforms: SelectionUniforms }>,
+  cas: Array<{
+    name: string;
+    packed: PackedDag;
+    uniforms: SelectionUniforms;
+    resident?: ArrayLike<number>;
+  }>,
   shader = DAG_SELECTION_SHADER,
 ): Promise<ExecutionResultat> {
   // The function is SERIALIZED into the page: it only sees its argument. The readback
   // header layout therefore travels with it, instead of being reread from a module the page lacks.
   return await dansPageWebgpu(executer, {
     shader,
-    cas: cas.map((c) => versPage(c.name, c.packed, c.uniforms)),
+    cas: cas.map((c) => versPage(c.name, c.packed, c.uniforms, c.resident)),
     workgroup: SELECTION_WORKGROUP,
     entete: SELECTION_HEADER_WORDS,
     bitsPage: REQUEST_PAGE_MAX,
@@ -165,8 +178,6 @@ export async function selectionGpu(
     totaux: {
       selected: OUT_SELECTED_TRIANGLES,
       transparent: OUT_TRANSPARENT_TRIANGLES,
-      drawn: OUT_DRAWN_TRIANGLES,
-      uncovered: OUT_UNCOVERED_TRIANGLES,
     },
   });
 }
