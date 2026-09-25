@@ -70,8 +70,18 @@ pub(super) fn one_image(
             notes.push(name);
         }
     };
-    for kind in [AtlasKind::Color, AtlasKind::Data] {
-        let of_kind: Vec<&AtlasTexture> = readers.iter().filter(|r| r.kind == kind).collect();
+    // A coverage chain whose alpha never varies is the plain chain byte for byte —
+    // `halve` weighs only four alphas that differ —: its readers take the plain one,
+    // one chain baked instead of two identical ones.
+    // Scanned only when a reader asks for coverage: an opaque image never exits early.
+    let flat = readers.iter().any(|r| r.kind == AtlasKind::Coverage) && {
+        let mut alphas = decoded.pixels().map(|p| p[3]);
+        let first = alphas.next();
+        alphas.all(|a| Some(a) == first)
+    };
+    let kind_of = |r: &AtlasTexture| if flat { r.kind.atlas() } else { r.kind };
+    for kind in AtlasKind::ALL {
+        let of_kind: Vec<&AtlasTexture> = readers.iter().filter(|r| kind_of(r) == kind).collect();
         if of_kind.is_empty() {
             continue;
         }

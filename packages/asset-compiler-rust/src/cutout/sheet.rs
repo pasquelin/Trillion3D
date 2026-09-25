@@ -37,7 +37,7 @@ pub(crate) fn entries(
     for preview in previews {
         // Cutout is a base color affair: data atlas entry of same texture,
         // when present, is neither a candidate nor extra weight.
-        if preview.kind != crate::texture_preview::AtlasKind::Color {
+        if preview.kind.atlas() != crate::texture_preview::AtlasKind::Color {
             continue;
         }
         let texture = preview.texture as usize;

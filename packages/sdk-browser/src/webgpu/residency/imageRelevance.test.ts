@@ -1,13 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { frame, scene } from './sets.fixture.ts';
-import { createShadowTier } from './shadowTier.ts';
+import { createLowerTier } from './lowerTier.ts';
 import { createImageRelevance } from './imageRelevance.ts';
 import { createGroupClosure } from '../../page/cut/groupClosure.ts';
 
 function world() {
   const w = scene();
-  const tier = createShadowTier({
+  const tier = createLowerTier({
     keyOf: w.tracking.keyOf,
     room: () => 64,
     closeOver: createGroupClosure([], w.packed).closeOver,

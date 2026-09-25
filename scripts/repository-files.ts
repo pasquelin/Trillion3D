@@ -1,6 +1,7 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { gitPathsSync } from './git-paths.ts';
+import { localPaths } from './local-files.ts';
 
 const root = resolve(import.meta.dirname, '..');
 
@@ -16,16 +17,6 @@ export function repositoryFiles(directory = root): string[] | null {
   ];
 }
 
-/** The local section uses basename patterns or root-relative paths, without negations. */
-export function localFileGlobs(): string[] {
-  const policy = readFileSync(resolve(root, '.gitignore'), 'utf8');
-  return policy
-    .split('# Local files begin\n')[1]
-    .split('# Local files end')[0]
-    .trim()
-    .split('\n')
-    .map((pattern) => {
-      const prefix = pattern.startsWith('/') ? '' : '**/';
-      return prefix + pattern.replace(/^\//, '') + (pattern.endsWith('/') ? '**' : '');
-    });
-}
+/** The `.gitignore` local paths as globs: a bare name at any depth, a path from the root. */
+export const localFileGlobs = (): string[] =>
+  localPaths(root).map((path) => (path.includes('/') ? path : `**/${path}`));

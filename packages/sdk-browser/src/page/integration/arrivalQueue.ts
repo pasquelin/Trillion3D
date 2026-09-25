@@ -21,12 +21,13 @@
  * always goes through, otherwise a page longer to integrate than the ceiling would never
  * enter.
  *
- * That ceiling is the frame's one integration budget (`FrameBudget`, CONTRIBUTING.md
+ * That ceiling is the frame's one integration budget (`./frameBudget.ts`, CONTRIBUTING.md
  * §Streaming rule 4): `open` starts its clock, what else a frame integrates before the
  * drain — the cells of a partitioned scene (`scene/partition/cells.ts`) — spends from it,
  * and the drain spends the rest and closes it.
  */
 import { planArrival, planArrivalHere, type ArrivalPlan } from './host.ts';
+import { createFrameBudget } from './frameBudget.ts';
 
 /** What the queue requires of a target: a way to receive a page before the next render, and
  *  the catalogue sheet for the request — the integers the plan is deduced from, and nothing else. */
@@ -34,10 +35,6 @@ export type ArrivalTarget = {
   acceptPage?(url: string, array: Uint32Array, plan?: ArrivalPlan): void;
   pageSpecs?(url: string): Int32Array | undefined;
 };
-
-/** The one integration budget of a frame: whether one more integration is admitted — the
- *  first always is, then while the frame's clock is within the ceiling —, and one counted. */
-export type FrameBudget = { admits(): boolean; spend(): void };
 
 type Arrival = {
   target: ArrivalTarget;
@@ -63,15 +60,11 @@ export function createArrivalQueue(byteBudget: number, countBudget: number, msBu
   // it is queued only once per target. The wait is forgotten as soon as it is delivered.
   const waiting = new Map<ArrivalTarget, Set<string>>();
   let head = 0,
-    started = 0,
-    spent = 0,
     opened = false;
-  const admits = () => spent === 0 || performance.now() - started < msBudget;
-  const spend = () => void spent++;
+  const { admits, spend, ...budget } = createFrameBudget(msBudget);
   const open = () => {
     opened = true;
-    started = performance.now();
-    spent = 0;
+    budget.open();
   };
   /** Delivers an arrival with its plan, and removes its address from the waiting pages. */
   const deliver = (item: Arrival) => {

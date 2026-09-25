@@ -4,7 +4,8 @@ import type { SceneToneMapping } from '../../../../sdk-core/src/scene/core/envir
  * renderbuffer on a framebuffer of the host context, sized in drawing-buffer pixels. It holds a
  * display image — the bytes the page would show, sRGB-encoded and tone-mapped by the engine that
  * drew it, stored as written — so that a side of a comparison is the single view of that engine,
- * byte for byte, and no value is clamped or requantised on the way.
+ * byte for byte, and no value is clamped or requantised on the way. An `hdr` target holds linear
+ * radiance instead, half floats read with bilinear filtering: what the effect chain draws on.
  */
 export type WebglRenderTarget = ReturnType<typeof createWebglRenderTarget>;
 
@@ -21,14 +22,24 @@ export type HostDrawOutput = {
   width: number;
   /** Height in pixels. */
   height: number;
+  /** Linear radiance, neither tone-mapped nor encoded, over transparent black: the effect chain's
+   *  input, whose alpha is coverage. */
+  linear?: boolean;
 };
+
+/** Whether the context renders into half floats, the extension enabled on the way. */
+export const halfFloatTargets = (gl: WebGL2RenderingContext) =>
+  ['EXT_color_buffer_float', 'EXT_color_buffer_half_float'].some((name) => gl.getExtension(name));
 
 export function createWebglRenderTarget(
   gl: WebGL2RenderingContext,
   width: number,
   height: number,
-  options: { depth?: boolean } = {},
+  options: { depth?: boolean; hdr?: boolean } = {},
 ) {
+  const [format, type, filter] = options.hdr
+    ? [gl.RGBA16F, gl.HALF_FLOAT, gl.LINEAR]
+    : [gl.RGBA8, gl.UNSIGNED_BYTE, gl.NEAREST];
   const texture = gl.createTexture()!,
     depth = options.depth === false ? null : gl.createRenderbuffer()!,
     framebuffer = gl.createFramebuffer()!;
@@ -41,17 +52,7 @@ export function createWebglRenderTarget(
     currentHeight = nextHeight;
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, texture);
-    gl.texImage2D(
-      gl.TEXTURE_2D,
-      0,
-      gl.RGBA8,
-      nextWidth,
-      nextHeight,
-      0,
-      gl.RGBA,
-      gl.UNSIGNED_BYTE,
-      null,
-    );
+    gl.texImage2D(gl.TEXTURE_2D, 0, format, nextWidth, nextHeight, 0, gl.RGBA, type, null);
     gl.bindTexture(gl.TEXTURE_2D, null);
     if (depth) {
       gl.bindRenderbuffer(gl.RENDERBUFFER, depth);
@@ -60,8 +61,8 @@ export function createWebglRenderTarget(
   };
   gl.activeTexture(gl.TEXTURE0);
   gl.bindTexture(gl.TEXTURE_2D, texture);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, filter);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, filter);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
   allocate(width, height);
@@ -102,4 +103,10 @@ export function bindWebglTarget(gl: WebGL2RenderingContext, target: WebglRenderT
   gl.bindFramebuffer(gl.FRAMEBUFFER, target?.framebuffer ?? null);
   gl.viewport(0, 0, width, height);
   return { width, height };
+}
+
+/** Binds `texture` on texture unit `unit` for the next draw to sample. */
+export function bindWebglTexture(gl: WebGL2RenderingContext, unit: number, texture: WebGLTexture) {
+  gl.activeTexture(gl.TEXTURE0 + unit);
+  gl.bindTexture(gl.TEXTURE_2D, texture);
 }

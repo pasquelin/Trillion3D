@@ -60,7 +60,7 @@ export function renderGpuCut(
   marks.lightsEnd = lightsEnd;
   // The host's threshold, and no other: residency coarsens, one DAG level where a page is missing
   // (`../../../page/cut/rule.ts`).
-  cameraSelectionUniforms(cam, pixelError, viewport, run.selectionUniforms);
+  cameraSelectionUniforms(cam, pixelError, viewport, run.selectionUniforms, run.motion);
   // An image that adopts no readback moves no page; the adoption reports what it actually moved.
   run.pagesEntered = 0;
   run.pagesExited = 0;

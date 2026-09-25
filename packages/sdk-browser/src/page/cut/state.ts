@@ -51,6 +51,9 @@ export interface SelectionState<T extends PageRecord> {
    *  `RESIDENT_ARRAY` when residency is the page's index array. The per-cluster path reads this
    *  mode instead of re-reading the request on the state at each page. */
   residentMode: number;
+  /** Nonzero when the cut shares its residency answers with every cut of the same stamp: the cut
+   *  rule's readiness of a root is then read once for all of them (`./held.ts`). */
+  residencyStamp: number;
   /** This image's threshold is zero and stretch, focal length and near plane are sound: the
    *  cut then decides without projecting, identically. */
   flatExact: boolean;
@@ -158,6 +161,7 @@ const reusedState: SelectionState<PageRecord> = {
   flatCones: true,
   flatBoxes: false,
   residentMode: RESIDENT_ALL,
+  residencyStamp: 0,
   flatExact: false,
   shownCount: 0,
   wantedCount: 0,

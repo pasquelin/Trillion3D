@@ -108,10 +108,15 @@ export function createGroupClosure(
       );
     },
     /** Visits every page `ids` close over, themselves included, each group once per call:
-     *  what a list rebuilt whole asks for (`../../webgpu/residency/shadowTier.ts`). */
-    closeOver(ids: ArrayLike<number>, visit: (id: number, rec: PageRec) => void) {
+     *  what a list rebuilt whole asks for (`../../webgpu/residency/lowerTier.ts`). `full` ends the
+     *  walk early, before the next id, once the visitor takes nothing more. */
+    closeOver(
+      ids: ArrayLike<number>,
+      visit: (id: number, rec: PageRec) => void,
+      full?: () => boolean,
+    ) {
       visitor = visit;
-      for (let i = 0; i < ids.length; i++) enter(ids[i]);
+      for (let i = 0; i < ids.length && !full?.(); i++) enter(ids[i]);
       endWalk();
     },
     /** The same, for records carrying their placement and packed index, without a catalogue. */

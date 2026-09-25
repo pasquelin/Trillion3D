@@ -37,9 +37,16 @@ export const PREVIEW_SOURCE_URI = 0;
  *  (`rgba8unorm`, metal-roughness, normal, occlusion). The same texture may have one entry each. */
 export const PREVIEW_ATLAS_COLOR = 0,
   /** The data atlas: metal-roughness, normal and occlusion maps. */
-  PREVIEW_ATLAS_DATA = 1;
+  PREVIEW_ATLAS_DATA = 1,
+  /** A chain of the colour atlas, for a texture every reader of which takes its alpha for coverage
+   *  (the base colour of MASK or BLEND materials only): the one chain whose colours are weighted
+   *  by alpha, named apart from the plain one (`reduce.rs`, `AtlasKind::Coverage`, #42). */
+  PREVIEW_ATLAS_COVERAGE = 2;
 /** The `{kind}` a baked level's path carries for each atlas, as `bake.rs` names them. */
-export const PREVIEW_ATLAS_NAMES = ['srgb', 'linear'] as const;
+export const PREVIEW_ATLAS_NAMES = ['srgb', 'linear', 'srgb-coverage'] as const;
+/** The atlas an entry's chain is sampled in: a coverage chain is the colour atlas's. */
+export const previewAtlasOf = (atlas: number) =>
+  atlas === PREVIEW_ATLAS_COVERAGE ? PREVIEW_ATLAS_COLOR : atlas;
 /** The block families a chain may be baked in, in the order of their sidecar columns and of an
  *  entry's layout words, each named by its RGBA codec; `png` is the lossless file beside them. */
 export const PREVIEW_BLOCK_FORMATS = ['bc7', 'astc'] as const;

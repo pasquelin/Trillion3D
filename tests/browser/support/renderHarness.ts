@@ -3,7 +3,7 @@
 import { resolve } from 'node:path';
 import type { Page } from 'playwright';
 import { compileFullCache } from '../../../scripts/native-compiler.ts';
-import type { Mount } from '../../kit/server/staticServer.ts';
+import type { Mount } from '../../../scripts/static-server.ts';
 import type { MeasuredWorld } from '../../../packages/sdk-browser/src/world/session/explorer.ts';
 
 // `window.scene` only exists in the page a proof evaluates code in, never in Node; declared here so
