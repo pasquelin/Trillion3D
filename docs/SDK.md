@@ -893,7 +893,8 @@ as `world.budget.split`:
   512 MiB is taken. The pool a screen takes, its static layer and its fixed buffers always fit that
   share, whatever the screen.
 - CPU: the shadow page table's host mirror first (20.8 MiB, fixed whatever the screen), then the
-  session's manifest tables and its transfer queue; the decoded-page cache holds the rest. A change
+  session's manifest tables (a fixed reckoning per catalogue entry, not a measured heap size) and
+  its transfer queue; the decoded-page cache holds the rest. A change
   applies at once: pages leave by last use until they fit, save those the frame keeps. The default
   total is the mirror plus the cache's own default; a total not above the mirror is refused
   (`CPU_BUDGET_UNDER_SHADOW_MIRROR`).
