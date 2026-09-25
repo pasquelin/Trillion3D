@@ -22,7 +22,7 @@ pub(super) fn colour_of(light: &Value) -> [f64; 3] {
 /// of light propagation, exactly what the contract expects from a spot light and the sun.
 pub(super) fn axis(m: &Mat4) -> Option<[f64; 3]> {
     let raw = [-m[8], -m[9], -m[10]];
-    let length = (raw[0] * raw[0] + raw[1] * raw[1] + raw[2] * raw[2]).sqrt();
+    let length = crate::shared_math::length(raw);
     if !length.is_finite() || length <= 1e-9 {
         return None;
     }

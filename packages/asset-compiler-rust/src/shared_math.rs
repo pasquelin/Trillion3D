@@ -106,9 +106,9 @@ pub fn length(a: [f64; 3]) -> f64 {
 /// vector carries no direction and division makes no sense. Fallback belongs to
 /// site — light looks towards `-Z`, missing normal points up — so passed in.
 pub(crate) fn normalized_or(vector: [f64; 3], fallback: [f64; 3]) -> [f64; 3] {
-    let length = (vector[0] * vector[0] + vector[1] * vector[1] + vector[2] * vector[2]).sqrt();
-    if length > 1e-12 {
-        [vector[0] / length, vector[1] / length, vector[2] / length]
+    let norm = length(vector);
+    if norm > 1e-12 {
+        [vector[0] / norm, vector[1] / norm, vector[2] / norm]
     } else {
         fallback
     }
@@ -128,11 +128,5 @@ pub fn elapsed_ms(since: std::time::Instant) -> f64 {
 pub(crate) fn uniform_scale(m: &[f64; 16]) -> f64 {
     let column = |c: usize| [m[c * 4], m[c * 4 + 1], m[c * 4 + 2]];
     let (x, y, z) = (column(0), column(1), column(2));
-    let cross = [
-        y[1] * z[2] - y[2] * z[1],
-        y[2] * z[0] - y[0] * z[2],
-        y[0] * z[1] - y[1] * z[0],
-    ];
-    let determinant = x[0] * cross[0] + x[1] * cross[1] + x[2] * cross[2];
-    determinant.abs().cbrt()
+    dot(x, cross(y, z)).abs().cbrt()
 }
