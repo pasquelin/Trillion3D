@@ -124,7 +124,9 @@ for (const asked of ['by a frame', 'by the capture'])
     Object.assign(s.rt.services, { residency: { busy: false, pending: undefined } });
     if (asked === 'by a frame') sizeShadowPool(s.rt);
     const capture = captureColorView(s.rt, {} as HostCamera, { width: 64, height: 64 });
-    setTimeout(answer, 10);
+    // The capture runs up to its first wait before the call returns: it is under way, and waits.
+    assert.equal(s.rt.capture.capturing, true, 'the capture began before the device answered');
+    answer();
     await assert.rejects(capture, /drawn/);
     assert.equal(drawnWithPool, true, 'the capture drew after the device granted the pool');
   });
