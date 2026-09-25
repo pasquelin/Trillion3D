@@ -156,6 +156,8 @@ export function disposeWebgpuPages(rt: WebgpuPagesRuntime) {
   gpu.deferred?.dispose();
   gpu.temporal?.dispose();
   gpu.temporal = undefined;
+  gpu.guides?.dispose();
+  gpu.guides = undefined;
   rt.lights.tiles?.dispose();
   rt.lights.shadows?.dispose();
   rt.lights.pageRequests?.dispose();
