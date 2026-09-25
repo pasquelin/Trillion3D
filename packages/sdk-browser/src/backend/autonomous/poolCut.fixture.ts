@@ -99,19 +99,19 @@ export function mount(
    *  read. */
   const frame = { after: 0, stand: 0 };
   let last: ReturnType<typeof cut> | undefined;
-  // The order of `render.ts`'s frame, copied by hand: readmit, trim, cut, then what it keeps.
-  const image = (pixelError: number, arrivals = Infinity) => {
-    if (cut.readmit()) {
-      asked.clear();
-      for (const page of rootPages) asked.add(page.url);
-      for (const page of requested) asked.add(page.url);
-    }
-    pool.trim(() => asked);
-    const drawn = (last = cut(cameraMoteur(camera), pixelError));
-    frame.after = state.allocationBytes;
+  /** What the pool keeps just before a cut: the root cover and the requests (`askedUrls`). */
+  const gatherAsked = () => {
     asked.clear();
     for (const page of rootPages) asked.add(page.url);
     for (const page of requested) asked.add(page.url);
+  };
+  // The order of `render.ts`'s frame, copied by hand: readmit, trim, cut, then what it keeps.
+  const image = (pixelError: number, arrivals = Infinity) => {
+    if (cut.readmit()) gatherAsked();
+    pool.trim(() => asked);
+    const drawn = (last = cut(cameraMoteur(camera), pixelError));
+    frame.after = state.allocationBytes;
+    gatherAsked();
     kept.clear();
     for (const url of asked) kept.add(url);
     for (const page of drawn.shown) kept.add(page.url);
