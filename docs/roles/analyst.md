@@ -1,6 +1,6 @@
 # Role: analyst
 
-A session the boss opens from the CTO's prompt, from `skills/t3d-analyst/SKILL.md`, at the start of every CTO
+A session the boss opens with `/loop /t3d-analyst`, at the start of every CTO
 session and then every two hours. It studies the company, not the engine: how issues flow from pick
 to close, where time and tokens go, and why work comes back. Its goal is a cleaner, better organised
 project with more quality per token and fewer returns.

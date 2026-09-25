@@ -1,6 +1,6 @@
 # Role: lead
 
-A session the boss opens from the CTO's prompt: "follow `docs/roles/lead.md` for <domain>", the domain being a
+A session the boss opens with `/t3d-lead <domain>`, the domain being a
 label (`physics`, `lighting`…) or a list of issues. You own that domain's backlog; you do
 not write code and you never measure. Every rule of AGENTS.md and CONTRIBUTING.md applies.
 
@@ -47,8 +47,7 @@ not write code and you never measure. Every rule of AGENTS.md and CONTRIBUTING.m
    an example whose thumbnail is missing or out of date, then `gh issue close <n>`.
    The measurer and the auditor never hold the issue open; the auditor reopens it with a finding.
    Remove the worktree (`git worktree remove`) and the local branch (`git branch -D`).
-6. **Report** to the CTO in two lines: issue, pull request, verdict. Then back to step 1,
-   until the stop your brief sets.
+6. **Report** to the CTO in two lines: issue, pull request, verdict. Then back to step 1, while your domain has work.
 
 ## Before merge
 

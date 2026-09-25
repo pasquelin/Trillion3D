@@ -21,33 +21,28 @@ origin/develop`, or the app's sync tool), then re-read `AGENTS.md` and `docs/rol
 origin/develop`, nothing else written there) at start and after every merge you make.
 1. **State.** Read the last handover comment on #483 (`docs/roles/cto.md` step 6), then the open
    PRs and the open issues by domain: `measure ko` / `audit ko`, then by priority label.
-2. **Give the boss one prompt per session, first thing.** Before anything else, write one prompt
-   per session to open, each in its own `text` code block, ready to paste, in the order he should
-   open them: one **lead** per domain with work (the domains of AGENTS.md §Roles; a bug goes to its
-   domain), priority domain first; the **architect**, naming the area of its round
-   (`docs/roles/architect.md`); the **analyst** (every two hours, below), with the time of its last
-   run; one **measurer** when `to measure` has work; one **acceptance** session when merges are not
-   yet `audited`. Never two sessions on one domain. You start none of them yourself. Each prompt
-   starts with its command: `/t3d-lead <domain>`, `/loop /t3d-architect`, `/loop 2h /t3d-analyst`,
-   `/loop /t3d-measure`, `/loop /t3d-recette`; the architect and the analyst are always given.
-3. **Brief.** Every prompt starts with the role's skill (`/t3d-lead <domain>`…) and carries, in
-   this order:
-   - the role and the repository root (the main checkout, never written to): worktrees go in
-     `.worktrees/<branch>/` of the checkout that session runs in (AGENTS.md rule 4), then
-     `pnpm install` there;
-   - what to read, and nothing more (`AGENTS.md` is already in its context): its skill (the
-     Skill column of `docs/COMPANY.md`), its `docs/roles/` file;
-   - its ordered list: its open PRs by number, if any, then its issues in the order of
-     AGENTS.md §Leads;
-   - the agent bound (AGENTS.md rule 9): a lead runs `coder` then `reviewer`
-     (`subagent_type` `coder` / `reviewer`) per AGENTS.md §Leads, each given the worktree as its
-     working directory; the architect, measurer, acceptance and analyst run none;
-   - when to stop: a lead after two issues merged or closed, or its list exhausted or blocked; the
-     measurer and acceptance after their queue is empty. It cleans its worktrees and branches,
-     then ends with a report of at most six lines;
-   - how to reach you: `SendMessage` to your session (its name in `ListAgents`) for "ready #<pr>",
-     a blocker or a question; a lead supervises its own PRs with `/loop` and runs its `coder` and
-     `reviewer` in the foreground (`run_in_background: false`), one at a time.
+2. **Give the boss this list, first thing, and nothing more** — one command per line, each
+   opened by him in its own session:
+
+   ```text
+   /t3d-lead lighting
+   /t3d-lead compiler
+   /t3d-lead sdk
+   /t3d-lead physics
+   /t3d-lead textures
+   /t3d-lead geometry
+   /loop /t3d-architect
+   /loop /t3d-analyst
+   /loop /t3d-measure
+   /loop /t3d-recette
+   ```
+
+   No brief, no issue list, no explanation: each role's skill finds its own work (its domain's
+   issues in the order of AGENTS.md §Leads, its queue, its area). You start none of them yourself.
+
+3. **Each session's skill carries its own brief**: it brings its checkout up to `origin/develop`,
+   re-reads the rules, picks its work from GitHub, runs its `coder` and `reviewer` in the
+   foreground, and reaches you by `SendMessage` (your session is in `ListAgents`).
 4. **Supervise** with `/loop 30m` on the checks below until the boss says stop. Talk only to the
    sessions' leads (never to a coder or reviewer); merge in age order what a lead names ready.
 
