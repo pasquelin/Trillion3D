@@ -426,8 +426,6 @@
       "reflections-from-the-screen": "屏幕空间反射",
       "an-ocean": "渲染到贴图:水面反射与折射",
       "a-raging-sea": "自定义着色器材质",
-      "a-town-in-the-fog": "雾",
-      "fog-on-the-ground": "雾:高度雾",
       "fog-that-scatters-light": "体积雾与光束",
       "a-cloud-in-a-box": "体积渲染",
       "a-fire-in-a-volume": "体积渲染",
@@ -480,7 +478,6 @@
       "breaking-things": "物理引擎集成",
       "cloth-and-rope": "物理引擎集成",
       "soft-bodies": "物理引擎集成",
-      "drive-a-car": "物理引擎集成",
       "a-room-in-vr": "WebXR会话",
       "a-360-photo-in-vr": "WebXR会话",
       "vr-composition-layers": "WebXR会话:图层",
@@ -1080,7 +1077,8 @@
           "<code>limits</code> 让关节停下：铰链用弧度，滑轨用米。<code>spring</code> 让止挡变软。",
           "<code>motor</code> 把铰链或滑轨驱动到某个速度或位置。随时修改 <code>joint.motor</code>。",
           "<code>breakForce</code> 是关节断开的拉力（牛顿）：超过它，<code>joint.broken</code> 变为 true，并调用 <code>joint.on('break', …)</code>。",
-          "高级关节把运动联系在一起：<code>joint.gear(a, b, { ratio })</code> 让两个铰链上的轮像一个齿轮组一样转动，<code>joint.rackAndPinion</code> 把转动变成滑动，<code>joint.pulley(a, b, { over })</code> 用一根绳挂起两个重物，<code>joint.path(a, b, { path })</code> 让车厢留在轨道上，<code>swingTwist</code> 和 <code>sixDof</code> 则能做出肩关节和你自己的关节。"
+          "高级关节把运动联系在一起：<code>joint.gear(a, b, { ratio })</code> 让两个铰链上的轮像一个齿轮组一样转动，<code>joint.rackAndPinion</code> 把转动变成滑动，<code>joint.pulley(a, b, { over })</code> 用一根绳挂起两个重物，<code>joint.path(a, b, { path })</code> 让车厢留在轨道上，<code>swingTwist</code> 和 <code>sixDof</code> 则能做出肩关节和你自己的关节。",
+          "车辆是装在车轮上的车身：<code>vehicle.car(body, { wheels })</code>、<code>vehicle.motorcycle</code> 或 <code>vehicle.tracked</code>，车轮是放在车身上着地位置的网格。用 <code>world.physics.add</code> 加入，再用键盘驾驶：<code>world.controls.vehicle = car</code>，然后 <code>world.controls.kind = 'vehicle'</code>。它的发动机、变速箱、悬架和刹车都来自真实的机器；<code>car.speed</code>、<code>car.gear</code> 和 <code>car.rpm</code> 告诉你它跑得怎样。"
         ],
         "tryIt": "打开门和抽屉，再把石头扔到桥上。降低桥的强度并重建：它会在自身重量下断裂。"
       },

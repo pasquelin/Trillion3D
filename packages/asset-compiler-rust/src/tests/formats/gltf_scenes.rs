@@ -38,8 +38,8 @@ fn rewrite(options: &Options, gltf: &Value) {
     fs::write(options.source.join("mesh.gltf"), bytes).expect("write");
 }
 
-/// Kept nodes and the number of lights published by a compilation.
-fn compiled(options: &Options) -> (Vec<u64>, u64, u64) {
+/// Kept nodes, kept triangles and the number of lights published by a compilation.
+fn compiled(options: &Options) -> (u64, u64, u64) {
     let result = compile(options, |_| {}).expect("compile");
     let directory = options
         .cache
@@ -47,12 +47,7 @@ fn compiled(options: &Options) -> (Vec<u64>, u64, u64) {
         .join(result["key"].as_str().expect("key"));
     let lights = read_json(&directory.join("lights.json"));
     (
-        result["selectedNodes"]
-            .as_array()
-            .expect("nodes")
-            .iter()
-            .map(|n| n.as_u64().expect("index"))
-            .collect(),
+        result["selectedNodes"].as_u64().expect("nodes"),
         result["selectedTriangles"].as_u64().expect("triangles"),
         lights["count"].as_u64().expect("lampes"),
     )
@@ -64,7 +59,7 @@ fn compiled(options: &Options) -> (Vec<u64>, u64, u64) {
 fn only_the_selected_scene_is_compiled() {
     let (root, options) = scenes_fixture(Some(json!([{"nodes":[0,1]},{"nodes":[2,3]}])), Some(0));
     let (nodes, triangles, lampes) = compiled(&options);
-    assert_eq!(nodes, vec![0, 1], "only scene 0's nodes");
+    assert_eq!(nodes, 2, "only scene 0's nodes");
     assert_eq!(triangles, 2, "one triangle per kept node");
     assert_eq!(lampes, 0, "scene 1's light is not of this scene");
     fs::remove_dir_all(root).expect("cleanup");
@@ -75,7 +70,7 @@ fn only_the_selected_scene_is_compiled() {
 fn the_named_scene_carries_its_own_lamps() {
     let (root, options) = scenes_fixture(Some(json!([{"nodes":[0,1]},{"nodes":[2,3]}])), Some(1));
     let (nodes, triangles, lampes) = compiled(&options);
-    assert_eq!(nodes, vec![2, 3], "only scene 1's nodes");
+    assert_eq!(nodes, 2, "only scene 1's nodes");
     assert_eq!(triangles, 2);
     assert_eq!(lampes, 1, "node 3's light is in scene 1");
     fs::remove_dir_all(root).expect("cleanup");
@@ -89,7 +84,7 @@ fn the_children_of_the_scene_roots_follow() {
     gltf["nodes"][0]["children"] = json!([1]);
     rewrite(&options, &gltf);
     let (nodes, triangles, lampes) = compiled(&options);
-    assert_eq!(nodes, vec![0, 1], "node 0's child is in scene 0");
+    assert_eq!(nodes, 2, "node 0's child is in scene 0");
     assert_eq!(triangles, 2);
     assert_eq!(lampes, 0);
     fs::remove_dir_all(root).expect("cleanup");
@@ -101,7 +96,7 @@ fn the_children_of_the_scene_roots_follow() {
 fn without_scenes_every_root_is_compiled() {
     let (root, options) = scenes_fixture(None, None);
     let (nodes, triangles, lampes) = compiled(&options);
-    assert_eq!(nodes, vec![0, 1, 2, 3, 4]);
+    assert_eq!(nodes, 5);
     assert_eq!(triangles, 5);
     assert_eq!(lampes, 1);
     fs::remove_dir_all(root).expect("cleanup");

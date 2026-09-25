@@ -11,14 +11,14 @@ export const triangle = () => {
   const geometry = new G.GraphGeometry();
   geometry.setAttribute(
     'position',
-    new G.GraphAttribute(new Float32Array([-1, -1, -2, 1, -1, -2, 0, 1, -2]), 3),
+    new G.BufferAttribute(new Float32Array([-1, -1, -2, 1, -1, -2, 0, 1, -2]), 3),
   );
-  geometry.setAttribute('uv', new G.GraphAttribute(new Float32Array([0, 0, 1, 0, 0.5, 1]), 2));
+  geometry.setAttribute('uv', new G.BufferAttribute(new Float32Array([0, 0, 1, 0, 0.5, 1]), 2));
   geometry.setAttribute(
     'normal',
-    new G.GraphAttribute(new Float32Array([0, 0, 1, 0, 0, 1, 0, 0, 1]), 3),
+    new G.BufferAttribute(new Float32Array([0, 0, 1, 0, 0, 1, 0, 0, 1]), 3),
   );
-  geometry.setIndex(new G.GraphAttribute(new Uint32Array([0, 1, 2]), 1));
+  geometry.setIndex(new G.BufferAttribute(new Uint32Array([0, 1, 2]), 1));
   const index = geometry.index;
   if (!index) throw new Error('triangle rig requires an indexed geometry');
   const material = G.basicSurface();

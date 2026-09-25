@@ -13,7 +13,7 @@ test('EngineProfiler records frames and produces accurate statistics and bottlen
     scope: 'slice',
     sourceTriangles: 1000000,
     selectedTriangles: 50000,
-    selectedNodes: [0],
+    selectedNodes: 1,
     totalNodes: 500,
     primitives: [],
   };

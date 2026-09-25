@@ -1009,12 +1009,12 @@
   },
   {
     "id": "BufferAttribute",
-    "module": "packages/sdk-core/src/world/buffer/index.ts",
+    "module": "packages/sdk-core/src/world/buffer/attribute.ts",
     "exports": ["BufferAttribute"],
     "section": "buffer",
     "kind": "Type",
     "title": "BufferAttribute",
-    "signature": "class BufferAttribute implements PageAttribute\nnew BufferAttribute(array: BufferTypedArray, itemSize: number, type?: string): BufferAttribute",
+    "signature": "class BufferAttribute extends VertexElements implements PageAttribute\nnew BufferAttribute(array: BufferTypedArray, itemSize: number, normalized?: boolean, type?: string): BufferAttribute",
     "summary": "A typed array of per-vertex values, `itemSize` numbers per vertex: the page codec's `PageAttribute` (`page-codec/pageAttributes.ts`), with what a page writes into it.",
     "parameters": [
       {
@@ -1025,6 +1025,12 @@
       {
         "name": "itemSize",
         "type": "number",
+        "desc": ""
+      },
+      {
+        "name": "normalized",
+        "type": "boolean",
+        "default": "false",
         "desc": ""
       },
       {
@@ -1041,14 +1047,14 @@
         "desc": "Always `true`: tells a buffer attribute apart from anything else."
       },
       {
+        "name": "kind",
+        "type": "'attribute'",
+        "desc": "The attribute owns its buffer."
+      },
+      {
         "name": "type",
         "type": "string",
         "desc": "How the values were declared; a half-float attribute is held at float precision."
-      },
-      {
-        "name": "normalized",
-        "type": "boolean",
-        "desc": "Whether whole numbers are read as values between 0 and 1."
       },
       {
         "name": "version",
@@ -1056,14 +1062,14 @@
         "desc": "Bumped by every declared write: what the world compares to see the content changed."
       },
       {
+        "name": "updateRanges",
+        "type": "{ start: number; count: number; }[]",
+        "desc": "Ranges of `array` written since the last upload, sent alone."
+      },
+      {
         "name": "array",
         "type": "BufferTypedArray",
         "desc": "The numbers themselves."
-      },
-      {
-        "name": "itemSize",
-        "type": "number",
-        "desc": "How many numbers belong to one vertex: 3 for a position."
       },
       {
         "name": "count",
@@ -1073,52 +1079,22 @@
       {
         "name": "needsUpdate",
         "type": "boolean",
-        "desc": "`attribute.needsUpdate = true` after writing `array`: the world re-reads it."
+        "desc": "`needsUpdate = true` after writing `array`: a reader uploads it again."
       },
       {
-        "name": "getComponent(index: number, component: number)",
-        "type": "number",
-        "desc": "Number `component` of vertex `index`."
+        "name": "addUpdateRange(start: number, count: number)",
+        "type": "void",
+        "desc": "Marks `count` numbers from `start` written."
       },
       {
-        "name": "getX(i: number)",
-        "type": "number",
-        "desc": "The first number of vertex `i`."
-      },
-      {
-        "name": "getY(i: number)",
-        "type": "number",
-        "desc": "The second number of vertex `i`."
-      },
-      {
-        "name": "getZ(i: number)",
-        "type": "number",
-        "desc": "The third number of vertex `i`."
-      },
-      {
-        "name": "getW(i: number)",
-        "type": "number",
-        "desc": "The fourth number of vertex `i`."
-      },
-      {
-        "name": "setXYZ(i: number, x: number, y: number, z: number)",
-        "type": "BufferAttribute",
-        "desc": "Writes three numbers for vertex `i`."
-      },
-      {
-        "name": "setXY(i: number, x: number, y: number)",
-        "type": "BufferAttribute",
-        "desc": "Writes two numbers for vertex `i`."
-      },
-      {
-        "name": "setX(i: number, x: number)",
-        "type": "BufferAttribute",
-        "desc": "Writes the first number of vertex `i`."
+        "name": "clearUpdateRanges()",
+        "type": "void",
+        "desc": "Forgets the written ranges, once uploaded."
       },
       {
         "name": "clone()",
         "type": "BufferAttribute",
-        "desc": "A new attribute with a copy of the numbers."
+        "desc": "A new attribute with a copy of the numbers, their type, normalisation and name."
       }
     ],
     "description": ""
@@ -1136,7 +1112,7 @@
   },
   {
     "id": "BufferTypedArray",
-    "module": "packages/sdk-core/src/world/buffer/index.ts",
+    "module": "packages/sdk-core/src/world/buffer/elements.ts",
     "exports": ["BufferTypedArray"],
     "section": "buffer",
     "kind": "Type",
@@ -2120,7 +2096,7 @@
       },
       {
         "name": "selectedNodes",
-        "type": "number[]",
+        "type": "number",
         "desc": "Nodes kept."
       },
       {
@@ -2533,7 +2509,7 @@
       },
       {
         "name": "selectedNodes",
-        "type": "number[]",
+        "type": "number",
         "desc": "Nodes kept."
       },
       {
@@ -4367,6 +4343,17 @@
     "description": "Keys translate along its own axes and turn it about them, roll included; a drag looks around. Nothing is integrated until the host calls `update(delta)` with the seconds elapsed, and `update` returns — and emits — only when a key is held, a stick input set or a drag pending, so a released stick leaves the scene still. `autoForward` is the one exception: a cruising camera moves on every `update`, and asks for the next frame by emitting `change` each time. KEYS, by `KeyboardEvent.code`: W/S forward and back, A/D left and right, R/F up and down, arrows pitch and yaw, Q/E roll. Nothing bounds a turn: holding a key loops or rolls the camera round and round, so a loop, a barrel roll, an Immelmann or a split-S is flown as it is on a stick. `inputResponse` gives the keys that stick's travel. `dragToLook` (the default) looks while a pointer is held; set false and the pointer looks as soon as it moves over the surface; set `pointerLook` false and it never turns the view at all, the keys alone steer. A key pressed while Ctrl or Meta is down is ignored, so a browser shortcut (Ctrl+W, Cmd+S) never steers; the modifier must be released before the key that follows it counts."
   },
   {
+    "id": "Fog",
+    "module": "packages/sdk-browser/src/world/core/sceneFog.ts",
+    "exports": ["Fog"],
+    "section": "world",
+    "kind": "Type",
+    "title": "Fog",
+    "signature": "type Fog = | (Omit<SceneLinearFog, 'color'> & { color: Color })\n  | (Omit<SceneExponentialFog, 'color'> & { color: Color })",
+    "summary": "Fog over every surface: linear from `near` to `far`, or thickening with distance by `density`, thinning out with height above `baseHeight` when `heightFalloff` is set.",
+    "description": "The colour is light the fog scatters toward the eye, exposed and tone-mapped like a surface's."
+  },
+  {
     "id": "FrameInfo",
     "module": "packages/sdk-browser/src/world/core/worldFrames.ts",
     "exports": ["FrameInfo"],
@@ -4562,12 +4549,12 @@
       {
         "name": "coverageBudgetLimited?",
         "type": "boolean | null | undefined",
-        "desc": "Requested detail cannot coexist with the pinned fallback within the GPU page budget."
+        "desc": "Requested detail needs more pages than the GPU page budget holds: the rest draws coarser."
       },
       {
         "name": "budgetPixelError?",
         "type": "number | null | undefined",
-        "desc": "Screen-error floor the GPU page budget imposes on the cut, in pixels: `0` when the requested detail fits, otherwise the coarser threshold the image is drawn at. Null on engines without a page budget."
+        "desc": "WebGL2 only: the screen-error floor its page budget imposes on the cut, in pixels — `0` when the requested detail fits, otherwise the coarser threshold the image is drawn at. Absent on WebGPU, where residency alone coarsens the image. Null on engines without a page budget."
       },
       {
         "name": "frameHeld?",
@@ -5226,99 +5213,6 @@
     "description": ""
   },
   {
-    "id": "GraphArray",
-    "module": "packages/sdk-browser/src/host/graph/attributes.ts",
-    "exports": ["GraphArray"],
-    "section": "types",
-    "kind": "Type",
-    "title": "GraphArray",
-    "signature": "type GraphArray = Float32Array | Uint32Array | Uint16Array | Uint8Array | Int32Array | Int16Array | Int8Array",
-    "summary": "The typed arrays an attribute holds.",
-    "description": ""
-  },
-  {
-    "id": "GraphAttribute",
-    "module": "packages/sdk-browser/src/host/graph/attributes.ts",
-    "exports": ["GraphAttribute"],
-    "section": "types",
-    "kind": "Type",
-    "title": "GraphAttribute",
-    "signature": "class GraphAttribute extends Elements implements Versioned\nnew GraphAttribute(array: GraphArray, itemSize: number, normalized?: boolean): GraphAttribute",
-    "summary": "An attribute owning its storage: `itemSize` numbers per vertex, one after the other.",
-    "parameters": [
-      {
-        "name": "array",
-        "type": "GraphArray",
-        "desc": ""
-      },
-      {
-        "name": "itemSize",
-        "type": "number",
-        "desc": ""
-      },
-      {
-        "name": "normalized",
-        "type": "boolean",
-        "default": "false",
-        "desc": ""
-      }
-    ],
-    "members": [
-      {
-        "name": "kind",
-        "type": "'attribute'",
-        "desc": "The attribute owns its buffer."
-      },
-      {
-        "name": "count",
-        "type": "number",
-        "desc": "How many vertices; fixed at construction, as the storage is."
-      },
-      {
-        "name": "version",
-        "type": "number",
-        "desc": "Bumped by `needsUpdate`."
-      },
-      {
-        "name": "array",
-        "type": "GraphArray",
-        "desc": "The storage."
-      },
-      {
-        "name": "updateRanges",
-        "type": "{ start: number; count: number; }[]",
-        "desc": "Ranges of `array` written since the last upload, sent alone."
-      },
-      {
-        "name": "addUpdateRange(start: number, count: number)",
-        "type": "void",
-        "desc": "Marks `count` numbers from `start` written."
-      },
-      {
-        "name": "clearUpdateRanges()",
-        "type": "void",
-        "desc": "Forgets the written ranges, once uploaded."
-      },
-      {
-        "name": "needsUpdate",
-        "type": "boolean",
-        "desc": "`needsUpdate = true` after writing `array`: a reader uploads it again."
-      }
-    ],
-    "description": ""
-  },
-  {
-    "id": "GraphElements",
-    "module": "packages/sdk-browser/src/host/graph/attributes.ts",
-    "exports": ["GraphElements"],
-    "section": "types",
-    "kind": "Type",
-    "title": "GraphElements",
-    "signature": "type GraphElements = GraphAttribute | GraphInterleavedAttribute",
-    "summary": "Either kind of attribute.",
-    "description": ""
-  },
-  {
     "id": "GraphGeometry",
     "module": "packages/sdk-browser/src/host/graph/geometry.ts",
     "exports": ["GraphGeometry"],
@@ -5340,17 +5234,17 @@
       },
       {
         "name": "index",
-        "type": "GraphAttribute | null",
+        "type": "BufferAttribute | null",
         "desc": "The triangle list, or `null` to draw the vertices in order."
       },
       {
         "name": "attributes",
-        "type": "Record<string, GraphElements>",
+        "type": "Record<string, VertexAttribute>",
         "desc": "Its vertex attributes, by name."
       },
       {
         "name": "morphAttributes",
-        "type": "Record<string, GraphElements[]>",
+        "type": "Record<string, VertexAttribute[]>",
         "desc": "Per morphed attribute, one attribute per morph target."
       },
       {
@@ -5385,21 +5279,21 @@
       },
       {
         "name": "getIndex()",
-        "type": "GraphAttribute | null",
+        "type": "BufferAttribute | null",
         "desc": "The triangle list."
       },
       {
-        "name": "setIndex(index: GraphAttribute | null)",
+        "name": "setIndex(index: BufferAttribute | null)",
         "type": "HostGeometry",
         "desc": "Sets the triangle list."
       },
       {
         "name": "getAttribute(name: string)",
-        "type": "GraphElements",
+        "type": "VertexAttribute",
         "desc": "The attribute of that name."
       },
       {
-        "name": "setAttribute(name: string, attribute: GraphElements)",
+        "name": "setAttribute(name: string, attribute: VertexAttribute)",
         "type": "HostGeometry",
         "desc": "Names an attribute."
       },
@@ -5432,127 +5326,6 @@
         "name": "computeBoundingSphere()",
         "type": "void",
         "desc": "Computes the local sphere: centred on the box, reaching the farthest vertex."
-      }
-    ],
-    "description": ""
-  },
-  {
-    "id": "GraphInterleavedAttribute",
-    "module": "packages/sdk-browser/src/host/graph/attributes.ts",
-    "exports": ["GraphInterleavedAttribute"],
-    "section": "types",
-    "kind": "Type",
-    "title": "GraphInterleavedAttribute",
-    "signature": "class GraphInterleavedAttribute extends Elements\nnew GraphInterleavedAttribute(data: GraphInterleavedBuffer, itemSize: number, offset: number, normalized?: boolean): GraphInterleavedAttribute",
-    "summary": "An attribute viewing `itemSize` numbers at `offset` of each vertex of an interleaved buffer.",
-    "parameters": [
-      {
-        "name": "data",
-        "type": "GraphInterleavedBuffer",
-        "desc": ""
-      },
-      {
-        "name": "itemSize",
-        "type": "number",
-        "desc": ""
-      },
-      {
-        "name": "offset",
-        "type": "number",
-        "desc": ""
-      },
-      {
-        "name": "normalized",
-        "type": "boolean",
-        "default": "false",
-        "desc": ""
-      }
-    ],
-    "members": [
-      {
-        "name": "kind",
-        "type": "'interleavedAttribute'",
-        "desc": "The attribute views a shared buffer."
-      },
-      {
-        "name": "data",
-        "type": "GraphInterleavedBuffer",
-        "desc": "The buffer it views."
-      },
-      {
-        "name": "offset",
-        "type": "number",
-        "desc": "Where its numbers start in each vertex."
-      },
-      {
-        "name": "array",
-        "type": "GraphArray",
-        "desc": "The storage the elements live in."
-      },
-      {
-        "name": "count",
-        "type": "number",
-        "desc": "How many vertices."
-      },
-      {
-        "name": "needsUpdate",
-        "type": "boolean",
-        "desc": "`needsUpdate = true` after writing `array`: a reader uploads it again."
-      }
-    ],
-    "description": ""
-  },
-  {
-    "id": "GraphInterleavedBuffer",
-    "module": "packages/sdk-browser/src/host/graph/attributes.ts",
-    "exports": ["GraphInterleavedBuffer"],
-    "section": "types",
-    "kind": "Type",
-    "title": "GraphInterleavedBuffer",
-    "signature": "class GraphInterleavedBuffer implements Versioned\nnew GraphInterleavedBuffer(array: GraphArray, stride: number): GraphInterleavedBuffer",
-    "summary": "One storage several attributes view, a vertex every `stride` numbers.",
-    "parameters": [
-      {
-        "name": "array",
-        "type": "GraphArray",
-        "desc": ""
-      },
-      {
-        "name": "stride",
-        "type": "number",
-        "desc": ""
-      }
-    ],
-    "members": [
-      {
-        "name": "kind",
-        "type": "'interleavedBuffer'",
-        "desc": "One storage several attributes view."
-      },
-      {
-        "name": "count",
-        "type": "number",
-        "desc": "How many vertices."
-      },
-      {
-        "name": "version",
-        "type": "number",
-        "desc": "Bumped by `needsUpdate`."
-      },
-      {
-        "name": "array",
-        "type": "GraphArray",
-        "desc": "The storage."
-      },
-      {
-        "name": "stride",
-        "type": "number",
-        "desc": "Numbers per vertex."
-      },
-      {
-        "name": "needsUpdate",
-        "type": "boolean",
-        "desc": "`needsUpdate = true` after writing `array`: a reader uploads it again."
       }
     ],
     "description": ""
@@ -6115,7 +5888,7 @@
     "section": "types",
     "kind": "Type",
     "title": "HostAttribute",
-    "signature": "type HostAttribute = GraphElements",
+    "signature": "type HostAttribute = VertexAttribute",
     "summary": "One vertex attribute of a geometry, owning its storage or viewing an interleaved one.",
     "description": ""
   },
@@ -6126,7 +5899,7 @@
     "section": "types",
     "kind": "Type",
     "title": "HostAttributes",
-    "signature": "type HostAttributes = { [name: string]: GraphElements }",
+    "signature": "type HostAttributes = { [name: string]: VertexAttribute }",
     "summary": "The named attributes of one geometry.",
     "description": "Also an identity: the engine keys its GPU buffers, geometry blocks and position caches on the attribute set a page draws from."
   },
@@ -6728,17 +6501,17 @@
   },
   {
     "id": "InterleavedBuffer",
-    "module": "packages/sdk-core/src/world/buffer/index.ts",
+    "module": "packages/sdk-core/src/world/buffer/attribute.ts",
     "exports": ["InterleavedBuffer"],
     "section": "buffer",
     "kind": "Type",
     "title": "InterleavedBuffer",
-    "signature": "class InterleavedBuffer\nnew InterleavedBuffer(array: Float32Array<ArrayBufferLike>, stride: number): InterleavedBuffer",
+    "signature": "class InterleavedBuffer\nnew InterleavedBuffer(array: BufferTypedArray, stride: number): InterleavedBuffer",
     "summary": "Several attributes packed per vertex: `stride` numbers per vertex, each attribute at an offset.",
     "parameters": [
       {
         "name": "array",
-        "type": "Float32Array<ArrayBufferLike>",
+        "type": "BufferTypedArray",
         "desc": ""
       },
       {
@@ -6754,8 +6527,18 @@
         "desc": "Always `true`: tells an interleaved buffer apart from anything else."
       },
       {
+        "name": "kind",
+        "type": "'interleavedBuffer'",
+        "desc": "One storage several attributes view."
+      },
+      {
+        "name": "version",
+        "type": "number",
+        "desc": "Bumped by `needsUpdate`."
+      },
+      {
         "name": "array",
-        "type": "Float32Array<ArrayBufferLike>",
+        "type": "BufferTypedArray",
         "desc": "Every vertex's numbers, packed one after the other."
       },
       {
@@ -6769,9 +6552,90 @@
         "desc": "How many vertices it packs."
       },
       {
+        "name": "needsUpdate",
+        "type": "boolean",
+        "desc": "`needsUpdate = true` after writing `array`: a reader uploads it again."
+      },
+      {
         "name": "attribute(itemSize: number, offset: number)",
         "type": "BufferAttribute",
-        "desc": "One attribute read out of the pack, as its own float attribute."
+        "desc": "One attribute read out of the pack, as its own attribute."
+      }
+    ],
+    "description": ""
+  },
+  {
+    "id": "InterleavedBufferAttribute",
+    "module": "packages/sdk-core/src/world/buffer/attribute.ts",
+    "exports": ["InterleavedBufferAttribute"],
+    "section": "buffer",
+    "kind": "Type",
+    "title": "InterleavedBufferAttribute",
+    "signature": "class InterleavedBufferAttribute extends VertexElements\nnew InterleavedBufferAttribute(data: InterleavedBuffer, itemSize: number, offset: number, normalized?: boolean): InterleavedBufferAttribute",
+    "summary": "An attribute viewing `itemSize` numbers at `offset` of each vertex of an interleaved buffer.",
+    "parameters": [
+      {
+        "name": "data",
+        "type": "InterleavedBuffer",
+        "desc": ""
+      },
+      {
+        "name": "itemSize",
+        "type": "number",
+        "desc": ""
+      },
+      {
+        "name": "offset",
+        "type": "number",
+        "desc": ""
+      },
+      {
+        "name": "normalized",
+        "type": "boolean",
+        "default": "false",
+        "desc": ""
+      }
+    ],
+    "members": [
+      {
+        "name": "isInterleavedBufferAttribute",
+        "type": "true",
+        "desc": "Always `true`: tells an interleaved view apart from anything else."
+      },
+      {
+        "name": "kind",
+        "type": "'interleavedAttribute'",
+        "desc": "The attribute views a shared buffer."
+      },
+      {
+        "name": "data",
+        "type": "InterleavedBuffer",
+        "desc": "The buffer it views."
+      },
+      {
+        "name": "offset",
+        "type": "number",
+        "desc": "Where its numbers start in each vertex."
+      },
+      {
+        "name": "array",
+        "type": "BufferTypedArray",
+        "desc": "The storage the elements live in."
+      },
+      {
+        "name": "count",
+        "type": "number",
+        "desc": "How many vertices the numbers describe."
+      },
+      {
+        "name": "needsUpdate",
+        "type": "boolean",
+        "desc": "`needsUpdate = true` after writing `array`: a reader uploads it again."
+      },
+      {
+        "name": "clone()",
+        "type": "BufferAttribute",
+        "desc": "Its own numbers, copied out of the pack into an attribute owning them."
       }
     ],
     "description": ""
@@ -8371,7 +8235,7 @@
       {
         "name": "parameters.linewidth?",
         "type": "number",
-        "desc": "Width of a line."
+        "desc": "Width of a line in CSS pixels, the same at every distance."
       },
       {
         "name": "parameters.dashSize?",
@@ -8675,7 +8539,7 @@
       {
         "name": "linewidth?",
         "type": "number | undefined",
-        "desc": "Width of a line."
+        "desc": "Width of a line in CSS pixels, the same at every distance."
       },
       {
         "name": "dashSize?",
@@ -11098,12 +10962,12 @@
     "section": "math",
     "kind": "Type",
     "title": "Path",
-    "signature": "class Path extends Curve\nnew Path(points?: (Vec3Input | readonly [number, number])[]): Path",
+    "signature": "class Path extends Curve\nnew Path(points?: (readonly [number, number] | Vec3Input)[]): Path",
     "summary": "Straight segments through every point, parameterised by arc length.",
     "parameters": [
       {
         "name": "points",
-        "type": "(Vec3Input | readonly [number, number])[]",
+        "type": "(readonly [number, number] | Vec3Input)[]",
         "default": "[]",
         "desc": ""
       }
@@ -12446,8 +12310,8 @@
     "section": "types",
     "kind": "Constant",
     "title": "SCENE_ENVIRONMENT_FLOATS",
-    "signature": "const SCENE_ENVIRONMENT_FLOATS: 36",
-    "summary": "Floats of the environment in the GPU buffer.",
+    "signature": "const SCENE_ENVIRONMENT_FLOATS: 44",
+    "summary": "Floats of the environment in the GPU buffer: the coefficients, then the fog's block.",
     "description": ""
   },
   {
@@ -12982,8 +12846,8 @@
       },
       {
         "name": "fog",
-        "type": "{ color: [number, number, number]; near: number; far: number; } | null",
-        "desc": "The fog, or `null`."
+        "type": "SceneFog | null",
+        "desc": "The fog, its colour in linear components, or `null`."
       },
       {
         "name": "camera",
@@ -13064,14 +12928,14 @@
         "desc": "A picture of the surroundings that shiny surfaces reflect; `null` for none."
       },
       {
-        "name": "fog",
-        "type": "{ color: Color; near: number; far: number; } | null",
-        "desc": "Fog that fades objects into `color` between `near` and `far`; `null` for none."
-      },
-      {
         "name": "background",
         "type": "Color | null",
         "desc": "What fills the image behind every object: a colour, or `null` for the default. A change shows at the next frame, the session kept: a new colour set here, or the one held written through its methods (`set`, `setRGB`, `setHex`, `setHSL`...). A direct write of `.r`, `.g` or `.b` is not heard: set `background` again after one. A picture, or any value without `getHex`, is refused (`UNSUPPORTED_SCENE_UPDATE`): no path draws one."
+      },
+      {
+        "name": "fog",
+        "type": "Fog | null",
+        "desc": "Fog over every surface, opaque and transparent, on both renderers; `null`, the default, for none, at no cost. `{ color, near, far }` fades objects into `color` from `near` to `far`, distances from the camera; `{ color, density }` thickens by `density` per unit of distance; add `heightFalloff` (and `baseHeight`, 0 by default) and it lies on the ground, thinning out above `baseHeight` — divided by e every `1 / heightFalloff` units up. A change shows at the next frame: a new fog set here, or its colour written through its methods. A direct write of `near`, `far`, `density`... is not heard: set `fog` again after one. A fog out of range — `far` not beyond `near`, a negative density — is refused (`INVALID_SCENE_ENVIRONMENT`)."
       },
       {
         "name": "load(manifestUrl: string, options?: LoadOptions)",
@@ -13115,8 +12979,57 @@
         "name": "irradiance?",
         "type": "readonly number[] | undefined",
         "desc": "The irradiance arriving from every direction, as 27 numbers: nine coefficients, each an RGB triple, in the band order constant, `y`, `z`, `x`, `xy`, `yz`, `3z² − 1`, `xz`, `x² − y²`. Absent, or all zero, nothing lights a surface but the declared lamps."
+      },
+      {
+        "name": "fog?",
+        "type": "SceneFog | undefined",
+        "desc": "Distance or height fog over every surface (`SceneFog`); absent, none."
       }
     ],
+    "description": ""
+  },
+  {
+    "id": "SceneExponentialFog",
+    "module": "packages/sdk-core/src/scene/core/fog.ts",
+    "exports": ["SceneExponentialFog"],
+    "section": "types",
+    "kind": "Type",
+    "title": "SceneExponentialFog",
+    "signature": "interface SceneExponentialFog",
+    "summary": "Fog thickening with distance: `density` per scene unit; with `heightFalloff`, it thins out above `baseHeight`, divided by e every `1 / heightFalloff` units up.",
+    "members": [
+      {
+        "name": "color",
+        "type": "LinearRgb",
+        "desc": "The radiance the fog fades toward, linear RGB."
+      },
+      {
+        "name": "density",
+        "type": "number",
+        "desc": "Extinction per scene unit, at `baseHeight`; ≥ 0."
+      },
+      {
+        "name": "heightFalloff?",
+        "type": "number | undefined",
+        "desc": "How fast the density falls off with height, per scene unit; 0, the default, keeps it uniform at every height."
+      },
+      {
+        "name": "baseHeight?",
+        "type": "number | undefined",
+        "desc": "The height the density is `density` at; 0 by default."
+      }
+    ],
+    "description": ""
+  },
+  {
+    "id": "SceneFog",
+    "module": "packages/sdk-core/src/scene/core/fog.ts",
+    "exports": ["SceneFog"],
+    "section": "types",
+    "kind": "Type",
+    "title": "SceneFog",
+    "signature": "type SceneFog = SceneLinearFog | SceneExponentialFog",
+    "summary": "Distance or height fog, as the lighting reads it.",
     "description": ""
   },
   {
@@ -13248,6 +13161,11 @@
         "desc": "Bumped when the set of lights changes."
       },
       {
+        "name": "transportEpoch",
+        "type": "number",
+        "desc": "Bumped with the epoch, except by a change of the fog alone: fog is a view-ray term, not light transport, so what caches transported light (the bounce probes) keeps it."
+      },
+      {
         "name": "environment",
         "type": "SceneEnvironment | undefined",
         "desc": "The scene's environment."
@@ -13320,6 +13238,34 @@
     "signature": "type SceneLightingView = 'auto' | 'lit' | 'unlit' | 'bounce'",
     "summary": "What the host asks to see.",
     "description": "`lit` is real lighting and that alone; `unlit` is the raw-albedo diagnostic view — material colour as-is, with no light, no ambient and no emission — for geometry benches that compare images pixel-exact. `auto`, the default, yields `unlit` as long as no light is declared and `lit` as soon as there is one. `bounce` is the third diagnostic view: indirect irradiance alone, multiplied by exposure and output as linear values without ACES or sRGB. This is what the harness compares to the compiler oracle; it is not an image to look at, and it is black without a rigged bounce."
+  },
+  {
+    "id": "SceneLinearFog",
+    "module": "packages/sdk-core/src/scene/core/fog.ts",
+    "exports": ["SceneLinearFog"],
+    "section": "types",
+    "kind": "Type",
+    "title": "SceneLinearFog",
+    "signature": "interface SceneLinearFog",
+    "summary": "Fog that starts at `near` and hides everything from `far` on, distances from the eye.",
+    "members": [
+      {
+        "name": "color",
+        "type": "LinearRgb",
+        "desc": "The radiance the fog fades toward, linear RGB."
+      },
+      {
+        "name": "near",
+        "type": "number",
+        "desc": "Distance from the eye where the fog starts."
+      },
+      {
+        "name": "far",
+        "type": "number",
+        "desc": "Distance from the eye where nothing but the fog is seen."
+      }
+    ],
+    "description": ""
   },
   {
     "id": "SceneLink",
@@ -14308,7 +14254,7 @@
       },
       {
         "name": "selectedNodes",
-        "type": "number[]",
+        "type": "number",
         "desc": "Nodes kept."
       },
       {
@@ -15080,7 +15026,7 @@
       {
         "name": "flags",
         "type": "GPUTexture",
-        "desc": "0 background, 1 unlit, 2 reads, 3 display-space diagnostic."
+        "desc": "0 background, 1 unlit (fogged), 2 reads, 3 shown as-is: a diagnostic, a normal or depth view."
       },
       {
         "name": "views()",
@@ -17274,6 +17220,34 @@
     "description": ""
   },
   {
+    "id": "VEHICLE_SPECS",
+    "module": "packages/sdk-core/src/physics/vehicleSpec.ts",
+    "exports": ["VEHICLE_SPECS"],
+    "section": "types",
+    "kind": "Constant",
+    "title": "VEHICLE_SPECS",
+    "signature": "const VEHICLE_SPECS",
+    "summary": "The three machines a vehicle starts as, by kind.",
+    "members": [
+      {
+        "name": "car",
+        "type": "VehicleSpec",
+        "desc": "A Chevrolet Corvette C5: rear-wheel drive, 0.32 N·m per kilogram, six gears."
+      },
+      {
+        "name": "motorcycle",
+        "type": "VehicleSpec",
+        "desc": "A Yamaha XJ900 and its rider: 0.26 N·m per kilogram, six gears."
+      },
+      {
+        "name": "tracked",
+        "type": "VehicleSpec",
+        "desc": "An M1 Abrams: a gas turbine, 0.083 N·m per kilogram, four gears."
+      }
+    ],
+    "description": ""
+  },
+  {
     "id": "Vec3",
     "module": "packages/sdk-core/src/lighting/scene/types.ts",
     "exports": ["Vec3"],
@@ -17695,6 +17669,186 @@
     "description": ""
   },
   {
+    "id": "Vehicle",
+    "module": "packages/sdk-core/src/physics/vehicle.ts",
+    "exports": ["Vehicle"],
+    "section": "types",
+    "kind": "Type",
+    "title": "Vehicle",
+    "signature": "class Vehicle implements VehicleDriver\nnew Vehicle(kind: VehicleKind, body: Object3D, options: VehicleOptions): Vehicle",
+    "summary": "A vehicle: a body carried on wheels by Jolt's vehicle constraint, with its engine, gearbox, differentials, suspension and anti-roll bars, made by `vehicle.*` and added to the simulation by `world.physics.add`.",
+    "parameters": [
+      {
+        "name": "kind",
+        "type": "VehicleKind",
+        "desc": ""
+      },
+      {
+        "name": "body",
+        "type": "Object3D",
+        "desc": ""
+      },
+      {
+        "name": "options",
+        "type": "VehicleOptions",
+        "desc": "What `vehicle.*` accepts: the wheels, and any number of the machine's own (`VehicleSpec`)."
+      },
+      {
+        "name": "options.wheels",
+        "type": "readonly Object3D[]",
+        "desc": "The wheels: meshes, children of the body, each placed at its centre as it rests on flat ground, its axle along the body's x. Its radius and width are read from its bounds. The body faces −z: the forward wheels steer."
+      },
+      {
+        "name": "options.torquePerKg?",
+        "type": "number",
+        "desc": "Engine peak torque per kilogram of the body, N·m/kg."
+      },
+      {
+        "name": "options.idleRPM?",
+        "type": "number",
+        "desc": "The engine's idle, rpm."
+      },
+      {
+        "name": "options.maxRPM?",
+        "type": "number",
+        "desc": "The engine's redline, rpm."
+      },
+      {
+        "name": "options.torqueCurve?",
+        "type": "readonly (readonly [number, number])[]",
+        "desc": "Up to five points `[rpm / maxRPM, torque / peak]`, rpm fractions rising."
+      },
+      {
+        "name": "options.gears?",
+        "type": "readonly number[]",
+        "desc": "Up to six forward gear ratios, first gear first."
+      },
+      {
+        "name": "options.reverse?",
+        "type": "number",
+        "desc": "The reverse gear's ratio."
+      },
+      {
+        "name": "options.finalDrive?",
+        "type": "number",
+        "desc": "The final drive's ratio (a tracked vehicle's sprocket reduction)."
+      },
+      {
+        "name": "options.shiftUpRPM?",
+        "type": "number",
+        "desc": "The gearbox shifts up past this, rpm."
+      },
+      {
+        "name": "options.shiftDownRPM?",
+        "type": "number",
+        "desc": "And down below this, rpm."
+      },
+      {
+        "name": "options.clutch?",
+        "type": "number",
+        "desc": "Clutch torque per rad/s of slip, N·m·s."
+      },
+      {
+        "name": "options.suspensionFrequency?",
+        "type": "number",
+        "desc": "Ride frequency, Hz."
+      },
+      {
+        "name": "options.suspensionDamping?",
+        "type": "number",
+        "desc": "Damping ratio, 0 (none) to 1 (critical)."
+      },
+      {
+        "name": "options.suspensionTravel?",
+        "type": "number",
+        "desc": "Wheel travel from full droop to full bump, m."
+      },
+      {
+        "name": "options.antiRoll?",
+        "type": "number",
+        "desc": "Each anti-roll bar's stiffness over its axle's spring stiffness; 0 is none."
+      },
+      {
+        "name": "options.turnRadius?",
+        "type": "number",
+        "desc": "The full-lock turning radius, m."
+      },
+      {
+        "name": "options.steerTime?",
+        "type": "number",
+        "desc": "Seconds from centre to full lock."
+      },
+      {
+        "name": "options.brakeGrip?",
+        "type": "number",
+        "desc": "The friction the brakes lock the wheels at."
+      },
+      {
+        "name": "options.drive?",
+        "type": "'front' | 'all' | 'rear'",
+        "desc": "A car's driven wheels."
+      },
+      {
+        "name": "options.trackTurn?",
+        "type": "number",
+        "desc": "A tracked vehicle's inner track speed while steering, over the outer's."
+      },
+      {
+        "name": "options.maxLean?",
+        "type": "number",
+        "desc": "A motorcycle's greatest lean, radians."
+      }
+    ],
+    "members": [
+      {
+        "name": "kind",
+        "type": "VehicleKind",
+        "desc": "What the vehicle is."
+      },
+      {
+        "name": "body",
+        "type": "Object3D",
+        "desc": "The body the wheels carry."
+      },
+      {
+        "name": "wheels",
+        "type": "readonly Object3D[]",
+        "desc": "The wheels, children of the body."
+      },
+      {
+        "name": "spec",
+        "type": "Readonly<VehicleSpec>",
+        "desc": "The machine: the kind's own (`VEHICLE_SPECS`), with the options over it."
+      },
+      {
+        "name": "input",
+        "type": "Readonly<VehicleInput>",
+        "desc": "The pedals and the wheel it hears now."
+      },
+      {
+        "name": "speed",
+        "type": "number",
+        "desc": "Metres per second forward after the last step, negative backward."
+      },
+      {
+        "name": "rpm",
+        "type": "number",
+        "desc": "The engine's revolutions per minute after the last step."
+      },
+      {
+        "name": "gear",
+        "type": "number",
+        "desc": "The gear after the last step: 1 and up forward, −1 reverse, 0 neutral."
+      },
+      {
+        "name": "drive(input: Readonly<VehicleInput>)",
+        "type": "void",
+        "desc": "Hears the pedals and the wheel, each time a key changes them, when it starts to be driven, and all released when it stops being driven."
+      }
+    ],
+    "description": "It is a `VehicleDriver`: `world.controls.vehicle = car` drives it."
+  },
+  {
     "id": "VehicleDriver",
     "module": "packages/sdk-core/src/physics/vehicle.ts",
     "exports": ["VehicleDriver"],
@@ -17744,6 +17898,302 @@
       }
     ],
     "description": "The vehicle's own physics — engine, wheels, suspension — answers them; this contract is all the controls know."
+  },
+  {
+    "id": "VehicleKind",
+    "module": "packages/sdk-core/src/physics/vehicle.ts",
+    "exports": ["VehicleKind"],
+    "section": "types",
+    "kind": "Type",
+    "title": "VehicleKind",
+    "signature": "type VehicleKind = 'car' | 'motorcycle' | 'tracked'",
+    "summary": "The vehicles of the physics, each on Jolt's vehicle constraint.",
+    "description": ""
+  },
+  {
+    "id": "VehicleOptions",
+    "module": "packages/sdk-core/src/physics/vehicle.ts",
+    "exports": ["VehicleOptions"],
+    "section": "types",
+    "kind": "Type",
+    "title": "VehicleOptions",
+    "signature": "interface VehicleOptions extends Partial<VehicleSpec>",
+    "summary": "What `vehicle.*` accepts: the wheels, and any number of the machine's own (`VehicleSpec`).",
+    "members": [
+      {
+        "name": "wheels",
+        "type": "readonly Object3D[]",
+        "desc": "The wheels: meshes, children of the body, each placed at its centre as it rests on flat ground, its axle along the body's x. Its radius and width are read from its bounds. The body faces −z: the forward wheels steer."
+      }
+    ],
+    "description": ""
+  },
+  {
+    "id": "VehicleSpec",
+    "module": "packages/sdk-core/src/physics/vehicleSpec.ts",
+    "exports": ["VehicleSpec"],
+    "section": "types",
+    "kind": "Type",
+    "title": "VehicleSpec",
+    "signature": "interface VehicleSpec",
+    "summary": "What a vehicle is made of: its engine, gearbox, suspension, steering and brakes, every default a real machine's (`VEHICLE_SPECS`).",
+    "members": [
+      {
+        "name": "torquePerKg",
+        "type": "number",
+        "desc": "Engine peak torque per kilogram of the body, N·m/kg."
+      },
+      {
+        "name": "idleRPM",
+        "type": "number",
+        "desc": "The engine's idle, rpm."
+      },
+      {
+        "name": "maxRPM",
+        "type": "number",
+        "desc": "The engine's redline, rpm."
+      },
+      {
+        "name": "torqueCurve",
+        "type": "readonly (readonly [number, number])[]",
+        "desc": "Up to five points `[rpm / maxRPM, torque / peak]`, rpm fractions rising."
+      },
+      {
+        "name": "gears",
+        "type": "readonly number[]",
+        "desc": "Up to six forward gear ratios, first gear first."
+      },
+      {
+        "name": "reverse",
+        "type": "number",
+        "desc": "The reverse gear's ratio."
+      },
+      {
+        "name": "finalDrive",
+        "type": "number",
+        "desc": "The final drive's ratio (a tracked vehicle's sprocket reduction)."
+      },
+      {
+        "name": "shiftUpRPM",
+        "type": "number",
+        "desc": "The gearbox shifts up past this, rpm."
+      },
+      {
+        "name": "shiftDownRPM",
+        "type": "number",
+        "desc": "And down below this, rpm."
+      },
+      {
+        "name": "clutch",
+        "type": "number",
+        "desc": "Clutch torque per rad/s of slip, N·m·s."
+      },
+      {
+        "name": "suspensionFrequency",
+        "type": "number",
+        "desc": "Ride frequency, Hz."
+      },
+      {
+        "name": "suspensionDamping",
+        "type": "number",
+        "desc": "Damping ratio, 0 (none) to 1 (critical)."
+      },
+      {
+        "name": "suspensionTravel",
+        "type": "number",
+        "desc": "Wheel travel from full droop to full bump, m."
+      },
+      {
+        "name": "antiRoll",
+        "type": "number",
+        "desc": "Each anti-roll bar's stiffness over its axle's spring stiffness; 0 is none."
+      },
+      {
+        "name": "turnRadius",
+        "type": "number",
+        "desc": "The full-lock turning radius, m."
+      },
+      {
+        "name": "steerTime",
+        "type": "number",
+        "desc": "Seconds from centre to full lock."
+      },
+      {
+        "name": "brakeGrip",
+        "type": "number",
+        "desc": "The friction the brakes lock the wheels at."
+      },
+      {
+        "name": "drive",
+        "type": "'front' | 'all' | 'rear'",
+        "desc": "A car's driven wheels."
+      },
+      {
+        "name": "trackTurn",
+        "type": "number",
+        "desc": "A tracked vehicle's inner track speed while steering, over the outer's."
+      },
+      {
+        "name": "maxLean",
+        "type": "number",
+        "desc": "A motorcycle's greatest lean, radians."
+      }
+    ],
+    "description": ""
+  },
+  {
+    "id": "VehicleSpecs",
+    "module": "packages/sdk-core/src/physics/vehicleSpec.ts",
+    "exports": ["VehicleSpecs"],
+    "section": "types",
+    "kind": "Type",
+    "title": "VehicleSpecs",
+    "signature": "interface VehicleSpecs",
+    "summary": "The machine each kind of vehicle starts as.",
+    "members": [
+      {
+        "name": "car",
+        "type": "VehicleSpec",
+        "desc": "A Chevrolet Corvette C5: rear-wheel drive, 0.32 N·m per kilogram, six gears."
+      },
+      {
+        "name": "motorcycle",
+        "type": "VehicleSpec",
+        "desc": "A Yamaha XJ900 and its rider: 0.26 N·m per kilogram, six gears."
+      },
+      {
+        "name": "tracked",
+        "type": "VehicleSpec",
+        "desc": "An M1 Abrams: a gas turbine, 0.083 N·m per kilogram, four gears."
+      }
+    ],
+    "description": ""
+  },
+  {
+    "id": "VertexAttribute",
+    "module": "packages/sdk-core/src/world/buffer/attribute.ts",
+    "exports": ["VertexAttribute"],
+    "section": "buffer",
+    "kind": "Type",
+    "title": "VertexAttribute",
+    "signature": "type VertexAttribute = BufferAttribute | InterleavedBufferAttribute",
+    "summary": "Either kind of attribute: owning its storage or viewing an interleaved one.",
+    "description": ""
+  },
+  {
+    "id": "VertexElements",
+    "module": "packages/sdk-core/src/world/buffer/elements.ts",
+    "exports": ["VertexElements"],
+    "section": "buffer",
+    "kind": "Type",
+    "title": "VertexElements",
+    "signature": "abstract class VertexElements",
+    "summary": "The elements of one vertex attribute, read and written by component.",
+    "parameters": [
+      {
+        "name": "itemSize",
+        "type": "number",
+        "desc": ""
+      },
+      {
+        "name": "normalized",
+        "type": "boolean",
+        "desc": ""
+      }
+    ],
+    "members": [
+      {
+        "name": "name",
+        "type": "string",
+        "desc": "The name a morph target is known by; empty for the others."
+      },
+      {
+        "name": "itemSize",
+        "type": "number",
+        "desc": "How many numbers belong to one vertex: 3 for a position."
+      },
+      {
+        "name": "normalized",
+        "type": "boolean",
+        "desc": "Whether whole numbers are read as values between 0 and 1."
+      },
+      {
+        "name": "array",
+        "type": "BufferTypedArray",
+        "desc": "The storage the elements live in."
+      },
+      {
+        "name": "count",
+        "type": "number",
+        "desc": "How many vertices the numbers describe."
+      },
+      {
+        "name": "stored(index: number, component: number)",
+        "type": "number",
+        "desc": "Number `component` of vertex `index` as it is stored, a normalised integer unscaled."
+      },
+      {
+        "name": "getComponent(index: number, component: number)",
+        "type": "number",
+        "desc": "Number `component` of vertex `index`, read as the number it stands for."
+      },
+      {
+        "name": "setComponent(index: number, component: number, value: number)",
+        "type": "VertexElements",
+        "desc": "Writes number `component` of vertex `index`."
+      },
+      {
+        "name": "getX(i: number)",
+        "type": "number",
+        "desc": "The first number of vertex `i`."
+      },
+      {
+        "name": "getY(i: number)",
+        "type": "number",
+        "desc": "The second number of vertex `i`."
+      },
+      {
+        "name": "getZ(i: number)",
+        "type": "number",
+        "desc": "The third number of vertex `i`."
+      },
+      {
+        "name": "getW(i: number)",
+        "type": "number",
+        "desc": "The fourth number of vertex `i`."
+      },
+      {
+        "name": "setX(i: number, x: number)",
+        "type": "VertexElements",
+        "desc": "Writes the first number of vertex `i`."
+      },
+      {
+        "name": "setY(i: number, y: number)",
+        "type": "VertexElements",
+        "desc": "Writes the second number of vertex `i`."
+      },
+      {
+        "name": "setZ(i: number, z: number)",
+        "type": "VertexElements",
+        "desc": "Writes the third number of vertex `i`."
+      },
+      {
+        "name": "setW(i: number, w: number)",
+        "type": "VertexElements",
+        "desc": "Writes the fourth number of vertex `i`."
+      },
+      {
+        "name": "setXY(i: number, x: number, y: number)",
+        "type": "VertexElements",
+        "desc": "Writes two numbers for vertex `i`."
+      },
+      {
+        "name": "setXYZ(i: number, x: number, y: number, z: number)",
+        "type": "VertexElements",
+        "desc": "Writes three numbers for vertex `i`."
+      }
+    ],
+    "description": ""
   },
   {
     "id": "WaterSpec",
@@ -18429,14 +18879,14 @@
         "desc": "The last error the physics raised (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), or `null`. One that stopped the simulation turns `enabled` off."
       },
       {
-        "name": "add(joint: Joint)",
+        "name": "add(item: Joint | Vehicle)",
         "type": "void",
-        "desc": "Adds a joint (`joint.hinge(door, frame, …)` and its kin): it is made once both its bodies are simulated, and holds until it is removed or breaks."
+        "desc": "Adds a joint (`joint.hinge(door, frame, …)` and its kin), made once both its bodies are simulated and holding until it is removed or breaks; or a vehicle (`vehicle.car(body, { wheels })` and its kin), made once its body is simulated."
       },
       {
-        "name": "remove(joint: Joint)",
+        "name": "remove(item: Joint | Vehicle)",
         "type": "void",
-        "desc": "Takes a joint out: the bodies it held move apart freely."
+        "desc": "Takes a joint out, the bodies it held moving apart freely; or a vehicle, its body left without wheels."
       }
     ],
     "description": ""
@@ -18855,12 +19305,12 @@
       {
         "name": "coverageBudgetLimited?",
         "type": "boolean | null | undefined",
-        "desc": "Requested detail cannot coexist with the pinned fallback within the GPU page budget."
+        "desc": "Requested detail needs more pages than the GPU page budget holds: the rest draws coarser."
       },
       {
         "name": "budgetPixelError?",
         "type": "number | null | undefined",
-        "desc": "Screen-error floor the GPU page budget imposes on the cut, in pixels: `0` when the requested detail fits, otherwise the coarser threshold the image is drawn at. Null on engines without a page budget."
+        "desc": "WebGL2 only: the screen-error floor its page budget imposes on the cut, in pixels — `0` when the requested detail fits, otherwise the coarser threshold the image is drawn at. Absent on WebGPU, where residency alone coarsens the image. Null on engines without a page budget."
       },
       {
         "name": "frameHeld?",
@@ -19367,14 +19817,14 @@
         "desc": "The last error the physics raised (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), or `null`. One that stopped the simulation turns `enabled` off."
       },
       {
-        "name": "add(joint: Joint)",
+        "name": "add(item: Joint | Vehicle)",
         "type": "void",
-        "desc": "Adds a joint (`joint.hinge(door, frame, …)` and its kin): it is made once both its bodies are simulated, and holds until it is removed or breaks."
+        "desc": "Adds a joint (`joint.hinge(door, frame, …)` and its kin), made once both its bodies are simulated and holding until it is removed or breaks; or a vehicle (`vehicle.car(body, { wheels })` and its kin), made once its body is simulated."
       },
       {
-        "name": "remove(joint: Joint)",
+        "name": "remove(item: Joint | Vehicle)",
         "type": "void",
-        "desc": "Takes a joint out: the bodies it held move apart freely."
+        "desc": "Takes a joint out, the bodies it held moving apart freely; or a vehicle, its body left without wheels."
       }
     ],
     "description": ""
@@ -27036,7 +27486,7 @@
       {
         "name": "parameters.linewidth?",
         "type": "number",
-        "desc": "Width of a line."
+        "desc": "Width of a line in CSS pixels, the same at every distance."
       },
       {
         "name": "parameters.dashSize?",
@@ -27221,7 +27671,7 @@
       {
         "name": "parameters.linewidth?",
         "type": "number",
-        "desc": "Width of a line."
+        "desc": "Width of a line in CSS pixels, the same at every distance."
       },
       {
         "name": "parameters.dashSize?",
@@ -27406,7 +27856,7 @@
       {
         "name": "parameters.linewidth?",
         "type": "number",
-        "desc": "Width of a line."
+        "desc": "Width of a line in CSS pixels, the same at every distance."
       },
       {
         "name": "parameters.dashSize?",
@@ -27591,7 +28041,7 @@
       {
         "name": "parameters.linewidth?",
         "type": "number",
-        "desc": "Width of a line."
+        "desc": "Width of a line in CSS pixels, the same at every distance."
       },
       {
         "name": "parameters.dashSize?",
@@ -27776,7 +28226,7 @@
       {
         "name": "parameters.linewidth?",
         "type": "number",
-        "desc": "Width of a line."
+        "desc": "Width of a line in CSS pixels, the same at every distance."
       },
       {
         "name": "parameters.dashSize?",
@@ -27961,7 +28411,7 @@
       {
         "name": "parameters.linewidth?",
         "type": "number",
-        "desc": "Width of a line."
+        "desc": "Width of a line in CSS pixels, the same at every distance."
       },
       {
         "name": "parameters.dashSize?",
@@ -28146,7 +28596,7 @@
       {
         "name": "parameters.linewidth?",
         "type": "number",
-        "desc": "Width of a line."
+        "desc": "Width of a line in CSS pixels, the same at every distance."
       },
       {
         "name": "parameters.dashSize?",
@@ -28331,7 +28781,7 @@
       {
         "name": "parameters.linewidth?",
         "type": "number",
-        "desc": "Width of a line."
+        "desc": "Width of a line in CSS pixels, the same at every distance."
       },
       {
         "name": "parameters.dashSize?",
@@ -28516,7 +28966,7 @@
       {
         "name": "parameters.linewidth?",
         "type": "number",
-        "desc": "Width of a line."
+        "desc": "Width of a line in CSS pixels, the same at every distance."
       },
       {
         "name": "parameters.dashSize?",
@@ -28701,7 +29151,7 @@
       {
         "name": "parameters.linewidth?",
         "type": "number",
-        "desc": "Width of a line."
+        "desc": "Width of a line in CSS pixels, the same at every distance."
       },
       {
         "name": "parameters.dashSize?",
@@ -28886,7 +29336,7 @@
       {
         "name": "parameters.linewidth?",
         "type": "number",
-        "desc": "Width of a line."
+        "desc": "Width of a line in CSS pixels, the same at every distance."
       },
       {
         "name": "parameters.dashSize?",
@@ -29071,7 +29521,7 @@
       {
         "name": "parameters.linewidth?",
         "type": "number",
-        "desc": "Width of a line."
+        "desc": "Width of a line in CSS pixels, the same at every distance."
       },
       {
         "name": "parameters.dashSize?",
@@ -29256,7 +29706,7 @@
       {
         "name": "parameters.linewidth?",
         "type": "number",
-        "desc": "Width of a line."
+        "desc": "Width of a line in CSS pixels, the same at every distance."
       },
       {
         "name": "parameters.dashSize?",
@@ -29441,7 +29891,7 @@
       {
         "name": "parameters.linewidth?",
         "type": "number",
-        "desc": "Width of a line."
+        "desc": "Width of a line in CSS pixels, the same at every distance."
       },
       {
         "name": "parameters.dashSize?",
@@ -29997,12 +30447,12 @@
     "section": "math",
     "kind": "Function",
     "title": "math.path()",
-    "signature": "math.path(points: (Vec3Input | readonly [number, number])[]): Path",
+    "signature": "math.path(points: (readonly [number, number] | Vec3Input)[]): Path",
     "summary": "Straight segments through the points, 2D points lying in the `z = 0` plane.",
     "parameters": [
       {
         "name": "points",
-        "type": "(Vec3Input | readonly [number, number])[]",
+        "type": "(readonly [number, number] | Vec3Input)[]",
         "desc": "The corners, 2D or 3D."
       }
     ],
@@ -33671,6 +34121,34 @@
       "desc": ""
     },
     "description": "A rejected light never enters the buffer: the contract accepts neither negative intensity, nor zero range, nor a spot without direction, nor a directional light that would claim a position or a range."
+  },
+  {
+    "id": "vehicle",
+    "module": "packages/sdk-core/src/physics/vehicle.ts",
+    "exports": ["vehicle"],
+    "section": "types",
+    "kind": "Constant",
+    "title": "vehicle",
+    "signature": "const vehicle",
+    "summary": "The `vehicle` family: a body and its wheels, driven by `world.controls` `'vehicle'`.",
+    "members": [
+      {
+        "name": "car",
+        "type": "(body: Object3D, options: VehicleOptions) => Vehicle",
+        "desc": "Three wheels or more on two axles or more, the forward ones steered, `drive` driven."
+      },
+      {
+        "name": "motorcycle",
+        "type": "(body: Object3D, options: VehicleOptions) => Vehicle",
+        "desc": "Two wheels, the forward one steered, the rear one driven; it keeps itself upright."
+      },
+      {
+        "name": "tracked",
+        "type": "(body: Object3D, options: VehicleOptions) => Vehicle",
+        "desc": "Wheels on two tracks, left and right, each driven by its rearmost wheel; it steers by slowing one track, and turns on the spot at a standstill."
+      }
+    ],
+    "description": ""
   },
   {
     "id": "viewToRenderOrigin",
