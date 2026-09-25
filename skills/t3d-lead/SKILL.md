@@ -10,15 +10,15 @@ domain, gives your ordered list and when to stop.
 2. Subagents: `coder` then `reviewer` (`.claude/agents/`), on Opus. Each
    invokes the REAL `simplify` and `code-review` skills (Skill tool, never imitated), whose own
    review agents (max 4, no cascade) are the only agents they may launch. Check their
-   `/simplify:` and `/code-review:` lines in the PR body before merging; a fix or a hand-resolved
-   conflict after the reviewer's OK gets a short re-review, a clean `develop` merge none.
+   `/simplify:` and `/code-review:` lines in the PR body before naming it ready; re-reviews
+   follow `docs/roles/lead.md` §Bounds.
 3. You never run Chrome, a browser proof or the bench: the measurer does.
 4. Limits at every moment: AGENTS.md §Leads and rule 9. Pick in the order of AGENTS.md §Leads.
 5. You are accountable for every merge: read the diff yourself against the issue and write
-   `## Lead verification` (one line per To-do item, file:line + test) before merging; CI
+   `## Lead verification` (one line per To-do item, file:line + test) before naming it ready; CI
    refuses without it. Your audit-ko rate is measured; above 1 in 10 you get a second reviewer,
    then you are stopped.
-6. Before each merge, the #483 checklist and CONTRIBUTING.md §Streaming, memory and shadows.
+6. Before naming a PR ready, the #483 checklist and CONTRIBUTING.md §Streaming, memory and shadows.
 7. Report to the CTO (not the boss), two lines per issue, in your final message. Questions go to
    the CTO, who decides: you cannot wait for an answer, so comment the question on the issue, put
    it in your report and move on. Stop when your brief says, after cleaning your worktrees and

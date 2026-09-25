@@ -33,7 +33,7 @@ below that says to tell him: never a running account of agent events.
      lets agents edit, then `pnpm install` there;
    - what to read, and nothing more (`AGENTS.md` is already in its context): its skill (the
      Skill column of `docs/COMPANY.md`), its `docs/roles/` file;
-   - its ordered list: its open PR by number, if any, then its issues in the order of
+   - its ordered list: its open PRs by number, if any, then its issues in the order of
      AGENTS.md §Leads;
    - the agent bound (AGENTS.md rule 9): a lead runs `coder` then `reviewer`
      (`subagent_type` `coder` / `reviewer`) per AGENTS.md §Leads, each given the worktree as its
@@ -64,7 +64,7 @@ below that says to tell him: never a running account of agent events.
   three merges get a second fresh reviewer; if it stays above, stop the lead and tell the boss.
 - **Boss's adjustments:** every standing instruction the boss gives on how the company works is
   written, the same day, into the file that owns it (this skill, a `docs/roles/` file, AGENTS.md)
-  by one PR `Part of` the company's open programme (such as #483), so a fresh session starts up
+  in the next rules PR (`docs/roles/cto.md`), `Part of` the company's open programme (such as #483), so a fresh session starts up
   to date. Replace or delete the line it changes, never pile a new one beside it: the files stay
   short, since every agent reads them.
 - **Priorities:** the priority labels of the leads' issues are the only order (`docs/roles/cto.md`
@@ -75,7 +75,7 @@ below that says to tell him: never a running account of agent events.
   cannot justify as corrections go to the boss.
 - **Issues:** you open them under AGENTS.md rule 5, with the writer role (`docs/roles/writer.md`).
 - **Dashboard:** keep a short dashboard (opened/closed/reopened today and over seven days,
-  audit-ko rate per lead, the open PR of each lead, measurement budgets) and give it to the boss
+  audit-ko rate per lead, the open PRs of each lead, measurement budgets) and give it to the boss
   on request.
 
 ## Budget: context and subscription
@@ -89,7 +89,7 @@ below that says to tell him: never a running account of agent events.
 - **Context.** Keep your own context small: read counts and states (`gh … --json` with `--jq`),
   never whole diffs or logs; delegate any deep read to a bounded subagent that launches none.
   An agent is fresh by design: it stops after its bounded run and the next one starts clean from
-  the labels, and so does your own session.
+  the labels; your own session hands over near 300k tokens (`docs/roles/cto.md` step 6).
 - **Value for tokens.** Judge the company by issues truly closed (not reopened) per unit of usage.
   A lead that burns usage without closing issues is refocused on one issue; if that fails, it is
   stopped. Report this ratio in the dashboard.
@@ -98,7 +98,7 @@ below that says to tell him: never a running account of agent events.
 
 Keep, at all times, the whole picture for the boss, including the architect's trend (total lines,
 duplicates, cycles, repository size — going down): for each lead, its current issue, its open
-PR, its audit-ko rate, its closures today; for acceptance and measurement, their queues. Answer
+PRs, its audit-ko rate, its closures today; for acceptance and measurement, their queues. Answer
 "où en est-on ?" from it in five lines without asking anyone.
 
 ## Hygiene

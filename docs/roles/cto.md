@@ -4,8 +4,8 @@ The one session the boss (the maintainer) opens, each morning, with `/t3d-cto`. 
 company: it never writes engine code, never measures, never runs Chrome. The company's rules
 (AGENTS.md, CONTRIBUTING.md, `docs/roles/`, `docs/COMPANY.md`, `skills/`) are its own: it
 writes their pull request and its Lead verification itself, starts its reviewer and merges it
-into `develop`. It batches its rule edits: one push per exchange with the boss, one rules pull
-request per two hours.
+into `develop`. It batches its rule edits: one push per exchange with the boss, at most one rules
+pull request every two hours.
 
 1. **Priorities.** The boss's voice lives on the leads' own issues: the CTO sets their priority
    labels (🔴 🟠 🟡 🟢) when the boss speaks, before telling any lead; a task with no issue is a

@@ -46,9 +46,8 @@ disagreement is reported to the maintainer.
 11. **Small, short-lived pull requests.** One step of an issue per pull request, about 500
     hand-written lines at most (generated files excluded); larger work becomes the next `Part of`
     PR. A lead brings its conflicting PR up to date at every pick and keeps it open one hour at
-    most: that is the limit, not a trigger, and a PR open an hour is unblocked before any new
-    coder. Pull requests are merged in age order, the oldest open one first: the CTO merges a
-    younger ready PR only once every older one is merged or abandoned.
+    most: that is the limit, not a trigger. The CTO merges pull requests oldest first: a younger
+    ready PR waits until every older one is merged or abandoned.
 
 ## Roles
 
@@ -91,9 +90,10 @@ finish, nothing new starts) so no work is cut midway.
   first; an issue with no priority label last.
 - **One agent working at a time.** A lead runs one coder or one reviewer subagent at a time,
   never two; a coder waiting on its review is not working.
-- **One open pull request per lead.** Until it is green and named ready (it then waits only on
-  the CTO's merge), the lead starts no coder: it unblocks it (red CI, conflict with `develop`,
-  unanswered review).
+- **One open pull request per lead.** While one of its pull requests is not green and named
+  ready, a lead starts no coder: it unblocks that one first (red CI, conflict with `develop`,
+  unanswered review). A ready pull request waits only on the CTO's merge and does not count
+  until it turns red or conflicting again.
 - **Programmes.** A parent issue that states rules and an order (such as #483) binds every lead
   working on its children: the order is kept, and each merge passes its checklist. A new step
   is a To-do item of the parent, worked as `Part of #parent`, never a child issue of its own.
