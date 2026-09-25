@@ -26,6 +26,11 @@ const QUANTIZED = `(page.flags&${FLAG_CLUSTER_PAGE}u)!=0u`;
  * (`../../webgpu/core/vertexColors.ts`). The resolve multiplies the base colour by them, and the
  * rasters cut a masked row at its base map alpha times the vertex alpha (`pageMaskAlpha`), as the
  * reference multiplies the diffuse alpha by the vertex colour before its alpha test.
+ *
+ * The text declares no binding: the pass that includes it declares `indices`, `positions`, `uvs`
+ * and the camera uniform `uni`, whose `viewProj`, `viewport` and `pixelRatio` the screen routines
+ * read (`pageLine`, `pageSprite`) — even a pass that never calls them, since a device refuses a
+ * module with an unresolved name (`../../gpu/core/engineShaders.test.ts`).
  */
 export const PAGE_GEOMETRY_WGSL = `${PAGE_VERTEX_WGSL}
 ${PAGE_UV_WGSL}
