@@ -35,7 +35,14 @@ function upload(page: Texture | HostTexture, [width, height]: [number, number]) 
   const map = importHostTexture(
     page instanceof GraphTexture ? page : hostTexture(page, true, new Map()),
   );
-  createTileScratch(device, { map, width, height, format: 'rgba8unorm', errorCode: 'NONE' });
+  createTileScratch(device, {
+    map,
+    width,
+    height,
+    format: 'rgba8unorm',
+    atlas: 'data',
+    errorCode: 'NONE',
+  });
   return { copies, rows };
 }
 
@@ -131,6 +138,7 @@ test('a live flipped picture refilled 60 times stages its rows in one array', ()
     width: 1,
     height: 2,
     format: 'rgba8unorm',
+    atlas: 'data',
     errorCode: 'NONE',
   });
   for (let frame = 0; frame < 60; frame++) {
@@ -141,4 +149,38 @@ test('a live flipped picture refilled 60 times stages its rows in one array', ()
     assert.deepEqual([...out], [frame, 0, 255, 255, 255, 0, 0, 255], `frame ${frame} flipped`);
   }
   scratch.destroy();
+});
+
+// #42: the working texture's mips weigh their colours by alpha in the colour atlas only, and not
+// when the upload already premultiplied them — weighing twice would darken the borders again.
+test('a colour working texture reduces weighted by alpha unless uploaded premultiplied', () => {
+  installGpuGlobals();
+  const { device } = mockGpu();
+  const weighted: unknown[] = [];
+  const create = device.createRenderPipeline.bind(device);
+  Object.assign(device, {
+    writeTexture() {},
+    createRenderPipeline: (descriptor: GPURenderPipelineDescriptor) => {
+      weighted.push(descriptor.fragment?.constants?.weighted);
+      return create(descriptor);
+    },
+  });
+  const reduce = (atlas: 'color' | 'data', premultiplyAlpha: boolean) => {
+    const host = new GraphTexture({ data: new Uint8Array(8), width: 1, height: 2 });
+    host.premultiplyAlpha = premultiplyAlpha;
+    const map = importHostTexture(host);
+    createTileScratch(device, {
+      map,
+      width: 1,
+      height: 2,
+      format: 'rgba8unorm',
+      atlas,
+      errorCode: 'NONE',
+    });
+  };
+  reduce('color', false);
+  reduce('color', true);
+  assert.deepEqual(weighted, [1, 0], 'straight alpha weighted, premultiplied not');
+  reduce('data', false);
+  assert.equal(weighted.length, 2, 'the data atlas reuses the plain pipeline');
 });

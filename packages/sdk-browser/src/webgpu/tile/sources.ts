@@ -68,6 +68,7 @@ export function createTileSources(options: {
       width: layout.width,
       height: layout.height,
       format: atlas.poolOf(slot).texture.format,
+      atlas: atlas.kind,
       errorCode:
         atlas.kind === 'color'
           ? 'MATERIAL_COLOR_TEXTURE_UNAVAILABLE'
