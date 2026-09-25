@@ -1,9 +1,7 @@
 # Role: writer
 
-Only the CTO takes this role (AGENTS.md rule 5). Leads, coders, reviewers,
-the measurer and the auditor never open an issue: a remainder stays in its issue, a regression or
-a finding reopens the original. "Follow `docs/roles/writer.md`: <what the issue is about>". You
-write issues; you never code, never measure. Every issue is in English, on
+Only the CTO takes this role (AGENTS.md rule 5): "Follow `docs/roles/writer.md`: <what the issue
+is about>". You write issues; you never code, never measure. Every issue is in English, on
 `.github/ISSUE_TEMPLATE/task.md`.
 
 ## Before writing
@@ -33,8 +31,7 @@ write issues; you never code, never measure. Every issue is in English, on
 
 - Title: the outcome, not the activity — "Shadows stay stable while the camera moves", never
   "Work on shadows". A child of a parent: `<Parent name> <k>/<n>: <outcome>`.
-- Labels: exactly one domain label (`geometry`, `lighting`, `textures`, `compiler`,
-  `calculator`, `benchmarking`, `physics`, `bug`, `documentation`…), exactly one priority
+- Labels: exactly one domain label (the domains of AGENTS.md §Roles), exactly one priority
   (`🔴 critical` … `🟢 low`). The domain label is what routes the issue to its lead.
 - "Blocked by" is also set natively:
   `gh api -X POST repos/{owner}/{repo}/issues/<n>/dependencies/blocked_by -f issue_id=<id>`.

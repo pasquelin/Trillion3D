@@ -19,7 +19,8 @@ run by the measurer after the merge.
    `--group native` (Rust and the unit suite).
 5. Commit in small steps: `type(scope): what changed (#<n>)`, nothing else in the message.
 6. Push, then `gh pr create --base develop` with the body on `.github/PULL_REQUEST_TEMPLATE.md`:
-   `Closes #<n>` (or `Part of #<n>` when the brief leaves part of the issue out), what changed, the proof run, and under "Local review before push" one line
+   `Closes #<n>` (or `Part of #<n>` when the brief leaves part of the issue out), what changed,
+   the proof run, and under "Local review before push" one line
    `/simplify: <what it found and what you fixed>` and one line `/code-review: <same>`, copied from
    the skills' own reports (CI refuses a body without them). The reviewer completes that section.
    Run `scripts/check-pr-body.sh < <body file>` before `gh pr create`: it stops at the missing

@@ -17,8 +17,8 @@ and launches no agent: it finds, and the domain's lead has its coder fix. It rep
 
 ## The round
 
-One area per stint, in this order, then again from the first. The area in progress is written on
-the Priorities issue; the architect updates that line at the end of its stint.
+One area per stint, in this order, then again from the first. The CTO's brief names the area;
+the architect's report names the next one.
 
 | Area              | Paths                                | What it looks for first                                                             |
 | ----------------- | ------------------------------------ | ----------------------------------------------------------------------------------- |
