@@ -38,7 +38,9 @@ ${TILE_POOL_WGSL}
 ${COLOR_SAMPLE_WGSL}
 ${maskAlphaWgsl(false)}
 ${PAGE_LOOKUP_WGSL}
-struct VSOut{@builtin(position) position:vec4f,@location(0) @interpolate(flat) id:u32,@location(1) @interpolate(flat) instance:u32,@location(2) uv:vec2f,}
+// \`tc\` is the UV and, on a masked row, the vertex alpha of its cutout: one interpolant, as the UV
+// alone was.
+struct VSOut{@builtin(position) position:vec4f,@location(0) @interpolate(flat) id:u32,@location(1) @interpolate(flat) instance:u32,@location(2) tc:vec3f,}
 ${PAGE_GEOMETRY_WGSL}
 ${MASK_KEEP_WGSL}
 ${STIPPLE_WGSL}
@@ -61,7 +63,7 @@ fn hardwareSkips(page:PageInfo,h:ClusterHeader,vertexIndex:u32)->bool{
  var out:VSOut;
  let pageIndex=drawPage(instanceIndex);
  let page=pages[pageIndex];
- out.instance=pageIndex;out.uv=vec2f(0.0);
+ out.instance=pageIndex;out.tc=vec3f(0.0);
  if(hardwareIdle(page,vertexIndex)){out.position=vec4f(0.0,0.0,2.0,1.0);out.id=0u;return out;}
  let h=pageHeader(page);
  if(hardwareSkips(page,h,vertexIndex)){out.position=vec4f(0.0,0.0,2.0,1.0);out.id=0u;return out;}
@@ -71,14 +73,15 @@ fn hardwareSkips(page:PageInfo,h:ClusterHeader,vertexIndex:u32)->bool{
  out.position=uni.viewProj*world;
  if(page.lineWidth>0.0){out.position=pageLine(page,h,id,uni.viewProj*page.world,out.position);}
  out.id=page.packedBase|((vertexIndex/3u)&0xffu);
- if((page.flags&4u)!=0u){out.uv=pageUv(page,h,id);}
+ if((page.flags&4u)!=0u){out.tc=vec3f(pageUv(page,h,id),0.0);}
+ if((page.flags&128u)!=0u){out.tc.z=pageMaskAlpha(page,h,id);}
  return out;
 }
 @vertex fn vis_hiz_vs(@builtin(vertex_index) vertexIndex:u32,@builtin(instance_index) instanceIndex:u32)->VSOut{
  var out:VSOut;
  let pageIndex=drawPage(instanceIndex);
  let page=pages[pageIndex];
- out.instance=pageIndex;out.uv=vec2f(0.0);
+ out.instance=pageIndex;out.tc=vec3f(0.0);
  if(hizRejected(page.hizSlot)){out.position=vec4f(0.0,0.0,2.0,1.0);out.id=0u;return out;}
  if(hardwareIdle(page,vertexIndex)){out.position=vec4f(0.0,0.0,2.0,1.0);out.id=0u;return out;}
  let h=pageHeader(page);
@@ -89,19 +92,20 @@ fn hardwareSkips(page:PageInfo,h:ClusterHeader,vertexIndex:u32)->bool{
  out.position=uni.viewProj*world;
  if(page.lineWidth>0.0){out.position=pageLine(page,h,id,uni.viewProj*page.world,out.position);}
  out.id=page.packedBase|((vertexIndex/3u)&0xffu);
- if((page.flags&4u)!=0u){out.uv=pageUv(page,h,id);}
+ if((page.flags&4u)!=0u){out.tc=vec3f(pageUv(page,h,id),0.0);}
+ if((page.flags&128u)!=0u){out.tc.z=pageMaskAlpha(page,h,id);}
  return out;
 }
 struct VisHizOut{@location(0) id:u32,@location(1) depth:f32,}
 @fragment fn vis_hiz_fs(in:VSOut)->VisHizOut{
  var out:VisHizOut;
- let gx=dpdx(in.uv);let gy=dpdy(in.uv);
- if(!maskKeep(pages[in.instance],in.uv,gx,gy,stippleOffset(in.position.xy))){discard;}
+ let gx=dpdx(in.tc.xy);let gy=dpdy(in.tc.xy);
+ if(!maskKeep(pages[in.instance],in.tc.xy,in.tc.z,gx,gy,stippleOffset(in.position.xy))){discard;}
  out.id=in.id;out.depth=in.position.z;return out;
 }
 @fragment fn vis_fs(in:VSOut)->@location(0) u32{
- let gx=dpdx(in.uv);let gy=dpdy(in.uv);
- if(!maskKeep(pages[in.instance],in.uv,gx,gy,stippleOffset(in.position.xy))){discard;}
+ let gx=dpdx(in.tc.xy);let gy=dpdy(in.tc.xy);
+ if(!maskKeep(pages[in.instance],in.tc.xy,in.tc.z,gx,gy,stippleOffset(in.position.xy))){discard;}
  return in.id;
 }
 `;

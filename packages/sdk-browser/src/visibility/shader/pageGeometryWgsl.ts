@@ -1,7 +1,8 @@
 import { clusterDecodeWgsl } from '../../cluster/decodeWgsl.ts';
-import { FLAG_CLUSTER_PAGE } from '../types.ts';
+import { FLAG_CLUSTER_PAGE, FLAG_HAS_COLOR } from '../types.ts';
 import { PAGE_UV_WGSL, PAGE_VERTEX_WGSL } from './pageWgsl.ts';
 import { LINE_CLIP_WGSL } from './lineWgsl.ts';
+import { VERTEX_COLOR_WGSL } from '../../webgpu/core/vertexColors.ts';
 
 const QUANTIZED = `(page.flags&${FLAG_CLUSTER_PAGE}u)!=0u`;
 
@@ -19,6 +20,11 @@ const QUANTIZED = `(page.flags&${FLAG_CLUSTER_PAGE}u)!=0u`;
  * The header is decoded once per invocation and passed down: it is twenty-one words of the page
  * and a handful of shifts, and a vertex stage that read it per corner would pay it three times a
  * triangle. `pageHeader` of a row that is not quantized costs nothing and returns zeroes.
+ *
+ * Vertex colours: quantized on the page, at the tail of the source UV buffer otherwise
+ * (`../../webgpu/core/vertexColors.ts`). The resolve multiplies the base colour by them, and the
+ * rasters cut a masked row at its base map alpha times the vertex alpha (`pageMaskAlpha`), as the
+ * reference multiplies the diffuse alpha by the vertex colour before its alpha test.
  */
 export const PAGE_GEOMETRY_WGSL = `${PAGE_VERTEX_WGSL}
 ${PAGE_UV_WGSL}
@@ -57,6 +63,17 @@ fn pageClip(vp:mat4x4f,page:PageInfo,h:ClusterHeader,vertex:u32)->vec4f{
 fn pageUv(page:PageInfo,h:ClusterHeader,vertex:u32)->vec2f{
  if(${QUANTIZED}){return clusterUv(h,page.pageOffset,vertex);}
  return vertUv(page.vertexBase,vertex);
+}
+${VERTEX_COLOR_WGSL}
+/** Vertex colour of a page vertex. */
+fn pageColor(page:PageInfo,h:ClusterHeader,vertex:u32)->vec4f{
+ if(${QUANTIZED}){return clusterColor(h,page.pageOffset,vertex);}
+ return vertColor(page.vertexBase+vertex);
+}
+/** Alpha a vertex brings to the cutout: its colour's when the row reads its colours, else one. */
+fn pageMaskAlpha(page:PageInfo,h:ClusterHeader,vertex:u32)->f32{
+ if((page.flags&${FLAG_HAS_COLOR}u)!=0u){return pageColor(page,h,vertex).w;}
+ return 1.0;
 }`;
 
 /**
