@@ -655,7 +655,6 @@
       "affectedConsumers": [
         "packages/sdk-browser/src/guides/guideSet.test.ts",
         "packages/sdk-browser/src/host/geometryBounds.ts",
-        "packages/sdk-browser/src/host/graph/geometry.ts",
         "packages/sdk-browser/src/host/prepared/geometry.ts",
         "packages/sdk-browser/src/host/scene/graphObjects.ts",
         "packages/sdk-browser/src/physics/tilePlace.ts",
@@ -711,7 +710,6 @@
         "bench/perf/core/three-vs-core-batch-instances.perf.ts",
         "bench/perf/core/three-vs-core-scene.perf.ts",
         "bench/witnesses/three/lod.ts",
-        "packages/sdk-browser/src/host/graph/geometry.ts",
         "packages/sdk-browser/src/host/world/bounds.ts",
         "packages/sdk-browser/src/page/selection/template.ts",
         "packages/sdk-browser/src/placement/hidden.ts",
@@ -737,7 +735,6 @@
         "bench/perf/browser/support/volumeBoxCases.ts",
         "bench/perf/core/three-vs-core-scene.perf.ts",
         "bench/witnesses/three/lod.ts",
-        "packages/sdk-browser/src/host/graph/geometry.ts",
         "packages/sdk-browser/src/world/page/runtimeCut.ts"
       ],
       "disposition": "retained",
@@ -752,7 +749,6 @@
       "classification": "public",
       "affectedConsumers": [
         "bench/perf/browser/support/volumeBoxCases.ts",
-        "packages/sdk-browser/src/host/graph/geometry.ts",
         "packages/sdk-browser/src/placement/hidden.ts",
         "packages/sdk-browser/src/placement/update.ts",
         "packages/sdk-browser/src/scene/replicateInstances.ts",
@@ -883,7 +879,6 @@
       "classification": "public",
       "affectedConsumers": [
         "bench/witnesses/exact/attachment.ts",
-        "packages/sdk-browser/src/host/graph/geometry.ts",
         "packages/sdk-browser/src/host/graph/graph.fixture.ts",
         "packages/sdk-browser/src/host/graph/graph.test.ts",
         "packages/sdk-browser/src/host/graph/mesh.ts",
@@ -3167,15 +3162,44 @@
       "proposedEnvironments": "browser",
       "classification": "public",
       "affectedConsumers": [
+        "bench/oracles/browser/autonomous-backend.ts",
+        "bench/perf/browser/view-frame.perf.ts",
+        "bench/witnesses/exact/attachment.ts",
+        "bench/witnesses/exact/materials.ts",
+        "bench/witnesses/exact/metrics.ts",
+        "bench/witnesses/exact/requests.ts",
+        "bench/witnesses/three/fromGraph.ts",
+        "bench/witnesses/three/fromGraphNodes.ts",
+        "packages/sdk-browser/src/backend/autonomous/heldFloor.ts",
+        "packages/sdk-browser/src/backend/autonomous/poolApi.test.ts",
+        "packages/sdk-browser/src/cluster/blendCopyContract.ts",
         "packages/sdk-browser/src/host/graph/graph.fixture.ts",
+        "packages/sdk-browser/src/host/graph/graph.test.ts",
+        "packages/sdk-browser/src/host/graph/mesh.ts",
+        "packages/sdk-browser/src/host/graph/node.test.ts",
+        "packages/sdk-browser/src/host/pageDiagnostics.ts",
+        "packages/sdk-browser/src/host/pageObjects.ts",
+        "packages/sdk-browser/src/host/prepared/geometry.ts",
+        "packages/sdk-browser/src/host/prepared/graph.test.ts",
+        "packages/sdk-browser/src/host/prepared/graph.ts",
+        "packages/sdk-browser/src/host/scene/graphNodes.ts",
+        "packages/sdk-browser/src/host/scene/graphObjects.ts",
+        "packages/sdk-browser/src/page/selection/types.ts",
         "packages/sdk-browser/src/physics/soft.fixture.ts",
         "packages/sdk-browser/src/physics/soft.test.ts",
         "packages/sdk-browser/src/physics/softContact.test.ts",
+        "packages/sdk-browser/src/placement/webglPageBatches.ts",
+        "packages/sdk-browser/src/scene/meshes.ts",
+        "packages/sdk-browser/src/webgl/cluster/meshDepth.test.ts",
+        "packages/sdk-browser/src/webgl/cluster/sceneDraw.test.ts",
+        "packages/sdk-browser/src/webgpu/blend/state.ts",
         "packages/sdk-browser/src/world/controls/transformHandles.ts",
         "packages/sdk-browser/src/world/core/worldCuts.ts",
+        "packages/sdk-browser/src/world/core/worldMirror.ts",
         "packages/sdk-browser/src/world/helper/index.ts",
         "packages/sdk-browser/src/world/saved/read.ts",
         "packages/sdk-browser/src/world/saved/write.ts",
+        "packages/sdk-browser/src/world/session/disposeSource.ts",
         "scripts/docs/examples/mesh.ts",
         "scripts/docs/garden-source.ts",
         "scripts/docs/observatory/geometry.ts",
@@ -3412,24 +3436,6 @@
       "affectedConsumers": ["packages/sdk-browser/src/stage/profiler.ts"],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/runtime/stageProfile\".GpuTimingMethod"
-    },
-    {
-      "name": "GraphGeometry",
-      "kind": "both",
-      "definingModule": "packages/sdk-browser/src/host/graph/geometry.ts",
-      "currentEntryPoints": ["trillion3d (browser condition)"],
-      "proposedEnvironments": "browser",
-      "classification": "public",
-      "affectedConsumers": [
-        "bench/oracles/browser/autonomous-backend.ts",
-        "bench/perf/browser/view-frame.perf.ts",
-        "bench/witnesses/exact/attachment.ts",
-        "bench/witnesses/exact/materials.ts",
-        "bench/witnesses/three/fromGraph.ts",
-        "bench/witnesses/three/fromGraphNodes.ts"
-      ],
-      "disposition": "retained",
-      "bindingIdentity": "\"packages/sdk-browser/src/host/graph/geometry\".GraphGeometry"
     },
     {
       "name": "GraphMesh",
@@ -3954,20 +3960,6 @@
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-browser/src/webgl/core/renderTarget\".HostDrawOutput"
-    },
-    {
-      "name": "HostGeometry",
-      "kind": "type",
-      "definingModule": "packages/sdk-browser/src/host/resources.ts",
-      "currentEntryPoints": ["trillion3d (browser condition)"],
-      "proposedEnvironments": "browser",
-      "classification": "public",
-      "affectedConsumers": [
-        "bench/witnesses/exact/metrics.ts",
-        "bench/witnesses/exact/requests.ts"
-      ],
-      "disposition": "retained",
-      "bindingIdentity": "\"packages/sdk-browser/src/host/resources\".HostGeometry"
     },
     {
       "name": "HostMaterial",
@@ -6246,7 +6238,7 @@
       "currentEntryPoints": ["trillion3d (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": ["packages/sdk-browser/src/physics/softBodies.ts"],
+      "affectedConsumers": [],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/physics/options\".PhysicsMatter"
     },
@@ -8210,7 +8202,6 @@
       "classification": "public",
       "affectedConsumers": [
         "packages/sdk-browser/src/host/geometryBounds.ts",
-        "packages/sdk-browser/src/host/graph/geometry.ts",
         "packages/sdk-browser/src/host/prepared/geometry.ts"
       ],
       "disposition": "retained",
@@ -9522,7 +9513,6 @@
       "affectedConsumers": [
         "packages/sdk-browser/src/guides/guideSet.test.ts",
         "packages/sdk-browser/src/host/geometryBounds.ts",
-        "packages/sdk-browser/src/host/graph/geometry.ts",
         "packages/sdk-browser/src/host/graph/graph.fixture.ts",
         "packages/sdk-browser/src/host/graph/light.ts",
         "packages/sdk-browser/src/host/prepared/geometry.ts",
@@ -9693,7 +9683,6 @@
       "classification": "public",
       "affectedConsumers": [
         "bench/witnesses/three/fromGraph.ts",
-        "packages/sdk-browser/src/host/graph/geometry.ts",
         "packages/sdk-browser/src/host/prepared/accessors.ts",
         "packages/sdk-browser/src/host/resources.ts"
       ],

@@ -52,7 +52,8 @@ export function createAutonomousRender(options: {
   requested: PageRec[];
   /** Moves when the placements change. */
   revision: () => number;
-  cap: number;
+  /** The display graph's page ceiling, which the cover it pins may raise (`pages.ts`). */
+  ceiling: () => number;
   sync: () => void;
   /** What the image keeps is gathered again once it drew another cut; `askedUrls` is all of it
    *  but that cut, what the pool keeps as the next one is about to run (`residency.ts`). */
@@ -70,7 +71,7 @@ export function createAutonomousRender(options: {
     blendCopies,
     worlds,
     shown,
-    cap,
+    ceiling,
     sync,
     residency,
     pool,
@@ -111,11 +112,11 @@ export function createAutonomousRender(options: {
     state.selectedTriangles = selected.selectedTriangles;
     state.frustumRejected = selected.frustumRejected;
     state.lodLevel = selected.lodLevel;
-    // Drawn pages past the display graph's page cap are reported, never replaced.
-    state.overBudget = attachedPages(shown) > cap;
+    // Drawn pages past the display graph's page ceiling are reported, never replaced.
+    state.overBudget = attachedPages(shown) > ceiling();
     sync();
     residency.keptChanged();
     gate.keep(state.visible, state.selectedTriangles, shown, state.lodLevel, state.overBudget);
   };
-  return frame;
+  return Object.assign(frame, { hostBytes: cut.hostBytes });
 }

@@ -18,12 +18,12 @@ test('the WGSL cut rule agrees with the TypeScript rule on every case', () => {
           }
 });
 
-test('anything beyond parameters, logic and comparisons is refused', () => {
+test('anything beyond the kernel subset is refused', () => {
   const fn = (body: string) => `fn p(a:bool,b:f32)->bool{return ${body};}`;
   assert.equal(wgslPredicate(fn('!a||(b>=b&&a)'), 'p')(false, 1), true);
   assert.throws(() => wgslPredicate(fn('b>0.5'), 'p'), /WGSL_PREDICATE_TOKEN/);
   assert.throws(() => wgslPredicate(fn('c'), 'p'), /WGSL_PREDICATE_NAME/);
   assert.throws(() => wgslPredicate(fn('abs(b)>b'), 'p'), /WGSL_PREDICATE/);
   assert.throws(() => wgslPredicate(fn('a'), 'q'), /WGSL_PREDICATE_MISSING/);
-  assert.throws(() => wgslPredicate('fn p(a:u32)->bool{return a;}', 'p'), /WGSL_PREDICATE_TYPE/);
+  assert.throws(() => wgslPredicate('fn p(a:vec3f)->bool{return a;}', 'p'), /WGSL_PREDICATE_TYPE/);
 });

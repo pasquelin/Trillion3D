@@ -5,10 +5,11 @@ import {
   setHostInstance,
   setHostInstanceCount,
 } from '../host/pageObjects.ts';
-import type { HostGeometry, HostMaterials } from '../host/resources.ts';
+import type { HostMaterials } from '../host/resources.ts';
 import type { GraphInstancedMesh } from '../host/graph/mesh.ts';
 import type { PageRec } from '../page/selection/types.ts';
 import { grownCapacity } from './rows.ts';
+import type { Geometry } from '../../../sdk-core/src/world/geometry/geometry.ts';
 
 type Group = { mesh: GraphInstancedMesh | null; capacity: number; count: number; first: PageRec };
 
@@ -21,7 +22,7 @@ type Group = { mesh: GraphInstancedMesh | null; capacity: number; count: number;
  * frame that shows the same records, on rows nobody wrote since, writes nothing.
  */
 export function createWebglPageBatches(scene: GraphScene) {
-  const groups = new Map<HostGeometry, Map<HostMaterials, Group>>();
+  const groups = new Map<Geometry, Map<HostMaterials, Group>>();
   const drop = (group: Group) => {
     if (!group.mesh) return;
     scene.remove(group.mesh);
@@ -39,7 +40,7 @@ export function createWebglPageBatches(scene: GraphScene) {
   // What the last draw wrote: its records, with the geometry and surface each wore then. A frame
   // that shows the same, on rows nobody wrote since, leaves every matrix and count as it is.
   const drawn: PageRec[] = [],
-    drawnGeometry: (HostGeometry | undefined)[] = [],
+    drawnGeometry: (Geometry | undefined)[] = [],
     drawnSurface: HostMaterials[] = [];
   let rowsWritten = true;
   const unchanged = (shown: readonly PageRec[]) => {

@@ -14,6 +14,11 @@
   antialiasing and the memory budgets are the foundation; the lighting is what they are for. It is
   reached by stages, each measured, and the strategy lives in `docs/ENGINE.md` § "Lighting: the target and the stages".
   A stage that is out of order is not out of scope.
+- **The bar, in this order: a perfect image, then the frame rate.** The same engine runs on the
+  web and in a native application, with the same image in both. A frame holds 60 fps at the least
+  and never needs more than 120, at the screen's own resolution and pixel ratio (up to 4K); a
+  lower internal resolution is allowed only when temporal reconstruction makes the image proof
+  show no loss; an open world opens and is crossed without a hitch, a pop or a hole.
 - **Never copy another engine's code, shaders or assets into this repository.** Not one line, ever.
   Commercial engines are not open source and their sources are licence-covered; reimplement from
   public material only — papers, talks, documentation, observed behaviour. Third-party engines and
@@ -29,6 +34,10 @@
 - Under identical input, camera, quality and budgets, image quality and performance must equal or
   exceed the Three.js witness. Any measured regression blocks validation and merge. Measurement
   noise is not an exemption, and an unmeasured metric is never evidence of parity.
+- **Every millisecond counts, measured.** The frame's largest costs are ranked on a real scene
+  (`docs/roles/measurer.md` step 8): small calculations repeated per frame or per page,
+  allocations in a frame, a JavaScript kernel that belongs in Rust or WebAssembly, work the
+  compiler could bake once.
 - **Never optimise a path whose cost is not measured.** State its share of the frame first, on a real
   scene, or say plainly that it is unknown. A batch justified by a supposition is a batch to stop.
 - Measure the whole frame before a part of it: the engine publishes a per-step CPU profile
@@ -62,8 +71,9 @@
 
 ## Image and fidelity
 
-- Never reduce resolution or draw distance. Never convert transparency to masking **inside the
-  engine**: a source material wrongly declared blended is reclassified by the compiler at import.
+- Never reduce the displayed resolution or the draw distance (a lower internal resolution only
+  under the mission's bar). Never convert transparency to masking **inside the engine**: a source
+  material wrongly declared blended is reclassified by the compiler at import.
 - `0 px`, `tri = selected` and A/A noise stay the default proof for geometry and lighting. A batch
   that keeps them owes no discussion.
 - **At most 4 px of A/A on a still capture is accepted** when it is isolated to a masked cut-out at
@@ -166,6 +176,9 @@ The rules of #483, binding on every change to geometry, streaming, memory, shado
 ## Personal tools stay local
 
 The agent rules (`AGENTS.md`) and the agent roles (`docs/roles/`) are tool-neutral and tracked.
+The company's shared assistant skills and agents are tracked in `skills/` and aliased into the
+local `.claude/` by `pnpm install` (`pnpm run skills:link`, see `docs/COMPANY.md`); nothing in the
+workflow requires them, and `.claude/` itself stays local.
 Personal assistant instructions, prompts, generated knowledge indexes and local tool settings
 must remain untracked. The shared setup, validation and contribution workflow must work without
 any personal assistant or indexing tool. Do not introduce such requirements in documentation,
@@ -180,9 +193,10 @@ its contents locally. Pulling a deletion can remove a previously tracked copy in
 
 ## Contribution workflow
 
-1. Work from one issue per batch; only the maintainer opens issues (AGENTS.md rule 5). Create a branch named `<issue>-<short-name>` from `origin/develop`
-   in an isolated worktree under `.worktrees/<branch>/` (ignored by git and by every tool), then
-   run `pnpm install`. Logs and throwaway files go in `.worktrees/logs/`. Mark the issue `in progress`.
+1. Work from one issue per batch; only the CTO, the maintainer's agent, opens issues (AGENTS.md
+   rule 5). Create a branch named `<issue>-<short-name>` from `origin/develop` in an isolated
+   worktree under `.worktrees/<branch>/` (ignored by git and by every tool), then run
+   `pnpm install`. Logs and throwaway files go in `.worktrees/logs/`. Mark the issue `in progress`.
 2. Implement the issue and record the relevant proof. Keep changes limited to the batch.
 3. Review the diff twice: first simplify duplicated or unnecessary work — in Claude Code
    `/simplify`, elsewhere a read of the whole diff for what is duplicated, needless or at the wrong
@@ -195,9 +209,9 @@ its contents locally. Pulling a deletion can remove a previously tracked copy in
    open). Describe what both
    local review passes found under "Local review before push". Replace `in progress` with `in review`.
 5. Obtain an independent review and resolve its findings before integration. The maintainer, or
-   whoever the maintainer entrusts with it, merges once the review holds and `validate` is green on
-   a head up to date with `develop`. Never push directly to `develop` or `main`, or rewrite
-   published history.
+   whoever the maintainer entrusts with it, merges into `develop` once the review holds and
+   `validate` is green on a head up to date with `develop`; `main` moves only on the maintainer's
+   word. Never push directly to `develop` or `main`, or rewrite published history.
 6. After merge, remove the worktree and merged branch, remove `in review` and close the issue;
    an engine batch is labelled `to measure` first. Every merge into `develop` is then re-read
    against this file; a finding reopens the issue, labelled `audit ko`, with the findings in a
