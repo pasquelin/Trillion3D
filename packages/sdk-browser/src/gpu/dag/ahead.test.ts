@@ -88,3 +88,17 @@ test('a still camera sends no view ahead, and its cut is the one of before', () 
   const without = cameraSelectionUniforms(cameraAt(0), 1, [1280, 720]);
   assert.deepEqual(evaluateDagSelectionKernel(s.packed, without), result);
 });
+
+test('a still camera whose way back is only rounded to unit length does not turn', () => {
+  // Looking at the origin from (1, 1, 1.2): the view's way back squares to 1 - 2⁻⁵², not 1.
+  const camera = G.perspectiveCamera(55, 1, 0.1, 100);
+  camera.position.set(1, 1, 1.2);
+  camera.lookAt(0, 0, 0);
+  camera.updateMatrixWorld(true);
+  const cam = cameraMoteur(camera),
+    motion: CameraMotion = {};
+  readCameraMotion(cam, motion, 0);
+  readCameraMotion(cam, motion, 16);
+  assert.equal(motion.turn, 0);
+  assert.equal(cameraSelectionUniforms(cam, 1, [512, 512], undefined, motion).ahead, null);
+});

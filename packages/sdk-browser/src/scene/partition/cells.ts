@@ -132,7 +132,7 @@ export function createPartitionCells(inputs: Inputs) {
         update(rows: PlacementRows, from: number, to: number): void;
         outgrown?: () => void;
       },
-      /** The frame's one integration budget (`FrameBudget`, the arrival queue's). */
+      /** The frame's one integration budget (`FrameBudget`, `../../page/integration/frameBudget.ts`). */
       budget: { admits(): boolean; spend(): void },
     ) {
       followParents();

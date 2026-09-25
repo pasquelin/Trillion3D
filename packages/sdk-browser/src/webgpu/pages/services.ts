@@ -174,7 +174,10 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     traceDiagnostic: diag.traceDiagnostic,
     diagnosticFailure: diag.diagnosticFailure,
   });
-  const publication = createWebgpuCutPublication(rt, residencySets, closure, aheadTier.offerIds);
+  const publication = createWebgpuCutPublication(rt, residencySets, closure, {
+    shadow: shadowTier,
+    ahead: aheadTier,
+  });
   return {
     syncRows,
     syncRowsFromCut,

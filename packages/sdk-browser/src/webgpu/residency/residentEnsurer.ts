@@ -1,4 +1,6 @@
-import { createFrameBudget, type FrameBudget } from './frameBudget.ts';
+import { STREAMING_FRAME_MS } from '../../backend/common.ts';
+import { createFrameBudget, yieldToEventLoop } from '../../page/integration/frameBudget.ts';
+import { createSparseInts } from '../../page/cut/sparseInts.ts';
 import { pageAddress } from '../row/pageSlots.ts';
 import { createPageAdmission } from './admission.ts';
 import type { PageRec } from '../../page/selection/selection.ts';
@@ -22,8 +24,6 @@ type EnsureOptions = {
   /** The lower tiers, served in this order after the camera's: the casters the light cuts asked
    *  for, then the pages ahead of the camera, each highest priority first (`lowerTier.ts`). */
   lowerTiers: () => readonly (readonly PageRec[])[];
-  /** The main-thread share every admission spends (`frameBudget.ts`); the published one by default. */
-  budget?: FrameBudget;
 };
 
 /** Loads newly wanted pages without acting on a stale camera cut. */
@@ -38,8 +38,29 @@ export function createWebgpuResidentEnsurer({
   traceEnabled,
   traceDiagnostic,
   lowerTiers,
-  budget = createFrameBudget(),
 }: EnsureOptions) {
+  /** The published share of the main thread (`STREAMING_FRAME_MS`): past it, a job yields a task
+   *  and starts a new share — a due frame goes through, and the job resumes without waiting for
+   *  one, so a hidden tab loads too. True when it yielded. */
+  const budget = createFrameBudget(STREAMING_FRAME_MS);
+  const pace = async () => {
+    if (budget.admits()) return false;
+    await yieldToEventLoop();
+    budget.open();
+    return true;
+  };
+  /** One job's lower tiers in order, each page once: a caster also ahead of the camera is
+   *  counted and loaded once. A copy: a tier's list is rewritten in place by every report taken
+   *  while this job loads, and a loop resumed on another list keeps neither its order nor its
+   *  count of free slots. */
+  const listed = createSparseInts();
+  const lowerList = () => {
+    const list: PageRec[] = [];
+    for (const tier of lowerTiers())
+      for (const rec of tier) if (!listed.set(tracking.keyOf(rec), 1)) list.push(rec);
+    listed.clear();
+    return list;
+  };
   /** Every load of both tiers goes through the install order; what the image holds is pinned. */
   const admit = createPageAdmission({
     getCache,
@@ -72,19 +93,19 @@ export function createWebgpuResidentEnsurer({
     for (let i = 0; i < lower.length; i++)
       if (!skip(lower[i]) && cache.touch(pageAddress(lower[i]))) held++;
     let spare = cache.unpinnedSlots() - held;
-    // The frame's share, as the camera's burst: past it the job waits for the next frame — and
-    // leaves if a camera cut asked for pages meanwhile: the queue serves the camera first and runs
-    // the tiers again. A job only ends on a tier pass nobody interrupted, so every wait on it finds
-    // the tiers posted (#281).
+    // The share, as the camera's burst: past it the job yields — and leaves if a camera cut asked
+    // for pages meanwhile: the queue serves the camera first and runs the tiers again. A job only
+    // ends on a tier pass nobody interrupted, so every wait on it finds the tiers posted (#281).
     for (let i = 0; i < lower.length && spare > 0; i++) {
-      if ((await budget.pace()) && cameraWaiting()) return;
+      if ((await pace()) && cameraWaiting()) return;
       const rec = lower[i],
         address = pageAddress(rec);
       if (skip(rec) || cache.get(address)) continue;
       signal?.throwIfAborted();
       if (isLost() || getCache() !== cache) return;
       try {
-        spare -= Math.max(0, await budget.spend(() => admit(rec)));
+        spare -= Math.max(0, await admit(rec));
+        budget.spend();
       } catch (error) {
         // The camera's own burst took the last slot meanwhile: the tier waits, as it does.
         if (String(error).includes('ALL_PAGES_PINNED')) return;
@@ -129,6 +150,7 @@ export function createWebgpuResidentEnsurer({
       }),
     );
     let full = false;
+    budget.open();
     for (let i = 0; i < wanted.length; i++) {
       const rec = wanted[i],
         key = tracking.keyOf(rec),
@@ -137,15 +159,16 @@ export function createWebgpuResidentEnsurer({
       signal?.throwIfAborted();
       if (isLost()) throw new Error('WEBGPU_LOST');
       if (!hasBytes(rec) || cache.get(address)) continue;
-      // The frame's share (`frameBudget.ts`): past it the burst resumes on the next frame, nothing
-      // dropped — and a camera that moved in between is already taken into account, since each
-      // turn rereads `wanted` before uploading anything.
-      if (await budget.pace()) {
+      // The share: past it the burst resumes after a task, nothing dropped — and a camera that
+      // moved in between is already taken into account, since each turn rereads `wanted` before
+      // uploading anything.
+      if (await pace()) {
         cache = getCache();
         if (isLost() || !cache) throw new Error('WEBGPU_LOST');
       }
       try {
-        await budget.spend(() => admit(rec));
+        await admit(rec);
+        budget.spend();
       } catch (error) {
         if (!String(error).includes('ALL_PAGES_PINNED')) throw error;
         // Pool full of pages the image holds: like the reference streamer, the burst stops there,
@@ -157,9 +180,7 @@ export function createWebgpuResidentEnsurer({
       cache = getCache();
       if (isLost() || !cache) throw new Error('WEBGPU_LOST');
     }
-    // A copy: a tier's list is rewritten in place by every report taken while this one loads,
-    // and a loop resumed on another list keeps neither its order nor its count of free slots.
-    const lower = full ? [] : ([] as PageRec[]).concat(...lowerTiers());
+    const lower = full ? [] : lowerList();
     if (lower.length) await loadLowerTiers(lower, cache, signal, cameraWaiting);
     traceDiagnostic('residency-ensure-end', 'GPU residency checked', () => ({
       ...payload({
