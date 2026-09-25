@@ -13,6 +13,9 @@ export const ASSETS = process.env.TRILLION3D_ASSETS
 /** Harness fallback when no named cache gives it a scene. */
 export const DEFAULT_SCENE = 'sponza';
 
+/** The fluids scene (`fluids.ts`): built in the page through the public API, it has no cache. */
+export const FLUIDS_SCENE = 'fluids';
+
 /** The scenes the campaign plays, in this order, as soon as their cache is there. */
 export const REFERENCE_SCENES = ['sponza', 'normal-tangent-mirror-test'];
 
@@ -22,6 +25,8 @@ const SCENE_NOTES: Record<string, string> = {
     'Khronos glTF-Sample-Assets, public: an interior of 262 k triangles and 69 images, the big cut and the lighting of the bench (`bench/runner/assets.ts`).',
   'normal-tangent-mirror-test':
     'Khronos glTF-Sample-Assets, public: a plane whose texture coordinates are mirrored halves — a fold the weld must not split, and that must cost the simplification nothing. Small on purpose: it proves a rule, it measures no frame.',
+  [FLUIDS_SCENE]:
+    'Fluids spike (#418): one ocean, 100 floating bodies, 20 fires and 5 smoke volumes, built through the public API; the drawn ocean, the fires and the smoke are throwaway stand-ins.',
 };
 
 export const sceneNote = (scene: string) => SCENE_NOTES[scene] ?? null;
@@ -42,7 +47,7 @@ export function scenesOf(flags: Map<string, string>, assets: string = ASSETS) {
 /** `--scene nom` sets the assets cache on each side that does not have its own. */
 export function applySceneFlag(flags: Map<string, string>, assets: string = ASSETS) {
   const scene = flags.get('scene');
-  if (!scene || scene === 'true') return;
+  if (!scene || scene === 'true' || scene === FLUIDS_SCENE) return;
   const derived = sceneDerived(scene, assets);
   if (!flags.has('cache-apres')) flags.set('cache-apres', derived);
   if (flags.has('avant') && !flags.has('cache-avant')) flags.set('cache-avant', derived);

@@ -54,14 +54,12 @@ export const raft = () => {
 };
 
 /**
- * The fluids bench's floating scene: `count` bodies on a grid 6 m apart, at the water's rest
- * height: wooden cubes, with every tenth a 10 m plank (sliced), a raft (compound) or a cork ball.
+ * The fluids bench's floating bodies: `count` on a grid 6 m apart, at the water's rest height:
+ * wooden cubes, with every tenth a 10 m plank (sliced), a raft (compound) or a cork ball.
  */
-export function floatingScene(count: number) {
-  const writer = new CommandWriter();
-  writer.gravity([0, -9.81, 0]);
+export function floatingBodies(count: number) {
   const side = Math.ceil(Math.sqrt(count));
-  for (let i = 0; i < count; i++) {
+  return Array.from({ length: count }, (_, i) => {
     const at = [(i % side) * 6, 0.2, Math.floor(i / side) * 6];
     const kind = i % 10;
     const shape =
@@ -72,8 +70,15 @@ export function floatingScene(count: number) {
           : kind === 9
             ? { shape: SHAPE.sphere, size: [0.5, 0, 0] as const }
             : cube(0.5);
-    writer.add(floater(i, at, kind === 9 ? 250 : 600, shape));
-  }
+    return floater(i, at, kind === 9 ? 250 : 600, shape);
+  });
+}
+
+/** The fluids bench's floating scene (`floatingBodies`), as the ADD commands after gravity. */
+export function floatingScene(count: number) {
+  const writer = new CommandWriter();
+  writer.gravity([0, -9.81, 0]);
+  for (const body of floatingBodies(count)) writer.add(body);
   return writer.take();
 }
 
