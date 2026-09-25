@@ -43,14 +43,8 @@ export function drawnTriangles(
   if (reading === 'points') return solids(points(p, (options.size ?? 1) / 2));
   const diagonal = box.setFromArray(position.array, position.itemSize).getSize(size).length() || 1;
   const thickness = (diagonal / 1024) * (options.linewidth ?? 1);
-  if (reading === 'lineStrip' || reading === 'lineLoop' || reading === 'lineSegments') {
-    const segments: number[] = [];
-    const step = reading === 'lineSegments' ? 2 : 1;
-    for (let i = 0; i + 1 < corners.length; i += step) segments.push(corners[i], corners[i + 1]);
-    if (reading === 'lineLoop' && corners.length > 2)
-      segments.push(corners[corners.length - 1], corners[0]);
-    return solids(prisms(p, segments, thickness));
-  }
+  if (reading === 'lineStrip' || reading === 'lineLoop' || reading === 'lineSegments')
+    return solids(prisms(p, lineCorners(corners, reading), thickness));
   if (corners.length < 3) return null;
   if (options.wireframe) {
     // Every edge once, however many triangles share it (`edgesOf`).
@@ -75,6 +69,20 @@ export function drawnTriangles(
   };
   if (options.flat) return flatten(drawn);
   return { ...drawn, normals: drawn.normals ?? computeNormals(drawn.positions, drawn.indices) };
+}
+
+/** The segments a line reading draws, as `[a, b]` corner pairs: each pair of `lineSegments`,
+ *  each step of `lineStrip`, and `lineLoop` closed from its last corner back to its first. */
+export function lineCorners(
+  corners: readonly number[],
+  reading: 'lineSegments' | 'lineStrip' | 'lineLoop',
+) {
+  const segments: number[] = [];
+  const step = reading === 'lineSegments' ? 2 : 1;
+  for (let i = 0; i + 1 < corners.length; i += step) segments.push(corners[i], corners[i + 1]);
+  if (reading === 'lineLoop' && corners.length > 2)
+    segments.push(corners[corners.length - 1], corners[0]);
+  return segments;
 }
 
 /** An octahedron of radius `r` on every vertex. */
