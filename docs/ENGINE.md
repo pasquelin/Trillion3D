@@ -63,7 +63,7 @@ compares one integer; visibility, parent and a light's numbers are compared per 
 What the engine computes — matrices, vectors, colours, its camera, the side of a material — it
 builds on `sdk-core`. A resource crosses the host boundary as the shapes of
 `packages/sdk-browser/src/host/resources.ts` (`HostMaterial`, `HostTexture`, `HostAttributes`,
-`HostMesh`, `HostNode`, `HostScene`) and is read in one place,
+`HostMesh`, `HostScene`; a node is the core's `Object3D`) and is read in one place,
 `packages/sdk-browser/src/host/surfaceImport.ts`, into the engine's own `Material` and `Texture`
 (`packages/sdk-core/src/contracts/material.ts`, `packages/sdk-core/src/texture/contract.ts`). Every
 pass, page row, tile pool and transparent item computes on those records alone; a page carries
@@ -124,8 +124,10 @@ to the capture target and the canvas in one pass.
 The reconstruction runs one pass per **material class**, the published visibility-buffer design,
 instead of one program that tests every feature per pixel. A class is the set of features the
 resolve would branch on — UV, base map, alpha cut-out, roughness, metalness, occlusion, emissive and
-normal maps, vertex normals, double-sidedness, tangents — an eleven-bit word carried by every page
-row. Pipelines are compiled at preparation, never on the frame that first draws a class. Each frame
+normal maps, vertex normals, double-sidedness, tangents, filtered sampling, vertex colours — a
+thirteen-bit word carried by every page row. A vertex-coloured class multiplies the base colour by
+the page's `COLOR_0` when its material asks for vertex colours, as the transparent pass and the
+WebGL2 path do; geometry read as floats carries its colours at the tail of its UV buffer, which every page-geometry pass binds. A masked surface is cut at base map alpha times vertex alpha, as the reference cuts. Pipelines are compiled at preparation, never on the frame that first draws a class. Each frame
 the `Trillion3D material depth` pass writes every pixel's class as an exact depth value, then one full-screen
 triangle per present class runs under `depthCompare: 'equal'`, so the hardware keeps that class's
 pixels and its fragment stage reads only the maps it has. The `material-classes-ready` diagnostic
@@ -187,7 +189,11 @@ read at the coarser level meanwhile, and are evicted least recently read first. 
 The table gives each of the 64 shadow slices (`maxLights`) a fixed window of the largest range a
 light needs, a whole sun's 16 × 64 × 64 words (`SHADOW_TABLE_STRIDE`): 2^22 words, 16 MiB
 (`SHADOW_TABLE_ENTRIES`), so every shadow-casting light the contract accepts holds its range.
-The GPU total's shadow share counts it with the pool (`SHADOW_POOL_BYTES`).
+The GPU total's shadow share counts it with the pool (`SHADOW_POOL_BYTES`). Its host mirror — the
+words, a change flag per word, and the pool's page records and eviction bitset at the largest pool,
+20.8 MiB (`SHADOW_HOST_BYTES`, summed from `shadowTableHostBytes` and `shadowPoolHostBytes`, which
+a test checks against real allocations) — is the CPU total's first share, before the decoded-page
+cache (`splitMemoryBudget`).
 
 - **A sun is a clipmap.** Level `L` has texels of `2^L` metres; its window is 64 × 64 pages around
   the camera (`sunLevelPages`), addressed by absolute page modulo the window, so a camera step keeps

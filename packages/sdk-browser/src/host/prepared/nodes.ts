@@ -12,7 +12,7 @@ import { Color } from '../../../../sdk-core/src/world/math/color.ts';
 import { GraphCamera } from '../graph/camera.ts';
 import { GraphLight } from '../graph/light.ts';
 import { type GraphMesh } from '../graph/mesh.ts';
-import { type GraphNode } from '../graph/node.ts';
+import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 
 /** The characters a node name may not hold, which the loader drops: the ones a path to an
  *  animated property is written with. */
@@ -75,7 +75,7 @@ export function weigh(mesh: GraphMesh, weights: readonly number[] | null) {
   for (let i = 0; i < weights.length; i++) mesh.morphTargetInfluences[i] = weights[i];
 }
 
-export function pose(node: GraphNode, declared: TableNode) {
+export function pose(node: Object3D, declared: TableNode) {
   if (declared.matrix) node.applyMatrix4({ elements: declared.matrix });
   else {
     if (declared.translation) node.position.fromArray(declared.translation);
