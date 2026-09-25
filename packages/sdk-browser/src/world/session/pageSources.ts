@@ -43,9 +43,11 @@ export async function createExplorerPageSources(
       : Math.max(8192, Math.min(attachCap, DEFAULT_CACHED_PAGES)));
   // The decode pool never exceeds the already-in-force transfer admission.
   configurePageDecoders(options.pageFetchWorkers ?? DEFAULT_PAGE_WORKERS);
+  // The resident proxy is read through the same queue, so the world keeps its bytes with the
+  // pages across sessions: a device lost and granted again does not fetch it twice (`proxyLoad.ts`).
   const streamer = createPageStreamerWith(
     options.pageCache,
-    [...pages, ...geometryPages, ...bundles, ...extra],
+    [...pages, ...geometryPages, ...bundles, ...extra, ...(metadata.proxy ? [metadata.proxy] : [])],
     base,
     signal,
     options.pageFetchWorkers ?? DEFAULT_PAGE_WORKERS,

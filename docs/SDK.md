@@ -1304,9 +1304,11 @@ bend }` simulates the mesh's vertices one by one on Jolt's soft bodies. A cloth 
 - Transparent surfaces are lit from the source file's own light graph with a fixed ambient, not yet
   by the declared-light rule above.
 - A lost device is recovered, the page never reloaded: the world asks for a device again, reopens its
-  session on it and rebuilds from its decoded-page cache, fetching no page or bundle it still holds.
+  session on it and rebuilds from its decoded-page cache, fetching no page, bundle or resident proxy
+  it still holds (the proxy's bytes count against `world.budget.cpu` with the pages).
   `gpu-device-recovered` says the time from the loss to the first frame drawn after it
-  (`recoveryMs`). Baked texture levels are read again, and cross-API fallback is not implemented.
+  (`recoveryMs`). Baked texture levels and `lights.json` are read again, and cross-API fallback is
+  not implemented.
 - Frame targets are allocated without an out-of-memory check: a refusal there is still reported as a
   lost device.
 - Physics, `ten-thousand-bodies` (10,000 boxes landing at once; headed Chrome, 1280×720, DPR 1,
