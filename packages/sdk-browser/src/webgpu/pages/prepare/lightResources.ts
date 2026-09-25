@@ -143,6 +143,7 @@ export function directLightResources(rt: WebgpuPagesRuntime) {
   const bounce = active && rt.bounce.wanted ? rt.bounce.probes : undefined;
   contractResources.bounceGrid = bounce?.uniform;
   contractResources.probes = bounce?.probes;
+  contractResources.surfaceCache = bounce?.surface.buffer;
   // Far-shadow proxy: bound only if it exists, otherwise the zero replacements leave the far surface
   // lit with no cast shadow. Both lighting passes read this same resolve, so they bind the same
   // buffer and trace the same ray.

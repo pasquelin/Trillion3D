@@ -7112,6 +7112,7 @@
       "bodies": "Các vật mà mô phỏng giữ.",
       "active": "Số vật còn chạy sau tick cuối.",
       "stepMs": "Mili giây worker mỗi bước cố định, tick cuối: đồng hồ của worker, không bao giờ cộng với đồng hồ trang.",
+      "stepMaxMs": "Mili giây worker của bước cố định chậm nhất trong tick cuối: một bước chậm mà giá trị trung bình che mất.",
       "mainMs": "Mili giây trang mà vật lý dùng ở khung cuối (giai đoạn CPU `physics`).",
       "poses": "Tư thế mà tick cuối gửi về.",
       "events": "Sự kiện va chạm mà tick cuối gửi về.",

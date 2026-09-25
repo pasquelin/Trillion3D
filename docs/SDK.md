@@ -1141,7 +1141,8 @@ rack, { axis, axisB, ratio })` slides the rack along `axisB` by `1 / ratio` metr
   `stats.droppedEvents` (its `leave` is then never sent). The soft-body budget arrives with soft
   bodies.
 - **Cost.** The `physics` CPU stage is the page's share (`stats.mainMs`); the worker's step is
-  `stats.stepMs`, on its own clock: the two are never added.
+  `stats.stepMs` (the mean of the last tick's steps) and `stats.stepMaxMs` (its slowest), on its
+  own clock: the two are never added.
 - **Compiled models.** A model loaded with `scene.load()` collides with its own triangles once the
   physics is on: the compiler cooked them (`physics.json`, [FORMAT.md](FORMAT.md)) and the physics
   streams its tiles in, restored from Jolt's binary state, around the eye up to `camera.far` and
@@ -1163,8 +1164,9 @@ rack, { axis, axisB, ratio })` slides the rack along `axisB` by `1 / ratio` metr
 
 - `scene.load` reads a versioned compiled manifest; non-triangle primitives, skinning, morph targets
   and non-standard glTF extensions are not drawn.
-- Specular environment-map IBL, area lights and screen-space reflections are not implemented; the
-  bounce lighting exists but is off by default ([ENGINE.md](ENGINE.md#light-that-bounces)).
+- Specular environment-map IBL and screen-space reflections are not implemented; the
+  bounce lighting exists but is off by default ([ENGINE.md](ENGINE.md#light-that-bounces)), and only
+  with it on does a surface at the roughness floor reflect the scene, at the proxy's detail.
 - Transparent surfaces are lit from the source file's own light graph with a fixed ambient, not yet
   by the declared-light rule above.
 - A lost device is reported, not recovered: full device-loss recovery and cross-API fallback are not
