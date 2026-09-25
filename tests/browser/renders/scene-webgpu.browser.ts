@@ -2,7 +2,7 @@ import { sceneProvenance, MEASURE_WIDTH, MEASURE_HEIGHT } from '../support/scene
 import { routeBaseline } from '../support/sceneBaseline.ts';
 import assert from 'node:assert/strict';
 import { launchChrome } from '../../../bench/runner/chrome.ts';
-import { startServer, serverPort } from '../../kit/server/staticServer.ts';
+import { startServer } from '../../kit/server/staticServer.ts';
 import { resolveMounts } from '../../../bench/runner/options.ts';
 import { assetsManifest, DEFAULT_SCENE } from '../../../bench/runner/scene.ts';
 import { resolve } from 'node:path';
@@ -16,8 +16,8 @@ const out = measureOutput('webgpu-visual', run);
 // The harness page and its import map, the trajectory under `/runner/`, and the engine this run
 // proves — `routeBaseline` intercepts `/dist/sdk-browser/`, so the engine keeps that prefix.
 const mounts = [...resolveMounts(ROOT, []), { prefix: '/dist/', dir: resolve(ROOT, 'dist') }];
-const server = await startServer({ port: 0, mounts, captures: new Map() });
-const harnessUrl = `http://127.0.0.1:${serverPort(server)}`;
+const { server, port } = await startServer({ port: 0, mounts, captures: new Map() });
+const harnessUrl = `http://127.0.0.1:${port}`;
 const provenance = await sceneProvenance(harnessUrl),
   taa = process.env.WEBGPU_TAA !== 'off';
 await mkdir(out, { recursive: true });

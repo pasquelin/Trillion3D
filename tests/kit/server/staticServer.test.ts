@@ -3,15 +3,20 @@
 // paths unless explicitly written.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { serverPort, startServer } from './staticServer.ts';
+import { startServer } from './staticServer.ts';
 import { resolve } from 'node:path';
 import { readOptions } from '../../../bench/runner/options.ts';
 
 /** The header `name` returned by a harness server launched with these options, then closed. */
 async function header(options: { isolation?: boolean }, name: string) {
-  const server = await startServer({ port: 0, mounts: [], captures: new Map(), ...options });
+  const { server, port } = await startServer({
+    port: 0,
+    mounts: [],
+    captures: new Map(),
+    ...options,
+  });
   try {
-    const response = await fetch(`http://127.0.0.1:${serverPort(server)}/`);
+    const response = await fetch(`http://127.0.0.1:${port}/`);
     await response.arrayBuffer();
     return response.headers.get(name);
   } finally {
@@ -37,13 +42,13 @@ test('--isolation is only on or off, and defaults to off when unstated', () => {
 });
 
 test('portal stylesheets are served as CSS so browser proofs use the real layout', async () => {
-  const server = await startServer({
+  const { server, port } = await startServer({
     port: 0,
     captures: new Map(),
     mounts: [{ prefix: '/styles/', dir: resolve(import.meta.dirname, '../../../site/styles') }],
   });
   try {
-    const response = await fetch(`http://127.0.0.1:${serverPort(server)}/styles/portal.css`);
+    const response = await fetch(`http://127.0.0.1:${port}/styles/portal.css`);
     assert.equal(response.headers.get('content-type'), 'text/css; charset=utf-8');
     assert.match(await response.text(), /render-frame/);
   } finally {
@@ -52,13 +57,13 @@ test('portal stylesheets are served as CSS so browser proofs use the real layout
 });
 
 test('a TypeScript page module is served as JavaScript, its types stripped', async () => {
-  const server = await startServer({
+  const { server, port } = await startServer({
     port: 0,
     captures: new Map(),
     mounts: [{ prefix: '/runner/', dir: resolve(import.meta.dirname) }],
   });
   try {
-    const response = await fetch(`http://127.0.0.1:${serverPort(server)}/runner/staticServer.ts`);
+    const response = await fetch(`http://127.0.0.1:${port}/runner/staticServer.ts`);
     assert.equal(response.headers.get('content-type'), 'text/javascript; charset=utf-8');
     const code = await response.text();
     assert.match(code, /function startServer\(/);

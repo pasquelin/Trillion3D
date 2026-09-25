@@ -61,7 +61,7 @@ function cadence(result: CaseResult) {
 }
 /** The engine's own CPU frame cost over the same frames; never added to a GPU duration. */
 const cpuFrame = (result: CaseResult) => spread(result.cpuRuns);
-const server = await startServer({
+const { server, port } = await startServer({
   port: 0,
   captures: new Map(),
   mounts: [
@@ -75,7 +75,7 @@ const browser = await launchChrome({ headless: true });
 const errors: string[] = [];
 try {
   const machine = async (webgpu: boolean, requests: DefaultBackendCase['request'][]) => {
-    const { context, page } = await openMachine({ browser, server, webgpu, errors });
+    const { context, page } = await openMachine({ browser, port, webgpu, errors });
     const cases: Record<string, CaseResult> = {};
     for (const request of requests)
       cases[request] = (await page.evaluate(runDefaultBackendCase, {
