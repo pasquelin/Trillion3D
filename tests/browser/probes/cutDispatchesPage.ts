@@ -32,7 +32,7 @@ import {
 } from '../../../bench/oracles/browser/cut-dispatches.ts';
 import { ouvrirAppareil } from './webgpuDevice.ts';
 import { commandes, scene } from './cutDispatchesScene.ts';
-import { median } from '../../kit/median.ts';
+import { median } from '../../../scripts/median.ts';
 import type { ExecuterParams, ExecuterResultat } from './cutDispatchesTypes.ts';
 
 // The frozen descent reads the camera's block under its old name: the shipped shader binds one

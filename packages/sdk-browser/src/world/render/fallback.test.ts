@@ -22,7 +22,10 @@ function fixture(lost: boolean) {
     scope: 'scene' as never,
     emit: (event: { code: string }) => void events.push(event.code),
     diagnose: () => {},
-    compose: Object.assign(() => void drawn.push('compose'), { dispose() {} }),
+    compose: Object.assign(() => void drawn.push('compose'), {
+      dispose() {},
+      effectBytes: () => 0,
+    }),
   };
   return { events, drawn, state, baseline, inputs };
 }

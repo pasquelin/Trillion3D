@@ -1,5 +1,6 @@
 import { readGpuImage } from '../../../gpu/core/presentation.ts';
 import { resetHizHistory } from './drops.ts';
+import { restartCameraMotion } from '../../../camera/motion.ts';
 import type { HostCamera } from '../../../camera/world.ts';
 import {
   drawResidentCut,
@@ -46,8 +47,7 @@ export async function captureColorView(
     viewport[0] = size.width;
     viewport[1] = size.height;
     resetHizHistory(run);
-    run.motion.last = undefined;
-    run.motion.lastMs = undefined;
+    restartCameraMotion(run.motion);
     renderForCapture(rt, camera, size.width / size.height);
     await drawResidentCut(rt, gpuDevice);
     if (!gpu.colorTexture) throw new Error('CAPTURE_NOT_READY');

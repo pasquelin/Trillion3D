@@ -6,7 +6,7 @@
 //! needing 256 px had to load and decode 2048², residence could
 //! not keep up with screen. Here, every level exists: tail in sidecar,
 //! RGBA8; levels above are lossless PNGs in cache, one file per level,
-//! addressed by source byte hash and atlas (`textures/<sha>/<srgb|linear>-<k>.png`),
+//! addressed by source byte hash and chain (`textures/<sha>/<srgb|linear|srgb-coverage>-<k>.png`),
 //! shared across scenes sharing image, never rewritten if present. Beside each
 //! PNG, when a quality gate lets it, the same level block-compressed in the
 //! families the cook asked for — the BC family for desktop cards, ASTC for
@@ -45,7 +45,8 @@ pub use levels::*;
 /// a block codec or the gate's bar requires incrementing this version and
 /// binary sidecar version carrying it. Version 3 is GPU rule and full chain,
 /// both atlases included; version 4 adds the gated block-compressed levels and
-/// tails.
+/// tails. A new chain under a name of its own moves no existing file and needs
+/// no increment: the `Coverage` chain (#42) is one.
 pub const TEXTURE_PREVIEW_VERSION: u32 = 4;
 pub use bake_write::{level_path, texture_version_dir, LEVEL_WRITE_FAILED, LOSSLESS, TEXTURE_DIR};
 pub use blocks::{BlockFormat, Layout};
@@ -159,7 +160,7 @@ pub(super) fn stage_texture_previews(
             Err((reason, count)) => *skipped.entry(reason).or_default() += count,
         }
     }
-    previews.sort_by_key(|p| (p.texture, p.kind));
+    previews.sort_by_key(|p| (p.texture, p.kind.atlas()));
     gates.sort_by(|a, b| {
         (&a.sha256, a.kind, a.format.name()).cmp(&(&b.sha256, b.kind, b.format.name()))
     });

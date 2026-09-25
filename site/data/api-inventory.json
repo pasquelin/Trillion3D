@@ -505,6 +505,33 @@
       "bindingIdentity": "\"packages/sdk-core/src/texture/previewLevels\".blocksAcross"
     },
     {
+      "name": "Bloom",
+      "kind": "both",
+      "definingModule": "packages/sdk-core/src/world/effect/bloom.ts",
+      "currentEntryPoints": ["trillion3d (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [
+        "packages/sdk-browser/src/effects/kinds.test.ts",
+        "packages/sdk-browser/src/effects/targets.ts",
+        "packages/sdk-browser/src/effects/webglBloom.ts",
+        "packages/sdk-browser/src/effects/webgpuBloom.ts"
+      ],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/src/world/effect/bloom\".Bloom"
+    },
+    {
+      "name": "BloomOptions",
+      "kind": "type",
+      "definingModule": "packages/sdk-core/src/world/effect/bloom.ts",
+      "currentEntryPoints": ["trillion3d (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/src/world/effect/bloom\".BloomOptions"
+    },
+    {
       "name": "BOUNCE_PROBES_PER_FRAME",
       "kind": "value",
       "definingModule": "packages/sdk-core/src/bounce/contracts.ts",
@@ -860,6 +887,17 @@
       "bindingIdentity": "\"packages/sdk-browser/src/world/budget/index\".budget"
     },
     {
+      "name": "BudgetCanvas",
+      "kind": "type",
+      "definingModule": "packages/sdk-browser/src/residency/memoryBudget.ts",
+      "currentEntryPoints": ["trillion3d (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-browser/src/residency/memoryBudget\".BudgetCanvas"
+    },
+    {
       "name": "buffer",
       "kind": "value",
       "definingModule": "packages/sdk-core/src/world/buffer/index.ts",
@@ -887,6 +925,7 @@
         "packages/sdk-browser/src/host/prepared/accessors.ts",
         "packages/sdk-browser/src/host/prepared/geometry.ts",
         "packages/sdk-browser/src/host/prepared/graph.test.ts",
+        "packages/sdk-browser/src/webgl/cluster/linearOutput.test.ts",
         "packages/sdk-browser/src/webgl/cluster/meshDepth.test.ts",
         "packages/sdk-browser/src/webgl/cluster/sceneDraw.test.ts",
         "packages/sdk-browser/src/world/core/worldCuts.test.ts",
@@ -2056,7 +2095,8 @@
       "affectedConsumers": [
         "bench/perf/browser/lamp-shadows.perf.ts",
         "packages/sdk-browser/src/webgpu/pages/state/lights.ts",
-        "packages/sdk-browser/src/webgpu/shadow/poolSize.ts"
+        "packages/sdk-browser/src/webgpu/shadow/poolSize.ts",
+        "packages/sdk-browser/src/world/core/worldBudget.test.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/scene/light-shadow/plan\".createShadowPlan"
@@ -2388,6 +2428,7 @@
         "packages/sdk-browser/src/physics/tickResults.test.ts",
         "packages/sdk-browser/src/physics/worldPhysics.ts",
         "packages/sdk-browser/src/world/core/worldBudget.test.ts",
+        "packages/sdk-browser/src/world/core/worldBudgetCanvas.test.ts",
         "scripts/bench-fluids.ts",
         "scripts/bench-physics.ts"
       ],
@@ -2652,6 +2693,84 @@
       "affectedConsumers": [],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/math/oracles\".edge"
+    },
+    {
+      "name": "effect",
+      "kind": "value",
+      "definingModule": "packages/sdk-core/src/world/effect/index.ts",
+      "currentEntryPoints": ["trillion3d (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [
+        "packages/sdk-browser/src/effects/kinds.test.ts",
+        "packages/sdk-browser/src/effects/webgpuEffects.test.ts",
+        "packages/sdk-browser/src/residency/memoryBudget.test.ts",
+        "packages/sdk-browser/src/webgpu/pages/render/encodeEffects.test.ts",
+        "packages/sdk-browser/src/world/core/worldBudgetCanvas.test.ts",
+        "packages/sdk-browser/src/world/core/worldSwitches.test.ts",
+        "packages/sdk-browser/src/world/render/composeEffects.test.ts"
+      ],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/src/world/effect/index\".effect"
+    },
+    {
+      "name": "EffectChain",
+      "kind": "both",
+      "definingModule": "packages/sdk-core/src/world/effect/chain.ts",
+      "currentEntryPoints": ["trillion3d (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [
+        "packages/sdk-browser/src/webgpu/frame/hold.fixture.ts",
+        "packages/sdk-browser/src/webgpu/pages/render/encodeEffects.test.ts",
+        "packages/sdk-browser/src/world/core/worldSwitches.ts",
+        "packages/sdk-browser/src/world/render/compose.ts",
+        "packages/sdk-browser/src/world/render/composeEffects.test.ts"
+      ],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/src/world/effect/chain\".EffectChain"
+    },
+    {
+      "name": "EffectKind",
+      "kind": "type",
+      "definingModule": "packages/sdk-core/src/world/effect/chain.ts",
+      "currentEntryPoints": ["trillion3d (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [
+        "packages/sdk-browser/src/effects/targets.ts",
+        "packages/sdk-browser/src/effects/webglEffects.ts",
+        "packages/sdk-browser/src/effects/webgpuEffects.ts"
+      ],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/src/world/effect/chain\".EffectKind"
+    },
+    {
+      "name": "EffectPass",
+      "kind": "both",
+      "definingModule": "packages/sdk-core/src/world/effect/chain.ts",
+      "currentEntryPoints": ["trillion3d (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [
+        "packages/sdk-browser/src/effects/targets.ts",
+        "packages/sdk-browser/src/effects/webglEffects.ts",
+        "packages/sdk-browser/src/effects/webgpuEffects.ts",
+        "packages/sdk-browser/src/world/render/compose.ts"
+      ],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/src/world/effect/chain\".EffectPass"
+    },
+    {
+      "name": "EffectStage",
+      "kind": "type",
+      "definingModule": "packages/sdk-core/src/world/effect/chain.ts",
+      "currentEntryPoints": ["trillion3d (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/src/world/effect/chain\".EffectStage"
     },
     {
       "name": "emptyIrradiance",
@@ -3011,6 +3130,7 @@
       "affectedConsumers": [
         "bench/perf/core/three-vs-core-camera.perf.ts",
         "packages/sdk-browser/src/camera/renderOrigin.ts",
+        "packages/sdk-browser/src/gpu/core/aheadView.ts",
         "packages/sdk-browser/src/gpu/core/selection.ts",
         "packages/sdk-browser/src/page/cut/state.ts",
         "packages/sdk-browser/src/webgl/cluster/copyCulling.ts",
@@ -3069,6 +3189,7 @@
       "classification": "public",
       "affectedConsumers": [
         "packages/sdk-browser/src/camera/renderOrigin.ts",
+        "packages/sdk-browser/src/gpu/core/aheadView.ts",
         "packages/sdk-browser/src/page/cut/select.ts"
       ],
       "disposition": "retained",
@@ -3099,6 +3220,7 @@
         "bench/perf/browser/support/volumeFrustumPlaneCases.ts",
         "bench/perf/core/three-vs-core-camera.perf.ts",
         "packages/sdk-browser/src/camera/renderOrigin.ts",
+        "packages/sdk-browser/src/gpu/core/aheadView.ts",
         "tests/browser/probes/inverseTransposeCases.ts"
       ],
       "disposition": "retained",
@@ -3192,6 +3314,7 @@
         "packages/sdk-browser/src/physics/softContact.test.ts",
         "packages/sdk-browser/src/placement/webglPageBatches.ts",
         "packages/sdk-browser/src/scene/meshes.ts",
+        "packages/sdk-browser/src/webgl/cluster/linearOutput.test.ts",
         "packages/sdk-browser/src/webgl/cluster/meshDepth.test.ts",
         "packages/sdk-browser/src/webgl/cluster/sceneDraw.test.ts",
         "packages/sdk-browser/src/webgpu/blend/state.ts",
@@ -5007,6 +5130,7 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
+        "packages/sdk-browser/src/gpu/core/aheadView.ts",
         "packages/sdk-browser/src/gpu/partition/uniform.ts",
         "packages/sdk-browser/src/taa/frame.ts"
       ],
@@ -5246,6 +5370,7 @@
         "packages/sdk-browser/src/backend/autonomous/instancePose.ts",
         "packages/sdk-browser/src/camera/renderOrigin.test.ts",
         "packages/sdk-browser/src/camera/renderOrigin.ts",
+        "packages/sdk-browser/src/gpu/core/aheadView.ts",
         "packages/sdk-browser/src/gpu/dag/oracle/math.ts",
         "packages/sdk-browser/src/gpu/dag/request.test.ts",
         "packages/sdk-browser/src/guides/guideObject.ts",
@@ -6529,9 +6654,23 @@
       "currentEntryPoints": ["trillion3d (common)"],
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
-      "affectedConsumers": ["packages/sdk-browser/src/webgpu/pages/prepare/textures.ts"],
+      "affectedConsumers": [
+        "packages/sdk-browser/src/webgpu/pages/prepare/textures.ts",
+        "packages/sdk-browser/src/webgpu/tile/catalogue.test.ts"
+      ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/texture/previewFormat\".PREVIEW_ATLAS_COLOR"
+    },
+    {
+      "name": "PREVIEW_ATLAS_COVERAGE",
+      "kind": "value",
+      "definingModule": "packages/sdk-core/src/texture/previewFormat.ts",
+      "currentEntryPoints": ["trillion3d (common)"],
+      "proposedEnvironments": "common, browser, node, worker",
+      "classification": "public",
+      "affectedConsumers": ["packages/sdk-browser/src/webgpu/tile/catalogue.test.ts"],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/src/texture/previewFormat\".PREVIEW_ATLAS_COVERAGE"
     },
     {
       "name": "PREVIEW_ATLAS_DATA",
@@ -6540,7 +6679,10 @@
       "currentEntryPoints": ["trillion3d (common)"],
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
-      "affectedConsumers": ["packages/sdk-browser/src/webgpu/pages/prepare/textures.ts"],
+      "affectedConsumers": [
+        "packages/sdk-browser/src/webgpu/pages/prepare/textures.ts",
+        "packages/sdk-browser/src/webgpu/tile/catalogue.test.ts"
+      ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/texture/previewFormat\".PREVIEW_ATLAS_DATA"
     },
@@ -7758,9 +7900,10 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
+        "packages/sdk-browser/src/gpu/shadow/batchBudget.ts",
         "packages/sdk-browser/src/gpu/shadow/cull.ts",
+        "packages/sdk-browser/src/webgpu/pages/render/encodeShadowBatches.test.ts",
         "packages/sdk-browser/src/webgpu/shadow/casters.ts",
-        "packages/sdk-browser/src/webgpu/shadow/cpuCut.test.ts",
         "packages/sdk-browser/src/webgpu/shadow/pages.ts",
         "packages/sdk-browser/src/webgpu/shadow/regions.test.ts",
         "packages/sdk-browser/src/webgpu/shadow/regions.ts"
@@ -8895,7 +9038,6 @@
       "affectedConsumers": [
         "packages/sdk-browser/src/texture/blockFormats.ts",
         "packages/sdk-browser/src/texture/skip.test.ts",
-        "packages/sdk-browser/src/webgpu/pages/prepare/textures.ts",
         "packages/sdk-browser/src/webgpu/tile/catalogue.test.ts",
         "packages/sdk-browser/src/webgpu/tile/catalogue.ts",
         "tests/fixtures/manifestBinaryPreview.ts"
@@ -8947,10 +9089,12 @@
         "bench/witnesses/exact/clusterBatches.ts",
         "packages/sdk-browser/src/lighting/deferred/view.ts",
         "packages/sdk-browser/src/lighting/toneMappingWgsl.ts",
+        "packages/sdk-browser/src/webgl/cluster/owner.ts",
         "packages/sdk-browser/src/webgl/cluster/renderer.ts",
         "packages/sdk-browser/src/webgl/cluster/sceneDraw.ts",
         "packages/sdk-browser/src/webgl/core/outputGlsl.ts",
         "packages/sdk-browser/src/webgpu/pages/render/encodeLights.ts",
+        "packages/sdk-browser/src/world/render/compose.ts",
         "tests/kit/lighting/draw.ts"
       ],
       "disposition": "retained",

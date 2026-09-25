@@ -1,23 +1,37 @@
 import test, { mock } from 'node:test';
 import assert from 'node:assert/strict';
 import { createWebgpuPageTracking } from '../row/pageTracking.ts';
-import { UPLOAD_SLICE_MS } from '../../backend/common.ts';
+import { STREAMING_FRAME_MS } from '../../backend/common.ts';
 import { createWebgpuResidencyQueue } from './queue.ts';
 import { lruCache, pageOf, tierEnsurer } from './residentEnsurer.fixture.ts';
 
-/** A pool whose every load outlasts the upload slice, on a clock the test owns. */
-function slowCache(slots: number) {
+/** A pool whose every load spends `cost` of the main-thread share (a whole one by default), on a
+ *  clock the test owns. `perTask` counts the loads between two yields: each posts one message
+ *  (`yieldToEventLoop`). */
+function slowCache(slots: number, cost = STREAMING_FRAME_MS) {
   let clock = 0;
   mock.method(performance, 'now', () => clock);
+  const yields = mock.method(MessagePort.prototype, 'postMessage');
   const cache = lruCache(slots),
     load = cache.load,
-    order: string[] = [];
+    order: string[] = [],
+    perTask: number[] = [];
   cache.load = async (url: string) => {
-    clock += UPLOAD_SLICE_MS;
+    const task = yields.mock.callCount();
+    perTask[task] = (perTask[task] ?? 0) + 1;
+    clock += cost;
     order.push(url);
     await load(url);
   };
-  return { cache, order };
+  return { cache, order, perTask };
+}
+
+/** Twelve pages the camera wants. */
+function burst() {
+  const pages = Array.from({ length: 12 }, (_, i) => pageOf(`p${i}`));
+  const tracking = createWebgpuPageTracking(pages);
+  for (const page of pages) tracking.wanted.add(tracking.keyOf(page), page);
+  return { pages, tracking };
 }
 
 test('a barrier, which passes no camera probe, posts every caster before it resolves', async () => {
@@ -32,6 +46,43 @@ test('a barrier, which passes no camera probe, posts every caster before it reso
     assert.equal(cache.resident.size, 3, 'every caster posted when the job resolves');
     assert.ok(seen >= 1 && seen < 3, `the job yielded between slices (${seen} posted then)`);
   } finally {
+    mock.restoreAll();
+  }
+});
+
+test('a task starts no page past the published share', async () => {
+  const { pages, tracking } = burst();
+  const cost = STREAMING_FRAME_MS * 0.3;
+  try {
+    const { cache, perTask } = slowCache(16, cost);
+    await tierEnsurer(tracking, cache, () => [])(pages, 1, 1);
+    const tasks = perTask.filter(Boolean);
+    assert.equal(cache.resident.size, 12, 'every page admitted');
+    assert.ok(tasks.length > 1, `across several tasks (${tasks.join(' ')})`);
+    // A page starts only within the share: the share's worth, and the one begun at its edge.
+    for (const count of tasks) assert.ok(count <= Math.ceil(STREAMING_FRAME_MS / cost), `${count}`);
+  } finally {
+    mock.restoreAll();
+  }
+});
+
+test('a hidden tab, where no frame comes, loads a whole burst, a share per task', async () => {
+  const { pages, tracking } = burst();
+  const frames = globalThis as { requestAnimationFrame?: unknown };
+  frames.requestAnimationFrame = () => 0;
+  try {
+    // Every load spends a whole share: twelve shares, and not one frame to spend them in.
+    const { cache } = slowCache(16);
+    let done = false;
+    const job = tierEnsurer(tracking, cache, () => [])(pages, 1, 1).then(() => (done = true));
+    let tasks = 0;
+    for (; !done && tasks < pages.length * 4; tasks++) await new Promise(setImmediate);
+    assert.ok(done, `the burst resolved without a frame (${cache.resident.size} of 12 loaded)`);
+    await job;
+    assert.equal(cache.resident.size, 12);
+    assert.ok(tasks > 1, 'yielding between shares');
+  } finally {
+    delete frames.requestAnimationFrame;
     mock.restoreAll();
   }
 });
