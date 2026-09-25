@@ -30,7 +30,7 @@ test('a prepared geometry is the host’s: its normalised lists are edged and tu
     meshes: [{ primitives: [{ attributes: { POSITION: 0, NORMAL: 1 }, indices: null }] }],
   } as unknown as TableDocument;
   const geometry = preparedGeometries(document, binary.buffer)(0, 0);
-  assert.equal(geometry.owner, 'host');
+  assert.equal(geometry._owner, 'host');
   assert.deepEqual(
     Array.from(wireframe(geometry).attributes.position.array),
     [0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0],
