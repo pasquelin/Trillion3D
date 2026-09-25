@@ -1,11 +1,11 @@
 import { GraphMesh } from '../../../packages/sdk-browser/src/host/graph/mesh.ts';
-import { GraphGeometry } from '../../../packages/sdk-browser/src/host/graph/geometry.ts';
 import { BufferAttribute } from '../../../packages/sdk-core/src/world/buffer/attribute.ts';
 import type { HostMaterials } from '../../../packages/sdk-browser/src/host/resources.ts';
 import { setGeometryBounds } from '../../../packages/sdk-browser/src/host/geometryBounds.ts';
 import type { PageRec } from '../../../packages/sdk-browser/src/page/selection/selection.ts';
 import { hashId } from '../../../packages/sdk-browser/src/diagnostic/colors.ts';
 import { disposeTriangleGeometry } from '../../../packages/sdk-browser/src/diagnostic/triangleDiagnostic.ts';
+import { Geometry } from '../../../packages/sdk-core/src/world/geometry/geometry.ts';
 
 /** One resident index buffer per page source, shared by every page read from it. */
 export function pageIndexBuffers(pages: readonly PageRec[]) {
@@ -17,7 +17,7 @@ export function pageIndexBuffers(pages: readonly PageRec[]) {
 }
 
 /** Gives a page's geometry back: its diagnostic triangles, its attributes, then itself. */
-export function disposePageGeometry(geometry: GraphGeometry) {
+export function disposePageGeometry(geometry: Geometry) {
   disposeTriangleGeometry(geometry);
   for (const name of Object.keys(geometry.attributes)) geometry.deleteAttribute(name);
   geometry.dispose();
@@ -28,15 +28,16 @@ export function disposePageGeometry(geometry: GraphGeometry) {
 export function createExactPagesAttachment(
   indexByUrl: Map<string, BufferAttribute>,
   materialFor: (rec: PageRec) => HostMaterials,
-  paint: (mesh: GraphMesh, geometry: GraphGeometry, material: HostMaterials, salt?: number) => void,
+  paint: (mesh: GraphMesh, geometry: Geometry, material: HostMaterials, salt?: number) => void,
 ) {
   const attach = (rec: PageRec) => {
     if (!rec.array) return;
     if (!indexByUrl.has(rec.url)) indexByUrl.set(rec.url, new BufferAttribute(rec.array, 1));
     const fresh = !rec.mesh;
     if (fresh) {
-      const geometry = new GraphGeometry();
-      geometry.attributes = { ...rec.attributes };
+      const geometry = new Geometry();
+      for (const [name, attribute] of Object.entries(rec.attributes))
+        geometry.setAttribute(name, attribute);
       geometry.setIndex(indexByUrl.get(rec.url)!);
       setGeometryBounds(geometry, rec.min, rec.max);
       const copy = new GraphMesh(geometry, materialFor(rec));

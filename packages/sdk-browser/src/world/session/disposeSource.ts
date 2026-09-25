@@ -1,15 +1,12 @@
-import type {
-  HostGraphGeometry,
-  HostGraphMaterial,
-  HostGraphTexture,
-} from '../../host/scene/graphResources.ts';
+import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts';
+import type { HostGraphMaterial, HostGraphTexture } from '../../host/scene/graphResources.ts';
 import { materialTextures, meshes as objects } from '../../scene/meshes.ts';
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 
 /** Gives back every host resource the loaded subtree holds: geometries, surfaces, textures and
  *  the images they decoded. Each is freed once — several meshes share one surface. */
 export function disposeSource(source: Object3D) {
-  const geometries = new Set<HostGraphGeometry>(),
+  const geometries = new Set<Geometry>(),
     materials = new Set<HostGraphMaterial>(),
     textures = new Set<HostGraphTexture>();
   for (const mesh of objects(source)) {

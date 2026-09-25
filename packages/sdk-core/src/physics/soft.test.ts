@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { plane, sphere } from '../world/geometry/basic.ts';
 import { fromArrays } from '../world/geometry/builder.ts';
+import { InterleavedBuffer, InterleavedBufferAttribute } from '../world/buffer/attribute.ts';
 import { CommandWriter } from './commands.ts';
 import { OP } from './layout.ts';
 import { ObjectPhysics } from './objectPhysics.ts';
@@ -117,4 +118,18 @@ test('SOFT carries its fixed words at their layout offsets, then the vertices an
   assert.deepEqual([words[19], words[20]], [4, 6]);
   assert.deepEqual([...floats.subarray(SOFT_WORDS, SOFT_WORDS + 16)], [...record.vertices]);
   assert.deepEqual([...words.subarray(SOFT_WORDS + 16)], [...record.indices]);
+});
+
+test('a cloth over an interleaved position reads its vertices, not the whole shared buffer', () => {
+  const flat = plane(2, 1, 4, 2);
+  const position = flat.getAttribute('position')!;
+  const packed = new Float32Array(position.count * 5);
+  for (let i = 0; i < position.count; i++)
+    for (let c = 0; c < 3; c++) packed[i * 5 + c] = position.getComponent(i, c);
+  const woven = flat.clone();
+  woven.setAttribute(
+    'position',
+    new InterleavedBufferAttribute(new InterleavedBuffer(packed, 5), 3, 0),
+  );
+  assert.deepEqual(of({ type: 'cloth' }, one, woven).vertices, of({ type: 'cloth' }).vertices);
 });

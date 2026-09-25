@@ -23,7 +23,7 @@ function hostileHierarchy() {
   const petitEnfant = new G.Group();
   petitEnfant.position.set(NaN, 0, -0);
   enfant.add(petitEnfant);
-  const feuille = G.mesh(new G.GraphGeometry(), G.basicSurface());
+  const feuille = G.mesh(new G.Geometry(), G.basicSurface());
   feuille.position.set(2, 2, 2);
   petitEnfant.add(feuille);
   return { racine, enfant, petitEnfant, feuille };
