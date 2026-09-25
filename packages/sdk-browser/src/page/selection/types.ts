@@ -9,7 +9,7 @@ import type {
 import type { PageSurface } from '../surface.ts';
 import type { MatrixElements } from '../../math/matrixElements.ts';
 import type { NormalCone } from '../cone/cone.ts';
-import type { CullingLinks } from '../cut/forced.ts';
+import type { CullingLinks } from '../cut/readiness.ts';
 import type { PlacementOf } from '../../placement/rows.ts';
 
 export type PageRec = {
