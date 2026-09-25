@@ -5,7 +5,7 @@ import { SOFT_VERTEX_WORDS } from './softLayout.ts';
 
 /** A soft body the compiler cooked (`physics.json`): its `SoftBodySharedSettings` in Jolt's binary
  *  state, scaled and holding its compliances, and its gas's pressure at rest (Pa, 0 without). */
-interface CookedSoftRecord {
+export interface CookedSoftRecord {
   cooked: Uint8Array;
   pressure: number;
 }

@@ -41,4 +41,4 @@ export {
   type SoftSettings,
   type SoftVolumeOptions,
 } from './soft.ts';
-export { writeSoft, type SoftBodyRecord } from './softCommands.ts';
+export { writeSoft, type CookedSoftRecord, type SoftBodyRecord } from './softCommands.ts';
