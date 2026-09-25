@@ -1114,11 +1114,11 @@
     }
   },
   "Geometry": {
-    "summary": "Chỉ riêng hình dạng: các thuộc tính theo từng đỉnh có tên, một chỉ số tam giác tùy chọn, các nhóm vật liệu.",
+    "summary": "Chỉ hình dạng: các thuộc tính theo đỉnh có tên, một chỉ mục tam giác tùy chọn, các nhóm vật liệu, các đích morph làm nó chuyển động và dải được vẽ.",
     "members": {
       "isGeometry": "Luôn là `true`: phân biệt một hình học với bất cứ thứ gì khác.",
       "type": "Loại của hình học đó, `'Geometry'`.",
-      "attributes": "Các danh sách theo từng đỉnh theo tên: `position`, `normal`, `uv`, `color`.",
+      "attributes": "Các danh sách theo đỉnh theo tên: `position`, `normal`, `uv`, `color`; mỗi danh sách sở hữu số của mình hoặc đọc một bộ đệm xen kẽ.",
       "index": "Những đỉnh nào tạo nên mỗi tam giác, ba con số mỗi tam giác; `null` đọc chúng theo thứ tự.",
       "groups": "Các khoảng chỉ số được vẽ bằng `material[materialIndex]` khi một mesh mang nhiều vật liệu.",
       "boundingBox": "Hộp bao quanh mọi đỉnh, một khi đã được tính; `null` cho tới lúc đó.",
@@ -1133,8 +1133,8 @@
       "addGroup": "Vẽ `count` chỉ số kể từ `start` với số vật liệu `materialIndex` của mesh đó.",
       "clearGroups": "Xóa mọi nhóm vật liệu.",
       "computeVertexNormals": "Các pháp tuyến mịn: mỗi đỉnh lấy trung bình các mặt chia sẻ nó, có trọng số theo diện tích của chúng.",
-      "computeBoundingBox": "Đo hộp bao quanh mọi đỉnh và giữ nó trong `boundingBox`.",
-      "computeBoundingSphere": "Đo hình cầu bao quanh mọi đỉnh và giữ nó trong `boundingSphere`.",
+      "computeBoundingBox": "Đo hộp quanh mọi đỉnh và mọi hình dạng mà một đích morph cho nó, rồi giữ trong `boundingBox`.",
+      "computeBoundingSphere": "Đo quả cầu có tâm ở hộp và chạm tới đỉnh xa nhất, có morph hay không, rồi giữ trong `boundingSphere`.",
       "applyMatrix4": "Di chuyển mọi vị trí, xoay mọi pháp tuyến: chính hình học đó thay đổi, không phải một tư thế.",
       "translate": "Di chuyển mọi đỉnh theo `(x, y, z)`.",
       "rotateX": "Xoay mọi đỉnh quanh trục x, theo góc `angle` radian.",
@@ -1142,8 +1142,17 @@
       "rotateZ": "Xoay mọi đỉnh quanh trục z, theo góc `angle` radian.",
       "scale": "Kéo giãn mọi đỉnh theo `(x, y, z)`.",
       "center": "Di chuyển hình học sao cho hộp của nó nằm giữa gốc tọa độ.",
-      "clone": "Một hình học mới với các bản sao của mọi danh sách.",
-      "dispose": "Quên đi những chủ sở hữu: một hình học đã bị hủy thì không ai vẽ cả."
+      "clone": "Một hình học mới với bản sao của mọi danh sách, các nhóm, dải, dữ liệu và biên của nó, cùng công thức vẫn dựng nên nó.",
+      "dispose": "Trả lại hình học: chạy mỗi móc giải phóng một lần, quên những người giữ nó và cây dò tia; không ai vẽ hay bắn tia vào một hình học đã giải phóng.",
+      "kind": "Tài nguyên là gì, cách người đọc cảnh phân biệt các tài nguyên.",
+      "name": "Tên của nó.",
+      "morphAttributes": "Với mỗi thuộc tính được morph, một thuộc tính cho mỗi đích morph.",
+      "morphTargetsRelative": "Đúng khi một đích morph chứa độ dời, không phải vị trí.",
+      "drawRange": "Dải chỉ mục được vẽ.",
+      "userData": "Chỗ trống cho dữ liệu của người đã dựng hình học.",
+      "released": "Được gọi khi hình học được trả lại: thứ mà bản sao riêng của bộ dựng hình lắng nghe.",
+      "getIndex": "Danh sách tam giác, hoặc `null`.",
+      "toNonIndexed": "Một hình học vẽ cùng các tam giác không có chỉ mục: mỗi góc là một đỉnh riêng."
     }
   },
   "GeometryPageDescriptor": {
@@ -1397,9 +1406,6 @@
       "width": "Chiều rộng tính bằng điểm ảnh.",
       "height": "Chiều cao tính bằng điểm ảnh."
     }
-  },
-  "HostGeometry": {
-    "summary": "Một hình học chủ: các thuộc tính của nó, và hộp cục bộ mà ứng dụng chủ đã tính trên chúng."
   },
   "HostMaterial": {
     "summary": "Một vật liệu chủ đúng như bộ máy đọc nó: các tham số bề mặt mà mọi vật liệu chủ chia sẻ, được đọc một lần tại ranh giới vào `VisMaterial` của bộ máy; chỉ riêng `sideOf` đọc `side`."
@@ -6321,7 +6327,7 @@
   "object.sprite": {
     "summary": "Một hình phẳng luôn quay về phía camera, dù camera nhìn hướng nào: một hình vuông đơn vị, lớn bằng tỉ lệ của sprite và được xoay trong ảnh theo `rotation` của vật liệu.",
     "parameters": {
-      "material": "Những gì hình vuông hiển thị: một `material.sprite`."
+      "material": "Những gì hình vuông hiển thị: một `material.sprite`; mọi loại khác đều ném ra lỗi."
     }
   },
   "orthographicProjection": {
@@ -7283,32 +7289,6 @@
       "handbrake": "Phanh tay có đang kéo không."
     }
   },
-  "GraphGeometry": {
-    "summary": "Các thuộc tính mà một lưới vẽ, danh sách tam giác đánh chỉ mục chúng, các mục tiêu morph di chuyển chúng, cùng hộp và hình cầu cục bộ tính trên chúng.",
-    "members": {
-      "kind": "Tài nguyên là gì.",
-      "name": "Tên của nó.",
-      "index": "Danh sách tam giác, hoặc `null` để vẽ các đỉnh theo thứ tự.",
-      "attributes": "Các thuộc tính đỉnh của nó.",
-      "morphAttributes": "Với mỗi thuộc tính biến dạng, một thuộc tính cho mỗi mục tiêu morph.",
-      "morphTargetsRelative": "Đúng khi một mục tiêu morph giữ độ dời, không phải vị trí.",
-      "groups": "Các khoảng chỉ mục, mỗi khoảng được vẽ với một bề mặt.",
-      "drawRange": "Khoảng chỉ mục được vẽ.",
-      "boundingBox": "Hộp cục bộ mà ứng dụng chủ đã tính.",
-      "boundingSphere": "Hình cầu cục bộ, sau khi được tính hoặc khai báo.",
-      "userData": "Chỗ trống cho dữ liệu của người đã dựng hình học.",
-      "getIndex": "Danh sách tam giác.",
-      "setIndex": "Đặt danh sách tam giác.",
-      "getAttribute": "Thuộc tính có tên đó.",
-      "setAttribute": "Đặt tên một thuộc tính.",
-      "deleteAttribute": "Quên một thuộc tính.",
-      "hasAttribute": "Có thuộc tính mang tên đó hay không.",
-      "clone": "Một hình học giữ bản sao của mọi bộ đệm, các nhóm, khoảng và giới hạn của nó.",
-      "toNonIndexed": "Một hình học vẽ cùng các tam giác mà không có chỉ mục: mỗi góc là một đỉnh riêng.",
-      "computeBoundingBox": "Tính hộp cục bộ trên mọi đỉnh.",
-      "computeBoundingSphere": "Tính hình cầu cục bộ: tâm ở hộp, chạm tới đỉnh xa nhất."
-    }
-  },
   "GraphMesh": {
     "summary": "Một nút được vẽ: một hình học và bề mặt của nó, hoặc một bề mặt cho mỗi nhóm hình học.",
     "members": {
@@ -7618,10 +7598,11 @@
   },
   "Sprite": {
     "summary": "Một hình phẳng luôn quay về phía camera: một hình vuông đơn vị mà mọi bộ vẽ xoay về phía ảnh khi vẽ, quanh vị trí của sprite.",
-    "description": "Kích thước của nó là tỉ lệ thế giới trên `x` và `y`; góc xoay trong mặt phẳng ảnh là `rotation` của vật liệu; góc xoay riêng của nó không được đọc. Sprite không đổ bóng.",
+    "description": "Kích thước của nó là tỉ lệ thế giới trên `x` và `y`; góc xoay trong mặt phẳng ảnh là `rotation` của vật liệu; góc xoay riêng của nó không được đọc. Sprite không đổ bóng. Giống `Sprite` của bản tham chiếu, vốn chỉ nhận một `SpriteMaterial`, nó chỉ mang một `material.sprite`: mọi vật liệu khác, được truyền vào hay gán, đều ném ra một `TypeError` nêu tên loại của nó.",
     "members": {
       "isSprite": "Luôn là `true`: phân biệt sprite với mọi mesh khác.",
-      "center": "Điểm của hình nằm trên vị trí của sprite: `(0.5, 0.5)` là giữa, `(0, 0)` là góc dưới bên trái, `(0.5, 0)` là giữa cạnh dưới."
+      "center": "Điểm của hình nằm trên vị trí của sprite: `(0.5, 0.5)` là giữa, `(0, 0)` là góc dưới bên trái, `(0.5, 0)` là giữa cạnh dưới.",
+      "material": "`material.sprite` của sprite; gán một cái khác để thay đổi."
     }
   }
 }

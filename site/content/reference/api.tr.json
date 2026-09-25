@@ -1106,11 +1106,11 @@
     }
   },
   "Geometry": {
-    "summary": "Yalnızca şekil: köşe başına adlandırılmış öznitelikler, isteğe bağlı bir üçgen indeksi, malzeme grupları.",
+    "summary": "Yalnızca şekil: adlandırılmış köşe başı öznitelikleri, isteğe bağlı üçgen dizini, malzeme grupları, onu hareket ettiren morf hedefleri ve çizilen aralık.",
     "members": {
       "isGeometry": "Her zaman `true`: bir geometriyi başka her şeyden ayırır.",
       "type": "Geometrinin türü, `'Geometry'`.",
-      "attributes": "Ada göre köşe başına listeler: `position`, `normal`, `uv`, `color`.",
+      "attributes": "Ada göre köşe başı listeleri: `position`, `normal`, `uv`, `color`; her biri kendi sayılarına sahiptir ya da iç içe geçmiş bir arabelleği okur.",
       "index": "Hangi köşelerin her üçgeni oluşturduğu, üçgen başına üç sayı; `null` onları sırayla okur.",
       "groups": "Bir mesh birkaçını taşıdığında `material[materialIndex]` ile çizilen indeks aralıkları.",
       "boundingBox": "Bir kez hesaplanan, her köşenin etrafındaki kutu; o zamana kadar `null`.",
@@ -1125,8 +1125,8 @@
       "addGroup": "`start`'tan itibaren `count` indeksi, mesh'in `materialIndex` malzeme numarasıyla çizer.",
       "clearGroups": "Her malzeme grubunu kaldırır.",
       "computeVertexNormals": "Yumuşak normaller: her köşe, alanına göre ağırlıklandırılmış, onu paylaşan yüzleri ortalar.",
-      "computeBoundingBox": "Her köşenin etrafındaki kutuyu ölçer ve `boundingBox`'ta tutar.",
-      "computeBoundingSphere": "Her köşenin etrafındaki küreyi ölçer ve `boundingSphere`'de tutar.",
+      "computeBoundingBox": "Her köşe noktasının ve bir morf hedefinin ona verdiği her şeklin çevresindeki kutuyu ölçer ve `boundingBox` içinde tutar.",
+      "computeBoundingSphere": "Kutuya ortalanmış ve morflu ya da değil en uzak köşeye ulaşan küreyi ölçer ve `boundingSphere` içinde tutar.",
       "applyMatrix4": "Her pozisyonu hareket ettirir, her normali döndürür: bir poz değil, geometrinin kendisi değişir.",
       "translate": "Her köşeyi `(x, y, z)` kadar hareket ettirir.",
       "rotateX": "Her köşeyi x ekseni etrafında `angle` radyan döndürür.",
@@ -1134,8 +1134,17 @@
       "rotateZ": "Her köşeyi z ekseni etrafında `angle` radyan döndürür.",
       "scale": "Her köşeyi `(x, y, z)` kadar gerer.",
       "center": "Geometriyi, kutusu başlangıç noktasında merkezlenecek şekilde hareket ettirir.",
-      "clone": "Her listenin kopyalarıyla yeni bir geometri.",
-      "dispose": "Sahipleri unutur: silinen bir geometriyi kimse çizmez."
+      "clone": "Her listenin, gruplarının, aralığının, verilerinin ve sınırlarının kopyalarıyla ve onu hâlâ kuran tarifle yeni bir geometri.",
+      "dispose": "Geometriyi geri verir: her serbest bırakma kancasını bir kez çalıştırır, tutanları ve ışın ağacını unutur; serbest bırakılmış bir geometriyi kimse çizmez ya da ona ışın atmaz.",
+      "kind": "Kaynağın ne olduğu; sahneyi okuyan kaynakları buna göre ayırır.",
+      "name": "Adı.",
+      "morphAttributes": "Morflanan her öznitelik için morf hedefi başına bir öznitelik.",
+      "morphTargetsRelative": "Bir morf hedefi konum değil yer değiştirme tuttuğunda doğru.",
+      "drawRange": "Dizinin çizilen aralığı.",
+      "userData": "Geometriyi kuranın verileri için serbest alan.",
+      "released": "Geometri geri verildiğinde çağrılır: bir işleyicinin kendi kopyasının dinlediği şey.",
+      "getIndex": "Üçgen listesi ya da `null`.",
+      "toNonIndexed": "Aynı üçgenleri dizinsiz çizen bir geometri: her köşe kendi köşe noktası."
     }
   },
   "GeometryPageDescriptor": {
@@ -1389,9 +1398,6 @@
       "width": "Piksel cinsinden genişlik.",
       "height": "Piksel cinsinden yükseklik."
     }
-  },
-  "HostGeometry": {
-    "summary": "Bir host geometrisi: öznitelikleri, ve host'un onlar üzerinden hesapladığı yerel kutu."
   },
   "HostMaterial": {
     "summary": "Motorun okuduğu şekliyle bir host malzemesi: her host malzemesinin paylaştığı, sınırda bir kez motorun `VisMaterial`'ına okunan yüzey parametreleri; yalnızca `sideOf` `side`'ı okur."
@@ -6328,7 +6334,7 @@
   "object.sprite": {
     "summary": "Kamera nereye bakarsa baksın her zaman kameraya dönük düz bir resim: sprite'ın ölçeği kadar büyük ve malzemesinin `rotation` değeriyle görüntüde döndürülmüş birim kare.",
     "parameters": {
-      "material": "Karenin gösterdiği: bir `material.sprite`."
+      "material": "Karenin gösterdiği: bir `material.sprite`; başka her tür hata fırlatır."
     }
   },
   "orthographicProjection": {
@@ -7282,32 +7288,6 @@
       "handbrake": "El freninin çekili olup olmadığı."
     }
   },
-  "GraphGeometry": {
-    "summary": "Bir ağın çizdiği öznitelikler, onları indeksleyen üçgen listesi, onları hareket ettiren morf hedefleri ve üzerlerinde hesaplanan yerel kutu ile küre.",
-    "members": {
-      "kind": "Kaynağın ne olduğu.",
-      "name": "Adı.",
-      "index": "Üçgen listesi ya da köşeleri sırayla çizmek için `null`.",
-      "attributes": "Köşe öznitelikleri.",
-      "morphAttributes": "Her biçim değiştiren öznitelik için, morf hedefi başına bir öznitelik.",
-      "morphTargetsRelative": "Bir morf hedefi konum değil yer değiştirme tuttuğunda doğru.",
-      "groups": "Her biri tek bir yüzeyle çizilen indeks aralıkları.",
-      "drawRange": "İndeksin çizilen aralığı.",
-      "boundingBox": "Host'un hesapladığı yerel kutu.",
-      "boundingSphere": "Hesaplandıktan ya da bildirildikten sonra yerel küre.",
-      "userData": "Geometriyi kuranın verileri için serbest alan.",
-      "getIndex": "Üçgen listesi.",
-      "setIndex": "Üçgen listesini ayarlar.",
-      "getAttribute": "Bu adı taşıyan öznitelik.",
-      "setAttribute": "Bir özniteliğe ad verir.",
-      "deleteAttribute": "Bir özniteliği unutur.",
-      "hasAttribute": "Bu adda bir özniteliği olup olmadığı.",
-      "clone": "Her tamponun, gruplarının, aralığının ve sınırlarının kopyalarını tutan bir geometri.",
-      "toNonIndexed": "Aynı üçgenleri indekssiz çizen bir geometri: her köşe kendi başına bir tepe noktası.",
-      "computeBoundingBox": "Tüm köşeler üzerinde yerel kutuyu hesaplar.",
-      "computeBoundingSphere": "Yerel küreyi hesaplar: kutunun merkezinde, en uzak köşeye kadar."
-    }
-  },
   "GraphMesh": {
     "summary": "Çizilen bir düğüm: bir geometri ve yüzeyi ya da geometri grubu başına bir yüzey.",
     "members": {
@@ -7617,10 +7597,11 @@
   },
   "Sprite": {
     "summary": "Her zaman kameraya dönük düz bir resim: her çizicinin çizim anında sprite'ın konumu etrafında görüntüye doğru döndürdüğü birim kare.",
-    "description": "Boyutu `x` ve `y` üzerindeki dünya ölçeğidir; görüntü düzlemindeki dönüşü malzemesinin `rotation` değeridir; kendi dönüşü okunmaz. Bir sprite gölge düşürmez.",
+    "description": "Boyutu `x` ve `y` üzerindeki dünya ölçeğidir; görüntü düzlemindeki dönüşü malzemesinin `rotation` değeridir; kendi dönüşü okunmaz. Bir sprite gölge düşürmez. Yalnızca bir `SpriteMaterial` alan referansın `Sprite`’ı gibi, yalnızca bir `material.sprite` taşır: verilen ya da atanan başka her malzeme, türünü adlandıran bir `TypeError` fırlatır.",
     "members": {
       "isSprite": "Her zaman `true`: bir sprite'ı diğer tüm meshlerden ayırır.",
-      "center": "Resmin sprite'ın konumuna oturan noktası: `(0.5, 0.5)` ortası, `(0, 0)` sol alt köşesi, `(0.5, 0)` alt kenarının ortası."
+      "center": "Resmin sprite'ın konumuna oturan noktası: `(0.5, 0.5)` ortası, `(0, 0)` sol alt köşesi, `(0.5, 0)` alt kenarının ortası.",
+      "material": "Sprite’ın `material.sprite`’ı; değiştirmek için başka birini atayın."
     }
   }
 }

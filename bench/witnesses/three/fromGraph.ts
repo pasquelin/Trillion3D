@@ -6,17 +6,17 @@
  */
 import * as THREE from 'three';
 import type { VertexAttribute } from '../../../packages/sdk-core/src/world/buffer/attribute.ts';
-import type { GraphGeometry } from '../../../packages/sdk-browser/src/host/graph/geometry.ts';
 import type { GraphSurface } from '../../../packages/sdk-browser/src/host/graph/surface.ts';
 import { isGraphTexture } from '../../../packages/sdk-browser/src/host/graph/kinds.ts';
 import type { GraphTexture } from '../../../packages/sdk-browser/src/host/graph/texture.ts';
 import type { HostMaterials } from '../../../packages/sdk-browser/src/host/resources.ts';
+import type { Geometry } from '../../../packages/sdk-core/src/world/geometry/geometry.ts';
 
 type Held<T> = { made: T; version: number };
 const textures = new WeakMap<GraphTexture, Held<THREE.Texture>>();
 const sources = new WeakMap<object, THREE.Source>();
 const surfaces = new WeakMap<GraphSurface, Held<THREE.Material>>();
-const geometries = new WeakMap<GraphGeometry, THREE.BufferGeometry>();
+const geometries = new WeakMap<Geometry, THREE.BufferGeometry>();
 const attributes = new WeakMap<object, THREE.BufferAttribute | THREE.InterleavedBufferAttribute>();
 const buffers = new WeakMap<object, THREE.InterleavedBuffer>();
 
@@ -155,9 +155,7 @@ function threeAttribute(attribute: VertexAttribute) {
 }
 
 /** The library's geometry of an engine geometry: the same storage, index, targets and bounds. */
-export function threeGeometry(
-  geometry: GraphGeometry | THREE.BufferGeometry,
-): THREE.BufferGeometry {
+export function threeGeometry(geometry: Geometry | THREE.BufferGeometry): THREE.BufferGeometry {
   if (geometry instanceof THREE.BufferGeometry) return geometry;
   let made = geometries.get(geometry);
   if (made) return made;
