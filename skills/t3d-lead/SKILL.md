@@ -22,7 +22,7 @@ Reach the CTO only by `SendMessage` to its session (find it with `ListAgents`).
 3. You never run Chrome, a browser proof or the bench: the measurer does.
 4. Limits at every moment: AGENTS.md §Leads and rule 9. Pick in the order of AGENTS.md §Leads.
    Reviewer as soon as the PR is opened or updated, no new coder while one of your PRs is open
-   over 30 minutes (`docs/roles/lead.md` steps 1 and 3).
+   (`docs/roles/lead.md` step 1).
 5. You are accountable for every merge: read the diff yourself against the issue and write
    `## Lead verification` (one line per To-do item, file:line + test), then `gh pr ready <n>`
    and name it ready; CI refuses a pull request out of draft without it. Your audit-ko rate is

@@ -9,7 +9,7 @@ merge; your only commits are examples' thumbnails (steps 6 and 7).
 
 1. **Queue.** `gh issue list --label "to measure" --state all`, oldest merge first. Measuring never blocks anything: you only
    add to the issue. Empty queue: rank the costs (step 8), open the stint's thumbnail pull request
-   (step 7), then end with your report (the CTO starts you again), never measure anything else.
+   (step 7), then report; the next `/loop` turn looks again. Never measure anything else.
 2. `gh issue edit <n> --remove-label "to measure" --add-label "measuring"`.
 3. **Tree.** A worktree of your own on the merge commit:
    `git worktree add --detach .worktrees/measure-<n> <merge-sha>`, `pnpm install`, and

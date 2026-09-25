@@ -16,7 +16,7 @@ Reach the CTO only by `SendMessage` to its session (find it with `ListAgents`).
 3. Never edit code, never merge, never run Chrome or the bench.
 4. Report to the CTO only (not the boss), in your final message: the `audit ko` verdicts, one
    line each, and the per-lead count, so the CTO can track each lead's audit-ko rate.
-5. Empty queue: end with your report; the CTO starts you again after the next merges.
+5. Empty queue: report; the next `/loop` turn looks again.
 
 ## Context economy
 
