@@ -37,42 +37,47 @@ test('a change runs again the build steps that read it or what an earlier one wr
   assert.deepEqual(named('site/styles.css', 'packages.ts'), []);
 });
 
-test('docs:dev serves a site change without a restart, the open page told to reload', async (t) => {
-  const root = await scratch(t);
-  const site = resolve(root, 'site');
-  const out = resolve(root, 'out');
-  // Its own repository: the folder of logs it lies in is ignored by this one.
-  execFileSync('git', ['init', '-q'], { cwd: root });
-  for (const folder of ['packages', ...STATIC_ENTRIES.map((name) => `site/${name}`)])
-    await mkdir(resolve(root, folder), { recursive: true });
-  await writeFile(resolve(site, 'index.html'), '<!doctype html>\n<head>\n</head>\n');
-  await writeFile(resolve(site, 'data/note.json'), '"before"');
-  await copyStatics(site, out);
-  const { port, close } = await followSite(root, out);
-  const base = `http://127.0.0.1:${port}`;
-  const served = async (path: string) => (await fetch(`${base}${path}`)).text();
-  // Closed before its folder is removed, which the hooks of `t.after` would do first.
-  try {
-    assert.ok((await served('/')).includes(RELOAD_EVENTS), 'the served page listens');
-    const events = (await fetch(`${base}${RELOAD_EVENTS}`)).body!.getReader();
-    const decoder = new TextDecoder();
-    // The stream's first comment: the server counts the page among the open ones.
-    await events.read();
-    await writeFile(resolve(site, 'data/note.json'), '"after"');
-    // Each reload is a rebuild done; one of them serves the edit.
-    do {
-      let told = '';
-      while (!told.includes('data: reload')) {
-        const { value, done } = await events.read();
-        assert.ok(!done, 'the stream stays open');
-        told += decoder.decode(value);
-      }
-    } while ((await served('/data/note.json')) !== '"after"');
-    assert.deepEqual(reloadIn(out), [], 'the built tree never names the reload stream');
-  } finally {
-    await close();
-  }
-});
+// Bounded: a change the watcher never reports fails the test instead of holding the run.
+test(
+  'docs:dev serves a site change without a restart, the open page told to reload',
+  { timeout: 30_000 },
+  async (t) => {
+    const root = await scratch(t);
+    const site = resolve(root, 'site');
+    const out = resolve(root, 'out');
+    // Its own repository: the folder of logs it lies in is ignored by this one.
+    execFileSync('git', ['init', '-q'], { cwd: root });
+    for (const folder of ['packages', ...STATIC_ENTRIES.map((name) => `site/${name}`)])
+      await mkdir(resolve(root, folder), { recursive: true });
+    await writeFile(resolve(site, 'index.html'), '<!doctype html>\n<head>\n</head>\n');
+    await writeFile(resolve(site, 'data/note.json'), '"before"');
+    await copyStatics(site, out);
+    const { port, close } = await followSite(root, out);
+    const base = `http://127.0.0.1:${port}`;
+    const served = async (path: string) => (await fetch(`${base}${path}`)).text();
+    // Closed before its folder is removed, which the hooks of `t.after` would do first.
+    try {
+      assert.ok((await served('/')).includes(RELOAD_EVENTS), 'the served page listens');
+      const events = (await fetch(`${base}${RELOAD_EVENTS}`)).body!.getReader();
+      const decoder = new TextDecoder();
+      // The stream's first comment: the server counts the page among the open ones.
+      await events.read();
+      await writeFile(resolve(site, 'data/note.json'), '"after"');
+      // Each reload is a rebuild done; one of them serves the edit.
+      do {
+        let told = '';
+        while (!told.includes('data: reload')) {
+          const { value, done } = await events.read();
+          assert.ok(!done, 'the stream stays open');
+          told += decoder.decode(value);
+        }
+      } while ((await served('/data/note.json')) !== '"after"');
+      assert.deepEqual(reloadIn(out), [], 'the built tree never names the reload stream');
+    } finally {
+      await close();
+    }
+  },
+);
 
 test('a built page or script that names the reload stream is found', async (t) => {
   const out = await scratch(t);
