@@ -9,6 +9,7 @@ import {
 } from '../gpu/shadow/batchBudget.ts';
 import { shadowTableHostBytes } from '../../../sdk-core/src/scene/light-shadow/table.ts';
 import { shadowPoolHostBytes } from '../../../sdk-core/src/scene/light-shadow/pool.ts';
+import { shadowAdmissionHostBytes } from '../../../sdk-core/src/scene/light-shadow/admit.ts';
 import { DEFAULT_CACHED_BYTES } from '../streaming/pageCache.ts';
 import { BOUNCE_SETTINGS } from '../../../sdk-core/src/bounce/contracts.ts';
 import { bounceProbeBytes } from '../bounce/limits.ts';
@@ -22,11 +23,12 @@ export const SHADOW_POOL_BYTES =
   SHADOW_BUFFER_BYTES +
   SHADOW_BATCH_GPU_BYTES;
 /** The shadows' host memory at its largest, whatever the screen: the table's words and change
- *  flags, the pool's page records and eviction bits, as the two allocate them, and the batches'
- *  flag pages and CPU cut faces. */
+ *  flags, the pool's page records and eviction bits, the frame's list, as the three allocate
+ *  them, and the batches' flag pages and CPU cut faces. */
 export const SHADOW_HOST_BYTES =
   shadowTableHostBytes(MAX_SHADOW_POOL_SIDE ** 2) +
   shadowPoolHostBytes(MAX_SHADOW_POOL_SIDE) +
+  shadowAdmissionHostBytes(MAX_SHADOW_POOL_SIDE ** 2) +
   SHADOW_BATCH_HOST_BYTES;
 /**
  * GPU bytes of the bounce probe cascades at their largest — every level of `cascadeSize³` probes,

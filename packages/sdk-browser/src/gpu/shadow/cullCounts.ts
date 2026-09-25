@@ -30,9 +30,7 @@ export function sumKeptClusters(words: Uint32Array, regions: number) {
 export function createGpuShadowCullCounts(device: GPUDevice) {
   const counted: ShadowCullCounts = { frame: -1, regions: 0, kept: 0 };
   let sampledRegions = 0,
-    sampledFrame = -1,
-    /** The sampled frame's copies are still being encoded: its later batches join them. */
-    open = false;
+    sampledFrame = -1;
   // The three fields move together, when the sample returns: a count is never named by a
   // frame it does not describe.
   const reader = createGpuPeriodicReadback((mapped) => {
@@ -51,24 +49,19 @@ export function createGpuShadowCullCounts(device: GPUDevice) {
     /** Encodes the copy of a batch's `regions` commands, when the frame is sampled. */
     sample(encoder: GPUCommandEncoder, indirect: GPUBuffer, regions: number, frame: number) {
       if (!regions) return;
-      if (!open || sampledFrame !== frame) {
+      if (!reader.open(frame)) {
         if (!reader.due(frame)) return;
-        open = true;
         sampledRegions = 0;
         sampledFrame = frame;
         reader.sampled(frame);
       }
-      const at = sampledRegions * DRAW_INDIRECT_STRIDE,
-        size = regions * DRAW_INDIRECT_STRIDE;
-      if (at + size > SHADOW_COUNT_SAMPLE_BYTES) return;
-      reader.copy(encoder, indirect, 0, size, at);
+      const size = regions * DRAW_INDIRECT_STRIDE;
+      if (sampledRegions * DRAW_INDIRECT_STRIDE + size > SHADOW_COUNT_SAMPLE_BYTES) return;
+      reader.copy(encoder, indirect, 0, size);
       sampledRegions += regions;
     },
     /** Requests mapping of the sample, once the frame that copied it is submitted. */
-    submitted() {
-      open = false;
-      reader.submitted();
-    },
+    submitted: reader.submitted,
     /** Counts of the last sampled frame, or nothing until one has come back. */
     counts(): ShadowCullCounts | undefined {
       return reader.ready ? counted : undefined;
