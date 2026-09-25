@@ -1,5 +1,4 @@
-import { withRecipe } from './geometry.ts';
-import { GeometryBuilder, fromArrays, normalize, pieces } from './builder.ts';
+import { GeometryBuilder, fromArrays, normalize, pieces, withRecipe } from './builder.ts';
 import { sphereArrays, turnPoint } from './sphere.ts';
 
 type V3 = [number, number, number];
