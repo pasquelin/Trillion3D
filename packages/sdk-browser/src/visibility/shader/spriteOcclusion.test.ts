@@ -140,7 +140,7 @@ test('a constant-size sprite blend item has no box, and the frustum keeps it', (
   const blendState = createWebgpuBlendState();
   const copy = (sizeAttenuation: boolean) => {
     const material = spriteSurface(sizeAttenuation, { transparent: true });
-    const geometry = new G.GraphGeometry();
+    const geometry = new G.Geometry();
     geometry.setAttribute('position', G.floatAttribute([0, 0, 0, 1, 0, 0, 0, 1, 0], 3));
     geometry.setIndex(G.indices([0, 1, 2]));
     return Object.assign(G.mesh(geometry, material), { surface: surfaceOf(material) });
@@ -160,7 +160,7 @@ test('a constant-size sprite blend item has no box, and the frustum keeps it', (
 test('a WebGL2 scene copy of a constant-size sprite is drawn with its box out of view', () => {
   const copies = new WebglClusterCopies<G.GraphMesh>();
   const away = (sizeAttenuation: boolean) => {
-    const geometry = new G.GraphGeometry();
+    const geometry = new G.Geometry();
     geometry.setAttribute('position', G.floatAttribute([-1, -1, -3, 1, -1, -3, 0, 1, -3], 3));
     const copy = G.mesh(geometry, spriteSurface(sizeAttenuation));
     copy.position.set(100, 0, 0);

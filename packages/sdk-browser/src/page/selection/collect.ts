@@ -1,6 +1,6 @@
 import { BOX_VALUES, boxTransform, type ClusterManifest } from '../../../../sdk-core/src/index.ts';
 import { meshSurface } from '../surface.ts';
-import { neverCulled } from '../../visibility/shader/spriteWgsl.ts';
+import { spriteMark } from '../../visibility/shader/spriteWgsl.ts';
 import type { BlendCopy } from '../../cluster/blendCopyContract.ts';
 import { createBlendCopyRecord } from '../../cluster/blendCopyRecord.ts';
 import { objects, quantizationErrorOf } from './helpers.ts';
@@ -135,7 +135,7 @@ export function collectClusterPages(
         boxes: true,
         parked,
         placement,
-        ...(neverCulled(surface) ? { unculled: true } : {}),
+        sprite: spriteMark(surface) || undefined,
       });
       // The clusters nothing replaces are the coarsest complete cover; they stay resident so the cut
       // always has something to fall back on.

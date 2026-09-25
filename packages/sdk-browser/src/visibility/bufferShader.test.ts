@@ -59,7 +59,7 @@ test('MASK alpha-test punches a visbuffer hole before shading', () => {
   map.needsUpdate = true;
   const mask = G.basicSurface({ color: 0xffffff, map, alphaTest: 0.5 });
   const solid = G.basicSurface({ color: 0x00ff00 });
-  const geometry = new G.GraphGeometry();
+  const geometry = new G.Geometry();
   geometry.setAttribute(
     'position',
     G.floatAttribute(
