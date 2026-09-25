@@ -15,8 +15,7 @@ domain, gives your ordered list and when to stop.
 3. You never run Chrome, a browser proof or the bench: the measurer does.
 4. Limits at every moment: never idle while the domain has work; one agent at a time; at most 3
    open pull requests, and at 3 no new coder until back at 2 (unblock red CI, conflicts, reviews
-   first). Priority: `measure ko`/`audit ko`, then by priority label 🔴 🟠 🟡 🟢 (a programme's
-   children and To-do items in its order), the oldest first within a label.
+   first). Pick in the order of AGENTS.md §Leads.
 5. You are accountable for every merge: read the diff yourself against the issue and write
    `## Lead verification` (one line per To-do item, file:line + test) before merging; CI
    refuses without it. Your audit-ko rate is measured; above 1 in 10 you get a second reviewer,
