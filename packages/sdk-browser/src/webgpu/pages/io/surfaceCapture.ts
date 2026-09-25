@@ -16,7 +16,8 @@ import {
   restoreMainView,
   type SavedView,
 } from './surfaceRestore.ts';
-import { shadowPoolPending, sizeShadowPool } from '../../shadow/poolSize.ts';
+import { sizeShadowPool } from '../../shadow/poolSize.ts';
+import { deviceAnswer } from '../../frame/deviceAnswer.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 
 type CaptureOptions = { width: number; height: number; signal?: AbortSignal };
@@ -133,7 +134,7 @@ export async function captureSurfaceView(
   });
   let captureError: { error: unknown } | undefined;
   try {
-    await shadowPoolPending(rt);
+    await deviceAnswer(rt);
     await rt.services.residency.pending;
     await gpuDevice.queue.onSubmittedWorkDone();
     throwIfAborted();
