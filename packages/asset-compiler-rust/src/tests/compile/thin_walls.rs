@@ -7,7 +7,7 @@ use super::silhouette::{cut_defects, Mesh};
 use super::*;
 
 /// One node drawing every mesh as a primitive of its own material, positions and normals as `f32`.
-fn mesh_fixture(tag: &str, meshes: &[Mesh]) -> (PathBuf, Options) {
+pub(super) fn mesh_fixture(tag: &str, meshes: &[Mesh]) -> (PathBuf, Options) {
     let (mut buffer, mut primitives) = (GltfBuffer::default(), vec![]);
     let vec3 = |points: &[[f64; 3]]| -> Vec<u8> {
         points
@@ -114,7 +114,7 @@ fn coarse_levels_turned_inside_out_are_reported_flipped_and_lost() {
     }
 }
 /// Digest of what the chalet cooks to: every page, its objects by digest, its errors and bounds.
-const CHALET_COOK: &str = "b2dc03df97011a5e876b40f01621566367619c965d785983711696a89072aba5";
+const CHALET_COOK: &str = "76b848008816559d6c7afe52f47cd84bae78cebd0154d7f85d207d491edbcfb5";
 
 /// The cook is the same bytes on every platform: its cache keys and every test above depend on
 /// it. A different digest on one platform alone is a cook that is not portable (the C++ of

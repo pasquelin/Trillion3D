@@ -1,7 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { generateMaterialMips } from './mips.ts';
-import { mipLevelCountFor } from './tiles.ts';
+import { generateMaterialMips, mipLevelCountFor } from './mips.ts';
 import { installGpuGlobals } from '../../../../tests/kit/gpu/globals.ts';
 import { mockGpu } from '../../../../tests/kit/gpu/mockGpu.ts';
 
