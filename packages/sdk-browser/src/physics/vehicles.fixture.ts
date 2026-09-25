@@ -109,3 +109,21 @@ export async function vehicleRig(kind: VehicleKind, options: Partial<VehicleOpti
     },
   };
 }
+
+/** A vehicle rig (`vehicleRig`). */
+export type VehicleRig = Awaited<ReturnType<typeof vehicleRig>>;
+
+/** A car of `options` from standstill: `watch` read after every step of `seconds` of `input`. */
+export async function driveCar(
+  options: Partial<VehicleOptions>,
+  input: Partial<VehicleInput>,
+  seconds: number,
+  watch: (rig: VehicleRig) => void = () => {},
+) {
+  const rig = await vehicleRig('car', options);
+  for (let s = 0; s < seconds * 60; s++) {
+    rig.hold(input, 1 / 60);
+    watch(rig);
+  }
+  return rig;
+}

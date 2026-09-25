@@ -17756,7 +17756,7 @@
       {
         "name": "options.clutch?",
         "type": "number",
-        "desc": "Clutch torque per rad/s of slip, N·m·s; cars and motorcycles only: a tracked vehicle's engine drives its tracks without a clutch (Jolt's tracked controller)."
+        "desc": "Clutch torque per rad/s of slip, N·m·s; cars and motorcycles only, refused on a tracked vehicle: its engine drives its tracks without a clutch (Jolt's tracked controller)."
       },
       {
         "name": "options.suspensionFrequency?",
@@ -17771,7 +17771,7 @@
       {
         "name": "options.suspensionTravel?",
         "type": "number",
-        "desc": "Wheel travel from full droop to full bump, m."
+        "desc": "Wheel travel from full droop to full bump, m; longer than the sag of the ride frequency on Earth, `9.81 / (2π suspensionFrequency)²`, or refused: past it the body rests on its bump stops."
       },
       {
         "name": "options.antiRoll?",
@@ -17801,7 +17801,7 @@
       {
         "name": "options.trackTurn?",
         "type": "number",
-        "desc": "A tracked vehicle's inner track speed while steering, over the outer's."
+        "desc": "A tracked vehicle's inner track speed while steering on the move, over the outer's; at a standstill it pivots, its inner track reversed, whatever this ratio."
       },
       {
         "name": "options.maxLean?",
@@ -17996,7 +17996,7 @@
       {
         "name": "clutch",
         "type": "number",
-        "desc": "Clutch torque per rad/s of slip, N·m·s; cars and motorcycles only: a tracked vehicle's engine drives its tracks without a clutch (Jolt's tracked controller)."
+        "desc": "Clutch torque per rad/s of slip, N·m·s; cars and motorcycles only, refused on a tracked vehicle: its engine drives its tracks without a clutch (Jolt's tracked controller)."
       },
       {
         "name": "suspensionFrequency",
@@ -18011,7 +18011,7 @@
       {
         "name": "suspensionTravel",
         "type": "number",
-        "desc": "Wheel travel from full droop to full bump, m."
+        "desc": "Wheel travel from full droop to full bump, m; longer than the sag of the ride frequency on Earth, `9.81 / (2π suspensionFrequency)²`, or refused: past it the body rests on its bump stops."
       },
       {
         "name": "antiRoll",
@@ -18041,7 +18041,7 @@
       {
         "name": "trackTurn",
         "type": "number",
-        "desc": "A tracked vehicle's inner track speed while steering, over the outer's."
+        "desc": "A tracked vehicle's inner track speed while steering on the move, over the outer's; at a standstill it pivots, its inner track reversed, whatever this ratio."
       },
       {
         "name": "maxLean",

@@ -56,12 +56,15 @@ function refuse({ kind, body, wheels, spec }: Vehicle, options: Partial<VehicleS
   const points = spec.torqueCurve.length;
   if (points < 1 || points > TORQUE_POINTS) fail(`1 to ${TORQUE_POINTS} torque curve points`);
   // Jolt's tracked controller couples the engine to the tracks without reading a clutch.
-  if (kind === 'tracked' && options.clutch !== undefined) fail('no clutch: its engine drives its tracks');
+  if (kind === 'tracked' && options.clutch !== undefined)
+    fail('no clutch: its engine drives its tracks');
   // A spring sags `g / (2π f)²` under its share of the weight (the static deflection of a ride
   // frequency, on Earth); past its travel the body would rest on its bump stops.
   const sag = GRAVITY_PRESETS.earth / (2 * Math.PI * spec.suspensionFrequency) ** 2;
   if (!(sag < spec.suspensionTravel))
-    fail(`a suspensionTravel longer than its sag, g / (2π suspensionFrequency)² = ${sag.toFixed(3)} m`);
+    fail(
+      `a suspensionTravel longer than its sag, g / (2π suspensionFrequency)² = ${sag.toFixed(3)} m`,
+    );
 }
 
 const clamp = (value: number, min: number, max: number) =>
