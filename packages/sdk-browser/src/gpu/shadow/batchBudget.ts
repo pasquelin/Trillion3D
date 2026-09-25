@@ -17,8 +17,10 @@ import { MAX_SHADOW_PAGES, MAX_SHADOW_REGIONS } from './recordPack.ts';
  * draws `MAX_SHADOW_BATCHES` and leaves the rest pending, drawn the next frame.
  */
 
-/** Pages of the largest pool, on any screen: what one frame lists at most. */
-const MAX_POOL_PAGES = shadowPoolSide(Infinity, Infinity) ** 2;
+/** Pages a side of the largest pool, on any screen: what the memory budget sizes the shadows by. */
+export const MAX_SHADOW_POOL_SIDE = shadowPoolSide(Infinity, Infinity);
+/** Pages of the largest pool: what one frame lists at most. */
+const MAX_POOL_PAGES = MAX_SHADOW_POOL_SIDE ** 2;
 /** Batches one frame draws at most: the largest pool's pages, in full batches. */
 export const MAX_SHADOW_BATCHES = Math.ceil(MAX_POOL_PAGES / MAX_SHADOW_PAGES);
 /** Light views, one per face a batch draws, of one frame's batches together. */
