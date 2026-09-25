@@ -94,42 +94,43 @@
       const glass = object.mesh(geometry.sphere(0.09, 24, 12), material.meshStandard({ color: '#000000', emissive: '#ff5ab4', emissiveIntensity: 4 }));
       world.scene.add(sun, sky, bulb, glass);
 
-      // The helpers, by family. Each is geometry like the rest: lines drawn with a line material,
-      // an arrow's head a small cone. They stand clear of every surface, a line never lies on a face.
-      const lifted = (node, y) => ((node.position.y = y), node);
+      // The helpers, by family, drawn as guides: lines and dots of a fixed width on the screen,
+      // over the picture and hidden by what stands in front of them, never part of the scene.
+      const guide = (mark, width) => world.guides.add(mark, { width });
       // A box outline a touch larger than the object's box, grown about its centre.
-      const outline = (target, colour) => {
-        const lines = helper.box(target, colour), bounds = math.box3().setFromObject(target), grow = 1.06;
-        lines.scale.setScalar(grow);
-        lines.position.set(...['x', 'y', 'z'].map((axis) => ((bounds.min[axis] + bounds.max[axis]) / 2) * (1 - grow)));
-        return lines;
+      const outline = (target) => {
+        const bounds = math.box3().setFromObject(target), centre = bounds.getCenter(math.vector3());
+        bounds.min.lerp(centre, -0.06);
+        bounds.max.lerp(centre, -0.06);
+        return guide(helper.box(bounds, '#ffd24a'), 2);
       };
-      const normals = [];
+      // Ten normals of the ball: a short line out of its surface, a dot at each tip.
+      const shafts = [], tips = [];
       for (let k = 0; k < 10; k++) {
         const phi = Math.acos(1 - ((k + 0.5) / 10) * 1.6), theta = k * 2.4;
-        const out = math.vector3(Math.sin(phi) * Math.cos(theta), Math.cos(phi), Math.sin(phi) * Math.sin(theta));
-        const from = math.vector3(-2.4 + out.x * 0.64, 0.6 + out.y * 0.64, -0.8 + out.z * 0.64);
-        normals.push(helper.arrow(out, from, 0.45, '#7ef0d8'));
+        const out = [Math.sin(phi) * Math.cos(theta), Math.cos(phi), Math.sin(phi) * Math.sin(theta)];
+        const from = [-2.4 + out[0] * 0.62, 0.6 + out[1] * 0.62, -0.8 + out[2] * 0.62];
+        const to = from.map((value, axis) => value + out[axis] * 0.45);
+        shafts.push(...from, ...to);
+        tips.push(...to);
       }
-      const families = {
-        grid: [lifted(helper.grid(16, 32, '#8a8f9c', '#4c505c'), 0.03), lifted(helper.polarGrid(1.6, 16, 4, '#c9b27a'), 0.05)],
-        axes: [lifted(helper.axes(2.2), 0.06)],
-        bounds: [outline(knot, '#ffd24a'), outline(ball, '#ffd24a'), outline(vase, '#ffd24a')],
-        normals,
-        lights: [helper.directionalLight(sun, 0.8), helper.spotLight(spot), helper.pointLight(bulb, 0.3), helper.hemisphereLight(sky, 0.5)],
-        camera: [helper.camera(filming)],
+      // A helper that follows a light or a camera is placed again every frame, where it stands.
+      const follows = [];
+      const following = (mark, width) => {
+        const handle = guide(mark, width);
+        follows.push({ mark, handle });
+        return handle;
       };
-      // A line is drawn as a thin prism, as thick as a share of its own size: each helper's width
-      // is set so that every line, a short arrow or the whole grid, reads about as thick.
-      for (const mark of Object.values(families).flat()) {
-        mark.traverse((node) => {
-          if (node.primitive !== 'lineSegments') return;
-          node.geometry.computeBoundingBox();
-          node.material.linewidth = (0.018 * 1024) / (node.geometry.boundingBox.getSize(math.vector3()).length() || 1);
-        });
-        mark.visible = false;
-        world.scene.add(mark);
-      }
+      const lifted = (mark, y) => ((mark.position.y = y), mark);
+      const families = {
+        grid: [guide(lifted(helper.grid(16, 32, '#8a8f9c', '#4c505c'), 0.01), 1), guide(lifted(helper.polarGrid(1.6, 16, 4, '#c9b27a'), 0.02), 1.5)],
+        axes: [guide(lifted(helper.axes(2.2), 0.02), 3)],
+        bounds: [outline(knot), outline(ball), outline(vase)],
+        normals: [world.guides.lines({ positions: shafts, color: '#7ef0d8', width: 2 }), world.guides.points({ positions: tips, color: '#7ef0d8', size: 7 })],
+        lights: [following(helper.directionalLight(sun, 0.8), 2), following(helper.spotLight(spot), 1.5), following(helper.pointLight(bulb, 0.3), 1.5), following(helper.hemisphereLight(sky, 0.5), 1.5)],
+        camera: [following(helper.camera(filming), 2)],
+      };
+      for (const handle of Object.values(families).flat()) handle.setVisible(false);
 
       world.camera.position.set(6.8, 4.6, 9.4);
       world.camera.lookAt(0, 1.2, 0);
@@ -145,7 +146,7 @@
       const CHOICES = { everything: ORDER, 'lights and camera': ['lights', 'camera'], 'shapes and bounds': ['grid', 'axes', 'bounds', 'normals'], nothing: [] };
       let revealed = 0, count = null;
       const show = (names) => {
-        for (const [name, marks] of Object.entries(families)) for (const mark of marks) mark.visible = names.includes(name);
+        for (const [name, handles] of Object.entries(families)) for (const handle of handles) handle.setVisible(names.includes(name));
         count?.(String(names.reduce((sum, name) => sum + families[name].length, 0)));
         world.invalidate();
       };
@@ -184,7 +185,11 @@
         // The engine's camera sits in the lens, looking where the rig looks: down its own -z.
         filming.position.set(4.1 - Math.sin(yaw) * 0.55, 1.55, z - Math.cos(yaw) * 0.55);
         filming.rotation.set(0, yaw, 0);
-        for (const mark of [...families.lights, ...families.camera]) mark.update();
+        for (const { mark, handle } of follows) {
+          mark.update();
+          mark.updateWorldMatrix(false, false);
+          handle.setTransform(mark.matrixWorld);
+        }
         world.invalidate();
       });
     </script>

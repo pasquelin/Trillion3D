@@ -932,7 +932,8 @@
       "PHYSICS_FAILED": "物理被要求超出其某个上限（`world.budget.physics`：物体、三角形、装饰物体、内存），或动态物体不是场景的直接子节点（`PHYSICS_NESTED`），或物理模块失败（`PHYSICS_FAILED`）：见 `world.physics.error`。",
       "PHYSICS_FORMAT": "已编译模型的预制物理（`physics.json`）格式不同，或由与引擎不同的 Jolt 预制（`PHYSICS_FORMAT`）：请重新编译。物理关闭时请求了精确射线检测（`PHYSICS_OFF`）。",
       "PHYSICS_OFF": "已编译模型的预制物理（`physics.json`）格式不同，或由与引擎不同的 Jolt 预制（`PHYSICS_FORMAT`）：请重新编译。物理关闭时请求了精确射线检测（`PHYSICS_OFF`）。",
-      "NO_VEHICLE": "在 `world.controls.vehicle` 为 `null` 时把 `world.controls.kind` 设为了 `'vehicle'`：没有可驾驶的东西。"
+      "NO_VEHICLE": "在 `world.controls.vehicle` 为 `null` 时把 `world.controls.kind` 设为了 `'vehicle'`：没有可驾驶的东西。",
+      "GUIDE_CEILING": "一次 `world.guides` 调用将持有超过 `GUIDE_VERTEX_CEILING` 的顶点；其内容均未添加。"
     }
   },
   "EngineProfiler": {
@@ -1229,6 +1230,42 @@
     "members": {
       "isGroup": "始终为 `true`:用来标识分组节点。",
       "type": "该节点的种类,`'Group'`。"
+    }
+  },
+  "GuideHandle": {
+    "summary": "页面绘制的一组参考线；每个设置方法都返回该句柄。",
+    "members": {
+      "visible": "是否绘制；由 `setVisible` 写入。",
+      "setVisible": "显示或隐藏它；它的顶点仍计入上限。",
+      "setTransform": "放置它：按列排列的十六个数，或一个矩阵 —— `node.matrixWorld` 跟随一个节点。",
+      "remove": "把它从世界中移除，归还其顶点；再次调用不做任何事。"
+    }
+  },
+  "GuideLines": {
+    "summary": "要绘制的线段。",
+    "members": {
+      "positions": "每条线段两个端点，每个端点三个数。",
+      "color": "它们的颜色；默认为白色。",
+      "width": "屏幕上的宽度，单位为像素。"
+    }
+  },
+  "GuidePoints": {
+    "summary": "要绘制的点。",
+    "members": {
+      "positions": "每个点三个数。",
+      "color": "它们的颜色；默认为白色。",
+      "size": "屏幕上每个方形点的边长，单位为像素。"
+    }
+  },
+  "Guides": {
+    "summary": "一个世界的参考线，即页面绘制它们的方式：`world.guides`。",
+    "members": {
+      "ceiling": "参考线合起来最多容纳的顶点数（`GUIDE_VERTEX_CEILING`）。",
+      "vertexCount": "当前持有的顶点，每条线段两个、每个点一个，包括隐藏的参考线。",
+      "lines": "绘制线段，每条两个端点；超过上限时被拒绝（`GUIDE_CEILING`）。",
+      "points": "绘制方形点，每个一个位置；超过上限时被拒绝（`GUIDE_CEILING`）。",
+      "add": "以材质颜色、在对象当前所在位置，绘制 `object` 的线和点网格 —— 每个 `helper` 都会构建它们；它的三角形不是参考线，会被跳过。",
+      "clear": "移除所有参考线。"
     }
   },
   "HALF_PI": {
@@ -3873,6 +3910,9 @@
       "error": "最后一个会话为何无法打开，以具名的引擎错误表示：其 `code` 是 `EngineError` 上记录的代码之一（WebGPU 丢失设备时为 `WEBGPU_LOST`），或对于没有自身代码的原因为 `SESSION_OPEN_FAILED`。带有已记录代码的 `EngineError` 就是抛出的那个错误；其他任何错误都会被转换，此时抛出的错误位于 `details.cause`。从每次打开开始时起，以及没有尝试任何打开时，为 `null`。",
       "modes": "当前渲染器提供的所有视图模式。"
     }
+  },
+  "world.guides": {
+    "summary": "绘制在图像之上的线、点和辅助对象（`Guides`）。"
   },
   "world.onFrame": {
     "summary": "在每一帧之前运行一个函数,并传入该帧的时间。",
@@ -6928,6 +6968,10 @@
       "mars": "火星的。",
       "none": "无重力。"
     }
+  },
+  "GUIDE_VERTEX_CEILING": {
+    "summary": "一个世界的参考线合起来最多容纳的顶点数：每条线段两个，每个点一个。",
+    "description": "声明而非推导：无论页面要求什么，它都把渲染通道上传的唯一实例缓冲限制在 64 Ki × 32 字节 = 2 MiB —— 16 000 条线的网格放得下，扫描城市的点云放不下，它应属于场景。"
   },
   "GravityInput": {
     "summary": "重力：预设名称，或以 m/s² 表示的向量。"
