@@ -11,7 +11,7 @@ export function triangleBackend(
   material: G.GraphSurface = G.basicSurface({ side: G.DOUBLE_SIDE }),
 ) {
   const position = new Float32Array([-0.5, -0.5, 0, 0.5, -0.5, 0, 0, 0.5, 0]);
-  const geometry = new G.GraphGeometry();
+  const geometry = new G.Geometry();
   geometry.setAttribute('position', new G.BufferAttribute(position, 3));
   geometry.setIndex(G.indices([0, 1, 2]));
   const mesh = G.mesh(geometry, material),

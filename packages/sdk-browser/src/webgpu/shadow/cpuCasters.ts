@@ -118,7 +118,6 @@ export function selectCpuCasters(rt: WebgpuPagesRuntime, device: GPUDevice, cam:
           pixelError: face.uniforms.pixelError,
           viewport,
           holdResident: true,
-          rootFallback: true,
           isResident: services.poolHolds,
           wanted: wanted[at],
           result: lists.result,

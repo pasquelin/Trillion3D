@@ -72,6 +72,14 @@ test('the shape is the exact primitive a geometry was built as, scaled', () => {
   const pill = resolveShape(capsule(0.3, 1), one, 'dynamic');
   assert.equal(pill.shape, SHAPE.capsule);
   assert.deepEqual(pill.size, [0.5, 0.3, 0]);
+  // A cylinder tapers only when its bottom radius differs from its top's.
+  const tapered = { type: 'cylinder', halfHeight: 1, radius: 0.2 } as const;
+  const twice = { x: 2, y: 2, z: 2 };
+  const size = (radiusBottom?: number) =>
+    resolveShape(box(), twice, 'dynamic', { ...tapered, radiusBottom }).size;
+  assert.deepEqual(size(0.3), [2, 0.4, 0.6]);
+  assert.deepEqual(size(0.2), [2, 0.4, 0]);
+  assert.deepEqual(size(), [2, 0.4, 0]);
 });
 
 test('a compound places its primitives in the body, scaled; a stretched or mirrored one is refused', () => {

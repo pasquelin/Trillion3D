@@ -6,6 +6,7 @@ import { edgesOf } from './lines.ts';
 import type { Primitive } from '../object/mesh.ts';
 import { drawnSprite } from './drawnSprite.ts';
 import { flatten } from './drawnFlat.ts';
+import { readPoints } from './bounds.ts';
 
 /** The triangles a mesh draws, as the page cutter reads them. `lines` says they are line quads
  *  (`quads`), which every raster widens on screen by the surface's `lineWidth`; a dashed line's
@@ -48,7 +49,7 @@ export function drawnTriangles(
     return drawnSprite(drawnTriangles(geometry, 'triangles'), options.center);
   const position = geometry.attributes.position;
   if (!position || position.count === 0) return null;
-  const p = Array.from(position.array);
+  const p = Array.from(readPoints(position));
   const corners = geometry.index
     ? Array.from(geometry.index.array)
     : Array.from({ length: position.count }, (_, i) => i);
