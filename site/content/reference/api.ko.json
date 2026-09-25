@@ -1069,7 +1069,7 @@
       "gpuFrameMs": "`gpuPassMs.frame`이 가리키는 이미지의 GPU 시간. 어떤 `cpu*` 필드에도 절대 더해지지 않는다. 기기는 몇 이미지마다 측정되므로 숫자가 몇 이미지 전의 것일 수 있다. 첫 측정 전, 유지된 이미지부터 기기의 다음 측정까지, `timestamp-query`가 없는 기기, 그리고 WebGL2에서는 null이다.",
       "gpuHostGapMs": "같은 이미지가 자신의 두 제출 사이에서 소비한 CPU 시간, 한 번만 제출할 경우 0. 이것은 호스트 시간이지 GPU 시간이 아니며, 그래서 `gpuFrameMs`가 이를 제외하는 것이다. 측정되지 않았을 때는 null.",
       "uncoveredTriangles": "공개된 컷이 이름을 언급하지만 프레임이 그릴 수 없는 — 상주 페이지도, 대체할 조상도 없는 — 클러스터의 삼각형. 이미지의 실제 구멍이며, 유일하게 건강한 값은 0이다. 백엔드가 판단할 수 없을 때는 null(그것은 자신이 선택한 컷을 그대로 그리므로, 이런 상황이 생기지 않는다).",
-      "drawnTriangles": "**현재 프레임**이 그리기에 넘기는 삼각형 수: 계층의 불투명·투명을 합친 클러스터 컷에서, `uncoveredTriangles`가 세는, 상주 페이지가 없는 클러스터를 뺀 것. 계층 밖의 투명 메시는 여기 포함되지 않으며(`transparentSubmittedTriangles`), 오클루전 배제도 빠지지 않는다(`hizRejectedTriangles`). 컷이 채택될 때 `uncoveredTriangles`와 같은 패스에서 세어진다: 비동기 GPU 리드백을 기다리지 않으므로, `submittedTriangles`와 달리 시간이 부족해서 `null`이 되는 일이 없다. 이 샘플에서 기대되는 커버리지 관계: `selected − drawn − uncovered = 0`.",
+      "drawnTriangles": "**현재 프레임**이 그리기에 넘기는 삼각형 수: 계층의 불투명·투명을 합친 클러스터 컷. 계층 밖의 투명 메시는 여기 포함되지 않으며(`transparentSubmittedTriangles`), 오클루전 배제도 빠지지 않는다(`hizRejectedTriangles`). 컷이 채택될 때 세어진다: 비동기 GPU 리드백을 기다리지 않으므로, `submittedTriangles`와 달리 시간이 부족해서 `null`이 되는 일이 없다.",
       "cpuSelectMs": "이 프레임의 클러스터 컷에 대한 CPU 시간, 선택 과정만을 측정한 것. CPU에서 컷을 고르지 않는 엔진에서는 null.",
       "gpuSelectionFallback": "엔진이 GPU 선택 결과를 가지고 있었지만 그것을 버렸을 때 true: 이후로 측정되는 것은 대체용 CPU 컷이다. 대체가 일어나면 `gpu-selection-fallback` 진단도 한 번 발생하며, 호스트는 그것을 그대로 복사한다; GPU 선택 기능이 없는 엔진에는 이 항목이 없다.",
       "cpuSelectNodesTested": "이 프레임의 컷이 테스트(절두체 또는 디테일 레벨 판정)를 가한 계층 노드 수. 이미 판정이 끝나 완전히 보이는 노드는 하나도 포함되지 않는다: 그것은 순회될 뿐 테스트되지 않는다. 이것이 계층적 컷의 실제 작업량을 나타내는 척도다; 평평한 컷은 이 값을 0으로 유지하며 모든 클러스터를 순회한다. CPU에서 컷을 고르지 않거나 이를 세지 않는 엔진에서는 null.",
@@ -1106,11 +1106,11 @@
     }
   },
   "Geometry": {
-    "summary": "형태 그 자체: 이름이 붙은 정점별 속성, 선택적인 삼각형 인덱스, 재질 그룹.",
+    "summary": "형태만: 이름 붙은 정점별 속성, 선택적 삼각형 인덱스, 재질 그룹, 형태를 움직이는 모프 타깃, 그리는 범위.",
     "members": {
       "isGeometry": "항상 `true`: 지오메트리를 다른 무엇과도 구분한다.",
       "type": "지오메트리의 종류, `'Geometry'`.",
-      "attributes": "이름별 정점 목록: `position`, `normal`, `uv`, `color`.",
+      "attributes": "이름별 정점 목록: `position`, `normal`, `uv`, `color`. 각각 자기 숫자를 가지거나 인터리브 버퍼를 읽는다.",
       "index": "각 삼각형을 이루는 정점, 삼각형당 세 개의 숫자; `null`이면 순서대로 읽는다.",
       "groups": "메시가 여러 재질을 가질 때 `material[materialIndex]`로 그려지는 인덱스 범위.",
       "boundingBox": "계산된 후의, 모든 정점을 둘러싸는 박스; 계산 전에는 `null`.",
@@ -1125,8 +1125,8 @@
       "addGroup": "메시의 재질 번호 `materialIndex`로 `start`부터 `count`개의 인덱스를 그린다.",
       "clearGroups": "모든 재질 그룹을 제거한다.",
       "computeVertexNormals": "매끄러운 법선: 각 정점이 그것을 공유하는 면들을 면적으로 가중 평균한다.",
-      "computeBoundingBox": "모든 정점을 둘러싸는 박스를 계산해 `boundingBox`에 보관한다.",
-      "computeBoundingSphere": "모든 정점을 둘러싸는 구를 계산해 `boundingSphere`에 보관한다.",
+      "computeBoundingBox": "모든 정점과 모프 타깃이 주는 모든 형태를 감싸는 상자를 재어 `boundingBox`에 둔다.",
+      "computeBoundingSphere": "상자에 중심을 두고 모프 여부와 상관없이 가장 먼 정점까지 닿는 구를 재어 `boundingSphere`에 둔다.",
       "applyMatrix4": "모든 위치를 움직이고 모든 법선을 회전시킨다: 지오메트리 자체가 바뀌는 것이지 자세가 바뀌는 것이 아니다.",
       "translate": "모든 정점을 `(x, y, z)`만큼 이동시킨다.",
       "rotateX": "모든 정점을 x축 중심으로 `angle` 라디안 회전시킨다.",
@@ -1134,8 +1134,17 @@
       "rotateZ": "모든 정점을 z축 중심으로 `angle` 라디안 회전시킨다.",
       "scale": "모든 정점을 `(x, y, z)`만큼 확대·축소한다.",
       "center": "지오메트리를, 그 박스가 원점을 중심으로 하도록 옮긴다.",
-      "clone": "모든 목록의 복사본을 가진 새 지오메트리.",
-      "dispose": "소유자들을 잊는다: dispose된 지오메트리는 누구에게도 그려지지 않는다."
+      "clone": "모든 목록, 그룹, 범위, 데이터, 경계의 사본과 여전히 그것을 만드는 레시피를 가진 새 지오메트리.",
+      "dispose": "지오메트리를 돌려준다: 해제 훅을 각각 한 번 실행하고 보유자와 레이캐스트 트리를 잊는다. 해제된 지오메트리는 누구도 그리거나 광선을 쏘지 않는다.",
+      "kind": "리소스가 무엇인지. 장면을 읽는 쪽이 리소스를 구별하는 기준.",
+      "name": "이름.",
+      "morphAttributes": "모프되는 속성마다 모프 타깃 하나당 속성 하나.",
+      "morphTargetsRelative": "모프 타깃이 위치가 아니라 변위를 담으면 참.",
+      "drawRange": "그리는 인덱스 범위.",
+      "userData": "지오메트리를 만든 쪽의 데이터를 위한 자유 공간.",
+      "released": "지오메트리를 돌려줄 때 호출된다: 렌더러 자신의 사본이 듣는 것.",
+      "getIndex": "삼각형 목록, 또는 `null`.",
+      "toNonIndexed": "같은 삼각형을 인덱스 없이 그리는 지오메트리: 모든 모서리가 자기 정점을 가진다."
     }
   },
   "GeometryPageDescriptor": {
@@ -1389,9 +1398,6 @@
       "width": "너비, 픽셀 단위.",
       "height": "높이, 픽셀 단위."
     }
-  },
-  "HostGeometry": {
-    "summary": "호스트 지오메트리: 그 속성들과, 호스트가 그것들로부터 계산한 로컬 박스."
   },
   "HostMaterial": {
     "summary": "엔진이 읽는 형태의 호스트 재질: 모든 호스트 재질이 공유하는 표면 매개변수로, 경계에서 한 번만 엔진의 `VisMaterial`로 읽힌다; `side`만은 `sideOf`가 읽는다."
@@ -3195,7 +3201,8 @@
       "pinned": "항상 유지되는 번들.",
       "bundleBytes": "목표 번들 크기.",
       "pages": "번들 수.",
-      "maxDependencies": "번들의 최대 의존 수: 컴파일러가 공개하는 상한."
+      "maxDependencies": "번들의 가장 긴 닫힌 의존성 목록.",
+      "dependencyBound": "한 번들의 클러스터 부모를 담는 번들의 최대 수로, 패킹 전에 고정됩니다."
     }
   },
   "SlimStructure": {
@@ -3300,7 +3307,8 @@
       "pinned": "항상 유지되는 번들.",
       "bundleBytes": "목표 번들 크기.",
       "pages": "모든 번들.",
-      "maxDependencies": "번들의 최대 의존 수, 컴파일러가 공개한 그대로."
+      "maxDependencies": "번들의 가장 긴 닫힌 의존성 목록으로, 컴파일러가 게시한 그대로입니다.",
+      "dependencyBound": "한 번들의 클러스터 부모를 담는 번들의 최대 수로, 패킹 전에 고정됩니다."
     }
   },
   "StreamPage": {
@@ -4070,7 +4078,7 @@
       "gpuFrameMs": "`gpuPassMs.frame`이 가리키는 이미지의 GPU 시간. 어떤 `cpu*` 필드에도 절대 더해지지 않는다. 기기는 몇 이미지마다 측정되므로 숫자가 몇 이미지 전의 것일 수 있다. 첫 측정 전, 유지된 이미지부터 기기의 다음 측정까지, `timestamp-query`가 없는 기기, 그리고 WebGL2에서는 null이다.",
       "gpuHostGapMs": "같은 이미지가 자신의 두 제출 사이에서 소비한 CPU 시간, 한 번만 제출할 경우 0. 이것은 호스트 시간이지 GPU 시간이 아니며, 그래서 `gpuFrameMs`가 이를 제외하는 것이다. 측정되지 않았을 때는 null.",
       "uncoveredTriangles": "공개된 컷이 이름을 언급하지만 프레임이 그릴 수 없는 — 상주 페이지도, 대체할 조상도 없는 — 클러스터의 삼각형. 이미지의 실제 구멍이며, 유일하게 건강한 값은 0이다. 백엔드가 판단할 수 없을 때는 null(그것은 자신이 선택한 컷을 그대로 그리므로, 이런 상황이 생기지 않는다).",
-      "drawnTriangles": "**현재 프레임**이 그리기에 넘기는 삼각형 수: 계층의 불투명·투명을 합친 클러스터 컷에서, `uncoveredTriangles`가 세는, 상주 페이지가 없는 클러스터를 뺀 것. 계층 밖의 투명 메시는 여기 포함되지 않으며(`transparentSubmittedTriangles`), 오클루전 배제도 빠지지 않는다(`hizRejectedTriangles`). 컷이 채택될 때 `uncoveredTriangles`와 같은 패스에서 세어진다: 비동기 GPU 리드백을 기다리지 않으므로, `submittedTriangles`와 달리 시간이 부족해서 `null`이 되는 일이 없다. 이 샘플에서 기대되는 커버리지 관계: `selected − drawn − uncovered = 0`.",
+      "drawnTriangles": "**현재 프레임**이 그리기에 넘기는 삼각형 수: 계층의 불투명·투명을 합친 클러스터 컷. 계층 밖의 투명 메시는 여기 포함되지 않으며(`transparentSubmittedTriangles`), 오클루전 배제도 빠지지 않는다(`hizRejectedTriangles`). 컷이 채택될 때 세어진다: 비동기 GPU 리드백을 기다리지 않으므로, `submittedTriangles`와 달리 시간이 부족해서 `null`이 되는 일이 없다.",
       "cpuSelectMs": "이 프레임의 클러스터 컷에 대한 CPU 시간, 선택 과정만을 측정한 것. CPU에서 컷을 고르지 않는 엔진에서는 null.",
       "gpuSelectionFallback": "엔진이 GPU 선택 결과를 가지고 있었지만 그것을 버렸을 때 true: 이후로 측정되는 것은 대체용 CPU 컷이다. 대체가 일어나면 `gpu-selection-fallback` 진단도 한 번 발생하며, 호스트는 그것을 그대로 복사한다; GPU 선택 기능이 없는 엔진에는 이 항목이 없다.",
       "cpuSelectNodesTested": "이 프레임의 컷이 테스트(절두체 또는 디테일 레벨 판정)를 가한 계층 노드 수. 이미 판정이 끝나 완전히 보이는 노드는 하나도 포함되지 않는다: 그것은 순회될 뿐 테스트되지 않는다. 이것이 계층적 컷의 실제 작업량을 나타내는 척도다; 평평한 컷은 이 값을 0으로 유지하며 모든 클러스터를 순회한다. CPU에서 컷을 고르지 않거나 이를 세지 않는 엔진에서는 null.",
@@ -6326,7 +6334,7 @@
   "object.sprite": {
     "summary": "카메라가 어디를 보든 항상 카메라를 바라보는 평평한 그림: 스프라이트의 스케일만큼 크고 재질의 `rotation`만큼 이미지 안에서 돌아간 단위 정사각형.",
     "parameters": {
-      "material": "정사각형이 보여 주는 것: `material.sprite`."
+      "material": "정사각형이 보여 주는 것: `material.sprite`. 다른 종류는 오류를 던집니다."
     }
   },
   "orthographicProjection": {
@@ -7040,8 +7048,8 @@
     "summary": "접촉이 리스너에게 주는 것: 다른 물체, 충격량, 닿은 지점.",
     "members": {
       "other": "닿은 물체. 장면을 떠나면 `null`.",
-      "impulse": "N·s: 법선 방향 접근 속도 × 쌍의 환산 질량, 솔버 전에 추정합니다. `leave`에서는 0.",
-      "point": "접촉점, 월드 좌표. `leave`에서는 원점."
+      "impulse": "N·s: 법선 방향 접근 속도 × 쌍의 환산 질량, 솔버 전에 추정합니다(소프트 바디 쪽은 평균 속도와 닿은 정점들의 질량). `leave`와 소프트 바디와 센서 사이에서는 0.",
+      "point": "접촉점, 월드 좌표(소프트 바디는 닿은 정점들의 평균, 센서와는 그 중심). `leave`에서는 원점."
     }
   },
   "ContactEventName": {
@@ -7279,32 +7287,6 @@
       "steer": "핸들, −1 왼쪽 끝에서 1 오른쪽 끝.",
       "handbrake": "핸드브레이크가 당겨졌는지 여부."
     }
-  },
-  "GraphGeometry": {
-    "members": {
-      "attributes": "그것의 정점 속성.",
-      "boundingBox": "호스트가 계산한 로컬 박스.",
-      "kind": "리소스가 무엇인지.",
-      "name": "그 이름.",
-      "index": "삼각형 목록, 또는 정점을 순서대로 그리려면 `null`.",
-      "morphAttributes": "모프되는 속성마다, 모프 타깃마다 속성 하나.",
-      "morphTargetsRelative": "모프 타깃이 위치가 아니라 변위를 담을 때 참.",
-      "groups": "각각 하나의 표면으로 그려지는 인덱스 범위.",
-      "drawRange": "그려지는 인덱스 범위.",
-      "boundingSphere": "계산되거나 선언된 뒤의 로컬 구.",
-      "userData": "지오메트리를 만든 쪽의 데이터를 위한 자유 공간.",
-      "getIndex": "삼각형 목록.",
-      "setIndex": "삼각형 목록을 설정합니다.",
-      "getAttribute": "그 이름의 속성.",
-      "setAttribute": "속성에 이름을 붙여 설정합니다.",
-      "deleteAttribute": "속성을 잊습니다.",
-      "hasAttribute": "그 이름의 속성이 있는지 여부.",
-      "clone": "모든 버퍼, 그룹, 범위, 경계의 복사본을 담은 지오메트리.",
-      "toNonIndexed": "같은 삼각형을 인덱스 없이 그리는 지오메트리: 모든 꼭짓점이 자기만의 정점입니다.",
-      "computeBoundingBox": "모든 정점에 걸친 로컬 박스를 계산합니다.",
-      "computeBoundingSphere": "로컬 구를 계산합니다: 박스를 중심으로, 가장 먼 정점까지."
-    },
-    "summary": "메시가 그리는 속성, 그것들을 인덱싱하는 삼각형 목록, 그것들을 움직이는 모프 타깃, 그리고 그 위에서 계산한 로컬 박스와 구."
   },
   "GraphNode": {
     "members": {
@@ -7615,10 +7597,11 @@
   },
   "Sprite": {
     "summary": "항상 카메라를 바라보는 평평한 그림: 모든 렌더러가 그릴 때 스프라이트의 위치를 중심으로 이미지 쪽으로 돌리는 단위 정사각형.",
-    "description": "크기는 `x`와 `y`의 월드 스케일이다. 이미지 평면에서의 회전은 재질의 `rotation`이다. 자기 자신의 회전은 읽지 않는다. 스프라이트는 그림자를 드리우지 않는다.",
+    "description": "크기는 `x`와 `y`의 월드 스케일이다. 이미지 평면에서의 회전은 재질의 `rotation`이다. 자기 자신의 회전은 읽지 않는다. 스프라이트는 그림자를 드리우지 않는다. `SpriteMaterial`만 받는 레퍼런스의 `Sprite`처럼 `material.sprite`만 입습니다. 다른 재질을 넘기거나 설정하면 그 종류를 밝히는 `TypeError`를 던집니다.",
     "members": {
       "isSprite": "항상 `true`: 스프라이트를 다른 모든 메시와 구별한다.",
-      "center": "스프라이트의 위치에 놓이는 그림의 점: `(0.5, 0.5)`는 가운데, `(0, 0)`은 왼쪽 아래 모서리, `(0.5, 0)`은 아래 가장자리의 가운데."
+      "center": "스프라이트의 위치에 놓이는 그림의 점: `(0.5, 0.5)`는 가운데, `(0, 0)`은 왼쪽 아래 모서리, `(0.5, 0)`은 아래 가장자리의 가운데.",
+      "material": "스프라이트의 `material.sprite`입니다. 다른 것을 설정하면 바뀝니다."
     }
   }
 }

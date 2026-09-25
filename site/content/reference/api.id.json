@@ -1077,7 +1077,7 @@
       "gpuFrameMs": "Durasi GPU gambar yang dijelaskan `gpuPassMs.frame`. Tidak pernah ditambahkan ke bidang `cpu*`. Perangkat diambil sampelnya setiap beberapa gambar, jadi sebuah angka bisa berasal dari beberapa gambar sebelumnya. Null sebelum sampel pertama, dari gambar yang ditahan hingga sampel perangkat berikutnya, pada perangkat tanpa `timestamp-query`, dan pada WebGL2.",
       "gpuHostGapMs": "Waktu CPU yang dihabiskan gambar yang sama antara dua pengirimannya sendiri, dan nol saat ia mengirim sekali. Ini waktu host, bukan waktu GPU, itulah kenapa `gpuFrameMs` mengecualikannya. Null saat tidak terukur.",
       "uncoveredTriangles": "Segitiga cluster yang disebut potongan yang diterbitkan tapi tidak bisa digambar bingkai itu — tidak ada halaman yang tersimpan dan tidak ada leluhur penutup. Sebuah lubang sungguhan pada gambar: nol adalah satu-satunya nilai sehat. Null saat sebuah backend tidak bisa mengetahuinya (ia menggambar potongan yang dipilihnya, jadi tidak pernah punya satu pun).",
-      "drawnTriangles": "Segitiga yang diserahkan BINGKAI SAAT INI ke gambar: potongan clusternya, opaque dan transparan hierarki digabung, dikurangi cluster tanpa halaman yang tersimpan yang dihitung `uncoveredTriangles`. Mesh transparan di luar hierarki tidak termasuk (`transparentSubmittedTriangles`), dan penolakan oklusi tidak dikurangi (`hizRejectedTriangles`). Dihitung pada tahap yang sama dengan `uncoveredTriangles`, saat potongan diadopsi: tidak ada pembacaan balik GPU asinkron yang ditunggu, jadi tidak pernah `null` karena kekurangan waktu, tidak seperti `submittedTriangles`. Hubungan cakupan yang diharapkan pada sampel ini: `selected − drawn − uncovered = 0`.",
+      "drawnTriangles": "Segitiga yang diserahkan BINGKAI SAAT INI ke gambar: potongan clusternya, opaque dan transparan hierarki digabung. Mesh transparan di luar hierarki tidak termasuk (`transparentSubmittedTriangles`), dan penolakan oklusi tidak dikurangi (`hizRejectedTriangles`). Dihitung saat potongan diadopsi: tidak ada pembacaan balik GPU asinkron yang ditunggu, jadi tidak pernah `null` karena kekurangan waktu, tidak seperti `submittedTriangles`.",
       "cpuSelectMs": "Waktu CPU potongan cluster bingkai ini, diukur di sekitar pemilihan saja. Null pada mesin yang tidak memilih potongannya di CPU.",
       "gpuSelectionFallback": "Benar saat mesin punya pemilihan GPU dan menjatuhkannya: yang diukur sejak itu adalah potongan CPU fallback. Sebuah fallback juga memancarkan diagnostik `gpu-selection-fallback`, sekali; host menyalinnya apa adanya, dan tidak ada pada mesin tanpa pemilihan GPU.",
       "cpuSelectNodesTested": "Node hierarki tempat potongan bingkai ini mengajukan sebuah uji — keputusan frustum atau tingkat detail. Sebuah node yang sudah diputuskan dan sepenuhnya terlihat tidak menerima satu pun: ia dijelajahi, tidak diuji. Ini ukuran pekerjaan sungguhan sebuah potongan hierarkis; sebuah potongan datar menguji nol darinya dan menjelajahi setiap cluster. Null pada mesin yang tidak memilih potongannya di CPU, atau yang tidak menghitungnya.",
@@ -1114,11 +1114,11 @@
     }
   },
   "Geometry": {
-    "summary": "Bentuknya saja: atribut per-vertex bernama, indeks segitiga opsional, grup material.",
+    "summary": "Hanya bentuknya: atribut per verteks bernama, indeks segitiga opsional, grup material, target morph yang menggerakkannya, dan rentang yang digambar.",
     "members": {
       "isGeometry": "Selalu `true`: membedakan sebuah geometri dari yang lain.",
       "type": "Jenis geometri itu, `'Geometry'`.",
-      "attributes": "Daftar per-vertex menurut namanya: `position`, `normal`, `uv`, `color`.",
+      "attributes": "Daftar per verteks menurut nama: `position`, `normal`, `uv`, `color`; masing-masing memiliki angkanya sendiri atau membaca buffer berselang-seling.",
       "index": "Vertex mana yang membentuk setiap segitiga, tiga angka per segitiga; `null` membacanya berurutan.",
       "groups": "Rentang indeks yang digambar dengan `material[materialIndex]` saat sebuah mesh membawa beberapa.",
       "boundingBox": "Kotak di sekitar setiap vertex, setelah dihitung; `null` sampai saat itu.",
@@ -1133,8 +1133,8 @@
       "addGroup": "Menggambar `count` indeks dari `start` dengan nomor material `materialIndex` mesh itu.",
       "clearGroups": "Menghapus setiap grup material.",
       "computeVertexNormals": "Normal halus: setiap vertex merata-ratakan sisi yang berbagi dengannya, dibobot menurut luasnya.",
-      "computeBoundingBox": "Mengukur kotak di sekitar setiap vertex dan menyimpannya di `boundingBox`.",
-      "computeBoundingSphere": "Mengukur bola di sekitar setiap vertex dan menyimpannya di `boundingSphere`.",
+      "computeBoundingBox": "Mengukur kotak di sekitar setiap verteks dan setiap bentuk yang diberikan target morph, lalu menyimpannya di `boundingBox`.",
+      "computeBoundingSphere": "Mengukur bola yang berpusat pada kotak dan menjangkau verteks terjauh, di-morph atau tidak, lalu menyimpannya di `boundingSphere`.",
       "applyMatrix4": "Memindahkan setiap posisi, memutar setiap normal: geometrinya sendiri berubah, bukan sebuah pose.",
       "translate": "Memindahkan setiap vertex sebesar `(x, y, z)`.",
       "rotateX": "Memutar setiap vertex mengelilingi sumbu x, sebesar `angle` radian.",
@@ -1142,8 +1142,17 @@
       "rotateZ": "Memutar setiap vertex mengelilingi sumbu z, sebesar `angle` radian.",
       "scale": "Meregangkan setiap vertex sebesar `(x, y, z)`.",
       "center": "Memindahkan geometri agar kotaknya berpusat di titik asal.",
-      "clone": "Sebuah geometri baru dengan salinan setiap daftar.",
-      "dispose": "Melupakan pemegangnya: sebuah geometri yang dibuang tidak digambar siapa pun."
+      "clone": "Geometri baru dengan salinan setiap daftar, grup, rentang, data, dan batasnya, serta resep yang masih membangunnya.",
+      "dispose": "Mengembalikan geometri: menjalankan setiap kait pelepasan sekali, melupakan pemegangnya dan pohon raycast; geometri yang dilepas tidak digambar atau dikenai sinar oleh siapa pun.",
+      "kind": "Apa sumber dayanya, cara pembaca adegan membedakan sumber daya.",
+      "name": "Namanya.",
+      "morphAttributes": "Untuk setiap atribut yang di-morph, satu atribut per target morph.",
+      "morphTargetsRelative": "Benar bila target morph menyimpan perpindahan, bukan posisi.",
+      "drawRange": "Rentang indeks yang digambar.",
+      "userData": "Ruang bebas untuk data siapa pun yang membangun geometri.",
+      "released": "Dipanggil saat geometri dikembalikan: yang didengarkan salinan milik renderer.",
+      "getIndex": "Daftar segitiga, atau `null`.",
+      "toNonIndexed": "Geometri yang menggambar segitiga yang sama tanpa indeks: setiap sudut verteksnya sendiri."
     }
   },
   "GeometryPageDescriptor": {
@@ -1397,9 +1406,6 @@
       "width": "Lebar dalam piksel.",
       "height": "Tinggi dalam piksel."
     }
-  },
-  "HostGeometry": {
-    "summary": "Sebuah geometri host: atributnya, dan kotak lokal yang dihitung host atasnya."
   },
   "HostMaterial": {
     "summary": "Sebuah material host seperti dibaca mesin: parameter permukaan yang dibagi setiap material host, dibaca sekali di batas ke dalam `VisMaterial` mesin; hanya `sideOf` yang membaca `side`."
@@ -3276,7 +3282,8 @@
       "pinned": "Bundle yang selalu disimpan.",
       "bundleBytes": "Ukuran bundle target.",
       "pages": "Berapa banyak bundle.",
-      "maxDependencies": "Jumlah dependensi terbesar sebuah bundel: batas yang diterbitkan kompiler."
+      "maxDependencies": "Daftar dependensi tertutup terpanjang dari sebuah bundel.",
+      "dependencyBound": "Jumlah bundel terbanyak yang memuat induk klaster satu bundel, ditetapkan sebelum pengemasan."
     }
   },
   "SlimStructure": {
@@ -3381,7 +3388,8 @@
       "pinned": "Bundle yang selalu disimpan.",
       "bundleBytes": "Ukuran bundle target.",
       "pages": "Setiap bundle.",
-      "maxDependencies": "Jumlah dependensi terbesar sebuah bundel, seperti yang diterbitkan kompiler."
+      "maxDependencies": "Daftar dependensi tertutup terpanjang dari sebuah bundel, seperti yang diterbitkan kompiler.",
+      "dependencyBound": "Jumlah bundel terbanyak yang memuat induk klaster satu bundel, ditetapkan sebelum pengemasan."
     }
   },
   "StreamPage": {
@@ -4049,7 +4057,7 @@
       "gpuFrameMs": "Durasi GPU gambar yang dijelaskan `gpuPassMs.frame`. Tidak pernah ditambahkan ke bidang `cpu*`. Perangkat diambil sampelnya setiap beberapa gambar, jadi sebuah angka bisa berasal dari beberapa gambar sebelumnya. Null sebelum sampel pertama, dari gambar yang ditahan hingga sampel perangkat berikutnya, pada perangkat tanpa `timestamp-query`, dan pada WebGL2.",
       "gpuHostGapMs": "Waktu CPU yang dihabiskan gambar yang sama antara dua pengirimannya sendiri, dan nol saat ia mengirim sekali. Ini waktu host, bukan waktu GPU, itulah kenapa `gpuFrameMs` mengecualikannya. Null saat tidak terukur.",
       "uncoveredTriangles": "Segitiga cluster yang disebut potongan yang diterbitkan tapi tidak bisa digambar bingkai itu — tidak ada halaman yang tersimpan dan tidak ada leluhur penutup. Sebuah lubang sungguhan pada gambar: nol adalah satu-satunya nilai sehat. Null saat sebuah backend tidak bisa mengetahuinya (ia menggambar potongan yang dipilihnya, jadi tidak pernah punya satu pun).",
-      "drawnTriangles": "Segitiga yang diserahkan BINGKAI SAAT INI ke gambar: potongan clusternya, opaque dan transparan hierarki digabung, dikurangi cluster tanpa halaman yang tersimpan yang dihitung `uncoveredTriangles`. Mesh transparan di luar hierarki tidak termasuk (`transparentSubmittedTriangles`), dan penolakan oklusi tidak dikurangi (`hizRejectedTriangles`). Dihitung pada tahap yang sama dengan `uncoveredTriangles`, saat potongan diadopsi: tidak ada pembacaan balik GPU asinkron yang ditunggu, jadi tidak pernah `null` karena kekurangan waktu, tidak seperti `submittedTriangles`. Hubungan cakupan yang diharapkan pada sampel ini: `selected − drawn − uncovered = 0`.",
+      "drawnTriangles": "Segitiga yang diserahkan BINGKAI SAAT INI ke gambar: potongan clusternya, opaque dan transparan hierarki digabung. Mesh transparan di luar hierarki tidak termasuk (`transparentSubmittedTriangles`), dan penolakan oklusi tidak dikurangi (`hizRejectedTriangles`). Dihitung saat potongan diadopsi: tidak ada pembacaan balik GPU asinkron yang ditunggu, jadi tidak pernah `null` karena kekurangan waktu, tidak seperti `submittedTriangles`.",
       "cpuSelectMs": "Waktu CPU potongan cluster bingkai ini, diukur di sekitar pemilihan saja. Null pada mesin yang tidak memilih potongannya di CPU.",
       "gpuSelectionFallback": "Benar saat mesin punya pemilihan GPU dan menjatuhkannya: yang diukur sejak itu adalah potongan CPU fallback. Sebuah fallback juga memancarkan diagnostik `gpu-selection-fallback`, sekali; host menyalinnya apa adanya, dan tidak ada pada mesin tanpa pemilihan GPU.",
       "cpuSelectNodesTested": "Node hierarki tempat potongan bingkai ini mengajukan sebuah uji — keputusan frustum atau tingkat detail. Sebuah node yang sudah diputuskan dan sepenuhnya terlihat tidak menerima satu pun: ia dijelajahi, tidak diuji. Ini ukuran pekerjaan sungguhan sebuah potongan hierarkis; sebuah potongan datar menguji nol darinya dan menjelajahi setiap cluster. Null pada mesin yang tidak memilih potongannya di CPU, atau yang tidak menghitungnya.",
@@ -6319,7 +6327,7 @@
   "object.sprite": {
     "summary": "Gambar datar yang selalu menghadap kamera, ke mana pun kamera melihat: persegi satuan, sebesar skala sprite dan diputar di dalam gambar oleh `rotation` materialnya.",
     "parameters": {
-      "material": "Apa yang ditampilkan persegi: sebuah `material.sprite`."
+      "material": "Apa yang ditampilkan persegi: sebuah `material.sprite`; jenis lain melempar galat."
     }
   },
   "orthographicProjection": {
@@ -7041,8 +7049,8 @@
     "summary": "Apa yang diberikan kontak kepada pendengarnya: objek lain, impuls, dan titik sentuh.",
     "members": {
       "other": "Objek yang tersentuh; `null` setelah keluar dari adegan.",
-      "impulse": "N·s: kecepatan mendekat sepanjang normal kali massa tereduksi pasangan, diperkirakan sebelum solver; 0 pada `leave`.",
-      "point": "Titik kontak, kerangka dunia; titik asal pada `leave`."
+      "impulse": "N·s: kecepatan mendekat sepanjang normal kali massa tereduksi pasangan, diperkirakan sebelum solver (di sisi benda lunak: kecepatan rata-ratanya dan massa verteksnya yang menyentuh); 0 pada `leave`, dan antara benda lunak dan sensor.",
+      "point": "Titik kontak, kerangka dunia (untuk benda lunak: rata-rata verteksnya yang menyentuh, pusatnya di depan sensor); titik asal pada `leave`."
     }
   },
   "ContactEventName": {
@@ -7280,32 +7288,6 @@
       "steer": "Setir, −1 penuh ke kiri hingga 1 penuh ke kanan.",
       "handbrake": "Apakah rem tangan ditarik."
     }
-  },
-  "GraphGeometry": {
-    "members": {
-      "attributes": "Atribut vertex-nya.",
-      "boundingBox": "Kotak lokal yang dihitung host.",
-      "kind": "Apa sumber daya ini.",
-      "name": "Namanya.",
-      "index": "Daftar segitiga, atau `null` untuk menggambar verteks secara berurutan.",
-      "morphAttributes": "Per atribut yang di-morph, satu atribut per target morph.",
-      "morphTargetsRelative": "Benar jika target morph menyimpan perpindahan, bukan posisi.",
-      "groups": "Rentang indeks yang masing-masing digambar dengan satu permukaan.",
-      "drawRange": "Rentang indeks yang digambar.",
-      "boundingSphere": "Bola lokal, setelah dihitung atau dideklarasikan.",
-      "userData": "Ruang bebas untuk data milik siapa pun yang membangun geometri.",
-      "getIndex": "Daftar segitiga.",
-      "setIndex": "Menetapkan daftar segitiga.",
-      "getAttribute": "Atribut dengan nama itu.",
-      "setAttribute": "Menamai sebuah atribut.",
-      "deleteAttribute": "Melupakan sebuah atribut.",
-      "hasAttribute": "Apakah ia memiliki atribut dengan nama itu.",
-      "clone": "Geometri yang menyimpan salinan setiap buffer, grup, rentang, dan batasnya.",
-      "toNonIndexed": "Geometri yang menggambar segitiga yang sama tanpa indeks: setiap sudut adalah verteks tersendiri.",
-      "computeBoundingBox": "Menghitung kotak lokal atas semua verteks.",
-      "computeBoundingSphere": "Menghitung bola lokal: berpusat pada kotak, menjangkau verteks terjauh."
-    },
-    "summary": "Atribut yang digambar sebuah mesh, daftar segitiga yang mengindeksnya, target morph yang menggerakkannya, serta kotak dan bola lokal yang dihitung atasnya."
   },
   "GraphNode": {
     "members": {
@@ -7616,10 +7598,11 @@
   },
   "Sprite": {
     "summary": "Gambar datar yang selalu menghadap kamera: persegi satuan yang diputar setiap renderer ke arah gambar saat menggambar, di sekitar posisi sprite.",
-    "description": "Ukurannya adalah skala dunianya pada `x` dan `y`; putarannya di bidang gambar adalah `rotation` materialnya; rotasinya sendiri tidak dibaca. Sprite tidak menghasilkan bayangan.",
+    "description": "Ukurannya adalah skala dunianya pada `x` dan `y`; putarannya di bidang gambar adalah `rotation` materialnya; rotasinya sendiri tidak dibaca. Sprite tidak menghasilkan bayangan. Seperti `Sprite` referensi, yang hanya menerima `SpriteMaterial`, ia hanya memakai `material.sprite`: material lain, diberikan atau diset, melempar `TypeError` yang menyebut jenisnya.",
     "members": {
       "isSprite": "Selalu `true`: membedakan sprite dari mesh lain mana pun.",
-      "center": "Titik gambar yang berada di posisi sprite: `(0.5, 0.5)` tengahnya, `(0, 0)` sudut kiri bawahnya, `(0.5, 0)` tengah tepi bawahnya."
+      "center": "Titik gambar yang berada di posisi sprite: `(0.5, 0.5)` tengahnya, `(0, 0)` sudut kiri bawahnya, `(0.5, 0)` tengah tepi bawahnya.",
+      "material": "`material.sprite` milik sprite; set yang lain untuk menggantinya."
     }
   }
 }

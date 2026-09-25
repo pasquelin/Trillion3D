@@ -1747,7 +1747,7 @@
       "gpuFrameMs": "Durata GPU del fotogramma descritta da `gpuPassMs.frame`. Mai sommata a un campo `cpu*`. Il dispositivo è campionato ogni pochi fotogrammi, quindi un numero può risalire a qualche fotogramma prima. Null prima del primo campione, da un fotogramma trattenuto fino al campione successivo del dispositivo, su un dispositivo senza `timestamp-query` e su WebGL2.",
       "gpuHostGapMs": "Tempo CPU che lo stesso fotogramma ha trascorso tra due dei propri invii, e zero quando invia una sola volta. È tempo dell'host, non della GPU, per questo `gpuFrameMs` lo esclude. Nullo quando non misurato.",
       "uncoveredTriangles": "Triangoli dei cluster nominati dal taglio pubblicato ma che l'immagine non può disegnare — nessuna pagina residente e nessun antenato che copra. Un vero buco nell'immagine: zero è l'unico valore sano. Nullo quando un motore non può dirlo (disegna il taglio che ha scelto, quindi non ne ha mai).",
-      "drawnTriangles": "Triangoli che l'IMMAGINE ATTUALE dà al disegno: il suo taglio di cluster, opachi e trasparenti della gerarchia insieme, meno i cluster senza pagina residente contati da `uncoveredTriangles`. Le mesh trasparenti fuori dalla gerarchia non ci sono (`transparentSubmittedTriangles`), e il rifiuto per occlusione non viene sottratto (`hizRejectedTriangles`). Contato nello stesso passaggio di `uncoveredTriangles`, all'adozione del taglio: nessuna rilettura asincrona della GPU è attesa, quindi non vale mai `null` per mancanza di tempo, a differenza di `submittedTriangles`. Relazione di copertura attesa su questa misura: `selected − drawn − uncovered = 0`.",
+      "drawnTriangles": "Triangoli che l'IMMAGINE ATTUALE dà al disegno: il suo taglio di cluster, opachi e trasparenti della gerarchia insieme. Le mesh trasparenti fuori dalla gerarchia non ci sono (`transparentSubmittedTriangles`), e il rifiuto per occlusione non viene sottratto (`hizRejectedTriangles`). Contato all'adozione del taglio: nessuna rilettura asincrona della GPU è attesa, quindi non vale mai `null` per mancanza di tempo, a differenza di `submittedTriangles`.",
       "cpuSelectMs": "Tempo CPU del taglio di cluster di questo fotogramma, misurato solo attorno alla selezione. Nullo per un motore che non sceglie il proprio taglio sulla CPU.",
       "gpuSelectionFallback": "Vero quando il motore aveva una selezione GPU e l'ha abbandonata: ciò che viene misurato da allora è il taglio di ripiego CPU. Un ripiego emette anche la diagnostica `gpu-selection-fallback`, una volta; l'host la copia così com'è, ed è assente in un motore senza selezione GPU.",
       "cpuSelectNodesTested": "Nodi della gerarchia su cui il taglio di questo fotogramma ha fatto un test — decisione di frustum o di livello di dettaglio. Un nodo già deciso e interamente visibile non ne riceve nessuno: viene percorso, non testato. È la misura del vero lavoro di un taglio gerarchico; un taglio piatto ne testa zero e percorre ogni cluster. Nullo per un motore che non sceglie il proprio taglio sulla CPU, o che non lo conta.",
@@ -1980,11 +1980,11 @@
     }
   },
   "Geometry": {
-    "summary": "La forma da sola: attributi nominati per vertice, un indice di triangoli facoltativo, gruppi di materiali.",
+    "summary": "Solo la forma: attributi per vertice con nome, un indice di triangoli facoltativo, gruppi di materiali, i target di morph che la muovono e l’intervallo disegnato.",
     "members": {
       "isGeometry": "Sempre `true`: distingue una geometria da tutto il resto.",
       "type": "Il tipo della geometria, `'Geometry'`.",
-      "attributes": "Le liste per vertice, per nome: `position`, `normal`, `uv`, `color`.",
+      "attributes": "Le liste per vertice, per nome: `position`, `normal`, `uv`, `color`; ognuna possiede i suoi numeri o legge un buffer interlacciato.",
       "index": "Quali vertici formano ogni triangolo, tre numeri per triangolo; `null` li legge in ordine.",
       "groups": "Intervalli di indici disegnati con `material[materialIndex]` quando una mesh ne porta diversi.",
       "boundingBox": "La scatola attorno a ogni vertice, una volta calcolata; `null` prima.",
@@ -1999,8 +1999,8 @@
       "addGroup": "Disegna `count` indici a partire da `start` con il materiale numero `materialIndex` della mesh.",
       "clearGroups": "Rimuove ogni gruppo di materiale.",
       "computeVertexNormals": "Normali morbide: ogni vertice fa la media delle facce che lo condividono, ponderate per la loro area.",
-      "computeBoundingBox": "Misura la scatola attorno a ogni vertice e la mantiene in `boundingBox`.",
-      "computeBoundingSphere": "Misura la sfera attorno a ogni vertice e la mantiene in `boundingSphere`.",
+      "computeBoundingBox": "Misura la scatola attorno a ogni vertice e a ogni forma che le dà un target di morph, e la tiene in `boundingBox`.",
+      "computeBoundingSphere": "Misura la sfera centrata sulla scatola che raggiunge il vertice più lontano, con morph o no, e la tiene in `boundingSphere`.",
       "applyMatrix4": "Sposta ogni posizione, ruota ogni normale: è la geometria che cambia, non una posa.",
       "translate": "Sposta ogni vertice di `(x, y, z)`.",
       "rotateX": "Ruota ogni vertice attorno all'asse x, di `angle` radianti.",
@@ -2008,8 +2008,17 @@
       "rotateZ": "Ruota ogni vertice attorno all'asse z, di `angle` radianti.",
       "scale": "Allunga ogni vertice di `(x, y, z)`.",
       "center": "Sposta la geometria affinché la sua scatola sia centrata sull'origine.",
-      "clone": "Una nuova geometria con copie di ogni lista.",
-      "dispose": "Dimentica chi la tiene: una geometria liberata non è disegnata da nessuno."
+      "clone": "Una nuova geometria con copie di ogni lista, i suoi gruppi, intervallo, dati e limiti, e la ricetta che ancora la costruisce.",
+      "dispose": "Restituisce la geometria: esegue ogni hook di rilascio una volta, dimentica chi la tiene e l’albero di raycast; nessuno disegna né colpisce una geometria rilasciata.",
+      "kind": "Che cos’è la risorsa, come un lettore della scena distingue le risorse.",
+      "name": "Il suo nome.",
+      "morphAttributes": "Per ogni attributo con morph, un attributo per target di morph.",
+      "morphTargetsRelative": "Vero quando un target di morph contiene spostamenti, non posizioni.",
+      "drawRange": "L’intervallo dell’indice disegnato.",
+      "userData": "Spazio libero per i dati di chi ha costruito la geometria.",
+      "released": "Chiamati quando la geometria viene restituita: ciò che ascolta la copia propria di un renderer.",
+      "getIndex": "La lista di triangoli, o `null`.",
+      "toNonIndexed": "Una geometria che disegna gli stessi triangoli senza indice: ogni angolo è un vertice a sé."
     }
   },
   "GEOMETRY_PAGE_CODEC": {
@@ -2414,9 +2423,6 @@
       "width": "Larghezza in pixel.",
       "height": "Altezza in pixel."
     }
-  },
-  "HostGeometry": {
-    "summary": "Una geometria dell'host: i suoi attributi, e la scatola locale che l'host ha calcolato su di essa."
   },
   "HostMaterial": {
     "summary": "Un materiale dell'host così come lo legge il motore: i parametri di superficie condivisi da ogni materiale dell'host, letti una volta al confine nel `VisMaterial` del motore; solo `sideOf` legge `side`."
@@ -4148,7 +4154,7 @@
   "object.sprite": {
     "summary": "Un’immagine piatta sempre rivolta verso la camera, ovunque guardi: un quadrato di un’unità, grande quanto la scala dello sprite e ruotato nell’immagine dalla `rotation` del suo materiale.",
     "parameters": {
-      "material": "Cosa mostra il quadrato: un `material.sprite`."
+      "material": "Cosa mostra il quadrato: un `material.sprite`; qualsiasi altro tipo lancia un errore."
     }
   },
   "Object3D": {
@@ -5519,7 +5525,8 @@
       "pinned": "Pacchetti sempre mantenuti.",
       "bundleBytes": "Dimensione mirata di un pacchetto.",
       "pages": "Quanti pacchetti.",
-      "maxDependencies": "Numero massimo di dipendenze di un pacchetto: il limite che il compilatore pubblica."
+      "maxDependencies": "La lista di dipendenze chiusa più lunga di un pacchetto.",
+      "dependencyBound": "Massimo di pacchetti che contengono i genitori dei cluster di un pacchetto, fissato prima dell’impacchettamento."
     }
   },
   "SlimStructure": {
@@ -5666,7 +5673,8 @@
       "pinned": "Pacchetti sempre mantenuti.",
       "bundleBytes": "Dimensione mirata di un pacchetto.",
       "pages": "Ogni pacchetto.",
-      "maxDependencies": "Numero massimo di dipendenze di un pacchetto, come il compilatore lo ha pubblicato."
+      "maxDependencies": "La lista di dipendenze chiusa più lunga di un pacchetto, come pubblicata dal compilatore.",
+      "dependencyBound": "Massimo di pacchetti che contengono i genitori dei cluster di un pacchetto, fissato prima dell’impacchettamento."
     }
   },
   "StreamPage": {
@@ -6606,7 +6614,7 @@
       "gpuFrameMs": "Durata GPU del fotogramma descritta da `gpuPassMs.frame`. Mai sommata a un campo `cpu*`. Il dispositivo è campionato ogni pochi fotogrammi, quindi un numero può risalire a qualche fotogramma prima. Null prima del primo campione, da un fotogramma trattenuto fino al campione successivo del dispositivo, su un dispositivo senza `timestamp-query` e su WebGL2.",
       "gpuHostGapMs": "Tempo CPU che lo stesso fotogramma ha trascorso tra due dei propri invii, e zero quando invia una sola volta. È tempo dell'host, non della GPU, per questo `gpuFrameMs` lo esclude. Nullo quando non misurato.",
       "uncoveredTriangles": "Triangoli dei cluster nominati dal taglio pubblicato ma che l'immagine non può disegnare — nessuna pagina residente e nessun antenato che copra. Un vero buco nell'immagine: zero è l'unico valore sano. Nullo quando un motore non può dirlo (disegna il taglio che ha scelto, quindi non ne ha mai).",
-      "drawnTriangles": "Triangoli che l'IMMAGINE ATTUALE dà al disegno: il suo taglio di cluster, opachi e trasparenti della gerarchia insieme, meno i cluster senza pagina residente contati da `uncoveredTriangles`. Le mesh trasparenti fuori dalla gerarchia non ci sono (`transparentSubmittedTriangles`), e il rifiuto per occlusione non viene sottratto (`hizRejectedTriangles`). Contato nello stesso passaggio di `uncoveredTriangles`, all'adozione del taglio: nessuna rilettura asincrona della GPU è attesa, quindi non vale mai `null` per mancanza di tempo, a differenza di `submittedTriangles`. Relazione di copertura attesa su questa misura: `selected − drawn − uncovered = 0`.",
+      "drawnTriangles": "Triangoli che l'IMMAGINE ATTUALE dà al disegno: il suo taglio di cluster, opachi e trasparenti della gerarchia insieme. Le mesh trasparenti fuori dalla gerarchia non ci sono (`transparentSubmittedTriangles`), e il rifiuto per occlusione non viene sottratto (`hizRejectedTriangles`). Contato all'adozione del taglio: nessuna rilettura asincrona della GPU è attesa, quindi non vale mai `null` per mancanza di tempo, a differenza di `submittedTriangles`.",
       "cpuSelectMs": "Tempo CPU del taglio di cluster di questo fotogramma, misurato solo attorno alla selezione. Nullo per un motore che non sceglie il proprio taglio sulla CPU.",
       "gpuSelectionFallback": "Vero quando il motore aveva una selezione GPU e l'ha abbandonata: ciò che viene misurato da allora è il taglio di ripiego CPU. Un ripiego emette anche la diagnostica `gpu-selection-fallback`, una volta; l'host la copia così com'è, ed è assente in un motore senza selezione GPU.",
       "cpuSelectNodesTested": "Nodi della gerarchia su cui il taglio di questo fotogramma ha fatto un test — decisione di frustum o di livello di dettaglio. Un nodo già deciso e interamente visibile non ne riceve nessuno: viene percorso, non testato. È la misura del vero lavoro di un taglio gerarchico; un taglio piatto ne testa zero e percorre ogni cluster. Nullo per un motore che non sceglie il proprio taglio sulla CPU, o che non lo conta.",
@@ -7040,8 +7048,8 @@
     "summary": "Ciò che un contatto dà ai suoi ascoltatori: l’altro oggetto, l’impulso e dove ha toccato.",
     "members": {
       "other": "L’oggetto toccato; `null` una volta uscito dalla scena.",
-      "impulse": "N·s: la velocità di avvicinamento lungo la normale per la massa ridotta della coppia, stimata prima del solutore; 0 su `leave`.",
-      "point": "Il punto di contatto, riferimento del mondo; l’origine su `leave`."
+      "impulse": "N·s: la velocità di avvicinamento lungo la normale per la massa ridotta della coppia, stimata prima del solutore (dal lato di un corpo morbido: la sua velocità media e la massa dei suoi vertici che hanno toccato); 0 su `leave`, e tra un corpo morbido e un sensore.",
+      "point": "Il punto di contatto, riferimento del mondo (quello di un corpo morbido: la media dei suoi vertici che hanno toccato, il suo centro davanti a un sensore); l’origine su `leave`."
     }
   },
   "ContactEventName": {
@@ -7279,32 +7287,6 @@
       "steer": "Volante, da −1 tutto a sinistra a 1 tutto a destra.",
       "handbrake": "Se il freno a mano è tirato."
     }
-  },
-  "GraphGeometry": {
-    "members": {
-      "attributes": "I suoi attributi di vertici.",
-      "boundingBox": "La scatola locale calcolata dall'host.",
-      "kind": "Che cosa è la risorsa.",
-      "name": "Il suo nome.",
-      "index": "La lista dei triangoli, o `null` per disegnare i vertici in ordine.",
-      "morphAttributes": "Per ogni attributo deformato, un attributo per ogni target di morph.",
-      "morphTargetsRelative": "Vero quando un target di morph contiene spostamenti, non posizioni.",
-      "groups": "Intervalli dell’indice disegnati ciascuno con una superficie.",
-      "drawRange": "L’intervallo dell’indice disegnato.",
-      "boundingSphere": "La sfera locale, una volta calcolata o dichiarata.",
-      "userData": "Spazio libero per i dati di chi ha costruito la geometria.",
-      "getIndex": "La lista dei triangoli.",
-      "setIndex": "Imposta la lista dei triangoli.",
-      "getAttribute": "L’attributo con quel nome.",
-      "setAttribute": "Dà un nome a un attributo.",
-      "deleteAttribute": "Dimentica un attributo.",
-      "hasAttribute": "Se ha un attributo con quel nome.",
-      "clone": "Una geometria con copie di ogni buffer, dei suoi gruppi, intervallo e limiti.",
-      "toNonIndexed": "Una geometria che disegna gli stessi triangoli senza indice: ogni angolo è un vertice a sé.",
-      "computeBoundingBox": "Calcola il box locale su tutti i vertici.",
-      "computeBoundingSphere": "Calcola la sfera locale: centrata sul box, fino al vertice più lontano."
-    },
-    "summary": "Gli attributi che una mesh disegna, la lista di triangoli con cui sono indicizzati, i target di morph che li muovono, e il box e la sfera locali calcolati su di essi."
   },
   "GraphNode": {
     "members": {
@@ -7615,10 +7597,11 @@
   },
   "Sprite": {
     "summary": "Un’immagine piatta sempre rivolta verso la camera: un quadrato di un’unità che ogni renderer ruota verso l’immagine mentre disegna, attorno alla posizione dello sprite.",
-    "description": "La sua dimensione è la sua scala nel mondo su `x` e `y`; la sua rotazione nel piano dell’immagine è la `rotation` del suo materiale; la sua rotazione propria non viene letta. Uno sprite non proietta ombra.",
+    "description": "La sua dimensione è la sua scala nel mondo su `x` e `y`; la sua rotazione nel piano dell’immagine è la `rotation` del suo materiale; la sua rotazione propria non viene letta. Uno sprite non proietta ombra. Come lo `Sprite` di riferimento, che accetta solo uno `SpriteMaterial`, indossa solo un `material.sprite`: qualsiasi altro materiale, passato o assegnato, lancia un `TypeError` che ne nomina il tipo.",
     "members": {
       "isSprite": "Sempre `true`: distingue uno sprite da qualsiasi altra mesh.",
-      "center": "Il punto dell’immagine che poggia sulla posizione dello sprite: `(0.5, 0.5)` il suo centro, `(0, 0)` il suo angolo in basso a sinistra, `(0.5, 0)` il centro del suo bordo inferiore."
+      "center": "Il punto dell’immagine che poggia sulla posizione dello sprite: `(0.5, 0.5)` il suo centro, `(0, 0)` il suo angolo in basso a sinistra, `(0.5, 0)` il centro del suo bordo inferiore.",
+      "material": "Il `material.sprite` dello sprite; assegnane un altro per cambiarlo."
     }
   }
 }

@@ -19,11 +19,9 @@ function banc(slots: number, visible: string[], ahead: string[]) {
     order: string[] = [];
   cache.load = async (url: string) => (order.push(url), load(url));
   const tier = createLowerTier({
-    packedPages: pages,
-    keyCount: tracking.keyCount,
     keyOf: tracking.keyOf,
     room: () => slots,
-    closeOver: (ids, visit) => Array.from(ids).forEach(visit),
+    closeOver: (ids, visit) => Array.from(ids).forEach((id) => visit(id, pages[id])),
   });
   const want = (list: PageRec[]) => {
     for (const page of list) tracking.wanted.add(tracking.keyOf(page), page);

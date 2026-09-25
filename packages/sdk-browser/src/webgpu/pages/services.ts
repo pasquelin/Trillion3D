@@ -138,8 +138,7 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
   /** The groups a cut's pages close over: what the cache must hold for the cut rule to draw them. */
   const closure = createGroupClosure(rt.layout.selectionRoots, packedPages);
   // The two lower tiers: the casters the light cuts want, then the pages ahead of the camera.
-  const { keyCount, keyOf } = tracking,
-    tier = { packedPages, keyCount, keyOf, room, closeOver: closure.closeOver };
+  const tier = { keyOf: tracking.keyOf, room, closeOver: closure.closeOver };
   const shadowTier = createLowerTier(tier),
     aheadTier = createLowerTier(tier);
   /** Whether an arrival can change the image; the held frame survives one that cannot. */
@@ -191,8 +190,6 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     aheadTier,
     affectsImage,
     queueCutResidency: residency.queueCutResidency,
-    /** Bytes of the cut's host tables — group closure and the rule's readiness — once prepared. */
-    hostTableBytes: () => closure.hostBytes + (rt.run.gpuSelection?.hostBytes ?? 0),
     ...publication,
   };
 }

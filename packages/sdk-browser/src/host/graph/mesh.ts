@@ -3,10 +3,10 @@
  * morph weights included, at one placement or several — each copied as the reference copies it.
  * A node that only holds others is the core's own `Group`.
  */
-import type { GraphGeometry } from './geometry.ts';
 import { BufferAttribute } from '../../../../sdk-core/src/world/buffer/attribute.ts';
 import type { GraphSurface } from './surface.ts';
 import { GraphNode } from './node.ts';
+import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts';
 
 /** A drawn node: a geometry and its surface, or one surface per geometry group. */
 export class GraphMesh extends GraphNode {
@@ -17,10 +17,10 @@ export class GraphMesh extends GraphNode {
   /** The rank of each morph target by its name. */
   declare morphTargetDictionary?: Record<string, number>;
   /** Its shape. */
-  geometry: GraphGeometry;
+  geometry: Geometry;
   /** Its surface, or one per geometry group. */
   material: GraphSurface | GraphSurface[];
-  constructor(geometry: GraphGeometry, material: GraphSurface | GraphSurface[]) {
+  constructor(geometry: Geometry, material: GraphSurface | GraphSurface[]) {
     super();
     this.geometry = geometry;
     this.material = material;
@@ -62,7 +62,7 @@ export class GraphInstancedMesh extends GraphMesh {
   readonly instanceMatrix: BufferAttribute;
   /** How many placements are drawn. */
   count: number;
-  constructor(geometry: GraphGeometry, material: GraphSurface | GraphSurface[], capacity: number) {
+  constructor(geometry: Geometry, material: GraphSurface | GraphSurface[], capacity: number) {
     super(geometry, material);
     this.instanceMatrix = new BufferAttribute(new Float32Array(capacity * 16), 16);
     this.count = capacity;

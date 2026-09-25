@@ -26,7 +26,7 @@ test('bytes reserved for the engine tables come out of the cache budget', async 
   await streamer.request(urls);
   streamer.retain(['a.bin']);
   assert.equal(streamer.stats().resident, 3);
-  streamer.reserve(20);
+  streamer.reserve(() => 20);
   assert.deepEqual(
     urls.filter(streamer.has),
     ['a.bin'],

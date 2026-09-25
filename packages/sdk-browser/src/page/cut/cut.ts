@@ -1,6 +1,6 @@
 import { frustumExcludesBox, maxStretch, multiplyMatrix4 } from '../../../../sdk-core/src/index.ts';
 import type { LightPages } from '../../../../sdk-core/src/scene/light-shadow/pageOverlap.ts';
-import { openToCamera, selectFlat } from './select.ts';
+import { castsNoShadow, openToCamera, selectFlat } from './select.ts';
 import {
   IDENTITY_WORLD,
   createSelectionResult,
@@ -73,8 +73,9 @@ export function selectVisiblePages<T extends PageRecord>(
   state.lodLevel = 0;
   state.complete = true;
   for (const root of roots) {
-    // A parked instance-buffer row places nothing: its root waits in the tables, untested.
-    if (root.parked) continue;
+    // A parked instance-buffer row places nothing: its root waits in the tables, untested. A
+    // light's cut takes no sprite: it casts no shadow.
+    if (root.parked || castsNoShadow(root.sprite, state.light)) continue;
     const box = root.worldBox;
     if (
       box &&
@@ -111,7 +112,6 @@ export function selectVisiblePages<T extends PageRecord>(
   // The reused state keeps no hold on this image's scene.
   state.isResident = undefined;
   state.light = undefined;
-  state.flatReady = state.flatChildReady = undefined;
-  state.flatOpen = undefined;
+  state.flatHeld = undefined;
   return result;
 }

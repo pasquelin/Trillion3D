@@ -12,8 +12,7 @@
  * all arrive computed.
  */
 import type { Material } from '../../../sdk-core/src/index.ts';
-import type { HostGeometry, HostMaterial, HostMaterials } from './resources.ts';
-import type { HostGraphGeometry } from './scene/graphResources.ts';
+import type { HostMaterial, HostMaterials } from './resources.ts';
 import type { DecodedGeometryPage } from '../page/decode/geometryPage.ts';
 import type { MatrixElements } from '../math/matrixElements.ts';
 import { geometryBytes } from '../scene/meshes.ts';
@@ -21,10 +20,10 @@ import { hostSide } from '../scene/materialSide.ts';
 import { setGeometryBounds } from './geometryBounds.ts';
 import { GraphScene } from './graph/scene.ts';
 import { GraphInstancedMesh, GraphMesh } from './graph/mesh.ts';
-import { GraphGeometry } from './graph/geometry.ts';
 import { BufferAttribute } from '../../../sdk-core/src/world/buffer/attribute.ts';
 import { GraphSurface } from './graph/surface.ts';
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
+import { Geometry } from '../../../sdk-core/src/world/geometry/geometry.ts';
 
 type Surfaces = GraphSurface | GraphSurface[];
 
@@ -44,14 +43,11 @@ export function hostPageScene(copies: readonly object[] = []): GraphScene {
  * has already decided which pages are drawn.
  */
 export function hostPageMesh(
-  geometry: HostGeometry,
+  geometry: Geometry,
   declaration: HostMaterials,
   renderOrder: number,
 ): GraphMesh {
-  const mesh = new GraphMesh(
-    geometry as unknown as GraphGeometry,
-    declaration as unknown as Surfaces,
-  );
+  const mesh = new GraphMesh(geometry, declaration as unknown as Surfaces);
   mesh.matrixAutoUpdate = false;
   mesh.frustumCulled = false;
   mesh.renderOrder = renderOrder;
@@ -64,16 +60,12 @@ export function hostPageMesh(
  * nobody but the cut, like `hostPageMesh`.
  */
 export function hostPageInstances(
-  geometry: HostGeometry,
+  geometry: Geometry,
   declaration: HostMaterials,
   renderOrder: number,
   capacity: number,
 ): GraphInstancedMesh {
-  const mesh = new GraphInstancedMesh(
-    geometry as unknown as GraphGeometry,
-    declaration as unknown as Surfaces,
-    capacity,
-  );
+  const mesh = new GraphInstancedMesh(geometry, declaration as unknown as Surfaces, capacity);
   mesh.matrixAutoUpdate = false;
   mesh.frustumCulled = false;
   mesh.renderOrder = renderOrder;
@@ -116,18 +108,17 @@ export function hostPageGeometry(
   itemSize: (name: string) => number,
   min: ArrayLike<number>,
   max: ArrayLike<number>,
-): HostGeometry {
-  const geometry = new GraphGeometry();
+): Geometry {
+  const geometry = new Geometry();
   geometry.setIndex(new BufferAttribute(page.indices, 1));
   for (const [name, array] of Object.entries(page.attributes))
     geometry.setAttribute(name, new BufferAttribute(array, itemSize(name)));
   setGeometryBounds(geometry, min, max);
-  return geometry as unknown as HostGeometry;
+  return geometry;
 }
 
 /** A page geometry of an instance's own: a copy that shares no buffer with the model's. */
-export const copyHostGeometry = (geometry: HostGeometry): HostGeometry =>
-  (geometry as unknown as GraphGeometry).clone() as unknown as HostGeometry;
+export const copyHostGeometry = (geometry: Geometry): Geometry => geometry.clone();
 
 /** Buffers already counted, reused across calls: a page geometry owns its own, so the set is
  *  empty again at every call and nothing is allocated to count one. */
@@ -135,14 +126,14 @@ const counted = new Set<ArrayBufferView>();
 
 /** The bytes a page geometry holds, counted where every other holder of host buffers counts them
  *  (`../scene/meshes.ts`). */
-export function hostPageBytes(geometry: HostGeometry) {
+export function hostPageBytes(geometry: Geometry) {
   counted.clear();
-  return geometryBytes(geometry as HostGraphGeometry, counted);
+  return geometryBytes(geometry, counted);
 }
 
 /** Gives a page geometry back: the draw frees its buffers. */
-export const releaseHostGeometry = (geometry: HostGeometry) => {
-  (geometry as unknown as GraphGeometry).dispose();
+export const releaseHostGeometry = (geometry: Geometry) => {
+  geometry.dispose();
 };
 
 /** The standard (or physical) surface the engine's material parameters describe. The face

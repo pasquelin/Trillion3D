@@ -49,6 +49,7 @@ function banc() {
     layout: {
       packedPages,
       gpuWanted: [packedPages[0]],
+      selectionRoots: [],
       rows: { watchTouched: () => {} },
     },
   } as unknown as WebgpuPagesCore;

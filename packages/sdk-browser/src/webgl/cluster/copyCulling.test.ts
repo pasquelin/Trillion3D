@@ -6,7 +6,7 @@ import { GraphInstancedMesh } from '../../host/graph/mesh.ts';
 import { WebglClusterCopies } from './copyCulling.ts';
 
 const copyAt = (x: number, frustumCulled = true, material: G.GraphSurface = G.basicSurface()) => {
-  const geometry = new G.GraphGeometry();
+  const geometry = new G.Geometry();
   geometry.setAttribute('position', G.floatAttribute([-1, -1, -3, 1, -1, -3, 0, 1, -3], 3));
   const copy = G.mesh(geometry, material);
   copy.frustumCulled = frustumCulled;

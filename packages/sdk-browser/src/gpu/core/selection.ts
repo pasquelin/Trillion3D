@@ -80,7 +80,7 @@ export type GpuSelection = {
   /** Index in u32 words of the current-frame drawable page mask. */
   readonly maskOffset: number;
   readonly pageCount: number;
-  /** Bytes of its host tables, sized by the placements' pages: the CPU budget holds them. */
+  /** Bytes of its host tables, sized by the resident pages: the CPU budget holds them. */
   readonly hostBytes: number;
   readonly worldRevision: number;
   /** Advances `worldRevision` unless `posesMoved` is false: only the render origin moved. */

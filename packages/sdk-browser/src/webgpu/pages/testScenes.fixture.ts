@@ -130,7 +130,7 @@ export function assertBothQuadPagesDrawn(
 /** Releases a backend and the quad it was mounted on. */
 export function disposeQuadRun(
   backend: { dispose(): void },
-  fixture: { geometry: G.GraphGeometry; material: G.GraphSurface },
+  fixture: { geometry: G.Geometry; material: G.GraphSurface },
 ) {
   backend.dispose();
   fixture.geometry.dispose();

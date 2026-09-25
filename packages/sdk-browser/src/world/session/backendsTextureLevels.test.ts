@@ -49,7 +49,7 @@ async function run(
       streamer: {
         read: async () => undefined,
         readBytes: async () => undefined,
-        reserve: (bytes: number) => reserved.push(bytes),
+        reserve: (bytes: () => number) => reserved.push(bytes()),
       },
       attachCap: 1,
       cacheCap: 1,
@@ -91,7 +91,7 @@ test('a cache that bakes no texture chain hands no reader over', async () => {
   assert.equal(context.readTextureLevel, undefined);
 });
 
-test("the engines' host tables are reserved in the page cache once they are prepared", async () => {
+test("the engines' host tables are reserved in the page cache, read when it weighs itself", async () => {
   await run({}, undefined, { hostTableBytes: () => 1234 });
   assert.equal(reserved.at(-1), 1234);
   await run({});

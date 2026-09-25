@@ -71,7 +71,7 @@ test('clustered transparency reads the opaque geometry instead of copying it', a
     fixture.material.transparent = pass === 'clustered-blend';
     fixture.metadata.primitives[0].pass = pass;
     const positions = new Float32Array(3000);
-    positions.set(fixture.geometry.getAttribute('position').array);
+    positions.set(fixture.geometry.getAttribute('position')!.array);
     fixture.geometry.setAttribute('position', new G.BufferAttribute(positions, 3));
     const backend = webgpuPagesBackend({
       ...fixture,
