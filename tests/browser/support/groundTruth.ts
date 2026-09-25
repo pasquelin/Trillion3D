@@ -22,8 +22,6 @@ import { wrapLinear } from '../../../packages/sdk-browser/src/visibility/wrapMod
 
 /** Reads along the minified axis of a pixel: converged to within one level on the foliage. */
 const SAMPLES = 32;
-/** The pixel's corners, `x, y` in half-pixels from its centre: a silhouette changes one. */
-const CORNERS = [-1, -1, 1, -1, -1, 1, 1, 1];
 
 /** A map as the square wears it: RGBA8 texels, row 0 at v = 0, addressed by repeat. */
 interface TruthMap {
@@ -64,21 +62,24 @@ export interface Truth {
 /** A renderer's gap to the truth: pixels farther than the level allowed, and the largest gap. */
 export type TruthGap = { pixels: number; max: number };
 
-/** Linear RGB then alpha of the map at `(u, v)`, bilinear and repeated as the CPU mirror of the
- *  samplers reads it (`wrapLinear`), into `out`. */
-function bilinear(map: TruthMap, linear: Float32Array, u: number, v: number, out: Float64Array) {
+/** Adds `w` times the linear RGBA of the map at `(u, v)` into `out`, bilinear and repeated
+ *  as the CPU mirror of the samplers reads it (`wrapLinear`). */
+function bilinear(
+  map: TruthMap,
+  linear: Float32Array,
+  [u, v]: number[],
+  w: number,
+  out: Float64Array,
+) {
   const [x0, x1, wx] = wrapLinear(u, map.width, 'repeat'),
     [y0, y1, wy] = wrapLinear(v, map.height, 'repeat');
-  const [a, b, c, d] = [
-    y0 * map.width + x0,
-    y0 * map.width + x1,
-    y1 * map.width + x0,
-    y1 * map.width + x1,
-  ];
+  const r0 = y0 * map.width * 4,
+    r1 = y1 * map.width * 4;
   for (let k = 0; k < 4; k++)
-    out[k] =
-      (1 - wy) * ((1 - wx) * linear[a * 4 + k] + wx * linear[b * 4 + k]) +
-      wy * ((1 - wx) * linear[c * 4 + k] + wx * linear[d * 4 + k]);
+    out[k] +=
+      w *
+      ((1 - wy) * ((1 - wx) * linear[r0 + x0 * 4 + k] + wx * linear[r0 + x1 * 4 + k]) +
+        wy * ((1 - wx) * linear[r1 + x0 * 4 + k] + wx * linear[r1 + x1 * 4 + k]));
 }
 
 /** A square's plane seen from the screen: the inverse of its projection, a homography built once.
@@ -118,10 +119,9 @@ export function groundTruth(view: TruthView, samples = SAMPLES): Truth {
   );
   const at = { x: 0, y: 0 },
     uv = [0, 0],
-    texel = new Float64Array(4),
     sum = new Float64Array(4),
     e = map.uv,
-    half = 1 / size;
+    pixel = 1 / size;
   const truth: Truth = { rgba: new Uint8Array(size * size * 4), edge: new Uint8Array(size * size) };
   /** The surface the geometry shows at `(x, y)`: 1 the square, 2 the one behind, 0 none. */
   const surfaceAt = (x: number, y: number) => (front(x, y, at) ? 1 : back?.(x, y, at) ? 2 : 0);
@@ -142,32 +142,31 @@ export function groundTruth(view: TruthView, samples = SAMPLES): Truth {
   };
   for (let py = 0; py < size; py++)
     for (let px = 0; px < size; px++) {
-      const pixel = py * size + px,
-        x = (2 * px + 1) * half - 1,
-        y = (2 * py + 1) * half - 1;
+      const index = py * size + px,
+        x = (2 * px + 1) * pixel - 1,
+        y = (2 * py + 1) * pixel - 1;
       const surface = surfaceAt(x, y);
-      for (let c = 0; c < CORNERS.length; c += 2)
-        if (surfaceAt(x + CORNERS[c] * half, y + CORNERS[c + 1] * half) !== surface)
-          truth.edge[pixel] = 1;
+      // A silhouette crossing the pixel changes the surface at one of its corners.
+      for (const cx of [-1, 1])
+        for (const cy of [-1, 1])
+          if (surfaceAt(x + cx * pixel, y + cy * pixel) !== surface) truth.edge[index] = 1;
       let colour: ArrayLike<number> = surface === 2 ? behind : clear;
       if (surface === 1) {
-        const across = span(x, y, half, 0),
-          up = span(x, y, 0, half);
+        const across = span(x, y, pixel, 0),
+          up = span(x, y, 0, pixel);
         // A footprint of one texel or less is magnified: one read, as the sampler's.
         const reads = Math.max(across, up) > 1 ? samples : 1,
-          [ax, ay] = across >= up ? [2 * half, 0] : [0, 2 * half];
+          ax = across >= up ? 2 * pixel : 0,
+          ay = 2 * pixel - ax;
         sum.fill(0);
         for (let s = 0; s < reads; s++) {
           const t = (s + 0.5) / reads - 0.5;
-          const [u, v] = mapAt(x + ax * t, y + ay * t);
-          bilinear(map, linear, u, v, texel);
-          for (let k = 0; k < 4; k++) sum[k] += texel[k] / reads;
+          bilinear(map, linear, mapAt(x + ax * t, y + ay * t), 1 / reads, sum);
         }
-        if (sum[3] >= view.alphaTest) colour = sum;
-        else colour = back?.(x, y, at) ? behind : clear;
+        colour = sum[3] >= view.alphaTest ? sum : back?.(x, y, at) ? behind : clear;
       }
-      for (let k = 0; k < 3; k++) truth.rgba[pixel * 4 + k] = linearToSrgb8(colour[k]);
-      truth.rgba[pixel * 4 + 3] = 255;
+      for (let k = 0; k < 3; k++) truth.rgba[index * 4 + k] = linearToSrgb8(colour[k]);
+      truth.rgba[index * 4 + 3] = 255;
     }
   return truth;
 }
@@ -192,9 +191,9 @@ export function truthGap(image: ArrayLike<number>, truth: Truth, levels = 1): Tr
 
 /** The proof of #443: the engine within `tolerance` pixels of the truth, and no farther from it
  *  than the witness. Undefined when it holds, else what fails. */
-export function truthVerdict(engine: TruthGap, witness: TruthGap, tolerance: number) {
+export function truthVerdict(engine: TruthGap, reference: TruthGap, tolerance: number) {
   const gap = `engine ${engine.pixels} px from the ground truth`;
   if (engine.pixels > tolerance) return `${gap}, tolerance ${tolerance} px`;
-  if (engine.pixels > witness.pixels)
-    return `${gap}, farther than the witness's ${witness.pixels} px`;
+  if (engine.pixels > reference.pixels)
+    return `${gap}, farther than the witness's ${reference.pixels} px`;
 }
