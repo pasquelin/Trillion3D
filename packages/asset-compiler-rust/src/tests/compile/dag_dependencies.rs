@@ -156,7 +156,8 @@ fn a_cluster_whose_parents_exceed_a_forced_bound_is_refused_with_the_page_named(
 
 #[test]
 fn a_refusal_in_the_second_primitive_of_a_cook_names_its_mesh_and_primitive() {
-    // Page ids restart at 0 in every primitive: "Page 3" alone would name a page of each of them.
+    // Page ids restart at 0 in every primitive, so every refusal raised while a primitive compiles,
+    // a page's included, names it; a float index accessor forces one on the second primitive.
     let (root, options) = fixture();
     let mut gltf = read_gltf(&options);
     let push = |list: &mut Value, item: Value| list.as_array_mut().expect("array").push(item);
@@ -171,9 +172,6 @@ fn a_refusal_in_the_second_primitive_of_a_cook_names_its_mesh_and_primitive() {
     write_gltf(&options, &gltf, None);
     let error = compile(&options, |_| {}).expect_err("refused");
     assert_eq!(error.code, "INVALID_GLTF");
-    assert!(
-        error.message.starts_with("glTF mesh 0 primitive 1: "),
-        "{error}"
-    );
+    assert!(error.message.starts_with("Mesh 0 primitive 1: "), "{error}");
     fs::remove_dir_all(root).expect("cleanup");
 }
