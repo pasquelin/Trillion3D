@@ -148,6 +148,7 @@ test('a geometry pool the device refuses mid-session shrinks, and the session go
     gpu: {
       device: gpu.device,
       cache: { resize: async (n: number) => (resized.push(n), []), stats: () => ({}) },
+      vertexBytes: 0,
     },
     vis: {},
     run,
