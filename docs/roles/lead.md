@@ -22,23 +22,13 @@ not write code and you never measure. Every rule of AGENTS.md and CONTRIBUTING.m
    Chrome: the measurer captures it after the merge, in its stint's one thumbnail pull request
    (`docs/roles/measurer.md` step 7), which you name ready.
    `gh issue edit <n> --remove-label "in progress" --add-label "in review"`.
-3. **Review.** As soon as the coder opens or updates the pull request, launch one `reviewer`
-   subagent with a fresh context on it (`docs/roles/reviewer.md`). `KO`: resume the same coder
+3. **Review.** As soon as the coder pushes its branch, launch one `reviewer` subagent with a fresh context on that branch (`docs/roles/reviewer.md`). `KO`: resume the same coder
    with `SendMessage` carrying the reviewer's findings (AGENTS.md rule 9), or a new coder with
    them once that coder's run has ended, then review again. Three rounds at most; past that,
    report to the CTO and stop.
 4. **Merge.** With the reviewer's `OK`, the example of step 2 when the batch has one, and every
-   point of "Before merge" below checked by you on the diff: wait for `validate` to be green on
-   the reviewer's head, which already merged `develop`; only when the PR is `DIRTY`
-   (`gh pr view <pr> --json mergeStateStatus`) or `develop`'s new commits touch its files,
-   `gh pr update-branch <pr>`. Write `## Lead verification`, then take it out of draft
-   (`gh pr ready <pr>`), wait for every check to be green on that head, the body check re-run by
-   `gh pr ready` included (`gh pr checks <pr> --watch`, once that run is listed: until then the
-   draft's earlier green run still shows), then send "ready #<pr>" to the CTO, who merges it in
-   age order (AGENTS.md §Roles, rule 11); step 1 may start meanwhile, step 5 follows the merge. On
-   a red check, or a point of "Before merge" missed, put the pull request back in draft
-   (`gh pr ready --undo <pr>`), delete its Lead verification lines (CI cannot tell a stale line
-   from a new one) and go back to step 3.
+   point of "Before merge" below checked by you on the diff: write `## Lead verification` in the body file, check it with `scripts/check-pr-body.sh`, then open the pull request finished: `gh pr create --base develop --body-file .worktrees/logs/<n>-pr-body.md` (never a draft). Wait for every check to be green (`gh pr checks <pr> --watch`), then send "ready #<pr>" to the CTO, who merges it in
+   age order (AGENTS.md §Roles, rule 11); step 1 may start meanwhile, step 5 follows the merge. On a red check, resume the coder on the branch at once; the pull request stays open and is never closed.
 5. **Hand over**, once the CTO has merged. `gh issue edit <n> --remove-label "in review"`, add
    `to measure` for an engine batch (`packages/`, compiler, format, shaders, a published number) or
    an example whose thumbnail is missing or out of date, then `gh issue close <n>`.
@@ -50,8 +40,7 @@ not write code and you never measure. Every rule of AGENTS.md and CONTRIBUTING.m
 
 **You are accountable for every merge, not the coder or the reviewer.** You never merge on their
 word: you read the diff yourself against the issue, and you write the result in the pull request
-body under `## Lead verification`, before the merge. CI refuses a pull request out of draft
-without that section.
+body under `## Lead verification`, before the merge. CI refuses a pull request without that section.
 It holds one line per To do and Proof item of the issue:
 `- <item>: delivered in <file:line>, proved by <test name>`. An item that cannot be delivered holds the pull request until the CTO splits the issue (AGENTS.md rule 5).
 It then holds one line per point below, checked by you.
