@@ -47,7 +47,7 @@ fn light_of(value: &Value) -> Result<OracleLight> {
         [0.0, -1.0, 0.0]
     } else {
         let raw = vector(value.get("direction"), "light.direction")?;
-        let length = (raw[0] * raw[0] + raw[1] * raw[1] + raw[2] * raw[2]).sqrt();
+        let length = crate::shared_math::length(raw);
         if length <= 0.0 {
             return Err(bad("light.direction has no length"));
         }

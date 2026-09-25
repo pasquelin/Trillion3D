@@ -2,6 +2,7 @@
 //! it carries. The driver never places a light of its own — everything comes from
 //! imported data.
 use super::*;
+use crate::shared_math::{cross, length, normalized_or};
 
 pub(super) fn matrix_json(m: &ufbx::Matrix) -> Vec<f64> {
     vec![
@@ -14,28 +15,17 @@ pub(super) fn matrix_is_finite(m: &[f64]) -> bool {
 }
 /// Rotates the glTF light axis (-Z) onto the FBX light direction, then applies the node transform.
 pub(super) fn light_matrix(node: &ufbx::Node, direction: ufbx::Vec3) -> Vec<f64> {
-    let d = crate::shared_math::normalized_or(
-        [direction.x, direction.y, direction.z],
-        [0.0, 0.0, -1.0],
-    );
+    let d = normalized_or([direction.x, direction.y, direction.z], [0.0, 0.0, -1.0]);
     let z = [-d[0], -d[1], -d[2]];
     let up = if z[1].abs() > 0.99 {
         [1.0, 0.0, 0.0]
     } else {
         [0.0, 1.0, 0.0]
     };
-    let x = [
-        up[1] * z[2] - up[2] * z[1],
-        up[2] * z[0] - up[0] * z[2],
-        up[0] * z[1] - up[1] * z[0],
-    ];
-    let xl = (x[0] * x[0] + x[1] * x[1] + x[2] * x[2]).sqrt();
+    let x = cross(up, z);
+    let xl = length(x);
     let x = [x[0] / xl, x[1] / xl, x[2] / xl];
-    let y = [
-        z[1] * x[2] - z[2] * x[1],
-        z[2] * x[0] - z[0] * x[2],
-        z[0] * x[1] - z[1] * x[0],
-    ];
+    let y = cross(z, x);
     let n = &node.node_to_world;
     let mul = |c: [f64; 3]| {
         [
