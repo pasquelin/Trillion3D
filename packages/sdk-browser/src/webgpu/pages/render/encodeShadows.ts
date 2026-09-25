@@ -144,7 +144,7 @@ function ensureStaticLayer(rt: WebgpuPagesRuntime) {
   if (!lights.mobility.layered || lights.staticLayer || lights.staticLayerPending || !device)
     return;
   lights.staticLayerPending = true;
-  const capacity = rt.layout.drawSlots;
+  const capacity = rt.layout.rows.casterSlots;
   createShadowStaticLayer(device, lights.plan.pool.side)
     .then(async (layer) => {
       // The pyramids and the occlusion test read the layer: a device that refuses them keeps the
