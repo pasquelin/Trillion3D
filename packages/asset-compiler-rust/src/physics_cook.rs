@@ -42,7 +42,7 @@ pub const JOLT_COMMIT: &str = env!("JOLT_COMMIT");
 pub const PHYSICS_FILE: &str = "physics.json";
 /// Words of each soft body vertex, `x, y, z, mass`: the worker's and the builder's stride
 /// (`SOFT_VERTEX_WORDS`, `packages/physics-jolt-wasm/src/words.h`).
-pub(crate) const SOFT_VERTEX_WORDS: usize = 4;
+const SOFT_VERTEX_WORDS: usize = 4;
 
 /// The collision of one primitive (`cut::cook_primitive`), or `{"refused": reason}` when Jolt
 /// refuses one of its shapes: that primitive collides with nothing, and `physics.json`'s report
@@ -91,7 +91,8 @@ extern "C" {
     ) -> u32;
 }
 
-/// The code of a shape Jolt refuses: the primitive gets no collider, named in the report.
+/// The code of a shape Jolt refuses, or of a soft body the page would refuse: the primitive gets
+/// no collider, the soft body is not simulated, and the report names it.
 pub(crate) const PHYSICS_COOK_FAILED: &str = "PHYSICS_COOK_FAILED";
 
 /// Copies the bytes the cook left for this thread, or names what it refused and Jolt's reason.
@@ -148,7 +149,7 @@ pub(crate) fn height_field_shape(
 /// (`src/softSettings.h`): `vertices` (`x, y, z, mass` each, a mass of 0 a pin) scaled by `scale`,
 /// joined by the triangles of `corners` or, with none, each to the next; compliances `stretch`
 /// and `bend` (`INFINITY` for none).
-pub(crate) fn soft_settings(
+fn soft_settings(
     vertices: &[f32],
     scale: [f32; 3],
     corners: &[u32],

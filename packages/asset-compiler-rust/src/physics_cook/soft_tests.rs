@@ -1,7 +1,7 @@
 //! Soft bodies cooked as the page builds them: their vertices weighed and pinned alike, their
 //! settings Jolt's own bytes (a golden file), and a declaring node listed as a soft body in
 //! `physics.json`, never as static ground.
-use super::soft_record::{soft_record, SoftDeclared, SoftRecord};
+use super::soft_record::{soft_record, SoftDeclared};
 use super::stage_physics;
 use super::tests::assert_golden;
 use super::{soft_settings, SOFT_VERTEX_WORDS as W};
@@ -30,19 +30,16 @@ fn declared(kind: &'static str, pins: &[f64]) -> SoftDeclared {
         pressure: None,
     }
 }
-/// The golden cloth's record, pinned at its top corners.
-fn golden_record() -> SoftRecord {
-    let (pos, triangles) = cloth();
-    let cloth = declared("cloth", &[6.0, 8.0]);
-    soft_record(&pos, Some(&triangles), [1.0; 3], &cloth).unwrap()
-}
-
 // Behaviour: the cloth's vertices weigh the area each holds at 0.2 kg/m², its pins nothing, and
 // its settings cook to the same bytes twice, the golden ones (`TRILLION3D_WRITE_GOLDEN` rewrites
-// them).
+// them); the cook's vertex stride is the worker's (`words.h`).
 #[test]
 fn a_cloth_cooks_to_the_golden_settings() {
-    let record = golden_record();
+    let words = include_str!("../../../physics-jolt-wasm/src/words.h");
+    assert!(words.contains(&format!("SOFT_VERTEX_WORDS = {W};")));
+    let (pos, triangles) = cloth();
+    let pinned = declared("cloth", &[6.0, 8.0]);
+    let record = soft_record(&pos, Some(&triangles), [1.0; 3], &pinned).unwrap();
     let masses: Vec<f32> = record.vertices.iter().skip(3).step_by(W).copied().collect();
     let total: f32 = masses.iter().sum();
     assert!(
