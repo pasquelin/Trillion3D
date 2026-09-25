@@ -13,6 +13,7 @@ on:
       - 'packages/**'
       - 'scripts/docs/**'
       - 'scripts/docs-build.ts'
+      - 'scripts/site-caches.ts'
       - 'package.json'
       - 'pnpm-lock.yaml'
       - '.github/actions/node/**'
@@ -32,13 +33,26 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 40
     outputs:
       deploy: ${{ steps.plan.outputs.deploy }}
       floor: ${{ steps.plan.outputs.floor }}
     steps:
+      # The scene caches are compiled here, by the native compiler, which links the pinned Jolt.
       - uses: actions/checkout@v7
+        with:
+          submodules: true
       - uses: ./.github/actions/node
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: packages/asset-compiler-rust
+      - run: pnpm run build:native
+      # The one published report is no file of git: `bench/runner/publishReport.ts` stages it and
+      # the release `report` holds it (bench/runner/README.md, "Published reports").
+      - env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release download report --pattern report.tar.gz --output - | tar -xz -C site/reports
       # Whether this run publishes, decided once: only main is ever published.
       # The file-count floor of a sound output: the build copies every tracked served static of
       # site/ (sources .ts/.tsx excluded) and writes index.html, robots.txt and the report.html
@@ -52,7 +66,7 @@ jobs:
           statics=$(git ls-files -- site/examples site/assets site/data site/reports | grep -cEv '\.tsx?$')
           echo "deploy=$DEPLOY" >> "$GITHUB_OUTPUT"
           echo "floor=$((statics + 3))" >> "$GITHUB_OUTPUT"
-      # Styles, demo maths, browser engine, workers, portal and statics, from the sources alone;
+      # Styles, demo maths, browser engine, workers, portal, API files, scene caches and statics;
       # `--published` adds the audience measurement, which no local or proof build carries.
       - run: node scripts/docs-build.ts --published
       - if: steps.plan.outputs.deploy == 'true'
