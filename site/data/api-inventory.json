@@ -4192,6 +4192,7 @@
       "classification": "public",
       "affectedConsumers": [
         "packages/sdk-browser/src/physics/advancedJoints.test.ts",
+        "packages/sdk-browser/src/physics/damping.test.ts",
         "packages/sdk-browser/src/physics/gearPhase.test.ts",
         "packages/sdk-browser/src/physics/jointList.test.ts",
         "packages/sdk-browser/src/physics/jointSprings.test.ts",
