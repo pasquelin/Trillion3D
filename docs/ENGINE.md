@@ -245,17 +245,18 @@ cache (`splitMemoryBudget`).
 - **The floor is drawn first.** Every page a report names asks for its light's floor under it
   too — a sun's last clipmap level, a lamp face's one-page mip —: mapped first, never evicted while
   anything above it is read, and admitted first when not read — never drawn, or withdrawn —,
-  oldest first, whatever the budget, which pays it before any finer page; a floor still read,
+  whatever the budget, which pays it before any finer page: the floors of the faces the latest
+  report read first, then the others, each oldest first, so a read face keeps a current floor
+  within the view limit while a moving lamp asks for all six; a floor still read,
   stale for its moving casters or for detail, waits its turn like any page, so an object that
   keeps moving never starves the finer pages. The floor covers all the light reaches, so it needs
   no report to know what the view will read: a sun asks every frame for the floor pages its view
-  reaches — the camera brings new ones in without any pose —, and a moved or reshaped lamp, until a
-  report written at its current pose comes back, for the floor of each face the latest report
-  named — the faces its receivers read: a face nobody reads costs no light view, so the read faces
-  keep their floor within the view limit —; a lamp no report has read yet, for every face's floor.
+  reaches — the camera brings new ones in without any pose —, and a new, moved or reshaped lamp for
+  the floor of each face until a report written at its current pose comes back, as if the latest
+  report named them: a report from a past pose names only the faces that pose's receivers read.
   So a pixel that falls back past a withdrawn page reads a current floor. When the frame's floors
-  exceed the page cap or span more views than the light cut holds, those held back go first the
-  next frame, and meanwhile their face reads no shadow — never one at a past pose. A new light
+  exceed the page cap or span more views than the light cut holds, those held back lead their rank
+  the next frame, and meanwhile their face reads no shadow — never one at a past pose. A new light
   likewise has no floor until its first draw.
 - **A moving light follows within the frame.** A move is a change of what shapes its depth —
   kind, position, direction, range, cone, a rect's frame and size, the emitter radius, whether it
