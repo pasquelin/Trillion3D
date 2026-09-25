@@ -113,3 +113,28 @@ test('check-pr-body: a draft passes without Lead verification, a ready pull requ
   assert.match(checkBody(template, 'true').stderr, /must start with "Closes #<issue>"/);
   assert.match(checkBody(linked, 'true').stderr, /no "\/simplify:" line/);
 });
+
+test('check-pr-size: more than 600 added lines fail, generated paths are not counted', () => {
+  const work = makeRepo();
+  cpSync(new URL('.gitattributes', repo), join(work, '.gitattributes'));
+  ok(work, 'switch', '-q', '-c', '12-thing');
+  commit(work, 'base');
+  ok(work, 'tag', 'base');
+  const lines = (count: number) => Array.from({ length: count }, (_, i) => `${i}\n`).join('');
+  writeFileSync(join(work, 'pnpm-lock.yaml'), lines(5000));
+  writeFileSync(join(work, 'a.ts'), lines(600));
+  ok(work, 'add', 'pnpm-lock.yaml', 'a.ts');
+  ok(work, 'commit', '-q', '-m', 'lock and code');
+  const size = () =>
+    spawnSync(new URL('scripts/check-pr-size.sh', repo).pathname, ['base'], {
+      cwd: work,
+      encoding: 'utf8',
+    });
+  const accepted = size();
+  assert.equal(accepted.status, 0, accepted.stderr);
+  assert.match(accepted.stdout, /added: 600 \(limit 600\)/);
+  writeFileSync(join(work, 'b.ts'), 'one more\n');
+  ok(work, 'add', 'b.ts');
+  ok(work, 'commit', '-q', '-m', 'one more');
+  assert.match(size().stderr, /AGENTS\.md rule 11: split the pull request, `Part of #n`/);
+});
