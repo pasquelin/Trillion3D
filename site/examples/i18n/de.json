@@ -115,6 +115,14 @@
       "takes": "schlägt"
     }
   },
+  "a-glow-around-lights": {
+    "banner": "Ziehen, um sich umzusehen. Schalte das Leuchten aus, um die Lampen ohne es zu sehen, oder mach es breiter.",
+    "controls": {
+      "glow": "Leuchten",
+      "intensity": "Stärke",
+      "radius": "Ausbreitung"
+    }
+  },
   "a-lamp-in-its-glass": {
     "banner": "Ziehe, um dich umzusehen. Lass die Laterne schwingen und sieh, wie das Licht wandert.",
     "controls": {

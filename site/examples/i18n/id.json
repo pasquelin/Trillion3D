@@ -115,6 +115,14 @@
       "takes": "memakan"
     }
   },
+  "a-glow-around-lights": {
+    "banner": "Seret untuk melihat sekeliling. Matikan pendar untuk melihat lampu tanpanya, atau lebarkan.",
+    "controls": {
+      "glow": "Pendar",
+      "intensity": "Intensitas",
+      "radius": "Sebaran"
+    }
+  },
   "a-lamp-in-its-glass": {
     "banner": "Geser untuk melihat sekeliling. Ayunkan lentera dan lihat cahayanya bergerak.",
     "controls": {

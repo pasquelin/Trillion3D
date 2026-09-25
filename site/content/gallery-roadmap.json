@@ -1246,8 +1246,7 @@
     {
       "id": "a-glow-around-lights",
       "theme": "effects",
-      "file": "",
-      "status": "needs-engine"
+      "file": "examples/a-glow-around-lights.html"
     },
     {
       "id": "glow-on-chosen-objects",

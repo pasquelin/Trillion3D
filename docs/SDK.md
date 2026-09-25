@@ -244,9 +244,9 @@ glass.blending = blending.normal;
 world.toneMapping = toneMapping.aces;
 ```
 
-| Family                                                                                                                                                                                                                | Members                                                                                                                                                                                                                                       |
-| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `geometry`, `material`, `light`, `camera`, `object`, `math`, `texture`, `loader`, `helper`, `controls`, `animation`, `buffer`, and the constant families `blending`/`side`/`wrap`/`filter`/`colorSpace`/`toneMapping` | the scene-graph types, one factory per type (`geometry.box`, `material.meshStandard`, `light.directional`, `math.vector3`, …) and one named value per constant (`side.double`, `toneMapping.aces`) — the blocks above show each family in use |
+| Family                                                                                                                                                                                                                          | Members                                                                                                                                                                                                                                       |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `geometry`, `material`, `light`, `effect`, `camera`, `object`, `math`, `texture`, `loader`, `helper`, `controls`, `animation`, `buffer`, and the constant families `blending`/`side`/`wrap`/`filter`/`colorSpace`/`toneMapping` | the scene-graph types, one factory per type (`geometry.box`, `material.meshStandard`, `light.directional`, `math.vector3`, …) and one named value per constant (`side.double`, `toneMapping.aces`) — the blocks above show each family in use |
 
 Eight families exist because geometry here is **cut into pages** the engine moves in and out of
 memory according to what the frame reads:
@@ -375,6 +375,20 @@ jitters each image by a fraction of a pixel and accumulates it over the previous
 each pixel at its centre with no history, what a pixel-exact capture asks. Written, it takes effect
 at the next frame, history dropped, no session reopened. Read, it is what the image carries: `false`
 on WebGL2, which has none (its capabilities list `temporal antialiasing` as unsupported).
+
+`world.effects` is the ordered chain of passes drawn over the image after temporal antialiasing and
+before it reaches the canvas, on WebGPU and WebGL2. `effect.bloom({ intensity, radius })` makes a
+physically based glow on the linear image, before tone mapping, energy-conserving; `intensity` (0 to
+1, `0.04` by default) is the share of the image its glow replaces, `radius` (`1` by default) the
+spread at every level, in texels of that level. `world.effects.add(pass, index?)`,
+`remove(pass)` and `clear()` change the chain; a setting written on a pass shows at the next frame.
+An empty chain costs nothing, and a still image with a chain is post-processed once, then held.
+
+```js
+const glow = effect.bloom({ intensity: 0.08 });
+world.effects.add(glow);
+glow.radius = 2;
+```
 
 Dispose in the actual component or page teardown, **not immediately after startup**:
 `world.dispose()` removes owned controls, observers, queued frames and abort listeners and closes

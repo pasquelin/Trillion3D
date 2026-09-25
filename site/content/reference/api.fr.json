@@ -291,6 +291,28 @@
   "Blending": {
     "summary": "Comment une surface se mélange à ce qu’il y a derrière, par son nom."
   },
+  "Bloom": {
+    "summary": "La lumière qui déborde autour de ce qui brille, comme une lentille la répand.",
+    "description": "Physiquement fondé : il agit sur la radiance linéaire de la scène, avant le tone mapping, sans seuil, et conserve l’énergie — le halo est une copie floutée de l’image mélangée à elle, donc la lumière totale reste ce qu’elle était.",
+    "parameters": {
+      "options": "Ce qu’une page peut donner à `effect.bloom`.",
+      "options.intensity": "Part de l’image remplacée par son halo, de 0 (aucune) à 1 (le halo seul).",
+      "options.radius": "Étalement du halo à chaque niveau, en texels de ce niveau ; 1 est le filtre publié."
+    },
+    "members": {
+      "kind": "Quelle passe intégrée c’est.",
+      "stage": "Si elle agit avant ou après le tone mapping.",
+      "intensity": "Part de l’image remplacée par son halo, de 0 à 1.",
+      "radius": "Étalement du halo à chaque niveau, en texels de ce niveau ; au-dessus de 0."
+    }
+  },
+  "BloomOptions": {
+    "summary": "Ce qu’une page peut donner à `effect.bloom`.",
+    "members": {
+      "intensity": "Part de l’image remplacée par son halo, de 0 (aucune) à 1 (le halo seul).",
+      "radius": "Étalement du halo à chaque niveau, en texels de ce niveau ; 1 est le filtre publié."
+    }
+  },
   "blocksAcross": {
     "summary": "Blocs le long de `texels`, le dernier complété par le bord quand le côté n’est pas un multiple."
   },
@@ -1479,6 +1501,17 @@
   "edge": {
     "summary": "Fonction d’arête 2D (produit vectoriel 2D)."
   },
+  "effect": {
+    "summary": "La famille `effect` : les passes que `world.effects` dessine sur l’image."
+  },
+  "effect.bloom": {
+    "summary": "Un halo autour de ce qui brille, sur l’image linéaire avant le tone mapping.",
+    "parameters": {
+      "options": "`intensity` et `radius` ; les valeurs publiées s’ils sont absents.",
+      "options.intensity": "Part de l’image remplacée par son halo, de 0 (aucune) à 1 (le halo seul).",
+      "options.radius": "Étalement du halo à chaque niveau, en texels de ce niveau ; 1 est le filtre publié."
+    }
+  },
   "emptyIrradiance": {
     "summary": "Une irradiance vide, prête à recevoir des sources."
   },
@@ -1624,6 +1657,33 @@
   "EXPLORER_OPTIONS_SCHEMA": {
     "summary": "Schéma JSON complet qui documente toutes les options de départ de l’explorateur Trillion3D (MeasuredWorldOptions).",
     "description": "Permet aux LLM de comprendre, vérifier et régler la configuration du moteur 3D."
+  },
+  "EffectChain": {
+    "summary": "`world.effects` : les passes ordonnées dessinées sur l’image après l’antialiasing temporel et avant qu’elle n’atteigne le canvas.",
+    "description": "Les passes qui agissent avant le tone mapping lisent la radiance linéaire, dans l’ordre où elles ont été ajoutées ; celles qui agissent après lisent l’image affichée, dans le leur. Une chaîne vide ne coûte rien : aucune passe, aucune copie, aucune cible.",
+    "members": {
+      "revision": "Compte les changements : une image dessinée à une autre révision est périmée.",
+      "passes": "Les passes, dans l’ordre où elles s’exécutent.",
+      "size": "Combien de passes la chaîne contient.",
+      "add": "Met une passe dans la chaîne, à la fin ou à `index`. Une passe appartient à une seule chaîne à la fois.",
+      "remove": "Retire une passe de la chaîne ; false si elle n’y était pas.",
+      "clear": "Retire toutes les passes : l’image redevient celle sans la chaîne.",
+      "stage": "Les passes d’une étape, dans l’ordre de la chaîne : la liste qu’un moteur exécute. Gardée d’un changement à l’autre, pour qu’une image n’alloue rien."
+    }
+  },
+  "EffectKind": {
+    "summary": "Les passes intégrées qu’un moteur sait dessiner."
+  },
+  "EffectPass": {
+    "summary": "Une passe de la chaîne.",
+    "description": "Une passe dit quelle passe intégrée elle est et où elle agit ; ses réglages sont des propriétés dont l’écriture atteint le monde tout de suite, comme ceux d’une lumière.",
+    "members": {
+      "kind": "Quelle passe intégrée c’est.",
+      "stage": "Si elle agit avant ou après le tone mapping."
+    }
+  },
+  "EffectStage": {
+    "summary": "Où se place une passe par rapport à la courbe d’affichage : sur la radiance linéaire de la scène, avant que l’exposition et la courbe ne l’amènent dans la plage d’affichage, ou sur l’image affichée qu’elles ont produite."
   },
   "exportLightingGltf": {
     "summary": "Du glTF et un tampon binaire séparé en little-endian ; les adaptateurs gèrent l’enregistrement."
@@ -2384,7 +2444,8 @@
       "toneMapping": "La courbe d’affichage choisie par la scène ; ACES si elle manque.",
       "framebuffer": "Où dessiner ; `null` pour l’écran.",
       "width": "Largeur en pixels.",
-      "height": "Hauteur en pixels."
+      "height": "Hauteur en pixels.",
+      "linear": "Radiance linéaire, ni passée par la courbe ni encodée, sur un noir transparent : l’entrée de la chaîne d’effets, dont l’alpha est la couverture."
     }
   },
   "HostGeometry": {
@@ -6392,6 +6453,9 @@
   "world.temporalAntialiasing": {
     "summary": "L’anticrénelage temporel : un décalage sous-pixel accumulé au fil des images ; activé par défaut.",
     "description": "Écrit, il prend effet à l’image suivante, historique abandonné, sans rouvrir de session. Lu, c’est ce que porte l’image : false en WebGL2, et pendant que le programme se compile après l’avoir activé."
+  },
+  "world.effects": {
+    "summary": "La chaîne d’effets : les passes dessinées sur l’image (`effect`)."
   },
   "world.budget": {
     "summary": "Les réservoirs de mémoire du monde, lus et réglés en octets.",

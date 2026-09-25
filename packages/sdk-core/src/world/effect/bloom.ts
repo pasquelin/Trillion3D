@@ -9,11 +9,10 @@ export interface BloomOptions {
 }
 
 /**
- * The published defaults (Jimenez, "Next Generation Post Processing in Call of Duty: Advanced
- * Warfare", SIGGRAPH 2014): a 4 % blend of the glow and a one-texel tent. Neither is read from a
- * scene; both are the page's to change.
+ * The published defaults (Jimenez, SIGGRAPH 2014): a 4 % blend of the glow and a one-texel tent.
+ * Neither is read from a scene; both are the page's to change.
  */
-export const BLOOM_DEFAULTS = Object.freeze({ intensity: 0.04, radius: 1 });
+const BLOOM_DEFAULTS = { intensity: 0.04, radius: 1 };
 
 const checkIntensity = (value: number) => {
   if (!(value >= 0 && value <= 1)) throw new RangeError(`BLOOM_INTENSITY:${value}`);

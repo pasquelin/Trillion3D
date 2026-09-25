@@ -121,5 +121,3 @@ export function createWebglBloom(gl: WebGL2RenderingContext) {
     },
   };
 }
-
-export type WebglBloom = ReturnType<typeof createWebglBloom>;
