@@ -1,4 +1,3 @@
-import type { HostGraphNode } from '../scene/graphNodes.ts';
 import {
   EngineError,
   POSITION_VALUES,
@@ -6,6 +5,7 @@ import {
   composeMatrix4,
 } from '../../../../sdk-core/src/index.ts';
 import { copyElements } from '../../math/matrixElements.ts';
+import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 
 /**
  * Read frontier of the host graph.
@@ -23,7 +23,7 @@ import { copyElements } from '../../math/matrixElements.ts';
  */
 
 /** Whole subtree of `node` updated IN THE HOST SCENE, for its own readers. */
-export function resolveHostSubtree(node: HostGraphNode) {
+export function resolveHostSubtree(node: Object3D) {
   node.updateMatrixWorld(true);
 }
 
@@ -37,7 +37,7 @@ const position = new Float64Array(POSITION_VALUES),
  * and at the same bits; a node whose host cut recomposition returns the matrix it set, as-is.
  * Nothing of the host library is called — the ten pose numbers are READ.
  */
-export function hostLocalInto(out: Float64Array, node: HostGraphNode) {
+export function hostLocalInto(out: Float64Array, node: Object3D) {
   if (!node.matrixAutoUpdate) {
     copyElements(out, node.matrix.elements);
     return out;

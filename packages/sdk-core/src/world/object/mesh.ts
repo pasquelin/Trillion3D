@@ -75,6 +75,10 @@ export class Mesh extends Object3D {
       option === null || option instanceof ObjectPhysics ? option : new ObjectPhysics(option);
     this.heard();
   }
+  /** A shallow clone shares this mesh's geometry and material, and keeps its primitive. */
+  protected override blank(): this {
+    return new Mesh(this.geometry, this.material, this.primitive) as this;
+  }
   override localBounds(): Box3 | null {
     return this._geometry.boundingBox ?? this._geometry.computeBoundingBox();
   }

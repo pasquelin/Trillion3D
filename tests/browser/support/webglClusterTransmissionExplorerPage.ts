@@ -8,7 +8,7 @@ import { pixel } from './webglClusterPixels.ts';
 import { mountExplorerProof } from './webglClusterExplorerMount.ts';
 import { transmissionCamera, transmissionScene } from './webglClusterTransmissionScene.ts';
 
-const anyMesh = (object: G.GraphNode) => object instanceof G.GraphMesh;
+const anyMesh = (object: G.Object3D) => object instanceof G.GraphMesh;
 /** The owner refuses a scene it cannot draw by throwing `EngineError`; anything else stays
  *  code- and reason-less, since the proof only names what the engine itself declared. */
 const errorOf = (error: unknown) => ({
