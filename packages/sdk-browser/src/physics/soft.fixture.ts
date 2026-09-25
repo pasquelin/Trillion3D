@@ -1,6 +1,7 @@
 import {
   CommandWriter,
   FLAG,
+  GENERATION_SHIFT,
   SOFT_STATE_WORDS,
   softBodyOf,
   writeSoft,
@@ -14,7 +15,7 @@ import type { Geometry } from '../../../sdk-core/src/world/geometry/geometry.ts'
 import { body, startModule, type Module } from './module.fixture.ts';
 
 /** Generation 1 of an engine id. */
-const GENERATION = 1 << 24;
+const GENERATION = 1 << GENERATION_SHIFT;
 /** The engine ids of the floor in slot 0, the soft body in slot 1, the box in slot 2. */
 export const FLOOR = GENERATION,
   CLOTH = 1 | GENERATION,
