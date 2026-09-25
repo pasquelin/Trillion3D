@@ -4,7 +4,6 @@ import { createCutPending, type CutPending } from './pending.ts';
 import { createWebgpuCutAdopter } from './adoption.ts';
 import type { GroupClosure } from '../../page/cut/groupClosure.ts';
 import { createHeldBytes } from '../../page/cut/held.ts';
-import type { LowerTier } from '../residency/lowerTier.ts';
 import { markDrawnMirrored } from '../pages/helpers.ts';
 import type { WebgpuResidencySets } from '../residency/sets.ts';
 import type { WebgpuPagesCore } from '../pages/runtime.ts';
@@ -30,7 +29,7 @@ export function createWebgpuCutPublication(
   residencySets: WebgpuResidencySets,
   closure: GroupClosure,
   /** Where the view ahead's requests go, below the camera's (`../residency/lowerTier.ts`). */
-  aheadTier: Pick<LowerTier, 'offerIds'>,
+  onAhead: (ids: readonly number[]) => void,
 ) {
   const { run, gpu } = rt,
     { rows, packedPages } = rt.layout;
@@ -72,7 +71,7 @@ export function createWebgpuCutPublication(
     drawnPages,
     onDrawnDelta: publishDrawn,
     onDrawnMirrored: () => markDrawnMirrored(run),
-    onAhead: (ids) => aheadTier.offerIds(ids),
+    onAhead,
     onCutDelta: () => {
       publishCut();
       run.pagesEntered = cutDelta.enteredCount;
