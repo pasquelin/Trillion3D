@@ -8,7 +8,7 @@ import {
   type PhysicsMatter,
 } from '../../../sdk-core/src/physics/index.ts';
 import type { Mesh } from '../../../sdk-core/src/world/object/mesh.ts';
-import { flagsOf, type Bodied, type createPhysicsBodies } from './bodies.ts';
+import { type Bodied, type createPhysicsBodies } from './bodies.ts';
 
 type Pose = { position: ArrayLike<number>; quaternion: ArrayLike<number> };
 
@@ -27,10 +27,10 @@ export function addSoftBody(
   maps: (Uint32Array | null)[],
 ) {
   const p = mesh.physics,
-    record = softBodyOf(mesh.geometry, size, p.soft!);
+    record = softBodyOf(mesh.geometry, size, { ...p.soft!, mass: p.mass });
   const id = claim(0, record.vertices.length / SOFT_VERTEX_WORDS);
   writeSoft(writer, {
-    ...{ id, flags: flagsOf(mesh), ...pose, scale: [size.x, size.y, size.z] },
+    ...{ id, ...pose, scale: [size.x, size.y, size.z] },
     ...{
       friction: p.friction ?? matter.friction,
       restitution: p.restitution ?? matter.restitution,
