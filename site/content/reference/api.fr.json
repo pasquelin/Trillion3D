@@ -6967,6 +6967,7 @@
       "sensor": "Si le corps ne fait que signaler les contacts.",
       "ccd": "Si la collision continue est active.",
       "decorative": "Si le corps est un débris décoratif.",
+      "damping": "La part de sa vitesse perdue d’elle-même chaque seconde, linéaire et angulaire (`dv/dt = −c·v`).",
       "velocity": "Vitesse linéaire, m/s, telle que l’a laissée le dernier pas ; écris-la pour lancer le corps.",
       "asleep": "Si le corps dort : au repos, et plus simulé jusqu’à ce que quelque chose le réveille.",
       "mass": "Masse en kilogrammes ; `undefined` prend la densité du matériau fois le volume.",
@@ -7001,7 +7002,8 @@
       "ccd": "Collision continue, pour les petits corps rapides qui traverseraient les parois minces.",
       "decorative": "Débris : ne rencontre que le monde statique, et n’est simulé qu’à portée et en vue. Plafonné par `budget.physics.decorative`.",
       "friction": "Remplace le frottement du matériau, 0 et plus.",
-      "restitution": "Remplace le rebond du matériau, de 0 à 1."
+      "restitution": "Remplace le rebond du matériau, de 0 à 1.",
+      "damping": "Combien de sa vitesse le corps perd de lui-même, par seconde, comme l’air et le roulement : `dv/dt = −c·v`, 0 et plus, linéaire et angulaire à part ; 0 garde tout. Posé à la création du corps : réaffecte `obj.physics` pour le changer."
     }
   },
   "PhysicsBudget": {
@@ -7411,17 +7413,17 @@
       "options.finalDrive": "Le rapport du pont (la réduction du barbotin d’un véhicule à chenilles).",
       "options.shiftUpRPM": "La boîte passe le rapport supérieur au-delà, en tr/min.",
       "options.shiftDownRPM": "Et rétrograde en dessous, en tr/min.",
-      "options.clutch": "Couple de l’embrayage par rad/s de glissement, en N·m·s.",
+      "options.clutch": "Couple de l’embrayage par rad/s de glissement, en N·m·s ; voitures et motos seulement, refusé sur un véhicule à chenilles : son moteur entraîne ses chenilles sans embrayage (le contrôleur à chenilles de Jolt).",
       "options.suspensionFrequency": "Fréquence de suspension, en Hz.",
       "options.suspensionDamping": "Taux d’amortissement, de 0 (aucun) à 1 (critique).",
-      "options.suspensionTravel": "Débattement de la roue, de la détente complète à la compression complète, en mètres.",
-      "options.antiRoll": "La raideur de chaque barre antiroulis rapportée à celle des ressorts de son essieu ; 0 n’en met aucune.",
-      "options.turnRadius": "Le rayon de braquage en butée, en mètres.",
+      "options.suspensionTravel": "Débattement de la roue, de la détente complète à la compression complète, en mètres ; plus long que l’affaissement de la fréquence de suspension sur Terre, `9.81 / (2π suspensionFrequency)²`, sinon refusé : au-delà, la caisse repose sur ses butées.",
+      "options.antiRoll": "La raideur de chaque barre antiroulis rapportée à celle des ressorts de son essieu ; 0 n’en met aucune. Voitures seulement : refusé sur une moto (ses deux roues ne partagent aucun essieu) et sur un véhicule à chenilles (ses roues ne portent aucune barre).",
+      "options.turnRadius": "Le rayon de braquage en butée, en mètres. Refusé sur un véhicule à chenilles, qui tourne par ses chenilles.",
       "options.steerTime": "Secondes du centre à la butée de direction.",
       "options.brakeGrip": "Le frottement auquel les freins bloquent les roues.",
-      "options.drive": "Les roues motrices d’une voiture.",
-      "options.trackTurn": "La vitesse de la chenille intérieure d’un véhicule à chenilles qui tourne, rapportée à celle de l’extérieure.",
-      "options.maxLean": "L’inclinaison maximale d’une moto, en radians."
+      "options.drive": "Les roues motrices d’une voiture. Refusé sur une moto (sa roue arrière est motrice) et sur un véhicule à chenilles (la roue la plus en arrière de chaque chenille est motrice).",
+      "options.trackTurn": "La vitesse de la chenille intérieure d’un véhicule à chenilles qui tourne en roulant, rapportée à celle de l’extérieure ; à l’arrêt il pivote sur place, chenille intérieure inversée, quel que soit ce rapport. Refusé sur une voiture ou une moto.",
+      "options.maxLean": "L’inclinaison maximale d’une moto, en radians. Refusé sur une voiture ou un véhicule à chenilles."
     },
     "members": {
       "kind": "Ce qu’est le véhicule.",
@@ -7456,17 +7458,17 @@
       "finalDrive": "Le rapport du pont (la réduction du barbotin d’un véhicule à chenilles).",
       "shiftUpRPM": "La boîte passe le rapport supérieur au-delà, en tr/min.",
       "shiftDownRPM": "Et rétrograde en dessous, en tr/min.",
-      "clutch": "Couple de l’embrayage par rad/s de glissement, en N·m·s.",
+      "clutch": "Couple de l’embrayage par rad/s de glissement, en N·m·s ; voitures et motos seulement, refusé sur un véhicule à chenilles : son moteur entraîne ses chenilles sans embrayage (le contrôleur à chenilles de Jolt).",
       "suspensionFrequency": "Fréquence de suspension, en Hz.",
       "suspensionDamping": "Taux d’amortissement, de 0 (aucun) à 1 (critique).",
-      "suspensionTravel": "Débattement de la roue, de la détente complète à la compression complète, en mètres.",
-      "antiRoll": "La raideur de chaque barre antiroulis rapportée à celle des ressorts de son essieu ; 0 n’en met aucune.",
-      "turnRadius": "Le rayon de braquage en butée, en mètres.",
+      "suspensionTravel": "Débattement de la roue, de la détente complète à la compression complète, en mètres ; plus long que l’affaissement de la fréquence de suspension sur Terre, `9.81 / (2π suspensionFrequency)²`, sinon refusé : au-delà, la caisse repose sur ses butées.",
+      "antiRoll": "La raideur de chaque barre antiroulis rapportée à celle des ressorts de son essieu ; 0 n’en met aucune. Voitures seulement : refusé sur une moto (ses deux roues ne partagent aucun essieu) et sur un véhicule à chenilles (ses roues ne portent aucune barre).",
+      "turnRadius": "Le rayon de braquage en butée, en mètres. Refusé sur un véhicule à chenilles, qui tourne par ses chenilles.",
       "steerTime": "Secondes du centre à la butée de direction.",
       "brakeGrip": "Le frottement auquel les freins bloquent les roues.",
-      "drive": "Les roues motrices d’une voiture.",
-      "trackTurn": "La vitesse de la chenille intérieure d’un véhicule à chenilles qui tourne, rapportée à celle de l’extérieure.",
-      "maxLean": "L’inclinaison maximale d’une moto, en radians."
+      "drive": "Les roues motrices d’une voiture. Refusé sur une moto (sa roue arrière est motrice) et sur un véhicule à chenilles (la roue la plus en arrière de chaque chenille est motrice).",
+      "trackTurn": "La vitesse de la chenille intérieure d’un véhicule à chenilles qui tourne en roulant, rapportée à celle de l’extérieure ; à l’arrêt il pivote sur place, chenille intérieure inversée, quel que soit ce rapport. Refusé sur une voiture ou une moto.",
+      "maxLean": "L’inclinaison maximale d’une moto, en radians. Refusé sur une voiture ou un véhicule à chenilles."
     }
   },
   "VehicleSpecs": {
