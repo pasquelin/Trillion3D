@@ -445,7 +445,6 @@
       "sound-in-space": "räumlicher Ton",
       "tone-mapping-compared": "Wahl des Tone-Mapping-Operators",
       "a-first-post-effect": "Postprocessing-Kette",
-      "a-glow-around-lights": "Postprocessing: Bloom",
       "glow-on-chosen-objects": "Postprocessing: selektiver Bloom",
       "depth-of-field": "Postprocessing: Tiefenschärfe",
       "motion-blur": "Postprocessing: Bewegungsunschärfe",

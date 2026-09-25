@@ -34,6 +34,8 @@ export type {
   ToneMapping,
   Wrap,
 } from '../../sdk-core/src/world/constants/index.ts';
+export { Bloom } from '../../sdk-core/src/world/effect/bloom.ts';
+export type { BloomOptions } from '../../sdk-core/src/world/effect/bloom.ts';
 export { Box3 } from '../../sdk-core/src/world/math/box3.ts';
 export type { BoundedNode } from '../../sdk-core/src/world/math/box3.ts';
 export { budget } from '../../sdk-browser/src/world/budget/index.ts';
@@ -61,6 +63,9 @@ export { createWorld } from '../../sdk-browser/src/world/core/world.ts';
 export type { World } from '../../sdk-browser/src/world/core/world.ts';
 export { Curve, Path, Shape, SplineCurve } from '../../sdk-core/src/world/math/curves.ts';
 export { diagnostic } from '../../sdk-browser/src/world/diagnostic/index.ts';
+export { effect } from '../../sdk-core/src/world/effect/index.ts';
+export { EffectChain, EffectPass } from '../../sdk-core/src/world/effect/chain.ts';
+export type { EffectKind, EffectStage } from '../../sdk-core/src/world/effect/chain.ts';
 export { Euler } from '../../sdk-core/src/world/math/euler.ts';
 export type {
   EulerLike,

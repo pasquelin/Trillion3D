@@ -64,8 +64,8 @@ pub(super) fn report(
     }
     let lossless: Vec<Value> = gates.iter().filter(|g| !g.kept).map(Gate::json).collect();
     json!({"version":TEXTURE_PREVIEW_VERSION,"base":PREVIEW_BASE,"maxLevels":PREVIEW_MAX_LEVELS,
-        "colorTextures":wanted.iter().filter(|w| w.kind == AtlasKind::Color).count(),
-        "dataTextures":wanted.iter().filter(|w| w.kind == AtlasKind::Data).count(),
+        "colorTextures":wanted.iter().filter(|w| w.kind.atlas() == AtlasKind::Color).count(),
+        "dataTextures":wanted.iter().filter(|w| w.kind.atlas() == AtlasKind::Data).count(),
         "previews":previews.len(),"pixelBytes":pixel_bytes,"blockBytes":block_bytes,
         "blockFormats":o.texture_formats.iter().map(|f| f.name()).collect::<Vec<_>>(),
         "qualityGate":{"psnrDb":GATE_DB,"maxDelta":GATE_MAX_DELTA,"maskFlips":0,"decoder":"texture2ddecoder"},
