@@ -1,6 +1,7 @@
 import type { PageRec } from '../../page/selection/selection.ts';
-import type { HostGeometry } from '../../host/resources.ts';
+
 import { hostPageBytes } from '../../host/pageObjects.ts';
+import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts';
 
 /**
  * Decoded bytes nothing may evict: the root cover and the pages the host replaced, counted as the
@@ -30,7 +31,7 @@ export function createHeldFloor(env: {
       if (read === revision) return bytes;
       read = revision;
       bytes = 0;
-      const seen = new Set<HostGeometry>();
+      const seen = new Set<Geometry>();
       const add = ({ geometry }: PageRec) => {
         if (!geometry || seen.has(geometry)) return;
         seen.add(geometry);

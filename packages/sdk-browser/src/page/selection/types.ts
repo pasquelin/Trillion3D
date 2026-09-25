@@ -1,16 +1,12 @@
 import type { GeometryPageDescriptor } from '../../../../sdk-core/src/index.ts';
 import type { GraphMesh } from '../../host/graph/mesh.ts';
-import type {
-  HostAttributes,
-  HostGeometry,
-  HostMaterials,
-  HostMesh,
-} from '../../host/resources.ts';
+import type { HostAttributes, HostMaterials, HostMesh } from '../../host/resources.ts';
 import type { PageSurface } from '../surface.ts';
 import type { MatrixElements } from '../../math/matrixElements.ts';
 import type { NormalCone } from '../cone/cone.ts';
 import type { CullingLinks } from '../cut/readiness.ts';
 import type { PlacementOf } from '../../placement/rows.ts';
+import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts';
 
 export type PageRec = {
   id: number;
@@ -64,7 +60,7 @@ export type PageRec = {
   windingCw?: boolean;
   windingEpoch?: number;
   renderOrder: number;
-  geometry?: HostGeometry;
+  geometry?: Geometry;
   /** The mesh of the engine's own graph the WebGL2 page path draws the page as. */
   mesh?: GraphMesh;
   attached: boolean;

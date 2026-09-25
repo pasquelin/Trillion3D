@@ -6,7 +6,7 @@ import { drawCoplanarBlend } from './webglClusterCoplanarBlend.ts';
 import { clear, clusterRecord, mountClusterRenderer, pixel } from './webglClusterPixels.ts';
 
 const geometry = (reverseFirst = false) => {
-  const result = new G.GraphGeometry();
+  const result = new G.Geometry();
   result.setAttribute(
     'position',
     new G.BufferAttribute(
@@ -107,7 +107,7 @@ export function execute() {
   drawCoplanarBlend(renderer, scene, drawCamera, geometry, clusterRecord, lower, true);
   const coplanarBlendPixel = pixel(gl);
 
-  const diagnosticGeometry = asHostLibrary<G.GraphGeometry>(
+  const diagnosticGeometry = asHostLibrary<G.Geometry>(
       triangleGeometry(geometry(), pageDiagnostics),
     ),
     diagnosticMaterial = G.basicSurface({ vertexColors: true }),
