@@ -654,6 +654,7 @@
       "classification": "public",
       "affectedConsumers": [
         "bench/perf/browser/support/publicScene.ts",
+        "packages/sdk-browser/src/guides/guideSet.test.ts",
         "packages/sdk-browser/src/host/geometryBounds.ts",
         "packages/sdk-browser/src/host/prepared/geometry.ts",
         "packages/sdk-browser/src/host/scene/graphObjects.ts",
@@ -1429,6 +1430,7 @@
       "affectedConsumers": [
         "bench/witnesses/exact/materials.ts",
         "packages/sdk-browser/src/diagnostic/colors.ts",
+        "packages/sdk-browser/src/guides/guideSet.ts",
         "packages/sdk-browser/src/host/graph/graph.fixture.ts",
         "packages/sdk-browser/src/host/graph/graphLights.fixture.ts",
         "packages/sdk-browser/src/host/graph/light.ts",
@@ -1460,6 +1462,7 @@
       "proposedEnvironments": "browser",
       "classification": "public",
       "affectedConsumers": [
+        "packages/sdk-browser/src/guides/guideSet.ts",
         "packages/sdk-browser/src/host/graph/graph.fixture.ts",
         "packages/sdk-browser/src/host/graph/graphLights.fixture.ts",
         "packages/sdk-browser/src/world/helper/index.ts"
@@ -2685,6 +2688,8 @@
         "packages/sdk-browser/src/backend/defaultBackends.ts",
         "packages/sdk-browser/src/cluster/checked.test.ts",
         "packages/sdk-browser/src/cluster/pages.ts",
+        "packages/sdk-browser/src/guides/guideSet.test.ts",
+        "packages/sdk-browser/src/guides/guideSet.ts",
         "packages/sdk-browser/src/host/prepared/accessors.ts",
         "packages/sdk-browser/src/host/world/matrices.test.ts",
         "packages/sdk-browser/src/host/world/matrices.ts",
@@ -3571,6 +3576,61 @@
       "bindingIdentity": "\"packages/sdk-core/src/world/object/object3d\".Group"
     },
     {
+      "name": "GUIDE_VERTEX_CEILING",
+      "kind": "value",
+      "definingModule": "packages/sdk-browser/src/guides/guideSet.ts",
+      "currentEntryPoints": ["trillion3d (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-browser/src/guides/guideSet\".GUIDE_VERTEX_CEILING"
+    },
+    {
+      "name": "GuideHandle",
+      "kind": "type",
+      "definingModule": "packages/sdk-browser/src/guides/guideSet.ts",
+      "currentEntryPoints": ["trillion3d (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-browser/src/guides/guideSet\".GuideHandle"
+    },
+    {
+      "name": "GuideLines",
+      "kind": "type",
+      "definingModule": "packages/sdk-browser/src/guides/guideSet.ts",
+      "currentEntryPoints": ["trillion3d (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-browser/src/guides/guideSet\".GuideLines"
+    },
+    {
+      "name": "GuidePoints",
+      "kind": "type",
+      "definingModule": "packages/sdk-browser/src/guides/guideSet.ts",
+      "currentEntryPoints": ["trillion3d (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-browser/src/guides/guideSet\".GuidePoints"
+    },
+    {
+      "name": "Guides",
+      "kind": "type",
+      "definingModule": "packages/sdk-browser/src/guides/guideSet.ts",
+      "currentEntryPoints": ["trillion3d (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-browser/src/guides/guideSet\".Guides"
+    },
+    {
       "name": "HALF_PI",
       "kind": "value",
       "definingModule": "packages/sdk-core/src/math/primitives/cone.ts",
@@ -4051,6 +4111,7 @@
         "packages/sdk-browser/src/camera/engineCamera.test.ts",
         "packages/sdk-browser/src/camera/engineCamera.ts",
         "packages/sdk-browser/src/cluster/batchMesh.ts",
+        "packages/sdk-browser/src/guides/guideSet.ts",
         "packages/sdk-browser/src/math/matrixElements.ts",
         "packages/sdk-browser/src/taa/frame.test.ts",
         "packages/sdk-browser/src/taa/jitter.test.ts",
@@ -4113,6 +4174,7 @@
         "bench/perf/browser/support/coreHierarchy.ts",
         "bench/perf/core/three-vs-core-matrices.perf.ts",
         "packages/sdk-browser/src/camera/world.ts",
+        "packages/sdk-browser/src/guides/guideObject.ts",
         "packages/sdk-browser/src/lighting/tiles/skyColumn.test.ts",
         "packages/sdk-browser/src/page/raster.ts",
         "packages/sdk-browser/src/scene/partition/boxes.ts",
@@ -4716,6 +4778,7 @@
         "packages/sdk-browser/src/backend/autonomous/instances.test.ts",
         "packages/sdk-browser/src/backend/autonomous/instances.ts",
         "packages/sdk-browser/src/backend/autonomous/pages.test.ts",
+        "packages/sdk-browser/src/guides/guideObject.ts",
         "packages/sdk-browser/src/host/pageObjects.test.ts",
         "packages/sdk-browser/src/host/pageObjects.ts",
         "packages/sdk-browser/src/physics/jointList.test.ts",
@@ -4756,6 +4819,7 @@
         "packages/sdk-browser/src/backend/autonomous/instances.test.ts",
         "packages/sdk-browser/src/backend/autonomous/instances.ts",
         "packages/sdk-browser/src/backend/autonomous/pages.test.ts",
+        "packages/sdk-browser/src/guides/guideObject.ts",
         "packages/sdk-browser/src/host/pageObjects.test.ts",
         "packages/sdk-browser/src/host/pageObjects.ts",
         "packages/sdk-browser/src/physics/jointList.test.ts",
@@ -5076,6 +5140,7 @@
       "proposedEnvironments": "browser",
       "classification": "public",
       "affectedConsumers": [
+        "packages/sdk-browser/src/guides/guideObject.ts",
         "packages/sdk-browser/src/physics/bodies.ts",
         "packages/sdk-browser/src/physics/jointList.test.ts",
         "packages/sdk-browser/src/physics/jointSprings.test.ts",
@@ -5164,6 +5229,7 @@
         "packages/sdk-browser/src/camera/renderOrigin.ts",
         "packages/sdk-browser/src/gpu/dag/oracle/math.ts",
         "packages/sdk-browser/src/gpu/dag/request.test.ts",
+        "packages/sdk-browser/src/guides/guideObject.ts",
         "packages/sdk-browser/src/host/world/chain.ts",
         "packages/sdk-browser/src/lighting/tiles/skyColumn.test.ts",
         "packages/sdk-browser/src/page/cut/cut.ts",
@@ -5400,6 +5466,8 @@
         "bench/witnesses/three/fromGraphNodes.ts",
         "packages/sdk-browser/src/backend/types.ts",
         "packages/sdk-browser/src/frame/gateCore.ts",
+        "packages/sdk-browser/src/guides/guideObject.ts",
+        "packages/sdk-browser/src/guides/guideSet.ts",
         "packages/sdk-browser/src/host/graph/graph.fixture.ts",
         "packages/sdk-browser/src/host/graph/graph.test.ts",
         "packages/sdk-browser/src/host/graph/light.ts",
@@ -8012,7 +8080,8 @@
       "affectedConsumers": [
         "packages/sdk-browser/src/physics/soft.fixture.ts",
         "packages/sdk-browser/src/physics/soft.test.ts",
-        "packages/sdk-browser/src/physics/softContact.test.ts"
+        "packages/sdk-browser/src/physics/softContact.test.ts",
+        "packages/sdk-browser/src/physics/softPage.test.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/physics/soft\".SoftBodyOptions"
@@ -9428,6 +9497,7 @@
       "classification": "public",
       "affectedConsumers": [
         "bench/perf/browser/support/publicScene.ts",
+        "packages/sdk-browser/src/guides/guideSet.test.ts",
         "packages/sdk-browser/src/host/geometryBounds.ts",
         "packages/sdk-browser/src/host/graph/graph.fixture.ts",
         "packages/sdk-browser/src/host/graph/light.ts",
