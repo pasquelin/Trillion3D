@@ -87,24 +87,23 @@ export function samplingHeaders(color: WebgpuTileAtlas, data: WebgpuTileAtlas) {
 /** The rule each host colour map's chain was reduced under, followed at every image (#42): a map
  *  whose rule moved goes to `reduce`, its slot to `moved`; one just `copied` already carries it. */
 function coverageRules(atlas: WebgpuTileAtlas) {
-  const hosts = new Map<number, { map: Texture; readers: CoverageReaders; rule: boolean }>();
+  // One census serves every host slot of the atlas (`tileCatalogue`).
+  let readers: CoverageReaders | undefined;
+  const hosts = new Map<number, { map: Texture; rule: boolean }>();
+  const weighs = (map: Texture) => !!readers?.weighs(map);
   for (const [slot, { source }] of atlas.textures.entries())
-    if (source.kind === 'host' && source.coverage)
-      hosts.set(slot, { map: source.map, readers: source.coverage, rule: false });
-  for (const host of hosts.values()) host.rule = host.readers.weighs(host.map);
-  const census = new Set([...hosts.values()].map((host) => host.readers));
+    if (source.kind === 'host' && (readers ??= source.coverage))
+      hosts.set(slot, { map: source.map, rule: weighs(source.map) });
   return {
-    follow() {
-      for (const readers of census) readers.follow();
-    },
+    follow: () => readers?.follow(),
     copied(slot: number) {
       const host = hosts.get(slot);
-      if (host) host.rule = host.readers.weighs(host.map);
+      if (host) host.rule = weighs(host.map);
     },
     reduce(reduce: PictureCopy, moved?: Set<number>) {
       let result = 0;
       for (const [slot, host] of hosts) {
-        const rule = host.readers.weighs(host.map);
+        const rule = weighs(host.map);
         if (rule === host.rule) continue;
         host.rule = rule;
         if (!reduce(atlas, slot)) continue;

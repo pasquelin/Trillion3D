@@ -25,9 +25,6 @@ void main(){
  color=vec4(weighted&&any(notEqual(a,vec4(s0.a)))?byAlpha:mean.rgb,(u+v)*0.5);
 }`;
 
-/** The capabilities a reduction turns off, restored after it. */
-const TOGGLES = [...FULLSCREEN_DISABLED, 'STENCIL_TEST'] as const;
-
 /** A texture as the reducer reads it: its GL name, its format and size. */
 type Chain = { texture: WebGLTexture; format: number; width: number; height: number };
 
@@ -56,6 +53,13 @@ export class WebglMipReducer {
   private built: ReturnType<typeof buildReducer> | undefined;
   /** Per format, whether a framebuffer holds its levels. */
   private drawable = new Map<number, boolean>();
+  /** The copy of the level above: kept while a chain is refilled in place — a live picture —,
+   *  returned after a new chain's reduction. */
+  private scratch: { key: string; texture: WebGLTexture } | undefined;
+  private drop() {
+    if (this.scratch) this.gl.deleteTexture(this.scratch.texture);
+    this.scratch = undefined;
+  }
   constructor(gl: WebGL2RenderingContext) {
     this.gl = gl;
   }
@@ -78,14 +82,15 @@ export class WebglMipReducer {
       viewport: gl.getParameter(gl.VIEWPORT) as Int32Array,
       vertexArray: gl.getParameter(gl.VERTEX_ARRAY_BINDING) as WebGLVertexArrayObject | null,
       mask: gl.getParameter(gl.COLOR_WRITEMASK) as boolean[],
-      toggles: TOGGLES.map((name) => gl.isEnabled(gl[name])),
+      toggles: FULLSCREEN_DISABLED.map((name) => gl.isEnabled(gl[name])),
     };
-    const scratch = gl.createTexture()!;
-    gl.bindTexture(gl.TEXTURE_2D, scratch);
-    store(0, [width, height]);
+    const key = `${format}/${width}/${height}`,
+      fresh = this.scratch?.key !== key;
+    if (fresh) this.drop();
+    gl.bindTexture(gl.TEXTURE_2D, (this.scratch ??= { key, texture: gl.createTexture()! }).texture);
+    if (fresh) store(0, [width, height]);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
     setFullscreenPassState(gl);
-    gl.disable(gl.STENCIL_TEST);
     gl.useProgram(built.program);
     gl.uniform1i(built.source, unit);
     gl.uniform1i(built.weighted, weighted ? 1 : 0);
@@ -109,7 +114,7 @@ export class WebglMipReducer {
     attach(gl.READ_FRAMEBUFFER, 0, null);
     attach(gl.DRAW_FRAMEBUFFER, 0, null);
     gl.bindTexture(gl.TEXTURE_2D, texture);
-    gl.deleteTexture(scratch);
+    if (allocate) this.drop();
     if (!drawn) gl.generateMipmap(gl.TEXTURE_2D);
     gl.bindFramebuffer(gl.READ_FRAMEBUFFER, saved.read);
     gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, saved.draw);
@@ -117,7 +122,7 @@ export class WebglMipReducer {
     gl.useProgram(saved.program);
     gl.viewport(saved.viewport[0], saved.viewport[1], saved.viewport[2], saved.viewport[3]);
     gl.colorMask(saved.mask[0], saved.mask[1], saved.mask[2], saved.mask[3]);
-    TOGGLES.forEach((name, i) => saved.toggles[i] && gl.enable(gl[name]));
+    FULLSCREEN_DISABLED.forEach((name, i) => saved.toggles[i] && gl.enable(gl[name]));
   }
   /** Whether both framebuffers hold a level of `format`, asked once per format. */
   private check(format: number) {
@@ -129,6 +134,7 @@ export class WebglMipReducer {
   }
   dispose() {
     const { gl, built } = this;
+    this.drop();
     if (!built) return;
     gl.deleteProgram(built.program);
     gl.deleteFramebuffer(built.draw);
