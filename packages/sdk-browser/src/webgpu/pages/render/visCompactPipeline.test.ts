@@ -25,7 +25,7 @@ test('GPU Hi-Z builds the pyramid after the vis occluder pass and loads the diso
     scope: 'full',
     sourceTriangles: 4,
     selectedTriangles: 4,
-    selectedNodes: [],
+    selectedNodes: 0,
     totalNodes: 0,
   };
   const viewport: [number, number] = [32, 32];
