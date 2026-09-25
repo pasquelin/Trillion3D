@@ -7,22 +7,21 @@
 //! keeps its errors monotone.
 use super::chalet_fixture::{push_box, push_log};
 use super::dag_dependency_scenes::cook_site_scene;
-use super::silhouette::{page_indices, Mesh};
+use super::silhouette::{page_cuts, page_indices, Mesh};
 use super::thin_walls::mesh_fixture;
 use super::*;
 use crate::dag::bounds::bounding_sphere;
 use crate::dag::clusters::weld_positions;
-use crate::dag::parts;
+use crate::dag::vanished::{extent, parts};
 use crate::physics_cook::hausdorff::one_sided_distance;
 use std::collections::HashSet;
 
-/// The cuts' defects against the source they were cooked from, one line each: a part missing from
-/// a cut and wider than its error; a root page with a face farther from the source than twice its
-/// error — the error is the simplifier's, a distance to the planes of the faces it replaced, which
-/// the distance to the triangles themselves may exceed on a curved part, and a fan closing an
-/// arch's opening lies as far off as the opening is wide; and a report whose root triangles per
-/// level do not add up to the root cover's.
-fn extent_defects(
+/// The root cover's defects against the source it was cooked from, one line each: a root page with
+/// a face farther from the source than twice its error — the error is the simplifier's, a distance
+/// to the planes of the faces it replaced, which the distance to the triangles themselves may
+/// exceed on a curved part, and a fan closing an arch's opening lies as far off as the opening is
+/// wide — and a report whose root triangles per level do not add up to the root cover's.
+fn root_defects(
     objects: &Path,
     primitive: &Value,
     positions: &[f32],
@@ -30,26 +29,18 @@ fn extent_defects(
 ) -> Vec<String> {
     let index = &primitive["primitive"];
     let mut defects = Vec::new();
-    let pages = primitive["pages"].as_array().expect("pages");
-    let drawn: Vec<Vec<u32>> = pages
-        .iter()
-        .map(|page| page_indices(objects, page))
-        .collect();
-    let error = |page: &Value, key: &str| page[key].as_f64().unwrap_or(f64::INFINITY);
     let mut root_triangles = 0;
-    for (page, drawn) in pages.iter().zip(&drawn) {
-        if page["parentError"].is_null() {
-            root_triangles += drawn.len() / 3;
-            let (off, lod) = (
-                one_sided_distance(positions, drawn, indices),
-                error(page, "lodError"),
-            );
-            if off > 2.0 * lod + 1e-6 {
-                let id = &page["id"];
-                defects.push(format!(
-                    "primitive {index}, root page {id}: a face lies {off:.3} m off the model, error {lod:.3} m"
-                ));
-            }
+    let pages = primitive["pages"].as_array().expect("pages");
+    for page in pages.iter().filter(|page| page["parentError"].is_null()) {
+        let drawn = page_indices(objects, page);
+        root_triangles += drawn.len() / 3;
+        let error = page["lodError"].as_f64().expect("error");
+        let off = one_sided_distance(positions, &drawn, indices);
+        if off > 2.0 * error + 1e-6 {
+            let id = &page["id"];
+            defects.push(format!(
+                "primitive {index}, root page {id}: a face lies {off:.3} m off the model, error {error:.3} m"
+            ));
         }
     }
     let levels = primitive["dag"]["levels"].as_array().expect("levels");
@@ -62,33 +53,55 @@ fn extent_defects(
             "primitive {index}: the report counts {reported} root triangles, the roots draw {root_triangles}"
         ));
     }
-    let parts: Vec<(Vec<u32>, [f64; 4])> = parts(indices, &weld_positions(positions, indices))
+    defects
+}
+
+/// A part of the source missing from a cut, root cover included, and wider than the cut's error,
+/// one line each.
+fn missing_part_defects(
+    objects: &Path,
+    primitive: &Value,
+    positions: &[f32],
+    indices: &[u32],
+) -> Vec<String> {
+    let index = &primitive["primitive"];
+    let parts: Vec<(Vec<u32>, f64)> = parts(indices, &weld_positions(positions, indices))
         .into_iter()
         .map(|part| {
-            let sphere = bounding_sphere(positions, &part);
-            (part, sphere)
+            let extent = extent(positions, &part);
+            (part, extent)
         })
         .collect();
-    let mut thresholds: Vec<f64> = pages.iter().map(|page| error(page, "lodError")).collect();
-    thresholds.sort_by(f64::total_cmp);
-    thresholds.dedup();
-    for t in thresholds {
-        let named: HashSet<u32> = pages
-            .iter()
-            .zip(&drawn)
-            .filter(|(page, _)| error(page, "lodError") <= t && t < error(page, "parentError"))
-            .flat_map(|(_, drawn)| drawn.iter().copied())
-            .collect();
-        for (part, sphere) in &parts {
-            if 2.0 * sphere[3] > t + 1e-6 && !part.iter().any(|v| named.contains(v)) {
+    let widest = parts.iter().fold(0.0_f64, |w, (_, e)| w.max(*e));
+    let mut defects = Vec::new();
+    // Past the widest part's extent, no part can leave a cut too early.
+    for (t, cut) in page_cuts(objects, primitive)
+        .into_iter()
+        .filter(|(t, _)| *t < widest)
+    {
+        let named: HashSet<u32> = cut.into_iter().collect();
+        for (part, extent) in &parts {
+            if *extent > t + 1e-6 && !part.iter().any(|v| named.contains(v)) {
+                let at = bounding_sphere(positions, part);
                 defects.push(format!(
-                    "primitive {index}: the part around {:.2?}, {:.2} m across, left the cut at error {t:.3} m",
-                    &sphere[..3],
-                    2.0 * sphere[3]
+                    "primitive {index}: the part around {:.2?}, {extent:.2} m across, left the cut at error {t:.3} m",
+                    &at[..3]
                 ));
             }
         }
     }
+    defects
+}
+
+/// Both of the above.
+fn extent_defects(
+    objects: &Path,
+    primitive: &Value,
+    positions: &[f32],
+    indices: &[u32],
+) -> Vec<String> {
+    let mut defects = root_defects(objects, primitive, positions, indices);
+    defects.extend(missing_part_defects(objects, primitive, positions, indices));
     defects
 }
 
