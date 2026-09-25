@@ -18944,12 +18944,12 @@
       {
         "name": "cpu",
         "type": "number",
-        "desc": "Bytes of CPU memory the world may hold: the shadow page table's host mirror, then the decoded pages and the engine's cut tables, taken by the next scene load. A total not above the mirror is refused (`CPU_BUDGET_UNDER_SHADOW_MIRROR`). Never read from the machine."
+        "desc": "Bytes of CPU memory the world may hold: the shadow page table's host mirror, then the decoded pages, their manifest tables, their transfer queue and the engine's cut tables together. A change applies at once: pages leave by last use until they fit. A total not above the mirror is refused (`CPU_BUDGET_UNDER_SHADOW_MIRROR`). Never read from the machine."
       },
       {
         "name": "split",
         "type": "{ shadowPool: number; bounceProbes: number; geometryPool: number; texturePool: number; shadowMirror: number; pageCache: number; }",
-        "desc": "How the two totals are shared: the shadow pool and the bounce probes at their largest, then half each to the geometry and texture pools, capped at their ceilings; the shadow table's host mirror, then the decoded-page cache takes the rest of the CPU total. What the rule gives, before a pool set on its own."
+        "desc": "How the two totals are shared: the shadow pool and the bounce probes at their largest, then half each to the geometry and texture pools, capped at their ceilings; the shadow table's host mirror, then the decoded-page cache takes the whole rest of the CPU total, within which the session in place reserves its manifest tables, its transfer queue and the engine's cut tables. What the rule gives, before a pool set on its own."
       },
       {
         "name": "geometryPoolCeiling",
