@@ -4,7 +4,7 @@
  * A node that only holds others is the core's own `Group`.
  */
 import type { GraphGeometry } from './geometry.ts';
-import { GraphAttribute } from './attributes.ts';
+import { BufferAttribute } from '../../../../sdk-core/src/world/buffer/attribute.ts';
 import type { GraphSurface } from './surface.ts';
 import { GraphNode } from './node.ts';
 
@@ -59,12 +59,12 @@ export class GraphMesh extends GraphNode {
 export class GraphInstancedMesh extends GraphMesh {
   override readonly kind = 'instancedMesh' as const;
   /** One matrix per placement, column after column. */
-  readonly instanceMatrix: GraphAttribute;
+  readonly instanceMatrix: BufferAttribute;
   /** How many placements are drawn. */
   count: number;
   constructor(geometry: GraphGeometry, material: GraphSurface | GraphSurface[], capacity: number) {
     super(geometry, material);
-    this.instanceMatrix = new GraphAttribute(new Float32Array(capacity * 16), 16);
+    this.instanceMatrix = new BufferAttribute(new Float32Array(capacity * 16), 16);
     this.count = capacity;
   }
   protected override blank(): this {

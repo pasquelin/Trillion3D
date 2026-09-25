@@ -142,7 +142,6 @@ export function parseDagOutput(
   }
   result.frustumRejected = ints[OUT_FRUSTUM_REJECTED] ?? 0;
   result.lodLevel = ints[OUT_LOD_LEVEL] ?? 0;
-  result.complete = ((ints[OUT_FLAGS] ?? 0) & 2) === 0;
   // Totals the GPU holds: they describe the cut, not the list that reports it, so a truncated
   // sample still returns them correctly (`shader/totalsWgsl.ts`).
   result.selectedTriangles = ints[OUT_SELECTED_TRIANGLES] ?? 0;

@@ -25,13 +25,13 @@ function geometrie(sommets: number, alea: () => number) {
   const geo = new G.GraphGeometry();
   const pos = new Float32Array(sommets * 3);
   for (let i = 0; i < pos.length; i++) pos[i] = alea() * 2 - 1;
-  geo.setAttribute('position', new G.GraphAttribute(pos, 3));
-  geo.setAttribute('normal', new G.GraphAttribute(new Float32Array(sommets * 3), 3));
-  geo.setAttribute('tangent', new G.GraphAttribute(new Float32Array(sommets * 4), 4));
-  geo.setAttribute('uv', new G.GraphAttribute(new Float32Array(sommets * 2), 2));
+  geo.setAttribute('position', new G.BufferAttribute(pos, 3));
+  geo.setAttribute('normal', new G.BufferAttribute(new Float32Array(sommets * 3), 3));
+  geo.setAttribute('tangent', new G.BufferAttribute(new Float32Array(sommets * 4), 4));
+  geo.setAttribute('uv', new G.BufferAttribute(new Float32Array(sommets * 2), 2));
   const index = new Uint32Array(sommets - (sommets % 3));
   for (let i = 0; i < index.length; i++) index[i] = i % sommets;
-  geo.setIndex(new G.GraphAttribute(index, 1));
+  geo.setIndex(new G.BufferAttribute(index, 1));
   return geo;
 }
 

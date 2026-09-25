@@ -1009,12 +1009,12 @@
   },
   {
     "id": "BufferAttribute",
-    "module": "packages/sdk-core/src/world/buffer/index.ts",
+    "module": "packages/sdk-core/src/world/buffer/attribute.ts",
     "exports": ["BufferAttribute"],
     "section": "buffer",
     "kind": "Type",
     "title": "BufferAttribute",
-    "signature": "class BufferAttribute implements PageAttribute\nnew BufferAttribute(array: BufferTypedArray, itemSize: number, type?: string): BufferAttribute",
+    "signature": "class BufferAttribute extends VertexElements implements PageAttribute\nnew BufferAttribute(array: BufferTypedArray, itemSize: number, normalized?: boolean, type?: string): BufferAttribute",
     "summary": "A typed array of per-vertex values, `itemSize` numbers per vertex: the page codec's `PageAttribute` (`page-codec/pageAttributes.ts`), with what a page writes into it.",
     "parameters": [
       {
@@ -1025,6 +1025,12 @@
       {
         "name": "itemSize",
         "type": "number",
+        "desc": ""
+      },
+      {
+        "name": "normalized",
+        "type": "boolean",
+        "default": "false",
         "desc": ""
       },
       {
@@ -1041,14 +1047,14 @@
         "desc": "Always `true`: tells a buffer attribute apart from anything else."
       },
       {
+        "name": "kind",
+        "type": "'attribute'",
+        "desc": "The attribute owns its buffer."
+      },
+      {
         "name": "type",
         "type": "string",
         "desc": "How the values were declared; a half-float attribute is held at float precision."
-      },
-      {
-        "name": "normalized",
-        "type": "boolean",
-        "desc": "Whether whole numbers are read as values between 0 and 1."
       },
       {
         "name": "version",
@@ -1056,14 +1062,14 @@
         "desc": "Bumped by every declared write: what the world compares to see the content changed."
       },
       {
+        "name": "updateRanges",
+        "type": "{ start: number; count: number; }[]",
+        "desc": "Ranges of `array` written since the last upload, sent alone."
+      },
+      {
         "name": "array",
         "type": "BufferTypedArray",
         "desc": "The numbers themselves."
-      },
-      {
-        "name": "itemSize",
-        "type": "number",
-        "desc": "How many numbers belong to one vertex: 3 for a position."
       },
       {
         "name": "count",
@@ -1073,52 +1079,22 @@
       {
         "name": "needsUpdate",
         "type": "boolean",
-        "desc": "`attribute.needsUpdate = true` after writing `array`: the world re-reads it."
+        "desc": "`needsUpdate = true` after writing `array`: a reader uploads it again."
       },
       {
-        "name": "getComponent(index: number, component: number)",
-        "type": "number",
-        "desc": "Number `component` of vertex `index`."
+        "name": "addUpdateRange(start: number, count: number)",
+        "type": "void",
+        "desc": "Marks `count` numbers from `start` written."
       },
       {
-        "name": "getX(i: number)",
-        "type": "number",
-        "desc": "The first number of vertex `i`."
-      },
-      {
-        "name": "getY(i: number)",
-        "type": "number",
-        "desc": "The second number of vertex `i`."
-      },
-      {
-        "name": "getZ(i: number)",
-        "type": "number",
-        "desc": "The third number of vertex `i`."
-      },
-      {
-        "name": "getW(i: number)",
-        "type": "number",
-        "desc": "The fourth number of vertex `i`."
-      },
-      {
-        "name": "setXYZ(i: number, x: number, y: number, z: number)",
-        "type": "BufferAttribute",
-        "desc": "Writes three numbers for vertex `i`."
-      },
-      {
-        "name": "setXY(i: number, x: number, y: number)",
-        "type": "BufferAttribute",
-        "desc": "Writes two numbers for vertex `i`."
-      },
-      {
-        "name": "setX(i: number, x: number)",
-        "type": "BufferAttribute",
-        "desc": "Writes the first number of vertex `i`."
+        "name": "clearUpdateRanges()",
+        "type": "void",
+        "desc": "Forgets the written ranges, once uploaded."
       },
       {
         "name": "clone()",
         "type": "BufferAttribute",
-        "desc": "A new attribute with a copy of the numbers."
+        "desc": "A new attribute with a copy of the numbers, their type, normalisation and name."
       }
     ],
     "description": ""
@@ -1136,7 +1112,7 @@
   },
   {
     "id": "BufferTypedArray",
-    "module": "packages/sdk-core/src/world/buffer/index.ts",
+    "module": "packages/sdk-core/src/world/buffer/elements.ts",
     "exports": ["BufferTypedArray"],
     "section": "buffer",
     "kind": "Type",
@@ -4573,12 +4549,12 @@
       {
         "name": "coverageBudgetLimited?",
         "type": "boolean | null | undefined",
-        "desc": "Requested detail cannot coexist with the pinned fallback within the GPU page budget."
+        "desc": "Requested detail needs more pages than the GPU page budget holds: the rest draws coarser."
       },
       {
         "name": "budgetPixelError?",
         "type": "number | null | undefined",
-        "desc": "Screen-error floor the GPU page budget imposes on the cut, in pixels: `0` when the requested detail fits, otherwise the coarser threshold the image is drawn at. Null on engines without a page budget."
+        "desc": "WebGL2 only: the screen-error floor its page budget imposes on the cut, in pixels — `0` when the requested detail fits, otherwise the coarser threshold the image is drawn at. Absent on WebGPU, where residency alone coarsens the image. Null on engines without a page budget."
       },
       {
         "name": "frameHeld?",
@@ -5237,99 +5213,6 @@
     "description": ""
   },
   {
-    "id": "GraphArray",
-    "module": "packages/sdk-browser/src/host/graph/attributes.ts",
-    "exports": ["GraphArray"],
-    "section": "types",
-    "kind": "Type",
-    "title": "GraphArray",
-    "signature": "type GraphArray = Float32Array | Uint32Array | Uint16Array | Uint8Array | Int32Array | Int16Array | Int8Array",
-    "summary": "The typed arrays an attribute holds.",
-    "description": ""
-  },
-  {
-    "id": "GraphAttribute",
-    "module": "packages/sdk-browser/src/host/graph/attributes.ts",
-    "exports": ["GraphAttribute"],
-    "section": "types",
-    "kind": "Type",
-    "title": "GraphAttribute",
-    "signature": "class GraphAttribute extends Elements implements Versioned\nnew GraphAttribute(array: GraphArray, itemSize: number, normalized?: boolean): GraphAttribute",
-    "summary": "An attribute owning its storage: `itemSize` numbers per vertex, one after the other.",
-    "parameters": [
-      {
-        "name": "array",
-        "type": "GraphArray",
-        "desc": ""
-      },
-      {
-        "name": "itemSize",
-        "type": "number",
-        "desc": ""
-      },
-      {
-        "name": "normalized",
-        "type": "boolean",
-        "default": "false",
-        "desc": ""
-      }
-    ],
-    "members": [
-      {
-        "name": "kind",
-        "type": "'attribute'",
-        "desc": "The attribute owns its buffer."
-      },
-      {
-        "name": "count",
-        "type": "number",
-        "desc": "How many vertices; fixed at construction, as the storage is."
-      },
-      {
-        "name": "version",
-        "type": "number",
-        "desc": "Bumped by `needsUpdate`."
-      },
-      {
-        "name": "array",
-        "type": "GraphArray",
-        "desc": "The storage."
-      },
-      {
-        "name": "updateRanges",
-        "type": "{ start: number; count: number; }[]",
-        "desc": "Ranges of `array` written since the last upload, sent alone."
-      },
-      {
-        "name": "addUpdateRange(start: number, count: number)",
-        "type": "void",
-        "desc": "Marks `count` numbers from `start` written."
-      },
-      {
-        "name": "clearUpdateRanges()",
-        "type": "void",
-        "desc": "Forgets the written ranges, once uploaded."
-      },
-      {
-        "name": "needsUpdate",
-        "type": "boolean",
-        "desc": "`needsUpdate = true` after writing `array`: a reader uploads it again."
-      }
-    ],
-    "description": ""
-  },
-  {
-    "id": "GraphElements",
-    "module": "packages/sdk-browser/src/host/graph/attributes.ts",
-    "exports": ["GraphElements"],
-    "section": "types",
-    "kind": "Type",
-    "title": "GraphElements",
-    "signature": "type GraphElements = GraphAttribute | GraphInterleavedAttribute",
-    "summary": "Either kind of attribute.",
-    "description": ""
-  },
-  {
     "id": "GraphGeometry",
     "module": "packages/sdk-browser/src/host/graph/geometry.ts",
     "exports": ["GraphGeometry"],
@@ -5351,17 +5234,17 @@
       },
       {
         "name": "index",
-        "type": "GraphAttribute | null",
+        "type": "BufferAttribute | null",
         "desc": "The triangle list, or `null` to draw the vertices in order."
       },
       {
         "name": "attributes",
-        "type": "Record<string, GraphElements>",
+        "type": "Record<string, VertexAttribute>",
         "desc": "Its vertex attributes, by name."
       },
       {
         "name": "morphAttributes",
-        "type": "Record<string, GraphElements[]>",
+        "type": "Record<string, VertexAttribute[]>",
         "desc": "Per morphed attribute, one attribute per morph target."
       },
       {
@@ -5396,21 +5279,21 @@
       },
       {
         "name": "getIndex()",
-        "type": "GraphAttribute | null",
+        "type": "BufferAttribute | null",
         "desc": "The triangle list."
       },
       {
-        "name": "setIndex(index: GraphAttribute | null)",
+        "name": "setIndex(index: BufferAttribute | null)",
         "type": "HostGeometry",
         "desc": "Sets the triangle list."
       },
       {
         "name": "getAttribute(name: string)",
-        "type": "GraphElements",
+        "type": "VertexAttribute",
         "desc": "The attribute of that name."
       },
       {
-        "name": "setAttribute(name: string, attribute: GraphElements)",
+        "name": "setAttribute(name: string, attribute: VertexAttribute)",
         "type": "HostGeometry",
         "desc": "Names an attribute."
       },
@@ -5443,127 +5326,6 @@
         "name": "computeBoundingSphere()",
         "type": "void",
         "desc": "Computes the local sphere: centred on the box, reaching the farthest vertex."
-      }
-    ],
-    "description": ""
-  },
-  {
-    "id": "GraphInterleavedAttribute",
-    "module": "packages/sdk-browser/src/host/graph/attributes.ts",
-    "exports": ["GraphInterleavedAttribute"],
-    "section": "types",
-    "kind": "Type",
-    "title": "GraphInterleavedAttribute",
-    "signature": "class GraphInterleavedAttribute extends Elements\nnew GraphInterleavedAttribute(data: GraphInterleavedBuffer, itemSize: number, offset: number, normalized?: boolean): GraphInterleavedAttribute",
-    "summary": "An attribute viewing `itemSize` numbers at `offset` of each vertex of an interleaved buffer.",
-    "parameters": [
-      {
-        "name": "data",
-        "type": "GraphInterleavedBuffer",
-        "desc": ""
-      },
-      {
-        "name": "itemSize",
-        "type": "number",
-        "desc": ""
-      },
-      {
-        "name": "offset",
-        "type": "number",
-        "desc": ""
-      },
-      {
-        "name": "normalized",
-        "type": "boolean",
-        "default": "false",
-        "desc": ""
-      }
-    ],
-    "members": [
-      {
-        "name": "kind",
-        "type": "'interleavedAttribute'",
-        "desc": "The attribute views a shared buffer."
-      },
-      {
-        "name": "data",
-        "type": "GraphInterleavedBuffer",
-        "desc": "The buffer it views."
-      },
-      {
-        "name": "offset",
-        "type": "number",
-        "desc": "Where its numbers start in each vertex."
-      },
-      {
-        "name": "array",
-        "type": "GraphArray",
-        "desc": "The storage the elements live in."
-      },
-      {
-        "name": "count",
-        "type": "number",
-        "desc": "How many vertices."
-      },
-      {
-        "name": "needsUpdate",
-        "type": "boolean",
-        "desc": "`needsUpdate = true` after writing `array`: a reader uploads it again."
-      }
-    ],
-    "description": ""
-  },
-  {
-    "id": "GraphInterleavedBuffer",
-    "module": "packages/sdk-browser/src/host/graph/attributes.ts",
-    "exports": ["GraphInterleavedBuffer"],
-    "section": "types",
-    "kind": "Type",
-    "title": "GraphInterleavedBuffer",
-    "signature": "class GraphInterleavedBuffer implements Versioned\nnew GraphInterleavedBuffer(array: GraphArray, stride: number): GraphInterleavedBuffer",
-    "summary": "One storage several attributes view, a vertex every `stride` numbers.",
-    "parameters": [
-      {
-        "name": "array",
-        "type": "GraphArray",
-        "desc": ""
-      },
-      {
-        "name": "stride",
-        "type": "number",
-        "desc": ""
-      }
-    ],
-    "members": [
-      {
-        "name": "kind",
-        "type": "'interleavedBuffer'",
-        "desc": "One storage several attributes view."
-      },
-      {
-        "name": "count",
-        "type": "number",
-        "desc": "How many vertices."
-      },
-      {
-        "name": "version",
-        "type": "number",
-        "desc": "Bumped by `needsUpdate`."
-      },
-      {
-        "name": "array",
-        "type": "GraphArray",
-        "desc": "The storage."
-      },
-      {
-        "name": "stride",
-        "type": "number",
-        "desc": "Numbers per vertex."
-      },
-      {
-        "name": "needsUpdate",
-        "type": "boolean",
-        "desc": "`needsUpdate = true` after writing `array`: a reader uploads it again."
       }
     ],
     "description": ""
@@ -6126,7 +5888,7 @@
     "section": "types",
     "kind": "Type",
     "title": "HostAttribute",
-    "signature": "type HostAttribute = GraphElements",
+    "signature": "type HostAttribute = VertexAttribute",
     "summary": "One vertex attribute of a geometry, owning its storage or viewing an interleaved one.",
     "description": ""
   },
@@ -6137,7 +5899,7 @@
     "section": "types",
     "kind": "Type",
     "title": "HostAttributes",
-    "signature": "type HostAttributes = { [name: string]: GraphElements }",
+    "signature": "type HostAttributes = { [name: string]: VertexAttribute }",
     "summary": "The named attributes of one geometry.",
     "description": "Also an identity: the engine keys its GPU buffers, geometry blocks and position caches on the attribute set a page draws from."
   },
@@ -6739,17 +6501,17 @@
   },
   {
     "id": "InterleavedBuffer",
-    "module": "packages/sdk-core/src/world/buffer/index.ts",
+    "module": "packages/sdk-core/src/world/buffer/attribute.ts",
     "exports": ["InterleavedBuffer"],
     "section": "buffer",
     "kind": "Type",
     "title": "InterleavedBuffer",
-    "signature": "class InterleavedBuffer\nnew InterleavedBuffer(array: Float32Array<ArrayBufferLike>, stride: number): InterleavedBuffer",
+    "signature": "class InterleavedBuffer\nnew InterleavedBuffer(array: BufferTypedArray, stride: number): InterleavedBuffer",
     "summary": "Several attributes packed per vertex: `stride` numbers per vertex, each attribute at an offset.",
     "parameters": [
       {
         "name": "array",
-        "type": "Float32Array<ArrayBufferLike>",
+        "type": "BufferTypedArray",
         "desc": ""
       },
       {
@@ -6765,8 +6527,18 @@
         "desc": "Always `true`: tells an interleaved buffer apart from anything else."
       },
       {
+        "name": "kind",
+        "type": "'interleavedBuffer'",
+        "desc": "One storage several attributes view."
+      },
+      {
+        "name": "version",
+        "type": "number",
+        "desc": "Bumped by `needsUpdate`."
+      },
+      {
         "name": "array",
-        "type": "Float32Array<ArrayBufferLike>",
+        "type": "BufferTypedArray",
         "desc": "Every vertex's numbers, packed one after the other."
       },
       {
@@ -6780,9 +6552,90 @@
         "desc": "How many vertices it packs."
       },
       {
+        "name": "needsUpdate",
+        "type": "boolean",
+        "desc": "`needsUpdate = true` after writing `array`: a reader uploads it again."
+      },
+      {
         "name": "attribute(itemSize: number, offset: number)",
         "type": "BufferAttribute",
-        "desc": "One attribute read out of the pack, as its own float attribute."
+        "desc": "One attribute read out of the pack, as its own attribute."
+      }
+    ],
+    "description": ""
+  },
+  {
+    "id": "InterleavedBufferAttribute",
+    "module": "packages/sdk-core/src/world/buffer/attribute.ts",
+    "exports": ["InterleavedBufferAttribute"],
+    "section": "buffer",
+    "kind": "Type",
+    "title": "InterleavedBufferAttribute",
+    "signature": "class InterleavedBufferAttribute extends VertexElements\nnew InterleavedBufferAttribute(data: InterleavedBuffer, itemSize: number, offset: number, normalized?: boolean): InterleavedBufferAttribute",
+    "summary": "An attribute viewing `itemSize` numbers at `offset` of each vertex of an interleaved buffer.",
+    "parameters": [
+      {
+        "name": "data",
+        "type": "InterleavedBuffer",
+        "desc": ""
+      },
+      {
+        "name": "itemSize",
+        "type": "number",
+        "desc": ""
+      },
+      {
+        "name": "offset",
+        "type": "number",
+        "desc": ""
+      },
+      {
+        "name": "normalized",
+        "type": "boolean",
+        "default": "false",
+        "desc": ""
+      }
+    ],
+    "members": [
+      {
+        "name": "isInterleavedBufferAttribute",
+        "type": "true",
+        "desc": "Always `true`: tells an interleaved view apart from anything else."
+      },
+      {
+        "name": "kind",
+        "type": "'interleavedAttribute'",
+        "desc": "The attribute views a shared buffer."
+      },
+      {
+        "name": "data",
+        "type": "InterleavedBuffer",
+        "desc": "The buffer it views."
+      },
+      {
+        "name": "offset",
+        "type": "number",
+        "desc": "Where its numbers start in each vertex."
+      },
+      {
+        "name": "array",
+        "type": "BufferTypedArray",
+        "desc": "The storage the elements live in."
+      },
+      {
+        "name": "count",
+        "type": "number",
+        "desc": "How many vertices the numbers describe."
+      },
+      {
+        "name": "needsUpdate",
+        "type": "boolean",
+        "desc": "`needsUpdate = true` after writing `array`: a reader uploads it again."
+      },
+      {
+        "name": "clone()",
+        "type": "BufferAttribute",
+        "desc": "Its own numbers, copied out of the pack into an attribute owning them."
       }
     ],
     "description": ""
@@ -8382,7 +8235,7 @@
       {
         "name": "parameters.linewidth?",
         "type": "number",
-        "desc": "Width of a line."
+        "desc": "Width of a line in CSS pixels, the same at every distance."
       },
       {
         "name": "parameters.dashSize?",
@@ -8686,7 +8539,7 @@
       {
         "name": "linewidth?",
         "type": "number | undefined",
-        "desc": "Width of a line."
+        "desc": "Width of a line in CSS pixels, the same at every distance."
       },
       {
         "name": "dashSize?",
@@ -18217,6 +18070,132 @@
     "description": ""
   },
   {
+    "id": "VertexAttribute",
+    "module": "packages/sdk-core/src/world/buffer/attribute.ts",
+    "exports": ["VertexAttribute"],
+    "section": "buffer",
+    "kind": "Type",
+    "title": "VertexAttribute",
+    "signature": "type VertexAttribute = BufferAttribute | InterleavedBufferAttribute",
+    "summary": "Either kind of attribute: owning its storage or viewing an interleaved one.",
+    "description": ""
+  },
+  {
+    "id": "VertexElements",
+    "module": "packages/sdk-core/src/world/buffer/elements.ts",
+    "exports": ["VertexElements"],
+    "section": "buffer",
+    "kind": "Type",
+    "title": "VertexElements",
+    "signature": "abstract class VertexElements",
+    "summary": "The elements of one vertex attribute, read and written by component.",
+    "parameters": [
+      {
+        "name": "itemSize",
+        "type": "number",
+        "desc": ""
+      },
+      {
+        "name": "normalized",
+        "type": "boolean",
+        "desc": ""
+      }
+    ],
+    "members": [
+      {
+        "name": "name",
+        "type": "string",
+        "desc": "The name a morph target is known by; empty for the others."
+      },
+      {
+        "name": "itemSize",
+        "type": "number",
+        "desc": "How many numbers belong to one vertex: 3 for a position."
+      },
+      {
+        "name": "normalized",
+        "type": "boolean",
+        "desc": "Whether whole numbers are read as values between 0 and 1."
+      },
+      {
+        "name": "array",
+        "type": "BufferTypedArray",
+        "desc": "The storage the elements live in."
+      },
+      {
+        "name": "count",
+        "type": "number",
+        "desc": "How many vertices the numbers describe."
+      },
+      {
+        "name": "stored(index: number, component: number)",
+        "type": "number",
+        "desc": "Number `component` of vertex `index` as it is stored, a normalised integer unscaled."
+      },
+      {
+        "name": "getComponent(index: number, component: number)",
+        "type": "number",
+        "desc": "Number `component` of vertex `index`, read as the number it stands for."
+      },
+      {
+        "name": "setComponent(index: number, component: number, value: number)",
+        "type": "VertexElements",
+        "desc": "Writes number `component` of vertex `index`."
+      },
+      {
+        "name": "getX(i: number)",
+        "type": "number",
+        "desc": "The first number of vertex `i`."
+      },
+      {
+        "name": "getY(i: number)",
+        "type": "number",
+        "desc": "The second number of vertex `i`."
+      },
+      {
+        "name": "getZ(i: number)",
+        "type": "number",
+        "desc": "The third number of vertex `i`."
+      },
+      {
+        "name": "getW(i: number)",
+        "type": "number",
+        "desc": "The fourth number of vertex `i`."
+      },
+      {
+        "name": "setX(i: number, x: number)",
+        "type": "VertexElements",
+        "desc": "Writes the first number of vertex `i`."
+      },
+      {
+        "name": "setY(i: number, y: number)",
+        "type": "VertexElements",
+        "desc": "Writes the second number of vertex `i`."
+      },
+      {
+        "name": "setZ(i: number, z: number)",
+        "type": "VertexElements",
+        "desc": "Writes the third number of vertex `i`."
+      },
+      {
+        "name": "setW(i: number, w: number)",
+        "type": "VertexElements",
+        "desc": "Writes the fourth number of vertex `i`."
+      },
+      {
+        "name": "setXY(i: number, x: number, y: number)",
+        "type": "VertexElements",
+        "desc": "Writes two numbers for vertex `i`."
+      },
+      {
+        "name": "setXYZ(i: number, x: number, y: number, z: number)",
+        "type": "VertexElements",
+        "desc": "Writes three numbers for vertex `i`."
+      }
+    ],
+    "description": ""
+  },
+  {
     "id": "WaterSpec",
     "module": "packages/sdk-core/src/fluids/buoyancy.ts",
     "exports": ["WaterSpec"],
@@ -19326,12 +19305,12 @@
       {
         "name": "coverageBudgetLimited?",
         "type": "boolean | null | undefined",
-        "desc": "Requested detail cannot coexist with the pinned fallback within the GPU page budget."
+        "desc": "Requested detail needs more pages than the GPU page budget holds: the rest draws coarser."
       },
       {
         "name": "budgetPixelError?",
         "type": "number | null | undefined",
-        "desc": "Screen-error floor the GPU page budget imposes on the cut, in pixels: `0` when the requested detail fits, otherwise the coarser threshold the image is drawn at. Null on engines without a page budget."
+        "desc": "WebGL2 only: the screen-error floor its page budget imposes on the cut, in pixels — `0` when the requested detail fits, otherwise the coarser threshold the image is drawn at. Absent on WebGPU, where residency alone coarsens the image. Null on engines without a page budget."
       },
       {
         "name": "frameHeld?",
@@ -27507,7 +27486,7 @@
       {
         "name": "parameters.linewidth?",
         "type": "number",
-        "desc": "Width of a line."
+        "desc": "Width of a line in CSS pixels, the same at every distance."
       },
       {
         "name": "parameters.dashSize?",
@@ -27692,7 +27671,7 @@
       {
         "name": "parameters.linewidth?",
         "type": "number",
-        "desc": "Width of a line."
+        "desc": "Width of a line in CSS pixels, the same at every distance."
       },
       {
         "name": "parameters.dashSize?",
@@ -27877,7 +27856,7 @@
       {
         "name": "parameters.linewidth?",
         "type": "number",
-        "desc": "Width of a line."
+        "desc": "Width of a line in CSS pixels, the same at every distance."
       },
       {
         "name": "parameters.dashSize?",
@@ -28062,7 +28041,7 @@
       {
         "name": "parameters.linewidth?",
         "type": "number",
-        "desc": "Width of a line."
+        "desc": "Width of a line in CSS pixels, the same at every distance."
       },
       {
         "name": "parameters.dashSize?",
@@ -28247,7 +28226,7 @@
       {
         "name": "parameters.linewidth?",
         "type": "number",
-        "desc": "Width of a line."
+        "desc": "Width of a line in CSS pixels, the same at every distance."
       },
       {
         "name": "parameters.dashSize?",
@@ -28432,7 +28411,7 @@
       {
         "name": "parameters.linewidth?",
         "type": "number",
-        "desc": "Width of a line."
+        "desc": "Width of a line in CSS pixels, the same at every distance."
       },
       {
         "name": "parameters.dashSize?",
@@ -28617,7 +28596,7 @@
       {
         "name": "parameters.linewidth?",
         "type": "number",
-        "desc": "Width of a line."
+        "desc": "Width of a line in CSS pixels, the same at every distance."
       },
       {
         "name": "parameters.dashSize?",
@@ -28802,7 +28781,7 @@
       {
         "name": "parameters.linewidth?",
         "type": "number",
-        "desc": "Width of a line."
+        "desc": "Width of a line in CSS pixels, the same at every distance."
       },
       {
         "name": "parameters.dashSize?",
@@ -28987,7 +28966,7 @@
       {
         "name": "parameters.linewidth?",
         "type": "number",
-        "desc": "Width of a line."
+        "desc": "Width of a line in CSS pixels, the same at every distance."
       },
       {
         "name": "parameters.dashSize?",
@@ -29172,7 +29151,7 @@
       {
         "name": "parameters.linewidth?",
         "type": "number",
-        "desc": "Width of a line."
+        "desc": "Width of a line in CSS pixels, the same at every distance."
       },
       {
         "name": "parameters.dashSize?",
@@ -29357,7 +29336,7 @@
       {
         "name": "parameters.linewidth?",
         "type": "number",
-        "desc": "Width of a line."
+        "desc": "Width of a line in CSS pixels, the same at every distance."
       },
       {
         "name": "parameters.dashSize?",
@@ -29542,7 +29521,7 @@
       {
         "name": "parameters.linewidth?",
         "type": "number",
-        "desc": "Width of a line."
+        "desc": "Width of a line in CSS pixels, the same at every distance."
       },
       {
         "name": "parameters.dashSize?",
@@ -29727,7 +29706,7 @@
       {
         "name": "parameters.linewidth?",
         "type": "number",
-        "desc": "Width of a line."
+        "desc": "Width of a line in CSS pixels, the same at every distance."
       },
       {
         "name": "parameters.dashSize?",
@@ -29912,7 +29891,7 @@
       {
         "name": "parameters.linewidth?",
         "type": "number",
-        "desc": "Width of a line."
+        "desc": "Width of a line in CSS pixels, the same at every distance."
       },
       {
         "name": "parameters.dashSize?",
