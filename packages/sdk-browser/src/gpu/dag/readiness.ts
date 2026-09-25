@@ -18,7 +18,11 @@ export function createDagReadiness(packed: PackedDag) {
     childReady = new Uint8Array(packed.pageCount),
     open = new Int32Array(Math.max(1, packed.nodeCount)),
     nodeInts = new Uint32Array(packed.nodes.buffer, packed.nodes.byteOffset, packed.nodes.length),
-    pageWorlds = new Uint32Array(packed.pageCones.buffer, packed.pageCones.byteOffset);
+    pageWorlds = new Uint32Array(
+      packed.pageCones.buffer,
+      packed.pageCones.byteOffset,
+      packed.pageCount,
+    );
   const worlds = packed.cutLinks.map((l) =>
     createCutReadiness(l.structure, l.links, l.pageCount, l.nodeCount, {
       ready: ready.subarray(l.pageBase, l.pageBase + l.pageCount),
@@ -64,7 +68,6 @@ export function createDagReadiness(packed: PackedDag) {
   return {
     ready,
     childReady,
-    open,
     /** Reads `resident` at the pages `changes` names — every page when it names none reliably —,
      *  and settles. */
     apply(resident: ArrayLike<number>, changes?: ResidencyChanges) {

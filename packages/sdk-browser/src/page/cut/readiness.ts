@@ -2,8 +2,8 @@ import type { ClusterStructureIndex } from '../selection/types.ts';
 
 /**
  * THE RESIDENCY THE CUT RULE READS (`./rule.ts`), derived from the per-cluster residency of one
- * placement and its group links. One definition, shared by the GPU kernel's host
- * (`../../gpu/dag/readiness.ts`), its CPU model and the CPU cut.
+ * placement and its group links. One definition: the GPU kernel's host derives it
+ * (`../../gpu/dag/readiness.ts`), and its CPU model reads what it derived.
  *
  * A group is READY when every cluster it replaces is resident and every group that replaces its
  * outputs is ready — a cluster nothing replaces standing for itself. Readiness is therefore closed
@@ -19,13 +19,10 @@ import type { ClusterStructureIndex } from '../selection/types.ts';
  *
  * `open[node]` counts the clusters under a culling node whose finer group is not ready: the only
  * clusters the rule may draw with an error above the threshold. A node whose error floor is above
- * the threshold is dropped only when that count is zero (`../../gpu/dag/shader/floorWgsl.ts`,
- * `./node.ts`).
+ * the threshold is dropped only when that count is zero (`../../gpu/dag/shader/floorWgsl.ts`).
  *
  * A placement without group links has no replacement to name: each cluster stands for itself.
  */
-export type CutReadiness = ReturnType<typeof createCutReadiness>;
-
 export function createCutReadiness(
   structure: ClusterStructureIndex | undefined,
   links: CullingLinks | undefined,
@@ -43,33 +40,35 @@ export function createCutReadiness(
     work: number[] = [];
   const touchedPages: number[] = [],
     touchedNodes: number[] = [];
+  /** Until the first `settle`, every page and every counted node is new: they are handed over
+   *  whole then, rather than logged one change at a time. */
+  let fresh = true;
   const mark = (page: number, delta: number) => {
     let node = links ? links.leafOfPage[page] : -1;
     while (node >= 0) {
       open[node] += delta;
-      touchedNodes.push(node);
+      if (!fresh) touchedNodes.push(node);
       node = links!.parents[node];
     }
   };
   const setChildReady = (page: number, value: number) => {
     if (childReady[page] === value) return;
     childReady[page] = value;
-    touchedPages.push(page);
+    if (!fresh) touchedPages.push(page);
     mark(page, value ? -1 : 1);
   };
   const setReady = (page: number, value: number) => {
     if (ready[page] === value) return;
     ready[page] = value;
-    touchedPages.push(page);
+    if (!fresh) touchedPages.push(page);
   };
-  // Nothing is resident yet: the first `settle` hands over every page, its state being new.
+  // Nothing is resident yet.
   ready.fill(0);
   open.fill(0);
-  for (let page = 0; page < pageCount; page++) {
-    childReady[page] = 1;
-    touchedPages.push(page);
-    if (structure && structure.sources[page] >= 0) setChildReady(page, 0);
-  }
+  childReady.fill(1);
+  if (structure)
+    for (let page = 0; page < pageCount; page++)
+      if (structure.sources[page] >= 0) setChildReady(page, 0);
   /** Group `g` from what it reads: its members' residency and its outputs' own groups. */
   const groupOf = (g: number) => {
     const s = structure!;
@@ -124,6 +123,12 @@ export function createCutReadiness(
         }
       }
       pending.length = 0;
+      if (fresh) {
+        fresh = false;
+        for (let page = 0; page < pageCount && onPage; page++) onPage(page);
+        for (let node = 0; node < nodeCount && onNode; node++) if (open[node]) onNode(node);
+        return;
+      }
       if (onPage) for (const page of touchedPages) onPage(page);
       if (onNode) for (const node of touchedNodes) onNode(node);
       touchedPages.length = 0;
