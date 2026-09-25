@@ -158,6 +158,28 @@
   "Blending": {
     "summary": "Cách một bề mặt hòa trộn với thứ ở phía sau nó, theo tên gọi."
   },
+  "Bloom": {
+    "summary": "Ánh sáng tràn ra quanh những gì sáng chói, như một thấu kính làm lan tỏa nó.",
+    "description": "Dựa trên vật lý: nó chạy trên độ rọi tuyến tính của cảnh, trước tone mapping, không có ngưỡng, và bảo toàn năng lượng — quầng sáng là một bản sao làm mờ của ảnh được trộn vào, nên tổng ánh sáng vẫn như cũ.",
+    "parameters": {
+      "options": "Những gì một trang có thể truyền cho `effect.bloom`.",
+      "options.intensity": "Phần ảnh được thay bằng quầng sáng của nó, từ 0 (không) đến 1 (chỉ quầng sáng).",
+      "options.radius": "Độ lan của quầng sáng ở mỗi mức, tính bằng texel của mức đó; 1 là bộ lọc đã công bố."
+    },
+    "members": {
+      "kind": "Đây là pass dựng sẵn nào.",
+      "stage": "Nó chạy trước hay sau tone mapping.",
+      "intensity": "Phần ảnh được thay bằng quầng sáng của nó, từ 0 đến 1.",
+      "radius": "Độ lan của quầng sáng ở mỗi mức, tính bằng texel của mức đó; lớn hơn 0."
+    }
+  },
+  "BloomOptions": {
+    "summary": "Những gì một trang có thể truyền cho `effect.bloom`.",
+    "members": {
+      "intensity": "Phần ảnh được thay bằng quầng sáng của nó, từ 0 (không) đến 1 (chỉ quầng sáng).",
+      "radius": "Độ lan của quầng sáng ở mỗi mức, tính bằng texel của mức đó; 1 là bộ lọc đã công bố."
+    }
+  },
   "BounceBudget": {
     "summary": "Ngân sách dội lại, tính bằng mili giây.",
     "description": "Đặc tả yêu cầu một khoảng thời gian, không phải một số tia cố định: tốc độ khung hình giữ nguyên, trong khi ánh sáng hội tụ dần dần. Bộ máy nhận một thời lượng khung hình mục tiêu, đo dấu thời gian GPU từ chặng dội lại, và điều chỉnh động tỉ lệ khối lượng công việc được mã hóa tiếp theo. Việc điều chỉnh được làm mượt và giới hạn: tỉ lệ đó không bao giờ vượt quá 1 (các trần đã công bố vẫn là giới hạn trên nghiêm ngặt) và không bao giờ xuống dưới sàn (đảm bảo tiến độ hội tụ).",
@@ -242,6 +264,13 @@
       "boxes": "`6 · n` số: các hộp đầu vào, `minX, minY, minZ, maxX, maxY, maxZ` mỗi phần tử.",
       "mats": "`16 · n` số: các ma trận column-major.",
       "out": "`6 · n` số: các hộp đã được biến đổi."
+    }
+  },
+  "BudgetCanvas": {
+    "summary": "Canvas lớn nhất mà ngân sách khai báo: các đích của chuỗi hiệu ứng được dành sẵn theo kích thước của nó.",
+    "members": {
+      "width": "Chiều rộng tính bằng pixel của bộ đệm vẽ.",
+      "height": "Chiều cao tính bằng pixel của bộ đệm vẽ."
     }
   },
   "BufferAttribute": {
@@ -849,6 +878,33 @@
     "summary": "Lược đồ JSON toàn diện ghi lại tài liệu mọi tùy chọn khởi tạo cho explorer của Trillion3D (MeasuredWorldOptions).",
     "description": "Cho phép các LLM hiểu, xác thực và tinh chỉnh cấu hình của bộ máy 3D."
   },
+  "EffectChain": {
+    "summary": "`world.effects`: các pass có thứ tự được vẽ lên ảnh sau khử răng cưa theo thời gian và trước khi ảnh tới canvas.",
+    "description": "Các pass trước tone mapping đọc độ rọi tuyến tính, theo thứ tự được thêm vào; các pass sau đọc ảnh hiển thị, theo thứ tự của chúng. Một chuỗi rỗng không tốn gì: không pass, không bản sao, không đích.",
+    "members": {
+      "revision": "Đếm các thay đổi: ảnh được vẽ ở một phiên bản khác là đã cũ.",
+      "passes": "Các pass, theo thứ tự chúng chạy.",
+      "size": "Chuỗi chứa bao nhiêu pass.",
+      "add": "Đặt một pass vào chuỗi, ở cuối hoặc tại `index`. Mỗi pass chỉ thuộc một chuỗi tại một thời điểm.",
+      "remove": "Lấy một pass ra khỏi chuỗi; false nếu nó không có trong đó.",
+      "clear": "Lấy mọi pass ra: ảnh trở lại như khi không có chuỗi.",
+      "stage": "Các pass của một giai đoạn, theo thứ tự chuỗi: danh sách mà engine chạy. Được giữ từ thay đổi này sang thay đổi khác, để một khung hình không cấp phát gì."
+    }
+  },
+  "EffectKind": {
+    "summary": "Các pass dựng sẵn mà engine biết vẽ."
+  },
+  "EffectPass": {
+    "summary": "Một pass của chuỗi.",
+    "description": "Một pass cho biết nó là pass dựng sẵn nào và chạy ở đâu; các thiết lập của nó là thuộc tính mà việc ghi tới thế giới ngay lập tức, như của một nguồn sáng.",
+    "members": {
+      "kind": "Đây là pass dựng sẵn nào.",
+      "stage": "Nó chạy trước hay sau tone mapping."
+    }
+  },
+  "EffectStage": {
+    "summary": "Vị trí của một pass so với đường cong hiển thị: trên độ rọi tuyến tính của cảnh, trước khi phơi sáng và đường cong đưa nó vào dải hiển thị, hoặc trên ảnh hiển thị mà chúng tạo ra."
+  },
   "EngineCamera": {
     "summary": "Camera của bộ máy: các con số của một khung hình, trong các bộ đệm sở hữu riêng được ghi lại tại chỗ.",
     "description": "Không có cấu trúc thư viện chủ nào vượt qua một chữ ký ở phía sau `readCameraWorld` (`world.ts`, bản dịch duy nhất từ một camera chủ).",
@@ -1077,7 +1133,7 @@
       "gpuFrameMs": "Thời lượng GPU của hình ảnh mà `gpuPassMs.frame` mô tả. Không bao giờ được cộng vào một trường `cpu*`. Thiết bị được lấy mẫu vài hình ảnh một lần, nên một con số có thể đã cũ vài hình ảnh. Là null trước mẫu đầu tiên, từ một hình ảnh được giữ đến mẫu tiếp theo của thiết bị, trên thiết bị không có `timestamp-query` và trên WebGL2.",
       "gpuHostGapMs": "Thời gian CPU mà cùng một hình ảnh dùng giữa hai lần gửi của chính nó, và bằng 0 khi nó chỉ gửi một lần. Đây là thời gian của ứng dụng chủ, không phải thời gian GPU, đó là lý do `gpuFrameMs` loại trừ nó. Rỗng khi chưa được đo.",
       "uncoveredTriangles": "Các tam giác của những cụm mà lát cắt đã công bố nêu tên nhưng khung hình không thể vẽ được — không có trang lưu trú và không có tổ tiên nào che phủ. Một lỗ hổng thật sự trong hình ảnh: số không là giá trị lành mạnh duy nhất. Rỗng khi một backend không thể biết được (nó vẽ đúng lát cắt mà nó đã chọn, nên không bao giờ gặp trường hợp này).",
-      "drawnTriangles": "Các tam giác mà KHUNG HÌNH HIỆN TẠI giao cho lệnh vẽ: lát cắt cụm của nó, cả phần không trong suốt và trong suốt của phân cấp gộp lại, trừ đi các cụm không có trang lưu trú mà `uncoveredTriangles` đếm. Các mesh trong suốt nằm ngoài phân cấp không nằm trong đó (`transparentSubmittedTriangles`), và việc từ chối do che khuất không bị trừ đi (`hizRejectedTriangles`). Được đếm ở cùng chặng với `uncoveredTriangles`, tại thời điểm chấp nhận lát cắt: không có việc đọc lại bất đồng bộ nào từ GPU được chờ đợi, nên nó không bao giờ là `null` vì thiếu thời gian, khác với `submittedTriangles`. Quan hệ độ bao phủ kỳ vọng trên mẫu này: `selected − drawn − uncovered = 0`.",
+      "drawnTriangles": "Các tam giác mà KHUNG HÌNH HIỆN TẠI giao cho lệnh vẽ: lát cắt cụm của nó, cả phần không trong suốt và trong suốt của phân cấp gộp lại. Các mesh trong suốt nằm ngoài phân cấp không nằm trong đó (`transparentSubmittedTriangles`), và việc từ chối do che khuất không bị trừ đi (`hizRejectedTriangles`). Được đếm tại thời điểm chấp nhận lát cắt: không có việc đọc lại bất đồng bộ nào từ GPU được chờ đợi, nên nó không bao giờ là `null` vì thiếu thời gian, khác với `submittedTriangles`.",
       "cpuSelectMs": "Thời gian CPU của lát cắt cụm khung hình này, chỉ đo riêng quanh việc lựa chọn. Rỗng trên một bộ máy không chọn lát cắt của nó bằng CPU.",
       "gpuSelectionFallback": "Đúng khi bộ máy từng có một lựa chọn từ GPU và đã bỏ nó đi: những gì được đo từ lúc đó là lát cắt CPU dự phòng. Một lần dự phòng cũng phát ra chẩn đoán `gpu-selection-fallback`, một lần duy nhất; ứng dụng chủ sao chép nó nguyên trạng, và nó vắng mặt trên một bộ máy không có lựa chọn từ GPU.",
       "cpuSelectNodesTested": "Các node phân cấp mà lát cắt của khung hình này đặt ra một phép kiểm tra — quyết định về khối nhìn hoặc mức chi tiết. Một node đã được quyết định và hoàn toàn khả kiến không nhận phép kiểm tra nào: nó được duyệt qua, không được kiểm tra. Đây là thước đo công việc thật sự của một lát cắt phân cấp; một lát cắt phẳng kiểm tra bằng không trong số đó và duyệt qua mọi cụm. Rỗng trên một bộ máy không chọn lát cắt của nó bằng CPU, hoặc không đếm nó.",
@@ -1404,7 +1460,8 @@
       "toneMapping": "Đường cong hiển thị mà cảnh đã chọn; ACES khi vắng mặt.",
       "framebuffer": "Nơi để vẽ; `null` cho màn hình.",
       "width": "Chiều rộng tính bằng điểm ảnh.",
-      "height": "Chiều cao tính bằng điểm ảnh."
+      "height": "Chiều cao tính bằng điểm ảnh.",
+      "linear": "Độ rọi tuyến tính, không qua đường cong, không mã hóa, trên nền đen trong suốt: đầu vào của chuỗi hiệu ứng, có alpha là độ phủ."
     }
   },
   "HostMaterial": {
@@ -2880,7 +2937,8 @@
       "recipe": "Thành viên của họ và mọi đối số đã dùng để tạo ra nó.",
       "attributes": "Mỗi danh sách theo đỉnh, khi không lệnh gọi nào tạo lại được hình khối.",
       "index": "Những đỉnh nào tạo nên mỗi tam giác.",
-      "groups": "Các khoảng chỉ mục, mỗi khoảng được vẽ bằng một vật liệu."
+      "groups": "Các khoảng chỉ mục, mỗi khoảng được vẽ bằng một vật liệu.",
+      "owner": "`'host'` cho các đỉnh của một cảnh đã tải, được đọc theo giá trị của chúng (`Geometry._owner`); không đặt cho các đỉnh của thế giới."
     }
   },
   "SavedMaterial": {
@@ -4060,7 +4118,7 @@
       "gpuFrameMs": "Thời lượng GPU của hình ảnh mà `gpuPassMs.frame` mô tả. Không bao giờ được cộng vào một trường `cpu*`. Thiết bị được lấy mẫu vài hình ảnh một lần, nên một con số có thể đã cũ vài hình ảnh. Là null trước mẫu đầu tiên, từ một hình ảnh được giữ đến mẫu tiếp theo của thiết bị, trên thiết bị không có `timestamp-query` và trên WebGL2.",
       "gpuHostGapMs": "Thời gian CPU mà cùng một hình ảnh dùng giữa hai lần gửi của chính nó, và bằng 0 khi nó chỉ gửi một lần. Đây là thời gian của ứng dụng chủ, không phải thời gian GPU, đó là lý do `gpuFrameMs` loại trừ nó. Rỗng khi chưa được đo.",
       "uncoveredTriangles": "Các tam giác của những cụm mà lát cắt đã công bố nêu tên nhưng khung hình không thể vẽ được — không có trang lưu trú và không có tổ tiên nào che phủ. Một lỗ hổng thật sự trong hình ảnh: số không là giá trị lành mạnh duy nhất. Rỗng khi một backend không thể biết được (nó vẽ đúng lát cắt mà nó đã chọn, nên không bao giờ gặp trường hợp này).",
-      "drawnTriangles": "Các tam giác mà KHUNG HÌNH HIỆN TẠI giao cho lệnh vẽ: lát cắt cụm của nó, cả phần không trong suốt và trong suốt của phân cấp gộp lại, trừ đi các cụm không có trang lưu trú mà `uncoveredTriangles` đếm. Các mesh trong suốt nằm ngoài phân cấp không nằm trong đó (`transparentSubmittedTriangles`), và việc từ chối do che khuất không bị trừ đi (`hizRejectedTriangles`). Được đếm ở cùng chặng với `uncoveredTriangles`, tại thời điểm chấp nhận lát cắt: không có việc đọc lại bất đồng bộ nào từ GPU được chờ đợi, nên nó không bao giờ là `null` vì thiếu thời gian, khác với `submittedTriangles`. Quan hệ độ bao phủ kỳ vọng trên mẫu này: `selected − drawn − uncovered = 0`.",
+      "drawnTriangles": "Các tam giác mà KHUNG HÌNH HIỆN TẠI giao cho lệnh vẽ: lát cắt cụm của nó, cả phần không trong suốt và trong suốt của phân cấp gộp lại. Các mesh trong suốt nằm ngoài phân cấp không nằm trong đó (`transparentSubmittedTriangles`), và việc từ chối do che khuất không bị trừ đi (`hizRejectedTriangles`). Được đếm tại thời điểm chấp nhận lát cắt: không có việc đọc lại bất đồng bộ nào từ GPU được chờ đợi, nên nó không bao giờ là `null` vì thiếu thời gian, khác với `submittedTriangles`.",
       "cpuSelectMs": "Thời gian CPU của lát cắt cụm khung hình này, chỉ đo riêng quanh việc lựa chọn. Rỗng trên một bộ máy không chọn lát cắt của nó bằng CPU.",
       "gpuSelectionFallback": "Đúng khi bộ máy từng có một lựa chọn từ GPU và đã bỏ nó đi: những gì được đo từ lúc đó là lát cắt CPU dự phòng. Một lần dự phòng cũng phát ra chẩn đoán `gpu-selection-fallback`, một lần duy nhất; ứng dụng chủ sao chép nó nguyên trạng, và nó vắng mặt trên một bộ máy không có lựa chọn từ GPU.",
       "cpuSelectNodesTested": "Các node phân cấp mà lát cắt của khung hình này đặt ra một phép kiểm tra — quyết định về khối nhìn hoặc mức chi tiết. Một node đã được quyết định và hoàn toàn khả kiến không nhận phép kiểm tra nào: nó được duyệt qua, không được kiểm tra. Đây là thước đo công việc thật sự của một lát cắt phân cấp; một lát cắt phẳng kiểm tra bằng không trong số đó và duyệt qua mọi cụm. Rỗng trên một bộ máy không chọn lát cắt của nó bằng CPU, hoặc không đếm nó.",
@@ -4428,7 +4486,7 @@
     }
   },
   "budget.memory": {
-    "summary": "Ngân sách bộ nhớ thế giới đang giữ: tổng GPU và CPU, cách chia theo quy tắc, hai pool và mức tối đa của mỗi pool."
+    "summary": "Ngân sách bộ nhớ thế giới đang giữ: tổng GPU và CPU, cách chia theo quy tắc, hai pool và mức tối đa của mỗi pool, cùng canvas mà các đích hiệu ứng được dành sẵn theo."
   },
   "budget.texturePool": {
     "summary": "Một cài đặt bể kết cấu có `bytes`, sẵn sàng trao cho một thế giới.",
@@ -4860,6 +4918,17 @@
   },
   "edge": {
     "summary": "Hàm cạnh 2D (tích có hướng 2D)."
+  },
+  "effect": {
+    "summary": "Họ `effect`: các pass mà `world.effects` vẽ lên ảnh."
+  },
+  "effect.bloom": {
+    "summary": "Quầng sáng quanh những gì sáng chói, trên ảnh tuyến tính trước tone mapping.",
+    "parameters": {
+      "options": "`intensity` và `radius`; các giá trị đã công bố khi vắng mặt.",
+      "options.intensity": "Phần ảnh được thay bằng quầng sáng của nó, từ 0 (không) đến 1 (chỉ quầng sáng).",
+      "options.radius": "Độ lan của quầng sáng ở mỗi mức, tính bằng texel của mức đó; 1 là bộ lọc đã công bố."
+    }
   },
   "emptyIrradiance": {
     "summary": "Một độ rọi không có gì trong đó, sẵn sàng nhận các nguồn."
@@ -6760,6 +6829,9 @@
     "summary": "Khử răng cưa theo thời gian: độ lệch dưới điểm ảnh được tích lũy qua các khung hình; bật theo mặc định.",
     "description": "Khi ghi, có hiệu lực từ khung hình kế tiếp, bỏ lịch sử, không mở lại phiên. Khi đọc, là điều hình ảnh mang: false trên WebGL2, và trong lúc chương trình biên dịch sau khi bật."
   },
+  "world.effects": {
+    "summary": "Chuỗi hiệu ứng: các pass được vẽ lên ảnh (`effect`)."
+  },
   "world.budget": {
     "summary": "Các bể bộ nhớ của thế giới, đọc và đặt theo byte.",
     "members": {
@@ -6770,8 +6842,9 @@
       "physics": "Các giới hạn của vật lý (vật thể, tam giác, vật trang trí, bộ nhớ), đọc một lần khi bắt đầu; vượt một giới hạn sẽ báo `PHYSICS_BUDGET`.",
       "raycastTrees": "Số byte bộ nhớ CPU mà `raycast` giữ cho các cây tam giác, dùng chung cho mọi thế giới trên trang; vượt quá thì cây được dùng lâu nhất bị bỏ. Đặt nó để đổi giới hạn.",
       "gpu": "Số byte bộ nhớ GPU mà thế giới được giữ, mọi pool cộng lại; đặt để vẽ lại từng pool theo quy tắc chia (`split`). Tổng nhỏ hơn pool bóng đổ bị từ chối (`GPU_BUDGET_UNDER_SHADOW_POOL`). Không bao giờ đọc từ máy.",
+      "canvas": "Canvas lớn nhất mà thế giới khai báo, tính bằng pixel của bộ đệm vẽ: các đích của chuỗi hiệu ứng được dành sẵn theo kích thước của nó (`split.effectTargets`); mặc định 3840 × 2160, và `gpu` mặc định chỉ tăng thêm đúng phần dành sẵn đó. Đặt nó để chia lại mọi pool theo quy tắc. Canvas vẽ lớn hơn vẫn được kết xuất trọn vẹn: chẩn đoán báo `effect targets over budget` kèm số byte vượt phần dành sẵn.",
       "cpu": "Số byte bộ nhớ CPU mà thế giới được giữ: trước hết là bản sao phía host của bảng trang bóng, rồi các trang đã giải mã, các bảng manifest, hàng đợi truyền của chúng và các bảng lát cắt của engine cộng lại. Một thay đổi áp dụng ngay: các trang rời đi theo lần dùng cuối cho đến khi vừa. Tổng không vượt quá bản sao bị từ chối (`CPU_BUDGET_UNDER_SHADOW_MIRROR`). Không bao giờ đọc từ máy.",
-      "split": "Cách chia hai tổng: pool bóng và các probe ánh sáng dội ở kích thước lớn nhất, rồi mỗi pool hình học và kết cấu một nửa, giới hạn ở trần của chúng; bản sao phía host của bảng bóng, rồi bộ đệm trang đã giải mã lấy phần còn lại của tổng CPU, toàn bộ, và trong phần đó phiên hiện tại dành riêng các bảng manifest, hàng đợi truyền của nó và các bảng lát cắt của engine. Kết quả của quy tắc, trước khi một pool được đặt riêng."
+      "split": "Cách chia hai tổng: pool bóng và các probe ánh sáng dội ở kích thước lớn nhất, các đích của chuỗi hiệu ứng trên `canvas` đã khai báo, rồi mỗi pool hình học và kết cấu một nửa, giới hạn ở trần của chúng; bản sao phía host của bảng bóng, rồi bộ đệm trang đã giải mã lấy phần còn lại của tổng CPU, toàn bộ, và trong phần đó phiên hiện tại dành riêng các bảng manifest, hàng đợi truyền của nó và các bảng lát cắt của engine. Kết quả của quy tắc, trước khi một pool được đặt riêng."
     }
   },
   "world.camera": {
@@ -7052,8 +7125,8 @@
     "summary": "Những gì một va chạm trao cho người nghe: vật kia, xung lực và điểm chạm.",
     "members": {
       "other": "Vật bị chạm; `null` khi nó đã rời cảnh.",
-      "impulse": "N·s: tốc độ tiến lại theo pháp tuyến nhân khối lượng rút gọn của cặp, ước lượng trước bộ giải; 0 khi `leave`.",
-      "point": "Điểm tiếp xúc, hệ thế giới; gốc tọa độ khi `leave`."
+      "impulse": "N·s: tốc độ tiến lại theo pháp tuyến nhân khối lượng rút gọn của cặp, ước lượng trước bộ giải (phía vật mềm: vận tốc trung bình của nó và khối lượng các đỉnh đã chạm); 0 khi `leave`, và giữa vật mềm với cảm biến.",
+      "point": "Điểm tiếp xúc, hệ thế giới (của vật mềm: trung bình các đỉnh đã chạm, tâm của nó khi gặp cảm biến); gốc tọa độ khi `leave`."
     }
   },
   "ContactEventName": {

@@ -7,7 +7,7 @@ import type { HostTexture } from '../../host/resources.ts';
 import type { ClusterDrawMesh } from '../../cluster/batchMesh.ts';
 import type { Side } from '../../../../sdk-core/src/index.ts';
 import type { WebglClusterTextures } from './textures.ts';
-import type { WebglClusterState } from './state.ts';
+import { drawnModeOf, type WebglClusterState } from './state.ts';
 import type { Matrix3UniformCache } from './uniforms.ts';
 import type { WebglClusterMaterialUniforms } from './materialUniforms.ts';
 
@@ -26,7 +26,25 @@ type Binding = {
   matrices: Matrix3UniformCache;
   textures: WebglClusterTextures;
   state: WebglClusterState;
+  /** The effect chain's linear program (`CLUSTER_LINEAR_FRAGMENT`), which reads `covering`. */
+  linear?: boolean;
 };
+
+/**
+ * Whether a surface drawn into the effect chain's linear target, whose alpha is coverage
+ * (`../../effects/webglOutput.ts`), covers its pixel whatever its alpha: an opaque one, and a
+ * transparent one that replaces what is behind it (`none`), as the display path shows it.
+ * Multiply and subtractive filter what the display target holds, the background included, which
+ * the linear target does not hold: they are refused by name, never drawn as another mode, as
+ * every mode the display path refuses (`drawnBlending`).
+ */
+function coversLinear(material: Material) {
+  if (!material.transparent) return true;
+  const mode = drawnModeOf(material);
+  if (mode === 'multiply' || mode === 'subtractive')
+    throw new Error(`the WebGL2 effect chain cannot draw ${mode} blending`);
+  return mode === 'none';
+}
 
 /** Uploads one material's factors, maps and raster state; cached values are skipped. `side`
  *  names the faces of one pass of a two-sided transparent surface; undefined, the material's
@@ -38,7 +56,7 @@ export function bindClusterMaterial(
   side?: Side,
   polygonOffsetUnits?: number,
 ) {
-  const { uniforms, matrices, textures, state } = binding;
+  const { uniforms, matrices, textures, state, linear } = binding;
   const source = material as { opacity: number },
     mat = visMaterial(material);
   // An unlit material keeps its occlusion map and strength on the host object alone: its map is
@@ -65,6 +83,7 @@ export function bindClusterMaterial(
   uniforms.i1(15, 'hasVertexColor', material.vertexColors ? 1 : 0);
   // A debug view, a normal or depth surface, is output untouched (`shownAsIs`).
   uniforms.i1(16, 'toneMapped', toneMapped && material.toneMapped && !shownAsIs(mat.model) ? 1 : 0);
+  if (linear) uniforms.i1(47, 'covering', coversLinear(material) ? 1 : 0);
   const sharedMetalRough =
     !!mat.roughnessMap &&
     mat.roughnessMap === mat.metalnessMap &&

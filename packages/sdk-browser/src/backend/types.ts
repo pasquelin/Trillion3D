@@ -98,8 +98,8 @@ export interface RenderBackend extends BackendSceneUpdates {
     data: import('../page/decode/geometryPage.ts').DecodedGeometryPage,
   ): void;
   dropPage?(url: string): void;
-  /** Bytes of CPU tables the engine sized by the scene's pages once prepared, which the CPU total
-   *  holds beside the decoded pages (`../residency/memoryBudget.ts`). */
+  /** Bytes of the engine's CPU cut tables now, sized by the view and the pool: the CPU total holds
+   *  them beside the decoded pages (`../residency/memoryBudget.ts`). */
   hostTableBytes?(): number;
   syncResident?(): void;
   flush?(options?: { image?: boolean }): Promise<void>; // image: false skips the readback
@@ -150,8 +150,7 @@ export interface BackendContext {
   gpuCanvas?: HTMLCanvasElement; // a host canvas dedicated to this WebGPU backend
   /** Engine-owned host context. WebGL backends may allocate resources on it but never replace it. */
   webglContext?: WebGL2RenderingContext;
-  /** Texture-tile bytes admitted per frame, and CPU milliseconds a frame's tile pass may spend
-   *  copying; the rest waits. */
+  /** Texture-tile bytes and tile-copy CPU milliseconds admitted per frame; the rest waits. */
   maxTextureTransferBytesPerFrame?: number;
   maxTextureUploadMsPerFrame?: number;
   /** Geometry-page pool bytes, fixed regardless of the scene; 512 MiB by default. The root cover
@@ -168,13 +167,14 @@ export interface BackendContext {
   /** Temporal antialiasing, on by default as in the reference: `false` renders the
    *  image sampled at the pixel centre, with no jitter and no history — the "before" of a comparison. */
   temporalAntialiasing?: boolean;
+  /** The world's effect chain, drawn after temporal antialiasing; absent or empty, nothing is. */
+  effects?: import('../../../sdk-core/src/world/effect/chain.ts').EffectChain;
   sceneLighting?: Object3D;
   /** The page's guides, held by its world (`guides/guideSet.ts`): drawn over the image. */
   guides?: import('../guides/guideSet.ts').GuideSet;
   /** Contract lights, owned by the host and shared by every engine of the session. */
   sceneLights?: SceneLightStore;
-  /** Identifiers of the lights the source file carried, in cache order; the host rereads them
-   *  via `explorer.importedLights()` to set or remove them one by one. */
+  /** Imported light ids, in cache order: the host sets or removes them (`importedLights()`). */
   importedLightIds?: string[];
   /** Bounced light, off by default: its step stays above the measured one-millisecond bar. Its
    *  budget: the step's target GPU milliseconds per frame, `BOUNCE_SETTINGS.budgetMs` (0.8 ms)

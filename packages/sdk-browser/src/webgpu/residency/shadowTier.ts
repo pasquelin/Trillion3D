@@ -1,4 +1,5 @@
 import type { PageRec } from '../../page/selection/selection.ts';
+import { createSparseInts } from '../../page/cut/sparseInts.ts';
 
 /**
  * The lower residency tier: the pages the light cuts asked for, in their order — highest
@@ -10,37 +11,30 @@ import type { PageRec } from '../../page/selection/selection.ts';
  * shadow page reports nothing, and the last list stands — a still scene asks for nothing new.
  */
 export function createShadowTier(options: {
-  packedPages: readonly PageRec[];
-  keyCount: number;
   keyOf: (page: PageRec) => number;
   room: () => number;
-  closeOver: (ids: ArrayLike<number>, visit: (id: number) => void) => void;
+  closeOver: (ids: ArrayLike<number>, visit: (id: number, rec: PageRec) => void) => void;
 }) {
-  const { packedPages, keyOf, room, closeOver } = options;
+  const { keyOf, room, closeOver } = options;
   const pages: PageRec[] = [];
   /** The CPU light cuts' packed ids, reused from one report to the next. */
   const ids: number[] = [];
-  const stamps = new Uint32Array(Math.max(1, options.keyCount));
-  let stamp = 0;
+  /** The keys of the last report: as many as it names, never the catalogue. */
+  const named = createSparseInts();
   const begin = () => {
     pages.length = 0;
-    if (++stamp === 0xffffffff) {
-      stamps.fill(0);
-      stamp = 1;
-    }
+    named.clear();
   };
-  const push = (id: number) => {
-    const rec = packedPages[id];
-    if (!rec || pages.length >= room()) return;
+  const push = (_id: number, rec: PageRec) => {
+    if (pages.length >= room()) return;
     const key = keyOf(rec);
-    if (stamps[key] === stamp) return;
-    stamps[key] = stamp;
+    if (named.set(key, 1)) return;
     pages.push(rec);
   };
   return {
     pages,
     /** True when the last light-cut report names this key: a caster a light still wants. */
-    has: (key: number) => stamp !== 0 && stamps[key] === stamp,
+    has: (key: number) => named.has(key),
     /** The light cuts' GPU requests: page indices of the packed catalogue. */
     offerIds(requested: ArrayLike<number>) {
       begin();
