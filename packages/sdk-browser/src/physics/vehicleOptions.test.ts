@@ -44,14 +44,78 @@ async function drive(
   return rig;
 }
 
+/** The steps a car of `options` takes to reach 10 m/s at full throttle. */
+async function until10(options: Partial<VehicleOptions>) {
+  let steps = 0;
+  await drive(options, { throttle: 1 }, 5, (rig) => (steps += +(rig.vehicle.speed < 10)));
+  return steps;
+}
+
 test('torquePerKg: half the torque reaches 10 m/s later', async () => {
-  const until10 = async (torquePerKg: number) => {
-    let steps = 0;
-    await drive({ torquePerKg }, { throttle: 1 }, 5, (rig) => (steps += +(rig.vehicle.speed < 10)));
-    return steps;
-  };
-  const [full, half] = [await until10(CAR.torquePerKg), await until10(CAR.torquePerKg / 2)];
+  const [full, half] = [await until10({}), await until10({ torquePerKg: CAR.torquePerKg / 2 })];
   assert.ok(half > 1.2 * full, `${half} steps against ${full}`);
+});
+
+test('torqueCurve: a curve at 0.4 of the peak everywhere reaches 10 m/s later', async () => {
+  const flat = [
+    [0, 0.4],
+    [1, 0.4],
+  ] as const;
+  const [own, low] = [await until10({}), await until10({ torqueCurve: flat })];
+  assert.ok(low > 1.2 * own, `${low} steps against ${own}`);
+});
+
+test('idleRPM: standing still, the engine idles at its idle', async () => {
+  const idling = async (idleRPM: number) => (await drive({ idleRPM }, {}, 1)).vehicle.rpm;
+  const [own, fast] = [await idling(CAR.idleRPM), await idling(1500)];
+  assert.ok(Math.abs(own - CAR.idleRPM) < 50, `own ${own}`);
+  assert.ok(Math.abs(fast - 1500) < 50, `fast ${fast}`);
+});
+
+/** The speed at the first shift from `from` to `to`, m/s; -1 if none. */
+function shiftSpeed(from: number, to: number) {
+  let last = -1,
+    speed = -1;
+  const watch = (rig: Rig) => {
+    if (speed < 0 && last === from && rig.vehicle.gear === to) speed = rig.vehicle.speed;
+    last = rig.vehicle.gear;
+  };
+  return { watch, speed: () => speed };
+}
+
+test('shiftUpRPM: shifting up at 3,000 rpm leaves first gear at about half the speed', async () => {
+  // Half throttle: at full, the rear wheels spin in first and Jolt holds the gear to the redline.
+  const up = async (shiftUpRPM: number) => {
+    const shift = shiftSpeed(1, 2);
+    await drive({ shiftUpRPM, shiftDownRPM: 1000 }, { throttle: 0.5 }, 12, shift.watch);
+    return shift.speed();
+  };
+  const [own, early] = [await up(CAR.shiftUpRPM), await up(3000)];
+  assert.ok(early > 0 && early < 0.7 * own, `${early} m/s against ${own} m/s`);
+});
+
+test('shiftDownRPM: shifting down at a lower rpm leaves the gear at a lower speed', async () => {
+  const down = async (shiftDownRPM: number) => {
+    const rig = await drive({ shiftDownRPM }, { throttle: 1 }, 6);
+    const gear = rig.vehicle.gear;
+    const shift = shiftSpeed(gear, gear - 1);
+    for (let s = 0; s < 1200 && shift.speed() < 0; s++) {
+      rig.hold({ brake: 0.2 }, 1 / 60);
+      shift.watch(rig);
+    }
+    return shift.speed();
+  };
+  const [own, late] = [await down(CAR.shiftDownRPM), await down(0.5 * CAR.shiftDownRPM)];
+  assert.ok(late > 0 && late < 0.7 * own, `${late} m/s against ${own} m/s`);
+});
+
+test('maxRPM: half the redline caps one gear at half the speed', async () => {
+  const top = async (maxRPM: number) =>
+    (await drive({ gears: [1], finalDrive: 30, maxRPM }, { throttle: 1 }, 5)).vehicle.speed;
+  const [own, half] = [await top(CAR.maxRPM), await top(CAR.maxRPM / 2)];
+  const cap = redlineSpeed(30) / 2;
+  assert.ok(half > 0.5 * cap && half < 1.05 * cap, `capped at ${half} of ${cap}`);
+  assert.ok(own > 1.5 * cap, `the machine's own is not: ${own}`);
 });
 
 test('finalDrive: the redline caps one gear at the speed its ratio turns the wheels at', async () => {
@@ -163,7 +227,7 @@ test('drive: front, only the front wheels spin under throttle on a lift', async 
   assert.ok(Math.min(rear[2], rear[3]) > 20 * Math.max(rear[0], rear[1]), `rear ${rear}`);
 });
 
-test('trackTurn: the inner track at the outer’s speed does not turn a moving hull', async () => {
+test('trackTurn, on the move: the inner track at the outer’s speed keeps the hull straight, a lower ratio turns it harder', async () => {
   const turned = async (trackTurn: number) => {
     const rig = await vehicleRig('tracked', { trackTurn });
     rig.hold({ throttle: 1 }, 3);
