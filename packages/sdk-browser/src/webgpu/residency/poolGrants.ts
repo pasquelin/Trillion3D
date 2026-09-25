@@ -33,16 +33,13 @@ async function grantedPool<P extends Pool, R extends Made>(options: {
   make: (pool: P) => R;
   floor: PoolClamp;
   diagnose: Diagnose;
-  /** Bytes the budget pays before the pool (the geometry's vertex buffers): a refusal halves
-   *  what is left of the budget after them, never those bytes themselves. */
-  heldBytes?: number;
 }): Promise<Granted<P, R> | undefined> {
-  const { device, name, draw, make, floor, diagnose, heldBytes = 0 } = options;
+  const { device, name, draw, make, floor, diagnose } = options;
   let pool = draw(options.budgetBytes);
   const requestedBytes = pool.allocatedBytes;
   let made: R | undefined;
   while (!(made = await deviceMade(device, () => make(pool)))) {
-    const half = Math.floor(Math.min(pool.budgetBytes - heldBytes, pool.allocatedBytes) / 2);
+    const half = Math.floor(Math.min(pool.budgetBytes, pool.allocatedBytes) / 2);
     if (pool.clamp === floor || half < 1) {
       diagnose('gpu-out-of-memory', `The device refused the ${name} pool's floor`, {
         kind: 'warning',
@@ -52,7 +49,7 @@ async function grantedPool<P extends Pool, R extends Made>(options: {
       });
       return undefined;
     }
-    pool = draw(half + heldBytes);
+    pool = draw(half);
   }
   if (pool.allocatedBytes !== requestedBytes)
     diagnose('gpu-out-of-memory', `The device refused the ${name} pool; drawn smaller`, {
@@ -65,27 +62,27 @@ async function grantedPool<P extends Pool, R extends Made>(options: {
   return { pool, made };
 }
 
+/**
+ * A budget that pays first for the bytes held beside its pool, outside it: a live texture's
+ * working texture (#362), the vertex buffers beside the geometry slots (#487). The pool is drawn
+ * and granted from `bytes`, what the budget leaves them, so a refusal halves the pool alone; the
+ * budget recorded is the pool's plus `deducted`, the one declared.
+ */
+export function budgetBeside(budgetBytes: number, heldBytes: number) {
+  const deducted = Math.min(heldBytes, budgetBytes - 1);
+  return { bytes: budgetBytes - deducted, deducted };
+}
+
 /** The geometry pool the device grants for `budgetBytes`, by the session's own rule; `make`
- *  allocates the pool itself, or its probe (`geometryProbe`). `heldBytes` is what `draw` takes
- *  from the budget before the slots: a refusal halves the slots, not the budget. */
+ *  allocates the pool itself, or its probe (`geometryProbe`). */
 export const grantedGeometryPool = <R extends Made>(
   device: GPUDevice,
   budgetBytes: number,
   draw: (budgetBytes: number) => GeometryPool,
   diagnose: Diagnose,
   make: (pool: GeometryPool) => R,
-  heldBytes = 0,
 ) =>
-  grantedPool({
-    device,
-    name: 'geometry',
-    budgetBytes,
-    draw,
-    make,
-    floor: 'root-cover',
-    diagnose,
-    heldBytes,
-  });
+  grantedPool({ device, name: 'geometry', budgetBytes, draw, make, floor: 'root-cover', diagnose });
 
 /** The texture lane pools the device grants for `budgetBytes`, by the session's own rule; `make`
  *  allocates the pools themselves, or their probe (`textureProbe`). */

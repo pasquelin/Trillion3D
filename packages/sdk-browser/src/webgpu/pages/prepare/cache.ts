@@ -1,6 +1,6 @@
 import { createGpuPageCache } from '../../../gpu/page/pages.ts';
 import { grantedGeometryPool } from '../../residency/poolGrants.ts';
-import { geometryPoolDrawer } from '../io/memory.ts';
+import { geometryBudgetBeside } from '../io/memory.ts';
 import { throwIfStopped } from '../io/lost.ts';
 import { type WebgpuPagesRuntime } from '../runtime.ts';
 
@@ -33,26 +33,25 @@ function createWebgpuPagesCache(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice, sl
 
 /**
  * Out of memory absorbed: the geometry pool is the one the device grants, its cache allocated
- * once, under the out-of-memory scope (`poolGrants.ts`), after the vertex buffers it is drawn
- * beside. Refused even at its floor, the root cover: refused by name, never allocated at the full
- * request outside any scope.
+ * once, under the out-of-memory scope (`poolGrants.ts`), from what its budget leaves the vertex
+ * buffers beside it (`geometryBudgetBeside`). Refused even at its floor, the root cover: refused
+ * by name, never allocated at the full request outside any scope.
  */
 export async function grantWebgpuPagesCache(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
   const { setup, gpu, diag } = rt,
-    { draw, heldBytes } = geometryPoolDrawer(rt);
+    { bytes, declared } = geometryBudgetBeside(rt, setup.geometryPool.budgetBytes);
   const granted = await grantedGeometryPool(
     gpuDevice,
-    setup.geometryPool.budgetBytes,
-    draw,
+    bytes,
+    setup.geometryPoolFor,
     diag.engineDiagnostic,
     (pool) => {
       const cache = createWebgpuPagesCache(rt, gpuDevice, pool.slots);
       return { cache, destroy: () => void cache.dispose() };
     },
-    heldBytes,
   );
   if (!granted) throw new Error('WEBGPU_GEOMETRY_POOL_REFUSED');
-  setup.geometryPool = granted.pool;
+  setup.geometryPool = declared(granted.pool);
   gpu.cache = granted.made.cache;
   throwIfStopped(rt);
 }

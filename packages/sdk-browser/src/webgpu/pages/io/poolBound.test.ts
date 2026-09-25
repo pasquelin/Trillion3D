@@ -62,7 +62,7 @@ test('the geometry held never passes the declared pool, at prepare and mid-sessi
   probe.backend.render(camera());
   const { geometryAllocationBytes, geometryPoolAllocatedBytes, geometryPoolSlots } =
     probe.backend.metrics();
-  probe.backend.dispose();
+  disposeQuadRun(probe.backend, probe.fixture);
   const floor = geometryAllocationBytes!,
     slot = geometryPoolAllocatedBytes! / geometryPoolSlots!;
   assert.ok(floor > slot, 'vertex buffers are held beside the root slot');

@@ -79,17 +79,3 @@ test('only the device limit bounds the pool, and it refuses only when even the r
     /GEOMETRY_POOL_DEVICE_LIMIT/,
   );
 });
-
-test('geometry held beside the slots is paid from the budget first, down to the root cover', () => {
-  // #487's pages: 2,848 bytes, beside 48 bytes of vertex buffers, under half their need.
-  const pool = (budgetBytes: number, heldBytes: number) =>
-    geometryPoolFor({ budgetBytes, pageBytes: 2848, uniquePages: 276, rootPages: 4, heldBytes });
-  for (const budget of [393_048, 393_024, 300_001, 4 * 2848 + 48]) {
-    const drawn = pool(budget, 48);
-    assert.ok(drawn.allocatedBytes + 48 <= budget, `${budget}`);
-    assert.equal(drawn.slots, Math.floor((budget - 48) / 2848));
-    assert.equal(drawn.budgetBytes, budget, 'the budget recorded is the one declared');
-  }
-  const raised = pool(100, 400);
-  assert.deepEqual([raised.slots, raised.clamp], [4, 'root-cover']);
-});
