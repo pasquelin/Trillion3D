@@ -1,6 +1,6 @@
 /**
  * The proof that the prepared scene built from the cache tables is the scene the host loader built
- * from the published document: on every cache the repository publishes, and for each document it
+ * from the compiled document: on every cache the repository compiles, and for each document it
  * lays out (`source.gltf`, and the autonomous `scene.gltf` where one is written), the two graphs
  * are walked side by side and must agree on every object, pose, name, geometry byte, bound,
  * surface field, sampler and light the engine or a host renderer reads. The prepared scene is the
@@ -13,7 +13,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { fileURLToPath } from 'node:url';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { type ClusterManifest } from '../../../../sdk-core/src/index.ts';
 import { assertSceneTables } from '../../../../sdk-core/src/scene/core/tableContracts.ts';
@@ -54,10 +54,10 @@ async function prepared(folder: URL, document: string, written?: unknown) {
   };
 }
 
-test('the scene built from the tables is the scene the loader built, on every published cache', async (t) => {
+test('the scene built from the tables is the scene the loader built, on every compiled cache', async (t) => {
   serveFiles(t);
   const folders = await caches();
-  assert.ok(folders.length >= 10, 'the published caches are found');
+  assert.ok(folders.length >= 10, 'the compiled caches are found');
   for (const folder of folders) {
     // A partitioned cache draws its placements from rows, not nodes: `partition.test.ts` proves
     // them against the loader's.
@@ -72,7 +72,7 @@ test('the scene built from the tables is the scene the loader built, on every pu
       assert.deepEqual(
         await prepared(folder, document),
         await witness(folder, document),
-        `${pathToFileURL(fileURLToPath(folder)).pathname.split('site/assets/')[1]}${document}`,
+        `${fileURLToPath(folder)}${document}`,
       );
     }
   }

@@ -9,7 +9,7 @@ A single harness for all test batches. One command, no server to start manually,
     node bench/runner/summaryGlobal.ts --id my-campaign
 
 The report is rendered by the bilingual React portal. See [Published reports](#published-reports)
-for export, immutable campaign staging, provenance and comparison rules. Rebuilding the site does not
+for export, one-report staging, provenance and comparison rules. Rebuilding the site does not
 rerun benchmarks.
 
 - `--moteur`: `webgl` (exact-cluster-pages), `webgpu` (webgpu-page-raster), or `webgl2`
@@ -194,7 +194,7 @@ quantization grid, normals as octahedral bytes ([`docs/FORMAT.md`](../../docs/FO
 every other path reads the float attributes of `source.bin`. This script compares the two corner
 by corner and prints the largest and mean position gap and the angle between the two normals: the
 input difference behind an image difference between that path and a witness, measured rather than
-supposed. On `site/assets/kinetic-garden` (430 pages, 107 520 corners): `maxPositionGap`
+supposed. On `tests/fixtures/scenes/kinetic-garden` (430 pages, 107 520 corners): `maxPositionGap`
 6.10 × 10⁻⁵, `maxNormalGapDegrees` 0.613, mean 0.284°.
 
 ## What Anisotropy Costs
@@ -219,8 +219,9 @@ separate operations; rebuilding the interface never launches Chrome or benchmark
 2. Export with `node bench/runner/summaryGlobal.ts --dossier .mesure/out/<campaign>
    --vers .mesure/out/<campaign>-report --id <campaign>` (on one line).
 3. Stage with `node bench/runner/publishReport.ts --dossier .mesure/out/<campaign>-report`.
-   Campaign IDs are immutable. The script writes `site/reports/<id>/` and updates the
-   catalogue, which the portal's Measurements area reads. It does not deploy or push anything.
+   The site keeps one report: the script writes `site/reports/<id>/`, then removes the campaign
+   staged before and writes a catalogue naming the new one, which the portal's Measurements area
+   reads. An ID already staged is refused. It does not deploy or push anything.
 4. Validate, then preview with `pnpm docs:serve` (it builds the bundles first).
    Publishing follows the normal issue/PR and maintainer release workflow.
 
