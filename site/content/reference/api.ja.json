@@ -926,7 +926,8 @@
       "PHYSICS_FAILED": "物理がいずれかの上限を超えて求められた（`world.budget.physics`：物体、三角形、装飾物体、メモリ）、動的な物体がシーンの直接の子でなかった（`PHYSICS_NESTED`）、または物理モジュールが失敗した（`PHYSICS_FAILED`）：`world.physics.error` に出る。",
       "PHYSICS_FORMAT": "コンパイル済みモデルの事前処理された物理（`physics.json`）が別の形式か、エンジンとは別の Jolt で処理されています（`PHYSICS_FORMAT`）：再コンパイルしてください。物理がオフのまま正確なレイキャストが求められました（`PHYSICS_OFF`）。",
       "PHYSICS_OFF": "コンパイル済みモデルの事前処理された物理（`physics.json`）が別の形式か、エンジンとは別の Jolt で処理されています（`PHYSICS_FORMAT`）：再コンパイルしてください。物理がオフのまま正確なレイキャストが求められました（`PHYSICS_OFF`）。",
-      "NO_VEHICLE": "`world.controls.vehicle` が `null` のまま `world.controls.kind` に `'vehicle'` が設定された：運転するものがない。"
+      "NO_VEHICLE": "`world.controls.vehicle` が `null` のまま `world.controls.kind` に `'vehicle'` が設定された：運転するものがない。",
+      "GUIDE_CEILING": "`world.guides` の呼び出しは `GUIDE_VERTEX_CEILING` を超える頂点を保持することになるため、何も追加されませんでした。"
     }
   },
   "EngineProfiler": {
@@ -1227,6 +1228,42 @@
     "members": {
       "isGroup": "常に`true`: グループを区別する。",
       "type": "ノードの種類、`'Group'`。"
+    }
+  },
+  "GuideHandle": {
+    "summary": "ページが描いたガイドのまとまり。各セッターはハンドルを返します。",
+    "members": {
+      "visible": "描かれるかどうか。`setVisible` が書き込みます。",
+      "setVisible": "表示または非表示にします。頂点は上限に数えられたままです。",
+      "setTransform": "配置します：列優先の 16 個の数値、または行列 — `node.matrixWorld` でノードに追従します。",
+      "remove": "ワールドから取り除き、頂点を返します。2 回目の呼び出しは何もしません。"
+    }
+  },
+  "GuideLines": {
+    "summary": "描く線分。",
+    "members": {
+      "positions": "線分ごとに 2 つの端点、それぞれ 3 つの数値。",
+      "color": "色。既定は白。",
+      "width": "画面上の幅（ピクセル）。"
+    }
+  },
+  "GuidePoints": {
+    "summary": "描く点。",
+    "members": {
+      "positions": "点ごとに 3 つの数値。",
+      "color": "色。既定は白。",
+      "size": "画面上の各正方形の点の一辺（ピクセル）。"
+    }
+  },
+  "Guides": {
+    "summary": "ページが描く、1 つのワールドのガイド：`world.guides`。",
+    "members": {
+      "ceiling": "ガイドがまとめて保持できる頂点の最大数（`GUIDE_VERTEX_CEILING`）。",
+      "vertexCount": "現在保持している頂点。線分ごとに 2、点ごとに 1、非表示のガイドも含みます。",
+      "lines": "線分を描きます（端点 2 つずつ）。上限を超えると拒否されます（`GUIDE_CEILING`）。",
+      "points": "正方形の点を描きます（位置 1 つずつ）。上限を超えると拒否されます（`GUIDE_CEILING`）。",
+      "add": "`object` の線と点のメッシュ — どの `helper` もこれを作ります — をマテリアルの色で、オブジェクトの現在の位置に描きます。三角形はガイドではないので飛ばされます。",
+      "clear": "すべてのガイドを取り除きます。"
     }
   },
   "HALF_PI": {
@@ -3949,6 +3986,9 @@
       "error": "最後のセッションを開けなかった理由を、名前付きのエンジンエラーとして示します。その `code` は `EngineError` に記載されたコードのいずれか（WebGPU がデバイスを失ったときは `WEBGPU_LOST`）、または固有のコードを持たない理由なら `SESSION_OPEN_FAILED` です。記載されたコードの `EngineError` は投げられたものそのものです。それ以外のエラーは変換され、そのとき投げられたエラーは `details.cause` にあります。各オープンの開始時点から、また何も試されないときは `null` です。",
       "modes": "現在のレンダラーが提供するすべてのビューモード。"
     }
+  },
+  "world.guides": {
+    "summary": "画像の上に描かれる線、点、ヘルパー（`Guides`）。"
   },
   "world.onFrame": {
     "summary": "毎フレームの前に、そのフレームの時刻とともに関数を実行する。",
@@ -7033,6 +7073,10 @@
       "mars": "火星の重力。",
       "none": "重力なし。"
     }
+  },
+  "GUIDE_VERTEX_CEILING": {
+    "summary": "1 つのワールドのガイドがまとめて保持できる頂点の最大数：線分ごとに 2、点ごとに 1。",
+    "description": "導出ではなく宣言された値：パスがアップロードする唯一のインスタンスバッファを、ページが何を求めても 64 Ki × 32 バイト = 2 MiB に抑えます — 16 000 本の線のグリッドは収まり、スキャンした街の点群は収まらず、それはシーンに置くべきものです。"
   },
   "GravityInput": {
     "summary": "重力：プリセット名、または m/s² のベクトル。"

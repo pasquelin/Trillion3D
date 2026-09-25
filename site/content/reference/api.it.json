@@ -1570,7 +1570,8 @@
       "PHYSICS_FAILED": "Alla fisica è stato chiesto oltre uno dei suoi limiti (`world.budget.physics`: corpi, triangoli, corpi decorativi, memoria), oppure un corpo dinamico non era figlio diretto della scena (`PHYSICS_NESTED`), oppure il modulo fisico è fallito (`PHYSICS_FAILED`): su `world.physics.error`.",
       "PHYSICS_FORMAT": "La fisica preparata di un modello compilato (`physics.json`) è di un altro formato, o è stata preparata da un Jolt diverso da quello del motore (`PHYSICS_FORMAT`): ricompilalo. È stato chiesto un raycast esatto a fisica spenta (`PHYSICS_OFF`).",
       "PHYSICS_OFF": "La fisica preparata di un modello compilato (`physics.json`) è di un altro formato, o è stata preparata da un Jolt diverso da quello del motore (`PHYSICS_FORMAT`): ricompilalo. È stato chiesto un raycast esatto a fisica spenta (`PHYSICS_OFF`).",
-      "NO_VEHICLE": "`world.controls.kind` è stato impostato a `'vehicle'` mentre `world.controls.vehicle` è `null`: non c’è niente da guidare."
+      "NO_VEHICLE": "`world.controls.kind` è stato impostato a `'vehicle'` mentre `world.controls.vehicle` è `null`: non c’è niente da guidare.",
+      "GUIDE_CEILING": "Una chiamata a `world.guides` terrebbe più vertici di `GUIDE_VERTEX_CEILING`; non ne è stato aggiunto nulla."
     }
   },
   "enginePose": {
@@ -2132,6 +2133,42 @@
     "members": {
       "isGroup": "Sempre `true`: distingue un gruppo.",
       "type": "Il tipo di nodo, `'Group'`."
+    }
+  },
+  "GuideHandle": {
+    "summary": "Un insieme di guide che una pagina ha disegnato; ogni impostazione restituisce l’handle.",
+    "members": {
+      "visible": "Se viene disegnato; `setVisible` lo scrive.",
+      "setVisible": "Lo mostra o lo nasconde; i suoi vertici contano ancora contro il limite.",
+      "setTransform": "Lo posiziona: sedici numeri per colonne, o una matrice — `node.matrixWorld` segue un nodo.",
+      "remove": "Lo toglie dal mondo, restituendo i suoi vertici; una seconda chiamata non fa nulla."
+    }
+  },
+  "GuideLines": {
+    "summary": "Segmenti da disegnare.",
+    "members": {
+      "positions": "Due estremi per segmento, tre numeri ciascuno.",
+      "color": "Il loro colore; bianco per impostazione predefinita.",
+      "width": "Larghezza sullo schermo, in pixel."
+    }
+  },
+  "GuidePoints": {
+    "summary": "Punti da disegnare.",
+    "members": {
+      "positions": "Tre numeri per punto.",
+      "color": "Il loro colore; bianco per impostazione predefinita.",
+      "size": "Lato di ogni punto quadrato sullo schermo, in pixel."
+    }
+  },
+  "Guides": {
+    "summary": "Le guide di un mondo, come una pagina le disegna: `world.guides`.",
+    "members": {
+      "ceiling": "Il massimo di vertici che le guide tengono insieme (`GUIDE_VERTEX_CEILING`).",
+      "vertexCount": "Vertici tenuti ora, due per segmento e uno per punto, guide nascoste comprese.",
+      "lines": "Disegna segmenti, due estremi ciascuno; rifiutato sopra il limite (`GUIDE_CEILING`).",
+      "points": "Disegna punti quadrati, una posizione ciascuno; rifiutato sopra il limite (`GUIDE_CEILING`).",
+      "add": "Disegna le mesh di linee e punti di `object` — ogni `helper` le costruisce —, nei colori dei loro materiali, poste dove l’oggetto si trova ora; i suoi triangoli non sono guide e vengono saltati.",
+      "clear": "Rimuove tutte le guide."
     }
   },
   "HALF_PI": {
@@ -6472,6 +6509,9 @@
       "modes": "Ogni modalità di vista offerta dal motore di rendering attuale."
     }
   },
+  "world.guides": {
+    "summary": "Linee, punti e aiuti disegnati sopra l’immagine (`Guides`)."
+  },
   "world.onFrame": {
     "summary": "Avvia una funzione prima di ogni fotogramma, con il tempo del fotogramma.",
     "parameters": {
@@ -7033,6 +7073,10 @@
       "mars": "Quella di Marte.",
       "none": "Nessuna gravità."
     }
+  },
+  "GUIDE_VERTEX_CEILING": {
+    "summary": "Il massimo di vertici che le guide di un mondo tengono insieme: due per segmento, uno per punto.",
+    "description": "Dichiarato, non derivato: limita l’unico buffer di istanze che il passaggio carica a 64 Ki × 32 byte = 2 MiB, qualunque cosa chieda una pagina — una griglia di 16 000 linee ci sta, la nuvola di punti di una città scansionata no, e appartiene alla scena."
   },
   "GravityInput": {
     "summary": "Una gravità: il nome di una preimpostazione, o un vettore in m/s²."

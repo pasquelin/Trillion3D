@@ -1570,7 +1570,8 @@
       "PHYSICS_FAILED": "Se pidió a la física más allá de uno de sus límites (`world.budget.physics`: cuerpos, triángulos, cuerpos decorativos, memoria), o un cuerpo dinámico no era hijo directo de la escena (`PHYSICS_NESTED`), o el módulo de física falló (`PHYSICS_FAILED`): en `world.physics.error`.",
       "PHYSICS_FORMAT": "La física preparada de un modelo compilado (`physics.json`) es de otro formato, o la preparó otro Jolt distinto del del motor (`PHYSICS_FORMAT`): vuelve a compilarlo. Se pidió un raycast exacto con la física apagada (`PHYSICS_OFF`).",
       "PHYSICS_OFF": "La física preparada de un modelo compilado (`physics.json`) es de otro formato, o la preparó otro Jolt distinto del del motor (`PHYSICS_FORMAT`): vuelve a compilarlo. Se pidió un raycast exacto con la física apagada (`PHYSICS_OFF`).",
-      "NO_VEHICLE": "Se asignó `'vehicle'` a `world.controls.kind` mientras `world.controls.vehicle` es `null`: no hay nada que conducir."
+      "NO_VEHICLE": "Se asignó `'vehicle'` a `world.controls.kind` mientras `world.controls.vehicle` es `null`: no hay nada que conducir.",
+      "GUIDE_CEILING": "Una llamada a `world.guides` mantendría más vértices que `GUIDE_VERTEX_CEILING`; no se añadió nada de ella."
     }
   },
   "enginePose": {
@@ -2132,6 +2133,42 @@
     "members": {
       "isGroup": "Siempre `true`: distingue un grupo.",
       "type": "El tipo de nodo, `'Group'`."
+    }
+  },
+  "GuideHandle": {
+    "summary": "Un conjunto de guías que una página dibujó; cada ajuste devuelve el manejador.",
+    "members": {
+      "visible": "Si se dibuja; `setVisible` lo escribe.",
+      "setVisible": "Lo muestra u oculta; sus vértices siguen contando contra el límite.",
+      "setTransform": "Lo coloca: dieciséis números por columnas, o una matriz — `node.matrixWorld` sigue a un nodo.",
+      "remove": "Lo saca del mundo y devuelve sus vértices; una segunda llamada no hace nada."
+    }
+  },
+  "GuideLines": {
+    "summary": "Segmentos de línea que dibujar.",
+    "members": {
+      "positions": "Dos extremos por segmento, tres números cada uno.",
+      "color": "Su color; blanco por defecto.",
+      "width": "Ancho en pantalla, en píxeles."
+    }
+  },
+  "GuidePoints": {
+    "summary": "Puntos que dibujar.",
+    "members": {
+      "positions": "Tres números por punto.",
+      "color": "Su color; blanco por defecto.",
+      "size": "Lado de cada punto cuadrado en pantalla, en píxeles."
+    }
+  },
+  "Guides": {
+    "summary": "Las guías de un mundo, tal como una página las dibuja: `world.guides`.",
+    "members": {
+      "ceiling": "El máximo de vértices que las guías mantienen juntas (`GUIDE_VERTEX_CEILING`).",
+      "vertexCount": "Vértices mantenidos ahora, dos por segmento y uno por punto, guías ocultas incluidas.",
+      "lines": "Dibuja segmentos de línea, dos extremos cada uno; rechazado por encima del límite (`GUIDE_CEILING`).",
+      "points": "Dibuja puntos cuadrados, una posición cada uno; rechazado por encima del límite (`GUIDE_CEILING`).",
+      "add": "Dibuja las mallas de líneas y puntos de `object` — cada `helper` las construye —, en los colores de sus materiales, colocadas donde el objeto está ahora; sus triángulos no son guías y se omiten.",
+      "clear": "Quita todas las guías."
     }
   },
   "HALF_PI": {
@@ -6472,6 +6509,9 @@
       "modes": "Cada modo de vista que ofrece el motor de renderizado actual."
     }
   },
+  "world.guides": {
+    "summary": "Líneas, puntos y ayudas dibujados sobre la imagen (`Guides`)."
+  },
   "world.onFrame": {
     "summary": "Lanza una función antes de cada fotograma, con el tiempo del fotograma.",
     "parameters": {
@@ -7033,6 +7073,10 @@
       "mars": "La de Marte.",
       "none": "Sin gravedad."
     }
+  },
+  "GUIDE_VERTEX_CEILING": {
+    "summary": "El máximo de vértices que las guías de un mundo mantienen juntas: dos por segmento, uno por punto.",
+    "description": "Declarado, no derivado: limita el único búfer de instancias que sube la pasada a 64 Ki × 32 bytes = 2 MiB, pida lo que pida una página — una rejilla de 16 000 líneas cabe, la nube de puntos de una ciudad escaneada no, y pertenece a la escena."
   },
   "GravityInput": {
     "summary": "Una gravedad: el nombre de un preajuste, o un vector en m/s²."

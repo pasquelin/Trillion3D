@@ -186,10 +186,15 @@ fn one_sided(pos: &[f32], from: &[u32], to: &Grid) -> f64 {
         .reduce(|| 0.0, f64::max)
 }
 
-/// The sampled Hausdorff distance between two triangle sets over the same positions.
-pub(crate) fn distance(pos: &[f32], a: &[u32], b: &[u32]) -> f64 {
-    if a.is_empty() || b.is_empty() {
+/// Largest distance from the samples of the triangles `from` to the triangles `to`; zero if either is empty.
+pub(crate) fn one_sided_distance(pos: &[f32], from: &[u32], to: &[u32]) -> f64 {
+    if from.is_empty() || to.is_empty() {
         return 0.0;
     }
-    one_sided(pos, a, &Grid::new(pos, b)).max(one_sided(pos, b, &Grid::new(pos, a)))
+    one_sided(pos, from, &Grid::new(pos, to))
+}
+
+/// The sampled Hausdorff distance between two triangle sets over the same positions.
+pub(crate) fn distance(pos: &[f32], a: &[u32], b: &[u32]) -> f64 {
+    one_sided_distance(pos, a, b).max(one_sided_distance(pos, b, a))
 }
