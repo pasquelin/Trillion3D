@@ -30,30 +30,13 @@ const WGSL_OWN = new Set(
   ).split(/\s+/),
 );
 
-/** Index just past the parenthesis that closes the one opening at `open`. */
-function closing(code: string, open: number) {
-  let depth = 0;
-  for (let i = open; i < code.length; i++) {
-    if (code[i] === '(') depth++;
-    else if (code[i] === ')' && --depth === 0) return i + 1;
-  }
-  return code.length;
-}
-
-/** Every name the module declares: its functions and their parameters, its structures and
- *  aliases, its constants and its variables, module-scope or local. */
+/** Every name the module declares: its functions, structures, aliases, constants and variables,
+ *  module-scope or local, and, once structure bodies are gone, every name a type follows — a
+ *  parameter or a typed declaration. */
 function declaredNames(code: string) {
-  const names = new Set(
-    [...code.matchAll(/\b(?:fn|struct|alias|const|let|var(?:\s*<[^>]*>)?|override)\s+(\w+)/g)].map(
-      (m) => m[1],
-    ),
-  );
-  for (const signature of code.matchAll(/\bfn\s+\w+\s*\(/g)) {
-    const open = signature.index + signature[0].length - 1;
-    const parameters = code.slice(open, closing(code, open));
-    for (const [, name] of parameters.matchAll(/(\w+)\s*:/g)) names.add(name);
-  }
-  return names;
+  const declaration =
+    /\b(?:fn|struct|alias|const|let|var(?:\s*<[^>]*>)?|override)\s+(\w+)|(\w+)\s*:/g;
+  return new Set([...code.matchAll(declaration)].map((m) => m[1] ?? m[2]));
 }
 
 /** The names `source` uses and declares nowhere, sorted: comments, attributes and structure
