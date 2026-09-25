@@ -7,10 +7,12 @@ import { createWebglRenderTarget, type WebglRenderTarget } from '../webgl/core/r
  * The display chain's last links after the effects: premultiplied linear radiance over the
  * background, as the WebGPU composition writes it — an uncovered pixel is the background as it is,
  * a covered one its radiance through the scene's curve and the sRGB transfer, a partly covered one
- * the mix of the two by coverage. The curve spares the share of the coverage `untoned` marks: the
- * surfaces whose material skips it (`CLUSTER_LINEAR_FRAGMENT`). The scene's depth goes to the
- * destination with the colour, so what is drawn over the image after it (`world.guides`) is
- * hidden behind the scene as it is without a chain.
+ * the mix of the two by coverage. Coverage past one (an additive surface over a covered pixel)
+ * adds light, not opacity: the radiance is read as a covered pixel's, never divided by it. The
+ * curve spares the share of the coverage `untoned` marks: the surfaces whose material skips it
+ * (`CLUSTER_LINEAR_FRAGMENT`). The scene's depth goes to the destination with the colour, so what
+ * is drawn over the image after it (`world.guides`) is hidden behind the scene as it is without a
+ * chain.
  */
 const OUTPUT_FRAGMENT = `#version 300 es
 precision highp float;precision highp sampler2D;uniform sampler2D image,untoned,depth;uniform bool toneMapped;
@@ -18,8 +20,8 @@ uniform vec3 background;out vec4 color;
 ${OUTPUT_TRANSFER_GLSL}
 void main(){ivec2 at=ivec2(gl_FragCoord.xy);gl_FragDepth=texelFetch(depth,at,0).r;vec4 v=texelFetch(image,at,0);
 if(v.a<=0.0){color=vec4(background,1.0);return;}
-float a=min(v.a,1.0);vec3 c=v.rgb/v.a;
-if(toneMapped)c=mix(toneMap(c),c,clamp(texelFetch(untoned,at,0).r/v.a,0.0,1.0));
+float a=min(v.a,1.0);vec3 c=v.rgb/a;
+if(toneMapped)c=mix(toneMap(c),c,clamp(texelFetch(untoned,at,0).r/a,0.0,1.0));
 color=vec4(linearToSrgb(c)*a+background*(1.0-a),1.0);}`;
 
 /** What one display chain needs besides the passes: the curve and the encoded background. */

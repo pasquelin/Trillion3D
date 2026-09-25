@@ -108,7 +108,7 @@ test('a diagnostic view, a capture and a context without half floats show the im
   );
 });
 
-test('the output leaves as drawn the share of a pixel the untoned mark covers', () => {
+test('the output reads additive light whole and leaves the untoned share as drawn', () => {
   const { compose, of } = composer(new EffectChain().add(effect.bloom()));
   compose(engine().backend, null);
   const output = of('shaderSource')
@@ -116,8 +116,12 @@ test('the output leaves as drawn the share of a pixel the untoned mark covers', 
     .find((source) => source.includes('uniform sampler2D image,untoned'))!;
   assert.match(
     output,
-    /c=mix\(toneMap\(c\),c,clamp\(texelFetch\(untoned,at,0\)\.r\/v\.a,0\.0,1\.0\)\)/,
+    /c=mix\(toneMap\(c\),c,clamp\(texelFetch\(untoned,at,0\)\.r\/a,0\.0,1\.0\)\)/,
   );
+  // Coverage past one is light an additive surface added over a covered pixel: its radiance is
+  // read whole, as the display path adds it, never divided by the coverage.
+  assert.match(output, /float a=min\(v\.a,1\.0\);vec3 c=v\.rgb\/a;/);
+  assert.doesNotMatch(output, /\/v\.a/, 'no share is taken of the unclamped coverage');
   const units = of('uniform1i').filter(([at]) => (at as { uniform: string }).uniform === 'untoned');
   assert.deepEqual(units, [[{ uniform: 'untoned' }, 1]], 'the mark on unit 1, the image on 0');
 });
