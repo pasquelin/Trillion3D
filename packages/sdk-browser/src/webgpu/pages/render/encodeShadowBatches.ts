@@ -70,14 +70,7 @@ export function encodeShadowBatches(
   try {
     drawn = forEachShadowBatch(rt, (from, to, runBase) => {
       if (from) writes.stage(encoder);
-      const regions = writeShadowPages(
-        lights,
-        lights.shadowSlots,
-        eye,
-        lights.shadowPixelError,
-        from,
-        to,
-      );
+      const regions = writeShadowPages(lights, eye, from, to);
       if (!encodeShadowAtlas(rt, device, encoder, regions, from, to, runBase)) return false;
       lights.shadowFaces += lights.runs.count;
       plan.commit(pageModes, from, to);

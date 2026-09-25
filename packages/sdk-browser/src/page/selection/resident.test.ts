@@ -13,6 +13,7 @@ import {
   type SelectionState,
 } from '../cut/state.ts';
 import { collectClusterPages, selectVisiblePages } from './selection.ts';
+import { nextResidencyStamp } from '../cut/held.ts';
 import { blendFixture, camera } from './blend.fixture.ts';
 import { cameraMoteur } from '../../camera/camera.fixture.ts';
 
@@ -76,6 +77,39 @@ test('the cut follows this mode: without an index array, the page is requested b
   });
   assert.ok(demande.shown.length > 0);
   assert.equal(demande.complete, true);
+  fixture.geometry.dispose();
+  fixture.material.dispose();
+});
+
+// The CPU cut selects the casters of every shadow face of a frame, and residency moves between none
+// of them (#489): the cuts of one stamp read each root's residency at the first, and give the same.
+test('cuts of one residency stamp read residency once, and select what a cut reading it selects', () => {
+  const fixture = blendFixture();
+  const { roots, allPages } = collectClusterPages(
+    fixture.source,
+    fixture.metadata,
+    fixture.indices,
+    fixture.associations,
+  );
+  const cam = cameraMoteur(camera());
+  let asked = 0;
+  const isResident = () => (asked++, true);
+  const cut = (residencyStamp?: number) =>
+    selectVisiblePages(roots, cam, {
+      holdResident: true,
+      isResident,
+      residencyStamp,
+    }).shown.slice();
+  const read = cut();
+  const perCut = asked;
+  assert.ok(perCut >= allPages.length, 'a cut reads the residency of every page');
+  const stamp = nextResidencyStamp();
+  assert.deepEqual(cut(stamp), read);
+  assert.deepEqual(cut(stamp), read);
+  assert.deepEqual(cut(stamp), read);
+  assert.equal(asked, 2 * perCut, 'the first cut of the stamp reads it, the next two nothing');
+  assert.deepEqual(cut(nextResidencyStamp()), read);
+  assert.equal(asked, 3 * perCut, 'a new stamp reads it again');
   fixture.geometry.dispose();
   fixture.material.dispose();
 });
