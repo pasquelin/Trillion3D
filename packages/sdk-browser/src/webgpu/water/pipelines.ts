@@ -1,7 +1,7 @@
 import { FEEDBACK_FORMAT, SURFACE_FORMATS } from '../../scene/surfaceBuffer.ts';
 import { createCheckedShaderModule } from '../../gpu/core/shaderModule.ts';
 import { deferredLayoutEntries } from '../../lighting/deferred/setup.ts';
-import { makeFullscreenPipeline } from '../../lighting/deferred/program.ts';
+import { makeFullscreenPipeline } from '../../lighting/deferred/fullscreen.ts';
 import { readOnly } from '../core/bindLayout.ts';
 import { ALPHA_BLEND, blendStagePipelines } from '../blend/stagePipelines.ts';
 import { WATER_BINDINGS, WATER_COMPOSITE_SHADER } from './compositeWgsl.ts';

@@ -8,6 +8,7 @@ import * as G from '../../host/graph/graph.fixture.ts';
 import { bindClusterMaterial } from './materialBinding.ts';
 import { importHostTexture } from '../../host/textureImport.ts';
 import { pageDiagnostics } from '../../host/pageDiagnostics.ts';
+import { CLUSTER_FRAGMENT } from './shaders.ts';
 
 type Binding = Parameters<typeof bindClusterMaterial>[0];
 
@@ -91,4 +92,15 @@ test("A diagnostic view's surfaces, and they alone, stay out of the fog", () => 
   // An unlit material a scene declares is seen through the fog, as a lit one is.
   assert.equal(flagOf(G.basicSurface(), 'fogFree'), 0);
   assert.equal(flagOf(G.standardSurface(), 'fogFree'), 0);
+});
+
+test('A normal or depth material, and they alone, are never tone mapped (#365)', () => {
+  // The fragment's display curve hangs on this one uniform: what the binder sends is the rule.
+  assert.equal(CLUSTER_FRAGMENT.split('rgb=toneMap(rgb)').length, 2);
+  assert.match(CLUSTER_FRAGMENT, /if\(toneMapped\)rgb=toneMap\(rgb\);/);
+  for (const family of ['normal', 'depth'] as const)
+    assert.equal(flagOf(new G.GraphSurface(family), 'toneMapped'), 0, family);
+  for (const family of ['lambert', 'phong', 'toon', 'matcap', 'basic'] as const)
+    assert.equal(flagOf(new G.GraphSurface(family), 'toneMapped'), 1, family);
+  assert.equal(flagOf(G.standardSurface(), 'toneMapped'), 1, 'standard');
 });

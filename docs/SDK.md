@@ -813,7 +813,9 @@ Nothing lights an opaque surface except a light the host declared. There is no f
 no constant sky and no authored scene lighting: a surface no declared light reaches is exactly zero,
 so a windowless corridor stays black at noon. Emission is a material property and is always added.
 `world.exposure` sets the camera exposure, applied to linear radiance before tone mapping; it is not
-a light and cannot brighten a surface no light reaches. `scene.background` is the colour behind every
+a light and cannot brighten a surface no light reaches. Debug views are untouched by both: a
+`material.meshNormal()` or `material.meshDepth()` surface is output as stored, with neither exposure
+nor `world.toneMapping`, on both renderers, as in the reference. `scene.background` is the colour behind every
 object, `null` for the default; set, or written through its methods (`scene.background.setHSL(...)`,
 `set`, `setRGB`, `setHex`), it shows at the next frame on every renderer, the session kept. A direct
 write of `.r`, `.g` or `.b` is not heard: set `scene.background` again after one. A picture
