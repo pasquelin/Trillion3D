@@ -116,12 +116,15 @@ export function writeTriangleTotals(
   ints[OUT_UNCOVERED_TRIANGLES] = totaux.uncoveredTriangles ?? 0;
 }
 
-/** First residency word, behind the working table's word per page. */
+/** First residency word, behind the working table's word per page: the cut rule's `resident(c)`
+ *  (`../../page/cut/readiness.ts`, `ready`). */
 export const residentBase = (pageCount: number) => pageCount;
 /** Residency words: one bit per cluster, thirty-two clusters per word. */
 export const residentWords = (pageCount: number) => (Math.max(0, pageCount) + 31) >>> 5;
-/** First cold record, behind the residency words. */
-export const coldBase = (pageCount: number) => residentBase(pageCount) + residentWords(pageCount);
+/** First word of the second bit set, the rule's `resident(childGroup(c))` (`childReady`). */
+export const childBase = (pageCount: number) => residentBase(pageCount) + residentWords(pageCount);
+/** First cold record, behind both bit sets. */
+export const coldBase = (pageCount: number) => childBase(pageCount) + residentWords(pageCount);
 export const residentBit = (bits: Uint32Array, base: number, page: number) =>
   (bits[base + (page >>> 5)] & (1 << (page & 31))) !== 0;
 
@@ -142,11 +145,14 @@ export const COLD_CONE = 0,
   COLD_TRIANGLES = 12;
 
 /**
- * Residency column returned to the oracle, one word per cluster: what the buffer
+ * One of the two residency columns returned to the oracle, one word per cluster: what the buffer
  * doubles read in the same cold buffer as the shader, instead of a rank copied on their side.
  */
-export function residentFlags(bits: Uint32Array, pageCount: number) {
-  const base = residentBase(pageCount);
+export function residentFlags(
+  bits: Uint32Array,
+  pageCount: number,
+  base = residentBase(pageCount),
+) {
   return Uint32Array.from({ length: pageCount }, (_, page) =>
     residentBit(bits, base, page) ? 1 : 0,
   );

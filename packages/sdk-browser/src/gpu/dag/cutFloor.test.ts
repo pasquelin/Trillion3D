@@ -32,7 +32,7 @@ const cam = G.perspectiveCamera(55, 16 / 9, 0.1, 200);
 function coupeSansElagage(packed: ReturnType<typeof packDagSelection>, uniforms: unknown) {
   const frames = dagViewFrames(packed, uniforms as Parameters<typeof dagViewFrames>[1]);
   const records = dagRecords(packed);
-  const { coneRejects, visible, selects } = createDagOraclePredicates({
+  const { coneRejects, visible, draws } = createDagOraclePredicates({
     packed,
     records,
     nodeFlags: new Uint8Array(Math.max(1, packed.nodeCount)),
@@ -41,7 +41,7 @@ function coupeSansElagage(packed: ReturnType<typeof packDagSelection>, uniforms:
   const retenues: number[] = [];
   for (let i = 0; i < packed.pageCount; i++) {
     const w = worldOf(records, i);
-    if (visible(i) && selects(i, frames.pixelError) && !coneRejects(i, w)) retenues.push(i);
+    if (visible(i) && draws(i, frames.pixelError, true, true) && !coneRejects(i, w)) retenues.push(i);
   }
   return retenues;
 }
