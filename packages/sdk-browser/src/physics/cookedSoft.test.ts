@@ -122,8 +122,8 @@ test('a model moved frame after frame carries its cooked cloth along, never made
   assert.equal(fetched.filter((f) => f === 'cloth.bin').length, 1, 'its settings fetched once');
 });
 
-test('a model rescaled has its cooked cloth released and refused by name, once', async () => {
-  const { model, writer, bodies, tiles, errors } = await opened();
+test('a model rescaled has its cooked cloth released and refused by name, once; made again once back at its scale', async () => {
+  const { model, writer, bodies, tiles, errors, fetched } = await opened();
   const index = writer.take()[1] & BODY_INDEX;
   model.scale.setScalar(2);
   model.updateMatrixWorld(true);
@@ -134,6 +134,14 @@ test('a model rescaled has its cooked cloth released and refused by name, once',
   assert.deepEqual([...writer.take()], [OP.remove, index], 'released, not teleported');
   assert.equal(bodies.count.softVertices, 0, 'no body left at the old scale');
   assert.equal(tiles.modelOf(index), null);
+  model.scale.setScalar(1);
+  model.updateMatrixWorld(true);
+  tiles.moved(model);
+  await landed();
+  assert.equal(writer.take()[0], OP.soft, 'back at its scale, made again');
+  assert.equal(bodies.count.softVertices, 9);
+  assert.equal(fetched.filter((f) => f === 'cloth.bin').length, 1, 'from the settings it holds');
+  assert.deepEqual(codes(errors), ['PHYSICS_FAILED']);
 });
 
 test('a cooked cloth takes the flags a page-built one does, its model’s visibility its own', async () => {
@@ -159,4 +167,9 @@ test('a cooked soft body past the budget, or its model scaled from its cook, is 
   const scaled = await opened(undefined, 2);
   assert.deepEqual(codes(scaled.errors), ['PHYSICS_FAILED']);
   assert.equal(scaled.bodies.count.softVertices, 0);
+  scaled.model.scale.setScalar(1);
+  scaled.model.updateMatrixWorld(true);
+  scaled.tiles.moved(scaled.model);
+  await landed();
+  assert.equal(scaled.bodies.count.softVertices, 9, 'placed back at its scale, it is made');
 });

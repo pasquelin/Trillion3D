@@ -178,9 +178,9 @@ void writeVehicles();
 constexpr uint32_t SOFT = 24, SOFT_WORDS = 22;
 /// Makes the soft body a SOFT command describes; false (with `world().error`) on a bad command.
 bool addSoft(const uint32_t *w);
-/// Moves the soft body in slot `index` (`slot`) at once to `position` and `rotation`: its vertices carried
+/// Moves the soft body in `slot` at once to `position` and `rotation`: its vertices carried
 /// as they lie, their simulation kept, and written back in the frame of that new place.
-void teleportSoft(uint32_t index, const Slot &slot, JPH::Vec3 position, JPH::Quat rotation);
+void teleportSoft(const Slot &slot, JPH::Vec3 position, JPH::Quat rotation);
 /// Writes the vertices of the soft bodies the step moved, once the bodies have stepped.
 void writeSoft();
 /// After a collision step, the leaves of the soft pairs a soft body it moved no longer touches.

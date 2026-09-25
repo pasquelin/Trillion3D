@@ -30,8 +30,9 @@ export function createCookedSoftBodies(
 ) {
   /** A soft body made: its entry, its options, its slot. */
   type Made = { soft: CookedSoftBody; physics: ObjectPhysics; slot: number };
-  /** Each open model's opening: its soft bodies made. */
-  const held = new Map<Model, { made: Made[] }>();
+  /** Each open model's opening: its soft bodies made, and those refused at another scale. */
+  type Opening = { made: Made[]; refused: CookedSoftBody[] };
+  const held = new Map<Model, Opening>();
   /** Each soft body's settings, fetched once: a model opened again restores its bodies from them,
    *  never waiting on the network. */
   const settings = new WeakMap<CookedSoftBody, Promise<Uint8Array>>();
@@ -41,26 +42,28 @@ export function createCookedSoftBodies(
       settings.set(soft, (bytes = cookedBytes(model, soft.settings.url, 'Soft body settings')));
     return bytes;
   }
-  /** `soft`'s world pose in `model` (scratch), refused when the model is placed at another scale
-   *  than the one it was cooked at. */
-  function poseOf(model: Model, soft: CookedSoftBody) {
+  /** Whether `pose`, a world pose of `soft`, is at the scale it was cooked at. */
+  const fits = (pose: ReturnType<typeof tilePose>, { scale: at }: CookedSoftBody) =>
+    pose.scale.toArray().every((s, k) => Math.abs(s - at[k]) <= SCALE_TOLERANCE * Math.abs(at[k]));
+  /** `soft`'s world pose in `model` (scratch); at another scale than the one it was cooked at,
+   *  `soft` is listed refused in `opening`, and refused by name. */
+  function poseOf(model: Model, opening: Opening, soft: CookedSoftBody) {
     const pose = tilePose({ model, instance: soft });
-    const at = soft.scale;
-    if (
-      pose.scale.toArray().some((s, k) => Math.abs(s - at[k]) > SCALE_TOLERANCE * Math.abs(at[k]))
-    )
+    if (!fits(pose, soft)) {
+      opening.refused.push(soft);
       throw new EngineError(
         'PHYSICS_FAILED',
-        `The soft body of node ${soft.node} was cooked at scale ${at.join(', ')}: its model is placed at another.`,
+        `The soft body of node ${soft.node} was cooked at scale ${soft.scale.join(', ')}: its model is placed at another.`,
         { node: soft.node },
       );
+    }
     return pose;
   }
-  async function add(model: Model, opening: { made: Made[] }, soft: CookedSoftBody) {
+  async function add(model: Model, opening: Opening, soft: CookedSoftBody) {
     const cooked = await settingsOf(model, soft);
     // Forgotten or opened again meanwhile: this opening's bodies are no longer wanted.
     if (held.get(model) !== opening) return;
-    const { position, quaternion } = poseOf(model, soft);
+    const { position, quaternion } = poseOf(model, opening, soft);
     const p = new ObjectPhysics(soft.physics);
     const id = bodies.claim(0, soft.vertices);
     // Held at once: a throw below still leaves the slot for `forget` to release.
@@ -80,7 +83,7 @@ export function createCookedSoftBodies(
   /** Makes the soft bodies `model` was cooked with, the last opening's out: none held twice. */
   function open(model: Model, softBodies: readonly CookedSoftBody[] = []) {
     forget(model);
-    const opening = { made: [] as Made[] };
+    const opening: Opening = { made: [], refused: [] };
     held.set(model, opening);
     for (const soft of softBodies)
       add(model, opening, soft).catch((error) => failed(error as EngineError));
@@ -91,13 +94,14 @@ export function createCookedSoftBodies(
     forget,
     /** A model moved or hidden: its soft bodies carried where it now is, their simulation kept,
      *  their flags written again; one rescaled is released and refused by name — Jolt scales no
-     *  soft body once made. */
+     *  soft body once made —, and made again once back at its scale. */
     moved(model: Model) {
       const opening = held.get(model);
       if (!opening) return;
+      const refused = opening.refused.splice(0);
       opening.made = opening.made.filter(({ soft, physics, slot }) => {
         try {
-          const { position, quaternion } = poseOf(model, soft);
+          const { position, quaternion } = poseOf(model, opening, soft);
           writer.teleport(slot, position, quaternion);
           writer.flags(slot, flagsOf({ physics, visible: model.visible }));
           return true;
@@ -107,6 +111,10 @@ export function createCookedSoftBodies(
           return false;
         }
       });
+      for (const soft of refused)
+        if (fits(tilePose({ model, instance: soft }), soft))
+          add(model, opening, soft).catch((error) => failed(error as EngineError));
+        else opening.refused.push(soft);
     },
     /** The model a cooked soft body's engine id belongs to, or `null`: what a ray on it hits. */
     modelOf(id: number) {
