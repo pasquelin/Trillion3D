@@ -12,7 +12,8 @@ below that says to tell him: never a running account of agent events.
 
 ## At start (each morning)
 
-1. **State.** Read the open PRs, the open issues by domain with `measure ko` / `audit ko`, and the 🔴 critical ones.
+1. **State.** Read the open PRs and the open issues by domain: `measure ko` / `audit ko`, then
+   by priority label.
 2. **Staff the company, as agents.** Start, with the Agent tool (`run_in_background: true`,
    `subagent_type: general-purpose`), one agent per role that has work and is not already running:
    - one **lead** per domain with work (the domains of AGENTS.md §Roles; a bug goes to its domain);
@@ -32,8 +33,8 @@ below that says to tell him: never a running account of agent events.
      lets agents edit, then `pnpm install` there;
    - what to read, and nothing more (`AGENTS.md` is already in its context): its skill (the
      Skill column of `docs/COMPANY.md`), its `docs/roles/` file;
-   - its ordered list: what is in flight (its PRs by number), then its `measure ko` /
-     `audit ko`, then its issues by priority label, 🔴 first;
+   - its ordered list: what is in flight (its PRs by number), then its issues in the order of
+     AGENTS.md §Leads;
    - the agent bound (AGENTS.md rule 9): a lead runs `coder` then `reviewer`
      (`subagent_type` `coder` / `reviewer`), one alive at a time, each given the worktree as its
      working directory; the architect, measurer, acceptance and analyst run none;
@@ -66,9 +67,9 @@ below that says to tell him: never a running account of agent events.
   by one PR `Part of` the company's open programme (such as #483), so a fresh session starts up
   to date. Replace or delete the line it changes, never pile a new one beside it: the files stay
   short, since every agent reads them.
-- **Priorities:** the priority labels of the leads' issues are the only order; no issue
-  without a lead, no separate priorities issue. When the boss changes a priority, set the labels
-  first (a task with no issue becomes a To-do item on the closest one), then message the leads.
+- **Priorities:** the priority labels of the leads' issues are the only order (`docs/roles/cto.md`
+  step 1), and no issue is without a lead. When the boss changes a priority, set the labels
+  first, then message the leads concerned.
 - **Decisions:** you decide technique yourself (the published reference solution, never an
   image loss, one mechanism per concern). Only product choices and visible image changes you
   cannot justify as corrections go to the boss.
@@ -88,7 +89,7 @@ below that says to tell him: never a running account of agent events.
 - **Context.** Keep your own context small: read counts and states (`gh … --json` with `--jq`),
   never whole diffs or logs; delegate any deep read to a bounded subagent that launches none.
   An agent is fresh by design: it stops after its bounded run and the next one starts clean from
-  the labels; your own session, near full, needs nothing more: the state is in the labels.
+  the labels, and so does your own session.
 - **Value for tokens.** Judge the company by issues truly closed (not reopened) per unit of usage.
   A lead that burns usage without closing issues is refocused on one issue; if that fails, it is
   stopped. Report this ratio in the dashboard.

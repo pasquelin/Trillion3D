@@ -19,27 +19,27 @@ and pull requests.
 
 ## The roles
 
-| Role                 | Skill                   | Started by | Does                                                                                                                                                                                                | Never                     |
-| -------------------- | ----------------------- | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------- |
-| Boss                 | —                       | —          | sets priorities, tests the result, approves process changes that could lose quality                                                                                                                 | —                         |
-| CTO                  | `/t3d-cto`              | boss       | sets the priority labels of the leads' issues, starts and supervises the agents, decides technique, opens issues, reports in five lines, winds down at 80 % of plan usage (or the boss's threshold) | writes code, measures     |
-| Lead                 | agent (`t3d-lead`)      | CTO        | owns a domain (geometry, lighting, compiler, physics, sdk, textures); runs its coder and reviewer; writes the **Lead verification** before merging; closes the issue                                | writes code, opens issues |
-| Coder                | agent `coder`           | lead       | implements one issue, runs the real `simplify` and `code-review` skills, opens the PR                                                                                                               | merges, measures          |
-| Reviewer             | agent `reviewer`        | lead, CTO  | the real `simplify` and `code-review` skills, then the acceptance list; answers OK or KO                                                                                                            | merges, measures          |
-| Measurement          | agent (`t3d-measure`)   | CTO        | the only one running Chrome and the bench: budgets, proofs, example captures and thumbnails                                                                                                         | edits code, merges        |
-| Acceptance (recette) | agent (`t3d-recette`)   | CTO        | re-reads every merge and judges the example captures; reopens the issue on a defect                                                                                                                 | edits code, merges        |
-| Architect            | agent (`t3d-architect`) | CTO        | rounds through compiler, engine, site, scripts; writes findings as To-do items on the domains' issues, which the leads implement                                                                    | codes, owns a PR          |
-| Analyst              | agent (`t3d-analyst`)   | CTO        | measures flow, returns and cost; proposes ranked process changes                                                                                                                                    | applies anything          |
-| Writer               | `/t3d-writer`           | CTO only   | writes an issue on the template                                                                                                                                                                     | codes                     |
+| Role                 | Skill                   | Started by | Does                                                                                                                                                                                   | Never                     |
+| -------------------- | ----------------------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------- |
+| Boss                 | —                       | —          | sets priorities, tests the result, approves process changes that could lose quality                                                                                                    | —                         |
+| CTO                  | `/t3d-cto`              | boss       | sets the issues' priority labels, starts and supervises the agents, decides technique, opens issues, reports in five lines, winds down at 80 % of plan usage (or the boss's threshold) | writes code, measures     |
+| Lead                 | agent (`t3d-lead`)      | CTO        | owns a domain (geometry, lighting, compiler, physics, sdk, textures); runs its coder and reviewer; writes the **Lead verification** before merging; closes the issue                   | writes code, opens issues |
+| Coder                | agent `coder`           | lead       | implements one issue, runs the real `simplify` and `code-review` skills, opens the PR                                                                                                  | merges, measures          |
+| Reviewer             | agent `reviewer`        | lead, CTO  | the real `simplify` and `code-review` skills, then the acceptance list; answers OK or KO                                                                                               | merges, measures          |
+| Measurement          | agent (`t3d-measure`)   | CTO        | the only one running Chrome and the bench: budgets, proofs, example captures and thumbnails                                                                                            | edits code, merges        |
+| Acceptance (recette) | agent (`t3d-recette`)   | CTO        | re-reads every merge and judges the example captures; reopens the issue on a defect                                                                                                    | edits code, merges        |
+| Architect            | agent (`t3d-architect`) | CTO        | rounds through compiler, engine, site, scripts; writes findings as To-do items on the domains' issues, which the leads implement                                                       | codes, owns a PR          |
+| Analyst              | agent (`t3d-analyst`)   | CTO        | measures flow, returns and cost; proposes ranked process changes                                                                                                                       | applies anything          |
+| Writer               | `/t3d-writer`           | CTO only   | writes an issue on the template                                                                                                                                                        | codes                     |
 
 ## How work flows
 
 1. The boss tells the CTO what matters. The CTO sets the priority labels (🔴 🟠 🟡 🟢) of the
-   issues concerned; every issue belongs to one lead, and there is no separate priorities issue.
+   issues concerned, each owned by one lead.
 2. Each lead takes, in order:
    - what it has in flight;
    - its `measure ko` / `audit ko` issues;
-   - then its issues by priority label, 🔴 first, the oldest first within a label.
+   - then its issues by priority label (AGENTS.md §Leads).
 3. For each issue, the lead runs one coder, then one reviewer. It then writes
    `## Lead verification` in the PR, one line per To-do item, and merges when CI is green.
    CI refuses a PR without that section, or without real `/simplify:` and `/code-review:` lines.
