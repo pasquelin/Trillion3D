@@ -4,7 +4,7 @@ import * as G from '../../host/graph/graph.fixture.ts';
 import { surfaceOf } from '../../page/surface.ts';
 import { BLEND_EQUATIONS, hostBlending } from '../../scene/materialBlending.ts';
 import { createWebgpuPagesPipelines } from '../pages/prepare/pipelines.ts';
-import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
+import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 import { drawFallbackBlendPass, writeFallbackBlendUniforms } from './fallback.ts';
 import { createWebgpuBlendState } from './state.ts';
 import type { Blending } from '../../../../sdk-core/src/world/constants/index.ts';
@@ -12,14 +12,8 @@ import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 
 /** The pipelines the fallback pass sets, one per item it draws, read as the blend of their target. */
 function drawn(blendings: (number | undefined)[]) {
-  installGpuGlobals();
-  const device = {
-    createBindGroupLayout: () => ({}),
-    createPipelineLayout: () => ({}),
-    createShaderModule: () => ({}),
-    createRenderPipeline: (descriptor: GPURenderPipelineDescriptor) => descriptor,
-    createBindGroup: () => ({}),
-  } as unknown as GPUDevice;
+  // The fake's render pipeline is its descriptor: `setPipeline` reads the blend it was made with.
+  const { device } = fakeDevice();
   const { pipelineBlend } = createWebgpuPagesPipelines(device, 256);
   const set: GPUBlendState[] = [];
   const pass = {
@@ -76,7 +70,7 @@ test('the fallback pass refuses by name a blending no path draws', () => {
 // #348: the transparent fallback reads float positions and no direction, so it cannot widen a
 // line quad (`lineClip`): it refuses a line surface by name instead of dropping it.
 function writeLines(lineWidth: number) {
-  const written: number[] = [];
+  const { device, writes } = fakeDevice();
   const rt = {
     run: { diagnostic: 'beauty' },
     blendState: {
@@ -92,11 +86,8 @@ function writeLines(lineWidth: number) {
     },
     gpu: { uniformPacked: new Float32Array(64).fill(7), uniformBuffer: {} },
   } as unknown as WebgpuPagesRuntime;
-  const device = {
-    queue: { writeBuffer: () => written.push(1) },
-  } as unknown as GPUDevice;
   writeFallbackBlendUniforms(rt, device, 0);
-  return { written, packed: rt.gpu.uniformPacked };
+  return { written: writes, packed: rt.gpu.uniformPacked };
 }
 
 test('the transparent fallback refuses a line surface by name', () => {

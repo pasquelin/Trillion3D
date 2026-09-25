@@ -2045,5 +2045,27 @@
       "load": "Pesos",
       "rope": "Corda corrida"
     }
+  },
+  "drive-a-car": {
+    "banner": "W ou ↑ acelera, S ou ↓ trava e depois dá ré, A D ou ← → viram, Espaço puxa o freio de mão. Escolha o carro, a moto ou o tanque no painel.",
+    "controls": {
+      "vehicle": "Veículo",
+      "reset": "Pôr de volta sobre as rodas"
+    },
+    "readouts": {
+      "speed": "Velocidade",
+      "gear": "Marcha",
+      "rpm": "Motor (rpm)"
+    },
+    "choices": {
+      "vehicle": {
+        "car": "carro esportivo",
+        "motorcycle": "moto",
+        "tracked": "tanque"
+      }
+    },
+    "words": {
+      "credit": "Vale modelado em código para este exemplo, CC0 — ver assets/examples/CREDITS.md"
+    }
   }
 }

@@ -37,7 +37,7 @@ export function triangleBackend(
   };
   const paged = pagedManifest(
     {
-      errorModel: 'dag-group-qem-v1',
+      errorModel: 'dag-group-qem-v2',
       clusterStrategy: 'dag-groups',
       primitives: [
         {

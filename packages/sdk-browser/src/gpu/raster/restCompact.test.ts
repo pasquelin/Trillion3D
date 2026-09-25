@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 import { createGpuRestCompact } from './restCompact.ts';
 import { REST_COMPACT_SHADER } from './restCompactWgsl.ts';
 import { VIS_SHADER } from '../../visibility/buffer.ts';
@@ -40,7 +41,7 @@ test('visited slots are those of the tested half', () => {
 // Behaviour 4: without compute there is no truncation and the frame keeps the previous path.
 test('a device without compute does not mount truncation', async () => {
   const buffer = {} as GPUBuffer;
-  const device = { createBuffer: () => buffer } as unknown as GPUDevice;
+  const { device } = fakeDevice({ compute: false });
   const made = await createGpuRestCompact(device, {
     instances: buffer,
     indirect: buffer,
