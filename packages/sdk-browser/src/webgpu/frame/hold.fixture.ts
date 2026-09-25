@@ -20,7 +20,6 @@ export function settledRt() {
     cutHeld: true,
     overBudget: false,
     coverageBudgetLimited: false,
-    uncoveredTriangles: 0,
     noOccluderHistory: false,
     deferredDrops: new Set<string>(),
     frame: 0,

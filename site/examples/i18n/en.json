@@ -2077,5 +2077,31 @@
     "words": {
       "credit": "Valley modelled in code for this example, CC0 — see assets/examples/CREDITS.md"
     }
+  },
+  "cloth-and-rope": {
+    "banner": "The flag hangs from its pole and the ropes swing from the beam. Make the flag stiff, or let the ropes stretch.",
+    "controls": {
+      "stiff": "Stiff flag",
+      "stretch": "Rope stretch",
+      "again": "Again",
+      "slowMotion": "Slow motion"
+    },
+    "readouts": {
+      "vertices": "Vertices",
+      "step": "Step"
+    }
+  },
+  "soft-bodies": {
+    "banner": "Drop squashy volumes on the step. Set the pressure of their gas, or 0 for the default.",
+    "controls": {
+      "pressure": "Pressure (Pa)",
+      "drop": "Drop",
+      "again": "Again",
+      "slowMotion": "Slow motion"
+    },
+    "readouts": {
+      "volumes": "Volumes",
+      "awake": "Awake"
+    }
   }
 }

@@ -28,7 +28,7 @@ struct CullNode{minimum:vec3f,firstChild:u32,maximum:vec3f,maxParentError:f32,sp
 // One block per view (\`viewsWgsl.ts\`): block 0 also carries what the views share — counts, caps, flags — and the
 // \`view*\` words; \`queueCap\` is the capacity of each descent queue; \`pad\` brings the block to its 256-byte stride.
 struct Uniforms{planes:array<vec4f,6>,view:mat4x4f,pixelScale:vec2f,pixelError:f32,near:f32,clusterCount:u32,nodeCount:u32,worldCount:u32,residentCut:u32,cameraWorld:vec3f,cameraStretch:f32,listCap:u32,perspective:f32,viewFlags:u32,pageRows:u32,pageMask:vec2<u32>,clipScale:f32,clipPad:f32,viewCount:u32,viewCapacity:u32,queueCap:u32,pad:u32,}
-struct Output{count:atomic<u32>,frustumRejected:atomic<u32>,lodLevel:atomic<u32>,overflow:atomic<u32>,selectedTriangles:atomic<u32>,transparentTriangles:atomic<u32>,drawnTriangles:atomic<u32>,uncoveredTriangles:atomic<u32>,pages:array<u32>,}
+struct Output{count:atomic<u32>,frustumRejected:atomic<u32>,lodLevel:atomic<u32>,overflow:atomic<u32>,selectedTriangles:atomic<u32>,transparentTriangles:atomic<u32>,reserved:array<u32,2>,pages:array<u32>,}
 ${DAG_BINDINGS_WGSL}
 /** A WGSL const-expression may not be infinite, so the unreachable band uses the largest f32:
  *  every comparison below behaves exactly as the CPU cut's Infinity for any finite threshold. */
@@ -120,7 +120,9 @@ fn dagPrepare(@builtin(global_invocation_id) id:vec3u){
  let root=rootOf(w);
  flags[queueBase(0u)+t]=select(packEntry(vi,root),root,root==0xffffffffu);
  let m=transpose(worlds[w]);let base=slot*FRAME;
- for(var i=0u;i<6u;i++){frames[base+i]=m*views[vi].planes[i];}
+ // A primitive a camera never culls (\`unculledOf\`) takes six planes no box leaves.
+ let open=!isLightCut()&&unculledOf(w);
+ for(var i=0u;i<6u;i++){frames[base+i]=select(m*views[vi].planes[i],vec4f(0.0,0.0,0.0,1.0),open);}
 }
 @compute @workgroup_size(64)
 fn dagMask(@builtin(global_invocation_id) id:vec3u,@builtin(local_invocation_index) lid:u32){

@@ -17,13 +17,15 @@
  * what it draws.
  *
  * The rows are sized once, when the session opens, for every placement that can be held at once
- * within a reach (`residentRows`): nothing grows while a session draws.
+ * within a reach wherever the page moves the cells' parents (`sizing.ts`): nothing grows while a
+ * session draws.
  */
 import { invertMatrix4, MATRIX_VALUES } from '../../../../sdk-core/src/index.ts';
+import { boxPointDistance } from '../../../../sdk-core/src/math/primitives/box.ts';
 import type { TableCell } from '../../../../sdk-core/src/scene/core/tablePartition.ts';
 
-/** A cell as the plan reads it: its box in the scene root's frame now (`boxes.ts`), and how many
- *  nodes of each mesh it places. */
+/** A cell as the plan reads it: its boxes in the scene root's frame now, six values per parent
+ *  (`boxes.ts`), and how many nodes of each mesh it places. */
 export type BoxedCell = { bounds: ArrayLike<number>; meshes: TableCell['meshes'] };
 
 const inverse = new Float64Array(MATRIX_VALUES);
@@ -64,14 +66,13 @@ export function inCellFrame(world: ArrayLike<number>, eye: ArrayLike<number>, re
   return { eye: local, reach: reach / least };
 }
 
-/** Distance from `eye` to the box `[minX, minY, minZ, maxX, maxY, maxZ]`, 0 inside it. */
+/** Distance from `eye` to the nearest box `[minX, minY, minZ, maxX, maxY, maxZ]` of `bounds`,
+ *  six values each; 0 inside one. */
 export function boxDistance(bounds: ArrayLike<number>, eye: ArrayLike<number>) {
-  let sum = 0;
-  for (let axis = 0; axis < 3; axis++) {
-    const gap = Math.max(bounds[axis] - eye[axis], 0, eye[axis] - bounds[axis + 3]);
-    sum += gap * gap;
-  }
-  return Math.sqrt(sum);
+  let nearest = Infinity;
+  for (let at = 0; at < bounds.length; at += 6)
+    nearest = Math.min(nearest, boxPointDistance(bounds, at, eye[0], eye[1], eye[2]));
+  return nearest;
 }
 
 /**
@@ -98,45 +99,4 @@ export function planCells(
   const nearest = (list: typeof visible) =>
     list.sort((a, b) => a.distance - b.distance).map((entry) => entry.cell);
   return { visible: nearest(visible), ahead: nearest(ahead), leave };
-}
-
-/** Distance between two boxes, 0 when they meet. */
-function boxGap(a: ArrayLike<number>, b: ArrayLike<number>) {
-  let sum = 0;
-  for (let axis = 0; axis < 3; axis++) {
-    const gap = Math.max(a[axis] - b[axis + 3], 0, b[axis] - a[axis + 3]);
-    sum += gap * gap;
-  }
-  return Math.sqrt(sum);
-}
-
-/**
- * How many nodes of each mesh can be held at once while the reach stays within `reach`. After a
- * frame from any eye, every held cell meets the sphere of radius `reach·(1 + KEEP)` around it
- * (`planCells`); two cells held together are thus within twice that radius of each other, so what
- * is held is among the cells that close to any one of them. The largest such sum, mesh by mesh,
- * bounds the rows: it follows the reach and the cells' size, not the size of the world.
- */
-export function residentRows(cells: readonly BoxedCell[], reach: number) {
-  const span = 2 * reach * (1 + KEEP);
-  const rows = new Map<number, number>();
-  for (let a = 0; a < cells.length; a++) {
-    const near = new Map<number, number>();
-    for (let b = 0; b < cells.length; b++)
-      if (boxGap(cells[a].bounds, cells[b].bounds) <= span)
-        for (const [mesh, nodes] of cells[b].meshes) near.set(mesh, (near.get(mesh) ?? 0) + nodes);
-    for (const [mesh, nodes] of near) rows.set(mesh, Math.max(rows.get(mesh) ?? 0, nodes));
-  }
-  return rows;
-}
-
-/** Whether `rows` hold every node `cells` place: rows that many are never short. */
-export function holdsEvery(
-  rows: ReadonlyMap<number, number>,
-  cells: readonly Pick<BoxedCell, 'meshes'>[],
-) {
-  const totals = new Map<number, number>();
-  for (const cell of cells)
-    for (const [mesh, nodes] of cell.meshes) totals.set(mesh, (totals.get(mesh) ?? 0) + nodes);
-  return [...totals].every(([mesh, nodes]) => (rows.get(mesh) ?? 0) >= nodes);
 }

@@ -18,8 +18,9 @@ export type TransparentOcclusionSources = {
 /**
  * Occlusion of transparent clusters, done by the GPU, on the current frame's pyramid.
  *
- * It owns only one buffer: the world corners of each transparent-table entry, as two
- * single-precision values, rewritten only when a world matrix changes. Everything else is
+ * It owns two buffers: the world corners of each transparent-table entry, as two
+ * single-precision values, rewritten only when a world matrix changes, and one bit per entry that
+ * is never culled (`neverCulled`), which it never rejects. Everything else is
  * borrowed — pyramid, uniform, verdict buffer — so the rule applied to transparent clusters is
  * that of the opaques to the bit, and no frame pays two projections.
  */
@@ -34,6 +35,16 @@ export async function createTransparentOcclusion(
     size: entryCount * CORNER_VALUES * 4,
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
   });
+  const unculledBits = new Uint32Array(Math.ceil(entryCount / 32)),
+    unculled = device.createBuffer({
+      label: 'Trillion3D transparent occlusion never culled v1',
+      size: unculledBits.byteLength,
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+    });
+  const destroy = () => {
+    corners.destroy();
+    unculled.destroy();
+  };
   let disposed = false;
   try {
     const layout = bounceLayout(device, [
@@ -41,10 +52,11 @@ export async function createTransparentOcclusion(
       'read-only-storage',
       'storage',
       'uniform',
+      'read-only-storage',
     ]);
     const module = device.createShaderModule({ code: transparentOcclusionShader(entryCount) });
     if (await shaderFailed(module)) {
-      corners.destroy();
+      destroy();
       return undefined;
     }
     const pipeline = device.createComputePipeline({
@@ -61,6 +73,7 @@ export async function createTransparentOcclusion(
         pyramid,
         sources.occluded,
         sources.uniforms,
+        unculled,
       ]);
     };
     const groups = Math.max(1, Math.ceil(entryCount / PARTITION_WORKGROUP));
@@ -76,6 +89,12 @@ export async function createTransparentOcclusion(
           packed.byteOffset + from * cornerBytes,
           (to - from + 1) * cornerBytes,
         );
+      },
+      /** One bit per entry, set where the entry is never culled: filled by the owner, then sent
+       *  whole by `uploadUnculled`. */
+      unculledBits,
+      uploadUnculled() {
+        if (!disposed) device.queue.writeBuffer(unculled, 0, unculledBits);
       },
       /**
        * Writes each entry's verdict for this frame. Without a fresh pyramid there is nothing to
@@ -97,12 +116,12 @@ export async function createTransparentOcclusion(
       },
       dispose() {
         disposed = true;
-        corners.destroy();
+        destroy();
       },
     };
   } catch {
     try {
-      corners.destroy();
+      destroy();
     } catch {
       /* A partial GPU setup must leak nothing. */
     }

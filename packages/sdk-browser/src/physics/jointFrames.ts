@@ -3,7 +3,7 @@ import { rotateByQuaternion } from '../../../sdk-core/src/math/matrix/quaternion
 import { normalizeVector3 } from '../../../sdk-core/src/math/primitives/vector.ts';
 import { readVec3, type Vec3Input } from '../../../sdk-core/src/world/math/vector3.ts';
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
-import { worldPoseOf } from './bodies.ts';
+import { worldPoseOf } from './bodyFrame.ts';
 
 type Vec = [number, number, number];
 const turned = new Float64Array(3);

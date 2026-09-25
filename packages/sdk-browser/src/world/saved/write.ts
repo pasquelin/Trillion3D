@@ -4,6 +4,7 @@ import type { Material } from '../../../../sdk-core/src/world/material/material.
 import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts';
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 import type { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts';
+import { Sprite } from '../../../../sdk-core/src/world/object/sprite.ts';
 import type { Light } from '../../../../sdk-core/src/world/light/light.ts';
 import type { Camera } from '../../../../sdk-core/src/world/camera/camera.ts';
 import type { Color } from '../../../../sdk-core/src/world/math/color.ts';
@@ -122,6 +123,8 @@ export function saveScene(scene: SceneLike, camera?: Camera): SavedScene {
         material: Array.isArray(worn) ? worn.map((m) => rank(materials, m)) : rank(materials, worn),
         primitive: mesh.primitive,
       };
+      const center = mesh instanceof Sprite ? mesh.center : undefined;
+      if (center) saved.mesh.center = [center.x, center.y];
     }
     if (lamp.isLight)
       saved.light = {

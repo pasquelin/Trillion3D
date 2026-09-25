@@ -1,5 +1,5 @@
 import { GeometryBuilder, normalize } from './builder.ts';
-import { flatGeometry } from './drawn.ts';
+import { flatGeometry } from './drawnFlat.ts';
 
 type V3 = [number, number, number];
 

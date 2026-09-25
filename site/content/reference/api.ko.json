@@ -273,7 +273,7 @@
     "summary": "stdin을 통한 협조적 중단 요청과 강제 종료 사이의 유예 시간."
   },
   "CLUSTERED_BLEND_FORMAT_VERSION": {
-    "summary": "클러스터화된 BLEND에 필요한 외부 캐시 포맷; 원본 매니페스트는 자신의 포맷을 그대로 유지한다."
+    "summary": "클러스터화된 BLEND에 필요한 외부 캐시 포맷(`selectedNodes`가 개수가 되기 전에는 6); 원본 매니페스트는 자신의 포맷을 그대로 유지한다."
   },
   "COLUMN_KIND": {
     "summary": "이진 매니페스트의 각 열이 어떻게 저장되는가: 소수, 정수, 또는 바이트.",
@@ -982,7 +982,7 @@
   },
   "FORMAT_VERSION": {
     "summary": "이 런타임이 읽는 캐시 포맷.",
-    "description": "포맷 5는 `scene-tables.json`(준비된 씬이 그것에 대해 검증되는 노드 테이블과 재질 테이블)을 담고 있다; 포맷 3과 4에는 이 산출물이 없으며, 절반만 읽히는 대신 그 번호에 의해 거부된다."
+    "description": "포맷 5는 `scene-tables.json`(준비된 씬이 그것에 대해 검증되는 노드 테이블과 재질 테이블)을 추가했다; 포맷 7은 `selectedNodes`를 목록이 아닌 개수로 담는다(#404). 그 이전 포맷은 절반만 읽히는 대신 그 번호에 의해 거부된다."
   },
   "FRUSTUM_PLANE_VALUES": {
     "summary": "절두체의 여섯 평면에 대한 부동소수점 개수."
@@ -1749,7 +1749,8 @@
       "parameters.wireframe": "삼각형의 변만 그린다.",
       "parameters.flatShading": "각 삼각형에 단일한 평면 음영을 주어 그 면을 보여준다.",
       "parameters.size": "점 재질에서, 점의 크기.",
-      "parameters.sizeAttenuation": "거리에 따라 점이 작아지는지 여부.",
+      "parameters.sizeAttenuation": "점과 스프라이트가 거리에 따라 작아지는지 여부.",
+      "parameters.rotation": "스프라이트의 그림이 이미지 안에서 얼마나 돌아가 있는지, 라디안 단위로, 시계 반대 방향.",
       "parameters.linewidth": "CSS 픽셀 단위의 선 두께로, 어느 거리에서나 같습니다.",
       "parameters.dashSize": "대시 하나의 길이, 선을 따라 월드 단위로.",
       "parameters.gapSize": "두 대시 사이 간격의 길이, 선을 따라 월드 단위로.",
@@ -1813,7 +1814,8 @@
       "wireframe": "삼각형의 변만 그린다.",
       "flatShading": "각 삼각형에 단일한 평면 음영을 주어 그 면을 보여준다.",
       "size": "점 재질에서, 점의 크기.",
-      "sizeAttenuation": "거리에 따라 점이 작아지는지 여부.",
+      "sizeAttenuation": "점과 스프라이트가 거리에 따라 작아지는지 여부.",
+      "rotation": "스프라이트의 그림이 이미지 안에서 얼마나 돌아가 있는지, 라디안 단위로, 시계 반대 방향.",
       "linewidth": "CSS 픽셀 단위의 선 두께로, 어느 거리에서나 같습니다.",
       "dashSize": "대시 하나의 길이, 선을 따라 월드 단위로.",
       "gapSize": "두 대시 사이 간격의 길이, 선을 따라 월드 단위로.",
@@ -2039,6 +2041,50 @@
       "translateOnAxis": "노드를 자기 자신의 `axis`를 따라 이동시킨다.",
       "getWorldDirection": "노드가 월드 안에서 어느 쪽을 향하는가.",
       "localBounds": "이 노드 자체 콘텐츠가 차지하는 박스, 로컬 프레임; 일반 노드는 아무것도 담지 않는다."
+    }
+  },
+  "SOFT_AREAL_DENSITY": {
+    "summary": "중간 무게의 평직 면, kg/m²: 직물 무게는 0.15에서 0.25.",
+    "description": "천은 어떤 질량에서도 똑같이 떨어진다. 무게는 핀과 닿는 것에 실린다. 부피의 겉면도 이런 천으로 본다."
+  },
+  "SOFT_FOOTPRINT": {
+    "summary": "선언값: 땅에 놓인 부피가 주저앉는 평균 단면의 비율. 어떤 볼록 모양이든 면적의 4분의 1(코시). 그곳에서 내부 기체가 무게를 받친다.",
+    "description": "기본 압력은 `4·m·g / (share·area)`: `SOFT_AREAL_DENSITY` 겉면이면 31 Pa. 비율이 절반이면 압력은 두 배. 겉면이 휴식 부피의 10분의 1 안에서 버티는 최대를 넘지 않는다."
+  },
+  "SOFT_LINEAR_DENSITY": {
+    "summary": "10 mm 폴리아미드 밧줄, kg/m: 제조사 표는 0.06에서 0.07."
+  },
+  "SoftBodyCommon": {
+    "summary": "연체로서 `obj.physics`가 받는 것: 꼭짓점이 하나씩 시뮬레이션된다.",
+    "members": {
+      "pins": "제자리에 고정할 지오메트리 꼭짓점 인덱스: 깃발의 깃대, 밧줄의 고리.",
+      "mass": "킬로그램. 각 꼭짓점이 맡는 면적(밧줄은 길이)에 따라 나눈다. 생략하면 m²당 `SOFT_AREAL_DENSITY`(밧줄은 m당 `SOFT_LINEAR_DENSITY`).",
+      "stretch": "모서리를 당길 때 늘어나는 정도, m/N(강성의 역수): 0은 절대 늘어나지 않는다.",
+      "bend": "접을 때 굽는 정도, rad/(N·m)(밧줄은 m/N). `Infinity`는 자유롭게 접힌다."
+    }
+  },
+  "SoftBodyOptions": {
+    "summary": "연체의 옵션: 천, 밧줄 또는 기체 압력을 가진 부피."
+  },
+  "SoftBodyType": {
+    "summary": "연체: 천(삼각형, 열린), 밧줄(꼭짓점, 각각 다음과 연결) 또는 부피(닫힌 삼각형, 내부 기체가 받침)."
+  },
+  "SoftSettings": {
+    "summary": "읽은 뒤의 연체 옵션: 모든 기본값이 채워져 있다.",
+    "members": {
+      "type": "종류.",
+      "pins": "제자리에 고정된 지오메트리 꼭짓점.",
+      "mass": "킬로그램. `undefined`는 기본 밀도에 따른 값.",
+      "stretch": "m/N.",
+      "bend": "rad/(N·m), 밧줄은 m/N.",
+      "pressure": "Pa. `undefined`는 부피의 기본 압력(`SOFT_FOOTPRINT`)."
+    }
+  },
+  "SoftVolumeOptions": {
+    "summary": "부피의 옵션: 내부 기체가 받치는 닫힌 메시.",
+    "members": {
+      "type": "부피.",
+      "pressure": "휴식 상태에서 공기보다 높은 기체의 압력, Pa. 눌리면 부피가 줄면서 올라간다(보일 법칙). 삼각형은 바깥을 향해야 한다. 생략하면 부피의 무게를 평균 단면의 `SOFT_FOOTPRINT`에 싣는 압력, 그보다 작으면 겉면이 버티는 최대. 겉면이 휴식 부피의 10분의 1 안에서 버티는 최대를 넘으면 거부된다."
     }
   },
   "TransformNode": {
@@ -3887,8 +3933,8 @@
       "physics": "물리의 한계(물체, 삼각형, 장식 물체, 메모리). 시작할 때 한 번 읽으며, 넘으면 `PHYSICS_BUDGET`이 발생합니다.",
       "raycastTrees": "`raycast`가 삼각형 트리를 위해 유지하는 CPU 메모리 바이트 수로, 페이지의 모든 월드가 공유합니다. 이를 넘으면 가장 오래 사용되지 않은 트리가 버려집니다. 설정하면 한도가 바뀝니다.",
       "gpu": "월드가 차지할 수 있는 GPU 메모리 바이트, 모든 풀 합계; 설정하면 분할 규칙(`split`)으로 모든 풀을 다시 정한다. 그림자 풀보다 작은 합계는 거부된다(`GPU_BUDGET_UNDER_SHADOW_POOL`). 기기에서 읽지 않는다.",
-      "cpu": "월드가 차지할 수 있는 CPU 메모리 바이트: 먼저 그림자 페이지 테이블의 호스트 미러, 그다음 디코딩된 페이지; 다음 장면 로드 때 적용된다. 미러를 넘지 않는 합계는 거부된다(`CPU_BUDGET_UNDER_SHADOW_MIRROR`). 기기에서 읽지 않는다.",
-      "split": "두 합계를 나누는 방식: 그림자 풀과 바운스 프로브를 최대 크기로, 나머지를 지오메트리 풀과 텍스처 풀에 절반씩(각 상한까지); 그림자 테이블의 호스트 미러, 그다음 디코딩된 페이지 캐시가 CPU 합계의 나머지를 가진다. 풀을 따로 설정하기 전의 규칙 값."
+      "cpu": "월드가 차지할 수 있는 CPU 메모리 바이트: 먼저 그림자 페이지 테이블의 호스트 미러, 그다음 디코딩된 페이지, 매니페스트 표, 전송 대기열, 엔진의 컷 테이블을 합친 것. 변경은 즉시 적용된다: 들어맞을 때까지 페이지가 마지막 사용 순으로 나간다. 미러를 넘지 않는 합계는 거부된다(`CPU_BUDGET_UNDER_SHADOW_MIRROR`). 기기에서 읽지 않는다.",
+      "split": "두 합계를 나누는 방식: 그림자 풀과 바운스 프로브를 최대 크기로, 나머지를 지오메트리 풀과 텍스처 풀에 절반씩(각 상한까지); 그림자 테이블의 호스트 미러, 그다음 디코딩된 페이지 캐시가 CPU 합계의 나머지 전부를 가지며, 현재 세션은 그 안에서 매니페스트 표, 전송 대기열, 엔진의 컷 테이블을 확보한다. 풀을 따로 설정하기 전의 규칙 값."
     }
   },
   "world.diagnostic": {
@@ -5584,7 +5630,8 @@
       "parameters.wireframe": "삼각형의 변만 그린다.",
       "parameters.flatShading": "각 삼각형에 단일한 평면 음영을 주어 그 면을 보여준다.",
       "parameters.size": "점 재질에서, 점의 크기.",
-      "parameters.sizeAttenuation": "거리에 따라 점이 작아지는지 여부.",
+      "parameters.sizeAttenuation": "점과 스프라이트가 거리에 따라 작아지는지 여부.",
+      "parameters.rotation": "스프라이트의 그림이 이미지 안에서 얼마나 돌아가 있는지, 라디안 단위로, 시계 반대 방향.",
       "parameters.linewidth": "CSS 픽셀 단위의 선 두께로, 어느 거리에서나 같습니다.",
       "parameters.dashSize": "대시 하나의 길이, 선을 따라 월드 단위로.",
       "parameters.gapSize": "두 대시 사이 간격의 길이, 선을 따라 월드 단위로.",
@@ -5623,7 +5670,8 @@
       "parameters.wireframe": "삼각형의 변만 그린다.",
       "parameters.flatShading": "각 삼각형에 단일한 평면 음영을 주어 그 면을 보여준다.",
       "parameters.size": "점 재질에서, 점의 크기.",
-      "parameters.sizeAttenuation": "거리에 따라 점이 작아지는지 여부.",
+      "parameters.sizeAttenuation": "점과 스프라이트가 거리에 따라 작아지는지 여부.",
+      "parameters.rotation": "스프라이트의 그림이 이미지 안에서 얼마나 돌아가 있는지, 라디안 단위로, 시계 반대 방향.",
       "parameters.linewidth": "CSS 픽셀 단위의 선 두께로, 어느 거리에서나 같습니다.",
       "parameters.dashSize": "대시 하나의 길이, 선을 따라 월드 단위로.",
       "parameters.gapSize": "두 대시 사이 간격의 길이, 선을 따라 월드 단위로.",
@@ -5662,7 +5710,8 @@
       "parameters.wireframe": "삼각형의 변만 그린다.",
       "parameters.flatShading": "각 삼각형에 단일한 평면 음영을 주어 그 면을 보여준다.",
       "parameters.size": "점 재질에서, 점의 크기.",
-      "parameters.sizeAttenuation": "거리에 따라 점이 작아지는지 여부.",
+      "parameters.sizeAttenuation": "점과 스프라이트가 거리에 따라 작아지는지 여부.",
+      "parameters.rotation": "스프라이트의 그림이 이미지 안에서 얼마나 돌아가 있는지, 라디안 단위로, 시계 반대 방향.",
       "parameters.linewidth": "CSS 픽셀 단위의 선 두께로, 어느 거리에서나 같습니다.",
       "parameters.dashSize": "대시 하나의 길이, 선을 따라 월드 단위로.",
       "parameters.gapSize": "두 대시 사이 간격의 길이, 선을 따라 월드 단위로.",
@@ -5701,7 +5750,8 @@
       "parameters.wireframe": "삼각형의 변만 그린다.",
       "parameters.flatShading": "각 삼각형에 단일한 평면 음영을 주어 그 면을 보여준다.",
       "parameters.size": "점 재질에서, 점의 크기.",
-      "parameters.sizeAttenuation": "거리에 따라 점이 작아지는지 여부.",
+      "parameters.sizeAttenuation": "점과 스프라이트가 거리에 따라 작아지는지 여부.",
+      "parameters.rotation": "스프라이트의 그림이 이미지 안에서 얼마나 돌아가 있는지, 라디안 단위로, 시계 반대 방향.",
       "parameters.linewidth": "CSS 픽셀 단위의 선 두께로, 어느 거리에서나 같습니다.",
       "parameters.dashSize": "대시 하나의 길이, 선을 따라 월드 단위로.",
       "parameters.gapSize": "두 대시 사이 간격의 길이, 선을 따라 월드 단위로.",
@@ -5740,7 +5790,8 @@
       "parameters.wireframe": "삼각형의 변만 그린다.",
       "parameters.flatShading": "각 삼각형에 단일한 평면 음영을 주어 그 면을 보여준다.",
       "parameters.size": "점 재질에서, 점의 크기.",
-      "parameters.sizeAttenuation": "거리에 따라 점이 작아지는지 여부.",
+      "parameters.sizeAttenuation": "점과 스프라이트가 거리에 따라 작아지는지 여부.",
+      "parameters.rotation": "스프라이트의 그림이 이미지 안에서 얼마나 돌아가 있는지, 라디안 단위로, 시계 반대 방향.",
       "parameters.linewidth": "CSS 픽셀 단위의 선 두께로, 어느 거리에서나 같습니다.",
       "parameters.dashSize": "대시 하나의 길이, 선을 따라 월드 단위로.",
       "parameters.gapSize": "두 대시 사이 간격의 길이, 선을 따라 월드 단위로.",
@@ -5779,7 +5830,8 @@
       "parameters.wireframe": "삼각형의 변만 그린다.",
       "parameters.flatShading": "각 삼각형에 단일한 평면 음영을 주어 그 면을 보여준다.",
       "parameters.size": "점 재질에서, 점의 크기.",
-      "parameters.sizeAttenuation": "거리에 따라 점이 작아지는지 여부.",
+      "parameters.sizeAttenuation": "점과 스프라이트가 거리에 따라 작아지는지 여부.",
+      "parameters.rotation": "스프라이트의 그림이 이미지 안에서 얼마나 돌아가 있는지, 라디안 단위로, 시계 반대 방향.",
       "parameters.linewidth": "CSS 픽셀 단위의 선 두께로, 어느 거리에서나 같습니다.",
       "parameters.dashSize": "대시 하나의 길이, 선을 따라 월드 단위로.",
       "parameters.gapSize": "두 대시 사이 간격의 길이, 선을 따라 월드 단위로.",
@@ -5818,7 +5870,8 @@
       "parameters.wireframe": "삼각형의 변만 그린다.",
       "parameters.flatShading": "각 삼각형에 단일한 평면 음영을 주어 그 면을 보여준다.",
       "parameters.size": "점 재질에서, 점의 크기.",
-      "parameters.sizeAttenuation": "거리에 따라 점이 작아지는지 여부.",
+      "parameters.sizeAttenuation": "점과 스프라이트가 거리에 따라 작아지는지 여부.",
+      "parameters.rotation": "스프라이트의 그림이 이미지 안에서 얼마나 돌아가 있는지, 라디안 단위로, 시계 반대 방향.",
       "parameters.linewidth": "CSS 픽셀 단위의 선 두께로, 어느 거리에서나 같습니다.",
       "parameters.dashSize": "대시 하나의 길이, 선을 따라 월드 단위로.",
       "parameters.gapSize": "두 대시 사이 간격의 길이, 선을 따라 월드 단위로.",
@@ -5857,7 +5910,8 @@
       "parameters.wireframe": "삼각형의 변만 그린다.",
       "parameters.flatShading": "각 삼각형에 단일한 평면 음영을 주어 그 면을 보여준다.",
       "parameters.size": "점 재질에서, 점의 크기.",
-      "parameters.sizeAttenuation": "거리에 따라 점이 작아지는지 여부.",
+      "parameters.sizeAttenuation": "점과 스프라이트가 거리에 따라 작아지는지 여부.",
+      "parameters.rotation": "스프라이트의 그림이 이미지 안에서 얼마나 돌아가 있는지, 라디안 단위로, 시계 반대 방향.",
       "parameters.linewidth": "CSS 픽셀 단위의 선 두께로, 어느 거리에서나 같습니다.",
       "parameters.dashSize": "대시 하나의 길이, 선을 따라 월드 단위로.",
       "parameters.gapSize": "두 대시 사이 간격의 길이, 선을 따라 월드 단위로.",
@@ -5896,7 +5950,8 @@
       "parameters.wireframe": "삼각형의 변만 그린다.",
       "parameters.flatShading": "각 삼각형에 단일한 평면 음영을 주어 그 면을 보여준다.",
       "parameters.size": "점 재질에서, 점의 크기.",
-      "parameters.sizeAttenuation": "거리에 따라 점이 작아지는지 여부.",
+      "parameters.sizeAttenuation": "점과 스프라이트가 거리에 따라 작아지는지 여부.",
+      "parameters.rotation": "스프라이트의 그림이 이미지 안에서 얼마나 돌아가 있는지, 라디안 단위로, 시계 반대 방향.",
       "parameters.linewidth": "CSS 픽셀 단위의 선 두께로, 어느 거리에서나 같습니다.",
       "parameters.dashSize": "대시 하나의 길이, 선을 따라 월드 단위로.",
       "parameters.gapSize": "두 대시 사이 간격의 길이, 선을 따라 월드 단위로.",
@@ -5935,7 +5990,8 @@
       "parameters.wireframe": "삼각형의 변만 그린다.",
       "parameters.flatShading": "각 삼각형에 단일한 평면 음영을 주어 그 면을 보여준다.",
       "parameters.size": "점 재질에서, 점의 크기.",
-      "parameters.sizeAttenuation": "거리에 따라 점이 작아지는지 여부.",
+      "parameters.sizeAttenuation": "점과 스프라이트가 거리에 따라 작아지는지 여부.",
+      "parameters.rotation": "스프라이트의 그림이 이미지 안에서 얼마나 돌아가 있는지, 라디안 단위로, 시계 반대 방향.",
       "parameters.linewidth": "CSS 픽셀 단위의 선 두께로, 어느 거리에서나 같습니다.",
       "parameters.dashSize": "대시 하나의 길이, 선을 따라 월드 단위로.",
       "parameters.gapSize": "두 대시 사이 간격의 길이, 선을 따라 월드 단위로.",
@@ -5974,7 +6030,8 @@
       "parameters.wireframe": "삼각형의 변만 그린다.",
       "parameters.flatShading": "각 삼각형에 단일한 평면 음영을 주어 그 면을 보여준다.",
       "parameters.size": "점 재질에서, 점의 크기.",
-      "parameters.sizeAttenuation": "거리에 따라 점이 작아지는지 여부.",
+      "parameters.sizeAttenuation": "점과 스프라이트가 거리에 따라 작아지는지 여부.",
+      "parameters.rotation": "스프라이트의 그림이 이미지 안에서 얼마나 돌아가 있는지, 라디안 단위로, 시계 반대 방향.",
       "parameters.linewidth": "CSS 픽셀 단위의 선 두께로, 어느 거리에서나 같습니다.",
       "parameters.dashSize": "대시 하나의 길이, 선을 따라 월드 단위로.",
       "parameters.gapSize": "두 대시 사이 간격의 길이, 선을 따라 월드 단위로.",
@@ -6013,7 +6070,8 @@
       "parameters.wireframe": "삼각형의 변만 그린다.",
       "parameters.flatShading": "각 삼각형에 단일한 평면 음영을 주어 그 면을 보여준다.",
       "parameters.size": "점 재질에서, 점의 크기.",
-      "parameters.sizeAttenuation": "거리에 따라 점이 작아지는지 여부.",
+      "parameters.sizeAttenuation": "점과 스프라이트가 거리에 따라 작아지는지 여부.",
+      "parameters.rotation": "스프라이트의 그림이 이미지 안에서 얼마나 돌아가 있는지, 라디안 단위로, 시계 반대 방향.",
       "parameters.linewidth": "CSS 픽셀 단위의 선 두께로, 어느 거리에서나 같습니다.",
       "parameters.dashSize": "대시 하나의 길이, 선을 따라 월드 단위로.",
       "parameters.gapSize": "두 대시 사이 간격의 길이, 선을 따라 월드 단위로.",
@@ -6028,7 +6086,7 @@
     }
   },
   "material.sprite": {
-    "summary": "항상 카메라를 향하는 평평한 그림.",
+    "summary": "항상 카메라를 바라보는 평평한 그림(`object.sprite`). 그림이 투명한 곳은 투명하고, `rotation`만큼 이미지 안에서 돌아가며, `sizeAttenuation`이 false가 아니면 멀리서 작아진다.",
     "parameters": {
       "parameters": "페이지가 재질 멤버에 넘길 수 있는 것; 모든 필드는 선택 사항.",
       "parameters.color": "기본 색상.",
@@ -6052,7 +6110,8 @@
       "parameters.wireframe": "삼각형의 변만 그린다.",
       "parameters.flatShading": "각 삼각형에 단일한 평면 음영을 주어 그 면을 보여준다.",
       "parameters.size": "점 재질에서, 점의 크기.",
-      "parameters.sizeAttenuation": "거리에 따라 점이 작아지는지 여부.",
+      "parameters.sizeAttenuation": "점과 스프라이트가 거리에 따라 작아지는지 여부.",
+      "parameters.rotation": "스프라이트의 그림이 이미지 안에서 얼마나 돌아가 있는지, 라디안 단위로, 시계 반대 방향.",
       "parameters.linewidth": "CSS 픽셀 단위의 선 두께로, 어느 거리에서나 같습니다.",
       "parameters.dashSize": "대시 하나의 길이, 선을 따라 월드 단위로.",
       "parameters.gapSize": "두 대시 사이 간격의 길이, 선을 따라 월드 단위로.",
@@ -6091,7 +6150,8 @@
       "parameters.wireframe": "삼각형의 변만 그린다.",
       "parameters.flatShading": "각 삼각형에 단일한 평면 음영을 주어 그 면을 보여준다.",
       "parameters.size": "점 재질에서, 점의 크기.",
-      "parameters.sizeAttenuation": "거리에 따라 점이 작아지는지 여부.",
+      "parameters.sizeAttenuation": "점과 스프라이트가 거리에 따라 작아지는지 여부.",
+      "parameters.rotation": "스프라이트의 그림이 이미지 안에서 얼마나 돌아가 있는지, 라디안 단위로, 시계 반대 방향.",
       "parameters.linewidth": "CSS 픽셀 단위의 선 두께로, 어느 거리에서나 같습니다.",
       "parameters.dashSize": "대시 하나의 길이, 선을 따라 월드 단위로.",
       "parameters.gapSize": "두 대시 사이 간격의 길이, 선을 따라 월드 단위로.",
@@ -6224,9 +6284,9 @@
     }
   },
   "object.sprite": {
-    "summary": "`+z`를 향하는 단위 정사각형, 스프라이트 종류로.",
+    "summary": "카메라가 어디를 보든 항상 카메라를 바라보는 평평한 그림: 스프라이트의 스케일만큼 크고 재질의 `rotation`만큼 이미지 안에서 돌아간 단위 정사각형.",
     "parameters": {
-      "material": "그 정사각형이 무엇을 보여주는가."
+      "material": "정사각형이 보여 주는 것: `material.sprite`."
     }
   },
   "orthographicProjection": {
@@ -6822,7 +6882,7 @@
       "renderOrder": "비쳐 보이는 것들 사이에서 그리는 순서.",
       "userData": "페이지 자체의 데이터, JSON 형식.",
       "children": "그 아래의 노드, 순서대로.",
-      "mesh": "`geometries`와 `materials` 안의 순번, 그리고 삼각형을 읽는 방법.",
+      "mesh": "`geometries`와 `materials` 안의 순위, 삼각형을 읽는 방식, 그리고 스프라이트의 중심.",
       "light": "조명의 종류, 색, 숫자, 방향, 프로브 계수.",
       "model": "컴파일된 모델로, 불러온 매니페스트 주소로 저장합니다: 절대 안에 복사하지 않습니다."
     }
@@ -6957,7 +7017,8 @@
       "threads": "시뮬레이션을 진행하는 스레드 수(물리 워커의 스레드 포함). 1보다 크면 교차 출처 격리된 페이지(공유 메모리)가 필요하며, 그렇지 않으면 하나로 진행합니다. 기기의 논리 코어 수에서 페이지 몫을 뺀 수를 넘지 않습니다.",
       "bodyPairs": "한 스텝에서 경계가 겹치는 물체 쌍. 빽빽한 더미는 물체당 약 네 쌍; 더 많이 찾은 스텝은 접촉을 놓치고 `PHYSICS_BUDGET`을 냅니다.",
       "contactConstraints": "한 스텝에서 풀리는 맞닿은 쌍. 가라앉은 더미는 물체당 약 두 쌍; 더 많이 찾은 스텝은 접촉을 놓치고 `PHYSICS_BUDGET`을 냅니다.",
-      "contactEvents": "한 스텝이 보고하는 접촉 이벤트(`enter`, `leave`). 한도를 넘는 `enter`는 버려지고 집계되며(`world.physics.stats.droppedEvents`) 그 `leave`는 보내지지 않습니다. `leave`는 늦춰질 뿐입니다."
+      "contactEvents": "한 스텝이 보고하는 접촉 이벤트(`enter`, `leave`). 한도를 넘는 `enter`는 버려지고 집계되며(`world.physics.stats.droppedEvents`) 그 `leave`는 보내지지 않습니다. `leave`는 늦춰질 뿐입니다.",
+      "softVertices": "모든 연체의 동시 꼭짓점 수(천, 밧줄, 부피). 각 꼭짓점은 매 단계 풀리고 페이지로 다시 읽힌다. 단계당 12바이트."
     }
   },
   "GRAVITY_PRESETS": {
@@ -6979,7 +7040,7 @@
     "summary": "한 물체의 물리, `obj.physics`가 가진 것: 물체가 무엇이고 무엇을 하는지의 살아 있는 기록.",
     "description": "쓰기는 다음 스텝에 시뮬레이션에 닿습니다. `velocity`는 마지막 스텝이 남긴 값을 읽습니다.",
     "members": {
-      "type": "물체가 움직이는 방식. 바꾸려면 `obj.physics`를 다시 설정하세요.",
+      "type": "물체가 움직이는 방식 또는 어떤 연체인지. 바꾸려면 `obj.physics`를 다시 설정하세요.",
       "shape": "선언된 모양(있다면).",
       "sensor": "물체가 접촉만 알리는지.",
       "ccd": "연속 충돌이 켜져 있는지.",
@@ -6994,7 +7055,9 @@
       "applyImpulse": "물체를 즉시 밉니다. 질량 중심을 지나는 N·s 충격량이며, 물체를 깨웁니다.",
       "wake": "물체를 깨웁니다. 자고 있든 아니든.",
       "on": "이 물체의 접촉 이벤트에서 `handler`를 호출합니다.",
-      "listens": "접촉 핸들러가 설정되었는지."
+      "listens": "접촉 핸들러가 설정되었는지.",
+      "soft": "연체의 설정. 모든 기본값이 채워져 있다. 강체는 `null`.",
+      "vertices": "마지막 틱이 남긴 연체의 꼭짓점: 지오메트리 꼭짓점마다 `x, y, z`, 지오메트리 자체 좌표계로. 강체는 `null`, 첫 틱 전까지도 `null`."
     }
   },
   "PHYSICS_MATERIALS": {
@@ -7033,7 +7096,8 @@
       "threads": "시뮬레이션을 진행하는 스레드 수(물리 워커의 스레드 포함). 1보다 크면 교차 출처 격리된 페이지(공유 메모리)가 필요하며, 그렇지 않으면 하나로 진행합니다. 기기의 논리 코어 수에서 페이지 몫을 뺀 수를 넘지 않습니다.",
       "bodyPairs": "한 스텝에서 경계가 겹치는 물체 쌍. 빽빽한 더미는 물체당 약 네 쌍; 더 많이 찾은 스텝은 접촉을 놓치고 `PHYSICS_BUDGET`을 냅니다.",
       "contactConstraints": "한 스텝에서 풀리는 맞닿은 쌍. 가라앉은 더미는 물체당 약 두 쌍; 더 많이 찾은 스텝은 접촉을 놓치고 `PHYSICS_BUDGET`을 냅니다.",
-      "contactEvents": "한 스텝이 보고하는 접촉 이벤트(`enter`, `leave`). 한도를 넘는 `enter`는 버려지고 집계되며(`world.physics.stats.droppedEvents`) 그 `leave`는 보내지지 않습니다. `leave`는 늦춰질 뿐입니다."
+      "contactEvents": "한 스텝이 보고하는 접촉 이벤트(`enter`, `leave`). 한도를 넘는 `enter`는 버려지고 집계되며(`world.physics.stats.droppedEvents`) 그 `leave`는 보내지지 않습니다. `leave`는 늦춰질 뿐입니다.",
+      "softVertices": "모든 연체의 동시 꼭짓점 수(천, 밧줄, 부피). 각 꼭짓점은 매 단계 풀리고 페이지로 다시 읽힌다. 단계당 12바이트."
     }
   },
   "PhysicsHost": {
@@ -7059,7 +7123,7 @@
     }
   },
   "PhysicsOption": {
-    "summary": "`obj.physics`에 설정할 수 있는 것."
+    "summary": "`obj.physics`에 설정할 수 있는 것: 강체 또는 연체(`SoftBodyOptions`)."
   },
   "PhysicsShape": {
     "summary": "지오메트리에서 추론한 모양이 맞지 않을 때의 충돌 모양.",
@@ -7503,6 +7567,14 @@
       "car": "두 개 이상의 축에 세 개 이상의 바퀴, 앞바퀴가 조향되고 `drive` 바퀴가 구동됩니다.",
       "motorcycle": "두 바퀴, 앞바퀴는 조향, 뒷바퀴는 구동; 스스로 똑바로 섭니다.",
       "tracked": "좌우 두 궤도 위의 바퀴, 각 궤도는 가장 뒤 바퀴로 구동됩니다; 한쪽 궤도를 늦춰 돌고, 멈춰 있을 때는 제자리에서 돕니다."
+    }
+  },
+  "Sprite": {
+    "summary": "항상 카메라를 바라보는 평평한 그림: 모든 렌더러가 그릴 때 스프라이트의 위치를 중심으로 이미지 쪽으로 돌리는 단위 정사각형.",
+    "description": "크기는 `x`와 `y`의 월드 스케일이다. 이미지 평면에서의 회전은 재질의 `rotation`이다. 자기 자신의 회전은 읽지 않는다. 스프라이트는 그림자를 드리우지 않는다.",
+    "members": {
+      "isSprite": "항상 `true`: 스프라이트를 다른 모든 메시와 구별한다.",
+      "center": "스프라이트의 위치에 놓이는 그림의 점: `(0.5, 0.5)`는 가운데, `(0, 0)`은 왼쪽 아래 모서리, `(0.5, 0)`은 아래 가장자리의 가운데."
     }
   }
 }

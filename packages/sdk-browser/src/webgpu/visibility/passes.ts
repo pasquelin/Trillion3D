@@ -31,7 +31,8 @@ function encodeHizMidFrame(
   if (!gpuHiz) return;
   gpuHiz.encodePyramid(encoder);
   rt.run.hizPyramidFresh = true;
-  gpuHiz.encodeTest(device, encoder, rows.packedCount, tableRows);
+  // The test reads each row's Hi-Z slot in the page table: without one, no row was drawn.
+  if (vis.pageTable) gpuHiz.encodeTest(device, encoder, rows.packedCount, tableRows, vis.pageTable);
   // The verdict exists now: the suffix of rejected rows leaves the instance count before the
   // second pass launches their vertices. It was placing no pixel there, the image does not move.
   if (vis.gpuRestCompact && vis.pageTable)

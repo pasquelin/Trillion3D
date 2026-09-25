@@ -1,4 +1,5 @@
 import type { BackendDiagnostic } from '../backend/types.ts';
+import type { PageCache } from './pageCache.ts';
 
 /**
  * What a frame tells the page cache it keeps: a REQUEST RANK delta, not an address list.
@@ -49,7 +50,9 @@ export type Job = {
 export type StreamContext = {
   base: string;
   catalog: Map<string, StreamPage>;
-  cache: Map<string, Uint8Array>;
+  /** The decoded-page cache the streamer reads through, and its pages. */
+  store: PageCache;
+  cache: PageCache['pages'];
   jobs: Map<string, Job>;
   queue: Job[];
   pinned: Set<string>;
@@ -58,7 +61,6 @@ export type StreamContext = {
   limit: number;
   maxPages?: number;
   maxTransferBytes: number;
-  maxCachedBytes: number;
   onEvict?: (url: string) => void;
   onDiagnostic?: (diagnostic: BackendDiagnostic) => void;
   state: {
@@ -75,7 +77,8 @@ export type StreamContext = {
     /** Jobs marked abandoned but still in the queue array. */
     dropped: number;
     disposed: boolean;
-    cachedBytes: number;
+    /** Bytes the engine's own tables take from the cache's share (`reserve`). */
+    reservedBytes: number;
   };
   emit: (phase: string, message: string, context: () => Record<string, unknown>) => void;
   abortError: () => DOMException;

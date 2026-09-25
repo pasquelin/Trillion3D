@@ -68,6 +68,11 @@ export function createDagReadiness(packed: PackedDag) {
   return {
     ready,
     childReady,
+    /** Bytes of the host tables: the catalogue-wide arrays and each placement's own. */
+    hostBytes: worlds.reduce(
+      (bytes, world) => bytes + world.hostBytes,
+      ready.byteLength + childReady.byteLength + open.byteLength,
+    ),
     /** Reads `resident` at the pages `changes` names — every page when it names none reliably —,
      *  and settles. */
     apply(resident: ArrayLike<number>, changes?: ResidencyChanges) {

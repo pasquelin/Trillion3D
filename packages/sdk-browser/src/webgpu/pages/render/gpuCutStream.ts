@@ -21,7 +21,8 @@ export function streamCutResidency(
   const lightCut = rt.lights.lightCut,
     asked = lightCut?.reports.takeRequests();
   if (asked) services.shadowTier.offerIds(asked);
-  // Never throttled: this cut meets the budget by growing its screen error.
+  // Never throttled: past the budget the queue keeps the coarsest pages, and the rest is drawn by
+  // its nearest resident ancestor.
   services.queueCutResidency(false);
   // Enumerate the bounded resident candidates once. GPU selection and compaction
   // share their page indices; no CPU frustum/LOD traversal or regrouping follows.

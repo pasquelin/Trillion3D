@@ -149,6 +149,9 @@ export type ClusterRoot<T> = {
   parked?: boolean;
   /** True while the host hides the source node or one of its ancestors (`placement/hidden.ts`). */
   hidden?: boolean;
+  /** True when its surface is never culled (`neverCulled`): no camera cut rejects its nodes or
+   *  pages, and the shadow scene box leaves it out. Set once at collection. */
+  unculled?: boolean;
   /** The instance-buffer row this root reads its world from, when it was collected from one. */
   placement?: PlacementOf;
 };

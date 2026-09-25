@@ -904,12 +904,19 @@ the next cut once they arrived (`geometryAllocationBytes` shows it; no pool is r
 `world.budget.cpu` what the world keeps in CPU memory. A fixed rule splits them, published
 as `world.budget.split`:
 
-- GPU: the shadow pool first, at its largest (the largest screen's side and its static layer); the rest
-  in two halves, geometry and textures, each capped at its ceiling. At the defaults the split gives
-  each pool its own default, so a page that sets nothing sees no change. The shadows never shrink:
-  a total under the shadow pool is refused (`GPU_BUDGET_UNDER_SHADOW_POOL`).
+- GPU: the shadow pool first, at its largest (the largest screen's side, its static layer and its
+  transmittance layer), then the bounce probes at their largest; the rest in two halves, geometry
+  and textures, each capped at its ceiling. At the defaults the split gives each pool its own
+  default, so a page that sets nothing sees no change. The shadows and the probes never shrink: a
+  total under the two is refused (`GPU_BUDGET_UNDER_SHADOW_POOL`), so no total below
+  512 MiB is taken. The pool a screen takes, its static layer and its fixed buffers always fit that
+  share, whatever the screen.
 - CPU: the shadow page table's host mirror first (20.8 MiB, fixed whatever the screen), then the
-  decoded-page cache takes the rest, taken by the next scene load. The default total is the mirror
+  decoded-page cache takes the whole rest (`split.pageCache`); within it the session in place
+  reserves its manifest tables (a fixed reckoning per catalogue entry, not a measured heap size)
+  and its transfer queue, and the engine's cut tables (group closure and residency readiness,
+  sized by the scene's placed pages) once the scene is prepared. A change applies at once: pages
+  leave by last use until they fit, save those the frame keeps. The default total is the mirror
   plus the cache's own default; a total not above the mirror is refused
   (`CPU_BUDGET_UNDER_SHADOW_MIRROR`).
 
@@ -949,10 +956,16 @@ is too small for that view). A value that cannot be held as given is brought to 
 **Out of memory is absorbed.** The browser may refuse an allocation the budget allows. Each pool is
 allocated under an out-of-memory check at prepare, and probed before every rebalance. When the
 device refuses it, the pool
-is drawn again at half its bytes, down to its floor (the root cover, one layer per lane). The pool
-in place is only ever replaced by one the device grants. A rebalance throws nothing: the frame
-goes on, coarser where the smaller pool no longer holds the view. The
-`gpu-out-of-memory` diagnostic names the pool, the bytes asked (`requestedBytes`) and the bytes
+is drawn again at half its bytes, down to its floor (the root cover, one layer per lane, the
+smallest screen's shadow pool). The shadow pool is granted the same way at the first frame that
+casts a shadow, and that frame is held until the device answers: the previous image stays, or
+nothing yet, never an image without its shadows; a capture waits for the answer too. Its static layer is refused whole: shadow pages
+are then drawn with every caster. The pool in place is only ever replaced by one the device grants. The frame goes on,
+coarser where the smaller pool no longer holds the view, and no exception reaches the page. When
+the device refuses even the smallest shadow pool, the shadowed mode cannot be drawn: it is refused
+by a `shadows-off` error (`kind: 'error'`, `reason: 'gpu-out-of-memory'`), and the session goes on
+without shadows. Shadows are never lost silently.
+The `gpu-out-of-memory` diagnostic names the pool, the bytes asked (`requestedBytes`) and the bytes
 granted (`grantedBytes`, `null` when even the floor was refused and the pool in place stays).
 
 At prepare there is no pool in place to keep, so a floor the device refuses is refused by name,
@@ -966,6 +979,13 @@ never allocated at the full request outside the check:
   (`material-pipeline-failed`, the code in `context.error`) and the pages draw with the fallback
   pass; on a GPU canvas, which needs that pipeline, preparation fails with
   `WEBGPU_MATERIAL_PIPELINE_UNAVAILABLE`.
+
+WebGL2 has no out-of-memory check to allocate under: nothing there is absorbed. It reserves no
+pool — each page's buffers are made as the page arrives — and it does not read `gl.getError()` after
+an allocation, so a refused one is not seen by the engine. A browser that answers it by losing the
+context takes the WebGL2 context-loss path (`webglcontextlost`, then `webglcontextrestored`): nothing
+is drawn while the context is lost. That out of memory on WebGL2 costs one level and never a hole
+is not proven yet.
 
 Frame targets are **not** budgeted: colour, depth, visibility, HDR, material surfaces, Hi-Z, the
 temporal history and a capture follow the resolution, and `gpuFrameTargetBytes` says what they cost.
@@ -1124,6 +1144,28 @@ rack, { axis, axisB, ratio })` slides the rack along `axisB` by `1 / ratio` metr
   `trackTurn` or `maxLean`; a motorcycle's `drive`, `trackTurn` or `antiRoll`; a tracked
   vehicle's `clutch`, `drive`, `turnRadius`, `antiRoll` or `maxLean`) or a `suspensionTravel` not
   longer than its sag, `9.81 / (2π suspensionFrequency)²`. Live example: [drive a car](../site/examples/drive-a-car.html).
+- **Soft bodies.** `mesh.physics = { type: 'cloth' | 'rope' | 'volume', pins, mass, stretch,
+  bend }` simulates the mesh's vertices one by one on Jolt's soft bodies. A cloth is its triangles;
+  a rope its vertices in order, each joined to the next; a volume its closed triangles, facing
+  out, held up by the gas inside (`pressure`, Pa above the air's at rest, rising as it is squeezed).
+  Vertices at one position are one (a sphere's seam never tears). `pins` are the geometry's vertex
+  indices held where they are. `mass` is spread over the vertices by the area (a rope: the length)
+  each holds; left out, a medium woven cotton (`SOFT_AREAL_DENSITY`, 0.2 kg/m²) or a 10 mm
+  polyamide rope (`SOFT_LINEAR_DENSITY`, 0.065 kg/m). `stretch` and `bend` are how much an edge
+  gives when pulled and a fold when bent (compliances, the inverse of stiffness; Jolt's own
+  defaults: 0 never stretches, `Infinity` folds freely). A volume's default pressure rests its
+  weight on a quarter of its mean cross-section (`SOFT_FOOTPRINT`, declared), or the most its skin
+  holds if less. A pressure past what its skin holds within a tenth of its rest volume is refused
+  with a `RangeError`: its edges give by their `stretch` and by the solver's own compliance, one
+  substep squared over a vertex's mass, so a light, finely cut skin holds less. A soft body is a
+  direct child of the scene; moved by the page, it is made again there; it takes no velocity,
+  impulse, joint or vehicle, and sends no contact event. Rigid bodies and the character collide
+  with its vertices: the character is turned aside or stopped, never pushing it; a rigid body
+  much heavier than the skin it lands on can push between its vertices; soft bodies pass through
+  each other (Jolt collides them with rigid bodies only). `mesh.physics.vertices` reads its
+  vertices as the last tick left them, `x, y, z` per geometry vertex in the geometry's frame. The
+  drawn mesh does not follow them yet: it waits for geometry written every frame to be uploaded
+  in place (#573).
 - **Stillness.** A body that sleeps sends nothing: once every body sleeps, the worker stops
   ticking and the world draws no frame.
 - **Distance and view.** Beyond the camera's draw distance (`camera.far`), a body is frozen with its
@@ -1138,8 +1180,8 @@ rack, { axis, axisB, ratio })` slides the rack along `axisB` by `1 / ratio` metr
   page's own; one elsewhere). The defaults are `DEFAULT_PHYSICS_BUDGET`. A request past one is
   refused with `PHYSICS_BUDGET` on `world.physics.error`; a step that finds more pairs or contacts
   than its budget says so the same way, and an `enter` past the events budget is counted in
-  `stats.droppedEvents` (its `leave` is then never sent). The soft-body budget arrives with soft
-  bodies.
+  `stats.droppedEvents` (its `leave` is then never sent). `softVertices` bounds the vertices of
+  every soft body at once (declared: four cloths of 64 × 64).
 - **Cost.** The `physics` CPU stage is the page's share (`stats.mainMs`); the worker's step is
   `stats.stepMs` (the mean of the last tick's steps) and `stats.stepMaxMs` (its slowest), on its
   own clock: the two are never added.
@@ -1169,8 +1211,12 @@ rack, { axis, axisB, ratio })` slides the rack along `axisB` by `1 / ratio` metr
   with it on does a surface at the roughness floor reflect the scene, at the proxy's detail.
 - Transparent surfaces are lit from the source file's own light graph with a fixed ambient, not yet
   by the declared-light rule above.
-- A lost device is reported, not recovered: full device-loss recovery and cross-API fallback are not
-  implemented.
+- A lost device is recovered, the page never reloaded: the world asks for a device again, reopens its
+  session on it and rebuilds from its decoded-page cache, fetching no page or bundle it still holds.
+  `gpu-device-recovered` says the time from the loss to the first frame drawn after it
+  (`recoveryMs`). Baked texture levels are read again, and cross-API fallback is not implemented.
+- Frame targets are allocated without an out-of-memory check: a refusal there is still reported as a
+  lost device.
 - Physics, `ten-thousand-bodies` (10,000 boxes landing at once; headed Chrome, 1280×720, DPR 1,
   cross-origin isolated, eight threads, 120 Hz display; load average 8–14, not a quiet machine;
   commit f56d2dd57; three runs): the worker's step is 3.7–4.2 ms p50 and 20–25 ms p95 during the
