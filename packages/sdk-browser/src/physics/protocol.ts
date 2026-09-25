@@ -66,6 +66,8 @@ export interface PhysicsResults {
   waterEpoch: number;
   /** Worker milliseconds spent in the module during this tick: its own clock, never the page's. */
   stepMs: number;
+  /** Worker milliseconds of the tick's slowest fixed step, on the same clock. */
+  stepMaxMs: number;
   /** Bodies awake after the tick. */
   active: number;
   /** The character after the tick, when it has one and it stepped. */
@@ -105,6 +107,8 @@ export interface PhysicsStats {
   /** Bodies awake after the last tick. */ active: number;
   /** Worker milliseconds per fixed step, last tick: the worker's clock, never added to the page's. */
   stepMs: number;
+  /** Worker milliseconds of the slowest fixed step of the last tick: a slow step the mean hides. */
+  stepMaxMs: number;
   /** Page milliseconds the physics took in the last frame (the `physics` CPU stage). */
   mainMs: number;
   /** Poses the last tick sent back. */ poses: number;
@@ -119,6 +123,7 @@ export const emptyPhysicsStats = (): PhysicsStats => ({
   bodies: 0,
   active: 0,
   stepMs: 0,
+  stepMaxMs: 0,
   mainMs: 0,
   poses: 0,
   events: 0,

@@ -32,7 +32,8 @@ const character = createCharacterDriver();
 let timer: ReturnType<typeof setTimeout> | null = null,
   active = 0,
   steps = 0,
-  stepMs = 0;
+  stepMs = 0,
+  stepMaxMs = 0;
 
 /** A fatal error stops the simulation: nothing steps again, and later commands are dropped. */
 function fail(error: unknown) {
@@ -45,14 +46,17 @@ function fail(error: unknown) {
 }
 
 /** Runs the queued commands and one step; `stepMs` counts the step and its buoyancy, the clock
- *  the bench reads in Node (`scripts/bench-physics.ts`), not the copy of its results. */
+ *  the bench reads in Node (`scripts/bench-physics.ts`), not the copy of its results;
+ *  `stepMaxMs` keeps the tick's slowest fixed step. */
 function run(dt: number) {
   const move = dt > 0 ? character.command(dt, jolt!.active() > 0) : null;
   if (move) queued.push(move);
   const words = queued.length ? concat(queued.splice(0)) : null;
   const t = performance.now();
   const count = water.step(jolt!, words, dt);
-  stepMs += performance.now() - t;
+  const spent = performance.now() - t;
+  stepMs += spent;
+  if (dt > 0) stepMaxMs = Math.max(stepMaxMs, spent);
   character.read(jolt!.character(), dt);
   results!.gather(count);
 }
@@ -90,7 +94,8 @@ function tick() {
 }
 
 function post() {
-  if (results?.post(steps, stepMs, active, character.report, water)) steps = stepMs = 0;
+  if (results?.post({ steps, stepMs, stepMaxMs }, active, character.report, water))
+    steps = stepMs = stepMaxMs = 0;
 }
 
 /** A resting world steps at once: what the page just sent is owed now, not a frame later. */
