@@ -6968,6 +6968,7 @@
       "sensor": "Apakah benda hanya melaporkan kontak.",
       "ccd": "Apakah tabrakan kontinu aktif.",
       "decorative": "Apakah benda adalah puing dekoratif.",
+      "damping": "Bagian kecepatannya yang hilang dengan sendirinya setiap detik, linear dan sudut (`dv/dt = −c·v`).",
       "velocity": "Kecepatan linear, m/s, seperti ditinggalkan langkah terakhir; tulis untuk melempar benda.",
       "asleep": "Apakah benda tidur: diam, dan tidak disimulasikan sampai sesuatu membangunkannya.",
       "mass": "Massa dalam kilogram; `undefined` memakai massa jenis material kali volume.",
@@ -7002,7 +7003,8 @@
       "ccd": "Tabrakan kontinu, untuk benda kecil cepat yang bisa menembus dinding tipis.",
       "decorative": "Puing: hanya bertemu dunia statis, dan hanya disimulasikan dalam jangkauan dan terlihat. Dibatasi `budget.physics.decorative`.",
       "friction": "Mengganti gesekan material, 0 ke atas.",
-      "restitution": "Mengganti pantulan material, 0 sampai 1."
+      "restitution": "Mengganti pantulan material, 0 sampai 1.",
+      "damping": "Seberapa banyak kecepatan yang hilang dari benda dengan sendirinya, per detik, seperti oleh udara dan gelinding: `dv/dt = −c·v`, 0 ke atas, linear dan sudut terpisah; 0 menyimpan semuanya. Ditetapkan saat benda dibuat: setel ulang `obj.physics` untuk mengubahnya."
     }
   },
   "PhysicsBudget": {
@@ -7412,17 +7414,17 @@
       "options.finalDrive": "Rasio gigi akhir (reduksi sproket kendaraan rantai).",
       "options.shiftUpRPM": "Girboks naik gigi di atas ini, rpm.",
       "options.shiftDownRPM": "Dan turun gigi di bawah ini, rpm.",
-      "options.clutch": "Torsi kopling per rad/s selip, N·m·s.",
+      "options.clutch": "Torsi kopling per rad/s selip, N·m·s; hanya mobil dan motor, ditolak pada kendaraan rantai: mesinnya menggerakkan rantai tanpa kopling (pengendali kendaraan rantai Jolt).",
       "options.suspensionFrequency": "Frekuensi suspensi, Hz.",
       "options.suspensionDamping": "Rasio redaman, dari 0 (tanpa) hingga 1 (kritis).",
-      "options.suspensionTravel": "Jarak gerak roda dari terentang penuh hingga tertekan penuh, meter.",
-      "options.antiRoll": "Kekakuan tiap batang anti-guling dibanding pegas porosnya; 0 berarti tanpa batang.",
-      "options.turnRadius": "Jari-jari belok pada setir penuh, meter.",
+      "options.suspensionTravel": "Jarak tempuh roda dari regangan penuh hingga tekanan penuh, m; lebih panjang daripada amblesan yang diminta frekuensi suspensi di Bumi, `9.81 / (2π suspensionFrequency)²`, atau ditolak: di luar itu bodi bertumpu pada penahannya.",
+      "options.antiRoll": "Kekakuan tiap batang anti-guling dibanding pegas porosnya; 0 berarti tanpa batang. Hanya mobil: ditolak pada sepeda motor (kedua rodanya tidak berbagi gandar) dan kendaraan rantai (rodanya tidak membawa batang).",
+      "options.turnRadius": "Jari-jari belok pada setir penuh, meter. Ditolak pada kendaraan rantai, yang berbelok dengan rantainya.",
       "options.steerTime": "Detik dari tengah hingga setir penuh.",
       "options.brakeGrip": "Gesekan saat rem mengunci roda.",
-      "options.drive": "Roda penggerak sebuah mobil.",
-      "options.trackTurn": "Kecepatan trek bagian dalam kendaraan rantai saat berbelok, dibanding trek luar.",
-      "options.maxLean": "Kemiringan terbesar sebuah motor, dalam radian."
+      "options.drive": "Roda penggerak sebuah mobil. Ditolak pada sepeda motor (roda belakangnya penggerak) dan kendaraan rantai (roda paling belakang tiap rantai penggerak).",
+      "options.trackTurn": "Kecepatan rantai dalam kendaraan rantai saat berbelok sambil bergerak, dibanding rantai luar; saat diam ia berputar di tempat dengan rantai dalam terbalik, berapa pun rasio ini. Ditolak pada mobil atau sepeda motor.",
+      "options.maxLean": "Kemiringan terbesar sebuah motor, dalam radian. Ditolak pada mobil atau kendaraan rantai."
     },
     "members": {
       "kind": "Apa kendaraan itu.",
@@ -7457,17 +7459,17 @@
       "finalDrive": "Rasio gigi akhir (reduksi sproket kendaraan rantai).",
       "shiftUpRPM": "Girboks naik gigi di atas ini, rpm.",
       "shiftDownRPM": "Dan turun gigi di bawah ini, rpm.",
-      "clutch": "Torsi kopling per rad/s selip, N·m·s.",
+      "clutch": "Torsi kopling per rad/s selip, N·m·s; hanya mobil dan motor, ditolak pada kendaraan rantai: mesinnya menggerakkan rantai tanpa kopling (pengendali kendaraan rantai Jolt).",
       "suspensionFrequency": "Frekuensi suspensi, Hz.",
       "suspensionDamping": "Rasio redaman, dari 0 (tanpa) hingga 1 (kritis).",
-      "suspensionTravel": "Jarak gerak roda dari terentang penuh hingga tertekan penuh, meter.",
-      "antiRoll": "Kekakuan tiap batang anti-guling dibanding pegas porosnya; 0 berarti tanpa batang.",
-      "turnRadius": "Jari-jari belok pada setir penuh, meter.",
+      "suspensionTravel": "Jarak tempuh roda dari regangan penuh hingga tekanan penuh, m; lebih panjang daripada amblesan yang diminta frekuensi suspensi di Bumi, `9.81 / (2π suspensionFrequency)²`, atau ditolak: di luar itu bodi bertumpu pada penahannya.",
+      "antiRoll": "Kekakuan tiap batang anti-guling dibanding pegas porosnya; 0 berarti tanpa batang. Hanya mobil: ditolak pada sepeda motor (kedua rodanya tidak berbagi gandar) dan kendaraan rantai (rodanya tidak membawa batang).",
+      "turnRadius": "Jari-jari belok pada setir penuh, meter. Ditolak pada kendaraan rantai, yang berbelok dengan rantainya.",
       "steerTime": "Detik dari tengah hingga setir penuh.",
       "brakeGrip": "Gesekan saat rem mengunci roda.",
-      "drive": "Roda penggerak sebuah mobil.",
-      "trackTurn": "Kecepatan trek bagian dalam kendaraan rantai saat berbelok, dibanding trek luar.",
-      "maxLean": "Kemiringan terbesar sebuah motor, dalam radian."
+      "drive": "Roda penggerak sebuah mobil. Ditolak pada sepeda motor (roda belakangnya penggerak) dan kendaraan rantai (roda paling belakang tiap rantai penggerak).",
+      "trackTurn": "Kecepatan rantai dalam kendaraan rantai saat berbelok sambil bergerak, dibanding rantai luar; saat diam ia berputar di tempat dengan rantai dalam terbalik, berapa pun rasio ini. Ditolak pada mobil atau sepeda motor.",
+      "maxLean": "Kemiringan terbesar sebuah motor, dalam radian. Ditolak pada mobil atau kendaraan rantai."
     }
   },
   "VehicleSpecs": {

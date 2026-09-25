@@ -34,13 +34,12 @@ export interface DirectLightResources {
   slices?: GPUBuffer;
   requests?: GPUBuffer;
   atlas?: GPUTextureView;
-  /** Probe grid and their coefficients; when absent, bounce is not of this frame. */
+  transmittance?: { view: GPUTextureView; depthView: GPUTextureView };
+  /** Probe grid, coefficients, mirror surface cache: one lifetime, the probes' identity. */
   bounceGrid?: GPUBuffer;
   probes?: GPUBuffer;
-  /** The bounce surface cache a reflection reads; created and released with the probes. */
   surfaceCache?: GPUBuffer;
-  /** Resident proxy, distant-shadow settings and counters included; when absent, the
-   *  zero substitute leaves the distant surface lit with no cast shadow. */
+  /** Resident proxy with the far-shadow settings and counters; absent, a zero substitute. */
   proxy?: GPUBuffer;
 }
 export interface DeferredSources {
@@ -58,6 +57,7 @@ export interface DeferredBindings {
     slices: GPUBuffer;
     requests: GPUBuffer;
     atlasView: GPUTextureView;
+    transmittanceView: GPUTextureView;
     sampler: GPUSampler;
     proxy: GPUBuffer;
   };
@@ -66,9 +66,9 @@ export interface DeferredBindings {
 export type DeferredProgram = Awaited<ReturnType<typeof createDeferredProgram>>;
 
 /**
- * A deferred-pass program: its two modules, its three pipelines, and the bind groups it
- * keeps as long as its resources do not change. The engine holds two — the unlit view and
- * the contract one — and compiles the second only when a light asks for it.
+ * A deferred-pass program: its two modules, its three pipelines, and the bind groups it keeps as
+ * long as its resources do not change. The engine holds two, the unlit view and the contract
+ * one, and compiles the second only when a light asks for it.
  */
 export async function createDeferredProgram(
   device: GPUDevice,
@@ -92,13 +92,13 @@ export async function createDeferredProgram(
   let boundSurface: SurfaceBuffer | undefined,
     boundTiles: GPUBuffer | undefined,
     boundAtlas: GPUTextureView | undefined,
+    boundTransmittance: GPUTextureView | undefined,
     boundRequests: GPUBuffer | undefined,
     boundProbes: GPUBuffer | undefined,
     boundProxy: GPUBuffer | undefined,
     boundHdr: GPUTextureView | undefined,
     lightGroup: GPUBindGroup | undefined;
-  /** One composition group per source read: the lit image, or one of the two temporal-
-   *  antialiasing history targets. Three at most, held as long as the uniform lives. */
+  // One composition group per source read: the lit image or a TAA history, three at most.
   const composeGroups = new Map<GPUTextureView, GPUBindGroup>();
   return {
     light,
@@ -134,15 +134,18 @@ export async function createDeferredProgram(
       const tiles = direct.tiles ?? placeholders.tiles,
         slices = direct.slices ?? placeholders.slices,
         atlas = direct.atlas ?? placeholders.atlasView,
-        requests = direct.requests ?? placeholders.requests;
-      const probes = direct.probes;
-      const proxy = direct.proxy ?? placeholders.proxy;
+        transmittance = direct.transmittance?.view ?? placeholders.transmittanceView,
+        translucentDepth = direct.transmittance?.depthView ?? placeholders.atlasView,
+        requests = direct.requests ?? placeholders.requests,
+        probes = direct.probes,
+        proxy = direct.proxy ?? placeholders.proxy;
       if (boundHdr !== hdr) composeGroups.clear();
       boundHdr = hdr;
       if (
         boundSurface === surface &&
         boundTiles === tiles &&
         boundAtlas === atlas &&
+        boundTransmittance === transmittance &&
         boundRequests === requests &&
         boundProbes === probes &&
         boundProxy === proxy
@@ -151,6 +154,7 @@ export async function createDeferredProgram(
       boundSurface = surface;
       boundTiles = tiles;
       boundAtlas = atlas;
+      boundTransmittance = transmittance;
       boundRequests = requests;
       boundProbes = probes;
       boundProxy = proxy;
@@ -166,12 +170,12 @@ export async function createDeferredProgram(
           { binding: 8, resource: { buffer: slices } },
           { binding: 9, resource: atlas },
           { binding: 10, resource: placeholders.sampler },
-          // The resident proxy, as-is: the sun's distant shadow traverses it without keeping
-          // a second copy, and its header says whether there is something to traverse.
+          // The resident proxy as-is, no copy: its header says whether there is anything to trace.
           { binding: SUN_FAR_PROXY_BINDING, resource: { buffer: proxy } },
           { binding: CONTRACT_SHADOW_BINDINGS.requests, resource: { buffer: requests } },
+          { binding: CONTRACT_SHADOW_BINDINGS.transmittance, resource: transmittance },
+          { binding: CONTRACT_SHADOW_BINDINGS.translucentDepth, resource: translucentDepth },
         );
-      // The cache lives and dies with the probes: the probe buffer's identity covers both.
       if (sources.bounce && direct.bounceGrid && direct.probes && direct.surfaceCache)
         entries.push(
           { binding: 11, resource: { buffer: direct.bounceGrid } },
@@ -184,6 +188,7 @@ export async function createDeferredProgram(
       boundSurface = undefined;
       boundTiles = undefined;
       boundAtlas = undefined;
+      boundTransmittance = undefined;
       boundRequests = undefined;
       boundProbes = undefined;
       boundProxy = undefined;
