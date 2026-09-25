@@ -6288,7 +6288,7 @@
   "object.sprite": {
     "summary": "Uma imagem plana que sempre olha para a câmera, para onde quer que ela olhe: um quadrado de uma unidade, do tamanho da escala do sprite e girado na imagem pela `rotation` do seu material.",
     "parameters": {
-      "material": "O que o quadrado mostra: um `material.sprite`."
+      "material": "O que o quadrado mostra: um `material.sprite`; qualquer outro tipo lança um erro."
     }
   },
   "orthographicProjection": {
@@ -7573,10 +7573,11 @@
   },
   "Sprite": {
     "summary": "Uma imagem plana que sempre olha para a câmera: um quadrado de uma unidade que cada renderizador gira para a imagem ao desenhar, em torno da posição do sprite.",
-    "description": "Seu tamanho é sua escala no mundo em `x` e `y`; seu giro no plano da imagem é a `rotation` do seu material; sua própria rotação não é lida. Um sprite não projeta sombra.",
+    "description": "Seu tamanho é sua escala no mundo em `x` e `y`; seu giro no plano da imagem é a `rotation` do seu material; sua própria rotação não é lida. Um sprite não projeta sombra. Como o `Sprite` da referência, que só aceita um `SpriteMaterial`, ele só usa um `material.sprite`: qualquer outro material, passado ou atribuído, lança um `TypeError` que nomeia o seu tipo.",
     "members": {
       "isSprite": "Sempre `true`: distingue um sprite de qualquer outra malha.",
-      "center": "O ponto da imagem que fica na posição do sprite: `(0.5, 0.5)` seu meio, `(0, 0)` seu canto inferior esquerdo, `(0.5, 0)` o meio da sua borda de baixo."
+      "center": "O ponto da imagem que fica na posição do sprite: `(0.5, 0.5)` seu meio, `(0, 0)` seu canto inferior esquerdo, `(0.5, 0)` o meio da sua borda de baixo.",
+      "material": "O `material.sprite` do sprite; atribua outro para mudá-lo."
     }
   }
 }
