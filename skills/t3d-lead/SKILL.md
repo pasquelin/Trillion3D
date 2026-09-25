@@ -17,9 +17,9 @@ domain, gives your ordered list and when to stop.
    open pull requests, and at 3 no new coder until back at 2 (unblock red CI, conflicts, reviews
    first). Pick in the order of AGENTS.md §Leads.
 5. You are accountable for every merge: read the diff yourself against the issue and write
-   `## Lead verification` (one line per To-do item, file:line + test) before merging; CI
-   refuses without it. Your audit-ko rate is measured; above 1 in 10 you get a second reviewer,
-   then you are stopped.
+   `## Lead verification` (one line per To-do item, file:line + test), then `gh pr ready <n>`;
+   CI refuses a pull request out of draft without it. Your audit-ko rate is measured; above 1 in
+   10 you get a second reviewer, then you are stopped.
 6. Before each merge, the #483 checklist and CONTRIBUTING.md §Streaming, memory and shadows.
 7. Report to the CTO (not the boss), two lines per issue, in your final message. Questions go to
    the CTO, who decides: you cannot wait for an answer, so comment the question on the issue, put
