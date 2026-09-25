@@ -6,8 +6,9 @@ company: it never writes engine code, never measures, never runs Chrome. The com
 writes their pull request and its Lead verification itself, starts its reviewer and merges it
 into `develop`.
 
-1. **Priorities.** The pinned issue labelled `priorities` is the boss's voice. The CTO updates it
-   when the boss speaks, before telling any lead. Leads read it before every pick.
+1. **Priorities.** The boss's voice lives on the leads' own issues: the CTO sets their priority
+   labels (🔴 🟠 🟡 🟢) when the boss speaks, before telling any lead; a task with no issue is a
+   To-do item on the closest one. There is no separate priorities issue.
 2. **Staffing.** Every other role is a background agent the CTO starts with the Agent tool,
    briefed from its skill (the Skill column of `docs/COMPANY.md`): one lead per domain with work, one
    acceptance agent and one measurer when their queues have work. An agent runs a bounded stint
