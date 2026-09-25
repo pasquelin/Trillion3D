@@ -10,7 +10,7 @@ import {
   type CookedSoftBody,
   type PhysicsHost,
 } from '../../../sdk-core/src/physics/index.ts';
-import { goldenCloth } from '../../../sdk-core/src/physics/softCloth.fixture.ts';
+import { plane } from '../../../sdk-core/src/world/geometry/basic.ts';
 import { Group, Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
 import { createPhysicsBodies } from './bodies.ts';
 import { createCookedSoftBodies } from './cookedSoft.ts';
@@ -39,10 +39,10 @@ const own = { map: Uint32Array.from({ length: 9 }, (_, v) => v) };
 
 test('a cooked cloth restores to the settings the page builds: laid flat, it swings the same', async () => {
   const built = await softWorld();
-  addSoft(built, goldenCloth(), options, [0, 2, 0], { quaternion: FLAT });
+  addSoft(built, plane(1, 1, 2, 2), options, [0, 2, 0], { quaternion: FLAT });
   const restored = await softWorld();
   const record = { cooked: await golden(), pressure: 0 };
-  addSoft(restored, goldenCloth(), options, [0, 2, 0], { quaternion: FLAT, record });
+  addSoft(restored, plane(1, 1, 2, 2), options, [0, 2, 0], { quaternion: FLAT, record });
   const [a, b] = [settle(built, own, 1), settle(restored, own, 1)];
   assert.ok(Math.hypot(...at(b, 0).map((x, k) => x - [-0.5, -0.5, 0][k])) > 0.3, 'it swung');
   assert.ok(Math.hypot(...at(b, 6).map((x, k) => x - [-0.5, 0.5, 0][k])) < 1e-4, 'its pin held');
