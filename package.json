@@ -84,6 +84,7 @@
     "docs:scene": "node scripts/docs-scene.ts",
     "docs:gallery": "node scripts/docs-gallery.ts",
     "docs:serve": "node scripts/docs-serve.ts",
+    "docs:dev": "node scripts/docs-dev.ts",
     "check:local": "node scripts/check-local-files.ts"
   },
   "jscpd": {

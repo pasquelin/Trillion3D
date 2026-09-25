@@ -12,7 +12,7 @@ import { buildFlags } from './build-flags.ts';
 import { FRAMED_MEASUREMENT_TAG, withMeasurement } from './measurement.ts';
 import { buildPortal } from './build-portal.ts';
 import { buildRuntime } from './build-runtime.ts';
-import { buildStyles } from './build-styles.ts';
+import { buildStyles, STYLE_SOURCES } from './build-styles.ts';
 
 const ROOT = resolve(import.meta.dirname, '../..');
 export const SITE_OUTPUT = resolve(ROOT, 'dist/site');
@@ -78,16 +78,74 @@ async function copyTree(source: string, target: string, published: boolean) {
 /** The folders of `out` the build writes: emptied first, so no chunk of an earlier build stays. */
 const BUILT_FOLDERS = ['css', 'runtime', 'flags'];
 
-/** Writes the build products into `out`: styles, engine runtime, portal, language flags. */
-export async function buildBundles(root: string, out: string) {
-  for (const folder of BUILT_FOLDERS)
-    await rm(resolve(out, folder), { recursive: true, force: true });
-  await mkdir(out, { recursive: true });
-  await buildStyles(root, { output: resolve(out, 'css/site.css') });
-  await buildRuntime(root, resolve(out, 'runtime'));
-  await buildPortal(root, resolve(out, 'runtime'));
-  await buildFlags(resolve(out, 'flags'));
+/** `folder` of `out`, emptied. */
+async function emptied(out: string, folder: string) {
+  const path = resolve(out, folder);
+  await rm(path, { recursive: true, force: true });
+  return path;
 }
+
+/** One step of the build, with the paths under the root (files or folders) it reads: the
+ *  development server (`docs-dev.ts`) runs again only the steps a changed path is under. */
+interface SiteStep {
+  name: string;
+  reads: readonly string[];
+  run: (root: string, out: string, published: boolean) => Promise<unknown> | void;
+}
+
+/** The build products: styles, engine runtime and portal (one folder), language flags. */
+const BUNDLE_STEPS: readonly SiteStep[] = [
+  {
+    name: 'styles',
+    reads: ['site/styles', ...STYLE_SOURCES],
+    run: async (root, out) =>
+      buildStyles(root, { output: resolve(await emptied(out, 'css'), 'site.css') }),
+  },
+  {
+    name: 'runtime',
+    // The engine's sources and the folders of `site/` the portal imports from.
+    reads: [
+      'packages',
+      'THIRD_PARTY_NOTICES.md',
+      'site/app',
+      'site/content',
+      'site/demos',
+      'site/examples',
+      'site/i18n',
+      'site/reports',
+    ],
+    run: async (root, out) => {
+      const runtime = await emptied(out, 'runtime');
+      await buildRuntime(root, runtime);
+      await buildPortal(root, runtime);
+    },
+  },
+  { name: 'flags', reads: [], run: async (_, out) => buildFlags(await emptied(out, 'flags')) },
+];
+
+/** Every step of `buildSite`, in its order: stale API files and caches first, the statics last. */
+const SITE_STEPS: readonly SiteStep[] = [
+  { name: 'api', reads: ['packages', 'site'], run: () => generateApiFiles() },
+  { name: 'caches', reads: ['site/assets'], run: () => compileSiteCaches(false) },
+  ...BUNDLE_STEPS,
+  {
+    name: 'statics',
+    reads: [...STATIC_ENTRIES, 'index.html'].map((name) => `site/${name}`),
+    run: (root, out, published) => copyStatics(resolve(root, 'site'), out, published),
+  },
+];
+
+/** The steps, in order, that read one of `paths` (relative to the root, `/`-separated). */
+export const stepsReading = (paths: Iterable<string>) => {
+  const changed = [...paths];
+  return SITE_STEPS.filter(({ reads }) =>
+    changed.some((path) => reads.some((read) => path === read || path.startsWith(`${read}/`))),
+  );
+};
+
+/** Writes the build products into `out`. */
+export const buildBundles = (root: string, out: string) =>
+  buildSite(root, out, false, BUNDLE_STEPS);
 
 /** Writes the portal page with its canonical link, and crawler rules that allow everything. The
  * portal routes by hash, so the root is the only address a crawler can list: no sitemap. */
@@ -121,13 +179,15 @@ export async function copyStatics(source: string, out: string, published = false
   await prune(out, [...STATIC_ENTRIES, ...METADATA_ENTRIES, ...BUILT_FOLDERS]);
 }
 
-/** Builds the whole site from `root` into `out`, stale API files and caches first; only the
+/** Builds the site from `root` into `out`, every step unless `steps` names some; only the
  * deployed build is `published`, and carries the audience measurement (`measurement.ts`). */
-export async function buildSite(root = ROOT, out = SITE_OUTPUT, published = false) {
-  await generateApiFiles();
-  compileSiteCaches(false);
-  await buildBundles(root, out);
-  await copyStatics(resolve(root, 'site'), out, published);
+export async function buildSite(
+  root = ROOT,
+  out = SITE_OUTPUT,
+  published = false,
+  steps = SITE_STEPS,
+) {
+  for (const step of steps) await step.run(root, out, published);
 }
 
 /** The files of the built site git tracks: always none, since CI builds it from the sources. */

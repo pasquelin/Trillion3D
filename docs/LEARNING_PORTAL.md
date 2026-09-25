@@ -121,6 +121,13 @@ docs server, the browser proofs and the site workflow (`.github/workflows/pages.
 `http://127.0.0.1:4177`. This matches the published paths and adds no development framework or
 fallback route.
 
+While the sources change, `pnpm docs:dev` (`scripts/docs-dev.ts`) builds once, then serves
+`dist/site/` through the same server and headers and follows `site/` and `packages/`: a change
+runs again only the steps of `buildSite()` that read it (the list `SITE_STEPS` in
+`scripts/docs/site.ts`), then every open page reloads. The reload script is added by that server
+to the pages it serves, never written into `dist/site/`; `build:docs` fails if a built page or
+script names it. `docs:serve` stays the production-path server of the proofs.
+
 ### Build products: never committed, built by CI
 
 `dist/site/` is ignored by git and tracked on no branch: every consumer builds it on demand
