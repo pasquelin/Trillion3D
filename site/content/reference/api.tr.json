@@ -2535,7 +2535,7 @@
       "onEvict": "Önbellekten çıkan her sayfayı duyar.",
       "maxTransferBytes": "Aktarım kuyruğunun tutabileceği bayt; varsayılan 8 MiB.",
       "onDiagnostic": "Her okumanın her adımını duyar.",
-      "maxCachedBytes": "Önbelleğin CPU toplamı: sayfaları, bildirim tabloları ve aktarım kuyruğu birlikte; varsayılan 256 MiB."
+      "maxCachedBytes": "Önbellek sayfalarının tutabileceği CPU belleği baytı; bildirim tabloları ve aktarım kuyruğu bunun üstüne ayrılır; varsayılan 256 MiB."
     }
   },
   "PanZoomCameraControls": {
@@ -4795,7 +4795,7 @@
       "options.onEvict": "Önbellekten çıkan her sayfayı duyar.",
       "options.maxTransferBytes": "Aktarım kuyruğunun tutabileceği bayt; varsayılan 8 MiB.",
       "options.onDiagnostic": "Her okumanın her adımını duyar.",
-      "options.maxCachedBytes": "Önbelleğin CPU toplamı: sayfaları, bildirim tabloları ve aktarım kuyruğu birlikte; varsayılan 256 MiB."
+      "options.maxCachedBytes": "Önbellek sayfalarının tutabileceği CPU belleği baytı; bildirim tabloları ve aktarım kuyruğu bunun üstüne ayrılır; varsayılan 256 MiB."
     }
   },
   "createPathGovernor": {

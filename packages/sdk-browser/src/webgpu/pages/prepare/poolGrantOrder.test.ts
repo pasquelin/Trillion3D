@@ -74,3 +74,17 @@ test('a later budget the device refuses even at its floor keeps the pool it gran
   await set;
   assert.equal(backend.metrics().geometryPoolSlots, 3, 'the pool first granted stays');
 });
+
+test('a later budget drawing the slots already granted allocates no second pool', async (t) => {
+  let set: Promise<unknown> | undefined,
+    again = 0;
+  const { backend } = granting(
+    t,
+    () => (set = backend.setMemoryBudgets!({ geometryPoolBytes: 1024 })),
+    () => again++,
+  );
+  await backend.prepare();
+  await set;
+  assert.equal(backend.metrics().geometryPoolSlots, 3);
+  assert.equal(again, 0, 'the pool granted first is kept');
+});

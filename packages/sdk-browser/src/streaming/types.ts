@@ -49,8 +49,8 @@ export interface PageStreamerOptions {
   maxTransferBytes?: number;
   /** Hears each step of every read. */
   onDiagnostic?: (diagnostic: BackendDiagnostic) => void;
-  /** The cache's CPU total: its pages, manifest tables and transfer queue together; 256 MiB by
-   *  default. */
+  /** Bytes of CPU memory the cache's pages may hold, its manifest tables and transfer queue
+   *  reserved on top; 256 MiB by default. */
   maxCachedBytes?: number;
 }
 export type Job = {

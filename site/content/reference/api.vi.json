@@ -2553,7 +2553,7 @@
       "onEvict": "Nghe mỗi trang rời khỏi bộ nhớ đệm.",
       "maxTransferBytes": "Số byte hàng đợi truyền được giữ; mặc định 8 MiB.",
       "onDiagnostic": "Nghe từng bước của mỗi lượt đọc.",
-      "maxCachedBytes": "Tổng CPU của bộ nhớ đệm: các trang, bảng manifest và hàng đợi truyền cộng lại; mặc định 256 MiB."
+      "maxCachedBytes": "Số byte bộ nhớ CPU mà các trang của bộ nhớ đệm được giữ, bảng manifest và hàng đợi truyền được dành riêng thêm; mặc định 256 MiB."
     }
   },
   "PanZoomCameraControls": {
@@ -4785,7 +4785,7 @@
       "options.onEvict": "Nghe mỗi trang rời khỏi bộ nhớ đệm.",
       "options.maxTransferBytes": "Số byte hàng đợi truyền được giữ; mặc định 8 MiB.",
       "options.onDiagnostic": "Nghe từng bước của mỗi lượt đọc.",
-      "options.maxCachedBytes": "Tổng CPU của bộ nhớ đệm: các trang, bảng manifest và hàng đợi truyền cộng lại; mặc định 256 MiB."
+      "options.maxCachedBytes": "Số byte bộ nhớ CPU mà các trang của bộ nhớ đệm được giữ, bảng manifest và hàng đợi truyền được dành riêng thêm; mặc định 256 MiB."
     }
   },
   "createPathGovernor": {

@@ -2553,7 +2553,7 @@
       "onEvict": "Mendengar setiap halaman yang keluar dari cache.",
       "maxTransferBytes": "Byte yang boleh ditampung antrean transfer; bawaan 8 MiB.",
       "onDiagnostic": "Mendengar setiap langkah dari setiap pembacaan.",
-      "maxCachedBytes": "Total CPU cache: halaman, tabel manifes, dan antrean transfernya bersama-sama; bawaan 256 MiB."
+      "maxCachedBytes": "Byte memori CPU yang boleh ditempati halaman cache, dengan tabel manifes dan antrean transfernya dicadangkan di atasnya; bawaan 256 MiB."
     }
   },
   "PanZoomCameraControls": {
@@ -4785,7 +4785,7 @@
       "options.onEvict": "Mendengar setiap halaman yang keluar dari cache.",
       "options.maxTransferBytes": "Byte yang boleh ditampung antrean transfer; bawaan 8 MiB.",
       "options.onDiagnostic": "Mendengar setiap langkah dari setiap pembacaan.",
-      "options.maxCachedBytes": "Total CPU cache: halaman, tabel manifes, dan antrean transfernya bersama-sama; bawaan 256 MiB."
+      "options.maxCachedBytes": "Byte memori CPU yang boleh ditempati halaman cache, dengan tabel manifes dan antrean transfernya dicadangkan di atasnya; bawaan 256 MiB."
     }
   },
   "createPathGovernor": {

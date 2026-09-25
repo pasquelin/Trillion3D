@@ -1184,7 +1184,7 @@
       "options.onEvict": "Escucha cada página que sale de la caché.",
       "options.maxTransferBytes": "Bytes que puede retener la cola de transferencia; 8 MiB por defecto.",
       "options.onDiagnostic": "Escucha cada paso de cada lectura.",
-      "options.maxCachedBytes": "El total de CPU de la caché: sus páginas, tablas de manifiesto y cola de transferencia juntas; 256 MiB por defecto."
+      "options.maxCachedBytes": "Bytes de memoria de CPU que pueden ocupar las páginas de la caché, con sus tablas de manifiesto y su cola de transferencia reservadas aparte; 256 MiB por defecto."
     }
   },
   "createPathGovernor": {
@@ -4645,7 +4645,7 @@
       "onEvict": "Escucha cada página que sale de la caché.",
       "maxTransferBytes": "Bytes que puede retener la cola de transferencia; 8 MiB por defecto.",
       "onDiagnostic": "Escucha cada paso de cada lectura.",
-      "maxCachedBytes": "El total de CPU de la caché: sus páginas, tablas de manifiesto y cola de transferencia juntas; 256 MiB por defecto."
+      "maxCachedBytes": "Bytes de memoria de CPU que pueden ocupar las páginas de la caché, con sus tablas de manifiesto y su cola de transferencia reservadas aparte; 256 MiB por defecto."
     }
   },
   "PanZoomCameraControls": {

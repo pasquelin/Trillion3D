@@ -2535,7 +2535,7 @@
       "onEvict": "Ouve cada página que sai do cache.",
       "maxTransferBytes": "Bytes que a fila de transferência pode conter; 8 MiB por padrão.",
       "onDiagnostic": "Ouve cada passo de cada leitura.",
-      "maxCachedBytes": "O total de CPU do cache: páginas, tabelas do manifesto e fila de transferência juntas; 256 MiB por padrão."
+      "maxCachedBytes": "Bytes de memória de CPU que as páginas do cache podem ocupar, com as tabelas do manifesto e a fila de transferência reservadas à parte; 256 MiB por padrão."
     }
   },
   "PanZoomCameraControls": {
@@ -4795,7 +4795,7 @@
       "options.onEvict": "Ouve cada página que sai do cache.",
       "options.maxTransferBytes": "Bytes que a fila de transferência pode conter; 8 MiB por padrão.",
       "options.onDiagnostic": "Ouve cada passo de cada leitura.",
-      "options.maxCachedBytes": "O total de CPU do cache: páginas, tabelas do manifesto e fila de transferência juntas; 256 MiB por padrão."
+      "options.maxCachedBytes": "Bytes de memória de CPU que as páginas do cache podem ocupar, com as tabelas do manifesto e a fila de transferência reservadas à parte; 256 MiB por padrão."
     }
   },
   "createPathGovernor": {

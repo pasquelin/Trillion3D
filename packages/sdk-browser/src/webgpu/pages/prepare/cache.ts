@@ -49,16 +49,28 @@ export async function grantWebgpuPagesCache(rt: WebgpuPagesRuntime, gpuDevice: G
   do {
     asked = setup.geometryPool.budgetBytes;
     const { bytes, declared } = geometryBudgetBeside(rt, asked);
-    granted = await grantedGeometryPool(
-      gpuDevice,
-      bytes,
-      setup.geometryPoolFor,
-      diag.engineDiagnostic,
-      (pool) => {
-        const cache = createWebgpuPagesCache(rt, gpuDevice, pool.slots);
-        return { cache, destroy: () => void cache.dispose() };
-      },
-    );
+    // As mid-session: a later budget drawing the slots already held allocates nothing.
+    const drawn = setup.geometryPoolFor(bytes);
+    if (held && drawn.slots === held.pool.slots) {
+      held.pool = declared(drawn);
+      continue;
+    }
+    try {
+      granted = await grantedGeometryPool(
+        gpuDevice,
+        bytes,
+        setup.geometryPoolFor,
+        diag.engineDiagnostic,
+        (pool) => {
+          const cache = createWebgpuPagesCache(rt, gpuDevice, pool.slots);
+          return { cache, destroy: () => void cache.dispose() };
+        },
+      );
+    } catch (error) {
+      // A later grant that throws leaves no cache held on the side, which nothing would release.
+      held?.cache.dispose();
+      throw error;
+    }
     if (granted) {
       held?.cache.dispose();
       held = { pool: declared(granted.pool), cache: granted.made.cache };
