@@ -25,7 +25,7 @@ import {
  * The receiver's plane must not shade itself over the PCF's reach: its depth's slope across the
  * map is covered, in texels of the level read, by a depth margin up to a slope of 1
  * (`shadowDepthMargin`), and past it by moving the receiver along its normal
- * (`shadowNormalOffset`). Both are bounded by the reach: a caster a few texels away always keeps
+ * (`shadowNormalTexels`). Both are bounded by the reach: a caster a few texels away always keeps
  * its shadow. A point light reads the face its offset point lies in, so that point always
  * projects inside that face.
  */
@@ -51,19 +51,20 @@ fn sunShadowFactor(index:u32,P:vec3f,N:vec3f)->f32{
  let cosine=clamp(dot(N,-axis),1e-3,1.0);
  // An orthographic map: the receiver's depth changes by tan(incidence) per unit across it.
  let slope=sqrt(1.0-cosine*cosine)/cosine;
+ let offset=shadowNormalTexels(cosine);
  for(var level=max(i32(floor(log2(max(shadowFootprint,1e-30)))),finest);level<last;level++){
   let texel=exp2(f32(level));
   let page=texel*SHADOW_PAGE;
   let slot=shadowRing(level,SUN_LEVEL_COUNT);
   let origin=sunOrigin(index,slot);
-  let Q=P+N*shadowNormalOffset(texel,cosine);
+  let Q=P+N*(texel*offset);
   // Relative to the window's first page, whose world offset is exact in single precision.
   let t=vec2f(dot(Q,right)-f32(origin.x)*page,-dot(Q,up)-f32(origin.y)*page)/texel;
   let map=ShadowMap(u32(info.w)+u32(slot)*SUN_LEVEL_WORDS,1u,SUN_WINDOW_PAGES,origin.x,origin.y);
   let home=vec2i(floor(t/SHADOW_PAGE));
   let word=shadowPageWord(map,home);
   if(word==0u){continue;}
-  let reference=1.0-(dot(Q,axis)-zNear-shadowDepthMargin(texel,slope))*invDepth;
+  let reference=1.0-(dot(Q,axis)-zNear-shadowDepthMargin(texel,slope,1.0))*invDepth;
   return shadowPcf(map,t,reference,home,word,0.0);
  }
  return sunFarShadowFactor(P,N,-axis);
@@ -79,14 +80,18 @@ fn lampShadowFactor(index:u32,light:DirectLight,P:vec3f,N:vec3f,L:vec3f)->f32{
  let far=max(near*1.001,light.positionRange.w);
  // dz/dw of a perspective projection is near·far/((far−near)·w²) at axial depth w.
  let k=near*far/(far-near);
+ let offset=shadowNormalTexels(cosine);
+ // The face of the offset point, loaded again only when a coarser mip's offset crosses a border.
+ let isPoint=u32(info.x)==${POINT_FACES}u;
+ var face=${POINT_FACES}u;var m:mat4x4f;
  for(var mip=u32(wanted);mip<LAMP_MIP_COUNT;mip++){
   let pages=LAMP_PAGE_COUNT>>mip;
   let side=f32(pages)*SHADOW_PAGE;
   let texel=texel0*exp2(f32(mip));
-  let Q=P+N*shadowNormalOffset(texel,cosine);
+  let Q=P+N*(texel*offset);
   let d=Q-light.positionRange.xyz;
-  let face=select(0u,pointFaceOf(d),u32(info.x)==${POINT_FACES}u);
-  let m=shadows.records[index].faces[face];
+  let picked=select(0u,pointFaceOf(d),isPoint);
+  if(picked!=face){face=picked;m=shadows.records[index].faces[face];}
   let clip=m*vec4f(Q,1.0);
   if(clip.w<=0.0){return 1.0;}
   let ndc=clip.xyz/clip.w;
@@ -96,11 +101,12 @@ fn lampShadowFactor(index:u32,light:DirectLight,P:vec3f,N:vec3f,L:vec3f)->f32{
   let home=clamp(vec2i(floor(t/SHADOW_PAGE)),vec2i(0),vec2i(i32(pages)-1));
   let word=shadowPageWord(map,home);
   if(word==0u){continue;}
-  // The receiver's axial depth, clip.w, changes across the face by sin(N, axis)·cos²(ray, axis)
-  // over the incidence cosine: tan(incidence) on the axis.
+  // The receiver's axial depth w, clip.w, changes across the face by sin(N, axis)·cos²(ray, axis)
+  // over the incidence cosine — tan(incidence) on the axis —, cos²(ray, axis) being w²/|d|². The
+  // margin reaches depth by k/w²: the slope's w² cancels, and its cap of 1 becomes 1/w².
   let facing=dot(N,vec3f(m[0].w,m[1].w,m[2].w));
-  let slope=sqrt(max(1.0-facing*facing,0.0))*clip.w*clip.w/(dot(d,d)*cosine);
-  return shadowPcf(map,t,ndc.z+shadowDepthMargin(texel,slope)*k/(clip.w*clip.w),home,word,side);
+  let slope=sqrt(max(1.0-facing*facing,0.0))/(dot(d,d)*cosine);
+  return shadowPcf(map,t,ndc.z+k*shadowDepthMargin(texel,slope,1.0/(clip.w*clip.w)),home,word,side);
  }
  return 1.0;
 }

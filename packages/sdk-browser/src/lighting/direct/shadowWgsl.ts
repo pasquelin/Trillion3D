@@ -105,15 +105,15 @@ const POISSON:array<vec2f,${LIGHT_SETTINGS.pcfTaps}>=array<vec2f,${LIGHT_SETTING
 ).join(',')});
 /** Pixel footprint at the lit point, in metres: set by the pass before it lights a surface. */
 var<private> shadowFootprint:f32=0.0;
-/** Offset along the normal, in metres, of a receiver at incidence \`cosine\` read at \`texel\`-metre
- *  texels: half a texel, plus, past 45°, the part of its plane's slope the depth margin leaves. */
-fn shadowNormalOffset(texel:f32,cosine:f32)->f32{
- return texel*(SHADOW_NORMAL_TEXELS+SHADOW_PCF_REACH*max(sqrt(1.0-cosine*cosine)-cosine,0.0));
+/** Offset along the normal, in texels of the level read, of a receiver at incidence \`cosine\`:
+ *  half a texel, plus, past 45°, the part of its plane's slope the depth margin leaves. */
+fn shadowNormalTexels(cosine:f32)->f32{
+ return SHADOW_NORMAL_TEXELS+SHADOW_PCF_REACH*max(sqrt(1.0-cosine*cosine)-cosine,0.0);
 }
 /** Depth margin, in metres toward the light, of a receiver whose depth changes by \`slope\` per
- *  unit across the map: its plane over the PCF's reach, up to a slope of 1. ADDED to the
- *  reference: shadow depth is reversed. */
-fn shadowDepthMargin(texel:f32,slope:f32)->f32{return texel*SHADOW_PCF_REACH*min(slope,1.0);}
+ *  unit across the map: its plane over the PCF's reach, up to \`cap\`, a slope of 1 in the
+ *  caller's units. ADDED to the reference: shadow depth is reversed. */
+fn shadowDepthMargin(texel:f32,slope:f32,cap:f32)->f32{return texel*SHADOW_PCF_REACH*min(slope,cap);}
 struct ShadowMap{base:u32,ring:u32,pages:i32,ox:i32,oy:i32,}
 fn shadowRing(v:i32,n:i32)->i32{return ((v%n)+n)%n;}
 /** Word of page \`p\` of the map — asked for —, or zero when it holds nothing readable: unmapped,

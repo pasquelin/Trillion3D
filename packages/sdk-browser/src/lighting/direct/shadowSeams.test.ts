@@ -1,28 +1,12 @@
 // #456: a shadow shows no seam where its filter crosses a border — a page's, where each tap is
 // split along the seam between two physical pages, or a point light's face's, where the offset
-// point picks the face it lies in. The fixtures restate the lines pinned here.
+// point picks the face it lies in. The fixtures restate the shader's lines, pinned in
+// `shadowBias.test.ts`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { SHADOW_PAGE } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
-import { SHADOW_WGSL, pcf, pointLampOver } from './shadowBias.fixture.ts';
+import { pcf, pointLampOver } from './shadowBias.fixture.ts';
 import { pagedPcf } from './shadowPages.fixture.ts';
-
-/** `shadowPcf`'s split of a tap along a page seam: what `pagedPcf` restates. */
-const SPLIT = [
-  ' let edge=(t-1.5<first)|(t+1.5>=first+SHADOW_PAGE);',
-  ' let up=t-first>=vec2f(0.5*SHADOW_PAGE);',
-  '  let h=clamp(at,first+0.5,first+SHADOW_PAGE-0.5);',
-  '  let n=select(min(at,seam-0.5),max(at,seam+0.5),up);',
-  '  let w=saturate(0.5+(seam-at)*toward);',
-  '  var sum=w.x*w.y*shadowCompare(offset,h,reference);',
-  '  if(edge.x){sum+=(1.0-w.x)*w.y*shadowCompare(nx.xy,vec2f(select(h.x,n.x,nx.z>0.0),h.y),reference);}',
-  '  if(edge.y){sum+=w.x*(1.0-w.y)*shadowCompare(ny.xy,vec2f(h.x,select(h.y,n.y,ny.z>0.0)),reference);}',
-  '  if(all(edge)){sum+=(1.0-w.x)*(1.0-w.y)*shadowCompare(nd.xy,select(h,n,nd.z>0.0),reference);}',
-];
-
-test('the page split restated by the fixture is the shader’s', () => {
-  for (const line of SPLIT) assert.ok(SHADOW_WGSL.includes(line), line);
-});
 
 test('a filter across a page border reads the same depths as one inside a page', () => {
   // The home page and its eight neighbours, each placed anywhere in the pool.
