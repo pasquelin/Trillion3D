@@ -16,7 +16,7 @@ export interface ProfiledWorld<Frame = unknown> {
   beforeFrame?(hook: (info: { delta: number; time: number }) => void): unknown;
   cpuSteps?(): CpuSteps | null;
   resetCpuSteps?(): void;
-  physics?: { enabled: boolean; stats: { stepMs: number } };
+  physics?: { enabled: boolean; stats: { stepMaxMs: number } };
 }
 
 /** One second of profile, as `window.__profile` holds it; `null` where nothing was measured. */
@@ -32,7 +32,8 @@ export interface ProfileWindow {
   steps: Array<{ name: string } & Spread>;
   /** The page's `physics` CPU stage (`physicsMs`), ranked or not among the five. */
   physicsMs: Spread | null;
-  /** The worker's step (`world.physics.stats.stepMs`) as each drawn frame read it. */
+  /** The worker's step: the slowest fixed step of its last tick (`world.physics.stats.stepMaxMs`)
+   *  as each drawn frame read it, so a slow step is never averaged away. */
   workerStepMs: Spread | null;
 }
 
@@ -72,6 +73,10 @@ export function profileWindow(
     workerStepMs: spread(workerStepMs),
   };
 }
+
+/** What a drawn frame reads of the worker's step, `null` while the physics is off. */
+export const workerStep = ({ physics }: ProfiledWorld) =>
+  physics?.enabled ? physics.stats.stepMaxMs : null;
 
 const ms = ({ p50, p95 }: Spread) => `${p50.toFixed(2)} / ${p95.toFixed(2)} ms`;
 
@@ -158,7 +163,8 @@ export function startProfile<Frame>(
     beforeFrame = world.beforeFrame?.bind(world);
   onFrame(() => {
     drew = true;
-    if (world.physics?.enabled) clock.stepMs.push(world.physics.stats.stepMs);
+    const step = workerStep(world);
+    if (step !== null) clock.stepMs.push(step);
   });
   world.onFrame = (hook) => onFrame(timed(hook));
   if (beforeFrame) world.beforeFrame = (hook) => beforeFrame(timed(hook));
