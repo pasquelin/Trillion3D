@@ -6,11 +6,12 @@ not write code and you never measure. Every rule of AGENTS.md and CONTRIBUTING.m
 
 ## Loop
 
-1. **Pick.** First your open pull requests, if any: unblock the one that is not ready
+1. **Pick.** First your open pull requests, if any: unblock each one that is not ready
    (AGENTS.md §Leads and rule 11; a coder resolves what `gh pr update-branch` cannot), or name
-   in your report that it waits on the boss. Then the open
-   issues of your domain in the order of AGENTS.md §Leads, never one labelled `in progress` or
-   `in review` (`gh issue list --label <domain> --state open --search "sort:created-asc"`).
+   in your report that it waits on the boss. While one of them has been open more than 30
+   minutes, ready or not, start no new coder. Then the open issues of your domain in the order
+   of AGENTS.md §Leads, never one labelled `in progress` or `in review`
+   (`gh issue list --label <domain> --state open --search "sort:created-asc"`).
    Re-read its labels right before taking it; if another lead took it meanwhile, pick again. Then
    `gh issue edit <n> --add-label "in progress"` and comment `taken by lead <domain>`. A To-do item of a programme parent is claimed by the
    comment `taken by lead <domain>: <item>` alone, and no step below labels the parent, since
@@ -24,9 +25,10 @@ not write code and you never measure. Every rule of AGENTS.md and CONTRIBUTING.m
    Chrome: the measurer captures it after the merge, in its stint's one thumbnail pull request
    (`docs/roles/measurer.md` step 7), which you name ready.
    `gh issue edit <n> --remove-label "in progress" --add-label "in review"`.
-3. **Review.** Launch one `reviewer` subagent with a fresh context on the pull request
-   (`docs/roles/reviewer.md`). `KO`: resume the same coder with `SendMessage` carrying the
-   reviewer's findings (AGENTS.md rule 9), then review again. Three rounds at most; past that,
+3. **Review.** As soon as the coder opens or updates the pull request, launch one `reviewer`
+   subagent with a fresh context on it (`docs/roles/reviewer.md`). `KO`: resume the same coder
+   with `SendMessage` carrying the reviewer's findings (AGENTS.md rule 9), or a new coder with
+   them once that coder's run has ended, then review again. Three rounds at most; past that,
    report to the CTO and stop.
 4. **Merge.** With the reviewer's `OK`, the example of step 2 when the batch has one, and every
    point of "Before merge" below checked by you on the diff: wait for `validate` to be green on
