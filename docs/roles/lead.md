@@ -36,8 +36,7 @@ not write code and you never measure. Every rule of AGENTS.md and CONTRIBUTING.m
    then the draft's earlier green run still shows), then send "ready #<pr>" to the CTO, who merges
    it (AGENTS.md §Roles). On a red check, or a point of "Before merge" missed, put the pull request
    back in draft (`gh pr ready --undo <pr>`), delete its Lead verification lines (CI cannot tell a
-   stale line from a new one) and go back to step 3; the Lead verification is written again on
-   the new diff.
+   stale line from a new one) and go back to step 3.
 5. **Hand over**, once the CTO has merged. `gh issue edit <n> --remove-label "in review"`, add
    `to measure` for an engine batch (`packages/`, compiler, format, shaders, a published number) or
    an example whose thumbnail is missing or out of date, then `gh issue close <n>` unless the pull
