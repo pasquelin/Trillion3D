@@ -60,6 +60,11 @@ export {
 export type { ScreenErrorVariant } from '../../sdk-core/src/lod/screenErrorVariant.ts';
 export { SCENE_MODEL_VERSION } from '../../sdk-core/src/scene/core/nodeContracts.ts';
 export type { SceneNodeOptions, SceneState } from '../../sdk-core/src/scene/core/nodeContracts.ts';
+export type {
+  SceneExponentialFog,
+  SceneFog,
+  SceneLinearFog,
+} from '../../sdk-core/src/scene/core/fog.ts';
 export { SceneNode } from '../../sdk-core/src/scene/core/node.ts';
 export type { ShadowFrameMetrics } from '../../sdk-core/src/contracts/shadowMetrics.ts';
 export {

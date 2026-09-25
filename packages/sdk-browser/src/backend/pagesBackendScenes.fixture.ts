@@ -27,7 +27,7 @@ export const QUAD_MANIFEST: Omit<ClusterManifest, 'primitives'> = {
   scope: 'slice',
   sourceTriangles: 2,
   selectedTriangles: 2,
-  selectedNodes: [],
+  selectedNodes: 0,
   totalNodes: 0,
 };
 

@@ -32,7 +32,7 @@ function cacheResponse(pointer: boolean, version: number) {
             scope: 'full',
             schema: version,
             formatVersion: version,
-            selectedNodes: [],
+            selectedNodes: 0,
             selectedTriangles: 0,
             errorModel: 'dag-group-qem-v1',
             clusterStrategy: 'dag-groups',

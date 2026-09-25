@@ -139,7 +139,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
       );
       heldFloor.changed();
       ready = true;
-      shown.push(...bootstrap);
+      for (const page of bootstrap) shown.push(page); // a spread overflows the stack on a large world
       sync();
       residency.keptChanged();
     },

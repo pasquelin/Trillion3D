@@ -24,9 +24,12 @@ import { isDrawnNode } from '../graph/kinds.ts';
 import { Group, Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 import { type GraphCamera } from '../graph/camera.ts';
 import { type GraphLight } from '../graph/light.ts';
+import { placedMeshes } from './placed.ts';
+import type { RowLink } from '../../scene/partition/rows.ts';
 
-/** What the engine knows a drawn mesh by: its mesh and primitive ranks. */
-type MeshRanks = { meshes?: number; primitives?: number };
+/** What the engine knows a drawn mesh by: its mesh and primitive ranks, and the rows placing it
+ *  when a partition's cells do. */
+type MeshRanks = RowLink;
 
 type Inputs = {
   tables: PreparedSceneTables;
@@ -93,6 +96,12 @@ export async function preparedGraph({ tables, meshes, geometryOf, materialOf }: 
     for (const child of node.children) reserve(child);
   };
   for (const root of tables.scene.nodes) reserve(root);
+  // The meshes the partition's cells place are built with the others, whatever cell brings them.
+  for (const rank of tables.partition?.meshes ?? [])
+    if (!named.has(rank)) {
+      named.add(rank);
+      order.push(rank);
+    }
   // Meshes, in the order they were first named. Every surface is asked for before any is waited
   // on: their images load together, as the loader loaded them.
   const drawn = order.map((rank) =>
@@ -132,6 +141,8 @@ export async function preparedGraph({ tables, meshes, geometryOf, materialOf }: 
       built.set(rank, group);
     }
   }
+  /** The host node of each rank, which a cell's node may hang under. */
+  const nodes: Object3D[] = [];
   const assemble = (id: number): Object3D => {
     const declared = tables.nodes[id];
     const carried: Object3D[] = [];
@@ -157,9 +168,12 @@ export async function preparedGraph({ tables, meshes, geometryOf, materialOf }: 
       node.name = nodeNames.get(id)!;
     }
     pose(node, declared);
+    nodes[id] = node;
     for (const child of declared.children) node.add(assemble(child));
     return node;
   };
   for (const root of tables.scene.nodes) scene.add(assemble(root));
-  return { scene, ranks };
+  const at = new Map(order.map((rank, index) => [rank, index]));
+  const placed = placedMeshes(tables.partition, scene, ranks, (rank) => made[at.get(rank)!]);
+  return { scene, ranks, nodes, placed };
 }

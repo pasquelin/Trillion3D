@@ -3,6 +3,7 @@ import { OUTPUT_TRANSFER_GLSL } from '../core/outputGlsl.ts';
 import { RECT_LIGHT_GLSL, WEBGL_RECT_KIND } from './rectGlsl.ts';
 import { PROBE_IRRADIANCE_GLSL } from './probe.ts';
 import { INVERSE_PI, PI } from '../../lighting/shaderConstants.ts';
+import { FOG_GLSL } from '../../lighting/fogShader.ts';
 import { LINE_CLIP_GLSL } from '../../visibility/shader/lineWgsl.ts';
 
 // An instanced mesh places each copy by its own matrix before the mesh's: the position first,
@@ -41,7 +42,7 @@ export const CLUSTER_FRAGMENT = `#version 300 es
 precision highp float;const float PI=${PI},INVERSE_PI=${INVERSE_PI};const int MAX_LIGHTS=64;
 in vec3 toEye;in vec3 viewNormal;vec3 viewPosition;in vec2 texcoord0;in vec2 texcoord1;in vec4 vertexColor;out vec4 outColor;
 uniform vec4 baseFactor;uniform float metalFactor,roughFactor,alphaCutoff,aoStrength;uniform vec2 normalScale;
-uniform vec3 emissiveFactor;uniform vec2 depthRamp;uniform bool depthShaded,lit,flatShaded,toneMapped,srgbDestination,hasNormalMap,hasVertexColor,sharedMetalRough;uniform int mapMask,faceSides;
+uniform vec3 emissiveFactor;uniform vec2 depthRamp;uniform bool depthShaded,fogFree,lit,flatShaded,toneMapped,srgbDestination,hasNormalMap,hasVertexColor,sharedMetalRough;uniform int mapMask,faceSides;
 uniform sampler2D baseMap,roughMap,metalMap,normalMap,aoMap,emissiveMap;
 uniform mat3 baseUv,roughUv,metalUv,normalUv,aoUv,emissiveUv;
 uniform mat4 projectionMatrix;uniform int lightCount;uniform ivec4 mapChannels;uniform ivec2 extraChannels;layout(std140) uniform ClusterLights{vec4 lightData[256];};
@@ -64,6 +65,7 @@ float spotFactor(float cosine,float inner,float outer){return inner<=outer?(cosi
 ${OUTPUT_TRANSFER_GLSL}
 ${RECT_LIGHT_GLSL}
 ${PROBE_IRRADIANCE_GLSL}
+${FOG_GLSL}
 // The declared lights on one surface: the engine's only lighting formula, ambient and probe included.
 // In the reference's order of operations, so that a lit view writes its image to the last bit:
 // each direct light's irradiance (its colour already scaled by its intensity, lights.ts) weighs
@@ -90,6 +92,7 @@ CotangentFrame frame=cotangentFrame(N,dFdx(viewPosition),dFdy(viewPosition),dFdx
 float p=-projectionMatrix[2][3];vec3 V=normalize(vec3(0.0,0.0,1.0-p)-viewPosition*p);float ao=1.0;if((mapMask&16)!=0)ao=(texture(aoMap,mapUv(aoUv,sourceUv(extraChannels.x))).r-1.0)*aoStrength+1.0;
 vec3 rgb=lit?shade(N,V,base.rgb,metal,rough,ao):base.rgb*ao;
 if((mapMask&32)!=0)rgb+=emissiveFactor*texture(emissiveMap,mapUv(emissiveUv,sourceUv(extraChannels.y))).rgb;else rgb+=emissiveFactor;
+if(!fogFree)rgb=fogged(rgb);
 if(depthShaded)rgb=vec3(clamp(depthRamp.x*toEye.z+depthRamp.y,0.0,1.0));
 float alpha=base.a;if(transmissive){vec4 through=transmissionColor(rgb,base.rgb,alpha,N,V,viewPosition,rough,ao);rgb=through.rgb;alpha=through.a;}
 if(toneMapped)rgb=toneMap(rgb);if(srgbDestination)rgb=linearToSrgb(rgb);outColor=vec4(rgb,alpha);}`;
