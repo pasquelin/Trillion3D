@@ -6983,6 +6983,7 @@
       "sensor": "Si le corps ne fait que signaler les contacts.",
       "ccd": "Si la collision continue est active.",
       "decorative": "Si le corps est un débris décoratif.",
+      "damping": "La part de sa vitesse perdue d’elle-même chaque seconde, linéaire et angulaire (`dv/dt = −c·v`).",
       "velocity": "Vitesse linéaire, m/s, telle que l’a laissée le dernier pas ; écris-la pour lancer le corps.",
       "asleep": "Si le corps dort : au repos, et plus simulé jusqu’à ce que quelque chose le réveille.",
       "mass": "Masse en kilogrammes ; `undefined` prend la densité du matériau fois le volume.",
@@ -7017,7 +7018,8 @@
       "ccd": "Collision continue, pour les petits corps rapides qui traverseraient les parois minces.",
       "decorative": "Débris : ne rencontre que le monde statique, et n’est simulé qu’à portée et en vue. Plafonné par `budget.physics.decorative`.",
       "friction": "Remplace le frottement du matériau, 0 et plus.",
-      "restitution": "Remplace le rebond du matériau, de 0 à 1."
+      "restitution": "Remplace le rebond du matériau, de 0 à 1.",
+      "damping": "Combien de sa vitesse le corps perd de lui-même, par seconde, comme l’air et le roulement : `dv/dt = −c·v`, 0 et plus, linéaire et angulaire à part ; 0 garde tout. Posé à la création du corps : réaffecte `obj.physics` pour le changer."
     }
   },
   "PhysicsBudget": {

@@ -6983,6 +6983,7 @@
       "sensor": "Se o corpo só assinala contactos.",
       "ccd": "Se a colisão contínua está ligada.",
       "decorative": "Se o corpo é destroço decorativo.",
+      "damping": "A parte da sua velocidade perdida por si a cada segundo, linear e angular (`dv/dt = −c·v`).",
       "velocity": "Velocidade linear, m/s, como o último passo a deixou; escreve-a para lançar o corpo.",
       "asleep": "Se o corpo dorme: em repouso, e não simulado até algo o acordar.",
       "mass": "Massa em quilogramas; `undefined` usa a densidade do material vezes o volume.",
@@ -7017,7 +7018,8 @@
       "ccd": "Colisão contínua, para corpos pequenos e rápidos que atravessariam paredes finas.",
       "decorative": "Destroços: só encontra o mundo estático e só é simulado ao alcance e à vista. Limitado por `budget.physics.decorative`.",
       "friction": "Substitui o atrito do material, de 0 para cima.",
-      "restitution": "Substitui a restituição do material, de 0 a 1."
+      "restitution": "Substitui a restituição do material, de 0 a 1.",
+      "damping": "Quanto da sua velocidade o corpo perde por si, por segundo, como pelo ar e pela rolagem: `dv/dt = −c·v`, 0 ou mais, linear e angular à parte; 0 conserva tudo. Definido na criação: atribua `obj.physics` de novo para mudar."
     }
   },
   "PhysicsBudget": {
