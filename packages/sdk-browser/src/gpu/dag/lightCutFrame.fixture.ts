@@ -1,7 +1,7 @@
 // A light cut over a small catalogue, on a device whose copies run as they are encoded. The GPU side
 // is the shader's contract, run on the buffers the host wrote: a cut resets the list unless its
 // uniform says append, the first view to want a caster in the frame lists it and every view raises
-// its best request (`askedWord`), the frame's list then takes those best requests (`dagAskedBest`),
+// its best priority (`askedWord`), the frame's list then takes those best requests (`dagAskedBest`),
 // and a view whose caster is not resident draws coarser.
 import { fakeDevice, type FakeBuffer } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 import { sunRun } from '../../webgpu/shadow/runs.fixture.ts';
@@ -75,7 +75,8 @@ export function lightCutFrame() {
     const list = out();
     for (let s = 0; s < Math.min(list[OUT_COUNT], CASTERS); s++) {
       const at = SELECTION_HEADER_WORDS + s;
-      list[at] = best()[askedAt + requestPage(list[at])];
+      const page = requestPage(list[at]);
+      list[at] = packRequest(page, best()[askedAt + page] - 1);
     }
   };
   /** The GPU running the cut just encoded, over a view that wants each `[caster, priority]` of
@@ -89,12 +90,11 @@ export function lightCutFrame() {
     else list[OUT_COUNT] = list[OUT_FLAGS] = 0;
     for (const [caster, priority] of asks) {
       if (!resident.has(caster)) list[OUT_FLAGS] |= 1 << COARSER_VIEWS;
-      const word = packRequest(caster, priority),
-        before = words[askedAt + caster];
-      words[askedAt + caster] = Math.max(before, word);
+      const before = words[askedAt + caster];
+      words[askedAt + caster] = Math.max(before, priority + 1);
       if (before) continue;
       const slot = list[OUT_COUNT]++;
-      if (slot < CASTERS) list[SELECTION_HEADER_WORDS + slot] = word;
+      if (slot < CASTERS) list[SELECTION_HEADER_WORDS + slot] = packRequest(caster, priority);
       else list[OUT_FLAGS] |= LIST_FULL;
     }
     return viewFlags;
