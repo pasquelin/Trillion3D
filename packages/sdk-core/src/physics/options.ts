@@ -16,9 +16,8 @@ export type PhysicsShape =
    *  Its scale must be the same on all three axes. */
   | { type: 'compound'; parts: readonly PhysicsPart[] };
 
-/** An exact primitive: its sizes in the object's own frame. A cylinder's `radius` is its top's; a
- *  `radiusBottom` that differs tapers it, as `geometry.cylinder(radiusTop, radiusBottom, height)`
- *  draws one. */
+/** An exact primitive: its sizes in the object's own frame (a cylinder tapers from its top's
+ *  `radius` to a `radiusBottom` that differs, as `geometry.cylinder` draws one). */
 export type PhysicsPrimitive =
   | { type: 'box'; halfExtents: readonly [number, number, number] }
   | { type: 'sphere'; radius: number }
