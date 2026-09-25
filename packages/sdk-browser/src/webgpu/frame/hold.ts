@@ -165,7 +165,7 @@ export function holdWebgpuFrame(rt: WebgpuPagesRuntime, device: GPUDevice) {
   run.frame++;
   const start = performance.now();
   let presented = false;
-  // Nothing drawn yet, or targets not granted: nothing is shown, the canvas keeps its image.
+  // Nothing drawn yet, or targets not granted: nothing is shown.
   if (gpu.presenter && gpu.colorTexture && run.imageRevision > 0 && !frameTargetsAwaited(rt)) {
     const encoder = device.createCommandEncoder({ label: 'Trillion3D held frame' });
     gpu.presenter.present(encoder, gpu.colorTexture, gpu.targetSize[0], gpu.targetSize[1]);

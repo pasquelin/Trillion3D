@@ -27,8 +27,7 @@ export async function validationScope<T>(
   openScopes.set(shared, mine);
   if (before) await before;
   let built: { value: T } | { error: unknown }, popped: Promise<GPUError | null>;
-  // Released on every path, a throw of the device's own included: a scope never released would
-  // hold every later one of the device, in every session.
+  // Released on every path: a scope never released would hold every later one of the device.
   try {
     device.pushErrorScope(filter);
     try {
@@ -73,12 +72,8 @@ export async function deviceMade<R extends { destroy(): void }>(
   return undefined;
 }
 
-/** What the device is asked under `deviceMade` — a pool, the frame targets —: `settled` once it
- *  answered, and `done` then. */
-export interface DeviceGrant {
-  settled: boolean;
-  done: Promise<void>;
-}
+/** What the device is asked under `deviceMade` — a pool, the frame targets —, `settled` once done. */
+export type DeviceGrant = { settled: boolean; done: Promise<void> };
 
 /** `work` as a grant, `key` its record: settled once `work` is. */
 export function startGrant<K extends object>(work: Promise<void>, key = {} as K) {

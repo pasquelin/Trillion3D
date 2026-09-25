@@ -58,8 +58,10 @@ async function resized(
   await backend.flush();
   viewport[0] = viewport[1] = 48;
   const said = (phase: string) => events.filter((event) => event.phase === phase);
-  const alive = (label: string) =>
-    gpu.textures.filter((texture) => texture.label === label && !texture.destroyed);
+  const widths = (label: string) =>
+    gpu.textures
+      .filter((made) => made.label === label && !made.destroyed)
+      .map((made) => made.width);
   /** The frame drawn whole: both quad clusters, once its readback is in. */
   const complete = async () => {
     await backend.flush();
@@ -71,7 +73,7 @@ async function resized(
     fixture.geometry.dispose();
     fixture.material.dispose();
   };
-  return { gpu, backend, cam, said, alive, complete, dispose };
+  return { gpu, backend, cam, said, widths, complete, dispose };
 }
 
 test('a refused target grant holds the frame, then draws it complete', async () => {
@@ -93,11 +95,7 @@ test('a refused target grant holds the frame, then draws it complete', async () 
     s.backend.render(s.cam);
     assert.equal(s.backend.metrics().frameHeld, false);
     assert.ok(s.gpu.draws.length > draws, 'the frame is drawn');
-    assert.deepEqual(
-      s.alive(COLOR).map((texture) => texture.width),
-      [48],
-      'drawn into the granted targets, at the new size',
-    );
+    assert.deepEqual(s.widths(COLOR), [48], 'drawn into the granted targets, at the new size');
     await s.complete();
   } finally {
     s.dispose();
@@ -115,11 +113,7 @@ test('under pressure, Hi-Z goes first: the targets are granted without it, all o
     assert.equal(refused?.context.pool, 'frame-targets');
     assert.equal(refused?.context.dropped, 'hi-z');
     for (const label of [COLOR, 'Trillion3D opaque depth', 'Trillion3D HDR lighting'])
-      assert.deepEqual(
-        s.alive(label).map((texture) => texture.width),
-        [48],
-        `${label} is granted at the new size`,
-      );
+      assert.deepEqual(s.widths(label), [48], `${label} is granted at the new size`);
     assert.equal(s.said('frame-targets-refused').length, 0);
     // Its pass writes one target fewer: the visibility pipelines are made again for it.
     const targets = (
