@@ -82,9 +82,10 @@ pub(super) fn soft_record(
     if (rope && kept < 2) || (!rope && indices.is_empty()) {
         return Err(format!("A soft {} needs more vertices.", d.kind));
     }
-    let mut vertices: Vec<f32> = xyz
-        .chunks_exact(3)
-        .flat_map(|p| [p[0], p[1], p[2], 0.0])
+    let points: &[[f32; 3]] = xyz.as_chunks().0;
+    let mut vertices: Vec<f32> = points
+        .iter()
+        .flat_map(|&[x, y, z]| [x, y, z, 0.0])
         .collect();
     let measure = spread_mass(&mut vertices, &indices, scale)?;
     let density = if rope { LINEAR_DENSITY } else { AREAL_DENSITY };
