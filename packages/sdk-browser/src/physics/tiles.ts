@@ -169,7 +169,10 @@ export function createTileStreamer(
      *  given back, and is not made again until its model opens again; any other body is ignored. */
     refused(id: number) {
       const p = byIndex.get(id & BODY_INDEX);
-      if (p?.id !== id) return softs.refused(id);
+      if (p?.id !== id) {
+        softs.refused(id);
+        return;
+      }
       evict(p);
       const placed = models.get(p.model)!;
       placed.splice(placed.indexOf(p), 1);

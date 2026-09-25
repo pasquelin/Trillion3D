@@ -1,6 +1,7 @@
 import {
   CommandWriter,
   DEFAULT_PHYSICS_BUDGET,
+  JOLT_COMMIT,
   type PhysicsBudget,
   type PhysicsHost,
 } from '../../../sdk-core/src/physics/index.ts';
@@ -12,6 +13,21 @@ import { createTileStreamer } from './tiles.ts';
 /** Lets the fetches in flight land: `streamedModel`'s fetch answers in microtasks alone, so the
  *  next turn of the event loop comes once every answer has been read. */
 export const landed = () => new Promise(setImmediate);
+
+/** A two-triangle tile at `x` along its collider. */
+export const tile = (x = 0) => ({
+  ...{ url: `t${x}.bin`, sha256: 'a'.repeat(64), bytes: 1, triangles: 2 },
+  bounds: [x, 0, -1, x + 2, 1, 1],
+});
+/** Collider `collider` placed by its own node, ten metres apart, with the matter it declares. */
+export const place = (collider: number, matter = {}) => ({
+  ...{ node: collider, collider, position: [collider * 10, 0, 0] },
+  ...{ rotation: [0, 0, 0, 1], scale: [1, 1, 1], ...matter },
+});
+/** A `physics.json` of `colliders` placed by `instances`, and `softBodies`. */
+export const cooked = (colliders: object[], instances: object[], softBodies: object[] = []) => ({
+  ...{ formatVersion: 2, jolt: JOLT_COMMIT, colliders, instances, softBodies },
+});
 
 /** Answers every fetch from now on: `physics.json` with `file`, any other file with `bytes`;
  *  the names of the files fetched. */

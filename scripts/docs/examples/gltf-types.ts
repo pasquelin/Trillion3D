@@ -1,3 +1,5 @@
+import type { PhysicsOption } from '../../../packages/sdk-core/src/physics/options.ts';
+
 /** The glTF shapes the example recipe writes, and the material row its scenes list. */
 
 /** One material row, `[name, baseColor, metallic, roughness]`, as the example scenes list them;
@@ -72,5 +74,5 @@ export interface GltfNode {
   scale?: readonly number[];
   children?: number[];
   /** What the compiler reads beside the node: a soft body's `physics` options. */
-  extras?: { physics?: object };
+  extras?: { physics?: PhysicsOption };
 }

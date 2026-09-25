@@ -3,37 +3,25 @@ import assert from 'node:assert/strict';
 import {
   DEFAULT_PHYSICS_BUDGET,
   GENERATION_SHIFT,
-  JOLT_COMMIT,
+  type CookedSoftBody,
 } from '../../../sdk-core/src/physics/index.ts';
 import { Camera } from '../../../sdk-core/src/world/camera/camera.ts';
 import { Group } from '../../../sdk-core/src/world/object/object3d.ts';
 import { createPhysicsSession } from './session.ts';
-import { compiledModel, landed, streamedModel, stubFetch } from './tiles.fixture.ts';
+import {
+  compiledModel,
+  cooked,
+  landed,
+  place,
+  streamedModel,
+  stubFetch,
+  tile,
+} from './tiles.fixture.ts';
 import { fakeWorkers, idleTick } from './worker.fixture.ts';
 
 /** A `physics.json` of one two-triangle tile at the origin, placed once, and `softBodies`. */
-const cooked = (softBodies: object[] = []) => ({
-  formatVersion: 2,
-  jolt: JOLT_COMMIT,
-  colliders: [
-    {
-      kind: 'mesh',
-      tiles: [
-        {
-          url: 't.bin',
-          sha256: 'a'.repeat(64),
-          bytes: 1,
-          triangles: 2,
-          bounds: [0, 0, 0, 2, 1, 1],
-        },
-      ],
-    },
-  ],
-  instances: [
-    { node: 0, collider: 0, position: [0, 0, 0], rotation: [0, 0, 0, 1], scale: [1, 1, 1] },
-  ],
-  softBodies,
-});
+const oneTile = (softBodies: CookedSoftBody[] = []) =>
+  cooked([{ kind: 'mesh', tiles: [tile()] }], [place(0)], softBodies);
 
 /** Holds every fetch from now on; `answer(name)` lets the first one waiting for `name` through,
  *  if any, and waits for what it lands. */
@@ -50,7 +38,7 @@ function heldFetches() {
 }
 
 test('a model back while its physics.json or a tile is on its way holds one set of tile bodies', async () => {
-  const { tiles, scene, model, bodies } = await streamedModel(cooked(), new Uint8Array(1));
+  const { tiles, scene, model, bodies } = await streamedModel(oneTile(), new Uint8Array(1));
   const answer = heldFetches();
   const near = () => tiles.update([0, 0, 0], 1000);
   const back = () => {
@@ -65,10 +53,10 @@ test('a model back while its physics.json or a tile is on its way holds one set 
   back();
   await answer('physics.json');
   near();
-  await answer('t.bin');
+  await answer('t0.bin');
   await answer('physics.json');
   near();
-  await answer('t.bin');
+  await answer('t0.bin');
   assert.deepEqual(held(), [1, 2], 'the later opening’s tile alone');
   // A tile on its way while its model leaves and comes back, landing after the new opening.
   back();
@@ -76,16 +64,16 @@ test('a model back while its physics.json or a tile is on its way holds one set 
   near();
   back();
   await answer('physics.json');
-  await answer('t.bin');
+  await answer('t0.bin');
   near();
-  await answer('t.bin');
+  await answer('t0.bin');
   assert.deepEqual(held(), [1, 2], 'the new opening’s tile alone');
 });
 
 test('a cooked soft body and a tile the worker refuses give their slots and budget back', async () => {
   const { workers, restore } = fakeWorkers();
   try {
-    const cloth = {
+    const cloth: CookedSoftBody = {
       ...{ node: 1, position: [0, 2, 0], rotation: [0, 0, 0, 1], scale: [1, 1, 1] },
       ...{ physics: { type: 'cloth', pins: [0] }, vertices: 9, pressure: 0 },
       ...{
@@ -94,7 +82,7 @@ test('a cooked soft body and a tile the worker refuses give their slots and budg
         settings: { url: 'cloth.bin', sha256: 'c'.repeat(64), bytes: 1 },
       },
     };
-    const fetched = stubFetch(cooked([cloth]), new Uint8Array(1));
+    const fetched = stubFetch(oneTile([cloth]), new Uint8Array(1));
     const [scene, model] = [new Group(), compiledModel()];
     scene.add(model);
     const wanted = { joints: new Set<never>(), vehicles: new Set<never>() };
@@ -121,13 +109,10 @@ test('a cooked soft body and a tile the worker refuses give their slots and budg
     assert.deepEqual([session.objectOf(soft), session.objectOf(tile)], [null, null]);
     // Its model moved: nothing refused is carried, nor made again.
     const carried: number[] = [];
-    for (const op of ['teleport', 'flags'] as const) {
-      const write = session.writer[op].bind(session.writer) as (...a: unknown[]) => void;
-      session.writer[op] = ((slot: number, ...rest: unknown[]) => (
-        carried.push(slot),
-        write(slot, ...rest)
-      )) as never;
-    }
+    const { writer } = session;
+    const [teleport, flags] = [writer.teleport.bind(writer), writer.flags.bind(writer)];
+    writer.teleport = (slot, ...rest) => (carried.push(slot), teleport(slot, ...rest));
+    writer.flags = (slot, ...rest) => (carried.push(slot), flags(slot, ...rest));
     model.position.set(1, 0, 0);
     model.updateMatrixWorld(true);
     session.pose(model);
@@ -136,7 +121,7 @@ test('a cooked soft body and a tile the worker refuses give their slots and budg
     worker.onmessage({ data: idleTick });
     assert.deepEqual(carried, [], 'neither carried');
     assert.equal(session.stats.bodies, 0, 'nor made again');
-    assert.deepEqual(fetched.sort(), ['cloth.bin', 'physics.json', 't.bin']);
+    assert.deepEqual(fetched.sort(), ['cloth.bin', 'physics.json', 't0.bin']);
     session.dispose();
   } finally {
     restore();
