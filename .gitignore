@@ -36,3 +36,9 @@ tests/assets/
 # The open world's cook, written here before it moved to pasquelin/Trillion3D-openworld (#426):
 # a leftover copy (about 1 GB) must never be staged.
 site/assets/examples/openworld/
+# Written by `pnpm install` and `pnpm run generate:api` (#683): committed, they conflicted.
+site/content/reference/api.json
+site/data/api-inventory.json
+# Compiled from their sources by `pnpm run compile:caches`, the site deploy and the test runners.
+site/assets/**/cache/
+tests/fixtures/scenes/*/cache/
