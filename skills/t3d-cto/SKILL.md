@@ -12,8 +12,6 @@ below that says to tell him: never a running account of agent events.
 
 ## At start (each morning)
 
-0. **Access.** Request `<root>/.worktrees` with the directory tool (the session runs in
-   `.claude/worktrees/`, so its agents cannot write there otherwise).
 1. **State.** Read the pinned issue "Priorities" (`gh issue list --label priorities`), the open
    PRs, the open issues by domain with `measure ko` / `audit ko`, and the 🔴 critical ones.
 2. **Staff the company, as agents.** Start, with the Agent tool (`run_in_background: true`,
@@ -30,8 +28,9 @@ below that says to tell him: never a running account of agent events.
    - a priority orders the work (its lead starts first, before any other agent) and never leaves
      the other roles unstaffed.
 3. **Brief.** Every brief carries, in this order:
-   - the role and the repository root (the main checkout, never written to; worktrees in
-     `<root>/.worktrees/<branch>/`, then `pnpm install` there);
+   - the role, the repository root (the main checkout, never written to) and your session's
+     checkout: worktrees go in `<session checkout>/.worktrees/<branch>/`, the only place the app
+     lets agents edit, then `pnpm install` there;
    - what to read, and nothing more (`AGENTS.md` is already in its context): its skill (the
      Skill column of `docs/COMPANY.md`), its `docs/roles/` file, the Priorities issue;
    - the ordered list from the Priorities issue: what is in flight (its PRs by number), then its
