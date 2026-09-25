@@ -540,22 +540,27 @@ reopen.
 
 `world.guides` draws what a page shows _about_ its scene — an axis, a grid, a box, a measured
 segment, a light's cone — without adding it to the scene. A guide is not cut into pages: it is
-drawn by a small pass of its own after the image is composed, as quads of a fixed width in
-device pixels (the drawing buffer's, not CSS pixels), hidden by whatever stands in front of it (the scene's depth is read, never
-written). It never enters temporal accumulation, so it does not smear behind a moving camera
-nor shimmer on a still one.
+drawn by a small pass of its own after the image is composed, as quads of a fixed width in CSS
+pixels — `width × pixelRatio` of the drawing buffer's, as every line of the engine counts it, with
+the engine's own line corner (`lineClip`) — hidden by whatever stands in front of it (the scene's
+depth is read, never written). It never enters temporal accumulation, so it does not smear
+behind a moving camera nor shimmer on a still one.
 
 ```js
-const grid = world.guides.add(helper.grid(20, 20), { width: 1.5 }); // any helper, as it stands
+const grid = world.guides.add(helper.grid(20, 20), { width: 1.5 }); // any helper; it follows it
+const cone = world.guides.add(helper.spotLight(spot)); // follows the light, no update() needed
 const ruler = world.guides.lines({ positions: [0, 0, 0, 4, 0, 0], color: '#ffd24a', width: 3 });
 const marks = world.guides.points({ positions: [0, 0, 0, 4, 0, 0], color: '#ffd24a', size: 8 });
 ruler.setVisible(false); // kept, not drawn
-grid.setTransform(model.matrixWorld); // placed again, e.g. every frame to follow a node
+grid.setTransform(model.matrixWorld); // placed by the page: it stops following its node
 marks.remove();
 ```
 
 - `add(object, { width, size })` reads the line and point meshes of an object — every `helper`
-  builds them — in their material colours; triangles, like an arrow's head, are not guides.
+  builds them — in their material colours; triangles, like an arrow's head, are not guides. The
+  guide follows the object's world transform — for a light's or a camera's helper, that light's
+  or camera's — read at each image the world draws and moved only when it changed, so a page
+  never re-places it and a still view is still held. `setTransform` hands it back to the page.
   `lines` takes two ends per segment, `points` one position per dot.
 - Every call answers a handle: `setVisible(on)`, `setTransform(matrix)` (sixteen column-major
   numbers or a matrix), `remove()`. `world.guides.clear()` removes them all. Placing a guide

@@ -2215,7 +2215,7 @@
     "members": {
       "visible": "Si se dibuja; `setVisible` lo escribe.",
       "setVisible": "Lo muestra u oculta; sus vértices siguen contando contra el límite.",
-      "setTransform": "Lo coloca: dieciséis números por columnas, o una matriz — `node.matrixWorld` sigue a un nodo.",
+      "setTransform": "Lo coloca: dieciséis números por columnas, o una matriz; una guía que dibujó `add` deja entonces de seguir a su nodo.",
       "remove": "Lo saca del mundo y devuelve sus vértices; una segunda llamada no hace nada."
     }
   },
@@ -2224,7 +2224,7 @@
     "members": {
       "positions": "Dos extremos por segmento, tres números cada uno.",
       "color": "Su color; blanco por defecto.",
-      "width": "Ancho en pantalla, en píxeles."
+      "width": "Ancho en pantalla, en píxeles CSS, como toda línea del motor."
     }
   },
   "GuidePoints": {
@@ -2232,7 +2232,7 @@
     "members": {
       "positions": "Tres números por punto.",
       "color": "Su color; blanco por defecto.",
-      "size": "Lado de cada punto cuadrado en pantalla, en píxeles."
+      "size": "Lado de cada punto cuadrado en pantalla, en píxeles CSS."
     }
   },
   "Guides": {
@@ -2242,7 +2242,7 @@
       "vertexCount": "Vértices mantenidos ahora, dos por segmento y uno por punto, guías ocultas incluidas.",
       "lines": "Dibuja segmentos de línea, dos extremos cada uno; rechazado por encima del límite (`GUIDE_CEILING`).",
       "points": "Dibuja puntos cuadrados, una posición cada uno; rechazado por encima del límite (`GUIDE_CEILING`).",
-      "add": "Dibuja las mallas de líneas y puntos de `object` — cada `helper` las construye —, en los colores de sus materiales, colocadas donde el objeto está ahora; sus triángulos no son guías y se omiten.",
+      "add": "Dibuja las mallas de líneas y puntos de `object` — cada `helper` las construye —, en los colores de sus materiales; sus triángulos no son guías y se omiten. La guía sigue al objeto — para un ayudante de luz o de cámara, el nodo que muestra — y se mueve en cada imagen en que ese nodo se movió, nunca de otro modo.",
       "clear": "Quita todas las guías."
     }
   },

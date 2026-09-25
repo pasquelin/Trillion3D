@@ -2215,7 +2215,7 @@
     "members": {
       "visible": "Se viene disegnato; `setVisible` lo scrive.",
       "setVisible": "Lo mostra o lo nasconde; i suoi vertici contano ancora contro il limite.",
-      "setTransform": "Lo posiziona: sedici numeri per colonne, o una matrice — `node.matrixWorld` segue un nodo.",
+      "setTransform": "Lo posiziona: sedici numeri per colonne, o una matrice; una guida disegnata da `add` smette allora di seguire il suo nodo.",
       "remove": "Lo toglie dal mondo, restituendo i suoi vertici; una seconda chiamata non fa nulla."
     }
   },
@@ -2224,7 +2224,7 @@
     "members": {
       "positions": "Due estremi per segmento, tre numeri ciascuno.",
       "color": "Il loro colore; bianco per impostazione predefinita.",
-      "width": "Larghezza sullo schermo, in pixel."
+      "width": "Larghezza sullo schermo, in pixel CSS, come ogni linea del motore."
     }
   },
   "GuidePoints": {
@@ -2232,7 +2232,7 @@
     "members": {
       "positions": "Tre numeri per punto.",
       "color": "Il loro colore; bianco per impostazione predefinita.",
-      "size": "Lato di ogni punto quadrato sullo schermo, in pixel."
+      "size": "Lato di ogni punto quadrato sullo schermo, in pixel CSS."
     }
   },
   "Guides": {
@@ -2242,7 +2242,7 @@
       "vertexCount": "Vertici tenuti ora, due per segmento e uno per punto, guide nascoste comprese.",
       "lines": "Disegna segmenti, due estremi ciascuno; rifiutato sopra il limite (`GUIDE_CEILING`).",
       "points": "Disegna punti quadrati, una posizione ciascuno; rifiutato sopra il limite (`GUIDE_CEILING`).",
-      "add": "Disegna le mesh di linee e punti di `object` — ogni `helper` le costruisce —, nei colori dei loro materiali, poste dove l’oggetto si trova ora; i suoi triangoli non sono guide e vengono saltati.",
+      "add": "Disegna le mesh di linee e punti di `object` — ogni `helper` le costruisce —, nei colori dei loro materiali; i suoi triangoli non sono guide e vengono saltati. La guida segue l’oggetto — per un aiuto di luce o di camera, il nodo che mostra — spostata a ogni immagine in cui quel nodo si è mosso, mai altrimenti.",
       "clear": "Rimuove tutte le guide."
     }
   },
