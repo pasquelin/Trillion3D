@@ -142,6 +142,9 @@ export interface BackendContext {
   /** Summary suppresses per-frame trace records; trace is the default with an observer. */
   diagnosticDetail?: DiagnosticDetail;
   viewport?: [number, number];
+  /** Image pixels per CSS pixel, read each frame: the host's `pixelRatio`, which a resize may
+   *  change. A line's `linewidth` counts CSS pixels, as the reference's `LineMaterial` does. */
+  pixelRatio?: () => number;
   gpuDevice?: GPUDevice;
   gpuCanvas?: HTMLCanvasElement; // a host canvas dedicated to this WebGPU backend
   /** Engine-owned host context. WebGL backends may allocate resources on it but never replace it. */
