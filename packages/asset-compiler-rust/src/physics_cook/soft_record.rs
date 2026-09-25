@@ -68,6 +68,8 @@ pub(super) fn soft_record(
     }
     let all: Vec<u32>;
     let corners = match corners {
+        // A rope keeps no triangle.
+        _ if rope => &[],
         Some(corners) => corners,
         None => {
             all = (0..count as u32).collect();
@@ -75,7 +77,7 @@ pub(super) fn soft_record(
         }
     };
     let mut indices = Vec::new();
-    let triangles: &[[u32; 3]] = if rope { &[] } else { corners.as_chunks().0 };
+    let triangles: &[[u32; 3]] = corners.as_chunks().0;
     for t in triangles {
         let [a, b, c] = t.map(|corner| map.get(corner as usize).copied());
         let (Some(a), Some(b), Some(c)) = (a, b, c) else {

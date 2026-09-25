@@ -1,3 +1,4 @@
+import { EngineError } from '../../../sdk-core/src/contracts/cache.ts';
 import type {
   CookedInstance,
   CookedPhysics,
@@ -44,6 +45,14 @@ const place = new Matrix4(),
   turn = new Quaternion(),
   size = new Vector3(),
   bounds = new Box3();
+
+/** The bytes of a cooked object beside `model`'s manifest — a tile, a soft body's settings —
+ *  refused by `what` and its url when the fetch fails. */
+export async function cookedBytes(model: Model, url: string, what: string) {
+  const response = await fetch(new URL(url, model.record.base).href);
+  if (!response.ok) throw new EngineError('PHYSICS_FAILED', `${what} ${url}: ${response.status}.`);
+  return new Uint8Array(await response.arrayBuffer());
+}
 
 /** Each cooked tile of `cooked` placed by each instance of its collider in `model`, out. */
 export function placedOf(model: Model, cooked: CookedPhysics): Placed[] {

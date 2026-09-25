@@ -3,7 +3,7 @@
 //! writes them from the cook; `soft.test.ts` rebuilds each on the page and requires the same
 //! vertices, masses and corners bit for bit, and the same pressure.
 use super::soft_record::{soft_record, SoftDeclared, SoftRecord};
-use super::soft_tests::{cloth, declared};
+use super::soft_tests::{declared, golden_record};
 use super::tests::assert_golden;
 
 const RECORDS: &str = "../../tests/fixtures/physics/soft-records.bin";
@@ -25,7 +25,6 @@ fn record_bytes(r: &SoftRecord) -> Vec<u8> {
 // the golden records the page's test rebuilds with `softBodyOf`.
 #[test]
 fn the_cooks_soft_records_are_the_golden_ones_the_page_rebuilds() {
-    let (pos, triangles) = cloth();
     let seam = [0.0f32, 0., 0., 1., 0., 0., 1., 0., 0., 2., 0.5, 0.];
     let tetra = [0.0f32, 0., 0., 1., 0., 0., 0., 1., 0., 0., 0., 1.];
     let faces = [0u32, 2, 1, 0, 1, 3, 0, 3, 2, 1, 2, 3];
@@ -38,12 +37,7 @@ fn the_cooks_soft_records_are_the_golden_ones_the_page_rebuilds() {
         ..declared("volume", &[])
     };
     let records = [
-        soft_record(
-            &pos,
-            Some(&triangles),
-            [1.0; 3],
-            &declared("cloth", &[6.0, 8.0]),
-        ),
+        Ok(golden_record()),
         soft_record(&seam, None, [2.0, 1.0, 3.0], &rope),
         soft_record(&tetra, Some(&faces), [1.0; 3], &volume),
     ];

@@ -8,7 +8,7 @@
 use super::cut::store_shape;
 use super::declared::declared_matter;
 use super::soft_record::{soft_record, SoftDeclared};
-use super::stage::trs;
+use super::stage::{place, trs};
 use super::{soft_settings, PHYSICS_COOK_FAILED};
 use crate::compiler_accessor_create::accessor;
 use crate::compiler_validate::{item, required_index, values};
@@ -97,7 +97,8 @@ fn soft_body(
         .get("indices")
         .map(|id| accessor(g, bin, required_index(Some(id), "indices")?, None)?.collect_u32())
         .transpose()?;
-    let (t, q, s) = trs(matrix).ok_or_else(|| refuse("A soft body's node shears.".into()))?;
+    let placement = trs(matrix).ok_or_else(|| refuse("A soft body's node shears.".into()))?;
+    let s = placement.2;
     let record = soft_record(&pos, corners.as_deref(), s, &declared).map_err(refuse)?;
     let (stretch, bend) = (declared.stretch as f32, declared.bend as f32);
     let scale = s.map(|v| v as f32);
@@ -107,9 +108,7 @@ fn soft_body(
     entry["settings"] = store_shape(o, &bytes)?;
     entry["vertices"] = json!(record.vertices.len() / 4);
     entry["pressure"] = json!(record.pressure);
-    entry["position"] = json!(t);
-    entry["rotation"] = json!(q);
-    entry["scale"] = json!(s);
+    place(&mut entry, placement);
     Ok(entry)
 }
 

@@ -1,7 +1,7 @@
 //! Soft bodies cooked as the page builds them: their vertices weighed and pinned alike, their
 //! settings Jolt's own bytes (a golden file the physics module's tests restore), and a declaring
 //! node listed as a soft body in `physics.json`, never as static ground.
-use super::soft_record::{soft_record, SoftDeclared};
+use super::soft_record::{soft_record, SoftDeclared, SoftRecord};
 use super::soft_settings;
 use super::stage_physics;
 use super::tests::assert_golden;
@@ -22,15 +22,20 @@ pub(super) fn cloth() -> (Vec<f32>, Vec<u32>) {
     (pos.collect(), triangles.collect())
 }
 pub(super) fn declared(kind: &'static str, pins: &[f64]) -> SoftDeclared {
-    let (mass, stretch, bend, pressure) = (None, 0.0, 0.01, None);
     SoftDeclared {
         kind,
         pins: pins.to_vec(),
-        mass,
-        stretch,
-        bend,
-        pressure,
+        mass: None,
+        stretch: 0.0,
+        bend: 0.01,
+        pressure: None,
     }
+}
+/// The golden cloth's record, pinned at its top corners.
+pub(super) fn golden_record() -> SoftRecord {
+    let (pos, triangles) = cloth();
+    let cloth = declared("cloth", &[6.0, 8.0]);
+    soft_record(&pos, Some(&triangles), [1.0; 3], &cloth).unwrap()
 }
 
 // Behaviour: the cloth's vertices weigh the area each holds at 0.2 kg/m², its pins nothing, and
@@ -38,14 +43,7 @@ pub(super) fn declared(kind: &'static str, pins: &[f64]) -> SoftDeclared {
 // them).
 #[test]
 fn a_cloth_cooks_to_the_golden_settings() {
-    let (pos, triangles) = cloth();
-    let record = soft_record(
-        &pos,
-        Some(&triangles),
-        [1.0; 3],
-        &declared("cloth", &[6.0, 8.0]),
-    )
-    .unwrap();
+    let record = golden_record();
     let masses: Vec<f32> = record.vertices.iter().skip(3).step_by(4).copied().collect();
     let total: f32 = masses.iter().sum();
     assert!(

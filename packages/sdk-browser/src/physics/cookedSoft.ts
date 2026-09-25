@@ -8,7 +8,7 @@ import {
   type CookedSoftBody,
 } from '../../../sdk-core/src/physics/index.ts';
 import type { createPhysicsBodies } from './bodies.ts';
-import { tilePose, type Model } from './tilePlace.ts';
+import { cookedBytes, tilePose, type Model } from './tilePlace.ts';
 
 /** How far, relatively, a model's scale may stray from the one its soft bodies were cooked at. */
 const SCALE_TOLERANCE = 1e-4;
@@ -43,13 +43,7 @@ export function createCookedSoftBodies(
         `The soft body of node ${soft.node} was cooked at scale ${at.join(', ')}: its model is placed at another.`,
         { node: soft.node },
       );
-    const response = await fetch(new URL(soft.settings.url, model.record.base).href);
-    if (!response.ok)
-      throw new EngineError(
-        'PHYSICS_FAILED',
-        `Soft body settings ${soft.settings.url}: ${response.status}.`,
-      );
-    const cooked = new Uint8Array(await response.arrayBuffer());
+    const cooked = await cookedBytes(model, soft.settings.url, 'Soft body settings');
     // Forgotten, or opened again, meanwhile: this opening's bodies are no longer wanted.
     if (held.get(model) !== slots) return;
     // Posed again once fetched: the model may have moved meanwhile, and the pose is scratch.
@@ -84,11 +78,7 @@ export function createCookedSoftBodies(
       for (const soft of softBodies)
         add(model, slots, soft).catch((error) => failed(error as EngineError));
     },
-    /** A model left the scene: its soft bodies out. */
+    /** A model left the scene, or physics turned off: its soft bodies out. */
     forget,
-    /** Every soft body out (physics turned off). */
-    clear() {
-      for (const model of [...held.keys()]) forget(model);
-    },
   };
 }

@@ -155,17 +155,14 @@ pub(crate) fn soft_settings(
     bend: f32,
 ) -> Result<Vec<u8>> {
     let (mut out, mut bytes) = (std::ptr::null(), 0u32);
-    let count = (vertices.len() / 4) as u32;
     // SAFETY: every pointer names a live slice of the length passed with it, `scale` three floats.
     let status = unsafe {
-        let (v, s, c) = (vertices.as_ptr(), scale.as_ptr(), corners.as_ptr());
-        let corner_count = corners.len() as u32;
         cook_soft_body(
-            v,
-            count,
-            s,
-            c,
-            corner_count,
+            vertices.as_ptr(),
+            (vertices.len() / 4) as u32,
+            scale.as_ptr(),
+            corners.as_ptr(),
+            corners.len() as u32,
             stretch,
             bend,
             &mut out,
