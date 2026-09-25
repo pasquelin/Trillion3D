@@ -21,7 +21,7 @@ const KINDS: [&str; 3] = ["cloth", "rope", "volume"];
 
 /// The kind of soft body a node declares and its options; `None` when it declares a rigid body or
 /// nothing, and is then static ground.
-pub(super) fn declared_soft(node: &Value) -> Option<(&'static str, &Value)> {
+fn declared_soft(node: &Value) -> Option<(&'static str, &Value)> {
     let option = node.pointer("/extras/physics")?;
     let kind = option.get("type").and_then(Value::as_str)?;
     Some((KINDS.into_iter().find(|k| *k == kind)?, option))
@@ -114,19 +114,21 @@ fn soft_body(
 }
 
 /// The soft bodies the drawn nodes `chosen` declare, placed by their `world` matrices: their
-/// `physics.json` entries and the report's refusals (`node`, `reason`).
+/// `physics.json` entries, the report's refusals (`node`, `reason`), and every node declaring one,
+/// cooked or refused, which is no static ground.
 pub(super) fn soft_bodies(
     o: &Options,
     source: (&Value, &[u8]),
     chosen: &BTreeSet<usize>,
     world: &[Mat4],
-) -> Result<(Vec<Value>, Vec<Value>)> {
+) -> Result<(Vec<Value>, Vec<Value>, BTreeSet<usize>)> {
     let nodes = values(source.0, "nodes")?;
-    let (mut bodies, mut refused) = (Vec::new(), Vec::new());
+    let (mut bodies, mut refused, mut soft) = (Vec::new(), Vec::new(), BTreeSet::new());
     for &node in chosen {
         let Some(declared) = declared_soft(&nodes[node]) else {
             continue;
         };
+        soft.insert(node);
         match soft_body(o, source, &nodes[node], &world[node], declared) {
             Ok(mut entry) => {
                 entry["node"] = json!(node);
@@ -138,5 +140,5 @@ pub(super) fn soft_bodies(
             Err(e) => return Err(e),
         }
     }
-    Ok((bodies, refused))
+    Ok((bodies, refused, soft))
 }
