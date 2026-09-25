@@ -1,7 +1,7 @@
 /** Queries of one timestamp set: the most a WebGPU query set holds. */
 export const QUERY_SET_SIZE = 4096;
 /** A part's first query: its resolve lands at a 256-byte offset, 32 timestamps. */
-const PART_ALIGN = 32;
+export const PART_ALIGN = 32;
 
 export type TimingResources = { sets: GPUQuerySet[]; resolve: GPUBuffer; read: GPUBuffer };
 

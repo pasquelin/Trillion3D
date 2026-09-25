@@ -1,12 +1,8 @@
 import { MAX_SHADOW_PAGES as PAGES } from '../shadow/recordPack.ts';
 import { MAX_SHADOW_BATCHES as BATCHES, SHADOW_FLAG_FRAMES } from '../shadow/batchBudget.ts';
-import { COARSER_VIEWS, WORK_DROPPED } from './shader/viewsWgsl.ts';
+import { COARSER_VIEWS, LIST_FULL, WORK_DROPPED } from './shader/viewsWgsl.ts';
 import { OUT_FLAGS } from './layout.ts';
 import { createViewLimit } from './lightCutViewLimit.ts';
-
-/** Bit of the flag word set once the frame's request list is full (`shader/snapshotWgsl.ts`): the
- *  requests appended past it were never copied. */
-const LIST_FULL = 1;
 
 /**
  * WHICH PAGES A LIGHT CUT DREW SHORT, TO BE DRAWN AGAIN. Every batch that runs a cut copies its
@@ -49,7 +45,7 @@ export function createLightCutRedraws(
     ends: new Uint16Array(BATCHES),
     batches: 0,
     epoch: 0,
-    reported: true,
+    reported: false,
     reading: Promise.resolve(),
   }));
   type Slot = (typeof slots)[number];
@@ -103,16 +99,14 @@ export function createLightCutRedraws(
       });
   };
   return {
-    /** Copies a batch's flag word with its `count` drawn `pages`, drawn in the cut's `views` —
-     *  `reported` when the frame's requests will be copied too (`lightCutReports.ts`). The frame's
-     *  first batch returns the settlement to call once the command buffer is submitted, or
-     *  dropped; the others ride in its slot. */
+    /** Copies a batch's flag word with its `count` drawn `pages`, drawn in the cut's `views`. The
+     *  frame's first batch returns the settlement to call once the command buffer is submitted,
+     *  or dropped; the others ride in its slot. */
     encode(
       encoder: GPUCommandEncoder,
       pages: ArrayLike<number>,
       views: ArrayLike<number>,
       count: number,
-      reported: boolean,
     ) {
       if (!count) return undefined;
       let settlement: ((submitted: boolean) => void) | undefined;
@@ -123,7 +117,7 @@ export function createLightCutRedraws(
           free.busy = true;
           free.batches = 0;
           free.epoch = epoch;
-          free.reported = reported;
+          free.reported = false;
           settlement = settle(free);
         }
       }
@@ -141,6 +135,11 @@ export function createLightCutRedraws(
       encoder.copyBufferToBuffer(output, OUT_FLAGS * 4, slot.buffer, slot.batches * 4, 4);
       slot.batches++;
       return settlement;
+    },
+    /** Once the frame's batches are encoded: whether its requests were copied
+     *  (`lightCutReports.ts`). Until said, a frame's coarse pages count as not reported. */
+    reported(copied: boolean) {
+      if (open) open.reported = copied;
     },
     /** Residency the light cuts see changed: the drop is forgotten, and the pages that waited on
      *  it are drawn again once the camera rests (`rest`). */

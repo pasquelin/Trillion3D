@@ -16,7 +16,6 @@ export const PAGE_HIZ_OFFSETS = Array.from({ length: PAGE_HIZ_LEVELS }, (_, leve
   return offset;
 });
 export const PAGE_HIZ_WORDS = PAGE_HIZ_OFFSETS[PAGE_HIZ_LEVELS - 1] + 1;
-/** Words of one `Bounds` entry of the Hi-Z layout: its level-0 origin is its first two. */
 
 /**
  * THE DEPTH PYRAMIDS OF THE STATIC LAYER'S PAGES, built by the camera's own Hi-Z kernels
