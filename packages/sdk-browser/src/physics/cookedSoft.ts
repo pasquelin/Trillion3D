@@ -100,8 +100,8 @@ export function createCookedSoftBodies(
     moved(model: Model) {
       const opening = held.get(model);
       if (!opening) return;
-      // Back at its scale, a refused body is made again.
-      // Both lists compacted in place: a model moved every frame makes no new list.
+      // Back at its scale, a refused body is made again. Both lists are compacted in place: a
+      // model moved every frame makes no new list.
       const { refused, made } = opening;
       let waiting = 0;
       for (const soft of refused)
