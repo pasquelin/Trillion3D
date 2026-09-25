@@ -93,7 +93,7 @@ function main() {
   if (todo.length === 0) return;
   if (!existsSync(CLI)) throw new Error(`compiler CLI absent: ${CLI} — run \`pnpm run build\``);
   // The executable the CLI runs, by the CLI's own rule: absent or older than its sources, no job.
-  const compiler = requireNativeCompiler();
+  requireNativeCompiler();
   const budget = machineBudget();
   for (const scene of todo) {
     process.stdout.write(

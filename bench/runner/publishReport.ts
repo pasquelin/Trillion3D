@@ -25,10 +25,12 @@ export function publierRapport(source: string, dest: string): string {
   ].filter((p): p is string => Boolean(p)))
     if (!existsSync(join(source, path))) throw new Error(`Missing evidence: ${path}`);
   mkdirSync(reports, { recursive: true });
-  // The report modules beside the campaign are files: only a campaign is a folder.
-  for (const entry of readdirSync(reports, { withFileTypes: true }))
-    if (entry.isDirectory()) rmSync(join(reports, entry.name), { recursive: true });
   cpSync(source, folder, { recursive: true });
+  // Copied first, so a failed copy leaves the report before it. The report modules beside the
+  // campaign are files: only a campaign is a folder.
+  for (const entry of readdirSync(reports, { withFileTypes: true }))
+    if (entry.isDirectory() && entry.name !== report.id)
+      rmSync(join(reports, entry.name), { recursive: true });
   const date =
     report.runs
       .map((run) => run.startedAt)
