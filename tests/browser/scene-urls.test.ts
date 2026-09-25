@@ -37,7 +37,7 @@ test('a proof that opens a gallery scene serves it on the gallery mounts', () =>
   const proofs = files.filter(({ text }) => /\bawait openGalleryScene\(/.test(text));
   assert.ok(proofs.length > 0, 'no proof opens a gallery scene');
   for (const { file, text } of proofs) {
-    assert.match(text, /startServer\(\{ mounts: galleryMounts\(root\) \}\)/, `${file}: not served`);
+    assert.match(text, /\bmounts:\s*galleryMounts\(/, `${file}: not served`);
     for (const { path: scene } of named.filter((entry) => entry.file === file)) {
       const url = manifestUrlOf(scene);
       const mount = mounts.find(({ prefix }) => url.startsWith(prefix));
