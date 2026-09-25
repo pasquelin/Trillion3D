@@ -1,6 +1,7 @@
 import { DEFAULT_CACHED_PAGES, DEFAULT_PAGE_WORKERS } from '../../backend/common.ts';
 import { configurePageDecoders } from '../../page/decode/host.ts';
-import { createPageStreamer, type StreamPage } from '../../streaming/pages.ts';
+import type { StreamPage } from '../../streaming/pages.ts';
+import { createPageStreamerWith } from '../../streaming/pageStreamer.ts';
 import { loadClusterPages } from '../../cluster/pages.ts';
 import { createDiagnosticChannel } from '../../diagnostic/channel.ts';
 import type { RenderBackend, MeasuredWorldOptions } from '../../backend/types.ts';
@@ -42,7 +43,8 @@ export async function createExplorerPageSources(
       : Math.max(8192, Math.min(attachCap, DEFAULT_CACHED_PAGES)));
   // The decode pool never exceeds the already-in-force transfer admission.
   configurePageDecoders(options.pageFetchWorkers ?? DEFAULT_PAGE_WORKERS);
-  const streamer = createPageStreamer(
+  const streamer = createPageStreamerWith(
+    options.pageCache,
     [...pages, ...geometryPages, ...bundles, ...extra],
     base,
     signal,
@@ -55,7 +57,6 @@ export async function createExplorerPageSources(
     diagnosticChannel.detail === 'trace' && diagnosticChannel.enabled
       ? diagnosticChannel.emit
       : undefined,
-    options.pageCache,
   );
   let loaded = 0,
     pageBytesRead = 0;
