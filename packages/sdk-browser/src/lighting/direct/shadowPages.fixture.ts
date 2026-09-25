@@ -3,7 +3,7 @@
 // pins the WGSL lines restated here.
 import { SHADOW_PAGE } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { POISSON_16 } from './shadowWgsl.ts';
-import { compare, litOf, type Stored } from './shadowBias.fixture.ts';
+import { clamp, compare, litOf, type Stored } from './shadowBias.fixture.ts';
 
 type Pair = [number, number];
 
@@ -36,25 +36,20 @@ export function pagedPcf(
   const up = [0, 1].map((a) => t[a] - first[a] >= 0.5 * S),
     step = up.map((u) => (u ? 1 : -1)),
     seam = [0, 1].map((a) => first[a] + (up[a] ? S : 0));
-  /** `shadowNeighbour`: the neighbour's offset and whether it is readable. */
-  const neighbour = (p: Pair): [Pair, boolean] => {
-    const o = offsetOf(p);
-    return o ? [o, true] : [offset, false];
-  };
-  const none: [Pair, boolean] = [offset, false];
-  const nx = edge[0] ? neighbour([home[0] + step[0], home[1]]) : none,
-    ny = edge[1] ? neighbour([home[0], home[1] + step[1]]) : none,
-    nd = edge[0] && edge[1] ? neighbour([home[0] + step[0], home[1] + step[1]]) : none;
+  // `shadowNeighbour`: a neighbour's offset, undefined when it is not readable.
+  const nx = edge[0] ? offsetOf([home[0] + step[0], home[1]]) : undefined,
+    ny = edge[1] ? offsetOf([home[0], home[1] + step[1]]) : undefined,
+    nd = edge[0] && edge[1] ? offsetOf([home[0] + step[0], home[1] + step[1]]) : undefined;
   for (const tap of POISSON_16) {
     const at = [0, 1].map((a) => t[a] + tap[a]);
-    const h = at.map((v, a) => Math.min(Math.max(v, first[a] + 0.5), first[a] + S - 0.5));
+    const h = at.map((v, a) => clamp(v, first[a] + 0.5, first[a] + S - 0.5));
     const n = at.map((v, a) => (up[a] ? Math.max(v, seam[a] + 0.5) : Math.min(v, seam[a] - 0.5)));
-    const w = at.map((v, a) => Math.min(Math.max(0.5 + (seam[a] - v) * step[a], 0), 1));
+    const w = at.map((v, a) => clamp(0.5 + (seam[a] - v) * step[a], 0, 1));
     let sum = w[0] * w[1] * cmp(offset, h[0], h[1]);
-    if (edge[0]) sum += (1 - w[0]) * w[1] * cmp(nx[0], nx[1] ? n[0] : h[0], h[1]);
-    if (edge[1]) sum += w[0] * (1 - w[1]) * cmp(ny[0], h[0], ny[1] ? n[1] : h[1]);
+    if (edge[0]) sum += (1 - w[0]) * w[1] * cmp(nx ?? offset, nx ? n[0] : h[0], h[1]);
+    if (edge[1]) sum += w[0] * (1 - w[1]) * cmp(ny ?? offset, h[0], ny ? n[1] : h[1]);
     if (edge[0] && edge[1])
-      sum += (1 - w[0]) * (1 - w[1]) * cmp(nd[0], nd[1] ? n[0] : h[0], nd[1] ? n[1] : h[1]);
+      sum += (1 - w[0]) * (1 - w[1]) * cmp(nd ?? offset, nd ? n[0] : h[0], nd ? n[1] : h[1]);
     lit += sum;
   }
   return litOf(lit);

@@ -4,11 +4,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { SHADOW_PAGE } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
-import { directShadowWgsl } from './shadowWgsl.ts';
-import { pcf, pointLampOver } from './shadowBias.fixture.ts';
+import { SHADOW_WGSL, pcf, pointLampOver } from './shadowBias.fixture.ts';
 import { pagedPcf } from './shadowPages.fixture.ts';
 
-const WGSL = directShadowWgsl(8, null, 18);
 /** `shadowPcf`'s split of a tap along a page seam: what `pagedPcf` restates. */
 const SPLIT = [
   ' let edge=(t-1.5<first)|(t+1.5>=first+SHADOW_PAGE);',
@@ -23,13 +21,14 @@ const SPLIT = [
 ];
 
 test('the page split restated by the fixture is the shader’s', () => {
-  for (const line of SPLIT) assert.ok(WGSL.includes(line), line);
+  for (const line of SPLIT) assert.ok(SHADOW_WGSL.includes(line), line);
 });
 
 test('a filter across a page border reads the same depths as one inside a page', () => {
   // The home page and its eight neighbours, each placed anywhere in the pool.
   const S = SHADOW_PAGE,
-    places = new Map<string, [number, number]>();
+    pages = new Map<string, [number, number]>(),
+    anchors = new Map<string, [number, number]>();
   [
     [0, 0, 5, 2],
     [1, 0, 0, 7],
@@ -40,18 +39,18 @@ test('a filter across a page border reads the same depths as one inside a page',
     [-1, -1, 4, 4],
     [1, -1, 7, 7],
     [-1, 1, 0, 3],
-  ].forEach(([px, py, ax, ay]) => places.set(`${px},${py}`, [ax * S, ay * S]));
-  const placed = (px: number, py: number) => places.get(`${px},${py}`);
+  ].forEach(([px, py, ax, ay]) => {
+    pages.set(`${px},${py}`, [ax * S, ay * S]);
+    anchors.set(`${ax},${ay}`, [px, py]);
+  });
+  const placed = (px: number, py: number) => pages.get(`${px},${py}`);
   // A caster's edge across a corner of the home page, over a sloped receiver.
   const map = (x: number, y: number) => (0.37 * x + 0.61 * y < 125 ? 1 : 5 + 0.01 * x - 0.02 * y);
   const atlas = (x: number, y: number) => {
-    const at = [Math.floor(x / S) * S, Math.floor(y / S) * S];
-    for (const [key, [ax, ay]] of places)
-      if (ax === at[0] && ay === at[1]) {
-        const [px, py] = key.split(',').map(Number);
-        return map(px * S + x - ax, py * S + y - ay);
-      }
-    return -1e9;
+    const ax = Math.floor(x / S),
+      ay = Math.floor(y / S),
+      page = anchors.get(`${ax},${ay}`);
+    return page ? map((page[0] - ax) * S + x, (page[1] - ay) * S + y) : -1e9;
   };
   for (const reference of [3, 4.9])
     for (let i = 0; i < 40; i++)

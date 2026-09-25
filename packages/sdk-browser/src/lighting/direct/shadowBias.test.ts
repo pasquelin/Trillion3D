@@ -4,34 +4,18 @@
 // here, and the tests read a sun over profiles of faces through it.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { directShadowWgsl } from './shadowWgsl.ts';
-import { pointLampOver, sunOverProfile, type Face } from './shadowBias.fixture.ts';
+import {
+  RESTATED,
+  SHADOW_WGSL,
+  pointLampOver,
+  sunOverProfile,
+  type Face,
+} from './shadowBias.fixture.ts';
 
-const WGSL = directShadowWgsl(8, null, 18);
-/** What the fixture restates: the bias, and the sun's use of it. */
-const RESTATED = [
-  'fn shadowReceiverBias(texel:f32,slope:f32)->vec2f{',
-  ' return texel*vec2f(SHADOW_NORMAL_TEXELS,SHADOW_PCF_REACH*slope);',
-  ' let cosine=clamp(dot(N,-axis),1e-3,1.0);',
-  ' let slope=sqrt(1.0-cosine*cosine)/cosine;',
-  '  let bias=shadowReceiverBias(texel,slope);',
-  '  let Q=P+N*bias.x;',
-  '  let reference=1.0-(dot(Q,axis)-zNear)/depth+bias.y/depth;',
-  ' let texel0=2.0*info.y*radius/(f32(LAMP_PAGE_COUNT)*SHADOW_PAGE);',
-  '  let Q=P+N*texel*SHADOW_NORMAL_TEXELS;',
-  '  let face=select(0u,pointFaceOf(Q-light.positionRange.xyz),u32(info.x)==6u);',
-  '  let clip=m*vec4f(Q,1.0);',
-  '  let t=vec2f(ndc.x*0.5+0.5,0.5-ndc.y*0.5)*side;',
-  '  let along=clip.w/max(length(Q-light.positionRange.xyz),1e-6);',
-  '  let facing=(m*vec4f(N,0.0)).w;',
-  '  let slope=sqrt(max(1.0-facing*facing,0.0))*along*along/cosine;',
-  '  return shadowPcf(map,t,ndc.z+shadowReceiverBias(texel,slope).y*scale,home,word,side);',
-  '  if(side>0.0){at=clamp(at,vec2f(0.5),vec2f(side-0.5));}',
-];
 const ZENITHS = [0.3, Math.PI / 4, 1.1];
 
 test('the shadow read restated by the fixture is the shader’s', () => {
-  for (const line of RESTATED) assert.ok(WGSL.includes(line), line);
+  for (const line of RESTATED) assert.ok(SHADOW_WGSL.includes(line), line);
 });
 
 /** Lit fractions at `samples` points along face `index`, ends excluded. */
