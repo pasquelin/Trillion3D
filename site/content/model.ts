@@ -92,6 +92,7 @@ const SCENE_FAMILIES = [
   'geometry',
   'material',
   'light',
+  'effect',
   'camera',
   'object',
   'math',

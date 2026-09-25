@@ -49,7 +49,7 @@ function harness(options: { directGpu: boolean; counted?: number | null }) {
     profiler: { record: () => {} } as never,
     pageIdByUrl: new Map(),
     streamer: { stats: () => ({ resident: 0, evictions: 0 }) } as never,
-    compose: Object.assign(() => {}, { dispose() {} }),
+    compose: Object.assign(() => {}, { dispose() {}, effectBytes: () => 0 }),
   });
   return { render, metricsScratch };
 }

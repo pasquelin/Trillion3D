@@ -1,5 +1,4 @@
 import { LIGHT_KIND, SHADOW_CULL_FLOATS, writeFace } from '../../../../sdk-core/src/index.ts';
-import { viewKeyOf } from '../../../../sdk-core/src/scene/light-shadow/admit.ts';
 import { writeLampPage } from '../../../../sdk-core/src/scene/light-shadow/faces.ts';
 import { writeSunSquare } from '../../../../sdk-core/src/scene/light-shadow/sunFaces.ts';
 import {
@@ -17,8 +16,6 @@ const lampMatrices = new Float32Array(6 * 16),
 const slotOf = new Int32Array(64),
   pageXs = new Int32Array(MAX_SHADOW_PAGES),
   pageYs = new Int32Array(MAX_SHADOW_PAGES);
-/** One sort key per physical page, sized by the first pool it serves. */
-let keys = new Float64Array(0);
 
 /**
  * Every shadow light's record, the one the shading reads: a lamp's face matrices, a sun's frame,
@@ -50,9 +47,9 @@ export function writeShadowRecords(lights: WebgpuLightState) {
   return slotOf;
 }
 
-/** How each page of the frame is drawn (`DRAW_*`), in admission order: what `commit` records. */
+/** How each page of the batch is drawn (`DRAW_*`), in admission order: what `commit` records. */
 export const pageModes = new Uint8Array(MAX_SHADOW_PAGES);
-/** The run — the light cut's view — each page of the frame is drawn in, in admission order. */
+/** The run — the light cut's view — each page of the batch is drawn in, in admission order. */
 export const pageViews = new Uint8Array(MAX_SHADOW_PAGES);
 
 /** Composes page `page`'s projection and cull volume into region `region`'s slots. */
@@ -90,35 +87,46 @@ function composePage(lights: WebgpuLightState, slots: Int32Array, page: number, 
 }
 
 /**
- * The frame's pages, as the depth pass draws them: each page's regions (`regions.ts`) — its matrix,
- * its own projection, and cull volume, the physical page its viewport lands on —, and the runs its
- * light cuts select in, one per light view, the pages of a view contiguous. Returns the regions.
+ * Pages `[from, to)` of the frame's list — one batch (`admit.ts`, `batchEnd`) —, as the depth pass
+ * draws them: each page's regions (`regions.ts`) — its matrix, its own projection, and cull volume,
+ * the physical page its viewport lands on —, and the runs its light cuts select in, one per light
+ * view, the pages of a view contiguous, at the image's records (`shadowSlots`) and threshold
+ * (`shadowPixelError`). Returns the regions.
+ *
+ * The batch composed last is kept (`packedBatch`): the CPU cut composes every batch to select its
+ * casters, then the depth pass composes them again to draw, and a frame of one batch — the most a
+ * frame drew before #489 — finds it composed and composes it once, as it did.
  */
 export function writeShadowPages(
   lights: WebgpuLightState,
-  slots: Int32Array,
   origin: ArrayLike<number>,
-  pixelError: number,
+  from: number,
+  to: number,
 ) {
-  const { plan, shadows, cull, runs, regions, faceMatrices } = lights,
+  const { plan, shadows, cull, runs, regions, faceMatrices, packedBatch } = lights,
     { pool, admission } = plan;
-  if (keys.length < pool.pages) keys = new Float64Array(pool.pages);
+  if (
+    packedBatch.frame === lights.plannedFrame &&
+    packedBatch.from === from &&
+    packedBatch.to === to
+  )
+    return regions.count;
+  packedBatch.frame = -1;
   runs.reset();
   regions.reset();
   if (!shadows || !cull) return 0;
-  const count = admission.count,
-    list = admission.list;
-  for (let i = 0; i < count; i++) keys[list[i]] = viewKeyOf(pool, list[i]);
-  list.subarray(0, count).sort((a, b) => keys[a] - keys[b] || a - b);
+  const slots = lights.shadowSlots,
+    pixelError = lights.shadowPixelError;
+  const { list, keys } = admission;
   let open = -1;
-  for (let i = 0; i < count; i++) {
+  for (let i = from; i < to; i++) {
     const page = list[i],
       region = regions.count;
-    const fresh = open < 0 || keys[page] !== keys[list[open]];
+    const fresh = open < 0 || keys[i] !== keys[open];
     if (fresh && open >= 0) close(lights, slots, open, i, origin, pixelError);
     const { light, near } = composePage(lights, slots, page, region);
-    pageModes[i] = pool.drawMode(page, !!lights.staticLayer);
-    const taken = regions.push(page, pageModes[i], cull.volumes, cull.volumeWords);
+    const mode = (pageModes[i - from] = pool.drawMode(page, !!lights.staticLayer));
+    const taken = regions.push(page, mode, cull.volumes, cull.volumeWords);
     for (let k = 0; k < taken; k++) {
       if (k) faceMatrices.copyWithin((region + k) * 16, region * 16, region * 16 + 16);
       shadows.writePage(
@@ -134,17 +142,17 @@ export function writeShadowPages(
       runs.open(region, near);
       open = i;
     }
-    pageViews[i] = runs.count - 1;
+    pageViews[i - from] = runs.count - 1;
     runs.add(pool.x[page], pool.y[page], taken);
   }
-  if (open >= 0) close(lights, slots, open, count, origin, pixelError);
-  shadows.flushPages(regions.count);
-  lights.shadowFaces = runs.count;
-  lights.shadowsUpdated = plan.counts.lights;
+  if (open >= 0) close(lights, slots, open, to, origin, pixelError);
+  packedBatch.frame = lights.plannedFrame;
+  packedBatch.from = from;
+  packedBatch.to = to;
   return regions.count;
 }
 
-/** Closes the open run, pages `[from, to)` of the admission list: composes its window, then its
+/** Closes the open run, pages `[from, to)` of the frame's list: composes its window, then its
  *  selection. */
 function close(
   lights: WebgpuLightState,

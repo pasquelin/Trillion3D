@@ -1,5 +1,5 @@
 import { scene } from './cutDispatchesScene.ts';
-import { median } from '../../kit/median.ts';
+import { median } from '../../../scripts/median.ts';
 /**
  * Page side of the READOUT measurement: what a frame pays to bring the cut back, on the engine's
  * real cut (`createDagResources`, `encodeDagKernels`) and a real device.
