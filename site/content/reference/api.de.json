@@ -5483,7 +5483,8 @@
       "pinned": "Immer gehaltene Pakete.",
       "bundleBytes": "Angestrebte Größe eines Pakets.",
       "pages": "Wie viele Pakete.",
-      "maxDependencies": "Größte Zahl von Abhängigkeiten eines Pakets: die Grenze, die der Compiler veröffentlicht."
+      "maxDependencies": "Längste geschlossene Abhängigkeitsliste eines Bündels.",
+      "dependencyBound": "Höchstzahl der Bündel mit den Eltern der Cluster eines Bündels, vor dem Packen festgelegt."
     }
   },
   "SlimStructure": {
@@ -5630,7 +5631,8 @@
       "pinned": "Immer gehaltene Pakete.",
       "bundleBytes": "Angestrebte Größe eines Pakets.",
       "pages": "Jedes Paket.",
-      "maxDependencies": "Größte Zahl von Abhängigkeiten eines Pakets, wie der Compiler sie veröffentlicht hat."
+      "maxDependencies": "Längste geschlossene Abhängigkeitsliste eines Bündels, wie der Compiler sie veröffentlicht hat.",
+      "dependencyBound": "Höchstzahl der Bündel mit den Eltern der Cluster eines Bündels, vor dem Packen festgelegt."
     }
   },
   "StreamPage": {

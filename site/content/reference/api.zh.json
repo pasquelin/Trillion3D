@@ -3159,7 +3159,8 @@
       "pinned": "始终保留的资源包。",
       "bundleBytes": "目标资源包大小。",
       "pages": "资源包的数量。",
-      "maxDependencies": "一个包的最大依赖数：编译器公布的上限。"
+      "maxDependencies": "包最长的闭合依赖列表。",
+      "dependencyBound": "一个包中簇的父簇所在包的最大数量，在打包前确定。"
     }
   },
   "SlimStructure": {
@@ -3264,7 +3265,8 @@
       "pinned": "始终保留的资源包。",
       "bundleBytes": "目标资源包大小。",
       "pages": "全部资源包。",
-      "maxDependencies": "一个包的最大依赖数，与编译器公布的一致。"
+      "maxDependencies": "包最长的闭合依赖列表，与编译器发布的一致。",
+      "dependencyBound": "一个包中簇的父簇所在包的最大数量，在打包前确定。"
     }
   },
   "StreamPage": {

@@ -3159,7 +3159,8 @@
       "pinned": "Her zaman tutulan paketler.",
       "bundleBytes": "Hedef paket boyutu.",
       "pages": "Kaç paket.",
-      "maxDependencies": "Bir paketin en büyük bağımlılık sayısı: derleyicinin yayımladığı sınır."
+      "maxDependencies": "Bir paketin en uzun kapalı bağımlılık listesi.",
+      "dependencyBound": "Bir paketin kümelerinin ebeveynlerini tutan en fazla paket sayısı, paketlemeden önce sabitlenir."
     }
   },
   "SlimStructure": {
@@ -3264,7 +3265,8 @@
       "pinned": "Her zaman tutulan paketler.",
       "bundleBytes": "Hedef paket boyutu.",
       "pages": "Her paket.",
-      "maxDependencies": "Bir paketin en büyük bağımlılık sayısı, derleyicinin yayımladığı gibi."
+      "maxDependencies": "Bir paketin en uzun kapalı bağımlılık listesi, derleyicinin yayımladığı şekliyle.",
+      "dependencyBound": "Bir paketin kümelerinin ebeveynlerini tutan en fazla paket sayısı, paketlemeden önce sabitlenir."
     }
   },
   "StreamPage": {
