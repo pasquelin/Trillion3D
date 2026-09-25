@@ -16,8 +16,7 @@ export function refusing(
   const make = device[kind];
   device[kind] = function (this: unknown, descriptor: Made) {
     const made = make.call(this, descriptor);
-    if (descriptor.label?.includes(label))
-      answer((message) => gpu.raise(message), descriptor);
+    if (descriptor.label?.includes(label)) answer((message) => gpu.raise(message), descriptor);
     return made;
   };
   return gpu;

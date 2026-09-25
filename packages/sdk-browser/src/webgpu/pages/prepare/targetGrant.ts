@@ -128,7 +128,11 @@ async function grantTargets(
     return false;
   }
   const { allocation } = made;
-  diag.traceDiagnostic('targets-transition', 'GPU targets allocated after transition', () => allocation);
+  diag.traceDiagnostic(
+    'targets-transition',
+    'GPU targets allocated after transition',
+    () => allocation,
+  );
   diag.engineDiagnostic('frame-allocation', 'GPU targets allocated', allocation);
   run.gate.resourcesChanged();
   return true;

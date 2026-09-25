@@ -5,7 +5,7 @@ import {
   frameTargetBytes,
 } from '../../../scene/surfaceBuffer.ts';
 import { dropGpuHiz } from '../io/drops.ts';
-import { backdropBytes, createBackdrop, disposeBackdrop } from '../../transparent/transmission.ts';
+import { createBackdrop, disposeBackdrop } from '../../transparent/transmission.ts';
 import { ensureTaaTargets } from '../../../taa/prepare.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import { MATERIAL_DEPTH_FORMAT } from '../../../visibility/shader/materialClass.ts';
@@ -89,7 +89,11 @@ export function makeTargets(
   const target = (label: string, format: GPUTextureFormat, targetUsage = usage) =>
     device.createTexture({ label, size: { width, height }, format, usage: targetUsage });
   gpu.colorTexture = target('Trillion3D display color', 'rgba8unorm');
-  gpu.depthTexture = target('Trillion3D opaque depth', 'depth32float', usage | GPUTextureUsage.COPY_DST);
+  gpu.depthTexture = target(
+    'Trillion3D opaque depth',
+    'depth32float',
+    usage | GPUTextureUsage.COPY_DST,
+  );
   gpu.hdrTexture = target('Trillion3D HDR lighting', 'rgba16float');
   gpu.feedbackTexture = target(
     'Trillion3D texture feedback target',
