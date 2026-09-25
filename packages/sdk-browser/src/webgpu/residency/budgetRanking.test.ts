@@ -89,7 +89,7 @@ test('the prefix keeps whole coarse levels and cuts in the one that straddles', 
       cut.push(rec(key, levels[key], `p${i}`));
     }
     const room = Math.floor(next() * (count + 3));
-    const ranking = createBudgetRanking({ keyCount, bootstrapKey: cover, keyOf });
+    const ranking = createBudgetRanking({ bootstrapKey: cover, keyOf });
     for (const page of cut) ranking.add(page);
     check(ranking, cut, cover, room, `trial ${trial}`);
   }
@@ -106,7 +106,7 @@ test('a placement that leaves is subtracted, and the rank follows the cut that r
     rec(2, 2, 'coarse-a-again'),
     rec(4, 2, 'coarse-b'),
   ];
-  const ranking = createBudgetRanking({ keyCount: 6, bootstrapKey: cover, keyOf });
+  const ranking = createBudgetRanking({ bootstrapKey: cover, keyOf });
   for (const page of cut) ranking.add(page);
   // Four pages, not five placements: the two `coarse-a` records share one slot.
   assert.equal(ranking.rank(3), 4);
@@ -124,7 +124,7 @@ test('a placement that leaves is subtracted, and the rank follows the cut that r
 test('a ranking that nothing moves yields the same prefix twice', () => {
   const cover = new Uint8Array(8);
   const cut = [0, 1, 2, 3, 4, 5, 6, 7].map((key) => rec(key, key % 3, `p${key}`));
-  const ranking = createBudgetRanking({ keyCount: 8, bootstrapKey: cover, keyOf });
+  const ranking = createBudgetRanking({ bootstrapKey: cover, keyOf });
   for (const page of cut) ranking.add(page);
   ranking.rank(5);
   const premier = [...ranking.keys.subarray(0, ranking.length)],
@@ -142,7 +142,7 @@ test('a ranking that nothing moves yields the same prefix twice', () => {
 test('levels beyond the first band grow the counters without disturbing the rank', () => {
   const cover = new Uint8Array(3);
   const cut = [rec(0, 0, 'zero'), rec(1, 40, 'haut'), rec(2, 9, 'milieu')];
-  const ranking = createBudgetRanking({ keyCount: 3, bootstrapKey: cover, keyOf });
+  const ranking = createBudgetRanking({ bootstrapKey: cover, keyOf });
   for (const page of cut) ranking.add(page);
   check(ranking, cut, cover, 2, 'high levels');
   assert.deepEqual([...ranking.keys.subarray(0, ranking.length)], [1, 2]);

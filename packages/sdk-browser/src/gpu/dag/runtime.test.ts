@@ -31,7 +31,7 @@ const colonne = (cones: Float32Array, count: number) =>
  */
 function balayage(next: Uint32Array, bits: Uint32Array) {
   const touched = new Int32Array(Math.max(1, residentWords(next.length)));
-  const count = updateResidencyBits(next, bits, 0, undefined, touched);
+  const count = updateResidencyBits((j) => !!next[j], next.length, bits, 0, undefined, touched);
   for (let i = 1; i < count; i++)
     assert.ok(touched[i] > touched[i - 1], 'kept words are increasing and without repetition');
   return { changed: count > 0, count, touched: touched.slice(0, count) };
@@ -82,7 +82,7 @@ test('the sorted rank journal sets the same bits as the full sweep', () => {
   const pages = Int32Array.from({ length: count }, (_, j) => j).filter((j) => j % 7 === 0);
   const changes = { pages: Int32Array.from(pages), count: pages.length, sorted: true };
   const touched = new Int32Array(residentWords(count));
-  const retenus = updateResidencyBits(next, journal, 0, changes, touched);
+  const retenus = updateResidencyBits((j) => !!next[j], next.length, journal, 0, changes, touched);
   assert.equal(retenus, residentWords(count), 'one word kept per word the journal touches');
   balayage(next, balaye);
   assert.deepEqual([...journal], [...balaye]);
