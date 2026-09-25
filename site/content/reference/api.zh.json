@@ -2525,6 +2525,19 @@
       "workers": "同时获取并解码页面的工作线程数。"
     }
   },
+  "PageStreamerOptions": {
+    "summary": "页面流读取器的读取方式（`createPageStreamer`）。",
+    "description": "除页面外，其缓存还为清单表和传输队列预留空间；每个成员都有默认值。",
+    "members": {
+      "signal": "中止后取消所有读取。",
+      "workerCount": "同时进行的读取数；默认 8。",
+      "maxPages": "同时保留的最多页面数；缺省时只按字节限制。",
+      "onEvict": "接收每个离开缓存的页面。",
+      "maxTransferBytes": "传输队列可容纳的字节数；默认 8 MiB。",
+      "onDiagnostic": "接收每次读取的每一步。",
+      "maxCachedBytes": "缓存的 CPU 总量：页面、清单表和传输队列合计；默认 256 MiB。"
+    }
+  },
   "PanZoomCameraControls": {
     "summary": "平面平移缩放,平面视图:摄像机从不转动。",
     "description": "控制器创建时摄像机所朝的方向会一直保持不变,每个手势要么在摄像机所面对的平面内滑动视图,要么让它更靠近该平面——就像平面图、立面图或地图一样。任何拖动都会平移视图,滚轮和捏合手势在 `minDistance` 与 `maxDistance` 之间缩放,方向键则为没有指针设备的用户按固定步长平移视图。`rotateSpeed` 是从枢轴契约继承而来的,在这里不起任何作用:这里没有需要加速的旋转。`enablePan` 和 `enableZoom` 分别开关这里存在的两种手势。",
@@ -4773,7 +4786,17 @@
   },
   "createPageStreamer": {
     "summary": "有上限、有优先级且已去重的读取。",
-    "description": "一个仍在队列中等待的请求,一旦它最后一个消费者离开就会被丢弃;一个已经在传输中的请求则被允许最终进入缓存。缓存是一个同时受条目数和字节数限制的最近最少使用(LRU)集合;被固定的条目不会被淘汰,因此调用者只要保留它,就能保住当前正在显示的覆盖范围。"
+    "description": "一个仍在队列中等待的请求,一旦它最后一个消费者离开就会被丢弃;一个已经在传输中的请求则被允许最终进入缓存。缓存是一个同时受条目数和字节数限制的最近最少使用(LRU)集合;被固定的条目不会被淘汰,因此调用者只要保留它,就能保住当前正在显示的覆盖范围。",
+    "parameters": {
+      "options": "页面流读取器的读取方式（`createPageStreamer`）。除页面外，其缓存还为清单表和传输队列预留空间；每个成员都有默认值。",
+      "options.signal": "中止后取消所有读取。",
+      "options.workerCount": "同时进行的读取数；默认 8。",
+      "options.maxPages": "同时保留的最多页面数；缺省时只按字节限制。",
+      "options.onEvict": "接收每个离开缓存的页面。",
+      "options.maxTransferBytes": "传输队列可容纳的字节数；默认 8 MiB。",
+      "options.onDiagnostic": "接收每次读取的每一步。",
+      "options.maxCachedBytes": "缓存的 CPU 总量：页面、清单表和传输队列合计；默认 256 MiB。"
+    }
   },
   "createPathGovernor": {
     "summary": "一个调度器。"
