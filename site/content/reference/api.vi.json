@@ -3104,6 +3104,10 @@
   "Side": {
     "summary": "Mặt nào một vật liệu vẽ: `'front'`, `'back'` hoặc `'double'`."
   },
+  "SixDofAxis": {
+    "summary": "Các trục của khớp sáu bậc tự do: trượt dọc `x`, `y`, `z` và xoay quanh chúng.",
+    "description": "`x` nằm dọc `axis` của khớp, `y` gần hướng lên của thế giới nhất có thể mà vẫn vuông góc với nó."
+  },
   "Side-common": {
     "summary": "Mặt nào của một bề mặt được vẽ, enum riêng của bộ máy, được so sánh ở mọi nơi phía sau."
   },
@@ -7293,20 +7297,27 @@
     "description": "Khớp giữ chừng nào cả hai vật còn được mô phỏng, và cho đến khi nó gãy.",
     "parameters": {
       "options": "Những gì `joint.*` nhận. Điểm và trục nằm trong thế giới, được đọc khi khớp được tạo lần đầu.",
-      "options.anchor": "Nơi các vật nối với nhau: chốt của bản lề, viên bi của khớp điểm, đầu của khoảng cách trên `a`.",
-      "options.anchorB": "Đầu của khoảng cách trên `b`.",
-      "options.axis": "Chốt của bản lề, ray của khớp trượt, tâm của hình nón.",
-      "options.limits": "Bản lề, khớp trượt, khoảng cách và hình nón: nó di chuyển được bao xa. Khoảng cách mặc định giữ nguyên độ dài của nó.",
-      "options.spring": "Bản lề, khớp trượt và khoảng cách: vượt quá giới hạn, một lò xo kéo lại thay cho bức tường; `frequency` tính bằng Hz, `damping` từ 0 (không có) đến 1 (tới hạn).",
-      "options.motor": "Bản lề và khớp trượt: một động cơ, đổi được bất cứ lúc nào qua `joint.motor`.",
-      "options.breakForce": "Lực kéo tính bằng newton mà vượt quá thì khớp gãy; bỏ trống thì không bao giờ."
+      "options.anchor": "Nơi các vật nối với nhau: chốt của bản lề, viên bi của khớp điểm, đầu của khoảng cách hoặc dây ròng rọc trên `a`.",
+      "options.anchorB": "Đầu của khoảng cách hoặc dây ròng rọc trên `b`.",
+      "options.axis": "Chốt của bản lề, ray của khớp trượt, tâm của hình nón hoặc khớp lắc-xoắn, trục `x` của khớp sáu bậc tự do, chốt của bánh răng hoặc bánh răng nhỏ (`a`).",
+      "options.axisB": "Chốt của bánh răng trên `b`, ray của thanh răng (`b`).",
+      "options.limits": "Bản lề, khớp trượt, khoảng cách, hình nón, lắc-xoắn và ròng rọc: nó di chuyển được bao xa. Khoảng cách mặc định giữ nguyên độ dài; dây ròng rọc từ 0 đến độ dài của nó.",
+      "options.axes": "Các trục chuyển động của khớp sáu bậc tự do, tự do (`'free'`) hoặc trong giới hạn; các trục khác bị khóa.",
+      "options.spring": "Bản lề, khớp trượt, khoảng cách và sáu bậc tự do: vượt quá giới hạn, một lò xo kéo lại thay cho bức tường; `frequency` tính bằng Hz, `damping` từ 0 (không có) đến 1 (tới hạn).",
+      "options.motor": "Bản lề, khớp trượt, lắc-xoắn (độ xoắn của nó), sáu bậc tự do và đường ray: một động cơ, đổi được bất cứ lúc nào qua `joint.motor`.",
+      "options.path": "Đường ray của khớp đường: ít nhất hai điểm, của `b` (hoặc thế giới) như lúc tạo; `a` bắt đầu ở điểm của ray gần `anchor` nhất.",
+      "options.loop": "Đường ray khép kín thành vòng.",
+      "options.follow": "`a` của khớp đường xoay theo đường ray như một toa xe, thay vì tự do như một hạt cườm.",
+      "options.over": "Hai bánh xe của ròng rọc trong thế giới: dây của `a` đi lên bánh thứ nhất, dây của `b` lên bánh thứ hai.",
+      "options.ratio": "Với bánh răng, số vòng của `b` cho mỗi vòng của `a` (số răng của `a` chia số răng của `b`), quay ngược chiều; với bánh răng nhỏ, radian trên mỗi mét thanh răng, 1 / bán kính của nó; với ròng rọc, số mét dây của `b` cho mỗi mét dây của `a`.",
+      "options.breakForce": "Lực kéo tính bằng newton mà vượt quá thì khớp gãy (N·m mô-men giữa các răng của bánh răng hoặc thanh răng); bỏ trống thì không bao giờ."
     },
     "members": {
       "kind": "Khớp đó là loại gì.",
       "a": "Vật thứ nhất.",
       "b": "Vật thứ hai, hoặc `null` cho thế giới.",
       "options": "Những gì dùng để tạo ra nó.",
-      "motor": "Động cơ của bản lề hoặc khớp trượt; `null` để nó quay hoặc trượt tự do.",
+      "motor": "Động cơ của bản lề, khớp trượt, khớp lắc-xoắn, khớp sáu bậc tự do hoặc khớp đường; `null` để khớp chuyển động tự do.",
       "broken": "Nó đã gãy chưa: bị kéo vượt quá `breakForce`. Khớp đã gãy không giữ gì nữa.",
       "on": "Gọi `handler` khi khớp gãy."
     }
@@ -7315,31 +7326,40 @@
     "summary": "Các khớp nối giữa các vật, mỗi loại là một ràng buộc của chính Jolt."
   },
   "JointLimits": {
-    "summary": "Khớp được di chuyển bao xa: radian cho bản lề, mét cho khớp trượt hoặc khoảng cách, nửa góc hình nón (`max`) cho hình nón.",
+    "summary": "Khớp được di chuyển bao xa: radian cho bản lề hoặc phép xoay, mét cho khớp trượt, khoảng cách hoặc dây ròng rọc, nửa góc của hình nón (`max`) cho hình nón.",
     "members": {
-      "min": "Của bản lề từ −π đến 0, của khớp trượt 0 hoặc nhỏ hơn.",
-      "max": "Của bản lề từ 0 đến π, của khớp trượt 0 hoặc lớn hơn."
+      "min": "Của bản lề từ −π đến 0, của khớp trượt 0 hoặc nhỏ hơn; độ xoắn của khớp lắc-xoắn từ −π.",
+      "max": "Của bản lề từ 0 đến π, của khớp trượt 0 hoặc lớn hơn; độ xoắn của khớp lắc-xoắn đến π.",
+      "swing": "Hình nón của khớp lắc-xoắn: `axis` của nó lắc được bao xa, một nửa góc đến π."
     }
   },
   "JointMotor": {
-    "summary": "Động cơ của bản lề hoặc khớp trượt: đưa khớp tới một vận tốc hoặc một vị trí.",
+    "summary": "Động cơ của khớp: đưa khớp tới một vận tốc hoặc một vị trí.",
     "members": {
-      "mode": "`'velocity'`: rad/s hoặc m/s; `'position'`: radian hoặc mét tính từ chỗ khớp được tạo.",
+      "mode": "`'velocity'`: rad/s hoặc m/s; `'position'`: radian hoặc mét tính từ chỗ khớp được tạo — với đường ray, là điểm dọc theo nó (1.5: giữa điểm thứ hai và thứ ba).",
       "target": "Vận tốc hoặc vị trí cần đạt.",
-      "maxForce": "N·m cho bản lề, N cho khớp trượt; bỏ trống thì không giới hạn."
+      "maxForce": "N·m cho phép xoay, N cho phép trượt; bỏ trống thì không giới hạn.",
+      "axis": "Trục mà nó dẫn động, với khớp sáu bậc tự do."
     }
   },
   "JointOptions": {
     "summary": "Những gì `joint.*` nhận.",
     "description": "Điểm và trục nằm trong thế giới, được đọc khi khớp được tạo lần đầu.",
     "members": {
-      "anchor": "Nơi các vật nối với nhau: chốt của bản lề, viên bi của khớp điểm, đầu của khoảng cách trên `a`.",
-      "anchorB": "Đầu của khoảng cách trên `b`.",
-      "axis": "Chốt của bản lề, ray của khớp trượt, tâm của hình nón.",
-      "limits": "Bản lề, khớp trượt, khoảng cách và hình nón: nó di chuyển được bao xa. Khoảng cách mặc định giữ nguyên độ dài của nó.",
-      "spring": "Bản lề, khớp trượt và khoảng cách: vượt quá giới hạn, một lò xo kéo lại thay cho bức tường; `frequency` tính bằng Hz, `damping` từ 0 (không có) đến 1 (tới hạn).",
-      "motor": "Bản lề và khớp trượt: một động cơ, đổi được bất cứ lúc nào qua `joint.motor`.",
-      "breakForce": "Lực kéo tính bằng newton mà vượt quá thì khớp gãy; bỏ trống thì không bao giờ."
+      "anchor": "Nơi các vật nối với nhau: chốt của bản lề, viên bi của khớp điểm, đầu của khoảng cách hoặc dây ròng rọc trên `a`.",
+      "anchorB": "Đầu của khoảng cách hoặc dây ròng rọc trên `b`.",
+      "axis": "Chốt của bản lề, ray của khớp trượt, tâm của hình nón hoặc khớp lắc-xoắn, trục `x` của khớp sáu bậc tự do, chốt của bánh răng hoặc bánh răng nhỏ (`a`).",
+      "axisB": "Chốt của bánh răng trên `b`, ray của thanh răng (`b`).",
+      "limits": "Bản lề, khớp trượt, khoảng cách, hình nón, lắc-xoắn và ròng rọc: nó di chuyển được bao xa. Khoảng cách mặc định giữ nguyên độ dài; dây ròng rọc từ 0 đến độ dài của nó.",
+      "axes": "Các trục chuyển động của khớp sáu bậc tự do, tự do (`'free'`) hoặc trong giới hạn; các trục khác bị khóa.",
+      "spring": "Bản lề, khớp trượt, khoảng cách và sáu bậc tự do: vượt quá giới hạn, một lò xo kéo lại thay cho bức tường; `frequency` tính bằng Hz, `damping` từ 0 (không có) đến 1 (tới hạn).",
+      "motor": "Bản lề, khớp trượt, lắc-xoắn (độ xoắn của nó), sáu bậc tự do và đường ray: một động cơ, đổi được bất cứ lúc nào qua `joint.motor`.",
+      "path": "Đường ray của khớp đường: ít nhất hai điểm, của `b` (hoặc thế giới) như lúc tạo; `a` bắt đầu ở điểm của ray gần `anchor` nhất.",
+      "loop": "Đường ray khép kín thành vòng.",
+      "follow": "`a` của khớp đường xoay theo đường ray như một toa xe, thay vì tự do như một hạt cườm.",
+      "over": "Hai bánh xe của ròng rọc trong thế giới: dây của `a` đi lên bánh thứ nhất, dây của `b` lên bánh thứ hai.",
+      "ratio": "Với bánh răng, số vòng của `b` cho mỗi vòng của `a` (số răng của `a` chia số răng của `b`), quay ngược chiều; với bánh răng nhỏ, radian trên mỗi mét thanh răng, 1 / bán kính của nó; với ròng rọc, số mét dây của `b` cho mỗi mét dây của `a`.",
+      "breakForce": "Lực kéo tính bằng newton mà vượt quá thì khớp gãy (N·m mô-men giữa các răng của bánh răng hoặc thanh răng); bỏ trống thì không bao giờ."
     }
   },
   "joint": {
@@ -7350,7 +7370,13 @@
       "hinge": "Một chốt tại `anchor` dọc theo `axis`: cánh cửa, bánh xe. `limits` tính bằng radian.",
       "slider": "Một ray dọc theo `axis`: ngăn kéo, pít-tông. `limits` tính bằng mét.",
       "distance": "Giữ `anchor` trên `a` và `anchorB` trên `b` cách nhau đúng độ dài, hoặc trong `limits`.",
-      "cone": "Một khớp cầu có `axis` đung đưa trong hình nón nửa góc `limits.max`."
+      "cone": "Một khớp cầu có `axis` đung đưa trong hình nón nửa góc `limits.max`.",
+      "swingTwist": "Một khớp vai: `axis` lắc trong hình nón nửa góc `limits.swing` và xoắn quanh chính nó giữa `limits.min` và `max`; động cơ dẫn động phần xoắn.",
+      "sixDof": "Sáu trục, mỗi trục bị khóa, tự do hoặc có giới hạn (`axes`): mọi khớp nằm giữa các khớp khác.",
+      "path": "`a` chạy dọc một đường ray trơn đi qua `path`, gắn với `b` hoặc thế giới: một tàu lượn siêu tốc.",
+      "pulley": "Một sợi dây từ `a` vắt qua hai bánh xe (`over`) xuống `b`: vật này lên khi vật kia xuống.",
+      "gear": "Hai bánh xe quay cùng nhau theo `ratio`, mỗi bánh quanh chốt riêng (`axis`, `axisB`) và được giữ bởi bản lề riêng (bánh xe là `a` của nó); khi `ratio` hoặc 1 / `ratio` là số nguyên, răng của chúng cũng giữ pha lúc được tạo.",
+      "rackAndPinion": "Bánh răng nhỏ `a` quay quanh `axis` đẩy thanh răng `b` dọc `axisB`, mỗi cái được giữ bởi bản lề hoặc khớp trượt riêng (vật là `a` của nó), răng giữ đúng pha lúc được tạo."
     }
   }
 }

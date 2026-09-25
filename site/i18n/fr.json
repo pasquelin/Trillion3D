@@ -313,6 +313,7 @@
       "soft-bodies": "Corps mous",
       "rolling-on-terrain": "Rouler sur le relief",
       "hinges-and-joints": "Charnières et liaisons",
+      "gears-and-pulleys": "Engrenages et poulies",
       "walk-with-collisions": "Marcher avec collisions",
       "drive-a-car": "Conduire une voiture",
       "a-room-in-vr": "Une pièce en VR",
@@ -1079,7 +1080,8 @@
           "<code>anchor</code> est le point où les corps se relient et <code>axis</code> la direction de l’axe ou du rail, tous deux dans le monde, lus quand la liaison est créée.",
           "<code>limits</code> arrête la liaison : en radians pour une charnière, en mètres pour une glissière. Un <code>spring</code> rend la butée souple.",
           "Un <code>motor</code> entraîne une charnière ou une glissière vers une vitesse ou une position. Changez <code>joint.motor</code> quand vous voulez.",
-          "<code>breakForce</code> est la traction, en newtons, au-delà de laquelle la liaison rompt : <code>joint.broken</code> passe à vrai et <code>joint.on('break', …)</code> est appelé."
+          "<code>breakForce</code> est la traction, en newtons, au-delà de laquelle la liaison rompt : <code>joint.broken</code> passe à vrai et <code>joint.on('break', …)</code> est appelé.",
+          "Les liaisons avancées lient les mouvements : <code>joint.gear(a, b, { ratio })</code> fait tourner deux roues sur charnière comme un seul train, <code>joint.rackAndPinion</code> change une rotation en glissement, <code>joint.pulley(a, b, { over })</code> suspend deux charges à une même corde, <code>joint.path(a, b, { path })</code> garde un wagon sur sa voie, et <code>swingTwist</code> et <code>sixDof</code> font des épaules et des liaisons sur mesure."
         ],
         "tryIt": "Ouvrez la porte et le tiroir, puis lâchez la pierre sur le pont. Baissez la solidité du pont et reconstruisez-le : il cède sous son propre poids."
       },
