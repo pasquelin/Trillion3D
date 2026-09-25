@@ -10,8 +10,8 @@
 //! normal matches its own face (`attributes::own_normals`). The group's twins stand for each other
 //! through its own first copy, so a coarse page names only vertices its children draw.
 //!
-//! **Parts removed whole** cost their distance to the surface kept, and a reduction destroying one
-//! (`vanished.rs`) is refused: a coarse level never destroys a part, the group stays roots.
+//! **Parts removed whole** cost their own extent and their distance to the surface kept
+//! (`vanished.rs`): a part drops only at the level whose error covers it.
 //!
 //! **Added locks.** On foliage, a chart whose edge is shared with another group disappears when
 //! its free vertices collapse onto locked vertices, and the other group keeps its half (measured:
@@ -80,10 +80,10 @@ pub(super) fn reduce_group(
         Err(stop) => return stall(input, &live, children.len(), stop),
     };
     let kept = &chosen.simplified.indices;
-    let vanished = vanished::vanished(&live, kept, input.positions, input.weld, child_error);
-    let simplified = chosen.simplified.error_object.max(child_error);
-    let error = vanished.distance.max(simplified);
-    if !error.is_finite() || vanished.destroys {
+    let vanished =
+        vanished::vanished_error(&live, kept, input.positions, input.weld, input.extents);
+    let error = vanished.max(chosen.simplified.error_object.max(child_error));
+    if !error.is_finite() {
         return Ok(Err(diagnosis::outcome(
             StallCause::UnusableError,
             input,
