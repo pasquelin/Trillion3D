@@ -84,6 +84,11 @@ export function createTileSources(options: {
     scratches.set(id, (scratch = build(atlas, slot)));
     return scratch;
   };
+  const copyIntoPlaces = (atlas: WebgpuTileAtlas, slot: number, scratch: TileScratch) => {
+    const encoder = device.createCommandEncoder({ label: 'Trillion3D live texture' });
+    copyLiveTexture(encoder, atlas, slot, scratch.texture);
+    device.queue.submit([encoder.finish()]);
+  };
   const dropScratches = () => {
     for (const scratch of scratches.values()) scratch.destroy();
     scratches.clear();
@@ -165,9 +170,17 @@ export function createTileSources(options: {
         live.set(id, (scratch = build(atlas, slot)));
         liveBytes += scratch.bytes;
       }
-      const encoder = device.createCommandEncoder({ label: 'Trillion3D live texture' });
-      copyLiveTexture(encoder, atlas, slot, scratch.texture);
-      device.queue.submit([encoder.finish()]);
+      copyIntoPlaces(atlas, slot, scratch);
+      return true;
+    },
+    /** A host texture whose readers' coverage rule moved (#42): its mips reduced again, copied. */
+    reduce(atlas: WebgpuTileAtlas, slot: number) {
+      if (!pictureFits(atlas.textures[slot])) return false;
+      const kept = live.get(scratchId(atlas, slot)) ?? scratches.get(scratchId(atlas, slot)),
+        scratch = kept ?? build(atlas, slot);
+      kept?.reduce();
+      copyIntoPlaces(atlas, slot, scratch);
+      if (!kept) scratch.destroy();
       return true;
     },
     /** Bytes the live textures' working textures hold, mips included, beside the pool. */
