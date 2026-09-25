@@ -38,9 +38,9 @@ export function truthOf(
 ): { reading: TruthReading; images: { truth: string } } | undefined {
   if (fixture.truth === undefined || engine.length === 0) return; // no frame: `held` names it
   const surface = fixture.material(),
-    map = surface.map as G.GraphTexture,
-    canvas = map.image as HTMLCanvasElement;
+    map = surface.map as G.GraphTexture | null;
   if (
+    !map ||
     fixture.lit ||
     fixture.back ||
     surface.family !== 'basic' ||
@@ -55,6 +55,7 @@ export function truthOf(
         'repeated, bilinear map',
     );
   map.updateMatrix();
+  const canvas = map.image as HTMLCanvasElement;
   const truth = groundTruth({
     size: SIZE,
     camera,

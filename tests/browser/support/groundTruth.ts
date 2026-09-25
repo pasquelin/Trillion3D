@@ -169,7 +169,7 @@ export function groundTruth(view: TruthView, samples = SAMPLES): Truth {
         if (sum[3] >= view.alphaTest) colour = sum;
       }
       // Under the cutoff, or off the square: the square behind, or the clear colour.
-      colour ??= back?.(x, y, at, slope) ? behind : clear;
+      colour ??= (surface === 1 ? back?.(x, y, at, slope) : surface === 2) ? behind : clear;
       // A silhouette crossing the pixel changes the surface at one of its corners.
       for (const cx of [-1, 1])
         for (const cy of [-1, 1])
