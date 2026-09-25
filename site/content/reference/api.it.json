@@ -1184,7 +1184,7 @@
       "options.onEvict": "Riceve ogni pagina che lascia la cache.",
       "options.maxTransferBytes": "Byte che la coda di trasferimento può contenere; 8 MiB per impostazione predefinita.",
       "options.onDiagnostic": "Riceve ogni passo di ogni lettura.",
-      "options.maxCachedBytes": "Il totale CPU della cache: pagine, tabelle del manifesto e coda di trasferimento insieme; 256 MiB per impostazione predefinita."
+      "options.maxCachedBytes": "Byte di memoria CPU che le pagine della cache possono occupare, con tabelle del manifesto e coda di trasferimento riservate in più; 256 MiB per impostazione predefinita."
     }
   },
   "createPathGovernor": {
@@ -4645,7 +4645,7 @@
       "onEvict": "Riceve ogni pagina che lascia la cache.",
       "maxTransferBytes": "Byte che la coda di trasferimento può contenere; 8 MiB per impostazione predefinita.",
       "onDiagnostic": "Riceve ogni passo di ogni lettura.",
-      "maxCachedBytes": "Il totale CPU della cache: pagine, tabelle del manifesto e coda di trasferimento insieme; 256 MiB per impostazione predefinita."
+      "maxCachedBytes": "Byte di memoria CPU che le pagine della cache possono occupare, con tabelle del manifesto e coda di trasferimento riservate in più; 256 MiB per impostazione predefinita."
     }
   },
   "PanZoomCameraControls": {

@@ -2535,7 +2535,7 @@
       "onEvict": "캐시를 떠나는 각 페이지를 듣습니다.",
       "maxTransferBytes": "전송 대기열이 담을 수 있는 바이트. 기본값 8 MiB.",
       "onDiagnostic": "각 읽기의 각 단계를 듣습니다.",
-      "maxCachedBytes": "캐시의 CPU 총량: 페이지, 매니페스트 표, 전송 대기열을 합친 양. 기본값 256 MiB."
+      "maxCachedBytes": "캐시의 페이지가 차지할 수 있는 CPU 메모리 바이트. 매니페스트 표와 전송 대기열은 그 위에 따로 예약된다. 기본값 256 MiB."
     }
   },
   "PanZoomCameraControls": {
@@ -4795,7 +4795,7 @@
       "options.onEvict": "캐시를 떠나는 각 페이지를 듣습니다.",
       "options.maxTransferBytes": "전송 대기열이 담을 수 있는 바이트. 기본값 8 MiB.",
       "options.onDiagnostic": "각 읽기의 각 단계를 듣습니다.",
-      "options.maxCachedBytes": "캐시의 CPU 총량: 페이지, 매니페스트 표, 전송 대기열을 합친 양. 기본값 256 MiB."
+      "options.maxCachedBytes": "캐시의 페이지가 차지할 수 있는 CPU 메모리 바이트. 매니페스트 표와 전송 대기열은 그 위에 따로 예약된다. 기본값 256 MiB."
     }
   },
   "createPathGovernor": {

@@ -1184,7 +1184,7 @@
       "options.onEvict": "Entend chaque page qui quitte le cache.",
       "options.maxTransferBytes": "Octets que la file de transfert peut contenir ; 8 Mio par défaut.",
       "options.onDiagnostic": "Entend chaque étape de chaque lecture.",
-      "options.maxCachedBytes": "Le total CPU du cache : ses pages, ses tables de manifeste et sa file de transfert ensemble ; 256 Mio par défaut."
+      "options.maxCachedBytes": "Octets de mémoire CPU que les pages du cache peuvent tenir, ses tables de manifeste et sa file de transfert réservées en plus ; 256 Mio par défaut."
     }
   },
   "createPathGovernor": {
@@ -4653,7 +4653,7 @@
       "onEvict": "Entend chaque page qui quitte le cache.",
       "maxTransferBytes": "Octets que la file de transfert peut contenir ; 8 Mio par défaut.",
       "onDiagnostic": "Entend chaque étape de chaque lecture.",
-      "maxCachedBytes": "Le total CPU du cache : ses pages, ses tables de manifeste et sa file de transfert ensemble ; 256 Mio par défaut."
+      "maxCachedBytes": "Octets de mémoire CPU que les pages du cache peuvent tenir, ses tables de manifeste et sa file de transfert réservées en plus ; 256 Mio par défaut."
     }
   },
   "PanZoomCameraControls": {

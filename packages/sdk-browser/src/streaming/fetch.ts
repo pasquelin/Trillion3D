@@ -10,8 +10,7 @@ export function createStreamingFetcher(
   const loadOne = async (url: string, jobSignal: AbortSignal) => {
     const page = catalog.get(url);
     if (!page) throw new Error('Unknown page ' + url);
-    const combined = AbortSignal.any([abort.signal, jobSignal]),
-      address = new URL(url, base).href;
+    const combined = AbortSignal.any([abort.signal, jobSignal]);
     let cause: unknown;
     for (let attempt = 1; attempt <= 3; attempt++) {
       combined.throwIfAborted();
@@ -31,7 +30,7 @@ export function createStreamingFetcher(
           expectedBytes: page.bytes,
         }));
         // One request per attempt: this loop is the retry, and it says so page by page.
-        let buffer = await (await checked(address, combined, 1)).arrayBuffer();
+        let buffer = await (await checked(new URL(url, base).href, combined, 1)).arrayBuffer();
         // Size is taken before any verification: the buffer leaves transferred to the decode
         // worker, so the original reference is detached for the round trip.
         const byteLength = buffer.byteLength;

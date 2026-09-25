@@ -2535,7 +2535,7 @@
       "onEvict": "接收每个离开缓存的页面。",
       "maxTransferBytes": "传输队列可容纳的字节数；默认 8 MiB。",
       "onDiagnostic": "接收每次读取的每一步。",
-      "maxCachedBytes": "缓存的 CPU 总量：页面、清单表和传输队列合计；默认 256 MiB。"
+      "maxCachedBytes": "缓存页面可占用的 CPU 内存字节数，清单表和传输队列另行预留；默认 256 MiB。"
     }
   },
   "PanZoomCameraControls": {
@@ -4795,7 +4795,7 @@
       "options.onEvict": "接收每个离开缓存的页面。",
       "options.maxTransferBytes": "传输队列可容纳的字节数；默认 8 MiB。",
       "options.onDiagnostic": "接收每次读取的每一步。",
-      "options.maxCachedBytes": "缓存的 CPU 总量：页面、清单表和传输队列合计；默认 256 MiB。"
+      "options.maxCachedBytes": "缓存页面可占用的 CPU 内存字节数，清单表和传输队列另行预留；默认 256 MiB。"
     }
   },
   "createPathGovernor": {

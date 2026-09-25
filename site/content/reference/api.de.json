@@ -1184,7 +1184,7 @@
       "options.onEvict": "Hört jede Seite, die den Cache verlässt.",
       "options.maxTransferBytes": "Bytes, die die Übertragungswarteschlange halten darf; standardmäßig 8 MiB.",
       "options.onDiagnostic": "Hört jeden Schritt jedes Lesevorgangs.",
-      "options.maxCachedBytes": "Die CPU-Summe des Caches: seine Seiten, Manifest-Tabellen und Übertragungswarteschlange zusammen; standardmäßig 256 MiB."
+      "options.maxCachedBytes": "Bytes CPU-Speicher, die die Seiten des Caches halten dürfen; Manifest-Tabellen und Übertragungswarteschlange werden zusätzlich reserviert; standardmäßig 256 MiB."
     }
   },
   "createPathGovernor": {
@@ -4645,7 +4645,7 @@
       "onEvict": "Hört jede Seite, die den Cache verlässt.",
       "maxTransferBytes": "Bytes, die die Übertragungswarteschlange halten darf; standardmäßig 8 MiB.",
       "onDiagnostic": "Hört jeden Schritt jedes Lesevorgangs.",
-      "maxCachedBytes": "Die CPU-Summe des Caches: seine Seiten, Manifest-Tabellen und Übertragungswarteschlange zusammen; standardmäßig 256 MiB."
+      "maxCachedBytes": "Bytes CPU-Speicher, die die Seiten des Caches halten dürfen; Manifest-Tabellen und Übertragungswarteschlange werden zusätzlich reserviert; standardmäßig 256 MiB."
     }
   },
   "PanZoomCameraControls": {
