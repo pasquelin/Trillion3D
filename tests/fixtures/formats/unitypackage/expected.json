@@ -37,7 +37,7 @@
         "sha256": "8f2e840e969ddfdcb7c7db51d9580c60dae13f1ebaf2853d8faffd1657785696"
       }
     ],
-    "formatVersion": 5,
+    "formatVersion": 7,
     "manifestBinaryVersion": 8,
     "notes": [],
     "plugin": {
