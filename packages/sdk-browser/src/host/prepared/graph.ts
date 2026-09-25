@@ -17,7 +17,6 @@ import type { PreparedSceneTables } from '../../../../sdk-core/src/scene/core/ta
 import type { TableDocument } from '../../../../sdk-core/src/scene/core/tableDocuments.ts';
 import { camera, light, pose, uniqueNames, weigh } from './nodes.ts';
 import type { SurfaceVariant } from './materials.ts';
-import type { GraphGeometry } from '../graph/geometry.ts';
 import type { GraphSurface } from '../graph/surface.ts';
 import { GraphMesh } from '../graph/mesh.ts';
 import { isDrawnNode } from '../graph/kinds.ts';
@@ -26,6 +25,7 @@ import { type GraphCamera } from '../graph/camera.ts';
 import { type GraphLight } from '../graph/light.ts';
 import { placedMeshes } from './placed.ts';
 import type { RowLink } from '../../scene/partition/rows.ts';
+import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts';
 
 /** What the engine knows a drawn mesh by: its mesh and primitive ranks, and the rows placing it
  *  when a partition's cells do. */
@@ -34,7 +34,7 @@ type MeshRanks = RowLink;
 type Inputs = {
   tables: PreparedSceneTables;
   meshes: TableDocument['meshes'];
-  geometryOf: (mesh: number, primitive: number) => GraphGeometry;
+  geometryOf: (mesh: number, primitive: number) => Geometry;
   materialOf: (rank: number, variant: SurfaceVariant) => Promise<GraphSurface>;
 };
 

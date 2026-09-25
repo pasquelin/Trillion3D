@@ -8,7 +8,15 @@ Closes # <!-- or "Part of #n" when the pull request leaves part of the issue ope
 
 ## Local review before push
 
-<!-- Required, checked by the CI: what the simplification pass found and fixed, then what the
-     correctness pass found and fixed. -->
+<!-- Required, checked by the CI: one line per real skill, invoked through the Skill tool and
+     never imitated, with what it found and fixed, copied from its report. -->
+
+- `/simplify`:
+- `/code-review`:
+
+## Lead verification
+
+<!-- Written by the lead, before the merge, checked by the CI: one line per To do and Proof item,
+     "- <item>: delivered in <file:line>, proved by <test>" or "- <item>: not delivered, written on #<n>". -->
 
 ## Not proven / left out

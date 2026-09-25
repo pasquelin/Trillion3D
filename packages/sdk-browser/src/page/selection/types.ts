@@ -1,16 +1,12 @@
 import type { GeometryPageDescriptor } from '../../../../sdk-core/src/index.ts';
 import type { GraphMesh } from '../../host/graph/mesh.ts';
-import type {
-  HostAttributes,
-  HostGeometry,
-  HostMaterials,
-  HostMesh,
-} from '../../host/resources.ts';
+import type { HostAttributes, HostMaterials, HostMesh } from '../../host/resources.ts';
 import type { PageSurface } from '../surface.ts';
 import type { MatrixElements } from '../../math/matrixElements.ts';
 import type { NormalCone } from '../cone/cone.ts';
 import type { CullingLinks } from '../cut/links.ts';
 import type { PlacementOf } from '../../placement/rows.ts';
+import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts';
 
 export type PageRec = {
   id: number;
@@ -64,7 +60,7 @@ export type PageRec = {
   windingCw?: boolean;
   windingEpoch?: number;
   renderOrder: number;
-  geometry?: HostGeometry;
+  geometry?: Geometry;
   /** The mesh of the engine's own graph the WebGL2 page path draws the page as. */
   mesh?: GraphMesh;
   attached: boolean;
@@ -145,9 +141,10 @@ export type ClusterRoot<T> = {
   parked?: boolean;
   /** True while the host hides the source node or one of its ancestors (`placement/hidden.ts`). */
   hidden?: boolean;
-  /** True when its surface is never culled (`neverCulled`): no camera cut rejects its nodes or
-   *  pages, and the shadow scene box leaves it out. Set once at collection. */
-  unculled?: boolean;
+  /** Its surface's sprite mark (`spriteMark`), absent on any other surface: `SPRITE_ROOT` keeps it
+   *  out of every light cut and of the shadow scene box, `SPRITE_UNCULLED` opens it to every camera
+   *  cut. Set once at collection. */
+  sprite?: number;
   /** The instance-buffer row this root reads its world from, when it was collected from one. */
   placement?: PlacementOf;
 };

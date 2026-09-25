@@ -35,7 +35,7 @@ type Pose = (typeof POSES_PARENT)[number];
 const POSE = POSES_PARENT[2] as Pose; // moved AND rotated: neither translation nor rotation can be guessed.
 
 function pageTriangle(matrix: G.Matrix4): VisPage {
-  const geometrie = new G.GraphGeometry();
+  const geometrie = new G.Geometry();
   geometrie.setAttribute('position', G.floatAttribute([-1, -1, 0, 1, -1, 0, 0, 1, 0], 3));
   return {
     array: new Uint32Array([0, 1, 2]),

@@ -1,9 +1,9 @@
 import { GraphMesh } from '../../../packages/sdk-browser/src/host/graph/mesh.ts';
-import type { GraphGeometry } from '../../../packages/sdk-browser/src/host/graph/geometry.ts';
 import type { GraphScene } from '../../../packages/sdk-browser/src/host/graph/scene.ts';
 import type { GraphSurface } from '../../../packages/sdk-browser/src/host/graph/surface.ts';
 import { asHostLibrary } from '../../../packages/sdk-browser/src/host/resources.ts';
 import type { PageRec } from '../../../packages/sdk-browser/src/page/selection/selection.ts';
+import type { Geometry } from '../../../packages/sdk-core/src/world/geometry/geometry.ts';
 
 /**
  * `packages/sdk-browser/src/backend/autonomous/geometry.ts` before batch G: `attach` and `detach` held no set, and
@@ -31,7 +31,7 @@ export function referenceAutonomousSync({
     if (!rec.geometry) return;
     if (!rec.mesh) {
       const mesh = new GraphMesh(
-        asHostLibrary<GraphGeometry>(rec.geometry),
+        asHostLibrary<Geometry>(rec.geometry),
         asHostLibrary<GraphSurface>(rec.material),
       );
       mesh.matrixAutoUpdate = false;

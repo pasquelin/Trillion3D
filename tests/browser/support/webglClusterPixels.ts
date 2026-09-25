@@ -15,7 +15,7 @@ export function pixel(gl: WebGL2RenderingContext, x = 16, y = 16): number[] {
 
 /** A quad facing the camera at depth `z`, with the normal a lit surface needs. */
 export const quad = (z: number, half = 1) => {
-  const geometry = new G.GraphGeometry();
+  const geometry = new G.Geometry();
   geometry.setAttribute(
     'position',
     G.floatAttribute([-half, -half, z, half, -half, z, half, half, z, -half, half, z], 3),
@@ -28,7 +28,7 @@ export const quad = (z: number, half = 1) => {
 
 /** A batch record as the owner receives it: index ranges given in indices, held in bytes. */
 export const clusterRecord = (
-  geometry: G.GraphGeometry,
+  geometry: G.Geometry,
   material: G.GraphSurface | G.GraphSurface[],
   starts: number[] = [0],
   counts: number[] = [6],

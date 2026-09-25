@@ -118,7 +118,7 @@ export function manifesteEtScene({
       sourceIndex.set(bloc, at);
       at += bloc.length;
     }
-    const geometry = new G.GraphGeometry();
+    const geometry = new G.Geometry();
     geometry.setIndex(new G.BufferAttribute(sourceIndex, 1));
     geometry.setAttribute('position', new G.BufferAttribute(new Float32Array(sommet * 3), 3));
     const mesh = G.mesh(geometry, materiau(p));

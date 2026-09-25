@@ -16,7 +16,7 @@ const PAGES = 12000,
 
 /** Fields the row table never reads: shared across every fixture record. */
 const DUMMY_MATRIX = new G.Matrix4();
-const DUMMY_ATTRIBUTES: G.GraphGeometry['attributes'] = {};
+const DUMMY_ATTRIBUTES: G.Geometry['attributes'] = {};
 const DUMMY_BOUNDS: number[] = [0, 0, 0];
 
 const catalogue = (): PageRec[] => {

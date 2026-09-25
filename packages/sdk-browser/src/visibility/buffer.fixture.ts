@@ -13,8 +13,8 @@ export function camera() {
 export function quadPages(
   material: G.GraphSurface,
   uv?: number[],
-): { pages: VisPage[]; geometry: G.GraphGeometry } {
-  const geometry = new G.GraphGeometry();
+): { pages: VisPage[]; geometry: G.Geometry } {
+  const geometry = new G.Geometry();
   geometry.setAttribute('position', G.floatAttribute([-1, -1, 0, 1, -1, 0, 1, 1, 0, -1, 1, 0], 3));
   if (uv) geometry.setAttribute('uv', G.floatAttribute(uv, 2));
   geometry.setIndex(G.indices([0, 1, 2, 0, 2, 3]));

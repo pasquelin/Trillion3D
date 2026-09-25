@@ -14,6 +14,7 @@
 #include <Jolt/Physics/Constraints/PointConstraint.h>
 #include <Jolt/Physics/Constraints/SliderConstraint.h>
 
+#include <algorithm>
 #include <cmath>
 
 using namespace JPH;
@@ -40,13 +41,17 @@ struct Joint {
 };
 
 std::vector<Joint> joints;
-/** Each joint under its body ends (the world's none): what `link` and `dropJoints` walk. */
+/** Each joint under its body ends (the world's none), and every path and breakable joint: what
+ *  `link`, `dropJoints`, the step's path carry and its breaking walk. */
 JointIndex ends;
 /** This step's broken joints, by id. */
 std::vector<uint32_t> broken;
 /** The joints `link` has visited since the module started: a diagnostic, read by the tests only
  *  (`jolt_link_visits`), so its cost is counted, never timed. */
 uint32_t linkVisits = 0;
+/** The path joints the step's carry, and the joints its breaking, have visited since the module
+ *  started: diagnostics, read by the tests only (`jolt_path_visits`, `jolt_break_visits`). */
+uint32_t pathVisits = 0, breakVisits = 0;
 
 /// A body's frame from the words (`point, axis, normal` in its own frame), its point moved from
 /// the body's origin to its centre of mass (Jolt's `LocalToBodyCOM`); the world's frame as given.
@@ -192,11 +197,14 @@ void relinkGearsOn(const Joint &joint) {
     for (uint32_t i : ends.at(joint.a, kind)) link(joints[i]);
 }
 
-/// Files the joint at `index` under its body ends, or takes it out of them.
+/// Files the joint at `index` under its body ends, among the paths if it is one and among the
+/// breakable joints if a finite force breaks it; or takes it out.
 void file(uint32_t index, bool in) {
   const Joint &joint = joints[index];
   for (uint32_t slot : {joint.a, joint.b})
     if (slot != WORLD_BODY) in ? ends.add(slot, joint.kind, index) : ends.remove(slot, joint.kind, index);
+  if (joint.kind == PATH) ends.mark(JointIndex::PATHS, index, in);
+  if (joint.breakForce > 0 && std::isfinite(joint.breakForce)) ends.mark(JointIndex::BREAKABLE, index, in);
 }
 
 /// Takes out the joint at `index`, if any, and relinks the gears it held.
@@ -267,23 +275,29 @@ void dropJoints(uint32_t index) {
 }
 
 void notePaths() {
-  for (Joint &joint : joints)
-    if (joint.constraint && joint.kind == PATH) joint.along = pathFraction(joint.constraint);
+  for (uint32_t i : ends.every(JointIndex::PATHS)) joints[i].along = pathFraction(joints[i].constraint);
 }
 
 void carryPaths() {
-  for (Joint &joint : joints)
-    if (joint.constraint && joint.kind == PATH) carryAlongPath(joint.constraint, joint.along);
+  const std::vector<uint32_t> &paths = ends.every(JointIndex::PATHS);
+  pathVisits += uint32_t(paths.size());
+  for (uint32_t i : paths) carryAlongPath(joints[i].constraint, joints[i].along);
 }
 
 void breakJoints(float dt) {
   broken.clear();
   if (dt <= 0) return;
-  for (uint32_t i = 0; i < joints.size(); i++)
-    if (joints[i].constraint && joints[i].breakForce > 0 && pull(joints[i]) > joints[i].breakForce * dt) {
-      broken.push_back(joints[i].id);
-      take(i);
-    }
+  const std::vector<uint32_t> &breakable = ends.every(JointIndex::BREAKABLE);
+  breakVisits += uint32_t(breakable.size());
+  // Taking a joint out changes the list: the broken are found first, then taken in slot order.
+  std::vector<uint32_t> gone;
+  for (uint32_t i : breakable)
+    if (pull(joints[i]) > joints[i].breakForce * dt) gone.push_back(i);
+  std::sort(gone.begin(), gone.end());
+  for (uint32_t i : gone) {
+    broken.push_back(joints[i].id);
+    take(i);
+  }
 }
 
 }  // namespace trillion
@@ -295,5 +309,9 @@ uint32_t jolt_broken_count() { return uint32_t(trillion::broken.size()); }
 uint32_t jolt_broken(uint32_t i) { return trillion::broken[i]; }
 /// The joints the gear linking has visited since the module started: the tests' measure of its cost.
 uint32_t jolt_link_visits() { return trillion::linkVisits; }
+/// The path joints the step's carry has visited since the module started: the tests' measure of its cost.
+uint32_t jolt_path_visits() { return trillion::pathVisits; }
+/// The breakable joints the step's breaking has visited since the module started: likewise.
+uint32_t jolt_break_visits() { return trillion::breakVisits; }
 
 }  // extern "C"

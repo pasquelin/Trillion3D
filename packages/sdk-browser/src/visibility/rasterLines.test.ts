@@ -16,7 +16,7 @@ const VIEW: [number, number] = [96, 96];
 /** One segment from (−1, 0, 0) to (1, 0, 0) as `drawn.ts` quads it: every corner on an endpoint,
  *  its normal the signed direction; `dash`, a dashed line's, its distance along the line in `uv`. */
 function segment(lineWidth: number, dash?: { dashSize: number; gapSize: number }): VisPage {
-  const geometry = new G.GraphGeometry();
+  const geometry = new G.Geometry();
   geometry.setAttribute('position', G.floatAttribute([-1, 0, 0, -1, 0, 0, 1, 0, 0, 1, 0, 0], 3));
   geometry.setAttribute('normal', G.floatAttribute([1, 0, 0, -1, 0, 0, 1, 0, 0, -1, 0, 0], 3));
   if (dash) geometry.setAttribute('uv', G.floatAttribute([0, 0, 0, 0, 2, 0, 2, 0], 2));

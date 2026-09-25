@@ -5,10 +5,10 @@ import type { ClusterDrawMesh } from '../../../packages/sdk-browser/src/cluster/
 import type { HostDrawCamera } from '../../../packages/sdk-browser/src/camera/world.ts';
 
 /** A geometry factory as the transparency proof's fixtures build it. */
-type GeometryFactory = (reverseFirst?: boolean) => G.GraphGeometry;
+type GeometryFactory = (reverseFirst?: boolean) => G.Geometry;
 /** A batch record factory as `clusterRecord` builds it. */
 type MeshFactory = (
-  geometry: G.GraphGeometry,
+  geometry: G.Geometry,
   material: G.GraphSurface | G.GraphSurface[],
   starts?: number[],
   counts?: number[],

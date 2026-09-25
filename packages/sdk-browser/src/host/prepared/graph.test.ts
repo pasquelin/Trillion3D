@@ -6,11 +6,11 @@ import type {
 } from '../../../../sdk-core/src/scene/core/tableContracts.ts';
 import type { TableDocument } from '../../../../sdk-core/src/scene/core/tableDocuments.ts';
 import { BufferAttribute } from '../../../../sdk-core/src/world/buffer/attribute.ts';
-import { GraphGeometry } from '../graph/geometry.ts';
 import { GraphMesh } from '../graph/mesh.ts';
 import { GraphSurface } from '../graph/surface.ts';
 import { preparedGraph } from './graph.ts';
 import { visMaterial } from '../../visibility/shader/material.ts';
+import { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts';
 
 /** A scene of one node drawing one mesh of two primitives, with the morph weights it declares. */
 function oneNode(name: string, weights: number[] | null) {
@@ -39,7 +39,7 @@ function oneNode(name: string, weights: number[] | null) {
 test('weights a node declares reach every primitive of its mesh, the group holding them skipped', async () => {
   const { tables, meshes } = oneNode('morphed', [0.5]);
   const geometryOf = () => {
-    const geometry = new GraphGeometry();
+    const geometry = new Geometry();
     geometry.setAttribute('position', new BufferAttribute(new Float32Array(9), 3));
     geometry.morphAttributes.position = [new BufferAttribute(new Float32Array(9), 3)];
     return geometry;
@@ -57,7 +57,7 @@ test('weights a node declares reach every primitive of its mesh, the group holdi
 test('a primitive that carries COLOR_0 asks for the vertex-coloured variant of its surface', async () => {
   const { tables, meshes } = oneNode('painted', null);
   const geometryOf = (_rank: number, primitive: number) => {
-    const geometry = new GraphGeometry();
+    const geometry = new Geometry();
     geometry.setAttribute('position', new BufferAttribute(new Float32Array(9), 3));
     if (primitive === 0)
       geometry.setAttribute('color', new BufferAttribute(new Float32Array(12), 4));
