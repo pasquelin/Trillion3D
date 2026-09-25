@@ -1154,7 +1154,8 @@ rack, { axis, axisB, ratio })` slides the rack along `axisB` by `1 / ratio` metr
 - `scene.load` reads a versioned compiled manifest; non-triangle primitives, skinning, morph targets
   and non-standard glTF extensions are not drawn.
 - Specular environment-map IBL, area lights and screen-space reflections are not implemented; the
-  bounce lighting exists but is off by default ([ENGINE.md](ENGINE.md#light-that-bounces)).
+  bounce lighting exists but is off by default ([ENGINE.md](ENGINE.md#light-that-bounces)), and only
+  with it on does a surface at the roughness floor reflect the scene, at the proxy's detail.
 - Transparent surfaces are lit from the source file's own light graph with a fixed ambient, not yet
   by the declared-light rule above.
 - A lost device is reported, not recovered: full device-loss recovery and cross-API fallback are not
