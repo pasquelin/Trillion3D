@@ -12,8 +12,10 @@ export const SCENE_ROOTS = ['site/assets', 'tests/fixtures/scenes'] as const;
 export async function sceneCacheFiles(file: string): Promise<string[]> {
   const cwd = fileURLToPath(new URL('../../../', import.meta.url));
   const found: string[] = [];
-  const patterns = SCENE_ROOTS.map((folder) => `${folder}/**/cache/native/full/${file}`);
+  // `cache`, or `cache-<name>` for a second cook of the same source (`site-caches.ts`).
+  const patterns = SCENE_ROOTS.map((folder) => `${folder}/**/cache{,-*}/native/full/${file}`);
   for await (const path of glob(patterns, { cwd }))
-    if (existsSync(join(cwd, path.split('/cache/')[0], 'source'))) found.push(path);
+    if (existsSync(join(cwd, path.replace(/\/cache(-[^/]+)?\/native\/full\/.*$/, ''), 'source')))
+      found.push(path);
   return found;
 }
