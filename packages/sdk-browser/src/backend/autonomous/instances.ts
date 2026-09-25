@@ -12,7 +12,7 @@ import { surfaceOf } from '../../page/surface.ts';
 import type { PageRec, ClusterRoot } from '../../page/selection/selection.ts';
 import type { createAutonomousGeometry } from './geometry.ts';
 import { composedPose, deplaceInstance } from './instancePose.ts';
-import { attachedPages } from '../../placement/autonomousPlacements.ts';
+import { drawnInstanced } from '../../placement/autonomousPlacements.ts';
 
 type InstanceEnvironment = {
   roots: ClusterRoot<PageRec>[];
@@ -58,6 +58,11 @@ export function createAutonomousInstances(env: InstanceEnvironment) {
     { roots: ClusterRoot<PageRec>[]; pages: PageRec[]; bases: PageRec[]; bootstrap: PageRec[] }
   >();
   const { removeRecords, sync, colorMaterials } = geometryStore;
+  // The meshes an instance adds to the cover: one per record drawn on its own. Its rowed records
+  // join the model's own instanced meshes (`attachedPages`), which the cover already counts.
+  let ownMeshes = 0;
+  if (hostCeiling < Infinity)
+    for (const rec of baseBootstrap) if (!drawnInstanced(rec)) ownMeshes++;
   /** The material this engine built from the contract for a primitive, and therefore frees
    *  itself: one entry per repainted primitive, replaced — not stacked — by the next paint. */
   const owned = new Map<string, HostMaterial>();
@@ -81,7 +86,7 @@ export function createAutonomousInstances(env: InstanceEnvironment) {
       sceneChanged();
       if (instances.has(id) || !id) throw new Error('AUTONOMOUS_INSTANCE_ID');
       // Without a host ceiling the cover is always drawn: nothing is counted.
-      if (hostCeiling < Infinity && coverMeshes() + attachedPages(baseBootstrap) > hostCeiling)
+      if (hostCeiling < Infinity && coverMeshes() + ownMeshes > hostCeiling)
         throw new Error('AUTONOMOUS_ROOT_BUDGET');
       const mapped = new Map<PageRec, PageRec>();
       for (const base of basePages) {
