@@ -1,3 +1,5 @@
+import type { PhysicsResults } from './protocol.ts';
+
 /** A physics worker faked in place of `Worker`: it keeps the command words the page sends it. */
 interface FakeWorker {
   onmessage(event: { data: unknown }): void;
@@ -25,3 +27,10 @@ export function fakeWorkers() {
 /** The session's code, fetched on the first use (`worldPhysics.ts`), has been loaded. */
 export const loaded = () =>
   import('./session.ts').then(() => new Promise((done) => setTimeout(done, 0)));
+
+/** A tick from the worker that moves nothing; a test spreads what it sends over it. */
+export const idleTick: PhysicsResults = {
+  ...{ type: 'results', buffer: new ArrayBuffer(0), poses: 0, events: 0, dropped: 0, steps: 0 },
+  ...{ seconds: 0, water: 0, waterEpoch: 0, stepMs: 0, stepMaxMs: 0, active: 0 },
+  ...{ character: null, vehicles: null, soft: null },
+};
