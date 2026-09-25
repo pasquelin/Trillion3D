@@ -34,7 +34,6 @@ export const peekOnly = (peek: () => GpuCut | null) => ({ peek }) as unknown as 
 export const fixtureTotals = (totals: Partial<GpuCut['result']> = {}) => ({
   selectedTriangles: 0,
   drawnTriangles: 0,
-  uncoveredTriangles: 0,
   transparentTriangles: 0,
   ...totals,
 });

@@ -12,6 +12,8 @@ import type { ExplorerSession } from './session.ts';
  * `'host'` asks the LOADER for the source images — for a backend that draws the host scene — and
  * that is all it asks: the engine still reads the levels.
  */
+/** What the session reserved in the page cache for the engines' host tables, call by call. */
+const reserved: number[] = [];
 const metadata = (textures?: { url: string }) =>
   ({ primitives: [], textures }) as unknown as ClusterManifest;
 
@@ -44,7 +46,11 @@ async function run(
     textureIndices: new Map(),
     pageSources: {
       indices: new Map<string, Uint32Array>(),
-      streamer: { read: async () => undefined, readBytes: async () => undefined },
+      streamer: {
+        read: async () => undefined,
+        readBytes: async () => undefined,
+        reserve: (bytes: number) => reserved.push(bytes),
+      },
       attachCap: 1,
       cacheCap: 1,
       preload: 'visible',
@@ -83,6 +89,13 @@ test('the baked-level reader follows the cache, not the texture-source option', 
 test('a cache that bakes no texture chain hands no reader over', async () => {
   const context = await run({ textureSource: 'cache' }, undefined);
   assert.equal(context.readTextureLevel, undefined);
+});
+
+test("the engines' host tables are reserved in the page cache once they are prepared", async () => {
+  await run({}, undefined, { hostTableBytes: () => 1234 });
+  assert.equal(reserved.at(-1), 1234);
+  await run({});
+  assert.equal(reserved.at(-1), 0, 'an engine without scene-sized tables reserves nothing');
 });
 
 test('an abort is a cancellation only when the session or the backend asked it; otherwise the WebGPU path falls back', async () => {
