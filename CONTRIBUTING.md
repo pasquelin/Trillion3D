@@ -14,6 +14,10 @@
   antialiasing and the memory budgets are the foundation; the lighting is what they are for. It is
   reached by stages, each measured, and the strategy lives in `docs/ENGINE.md` § "Lighting: the target and the stages".
   A stage that is out of order is not out of scope.
+- **The bar, in this order: a perfect image, then a frame that never drops below 60 fps.** The
+  same engine runs on the web and in a native application, with the same image in both. A frame
+  holds 60 fps at the least and never needs more than 120; an open world opens and is crossed
+  without a hitch, a pop or a hole. A change that lowers the image or the frame rate is refused.
 - **Never copy another engine's code, shaders or assets into this repository.** Not one line, ever.
   Commercial engines are not open source and their sources are licence-covered; reimplement from
   public material only — papers, talks, documentation, observed behaviour. Third-party engines and

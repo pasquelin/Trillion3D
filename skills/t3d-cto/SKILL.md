@@ -12,6 +12,8 @@ below that says to tell him: never a running account of agent events.
 
 ## At start (each morning)
 
+0. **Access.** Request `<root>/.worktrees` with the directory tool (the session runs in
+   `.claude/worktrees/`, so its agents cannot write there otherwise).
 1. **State.** Read the pinned issue "Priorities" (`gh issue list --label priorities`), the open
    PRs, the open issues by domain with `measure ko` / `audit ko`, and the 🔴 critical ones.
 2. **Staff the company, as agents.** Start, with the Agent tool (`run_in_background: true`,
