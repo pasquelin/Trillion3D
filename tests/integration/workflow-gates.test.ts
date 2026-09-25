@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { cpSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { cpSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -79,29 +79,37 @@ test('the tool-installed hook of the same name still runs behind core.hooksPath'
   assert.equal(execFileSync('cat', [join(work, 'local.log')], { encoding: 'utf8' }), 'ran\n');
 });
 
-const checkBody = (body: string) =>
+const checkBody = (body: string, draft = '') =>
   spawnSync(new URL('scripts/check-pr-body.sh', repo).pathname, [], {
     input: body,
     encoding: 'utf8',
+    env: { ...process.env, PR_DRAFT: draft },
   });
-const template = () =>
-  execFileSync('cat', [new URL('.github/PULL_REQUEST_TEMPLATE.md', repo).pathname], {
-    encoding: 'utf8',
-  });
-
-test('check-pr-body: the untouched template is refused, a filled one accepted', () => {
-  assert.match(checkBody(template()).stderr, /must start with "Closes #<issue>"/);
-  const linked = template().replace('Closes #', 'Closes #65');
-  assert.match(checkBody(linked).stderr, /"Lead verification" is missing or empty/);
-  const verified = linked.replace(
-    '## Not proven',
-    '- Item: delivered in a.ts:1, proved by a test\n\n## Not proven',
-  );
-  assert.match(checkBody(verified).stderr, /no "\/simplify:" line/);
-  const filled = verified
+const template = readFileSync(new URL('.github/PULL_REQUEST_TEMPLATE.md', repo), 'utf8');
+const linked = template.replace('Closes #', 'Closes #65');
+const verify = (body: string) =>
+  body.replace('## Not proven', '- Item: delivered in a.ts:1, proved by a test\n\n## Not proven');
+const review = (body: string) =>
+  body
     .replace('- `/simplify`:', '- `/simplify`: nothing to change')
     .replace('- `/code-review`:', '- `/code-review`: one fix');
+
+test('check-pr-body: the untouched template is refused, a filled one accepted', () => {
+  assert.match(checkBody(template).stderr, /must start with "Closes #<issue>"/);
+  assert.match(checkBody(linked).stderr, /"Lead verification" is missing or empty/);
+  const verified = verify(linked);
+  assert.match(checkBody(verified).stderr, /no "\/simplify:" line/);
+  const filled = review(verified);
   assert.equal(checkBody(filled).status, 0);
   const both = filled.replace('## What changed', 'Part of #65\n\n## What changed');
   assert.match(checkBody(both).stderr, /both "Closes" and "Part of"/);
+});
+
+test('check-pr-body: a draft passes without Lead verification, a ready pull request needs it', () => {
+  const reviewed = review(linked);
+  assert.equal(checkBody(reviewed, 'true').status, 0);
+  assert.match(checkBody(reviewed, 'false').stderr, /"Lead verification" is missing or empty/);
+  assert.equal(checkBody(verify(reviewed), 'false').status, 0);
+  assert.match(checkBody(template, 'true').stderr, /must start with "Closes #<issue>"/);
+  assert.match(checkBody(linked, 'true').stderr, /no "\/simplify:" line/);
 });
