@@ -4,8 +4,8 @@
 //! holds, or the declared mass spread so, its pins held, and a volume's pressure. Each stored value
 //! is rounded to 32 bits where the page's `Float32Array` rounds it: both weigh a vertex alike.
 use super::SOFT_VERTEX_WORDS as W;
+use crate::dag::clusters::weld_positions;
 use crate::shared_math::{cross, length, sub};
-use std::collections::HashMap;
 
 /// kg/m² of a cloth's or a volume's skin, and kg/m of a rope, left undeclared (`SOFT_AREAL_DENSITY`,
 /// `SOFT_LINEAR_DENSITY`).
@@ -56,25 +56,25 @@ pub(super) fn soft_record(
     d: &SoftDeclared,
 ) -> Result<SoftRecord, String> {
     let (count, rope, volume) = (pos.len() / 3, d.kind == "rope", d.kind == "volume");
-    let (mut map, mut at, mut kept) = (Vec::with_capacity(count), HashMap::new(), Vec::new());
-    for v in 0..count {
-        // As the page's key, the text of each coordinate: 0 and -0 are one position.
-        let key: [u32; 3] = std::array::from_fn(|k| (pos[v * 3 + k] + 0.0).to_bits());
-        let welded = *at.entry(key).or_insert(kept.len());
-        if welded == kept.len() {
+    // As the page's key, the text of each coordinate: 0 and -0 are one position.
+    let every: Vec<u32> = (0..count as u32).collect();
+    let canonical = weld_positions(pos, &every);
+    let (mut map, mut kept) = (Vec::with_capacity(count), Vec::new());
+    for (v, &first) in canonical.iter().enumerate() {
+        // A vertex's first copy comes first: its welded index is already mapped.
+        let welded = if first as usize == v {
             kept.push(v);
-        }
-        map.push(welded as u32);
+            kept.len() as u32 - 1
+        } else {
+            map[first as usize]
+        };
+        map.push(welded);
     }
-    let all: Vec<u32>;
+    // A rope keeps no triangle.
     let corners = match corners {
-        // A rope keeps no triangle.
         _ if rope => &[],
         Some(corners) => corners,
-        None => {
-            all = (0..count as u32).collect();
-            &all
-        }
+        None => &every[..],
     };
     let mut indices = Vec::new();
     let triangles: &[[u32; 3]] = corners.as_chunks().0;
