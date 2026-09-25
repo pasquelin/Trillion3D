@@ -31,9 +31,11 @@ not write code and you never measure. Every rule of AGENTS.md and CONTRIBUTING.m
 4. **Merge.** With the reviewer's `OK`, the example of step 2 when the batch has one, and every
    point of "Before merge" below checked by you on the diff: bring the branch up to date with
    `develop` (`gh pr update-branch <pr>`), write `## Lead verification`, then take it out of
-   draft (`gh pr ready <pr>`), wait for every check to be green on that head
-   (`gh pr checks <pr> --watch`), then send "ready #<pr>" to the CTO, who merges it (AGENTS.md
-   §Roles). A red check, or a point of "Before merge" missed, goes back to step 3.
+   draft (`gh pr ready <pr>`), wait for every check to be green on that head, the body check
+   re-run by `gh pr ready` included (`gh pr checks <pr> --watch`), then send "ready #<pr>" to the
+   CTO, who merges it (AGENTS.md §Roles). A red check, or a point of "Before merge" missed, puts
+   the pull request back in draft (`gh pr ready --undo <pr>`) and goes back to step 3; the Lead
+   verification is rewritten on the new diff.
 5. **Hand over**, once the CTO has merged. `gh issue edit <n> --remove-label "in review"`, add
    `to measure` for an engine batch (`packages/`, compiler, format, shaders, a published number) or
    an example whose thumbnail is missing or out of date, then `gh issue close <n>` unless the pull
