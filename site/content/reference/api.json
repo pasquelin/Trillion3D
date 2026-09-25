@@ -9553,7 +9553,7 @@
       {
         "name": "vertices",
         "type": "Float32Array<ArrayBufferLike> | null",
-        "desc": "A soft body's vertices as the last tick left them: `x, y, z` per vertex of its geometry, in the geometry's own frame; `null` for a rigid body, and until its first tick."
+        "desc": "A soft body's vertices as the last tick left them, `x, y, z` per geometry vertex in the geometry's own frame; `null` for a rigid body and until its first tick."
       },
       {
         "name": "velocity",
