@@ -118,8 +118,14 @@ export async function measureFluids({
     world.scene.add(...floatingMeshes(sdk, scene.bodies));
     const flicker = standIns(sdk, world, scene);
     // Jolt is fetched on first use: the warmup counts from the frame every body is simulated.
-    for (let wait = 0; world.physics.stats.bodies < scene.bodies.length; wait++) {
-      if (wait > 1800) throw new Error(`${world.physics.stats.bodies} bodies simulated`);
+    // `bodies` counts what the page registered, `active` comes only with a worker tick; `stats`
+    // is reread each frame, the session that holds it starting after the first frames.
+    const stats = () => world.physics.stats;
+    for (let wait = 0; stats().bodies < scene.bodies.length || !stats().active; wait++) {
+      if (wait > 1800)
+        throw new Error(
+          `${stats().bodies} bodies, ${stats().active} awake: ${world.physics.error}`,
+        );
       world.render();
       await nextFrame();
     }
