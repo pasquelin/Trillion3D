@@ -115,18 +115,6 @@ export function sunScene() {
   return { store, plan, slice: store.sliceOf(0) };
 }
 
-/** Table entries of the 6×6 sun pages from `[0, 0]` at each of the light's levels `steps` past its
- *  finest: more than one batch's pages a frame. */
-export const sunGrid = (plan: ShadowPlan, slice: number, steps: number[]) =>
-  steps.flatMap((step) =>
-    sunPages(
-      plan,
-      slice,
-      plan.sun.finest[slice] + step,
-      Array.from({ length: 36 }, (_, k) => [k % 6, Math.floor(k / 6)]),
-    ),
-  );
-
 /** A point lamp three units up that casts, planned once: its store, its plan and its slice. */
 export function lampScene() {
   const store = createSceneLightStore();
