@@ -49,7 +49,7 @@ test('a sphere’s seam and poles are welded: one vertex per position, no degene
   const ball = sphere(1, 8, 6);
   const { vertices, indices, map, pressure } = of({ type: 'volume' }, one, ball);
   assert.equal(vertices.length / SOFT_VERTEX_WORDS, 8 * 5 + 2);
-  assert.equal(map.length, ball.getAttribute('position').count);
+  assert.equal(map.length, ball.getAttribute('position')!.count);
   for (let t = 0; t < indices.length; t += 3)
     assert.equal(new Set(indices.subarray(t, t + 3)).size, 3);
   // Its default pressure rests its weight on a quarter of its mean cross-section (area / 4).

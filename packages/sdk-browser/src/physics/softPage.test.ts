@@ -79,7 +79,7 @@ test('a tick keeps each soft body once, where its last step left it', () => {
 
 test('a soft body the page moves is made again where it put it, never teleported', () => {
   const rebuilt: ObjectPhysics[] = [];
-  const host = { rebuild: (body: ObjectPhysics) => rebuilt.push(body) } as PhysicsHost;
+  const host = { rebuild: (body: ObjectPhysics) => rebuilt.push(body) } as unknown as PhysicsHost;
   const { scene, writer, bodies, cloth } = sceneOf(1000, host);
   const mesh = cloth(2);
   bodies.reconcile(new Set(), () => {});
