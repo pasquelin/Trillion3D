@@ -1,23 +1,11 @@
-import { cutSelects, projectedClusterError } from './math.ts';
+import { clusterPixels, projectedClusterError } from './math.ts';
 import type { PageRecord, SelectionState } from '../cut/state.ts';
 
-/** `cutSelects` through the frame's own lens — its view, stretch, focal length, near plane and
- *  projection — against `threshold`. */
-export function frameSelects<T extends PageRecord>(
-  s: SelectionState<T>,
-  rec: T,
-  threshold: number,
-) {
+/** `clusterPixels` through the frame's own lens — its view, stretch, focal length, near plane and
+ *  projection — into `out`. */
+export function framePixels<T extends PageRecord>(s: SelectionState<T>, rec: T, out: Float64Array) {
   const { flatElements, flatStretch, flatFocal, cam } = s;
-  return cutSelects(
-    rec,
-    flatElements,
-    flatStretch,
-    flatFocal,
-    cam.near,
-    threshold,
-    cam.perspective,
-  );
+  return clusterPixels(rec, flatElements, flatStretch, flatFocal, cam.near, cam.perspective, out);
 }
 
 /** `projectedClusterError` of one (error, sphere at `offset`) pair through the frame's lens. */

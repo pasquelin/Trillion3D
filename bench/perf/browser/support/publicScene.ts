@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { readCacheManifest } from '../../../runner/cacheManifest.ts';
 import type { DagPage } from './dagCut.ts';
 import { prepareAutonomousManifest } from '../../../../packages/sdk-browser/src/backend/autonomous/manifest.ts';
+import { structureIndex } from '../../../../packages/sdk-browser/src/page/selection/structure.ts';
 import { pose } from '../../../../packages/sdk-browser/src/world/pose/index.ts';
 import { framingFromBounds } from '../../../../packages/sdk-browser/src/camera/framing.ts';
 import { Box3 } from '../../../../packages/sdk-core/src/world/math/box3.ts';
@@ -9,7 +10,8 @@ import { Vector3, readVec3 } from '../../../../packages/sdk-core/src/world/math/
 
 /**
  * A public scene's cache (`full`, the directory of its pointer `manifest.json`) as the WebGL2 pool tests draw
- * it: one selection root per primitive, placed where its pages lie, each page at its decoded size.
+ * it: one selection root per primitive, placed where its pages lie, with its group links, each
+ * page at its decoded size.
  * The camera frames the pages (`pose.fromBounds`, `framingFromBounds`'s near and far planes) and
  * closes 40 % of the way to their centre.
  */
@@ -47,6 +49,9 @@ export function publicScene(full: string) {
   camera.updateMatrixWorld();
   return {
     primitives,
+    structures: metadata.primitives.map((primitive) =>
+      structureIndex(primitive.structure, primitive.pages.length),
+    ),
     camera,
     bytes: (url: string) => descriptors.get(url)!.uncompressedBytes,
   };
