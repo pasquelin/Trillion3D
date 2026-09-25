@@ -67,11 +67,11 @@ test('a normalized attribute goes back through accessors and yields the same con
 });
 
 test('an interleaved attribute goes back through accessors and yields the same cone as the reference', () => {
-  const interleaved = new G.GraphInterleavedBuffer(
+  const interleaved = new G.InterleavedBuffer(
     Float32Array.of(0, 0, 0, 9, 1, 0, 0, 9, 0, 1, 0, 9),
     4,
   );
-  const attr = new G.GraphInterleavedAttribute(interleaved, 3, 0, false);
+  const attr = new G.InterleavedBufferAttribute(interleaved, 3, 0, false);
   memeCones([triangle(G.basicSurface(), { position: attr })]);
 });
 

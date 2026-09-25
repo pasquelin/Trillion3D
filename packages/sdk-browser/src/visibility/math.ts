@@ -2,39 +2,11 @@ import type { HostAttribute } from '../host/resources.ts';
 import { srgbToLinear, type Texture, type WrapMode } from '../../../sdk-core/src/index.ts';
 import { uvTransformed } from '../../../sdk-core/src/texture/contract.ts';
 import type { Projected } from './projection.ts';
-import type { DepthCamera } from '../camera/depthConvention.ts';
-import { barycentricAt, projectVisibilityVertex, signedArea } from './projection.ts';
-import { textureRgba, type VisPage } from './types.ts';
+import { barycentricAt, signedArea } from './projection.ts';
+import { textureRgba } from './types.ts';
 
 export function backgroundRgb(background: number) {
   return [(background >> 16) & 255, (background >> 8) & 255, background & 255];
-}
-
-export function triangleAt(
-  page: VisPage,
-  triangleIndex: number,
-  cam: DepthCamera,
-  width: number,
-  height: number,
-) {
-  const index = page.array,
-    position = page.attributes.position,
-    base = triangleIndex * 3;
-  if (!position || base + 2 >= index.length) return null;
-  const a = projectVisibilityVertex(page.matrix, position, index[base], cam, width, height);
-  const b = projectVisibilityVertex(page.matrix, position, index[base + 1], cam, width, height);
-  const c = projectVisibilityVertex(page.matrix, position, index[base + 2], cam, width, height);
-  if (!a || !b || !c) return null;
-  return {
-    a,
-    b,
-    c,
-    page,
-    triangleIndex,
-    i0: index[base],
-    i1: index[base + 1],
-    i2: index[base + 2],
-  };
 }
 
 export function barycentric(a: Projected, b: Projected, c: Projected, x: number, y: number) {
@@ -89,6 +61,8 @@ const SRGB8_LINEAIRE = new Float64Array(256);
 for (let octet = 0; octet < 256; octet++) SRGB8_LINEAIRE[octet] = srgbToLinear(octet / 255);
 
 export { linearToSrgb8 } from '../../../sdk-core/src/math/primitives/color.ts';
+/** The projected triangle of a page, which the projection owns (`./projection.ts`). */
+export { triangleAt } from './projection.ts';
 
 /**
  * Rank of the texel a map reads at a coordinate, not its components: that byte indexes the sRGB

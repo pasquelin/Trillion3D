@@ -2,7 +2,8 @@ import { maxStretch } from '../../../../sdk-core/src/index.ts';
 import { frameClusterError } from '../selection/frame.ts';
 import type { MatrixElements } from '../../math/matrixElements.ts';
 import { forceScratch, type PageRecord, type SelectionState } from './state.ts';
-import { markForcedGroup, type CullingLinks, type ForcedMarks } from './forced.ts';
+import { markForcedGroup, type ForcedMarks } from './forced.ts';
+import type { CullingLinks } from './readiness.ts';
 
 export function worldStretch(root: {
   world: MatrixElements;

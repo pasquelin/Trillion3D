@@ -10,6 +10,7 @@
 import type { Material } from '../../../../sdk-core/src/world/material/material.ts';
 import type { Texture } from '../../../../sdk-core/src/world/texture/texture.ts';
 import { Color } from '../../../../sdk-core/src/world/math/color.ts';
+import { LINE_DEPTH_LAYER, depthLayerUnits } from '../../../../sdk-core/src/lod/depthLayer.ts';
 import { hostSide } from '../../scene/materialSide.ts';
 import { composesWithBackground, hostBlending } from '../../scene/materialBlending.ts';
 import { hostPageSurface } from '../../host/pageObjects.ts';
@@ -85,8 +86,30 @@ function familySurface(family: GraphSurfaceFamily, material: Material, vertexCol
   return surface;
 }
 
-/** The surface of a world material, with its maps and raster state. */
-export function hostSurface(material: Material, vertexColors: boolean, textures: HostTextures) {
+/**
+ * The raster state of a surface that draws line quads (`drawn.ts`): its `linewidth` in CSS
+ * pixels (the rasters scale it by the host's pixel ratio each frame), both sides in one pass — a quad widened on screen has no face to cull —, and one
+ * coplanar layer over the faces the lines lie on: the pages the world cuts for it carry the layer
+ * on WebGPU (`../page/runtimePrimitive.ts`), and this polygon offset gives it on WebGL2, signed
+ * for its forward depth (nearer is smaller).
+ */
+function drawLines(surface: GraphSurface, material: Material) {
+  surface.lineWidth = (material.linewidth as number | undefined) ?? 1;
+  surface.side = hostSide('double');
+  surface.forceSinglePass = true;
+  surface.polygonOffset = true;
+  surface.polygonOffsetFactor = 0;
+  surface.polygonOffsetUnits = -depthLayerUnits(LINE_DEPTH_LAYER);
+}
+
+/** The surface of a world material, with its maps and raster state; `lines` when the mesh wearing
+ *  it draws line quads. */
+export function hostSurface(
+  material: Material,
+  vertexColors: boolean,
+  textures: HostTextures,
+  lines = false,
+) {
   const family = FAMILY[material.kind];
   const surface = family
     ? familySurface(family, material, vertexColors)
@@ -103,6 +126,7 @@ export function hostSurface(material: Material, vertexColors: boolean, textures:
   // `transparent` says: the opaque pass has nothing behind to add to.
   surface.blending = hostBlending(material.blending);
   if (composesWithBackground(material.blending)) surface.transparent = true;
+  if (lines) drawLines(surface, material);
   return surface;
 }
 

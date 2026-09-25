@@ -5,7 +5,7 @@ import { surfaceOf } from '../../page/surface.ts';
 import { BLEND_EQUATIONS, hostBlending } from '../../scene/materialBlending.ts';
 import { createWebgpuPagesPipelines } from '../pages/prepare/pipelines.ts';
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
-import { drawFallbackBlendPass } from './fallback.ts';
+import { drawFallbackBlendPass, writeFallbackBlendUniforms } from './fallback.ts';
 import { createWebgpuBlendState } from './state.ts';
 import type { Blending } from '../../../../sdk-core/src/world/constants/index.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
@@ -65,4 +65,37 @@ test('the fallback pass draws each item with the equation of its own blending mo
 
 test('the fallback pass refuses by name a blending no path draws', () => {
   assert.throws(() => drawn([99]), /declares a blending no path draws/);
+});
+
+// #348: the transparent fallback reads float positions and no direction, so it cannot widen a
+// line quad (`lineClip`): it refuses a line surface by name instead of dropping it.
+function writeLines(lineWidth: number) {
+  const { device, writes } = fakeDevice();
+  const rt = {
+    run: { diagnostic: 'beauty' },
+    blendState: {
+      visibleBlend: [
+        {
+          surface: surfaceOf(G.basicSurface({ transparent: true, opacity: 0.5, lineWidth })),
+          matrix: new G.Matrix4(),
+          rgba: [1, 1, 1, 0.5],
+          count: 6,
+          flags: 0,
+        },
+      ],
+    },
+    gpu: { uniformPacked: new Float32Array(64).fill(7), uniformBuffer: {} },
+  } as unknown as WebgpuPagesRuntime;
+  writeFallbackBlendUniforms(rt, device, 0);
+  return { written: writes, packed: rt.gpu.uniformPacked };
+}
+
+test('the transparent fallback refuses a line surface by name', () => {
+  assert.throws(() => writeLines(2), /FALLBACK_TRANSPARENT_LINES_UNSUPPORTED/);
+});
+
+test('the transparent fallback draws a triangle surface with no line width', () => {
+  const { written, packed } = writeLines(0);
+  assert.equal(written.length, 1);
+  assert.equal(packed[40], 0);
 });
