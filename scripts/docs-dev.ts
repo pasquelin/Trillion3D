@@ -1,13 +1,14 @@
 /** The local site while its sources change (`pnpm docs:dev`): the server of `docs:serve`, the
  *  steps of `buildSite` a changed file is read by run again, then every open page reloads. */
-import { readdirSync, readFileSync, statSync, watch } from 'node:fs';
+import { readdirSync, readFileSync, watch } from 'node:fs';
 import type { ServerResponse } from 'node:http';
 import { resolve, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { createDocsServer } from './docs-serve.ts';
-import { buildSite, SITE_OUTPUT, stepsReading } from './docs/site.ts';
+import { buildSite, SITE_OUTPUT, stepsReading, underOrAt } from './docs/site.ts';
 import { API_FILES } from './generate-api-reference.ts';
-import { contentType, fileUnder, listen, reply } from './static-server.ts';
+import { COOKED_SCENES } from './site-caches.ts';
+import { listen } from './static-server.ts';
 
 const ROOT = resolve(import.meta.dirname, '..');
 
@@ -21,8 +22,12 @@ const RELOAD_SCRIPT = `<script>if (self === top) new EventSource('${RELOAD_EVENT
 const FOLLOWED = ['packages', 'site'];
 /** What the build never reads: dependencies, compiler targets, products, hidden files. */
 const UNREAD = /(?:^|\/)(?:node_modules|target|dist|\.[^/]*)(?:\/|$)/;
-/** What the build writes under `site/`: its change is the build's own, not a source's. */
-const WRITTEN = new Set<string>(Object.values(API_FILES));
+/** What the build writes under `site/`, the API files and the scene caches: its change is the
+ *  build's own, not a source's. */
+const WRITTEN = [
+  ...Object.values(API_FILES),
+  ...Object.values(COOKED_SCENES).map(({ directory }) => `${directory}/cache`),
+];
 
 /** The pages and scripts of the built tree `out` that name the reload stream: always none. */
 export const reloadIn = (out: string) =>
@@ -31,33 +36,22 @@ export const reloadIn = (out: string) =>
     .filter((file) => /\.(?:html|js)$/.test(file))
     .filter((file) => readFileSync(resolve(out, file), 'utf8').includes(RELOAD_EVENTS));
 
-/** The HTML page `path` names under `out`, a folder by its `index.html`, or `undefined`. */
-function pageOf(out: string, path: string): string | undefined {
-  const file = fileUnder(out, path);
-  if (file === null) return undefined;
-  const page = statSync(file, { throwIfNoEntry: false })?.isDirectory()
-    ? resolve(file, 'index.html')
-    : file;
-  return page.endsWith('.html') && statSync(page, { throwIfNoEntry: false })?.isFile()
-    ? page
-    : undefined;
-}
-
 /** Serves `out` as `docs:serve` does, its pages with the reload script, and rebuilds it from
  *  `root` after each change of a followed folder. `out` is built already. */
 export async function followSite(root: string, out: string, port = 0) {
   const pages = new Set<ServerResponse>();
-  const server = createDocsServer(out, (request, response, url) => {
-    if (url.pathname === RELOAD_EVENTS) {
+  const server = createDocsServer(out, {
+    answer: (request, response, url) => {
+      if (url.pathname !== RELOAD_EVENTS) return false;
       response.writeHead(200, { 'content-type': 'text/event-stream' }).write(': open\n\n');
       pages.add(response);
       request.once('close', () => pages.delete(response));
       return true;
-    }
-    const page = pageOf(out, url.pathname);
-    if (page === undefined) return false;
-    const html = readFileSync(page, 'utf8').replace('</head>', `${RELOAD_SCRIPT}\n</head>`);
-    return reply(response, 200, contentType('.html'), html);
+    },
+    transform: (file) =>
+      file.endsWith('.html')
+        ? readFileSync(file, 'utf8').replace('</head>', `${RELOAD_SCRIPT}\n</head>`)
+        : undefined,
   });
 
   let changed = new Set<string>();
@@ -75,7 +69,6 @@ export async function followSite(root: string, out: string, port = 0) {
         console.error('docs:dev: the rebuild failed, the pages keep the last build:', error);
         continue;
       }
-      if (!steps.length) continue;
       console.log(`docs:dev: rebuilt ${steps.map(({ name }) => name).join(', ')}`);
       for (const page of pages) page.write('data: reload\n\n');
     }
@@ -84,7 +77,7 @@ export async function followSite(root: string, out: string, port = 0) {
   const watchers = FOLLOWED.map((folder) =>
     watch(resolve(root, folder), { recursive: true }, (_, name) => {
       const path = name && `${folder}/${name.split(sep).join('/')}`;
-      if (!path || UNREAD.test(path) || WRITTEN.has(path)) return;
+      if (!path || UNREAD.test(path) || WRITTEN.some((file) => underOrAt(path, file))) return;
       changed.add(path);
       building ??= rebuild();
     }),
@@ -96,7 +89,7 @@ export async function followSite(root: string, out: string, port = 0) {
     server.closeAllConnections();
     return closed;
   };
-  return { server, port: await listen(server, port), close };
+  return { port: await listen(server, port), close };
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

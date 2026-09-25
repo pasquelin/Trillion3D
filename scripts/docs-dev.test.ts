@@ -13,7 +13,12 @@ test('a change runs again only the build steps that read it, in the order of the
   assert.deepEqual(named('site/app/main.tsx'), ['api', 'styles', 'runtime']);
   assert.deepEqual(named('site/styles/tailwind.css'), ['api', 'styles']);
   assert.deepEqual(named('site/assets/examples/hall/source/a.gltf'), ['api', 'caches', 'statics']);
-  assert.deepEqual(named('site/data/x.json', 'site/index.html'), ['api', 'styles', 'statics']);
+  assert.deepEqual(named('site/data/x.json', 'site/index.html'), [
+    'api',
+    'styles',
+    'runtime',
+    'statics',
+  ]);
   // A folder is matched by its name, never by a prefix of it.
   assert.deepEqual(named('site/applied.txt', 'packages.json'), ['api']);
 });

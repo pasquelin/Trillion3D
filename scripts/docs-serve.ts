@@ -4,10 +4,13 @@ import { buildSite, SITE_OUTPUT } from './docs/site.ts';
 import { listen, staticServer, type StaticOptions } from './static-server.ts';
 
 /** A static server over `root`: the built site by default, any site-shaped tree otherwise;
- *  `answer` takes a request first (the development server's, `docs-dev.ts`). */
-export function createDocsServer(root = SITE_OUTPUT, answer?: StaticOptions['answer']) {
+ *  `extra` adds the development server's answer and transform (`docs-dev.ts`). */
+export function createDocsServer(
+  root = SITE_OUTPUT,
+  extra: Pick<StaticOptions, 'answer' | 'transform'> = {},
+) {
   return staticServer({
-    answer,
+    ...extra,
     mounts: [{ prefix: '/', dir: root }],
     headers: {
       'Cache-Control': 'no-store',
