@@ -39,6 +39,8 @@ interface JoltExports {
   jolt_character(): number;
   jolt_broken_count(): number;
   jolt_broken(i: number): number;
+  jolt_vehicles(): number;
+  jolt_vehicle_words(): number;
 }
 
 /** Bytes of Jolt's per-step scratch allocator, taken from the memory budget. */
@@ -135,6 +137,8 @@ export function startJolt({ exports, memory }: OpenedJolt, budget: PhysicsBudget
     /** The ids of the joints the last step broke. */
     broken: () => Array.from({ length: jolt.jolt_broken_count() }, (_, i) => jolt.jolt_broken(i)),
     active: () => jolt.jolt_active_count(),
+    /** The vehicles' state after the last step (`vehicleLayout.ts`), valid until the next. */
+    vehicles: () => new Uint32Array(memory.buffer, jolt.jolt_vehicles(), jolt.jolt_vehicle_words()),
     /** The pieces of the awake bodies reaching below `top`, cut past `sliceLength`
      *  (`WATER_PIECE_WORDS` each), valid until the next step. */
     water(top: number, sliceLength: number) {
