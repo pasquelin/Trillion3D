@@ -72,7 +72,12 @@ export function createStreamingFetcher(
             url,
             attempt,
           }));
-          throw new Error('Corrupt cluster page');
+          // Named by what failed: the retries and the final `PAGE_STREAM_FAILED` repeat it.
+          throw new Error(
+            sizeMatches
+              ? `Corrupt cache object: SHA-256 ${actualHash}, ${page.sha256} announced`
+              : `Corrupt cache object: ${byteLength} bytes received, ${page.bytes} announced`,
+          );
         }
         combined.throwIfAborted();
         const array = new Uint8Array(buffer);
