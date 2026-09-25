@@ -14,22 +14,24 @@
  * rather than adopt it amputated. Frame totals lose nothing — they describe the cut, not the
  * list that reports it (`totalsWgsl.ts`).
  *
- * A light cut's frame asks for a page ONCE, however many of its views and batches want it: every
+ * A light cut's frame lists a page ONCE, however many of its views and batches want it: every
  * batch appends to one list (`VIEW_APPEND`) as long as the catalogue, and the same caster asked by
  * each sun level and each batch filled it with repeats, so a late batch's own casters fell past it
  * (`LIST_FULL`) and its coarse pages were drawn again every frame without ever being asked for.
- * The test reads the page's bit before the atomic (`firstAsk`), as the shading's page requests do.
+ * Each page keeps its best request of the frame (`askedWord`): the first view to raise it from zero
+ * lists the page, and once the frame's cuts are done `dagAskedBest` writes that best word over its
+ * entry — the highest priority any view gave it, whatever view won the race.
  */
 export const DAG_RELEVE_WGSL = `fn emitOne(page:u32,pixels:f32){
- if(isLightCut()&&!firstAsk(page)){return;}
- emitWord(page,quantizePriority(pixels),true);
+ let priority=quantizePriority(pixels);
+ if(isLightCut()&&atomicMax(&work[askedWord(page)],packRequest(page,priority))!=0u){return;}
+ emitWord(page,priority,true);
 }
-/** True for the first ask of \`page\` in the frame's light cuts: its bit behind the per-view words
- *  (\`dagWorkLayout\`, \`asked\`), cleared by the host at the frame's first cut. */
-fn firstAsk(page:u32)->bool{
- let word=drawnGroupsMax()+1u+(page>>5u);let bit=1u<<(page&31u);
- if((atomicLoad(&work[word])&bit)!=0u){return false;}
- return (atomicOr(&work[word],bit)&bit)==0u;
+/** After a frame's last light cut: each listed page at the best request its views made of it. */
+@compute @workgroup_size(64)
+fn dagAskedBest(@builtin(global_invocation_id) id:vec3u){
+ let s=id.x;if(s>=min(atomicLoad(&out.count),views[0u].listCap)){return;}
+ out.pages[s]=atomicLoad(&work[askedWord(out.pages[s]&((1u<<PAGE_BITS)-1u))]);
 }
 /** One request word in the sample; past the cap it is dropped, and \`declare\` says truncated. */
 fn emitWord(page:u32,priority:u32,declare:bool){
