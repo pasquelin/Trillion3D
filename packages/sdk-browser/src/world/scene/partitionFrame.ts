@@ -12,7 +12,7 @@ import type { FrameBudget } from '../../page/integration/frameBudget.ts';
 import { resolveCameraWorld, type HostCamera } from '../../camera/world.ts';
 import type { PartitionCells } from '../../scene/partition/cells.ts';
 import { cellReach } from '../../scene/partition/plan.ts';
-import type { createPageStreamer } from '../../streaming/pages.ts';
+import type { createPageStreamer } from '../../streaming/pageStreamer.ts';
 
 type Streamer = ReturnType<typeof createPageStreamer>;
 

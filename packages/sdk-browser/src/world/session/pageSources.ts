@@ -1,6 +1,6 @@
 import { DEFAULT_CACHED_PAGES, DEFAULT_PAGE_WORKERS } from '../../backend/common.ts';
 import { configurePageDecoders } from '../../page/decode/host.ts';
-import type { StreamPage } from '../../streaming/pages.ts';
+import type { StreamPage } from '../../streaming/types.ts';
 import { createPageStreamerWith } from '../../streaming/pageStreamer.ts';
 import { loadClusterPages } from '../../cluster/pages.ts';
 import { createDiagnosticChannel } from '../../diagnostic/channel.ts';
@@ -44,19 +44,22 @@ export async function createExplorerPageSources(
   // The decode pool never exceeds the already-in-force transfer admission.
   configurePageDecoders(options.pageFetchWorkers ?? DEFAULT_PAGE_WORKERS);
   const streamer = createPageStreamerWith(
-    options.pageCache,
     [...pages, ...geometryPages, ...bundles, ...extra],
     base,
-    signal,
-    options.pageFetchWorkers ?? DEFAULT_PAGE_WORKERS,
-    cacheCap,
-    (url) => {
-      for (const b of backends) b.dropPage?.(url);
+    {
+      cache: options.pageCache,
+      signal,
+      workerCount: options.pageFetchWorkers ?? DEFAULT_PAGE_WORKERS,
+      maxPages: cacheCap,
+      onEvict: (url) => {
+        for (const b of backends) b.dropPage?.(url);
+      },
+      maxTransferBytes: options.maxPageTransferBytes,
+      onDiagnostic:
+        diagnosticChannel.detail === 'trace' && diagnosticChannel.enabled
+          ? diagnosticChannel.emit
+          : undefined,
     },
-    options.maxPageTransferBytes,
-    diagnosticChannel.detail === 'trace' && diagnosticChannel.enabled
-      ? diagnosticChannel.emit
-      : undefined,
   );
   let loaded = 0,
     pageBytesRead = 0;
