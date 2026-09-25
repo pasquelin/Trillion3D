@@ -114,17 +114,19 @@
         return { samples, total, lift: [samples[marks.lift].s, samples[marks.crest].s], brake: samples[marks.brake].s };
       }
 
-      // A pose anywhere along the track: the two samples around it, blended.
+      // A pose anywhere along the track: the two samples around it, blended; past the last one,
+      // the span that closes the track back to the first.
       function poseAt(track, distance) {
         const { samples, total } = track, s = ((distance % total) + total) % total;
         let low = 0, high = samples.length - 1;
-        if (s >= samples[high].s) return { ...samples[high] };
-        while (high - low > 1) {
+        const closing = s >= samples[high].s;
+        while (!closing && high - low > 1) {
           const middle = (low + high) >> 1;
           if (samples[middle].s <= s) low = middle;
           else high = middle;
         }
-        const a = samples[low], b = samples[high], k = (s - a.s) / (b.s - a.s || 1);
+        const [a, b] = closing ? [samples[high], samples[0]] : [samples[low], samples[high]];
+        const k = (s - a.s) / ((closing ? total : b.s) - a.s || 1);
         return { p: mix(a.p, b.p, k), t: unit(mix(a.t, b.t, k)), u: unit(mix(a.u, b.u, k)), bend: a.bend + (b.bend - a.bend) * k };
       }
 
@@ -146,8 +148,15 @@
       // The ride: the train is one body held on the track by a path joint and pulled by gravity.
       // Its motor is the chain up the lift, then the tyres that brake it and drive it through the
       // station. The chain's and the station's paces are declared; every force is the train's
-      // mass times an acceleration, so the ride does not depend on the mass.
-      const CHAIN = 4.5, STATION = 5, MASS = 1000;
+      // mass times an acceleration. The train: four cars of 500 kg, two riders of 75 kg in each.
+      const CHAIN = 4.5, STATION = 5, MASS = 4 * (500 + 2 * 75);
+      // What the train loses by itself, as the share of its speed lost each second (dv/dt = −c·v)
+      // at the ride's pace, the speed halfway down the lift's fall: its steel wheels rolling on
+      // steel rails, a force of 0.001 of its weight (a railway wheel on its rail: 0.001 to 0.002,
+      // "Rolling resistance", Wikipedia), and the air on the front car as drawn, 1.7 m wide and
+      // 1.2 m high, ½·ρ·Cd·A·v² with air at 1.2 kg/m³ and a bluff body's drag coefficient, 1.
+      const PACE = Math.sqrt(CHAIN * CHAIN + G * TOP);
+      const LOSS = (0.001 * G) / PACE + (0.5 * 1.2 * 1 * 1.7 * 1.2 * PACE) / MASS;
       function ride(track) {
         const [liftStart, liftEnd] = track.lift;
         // The chain holds the train's whole weight, on a slope as steep as a wall.
@@ -283,7 +292,7 @@
       let wait = 3.2;
       const START = 6, reach = (cars.length - 1) * GAP + 1.7 / 2 + 0.62;
       const train = object.mesh(geometry.box(0.01, 0.01, 0.01), red);
-      train.physics = { type: 'dynamic', mass: MASS, shape: { type: 'sphere', radius: reach } };
+      train.physics = { type: 'dynamic', mass: MASS, shape: { type: 'sphere', radius: reach }, damping: { linear: LOSS } };
       world.scene.add(train);
       const where = () => [train.position.x, train.position.y, train.position.z];
 
