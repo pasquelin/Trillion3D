@@ -6,6 +6,7 @@ export * from '../../sdk-core/src/world/buffer/index.ts';
 export * from '../../sdk-core/src/world/object/index.ts';
 export * from '../../sdk-core/src/world/material/index.ts';
 export * from '../../sdk-core/src/world/light/index.ts';
+export * from '../../sdk-core/src/world/effect/index.ts';
 export * from '../../sdk-core/src/world/camera/index.ts';
 export * from '../../sdk-core/src/world/animation/index.ts';
 export * from '../../sdk-core/src/world/constants/index.ts';

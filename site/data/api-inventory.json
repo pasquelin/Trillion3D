@@ -505,6 +505,44 @@
       "bindingIdentity": "\"packages/sdk-core/src/texture/previewLevels\".blocksAcross"
     },
     {
+      "name": "Bloom",
+      "kind": "both",
+      "definingModule": "packages/sdk-core/src/world/effect/bloom.ts",
+      "currentEntryPoints": ["trillion3d (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [
+        "packages/sdk-browser/src/effects/webglBloom.ts",
+        "packages/sdk-browser/src/effects/webglEffects.ts",
+        "packages/sdk-browser/src/effects/webgpuBloom.ts",
+        "packages/sdk-browser/src/effects/webgpuEffects.ts"
+      ],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/src/world/effect/bloom\".Bloom"
+    },
+    {
+      "name": "BLOOM_DEFAULTS",
+      "kind": "value",
+      "definingModule": "packages/sdk-core/src/world/effect/bloom.ts",
+      "currentEntryPoints": ["trillion3d (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/src/world/effect/bloom\".BLOOM_DEFAULTS"
+    },
+    {
+      "name": "BloomOptions",
+      "kind": "type",
+      "definingModule": "packages/sdk-core/src/world/effect/bloom.ts",
+      "currentEntryPoints": ["trillion3d (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/src/world/effect/bloom\".BloomOptions"
+    },
+    {
       "name": "BOUNCE_PROBES_PER_FRAME",
       "kind": "value",
       "definingModule": "packages/sdk-core/src/bounce/contracts.ts",
@@ -2650,6 +2688,69 @@
       "affectedConsumers": [],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/math/oracles\".edge"
+    },
+    {
+      "name": "effect",
+      "kind": "value",
+      "definingModule": "packages/sdk-core/src/world/effect/index.ts",
+      "currentEntryPoints": ["trillion3d (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/src/world/effect/index\".effect"
+    },
+    {
+      "name": "EffectChain",
+      "kind": "both",
+      "definingModule": "packages/sdk-core/src/world/effect/chain.ts",
+      "currentEntryPoints": ["trillion3d (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [
+        "packages/sdk-browser/src/world/core/worldSwitches.ts",
+        "packages/sdk-browser/src/world/render/compose.ts"
+      ],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/src/world/effect/chain\".EffectChain"
+    },
+    {
+      "name": "EffectKind",
+      "kind": "type",
+      "definingModule": "packages/sdk-core/src/world/effect/chain.ts",
+      "currentEntryPoints": ["trillion3d (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/src/world/effect/chain\".EffectKind"
+    },
+    {
+      "name": "EffectPass",
+      "kind": "both",
+      "definingModule": "packages/sdk-core/src/world/effect/chain.ts",
+      "currentEntryPoints": ["trillion3d (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [
+        "packages/sdk-browser/src/effects/webglEffects.ts",
+        "packages/sdk-browser/src/effects/webgpuEffects.ts",
+        "packages/sdk-browser/src/webgpu/pages/render/encodeEffects.ts",
+        "packages/sdk-browser/src/world/render/compose.ts"
+      ],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/src/world/effect/chain\".EffectPass"
+    },
+    {
+      "name": "EffectStage",
+      "kind": "type",
+      "definingModule": "packages/sdk-core/src/world/effect/chain.ts",
+      "currentEntryPoints": ["trillion3d (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/src/world/effect/chain\".EffectStage"
     },
     {
       "name": "emptyIrradiance",
@@ -8730,6 +8831,7 @@
         "packages/sdk-browser/src/webgl/cluster/sceneDraw.ts",
         "packages/sdk-browser/src/webgl/core/outputGlsl.ts",
         "packages/sdk-browser/src/webgpu/pages/render/encodeLights.ts",
+        "packages/sdk-browser/src/world/render/compose.ts",
         "tests/kit/lighting/draw.ts"
       ],
       "disposition": "retained",
