@@ -20,7 +20,7 @@
 use super::bounds::bounding_sphere;
 use crate::join::Join;
 use crate::physics_cook::hausdorff::one_sided_distance;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 /// What a reduction removed whole.
 pub(super) struct Vanished {
@@ -33,14 +33,19 @@ pub(super) struct Vanished {
 impl Vanished {
     /// Whether the reduction of `source` to `kept` destroyed a part: removed one larger than both
     /// `child_error` and the distance from `kept` to `source`, which it only measures then.
-    pub fn destroys(&self, source: &[u32], kept: &[u32], positions: &[f32], child_error: f64) -> bool {
-        std::env::var("SIMDEV").is_err() && self.radius > child_error && self.radius > one_sided_distance(positions, kept, source)
+    pub fn destroys(
+        &self,
+        source: &[u32],
+        kept: &[u32],
+        positions: &[f32],
+        child_error: f64,
+    ) -> bool {
+        self.radius > child_error && self.radius > one_sided_distance(positions, kept, source)
     }
 }
 
-/// The parts of `source` of which `kept` holds no vertex, measured against the triangles of
-/// `kept`, both over the source vertices; parts meet at a shared position (`weld`).
-pub(super) fn vanished(source: &[u32], kept: &[u32], positions: &[f32], weld: &[u32]) -> Vanished {
+/// The parts of `source`, connected over shared positions (`weld`): one corner list each.
+pub(crate) fn parts(source: &[u32], weld: &[u32]) -> Vec<Vec<u32>> {
     let mut local: HashMap<u32, u32> = HashMap::new();
     let mut id = |v: u32| {
         let next = local.len() as u32;
@@ -52,26 +57,28 @@ pub(super) fn vanished(source: &[u32], kept: &[u32], positions: &[f32], weld: &[
         join.unite(tri[0], tri[1]);
         join.unite(tri[0], tri[2]);
     }
-    let mut alive = vec![false; local.len()];
-    for v in kept {
-        if let Some(&l) = local.get(&weld[*v as usize]) {
-            alive[join.root(l) as usize] = true;
-        }
-    }
     let mut parts: HashMap<u32, Vec<u32>> = HashMap::new();
-    for (tri, local) in source.as_chunks::<3>().0.iter().zip(corners.as_chunks::<3>().0) {
-        let root = join.root(local[0]);
-        if !alive[root as usize] {
-            parts.entry(root).or_default().extend(tri);
-        }
+    let triangles = source.as_chunks::<3>().0.iter();
+    for (tri, local) in triangles.zip(corners.as_chunks::<3>().0) {
+        parts.entry(join.root(local[0])).or_default().extend(tri);
     }
-    let radius = parts
-        .values()
+    parts.into_values().collect()
+}
+
+/// The parts of `source` of which `kept` holds no vertex, measured against the triangles of
+/// `kept`, both over the source vertices; parts meet at a shared position (`weld`).
+pub(super) fn vanished(source: &[u32], kept: &[u32], positions: &[f32], weld: &[u32]) -> Vanished {
+    let alive: HashSet<u32> = kept.iter().map(|&v| weld[v as usize]).collect();
+    let removed: Vec<Vec<u32>> = parts(source, weld)
+        .into_iter()
+        .filter(|part| !part.iter().any(|&v| alive.contains(&weld[v as usize])))
+        .collect();
+    let radius = removed
+        .iter()
         .map(|part| bounding_sphere(positions, part)[3])
         .fold(0.0, f64::max);
-    let removed: Vec<u32> = parts.into_values().flatten().collect();
     Vanished {
         radius,
-        distance: one_sided_distance(positions, &removed, kept),
+        distance: one_sided_distance(positions, &removed.concat(), kept),
     }
 }
