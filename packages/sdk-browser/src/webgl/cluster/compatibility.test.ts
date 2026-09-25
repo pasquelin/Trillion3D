@@ -191,10 +191,10 @@ test('texels the WebGL2 upload cannot read as stored are refused by name', () =>
   const reason = (...texels: Parameters<typeof G.dataTexture>) =>
     clusterMaterialReason(G.standardSurface({ map: G.dataTexture(...texels) }), attributes);
   assert.equal(reason(new Uint8Array(16), 2, 2), undefined);
-  for (const [refusal, ...texels] of [
+  const refused: [RegExp, ...Parameters<typeof G.dataTexture>][] = [
     [/texel format 1022 is unsupported/, new Uint8Array(12), 2, 2, 1022],
     [/8-bit texels only/, new Float32Array(16), 2, 2],
     [/holds 8 bytes, not 2×2 RGBA/, new Uint8Array(8), 2, 2],
-  ] as const)
-    assert.match(reason(...texels) ?? '', refusal);
+  ];
+  for (const [refusal, ...texels] of refused) assert.match(reason(...texels) ?? '', refusal);
 });
