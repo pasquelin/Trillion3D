@@ -5,6 +5,7 @@ import { followHostTexture } from '../../host/textureImport.ts';
 import { pictureSize } from '../../texture/pictureSize.ts';
 import type { HostMaterials } from '../../host/resources.ts';
 import { surfaceOf } from '../../page/surface.ts';
+import { firstMaterial } from '../../scene/materialSide.ts';
 import { CoverageReaders } from '../../texture/coverage.ts';
 import { WebglMipReducer } from './mips.ts';
 
@@ -51,9 +52,9 @@ export class WebglClusterTextures {
   private gl: WebGL2RenderingContext;
   private mips: WebglMipReducer;
   private readers = new CoverageReaders();
-  private declarations = new WeakSet<object>();
-  /** The colour maps holding a chain under the readers' rule: the only ones reread per image. */
-  private chained = new Set<Texture>();
+  private declarations = new WeakMap<object, number>();
+  /** The colour maps drawn this image, their readers reread: work bounded by the view. */
+  private followed = new Set<Texture>();
   constructor(gl: WebGL2RenderingContext) {
     this.gl = gl;
     this.mips = new WebglMipReducer(gl);
@@ -87,13 +88,14 @@ export class WebglClusterTextures {
     }
     // Brought up to its host at this bind, then uploaded or set again by its counters.
     followHostTexture(texture);
+    if (reader && !this.followed.has(texture)) this.readers.follow([texture]);
+    if (reader) this.followed.add(texture);
     const key = `${texture.id}:${color ? 'srgb' : 'linear'}${reader ? ':map' : ''}`,
       weighted = reader && this.readers.weighs(texture);
     let record = this.records.get(key);
     if (!record || record.version !== texture.version) {
       record = this.upload(unit, texture, color, weighted, record);
       this.records.set(key, record);
-      if (record.weighted !== undefined && reader) this.chained.add(texture);
     } else {
       if (this.bound[unit] !== record.texture) {
         gl.activeTexture(gl.TEXTURE0 + unit);
@@ -101,14 +103,13 @@ export class WebglClusterTextures {
       }
       const sampling = record.sampling !== texture.sampling,
         rule = record.weighted !== undefined && record.weighted !== weighted;
-      // `setSampler` and the chain write the texture bound on the ACTIVE unit: select it even
-      // when the texture is already bound there, or they land on another unit's texture.
+      // `setSampler` and the chain write the ACTIVE unit's texture: select it even if bound there.
       if (sampling || rule) gl.activeTexture(gl.TEXTURE0 + unit);
       if (sampling) {
         record.sampling = texture.sampling;
         this.setSampler(texture);
       }
-      if (rule) this.mips.reduce(unit, record, (record.weighted = weighted), false, true);
+      if (rule) this.mips.reduce(unit, record, (record.weighted = weighted), false);
     }
     this.bound[unit] = record.texture;
   }
@@ -175,23 +176,24 @@ export class WebglClusterTextures {
         grantedAnisotropy(texture, this.maxAnisotropy),
       );
   }
-  /** Files a declaration's maps' readers, once: at first bind or census (`WebglClusterOwner`). */
+  /** Files a declaration's readers at first bind, census (`WebglClusterOwner`) or rewrite. */
   file(material: HostMaterials) {
-    if (this.declarations.has(material)) return;
-    this.declarations.add(material);
-    this.readers.read(surfaceOf(material));
+    const version = firstMaterial(material)?.version ?? 0;
+    if (this.declarations.get(material) === version) return;
+    this.declarations.set(material, version);
+    this.readers.read(surfaceOf(material), true);
   }
-  /** A new frame: units unknown, the chained maps' readers reread, as WebGPU's `coverageRules`. */
+  /** A new image: units unknown, drawn maps' readers reread at first bind, idle scratches out. */
   beginFrame() {
     this.bound.length = 0;
-    this.readers.follow(this.chained);
+    this.followed.clear();
+    this.mips.trim();
   }
   dispose() {
     for (const record of this.records.values()) this.gl.deleteTexture(record.texture);
     for (const texture of this.fallbacks.values()) this.gl.deleteTexture(texture);
     this.records.clear();
     this.fallbacks.clear();
-    this.chained.clear();
     this.mips.dispose();
   }
 }
