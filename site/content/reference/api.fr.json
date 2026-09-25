@@ -1197,7 +1197,7 @@
   },
   "createShadowPlan": {
     "summary": "Le planificateur des ombres virtuelles.",
-    "description": "L’ombrage note les pages qu’il lit ; leur rapport, relu quelques images plus tard, alloue ce qui manque dans le pool fixe. Ce qui bouge rend périmées les pages déjà allouées qu’il couvre. Une image dessine ensuite chaque page périmée que l’image lit, toutes dans cette image : ce qui tient le coût est le cache — une page n’est redessinée que si ce qu’elle contient a changé —, et le pool est la seule limite. Une scène immobile, dont l’ombrage ne tourne plus, ne demande rien et ne dessine rien. Tous les tableaux sont alloués une fois ; `plan()` n’alloue rien."
+    "description": "L’ombrage note les pages qu’il lit ; leur rapport, relu quelques images plus tard, alloue ce qui manque dans le pool fixe. Ce qui bouge rend périmées les pages déjà allouées qu’il couvre. Une image liste ensuite chaque page périmée que l’image lit, la plus grossière d’abord, et les dessine toutes au repos, un budget fixe d’entre elles pendant que la caméra bouge : ce qui tient le coût est le cache — une page n’est redessinée que si ce qu’elle contient a changé. Une scène immobile, dont l’ombrage ne tourne plus, ne demande rien et ne dessine rien. Tous les tableaux sont alloués une fois ; `plan()` n’alloue rien."
   },
   "createTerminalProgress": {
     "summary": "Une barre de progression dans le terminal qui suit les évènements du compilateur.",
