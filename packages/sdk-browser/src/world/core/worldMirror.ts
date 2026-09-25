@@ -66,7 +66,7 @@ export function buildWorldMirror(input: MirrorInput) {
   const meshOf = (cut: Cut, material: Material) => {
     let geometry = geometries.get(cut);
     if (!geometry) geometries.set(cut, (geometry = hostGeometry(cut.drawn)));
-    const tinted = material.vertexColors && !!cut.drawn.colors;
+    const tinted = !!material.vertexColors && !!cut.drawn.colors;
     let worn = surfaces.get(material);
     if (!worn) surfaces.set(material, (worn = []));
     const surface = (worn[+tinted] ??= hostSurface(material, tinted, textures));
