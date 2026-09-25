@@ -1106,11 +1106,11 @@
     }
   },
   "Geometry": {
-    "summary": "Apenas a forma: atributos nomeados por vértice, um índice de triângulo opcional, grupos de material.",
+    "summary": "Só a forma: atributos por vértice com nome, um índice de triângulos opcional, grupos de materiais, os alvos de morph que a movem e o intervalo desenhado.",
     "members": {
       "isGeometry": "Sempre `true`: distingue uma geometria de qualquer outra coisa.",
       "type": "O tipo da geometria, `'Geometry'`.",
-      "attributes": "As listas por vértice por nome: `position`, `normal`, `uv`, `color`.",
+      "attributes": "As listas por vértice, por nome: `position`, `normal`, `uv`, `color`; cada uma possui os seus números ou lê um buffer entrelaçado.",
       "index": "Quais vértices formam cada triângulo, três números por triângulo; `null` os lê em ordem.",
       "groups": "Faixas de índice desenhadas com `material[materialIndex]` quando um mesh carrega vários.",
       "boundingBox": "A caixa ao redor de cada vértice, uma vez calculada; `null` até então.",
@@ -1125,8 +1125,8 @@
       "addGroup": "Desenha `count` índices a partir de `start` com o número de material `materialIndex` do mesh.",
       "clearGroups": "Remove cada grupo de material.",
       "computeVertexNormals": "Normais suaves: cada vértice faz a média das faces que o compartilham, ponderada por sua área.",
-      "computeBoundingBox": "Mede a caixa ao redor de cada vértice e a guarda em `boundingBox`.",
-      "computeBoundingSphere": "Mede a esfera ao redor de cada vértice e a guarda em `boundingSphere`.",
+      "computeBoundingBox": "Mede a caixa em volta de cada vértice e de cada forma que um alvo de morph lhe dá, e guarda-a em `boundingBox`.",
+      "computeBoundingSphere": "Mede a esfera centrada na caixa que alcança o vértice mais distante, com morph ou não, e guarda-a em `boundingSphere`.",
       "applyMatrix4": "Move cada posição, gira cada normal: a própria geometria muda, não uma pose.",
       "translate": "Move cada vértice por `(x, y, z)`.",
       "rotateX": "Gira cada vértice ao redor do eixo x, por `angle` radianos.",
@@ -1134,8 +1134,17 @@
       "rotateZ": "Gira cada vértice ao redor do eixo z, por `angle` radianos.",
       "scale": "Estica cada vértice por `(x, y, z)`.",
       "center": "Move a geometria para que sua caixa fique centrada na origem.",
-      "clone": "Uma nova geometria com cópias de cada lista.",
-      "dispose": "Esquece os detentores: uma geometria descartada não é desenhada por ninguém."
+      "clone": "Uma nova geometria com cópias de cada lista, os seus grupos, intervalo, dados e limites, e a receita que ainda a constrói.",
+      "dispose": "Devolve a geometria: executa cada gancho de libertação uma vez, esquece quem a segura e a árvore de raycast; ninguém desenha nem atinge uma geometria libertada.",
+      "kind": "O que o recurso é, como um leitor da cena distingue os recursos.",
+      "name": "O seu nome.",
+      "morphAttributes": "Por atributo com morph, um atributo por alvo de morph.",
+      "morphTargetsRelative": "Verdadeiro quando um alvo de morph guarda deslocamentos, não posições.",
+      "drawRange": "O intervalo do índice desenhado.",
+      "userData": "Espaço livre para os dados de quem construiu a geometria.",
+      "released": "Chamados quando a geometria é devolvida: o que a cópia própria de um renderizador escuta.",
+      "getIndex": "A lista de triângulos, ou `null`.",
+      "toNonIndexed": "Uma geometria que desenha os mesmos triângulos sem índice: cada canto é um vértice próprio."
     }
   },
   "GeometryPageDescriptor": {
@@ -1389,9 +1398,6 @@
       "width": "Largura em pixels.",
       "height": "Altura em pixels."
     }
-  },
-  "HostGeometry": {
-    "summary": "Uma geometria de host: seus atributos, e a caixa local que o host calculou sobre eles."
   },
   "HostMaterial": {
     "summary": "Um material de host como o motor o lê: os parâmetros de superfície que todo material de host compartilha, lidos uma vez na fronteira para o `VisMaterial` do motor; só `sideOf` lê `side`."
@@ -6328,7 +6334,7 @@
   "object.sprite": {
     "summary": "Uma imagem plana que sempre olha para a câmera, para onde quer que ela olhe: um quadrado de uma unidade, do tamanho da escala do sprite e girado na imagem pela `rotation` do seu material.",
     "parameters": {
-      "material": "O que o quadrado mostra: um `material.sprite`."
+      "material": "O que o quadrado mostra: um `material.sprite`; qualquer outro tipo lança um erro."
     }
   },
   "orthographicProjection": {
@@ -7282,32 +7288,6 @@
       "handbrake": "Se o travão de mão está puxado."
     }
   },
-  "GraphGeometry": {
-    "members": {
-      "attributes": "Seus atributos de vértice.",
-      "boundingBox": "A caixa local que o host calculou.",
-      "kind": "O que o recurso é.",
-      "name": "O seu nome.",
-      "index": "A lista de triângulos, ou `null` para desenhar os vértices por ordem.",
-      "morphAttributes": "Por atributo deformado, um atributo por alvo de morph.",
-      "morphTargetsRelative": "Verdadeiro quando um alvo de morph guarda deslocamentos, não posições.",
-      "groups": "Intervalos do índice desenhados cada um com uma superfície.",
-      "drawRange": "O intervalo do índice desenhado.",
-      "boundingSphere": "A esfera local, depois de calculada ou declarada.",
-      "userData": "Espaço livre para os dados de quem construiu a geometria.",
-      "getIndex": "A lista de triângulos.",
-      "setIndex": "Define a lista de triângulos.",
-      "getAttribute": "O atributo com esse nome.",
-      "setAttribute": "Dá nome a um atributo.",
-      "deleteAttribute": "Esquece um atributo.",
-      "hasAttribute": "Se tem um atributo com esse nome.",
-      "clone": "Uma geometria com cópias de cada buffer, dos seus grupos, intervalo e limites.",
-      "toNonIndexed": "Uma geometria que desenha os mesmos triângulos sem índice: cada canto é um vértice próprio.",
-      "computeBoundingBox": "Calcula a caixa local sobre todos os vértices.",
-      "computeBoundingSphere": "Calcula a esfera local: centrada na caixa, até ao vértice mais distante."
-    },
-    "summary": "Os atributos que uma malha desenha, a lista de triângulos que os indexa, os alvos de morph que os movem, e a caixa e a esfera locais calculadas sobre eles."
-  },
   "GraphNode": {
     "members": {
       "serial": "O número do nó, único na sessão.",
@@ -7617,10 +7597,11 @@
   },
   "Sprite": {
     "summary": "Uma imagem plana que sempre olha para a câmera: um quadrado de uma unidade que cada renderizador gira para a imagem ao desenhar, em torno da posição do sprite.",
-    "description": "Seu tamanho é sua escala no mundo em `x` e `y`; seu giro no plano da imagem é a `rotation` do seu material; sua própria rotação não é lida. Um sprite não projeta sombra.",
+    "description": "Seu tamanho é sua escala no mundo em `x` e `y`; seu giro no plano da imagem é a `rotation` do seu material; sua própria rotação não é lida. Um sprite não projeta sombra. Como o `Sprite` da referência, que só aceita um `SpriteMaterial`, ele só usa um `material.sprite`: qualquer outro material, passado ou atribuído, lança um `TypeError` que nomeia o seu tipo.",
     "members": {
       "isSprite": "Sempre `true`: distingue um sprite de qualquer outra malha.",
-      "center": "O ponto da imagem que fica na posição do sprite: `(0.5, 0.5)` seu meio, `(0, 0)` seu canto inferior esquerdo, `(0.5, 0)` o meio da sua borda de baixo."
+      "center": "O ponto da imagem que fica na posição do sprite: `(0.5, 0.5)` seu meio, `(0, 0)` seu canto inferior esquerdo, `(0.5, 0)` o meio da sua borda de baixo.",
+      "material": "O `material.sprite` do sprite; atribua outro para mudá-lo."
     }
   }
 }

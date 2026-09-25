@@ -12,7 +12,7 @@ import { coarseQuadScene } from './testOccluder.fixture.ts';
 test('the initial cover also protects regions first discovered after a camera jump', async () => {
   installGpuGlobals();
   const { device } = mockGpu();
-  const geometry = new G.GraphGeometry();
+  const geometry = new G.Geometry();
   geometry.setAttribute(
     'position',
     G.floatAttribute(
