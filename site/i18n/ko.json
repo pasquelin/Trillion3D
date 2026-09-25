@@ -324,10 +324,10 @@
       "controllers-in-vr": "VR 컨트롤러",
       "ar-on-the-table": "탁자 위의 AR",
       "shadows-case-by-case": "그림자, 사례별로",
+      "shadows-through-see-through-panes": "투명한 유리가 드리우는 그림자",
       "a-walker-among-balls": "공 사이를 걷는 사람"
     },
     "missing": {
-      "dashed-lines": "점선",
       "floating-crates": "매 프레임 다시 쓰는 지오메트리",
       "thick-lines": "굵은 선",
       "a-line-that-draws-itself": "지오메트리의 그리기 범위",

@@ -1,4 +1,5 @@
 import { declaredLightingWgsl } from '../../lighting/direct/lightingWgsl.ts';
+import { ROUGHNESS_FLOOR } from '../../lighting/shaderConstants.ts';
 import { bounceApplyWgsl } from '../../bounce/applyWgsl.ts';
 import { STANDARD_LIGHTING_WGSL, NORMAL_TRANSFORM_WGSL } from '../../lighting/standardLighting.ts';
 import { TRIANGLE_PALETTE_WGSL } from '../../diagnostic/trianglePalette.ts';
@@ -15,7 +16,7 @@ import { BLEND_REQUEST_WGSL } from './requestWgsl.ts';
 import { FLAG_HAS_COLOR, FLAG_PAGED, FLAG_UNLIT_VIEW } from '../../visibility/buffer.ts';
 import { VERTEX_COLOR_WGSL } from '../core/vertexColors.ts';
 import { BLEND_SURFACE_WGSL } from './shaderSurface.ts';
-import { LINE_CLIP_WGSL } from '../../visibility/shader/lineWgsl.ts';
+import { LINE_CLIP_WGSL, LINE_DASH_WGSL } from '../../visibility/shader/lineWgsl.ts';
 import { WATER_MAX_ITEMS, WATER_RANK_SHIFT } from '../water/surfaceWgsl.ts';
 import { INSTANCE_CULL_SHIFT, INSTANCE_ITEM_MASK } from './runs.ts';
 import { FACING_DROP, FACING_SHIFT, FACING_WGSL } from './facing.ts';
@@ -44,7 +45,7 @@ ${tileDeclarations(BLEND_BINDINGS.data, 'data')}
 @group(0) @binding(${BLEND_BINDINGS.normals}) var<storage,read> normals:array<f32>;
 ${VERTEX_COLOR_WGSL}
 ${STANDARD_LIGHTING_WGSL}
-${declaredLightingWgsl(BLEND_BINDINGS.proxy, BLEND_BINDINGS.shadowData)}
+${declaredLightingWgsl(BLEND_BINDINGS.proxy, BLEND_BINDINGS.shadowData, BLEND_BINDINGS.shadowTransmittance)}
 ${bounceApplyWgsl(BLEND_BINDINGS.bounceGrid, BLEND_BINDINGS.probes)}
 @group(0) @binding(${BLEND_BINDINGS.directLights}) var<storage,read> directLights:DirectLights;
 @group(0) @binding(${BLEND_BINDINGS.shadowAtlas}) var shadowAtlas:texture_depth_2d;
@@ -63,12 +64,14 @@ struct BlendOut{@location(0) color:vec4f,@location(1) request:u32,}
 ${BLEND_REQUEST_WGSL}
 ${NORMAL_TRANSFORM_WGSL}
 ${LINE_CLIP_WGSL}
+${LINE_DASH_WGSL}
 // What the vertex stage reads on the item record and the fragment stage re-reads as-is: the six
 // maps, their factors and the flags. They are constant over the call, therefore FLAT — the
 // fragment reads the same bits it used to read in the per-item uniform, with no per-call binding.
 // \`water\` is the item's one-based transmissive rank, carried above its flags, zero for a blend;
 // above it, the cull mode a doubtful triangle leaves to the fragment stage (facing.ts).
-struct VSOut{@builtin(position) position:vec4f,@location(0) color:vec4f,@location(1) uv:vec2f,@location(2) view:vec3f,@location(3) normal:vec3f,@location(4) tangent:vec3f,@location(5) bitangent:vec3f,@location(6) @interpolate(flat) tri:u32,@location(7) bary:vec3f,@location(8) @interpolate(flat) diagId:u32,@location(9) @interpolate(flat) ids:vec3u,@location(10) @interpolate(flat) maps:vec4u,@location(11) @interpolate(flat) alphaAo:vec2f,@location(12) @interpolate(flat) pbr:vec4f,@location(13) @interpolate(flat) emissive:vec4f,@location(14) @interpolate(flat) water:u32,}
+// \`alphaAo\` carries, after the alpha test and the occlusion strength, a dashed line's dash and gap.
+struct VSOut{@builtin(position) position:vec4f,@location(0) color:vec4f,@location(1) uv:vec2f,@location(2) view:vec3f,@location(3) normal:vec3f,@location(4) tangent:vec3f,@location(5) bitangent:vec3f,@location(6) @interpolate(flat) tri:u32,@location(7) bary:vec3f,@location(8) @interpolate(flat) diagId:u32,@location(9) @interpolate(flat) ids:vec3u,@location(10) @interpolate(flat) maps:vec4u,@location(11) @interpolate(flat) alphaAo:vec4f,@location(12) @interpolate(flat) pbr:vec4f,@location(13) @interpolate(flat) emissive:vec4f,@location(14) @interpolate(flat) water:u32,}
 ${TRIANGLE_PALETTE_WGSL}
 // An instance draws a paged cluster that compaction kept, or a piece of indices of a primitive
 // that is not paged. The list plan expansion wrote says, for each, the item that carries it and
@@ -90,7 +93,7 @@ ${FACING_WGSL}
  out.color=it.color;
  out.ids=vec3u(it.mapIndex,flags,it.emissiveIndex);
  out.maps=vec4u(it.roughIndex,it.metalIndex,it.normalIndex,it.aoIndex);
- out.alphaAo=vec2f(it.alphaTest,it.aoIntensity);
+ out.alphaAo=vec4f(it.alphaTest,it.aoIntensity,it.dash);
  out.pbr=vec4f(it.roughness,it.metalness,it.normalScale);
  out.emissive=vec4f(it.emissive.xyz,0.0);
  var base=slot.y;
@@ -142,6 +145,8 @@ ${BLEND_SURFACE_WGSL}
  // derivative is taken before any condition that depends on it and is only read by the wireframe view.
  let width=fwidth(in.bary);
  let s=blendSurface(in,front);
+ // A dashed line's gap (\`lineDash\`): its distance along the line rides the first coordinate.
+ if(!lineDash(in.uv.x,in.alphaAo.zw)){discard;}
  if((flags&0x40000000u)!=0u){
   if(s.alpha<=0.01){discard;}
   var color=vec3f(0.204,0.827,0.6);
@@ -158,7 +163,7 @@ ${BLEND_SURFACE_WGSL}
  // resolve. Neither ambient, nor sky, nor a default sun (P6).
  let unlit=(flags&${FLAG_UNLIT_VIEW}u)!=0u;
  let V=normalize(uni.camPos.xyz-in.view*uni.camPos.w);
- let clamped=clamp(s.rough,0.0525,1.0);
+ let clamped=clamp(s.rough,${ROUGHNESS_FLOOR},1.0);
  if(!unlit){
   if((flags&1u)!=0u){
    let m=clamp(s.metal,0.0,1.0);

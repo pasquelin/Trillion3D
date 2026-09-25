@@ -894,8 +894,10 @@
         "packages/sdk-browser/src/host/prepared/graph.test.ts",
         "packages/sdk-browser/src/webgl/cluster/meshDepth.test.ts",
         "packages/sdk-browser/src/webgl/cluster/sceneDraw.test.ts",
+        "packages/sdk-browser/src/world/core/worldCuts.test.ts",
         "packages/sdk-browser/src/world/core/worldMirror.ts",
         "packages/sdk-browser/src/world/helper/index.ts",
+        "packages/sdk-browser/src/world/page/runtimePrimitive.test.ts",
         "packages/sdk-browser/src/world/saved/read.ts",
         "packages/sdk-browser/src/world/saved/saved.test.ts"
       ],
@@ -1363,12 +1365,14 @@
         "packages/sdk-browser/src/webgpu/pages/evictionAndCancel.test.ts",
         "packages/sdk-browser/src/webgpu/pages/gpuSelectionFallback.test.ts",
         "packages/sdk-browser/src/webgpu/pages/pagedQuad.fixture.ts",
+        "packages/sdk-browser/src/webgpu/pages/render/fallbackDirtyRows.test.ts",
         "packages/sdk-browser/src/webgpu/pages/render/hizOcclusion.test.ts",
         "packages/sdk-browser/src/webgpu/pages/render/pageRaster.test.ts",
         "packages/sdk-browser/src/webgpu/pages/render/visCompactPipeline.test.ts",
         "packages/sdk-browser/src/webgpu/pages/slotReclaim.test.ts",
         "packages/sdk-browser/src/webgpu/pages/testOccluder.fixture.ts",
         "packages/sdk-browser/src/webgpu/pages/testScenes.fixture.ts",
+        "packages/sdk-browser/src/webgpu/row/blendCasters.test.ts",
         "packages/sdk-browser/src/world/camera/camera.test.ts",
         "packages/sdk-browser/src/world/camera/camera.ts",
         "packages/sdk-browser/src/world/core/loadedModel.ts",
@@ -3127,6 +3131,7 @@
       "classification": "public",
       "affectedConsumers": [
         "packages/sdk-browser/src/world/controls/transform.test.ts",
+        "packages/sdk-browser/src/world/core/worldCuts.test.ts",
         "packages/sdk-browser/src/world/core/worldLiveTextures.test.ts",
         "packages/sdk-browser/src/world/core/worldRuntime.test.ts",
         "packages/sdk-browser/src/world/page/runtimePrimitive.test.ts",
@@ -4193,11 +4198,14 @@
       "classification": "public",
       "affectedConsumers": [
         "packages/sdk-browser/src/physics/advancedJoints.test.ts",
+        "packages/sdk-browser/src/physics/damping.test.ts",
         "packages/sdk-browser/src/physics/gearPhase.test.ts",
         "packages/sdk-browser/src/physics/jointList.test.ts",
         "packages/sdk-browser/src/physics/jointSprings.test.ts",
         "packages/sdk-browser/src/physics/joints.fixture.ts",
-        "packages/sdk-browser/src/physics/joints.test.ts"
+        "packages/sdk-browser/src/physics/joints.test.ts",
+        "packages/sdk-browser/src/physics/pathEnergy.test.ts",
+        "scripts/docs-examples-coaster.test.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/physics/joint\".joint"
@@ -4247,7 +4255,10 @@
       "currentEntryPoints": ["trillion3d (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": ["packages/sdk-browser/src/physics/joints.ts"],
+      "affectedConsumers": [
+        "packages/sdk-browser/src/physics/joints.ts",
+        "packages/sdk-browser/src/physics/pathEnergy.test.ts"
+      ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/physics/jointOptions\".JointMotor"
     },
@@ -4399,6 +4410,7 @@
         "packages/sdk-browser/src/gpu/dag/shader/viewsWgsl.ts",
         "packages/sdk-browser/src/gpu/shadow/recordPack.ts",
         "packages/sdk-browser/src/gpu/shadow/sunFarShadow.ts",
+        "packages/sdk-browser/src/gpu/shadow/transmittance.test.ts",
         "packages/sdk-browser/src/lighting/contractLights.test.ts",
         "packages/sdk-browser/src/lighting/direct/lightSamplingWgsl.test.ts",
         "packages/sdk-browser/src/lighting/direct/lightSamplingWgsl.ts",
@@ -4674,6 +4686,7 @@
       "proposedEnvironments": "browser",
       "classification": "public",
       "affectedConsumers": [
+        "packages/sdk-browser/src/world/core/worldCuts.test.ts",
         "packages/sdk-browser/src/world/core/worldLiveTextures.test.ts",
         "packages/sdk-browser/src/world/core/worldMaterials.test.ts",
         "packages/sdk-browser/src/world/core/worldMirror.test.ts",
@@ -5342,6 +5355,7 @@
       "classification": "public",
       "affectedConsumers": [
         "packages/sdk-browser/src/world/controls/transform.test.ts",
+        "packages/sdk-browser/src/world/core/worldCuts.test.ts",
         "packages/sdk-browser/src/world/core/worldLights.test.ts",
         "packages/sdk-browser/src/world/core/worldLiveTextures.test.ts",
         "packages/sdk-browser/src/world/core/worldRuntime.test.ts",
@@ -7651,6 +7665,9 @@
         "packages/sdk-browser/src/gpu/shadow/pageHiz.ts",
         "packages/sdk-browser/src/gpu/shadow/recordPack.ts",
         "packages/sdk-browser/src/gpu/shadow/staticLayer.ts",
+        "packages/sdk-browser/src/gpu/shadow/transmittance.test.ts",
+        "packages/sdk-browser/src/gpu/shadow/transmittance.ts",
+        "packages/sdk-browser/src/gpu/shadow/transmittanceLayer.test.ts",
         "packages/sdk-browser/src/lighting/direct/shadowWgsl.ts",
         "packages/sdk-browser/src/webgpu/pages/render/encodeShadowPass.ts",
         "packages/sdk-browser/src/webgpu/shadow/pages.ts",
@@ -9357,7 +9374,10 @@
       "currentEntryPoints": ["trillion3d (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": [],
+      "affectedConsumers": [
+        "packages/sdk-browser/src/physics/vehicleOptions.test.ts",
+        "packages/sdk-browser/src/physics/vehiclePowertrain.test.ts"
+      ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/physics/vehicleSpec\".VEHICLE_SPECS"
     },
@@ -9408,7 +9428,11 @@
       "currentEntryPoints": ["trillion3d (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": ["packages/sdk-browser/src/physics/vehicles.fixture.ts"],
+      "affectedConsumers": [
+        "packages/sdk-browser/src/physics/vehicleOptions.test.ts",
+        "packages/sdk-browser/src/physics/vehiclePowertrain.test.ts",
+        "packages/sdk-browser/src/physics/vehicles.fixture.ts"
+      ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/physics/vehicle\".VehicleOptions"
     },
