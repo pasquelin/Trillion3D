@@ -7,25 +7,14 @@ import { subtreeDecision } from './node.ts';
 import { take } from './take.ts';
 import { CUT_WALK, cutLeaves, cutWalkModule, walkCut, type WalkCulling } from './walkWasm.ts';
 
-type Culling = WalkCulling & { marks?: Int32Array };
-
 /** The JavaScript descent: node tests and pages interleaved, the reference of `walkCut`. */
-function descend<T extends PageRecord>(s: SelectionState<T>, pages: T[], culling?: Culling) {
-  // The forcing fallback does not test the cut but the forced group. Cut bounds still
-  // certify it on a subtree no forced group touches: the forcing marks say so in one read, and
-  // the descent prunes there like the ordinary pass. Without
-  // marks — a hand-built root, a primitive without groups — forcing descends everything.
-  const forcing = s.flatUseForcing,
-    marks = forcing ? culling?.marks : undefined,
-    exact = s.flatExact,
+function descend<T extends PageRecord>(s: SelectionState<T>, pages: T[], culling?: WalkCulling) {
+  const exact = s.flatExact,
     cones = s.flatCones,
     boxes = s.flatBoxes,
-    resident = s.residentMode;
+    open = s.flatOpen;
   if (!culling) {
-    for (let i = 0; i < pages.length; i++) {
-      take(s, pages[i], false, false, forcing, exact, cones, boxes, resident);
-      if (s.over) return;
-    }
+    for (let i = 0; i < pages.length; i++) take(s, pages, i, false, false, exact, cones, boxes);
     return;
   }
   const { nodes, stride, bounds } = culling;
@@ -33,7 +22,6 @@ function descend<T extends PageRecord>(s: SelectionState<T>, pages: T[], culling
   let top = 0;
   stack[top++] = 0;
   while (top > 0) {
-    if (s.over) return;
     const entry = stack[--top];
     const node = entry >> 2;
     const base = node * stride;
@@ -60,7 +48,7 @@ function descend<T extends PageRecord>(s: SelectionState<T>, pages: T[], culling
     if (!settled) {
       // Rejection the manifest already carries: no replacement still coarse enough in the subtree.
       // At a zero threshold the parent ceiling drops under the threshold only if it is zero: same identity
-      // as `cutSelectsAtZero`, and not one extra projection.
+      // as `pixelsAtZero`, and not one extra projection.
       const bound = nodes[base + 10];
       if (
         exact
@@ -68,11 +56,12 @@ function descend<T extends PageRecord>(s: SelectionState<T>, pages: T[], culling
           : bound >= 0 && frameClusterError(s, bound, nodes, base + 6) <= s.pixelError
       )
         continue;
-      if (!forcing || (marks !== undefined && marks[node] === 0)) {
-        const decision = subtreeDecision(s, bounds, node * BOUND_STRIDE, exact, forcing);
-        if (decision < 0) continue;
-        settled = decision > 0;
-      }
+      const decision = subtreeDecision(s, bounds, node * BOUND_STRIDE, exact);
+      // Under the cut rule (`./rule.ts`) a cluster above the threshold is still drawn when its
+      // finer group is not resident: a subtree holding one (`open`, `./readiness.ts`) is never
+      // rejected on its floor, and its descent decides cluster by cluster.
+      if (decision < 0 && !(open && open[node] > 0)) continue;
+      settled = decision > 0;
     }
     const children = nodes[base + 12];
     if (children > 0) {
@@ -84,10 +73,8 @@ function descend<T extends PageRecord>(s: SelectionState<T>, pages: T[], culling
     }
     const firstPage = nodes[base + 13],
       pageCount = nodes[base + 14];
-    for (let i = 0; i < pageCount; i++) {
-      take(s, pages[firstPage + i], settled, inside, forcing, exact, cones, boxes, resident);
-      if (s.over) return;
-    }
+    for (let i = 0; i < pageCount; i++)
+      take(s, pages, firstPage + i, settled, inside, exact, cones, boxes);
   }
 }
 
@@ -95,15 +82,14 @@ function descend<T extends PageRecord>(s: SelectionState<T>, pages: T[], culling
 function takeLeaves<T extends PageRecord>(
   s: SelectionState<T>,
   pages: T[],
-  culling: Culling,
+  culling: WalkCulling,
   count: number,
 ) {
   const { nodes, stride } = culling,
     leaves = cutLeaves(),
     exact = s.flatExact,
     cones = s.flatCones,
-    boxes = s.flatBoxes,
-    resident = s.residentMode;
+    boxes = s.flatBoxes;
   for (let i = 0; i < count; i++) {
     const entry = leaves[i],
       base = (entry >>> 2) * stride,
@@ -111,24 +97,22 @@ function takeLeaves<T extends PageRecord>(
       settled = (entry & 2) === 2;
     const firstPage = nodes[base + 13],
       pageCount = nodes[base + 14];
-    for (let p = 0; p < pageCount; p++) {
-      take(s, pages[firstPage + p], settled, inside, false, exact, cones, boxes, resident);
-      if (s.over) return;
-    }
+    for (let p = 0; p < pageCount; p++)
+      take(s, pages, firstPage + p, settled, inside, exact, cones, boxes);
   }
 }
 
 /**
- * The cut's descent over one root. Outside the forcing fallback, and when the SDK module carries
- * the kernel, the path governor (`batchLot.ts::joue`) plays either the module's node walk then
- * the leaves' pages, or the JavaScript descent: both take the same pages in the same order.
+ * The cut's descent over one root. When the SDK module carries the kernel, the path governor
+ * (`batchLot.ts::joue`) plays either the module's node walk then the leaves' pages, or the
+ * JavaScript descent: both take the same pages in the same order.
  */
 export function traverse<T extends PageRecord>(
   s: SelectionState<T>,
   pages: T[],
-  culling?: Culling,
+  culling?: WalkCulling,
 ) {
-  const wasm = culling && !s.flatUseForcing && !s.over ? cutWalkModule() : null;
+  const wasm = culling ? cutWalkModule() : null;
   if (!wasm || !culling) return descend(s, pages, culling);
   joue(
     CUT_WALK,

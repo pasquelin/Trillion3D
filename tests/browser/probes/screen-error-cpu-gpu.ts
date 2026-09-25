@@ -3,7 +3,7 @@
 // Thousands of clusters drawn in a primitive rotated and stretched non-uniformly: view centre to
 // the field edges, depths to the neighbourhood of the near plane, errors chosen so the projected
 // error falls around the threshold. Boxes cover the whole frustum: only the error decision is
-// compared. Three decisions per cluster: `cutSelects` of the CPU cut (original f64 values), the
+// compared. Three decisions per cluster: the cut rule on `clusterPixels` (original f64 values), the
 // kernel's Node oracle (values packed as f32, computed in f64) and the WGSL kernel actually run
 // in Chromium WebGPU (all f32). Each discrepancy is listed with its margin relative to the
 // threshold, the measure of what f32 rounding can flip.
@@ -13,9 +13,10 @@ import assert from 'node:assert/strict';
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import { maxStretch } from '../../../packages/sdk-core/src/index.ts';
 import {
-  cutSelects,
+  clusterPixels,
   projectedClusterError,
 } from '../../../packages/sdk-browser/src/page/selection/math.ts';
+import { drawsCluster } from '../../../packages/sdk-browser/src/page/cut/rule.ts';
 import { cameraSelectionUniforms } from '../../../packages/sdk-browser/src/gpu/core/selection.ts';
 import {
   evaluateDagSelectionKernel,
@@ -89,7 +90,18 @@ const gpu = await selectionGpu([{ name: 'echantillon', packed, uniforms }]);
 assert.equal(gpu.indisponible ?? null, null);
 assert.deepEqual([...(gpu.compilation ?? []), ...(gpu.erreurs ?? [])], []);
 
-const cpu = pages.map((rec) => cutSelects(rec, view, stretch, focal, camera.near, SEUIL));
+const cpu = pages.map((rec) => {
+  const [own, parent] = clusterPixels(
+    rec,
+    view,
+    stretch,
+    focal,
+    camera.near,
+    1,
+    new Float64Array(2),
+  );
+  return drawsCluster(true, parent, own, true, SEUIL);
+});
 const auGpu = new Uint8Array(N),
   aLOracle = new Uint8Array(N);
 assert.ok(gpu.resultats, 'no result');

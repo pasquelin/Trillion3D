@@ -11,7 +11,7 @@ import { createWebgpuResidentEnsurer } from '../residency/residentEnsurer.ts';
 import { createWebgpuResidencyQueue } from '../residency/queue.ts';
 import { createPageParents } from '../residency/admission.ts';
 import { createLowerTier } from '../residency/lowerTier.ts';
-import { createGroupClosure } from '../cut/groupClosure.ts';
+import { createGroupClosure } from '../../page/cut/groupClosure.ts';
 import { createImageRelevance } from '../residency/imageRelevance.ts';
 import { createWebgpuCutPublication } from '../cut/publication.ts';
 import { acceptPage, dropPage } from './io/pageApi.ts';
