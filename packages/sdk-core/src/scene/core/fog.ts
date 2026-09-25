@@ -15,14 +15,12 @@
  * The distance is measured from the camera's position, the height along +y.
  */
 import { EngineError } from '../../contracts/cache.ts';
-
-/** A linear RGB triple. */
-type Rgb = readonly [number, number, number];
+import type { LinearRgb } from '../../contracts/material.ts';
 
 /** Fog that starts at `near` and hides everything from `far` on, distances from the eye. */
 export interface SceneLinearFog {
   /** The radiance the fog fades toward, linear RGB. */
-  color: Rgb;
+  color: LinearRgb;
   /** Distance from the eye where the fog starts. */
   near: number;
   /** Distance from the eye where nothing but the fog is seen. */
@@ -33,7 +31,7 @@ export interface SceneLinearFog {
  *  above `baseHeight`, divided by e every `1 / heightFalloff` units up. */
 export interface SceneExponentialFog {
   /** The radiance the fog fades toward, linear RGB. */
-  color: Rgb;
+  color: LinearRgb;
   /** Extinction per scene unit, at `baseHeight`; ≥ 0. */
   density: number;
   /** How fast the density falls off with height, per scene unit; 0, the default, keeps it
@@ -65,7 +63,7 @@ export function validateSceneFog(fog: SceneFog): SceneFog {
   const color = fog?.color;
   if (!Array.isArray(color) || color.length !== 3 || !color.every((c) => finite(c) && c >= 0))
     refuse('color expects three finite numbers ≥ 0', fog);
-  const rgb: Rgb = [color[0], color[1], color[2]];
+  const rgb: LinearRgb = [color[0], color[1], color[2]];
   if ('density' in fog) {
     const { density, heightFalloff = 0, baseHeight = 0 } = fog;
     if (!finite(density) || density < 0) refuse('density must be ≥ 0', fog);
