@@ -110,15 +110,13 @@ export async function createDeferredProgram(
     composition(image?: ComposedImage) {
       const view = image?.color ?? boundHdr;
       if (!view || !boundSurface) return undefined;
-      const share = image?.share ?? boundSurface.views()[3];
-      let byShare = composed.get(view);
-      if (!byShare) {
-        byShare = new WeakMap();
-        composed.set(view, byShare);
-      }
+      const accumulated = image?.share,
+        share = accumulated ?? boundSurface.views()[3];
+      const byShare = composed.get(view) ?? new WeakMap<GPUTextureView, Composition>();
+      composed.set(view, byShare);
       const kept = byShare.get(share);
       if (kept) return kept;
-      const kind = compositions[image?.share ? 'accumulated' : 'still'];
+      const kind = compositions[accumulated ? 'accumulated' : 'still'];
       const group = device.createBindGroup({
         layout: kind.layout,
         entries: [
