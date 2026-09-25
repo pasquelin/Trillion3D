@@ -26,8 +26,8 @@ function proche(obtenu: ArrayLike<number>, attendu: ArrayLike<number>, tolerance
 
 /** A parent/child scene, and the public explorer wired to the real `setWebgpuTransform`. */
 function banc() {
-  const source = new G.GraphNode();
-  const parent = new G.GraphNode();
+  const source = new G.Object3D();
+  const parent = new G.Object3D();
   const mesh = G.mesh();
   mesh.name = 'cible';
   parent.name = 'porteur';

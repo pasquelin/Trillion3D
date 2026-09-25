@@ -7,7 +7,7 @@ import * as G from '../host/graph/graph.fixture.ts';
 import { createEngineCamera, readCameraWorld } from './world.ts';
 
 test('a capture view keeps the resolved world pose and takes the aspect it is drawn at', () => {
-  const rig = new G.GraphGroup();
+  const rig = new G.Group();
   rig.position.set(3, -2, 7);
   rig.rotation.set(0.4, -1.2, 0.3);
   const camera = G.perspectiveCamera(48, 16 / 9, 0.25, 640);
