@@ -1,4 +1,5 @@
 import type { Bloom } from '../../../sdk-core/src/world/effect/bloom.ts';
+import type { WebgpuEffectKind } from './webgpuEffects.ts';
 import { createCheckedShaderModule } from '../gpu/core/shaderModule.ts';
 import { makeFullscreenPipeline } from '../lighting/deferred/program.ts';
 import { bloomBlend, bloomLevelBytes, bloomLevelSizes } from './bloomFilter.ts';
@@ -34,10 +35,13 @@ function createLayouts(device: GPUDevice) {
  * The WebGPU bloom (`bloomFilter.ts`): one `rgba16float` texture whose mip levels are the chain,
  * sized with the image (`resize`), and three programs. `encode` writes, into `output`, the image
  * `input` with its glow: the levels are filtered down, summed back up, and the first blended in.
- * Bind groups follow the targets and the two history views the input alternates between: none is
- * made per frame. The uniform is written only when the size or a setting changed.
+ * Every bloom of the chain draws on the same levels, one after the other, but reads its own
+ * uniform slots — the `nth` bloom the `nth` range of the buffer, at its dynamic offsets — since
+ * every write of the buffer lands before the frame's first pass. Bind groups follow the targets
+ * and the two history views the input alternates between: none is made per frame. A range is
+ * written only when the size or a setting of its bloom changed.
  */
-export async function createWebgpuBloom(device: GPUDevice) {
+export async function createWebgpuBloom(device: GPUDevice): Promise<WebgpuEffectKind<Bloom>> {
   const layouts = createLayouts(device);
   const module = await createCheckedShaderModule(device, BLOOM_WGSL, BLOOM_PASS);
   const add: GPUBlendComponent = { srcFactor: 'one', dstFactor: 'one', operation: 'add' };
@@ -64,6 +68,7 @@ export async function createWebgpuBloom(device: GPUDevice) {
     packed = new Float32Array(0),
     width = 0,
     height = 0,
+    passes = 0,
     dirty = false;
   const levelGroup = (view: GPUTextureView) =>
     device.createBindGroup({
@@ -93,7 +98,7 @@ export async function createWebgpuBloom(device: GPUDevice) {
     views = [];
     groups = [];
     inputs = new WeakMap();
-    width = height = 0;
+    width = height = passes = 0;
   };
   const put = (at: number, value: number) => {
     dirty ||= packed[at] !== Math.fround(value);
@@ -134,18 +139,17 @@ export async function createWebgpuBloom(device: GPUDevice) {
     get bytes() {
       return texture ? bloomLevelBytes(width, height) : 0;
     },
-    /** Levels of the chain at the current size; zero on an image too small to halve. */
-    get levels() {
-      return sizes.length;
-    },
-    /** Sizes the chain for an image; true when it was reallocated. */
-    resize(nextWidth: number, nextHeight: number) {
-      if (nextWidth === width && nextHeight === height) return false;
+    /** Sizes the levels for an image and the uniform for `count` blooms; none frees them. The
+     *  uniform grows with the count, and never shrinks while the size holds. */
+    resize(nextWidth: number, nextHeight: number, count: number) {
+      if (!count) return release();
+      if (nextWidth === width && nextHeight === height && count <= passes) return;
       release();
       width = nextWidth;
       height = nextHeight;
+      passes = count;
       sizes = bloomLevelSizes(width, height);
-      if (!sizes.length) return true;
+      if (!sizes.length) return;
       texture = device.createTexture({
         label: `${BLOOM_PASS} levels`,
         size: { width: sizes[0][0], height: sizes[0][1] },
@@ -155,7 +159,7 @@ export async function createWebgpuBloom(device: GPUDevice) {
       });
       uniform = device.createBuffer({
         label: `${BLOOM_PASS} uniform`,
-        size: sizes.length * 2 * BLOOM_UNIFORM_STRIDE,
+        size: passes * sizes.length * 2 * BLOOM_UNIFORM_STRIDE,
         usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
       });
       packed = new Float32Array(uniform.size / 4).fill(Number.NaN);
@@ -163,38 +167,33 @@ export async function createWebgpuBloom(device: GPUDevice) {
         texture!.createView({ baseMipLevel: level, mipLevelCount: 1 }),
       );
       groups = views.map(levelGroup);
-      return true;
     },
-    /** Draws `input` and its glow into `output`: 2 × levels passes. The chain must be sized. */
-    encode(
-      encoder: GPUCommandEncoder,
-      bloom: Bloom,
-      input: GPUTextureView,
-      output: GPUTextureView,
-    ) {
+    /** Draws `input` and its glow into `output`, the `nth` bloom of the chain: 2 × levels passes,
+     *  none on an image too small to halve. The chain must be sized for it. */
+    encode(encoder, bloom, nth, input, output) {
       const count = sizes.length;
+      if (!count) return 0;
       const full: Size = [width, height],
         { keep, glow } = bloomBlend(bloom.intensity, count),
-        { radius } = bloom;
+        { radius } = bloom,
+        first = nth * 2 * count;
       for (let level = 0; level < count; level++)
-        slot(level, sizes[level], level ? sizes[level - 1] : full, radius);
+        slot(first + level, sizes[level], level ? sizes[level - 1] : full, radius);
       for (let level = 0; level + 1 < count; level++)
-        slot(count + level, sizes[level], sizes[level + 1], radius);
-      slot(2 * count - 1, full, sizes[0], radius, keep, glow);
-      if (dirty) device.queue.writeBuffer(uniform!, 0, packed);
+        slot(first + count + level, sizes[level], sizes[level + 1], radius);
+      slot(first + 2 * count - 1, full, sizes[0], radius, keep, glow);
+      const at = first * BLOOM_UNIFORM_STRIDE;
+      if (dirty)
+        device.queue.writeBuffer(uniform!, at, packed, at / 4, (count * BLOOM_UNIFORM_STRIDE) / 2);
       dirty = false;
       const source = inputGroups(input);
       for (let level = 0; level < count; level++)
-        draw(encoder, views[level], down, level ? groups[level - 1] : source.level, level);
+        draw(encoder, views[level], down, level ? groups[level - 1] : source.level, first + level);
       for (let level = count - 2; level >= 0; level--)
-        draw(encoder, views[level], up, groups[level + 1], count + level);
-      draw(encoder, output, composite, groups[0], 2 * count - 1, source.scene);
+        draw(encoder, views[level], up, groups[level + 1], first + count + level);
+      draw(encoder, output, composite, groups[0], first + 2 * count - 1, source.scene);
       return 2 * count;
     },
-    dispose() {
-      release();
-    },
+    dispose: () => release(),
   };
 }
-
-export type WebgpuBloom = Awaited<ReturnType<typeof createWebgpuBloom>>;

@@ -26,6 +26,8 @@ type Binding = {
   matrices: Matrix3UniformCache;
   textures: WebglClusterTextures;
   state: WebglClusterState;
+  /** The effect chain's linear program (`CLUSTER_LINEAR_FRAGMENT`), which reads `covering`. */
+  linear?: boolean;
 };
 
 /** Uploads one material's factors, maps and raster state; cached values are skipped. `side`
@@ -38,7 +40,7 @@ export function bindClusterMaterial(
   side?: Side,
   polygonOffsetUnits?: number,
 ) {
-  const { uniforms, matrices, textures, state } = binding;
+  const { uniforms, matrices, textures, state, linear } = binding;
   const source = material as { opacity: number },
     mat = visMaterial(material);
   // An unlit material keeps its occlusion map and strength on the host object alone: its map is
@@ -65,8 +67,8 @@ export function bindClusterMaterial(
   uniforms.i1(15, 'hasVertexColor', material.vertexColors ? 1 : 0);
   uniforms.i1(16, 'toneMapped', toneMapped && material.toneMapped ? 1 : 0);
   // An opaque surface covers its pixel whatever its alpha: the linear target of the effect chain
-  // reads alpha as coverage (`../../effects/webglOutput.ts`).
-  uniforms.i1(47, 'covering', material.transparent ? 0 : 1);
+  // reads alpha as coverage (`../../effects/webglEffects.ts`).
+  if (linear) uniforms.i1(47, 'covering', material.transparent ? 0 : 1);
   const sharedMetalRough =
     !!mat.roughnessMap &&
     mat.roughnessMap === mat.metalnessMap &&
