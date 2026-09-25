@@ -28,24 +28,18 @@
 export const CLUSTER_WORDS = 12;
 /** Words of the cold record; `PAGE_CONE_FLOATS` in `../core/selection.ts` is the public mirror. */
 export const COLD_WORDS = 13;
-export const CLUSTER_ROOT = 1,
-  CLUSTER_NEVER = 2,
+/** Bit 0 is free: it said the cluster had no parent, which only the pinned-root fallback read. */
+export const CLUSTER_NEVER = 2,
   /** The cluster is blended: its triangle share is counted apart, as on the CPU. */
   CLUSTER_TRANSPARENT = 4;
 /** Detail level travels in the flags' high bits: a single pass reads it, at emit. */
 export const CLUSTER_LEVEL_SHIFT = 8;
 const CLUSTER_LEVEL_MAX = 0xffffff;
 
-export function packClusterFlags(
-  root: boolean,
-  never: boolean,
-  level: number,
-  transparent = false,
-) {
+export function packClusterFlags(never: boolean, level: number, transparent = false) {
   const bounded = Math.min(Math.max(Math.trunc(level) || 0, 0), CLUSTER_LEVEL_MAX);
   return (
-    ((root ? CLUSTER_ROOT : 0) |
-      (never ? CLUSTER_NEVER : 0) |
+    ((never ? CLUSTER_NEVER : 0) |
       (transparent ? CLUSTER_TRANSPARENT : 0) |
       (bounded << CLUSTER_LEVEL_SHIFT)) >>>
     0
@@ -125,7 +119,7 @@ export const residentWords = (pageCount: number) => (Math.max(0, pageCount) + 31
 export const childBase = (pageCount: number) => residentBase(pageCount) + residentWords(pageCount);
 /** First cold record, behind both bit sets. */
 export const coldBase = (pageCount: number) => childBase(pageCount) + residentWords(pageCount);
-export const residentBit = (bits: Uint32Array, base: number, page: number) =>
+const residentBit = (bits: Uint32Array, base: number, page: number) =>
   (bits[base + (page >>> 5)] & (1 << (page & 31))) !== 0;
 
 /** Hot field ranks, in the order `struct Cluster` of the shader declares them. */
