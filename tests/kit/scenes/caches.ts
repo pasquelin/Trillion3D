@@ -32,8 +32,9 @@ export const sceneMounts = (root: string): Mount[] =>
  *  no source any more, left on disk by a scene removed since, is not read. */
 export async function sceneCacheFiles(file: string): Promise<string[]> {
   const found: string[] = [];
-  const patterns = SCENE_ROOTS.map((folder) => `${folder}/**/cache/native/full/${file}`);
+  // `cache`, or `cache-<name>` for a second cook of the same source (`site-caches.ts`).
+  const patterns = SCENE_ROOTS.map((folder) => `${folder}/**/cache{,-*}/native/full/${file}`);
   for await (const path of glob(patterns, { cwd: REPOSITORY }))
-    if (hasSource(path.split('/cache/')[0])) found.push(path);
+    if (hasSource(path.replace(/\/cache(-[^/]+)?\/native\/full\/.*$/, ''))) found.push(path);
   return found;
 }
