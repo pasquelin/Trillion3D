@@ -5,6 +5,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { boxTransform } from '../../../sdk-core/src/index.ts';
+import { IDENTITY_MATRIX4 } from '../../../sdk-core/src/math/matrix/matrix4.ts';
 import * as light from '../../../sdk-core/src/scene/light-shadow/lightShadow.fixture.ts';
 import * as sun from '../../../sdk-core/src/scene/light-shadow/sunView.fixture.ts';
 import { createShadowMobility } from '../webgpu/shadow/mobility.ts';
@@ -23,7 +24,7 @@ const BOXES = [
 function placed() {
   const rows = createPlacementRows(BOXES.length);
   const roots = BOXES.map((local, index) => {
-    rows.matrices.set([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1], index * 16);
+    rows.matrices.set(IDENTITY_MATRIX4, index * 16);
     rows.live[index] = 1;
     const world = placementWorld(rows, index),
       worldBox = new Float64Array(6),

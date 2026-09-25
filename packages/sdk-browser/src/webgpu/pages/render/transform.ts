@@ -1,3 +1,4 @@
+import { MOVE_PROMOTED } from '../../../placement/update.ts';
 import type { HostMesh } from '../../../host/resources.ts';
 import {
   BOX_VALUES,
@@ -114,12 +115,13 @@ export function setWebgpuTransform(rt: WebgpuPagesRuntime, nodeName: string, mat
   const roots = layout.selectionRoots;
   if (underNode.length < roots.length) underNode = new Uint8Array(roots.length);
   boxEmpty(moved, 0);
+  let promoted = false;
   for (let i = 0; i < roots.length; i++) {
     const root = roots[i];
     underNode[i] = isUnder(root.pages[0]?.sourceMesh, node) ? 1 : 0;
     if (!underNode[i] || !root.worldBox) continue;
     boxUnionBatch(moved, root.worldBox, 1);
-    lights.mobility.move(i);
+    promoted = lights.mobility.move(i) === MOVE_PROMOTED || promoted;
   }
   // The local matrix is authoritative, not the three fields: not every matrix is a
   // translation-rotation-scale product. A shear — two non-orthogonal axes, which a non-uniform
@@ -163,7 +165,8 @@ export function setWebgpuTransform(rt: WebgpuPagesRuntime, nodeName: string, mat
     movedMin[axis] = moved[axis];
     movedMax[axis] = moved[axis + 3];
   }
-  lights.plan.worldChanged(movedMin, movedMax, !lights.mobility.takePromoted());
+  // A root's first move changes the static layer: the pages it crossed are staled whole.
+  lights.plan.worldChanged(movedMin, movedMax, !promoted);
 }
 
 /** True when `mesh` is the moved node or one of its descendants. */

@@ -298,9 +298,9 @@ real allocations) — is the CPU total's first share, before the decoded-page ca
   per-frame page cap and no millisecond budget; the list goes the coarsest first, each light's
   floor leading (#525), an order that matters only to a frame its memory guard stops. The cost is
   held by caching — a page is drawn again only when what it holds changed —, never by deferring a
-  page and showing a coarse or stale one as current. The frame draws its pages in as many batches as the per-batch buffers
-  take (`shadowPagesPerBatch`, 24 pages, in the views one light cut runs at once), all in its one
-  command buffer, each batch's buffer writes landing in command order
+  page and showing a coarse or stale one as current. The frame draws its pages in as many batches
+  as the per-batch buffers take (`shadowPagesPerBatch`, 24 pages, in the views one light cut runs
+  at once), all in its one command buffer, each batch's buffer writes landing in command order
   (`gpu/shadow/batchWrites.ts`, `webgpu/pages/render/encodeShadowBatches.ts`). What the batches
   add is sized once from the largest pool, never grown, and counted in the memory budget
   (`gpu/shadow/batchBudget.ts`): 4 096 pages in full batches of 24 is at most 171 batches a frame
