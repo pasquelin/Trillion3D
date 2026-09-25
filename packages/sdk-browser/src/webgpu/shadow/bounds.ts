@@ -135,6 +135,7 @@ export function uploadRowMobility(
     from,
     to,
     (first, count) => device.queue.writeBuffer(buffer, first * 4, mobility.rowWords, first, count),
+    rows.blendFirst,
   );
 }
 

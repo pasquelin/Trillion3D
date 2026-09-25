@@ -9,6 +9,7 @@ import { BOUNCE_GRID_BYTES } from '../../bounce/uniform.ts';
 import { PROXY_HEADER_BYTES } from '../../bounce/nodeWgsl.ts';
 import { SUN_FAR_PROXY_BINDING } from '../../gpu/shadow/sunFarShadowWgsl.ts';
 import { DEPTH_COMPARE } from '../../camera/depthConvention.ts';
+import { SHADOW_TRANSMITTANCE_FORMAT } from '../../gpu/shadow/transmittance.ts';
 
 /**
  * Substitute of the resident proxy: a header of zeros and four words behind it. Presence
@@ -50,6 +51,11 @@ export function deferredLayoutEntries(
       // counted frame. That is what lets the blend pass bind it too. Writable here, where the
       // counters are written; the water composite, which only traces, declares it read-only.
       { binding: SUN_FAR_PROXY_BINDING, visibility: GPUShaderStage.FRAGMENT, buffer: proxy },
+      {
+        binding: CONTRACT_SHADOW_BINDINGS.transmittance,
+        visibility: GPUShaderStage.FRAGMENT,
+        texture: { sampleType: 'unfilterable-float' },
+      },
     );
   // The shadow pages the resolve reads, recorded for the scheduler: only the opaque resolve asks.
   if (direct && marks)
@@ -86,7 +92,7 @@ export function createDeferredLayouts(device: GPUDevice, direct: boolean, bounce
 
 /**
  * Contract substitute resources: an empty tile list, shadow records that hold no light and an
- * empty page table, a request buffer nothing reads back, a one-texel pool, and a probe grid at
+ * empty page table, a request buffer nothing reads back, a one-texel pool and transmittance layer, and a probe grid at
  * zero. A device that refuses the real atlas thus keeps valid
  * bindings, and the light simply stays without shadow instead of failing the frame; a frame
  * without bounce reads a grid whose probe count is zero, hence an indirect irradiance of
@@ -116,6 +122,13 @@ export function createDeferredPlaceholders(device: GPUDevice) {
     size: [1, 1, 1],
     format: 'depth32float',
     usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.RENDER_ATTACHMENT,
+  });
+  // One texel: the shadow read tells it from a real layer by its size, and never reads it.
+  const transmittance = device.createTexture({
+    label: 'Trillion3D empty shadow transmittance',
+    size: [1, 1, 1],
+    format: SHADOW_TRANSMITTANCE_FORMAT,
+    usage: GPUTextureUsage.TEXTURE_BINDING,
   });
   // Shadow-atlas comparison is the engine's: reversed depth, hence `greater`.
   const sampler = device.createSampler({
@@ -151,6 +164,7 @@ export function createDeferredPlaceholders(device: GPUDevice) {
     slices,
     requests,
     atlasView: atlas.createView(),
+    transmittanceView: transmittance.createView(),
     sampler,
     bounceGrid,
     probes,
@@ -160,6 +174,7 @@ export function createDeferredPlaceholders(device: GPUDevice) {
       slices.destroy();
       requests.destroy();
       atlas.destroy();
+      transmittance.destroy();
       bounceGrid.destroy();
       probes.destroy();
       proxy.destroy();

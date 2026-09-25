@@ -58,6 +58,10 @@ function encodeOcclusion(rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder, cou
  * **The viewport is the physical page, the matrix the virtual page's own projection.** The page
  * fills the clip square, so the rasterizer clips every caster at its edge and no other page of the
  * pool is touched; the scissor says the same square once more.
+ *
+ * Once a blended caster holds a row, the pool's pass also targets the transmittance layer
+ * (`../../../gpu/shadow/transmittance.ts`): each region draws its list a second time, where only
+ * the blended casters' corners survive, into that layer alone. Before, the pass is the one it was.
  */
 export function encodeShadowAtlas(
   rt: WebgpuPagesRuntime,
@@ -75,10 +79,15 @@ export function encodeShadowAtlas(
   cull.counts.sample(encoder, cull.indirect, count, run.frame);
   lights.shadowDraws = count;
   const drawsBefore = run.gpuDrawCalls;
+  const transmittance = rt.services.blendCasters.used
+    ? shadows.ensureTransmittance(encoder)
+    : shadows.transmittance;
   const draw = (target: GPUTextureView, label: string, layer: boolean, tested: boolean) => {
+    // The static layer keeps depth alone: the blended casters' rows count as moving.
+    const through = layer ? undefined : transmittance;
     const pass = encoder.beginRenderPass({
       label,
-      colorAttachments: [],
+      colorAttachments: through ? [{ view: through.view, loadOp: 'load', storeOp: 'store' }] : [],
       depthStencilAttachment: { view: target, depthLoadOp: 'load', depthStoreOp: 'store' },
     });
     for (let region = 0; region < count; region++) {
@@ -92,20 +101,24 @@ export function encodeShadowAtlas(
       pass.setViewport(x, y, SHADOW_PAGE, SHADOW_PAGE, 0, 1);
       pass.setScissorRect(x, y, SHADOW_PAGE, SHADOW_PAGE);
       if (start === REGION_RESTORE) {
-        pass.setPipeline(staticLayer!.restore);
+        pass.setPipeline(through ? staticLayer!.restoreTransmit : staticLayer!.restore);
         pass.setBindGroup(0, staticLayer!.group);
       } else {
-        pass.setPipeline(shadows.clear);
+        pass.setPipeline(through?.clear ?? shadows.clear);
         pass.setBindGroup(0, group);
         pass.setBindGroup(1, shadows.faceGroup, [region * shadows.faceStride]);
       }
       pass.draw(3);
-      pass.setPipeline(shadows.depth);
+      pass.setPipeline(through?.depth ?? shadows.depth);
       pass.setBindGroup(0, group);
       pass.setBindGroup(1, shadows.faceGroup, [region * shadows.faceStride]);
       const commands = visible ? occlusion!.visibleIndirect : cull.indirect;
       pass.drawIndirect(commands, region * DRAW_INDIRECT_STRIDE);
       run.gpuDrawCalls += 2;
+      if (!through) continue;
+      pass.setPipeline(through.blend);
+      pass.drawIndirect(commands, region * DRAW_INDIRECT_STRIDE);
+      run.gpuDrawCalls++;
     }
     pass.end();
   };

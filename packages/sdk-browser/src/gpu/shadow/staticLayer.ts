@@ -1,5 +1,6 @@
 import { SHADOW_PAGE } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { createCheckedShaderModule } from '../core/shaderModule.ts';
+import { SHADOW_TRANSMITTANCE_FORMAT, TRANSMITTANCE_CLEAR_WGSL } from './transmittance.ts';
 
 /** Label of the pass that fills the static layer: timed with the Shadows stage. */
 export const SHADOW_LAYER_PASS = 'Trillion3D shadow static layer v1';
@@ -11,6 +12,12 @@ const RESTORE_WGSL = `@group(0) @binding(0) var layer:texture_depth_2d;
 /** The viewport is the page in the pool and in the layer alike: a texel reads its own twin. */
 @fragment fn restore_fs(@builtin(position) p:vec4f)->@builtin(frag_depth) f32{
  return textureLoad(layer,vec2i(p.xy),0);
+}
+struct Restored{@builtin(frag_depth) depth:f32,@location(0) transmittance:vec4f,}
+/** The same, the transmittance layer attached: the layer keeps no translucent caster — their rows
+ *  count as moving —, so the page starts from all the light. */
+@fragment fn restore_transmit_fs(@builtin(position) p:vec4f)->Restored{
+ return Restored(textureLoad(layer,vec2i(p.xy),0),${TRANSMITTANCE_CLEAR_WGSL});
 }`;
 
 /**
@@ -39,18 +46,26 @@ export async function createShadowStaticLayer(device: GPUDevice, poolSide: numbe
       ],
     });
     const view = texture.createView();
-    const restore = device.createRenderPipeline({
-      label: 'Trillion3D shadow page restore v1',
-      layout: device.createPipelineLayout({ bindGroupLayouts: [layout] }),
-      vertex: { module, entryPoint: 'restore_vs' },
-      fragment: { module, entryPoint: 'restore_fs', targets: [] },
-      primitive: { topology: 'triangle-list', cullMode: 'none' },
-      depthStencil: { format: 'depth32float', depthWriteEnabled: true, depthCompare: 'always' },
-    });
+    const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] });
+    const restorePipeline = (entryPoint: string, targets: GPUColorTargetState[]) =>
+      device.createRenderPipeline({
+        label: 'Trillion3D shadow page restore v1',
+        layout: pipelineLayout,
+        vertex: { module, entryPoint: 'restore_vs' },
+        fragment: { module, entryPoint, targets },
+        primitive: { topology: 'triangle-list', cullMode: 'none' },
+        depthStencil: { format: 'depth32float', depthWriteEnabled: true, depthCompare: 'always' },
+      });
+    const restore = restorePipeline('restore_fs', []);
+    const restoreTransmit = restorePipeline('restore_transmit_fs', [
+      { format: SHADOW_TRANSMITTANCE_FORMAT },
+    ]);
     const group = device.createBindGroup({ layout, entries: [{ binding: 0, resource: view }] });
     return {
       view,
       restore,
+      /** `restore` with the transmittance layer attached (`transmittance.ts`). */
+      restoreTransmit,
       group,
       bytes: size * size * 4,
       dispose() {

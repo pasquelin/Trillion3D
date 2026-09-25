@@ -26,7 +26,7 @@ interface ShadowRowTable {
 /**
  * Colour tiles of textures `slots` are resident, or have left: the alpha cutout the shadow pass
  * reads has just changed for every masked surface that carries one of these textures — and the
- * coverage of every blended caster that does (`../../../gpu/shadow/blendCoverage.ts`) —, and a
+ * coverage of every blended caster that does (`../../../gpu/shadow/transmittance.ts`) —, and a
  * map drawn at the previous level would describe foliage that is no longer the image's. The
  * pages the world box of those surfaces covers go back to waiting once the camera rests, under
  * the ordinary Shadows stage budget — and those alone: a colour tile of a texture no cutout
@@ -142,6 +142,7 @@ export function directLightResources(rt: WebgpuPagesRuntime) {
   contractResources.slices = active ? lights.shadows?.dataBuffer : undefined;
   contractResources.requests = active ? lights.shadows?.requestBuffer : undefined;
   contractResources.atlas = active ? lights.shadows?.view : undefined;
+  contractResources.transmittance = active ? lights.shadows?.transmittance?.view : undefined;
   // The grid is bound only if it exists: without it, the deferred pass compiles and binds the
   // contract program alone, exactly the one from before the bounce lot.
   const bounce = active && rt.bounce.wanted ? rt.bounce.probes : undefined;
