@@ -31,8 +31,8 @@ const WGSL_OWN = new Set(
 );
 
 /** Every name the module declares: its functions, structures, aliases, constants and variables,
- *  module-scope or local, and, once structure bodies are gone, every name a type follows — a
- *  parameter or a typed declaration. */
+ *  module-scope or local, and, once member names and case colons are gone, every name a type
+ *  follows — a parameter or a typed declaration. */
 function declaredNames(code: string) {
   const declaration =
     /\b(?:fn|struct|alias|const|let|var(?:\s*<[^>]*>)?|override)\s+(\w+)|(\w+)\s*:/g;
@@ -40,13 +40,16 @@ function declaredNames(code: string) {
 }
 
 /** The names `source` uses and declares nowhere, sorted: comments, attributes and structure
- *  bodies left out, a member after a dot never taken for a name. */
+ *  member names left out (their types kept), a case selector never taken for a declaration, a
+ *  member after a dot never taken for a name. */
 export function unresolvedNames(source: string) {
   const code = source
-    .replace(/\/\*[\s\S]*?\*\//g, '')
-    .replace(/\/\/.*$/gm, '')
+    .replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, '')
     .replace(/@\w+(?:\s*\([^()]*\))?/g, '')
-    .replace(/(\bstruct\s+\w+\s*)\{[^}]*\}/g, '$1{}');
+    .replace(/(\bstruct\s+\w+\s*\{)([^}]*)\}/g, (_, head: string, body: string) => {
+      return `${head}${body.replace(/\w+\s*:/g, ':')}}`;
+    })
+    .replace(/\b(case\b[^:{]*|default\s*):/g, '$1');
   const declared = declaredNames(code);
   const used = new Set([...code.matchAll(/(?<![\w.])([A-Za-z_]\w*)/g)].map((m) => m[1]));
   return [...used].filter((name) => !declared.has(name) && !WGSL_OWN.has(name)).sort();

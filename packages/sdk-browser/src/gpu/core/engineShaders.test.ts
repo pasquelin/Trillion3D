@@ -40,3 +40,10 @@ test('a comment, an attribute, a structure member or a field after a dot is neve
   assert.deepEqual(unresolvedNames(code), []);
   assert.deepEqual(unresolvedNames(code.replace('var<uniform> s:S', 'var<uniform> t:S')), ['s']);
 });
+
+test('a member type, a case selector and code after a comment are still read', () => {
+  assert.deepEqual(unresolvedNames('struct A{x:Gone,} var<private> a:A;'), ['Gone']);
+  const choice = 'fn f(v:u32)->u32{switch v {case Gone:{return 1u;} default:{return 0u;}}}';
+  assert.deepEqual(unresolvedNames(choice), ['Gone']);
+  assert.deepEqual(unresolvedNames('// a/*b\nfn f()->u32{return gone;}\n/* c */'), ['gone']);
+});
