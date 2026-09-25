@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { publierRapport } from './publishReport.ts';
 
-test('publication keeps immutable campaigns and portal entry, and validates evidence before copying', () => {
+test('a campaign replaces the one report, keeps the portal entry, and validates evidence before copying', () => {
   const root = mkdtempSync(join(tmpdir(), 'trillion3d-publish-'));
   try {
     const source = join(root, 'source'),
@@ -27,6 +27,17 @@ test('publication keeps immutable campaigns and portal entry, and validates evid
     assert.equal(readFileSync(join(dest, 'index.html'), 'utf8'), 'portal');
     assert.equal(JSON.parse(readFileSync(join(dest, 'reports/index.json'), 'utf8'))[0].id, 'test');
     assert.throws(() => publierRapport(source, dest), /already published/);
+    writeFileSync(join(dest, 'reports/contract.ts'), 'export {};');
+    writeFileSync(join(source, 'report.json'), JSON.stringify({ ...report, id: 'next' }));
+    assert.equal(publierRapport(source, dest), join(dest, 'reports/next'));
+    assert.equal(existsSync(join(dest, 'reports/test')), false, 'the previous campaign is gone');
+    assert.equal(existsSync(join(dest, 'reports/contract.ts')), true, 'the modules stay');
+    assert.deepEqual(
+      JSON.parse(readFileSync(join(dest, 'reports/index.json'), 'utf8')).map(
+        (item: { id: string }) => item.id,
+      ),
+      ['next'],
+    );
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
