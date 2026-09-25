@@ -109,19 +109,23 @@ test('a shadow pool the device refuses is drawn smaller, said, and never taken f
   assert.equal(s.uncaptured, 0, 'every refusal was caught by its scope: no device loss');
 });
 
-test('a shadow pool refused even at its floor leaves the frame whole, unshadowed, and said', async () => {
+test('a shadow pool refused even at its floor leaves the frame whole and says shadows are off', async () => {
   const s = session([1280, 720], 0);
   s.lights.store.add({ ...SUN, id: 'shadow sun' });
   await s.size();
   assert.deepEqual(s.sized, [], 'no pool: the frame is drawn without shadows');
   assert.equal(s.lights.shadows?.texture, undefined);
   assert.deepEqual(
-    s.said.map(([phase, context]) => [phase, context.grantedBytes]),
-    [['gpu-out-of-memory', null]],
+    s.said.map(([phase, context]) => [phase, context.reason ?? context.grantedBytes]),
+    [
+      ['gpu-out-of-memory', null],
+      ['shadows-off', 'gpu-out-of-memory'],
+    ],
+    'shadows lost are never silent: the page is told they are off',
   );
   assert.equal(s.lights.shadowGrant?.settled, true, 'the grant settled: no frame waits on it');
   await s.size();
-  assert.equal(s.said.length, 1, 'a refusal is asked once, not every frame');
+  assert.equal(s.said.length, 2, 'a refusal is asked once, not every frame');
   assert.equal(s.uncaptured, 0);
 });
 
