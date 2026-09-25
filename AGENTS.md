@@ -18,7 +18,7 @@ disagreement is reported to the maintainer.
    the shared checkout, never touch another session's worktree. Every worktree lives in
    `.worktrees/<branch>/` inside the project, every log or throwaway file in `.worktrees/logs/`;
    nothing is written beside the project or in the system's temporary folders.
-5. **Only the maintainer opens issues** (the maintainer's own session, with the writer role). No
+5. **Only the CTO opens issues**, from the boss's words, with the writer role. No
    other session opens one, not even to split an issue. What a pull request does not deliver
    stays in its own issue: the PR says `Part of #n`, the rest is a comment on #n, the issue stays
    open. A regression reopens the measured issue with `measure ko`; a finding reopens the audited
@@ -36,21 +36,24 @@ disagreement is reported to the maintainer.
 
 ## Roles
 
-Three kinds of session, started by the maintainer — lead, measurer, auditor — two roles a lead
-launches as subagents — coder, reviewer — and the writer, which only the maintainer's session uses.
-Each role is `docs/roles/<role>.md`.
+A company. The **boss** (the maintainer) talks only to the **CTO**, tests the result and sets
+priorities. The CTO starts and supervises every other session. Each role is
+`docs/roles/<role>.md`.
 
-| Role     | Started by | Does                                                              | Never                        |
-| -------- | ---------- | ----------------------------------------------------------------- | ---------------------------- |
-| lead     | maintainer | owns one domain, delegates, merges, labels                        | writes code, measures        |
-| coder    | lead       | implements one issue, opens the pull request                      | merges, measures             |
-| reviewer | lead       | simplification then correctness pass on one pull request, verdict | merges, measures             |
-| measurer | maintainer | browser proofs, benchmarks and example thumbnails, after merge    | edits code, merges           |
-| auditor  | maintainer | re-reads every merge on `develop` against CONTRIBUTING.md         | edits code, merges, measures |
-| writer   | maintainer | writes one issue on the template, from its patterns               | codes, measures              |
+| Role       | Started by | Does                                                                                                                                        | Never                        |
+| ---------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------- |
+| CTO        | boss       | turns priorities into the pinned Priorities issue, starts and supervises the sessions, decides technique, opens issues, reports to the boss | writes code, measures        |
+| lead       | CTO        | owns one domain, runs its coder and reviewer, verifies, merges, closes                                                                      | writes code, measures        |
+| coder      | lead       | implements one issue, opens the pull request                                                                                                | merges, measures             |
+| reviewer   | lead       | the real `simplify` and `code-review` skills, then the acceptance list                                                                      | merges, measures             |
+| measurer   | CTO        | budgets, browser proofs, example captures and thumbnails, after merge                                                                       | edits code, merges           |
+| acceptance | CTO        | re-reads every merge and judges the example captures; a safety net                                                                          | edits code, merges, measures |
+| writer     | CTO        | writes one issue on the template, from the boss's words                                                                                     | codes, measures              |
 
-Several leads may run at once, one domain each (a label or an issue list given at launch). There
-is one measurer and one auditor.
+Domains: geometry, lighting, compiler, physics, sdk. A bug goes to its domain's lead; there is no
+bug domain. There is one CTO, one measurer and one acceptance session. Every session reports to
+the CTO; only the CTO speaks to the boss. The CTO watches the plan usage: at 80 % it winds the
+company down (current agents finish, nothing new starts) so no work is cut midway.
 
 ## Leads: limits that hold at every moment
 
@@ -83,8 +86,11 @@ auditor only comment on it. A regression or an audit finding **reopens** the ori
 
 ## Interaction
 
-- Replies to the maintainer are in simple, short French: outcome first, 1–5 lines, no jargon, one
-  question at a time. Everything written in the repository is in English.
+- The CTO's replies to the boss are in simple, short French: outcome first, 1–5 lines, no jargon,
+  one question at a time. Other sessions address the CTO. Everything written in the repository
+  is in English.
+- No pollution: a merged or abandoned branch loses its worktree and its local and remote branch
+  at once, and every session cleans its own before it stops.
 - A session with no role explains and waits: no code before the maintainer asks for it.
 - Read this file, then only the task's issue and the files it names.
 
