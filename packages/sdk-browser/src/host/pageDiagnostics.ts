@@ -8,8 +8,14 @@ import { BufferAttribute } from '../../../sdk-core/src/world/buffer/attribute.ts
 import { GraphSurface } from './graph/surface.ts';
 import { clusterColor } from '../diagnostic/colors.ts';
 
+/** A diagnostic surface, flat and never seen through the scene's fog: it shows a number, not a
+ *  material. */
 const unshaded = (parameters: Record<string, unknown>, side: number) =>
-  new GraphSurface('basic', { ...parameters, side }) as unknown as HostDiagnosticMaterial;
+  new GraphSurface('basic', {
+    ...parameters,
+    side,
+    fog: false,
+  }) as unknown as HostDiagnosticMaterial;
 
 /**
  * THE OBJECTS A DIAGNOSTIC VIEW SWAPS IN on the page path's display graph. The views are the

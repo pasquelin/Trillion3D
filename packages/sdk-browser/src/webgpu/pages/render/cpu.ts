@@ -62,6 +62,7 @@ function cullWithTemporalHiz(rt: WebgpuPagesRuntime, cam: EngineCamera) {
       rt.setup.viewport ?? rt.gpu.targetSize,
       run.temporalHizState,
       run.cpuHizCounts,
+      rt.setup.pixelRatio(),
     );
     run.cpuHizCounted = true;
     run.culledScratch.length = 0;

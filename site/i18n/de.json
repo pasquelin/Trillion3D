@@ -327,7 +327,6 @@
       "a-walker-among-balls": "Ein Läufer zwischen Bällen"
     },
     "missing": {
-      "colours-on-the-vertices": "Vertexfarben unter WebGPU",
       "dashed-lines": "gestrichelte Linien",
       "floating-crates": "in jedem Bild neu geschriebene Geometrie",
       "thick-lines": "breite Linien",
@@ -427,8 +426,6 @@
       "reflections-from-the-screen": "Spiegelungen im Bildraum",
       "an-ocean": "Rendern in eine Textur: Wasserspiegelung und -brechung",
       "a-raging-sea": "Materialien mit eigenem Shader",
-      "a-town-in-the-fog": "Nebel",
-      "fog-on-the-ground": "Nebel: Höhennebel",
       "fog-that-scatters-light": "volumetrischer Nebel und Lichtstrahlen",
       "a-cloud-in-a-box": "volumetrisches Rendering",
       "a-fire-in-a-volume": "volumetrisches Rendering",

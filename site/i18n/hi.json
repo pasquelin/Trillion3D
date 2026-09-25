@@ -1511,7 +1511,6 @@
       "a-walker-among-balls": "गेंदों के बीच चलने वाला"
     },
     "missing": {
-      "colours-on-the-vertices": "WebGPU पर प्रति-वर्टेक्स रंग",
       "dashed-lines": "टूटी-फूटी रेखाएँ",
       "floating-crates": "हर फ़्रेम में फिर से लिखी गई ज्यामिति",
       "thick-lines": "चौड़ी रेखाएँ",
@@ -1611,8 +1610,6 @@
       "reflections-from-the-screen": "स्क्रीन-स्पेस परावर्तन",
       "an-ocean": "texture में रेंडर: पानी का परावर्तन और अपवर्तन",
       "a-raging-sea": "कस्टम शेडर सामग्री",
-      "a-town-in-the-fog": "कोहरा",
-      "fog-on-the-ground": "कोहरा: ऊँचाई कोहरा",
       "fog-that-scatters-light": "वॉल्यूमेट्रिक कोहरा और प्रकाश किरणें",
       "a-cloud-in-a-box": "वॉल्यूम रेंडरिंग",
       "a-fire-in-a-volume": "वॉल्यूम रेंडरिंग",
