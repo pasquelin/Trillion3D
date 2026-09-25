@@ -24,7 +24,7 @@ not write code and you never measure. Every rule of AGENTS.md and CONTRIBUTING.m
    show asks for that live example in the same pull request: `site/examples/`, the engine's public
    API alone, an existing example extended rather than a second one written. Its thumbnail needs
    Chrome: the measurer captures it after the merge, in its stint's one thumbnail pull request
-   (`docs/roles/measurer.md` step 7), which you merge.
+   (`docs/roles/measurer.md` step 7), which you name ready.
    `gh issue edit <n> --remove-label "in progress" --add-label "in review"`.
 3. **Review.** Launch one `reviewer` subagent with a fresh context on the pull request
    (`docs/roles/reviewer.md`). `KO`: send its findings to a new coder with a short brief, then
@@ -32,8 +32,8 @@ not write code and you never measure. Every rule of AGENTS.md and CONTRIBUTING.m
 4. **Merge.** With the reviewer's `OK`, the example of step 2 when the batch has one, and every
    point of "Before merge" below checked by you on the diff: bring the branch up to date with
    `develop` (`gh pr update-branch <pr>`), wait for `validate` to be green on that head
-   (`gh pr checks <pr> --watch`), then `gh pr merge <pr> --merge --delete-branch`. A red check,
-   or a point of "Before merge" missed, goes back to step 3.
+   (`gh pr checks <pr> --watch`), then name it ready to the CTO, who merges it (AGENTS.md
+   §Roles). A red check, or a point of "Before merge" missed, goes back to step 3.
 5. **Hand over.** `gh issue edit <n> --remove-label "in review"`, add `to measure` for an engine
    batch (`packages/`, compiler, format, shaders, a published number) or an example whose
    thumbnail is missing or out of date, then `gh issue close <n>` unless the pull request says
