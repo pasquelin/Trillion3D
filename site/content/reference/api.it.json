@@ -7210,6 +7210,14 @@
       "maxLean": "La piega massima di una moto, in radianti."
     }
   },
+  "VehicleSpecs": {
+    "summary": "La macchina con cui parte ogni tipo di veicolo.",
+    "members": {
+      "car": "Una Chevrolet Corvette C5: trazione posteriore, 0,32 N·m per chilogrammo, sei marce.",
+      "motorcycle": "Una Yamaha XJ900 con il suo pilota: 0,26 N·m per chilogrammo, sei marce.",
+      "tracked": "Un M1 Abrams: una turbina a gas, 0,083 N·m per chilogrammo, quattro marce."
+    }
+  },
   "vehicle": {
     "summary": "La famiglia `vehicle`: un corpo e le sue ruote, guidati da `world.controls` `'vehicle'`.",
     "members": {

@@ -112,7 +112,7 @@ const BIKE_GEARS = [2.27, 1.63, 1.3, 1.09, 0.96, 0.88];
 const TRACK_GEARS = [4, 3, 2, 1];
 
 /** The machine each kind of vehicle starts as. */
-interface VehicleSpecs {
+export interface VehicleSpecs {
   /** A Chevrolet Corvette C5: rear-wheel drive, 0.32 N·m per kilogram, six gears. */
   car: VehicleSpec;
   /** A Yamaha XJ900 and its rider: 0.26 N·m per kilogram, six gears. */

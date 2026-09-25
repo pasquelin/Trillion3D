@@ -9361,6 +9361,17 @@
       "bindingIdentity": "\"packages/sdk-core/src/physics/vehicleSpec\".VehicleSpec"
     },
     {
+      "name": "VehicleSpecs",
+      "kind": "type",
+      "definingModule": "packages/sdk-core/src/physics/vehicleSpec.ts",
+      "currentEntryPoints": ["trillion3d (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/src/physics/vehicleSpec\".VehicleSpecs"
+    },
+    {
       "name": "viewToRenderOrigin",
       "kind": "value",
       "definingModule": "packages/sdk-core/src/math/primitives/renderOrigin.ts",

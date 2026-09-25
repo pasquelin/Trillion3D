@@ -7210,6 +7210,14 @@
       "maxLean": "L’inclinaison maximale d’une moto, en radians."
     }
   },
+  "VehicleSpecs": {
+    "summary": "La machine de départ de chaque sorte de véhicule.",
+    "members": {
+      "car": "Une Chevrolet Corvette C5 : propulsion, 0,32 N·m par kilogramme, six rapports.",
+      "motorcycle": "Une Yamaha XJ900 et son pilote : 0,26 N·m par kilogramme, six rapports.",
+      "tracked": "Un M1 Abrams : une turbine à gaz, 0,083 N·m par kilogramme, quatre rapports."
+    }
+  },
   "vehicle": {
     "summary": "La famille `vehicle` : un corps et ses roues, conduits par `world.controls` `'vehicle'`.",
     "members": {

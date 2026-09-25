@@ -146,7 +146,7 @@ export type {
   VehicleOptions,
 } from '../../sdk-core/src/physics/vehicle.ts';
 export { VEHICLE_SPECS } from '../../sdk-core/src/physics/vehicleSpec.ts';
-export type { VehicleSpec } from '../../sdk-core/src/physics/vehicleSpec.ts';
+export type { VehicleSpec, VehicleSpecs } from '../../sdk-core/src/physics/vehicleSpec.ts';
 export type { WaterSpec } from '../../sdk-core/src/fluids/buoyancy.ts';
 export { WaterSurface } from '../../sdk-core/src/fluids/waterSurface.ts';
 export type { WaveSpec } from '../../sdk-core/src/fluids/waves.ts';
