@@ -53,11 +53,9 @@ fn tileRead(s:TileSlot,uv:vec2f,ddx:vec2f,ddy:vec2f,aniso:bool)->TileRead{
  if(aniso&&granted>1u){
   let lx=dot(px,px);let ly=dot(py,py);
   let ratio=min(sqrt(max(lx,ly)/max(min(lx,ly),1e-20)),f32(granted));
-  if(ratio>${1 + ANISOTROPY_SLACK}){
-   taps=u32(ceil(ratio));
-   raw-=log2(f32(taps));
-   axis=select(ddy,ddx,lx>=ly);
-  }
+  taps=select(1u,u32(ceil(ratio)),ratio>${1 + ANISOTROPY_SLACK});
+  raw-=log2(f32(taps));
+  axis=select(vec2f(0.0),select(ddy,ddx,lx>=ly),taps>1u);
  }
  let mag=raw<=select(0.0,0.5,(s.sampling&${SAMPLE_MAG_HALF}u)!=0u);
  var lod=clamp(raw,0.0,f32(s.last));
