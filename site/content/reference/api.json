@@ -14114,7 +14114,7 @@
       {
         "name": "reissue(from?: number)",
         "type": "void",
-        "desc": "The frame's pages from `from` on could not be encoded: they stay stale, pending, and come first in the next frame's list (`admit.ts`)."
+        "desc": "The frame's pages from `from` on could not be encoded: they stay stale, pending, ahead of every page that turns stale after them in the next frame's list (`admit.ts`)."
       },
       {
         "name": "reset()",
