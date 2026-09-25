@@ -88,9 +88,8 @@ export async function jointRig(gravity: [number, number, number] = [0, -9.81, 0]
     },
     /** A body's quaternion after the last step. */
     turn: (mesh: Mesh) => poses.get(mesh.physics!._index)!.slice(3, 7),
-    /** The joints the module's gear linking has visited so far: its cost, not its time. */
+    /** The joints the module's gear linking, and its path carry, have visited: cost, not time. */
     linkVisits: () => jolt.linkVisits(),
-    /** The path joints the module's step carry has visited so far: its cost, not its time. */
     pathVisits: () => jolt.pathVisits(),
     /** A body's turn about y after the last step, radians. */
     yaw(mesh: Mesh) {
