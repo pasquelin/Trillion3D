@@ -5,8 +5,8 @@
 //! `dag/vanished.rs`). The cook refuses a parent error below a child's, so a cook that passes
 //! keeps its errors monotone.
 use super::chalet_fixture::{push_box, push_log};
-use super::dag_dependency_scenes::cook_site_scene;
 use super::silhouette::{page_cuts, page_indices, Mesh};
+use super::site_scene::cook_site_scene;
 use super::thin_walls::mesh_fixture;
 use super::*;
 use crate::dag::bounds::bounding_sphere;
@@ -107,7 +107,7 @@ fn no_part_of_signature_architecture_leaves_a_cut_under_its_extent() {
     let scene = cook_site_scene(folder, "geometry.gltf", "geometry", "qem-endpoints");
     let mut defects = Vec::new();
     for primitive in scene.result["primitives"].as_array().expect("primitives") {
-        let (positions, indices) = scene.source(primitive);
+        let (positions, indices) = (scene.positions(primitive), scene.indices(primitive));
         defects.extend(extent_defects(
             &scene.objects,
             primitive,

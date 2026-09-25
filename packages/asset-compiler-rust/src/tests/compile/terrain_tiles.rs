@@ -3,23 +3,22 @@
 //! surface, on either simplification. The scene is the one `see-the-triangles?model=terrain-tiles`
 //! opens; `scripts/docs/examples/terrain-tiles.ts` writes it.
 use super::cooked_pages::cooked_page_defects;
-use super::dag_dependency_scenes::{cook_site_scene, SiteScene};
+use super::silhouette::page_indices;
+use super::site_scene::{cook_site_scene, SiteScene};
 use super::*;
 
-fn cook(simplification: &str) -> SiteScene {
-    let folder = "site/assets/examples/terrain-tiles/source";
-    cook_site_scene(
-        folder,
-        "terrain-tiles.gltf",
-        "terrain-tiles",
-        simplification,
-    )
-}
-
+/// Cooks the scene on both simplifications and checks every page of every tile: none may carry a
+/// defect. On `qem-endpoints`, the same cook then proves the checker sees a moved vertex.
 #[test]
 fn every_page_of_the_cooked_terrain_tiles_decodes_onto_its_source_on_both_simplifications() {
     for simplification in ["qem-endpoints", "none"] {
-        let scene = cook(simplification);
+        let folder = "site/assets/examples/terrain-tiles/source";
+        let scene = cook_site_scene(
+            folder,
+            "terrain-tiles.gltf",
+            "terrain-tiles",
+            simplification,
+        );
         let primitives = scene.result["primitives"].as_array().expect("primitives");
         let tiles = scene.gltf["meshes"].as_array().expect("meshes").len();
         assert_eq!(
@@ -39,9 +38,12 @@ fn every_page_of_the_cooked_terrain_tiles_decodes_onto_its_source_on_both_simpli
                 simplification != "none",
                 "{simplification}: levels {top:?}"
             );
-            let (positions, _) = scene.source(primitive);
+            let positions = scene.positions(primitive);
             let defects = cooked_page_defects(&scene.objects, primitive, &positions);
             assert!(defects.is_empty(), "{simplification}: {defects:#?}");
+        }
+        if simplification == "qem-endpoints" {
+            assert_moved_vertices_are_reported(&scene);
         }
         let _ = fs::remove_dir_all(&scene.root);
     }
@@ -52,7 +54,7 @@ fn every_page_of_the_cooked_terrain_tiles_decodes_onto_its_source_on_both_simpli
 fn defects_with_a_vertex_moved(scene: &SiteScene, level: u64, up: f32) -> Vec<String> {
     let mut result = scene.result.clone();
     let primitive = &mut result["primitives"][0];
-    let (positions, _) = scene.source(primitive);
+    let positions = scene.positions(primitive);
     let exponent = primitive["quantization"]["positionExponent"]
         .as_i64()
         .expect("exponent") as i32;
@@ -61,36 +63,23 @@ fn defects_with_a_vertex_moved(scene: &SiteScene, level: u64, up: f32) -> Vec<St
         .iter_mut()
         .find(|p| p["level"].as_u64() == Some(level))
         .expect("a page at that level");
-    let object = |sha: &Value| {
-        scene
-            .objects
-            .join(format!("{}.bin", sha.as_str().expect("sha")))
-    };
-    let raw = fs::read(object(&page["sha256"])).expect("index object");
-    let source: Vec<u32> = raw
-        .as_chunks::<4>()
-        .0
-        .iter()
-        .map(|b| u32::from_le_bytes(*b))
-        .collect();
+    let source = page_indices(&scene.objects, page);
     let mut moved = positions.clone();
     moved[source[0] as usize * 3 + 1] += up;
     let encoded = crate::geometry_page::encode(&source, &moved, &[], exponent).expect("encode");
     let digest = hash(&encoded.bytes);
+    fs::write(scene.objects.join(format!("{digest}.bin")), &encoded.bytes).expect("page");
     page["geometry"]["sha256"] = json!(digest);
-    fs::write(object(&page["geometry"]["sha256"]), &encoded.bytes).expect("page");
     cooked_page_defects(&scene.objects, &result["primitives"][0], &positions)
 }
 
-#[test]
-fn a_page_whose_vertex_leaves_the_terrain_is_reported_on_every_level() {
-    let scene = cook("qem-endpoints");
-    // An exact page with one vertex half a metre off: the source, not the page, is the reference.
-    let exact = defects_with_a_vertex_moved(&scene, 0, 0.5);
-    // One vertex of a coarse page thrown a kilometre up: a sheet across the sky.
-    let coarse = defects_with_a_vertex_moved(&scene, 1, 1000.0);
-    let _ = fs::remove_dir_all(&scene.root);
+/// An exact page with one vertex half a metre off is reported, since the source and not the page
+/// is the reference; a coarse one with a vertex thrown a kilometre up, a sheet across the sky, is
+/// reported on every count.
+fn assert_moved_vertices_are_reported(scene: &SiteScene) {
+    let exact = defects_with_a_vertex_moved(scene, 0, 0.5);
     assert!(exact.iter().any(|d| d.contains("decodes")), "{exact:#?}");
+    let coarse = defects_with_a_vertex_moved(scene, 1, 1000.0);
     for defect in [
         "decodes",
         "outside its bounds",
