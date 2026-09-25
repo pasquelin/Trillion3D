@@ -2285,6 +2285,9 @@
     "summary": "미리보기가 서비스하는 아틀라스: 색상용(`rgba8unorm-srgb`, 기본 색상과 발광) 또는 데이터용(`rgba8unorm`, 메탈-러프니스, 법선, 오클루전).",
     "description": "같은 텍스처가 각각 하나씩의 항목을 가질 수 있다."
   },
+  "PREVIEW_ATLAS_COVERAGE": {
+    "summary": "컬러 아틀라스의 체인 중 하나로, 모든 읽는 쪽이 알파를 커버리지로 취하는 텍스처용이다(MASK 또는 BLEND 머티리얼의 베이스 컬러만): 색상이 알파로 가중되는 유일한 체인이며, 일반 체인과 별도의 이름을 가진다(`reduce.rs`, `AtlasKind::Coverage`, #42)."
+  },
   "PREVIEW_ATLAS_DATA": {
     "summary": "데이터 아틀라스: 메탈-러프니스, 법선, 오클루전 맵."
   },
@@ -3664,7 +3667,7 @@
       "sourceKind": "바이트가 이미지 uri에서 왔으면 0, sourceBufferView에서 왔으면 1.",
       "sourceBufferView": "준비된 씬의 버퍼 뷰, uri 소스면 -1.",
       "sha256": "디코딩된 원본 바이트의 SHA-256.",
-      "atlas": "이 항목이 서비스하는 아틀라스: PREVIEW_ATLAS_COLOR 또는 PREVIEW_ATLAS_DATA.",
+      "atlas": "이 항목이 담는 체인: PREVIEW_ATLAS_COLOR, PREVIEW_ATLAS_DATA, 또는 컬러 아틀라스에서 샘플링되는 PREVIEW_ATLAS_COVERAGE.",
       "firstLevel": "원본의 밉 체인에 담긴 첫 레벨의 인덱스; 이미 PREVIEW_BASE 이하에 맞아서 사이드카가 완전한 해상도를 담고 있으면 0.",
       "bakedLevels": "캐시 안 파일로 베이크된 레벨 수, 0부터 bakedLevels - 1까지; 체인이 완전하면 firstLevel, 아무것도 쓰이지 않아 엔진이 원본 이미지를 로드하면 0.",
       "levels": "순서대로 담긴 레벨들, 가장 세밀한 것부터 1×1까지, 각각 사이드카 바이트에 대한 뷰.",

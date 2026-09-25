@@ -85,7 +85,7 @@ test('the ledger, on the handle, counts by the label as the engine wrote it, the
   handle.createBuffer({ size: 8, usage: 0, label: 'page table' });
   const texture = handle.createTexture({ size: [4, 4], format: 'rgba8unorm', usage: 0 });
   // What the device keeps for every session is created on it, untagged, and counted by its ledger.
-  generateMaterialMips(handle, texture, 'rgba8unorm', 4, 4);
+  generateMaterialMips(handle, texture, 'rgba8unorm', 4, 4, false);
   assert.ok(gpu.labels.includes('Trillion3D texture mips uniforms'));
   const { byLabel } = ledger.snapshot();
   assert.equal(byLabel['page table'], 8);

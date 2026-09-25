@@ -35,7 +35,14 @@ function upload(page: Texture | HostTexture, [width, height]: [number, number]) 
   const map = importHostTexture(
     page instanceof GraphTexture ? page : hostTexture(page, true, new Map()),
   );
-  createTileScratch(device, { map, width, height, format: 'rgba8unorm', errorCode: 'NONE' });
+  createTileScratch(device, {
+    map,
+    width,
+    height,
+    format: 'rgba8unorm',
+    errorCode: 'NONE',
+    coverage: false,
+  });
   return { copies, rows };
 }
 
@@ -132,6 +139,7 @@ test('a live flipped picture refilled 60 times stages its rows in one array', ()
     height: 2,
     format: 'rgba8unorm',
     errorCode: 'NONE',
+    coverage: false,
   });
   for (let frame = 0; frame < 60; frame++) {
     pixels[4] = frame;
@@ -141,4 +149,24 @@ test('a live flipped picture refilled 60 times stages its rows in one array', ()
     assert.deepEqual([...out], [frame, 0, 255, 255, 255, 0, 0, 255], `frame ${frame} flipped`);
   }
   scratch.destroy();
+});
+
+// #42: the working texture's mips weigh their colours by alpha only for a texture every reader
+// takes for coverage, and not when the upload already premultiplied them — weighing twice would
+// darken the borders again. A colour texture an opaque or emissive reader draws stays plain.
+test('a coverage working texture reduces weighted by alpha unless uploaded premultiplied', () => {
+  installGpuGlobals();
+  // One device per case: the one reduction pipeline it builds says the rule the texture took.
+  const rule = (coverage: boolean, premultiplyAlpha: boolean) => {
+    const { device, renderPipelines } = mockGpu();
+    const host = new GraphTexture({ data: new Uint8Array(8), width: 1, height: 2 });
+    host.premultiplyAlpha = premultiplyAlpha;
+    const map = importHostTexture(host);
+    const size = { width: 1, height: 2, format: 'rgba8unorm' } as const;
+    createTileScratch(device, { map, ...size, errorCode: 'NONE', coverage });
+    return renderPipelines.map((pipeline) => pipeline.fragment?.constants?.weighted);
+  };
+  assert.deepEqual(rule(true, false), [1], 'straight alpha read as coverage: weighted');
+  assert.deepEqual(rule(true, true), [0], 'uploaded premultiplied: plain');
+  assert.deepEqual(rule(false, false), [0], 'not read as coverage: plain');
 });

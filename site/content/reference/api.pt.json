@@ -2285,6 +2285,9 @@
     "summary": "O atlas que uma pré-visualização serve: cor (`rgba8unorm-srgb`, cor base e emissiva) ou dados (`rgba8unorm`, metal-rugosidade, normal, oclusão).",
     "description": "A mesma textura pode ter uma entrada de cada."
   },
+  "PREVIEW_ATLAS_COVERAGE": {
+    "summary": "Uma cadeia do atlas de cor, para uma textura cujo alfa todo leitor toma como cobertura (apenas a cor base de materiais MASK ou BLEND): a única cadeia cujas cores são ponderadas pelo alfa, nomeada à parte da cadeia simples (`reduce.rs`, `AtlasKind::Coverage`, #42)."
+  },
   "PREVIEW_ATLAS_DATA": {
     "summary": "O atlas de dados: mapas de metal-rugosidade, normal e oclusão."
   },
@@ -3664,7 +3667,7 @@
       "sourceKind": "0 quando os bytes vieram de uma uri de imagem, 1 quando vieram de sourceBufferView.",
       "sourceBufferView": "Visão de buffer da cena preparada, ou -1 para uma origem por uri.",
       "sha256": "SHA-256 dos bytes de origem decodificados.",
-      "atlas": "O atlas que essa entrada serve: PREVIEW_ATLAS_COLOR ou PREVIEW_ATLAS_DATA.",
+      "atlas": "A cadeia que essa entrada carrega: PREVIEW_ATLAS_COLOR, PREVIEW_ATLAS_DATA, ou PREVIEW_ATLAS_COVERAGE, amostrada no atlas de cor.",
       "firstLevel": "Índice do primeiro nível carregado na cadeia de mip da origem; 0 quando já cabe sob PREVIEW_BASE e o arquivo auxiliar assim carrega sua resolução completa.",
       "bakedLevels": "Níveis pré-processados em arquivos no cache, de 0 a bakedLevels - 1; firstLevel quando a cadeia está completa, 0 quando nada foi escrito e o motor carrega a imagem de origem.",
       "levels": "Níveis carregados em ordem, do mais fino a 1x1, cada um uma view sobre bytes do arquivo auxiliar.",

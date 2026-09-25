@@ -60,6 +60,7 @@ export function mockGpu({
   }> = [];
   const computes: string[] = [];
   const imageCopies: unknown[] = [];
+  const renderPipelines: GPURenderPipelineDescriptor[] = [];
   const layouts: Array<{ entries: Array<{ binding: number; buffer?: { type?: string } }> }> = [];
   const members: Record<string, unknown> = {
     limits,
@@ -128,11 +129,9 @@ export function mockGpu({
       return desc;
     },
     createPipelineLayout: () => ({}),
-    createRenderPipeline: (desc: {
-      vertex?: { entryPoint?: string };
-      fragment?: { entryPoint?: string; targets?: Array<{ format?: string }> };
-    }) => {
-      if (rejectR32 && desc.fragment?.targets?.[0]?.format === 'r32uint')
+    createRenderPipeline: (desc: GPURenderPipelineDescriptor) => {
+      renderPipelines.push(desc);
+      if (rejectR32 && [...(desc.fragment?.targets ?? [])][0]?.format === 'r32uint')
         throw new Error('NO_R32UINT');
       return { entryPoint: desc.vertex?.entryPoint, fragment: desc.fragment?.entryPoint };
     },
@@ -194,5 +193,6 @@ export function mockGpu({
     layouts,
     imageCopies,
     textureWrites,
+    renderPipelines,
   };
 }
