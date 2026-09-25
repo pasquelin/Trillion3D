@@ -27,6 +27,7 @@ export {
   type VehicleInput,
   type VehicleKind,
   type VehicleOptions,
+  VEHICLE_SPECS,
+  type VehicleSpec,
 } from './vehicle.ts';
-export { VEHICLE_SPECS, type VehicleSpec } from './vehicleSpec.ts';
 export { writeDrive, writeUnvehicle, writeVehicle } from './vehicleCommands.ts';

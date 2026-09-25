@@ -2,6 +2,8 @@ import type { Object3D } from '../world/object/object3d.ts';
 import { MAX_GEARS, TORQUE_POINTS } from './vehicleLayout.ts';
 import { VEHICLE_SPECS, type VehicleSpec } from './vehicleSpec.ts';
 
+export { VEHICLE_SPECS, type VehicleSpec } from './vehicleSpec.ts';
+
 /**
  * What a driver asks of a vehicle: the pedals and the wheel, as the keys of `world.controls`
  * `'vehicle'` set them (`sdk-browser/src/camera/controls/vehicleControls.ts`). The vehicle's own
