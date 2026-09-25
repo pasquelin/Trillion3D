@@ -10,7 +10,7 @@ import { SUN, planFrame } from './lightShadow.fixture.ts';
 
 test('every shadow-casting light up to maxLights holds a slice and a table range, suns included', () => {
   const store = createSceneLightStore();
-  const plan = createShadowPlan(24, 32);
+  const plan = createShadowPlan(32);
   for (let i = 0; i < LIGHT_SETTINGS.maxLights; i++) store.add({ ...SUN, id: `sun${i}` });
   planFrame(plan, store, 0);
   const bases = new Set<number>();

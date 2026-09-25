@@ -38,7 +38,7 @@ and pull requests.
 1. The boss tells the CTO what matters. The CTO sets the priority labels (🔴 🟠 🟡 🟢) of the
    issues concerned, each owned by one lead.
 2. Each lead takes, in order:
-   - what it has in flight;
+   - its open pull requests;
    - its `measure ko` / `audit ko` issues;
    - then its issues by priority label (AGENTS.md §Leads).
 3. For each issue, the lead runs one coder, who opens a draft PR, then one reviewer. It then
@@ -50,7 +50,7 @@ and pull requests.
    - the issue closes, or stays open with `Part of #n` when work remains;
    - measurement and acceptance check it, and reopen it with `measure ko` / `audit ko` if needed.
 5. Limits at every moment:
-   - one agent at a time per lead, and at most 3 open PRs per lead (resume at 2);
+   - each lead within the limits of AGENTS.md §Leads;
    - one lead per issue, and nobody idle;
    - no leftover worktree or branch.
 
@@ -65,7 +65,8 @@ stopped.
   runs the same way, including in the worktrees the desktop app creates. Edit a skill in
   `skills/`, never in `.claude/`.
 - **Each morning:** open one Claude Code session on the repository and type `/t3d-cto`. The CTO
-  starts every other role as a background agent; you never open another session.
+  gives you one prompt per session to open (a lead per domain with work, and the other roles
+  that have work): open each and paste it.
 - **During the day:** talk only to the CTO; watch the issues; test the examples.
 - **In the evening:** tell the CTO to stop. Every agent finishes its current task, cleans its
   worktrees and branches, and stops; close the CTO session only once it says all have ended.

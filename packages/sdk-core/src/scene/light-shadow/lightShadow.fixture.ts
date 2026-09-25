@@ -101,7 +101,7 @@ export function readPages(plan: ShadowPlan, slice: number) {
 /** A point lamp three units up that casts, planned once: its store, its plan and its slice. */
 export function lampScene() {
   const store = createSceneLightStore();
-  const plan = createShadowPlan(24, 32);
+  const plan = createShadowPlan(32);
   store.add({ ...SUN, id: 'lamp', kind: 'point', position: [0, 3, 0], range: 20 });
   planFrame(plan, store, 0);
   return { store, plan, slice: store.sliceOf(0) };

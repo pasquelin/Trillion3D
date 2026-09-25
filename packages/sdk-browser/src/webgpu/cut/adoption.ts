@@ -28,6 +28,8 @@ export function createWebgpuCutAdopter(options: {
   onDrawnDelta: () => void;
   /** Called when `drawn` has just been remade from `shown`: the frame no longer has to remake it. */
   onDrawnMirrored: () => void;
+  /** Called with the view ahead's requests of each new readback, empty once the camera stops. */
+  onAhead: (ids: readonly number[]) => void;
 }) {
   const metrics = {
     /** True when the frame reread the shown list it already held: `desired` and `shown` are those of
@@ -80,6 +82,7 @@ export function createWebgpuCutAdopter(options: {
     } else {
       delta.apply(cut.result.pageIds);
       drawnDelta.apply(cut.result.drawablePageIds);
+      options.onAhead(cut.result.aheadPageIds ?? []);
       lastCut = cut;
     }
     if (drawnDelta.changed) drawnSeq++;

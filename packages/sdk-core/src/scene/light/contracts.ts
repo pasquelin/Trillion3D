@@ -76,25 +76,15 @@ export const LIGHT_SETTINGS = {
    */
   samplesPerPixel: 4,
   /**
-   * Shadow pages drawn at most per frame: the buffer ceiling, never a quality setting. The
-   * millisecond budget almost always stops first; this ceiling is only an ultimate bound,
-   * and the only limit on a device without a GPU clock.
+   * Shadow pages one GPU batch draws: the size of the per-batch buffers, never a limit on a frame.
+   * A frame draws every page it marks, in as many batches as that takes.
    */
-  shadowPagesPerFrame: 24,
+  shadowPagesPerBatch: 24,
   /**
    * Side of a shadow page, in texels: the unit of the physical pool, of the virtual maps and of
    * invalidation. A moving object only stales the pages its projected box covers.
    */
   shadowPage: 128,
-  /**
-   * Shadows-stage budget, in GPU milliseconds per frame (X4, RX3). Pages
-   * invalidated beyond wait their turn; they are never lost, and their lag is published.
-   */
-  shadowBudgetMs: 1,
-  /** Weight of waiting in a page's priority, per frame spent in queue: against starvation. */
-  shadowAgingPerFrame: 0.05,
-  /** Share of a frame's sample in the average cost of a page: exponential smoothing of the timer. */
-  shadowCostBlend: 0.25,
   /** Side of a lamp face's finest mip, in texels: 32 × 32 pages of 128 (the pool: `shadowPoolSide`). */
   lampFaceSize: 4096,
   /** Virtual pages the shading may request per frame; the rest ask again the next frame. */

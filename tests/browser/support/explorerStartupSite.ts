@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { resolve } from 'node:path';
 import type { Page } from 'playwright';
-import { routeThree } from '../../kit/server/threeRoute.ts';
+import { routeThree } from '../../../scripts/three-route.ts';
 
 /** Verify the first chapter's code in both locales and at both widths, then the createWorld and
  *  world.invalidate entries. */

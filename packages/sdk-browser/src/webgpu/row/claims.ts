@@ -1,4 +1,6 @@
 import { sortPages } from '../../../../sdk-core/src/index.ts';
+import { createFrameBudget } from '../../page/integration/frameBudget.ts';
+import { ARRIVAL_BUDGET_MS } from '../../backend/common.ts';
 
 /**
  * Pages that claim the write of a row record and have not yet received it.
@@ -18,6 +20,8 @@ export function createWebgpuRowClaims(pageCount: number) {
   let count = 0;
   return {
     pages,
+    /** Time an image grants to writing rows (`serveClaims`): this list's own clock. */
+    budget: createFrameBudget(ARRIVAL_BUDGET_MS),
     get count() {
       return count;
     },
@@ -48,14 +52,10 @@ export function createWebgpuRowClaims(pageCount: number) {
 export type WebgpuRowClaims = ReturnType<typeof createWebgpuRowClaims>;
 
 /**
- * Time an image grants to writing rows. Same ceiling, same rule as the arrival drain: the clock is
- * reread after each row and the rest waits for the next image, in the same order. At least one row
- * always goes through, or a page would never be written.
- */
-const CLAIM_BUDGET_MS = 2;
-
-/**
- * Serves the queue in increasing page order up to the time budget. `release` says again whether the
+ * Serves the queue in increasing page order up to the time budget: the arrival drain's ceiling
+ * (`ARRIVAL_BUDGET_MS`) on its own `FrameBudget`, opened once per image — the clock is reread after
+ * each row and the rest waits for the next image, in the same order. At least one row always goes
+ * through, or a page would never be written. `release` says again whether the
  * page still claims a row — it may have left since it enrolled, and then leaves the queue costing
  * nothing —, `place` writes it and returns `false` when the table is full.
  *
@@ -71,7 +71,8 @@ export function serveClaims(
 ) {
   if (!claims.count) return 0;
   claims.sort();
-  const started = performance.now();
+  const budget = claims.budget;
+  budget.open();
   let served = 0,
     denied = 0;
   while (served < claims.count) {
@@ -82,7 +83,8 @@ export function serveClaims(
         break;
       }
       served++;
-      if (bounded && performance.now() - started >= CLAIM_BUDGET_MS) break;
+      budget.spend();
+      if (bounded && !budget.admits()) break;
       continue;
     }
     served++;

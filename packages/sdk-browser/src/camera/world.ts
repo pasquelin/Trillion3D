@@ -57,8 +57,7 @@ export {
  * neither opens nor closes any gate: it reaches no revision.
  */
 
-/** Last eye position, kept from frame to frame to derive a velocity. */
-export type CameraMotion = { last?: Float64Array; lastMs?: number };
+export type { CameraMotion } from './motion.ts';
 
 /**
  * THE CAMERA THE HOST HANDS TO THE ENGINE, named by shape and by this file alone.
