@@ -70,3 +70,22 @@ test('a host ceiling under the root cover is refused by name, at prepare or by a
     }
   }
 });
+
+test('an instance of opaque rows joins their instanced mesh: it takes no slot of the host ceiling', async () => {
+  const { backend, camera, geometry, material } = triangleBackend(
+    { placements: rowsOf(3) },
+    undefined,
+    { maxResidentPages: 1 },
+  );
+  try {
+    await backend.prepare();
+    backend.addInstance!('copy', new G.Matrix4().makeTranslation(0, 1, 0).elements.slice());
+    backend.render(camera);
+    const { drawCalls, submittedTriangles } = backend.metrics();
+    assert.deepEqual([drawCalls, submittedTriangles, backend.overBudget], [1, 6, false]);
+  } finally {
+    backend.dispose();
+    geometry.dispose();
+    material.dispose();
+  }
+});
