@@ -92,7 +92,7 @@ uint32_t cook_soft_body(const float *vertices, uint32_t vertexCount, const float
       trillion::softSettings(reinterpret_cast<const uint32_t *>(vertices), vertexCount, Vec3(scale[0], scale[1], scale[2]),
                              corners, cornerCount, stretch, bend);
   if (!shared) {
-    static const char refused[] = "a soft body needs two vertices, and triangles whose corners name distinct vertices";
+    static const char refused[] = "a soft body needs two vertices, and triangles whose corners name three distinct vertices of its own";
     written.assign(refused, refused + sizeof(refused) - 1);
     return taken(1, out, bytes);
   }
