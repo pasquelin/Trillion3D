@@ -327,7 +327,6 @@
       "a-walker-among-balls": "공 사이를 걷는 사람"
     },
     "missing": {
-      "dashed-lines": "점선",
       "floating-crates": "매 프레임 다시 쓰는 지오메트리",
       "thick-lines": "굵은 선",
       "a-line-that-draws-itself": "지오메트리의 그리기 범위",
