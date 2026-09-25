@@ -74,7 +74,9 @@ export interface VehicleSpec {
   /** The final drive's ratio (a tracked vehicle's sprocket reduction). */ finalDrive: number;
   /** The gearbox shifts up past this, rpm. */ shiftUpRPM: number;
   /** And down below this, rpm. */ shiftDownRPM: number;
-  /** Clutch torque per rad/s of slip, N·m·s. */ clutch: number;
+  /** Clutch torque per rad/s of slip, N·m·s; cars and motorcycles only: a tracked vehicle's
+   *  engine drives its tracks without a clutch (Jolt's tracked controller). */
+  clutch: number;
   /** Ride frequency, Hz. */ suspensionFrequency: number;
   /** Damping ratio, 0 (none) to 1 (critical). */ suspensionDamping: number;
   /** Wheel travel from full droop to full bump, m. */ suspensionTravel: number;
