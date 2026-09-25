@@ -39,6 +39,7 @@ export function holdWorldDevice(
       });
     });
   let pending = grant(false);
+  pending.catch(() => {}); // a page that never awaits `ready` hears a refusal from the session
   return {
     ready: pending,
     /** The grant asked last: a session opens once it settles, never in a device's absence. */

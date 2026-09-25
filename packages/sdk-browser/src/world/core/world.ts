@@ -37,7 +37,6 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
   // A lost device is asked for again, and the session reopened on it.
   const device = holdWorldDevice(canvas, options.renderer, () => runtime.renew());
   const ready = device.ready;
-  ready.catch(() => {});
   const scene = new Scene(worldModelLoader(ready, options.signal, () => device.renderer));
   const invalidate = () => runtime.invalidate();
   const diagnostic = worldDiagnostic(() => runtime.explorer);
@@ -151,6 +150,7 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
     /** The world's memory pools, read and set in bytes, and the physics envelopes. */
     budget: worldBudget(pools, runtime, frames, () => device.renderer, physics.budget),
     diagnostic: diagnostic.handle,
+    /** Lines, points and helpers drawn over the image (`Guides`). */ guides: switches.guides,
     /** The nearest object under a canvas point (CSS pixels) or along a world ray, or `null`:
      *  the node the page added, the world point and normal hit, the distance (`worldRaycast`). */
     raycast: createWorldRaycast(scene, () => camera, canvas, physics.session),
