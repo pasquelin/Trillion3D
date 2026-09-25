@@ -10,6 +10,7 @@ import { DAG_UNIFORM_BYTES, DAG_VIEW_WORDS } from './shader/viewsWgsl.ts';
 import type { createDagResources } from './resources.ts';
 import { DAG_BINDING } from './shader/bindings.ts';
 import { namedBufferEntries } from '../core/computeBindings.ts';
+import { shadowBatchWrites } from '../shadow/batchWrites.ts';
 
 type DagResources = NonNullable<Awaited<ReturnType<typeof createDagResources>>>;
 export type DagLightCut = ReturnType<typeof createDagLightCut>;
@@ -30,7 +31,7 @@ export type DagLightCut = ReturnType<typeof createDagLightCut>;
  * on screen (`../../page/cut/rule.ts`); the view says so, and its pages are drawn again once
  * residency changes (`lightCutRedraws.ts`).
  *
- * Its budget is fixed at creation, whatever the views a frame runs — at most the views the device's
+ * Its budget is fixed at creation, whatever the views a batch runs — at most the views the device's
  * dispatch and binding limits hold (`lightCutCapacity.ts`): the lists and queues are the
  * camera cut's — each list the whole catalogue, each queue every node, or one root per slot when
  * the slots outnumber the nodes —, and the per-primitive words one row per view. What several views
@@ -120,6 +121,8 @@ export function createDagLightCut(resources: DagResources) {
   };
   const uniformData = new Float32Array(DAG_UNIFORM_BYTES / 4);
   const cutViews: DagCutViews = { count: 0, capacity, queueCap };
+  /** A cut ran since the requests were last copied: the next one appends to its list. */
+  let listed = false;
   const reports = createLightCutReports(own, output, outputBytes);
   const redraws = createLightCutRedraws(own, output, capacity);
   return {
@@ -129,7 +132,9 @@ export function createDagLightCut(resources: DagResources) {
     pageCount,
     /** Where the mask kernel logs the pages each view draws: what the shadow cull reads. */
     drawnLog,
-    /** Encodes the frame's cut: the first `count` of `views`, in one traversal. */
+    /** Encodes a batch's cut: the first `count` of `views`, in one traversal. The frame's first
+     *  cut starts the request list; each later one appends to it (`VIEW_APPEND`), read once the
+     *  frame's batches are all encoded (`encodeReports`). */
     encode(
       encoder: GPUCommandEncoder,
       views: ArrayLike<{ uniforms: DagViewUniforms }>,
@@ -137,17 +142,28 @@ export function createDagLightCut(resources: DagResources) {
     ) {
       if (count > capacity) throw new Error(`${count} light views, at most ${capacity}`);
       cutViews.count = light.views = count;
+      cutViews.append = listed;
+      listed = true;
       for (let v = 0; v < count; v++) {
         const block = uniformData.subarray(v * DAG_VIEW_WORDS, (v + 1) * DAG_VIEW_WORDS);
         writeDagUniforms(block, packed, views[v].uniforms, residentCut, cutViews);
       }
-      device.queue.writeBuffer(uniforms, 0, uniformData, 0, count * DAG_VIEW_WORDS);
+      shadowBatchWrites(device).write(uniforms, 0, uniformData, 0, count * DAG_VIEW_WORDS);
       // A placement's stretch or a parked root changed on the camera's side: the first row follows.
       if (frameWrites !== resources.frameWrites.count) {
         frameWrites = resources.frameWrites.count;
         encoder.copyBufferToBuffer(resources.frames, 0, frames, 0, resources.frameData.byteLength);
       }
       encodeDagKernels(encoder, view);
+    },
+    /** Copies the requests every cut appended since the last copy, once the frame's batches are
+     *  encoded; returns the settlement, or undefined when no cut ran or every slot is read. */
+    encodeReports(encoder: GPUCommandEncoder) {
+      if (!listed) return undefined;
+      listed = false;
+      const settle = reports.encodeReadback(encoder);
+      redraws.reported(settle !== undefined);
+      return settle;
     },
     /** Its requests, read back after submission (`lightCutReports.ts`). */
     reports,
