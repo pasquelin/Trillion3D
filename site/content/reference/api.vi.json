@@ -1134,7 +1134,7 @@
       "addGroup": "Vẽ `count` chỉ số kể từ `start` với số vật liệu `materialIndex` của mesh đó.",
       "clearGroups": "Xóa mọi nhóm vật liệu.",
       "computeVertexNormals": "Các pháp tuyến mịn: mỗi đỉnh lấy trung bình các mặt chia sẻ nó, có trọng số theo diện tích của chúng.",
-      "computeBoundingBox": "Đo hộp quanh mọi đỉnh và mọi hình dạng mà một đích morph cho nó, rồi giữ trong `boundingBox`; một vị trí chuẩn hóa được đo theo thang của nó.",
+      "computeBoundingBox": "Đo hộp quanh mọi đỉnh và mọi hình dạng mà một đích morph cho nó, rồi giữ trong `boundingBox`.",
       "computeBoundingSphere": "Đo quả cầu có tâm ở hộp và chạm tới đỉnh xa nhất, có morph hay không, rồi giữ trong `boundingSphere`.",
       "applyMatrix4": "Di chuyển mọi vị trí, xoay mọi pháp tuyến: chính hình học đó thay đổi, không phải một tư thế.",
       "translate": "Di chuyển mọi đỉnh theo `(x, y, z)`.",
