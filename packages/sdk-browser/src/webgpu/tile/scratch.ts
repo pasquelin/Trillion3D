@@ -1,7 +1,7 @@
 import type { Texture } from '../../../../sdk-core/src/index.ts';
 import { textureRgba } from '../../visibility/types.ts';
 import { premultipliedByte } from '../../visibility/math.ts';
-import { generateMaterialMips, mipLevelCountFor, weighsColourByAlpha } from '../../texture/mips.ts';
+import { generateMaterialMips, mipLevelCountFor } from '../../texture/mips.ts';
 import { writeRgba } from './write.ts';
 import { textureBytesOf } from '../../gpu/core/deviceLedger.ts';
 
@@ -34,11 +34,10 @@ export function createTileScratch(
     width: number;
     height: number;
     format: GPUTextureFormat;
-    /** The atlas the texture serves: it names the error a texture with neither texels nor a
-     *  copyable image throws. */
-    atlas: 'color' | 'data';
+    errorCode: string;
     /** Every reader takes the alpha for coverage (`collectWebgpuMaterialTextures`): the mips
-     *  weigh their colours by alpha, as the compiler's `Coverage` chain. */
+     *  weigh their colours by alpha, as the compiler's `Coverage` chain — unless the texels were
+     *  uploaded premultiplied, which already carry the weight: weighing twice would darken them. */
     coverage: boolean;
   },
 ): TileScratch {
@@ -74,18 +73,14 @@ export function createTileScratch(
     } else {
       const image = map.image as GPUCopyExternalImageSource | undefined;
       if (!image || typeof device.queue.copyExternalImageToTexture !== 'function')
-        throw new Error(
-          options.atlas === 'color'
-            ? 'MATERIAL_COLOR_TEXTURE_UNAVAILABLE'
-            : 'MATERIAL_DATA_TEXTURE_UNAVAILABLE',
-        );
+        throw new Error(options.errorCode);
       device.queue.copyExternalImageToTexture(
         { source: image, flipY: map.flipY },
         { texture, premultipliedAlpha: map.premultiplyAlpha },
         [width, height],
       );
     }
-    const weighted = weighsColourByAlpha(options.coverage, map.premultiplyAlpha);
+    const weighted = options.coverage && !map.premultiplyAlpha;
     generateMaterialMips(device, texture, format, width, height, weighted);
   };
   fill();

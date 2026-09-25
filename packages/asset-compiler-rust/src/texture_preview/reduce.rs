@@ -125,7 +125,7 @@ fn halve(previous: &[u8], size: (u32, u32), next: (u32, u32), kind: AtlasKind) -
             let texels = [at(x0, y0), at(x1, y0), at(x0, y1), at(x1, y1)];
             let a: [f32; 4] = std::array::from_fn(|i| f32::from(previous[texels[i] + 3]) / 255.0);
             let weighted = kind == AtlasKind::Coverage && a.iter().any(|&w| w != a[0]);
-            let coverage: f32 = a.iter().sum();
+            let coverage: f32 = if weighted { a.iter().sum() } else { 0.0 };
             for channel in 0..3 {
                 let values = texels.map(|t| table[previous[t + channel] as usize]);
                 let mean = if weighted {
