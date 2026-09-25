@@ -44,9 +44,11 @@ export const shadowAdmissionHostBytes = (pages: number) => pages * (4 + 4 + 8);
  * the pages by age first — the frames since each turned stale (`pool.sinceFrame`), the oldest
  * first, the floors ahead of the rest —, then as above. The pages ahead of a pending page are
  * floors, or turned stale before it or in its frame: no other page that turns stale later passes
- * it, whatever its view, so they are fewer each frame, never more. A frame draws at least one page per batch, so a page that stays read is
- * drawn within ⌈pool pages / batches a frame draws⌉ + 1 frames of being listed: 25 for the
- * largest pool (4 096 pages, `MAX_SHADOW_BATCHES` 171), when every batch holds one page.
+ * it, whatever its view. A frame draws at least one page per batch, so, while the floors that turn
+ * stale again each frame are fewer than the pages a frame draws, the others ahead are fewer each
+ * frame, never more, and a page that stays read is drawn within ⌈pool pages / batches a frame
+ * draws⌉ + 1 frames of being listed: 25 for the largest pool (4 096 pages, `MAX_SHADOW_BATCHES`
+ * 171), when every batch holds one page.
  */
 export function createShadowAdmission(poolPages: number) {
   const list = new Int32Array(poolPages),

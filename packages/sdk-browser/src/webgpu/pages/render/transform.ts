@@ -27,9 +27,9 @@ const local = new Float64Array(16),
   trs = new Float64Array(3),
   trsRotation = new Float64Array(4),
   trsScale = new Float64Array(3),
-  movedMin = [0, 0, 0],
-  movedMax = [0, 0, 0],
-  moved = new Float64Array(BOX_VALUES);
+  moved = new Float64Array(BOX_VALUES),
+  movedMin = moved.subarray(0, 3),
+  movedMax = moved.subarray(3, 6);
 /** One flag per selection root: under the moved node or not. Grown once, never per move. */
 let underNode = new Uint8Array(0);
 
@@ -161,10 +161,6 @@ export function setWebgpuTransform(rt: WebgpuPagesRuntime, nodeName: string, mat
   // The hierarchy already carries this revision's matrices: the next image does not climb it.
   run.gate.noteWorldsUpdated();
   if (boxIsEmpty(moved, 0)) return;
-  for (let axis = 0; axis < 3; axis++) {
-    movedMin[axis] = moved[axis];
-    movedMax[axis] = moved[axis + 3];
-  }
   // A root's first move changes the static layer: the pages it crossed are staled whole.
   lights.plan.worldChanged(movedMin, movedMax, !promoted);
 }
