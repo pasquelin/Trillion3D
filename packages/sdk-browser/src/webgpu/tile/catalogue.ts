@@ -44,7 +44,7 @@ export function tileCatalogue(
   previewFor: (index: number) => TexturePreview | undefined,
   readLevel: TextureLevelReader | undefined,
   encoding: PoolEncoding,
-  coverage: ReadonlyMap<Texture, boolean> = new Map(),
+  coverage?: ReadonlyMap<Texture, boolean>,
 ): TileTexture[] {
   const textures = maps.map((map, index): TileTexture => {
     const preview = previewFor(index);
@@ -71,7 +71,7 @@ export function tileCatalogue(
       layout: tileLayout(width, height),
       texture: map,
       lane: 'lossless',
-      source: { kind: 'host', map, coverage: coverage.get(map) ?? false },
+      source: { kind: 'host', map, coverage: coverage?.get(map) ?? false },
     };
   });
   // The fill takes a lane the textures already open, so its one texel costs no layer of its

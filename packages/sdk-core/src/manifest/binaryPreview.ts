@@ -52,13 +52,13 @@ export function checkEntryHeader(
   firstLevel: number,
 ) {
   const { texture, atlas, width, height, bakedLevels } = header;
-  const chains = format.PREVIEW_ATLAS_NAMES.length;
-  if (!Number.isInteger(atlas) || atlas < 0 || atlas >= chains)
+  if (!Number.isInteger(atlas) || atlas < 0 || atlas >= format.PREVIEW_ATLAS_NAMES.length)
     throw new EngineError('INVALID_CACHE', 'A texture preview names an unknown atlas', {
       entry,
       atlas,
     });
-  const key = texture * chains + atlas;
+  // Keyed by the atlas that samples the chain: one colour entry per texture, plain or coverage.
+  const key = texture * 2 + format.previewAtlasOf(atlas);
   if (!Number.isInteger(texture) || key <= previous)
     throw new EngineError(
       'INVALID_CACHE',

@@ -12,7 +12,8 @@ use super::*;
 /// materials —: the only chain whose colours `halve` weighs by alpha. It has its
 /// own word and its own name, so its files never mix with the plain chain of the
 /// same image read by an opaque material or as emissive in another scene.
-/// Declaration order is word order: entries sort by it.
+/// Entries sort by the atlas that samples the chain (`atlas`), so one texture
+/// carries a plain or a coverage colour entry, never both.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub enum AtlasKind {
     Color,
@@ -124,14 +125,13 @@ fn halve(previous: &[u8], size: (u32, u32), next: (u32, u32), kind: AtlasKind) -
             let at = |x: usize, y: usize| (y * width + x) * 4;
             let texels = [at(x0, y0), at(x1, y0), at(x0, y1), at(x1, y1)];
             let a: [f32; 4] = std::array::from_fn(|i| f32::from(previous[texels[i] + 3]) / 255.0);
-            let weighted = kind == AtlasKind::Coverage && a.iter().any(|&w| w != a[0]);
-            let coverage: f32 = if weighted { a.iter().sum() } else { 0.0 };
+            let coverage = (kind == AtlasKind::Coverage && a.iter().any(|&w| w != a[0]))
+                .then(|| a.iter().sum::<f32>());
             for channel in 0..3 {
                 let values = texels.map(|t| table[previous[t + channel] as usize]);
-                let mean = if weighted {
-                    values.iter().zip(a).map(|(v, w)| v * w).sum::<f32>() / coverage
-                } else {
-                    values.iter().sum::<f32>() * 0.25
+                let mean = match coverage {
+                    Some(sum) => values.iter().zip(a).map(|(v, w)| v * w).sum::<f32>() / sum,
+                    None => values.iter().sum::<f32>() * 0.25,
                 };
                 out.push(encode(mean, kind));
             }
