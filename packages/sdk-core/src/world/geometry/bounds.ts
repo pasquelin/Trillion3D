@@ -4,9 +4,10 @@
  * stored numbers, `itemSize` apart, as `drawnTriangles` draws it; any other (interleaved, or
  * morphed) through `getComponent`, at the value it stands for.
  */
-import { boxEmpty, boxExpandByPoint, boxIsEmpty } from '../../math/primitives/box.ts';
+import { boxEmpty, boxExpandByPoint } from '../../math/primitives/box.ts';
 import type { VertexAttribute } from '../buffer/attribute.ts';
 import { Box3 } from '../math/box3.ts';
+import { Vector3 } from '../math/vector3.ts';
 import type { Sphere } from '../math/volumes.ts';
 
 /** What the bounds read of a geometry: its positions and the morph targets that move them. */
@@ -16,11 +17,13 @@ type Morphed = {
   readonly morphTargetsRelative: boolean;
 };
 
-/** Scratch of the bounds below: the whole box, one target's, one corner. */
+/** Scratch of the bounds below: the whole box, one target's, one corner, the sphere's box and
+ *  centre. */
 const whole = new Float64Array(6),
   morph = new Float64Array(6),
   sum = new Float64Array(3),
-  scratchBox = new Box3();
+  scratchBox = new Box3(),
+  centre = new Vector3();
 
 /** The box of an attribute's vertices, written into `into` (six numbers). */
 function spanInto(into: Float64Array, attribute: VertexAttribute) {
@@ -81,17 +84,9 @@ export function spanBox(box: Box3, morphed: Morphed) {
  *  `sphere`; left as it is with no position. */
 export function spanSphere(sphere: Sphere, morphed: Morphed) {
   const position = morphed.attributes.position,
-    relative = morphed.morphTargetsRelative,
     plain = stored(morphed);
   if (!position) return sphere;
-  if (plain) {
-    const box = scratchBox.setFromArray(plain.array, plain.itemSize);
-    whole.set([box.min.x, box.min.y, box.min.z, box.max.x, box.max.y, box.max.z]);
-  } else if (!span(morphed)) return sphere;
-  const empty = boxIsEmpty(whole, 0);
-  const cx = empty ? 0 : (whole[0] + whole[3]) * 0.5,
-    cy = empty ? 0 : (whole[1] + whole[4]) * 0.5,
-    cz = empty ? 0 : (whole[2] + whole[5]) * 0.5;
+  const { x: cx, y: cy, z: cz } = spanBox(scratchBox, morphed).getCenter(centre);
   let far = 0;
   const reach = (x: number, y: number, z: number) => {
     const dx = cx - x,
@@ -102,19 +97,23 @@ export function spanSphere(sphere: Sphere, morphed: Morphed) {
   if (plain)
     for (let i = 0, a = plain.array; i + 2 < a.length; i += plain.itemSize)
       reach(a[i], a[i + 1], a[i + 2]);
-  else
+  else {
     for (let i = 0; i < position.count; i++)
       reach(position.getX(i), position.getY(i), position.getZ(i));
-  for (const target of morphed.morphAttributes.position ?? [])
-    for (let j = 0; j < target.count; j++) {
-      let [x, y, z] = [target.getX(j), target.getY(j), target.getZ(j)];
-      if (relative) {
-        x += position.getX(j);
-        y += position.getY(j);
-        z += position.getZ(j);
+    const relative = morphed.morphTargetsRelative;
+    for (const target of morphed.morphAttributes.position ?? [])
+      for (let j = 0; j < target.count; j++) {
+        let x = target.getX(j),
+          y = target.getY(j),
+          z = target.getZ(j);
+        if (relative) {
+          x += position.getX(j);
+          y += position.getY(j);
+          z += position.getZ(j);
+        }
+        reach(x, y, z);
       }
-      reach(x, y, z);
-    }
+  }
   sphere.center.set(cx, cy, cz);
   sphere.radius = Math.sqrt(far);
   return sphere;
@@ -122,8 +121,9 @@ export function spanSphere(sphere: Sphere, morphed: Morphed) {
 
 /** The positions as a list of numbers: the stored array itself when the attribute owns it, as the
  *  world's geometry has always been drawn; an interleaved one copied vertex by vertex, three per
- *  vertex. */
-export function readPoints(attribute: VertexAttribute): ArrayLike<number> {
+ *  vertex; none without an attribute. */
+export function readPoints(attribute: VertexAttribute | undefined): ArrayLike<number> {
+  if (!attribute) return [];
   if (attribute.kind === 'attribute') return attribute.array;
   const out = new Float32Array(attribute.count * 3);
   for (let i = 0; i < attribute.count; i++)

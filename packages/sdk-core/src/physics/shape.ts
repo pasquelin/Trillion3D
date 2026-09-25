@@ -1,5 +1,6 @@
 import { EngineError } from '../contracts/cache.ts';
 import type { Geometry } from '../world/geometry/geometry.ts';
+import { readPoints } from '../world/geometry/bounds.ts';
 import type { CompoundPart } from './commands.ts';
 import { SHAPE } from './layout.ts';
 import type { PhysicsPart, PhysicsShape, PhysicsType } from './options.ts';
@@ -21,7 +22,7 @@ const same = (a: number, b: number) => Math.abs(a - b) <= 1e-6 * Math.max(1, Mat
 
 /** The geometry's positions scaled into the body's frame. */
 function scaledVertices(geometry: Geometry, scale: Scale) {
-  const source = geometry.getAttribute('position')?.array ?? new Float32Array(0);
+  const source = readPoints(geometry.getAttribute('position'));
   const vertices = new Float32Array(source.length);
   for (let i = 0; i < source.length; i += 3) {
     vertices[i] = source[i] * scale.x;
