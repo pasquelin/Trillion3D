@@ -26,9 +26,9 @@ export const openMark = (sprite: number | undefined, light: unknown) =>
 export const openToCamera = <T>(s: { light?: unknown }, root: ClusterRoot<T>) =>
   openMark(root.sprite, s.light);
 
-/** True when a light's cut leaves `root` out: a sprite casts no shadow (`ClusterRoot.sprite`). */
-export const castsNoShadow = <T>(s: { light?: unknown }, root: ClusterRoot<T>) =>
-  !!s.light && !!root.sprite;
+/** True when a light's cut leaves a root marked `sprite` out: a sprite casts no shadow
+ *  (`ClusterRoot.sprite`). Read by the CPU cut and the GPU cut's oracle (`dagOracleDescent`). */
+export const castsNoShadow = (sprite: number | undefined, light: unknown) => !!light && !!sprite;
 
 /** Six planes no box leaves, `(0, 0, 0, 1)` each: what an open root is walked against, here and
  *  in the GPU cut's oracle (`dagViewFrames`). */
