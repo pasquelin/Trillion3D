@@ -51,7 +51,7 @@ test('a bloom compiles once, then draws 2 × levels passes into targets made onc
   const { encoder, passes } = recorder();
   assert.equal(effects.encode(encoder, [bloom], input, 64, 32), input, 'compiling: no chain yet');
   assert.equal(effects.loading, true);
-  while (effects.loading) await new Promise((resolve) => setImmediate(resolve));
+  await effects.settled();
   const levels = bloomLevelSizes(64, 32).length;
   const output = effects.encode(encoder, [bloom], input, 64, 32);
   assert.notEqual(output, input);
@@ -92,7 +92,7 @@ test('two passes read each other through two targets in turn', async () => {
   const { encoder, passes } = recorder();
   const chain = [effect.bloom(), effect.bloom()];
   effects.encode(encoder, chain, input, 64, 32);
-  while (effects.loading) await new Promise((resolve) => setImmediate(resolve));
+  await effects.settled();
   const output = effects.encode(encoder, chain, input, 64, 32);
   const each = 2 * bloomLevelSizes(64, 32).length;
   assert.equal(gpu.textures.length, 3, 'two pass targets and the level chain');
@@ -106,7 +106,7 @@ test('two blooms draw with their own settings, each from its own uniform range',
   const { encoder, passes } = recorder();
   const chain = [effect.bloom({ intensity: 0.2 }), effect.bloom({ intensity: 0.8, radius: 2 })];
   effects.encode(encoder, chain, input, 64, 32);
-  while (effects.loading) await new Promise((resolve) => setImmediate(resolve));
+  await effects.settled();
   passes.length = 0;
   effects.encode(encoder, chain, input, 64, 32);
   // The uniform buffer as the queue leaves it before the frame's first pass.

@@ -12,8 +12,8 @@ const COMPILING = -1;
  * chain draws nothing. The chain's output keeps the as-is share of the image it read. A diagnostic
  * view and a surface capture show the engine's image as it is, without the chain. The revision
  * drawn is kept, so a change of the chain breaks the hold (`../../frame/hold.ts`); an image drawn
- * while its programs compile keeps none, so it is drawn again until it carries the chain, and the
- * accumulation goes on meanwhile, as for a change of the chain.
+ * while its programs compile keeps none, so the loop draws it again once they arrive
+ * (`../../frame/interactiveFrame.ts`), without restarting the accumulation.
  */
 export function encodeEffects(
   rt: WebgpuPagesRuntime,

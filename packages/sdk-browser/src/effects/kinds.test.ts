@@ -61,7 +61,7 @@ test('WebGPU hands each pass to its kind, with its rank among that kind', async 
   const encoder = {} as GPUCommandEncoder,
     input = {} as GPUTextureView;
   effects.encode(encoder, chain, input, 8, 4);
-  while (effects.loading) await new Promise((resolve) => setImmediate(resolve));
+  await effects.settled();
   effects.encode(encoder, chain, input, 8, 4);
   assert.deepEqual(kind.drawn, [
     [chain[0], 0],
