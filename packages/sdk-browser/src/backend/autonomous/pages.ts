@@ -39,8 +39,9 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
       context.residentPagesDefault ??
       Math.max(1024, bootstrapUrls.size),
     scene = hostPageScene(blendCopies);
-  const shown: PageRec[] = [],
-    desired: PageRec[] = [];
+  // The cut drawn, the cut wanted, and what the image asks the pool for (`imageCut.ts`).
+  const lists = { shown: [] as PageRec[], desired: [] as PageRec[], requested: [] as PageRec[] },
+    { shown } = lists;
   const baseMaterials = new Map(allPages.map((rec) => [rec, rec.declaration] as const)),
     colorMaterials = new Map<HostMaterial, HostMaterial>();
   const modifiedPages = new Set<string>();
@@ -56,8 +57,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
     scene,
     allPages,
     bootstrap,
-    shown,
-    desired,
+    ...lists,
     byUrl,
     descriptors,
     baseMaterials,
@@ -81,8 +81,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
   const residency = createAutonomousResidency({
     bootstrapUrls,
     modifiedPages,
-    shown,
-    desired,
+    ...lists,
     geometryStore,
   });
   const pool = createAutonomousPool({
@@ -97,9 +96,8 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
     residency,
     heldFloor,
     instanceCount,
-    settle: () => cut.settle(),
   });
-  const cut = createAutonomousRender({
+  const frame = createAutonomousRender({
     state,
     context,
     gate,
@@ -107,12 +105,11 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
     roots,
     blendCopies,
     worlds,
-    shown,
-    desired,
-    bootstrap,
+    ...lists,
+    revision: () => heldFloor.revision,
     cap,
     sync,
-    keptChanged: residency.keptChanged,
+    residency,
     pool: pool.budget,
   });
   return {
@@ -145,7 +142,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
     },
     render(camera) {
       hostDraw.render(camera);
-      if (ready) cut.frame(camera);
+      if (ready) frame(camera);
     },
     drawHostGeometry: hostDraw.drawHostGeometry,
     ...instances,
