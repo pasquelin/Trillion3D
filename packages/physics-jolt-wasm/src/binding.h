@@ -165,7 +165,7 @@ void writeVehicles();
 
 /// The soft bodies' command (`soft.cpp`, softLayout.ts): its fixed words, then per vertex
 /// `SOFT_VERTEX_WORDS`, then its triangle corners.
-constexpr uint32_t SOFT = 24, SOFT_WORDS = 22, SOFT_VERTEX_WORDS = 4;
+constexpr uint32_t SOFT = 24, SOFT_WORDS = 21, SOFT_VERTEX_WORDS = 4;
 /// Makes the soft body a SOFT command describes; false (with `world().error`) on a bad command.
 bool addSoft(const uint32_t *w);
 /// Writes the vertices of the soft bodies the step moved, once the bodies have stepped.

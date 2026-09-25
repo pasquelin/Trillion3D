@@ -1,6 +1,6 @@
 import { visMaterial } from '../../visibility/shader/material.ts';
 import { writeSpriteWords } from '../../visibility/shader/spriteWgsl.ts';
-import { SURFACE_MODEL } from '../../scene/surfaceModel.ts';
+import { SURFACE_MODEL, shownAsIs } from '../../scene/surfaceModel.ts';
 import { writeDepthRamp } from '../../camera/depthConvention.ts';
 import { importHostTexture } from '../../host/textureImport.ts';
 import type { HostTexture } from '../../host/resources.ts';
@@ -63,7 +63,8 @@ export function bindClusterMaterial(
   uniforms.i1(13, 'lit', mat.lit ? 1 : 0);
   uniforms.i1(14, 'hasNormalMap', mat.normalMap ? 1 : 0);
   uniforms.i1(15, 'hasVertexColor', material.vertexColors ? 1 : 0);
-  uniforms.i1(16, 'toneMapped', toneMapped && material.toneMapped ? 1 : 0);
+  // A debug view, a normal or depth surface, is output untouched (`shownAsIs`).
+  uniforms.i1(16, 'toneMapped', toneMapped && material.toneMapped && !shownAsIs(mat.model) ? 1 : 0);
   const sharedMetalRough =
     !!mat.roughnessMap &&
     mat.roughnessMap === mat.metalnessMap &&

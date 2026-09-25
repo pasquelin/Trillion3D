@@ -813,7 +813,9 @@ Nothing lights an opaque surface except a light the host declared. There is no f
 no constant sky and no authored scene lighting: a surface no declared light reaches is exactly zero,
 so a windowless corridor stays black at noon. Emission is a material property and is always added.
 `world.exposure` sets the camera exposure, applied to linear radiance before tone mapping; it is not
-a light and cannot brighten a surface no light reaches. `scene.background` is the colour behind every
+a light and cannot brighten a surface no light reaches. Debug views are untouched by both: a
+`material.meshNormal()` or `material.meshDepth()` surface is output as stored, with neither exposure
+nor `world.toneMapping`, on both renderers, as in the reference. `scene.background` is the colour behind every
 object, `null` for the default; set, or written through its methods (`scene.background.setHSL(...)`,
 `set`, `setRGB`, `setHex`), it shows at the next frame on every renderer, the session kept. A direct
 write of `.r`, `.g` or `.b` is not heard: set `scene.background` again after one. A picture
@@ -1157,7 +1159,10 @@ rack, { axis, axisB, ratio })` slides the rack along `axisB` by `1 / ratio` metr
   weight on a quarter of its mean cross-section (`SOFT_FOOTPRINT`, declared), or the most its skin
   holds if less. A pressure past what its skin holds within a tenth of its rest volume is refused
   with a `RangeError`: its edges give by their `stretch` and by the solver's own compliance, one
-  substep squared over a vertex's mass, so a light, finely cut skin holds less. A soft body is a
+  substep squared over a vertex's mass, so a light, finely cut skin holds less. `friction`,
+  `restitution`, `gravityScale` and `damping: { linear }` act as on a rigid body, on each vertex;
+  `shape`, `sensor`, `ccd`, `decorative` and an angular damping are refused with a `RangeError`
+  (its vertices do not turn). A soft body is a
   direct child of the scene; moved by the page, it is made again there; it takes no velocity,
   impulse, joint or vehicle, and sends no contact event. Rigid bodies and the character collide
   with its vertices: the character is turned aside or stopped, never pushing it; a rigid body
