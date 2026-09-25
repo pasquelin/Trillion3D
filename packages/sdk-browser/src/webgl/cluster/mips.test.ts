@@ -14,8 +14,7 @@ import { createTestContext } from '../core/testContext.fixture.ts';
 import { createHostDrawCamera, type HostCamera } from '../../camera/world.ts';
 import { CoverageReaders } from '../../texture/coverage.ts';
 
-/** A test context whose viewport and colour mask the reducer saves; `draws` walks the calls for
- *  what each draw sampled (the unit `source` names) and the texture and level it drew into. */
+/** A test context; `draws`: per draw, the texture sampled, and the texture and level drawn. */
 function context(answers: Record<string, unknown> = {}) {
   const view = (name: string) =>
     name === 'COLOR_WRITEMASK' ? [true, true, true, true] : new Int32Array([0, 0, 8, 4]);
@@ -38,7 +37,6 @@ function context(answers: Record<string, unknown> = {}) {
   return { ...gl, draws, rules: () => uniforms('weighted') };
 }
 type Named = { uniform: string };
-
 /** A 4×4 map with mips, a masked surface wearing it, and a binder whose frame has begun. */
 function masked(gl: WebGL2RenderingContext) {
   const host = G.dataTexture(new Uint8Array(64), 4, 4);
