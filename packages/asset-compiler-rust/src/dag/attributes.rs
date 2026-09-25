@@ -137,41 +137,60 @@ pub fn seam_vertices(weld: &[u32], weld_seam: &[u32], indices: &[u32]) -> Vec<bo
 }
 
 /// Points every corner of `simplified` at the copy of its position and texture coordinates, among
-/// those `source` uses, whose normal is closest to its triangle's face normal. Permissive mode
-/// merges the copies of a hard edge into one; the geometry and the texture are the same for every
-/// copy, so only the normal changes, and it is the one of the corner's own face.
+/// those `source` uses, whose normal is closest to its triangle's face normal, and only among the
+/// copies a face of `source` turning the same way draws. Permissive mode merges the copies of a
+/// hard edge into one; the geometry and the texture are the same for every copy, so only the
+/// normal changes, and it is the one of the corner's own face.
+///
+/// Returns the corners no such copy exists for, welded by `weld_seam`: a coarse face whose
+/// corners only ever belonged to faces turned another way — the underside of a board its
+/// thickness collapsed onto the top — would inherit another face's normal (#484). The caller
+/// retries with them locked.
 pub fn own_normals(
     simplified: &mut [u32],
     source: &[u32],
     weld_seam: &[u32],
     positions: &[f32],
     normals: &[f32],
-) {
+) -> Vec<u32> {
+    // Per copy, the faces of `source` that draw it; per position, its copies.
+    let mut owners: HashMap<u32, Vec<[f64; 3]>> = HashMap::new();
     let mut copies: HashMap<u32, Vec<u32>> = HashMap::new();
-    for &v in source {
-        let list = copies.entry(weld_seam[v as usize]).or_default();
-        if !list.contains(&v) {
-            list.push(v);
+    for tri in source.as_chunks::<3>().0 {
+        let face = face_normal(positions, tri).map(|(face, _)| face);
+        for &v in tri {
+            let faces = owners.entry(v).or_default();
+            faces.extend(face);
+            let list = copies.entry(weld_seam[v as usize]).or_default();
+            if !list.contains(&v) {
+                list.push(v);
+            }
         }
     }
-    copies.retain(|_, list| list.len() > 1);
-    if copies.is_empty() {
-        return;
-    }
+    let mut foreign = Vec::new();
     for tri in simplified.as_chunks_mut::<3>().0 {
         let Some((face, _)) = face_normal(positions, tri) else {
             continue;
         };
+        let agrees = |v: u32| {
+            owners
+                .get(&v)
+                .is_some_and(|f| f.iter().any(|&f| dot(f, face) > 0.0))
+        };
         let facing = |v: u32| unit_normal(normals, v).map_or(-2.0, |n| dot(n, face));
         for corner in tri.iter_mut() {
-            let Some(list) = copies.get(&weld_seam[*corner as usize]) else {
-                continue;
-            };
-            for &candidate in list {
-                if facing(candidate) > facing(*corner) {
-                    *corner = candidate;
-                }
+            let key = weld_seam[*corner as usize];
+            let own = copies
+                .get(&key)
+                .into_iter()
+                .flatten()
+                .copied()
+                .filter(|&v| agrees(v));
+            match own.max_by(|&a, &b| facing(a).total_cmp(&facing(b))) {
+                Some(best) => *corner = best,
+                None => foreign.push(key),
             }
         }
     }
+    foreign
 }
