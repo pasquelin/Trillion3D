@@ -64,7 +64,8 @@ test('an instance changed or removed leaves the model and the other instances as
     byUrl,
     baseMaterials,
     geometryStore,
-    cap: 10,
+    hostCeiling: 10,
+    coverMeshes: () => 0,
     sceneChanged: () => {},
     coverChanged: () => {},
   });
@@ -120,7 +121,8 @@ test('an instance of a world with 300,000 roots and bootstrap pages is added who
     byUrl: new Map(),
     baseMaterials: new Map(),
     geometryStore: {} as Parameters<typeof createAutonomousInstances>[0]['geometryStore'],
-    cap: Infinity,
+    hostCeiling: Infinity,
+    coverMeshes: () => 0,
     sceneChanged: () => {},
     coverChanged: () => {},
   });

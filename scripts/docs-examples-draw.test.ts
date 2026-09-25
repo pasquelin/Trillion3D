@@ -37,11 +37,25 @@ test("the proof hears the engine's own failures on the console", async () => {
 
 test('a sparse example is declared by name and backend under the tenth; every other keeps the tenth', () => {
   const ids = new Set(ready.map(({ id }) => id));
-  for (const [id, { share, on }] of Object.entries(SPARSE)) {
+  for (const [id, { share }] of Object.entries(SPARSE)) {
     assert.ok(ids.has(id), id);
     assert.ok(share > 0 && share < 0.1, id);
-    assert.equal(leastDrawn(id, false), share, id);
-    assert.equal(leastDrawn(id, true), on === 'both' ? share : 0.1, id);
   }
-  assert.equal(leastDrawn('shapes-on-a-turntable', false), 0.1);
+  // The shares declared under those measured on 2026-09-24, and the three examples a refused
+  // WebGL2 session left blank, which are never declared: they keep the tenth on both backends.
+  const named = [
+    'a-staircase-from-one-step',
+    'a-cloud-of-points',
+    'save-the-scene',
+    'shapes-on-a-turntable',
+    'fly-over-a-model-town',
+    'from-a-grain-to-a-planet',
+    'snow-of-sprites',
+  ];
+  for (const id of named) assert.ok(ids.has(id), id);
+  // A new declaration is asserted here too, with its literal share.
+  for (const id of Object.keys(SPARSE)) assert.ok(named.includes(id), id);
+  const least = (gpu: boolean) => named.map((id) => leastDrawn(id, gpu));
+  assert.deepEqual(least(false), [0.04, 0.04, 0.06, 0.1, 0.1, 0.1, 0.1]);
+  assert.deepEqual(least(true), [0.04, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1]);
 });
