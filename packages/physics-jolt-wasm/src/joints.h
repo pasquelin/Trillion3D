@@ -60,5 +60,11 @@ void linkGear(JPH::Constraint *constraint, uint32_t kind, const JPH::Constraint 
 /// The impulse an advanced joint gave its bodies in the last step: linear (N·s), angular for a
 /// gear or a rack (N·m·s), the pull its break force is measured against.
 float advancedPull(JPH::Constraint *constraint, uint32_t kind);
+/// Where a path joint's body stands along its path now: Jolt's fraction of the closest point.
+float pathFraction(const JPH::Constraint *constraint);
+/// After a step, turns the velocity of a path joint's body from the path's tangent at `before`
+/// (its fraction when the step began) to the tangent where it now stands, its speed kept
+/// (`pathCarry.cpp`): a frictionless path does no work.
+void carryAlongPath(JPH::Constraint *constraint, float before);
 
 }  // namespace trillion
