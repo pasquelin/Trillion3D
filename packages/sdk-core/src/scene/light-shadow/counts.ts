@@ -11,7 +11,6 @@ export function createShadowCounts() {
   /** Frame (plus one) of the last page drawn for each slice's light. */
   const drewAt = new Int32Array(MAX_SHADOW_SLICES);
   const counts = {
-    denied: 0,
     lights: 0,
     sunLights: 0,
     invalidatedPages: 0,
@@ -22,13 +21,9 @@ export function createShadowCounts() {
     waitedMs: 0,
     waitedFrames: 0,
     beginFrame() {
-      counts.denied = 0;
       counts.lights = 0;
       counts.sunLights = 0;
       counts.invalidatedPages = 0;
-    },
-    deny() {
-      counts.denied++;
     },
     /** A page of this slice's light is drawn this frame: the light counts once per frame. */
     drewLight(slice: number, rank: number, frame: number) {

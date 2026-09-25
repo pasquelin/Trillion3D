@@ -14,7 +14,7 @@ export function blendFixture(
   );
   geometry.setIndex(G.indices([0, 1, 2, 3, 4, 5]));
   const mesh = G.mesh(geometry, material),
-    source = new G.GraphGroup();
+    source = new G.Group();
   source.add(mesh);
   // Two level-0 clusters that nothing replaces: the smallest legal DAG, so both are root clusters.
   const pages = [

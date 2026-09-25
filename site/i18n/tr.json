@@ -313,6 +313,7 @@
       "soft-bodies": "Yumuşak cisimler",
       "rolling-on-terrain": "Arazi üzerinde yuvarlanmak",
       "hinges-and-joints": "Menteşeler ve eklemler",
+      "gears-and-pulleys": "Dişliler ve makaralar",
       "walk-with-collisions": "Çarpışmalarla yürümek",
       "drive-a-car": "Bir araba sürmek",
       "a-room-in-vr": "VR'da bir oda",
@@ -326,7 +327,6 @@
       "a-walker-among-balls": "Toplar arasında bir yürüyüşçü"
     },
     "missing": {
-      "colours-on-the-vertices": "WebGPU'da köşe başına renkler",
       "dashed-lines": "kesikli çizgiler",
       "floating-crates": "her karede yeniden yazılan geometri",
       "thick-lines": "geniş çizgiler",
@@ -426,8 +426,6 @@
       "reflections-from-the-screen": "ekran uzayında yansımalar",
       "an-ocean": "dokuya render: su yansıması ve kırılması",
       "a-raging-sea": "özel shader'lı malzemeler",
-      "a-town-in-the-fog": "sis",
-      "fog-on-the-ground": "sis: yükseklik sisi",
       "fog-that-scatters-light": "hacimsel sis ve ışık hüzmeleri",
       "a-cloud-in-a-box": "hacimsel render",
       "a-fire-in-a-volume": "hacimsel render",
@@ -1079,7 +1077,8 @@
           "<code>anchor</code> cisimlerin birleştiği nokta, <code>axis</code> pimin ya da rayın yönüdür; ikisi de dünyadadır ve eklem oluşturulurken okunur.",
           "<code>limits</code> eklemi durdurur: menteşe için radyan, ray için metre. Bir <code>spring</code> dayanağı yumuşatır.",
           "Bir <code>motor</code> menteşeyi ya da rayı bir hıza veya konuma sürer. <code>joint.motor</code>'u istediğin an değiştir.",
-          "<code>breakForce</code>, eklemin koptuğu çekiş kuvvetidir (newton): <code>joint.broken</code> doğru olur ve <code>joint.on('break', …)</code> çağrılır."
+          "<code>breakForce</code>, eklemin koptuğu çekiş kuvvetidir (newton): <code>joint.broken</code> doğru olur ve <code>joint.on('break', …)</code> çağrılır.",
+          "Gelişmiş eklemler hareketleri birbirine bağlar: <code>joint.gear(a, b, { ratio })</code> menteşeli iki tekerleği tek bir dişli dizisi gibi döndürür, <code>joint.rackAndPinion</code> dönüşü kaymaya çevirir, <code>joint.pulley(a, b, { over })</code> iki yükü tek bir ipe asar, <code>joint.path(a, b, { path })</code> bir vagonu rayında tutar, <code>swingTwist</code> ve <code>sixDof</code> ise omuzlar ve kendi eklemlerini yapar."
         ],
         "tryIt": "Kapıyı ve çekmeceyi aç, sonra taşı köprüye bırak. Köprünün dayanımını düşürüp yeniden kur: kendi ağırlığıyla kırılır."
       },

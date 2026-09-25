@@ -360,6 +360,22 @@
       "up": "ARRIBA"
     }
   },
+  "a-town-in-the-fog": {
+    "banner": "Arrastra para mirar alrededor. Elige la niebla, su alcance y su color.",
+    "controls": {
+      "fog": "Niebla",
+      "reach": "Alcance",
+      "height": "Altura",
+      "colour": "Color"
+    },
+    "choices": {
+      "fog": {
+        "distance": "distancia",
+        "thick": "espesa",
+        "ground": "a ras de suelo"
+      }
+    }
+  },
   "a-tube-along-a-spline": {
     "banner": "Arrastra para mirar alrededor. Las cuentas viajan por el tubo.",
     "controls": {
@@ -2014,6 +2030,20 @@
     "readouts": {
       "joints": "Uniones",
       "broken": "Rotas"
+    }
+  },
+  "gears-and-pulleys": {
+    "banner": "Cambia la velocidad del mecanismo, sube el ascensor y echa pesos en el cubo para levantar el contrapeso.",
+    "controls": {
+      "speed": "Velocidad del mecanismo (rad/s)",
+      "raiseLift": "Subir el ascensor",
+      "addWeight": "Soltar un peso",
+      "emptyBucket": "Vaciar el cubo"
+    },
+    "readouts": {
+      "lift": "Ascensor",
+      "load": "Pesos",
+      "rope": "Cuerda recorrida"
     }
   }
 }

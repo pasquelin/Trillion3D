@@ -26,14 +26,14 @@ export const firstMaterial = (m: Material | Material[]) => (Array.isArray(m) ? m
 
 /**
  * What decides a mesh's triangles, beside its geometry: how it reads it, and the material fields
- * that turn a point into an octahedron, a line into a prism, a face into its wireframe or its
- * flat normals. Two meshes equal on these draw the same triangles, whatever else they wear.
+ * that turn a point into an octahedron, a face into its wireframe or its flat normals. A line's
+ * width is not one of them: the rasters widen its quads on screen. Two meshes equal on these draw
+ * the same triangles, whatever else they wear.
  */
 function readingOf(mesh: Mesh) {
   const material = firstMaterial(mesh.material);
   const options = {
     size: material.size as number | undefined,
-    linewidth: material.linewidth as number | undefined,
     wireframe: material.wireframe === true,
     flat: material.flatShading === true,
   };
@@ -47,7 +47,8 @@ type Content = { key: string; drawn: DrawnTriangles; packed: ArrayBuffer | null 
 
 async function readContent(drawn: DrawnTriangles): Promise<Content> {
   const packed = packDrawn(drawn);
-  return { key: await sha256Hex(packed), drawn, packed };
+  // Line quads are drawn widened: they never share a resource with the same bytes read as faces.
+  return { key: (drawn.lines ? 'lines:' : '') + (await sha256Hex(packed)), drawn, packed };
 }
 
 type Reading = { version: number; read: Promise<Content | null> };
@@ -87,7 +88,7 @@ export function createWorldCuts() {
       return pending;
     }
     // A content read again after its resource was released packs its triangles again.
-    pending = cutRuntimePrimitive(packed ?? packDrawn(drawn)).then(
+    pending = cutRuntimePrimitive(packed ?? packDrawn(drawn), !!drawn.lines).then(
       (runtime) => ({ key, drawn, runtime, users: new Set<Mesh>(), held: false }),
       // A failed cut leaves no trace: the next mesh with this content tries again.
       () => {

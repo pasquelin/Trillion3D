@@ -175,21 +175,20 @@ export class CommandWriter {
   }
   /** Connects two bodies, or a body and the world. */
   joint(j: JointRecord) {
-    const { mode, target, maxForce } = j.motor;
-    const values = [0, 0, 0, ...j.frameA, ...j.frameB, ...j.limits, 0, target, maxForce];
-    this.op(OP.joint, j.id, [...values, j.breakForce]);
-    const at = this.length - JOINT_WORDS;
-    this.words.set([j.kind, j.a >>> 0, j.b >>> 0], at + 2);
-    this.words[at + 27] = mode;
+    const { mode, target, maxForce, axis } = j.motor;
+    const values = [0, 0, 0, 0, 0, 0, ...j.frameA, ...j.frameB, ...j.limits, target, maxForce];
+    this.op(OP.joint, j.id, [...values, j.breakForce, ...j.extra]);
+    const at = this.length - JOINT_WORDS - j.extra.length;
+    this.words.set([j.kind, j.a >>> 0, j.b >>> 0, mode, axis, j.extra.length], at + 2);
   }
   /** Takes a joint out; one that broke or was never made is ignored. */
   unjoint(id: number) {
     this.op(OP.unjoint, id, []);
   }
-  /** Sets a hinge's or a slider's motor. */
-  motor(id: number, mode: number, target: number, maxForce: number) {
-    this.op(OP.motor, id, [0, target, maxForce]);
-    this.words[this.length - 3] = mode;
+  /** Sets a joint's motor. */
+  motor(id: number, { mode, target, maxForce, axis }: JointRecord['motor']) {
+    this.op(OP.motor, id, [0, 0, target, maxForce]);
+    this.words.set([mode, axis], this.length - 4);
   }
   /** The words written so far, copied out, and the writer emptied. */
   take(): Uint32Array {

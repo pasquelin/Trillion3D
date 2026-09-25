@@ -1,17 +1,17 @@
 // Settings passed to `openMeasuredWorld` by the measurement page. This module is served to the page
 // and imported by its URL, like `cutPage.ts`: `measureView` is serialised by Playwright and
 // cannot read any module variable.
-import type { GraphGroup } from '../../packages/sdk-browser/src/host/graph/mesh.ts';
 import type {
   BackendFactory,
   MeasuredWorld,
   MeasuredWorldOptions,
 } from '../witnesses/measurement.ts';
 import type { MeasureViewOptions } from './measureOptions.ts';
+import type { Group } from '../../packages/sdk-core/src/world/object/object3d.ts';
 
 /** The witness light group, of the engine's graph, and its store-tracking function. */
 export interface WitnessLighting {
-  groupe: GraphGroup;
+  groupe: Group;
   suivre: (explorer: MeasuredWorld) => unknown;
 }
 

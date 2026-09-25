@@ -1009,12 +1009,12 @@
   },
   {
     "id": "BufferAttribute",
-    "module": "packages/sdk-core/src/world/buffer/index.ts",
+    "module": "packages/sdk-core/src/world/buffer/attribute.ts",
     "exports": ["BufferAttribute"],
     "section": "buffer",
     "kind": "Type",
     "title": "BufferAttribute",
-    "signature": "class BufferAttribute implements PageAttribute\nnew BufferAttribute(array: BufferTypedArray, itemSize: number, type?: string): BufferAttribute",
+    "signature": "class BufferAttribute extends VertexElements implements PageAttribute\nnew BufferAttribute(array: BufferTypedArray, itemSize: number, normalized?: boolean, type?: string): BufferAttribute",
     "summary": "A typed array of per-vertex values, `itemSize` numbers per vertex: the page codec's `PageAttribute` (`page-codec/pageAttributes.ts`), with what a page writes into it.",
     "parameters": [
       {
@@ -1025,6 +1025,12 @@
       {
         "name": "itemSize",
         "type": "number",
+        "desc": ""
+      },
+      {
+        "name": "normalized",
+        "type": "boolean",
+        "default": "false",
         "desc": ""
       },
       {
@@ -1041,14 +1047,14 @@
         "desc": "Always `true`: tells a buffer attribute apart from anything else."
       },
       {
+        "name": "kind",
+        "type": "'attribute'",
+        "desc": "The attribute owns its buffer."
+      },
+      {
         "name": "type",
         "type": "string",
         "desc": "How the values were declared; a half-float attribute is held at float precision."
-      },
-      {
-        "name": "normalized",
-        "type": "boolean",
-        "desc": "Whether whole numbers are read as values between 0 and 1."
       },
       {
         "name": "version",
@@ -1056,14 +1062,14 @@
         "desc": "Bumped by every declared write: what the world compares to see the content changed."
       },
       {
+        "name": "updateRanges",
+        "type": "{ start: number; count: number; }[]",
+        "desc": "Ranges of `array` written since the last upload, sent alone."
+      },
+      {
         "name": "array",
         "type": "BufferTypedArray",
         "desc": "The numbers themselves."
-      },
-      {
-        "name": "itemSize",
-        "type": "number",
-        "desc": "How many numbers belong to one vertex: 3 for a position."
       },
       {
         "name": "count",
@@ -1073,52 +1079,22 @@
       {
         "name": "needsUpdate",
         "type": "boolean",
-        "desc": "`attribute.needsUpdate = true` after writing `array`: the world re-reads it."
+        "desc": "`needsUpdate = true` after writing `array`: a reader uploads it again."
       },
       {
-        "name": "getComponent(index: number, component: number)",
-        "type": "number",
-        "desc": "Number `component` of vertex `index`."
+        "name": "addUpdateRange(start: number, count: number)",
+        "type": "void",
+        "desc": "Marks `count` numbers from `start` written."
       },
       {
-        "name": "getX(i: number)",
-        "type": "number",
-        "desc": "The first number of vertex `i`."
-      },
-      {
-        "name": "getY(i: number)",
-        "type": "number",
-        "desc": "The second number of vertex `i`."
-      },
-      {
-        "name": "getZ(i: number)",
-        "type": "number",
-        "desc": "The third number of vertex `i`."
-      },
-      {
-        "name": "getW(i: number)",
-        "type": "number",
-        "desc": "The fourth number of vertex `i`."
-      },
-      {
-        "name": "setXYZ(i: number, x: number, y: number, z: number)",
-        "type": "BufferAttribute",
-        "desc": "Writes three numbers for vertex `i`."
-      },
-      {
-        "name": "setXY(i: number, x: number, y: number)",
-        "type": "BufferAttribute",
-        "desc": "Writes two numbers for vertex `i`."
-      },
-      {
-        "name": "setX(i: number, x: number)",
-        "type": "BufferAttribute",
-        "desc": "Writes the first number of vertex `i`."
+        "name": "clearUpdateRanges()",
+        "type": "void",
+        "desc": "Forgets the written ranges, once uploaded."
       },
       {
         "name": "clone()",
         "type": "BufferAttribute",
-        "desc": "A new attribute with a copy of the numbers."
+        "desc": "A new attribute with a copy of the numbers, their type, normalisation and name."
       }
     ],
     "description": ""
@@ -1136,7 +1112,7 @@
   },
   {
     "id": "BufferTypedArray",
-    "module": "packages/sdk-core/src/world/buffer/index.ts",
+    "module": "packages/sdk-core/src/world/buffer/elements.ts",
     "exports": ["BufferTypedArray"],
     "section": "buffer",
     "kind": "Type",
@@ -1552,6 +1528,11 @@
         "name": "projection",
         "type": "'perspective' | 'orthographic'",
         "desc": "`'perspective'` makes far things small; `'orthographic'` keeps every size."
+      },
+      {
+        "name": "copy(source: Object3D, recursive?: boolean)",
+        "type": "Camera",
+        "desc": "Takes `source`'s node values and, from a camera, its optics; its own `projection` stays."
       },
       {
         "name": "updateProjectionMatrix()",
@@ -2115,7 +2096,7 @@
       },
       {
         "name": "selectedNodes",
-        "type": "number[]",
+        "type": "number",
         "desc": "Nodes kept."
       },
       {
@@ -2528,7 +2509,7 @@
       },
       {
         "name": "selectedNodes",
-        "type": "number[]",
+        "type": "number",
         "desc": "Nodes kept."
       },
       {
@@ -2973,7 +2954,7 @@
     "section": "math",
     "kind": "Type",
     "title": "Curve",
-    "signature": "class Curve\nnew Curve(): Curve",
+    "signature": "abstract class Curve",
     "summary": "A parametric curve over `t ∈ [0, 1]`.",
     "members": [
       {
@@ -4362,6 +4343,17 @@
     "description": "Keys translate along its own axes and turn it about them, roll included; a drag looks around. Nothing is integrated until the host calls `update(delta)` with the seconds elapsed, and `update` returns — and emits — only when a key is held, a stick input set or a drag pending, so a released stick leaves the scene still. `autoForward` is the one exception: a cruising camera moves on every `update`, and asks for the next frame by emitting `change` each time. KEYS, by `KeyboardEvent.code`: W/S forward and back, A/D left and right, R/F up and down, arrows pitch and yaw, Q/E roll. Nothing bounds a turn: holding a key loops or rolls the camera round and round, so a loop, a barrel roll, an Immelmann or a split-S is flown as it is on a stick. `inputResponse` gives the keys that stick's travel. `dragToLook` (the default) looks while a pointer is held; set false and the pointer looks as soon as it moves over the surface; set `pointerLook` false and it never turns the view at all, the keys alone steer. A key pressed while Ctrl or Meta is down is ignored, so a browser shortcut (Ctrl+W, Cmd+S) never steers; the modifier must be released before the key that follows it counts."
   },
   {
+    "id": "Fog",
+    "module": "packages/sdk-browser/src/world/core/sceneFog.ts",
+    "exports": ["Fog"],
+    "section": "world",
+    "kind": "Type",
+    "title": "Fog",
+    "signature": "type Fog = | (Omit<SceneLinearFog, 'color'> & { color: Color })\n  | (Omit<SceneExponentialFog, 'color'> & { color: Color })",
+    "summary": "Fog over every surface: linear from `near` to `far`, or thickening with distance by `density`, thinning out with height above `baseHeight` when `heightFalloff` is set.",
+    "description": "The colour is light the fog scatters toward the eye, exposed and tone-mapped like a surface's."
+  },
+  {
     "id": "FrameInfo",
     "module": "packages/sdk-browser/src/world/core/worldFrames.ts",
     "exports": ["FrameInfo"],
@@ -4557,12 +4549,12 @@
       {
         "name": "coverageBudgetLimited?",
         "type": "boolean | null | undefined",
-        "desc": "Requested detail cannot coexist with the pinned fallback within the GPU page budget."
+        "desc": "Requested detail needs more pages than the GPU page budget holds: the rest draws coarser."
       },
       {
         "name": "budgetPixelError?",
         "type": "number | null | undefined",
-        "desc": "Screen-error floor the GPU page budget imposes on the cut, in pixels: `0` when the requested detail fits, otherwise the coarser threshold the image is drawn at. Null on engines without a page budget."
+        "desc": "WebGL2 only: the screen-error floor its page budget imposes on the cut, in pixels — `0` when the requested detail fits, otherwise the coarser threshold the image is drawn at. Absent on WebGPU, where residency alone coarsens the image. Null on engines without a page budget."
       },
       {
         "name": "frameHeld?",
@@ -5221,99 +5213,6 @@
     "description": ""
   },
   {
-    "id": "GraphArray",
-    "module": "packages/sdk-browser/src/host/graph/attributes.ts",
-    "exports": ["GraphArray"],
-    "section": "types",
-    "kind": "Type",
-    "title": "GraphArray",
-    "signature": "type GraphArray = Float32Array | Uint32Array | Uint16Array | Uint8Array | Int32Array | Int16Array | Int8Array",
-    "summary": "The typed arrays an attribute holds.",
-    "description": ""
-  },
-  {
-    "id": "GraphAttribute",
-    "module": "packages/sdk-browser/src/host/graph/attributes.ts",
-    "exports": ["GraphAttribute"],
-    "section": "types",
-    "kind": "Type",
-    "title": "GraphAttribute",
-    "signature": "class GraphAttribute extends Elements implements Versioned\nnew GraphAttribute(array: GraphArray, itemSize: number, normalized?: boolean): GraphAttribute",
-    "summary": "An attribute owning its storage: `itemSize` numbers per vertex, one after the other.",
-    "parameters": [
-      {
-        "name": "array",
-        "type": "GraphArray",
-        "desc": ""
-      },
-      {
-        "name": "itemSize",
-        "type": "number",
-        "desc": ""
-      },
-      {
-        "name": "normalized",
-        "type": "boolean",
-        "default": "false",
-        "desc": ""
-      }
-    ],
-    "members": [
-      {
-        "name": "kind",
-        "type": "'attribute'",
-        "desc": "The attribute owns its buffer."
-      },
-      {
-        "name": "count",
-        "type": "number",
-        "desc": "How many vertices; fixed at construction, as the storage is."
-      },
-      {
-        "name": "version",
-        "type": "number",
-        "desc": "Bumped by `needsUpdate`."
-      },
-      {
-        "name": "array",
-        "type": "GraphArray",
-        "desc": "The storage."
-      },
-      {
-        "name": "updateRanges",
-        "type": "{ start: number; count: number; }[]",
-        "desc": "Ranges of `array` written since the last upload, sent alone."
-      },
-      {
-        "name": "addUpdateRange(start: number, count: number)",
-        "type": "void",
-        "desc": "Marks `count` numbers from `start` written."
-      },
-      {
-        "name": "clearUpdateRanges()",
-        "type": "void",
-        "desc": "Forgets the written ranges, once uploaded."
-      },
-      {
-        "name": "needsUpdate",
-        "type": "boolean",
-        "desc": "`needsUpdate = true` after writing `array`: a reader uploads it again."
-      }
-    ],
-    "description": ""
-  },
-  {
-    "id": "GraphElements",
-    "module": "packages/sdk-browser/src/host/graph/attributes.ts",
-    "exports": ["GraphElements"],
-    "section": "types",
-    "kind": "Type",
-    "title": "GraphElements",
-    "signature": "type GraphElements = GraphAttribute | GraphInterleavedAttribute",
-    "summary": "Either kind of attribute.",
-    "description": ""
-  },
-  {
     "id": "GraphGeometry",
     "module": "packages/sdk-browser/src/host/graph/geometry.ts",
     "exports": ["GraphGeometry"],
@@ -5335,17 +5234,17 @@
       },
       {
         "name": "index",
-        "type": "GraphAttribute | null",
+        "type": "BufferAttribute | null",
         "desc": "The triangle list, or `null` to draw the vertices in order."
       },
       {
         "name": "attributes",
-        "type": "Record<string, GraphElements>",
+        "type": "Record<string, VertexAttribute>",
         "desc": "Its vertex attributes, by name."
       },
       {
         "name": "morphAttributes",
-        "type": "Record<string, GraphElements[]>",
+        "type": "Record<string, VertexAttribute[]>",
         "desc": "Per morphed attribute, one attribute per morph target."
       },
       {
@@ -5380,21 +5279,21 @@
       },
       {
         "name": "getIndex()",
-        "type": "GraphAttribute | null",
+        "type": "BufferAttribute | null",
         "desc": "The triangle list."
       },
       {
-        "name": "setIndex(index: GraphAttribute | null)",
+        "name": "setIndex(index: BufferAttribute | null)",
         "type": "HostGeometry",
         "desc": "Sets the triangle list."
       },
       {
         "name": "getAttribute(name: string)",
-        "type": "GraphElements",
+        "type": "VertexAttribute",
         "desc": "The attribute of that name."
       },
       {
-        "name": "setAttribute(name: string, attribute: GraphElements)",
+        "name": "setAttribute(name: string, attribute: VertexAttribute)",
         "type": "HostGeometry",
         "desc": "Names an attribute."
       },
@@ -5427,127 +5326,6 @@
         "name": "computeBoundingSphere()",
         "type": "void",
         "desc": "Computes the local sphere: centred on the box, reaching the farthest vertex."
-      }
-    ],
-    "description": ""
-  },
-  {
-    "id": "GraphInterleavedAttribute",
-    "module": "packages/sdk-browser/src/host/graph/attributes.ts",
-    "exports": ["GraphInterleavedAttribute"],
-    "section": "types",
-    "kind": "Type",
-    "title": "GraphInterleavedAttribute",
-    "signature": "class GraphInterleavedAttribute extends Elements\nnew GraphInterleavedAttribute(data: GraphInterleavedBuffer, itemSize: number, offset: number, normalized?: boolean): GraphInterleavedAttribute",
-    "summary": "An attribute viewing `itemSize` numbers at `offset` of each vertex of an interleaved buffer.",
-    "parameters": [
-      {
-        "name": "data",
-        "type": "GraphInterleavedBuffer",
-        "desc": ""
-      },
-      {
-        "name": "itemSize",
-        "type": "number",
-        "desc": ""
-      },
-      {
-        "name": "offset",
-        "type": "number",
-        "desc": ""
-      },
-      {
-        "name": "normalized",
-        "type": "boolean",
-        "default": "false",
-        "desc": ""
-      }
-    ],
-    "members": [
-      {
-        "name": "kind",
-        "type": "'interleavedAttribute'",
-        "desc": "The attribute views a shared buffer."
-      },
-      {
-        "name": "data",
-        "type": "GraphInterleavedBuffer",
-        "desc": "The buffer it views."
-      },
-      {
-        "name": "offset",
-        "type": "number",
-        "desc": "Where its numbers start in each vertex."
-      },
-      {
-        "name": "array",
-        "type": "GraphArray",
-        "desc": "The storage the elements live in."
-      },
-      {
-        "name": "count",
-        "type": "number",
-        "desc": "How many vertices."
-      },
-      {
-        "name": "needsUpdate",
-        "type": "boolean",
-        "desc": "`needsUpdate = true` after writing `array`: a reader uploads it again."
-      }
-    ],
-    "description": ""
-  },
-  {
-    "id": "GraphInterleavedBuffer",
-    "module": "packages/sdk-browser/src/host/graph/attributes.ts",
-    "exports": ["GraphInterleavedBuffer"],
-    "section": "types",
-    "kind": "Type",
-    "title": "GraphInterleavedBuffer",
-    "signature": "class GraphInterleavedBuffer implements Versioned\nnew GraphInterleavedBuffer(array: GraphArray, stride: number): GraphInterleavedBuffer",
-    "summary": "One storage several attributes view, a vertex every `stride` numbers.",
-    "parameters": [
-      {
-        "name": "array",
-        "type": "GraphArray",
-        "desc": ""
-      },
-      {
-        "name": "stride",
-        "type": "number",
-        "desc": ""
-      }
-    ],
-    "members": [
-      {
-        "name": "kind",
-        "type": "'interleavedBuffer'",
-        "desc": "One storage several attributes view."
-      },
-      {
-        "name": "count",
-        "type": "number",
-        "desc": "How many vertices."
-      },
-      {
-        "name": "version",
-        "type": "number",
-        "desc": "Bumped by `needsUpdate`."
-      },
-      {
-        "name": "array",
-        "type": "GraphArray",
-        "desc": "The storage."
-      },
-      {
-        "name": "stride",
-        "type": "number",
-        "desc": "Numbers per vertex."
-      },
-      {
-        "name": "needsUpdate",
-        "type": "boolean",
-        "desc": "`needsUpdate = true` after writing `array`: a reader uploads it again."
       }
     ],
     "description": ""
@@ -5605,7 +5383,7 @@
         "desc": "One zero weight per morph target of the first morphed attribute, named by rank."
       },
       {
-        "name": "copy(source: HostGraphNode, recursive?: boolean)",
+        "name": "copy(source: GraphNode, recursive?: boolean)",
         "type": "HostMesh",
         "desc": "Takes `source`'s values, and copies of its children unless told not to."
       }
@@ -5619,8 +5397,8 @@
     "section": "types",
     "kind": "Type",
     "title": "GraphNode",
-    "signature": "class GraphNode extends Object3D\nnew GraphNode(): HostGraphNode",
-    "summary": "A node of the graph: the core's node, told apart by its `kind`, copied as the reference copies.",
+    "signature": "abstract class GraphNode extends Object3D",
+    "summary": "A node of the graph: the core's node, told apart by its `kind`, copied by the core's `clone`.",
     "members": [
       {
         "name": "serial",
@@ -5631,31 +5409,6 @@
         "name": "kind",
         "type": "GraphNodeKind",
         "desc": "What the node is: what every reader of the graph narrows on."
-      },
-      {
-        "name": "parent",
-        "type": "GraphNode | null",
-        "desc": "The node holding this one."
-      },
-      {
-        "name": "children",
-        "type": "readonly GraphNode[]",
-        "desc": "The nodes this one holds, in order."
-      },
-      {
-        "name": "traverse(visit: (node: GraphNode) => void)",
-        "type": "void",
-        "desc": "Calls `visit` on this node, then on every node below it, in order."
-      },
-      {
-        "name": "clone(recursive?: boolean)",
-        "type": "HostGraphNode",
-        "desc": "A node of the same kind with the same values; its children copied too unless told not."
-      },
-      {
-        "name": "copy(source: HostGraphNode, recursive?: boolean)",
-        "type": "HostGraphNode",
-        "desc": "Takes `source`'s values, and copies of its children unless told not to."
       }
     ],
     "description": ""
@@ -5667,8 +5420,8 @@
     "section": "types",
     "kind": "Type",
     "title": "GraphNodeKind",
-    "signature": "type GraphNodeKind = | 'node'\n  | 'scene'\n  | 'group'\n  | 'mesh'\n  | 'instancedMesh'\n  | 'camera'\n  | GraphLightKind\n  | 'ambient'\n  | 'rect'\n  | 'probe'",
-    "summary": "What a node of the graph is: a bare node, the root, a group, a drawn mesh (at one placement or several), an eye, or one of the lights a scene declares.",
+    "signature": "type GraphNodeKind = 'scene' | 'mesh' | 'instancedMesh' | 'camera' | GraphLightKind | 'ambient' | 'rect' | 'probe'",
+    "summary": "What a node of the graph is: the root, a drawn mesh (at one placement or several), an eye, or one of the lights a scene declares.",
     "description": ""
   },
   {
@@ -6135,7 +5888,7 @@
     "section": "types",
     "kind": "Type",
     "title": "HostAttribute",
-    "signature": "type HostAttribute = GraphElements",
+    "signature": "type HostAttribute = VertexAttribute",
     "summary": "One vertex attribute of a geometry, owning its storage or viewing an interleaved one.",
     "description": ""
   },
@@ -6146,7 +5899,7 @@
     "section": "types",
     "kind": "Type",
     "title": "HostAttributes",
-    "signature": "type HostAttributes = { [name: string]: GraphElements }",
+    "signature": "type HostAttributes = { [name: string]: VertexAttribute }",
     "summary": "The named attributes of one geometry.",
     "description": "Also an identity: the engine keys its GPU buffers, geometry blocks and position caches on the attribute set a page draws from."
   },
@@ -6499,17 +6252,6 @@
     "description": ""
   },
   {
-    "id": "HostGraphNode",
-    "module": "packages/sdk-browser/src/host/scene/graphNodes.ts",
-    "exports": ["HostGraphNode"],
-    "section": "types",
-    "kind": "Type",
-    "title": "HostGraphNode",
-    "signature": "type HostGraphNode = GraphNode",
-    "summary": "A node of the graph as a walk sees it: its identity, its local pose, its world matrix and its chain.",
-    "description": "The engine computes its OWN world matrices from the local poses (`../world/tree.ts`)."
-  },
-  {
     "id": "HostMaterial",
     "module": "packages/sdk-browser/src/host/resources.ts",
     "exports": ["HostMaterial"],
@@ -6540,17 +6282,6 @@
     "title": "HostMesh",
     "signature": "type HostMesh = GraphMesh",
     "summary": "A drawn node of the graph, held by identity: the draw record, the transparent table and the selection sets name the mesh the engine placed.",
-    "description": ""
-  },
-  {
-    "id": "HostNode",
-    "module": "packages/sdk-browser/src/host/resources.ts",
-    "exports": ["HostNode"],
-    "section": "types",
-    "kind": "Type",
-    "title": "HostNode",
-    "signature": "type HostNode = GraphNode",
-    "summary": "A node of the graph, held by identity: walked, placed and posed through its own fields.",
     "description": ""
   },
   {
@@ -6725,17 +6456,6 @@
     "description": ""
   },
   {
-    "id": "HostTraversable",
-    "module": "packages/sdk-browser/src/host/resources.ts",
-    "exports": ["HostTraversable"],
-    "section": "types",
-    "kind": "Type",
-    "title": "HostTraversable",
-    "signature": "type HostTraversable = GraphNode",
-    "summary": "A node the engine walks: the subtree under it, itself first.",
-    "description": ""
-  },
-  {
     "id": "HostVector",
     "module": "packages/sdk-browser/src/host/scene/graphNodes.ts",
     "exports": ["HostVector"],
@@ -6781,17 +6501,17 @@
   },
   {
     "id": "InterleavedBuffer",
-    "module": "packages/sdk-core/src/world/buffer/index.ts",
+    "module": "packages/sdk-core/src/world/buffer/attribute.ts",
     "exports": ["InterleavedBuffer"],
     "section": "buffer",
     "kind": "Type",
     "title": "InterleavedBuffer",
-    "signature": "class InterleavedBuffer\nnew InterleavedBuffer(array: Float32Array<ArrayBufferLike>, stride: number): InterleavedBuffer",
+    "signature": "class InterleavedBuffer\nnew InterleavedBuffer(array: BufferTypedArray, stride: number): InterleavedBuffer",
     "summary": "Several attributes packed per vertex: `stride` numbers per vertex, each attribute at an offset.",
     "parameters": [
       {
         "name": "array",
-        "type": "Float32Array<ArrayBufferLike>",
+        "type": "BufferTypedArray",
         "desc": ""
       },
       {
@@ -6807,8 +6527,18 @@
         "desc": "Always `true`: tells an interleaved buffer apart from anything else."
       },
       {
+        "name": "kind",
+        "type": "'interleavedBuffer'",
+        "desc": "One storage several attributes view."
+      },
+      {
+        "name": "version",
+        "type": "number",
+        "desc": "Bumped by `needsUpdate`."
+      },
+      {
         "name": "array",
-        "type": "Float32Array<ArrayBufferLike>",
+        "type": "BufferTypedArray",
         "desc": "Every vertex's numbers, packed one after the other."
       },
       {
@@ -6822,9 +6552,90 @@
         "desc": "How many vertices it packs."
       },
       {
+        "name": "needsUpdate",
+        "type": "boolean",
+        "desc": "`needsUpdate = true` after writing `array`: a reader uploads it again."
+      },
+      {
         "name": "attribute(itemSize: number, offset: number)",
         "type": "BufferAttribute",
-        "desc": "One attribute read out of the pack, as its own float attribute."
+        "desc": "One attribute read out of the pack, as its own attribute."
+      }
+    ],
+    "description": ""
+  },
+  {
+    "id": "InterleavedBufferAttribute",
+    "module": "packages/sdk-core/src/world/buffer/attribute.ts",
+    "exports": ["InterleavedBufferAttribute"],
+    "section": "buffer",
+    "kind": "Type",
+    "title": "InterleavedBufferAttribute",
+    "signature": "class InterleavedBufferAttribute extends VertexElements\nnew InterleavedBufferAttribute(data: InterleavedBuffer, itemSize: number, offset: number, normalized?: boolean): InterleavedBufferAttribute",
+    "summary": "An attribute viewing `itemSize` numbers at `offset` of each vertex of an interleaved buffer.",
+    "parameters": [
+      {
+        "name": "data",
+        "type": "InterleavedBuffer",
+        "desc": ""
+      },
+      {
+        "name": "itemSize",
+        "type": "number",
+        "desc": ""
+      },
+      {
+        "name": "offset",
+        "type": "number",
+        "desc": ""
+      },
+      {
+        "name": "normalized",
+        "type": "boolean",
+        "default": "false",
+        "desc": ""
+      }
+    ],
+    "members": [
+      {
+        "name": "isInterleavedBufferAttribute",
+        "type": "true",
+        "desc": "Always `true`: tells an interleaved view apart from anything else."
+      },
+      {
+        "name": "kind",
+        "type": "'interleavedAttribute'",
+        "desc": "The attribute views a shared buffer."
+      },
+      {
+        "name": "data",
+        "type": "InterleavedBuffer",
+        "desc": "The buffer it views."
+      },
+      {
+        "name": "offset",
+        "type": "number",
+        "desc": "Where its numbers start in each vertex."
+      },
+      {
+        "name": "array",
+        "type": "BufferTypedArray",
+        "desc": "The storage the elements live in."
+      },
+      {
+        "name": "count",
+        "type": "number",
+        "desc": "How many vertices the numbers describe."
+      },
+      {
+        "name": "needsUpdate",
+        "type": "boolean",
+        "desc": "`needsUpdate = true` after writing `array`: a reader uploads it again."
+      },
+      {
+        "name": "clone()",
+        "type": "BufferAttribute",
+        "desc": "Its own numbers, copied out of the pack into an attribute owning them."
       }
     ],
     "description": ""
@@ -6989,39 +6800,77 @@
         "name": "options.anchor?",
         "type": "Vec3Input",
         "default": "a's position",
-        "desc": "Where the bodies connect: the hinge's pin, the ball of a point joint, the end of a distance on `a`."
+        "desc": "Where the bodies connect: the hinge's pin, the ball of a point joint, the end of a distance or of a pulley's rope on `a`."
       },
       {
         "name": "options.anchorB?",
         "type": "Vec3Input",
-        "default": "b's position, or `anchor` with the world",
-        "desc": "The end of a distance on `b`."
+        "default": "b's position, or `anchor`\nwith the world",
+        "desc": "The end of a distance or of a pulley's rope on `b`."
       },
       {
         "name": "options.axis?",
         "type": "Vec3Input",
-        "default": "[0, 1, 0]",
-        "desc": "A hinge's pin, a slider's rail, a cone's middle."
+        "default": "[0, 1, 0]; a six-DOF's [1, 0, 0]",
+        "desc": "A hinge's pin, a slider's rail, a cone's or a swing-twist's middle, a six-DOF's `x`, a gear's or a pinion's pin (`a`)."
+      },
+      {
+        "name": "options.axisB?",
+        "type": "Vec3Input",
+        "default": "`axis`",
+        "desc": "A gear's pin on `b`, a rack's rail (`b`)."
       },
       {
         "name": "options.limits?",
         "type": "JointLimits",
-        "desc": "Hinge, slider, distance and cone: how far it moves. A distance's default is its length."
+        "desc": "Hinge, slider, distance, cone, swing-twist and pulley: how far it moves. A distance's default is its length, a pulley's rope from 0 to its length."
+      },
+      {
+        "name": "options.axes?",
+        "type": "Partial<Record<SixDofAxis, JointLimits | 'free'>>",
+        "desc": "A six-DOF's axes that move, freely (`'free'`) or within limits; the others are locked."
       },
       {
         "name": "options.spring?",
         "type": "{ frequency: number; damping?: number; }",
-        "desc": "Hinge, slider and distance: past the limits, a spring pulls it back instead of a wall; `frequency` in Hz, `damping` from 0 (none) to 1 (critical)."
+        "desc": "Hinge, slider, distance and six-DOF: past the limits, a spring pulls it back instead of a wall; `frequency` in Hz, `damping` from 0 (none) to 1 (critical)."
       },
       {
         "name": "options.motor?",
         "type": "JointMotor",
-        "desc": "Hinge and slider: a motor, changed at any time through `joint.motor`."
+        "desc": "Hinge, slider, swing-twist (its twist), six-DOF and path: a motor, changed at any time through `joint.motor`."
+      },
+      {
+        "name": "options.path?",
+        "type": "readonly Vec3Input[]",
+        "desc": "A path's track: at least two points, `b`'s (or the world's) as they stand when made; `a` starts at the point of it nearest `anchor`."
+      },
+      {
+        "name": "options.loop?",
+        "type": "boolean",
+        "desc": "A path's track closes on itself."
+      },
+      {
+        "name": "options.follow?",
+        "type": "boolean",
+        "default": "true",
+        "desc": "A path's `a` turns with the track, as a cart does, rather than freely, as a bead."
+      },
+      {
+        "name": "options.over?",
+        "type": "readonly [Vec3Input, Vec3Input]",
+        "desc": "A pulley's two wheels in the world: `a`'s rope runs up to the first, `b`'s to the second."
+      },
+      {
+        "name": "options.ratio?",
+        "type": "number",
+        "default": "1",
+        "desc": "A gear's turns of `b` per turn of `a` (the teeth of `a` over those of `b`), the other way round; a pinion's radians per metre of rack, 1 / its radius; a pulley's metres of `b`'s rope per metre of `a`'s."
       },
       {
         "name": "options.breakForce?",
         "type": "number",
-        "desc": "Newtons of pull past which the joint breaks; left out, never."
+        "desc": "Newtons of pull past which the joint breaks (N·m of torque between a gear's or a rack's teeth); left out, never."
       }
     ],
     "members": [
@@ -7048,7 +6897,7 @@
       {
         "name": "motor",
         "type": "JointMotor | null",
-        "desc": "The motor, a hinge's or a slider's; `null` lets the joint turn or slide freely."
+        "desc": "The motor of a hinge, a slider, a swing-twist, a six-DOF or a path; `null` lets the joint move freely."
       },
       {
         "name": "broken",
@@ -7065,52 +6914,57 @@
   },
   {
     "id": "JointKind",
-    "module": "packages/sdk-core/src/physics/joint.ts",
+    "module": "packages/sdk-core/src/physics/jointOptions.ts",
     "exports": ["JointKind"],
     "section": "types",
     "kind": "Type",
     "title": "JointKind",
-    "signature": "type JointKind = 'fixed' | 'point' | 'hinge' | 'slider' | 'distance' | 'cone'",
+    "signature": "type JointKind = | 'fixed'\n  | 'point'\n  | 'hinge'\n  | 'slider'\n  | 'distance'\n  | 'cone'\n  | 'swingTwist'\n  | 'sixDof'\n  | 'path'\n  | 'pulley'\n  | 'gear'\n  | 'rackAndPinion'",
     "summary": "The joints between bodies, each one of Jolt's own constraints.",
     "description": ""
   },
   {
     "id": "JointLimits",
-    "module": "packages/sdk-core/src/physics/joint.ts",
+    "module": "packages/sdk-core/src/physics/jointOptions.ts",
     "exports": ["JointLimits"],
     "section": "types",
     "kind": "Type",
     "title": "JointLimits",
     "signature": "interface JointLimits",
-    "summary": "How far a joint may move: radians for a hinge, metres for a slider or a distance, the cone's half angle (`max`) for a cone.",
+    "summary": "How far a joint may move: radians for a hinge or a turn, metres for a slider, a distance or a pulley's rope, the cone's half angle (`max`) for a cone.",
     "members": [
       {
         "name": "min?",
         "type": "number | undefined",
-        "desc": "A hinge's from −π to 0, a slider's 0 or below."
+        "desc": "A hinge's from −π to 0, a slider's 0 or below; a swing-twist's twist from −π."
       },
       {
         "name": "max?",
         "type": "number | undefined",
-        "desc": "A hinge's from 0 to π, a slider's 0 or above."
+        "desc": "A hinge's from 0 to π, a slider's 0 or above; a swing-twist's twist up to π."
+      },
+      {
+        "name": "swing?",
+        "type": "number | undefined",
+        "desc": "A swing-twist's cone: how far its `axis` swings, a half angle up to π."
       }
     ],
     "description": ""
   },
   {
     "id": "JointMotor",
-    "module": "packages/sdk-core/src/physics/joint.ts",
+    "module": "packages/sdk-core/src/physics/jointOptions.ts",
     "exports": ["JointMotor"],
     "section": "types",
     "kind": "Type",
     "title": "JointMotor",
     "signature": "interface JointMotor",
-    "summary": "A hinge's or a slider's motor: it drives the joint to a velocity or to a position.",
+    "summary": "A joint's motor: it drives the joint to a velocity or to a position.",
     "members": [
       {
         "name": "mode",
         "type": "'position' | 'velocity'",
-        "desc": "`'velocity'`: rad/s or m/s; `'position'`: radians or metres from where the joint was made."
+        "desc": "`'velocity'`: rad/s or m/s; `'position'`: radians or metres from where the joint was made — for a path, the point along it (1.5: halfway between its second and third)."
       },
       {
         "name": "target",
@@ -7120,14 +6974,19 @@
       {
         "name": "maxForce?",
         "type": "number | undefined",
-        "desc": "N·m for a hinge, N for a slider; left out, no bound."
+        "desc": "N·m for a turn, N for a slide; left out, no bound."
+      },
+      {
+        "name": "axis?",
+        "type": "SixDofAxis | undefined",
+        "desc": "A six-DOF's axis it drives."
       }
     ],
     "description": ""
   },
   {
     "id": "JointOptions",
-    "module": "packages/sdk-core/src/physics/joint.ts",
+    "module": "packages/sdk-core/src/physics/jointOptions.ts",
     "exports": ["JointOptions"],
     "section": "types",
     "kind": "Type",
@@ -7138,37 +6997,72 @@
       {
         "name": "anchor?",
         "type": "Vec3Input | undefined",
-        "desc": "Where the bodies connect: the hinge's pin, the ball of a point joint, the end of a distance on `a`."
+        "desc": "Where the bodies connect: the hinge's pin, the ball of a point joint, the end of a distance or of a pulley's rope on `a`."
       },
       {
         "name": "anchorB?",
         "type": "Vec3Input | undefined",
-        "desc": "The end of a distance on `b`."
+        "desc": "The end of a distance or of a pulley's rope on `b`."
       },
       {
         "name": "axis?",
         "type": "Vec3Input | undefined",
-        "desc": "A hinge's pin, a slider's rail, a cone's middle."
+        "desc": "A hinge's pin, a slider's rail, a cone's or a swing-twist's middle, a six-DOF's `x`, a gear's or a pinion's pin (`a`)."
+      },
+      {
+        "name": "axisB?",
+        "type": "Vec3Input | undefined",
+        "desc": "A gear's pin on `b`, a rack's rail (`b`)."
       },
       {
         "name": "limits?",
         "type": "JointLimits | undefined",
-        "desc": "Hinge, slider, distance and cone: how far it moves. A distance's default is its length."
+        "desc": "Hinge, slider, distance, cone, swing-twist and pulley: how far it moves. A distance's default is its length, a pulley's rope from 0 to its length."
+      },
+      {
+        "name": "axes?",
+        "type": "Partial<Record<SixDofAxis, JointLimits | 'free'>> | undefined",
+        "desc": "A six-DOF's axes that move, freely (`'free'`) or within limits; the others are locked."
       },
       {
         "name": "spring?",
         "type": "{ frequency: number; damping?: number; } | undefined",
-        "desc": "Hinge, slider and distance: past the limits, a spring pulls it back instead of a wall; `frequency` in Hz, `damping` from 0 (none) to 1 (critical)."
+        "desc": "Hinge, slider, distance and six-DOF: past the limits, a spring pulls it back instead of a wall; `frequency` in Hz, `damping` from 0 (none) to 1 (critical)."
       },
       {
         "name": "motor?",
         "type": "JointMotor | null | undefined",
-        "desc": "Hinge and slider: a motor, changed at any time through `joint.motor`."
+        "desc": "Hinge, slider, swing-twist (its twist), six-DOF and path: a motor, changed at any time through `joint.motor`."
+      },
+      {
+        "name": "path?",
+        "type": "readonly Vec3Input[] | undefined",
+        "desc": "A path's track: at least two points, `b`'s (or the world's) as they stand when made; `a` starts at the point of it nearest `anchor`."
+      },
+      {
+        "name": "loop?",
+        "type": "boolean | undefined",
+        "desc": "A path's track closes on itself."
+      },
+      {
+        "name": "follow?",
+        "type": "boolean | undefined",
+        "desc": "A path's `a` turns with the track, as a cart does, rather than freely, as a bead."
+      },
+      {
+        "name": "over?",
+        "type": "readonly [Vec3Input, Vec3Input] | undefined",
+        "desc": "A pulley's two wheels in the world: `a`'s rope runs up to the first, `b`'s to the second."
+      },
+      {
+        "name": "ratio?",
+        "type": "number | undefined",
+        "desc": "A gear's turns of `b` per turn of `a` (the teeth of `a` over those of `b`), the other way round; a pinion's radians per metre of rack, 1 / its radius; a pulley's metres of `b`'s rope per metre of `a`'s."
       },
       {
         "name": "breakForce?",
         "type": "number | undefined",
-        "desc": "Newtons of pull past which the joint breaks; left out, never."
+        "desc": "Newtons of pull past which the joint breaks (N·m of torque between a gear's or a rack's teeth); left out, never."
       }
     ],
     "description": "Points and axes are in the world, read when the joint is first made."
@@ -7429,11 +7323,6 @@
         "name": "lampFaceSize",
         "type": "4096",
         "desc": "Side of a lamp face's finest mip, in texels: 32 × 32 pages of 128 (the pool: `shadowPoolSide`)."
-      },
-      {
-        "name": "shadowTableEntries",
-        "type": "number",
-        "desc": "Entries of the shadow page table, one word per virtual page: a fixed 4 MiB buffer. It holds sixteen suns or 128 point lights; a light that finds no room is denied its shadow, and counted."
       },
       {
         "name": "shadowRequestCap",
@@ -7726,6 +7615,11 @@
         "name": "kind",
         "type": "string",
         "desc": "Which kind of light this is: `'point'`, `'spot'`, `'directional'`…"
+      },
+      {
+        "name": "copy(source: Object3D, recursive?: boolean)",
+        "type": "Light",
+        "desc": "Takes `source`'s node values and, from a light, its numbers, colours, coefficients and aim; its own `kind` stays."
       },
       {
         "name": "needsUpdate",
@@ -8341,7 +8235,7 @@
       {
         "name": "parameters.linewidth?",
         "type": "number",
-        "desc": "Width of a line."
+        "desc": "Width of a line in CSS pixels, the same at every distance."
       },
       {
         "name": "parameters.dashSize?",
@@ -8645,7 +8539,7 @@
       {
         "name": "linewidth?",
         "type": "number | undefined",
-        "desc": "Width of a line."
+        "desc": "Width of a line in CSS pixels, the same at every distance."
       },
       {
         "name": "dashSize?",
@@ -9324,7 +9218,7 @@
       },
       {
         "name": "scene",
-        "type": "{ source: GraphNode; sceneLightingSource: GraphNode; associations: Map<GraphNode, { meshes?: number; primitives?: number; placements?: PlacementRows; }>; tex...",
+        "type": "{ source: Object3D; sceneLightingSource: Object3D; associations: Map<Object3D, { meshes?: number; primitives?: number; placements?: PlacementRows; }>; textur...",
         "desc": "The scene graph built from the cache's scene tables."
       },
       {
@@ -9507,6 +9401,16 @@
         "desc": "Takes the node off its parent."
       },
       {
+        "name": "clone(recursive?: boolean)",
+        "type": "Object3D",
+        "desc": "A node of this class with the same values, and copies of its children unless told not to."
+      },
+      {
+        "name": "copy(source: Object3D, recursive?: boolean)",
+        "type": "Object3D",
+        "desc": "Takes `source`'s values, and copies of its children unless told not to."
+      },
+      {
         "name": "clear()",
         "type": "Object3D",
         "desc": "Takes every child off this node."
@@ -9567,29 +9471,9 @@
         "desc": "Moves the node along its own `axis`."
       },
       {
-        "name": "getWorldPosition(out?: Vector3)",
-        "type": "Vector3",
-        "desc": "Where the node stands in the world."
-      },
-      {
-        "name": "getWorldQuaternion(out?: Quaternion)",
-        "type": "Quaternion",
-        "desc": "How the node is turned in the world."
-      },
-      {
         "name": "getWorldDirection(out?: Vector3)",
         "type": "Vector3",
         "desc": "The way the node faces in the world."
-      },
-      {
-        "name": "localToWorld(v: Vector3)",
-        "type": "Vector3",
-        "desc": "A point of the node's frame, in the world."
-      },
-      {
-        "name": "worldToLocal(v: Vector3)",
-        "type": "Vector3",
-        "desc": "A point of the world, in the node's frame."
       },
       {
         "name": "localBounds()",
@@ -11078,12 +10962,12 @@
     "section": "math",
     "kind": "Type",
     "title": "Path",
-    "signature": "class Path extends Curve\nnew Path(points?: (Vec3Input | readonly [number, number])[]): Path",
+    "signature": "class Path extends Curve\nnew Path(points?: (readonly [number, number] | Vec3Input)[]): Path",
     "summary": "Straight segments through every point, parameterised by arc length.",
     "parameters": [
       {
         "name": "points",
-        "type": "(Vec3Input | readonly [number, number])[]",
+        "type": "(readonly [number, number] | Vec3Input)[]",
         "default": "[]",
         "desc": ""
       }
@@ -12426,8 +12310,8 @@
     "section": "types",
     "kind": "Constant",
     "title": "SCENE_ENVIRONMENT_FLOATS",
-    "signature": "const SCENE_ENVIRONMENT_FLOATS: 36",
-    "summary": "Floats of the environment in the GPU buffer.",
+    "signature": "const SCENE_ENVIRONMENT_FLOATS: 44",
+    "summary": "Floats of the environment in the GPU buffer: the coefficients, then the fog's block.",
     "description": ""
   },
   {
@@ -12962,8 +12846,8 @@
       },
       {
         "name": "fog",
-        "type": "{ color: [number, number, number]; near: number; far: number; } | null",
-        "desc": "The fog, or `null`."
+        "type": "SceneFog | null",
+        "desc": "The fog, its colour in linear components, or `null`."
       },
       {
         "name": "camera",
@@ -13044,14 +12928,14 @@
         "desc": "A picture of the surroundings that shiny surfaces reflect; `null` for none."
       },
       {
-        "name": "fog",
-        "type": "{ color: Color; near: number; far: number; } | null",
-        "desc": "Fog that fades objects into `color` between `near` and `far`; `null` for none."
-      },
-      {
         "name": "background",
         "type": "Color | null",
         "desc": "What fills the image behind every object: a colour, or `null` for the default. A change shows at the next frame, the session kept: a new colour set here, or the one held written through its methods (`set`, `setRGB`, `setHex`, `setHSL`...). A direct write of `.r`, `.g` or `.b` is not heard: set `background` again after one. A picture, or any value without `getHex`, is refused (`UNSUPPORTED_SCENE_UPDATE`): no path draws one."
+      },
+      {
+        "name": "fog",
+        "type": "Fog | null",
+        "desc": "Fog over every surface, opaque and transparent, on both renderers; `null`, the default, for none, at no cost. `{ color, near, far }` fades objects into `color` from `near` to `far`, distances from the camera; `{ color, density }` thickens by `density` per unit of distance; add `heightFalloff` (and `baseHeight`, 0 by default) and it lies on the ground, thinning out above `baseHeight` — divided by e every `1 / heightFalloff` units up. A change shows at the next frame: a new fog set here, or its colour written through its methods. A direct write of `near`, `far`, `density`... is not heard: set `fog` again after one. A fog out of range — `far` not beyond `near`, a negative density — is refused (`INVALID_SCENE_ENVIRONMENT`)."
       },
       {
         "name": "load(manifestUrl: string, options?: LoadOptions)",
@@ -13095,8 +12979,57 @@
         "name": "irradiance?",
         "type": "readonly number[] | undefined",
         "desc": "The irradiance arriving from every direction, as 27 numbers: nine coefficients, each an RGB triple, in the band order constant, `y`, `z`, `x`, `xy`, `yz`, `3z² − 1`, `xz`, `x² − y²`. Absent, or all zero, nothing lights a surface but the declared lamps."
+      },
+      {
+        "name": "fog?",
+        "type": "SceneFog | undefined",
+        "desc": "Distance or height fog over every surface (`SceneFog`); absent, none."
       }
     ],
+    "description": ""
+  },
+  {
+    "id": "SceneExponentialFog",
+    "module": "packages/sdk-core/src/scene/core/fog.ts",
+    "exports": ["SceneExponentialFog"],
+    "section": "types",
+    "kind": "Type",
+    "title": "SceneExponentialFog",
+    "signature": "interface SceneExponentialFog",
+    "summary": "Fog thickening with distance: `density` per scene unit; with `heightFalloff`, it thins out above `baseHeight`, divided by e every `1 / heightFalloff` units up.",
+    "members": [
+      {
+        "name": "color",
+        "type": "LinearRgb",
+        "desc": "The radiance the fog fades toward, linear RGB."
+      },
+      {
+        "name": "density",
+        "type": "number",
+        "desc": "Extinction per scene unit, at `baseHeight`; ≥ 0."
+      },
+      {
+        "name": "heightFalloff?",
+        "type": "number | undefined",
+        "desc": "How fast the density falls off with height, per scene unit; 0, the default, keeps it uniform at every height."
+      },
+      {
+        "name": "baseHeight?",
+        "type": "number | undefined",
+        "desc": "The height the density is `density` at; 0 by default."
+      }
+    ],
+    "description": ""
+  },
+  {
+    "id": "SceneFog",
+    "module": "packages/sdk-core/src/scene/core/fog.ts",
+    "exports": ["SceneFog"],
+    "section": "types",
+    "kind": "Type",
+    "title": "SceneFog",
+    "signature": "type SceneFog = SceneLinearFog | SceneExponentialFog",
+    "summary": "Distance or height fog, as the lighting reads it.",
     "description": ""
   },
   {
@@ -13228,6 +13161,11 @@
         "desc": "Bumped when the set of lights changes."
       },
       {
+        "name": "transportEpoch",
+        "type": "number",
+        "desc": "Bumped with the epoch, except by a change of the fog alone: fog is a view-ray term, not light transport, so what caches transported light (the bounce probes) keeps it."
+      },
+      {
         "name": "environment",
         "type": "SceneEnvironment | undefined",
         "desc": "The scene's environment."
@@ -13300,6 +13238,34 @@
     "signature": "type SceneLightingView = 'auto' | 'lit' | 'unlit' | 'bounce'",
     "summary": "What the host asks to see.",
     "description": "`lit` is real lighting and that alone; `unlit` is the raw-albedo diagnostic view — material colour as-is, with no light, no ambient and no emission — for geometry benches that compare images pixel-exact. `auto`, the default, yields `unlit` as long as no light is declared and `lit` as soon as there is one. `bounce` is the third diagnostic view: indirect irradiance alone, multiplied by exposure and output as linear values without ACES or sRGB. This is what the harness compares to the compiler oracle; it is not an image to look at, and it is black without a rigged bounce."
+  },
+  {
+    "id": "SceneLinearFog",
+    "module": "packages/sdk-core/src/scene/core/fog.ts",
+    "exports": ["SceneLinearFog"],
+    "section": "types",
+    "kind": "Type",
+    "title": "SceneLinearFog",
+    "signature": "interface SceneLinearFog",
+    "summary": "Fog that starts at `near` and hides everything from `far` on, distances from the eye.",
+    "members": [
+      {
+        "name": "color",
+        "type": "LinearRgb",
+        "desc": "The radiance the fog fades toward, linear RGB."
+      },
+      {
+        "name": "near",
+        "type": "number",
+        "desc": "Distance from the eye where the fog starts."
+      },
+      {
+        "name": "far",
+        "type": "number",
+        "desc": "Distance from the eye where nothing but the fog is seen."
+      }
+    ],
+    "description": ""
   },
   {
     "id": "SceneLink",
@@ -13911,7 +13877,7 @@
     "members": [
       {
         "name": "table",
-        "type": "{ words: Uint32Array<ArrayBuffer>; readonly entries: number; readonly layoutEpoch: number; readonly version: number; baseOf: (slice: number) => number; claim...",
+        "type": "{ words: Uint32Array<ArrayBuffer>; readonly hostBytes: number; readonly entries: number; readonly layoutEpoch: number; readonly version: number; baseOf: (sli...",
         "desc": "The page table: one word per virtual page, and the range each light holds in it."
       },
       {
@@ -13941,7 +13907,7 @@
       },
       {
         "name": "counts",
-        "type": "{ denied: number; lights: number; sunLights: number; invalidatedPages: number; pendingPages: number; cachedPages: number; poolPages: number; waitedMs: number...",
+        "type": "{ lights: number; sunLights: number; invalidatedPages: number; pendingPages: number; cachedPages: number; poolPages: number; waitedMs: number; waitedFrames: ...",
         "desc": "What the last plan did, in pages."
       },
       {
@@ -14206,6 +14172,17 @@
     "description": ""
   },
   {
+    "id": "SixDofAxis",
+    "module": "packages/sdk-core/src/physics/jointOptions.ts",
+    "exports": ["SixDofAxis"],
+    "section": "types",
+    "kind": "Type",
+    "title": "SixDofAxis",
+    "signature": "type SixDofAxis = 'x' | 'y' | 'z' | 'turnX' | 'turnY' | 'turnZ'",
+    "summary": "A six-DOF joint's axes: slides along `x`, `y`, `z` and turns about them.",
+    "description": "`x` lies along the joint's `axis`, `y` as close to the world's up as it can square to it."
+  },
+  {
     "id": "SlimClusterManifest",
     "module": "packages/sdk-core/src/manifest/binaryTypes.ts",
     "exports": ["SlimClusterManifest"],
@@ -14277,7 +14254,7 @@
       },
       {
         "name": "selectedNodes",
-        "type": "number[]",
+        "type": "number",
         "desc": "Nodes kept."
       },
       {
@@ -15049,7 +15026,7 @@
       {
         "name": "flags",
         "type": "GPUTexture",
-        "desc": "0 background, 1 unlit, 2 reads, 3 display-space diagnostic."
+        "desc": "0 background, 1 unlit (fogged), 2 reads, 3 shown as-is: a diagnostic, a normal or depth view."
       },
       {
         "name": "views()",
@@ -16560,6 +16537,26 @@
         "name": "updateMatrixWorld(force?: boolean)",
         "type": "void",
         "desc": "Resolves the world matrices of the subtree, this node's parent taken as it stands."
+      },
+      {
+        "name": "getWorldPosition(out?: Vector3)",
+        "type": "Vector3",
+        "desc": "Where the node stands in the world."
+      },
+      {
+        "name": "getWorldQuaternion(out?: Quaternion)",
+        "type": "Quaternion",
+        "desc": "How the node is turned in the world."
+      },
+      {
+        "name": "localToWorld(v: Vector3)",
+        "type": "Vector3",
+        "desc": "A point of the node's frame, in the world."
+      },
+      {
+        "name": "worldToLocal(v: Vector3)",
+        "type": "Vector3",
+        "desc": "A point of the world, in the node's frame."
       }
     ],
     "description": ""
@@ -17695,6 +17692,132 @@
     "description": "The vehicle's own physics — engine, wheels, suspension — answers them; this contract is all the controls know."
   },
   {
+    "id": "VertexAttribute",
+    "module": "packages/sdk-core/src/world/buffer/attribute.ts",
+    "exports": ["VertexAttribute"],
+    "section": "buffer",
+    "kind": "Type",
+    "title": "VertexAttribute",
+    "signature": "type VertexAttribute = BufferAttribute | InterleavedBufferAttribute",
+    "summary": "Either kind of attribute: owning its storage or viewing an interleaved one.",
+    "description": ""
+  },
+  {
+    "id": "VertexElements",
+    "module": "packages/sdk-core/src/world/buffer/elements.ts",
+    "exports": ["VertexElements"],
+    "section": "buffer",
+    "kind": "Type",
+    "title": "VertexElements",
+    "signature": "abstract class VertexElements",
+    "summary": "The elements of one vertex attribute, read and written by component.",
+    "parameters": [
+      {
+        "name": "itemSize",
+        "type": "number",
+        "desc": ""
+      },
+      {
+        "name": "normalized",
+        "type": "boolean",
+        "desc": ""
+      }
+    ],
+    "members": [
+      {
+        "name": "name",
+        "type": "string",
+        "desc": "The name a morph target is known by; empty for the others."
+      },
+      {
+        "name": "itemSize",
+        "type": "number",
+        "desc": "How many numbers belong to one vertex: 3 for a position."
+      },
+      {
+        "name": "normalized",
+        "type": "boolean",
+        "desc": "Whether whole numbers are read as values between 0 and 1."
+      },
+      {
+        "name": "array",
+        "type": "BufferTypedArray",
+        "desc": "The storage the elements live in."
+      },
+      {
+        "name": "count",
+        "type": "number",
+        "desc": "How many vertices the numbers describe."
+      },
+      {
+        "name": "stored(index: number, component: number)",
+        "type": "number",
+        "desc": "Number `component` of vertex `index` as it is stored, a normalised integer unscaled."
+      },
+      {
+        "name": "getComponent(index: number, component: number)",
+        "type": "number",
+        "desc": "Number `component` of vertex `index`, read as the number it stands for."
+      },
+      {
+        "name": "setComponent(index: number, component: number, value: number)",
+        "type": "VertexElements",
+        "desc": "Writes number `component` of vertex `index`."
+      },
+      {
+        "name": "getX(i: number)",
+        "type": "number",
+        "desc": "The first number of vertex `i`."
+      },
+      {
+        "name": "getY(i: number)",
+        "type": "number",
+        "desc": "The second number of vertex `i`."
+      },
+      {
+        "name": "getZ(i: number)",
+        "type": "number",
+        "desc": "The third number of vertex `i`."
+      },
+      {
+        "name": "getW(i: number)",
+        "type": "number",
+        "desc": "The fourth number of vertex `i`."
+      },
+      {
+        "name": "setX(i: number, x: number)",
+        "type": "VertexElements",
+        "desc": "Writes the first number of vertex `i`."
+      },
+      {
+        "name": "setY(i: number, y: number)",
+        "type": "VertexElements",
+        "desc": "Writes the second number of vertex `i`."
+      },
+      {
+        "name": "setZ(i: number, z: number)",
+        "type": "VertexElements",
+        "desc": "Writes the third number of vertex `i`."
+      },
+      {
+        "name": "setW(i: number, w: number)",
+        "type": "VertexElements",
+        "desc": "Writes the fourth number of vertex `i`."
+      },
+      {
+        "name": "setXY(i: number, x: number, y: number)",
+        "type": "VertexElements",
+        "desc": "Writes two numbers for vertex `i`."
+      },
+      {
+        "name": "setXYZ(i: number, x: number, y: number, z: number)",
+        "type": "VertexElements",
+        "desc": "Writes three numbers for vertex `i`."
+      }
+    ],
+    "description": ""
+  },
+  {
     "id": "WaterSpec",
     "module": "packages/sdk-core/src/fluids/buoyancy.ts",
     "exports": ["WaterSpec"],
@@ -18397,7 +18520,7 @@
     "section": "world",
     "kind": "Constant",
     "title": "world.budget",
-    "signature": "world.budget: { physics: PhysicsBudget; gpu: number; cpu: number; readonly split: { shadowPool: number; geometryPool: number; texturePool: number; pageCache: number; }; re...",
+    "signature": "world.budget: { physics: PhysicsBudget; gpu: number; cpu: number; readonly split: { shadowPool: number; geometryPool: number; texturePool: number; shadowMirror: number; pa...",
     "summary": "The world's memory pools, read and set in bytes, and the physics envelopes.",
     "members": [
       {
@@ -18413,12 +18536,12 @@
       {
         "name": "cpu",
         "type": "number",
-        "desc": "Bytes of CPU memory the world's decoded pages may hold; taken by the next scene load."
+        "desc": "Bytes of CPU memory the world may hold: the shadow page table's host mirror, then the decoded pages, taken by the next scene load. A total not above the mirror is refused (`CPU_BUDGET_UNDER_SHADOW_MIRROR`). Never read from the machine."
       },
       {
         "name": "split",
-        "type": "{ shadowPool: number; geometryPool: number; texturePool: number; pageCache: number; }",
-        "desc": "How the two totals are shared: the shadow pool at its largest, then half each to the geometry and texture pools, capped at their ceilings; the decoded-page cache takes the CPU total. What the rule gives, before a pool set on its own."
+        "type": "{ shadowPool: number; geometryPool: number; texturePool: number; shadowMirror: number; pageCache: number; }",
+        "desc": "How the two totals are shared: the shadow pool at its largest, then half each to the geometry and texture pools, capped at their ceilings; the shadow table's host mirror, then the decoded-page cache takes the rest of the CPU total. What the rule gives, before a pool set on its own."
       },
       {
         "name": "geometryPoolCeiling",
@@ -18804,12 +18927,12 @@
       {
         "name": "coverageBudgetLimited?",
         "type": "boolean | null | undefined",
-        "desc": "Requested detail cannot coexist with the pinned fallback within the GPU page budget."
+        "desc": "Requested detail needs more pages than the GPU page budget holds: the rest draws coarser."
       },
       {
         "name": "budgetPixelError?",
         "type": "number | null | undefined",
-        "desc": "Screen-error floor the GPU page budget imposes on the cut, in pixels: `0` when the requested detail fits, otherwise the coarser threshold the image is drawn at. Null on engines without a page budget."
+        "desc": "WebGL2 only: the screen-error floor its page budget imposes on the cut, in pixels — `0` when the requested detail fits, otherwise the coarser threshold the image is drawn at. Absent on WebGPU, where residency alone coarsens the image. Null on engines without a page budget."
       },
       {
         "name": "frameHeld?",
@@ -20971,7 +21094,7 @@
     "section": "budget",
     "kind": "Function",
     "title": "budget.memory()",
-    "signature": "budget.memory(world: World): { gpu: number; cpu: number; split: { shadowPool: number; geometryPool: number; texturePool: number; pageCache: number; }; geometryPool: number; texturePool: ...",
+    "signature": "budget.memory(world: World): { gpu: number; cpu: number; split: { shadowPool: number; geometryPool: number; texturePool: number; shadowMirror: number; pageCache: number; }; geometryPool:...",
     "summary": "The memory budgets a world holds right now: the GPU and CPU totals, how the rule splits them, both pools and the largest each may grow to.",
     "parameters": [
       {
@@ -20981,7 +21104,7 @@
       }
     ],
     "returns": {
-      "type": "{ gpu: number; cpu: number; split: { shadowPool: number; geometryPool: number; texturePool: number; pageCache: number; }; geometryPool: number; texturePool: ...",
+      "type": "{ gpu: number; cpu: number; split: { shadowPool: number; geometryPool: number; texturePool: number; shadowMirror: number; pageCache: number; }; geometryPool:...",
       "desc": ""
     },
     "description": ""
@@ -25733,6 +25856,36 @@
         "name": "cone",
         "type": "(a: Object3D, b: Object3D | null, options?: JointOptions) => Joint",
         "desc": "A ball joint whose `axis` swings within a cone of half angle `limits.max`."
+      },
+      {
+        "name": "swingTwist",
+        "type": "(a: Object3D, b: Object3D | null, options?: JointOptions) => Joint",
+        "desc": "A shoulder: `axis` swings within a cone of half angle `limits.swing` and twists about itself between `limits.min` and `max`; its motor drives the twist."
+      },
+      {
+        "name": "sixDof",
+        "type": "(a: Object3D, b: Object3D | null, options?: JointOptions) => Joint",
+        "desc": "Six axes, each locked, free or limited (`axes`): any joint in between the others."
+      },
+      {
+        "name": "path",
+        "type": "(a: Object3D, b: Object3D | null, options?: JointOptions) => Joint",
+        "desc": "`a` runs along a smooth track through `path`, fixed to `b` or the world: a roller coaster."
+      },
+      {
+        "name": "pulley",
+        "type": "(a: Object3D, b: Object3D | null, options?: JointOptions) => Joint",
+        "desc": "A rope from `a` over two wheels (`over`) down to `b`: one rises as the other falls."
+      },
+      {
+        "name": "gear",
+        "type": "(a: Object3D, b: Object3D | null, options?: JointOptions) => Joint",
+        "desc": "Two wheels turning together by `ratio`, each about its own pin (`axis`, `axisB`) and held by its own hinge (the wheel as its `a`); when `ratio` or 1 / `ratio` is whole, their teeth also keep the phase they were made in."
+      },
+      {
+        "name": "rackAndPinion",
+        "type": "(a: Object3D, b: Object3D | null, options?: JointOptions) => Joint",
+        "desc": "A pinion `a` turning about `axis` drives a rack `b` along `axisB`, each held by its own hinge or slider (the body as its `a`), their teeth kept in the phase they were made in."
       }
     ],
     "description": ""
@@ -26955,7 +27108,7 @@
       {
         "name": "parameters.linewidth?",
         "type": "number",
-        "desc": "Width of a line."
+        "desc": "Width of a line in CSS pixels, the same at every distance."
       },
       {
         "name": "parameters.dashSize?",
@@ -27140,7 +27293,7 @@
       {
         "name": "parameters.linewidth?",
         "type": "number",
-        "desc": "Width of a line."
+        "desc": "Width of a line in CSS pixels, the same at every distance."
       },
       {
         "name": "parameters.dashSize?",
@@ -27325,7 +27478,7 @@
       {
         "name": "parameters.linewidth?",
         "type": "number",
-        "desc": "Width of a line."
+        "desc": "Width of a line in CSS pixels, the same at every distance."
       },
       {
         "name": "parameters.dashSize?",
@@ -27510,7 +27663,7 @@
       {
         "name": "parameters.linewidth?",
         "type": "number",
-        "desc": "Width of a line."
+        "desc": "Width of a line in CSS pixels, the same at every distance."
       },
       {
         "name": "parameters.dashSize?",
@@ -27695,7 +27848,7 @@
       {
         "name": "parameters.linewidth?",
         "type": "number",
-        "desc": "Width of a line."
+        "desc": "Width of a line in CSS pixels, the same at every distance."
       },
       {
         "name": "parameters.dashSize?",
@@ -27880,7 +28033,7 @@
       {
         "name": "parameters.linewidth?",
         "type": "number",
-        "desc": "Width of a line."
+        "desc": "Width of a line in CSS pixels, the same at every distance."
       },
       {
         "name": "parameters.dashSize?",
@@ -28065,7 +28218,7 @@
       {
         "name": "parameters.linewidth?",
         "type": "number",
-        "desc": "Width of a line."
+        "desc": "Width of a line in CSS pixels, the same at every distance."
       },
       {
         "name": "parameters.dashSize?",
@@ -28250,7 +28403,7 @@
       {
         "name": "parameters.linewidth?",
         "type": "number",
-        "desc": "Width of a line."
+        "desc": "Width of a line in CSS pixels, the same at every distance."
       },
       {
         "name": "parameters.dashSize?",
@@ -28435,7 +28588,7 @@
       {
         "name": "parameters.linewidth?",
         "type": "number",
-        "desc": "Width of a line."
+        "desc": "Width of a line in CSS pixels, the same at every distance."
       },
       {
         "name": "parameters.dashSize?",
@@ -28620,7 +28773,7 @@
       {
         "name": "parameters.linewidth?",
         "type": "number",
-        "desc": "Width of a line."
+        "desc": "Width of a line in CSS pixels, the same at every distance."
       },
       {
         "name": "parameters.dashSize?",
@@ -28805,7 +28958,7 @@
       {
         "name": "parameters.linewidth?",
         "type": "number",
-        "desc": "Width of a line."
+        "desc": "Width of a line in CSS pixels, the same at every distance."
       },
       {
         "name": "parameters.dashSize?",
@@ -28990,7 +29143,7 @@
       {
         "name": "parameters.linewidth?",
         "type": "number",
-        "desc": "Width of a line."
+        "desc": "Width of a line in CSS pixels, the same at every distance."
       },
       {
         "name": "parameters.dashSize?",
@@ -29175,7 +29328,7 @@
       {
         "name": "parameters.linewidth?",
         "type": "number",
-        "desc": "Width of a line."
+        "desc": "Width of a line in CSS pixels, the same at every distance."
       },
       {
         "name": "parameters.dashSize?",
@@ -29360,7 +29513,7 @@
       {
         "name": "parameters.linewidth?",
         "type": "number",
-        "desc": "Width of a line."
+        "desc": "Width of a line in CSS pixels, the same at every distance."
       },
       {
         "name": "parameters.dashSize?",
@@ -29916,12 +30069,12 @@
     "section": "math",
     "kind": "Function",
     "title": "math.path()",
-    "signature": "math.path(points: (Vec3Input | readonly [number, number])[]): Path",
+    "signature": "math.path(points: (readonly [number, number] | Vec3Input)[]): Path",
     "summary": "Straight segments through the points, 2D points lying in the `z = 0` plane.",
     "parameters": [
       {
         "name": "points",
-        "type": "(Vec3Input | readonly [number, number])[]",
+        "type": "(readonly [number, number] | Vec3Input)[]",
         "desc": "The corners, 2D or 3D."
       }
     ],

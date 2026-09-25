@@ -39,6 +39,7 @@ export {
   type JointLimits,
   type JointMotor,
   type JointOptions,
+  type SixDofAxis,
 } from '../../sdk-core/src/physics/index.ts';
 export type { WorldPhysics, WorldPhysicsOptions, GravityInput } from './physics/worldPhysics.ts';
 export type { WaterSpec, WaveSpec, WaterSurface } from '../../sdk-core/src/fluids/index.ts';
@@ -77,24 +78,15 @@ export type {
   HostMaterial,
   HostMaterials,
   HostMesh,
-  HostNode,
   HostPoint,
   HostScene,
   HostTexture,
-  HostTraversable,
 } from './host/resources.ts';
 /** The host scene graph as the engine walks it (`host/scene/graphNodes.ts`): the shapes a source node,
  *  its pose and its rotation are read through. */
-export type { HostGraphNode, HostRotation, HostVector } from './host/scene/graphNodes.ts';
+export type { HostRotation, HostVector } from './host/scene/graphNodes.ts';
 /** The engine's own scene graph (`host/graph/`): the classes every `Host*` name above stands for,
  *  the nodes, geometries, surfaces and textures a loaded scene hands back. */
-export type {
-  GraphArray,
-  GraphAttribute,
-  GraphElements,
-  GraphInterleavedAttribute,
-  GraphInterleavedBuffer,
-} from './host/graph/attributes.ts';
 export type { GraphGeometry } from './host/graph/geometry.ts';
 export type { GraphMesh } from './host/graph/mesh.ts';
 export type { GraphNode } from './host/graph/node.ts';

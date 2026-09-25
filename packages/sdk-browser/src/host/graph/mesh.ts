@@ -1,19 +1,12 @@
 /**
- * The nodes of the engine's own graph that hold others or draw: a group, and a mesh wearing a
- * geometry and its surface, the morph weights included — each copied as the reference copies it.
+ * The nodes of the engine's own graph that draw: a mesh wearing a geometry and its surface, the
+ * morph weights included, at one placement or several — each copied as the reference copies it.
+ * A node that only holds others is the core's own `Group`.
  */
 import type { GraphGeometry } from './geometry.ts';
-import { GraphAttribute } from './attributes.ts';
+import { BufferAttribute } from '../../../../sdk-core/src/world/buffer/attribute.ts';
 import type { GraphSurface } from './surface.ts';
 import { GraphNode } from './node.ts';
-
-/** A node that only holds others. */
-export class GraphGroup extends GraphNode {
-  override readonly kind = 'group' as const;
-  protected override blank(): this {
-    return new GraphGroup() as this;
-  }
-}
 
 /** A drawn node: a geometry and its surface, or one surface per geometry group. */
 export class GraphMesh extends GraphNode {
@@ -66,12 +59,12 @@ export class GraphMesh extends GraphNode {
 export class GraphInstancedMesh extends GraphMesh {
   override readonly kind = 'instancedMesh' as const;
   /** One matrix per placement, column after column. */
-  readonly instanceMatrix: GraphAttribute;
+  readonly instanceMatrix: BufferAttribute;
   /** How many placements are drawn. */
   count: number;
   constructor(geometry: GraphGeometry, material: GraphSurface | GraphSurface[], capacity: number) {
     super(geometry, material);
-    this.instanceMatrix = new GraphAttribute(new Float32Array(capacity * 16), 16);
+    this.instanceMatrix = new BufferAttribute(new Float32Array(capacity * 16), 16);
     this.count = capacity;
   }
   protected override blank(): this {
