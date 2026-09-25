@@ -1,7 +1,9 @@
 import { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
+import { EngineError } from '../../../../sdk-core/src/contracts/cache.ts';
 import { Box3 } from '../../../../sdk-core/src/world/math/box3.ts';
 import { Vector3 } from '../../../../sdk-core/src/world/math/vector3.ts';
-import { lightFromRecord, type Light } from '../../../../sdk-core/src/world/light/light.ts';
+import type { Light } from '../../../../sdk-core/src/world/light/light.ts';
+import { lightFromRecord } from '../../../../sdk-core/src/world/light/lightRecord.ts';
 import { importedLightsUrl, loadImportedLights } from '../../lighting/importedLights.ts';
 import { sceneDocument, sceneTablesUrl } from '../../scene/tables.ts';
 import type { PreparedSceneTables } from '../../../../sdk-core/src/scene/core/tableContracts.ts';
@@ -87,6 +89,10 @@ export class LoadedModel extends Object3D {
       new Vector3(flat[0], flat[1], flat[2]),
       new Vector3(flat[3], flat[4], flat[5]),
     );
+  }
+  /** Refused: a model is loaded again with `scene.load`, never cloned. */
+  protected override blank(): this {
+    throw new EngineError('UNSUPPORTED_SCENE_UPDATE', 'A LoadedModel cannot be cloned');
   }
   /** The model's compiled manifest — its primitives, `sourceTriangles` — and `clusters`, the
    *  clusters its pages hold, every level of its DAGs counted. */
