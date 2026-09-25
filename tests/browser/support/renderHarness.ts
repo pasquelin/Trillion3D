@@ -5,6 +5,7 @@ import type { Page } from 'playwright';
 import { compileFullCache } from '../../../scripts/native-compiler.ts';
 import type { Mount } from '../../../scripts/static-server.ts';
 import type { MeasuredWorld } from '../../../packages/sdk-browser/src/world/session/explorer.ts';
+import { sceneMounts } from '../../kit/scenes/caches.ts';
 
 // `window.scene` only exists in the page a proof evaluates code in, never in Node; declared here so
 // the `page.evaluate` callbacks of the proofs that open a scene (type-checked, though they run in
@@ -39,6 +40,9 @@ export function threeStackMounts(root: string, out: string): Mount[] {
     { prefix: '/fixture/', dir: fixture },
   ];
 }
+
+/** What a proof that opens a gallery scene serves: the built SDK and every scene root. */
+export const galleryMounts = (root: string): Mount[] => [...sdkMounts(root), ...sceneMounts(root)];
 
 /** A gallery scene opened on the pages backend, full scope and imported lights, in a canvas of
  *  its own that replaces the page body, then posed; the world is left on `window.scene`. */

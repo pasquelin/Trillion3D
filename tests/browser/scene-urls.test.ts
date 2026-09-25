@@ -44,7 +44,11 @@ test('every scene URL of a browser file is served by the scene mounts it mounts'
   const mounts = sceneMounts(RACINE);
   for (const { file, text, slash, path } of readings.filter(({ slash }) => slash)) {
     const url = `${slash}${path}`;
-    assert.match(text, /\bsceneMounts\(/, `${file}: ${url} is read, the scene mounts are not`);
+    assert.match(
+      text,
+      /\b(?:scene|gallery)Mounts\(/,
+      `${file}: ${url} is read, the scene mounts are not`,
+    );
     const mount = mounts.find(({ prefix }) => url.startsWith(prefix));
     assert.ok(mount, `${file}: ${url} lies under no scene mount`);
     assert.equal(fileUnder(mount.dir, url.slice(mount.prefix.length)), join(RACINE, path));
