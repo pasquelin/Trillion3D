@@ -9,9 +9,10 @@ import { MAX_SHADOW_BATCHES } from '../../../gpu/shadow/batchBudget.ts';
 import {
   SUN,
   VIEW,
+  nudged,
   planFrame,
   report,
-  sunPages,
+  sunGrid,
 } from '../../../../../sdk-core/src/scene/light-shadow/lightShadow.fixture.ts';
 import { createWebgpuLightState } from '../state/lights.ts';
 import { encodeShadowBatches, forEachShadowBatch } from './encodeShadowBatches.ts';
@@ -62,18 +63,15 @@ test('a batch that cannot be encoded leaves its pages and the rest pending, none
 });
 
 // #525: the shadow raster's fixed budget. While the camera moves a frame draws its lights' floors
-// and one batch's pages — the coarsest first (`admit.ts`, `frameEnd`) — and leaves the rest
+// and one batch's pages — the coarsest first (`admit.ts`, `end`) — and leaves the rest
 // pending; the first frame it rests draws every page left, so the still image is the one every
 // page drawn gives.
 test('a moving camera draws the floors and one batch a frame, the whole list once it rests', () => {
   const { rt, lights } = frame(1, true);
   const { plan, store } = lights;
-  const slice = store.sliceOf(0),
-    grid = Array.from({ length: 36 }, (_, k) => [k % 6, Math.floor(k / 6)]);
-  const read = [2, 3].flatMap((step) => sunPages(plan, slice, plan.sun.finest[slice] + step, grid));
-  report(plan, store, 1, read);
+  report(plan, store, 1, sunGrid(plan, store.sliceOf(0), [2, 3]));
   // A step far under a page: the view moved, no clipmap extent did.
-  const moved = { ...VIEW, position: [1e-6, 5, 0] as [number, number, number] };
+  const moved = nudged(1);
   const listed = planFrame(plan, store, 2, moved),
     { list } = plan.admission;
   assert.equal(plan.resting, false);

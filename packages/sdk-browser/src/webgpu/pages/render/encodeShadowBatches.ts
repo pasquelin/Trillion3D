@@ -22,7 +22,7 @@ function batchViews(rt: WebgpuPagesRuntime) {
  * the runs of the batches before it —, in order, until it returns false. Returns where it stopped:
  * the frame's page count when every batch was visited.
  *
- * The pages up to the frame's budget (`admission.frameEnd`: every page at rest, a batch's pages
+ * The pages up to the frame's budget (`admission.end`: every page at rest, a batch's pages
  * while the camera moves), in at most `MAX_SHADOW_BATCHES`: the largest pool's pages in full
  * batches, what the batches' memory is sized for (`../../../gpu/shadow/batchBudget.ts`); only a
  * view limit bisected after a light cut dropped work cuts batches short enough to need more. The
@@ -34,7 +34,7 @@ export function forEachShadowBatch(
 ) {
   const { plan, runs } = rt.lights,
     { admission } = plan,
-    end = admission.frameEnd(plan.resting),
+    end = admission.end,
     views = batchViews(rt);
   let runBase = 0,
     from = 0;

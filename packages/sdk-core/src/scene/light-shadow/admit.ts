@@ -5,16 +5,15 @@ import { ringOf } from './virtual.ts';
 
 /** Light views a light holds, its sun levels or lamp faces and mips (`pool.view`). */
 const LIGHT_VIEWS = 4096;
-/** Pages a frame draws while the camera moves: the shadow raster's fixed budget, one batch's
- *  pages — the ceiling #512 drew a frame at —, a count, never a time read off the machine. */
+/** Pages a frame draws past its floors while the camera moves: the shadow raster's fixed budget,
+ *  one batch's pages, a count, never a time read off the machine. */
 const MOVING_PAGES: number = LIGHT_SETTINGS.shadowPagesPerBatch;
 /** The light view a page is drawn in — its light, then its sun level or lamp face and mip: the
  *  pages of one view share one caster selection. */
 const viewKeyOf = (pool: ShadowPool, page: number) =>
   pool.slice[page] * LIGHT_VIEWS + pool.view[page];
 /** A page's place in the list: its coarseness — the coarsest first, what a finer page falls back
- *  to while it waits, every light's floor before any finer page —, then its light and view. A view
- *  has one rank: its pages stay contiguous. */
+ *  to while it waits —, then its light and view. A view has one rank: its pages stay contiguous. */
 const listKeyOf = (pool: ShadowPool, page: number) =>
   ((RANKS / 2 - pool.rank[page]) * MAX_SHADOW_SLICES + pool.slice[page]) * LIGHT_VIEWS +
   pool.view[page];
@@ -31,7 +30,7 @@ export const shadowAdmissionHostBytes = (pages: number) => pages * (4 + 4 + 8);
  * reads now —, the coarsest of each light first. A frame whose camera rests draws all of them, in
  * the frame that marks them; a frame whose camera moves draws its lights' floors — what every
  * reader falls back to last, so a shadow never vanishes — and what one fixed budget holds past
- * them (`frameEnd`), and leaves the rest pending, read meanwhile at the coarser current level each
+ * them (`end`), and leaves the rest pending, read meanwhile at the coarser current level each
  * falls back to. The cost is held by caching — a page is drawn only once it is marked, and it is
  * marked only when what it holds changed (`invalidate.ts`) or it was just mapped (`requests.ts`) —,
  * and the pool is the only memory limit: what it cannot hold is refused at allocation and
@@ -69,8 +68,8 @@ export function createShadowAdmission(poolPages: number) {
      *  list keys, a sun level negative or not. */
     ageWeight = poolPages * 2 * MAX_SHADOW_SLICES * RANKS * LIGHT_VIEWS;
   let count = 0,
-    /** Floors listed: they lead the list, outside the moving budget. */
-    floors = 0,
+    /** Where the frame's drawing stops (`end`). */
+    end = 0,
     /** The last frame left pages pending: the next list puts the oldest first. */
     waiting = false;
   return {
@@ -80,17 +79,23 @@ export function createShadowAdmission(poolPages: number) {
     get count() {
       return count;
     },
-    /** Lists every stale page the report of frame `latest` named, at frame `frame`; returns how
-     *  many. */
+    /** Where the frame's drawing stops: the whole list while the camera rests; while it moves,
+     *  the floors and `MOVING_PAGES` past them. */
+    get end() {
+      return end;
+    },
+    /** Lists every stale page the report of frame `latest` named, at frame `frame`, and where a
+     *  frame whose camera rests or not stops drawing it (`end`); returns how many. */
     run(
       pool: ShadowPool,
       table: ShadowTable,
       latest: number,
       frame: number,
       isFloor: (page: number) => boolean,
+      resting: boolean,
     ) {
       count = 0;
-      floors = 0;
+      let floors = 0;
       for (let page = 0; page < pool.pages; page++) {
         if (pool.owner[page] < 0 || !pool.dirty[page]) continue;
         if (pool.requested[page] < latest) pool.withdraw(table, page);
@@ -103,6 +108,7 @@ export function createShadowAdmission(poolPages: number) {
         }
       }
       order.subarray(0, count).sort();
+      end = resting ? count : Math.min(count, floors + MOVING_PAGES);
       // An empty list is drawn whole: nothing waits any more.
       if (!count) waiting = false;
       for (let i = 0; i < count; i++) {
@@ -127,16 +133,11 @@ export function createShadowAdmission(poolPages: number) {
       }
       return to;
     },
-    /** Where the frame's drawing stops: the whole list while the camera rests; while it moves,
-     *  the floors and `MOVING_PAGES` past them. */
-    frameEnd(resting: boolean) {
-      return resting ? count : Math.min(count, floors + MOVING_PAGES);
-    },
     /** Closes the list. The frame drew it up to `stopped`: what it left undrawn stays stale, and
      *  the next list is ordered by age. */
     reset(stopped = count) {
       waiting = stopped < count;
-      count = 0;
+      count = end = 0;
     },
   };
 }

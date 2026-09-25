@@ -5,8 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createSceneLightStore } from '../light/store.ts';
 import { createShadowPlan } from './plan.ts';
-import type { ShadowViewpoint } from '../light/contracts.ts';
-import { VIEW, SUN, cycle, planFrame, sunPages } from './lightShadow.fixture.ts';
+import { SUN, cycle, nudged, planFrame, sunPages } from './lightShadow.fixture.ts';
 
 const BOX_MIN = [-1e3, 0, -1e3],
   BOX_MAX = [1e3, 2, 1e3];
@@ -24,12 +23,6 @@ function settled() {
   assert.equal(plan.counts.pendingPages, 0);
   return { store, plan, frame };
 }
-
-/** A view moved by a hair: no extent moves by a page, the cut alone churns. */
-const nudged = (step: number): ShadowViewpoint => ({
-  ...VIEW,
-  position: [VIEW.position[0] + step * 1e-6, VIEW.position[1], VIEW.position[2]],
-});
 
 test('a representation change under a moving camera stales nothing until the camera rests', () => {
   const { store, plan, frame } = settled();

@@ -28,6 +28,12 @@ export const SUN: SceneLight = {
 const SCENE_MIN = [-50, 0, -50],
   SCENE_MAX = [50, 10, 50];
 
+/** The fixture's view moved by `step` hairs: no extent moves by a page, the camera does not rest. */
+export const nudged = (step: number): ShadowViewpoint => ({
+  ...VIEW,
+  position: [VIEW.position[0] + step * 1e-6, VIEW.position[1], VIEW.position[2]],
+});
+
 /** Plans a frame over the fixture scene. */
 export const planFrame = (
   plan: ShadowPlan,
@@ -70,8 +76,9 @@ export function lampPages(plan: ShadowPlan, slice: number, face: number, mip: nu
   return entries;
 }
 
-/** The engine's frame loop, reduced to the scheduler: plan, commit what was admitted, then report
- *  what the shading read. Returns the physical pages the frame drew. */
+/** The engine's frame loop, reduced to the scheduler: plan, commit what the frame's budget draws
+ *  (`admission.end`) and leave the rest pending, then report what the shading read. Returns the
+ *  physical pages the frame drew. */
 export function cycleDrawn(
   plan: ShadowPlan,
   store: SceneLightStore,
@@ -79,9 +86,11 @@ export function cycleDrawn(
   read: () => number[],
   view: ShadowViewpoint = VIEW,
 ) {
-  planFrame(plan, store, frame, view);
-  const drawn = new Set(plan.admission.list.subarray(0, plan.admission.count));
-  plan.commit();
+  const count = planFrame(plan, store, frame, view),
+    { end } = plan.admission;
+  const drawn = new Set(plan.admission.list.subarray(0, end));
+  plan.commit(undefined, 0, end);
+  if (end < count) plan.reissue(end);
   report(plan, store, frame, read());
   return drawn;
 }
@@ -97,6 +106,29 @@ export function readPages(plan: ShadowPlan, slice: number) {
     if (pool.owner[page] >= 0 && pool.slice[page] === slice && pool.valid[page]) pages.push(page);
   return pages;
 }
+
+/** The sun, planned once so its slice and clipmap exist, its floor drawn: its store, its plan and
+ *  its slice. */
+export function sunScene() {
+  const store = createSceneLightStore();
+  const plan = createShadowPlan(32);
+  store.add(SUN);
+  planFrame(plan, store, 0);
+  plan.commit();
+  return { store, plan, slice: store.sliceOf(0) };
+}
+
+/** Table entries of the 6×6 sun pages from `[0, 0]` at each of the light's levels `steps` past its
+ *  finest: more than one batch's pages a frame. */
+export const sunGrid = (plan: ShadowPlan, slice: number, steps: number[]) =>
+  steps.flatMap((step) =>
+    sunPages(
+      plan,
+      slice,
+      plan.sun.finest[slice] + step,
+      Array.from({ length: 36 }, (_, k) => [k % 6, Math.floor(k / 6)]),
+    ),
+  );
 
 /** A point lamp three units up that casts, planned once: its store, its plan and its slice. */
 export function lampScene() {

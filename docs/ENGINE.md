@@ -297,14 +297,14 @@ real allocations) — is the CPU total's first share, before the decoded-page ca
 - **Every stale page the image reads is listed in the frame that marks it, the coarsest first, and
   drawn in that frame at rest** (#489, #525). While the camera moves, a frame draws its lights'
   floors, which lead the list, and one batch's pages past them — the shadow raster's fixed budget,
-  a count of pages, never a time read off the machine (`admit.ts`, `frameEnd`) — and the rest waits, the oldest first, read meanwhile at the coarser
-  current level it falls back to; a stale page whose depth is wrong is never read. The first
-  frame the camera rests draws every page left, so the still image is the one every page drawn
-  gives. Otherwise the cost is held by caching — a page is drawn again only when what it holds
-  changed. The frame draws its pages in as many batches as the per-batch buffers
-  take (`shadowPagesPerBatch`, 24 pages, in the views one light cut runs at once), all in its one
-  command buffer, each batch's buffer writes landing in command order
-  (`gpu/shadow/batchWrites.ts`, `webgpu/pages/render/encodeShadowBatches.ts`). What the batches
+  a count of pages, never a time read off the machine (`admit.ts`, `end`) — and the rest waits,
+  the oldest first, read meanwhile at the coarser current level it falls back to; a stale page
+  whose depth is wrong is never read. The first frame the camera rests draws every page left, so
+  the still image is the one every page drawn gives. Otherwise the cost is held by caching — a
+  page is drawn again only when what it holds changed. The frame draws its pages in as many
+  batches as the per-batch buffers take (`shadowPagesPerBatch`, 24 pages, in the views one light
+  cut runs at once), all in its one command buffer, each batch's buffer writes landing in command
+  order (`gpu/shadow/batchWrites.ts`, `webgpu/pages/render/encodeShadowBatches.ts`). What the batches
   add is sized once from the largest pool, never grown, and counted in the memory budget
   (`gpu/shadow/batchBudget.ts`): 4 096 pages in full batches of 24 is at most 171 batches a frame
   (`MAX_SHADOW_BATCHES`), each in at most 24 light views. The staging of every batch but the first
