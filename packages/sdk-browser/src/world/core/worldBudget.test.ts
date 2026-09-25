@@ -7,6 +7,7 @@ import {
   BOUNCE_PROBE_BYTES,
   DEFAULT_CPU_BUDGET,
   DEFAULT_GPU_BUDGET,
+  EFFECT_TARGET_BYTES,
   SHADOW_HOST_BYTES,
   SHADOW_POOL_BYTES,
 } from '../../residency/memoryBudget.ts';
@@ -75,6 +76,7 @@ test("the default totals split into each pool's own default", () => {
   assert.deepEqual(handle.split, {
     shadowPool: SHADOW_POOL_BYTES,
     bounceProbes: BOUNCE_PROBE_BYTES,
+    effectTargets: EFFECT_TARGET_BYTES,
     geometryPool: DEFAULT_GEOMETRY_POOL_BUDGET,
     texturePool: DEFAULT_TEXTURE_POOL_BUDGET,
     shadowMirror: SHADOW_HOST_BYTES,
@@ -110,8 +112,7 @@ test('the CPU total counts the shadow table host mirror before the page cache', 
   }
 });
 
-/** The shadows and the probes: the fixed GPU share, before the two halves. */
-const FIXED = SHADOW_POOL_BYTES + BOUNCE_PROBE_BYTES;
+const FIXED = SHADOW_POOL_BYTES + BOUNCE_PROBE_BYTES + EFFECT_TARGET_BYTES;
 
 test('a GPU total redraws every pool by the split, and the pools never sum past it', () => {
   for (const total of [FIXED + 2 * MiB, FIXED + 300 * MiB, 8192 * MiB]) {

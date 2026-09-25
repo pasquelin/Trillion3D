@@ -919,11 +919,12 @@ the next cut once they arrived (`geometryAllocationBytes` shows it; no pool is r
 as `world.budget.split`:
 
 - GPU: the shadow pool first, at its largest (the largest screen's side, its static layer and its
-  transmittance layer), then the bounce probes at their largest; the rest in two halves, geometry
-  and textures, each capped at its ceiling. At the defaults the split gives each pool its own
-  default, so a page that sets nothing sees no change. The shadows and the probes never shrink: a
-  total under the two is refused (`GPU_BUDGET_UNDER_SHADOW_POOL`), so no total below
-  512 MiB is taken. The pool a screen takes, its static layer and its fixed buffers always fit that
+  transmittance layer), then the bounce probes at their largest, then the effect chain's targets
+  at their largest (`split.effectTargets`: the targets on an 8192 × 8192 image, 2 027 MiB); the
+  rest in two halves, geometry and textures, each capped at its ceiling. At the defaults the split
+  gives each pool its own default, so a page that sets nothing sees no change. The three fixed
+  shares never shrink: a total under them is refused (`GPU_BUDGET_UNDER_SHADOW_POOL`), so no total
+  below 2.6 GiB is taken. The pool a screen takes, its static layer and its fixed buffers always fit that
   share, whatever the screen.
 - CPU: the shadow page table's host mirror first (20.8 MiB, fixed whatever the screen), then the
   decoded-page cache takes the whole rest (`split.pageCache`); within it the session in place
