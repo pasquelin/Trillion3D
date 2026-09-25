@@ -77,7 +77,9 @@ export function worldBudget(
       pools.texturePool = shares.texturePool;
       rebalance();
     },
-    /** Bytes of CPU memory the world's decoded pages may hold; taken by the next scene load. */
+    /** Bytes of CPU memory the world may hold: the shadow page table's host mirror, then the
+     *  decoded pages, taken by the next scene load. A total not above the mirror is refused
+     *  (`CPU_BUDGET_UNDER_SHADOW_MIRROR`). Never read from the machine. */
     get cpu() {
       return pools.cpu ?? DEFAULT_CPU_BUDGET;
     },
@@ -86,8 +88,9 @@ export function worldBudget(
       pools.cpu = bytes;
     },
     /** How the two totals are shared: the shadow pool at its largest, then half each to the
-     *  geometry and texture pools, capped at their ceilings; the decoded-page cache takes the CPU
-     *  total. What the rule gives, before a pool set on its own. */
+     *  geometry and texture pools, capped at their ceilings; the shadow table's host mirror, then
+     *  the decoded-page cache takes the rest of the CPU total. What the rule gives, before a pool
+     *  set on its own. */
     get split() {
       return split();
     },
