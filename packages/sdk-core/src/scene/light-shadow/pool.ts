@@ -107,8 +107,8 @@ export function createShadowPool(side: number) {
       return refetched;
     },
     /** The page is stale from now on — its moving casters only, or its static ones too —, at the
-     *  most of what it already was; its wait never restarts. It stays read: only `withdraw` stops
-     *  that. True when it was current. */
+     *  most of what it already was; its wait runs while a report names it (`counts.ts`). It stays
+     *  read: only `withdraw` stops that. True when it was current. */
     stale(page: number, nowMs: number, frame: number, level = STALE_FULL) {
       const was = dirty[page];
       if (was < level) dirty[page] = level;
