@@ -37,5 +37,10 @@ test('the installed-package server records what it served, its page in utf-8', a
     403,
     null,
   ]);
-  assert.deepEqual(requests, [{ path: '/node_modules/x', status: 403 }]);
+  const encoded = installedServer(SITE, '', requests, false);
+  assert.deepEqual(await fetched(encoded, '/node%5Fmodules/x'), [403, null]);
+  assert.deepEqual(requests, [
+    { path: '/node_modules/x', status: 403 },
+    { path: '/node%5Fmodules/x', status: 403 },
+  ]);
 });

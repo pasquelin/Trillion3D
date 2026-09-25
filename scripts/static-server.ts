@@ -1,5 +1,6 @@
 // The one local static server: the docs portal, the installed-package proof, the bench harness and
 // the blank GPU pages all answer through it. What sets them apart is an option, never a copy.
+import { once } from 'node:events';
 import { createReadStream } from 'node:fs';
 import { stat } from 'node:fs/promises';
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
@@ -73,14 +74,17 @@ async function serveFile(
   if (!found.isFile()) return reply(response, 404);
   const text = transform?.(file);
   const body = text === undefined ? undefined : Buffer.from(text);
+  // The file is opened before the headers leave, so a file it cannot read is still a 404.
+  const stream = body ? undefined : createReadStream(file);
+  if (stream) await once(stream, 'open');
   response.writeHead(200, {
     'content-type': contentType(body ? '.js' : extname(file), charset),
     'content-length': body ? body.length : found.size,
     ...fileHeaders,
   });
   // A read error past the headers destroys the response, so the socket never waits on it.
-  if (body) response.end(body);
-  else pipeline(createReadStream(file), response, () => {});
+  if (stream) pipeline(stream, response, () => {});
+  else response.end(body);
 }
 
 /** A server over `options.mounts`; a path no mount takes, or no file answers, is a 404. */
