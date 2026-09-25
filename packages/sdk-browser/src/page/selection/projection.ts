@@ -83,29 +83,29 @@ export function errorFloorAt(
 }
 
 /**
- * `cutSelects` when the threshold is zero, without projecting anything.
+ * `clusterPixels` when the threshold is zero, without projecting anything: `[own, parent]` stand
+ * for themselves, zero exactly where the projection is zero.
  *
  * Projected error is never negative, so "> 0" equals "≠ 0"; and `projectedClusterError` only
  * returns 0 for a zero error — the near plane yields infinity, a missing sphere too, and
  * `screenErrorBound` is a product of strictly positive factors as soon as the error, the stretch
- * and the focal length are. The result therefore depends on neither the camera nor the sphere: at
- * a zero threshold the cut keeps exactly the exact clusters that something replaces. The caller
- * takes this path only when the frame's stretch, focal length and near plane are finite and
- * strictly positive.
+ * and the focal length are. Against a zero threshold the cut rule (`../cut/rule.ts`) therefore
+ * decides on these values exactly as on the projected ones, whatever the camera and the sphere.
+ * The caller takes this path only when the frame's stretch, focal length and near plane are
+ * finite and strictly positive.
  *
  * The identity holds on the domain prepare guarantees (`pageCarriesClusterError`,
  * `clusterErrorFields`): a finite positive own error always comes with its sphere, and a parent
  * error is zero, finite positive with its sphere, or absent. A malformed error is rejected
  * on both sides. `projection.test.ts` walks this domain and its edges.
  */
-export function cutSelectsAtZero(rec: ClusterCut) {
-  const own = rec.lodError ?? 0;
-  if (own !== 0) {
-    // An error that is neither zero nor positive is not cut data: the general path throws, and so does this one.
-    if (!(own > 0)) throw new Error('Invalid cluster parameters');
-    return false;
-  }
-  const parent = rec.parentError;
-  if (parent != null && !(parent >= 0)) throw new Error('Invalid cluster parameters');
-  return parent !== 0;
+export function pixelsAtZero(rec: ClusterCut, out: Float64Array) {
+  const own = rec.lodError ?? 0,
+    parent = rec.parentError;
+  // An error that is neither zero nor positive is not cut data: the general path throws, and so does this one.
+  if (!(own >= 0) || (parent != null && !(parent >= 0)))
+    throw new Error('Invalid cluster parameters');
+  out[0] = own;
+  out[1] = parent ?? Infinity;
+  return out;
 }
