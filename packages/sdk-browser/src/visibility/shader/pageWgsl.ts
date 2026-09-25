@@ -1,5 +1,4 @@
 import { FLAG_HAS_COLOR, FLAG_SAMPLED } from '../types.ts';
-import { TAA_SAMPLES } from '../../taa/jitter.ts';
 import { VIS_BINDINGS } from '../../webgpu/core/bindLayout.ts';
 
 /**
@@ -15,11 +14,10 @@ import { VIS_BINDINGS } from '../../webgpu/core/bindLayout.ts';
 export const PAGE_INFO_STRUCT_WGSL = `struct PageInfo{world:mat4x4f,baseColor:vec4f,metalness:f32,roughness:f32,mapIndex:u32,flags:u32,pageOffset:u32,indexCount:u32,vertexBase:u32,packedBase:u32,dash:vec2f,clusterHash:u32,hizSlot:u32,roughnessIndex:u32,metalnessIndex:u32,normalIndex:u32,normalScale:f32,sprite:vec2f,padMetalUv:vec2f,padNormalUv:vec2f,aoIndex:u32,aoIntensity:f32,padAoUv:vec2f,emissiveIndex:u32,selectionIndex:u32,emissive:vec4f,padEmissiveUv:vec2f,normalScaleY:f32,pad1:f32,screenError:f32,blendCoverage:f32,pad4:vec2f,depthBias:u32,lineWidth:f32,placement:u32,materialClass:u32,}`;
 
 /** Uniform of a visibility-buffer image, the same word for word for both rasters and the
- *  resolves: `../../webgpu/visibility/uniforms.ts` writes it once per slot. `stipple` is the
- *  temporal rank of the cutout stipple plus one, zero when the image does not accumulate
- *  (`STIPPLE_WGSL`). `pixelRatio` is the host's image pixels per CSS pixel, the scale of a line's
- *  width (`lineWgsl.ts`). Its size is `VIS_UNIFORM_BYTES`. */
-export const VIS_UNIFORMS_WGSL = `struct Uniforms{viewProj:mat4x4f,viewport:vec2f,computeSpan:f32,pageCount:u32,drawSlot:u32,indirect:u32,selectionOffset:u32,selectionEnabled:u32,stipple:u32,pixelRatio:f32,}`;
+ *  resolves: `../../webgpu/visibility/uniforms.ts` writes it once per slot. `pixelRatio` is the
+ *  host's image pixels per CSS pixel, the scale of a line's width (`lineWgsl.ts`). Its size is
+ *  `VIS_UNIFORM_BYTES`. */
+export const VIS_UNIFORMS_WGSL = `struct Uniforms{viewProj:mat4x4f,viewport:vec2f,computeSpan:f32,pageCount:u32,drawSlot:u32,indirect:u32,selectionOffset:u32,selectionEnabled:u32,pixelRatio:f32,}`;
 
 /** Description of a cluster, followed by the uniform of a page-geometry pass. */
 export const PAGE_INFO_WGSL = `${PAGE_INFO_STRUCT_WGSL}
@@ -67,9 +65,8 @@ export const BARY_WEIGHTS_WGSL = `fn baryWeights(a:vec2f,b:vec2f,c:vec2f,p:vec2f
 /**
  * Screen gradients (per pixel in x, then y) of the perspective-correct coordinate at `p` in the
  * screen triangle `(s0,s1,s2)`, of vertex coordinates `uva..uvc` and clip `1/w` `iw`: the
- * derivatives a fragment reads, exact at the pixel. Zero for a degenerate triangle. The one
- * formula of the resolve (`shadeWgsl.ts`) and of the compute raster's cutout
- * (`../../gpu/raster/pixelWgsl.ts`); `uvDerivatives` (`../math.ts`) is its CPU mirror.
+ * derivatives a fragment reads, exact at the pixel. Zero for a degenerate triangle. The formula
+ * of the resolve (`shadeWgsl.ts`); `uvDerivatives` (`../math.ts`) is its CPU mirror.
  */
 export const UV_GRADIENTS_WGSL = `fn uvGradients(s0:vec2f,s1:vec2f,s2:vec2f,p:vec2f,uva:vec2f,uvb:vec2f,uvc:vec2f,iw:vec3f)->mat2x2f{
  let dxb=s1.x-s0.x;let dyb=s1.y-s0.y;let dxc=s2.x-s0.x;let dyc=s2.y-s0.y;let det=dxb*dyc-dxc*dyb;
@@ -96,20 +93,15 @@ export const UV_GRADIENTS_WGSL = `fn uvGradients(s0:vec2f,s1:vec2f,s2:vec2f,p:ve
  * pixel or shadow texel —: each reads the map at the level of its footprint (`maskAlpha`,
  * `../../webgpu/tile/wgsl.ts`), the camera through the colour's own read. This is the only cutout of
  * an opaque pixel: the resolve shades what the raster kept and never tests again. The compute
- * raster has no derivatives: on an accumulating image it passes the exact screen gradients of its
- * perspective-correct coordinate (`uvGradients`, as the resolve), otherwise zero
- * and reads level 0 — the finest resident tile under that texel.
+ * raster, which has no derivatives, passes zero and reads level 0 — the finest resident tile under
+ * that texel.
  *
- * `stipple` (`stippleOffset`, in (−½, ½)) moves the threshold of an accumulating camera pixel by
- * up to half the alpha a pixel spans. A minified texel is an aggregate of the finer ones, and a
- * hard threshold turns what it covers into all or nothing: the thin branches of a canopy vanish
- * as it recedes. Under the stipple, the pixel is kept on the share of the temporal cycle that
- * its alpha passes, and the temporal pass averages that share back into partial coverage. The
- * spread is the footprint's level above the finest, clamped to one: zero while a texel covers a
- * pixel or more — there the jitter already antialiases the edge, and the test stays the hard one
- * — and the whole alpha range once the read comes from coarser levels. Both rasters stipple the
- * same way. The shadows, which no temporal pass averages, pass zero: their test is the hard
- * threshold, to the bit.
+ * The test is the hard threshold in every raster and every image, accumulating or not. Under
+ * temporal antialiasing the jitter already moves each pixel's sample across its footprint, so the
+ * hard cut accumulates into the pixel's coverage of the alpha as read; a stippled threshold only
+ * added a second, coarser shift that blurred the edges and flipped whole patches the temporal
+ * clamp could not average (#55). What a minified read loses of a thin mask is the mip chain's to
+ * keep (coverage mips, `../../texture/coverage.ts`), not the test's.
  *
  * `vertexAlpha` is the interpolated alpha of the vertex colours (`pageMaskAlpha`), one on a row
  * that reads none: the reference multiplies the diffuse alpha by it before its alpha test.
@@ -119,7 +111,7 @@ export const UV_GRADIENTS_WGSL = `fn uvGradients(s0:vec2f,s1:vec2f,s2:vec2f,p:ve
  * `TILE_POOL_WGSL` (which carries the addressing rule), `COLOR_SAMPLE_WGSL` and
  * `maskAlphaWgsl(...)` before this block.
  */
-export const MASK_KEEP_WGSL = `fn maskKeep(page:PageInfo,uv:vec2f,vertexAlpha:f32,ddx:vec2f,ddy:vec2f,stipple:f32)->bool{
+export const MASK_KEEP_WGSL = `fn maskKeep(page:PageInfo,uv:vec2f,vertexAlpha:f32,ddx:vec2f,ddy:vec2f)->bool{
  if((page.flags&128u)==0u){return true;}
  // A dashed line's gap (\`lineDash\`): its distance along the line rides the first coordinate.
  // Without an alpha test, its threshold is zero and the gaps are all it cuts.
@@ -135,23 +127,5 @@ export const MASK_KEEP_WGSL = `fn maskKeep(page:PageInfo,uv:vec2f,vertexAlpha:f3
  // level and made the quad opaque during loading.
  var alpha=maskAlpha(page.mapIndex,uv,ddx,ddy,(page.flags&${FLAG_SAMPLED}u)!=0u);
  if(coloured){alpha*=vertexAlpha;}
- if(stipple==0.0){return alpha>=page.baseColor.w;}
- let size=colorSlot(page.mapIndex).size;
- return alpha>=page.baseColor.w+stipple*saturate(atlasLod(ddx*size,ddy*size));
-}`;
-
-/**
- * Threshold offset of the cutout stipple at a camera pixel, in (−½, ½), or zero when the image
- * does not accumulate — then `maskKeep` is the hard threshold. A 4×4 ordered (Bayer) pattern
- * spreads sixteen neighbouring pixels over one step of the temporal rank, and the
- * ${TAA_SAMPLES} ranks of the jitter cycle walk each pixel through ${TAA_SAMPLES} evenly spaced
- * thresholds: a still image, the uniform average of whole cycles, holds each pixel's exact share.
- * The temporal pass needs nothing more: a partly covered 4×4 pattern puts both states inside the
- * 3×3 neighbour box it clamps history to (`../../taa/shaderWgsl.ts`). Requires `uni`.
- */
-export const STIPPLE_WGSL = `fn stippleOffset(pixel:vec2f)->f32{
- if(uni.stipple==0u){return 0.0;}
- let p=vec2u(pixel)&vec2u(3u);let v=p.x^p.y;
- let bayer=((v&1u)<<3u)|((p.y&1u)<<2u)|(v&2u)|((p.y&2u)>>1u);
- return (f32(uni.stipple-1u)+(f32(bayer)+0.5)/16.0)/${TAA_SAMPLES}.0-0.5;
+ return alpha>=page.baseColor.w;
 }`;
