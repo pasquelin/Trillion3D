@@ -11,7 +11,7 @@ import { isCancelled } from '../../../backend/common.ts';
 const DIRECT_LIGHT_CAPABILITY = 'contract scene lights with shadow atlas';
 /** Named approximation of the shadow path, published in the diagnostic (P5). */
 const SHADOW_APPROXIMATIONS = [
-  'a blended cluster casts from a shadow-only row, its opacity kept as a share of the map texels (4×4 ordered pattern) that the PCF averages; additive and transmissive surfaces cast nothing until tinted transmission shadows (#33), and an unpaged blended mesh casts nothing',
+  'a blended cluster casts from a shadow-only row, its opacity kept as a share of the map texels (4×4 ordered pattern) that the PCF averages — exactly on average, but its taps span about three texels, so a four-texel pattern of up to a third of full shadow remains; additive and transmissive surfaces cast nothing until tinted transmission shadows (#33), and an unpaged blended mesh casts nothing',
   'shadow cluster rejection uses the world sphere of a cluster, never its exact hull',
   'the shadow millisecond budget folds a page fixed cost into an averaged per-page cost',
   'shadow pages are asked for by the opaque resolve alone: a transparent or water surface reads the pages the opaque pixels asked for, and falls back to a coarser level where none did',
