@@ -1,7 +1,11 @@
 import type { PageRec } from '../../page/selection/selection.ts';
 import { PAGE_INFO_STRIDE } from '../../visibility/buffer.ts';
 import { castsBlendShadow } from '../../gpu/shadow/blendCoverage.ts';
-import { ROW_INDEX_WORDS, type createPageRowWriter } from './pageRow.ts';
+import {
+  ROW_BLEND_COVERAGE_WORD,
+  ROW_INDEX_WORDS,
+  type createPageRowWriter,
+} from './pageRow.ts';
 import type { createWebgpuRowState } from './state.ts';
 
 type Rows = ReturnType<typeof createWebgpuRowState>;
@@ -31,11 +35,16 @@ export type BlendCasterRows = ReturnType<typeof createBlendCasterRows>;
  * again when it moves, given back when it leaves. The whole set is written again when the table's
  * age moves — a pose or a material rewritten by the host — or the table itself is new (a lost
  * device). The pool bounds the rows: `blendSlots` covers every placement it can hold at once.
+ *
+ * A row the host's rewrite of a surface takes, gives back or writes with another coverage calls
+ * `onCoverageChange`: the shadow pages under the cluster no longer describe it. A row that follows
+ * residency need not, since residency itself restales them.
  */
 export function createBlendCasterRows(
   rows: Rows,
   packedPages: readonly PageRec[],
   writePageRow: Writer,
+  onCoverageChange: (rec: PageRec) => void = () => {},
 ) {
   const { blendFirst, casterSlots, blendRowOf } = rows;
   const free = new Int32Array(casterSlots - blendFirst);
@@ -53,12 +62,16 @@ export function createBlendCasterRows(
     marked[page] = 1;
     changed.push(page);
   };
-  const write = (page: number, row: number) => {
-    const rec = packedPages[page];
+  const write = (page: number, row: number, held: boolean) => {
+    const rec = packedPages[page],
+      ints = rows.pageTableInts!,
+      coverage = row * ROW_WORDS + ROW_BLEND_COVERAGE_WORD,
+      before = ints[coverage];
     rows.packedRecs[row] = rec;
     rows.packedPageIndex[row] = page;
     const offsetWords = rows.residentOffsetWords[page];
-    writePageRow(rec, page, row, offsetWords, rows.pageTableFloats!, rows.pageTableInts!);
+    writePageRow(rec, page, row, offsetWords, rows.pageTableFloats!, ints);
+    if (held && ints[coverage] !== before) onCoverageChange(rec);
   };
   const release = (page: number, row: number) => {
     blendRowOf[page] = -1;
@@ -69,34 +82,42 @@ export function createBlendCasterRows(
     free[freeCount++] = row;
     note(page);
   };
-  /** Page `page`'s slot moved, arrived or left: its caster row follows. */
-  const follow = (page: number) => {
+  /**
+   * Page `page`'s slot moved, arrived or left: its caster row follows. `restale` when the host
+   * rewrote the surface, whose shadow then changes with its row — taken, given back or rewritten.
+   */
+  const follow = (page: number, restale = false) => {
     const rec = packedPages[page];
     if (!rec.transparent || !rows.pageTableInts) return;
     const row = blendRowOf[page];
     const casts =
       rows.residentOffsetWords[page] >= 0 && !!rec.array && castsBlendShadow(rec.material);
     if (!casts) {
-      if (row >= 0) release(page, row);
+      if (row < 0) return;
+      release(page, row);
+      if (restale) onCoverageChange(rec);
       return;
     }
-    if (row >= 0) return write(page, row);
+    if (row >= 0) return write(page, row, restale);
     // Never empty: every resident placement holds a pool slot, and `blendSlots` counts them all.
     if (!freeCount) return;
     const taken = free[--freeCount];
     blendRowOf[page] = taken;
     note(page);
-    write(page, taken);
+    write(page, taken, false);
+    if (restale) onCoverageChange(rec);
   };
   return {
     follow,
     /** Writes every row again when the table is new or its age moved; nothing otherwise. */
     refresh() {
       if (table === rows.pageTableFloats && epoch === rows.tableEpoch) return;
+      // The same table at another age: the host rewrote a pose or a surface.
+      const restale = table === rows.pageTableFloats;
       table = rows.pageTableFloats;
       epoch = rows.tableEpoch;
       if (!free.length) return;
-      for (let page = 0; page < packedPages.length; page++) follow(page);
+      for (let page = 0; page < packedPages.length; page++) follow(page, restale);
     },
     /** Tells the light cut's map the rows that changed since — all of them, to a new map. */
     pin(to: BlendRowMap) {

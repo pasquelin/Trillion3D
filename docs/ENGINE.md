@@ -308,6 +308,21 @@ request is a second residency tier, loaded after the camera's pages into slots n
 pinned. The CPU cut does the same, reading the run's view as a camera (`webgpu/shadow/cpuCasters.ts`);
 its casters take rows behind its own (#10, #26).
 
+**Blended surfaces cast a shadow attenuated by their opacity.** A blended cluster is drawn by the
+blend pass and never enters the visibility tables: to cast, it takes a row of the page table
+*behind* the visibility rows, which only the shadow pass reads (`webgpu/row/blendCasters.ts`). The
+row follows residency like a visibility row — taken when the cluster's slot arrives, given back
+when it leaves — and the pool bounds how many exist; a scene that blends nothing has none. The
+light cut finds the cluster at that row (`gpu/draw/lightRows.ts`, pinned by the host), the CPU cut
+lists it there, and the same cull and depth raster draw it: there is no second shadow pass. The
+depth raster keeps its depth on `round(16 × coverage)` texels of every 4 × 4 block of the map, the
+coverage being the material's opacity times its colour map's alpha (`gpu/shadow/blendCoverage.ts`),
+and the existing PCF averages that pattern into a partial shadow. Opacity 0 takes no row and casts
+nothing; opacity 1 keeps every texel, the opaque depth to the bit. Additive and transmissive
+surfaces cast nothing yet: the tinted shadow of transmission is #33's, which extends the coverage
+word into a transmittance. An unpaged blended mesh casts nothing. WebGL2 has no shadow path, so
+none of this exists there.
+
 When a colour tile arrives, the shadow pages of the masked surfaces that read its texture are
 invalidated, and those alone. A masked cut-out is read at the mip level the reading texel's
 footprint selects, in the visibility raster and in the shadow pass alike, and the material

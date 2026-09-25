@@ -1956,6 +1956,16 @@
       "Look for": "Osserva"
     }
   },
+  "shadows-through-see-through-panes": {
+    "banner": "Trascina l'opacità: l'ombra del vetro centrale la segue, assente a 0 e piena a 1.",
+    "controls": {
+      "opacity": "Opacità",
+      "sunHeight": "Altezza del sole"
+    },
+    "readouts": {
+      "Opacity of the middle pane": "Opacità del vetro centrale"
+    }
+  },
   "walk-with-collisions": {
     "banner": "Clicca per guardarti intorno, poi cammina con W A S D e salta con Spazio: sali le scale e la rampa, viaggia sulla piattaforma, spingi le casse e lascia i tasti sul ghiaccio per scivolare.",
     "controls": {

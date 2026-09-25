@@ -18,6 +18,7 @@ import { readGeometryPageHeader } from '../../page/decode/geometryPageHeader.ts'
 import { awaitsPageBytes, pageAddress } from '../row/pageSlots.ts';
 import { markWebgpuLost } from './io/lost.ts';
 import type { WebgpuPagesCore } from './runtime.ts';
+import { noteResidenceChange } from '../shadow/bounds.ts';
 
 export type WebgpuPagesServices = ReturnType<typeof createWebgpuPagesServices>;
 
@@ -75,6 +76,8 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
       run.gate.resourcesChanged(),
       rt.lights.residence.noteRow(rows.pageIndexOf(rec) ?? -1, packedPages.length)
     ),
+    // A blended caster's opacity moved: the shadow pages under it are drawn again.
+    (rec) => noteResidenceChange(rt.lights, rec),
   );
   /**
    * The bytes one pool slot holds for a cluster: its quantized geometry page, read from the

@@ -1956,6 +1956,16 @@
       "Look for": "Fíjate en"
     }
   },
+  "shadows-through-see-through-panes": {
+    "banner": "Desliza la opacidad: la sombra del cristal central la sigue, nula en 0 y plena en 1.",
+    "controls": {
+      "opacity": "Opacidad",
+      "sunHeight": "Altura del sol"
+    },
+    "readouts": {
+      "Opacity of the middle pane": "Opacidad del cristal central"
+    }
+  },
   "walk-with-collisions": {
     "banner": "Haz clic para mirar alrededor, luego camina con W A S D y salta con Espacio: sube la escalera y la rampa, viaja en la plataforma, empuja las cajas y suelta las teclas sobre el hielo para deslizarte.",
     "controls": {

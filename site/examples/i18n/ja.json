@@ -1956,6 +1956,16 @@
       "Look for": "注目"
     }
   },
+  "shadows-through-see-through-panes": {
+    "banner": "不透明度を動かすと、真ん中のガラスの影もそれに合わせて変わります。0 で消え、1 で濃い影に。",
+    "controls": {
+      "opacity": "不透明度",
+      "sunHeight": "太陽の高さ"
+    },
+    "readouts": {
+      "Opacity of the middle pane": "真ん中のガラスの不透明度"
+    }
+  },
   "walk-with-collisions": {
     "banner": "クリックして見回し、W A S D で歩き、スペースでジャンプ：階段と坂を登り、台に乗り、箱を押し、氷の上でキーを離して滑ってみよう。",
     "controls": {

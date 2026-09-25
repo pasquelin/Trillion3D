@@ -22,13 +22,14 @@ export const BLEND_DITHER: readonly number[] = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11
   .map((rank) => (rank + 0.5) / 16);
 
 /**
- * True when a blended surface casts at all: drawn over what is behind it (normal blending) and
- * not transmissive. An additive surface adds light and stops none; a transmissive one tints what
- * crosses it, which a depth cannot say — its coloured shadow is #33's, which can extend the
- * coverage word into a transmittance. Neither takes a caster row until then.
+ * True when a blended surface casts at all: drawn over what is behind it (normal blending), not
+ * transmissive, and stopping some light. An additive surface adds light and stops none; a
+ * transmissive one tints what crosses it, which a depth cannot say — its coloured shadow is #33's,
+ * which can extend the coverage word into a transmittance. A fully transparent one stops nothing:
+ * none of them takes a caster row.
  */
 export const castsBlendShadow = (surface: PageSurface) =>
-  surface.blending === 'normal' && !(surface.transmission > 0);
+  surface.blending === 'normal' && !(surface.transmission > 0) && surface.opacity > 0;
 
 /** Share of the light a blended surface stops, before its colour map's alpha: its opacity. */
 export const blendCoverage = (surface: PageSurface) => Math.min(1, Math.max(0, surface.opacity));
