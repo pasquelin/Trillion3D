@@ -374,6 +374,15 @@ where each lands, and accumulates order-2 spherical harmonics with adaptive hyst
 snapshot, so the steady image does not depend on thread order. After sixteen sweeps with nothing
 changing, neither pass is encoded: a still scene pays nothing.
 
+**One basis.** The nine coefficients per colour a probe holds are the ones the scene environment
+and the WebGL2 light probe hold: same band order (constant, `y`, `z`, `x`, `xy`, `yz`, `3z² − 1`,
+`xz`, `x² − y²`), same cosine-lobe factors (Ramamoorthi and Hanrahan 2001). `IRRADIANCE_TERMS`
+(`packages/sdk-core/src/scene/core/irradianceBasis.ts`) writes the projection and the evaluation
+once as shader text; CPU oracles run that text against a constant sky (`πL` on every normal) and a
+single direction (the Legendre band sum). The cascades at their largest — four levels of 16³ probes,
+44 floats each, probes and snapshot: 5.5 MiB (`BOUNCE_PROBE_BYTES`) — are counted in the GPU total
+after the shadow pool, before the geometry and texture pools (`splitMemoryBudget`).
+
 The deferred resolve adds the interpolated irradiance of the eight surrounding probes, weighted by
 the cell, the surface's facing and each probe's measured mean distances, which close leaks through a
 wall; where no level reaches, the term is zero. Against the compiler's path tracer
