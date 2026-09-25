@@ -125,7 +125,7 @@ const make = (kind: VehicleKind) => (body: Object3D, options: VehicleOptions) =>
 export const vehicle = {
   /** Three wheels or more on two axles or more, the forward ones steered, `drive` driven. */
   car: make('car'),
-  /** Two wheels, the forward one steered, the rear one driven; it leans into its turns. */
+  /** Two wheels, the forward one steered, the rear one driven; it keeps itself upright. */
   motorcycle: make('motorcycle'),
   /** Wheels on two tracks, left and right, each driven by its rearmost wheel; it steers by
    *  slowing one track, and turns on the spot at a standstill. */

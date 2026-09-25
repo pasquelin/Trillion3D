@@ -7135,6 +7135,95 @@
       "handbrake": "Se o travão de mão está puxado."
     }
   },
+  "VEHICLE_SPECS": {
+    "summary": "As três máquinas de que partem os veículos, por tipo.",
+    "members": {
+      "car": "Um Chevrolet Corvette C5: tração traseira, 0,32 N·m por quilograma, seis marchas.",
+      "motorcycle": "Uma Yamaha XJ900 e seu piloto: 0,26 N·m por quilograma, seis marchas.",
+      "tracked": "Um M1 Abrams: uma turbina a gás, 0,083 N·m por quilograma, quatro marchas."
+    }
+  },
+  "Vehicle": {
+    "summary": "Um veículo: um corpo levado sobre rodas pela restrição de veículo do Jolt, com motor, câmbio, diferenciais, suspensão e barras estabilizadoras, criado por `vehicle.*` e adicionado à simulação por `world.physics.add`.",
+    "description": "É um `VehicleDriver`: `world.controls.vehicle = car` o dirige.",
+    "parameters": {
+      "options": "O que `vehicle.*` aceita: as rodas, e quantos valores da máquina quiser (`VehicleSpec`).",
+      "options.wheels": "As rodas: malhas, filhas do corpo, cada uma posta no seu centro como repousa em chão plano, o eixo ao longo do x do corpo. Raio e largura são lidos dos seus limites. O corpo olha para −z: as rodas dianteiras esterçam.",
+      "options.torquePerKg": "Torque máximo do motor por quilograma do corpo, em N·m/kg.",
+      "options.idleRPM": "A marcha lenta do motor, em rpm.",
+      "options.maxRPM": "A faixa vermelha do motor, em rpm.",
+      "options.torqueCurve": "Até cinco pontos `[rpm / maxRPM, torque / pico]`, frações de rotação crescentes.",
+      "options.gears": "Até seis relações para a frente, a primeira primeiro.",
+      "options.reverse": "A relação da marcha à ré.",
+      "options.finalDrive": "A relação do diferencial final (a redução da roda motriz de um veículo de esteiras).",
+      "options.shiftUpRPM": "O câmbio sobe de marcha acima disto, em rpm.",
+      "options.shiftDownRPM": "E reduz abaixo disto, em rpm.",
+      "options.clutch": "Torque da embreagem por rad/s de deslizamento, em N·m·s.",
+      "options.suspensionFrequency": "Frequência da suspensão, em Hz.",
+      "options.suspensionDamping": "Razão de amortecimento, de 0 (nenhum) a 1 (crítico).",
+      "options.suspensionTravel": "Curso da roda da extensão total à compressão total, em metros.",
+      "options.antiRoll": "A rigidez de cada barra estabilizadora em relação às molas do seu eixo; 0 é nenhuma.",
+      "options.turnRadius": "O raio de giro com a direção no batente, em metros.",
+      "options.steerTime": "Segundos do centro ao batente da direção.",
+      "options.brakeGrip": "O atrito com que os freios travam as rodas.",
+      "options.drive": "As rodas motrizes de um carro.",
+      "options.trackTurn": "A velocidade da esteira interna de um veículo de esteiras ao virar, em relação à externa.",
+      "options.maxLean": "A maior inclinação de uma moto, em radianos."
+    },
+    "members": {
+      "kind": "O que o veículo é.",
+      "body": "O corpo que as rodas carregam.",
+      "wheels": "As rodas, filhas do corpo.",
+      "spec": "A máquina: a do seu tipo (`VEHICLE_SPECS`), com as opções por cima.",
+      "input": "Os pedais e o volante que recebe agora.",
+      "speed": "Metros por segundo para a frente após o último passo, negativo para trás.",
+      "rpm": "As rotações por minuto do motor após o último passo.",
+      "gear": "A marcha após o último passo: 1 ou mais para a frente, −1 ré, 0 ponto morto.",
+      "drive": "Recebe os pedais e o volante, a cada tecla que os muda, quando começa a ser dirigido, e tudo solto quando deixa de ser."
+    }
+  },
+  "VehicleKind": {
+    "summary": "Os veículos da física, cada um sobre a restrição de veículo do Jolt."
+  },
+  "VehicleOptions": {
+    "summary": "O que `vehicle.*` aceita: as rodas, e quantos valores da máquina quiser (`VehicleSpec`).",
+    "members": {
+      "wheels": "As rodas: malhas, filhas do corpo, cada uma posta no seu centro como repousa em chão plano, o eixo ao longo do x do corpo. Raio e largura são lidos dos seus limites. O corpo olha para −z: as rodas dianteiras esterçam."
+    }
+  },
+  "VehicleSpec": {
+    "summary": "Do que é feito um veículo: motor, câmbio, suspensão, direção e freios, cada padrão o de uma máquina real (`VEHICLE_SPECS`).",
+    "members": {
+      "torquePerKg": "Torque máximo do motor por quilograma do corpo, em N·m/kg.",
+      "idleRPM": "A marcha lenta do motor, em rpm.",
+      "maxRPM": "A faixa vermelha do motor, em rpm.",
+      "torqueCurve": "Até cinco pontos `[rpm / maxRPM, torque / pico]`, frações de rotação crescentes.",
+      "gears": "Até seis relações para a frente, a primeira primeiro.",
+      "reverse": "A relação da marcha à ré.",
+      "finalDrive": "A relação do diferencial final (a redução da roda motriz de um veículo de esteiras).",
+      "shiftUpRPM": "O câmbio sobe de marcha acima disto, em rpm.",
+      "shiftDownRPM": "E reduz abaixo disto, em rpm.",
+      "clutch": "Torque da embreagem por rad/s de deslizamento, em N·m·s.",
+      "suspensionFrequency": "Frequência da suspensão, em Hz.",
+      "suspensionDamping": "Razão de amortecimento, de 0 (nenhum) a 1 (crítico).",
+      "suspensionTravel": "Curso da roda da extensão total à compressão total, em metros.",
+      "antiRoll": "A rigidez de cada barra estabilizadora em relação às molas do seu eixo; 0 é nenhuma.",
+      "turnRadius": "O raio de giro com a direção no batente, em metros.",
+      "steerTime": "Segundos do centro ao batente da direção.",
+      "brakeGrip": "O atrito com que os freios travam as rodas.",
+      "drive": "As rodas motrizes de um carro.",
+      "trackTurn": "A velocidade da esteira interna de um veículo de esteiras ao virar, em relação à externa.",
+      "maxLean": "A maior inclinação de uma moto, em radianos."
+    }
+  },
+  "vehicle": {
+    "summary": "A família `vehicle`: um corpo e suas rodas, dirigidos por `world.controls` `'vehicle'`.",
+    "members": {
+      "car": "Três rodas ou mais em dois eixos ou mais, as dianteiras esterçam, as de `drive` são motrizes.",
+      "motorcycle": "Duas rodas, a dianteira esterça, a traseira é motriz; fica de pé sozinha.",
+      "tracked": "Rodas sobre duas esteiras, esquerda e direita, cada uma movida pela sua roda mais traseira; vira freando uma esteira, e gira no lugar quando parado."
+    }
+  },
   "GraphAttribute": {
     "members": {
       "count": "Quantos vértices.",
