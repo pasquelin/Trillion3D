@@ -4302,10 +4302,11 @@
     }
   },
   "PageCutPayload": {
-    "summary": "Lo que devuelve un `cut`: sus páginas, y la rejilla de posiciones sobre la cual se cuantizaron.",
+    "summary": "Lo que devuelve un `cut`: sus páginas, y las rejillas sobre las cuales se cuantizaron.",
     "members": {
       "pages": "Las páginas escritas.",
       "positionExponent": "Paso de la rejilla de posiciones, en potencia de dos.",
+      "uvExponent": "Paso de la rejilla de coordenadas de textura, en potencia de dos.",
       "maxPositionError": "Mayor error de posición en esta rejilla."
     }
   },
