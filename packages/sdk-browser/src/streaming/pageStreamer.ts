@@ -168,8 +168,8 @@ export function createPageStreamerWith(
         resident: cache.size,
         residentBytes: store.bytes,
         maxCachedBytes: store.budgetBytes,
-        /** CPU bytes the streamer holds (manifest tables, transfers, pages) of `cpuBudgetBytes`. */
-        cpuBytes: tableBytes + state.activeBytes + store.bytes,
+        /** CPU bytes held (manifest tables, transfers, pages, kept files) of `cpuBudgetBytes`. */
+        cpuBytes: tableBytes + state.activeBytes + store.bytes + store.keptBytes,
         cpuBudgetBytes: store.cpuBytes,
         evictions: state.evictions,
         failed: failures.size,

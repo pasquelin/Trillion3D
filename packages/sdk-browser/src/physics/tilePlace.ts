@@ -1,4 +1,9 @@
-import type { CookedInstance, CookedTile } from '../../../sdk-core/src/physics/index.ts';
+import { EngineError } from '../../../sdk-core/src/contracts/cache.ts';
+import type {
+  CookedInstance,
+  CookedPhysics,
+  CookedTile,
+} from '../../../sdk-core/src/physics/index.ts';
 import { boxTransform } from '../../../sdk-core/src/math/primitives/box.ts';
 import { Box3 } from '../../../sdk-core/src/world/math/box3.ts';
 import { Matrix4 } from '../../../sdk-core/src/world/math/matrix4.ts';
@@ -38,9 +43,37 @@ const place = new Matrix4(),
   size = new Vector3(),
   bounds = new Box3();
 
-/** A tile's world pose — its model's world matrix times its instance — as position, turn, scale
- *  (scratch shared by every caller: read them at once). */
-export function tilePose(p: Placed) {
+/** The bytes of a cooked object beside `model`'s manifest — a tile, a soft body's settings —
+ *  refused by `what` and its url when the fetch fails. */
+export async function cookedBytes(model: Model, url: string, what: string) {
+  const response = await fetch(new URL(url, model.record.base).href);
+  if (!response.ok) throw new EngineError('PHYSICS_FAILED', `${what} ${url}: ${response.status}.`);
+  return new Uint8Array(await response.arrayBuffer());
+}
+
+/** Each cooked tile of `cooked` placed by each instance of its collider in `model`, out. */
+export function placedOf(model: Model, cooked: CookedPhysics): Placed[] {
+  return cooked.instances.flatMap((instance) => {
+    const { tiles, material } = cooked.colliders[instance.collider];
+    return tiles.map((tile) => {
+      const p: Placed = {
+        model,
+        instance,
+        tile,
+        material: material ?? -1,
+        box: new Float64Array(6),
+        id: -1,
+        loading: false,
+      };
+      locate(p);
+      return p;
+    });
+  });
+}
+
+/** A tile's — or a cooked soft body's — world pose: its model's world matrix times its placement,
+ *  as position, turn, scale (scratch shared by every caller: read them at once). */
+export function tilePose(p: { model: Model; instance: Omit<CookedInstance, 'collider'> }) {
   const { position: t, rotation: r, scale: s } = p.instance;
   position.set(t[0], t[1], t[2]);
   local.compose(position, turn.set(r[0], r[1], r[2], r[3]), size.set(s[0], s[1], s[2]));
