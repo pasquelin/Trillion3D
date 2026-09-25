@@ -7,7 +7,12 @@
 //! present in more than two copies, which on disjoint slabs reduced nothing. Texture seams stay
 //! protected — welding them was measured on Emerald facades, drawn with the texture from the
 //! other side of the seam — and every coarse corner points back at the copy of its position whose
-//! normal matches its own face (`attributes::own_normals`).
+//! normal matches its own face (`attributes::own_normals`). The group's twins stand for each other
+//! through its own first copy, so a coarse page names only vertices its children draw.
+//!
+//! **Parts removed whole.** The simplifier's error covers what it keeps, not a disconnected part it
+//! removes whole: the group's error also covers the distance from such a part to the surface kept
+//! (`vanished.rs`), so a roof of shingles keeps a cover within its error at every level.
 //!
 //! **Added locks.** On foliage, a chart whose edge is shared with another group disappears when
 //! its free vertices collapse onto locked vertices, and the other group keeps its half (measured:
@@ -20,7 +25,9 @@
 //! looks at every face but slivers, even one narrower than the error, which the published check
 //! exempts: a coarse face spanning a log of a chalet, 6 m long and 0.22 m wide, came out inside
 //! out at 0.78 m of error, its corners on the caps' normals (#415, #484). Refusing such a face
-//! would refuse the cook; retrying it only costs a few locks.
+//! would refuse the cook; retrying it only costs a few locks. A face none of whose corner copies
+//! a face turned its way draws is retried the same way: a board whose thickness collapsed onto
+//! its top kept its underside there, on the top's and the edges' normals (#484).
 use super::*;
 use crate::qem::{SimplifiedMesh, VERTEX_LOCK, VERTEX_PROTECT};
 use border::{live_triangles, lock_triangles_touching, lost_locks, required_locks};
@@ -63,8 +70,9 @@ pub(super) fn reduce_group(
         source_rank = source_rank.min(child.source_rank);
     }
     let sphere = enclosing_sphere(&spheres);
+    let mut own: HashMap<u32, u32> = HashMap::new();
     let corners = children.iter().flat_map(|c| c.indices.iter());
-    let live = live_triangles(corners.map(|&v| input.exact[v as usize]));
+    let live = live_triangles(corners.map(|&v| *own.entry(input.exact[v as usize]).or_insert(v)));
     let chosen = match attempt(input, &live, true)? {
         // Reduction yielding no fewer clusters does not advance DAG: refused,
         // even if removing triangles, rather than adding unreplaced level.
@@ -72,7 +80,9 @@ pub(super) fn reduce_group(
         Ok(_) => return stall(input, &live, children.len(), Stop::NoCollapse),
         Err(stop) => return stall(input, &live, children.len(), stop),
     };
-    let error = chosen.simplified.error_object.max(child_error);
+    let kept = &chosen.simplified.indices;
+    let vanished = vanished::vanished_distance(&live, kept, input.positions, input.weld);
+    let error = vanished.max(chosen.simplified.error_object.max(child_error));
     if !error.is_finite() {
         return Ok(Err(diagnosis::outcome(
             StallCause::UnusableError,
@@ -148,7 +158,7 @@ pub(super) fn attempt(
             border_retries += 1;
             lost
         } else if let Some(normals) = input.normals {
-            attributes::own_normals(
+            let foreign = attributes::own_normals(
                 &mut simplified.indices,
                 source,
                 input.weld_seam,
@@ -157,7 +167,14 @@ pub(super) fn attempt(
             );
             let bound = input.normal_bound;
             match locked {
-                true => backlit_corners(&simplified.indices, input.positions, normals, weld, bound),
+                true => {
+                    let indices = &simplified.indices;
+                    let mut retry = backlit_corners(indices, input.positions, normals, weld, bound);
+                    retry.extend(foreign.iter().map(|&v| weld[v as usize]));
+                    retry.sort_unstable();
+                    retry.dedup();
+                    retry
+                }
                 false => Vec::new(),
             }
         } else {
