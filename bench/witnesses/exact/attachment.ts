@@ -1,6 +1,6 @@
 import { GraphMesh } from '../../../packages/sdk-browser/src/host/graph/mesh.ts';
 import { GraphGeometry } from '../../../packages/sdk-browser/src/host/graph/geometry.ts';
-import { GraphAttribute } from '../../../packages/sdk-browser/src/host/graph/attributes.ts';
+import { BufferAttribute } from '../../../packages/sdk-core/src/world/buffer/attribute.ts';
 import type { HostMaterials } from '../../../packages/sdk-browser/src/host/resources.ts';
 import { setGeometryBounds } from '../../../packages/sdk-browser/src/host/geometryBounds.ts';
 import type { PageRec } from '../../../packages/sdk-browser/src/page/selection/selection.ts';
@@ -9,10 +9,10 @@ import { disposeTriangleGeometry } from '../../../packages/sdk-browser/src/diagn
 
 /** One resident index buffer per page source, shared by every page read from it. */
 export function pageIndexBuffers(pages: readonly PageRec[]) {
-  const indexByUrl = new Map<string, GraphAttribute>();
+  const indexByUrl = new Map<string, BufferAttribute>();
   for (const rec of pages)
     if (rec.array && !indexByUrl.has(rec.url))
-      indexByUrl.set(rec.url, new GraphAttribute(rec.array, 1));
+      indexByUrl.set(rec.url, new BufferAttribute(rec.array, 1));
   return indexByUrl;
 }
 
@@ -26,13 +26,13 @@ export function disposePageGeometry(geometry: GraphGeometry) {
 /** The whole-page mesh record of a diagnostic mode: built once per resident page, painted on
  *  every sync, handed to the draw owner — never to the host scene. */
 export function createExactPagesAttachment(
-  indexByUrl: Map<string, GraphAttribute>,
+  indexByUrl: Map<string, BufferAttribute>,
   materialFor: (rec: PageRec) => HostMaterials,
   paint: (mesh: GraphMesh, geometry: GraphGeometry, material: HostMaterials, salt?: number) => void,
 ) {
   const attach = (rec: PageRec) => {
     if (!rec.array) return;
-    if (!indexByUrl.has(rec.url)) indexByUrl.set(rec.url, new GraphAttribute(rec.array, 1));
+    if (!indexByUrl.has(rec.url)) indexByUrl.set(rec.url, new BufferAttribute(rec.array, 1));
     const fresh = !rec.mesh;
     if (fresh) {
       const geometry = new GraphGeometry();

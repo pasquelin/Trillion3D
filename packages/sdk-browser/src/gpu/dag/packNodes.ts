@@ -1,10 +1,4 @@
-import {
-  BOUND_STRIDE,
-  cullingBounds,
-  HAS_ROOT,
-  OWN_FLOOR,
-  OWN_SPHERE,
-} from '../../page/cut/bounds.ts';
+import { BOUND_STRIDE, cullingBounds, OWN_FLOOR, OWN_SPHERE } from '../../page/cut/bounds.ts';
 import { CULL_STRIDE, DAG_NODE_FLOATS, type DagRoot } from './types.ts';
 
 /**
@@ -19,10 +13,10 @@ import { CULL_STRIDE, DAG_NODE_FLOATS, type DagRoot } from './types.ts';
  * the page format.
  *
  * Four more words per node, sixteen floats become twenty-four: the floor sphere,
- * the floor itself, and a flags word whose only bit says whether the subtree
- * carries a cluster nothing replaces. `dagMask`'s pinned fallback draws those
- * clusters without consulting any threshold: descent must therefore never prune
- * them, whatever their error.
+ * the floor itself, and the node's OPEN count — the clusters under it whose finer group
+ * is not resident, the only ones the cut rule may draw above the threshold. Packing
+ * writes zero; the kernel's host keeps it (`readiness.ts`), and descent never drops an
+ * open subtree on its floor.
  */
 /** Packed-node ranks, in the order `struct CullNode` of the shader declares them. Three
  *  readers reread them — the shader, the oracle (`oracle/math.ts`) and frontier
@@ -39,11 +33,10 @@ export const NODE_MIN = 0,
   NODE_CHILD_COUNT = 15,
   NODE_FLOOR_SPHERE = 16,
   NODE_FLOOR = 20,
-  NODE_FLAGS = 21;
+  /** Clusters of the subtree whose finer group is not resident (`../../page/cut/readiness.ts`). */
+  NODE_OPEN = 21;
 /** The two pad words that bring the node to ninety-six bytes, vec4-aligned. */
 const NODE_PAD = 22;
-/** Bit 0 of the node flags: the subtree carries a cluster nothing replaces. */
-export const NODE_HAS_ROOT = 1;
 /** Largest f32: the shader cannot write an infinite constant, and its floor reads
  *  this value where the CPU bound returns infinity. Both reject the same subtree. */
 const INF32 = 3.4e38;
@@ -104,7 +97,7 @@ export function packCullingNodes(
     nodeInts[dst + NODE_WORLD] = world;
     const floor = bounds[at + OWN_FLOOR];
     nodes[dst + NODE_FLOOR] = Number.isFinite(floor) ? floor : INF32;
-    nodeInts[dst + NODE_FLAGS] = bounds[at + HAS_ROOT] ? NODE_HAS_ROOT : 0;
+    nodeInts[dst + NODE_OPEN] = 0;
     nodeInts[dst + NODE_PAD] = 0;
     nodeInts[dst + NODE_PAD + 1] = 0;
     if (!culling.nodes[src + 12]) {

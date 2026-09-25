@@ -48,7 +48,8 @@ export function writeWebgpuVisibilityUniforms(
     [width, height] = rt.gpu.targetSize,
     { gpuFrameActive, diagnostic } = run,
     maskOffset = run.gpuSelection?.maskOffset ?? 0,
-    stipple = taaStippleWord(rt);
+    stipple = taaStippleWord(rt),
+    pixelRatio = rt.setup.pixelRatio();
   const visUniform = (vis.visUniform ??= device.createBuffer({
     size: slots * 256,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
@@ -71,6 +72,8 @@ export function writeWebgpuVisibilityUniforms(
     visInts[base + 23] = gpuFrameActive ? 1 : 0;
     // Cutout stipple rank (`STIPPLE_WGSL`): zero when the image does not accumulate.
     visInts[base + 24] = stipple;
+    // Image pixels per CSS pixel: a line page's width counts CSS pixels (`lineClip`).
+    visUniPacked[base + 25] = pixelRatio;
   }
   device.queue.writeBuffer(visUniform, 0, visUniPacked);
   const shadeUniform = (vis.shadeUniform ??= device.createBuffer({
@@ -80,6 +83,7 @@ export function writeWebgpuVisibilityUniforms(
   shadeUniPacked.set(viewProj, 0);
   shadeUniPacked[16] = width;
   shadeUniPacked[17] = height;
+  shadeUniPacked[18] = pixelRatio;
   const shadeInts = new Uint32Array(shadeUniPacked.buffer);
   shadeInts[20] = tableRows;
   // Texture image-feedback phase: one pixel in sixteen speaks, all of them during a convergence.

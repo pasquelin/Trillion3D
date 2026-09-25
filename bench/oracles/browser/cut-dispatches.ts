@@ -11,7 +11,10 @@
  * of the cut instead of it.
  *
  * Its offsets in `work` are those from before: each queue carries a counter AND a group
- * count, since it was read indirectly, and everything that follows is shifted by that.
+ * count, since it was read indirectly, and everything that follows is shifted by that. What
+ * surrounds the descent — prepare, candidates, mask, compaction — is the shipped kernels, so the
+ * oracle follows their layout and their stages: the cut rule decides in the mask, with no
+ * escalation round before it (#486).
  */
 import { SELECTION_WORKGROUP } from '../../../packages/sdk-browser/src/gpu/core/selection.ts';
 import {
@@ -19,7 +22,6 @@ import {
   VIEW_WORD_ROWS,
 } from '../../../packages/sdk-browser/src/gpu/dag/shader/viewsWgsl.ts';
 import { primitiveFrameWords } from '../../../packages/sdk-browser/src/gpu/dag/worlds.ts';
-import { ESCALATION_ROUNDS } from '../../../packages/sdk-browser/src/page/selection/types.ts';
 export { DAG_LEVEL_WGSL_AVANT } from './cut-dispatches-wgsl.ts';
 
 /** What `ressourcesAvant` reads of the bench's packed scene: the same fields the shipped
@@ -42,8 +44,6 @@ const NOYAUX_AVANT = [
   'dagPrepare',
   'dagClearDrawn',
   'dagWanted',
-  'dagEscalate',
-  'dagCheck',
   'dagMask',
   'dagDrawPrefix',
   'dagDrawScatter',
@@ -60,7 +60,7 @@ export function ressourcesAvant(
   const pageCount = packed.pageCount,
     worldCount = Math.max(1, packed.worldCount);
   const blockCount = Math.ceil(pageCount / SELECTION_WORKGROUP);
-  const base = worldCount * 2 + blockCount * 2;
+  const base = blockCount * 2;
   const STORAGE = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC;
   // The frame words are the shipped ones: the frozen descent reads the same records.
   const frameData = primitiveFrameWords(packed);
@@ -77,7 +77,7 @@ export function ressourcesAvant(
     tampon(DAG_UNIFORM_BYTES, null, GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST),
     tampon(Math.max(16, (packed.nodeCount * 2 + pageCount * 4) * 4)),
     tampon(readbackBytes),
-    tampon(Math.max(8, (base + 10 + worldCount * 2 + VIEW_WORD_ROWS + 1) * 4)),
+    tampon(Math.max(8, (base + 10 + VIEW_WORD_ROWS + 1) * 4)),
     tampon(64, packed.worlds),
     tampon(16, frameData),
     tampon(48, packed.pageCones),
@@ -156,8 +156,6 @@ export function encodeAvant(
     vif.setPipeline(pipeline);
     vif.dispatchWorkgroupsIndirect(dispatchArgs, 0);
   };
-  for (let ronde = 0; ronde < ESCALATION_ROUNDS; ronde++) surListe(noyaux.dagEscalate);
-  surListe(noyaux.dagCheck);
   surListe(noyaux.dagMask);
   vif.setPipeline(noyaux.dagDrawPrefix);
   vif.dispatchWorkgroups(1);

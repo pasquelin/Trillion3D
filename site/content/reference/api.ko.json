@@ -249,21 +249,15 @@
     "members": {
       "isBufferAttribute": "항상 `true`: 버퍼 속성을 다른 무엇과 구분한다.",
       "type": "값이 어떻게 선언되었는지; 반정밀도 속성도 단정밀도로 보관된다.",
-      "normalized": "정수값이 0과 1 사이의 값으로 읽히는지 여부.",
       "version": "선언된 쓰기마다 증가한다: 세계가 내용이 바뀌었는지 보기 위해 비교하는 값.",
       "array": "숫자 그 자체.",
-      "itemSize": "정점 하나에 속하는 숫자 개수: 위치라면 3.",
       "count": "이 숫자들이 나타내는 정점의 개수.",
-      "needsUpdate": "`array`를 쓴 뒤의 `attribute.needsUpdate = true`: 세계가 그것을 다시 읽는다.",
-      "getComponent": "정점 `index`의 `component`번째 숫자.",
-      "getX": "정점 `i`의 첫 번째 숫자.",
-      "getY": "정점 `i`의 두 번째 숫자.",
-      "getZ": "정점 `i`의 세 번째 숫자.",
-      "getW": "정점 `i`의 네 번째 숫자.",
-      "setXYZ": "정점 `i`에 세 개의 숫자를 쓴다.",
-      "setXY": "정점 `i`에 두 개의 숫자를 쓴다.",
-      "setX": "정점 `i`의 첫 번째 숫자를 쓴다.",
-      "clone": "숫자들의 복사본을 가진 새 속성."
+      "needsUpdate": "`array`를 쓴 뒤 `needsUpdate = true`: 읽는 쪽이 다시 업로드합니다.",
+      "clone": "숫자와 그 타입, 정규화, 이름의 사본을 가진 새 속성.",
+      "kind": "속성이 자신의 버퍼를 소유합니다.",
+      "updateRanges": "마지막 업로드 이후 쓴 `array`의 범위. 따로 보냅니다.",
+      "addUpdateRange": "`start`부터 `count`개의 숫자를 쓴 것으로 표시합니다.",
+      "clearUpdateRanges": "업로드한 뒤 쓴 범위를 잊습니다."
     }
   },
   "BufferNumbers": {
@@ -1067,8 +1061,8 @@
       "transparentDrawCalls": "투과 드로우 콜 수.",
       "transparentSubmittedTriangles": "전송된 투과 삼각형 수.",
       "coverageReady": "완전한 초기 GPU 대체 수단을 사용할 수 있는지 여부; 이 보장이 없는 백엔드에서는 null.",
-      "coverageBudgetLimited": "요청된 디테일이 GPU 페이지 예산 안에서 고정된 대체 수단과 공존할 수 없다.",
-      "budgetPixelError": "GPU 페이지 예산이 컷에 부과하는 화면 오차 하한, 픽셀 단위: 요청된 디테일이 들어맞으면 `0`, 그렇지 않으면 이미지가 실제로 그려지는 더 거친 임계값. 페이지 예산이 없는 엔진에서는 null.",
+      "coverageBudgetLimited": "요청된 디테일이 GPU 페이지 예산에 들어가는 것보다 많은 페이지를 요구한다: 나머지는 더 거칠게 그려진다.",
+      "budgetPixelError": "WebGL2 전용: 그 페이지 예산이 컷에 부과하는 화면 오차 하한, 픽셀 단위 — 요청된 디테일이 들어맞으면 `0`, 그렇지 않으면 이미지가 실제로 그려지는 더 거친 임계값. WebGPU에는 없으며, 그곳에서는 상주 여부만이 이미지를 거칠게 한다. 페이지 예산이 없는 엔진에서는 null.",
       "frameHeld": "그 프레임이 유지되었을 때 true: 씬도, 뷰도, 리소스도 움직이지 않았고, 대기 중인 비동기 작업도 없었으며, 어떤 CPU 단계도 실행되지 않았다. 표시되는 픽셀은 원본 프레임의 것과 비트 단위로 정확히 같다. 유지된 프레임이 실제로 한 일은 있는 그대로 공개되며, 마지막 완전한 렌더링에서 복사되는 일은 결코 없다: `drawCalls`, `triangles`, `submittedTriangles`, `totalSubmittedTriangles`는 현재 값만 세고, 단계별 CPU/GPU 시간은 그 단계가 실행되지 않았으면 0, 아무것도 측정하지 않았으면 `null`이다. 엔진의 이미지가 대조 어댑터가 그리는 씬일 경우, 이 프레임에서 그 어댑터가 제출한 것을 센다 — 유지된 프레임에서는 아무것도 없다. 유지된 프레임이 실제로 **보여주는** 것은 그것이 다시 표시하는 컷에 의해 계속 설명된다: `clusters`, `selectedTriangles`, `frustumRejected`, `lodLevel`, `residentPages`는 원본 프레임의 값이다, 같은 컷이기 때문이다. 프레임을 유지하지 않는 엔진에는 이 항목이 없다.",
       "streamingError": "끈질기게 남는 로딩 오류; 실패한 URL은 세 번 시도한 뒤 익스플로러 재로드를 필요로 한다.",
       "gpuPassMs": "이 백엔드의 최신 GPU 패스 샘플; 기기가 타임스탬프 쿼리를 지원하지 않으면 null.",
@@ -1442,7 +1436,10 @@
       "array": "모든 정점의 숫자들, 차례로 채워진 것.",
       "stride": "각 정점이 차지하는 숫자의 개수.",
       "count": "그것이 담고 있는 정점 수.",
-      "attribute": "그 묶음에서 꺼낸 속성 하나, 그것 자신의 부동소수점 속성으로."
+      "attribute": "그 묶음에서 꺼낸 속성 하나, 그것 자신의 속성으로.",
+      "kind": "여러 속성이 보는 하나의 저장소.",
+      "version": "`needsUpdate`로 증가합니다.",
+      "needsUpdate": "`array`를 쓴 뒤 `needsUpdate = true`: 읽는 쪽이 다시 업로드합니다."
     }
   },
   "JobProgress": {
@@ -1753,7 +1750,7 @@
       "parameters.flatShading": "각 삼각형에 단일한 평면 음영을 주어 그 면을 보여준다.",
       "parameters.size": "점 재질에서, 점의 크기.",
       "parameters.sizeAttenuation": "거리에 따라 점이 작아지는지 여부.",
-      "parameters.linewidth": "선의 두께.",
+      "parameters.linewidth": "CSS 픽셀 단위의 선 두께로, 어느 거리에서나 같습니다.",
       "parameters.dashSize": "점선 한 조각의 길이.",
       "parameters.gapSize": "두 점선 조각 사이 간격의 길이.",
       "parameters.vertexColors": "지오메트리의 정점별 `color`가 표면을 물들이는지 여부.",
@@ -1816,7 +1813,7 @@
       "flatShading": "각 삼각형에 단일한 평면 음영을 주어 그 면을 보여준다.",
       "size": "점 재질에서, 점의 크기.",
       "sizeAttenuation": "거리에 따라 점이 작아지는지 여부.",
-      "linewidth": "선의 두께.",
+      "linewidth": "CSS 픽셀 단위의 선 두께로, 어느 거리에서나 같습니다.",
       "dashSize": "점선 한 조각의 길이.",
       "gapSize": "두 점선 조각 사이 간격의 길이.",
       "vertexColors": "지오메트리의 정점별 `color`가 표면을 물들이는지 여부.",
@@ -3976,8 +3973,8 @@
       "transparentDrawCalls": "투과 드로우 콜 수.",
       "transparentSubmittedTriangles": "전송된 투과 삼각형 수.",
       "coverageReady": "완전한 초기 GPU 대체 수단을 사용할 수 있는지 여부; 이 보장이 없는 백엔드에서는 null.",
-      "coverageBudgetLimited": "요청된 디테일이 GPU 페이지 예산 안에서 고정된 대체 수단과 공존할 수 없다.",
-      "budgetPixelError": "GPU 페이지 예산이 컷에 부과하는 화면 오차 하한, 픽셀 단위: 요청된 디테일이 들어맞으면 `0`, 그렇지 않으면 이미지가 실제로 그려지는 더 거친 임계값. 페이지 예산이 없는 엔진에서는 null.",
+      "coverageBudgetLimited": "요청된 디테일이 GPU 페이지 예산에 들어가는 것보다 많은 페이지를 요구한다: 나머지는 더 거칠게 그려진다.",
+      "budgetPixelError": "WebGL2 전용: 그 페이지 예산이 컷에 부과하는 화면 오차 하한, 픽셀 단위 — 요청된 디테일이 들어맞으면 `0`, 그렇지 않으면 이미지가 실제로 그려지는 더 거친 임계값. WebGPU에는 없으며, 그곳에서는 상주 여부만이 이미지를 거칠게 한다. 페이지 예산이 없는 엔진에서는 null.",
       "frameHeld": "그 프레임이 유지되었을 때 true: 씬도, 뷰도, 리소스도 움직이지 않았고, 대기 중인 비동기 작업도 없었으며, 어떤 CPU 단계도 실행되지 않았다. 표시되는 픽셀은 원본 프레임의 것과 비트 단위로 정확히 같다. 유지된 프레임이 실제로 한 일은 있는 그대로 공개되며, 마지막 완전한 렌더링에서 복사되는 일은 결코 없다: `drawCalls`, `triangles`, `submittedTriangles`, `totalSubmittedTriangles`는 현재 값만 세고, 단계별 CPU/GPU 시간은 그 단계가 실행되지 않았으면 0, 아무것도 측정하지 않았으면 `null`이다. 엔진의 이미지가 대조 어댑터가 그리는 씬일 경우, 이 프레임에서 그 어댑터가 제출한 것을 센다 — 유지된 프레임에서는 아무것도 없다. 유지된 프레임이 실제로 **보여주는** 것은 그것이 다시 표시하는 컷에 의해 계속 설명된다: `clusters`, `selectedTriangles`, `frustumRejected`, `lodLevel`, `residentPages`는 원본 프레임의 값이다, 같은 컷이기 때문이다. 프레임을 유지하지 않는 엔진에는 이 항목이 없다.",
       "streamingError": "끈질기게 남는 로딩 오류; 실패한 URL은 세 번 시도한 뒤 익스플로러 재로드를 필요로 한다.",
       "gpuPassMs": "이 백엔드의 최신 GPU 패스 샘플; 기기가 타임스탬프 쿼리를 지원하지 않으면 null.",
@@ -5585,7 +5582,7 @@
       "parameters.flatShading": "각 삼각형에 단일한 평면 음영을 주어 그 면을 보여준다.",
       "parameters.size": "점 재질에서, 점의 크기.",
       "parameters.sizeAttenuation": "거리에 따라 점이 작아지는지 여부.",
-      "parameters.linewidth": "선의 두께.",
+      "parameters.linewidth": "CSS 픽셀 단위의 선 두께로, 어느 거리에서나 같습니다.",
       "parameters.dashSize": "점선 한 조각의 길이.",
       "parameters.gapSize": "두 점선 조각 사이 간격의 길이.",
       "parameters.vertexColors": "지오메트리의 정점별 `color`가 표면을 물들이는지 여부.",
@@ -5623,7 +5620,7 @@
       "parameters.flatShading": "각 삼각형에 단일한 평면 음영을 주어 그 면을 보여준다.",
       "parameters.size": "점 재질에서, 점의 크기.",
       "parameters.sizeAttenuation": "거리에 따라 점이 작아지는지 여부.",
-      "parameters.linewidth": "선의 두께.",
+      "parameters.linewidth": "CSS 픽셀 단위의 선 두께로, 어느 거리에서나 같습니다.",
       "parameters.dashSize": "점선 한 조각의 길이.",
       "parameters.gapSize": "두 점선 조각 사이 간격의 길이.",
       "parameters.vertexColors": "지오메트리의 정점별 `color`가 표면을 물들이는지 여부.",
@@ -5661,7 +5658,7 @@
       "parameters.flatShading": "각 삼각형에 단일한 평면 음영을 주어 그 면을 보여준다.",
       "parameters.size": "점 재질에서, 점의 크기.",
       "parameters.sizeAttenuation": "거리에 따라 점이 작아지는지 여부.",
-      "parameters.linewidth": "선의 두께.",
+      "parameters.linewidth": "CSS 픽셀 단위의 선 두께로, 어느 거리에서나 같습니다.",
       "parameters.dashSize": "점선 한 조각의 길이.",
       "parameters.gapSize": "두 점선 조각 사이 간격의 길이.",
       "parameters.vertexColors": "지오메트리의 정점별 `color`가 표면을 물들이는지 여부.",
@@ -5699,7 +5696,7 @@
       "parameters.flatShading": "각 삼각형에 단일한 평면 음영을 주어 그 면을 보여준다.",
       "parameters.size": "점 재질에서, 점의 크기.",
       "parameters.sizeAttenuation": "거리에 따라 점이 작아지는지 여부.",
-      "parameters.linewidth": "선의 두께.",
+      "parameters.linewidth": "CSS 픽셀 단위의 선 두께로, 어느 거리에서나 같습니다.",
       "parameters.dashSize": "점선 한 조각의 길이.",
       "parameters.gapSize": "두 점선 조각 사이 간격의 길이.",
       "parameters.vertexColors": "지오메트리의 정점별 `color`가 표면을 물들이는지 여부.",
@@ -5737,7 +5734,7 @@
       "parameters.flatShading": "각 삼각형에 단일한 평면 음영을 주어 그 면을 보여준다.",
       "parameters.size": "점 재질에서, 점의 크기.",
       "parameters.sizeAttenuation": "거리에 따라 점이 작아지는지 여부.",
-      "parameters.linewidth": "선의 두께.",
+      "parameters.linewidth": "CSS 픽셀 단위의 선 두께로, 어느 거리에서나 같습니다.",
       "parameters.dashSize": "점선 한 조각의 길이.",
       "parameters.gapSize": "두 점선 조각 사이 간격의 길이.",
       "parameters.vertexColors": "지오메트리의 정점별 `color`가 표면을 물들이는지 여부.",
@@ -5775,7 +5772,7 @@
       "parameters.flatShading": "각 삼각형에 단일한 평면 음영을 주어 그 면을 보여준다.",
       "parameters.size": "점 재질에서, 점의 크기.",
       "parameters.sizeAttenuation": "거리에 따라 점이 작아지는지 여부.",
-      "parameters.linewidth": "선의 두께.",
+      "parameters.linewidth": "CSS 픽셀 단위의 선 두께로, 어느 거리에서나 같습니다.",
       "parameters.dashSize": "점선 한 조각의 길이.",
       "parameters.gapSize": "두 점선 조각 사이 간격의 길이.",
       "parameters.vertexColors": "지오메트리의 정점별 `color`가 표면을 물들이는지 여부.",
@@ -5813,7 +5810,7 @@
       "parameters.flatShading": "각 삼각형에 단일한 평면 음영을 주어 그 면을 보여준다.",
       "parameters.size": "점 재질에서, 점의 크기.",
       "parameters.sizeAttenuation": "거리에 따라 점이 작아지는지 여부.",
-      "parameters.linewidth": "선의 두께.",
+      "parameters.linewidth": "CSS 픽셀 단위의 선 두께로, 어느 거리에서나 같습니다.",
       "parameters.dashSize": "점선 한 조각의 길이.",
       "parameters.gapSize": "두 점선 조각 사이 간격의 길이.",
       "parameters.vertexColors": "지오메트리의 정점별 `color`가 표면을 물들이는지 여부.",
@@ -5851,7 +5848,7 @@
       "parameters.flatShading": "각 삼각형에 단일한 평면 음영을 주어 그 면을 보여준다.",
       "parameters.size": "점 재질에서, 점의 크기.",
       "parameters.sizeAttenuation": "거리에 따라 점이 작아지는지 여부.",
-      "parameters.linewidth": "선의 두께.",
+      "parameters.linewidth": "CSS 픽셀 단위의 선 두께로, 어느 거리에서나 같습니다.",
       "parameters.dashSize": "점선 한 조각의 길이.",
       "parameters.gapSize": "두 점선 조각 사이 간격의 길이.",
       "parameters.vertexColors": "지오메트리의 정점별 `color`가 표면을 물들이는지 여부.",
@@ -5889,7 +5886,7 @@
       "parameters.flatShading": "각 삼각형에 단일한 평면 음영을 주어 그 면을 보여준다.",
       "parameters.size": "점 재질에서, 점의 크기.",
       "parameters.sizeAttenuation": "거리에 따라 점이 작아지는지 여부.",
-      "parameters.linewidth": "선의 두께.",
+      "parameters.linewidth": "CSS 픽셀 단위의 선 두께로, 어느 거리에서나 같습니다.",
       "parameters.dashSize": "점선 한 조각의 길이.",
       "parameters.gapSize": "두 점선 조각 사이 간격의 길이.",
       "parameters.vertexColors": "지오메트리의 정점별 `color`가 표면을 물들이는지 여부.",
@@ -5927,7 +5924,7 @@
       "parameters.flatShading": "각 삼각형에 단일한 평면 음영을 주어 그 면을 보여준다.",
       "parameters.size": "점 재질에서, 점의 크기.",
       "parameters.sizeAttenuation": "거리에 따라 점이 작아지는지 여부.",
-      "parameters.linewidth": "선의 두께.",
+      "parameters.linewidth": "CSS 픽셀 단위의 선 두께로, 어느 거리에서나 같습니다.",
       "parameters.dashSize": "점선 한 조각의 길이.",
       "parameters.gapSize": "두 점선 조각 사이 간격의 길이.",
       "parameters.vertexColors": "지오메트리의 정점별 `color`가 표면을 물들이는지 여부.",
@@ -5965,7 +5962,7 @@
       "parameters.flatShading": "각 삼각형에 단일한 평면 음영을 주어 그 면을 보여준다.",
       "parameters.size": "점 재질에서, 점의 크기.",
       "parameters.sizeAttenuation": "거리에 따라 점이 작아지는지 여부.",
-      "parameters.linewidth": "선의 두께.",
+      "parameters.linewidth": "CSS 픽셀 단위의 선 두께로, 어느 거리에서나 같습니다.",
       "parameters.dashSize": "점선 한 조각의 길이.",
       "parameters.gapSize": "두 점선 조각 사이 간격의 길이.",
       "parameters.vertexColors": "지오메트리의 정점별 `color`가 표면을 물들이는지 여부.",
@@ -6003,7 +6000,7 @@
       "parameters.flatShading": "각 삼각형에 단일한 평면 음영을 주어 그 면을 보여준다.",
       "parameters.size": "점 재질에서, 점의 크기.",
       "parameters.sizeAttenuation": "거리에 따라 점이 작아지는지 여부.",
-      "parameters.linewidth": "선의 두께.",
+      "parameters.linewidth": "CSS 픽셀 단위의 선 두께로, 어느 거리에서나 같습니다.",
       "parameters.dashSize": "점선 한 조각의 길이.",
       "parameters.gapSize": "두 점선 조각 사이 간격의 길이.",
       "parameters.vertexColors": "지오메트리의 정점별 `color`가 표면을 물들이는지 여부.",
@@ -6041,7 +6038,7 @@
       "parameters.flatShading": "각 삼각형에 단일한 평면 음영을 주어 그 면을 보여준다.",
       "parameters.size": "점 재질에서, 점의 크기.",
       "parameters.sizeAttenuation": "거리에 따라 점이 작아지는지 여부.",
-      "parameters.linewidth": "선의 두께.",
+      "parameters.linewidth": "CSS 픽셀 단위의 선 두께로, 어느 거리에서나 같습니다.",
       "parameters.dashSize": "점선 한 조각의 길이.",
       "parameters.gapSize": "두 점선 조각 사이 간격의 길이.",
       "parameters.vertexColors": "지오메트리의 정점별 `color`가 표면을 물들이는지 여부.",
@@ -6079,7 +6076,7 @@
       "parameters.flatShading": "각 삼각형에 단일한 평면 음영을 주어 그 면을 보여준다.",
       "parameters.size": "점 재질에서, 점의 크기.",
       "parameters.sizeAttenuation": "거리에 따라 점이 작아지는지 여부.",
-      "parameters.linewidth": "선의 두께.",
+      "parameters.linewidth": "CSS 픽셀 단위의 선 두께로, 어느 거리에서나 같습니다.",
       "parameters.dashSize": "점선 한 조각의 길이.",
       "parameters.gapSize": "두 점선 조각 사이 간격의 길이.",
       "parameters.vertexColors": "지오메트리의 정점별 `color`가 표면을 물들이는지 여부.",
@@ -7155,19 +7152,6 @@
       "handbrake": "핸드브레이크가 당겨졌는지 여부."
     }
   },
-  "GraphAttribute": {
-    "members": {
-      "count": "정점 수.",
-      "array": "저장소.",
-      "kind": "속성이 자신의 버퍼를 소유합니다.",
-      "version": "`needsUpdate`로 증가합니다.",
-      "updateRanges": "마지막 업로드 이후 쓴 `array`의 범위. 따로 보냅니다.",
-      "addUpdateRange": "`start`부터 `count`개의 숫자를 쓴 것으로 표시합니다.",
-      "clearUpdateRanges": "업로드한 뒤 쓴 범위를 잊습니다.",
-      "needsUpdate": "`array`를 쓴 뒤 `needsUpdate = true`: 읽는 쪽이 다시 업로드합니다."
-    },
-    "summary": "자신의 저장소를 소유한 속성: 정점마다 `itemSize`개의 숫자가 이어집니다."
-  },
   "GraphGeometry": {
     "members": {
       "attributes": "그것의 정점 속성.",
@@ -7262,34 +7246,6 @@
       "rotation": "회전, 라디안 단위."
     },
     "summary": "이미지와, 그것을 읽는 샘플러 상태, 그리고 좌표 변환."
-  },
-  "GraphArray": {
-    "summary": "속성이 담는 형식화 배열."
-  },
-  "GraphElements": {
-    "summary": "두 종류의 속성 중 하나."
-  },
-  "GraphInterleavedAttribute": {
-    "summary": "인터리브 버퍼의 각 정점 `offset`에 있는 `itemSize`개의 숫자를 보는 속성.",
-    "members": {
-      "kind": "속성이 공유 버퍼를 봅니다.",
-      "data": "보고 있는 버퍼.",
-      "offset": "각 정점에서 숫자가 시작되는 위치.",
-      "array": "요소가 있는 저장소.",
-      "count": "정점 수.",
-      "needsUpdate": "`array`를 쓴 뒤 `needsUpdate = true`: 읽는 쪽이 다시 업로드합니다."
-    }
-  },
-  "GraphInterleavedBuffer": {
-    "summary": "여러 속성이 보는 하나의 저장소. `stride`개의 숫자마다 정점 하나.",
-    "members": {
-      "kind": "여러 속성이 보는 하나의 저장소.",
-      "count": "정점 수.",
-      "version": "`needsUpdate`로 증가합니다.",
-      "array": "저장소.",
-      "stride": "정점당 숫자 수.",
-      "needsUpdate": "`array`를 쓴 뒤 `needsUpdate = true`: 읽는 쪽이 다시 업로드합니다."
-    }
   },
   "GraphMesh": {
     "summary": "그려지는 노드: 지오메트리와 그 표면, 또는 지오메트리 그룹마다 표면 하나.",
@@ -7391,6 +7347,45 @@
       "pulley": "`a`에서 두 바퀴(`over`)를 넘어 `b`로 내려가는 줄: 한쪽이 내려가면 다른 쪽이 올라갑니다.",
       "gear": "`ratio`의 비로 함께 도는 두 바퀴. 각각 자기 핀(`axis`, `axisB`) 둘레로 돌며 자기 경첩(바퀴가 그 `a`)이 붙잡습니다. `ratio`나 1 / `ratio`가 정수이면 톱니도 만들어질 때의 위상을 유지합니다.",
       "rackAndPinion": "`axis` 둘레로 도는 피니언 `a`가 랙 `b`를 `axisB`를 따라 움직입니다. 각각 자기 경첩이나 슬라이더(물체가 그 `a`)가 붙잡고, 톱니는 만들어질 때의 위상을 유지합니다."
+    }
+  },
+  "InterleavedBufferAttribute": {
+    "summary": "인터리브 버퍼의 각 정점 `offset`에 있는 `itemSize`개의 숫자를 보는 속성.",
+    "members": {
+      "isInterleavedBufferAttribute": "항상 `true`: 인터리브 뷰를 다른 무엇과 구분한다.",
+      "kind": "속성이 공유 버퍼를 봅니다.",
+      "data": "보고 있는 버퍼.",
+      "offset": "각 정점에서 숫자가 시작되는 위치.",
+      "array": "요소가 있는 저장소.",
+      "count": "이 숫자들이 나타내는 정점의 개수.",
+      "needsUpdate": "`array`를 쓴 뒤 `needsUpdate = true`: 읽는 쪽이 다시 업로드합니다.",
+      "clone": "묶음에서 그것을 소유하는 속성으로 복사된 자신의 숫자."
+    }
+  },
+  "VertexAttribute": {
+    "summary": "두 종류의 속성 중 하나: 자신의 저장소를 소유하거나 인터리브된 저장소를 본다."
+  },
+  "VertexElements": {
+    "summary": "정점 속성 하나의 요소, 성분별로 읽고 쓴다.",
+    "members": {
+      "name": "모프 타깃이 알려진 이름; 나머지는 비어 있다.",
+      "itemSize": "정점 하나에 속하는 숫자 개수: 위치라면 3.",
+      "normalized": "정수값이 0과 1 사이의 값으로 읽히는지 여부.",
+      "array": "요소가 있는 저장소.",
+      "count": "이 숫자들이 나타내는 정점의 개수.",
+      "stored": "저장된 그대로의 정점 `index`의 `component`번째 숫자; 정규화된 정수는 스케일되지 않는다.",
+      "getComponent": "정점 `index`의 `component`번째 숫자, 그것이 나타내는 수로 읽힌다.",
+      "setComponent": "정점 `index`의 `component`번째 숫자를 쓴다.",
+      "getX": "정점 `i`의 첫 번째 숫자.",
+      "getY": "정점 `i`의 두 번째 숫자.",
+      "getZ": "정점 `i`의 세 번째 숫자.",
+      "getW": "정점 `i`의 네 번째 숫자.",
+      "setX": "정점 `i`의 첫 번째 숫자를 쓴다.",
+      "setY": "정점 `i`의 두 번째 숫자를 쓴다.",
+      "setZ": "정점 `i`의 세 번째 숫자를 쓴다.",
+      "setW": "정점 `i`의 네 번째 숫자를 쓴다.",
+      "setXY": "정점 `i`에 두 개의 숫자를 쓴다.",
+      "setXYZ": "정점 `i`에 세 개의 숫자를 쓴다."
     }
   }
 }

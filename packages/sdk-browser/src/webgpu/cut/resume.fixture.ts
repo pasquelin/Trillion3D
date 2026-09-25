@@ -14,9 +14,9 @@ import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 const VIEWPORT: [number, number] = [512, 512];
 
 /**
- * A minimal bench around `renderGpuCut`: one page, a simulated GPU selection and simulated
- * residency services. The page does not yet have its bytes; `arrive()` gives them to it, as a CPU
- * transfer decode would.
+ * A minimal bench around `renderGpuCut`, while the root cover loads: one page, a simulated GPU
+ * selection and simulated residency services. The page does not yet have its bytes; `arrive()`
+ * gives them to it, as a CPU transfer decode would.
  */
 export function banc(panne?: 'debordement' | 'envoi') {
   // The kernel reads the engine camera only: posed at z = 5, looking down the axis.
@@ -35,16 +35,16 @@ export function banc(panne?: 'debordement' | 'envoi') {
   const comptes = { queue: 0, sync: 0, residence: 0, envois: 0, attentes: 0, disposes: 0 };
   const codes: string[] = [];
   const residentFlags = new Uint32Array(1);
+  const bootstrapState = { ready: false };
   // What GPU selection believes of residency, and the shown list it takes from it at each dispatch.
   let vueResidence = 0;
   let releve: GpuCut = {
     uniforms,
     result: {
       pageIds: [0],
-      drawablePageIds: [0],
+      drawablePageIds: [],
       frustumRejected: 0,
       lodLevel: 0,
-      complete: false,
       ...fixtureTotals(),
     },
     worldRevision: 0,
@@ -63,15 +63,14 @@ export function banc(panne?: 'debordement' | 'envoi') {
     dispatch() {
       comptes.envois++;
       if (panne === 'envoi') throw new Error('ENVOI_PERDU');
-      // Selection computes completeness: a wanted resident page makes a complete shown list.
+      // Selection draws the page once it believes it resident.
       releve = {
         uniforms,
         result: {
           pageIds: [0],
-          drawablePageIds: [0],
+          drawablePageIds: vueResidence === 1 ? [0] : [],
           frustumRejected: 0,
           lodLevel: 0,
-          complete: vueResidence === 1,
           ...fixtureTotals(),
         },
         worldRevision: 0,
@@ -106,7 +105,7 @@ export function banc(panne?: 'debordement' | 'envoi') {
       imageRevision: 1,
       clearColor: 0,
     },
-    gpu: { device: fakeDevice().device, cache: {}, cutIncomplete: false, selectionFallback: false },
+    gpu: { device: fakeDevice().device, cache: {}, selectionFallback: false },
     capabilities: { gpuDriven: true, unsupported: [] },
     diag: {
       traceDiagnostic: () => {
@@ -122,7 +121,7 @@ export function banc(panne?: 'debordement' | 'envoi') {
     setup: { viewport: VIEWPORT, slots: 10 },
     timing: { marks: {} },
     services: {
-      bootstrapState: { ready: true },
+      bootstrapState,
       residencySets: {
         get requestedCount() {
           return desired.length;
@@ -136,12 +135,9 @@ export function banc(panne?: 'debordement' | 'envoi') {
         // Residency follows the bytes: a decoded page becomes resident for selection.
         residentFlags[0] = page.array ? 1 : 0;
       },
-      adoptGpuCut: () => {
-        adopter.adopt();
-        rt.gpu.cutIncomplete = adopter.metrics.incomplete;
-      },
+      adoptGpuCut: () => adopter.adopt(),
     },
-  } as unknown as WebgpuPagesRuntime & { gpu: { cutIncomplete: boolean } };
+  } as unknown as WebgpuPagesRuntime;
   return {
     camera,
     comptes,

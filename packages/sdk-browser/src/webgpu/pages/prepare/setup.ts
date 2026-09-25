@@ -22,6 +22,7 @@ import {
   type TexturePools,
 } from '../../residency/memoryBudgets.ts';
 import { sessionGeometryPool } from '../../../residency/sessionPool.ts';
+import { DEFAULT_PIXEL_RATIO } from '../../../backend/common.ts';
 
 export type WebgpuDiagnostics = ReturnType<typeof createWebgpuDiagnostics> & {
   traceEnabled: boolean;
@@ -33,6 +34,7 @@ export type WebgpuPagesSetup = ReturnType<typeof createWebgpuPagesSetup>;
 export function createWebgpuPagesSetup(context: BackendContext, diag: WebgpuDiagnostics) {
   const { source, metadata, indices, associations, maxResidentPages, gpuDevice } = context;
   const viewport = context.viewport ?? [1, 1];
+  const pixelRatio = context.pixelRatio ?? (() => DEFAULT_PIXEL_RATIO);
   const clearColor = context.clearColor ?? RASTER_BACKGROUND;
   const inputColor = {
     clearColor: `#${clearColor.toString(16).padStart(6, '0')}`,
@@ -147,6 +149,7 @@ export function createWebgpuPagesSetup(context: BackendContext, diag: WebgpuDiag
     // Rows, roots and transparent copies carry the matrices.
     worlds,
     viewport,
+    pixelRatio,
     roots,
     allPages,
     blendCopies,
