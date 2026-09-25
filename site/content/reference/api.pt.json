@@ -7428,7 +7428,7 @@
       "offset": "Aquilo de que `matrix` é composta.",
       "matrixAutoUpdate": "Se o host reconstrói `matrix`.",
       "matrix": "Transformação UV do amostrador, `KHR_texture_transform` composta em três linhas; o host a recalcula a partir de offset, repeat e rotation quando possui a atualização.",
-      "generateMipmaps": "Se cópias menores são feitas.",
+      "generateMipmaps": "Se cópias menores são pedidas; o motor as faz sempre que `minFilter` as lê.",
       "premultiplyAlpha": "Se a cor é pré-multiplicada pelo alfa.",
       "flipY": "Se as linhas são invertidas no envio.",
       "version": "Incrementado pelo host a cada mudança de conteúdo: o que um envio compara para pular uma recópia.",

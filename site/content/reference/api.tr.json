@@ -7446,7 +7446,7 @@
       "offset": "`matrix`in neyden oluşturulduğu.",
       "matrixAutoUpdate": "Host'un `matrix`'i yeniden inşa edip etmediği.",
       "matrix": "Örnekleyicinin UV dönüşümü, üç satıra bileşik `KHR_texture_transform`; host, güncellemeye sahip olduğunda onu offset, repeat ve rotation'dan yeniden hesaplar.",
-      "generateMipmaps": "Daha küçük kopyaların yapılıp yapılmadığı.",
+      "generateMipmaps": "Daha küçük kopyaların istenip istenmediği; `minFilter` onları okuduğunda motor onları her zaman yapar.",
       "premultiplyAlpha": "Rengin alfa ile önceden çarpılıp çarpılmadığı.",
       "flipY": "Yüklemede satırların çevrilip çevrilmediği.",
       "version": "Her içerik değişikliğinde host tarafından artırılır: bir yüklemenin yeniden kopyalamayı atlamak için karşılaştırdığı şey.",
