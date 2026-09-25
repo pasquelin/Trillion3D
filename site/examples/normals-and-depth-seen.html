@@ -105,10 +105,9 @@
       }, (values, key) => {
         if (key !== undefined && key !== 'see') return;
         view = values.see;
-        // Only here, on a change, do the pieces trade their material: never every frame.
+        // Only here, on a change, do the pieces trade their material: never every frame. The
+        // normal and depth materials are shown as stored: the engine keeps the film curve off them.
         for (const { mesh, lit } of pieces) mesh.material = view === 'lit' ? lit : view === 'normals' ? NORMALS : DEPTH;
-        // The two views of data are shown as they are stored: no film curve bending them.
-        world.toneMapping = view === 'lit' ? 'aces' : 'none';
         if (view !== 'depth') world.camera.far = FAR;
         meaning?.(say(view));
         world.invalidate();
