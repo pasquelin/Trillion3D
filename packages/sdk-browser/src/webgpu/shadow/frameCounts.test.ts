@@ -155,3 +155,33 @@ test('a sampled cull count is named by the frame it describes, only once it has 
   assert.deepEqual(counts.counts(), { frame: 40, regions: 1, kept: 22 });
   counts.dispose();
 });
+
+// A frame draws its pages in batches (#489): the sampled frame copies every batch's commands after
+// the last, so the count covers all its pages, and the frames after it copy nothing.
+test('a sampled cull count covers every batch of its frame', async () => {
+  const words = new Uint32Array(8);
+  words[1] = 22;
+  words[5] = 7;
+  const { counts, encoder, mapped } = samplingDevice(words);
+  const copies: number[][] = [];
+  encoder.copyBufferToBuffer = ((
+    _s: GPUBuffer,
+    _o: number,
+    _d: GPUBuffer,
+    at: number,
+    size: number,
+  ) => copies.push([at, size])) as GPUCommandEncoder['copyBufferToBuffer'];
+  const indirect = {} as GPUBuffer;
+  counts.sample(encoder, indirect, 1, 40);
+  counts.sample(encoder, indirect, 1, 40);
+  counts.submitted();
+  counts.sample(encoder, indirect, 1, 41);
+  assert.deepEqual(copies, [
+    [0, 16],
+    [16, 16],
+  ]);
+  mapped();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.deepEqual(counts.counts(), { frame: 40, regions: 2, kept: 29 });
+  counts.dispose();
+});

@@ -7,8 +7,9 @@ import { MAX_SHADOW_PAGES, MAX_SHADOW_REGIONS } from './recordPack.ts';
 /**
  * THE MEMORY OF A FRAME'S SHADOW BATCHES, SIZED ONCE FROM THE LARGEST POOL. A frame draws every page
  * it marks, in as many batches as that takes (`../../webgpu/pages/render/encodeShadowBatches.ts`);
- * what each batch adds — its staged writes, its flag word, its CPU cut's faces — is sized here from
- * one rule, never grown at run time, and counted in the memory budget (`residency/memoryBudget.ts`).
+ * what each batch adds — its staged writes, its flag word, its CPU cut's faces, its sampled counts —
+ * is sized here from one rule, never grown at run time, and counted in the memory budget
+ * (`residency/memoryBudget.ts`).
  *
  * The rule: a frame lists at most the largest pool's pages (`admit.ts`), and a batch holds
  * `MAX_SHADOW_PAGES` of them, so a frame needs at most `MAX_SHADOW_BATCHES` full batches, each in
@@ -66,9 +67,18 @@ const FLAG_GPU_BYTES = MAX_SHADOW_BATCHES * 4,
 const CPU_RUN_HOST_BYTES = 4 + 4 + DRAW_INDIRECT_STRIDE,
   CPU_RUN_GPU_BYTES = DRAW_INDIRECT_STRIDE;
 
-/** GPU bytes the batches add, at their largest: staging, flag words, CPU cut commands. */
+/** A sampled frame's region commands, every batch's (`cullCounts.ts`): one for the cull, one for
+ *  the occlusion test. */
+export const SHADOW_COUNT_SAMPLE_BYTES =
+  MAX_SHADOW_BATCHES * MAX_SHADOW_REGIONS * DRAW_INDIRECT_STRIDE;
+
+/** GPU bytes the batches add, at their largest: staging, flag words, CPU cut commands, and the
+ *  cull and occlusion count samples. */
 export const SHADOW_BATCH_GPU_BYTES =
-  SHADOW_STAGING_BYTES + SHADOW_FLAG_FRAMES * FLAG_GPU_BYTES + MAX_SHADOW_RUNS * CPU_RUN_GPU_BYTES;
+  SHADOW_STAGING_BYTES +
+  SHADOW_FLAG_FRAMES * FLAG_GPU_BYTES +
+  MAX_SHADOW_RUNS * CPU_RUN_GPU_BYTES +
+  2 * SHADOW_COUNT_SAMPLE_BYTES;
 /** Host bytes the batches add, at their largest: the flag frames' pages, the CPU cut's faces. */
 export const SHADOW_BATCH_HOST_BYTES =
   SHADOW_FLAG_FRAMES * FLAG_HOST_BYTES + MAX_SHADOW_RUNS * CPU_RUN_HOST_BYTES;
