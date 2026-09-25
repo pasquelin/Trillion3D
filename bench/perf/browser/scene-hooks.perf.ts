@@ -1,9 +1,10 @@
-// Performance bench: the host scene watch on a large graph (Three.js as the witness).
-// The hooks a watch puts on the host's nodes must not slow the reference's own matrix walk
-// over them: a host that also renders its graph with Three pays that walk every frame. The
-// hooked graph is walked against a plain twin; a refused candidate — accessors redefined on
-// the instance, which V8 answers with dictionary mode — is measured for the record. The read
-// the watch does per frame over the same nodes is measured on its own.
+// Performance bench: the host scene watch on a large graph of the engine's own nodes.
+// The watch hooks a node by chaining a listener on its position, scale and rotation (`listen`),
+// which each write of those values calls; no field of the node is redefined. Those listeners must
+// not slow the matrix walk over the nodes: the listener-hooked graph is walked against its plain
+// twin, the witness, and the plain graph is walked as a case too, its gap to the witness being the
+// spread the hooked row is read against. The read the watch does per frame over the same nodes is
+// measured on its own.
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import { mesure, rapport } from '../../core/index.ts';
 import { createHostSceneWatch } from '../../../packages/sdk-browser/src/host/scene/watch.ts';
@@ -44,35 +45,6 @@ function hooked() {
   return { ...scene, watch };
 }
 
-/** The refused candidate: the pose fields redefined as accessors of each instance. */
-function instanceAccessors() {
-  const scene = graph();
-  scene.root.traverse((node) => {
-    for (const vector of [node.position, node.scale])
-      for (const key of ['x', 'y', 'z'] as const) {
-        let held = vector[key];
-        Object.defineProperty(vector, key, {
-          configurable: true,
-          enumerable: true,
-          get: () => held,
-          set: (value) => {
-            held = value;
-          },
-        });
-      }
-    let visible = node.visible;
-    Object.defineProperty(node, 'visible', {
-      configurable: true,
-      enumerable: true,
-      get: () => visible,
-      set: (value) => {
-        visible = value;
-      },
-    });
-  });
-  return scene;
-}
-
 /** The world matrices of one mesh in two hundred, after a forced walk of the whole graph. */
 function walk({ root, meshes }: { root: G.Group; meshes: G.GraphMesh[] }) {
   root.updateMatrixWorld(true);
@@ -86,18 +58,14 @@ const plain = graph();
 const options = { chauffe: 5, tours: 40, budgetMs: 4000 };
 
 const walks = await mesure({
-  name: 'updateMatrixWorld(true) over hooked nodes',
+  name: 'updateMatrixWorld(true) over listener-hooked nodes',
   fichier: [
-    'packages/sdk-browser/src/host/scene/hookCore.ts',
     'packages/sdk-browser/src/host/scene/hooks.ts',
+    'packages/sdk-core/src/world/math/observed.ts',
   ],
   cas: [
-    { name: `${NODES} nodes hooked on the prototype`, input: hooked(), size: NODES },
-    {
-      name: `${NODES} nodes with accessors on the instance (refused)`,
-      input: instanceAccessors(),
-      size: NODES,
-    },
+    { name: `${NODES} listener-hooked nodes`, input: hooked(), size: NODES },
+    { name: `${NODES} plain nodes`, input: graph(), size: NODES },
   ],
   calcul: walk,
   temoin: () => walk(plain),
