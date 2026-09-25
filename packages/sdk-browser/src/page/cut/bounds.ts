@@ -25,11 +25,9 @@ export const OWN_FLOOR = 0,
    *  unconditionally a cluster that nothing produced: a subtree that contains one cannot be
    *  rejected on own error alone. */
   ALL_SOURCED = 11,
-  /** 1 when the subtree carries a cluster that NOTHING replaces — the coarsest cover, the one
-   *  the pinned fallback draws. Such a subtree is not rejected on own error: the fallback consults
-   *  no threshold, and the GPU descent must leave it reachable (`../../gpu/dag/shader/levelWgsl.ts`). The CPU
-   *  cut has no use for it: its fallback re-reads the pages without going through the descent
-   *  (`repair.ts`). */
+  /** 1 when the subtree carries a cluster that NOTHING replaces — the coarsest cover. Its
+   *  replacement error projects to infinity, so no ceiling certifies the subtree
+   *  (`../../gpu/dag/hierarchy.ts`). */
   HAS_ROOT = 12;
 
 /** Grows the bounding sphere stored at `at` to cover the one read at `from`.

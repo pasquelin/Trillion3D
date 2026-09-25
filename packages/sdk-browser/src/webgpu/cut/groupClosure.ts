@@ -46,7 +46,14 @@ export function createGroupClosure(
     exitedCount: 0,
     has: (id: number) => heldPages[id] > 0,
   };
-  const page = (id: number, step: number) => {
+  /** Group stamps of one `closeOver` walk. */
+  const walked = new Uint32Array(Math.max(1, groups));
+  let walk = 0,
+    /** What a walk does: counts `step` on what it reaches, or hands each page to `visitor`. */
+    step = 0,
+    visitor: ((id: number) => void) | undefined;
+  const touch = (id: number) => {
+    if (visitor) return visitor(id);
     if (!seen[id]) {
       seen[id] = 1;
       before[id] = heldPages[id] > 0 ? 1 : 0;
@@ -54,66 +61,54 @@ export function createGroupClosure(
     }
     heldPages[id] += step;
   };
-  const group = (r: number, g: number, step: number) => {
-    const at = groupBase[r] + g,
-      was = heldGroups[at] > 0;
-    heldGroups[at] += step;
-    if (was === heldGroups[at] > 0) return;
+  /** Group `g` of placement `r` and what it holds: its members, and each output's own group — the
+   *  output itself when nothing replaces it. A counted group is walked when it is first held or
+   *  last released; a visited one once per walk. */
+  const reach = (r: number, g: number) => {
+    const at = groupBase[r] + g;
+    if (visitor) {
+      if (walked[at] === walk) return;
+      walked[at] = walk;
+    } else {
+      const was = heldGroups[at] > 0;
+      heldGroups[at] += step;
+      if (was === heldGroups[at] > 0) return;
+    }
     const s = roots[r].structure!,
       base = pageBase[r];
-    for (let i = s.childOffsets[g]; i < s.childOffsets[g + 1]; i++) page(base + s.children[i], step);
+    for (let i = s.childOffsets[g]; i < s.childOffsets[g + 1]; i++) touch(base + s.children[i]);
     for (let i = s.outputOffsets[g]; i < s.outputOffsets[g + 1]; i++) {
       const output = s.outputs[i],
         owner = s.owners[output];
-      if (owner >= 0) group(r, owner, step);
-      else page(base + output, step);
+      if (owner >= 0) reach(r, owner);
+      else touch(base + output);
     }
   };
-  /** Holds (`step` 1) or releases (-1) packed page `id` and what it closes over. */
-  const hold = (id: number, step: number) => {
-    const rec = packedPages[id],
-      r = rec.placementIndex ?? -1,
+  /** Packed page `id` enters through its own group, or alone when nothing replaces it. */
+  const enter = (id: number) => {
+    const r = packedPages[id]?.placementIndex ?? -1,
       structure = roots[r]?.structure,
       owner = structure ? structure.owners[id - pageBase[r]] : -1;
-    if (owner >= 0) group(r, owner, step);
-    else page(id, step);
-  };
-  /** Group stamps of one `closeOver` walk. */
-  const walked = new Uint32Array(Math.max(1, groups));
-  let walk = 0;
-  const visitGroup = (r: number, g: number, visit: (id: number) => void) => {
-    if (walked[groupBase[r] + g] === walk) return;
-    walked[groupBase[r] + g] = walk;
-    const s = roots[r].structure!,
-      base = pageBase[r];
-    for (let i = s.childOffsets[g]; i < s.childOffsets[g + 1]; i++) visit(base + s.children[i]);
-    for (let i = s.outputOffsets[g]; i < s.outputOffsets[g + 1]; i++) {
-      const output = s.outputs[i],
-        owner = s.owners[output];
-      if (owner >= 0) visitGroup(r, owner, visit);
-      else visit(base + output);
-    }
+    if (owner >= 0) reach(r, owner);
+    else touch(id);
   };
   return {
     delta: delta as IdDelta,
-    /** Visits every page packed page `id` closes over, `id` included, pages of shared groups
-     *  once per call: what a list that is rebuilt whole asks for (`../residency/shadowTier.ts`). */
+    /** Visits every page `ids` close over, themselves included, each group once per call:
+     *  what a list rebuilt whole asks for (`../residency/shadowTier.ts`). */
     closeOver(ids: ArrayLike<number>, visit: (id: number) => void) {
       walk++;
-      for (let i = 0; i < ids.length; i++) {
-        const id = ids[i],
-          r = packedPages[id]?.placementIndex ?? -1,
-          structure = roots[r]?.structure,
-          owner = structure ? structure.owners[id - pageBase[r]] : -1;
-        if (owner >= 0) visitGroup(r, owner, visit);
-        else visit(id);
-      }
+      visitor = visit;
+      for (let i = 0; i < ids.length; i++) enter(ids[i]);
+      visitor = undefined;
     },
     /** Turns the cut's difference into the difference of the pages it closes over. */
     apply(cut: IdDelta) {
       // Entries first: a group one page leaves and another joins is never let go in between.
-      for (let i = 0; i < cut.enteredCount; i++) hold(cut.entered[i], 1);
-      for (let i = 0; i < cut.exitedCount; i++) hold(cut.exited[i], -1);
+      step = 1;
+      for (let i = 0; i < cut.enteredCount; i++) enter(cut.entered[i]);
+      step = -1;
+      for (let i = 0; i < cut.exitedCount; i++) enter(cut.exited[i]);
       delta.enteredCount = delta.exitedCount = 0;
       for (const id of touched) {
         seen[id] = 0;

@@ -68,7 +68,8 @@ export function createDagReadiness(packed: PackedDag) {
     /** Reads `resident` at the pages `changes` names — every page when it names none reliably —,
      *  and settles. */
     apply(resident: ArrayLike<number>, changes?: ResidencyChanges) {
-      if (changes?.sorted) for (let i = 0; i < changes.count; i++) set(changes.pages[i], !!resident[changes.pages[i]]);
+      if (changes?.sorted)
+        for (let i = 0; i < changes.count; i++) set(changes.pages[i], !!resident[changes.pages[i]]);
       else for (let page = 0; page < packed.pageCount; page++) set(page, !!resident[page]);
       return settle();
     },

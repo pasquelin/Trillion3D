@@ -908,10 +908,11 @@ their floors (the root cover, one texture layer per lane), which they never go b
 settle in one rebalance. The engine keeps what fits: pages and tiles are copied on the GPU into the
 new pool and only what no longer fits is evicted, so the image stays complete throughout.
 
-What a view asks beyond a pool is shown **coarser**, never refused: the cut raises its screen error
-until the cover fits, a texture tile shows its coarser level. The frame metrics say so —
-`coverageBudgetLimited`, `budgetPixelError` (the rung the image is drawn at, `0` when the requested
-detail fits), `geometryPoolSaturated` (pages beyond the pool's slots; a lasting count says the pool
+What a view asks beyond a pool is shown **coarser**, never refused: on WebGPU the pages that do not
+fit stay out and their surface is drawn by its nearest resident ancestor, on WebGL2 the cut raises
+its screen error until the cover fits, and a texture tile shows its coarser level. The frame metrics
+say so — `coverageBudgetLimited`, `budgetPixelError` (WebGL2: the threshold the image is drawn at,
+`0` when the requested detail fits), `geometryPoolSaturated` (pages beyond the pool's slots; a lasting count says the pool
 is too small for that view). A value that cannot be held as given is brought to what can be, and
 `geometryPoolClamp` / `texturePoolClamp` name why: `root-cover`, `scene`, `page-cap`, `minimum`,
 `device-limit`, `ceiling`, or `null`. The only true refusal is `GEOMETRY_POOL_DEVICE_LIMIT`: the
