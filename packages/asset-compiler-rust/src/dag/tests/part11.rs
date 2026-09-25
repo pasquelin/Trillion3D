@@ -13,9 +13,17 @@ fn a_part_removed_whole_costs_its_distance_to_what_is_kept() {
     let weld = [0u32, 1, 2, 3, 4, 5];
     let source = [0, 1, 2, 3, 4, 5];
     let removed = vanished::vanished(&source, &[0, 1, 2], &positions, &weld);
-    assert!((removed.distance - 3.0).abs() < 1e-9, "{}", removed.distance);
+    assert!(
+        (removed.distance - 3.0).abs() < 1e-9,
+        "{}",
+        removed.distance
+    );
     // The removed triangle's bounding sphere: its box centre to its farthest corner.
-    assert!((removed.radius - 0.5f64.sqrt()).abs() < 1e-9, "{}", removed.radius);
+    assert!(
+        (removed.radius - 0.5f64.sqrt()).abs() < 1e-9,
+        "{}",
+        removed.radius
+    );
     let kept = vanished::vanished(&source, &source, &positions, &weld);
     assert_eq!((kept.distance, kept.radius), (0.0, 0.0));
 }

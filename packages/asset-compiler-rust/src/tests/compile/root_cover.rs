@@ -1,41 +1,17 @@
 //! A coarse level never destroys a part (#484): the root cover — what `memory-on-a-budget` draws
 //! at its smallest budget — holds every part of the model, and every root face lies on the model.
 //! On `signature-architecture`, the roots had lost the paving, the plinths, the arcades' roofs and
-//! columns, and a fan of faces turned from the light filled every arch opening.
+//! columns, and a fan of faces turned from the light filled every arch opening. The cook refuses
+//! a parent error below a child's, so a cook that passes keeps its errors monotone.
 use super::chalet_fixture::{push_box, push_log};
 use super::silhouette::{page_indices, Mesh};
 use super::thin_walls::mesh_fixture;
 use super::*;
 use crate::dag::bounds::bounding_sphere;
-use crate::join::Join;
+use crate::dag::clusters::weld_positions;
+use crate::dag::vanished::parts;
 use crate::physics_cook::hausdorff::one_sided_distance;
-use std::collections::{HashMap, HashSet};
-
-/// The parts of a triangle list: connected over shared positions, one corner list each.
-fn parts(positions: &[f32], indices: &[u32]) -> Vec<Vec<u32>> {
-    let key = |v: u32| -> [u32; 3] {
-        std::array::from_fn(|c| positions[v as usize * 3 + c].to_bits())
-    };
-    let mut ids: HashMap<[u32; 3], u32> = HashMap::new();
-    let corners: Vec<u32> = indices
-        .iter()
-        .map(|&v| {
-            let next = ids.len() as u32;
-            *ids.entry(key(v)).or_insert(next)
-        })
-        .collect();
-    let mut join = Join::new(ids.len());
-    for tri in corners.as_chunks::<3>().0 {
-        join.unite(tri[0], tri[1]);
-        join.unite(tri[0], tri[2]);
-    }
-    let mut parts: HashMap<u32, Vec<u32>> = HashMap::new();
-    let triangles = indices.as_chunks::<3>().0.iter();
-    for (tri, local) in triangles.zip(corners.as_chunks::<3>().0) {
-        parts.entry(join.root(local[0])).or_default().extend(tri);
-    }
-    parts.into_values().collect()
-}
+use std::collections::HashSet;
 
 /// The root cover's defects against the source it was cooked from, one line each: a part none of
 /// whose vertices a root page names, and a root page with a face farther from the source than
@@ -63,7 +39,7 @@ fn root_cover_defects(
         }
         named.extend(drawn);
     }
-    for part in parts(positions, indices) {
+    for part in parts(indices, &weld_positions(positions, indices)) {
         if !part.iter().any(|v| named.contains(v)) {
             let sphere = bounding_sphere(positions, &part);
             defects.push(format!(
@@ -85,7 +61,12 @@ fn read<T>(gltf: &Value, bin: &[u8], accessor: &Value, decode: fn([u8; 4]) -> T)
     let width = if accessor["type"] == "VEC3" { 3 } else { 1 };
     let count = accessor["count"].as_u64().expect("count") as usize * width;
     let bytes = &bin[offset..offset + count * 4];
-    bytes.as_chunks::<4>().0.iter().map(|b| decode(*b)).collect()
+    bytes
+        .as_chunks::<4>()
+        .0
+        .iter()
+        .map(|b| decode(*b))
+        .collect()
 }
 
 #[test]
@@ -93,7 +74,8 @@ fn the_root_cover_of_signature_architecture_holds_every_part_on_the_model() {
     let folder = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../../site/assets/gallery/signature-architecture/source");
     let gltf: Value =
-        serde_json::from_slice(&fs::read(folder.join("geometry.gltf")).expect("gltf")).expect("json");
+        serde_json::from_slice(&fs::read(folder.join("geometry.gltf")).expect("gltf"))
+            .expect("json");
     let bin = fs::read(folder.join("geometry.bin")).expect("bin");
     let (root, mut options) = gltf_fixture("geometry", &gltf, &bin);
     options.texture_formats = Vec::new();
@@ -106,7 +88,9 @@ fn the_root_cover_of_signature_architecture_holds_every_part_on_the_model() {
         let position = &written["attributes"]["POSITION"];
         let positions = read(&gltf, &bin, position, f32::from_le_bytes);
         let indices = read(&gltf, &bin, &written["indices"], u32::from_le_bytes);
-        defects.extend(root_cover_defects(&objects, primitive, &positions, &indices));
+        defects.extend(root_cover_defects(
+            &objects, primitive, &positions, &indices,
+        ));
     }
     let _ = fs::remove_dir_all(root);
     assert!(defects.is_empty(), "{defects:#?}");
