@@ -13,11 +13,9 @@ const adder = (known: Map<Texture, number>, list: Texture[]) => (texture?: Textu
 };
 
 /**
- * Census every colour and data texture once, in a stable slot order — and the colour textures
- * EVERY reader of which takes the alpha for coverage: the map of a masked or blended surface,
- * never an emissive map nor the map of an opaque one. Those alone reduce their mips weighted by
- * alpha, the rule the compiler bakes into their `Coverage` chain (`collect.rs`, #42); one opaque
- * or emissive reader draws the RGB under alpha 0, and keeps the texture plain.
+ * Census every colour and data texture once, in a stable slot order, and, per colour texture,
+ * whether EVERY reader takes its alpha for coverage — the map of a masked or blended surface,
+ * never an emissive map: the decision `collect.rs` takes for the compiler's `Coverage` chain (#42).
  */
 export function collectWebgpuMaterialTextures(
   allPages: PageRec[],
@@ -49,5 +47,5 @@ export function collectWebgpuMaterialTextures(
   };
   for (const rec of allPages) collect(rec.material);
   for (const copy of blendCopies) collect(copy.surface);
-  return { maps, dataMaps, coverage: coverage as ReadonlyMap<Texture, boolean> };
+  return { maps, dataMaps, coverage };
 }

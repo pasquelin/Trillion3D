@@ -159,6 +159,24 @@ fn encode_previews_rejects_a_decreasing_texture_index() {
     assert!(crate::manifest_binary::preview::encode_previews(&twice, &mut columns).is_err());
 }
 
+// #42: a coverage chain is its texture's colour-atlas entry — before the data one, and never
+// beside a plain colour one, which the engine could not tell apart from it.
+#[test]
+fn encode_previews_keeps_one_colour_entry_per_texture() {
+    let encode = |previews: Vec<TexturePreview>| {
+        let mut columns: Vec<Column> = (0..COLUMNS).map(|_| Column::default()).collect();
+        crate::manifest_binary::preview::encode_previews(&previews, &mut columns)
+    };
+    let with = |kind| TexturePreview {
+        kind,
+        ..preview(2, 4, 4, 1)
+    };
+    use AtlasKind::{Color, Coverage, Data};
+    encode(vec![with(Coverage), with(Data)]).expect("coverage then data");
+    assert!(encode(vec![with(Data), with(Coverage)]).is_err());
+    assert!(encode(vec![with(Color), with(Coverage)]).is_err());
+}
+
 // Behavior 9 (g): more baked levels than tail leaves above it refused.
 #[test]
 fn encode_previews_rejects_more_baked_levels_than_the_tail_leaves() {

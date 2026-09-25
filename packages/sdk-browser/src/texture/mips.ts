@@ -88,7 +88,7 @@ function mipProgram(device: GPUDevice): MipProgram {
 function mipPipeline(device: GPUDevice, format: GPUTextureFormat, weighted: boolean) {
   const program = mipProgram(device);
   const { layout, module } = program;
-  const key = `${format}${weighted ? ' weighted' : ''}`;
+  const key = `${format}/${Number(weighted)}`;
   const held = program.pipelines.get(key);
   if (held) return { layout, pipeline: held };
   const pipeline = device.createRenderPipeline({
