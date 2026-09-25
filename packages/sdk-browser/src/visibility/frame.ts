@@ -1,6 +1,7 @@
 import type { DepthCamera } from '../camera/depthConvention.ts';
 import { triangleAt } from './math.ts';
 import { unpackVisibilityId, type VisPage } from './types.ts';
+import { DEFAULT_PIXEL_RATIO } from '../backend/common.ts';
 
 export type VisTriangle = NonNullable<ReturnType<typeof triangleAt>>;
 
@@ -20,6 +21,7 @@ export function createVisibilityFrame(
   cam: DepthCamera,
   width: number,
   height: number,
+  pixelRatio = DEFAULT_PIXEL_RATIO,
 ) {
   const triangles = new Map<number, VisTriangle | null>();
   let dernierId = 0,
@@ -34,7 +36,9 @@ export function createVisibilityFrame(
       const unpacked = unpackVisibilityId(id);
       const page = unpacked ? pages[unpacked.pageIndex] : undefined;
       const triangle =
-        page && unpacked ? triangleAt(page, unpacked.triangleIndex, cam, width, height) : null;
+        page && unpacked
+          ? triangleAt(page, unpacked.triangleIndex, cam, width, height, pixelRatio)
+          : null;
       triangles.set(id, triangle);
       return (dernier = triangle);
     },

@@ -21,6 +21,10 @@ export class WebglClusterOwner {
   set toneCurve(rank: number) {
     this.renderer.toneCurve = rank;
   }
+  /** Image pixels per CSS pixel of the frames to come: the scale of a line's width. */
+  set pixelRatio(ratio: number) {
+    this.renderer.pass.pixelRatio = ratio;
+  }
   get backdropBytes() {
     return this.renderer.backdropBytes;
   }

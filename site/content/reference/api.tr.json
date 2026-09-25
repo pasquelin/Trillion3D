@@ -249,21 +249,15 @@
     "members": {
       "isBufferAttribute": "Her zaman `true`: bir buffer özniteliğini başka her şeyden ayırır.",
       "type": "Değerlerin nasıl bildirildiği; yarım hassasiyetli bir öznitelik float hassasiyetinde tutulur.",
-      "normalized": "Tam sayıların 0 ile 1 arasındaki değerler olarak okunup okunmadığı.",
       "version": "Her bildirilen yazımda artırılır: dünyanın içeriğin değiştiğini görmek için karşılaştırdığı şey.",
       "array": "Sayıların kendisi.",
-      "itemSize": "Bir köşeye kaç sayının ait olduğu: bir pozisyon için 3.",
       "count": "Sayıların kaç köşeyi tanımladığı.",
-      "needsUpdate": "`array`'i yazdıktan sonra `attribute.needsUpdate = true`: dünya onu yeniden okur.",
-      "getComponent": "Köşe `index`'in `component` sayısı.",
-      "getX": "Köşe `i`'nin ilk sayısı.",
-      "getY": "Köşe `i`'nin ikinci sayısı.",
-      "getZ": "Köşe `i`'nin üçüncü sayısı.",
-      "getW": "Köşe `i`'nin dördüncü sayısı.",
-      "setXYZ": "Köşe `i` için üç sayı yazar.",
-      "setXY": "Köşe `i` için iki sayı yazar.",
-      "setX": "Köşe `i`'nin ilk sayısını yazar.",
-      "clone": "Sayıların bir kopyasıyla yeni bir öznitelik."
+      "needsUpdate": "`array` yazıldıktan sonra `needsUpdate = true`: bir okuyucu onu yeniden yükler.",
+      "clone": "Sayıların, türlerinin, normalleştirmesinin ve adının bir kopyasıyla yeni bir öznitelik.",
+      "kind": "Öznitelik kendi tamponuna sahiptir.",
+      "updateRanges": "Son yüklemeden beri yazılan `array` aralıkları, tek başına gönderilir.",
+      "addUpdateRange": "`start`'tan itibaren `count` sayıyı yazılmış olarak işaretler.",
+      "clearUpdateRanges": "Yüklendikten sonra yazılan aralıkları unutur."
     }
   },
   "BufferNumbers": {
@@ -1020,6 +1014,10 @@
       "autoForward": "SEYİR, varsayılan olarak kapalı: kamera, bir uçağın yaptığı gibi, hiçbir tuş basılı değilken `movementSpeed`'de ileri uçar. W daha sonra `movementSpeed` ekler (iki kat daha hızlı) ve S onu alır (kamera yerinde asılı kalır); asla geriye uçmaz. Bir sonraki `update`'e kadar hiçbir şey hareket etmez, bu yüzden `change`'te yeniden çizen bir host, seyiri açtığında bir kare ister."
     }
   },
+  "Fog": {
+    "summary": "Her yüzeyin üzerinde sis: `near` ile `far` arasında doğrusal, ya da `density` ile uzaklıkla koyulaşan ve `heightFalloff` verildiğinde `baseHeight` üzerinde yükseldikçe incelen.",
+    "description": "Renk, sisin göze doğru saçtığı ışıktır; bir yüzeyinki gibi pozlanır ve görüntü eğrisinden geçer."
+  },
   "FrameInfo": {
     "summary": "Bir kare kancasının aldığı şey: son kareden ve dünyanın başlangıcından bu yana geçen saniyeler.",
     "description": "Her karede yeniden yazılan, dünyanın tek nesnesi: bir değeri tutan bir kanca onu kopyalar.",
@@ -1063,8 +1061,8 @@
       "transparentDrawCalls": "Şeffaf çizim çağrıları.",
       "transparentSubmittedTriangles": "Gönderilen şeffaf üçgenler.",
       "coverageReady": "Tam bir başlangıç GPU yedeği kullanılabilir; bu garantisi olmayan backend'lerde null.",
-      "coverageBudgetLimited": "İstenen ayrıntı, GPU sayfa bütçesi içinde sabitlenmiş yedekle bir arada olamaz.",
-      "budgetPixelError": "GPU sayfa bütçesinin kesite piksel cinsinden dayattığı ekran hatası tabanı: istenen ayrıntı sığdığında `0`, aksi halde görselin çizildiği daha kaba eşik. Sayfa bütçesi olmayan motorlarda null.",
+      "coverageBudgetLimited": "İstenen ayrıntı, GPU sayfa bütçesinin alabileceğinden fazla sayfa ister: geri kalanı daha kaba çizilir.",
+      "budgetPixelError": "Yalnızca WebGL2: sayfa bütçesinin kesite piksel cinsinden dayattığı ekran hatası tabanı — istenen ayrıntı sığdığında `0`, aksi halde görselin çizildiği daha kaba eşik. WebGPU'da yoktur; orada görseli yalnızca yerleşiklik kabalaştırır. Sayfa bütçesi olmayan motorlarda null.",
       "frameHeld": "Kare tutulduğunda doğru: ne sahne, ne görünüm, ne kaynaklar hareket etti, hiçbir asenkron iş beklemedeydi, ve hiçbir CPU aşaması çalışmadı. Görüntülenen pikseller, orijinal karenin bit-tam pikselleridir. Tutulan karenin YAPTIĞI şey olduğu gibi yayımlanır, asla son tam render'dan kopyalanmaz: `drawCalls`, `triangles`, `submittedTriangles` ve `totalSubmittedTriangles` yalnızca şimdiyi sayar, ve aşama başına CPU ve GPU süreleri, aşama çalışmadığında sıfırdır, hiçbir şey onu zamanlamadığında `null`. Görseli tanık adaptörünün çizdiği bir sahne olan bir motor, bu adaptörün bu karede gönderdiğini sayar — tutulan bir karede hiçbir şey. Tutulan karenin GÖSTERDİĞİ şey, yeniden gösterdiği kesitle betimlenmeye devam eder: `clusters`, `selectedTriangles`, `frustumRejected`, `lodLevel` ve `residentPages`, aynı kesit olduğundan orijinal karenin olanlardır. Karelerini tutmayan bir motorda bulunmaz.",
       "streamingError": "Kalıcı yükleme hatası; başarısız URL'ler üç denemeden sonra bir gezgin yeniden yüklemesi gerektirir.",
       "gpuPassMs": "Bu backend'in en son GPU geçiş örneği; cihaz zaman damgası sorgusu sunmadığında null.",
@@ -1438,7 +1436,10 @@
       "array": "Her köşenin sayıları, art arda paketlenmiş.",
       "stride": "Her köşenin kaç sayı kapladığı.",
       "count": "Kaç köşe paketlediği.",
-      "attribute": "Kendi float özniteliği olarak, paketten okunan bir öznitelik."
+      "attribute": "Kendi özniteliği olarak, paketten okunan bir öznitelik.",
+      "kind": "Birkaç özniteliğin baktığı tek bir depo.",
+      "version": "`needsUpdate` ile artırılır.",
+      "needsUpdate": "`array` yazıldıktan sonra `needsUpdate = true`: bir okuyucu onu yeniden yükler."
     }
   },
   "JobProgress": {
@@ -1749,7 +1750,7 @@
       "parameters.flatShading": "Her üçgene, yüzeylerini gösteren tek düz bir ton verir.",
       "parameters.size": "Noktalar malzemesi için bir noktanın boyutu.",
       "parameters.sizeAttenuation": "Noktaların mesafeyle küçülüp küçülmediği.",
-      "parameters.linewidth": "Bir çizginin kalınlığı.",
+      "parameters.linewidth": "Bir çizginin CSS pikseli cinsinden kalınlığı, her uzaklıkta aynı.",
       "parameters.dashSize": "Bir kesik çizginin uzunluğu.",
       "parameters.gapSize": "İki kesik çizgi arasındaki boşluğun uzunluğu.",
       "parameters.vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
@@ -1812,7 +1813,7 @@
       "flatShading": "Her üçgene, yüzeylerini gösteren tek düz bir ton verir.",
       "size": "Noktalar malzemesi için bir noktanın boyutu.",
       "sizeAttenuation": "Noktaların mesafeyle küçülüp küçülmediği.",
-      "linewidth": "Bir çizginin kalınlığı.",
+      "linewidth": "Bir çizginin CSS pikseli cinsinden kalınlığı, her uzaklıkta aynı.",
       "dashSize": "Bir kesik çizginin uzunluğu.",
       "gapSize": "İki kesik çizgi arasındaki boşluğun uzunluğu.",
       "vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
@@ -2757,8 +2758,8 @@
     "members": {
       "isScene": "Her zaman `true`: sahne kökünü başka herhangi bir nesneden ayırır.",
       "environment": "Parlak yüzeylerin yansıttığı çevrenin bir resmi; hiçbiri için `null`.",
-      "fog": "Nesneleri `near` ve `far` arasında `color`'a soldurup karıştıran sis; hiçbiri için `null`.",
       "background": "Her nesnenin arkasındaki görüntüyü dolduran şey: bir renk ya da varsayılan için `null`. Bir değişiklik oturum korunarak sonraki karede görünür: burada atanan yeni bir renk ya da mevcut rengin yöntemleriyle (`set`, `setRGB`, `setHex`, `setHSL`...) yazılması. `.r`, `.g` veya `.b` alanına doğrudan yazma algılanmaz: ardından `background` değerini yeniden atayın. Bir resim ya da `getHex` içermeyen herhangi bir değer reddedilir (`UNSUPPORTED_SCENE_UPDATE`): hiçbir yol onu çizmez.",
+      "fog": "Her yüzeyin üzerinde sis, opak ya da saydam, iki çizicide de; varsayılan `null` sis yok demektir, bedelsiz. `{ color, near, far }` nesneleri `near` ile `far` arasında `color` rengine eritir, kameradan uzaklıklar; `{ color, density }` uzaklık birimi başına `density` kadar koyulaşır; `heightFalloff` (ve varsayılanı 0 olan `baseHeight`) ekleyin, sis yere çöker ve `baseHeight` üzerinde incelir — yukarı doğru her `1 / heightFalloff` birimde e'ye bölünür. Bir değişiklik sonraki karede görünür: burada verilen yeni bir sis ya da yöntemleriyle yazılan rengi. `near`, `far`, `density`... alanlarına doğrudan yazmak duyulmaz: ardından `fog` alanını yeniden verin. Aralık dışı bir sis — `far` değeri `near` değerinin ötesinde değilse, negatif bir yoğunluk — reddedilir (`INVALID_SCENE_ENVIRONMENT`).",
       "load": "Derlenmiş bir modeli — manifesto URL'sini — yükler ve bu sahneye ekler.",
       "toJSON": "Sahne, sürümlü düz JSON olarak: nesneleri, şekiller onları yapan çağrıyla, malzemeler, ışıklar ve yüklenen modeller adresle; bir `camera` verilirse onun duruşu da.",
       "fromJSON": "Sahnenin içeriğini `toJSON` ile kaydedilmiş bir sahneyle değiştirir, `helper` işaretleri korunur; modelleri yüklenince tamamlanır. Başka bir biçim ya da sürüm reddedilir (`UNSUPPORTED_SCENE_FORMAT`). Biri okunurken yapılan çağrılar sırayla, birbiri ardına çalışır, her biri öncekinin bıraktığı üzerinde: iki kaydedilmiş sahne asla karışmaz."
@@ -2769,8 +2770,21 @@
     "members": {
       "exposure": "Eğriden önce uygulanan, doğrusal parlaklığın çarpanı.",
       "toneMapping": "Ekran eğrisi; yoksa `DEFAULT_TONE_MAPPING`.",
-      "irradiance": "Her yönden gelen ışınım, 27 sayı olarak: dokuz katsayı, her biri bir RGB üçlüsü, bant sırasında sabit, `y`, `z`, `x`, `xy`, `yz`, `3z² − 1`, `xz`, `x² − y²`. Yoksa, ya da hepsi sıfırsa, bildirilen lambalar dışında hiçbir şey bir yüzeyi aydınlatmaz."
+      "irradiance": "Her yönden gelen ışınım, 27 sayı olarak: dokuz katsayı, her biri bir RGB üçlüsü, bant sırasında sabit, `y`, `z`, `x`, `xy`, `yz`, `3z² − 1`, `xz`, `x² − y²`. Yoksa, ya da hepsi sıfırsa, bildirilen lambalar dışında hiçbir şey bir yüzeyi aydınlatmaz.",
+      "fog": "Her yüzeyin üzerinde uzaklık ya da yükseklik sisi (`SceneFog`); yoksa sis yok."
     }
+  },
+  "SceneExponentialFog": {
+    "summary": "Uzaklıkla koyulaşan sis: sahne birimi başına `density`; `heightFalloff` ile `baseHeight` üzerinde incelir, yukarı doğru her `1 / heightFalloff` birimde e'ye bölünür.",
+    "members": {
+      "color": "Sisin nesneleri erittiği ışınım, doğrusal RGB.",
+      "density": "`baseHeight` yüksekliğinde sahne birimi başına sönüm; ≥ 0.",
+      "heightFalloff": "Yoğunluğun yükseklikle ne kadar hızlı düştüğü, sahne birimi başına; varsayılan 0, onu her yükseklikte aynı tutar.",
+      "baseHeight": "Yoğunluğun `density` olduğu yükseklik; varsayılan 0."
+    }
+  },
+  "SceneFog": {
+    "summary": "Aydınlatmanın okuduğu biçimiyle uzaklık ya da yükseklik sisi."
   },
   "SceneLight": {
     "summary": "Bir sahne ışığı, sürüm 2.",
@@ -2802,6 +2816,7 @@
       "ids": "Her slotun ışık adı.",
       "count": "Kaç ışık.",
       "epoch": "Işık kümesi değiştiğinde artırılır.",
+      "transportEpoch": "Epoch ile birlikte artar, yalnızca sisin değişmesi dışında: sis ışık taşınımının değil, bakış ışınının bir terimidir, bu yüzden taşınan ışığı önbelleğe alan (sekme sondaları) onu korur.",
       "environment": "Sahnenin ortamı.",
       "lightingView": "Host'un istediği görünüm, olduğu gibi: hiçbir şey istemediği sürece `auto`.",
       "unlit": "Görselin ışık olmadan, ham albedo olarak çıkması gerektiğinde doğru. Bu, hiçbir ışık bildirilmediği sürece varsayılan davranıştır: kaynağı olmayan bir sahnenin aydınlatacak hiçbir şeyi yoktur, ve siyah bir görsel hiçbir geometri benchmark'ına yardımcı olmazdı. Bir ışık var olur olmaz, gerçek aydınlatma devralır — host açıkça tanı görünümünü istemedikçe.",
@@ -2819,6 +2834,14 @@
   "SceneLightingView": {
     "summary": "Host'un görmek istediği şey.",
     "description": "`lit`, gerçek aydınlatmadır ve yalnızca odur; `unlit`, piksel-tam görselleri karşılaştıran geometri benchmark'ları için ham albedo tanı görünümüdür — olduğu gibi malzeme rengi, ışık yok, ortam yok ve emissive yok. Varsayılan olan `auto`, hiçbir ışık bildirilmediği sürece `unlit`, bir tane olur olmaz `lit` verir. `bounce` üçüncü tanı görünümüdür: yalnızca dolaylı ışınım, pozlamayla çarpılmış ve ACES ya da sRGB olmadan doğrusal değerler olarak çıktılanmış. Test düzeneğinin derleyici oracle'ıyla karşılaştırdığı şey budur; bakılacak bir görsel değildir, ve hazırlanmış bir yansıma olmadan siyahtır."
+  },
+  "SceneLinearFog": {
+    "summary": "`near` noktasında başlayan ve `far` noktasından sonra her şeyi gizleyen sis, gözden uzaklıklar.",
+    "members": {
+      "color": "Sisin nesneleri erittiği ışınım, doğrusal RGB.",
+      "near": "Sisin başladığı, gözden uzaklık.",
+      "far": "Artık yalnızca sisin görüldüğü, gözden uzaklık."
+    }
   },
   "SceneLink": {
     "summary": "Bir düğümün içinde asılı olduğu dünyaya bildirdiği şey: bir poz hareket etti, ağaç değişti, bir içerik değişti.",
@@ -3226,7 +3249,7 @@
       "baseMetal": "RGB temel renk, A metaliklik.",
       "normalRough": "XYZ dünya normali, A pürüzlülük.",
       "emissiveAo": "RGB emissive, A ortam gizlenmesi.",
-      "flags": "0 arka plan, 1 ışıksız, 2 okumalar, 3 ekran-uzayı tanısı.",
+      "flags": "0 arka plan, 1 aydınlatılmamış (sisli), 2 okunur, 3 olduğu gibi gösterilir: bir tanılama, bir normal ya da derinlik görünümü.",
       "views": "GPU doku görünümleri.",
       "dispose": "Serbest bırakır."
     }
@@ -3950,8 +3973,8 @@
       "transparentDrawCalls": "Şeffaf çizim çağrıları.",
       "transparentSubmittedTriangles": "Gönderilen şeffaf üçgenler.",
       "coverageReady": "Tam bir başlangıç GPU yedeği kullanılabilir; bu garantisi olmayan backend'lerde null.",
-      "coverageBudgetLimited": "İstenen ayrıntı, GPU sayfa bütçesi içinde sabitlenmiş yedekle bir arada olamaz.",
-      "budgetPixelError": "GPU sayfa bütçesinin kesite piksel cinsinden dayattığı ekran hatası tabanı: istenen ayrıntı sığdığında `0`, aksi halde görselin çizildiği daha kaba eşik. Sayfa bütçesi olmayan motorlarda null.",
+      "coverageBudgetLimited": "İstenen ayrıntı, GPU sayfa bütçesinin alabileceğinden fazla sayfa ister: geri kalanı daha kaba çizilir.",
+      "budgetPixelError": "Yalnızca WebGL2: sayfa bütçesinin kesite piksel cinsinden dayattığı ekran hatası tabanı — istenen ayrıntı sığdığında `0`, aksi halde görselin çizildiği daha kaba eşik. WebGPU'da yoktur; orada görseli yalnızca yerleşiklik kabalaştırır. Sayfa bütçesi olmayan motorlarda null.",
       "frameHeld": "Kare tutulduğunda doğru: ne sahne, ne görünüm, ne kaynaklar hareket etti, hiçbir asenkron iş beklemedeydi, ve hiçbir CPU aşaması çalışmadı. Görüntülenen pikseller, orijinal karenin bit-tam pikselleridir. Tutulan karenin YAPTIĞI şey olduğu gibi yayımlanır, asla son tam render'dan kopyalanmaz: `drawCalls`, `triangles`, `submittedTriangles` ve `totalSubmittedTriangles` yalnızca şimdiyi sayar, ve aşama başına CPU ve GPU süreleri, aşama çalışmadığında sıfırdır, hiçbir şey onu zamanlamadığında `null`. Görseli tanık adaptörünün çizdiği bir sahne olan bir motor, bu adaptörün bu karede gönderdiğini sayar — tutulan bir karede hiçbir şey. Tutulan karenin GÖSTERDİĞİ şey, yeniden gösterdiği kesitle betimlenmeye devam eder: `clusters`, `selectedTriangles`, `frustumRejected`, `lodLevel` ve `residentPages`, aynı kesit olduğundan orijinal karenin olanlardır. Karelerini tutmayan bir motorda bulunmaz.",
       "streamingError": "Kalıcı yükleme hatası; başarısız URL'ler üç denemeden sonra bir gezgin yeniden yüklemesi gerektirir.",
       "gpuPassMs": "Bu backend'in en son GPU geçiş örneği; cihaz zaman damgası sorgusu sunmadığında null.",
@@ -5388,7 +5411,7 @@
       "parameters.flatShading": "Her üçgene, yüzeylerini gösteren tek düz bir ton verir.",
       "parameters.size": "Noktalar malzemesi için bir noktanın boyutu.",
       "parameters.sizeAttenuation": "Noktaların mesafeyle küçülüp küçülmediği.",
-      "parameters.linewidth": "Bir çizginin kalınlığı.",
+      "parameters.linewidth": "Bir çizginin CSS pikseli cinsinden kalınlığı, her uzaklıkta aynı.",
       "parameters.dashSize": "Bir kesik çizginin uzunluğu.",
       "parameters.gapSize": "İki kesik çizgi arasındaki boşluğun uzunluğu.",
       "parameters.vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
@@ -5426,7 +5449,7 @@
       "parameters.flatShading": "Her üçgene, yüzeylerini gösteren tek düz bir ton verir.",
       "parameters.size": "Noktalar malzemesi için bir noktanın boyutu.",
       "parameters.sizeAttenuation": "Noktaların mesafeyle küçülüp küçülmediği.",
-      "parameters.linewidth": "Bir çizginin kalınlığı.",
+      "parameters.linewidth": "Bir çizginin CSS pikseli cinsinden kalınlığı, her uzaklıkta aynı.",
       "parameters.dashSize": "Bir kesik çizginin uzunluğu.",
       "parameters.gapSize": "İki kesik çizgi arasındaki boşluğun uzunluğu.",
       "parameters.vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
@@ -5464,7 +5487,7 @@
       "parameters.flatShading": "Her üçgene, yüzeylerini gösteren tek düz bir ton verir.",
       "parameters.size": "Noktalar malzemesi için bir noktanın boyutu.",
       "parameters.sizeAttenuation": "Noktaların mesafeyle küçülüp küçülmediği.",
-      "parameters.linewidth": "Bir çizginin kalınlığı.",
+      "parameters.linewidth": "Bir çizginin CSS pikseli cinsinden kalınlığı, her uzaklıkta aynı.",
       "parameters.dashSize": "Bir kesik çizginin uzunluğu.",
       "parameters.gapSize": "İki kesik çizgi arasındaki boşluğun uzunluğu.",
       "parameters.vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
@@ -5502,7 +5525,7 @@
       "parameters.flatShading": "Her üçgene, yüzeylerini gösteren tek düz bir ton verir.",
       "parameters.size": "Noktalar malzemesi için bir noktanın boyutu.",
       "parameters.sizeAttenuation": "Noktaların mesafeyle küçülüp küçülmediği.",
-      "parameters.linewidth": "Bir çizginin kalınlığı.",
+      "parameters.linewidth": "Bir çizginin CSS pikseli cinsinden kalınlığı, her uzaklıkta aynı.",
       "parameters.dashSize": "Bir kesik çizginin uzunluğu.",
       "parameters.gapSize": "İki kesik çizgi arasındaki boşluğun uzunluğu.",
       "parameters.vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
@@ -5540,7 +5563,7 @@
       "parameters.flatShading": "Her üçgene, yüzeylerini gösteren tek düz bir ton verir.",
       "parameters.size": "Noktalar malzemesi için bir noktanın boyutu.",
       "parameters.sizeAttenuation": "Noktaların mesafeyle küçülüp küçülmediği.",
-      "parameters.linewidth": "Bir çizginin kalınlığı.",
+      "parameters.linewidth": "Bir çizginin CSS pikseli cinsinden kalınlığı, her uzaklıkta aynı.",
       "parameters.dashSize": "Bir kesik çizginin uzunluğu.",
       "parameters.gapSize": "İki kesik çizgi arasındaki boşluğun uzunluğu.",
       "parameters.vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
@@ -5578,7 +5601,7 @@
       "parameters.flatShading": "Her üçgene, yüzeylerini gösteren tek düz bir ton verir.",
       "parameters.size": "Noktalar malzemesi için bir noktanın boyutu.",
       "parameters.sizeAttenuation": "Noktaların mesafeyle küçülüp küçülmediği.",
-      "parameters.linewidth": "Bir çizginin kalınlığı.",
+      "parameters.linewidth": "Bir çizginin CSS pikseli cinsinden kalınlığı, her uzaklıkta aynı.",
       "parameters.dashSize": "Bir kesik çizginin uzunluğu.",
       "parameters.gapSize": "İki kesik çizgi arasındaki boşluğun uzunluğu.",
       "parameters.vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
@@ -5616,7 +5639,7 @@
       "parameters.flatShading": "Her üçgene, yüzeylerini gösteren tek düz bir ton verir.",
       "parameters.size": "Noktalar malzemesi için bir noktanın boyutu.",
       "parameters.sizeAttenuation": "Noktaların mesafeyle küçülüp küçülmediği.",
-      "parameters.linewidth": "Bir çizginin kalınlığı.",
+      "parameters.linewidth": "Bir çizginin CSS pikseli cinsinden kalınlığı, her uzaklıkta aynı.",
       "parameters.dashSize": "Bir kesik çizginin uzunluğu.",
       "parameters.gapSize": "İki kesik çizgi arasındaki boşluğun uzunluğu.",
       "parameters.vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
@@ -5654,7 +5677,7 @@
       "parameters.flatShading": "Her üçgene, yüzeylerini gösteren tek düz bir ton verir.",
       "parameters.size": "Noktalar malzemesi için bir noktanın boyutu.",
       "parameters.sizeAttenuation": "Noktaların mesafeyle küçülüp küçülmediği.",
-      "parameters.linewidth": "Bir çizginin kalınlığı.",
+      "parameters.linewidth": "Bir çizginin CSS pikseli cinsinden kalınlığı, her uzaklıkta aynı.",
       "parameters.dashSize": "Bir kesik çizginin uzunluğu.",
       "parameters.gapSize": "İki kesik çizgi arasındaki boşluğun uzunluğu.",
       "parameters.vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
@@ -5692,7 +5715,7 @@
       "parameters.flatShading": "Her üçgene, yüzeylerini gösteren tek düz bir ton verir.",
       "parameters.size": "Noktalar malzemesi için bir noktanın boyutu.",
       "parameters.sizeAttenuation": "Noktaların mesafeyle küçülüp küçülmediği.",
-      "parameters.linewidth": "Bir çizginin kalınlığı.",
+      "parameters.linewidth": "Bir çizginin CSS pikseli cinsinden kalınlığı, her uzaklıkta aynı.",
       "parameters.dashSize": "Bir kesik çizginin uzunluğu.",
       "parameters.gapSize": "İki kesik çizgi arasındaki boşluğun uzunluğu.",
       "parameters.vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
@@ -5730,7 +5753,7 @@
       "parameters.flatShading": "Her üçgene, yüzeylerini gösteren tek düz bir ton verir.",
       "parameters.size": "Noktalar malzemesi için bir noktanın boyutu.",
       "parameters.sizeAttenuation": "Noktaların mesafeyle küçülüp küçülmediği.",
-      "parameters.linewidth": "Bir çizginin kalınlığı.",
+      "parameters.linewidth": "Bir çizginin CSS pikseli cinsinden kalınlığı, her uzaklıkta aynı.",
       "parameters.dashSize": "Bir kesik çizginin uzunluğu.",
       "parameters.gapSize": "İki kesik çizgi arasındaki boşluğun uzunluğu.",
       "parameters.vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
@@ -5768,7 +5791,7 @@
       "parameters.flatShading": "Her üçgene, yüzeylerini gösteren tek düz bir ton verir.",
       "parameters.size": "Noktalar malzemesi için bir noktanın boyutu.",
       "parameters.sizeAttenuation": "Noktaların mesafeyle küçülüp küçülmediği.",
-      "parameters.linewidth": "Bir çizginin kalınlığı.",
+      "parameters.linewidth": "Bir çizginin CSS pikseli cinsinden kalınlığı, her uzaklıkta aynı.",
       "parameters.dashSize": "Bir kesik çizginin uzunluğu.",
       "parameters.gapSize": "İki kesik çizgi arasındaki boşluğun uzunluğu.",
       "parameters.vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
@@ -5806,7 +5829,7 @@
       "parameters.flatShading": "Her üçgene, yüzeylerini gösteren tek düz bir ton verir.",
       "parameters.size": "Noktalar malzemesi için bir noktanın boyutu.",
       "parameters.sizeAttenuation": "Noktaların mesafeyle küçülüp küçülmediği.",
-      "parameters.linewidth": "Bir çizginin kalınlığı.",
+      "parameters.linewidth": "Bir çizginin CSS pikseli cinsinden kalınlığı, her uzaklıkta aynı.",
       "parameters.dashSize": "Bir kesik çizginin uzunluğu.",
       "parameters.gapSize": "İki kesik çizgi arasındaki boşluğun uzunluğu.",
       "parameters.vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
@@ -5844,7 +5867,7 @@
       "parameters.flatShading": "Her üçgene, yüzeylerini gösteren tek düz bir ton verir.",
       "parameters.size": "Noktalar malzemesi için bir noktanın boyutu.",
       "parameters.sizeAttenuation": "Noktaların mesafeyle küçülüp küçülmediği.",
-      "parameters.linewidth": "Bir çizginin kalınlığı.",
+      "parameters.linewidth": "Bir çizginin CSS pikseli cinsinden kalınlığı, her uzaklıkta aynı.",
       "parameters.dashSize": "Bir kesik çizginin uzunluğu.",
       "parameters.gapSize": "İki kesik çizgi arasındaki boşluğun uzunluğu.",
       "parameters.vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
@@ -5882,7 +5905,7 @@
       "parameters.flatShading": "Her üçgene, yüzeylerini gösteren tek düz bir ton verir.",
       "parameters.size": "Noktalar malzemesi için bir noktanın boyutu.",
       "parameters.sizeAttenuation": "Noktaların mesafeyle küçülüp küçülmediği.",
-      "parameters.linewidth": "Bir çizginin kalınlığı.",
+      "parameters.linewidth": "Bir çizginin CSS pikseli cinsinden kalınlığı, her uzaklıkta aynı.",
       "parameters.dashSize": "Bir kesik çizginin uzunluğu.",
       "parameters.gapSize": "İki kesik çizgi arasındaki boşluğun uzunluğu.",
       "parameters.vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
@@ -6793,7 +6816,7 @@
       "format": "Her zaman `'trillion3d-scene'`.",
       "formatVersion": "Bu düzenin sürümü; başkası reddedilir.",
       "background": "Arka plan rengi, ya da `null`.",
-      "fog": "Sis, ya da `null`.",
+      "fog": "Sis, rengi doğrusal bileşenlerle, ya da `null`.",
       "camera": "Sahneyle birlikte kaydedilen kamera, ya da `null`.",
       "geometries": "Her şekil, kaç ağ onu kullanırsa kullansın, bir kez.",
       "materials": "Her malzeme, kaç ağ onu kullanırsa kullansın, bir kez.",
@@ -7129,25 +7152,6 @@
       "handbrake": "El freninin çekili olup olmadığı."
     }
   },
-  "GraphArray": {
-    "summary": "Bir özniteliğin tuttuğu tipli diziler."
-  },
-  "GraphAttribute": {
-    "summary": "Kendi deposuna sahip bir öznitelik: köşe başına ardışık `itemSize` sayı.",
-    "members": {
-      "kind": "Öznitelik kendi tamponuna sahiptir.",
-      "count": "Kaç köşe.",
-      "version": "`needsUpdate` ile artırılır.",
-      "array": "Depolama.",
-      "updateRanges": "Son yüklemeden beri yazılan `array` aralıkları, tek başına gönderilir.",
-      "addUpdateRange": "`start`'tan itibaren `count` sayıyı yazılmış olarak işaretler.",
-      "clearUpdateRanges": "Yüklendikten sonra yazılan aralıkları unutur.",
-      "needsUpdate": "`array` yazıldıktan sonra `needsUpdate = true`: bir okuyucu onu yeniden yükler."
-    }
-  },
-  "GraphElements": {
-    "summary": "İki öznitelik türünden biri."
-  },
   "GraphGeometry": {
     "summary": "Bir ağın çizdiği öznitelikler, onları indeksleyen üçgen listesi, onları hareket ettiren morf hedefleri ve üzerlerinde hesaplanan yerel kutu ile küre.",
     "members": {
@@ -7172,28 +7176,6 @@
       "toNonIndexed": "Aynı üçgenleri indekssiz çizen bir geometri: her köşe kendi başına bir tepe noktası.",
       "computeBoundingBox": "Tüm köşeler üzerinde yerel kutuyu hesaplar.",
       "computeBoundingSphere": "Yerel küreyi hesaplar: kutunun merkezinde, en uzak köşeye kadar."
-    }
-  },
-  "GraphInterleavedAttribute": {
-    "summary": "Serpiştirilmiş bir tamponun her köşesinin `offset` konumundaki `itemSize` sayıya bakan bir öznitelik.",
-    "members": {
-      "kind": "Öznitelik paylaşılan bir tampona bakar.",
-      "data": "Baktığı tampon.",
-      "offset": "Sayılarının her köşede nerede başladığı.",
-      "array": "Öğelerin bulunduğu depo.",
-      "count": "Kaç köşe.",
-      "needsUpdate": "`array` yazıldıktan sonra `needsUpdate = true`: bir okuyucu onu yeniden yükler."
-    }
-  },
-  "GraphInterleavedBuffer": {
-    "summary": "Birkaç özniteliğin baktığı tek bir depo, her `stride` sayıda bir köşe.",
-    "members": {
-      "kind": "Birkaç özniteliğin baktığı tek bir depo.",
-      "count": "Kaç köşe.",
-      "version": "`needsUpdate` ile artırılır.",
-      "array": "Depo.",
-      "stride": "Köşe başına sayı.",
-      "needsUpdate": "`array` yazıldıktan sonra `needsUpdate = true`: bir okuyucu onu yeniden yükler."
     }
   },
   "GraphMesh": {
@@ -7365,6 +7347,45 @@
       "pulley": "`a`’dan iki tekerleğin (`over`) üzerinden `b`’ye inen bir ip: biri inerken diğeri çıkar.",
       "gear": "`ratio` oranında birlikte dönen iki tekerlek, her biri kendi pimi (`axis`, `axisB`) etrafında ve kendi menteşesiyle tutulur (tekerlek onun `a`’sı); `ratio` ya da 1 / `ratio` tam sayıysa dişleri yapıldıkları fazı da korur.",
       "rackAndPinion": "`axis` etrafında dönen bir pinyon `a`, bir kremayer `b`’yi `axisB` boyunca sürer; her biri kendi menteşesi veya kızağıyla tutulur (cisim onun `a`’sı), dişleri yapıldıkları fazda kalır."
+    }
+  },
+  "InterleavedBufferAttribute": {
+    "summary": "Serpiştirilmiş bir tamponun her köşesinin `offset` konumundaki `itemSize` sayıya bakan bir öznitelik.",
+    "members": {
+      "isInterleavedBufferAttribute": "Her zaman `true`: serpiştirilmiş bir görünümü başka her şeyden ayırır.",
+      "kind": "Öznitelik paylaşılan bir tampona bakar.",
+      "data": "Baktığı tampon.",
+      "offset": "Sayılarının her köşede nerede başladığı.",
+      "array": "Öğelerin bulunduğu depo.",
+      "count": "Sayıların kaç köşeyi tanımladığı.",
+      "needsUpdate": "`array` yazıldıktan sonra `needsUpdate = true`: bir okuyucu onu yeniden yükler.",
+      "clone": "Kendi sayıları, paketten onlara sahip bir özniteliğe kopyalanmış."
+    }
+  },
+  "VertexAttribute": {
+    "summary": "İki öznitelik türünden biri: kendi deposuna sahip ya da serpiştirilmiş bir depoya bakan."
+  },
+  "VertexElements": {
+    "summary": "Bir köşe özniteliğinin öğeleri, bileşen bileşen okunur ve yazılır.",
+    "members": {
+      "name": "Bir morf hedefinin bilindiği ad; diğerleri için boş.",
+      "itemSize": "Bir köşeye kaç sayının ait olduğu: bir pozisyon için 3.",
+      "normalized": "Tam sayıların 0 ile 1 arasındaki değerler olarak okunup okunmadığı.",
+      "array": "Öğelerin bulunduğu depo.",
+      "count": "Sayıların kaç köşeyi tanımladığı.",
+      "stored": "Köşe `index`'in `component` sayısı, saklandığı gibi; normalleştirilmiş bir tamsayı ölçeklenmeden.",
+      "getComponent": "Köşe `index`'in `component` sayısı, temsil ettiği sayı olarak okunur.",
+      "setComponent": "Köşe `index`'in `component` sayısını yazar.",
+      "getX": "Köşe `i`'nin ilk sayısı.",
+      "getY": "Köşe `i`'nin ikinci sayısı.",
+      "getZ": "Köşe `i`'nin üçüncü sayısı.",
+      "getW": "Köşe `i`'nin dördüncü sayısı.",
+      "setX": "Köşe `i`'nin ilk sayısını yazar.",
+      "setY": "Köşe `i`'nin ikinci sayısını yazar.",
+      "setZ": "Köşe `i`'nin üçüncü sayısını yazar.",
+      "setW": "Köşe `i`'nin dördüncü sayısını yazar.",
+      "setXY": "Köşe `i` için iki sayı yazar.",
+      "setXYZ": "Köşe `i` için üç sayı yazar."
     }
   }
 }

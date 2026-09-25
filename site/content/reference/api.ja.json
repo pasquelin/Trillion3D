@@ -249,21 +249,15 @@
     "members": {
       "isBufferAttribute": "常に`true`: 他の何かとバッファ属性を区別する。",
       "type": "値がどう宣言されたか。半精度浮動小数点の属性も単精度で保持される。",
-      "normalized": "整数値が0から1の間の値として読まれるかどうか。",
       "version": "宣言された書き込みのたびに増える: 世界が、内容が変わったかを見るために比較するもの。",
       "array": "数値そのもの。",
-      "itemSize": "1つの頂点に属する数値の数: 位置なら3。",
       "count": "これらの数値が表す頂点の数。",
-      "needsUpdate": "`array`を書き込んだ後の`attribute.needsUpdate = true`: 世界がそれを読み直す。",
-      "getComponent": "頂点`index`の`component`番目の数値。",
-      "getX": "頂点`i`の1番目の数値。",
-      "getY": "頂点`i`の2番目の数値。",
-      "getZ": "頂点`i`の3番目の数値。",
-      "getW": "頂点`i`の4番目の数値。",
-      "setXYZ": "頂点`i`に3つの数値を書き込む。",
-      "setXY": "頂点`i`に2つの数値を書き込む。",
-      "setX": "頂点`i`の1番目の数値を書き込む。",
-      "clone": "数値のコピーを持つ新しい属性。"
+      "needsUpdate": "`array` を書いた後に `needsUpdate = true`：読み手が再アップロードする。",
+      "clone": "数値とその型、正規化、名前のコピーを持つ新しい属性。",
+      "kind": "属性が自分のバッファを所有する。",
+      "updateRanges": "前回のアップロード以降に書き込まれた `array` の範囲。単独で送られる。",
+      "addUpdateRange": "`start` から `count` 個の数値を書き込み済みとして印を付ける。",
+      "clearUpdateRanges": "アップロード後、書き込まれた範囲を忘れる。"
     }
   },
   "BufferNumbers": {
@@ -1020,6 +1014,10 @@
       "rollInput": "[-1, 1]でのロールの傾き、Qと同じく左が正; `pitchInput`と同様。"
     }
   },
+  "Fog": {
+    "summary": "すべての面にかかる霧: `near` から `far` までの線形、または `density` で距離とともに濃くなり、`heightFalloff` を指定すると `baseHeight` より上で高さとともに薄くなる霧。",
+    "description": "色は霧が目に向けて散乱する光で、面の光と同じく露出とトーンマッピングを受けます。"
+  },
   "FrameInfo": {
     "summary": "フレームフックが受け取るもの: 前のフレームからの経過秒数と、世界が始まってからの経過秒数。",
     "description": "世界が持つ唯一のオブジェクトで、毎フレーム書き換えられる: 値を保持したいフックはそれをコピーする。",
@@ -1063,8 +1061,8 @@
       "transparentDrawCalls": "透過描画コール数。",
       "transparentSubmittedTriangles": "送信された透過三角形数。",
       "coverageReady": "完全な初期GPUフォールバックが利用可能。この保証のないバックエンドではnull。",
-      "coverageBudgetLimited": "要求された詳細度が、GPUページ予算内で固定フォールバックと共存できない。",
-      "budgetPixelError": "GPUページ予算がカットに課すスクリーン誤差の下限、ピクセル単位: 要求された詳細度が収まるなら`0`、そうでなければ画像が実際に描かれる、より粗いしきい値。ページ予算のないエンジンではnull。",
+      "coverageBudgetLimited": "要求された詳細度はGPUページ予算に収まる以上のページを必要とする: 残りはより粗く描かれる。",
+      "budgetPixelError": "WebGL2のみ: そのページ予算がカットに課すスクリーン誤差の下限、ピクセル単位 — 要求された詳細度が収まるなら`0`、そうでなければ画像が実際に描かれる、より粗いしきい値。WebGPUでは存在せず、常駐状態だけが画像を粗くする。ページ予算のないエンジンではnull。",
       "frameHeld": "フレームが保持されていたときtrue: シーンもビューもリソースも動かず、非同期処理も保留されておらず、CPU段階も一切実行されなかった。表示されるピクセルは、元のフレームのものとビットレベルで一致する。保持されたフレームが実際に行ったことがそのまま公開され、直前の完全な描画からのコピーは決してない: `drawCalls`、`triangles`、`submittedTriangles`、`totalSubmittedTriangles`は現在のものだけを数え、段階ごとのCPU/GPU時間は、その段階が実行されなければゼロ、何も計測しなければ`null`になる。対照アダプターが描くシーンをエンジンの画像とする場合は、そのアダプターがこのフレームで送信したものを数える — 保持されたフレームでは何もない。保持されたフレームが実際に**表示する**ものは、それが再表示するカットによって記述され続ける: `clusters`、`selectedTriangles`、`frustumRejected`、`lodLevel`、`residentPages`は元のフレームのものであり、同じカットだからだ。フレームを保持しないエンジンにはこの項目がない。",
       "streamingError": "尾を引く読み込みエラー。失敗したURLは、3回の試行の後にエクスプローラーの再読み込みを必要とする。",
       "gpuPassMs": "このバックエンドの最新のGPUパスサンプル。デバイスがタイムスタンプクエリを公開しない場合はnull。",
@@ -1438,7 +1436,10 @@
       "array": "すべての頂点の数値を、次々に詰めたもの。",
       "stride": "各頂点が占める数値の個数。",
       "count": "それが詰め込む頂点数。",
-      "attribute": "そのまとまりから取り出された1つの属性。それ自身の浮動小数点属性として。"
+      "attribute": "そのまとまりから取り出された1つの属性。それ自身の属性として。",
+      "kind": "複数の属性が参照する 1 つのストレージ。",
+      "version": "`needsUpdate` で増える。",
+      "needsUpdate": "`array` を書いた後に `needsUpdate = true`：読み手が再アップロードする。"
     }
   },
   "JobProgress": {
@@ -1749,7 +1750,7 @@
       "parameters.flatShading": "各三角形に単一のフラットな陰影を与え、その面を見せる。",
       "parameters.size": "点マテリアルの、点の大きさ。",
       "parameters.sizeAttenuation": "距離とともに点が小さくなるかどうか。",
-      "parameters.linewidth": "線の太さ。",
+      "parameters.linewidth": "線の太さ（CSS ピクセル単位）。どの距離でも同じ。",
       "parameters.dashSize": "破線の1画分の長さ。",
       "parameters.gapSize": "2つの破線の間の隙間の長さ。",
       "parameters.vertexColors": "ジオメトリの頂点ごとの`color`が表面を色づけするかどうか。",
@@ -1812,7 +1813,7 @@
       "flatShading": "各三角形に単一のフラットな陰影を与え、その面を見せる。",
       "size": "点マテリアルの、点の大きさ。",
       "sizeAttenuation": "距離とともに点が小さくなるかどうか。",
-      "linewidth": "線の太さ。",
+      "linewidth": "線の太さ（CSS ピクセル単位）。どの距離でも同じ。",
       "dashSize": "破線の1画分の長さ。",
       "gapSize": "2つの破線の間の隙間の長さ。",
       "vertexColors": "ジオメトリの頂点ごとの`color`が表面を色づけするかどうか。",
@@ -2757,8 +2758,8 @@
     "members": {
       "isScene": "常に`true`: 他のどんなオブジェクトともシーンのルートを区別する。",
       "environment": "光沢のある表面が映し出す周囲の映像; なければ`null`。",
-      "fog": "`near`と`far`の間でオブジェクトを`color`へとフェードさせる霧; なければ`null`。",
       "background": "すべてのオブジェクトの背後の画像を埋めるもの：色、または既定の `null`。変更はセッションを保ったまま次のフレームで表示されます：ここで設定した新しい色、またはそのメソッド（`set`、`setRGB`、`setHex`、`setHSL`...）で書き換えた現在の色。`.r`、`.g`、`.b` への直接書き込みは検知されません：その後に `background` を設定し直してください。画像や `getHex` を持たない値は拒否されます（`UNSUPPORTED_SCENE_UPDATE`）：それを描く経路はありません。",
+      "fog": "すべての面にかかる霧。不透明でも透明でも、両方のレンダラーで効きます。既定の `null` は霧なしで、コストもかかりません。`{ color, near, far }` は物体を `near` から `far` にかけて `color` に溶け込ませます（距離はカメラから）。`{ color, density }` は距離 1 単位ごとに `density` だけ濃くなります。`heightFalloff`（と既定 0 の `baseHeight`）を加えると地面に溜まり、`baseHeight` より上で薄くなります — 上へ `1 / heightFalloff` 単位ごとに e で割られます。変更は次のフレームで見えます: ここで設定した新しい霧、またはそのメソッドで書き換えた色。`near`、`far`、`density`... への直接の書き込みは検知されません: その後で `fog` を設定し直してください。範囲外の霧 — `far` が `near` より先にない、負の密度 — は拒否されます（`INVALID_SCENE_ENVIRONMENT`）。",
       "load": "コンパイル済みモデル(そのマニフェストURL)を読み込み、このシーンに追加する。",
       "toJSON": "バージョン付きのシンプルな JSON にしたシーン: オブジェクト、形はそれを作った呼び出しで、マテリアル、ライト、読み込んだモデルはアドレスで記録します。`camera` を渡せばその姿勢も入ります。",
       "fromJSON": "シーンの中身を `toJSON` で保存したシーンに置き換えます。`helper` の印は残します。モデルの読み込みが終わると完了します。別の形式やバージョンは拒否されます (`UNSUPPORTED_SCENE_FORMAT`)。読み込み中の呼び出しは順番に一つずつ実行され、それぞれ前の呼び出しが残したものの上で動きます: 保存された二つのシーンが混ざることはありません。"
@@ -2769,8 +2770,21 @@
     "members": {
       "exposure": "カーブを適用する前に線形放射輝度に掛けられる倍率。",
       "toneMapping": "表示カーブ; 指定がなければ`DEFAULT_TONE_MAPPING`。",
-      "irradiance": "あらゆる方向から届く照度。27個の数値として: 9つの係数、それぞれRGB3つ組で、定数、`y`、`z`、`x`、`xy`、`yz`、`3z² − 1`、`xz`、`x² − y²`というバンド順。なければ、あるいはすべてゼロなら、宣言されたランプ以外は何も表面を照らさない。"
+      "irradiance": "あらゆる方向から届く照度。27個の数値として: 9つの係数、それぞれRGB3つ組で、定数、`y`、`z`、`x`、`xy`、`yz`、`3z² − 1`、`xz`、`x² − y²`というバンド順。なければ、あるいはすべてゼロなら、宣言されたランプ以外は何も表面を照らさない。",
+      "fog": "すべての面にかかる距離霧または高さ霧（`SceneFog`）。なければ霧なし。"
     }
+  },
+  "SceneExponentialFog": {
+    "summary": "距離とともに濃くなる霧: シーン単位あたり `density`。`heightFalloff` があると `baseHeight` より上で薄くなり、上へ `1 / heightFalloff` 単位ごとに e で割られます。",
+    "members": {
+      "color": "霧が物体を溶け込ませる先の放射輝度、線形 RGB。",
+      "density": "`baseHeight` でのシーン単位あたりの消散係数。≥ 0。",
+      "heightFalloff": "高さとともに密度が下がる速さ、シーン単位あたり。既定の 0 はどの高さでも一様に保ちます。",
+      "baseHeight": "密度が `density` になる高さ。既定は 0。"
+    }
+  },
+  "SceneFog": {
+    "summary": "ライティングが読む形の距離霧または高さ霧。"
   },
   "SceneLight": {
     "summary": "シーンライト、バージョン2。",
@@ -2802,6 +2816,7 @@
       "ids": "各スロットのライトの名前。",
       "count": "ライトの数。",
       "epoch": "ライトの集合が変わるたびに増える。",
+      "transportEpoch": "エポックとともに増えますが、霧だけの変更では増えません。霧は光の輸送ではなく視線の項なので、輸送された光をキャッシュするもの（バウンスプローブ）はそれを保持します。",
       "environment": "シーンの環境。",
       "lightingView": "ホストが要求した、そのままのビュー: 何も要求していない間は`auto`。",
       "unlit": "画像が、光なしの生のアルベドとして出力されなければならないときtrue。これは、ライトが1つも宣言されていない限りのデフォルトの挙動である: 光源のないシーンは何も照らすものがなく、真っ黒な画像はどんなジオメトリベンチにも役立たない。ライトが1つでも存在すれば、実際のライティングが引き継ぐ — ホストが明示的に診断ビューを要求している場合を除いて。",
@@ -2819,6 +2834,14 @@
   "SceneLightingView": {
     "summary": "ホストが見たいと要求するもの。",
     "description": "`lit`は実際のライティングであり、それだけだ; `unlit`は生のアルベドを見る診断ビュー — マテリアルの色をそのまま、光もアンビエントも発光もなしに — で、画像をピクセル単位で厳密に比較するジオメトリベンチのためのものだ。デフォルトの`auto`は、ライトが1つも宣言されていない限り`unlit`を、1つでもあれば`lit`を返す。`bounce`は3番目の診断ビュー: 間接照度だけを、露出で掛け合わせ、ACESもsRGBも使わずに線形値として出力する。これは、ハーネスがコンパイラのオラクルと比較するものであり、見るための画像ではなく、仕込まれたバウンスがなければ真っ黒になる。"
+  },
+  "SceneLinearFog": {
+    "summary": "`near` で始まり `far` から先をすべて隠す霧。距離は目から測ります。",
+    "members": {
+      "color": "霧が物体を溶け込ませる先の放射輝度、線形 RGB。",
+      "near": "霧が始まる、目からの距離。",
+      "far": "霧しか見えなくなる、目からの距離。"
+    }
   },
   "SceneLink": {
     "summary": "あるノードが、それがぶら下がっている世界に対して報告するもの: 姿勢が動いた、ツリーが変わった、内容が変わった。",
@@ -3226,7 +3249,7 @@
       "baseMetal": "RGBがベースカラー、Aが金属度。",
       "normalRough": "XYZがワールド法線、Aが粗さ。",
       "emissiveAo": "RGBが発光、Aがアンビエントオクルージョン。",
-      "flags": "0は背景、1はunlit、2は読み取り、3は表示空間の診断。",
+      "flags": "0 背景、1 非ライティング（霧あり）、2 読み取り、3 そのまま表示: 診断、法線または深度のビュー。",
       "views": "そのGPUテクスチャビュー群。",
       "dispose": "それを解放する。"
     }
@@ -3950,8 +3973,8 @@
       "transparentDrawCalls": "透過描画コール数。",
       "transparentSubmittedTriangles": "送信された透過三角形数。",
       "coverageReady": "完全な初期GPUフォールバックが利用可能。この保証のないバックエンドではnull。",
-      "coverageBudgetLimited": "要求された詳細度が、GPUページ予算内で固定フォールバックと共存できない。",
-      "budgetPixelError": "GPUページ予算がカットに課すスクリーン誤差の下限、ピクセル単位: 要求された詳細度が収まるなら`0`、そうでなければ画像が実際に描かれる、より粗いしきい値。ページ予算のないエンジンではnull。",
+      "coverageBudgetLimited": "要求された詳細度はGPUページ予算に収まる以上のページを必要とする: 残りはより粗く描かれる。",
+      "budgetPixelError": "WebGL2のみ: そのページ予算がカットに課すスクリーン誤差の下限、ピクセル単位 — 要求された詳細度が収まるなら`0`、そうでなければ画像が実際に描かれる、より粗いしきい値。WebGPUでは存在せず、常駐状態だけが画像を粗くする。ページ予算のないエンジンではnull。",
       "frameHeld": "フレームが保持されていたときtrue: シーンもビューもリソースも動かず、非同期処理も保留されておらず、CPU段階も一切実行されなかった。表示されるピクセルは、元のフレームのものとビットレベルで一致する。保持されたフレームが実際に行ったことがそのまま公開され、直前の完全な描画からのコピーは決してない: `drawCalls`、`triangles`、`submittedTriangles`、`totalSubmittedTriangles`は現在のものだけを数え、段階ごとのCPU/GPU時間は、その段階が実行されなければゼロ、何も計測しなければ`null`になる。対照アダプターが描くシーンをエンジンの画像とする場合は、そのアダプターがこのフレームで送信したものを数える — 保持されたフレームでは何もない。保持されたフレームが実際に**表示する**ものは、それが再表示するカットによって記述され続ける: `clusters`、`selectedTriangles`、`frustumRejected`、`lodLevel`、`residentPages`は元のフレームのものであり、同じカットだからだ。フレームを保持しないエンジンにはこの項目がない。",
       "streamingError": "尾を引く読み込みエラー。失敗したURLは、3回の試行の後にエクスプローラーの再読み込みを必要とする。",
       "gpuPassMs": "このバックエンドの最新のGPUパスサンプル。デバイスがタイムスタンプクエリを公開しない場合はnull。",
@@ -5559,7 +5582,7 @@
       "parameters.flatShading": "各三角形に単一のフラットな陰影を与え、その面を見せる。",
       "parameters.size": "点マテリアルの、点の大きさ。",
       "parameters.sizeAttenuation": "距離とともに点が小さくなるかどうか。",
-      "parameters.linewidth": "線の太さ。",
+      "parameters.linewidth": "線の太さ（CSS ピクセル単位）。どの距離でも同じ。",
       "parameters.dashSize": "破線の1画分の長さ。",
       "parameters.gapSize": "2つの破線の間の隙間の長さ。",
       "parameters.vertexColors": "ジオメトリの頂点ごとの`color`が表面を色づけするかどうか。",
@@ -5597,7 +5620,7 @@
       "parameters.flatShading": "各三角形に単一のフラットな陰影を与え、その面を見せる。",
       "parameters.size": "点マテリアルの、点の大きさ。",
       "parameters.sizeAttenuation": "距離とともに点が小さくなるかどうか。",
-      "parameters.linewidth": "線の太さ。",
+      "parameters.linewidth": "線の太さ（CSS ピクセル単位）。どの距離でも同じ。",
       "parameters.dashSize": "破線の1画分の長さ。",
       "parameters.gapSize": "2つの破線の間の隙間の長さ。",
       "parameters.vertexColors": "ジオメトリの頂点ごとの`color`が表面を色づけするかどうか。",
@@ -5635,7 +5658,7 @@
       "parameters.flatShading": "各三角形に単一のフラットな陰影を与え、その面を見せる。",
       "parameters.size": "点マテリアルの、点の大きさ。",
       "parameters.sizeAttenuation": "距離とともに点が小さくなるかどうか。",
-      "parameters.linewidth": "線の太さ。",
+      "parameters.linewidth": "線の太さ（CSS ピクセル単位）。どの距離でも同じ。",
       "parameters.dashSize": "破線の1画分の長さ。",
       "parameters.gapSize": "2つの破線の間の隙間の長さ。",
       "parameters.vertexColors": "ジオメトリの頂点ごとの`color`が表面を色づけするかどうか。",
@@ -5673,7 +5696,7 @@
       "parameters.flatShading": "各三角形に単一のフラットな陰影を与え、その面を見せる。",
       "parameters.size": "点マテリアルの、点の大きさ。",
       "parameters.sizeAttenuation": "距離とともに点が小さくなるかどうか。",
-      "parameters.linewidth": "線の太さ。",
+      "parameters.linewidth": "線の太さ（CSS ピクセル単位）。どの距離でも同じ。",
       "parameters.dashSize": "破線の1画分の長さ。",
       "parameters.gapSize": "2つの破線の間の隙間の長さ。",
       "parameters.vertexColors": "ジオメトリの頂点ごとの`color`が表面を色づけするかどうか。",
@@ -5711,7 +5734,7 @@
       "parameters.flatShading": "各三角形に単一のフラットな陰影を与え、その面を見せる。",
       "parameters.size": "点マテリアルの、点の大きさ。",
       "parameters.sizeAttenuation": "距離とともに点が小さくなるかどうか。",
-      "parameters.linewidth": "線の太さ。",
+      "parameters.linewidth": "線の太さ（CSS ピクセル単位）。どの距離でも同じ。",
       "parameters.dashSize": "破線の1画分の長さ。",
       "parameters.gapSize": "2つの破線の間の隙間の長さ。",
       "parameters.vertexColors": "ジオメトリの頂点ごとの`color`が表面を色づけするかどうか。",
@@ -5749,7 +5772,7 @@
       "parameters.flatShading": "各三角形に単一のフラットな陰影を与え、その面を見せる。",
       "parameters.size": "点マテリアルの、点の大きさ。",
       "parameters.sizeAttenuation": "距離とともに点が小さくなるかどうか。",
-      "parameters.linewidth": "線の太さ。",
+      "parameters.linewidth": "線の太さ（CSS ピクセル単位）。どの距離でも同じ。",
       "parameters.dashSize": "破線の1画分の長さ。",
       "parameters.gapSize": "2つの破線の間の隙間の長さ。",
       "parameters.vertexColors": "ジオメトリの頂点ごとの`color`が表面を色づけするかどうか。",
@@ -5787,7 +5810,7 @@
       "parameters.flatShading": "各三角形に単一のフラットな陰影を与え、その面を見せる。",
       "parameters.size": "点マテリアルの、点の大きさ。",
       "parameters.sizeAttenuation": "距離とともに点が小さくなるかどうか。",
-      "parameters.linewidth": "線の太さ。",
+      "parameters.linewidth": "線の太さ（CSS ピクセル単位）。どの距離でも同じ。",
       "parameters.dashSize": "破線の1画分の長さ。",
       "parameters.gapSize": "2つの破線の間の隙間の長さ。",
       "parameters.vertexColors": "ジオメトリの頂点ごとの`color`が表面を色づけするかどうか。",
@@ -5825,7 +5848,7 @@
       "parameters.flatShading": "各三角形に単一のフラットな陰影を与え、その面を見せる。",
       "parameters.size": "点マテリアルの、点の大きさ。",
       "parameters.sizeAttenuation": "距離とともに点が小さくなるかどうか。",
-      "parameters.linewidth": "線の太さ。",
+      "parameters.linewidth": "線の太さ（CSS ピクセル単位）。どの距離でも同じ。",
       "parameters.dashSize": "破線の1画分の長さ。",
       "parameters.gapSize": "2つの破線の間の隙間の長さ。",
       "parameters.vertexColors": "ジオメトリの頂点ごとの`color`が表面を色づけするかどうか。",
@@ -5863,7 +5886,7 @@
       "parameters.flatShading": "各三角形に単一のフラットな陰影を与え、その面を見せる。",
       "parameters.size": "点マテリアルの、点の大きさ。",
       "parameters.sizeAttenuation": "距離とともに点が小さくなるかどうか。",
-      "parameters.linewidth": "線の太さ。",
+      "parameters.linewidth": "線の太さ（CSS ピクセル単位）。どの距離でも同じ。",
       "parameters.dashSize": "破線の1画分の長さ。",
       "parameters.gapSize": "2つの破線の間の隙間の長さ。",
       "parameters.vertexColors": "ジオメトリの頂点ごとの`color`が表面を色づけするかどうか。",
@@ -5901,7 +5924,7 @@
       "parameters.flatShading": "各三角形に単一のフラットな陰影を与え、その面を見せる。",
       "parameters.size": "点マテリアルの、点の大きさ。",
       "parameters.sizeAttenuation": "距離とともに点が小さくなるかどうか。",
-      "parameters.linewidth": "線の太さ。",
+      "parameters.linewidth": "線の太さ（CSS ピクセル単位）。どの距離でも同じ。",
       "parameters.dashSize": "破線の1画分の長さ。",
       "parameters.gapSize": "2つの破線の間の隙間の長さ。",
       "parameters.vertexColors": "ジオメトリの頂点ごとの`color`が表面を色づけするかどうか。",
@@ -5939,7 +5962,7 @@
       "parameters.flatShading": "各三角形に単一のフラットな陰影を与え、その面を見せる。",
       "parameters.size": "点マテリアルの、点の大きさ。",
       "parameters.sizeAttenuation": "距離とともに点が小さくなるかどうか。",
-      "parameters.linewidth": "線の太さ。",
+      "parameters.linewidth": "線の太さ（CSS ピクセル単位）。どの距離でも同じ。",
       "parameters.dashSize": "破線の1画分の長さ。",
       "parameters.gapSize": "2つの破線の間の隙間の長さ。",
       "parameters.vertexColors": "ジオメトリの頂点ごとの`color`が表面を色づけするかどうか。",
@@ -5977,7 +6000,7 @@
       "parameters.flatShading": "各三角形に単一のフラットな陰影を与え、その面を見せる。",
       "parameters.size": "点マテリアルの、点の大きさ。",
       "parameters.sizeAttenuation": "距離とともに点が小さくなるかどうか。",
-      "parameters.linewidth": "線の太さ。",
+      "parameters.linewidth": "線の太さ（CSS ピクセル単位）。どの距離でも同じ。",
       "parameters.dashSize": "破線の1画分の長さ。",
       "parameters.gapSize": "2つの破線の間の隙間の長さ。",
       "parameters.vertexColors": "ジオメトリの頂点ごとの`color`が表面を色づけするかどうか。",
@@ -6015,7 +6038,7 @@
       "parameters.flatShading": "各三角形に単一のフラットな陰影を与え、その面を見せる。",
       "parameters.size": "点マテリアルの、点の大きさ。",
       "parameters.sizeAttenuation": "距離とともに点が小さくなるかどうか。",
-      "parameters.linewidth": "線の太さ。",
+      "parameters.linewidth": "線の太さ（CSS ピクセル単位）。どの距離でも同じ。",
       "parameters.dashSize": "破線の1画分の長さ。",
       "parameters.gapSize": "2つの破線の間の隙間の長さ。",
       "parameters.vertexColors": "ジオメトリの頂点ごとの`color`が表面を色づけするかどうか。",
@@ -6053,7 +6076,7 @@
       "parameters.flatShading": "各三角形に単一のフラットな陰影を与え、その面を見せる。",
       "parameters.size": "点マテリアルの、点の大きさ。",
       "parameters.sizeAttenuation": "距離とともに点が小さくなるかどうか。",
-      "parameters.linewidth": "線の太さ。",
+      "parameters.linewidth": "線の太さ（CSS ピクセル単位）。どの距離でも同じ。",
       "parameters.dashSize": "破線の1画分の長さ。",
       "parameters.gapSize": "2つの破線の間の隙間の長さ。",
       "parameters.vertexColors": "ジオメトリの頂点ごとの`color`が表面を色づけするかどうか。",
@@ -6793,7 +6816,7 @@
       "format": "常に `'trillion3d-scene'`。",
       "formatVersion": "このレイアウトのバージョン。ほかのバージョンは拒否されます。",
       "background": "背景色、または `null`。",
-      "fog": "霧、または `null`。",
+      "fog": "霧、その色は線形成分、または `null`。",
       "camera": "シーンと一緒に保存したカメラ、または `null`。",
       "geometries": "すべての形を一度ずつ。いくつのメッシュが使っていても同じです。",
       "materials": "すべてのマテリアルを一度ずつ。いくつのメッシュが使っていても同じです。",
@@ -7129,19 +7152,6 @@
       "handbrake": "サイドブレーキが引かれているか。"
     }
   },
-  "GraphAttribute": {
-    "members": {
-      "count": "頂点数。",
-      "array": "保存領域。",
-      "kind": "属性が自分のバッファを所有する。",
-      "version": "`needsUpdate` で増える。",
-      "updateRanges": "前回のアップロード以降に書き込まれた `array` の範囲。単独で送られる。",
-      "addUpdateRange": "`start` から `count` 個の数値を書き込み済みとして印を付ける。",
-      "clearUpdateRanges": "アップロード後、書き込まれた範囲を忘れる。",
-      "needsUpdate": "`array` を書いた後に `needsUpdate = true`：読み手が再アップロードする。"
-    },
-    "summary": "自分のストレージを持つ属性：頂点ごとに `itemSize` 個の数値が順に並ぶ。"
-  },
   "GraphGeometry": {
     "members": {
       "attributes": "その頂点属性。",
@@ -7236,34 +7246,6 @@
       "rotation": "回転（ラジアン）。"
     },
     "summary": "画像と、それを読むサンプラー状態、そして座標の変換。"
-  },
-  "GraphArray": {
-    "summary": "属性が保持する型付き配列。"
-  },
-  "GraphElements": {
-    "summary": "いずれかの種類の属性。"
-  },
-  "GraphInterleavedAttribute": {
-    "summary": "インターリーブバッファの各頂点の `offset` にある `itemSize` 個の数値を参照する属性。",
-    "members": {
-      "kind": "属性が共有バッファを参照する。",
-      "data": "参照しているバッファ。",
-      "offset": "各頂点内で数値が始まる位置。",
-      "array": "要素が置かれるストレージ。",
-      "count": "頂点の数。",
-      "needsUpdate": "`array` を書いた後に `needsUpdate = true`：読み手が再アップロードする。"
-    }
-  },
-  "GraphInterleavedBuffer": {
-    "summary": "複数の属性が参照する 1 つのストレージ。`stride` 個の数値ごとに 1 頂点。",
-    "members": {
-      "kind": "複数の属性が参照する 1 つのストレージ。",
-      "count": "頂点の数。",
-      "version": "`needsUpdate` で増える。",
-      "array": "ストレージ。",
-      "stride": "頂点あたりの数値の数。",
-      "needsUpdate": "`array` を書いた後に `needsUpdate = true`：読み手が再アップロードする。"
-    }
   },
   "GraphMesh": {
     "summary": "描画されるノード：ジオメトリとそのサーフェス、またはジオメトリグループごとに 1 つのサーフェス。",
@@ -7365,6 +7347,45 @@
       "pulley": "`a` から 2 つの車輪(`over`)を越えて `b` へ下りるロープ:片方が下がるともう片方が上がります。",
       "gear": "`ratio` の比で一緒に回る 2 つの車輪。それぞれ自分のピン(`axis`、`axisB`)の周りを回り、自分の蝶番(車輪をその `a` として)で支えられます。`ratio` か 1 / `ratio` が整数なら、歯は作られたときの位相も保ちます。",
       "rackAndPinion": "`axis` の周りを回るピニオン `a` が、ラック `b` を `axisB` に沿って動かします。それぞれ自分の蝶番かスライダー(物体をその `a` として)で支えられ、歯は作られたときの位相に保たれます。"
+    }
+  },
+  "InterleavedBufferAttribute": {
+    "summary": "インターリーブバッファの各頂点の `offset` にある `itemSize` 個の数値を参照する属性。",
+    "members": {
+      "isInterleavedBufferAttribute": "常に`true`: インターリーブビューを他の何かと区別する。",
+      "kind": "属性が共有バッファを参照する。",
+      "data": "参照しているバッファ。",
+      "offset": "各頂点内で数値が始まる位置。",
+      "array": "要素が置かれるストレージ。",
+      "count": "これらの数値が表す頂点の数。",
+      "needsUpdate": "`array` を書いた後に `needsUpdate = true`：読み手が再アップロードする。",
+      "clone": "まとまりから、それを所有する属性へコピーされた自身の数値。"
+    }
+  },
+  "VertexAttribute": {
+    "summary": "いずれかの種類の属性: 自身のストレージを持つか、インターリーブされたものを参照する。"
+  },
+  "VertexElements": {
+    "summary": "1つの頂点属性の要素。成分ごとに読み書きされる。",
+    "members": {
+      "name": "モーフターゲットが知られる名前。他は空。",
+      "itemSize": "1つの頂点に属する数値の数: 位置なら3。",
+      "normalized": "整数値が0から1の間の値として読まれるかどうか。",
+      "array": "要素が置かれるストレージ。",
+      "count": "これらの数値が表す頂点の数。",
+      "stored": "頂点`index`の`component`番目の数値を格納されたまま。正規化された整数はスケールされない。",
+      "getComponent": "頂点`index`の`component`番目の数値。それが表す数として読まれる。",
+      "setComponent": "頂点`index`の`component`番目の数値を書き込む。",
+      "getX": "頂点`i`の1番目の数値。",
+      "getY": "頂点`i`の2番目の数値。",
+      "getZ": "頂点`i`の3番目の数値。",
+      "getW": "頂点`i`の4番目の数値。",
+      "setX": "頂点`i`の1番目の数値を書き込む。",
+      "setY": "頂点`i`の2番目の数値を書き込む。",
+      "setZ": "頂点`i`の3番目の数値を書き込む。",
+      "setW": "頂点`i`の4番目の数値を書き込む。",
+      "setXY": "頂点`i`に2つの数値を書き込む。",
+      "setXYZ": "頂点`i`に3つの数値を書き込む。"
     }
   }
 }

@@ -545,21 +545,15 @@
     "members": {
       "isBufferAttribute": "Toujours `true` : distingue un attribut de tampon de tout le reste.",
       "type": "Comment les valeurs ont été déclarées ; un attribut en demi-flottants est gardé en précision flottante.",
-      "normalized": "Si les nombres entiers se lisent comme des valeurs entre 0 et 1.",
       "version": "Augmenté à chaque écriture déclarée : ce que le monde compare pour voir que le contenu a changé.",
       "array": "Les nombres eux-mêmes.",
-      "itemSize": "Combien de nombres appartiennent à un sommet : 3 pour une position.",
       "count": "Combien de sommets décrivent les nombres.",
-      "needsUpdate": "`attribute.needsUpdate = true` après avoir écrit `array` : le monde le relit.",
-      "getComponent": "Le nombre `component` du sommet `index`.",
-      "getX": "Le premier nombre du sommet `i`.",
-      "getY": "Le deuxième nombre du sommet `i`.",
-      "getZ": "Le troisième nombre du sommet `i`.",
-      "getW": "Le quatrième nombre du sommet `i`.",
-      "setXYZ": "Écrit trois nombres pour le sommet `i`.",
-      "setXY": "Écrit deux nombres pour le sommet `i`.",
-      "setX": "Écrit le premier nombre du sommet `i`.",
-      "clone": "Un nouvel attribut avec une copie des nombres."
+      "needsUpdate": "`needsUpdate = true` après avoir écrit `array` : un lecteur l’envoie de nouveau.",
+      "clone": "Un nouvel attribut avec une copie des nombres, de leur type, de leur normalisation et de son nom.",
+      "kind": "L’attribut possède son tampon.",
+      "updateRanges": "Plages de `array` écrites depuis le dernier envoi, envoyées seules.",
+      "addUpdateRange": "Marque `count` nombres écrits à partir de `start`.",
+      "clearUpdateRanges": "Oublie les plages écrites, une fois envoyées."
     }
   },
   "BufferNumbers": {
@@ -1694,6 +1688,10 @@
       "autoForward": "CROISIÈRE, désactivée par défaut : la caméra vole vers l’avant à `movementSpeed` sans aucune touche, comme un avion. W ajoute alors `movementSpeed` (deux fois plus vite) et S le retire (la caméra reste sur place) ; elle ne recule jamais. Rien ne bouge avant le prochain `update`, donc un hôte qui redessine sur `change` demande une image quand il active la croisière."
     }
   },
+  "Fog": {
+    "summary": "Un brouillard sur chaque surface : linéaire de `near` à `far`, ou qui s’épaissit avec la distance selon `density`, et s’éclaircit en hauteur au-dessus de `baseHeight` quand `heightFalloff` est donné.",
+    "description": "La couleur est la lumière que le brouillard renvoie vers l’œil, exposée et passée par la courbe d’affichage comme celle d’une surface."
+  },
   "FORMAT_VERSION": {
     "summary": "Format de cache que lit ce moteur.",
     "description": "Le format 5 porte `scene-tables.json`, les tables de nœuds et de matériaux contre lesquelles la scène préparée est vérifiée ; les formats 3 et 4 n’ont pas ce produit et sont refusés par leur numéro plutôt qu’à moitié lus."
@@ -1749,8 +1747,8 @@
       "transparentDrawCalls": "Appels de dessin transparents.",
       "transparentSubmittedTriangles": "Triangles transparents envoyés.",
       "coverageReady": "Le repli GPU initial complet est disponible ; null pour les moteurs sans cette garantie.",
-      "coverageBudgetLimited": "Le détail demandé ne peut pas coexister avec le repli épinglé dans le budget de pages GPU.",
-      "budgetPixelError": "Plancher d’erreur à l’écran qu’impose à la coupe le budget de pages GPU, en pixels : `0` quand le détail demandé tient, sinon le seuil plus grossier auquel l’image est dessinée. Null pour les moteurs sans budget de pages.",
+      "coverageBudgetLimited": "Le détail demandé réclame plus de pages que n’en tient le budget de pages GPU : le reste est dessiné plus grossier.",
+      "budgetPixelError": "WebGL2 seulement : plancher d’erreur à l’écran qu’impose à la coupe son budget de pages, en pixels — `0` quand le détail demandé tient, sinon le seuil plus grossier auquel l’image est dessinée. Absent sur WebGPU, où la résidence seule rend l’image plus grossière. Null pour les moteurs sans budget de pages.",
       "frameHeld": "Vrai quand l’image a été gardée : ni la scène, ni la vue, ni les ressources n’ont bougé, aucun travail asynchrone n’était en attente, et aucune étape CPU n’a tourné. Les pixels affichés sont ceux de l’image d’origine, au bit près. Ce qu’A FAIT l’image gardée est publié tel quel, jamais copié du dernier rendu complet : `drawCalls`, `triangles`, `submittedTriangles` et `totalSubmittedTriangles` ne comptent que la présentation, et les durées CPU et GPU par étape valent zéro quand l’étape n’a pas tourné, `null` quand rien ne l’a chronométrée. Un moteur dont l’image est une scène que dessine l’adaptateur témoin compte ce que cet adaptateur a envoyé dans cette image — rien, pour une image gardée. Ce que MONTRE l’image gardée reste décrit par la coupe qu’elle réaffiche : `clusters`, `selectedTriangles`, `frustumRejected`, `lodLevel` et `residentPages` sont ceux de l’image d’origine, puisque c’est la même coupe. Absent d’un moteur qui ne garde pas ses images.",
       "streamingError": "Erreur de chargement persistante ; les URL en échec demandent de recharger l’explorateur après trois essais.",
       "gpuPassMs": "Dernière mesure de passes GPU de ce moteur ; null quand l’appareil ne sait pas faire d’horodatages.",
@@ -2477,7 +2475,10 @@
       "array": "Les nombres de chaque sommet, rangés les uns après les autres.",
       "stride": "Combien de nombres prend chaque sommet.",
       "count": "Combien de sommets il emballe.",
-      "attribute": "Un attribut extrait du paquet, en attribut de flottants à part."
+      "attribute": "Un attribut extrait du paquet, en attribut à part.",
+      "kind": "Un stockage que regardent plusieurs attributs.",
+      "version": "Incrémenté par `needsUpdate`.",
+      "needsUpdate": "`needsUpdate = true` après avoir écrit `array` : un lecteur l’envoie de nouveau."
     }
   },
   "invertMatrix4": {
@@ -2987,7 +2988,7 @@
       "parameters.flatShading": "Donne à chaque triangle une seule teinte plate, pour montrer ses facettes.",
       "parameters.size": "Taille d’un point, pour le matériau de points.",
       "parameters.sizeAttenuation": "Si les points rapetissent avec la distance.",
-      "parameters.linewidth": "Largeur d’une ligne.",
+      "parameters.linewidth": "Largeur d’une ligne en pixels CSS, la même à toute distance.",
       "parameters.dashSize": "Longueur d’un tiret.",
       "parameters.gapSize": "Longueur de l’espace entre deux tirets.",
       "parameters.vertexColors": "Si la liste `color` par sommet de la géométrie teinte la surface.",
@@ -3025,7 +3026,7 @@
       "parameters.flatShading": "Donne à chaque triangle une seule teinte plate, pour montrer ses facettes.",
       "parameters.size": "Taille d’un point, pour le matériau de points.",
       "parameters.sizeAttenuation": "Si les points rapetissent avec la distance.",
-      "parameters.linewidth": "Largeur d’une ligne.",
+      "parameters.linewidth": "Largeur d’une ligne en pixels CSS, la même à toute distance.",
       "parameters.dashSize": "Longueur d’un tiret.",
       "parameters.gapSize": "Longueur de l’espace entre deux tirets.",
       "parameters.vertexColors": "Si la liste `color` par sommet de la géométrie teinte la surface.",
@@ -3063,7 +3064,7 @@
       "parameters.flatShading": "Donne à chaque triangle une seule teinte plate, pour montrer ses facettes.",
       "parameters.size": "Taille d’un point, pour le matériau de points.",
       "parameters.sizeAttenuation": "Si les points rapetissent avec la distance.",
-      "parameters.linewidth": "Largeur d’une ligne.",
+      "parameters.linewidth": "Largeur d’une ligne en pixels CSS, la même à toute distance.",
       "parameters.dashSize": "Longueur d’un tiret.",
       "parameters.gapSize": "Longueur de l’espace entre deux tirets.",
       "parameters.vertexColors": "Si la liste `color` par sommet de la géométrie teinte la surface.",
@@ -3101,7 +3102,7 @@
       "parameters.flatShading": "Donne à chaque triangle une seule teinte plate, pour montrer ses facettes.",
       "parameters.size": "Taille d’un point, pour le matériau de points.",
       "parameters.sizeAttenuation": "Si les points rapetissent avec la distance.",
-      "parameters.linewidth": "Largeur d’une ligne.",
+      "parameters.linewidth": "Largeur d’une ligne en pixels CSS, la même à toute distance.",
       "parameters.dashSize": "Longueur d’un tiret.",
       "parameters.gapSize": "Longueur de l’espace entre deux tirets.",
       "parameters.vertexColors": "Si la liste `color` par sommet de la géométrie teinte la surface.",
@@ -3139,7 +3140,7 @@
       "parameters.flatShading": "Donne à chaque triangle une seule teinte plate, pour montrer ses facettes.",
       "parameters.size": "Taille d’un point, pour le matériau de points.",
       "parameters.sizeAttenuation": "Si les points rapetissent avec la distance.",
-      "parameters.linewidth": "Largeur d’une ligne.",
+      "parameters.linewidth": "Largeur d’une ligne en pixels CSS, la même à toute distance.",
       "parameters.dashSize": "Longueur d’un tiret.",
       "parameters.gapSize": "Longueur de l’espace entre deux tirets.",
       "parameters.vertexColors": "Si la liste `color` par sommet de la géométrie teinte la surface.",
@@ -3177,7 +3178,7 @@
       "parameters.flatShading": "Donne à chaque triangle une seule teinte plate, pour montrer ses facettes.",
       "parameters.size": "Taille d’un point, pour le matériau de points.",
       "parameters.sizeAttenuation": "Si les points rapetissent avec la distance.",
-      "parameters.linewidth": "Largeur d’une ligne.",
+      "parameters.linewidth": "Largeur d’une ligne en pixels CSS, la même à toute distance.",
       "parameters.dashSize": "Longueur d’un tiret.",
       "parameters.gapSize": "Longueur de l’espace entre deux tirets.",
       "parameters.vertexColors": "Si la liste `color` par sommet de la géométrie teinte la surface.",
@@ -3215,7 +3216,7 @@
       "parameters.flatShading": "Donne à chaque triangle une seule teinte plate, pour montrer ses facettes.",
       "parameters.size": "Taille d’un point, pour le matériau de points.",
       "parameters.sizeAttenuation": "Si les points rapetissent avec la distance.",
-      "parameters.linewidth": "Largeur d’une ligne.",
+      "parameters.linewidth": "Largeur d’une ligne en pixels CSS, la même à toute distance.",
       "parameters.dashSize": "Longueur d’un tiret.",
       "parameters.gapSize": "Longueur de l’espace entre deux tirets.",
       "parameters.vertexColors": "Si la liste `color` par sommet de la géométrie teinte la surface.",
@@ -3253,7 +3254,7 @@
       "parameters.flatShading": "Donne à chaque triangle une seule teinte plate, pour montrer ses facettes.",
       "parameters.size": "Taille d’un point, pour le matériau de points.",
       "parameters.sizeAttenuation": "Si les points rapetissent avec la distance.",
-      "parameters.linewidth": "Largeur d’une ligne.",
+      "parameters.linewidth": "Largeur d’une ligne en pixels CSS, la même à toute distance.",
       "parameters.dashSize": "Longueur d’un tiret.",
       "parameters.gapSize": "Longueur de l’espace entre deux tirets.",
       "parameters.vertexColors": "Si la liste `color` par sommet de la géométrie teinte la surface.",
@@ -3291,7 +3292,7 @@
       "parameters.flatShading": "Donne à chaque triangle une seule teinte plate, pour montrer ses facettes.",
       "parameters.size": "Taille d’un point, pour le matériau de points.",
       "parameters.sizeAttenuation": "Si les points rapetissent avec la distance.",
-      "parameters.linewidth": "Largeur d’une ligne.",
+      "parameters.linewidth": "Largeur d’une ligne en pixels CSS, la même à toute distance.",
       "parameters.dashSize": "Longueur d’un tiret.",
       "parameters.gapSize": "Longueur de l’espace entre deux tirets.",
       "parameters.vertexColors": "Si la liste `color` par sommet de la géométrie teinte la surface.",
@@ -3329,7 +3330,7 @@
       "parameters.flatShading": "Donne à chaque triangle une seule teinte plate, pour montrer ses facettes.",
       "parameters.size": "Taille d’un point, pour le matériau de points.",
       "parameters.sizeAttenuation": "Si les points rapetissent avec la distance.",
-      "parameters.linewidth": "Largeur d’une ligne.",
+      "parameters.linewidth": "Largeur d’une ligne en pixels CSS, la même à toute distance.",
       "parameters.dashSize": "Longueur d’un tiret.",
       "parameters.gapSize": "Longueur de l’espace entre deux tirets.",
       "parameters.vertexColors": "Si la liste `color` par sommet de la géométrie teinte la surface.",
@@ -3367,7 +3368,7 @@
       "parameters.flatShading": "Donne à chaque triangle une seule teinte plate, pour montrer ses facettes.",
       "parameters.size": "Taille d’un point, pour le matériau de points.",
       "parameters.sizeAttenuation": "Si les points rapetissent avec la distance.",
-      "parameters.linewidth": "Largeur d’une ligne.",
+      "parameters.linewidth": "Largeur d’une ligne en pixels CSS, la même à toute distance.",
       "parameters.dashSize": "Longueur d’un tiret.",
       "parameters.gapSize": "Longueur de l’espace entre deux tirets.",
       "parameters.vertexColors": "Si la liste `color` par sommet de la géométrie teinte la surface.",
@@ -3405,7 +3406,7 @@
       "parameters.flatShading": "Donne à chaque triangle une seule teinte plate, pour montrer ses facettes.",
       "parameters.size": "Taille d’un point, pour le matériau de points.",
       "parameters.sizeAttenuation": "Si les points rapetissent avec la distance.",
-      "parameters.linewidth": "Largeur d’une ligne.",
+      "parameters.linewidth": "Largeur d’une ligne en pixels CSS, la même à toute distance.",
       "parameters.dashSize": "Longueur d’un tiret.",
       "parameters.gapSize": "Longueur de l’espace entre deux tirets.",
       "parameters.vertexColors": "Si la liste `color` par sommet de la géométrie teinte la surface.",
@@ -3443,7 +3444,7 @@
       "parameters.flatShading": "Donne à chaque triangle une seule teinte plate, pour montrer ses facettes.",
       "parameters.size": "Taille d’un point, pour le matériau de points.",
       "parameters.sizeAttenuation": "Si les points rapetissent avec la distance.",
-      "parameters.linewidth": "Largeur d’une ligne.",
+      "parameters.linewidth": "Largeur d’une ligne en pixels CSS, la même à toute distance.",
       "parameters.dashSize": "Longueur d’un tiret.",
       "parameters.gapSize": "Longueur de l’espace entre deux tirets.",
       "parameters.vertexColors": "Si la liste `color` par sommet de la géométrie teinte la surface.",
@@ -3481,7 +3482,7 @@
       "parameters.flatShading": "Donne à chaque triangle une seule teinte plate, pour montrer ses facettes.",
       "parameters.size": "Taille d’un point, pour le matériau de points.",
       "parameters.sizeAttenuation": "Si les points rapetissent avec la distance.",
-      "parameters.linewidth": "Largeur d’une ligne.",
+      "parameters.linewidth": "Largeur d’une ligne en pixels CSS, la même à toute distance.",
       "parameters.dashSize": "Longueur d’un tiret.",
       "parameters.gapSize": "Longueur de l’espace entre deux tirets.",
       "parameters.vertexColors": "Si la liste `color` par sommet de la géométrie teinte la surface.",
@@ -3539,7 +3540,7 @@
       "parameters.flatShading": "Donne à chaque triangle une seule teinte plate, pour montrer ses facettes.",
       "parameters.size": "Taille d’un point, pour le matériau de points.",
       "parameters.sizeAttenuation": "Si les points rapetissent avec la distance.",
-      "parameters.linewidth": "Largeur d’une ligne.",
+      "parameters.linewidth": "Largeur d’une ligne en pixels CSS, la même à toute distance.",
       "parameters.dashSize": "Longueur d’un tiret.",
       "parameters.gapSize": "Longueur de l’espace entre deux tirets.",
       "parameters.vertexColors": "Si la liste `color` par sommet de la géométrie teinte la surface.",
@@ -3602,7 +3603,7 @@
       "flatShading": "Donne à chaque triangle une seule teinte plate, pour montrer ses facettes.",
       "size": "Taille d’un point, pour le matériau de points.",
       "sizeAttenuation": "Si les points rapetissent avec la distance.",
-      "linewidth": "Largeur d’une ligne.",
+      "linewidth": "Largeur d’une ligne en pixels CSS, la même à toute distance.",
       "dashSize": "Longueur d’un tiret.",
       "gapSize": "Longueur de l’espace entre deux tirets.",
       "vertexColors": "Si la liste `color` par sommet de la géométrie teinte la surface.",
@@ -4965,8 +4966,8 @@
     "members": {
       "isScene": "Toujours `true` : distingue la racine de la scène de tout autre objet.",
       "environment": "Une image de l’environnement que reflètent les surfaces brillantes ; `null` pour aucune.",
-      "fog": "Un brouillard qui fond les objets dans `color` entre `near` et `far` ; `null` pour aucun.",
       "background": "Ce qui remplit l’image derrière chaque objet : une couleur, ou `null` pour le fond par défaut. Un changement s’affiche à l’image suivante, la session gardée : une nouvelle couleur donnée ici, ou celle en place écrite par ses méthodes (`set`, `setRGB`, `setHex`, `setHSL`...). Une écriture directe de `.r`, `.g` ou `.b` n’est pas entendue : redonnez `background` après. Une image, ou toute valeur sans `getHex`, est refusée (`UNSUPPORTED_SCENE_UPDATE`) : aucun chemin ne la dessine.",
+      "fog": "Un brouillard sur chaque surface, opaque ou transparente, sur les deux moteurs de rendu ; `null`, la valeur par défaut, pour aucun, sans aucun coût. `{ color, near, far }` fond les objets dans `color` de `near` à `far`, distances depuis la caméra ; `{ color, density }` s’épaissit de `density` par unité de distance ; ajoutez `heightFalloff` (et `baseHeight`, 0 par défaut) et il se pose au sol, s’éclaircissant au-dessus de `baseHeight` — divisé par e toutes les `1 / heightFalloff` unités vers le haut. Un changement se voit à l’image suivante : un nouveau brouillard donné ici, ou sa couleur écrite par ses méthodes. Une écriture directe de `near`, `far`, `density`... n’est pas entendue : redonnez `fog` après. Un brouillard hors limites — `far` pas au-delà de `near`, une densité négative — est refusé (`INVALID_SCENE_ENVIRONMENT`).",
       "load": "Charge un modèle compilé — l’URL de son manifeste — et l’ajoute à cette scène.",
       "toJSON": "La scène en JSON simple, versionné : ses objets, les formes par l’appel qui les a construites, les matériaux, les lumières et les modèles chargés par adresse ; la pose de `camera` aussi quand on en donne une.",
       "fromJSON": "Remplace ce que contient la scène par une scène enregistrée par `toJSON`, ses repères `helper` gardés ; se résout une fois ses modèles chargés. Un autre format ou une autre version est refusé (`UNSUPPORTED_SCENE_FORMAT`)."
@@ -5005,8 +5006,21 @@
     "members": {
       "exposure": "Multiplicateur de la radiance linéaire, appliqué avant la courbe.",
       "toneMapping": "La courbe d’affichage ; `DEFAULT_TONE_MAPPING` si elle manque.",
-      "irradiance": "L’irradiance qui arrive de toutes les directions, en 27 nombres : neuf coefficients, chacun un triplet RVB, dans l’ordre des bandes constante, `y`, `z`, `x`, `xy`, `yz`, `3z² − 1`, `xz`, `x² − y²`. Absente, ou toute nulle, rien n’éclaire une surface sauf les lampes déclarées."
+      "irradiance": "L’irradiance qui arrive de toutes les directions, en 27 nombres : neuf coefficients, chacun un triplet RVB, dans l’ordre des bandes constante, `y`, `z`, `x`, `xy`, `yz`, `3z² − 1`, `xz`, `x² − y²`. Absente, ou toute nulle, rien n’éclaire une surface sauf les lampes déclarées.",
+      "fog": "Brouillard de distance ou de hauteur sur chaque surface (`SceneFog`) ; absent, aucun."
     }
+  },
+  "SceneExponentialFog": {
+    "summary": "Un brouillard qui s’épaissit avec la distance : `density` par unité de la scène ; avec `heightFalloff`, il s’éclaircit au-dessus de `baseHeight`, divisé par e toutes les `1 / heightFalloff` unités vers le haut.",
+    "members": {
+      "color": "La radiance vers laquelle le brouillard fond les objets, en RVB linéaire.",
+      "density": "L’extinction par unité de la scène, à `baseHeight` ; ≥ 0.",
+      "heightFalloff": "La vitesse à laquelle la densité baisse avec la hauteur, par unité de la scène ; 0, la valeur par défaut, la garde uniforme à toute hauteur.",
+      "baseHeight": "La hauteur où la densité vaut `density` ; 0 par défaut."
+    }
+  },
+  "SceneFog": {
+    "summary": "Brouillard de distance ou de hauteur, tel que l’éclairage le lit."
   },
   "SceneLight": {
     "summary": "Une lumière de scène, version 2.",
@@ -5031,6 +5045,14 @@
     "summary": "Ce que l’hôte demande de voir.",
     "description": "`lit` est le vrai éclairage et lui seul ; `unlit` est la vue de diagnostic en albédo brut — la couleur du matériau telle quelle, sans lumière, sans ambiante et sans émission — pour les bancs d’essai de géométrie qui comparent des images au pixel près. `auto`, par défaut, donne `unlit` tant qu’aucune lumière n’est déclarée et `lit` dès qu’il y en a une. `bounce` est la troisième vue de diagnostic : l’irradiance indirecte seule, multipliée par l’exposition et sortie en valeurs linéaires sans ACES ni sRGB. C’est ce que le banc compare à l’oracle du compilateur ; ce n’est pas une image à regarder, et elle est noire sans rebond réglé."
   },
+  "SceneLinearFog": {
+    "summary": "Un brouillard qui commence à `near` et cache tout à partir de `far`, distances depuis l’œil.",
+    "members": {
+      "color": "La radiance vers laquelle le brouillard fond les objets, en RVB linéaire.",
+      "near": "Distance depuis l’œil où le brouillard commence.",
+      "far": "Distance depuis l’œil où l’on ne voit plus que le brouillard."
+    }
+  },
   "SceneLightStore": {
     "summary": "Les lumières d’une scène telles que le GPU les lit, rangées et tenues à jour.",
     "members": {
@@ -5042,6 +5064,7 @@
       "ids": "Le nom de la lumière de chaque place.",
       "count": "Combien de lumières.",
       "epoch": "Augmenté quand l’ensemble des lumières change.",
+      "transportEpoch": "Augmenté avec l’époque, sauf par un changement du seul brouillard : le brouillard est un terme du rayon de vue, pas du transport de la lumière, donc ce qui met en cache la lumière transportée (les sondes de rebond) la garde.",
       "environment": "L’environnement de la scène.",
       "lightingView": "Vue demandée par l’hôte, telle quelle : `auto` tant qu’il n’a rien demandé.",
       "unlit": "Vrai quand l’image doit sortir en albédo brut, sans lumière. C’est le comportement par défaut tant qu’aucune lumière n’est déclarée : une scène sans source n’a rien à éclairer, et une image noire n’aiderait aucun banc d’essai de géométrie. Dès qu’une lumière existe, le vrai éclairage prend le relais — sauf si l’hôte a demandé explicitement la vue de diagnostic.",
@@ -5575,7 +5598,7 @@
       "baseMetal": "Couleur de base en RVB, A pour le métal.",
       "normalRough": "Normale XYZ dans le monde, A pour la rugosité.",
       "emissiveAo": "Émission RVB, A pour l’occlusion ambiante.",
-      "flags": "0 fond, 1 sans lumière, 2 lectures, 3 diagnostic en espace d’affichage.",
+      "flags": "0 fond, 1 non éclairé (dans le brouillard), 2 lu, 3 montré tel quel : un diagnostic, une vue des normales ou de la profondeur.",
       "views": "Ses vues de texture GPU.",
       "dispose": "Le libère."
     }
@@ -6466,8 +6489,8 @@
       "transparentDrawCalls": "Appels de dessin transparents.",
       "transparentSubmittedTriangles": "Triangles transparents envoyés.",
       "coverageReady": "Le repli GPU initial complet est disponible ; null pour les moteurs sans cette garantie.",
-      "coverageBudgetLimited": "Le détail demandé ne peut pas coexister avec le repli épinglé dans le budget de pages GPU.",
-      "budgetPixelError": "Plancher d’erreur à l’écran qu’impose à la coupe le budget de pages GPU, en pixels : `0` quand le détail demandé tient, sinon le seuil plus grossier auquel l’image est dessinée. Null pour les moteurs sans budget de pages.",
+      "coverageBudgetLimited": "Le détail demandé réclame plus de pages que n’en tient le budget de pages GPU : le reste est dessiné plus grossier.",
+      "budgetPixelError": "WebGL2 seulement : plancher d’erreur à l’écran qu’impose à la coupe son budget de pages, en pixels — `0` quand le détail demandé tient, sinon le seuil plus grossier auquel l’image est dessinée. Absent sur WebGPU, où la résidence seule rend l’image plus grossière. Null pour les moteurs sans budget de pages.",
       "frameHeld": "Vrai quand l’image a été gardée : ni la scène, ni la vue, ni les ressources n’ont bougé, aucun travail asynchrone n’était en attente, et aucune étape CPU n’a tourné. Les pixels affichés sont ceux de l’image d’origine, au bit près. Ce qu’A FAIT l’image gardée est publié tel quel, jamais copié du dernier rendu complet : `drawCalls`, `triangles`, `submittedTriangles` et `totalSubmittedTriangles` ne comptent que la présentation, et les durées CPU et GPU par étape valent zéro quand l’étape n’a pas tourné, `null` quand rien ne l’a chronométrée. Un moteur dont l’image est une scène que dessine l’adaptateur témoin compte ce que cet adaptateur a envoyé dans cette image — rien, pour une image gardée. Ce que MONTRE l’image gardée reste décrit par la coupe qu’elle réaffiche : `clusters`, `selectedTriangles`, `frustumRejected`, `lodLevel` et `residentPages` sont ceux de l’image d’origine, puisque c’est la même coupe. Absent d’un moteur qui ne garde pas ses images.",
       "streamingError": "Erreur de chargement persistante ; les URL en échec demandent de recharger l’explorateur après trois essais.",
       "gpuPassMs": "Dernière mesure de passes GPU de ce moteur ; null quand l’appareil ne sait pas faire d’horodatages.",
@@ -6793,7 +6816,7 @@
       "format": "Toujours `'trillion3d-scene'`.",
       "formatVersion": "La version de cette disposition ; une autre est refusée.",
       "background": "La couleur de fond, ou `null`.",
-      "fog": "Le brouillard, ou `null`.",
+      "fog": "Le brouillard, sa couleur en composantes linéaires, ou `null`.",
       "camera": "La caméra enregistrée avec la scène, ou `null`.",
       "geometries": "Chaque forme, une fois, quel que soit le nombre de maillages qui la portent.",
       "materials": "Chaque matériau, une fois, quel que soit le nombre de maillages qui le portent.",
@@ -7129,19 +7152,6 @@
       "handbrake": "Si le frein à main est tiré."
     }
   },
-  "GraphAttribute": {
-    "members": {
-      "count": "Combien de sommets.",
-      "array": "Le stockage.",
-      "kind": "L’attribut possède son tampon.",
-      "version": "Incrémenté par `needsUpdate`.",
-      "updateRanges": "Plages de `array` écrites depuis le dernier envoi, envoyées seules.",
-      "addUpdateRange": "Marque `count` nombres écrits à partir de `start`.",
-      "clearUpdateRanges": "Oublie les plages écrites, une fois envoyées.",
-      "needsUpdate": "`needsUpdate = true` après avoir écrit `array` : un lecteur l’envoie de nouveau."
-    },
-    "summary": "Un attribut qui possède son stockage : `itemSize` nombres par sommet, l’un après l’autre."
-  },
   "GraphGeometry": {
     "members": {
       "attributes": "Ses attributs de sommets.",
@@ -7236,34 +7246,6 @@
       "rotation": "La rotation, en radians."
     },
     "summary": "Une image et l’état d’échantillonnage avec lequel elle est lue, et la transformation de ses coordonnées."
-  },
-  "GraphArray": {
-    "summary": "Les tableaux typés que tient un attribut."
-  },
-  "GraphElements": {
-    "summary": "L’un ou l’autre genre d’attribut."
-  },
-  "GraphInterleavedAttribute": {
-    "summary": "Un attribut qui regarde `itemSize` nombres à `offset` de chaque sommet d’un tampon entrelacé.",
-    "members": {
-      "kind": "L’attribut regarde un tampon partagé.",
-      "data": "Le tampon qu’il regarde.",
-      "offset": "Où ses nombres commencent dans chaque sommet.",
-      "array": "Le stockage où vivent les éléments.",
-      "count": "Combien de sommets.",
-      "needsUpdate": "`needsUpdate = true` après avoir écrit `array` : un lecteur l’envoie de nouveau."
-    }
-  },
-  "GraphInterleavedBuffer": {
-    "summary": "Un stockage que regardent plusieurs attributs, un sommet tous les `stride` nombres.",
-    "members": {
-      "kind": "Un stockage que regardent plusieurs attributs.",
-      "count": "Combien de sommets.",
-      "version": "Incrémenté par `needsUpdate`.",
-      "array": "Le stockage.",
-      "stride": "Nombres par sommet.",
-      "needsUpdate": "`needsUpdate = true` après avoir écrit `array` : un lecteur l’envoie de nouveau."
-    }
   },
   "GraphMesh": {
     "summary": "Un nœud dessiné : une géométrie et sa surface, ou une surface par groupe de la géométrie.",
@@ -7365,6 +7347,45 @@
       "pulley": "Une corde de `a` passant sur deux roues (`over`) jusqu’à `b` : l’un monte quand l’autre descend.",
       "gear": "Deux roues qui tournent ensemble selon `ratio`, chacune autour de son axe (`axis`, `axisB`) et tenue par sa charnière (la roue en est le `a`) ; quand `ratio` ou 1 / `ratio` est entier, leurs dents gardent aussi la phase où elles ont été faites.",
       "rackAndPinion": "Un pignon `a` qui tourne autour d’`axis` entraîne une crémaillère `b` le long d’`axisB`, chacun tenu par sa charnière ou sa glissière (le corps en est le `a`), leurs dents gardées dans la phase où elles ont été faites."
+    }
+  },
+  "InterleavedBufferAttribute": {
+    "summary": "Un attribut qui regarde `itemSize` nombres à `offset` de chaque sommet d’un tampon entrelacé.",
+    "members": {
+      "isInterleavedBufferAttribute": "Toujours `true` : distingue une vue entrelacée de tout le reste.",
+      "kind": "L’attribut regarde un tampon partagé.",
+      "data": "Le tampon qu’il regarde.",
+      "offset": "Où ses nombres commencent dans chaque sommet.",
+      "array": "Le stockage où vivent les éléments.",
+      "count": "Combien de sommets décrivent les nombres.",
+      "needsUpdate": "`needsUpdate = true` après avoir écrit `array` : un lecteur l’envoie de nouveau.",
+      "clone": "Ses propres nombres, copiés hors du paquet dans un attribut qui les possède."
+    }
+  },
+  "VertexAttribute": {
+    "summary": "L’un ou l’autre genre d’attribut : qui possède son stockage ou qui regarde un stockage entrelacé."
+  },
+  "VertexElements": {
+    "summary": "Les éléments d’un attribut de sommet, lus et écrits composante par composante.",
+    "members": {
+      "name": "Le nom sous lequel une cible de morphose est connue ; vide pour les autres.",
+      "itemSize": "Combien de nombres appartiennent à un sommet : 3 pour une position.",
+      "normalized": "Si les nombres entiers se lisent comme des valeurs entre 0 et 1.",
+      "array": "Le stockage où vivent les éléments.",
+      "count": "Combien de sommets décrivent les nombres.",
+      "stored": "Le nombre `component` du sommet `index` tel qu’il est stocké, un entier normalisé non mis à l’échelle.",
+      "getComponent": "Le nombre `component` du sommet `index`, lu comme le nombre qu’il représente.",
+      "setComponent": "Écrit le nombre `component` du sommet `index`.",
+      "getX": "Le premier nombre du sommet `i`.",
+      "getY": "Le deuxième nombre du sommet `i`.",
+      "getZ": "Le troisième nombre du sommet `i`.",
+      "getW": "Le quatrième nombre du sommet `i`.",
+      "setX": "Écrit le premier nombre du sommet `i`.",
+      "setY": "Écrit le deuxième nombre du sommet `i`.",
+      "setZ": "Écrit le troisième nombre du sommet `i`.",
+      "setW": "Écrit le quatrième nombre du sommet `i`.",
+      "setXY": "Écrit deux nombres pour le sommet `i`.",
+      "setXYZ": "Écrit trois nombres pour le sommet `i`."
     }
   }
 }

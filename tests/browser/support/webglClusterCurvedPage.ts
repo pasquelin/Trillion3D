@@ -55,7 +55,7 @@ export function planarWitness() {
 const sceneInputs = () => {
   const geometry = G.sphereGeometry(1, 32, 16);
   if (!geometry.index) throw new Error('sphere geometry missing index');
-  geometry.setIndex(new G.GraphAttribute(Uint32Array.from(geometry.index.array), 1));
+  geometry.setIndex(new G.BufferAttribute(Uint32Array.from(geometry.index.array), 1));
   const material = G.standardSurface({ roughness: 0.35, metalness: 0.8 });
   (material.color as G.Color).setRGB(0.18, 0.18, 0.18);
   const camera = G.perspectiveCamera(60, 1, 0.1, 10),

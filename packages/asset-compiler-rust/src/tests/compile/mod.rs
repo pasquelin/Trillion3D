@@ -12,4 +12,5 @@ pub(in crate::tests) mod silhouette;
 pub(in crate::tests) mod simplification_none;
 pub(in crate::tests) mod sources_materials;
 pub(in crate::tests) mod sparse_admission;
+pub(in crate::tests) mod terrain_tiles;
 pub(in crate::tests) mod thin_walls;
