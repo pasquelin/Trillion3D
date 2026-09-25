@@ -69,10 +69,6 @@ export function createTileSources(options: {
       height: layout.height,
       format: atlas.poolOf(slot).texture.format,
       atlas: atlas.kind,
-      errorCode:
-        atlas.kind === 'color'
-          ? 'MATERIAL_COLOR_TEXTURE_UNAVAILABLE'
-          : 'MATERIAL_DATA_TEXTURE_UNAVAILABLE',
     });
   };
   const scratchOf = (atlas: WebgpuTileAtlas, slot: number) => {

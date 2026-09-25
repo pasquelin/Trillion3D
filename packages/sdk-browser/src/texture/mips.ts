@@ -6,7 +6,8 @@ export function mipLevelCountFor(width: number, height: number) {
 }
 
 /**
- * Layout and reduction program, built ONCE per device, per format and per colour rule.
+ * Layout and reduction program, built ONCE per device; its pipeline once per format and per
+ * colour rule.
  *
  * The mip chain is generated at every working texture: recompiling the same program and the same
  * layout at each made one pay a pipeline compilation per texture, on the very path that must
@@ -14,8 +15,13 @@ export function mipLevelCountFor(width: number, height: number) {
  * pipelines with it; it is built on the device itself (`sharedGpuDevice`), never on a session's
  * handle: it serves every session, and names none.
  */
-type MipPipeline = { layout: GPUBindGroupLayout; pipeline: GPURenderPipeline };
-const pipelines = new WeakMap<GPUDevice, Map<string, MipPipeline>>();
+type MipProgram = {
+  layout: GPUBindGroupLayout;
+  pipelineLayout: GPUPipelineLayout;
+  module: GPUShaderModule;
+  pipelines: Map<string, GPURenderPipeline>;
+};
+const programs = new WeakMap<GPUDevice, MipProgram>();
 
 /**
  * Colours are averaged, alpha is the MEDIAN of the four texels — never their mean.
@@ -68,11 +74,8 @@ export function weighsColourByAlpha(atlas: 'color' | 'data', premultiplied: bool
   return atlas === 'color' && !premultiplied;
 }
 
-function mipPipeline(device: GPUDevice, format: GPUTextureFormat, weighted: boolean): MipPipeline {
-  let byKey = pipelines.get(device);
-  if (!byKey) pipelines.set(device, (byKey = new Map()));
-  const key = `${format}${weighted ? ' weighted' : ''}`;
-  const held = byKey.get(key);
+function mipProgram(device: GPUDevice): MipProgram {
+  const held = programs.get(device);
   if (held) return held;
   const layout = device.createBindGroupLayout({
     entries: [
@@ -80,23 +83,39 @@ function mipPipeline(device: GPUDevice, format: GPUTextureFormat, weighted: bool
       { binding: 1, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'uniform' } },
     ],
   });
-  const module = device.createShaderModule({ code: MIP_SHADER });
-  const built: MipPipeline = {
+  const built: MipProgram = {
     layout,
-    pipeline: device.createRenderPipeline({
-      layout: device.createPipelineLayout({ bindGroupLayouts: [layout] }),
-      vertex: { module, entryPoint: 'vs' },
-      fragment: {
-        module,
-        entryPoint: 'fs',
-        targets: [{ format }],
-        constants: { weighted: Number(weighted) },
-      },
-      primitive: { topology: 'triangle-list' },
-    }),
+    pipelineLayout: device.createPipelineLayout({ bindGroupLayouts: [layout] }),
+    module: device.createShaderModule({ code: MIP_SHADER }),
+    pipelines: new Map(),
   };
-  byKey.set(key, built);
+  programs.set(device, built);
   return built;
+}
+
+function mipPipeline(
+  program: MipProgram,
+  device: GPUDevice,
+  format: GPUTextureFormat,
+  weighted: boolean,
+) {
+  const key = `${format}${weighted ? ' weighted' : ''}`;
+  const held = program.pipelines.get(key);
+  if (held) return held;
+  const { module } = program;
+  const pipeline = device.createRenderPipeline({
+    layout: program.pipelineLayout,
+    vertex: { module, entryPoint: 'vs' },
+    fragment: {
+      module,
+      entryPoint: 'fs',
+      targets: [{ format }],
+      constants: { weighted: Number(weighted) },
+    },
+    primitive: { topology: 'triangle-list' },
+  });
+  program.pipelines.set(key, pipeline);
+  return pipeline;
 }
 
 /**
@@ -124,8 +143,9 @@ function mipUniforms(device: GPUDevice, size: number) {
 }
 
 /** Generates the mip chain of a 2D texture: averaged colour — weighted by alpha when `weighted`
- * (`weighsColourByAlpha`) —, median alpha so that threshold coverage survives every level. Commands are submitted without being awaited: the device queue
- * runs them in order, therefore before any copy that will read a level. */
+ * (`weighsColourByAlpha`) —, median alpha so that threshold coverage survives every level.
+ * Commands are submitted without being awaited: the device queue runs them in order, therefore
+ * before any copy that will read a level. */
 export function generateMaterialMips(
   device: GPUDevice,
   texture: GPUTexture,
@@ -137,7 +157,9 @@ export function generateMaterialMips(
   const levels = mipLevelCountFor(width, height);
   if (levels === 1) return;
   const shared = sharedGpuDevice(device);
-  const { layout, pipeline } = mipPipeline(shared, format, weighted);
+  const program = mipProgram(shared);
+  const { layout } = program;
+  const pipeline = mipPipeline(program, shared, format, weighted);
   const stride = Math.max(256, device.limits.minUniformBufferOffsetAlignment ?? 256);
   // One uniform per reduced level: the extent of the source level, so as not to read off the image.
   const packed = new Uint32Array(((levels - 1) * stride) / 4);
