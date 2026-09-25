@@ -17,7 +17,11 @@ export async function startModule(
   const file = pool ? './joltPhysicsThreads.wasm' : './joltPhysics.wasm';
   const bytes = await readFile(new URL(file, import.meta.url));
   const full = { ...DEFAULT_PHYSICS_BUDGET, bodies: 64, memoryBytes: 64 << 20, ...budget };
-  return startJolt(await openJolt(bytes, full.memoryBytes, pool), full, pool?.count ?? 1);
+  const opened = await openJolt(bytes, full.memoryBytes, pool);
+  const jolt = startJolt(opened, full, pool?.count ?? 1);
+  /** The joints the module's gear linking has visited since it started (`jolt_link_visits`). */
+  const linkVisits = () => (opened.exports.jolt_link_visits as () => number)();
+  return { ...jolt, linkVisits };
 }
 
 /** The threaded module stepped by `count` threads (Node workers); `close` stops them. */
