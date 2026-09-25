@@ -9,6 +9,12 @@ export function createStreamingCache(context: StreamContext) {
   let budget = 0;
   const over = () => (!!maxPages && maxPages >= 1 && cache.size > maxPages) || store.bytes > budget;
   const pinnedOrLoading = (url: string) => pinned.has(url) || jobs.has(url);
+  /** Bytes of the pages no eviction may take: those the frame keeps and those in flight. */
+  const heldBytes = () => {
+    let held = 0;
+    for (const [url, page] of cache) if (pinnedOrLoading(url)) held += page.byteLength;
+    return held;
+  };
   const evictOne = (url: string) => {
     store.drop(url);
     state.evictions++;
@@ -27,6 +33,26 @@ export function createStreamingCache(context: StreamContext) {
   const evict = () => {
     budget = store.budgetBytes;
     if (!over()) return;
+    // The kept file yields to the pages the frame keeps: it never costs the image a page (#483
+    // rule 1). It yields before any page leaves, so none is evicted that fits once it has gone.
+    // It is read again after a device loss, and the notice says what it gave back.
+    const kept = store.keptBytes;
+    if (kept > 0 && heldBytes() > budget) {
+      store.yieldKept();
+      budget = store.budgetBytes;
+      emit(
+        'page-cache-kept-yielded',
+        'The kept file yields its bytes to the pages kept or in flight',
+        () => ({
+          version: 1,
+          bytes: kept,
+          residentBytes: store.bytes,
+          maxCachedBytes: budget,
+          pinned: pinned.size,
+          loading: state.active,
+        }),
+      );
+    }
     const evicted = evictOldest(cache.keys(), over, pinnedOrLoading, evictOne);
     if (!evicted && over()) {
       state.admissionBlocked++;
