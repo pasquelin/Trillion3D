@@ -118,8 +118,7 @@ test('the output reads additive light whole and leaves the untoned share as draw
     output,
     /c=mix\(toneMap\(c\),c,clamp\(texelFetch\(untoned,at,0\)\.r\/a,0\.0,1\.0\)\)/,
   );
-  // Coverage past one is light an additive surface added over a covered pixel: its radiance is
-  // read whole, as the display path adds it, never divided by the coverage.
+  // Coverage past one is light, read whole (`OUTPUT_FRAGMENT`).
   assert.match(output, /float a=min\(v\.a,1\.0\);vec3 c=v\.rgb\/a;/);
   assert.doesNotMatch(output, /\/v\.a/, 'no share is taken of the unclamped coverage');
   const units = of('uniform1i').filter(([at]) => (at as { uniform: string }).uniform === 'untoned');

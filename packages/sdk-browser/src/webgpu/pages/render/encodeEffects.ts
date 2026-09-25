@@ -2,6 +2,9 @@ import { createWebgpuEffects } from '../../../effects/webgpuEffects.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import type { AccumulatedImage, ComposedImage } from '../../../lighting/deferred/program.ts';
 
+/** The revision an image drawn while the chain compiles keeps: no chain's, which count from 0. */
+const COMPILING = -1;
+
 /**
  * The world's effect chain on this image (`../../../effects/webgpuEffects.ts`): the passes that
  * run before tone mapping, over the resolved linear image — `accumulated`, or the lit image when
@@ -32,7 +35,7 @@ export function encodeEffects(
   );
   const [width, height] = gpu.targetSize;
   const output = gpu.effects.encode(encoder, passes, input, width, height);
-  if (gpu.effects.loading) gpu.effectsRevision = -1; // no revision is ever -1
+  if (gpu.effects.loading) gpu.effectsRevision = COMPILING;
   run.gpuDrawCalls += gpu.effects.draws;
   return output === input ? accumulated : { color: output, share: accumulated?.share };
 }

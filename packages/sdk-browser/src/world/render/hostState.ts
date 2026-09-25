@@ -33,6 +33,8 @@ export type ExplorerHostState = {
   measurementTarget?: BoundTarget;
   loaded: number;
   pageBytesRead: number;
+  /** The interactive loop's request for a frame; absent where the host leads the frames. */
+  redraw?: () => void;
 };
 
 export function createExplorerHostState(

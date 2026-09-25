@@ -133,4 +133,6 @@ test('Into the effect chain, a surface covers its pixel as the display path show
     );
     assert.equal(flagOf(transparent(blending), 'covering'), undefined, 'drawn without a chain');
   }
+  // A mode no path draws is refused here as by the display path, never drawn uncovered.
+  assert.throws(() => flagOf(transparent(99), 'covering', true), /a surface declares a blending/);
 });

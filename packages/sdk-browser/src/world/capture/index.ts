@@ -17,14 +17,7 @@ async function pixels(world: object, size: CaptureSize) {
   const { width, height } = size;
   // The scene's latest writes reach the session with a frame of the view, as the world draws it.
   (world as { render?: () => void }).render?.();
-  let bottomUp: Uint8Array;
-  try {
-    bottomUp = await session.captureView(width, height);
-  } finally {
-    // The view is put back without what frames build up — the effect chain, the temporal
-    // accumulation, the water —: the loop draws it again, gone idle or not.
-    session.invalidate();
-  }
+  const bottomUp = await session.captureView(width, height);
   const data = new Uint8Array(width * height * 4);
   for (let row = 0; row < height; row++)
     data.set(

@@ -1,7 +1,7 @@
-import { visMaterial } from '../../visibility/shader/material.ts';
+import { isTransmissive, visMaterial } from '../../visibility/shader/material.ts';
 import { writeSpriteWords } from '../../visibility/shader/spriteWgsl.ts';
 import { SURFACE_MODEL, shownAsIs } from '../../scene/surfaceModel.ts';
-import { blendingOf } from '../../scene/materialBlending.ts';
+import { blendingOf, drawnBlending } from '../../scene/materialBlending.ts';
 import { writeDepthRamp } from '../../camera/depthConvention.ts';
 import { importHostTexture } from '../../host/textureImport.ts';
 import type { HostTexture } from '../../host/resources.ts';
@@ -36,11 +36,15 @@ type Binding = {
  * (`../../effects/webglOutput.ts`), covers its pixel whatever its alpha: an opaque one, and a
  * transparent one that replaces what is behind it (`none`), as the display path shows it.
  * Multiply and subtractive filter what the display target holds, the background included, which
- * the linear target does not hold: they are refused by name, never drawn as another mode.
+ * the linear target does not hold: they are refused by name, never drawn as another mode, as
+ * every mode the display path refuses (`drawnBlending`).
  */
 function coversLinear(material: Material) {
   if (!material.transparent) return true;
-  const mode = blendingOf(material.blending as number | undefined);
+  const mode = drawnBlending(
+    blendingOf(material.blending as number | undefined),
+    isTransmissive(material),
+  );
   if (mode === 'multiply' || mode === 'subtractive')
     throw new Error(`the WebGL2 effect chain cannot draw ${mode} blending`);
   return mode === 'none';

@@ -90,6 +90,7 @@ export async function openMeasuredWorld(
       : () => {
           explorer.render();
         };
+    if (options.interactive) runtime.state.redraw = invalidate;
     return Object.assign(explorer, { invalidate });
   } catch (error) {
     diagnose('error', 'MeasuredWorld preparation failed', {
