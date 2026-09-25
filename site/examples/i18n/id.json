@@ -2085,5 +2085,31 @@
     "words": {
       "credit": "Lembah dimodelkan dalam kode untuk contoh ini, CC0 — lihat assets/examples/CREDITS.md"
     }
+  },
+  "cloth-and-rope": {
+    "banner": "Bendera tergantung di tiangnya dan tali berayun di bawah balok. Buat bendera kaku, atau biarkan tali meregang.",
+    "controls": {
+      "stiff": "Bendera kaku",
+      "stretch": "Regangan tali",
+      "again": "Lagi",
+      "slowMotion": "Gerak lambat"
+    },
+    "readouts": {
+      "vertices": "Verteks",
+      "step": "Langkah"
+    }
+  },
+  "soft-bodies": {
+    "banner": "Jatuhkan volume lunak ke anak tangga. Atur tekanan gasnya, atau 0 untuk bawaan.",
+    "controls": {
+      "pressure": "Tekanan (Pa)",
+      "drop": "Jatuhkan",
+      "again": "Lagi",
+      "slowMotion": "Gerak lambat"
+    },
+    "readouts": {
+      "volumes": "Volume",
+      "awake": "Aktif"
+    }
   }
 }

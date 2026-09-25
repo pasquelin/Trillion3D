@@ -2085,5 +2085,31 @@
     "words": {
       "credit": "Valle modelado en código para este ejemplo, CC0 — ver assets/examples/CREDITS.md"
     }
+  },
+  "cloth-and-rope": {
+    "banner": "La bandera cuelga de su mástil y las cuerdas se balancean bajo la viga. Pon rígida la bandera, o deja que las cuerdas se estiren.",
+    "controls": {
+      "stiff": "Bandera rígida",
+      "stretch": "Estiramiento de cuerdas",
+      "again": "Otra vez",
+      "slowMotion": "Cámara lenta"
+    },
+    "readouts": {
+      "vertices": "Vértices",
+      "step": "Paso"
+    }
+  },
+  "soft-bodies": {
+    "banner": "Suelta volúmenes blandos sobre el escalón. Ajusta la presión de su gas, o 0 para la de por defecto.",
+    "controls": {
+      "pressure": "Presión (Pa)",
+      "drop": "Soltar",
+      "again": "Otra vez",
+      "slowMotion": "Cámara lenta"
+    },
+    "readouts": {
+      "volumes": "Volúmenes",
+      "awake": "Despiertos"
+    }
   }
 }

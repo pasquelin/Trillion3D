@@ -1448,14 +1448,16 @@
     {
       "id": "cloth-and-rope",
       "theme": "physics",
-      "file": "",
-      "status": "needs-engine"
+      "file": "examples/cloth-and-rope.html",
+      "status": "waiting-engine",
+      "issue": 573
     },
     {
       "id": "soft-bodies",
       "theme": "physics",
-      "file": "",
-      "status": "needs-engine"
+      "file": "examples/soft-bodies.html",
+      "status": "waiting-engine",
+      "issue": 573
     },
     {
       "id": "rolling-on-terrain",

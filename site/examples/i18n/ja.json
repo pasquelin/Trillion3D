@@ -2085,5 +2085,31 @@
     "words": {
       "credit": "この例のためにコードでモデリングした谷、CC0 — assets/examples/CREDITS.md を参照"
     }
+  },
+  "cloth-and-rope": {
+    "banner": "旗は竿から垂れ、ロープは梁の下で揺れる。旗を硬くするか、ロープを伸ばしてみよう。",
+    "controls": {
+      "stiff": "硬い旗",
+      "stretch": "ロープの伸び",
+      "again": "もう一度",
+      "slowMotion": "スロー"
+    },
+    "readouts": {
+      "vertices": "頂点",
+      "step": "ステップ"
+    }
+  },
+  "soft-bodies": {
+    "banner": "やわらかい体積を段の上に落とそう。気体の圧力を決める。0 なら既定値。",
+    "controls": {
+      "pressure": "圧力 (Pa)",
+      "drop": "落とす",
+      "again": "もう一度",
+      "slowMotion": "スロー"
+    },
+    "readouts": {
+      "volumes": "体積",
+      "awake": "動作中"
+    }
   }
 }

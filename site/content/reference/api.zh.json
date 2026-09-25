@@ -2093,6 +2093,50 @@
       "localBounds": "该节点自身内容所占据的包围盒,局部坐标系;一个普通节点不含任何内容。"
     }
   },
+  "SOFT_AREAL_DENSITY": {
+    "summary": "中等梭织棉布，kg/m²：织物克重在 0.15 到 0.25 之间。",
+    "description": "布在任何质量下下落都一样；它压在自己的钉点和所碰到的东西上。体的外皮当作这样的布。"
+  },
+  "SOFT_FOOTPRINT": {
+    "summary": "声明值：体静止在地面上时塌陷到的平均截面的比例——对任何凸形状都是其面积的四分之一（柯西）——内部气体在那里承托它的重量。",
+    "description": "它的默认压力于是为 `4·m·g / (share·area)`：外皮为 `SOFT_AREAL_DENSITY` 时是 31 Pa。比例减半，压力加倍。它从不超过外皮在静止体积十分之一以内所能承受的最大值。"
+  },
+  "SOFT_LINEAR_DENSITY": {
+    "summary": "10 mm 聚酰胺绳，kg/m：制造商表格给出 0.06 到 0.07。"
+  },
+  "SoftBodyCommon": {
+    "summary": "`obj.physics` 对软体接受的内容：它的顶点被逐个模拟。",
+    "members": {
+      "pins": "几何中被固定在原处的顶点索引：旗杆、绳钩。",
+      "mass": "千克，按每个顶点承担的面积（绳：长度）分配到顶点；省略时为每 m² `SOFT_AREAL_DENSITY`（绳：每 m `SOFT_LINEAR_DENSITY`）。",
+      "stretch": "边被拉时让步多少，m/N（刚度的倒数）：0 永不拉伸。",
+      "bend": "弯折时让步多少，rad/(N·m)（绳：m/N）；`Infinity` 自由弯折。"
+    }
+  },
+  "SoftBodyOptions": {
+    "summary": "软体的选项：布、绳，或带有其气体压力的体。"
+  },
+  "SoftBodyType": {
+    "summary": "软体：布（它的三角形，开放）、绳（它的顶点，每个与下一个相连）或体（它的封闭三角形，由内部气体撑起）。"
+  },
+  "SoftSettings": {
+    "summary": "读取后的软体选项：每个默认值都已填入。",
+    "members": {
+      "type": "它是什么。",
+      "pins": "几何中固定在原处的顶点。",
+      "mass": "千克，`undefined` 表示按默认密度。",
+      "stretch": "m/N。",
+      "bend": "rad/(N·m)，绳为 m/N。",
+      "pressure": "Pa；`undefined` 表示体的默认压力（`SOFT_FOOTPRINT`）。"
+    }
+  },
+  "SoftVolumeOptions": {
+    "summary": "体的选项：由内部气体撑起的封闭网格。",
+    "members": {
+      "type": "体。",
+      "pressure": "静止时气体高于空气的压力，Pa；被挤压时随体积减小而升高（玻意耳定律）。三角形必须朝外。省略时为把体的重量压在其平均截面的 `SOFT_FOOTPRINT` 上的压力；若外皮能承受的最大值更小，则取该值。超过外皮在静止体积十分之一以内所能承受的最大值时被拒绝。"
+    }
+  },
   "TransformNode": {
     "summary": "通过参考实现的矩阵读取的场景节点，保存在引擎的变换树中。",
     "members": {
@@ -7037,7 +7081,8 @@
       "threads": "推进模拟的线程数，包括物理 worker 自己的线程。大于 1 时页面需跨源隔离（共享内存）；否则模拟在单线程上推进。绝不超过机器的逻辑核心数减去页面自身占用的一个。",
       "bodyPairs": "一步中包围盒重叠的物体对。密集的堆约为每个物体四对；找到更多的一步会漏掉接触并报 `PHYSICS_BUDGET`。",
       "contactConstraints": "一步中求解的接触对。静止的堆约为每个物体两对；找到更多的一步会漏掉接触并报 `PHYSICS_BUDGET`。",
-      "contactEvents": "一步报告的接触事件（`enter`、`leave`）。超出的 `enter` 被丢弃并计数（`world.physics.stats.droppedEvents`），其 `leave` 永不发送；`leave` 只会推迟。"
+      "contactEvents": "一步报告的接触事件（`enter`、`leave`）。超出的 `enter` 被丢弃并计数（`world.physics.stats.droppedEvents`），其 `leave` 永不发送；`leave` 只会推迟。",
+      "softVertices": "所有软体同时的顶点（布、绳、体）。每个顶点每步求解一次，并由页面读回，每步 12 字节。"
     }
   },
   "GRAVITY_PRESETS": {
@@ -7059,7 +7104,7 @@
     "summary": "一个对象的物理，即 `obj.physics` 所持有的：物体是什么、做什么的实时记录。",
     "description": "写入在下一步到达模拟；`velocity` 读取上一步留下的值。",
     "members": {
-      "type": "物体如何运动；重新赋值 `obj.physics` 来改变。",
+      "type": "物体如何运动，或它是哪种软体；重新赋值 `obj.physics` 来改变。",
       "shape": "声明的形状（若有）。",
       "sensor": "物体是否只报告接触。",
       "ccd": "连续碰撞是否开启。",
@@ -7074,7 +7119,9 @@
       "applyImpulse": "立即推动物体，经质心施加以 N·s 计的冲量；并唤醒它。",
       "wake": "唤醒物体，无论是否在睡眠。",
       "on": "在此物体发生接触事件时调用 `handler`。",
-      "listens": "是否设置了接触处理器。"
+      "listens": "是否设置了接触处理器。",
+      "soft": "软体的设置，每个默认值都已填入；刚体为 `null`。",
+      "vertices": "软体的顶点，即最后一次 tick 留下的样子：其几何的每个顶点 `x, y, z`，在几何自身的坐标系中；刚体为 `null`，在第一次 tick 之前也是。"
     }
   },
   "PHYSICS_MATERIALS": {
@@ -7113,7 +7160,8 @@
       "threads": "推进模拟的线程数，包括物理 worker 自己的线程。大于 1 时页面需跨源隔离（共享内存）；否则模拟在单线程上推进。绝不超过机器的逻辑核心数减去页面自身占用的一个。",
       "bodyPairs": "一步中包围盒重叠的物体对。密集的堆约为每个物体四对；找到更多的一步会漏掉接触并报 `PHYSICS_BUDGET`。",
       "contactConstraints": "一步中求解的接触对。静止的堆约为每个物体两对；找到更多的一步会漏掉接触并报 `PHYSICS_BUDGET`。",
-      "contactEvents": "一步报告的接触事件（`enter`、`leave`）。超出的 `enter` 被丢弃并计数（`world.physics.stats.droppedEvents`），其 `leave` 永不发送；`leave` 只会推迟。"
+      "contactEvents": "一步报告的接触事件（`enter`、`leave`）。超出的 `enter` 被丢弃并计数（`world.physics.stats.droppedEvents`），其 `leave` 永不发送；`leave` 只会推迟。",
+      "softVertices": "所有软体同时的顶点（布、绳、体）。每个顶点每步求解一次，并由页面读回，每步 12 字节。"
     }
   },
   "PhysicsHost": {
@@ -7139,7 +7187,7 @@
     }
   },
   "PhysicsOption": {
-    "summary": "可赋给 `obj.physics` 的值。"
+    "summary": "`obj.physics` 可以设为什么：刚体，或软体（`SoftBodyOptions`）。"
   },
   "PhysicsShape": {
     "summary": "碰撞形状，当由几何体推断的形状不合适时使用。",

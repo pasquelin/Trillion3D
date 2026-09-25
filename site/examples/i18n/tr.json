@@ -2085,5 +2085,31 @@
     "words": {
       "credit": "Vadi bu örnek için kodla modellendi, CC0 — bkz. assets/examples/CREDITS.md"
     }
+  },
+  "cloth-and-rope": {
+    "banner": "Bayrak direğinden sarkar, halatlar kirişin altında sallanır. Bayrağı sert yap ya da halatların esnemesine izin ver.",
+    "controls": {
+      "stiff": "Sert bayrak",
+      "stretch": "Halat esnemesi",
+      "again": "Yeniden",
+      "slowMotion": "Ağır çekim"
+    },
+    "readouts": {
+      "vertices": "Köşeler",
+      "step": "Adım"
+    }
+  },
+  "soft-bodies": {
+    "banner": "Basamağa yumuşak hacimler bırak. Gazlarının basıncını ayarla ya da varsayılan için 0 yap.",
+    "controls": {
+      "pressure": "Basınç (Pa)",
+      "drop": "Bırak",
+      "again": "Yeniden",
+      "slowMotion": "Ağır çekim"
+    },
+    "readouts": {
+      "volumes": "Hacimler",
+      "awake": "Uyanık"
+    }
   }
 }
