@@ -3,10 +3,11 @@ import type { GalleryEntry } from './capture.ts';
 
 const site = new URL('../../../site/', import.meta.url);
 
-/** `createWorld(…, { physics })` with a value the engine reads as on; an option before it may
- *  hold a call. */
+/** `createWorld(…, { physics })` with a value the engine reads as on: `physics` as a key of the
+ *  options, never a word of a string, a comment or a callback; an option before it may hold a
+ *  call, itself holding one. */
 const OPTION_ON =
-  /\bcreateWorld\((?:[^()]|\([^()]*\))*?\bphysics\b(?!['"]?\s*:\s*(?:false|null|undefined)\b)/;
+  /\bcreateWorld\((?:[^()]|\((?:[^()]|\([^()]*\))*\))*?[{,]\s*['"]?physics\b(?!['"]?\s*:\s*(?:false|null|undefined)\b)/;
 
 /**
  * Whether an example's source turns physics on through the public API: `createWorld(…, {
