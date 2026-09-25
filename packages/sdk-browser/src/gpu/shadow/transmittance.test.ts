@@ -14,11 +14,13 @@ import { SHADOW_DEPTH_SHADER } from './shader.ts';
 import { POISSON_16, directShadowWgsl } from '../../lighting/direct/shadowWgsl.ts';
 import { LIGHT_SETTINGS } from '../../../../sdk-core/src/index.ts';
 import { SHADOW_PAGE } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
+import { fromHalf, toHalf } from '../../../../sdk-core/src/lighting/ltcTable.ts';
 import type { PageSurface } from '../../page/surface.ts';
 
 /** A texel of the layer: its transmittance and its translucent depth (reversed: nearer is more). */
 type Texel = { t: number; d: number };
-const f16 = (Math as unknown as { f16round(x: number): number }).f16round;
+/** The nearest half float, portable where `Math.f16round` is missing. */
+const f16 = (x: number) => fromHalf(toHalf(x));
 const unorm8 = (x: number) => Math.round(Math.min(1, Math.max(0, x)) * 255) / 255;
 const surface = (opacity: number) =>
   ({ blending: 'normal', transmission: 0, opacity }) as unknown as PageSurface;
