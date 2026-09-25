@@ -28,7 +28,7 @@ export const hasBody = (node: Object3D): node is Bodied =>
   (node as { physics?: unknown }).physics != null;
 
 /** A body's flag bits as its settings ask; a hidden mesh sends no pose. */
-export function flagsOf(mesh: Bodied) {
+export function flagsOf(mesh: Pick<Bodied, 'physics' | 'visible'>) {
   const p = mesh.physics;
   return (
     (p.sensor ? FLAG.sensor : 0) |
