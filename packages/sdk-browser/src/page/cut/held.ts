@@ -14,6 +14,11 @@ type Held = {
  *  held for the placement's resident pages only (`./readiness.ts`), so the placements a cut walks
  *  cost what the pool holds of them, never their catalogue. */
 const heldOf = new WeakMap<object, Held>();
+/** What a total's `track` hands each placement it counts: the total, until it tracks again. The
+ *  placements keep only this, so a total never keeps alive the placements it let go of. */
+type Ticket = { tally: HeldBytes | undefined };
+/** The running total each placement adds its readiness's change of bytes to (`createHeldBytes`). */
+const tallyOf = new WeakMap<object, Ticket>();
 
 /**
  * The cut rule's residency for `root` this cut (`./readiness.ts`), from what the cut's residency
@@ -24,6 +29,7 @@ export function heldReadiness<T extends PageRecord>(s: SelectionState<T>, root: 
   const pages = root.pages,
     culling = root.culling;
   let held = heldOf.get(root);
+  const tally = tallyOf.get(root)?.tally;
   if (
     !held ||
     held.structure !== root.structure ||
@@ -31,6 +37,8 @@ export function heldReadiness<T extends PageRecord>(s: SelectionState<T>, root: 
     held.pages !== pages.length
   ) {
     const links = culling && linksFor(culling, pages.length);
+    // The state it replaces leaves the total with it.
+    if (held && tally) tally.bytes -= held.readiness.hostBytes;
     held = {
       readiness: createCutReadiness(root.structure, links),
       structure: root.structure,
@@ -44,9 +52,33 @@ export function heldReadiness<T extends PageRecord>(s: SelectionState<T>, root: 
   for (let page = 0; page < pages.length; page++)
     readiness.set(page, residentUnder(s, pages[page], mode));
   readiness.settle();
+  const moved = readiness.takeBytesMoved();
+  if (tally) tally.bytes += moved;
   return readiness;
 }
 
-/** Bytes of the readiness state of `roots`, those no cut has read counting none. */
-export const heldHostBytes = (roots: readonly object[]) =>
-  roots.reduce((bytes: number, root) => bytes + (heldOf.get(root)?.readiness.hostBytes ?? 0), 0);
+type HeldBytes = ReturnType<typeof createHeldBytes>;
+
+/**
+ * The bytes of the readiness state of a set of placements, those no cut has read counting none,
+ * kept as a running total: each cut that settles one of them adds what its state gained or lost,
+ * so `bytes` is read without walking the placements (#483 rule 7). `track` names the placements
+ * it counts, walking them once: called again when they change, it lets go of those that left. A
+ * placement is counted by the last total that tracked it.
+ */
+export function createHeldBytes() {
+  let ticket: Ticket = { tally: undefined };
+  const tally = {
+    bytes: 0,
+    track(roots: readonly object[]) {
+      ticket.tally = undefined;
+      ticket = { tally };
+      tally.bytes = 0;
+      for (const root of roots) {
+        tallyOf.set(root, ticket);
+        tally.bytes += heldOf.get(root)?.readiness.hostBytes ?? 0;
+      }
+    },
+  };
+  return tally;
+}

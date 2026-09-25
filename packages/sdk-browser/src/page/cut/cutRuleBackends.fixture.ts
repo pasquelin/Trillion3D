@@ -135,30 +135,51 @@ export function cpuBackend(dag: RuleDag, threshold: number): CutBackend {
   };
 }
 
-/** The WebGL2 image's cut (`../../backend/autonomous/imageCut.ts`): the same cut, each page
- *  resident when it holds its index array, as the WebGL2 pool loads them, under a pool that
- *  admits every request. */
-export function webgl2Backend(dag: RuleDag, threshold: number): CutBackend {
-  const cam = stripCamera(dag),
-    pages = dag.pages.map((page) => ({ ...page })) as unknown as PageRec[],
-    roots = [{ world: dag.world, pages, culling: dag.culling, structure: dag.structure }],
-    index = new Map(pages.map((page, i) => [page, i])),
-    requested: PageRec[] = [];
-  const cut = createImageCut({
-    roots: roots as ClusterRoot<PageRec>[],
+/** The WebGL2 image's cut (`../../backend/autonomous/imageCut.ts`) over `roots`, under a pool
+ *  that admits every request. */
+export const webgl2Cut = (roots: ClusterRoot<PageRec>[]) =>
+  createImageCut({
+    roots,
     viewport: [1280, 720],
     shown: [],
     desired: [],
-    requested,
+    requested: [],
     revision: () => 0,
     pool: { admit: (asked) => asked.length, fit: (asked) => asked.length, held: {} },
   });
+
+/** The WebGL2 image's cut of the DAG, each page resident when it holds its index array, as the
+ *  WebGL2 pool loads them. */
+export function webgl2Backend(dag: RuleDag, threshold: number): CutBackend {
+  const cam = stripCamera(dag),
+    [root] = placements(dag, 1),
+    index = new Map(root.pages.map((page, i) => [page, i]));
+  const cut = webgl2Cut([root]);
   const ids = (list: readonly PageRec[]) => list.map((page) => index.get(page)!);
   return (resident) => {
-    pages.forEach((page, i) => (page.array = resident[i] ? new Uint32Array(3) : undefined));
+    root.pages.forEach((page, i) => (page.array = resident[i] ? new Uint32Array(3) : undefined));
     const { shown, wanted } = cut(cam, threshold);
     return { drawn: ids(shown), wanted: ids(wanted) };
   };
+}
+
+/** `copies` placements of the DAG, each with pages of its own, `spacing` apart along -x: when
+ *  they are apart, those past the first carry their world box. */
+export function placements(dag: RuleDag, copies: number, spacing = 0) {
+  const n = dag.pages.length;
+  return Array.from({ length: copies }, (_, r) => {
+    const elements = Float64Array.from(dag.world.elements);
+    elements[12] -= spacing * r;
+    const pages = dag.pages.map((page, p) => ({
+      ...page,
+      url: `r${r}/${page.url}`,
+      placementIndex: r,
+      packedIndex: r * n + p,
+    }));
+    const x = elements[12],
+      worldBox = spacing && r ? Float64Array.of(x, -2, -2, x + dag.leaves, 2, 2) : undefined;
+    return { world: { elements }, pages, culling: dag.culling, structure: dag.structure, worldBox };
+  }) as unknown as ClusterRoot<PageRec>[];
 }
 
 /** The pages whose leaf node top-down pruning drops on its floor at full residency: none of them is

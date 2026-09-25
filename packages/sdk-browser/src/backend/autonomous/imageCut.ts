@@ -7,7 +7,7 @@ import {
 import type { EngineCamera } from '../../camera/world.ts';
 import type { createGeometryBudget } from './pool.ts';
 import { createAutonomousRequests } from './requests.ts';
-import { heldHostBytes } from '../../page/cut/held.ts';
+import { createHeldBytes } from '../../page/cut/held.ts';
 
 /**
  * The cut of a WebGL2 image and what it asks the pool for. The cut is drawn at the host's
@@ -29,6 +29,17 @@ export function createImageCut(options: {
 }) {
   const { roots, shown, desired, requested, pool } = options;
   const requests = createAutonomousRequests(roots, options.revision, requested);
+  // The rule's readiness of the placements, a running total counted again when they change: on
+  // the signals the requests lay out on (`requests.ts`), so a read between two cuts is exact too.
+  const held = createHeldBytes();
+  let tracked = -1,
+    placements = -1;
+  const follow = () => {
+    if (tracked === options.revision() && placements === roots.length) return;
+    held.track(roots);
+    tracked = options.revision();
+    placements = roots.length;
+  };
   // Cut request and result, allocated once: an image allocates nothing here, and the cut writes
   // `desired` itself instead of being copied into it.
   const selectOptions = {
@@ -42,6 +53,7 @@ export function createImageCut(options: {
   // fitted again before the next trim, so the image that first sees it already holds no more.
   let admittedTo: unknown;
   const cut = (cam: EngineCamera, pixelError: number) => {
+    follow();
     selectOptions.pixelError = pixelError;
     const selected = selectVisiblePages(roots, cam, selectOptions, shown);
     requests.of(desired);
@@ -51,8 +63,9 @@ export function createImageCut(options: {
   };
   return Object.assign(cut, {
     /** Bytes of the cut's host tables: the requests' closure and the rule's readiness of each
-     *  placement, all sized by what the view asks for and the pool holds. */
-    hostBytes: () => requests.hostBytes + heldHostBytes(roots),
+     *  placement, all sized by what the view asks for and the pool holds, and read without
+     *  walking the placements (#483 rule 7). */
+    hostBytes: () => (follow(), requests.hostBytes + held.bytes),
     /** Cuts the last requests to the pool drawn since; true when they lost pages, which what the
      *  image keeps must then forget before the pool trims. */
     readmit() {
