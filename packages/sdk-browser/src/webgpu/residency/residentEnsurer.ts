@@ -42,7 +42,8 @@ export function createWebgpuResidentEnsurer({
 }: EnsureOptions) {
   /** The published share of the main thread (`STREAMING_FRAME_MS`): past it, a job yields a task
    *  and starts a new share — a due frame goes through, and the job resumes without waiting for
-   *  one, so a hidden tab loads too. True when it yielded. */
+   *  one, so a hidden tab loads too. True when it yielded. Opened only after a yield, never by a
+   *  job: the next job may start in the task the last one ended in. */
   const budget = createFrameBudget(STREAMING_FRAME_MS);
   const pace = async () => {
     if (budget.admits()) return false;
@@ -155,7 +156,6 @@ export function createWebgpuResidentEnsurer({
       }),
     );
     let full = false;
-    budget.open();
     for (let i = 0; i < wanted.length; i++) {
       const rec = wanted[i],
         key = tracking.keyOf(rec),
@@ -164,12 +164,12 @@ export function createWebgpuResidentEnsurer({
       signal?.throwIfAborted();
       if (isLost()) throw new Error('WEBGPU_LOST');
       if (!hasBytes(rec) || cache.get(address)) continue;
-      // The share: past it the burst resumes after a task, nothing dropped — and a camera that
-      // moved in between is already taken into account, since each turn rereads `wanted` before
-      // uploading anything.
+      // The share: past it the burst resumes after a task, nothing dropped — the page read again
+      // against `wanted` and the pool, which a camera that moved in between may have changed.
       if (await pace()) {
         cache = getCache();
         if (isLost() || !cache) throw new Error('WEBGPU_LOST');
+        if (!tracking.wanted.has(key) || cache.get(address)) continue;
       }
       try {
         await admit(rec);
