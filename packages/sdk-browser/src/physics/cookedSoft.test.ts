@@ -26,17 +26,22 @@ const golden = async () =>
       new URL('../../../../tests/fixtures/physics/cloth-settings.bin', import.meta.url),
     ),
   );
-const cloth = goldenCloth;
 const options = { type: 'cloth', pins: [6, 8], bend: 0.01 } as const;
+/** Its `physics.json` entry, laid flat 2 m up, its settings `bytes` long. */
+const cookedCloth = (bytes: number) => ({
+  ...{ node: 0, position: [0, 2, 0], rotation: FLAT, scale: [1, 1, 1] },
+  ...{ physics: options, vertices: 9, pressure: 0 },
+  settings: { url: 'cloth.bin', sha256: 'c'.repeat(64), bytes },
+});
 /** Its nine vertices, each its own: no two at one position. */
 const own = { map: Uint32Array.from({ length: 9 }, (_, v) => v) };
 
 test('a cooked cloth restores to the settings the page builds: laid flat, it swings the same', async () => {
   const built = await softWorld();
-  addSoft(built, cloth(), options, [0, 2, 0], { quaternion: FLAT });
+  addSoft(built, goldenCloth(), options, [0, 2, 0], { quaternion: FLAT });
   const restored = await softWorld();
   const record = { cooked: await golden(), pressure: 0 };
-  addSoft(restored, cloth(), options, [0, 2, 0], { quaternion: FLAT, record });
+  addSoft(restored, goldenCloth(), options, [0, 2, 0], { quaternion: FLAT, record });
   const [a, b] = [settle(built, own, 1), settle(restored, own, 1)];
   assert.ok(Math.hypot(...at(b, 0).map((x, k) => x - [-0.5, -0.5, 0][k])) > 0.3, 'it swung');
   assert.ok(Math.hypot(...at(b, 6).map((x, k) => x - [-0.5, 0.5, 0][k])) < 1e-4, 'its pin held');
@@ -48,17 +53,12 @@ test('a cooked cloth restores to the settings the page builds: laid flat, it swi
  *  flat 2 m up, streamed within `softVertices`: the words written, the bodies, the errors. */
 async function opened(softVertices = DEFAULT_PHYSICS_BUDGET.softVertices, scale = 1) {
   const bytes = await golden();
-  const soft = {
-    ...{ node: 0, position: [0, 2, 0], rotation: FLAT, scale: [1, 1, 1] },
-    ...{ physics: options, vertices: 9, pressure: 0 },
-    settings: { url: 'cloth.bin', sha256: 'c'.repeat(64), bytes: bytes.length },
-  };
   const file = {
     formatVersion: 2,
     jolt: JOLT_COMMIT,
     colliders: [],
     instances: [],
-    softBodies: [soft],
+    softBodies: [cookedCloth(bytes.length)],
   };
   globalThis.fetch = (async (url: string) =>
     new Response(url.endsWith('physics.json') ? JSON.stringify(file) : bytes)) as typeof fetch;
@@ -113,12 +113,9 @@ test('a compiled model’s cooked cloth is made from its settings alone and move
 test('a model opened again before its settings arrive holds its cooked cloth once', async () => {
   const { model, writer, bodies } = await opened();
   writer.take();
-  const soft = { position: [0, 2, 0], rotation: FLAT, scale: [1, 1, 1], node: 0 };
-  const cloth = { ...soft, physics: options, vertices: 9, pressure: 0 };
-  const settings = { url: 'cloth.bin', sha256: 'c'.repeat(64), bytes: 1 };
   const softs = createCookedSoftBodies(writer, bodies, () => {}, assert.fail);
-  softs.open(model, [{ ...cloth, settings }]);
-  softs.open(model, [{ ...cloth, settings }]);
+  softs.open(model, [cookedCloth(1)]);
+  softs.open(model, [cookedCloth(1)]);
   await new Promise((resolve) => setTimeout(resolve, 10));
   assert.equal(bodies.count.softVertices, 9 + 9, 'the streamer’s cloth, and this opening’s once');
 });
