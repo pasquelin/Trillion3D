@@ -27,8 +27,9 @@ export function createCookedSoftBodies(
   invalidate: () => void,
   failed: (error: EngineError) => void,
 ) {
-  /** The slots of each open model's soft bodies. */
+  /** The slots of each open model's soft bodies, and the model of each slot. */
   const held = new Map<Model, number[]>();
+  const owners = new Map<number, Model>();
   async function add(model: Model, slots: number[], soft: CookedSoftBody) {
     // Refused before its bytes are fetched: a scale is read from the model alone.
     const { scale } = tilePose({ model, instance: soft });
@@ -51,6 +52,9 @@ export function createCookedSoftBodies(
     const p = new ObjectPhysics(soft.physics);
     const matter = physicsMatterOf({ friction: soft.friction, restitution: soft.restitution });
     const id = bodies.claim(0, soft.vertices);
+    // Held at once: a throw below still leaves the slot for `forget` to release.
+    slots.push(id & BODY_INDEX);
+    owners.set(id & BODY_INDEX, model);
     writeSoft(writer, {
       ...{ id, position, quaternion, scale: at },
       // As `addSoftBody` maps a page-built body's (`softBodies.ts`).
@@ -61,11 +65,13 @@ export function createCookedSoftBodies(
       ...{ gravityScale: p.gravityScale, linearDamping: p.damping.linear },
       ...{ settings: p.soft!, record: { cooked, pressure: soft.pressure } },
     });
-    slots.push(id & BODY_INDEX);
     invalidate();
   }
   const forget = (model: Model) => {
-    for (const slot of held.get(model) ?? []) bodies.release(slot);
+    for (const slot of held.get(model) ?? []) {
+      bodies.release(slot);
+      owners.delete(slot);
+    }
     held.delete(model);
   };
   return {
@@ -80,5 +86,7 @@ export function createCookedSoftBodies(
     },
     /** A model left the scene, or physics turned off: its soft bodies out. */
     forget,
+    /** The model a cooked soft body's engine id belongs to, or `null`: what a ray on it hits. */
+    modelOf: (id: number) => owners.get(id & BODY_INDEX) ?? null,
   };
 }

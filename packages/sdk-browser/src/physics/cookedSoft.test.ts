@@ -105,10 +105,12 @@ test('a compiled model’s cooked cloth is made from its settings alone and move
   jolt.step(words, 0);
   const swung = settle(jolt, own, 0.25);
   assert.ok(Math.hypot(...at(swung, 0).map((x, k) => x - [-0.5, -0.5, 0][k])) > 0.05, 'it moves');
+  assert.equal(tiles.modelOf(words[1]), model, 'a ray on it names its model');
   scene.remove(model);
   tiles.scan(scene);
   assert.equal(writer.take()[0], OP.remove, 'out with its model');
   assert.equal(bodies.count.softVertices, 0);
+  assert.equal(tiles.modelOf(words[1]), null);
 });
 
 test('a model opened again before its settings arrive holds its cooked cloth once', async () => {
