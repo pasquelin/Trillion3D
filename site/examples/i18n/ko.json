@@ -2103,5 +2103,19 @@
       "volumes": "부피",
       "awake": "활성"
     }
+  },
+  "a-cooked-flag": {
+    "banner": "깃발은 모델과 함께 미리 계산되었습니다. 모델을 불러오자마자 복원되어 깃대에서 바로 처집니다. 다시 불러와 확인해 보세요.",
+    "controls": {
+      "again": "다시",
+      "slowMotion": "슬로 모션"
+    },
+    "readouts": {
+      "bodies": "물체",
+      "step": "스텝"
+    },
+    "words": {
+      "credit": "이 예제를 위해 코드로 만든 깃대의 깃발, CC0 — assets/examples/CREDITS.md 참고"
+    }
   }
 }
