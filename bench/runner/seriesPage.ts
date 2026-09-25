@@ -59,7 +59,6 @@ export function measurePayload(
     profileFrames: settings.profileFrames,
     lights: lights ? lights.lights : [],
     moving: lights ? lights.moving : null,
-    shadowBudgetMs: settings.shadowBudgetMs,
     shadowPages: settings.shadowPages,
     shadowDigest: settings.shadowDigest,
     // Textures read from the cache: only for an engine that reads the atlas, never the witness.

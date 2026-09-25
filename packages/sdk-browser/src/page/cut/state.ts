@@ -5,6 +5,7 @@ import type { EngineCamera } from '../../camera/world.ts';
 import { IDENTITY_ELEMENTS, type MatrixElements } from '../../math/matrixElements.ts';
 import type { ClusterCut } from '../selection/math.ts';
 import type { PageSurface } from '../surface.ts';
+import type { CutReadiness } from './readiness.ts';
 
 export interface PageRecord extends ClusterCut {
   triangles: number;
@@ -32,11 +33,9 @@ export interface SelectionState<T extends PageRecord> {
   flatElements: ArrayLike<number>;
   flatStretch: number;
   flatFocal: number;
-  /** The cut rule's residency of this root's pages (`./held.ts`), and the open count of each of
+  /** The cut rule's residency of this root's pages (`./held.ts`), with the open count of each of
    *  its culling nodes; absent when nothing is held, every page then deemed resident. */
-  flatReady?: Uint8Array;
-  flatChildReady?: Uint8Array;
-  flatOpen?: Int32Array;
+  flatHeld?: CutReadiness;
   /** What cone rejection reads of the root and the camera, set at the root's first cone. */
   flatCone: ConeContext;
   /** This root declares it carries cones: the per-cluster path reads `cone`. A root that
@@ -52,6 +51,9 @@ export interface SelectionState<T extends PageRecord> {
    *  `RESIDENT_ARRAY` when residency is the page's index array. The per-cluster path reads this
    *  mode instead of re-reading the request on the state at each page. */
   residentMode: number;
+  /** Nonzero when the cut shares its residency answers with every cut of the same stamp: the cut
+   *  rule's readiness of a root is then read once for all of them (`./held.ts`). */
+  residencyStamp: number;
   /** This image's threshold is zero and stretch, focal length and near plane are sound: the
    *  cut then decides without projecting, identically. */
   flatExact: boolean;
@@ -159,6 +161,7 @@ const reusedState: SelectionState<PageRecord> = {
   flatCones: true,
   flatBoxes: false,
   residentMode: RESIDENT_ALL,
+  residencyStamp: 0,
   flatExact: false,
   shownCount: 0,
   wantedCount: 0,

@@ -446,7 +446,6 @@
       "sound-in-space": "위치 기반 오디오",
       "tone-mapping-compared": "톤 매핑 연산자 선택",
       "a-first-post-effect": "후처리 체인",
-      "a-glow-around-lights": "후처리: 블룸",
       "glow-on-chosen-objects": "후처리: 선택적 블룸",
       "depth-of-field": "후처리: 피사계 심도",
       "motion-blur": "후처리: 모션 블러",

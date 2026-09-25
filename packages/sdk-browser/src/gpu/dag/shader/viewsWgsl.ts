@@ -18,10 +18,10 @@ import { LIGHT_SETTINGS } from '../../../../../sdk-core/src/index.ts';
  * A camera is the one-view case: view 0, slot = primitive, entries equal to the bare indices. Its
  * text, its layout and its verdicts are those of before.
  *
- * The view count is bounded by what a frame can draw: every view drawn this frame holds at least
- * one of its pages, and a frame draws at most `shadowPagesPerFrame` pages.
+ * The view count is bounded by what a batch can draw: every view a batch draws holds at least one
+ * of its pages, and a batch draws at most `shadowPagesPerBatch` pages.
  */
-export const DAG_MAX_VIEWS: number = LIGHT_SETTINGS.shadowPagesPerFrame;
+export const DAG_MAX_VIEWS: number = LIGHT_SETTINGS.shadowPagesPerBatch;
 /** Bits below the view index in a work entry: 2^27 nodes or clusters, five bits of view. */
 const VIEW_SHIFT = 27;
 if (DAG_MAX_VIEWS > 1 << (32 - VIEW_SHIFT))
@@ -42,6 +42,9 @@ export const VIEW_WORD_ROWS = 3;
  * alone can fill them, and several can only by together keeping more than the catalogue.
  */
 export const WORK_DROPPED = 4;
+/** Bit of the same word set once the request list is full (`snapshotWgsl.ts`): what was appended
+ *  past it was never copied. A later batch of the frame keeps it (`VIEW_APPEND`). */
+export const LIST_FULL = 1;
 /** Bit `COARSER_VIEWS + view` of the same word is set when light view `view` wanted a cluster that
  *  is not resident, and drew its nearest resident ancestor (`noteCoarser`): the pages of that view,
  *  and only those, wait for residency to change. */
