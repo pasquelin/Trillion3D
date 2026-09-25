@@ -29,7 +29,10 @@
       // the pane out of the opaque image and only lets its opacity through the shadow pass.
       const world = createWorld('view', { controls: 'orbit' });
       world.scene.background = math.color('#cfd8e3');
-      const floor = object.mesh(geometry.box(16, 0.2, 10), material.meshStandard({ color: '#e9e2d4', roughness: 0.9 }));
+      const floor = object.mesh(
+        geometry.box(16, 0.2, 10),
+        material.meshStandard({ color: '#e9e2d4', roughness: 0.9 }),
+      );
       floor.position.y = -0.1;
       world.scene.add(floor);
 
@@ -39,7 +42,13 @@
         const x = (k - 2) * 2.6;
         const foot = object.mesh(geometry.box(1.8, 0.16, 0.4), oak);
         foot.position.set(x, 0.08, 0);
-        const glass = material.meshStandard({ color: '#9fd3ff', roughness: 0.1, transparent: true, opacity, depthWrite: false });
+        const glass = material.meshStandard({
+          color: '#9fd3ff',
+          roughness: 0.1,
+          transparent: true,
+          opacity,
+          depthWrite: false,
+        });
         const pane = object.mesh(geometry.box(1.6, 2.4, 0.04), glass);
         pane.position.set(x, 1.36, 0);
         world.scene.add(foot, pane);
@@ -47,21 +56,30 @@
       });
 
       const sun = light.directional({ intensity: 3, color: '#fff1dc', castShadow: true });
-      world.scene.add(sun, light.hemisphere({ color: '#bcd4ff', groundColor: '#9c8a70', intensity: 0.6 }));
+      world.scene.add(
+        sun,
+        light.hemisphere({ color: '#bcd4ff', groundColor: '#9c8a70', intensity: 0.6 }),
+      );
       world.camera.position.set(0, 4.5, 11);
       world.camera.lookAt(0, 0.8, -1.5);
       world.controls.target.set(0, 0.8, -1.5);
 
-      const shown = readout('Opacity of the middle pane');
-      controls({ opacity: [0, 1, 0.5, 0.05], sunHeight: [15, 75, 40] }, (values) => {
-        // The middle pane follows the slider: at 0 its shadow is gone, at 1 it is an opaque one.
-        panes[2].material.opacity = values.opacity;
-        shown(values.opacity.toFixed(2));
-        // The sun stands behind the panes, so their shadows fall toward the camera.
-        const rise = math.degToRad(values.sunHeight);
-        sun.position.set(6, Math.tan(rise) * 10, -10);
-        world.invalidate();
-      }, world);
+      let shown = () => {};
+      controls(
+        { opacity: [0, 1, 0.5, 0.05], sunHeight: [15, 75, 40] },
+        (values) => {
+          // The middle pane follows the slider: at 0 its shadow is gone, at 1 it is an opaque one.
+          panes[2].material.opacity = values.opacity;
+          shown(values.opacity.toFixed(2));
+          // The sun stands behind the panes, so their shadows fall toward the camera.
+          const rise = math.degToRad(values.sunHeight);
+          sun.position.set(6, Math.tan(rise) * 10, -10);
+          world.invalidate();
+        },
+        world,
+      );
+      shown = readout('Opacity of the middle pane');
+      shown(panes[2].material.opacity.toFixed(2));
       world.invalidate();
     </script>
   </body>
