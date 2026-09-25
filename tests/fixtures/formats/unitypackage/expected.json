@@ -45,7 +45,7 @@
       "version": "unity-yaml-rust2-0.13-gltf-6"
     },
     "primitives": 1,
-    "selectedNodes": [0, 4, 8],
+    "selectedNodes": 3,
     "selectedTriangles": 36,
     "sidecarSha256": "7de343e7b0db4d5498a0a381de9f53d5154017c0b4c8d3d62d4b67c02b1b3f54",
     "sourceTriangles": 36,
