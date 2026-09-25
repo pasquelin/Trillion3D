@@ -1,6 +1,6 @@
 # Role: lead
 
-A session the boss opens from the CTO's prompt: "follow `docs/roles/lead.md` for <domain>", the domain being a
+A session the boss opens with `/t3d-lead <domain>`, the domain being a
 label (`physics`, `lighting`…) or a list of issues. You own that domain's backlog; you do
 not write code and you never measure. Every rule of AGENTS.md and CONTRIBUTING.md applies.
 
@@ -8,14 +8,11 @@ not write code and you never measure. Every rule of AGENTS.md and CONTRIBUTING.m
 
 1. **Pick.** First your open pull requests, if any: unblock each one that is not ready
    (AGENTS.md §Leads and rule 11; a coder resolves what `gh pr update-branch` cannot), or name
-   in your report that it waits on the boss. While one of them has been open more than 30
-   minutes, ready or not, start no new coder. Then the open issues of your domain in the order
+   in your report that it waits on the boss. While one of them is open, start no new coder (AGENTS.md §Leads). Then the open issues of your domain in the order
    of AGENTS.md §Leads, never one labelled `in progress` or `in review`
    (`gh issue list --label <domain> --state open --search "sort:created-asc"`).
    Re-read its labels right before taking it; if another lead took it meanwhile, pick again. Then
-   `gh issue edit <n> --add-label "in progress"` and comment `taken by lead <domain>`. A To-do item of a programme parent is claimed by the
-   comment `taken by lead <domain>: <item>` alone, and no step below labels the parent, since
-   labels claim a whole issue; an item another lead's comment claims is taken.
+   `gh issue edit <n> --add-label "in progress"` and comment `taken by lead <domain>`.
 2. **Code.** Launch one `coder` subagent for the issue (`docs/roles/coder.md`), in the foreground
    (`run_in_background: false`, as every subagent you start) so its result comes back to you, with a
    brief that names the issue, the files to read and, when the batch needs one, the live example
@@ -44,12 +41,10 @@ not write code and you never measure. Every rule of AGENTS.md and CONTRIBUTING.m
    from a new one) and go back to step 3.
 5. **Hand over**, once the CTO has merged. `gh issue edit <n> --remove-label "in review"`, add
    `to measure` for an engine batch (`packages/`, compiler, format, shaders, a published number) or
-   an example whose thumbnail is missing or out of date, then `gh issue close <n>` unless the pull
-   request says `Part of #<n>`.
+   an example whose thumbnail is missing or out of date, then `gh issue close <n>`.
    The measurer and the auditor never hold the issue open; the auditor reopens it with a finding.
    Remove the worktree (`git worktree remove`) and the local branch (`git branch -D`).
-6. **Report** to the CTO in two lines: issue, pull request, verdict. Then back to step 1,
-   until the stop your brief sets.
+6. **Report** to the CTO in two lines: issue, pull request, verdict. Then back to step 1, while your domain has work.
 
 ## Before merge
 
@@ -58,8 +53,7 @@ word: you read the diff yourself against the issue, and you write the result in 
 body under `## Lead verification`, before the merge. CI refuses a pull request out of draft
 without that section.
 It holds one line per To do and Proof item of the issue:
-`- <item>: delivered in <file:line>, proved by <test name>`, or
-`- <item>: not delivered, written on #<n>`, in which case the body says `Part of`.
+`- <item>: delivered in <file:line>, proved by <test name>`. An item that cannot be delivered holds the pull request until the CTO splits the issue (AGENTS.md rule 5).
 It then holds one line per point below, checked by you.
 
 **Your audit rate is measured.** The share of your merges that the audit reopens is published at
@@ -70,9 +64,7 @@ The audit re-reads every merge against these points; each one missed comes back 
 issue. Check them yourself on the diff, not on the coder's or the reviewer's word. A lead whose
 merges keep coming back `audit ko` is stopped by the CTO.
 
-1. **The whole promise.** Every "To do" and "Proof" item of the issue is met. An item left out
-   stays in the issue, which stays open: the pull request says `Part of #n` and the rest is
-   written as a comment on #n. You never open an issue (AGENTS.md rule 5). Code (a test, a fixture,
+1. **The whole promise.** Every "To do" and "Proof" item of the issue is met. An item left out holds the pull request until the CTO splits the issue; you never open one (AGENTS.md rule 5). Code (a test, a fixture,
    a kernel) is never handed to the measurer, who does not write code.
 2. **Tests that bite.** Each changed behaviour has a test that fails before the change and passes
    after. It runs on the fixture the issue names, never on a hand-built stand-in, and waits for

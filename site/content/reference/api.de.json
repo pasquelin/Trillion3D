@@ -4852,6 +4852,9 @@
     "summary": "Der Atlas, den eine Vorschau bedient: Farbe (`rgba8unorm-srgb`, Grundfarbe und Emission) oder Daten (`rgba8unorm`, Metall-Rauheit, Normale, Verdeckung).",
     "description": "Dieselbe Textur kann für jeden einen Eintrag haben."
   },
+  "PREVIEW_ATLAS_COVERAGE": {
+    "summary": "Eine Kette des Farbatlas, für eine Textur, deren Alpha jeder Leser als Abdeckung nimmt (nur die Grundfarbe von MASK- oder BLEND-Materialien): die einzige Kette, deren Farben nach Alpha gewichtet werden, getrennt von der einfachen benannt (`reduce.rs`, `AtlasKind::Coverage`, #42)."
+  },
   "PREVIEW_ATLAS_DATA": {
     "summary": "Der Datenatlas: Bilder von Metall-Rauheit, Normalen und Verdeckung."
   },
@@ -6103,7 +6106,7 @@
       "sourceKind": "0, wenn die Bytes von einer Bild-URI kamen, 1, wenn sie von sourceBufferView kamen.",
       "sourceBufferView": "Puffersicht der vorbereiteten Szene, oder -1 für eine URI-Quelle.",
       "sha256": "SHA-256 der dekodierten Quellbytes.",
-      "atlas": "Der Atlas, den dieser Eintrag bedient: PREVIEW_ATLAS_COLOR oder PREVIEW_ATLAS_DATA.",
+      "atlas": "Die Kette, die dieser Eintrag trägt: PREVIEW_ATLAS_COLOR, PREVIEW_ATLAS_DATA oder PREVIEW_ATLAS_COVERAGE, die im Farbatlas abgetastet wird.",
       "firstLevel": "Index der ersten in der Mip-Kette der Quelle getragenen Stufe; 0, wenn sie schon unter PREVIEW_BASE passt und die Begleitdatei also ihre ganze Auflösung trägt.",
       "bakedLevels": "In Dateien im Cache gebackene Stufen, von 0 bis bakedLevels - 1; firstLevel, wenn die Kette vollständig ist, 0, wenn nichts geschrieben wurde und die Engine das Quellbild lädt.",
       "levels": "Getragene Stufen in Reihenfolge, von der feinsten bis 1×1, jede eine Sicht auf die Bytes der Begleitdatei.",
