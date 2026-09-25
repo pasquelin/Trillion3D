@@ -19,6 +19,8 @@ import { createWorldMaterials } from './worldMaterials.ts';
 import { createWorldPoses } from './worldPoses.ts';
 import type { Cut } from './worldCuts.ts';
 import type { Seat } from './worldBatches.ts';
+import { boxTransform } from '../../../../sdk-core/src/index.ts';
+import { spriteAt } from '../../visibility/shader/spriteWgsl.ts';
 
 test('a sprite surface carries its turn and size rule, both sides, and a repaint writes them', () => {
   const picture = material.sprite({ rotation: 0.4, sizeAttenuation: false });
@@ -82,9 +84,44 @@ test("a sprite's row keeps its position and axis lengths, never its turn", () =>
   poses.writeSeat(sprite, seat(0), true);
   poses.writeSeat(box, seat(1), true);
   const row = Array.from(rows.matrices.subarray(0, 16)).map((v) => Math.round(v * 1e9) / 1e9);
-  assert.deepEqual(row, [3, 0, 0, 0, 0, 1.5, 0, 0, 0, 0, 3, 0, 1, 2, 3, 1]);
+  assert.deepEqual(row, [3, 0, 0, 0, 0, 1.5, 0, 0, 0, 1.5, 3, 0, 1, 2, 3, 1]);
   assert.deepEqual(
     Array.from(rows.matrices.subarray(16, 32)),
     Array.from(box.matrixWorld.elements),
   );
+});
+
+test("a tall sprite's row and page cube hold its quad under any camera and any rotation", () => {
+  const rows = createPlacementRows(1);
+  const poses = createWorldPoses();
+  const sprite = object.sprite();
+  sprite.position.set(1, 2, 3);
+  sprite.scale.set(1, 4, 1);
+  sprite.updateMatrixWorld(true);
+  poses.writeSeat(sprite, { batch: { rows }, row: 0 } as unknown as Seat, true);
+  const row = rows.matrices.subarray(0, 16);
+  const drawn = drawnTriangles(sprite.geometry, 'sprite')!;
+  const r = drawn.spriteRadius!;
+  const box = new Float64Array([-r, -r, -r, r, r, r]);
+  boxTransform(box, 0, box, 0, row);
+  // Orthonormal views, column-major: the camera's right and up are their first two rows. The
+  // last lays the camera's up along world x — a camera looking down, or one rolled a quarter.
+  const views = [
+    [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1],
+    [0, 0, 1, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1],
+    [0, 1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 1],
+  ];
+  const corner = new Float64Array(4);
+  for (const view of views)
+    for (const rotation of [0, 0.7, Math.PI / 2])
+      for (let i = 0; i < drawn.positions.length; i += 3) {
+        spriteAt(corner, view, row, drawn.positions[i], drawn.positions[i + 1], {
+          rotation,
+          sizeAttenuation: true,
+        });
+        for (let axis = 0; axis < 3; axis++) {
+          assert.ok(corner[axis] >= box[axis] - 1e-9, `corner below the box on axis ${axis}`);
+          assert.ok(corner[axis] <= box[axis + 3] + 1e-9, `corner above the box on axis ${axis}`);
+        }
+      }
 });
