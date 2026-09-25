@@ -21,6 +21,7 @@
  * session draws.
  */
 import { invertMatrix4, MATRIX_VALUES } from '../../../../sdk-core/src/index.ts';
+import { boxPointDistance } from '../../../../sdk-core/src/math/primitives/box.ts';
 import type { TableCell } from '../../../../sdk-core/src/scene/core/tablePartition.ts';
 
 /** A cell as the plan reads it: its boxes in the scene root's frame now, six values per parent
@@ -69,15 +70,9 @@ export function inCellFrame(world: ArrayLike<number>, eye: ArrayLike<number>, re
  *  six values each; 0 inside one. */
 export function boxDistance(bounds: ArrayLike<number>, eye: ArrayLike<number>) {
   let nearest = Infinity;
-  for (let at = 0; at < bounds.length; at += 6) {
-    let sum = 0;
-    for (let axis = 0; axis < 3; axis++) {
-      const gap = Math.max(bounds[at + axis] - eye[axis], 0, eye[axis] - bounds[at + axis + 3]);
-      sum += gap * gap;
-    }
-    nearest = Math.min(nearest, sum);
-  }
-  return Math.sqrt(nearest);
+  for (let at = 0; at < bounds.length; at += 6)
+    nearest = Math.min(nearest, boxPointDistance(bounds, at, eye[0], eye[1], eye[2]));
+  return nearest;
 }
 
 /**
