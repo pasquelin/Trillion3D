@@ -4,7 +4,7 @@ import type { StreamContext } from './types.ts';
 
 export function createStreamingFetcher(
   context: StreamContext,
-  touch: (url: string, bytes: Uint8Array) => void,
+  touch: (url: string, bytes: Uint8Array, sha256: string) => void,
 ) {
   const { catalog, cache, base, abort, onDiagnostic, emit, failures, state } = context;
   const loadOne = async (url: string, jobSignal: AbortSignal) => {
@@ -77,7 +77,7 @@ export function createStreamingFetcher(
         }
         combined.throwIfAborted();
         const array = new Uint8Array(buffer);
-        touch(url, array);
+        touch(url, array, page.sha256);
         state.bytesRead += byteLength;
         state.loaded++;
         emit('page-attempt-end', 'Page read attempt succeeded', () => ({
