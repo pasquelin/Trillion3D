@@ -48,6 +48,7 @@ test('a complete frame on the surface: bound, cleared with the encoded backgroun
     framebuffer: null,
     width: 8,
     height: 4,
+    linear: false,
   });
   assert.equal(of('blitFramebuffer').length, 1, 'the complete frame is kept');
   assert.ok(names().indexOf('clear') < names().indexOf('blitFramebuffer'));
@@ -77,6 +78,7 @@ test('a target is bound, drawn at its size, and never kept', () => {
     framebuffer: target.framebuffer,
     width: 4,
     height: 2,
+    linear: false,
   });
   assert.equal(of('blitFramebuffer').length, 0, 'a target holds no held frame');
 });

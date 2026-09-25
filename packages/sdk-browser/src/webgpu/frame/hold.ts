@@ -3,6 +3,7 @@ import { CPU_STEP } from '../pages/render/cpuStepTable.ts';
 import { beginTaaFrame, taaSettled } from '../../taa/frame.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 import { shadowsUnsettled } from '../pages/state/lights.ts';
+import { effectsUnsettled } from '../pages/render/encodeEffects.ts';
 
 /** What can still change the frame, one bit each; `unsettledReasons` names them. */
 const REASONS = [
@@ -23,6 +24,7 @@ const REASONS = [
   'shadowsPending',
   'cutPending',
   'bounceProbes',
+  'effects',
 ] as const;
 const BIT = Object.fromEntries(REASONS.map((reason, index) => [reason, 1 << index])) as Record<
   (typeof REASONS)[number],
@@ -79,6 +81,8 @@ export function unsettledMask(rt: WebgpuPagesRuntime) {
   // Bounce-light probes converge from frame to frame: their state is written by no revision, and
   // a held frame would freeze it before convergence.
   if (bounce.probes) mask |= BIT.bounceProbes;
+  // A chain changed since the last image, or whose programs still compile, has not been drawn.
+  if (effectsUnsettled(rt)) mask |= BIT.effects;
   return mask;
 }
 

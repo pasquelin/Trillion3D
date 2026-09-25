@@ -191,6 +191,29 @@
     "description": ""
   },
   {
+    "id": "BLOOM_DEFAULTS",
+    "module": "packages/sdk-core/src/world/effect/bloom.ts",
+    "exports": ["BLOOM_DEFAULTS"],
+    "section": "effect",
+    "kind": "Constant",
+    "title": "BLOOM_DEFAULTS",
+    "signature": "const BLOOM_DEFAULTS",
+    "summary": "The published defaults (Jimenez, \"Next Generation Post Processing in Call of Duty: Advanced Warfare\", SIGGRAPH 2014): a 4 % blend of the glow and a one-texel tent.",
+    "members": [
+      {
+        "name": "intensity",
+        "type": "0.04",
+        "desc": ""
+      },
+      {
+        "name": "radius",
+        "type": "1",
+        "desc": ""
+      }
+    ],
+    "description": "Neither is read from a scene; both are the page's to change."
+  },
+  {
     "id": "BOUNCE_PROBES_PER_FRAME",
     "module": "packages/sdk-core/src/bounce/contracts.ts",
     "exports": ["BOUNCE_PROBES_PER_FRAME"],
@@ -665,6 +688,80 @@
     "title": "Blending",
     "signature": "type Blending = (typeof blending)[keyof typeof blending]",
     "summary": "How a surface mixes with what is behind it, by name.",
+    "description": ""
+  },
+  {
+    "id": "Bloom",
+    "module": "packages/sdk-core/src/world/effect/bloom.ts",
+    "exports": ["Bloom"],
+    "section": "effect",
+    "kind": "Type",
+    "title": "Bloom",
+    "signature": "class Bloom extends EffectPass\nnew Bloom(options?: BloomOptions): Bloom",
+    "summary": "Light that spills around what is bright, as a lens spreads it.",
+    "parameters": [
+      {
+        "name": "options",
+        "type": "BloomOptions",
+        "default": "{}",
+        "desc": "What a page may pass to `effect.bloom`."
+      },
+      {
+        "name": "options.intensity?",
+        "type": "number",
+        "desc": "Share of the image replaced by its glow, from 0 (none) to 1 (only the glow)."
+      },
+      {
+        "name": "options.radius?",
+        "type": "number",
+        "desc": "Spread of the glow at every level, in texels of that level; 1 is the published filter."
+      }
+    ],
+    "members": [
+      {
+        "name": "kind",
+        "type": "'bloom'",
+        "desc": "Which built-in pass this is."
+      },
+      {
+        "name": "stage",
+        "type": "'before-tone-mapping'",
+        "desc": "Whether it runs before or after tone mapping."
+      },
+      {
+        "name": "intensity",
+        "type": "number",
+        "desc": "Share of the image replaced by its glow, from 0 to 1."
+      },
+      {
+        "name": "radius",
+        "type": "number",
+        "desc": "Spread of the glow at every level, in texels of that level; above 0."
+      }
+    ],
+    "description": "Physically based: it runs on the scene's linear radiance, before tone mapping, with no threshold, and it conserves energy — the glow is a blurred copy of the image blended in, so the total light stays what it was."
+  },
+  {
+    "id": "BloomOptions",
+    "module": "packages/sdk-core/src/world/effect/bloom.ts",
+    "exports": ["BloomOptions"],
+    "section": "effect",
+    "kind": "Type",
+    "title": "BloomOptions",
+    "signature": "interface BloomOptions",
+    "summary": "What a page may pass to `effect.bloom`.",
+    "members": [
+      {
+        "name": "intensity?",
+        "type": "number | undefined",
+        "desc": "Share of the image replaced by its glow, from 0 (none) to 1 (only the glow)."
+      },
+      {
+        "name": "radius?",
+        "type": "number | undefined",
+        "desc": "Spread of the glow at every level, in texels of that level; 1 is the published filter."
+      }
+    ],
     "description": ""
   },
   {
@@ -3629,6 +3726,107 @@
     "description": "Enables LLMs to understand, validate, and tune the 3D engine configuration."
   },
   {
+    "id": "EffectChain",
+    "module": "packages/sdk-core/src/world/effect/chain.ts",
+    "exports": ["EffectChain"],
+    "section": "effect",
+    "kind": "Type",
+    "title": "EffectChain",
+    "signature": "class EffectChain\nnew EffectChain(changed?: () => void): EffectChain",
+    "summary": "`world.effects`: the ordered passes drawn over the image after temporal antialiasing and before it reaches the canvas.",
+    "parameters": [
+      {
+        "name": "changed",
+        "type": "() => void",
+        "default": "() => {}",
+        "desc": ""
+      }
+    ],
+    "members": [
+      {
+        "name": "revision",
+        "type": "number",
+        "desc": "Counts the changes: an image drawn at another revision is out of date."
+      },
+      {
+        "name": "passes",
+        "type": "readonly EffectPass[]",
+        "desc": "The passes, in the order they run."
+      },
+      {
+        "name": "size",
+        "type": "number",
+        "desc": "How many passes the chain holds."
+      },
+      {
+        "name": "add(pass: EffectPass, index?: number)",
+        "type": "EffectChain",
+        "desc": "Puts a pass in the chain, last or at `index`. A pass belongs to one chain at a time."
+      },
+      {
+        "name": "remove(pass: EffectPass)",
+        "type": "boolean",
+        "desc": "Takes a pass out of the chain; false when it was not in it."
+      },
+      {
+        "name": "clear()",
+        "type": "void",
+        "desc": "Takes every pass out: the image is the one without the chain again."
+      },
+      {
+        "name": "stage(stage: EffectStage)",
+        "type": "readonly EffectPass[]",
+        "desc": "The passes of one stage, in chain order: the list an engine runs. Kept from change to change, so a frame allocates nothing."
+      }
+    ],
+    "description": "The passes that run before tone mapping read the linear radiance, in the order they were added; those that run after read the display image, in theirs. An empty chain costs nothing: no pass, no copy, no target."
+  },
+  {
+    "id": "EffectKind",
+    "module": "packages/sdk-core/src/world/effect/chain.ts",
+    "exports": ["EffectKind"],
+    "section": "effect",
+    "kind": "Type",
+    "title": "EffectKind",
+    "signature": "type EffectKind = 'bloom'",
+    "summary": "The built-in passes an engine knows how to draw.",
+    "description": ""
+  },
+  {
+    "id": "EffectPass",
+    "module": "packages/sdk-core/src/world/effect/chain.ts",
+    "exports": ["EffectPass"],
+    "section": "effect",
+    "kind": "Type",
+    "title": "EffectPass",
+    "signature": "abstract class EffectPass",
+    "summary": "One pass of the chain.",
+    "members": [
+      {
+        "name": "kind",
+        "type": "'bloom'",
+        "desc": "Which built-in pass this is."
+      },
+      {
+        "name": "stage",
+        "type": "EffectStage",
+        "desc": "Whether it runs before or after tone mapping."
+      }
+    ],
+    "description": "A pass says which built-in it is and where it runs; its settings are properties whose write reaches the world at once, like a light's."
+  },
+  {
+    "id": "EffectStage",
+    "module": "packages/sdk-core/src/world/effect/chain.ts",
+    "exports": ["EffectStage"],
+    "section": "effect",
+    "kind": "Type",
+    "title": "EffectStage",
+    "signature": "type EffectStage = 'before-tone-mapping' | 'after-tone-mapping'",
+    "summary": "Where a pass sits relative to the display curve: on the scene's linear radiance, before the exposure and the curve bring it into the display range, or on the display image they made.",
+    "description": ""
+  },
+  {
     "id": "EngineCamera",
     "module": "packages/sdk-browser/src/camera/engineCamera.ts",
     "exports": ["EngineCamera"],
@@ -6236,6 +6434,11 @@
         "name": "height",
         "type": "number",
         "desc": "Height in pixels."
+      },
+      {
+        "name": "linear?",
+        "type": "boolean | undefined",
+        "desc": "Linear radiance, neither tone-mapped nor encoded, over transparent black: the effect chain's input, whose alpha is coverage."
       }
     ],
     "description": ""
@@ -18845,7 +19048,7 @@
     "title": "world.bounce",
     "signature": "world.bounce: boolean",
     "summary": "Light bounced off the surfaces, traced against the resident proxy; off by default.",
-    "description": "A change is applied in place on a path that carries it, and taken by the next opening on one that does not."
+    "description": "Applied in place on a path that carries it, taken by the next opening on one that does not."
   },
   {
     "id": "world.temporalAntialiasing",
@@ -18857,6 +19060,17 @@
     "signature": "world.temporalAntialiasing: boolean",
     "summary": "Temporal antialiasing: sub-pixel jitter accumulated over frames; on by default.",
     "description": "Written, it takes effect at the next frame, history dropped, no session reopened. Read, it is what the image carries: false on WebGL2, and while the program compiles after it was turned on."
+  },
+  {
+    "id": "world.effects",
+    "module": "packages/sdk-browser/src/world/core/world.ts",
+    "exports": ["createWorld"],
+    "section": "world",
+    "kind": "Constant",
+    "title": "world.effects",
+    "signature": "world.effects: EffectChain",
+    "summary": "Passes drawn over the image, in order (`effect`).",
+    "description": ""
   },
   {
     "id": "world.physics",
@@ -24032,6 +24246,49 @@
     ],
     "returns": {
       "type": "number",
+      "desc": ""
+    },
+    "description": ""
+  },
+  {
+    "id": "effect",
+    "module": "packages/sdk-core/src/world/effect/index.ts",
+    "exports": ["effect"],
+    "section": "effect",
+    "kind": "Constant",
+    "title": "effect",
+    "signature": "const effect",
+    "summary": "The `effect` family: the passes `world.effects` draws over the image.",
+    "description": ""
+  },
+  {
+    "id": "effect.bloom",
+    "module": "packages/sdk-core/src/world/effect/index.ts",
+    "exports": ["effect"],
+    "section": "effect",
+    "kind": "Function",
+    "title": "effect.bloom()",
+    "signature": "effect.bloom(options?: BloomOptions): Bloom",
+    "summary": "A glow around what is bright, on the linear image before tone mapping.",
+    "parameters": [
+      {
+        "name": "options?",
+        "type": "BloomOptions",
+        "desc": "`intensity` and `radius`; the published values when absent."
+      },
+      {
+        "name": "options.intensity?",
+        "type": "number",
+        "desc": "Share of the image replaced by its glow, from 0 (none) to 1 (only the glow)."
+      },
+      {
+        "name": "options.radius?",
+        "type": "number",
+        "desc": "Spread of the glow at every level, in texels of that level; 1 is the published filter."
+      }
+    ],
+    "returns": {
+      "type": "Bloom",
       "desc": ""
     },
     "description": ""

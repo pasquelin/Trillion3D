@@ -105,7 +105,7 @@ test('the GPU frame time the engine measured reaches the page hook; an unmeasure
     streamer,
     0,
     0,
-    () => ({ loaded: 0, pageBytesRead: 0, streamingError: null }),
+    () => ({ loaded: 0, pageBytesRead: 0, streamingError: null, effectBytes: 0 }),
   );
   const frames = createWorldFrames();
   const seen: (number | null | undefined)[] = [];

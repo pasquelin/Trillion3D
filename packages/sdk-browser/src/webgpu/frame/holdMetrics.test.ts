@@ -67,6 +67,7 @@ function tenue() {
       vertexBytes: 0,
       positionBuffers: new Map(),
     },
+    context: {},
     vis: { visEnabled: true, gpuDraw: {}, textureJobs: [], gpuHiz: undefined },
     capture: { capturing: false, capturePending: undefined },
     setup: { geometryPool: { slots: 0 }, texturePool: {} },

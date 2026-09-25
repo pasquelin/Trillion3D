@@ -121,12 +121,13 @@ export function createSceneDraw(
         for (const child of scene.children) collect(child);
         (opaque as DrawnNode[]).sort(frontToBack);
         seeThrough.sort(backToFront);
+        // A linear output is the effect chain's: neither the curve nor the encoding, they follow it.
         owner.draw(
           NO_BATCHES,
           scene,
           drawCamera,
-          output.toneMapped,
-          true,
+          output.toneMapped && !output.linear,
+          !output.linear,
           opaque,
           seeThrough as readonly SceneCopy[],
         );

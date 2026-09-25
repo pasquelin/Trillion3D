@@ -61,6 +61,9 @@ export function bindClusterMaterial(
   uniforms.i1(14, 'hasNormalMap', mat.normalMap ? 1 : 0);
   uniforms.i1(15, 'hasVertexColor', material.vertexColors ? 1 : 0);
   uniforms.i1(16, 'toneMapped', toneMapped && material.toneMapped ? 1 : 0);
+  // An opaque surface covers its pixel whatever its alpha: the linear target of the effect chain
+  // reads alpha as coverage (`../../effects/webglOutput.ts`).
+  uniforms.i1(45, 'covering', material.transparent ? 0 : 1);
   const sharedMetalRough =
     !!mat.roughnessMap &&
     mat.roughnessMap === mat.metalnessMap &&
