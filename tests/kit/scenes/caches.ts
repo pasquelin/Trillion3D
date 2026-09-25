@@ -12,7 +12,7 @@ const REPOSITORY = fileURLToPath(new URL('../../../', import.meta.url));
 
 /** Whether `folder`, relative to the repository root, is a scene under a scene root whose source
  *  is committed: it holds a `source/`. */
-export const hasSource = (folder: string) =>
+const hasSource = (folder: string) =>
   SCENE_ROOTS.some((sceneRoot) => folder.startsWith(`${sceneRoot}/`)) &&
   existsSync(join(REPOSITORY, folder, 'source'));
 
