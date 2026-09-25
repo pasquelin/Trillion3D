@@ -59,13 +59,12 @@ export function placedOf(model: Model, cooked: CookedPhysics): Placed[] {
   return cooked.instances.flatMap((instance) => {
     const { tiles, material } = cooked.colliders[instance.collider];
     return tiles.map((tile) => {
-      const box = new Float64Array(6);
       const p: Placed = {
         model,
         instance,
         tile,
         material: material ?? -1,
-        box,
+        box: new Float64Array(6),
         id: -1,
         loading: false,
       };
