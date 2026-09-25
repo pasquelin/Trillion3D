@@ -23,9 +23,10 @@ const KIND_SPOT:f32=${LIGHT_KIND.spot}.0;
 const KIND_SUN:f32=${LIGHT_KIND.directional}.0;
 struct DirectLight{positionRange:vec4f,colorIntensity:vec4f,directionCone:vec4f,params:vec4f,shape:vec4f,}
 /** Every light slot, then the environment's irradiance: nine spherical-harmonic coefficients
- *  (\`packages/sdk-core/src/scene/core/environment.ts\`), zero where the host declared none; then the fitted specular lobe
+ *  (\`packages/sdk-core/src/scene/core/environment.ts\`), zero where the host declared none; its fog,
+ *  colour and mode then law (\`packages/sdk-core/src/scene/core/fog.ts\`); then the fitted specular lobe
  *  a rectangle is integrated with, written once (\`ltcTable.ts\`). */
-struct DirectLights{count:u32,pad0:u32,pad1:u32,pad2:u32,items:array<DirectLight,MAX_LIGHTS>,environment:array<vec4f,${ENVIRONMENT_COEFFICIENTS}>,ltc:array<vec4f,${LTC_SIZE * LTC_SIZE * 2}>,}
+struct DirectLights{count:u32,pad0:u32,pad1:u32,pad2:u32,items:array<DirectLight,MAX_LIGHTS>,environment:array<vec4f,${ENVIRONMENT_COEFFICIENTS}>,fog:array<vec4f,2>,ltc:array<vec4f,${LTC_SIZE * LTC_SIZE * 2}>,}
 /** The type rank is a float in the buffer: a single place knows how to reread it. */
 fn isSun(light:DirectLight)->bool{return abs(light.params.x-KIND_SUN)<0.5;}
 /** The range window at \`distance\` from a light's centre: one at the centre, zero at its range. */
