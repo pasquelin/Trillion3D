@@ -40,8 +40,20 @@ export function truthOf(
   const surface = fixture.material(),
     map = surface.map as G.GraphTexture,
     canvas = map.image as HTMLCanvasElement;
-  if (map.flipY || map.wrapS !== G.HOST_WRAP_REPEAT || map.wrapT !== G.HOST_WRAP_REPEAT)
-    throw new Error(`${fixture.name}: the ground truth reads an unflipped, repeated map`);
+  if (
+    fixture.lit ||
+    fixture.back ||
+    surface.family !== 'basic' ||
+    (surface.color as G.Color).getHex() !== 0xffffff ||
+    map.flipY ||
+    map.magFilter !== G.HOST_FILTER_LINEAR ||
+    map.wrapS !== G.HOST_WRAP_REPEAT ||
+    map.wrapT !== G.HOST_WRAP_REPEAT
+  )
+    throw new Error(
+      `${fixture.name}: the ground truth reads a white unlit front face wearing an unflipped, ` +
+        'repeated, bilinear map',
+    );
   map.updateMatrix();
   const truth = groundTruth({
     size: SIZE,
