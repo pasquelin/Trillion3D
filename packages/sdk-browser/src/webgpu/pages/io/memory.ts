@@ -18,11 +18,17 @@ import { vertexBytesOf } from './metrics.ts';
 
 /**
  * The geometry pool the session's rule draws for a budget, less the vertex buffers the session
- * holds outside its slots (`vertexBytesOf`): `geometryAllocationBytes` counts both, so both are
- * paid from the one budget and never sum past it, the budget recorded staying the one declared.
+ * holds outside its slots (`heldBytes`, `vertexBytesOf`): `geometryAllocationBytes` counts both, so
+ * both are paid from the one budget and never sum past it, the budget recorded staying the one
+ * declared. A refusal halves the slots alone (`grantedGeometryPool`).
  */
-export const geometryPoolDrawer = (rt: WebgpuPagesRuntime) => (budgetBytes: number) =>
-  rt.setup.geometryPoolFor(budgetBytes, vertexBytesOf(rt.gpu, rt.vis));
+export function geometryPoolDrawer(rt: WebgpuPagesRuntime) {
+  const heldBytes = vertexBytesOf(rt.gpu, rt.vis);
+  return {
+    heldBytes,
+    draw: (budgetBytes: number) => rt.setup.geometryPoolFor(budgetBytes, heldBytes),
+  };
+}
 
 /**
  * Changes memory pools mid-session, like the reference's variables — but without emptying what they
@@ -82,11 +88,11 @@ export async function setWebgpuMemoryBudgets(
   }
   if (budgets.geometryPoolBytes !== undefined) {
     const bytes = budgets.geometryPoolBytes,
-      draw = geometryPoolDrawer(rt);
+      { draw, heldBytes } = geometryPoolDrawer(rt);
     let pool: GeometryPool | undefined = draw(bytes);
     if (pool.slots !== setup.slots && gpu.cache && device && !run.lost)
       pool = await probed(
-        grantedGeometryPool(device, bytes, draw, diagnose, geometryProbe(device)),
+        grantedGeometryPool(device, bytes, draw, diagnose, geometryProbe(device), heldBytes),
       );
     if (pool && pool.slots !== setup.slots && gpu.cache && !run.lost) {
       // The root cover keeps its place before any other page: the pool never goes below it, and a

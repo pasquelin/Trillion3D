@@ -38,16 +38,18 @@ function createWebgpuPagesCache(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice, sl
  * request outside any scope.
  */
 export async function grantWebgpuPagesCache(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
-  const { setup, gpu, diag } = rt;
+  const { setup, gpu, diag } = rt,
+    { draw, heldBytes } = geometryPoolDrawer(rt);
   const granted = await grantedGeometryPool(
     gpuDevice,
     setup.geometryPool.budgetBytes,
-    geometryPoolDrawer(rt),
+    draw,
     diag.engineDiagnostic,
     (pool) => {
       const cache = createWebgpuPagesCache(rt, gpuDevice, pool.slots);
       return { cache, destroy: () => void cache.dispose() };
     },
+    heldBytes,
   );
   if (!granted) throw new Error('WEBGPU_GEOMETRY_POOL_REFUSED');
   setup.geometryPool = granted.pool;
