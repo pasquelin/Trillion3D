@@ -194,8 +194,9 @@ light needs, a whole sun's 16 × 64 × 64 words (`SHADOW_TABLE_STRIDE`): 2^22 wo
 (`SHADOW_TABLE_ENTRIES`), so every shadow-casting light the contract accepts holds its range.
 The GPU total's shadow share counts it with the pool (`SHADOW_POOL_BYTES`). Its host mirror — the
 words, a change flag per word, and the pool's page records and eviction bitset at the largest pool,
-20.8 MiB (`SHADOW_HOST_BYTES`, summed from `shadowTableHostBytes` and `shadowPoolHostBytes`, which
-a test checks against real allocations) — is the CPU total's first share, before the decoded-page
+with the shadow batches' host lists (`SHADOW_BATCH_HOST_BYTES`), 21.0 MiB (`SHADOW_HOST_BYTES`,
+summed from `shadowTableHostBytes`, `shadowPoolHostBytes` and `batchBudget.ts`, which tests check
+against real allocations) — is the CPU total's first share, before the decoded-page
 cache (`splitMemoryBudget`).
 
 - **A sun is a clipmap.** Level `L` has texels of `2^L` metres; its window is 64 × 64 pages around
@@ -227,8 +228,18 @@ cache (`splitMemoryBudget`).
   or stale one as current. The frame draws its pages in as many batches as the per-batch buffers
   take (`shadowPagesPerBatch`, 24 pages, in the views one light cut runs at once), all in its one
   command buffer, each batch's buffer writes landing in command order
-  (`gpu/shadow/batchWrites.ts`, `webgpu/pages/render/encodeShadowBatches.ts`); pending pages are 0
-  unless a batch could not be encoded. One flag says whether a page is read, the table word's valid
+  (`gpu/shadow/batchWrites.ts`, `webgpu/pages/render/encodeShadowBatches.ts`). What the batches
+  add is sized once from the largest pool, never grown, and counted in the memory budget
+  (`gpu/shadow/batchBudget.ts`): 4 096 pages in full batches of 24 is at most 171 batches a frame
+  (`MAX_SHADOW_BATCHES`), each in at most 24 light views. The staging of every batch but the first
+  is 170 × 26 556 bytes, 4.31 MiB, made at the first frame that needs it; the light cut's flag
+  words, a word per batch for 4 frames in flight, 2 736 bytes; the CPU cut's commands for 4 104
+  faces, 65 664 bytes — 4.37 MiB of GPU memory in the shadow share (`SHADOW_POOL_BYTES`), and
+  178 KiB of host memory in the CPU total's (`SHADOW_HOST_BYTES`). A frame that needs more
+  batches — only when a light cut dropped work and its view limit cut batches short — draws 171
+  and leaves the rest pending, drawn the next frame: a declared limit, counted in
+  `shadowPagesPending`, which is otherwise 0 unless a batch could not be encoded. One flag says
+  whether a page is read, the table word's valid
   bit: a page whose
   depth is wrong is withdrawn (`pool.withdraw`) until its redraw lands, and the pixel reads the
   next coarser level. A light that moves or changes, or a sun whose clipmap moves its projection,
@@ -300,8 +311,13 @@ bisected between the most a batch drew whole and the fewest one dropped with: a 
 never on the frame, which draws as many batches as its pages take. A view that wanted a
 cluster not resident drew its nearest resident ancestor instead, and every page of that view with
 it: those pages, and only that view's, are drawn again once residency changes, not only the pages
-over the missing cluster; a frame whose requests found no readback free draws them again at once
-(`gpu/dag/lightCutRedraws.ts`, `light-cut-redraw`). A run's window is the square that bounds its pages, cut in eight by eight cells
+over the missing cluster; a batch whose requests were not read — the frame found no report
+readback free, or its list was full — draws them again at once (`gpu/dag/lightCutRedraws.ts`,
+`light-cut-redraw`). Every batch's cut appends its requests to one list (`VIEW_APPEND`), which the
+frame copies once after its last batch into one of two report slots (`gpu/dag/lightCutReports.ts`):
+every batch's missing casters are asked for, whatever the batch count. Each frame's flag words ride
+in one slot sized for the most batches, four slots made at creation; a frame that finds all four
+still read draws its pages again, withdrawn meanwhile. A run's window is the square that bounds its pages, cut in eight by eight cells
 of whole pages; a node or cluster that covers no cell a drawn page lies in is dropped. Its error is
 counted in the view's texels against the camera's pixel threshold — a texel of the level a pixel
 reads is at most that pixel —, and the normal cone is off, since the shadow raster culls no face. The
@@ -704,7 +720,10 @@ interrupt a backend. These durations are not frame-performance measurements.
 
 **GPU timing.** `timestamp-query` is requested when the adapter advertises it (`gpu-timing-status`).
 Summary mode instruments at most one submission in 60, trace mode every one, with one outstanding
-readback and at most 64 pass pairs; `flush()` publishes `gpu-timing` events outside the beauty loop.
+readback, and as many pass pairs as the frame that redraws the largest shadow pool encodes: 256
+passes plus 32 for each of 171 shadow batches (`gpu/timing/queries.ts`), in query sets of 4 096
+timestamps, so shadow GPU time and its cull and raster split are never truncated by the batch
+count; `flush()` publishes `gpu-timing` events outside the beauty loop.
 `sumPassMs` sums pass intervals; it is not end-to-end GPU latency, and invalid or truncated passes
 make it `null`. A per-pass duration says where, never how much: on tile-based GPUs passes overlap.
 
