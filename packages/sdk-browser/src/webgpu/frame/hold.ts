@@ -3,6 +3,7 @@ import { CPU_STEP } from '../pages/render/cpuStepTable.ts';
 import { beginTaaFrame, taaSettled } from '../../taa/frame.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 import { shadowsUnsettled } from '../pages/state/lights.ts';
+import { shadowPoolPending } from '../shadow/poolSize.ts';
 
 /** What can still change the frame, one bit each; `unsettledReasons` names them. */
 const REASONS = [
@@ -125,12 +126,10 @@ function recordHeldFrameWork(rt: WebgpuPagesRuntime, presented: boolean, submitM
  * A frame that casts a shadow while the device still answers for its shadow pool (`poolSize.ts`)
  * would be drawn without it, an incomplete image (#483): it is held instead, showing the previous
  * image or nothing yet, and `pendingWebgpuFrame` asks the next frame once the device answered. A
- * capture is never held: it renders what it is asked for.
+ * capture is never held: it waited for that answer before it began.
  */
-function awaitsShadowPool(rt: WebgpuPagesRuntime) {
-  const grant = rt.lights.shadowGrant;
-  return grant !== undefined && !grant.settled && !rt.capture.capturing;
-}
+const awaitsShadowPool = (rt: WebgpuPagesRuntime) =>
+  shadowPoolPending(rt) !== undefined && !rt.capture.capturing;
 
 /**
  * The held frame. No CPU step is executed and nothing is re-encoded: the previous frame's colour

@@ -893,8 +893,9 @@ as `world.budget.split`:
   512 MiB is taken. The pool a screen takes, its static layer and its fixed buffers always fit that
   share, whatever the screen.
 - CPU: the shadow page table's host mirror first (20.8 MiB, fixed whatever the screen), then the
-  session's manifest tables (a fixed reckoning per catalogue entry, not a measured heap size) and
-  its transfer queue; the decoded-page cache holds the rest. A change
+  decoded-page cache takes the whole rest (`split.pageCache`); within it the session in place
+  reserves its manifest tables (a fixed reckoning per catalogue entry, not a measured heap size)
+  and its transfer queue. A change
   applies at once: pages leave by last use until they fit, save those the frame keeps. The default
   total is the mirror plus the cache's own default; a total not above the mirror is refused
   (`CPU_BUDGET_UNDER_SHADOW_MIRROR`).
@@ -928,7 +929,7 @@ device refuses it, the pool
 is drawn again at half its bytes, down to its floor (the root cover, one layer per lane, the
 smallest screen's shadow pool). The shadow pool is granted the same way at the first frame that
 casts a shadow, and that frame is held until the device answers: the previous image stays, or
-nothing yet, never an image without its shadows. Its static layer is refused whole: shadow pages
+nothing yet, never an image without its shadows; a capture waits for the answer too. Its static layer is refused whole: shadow pages
 are then drawn with every caster. The pool in place is only ever replaced by one the device grants. The frame goes on,
 coarser where the smaller pool no longer holds the view, and no exception reaches the page. When
 the device refuses even the smallest shadow pool, the shadowed mode cannot be drawn: it is refused

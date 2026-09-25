@@ -10,6 +10,8 @@ import { createWebgpuLightState } from '../pages/state/lights.ts';
 import { holdWebgpuFrame } from '../frame/hold.ts';
 import { settledRt } from '../frame/hold.fixture.ts';
 import { sizeShadowPool } from './poolSize.ts';
+import { captureColorView } from '../pages/io/colorCapture.ts';
+import type { HostCamera } from '../../camera/world.ts';
 
 /** A session whose device refuses every texture past `limit` bytes, and a frame loop reduced to
  *  what `renderWebgpuPages` does around the pool: size it, hold or draw, wait for the next frame.
@@ -23,6 +25,7 @@ function frames(limit = Infinity) {
       if (size[0] * size[1] * 4 > limit) gpu.raise('Out of memory');
       return { destroy() {}, createView: () => ({}) };
     },
+    queue: { onSubmittedWorkDone: async () => {} },
   });
   lights.shadows = {
     get texture() {
@@ -69,7 +72,7 @@ function frames(limit = Infinity) {
     const grant = lights.shadowGrant;
     if (grant && !grant.settled) await grant.done;
   };
-  return { rt, shown, said, frame };
+  return { rt, gpu, shown, said, frame, granted: () => texture !== undefined };
 }
 
 test('no presented frame lacks the shadow pass while a light casts', async () => {
@@ -93,3 +96,35 @@ test('a pool refused at its floor is not waited for forever: shadows-off, then f
   assert.deepEqual(s.said, ['gpu-out-of-memory', 'shadows-off']);
   assert.equal(s.shown.length, 1, 'the frame after the refusal is drawn');
 });
+
+for (const asked of ['by a frame', 'by the capture'])
+  test(`a capture waits for the shadow pool asked ${asked}, never drawn without its shadows`, async () => {
+    const s = frames();
+    // The device answers for the pool only once the capture is under way.
+    let answer = () => {};
+    const answered = new Promise<void>((resolve) => (answer = resolve));
+    const pop = s.gpu.device.popErrorScope.bind(s.gpu.device);
+    Object.assign(s.gpu.device, { popErrorScope: async () => (await answered, pop()) });
+    // The capture's render reads the signal first: what the pool is then is what it draws with.
+    let drawnWithPool: boolean | undefined;
+    Object.assign(s.rt, {
+      context: {
+        get signal() {
+          drawnWithPool ??= s.granted();
+          return { aborted: true, throwIfAborted: () => assert.fail('drawn') };
+        },
+      },
+    });
+    Object.assign(s.rt.run, {
+      lastCamera: {},
+      motion: {},
+      diagnostic: 'beauty',
+      temporalHizState: {},
+    });
+    Object.assign(s.rt.services, { residency: { busy: false, pending: undefined } });
+    if (asked === 'by a frame') sizeShadowPool(s.rt);
+    const capture = captureColorView(s.rt, {} as HostCamera, { width: 64, height: 64 });
+    setTimeout(answer, 10);
+    await assert.rejects(capture, /drawn/);
+    assert.equal(drawnWithPool, true, 'the capture drew after the device granted the pool');
+  });
