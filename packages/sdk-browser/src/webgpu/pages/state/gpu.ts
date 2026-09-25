@@ -37,9 +37,6 @@ export interface WebgpuGpuState {
    *  surface — the binding then exists without costing anything. */
   backdrop: TransmissionBackdrop | undefined;
   surfaces: SurfaceBuffer | undefined;
-  /** The last adopted sample declared a wanted page not yet arrived: the image waits for that page,
-   *  it does not fall back to the CPU cut. */
-  cutIncomplete: boolean;
   /** The last adopted sample exceeded the ceiling: the image cannot use it. */
   cutTruncated: boolean;
   /** GPU selection has been dropped for the session: what is measured since is the fallback CPU cut.
@@ -109,7 +106,6 @@ export function createWebgpuGpuState(viewport: readonly [number, number]): Webgp
     feedbackView: undefined,
     backdrop: undefined,
     surfaces: undefined,
-    cutIncomplete: false,
     cutTruncated: false,
     selectionFallback: false,
     targetSize: [viewport[0] ?? 1, viewport[1] ?? 1],

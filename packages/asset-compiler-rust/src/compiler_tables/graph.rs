@@ -12,11 +12,10 @@ fn declared(owner: &Value, field: &str) -> Value {
     owner.get(field).cloned().unwrap_or(Value::Null)
 }
 
-/// The scene the host opens — the one `scene` names, otherwise the first — and the nodes at its
-/// top, in its order: the rule selection already reads (`compiler_nodes.rs`), so the table and the
-/// compiled geometry agree on what the scene is.
-pub(super) fn scene_roots(g: &Value) -> Result<Value> {
-    let roots = crate::compiler_nodes::scene_roots(g, values(g, "nodes")?)?;
+/// The scene the host opens — the one `scene` names, otherwise the first — and `roots`, the nodes
+/// at its top in the node table's ranks: selection reads the same rule (`compiler_nodes.rs`), so
+/// the table and the compiled geometry agree on what the scene is.
+pub(super) fn scene_roots(g: &Value, roots: Vec<usize>) -> Result<Value> {
     let rank = optional_index(g.get("scene"), "scene", 0)?;
     let scene = g
         .pointer(&format!("/scenes/{rank}"))

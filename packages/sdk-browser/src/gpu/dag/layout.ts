@@ -28,24 +28,18 @@
 export const CLUSTER_WORDS = 12;
 /** Words of the cold record; `PAGE_CONE_FLOATS` in `../core/selection.ts` is the public mirror. */
 export const COLD_WORDS = 13;
-export const CLUSTER_ROOT = 1,
-  CLUSTER_NEVER = 2,
+/** Bit 0 is free: it said the cluster had no parent, which only the pinned-root fallback read. */
+export const CLUSTER_NEVER = 2,
   /** The cluster is blended: its triangle share is counted apart, as on the CPU. */
   CLUSTER_TRANSPARENT = 4;
 /** Detail level travels in the flags' high bits: a single pass reads it, at emit. */
 export const CLUSTER_LEVEL_SHIFT = 8;
 const CLUSTER_LEVEL_MAX = 0xffffff;
 
-export function packClusterFlags(
-  root: boolean,
-  never: boolean,
-  level: number,
-  transparent = false,
-) {
+export function packClusterFlags(never: boolean, level: number, transparent = false) {
   const bounded = Math.min(Math.max(Math.trunc(level) || 0, 0), CLUSTER_LEVEL_MAX);
   return (
-    ((root ? CLUSTER_ROOT : 0) |
-      (never ? CLUSTER_NEVER : 0) |
+    ((never ? CLUSTER_NEVER : 0) |
       (transparent ? CLUSTER_TRANSPARENT : 0) |
       (bounded << CLUSTER_LEVEL_SHIFT)) >>>
     0
@@ -116,13 +110,16 @@ export function writeTriangleTotals(
   ints[OUT_UNCOVERED_TRIANGLES] = totaux.uncoveredTriangles ?? 0;
 }
 
-/** First residency word, behind the working table's word per page. */
+/** First residency word, behind the working table's word per page: the cut rule's `resident(c)`
+ *  (`../../page/cut/readiness.ts`, `ready`). */
 export const residentBase = (pageCount: number) => pageCount;
 /** Residency words: one bit per cluster, thirty-two clusters per word. */
 export const residentWords = (pageCount: number) => (Math.max(0, pageCount) + 31) >>> 5;
-/** First cold record, behind the residency words. */
-export const coldBase = (pageCount: number) => residentBase(pageCount) + residentWords(pageCount);
-export const residentBit = (bits: Uint32Array, base: number, page: number) =>
+/** First word of the second bit set, the rule's `resident(childGroup(c))` (`childReady`). */
+export const childBase = (pageCount: number) => residentBase(pageCount) + residentWords(pageCount);
+/** First cold record, behind both bit sets. */
+export const coldBase = (pageCount: number) => childBase(pageCount) + residentWords(pageCount);
+const residentBit = (bits: Uint32Array, base: number, page: number) =>
   (bits[base + (page >>> 5)] & (1 << (page & 31))) !== 0;
 
 /** Hot field ranks, in the order `struct Cluster` of the shader declares them. */
@@ -142,11 +139,14 @@ export const COLD_CONE = 0,
   COLD_TRIANGLES = 12;
 
 /**
- * Residency column returned to the oracle, one word per cluster: what the buffer
+ * One of the two residency columns returned to the oracle, one word per cluster: what the buffer
  * doubles read in the same cold buffer as the shader, instead of a rank copied on their side.
  */
-export function residentFlags(bits: Uint32Array, pageCount: number) {
-  const base = residentBase(pageCount);
+export function residentFlags(
+  bits: Uint32Array,
+  pageCount: number,
+  base = residentBase(pageCount),
+) {
   return Uint32Array.from({ length: pageCount }, (_, page) =>
     residentBit(bits, base, page) ? 1 : 0,
   );

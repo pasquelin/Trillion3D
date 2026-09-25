@@ -1,6 +1,6 @@
 import { DAG_NODE_FLOATS } from '../types.ts';
 import { dagNodeFloor, dagNodeVerdict } from './math.ts';
-import { NODE_FIRST_CHILD, NODE_WORLD } from '../packNodes.ts';
+import { NODE_FIRST_CHILD } from '../packNodes.ts';
 import type { dagViewFrames } from './math.ts';
 
 /**
@@ -10,12 +10,10 @@ import type { dagViewFrames } from './math.ts';
  * each node's verdict — non-zero means « do not descend here » —, and only kept leaves fall back
  * to zero: they alone are what clusters consult next.
  *
- * `prunedFloor` is the smallest floor top-down pruning discarded, per primitive. Above it,
- * residency escalation would demand a subtree the descent did not open, and the pinned fallback
- * arms (`../shader/floorWgsl.ts`).
+ * Top-down pruning drops a subtree whose error floor is above the threshold, unless the subtree
+ * is open — it holds the nearest resident ancestor of something missing (`../shader/floorWgsl.ts`).
  *
- * Split from `oracle.ts`: it is a whole step, it has its own WGSL mirror, and the oracle
- * that carried it had reached its line limit.
+ * Split from `oracle.ts`: it is a whole step, it has its own WGSL mirror.
  */
 export function dagOracleDescent(
   packed: { nodeCount: number; worldCount: number; nodes: Float32Array; rootNodes: Uint32Array },
@@ -24,7 +22,6 @@ export function dagOracleDescent(
   const { nodes } = packed,
     nodeInts = new Uint32Array(nodes.buffer);
   const nodeFlags = new Uint8Array(Math.max(1, packed.nodeCount)).fill(1);
-  const prunedFloor = new Float64Array(Math.max(1, packed.worldCount)).fill(Infinity);
   const frontier: number[] = [];
   for (let w = 0; w < packed.worldCount; w++)
     if (packed.rootNodes[w] !== 0xffffffff) frontier.push(packed.rootNodes[w]);
@@ -35,10 +32,7 @@ export function dagOracleDescent(
       nodeFlags[n] = 2;
       continue;
     }
-    const floor = dagNodeFloor(frames, nodes, nodeInts, n);
-    if (floor > frames.pixelError) {
-      const w = nodeInts[n * DAG_NODE_FLOATS + NODE_WORLD];
-      if (floor < prunedFloor[w]) prunedFloor[w] = floor;
+    if (dagNodeFloor(frames, nodes, nodeInts, n) > frames.pixelError) {
       nodeFlags[n] = 2;
       continue;
     }
@@ -49,5 +43,5 @@ export function dagOracleDescent(
     }
     nodeFlags[n] = 0;
   }
-  return { nodeFlags, prunedFloor };
+  return nodeFlags;
 }

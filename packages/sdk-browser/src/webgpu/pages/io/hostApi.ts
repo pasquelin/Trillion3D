@@ -87,19 +87,21 @@ function engineCameraOf(rt: WebgpuPagesRuntime) {
 
 export function visibilityIds(rt: WebgpuPagesRuntime) {
   const size = rt.setup.viewport ?? rt.gpu.targetSize;
-  return rasterVisibilityIds(drawnOpaquePages(rt), engineCameraOf(rt), size);
+  return rasterVisibilityIds(drawnOpaquePages(rt), engineCameraOf(rt), size, rt.setup.pixelRatio());
 }
 
 export function rasterRgba(rt: WebgpuPagesRuntime) {
   const size = rt.setup.viewport ?? rt.gpu.targetSize,
     pages = drawnOpaquePages(rt),
-    cam = engineCameraOf(rt);
+    cam = engineCameraOf(rt),
+    pixelRatio = rt.setup.pixelRatio();
   return shadeVisibility(
-    rasterVisibilityIds(pages, cam, size),
+    rasterVisibilityIds(pages, cam, size, pixelRatio),
     pages,
     cam,
     size,
     rt.run.clearColor,
+    pixelRatio,
   );
 }
 

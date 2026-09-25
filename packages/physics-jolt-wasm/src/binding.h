@@ -145,4 +145,16 @@ void dropJoints(uint32_t index);
 /// After a step of `dt` seconds, takes out the joints pulled past their break force.
 void breakJoints(float dt);
 
+/// The vehicles' commands (`vehicles.cpp`, vehicleLayout.ts); VEHICLE is followed by its wheels.
+constexpr uint32_t VEHICLE = 21, UNVEHICLE = 22, DRIVE = 23;
+constexpr uint32_t VEHICLE_WORDS = 38, UNVEHICLE_WORDS = 2, DRIVE_WORDS = 6;
+/// Runs one vehicle command; returns its word count.
+uint32_t vehicleCommand(const uint32_t *w);
+/// Takes out the vehicles on the body in slot `index`, before the body is removed.
+void dropVehicles(uint32_t index);
+/// Hands each vehicle its driver's input before a step of `dt` seconds.
+void driveVehicles(float dt);
+/// Writes the vehicles' state once the bodies have stepped.
+void writeVehicles();
+
 }  // namespace trillion

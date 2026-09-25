@@ -249,21 +249,15 @@
     "members": {
       "isBufferAttribute": "Sempre `true`: distingue um atributo de buffer de qualquer outra coisa.",
       "type": "Como os valores foram declarados; um atributo de meia precisão é mantido em precisão float.",
-      "normalized": "Se números inteiros são lidos como valores entre 0 e 1.",
       "version": "Incrementado a cada escrita declarada: o que o mundo compara para ver se o conteúdo mudou.",
       "array": "Os próprios números.",
-      "itemSize": "Quantos números pertencem a um vértice: 3 para uma posição.",
       "count": "Quantos vértices os números descrevem.",
-      "needsUpdate": "`attribute.needsUpdate = true` depois de escrever `array`: o mundo o relê.",
-      "getComponent": "Número `component` do vértice `index`.",
-      "getX": "O primeiro número do vértice `i`.",
-      "getY": "O segundo número do vértice `i`.",
-      "getZ": "O terceiro número do vértice `i`.",
-      "getW": "O quarto número do vértice `i`.",
-      "setXYZ": "Escreve três números para o vértice `i`.",
-      "setXY": "Escreve dois números para o vértice `i`.",
-      "setX": "Escreve o primeiro número do vértice `i`.",
-      "clone": "Um novo atributo com uma cópia dos números."
+      "needsUpdate": "`needsUpdate = true` depois de escrever `array`: um leitor envia-o de novo.",
+      "clone": "Um novo atributo com uma cópia dos números, do seu tipo, da normalização e do nome.",
+      "kind": "O atributo possui o seu buffer.",
+      "updateRanges": "Intervalos de `array` escritos desde o último envio, enviados sozinhos.",
+      "addUpdateRange": "Marca `count` números escritos a partir de `start`.",
+      "clearUpdateRanges": "Esquece os intervalos escritos, depois de enviados."
     }
   },
   "BufferNumbers": {
@@ -1020,6 +1014,10 @@
       "autoForward": "CRUZEIRO, desligado por padrão: a câmera voa para frente a `movementSpeed` sem nenhuma tecla pressionada, como um avião faz. W então soma `movementSpeed` (duas vezes mais rápido) e S a tira (a câmera fica parada no lugar); ela nunca voa para trás. Nada se move até o próximo `update`, então um host que redesenha em `change` pede um quadro quando liga o cruzeiro."
     }
   },
+  "Fog": {
+    "summary": "Névoa sobre cada superfície: linear de `near` a `far`, ou que se adensa com a distância segundo `density`, e rareia em altura acima de `baseHeight` quando `heightFalloff` é dado.",
+    "description": "A cor é a luz que a névoa espalha em direção ao olho, exposta e passada pela curva de exibição como a de uma superfície."
+  },
   "FrameInfo": {
     "summary": "O que um hook de quadro recebe: segundos desde o último quadro e desde que o mundo começou.",
     "description": "O objeto único do mundo, reescrito a cada quadro: um hook que mantém um valor o copia.",
@@ -1063,8 +1061,8 @@
       "transparentDrawCalls": "Chamadas de desenho transparentes.",
       "transparentSubmittedTriangles": "Triângulos transparentes enviados.",
       "coverageReady": "Um fallback inicial completo de GPU está disponível; nulo em backends sem essa garantia.",
-      "coverageBudgetLimited": "O detalhe pedido não pode coexistir com o fallback fixado dentro do orçamento de páginas de GPU.",
-      "budgetPixelError": "O piso de erro de tela que o orçamento de páginas de GPU impõe ao corte, em pixels: `0` quando o detalhe pedido cabe, senão o limiar mais grosseiro em que a imagem é desenhada. Nulo em motores sem orçamento de páginas.",
+      "coverageBudgetLimited": "O detalhe pedido exige mais páginas do que cabem no orçamento de páginas de GPU: o resto é desenhado mais grosseiro.",
+      "budgetPixelError": "Apenas WebGL2: o piso de erro de tela que seu orçamento de páginas impõe ao corte, em pixels — `0` quando o detalhe pedido cabe, senão o limiar mais grosseiro em que a imagem é desenhada. Ausente no WebGPU, onde só a residência torna a imagem mais grosseira. Nulo em motores sem orçamento de páginas.",
       "frameHeld": "Verdadeiro quando o quadro foi mantido: nem a cena, nem a visão, nem os recursos se moveram, nenhum trabalho assíncrono estava pendente, e nenhuma etapa de CPU rodou. Os pixels exibidos são os do quadro original, exatos bit a bit. O que o quadro mantido FEZ é publicado como está, nunca copiado do último render completo: `drawCalls`, `triangles`, `submittedTriangles` e `totalSubmittedTriangles` contam apenas o presente, e as durações de CPU e GPU por etapa são zero quando a etapa não rodou, `null` quando nada a cronometrou. Um motor cuja imagem é uma cena que o adaptador testemunha desenha conta o que esse adaptador enviou neste quadro — nada, em um quadro mantido. O que o quadro mantido MOSTRA continua descrito pelo corte que ele reexibe: `clusters`, `selectedTriangles`, `frustumRejected`, `lodLevel` e `residentPages` são os do quadro original, já que é o mesmo corte. Ausente de um motor que não mantém seus quadros.",
       "streamingError": "Erro de carregamento persistente; URLs que falham exigem um recarregamento do explorador depois de três tentativas.",
       "gpuPassMs": "Última amostra de passo de GPU deste backend; nulo quando o dispositivo não expõe consultas de timestamp.",
@@ -1438,7 +1436,10 @@
       "array": "Os números de cada vértice, empacotados um após o outro.",
       "stride": "Quantos números cada vértice ocupa.",
       "count": "Quantos vértices ele empacota.",
-      "attribute": "Um atributo lido de dentro do pacote, como seu próprio atributo float."
+      "attribute": "Um atributo lido de dentro do pacote, como seu próprio atributo.",
+      "kind": "Um armazenamento que vários atributos observam.",
+      "version": "Incrementado por `needsUpdate`.",
+      "needsUpdate": "`needsUpdate = true` depois de escrever `array`: um leitor envia-o de novo."
     }
   },
   "JobProgress": {
@@ -1749,7 +1750,7 @@
       "parameters.flatShading": "Dá a cada triângulo um sombreamento plano, mostrando suas facetas.",
       "parameters.size": "Tamanho de um ponto, para o material de pontos.",
       "parameters.sizeAttenuation": "Se os pontos ficam menores com a distância.",
-      "parameters.linewidth": "Espessura de uma linha.",
+      "parameters.linewidth": "Espessura de uma linha em pixels CSS, a mesma a qualquer distância.",
       "parameters.dashSize": "Comprimento de um traço.",
       "parameters.gapSize": "Comprimento do espaço entre dois traços.",
       "parameters.vertexColors": "Se o `color` por vértice da geometria tinge a superfície.",
@@ -1812,7 +1813,7 @@
       "flatShading": "Dá a cada triângulo um sombreamento plano, mostrando suas facetas.",
       "size": "Tamanho de um ponto, para o material de pontos.",
       "sizeAttenuation": "Se os pontos ficam menores com a distância.",
-      "linewidth": "Espessura de uma linha.",
+      "linewidth": "Espessura de uma linha em pixels CSS, a mesma a qualquer distância.",
       "dashSize": "Comprimento de um traço.",
       "gapSize": "Comprimento do espaço entre dois traços.",
       "vertexColors": "Se o `color` por vértice da geometria tinge a superfície.",
@@ -2757,8 +2758,8 @@
     "members": {
       "isScene": "Sempre `true`: distingue a raiz da cena de qualquer outro objeto.",
       "environment": "Uma imagem dos arredores que superfícies brilhantes refletem; `null` para nenhuma.",
-      "fog": "Névoa que esmaece objetos em direção a `color` entre `near` e `far`; `null` para nenhuma.",
       "background": "O que preenche a imagem atrás de cada objeto: uma cor, ou `null` para o padrão. Uma mudança aparece no quadro seguinte, mantendo a sessão: uma nova cor atribuída aqui, ou a atual escrita pelos seus métodos (`set`, `setRGB`, `setHex`, `setHSL`...). Uma escrita direta de `.r`, `.g` ou `.b` não é detetada: atribua `background` de novo depois. Uma imagem, ou qualquer valor sem `getHex`, é recusada (`UNSUPPORTED_SCENE_UPDATE`): nenhum caminho a desenha.",
+      "fog": "Névoa sobre cada superfície, opaca ou transparente, nos dois renderizadores; `null`, o padrão, para nenhuma, sem custo. `{ color, near, far }` esvai os objetos em `color` de `near` a `far`, distâncias a partir da câmera; `{ color, density }` se adensa `density` por unidade de distância; acrescente `heightFalloff` (e `baseHeight`, 0 por padrão) e ela assenta no chão, rareando acima de `baseHeight` — dividida por e a cada `1 / heightFalloff` unidades para cima. Uma mudança aparece no quadro seguinte: uma névoa nova dada aqui, ou sua cor escrita pelos seus métodos. Uma escrita direta de `near`, `far`, `density`... não é ouvida: dê `fog` de novo depois. Uma névoa fora do intervalo — `far` não além de `near`, uma densidade negativa — é recusada (`INVALID_SCENE_ENVIRONMENT`).",
       "load": "Carrega um modelo compilado — a URL de seu manifesto — e o adiciona a esta cena.",
       "toJSON": "A cena como JSON simples e versionado: seus objetos, as formas pela chamada que as construiu, os materiais, as luzes e os modelos carregados por endereço; também a pose de `camera` quando uma é informada.",
       "fromJSON": "Substitui o que a cena contém por uma cena salva com `toJSON`, mantendo suas marcas `helper`; é resolvida quando seus modelos estão carregados. Outro formato ou outra versão é recusado (`UNSUPPORTED_SCENE_FORMAT`). Chamadas feitas enquanto uma está sendo lida rodam uma depois da outra, em ordem, cada uma sobre o que a anterior deixou: duas cenas salvas nunca se misturam."
@@ -2769,8 +2770,21 @@
     "members": {
       "exposure": "Multiplicador da radiância linear, aplicado antes da curva.",
       "toneMapping": "A curva de exibição; `DEFAULT_TONE_MAPPING` quando ausente.",
-      "irradiance": "A irradiância chegando de cada direção, como 27 números: nove coeficientes, cada um uma tripla RGB, na ordem de banda constante, `y`, `z`, `x`, `xy`, `yz`, `3z² − 1`, `xz`, `x² − y²`. Ausente, ou tudo zero, nada ilumina uma superfície além das lâmpadas declaradas."
+      "irradiance": "A irradiância chegando de cada direção, como 27 números: nove coeficientes, cada um uma tripla RGB, na ordem de banda constante, `y`, `z`, `x`, `xy`, `yz`, `3z² − 1`, `xz`, `x² − y²`. Ausente, ou tudo zero, nada ilumina uma superfície além das lâmpadas declaradas.",
+      "fog": "Névoa de distância ou de altura sobre cada superfície (`SceneFog`); ausente, nenhuma."
     }
+  },
+  "SceneExponentialFog": {
+    "summary": "Névoa que se adensa com a distância: `density` por unidade da cena; com `heightFalloff`, rareia acima de `baseHeight`, dividida por e a cada `1 / heightFalloff` unidades para cima.",
+    "members": {
+      "color": "A radiância para a qual a névoa esvai os objetos, em RGB linear.",
+      "density": "Extinção por unidade da cena, em `baseHeight`; ≥ 0.",
+      "heightFalloff": "Quão depressa a densidade cai com a altura, por unidade da cena; 0, o padrão, a mantém uniforme em qualquer altura.",
+      "baseHeight": "A altura em que a densidade vale `density`; 0 por padrão."
+    }
+  },
+  "SceneFog": {
+    "summary": "Névoa de distância ou de altura, como a iluminação a lê."
   },
   "SceneLight": {
     "summary": "Uma luz de cena, versão 2.",
@@ -2802,6 +2816,7 @@
       "ids": "O nome da luz de cada slot.",
       "count": "Quantas luzes.",
       "epoch": "Incrementado quando o conjunto de luzes muda.",
+      "transportEpoch": "Aumenta com a época, exceto por uma mudança só da névoa: a névoa é um termo do raio de visão, não do transporte de luz, então o que guarda em cache a luz transportada (as sondas de rebote) a mantém.",
       "environment": "O ambiente da cena.",
       "lightingView": "Visão pedida pelo host, como está: `auto` enquanto ele não pediu nada.",
       "unlit": "Verdadeiro quando a imagem precisa sair como albedo bruto, sem luz. Esse é o comportamento padrão enquanto nenhuma luz é declarada: uma cena sem fonte não tem nada para iluminar, e uma imagem preta não ajudaria nenhum benchmark de geometria. Assim que uma luz existe, a iluminação real assume o controle — a menos que o host tenha pedido explicitamente a visão de diagnóstico.",
@@ -2819,6 +2834,14 @@
   "SceneLightingView": {
     "summary": "O que o host pede para ver.",
     "description": "`lit` é iluminação real e só isso; `unlit` é a visão de diagnóstico de albedo bruto — cor do material como está, sem luz, sem ambiente e sem emissão — para benchmarks de geometria que comparam imagens pixel a pixel. `auto`, o padrão, produz `unlit` enquanto nenhuma luz é declarada e `lit` assim que existe uma. `bounce` é a terceira visão de diagnóstico: apenas a irradiância indireta, multiplicada pela exposição e produzida como valores lineares sem ACES ou sRGB. É isso que o arcabouço de teste compara ao oráculo do compilador; não é uma imagem para olhar, e é preta sem um rebote preparado."
+  },
+  "SceneLinearFog": {
+    "summary": "Névoa que começa em `near` e esconde tudo a partir de `far`, distâncias a partir do olho.",
+    "members": {
+      "color": "A radiância para a qual a névoa esvai os objetos, em RGB linear.",
+      "near": "Distância a partir do olho onde a névoa começa.",
+      "far": "Distância a partir do olho onde só se vê a névoa."
+    }
   },
   "SceneLink": {
     "summary": "O que um nó relata ao mundo em que está pendurado: uma pose se moveu, a árvore mudou, um conteúdo mudou.",
@@ -3226,7 +3249,7 @@
       "baseMetal": "Cor base RGB, metalicidade A.",
       "normalRough": "Normal de mundo XYZ, aspereza A.",
       "emissiveAo": "Emissão RGB, oclusão ambiente A.",
-      "flags": "0 fundo, 1 sem luz, 2 leituras, 3 diagnóstico em espaço de exibição.",
+      "flags": "0 fundo, 1 não iluminado (com névoa), 2 lido, 3 mostrado como está: um diagnóstico, uma vista de normais ou de profundidade.",
       "views": "Suas views de textura de GPU.",
       "dispose": "A libera."
     }
@@ -3950,8 +3973,8 @@
       "transparentDrawCalls": "Chamadas de desenho transparentes.",
       "transparentSubmittedTriangles": "Triângulos transparentes enviados.",
       "coverageReady": "Um fallback inicial completo de GPU está disponível; nulo em backends sem essa garantia.",
-      "coverageBudgetLimited": "O detalhe pedido não pode coexistir com o fallback fixado dentro do orçamento de páginas de GPU.",
-      "budgetPixelError": "O piso de erro de tela que o orçamento de páginas de GPU impõe ao corte, em pixels: `0` quando o detalhe pedido cabe, senão o limiar mais grosseiro em que a imagem é desenhada. Nulo em motores sem orçamento de páginas.",
+      "coverageBudgetLimited": "O detalhe pedido exige mais páginas do que cabem no orçamento de páginas de GPU: o resto é desenhado mais grosseiro.",
+      "budgetPixelError": "Apenas WebGL2: o piso de erro de tela que seu orçamento de páginas impõe ao corte, em pixels — `0` quando o detalhe pedido cabe, senão o limiar mais grosseiro em que a imagem é desenhada. Ausente no WebGPU, onde só a residência torna a imagem mais grosseira. Nulo em motores sem orçamento de páginas.",
       "frameHeld": "Verdadeiro quando o quadro foi mantido: nem a cena, nem a visão, nem os recursos se moveram, nenhum trabalho assíncrono estava pendente, e nenhuma etapa de CPU rodou. Os pixels exibidos são os do quadro original, exatos bit a bit. O que o quadro mantido FEZ é publicado como está, nunca copiado do último render completo: `drawCalls`, `triangles`, `submittedTriangles` e `totalSubmittedTriangles` contam apenas o presente, e as durações de CPU e GPU por etapa são zero quando a etapa não rodou, `null` quando nada a cronometrou. Um motor cuja imagem é uma cena que o adaptador testemunha desenha conta o que esse adaptador enviou neste quadro — nada, em um quadro mantido. O que o quadro mantido MOSTRA continua descrito pelo corte que ele reexibe: `clusters`, `selectedTriangles`, `frustumRejected`, `lodLevel` e `residentPages` são os do quadro original, já que é o mesmo corte. Ausente de um motor que não mantém seus quadros.",
       "streamingError": "Erro de carregamento persistente; URLs que falham exigem um recarregamento do explorador depois de três tentativas.",
       "gpuPassMs": "Última amostra de passo de GPU deste backend; nulo quando o dispositivo não expõe consultas de timestamp.",
@@ -5388,7 +5411,7 @@
       "parameters.flatShading": "Dá a cada triângulo um sombreamento plano, mostrando suas facetas.",
       "parameters.size": "Tamanho de um ponto, para o material de pontos.",
       "parameters.sizeAttenuation": "Se os pontos ficam menores com a distância.",
-      "parameters.linewidth": "Espessura de uma linha.",
+      "parameters.linewidth": "Espessura de uma linha em pixels CSS, a mesma a qualquer distância.",
       "parameters.dashSize": "Comprimento de um traço.",
       "parameters.gapSize": "Comprimento do espaço entre dois traços.",
       "parameters.vertexColors": "Se o `color` por vértice da geometria tinge a superfície.",
@@ -5426,7 +5449,7 @@
       "parameters.flatShading": "Dá a cada triângulo um sombreamento plano, mostrando suas facetas.",
       "parameters.size": "Tamanho de um ponto, para o material de pontos.",
       "parameters.sizeAttenuation": "Se os pontos ficam menores com a distância.",
-      "parameters.linewidth": "Espessura de uma linha.",
+      "parameters.linewidth": "Espessura de uma linha em pixels CSS, a mesma a qualquer distância.",
       "parameters.dashSize": "Comprimento de um traço.",
       "parameters.gapSize": "Comprimento do espaço entre dois traços.",
       "parameters.vertexColors": "Se o `color` por vértice da geometria tinge a superfície.",
@@ -5464,7 +5487,7 @@
       "parameters.flatShading": "Dá a cada triângulo um sombreamento plano, mostrando suas facetas.",
       "parameters.size": "Tamanho de um ponto, para o material de pontos.",
       "parameters.sizeAttenuation": "Se os pontos ficam menores com a distância.",
-      "parameters.linewidth": "Espessura de uma linha.",
+      "parameters.linewidth": "Espessura de uma linha em pixels CSS, a mesma a qualquer distância.",
       "parameters.dashSize": "Comprimento de um traço.",
       "parameters.gapSize": "Comprimento do espaço entre dois traços.",
       "parameters.vertexColors": "Se o `color` por vértice da geometria tinge a superfície.",
@@ -5502,7 +5525,7 @@
       "parameters.flatShading": "Dá a cada triângulo um sombreamento plano, mostrando suas facetas.",
       "parameters.size": "Tamanho de um ponto, para o material de pontos.",
       "parameters.sizeAttenuation": "Se os pontos ficam menores com a distância.",
-      "parameters.linewidth": "Espessura de uma linha.",
+      "parameters.linewidth": "Espessura de uma linha em pixels CSS, a mesma a qualquer distância.",
       "parameters.dashSize": "Comprimento de um traço.",
       "parameters.gapSize": "Comprimento do espaço entre dois traços.",
       "parameters.vertexColors": "Se o `color` por vértice da geometria tinge a superfície.",
@@ -5540,7 +5563,7 @@
       "parameters.flatShading": "Dá a cada triângulo um sombreamento plano, mostrando suas facetas.",
       "parameters.size": "Tamanho de um ponto, para o material de pontos.",
       "parameters.sizeAttenuation": "Se os pontos ficam menores com a distância.",
-      "parameters.linewidth": "Espessura de uma linha.",
+      "parameters.linewidth": "Espessura de uma linha em pixels CSS, a mesma a qualquer distância.",
       "parameters.dashSize": "Comprimento de um traço.",
       "parameters.gapSize": "Comprimento do espaço entre dois traços.",
       "parameters.vertexColors": "Se o `color` por vértice da geometria tinge a superfície.",
@@ -5578,7 +5601,7 @@
       "parameters.flatShading": "Dá a cada triângulo um sombreamento plano, mostrando suas facetas.",
       "parameters.size": "Tamanho de um ponto, para o material de pontos.",
       "parameters.sizeAttenuation": "Se os pontos ficam menores com a distância.",
-      "parameters.linewidth": "Espessura de uma linha.",
+      "parameters.linewidth": "Espessura de uma linha em pixels CSS, a mesma a qualquer distância.",
       "parameters.dashSize": "Comprimento de um traço.",
       "parameters.gapSize": "Comprimento do espaço entre dois traços.",
       "parameters.vertexColors": "Se o `color` por vértice da geometria tinge a superfície.",
@@ -5616,7 +5639,7 @@
       "parameters.flatShading": "Dá a cada triângulo um sombreamento plano, mostrando suas facetas.",
       "parameters.size": "Tamanho de um ponto, para o material de pontos.",
       "parameters.sizeAttenuation": "Se os pontos ficam menores com a distância.",
-      "parameters.linewidth": "Espessura de uma linha.",
+      "parameters.linewidth": "Espessura de uma linha em pixels CSS, a mesma a qualquer distância.",
       "parameters.dashSize": "Comprimento de um traço.",
       "parameters.gapSize": "Comprimento do espaço entre dois traços.",
       "parameters.vertexColors": "Se o `color` por vértice da geometria tinge a superfície.",
@@ -5654,7 +5677,7 @@
       "parameters.flatShading": "Dá a cada triângulo um sombreamento plano, mostrando suas facetas.",
       "parameters.size": "Tamanho de um ponto, para o material de pontos.",
       "parameters.sizeAttenuation": "Se os pontos ficam menores com a distância.",
-      "parameters.linewidth": "Espessura de uma linha.",
+      "parameters.linewidth": "Espessura de uma linha em pixels CSS, a mesma a qualquer distância.",
       "parameters.dashSize": "Comprimento de um traço.",
       "parameters.gapSize": "Comprimento do espaço entre dois traços.",
       "parameters.vertexColors": "Se o `color` por vértice da geometria tinge a superfície.",
@@ -5692,7 +5715,7 @@
       "parameters.flatShading": "Dá a cada triângulo um sombreamento plano, mostrando suas facetas.",
       "parameters.size": "Tamanho de um ponto, para o material de pontos.",
       "parameters.sizeAttenuation": "Se os pontos ficam menores com a distância.",
-      "parameters.linewidth": "Espessura de uma linha.",
+      "parameters.linewidth": "Espessura de uma linha em pixels CSS, a mesma a qualquer distância.",
       "parameters.dashSize": "Comprimento de um traço.",
       "parameters.gapSize": "Comprimento do espaço entre dois traços.",
       "parameters.vertexColors": "Se o `color` por vértice da geometria tinge a superfície.",
@@ -5730,7 +5753,7 @@
       "parameters.flatShading": "Dá a cada triângulo um sombreamento plano, mostrando suas facetas.",
       "parameters.size": "Tamanho de um ponto, para o material de pontos.",
       "parameters.sizeAttenuation": "Se os pontos ficam menores com a distância.",
-      "parameters.linewidth": "Espessura de uma linha.",
+      "parameters.linewidth": "Espessura de uma linha em pixels CSS, a mesma a qualquer distância.",
       "parameters.dashSize": "Comprimento de um traço.",
       "parameters.gapSize": "Comprimento do espaço entre dois traços.",
       "parameters.vertexColors": "Se o `color` por vértice da geometria tinge a superfície.",
@@ -5768,7 +5791,7 @@
       "parameters.flatShading": "Dá a cada triângulo um sombreamento plano, mostrando suas facetas.",
       "parameters.size": "Tamanho de um ponto, para o material de pontos.",
       "parameters.sizeAttenuation": "Se os pontos ficam menores com a distância.",
-      "parameters.linewidth": "Espessura de uma linha.",
+      "parameters.linewidth": "Espessura de uma linha em pixels CSS, a mesma a qualquer distância.",
       "parameters.dashSize": "Comprimento de um traço.",
       "parameters.gapSize": "Comprimento do espaço entre dois traços.",
       "parameters.vertexColors": "Se o `color` por vértice da geometria tinge a superfície.",
@@ -5806,7 +5829,7 @@
       "parameters.flatShading": "Dá a cada triângulo um sombreamento plano, mostrando suas facetas.",
       "parameters.size": "Tamanho de um ponto, para o material de pontos.",
       "parameters.sizeAttenuation": "Se os pontos ficam menores com a distância.",
-      "parameters.linewidth": "Espessura de uma linha.",
+      "parameters.linewidth": "Espessura de uma linha em pixels CSS, a mesma a qualquer distância.",
       "parameters.dashSize": "Comprimento de um traço.",
       "parameters.gapSize": "Comprimento do espaço entre dois traços.",
       "parameters.vertexColors": "Se o `color` por vértice da geometria tinge a superfície.",
@@ -5844,7 +5867,7 @@
       "parameters.flatShading": "Dá a cada triângulo um sombreamento plano, mostrando suas facetas.",
       "parameters.size": "Tamanho de um ponto, para o material de pontos.",
       "parameters.sizeAttenuation": "Se os pontos ficam menores com a distância.",
-      "parameters.linewidth": "Espessura de uma linha.",
+      "parameters.linewidth": "Espessura de uma linha em pixels CSS, a mesma a qualquer distância.",
       "parameters.dashSize": "Comprimento de um traço.",
       "parameters.gapSize": "Comprimento do espaço entre dois traços.",
       "parameters.vertexColors": "Se o `color` por vértice da geometria tinge a superfície.",
@@ -5882,7 +5905,7 @@
       "parameters.flatShading": "Dá a cada triângulo um sombreamento plano, mostrando suas facetas.",
       "parameters.size": "Tamanho de um ponto, para o material de pontos.",
       "parameters.sizeAttenuation": "Se os pontos ficam menores com a distância.",
-      "parameters.linewidth": "Espessura de uma linha.",
+      "parameters.linewidth": "Espessura de uma linha em pixels CSS, a mesma a qualquer distância.",
       "parameters.dashSize": "Comprimento de um traço.",
       "parameters.gapSize": "Comprimento do espaço entre dois traços.",
       "parameters.vertexColors": "Se o `color` por vértice da geometria tinge a superfície.",
@@ -6793,7 +6816,7 @@
       "format": "Sempre `'trillion3d-scene'`.",
       "formatVersion": "A versão desta estrutura; outra é recusada.",
       "background": "A cor de fundo, ou `null`.",
-      "fog": "A névoa, ou `null`.",
+      "fog": "A névoa, sua cor em componentes lineares, ou `null`.",
       "camera": "A câmera salva com a cena, ou `null`.",
       "geometries": "Cada forma, uma só vez, não importa quantas malhas a usem.",
       "materials": "Cada material, uma só vez, não importa quantas malhas o usem.",
@@ -7129,19 +7152,6 @@
       "handbrake": "Se o travão de mão está puxado."
     }
   },
-  "GraphAttribute": {
-    "members": {
-      "count": "Quantos vértices.",
-      "array": "O armazenamento.",
-      "kind": "O atributo possui o seu buffer.",
-      "version": "Incrementado por `needsUpdate`.",
-      "updateRanges": "Intervalos de `array` escritos desde o último envio, enviados sozinhos.",
-      "addUpdateRange": "Marca `count` números escritos a partir de `start`.",
-      "clearUpdateRanges": "Esquece os intervalos escritos, depois de enviados.",
-      "needsUpdate": "`needsUpdate = true` depois de escrever `array`: um leitor envia-o de novo."
-    },
-    "summary": "Um atributo que possui o seu armazenamento: `itemSize` números por vértice, um após o outro."
-  },
   "GraphGeometry": {
     "members": {
       "attributes": "Seus atributos de vértice.",
@@ -7236,34 +7246,6 @@
       "rotation": "A rotação, em radianos."
     },
     "summary": "Uma imagem e o estado de amostragem com que é lida, e a transformação das suas coordenadas."
-  },
-  "GraphArray": {
-    "summary": "Os arrays tipados que um atributo guarda."
-  },
-  "GraphElements": {
-    "summary": "Qualquer um dos dois tipos de atributo."
-  },
-  "GraphInterleavedAttribute": {
-    "summary": "Um atributo que observa `itemSize` números em `offset` de cada vértice de um buffer intercalado.",
-    "members": {
-      "kind": "O atributo observa um buffer partilhado.",
-      "data": "O buffer que observa.",
-      "offset": "Onde os seus números começam em cada vértice.",
-      "array": "O armazenamento onde vivem os elementos.",
-      "count": "Quantos vértices.",
-      "needsUpdate": "`needsUpdate = true` depois de escrever `array`: um leitor envia-o de novo."
-    }
-  },
-  "GraphInterleavedBuffer": {
-    "summary": "Um armazenamento que vários atributos observam, um vértice a cada `stride` números.",
-    "members": {
-      "kind": "Um armazenamento que vários atributos observam.",
-      "count": "Quantos vértices.",
-      "version": "Incrementado por `needsUpdate`.",
-      "array": "O armazenamento.",
-      "stride": "Números por vértice.",
-      "needsUpdate": "`needsUpdate = true` depois de escrever `array`: um leitor envia-o de novo."
-    }
   },
   "GraphMesh": {
     "summary": "Um nó desenhado: uma geometria e a sua superfície, ou uma superfície por grupo da geometria.",
@@ -7365,6 +7347,142 @@
       "pulley": "Uma corda de `a` sobre duas rodas (`over`) até `b`: um sobe quando o outro desce.",
       "gear": "Duas rodas que giram juntas segundo `ratio`, cada uma em torno do próprio pino (`axis`, `axisB`) e presa pela sua dobradiça (a roda como seu `a`); quando `ratio` ou 1 / `ratio` é inteiro, os dentes também mantêm a fase em que foram feitos.",
       "rackAndPinion": "Um pinhão `a` girando em torno de `axis` move uma cremalheira `b` ao longo de `axisB`, cada um preso pela sua dobradiça ou corrediça (o corpo como seu `a`), os dentes mantidos na fase em que foram feitos."
+    }
+  },
+  "InterleavedBufferAttribute": {
+    "summary": "Um atributo que observa `itemSize` números em `offset` de cada vértice de um buffer intercalado.",
+    "members": {
+      "isInterleavedBufferAttribute": "Sempre `true`: distingue uma vista intercalada de qualquer outra coisa.",
+      "kind": "O atributo observa um buffer partilhado.",
+      "data": "O buffer que observa.",
+      "offset": "Onde os seus números começam em cada vértice.",
+      "array": "O armazenamento onde vivem os elementos.",
+      "count": "Quantos vértices os números descrevem.",
+      "needsUpdate": "`needsUpdate = true` depois de escrever `array`: um leitor envia-o de novo.",
+      "clone": "Os seus próprios números, copiados para fora do pacote num atributo que os possui."
+    }
+  },
+  "VertexAttribute": {
+    "summary": "Qualquer um dos dois tipos de atributo: dono do seu armazenamento ou vista de um intercalado."
+  },
+  "VertexElements": {
+    "summary": "Os elementos de um atributo de vértice, lidos e escritos por componente.",
+    "members": {
+      "name": "O nome pelo qual um alvo de morph é conhecido; vazio para os outros.",
+      "itemSize": "Quantos números pertencem a um vértice: 3 para uma posição.",
+      "normalized": "Se números inteiros são lidos como valores entre 0 e 1.",
+      "array": "O armazenamento onde vivem os elementos.",
+      "count": "Quantos vértices os números descrevem.",
+      "stored": "Número `component` do vértice `index` tal como está armazenado; um inteiro normalizado sem escala.",
+      "getComponent": "Número `component` do vértice `index`, lido como o número que representa.",
+      "setComponent": "Escreve o número `component` do vértice `index`.",
+      "getX": "O primeiro número do vértice `i`.",
+      "getY": "O segundo número do vértice `i`.",
+      "getZ": "O terceiro número do vértice `i`.",
+      "getW": "O quarto número do vértice `i`.",
+      "setX": "Escreve o primeiro número do vértice `i`.",
+      "setY": "Escreve o segundo número do vértice `i`.",
+      "setZ": "Escreve o terceiro número do vértice `i`.",
+      "setW": "Escreve o quarto número do vértice `i`.",
+      "setXY": "Escreve dois números para o vértice `i`.",
+      "setXYZ": "Escreve três números para o vértice `i`."
+    }
+  },
+  "VEHICLE_SPECS": {
+    "summary": "As três máquinas de que partem os veículos, por tipo.",
+    "members": {
+      "car": "Um Chevrolet Corvette C5: tração traseira, 0,32 N·m por quilograma, seis marchas.",
+      "motorcycle": "Uma Yamaha XJ900 e seu piloto: 0,26 N·m por quilograma, seis marchas.",
+      "tracked": "Um M1 Abrams: uma turbina a gás, 0,083 N·m por quilograma, quatro marchas."
+    }
+  },
+  "Vehicle": {
+    "summary": "Um veículo: um corpo levado sobre rodas pela restrição de veículo do Jolt, com motor, câmbio, diferenciais, suspensão e barras estabilizadoras, criado por `vehicle.*` e adicionado à simulação por `world.physics.add`.",
+    "description": "É um `VehicleDriver`: `world.controls.vehicle = car` o dirige.",
+    "parameters": {
+      "options": "O que `vehicle.*` aceita: as rodas, e quantos valores da máquina quiser (`VehicleSpec`).",
+      "options.wheels": "As rodas: malhas, filhas do corpo, cada uma posta no seu centro como repousa em chão plano, o eixo ao longo do x do corpo. Raio e largura são lidos dos seus limites. O corpo olha para −z: as rodas dianteiras esterçam.",
+      "options.torquePerKg": "Torque máximo do motor por quilograma do corpo, em N·m/kg.",
+      "options.idleRPM": "A marcha lenta do motor, em rpm.",
+      "options.maxRPM": "A faixa vermelha do motor, em rpm.",
+      "options.torqueCurve": "Até cinco pontos `[rpm / maxRPM, torque / pico]`, frações de rotação crescentes.",
+      "options.gears": "Até seis relações para a frente, a primeira primeiro.",
+      "options.reverse": "A relação da marcha à ré.",
+      "options.finalDrive": "A relação do diferencial final (a redução da roda motriz de um veículo de esteiras).",
+      "options.shiftUpRPM": "O câmbio sobe de marcha acima disto, em rpm.",
+      "options.shiftDownRPM": "E reduz abaixo disto, em rpm.",
+      "options.clutch": "Torque da embreagem por rad/s de deslizamento, em N·m·s.",
+      "options.suspensionFrequency": "Frequência da suspensão, em Hz.",
+      "options.suspensionDamping": "Razão de amortecimento, de 0 (nenhum) a 1 (crítico).",
+      "options.suspensionTravel": "Curso da roda da extensão total à compressão total, em metros.",
+      "options.antiRoll": "A rigidez de cada barra estabilizadora em relação às molas do seu eixo; 0 é nenhuma.",
+      "options.turnRadius": "O raio de giro com a direção no batente, em metros.",
+      "options.steerTime": "Segundos do centro ao batente da direção.",
+      "options.brakeGrip": "O atrito com que os freios travam as rodas.",
+      "options.drive": "As rodas motrizes de um carro.",
+      "options.trackTurn": "A velocidade da esteira interna de um veículo de esteiras ao virar, em relação à externa.",
+      "options.maxLean": "A maior inclinação de uma moto, em radianos."
+    },
+    "members": {
+      "kind": "O que o veículo é.",
+      "body": "O corpo que as rodas carregam.",
+      "wheels": "As rodas, filhas do corpo.",
+      "spec": "A máquina: a do seu tipo (`VEHICLE_SPECS`), com as opções por cima.",
+      "input": "Os pedais e o volante que recebe agora.",
+      "speed": "Metros por segundo para a frente após o último passo, negativo para trás.",
+      "rpm": "As rotações por minuto do motor após o último passo.",
+      "gear": "A marcha após o último passo: 1 ou mais para a frente, −1 ré, 0 ponto morto.",
+      "drive": "Recebe os pedais e o volante, a cada tecla que os muda, quando começa a ser dirigido, e tudo solto quando deixa de ser."
+    }
+  },
+  "VehicleKind": {
+    "summary": "Os veículos da física, cada um sobre a restrição de veículo do Jolt."
+  },
+  "VehicleOptions": {
+    "summary": "O que `vehicle.*` aceita: as rodas, e quantos valores da máquina quiser (`VehicleSpec`).",
+    "members": {
+      "wheels": "As rodas: malhas, filhas do corpo, cada uma posta no seu centro como repousa em chão plano, o eixo ao longo do x do corpo. Raio e largura são lidos dos seus limites. O corpo olha para −z: as rodas dianteiras esterçam."
+    }
+  },
+  "VehicleSpec": {
+    "summary": "Do que é feito um veículo: motor, câmbio, suspensão, direção e freios, cada padrão o de uma máquina real (`VEHICLE_SPECS`).",
+    "members": {
+      "torquePerKg": "Torque máximo do motor por quilograma do corpo, em N·m/kg.",
+      "idleRPM": "A marcha lenta do motor, em rpm.",
+      "maxRPM": "A faixa vermelha do motor, em rpm.",
+      "torqueCurve": "Até cinco pontos `[rpm / maxRPM, torque / pico]`, frações de rotação crescentes.",
+      "gears": "Até seis relações para a frente, a primeira primeiro.",
+      "reverse": "A relação da marcha à ré.",
+      "finalDrive": "A relação do diferencial final (a redução da roda motriz de um veículo de esteiras).",
+      "shiftUpRPM": "O câmbio sobe de marcha acima disto, em rpm.",
+      "shiftDownRPM": "E reduz abaixo disto, em rpm.",
+      "clutch": "Torque da embreagem por rad/s de deslizamento, em N·m·s.",
+      "suspensionFrequency": "Frequência da suspensão, em Hz.",
+      "suspensionDamping": "Razão de amortecimento, de 0 (nenhum) a 1 (crítico).",
+      "suspensionTravel": "Curso da roda da extensão total à compressão total, em metros.",
+      "antiRoll": "A rigidez de cada barra estabilizadora em relação às molas do seu eixo; 0 é nenhuma.",
+      "turnRadius": "O raio de giro com a direção no batente, em metros.",
+      "steerTime": "Segundos do centro ao batente da direção.",
+      "brakeGrip": "O atrito com que os freios travam as rodas.",
+      "drive": "As rodas motrizes de um carro.",
+      "trackTurn": "A velocidade da esteira interna de um veículo de esteiras ao virar, em relação à externa.",
+      "maxLean": "A maior inclinação de uma moto, em radianos."
+    }
+  },
+  "VehicleSpecs": {
+    "summary": "A máquina com que cada tipo de veículo começa.",
+    "members": {
+      "car": "Um Chevrolet Corvette C5: tração traseira, 0,32 N·m por quilograma, seis marchas.",
+      "motorcycle": "Uma Yamaha XJ900 e seu piloto: 0,26 N·m por quilograma, seis marchas.",
+      "tracked": "Um M1 Abrams: uma turbina a gás, 0,083 N·m por quilograma, quatro marchas."
+    }
+  },
+  "vehicle": {
+    "summary": "A família `vehicle`: um corpo e suas rodas, dirigidos por `world.controls` `'vehicle'`.",
+    "members": {
+      "car": "Três rodas ou mais em dois eixos ou mais, as dianteiras esterçam, as de `drive` são motrizes.",
+      "motorcycle": "Duas rodas, a dianteira esterça, a traseira é motriz; fica de pé sozinha.",
+      "tracked": "Rodas sobre duas esteiras, esquerda e direita, cada uma movida pela sua roda mais traseira; vira freando uma esteira, e gira no lugar quando parado."
     }
   }
 }

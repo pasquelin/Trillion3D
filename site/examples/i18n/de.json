@@ -360,6 +360,22 @@
       "up": "OBEN"
     }
   },
+  "a-town-in-the-fog": {
+    "banner": "Ziehen, um sich umzusehen. Wähle den Nebel, seine Reichweite und seine Farbe.",
+    "controls": {
+      "fog": "Nebel",
+      "reach": "Reichweite",
+      "height": "Höhe",
+      "colour": "Farbe"
+    },
+    "choices": {
+      "fog": {
+        "distance": "Entfernung",
+        "thick": "dicht",
+        "ground": "Boden"
+      }
+    }
+  },
   "a-tube-along-a-spline": {
     "banner": "Ziehe, um dich umzusehen. Die Perlen fahren am Rohr entlang.",
     "controls": {
@@ -2028,6 +2044,28 @@
       "lift": "Aufzug",
       "load": "Gewichte",
       "rope": "Seillauf"
+    }
+  },
+  "drive-a-car": {
+    "banner": "W oder ↑ gibt Gas, S oder ↓ bremst und fährt dann rückwärts, A D oder ← → lenken, Leertaste zieht die Handbremse. Wähle im Panel das Auto, das Motorrad oder den Panzer.",
+    "controls": {
+      "vehicle": "Fahrzeug",
+      "reset": "Wieder auf die Räder stellen"
+    },
+    "readouts": {
+      "speed": "Tempo",
+      "gear": "Gang",
+      "rpm": "Motor (U/min)"
+    },
+    "choices": {
+      "vehicle": {
+        "car": "Sportwagen",
+        "motorcycle": "Motorrad",
+        "tracked": "Panzer"
+      }
+    },
+    "words": {
+      "credit": "Tal für dieses Beispiel im Code modelliert, CC0 — siehe assets/examples/CREDITS.md"
     }
   }
 }
