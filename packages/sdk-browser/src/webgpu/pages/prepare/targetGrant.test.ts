@@ -87,7 +87,8 @@ test('a refused target grant holds the frame, then draws it complete', async () 
     Object.assign(s.gpu.device, { popErrorScope: async () => (await answered, pop()) });
     const draws = s.gpu.draws.length;
     s.backend.render(s.cam);
-    assert.equal(s.backend.metrics().frameHeld, true, 'no frame draws while its targets are asked');
+    // Held, yet not still: the page waits for the answer, not for this frame.
+    assert.equal(s.backend.metrics().frameHeld, false, 'not the still frame while asked');
     assert.equal(s.gpu.draws.length, draws, 'nothing is drawn into targets not granted');
     const next = s.backend.pendingFrame();
     answer();

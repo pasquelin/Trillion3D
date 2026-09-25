@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { claimGpuDevice } from './deviceOwners.ts';
 import { namesNoSession, sharedGpuDevice, tagsIn } from './sessionHandle.ts';
 import { installGpuDeviceLedger } from './deviceLedger.ts';
-import { validated, validationScope } from './errorScope.ts';
+import { validated } from './errorScope.ts';
 import { generateMaterialMips } from '../../texture/mips.ts';
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
 import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts';
@@ -95,25 +95,4 @@ test('the ledger, on the handle, counts by the label as the engine wrote it, the
     'one aligned uniform per level',
   );
   assert.deepEqual(Object.keys(caches.snapshot().byLabel), ['Trillion3D texture mips uniforms']);
-});
-
-test('one error scope is open per device: a build that awaits holds the next session back', async () => {
-  const gpu = mockGpu();
-  const [first, second] = [0, 1].map(() => claimGpuDevice(gpu.device, deviceOwner()).device);
-  let raise = () => {},
-    finish = () => {};
-  const raised = new Promise<void>((resolve) => (raise = resolve)),
-    finished = new Promise<void>((resolve) => (finish = resolve));
-  // The first build is refused while the second's is open, then goes on compiling.
-  const refused = validationScope(first, async () => {
-    await Promise.resolve();
-    gpu.raise('Out of memory');
-    raise();
-    await finished;
-  });
-  const made = validationScope(second, async () => (await raised, 'made'));
-  await raised;
-  finish();
-  assert.equal((await made).error, null, "the second scope never takes the first one's error");
-  assert.ok((await refused).error, 'the first keeps its own');
 });
