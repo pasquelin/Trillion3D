@@ -4169,7 +4169,9 @@
   },
   "SoftBodyCommon": {
     "summary": "Ciò che `obj.physics` accetta per un corpo morbido: i suoi vertici sono simulati uno a uno.",
+    "description": "La sua materia e la sua attrazione come quelle di un corpo rigido; niente smorzamento angolare, forma, sensore, CCD né detriti.",
     "members": {
+      "damping": "La quota della velocità dei suoi vertici persa al secondo, `dv/dt = −c·v`, 0 o più.",
       "pins": "Indici dei vertici della geometria tenuti dove sono: l’asta di una bandiera, il gancio di una corda.",
       "mass": "Chilogrammi, ripartiti sui vertici secondo l’area (una corda: la lunghezza) che ciascuno regge; se omessi, `SOFT_AREAL_DENSITY` per m² (una corda: `SOFT_LINEAR_DENSITY` per m).",
       "stretch": "Quanto cede uno spigolo quando è tirato, m/N (l’inverso della sua rigidezza): 0 non si allunga mai.",
