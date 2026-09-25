@@ -6,7 +6,8 @@ export function mipLevelCountFor(width: number, height: number) {
 }
 
 /**
- * Layout and reduction program, built ONCE per device and per format.
+ * Layout and reduction program, built ONCE per device; its pipeline once per format and per
+ * colour rule.
  *
  * The mip chain is generated at every working texture: recompiling the same program and the same
  * layout at each made one pay a pipeline compilation per texture, on the very path that must
@@ -14,8 +15,14 @@ export function mipLevelCountFor(width: number, height: number) {
  * pipelines with it; it is built on the device itself (`sharedGpuDevice`), never on a session's
  * handle: it serves every session, and names none.
  */
-type MipPipeline = { layout: GPUBindGroupLayout; pipeline: GPURenderPipeline };
-const pipelines = new WeakMap<GPUDevice, Map<GPUTextureFormat, MipPipeline>>();
+type MipProgram = {
+  layout: GPUBindGroupLayout;
+  pipelineLayout: GPUPipelineLayout;
+  module: GPUShaderModule;
+  /** Per colour rule — plain at 0, weighted at 1 — the pipeline of each format. */
+  pipelines: [Map<GPUTextureFormat, GPURenderPipeline>, Map<GPUTextureFormat, GPURenderPipeline>];
+};
+const programs = new WeakMap<GPUDevice, MipProgram>();
 
 /**
  * Colours are averaged, alpha is the MEDIAN of the four texels — never their mean.
@@ -34,10 +41,16 @@ const pipelines = new WeakMap<GPUDevice, Map<GPUTextureFormat, MipPipeline>>();
  *
  * Sorted decreasing, the median is the mean of the two middle values: `u` is the second, `v` the
  * third, six comparisons with neither a sort nor a branch.
+ *
+ * Under `weighted`, four texels whose alphas differ average their colours
+ * weighted by alpha, and `select` keeps the plain mean everywhere else, byte for byte: the rule the
+ * compiler bakes, and its reasons (`packages/asset-compiler-rust/src/texture_preview/reduce.rs`,
+ * `halve`, #42).
  */
 const MIP_SHADER = `
  @group(0) @binding(0) var source:texture_2d<f32>;
  @group(0) @binding(1) var<uniform> extent:vec4u;
+ override weighted:bool;
  @vertex fn vs(@builtin(vertex_index) i:u32)->@builtin(position) vec4f{
   return vec4f(f32(i32(i&1u)*4-1),f32(i32(i>>1u)*4-1),0.0,1.0);
  }
@@ -48,13 +61,13 @@ const MIP_SHADER = `
   let mean=(s0+s1+s2+s3)*0.25;
   let u=min(max(s0.w,s1.w),max(s2.w,s3.w));
   let v=max(min(s0.w,s1.w),min(s2.w,s3.w));
-  return vec4f(mean.rgb,(u+v)*0.5);
+  let a=vec4f(s0.w,s1.w,s2.w,s3.w);
+  let byAlpha=(s0.rgb*s0.w+s1.rgb*s1.w+s2.rgb*s2.w+s3.rgb*s3.w)/dot(a,vec4f(1.0));
+  return vec4f(select(mean.rgb,byAlpha,weighted&&any(a!=vec4f(s0.w))),(u+v)*0.5);
  }`;
 
-function mipPipeline(device: GPUDevice, format: GPUTextureFormat): MipPipeline {
-  let byFormat = pipelines.get(device);
-  if (!byFormat) pipelines.set(device, (byFormat = new Map()));
-  const held = byFormat.get(format);
+function mipProgram(device: GPUDevice): MipProgram {
+  const held = programs.get(device);
   if (held) return held;
   const layout = device.createBindGroupLayout({
     entries: [
@@ -62,18 +75,35 @@ function mipPipeline(device: GPUDevice, format: GPUTextureFormat): MipPipeline {
       { binding: 1, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'uniform' } },
     ],
   });
-  const module = device.createShaderModule({ code: MIP_SHADER });
-  const built: MipPipeline = {
+  const built: MipProgram = {
     layout,
-    pipeline: device.createRenderPipeline({
-      layout: device.createPipelineLayout({ bindGroupLayouts: [layout] }),
-      vertex: { module, entryPoint: 'vs' },
-      fragment: { module, entryPoint: 'fs', targets: [{ format }] },
-      primitive: { topology: 'triangle-list' },
-    }),
+    pipelineLayout: device.createPipelineLayout({ bindGroupLayouts: [layout] }),
+    module: device.createShaderModule({ code: MIP_SHADER }),
+    pipelines: [new Map(), new Map()],
   };
-  byFormat.set(format, built);
+  programs.set(device, built);
   return built;
+}
+
+/** The bind group layout and the pipeline of one format and one colour rule. */
+function mipPipeline(device: GPUDevice, format: GPUTextureFormat, weighted: boolean) {
+  const { layout, module, pipelineLayout, pipelines } = mipProgram(device);
+  const byFormat = pipelines[Number(weighted)];
+  const held = byFormat.get(format);
+  if (held) return { layout, pipeline: held };
+  const pipeline = device.createRenderPipeline({
+    layout: pipelineLayout,
+    vertex: { module, entryPoint: 'vs' },
+    fragment: {
+      module,
+      entryPoint: 'fs',
+      targets: [{ format }],
+      constants: { weighted: Number(weighted) },
+    },
+    primitive: { topology: 'triangle-list' },
+  });
+  byFormat.set(format, pipeline);
+  return { layout, pipeline };
 }
 
 /**
@@ -100,20 +130,23 @@ function mipUniforms(device: GPUDevice, size: number) {
   return buffer;
 }
 
-/** Generates the mip chain of a 2D texture: averaged colour, median alpha so that threshold
- * coverage survives every level. Commands are submitted without being awaited: the device queue
- * runs them in order, therefore before any copy that will read a level. */
+/** Generates the mip chain of a 2D texture: averaged colour — weighted by alpha when `weighted`,
+ * for a texture every reader takes for coverage, in straight alpha (`../webgpu/tile/scratch.ts`) —,
+ * median alpha so that threshold coverage survives every level.
+ * Commands are submitted without being awaited: the device queue runs them in order, therefore
+ * before any copy that will read a level. */
 export function generateMaterialMips(
   device: GPUDevice,
   texture: GPUTexture,
   format: GPUTextureFormat,
   width: number,
   height: number,
+  weighted: boolean,
 ) {
   const levels = mipLevelCountFor(width, height);
   if (levels === 1) return;
   const shared = sharedGpuDevice(device);
-  const { layout, pipeline } = mipPipeline(shared, format);
+  const { layout, pipeline } = mipPipeline(shared, format, weighted);
   const stride = Math.max(256, device.limits.minUniformBufferOffsetAlignment ?? 256);
   // One uniform per reduced level: the extent of the source level, so as not to read off the image.
   const packed = new Uint32Array(((levels - 1) * stride) / 4);

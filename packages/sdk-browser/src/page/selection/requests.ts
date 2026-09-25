@@ -1,5 +1,6 @@
 import { adaptivePixelError } from '../../../../sdk-core/src/index.ts';
 import type { CameraMotion, EngineCamera } from '../../camera/world.ts';
+import { readCameraMotion } from '../../camera/motion.ts';
 
 export function resolvePixelError(
   context: { pixelError?: number; lodAdaptive?: boolean },
@@ -7,21 +8,11 @@ export function resolvePixelError(
   motion: CameraMotion,
 ) {
   const base = context.pixelError ?? 0;
-  const now = typeof performance !== 'undefined' ? performance.now() : 0;
-  // Speed is that of the eye in the world: a rig that carries the camera moves it too.
-  // Position comes from the engine camera, ancestors resolved by the frame entry.
-  const eye = cam.eye;
-  let speed = 0;
-  if (motion.last && motion.lastMs != null) {
-    const dt = Math.max((now - motion.lastMs) / 1000, 1e-4);
-    const dx = eye[0] - motion.last[0],
-      dy = eye[1] - motion.last[1],
-      dz = eye[2] - motion.last[2];
-    speed = Math.sqrt(dx * dx + dy * dy + dz * dz) / dt;
-  }
-  if (!motion.last) motion.last = new Float64Array(3);
-  motion.last.set(eye);
-  motion.lastMs = now;
+  const speed = readCameraMotion(
+    cam,
+    motion,
+    typeof performance !== 'undefined' ? performance.now() : 0,
+  );
   if (!context.lodAdaptive || !(base > 0)) return base;
   return adaptivePixelError(base, speed, Math.max(cam.far * 0.05, 1));
 }

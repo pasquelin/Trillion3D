@@ -158,6 +158,28 @@
   "Blending": {
     "summary": "Bir yüzeyin arkasındakiyle adına göre nasıl karıştığı."
   },
+  "Bloom": {
+    "summary": "Parlak olanın çevresine taşan ışık; bir merceğin yaydığı gibi.",
+    "description": "Fiziksel temelli: sahnenin doğrusal ışıma değeri üzerinde, ton eşlemeden önce, eşiksiz çalışır ve enerjiyi korur — parıltı, görüntünün bulanıklaştırılmış bir kopyasının ona karıştırılmasıdır; bu yüzden toplam ışık aynı kalır.",
+    "parameters": {
+      "options": "Bir sayfanın `effect.bloom`’a verebileceği şey.",
+      "options.intensity": "Görüntünün parıltısıyla değiştirilen payı, 0 (hiç) ile 1 (yalnızca parıltı) arası.",
+      "options.radius": "Parıltının her düzeydeki yayılımı, o düzeyin tekselleri cinsinden; 1 yayımlanmış filtredir."
+    },
+    "members": {
+      "kind": "Bunun hangi yerleşik geçiş olduğu.",
+      "stage": "Ton eşlemeden önce mi sonra mı çalıştığı.",
+      "intensity": "Görüntünün parıltısıyla değiştirilen payı, 0 ile 1 arası.",
+      "radius": "Parıltının her düzeydeki yayılımı, o düzeyin tekselleri cinsinden; 0’dan büyük."
+    }
+  },
+  "BloomOptions": {
+    "summary": "Bir sayfanın `effect.bloom`’a verebileceği şey.",
+    "members": {
+      "intensity": "Görüntünün parıltısıyla değiştirilen payı, 0 (hiç) ile 1 (yalnızca parıltı) arası.",
+      "radius": "Parıltının her düzeydeki yayılımı, o düzeyin tekselleri cinsinden; 1 yayımlanmış filtredir."
+    }
+  },
   "BounceBudget": {
     "summary": "Milisaniye cinsinden yansıma bütçesi.",
     "description": "Belirtim, sabit bir ışın sayısı değil bir zaman süresi zorunlu kılar: ışık kademeli olarak yakınsarken kare hızı sabit kalır. Motor bir hedef kare süresi alır, yansıma geçişinden GPU zaman damgalarını ölçer ve bir sonraki kodlanacak iş yükü payını dinamik olarak ayarlar. Ayarlama yumuşatılmış ve sınırlıdır: pay asla 1'i aşmaz (yayımlanmış tavanlar katı üst sınır olarak kalır) ve asla tabanın altına düşmez (yakınsama ilerlemesini garanti eder).",
@@ -242,6 +264,13 @@
       "boxes": "`6 · n` sayı: girdi kutuları, eleman başına `minX, minY, minZ, maxX, maxY, maxZ`.",
       "mats": "`16 · n` sayı: column-major matrisler.",
       "out": "`6 · n` sayı: dönüştürülmüş kutular."
+    }
+  },
+  "BudgetCanvas": {
+    "summary": "Bir bütçenin bildirdiği en büyük tuval: efekt zincirinin hedefleri onun boyutunda ayrılır.",
+    "members": {
+      "width": "Çizim arabelleğinin piksel cinsinden genişliği.",
+      "height": "Çizim arabelleğinin piksel cinsinden yüksekliği."
     }
   },
   "BufferAttribute": {
@@ -842,6 +871,33 @@
     "summary": "Trillion3D gezgininin (MeasuredWorldOptions) tüm başlatma seçeneklerini belgeleyen kapsamlı JSON Şeması.",
     "description": "LLM'lerin 3D motor yapılandırmasını anlamasını, doğrulamasını ve ayarlamasını sağlar."
   },
+  "EffectChain": {
+    "summary": "`world.effects`: zamansal kenar yumuşatmadan sonra ve görüntü canvas’a ulaşmadan önce görüntünün üzerine çizilen sıralı geçişler.",
+    "description": "Ton eşlemeden önceki geçişler doğrusal ışımayı eklendikleri sırayla okur; sonrakiler gösterilen görüntüyü kendi sıralarıyla okur. Boş bir zincir hiçbir şeye mal olmaz: geçiş yok, kopya yok, hedef yok.",
+    "members": {
+      "revision": "Değişiklikleri sayar: başka bir revizyonda çizilmiş görüntü eskimiştir.",
+      "passes": "Geçişler, çalıştıkları sırayla.",
+      "size": "Zincirin kaç geçiş tuttuğu.",
+      "add": "Zincire bir geçiş koyar, sona ya da `index` konumuna. Bir geçiş aynı anda tek bir zincire aittir.",
+      "remove": "Bir geçişi zincirden çıkarır; içinde değilse false.",
+      "clear": "Tüm geçişleri çıkarır: görüntü yeniden zincirsiz hâline döner.",
+      "stage": "Bir aşamanın geçişleri, zincir sırasıyla: bir motorun çalıştırdığı liste. Değişiklikten değişikliğe tutulur, böylece bir kare hiçbir şey ayırmaz."
+    }
+  },
+  "EffectKind": {
+    "summary": "Bir motorun çizebildiği yerleşik geçişler."
+  },
+  "EffectPass": {
+    "summary": "Zincirin bir geçişi.",
+    "description": "Bir geçiş hangi yerleşik geçiş olduğunu ve nerede çalıştığını söyler; ayarları, yazıldığında dünyaya hemen ulaşan özelliklerdir, bir ışığınkiler gibi.",
+    "members": {
+      "kind": "Bunun hangi yerleşik geçiş olduğu.",
+      "stage": "Ton eşlemeden önce mi sonra mı çalıştığı."
+    }
+  },
+  "EffectStage": {
+    "summary": "Bir geçişin görüntü eğrisine göre yeri: pozlama ve eğri onu görüntü aralığına getirmeden önce sahnenin doğrusal ışıması üzerinde ya da onların ürettiği gösterilen görüntü üzerinde."
+  },
   "EngineCamera": {
     "summary": "Motor kamerası: yerinde yeniden yazılan kendi tamponlarındaki bir karenin sayıları.",
     "description": "`readCameraWorld`'ün (`world.ts`, bir host kamerasından tek çeviri) alt akışındaki hiçbir imzaya host kütüphanesi yapısı geçmez.",
@@ -1396,7 +1452,8 @@
       "toneMapping": "Sahnenin seçtiği ekran eğrisi; yoksa ACES.",
       "framebuffer": "Nereye çizileceği; ekran için `null`.",
       "width": "Piksel cinsinden genişlik.",
-      "height": "Piksel cinsinden yükseklik."
+      "height": "Piksel cinsinden yükseklik.",
+      "linear": "Doğrusal ışıma; eğriden geçirilmemiş, kodlanmamış, saydam siyah üzerinde: alfası kaplama olan efekt zincirinin girdisi."
     }
   },
   "HostMaterial": {
@@ -1566,9 +1623,6 @@
       "tileSize": "Işık listesinin bir ekran karosunun piksel cinsinden kenarı.",
       "samplesPerPixel": "HAREKETLİ bir görselin pikseli başına tamamen gölgelendirilen — gölge okuması dahil — ışıklar (X2): diğerleri gölgeleri olmadan tartılır, ve gölgelendirilenler orantılı olarak çizilir, bu yüzden tahmin yansız kalır ve zamansal kenar yumuşatma onu ortalar. Sabit bir görsel, karosunun her ışığını gölgelendirir ve tam toplama yakınsar; orada bu sayının hiçbir rolü yoktur.",
       "shadowPage": "Bir gölge sayfasının kenarı, texel olarak: fiziksel havuzun, sanal haritaların ve geçersiz kılmanın birimi. Hareket eden bir nesne yalnızca izdüşen kutusunun kapladığı sayfaları eskitir.",
-      "shadowBudgetMs": "Gölge aşaması bütçesi, kare başına GPU milisaniyesi cinsinden (X4, RX3). Bunun ötesinde geçersiz kılınan sayfalar sırasını bekler; asla kaybolmazlar, ve gecikmeleri yayımlanır.",
-      "shadowAgingPerFrame": "Sırada geçirilen kare başına, bir sayfanın önceliğinde beklemenin ağırlığı: açlığa karşı.",
-      "shadowCostBlend": "Bir sayfanın ortalama maliyetinde bir karenin örneğinin payı: zamanlayıcının üstel yumuşatması.",
       "pcfTaps": "Piksel ve gölgeli ışık başına PCF örneği (X2).",
       "spotEdgeSoftness": "Bir spot koninin yumuşatılmış kenarının kosinüs birimindeki genişliği: merdivenlenmeye karşı.",
       "sunFarShadowOffsetMetres": "Uzak gölge ışını başlangıcının normal boyunca ötelemesi, metre cinsinden. Yalnızca aydınlatılan yüzeyin düzlemini terk etmeye yarar; kendi kendini gölgelemeye karşı gerçek çare, aşağıdaki, ışın boyunca başlangıçtır.",
@@ -1579,7 +1633,7 @@
       "shadowNearFraction": "Bir kesitin yakın düzlemi: menzilin bir payı, asla bu tabandan az değil.",
       "shadowNearMin": "En yakın gölge mesafesi.",
       "shadowNormalOffsetTexels": "Örnek noktasının normal boyunca ötelemesi, kesit tekselleri cinsinden. Bir nokta ışığın iki yüzü arasındaki dikişi kapatan ve sıyırma sivilcelerini kaldıran şey budur; metre değil teksel cinsindedir, böylece ışığın elde ettiği çözünürlükle orantılı kalır.",
-      "shadowPagesPerFrame": "Kare başına en fazla çizilen gölge sayfaları: tampon tavanı, asla bir kalite ayarı değil. Milisaniye bütçesi neredeyse her zaman önce durur; bu tavan yalnızca son bir sınırdır ve GPU saati olmayan bir aygıtta tek sınırdır.",
+      "shadowPagesPerBatch": "Bir GPU partisinin çizdiği gölge sayfaları: bir partinin arabelleklerinin boyutu, asla karenin sınırı değil. Bir kare işaretlediği her sayfayı gerektiği kadar partide çizer.",
       "lampFaceSize": "Bir lamba yüzünün en ince mip düzeyinin kenarı, texel olarak: 128’lik 32 × 32 sayfa (havuz: `shadowPoolSide`).",
       "shadowRequestCap": "Gölgelendirmenin kare başına isteyebileceği sanal sayfalar; kalanlar sonraki karede yeniden ister.",
       "sunLevels": "Yönlü bir ışığın clipmap düzeyleri. `L` düzeyinin texelleri `2^L` metredir ve bir piksel, texeli kendi izinden büyük olmayan düzeyi okur: on altı düzey 2^15’lik bir uzak/yakın oranını kapsar. Son düzeyin ötesinde uzak gölge devralır.",
@@ -2230,6 +2284,9 @@
   "PREVIEW_ATLAS_COLOR": {
     "summary": "Bir önizlemenin hizmet ettiği atlas: renk (`rgba8unorm-srgb`, temel renk ve emissive) ya da veri (`rgba8unorm`, metal-pürüzlülük, normal, gizlenme).",
     "description": "Aynı doku, her birinden bir girdiye sahip olabilir."
+  },
+  "PREVIEW_ATLAS_COVERAGE": {
+    "summary": "Renk atlasının bir zinciri; her okuyucusunun alfasını kaplama olarak aldığı bir doku için (yalnızca MASK veya BLEND malzemelerinin temel rengi): renkleri alfaya göre ağırlıklandırılan tek zincir, düz olandan ayrı adlandırılır (`reduce.rs`, `AtlasKind::Coverage`, #42)."
   },
   "PREVIEW_ATLAS_DATA": {
     "summary": "Veri atlası: metal-pürüzlülük, normal ve gizlenme haritaları."
@@ -3076,21 +3133,18 @@
     }
   },
   "ShadowPlan": {
-    "summary": "Karenin gölge işi: hangi sanal sayfaların çizildiği ve hangilerinin beklediği.",
+    "summary": "Karenin gölge işi: hangi sanal sayfaların çizildiği.",
     "members": {
-      "budget": "Gölgeler aşamasının milisaniye bütçesi ve bir sayfanın ölçülen maliyeti.",
       "counts": "Son planın yaptığı, sayfa olarak.",
       "worldChanged": "Bir düğüm hareket etti: kutusu bir sonraki planda kapladığı sayfaları eskitir.",
       "representationChanged": "Aynı dünya başka bir hassasiyette: kutusu kameranın durmasını bekler.",
       "resting": "Kamera son planda duruyordu: görünümü bir önceki planınkiyle aynıydı.",
       "deferredChanges": "Bir gösterim değişikliği kameranın durmasını beklerken doğru.",
       "releaseDeferred": "Kare hiçbir gölge planlamıyor: tutulan kutular hemen listeye girer.",
-      "observeCost": "Bir karenin Gölgeler geçişinin zamanlayıcısı, çizdiği sayfalara bölünmüş.",
-      "setBudgetMs": "Ana makinenin yayımladığı bütçe, kare başına GPU milisaniyesi.",
       "setPageInvalidation": "Sayfa başına geçersiz kılmayı kapatır: hareket eden bir nesne dokunduğu ışıkların her sayfasını eskitir. Varsayılan olarak açık.",
       "pageInvalidation": "Hareket eden bir nesnenin yalnızca kutusunun kapladığı sayfaları eskitip eskitmediği.",
-      "plan": "Bir kare planlar: hareket edeni eskitir, son raporu okur, çizilecek sayfaları kabul eder.",
-      "reissue": "Karenin sayfaları kodlanamadı: eski kalırlar ve sonraki kareyi beklerler.",
+      "plan": "Bir kareyi planlar: hareket edeni eskitir, son raporu okur, çizilecek her sayfayı kabul eder.",
+      "reissue": "Karenin `from` sonrasındaki sayfaları kodlanamadı: eski ve bekler hâlde kalırlar, sonraki kare onları çizer.",
       "reset": "Yeniden başlar.",
       "setThreshold": "Işık kesitlerinin gölge düşürenleri seçtiği eşik (`thresholds.ts`).",
       "table": "Sayfa tablosu: sanal sayfa başına bir sözcük ve her ışığın içinde tuttuğu aralık.",
@@ -3098,11 +3152,11 @@
       "sun": "Her güneşin clipmap’i: çerçevesi, derinlik aralığı, en ince düzeyi ve alanları.",
       "records": "Gölge dilimleri, gölge düşüren her ışık için bir tane.",
       "requests": "Geri okunan istek raporları: sonuncusunun adlandırdığı, ayırdığı ya da reddettiği.",
-      "admission": "Bu karenin sayfaları, kabul sırasına göre.",
+      "admission": "Bu karenin sayfaları, ışık görünümü ışık görünümü.",
       "stamp": "Gölgelendirme, ışıklar ve görünümün sonraki görüntüye verdiği: bununla damgalanmış ve yeni hiçbir şey adlandırmayan bir rapor, görüntünün yalnızca çizileni okuduğunu kanıtlar.",
       "settled": "Bir rapor mevcut durumun hiçbir şey istemediğini kanıtladığında doğru: görüntü tutulabilir.",
       "receive": "Bir istek raporu döndü; sonraki plan onu okur. Daha yenisi okunmamış olanın yerini alır.",
-      "commit": "Karenin sayfaları kodlandı, her biri kendi `modes` girdisinde: çizimleri, onları bir şey okumadan önce tamamlanır."
+      "commit": "Karenin listesindeki `[from, to)` sayfaları kodlandı, `from + i` sayfası `modes[i]` içinde: çizimleri kimse okumadan önce tamamlanır. Son parti listeyi kapatır."
     }
   },
   "ShadowViewpoint": {
@@ -3613,7 +3667,7 @@
       "sourceKind": "Baytlar bir görsel uri'sinden geldiğinde 0, sourceBufferView'dan geldiğinde 1.",
       "sourceBufferView": "Hazırlanmış sahnenin tampon görünümü, ya da uri kaynağı için -1.",
       "sha256": "Çözülmüş kaynak baytların SHA-256'sı.",
-      "atlas": "Bu girdinin hizmet ettiği atlas: PREVIEW_ATLAS_COLOR ya da PREVIEW_ATLAS_DATA.",
+      "atlas": "Bu girdinin taşıdığı zincir: PREVIEW_ATLAS_COLOR, PREVIEW_ATLAS_DATA ya da PREVIEW_ATLAS_COVERAGE; renk atlasında örneklenir.",
       "firstLevel": "Kaynağın mip zincirinde taşınan ilk seviyenin indeksi; zaten PREVIEW_BASE'in altına sığdığında ve yardımcı dosya böylece tam çözünürlüğünü taşıdığında 0.",
       "bakedLevels": "0'dan bakedLevels - 1'e kadar, önbellekte dosyalara pişirilen seviyeler; zincir tamamlandığında firstLevel, hiçbir şey yazılmadığında ve motor kaynak görseli yüklediğinde 0.",
       "levels": "Sırayla, en inceden 1x1'e kadar taşınan seviyeler, her biri yardımcı dosya baytları üzerinde bir görünüm.",
@@ -3969,6 +4023,9 @@
     "summary": "Zamansal kenar yumuşatma: kareler boyunca biriktirilen piksel altı kaydırma; varsayılan olarak açık.",
     "description": "Yazıldığında bir sonraki karede etkili olur, geçmiş atılır, oturum yeniden açılmaz. Okunduğunda görüntünün taşıdığıdır: WebGL2'de ve açıldıktan sonra program derlenirken false."
   },
+  "world.effects": {
+    "summary": "Efekt zinciri: görüntünün üzerine çizilen geçişler (`effect`)."
+  },
   "world.budget": {
     "summary": "Dünyanın bellek havuzları, bayt cinsinden okunur ve ayarlanır.",
     "members": {
@@ -3979,8 +4036,9 @@
       "physics": "Fiziğin sınırları (cisimler, üçgenler, dekoratif cisimler, bellek), başlangıçta bir kez okunur; birini aşmak `PHYSICS_BUDGET` fırlatır.",
       "raycastTrees": "`raycast`'in üçgen ağaçları için tuttuğu CPU belleği baytı, sayfadaki tüm dünyalar tarafından paylaşılır; aşıldığında en uzun süredir kullanılmayan ağaç bırakılır. Sınırı değiştirmek için ayarlayın.",
       "gpu": "Dünyanın tutabileceği GPU belleği baytı, tüm havuzlar birlikte; her havuzu paylaşım kuralıyla (`split`) yeniden çizmek için ayarlayın. Gölge havuzunun altındaki bir toplam reddedilir (`GPU_BUDGET_UNDER_SHADOW_POOL`). Asla makineden okunmaz.",
+      "canvas": "Dünyanın bildirdiği en büyük tuval, çizim arabelleğinin pikselleriyle: efekt zincirinin hedefleri onun boyutunda ayrılır (`split.effectTargets`); varsayılan 3840 × 2160'dır ve varsayılan `gpu` yalnızca bu rezerv kadar büyür. Her havuzu kurala göre yeniden dağıtmak için ayarlayın. Daha büyük çizilen bir tuval yine de bütünüyle çizilir: tanılama, rezervi aşan baytlarla `effect targets over budget` der.",
       "cpu": "Dünyanın tutabileceği CPU belleği baytı: önce gölge sayfa tablosunun ana makine yansısı, sonra çözülmüş sayfalar, manifest tabloları, aktarım kuyruğu ve motorun kesim tabloları birlikte. Bir değişiklik hemen uygulanır: sayfalar sığana kadar son kullanıma göre çıkar. Yansıyı aşmayan bir toplam reddedilir (`CPU_BUDGET_UNDER_SHADOW_MIRROR`). Asla makineden okunmaz.",
-      "split": "İki toplamın nasıl paylaşıldığı: gölge havuzu ve sekme sondaları en büyük hâlinde, sonra geometri ve doku havuzlarına yarı yarıya, tavanlarıyla sınırlı; gölge tablosunun ana makine yansısı, sonra çözülmüş sayfa önbelleği CPU toplamının kalanını, tamamen alır; açık oturum manifest tablolarını, aktarım kuyruğunu ve motorun kesim tablolarını bu payın içinden ayırır. Bir havuz tek başına ayarlanmadan önce kuralın verdiği."
+      "split": "İki toplamın nasıl paylaşıldığı: gölge havuzu ve sekme sondaları en büyük hâlinde, efekt zincirinin hedefleri bildirilen `canvas` üzerinde, sonra geometri ve doku havuzlarına yarı yarıya, tavanlarıyla sınırlı; gölge tablosunun ana makine yansısı, sonra çözülmüş sayfa önbelleği CPU toplamının kalanını, tamamen alır; açık oturum manifest tablolarını, aktarım kuyruğunu ve motorun kesim tablolarını bu payın içinden ayırır. Bir havuz tek başına ayarlanmadan önce kuralın verdiği."
     }
   },
   "world.diagnostic": {
@@ -4440,7 +4498,7 @@
     "description": "`memory(world)`, dünyanın şu anda tuttuğu şeydir (`world.budget`); iki havuz, bir dünyanın aldığı ayarı oluşturur."
   },
   "budget.memory": {
-    "summary": "Bir dünyanın şu anda tuttuğu bellek bütçeleri: GPU ve CPU toplamları, kurala göre paylaşımları, iki havuz ve her birinin en büyüğü."
+    "summary": "Bir dünyanın şu anda tuttuğu bellek bütçeleri: GPU ve CPU toplamları, kurala göre paylaşımları, iki havuz ve her birinin en büyüğü, ve efekt hedeflerinin ayrıldığı tuval."
   },
   "budget.geometryPool": {
     "summary": "Bir dünyaya vermeye hazır, `bytes`'lık bir geometri havuzu ayarı.",
@@ -4737,7 +4795,7 @@
   },
   "createShadowPlan": {
     "summary": "Sanal haritaların gölge zamanlayıcısı.",
-    "description": "Gölgelendirme okuduğu sayfaları kaydeder; birkaç kare sonra geri okunan raporu, eksik olanı sabit havuzdan ayırır. Hareket eden, kapladığı eşlenmiş sayfaları eskitir. Ardından bir kare, görüntünün okuduğu eski sayfaları çizer — önce kaba olanları, bir milisaniye bütçesine kadar —, kalanı bekler, asla kaybolmaz, gecikmesi yayımlanır. Gölgelendirmesi artık çalışmayan durağan bir sahne hiçbir şey istemez ve hiçbir şey çizmez. Tüm diziler bir kez ayrılır; `plan()` hiçbir şey ayırmaz."
+    "description": "Gölgelendirme okuduğu sayfaları kaydeder; birkaç kare sonra geri okunan raporları, eksik olanı sabit havuzdan ayırır. Hareket eden, kapladığı ayrılmış sayfaları eskitir. Ardından bir kare, görüntünün okuduğu her eski sayfayı, hepsini o karede çizer: maliyeti tutan önbellektir — bir sayfa yalnızca içeriği değiştiğinde yeniden çizilir —, ve havuz tek sınırdır. Gölgelendirmesi artık çalışmayan durgun bir sahne hiçbir şey istemez ve hiçbir şey çizmez. Tüm diziler bir kez ayrılır; `plan()` hiçbir şey ayırmaz."
   },
   "createTerminalProgress": {
     "summary": "Derleyicinin olaylarını takip eden, terminalde bir ilerleme çubuğu.",
@@ -4864,6 +4922,17 @@
   },
   "edge": {
     "summary": "2D kenar fonksiyonu (2D çapraz çarpım)."
+  },
+  "effect": {
+    "summary": "`effect` ailesi: `world.effects`’in görüntünün üzerine çizdiği geçişler."
+  },
+  "effect.bloom": {
+    "summary": "Parlak olanın çevresinde bir parıltı, ton eşlemeden önce doğrusal görüntü üzerinde.",
+    "parameters": {
+      "options": "`intensity` ve `radius`; verilmezse yayımlanmış değerler.",
+      "options.intensity": "Görüntünün parıltısıyla değiştirilen payı, 0 (hiç) ile 1 (yalnızca parıltı) arası.",
+      "options.radius": "Parıltının her düzeydeki yayılımı, o düzeyin tekselleri cinsinden; 1 yayımlanmış filtredir."
+    }
   },
   "emptyIrradiance": {
     "summary": "İçinde hiçbir şey olmayan, kaynak almaya hazır bir ışınım."

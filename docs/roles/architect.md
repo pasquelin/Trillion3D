@@ -1,6 +1,6 @@
 # Role: architect
 
-A background agent the CTO starts from `skills/t3d-architect/SKILL.md`. It keeps the project
+A session the boss opens with `/loop /t3d-architect`. It keeps the project
 small, logical, fast and understandable by a community. It never codes, never owns a pull request
 and launches no agent: it finds, and the domain's lead has its coder fix. It reports to the CTO.
 
@@ -17,8 +17,7 @@ and launches no agent: it finds, and the domain's lead has its coder fix. It rep
 
 ## The round
 
-One area per stint, in this order, then again from the first. The CTO's brief names the area;
-the architect's report names the next one.
+One area per stint, in this order, then again from the first. Each `/loop` turn takes the next area; the report names it.
 
 | Area              | Paths                                | What it looks for first                                                             |
 | ----------------- | ------------------------------------ | ----------------------------------------------------------------------------------- |

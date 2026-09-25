@@ -158,6 +158,28 @@
   "Blending": {
     "summary": "Bagaimana sebuah permukaan bercampur dengan yang ada di baliknya, menurut namanya."
   },
+  "Bloom": {
+    "summary": "Cahaya yang meluber di sekitar sesuatu yang terang, seperti lensa menyebarkannya.",
+    "description": "Berbasis fisika: bekerja pada radiansi linear adegan, sebelum tone mapping, tanpa ambang, dan menjaga energi — pendarnya adalah salinan gambar yang dikaburkan lalu dicampurkan, sehingga total cahaya tetap sama.",
+    "parameters": {
+      "options": "Apa yang dapat diberikan halaman kepada `effect.bloom`.",
+      "options.intensity": "Bagian gambar yang diganti oleh pendarnya, dari 0 (tidak ada) hingga 1 (hanya pendar).",
+      "options.radius": "Sebaran pendar di setiap tingkat, dalam texel tingkat itu; 1 adalah filter yang diterbitkan."
+    },
+    "members": {
+      "kind": "Pass bawaan yang mana ini.",
+      "stage": "Apakah berjalan sebelum atau sesudah tone mapping.",
+      "intensity": "Bagian gambar yang diganti oleh pendarnya, dari 0 hingga 1.",
+      "radius": "Sebaran pendar di setiap tingkat, dalam texel tingkat itu; di atas 0."
+    }
+  },
+  "BloomOptions": {
+    "summary": "Apa yang dapat diberikan halaman kepada `effect.bloom`.",
+    "members": {
+      "intensity": "Bagian gambar yang diganti oleh pendarnya, dari 0 (tidak ada) hingga 1 (hanya pendar).",
+      "radius": "Sebaran pendar di setiap tingkat, dalam texel tingkat itu; 1 adalah filter yang diterbitkan."
+    }
+  },
   "BounceBudget": {
     "summary": "Anggaran pantulan dalam milidetik.",
     "description": "Spesifikasi mengharuskan sebuah durasi waktu, bukan jumlah sinar tetap: laju bingkai tetap konstan, sementara cahaya berkonvergensi secara bertahap. Mesin menerima durasi bingkai target, mengukur stempel waktu GPU dari tahap pantulan, dan secara dinamis menyesuaikan pecahan beban kerja yang dikodekan berikutnya. Penyesuaian dihaluskan dan dibatasi: pecahannya tidak pernah melebihi 1 (batas atas yang dipublikasikan tetap batas tegas) dan tidak pernah turun di bawah batas bawah (menjamin kemajuan konvergensi).",
@@ -242,6 +264,13 @@
       "boxes": "`6 · n` angka: kotak masukan, `minX, minY, minZ, maxX, maxY, maxZ` per elemen.",
       "mats": "`16 · n` angka: matriks column-major.",
       "out": "`6 · n` angka: kotak yang sudah ditransformasi."
+    }
+  },
+  "BudgetCanvas": {
+    "summary": "Kanvas terbesar yang dinyatakan anggaran: target rantai efek dicadangkan pada ukurannya.",
+    "members": {
+      "width": "Lebar dalam piksel buffer gambar.",
+      "height": "Tinggi dalam piksel buffer gambar."
     }
   },
   "BufferAttribute": {
@@ -849,6 +878,33 @@
     "summary": "Skema JSON menyeluruh yang mendokumentasikan semua opsi inisialisasi untuk explorer Trillion3D (MeasuredWorldOptions).",
     "description": "Memungkinkan LLM memahami, memvalidasi, dan menyetel konfigurasi mesin 3D."
   },
+  "EffectChain": {
+    "summary": "`world.effects`: pass berurutan yang digambar di atas gambar setelah antialiasing temporal dan sebelum gambar mencapai canvas.",
+    "description": "Pass sebelum tone mapping membaca radiansi linear, sesuai urutan penambahannya; pass sesudahnya membaca gambar yang ditampilkan, sesuai urutannya. Rantai kosong tidak memakan apa pun: tanpa pass, tanpa salinan, tanpa target.",
+    "members": {
+      "revision": "Menghitung perubahan: gambar yang digambar pada revisi lain sudah usang.",
+      "passes": "Pass-pass, sesuai urutan jalannya.",
+      "size": "Berapa banyak pass dalam rantai.",
+      "add": "Memasukkan pass ke rantai, di akhir atau di `index`. Satu pass hanya milik satu rantai pada satu waktu.",
+      "remove": "Mengeluarkan pass dari rantai; false jika tidak ada di dalamnya.",
+      "clear": "Mengeluarkan semua pass: gambar kembali seperti tanpa rantai.",
+      "stage": "Pass dari satu tahap, sesuai urutan rantai: daftar yang dijalankan mesin. Disimpan dari perubahan ke perubahan, sehingga satu bingkai tidak mengalokasikan apa pun."
+    }
+  },
+  "EffectKind": {
+    "summary": "Pass bawaan yang dapat digambar mesin."
+  },
+  "EffectPass": {
+    "summary": "Satu pass dari rantai.",
+    "description": "Sebuah pass menyatakan pass bawaan mana dirinya dan di mana ia berjalan; pengaturannya adalah properti yang penulisannya langsung sampai ke dunia, seperti milik cahaya.",
+    "members": {
+      "kind": "Pass bawaan yang mana ini.",
+      "stage": "Apakah berjalan sebelum atau sesudah tone mapping."
+    }
+  },
+  "EffectStage": {
+    "summary": "Posisi pass terhadap kurva tampilan: pada radiansi linear adegan, sebelum eksposur dan kurva membawanya ke rentang tampilan, atau pada gambar tampilan yang mereka hasilkan."
+  },
   "EngineCamera": {
     "summary": "Kamera mesin: angka-angka sebuah bingkai, dalam buffer milik sendiri yang ditulis ulang di tempat.",
     "description": "Tidak ada struktur pustaka host yang menyeberang sebuah signature setelah `readCameraWorld` (`world.ts`, satu-satunya terjemahan dari sebuah kamera host).",
@@ -1404,7 +1460,8 @@
       "toneMapping": "Kurva tampilan yang dipilih scene; ACES saat tidak ada.",
       "framebuffer": "Tempat menggambar; `null` untuk layar.",
       "width": "Lebar dalam piksel.",
-      "height": "Tinggi dalam piksel."
+      "height": "Tinggi dalam piksel.",
+      "linear": "Radiansi linear, tanpa kurva dan tanpa pengodean, di atas hitam transparan: masukan rantai efek, yang alfanya adalah cakupan."
     }
   },
   "HostMaterial": {
@@ -1584,9 +1641,6 @@
       "tileSize": "Sisi dalam piksel sebuah tile layar daftar cahaya.",
       "samplesPerPixel": "Cahaya yang dishading penuh — termasuk pembacaan bayangan — per piksel sebuah gambar BERGERAK (X2): yang lain ditimbang tanpa bayangannya, dan yang dishading digambar sebanding, jadi perkiraannya tidak bias dan antialiasing temporal merata-ratakannya. Sebuah gambar diam men-shading setiap cahaya tile-nya dan berkonvergensi ke jumlah pasti; di situ, angka ini tidak berperan.",
       "shadowPage": "Sisi halaman bayangan, dalam texel: satuan pool fisik, peta virtual, dan invalidasi. Objek bergerak hanya membuat usang halaman yang tertutup kotak proyeksinya.",
-      "shadowBudgetMs": "Anggaran tahap bayangan, dalam milidetik GPU per bingkai (X4, RX3). Halaman yang diinvalidasi melebihi itu menunggu giliran; tidak pernah hilang, dan keterlambatannya dipublikasikan.",
-      "shadowAgingPerFrame": "Bobot menunggu dalam prioritas sebuah halaman, per bingkai dihabiskan dalam antrean: melawan kelaparan.",
-      "shadowCostBlend": "Porsi sampel sebuah bingkai dalam biaya rata-rata sebuah halaman: penghalusan eksponensial pengatur waktunya.",
       "pcfTaps": "Sadapan PCF per piksel dan per cahaya berbayangan (X2).",
       "spotEdgeSoftness": "Lebar tepi yang dihaluskan sebuah kerucut spot, dalam satuan kosinus: melawan staircasing.",
       "sunFarShadowOffsetMetres": "Offset asal sinar bayangan-jauh sepanjang normal, dalam meter. Ini hanya berfungsi meninggalkan bidang permukaan bercahaya; obat sesungguhnya melawan self-shadowing adalah mulai sepanjang sinar, di bawah.",
@@ -1597,7 +1651,7 @@
       "shadowNearFraction": "Bidang dekat sebuah irisan: sebuah pecahan dari rentang, tidak pernah kurang dari batas bawah ini.",
       "shadowNearMin": "Jarak bayangan terdekat.",
       "shadowNormalOffsetTexels": "Offset titik sampel sepanjang normal, dalam texel irisan. Ini yang menutup jahitan antara dua muka sebuah point light dan menghapus acne serong; ini dalam texel bukan meter supaya tetap sebanding dengan resolusi yang didapat cahaya itu.",
-      "shadowPagesPerFrame": "Halaman bayangan yang digambar paling banyak per bingkai: batas atas buffer, bukan pengaturan kualitas. Anggaran milidetik hampir selalu berhenti lebih dulu; batas ini hanya batas terakhir, dan satu-satunya pada perangkat tanpa jam GPU.",
+      "shadowPagesPerBatch": "Halaman bayangan yang digambar satu batch GPU: ukuran buffer satu batch, tidak pernah batas sebuah frame. Sebuah frame menggambar setiap halaman yang ditandainya, dalam sebanyak mungkin batch yang diperlukan.",
       "lampFaceSize": "Sisi mip terhalus dari muka lampu, dalam texel: 32 × 32 halaman berukuran 128 (pool: `shadowPoolSide`).",
       "shadowRequestCap": "Halaman virtual yang boleh diminta shading per bingkai; sisanya meminta lagi pada bingkai berikutnya.",
       "sunLevels": "Tingkat clipmap cahaya terarah. Tingkat `L` memiliki texel `2^L` meter, dan sebuah piksel membaca tingkat yang texelnya tidak melebihi jejaknya sendiri: enam belas tingkat mencakup rasio jauh/dekat 2^15. Di luar tingkat terakhir, bayangan jauh mengambil alih.",
@@ -2248,6 +2302,9 @@
   "PREVIEW_ATLAS_COLOR": {
     "summary": "Atlas yang dilayani sebuah pratinjau: warna (`rgba8unorm-srgb`, warna dasar dan emisif) atau data (`rgba8unorm`, metal-roughness, normal, oklusi).",
     "description": "Tekstur yang sama boleh punya satu entri masing-masing."
+  },
+  "PREVIEW_ATLAS_COVERAGE": {
+    "summary": "Sebuah rantai atlas warna, untuk tekstur yang alpha-nya diambil setiap pembacanya sebagai cakupan (hanya warna dasar material MASK atau BLEND): satu-satunya rantai yang warnanya dibobot oleh alpha, dinamai terpisah dari rantai biasa (`reduce.rs`, `AtlasKind::Coverage`, #42)."
   },
   "PREVIEW_ATLAS_DATA": {
     "summary": "Atlas data: peta metal-roughness, normal dan oklusi."
@@ -3158,21 +3215,18 @@
     }
   },
   "ShadowPlan": {
-    "summary": "Kerja bayangan bingkai: halaman virtual mana yang digambar, dan mana yang menunggu.",
+    "summary": "Pekerjaan bayangan frame: halaman virtual mana yang digambar.",
     "members": {
-      "budget": "Anggaran milidetik tahap Bayangan dan biaya terukur satu halaman.",
       "counts": "Apa yang dilakukan rencana terakhir, dalam halaman.",
       "worldChanged": "Sebuah node bergerak: kotaknya membuat usang halaman yang ditutupinya pada rencana berikutnya.",
       "representationChanged": "Dunia yang sama dengan presisi lain: kotaknya menunggu kamera diam.",
       "resting": "Kamera diam pada rencana terakhir: tampilannya sama dengan rencana sebelumnya.",
       "deferredChanges": "Benar selama perubahan representasi menunggu kamera diam.",
       "releaseDeferred": "Bingkai tidak merencanakan bayangan: kotak yang ditahan langsung masuk ke daftar.",
-      "observeCost": "Pengatur waktu pass Bayangan sebuah bingkai, dibagi ke halaman yang digambarnya.",
-      "setBudgetMs": "Anggaran yang diterbitkan host, dalam milidetik GPU per bingkai.",
       "setPageInvalidation": "Mematikan invalidasi per halaman: objek bergerak membuat usang setiap halaman cahaya yang disentuhnya. Aktif secara default.",
       "pageInvalidation": "Apakah objek bergerak hanya membuat usang halaman yang tertutup kotaknya.",
-      "plan": "Merencanakan bingkai: membuat usang yang bergerak, membaca laporan terakhir, menerima halaman untuk digambar.",
-      "reissue": "Halaman bingkai tidak dapat dikodekan: tetap usang, dan menunggu bingkai berikutnya.",
+      "plan": "Merencanakan satu frame: membuat usang yang bergerak, membaca laporan terakhir, menerima setiap halaman yang akan digambar.",
+      "reissue": "Halaman frame mulai dari `from` tidak dapat dikodekan: tetap usang, tertunda, dan frame berikutnya menggambarnya.",
       "reset": "Memulai lagi.",
       "setThreshold": "Ambang tempat potongan cahaya memilih pemberi bayangan (`thresholds.ts`).",
       "table": "Tabel halaman: satu kata per halaman virtual, dan rentang yang dipegang setiap cahaya di dalamnya.",
@@ -3180,11 +3234,11 @@
       "sun": "Clipmap setiap matahari: kerangkanya, rentang kedalaman, tingkat terhalus, dan cakupannya.",
       "records": "Irisan bayangan, satu per cahaya yang menghasilkan bayangan.",
       "requests": "Laporan permintaan yang dibaca kembali: yang disebut, dialokasikan, atau ditolak laporan terakhir.",
-      "admission": "Halaman bingkai ini, dalam urutan penerimaan.",
+      "admission": "Halaman frame ini, tampilan cahaya demi tampilan cahaya.",
       "stamp": "Yang diserahkan shading, cahaya, dan tampilan ke gambar berikutnya: laporan yang dicap dengannya dan tidak menyebut hal baru membuktikan gambar hanya membaca yang sudah digambar.",
       "settled": "Benar setelah sebuah laporan membuktikan keadaan saat ini tidak meminta apa pun: gambar boleh ditahan.",
       "receive": "Sebuah laporan permintaan kembali; rencana berikutnya membacanya. Yang lebih baru menggantikan yang belum dibaca.",
-      "commit": "Halaman bingkai telah dikodekan, masing-masing di entri `modes`-nya: penggambarannya selesai sebelum apa pun membacanya."
+      "commit": "Halaman `[from, to)` dari daftar frame telah dikodekan, halaman `from + i` dalam `modes[i]`: gambarnya selesai sebelum ada yang membacanya. Batch terakhir menutup daftar."
     }
   },
   "ShadowViewpoint": {
@@ -3695,7 +3749,7 @@
       "sourceKind": "0 saat byte-nya berasal dari uri gambar, 1 saat berasal dari sourceBufferView.",
       "sourceBufferView": "View buffer scene yang disiapkan, atau -1 untuk sumber uri.",
       "sha256": "SHA-256 byte sumber yang diurai.",
-      "atlas": "Atlas yang dilayani entri ini: PREVIEW_ATLAS_COLOR atau PREVIEW_ATLAS_DATA.",
+      "atlas": "Rantai yang dibawa entri ini: PREVIEW_ATLAS_COLOR, PREVIEW_ATLAS_DATA, atau PREVIEW_ATLAS_COVERAGE, disampel di atlas warna.",
       "firstLevel": "Indeks tingkat pertama yang dibawa rantai mip sumbernya; 0 saat sudah muat di bawah PREVIEW_BASE dan sidecar-nya karena itu membawa resolusi penuhnya.",
       "bakedLevels": "Tingkat yang dipanggang jadi berkas di cache, dari 0 sampai bakedLevels - 1; firstLevel saat rantainya lengkap, 0 saat tidak ada yang ditulis dan mesin memuat gambar sumbernya.",
       "levels": "Tingkat yang dibawa berurutan, dari terhalus sampai 1x1, masing-masing sebuah view atas byte sidecar.",
@@ -4426,7 +4480,7 @@
     }
   },
   "budget.memory": {
-    "summary": "Anggaran memori yang ditahan dunia saat ini: total GPU dan CPU, pembagiannya menurut aturan, kedua pool, dan batas terbesar masing-masing."
+    "summary": "Anggaran memori yang ditahan dunia saat ini: total GPU dan CPU, pembagiannya menurut aturan, kedua pool, dan batas terbesar masing-masing, serta kanvas tempat target efek dicadangkan."
   },
   "budget.texturePool": {
     "summary": "Sebuah pengaturan kolam tekstur sebesar `bytes`, siap diserahkan ke sebuah dunia.",
@@ -4731,7 +4785,7 @@
   },
   "createShadowPlan": {
     "summary": "Penjadwal bayangan peta virtual.",
-    "description": "Shading mencatat halaman yang dibacanya; laporannya, dibaca kembali beberapa bingkai kemudian, mengalokasikan yang kurang dari pool tetap. Yang bergerak membuat usang halaman terpeta yang ditutupinya. Sebuah bingkai lalu menggambar halaman usang yang dibaca gambar — yang kasar lebih dulu, hingga anggaran milidetik —, dan sisanya menunggu, tidak pernah hilang, keterlambatannya diterbitkan. Adegan diam, yang shading-nya tidak berjalan lagi, tidak meminta apa pun dan tidak menggambar apa pun. Semua array dialokasikan sekali; `plan()` tidak mengalokasikan apa pun."
+    "description": "Shading mencatat halaman yang dibacanya; laporannya, dibaca kembali beberapa frame kemudian, mengalokasikan yang kurang dari pool tetap. Yang bergerak membuat usang halaman terpetakan yang ditutupinya. Lalu sebuah frame menggambar setiap halaman usang yang dibaca gambar, semuanya dalam frame itu: yang menahan biaya adalah cache — sebuah halaman digambar ulang hanya jika isinya berubah —, dan pool adalah satu-satunya batas. Adegan diam, yang shading-nya tidak lagi berjalan, tidak meminta apa pun dan tidak menggambar apa pun. Semua array dialokasikan sekali; `plan()` tidak mengalokasikan apa pun."
   },
   "createTerminalProgress": {
     "summary": "Sebuah bar kemajuan di terminal yang mengikuti peristiwa kompiler.",
@@ -4858,6 +4912,17 @@
   },
   "edge": {
     "summary": "Fungsi tepi 2D (hasil kali silang 2D)."
+  },
+  "effect": {
+    "summary": "Keluarga `effect`: pass yang digambar `world.effects` di atas gambar."
+  },
+  "effect.bloom": {
+    "summary": "Pendar di sekitar sesuatu yang terang, pada gambar linear sebelum tone mapping.",
+    "parameters": {
+      "options": "`intensity` dan `radius`; nilai yang diterbitkan jika tidak diberikan.",
+      "options.intensity": "Bagian gambar yang diganti oleh pendarnya, dari 0 (tidak ada) hingga 1 (hanya pendar).",
+      "options.radius": "Sebaran pendar di setiap tingkat, dalam texel tingkat itu; 1 adalah filter yang diterbitkan."
+    }
   },
   "emptyIrradiance": {
     "summary": "Sebuah iradiansi yang kosong, siap menerima sumber."
@@ -6758,6 +6823,9 @@
     "summary": "Antialiasing temporal: pergeseran subpiksel yang diakumulasi antarbingkai; aktif secara bawaan.",
     "description": "Saat ditulis, berlaku pada bingkai berikutnya, riwayat dibuang, tanpa membuka ulang sesi. Saat dibaca, itulah yang dibawa gambar: false di WebGL2, dan selama program dikompilasi setelah diaktifkan."
   },
+  "world.effects": {
+    "summary": "Rantai efek: pass yang digambar di atas gambar (`effect`)."
+  },
   "world.budget": {
     "summary": "Kolam memori dunia, dibaca dan diatur dalam byte.",
     "members": {
@@ -6768,8 +6836,9 @@
       "physics": "Batas fisika (benda, segitiga, benda dekoratif, memori), dibaca sekali saat mulai; melampaui satu memunculkan `PHYSICS_BUDGET`.",
       "raycastTrees": "Byte memori CPU yang disimpan `raycast` untuk pohon segitiga, dibagi oleh semua dunia di halaman; melewatinya, pohon yang paling lama tidak dipakai dibuang. Atur untuk mengubah batasnya.",
       "gpu": "Byte memori GPU yang boleh ditahan dunia, semua pool bersama; atur untuk menggambar ulang setiap pool menurut aturan pembagian (`split`). Total di bawah pool bayangan ditolak (`GPU_BUDGET_UNDER_SHADOW_POOL`). Tidak pernah dibaca dari mesin.",
+      "canvas": "Kanvas terbesar yang dinyatakan dunia, dalam piksel buffer gambar: target rantai efek dicadangkan pada ukurannya (`split.effectTargets`); 3840 × 2160 secara bawaan, dan `gpu` bawaan hanya bertambah sebesar cadangan itu. Atur untuk membagi ulang setiap pool menurut aturan. Kanvas yang digambar lebih besar tetap dirender utuh: diagnostik menyebut `effect targets over budget` beserta byte yang melewati cadangan.",
       "cpu": "Byte memori CPU yang boleh ditahan dunia: pertama cermin host tabel halaman bayangan, lalu halaman terdekode, tabel manifesnya, antrean transfernya, dan tabel potongan mesin bersama-sama. Perubahan langsung berlaku: halaman keluar berdasarkan penggunaan terakhir sampai muat. Total yang tidak melebihi cermin ditolak (`CPU_BUDGET_UNDER_SHADOW_MIRROR`). Tidak pernah dibaca dari mesin.",
-      "split": "Cara kedua total dibagi: pool bayangan dan probe pantulan pada ukuran terbesarnya, lalu separuh masing-masing untuk pool geometri dan tekstur, dibatasi plafonnya; cermin host tabel bayangan, lalu cache halaman terdekode mengambil sisa total CPU, seluruhnya, dan di dalamnya sesi yang berjalan mencadangkan tabel manifes, antrean transfernya, dan tabel potongan mesin. Hasil aturan, sebelum sebuah pool diatur sendiri."
+      "split": "Cara kedua total dibagi: pool bayangan dan probe pantulan pada ukuran terbesarnya, target rantai efek pada `canvas` yang dinyatakan, lalu separuh masing-masing untuk pool geometri dan tekstur, dibatasi plafonnya; cermin host tabel bayangan, lalu cache halaman terdekode mengambil sisa total CPU, seluruhnya, dan di dalamnya sesi yang berjalan mencadangkan tabel manifes, antrean transfernya, dan tabel potongan mesin. Hasil aturan, sebelum sebuah pool diatur sendiri."
     }
   },
   "world.camera": {

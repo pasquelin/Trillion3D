@@ -36,6 +36,22 @@ test('a full pool stops the burst without dropping the image; any other error bu
   );
 });
 
+test('a page both lower tiers name is counted once: the slots it leaves are filled', async () => {
+  const pages = ['both', 'x', 'y'].map(pageOf);
+  const [both, x, y] = pages;
+  const tracking = createWebgpuPageTracking(pages);
+  const cache = lruCache(3);
+  await cache.load('both');
+  // A caster also ahead of the camera: one resident page, two free slots for the rest.
+  await tierEnsurer(
+    tracking,
+    cache,
+    () => [both],
+    () => [both, x, y],
+  )([], 1, 1);
+  assert.deepEqual([...cache.resident.keys()].sort(), ['both', 'x', 'y']);
+});
+
 test('shadow casters fill only what the camera leaves: never pinned, never evicting its pages', async () => {
   const pages = ['cam0', 'cam1', 'cam2', 'old', 'sh0', 'sh1', 'sh2'].map(pageOf);
   const [cam0, cam1, cam2, , sh0, sh1, sh2] = pages;

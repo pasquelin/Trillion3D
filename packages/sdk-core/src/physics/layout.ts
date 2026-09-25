@@ -4,7 +4,7 @@
  * event records the module writes back. Every word is 32 bits, read as `uint32` or `float32` in
  * place. A change to any layout below bumps `PHYSICS_LAYOUT_VERSION` and the module with it.
  */
-export const PHYSICS_LAYOUT_VERSION = 14;
+export const PHYSICS_LAYOUT_VERSION = 15;
 
 /** Command opcodes, the first word of each command. */
 export const OP = {

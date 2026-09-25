@@ -2,6 +2,8 @@ import { PART, fixture } from '../../../../../tests/kit/gpu/timingDevice.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createGpuTiming } from './timing.ts';
+import { QUERY_COUNT } from './queries.ts';
+import { QUERY_SET_SIZE } from './encoder.ts';
 
 test('an image spanning two encoders yields one sample whose passes carry their own duration in submission order', async () => {
   const f = fixture(),
@@ -48,7 +50,11 @@ test('an image spanning two encoders yields one sample whose passes carry their 
   ]);
   assert.equal(samples[0].hostGapMs, 1);
   timer.dispose();
-  assert.equal(f.destroys(), 3);
+  assert.equal(
+    f.destroys(),
+    Math.ceil(QUERY_COUNT / QUERY_SET_SIZE) + 2,
+    'the sets and two buffers',
+  );
 });
 test('unsupported timestamps allocate nothing and report no sample', () => {
   const f = fixture(false),

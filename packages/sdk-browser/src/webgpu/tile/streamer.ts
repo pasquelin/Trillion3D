@@ -1,6 +1,7 @@
 import type { TextureLevelReader } from '../../texture/levelReader.ts';
 import type { AtlasLanes, PoolEncoding } from '../../texture/blockFormats.ts';
 import { createWebgpuTileAtlas, type TileTexture } from './atlas.ts';
+import { createFrameBudget } from '../../page/integration/frameBudget.ts';
 import { createWebgpuTileFeedback } from './feedback.ts';
 import { createTileSources } from './sources.ts';
 import { createWebgpuTileReduce } from './reduce.ts';
@@ -46,7 +47,8 @@ export function createWebgpuTileStreamer(options: {
   onColorChanged: (slots: ReadonlySet<number> | -1) => void;
 }) {
   const { device, encoding } = options,
-    now = options.now ?? (() => performance.now());
+    now = options.now ?? (() => performance.now()),
+    budget = createFrameBudget(options.budgetMs, now);
   /** Colour textures a pump served or evicted a tile of: named once each, however many tiles. */
   const colorChanged = new Set<number>();
   const color = createWebgpuTileAtlas(device, {
@@ -75,10 +77,8 @@ export function createWebgpuTileStreamer(options: {
     onFailure: options.onFailure,
   });
   const requests = createTileRequests({ feedback, color, data, counters });
-  const flushAll = () => {
-    color.flush(device);
-    data.flush(device);
-  };
+  const atlases = [color, data];
+  const flushAll = () => atlases.forEach((atlas) => atlas.flush(device));
   const followHeaders = samplingHeaders(color, data);
   return {
     color,
@@ -88,21 +88,20 @@ export function createWebgpuTileStreamer(options: {
     sources,
     /** Pins every queue: what the image shows before any tile is requested. */
     prepare() {
-      for (const atlas of [color, data])
+      for (const atlas of atlases)
         atlas.pinTails(device.queue, (slot, place) => sources.tail(atlas, slot, place));
       followHeaders(true);
       flushAll();
     },
     /**
-     * One pass: requested tiles, served in weight order until the byte or the millisecond budget is
-     * spent; `unbounded` lifts both. The budgets are read after each copy, never before the first:
-     * a budget under one copy still lands a tile, and the copy that crosses it overshoots it — the
-     * peak says by how much. Returns what was served and what is pending — waiting for its bytes,
-     * or deferred to the next pass; a pool refusal is neither — nothing will come, the coarse level
-     * holds, and the image can settle on it — and is counted in the atlas metrics.
+     * One pass: requested tiles, served in weight order until the byte or the millisecond budget
+     * (`FrameBudget`) is spent; `unbounded` lifts both. Both are read after each copy: the first
+     * always lands, the one that crosses a budget overshoots it — the peak says by how much. Returns
+     * what was served and what is pending — waiting for its bytes, or deferred to the next pass; a
+     * pool refusal is neither — nothing will come, the coarse level holds — and is counted.
      */
     pump(frame: number, unbounded = false) {
-      const started = now();
+      const started = budget.open();
       let served = 0,
         waiting = 0,
         bytes = 0,
@@ -128,8 +127,8 @@ export function createWebgpuTileStreamer(options: {
           served++;
           bytes += request.atlas.poolOf(request.key.slot).tileBytes;
           if (request.atlas === color) colorChanged.add(request.key.slot);
-          stop =
-            !unbounded && (bytes >= options.budgetBytes || now() - started >= options.budgetMs);
+          budget.spend();
+          stop = !unbounded && (bytes >= options.budgetBytes || !budget.admits());
         }
       }
       if (encoder) device.queue.submit([encoder.finish()]);
@@ -180,7 +179,7 @@ export function createWebgpuTileStreamer(options: {
       }
       return results.reduce((total, result) => total + result.evicted, 0);
     },
-    metrics: () => counters.metrics([color, data], sources, encoding.name),
+    metrics: () => counters.metrics(atlases, sources, encoding.name),
     /** True while a cooked level is being read: a missing tile can still arrive. */
     get reading() {
       return (sources.levels?.inFlight ?? 0) > 0;

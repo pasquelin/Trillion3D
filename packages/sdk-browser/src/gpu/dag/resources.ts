@@ -8,6 +8,7 @@ import { createDagPipeline } from './pipeline.ts';
 import { LEVEL_QUEUES } from './shader/levelWgsl.ts';
 import { dagWorkLayout } from './shader/floorWgsl.ts';
 import { DAG_UNIFORM_BYTES } from './shader/viewsWgsl.ts';
+import { AHEAD_VIEW } from './shader/aheadWgsl.ts';
 import { SELECTION_HEADER_WORDS, selectionListCap } from './layout.ts';
 
 export async function createDagResources(
@@ -38,7 +39,8 @@ export async function createDagResources(
     candGroupsOffset = travail.candGroups * 4,
     drawnGroupsOffset = travail.drawnGroups * 4,
     readbackBytes = outputBytes + (residentCut ? drawnBytes : 0);
-  const uniformData = new Float32Array(UNIFORM_BYTES / 4);
+  // The camera's block, then the view ahead's (`shader/aheadWgsl.ts`).
+  const uniformData = new Float32Array(((AHEAD_VIEW + 1) * UNIFORM_BYTES) / 4);
   const frameData = primitiveFrameWords(packed);
   const buffers: GPUBuffer[] = [];
   try {

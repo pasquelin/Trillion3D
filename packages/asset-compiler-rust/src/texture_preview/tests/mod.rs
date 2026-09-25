@@ -12,6 +12,7 @@ mod gate_verdict;
 mod image_source;
 mod levels;
 mod median_alpha;
+mod weighted_colour;
 
 /// A fresh directory under the OS temp dir, unique per call so parallel tests never collide.
 pub(super) fn temp_dir(tag: &str) -> PathBuf {
