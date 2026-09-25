@@ -14,4 +14,9 @@ Closes # <!-- or "Part of #n" when the pull request leaves part of the issue ope
 - `/simplify`:
 - `/code-review`:
 
+## Lead verification
+
+<!-- Written by the lead, before the merge, checked by the CI: one line per To do and Proof item,
+     "- <item>: delivered in <file:line>, proved by <test>" or "- <item>: not delivered, written on #<n>". -->
+
 ## Not proven / left out
