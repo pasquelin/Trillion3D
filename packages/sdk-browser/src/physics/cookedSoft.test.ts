@@ -98,7 +98,7 @@ test('a model opened again before its settings arrive holds its cooked cloth onc
 });
 
 test('a model moved after its cooked cloth landed takes it along; rescaled, has it refused', async () => {
-  const { model, writer, bodies, tiles, errors } = await opened();
+  const { model, writer, bodies, tiles, errors, fetched } = await opened();
   writer.take();
   model.position.set(5, 0, 0);
   model.updateMatrixWorld(true);
@@ -106,6 +106,7 @@ test('a model moved after its cooked cloth landed takes it along; rescaled, has 
   await landed();
   const words = writer.take();
   assert.deepEqual([words[0], words[2]], [OP.remove, OP.soft], 'out, and made again');
+  assert.equal(fetched.filter((f) => f === 'cloth.bin').length, 1, 'from the settings it holds');
   assert.deepEqual([...new Float32Array(words.buffer, 4 * 4, 3)], [5, 2, 0], 'where it now is');
   model.scale.setScalar(2);
   model.updateMatrixWorld(true);

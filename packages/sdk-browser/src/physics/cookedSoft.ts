@@ -29,6 +29,15 @@ export function createCookedSoftBodies(
 ) {
   /** Each open model's opening: its soft bodies, and the slots of those made. */
   const held = new Map<Model, { softBodies: readonly CookedSoftBody[]; slots: number[] }>();
+  /** Each soft body's settings, fetched once: a model moved frame after frame makes its bodies
+   *  again from them within the frame, never waiting on the network. */
+  const settings = new WeakMap<CookedSoftBody, Promise<Uint8Array>>();
+  function settingsOf(model: Model, soft: CookedSoftBody) {
+    let bytes = settings.get(soft);
+    if (!bytes)
+      settings.set(soft, (bytes = cookedBytes(model, soft.settings.url, 'Soft body settings')));
+    return bytes;
+  }
   /** `soft`'s world pose in `model` (scratch), refused when the model is placed at another scale
    *  than the one it was cooked at. */
   function poseOf(model: Model, soft: CookedSoftBody) {
@@ -45,7 +54,7 @@ export function createCookedSoftBodies(
     return pose;
   }
   async function add(model: Model, opening: { slots: number[] }, soft: CookedSoftBody) {
-    const cooked = await cookedBytes(model, soft.settings.url, 'Soft body settings');
+    const cooked = await settingsOf(model, soft);
     // Forgotten, opened again or moved meanwhile: this opening's bodies are no longer wanted.
     if (held.get(model) !== opening) return;
     const { position, quaternion } = poseOf(model, soft);
