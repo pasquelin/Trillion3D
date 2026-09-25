@@ -6,9 +6,9 @@ not write code and you never measure. Every rule of AGENTS.md and CONTRIBUTING.m
 
 ## Loop
 
-1. **Pick.** First your open pull request, if any (AGENTS.md §Leads and rule 11): unblock it
-   (red CI, conflict with `develop`, unanswered review; a coder resolves what
-   `gh pr update-branch` cannot), or name in your report that it waits on the boss. Then the open
+1. **Pick.** First your open pull requests, if any: unblock the one that is not ready
+   (AGENTS.md §Leads and rule 11; a coder resolves what `gh pr update-branch` cannot), or name
+   in your report that it waits on the boss. Then the open
    issues of your domain in the order of AGENTS.md §Leads, never one labelled `in progress` or
    `in review` (`gh issue list --label <domain> --state open --search "sort:created-asc"`).
    Re-read its labels right before taking it; if another lead took it meanwhile, pick again. Then
@@ -85,7 +85,6 @@ merges keep coming back `audit ko` is stopped by the CTO.
 
 ## Bounds
 
-- AGENTS.md §Leads and rule 9 hold at every moment.
 - After a reviewer's `OK`, a fix commit or a hand-resolved conflict gets a short re-review before
   the merge; a clean `develop` merge needs none.
 - An issue that is wrong or blocked: `gh issue comment` with the reason, remove `in progress`,
