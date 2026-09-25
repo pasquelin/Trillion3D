@@ -1,3 +1,4 @@
+import { EngineError } from '../../../sdk-core/src/index.ts';
 import { checked } from '../cluster/pages.ts';
 import { verifyPageBytes } from '../page/decode/host.ts';
 import type { StreamContext } from './types.ts';
@@ -72,11 +73,20 @@ export function createStreamingFetcher(
             url,
             attempt,
           }));
-          // Named by what failed: the retries and the final `PAGE_STREAM_FAILED` repeat it.
-          throw new Error(
+          // Named by what failed: the retries and the final `PAGE_STREAM_FAILED` repeat it, and its
+          // code and facts stay those of any cache object that is not what its manifest announced.
+          throw new EngineError(
+            'INVALID_CACHE',
             sizeMatches
               ? `Corrupt cache object: SHA-256 ${actualHash}, ${page.sha256} announced`
               : `Corrupt cache object: ${byteLength} bytes received, ${page.bytes} announced`,
+            {
+              url,
+              bytes: byteLength,
+              expected: page.bytes,
+              sha256: actualHash ?? null,
+              expectedSha256: page.sha256,
+            },
           );
         }
         combined.throwIfAborted();
