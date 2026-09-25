@@ -158,6 +158,28 @@
   "Blending": {
     "summary": "Bir yüzeyin arkasındakiyle adına göre nasıl karıştığı."
   },
+  "Bloom": {
+    "summary": "Parlak olanın çevresine taşan ışık; bir merceğin yaydığı gibi.",
+    "description": "Fiziksel temelli: sahnenin doğrusal ışıma değeri üzerinde, ton eşlemeden önce, eşiksiz çalışır ve enerjiyi korur — parıltı, görüntünün bulanıklaştırılmış bir kopyasının ona karıştırılmasıdır; bu yüzden toplam ışık aynı kalır.",
+    "parameters": {
+      "options": "Bir sayfanın `effect.bloom`’a verebileceği şey.",
+      "options.intensity": "Görüntünün parıltısıyla değiştirilen payı, 0 (hiç) ile 1 (yalnızca parıltı) arası.",
+      "options.radius": "Parıltının her düzeydeki yayılımı, o düzeyin tekselleri cinsinden; 1 yayımlanmış filtredir."
+    },
+    "members": {
+      "kind": "Bunun hangi yerleşik geçiş olduğu.",
+      "stage": "Ton eşlemeden önce mi sonra mı çalıştığı.",
+      "intensity": "Görüntünün parıltısıyla değiştirilen payı, 0 ile 1 arası.",
+      "radius": "Parıltının her düzeydeki yayılımı, o düzeyin tekselleri cinsinden; 0’dan büyük."
+    }
+  },
+  "BloomOptions": {
+    "summary": "Bir sayfanın `effect.bloom`’a verebileceği şey.",
+    "members": {
+      "intensity": "Görüntünün parıltısıyla değiştirilen payı, 0 (hiç) ile 1 (yalnızca parıltı) arası.",
+      "radius": "Parıltının her düzeydeki yayılımı, o düzeyin tekselleri cinsinden; 1 yayımlanmış filtredir."
+    }
+  },
   "BounceBudget": {
     "summary": "Milisaniye cinsinden yansıma bütçesi.",
     "description": "Belirtim, sabit bir ışın sayısı değil bir zaman süresi zorunlu kılar: ışık kademeli olarak yakınsarken kare hızı sabit kalır. Motor bir hedef kare süresi alır, yansıma geçişinden GPU zaman damgalarını ölçer ve bir sonraki kodlanacak iş yükü payını dinamik olarak ayarlar. Ayarlama yumuşatılmış ve sınırlıdır: pay asla 1'i aşmaz (yayımlanmış tavanlar katı üst sınır olarak kalır) ve asla tabanın altına düşmez (yakınsama ilerlemesini garanti eder).",
@@ -242,6 +264,13 @@
       "boxes": "`6 · n` sayı: girdi kutuları, eleman başına `minX, minY, minZ, maxX, maxY, maxZ`.",
       "mats": "`16 · n` sayı: column-major matrisler.",
       "out": "`6 · n` sayı: dönüştürülmüş kutular."
+    }
+  },
+  "BudgetCanvas": {
+    "summary": "Bir bütçenin bildirdiği en büyük tuval: efekt zincirinin hedefleri onun boyutunda ayrılır.",
+    "members": {
+      "width": "Çizim arabelleğinin piksel cinsinden genişliği.",
+      "height": "Çizim arabelleğinin piksel cinsinden yüksekliği."
     }
   },
   "BufferAttribute": {
@@ -842,6 +871,33 @@
     "summary": "Trillion3D gezgininin (MeasuredWorldOptions) tüm başlatma seçeneklerini belgeleyen kapsamlı JSON Şeması.",
     "description": "LLM'lerin 3D motor yapılandırmasını anlamasını, doğrulamasını ve ayarlamasını sağlar."
   },
+  "EffectChain": {
+    "summary": "`world.effects`: zamansal kenar yumuşatmadan sonra ve görüntü canvas’a ulaşmadan önce görüntünün üzerine çizilen sıralı geçişler.",
+    "description": "Ton eşlemeden önceki geçişler doğrusal ışımayı eklendikleri sırayla okur; sonrakiler gösterilen görüntüyü kendi sıralarıyla okur. Boş bir zincir hiçbir şeye mal olmaz: geçiş yok, kopya yok, hedef yok.",
+    "members": {
+      "revision": "Değişiklikleri sayar: başka bir revizyonda çizilmiş görüntü eskimiştir.",
+      "passes": "Geçişler, çalıştıkları sırayla.",
+      "size": "Zincirin kaç geçiş tuttuğu.",
+      "add": "Zincire bir geçiş koyar, sona ya da `index` konumuna. Bir geçiş aynı anda tek bir zincire aittir.",
+      "remove": "Bir geçişi zincirden çıkarır; içinde değilse false.",
+      "clear": "Tüm geçişleri çıkarır: görüntü yeniden zincirsiz hâline döner.",
+      "stage": "Bir aşamanın geçişleri, zincir sırasıyla: bir motorun çalıştırdığı liste. Değişiklikten değişikliğe tutulur, böylece bir kare hiçbir şey ayırmaz."
+    }
+  },
+  "EffectKind": {
+    "summary": "Bir motorun çizebildiği yerleşik geçişler."
+  },
+  "EffectPass": {
+    "summary": "Zincirin bir geçişi.",
+    "description": "Bir geçiş hangi yerleşik geçiş olduğunu ve nerede çalıştığını söyler; ayarları, yazıldığında dünyaya hemen ulaşan özelliklerdir, bir ışığınkiler gibi.",
+    "members": {
+      "kind": "Bunun hangi yerleşik geçiş olduğu.",
+      "stage": "Ton eşlemeden önce mi sonra mı çalıştığı."
+    }
+  },
+  "EffectStage": {
+    "summary": "Bir geçişin görüntü eğrisine göre yeri: pozlama ve eğri onu görüntü aralığına getirmeden önce sahnenin doğrusal ışıması üzerinde ya da onların ürettiği gösterilen görüntü üzerinde."
+  },
   "EngineCamera": {
     "summary": "Motor kamerası: yerinde yeniden yazılan kendi tamponlarındaki bir karenin sayıları.",
     "description": "`readCameraWorld`'ün (`world.ts`, bir host kamerasından tek çeviri) alt akışındaki hiçbir imzaya host kütüphanesi yapısı geçmez.",
@@ -1069,7 +1125,7 @@
       "gpuFrameMs": "`gpuPassMs.frame`'in betimlediği görselin GPU süresi. Asla bir `cpu*` alanına eklenmez. Cihaz birkaç görselde bir örneklenir, bu yüzden bir sayı birkaç görsel öncesine ait olabilir. İlk örnekten önce, tutulan bir görselden cihazın bir sonraki örneğine kadar, `timestamp-query` olmayan bir cihazda ve WebGL2’de null’dır.",
       "gpuHostGapMs": "Aynı görselin kendi iki gönderimi arasında geçirdiği CPU süresi, ve bir kez gönderdiğinde sıfır. Bu, GPU süresi değil host süresidir, bu yüzden `gpuFrameMs` onu hariç tutar. Ölçülmediğinde null.",
       "uncoveredTriangles": "Yayımlanan kesitin adlandırdığı ama karenin çizemediği cluster'ların üçgenleri — yerleşik sayfa yok ve kapsayan ata yok. Görseldeki gerçek bir boşluk: sıfır tek sağlıklı değerdir. Bir backend söyleyemediğinde null (seçtiği kesiti çizer, bu yüzden asla bir tanesi olmaz).",
-      "drawnTriangles": "MEVCUT KARE'nin çizime verdiği üçgenler: hiyerarşinin opak ve şeffaf birleşik cluster kesiti, eksi `uncoveredTriangles`'ın saydığı, yerleşik sayfası olmayan cluster'lar. Hiyerarşi dışındaki şeffaf meshler bunun içinde değildir (`transparentSubmittedTriangles`), ve gizlenme reddi çıkarılmaz (`hizRejectedTriangles`). `uncoveredTriangles` ile aynı geçişte, kesit kabulünde sayılır: hiçbir asenkron GPU geri okuması beklenmez, bu yüzden `submittedTriangles`'ın aksine, zaman yokluğundan dolayı asla `null` değildir. Bu örnekte beklenen kapsama ilişkisi: `selected − drawn − uncovered = 0`.",
+      "drawnTriangles": "MEVCUT KARE'nin çizime verdiği üçgenler: hiyerarşinin opak ve şeffaf birleşik cluster kesiti. Hiyerarşi dışındaki şeffaf meshler bunun içinde değildir (`transparentSubmittedTriangles`), ve gizlenme reddi çıkarılmaz (`hizRejectedTriangles`). Kesit kabulünde sayılır: hiçbir asenkron GPU geri okuması beklenmez, bu yüzden `submittedTriangles`'ın aksine, zaman yokluğundan dolayı asla `null` değildir.",
       "cpuSelectMs": "Sadece seçim etrafında ölçülen, bu karenin cluster kesitinin CPU süresi. Kesitini CPU'da seçmeyen bir motorda null.",
       "gpuSelectionFallback": "Motorun bir GPU seçimi olduğunda ve ondan vazgeçtiğinde doğru: o zamandan beri ölçülen şey, yedek CPU kesitidir. Bir yedek de bir kez `gpu-selection-fallback` tanısını yayar; host onu olduğu gibi kopyalar, ve GPU seçimi olmayan bir motorda bulunmaz.",
       "cpuSelectNodesTested": "Bu karenin kesitinin bir test yaptığı hiyerarşi düğümleri — frustum ya da ayrıntı seviyesi kararı. Zaten karar verilmiş ve tamamen görünür bir düğüm hiçbirini almaz: test edilmez, dolaşılır. Bu, hiyerarşik bir kesitin gerçek işinin ölçüsüdür; düz bir kesit bunlardan sıfırını test eder ve her cluster'ı dolaşır. Kesitini CPU'da seçmeyen, ya da onu saymayan bir motorda null.",
@@ -1396,7 +1452,8 @@
       "toneMapping": "Sahnenin seçtiği ekran eğrisi; yoksa ACES.",
       "framebuffer": "Nereye çizileceği; ekran için `null`.",
       "width": "Piksel cinsinden genişlik.",
-      "height": "Piksel cinsinden yükseklik."
+      "height": "Piksel cinsinden yükseklik.",
+      "linear": "Doğrusal ışıma; eğriden geçirilmemiş, kodlanmamış, saydam siyah üzerinde: alfası kaplama olan efekt zincirinin girdisi."
     }
   },
   "HostMaterial": {
@@ -3972,6 +4029,9 @@
     "summary": "Zamansal kenar yumuşatma: kareler boyunca biriktirilen piksel altı kaydırma; varsayılan olarak açık.",
     "description": "Yazıldığında bir sonraki karede etkili olur, geçmiş atılır, oturum yeniden açılmaz. Okunduğunda görüntünün taşıdığıdır: WebGL2'de ve açıldıktan sonra program derlenirken false."
   },
+  "world.effects": {
+    "summary": "Efekt zinciri: görüntünün üzerine çizilen geçişler (`effect`)."
+  },
   "world.budget": {
     "summary": "Dünyanın bellek havuzları, bayt cinsinden okunur ve ayarlanır.",
     "members": {
@@ -3982,8 +4042,9 @@
       "physics": "Fiziğin sınırları (cisimler, üçgenler, dekoratif cisimler, bellek), başlangıçta bir kez okunur; birini aşmak `PHYSICS_BUDGET` fırlatır.",
       "raycastTrees": "`raycast`'in üçgen ağaçları için tuttuğu CPU belleği baytı, sayfadaki tüm dünyalar tarafından paylaşılır; aşıldığında en uzun süredir kullanılmayan ağaç bırakılır. Sınırı değiştirmek için ayarlayın.",
       "gpu": "Dünyanın tutabileceği GPU belleği baytı, tüm havuzlar birlikte; her havuzu paylaşım kuralıyla (`split`) yeniden çizmek için ayarlayın. Gölge havuzunun altındaki bir toplam reddedilir (`GPU_BUDGET_UNDER_SHADOW_POOL`). Asla makineden okunmaz.",
+      "canvas": "Dünyanın bildirdiği en büyük tuval, çizim arabelleğinin pikselleriyle: efekt zincirinin hedefleri onun boyutunda ayrılır (`split.effectTargets`); varsayılan 3840 × 2160'dır ve varsayılan `gpu` yalnızca bu rezerv kadar büyür. Her havuzu kurala göre yeniden dağıtmak için ayarlayın. Daha büyük çizilen bir tuval yine de bütünüyle çizilir: tanılama, rezervi aşan baytlarla `effect targets over budget` der.",
       "cpu": "Dünyanın tutabileceği CPU belleği baytı: önce gölge sayfa tablosunun ana makine yansısı, sonra çözülmüş sayfalar, manifest tabloları, aktarım kuyruğu ve motorun kesim tabloları birlikte. Bir değişiklik hemen uygulanır: sayfalar sığana kadar son kullanıma göre çıkar. Yansıyı aşmayan bir toplam reddedilir (`CPU_BUDGET_UNDER_SHADOW_MIRROR`). Asla makineden okunmaz.",
-      "split": "İki toplamın nasıl paylaşıldığı: gölge havuzu ve sekme sondaları en büyük hâlinde, sonra geometri ve doku havuzlarına yarı yarıya, tavanlarıyla sınırlı; gölge tablosunun ana makine yansısı, sonra çözülmüş sayfa önbelleği CPU toplamının kalanını, tamamen alır; açık oturum manifest tablolarını, aktarım kuyruğunu ve motorun kesim tablolarını bu payın içinden ayırır. Bir havuz tek başına ayarlanmadan önce kuralın verdiği."
+      "split": "İki toplamın nasıl paylaşıldığı: gölge havuzu ve sekme sondaları en büyük hâlinde, efekt zincirinin hedefleri bildirilen `canvas` üzerinde, sonra geometri ve doku havuzlarına yarı yarıya, tavanlarıyla sınırlı; gölge tablosunun ana makine yansısı, sonra çözülmüş sayfa önbelleği CPU toplamının kalanını, tamamen alır; açık oturum manifest tablolarını, aktarım kuyruğunu ve motorun kesim tablolarını bu payın içinden ayırır. Bir havuz tek başına ayarlanmadan önce kuralın verdiği."
     }
   },
   "world.diagnostic": {
@@ -4081,7 +4142,7 @@
       "gpuFrameMs": "`gpuPassMs.frame`'in betimlediği görselin GPU süresi. Asla bir `cpu*` alanına eklenmez. Cihaz birkaç görselde bir örneklenir, bu yüzden bir sayı birkaç görsel öncesine ait olabilir. İlk örnekten önce, tutulan bir görselden cihazın bir sonraki örneğine kadar, `timestamp-query` olmayan bir cihazda ve WebGL2’de null’dır.",
       "gpuHostGapMs": "Aynı görselin kendi iki gönderimi arasında geçirdiği CPU süresi, ve bir kez gönderdiğinde sıfır. Bu, GPU süresi değil host süresidir, bu yüzden `gpuFrameMs` onu hariç tutar. Ölçülmediğinde null.",
       "uncoveredTriangles": "Yayımlanan kesitin adlandırdığı ama karenin çizemediği cluster'ların üçgenleri — yerleşik sayfa yok ve kapsayan ata yok. Görseldeki gerçek bir boşluk: sıfır tek sağlıklı değerdir. Bir backend söyleyemediğinde null (seçtiği kesiti çizer, bu yüzden asla bir tanesi olmaz).",
-      "drawnTriangles": "MEVCUT KARE'nin çizime verdiği üçgenler: hiyerarşinin opak ve şeffaf birleşik cluster kesiti, eksi `uncoveredTriangles`'ın saydığı, yerleşik sayfası olmayan cluster'lar. Hiyerarşi dışındaki şeffaf meshler bunun içinde değildir (`transparentSubmittedTriangles`), ve gizlenme reddi çıkarılmaz (`hizRejectedTriangles`). `uncoveredTriangles` ile aynı geçişte, kesit kabulünde sayılır: hiçbir asenkron GPU geri okuması beklenmez, bu yüzden `submittedTriangles`'ın aksine, zaman yokluğundan dolayı asla `null` değildir. Bu örnekte beklenen kapsama ilişkisi: `selected − drawn − uncovered = 0`.",
+      "drawnTriangles": "MEVCUT KARE'nin çizime verdiği üçgenler: hiyerarşinin opak ve şeffaf birleşik cluster kesiti. Hiyerarşi dışındaki şeffaf meshler bunun içinde değildir (`transparentSubmittedTriangles`), ve gizlenme reddi çıkarılmaz (`hizRejectedTriangles`). Kesit kabulünde sayılır: hiçbir asenkron GPU geri okuması beklenmez, bu yüzden `submittedTriangles`'ın aksine, zaman yokluğundan dolayı asla `null` değildir.",
       "cpuSelectMs": "Sadece seçim etrafında ölçülen, bu karenin cluster kesitinin CPU süresi. Kesitini CPU'da seçmeyen bir motorda null.",
       "gpuSelectionFallback": "Motorun bir GPU seçimi olduğunda ve ondan vazgeçtiğinde doğru: o zamandan beri ölçülen şey, yedek CPU kesitidir. Bir yedek de bir kez `gpu-selection-fallback` tanısını yayar; host onu olduğu gibi kopyalar, ve GPU seçimi olmayan bir motorda bulunmaz.",
       "cpuSelectNodesTested": "Bu karenin kesitinin bir test yaptığı hiyerarşi düğümleri — frustum ya da ayrıntı seviyesi kararı. Zaten karar verilmiş ve tamamen görünür bir düğüm hiçbirini almaz: test edilmez, dolaşılır. Bu, hiyerarşik bir kesitin gerçek işinin ölçüsüdür; düz bir kesit bunlardan sıfırını test eder ve her cluster'ı dolaşır. Kesitini CPU'da seçmeyen, ya da onu saymayan bir motorda null.",
@@ -4443,7 +4504,7 @@
     "description": "`memory(world)`, dünyanın şu anda tuttuğu şeydir (`world.budget`); iki havuz, bir dünyanın aldığı ayarı oluşturur."
   },
   "budget.memory": {
-    "summary": "Bir dünyanın şu anda tuttuğu bellek bütçeleri: GPU ve CPU toplamları, kurala göre paylaşımları, iki havuz ve her birinin en büyüğü."
+    "summary": "Bir dünyanın şu anda tuttuğu bellek bütçeleri: GPU ve CPU toplamları, kurala göre paylaşımları, iki havuz ve her birinin en büyüğü, ve efekt hedeflerinin ayrıldığı tuval."
   },
   "budget.geometryPool": {
     "summary": "Bir dünyaya vermeye hazır, `bytes`'lık bir geometri havuzu ayarı.",
@@ -4867,6 +4928,17 @@
   },
   "edge": {
     "summary": "2D kenar fonksiyonu (2D çapraz çarpım)."
+  },
+  "effect": {
+    "summary": "`effect` ailesi: `world.effects`’in görüntünün üzerine çizdiği geçişler."
+  },
+  "effect.bloom": {
+    "summary": "Parlak olanın çevresinde bir parıltı, ton eşlemeden önce doğrusal görüntü üzerinde.",
+    "parameters": {
+      "options": "`intensity` ve `radius`; verilmezse yayımlanmış değerler.",
+      "options.intensity": "Görüntünün parıltısıyla değiştirilen payı, 0 (hiç) ile 1 (yalnızca parıltı) arası.",
+      "options.radius": "Parıltının her düzeydeki yayılımı, o düzeyin tekselleri cinsinden; 1 yayımlanmış filtredir."
+    }
   },
   "emptyIrradiance": {
     "summary": "İçinde hiçbir şey olmayan, kaynak almaya hazır bir ışınım."
@@ -6909,7 +6981,8 @@
       "recipe": "Aile üyesi ve şekli yaparken kullandığı her argüman.",
       "attributes": "Hiçbir çağrı şekli yeniden yapmadığında, köşe başına her liste.",
       "index": "Her üçgeni hangi köşelerin oluşturduğu.",
-      "groups": "Her biri tek bir malzemeyle çizilen indeks aralıkları."
+      "groups": "Her biri tek bir malzemeyle çizilen indeks aralıkları.",
+      "owner": "Yüklenmiş bir sahnenin köşeleri için `'host'`, değerleriyle okunur (`Geometry._owner`); dünyanınkiler için ayarlanmaz."
     }
   },
   "SavedMaterial": {
@@ -7051,8 +7124,8 @@
     "summary": "Bir temasın dinleyicilerine verdiği: diğer nesne, itme ve dokunduğu yer.",
     "members": {
       "other": "Dokunulan nesne; sahneden çıkınca `null`.",
-      "impulse": "N·s: normal boyunca yaklaşma hızı çarpı çiftin indirgenmiş kütlesi, çözücüden önce tahmin edilir; `leave` üzerinde 0.",
-      "point": "Temas noktası, dünya çerçevesinde; `leave` üzerinde başlangıç noktası."
+      "impulse": "N·s: normal boyunca yaklaşma hızı çarpı çiftin indirgenmiş kütlesi, çözücüden önce tahmin edilir (yumuşak cisim tarafında: ortalama hızı ve dokunan köşelerinin kütlesi); `leave` üzerinde ve yumuşak cisim ile sensör arasında 0.",
+      "point": "Temas noktası, dünya çerçevesinde (yumuşak cisimde: dokunan köşelerinin ortalaması, sensör karşısında merkezi); `leave` üzerinde başlangıç noktası."
     }
   },
   "ContactEventName": {

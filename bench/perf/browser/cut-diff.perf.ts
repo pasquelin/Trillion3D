@@ -124,7 +124,7 @@ const rankingReference: RankingLike = createReferenceRanking({
   bootstrapKey,
   keyOf,
 });
-const ranking: RankingLike = createBudgetRanking({ keyCount: PAGES, bootstrapKey, keyOf });
+const ranking: RankingLike = createBudgetRanking({ bootstrapKey, keyOf });
 const cutReference: PageRec[] = [];
 const deltaReferenceRang = createCutDelta(pages, cutReference),
   deltaRang = createCutDelta(pages);
