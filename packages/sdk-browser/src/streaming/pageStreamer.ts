@@ -13,10 +13,7 @@ export const createPageStreamer = (
   base: string,
   options?: PageStreamerOptions,
 ) => createPageStreamerWith(pages, base, options);
-/** `createPageStreamer` reading through `options.cache`, the decoded-page cache a world keeps
- *  across sessions: off its CPU total, the streamer reserves its manifest tables, its transfer
- *  queue and the engine's tables (`reserve`), and leaves the pages to the next session. Without
- *  it, the streamer's own cache of `maxCachedBytes` is emptied at dispose. */
+/** `createPageStreamer` reading through `options.cache`, a world's kept cache (`pageCache.ts`). */
 export function createPageStreamerWith(
   pages: readonly StreamPage[],
   base: string,
