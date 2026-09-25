@@ -157,9 +157,8 @@ export class WebglClusterRenderer {
     gl.uniformMatrix4fv(this.at('projectionMatrix'), false, camera.projection);
     gl.uniform1i(this.at('toneCurve'), this.toneCurve);
     gl.uniform1i(this.at('lightCount'), this.lights.upload(scene, camera.view));
-    // The host's texture units are unknown at frame start, the backdrop pass touches only its own;
-    // each record is brought up to its host texture at its first binding of the image, its chain
-    // to the rule of every surface the scene holds, `hidden` ones included.
+    // Units unknown at frame start (the backdrop pass touches only its own); a record follows its
+    // host at its first binding, its chain every surface the scene holds, `hidden` included (#42).
     this.textures.beginFrame([meshes, diagnosticMeshes, copies, hidden]);
     this.instanced = undefined;
     this.pass.beginFrame(camera, gl.getParameter(gl.VIEWPORT) as Int32Array);

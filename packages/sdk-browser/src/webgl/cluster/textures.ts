@@ -4,7 +4,7 @@ import { grantedAnisotropy } from '../../../../sdk-core/src/texture/contract.ts'
 import { followHostTexture } from '../../host/textureImport.ts';
 import { pictureSize } from '../../texture/pictureSize.ts';
 import type { HostMaterials } from '../../host/resources.ts';
-import { meshSurface } from '../../page/surface.ts';
+import { surfaceOf } from '../../page/surface.ts';
 import { CoverageReaders } from '../../texture/coverage.ts';
 import { WebglMipReducer } from './mips.ts';
 
@@ -39,6 +39,8 @@ const filter = (gl: WebGL2RenderingContext, value: TextureFilter) =>
     'linear-mip-linear': gl.LINEAR_MIPMAP_LINEAR,
   })[value];
 
+const WHITE: readonly number[] = [255, 255, 255, 255];
+
 export class WebglClusterTextures {
   private records = new Map<string, TextureRecord>();
   private fallbacks = new Map<string, WebGLTexture>();
@@ -48,8 +50,9 @@ export class WebglClusterTextures {
   private maxAnisotropy = 1;
   private gl: WebGL2RenderingContext;
   private mips: WebglMipReducer;
-  /** The frame's readers of each colour map: whether its chain weighs by alpha (#42). */
+  /** The frame's readers of each colour map, and the declarations they were read from (#42). */
   private readers = new CoverageReaders();
+  private declarations = new Set<HostMaterials>();
   constructor(gl: WebGL2RenderingContext) {
     this.gl = gl;
     this.mips = new WebglMipReducer(gl);
@@ -59,16 +62,10 @@ export class WebglClusterTextures {
         this.anisotropy.MAX_TEXTURE_MAX_ANISOTROPY_EXT,
       ) as number;
   }
-  /** Binds `texture` on `unit`, decoded from sRGB when `color`; `reader`: a colour map (base or
-   *  emissive), whose chain follows its readers' coverage rule (#42) — held apart from a data
-   *  binding of the same texture, as the WebGPU colour and data atlases hold it. */
-  bind(
-    unit: number,
-    texture?: Texture,
-    color = false,
-    fallback = [255, 255, 255, 255],
-    reader = color,
-  ) {
+  /** Binds `texture` on `unit`, decoded from sRGB when `color`. `reader`: a colour map (base or
+   *  emissive), its chain by its readers' coverage rule (#42) and apart from a data binding of the
+   *  same texture, as the WebGPU atlases hold it: the role decides, never the sRGB tag. */
+  bind(unit: number, texture?: Texture, color = false, fallback = WHITE, reader = false) {
     const gl = this.gl;
     if (!texture) {
       const key = fallback.join(',');
@@ -78,17 +75,8 @@ export class WebglClusterTextures {
         this.fallbacks.set(key, target);
         gl.activeTexture(gl.TEXTURE0 + unit);
         gl.bindTexture(gl.TEXTURE_2D, target);
-        gl.texImage2D(
-          gl.TEXTURE_2D,
-          0,
-          gl.RGBA8,
-          1,
-          1,
-          0,
-          gl.RGBA,
-          gl.UNSIGNED_BYTE,
-          new Uint8Array(fallback),
-        );
+        const texel = new Uint8Array(fallback);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, texel);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
       } else if (this.bound[unit] !== target) {
@@ -154,19 +142,10 @@ export class WebglClusterTextures {
     if (inPlace && rgba)
       gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, rgba.data);
     else if (inPlace) gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, gl.RGBA, gl.UNSIGNED_BYTE, image!);
-    else if (rgba)
-      gl.texImage2D(
-        gl.TEXTURE_2D,
-        0,
-        format,
-        width,
-        height,
-        0,
-        gl.RGBA,
-        gl.UNSIGNED_BYTE,
-        rgba.data,
-      );
-    else gl.texImage2D(gl.TEXTURE_2D, 0, format, gl.RGBA, gl.UNSIGNED_BYTE, image!);
+    else if (rgba) {
+      const { data } = rgba;
+      gl.texImage2D(gl.TEXTURE_2D, 0, format, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, data);
+    } else gl.texImage2D(gl.TEXTURE_2D, 0, format, gl.RGBA, gl.UNSIGNED_BYTE, image!);
     const record: TextureRecord = {
       texture: target,
       version: texture.version,
@@ -199,17 +178,23 @@ export class WebglClusterTextures {
   }
   /** A new frame: the host's texture units are unknown, and the readers of the colour maps are
    *  the surfaces of every mesh the scene holds, drawn or hidden, in the frustum or not — as the
-   *  WebGPU census, the rule never follows the camera nor visibility. */
+   *  WebGPU census, the rule never follows the camera nor visibility —, each declaration read once. */
   beginFrame(meshes: readonly (readonly { material: HostMaterials }[])[]) {
     this.bound.length = 0;
     this.readers.clear();
-    for (const list of meshes) for (const mesh of list) this.readers.read(meshSurface(mesh));
+    this.declarations.clear();
+    for (const list of meshes)
+      for (const { material } of list)
+        if (!this.declarations.has(material) && this.declarations.add(material))
+          this.readers.read(surfaceOf(material));
   }
   dispose() {
     for (const record of this.records.values()) this.gl.deleteTexture(record.texture);
     for (const texture of this.fallbacks.values()) this.gl.deleteTexture(texture);
     this.records.clear();
     this.fallbacks.clear();
+    this.declarations.clear();
+    this.readers.clear();
     this.mips.dispose();
   }
 }
