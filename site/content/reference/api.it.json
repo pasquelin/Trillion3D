@@ -6900,7 +6900,8 @@
       "recipe": "Il membro della famiglia e ogni argomento con cui è stata costruita.",
       "attributes": "Ogni lista per vertice, quando nessuna chiamata ricostruisce la forma.",
       "index": "Quali vertici formano ogni triangolo.",
-      "groups": "Intervalli di indici disegnati ciascuno con un materiale."
+      "groups": "Intervalli di indici disegnati ciascuno con un materiale.",
+      "owner": "`'host'` per i vertici di una scena caricata, letti al loro valore (`Geometry._owner`); assente per quelli del mondo."
     }
   },
   "SavedMaterial": {
