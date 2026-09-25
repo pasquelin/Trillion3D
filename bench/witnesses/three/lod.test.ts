@@ -41,7 +41,7 @@ test('THREE.LOD keeps one exact level for source-ordered transparent pages', () 
   geometry.setIndex(G.indices([0, 1, 2]));
   const material = G.basicSurface({ transparent: true }),
     mesh = G.mesh(geometry, material),
-    source = new G.GraphGroup();
+    source = new G.Group();
   source.add(mesh);
   const primitive = dagLevel([], [], 1, [quadCluster(0)]);
   const backend = threeLodBackend({

@@ -1,5 +1,4 @@
 import type { HostMesh } from '../../../host/resources.ts';
-import type { HostGraphNode } from '../../../host/scene/graphNodes.ts';
 import {
   BOX_VALUES,
   EngineError,
@@ -18,6 +17,7 @@ import { copyElements, sameElements } from '../../../math/matrixElements.ts';
 import { moveRootRows } from './movedRoot.ts';
 import { transformRootBoxes } from '../../../math/batchBoxes.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
+import type { Object3D } from '../../../../../sdk-core/src/world/object/object3d.ts';
 
 const local = new Float64Array(16),
   current = new Float64Array(16),
@@ -39,8 +39,8 @@ function standsAt(world: Float64Array, matrix: Float32Array) {
 }
 
 /** The named node of the prepared scene, or `undefined`: the search is a walk, not an index. */
-function findNode(source: HostGraphNode, nodeName: string) {
-  let found: HostGraphNode | undefined;
+function findNode(source: Object3D, nodeName: string) {
+  let found: Object3D | undefined;
   source.traverse((node) => {
     if (!found && node.name === nodeName) found = node;
   });
@@ -167,8 +167,8 @@ export function setWebgpuTransform(rt: WebgpuPagesRuntime, nodeName: string, mat
 }
 
 /** True when `mesh` is the moved node or one of its descendants. */
-function isUnder(mesh: HostMesh | undefined, node: HostGraphNode) {
-  let walk: HostGraphNode | null | undefined = mesh;
+function isUnder(mesh: HostMesh | undefined, node: Object3D) {
+  let walk: Object3D | null | undefined = mesh;
   while (walk) {
     if (walk === node) return true;
     walk = walk.parent;

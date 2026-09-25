@@ -89,7 +89,7 @@ test('cpuSelectMs measures selection time, finite and non-negative', () => {
   geometry.setIndex(G.indices([0, 1, 2, 0, 2, 3]));
   const material = G.basicSurface(),
     mesh = G.mesh(geometry, material),
-    source = new G.GraphGroup();
+    source = new G.Group();
   source.add(mesh);
   const cluster = (id: number, start: number) => ({
     id,

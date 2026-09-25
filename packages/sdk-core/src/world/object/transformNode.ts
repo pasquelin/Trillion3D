@@ -6,7 +6,10 @@ import {
   NODE_WORLD_NEEDS_UPDATE,
 } from '../../math/transform-tree/transformTree.ts';
 import { updateNodeMatrixWorld, updateNodeWorldMatrix } from '../../math/transform-tree/update.ts';
+import * as read from '../../math/transform-tree/read.ts';
 import { Matrix4 } from '../math/matrix4.ts';
+import { Quaternion } from '../math/quaternion.ts';
+import { Vector3 } from '../math/vector3.ts';
 
 // `matrix` and `matrixWorld` are views of the node's slot of the transform tree, whose flags answer
 // `matrixAutoUpdate` and `matrixWorldNeedsUpdate`; `updateMatrixWorld(force)` is the reference's
@@ -16,6 +19,9 @@ import { Matrix4 } from '../math/matrix4.ts';
 // A matrix handed out keeps its node alive (`owners`): its elements are the node's slot, which a
 // collected node gives to another. Its bare `elements`, kept alone, carry no such guarantee.
 const owners = new WeakMap<Matrix4, TransformNode>();
+/** Scratch values of the world reads below: none of them allocates. */
+const inverse = new Matrix4(),
+  at = new Float64Array(4);
 
 /** A scene node read through the reference's matrices, kept in the engine's transform tree. */
 export class TransformNode extends SceneNode {
@@ -66,5 +72,19 @@ export class TransformNode extends SceneNode {
   updateMatrixWorld(force = false) {
     this.assertAlive();
     updateNodeMatrixWorld(this.state.tree, this.index, force);
+  }
+  /** Where the node stands in the world. */ getWorldPosition(out = new Vector3()) {
+    return out.fromArray(read.nodeWorldPosition(at, this.state.tree, this.index));
+  }
+  /** How the node is turned in the world. */ getWorldQuaternion(out = new Quaternion()) {
+    return out.fromArray(read.nodeWorldQuaternion(at, this.state.tree, this.index));
+  }
+  /** A point of the node's frame, in the world. */ localToWorld(v: Vector3) {
+    this.updateWorldMatrix(true, false);
+    return v.applyMatrix4(this.matrixWorld);
+  }
+  /** A point of the world, in the node's frame. */ worldToLocal(v: Vector3) {
+    this.updateWorldMatrix(true, false);
+    return v.applyMatrix4(inverse.copy(this.matrixWorld).invert());
   }
 }
