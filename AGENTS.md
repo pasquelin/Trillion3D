@@ -18,13 +18,14 @@ disagreement is reported to the maintainer.
    the shared checkout, never touch another session's worktree. Every worktree lives in
    `.worktrees/<branch>/` inside the project, every log or throwaway file in `.worktrees/logs/`;
    nothing is written beside the project or in the system's temporary folders.
-5. **Only the CTO opens issues**, from the boss's words, with the writer role, and no faster
-   than they close: over any seven days, opened stays below closed. A new need joins an open
-   issue first (a To-do item or a comment); a new issue only when none fits. No
-   other agent opens one, not even to split an issue. What a pull request does not deliver
-   stays in its own issue: the PR says `Part of #n`, the rest is a comment on #n, the issue stays
-   open. A regression reopens the measured issue with `measure ko`; a finding reopens the audited
-   issue with `audit ko`. A defect found on the way is one line in your report to the CTO.
+5. **Only the CTO opens issues**, with the writer role, and only when the boss asks for one or in
+   an extreme case (a 🔴 critical defect no open issue covers). Existing issues come first: a new
+   need joins an open issue (a To-do item or a comment), and over any seven days opened stays
+   below closed. No other agent opens one, not even to split an issue. What a pull request does
+   not deliver stays in its own issue: the PR says `Part of #n`, the rest is a comment on #n, the
+   issue stays open. A regression reopens the measured issue with `measure ko`; a finding reopens
+   the audited issue with `audit ko`. A defect found on the way is one line in your report to the
+   CTO.
 6. **Search before writing.** Reuse what exists; a second BVH, a second distance or a control
    rebuilt by hand next to the engine's API is a defect. Examples and previews use the public API.
 7. **The witness library stays a witness**: named only in bench, measurement and migration

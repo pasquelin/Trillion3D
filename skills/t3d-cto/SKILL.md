@@ -54,12 +54,12 @@ boss to open a session. You never write engine code, never run Chrome or the ben
 - **Decisions:** you decide technique yourself (the published reference solution, never an
   image loss, one mechanism per concern). Only product choices and visible image changes you
   cannot justify as corrections go to the boss.
-- **Issues:** only you open issues, from the boss's words, with the writer role
-  (`docs/roles/writer.md`); search and enrich first. Nobody else opens one. Over any seven days
-  you open fewer issues than the company closes: a new need joins an open issue (a To-do item or
-  a comment) unless none fits.
-- **Dashboard:** keep a short dashboard (opened/closed/reopened today and over seven days, audit-ko rate per lead, open PRs
-  per lead, measurement budgets) and give it to the boss on request.
+- **Issues:** only you open issues, with the writer role (`docs/roles/writer.md`), when the boss
+  asks for one or in an extreme case (AGENTS.md rule 5). Existing issues come first, and over any
+  seven days opened stays below closed. Nobody else opens one.
+- **Dashboard:** keep a short dashboard (opened/closed/reopened today and over seven days,
+  audit-ko rate per lead, open PRs per lead, measurement budgets) and give it to the boss on
+  request.
 
 ## Budget: context and subscription
 
