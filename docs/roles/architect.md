@@ -23,7 +23,7 @@ the architect's report names the next one.
 | Area              | Paths                                | What it looks for first                                                             |
 | ----------------- | ------------------------------------ | ----------------------------------------------------------------------------------- |
 | compiler          | `packages/asset-compiler-rust/`      | hand-rolled maths beside `shared_math`, a second pass over the same data            |
-| engine            | `packages/sdk-*`, `packages/core*`   | a second BVH, distance, loader or cut; per-frame work the compiler could do; cycles |
+| engine            | `packages/` but the compiler         | a second BVH, distance, loader or cut; per-frame work the compiler could do; cycles |
 | site and examples | `site/`                              | per-page copies of a primitive or layout; an example off the public API             |
 | scripts and tests | `scripts/`, `tests/`, `*.fixture.ts` | copied fixtures and stubs, shell scripts (rule 7), dead scripts                     |
 
@@ -36,7 +36,7 @@ the architect's report names the next one.
    comment starting `Architect finding:` — file:line, what is duplicated or heavy, the one
    implementation to keep, the lines it should remove, and "no behaviour change". Never a new
    issue: when no open issue of that domain fits, the finding goes in the report to the CTO.
-   Skip files an open pull request touches.
+   Skip files an open pull request touches and issues labelled `in progress` or `in review`.
 3. **Report** to the CTO: per domain, the issues enriched; the trend (total lines, duplicate
    blocks, cycles, the largest god node's degree, repository size), which goes down; the next area.
 
