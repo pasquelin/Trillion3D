@@ -12,15 +12,31 @@ import type { HostAttribute, HostAttributes, HostMaterials } from './resources.t
 import type { HostMap, HostShadedMaterial } from './shadedMaterial.ts';
 import { metalRough } from '../scene/surfaceModel.ts';
 import { blendingOf, blendingRefusal } from '../scene/materialBlending.ts';
-import { HOST_MAPPING_UV, HOST_NORMAL_MAP_TANGENT_SPACE } from './surfaceConstants.ts';
+import {
+  HOST_FORMAT_RGBA,
+  HOST_MAPPING_UV,
+  HOST_NORMAL_MAP_TANGENT_SPACE,
+} from './surfaceConstants.ts';
 import { declaresCompileHook } from './materialHook.ts';
 import { physicalExtensionReason } from '../scene/physicalMaterialGate.ts';
 import { isTransmissive } from '../visibility/shader/material.ts';
 
+/** Raw texels the WebGL2 upload reads as they are stored, one byte per channel of four — the
+ *  reading the WebGPU path shares (`textureRgba`); any other storage is named, never drawn blank. */
+const texelsReason = ({ format, image }: NonNullable<HostMap>) => {
+  if (format !== HOST_FORMAT_RGBA) return `texel format ${format} is unsupported: RGBA only`;
+  const { data, width, height } = image as { data?: unknown; width: number; height: number };
+  if (!(data instanceof Uint8Array || data instanceof Uint8ClampedArray))
+    return 'texel storage is unsupported: 8-bit texels only';
+  if (data.length !== width * height * 4)
+    return `texel storage holds ${data.length} bytes, not ${width}×${height} RGBA`;
+};
+
 const textureReason = (texture: HostMap) => {
   if (!texture) return;
-  if (texture.kind === 'texels') return 'non-image texture storage is unsupported';
   if (!texture.image) return 'texture image is unavailable';
+  const texels = texture.kind === 'texels' ? texelsReason(texture) : undefined;
+  if (texels) return texels;
   if (texture.channel !== 0 && texture.channel !== 1)
     return `texture channel ${texture.channel} is unsupported`;
   if (texture.mapping !== HOST_MAPPING_UV) return 'non-UV texture mapping is unsupported';

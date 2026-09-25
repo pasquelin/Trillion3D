@@ -102,10 +102,10 @@ export function hostTexture(texture: Texture, colour: boolean, built: HostTextur
   if (!host) {
     host = new GraphTexture(texture.image);
     if (texture.layout === 'data') {
-      // Raw texels: read as they are stored, one level, as the reference reads them.
+      // Raw texels: read as they are stored, with the chain their filter reads, as every map's
+      // on WebGPU — without one, a mip filter reads an incomplete texture on WebGL2 (#443).
       host.kind = 'texels';
       host.format = FORMAT[texture.format] ?? HOST_FORMAT_RGBA;
-      host.generateMipmaps = false;
     }
     host.name = texture.name;
     built.set(key, host);
