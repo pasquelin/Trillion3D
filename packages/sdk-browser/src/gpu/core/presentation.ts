@@ -2,7 +2,7 @@ import { sharedGpuDevice } from './sessionHandle.ts';
 import { FULLSCREEN_VERTEX } from '../../lighting/deferred/deferred.ts';
 import { createCanvasBlit } from '../../webgl/core/canvasBlit.ts';
 
-const PRESENT_SHADER = `@group(0) @binding(0) var image:texture_2d<f32>;
+export const PRESENT_SHADER = `@group(0) @binding(0) var image:texture_2d<f32>;
 ${FULLSCREEN_VERTEX}
 @fragment fn present(@builtin(position) pixel:vec4f)->@location(0) vec4f{return textureLoad(image,vec2i(pixel.xy),0);}`;
 /** Source is already display encoded. No second tone map or color conversion. */

@@ -138,7 +138,7 @@ export async function writeObservatory(directory: string) {
     });
     return gltf.accessors.length - 1;
   }
-  for (const [material, mesh] of createObservatory()) {
+  for (const [material, mesh] of createObservatory().surfaces) {
     gltf.meshes[0].primitives.push({
       material,
       attributes: { POSITION: attribute(mesh.positions, 3), NORMAL: attribute(mesh.normals, 3) },

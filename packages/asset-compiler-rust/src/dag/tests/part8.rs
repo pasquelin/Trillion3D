@@ -5,6 +5,7 @@ use super::*;
 use crate::geometry_page::{Attribute, FLAG_NORMAL};
 
 /// A mesh with one normal per vertex.
+#[derive(Default)]
 pub(super) struct Shaded {
     pub positions: Vec<f32>,
     pub normals: Vec<f32>,
@@ -60,7 +61,7 @@ impl Shaded {
 impl Shaded {
     /// A `side` by `side` slab `thickness` thick at `at` on the floor, flat shaded: each of its
     /// six faces owns its vertices and its normal, `n` quads along a long edge.
-    fn slab(&mut self, at: [f32; 2], (side, thickness): (f32, f32), n: usize) {
+    pub(super) fn slab(&mut self, at: [f32; 2], (side, thickness): (f32, f32), n: usize) {
         let (l, h) = (side, thickness);
         let o = |x: f32, y: f32, z: f32| [at[0] + x, at[1] + y, z];
         self.face(o(0., 0., h), [l, 0., 0.], [0., l, 0.], (n, n));

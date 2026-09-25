@@ -9,12 +9,13 @@ export const FULLSCREEN_DISABLED = [
   'CULL_FACE',
   'SCISSOR_TEST',
   'DITHER',
+  'STENCIL_TEST',
 ] as const;
 
 /**
- * The raster state of a copy pass: depth, blending, culling, scissor and dithering off, every
- * channel written. A full-screen pass owes nothing to the state the previous draw left behind,
- * and dithering would alter bytes a copy must carry unchanged.
+ * The raster state of a copy pass: depth, blending, culling, scissor, dithering and stencil off,
+ * every channel written. A full-screen pass owes nothing to the state the previous draw left
+ * behind, and dithering would alter bytes a copy must carry unchanged.
  */
 export function setFullscreenPassState(gl: WebGL2RenderingContext) {
   for (const name of FULLSCREEN_DISABLED) gl.disable(gl[name]);

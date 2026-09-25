@@ -11,6 +11,7 @@ pub(in crate::tests) mod indices_runtime;
 pub(in crate::tests) mod inputs;
 pub(in crate::tests) mod job_measures;
 pub(in crate::tests) mod progress;
+pub(in crate::tests) mod root_cover;
 pub(in crate::tests) mod silhouette;
 pub(in crate::tests) mod simplification_none;
 pub(in crate::tests) mod sources_materials;

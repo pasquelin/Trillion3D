@@ -10,7 +10,7 @@ import { DRAW_ITEM_WGSL, WORKGROUP } from './contract.ts';
  * A stale entry is never trusted: the row it names must still carry that page, or the reader
  * drops it.
  */
-const ROW_MAP_SHADER = `${DRAW_ITEM_WGSL}
+export const ROW_MAP_SHADER = `${DRAW_ITEM_WGSL}
 struct Range{first:u32,last:u32,pad0:u32,pad1:u32,}
 @group(0) @binding(0) var<storage, read> items:array<DrawItem>;
 @group(0) @binding(1) var<uniform> range:Range;

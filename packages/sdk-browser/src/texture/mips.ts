@@ -2,7 +2,8 @@ import { sharedGpuDevice } from '../gpu/core/sessionHandle.ts';
 import { mipLevelCountFor } from './tiles.ts';
 
 /**
- * Layout and reduction program, built ONCE per device, per format and per colour rule.
+ * Layout and reduction program, built ONCE per device; its pipeline once per format and per
+ * colour rule.
  *
  * The mip chain is generated at every working texture: recompiling the same program and the same
  * layout at each made one pay a pipeline compilation per texture, on the very path that must
@@ -10,8 +11,14 @@ import { mipLevelCountFor } from './tiles.ts';
  * pipelines with it; it is built on the device itself (`sharedGpuDevice`), never on a session's
  * handle: it serves every session, and names none.
  */
-type MipPipeline = { layout: GPUBindGroupLayout; pipeline: GPURenderPipeline };
-const pipelines = new WeakMap<GPUDevice, Map<string, MipPipeline>>();
+type MipProgram = {
+  layout: GPUBindGroupLayout;
+  pipelineLayout: GPUPipelineLayout;
+  module: GPUShaderModule;
+  /** Per colour rule — plain at 0, weighted at 1 — the pipeline of each format. */
+  pipelines: [Map<GPUTextureFormat, GPURenderPipeline>, Map<GPUTextureFormat, GPURenderPipeline>];
+};
+const programs = new WeakMap<GPUDevice, MipProgram>();
 
 /**
  * Colours are averaged, alpha is the MEDIAN of the four texels — never their mean.
@@ -36,7 +43,7 @@ const pipelines = new WeakMap<GPUDevice, Map<string, MipPipeline>>();
  * compiler bakes, and its reasons (`packages/asset-compiler-rust/src/texture_preview/reduce.rs`,
  * `halve`, #42).
  */
-const MIP_SHADER = `
+export const MIP_SHADER = `
  @group(0) @binding(0) var source:texture_2d<f32>;
  @group(0) @binding(1) var<uniform> extent:vec4u;
  override weighted:bool;
@@ -55,11 +62,8 @@ const MIP_SHADER = `
   return vec4f(select(mean.rgb,byAlpha,weighted&&any(a!=vec4f(s0.w))),(u+v)*0.5);
  }`;
 
-function mipPipeline(device: GPUDevice, format: GPUTextureFormat, weighted: boolean) {
-  let byRule = pipelines.get(device);
-  if (!byRule) pipelines.set(device, (byRule = new Map()));
-  const key = `${format}/${Number(weighted)}`;
-  const held = byRule.get(key);
+function mipProgram(device: GPUDevice): MipProgram {
+  const held = programs.get(device);
   if (held) return held;
   const layout = device.createBindGroupLayout({
     entries: [
@@ -67,23 +71,35 @@ function mipPipeline(device: GPUDevice, format: GPUTextureFormat, weighted: bool
       { binding: 1, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'uniform' } },
     ],
   });
-  const module = device.createShaderModule({ code: MIP_SHADER });
-  const built: MipPipeline = {
+  const built: MipProgram = {
     layout,
-    pipeline: device.createRenderPipeline({
-      layout: device.createPipelineLayout({ bindGroupLayouts: [layout] }),
-      vertex: { module, entryPoint: 'vs' },
-      fragment: {
-        module,
-        entryPoint: 'fs',
-        targets: [{ format }],
-        constants: { weighted: Number(weighted) },
-      },
-      primitive: { topology: 'triangle-list' },
-    }),
+    pipelineLayout: device.createPipelineLayout({ bindGroupLayouts: [layout] }),
+    module: device.createShaderModule({ code: MIP_SHADER }),
+    pipelines: [new Map(), new Map()],
   };
-  byRule.set(key, built);
+  programs.set(device, built);
   return built;
+}
+
+/** The bind group layout and the pipeline of one format and one colour rule. */
+function mipPipeline(device: GPUDevice, format: GPUTextureFormat, weighted: boolean) {
+  const { layout, module, pipelineLayout, pipelines } = mipProgram(device);
+  const byFormat = pipelines[Number(weighted)];
+  const held = byFormat.get(format);
+  if (held) return { layout, pipeline: held };
+  const pipeline = device.createRenderPipeline({
+    layout: pipelineLayout,
+    vertex: { module, entryPoint: 'vs' },
+    fragment: {
+      module,
+      entryPoint: 'fs',
+      targets: [{ format }],
+      constants: { weighted: Number(weighted) },
+    },
+    primitive: { topology: 'triangle-list' },
+  });
+  byFormat.set(format, pipeline);
+  return { layout, pipeline };
 }
 
 /**

@@ -3,17 +3,21 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createShadowMobility } from './mobility.ts';
+import { MOVE_MOVING, MOVE_NONE, MOVE_PROMOTED } from '../../placement/update.ts';
 import { createShadowResidence } from './residence.ts';
 
 test('the first move promotes a placement and opens the static layer; its later moves do not', () => {
   const mobility = createShadowMobility();
-  mobility.ensure(3, 5, () => new Float64Array(16));
+  const origin = new Float64Array(16);
+  mobility.ensure(3, 5, () => origin);
   assert.equal(mobility.layered, false);
-  mobility.move(1);
-  assert.equal(mobility.takePromoted(), true);
+  assert.equal(mobility.move(1, origin, true), MOVE_PROMOTED);
   assert.equal(mobility.layered, true);
-  mobility.move(1);
-  assert.equal(mobility.takePromoted(), false, 'already moving: only its moving casters stale');
+  assert.equal(
+    mobility.move(1, origin, true),
+    MOVE_MOVING,
+    'already moving: only its moving casters stale',
+  );
   const pushed: number[][] = [];
   const placementOf = (row: number) => [0, 1, 1, 2, -1][row];
   mobility.writeRows(placementOf, 5, 2, 2, (first, count) => pushed.push([first, count]));
@@ -31,8 +35,9 @@ test('a placement posed where it already stands does not move', () => {
   mobility.ensure(2, 2, () => identity);
   mobility.move(0, identity);
   assert.equal(mobility.layered, false, 'same pose: still');
-  mobility.move(0);
+  mobility.move(0, identity, true);
   assert.equal(mobility.layered, true, 'taken or parked: moved');
+  assert.equal(mobility.move(0, identity), MOVE_NONE, 'posed again where it was taken: no move');
   const shifted = identity.slice();
   shifted[12] = 1;
   mobility.move(1, shifted);

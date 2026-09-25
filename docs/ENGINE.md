@@ -295,11 +295,12 @@ real allocations) — is the CPU total's first share, before the decoded-page ca
   Meanwhile the pixel reads the next coarser level. Blend and water surfaces read what the opaque
   pixels asked for, and keep their early depth reject.
 - **Every stale page the image reads is drawn, in the frame that marks it** (#489). There is no
-  per-frame page cap, no millisecond budget and no priority: the cost is held by caching — a page
-  is drawn again only when what it holds changed —, never by deferring a page and showing a coarse
-  or stale one as current. The frame draws its pages in as many batches as the per-batch buffers
-  take (`shadowPagesPerBatch`, 24 pages, in the views one light cut runs at once), all in its one
-  command buffer, each batch's buffer writes landing in command order
+  per-frame page cap and no millisecond budget; the list goes the coarsest first, each light's
+  floor leading (#525), an order that matters only to a frame its memory guard stops. The cost is
+  held by caching — a page is drawn again only when what it holds changed —, never by deferring a
+  page and showing a coarse or stale one as current. The frame draws its pages in as many batches
+  as the per-batch buffers take (`shadowPagesPerBatch`, 24 pages, in the views one light cut runs
+  at once), all in its one command buffer, each batch's buffer writes landing in command order
   (`gpu/shadow/batchWrites.ts`, `webgpu/pages/render/encodeShadowBatches.ts`). What the batches
   add is sized once from the largest pool, never grown, and counted in the memory budget
   (`gpu/shadow/batchBudget.ts`): 4 096 pages in full batches of 24 is at most 171 batches a frame
@@ -579,13 +580,18 @@ coarsest first, and the surface of what it leaves out is drawn by its nearest re
 (the cut rule, below). Residency does the coarsening; `coverage-budget` only says that the image
 asks for more than the slots hold.
 
-A pool resize (`explorer.setMemoryBudgets`) copies pages and tiles on the GPU into the new pool —
-root cover first, then pinned pages, then the most recent — evicts only what no longer fits, and
-rebuilds every bind group that named the old pool on the next image. At prepare a pool is allocated
-once, under an out-of-memory error scope; at a resize, where the old pool lives until the copy, the
-new one is first probed under that scope (`webgpu/residency/poolGrants.ts`). A refusal halves the
-pool's bytes and draws it again by its own rule, down to its floor, so the pool in place is never
-replaced by an invalid one and what no longer fits is drawn by its resident ancestors. The world's GPU and CPU totals reach the pools through one fixed
+The geometry pool's slots are drawn from what its budget leaves the vertex buffers held beside
+them (`geometryBudgetBeside` in `webgpu/pages/io/memory.ts`, the rule the texture pool follows for
+its live textures), at prepare once those buffers are allocated and at every resize: the slots and
+those buffers never sum past the budget, save a budget under the root cover beside them, which is
+raised to that cover by name (`root-cover`). A pool resize (`explorer.setMemoryBudgets`) copies
+pages and tiles on the GPU into the new pool — root cover first, then pinned pages, then the most
+recent — evicts only what no longer fits, and rebuilds every bind group that named the old pool on
+the next image. At prepare a pool is allocated once, under an out-of-memory error scope; at a resize, where the old pool lives until
+the copy, the new one is first probed under that scope (`webgpu/residency/poolGrants.ts`). A
+refusal halves the pool's bytes and draws it again by its own rule, down to its floor, so the pool
+in place is never replaced by an invalid one and what no longer fits is drawn by its resident
+ancestors. The world's GPU and CPU totals reach the pools through one fixed
 split (`residency/memoryBudget.ts`). The geometry pool can grow up to
 `geometryPoolCeilingBytes`, because its per-row tables are sized once at that ceiling. The WebGL2
 engine draws its geometry pool by the same rule (`sessionGeometryPool`: slots of the largest decoded
