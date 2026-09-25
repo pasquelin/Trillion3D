@@ -145,28 +145,21 @@ const readOf = (lx: number, ly: number, granted: number) => {
     `const ratio=${line('let ratio')},taps=${line('\\n\\s*taps')};return [taps,${line('raw-')}];`,
   )(lx, ly, granted) as [number, number];
 };
-const tapsOf = (lx: number, ly: number, granted: number) => readOf(lx, ly, granted)[0];
 
-// #443: a footprint stretched up to the grant is read with as many taps as it is stretched: 16
-// over 16 texels, never a cap below the grant; beyond the grant, the grant.
-test('an anisotropic footprint takes as many taps as its ratio, up to the grant', () => {
-  assert.equal(tapsOf(16 * 16, 1, MAX_ANISOTROPY), 16);
-  assert.equal(tapsOf(1, 12 * 12, MAX_ANISOTROPY), 12);
-  assert.equal(tapsOf(64 * 64, 1, MAX_ANISOTROPY), MAX_ANISOTROPY);
-  assert.equal(tapsOf(16 * 16, 1, 4), 4);
-  assert.equal(tapsOf(2.5 * 2.5, 1, MAX_ANISOTROPY), 3);
-});
-
-// #443: the hardware rule (EXT_texture_filter_anisotropic): the level is log2(Pmax / N), N the taps
-// — the ratio rounded up —, so 2.5 × 2.5 texels read with 3 taps one log2(3) lower, not log2(2.5).
-test('an anisotropic read lowers its level by its taps, as the hardware rule', () => {
-  for (const [lx, granted, taps] of [
-    [2.5 * 2.5, MAX_ANISOTROPY, 3],
-    [12.5 * 12.5, MAX_ANISOTROPY, 13],
-    [64 * 64, MAX_ANISOTROPY, 16],
-    [16 * 16, 4, 4],
+// #443: the hardware rule (EXT_texture_filter_anisotropic): N taps, the ratio rounded up within the
+// grant, at the level log2(Pmax / N) — 2.5 texels read with 3 taps log2(3) lower, not log2(2.5).
+// Only a footprint within 1 % of round (`ANISOTROPY_SLACK`) reads once, at the isotropic level.
+test('an anisotropic read takes its ratio in taps, up to the grant, its level shared among them', () => {
+  for (const [lx, ly, granted, taps] of [
+    [16 * 16, 1, MAX_ANISOTROPY, 16],
+    [1, 12 * 12, MAX_ANISOTROPY, 12],
+    [64 * 64, 1, MAX_ANISOTROPY, 16],
+    [16 * 16, 1, 4, 4],
+    [2.5 * 2.5, 1, MAX_ANISOTROPY, 3],
+    [3.005 * 3.005, 1, MAX_ANISOTROPY, 4],
+    [12.5 * 12.5, 1, MAX_ANISOTROPY, 13],
   ])
-    assert.deepEqual(readOf(lx, 1, granted), [taps, Math.log2(taps)], `${lx} texels²`);
+    assert.deepEqual(readOf(lx, ly, granted), [taps, Math.log2(taps)], `${lx} × ${ly} texels²`);
 });
 
 test('the affine part of the transform is carried, and flagged when it is not the identity', () => {

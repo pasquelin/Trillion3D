@@ -15,7 +15,8 @@ import {
 } from './sampling.ts';
 
 /** Elongation a footprint may have and still be read once, at the isotropic level, like a
- *  texture granted no anisotropy: a surface seen face-on, up to rounding. */
+ *  texture granted no anisotropy: a surface seen face-on, up to rounding — the one departure from
+ *  the hardware rule, which reads two taps there. */
 const ANISOTROPY_SLACK = 0.01;
 
 /**
@@ -53,7 +54,7 @@ fn tileRead(s:TileSlot,uv:vec2f,ddx:vec2f,ddy:vec2f,aniso:bool)->TileRead{
   let lx=dot(px,px);let ly=dot(py,py);
   let ratio=min(sqrt(max(lx,ly)/max(min(lx,ly),1e-20)),f32(granted));
   if(ratio>${1 + ANISOTROPY_SLACK}){
-   taps=u32(ceil(ratio-${ANISOTROPY_SLACK}));
+   taps=u32(ceil(ratio));
    raw-=log2(f32(taps));
    axis=select(ddy,ddx,lx>=ly);
   }
