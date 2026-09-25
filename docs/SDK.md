@@ -1079,7 +1079,9 @@ gravityScale, sensor, ccd, decorative, friction, restitution, damping }`. The sh
   `follow` is `false`; its motor drives `a` at a speed along the track, or to a point of it (1.5:
   halfway between the second and the third). A track fixed in the world does no work: its bends
   turn `a` without slowing it, and a body with no damping keeps its energy along it to within one
-  step of gravity's work. `joint.pulley(a, b, { over, ratio })` hangs `a` and
+  step of gravity's work. Not on a track fixed to a moving body, nor for a body held off its centre
+  while it spins: there each bend still takes v²·dt / R² of its kinetic energy per second (v its
+  speed, R the bend's radius, dt the step). `joint.pulley(a, b, { over, ratio })` hangs `a` and
   `b` on one rope over two wheels in the world, the rope from 0 up to its length unless `limits`
   says otherwise. `joint.gear(a, b, { axis, axisB, ratio })` turns `b` `ratio` times per turn of
   `a` (the teeth of `a` over those of `b`), the other way round; `joint.rackAndPinion(pinion,
