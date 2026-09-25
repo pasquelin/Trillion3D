@@ -15,6 +15,7 @@ import {
   restoreMainView,
   type SavedView,
 } from './surfaceRestore.ts';
+import { shadowPoolPending, sizeShadowPool } from '../../shadow/poolSize.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 
 type CaptureOptions = { width: number; height: number; signal?: AbortSignal };
@@ -117,6 +118,10 @@ export async function captureSurfaceView(
     options.signal?.throwIfAborted();
     context.signal?.throwIfAborted();
   };
+  // A light that casts asks its shadow pool of the device before anything is drawn: the capture
+  // waits for the answer, never drawn without its shadows (#483). The pool is sized from the
+  // canvas, before the capture's own size takes the viewport.
+  sizeShadowPool(rt);
   let result: SurfaceCapture | undefined;
   capture.capturing = true;
   capture.captureAllocationBytes = reserve;
@@ -127,6 +132,7 @@ export async function captureSurfaceView(
   });
   let captureError: { error: unknown } | undefined;
   try {
+    await shadowPoolPending(rt);
     await rt.services.residency.pending;
     await gpuDevice.queue.onSubmittedWorkDone();
     throwIfAborted();

@@ -86,8 +86,9 @@ test('after a move, no page drawn at a past pose is read, and each face floor ta
   const { store, plan, slice } = lampScene();
   const read = [...lampPages(plan, slice, 0, 4), ...lampPages(plan, slice, 0, 3)];
   for (let frame = 1; frame < 6; frame++) cycle(plan, store, frame, () => read);
-  // One view a frame: six face floors, one drawn per frame, and the finer pages wait.
-  plan.admission.setViewLimit(1);
+  // Two views a frame: the floor of face 0, read, every frame; the five others one per frame, in
+  // turn; and the finer pages wait.
+  plan.admission.setViewLimit(2);
   const floorDrawn = new Int32Array(6).fill(5);
   for (let frame = 6; frame < 30; frame++) {
     store.set('lamp', { position: [0, 3 + frame / 10, 0] });
@@ -96,7 +97,8 @@ test('after a move, no page drawn at a past pose is read, and each face floor ta
       assert.ok(drawn.has(page), `page ${page} read at frame ${frame} was drawn at a past pose`);
     for (let face = 0; face < 6; face++) {
       if (drawn.has(floorPage(plan, slice, face))) floorDrawn[face] = frame;
-      assert.ok(frame - floorDrawn[face] < 6, `face ${face} floor waits past frame ${frame}`);
+      const wait = face === 0 ? 1 : 6;
+      assert.ok(frame - floorDrawn[face] < wait, `face ${face} floor waits past frame ${frame}`);
     }
   }
 });
