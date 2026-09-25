@@ -16,7 +16,11 @@
 //! rest of the group reduces. Pruning ignores locks, so a retry no longer prunes. A face the
 //! reduction lit from behind (`quality::backlit_corners`) is retried the same way, as long as the
 //! retry locks something new: collapses accumulated over levels flip small faces on spheres and
-//! facades (measured: 13 of 49 levels of MetalRoughSpheres, 13 of 38 of facade-7).
+//! facades (measured: 13 of 49 levels of MetalRoughSpheres, 13 of 38 of facade-7). The retry
+//! looks at every face but slivers, even one narrower than the error, which the published check
+//! exempts: a coarse face spanning a log of a chalet, 6 m long and 0.22 m wide, came out inside
+//! out at 0.78 m of error, its corners on the caps' normals (#415, #484). Refusing such a face
+//! would refuse the cook; retrying it only costs a few locks.
 use super::*;
 use crate::qem::{SimplifiedMesh, VERTEX_LOCK, VERTEX_PROTECT};
 use border::{live_triangles, lock_triangles_touching, lost_locks, required_locks};
@@ -61,7 +65,7 @@ pub(super) fn reduce_group(
     let sphere = enclosing_sphere(&spheres);
     let corners = children.iter().flat_map(|c| c.indices.iter());
     let live = live_triangles(corners.map(|&v| input.exact[v as usize]));
-    let chosen = match attempt(input, &live, true, child_error)? {
+    let chosen = match attempt(input, &live, true)? {
         // Reduction yielding no fewer clusters does not advance DAG: refused,
         // even if removing triangles, rather than adding unreplaced level.
         Ok(chosen) if chosen.progresses(children.len()) => chosen,
@@ -95,14 +99,13 @@ fn stall(
 }
 
 /// Simplifies `source` to half triangles, restarting with extra locks as long as a shared vertex
-/// disappears or a face wider than the error — `error_floor`, the children's, or the reduction's
-/// own — turns its back on its normals, then re-clusters the result. `locked` false drops every
-/// lock, the level's and the retries': the diagnosis of a stalled group asks what they cost.
+/// disappears or a face turns its back on its normals, then re-clusters the result. `locked`
+/// false drops every lock, the level's and the retries': the diagnosis of a stalled group asks
+/// what they cost.
 pub(super) fn attempt(
     input: &GroupReductionInput,
     source: &[u32],
     locked: bool,
-    error_floor: f64,
 ) -> Result<std::result::Result<Attempt, Stop>> {
     let (locks, weld) = (input.locks, input.weld);
     let triangles = source.len() / 3;
@@ -152,12 +155,9 @@ pub(super) fn attempt(
                 input.positions,
                 normals,
             );
-            let error = simplified.error_object.max(error_floor);
-            let backlit = (error, input.normal_bound);
+            let bound = input.normal_bound;
             match locked {
-                true => {
-                    backlit_corners(&simplified.indices, input.positions, normals, weld, backlit)
-                }
+                true => backlit_corners(&simplified.indices, input.positions, normals, weld, bound),
                 false => Vec::new(),
             }
         } else {
