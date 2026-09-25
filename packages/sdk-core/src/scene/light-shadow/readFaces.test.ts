@@ -1,6 +1,6 @@
-// A moved point lamp asks for the floor of every face it reaches, and admission serves the faces
-// the latest report read first (#489): a face a receiver enters has a floor the frame it is read,
-// and the read faces keep a current floor within the view limit.
+// A moved point lamp asks for the floor of every face it reaches, and the frame draws them all
+// (#489): a face a receiver enters has a floor the frame it is read, and the faces read keep a
+// current floor every frame, beside the still lights' pages.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createSceneLightStore } from '../light/store.ts';
@@ -26,7 +26,7 @@ const pageOf = (plan: ShadowPlan, entry: number) => {
 /** Point lamps named `ids`, ten units apart, planned once: the store, the plan and their slices. */
 function lampsScene(...ids: string[]) {
   const store = createSceneLightStore();
-  const plan = createShadowPlan(24, 32);
+  const plan = createShadowPlan(32);
   ids.forEach((id, k) => store.add({ ...LAMP, id, position: [k * 10, 3, 0] }));
   planFrame(plan, store, 0);
   plan.commit();
@@ -48,7 +48,7 @@ test('a receiver entering a new face of a moving lamp reads its floor the frame 
   }
 });
 
-test('at a view limit of three, the two faces read keep a current floor every frame', () => {
+test('while the lamp moves, the two faces read keep a current floor every frame', () => {
   const {
     store,
     plan,
@@ -56,7 +56,6 @@ test('at a view limit of three, the two faces read keep a current floor every fr
   } = lampsScene('lamp');
   const read = [...lampPages(plan, slice, 0, 3), ...lampPages(plan, slice, 1, 3)];
   cycleDrawn(plan, store, 1, () => read);
-  plan.admission.setViewLimit(3);
   for (let frame = 2; frame < 20; frame++) {
     store.set('lamp', { position: [0, 3 + frame / 10, 0] });
     const drawn = cycleDrawn(plan, store, frame, () => read);
@@ -87,9 +86,9 @@ test('a moving lamp the latest report did not read has a floor the frame it star
   }
 });
 
-test('the still lights converge once the moving lamp stops', () => {
+test('the still lights stay current while a lamp moves beside them', () => {
   const store = createSceneLightStore();
-  const plan = createShadowPlan(24, 32);
+  const plan = createShadowPlan(32);
   store.add(SUN);
   store.add({ ...LAMP, id: 'lamp0', position: [0, 3, 0] });
   store.add({ ...LAMP, id: 'lamp1', position: [10, 3, 0] });
@@ -104,15 +103,14 @@ test('the still lights converge once the moving lamp stops', () => {
     ]),
     ...lampPages(plan, lamp1, 2, 3),
   ];
-  plan.admission.setViewLimit(3);
-  for (let frame = 1; frame < 20; frame++) {
+  cycleDrawn(plan, store, 1, read);
+  for (let frame = 2; frame < 20; frame++) {
     store.set('lamp0', { position: [frame / 10, 3, 0] });
     cycleDrawn(plan, store, frame, read);
+    assert.ok(
+      read().every((entry) => valid(plan, entry)),
+      `every page read is drawn at frame ${frame}`,
+    );
+    assert.equal(plan.counts.pendingPages, 0, 'nothing pending');
   }
-  for (let frame = 20; frame < 30; frame++) cycleDrawn(plan, store, frame, read);
-  assert.ok(
-    read().every((entry) => valid(plan, entry)),
-    'every page read is drawn',
-  );
-  assert.equal(plan.counts.pendingPages, 0, 'nothing pending once the lamp stops');
 });

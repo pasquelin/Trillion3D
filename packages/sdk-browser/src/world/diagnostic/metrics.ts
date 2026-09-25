@@ -7,7 +7,13 @@ import type { MeasuredWorldOptions, RenderBackend } from '../../backend/types.ts
 import { BACKEND_METRIC_KEYS } from '../../diagnostic/metricKeys.ts';
 import type { createPageStreamer } from '../../streaming/pages.ts';
 
-type State = () => { loaded: number; pageBytesRead: number; streamingError: string | null };
+type State = () => {
+  loaded: number;
+  pageBytesRead: number;
+  streamingError: string | null;
+  /** Bytes of the effect chain's targets on the host context (`../render/compose.ts`). */
+  effectBytes: number;
+};
 
 /** Copies an engine measurement into the host sample: `null` when that engine does not hold it. */
 function publishMetric<K extends (typeof BACKEND_METRIC_KEYS)[number]>(
@@ -89,13 +95,16 @@ export function createExplorerMetrics(
   profiler.setMetadata(metadata);
   if (options.logInterval && options.logInterval > 0) profiler.startAutoLog(options.logInterval);
   const fillMetrics = (backend: RenderBackend) => {
-    const { loaded, pageBytesRead, streamingError } = state();
+    const { loaded, pageBytesRead, streamingError, effectBytes } = state();
     const backendMetrics = backend.metrics() as FrameMetrics;
     const stream = streamer.stats();
     // Every measurement the engine publishes as-is, in contract order: `null` means "not
     // held by this engine", never "zero". The held-frame flag is part of that — without this
     // copy, `explorer.render()` published `null` while the engine had in fact held the frame.
     for (const key of BACKEND_METRIC_KEYS) publishMetric(metricsScratch, backendMetrics, key);
+    // The chain the host composes holds targets of its own: they count with the frame's.
+    if (effectBytes)
+      metricsScratch.gpuFrameTargetBytes = (metricsScratch.gpuFrameTargetBytes ?? 0) + effectBytes;
     metricsScratch.streamingError = streamingError;
     metricsScratch.clusters = backendMetrics.clusters;
     metricsScratch.selectedTriangles = backendMetrics.selectedTriangles;

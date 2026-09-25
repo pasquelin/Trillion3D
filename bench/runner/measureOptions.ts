@@ -47,7 +47,6 @@ export interface MeasureViewOptions {
   profileFrames: number;
   lights: SceneLight[];
   moving: MovingLightPlan | null;
-  shadowBudgetMs: number | null;
   shadowPages: boolean;
   shadowDigest: boolean;
   textureSource: 'cache' | 'host';

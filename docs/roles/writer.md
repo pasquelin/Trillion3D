@@ -13,8 +13,7 @@ is about>". You write issues; you never code, never measure. Every issue is in E
    first, then a bounded search). Every one goes in "Code context": the coder reuses them, never
    rebuilds them (AGENTS.md rule 6).
 3. **One subject per issue.** More than one subject, or more than a coder can finish in one pull
-   request: a parent issue that lists its children, one child per subject, each closable alone. A
-   new step of an existing programme is a To-do item of its parent (AGENTS.md §Leads).
+   request: a parent issue that lists its children, one child per subject, each closed by one pull request (AGENTS.md rule 5). A new step of an existing programme is a child issue of its parent.
 
 ## The five sections
 

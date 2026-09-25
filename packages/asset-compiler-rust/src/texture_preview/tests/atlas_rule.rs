@@ -25,12 +25,11 @@ fn the_same_bytes_reduce_differently_for_each_atlas() {
     assert_eq!(data[1][3], 255);
 }
 
-// Behavior 2: transparent texel color ENTERS average, as in
-// shader — chain is not premultiplied. Choice for fidelity to existing image,
-// not ideal image: premultiplication is TODO item, to judge
-// by eye with captures; test will change when delivered.
+// Behaviour 2: a transparent texel's colour still enters the mean wherever no
+// reader takes alpha for coverage, as in the shader: the `Coverage` chain alone
+// weighs its colours by alpha (`weighted_colour.rs`, #42).
 #[test]
-fn a_transparent_texel_color_enters_the_mean_as_on_the_card() {
+fn a_transparent_texel_color_enters_the_data_mean_as_on_the_card() {
     let source = rgba_from(2, 1, |x, _| {
         if x == 0 {
             [255, 0, 0, 255]

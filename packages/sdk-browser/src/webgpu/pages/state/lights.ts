@@ -6,11 +6,7 @@ import {
   type SceneLightStore,
   type ShadowPlan,
 } from '../../../../../sdk-core/src/index.ts';
-import {
-  MAX_SHADOW_PAGES,
-  MAX_SHADOW_REGIONS,
-  type GpuShadowAtlas,
-} from '../../../gpu/shadow/atlas.ts';
+import { MAX_SHADOW_REGIONS, type GpuShadowAtlas } from '../../../gpu/shadow/atlas.ts';
 import { ltcTable } from '../../../../../sdk-core/src/lighting/ltcTable.ts';
 import type { GpuShadowCull } from '../../../gpu/shadow/cull.ts';
 import type { GpuLightTiles } from '../../../lighting/tiles/tiles.ts';
@@ -28,7 +24,7 @@ import type { ShadowOcclusion } from '../../../gpu/shadow/occlusion.ts';
 
 /**
  * Direct-lighting state of the contract: the light store (shared with the host), per-tile lists, the
- * shadow atlas and the scheduler. Face-matrix buffers are allocated once for an image's budget; an
+ * shadow atlas and the scheduler. Face-matrix buffers are allocated once for a batch; an
  * image allocates nothing.
  */
 export interface WebgpuLightState {
@@ -63,15 +59,22 @@ export interface WebgpuLightState {
   shadowGroupsKey: unknown[];
   /** Store revision already pushed to the GPU: an image with no change writes nothing. */
   uploadedEpoch: number;
-  /** Matrices of the image's drawn pages, one per page. */
+  /** Matrices of the batch's drawn pages, one per region. */
   faceMatrices: Float32Array;
-  /** The image's drawn light views, one light cut each (`../../shadow/runs.ts`). */
+  /** The batch's drawn light views, one light cut each (`../../shadow/runs.ts`). */
   runs: ShadowRuns;
-  /** The image's regions, one or two per drawn page (`../../shadow/regions.ts`). */
+  /** The batch's regions, one or two per drawn page (`../../shadow/regions.ts`). */
   regions: ShadowRegionList;
+  /** The light store slot of each shadow slice, as the image's records were written. */
+  shadowSlots: Int32Array;
+  /** The threshold the image's light cuts select casters at. */
+  shadowPixelError: number;
   /** Image whose shadow pages are planned: a plan is made once per image (`planImageShadows`). */
   plannedFrame: number;
-  /** Light cuts the last image ran: one per redrawn face, zero on a still frame. */
+  /** The batch `runs` and `regions` hold, pages `[from, to)` of image `frame`'s plan; −1 once
+   *  they no longer do (`../../shadow/pages.ts`). */
+  packedBatch: { frame: number; from: number; to: number };
+  /** Light views the last image's cuts ran, every batch together; zero on a still frame. */
   lightRuns: number;
   /** The GPU cut seen from the lights, once a frame has drawn a shadow under the GPU cut. */
   lightCut: DagLightCut | undefined;
@@ -82,12 +85,10 @@ export interface WebgpuLightState {
   shadowsUpdated: number;
   /** Light views the last image drew in — a sun level, a lamp face at one mip —, a light cut each. */
   shadowFaces: number;
-  /** Pages the last image drew: the unit of work and that of the budget. */
+  /** Pages the last image drew: every page it marked, unless a batch could not be encoded. */
   shadowPages: number;
   /** Pages drawn since the state was created, every frame and drain together. */
   shadowPagesTotal: number;
-  /** Pages drawn per image, by rank: the late GPU timer finds the work of its image there. */
-  pagesByFrame: Uint32Array;
   shadowDraws: number;
   /** Draw calls actually encoded by the shadow pass: a clear to far and an indirect draw per page. */
   shadowDrawCalls: number;
@@ -97,16 +98,13 @@ export interface WebgpuLightState {
   firstFrameLogged: boolean;
 }
 
-/** Images kept in the page ring: well beyond the lag of a timestamp sample. */
-export const PAGES_RING = 64;
-
 export function createWebgpuLightState(
   poolSide: number,
   store?: SceneLightStore,
 ): WebgpuLightState {
   return {
     store: store ?? createSceneLightStore(),
-    plan: createShadowPlan(MAX_SHADOW_PAGES, poolSide),
+    plan: createShadowPlan(poolSide),
     buffer: undefined,
     tiles: undefined,
     shadows: undefined,
@@ -128,7 +126,10 @@ export function createWebgpuLightState(
     faceMatrices: new Float32Array(MAX_SHADOW_REGIONS * 16),
     runs: createShadowRuns(),
     regions: createShadowRegionList(poolSide),
+    shadowSlots: new Int32Array(0),
+    shadowPixelError: 0,
     plannedFrame: -1,
+    packedBatch: { frame: -1, from: -1, to: -1 },
     lightRuns: 0,
     lightCut: undefined,
     cpuCasters: undefined,
@@ -137,7 +138,6 @@ export function createWebgpuLightState(
     shadowFaces: 0,
     shadowPages: 0,
     shadowPagesTotal: 0,
-    pagesByFrame: new Uint32Array(PAGES_RING),
     shadowDraws: 0,
     shadowDrawCalls: 0,
     shadowReason: null,
@@ -171,21 +171,16 @@ export function uploadSceneLights(device: GPUDevice, lights: WebgpuLightState) {
   return true;
 }
 
-/**
- * Closes the frame's shadow work. A pass that could not be encoded drew nothing: its pages are
- * counted as none, for the frame and for the GPU timer that will number it. What was drawn joins
- * the cumulative total a host reads across frames and settle drains.
- */
-export function noteShadowFrame(lights: WebgpuLightState, pagesSlot: number, encoded: boolean) {
-  if (!encoded) {
-    lights.shadowPages = 0;
-    lights.pagesByFrame[pagesSlot] = 0;
-  }
+/** Closes the frame's shadow work: what its batches drew joins the cumulative total a host reads
+ *  across frames and settle drains; the pages from a batch that could not be encoded on are not
+ *  counted (`encodeShadowBatches.ts`). */
+export function noteShadowFrame(lights: WebgpuLightState) {
   lights.shadowPagesTotal += lights.shadowPages;
 }
 
 /**
- * True while the shadow pages can still change what the image shows: a page stale and read, a
+ * True while the shadow pages can still change what the image shows: a page stale and read — left
+ * by a batch that could not be encoded —, a
  * representation change waiting for the camera to rest, a request report — the shading's, or a
  * light cut's, whose casters may still load, or its flag word — on its way, or no report yet
  * proving that the image reads only pages already drawn. A scene without a shadow light, or an

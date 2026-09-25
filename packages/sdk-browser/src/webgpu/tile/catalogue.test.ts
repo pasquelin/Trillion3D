@@ -2,9 +2,14 @@ import { importHostTexture } from '../../host/textureImport.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as G from '../../host/graph/graph.fixture.ts';
-import type { TexturePreview } from '../../../../sdk-core/src/index.ts';
+import {
+  PREVIEW_ATLAS_COLOR,
+  PREVIEW_ATLAS_COVERAGE,
+  PREVIEW_ATLAS_DATA,
+  type TexturePreview,
+} from '../../../../sdk-core/src/index.ts';
 import { previewLevels } from '../../../../../tests/fixtures/manifestBinary.ts';
-import { tileCatalogue } from './catalogue.ts';
+import { previewsByAtlas, tileCatalogue } from './catalogue.ts';
 import { poolEncoding, WHITE_TAIL } from '../../texture/blockFormats.ts';
 
 const preview = (width: number, height: number, bakedLevels: number): TexturePreview => ({
@@ -70,4 +75,17 @@ test('a catalogue routes each texture to the lane of its layout and hosts what h
     [rawFill.lane, small.source.kind, small.lane],
     ['lossless', 'bytes', 'lossless'],
   );
+});
+
+// #42: a coverage chain (word 2) is the colour atlas's entry of its texture, found where the plain
+// one would be, and keeps its word — the one its level files are named by.
+test('a coverage chain is filed as the colour entry of its texture and keeps its word', () => {
+  const coverage = { ...preview(256, 128, 2), texture: 3, atlas: PREVIEW_ATLAS_COVERAGE };
+  const data = { ...preview(256, 128, 2), texture: 3, atlas: PREVIEW_ATLAS_DATA };
+  const previewAt = previewsByAtlas([data, coverage]);
+  assert.equal(previewAt(3, PREVIEW_ATLAS_COLOR), coverage);
+  assert.equal(previewAt(3, PREVIEW_ATLAS_DATA), data);
+  assert.equal(previewAt(3, PREVIEW_ATLAS_COVERAGE), undefined, 'filed by atlas, not by word');
+  const [, entry] = tileCatalogue([map()], () => coverage, reader, poolEncoding('bc7'));
+  assert.equal(entry.source.kind === 'baked' && entry.source.atlas, PREVIEW_ATLAS_COVERAGE);
 });

@@ -1,5 +1,6 @@
-/** Query slot of the part `index`: the timing module gives each encoder its own aligned block. */
-export const PART = 128;
+/** First query of an image's second part: each part starts at a 32-timestamp boundary after the
+ *  last, where its resolve may land. */
+export const PART = 32;
 
 export function fixture(supported = true) {
   Object.assign(globalThis, {
@@ -18,7 +19,7 @@ export function fixture(supported = true) {
       },
     }),
     createBuffer: () => {
-      const data = new BigUint64Array(PART * 4);
+      const data = new BigUint64Array(1 << 15);
       data.set([1000000n, 3000000n], 0);
       data.set([4000000n, 7000000n], PART);
       const buffer = {
