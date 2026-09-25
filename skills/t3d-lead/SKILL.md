@@ -24,10 +24,12 @@ domain, gives your ordered list and when to stop.
    then you are stopped.
 7. Before each merge, the #483 checklist and CONTRIBUTING.md §Streaming, memory and shadows.
 8. Report to the CTO (not the boss), two lines per issue, in your final message. Questions go to
-   the CTO, who decides. Read the pinned Priorities issue before every pick. Stop when your brief
-   says, after cleaning your worktrees and branches.
+   the CTO, who decides: you cannot wait for an answer, so comment the question on the issue, put
+   it in your report and move on. Read the pinned Priorities issue before every pick. Stop when
+   your brief says, after cleaning your worktrees and branches.
 
 ## Context economy
 
 Read only your role file and the issue at hand. Query GitHub with `--json … --jq` for counts and
-states, never whole diffs, logs or transcripts; delegate a deep read to a bounded subagent.
+states, never whole diffs, logs or transcripts; a deep read goes to your coder or reviewer, the
+only agents you launch (AGENTS.md rule 9).

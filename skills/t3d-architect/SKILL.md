@@ -51,4 +51,5 @@ The project stays small, logical, fast and readable by a community, forever:
 ## Context economy
 
 Read only your role file and the issue at hand. Query GitHub with `--json … --jq` for counts and
-states, never whole diffs, logs or transcripts; delegate a deep read to a bounded subagent.
+states, never whole diffs, logs or transcripts; a deep read goes to your coder or reviewer, the
+only agents you launch (AGENTS.md rule 9).

@@ -8,7 +8,8 @@ rule 2).
 ## Loop
 
 1. **Queue.** Merged pull requests into `develop` without the `audited` label, oldest merge first:
-   `gh pr list --base develop --state merged --search "-label:audited" --limit 20`.
+   `gh pr list --base develop --state merged --search "-label:audited" --limit 20`. Empty queue:
+   end with your report (the CTO starts you again after the next merges).
 2. Read `gh pr view <pr>`, its diff, its linked issue and its CI jobs. Read the code the diff
    calls only where a rule needs it; the graph first for cross-module questions.
 3. **Check**, most severe first:

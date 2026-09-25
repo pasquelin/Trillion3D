@@ -32,7 +32,9 @@ boss to open a session. You never write engine code, never run Chrome or the ben
      working directory; the measurer, acceptance and analyst run none;
    - when to stop: a lead after two issues merged or closed, or its list exhausted or blocked; the
      measurer and acceptance after their queue is empty. It cleans its worktrees and branches,
-     then ends with a report of at most six lines.
+     then ends with a report of at most six lines;
+   - a background agent cannot answer a permission prompt nor wait for an answer: a denied tool
+     or an open question is written on the issue and put in its report, never worked around.
 4. **Supervise** with `/loop 30m` on the checks below until the boss says stop. An agent that
    ends wakes you: read its report, then start the next agent for that role if work remains.
 
@@ -66,7 +68,7 @@ boss to open a session. You never write engine code, never run Chrome or the ben
   of its work: before the boss closes your session, every agent has ended.
   Tell the boss when you start winding down and when it resumes.
 - **Context.** Keep your own context small: read counts and states (`gh … --json` with `--jq`),
-  never whole diffs or logs; delegate any deep read to a bounded subagent. Tell leads the same.
+  never whole diffs or logs; delegate any deep read to a bounded subagent that launches none.
   An agent is fresh by design: it stops after its bounded run and the next one starts clean from
   the labels; your own session, near full, writes its state in the Priorities issue.
 - **Value for tokens.** Judge the company by issues truly closed (not reopened) per unit of usage.

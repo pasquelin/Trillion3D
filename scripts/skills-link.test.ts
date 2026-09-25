@@ -1,4 +1,4 @@
-import { test } from 'node:test';
+import { after, test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   lstatSync,
@@ -8,6 +8,7 @@ import {
   symlinkSync,
   writeFileSync,
   readFileSync,
+  rmSync,
 } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -16,6 +17,7 @@ import { linkSkills } from './skills-link.ts';
 /** A repository with one skill, `skills/t3d-cto/SKILL.md`, and a `.claude/skills/` folder. */
 function fixture(): string {
   const root = mkdtempSync(join(tmpdir(), 'skills-link-'));
+  after(() => rmSync(root, { recursive: true, force: true }));
   mkdirSync(join(root, 'skills', 't3d-cto'), { recursive: true });
   writeFileSync(join(root, 'skills', 't3d-cto', 'SKILL.md'), 'cto');
   mkdirSync(join(root, '.claude', 'skills'), { recursive: true });
