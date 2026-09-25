@@ -124,13 +124,20 @@ export async function measureFluids({
     // `bodies` counts what the page registered, `active` comes only with a worker tick; `stats`
     // is reread each frame, the session that holds it starting after the first frames.
     const stats = () => world.physics.stats;
-    for (let wait = 0; stats().bodies < scene.bodies.length || !stats().active; wait++) {
-      if (wait > 1800 || world.physics.error)
-        throw new Error(
-          `${stats().bodies} bodies, ${stats().active} awake: ${world.physics.error}`,
-        );
-      await nextFrame();
-    }
+    // Waits frame by frame for `reached`: a physics error, or `limit` frames without it (a loop
+    // that stopped, a session that did not reopen), ends the run instead of hanging it.
+    const until = async (reached: () => boolean, limit: number, state: () => string) => {
+      for (let wait = 0; !reached(); wait++) {
+        if (wait > limit || world.physics.error)
+          throw new Error(`${state()}: ${world.physics.error ?? 'timed out'}`);
+        await nextFrame();
+      }
+    };
+    await until(
+      () => stats().bodies >= scene.bodies.length && !!stats().active,
+      1800,
+      () => `${stats().bodies} bodies, ${stats().active} awake`,
+    );
     const result = {
       cpuFrameMs: [] as number[],
       gpuFrameMs: [] as number[],
@@ -139,34 +146,35 @@ export async function measureFluids({
       physicsStepMs: [] as number[],
       physicsMainMs: [] as number[],
     };
-    let previous: number | null = null,
-      drawn = 0;
+    let previous: number | null = null;
+    let drawn = 0;
     // A WebGPU device lost mid-run reopens the session without an event on the canvas.
     const sessions = world.diagnostic.sessions;
-    await new Promise<void>((done) => {
-      const remove = world.onFrame(() => {
-        if (++drawn <= warmup) return;
-        // The interval between two frames the world's loop drew: the frame envelope.
-        const now = performance.now();
-        if (previous !== null) result.rafIntervalMs.push(now - previous);
-        previous = now;
-        const frame = sdk.metric.frame(world);
-        result.cpuFrameMs.push(frame.cpuFrameMs);
-        const sample = frame.gpuPassMs;
-        // The device is sampled every few frames: one reading per sampled frame, not per render.
-        if (sample && sample.frame !== result.gpuPassSamples.at(-1)?.frame) {
-          result.gpuPassSamples.push(sample);
-          if (typeof frame.gpuFrameMs === 'number') result.gpuFrameMs.push(frame.gpuFrameMs);
-        }
-        const { stepMs, mainMs } = stats();
-        result.physicsStepMs.push(stepMs);
-        result.physicsMainMs.push(mainMs);
-        if (drawn === warmup + frames) {
-          remove();
-          done();
-        }
-      });
+    const total = warmup + frames;
+    const remove = world.onFrame(({ time, metrics: frame }) => {
+      if (++drawn <= warmup) return;
+      // The interval between two frames the world's loop drew: the frame envelope.
+      const now = time * 1000;
+      if (previous !== null) result.rafIntervalMs.push(now - previous);
+      previous = now;
+      result.cpuFrameMs.push(frame.cpuFrameMs);
+      const sample = frame.gpuPassMs;
+      // The device is sampled every few frames: one reading per sampled frame, not per drawn frame.
+      if (sample && sample.frame !== result.gpuPassSamples.at(-1)?.frame) {
+        result.gpuPassSamples.push(sample);
+        if (typeof frame.gpuFrameMs === 'number') result.gpuFrameMs.push(frame.gpuFrameMs);
+      }
+      const { stepMs, mainMs } = stats();
+      result.physicsStepMs.push(stepMs);
+      result.physicsMainMs.push(mainMs);
+      if (drawn === total) remove();
     });
+    // The world's loop draws one frame per display frame: 600 more (ten seconds) is a stopped loop.
+    await until(
+      () => drawn >= total,
+      total + 600,
+      () => `${drawn} of ${total} frames drawn`,
+    );
     const shot = await sdk.capture.buffer(world, { width, height });
     await posterCapture(captureFile, shot.data, shot.width, shot.height);
     if (world.diagnostic.sessions !== sessions)
