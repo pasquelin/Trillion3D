@@ -3,19 +3,23 @@
 // holds, counts their bytes, and gives them back when it empties.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts';
+import { fakeDevice, written } from '../../../../tests/kit/gpu/fakeDevice.ts';
 import { effect } from '../../../sdk-core/src/world/effect/index.ts';
-import { bloomLevelBytes, bloomLevelSizes } from './bloomFilter.ts';
+import { bloomBlend, bloomLevelBytes, bloomLevelSizes } from './bloomFilter.ts';
 import { createWebgpuEffects } from './webgpuEffects.ts';
 
-/** An encoder that records the passes begun on it, their target and first bind group. */
+/** An encoder that records the passes begun on it, their target and the dynamic offset of
+ *  their first bind group. */
 function recorder() {
-  const passes: { label?: string; load: string; view: unknown }[] = [];
+  const passes: { label?: string; load: string; view: unknown; offset?: number }[] = [];
   const encoder = {
     beginRenderPass: (descriptor: GPURenderPassDescriptor) => {
       const [color] = descriptor.colorAttachments as GPURenderPassColorAttachment[];
-      passes.push({ label: descriptor.label, load: color.loadOp, view: color.view });
-      return { setPipeline() {}, setBindGroup() {}, draw() {}, end() {} };
+      const pass = { label: descriptor.label, load: color.loadOp, view: color.view } as const;
+      passes.push(pass);
+      const setBindGroup = (index: number, _group: unknown, offsets?: number[]) =>
+        void (index || Object.assign(pass, { offset: offsets?.[0] }));
+      return { setPipeline() {}, setBindGroup, draw() {}, end() {} };
     },
   } as unknown as GPUCommandEncoder;
   return { encoder, passes };
@@ -100,4 +104,30 @@ test('two passes read each other through two targets in turn', async () => {
   assert.equal(passes.length, 2 * each);
   assert.notEqual(passes[each - 1].view, output, 'the first writes one target');
   assert.equal(passes[2 * each - 1].view, output, 'the second the other, which composition reads');
+});
+
+test('two blooms draw with their own settings, each from its own uniform range', async () => {
+  const { gpu, effects } = await loaded();
+  const { encoder, passes } = recorder();
+  const chain = [effect.bloom({ intensity: 0.2 }), effect.bloom({ intensity: 0.8, radius: 2 })];
+  effects.encode(encoder, chain, input, 64, 32);
+  while (effects.loading) await new Promise((resolve) => setImmediate(resolve));
+  passes.length = 0;
+  effects.encode(encoder, chain, input, 64, 32);
+  // The uniform buffer as the queue leaves it before the frame's first pass.
+  const uniform = gpu.buffers.find((buffer) => buffer.label === 'Trillion3D bloom uniform')!;
+  const floats = new Float32Array(uniform.size / 4);
+  for (const write of gpu.writes)
+    if (write.buffer === (uniform as unknown)) floats.set(written(write), write.offset / 4);
+  const levels = bloomLevelSizes(64, 32).length,
+    each = 2 * levels;
+  chain.forEach((bloom, n) => {
+    const at = passes[(n + 1) * each - 1].offset! / 4,
+      { keep, glow } = bloomBlend(bloom.intensity, levels);
+    assert.deepEqual(
+      [...floats.subarray(at + 4, at + 7)],
+      [bloom.radius, keep, glow].map(Math.fround),
+      `bloom ${n} blends with its own intensity and radius`,
+    );
+  });
 });

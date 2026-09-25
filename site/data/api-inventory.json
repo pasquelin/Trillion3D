@@ -512,10 +512,10 @@
       "proposedEnvironments": "browser",
       "classification": "public",
       "affectedConsumers": [
+        "packages/sdk-browser/src/effects/kinds.test.ts",
+        "packages/sdk-browser/src/effects/targets.ts",
         "packages/sdk-browser/src/effects/webglBloom.ts",
-        "packages/sdk-browser/src/effects/webglEffects.ts",
-        "packages/sdk-browser/src/effects/webgpuBloom.ts",
-        "packages/sdk-browser/src/effects/webgpuEffects.ts"
+        "packages/sdk-browser/src/effects/webgpuBloom.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/world/effect/bloom\".Bloom"
@@ -2689,7 +2689,9 @@
       "proposedEnvironments": "browser",
       "classification": "public",
       "affectedConsumers": [
+        "packages/sdk-browser/src/effects/kinds.test.ts",
         "packages/sdk-browser/src/effects/webgpuEffects.test.ts",
+        "packages/sdk-browser/src/residency/memoryBudget.test.ts",
         "packages/sdk-browser/src/webgpu/pages/render/encodeEffects.test.ts",
         "packages/sdk-browser/src/world/core/worldSwitches.test.ts",
         "packages/sdk-browser/src/world/render/composeEffects.test.ts"
@@ -2721,7 +2723,11 @@
       "currentEntryPoints": ["trillion3d (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": [],
+      "affectedConsumers": [
+        "packages/sdk-browser/src/effects/targets.ts",
+        "packages/sdk-browser/src/effects/webglEffects.ts",
+        "packages/sdk-browser/src/effects/webgpuEffects.ts"
+      ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/world/effect/chain\".EffectKind"
     },
@@ -2733,6 +2739,7 @@
       "proposedEnvironments": "browser",
       "classification": "public",
       "affectedConsumers": [
+        "packages/sdk-browser/src/effects/targets.ts",
         "packages/sdk-browser/src/effects/webglEffects.ts",
         "packages/sdk-browser/src/effects/webgpuEffects.ts",
         "packages/sdk-browser/src/world/render/compose.ts"
@@ -8851,6 +8858,7 @@
         "bench/witnesses/exact/clusterBatches.ts",
         "packages/sdk-browser/src/lighting/deferred/view.ts",
         "packages/sdk-browser/src/lighting/toneMappingWgsl.ts",
+        "packages/sdk-browser/src/webgl/cluster/owner.ts",
         "packages/sdk-browser/src/webgl/cluster/renderer.ts",
         "packages/sdk-browser/src/webgl/cluster/sceneDraw.ts",
         "packages/sdk-browser/src/webgl/core/outputGlsl.ts",

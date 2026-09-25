@@ -60,10 +60,12 @@ test('a bloom: linear radiance into the chain, 2 × levels passes, the display c
   assert.equal(names().lastIndexOf('drawArrays') < names().lastIndexOf('blitFramebuffer'), true);
   assert.deepEqual(
     of('texImage2D').map((args) => args[2]),
-    ['RGBA16F', 'RGBA16F', 'RGBA16F', 'RGBA16F', 'RGBA8'],
-    'the scene, one pass target and two levels in half floats, then the kept frame',
+    ['RGBA16F', 'R8', 'RGBA16F', 'RGBA16F', 'RGBA16F', 'RGBA8'],
+    'the scene and its untoned mark, one pass target and two levels, then the kept frame',
   );
-  assert.equal(compose.effectBytes(), 8 * 4 * (8 + 4 + 8) + bloomLevelBytes(8, 4));
+  assert.deepEqual(of('drawBuffers'), [[['COLOR_ATTACHMENT0', 'COLOR_ATTACHMENT1']]]);
+  // The scene's radiance, depth and mark, one pass target, the levels.
+  assert.equal(compose.effectBytes(), 8 * 4 * (8 + 4 + 1 + 8) + bloomLevelBytes(8, 4));
   const draws = of('drawArrays').length,
     targets = of('texImage2D').length;
   compose(backend, null);
@@ -86,7 +88,7 @@ test('an emptied chain gives its targets back and draws as before', () => {
   compose(backend, null);
   assert.equal(outputs[1].linear, false);
   assert.equal(compose.effectBytes(), 0);
-  assert.equal(of('deleteTexture').length, 4, 'every target of the chain');
+  assert.equal(of('deleteTexture').length, 5, 'every target of the chain');
 });
 
 test('a diagnostic view, a capture and a context without half floats show the image alone', () => {
@@ -103,4 +105,18 @@ test('a diagnostic view, a capture and a context without half floats show the im
     outputs.map((output) => output.linear),
     [false, false, false],
   );
+});
+
+test('the output leaves as drawn the share of a pixel the untoned mark covers', () => {
+  const { compose, of } = composer(new EffectChain().add(effect.bloom()));
+  compose(engine().backend, null);
+  const output = of('shaderSource')
+    .map(([, source]) => source as string)
+    .find((source) => source.includes('uniform sampler2D image,untoned'))!;
+  assert.match(
+    output,
+    /c=mix\(toneMap\(c\),c,clamp\(texelFetch\(untoned,at,0\)\.r\/v\.a,0\.0,1\.0\)\)/,
+  );
+  const units = of('uniform1i').filter(([at]) => (at as { uniform: string }).uniform === 'untoned');
+  assert.deepEqual(units, [[{ uniform: 'untoned' }, 1]], 'the mark on unit 1, the image on 0');
 });

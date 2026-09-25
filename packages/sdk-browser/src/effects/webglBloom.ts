@@ -1,4 +1,5 @@
 import type { Bloom } from '../../../sdk-core/src/world/effect/bloom.ts';
+import type { WebglEffectKind } from './webglEffects.ts';
 import { FULLSCREEN_VERTEX } from '../webgl/core/fullscreenPass.ts';
 import { createWebglProgram } from '../webgl/core/program.ts';
 import { createWebglRenderTarget, type WebglRenderTarget } from '../webgl/core/renderTarget.ts';
@@ -35,10 +36,10 @@ function bloomProgram(gl: WebGL2RenderingContext, fragment: string) {
 /**
  * The WebGL2 bloom, the same chain as `webgpuBloom.ts` from the same filters (`bloomFilter.ts`):
  * one half-float target per level, sized with the image (`resize`), and three programs. `draw`
- * writes, into the bound framebuffer, `input` with its glow. The caller has set the full-screen
- * pass state and bound its vertex array.
+ * writes, into `output`, `input` with its glow; every bloom of the chain draws on the same levels,
+ * one after the other. The caller has set the full-screen pass state and bound its vertex array.
  */
-export function createWebglBloom(gl: WebGL2RenderingContext) {
+export function createWebglBloom(gl: WebGL2RenderingContext): WebglEffectKind<Bloom> {
   const programs: Record<keyof typeof BLOOM_GLSL, Program> = {
     down: bloomProgram(gl, BLOOM_GLSL.down),
     up: bloomProgram(gl, BLOOM_GLSL.up),
@@ -67,12 +68,9 @@ export function createWebglBloom(gl: WebGL2RenderingContext) {
     get bytes() {
       return levels.length ? bloomLevelBytes(width, height) : 0;
     },
-    /** Levels at the current size; zero on an image too small to halve. */
-    get levels() {
-      return levels.length;
-    },
-    /** Sizes the chain for an image of `w` × `h`. */
-    resize(w: number, h: number) {
+    /** Sizes the chain for an image of `w` × `h`; no bloom in the chain frees it. */
+    resize(w: number, h: number, count: number) {
+      if (!count) return release();
       if (w === width && h === height) return;
       release();
       width = w;
@@ -84,11 +82,13 @@ export function createWebglBloom(gl: WebGL2RenderingContext) {
     },
     /**
      * Filters `input` down the levels and back up, then blends the first level's sum into
-     * `output` at the image's size: 2 × levels draws. Leaves blending off.
+     * `output` at the image's size: 2 × levels draws, none on an image too small to halve. Leaves
+     * blending off.
      */
-    draw(bloom: Bloom, input: WebglRenderTarget, output: WebglRenderTarget) {
-      const count = levels.length,
-        full = [width, height],
+    draw(bloom, _nth, input, output) {
+      const count = levels.length;
+      if (!count) return 0;
+      const full = [width, height],
         { radius } = bloom;
       // The image stays on unit 1 for the whole chain: no pass writes it, composition reads it.
       read(1, input.texture);

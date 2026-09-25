@@ -1,93 +1,124 @@
-import type { EffectPass } from '../../../sdk-core/src/world/effect/chain.ts';
-import type { Bloom } from '../../../sdk-core/src/world/effect/bloom.ts';
+import type { EffectKind, EffectPass } from '../../../sdk-core/src/world/effect/chain.ts';
 import { boundToContext } from '../webgl/core/contextBound.ts';
-import { FULLSCREEN_VERTEX, setFullscreenPassState } from '../webgl/core/fullscreenPass.ts';
-import { OUTPUT_TRANSFER_GLSL } from '../webgl/core/outputGlsl.ts';
-import { createWebglProgram } from '../webgl/core/program.ts';
+import { setFullscreenPassState } from '../webgl/core/fullscreenPass.ts';
 import {
   bindWebglTarget,
   createWebglRenderTarget,
   halfFloatTargets,
   type WebglRenderTarget,
 } from '../webgl/core/renderTarget.ts';
-import { BLOOM_TEXEL_BYTES } from './bloomFilter.ts';
+import {
+  countKinds,
+  EFFECT_KINDS as KINDS,
+  effectPassTargets,
+  effectTargetBytes,
+  type EffectPassOf,
+} from './targets.ts';
 import { createWebglBloom } from './webglBloom.ts';
+import {
+  createWebglOutput,
+  createWebglSceneTarget,
+  type WebglEffectOutput,
+  type WebglSceneTarget,
+} from './webglOutput.ts';
 
-/**
- * The display chain's last links after the effects: premultiplied linear radiance over the
- * background, as the WebGPU composition writes it — an uncovered pixel is the background as it is,
- * a covered one its radiance through the scene's curve and the sRGB transfer, a partly covered one
- * the mix of the two by coverage.
- */
-const OUTPUT_FRAGMENT = `#version 300 es
-precision highp float;precision highp sampler2D;uniform sampler2D image;uniform bool toneMapped;
-uniform vec3 background;out vec4 color;
-${OUTPUT_TRANSFER_GLSL}
-void main(){vec4 v=texelFetch(image,ivec2(gl_FragCoord.xy),0);
-if(v.a<=0.0){color=vec4(background,1.0);return;}
-float a=min(v.a,1.0);vec3 c=v.rgb/v.a;if(toneMapped)c=toneMap(c);
-color=vec4(linearToSrgb(c)*a+background*(1.0-a),1.0);}`;
+export type { WebglEffectOutput } from './webglOutput.ts';
 
-/** What one display chain needs besides the passes: the curve and the encoded background. */
-export type WebglEffectOutput = {
-  toneMapped: boolean;
-  /** Rank of the scene's curve (`TONE_MAPPING_RANK`). */
-  toneCurve: number;
-  /** The background, sRGB-encoded. */
-  background: readonly [number, number, number];
+/** One kind of pass on WebGL2: its programs, made with the context, and the resources its passes
+ *  share. */
+export type WebglEffectKind<P> = {
+  /** Bytes of what it holds as allocated. */
+  readonly bytes: number;
+  /** Sizes what it holds for `count` passes on a `w × h` image; zero passes free it. */
+  resize(w: number, h: number, count: number): void;
+  /** Draws `pass`, the `nth` of its kind in the chain, from `input` into `output`; returns the
+   *  draws made, zero when it cannot draw at this size. */
+  draw(pass: P, nth: number, input: WebglRenderTarget, output: WebglRenderTarget): number;
+  dispose(): void;
+};
+type Kinds = { [K in EffectKind]: WebglEffectKind<EffectPassOf<K>> };
+
+/** Each kind's WebGL2 implementation: the one place a new built-in or a custom pass plugs in. */
+export const WEBGL_KINDS: { [K in EffectKind]: (gl: WebGL2RenderingContext) => Kinds[K] } = {
+  bloom: createWebglBloom,
 };
 
-/** Everything the chain holds on the context: programs, vertex array, bloom and targets. */
+/** Everything the chain holds on the context: the kinds, the output, the vertex array, targets. */
 function createResources(gl: WebGL2RenderingContext) {
-  const program = createWebglProgram(gl, FULLSCREEN_VERTEX, OUTPUT_FRAGMENT);
-  const at = (name: string) => gl.getUniformLocation(program, name);
-  gl.useProgram(program);
-  gl.uniform1i(at('image'), 0);
-  const [toneMapped, toneCurve, background] = ['toneMapped', 'toneCurve', 'background'].map(at);
-  const vao = gl.createVertexArray()!,
-    bloom = createWebglBloom(gl),
+  const output = createWebglOutput(gl),
+    vao = gl.createVertexArray()!,
+    made: Partial<Kinds> = {},
+    counts = {} as Record<EffectKind, number>,
+    nth = {} as Record<EffectKind, number>,
     targets: WebglRenderTarget[] = [];
-  let width = 0,
-    height = 0;
+  let scene: WebglSceneTarget | undefined,
+    width = 0,
+    height = 0,
+    draws = 0;
   const release = () => {
     for (const target of targets) target.dispose();
     targets.length = 0;
+    scene?.dispose();
+    scene = undefined;
     width = height = 0;
-    bloom.resize(0, 0);
+    for (const kind of KINDS) made[kind]?.resize(0, 0, 0);
   };
+  /** Draws `pass` with its kind's implementation; the chain holds built-ins only (`EffectKind`). */
+  const drawPass = <K extends EffectKind>(
+    pass: EffectPassOf<K>,
+    input: WebglRenderTarget,
+    into: WebglRenderTarget,
+  ) => made[pass.kind as K]!.draw(pass, nth[pass.kind]++, input, into);
   return {
-    bloom,
+    output,
     vao,
-    targets,
-    get bytes() {
-      const texels = width * height,
-        depth = targets.length ? texels * 4 : 0;
-      return targets.length * texels * BLOOM_TEXEL_BYTES + depth + bloom.bytes;
+    get scene() {
+      return scene!;
     },
-    /** The scene's target — with depth — then `count` pass targets, at `w` × `h`. */
-    ensure(count: number, w: number, h: number) {
+    get bytes() {
+      let bytes = effectTargetBytes(width, height, targets.length, !!scene);
+      for (const kind of KINDS) bytes += made[kind]?.bytes ?? 0;
+      return bytes;
+    },
+    /** The scene's target, then the pass targets and each kind's own, for `passes` at `w` × `h`. */
+    ensure(passes: readonly EffectPass[], w: number, h: number) {
       if (w !== width || h !== height) release();
       width = w;
       height = h;
-      while (targets.length < count + 1)
-        targets.push(createWebglRenderTarget(gl, w, h, { depth: !targets.length, hdr: true }));
-      bloom.resize(w, h);
+      scene ??= createWebglSceneTarget(gl, w, h);
+      while (targets.length < effectPassTargets(passes.length))
+        targets.push(createWebglRenderTarget(gl, w, h, { depth: false, hdr: true }));
+      countKinds(passes, counts);
+      for (const kind of KINDS)
+        if (counts[kind]) (made[kind] ??= WEBGL_KINDS[kind](gl)).resize(w, h, counts[kind]);
+        else made[kind]?.resize(0, 0, 0);
+    },
+    /** Draws the last `run` made. */
+    get draws() {
+      return draws;
+    },
+    /** Runs the passes on the scene's target; returns the last image. */
+    run(passes: readonly EffectPass[]) {
+      for (const kind of KINDS) nth[kind] = 0;
+      let image = scene!.target,
+        written = 0;
+      draws = 0;
+      for (const pass of passes) {
+        const next = targets[written % 2],
+          drawn = drawPass(pass as EffectPassOf<EffectKind>, image, next);
+        if (!drawn) continue;
+        draws += drawn;
+        image = next;
+        written++;
+      }
+      return image;
     },
     release,
-    output(image: WebglRenderTarget, out: WebglEffectOutput) {
-      gl.useProgram(program);
-      gl.uniform1i(toneMapped, out.toneMapped ? 1 : 0);
-      gl.uniform1i(toneCurve, out.toneCurve);
-      gl.uniform3f(background, out.background[0], out.background[1], out.background[2]);
-      gl.activeTexture(gl.TEXTURE0);
-      gl.bindTexture(gl.TEXTURE_2D, image.texture);
-      gl.drawArrays(gl.TRIANGLES, 0, 3);
-    },
     dispose() {
       release();
-      bloom.dispose();
+      for (const kind of KINDS) made[kind]?.dispose();
+      output.dispose();
       gl.deleteVertexArray(vao);
-      gl.deleteProgram(program);
     },
   };
 }
@@ -110,7 +141,7 @@ export function createWebglEffects(gl: WebGL2RenderingContext) {
   return {
     /** Whether this context renders the chain's half-float targets. */
     supported: () => halfFloatTargets(gl),
-    /** Bytes of the targets the chain holds: the scene's with its depth, the passes', the bloom's. */
+    /** Bytes of the targets the chain holds: the scene's with its depth, the passes', the kinds'. */
     get bytes() {
       return held.alive() ? held.current()!.bytes : 0;
     },
@@ -123,8 +154,8 @@ export function createWebglEffects(gl: WebGL2RenderingContext) {
     begin(passes: readonly EffectPass[], w: number, h: number) {
       const made = held.current();
       if (!made) return null;
-      made.ensure(Math.min(passes.length, 2), w, h);
-      const scene = made.targets[0];
+      made.ensure(passes, w, h);
+      const scene = made.scene.target;
       bindWebglTarget(gl, scene);
       gl.disable(gl.SCISSOR_TEST);
       gl.colorMask(true, true, true, true);
@@ -145,17 +176,10 @@ export function createWebglEffects(gl: WebGL2RenderingContext) {
       if (!made) return;
       setFullscreenPassState(gl);
       gl.bindVertexArray(made.vao);
-      let image = made.targets[0];
-      draws = 0;
-      if (made.bloom.levels)
-        for (let index = 0; index < passes.length; index++) {
-          const next = made.targets[1 + (index % 2)];
-          draws += made.bloom.draw(passes[index] as Bloom, image, next);
-          image = next;
-        }
+      const image = made.run(passes);
       bindWebglTarget(gl, destination);
-      made.output(image, out);
-      draws++;
+      made.output.draw(image, made.scene, out);
+      draws = made.draws + 1;
       gl.bindVertexArray(null);
     },
     /** Frees the targets; the programs stay. */

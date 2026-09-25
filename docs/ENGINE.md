@@ -176,13 +176,25 @@ revision and asks for a frame.
   engine for linear radiance (`HostDrawOutput.linear`: no curve, no sRGB transfer, alpha as coverage
   over transparent black) into a half-float target with depth, runs the passes, then one output
   program applies the scene's curve and the sRGB transfer over the background, as the WebGPU
-  composition does. A context that cannot render half floats draws without the chain.
+  composition does. That draw goes through a variant of the cluster program
+  (`CLUSTER_LINEAR_FRAGMENT`), compiled at the first frame with a pass and sharing the display
+  program's vertex arrays and maps: without a chain, the program and its uniforms are the ones
+  drawn before the chain existed. Its second output marks, one byte a pixel, the coverage of the
+  surfaces whose material skips the curve (`toneMapped: false`); the output program leaves that
+  share as drawn. A context that cannot render half floats draws without the chain.
+- **Kinds**: each renderer holds one table from pass kind to implementation (`WEBGPU_KINDS`,
+  `WEBGL_KINDS`); a new built-in or the custom pass is one entry. The kinds of a chain share its two
+  pass targets; each holds its own resources besides, sized for the passes of its kind — the
+  WebGPU bloom gives every bloom pass its own uniform range, read at a dynamic offset.
 
 Parity rules, each held by a unit test: an empty chain adds no pass, no copy and no target — the
 frame is composed call for call as without one; a held frame redisplays the image the chain drew and
 runs no pass, a changed chain breaks the hold; targets are made at the first frame with a pass, fixed
 at the image size, freed when the chain empties, and counted in `gpuFrameTargetBytes` (on WebGL2,
-which counts no other target, the chain's alone). A diagnostic view and an off-screen capture show
+which counts no other target, the chain's alone). The GPU total reserves them at their largest
+(`EFFECT_TARGET_BYTES`, 2 027 MiB: two pass targets, the WebGL2 scene target and the bloom levels on
+an 8192 × 8192 image, the texture side every WebGPU device offers), sized by the same rule the
+renderers count them with (`effects/targets.ts`), and the default total grows by as much. A diagnostic view and an off-screen capture show
 the engine's image without the chain.
 
 **Bloom** (`effect.bloom`, `effects/bloomFilter.ts`) is the physically based one of Jimenez

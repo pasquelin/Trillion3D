@@ -1,30 +1,35 @@
 import type { ClusterDrawMesh, WholeMesh } from '../../cluster/batchMesh.ts';
+import { TONE_MAPPING_RANK } from '../../../../sdk-core/src/index.ts';
 import { WebglClusterRenderer } from './renderer.ts';
 import type { WebglClusterScene } from './lights.ts';
 import type { SceneCopy } from './copyCulling.ts';
 import type { HostDrawCamera } from '../../camera/world.ts';
 
-/** The one draw owner of a session's paged clusters, diagnostic pages and scene copies. */
+/**
+ * The one draw owner of a session's paged clusters, diagnostic pages and scene copies. A draw
+ * into the effect chain's linear target (`linear`) goes through a second program, made at the
+ * first such draw, which shares the first's vertex arrays, maps and backdrop: a session that never
+ * draws a chain compiles and binds exactly what it did without one.
+ */
 export class WebglClusterOwner {
+  private display: WebglClusterRenderer;
+  private linear: WebglClusterRenderer | undefined;
+  /** The renderer of the last draw, whose counters the getters report. */
   private renderer: WebglClusterRenderer;
   private context: WebGL2RenderingContext;
   private restored = () => {
-    this.renderer.dispose();
-    this.renderer = new WebglClusterRenderer(this.context);
+    this.release();
+    this.renderer = this.display = new WebglClusterRenderer(this.context);
   };
   constructor(context: WebGL2RenderingContext) {
     this.context = context;
-    this.renderer = new WebglClusterRenderer(context);
+    this.renderer = this.display = new WebglClusterRenderer(context);
     context.canvas.addEventListener('webglcontextrestored', this.restored);
   }
   /** The display curve of the frames to come, a rank of `TONE_MAPPING_RANK`. */
-  set toneCurve(rank: number) {
-    this.renderer.toneCurve = rank;
-  }
+  toneCurve: number = TONE_MAPPING_RANK.aces;
   /** Image pixels per CSS pixel of the frames to come: the scale of a line's width. */
-  set pixelRatio(ratio: number) {
-    this.renderer.pass.pixelRatio = ratio;
-  }
+  pixelRatio = 1;
   get backdropBytes() {
     return this.renderer.backdropBytes;
   }
@@ -49,8 +54,13 @@ export class WebglClusterOwner {
     srgbDestination: boolean,
     diagnosticMeshes: readonly WholeMesh[] = [],
     copies: readonly SceneCopy[] = [],
+    linear = false,
   ) {
-    return this.renderer.draw(
+    if (linear) this.linear ??= new WebglClusterRenderer(this.context, this.display);
+    const renderer = (this.renderer = linear ? this.linear! : this.display);
+    renderer.toneCurve = this.toneCurve;
+    renderer.pass.pixelRatio = this.pixelRatio;
+    return renderer.draw(
       meshes,
       scene,
       camera,
@@ -60,8 +70,13 @@ export class WebglClusterOwner {
       copies,
     );
   }
+  private release() {
+    this.linear?.dispose();
+    this.linear = undefined;
+    this.display.dispose();
+  }
   dispose() {
     this.context.canvas.removeEventListener('webglcontextrestored', this.restored);
-    this.renderer.dispose();
+    this.release();
   }
 }
