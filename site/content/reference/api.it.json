@@ -5444,7 +5444,7 @@
       "representationChanged": "Lo stesso mondo a un’altra precisione: il suo box attende che la camera si fermi.",
       "resting": "La camera era ferma all'ultimo piano: la sua vista era quella del piano precedente.",
       "deferredChanges": "Vero finché un cambio di rappresentazione attende che la camera si fermi.",
-      "releaseDeferred": "Il fotogramma non pianifica alcuna ombra: i riquadri trattenuti entrano subito nella lista.",
+      "releaseDeferred": "Il fotogramma non pianifica alcuna ombra: l’unione trattenuta entra subito nella lista.",
       "setPageInvalidation": "Disattiva l’invalidazione per pagina: un oggetto in movimento invalida ogni pagina delle luci che tocca. Attiva per impostazione predefinita.",
       "pageInvalidation": "Se un oggetto in movimento invalida solo le pagine coperte dal suo box.",
       "plan": "Pianifica un fotogramma: invalida ciò che si è mosso, legge l’ultimo rapporto, ammette ogni pagina da disegnare.",

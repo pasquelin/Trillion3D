@@ -3222,7 +3222,7 @@
       "representationChanged": "Dunia yang sama dengan presisi lain: kotaknya menunggu kamera diam.",
       "resting": "Kamera diam pada rencana terakhir: tampilannya sama dengan rencana sebelumnya.",
       "deferredChanges": "Benar selama perubahan representasi menunggu kamera diam.",
-      "releaseDeferred": "Bingkai tidak merencanakan bayangan: kotak yang ditahan langsung masuk ke daftar.",
+      "releaseDeferred": "Bingkai tidak merencanakan bayangan: gabungan yang ditahan langsung masuk ke daftar.",
       "setPageInvalidation": "Mematikan invalidasi per halaman: objek bergerak membuat usang setiap halaman cahaya yang disentuhnya. Aktif secara default.",
       "pageInvalidation": "Apakah objek bergerak hanya membuat usang halaman yang tertutup kotaknya.",
       "plan": "Merencanakan satu frame: membuat usang yang bergerak, membaca laporan terakhir, menerima setiap halaman yang akan digambar.",

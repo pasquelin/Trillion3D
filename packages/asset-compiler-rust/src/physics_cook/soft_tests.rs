@@ -1,7 +1,7 @@
 //! Soft bodies cooked as the page builds them: their vertices weighed and pinned alike, their
 //! settings Jolt's own bytes (a golden file), and a declaring node listed as a soft body in
 //! `physics.json`, never as static ground.
-use super::soft_record::{soft_record, SoftDeclared};
+use super::soft_record::{soft_record, SoftDeclared, SoftRecord};
 use super::stage_physics;
 use super::tests::assert_golden;
 use super::{soft_settings, SOFT_VERTEX_WORDS as W};
@@ -151,4 +151,46 @@ fn a_declared_cloth_is_a_soft_body_of_physics_json_not_static_ground() {
             {"node":3,"reason":"A soft body takes no sensor."}])
     );
     std::fs::remove_dir_all(root).unwrap();
+}
+
+/// The cook's soft records: `softCook.test.ts` rebuilds each with the page's `softBodyOf`, bit
+/// for bit.
+const RECORDS: &str = "../../tests/fixtures/physics/soft-records.bin";
+
+/// A record as the fixture lays it, little-endian: `u32` word count, `f32` words (`x, y, z,
+/// mass` per vertex), `u32` corner count, `u32` corners, `f64` pressure.
+fn record_bytes(r: &SoftRecord) -> Vec<u8> {
+    let mut out = (r.vertices.len() as u32).to_le_bytes().to_vec();
+    out.extend(r.vertices.iter().flat_map(|v| v.to_le_bytes()));
+    out.extend((r.indices.len() as u32).to_le_bytes());
+    out.extend(r.indices.iter().flat_map(|i| i.to_le_bytes()));
+    out.extend(r.pressure.to_le_bytes());
+    out
+}
+
+// Behaviour: the cook weighs, welds, pins and pressurises three soft bodies — the golden cloth
+// pinned at its top corners; a rope along x whose middle point is written twice (a seam), scaled
+// 2 × 1 × 3 and given 0.3 kg, its hook held; a closed tetrahedron with its default pressure — into
+// the golden records the page's test rebuilds with `softBodyOf`.
+#[test]
+fn the_cooks_soft_records_are_the_golden_ones_the_page_rebuilds() {
+    let seam = [0.0f32, 0., 0., 1., 0., 0., 1., 0., 0., 2., 0.5, 0.];
+    let tetra = [0.0f32, 0., 0., 1., 0., 0., 0., 1., 0., 0., 0., 1.];
+    let faces = [0u32, 2, 1, 0, 1, 3, 0, 3, 2, 1, 2, 3];
+    let rope = SoftDeclared {
+        mass: Some(0.3),
+        ..declared("rope", &[0.0])
+    };
+    let volume = SoftDeclared {
+        bend: f64::INFINITY,
+        ..declared("volume", &[])
+    };
+    let ((pos, triangles), pinned) = (cloth(), declared("cloth", &[6.0, 8.0]));
+    let records = [
+        soft_record(&pos, Some(&triangles), [1.0; 3], &pinned).unwrap(),
+        soft_record(&seam, None, [2.0, 1.0, 3.0], &rope).unwrap(),
+        soft_record(&tetra, Some(&faces), [1.0; 3], &volume).unwrap(),
+    ];
+    let bytes: Vec<u8> = records.iter().flat_map(record_bytes).collect();
+    assert_golden(&bytes, RECORDS);
 }
