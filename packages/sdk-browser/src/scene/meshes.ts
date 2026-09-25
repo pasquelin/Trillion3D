@@ -1,8 +1,5 @@
-import type {
-  HostGraphGeometry,
-  HostGraphMaterial,
-  HostGraphTexture,
-} from '../host/scene/graphResources.ts';
+import type { Geometry } from '../../../sdk-core/src/world/geometry/geometry.ts';
+import type { HostGraphMaterial, HostGraphTexture } from '../host/scene/graphResources.ts';
 import type { HostGraphMesh } from '../host/scene/graphNodes.ts';
 import { isDrawnNode } from '../host/graph/kinds.ts';
 import { isGraphTexture } from '../host/graph/texture.ts';
@@ -21,7 +18,7 @@ export function meshes(node: Object3D) {
 export function* materialTextures(material: HostGraphMaterial): Generator<HostGraphTexture> {
   for (const value of Object.values(material)) if (isGraphTexture(value)) yield value;
 }
-export function geometryBytes(geometry: HostGraphGeometry, seen: Set<ArrayBufferView>) {
+export function geometryBytes(geometry: Geometry, seen: Set<ArrayBufferView>) {
   let bytes = 0;
   const index = geometry.index;
   if (index && !seen.has(index.array)) {

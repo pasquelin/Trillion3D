@@ -15,7 +15,7 @@ import type { ClusterManifest, Primitive } from '../../../sdk-core/src/index.ts'
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts';
 
 function blendGeometry(withUv: boolean) {
-  const geometry = new G.GraphGeometry();
+  const geometry = new G.Geometry();
   geometry.setAttribute('position', G.floatAttribute([0, 0, 0, 1, 0, 0, 0, 1, 0], 3));
   geometry.setAttribute('normal', G.floatAttribute([0, 0, 1, 0, 0, 1, 0, 0, 1], 3));
   if (withUv) geometry.setAttribute('uv', G.floatAttribute([0, 0, 1, 0, 0, 1], 2));

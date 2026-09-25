@@ -688,6 +688,17 @@ classes `GraphAttribute`, `GraphInterleavedBuffer`, `GraphInterleavedAttribute` 
 `GraphElements` and `GraphArray` are removed: write `BufferAttribute`, `InterleavedBuffer`,
 `InterleavedBufferAttribute`, `VertexAttribute` and `BufferTypedArray`.
 
+The engine draws a world's `Geometry` itself. Its `attributes` hold any `VertexAttribute`.
+`morphAttributes` lists one attribute per morph target for each morphed attribute, and
+`morphTargetsRelative` says that the targets hold displacements. `drawRange`, `name`, `userData`
+and `kind` (`'geometry'`) complete it. `computeBoundingBox()` and `computeBoundingSphere()` span
+every vertex and every shape a morph target gives it. A position that owns its list is read, drawn
+and moved as its stored numbers, as before; an interleaved one as the value it stands for. The sphere is
+centred on the box and reaches the farthest vertex. Setting an attribute other than `position`, the
+index or a group keeps the bounds. `clone()` copies every list, morph target, group, range, data,
+bound and recipe. `toNonIndexed()` gives every corner a vertex of its own. `dispose()` runs each
+hook of `released` once. The former engine class `GraphGeometry` is removed: write `Geometry`.
+
 ## Batch math for hosts
 
 A host that moves ten thousand instances or culls ten thousand boxes would otherwise write the loop

@@ -84,7 +84,7 @@ test('exact pages report measured residency and submit only the visible set', ()
 });
 
 test('cpuSelectMs measures selection time, finite and non-negative', () => {
-  const geometry = new G.GraphGeometry();
+  const geometry = new G.Geometry();
   geometry.setAttribute('position', G.floatAttribute([-1, -1, 0, 1, -1, 0, 1, 1, 0, -1, 1, 0], 3));
   geometry.setIndex(G.indices([0, 1, 2, 0, 2, 3]));
   const material = G.basicSurface(),
