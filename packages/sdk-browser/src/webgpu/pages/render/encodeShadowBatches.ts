@@ -38,7 +38,7 @@ export function forEachShadowBatch(
   let runBase = 0,
     from = 0;
   for (let batch = 0; from < count && batch < MAX_SHADOW_BATCHES; batch++) {
-    const to = admission.batchEnd(plan.pool, from, MAX_SHADOW_PAGES, views);
+    const to = admission.batchEnd(from, MAX_SHADOW_PAGES, views);
     if (!visit(from, to, runBase)) break;
     runBase += runs.count;
     from = to;
