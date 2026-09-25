@@ -7,6 +7,7 @@ import {
   VERDICT_REJECTED,
 } from '../partition/contract.ts';
 import { HIZ_FAR_WGSL } from './rectWgsl.ts';
+import { PAGE_INFO_STRUCT_WGSL } from '../../visibility/shader/pageWgsl.ts';
 
 /**
  * Group-0 bindings, published under the WGSL that declares them. The production layout and the
@@ -29,6 +30,12 @@ export function hizBindEntries(uniformBytes: number): GPUBindGroupLayoutEntry[] 
   ];
 }
 
+/** Group 1, the test's alone: the page table, whose Hi-Z slot word tells a row that has no
+ *  verdict (never culled). The pyramid kernels bind group 0 only, the page pyramids included. */
+export const HIZ_TEST_PAGES_ENTRIES: GPUBindGroupLayoutEntry[] = [
+  { binding: 0, visibility: COMPUTE, buffer: { type: 'read-only-storage' } },
+];
+
 /**
  * The three Hi-Z pyramid kernels. The test no longer receives a count or bytes from the CPU: it
  * reads the box count and writes its own reject counters into the state the GPU partition holds,
@@ -40,7 +47,8 @@ export function hizBindEntries(uniformBytes: number): GPUBindGroupLayoutEntry[] 
  * entry names — the shadow pages' pyramids (`../shadow/pageHiz.ts`). The camera's `g` is zero:
  * one pyramid, from texel zero.
  */
-export const HIZ_SHADER = `struct Uni{a:u32,b:u32,c:u32,d:u32,e:u32,f:u32,g:u32,h:u32,}
+export const HIZ_SHADER = `${PAGE_INFO_STRUCT_WGSL}
+struct Uni{a:u32,b:u32,c:u32,d:u32,e:u32,f:u32,g:u32,h:u32,}
 struct Bounds{minX:i32,minY:i32,maxX:i32,maxY:i32,nearest:f32,rowAndClip:u32,pad0:u32,pad1:u32,triangles:u32,pad2:u32,pad3:u32,pad4:u32,}
 @group(0) @binding(0) var<storage, read_write> pyramid:array<f32>;
 @group(0) @binding(1) var level0:texture_2d<f32>;
@@ -48,6 +56,7 @@ struct Bounds{minX:i32,minY:i32,maxX:i32,maxY:i32,nearest:f32,rowAndClip:u32,pad
 @group(0) @binding(3) var<storage, read> bounds:array<Bounds>;
 @group(0) @binding(4) var<storage, read_write> flags:array<u32>;
 @group(0) @binding(5) var<storage, read_write> state:array<atomic<u32>>;
+@group(1) @binding(0) var<storage, read> pages:array<PageInfo>;
 @compute @workgroup_size(8, 8)
 fn copyDepth(@builtin(global_invocation_id) id:vec3u){
  if(id.x>=uni.a||id.y>=uni.b){return;}
@@ -80,8 +89,9 @@ fn testHiz(@builtin(global_invocation_id) id:vec3u){
  let b=bounds[i];
  let row=b.rowAndClip>>1u;
  // A tested row the pyramid cannot judge stays drawn: kept, never an occluder — the compute
- // raster draws occluders in its other mode.
- if((b.rowAndClip&1u)!=0u||b.maxX<b.minX||b.maxY<b.minY){flags[row]=${VERDICT_KEPT}u;return;}
+ // raster draws occluders in its other mode. A row with no verdict slot (never culled) is not
+ // judged either: no reject is counted for a row that draws.
+ if(pages[row].hizSlot==0xffffffffu||(b.rowAndClip&1u)!=0u||b.maxX<b.minX||b.maxY<b.minY){flags[row]=${VERDICT_KEPT}u;return;}
  let far=pyramidFar(b.minX,b.minY,b.maxX,b.maxY,b.pad0,b.pad1);
  let bias=bitcast<f32>(uni.d);
  // Reverse-Z: a box is rejected when its NEAREST point stays behind the pyramid's farthest,
