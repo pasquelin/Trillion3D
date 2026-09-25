@@ -19,6 +19,7 @@ import {
   type LightPages,
 } from '../../../../../sdk-core/src/scene/light-shadow/pageOverlap.ts';
 import { dagScratch, projectedError } from './math.ts';
+import { drawsCluster } from '../../../page/cut/rule.ts';
 import type { MatrixElements } from '../../../math/matrixElements.ts';
 
 type PredicateContext = {
@@ -86,7 +87,8 @@ export function createDagOraclePredicates(context: PredicateContext) {
       perspective,
     );
   };
-  const selects = (index: number, threshold: number) =>
-    bandPixels(index, 0) <= threshold && bandPixels(index, 1) > threshold;
-  return { coneRejects, visible, bandPixels, selects };
+  /** The cut rule (`../../../page/cut/rule.ts`) on page `index`, under the residency given. */
+  const draws = (index: number, threshold: number, ready: boolean, childReady: boolean) =>
+    drawsCluster(ready, bandPixels(index, 1), bandPixels(index, 0), childReady, threshold);
+  return { coneRejects, visible, bandPixels, draws };
 }

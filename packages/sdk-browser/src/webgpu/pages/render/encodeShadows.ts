@@ -82,8 +82,8 @@ export function planShadowRegions(
     plan.releaseDeferred();
     return 0;
   }
-  // The light cuts measure their error at the camera's threshold, budget included.
-  const pixelError = followLightThreshold(lights, rt.run.gate.pixelError, rt.run.budgetPixelError);
+  // The light cuts measure their error at the camera's threshold.
+  const pixelError = followLightThreshold(lights, rt.run.gate.pixelError);
   const view = shadowViewpointOf(cam, rt.gpu.targetSize[1]);
   const box = lights.sceneBox(rt.layout);
   ensureStaticLayer(rt);

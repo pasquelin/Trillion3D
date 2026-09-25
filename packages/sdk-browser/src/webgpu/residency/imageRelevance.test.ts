@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { frame, scene } from './sets.fixture.ts';
 import { createShadowTier } from './shadowTier.ts';
 import { createImageRelevance } from './imageRelevance.ts';
+import { createGroupClosure } from '../cut/groupClosure.ts';
 
 function world() {
   const w = scene();
@@ -11,6 +12,7 @@ function world() {
     keyCount: w.tracking.keyCount,
     keyOf: w.tracking.keyOf,
     room: () => 64,
+    closeOver: createGroupClosure([], w.packed).closeOver,
   });
   const affectsImage = createImageRelevance({
     tracking: w.tracking,

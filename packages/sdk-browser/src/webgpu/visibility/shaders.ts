@@ -23,6 +23,7 @@ export async function createWebgpuVisibilityShaders(
   variant?: DiagnosticGpuVariant,
 ) {
   const shadeUniform = device.createBuffer({
+    label: 'Trillion3D resolve uniform',
     size: SHADE_UNIFORM_BYTES,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
@@ -57,6 +58,7 @@ export async function createWebgpuVisibilityShaders(
     usage: GPUBufferUsage.STORAGE,
   });
   const visUniform = device.createBuffer({
+    label: 'Trillion3D visibility uniforms',
     size: uniformSlots * 256,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
