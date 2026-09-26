@@ -162,8 +162,6 @@ export async function createDagResources(
       listCap,
       outputBytes,
       readbackBytes,
-      /** The pool's slots the next cut lists evictions for, and its readback copies. */
-      pool: { slots: 0 },
       levelSizes: packed.levelSizes,
       liveGroupsOffset,
       candGroupsOffset,

@@ -127,7 +127,7 @@ stamped per content key: every placement of a page stamps its key's canonical pa
 stamp is its last use over all placements, and the listing sweeps the pool's own residency bits,
 not the catalogue. A key the latest cut drew or asked for is never listed. On the GPU-cut path
 the cache evicts only from that queue, skipping pinned pages (`webgpu/residency/evictionFeed.ts`);
-once it is spent, the burst stops until the next readback. The CPU cut evicts the least recent
+once it is spent (`eviction-queue-spent`), the burst stops until the next readback. The CPU cut evicts the least recent
 page, and `budgetRanking` still chooses what either path loads past the budget until #836.
 
 **Occlusion** is two-phase Hi-Z. Pass 1 draws the rows the previous frame drew that the previous
