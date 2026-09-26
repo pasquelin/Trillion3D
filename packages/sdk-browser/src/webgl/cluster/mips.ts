@@ -77,10 +77,12 @@ export class WebglMipReducer {
   private gl: WebGL2RenderingContext;
   private built: ReturnType<typeof buildReducer> | undefined;
   private counts: WebglCoverageCounts;
+  /** The context's largest texture side, asked once, at the first counted chain. */
+  private maxSide: number | undefined;
   /** Per format, whether a framebuffer holds its levels. */
   private drawable = new Map<number, boolean>();
-  /** Per format, the copy of the level above, at the largest size seen (`extent` clamps) and a row
-   *  more, for `t`; `used` since the last `trim`, which returns the others: a live picture's stays. */
+  /** Per format, the copy of the level above, at the largest size seen (`extent` clamps) and, for
+   *  a counted chain, a row more, for `t`; `used` since the last `trim`, which returns the others: a live picture's stays. */
   private scratches = new Map<number, Scratch>();
   private drop(format: number) {
     const held = this.scratches.get(format);
@@ -112,14 +114,23 @@ export class WebglMipReducer {
       mask: gl.getParameter(gl.COLOR_WRITEMASK) as boolean[],
       toggles: FULLSCREEN_DISABLED.map((name) => gl.isEnabled(gl[name])),
     };
-    // Sixteen float rows a level count exactly up to 2^28 texels, a 16384² picture (`coverageMips.ts`);
-    // asked after `saved`: the first ask binds the counts' framebuffer.
-    const cut = cutoff && width * height <= 2 ** 28 && this.counts.ready() ? cutoff : 0;
+    // Sixteen float rows a level count exactly up to 2^28 texels, a 16384² picture (`coverageMips.ts`),
+    // and `t` takes a scratch row under the picture, which a picture as tall as the context allows
+    // has not: those keep the median alone. Asked after `saved`: the first ask binds the counts'
+    // framebuffer.
+    const cut =
+      cutoff &&
+      width * height <= 2 ** 28 &&
+      height < (this.maxSide ??= gl.getParameter(gl.MAX_TEXTURE_SIZE) as number) &&
+      this.counts.ready()
+        ? cutoff
+        : 0;
     const blend = cut ? BLEND_STATE.map((name) => gl.getParameter(gl[name]) as number) : undefined;
+    const rows = cut ? height + 1 : height;
     let scratch = this.scratches.get(format);
-    if (!scratch || scratch.width < width || scratch.height <= height) {
+    if (!scratch || scratch.width < width || scratch.height < rows) {
       const w = Math.max(width, scratch?.width ?? 0),
-        h = Math.max(height + 1, scratch?.height ?? 0);
+        h = Math.max(rows, scratch?.height ?? 0);
       this.drop(format);
       this.scratches.set(format, (scratch = { texture: gl.createTexture()!, width: w, height: h }));
       gl.bindTexture(gl.TEXTURE_2D, scratch.texture);
