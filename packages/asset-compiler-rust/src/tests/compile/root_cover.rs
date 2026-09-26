@@ -135,7 +135,7 @@ fn arcade() -> Mesh {
 #[test]
 fn no_column_of_an_arcade_leaves_a_cut_under_its_extent() {
     let mesh = arcade();
-    let (root, mut options) = mesh_fixture("arcade", std::slice::from_ref(&mesh));
+    let (root, mut options) = mesh_fixture("arcade", &mesh);
     options.texture_formats = Vec::new();
     let result = compile(&options, |_| {}).expect("compile");
     let objects = options.cache.join("native/objects");
