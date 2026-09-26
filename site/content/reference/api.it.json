@@ -4238,7 +4238,7 @@
       "quaternion": "Come è ruotato il nodo, in quaternione.",
       "scale": "Come è allungato il nodo su ogni asse.",
       "up": "Dove è l'alto per `lookAt`.",
-      "castShadow": "Se il nodo proietta ombre.",
+      "castShadow": "Se il nodo proietta ombre: una mesh lo fa a meno che non sia impostata a `false`, una luce solo se impostata a `true`. Una mesh impostata a `false` riceve comunque le ombre degli altri.",
       "receiveShadow": "Se le ombre cadono sul nodo.",
       "renderOrder": "Ordine di disegno tra le cose trasparenti.",
       "frustumCulled": "Se un renderer può saltarlo fuori dalla vista.",
@@ -4740,6 +4740,7 @@
     "members": {
       "matrices": "Sedici float colonna per colonna per riga, scritti dal proprietario.",
       "live": "1 dove la riga posiziona la risorsa, 0 dove è messa da parte.",
+      "shadowless": "1 dove la riga non proietta ombra (il `castShadow` della sua mesh è `false`), 0 dove la proietta.",
       "capacity": "Righe che ci stanno prima che cresca."
     }
   },
@@ -5286,6 +5287,7 @@
       "pose": "Un nodo si è mosso.",
       "structure": "Un nodo ha guadagnato o perso figli.",
       "content": "La forma o il materiale di un nodo è cambiato.",
+      "shadow": "Il `castShadow` di un nodo è cambiato: nulla si è mosso.",
       "posed": "Molti nodi si sono mossi insieme, scritti direttamente nel loro albero (i corpi della fisica): segnalato una volta.",
       "seat": "La riga da cui il nodo è disegnato, o `null`: sedici float per colonne da `row * 16` in `batch.rows.matrices`, letti sul posto dal renderer. Chi posiziona nodi a migliaia (la fisica) vi scrive le loro matrici mondo, valide finché `seatEpoch` non cambia, e indica le righe scritte con `placed`.",
       "seatEpoch": "Cambia quando una riga viene presa, liberata o riallocata: ogni risposta precedente di `seat` è superata.",

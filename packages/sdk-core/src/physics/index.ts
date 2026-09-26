@@ -4,6 +4,7 @@ export { CommandWriter, type BodyRecord, type CompoundPart } from './commands.ts
 export { resolveShape } from './shape.ts';
 export { physicsMatterOf } from './matter.ts';
 export * from './cooked.ts';
+export { declaredMass, declaredShape } from './declared.ts';
 export {
   ObjectPhysics,
   type ContactEvent,
