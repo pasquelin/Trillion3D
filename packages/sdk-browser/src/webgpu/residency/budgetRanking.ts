@@ -35,10 +35,13 @@ export function createBudgetRanking(options: {
   const lists: Int32Array[] = [];
   /** Beside each level's keys, the first placement that named each: the record it is looked up by. */
   const pageLists: PageRec[][] = [];
-  /** Placements holding each weighed key, and its slot in its level plus one: a key counts once
-   *  however many hold it. */
+  /** Placements holding each weighed key, its slot in its level plus one, and that level plus one:
+   *  a key counts once however many hold it. The level is the key's, taken from the placement that
+   *  filed it: index pages are content-addressed (`../row/pageSlots.ts`), so placements of one key
+   *  may carry different levels, and the key leaves the list it was filed in (#824). */
   const refs = createSparseInts(),
-    slotOf = createSparseInts();
+    slotOf = createSparseInts(),
+    levelOfKey = createSparseInts();
   /** The ranked prefix, one entry per page, and the keys beside it. Sized to the budget once. */
   const ranked: PageRec[] = [];
   let keys = new Int32Array(0);
@@ -65,6 +68,7 @@ export function createBudgetRanking(options: {
       return (
         refs.byteLength +
         slotOf.byteLength +
+        levelOfKey.byteLength +
         held.byteLength +
         keys.byteLength +
         lists.reduce((bytes, list) => bytes + (list?.byteLength ?? 0), 0)
@@ -88,6 +92,7 @@ export function createBudgetRanking(options: {
         list = grow(level),
         slot = held[level]++;
       slotOf.set(key, slot + 1);
+      levelOfKey.set(key, level + 1);
       list[slot] = key;
       (pageLists[level] ??= [])[slot] = page;
       weighed++;
@@ -96,8 +101,7 @@ export function createBudgetRanking(options: {
     remove(page: PageRec) {
       const key = keyOf(page);
       if (bootstrapKey[key] || refs.get(key) <= 0 || refs.add(key, -1) > 0) return;
-      // The level belongs to the page, not the placement: the one that leaves is the one that entered.
-      const level = levelOf(page),
+      const level = levelOfKey.set(key, 0) - 1,
         list = lists[level],
         pages = pageLists[level],
         slot = slotOf.set(key, 0) - 1,
