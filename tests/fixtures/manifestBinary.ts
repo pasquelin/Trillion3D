@@ -77,6 +77,7 @@ export function manifest(): ClusterManifest {
       source: null,
       stream: 0,
       streamOffset: 0,
+      cone: { axis: [-0.0621135613999339, 0.027174688463389093, 0.9976990737678042], angle: 1.75 },
     },
     {
       id: 1,

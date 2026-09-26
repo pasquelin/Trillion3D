@@ -9,6 +9,7 @@ import {
   type ColumnName,
   type TextureBlockFormat,
 } from './binaryFormat.ts';
+import { MAX_DEPTH_LAYER } from '../lod/depthLayer.ts';
 import { previewBlockBytes, previewPixelBytes } from '../texture/previewLevels.ts';
 
 const digestRefuse = (sha: string) =>
@@ -47,6 +48,15 @@ export function expectTemplate(template: string, url: string, sha: string) {
         template,
       },
     );
+}
+
+/** A cluster's coplanar depth layer, refused unless it fits the four bits the cache gives it. */
+export function checkedDepthLayer(depthLayer: number) {
+  if (!Number.isInteger(depthLayer) || depthLayer < 0 || depthLayer > MAX_DEPTH_LAYER)
+    throw new EngineError('INVALID_CACHE', 'A cluster depth layer does not fit four bits', {
+      depthLayer,
+    });
+  return depthLayer;
 }
 
 /** How many rows each part of a binary manifest holds. */
@@ -125,6 +135,7 @@ export function columnElements(name: ColumnName, counts: Counts) {
     case 'geometrySha':
     case 'geometryU32':
     case 'pageDepthLayer':
+    case 'pageCone':
       return counts.pages;
     case 'cullingNodes':
       return counts.cullingNodes;
