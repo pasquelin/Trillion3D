@@ -19,6 +19,7 @@ import {
   childBase,
   residentFlags,
   selectionListCap,
+  stagedRequestsWord,
   writeTriangleTotals,
 } from '../../../packages/sdk-browser/src/gpu/dag/layout.ts';
 import { sortRequestWords } from '../../../packages/sdk-browser/src/gpu/dag/request.ts';
@@ -170,25 +171,18 @@ export function simulateComputeDispatch(
   ints[1] = result.frustumRejected;
   ints[2] = result.lodLevel;
   writeTriangleTotals(ints, result);
-  if (light) {
-    ints[0] = result.pageIds.length;
-    ints.set(result.pageIds, SELECTION_HEADER_WORDS);
-    return;
-  }
   // The camera's requests wait, in the order `dagWanted` emits them, where `dagSortRequests` reads.
-  const staged = result.requestWords!;
-  ints[0] = staged.length;
-  ints.set(staged, stagedAt(packed.pageCount));
+  const [list, at] = light
+    ? [result.pageIds, SELECTION_HEADER_WORDS]
+    : [result.requestWords, stagedRequestsWord(selectionListCap(packed.pageCount))];
+  ints[0] = list.length;
+  ints.set(list, at);
 }
-
-/** Word of the first staged request (`stagedAt` of `snapshotWgsl.ts`). */
-const stagedAt = (pageCount: number) =>
-  SELECTION_HEADER_WORDS * 2 + 2 * selectionListCap(pageCount);
 
 /** `dagSortRequests`: the staged requests into the sample, by rank, through the kernel's mirror. */
 function sortStagedRequests(out: Uint8Array, pageCount: number) {
   const ints = new Uint32Array(out.buffer, out.byteOffset, out.byteLength / 4),
-    at = stagedAt(pageCount),
+    at = stagedRequestsWord(selectionListCap(pageCount)),
     count = Math.min(ints[0], selectionListCap(pageCount));
   ints.set(sortRequestWords(ints.subarray(at, at + count)), SELECTION_HEADER_WORDS);
 }
