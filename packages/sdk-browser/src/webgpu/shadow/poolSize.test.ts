@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  shadowPoolSide,
   shadowPoolSize as pages,
-  shadowPoolShape,
 } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { createWebgpuLightState } from '../pages/state/lights.ts';
 import { shadowPoolFor, sizeShadowPool } from './poolSize.ts';
@@ -17,7 +17,7 @@ import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
  *  records the side it was sized at, and what the frame was told. */
 function session(viewport: [number, number], limit = Infinity) {
   installGpuGlobals();
-  const lights = createWebgpuLightState(shadowPoolShape(pages(300, 150)).side);
+  const lights = createWebgpuLightState(shadowPoolSide(300, 150));
   lights.plan.setPageInvalidation(false);
   const sized: number[] = [],
     said: Array<[string, Record<string, unknown>]> = [];
@@ -100,7 +100,7 @@ test('the shadow pool is sized by the first frame on the canvas, not by the canv
 });
 
 test('a shadow pool the device refuses is drawn smaller, said, and never taken for a lost device', async () => {
-  const wanted = shadowPoolShape(pages(1280, 720)).side;
+  const wanted = shadowPoolSide(1280, 720);
   // Room for a quarter of the pool's bytes: 51² pages refused, then half, then half again.
   const s = session([1280, 720], shadowAtlasBytes(wanted) / 4);
   s.lights.store.add({ ...SUN, id: 'shadow sun' });
@@ -152,7 +152,7 @@ test('the shadow pool rule never draws above the screen nor below the smallest o
   assert.deepEqual([wide.side, wide.layers], [71, 1], 'a device 16 384 texels wide: one layer');
   assert.equal(shadowPoolFor(20160)(SHADOW_ATLAS_BYTES).clamp, 'ceiling', 'the budget holds it');
   const floor = draw(1);
-  assert.equal(floor.side, shadowPoolShape(pages(1, 1)).side);
+  assert.equal(floor.side, shadowPoolSide(1, 1));
   assert.equal(floor.clamp, 'minimum');
 });
 
@@ -166,8 +166,8 @@ test('at 3 456 × 2 234, one sun sizes two layers of 51 pages a side: 5 202 page
 });
 
 test('the side follows the pages the pool holds; the device side is only the cap', () => {
-  // A pool of 2 160 pages is the square that holds them, as on develop, bytes alike.
-  const held = shadowPoolFor(2160, 16384 / 128)(Infinity);
+  // A pool of 2 160 pages is the one square that holds them, and its bytes.
+  const held = shadowPoolFor(2160, 128)(Infinity);
   assert.deepEqual([held.side, held.layers], [47, 1]);
   assert.equal(held.allocatedBytes, shadowAtlasBytes(47));
   // One sun over 3 456 × 2 234 asks 5 040 pages, 71²; over 3 840 × 2 160, 5 440 pages, 74².
