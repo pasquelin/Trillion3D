@@ -19,7 +19,7 @@ test('the queue reaches the cache as addresses, reading only the listed records'
     slots: number[] = [];
   const cache = { slots: 4, evictInOrder: (order?: EvictionOrder) => orders.push(order) };
   const feed = createEvictionFeed(pages, () => cache);
-  const cut = { result: { evictPageIds: [7, 3, 9000] } } as GpuCut;
+  let cut: GpuCut | null = { result: { evictPageIds: [7, 3, 9000] } } as GpuCut;
   const selection = {
     peek: () => cut,
     setPoolSlots: (n: number) => slots.push(n),
@@ -33,6 +33,10 @@ test('the queue reaches the cache as addresses, reading only the listed records'
   assert.equal(order.count, 3);
   assert.equal(reads, 2);
   assert.deepEqual(slots, [4, 4], 'the cut follows the pool slots');
+  // A residency change voids the cut in hand: the order holds until the next readback.
+  cut = null;
+  feed(selection);
+  assert.equal(orders.length, 1, 'a voided cut keeps the order');
   feed(null);
   assert.deepEqual(orders.at(-1), undefined);
 });
