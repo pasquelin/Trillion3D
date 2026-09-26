@@ -51,13 +51,14 @@ export function createWebgpuResidencySets(options: {
   const keep = createKeyUnion({
     members: tracking.keep,
     keyCount,
+    // Net of what the pin step already saw: a key that leaves and comes back before it runs — a
+    // queue rebuilt past the budget releases and retakes all of it — never reaches it, so its
+    // work follows the keys that moved, not the queue.
     onListed: (key, page) => {
-      leaving.remove(key);
-      entering.add(key, page);
+      if (!leaving.remove(key)) entering.add(key, page);
     },
     onUnlisted: (key) => {
-      entering.remove(key);
-      leaving.add(key);
+      if (!entering.remove(key)) leaving.add(key);
     },
   });
   for (let key = 0; key < keyCount; key++) if (bootstrapKey[key]) keep.retain(key);
