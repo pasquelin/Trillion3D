@@ -26,8 +26,7 @@ merge; your only commits are examples' thumbnails (steps 6 and 7).
    threshold, display cap, and the run-to-run spread when a claim rests on a smaller difference.
    Frame rates are measured in the boss's case: 1728×1117 CSS at DPR 2, frame rate uncapped, bodies
    moving (physics running, a drive, balls raining), on the physics examples and the gallery's
-   heaviest pages. An example under 120 fps is reported; under 60 fps, once a bisect names its
-   cause, that issue is reopened 🔴 with `measure ko`.
+   heaviest pages. An example under 120 fps is reported; under 60 fps it is 🔴: its cause is reopened with `measure ko` once a bisect names a merge, else reported to the CTO at once.
 5. **Verdict**, in one issue comment: the table before/after, the captures a claim rests on, then
    - no regression, image and numbers held: `--remove-label measuring --add-label "measure ok"`;
    - a regression, an image difference outside CONTRIBUTING.md's tolerance, or a failing proof:
