@@ -70,7 +70,6 @@ fn sampledTileLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:
   let weight=walkedWeight(&weights,at,index,kept,N,P);
   if(weight*f32(LIGHT_SAMPLES)>=total){
    chosen[used]=index;factors[used]=1.0;used+=1u;
-   if(index<TILE_LIGHTS){weights[index]=0.0;}
   }else if(weight>0.0){pool+=weight;last=index;}
  }
  let samples=LIGHT_SAMPLES-used;
