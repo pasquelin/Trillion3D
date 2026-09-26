@@ -8,7 +8,7 @@ import assert from 'node:assert/strict';
 import { createSceneLightStore } from '../light/store.ts';
 import { createShadowPlan } from './plan.ts';
 import { SUN, VIEW, report, sunPages } from './lightShadow.fixture.ts';
-import { sunFloorLevel, sunPageMetres } from './virtual.ts';
+import { PAGE_VALID, sunEntry, sunFloorLevel, sunPageMetres } from './virtual.ts';
 
 /** A scene twenty metres wide, under a view that sees two hundred metres around. */
 const BOX_MIN = [-10, 0, -10],
@@ -48,5 +48,14 @@ test('a dolly over a small scene whose reads fit the pool evicts nothing it read
   // The box's twenty metres in the floor's four-metre pages, one page around: 8 × 8, where the
   // view's reach held 880.
   assert.ok(floors <= 64, `the floor holds the scene's pages, not the view's reach: ${floors}`);
+  // No receiver loses its floor: the box is symmetric, so its pages are the same whichever way the
+  // plane's axes point.
+  const page = sunPageMetres(floor),
+    slice = store.sliceOf(0);
+  for (let ay = Math.floor(-10 / page); ay <= Math.floor(10 / page); ay++)
+    for (let ax = Math.floor(-10 / page); ax <= Math.floor(10 / page); ax++) {
+      const entry = plan.table.baseOf(slice) + sunEntry(floor, ax, ay);
+      assert.ok(plan.table.words[entry] & PAGE_VALID, `floor page ${ax},${ay} over the box`);
+    }
   assert.equal(plan.pool.refetched, 0, 'no page evicted and asked for again');
 });
