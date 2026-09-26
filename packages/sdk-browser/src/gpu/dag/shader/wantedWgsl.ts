@@ -31,6 +31,7 @@ fn dagWanted(@builtin(global_invocation_id) id:vec3u){
  if(!selects(cluster,e,stretch,focal,views[vi].pixelError)||rejected){wantAhead(i,w,r,cluster);return;}
  atomicMax(&out.lodLevel,cluster.flags>>${CLUSTER_LEVEL_SHIFT}u);
  emitOne(i,replacementPixels(cluster,e,stretch,focal));
+ stampUse(i);
  if(views[0u].residentCut!=0u&&!isResident(i)){noteCoarser();}
 }
 /** The REPLACEMENT's error, what the eye would see if this cluster were missing: that is what
