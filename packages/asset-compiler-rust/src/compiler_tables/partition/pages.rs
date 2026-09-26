@@ -25,15 +25,14 @@ struct Pager<'a> {
     records: &'a [Value],
     starts: Vec<usize>,
     bounds: &'a [Box6],
-    limit: usize,
     directory: &'a Path,
 }
 
 impl Pager<'_> {
-    /// Whether `region` is a region page: one cell, or records that fit the limit.
+    /// Whether `region` is a region page: one cell, or records that fit `PAGE_BYTES`.
     fn fits(&self, region: &Region) -> bool {
         let records = self.starts[region.cells.end] - self.starts[region.cells.start];
-        region.halves.is_none() || self.head + records <= self.limit
+        region.halves.is_none() || self.head + records <= PAGE_BYTES
     }
 
     /// The slots of the pages listing `region`'s cells in order, each written: its halving opened,
@@ -77,13 +76,12 @@ impl Pager<'_> {
 }
 
 /// Writes the pages of the cells `tree` halved, whose records and world boxes are `records` and
-/// `bounds`, region pages under `limit` bytes; returns the root, the empty slots last.
+/// `bounds`; returns the root, the empty slots last.
 pub(crate) fn write_pages(
     tree: &Region,
     records: &[Value],
     bounds: &[Box6],
     directory: &Path,
-    limit: usize,
 ) -> Result<Value> {
     let mut starts = vec![0];
     for record in records {
@@ -95,7 +93,6 @@ pub(crate) fn write_pages(
         records,
         starts,
         bounds,
-        limit,
         directory,
     };
     let mut slots = pager.slots(tree)?;

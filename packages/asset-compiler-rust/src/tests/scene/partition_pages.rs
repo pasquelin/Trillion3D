@@ -86,16 +86,16 @@ fn halving(cells: std::ops::Range<usize>) -> Region {
 fn index_pages_list_at_most_the_fan_out_and_give_every_record_back_in_order() {
     let directory = scratch("pages", "index");
     let record = |at| json!({"url": format!("scene-cell-{at}.json"), "sha256": "0".repeat(64), "bytes": at, "parents": [], "meshes": [[0, 1]]});
-    let records: Vec<Value> = (0..300).map(record).collect();
+    let records: Vec<Value> = (0..12_000).map(record).collect();
     let bounds = vec![[0.0, 0.0, 0.0, 1.0, 1.0, 1.0]; records.len()];
-    let root = write_pages(&halving(0..300), &records, &bounds, &directory, 2048).expect("pages");
+    let root = write_pages(&halving(0..12_000), &records, &bounds, &directory).expect("pages");
     let written = pages(&directory);
     let index = written.iter().filter(|(_, page)| page["pages"].is_array());
     assert!(index.count() > 0, "index pages are written");
     for (bytes, page) in &written {
         match page["pages"].as_array() {
             Some(slots) => assert!(slots.len() <= FAN_OUT),
-            None => assert!(*bytes <= 2048, "a region page of {bytes} bytes"),
+            None => assert!(*bytes <= PAGE_BYTES, "a region page of {bytes} bytes"),
         }
     }
     let mut read = Vec::new();
