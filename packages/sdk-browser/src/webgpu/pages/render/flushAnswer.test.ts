@@ -40,6 +40,7 @@ test('a drain waits for the shadow pool the device still answers for, then draws
   const pages = () => (backend as WebgpuPagesBackend).selectedPageIds().sort();
   backend.render(camera());
   assert.deepEqual(pages(), [], 'the first frame is held on the pool: no cut');
+  assert.ok(backend.flush, 'the WebGPU pages backend drains');
   await backend.flush();
   assert.deepEqual(pages(), ['0', '1'], 'the drain drew and adopted');
   disposeQuadRun(backend, fixture);
