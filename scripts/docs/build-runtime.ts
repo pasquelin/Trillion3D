@@ -18,7 +18,8 @@ export async function buildRuntime(root: string, outdir: string) {
       pageIntegrationWorker: 'packages/sdk-browser/src/page/integration/pageIntegrationWorker.ts',
       // The physics worker, spawned only by a world that turns physics on.
       physicsWorker: 'packages/sdk-browser/src/physics/physicsWorker.ts',
-      // The examples' own panels, imported beside the engine; they touch nothing of it.
+      // The examples' own panels and pieces, imported beside the engine; they bundle nothing of it,
+      // and a piece builds with the engine families the page hands it.
       kit: 'site/examples/kit/index.ts',
     },
     outdir,
