@@ -48,9 +48,6 @@ export const TRANSMITTANCE_BLEND: GPUBlendState = { color: MULTIPLY, alpha: MULT
 export const castsBlendShadow = (s: PageSurface) =>
   s.transparentShadow && s.blending === 'normal' && !(s.transmission > 0) && s.opacity > 0;
 
-/** Share of the light a blended surface stops, before its colour map's alpha: its opacity. */
-export const blendCoverage = (surface: PageSurface) => Math.min(1, Math.max(0, surface.opacity));
-
 /**
  * The texel a blended caster writes: `1 − coverage`, the coverage being its opacity times its
  * colour map's alpha, read like the cutout's (`maskAlpha`, `../../webgpu/tile/wgsl.ts`).
