@@ -6,7 +6,7 @@ import { pictureSize } from '../../texture/pictureSize.ts';
 import type { HostMaterials } from '../../host/resources.ts';
 import { surfaceOf } from '../../page/surface.ts';
 import { CoverageReaders } from '../../texture/coverage.ts';
-import { WebglMipReducer } from './mips.ts';
+import { WebglMipReducer, type MipChain } from './mips.ts';
 
 /**
  * A texture as uploaded, at its counters (#360, #361) and its size: a new version uploads the
@@ -15,16 +15,7 @@ import { WebglMipReducer } from './mips.ts';
  * placement is not uploaded here — the material binding uploads the UV matrix at every draw
  * (`materialBinding.ts`).
  */
-type TextureRecord = {
-  texture: WebGLTexture;
-  version: number;
-  sampling: number;
-  width: number;
-  height: number;
-  format: number;
-  /** Whether its mip chain weighs colours by alpha; `undefined` while it has no chain. */
-  weighted?: boolean;
-};
+type TextureRecord = MipChain & { version: number; sampling: number };
 type Anisotropy = { TEXTURE_MAX_ANISOTROPY_EXT: number; MAX_TEXTURE_MAX_ANISOTROPY_EXT: number };
 
 const wrap = (gl: WebGL2RenderingContext, value: WrapMode) =>
@@ -90,10 +81,11 @@ export class WebglClusterTextures {
     if (reader && !this.followed.has(texture)) this.readers.follow([texture]);
     if (reader) this.followed.add(texture);
     const key = `${texture.id}:${color ? 'srgb' : 'linear'}${reader ? ':map' : ''}`,
-      weighted = reader && this.readers.weighs(texture);
+      cutoff = reader ? this.readers.cutoff(texture) : undefined,
+      weighted = cutoff !== undefined;
     let record = this.records.get(key);
     if (!record || record.version !== texture.version) {
-      record = this.upload(unit, texture, color, weighted, record);
+      record = this.upload(unit, texture, color, { weighted, cutoff }, record);
       this.records.set(key, record);
     } else {
       if (this.bound[unit] !== record.texture) {
@@ -103,7 +95,8 @@ export class WebglClusterTextures {
       // The chain a mip filter reads, under its readers' rule: built when a sampling moved to a
       // mip filter over a picture uploaded without one, reduced again when the rule switched.
       const sampling = record.sampling !== texture.sampling,
-        mips = record.weighted !== weighted && mipFiltered(texture.minFilter);
+        rule = record.weighted !== weighted || record.cutoff !== cutoff,
+        mips = rule && mipFiltered(texture.minFilter);
       // `setSampler` and the chain write the ACTIVE unit's texture: select it even if bound there.
       if (sampling || mips) gl.activeTexture(gl.TEXTURE0 + unit);
       if (sampling) {
@@ -112,7 +105,7 @@ export class WebglClusterTextures {
       }
       if (mips) {
         const allocate = record.weighted === undefined;
-        this.mips.reduce(unit, record, (record.weighted = weighted), allocate);
+        this.mips.reduce(unit, Object.assign(record, { weighted, cutoff }), allocate);
       }
     }
     this.bound[unit] = record.texture;
@@ -128,7 +121,7 @@ export class WebglClusterTextures {
     unit: number,
     texture: Texture,
     color: boolean,
-    weighted: boolean,
+    rule: { weighted: boolean; cutoff?: number },
     held?: TextureRecord,
   ) {
     const gl = this.gl;
@@ -161,7 +154,7 @@ export class WebglClusterTextures {
     };
     const allocate = !inPlace || !held?.weighted;
     if (mipFiltered(texture.minFilter))
-      this.mips.reduce(unit, record, (record.weighted = weighted), allocate);
+      this.mips.reduce(unit, Object.assign(record, rule), allocate);
     if (!held || held.sampling !== texture.sampling) this.setSampler(texture);
     return record;
   }
