@@ -1,13 +1,17 @@
 import type { MeasuredWorld } from '../session/explorer.ts';
 import type { FrameMetrics, JobProgress } from '../../../../sdk-core/src/index.ts';
+import type { ParticlePool } from '../../../../sdk-core/src/fluids/particles.ts';
+import type { World } from './world.ts';
 export type { JobProgress };
 
 /** What the families that read a world's engine reach it by, without the page holding it. */
 type Access = { session: () => MeasuredWorld | null; last: () => FrameMetrics | null };
-const worlds = new WeakMap<object, Access>();
+/** What the world holds for every session it opens (`worldSwitches.ts`). */
+type Held = { particles: ParticlePool[] };
+const worlds = new WeakMap<object, Access & Held>();
 
-export const registerWorld = (world: object, access: Access) => {
-  worlds.set(world, access);
+export const registerWorld = (world: object, access: Access, held: Held) => {
+  worlds.set(world, { ...access, particles: held.particles });
 };
 
 /** The session drawing `world` now; a world that draws nothing yet is refused by name. */
@@ -16,6 +20,26 @@ export function sessionOf(world: object): MeasuredWorld {
   if (!session)
     throw new Error('This world draws nothing yet: add an object or load a model first');
   return session;
+}
+
+/** Steps `pool` on the GPU at every frame `world` draws, its time advanced by the world's loop,
+ *  which draws on while the pool moves: the measurement entry's way in (#420) until particles
+ *  have a public face (#423). Returns the remover. A pool is attached once, to a made world. */
+export function attachParticles(world: World, pool: ParticlePool) {
+  const pools = worlds.get(world)?.particles;
+  if (!pools || pools.includes(pool)) throw new Error('PARTICLES_ATTACH: attached, or no world');
+  pools.push(pool);
+  const stops = [
+    world.beforeFrame(({ delta }) => pool.advance(delta)),
+    world.onFrame(() => pool.moving && world.invalidate()), // after every hook's emission
+  ];
+  world.invalidate();
+  return () => {
+    for (const stop of stops) stop();
+    const at = pools.indexOf(pool);
+    if (at >= 0) pools.splice(at, 1);
+    world.invalidate(); // the next image gives the pool's buffers back
+  };
 }
 
 /** The metrics of the last frame `world` drew, null before its first. */
