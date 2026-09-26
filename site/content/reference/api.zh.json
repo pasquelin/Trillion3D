@@ -7022,7 +7022,8 @@
       "children": "它下面的节点，按顺序。",
       "mesh": "在 `geometries` 和 `materials` 中的序号、三角形的读取方式，以及精灵的中心。",
       "light": "光源的类型、颜色、数值、朝向和探针系数。",
-      "model": "编译好的模型，按它加载时的清单地址记录：从不内嵌。"
+      "model": "编译好的模型，按它加载时的清单地址记录：从不内嵌。",
+      "physics": "网格的物理刚体，按 `mesh.physics` 的声明记录（`savedPhysics`）。"
     }
   },
   "SavedScene": {

@@ -7022,7 +7022,8 @@
       "children": "Los nodos que tiene debajo, en orden.",
       "mesh": "Posiciones en `geometries` y `materials`, cómo se leen los triángulos, y el centro de un sprite.",
       "light": "El tipo de una luz, sus colores, sus números, su dirección y los coeficientes de sonda.",
-      "model": "Un modelo compilado, por la dirección del manifiesto desde la que se cargó: nunca copiado dentro."
+      "model": "Un modelo compilado, por la dirección del manifiesto desde la que se cargó: nunca copiado dentro.",
+      "physics": "El cuerpo de una malla, tal como lo declara `mesh.physics` (`savedPhysics`)."
     }
   },
   "SavedScene": {

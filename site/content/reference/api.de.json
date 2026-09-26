@@ -7022,7 +7022,8 @@
       "children": "Die Knoten darunter, der Reihe nach.",
       "mesh": "Ränge in `geometries` und `materials`, wie die Dreiecke gelesen werden, und der Mittelpunkt eines Sprites.",
       "light": "Art, Farben, Zahlen, Ausrichtung und Sondenkoeffizienten eines Lichts.",
-      "model": "Ein kompiliertes Modell, über die Manifest-Adresse, von der es geladen wurde: nie eingebettet."
+      "model": "Ein kompiliertes Modell, über die Manifest-Adresse, von der es geladen wurde: nie eingebettet.",
+      "physics": "Der Körper eines Meshs, wie `mesh.physics` ihn deklariert (`savedPhysics`)."
     }
   },
   "SavedScene": {
