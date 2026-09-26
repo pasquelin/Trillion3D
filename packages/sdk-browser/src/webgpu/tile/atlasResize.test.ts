@@ -113,9 +113,13 @@ test('a tail of a vanished layer takes the place of a streamed tile when none is
   }
   pool.adopt(TILES_PER_LAYER, tailId(0), 0, true);
   pool.adopt(TILES_PER_LAYER + 1, tailId(1), 0, true);
+  const heard: number[] = [];
   const shrunk = { ...options, layers: 1 };
-  const result = resizeTileAtlas(gpu, shrunk, 0, pool, pages as never, resident);
+  const result = resizeTileAtlas(gpu, shrunk, 0, pool, pages as never, resident, (slot) =>
+    heard.push(slot),
+  );
   assert.deepEqual(tails, [0, 1], 'both tails are placed');
+  assert.deepEqual(heard, [0, 0], 'the texture of each tile evicted hears it');
   assert.equal(result.evicted, 2, 'two streamed tiles gave their place');
   assert.equal(result.pool.resident, TILES_PER_LAYER);
   assert.equal(resident.size, TILES_PER_LAYER - 2);
@@ -125,7 +129,7 @@ test('a tail of a vanished layer takes the place of a streamed tile when none is
   for (let slot = 0; slot <= TILES_PER_LAYER; slot++) full.adopt(slot, tailId(slot), 0, true);
   assert.throws(
     () => resizeTileAtlas(gpu, shrunk, 0, full, pages as never, new Map()),
-    /TEXTURE_POOL_TAILS/,
+    /TEXTURE_POOL_UNDER_FLOOR/,
   );
 });
 

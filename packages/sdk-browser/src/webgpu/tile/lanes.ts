@@ -26,6 +26,8 @@ export function createTileLanes(
     /** Layers of each lane's pool; a lane no texture takes has none, and no pool. */
     layers: LaneCounts;
     textures: readonly { lane: PoolLane }[];
+    /** A tile a resize gave up: its texture. */
+    onEvicted?: (slot: number) => void;
   },
 ) {
   const { kind, encoding, textures } = options;
@@ -81,6 +83,7 @@ export function createTileLanes(
           lane.pool,
           pages,
           lane.resident,
+          options.onEvicted,
         );
         lane.pool = result.pool;
         evicted += result.evicted;
