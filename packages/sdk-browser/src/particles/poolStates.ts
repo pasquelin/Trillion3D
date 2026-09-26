@@ -9,7 +9,7 @@ export const anyMoving = (pools?: readonly ParticlePool[]) => !!pools?.some(movi
 
 /**
  * Each pool's GPU state on one renderer, the part the WebGPU and WebGL2 steps share: `of` makes
- * a pool's state the first time it moves, `keep` gives back, once per image, the state of every
+ * a pool's state the first time it moves, `peek` reads it, `keep` gives back, once per image, the state of every
  * pool the world let go of, and `dispose` all of them. Nothing is allocated while the world's
  * pools stay the same.
  */
@@ -31,6 +31,8 @@ export function createPoolStates<State>(
       if (!state) made.set(pool, (state = make(pool)));
       return state;
     },
+    /** A pool's state if it was made: a pool that never moved has none, and nothing to draw. */
+    peek: (pool: ParticlePool) => made.get(pool),
     /** Frees the state of every pool not among `pools`, the world's on this image. */
     keep(pools: readonly ParticlePool[]) {
       let held = 0;
