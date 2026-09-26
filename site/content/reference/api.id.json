@@ -1877,6 +1877,7 @@
       "vertexColors": "Apakah warna per-vertex geometri mewarnai permukaan itu.",
       "depthWrite": "Apakah permukaan itu menulis kedalamannya.",
       "depthTest": "Apakah permukaan itu tersembunyi di belakang benda yang lebih dekat.",
+      "transparentShadow": "Apakah permukaan tembus pandang (`transparent`) tetap menjatuhkan bayangan, makin pucat makin tembus pandang.",
       "version": "Dinaikkan setiap penulisan: yang dibandingkan dunia untuk mengecat ulang.",
       "kind": "Jenis material itu dibuat: `'meshStandard'`, `'meshBasic'`…",
       "needsUpdate": "`material.needsUpdate = true`: mesh yang memakainya dicat ulang.",

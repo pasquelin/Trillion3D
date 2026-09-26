@@ -1872,6 +1872,7 @@
       "vertexColors": "ジオメトリの頂点ごとの色が表面を色づけするかどうか。",
       "depthWrite": "表面が自身の深度を書き込むかどうか。",
       "depthTest": "表面がより近いものの陰に隠れるかどうか。",
+      "transparentShadow": "透ける（`transparent`）面がそれでも影を落とすかどうか。透けるほど影は薄くなる。",
       "version": "すべての書き込みで増える: 世界がこれを比較して再描画を判断する。",
       "kind": "そのマテリアルが作られた種別: `'meshStandard'`、`'meshBasic'`…",
       "needsUpdate": "`material.needsUpdate = true`: それをまとうメッシュが再描画される。",
