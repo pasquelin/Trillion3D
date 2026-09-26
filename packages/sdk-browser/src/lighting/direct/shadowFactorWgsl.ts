@@ -25,7 +25,8 @@ export const SHADOW_DEPTH_ROUNDING = 2 * 2 ** -23;
  * as the texture streamer falls back to a coarser tile. The scheduler keeps the last level under
  * every page a receiver reads mapped and drawn in the frame (`admit.ts`), so the far-shadow ray
  * of a sun and the unshadowed answer of a lamp past their last level only answer before a light's
- * first request report.
+ * first request report — and, for a sun, past the scene's box, where no caster lies and the floor
+ * is asked only by the report (`sunLevels.ts` floorReach).
  *
  * The receiver's plane must not shade itself over the PCF's reach: its depth's slope across the
  * map is covered, in texels of the level read, by a depth margin up to a slope of 1

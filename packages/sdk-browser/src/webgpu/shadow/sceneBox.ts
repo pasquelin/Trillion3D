@@ -7,10 +7,13 @@ interface SceneRoots {
 }
 
 /**
- * The world box of every opaque primitive the scene draws: what a sun's clipmap spans along its
- * axis, so every caster lies inside its depth range. A sprite root (`ClusterRoot.sprite`) is left
- * out: a sprite casts no shadow, and its box would only spread the range. Rebuilt only when a pose moved or the scene
- * changed — the row-table epoch and the root list say so —, from boxes the engine already holds.
+ * The world box of every primitive the scene draws: what a sun's clipmap spans along
+ * its axis, so every caster lies inside its depth range, and the rectangle its floor pages cover
+ * on its plane (`sunLevels.ts` floorReach). A sprite root (`ClusterRoot.sprite`) is left out: a
+ * sprite casts no shadow, and its box would only spread the range. Rebuilt only when a pose moved
+ * or the scene changed — the scene revision, the row-table epoch and the root list say so: an
+ * engine pose or placement move bumps the scene revision alone —, from boxes the engine already
+ * holds.
  */
 export function createShadowSceneBox() {
   const box = new Float64Array(6),
@@ -18,11 +21,13 @@ export function createShadowSceneBox() {
     max = box.subarray(3, 6),
     read = { min, max };
   let epoch = -1,
+    revision = -1,
     roots: unknown = undefined;
-  return (layout: SceneRoots) => {
+  return (layout: SceneRoots, sceneRevision = 0) => {
     const { selectionRoots, rows } = layout;
-    if (rows.tableEpoch !== epoch || selectionRoots !== roots) {
+    if (rows.tableEpoch !== epoch || sceneRevision !== revision || selectionRoots !== roots) {
       epoch = rows.tableEpoch;
+      revision = sceneRevision;
       roots = selectionRoots;
       boxEmpty(box, 0);
       for (const root of selectionRoots)
