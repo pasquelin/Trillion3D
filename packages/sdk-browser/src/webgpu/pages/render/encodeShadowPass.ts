@@ -3,6 +3,7 @@ import { MAX_SHADOW_REGIONS } from '../../../gpu/shadow/atlas.ts';
 import { layerPass } from '../../../gpu/shadow/layers.ts';
 import { HIZ_UNTESTED } from '../../../gpu/shadow/occlusion.ts';
 import { REGION_RESTORE, REGION_STATIC } from '../../shadow/regions.ts';
+import { pagePlan, planPagePasses } from '../../shadow/pagePasses.ts';
 import { shadowRegionGroup } from '../../shadow/regionGroups.ts';
 import { SHADOW_PAGE } from '../../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
@@ -55,12 +56,13 @@ function encodeOcclusion(rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder, cou
  * their face uniforms, then the casters of each light view drawn, selected from the light and
  * culled per region (`encodeShadowCasters`); then the static layer's pages drawn in full, if any;
  * then the moving casters of each restored page tested against its static layer; then a render
- * pass per layer of the pool, where each region of that layer starts from its page cleared to far or restored from the
- * static layer, and draws its casters.
+ * pass per layer of the pool. In each pass, every region starts from its page cleared to far or
+ * restored from the static layer — two instanced draws for the pass, whatever its regions
+ * (`../../../gpu/shadow/pageQuads.ts`) —, then draws its casters.
  *
- * **The viewport is the physical page, the matrix the virtual page's own projection.** The page
- * fills the clip square, so the rasterizer clips every caster at its edge and no other page of the
- * pool is touched; the scissor says the same square once more.
+ * **The casters' viewport is the physical page, the matrix the virtual page's own projection.**
+ * The page fills the clip square, so the rasterizer clips every caster at its edge and no other
+ * page of the pool is touched; the scissor says the same square once more.
  *
  * Once a blended caster has held a row, the pass of the transmittance layer follows
  * (`encodeTransmittance`). Before, the shadow passes are the ones they were.
@@ -75,8 +77,8 @@ export function encodeShadowAtlas(
   runBase: number,
 ) {
   const { lights, vis, run } = rt,
-    { shadows, cull, regions, staticLayer, occlusion } = lights;
-  if (!count || !shadows?.texture || !cull || !vis.visBindGroupLayout) return false;
+    { shadows, cull, regions, staticLayer, occlusion, pageQuads: quads } = lights;
+  if (!count || !shadows?.texture || !cull || !quads || !vis.visBindGroupLayout) return false;
   if (regions.layered && !staticLayer) return false;
   if (!shadowRegionGroup(rt, device, 0)) return false;
   shadows.flushPages(count);
@@ -84,39 +86,42 @@ export function encodeShadowAtlas(
   cull.counts.sample(encoder, cull.indirect, count, run.frame);
   lights.shadowDraws += count;
   const drawsBefore = run.gpuDrawCalls;
-  const draw = (passes: GPURenderPassDescriptor[], layer: boolean, tested: boolean) => {
-    let pass!: GPURenderPassEncoder,
-      open = -1;
-    for (let i = 0; i < count * passes.length; i++) {
-      const region = i % count,
-        at = (i - region) / count;
-      const start = regions.startOf(region);
-      if (layer !== (start === REGION_STATIC) || regions.layer(region) !== at) continue;
-      const visible = tested && slotOf[region] !== HIZ_UNTESTED;
-      const group = shadowRegionGroup(rt, device, region, visible);
-      if (!group) continue;
-      if (open !== at) pass = layerPass(encoder, pass, passes[(open = at)]);
-      const x = regions.x(region),
-        y = regions.y(region);
-      pass.setViewport(x, y, SHADOW_PAGE, SHADOW_PAGE, 0, 1);
-      pass.setScissorRect(x, y, SHADOW_PAGE, SHADOW_PAGE);
-      if (start === REGION_RESTORE) {
-        pass.setPipeline(staticLayer!.restore);
-        pass.setBindGroup(0, staticLayer!.groups[at]);
-      } else {
-        pass.setPipeline(shadows.clear);
+  planPagePasses(regions, count);
+  const { order, layer, layered, first, clears, restores } = pagePlan;
+  quads.begin(encoder, shadows.faceUniform, count, order);
+  // Each pass of the static layer's (`inLayer`) or the pool's: its clears and restores, two
+  // instanced draws, then each region's casters in its page's viewport.
+  const draw = (passes: GPURenderPassDescriptor[], inLayer: boolean, tested: boolean) => {
+    for (let k = 0; k < pagePlan.passes; k++) {
+      if (layered[k] !== +inLayer) continue;
+      const at = layer[k],
+        pass = encoder.beginRenderPass(passes[at]);
+      lights.shadowRenderPasses++;
+      run.gpuDrawCalls += quads.encode(
+        pass,
+        first[k],
+        clears[k],
+        restores[k],
+        staticLayer?.groups[at],
+      );
+      for (let i = first[k]; i < first[k] + clears[k] + restores[k]; i++) {
+        const region = order[i],
+          visible = tested && slotOf[region] !== HIZ_UNTESTED;
+        const group = shadowRegionGroup(rt, device, region, visible);
+        if (!group) continue;
+        const x = regions.x(region),
+          y = regions.y(region);
+        pass.setViewport(x, y, SHADOW_PAGE, SHADOW_PAGE, 0, 1);
+        pass.setScissorRect(x, y, SHADOW_PAGE, SHADOW_PAGE);
+        pass.setPipeline(shadows.depth);
         pass.setBindGroup(0, group);
         pass.setBindGroup(1, shadows.faceGroup, [region * shadows.faceStride]);
+        const commands = visible ? occlusion!.visibleIndirect : cull.indirect;
+        pass.drawIndirect(commands, region * DRAW_INDIRECT_STRIDE);
+        run.gpuDrawCalls++;
       }
-      pass.draw(3);
-      pass.setPipeline(shadows.depth);
-      pass.setBindGroup(0, group);
-      pass.setBindGroup(1, shadows.faceGroup, [region * shadows.faceStride]);
-      const commands = visible ? occlusion!.visibleIndirect : cull.indirect;
-      pass.drawIndirect(commands, region * DRAW_INDIRECT_STRIDE);
-      run.gpuDrawCalls += 2;
+      pass.end();
     }
-    if (open >= 0) pass.end();
   };
   if (regions.layered) draw(staticLayer!.passes, true, false);
   const tested = encodeOcclusion(rt, encoder, count);
@@ -163,6 +168,7 @@ export function encodeTransmittance(
     if (!group) continue;
     if (open !== at) {
       pass = layerPass(encoder, pass, passes[(open = at)]);
+      lights.shadowRenderPasses++;
       pass.setBindGroup(2, layer.opaqueGroups[at]);
     }
     const x = regions.x(region) / 2,

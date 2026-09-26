@@ -66,6 +66,7 @@ export function createExplorerMetrics(
     shadowsUpdated: null,
     shadowFacesDrawn: null,
     shadowDrawCalls: null,
+    shadowRenderPasses: null,
     shadowLightCuts: null,
     shadowPagesRequested: null,
     shadowPagesCached: null,
