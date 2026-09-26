@@ -78,8 +78,10 @@ export function createPageCache(cpuBytes = DEFAULT_CACHED_BYTES) {
         drop,
       );
   };
+  // With no session reading — between a lost device and its next session — every page is held
+  // for the next one: a level landing then takes no page's place.
   const levels = createTextureLevelStore(textureLevelShare(cpuBytes), {
-    roomBeside: () => cache.levelRoom(holder?.held() ?? 0),
+    roomBeside: () => cache.levelRoom(holder ? holder.held() : bytes),
     onHeld: evict,
   });
   const cache = {

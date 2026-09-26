@@ -35,8 +35,13 @@ export function createTextureLevelStore(
     /** Bytes one level may take: the share, within what is left beside. */
     room: () => Math.min(store.budgetBytes, roomBeside()),
     /** Holds `level` under `id`, the least recently read leaving for it; false, holding nothing,
-     *  when it cannot fit (`room`). */
+     *  when it cannot fit (`room`). A level already held — read meanwhile by the session a device
+     *  loss replaced — stays, marked read last, and the copy closes: its bytes are counted once. */
     take(id: string, level: TextureLevel) {
+      if (store.get(id)) {
+        closeTextureLevel(level);
+        return true;
+      }
       const bytes = textureLevelBytes(level),
         room = store.room();
       if (bytes > room) return false;
