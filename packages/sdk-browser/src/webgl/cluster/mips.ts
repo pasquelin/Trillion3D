@@ -6,7 +6,7 @@ import {
 } from '../core/fullscreenPass.ts';
 import { levelSize, mipLevelCountFor } from '../../texture/tiles.ts';
 import { COVERAGE_SCALE_GLSL } from '../../texture/coverageRule.ts';
-import { WebglCoverageCounts } from './coverageMips.ts';
+import { BLEND_STATE, WebglCoverageCounts } from './coverageMips.ts';
 
 /** The GLSL twin of the WebGPU reduction (`MIP_SHADER`, `../../texture/mips.ts`) under `weighted`;
  *  `source` is a copy of the level above, `extent` its size; with a `cutoff`, the row under it
@@ -41,15 +41,6 @@ export type MipChain = {
   cutoff?: number | null;
 };
 type Scratch = { texture: WebGLTexture; width: number; height: number; used?: boolean };
-/** The blend function and equation, which the coverage counts replace. */
-const BLEND_STATE = [
-  'BLEND_SRC_RGB',
-  'BLEND_DST_RGB',
-  'BLEND_SRC_ALPHA',
-  'BLEND_DST_ALPHA',
-  'BLEND_EQUATION_RGB',
-  'BLEND_EQUATION_ALPHA',
-] as const;
 
 /** The reduction's program, its uniforms, its two framebuffers and its empty vertex array. */
 function buildReducer(gl: WebGL2RenderingContext) {
@@ -77,12 +68,11 @@ export class WebglMipReducer {
   private gl: WebGL2RenderingContext;
   private built: ReturnType<typeof buildReducer> | undefined;
   private counts: WebglCoverageCounts;
-  /** The context's largest texture side, asked once, at the first counted chain. */
-  private maxSide: number | undefined;
   /** Per format, whether a framebuffer holds its levels. */
   private drawable = new Map<number, boolean>();
   /** Per format, the copy of the level above, at the largest size seen (`extent` clamps) and, for
-   *  a counted chain, a row more, for `t`; `used` since the last `trim`, which returns the others: a live picture's stays. */
+   *  a counted chain, a row more, for `t`; `used` since the last `trim`, which returns the others:
+   *  a live picture's stays. */
   private scratches = new Map<number, Scratch>();
   private drop(format: number) {
     const held = this.scratches.get(format);
@@ -114,17 +104,8 @@ export class WebglMipReducer {
       mask: gl.getParameter(gl.COLOR_WRITEMASK) as boolean[],
       toggles: FULLSCREEN_DISABLED.map((name) => gl.isEnabled(gl[name])),
     };
-    // Sixteen float rows a level count exactly up to 2^28 texels, a 16384² picture (`coverageMips.ts`),
-    // and `t` takes a scratch row under the picture, which a picture as tall as the context allows
-    // has not: those keep the median alone. Asked after `saved`: the first ask binds the counts'
-    // framebuffer.
-    const cut =
-      cutoff &&
-      width * height <= 2 ** 28 &&
-      height < (this.maxSide ??= gl.getParameter(gl.MAX_TEXTURE_SIZE) as number) &&
-      this.counts.ready()
-        ? cutoff
-        : 0;
+    // Asked after `saved`: the first ask binds the counts' framebuffer.
+    const cut = cutoff && this.counts.takes(width, height) ? cutoff : 0;
     const blend = cut ? BLEND_STATE.map((name) => gl.getParameter(gl[name]) as number) : undefined;
     const rows = cut ? height + 1 : height;
     let scratch = this.scratches.get(format);
