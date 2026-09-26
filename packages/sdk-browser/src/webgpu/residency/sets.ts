@@ -4,6 +4,7 @@ import { createDenseKeySet } from '../cut/denseKeys.ts';
 import { createKeyUnion } from '../cut/keyUnion.ts';
 import { createBudgetRanking } from './budgetRanking.ts';
 import { createHeldKeys } from '../cut/heldKeys.ts';
+import { grown } from '../../page/cut/sparseInts.ts';
 import type { createWebgpuPageTracking } from '../row/pageTracking.ts';
 
 type Tracking = ReturnType<typeof createWebgpuPageTracking>;
@@ -28,14 +29,11 @@ export function createWebgpuResidencySets(options: {
   const { keyCount, keyOf, wanted, wantedPages } = tracking;
   /** A packed page's cache key, cached on its record by the tracking (`PageRec.keyIndex`). */
   const keyOfId = (id: number) => keyOf(packedPages[id]);
-  /** What joined and left `keep`, net, since the pin step last ran, each joining key beside the
-   *  record it joined by (none for the pinned cover): the pin step reads its parents there. */
+  /** What joined and left `keep` since the pin step last ran, each joining key beside the record
+   *  it joined by (none for the pinned cover): the pin step reads its parents there. */
   const enteringPages: (PageRec | undefined)[] = [];
   const entering = createDenseKeySet(enteringPages),
     leaving = createDenseKeySet();
-  /** Keys in `leaving` only because the upload job pinned them after they joined: they were out
-   *  when the pin step last ran, so taken back, they still join. */
-  const leftPinned = createDenseKeySet();
   const desiredPages: PageRec[] = [];
   const desired = createDenseKeySet(desiredPages);
   const ranking = createBudgetRanking({ bootstrapKey, keyOf });
@@ -54,21 +52,13 @@ export function createWebgpuResidencySets(options: {
   const keep = createKeyUnion({
     members: tracking.keep,
     keyCount,
-    // Net of what the pin step already saw: a key that leaves and comes back before it runs — a
-    // queue rebuilt past the budget releases and retakes all of it — never reaches it, so its
-    // work follows the keys that moved, not the queue. A key the upload job pinned on arrival in
-    // between still reaches it as leaving: nothing else would ever give that pin back. Taken back
-    // then, it joins again: the pin step never saw it kept.
     onListed: (key, page) => {
-      const pinnedMeanwhile = leftPinned.remove(key);
-      if (!leaving.remove(key) || pinnedMeanwhile) entering.add(key, page);
+      leaving.remove(key);
+      entering.add(key, page);
     },
     onUnlisted: (key) => {
-      const joined = entering.remove(key);
-      if (joined && !tracking.pinned.has(key)) return;
+      entering.remove(key);
       leaving.add(key);
-      if (joined) leftPinned.add(key);
-      else leftPinned.remove(key);
     },
   });
   for (let key = 0; key < keyCount; key++) if (bootstrapKey[key]) keep.retain(key);
@@ -100,16 +90,27 @@ export function createWebgpuResidencySets(options: {
     retain: (key: number, id: number) => keep.retain(key, packedPages[id]),
     release: (key: number) => keep.release(key),
   });
-  /** Empties the queue, releasing every hold it placed. */
-  const emptyQueue = () => {
-    for (let i = wanted.count - 1; i >= 0; i--) keep.release(wanted.list[i]);
+  /** The queue `refill` replaced, whose holds it lets go of last. */
+  let previous = new Int32Array(8);
+  /**
+   * Rebuilds the queue with `fill`, then lets go of the old queue's holds: a key in both never
+   * leaves `keep`, so a queue rebuilt past the budget image after image moves, for the pin step,
+   * only the keys that changed (#477).
+   */
+  const refill = (fill: () => void) => {
+    const count = wanted.count;
+    if (previous.length < count) previous = grown(previous, count);
+    previous.set(wanted.list.subarray(0, count));
     wanted.clear();
     acceptedRevision++;
+    fill();
+    for (let i = count - 1; i >= 0; i--) keep.release(previous[i]);
   };
   const restoreWanted = () => {
     followsDesired = true;
-    emptyQueue();
-    for (let i = 0; i < desired.count; i++) enqueue(desired.list[i], desiredPages[i]);
+    refill(() => {
+      for (let i = 0; i < desired.count; i++) enqueue(desired.list[i], desiredPages[i]);
+    });
   };
   return {
     entering,
@@ -129,7 +130,7 @@ export function createWebgpuResidencySets(options: {
       return (
         entering.byteLength +
         leaving.byteLength +
-        leftPinned.byteLength +
+        previous.byteLength +
         requested.byteLength +
         keep.byteLength +
         askedKeys.byteLength +
@@ -177,8 +178,9 @@ export function createWebgpuResidencySets(options: {
       }
       followsDesired = false;
       if (ranking.matches(wanted.list, wanted.count, wantedPages)) return true;
-      emptyQueue();
-      for (let i = 0; i < ranking.length; i++) enqueue(ranking.keys[i], ranking.ranked[i]);
+      refill(() => {
+        for (let i = 0; i < ranking.length; i++) enqueue(ranking.keys[i], ranking.ranked[i]);
+      });
       return true;
     },
     wantedPages,
