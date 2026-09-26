@@ -873,7 +873,7 @@
   },
   "EffectChain": {
     "summary": "`world.effects`: zamansal kenar yumuşatmadan sonra ve görüntü canvas’a ulaşmadan önce görüntünün üzerine çizilen sıralı geçişler.",
-    "description": "Ton eşlemeden önceki geçişler doğrusal ışımayı eklendikleri sırayla okur; sonrakiler gösterilen görüntüyü kendi sıralarıyla okur. Boş bir zincir hiçbir şeye mal olmaz: geçiş yok, kopya yok, hedef yok.",
+    "description": "Ton eşlemeden önceki geçişler doğrusal ışımayı eklendikleri sırayla okur; sonrakiler gösterilen görüntüyü kendi sıralarıyla okur. Boş bir zincir hiçbir şeye mal olmaz: geçiş yok, kopya yok, hedef yok. WebGL2'de, `multiply` veya `subtractive` karıştırmalı saydam bir yüzey çizen kare zincir olmadan eksiksiz çizilir ve dünyanın tanılama kanalı bir kez `effects-refused-blending` der; WebGPU ikisini de çizer.",
     "members": {
       "revision": "Değişiklikleri sayar: başka bir revizyonda çizilmiş görüntü eskimiştir.",
       "passes": "Geçişler, çalıştıkları sırayla.",

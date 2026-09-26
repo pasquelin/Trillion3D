@@ -401,6 +401,10 @@ physically based glow on the linear image, before tone mapping, energy-conservin
 spread at every level, in texels of that level. `world.effects.add(pass, index?)`,
 `remove(pass)` and `clear()` change the chain; a setting written on a pass shows at the next frame.
 An empty chain costs nothing, and a still image with a chain is post-processed once, then held.
+On WebGL2, a frame that draws a transparent surface blending in `multiply` or `subtractive` is drawn
+whole without the chain — its linear target cannot hold those modes; WebGPU draws both —, and the
+world's diagnostic channel says `effects-refused-blending` once; the chain comes back once no such
+surface is drawn.
 
 ```js
 const glow = effect.bloom({ intensity: 0.08 });
