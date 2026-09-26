@@ -13,7 +13,6 @@ import { isHelper } from '../helper/mark.ts';
 import {
   assertSavedScene,
   notSavable,
-  SCENE_FORMAT_UNREAD_CASTS,
   type SavedCamera,
   type SavedGeometry,
   type SavedNode,
@@ -105,8 +104,7 @@ export async function readScene(scene: Target, json: unknown, camera?: Camera) {
     o.quaternion.fromArray(saved.quaternion);
     o.scale.fromArray(saved.scale);
     o.visible = saved.visible;
-    if (json.formatVersion !== SCENE_FORMAT_UNREAD_CASTS || saved.kind !== 'mesh')
-      o.castShadow = saved.castShadow;
+    o.castShadow = saved.castShadow;
     o.receiveShadow = saved.receiveShadow;
     o.renderOrder = saved.renderOrder;
     o.userData = saved.userData;
