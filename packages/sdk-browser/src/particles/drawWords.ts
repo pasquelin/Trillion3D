@@ -2,14 +2,8 @@ import { invertMatrix4 } from '../../../sdk-core/src/math/matrix/matrix4Inverse.
 import type { ParticlePool } from '../../../sdk-core/src/fluids/particles.ts';
 import { usedSlots } from './poolStates.ts';
 
-/**
- * What the WebGPU and WebGL2 particle draws (#755) share: the words one pool is drawn with and
- * the order the pools are drawn in. The words are, in 32-bit floats: the clip matrix from the
- * pool's origin, its inverse (a pixel's depth back to a point from the origin, for the soft
- * edge), the eye from the origin then the particles' radius, the colour at birth, the softness.
- * Both matrices are made in double precision, so a pool ten kilometres out draws as sharply as
- * one at the world's origin.
- */
+/** The words both particle draws (#755) give a pool: clip matrix from its origin and inverse, made
+ *  in double precision, eye from the origin, radius, colour at birth, softness. */
 export const DRAW_FLOATS = 44;
 
 const clip = new Float64Array(16),
@@ -42,11 +36,8 @@ const far = ({ origin }: ParticlePool) =>
   (origin[0] - from[0]) ** 2 + (origin[1] - from[1]) ** 2 + (origin[2] - from[2]) ** 2;
 const farFirst = (a: ParticlePool, b: ParticlePool) => far(b) - far(a);
 
-/**
- * The pools with particles alive, in `into`, far to near from `eye` by origin: the coarse sort
- * that lays one emitter's premultiplied smoke over the one behind it. Additive pools add in any
- * order; within a pool, nothing is sorted. Nothing is allocated.
- */
+/** The pools with particles alive, in `into`, far to near from `eye` by origin: one emitter's
+ *  smoke over the one behind it, nothing sorted within a pool, nothing allocated. */
 export function drawOrder(
   pools: readonly ParticlePool[],
   eye: ArrayLike<number>,

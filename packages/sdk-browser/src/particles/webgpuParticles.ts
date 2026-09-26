@@ -63,7 +63,6 @@ type PoolState = { step: GPUBuffer; staged: GPUBuffer; state: GPUBuffer; group: 
  * is stepped; its records ride in a staging buffer of the pool's size, written up to the image's
  * count. The pipeline compiles in the background; until it arrives no pool is taken, so what they
  * stage waits. `fail` hears a pipeline that could not be made, and every pool is then `refused`.
- * `draw` draws the stepped pools in place (`webgpuParticleDraw.ts`).
  */
 export function createWebgpuParticles(device: GPUDevice, fail: (error: unknown) => void) {
   const layout = bounceLayout(device, ['uniform', 'read-only-storage', 'storage']);
@@ -122,10 +121,7 @@ export function createWebgpuParticles(device: GPUDevice, fail: (error: unknown) 
       return dispatches;
     },
     draw: drawn.draw,
-    dispose() {
-      made.dispose();
-      drawn.dispose();
-    },
+    dispose: () => (made.dispose(), drawn.dispose()),
   };
 }
 
@@ -135,7 +131,7 @@ export type WebgpuParticles = ReturnType<typeof createWebgpuParticles>;
 export const particlesMoved = (rt: WebgpuPagesRuntime) => anyMoving(rt.context.particles);
 
 /** The world's pools on this image, stepped in the image's command buffer ahead of its
- *  transparent stage, then drawn after it (`drawParticles`). */
+ *  transparent stage, drawn after it (`drawParticles`). */
 export function encodeParticles(
   rt: WebgpuPagesRuntime,
   device: GPUDevice,
@@ -150,16 +146,14 @@ export function encodeParticles(
   rt.run.gpuComputeDispatches += rt.gpu.particles.run(pools, encoder);
 }
 
-/** The world's stepped pools drawn over the lit image and its transparents, softened by the
- *  opaque depth. Nothing is drawn under a diagnostic view, which colours surfaces instead of
- *  lighting them, nor without the visibility buffer's lit image; a scene with no pool draws
- *  nothing at all. */
+/** The world's stepped pools drawn over the lit image and its transparents, in the beauty view
+ *  only; a scene with no pool draws nothing. */
 export function drawParticles(rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder) {
   const { gpu, vis, run } = rt,
     pools = rt.context.particles;
   if (!pools?.length || !gpu.particles || run.diagnostic !== 'beauty' || !run.lastCamera) return;
-  if (!vis.visEnabled || !gpu.hdrView || !gpu.depthView) return;
   const { hdrView, depthView } = gpu,
     { eye } = run.gate.cam;
+  if (!vis.visEnabled || !hdrView || !depthView) return;
   run.gpuDrawCalls += gpu.particles.draw(pools, encoder, hdrView, depthView, viewProj, eye);
 }
