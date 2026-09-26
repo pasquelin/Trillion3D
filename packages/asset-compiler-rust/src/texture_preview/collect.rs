@@ -121,14 +121,7 @@ pub(super) fn atlas_textures(g: &Value, meshes: &BTreeSet<usize>) -> Result<Vec<
         // (`webgpu/water/compositeWgsl.ts`): it draws the RGB under alpha 0 and keeps the plain chain.
         let transmits = crate::compiler_materials::unsplit_material(Some(material));
         let coverage = (mode == Some("BLEND") && !transmits) || cutoff.is_some_and(|c| c > 0.0);
-        // The engine cuts the sampled alpha times the factor's (`opacity`,
-        // `compiler_tables/materials.rs`): the texture's own cutoff is their quotient,
-        // no byte at all under a factor of 0.
-        let opacity = material
-            .pointer("/pbrMetallicRoughness/baseColorFactor/3")
-            .and_then(Value::as_f64)
-            .unwrap_or(1.0) as f32;
-        let cut = cutoff.map_or(0, |c| super::coverage::cutoff_byte(c / opacity.max(0.0)));
+        let cut = cutoff.map_or(0, |c| super::coverage::material_cutoff(material, c));
         for role in ROLES {
             let Some(texture) = texture_index(role.reference(material)) else {
                 continue;
@@ -171,18 +164,6 @@ pub(super) fn atlas_textures(g: &Value, meshes: &BTreeSet<usize>) -> Result<Vec<
         }
     }
     Ok(wanted.into_values().collect())
-}
-
-/// The cutoff byte of an image's coverage chain, which every coverage texture
-/// of the image shares: the lowest one above 0 among them, 0 when every one blends.
-pub(super) fn coverage_cutoff(readers: &[AtlasTexture]) -> u8 {
-    readers
-        .iter()
-        .filter_map(|r| match r.kind {
-            AtlasKind::Coverage(cutoff) => Some(cutoff),
-            _ => None,
-        })
-        .fold(0, super::coverage::lowest_cutoff)
 }
 
 pub(crate) fn texture_index(reference: Option<&Value>) -> Option<usize> {

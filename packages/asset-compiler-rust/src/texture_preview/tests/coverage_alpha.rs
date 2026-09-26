@@ -1,6 +1,6 @@
 use super::*;
-use crate::texture_preview::collect::{atlas_textures, coverage_cutoff, AtlasTexture};
-use crate::texture_preview::coverage::{cutoff_byte, Covered};
+use crate::texture_preview::collect::{atlas_textures, AtlasTexture};
+use crate::texture_preview::coverage::{cutoff_byte, image_cutoff, Covered};
 
 /// Foliage: a smooth random field cut by a soft edge, four octaves of value noise from 32 texels
 /// down to 4, the alpha ramp two texels wide — what a leaf atlas's mask looks like.
@@ -128,8 +128,8 @@ fn the_chain_is_cut_at_the_lowest_cutoff_of_its_coverage_readers() {
         ..found[0].clone()
     };
     let image = [128, 64, 0].map(|cutoff| reader(AtlasKind::Coverage(cutoff)));
-    assert_eq!(coverage_cutoff(&image), 64);
-    assert_eq!(coverage_cutoff(&[reader(AtlasKind::Coverage(0))]), 0);
+    assert_eq!(image_cutoff(&image), 64);
+    assert_eq!(image_cutoff(&[reader(AtlasKind::Coverage(0))]), 0);
 }
 
 // #44: each cutoff names its own files and sidecar word, so two scenes cutting one image at two

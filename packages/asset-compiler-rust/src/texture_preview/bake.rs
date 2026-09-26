@@ -84,7 +84,7 @@ pub(super) fn one_image(
             alphas.all(|a| Some(a) == first)
         };
     // Every coverage reader shares one chain, cut at the lowest of their cutoffs.
-    let cutoff = collect::coverage_cutoff(readers);
+    let cutoff = coverage::image_cutoff(readers);
     let kind_of = |r: &AtlasTexture| match r.kind {
         AtlasKind::Coverage(_) if flat => AtlasKind::Color,
         AtlasKind::Coverage(_) => AtlasKind::Coverage(cutoff),
