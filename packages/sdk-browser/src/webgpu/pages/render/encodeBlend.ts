@@ -33,8 +33,7 @@ export function encodeBlend(
   uniformBase: number,
 ) {
   const { gpu, vis, run, timing, blendState, diag } = rt;
-  // Every image path reaches this stage: the particles step here, beside the water. A second
-  // encode of the same image finds their step already taken.
+  // Every image path reaches this stage: the particles step here, beside the water.
   encodeParticles(rt, device, encoder);
   if (
     !gpu.pipelineBlend ||

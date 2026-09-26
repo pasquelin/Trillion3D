@@ -132,12 +132,9 @@ export function createWebgpuParticles(device: GPUDevice, fail: (error: unknown) 
 
 export type WebgpuParticles = ReturnType<typeof createWebgpuParticles>;
 
+const moving = (pool: ParticlePool) => pool.moving;
 /** True while one of the world's pools moves: the image changes, and is not held. */
-export function particlesMoved(rt: WebgpuPagesRuntime) {
-  const pools = rt.context.particles;
-  if (pools) for (const pool of pools) if (pool.moving) return true;
-  return false;
-}
+export const particlesMoved = (rt: WebgpuPagesRuntime) => !!rt.context.particles?.some(moving);
 
 /** The world's pools on this image, stepped in the image's command buffer ahead of its
  *  transparent stage, which draws them (#755). */

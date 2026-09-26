@@ -34,9 +34,9 @@ export type ComposedChain = { chain: EffectChain; shown: () => boolean };
  * chain's target instead, and the chain brings its image to the destination
  * (`../../effects/webglEffects.ts`); the copy kept is the chain's image, and a chain changed
  * since it was kept is drawn again. The page's `guides` are drawn over the image the destination
- * got, the chain's included, before that copy is kept; a change to them spares no redraw. An
- * engine that draws here does not step the world's `particles` yet: a world with a pool is
- * refused by name rather than drawn without it. Nothing here belongs to a rendering library.
+ * got, the chain's included, before that copy is kept; a change to them spares no redraw.
+ * No engine drawn here steps particles yet (#759): a world with a pool is refused by name.
+ * Nothing here belongs to a rendering library.
  */
 export function createFrameComposer(
   gl: WebGL2RenderingContext,
