@@ -932,28 +932,8 @@
   "compareImages": {
     "summary": "Vergleich zweier RGBA-Bilder: Anzahl unterschiedlicher Pixel, maximaler Fehler auf einem Kanal, und RMSE."
   },
-  "COMPARISON_LIBRARIES": {
-    "summary": "Die Engines, gegen die die Prüfstände verglichen wurden, jede mit ihrem Status und ihrem Grund."
-  },
   "ComparisonLayout": {
     "summary": "Wie zwei Renderings nebeneinander zum Vergleich gezeigt werden."
-  },
-  "CompetitorRecord": {
-    "summary": "Eine andere Engine, mit der die Prüfstände vergleichen, und warum.",
-    "members": {
-      "id": "Ihr Kurzname.",
-      "name": "Ihr Name.",
-      "status": "Ob sie verglichen wird.",
-      "license": "Ihre Lizenz.",
-      "maintained": "Wann sie zuletzt aktualisiert wurde.",
-      "scope": "Was sie abdeckt.",
-      "reason": "Warum sie verglichen wird, oder nicht.",
-      "homepage": "Ihre Webseite."
-    }
-  },
-  "CompetitorStatus": {
-    "summary": "Bestand der Web-Bibliotheken für Geometrie und LOD.",
-    "description": "Der Status beschreibt die Fairness der Integration, nicht eine Marketing-Abdeckung."
   },
   "CompilationJob": {
     "summary": "Eine laufende Kompilierung.",
