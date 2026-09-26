@@ -90,7 +90,9 @@ fn place_primitive(
 /// The entire scene, node by node, with its BVH. Same tree as proxy, over different triangles:
 /// acceleration structure is shared, never geometry or cuts.
 pub fn load(path: &Path) -> Result<World> {
-    let (g, bin) = read_source(path)?;
+    let (mut g, bin) = read_source(path)?;
+    // The compiled scene draws every GPU instance; the reference world must hold them too.
+    crate::compiler_instancing::expand_gpu_instances(&mut g, &bin)?;
     let matrices = world_matrices(&g)?;
     let nodes = values(&g, "nodes")?;
     let meshes = values(&g, "meshes")?;
