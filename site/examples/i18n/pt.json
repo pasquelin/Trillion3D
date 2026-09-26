@@ -1367,7 +1367,7 @@
     }
   },
   "save-the-scene": {
-    "banner": "Derrube a torre e depois abra de novo a cena salva.",
+    "banner": "Salve a torre, derrube-a e depois abra: a torre salva fica de pé outra vez.",
     "controls": {
       "knockDown": "Derrubar",
       "save": "Salvar",
