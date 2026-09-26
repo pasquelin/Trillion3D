@@ -56,12 +56,13 @@ const moved = new Float64Array(BOX_VALUES),
  * which `flip` hands to a GPU cut when the engine has one. `posed` hears the rank of every root the
  * rows pose, with the pose it now has and whether its row was taken or parked — a move whatever its
  * pose —, and says whether it moved (`MOVE_*`). A root that began or stopped casting stales its box,
- * static casters included, and is not made a moving caster for it. `follow` names each root that
- * reads a written row. `touched` hears, root by root, the box each moved or flipped root left and
- * entered, and whether it was moving already: a row of the range left where it stands — a pose
- * written again unchanged, a row between two written ones — touches nothing, and two roots far
- * apart are two boxes, never the room between them (as far as the plan's box list holds them
- * apart, `changes.ts`). Returns whether a drawn root moved: a still scene pays nothing downstream.
+ * static casters included unless it moves as it flips, and is not made a moving caster for it.
+ * `follow` names each root that reads a written row. `touched` hears, root by root, the box each
+ * moved or flipped root left and entered, and whether it was moving already: a row of the range
+ * left where it stands — a pose written again unchanged, a row between two written ones — touches
+ * nothing, and two roots far apart are two boxes, never the room between them (as far as the
+ * plan's box list holds them apart, `changes.ts`). Returns whether a drawn root moved: a still
+ * scene pays nothing downstream.
  */
 export function followPlacementRows<T>(
   roots: readonly ClusterRoot<T>[],
@@ -95,10 +96,11 @@ export function followPlacementRows<T>(
     if (root.worldBox && root.localBox)
       boxTransform(root.worldBox, 0, root.localBox, 0, root.world.elements);
     if (root.worldBox && !parked) boxUnionBatch(moved, root.worldBox, 1);
-    // Its rows and box follow the row all the same; only a move stales shadow pages.
+    // Its rows and box follow the row all the same; only a move or a change of casting stales
+    // shadow pages. One that moves as it flips is out of the static layer (`mobility.ts`).
     if ((move === MOVE_NONE && !cast) || boxIsEmpty(moved, 0)) continue;
     any = true;
-    touched?.(movedMin, movedMax, move === MOVE_MOVING && !cast);
+    touched?.(movedMin, movedMax, move === MOVE_MOVING);
   }
   return any;
 }
