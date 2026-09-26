@@ -3,23 +3,10 @@
 // pixels and public counters on the other.
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import type { RenderBackend } from '../../../packages/sdk-browser/src/backend/types.ts';
-import { VIEWPORT, libere, versApi } from './sharedSceneProof.ts';
-import { estRouge, image } from './sceneImageProof.ts';
+import { libere, versApi } from './sharedSceneProof.ts';
+import { couleurEn, estRouge, image } from './sceneImageProof.ts';
 import { executerPasses } from './deviceProof.ts';
 import { ouvrePasse } from './transparentTransformScene.ts';
-import { project } from '../probes/cameraRig.ts';
-
-const point = new G.Vector3();
-
-/** Colour read where world point `(x, y, z)` projects. Bottom-left origin, like `capture`. */
-function couleurEn(pixels: Uint8Array, camera: G.GraphCamera, x: number, y: number, z = 0) {
-  project(point.set(x, y, z), camera);
-  const [w, h] = VIEWPORT;
-  const px = Math.min(w - 1, Math.max(0, Math.round(((point.x + 1) / 2) * (w - 1)))),
-    py = Math.min(h - 1, Math.max(0, Math.round(((point.y + 1) / 2) * (h - 1)))),
-    i = (py * w + px) * 4;
-  return [pixels[i], pixels[i + 1], pixels[i + 2]];
-}
 
 /** True when the read colour carries the tile's red and not the background blue. */
 const rouge = (c: number[]) => estRouge(c, 0);
