@@ -1222,7 +1222,8 @@ gravityScale, sensor, ccd, decorative, friction, restitution, damping }`. The sh
   body declared `{ type: 'triangles' }` is refused (no volume, no mass), and a shape the worker
   cannot build fails that body alone (`PHYSICS_FAILED`, the mesh named).
   `{ type: 'compound', parts }` makes one rigid body of primitives, each with its `position` and
-  `quaternion` in the object's frame; its scale must be the same on all axes. A declared
+  `quaternion` in the object's frame; its scale must be the same positive one on all axes, a
+  stretched or mirrored compound being refused (`PHYSICS_FAILED`, the mesh named). A declared
   `{ type: 'cylinder', halfHeight, radius, radiusBottom }` tapers from its top's `radius` to
   `radiusBottom`, as `geometry.cylinder(radiusTop, radiusBottom, height)` draws it. A dynamic
   body must be a direct child of the scene (`PHYSICS_NESTED`). `position.set` on a dynamic body
@@ -1343,7 +1344,8 @@ bend }` simulates the mesh's vertices one by one on Jolt's soft bodies. A cloth 
   velocities kept, and thaws when it returns. Out of view, or hidden, it sends no pose and keeps
   falling; the pose it has when it falls asleep is sent all the same. `decorative` bodies meet the
   static world only, are simulated only in range and in view, and leave the simulation once asleep:
-  their mesh stays where it came to rest (set `physics` again to simulate it anew).
+  their mesh stays where it came to rest (set `physics` again to simulate it anew), and their
+  joints break (`j.broken`, `'break'`).
 - **Budgets.** `world.budget.physics`, read when the physics starts: bodies, static triangles,
   decorative bodies, memory (a hard ceiling: the module's memory cannot grow past it), body pairs
   and contacts per step, contact events per step, and threads (Jolt's thread pool, the worker's

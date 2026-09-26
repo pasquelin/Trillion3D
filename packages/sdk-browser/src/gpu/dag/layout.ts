@@ -79,6 +79,9 @@ export const selectionListCap = (pageCount: number) =>
  * held by the GPU survives the disappearance of the list it was the sum of.
  */
 export const SELECTION_HEADER_WORDS = 8;
+/** Readback slots the cut alternates between (`dispatch.ts`): the cache reads a drawn list at
+ *  most this many frames behind the GPU, plus the frame being encoded. */
+export const DAG_READBACK_SLOTS = 2;
 export const OUT_COUNT = 0,
   OUT_FRUSTUM_REJECTED = 1,
   OUT_LOD_LEVEL = 2,

@@ -576,7 +576,7 @@ with no envelope, and a `directional` lamp — which has no centre — receive n
 
 ### `physics.json` — the cooked colliders (stage `physics-cook`)
 
-At runtime, loading a collider is a decode and a copy: no tree is computed in the browser. Native
+Loading a collider is a decode and a copy: the browser builds no tree, hull or mass. Native
 Jolt is linked into the compiler from the same pinned submodule as the web module (`build.rs`
 builds `packages/physics-jolt-wasm` with `-DCOOK=ON`, which needs CMake and a C++17 compiler, and
 the submodule checked out: `git submodule update --init`). The stage contract is
@@ -609,7 +609,21 @@ key, so a cache cooked by another Jolt is another key, never reused. The algorit
 - **Declared matter** (`declared.rs`). A node whose `KHR_physics_rigid_bodies` collider names a
   `physicsMaterial` gives its placements that material's friction and restitution. Every drawn node
   but a declared soft body (below) is static ground, as drawn, a node declaring motion included: no
-  rigid body simulates a node of a compiled model yet.
+  page restores a rigid body of a compiled model yet.
+- **Declared bodies** (`declared.rs`). A node of the rendered scene whose `KHR_physics_rigid_bodies`
+  declares a `motion` (dynamic, or kinematic with `isKinematic`) is also cooked into
+  `physics.json`'s `bodies`: its motion as declared, its matter, its pose, and its shape — the
+  `KHR_implicit_shapes` shape its collider names, as declared; else one convex hull of the mesh its
+  collider's node draws (its own without a collider), moved into the body's frame, which native
+  Jolt builds for contact (`cook_hull`, `hull.rs`). A dynamic body's mass is not the hull's: the
+  compiler weighs the solid the closed mesh bounds, exactly, by volume integrals over its triangles
+  (`mass.rs`, after Tonon's tetrahedron formulas) at the runtime's density, 1000 kg/m³, and at the
+  body's scale — mass, centre of mass and inertia — for the page to hand Jolt as the body's mass:
+  nothing is built or weighed there; a kinematic body, moved and never pushed, is not weighed. A
+  concave body collides by its hull until a volume decomposition (#519). A body the cook refuses — a
+  missing shape, a shearing node, a mesh it cannot read, a dynamic body's mesh that is not closed
+  (every edge meeting its reverse, positions welded) or bounds no volume, a hull Jolt refuses — is
+  named in `report.bodiesRefused`; the compile goes on.
 
 Primitives without a DAG (skinned, morphed, shared blend) cook no collider. A primitive whose shape Jolt
 still refuses (every triangle of zero area) cooks no collider either: `physics.json`'s
