@@ -140,6 +140,21 @@ for (const [backend, { shipped, stored, scale }] of Object.entries(BACKENDS)) {
     holdsCoverage(chainOf(shipped, C, leaf));
   });
 
+  // The measurer's proof of #43: at 4² the leaf's stored level passed 38 samples at the engine's
+  // cut, `alpha >= 0.5` on the filtered value, where the counts, rounding it down, saw 36.
+  test(`${backend}'s filtered cut is the engine's, at alphaTest 0.5, on every level`, () => {
+    const { levels, run } = chainOf(shipped, C, leaf);
+    const weights = [9, 3, 3, 1];
+    for (const [k, level] of levels.entries()) {
+      let engine = 0;
+      samples(level, ({ x, y, z, w }, s) => {
+        const near = [x, y, z, w].map((_, i) => [x, y, z, w][i ^ s]);
+        engine += Number(near.reduce((v, a, i) => v + weights[i] * a, 0) / 16 / 255 >= 0.5);
+      });
+      assert.equal(coveredOf(run, level), engine, `level ${k}`);
+    }
+  });
+
   // #43: on noise the texel counts and the filtered cut disagree. The shipped counts hold the
   // filtered share, each level within 2.5 % of the compiler's; counting texels — develop's rule,
   // every sample filed under its texel's own byte — strays from 16².
@@ -155,7 +170,7 @@ for (const [backend, { shipped, stored, scale }] of Object.entries(BACKENDS)) {
     assert.notEqual(texels, shipped);
     assert.throws(
       () => holdsCoverage(chainOf(texels, noise.cutoff, noiseLevel)),
-      /level 1: 483 kept/,
+      /level 1: 490 kept/,
     );
   });
 
