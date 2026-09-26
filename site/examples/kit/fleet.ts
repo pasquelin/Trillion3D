@@ -74,8 +74,18 @@ export async function fleet(world: World, engine: Families) {
   });
   const vehicles: Record<Engine.VehicleKind, FleetVehicle> = {
     car: { ...drive(car, carWheels, vehicle.car), mass: 1470, radius: 0.33, start: [0, 20] },
-    motorcycle: { ...drive(bike, bikeWheels, vehicle.motorcycle), mass: 319, radius: 0.31, start: [-8, 22] },
-    tracked: { ...drive(tank, tankWheels, vehicle.tracked), mass: 61300, radius: 0.42, start: [12, 28] },
+    motorcycle: {
+      ...drive(bike, bikeWheels, vehicle.motorcycle),
+      mass: 319,
+      radius: 0.31,
+      start: [-8, 22],
+    },
+    tracked: {
+      ...drive(tank, tankWheels, vehicle.tracked),
+      mass: 61300,
+      radius: 0.42,
+      start: [12, 28],
+    },
   };
 
   // Each starts on the ground below its spot, found by an exact raycast on the cooked valley

@@ -38,12 +38,7 @@ export function fleetBuilder({ geometry, material, object }: Families) {
       0,
       Math.PI / 2,
     ]);
-    part(
-      tread,
-      geometry.cylinder(radius * 0.62, radius * 0.62, width * 1.04, 20),
-      hub,
-      [0, 0, 0],
-    );
+    part(tread, geometry.cylinder(radius * 0.62, radius * 0.62, width * 1.04, 20), hub, [0, 0, 0]);
     part(tread, geometry.box(radius * 1.5, width * 1.08, radius * 0.18), tyre, [0, 0, 0]);
     return tread;
   };

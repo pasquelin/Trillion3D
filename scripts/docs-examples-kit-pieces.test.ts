@@ -16,9 +16,21 @@ const PAINTED = {
   obsidian: 'bb35269af0df93f446200be44fbbd8e9e8215a51c0bdfdb79d65948c734c14c9',
 };
 const LOOKS: Record<string, MatcapLook> = {
-  'red clay': { base: [0.55, 0.16, 0.08], shine: 0.08, gloss: 6, wrap: 0.3, rim: [0.25, 0.1, 0.05] },
+  'red clay': {
+    base: [0.55, 0.16, 0.08],
+    shine: 0.08,
+    gloss: 6,
+    wrap: 0.3,
+    rim: [0.25, 0.1, 0.05],
+  },
   chrome: { base: [0.9, 0.92, 0.95], metal: 1, shine: 1.2, gloss: 120 },
-  obsidian: { base: [0.03, 0.03, 0.04], metal: 0.35, shine: 1.4, gloss: 200, rim: [0.2, 0.25, 0.4] },
+  obsidian: {
+    base: [0.03, 0.03, 0.04],
+    metal: 0.35,
+    shine: 1.4,
+    gloss: 200,
+    rim: [0.2, 0.25, 0.4],
+  },
 };
 
 test('the leaf and the matcap balls are painted to the byte as their pages painted them', (t) => {
@@ -109,7 +121,10 @@ test('the four pages build their pieces with the kit and keep no copy', () => {
     ['a-matcap-sculpture', 'matcapBall', 'createImageData'],
   ]) {
     const source = page(name);
-    assert.match(source, new RegExp(`import \\{[^}]*\\b${piece}\\b[^}]*\\} from '../runtime/kit.js'`));
+    assert.match(
+      source,
+      new RegExp(`import \\{[^}]*\\b${piece}\\b[^}]*\\} from '../runtime/kit.js'`),
+    );
     assert.ok(!source.includes(copy), `${name} keeps no copy of ${piece}`);
   }
 });

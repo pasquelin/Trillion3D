@@ -16,7 +16,9 @@ function painted(
     image = context.createImageData(size, size);
   for (let py = 0; py < size; py++)
     for (let px = 0; px < size; px++)
-      pixel(px, py).forEach((value, channel) => (image.data[(py * size + px) * 4 + channel] = value));
+      pixel(px, py).forEach(
+        (value, channel) => (image.data[(py * size + px) * 4 + channel] = value),
+      );
   context.putImageData(image, 0, 0);
   return texture.canvas(canvas);
 }
