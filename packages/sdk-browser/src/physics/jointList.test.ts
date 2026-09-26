@@ -5,7 +5,6 @@ import {
   GENERATION_SHIFT,
   JOINT_WORDS,
   OP,
-  POSE_WORDS,
   joint,
 } from '../../../sdk-core/src/physics/index.ts';
 import { box } from '../../../sdk-core/src/world/geometry/basic.ts';
@@ -14,7 +13,7 @@ import { Material } from '../../../sdk-core/src/world/material/material.ts';
 import { Mesh } from '../../../sdk-core/src/world/object/mesh.ts';
 import { Group } from '../../../sdk-core/src/world/object/object3d.ts';
 import { createWorldPhysics } from './worldPhysics.ts';
-import { fakeWorkers, loaded } from './worker.fixture.ts';
+import { fakePhysicsWorld, fakeWorkers, idleTick, loaded, poseRecord } from './worker.fixture.ts';
 
 test('world.physics.add sends the joint once its body is simulated; a break reply breaks it', async () => {
   const { workers, restore } = fakeWorkers();
@@ -49,44 +48,83 @@ test('world.physics.add sends the joint once its body is simulated; a break repl
   }
 });
 
-test('a decorative body retired asleep takes its joints out on the page, as a removed body does', async () => {
-  const { workers, restore } = fakeWorkers();
+test('a decorative body retired asleep breaks its joints at once, told once, written no more, and any added after', async () => {
+  const { scene, physics, worker, restore } = await fakePhysicsWorld();
   try {
-    const scene = new Group();
-    const runtime = { invalidate() {}, explorer: null };
-    const physics = createWorldPhysics(runtime, scene, () => new Camera('perspective'), true);
     const debris = new Mesh(box(), new Material('meshStandard'));
     debris.physics = { type: 'dynamic', decorative: true };
     scene.add(debris);
+    const pin = joint.hinge(debris, null);
+    let told = 0;
+    pin.on('break', () => told++);
+    physics.handle.add(pin);
+    physics.frame();
+    const [index, id] = [debris.physics!._index, pin._id];
+    assert.ok(id >= 0, 'made with its body');
+    // The first body of a session: slot 0, generation 1; asleep, at the origin.
+    const words = poseRecord(index | (1 << GENERATION_SHIFT) | ASLEEP_BIT, [0, 0, 0, 0, 0, 0, 1]);
+    worker.onmessage({ data: { ...idleTick, buffer: words.buffer, poses: 1, steps: 1 } });
+    assert.equal(debris.physics!._index, -1, 'retired');
+    assert.ok(pin.broken && told === 1, 'broken, and told once, with the tick');
+    assert.equal(pin._host, null, 'out of the made joints');
+    pin.motor = { mode: 'velocity', target: 1, maxForce: 10 };
+    const late = joint.fixed(debris, null);
+    physics.handle.add(late);
+    physics.frame();
+    assert.deepEqual([...worker.words.at(-1)!], [OP.unjoint, id, OP.remove, index], 'no motor');
+    assert.ok(late.broken && late._id === -1, 'a joint added after breaks, never made');
+    physics.frame();
+    assert.equal(told, 1, 'a frame after does not break it again');
+    physics.dispose();
+  } finally {
+    restore();
+  }
+});
+
+test('a physics set anew before the asleep tick arrives keeps the joints added on it', async () => {
+  const { scene, physics, worker, restore } = await fakePhysicsWorld();
+  try {
+    const debris = new Mesh(box(), new Material('meshStandard'));
+    debris.physics = { type: 'dynamic', decorative: true };
+    scene.add(debris);
+    physics.frame();
+    const index = debris.physics!._index;
+    debris.physics = { type: 'dynamic', decorative: true };
+    const words = poseRecord(index | (1 << GENERATION_SHIFT) | ASLEEP_BIT, [0, 0, 0, 0, 0, 0, 1]);
+    worker.onmessage({ data: { ...idleTick, buffer: words.buffer, poses: 1, steps: 1 } });
     const pin = joint.fixed(debris, null);
     physics.handle.add(pin);
-    await loaded();
-    const [worker] = workers;
-    worker.onmessage({ data: { type: 'ready' } });
     physics.frame();
-    assert.ok(pin._id >= 0, 'made with its body');
-    // The first body of a session: slot 0, generation 1; asleep, at the origin.
-    const words = new Uint32Array(POSE_WORDS);
-    words[0] = debris.physics!._index | (1 << GENERATION_SHIFT) | ASLEEP_BIT;
-    new Float32Array(words.buffer).set([0, 0, 0, 0, 0, 0, 1], 1);
-    const tick = {
-      poses: 1,
-      events: 0,
-      dropped: 0,
-      steps: 1,
-      seconds: 1 / 60,
-      stepMs: 0,
-      stepMaxMs: 0,
-    };
-    const results = { type: 'results', buffer: words.buffer, active: 0, character: null };
-    worker.onmessage({ data: { ...tick, ...results } });
-    assert.equal(debris.physics!._index, -1, 'retired');
-    const id = pin._id;
+    assert.ok(!pin.broken && pin._id >= 0, 'made on the new body');
+    physics.dispose();
+  } finally {
+    restore();
+  }
+});
+
+test('a body merely asleep keeps its joints; a joint removed before its decorative body retires only leaves', async () => {
+  const { scene, physics, worker, restore } = await fakePhysicsWorld();
+  try {
+    const crate = new Mesh(box(), new Material('meshStandard'));
+    crate.physics = 'dynamic';
+    const debris = new Mesh(box(), new Material('meshStandard'));
+    debris.physics = { type: 'dynamic', decorative: true };
+    scene.add(crate, debris);
+    const [held, pin] = [joint.hinge(crate, null), joint.fixed(debris, null)];
+    physics.handle.add(held);
+    physics.handle.add(pin);
     physics.frame();
-    assert.equal(pin._id, -1, 'the joint left with its body');
-    assert.equal(pin._host, null, 'no write reaches a dead joint');
-    const sent = worker.words.at(-1)!;
-    assert.equal(sent[sent.indexOf(OP.unjoint) + 1], id);
+    physics.handle.remove(pin);
+    const asleep = (mesh: Mesh) =>
+      poseRecord(
+        mesh.physics!._index | (1 << GENERATION_SHIFT) | ASLEEP_BIT,
+        [0, 0, 0, 0, 0, 0, 1],
+      );
+    const words = new Uint32Array([...asleep(crate), ...asleep(debris)]);
+    worker.onmessage({ data: { ...idleTick, buffer: words.buffer, poses: 2, steps: 1 } });
+    physics.frame();
+    assert.ok(!held.broken && held._id >= 0, 'asleep, not retired: still made');
+    assert.ok(!pin.broken && pin._id === -1, 'removed: out, not broken');
     physics.dispose();
   } finally {
     restore();
