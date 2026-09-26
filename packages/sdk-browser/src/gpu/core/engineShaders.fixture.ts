@@ -35,6 +35,7 @@ import {
 import { LIGHT_TILES_SHADER } from '../../lighting/tiles/shader.ts';
 import { TAA_SHADER } from '../../taa/shaderWgsl.ts';
 import { MIP_SHADER } from '../../texture/mips.ts';
+import { COVERAGE_WGSL } from '../../texture/coverageMips.ts';
 import { SHADE_SHADER, VIS_SHADER } from '../../visibility/buffer.ts';
 import { BLEND_EXPAND_SHADER } from '../../webgpu/blend/expandWgsl.ts';
 import { BLEND_SHADER } from '../../webgpu/blend/shader.ts';
@@ -76,6 +77,7 @@ export const ENGINE_SHADERS: Record<string, string> = {
   LIGHT_TILES_SHADER,
   TAA_SHADER,
   MIP_SHADER,
+  COVERAGE_WGSL,
   VIS_SHADER,
   VIS_DIAGNOSTIC: VIS_SHADER + DIAGNOSTIC_VIS_WGSL,
   SHADE_SHADER,
