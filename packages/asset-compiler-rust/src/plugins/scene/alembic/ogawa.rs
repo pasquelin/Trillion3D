@@ -11,7 +11,7 @@
 use super::{FILE_INVALID, HDF5_UNSUPPORTED, NOT_FROZEN, SIZE_UNSUPPORTED, VERSION_UNSUPPORTED};
 use crate::{CompilerError, Result};
 use memmap2::Mmap;
-use std::{fs::File, path::Path};
+use std::path::Path;
 
 /// The five bytes that open every Ogawa file.
 pub(super) const MAGIC: &[u8] = b"Ogawa";
@@ -59,10 +59,8 @@ fn read_u64(bytes: &[u8], at: u64) -> Option<u64> {
 impl Ogawa {
     /// Opens the file and reads its header. The source is never modified.
     pub(super) fn open(path: &Path) -> Result<Ogawa> {
-        let file = File::open(path)?;
-        // SAFETY: read-only mapping of a file the compiler never writes, as for any other source;
-        // the reads that follow are bounded by `map.len()`.
-        let map = unsafe { memmap2::MmapOptions::new().map(&file)? };
+        // The reads that follow are bounded by `map.len()`.
+        let map = crate::map_source(path)?;
         let name = path.display();
         if map.starts_with(HDF5_MAGIC) {
             return Err(CompilerError::new(

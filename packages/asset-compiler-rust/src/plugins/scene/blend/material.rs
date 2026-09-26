@@ -35,7 +35,7 @@ pub(super) fn material_json(
     root: &Path,
     images: &mut Images,
     out: &mut Out,
-) -> Value {
+) -> Result<Value> {
     let mut gltf = json!({"name": name, "pbrMetallicRoughness": {
         "baseColorFactor": [
             material.float("r", 0.8), material.float("g", 0.8),
@@ -45,14 +45,14 @@ pub(super) fn material_json(
         "roughnessFactor": material.float("roughness", 0.5),
     }});
     let Some(graph) = material.follow("nodetree") else {
-        return gltf;
+        return Ok(gltf);
     };
     let tree = shading::Tree::read(&graph);
     let Some(node) = surface(&graph, &tree, out) else {
-        return gltf;
+        return Ok(gltf);
     };
-    principled_json(material, &node, &tree, root, images, out, &mut gltf);
-    gltf
+    principled_json(material, &node, &tree, root, images, out, &mut gltf)?;
+    Ok(gltf)
 }
 
 /// The shader that renders the surface: the one the active output's `Surface` input reaches.
@@ -92,16 +92,17 @@ fn principled_json(
     images: &mut Images,
     out: &mut Out,
     gltf: &mut Value,
-) {
+) -> Result<()> {
     let base = shading::socket(node, "Base Color");
     let declared = base
         .as_ref()
         .map_or_else(Vec::new, |s| shading::value(s, 0.8));
     let metallic = shading::factor(node, tree, "Metallic", 0.0, out);
     let roughness = shading::factor(node, tree, "Roughness", 0.5, out);
-    let linked = base
-        .as_ref()
-        .and_then(|s| shading::texture(s, tree, root, images, out));
+    let linked = match &base {
+        Some(socket) => shading::texture(socket, tree, root, images, out)?,
+        None => None,
+    };
     let alpha = alpha::of(node, tree, base.as_ref(), linked.is_some(), out);
     let mut color = [0.8, 0.8, 0.8, alpha.factor.clamp(0.0, 1.0)];
     for (axis, slot) in color.iter_mut().take(3).enumerate() {
@@ -116,8 +117,9 @@ fn principled_json(
     }
     pbr["baseColorFactor"] = json!(color);
     alpha::mode(material, &alpha, gltf);
-    shading::emission(node, tree, root, images, out, gltf);
-    if let Some(index) = shading::normal_texture(node, tree, root, images, out) {
+    shading::emission(node, tree, root, images, out, gltf)?;
+    if let Some(index) = shading::normal_texture(node, tree, root, images, out)? {
         gltf["normalTexture"] = json!({"index": index});
     }
+    Ok(())
 }

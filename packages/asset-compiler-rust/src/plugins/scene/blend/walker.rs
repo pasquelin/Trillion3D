@@ -103,7 +103,7 @@ impl Scene<'_> {
         let geometry = mesh::read(mesh, &name)?;
         let normals = normals::corners(&geometry.surface()).normals;
         self.out.count("normalsComputed", 1);
-        let slots = self.slots(mesh);
+        let slots = self.slots(mesh)?;
         let (json, triangles) = build::mesh_json(
             &geometry,
             &normals,
@@ -120,7 +120,7 @@ impl Scene<'_> {
     }
 
     /// The materials of a mesh's slots, in slot order.
-    fn slots(&mut self, mesh: &At<'_>) -> Vec<Option<usize>> {
+    fn slots(&mut self, mesh: &At<'_>) -> Result<Vec<Option<usize>>> {
         let total = mesh.int("totcol", 0).max(0) as usize;
         let table = mesh.block("mat").unwrap_or_default();
         (0..total)
@@ -129,25 +129,30 @@ impl Scene<'_> {
     }
 
     /// The glTF rank of a material, poured on first request.
-    fn material(&mut self, file: &BlendFile<'_>, pointer: u64) -> Option<usize> {
+    fn material(&mut self, file: &BlendFile<'_>, pointer: u64) -> Result<Option<usize>> {
         if pointer == 0 {
-            return None;
+            return Ok(None);
         }
         if let Some(known) = self.materials.get(&pointer) {
-            return *known;
+            return Ok(*known);
         }
-        let found = file
-            .at(pointer)
-            .and_then(|block| file.view(block))
-            .map(|it| {
+        let found = match file.at(pointer).and_then(|block| file.view(block)) {
+            Some(it) => {
                 let name = short(&it, "Material");
-                let json =
-                    material::material_json(&it, &name, self.root, &mut self.images, &mut self.out);
+                let json = material::material_json(
+                    &it,
+                    &name,
+                    self.root,
+                    &mut self.images,
+                    &mut self.out,
+                )?;
                 self.out.materials.push(json);
-                self.out.materials.len() - 1
-            });
+                Some(self.out.materials.len() - 1)
+            }
+            None => None,
+        };
         self.materials.insert(pointer, found);
-        found
+        Ok(found)
     }
 
     /// An object that replaces a material of its mesh: the driver follows the mesh, and says so.

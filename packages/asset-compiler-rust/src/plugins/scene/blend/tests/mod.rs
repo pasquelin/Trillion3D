@@ -5,6 +5,7 @@
 //! compared in `src/tests/formats/blend_golden.rs`.
 use super::*;
 use crate::tests::ngons::{rendered_area, U_RING};
+use std::fs;
 
 mod bounds;
 mod budget;
@@ -16,9 +17,7 @@ mod surgery;
 mod transparency;
 mod uri;
 mod vertex_normals;
-
-/// The RAM budget, in bytes, the tests read under.
-const BUDGET: usize = 1 << 30;
+use crate::tests::RAM_BUDGET as BUDGET;
 
 /// Writes a minimal Blender file in the old layout, from the format description: a twelve-byte
 /// header, thirty-two-bit-field blocks, a `DNA1` of a single structure and a data block typed by

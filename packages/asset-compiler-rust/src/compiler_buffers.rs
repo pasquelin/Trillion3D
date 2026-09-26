@@ -23,8 +23,7 @@ pub(super) fn concat_gltf_buffers(
             }
             let digest = hash_file(&dir.join(uri))?;
             verify_sidecar(declared, uri, &digest)?;
-            let file = File::open(dir.join(uri))?;
-            let map = unsafe { memmap2::MmapOptions::new().map(&file)? };
+            let map = map_source(&dir.join(uri))?;
             if required_index(buffers[0].get("byteLength"), "buffer.byteLength")? > map.len() {
                 return Err(invalid("glTF buffer byteLength exceeds source bytes"));
             }

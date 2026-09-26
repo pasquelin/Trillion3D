@@ -174,8 +174,7 @@ pub(super) fn plan_buffers(
         .and_then(|total| total.checked_add(decoded_bytes))
         .ok_or_else(|| invalid("Working set overflow"))?;
     if estimated_working_bytes
-        > o.ram_budget_mb
-            .checked_mul(1024 * 1024)
+        > o.ram_budget_bytes()
             .ok_or_else(|| invalid("RAM budget overflow"))?
     {
         return Err(CompilerError::new(

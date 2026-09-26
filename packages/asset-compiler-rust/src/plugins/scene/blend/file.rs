@@ -39,15 +39,6 @@ pub(super) struct BlendFile<'a> {
     index: HashMap<u64, usize>,
 }
 
-/// Maps a source read-only.
-pub(super) fn map(path: &Path) -> Result<memmap2::Mmap> {
-    let file = fs::File::open(path)?;
-    // SAFETY: a read-only map of a source the compiler never writes, as the glTF and Alembic
-    // readers map theirs; the cook assumes the file is not modified while it runs. Every read
-    // that follows is a bounds-checked slice of the map, never a raw pointer.
-    Ok(unsafe { memmap2::MmapOptions::new().map(&file)? })
-}
-
 impl<'a> BlendFile<'a> {
     /// Opens a Blender file: undoes the wrapping under `ceiling`, reads the header, walks the
     /// blocks, then the `DNA1` block that describes all the structures.

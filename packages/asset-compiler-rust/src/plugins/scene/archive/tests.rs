@@ -48,7 +48,7 @@ fn outcome(tag: &str, plugin: &dyn ScenePlugin, name: &str, bytes: &[u8]) -> Out
         cache: &cache,
         cancelled: &cancelled,
         progress: &|report| reports.lock().expect("reports").push(report),
-        ram_budget: 1 << 30,
+        ram_budget: crate::tests::RAM_BUDGET,
     }) {
         Ok(_) => "accepted".to_string(),
         Err(error) => error.code.to_string(),
