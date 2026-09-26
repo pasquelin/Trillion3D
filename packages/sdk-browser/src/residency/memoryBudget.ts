@@ -88,7 +88,7 @@ const checkTotal = (bytes: number, name: string) => {
  *   (`effectTargetReserve`, 3840 × 2160 by default); the rest in two halves, the geometry pool
  *   and the texture pool, each no larger than its ceiling. The three fixed shares never shrink: a total under them is
  *   refused by name. A total that leaves the other two less than their floors — the
- *   root cover, one layer per lane — leaves them at those floors, which the pools' own clamps name.
+ *   root cover, the texture tails — leaves them at those floors, which the pools' own clamps name.
  * - CPU: the shadow page table's host mirror first (`SHADOW_HOST_BYTES`), fixed whatever the
  *   screen; the decoded-page cache takes the rest (`pageCache.ts`), the session's manifest tables
  *   and transfer queue reserved off it. A total under the mirror is refused by name.

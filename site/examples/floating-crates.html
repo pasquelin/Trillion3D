@@ -23,7 +23,7 @@
     <script type="module">
       // Waits for #573: a shape rewritten every frame is uploaded in place, not cut again.
       import { createWorld, geometry, material, object, light, math } from '../runtime/engine.js';
-      import { controls, readout, seeded } from '../runtime/kit.js';
+      import { controls, physicsReadouts, seeded } from '../runtime/kit.js';
 
       // Water is an option of the physics: every step, the worker weighs the water each body
       // displaces and pushes it up by that much, so what is lighter than water floats.
@@ -188,17 +188,13 @@
       );
       fill();
 
-      const count = readout('bodies'), awake = readout('awake'), step = readout('step');
       world.onFrame(() => {
         const surface = world.physics.waterSurface;
         if (surface) drawSurface(surface);
         // Moving water asks for the next frame; still water is drawn once and rests.
         if (settings.waves > 0) world.invalidate();
-        const s = world.physics.stats;
-        count(String(s.bodies));
-        awake(String(s.active));
-        step(`${s.stepMs.toFixed(2)} ms`);
       });
+      physicsReadouts(world, ['bodies', 'awake', 'step']);
     </script>
   </body>
 </html>

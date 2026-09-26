@@ -1367,7 +1367,7 @@
     }
   },
   "save-the-scene": {
-    "banner": "Knock the tower down, then open the saved scene again.",
+    "banner": "Save the tower, knock it down, then open: the saved tower stands again.",
     "controls": {
       "knockDown": "Knock down",
       "save": "Save",

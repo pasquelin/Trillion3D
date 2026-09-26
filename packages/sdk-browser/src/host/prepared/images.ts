@@ -11,6 +11,7 @@
 import type { TableDocument } from '../../../../sdk-core/src/scene/core/tableDocuments.ts';
 import { PLACEHOLDER_IMAGE } from '../../texture/skip.ts';
 import type { ByteMeter } from '../../cluster/byteMeter.ts';
+import { checked } from '../../cluster/pages.ts';
 
 /** Decode options of the host loader: pixels as the file stores them. */
 const BITMAP: ImageBitmapOptions = { premultiplyAlpha: 'none', colorSpaceConversion: 'none' };
@@ -26,8 +27,7 @@ async function element(url: string) {
 
 async function decodeAddress(url: string, signal: AbortSignal | undefined, meter: ByteMeter) {
   if (typeof createImageBitmap !== 'function') return element(url);
-  const response = await fetch(url, { signal, credentials: 'same-origin' });
-  if (!response.ok) throw new Error(`${url}: HTTP ${response.status}`);
+  const response = await checked(url, signal);
   // Metered once accepted: a refused body is never read, so its length never joins the total.
   return createImageBitmap(await meter.read(response, url).blob(), BITMAP);
 }

@@ -1,5 +1,6 @@
 import type { SceneFog } from '../../../../sdk-core/src/scene/core/fog.ts';
 import { EngineError } from '../../../../sdk-core/src/contracts/cache.ts';
+import type { PhysicsOption } from '../../../../sdk-core/src/physics/options.ts';
 
 /** The name a saved scene carries, and the one version of its layout this runtime reads. */
 export const SCENE_FORMAT = 'trillion3d-scene';
@@ -73,6 +74,8 @@ export interface SavedNode {
   };
   /** A compiled model, by the manifest address it was loaded from: never inlined. */
   model?: { url: string };
+  /** A mesh's body, as `mesh.physics` declares it. */
+  physics?: PhysicsOption;
 }
 
 /** The camera a scene was saved with: its pose, projection and optics. */

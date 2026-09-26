@@ -115,6 +115,6 @@ export type MemoryBudgetsReport = {
   residentPages: { before: number; after: number };
   /** Texture tiles held, before and after. */
   residentTiles: { before: number; after: number };
-  /** Time it took. */
+  /** Time it took, a wait for the running prepare included. */
   durationMs: number;
 };

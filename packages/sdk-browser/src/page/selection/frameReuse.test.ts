@@ -8,6 +8,7 @@ import {
 } from './selection.ts';
 import { blendFixture, camera } from './blend.fixture.ts';
 import { cameraMoteur } from '../../camera/camera.fixture.ts';
+import { createHeldResidency } from '../cut/held.ts';
 
 /** Two frames of one view agree on what they show, want and reject. */
 function assertSameCut(first: SelectionResult<PageRec>, second: SelectionResult<PageRec>) {
@@ -51,7 +52,7 @@ test('a cut frame reuses its flat table, result and arrays: it allocates nothing
     ask = {
       pixelError: 100,
       viewport: [960, 540] as [number, number],
-      holdResident: true,
+      held: createHeldResidency(),
       wanted,
       result,
     };
@@ -105,14 +106,14 @@ test('two successive calls with the same camera select the same set of clusters'
   const first = selectVisiblePages(
     roots,
     cameraMoteur(cam),
-    { pixelError: 100, viewport: [960, 540], holdResident: true },
+    { pixelError: 100, viewport: [960, 540], held: createHeldResidency() },
     shown1,
   );
   const shown2: PageRec[] = [];
   const second = selectVisiblePages(
     roots,
     cameraMoteur(cam),
-    { pixelError: 100, viewport: [960, 540], holdResident: true },
+    { pixelError: 100, viewport: [960, 540], held: createHeldResidency() },
     shown2,
   );
   assertSameCut(first, second);
@@ -133,7 +134,7 @@ test('selection working arrays are reused from one frame to the next', () => {
     ask = {
       pixelError: 100,
       viewport: [960, 540] as [number, number],
-      holdResident: true,
+      held: createHeldResidency(),
     };
   const hint: PageRec[] = [];
   const first = selectVisiblePages(roots, cameraMoteur(cam), ask, hint);
