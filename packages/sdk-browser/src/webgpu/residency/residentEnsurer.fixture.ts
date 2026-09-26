@@ -2,6 +2,9 @@ import { IDENTITY_MATRIX4 } from '../../../../sdk-core/src/index.ts';
 import type { PageRec } from '../../page/selection/selection.ts';
 import { surfaceOf } from '../../page/surface.ts';
 import type { createWebgpuPageTracking } from '../row/pageTracking.ts';
+import { structureIndex } from '../../page/selection/structure.ts';
+import type { ClusterRoot } from '../../page/selection/types.ts';
+import { createPageParents } from './admission.ts';
 import { createWebgpuResidentEnsurer } from './residentEnsurer.ts';
 
 /** Fields the residency ensurer never reads: shared across every fixture page. */
@@ -26,6 +29,29 @@ export const pageOf = (url: string) =>
     attached: true,
   }) as unknown as PageRec;
 
+/** One placement: the root `r`, the mid cluster `m` replacing the leaves `a` and `b`, and `r`
+ *  replacing `m`. Group 0 turns `m` into `r`, group 1 turns `a` and `b` into `m`. */
+export function placement() {
+  const pages = ['r', 'm', 'a', 'b'].map(pageOf);
+  const groups = [0, 1, 1].map((group, i) => [pages[i + 1], group] as const);
+  for (const [page, group] of groups) page.group = group;
+  for (const page of pages) page.placementIndex = 0;
+  const band = { error: 1, sphere: [0, 0, 0, 1] };
+  const structure = structureIndex(
+    {
+      version: 1,
+      roots: [0],
+      groups: [
+        { level: 1, ...band, children: [1], outputs: [0] },
+        { level: 0, ...band, children: [2, 3], outputs: [1] },
+      ],
+    },
+    pages.length,
+  );
+  const root = { world: { elements: [] }, pages, structure } as unknown as ClusterRoot<PageRec>;
+  return { pages, parentsOf: createPageParents([root]) };
+}
+
 /** A pool of `slots` pages evicting its oldest unpinned page, as the GPU page cache does. */
 export function lruCache(slots: number) {
   const resident = new Map<string, { key: string }>(),
@@ -43,6 +69,7 @@ export function lruCache(slots: number) {
       resident.set(url, { key: url });
     },
     pin: (url: string) => pins.add(url),
+    unpin: (url: string) => pins.delete(url),
     touch(url: string) {
       const page = resident.get(url);
       if (!page) return false;
