@@ -22,7 +22,10 @@ use documents::document_table;
 use graph::{camera_table, light_table, node_table, scene_roots};
 use materials::material_entry;
 #[cfg(test)]
-pub(crate) use partition::{pages::*, split::Region};
+pub(crate) use partition::{
+    pages::{read_records, write_pages, FAN_OUT, PAGE_BYTES},
+    split::Region,
+};
 use textures::texture_table;
 
 /// Version of the `scene-tables.json` cache product. It lives outside the manifest: its version is
@@ -76,7 +79,7 @@ pub(super) fn stage_scene_tables(
     autonomous: Option<&Value>,
     directory: &Path,
     progress: impl Fn(Value),
-) -> Result<Vec<Product>> {
+) -> Result<Product> {
     let started = Instant::now();
     let mut surfaces = Materials {
         table: Vec::new(),
@@ -123,7 +126,7 @@ pub(super) fn stage_scene_tables(
     progress(
         json!({"phase":"tables","completed":1,"total":1,"ms":shared_math::elapsed_ms(started),"counts":counts}),
     );
-    Ok(vec![written])
+    Ok(written)
 }
 
 /// The cell records of the tables in `directory` by file name, read through their partition's pages,

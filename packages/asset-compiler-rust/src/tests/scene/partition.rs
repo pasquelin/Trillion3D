@@ -15,7 +15,7 @@ fn compiled_with(
     roots: Vec<usize>,
     edit: impl FnOnce(&mut Value),
 ) -> (Options, Value, PathBuf) {
-    let (_root, mut options) = fixture();
+    let (_root, options) = fixture();
     let mut gltf = read_gltf(&options);
     gltf["accessors"][0]["min"] = json!([0.0, 0.0, 0.0]);
     gltf["accessors"][0]["max"] = json!([1.0, 1.0, 0.0]);
@@ -23,6 +23,11 @@ fn compiled_with(
     gltf["scenes"] = json!([{"nodes": roots}]);
     edit(&mut gltf);
     write_gltf(&options, &gltf, None);
+    compiled_full(options)
+}
+
+/// A full-scope compilation with `options`: its options, its tables and its folder.
+pub(super) fn compiled_full(mut options: Options) -> (Options, Value, PathBuf) {
     options.scope = "full".into();
     let result = compile(&options, |_| {}).expect("compile");
     let directory = options.key_directory(result["key"].as_str().expect("key"));
