@@ -77,9 +77,11 @@ export function cellReach(optics: PartitionOptics) {
  * needs; a flattened root, which stretches some distance by 0, reads every cell.
  */
 export function inCellFrame(world: ArrayLike<number>, eye: ArrayLike<number>, reach: number) {
+  const [least] = stretchOf(world);
+  if (!least) return { eye: [0, 0, 0], reach: Infinity }; // flattened: no eye there, every cell
   invertMatrix4(inverse, world);
   const local = transformAffinePoint([0, 0, 0], inverse, eye[0], eye[1], eye[2]);
-  return { eye: local, reach: reach / stretchOf(world)[0] };
+  return { eye: local, reach: reach / least };
 }
 
 /** Distance from `eye` to the nearest box `[minX, minY, minZ, maxX, maxY, maxZ]` of `bounds`,

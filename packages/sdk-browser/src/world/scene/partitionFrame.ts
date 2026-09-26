@@ -6,6 +6,7 @@
  * The reach is the frame camera's far plane, never a number of the scene's
  * (`../../scene/partition/plan.ts`).
  */
+import { maxStretch } from '../../../../sdk-core/src/index.ts';
 import { PRIORITY_PREFETCH, PRIORITY_VISIBLE } from '../../streaming/priority.ts';
 import type { RenderBackend } from '../../backend/types.ts';
 import type { FrameBudget } from '../../page/integration/frameBudget.ts';
@@ -16,10 +17,15 @@ import type { createPageStreamer } from '../../streaming/pageStreamer.ts';
 
 type Streamer = ReturnType<typeof createPageStreamer>;
 
-/** Where a camera's eye stands in the world. */
-function eyeOf(camera: HostCamera) {
+/** Where a camera's eye stands in the world, and its reach there: the frustum its world matrix
+ *  poses, which a scaled camera — or one under a scaled rig — stretches by up to its largest
+ *  singular value (`maxStretch`). */
+function viewOf(camera: HostCamera) {
   const elements = resolveCameraWorld(camera).matrixWorld.elements;
-  return [elements[12], elements[13], elements[14]];
+  return {
+    eye: [elements[12], elements[13], elements[14]],
+    reach: cellReach(camera) * maxStretch(elements),
+  };
 }
 
 /**
@@ -34,8 +40,7 @@ export async function primePartitions(
   owned: boolean,
   signal?: AbortSignal,
 ) {
-  const reach = cellReach(camera);
-  const eye = eyeOf(camera);
+  const { eye, reach } = viewOf(camera);
   const read = (url: string) => streamer.readBytes(url, signal);
   const bytes = await Promise.all(partitions.map((cells) => cells.prime(eye, reach, read, owned)));
   return bytes.reduce((sum, value) => sum + value, 0);
@@ -91,8 +96,7 @@ export function createPartitionFrame(inputs: Inputs) {
       grow: backend.growPlacements?.bind(backend),
       outgrown: renew,
     };
-    const reach = cellReach(camera);
-    const eye = eyeOf(camera);
+    const { eye, reach } = viewOf(camera);
     later = false;
     for (const cells of partitions) later = cells.frame(eye, reach, io, budget) || later;
   };
