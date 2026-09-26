@@ -68,18 +68,25 @@ export function bindClusterMaterial(
       mat.aoMap ??
       (basic.aoMap && readsOcclusion(basic) ? importHostTexture(basic.aoMap) : undefined),
     aoIntensity = mat.aoMap ? mat.aoIntensity : (basic.aoMapIntensity ?? 1);
+  // glTF 2.0 cuts the colour factor's alpha times the map's, as WebGPU's `maskKeep` (#769). A
+  // blended surface draws that alpha; an opaque one writes 1, so its opacity divides the cutoff.
+  const opacity = surfaceOpacity(source),
+    blended = material.transparent;
   uniforms.f4(
     0,
     'baseFactor',
     mat.baseColor[0],
     mat.baseColor[1],
     mat.baseColor[2],
-    // glTF 2.0 cuts the colour factor's alpha times the map's, as WebGPU's `maskKeep` (#769).
-    material.transparent || mat.alphaTest > 0 ? surfaceOpacity(source) : 1,
+    blended ? opacity : 1,
   );
   uniforms.f1(4, 'metalFactor', mat.metalness);
   uniforms.f1(5, 'roughFactor', mat.roughness);
-  uniforms.f1(6, 'alphaCutoff', mat.alphaTest);
+  uniforms.f1(
+    6,
+    'alphaCutoff',
+    blended || mat.alphaTest <= 0 ? mat.alphaTest : mat.alphaTest / opacity,
+  );
   uniforms.f2(7, 'normalScale', mat.normalScale, mat.normalScaleY);
   uniforms.f1(9, 'aoStrength', aoIntensity);
   uniforms.f3(10, 'emissiveFactor', mat.emissive);
