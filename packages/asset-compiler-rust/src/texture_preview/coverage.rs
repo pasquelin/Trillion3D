@@ -69,9 +69,8 @@ pub(super) fn material_cut(material: &serde_json::Value, cutoff: f32) -> Cut {
     (cutoff, factor.clamp(0.0, 1.0))
 }
 
-/// The byte, rounded down, of bilinear sample `s` (0 to 3, row by row) of the
-/// square whose corner alphas are `[a, b, c, d]`, row by row: weights 9, 3, 3
-/// and 1 sixteenths from the nearest corner. `filtered` of `texture/coverageRule.ts`.
+/// Bilinear sample `s` (0 to 3, row by row) of the square of corner alphas `[a, b,
+/// c, d]`, rounded down: 9, 3, 3, 1 sixteenths from the nearest (`filtered`, `coverageRule.ts`).
 fn filtered([a, b, c, d]: [u32; 4], s: u32) -> u32 {
     let (x, y) = (3 - 2 * (s & 1), 3 - 2 * (s >> 1));
     (y * (x * a + (4 - x) * b) + (4 - y) * (x * c + (4 - x) * d)) >> 4
@@ -82,9 +81,8 @@ fn scaled(a: u32, c: u32, t: u32) -> u32 {
     ((2 * a * (2 * c - 1) + 2 * t - 1) / (4 * t - 2)).min(255)
 }
 
-/// Step 2's bin of sample `s` of the square of corner alphas `a`: the highest `t`
-/// whose scale lifts it to `c` or more, 0 when none. `cutBin` of `coverageRule.ts`;
-/// `bytes[t][a]` is `scaled(a, c, t)`, tabulated once per level.
+/// Step 2's bin of sample `s` of square `a`: the highest `t` whose scale, `bytes[t]`,
+/// lifts it to `c` or more, 0 when none (`cutBin`, `coverageRule.ts`).
 fn cut_bin(a: [u32; 4], s: u32, c: u32, bytes: &[[u8; 256]; 256]) -> usize {
     let (mut low, mut high) = (0, 256);
     for _ in 0..8 {
@@ -102,16 +100,11 @@ fn cut_bin(a: [u32; 4], s: u32, c: u32, bytes: &[[u8; 256]; 256]) -> usize {
 /// a row), an edge texel its own neighbour.
 fn squares(level: &[u8], width: usize) -> impl Iterator<Item = [u32; 4]> + '_ {
     let height = level.len() / 4 / width;
-    let alpha = move |x: usize, y: usize| u32::from(level[(y * width + x) * 4 + 3]);
+    let a = move |x: usize, y: usize| u32::from(level[(y * width + x) * 4 + 3]);
     (0..width * height).map(move |i| {
         let (x, y) = (i % width, i / width);
         let (right, below) = ((x + 1).min(width - 1), (y + 1).min(height - 1));
-        [
-            alpha(x, y),
-            alpha(right, y),
-            alpha(x, below),
-            alpha(right, below),
-        ]
+        [a(x, y), a(right, y), a(x, below), a(right, below)]
     })
 }
 
