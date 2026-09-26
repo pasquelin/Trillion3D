@@ -9,6 +9,7 @@ import { bindClusterMaterial } from './materialBinding.ts';
 import { importHostTexture } from '../../host/textureImport.ts';
 import { pageDiagnostics } from '../../host/pageDiagnostics.ts';
 import { CLUSTER_FRAGMENT } from './shaders.ts';
+import { SURFACE_MODEL } from '../../scene/surfaceModel.ts';
 import {
   HOST_BLENDING_ADDITIVE,
   HOST_BLENDING_MULTIPLY,
@@ -86,10 +87,31 @@ const flagOf = (material: G.GraphSurface, name: string, linear = false) => {
   return flags.get(name);
 };
 
-test('A Depth material, and it alone, shows the frame depth ramp', () => {
-  assert.equal(flagOf(new G.GraphSurface('depth'), 'depthShaded'), 1);
-  assert.equal(flagOf(G.standardSurface(), 'depthShaded'), 0);
-  assert.equal(flagOf(G.basicSurface(), 'depthShaded'), 0);
+test('Each family binds the surface model it is shaded by, lit or not (#772)', () => {
+  const families = [
+    ['lambert', 'diffuse', 1],
+    ['toon', 'toon', 1],
+    ['matcap', 'matcap', 0],
+    ['normal', 'normal', 0],
+    ['depth', 'depth', 0],
+    ['phong', 'standard', 1],
+    ['basic', 'standard', 0],
+    ['standard', 'standard', 1],
+  ] as const;
+  for (const [family, model, lit] of families) {
+    const surface = new G.GraphSurface(family);
+    assert.equal(flagOf(surface, 'surfaceModel'), SURFACE_MODEL[model], family);
+    assert.equal(flagOf(surface, 'lit'), lit, family);
+  }
+});
+
+test('A matcap binds its image on the base map unit (#772)', () => {
+  const image = texture();
+  const { binding } = recorder();
+  const units: unknown[] = [];
+  binding.textures.bind = (unit, map) => void (units[unit] = map);
+  bindClusterMaterial(binding, new G.GraphSurface('matcap', { matcap: image }), true);
+  assert.equal(units[0], importHostTexture(image));
 });
 
 test("A diagnostic view's surfaces, and they alone, stay out of the fog", () => {
