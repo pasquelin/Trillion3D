@@ -20,7 +20,7 @@
   <body>
     <canvas id="view"></canvas>
     <script type="module">
-      import { createWorld, geometry, material, object, light } from '../runtime/engine.js';
+      import { createWorld, geometry, material, object, light, helper } from '../runtime/engine.js';
       import { controls, readout, words } from '../runtime/kit.js';
       const say = words();
 
@@ -32,7 +32,10 @@
       const ground = object.mesh(geometry.box(...GROUND), material.meshStandard({ color: '#3a4556', physics: 'stone' }));
       ground.position.y = -GROUND[1] / 2;
       ground.physics = 'static';
-      world.scene.add(ground);
+      // The grid is a helper mark, a hair over the ground: it is not saved, and stays through `fromJSON`.
+      const grid = helper.grid(GROUND[0], GROUND[0]);
+      grid.position.y = 0.002;
+      world.scene.add(ground, grid);
       ['#e0663c', '#3c8ce0', '#5fbf6a', '#d8b43c'].forEach((colour, i) => {
         const block = object.mesh(geometry.box(...BLOCK), material.meshStandard({ color: colour, physics: 'wood' }));
         block.position.y = BLOCK[1] / 2 + i * BLOCK[1];

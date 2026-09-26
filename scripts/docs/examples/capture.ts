@@ -14,9 +14,15 @@ export async function exampleModules(html: string): Promise<string[]> {
   return sources;
 }
 
+/** The constructor of async functions: a module's body may `await` at its top level. */
+const AsyncFunction = (async () => {}).constructor as new (
+  ...args: string[]
+) => (modules: object) => Promise<void>;
+
 /**
  * Runs an example page's first module in Node, its imports of the built engine and kit taken
- * from `modules` — the engine's own objects, or stand-ins a test counts with.
+ * from `modules` — the engine's own objects, or stand-ins a test counts with. Resolves once the
+ * module's body has run, its top-level `await`s included.
  */
 export async function runExampleModule(html: string, modules: { engine: object; kit: object }) {
   const [source] = await exampleModules(html);
@@ -24,7 +30,7 @@ export async function runExampleModule(html: string, modules: { engine: object; 
     /import \{([^}]*)\} from '\.\.\/runtime\/(engine|kit)\.js';/g,
     'const {$1} = modules.$2;',
   );
-  new Function('modules', `'use strict';${body}`)(modules);
+  await new AsyncFunction('modules', `'use strict';${body}`)(modules);
 }
 
 /** One example roadmap entry, as read from `site/content/gallery-roadmap.json`. */
