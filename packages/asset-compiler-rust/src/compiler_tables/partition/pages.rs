@@ -111,7 +111,7 @@ pub(crate) fn read_records(
     if page["version"] != json!(PARTITION_VERSION) {
         return Err(format!("{what} is of another partition version"));
     }
-    if let Some(cells) = page["cells"].as_array() {
+    if let (Some(cells), None) = (page["cells"].as_array(), page["pages"].as_array()) {
         into.extend(cells.iter().cloned());
         return Ok(());
     }

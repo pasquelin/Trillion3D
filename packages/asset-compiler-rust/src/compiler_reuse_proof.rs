@@ -35,8 +35,8 @@ pub(super) fn prove(
         .collect();
     let levels = manifest_binary::texture_levels(&binary).map_err(|e| e.message)?;
     let record = manifest[compiler_publish::FILES_FIELD].as_object().cloned();
-    let mut files = record.ok_or("manifest records no files")?;
-    files.extend(compiler_tables::cell_records(directory)?);
+    let mut files = compiler_tables::cell_records(directory)?; // The manifest's records win.
+    files.extend(record.ok_or("manifest records no files")?);
     let mut items = record_items(directory, &files)?;
     let files = items.len();
     items.extend(objects.iter().map(|digest| Item {

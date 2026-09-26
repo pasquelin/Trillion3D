@@ -213,8 +213,9 @@ records of the highest node under 128 KiB (`PAGE_BYTES`; one cell whatever its s
 empty ones last — 1 391 bytes for grids of 48² and 192² and the open-world cell laid 8 × 8. A slot
 is 168 hexadecimal digits: the page's SHA-256, its size (8) and its box at the declared poses as six
 big-endian `f64` bit patterns (16 each), naming `scene-page-<sha256>.json`; zeros name no page.
-`readTablePartition` reads every page, verified against its slot, into the records in cell order,
-`bounds` the union of the root's boxes and `meshes` the ranks placed. Pages and cells are outside
+`readTablePartition` reads every page through its caller's `read`, which verifies it against its
+slot (`fetchVerified`), into the records in cell order, `bounds` the union of the root's boxes and
+`meshes` the ranks placed. Pages and cells are outside
 the manifest's `files`: a reused folder proves them through the root.
 
 **Reading the cells.** Each mesh the cells place is drawn by one host mesh per primitive whose
