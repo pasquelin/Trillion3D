@@ -66,7 +66,8 @@ test('a model leaving while its physics.json or a tile is on its way lets the re
   for (const name of ['physics.json', 't0.bin']) {
     t.mock.restoreAll();
     const { tiles, scene, model, asked, opened, errors } = streaming(t, name, ['hang']);
-    if (name === 't0.bin') tiles.update([0, 0, 0], 1000, await opened);
+    // A tile is asked once its model's file has landed.
+    if (name === 't0.bin') await opened.then(() => tiles.update([0, 0, 0], 1000));
     scene.remove(model);
     tiles.scan(scene);
     assert.ok(asked[0].init.signal!.aborted);
