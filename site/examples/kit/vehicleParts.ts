@@ -48,17 +48,21 @@ export function vehicleParts({
     body.castShadow = body.receiveShadow = true;
     return { body, hull: [{ type: 'box', halfExtents: halves(size) }] };
   };
-  const drawn = (shape: Solid) =>
-    shape.type === 'box'
-      ? geometry.box(...(shape.halfExtents.map((half) => half * 2) as Vec3))
-      : shape.type === 'sphere'
-        ? geometry.sphere(shape.radius, 20, 14)
-        : geometry.cylinder(
-            shape.radius,
-            shape.radiusBottom ?? shape.radius,
-            shape.halfHeight * 2,
-            16,
-          );
+  const drawn = (shape: Solid) => {
+    switch (shape.type) {
+      case 'box':
+        return geometry.box(...(shape.halfExtents.map((half) => half * 2) as Vec3));
+      case 'sphere':
+        return geometry.sphere(shape.radius, 20, 14);
+      case 'cylinder':
+        return geometry.cylinder(
+          shape.radius,
+          shape.radiusBottom ?? shape.radius,
+          shape.halfHeight * 2,
+          16,
+        );
+    }
+  };
   const solid = ({ body, hull }: Hulled, shape: Solid, look: Look, at: Vec3, turn?: Vec3) => {
     const mesh = part(body, drawn(shape), look, at, turn);
     hull.push({ ...shape, position: at, quaternion: mesh.quaternion.toArray() });
