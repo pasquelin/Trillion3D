@@ -8,7 +8,7 @@ export function refusingDevice(limit: number, members: Record<string, unknown> =
     createBuffer: () => ({ destroy() {} }),
     limits: { maxTextureDimension2D: 8192 },
     createTexture: ({ size }: { size: number[] }) => {
-      if (size[0] * size[1] * 4 > limit) gpu.raise('Out of memory');
+      if (size[0] * size[1] * (size[2] ?? 1) * 4 > limit) gpu.raise('Out of memory');
       return { destroy() {}, createView: () => ({}) };
     },
   });
