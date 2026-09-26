@@ -12,8 +12,7 @@ import * as step from '../../../packages/sdk-browser/src/particles/webgpuParticl
 
 type Args = { shader: string; words: number[][]; staged: number[]; bytes: number; groups: number };
 
-/** Run in the page: the step's three bindings, one dispatch of `words[0]`, then 62 s of `words[1]`,
- *  the state read back after each. */
+/** Run in the page: one dispatch of `words[0]`, then 62 s of `words[1]`, read back after each. */
 async function executer({ shader, words, staged, bytes, groups }: Args) {
   const appareil = await globalThis.ouvrirAppareil();
   if (!appareil) return { indisponible: 'no WebGPU adapter' };

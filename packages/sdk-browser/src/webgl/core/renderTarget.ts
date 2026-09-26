@@ -33,6 +33,10 @@ export type HostDrawOutput = {
 export const halfFloatTargets = (gl: WebGL2RenderingContext) =>
   ['EXT_color_buffer_float', 'EXT_color_buffer_half_float'].some((name) => gl.getExtension(name));
 
+/** Whether the context renders into 32-bit floats, the extension enabled on the way. */
+export const floatTargets = (gl: WebGL2RenderingContext) =>
+  !!gl.getExtension('EXT_color_buffer_float');
+
 export function createWebglRenderTarget(
   gl: WebGL2RenderingContext,
   width: number,
