@@ -29,7 +29,7 @@ export type RulePage = {
   triangles: number;
   /** Leaf units `[first, end)` the cluster covers. */
   units: [number, number];
-  /** Set by a test that loads the page, as a pool does (`RESIDENT_ARRAY`). */
+  /** Set by a test that loads the page, as a pool does: its residency without a host rule. */
   array?: Uint32Array;
 };
 

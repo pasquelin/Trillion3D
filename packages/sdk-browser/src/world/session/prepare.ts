@@ -8,6 +8,8 @@ import { createExplorerCamera } from '../camera/camera.ts';
 import { createExplorerPageSources } from './pageSources.ts';
 import { loadPreparedScene } from '../scene/scene.ts';
 import { primePartitions } from '../scene/partitionFrame.ts';
+import { ARRIVAL_BUDGET_MS } from '../../backend/common.ts';
+import { createFrameBudget } from '../../page/integration/frameBudget.ts';
 import type { ExplorerSession } from './session.ts';
 import type { WebglSurface } from '../../webgl/core/surface.ts';
 import type { HostCamera } from '../../camera/world.ts';
@@ -143,6 +145,8 @@ export async function prepareExplorer(session: ExplorerSession, inputs: Inputs) 
       cells: loadedScene.partitions.map((cells) => cells.stats()),
     });
   }
+  // The frame's one integration budget: cells, arrivals, then the engine's row records.
+  const frameBudget = createFrameBudget(ARRIVAL_BUDGET_MS);
   const { viewport, context } = await prepareExplorerBackends(session, {
     source,
     sceneLightingSource: loadedScene.sceneLightingSource,
@@ -155,6 +159,7 @@ export async function prepareExplorer(session: ExplorerSession, inputs: Inputs) 
     factories: choice.factories,
     backends,
     base,
+    frameBudget,
   });
   return {
     source,
@@ -164,6 +169,7 @@ export async function prepareExplorer(session: ExplorerSession, inputs: Inputs) 
     directGpu,
     viewport,
     context,
+    frameBudget,
     ...cameraState,
   };
 }

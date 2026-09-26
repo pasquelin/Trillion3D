@@ -5,50 +5,32 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createGuideSet } from './guideSet.ts';
 import { createWebgpuGuidePass } from './guidePass.ts';
+import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts';
 import { holdWebgpuFrame, keepWebgpuFrame, unsettledMask } from '../webgpu/frame/hold.ts';
 import { settledRt } from '../webgpu/frame/hold.fixture.ts';
-import { GUIDE_UNIFORM_FLOATS, REVERSED_NEAR_PLANE, writeGuideView } from './guideShaders.ts';
+import { GUIDE_UNIFORM_FLOATS, writeGuideView } from './guideShaders.ts';
 import {
   encodeWebgpuGuides,
   guidesMoved,
   guidesShown,
 } from '../webgpu/pages/render/encodeGuides.ts';
 
-Object.assign(globalThis, {
-  GPUBufferUsage: { UNIFORM: 64, COPY_DST: 8, VERTEX: 32 },
-  GPUShaderStage: { VERTEX: 1, FRAGMENT: 2 },
-});
-
-/** A device and an encoder that record what they are asked. */
+/** The kit's recording device, and an encoder whose render passes record what they are asked. */
 function recorder() {
-  const calls: { name: string; args: unknown[] }[] = [];
-  const note =
-    (name: string, answer: unknown = {}) =>
-    (...args: unknown[]) => (calls.push({ name, args }), answer);
+  const gpu = fakeDevice(),
+    passes: GPURenderPassDescriptor[] = [],
+    draws: number[][] = [];
   const pass = {
-    setPipeline: note('setPipeline'),
-    setBindGroup: note('setBindGroup'),
-    setVertexBuffer: note('setVertexBuffer'),
-    draw: note('draw'),
-    end: note('end'),
+    setPipeline() {},
+    setBindGroup() {},
+    setVertexBuffer() {},
+    draw: (...args: number[]) => void draws.push(args),
+    end() {},
   };
-  const device = {
-    createShaderModule: note('createShaderModule'),
-    createBindGroupLayout: note('createBindGroupLayout'),
-    createPipelineLayout: note('createPipelineLayout'),
-    createRenderPipeline: note('createRenderPipeline'),
-    createBuffer: (descriptor: GPUBufferDescriptor) => (
-      calls.push({ name: 'createBuffer', args: [descriptor] }),
-      { size: descriptor.size, destroy() {} }
-    ),
-    createBindGroup: note('createBindGroup'),
-    queue: { writeBuffer: note('writeBuffer') },
-  } as unknown as GPUDevice;
   const encoder = {
-    beginRenderPass: note('beginRenderPass', pass),
+    beginRenderPass: (descriptor: GPURenderPassDescriptor) => (passes.push(descriptor), pass),
   } as unknown as GPUCommandEncoder;
-  const of = (name: string) => calls.filter((call) => call.name === name).map((call) => call.args);
-  return { device, encoder, of };
+  return { ...gpu, encoder, passes, draws };
 }
 
 const unjittered = Float64Array.from({ length: 16 }, (_, i) => (i % 5 === 0 ? 1 : 0)),
@@ -58,54 +40,53 @@ const color = { color: true } as unknown as GPUTextureView,
   hdr = { hdr: true } as unknown as GPUTextureView;
 
 test('a world that shows no guide builds nothing and encodes no pass', () => {
-  const { device, encoder, of } = recorder();
+  const { device, encoder, renderPipelines, buffers, writes, passes } = recorder();
   const guides = createGuideSet(),
     pass = createWebgpuGuidePass(device);
   assert.equal(
-    pass.encode(encoder, guides, color, depth, { viewProjection: unjittered }, [8, 4], [0, 0]),
+    pass.encode(encoder, guides, color, depth, { viewProjection: unjittered }, [8, 4], 1, [0, 0]),
     false,
   );
   guides.lines({ positions: [0, 0, 0, 1, 0, 0] }).setVisible(false);
   assert.equal(
-    pass.encode(encoder, guides, color, depth, { viewProjection: unjittered }, [8, 4], [0, 0]),
+    pass.encode(encoder, guides, color, depth, { viewProjection: unjittered }, [8, 4], 1, [0, 0]),
     false,
   );
-  for (const name of ['createRenderPipeline', 'createBuffer', 'writeBuffer', 'beginRenderPass'])
-    assert.equal(of(name).length, 0, name);
+  for (const made of [renderPipelines, buffers, writes, passes]) assert.equal(made.length, 0);
 });
 
 test('guides draw over the display target, depth read and never written', () => {
-  const { device, encoder, of } = recorder();
+  const { device, encoder, renderPipelines, buffers, bindGroups, passes, draws } = recorder();
   const guides = createGuideSet(),
     pass = createWebgpuGuidePass(device);
   guides.lines({ positions: [0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0] });
   assert.equal(
-    pass.encode(encoder, guides, color, depth, { viewProjection: unjittered }, [8, 4], [0, 0]),
+    pass.encode(encoder, guides, color, depth, { viewProjection: unjittered }, [8, 4], 1, [0, 0]),
     true,
   );
-  const [pipeline] = of('createRenderPipeline')[0] as [GPURenderPipelineDescriptor];
+  const [pipeline] = renderPipelines;
   assert.equal(pipeline.depthStencil, undefined, 'no depth attachment: nothing can write it');
   assert.equal([...pipeline.fragment!.targets][0]?.format, 'rgba8unorm', 'the display target');
-  const [descriptor] = of('beginRenderPass')[0] as [GPURenderPassDescriptor];
+  const [descriptor] = passes;
   const [attachment] = [...descriptor.colorAttachments];
   assert.equal(attachment?.view, color);
   assert.equal(attachment?.loadOp, 'load', 'over the composed image');
   assert.equal(descriptor.depthStencilAttachment, undefined);
-  const [group] = of('createBindGroup')[0] as [GPUBindGroupDescriptor];
+  const [group] = bindGroups;
   assert.equal([...group.entries][1]?.resource, depth, 'the scene depth, read in the shader');
-  assert.deepEqual(of('draw')[0], [6, 2], 'one quad per segment');
-  pass.encode(encoder, guides, color, depth, { viewProjection: unjittered }, [8, 4], [0, 0]);
-  assert.equal(of('createRenderPipeline').length, 1, 'built once');
-  assert.equal(of('createBuffer').length, 2, 'uniform and instances, uploaded once');
-  assert.equal(of('createBindGroup').length, 1, 'the same depth view keeps its group');
+  assert.deepEqual(draws[0], [6, 2], 'one quad per segment');
+  pass.encode(encoder, guides, color, depth, { viewProjection: unjittered }, [8, 4], 1, [0, 0]);
+  assert.equal(renderPipelines.length, 1, 'built once');
+  assert.equal(buffers.length, 2, 'uniform and instances, uploaded once');
+  assert.equal(bindGroups.length, 1, 'the same depth view keeps its group');
   const resized = { depth: 'resized' } as unknown as GPUTextureView;
-  pass.encode(encoder, guides, color, resized, { viewProjection: unjittered }, [8, 4], [0, 0]);
-  const [again] = of('createBindGroup')[1] as [GPUBindGroupDescriptor];
+  pass.encode(encoder, guides, color, resized, { viewProjection: unjittered }, [8, 4], 1, [0, 0]);
+  const again = bindGroups[1];
   assert.equal([...again.entries][1]?.resource, resized, 'a resized depth is bound anew');
 });
 
 test('the pass draws with the camera, not the jittered matrix of temporal accumulation', () => {
-  const { device, encoder, of } = recorder();
+  const { device, encoder, writes, passes } = recorder();
   const guides = createGuideSet();
   const rt = {
     context: { guides },
@@ -119,26 +100,29 @@ test('the pass draws with the camera, not the jittered matrix of temporal accumu
       temporal: { frame: { active: true, viewProjection: jittered, jitter: [0.25, -0.125] } },
     },
     run: { gpuDrawCalls: 0 },
+    setup: { pixelRatio: () => 2 },
   } as never as Parameters<typeof guidesShown>[0];
   guides.points({ positions: [0, 0, -2] });
   assert.equal(guidesMoved(rt), true, 'a change the last image did not draw');
   assert.equal(guidesShown(rt), true);
   assert.equal(guidesMoved(rt), false, 'the image about to be encoded draws it');
   encodeWebgpuGuides(rt, device, encoder, { viewProjection: unjittered } as never);
-  const view = of('writeBuffer').find(
-    ([, , data]) => (data as Float32Array).length === GUIDE_UNIFORM_FLOATS,
-  )!;
+  const view = writes.find(({ data }) => data.length === GUIDE_UNIFORM_FLOATS)!;
   const expected = writeGuideView(
     new Float32Array(GUIDE_UNIFORM_FLOATS),
     unjittered,
     [0, 0, 0],
     8,
     4,
-    REVERSED_NEAR_PLANE,
+    2,
     [0.25, -0.125],
   );
-  assert.deepEqual([...(view[2] as Float32Array)], [...expected], 'with the jitter of the depth');
-  const [descriptor] = of('beginRenderPass')[0] as [GPURenderPassDescriptor];
+  assert.deepEqual(
+    [...view.data],
+    [...expected],
+    "with the jitter of the depth, at the host's pixel ratio",
+  );
+  const [descriptor] = passes;
   assert.notEqual([...descriptor.colorAttachments][0]?.view, hdr, 'never the image history reads');
   assert.equal(rt.run.gpuDrawCalls, 1);
 });
