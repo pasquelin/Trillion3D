@@ -7,56 +7,53 @@
 import { selectVisiblePages } from './cut.ts';
 import { createHeldResidency, type HeldResidency } from './held.ts';
 import { createImageCut } from '../../backend/autonomous/imageCut.ts';
-import { placements, stripCamera, type CutBackend } from './cutRuleBackends.fixture.ts';
+import { placements, stripCamera } from './cutRuleBackends.fixture.ts';
 import type { RuleDag } from './cutRule.fixture.ts';
 import type { ClusterRoot, PageRec } from '../selection/types.ts';
-
-/** A backend holding the rule's readiness in `held`; `reads` counts the residency answers. */
-type HostBackend = CutBackend & { held: HeldResidency; reads: () => number };
 
 /** Pages by packed index, as `placements` lays them out. */
 const ids = (list: readonly PageRec[]) => list.map((page) => page.packedIndex!);
 
-/** Hands a residency to `roots`' pool: `load` writes each packed page that flipped, and the feed
- *  is named it. */
-function hostPool(
+/** A backend over `roots`' pool: each frame `load`s the pages whose residency flipped, names each
+ *  to the feed, then cuts with `cutOf`; `reads` counts the residency answers its cuts asked for. */
+function hostBackend(
   roots: ClusterRoot<PageRec>[],
   held: HeldResidency,
-  load: (page: PageRec) => void,
+  load: (page: PageRec, resident: boolean) => void,
+  cutOf: () => { shown: readonly PageRec[]; wanted: readonly PageRec[] },
+  reads: () => number,
 ) {
   const pages = roots.flatMap((root) => root.pages),
     now = new Uint8Array(pages.length);
   held.track(roots);
-  const give = (resident: Uint8Array) =>
+  const frame = (resident: Uint8Array) => {
     pages.forEach((page, at) => {
       if (now[at] === resident[at]) return;
       now[at] = resident[at];
-      load(page);
+      load(page, resident[at] === 1);
       held.moved(page);
     });
-  return Object.assign(give, { now });
+    const { shown, wanted } = cutOf();
+    return { drawn: ids(shown), wanted: ids(wanted) };
+  };
+  return Object.assign(frame, { held, reads });
 }
 
 /** The CPU cut (`./cut.ts`) with the host answering for residency, as the WebGPU CPU path and the
  *  light cuts ask it: the rule on `./held.ts`'s readiness, its descent pruned on the open counts. */
 export function cpuBackend(dag: RuleDag, threshold: number, roots = placements(dag, 1)) {
   const cam = stripCamera(dag),
-    held = createHeldResidency(),
-    give = hostPool(roots, held, () => {});
+    on: boolean[] = [];
   let reads = 0;
-  const isResident = (page: PageRec) => (reads++, give.now[page.packedIndex!] === 1);
-  const cut = (resident: Uint8Array) => {
-    give(resident);
-    const { shown, wanted } = selectVisiblePages(roots, cam, {
-      pixelError: threshold,
-      viewport: [1280, 720],
-      holdResident: true,
-      isResident,
-      held,
-    });
-    return { drawn: ids(shown), wanted: ids(wanted) };
+  const isResident = (page: PageRec) => (reads++, on[page.packedIndex!] === true);
+  const options = {
+    pixelError: threshold,
+    viewport: [1280, 720] as [number, number],
+    held: createHeldResidency({ isResident }),
   };
-  return Object.assign(cut, { held, reads: () => reads }) as HostBackend;
+  const load = (page: PageRec, resident: boolean) => void (on[page.packedIndex!] = resident);
+  const cut = () => selectVisiblePages(roots, cam, options);
+  return hostBackend(roots, options.held, load, cut, () => reads);
 }
 
 /** The WebGL2 image's cut (`../../backend/autonomous/imageCut.ts`) over `roots`, under a pool
@@ -88,13 +85,13 @@ export function webgl2Backend(dag: RuleDag, threshold: number, roots = placement
         set: (value?: Uint32Array) => void (array = value),
       });
     }
-  const give = hostPool(roots, held, (page) => {
-    page.array = give.now[page.packedIndex!] ? new Uint32Array(3) : undefined;
-  });
-  const image = (resident: Uint8Array) => {
-    give(resident);
-    const { shown, wanted } = cut(cam, threshold);
-    return { drawn: ids(shown), wanted: ids(wanted) };
-  };
-  return Object.assign(image, { held, reads: () => reads }) as HostBackend;
+  const load = (page: PageRec, resident: boolean) =>
+    void (page.array = resident ? new Uint32Array(3) : undefined);
+  return hostBackend(
+    roots,
+    held,
+    load,
+    () => cut(cam, threshold),
+    () => reads,
+  );
 }

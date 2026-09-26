@@ -40,7 +40,6 @@ export function createImageCut(options: {
   const selectOptions = {
     pixelError: 0,
     viewport: options.viewport,
-    holdResident: true,
     held,
     wanted: desired,
     result: createSelectionResult<PageRec>(),
