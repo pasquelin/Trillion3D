@@ -49,12 +49,13 @@ export function createPhysicsSession(
   const bodies = createPhysicsBodies(writer, budget, host, root, poses.state);
   const joints = createPhysicsJoints(writer, bodies, invalidate);
   const vehicles = createPhysicsVehicles(writer, bodies, invalidate);
-  /** A body leaving the simulation (asleep decorative, refused) takes its joints and vehicles. */
-  const retire = (index: number) => {
+  /** A body leaving the simulation takes its joints and vehicles; asleep, its joints break now. */
+  const retire = (index: number, asleep = false) => {
+    if (asleep) joints.retired(bodies.slots.physicsAt(index), wanted.joints);
     bodies.retire(index);
     dirty = true;
   };
-  const posed = { meshes: bodies.meshes, generation: bodies.generation, retire };
+  const posed = { ...bodies, retire: (index: number) => retire(index, true) };
   const view = createPhysicsView();
   const stats = emptyPhysicsStats();
   /** The character's inner capsule is the slot past the page's; its contacts name the camera. */
