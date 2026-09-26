@@ -37,8 +37,7 @@ export async function loadPreparedSceneTables(
       bytes += read.byteLength;
       return new Uint8Array(read);
     }));
-  const tables: PreparedSceneTables = { ...file, partition };
-  return { tables, bytes };
+  return { tables: { ...file, partition }, bytes };
 }
 
 /** The geometry layout of the document a session draws — `source.gltf`, or the autonomous scene —
