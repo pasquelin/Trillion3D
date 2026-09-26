@@ -23,7 +23,7 @@ export function placeBodies(
     const owner = slots.at(child.physics._index);
     if (!owner || !('mesh' in owner) || owner.mesh !== child) return;
     const { name, physics } = child;
-    if (physics.soft && !fits(worldScaleOf(child), owner.scale))
+    if (owner.scale && !fits(worldScaleOf(child), owner.scale))
       return retire(physics._index, rescaledSoft(`"${name}"`, owner.scale, { name }));
     const { position, quaternion } = worldPoseOf(child);
     const move = child.physics.type === 'kinematic' ? 'moveKinematic' : 'teleport';
