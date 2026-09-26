@@ -8,10 +8,10 @@ import { tailSlotOf, tileKeyOf } from './ids.ts';
  * An atlas pool changes layers WITHOUT losing what it holds — the reference, itself, empties its
  * virtual textures when their pool changes size. Surviving layers are copied in one command, slot
  * for slot: the page table does not move for them. Tiles of vanishing layers are moved into a free
- * slot of the new pool — pinned queues first, then the most looked-at —, each copied on the GPU and
- * re-registered in the table; what no longer fits is evicted, the table says so and the coarse level
- * takes over. Returns the new pool and the evicted-tile count; the old pool is destroyed once the
- * copy is submitted.
+ * slot of the new pool — the pinned tails first, then the most looked-at —, each copied and
+ * re-registered in the table; what no longer fits is evicted, the table says so, `onEvicted` hears
+ * its texture and the coarse level takes over. A tail always finds a place. Returns the new pool
+ * and the evicted-tile count; the old pool is destroyed once the copy is submitted.
  */
 export function resizeTileAtlas(
   device: Pick<GPUDevice, 'createTexture' | 'createCommandEncoder' | 'queue'>,
@@ -20,6 +20,7 @@ export function resizeTileAtlas(
   pool: WebgpuTilePool,
   pages: WebgpuTilePageTable,
   resident: Map<number, number>,
+  onEvicted?: (slot: number) => void,
 ): { pool: WebgpuTilePool; evicted: number } {
   const next = createWebgpuTilePool(device, options);
   const encoder = device.createCommandEncoder({
@@ -38,18 +39,30 @@ export function resizeTileAtlas(
       next.adopt(index, id, pool.lastUseOf(index), tailSlotOf(id) !== undefined);
     else displaced.push(index);
   }
+  // The pinned tiles — the tails, which the floor holds all of — first, then the most looked-at.
   const pinned = (index: number) => Number(pool.pinnedOf(index));
   displaced.sort((a, b) => pinned(b) - pinned(a) || pool.lastUseOf(b) - pool.lastUseOf(a));
-  let evicted = 0;
+  let evicted = 0,
+    yielding: number[] | undefined;
+  const evict = (from: WebgpuTilePool, index: number) => {
+    evictTile(from, index, { pages, resident }, onEvicted);
+    evicted++;
+  };
   for (const index of displaced) {
     const id = pool.keyOf(index),
-      tail = tailSlotOf(id),
-      target = next.acquire(id, pool.lastUseOf(index), pool.pinnedOf(index));
+      tail = tailSlotOf(id);
+    let target = next.acquire(id, pool.lastUseOf(index), pool.pinnedOf(index));
+    // A tail never leaves: the pool's floor holds every tail of its lane (`texturePoolFor`), so the
+    // least looked-at streamed tile gives it its slot, and its coarse level takes over.
+    if (target === undefined && tail !== undefined) {
+      const streamed = (yielding ??= next.candidates(Infinity)).shift();
+      if (streamed !== undefined) {
+        evict(next, streamed);
+        target = next.acquire(id, pool.lastUseOf(index), true);
+      }
+    }
     if (target === undefined) {
-      if (tail !== undefined) throw new Error('TEXTURE_POOL_TAILS');
-      pages.clearTile(tileKeyOf(id));
-      resident.delete(id);
-      evicted++;
+      evict(pool, index);
       continue;
     }
     const from = pool.placeOf(index),
@@ -68,4 +81,20 @@ export function resizeTileAtlas(
   device.queue.submit([encoder.finish()]);
   pool.destroy();
   return { pool: next, evicted };
+}
+
+/** Gives the streamed tile at `index` of `pool` back: the table and `resident` forget it, and
+ *  `onEvicted` hears its texture, for whoever reads it to follow. */
+export function evictTile(
+  pool: WebgpuTilePool,
+  index: number,
+  table: { pages: Pick<WebgpuTilePageTable, 'clearTile'>; resident: Map<number, number> },
+  onEvicted?: (slot: number) => void,
+) {
+  const id = pool.keyOf(index),
+    key = tileKeyOf(id);
+  table.pages.clearTile(key);
+  table.resident.delete(id);
+  pool.release(index);
+  onEvicted?.(key.slot);
 }

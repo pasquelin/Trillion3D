@@ -79,9 +79,10 @@ test('a geometry concatenation that fails at prepare drops to the reduced mode, 
 
 test('the texture budget recorded mid-session is the one the device granted, not the one asked', async () => {
   const encoding = poolEncoding(undefined);
-  const lanes = { ...laneCounts(), lossless: 20_000 };
+  const lanes = { ...laneCounts(), lossless: 20_000 },
+    few = { color: laneCounts(), data: laneCounts() };
   const poolFor = (bytes: number) =>
-    texturePoolFor(bytes, undefined, { color: lanes, data: lanes }, encoding.texelBytes);
+    texturePoolFor(bytes, undefined, { color: lanes, data: lanes }, encoding.texelBytes, few);
   const asked = 512 * 1024 * 1024,
     wanted = poolFor(asked);
   const layerBytes = wanted.allocatedBytes / (2 * wanted.layers.color.lossless);

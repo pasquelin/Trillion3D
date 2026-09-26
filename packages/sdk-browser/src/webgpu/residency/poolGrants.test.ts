@@ -111,9 +111,10 @@ test('a pool refused even at its floor is not drawn: the caller keeps what it ho
 
 test('a texture pool the device refuses is drawn with fewer layers, down to one per lane', async () => {
   const encoding = poolEncoding(undefined);
-  const lanes = { ...laneCounts(), lossless: 20_000 };
+  const lanes = { ...laneCounts(), lossless: 20_000 },
+    few = { color: laneCounts(), data: laneCounts() };
   const poolFor = (bytes: number) =>
-    texturePoolFor(bytes, undefined, { color: lanes, data: lanes }, encoding.texelBytes);
+    texturePoolFor(bytes, undefined, { color: lanes, data: lanes }, encoding.texelBytes, few);
   const asked = poolFor(512 * 1024 * 1024);
   const layerBytes = asked.allocatedBytes / (2 * asked.layers.color.lossless);
   // Room for two layers per atlas, not for what the budget asked.

@@ -95,14 +95,15 @@ export const webgpuPagesBackend: BackendFactory = (context) => {
       const base = installGpuDeviceLedger(gpuDevice, { counts: namesNoSession });
       installGpuDeviceLedger(claim.device, { base });
       const building = prepareWebgpuBackend(rt, claim.device);
-      preparing = building.catch(() => {});
+      // A report of `setMemoryBudgets` made meanwhile waits for it (`io/memory.ts`).
+      preparing = rt.setup.granting = building.catch(() => {});
       try {
         await building;
       } catch (error) {
         if (!isCancelled(rt.signal)) diag.diagnosticFailure('webgpu-prepare-failed', error);
         throw error;
       } finally {
-        preparing = undefined;
+        preparing = rt.setup.granting = undefined;
       }
     },
     render(camera) {
