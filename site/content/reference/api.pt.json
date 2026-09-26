@@ -334,7 +334,8 @@
       "texturePreviewBc7": "Os blocos BC7 das pré-visualizações.",
       "texturePreviewAstc": "Os blocos ASTC das pré-visualizações.",
       "bundleDependencyCount": "Quantos pacotes cada pacote precisa.",
-      "bundleDependency": "Os pacotes de que cada pacote precisa, até as raízes."
+      "bundleDependency": "Os pacotes de que cada pacote precisa, até as raízes.",
+      "pageCone": "O cone de normais de cada página: o eixo e depois o semiângulo."
     }
   },
   "COMPARISON_LIBRARIES": {
@@ -2353,7 +2354,8 @@
       "source": "O grupo que o produziu.",
       "stream": "Pacote de streaming que contém esse cluster e seu deslocamento de bytes dentro dele. Uma requisição atende dezenas de clusters; o cluster continua legível sozinho através de `url`.",
       "streamOffset": "Seu deslocamento de bytes nesse pacote.",
-      "depthLayer": "Camada de profundidade coplanar, 0 para cada cluster que o compilador deixou intacto. Um cluster da camada n desenha com um viés de profundidade de n passos de camada inteiros, o que decide o vencedor entre duas superfícies opacas que compartilham exatamente um plano. Ausente e 0 significam a mesma coisa: o desenho intocado."
+      "depthLayer": "Camada de profundidade coplanar, 0 para cada cluster que o compilador deixou intacto. Um cluster da camada n desenha com um viés de profundidade de n passos de camada inteiros, o que decide o vencedor entre duas superfícies opacas que compartilham exatamente um plano. Ausente e 0 significam a mesma coisa: o desenho intocado.",
+      "cone": "O cone que delimita as normais dos seus triângulos: `axis` um vetor unitário, `angle` o semiângulo em radianos, π para um cone que não rejeita nada. O compilador o calcula a partir dos triângulos; o corte WebGPU ignora um cluster de face única que a câmera vê por trás do seu cone."
     }
   },
   "PageCutPage": {

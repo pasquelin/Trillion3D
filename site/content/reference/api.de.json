@@ -920,7 +920,8 @@
       "texturePreviewBc7": "Die BC7-Blöcke der Vorschauen.",
       "texturePreviewAstc": "Die ASTC-Blöcke der Vorschauen.",
       "bundleDependencyCount": "Wie viele Pakete jedes Paket braucht.",
-      "bundleDependency": "Die Pakete, die jedes Paket braucht, bis zu den Wurzeln."
+      "bundleDependency": "Die Pakete, die jedes Paket braucht, bis zu den Wurzeln.",
+      "pageCone": "Der Normalenkegel jeder Seite: Achse, dann halber Öffnungswinkel."
     }
   },
   "ColumnKind": {
@@ -4431,7 +4432,8 @@
       "source": "Die Gruppe, die ihn erzeugt hat.",
       "stream": "Streampaket, das diesen Cluster enthält, und sein Byte-Versatz darin. Eine Anfrage bedient Dutzende Cluster; der Cluster bleibt allein über `url` lesbar.",
       "streamOffset": "Sein Byte-Versatz in diesem Paket.",
-      "depthLayer": "Koplanare Tiefenschicht, 0 für jeden Cluster, den der Compiler unverändert gelassen hat. Ein Cluster der Schicht n zeichnet mit einem Tiefen-Bias von n ganzen Schichtschritten, was über den Gewinner zwischen zwei undurchsichtigen Oberflächen entscheidet, die sich genau eine Ebene teilen. Fehlend und 0 bedeuten dasselbe: die unveränderte Zeichnung."
+      "depthLayer": "Koplanare Tiefenschicht, 0 für jeden Cluster, den der Compiler unverändert gelassen hat. Ein Cluster der Schicht n zeichnet mit einem Tiefen-Bias von n ganzen Schichtschritten, was über den Gewinner zwischen zwei undurchsichtigen Oberflächen entscheidet, die sich genau eine Ebene teilen. Fehlend und 0 bedeuten dasselbe: die unveränderte Zeichnung.",
+      "cone": "Der Kegel, der die Normalen seiner Dreiecke einschließt: `axis` ein Einheitsvektor, `angle` der halbe Öffnungswinkel im Bogenmaß, π für einen Kegel, der nichts verwirft. Der Compiler berechnet ihn aus den Dreiecken; der WebGPU-Schnitt überspringt einen einseitigen Cluster, den die Kamera von hinter seinem Kegel sieht."
     }
   },
   "PAGE_DECODE_FAILURES": {
