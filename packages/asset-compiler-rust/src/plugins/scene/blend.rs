@@ -26,7 +26,7 @@
 //!
 //! **What it refuses, by name.** A file with 32-bit pointers or big-endian, a block-header variant
 //! it does not describe, a truncated file, a wrapped file that unpacks past the job's RAM budget
-//! or packed images that would take the scene binary past it, an unreadable `DNA1`, a
+//! or packed images or meshes that would take the scene binary past it, an unreadable `DNA1`, a
 //! mesh outside the attribute layout — that of Blender 4.4 and beyond; older files, which stored
 //! their geometry in `MPoly`/`MLoop` and `CustomData`, are not read, for lack of a file of that
 //! era to prove it.

@@ -8,14 +8,14 @@
 //! to the served root — the same root as for all drivers, `scene::image_root`.
 //!
 //! The scene binary the packed images join stays under the job's RAM budget: an image that would
-//! take it past is refused by name, never dropped in silence.
+//! take it past is refused by name, never dropped in silence — and so is a mesh.
 use super::*;
 
 /// Images already poured, by the address of the block that holds them.
 pub(super) struct Images {
     by_block: HashMap<u64, Option<usize>>,
     /// The bytes the scene binary may reach: the job's RAM budget, less the unpacked file.
-    room: usize,
+    pub(super) room: usize,
 }
 
 impl Images {
@@ -43,6 +43,17 @@ impl Images {
     }
 }
 
+/// Refuses the scene when `adding` bytes more take its binary, `held` bytes so far, past `room`.
+pub(super) fn fit(what: &str, adding: usize, held: usize, room: usize) -> Result<()> {
+    if held.saturating_add(adding) > room {
+        return Err(refused(
+            "blend-too-large",
+            format!("blend: {what} needs {adding} bytes, and the scene binary already holds {held} of the {room}-byte RAM budget of this job (ramBudgetMb)"),
+        ));
+    }
+    Ok(())
+}
+
 fn resolve(image: &At<'_>, root: &Path, out: &mut Out, room: usize) -> Result<Option<usize>> {
     let declared = image.text("name").replace('\\', "/");
     let name = declared
@@ -59,13 +70,12 @@ fn resolve(image: &At<'_>, root: &Path, out: &mut Out, room: usize) -> Result<Op
         return Ok(None);
     };
     if let Some(bytes) = packed(image) {
-        let held = out.bin.bytes.len();
-        if held.saturating_add(bytes.len()) > room {
-            return Err(refused(
-                "blend-too-large",
-                format!("blend: packed image {name} needs {} bytes, and the scene binary already holds {held} of the {room}-byte RAM budget of this job (ramBudgetMb)", bytes.len()),
-            ));
-        }
+        fit(
+            &format!("packed image {name}"),
+            bytes.len(),
+            out.bin.bytes.len(),
+            room,
+        )?;
         let view = out.bin.view(bytes, None);
         return Ok(Some(out.image(
             json!({"name": name, "mimeType": mime, "bufferView": view}),

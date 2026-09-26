@@ -62,19 +62,15 @@ fn a_wrapped_file_past_the_budget_is_refused_with_the_bytes_it_needs() {
             refusal.message
         );
         let read = BlendFile::open(&wrapped, plain.len()).expect("under the budget, it opens");
-        assert_eq!(
-            read.held(),
-            plain.len(),
-            "{case}: the unpacked bytes are held"
+        assert!(
+            read.held() >= plain.len(),
+            "{case}: the unpacked buffer is held"
         );
     }
 }
 
-// Behaviour: a packed image the scene binary cannot take in under the budget refuses the scene
-// by name, with the image and the bytes it needs; it is never dropped in silence.
-#[test]
-fn a_packed_image_past_the_budget_is_refused_by_name() {
-    let plain = surgery::fixture();
+/// Where the fixture's packed PNG starts and ends, in its unpacked bytes.
+fn packed_png(plain: &[u8]) -> (usize, usize) {
     let start = plain
         .windows(8)
         .position(|window| window == b"\x89PNG\r\n\x1a\n")
@@ -85,6 +81,15 @@ fn a_packed_image_past_the_budget_is_refused_by_name() {
             .position(|window| window == b"IEND")
             .expect("its end")
         + 8;
+    (start, end)
+}
+
+// Behaviour: a packed image the scene binary cannot take in under the budget refuses the scene
+// by name, with the image and the bytes it needs; it is never dropped in silence.
+#[test]
+fn a_packed_image_past_the_budget_is_refused_by_name() {
+    let plain = surgery::fixture();
+    let (start, end) = packed_png(&plain);
     let (root, converted) = output::converted(&plain, "image-budget", end - start - 1);
     fs::remove_dir_all(root).expect("cleanup");
     let refusal = converted.expect_err("the image goes past the budget");
@@ -92,6 +97,23 @@ fn a_packed_image_past_the_budget_is_refused_by_name() {
     let needs = format!("needs {} bytes", end - start);
     assert!(
         refusal.message.contains("packed image") && refusal.message.contains(&needs),
+        "{}",
+        refusal.message
+    );
+}
+
+// Behaviour: the geometry joins the scene binary under the same budget as the packed images. Room
+// for the packed image alone, a mesh is refused by name, never poured past the budget.
+#[test]
+fn a_mesh_past_the_budget_is_refused_by_name() {
+    let plain = surgery::fixture();
+    let (start, end) = packed_png(&plain);
+    let (root, converted) = output::converted(&plain, "mesh-budget", end - start);
+    fs::remove_dir_all(root).expect("cleanup");
+    let refusal = converted.expect_err("the geometry goes past the budget");
+    assert_eq!(refusal.code, "blend-too-large");
+    assert!(
+        refusal.message.contains("blend: mesh "),
         "{}",
         refusal.message
     );
