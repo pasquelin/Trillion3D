@@ -123,6 +123,10 @@ test('a lane whose tails fill whole layers keeps a layer to stream into at its f
   assert.deepEqual([streams.layers.color, streams.clamp], [lanes(2, 0), 'minimum']);
   const still = texturePoolFor(1, undefined, full, rgba8, full);
   assert.deepEqual(still.layers.color, lanes(1, 0));
+  // A device that holds the tails but not the slot beside them brings the lane back, never refuses.
+  const { device } = fakeDevice({ limits: { maxTextureArrayLayers: 1 } });
+  const capped = texturePoolFor(1, device, { ...full, color: lanes(5000, 0) }, rgba8, full);
+  assert.deepEqual([capped.layers.color, capped.clamp], [lanes(1, 0), 'device-limit']);
 });
 
 // Behaviour: a block lane holds one byte per texel — the same budget carries four times its

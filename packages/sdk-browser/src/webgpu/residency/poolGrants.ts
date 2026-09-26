@@ -10,7 +10,7 @@ const PROBE_LABEL = 'Trillion3D pool probe';
 
 type Pool = { budgetBytes: number; allocatedBytes: number; clamp: PoolClamp };
 type Diagnose = (phase: string, message: string, context: Record<string, unknown>) => void;
-type Made = { destroy(): void };
+export type Made = { destroy(): void };
 /** A pool the device granted, and what was allocated for it: the pool itself at prepare, a probe
  *  at a resize (`probed`). */
 export type Granted<P, R> = { pool: P; made: R };
@@ -20,8 +20,8 @@ export type Granted<P, R> = { pool: P; made: R };
  * (`deviceMade`), and a refusal shrinks that pool — half the bytes it would have held, drawn
  * again by its own rule — until the device grants it or the pool reaches its floor, where half
  * the bytes draws no smaller pool (the root cover of the geometry, the tails of each texture
- * lane, the smallest screen's side of the shadows). The pool in place is never replaced by one the device refused, so the frame goes
- * on: what no longer fits draws coarser. A refusal is published once per request as
+ * lane, the smallest screen's side of the shadows). The pool in place is never replaced by one
+ * the device refused, so the frame goes on: what no longer fits draws coarser. A refusal is published once per request as
  * `gpu-out-of-memory`, naming the pool, the bytes asked and the bytes granted (`null` when even
  * the floor was refused: the caller then keeps what it holds).
  */

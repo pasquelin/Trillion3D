@@ -1,4 +1,4 @@
-import type { Granted } from '../../residency/poolGrants.ts';
+import type { Granted, Made } from '../../residency/poolGrants.ts';
 
 /**
  * The pool prepare grants, its budget read again once the device has answered: a budget recorded
@@ -7,7 +7,7 @@ import type { Granted } from '../../residency/poolGrants.ts';
  * pool held, one drawing it (`same`) allocates nothing, and a grant that throws releases it.
  * `undefined` when the first budget is refused at its floor.
  */
-export async function grantedLatest<P, D, R extends { destroy(): void }>(options: {
+export async function grantedLatest<P, D, R extends Made>(options: {
   budget: () => number;
   draw: (budgetBytes: number) => D & { pool: P };
   same: (drawn: P, held: P) => boolean;

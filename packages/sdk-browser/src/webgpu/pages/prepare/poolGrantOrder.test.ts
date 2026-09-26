@@ -25,9 +25,10 @@ function granting(
   options: { during: Answer; after?: Answer; pool?: typeof GEOMETRY | typeof TEXTURES },
 ) {
   const { during, after = () => {}, pool = GEOMETRY } = options;
+  const [kind, label] = pool;
   installGpuGlobals();
   let first = true;
-  const gpu = refusing(...pool, (raise) => {
+  const gpu = refusing(kind, label, (raise) => {
     (first ? during : after)(raise);
     first = false;
   });
