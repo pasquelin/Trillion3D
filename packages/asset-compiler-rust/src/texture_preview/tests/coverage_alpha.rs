@@ -79,9 +79,8 @@ fn the_scale_lands_on_the_cutoff_in_integers() {
     ))
     .expect("table");
     let bytes = |alphas: &Value| -> Vec<u8> {
-        let alphas = alphas.as_array().expect("alphas");
+        let alphas = alphas.as_array().expect("alphas").iter();
         alphas
-            .iter()
             .flat_map(|a| [9, 9, 9, a.as_u64().expect("byte") as u8])
             .collect()
     };
