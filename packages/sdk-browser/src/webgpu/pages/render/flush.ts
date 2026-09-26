@@ -122,9 +122,9 @@ export async function flushWebgpuPages(rt: WebgpuPagesRuntime, options: { image?
   // A frame held on a device answer — the shadow pool, the frame targets (`holdWebgpuFrame`) —
   // drew nothing: no cut was dispatched, none can be adopted below. The answer is waited for and
   // the pose drawn, so a drained pose is a drawn one, as the interactive loop asks it
-  // (`pendingWebgpuFrame`).
-  const answer = deviceAnswer(rt);
-  if (answer) {
+  // (`pendingWebgpuFrame`). The redraw may ask again — targets of a view resized meanwhile —: it is
+  // waited for too. A refused grant settles and stays settled, so the loop ends.
+  for (let answer = deviceAnswer(rt); answer; answer = deviceAnswer(rt)) {
     await answer;
     redraw();
   }
