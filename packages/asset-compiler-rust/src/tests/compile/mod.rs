@@ -1,6 +1,5 @@
 use super::*;
 pub(in crate::tests) mod buffers_budget;
-pub(in crate::tests) mod closed_parts;
 pub(in crate::tests) mod coarse_normals;
 pub(in crate::tests) mod cooked_pages;
 pub(in crate::tests) mod dag_bundles;
