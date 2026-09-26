@@ -12,7 +12,7 @@ const NORMAL_MAP: &str = "ShaderNodeNormalMap";
 /// A material's graph: which node feeds which input, and through which output.
 pub(super) struct Tree<'a> {
     links: HashMap<u64, (u64, u64)>,
-    file: &'a BlendFile,
+    file: &'a BlendFile<'a>,
 }
 
 /// What a link brings to an input: the node it leaves, and the identifier of its output — the
@@ -53,12 +53,12 @@ pub(super) fn emission(
     images: &mut Images,
     out: &mut Out,
     gltf: &mut Value,
-) {
+) -> Result<()> {
     let Some(socket) = socket(node, "Emission Color") else {
-        return;
+        return Ok(());
     };
     let strength = socket_value(node, "Emission Strength", 1.0);
-    let linked = texture(&socket, tree, root, images, out);
+    let linked = texture(&socket, tree, root, images, out)?;
     let scaled: Vec<f32> = match linked {
         Some(_) => vec![strength; 3],
         None => value(&socket, 0.0)
@@ -79,6 +79,7 @@ pub(super) fn emission(
     if let Some(index) = linked {
         gltf["emissiveTexture"] = json!({"index": index});
     }
+    Ok(())
 }
 
 /// The normal texture: the `Normal` input goes through a normal-map node, whose colour input
@@ -89,13 +90,15 @@ pub(super) fn normal_texture(
     root: &Path,
     images: &mut Images,
     out: &mut Out,
-) -> Option<usize> {
-    let source = tree.source(&socket(node, "Normal")?)?;
+) -> Result<Option<usize>> {
+    let Some(source) = socket(node, "Normal").and_then(|normal| tree.source(&normal)) else {
+        return Ok(None);
+    };
     if source.text("idname") != NORMAL_MAP {
         out.report.add("blend-shader-input-unconverted");
-        return None;
+        return Ok(None);
     }
-    texture(&socket(&source, "Color")?, tree, root, images, out)
+    socket(&source, "Color").map_or(Ok(None), |color| texture(&color, tree, root, images, out))
 }
 
 /// The image linked on an input, when it is indeed an image that feeds it.
@@ -105,14 +108,17 @@ pub(super) fn texture(
     root: &Path,
     images: &mut Images,
     out: &mut Out,
-) -> Option<usize> {
-    let source = tree.source(socket)?;
+) -> Result<Option<usize>> {
+    let Some(source) = tree.source(socket) else {
+        return Ok(None);
+    };
     if source.text("idname") != TEX_IMAGE {
         out.report.add("blend-shader-input-unconverted");
-        return None;
+        return Ok(None);
     }
-    let image = source.follow("id")?;
-    images.texture(&image, root, out)
+    source
+        .follow("id")
+        .map_or(Ok(None), |image| images.texture(&image, root, out))
 }
 
 /// The named input of a node: by its identifier, failing that by its label.

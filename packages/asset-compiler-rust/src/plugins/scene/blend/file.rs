@@ -8,10 +8,17 @@
 //!
 //! No announced size is trusted without being bounded by the file: any overrun is a truncated
 //! file, named as such.
+//!
+//! A bare file is read in place, through a memory map: its pages stay the system's to evict, so
+//! the file's size costs no heap. Only a gzip or Zstandard wrapping is unpacked, under the job's
+//! RAM budget.
 use super::*;
+use std::borrow::Cow;
 
 /// The header length of a sixty-four-bit-field block.
 const WIDE_HEADER: usize = 32;
+/// The least a block costs in memory once indexed: its entry, and its address in the index.
+pub(super) const INDEXED: usize = size_of::<Block>() + size_of::<(u64, usize)>();
 
 /// A block of the file: its code, the structure that describes it, and where its bytes live.
 pub(super) struct Block {
@@ -24,22 +31,30 @@ pub(super) struct Block {
     pub(super) count: usize,
 }
 
-/// An open Blender file: its unpacked bytes, its SDNA, its blocks and their index by address.
-pub(super) struct BlendFile {
-    pub(super) bytes: Vec<u8>,
+/// An open Blender file: its bytes — borrowed when bare, unpacked when wrapped —, its SDNA, its
+/// blocks and their index by address.
+pub(super) struct BlendFile<'a> {
+    pub(super) bytes: Cow<'a, [u8]>,
     pub(super) version: u32,
     pub(super) blocks: Vec<Block>,
     pub(super) dna: Dna,
     index: HashMap<u64, usize>,
+    /// The bytes of the buffer a wrapped file unpacked into; none for a bare file.
+    unpacked: usize,
 }
 
-impl BlendFile {
+impl<'a> BlendFile<'a> {
     /// Opens a Blender file: undoes the wrapping under `ceiling`, reads the header, walks the
     /// blocks, then the `DNA1` block that describes all the structures.
-    pub(super) fn open(raw: &[u8], ceiling: usize) -> Result<BlendFile> {
+    pub(super) fn open(raw: &'a [u8], ceiling: usize) -> Result<BlendFile<'a>> {
         let bytes = envelope::unwrap(raw, ceiling)?;
         let shape = envelope::head(&bytes)?;
-        let blocks = walk(&bytes, &shape)?;
+        // A wrapped file's buffer counts by its capacity, what the allocator actually holds.
+        let unpacked = match &bytes {
+            Cow::Borrowed(_) => 0,
+            Cow::Owned(buffer) => buffer.capacity(),
+        };
+        let blocks = walk(&bytes, &shape, ceiling.saturating_sub(unpacked))?;
         let dna = blocks
             .iter()
             .find(|block| &block.code == b"DNA1")
@@ -57,7 +72,14 @@ impl BlendFile {
             blocks,
             dna,
             index,
+            unpacked,
         })
+    }
+    /// The bytes this file holds in memory: the buffer it unpacked into, none when it is read in
+    /// place, and its block index.
+    pub(super) fn held(&self) -> usize {
+        self.unpacked
+            .saturating_add(self.blocks.len().saturating_mul(INDEXED))
     }
     /// The block this original address designates. A null pointer, or one to a missing block,
     /// designates none: it is the reader that decides what to say of it, never a panic.
@@ -70,8 +92,9 @@ impl BlendFile {
     }
 }
 
-/// Walks the blocks from the end of the header until `ENDB`.
-fn walk(bytes: &[u8], shape: &envelope::Shape) -> Result<Vec<Block>> {
+/// Walks the blocks from the end of the header until `ENDB`, their index under `room` bytes: a
+/// file of many small blocks would otherwise cost more memory than its own size.
+fn walk(bytes: &[u8], shape: &envelope::Shape, room: usize) -> Result<Vec<Block>> {
     let truncated = || refused("blend-truncated", "blend: the file ends inside a block");
     let header = if shape.wide {
         WIDE_HEADER
@@ -97,6 +120,13 @@ fn walk(bytes: &[u8], shape: &envelope::Shape) -> Result<Vec<Block>> {
             _ => return Err(truncated()),
         }
         let done = &code == b"ENDB";
+        let indexed = (blocks.len() + 1).saturating_mul(INDEXED);
+        if indexed > room {
+            return Err(refused(
+                "blend-too-large",
+                format!("blend: indexing this file's blocks needs at least {indexed} bytes, past the {room} bytes of this job's RAM budget (ramBudgetMb) left after unpacking"),
+            ));
+        }
         blocks.push(Block {
             code,
             sdna: sdna as usize,

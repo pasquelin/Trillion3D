@@ -9,7 +9,7 @@ use output::{close, factors, material};
 fn a_principled_the_active_output_does_not_reach_is_counted_not_read() {
     let mut bytes = surgery::fixture();
     let volume = {
-        let file = BlendFile::open(&bytes, MAX_BYTES).expect("the fixture");
+        let file = BlendFile::open(&bytes, BUDGET).expect("the fixture");
         let surface = surgery::socket(
             &file,
             "MATransparent",
@@ -55,9 +55,10 @@ fn a_principled_the_active_output_does_not_reach_is_counted_not_read() {
 // ignores, must not extinguish the emission.
 #[test]
 fn a_textured_emission_is_scaled_by_its_strength_not_by_the_replaced_colour() {
-    let mut bytes = surgery::fixture();
+    let original = surgery::fixture();
+    let mut bytes = original.clone();
     {
-        let file = BlendFile::open(&bytes, MAX_BYTES).expect("the fixture");
+        let file = BlendFile::open(&original, BUDGET).expect("the fixture");
         let base = surgery::socket(&file, "MAOpaque", "Principled BSDF", "inputs", "Base Color");
         let emission = surgery::socket(
             &file,

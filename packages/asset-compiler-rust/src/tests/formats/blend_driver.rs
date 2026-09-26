@@ -21,6 +21,7 @@ fn converted(from: &Path, cache: &Path) -> PathBuf {
                 cache,
                 cancelled: &AtomicBool::new(false),
                 progress: &|_| {},
+                ram_budget: crate::tests::RAM_BUDGET,
             })
         }
         Routed::Manifest => panic!("routed to the manifest"),
