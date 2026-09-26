@@ -53,6 +53,15 @@ export function createDagRuntime(resources: DagResources): GpuSelection {
   // The cut rule's residency, derived from the pool's and uploaded by difference.
   const uploadResidency = residentCut ? createDagResidencyUpload(resources) : undefined;
   const dispatch = createDagDispatch(resources, state, fail);
+  /** Writes word `slot` of primitive `w`'s frame words, one word up. The cut in hand holds pages
+   *  the new word no longer lets through, or lacks some it does: another cut from here. */
+  const writeFrameWord = (w: number, slot: number, value: number) => {
+    const at = primitiveWordAt(w) + slot;
+    frameInts[at] = value;
+    device.queue.writeBuffer(frames, at * 4, frameInts.buffer as ArrayBuffer, at * 4, 4);
+    resources.frameWrites.count++;
+    voidCuts();
+  };
   const selection: GpuSelection = {
     residentCut,
     get hostBytes() {
@@ -93,24 +102,14 @@ export function createDagRuntime(resources: DagResources): GpuSelection {
       const node = parked ? NONE : packed.rootBases[w];
       if (packed.rootNodes[w] === node) return;
       packed.rootNodes[w] = node;
-      // The root travels behind the stretch in the frame buffer (`resources.ts`): one word.
-      const at = primitiveWordAt(w) + 1;
-      frameInts[at] = node;
-      device.queue.writeBuffer(frames, at * 4, frameInts.buffer as ArrayBuffer, at * 4, 4);
-      resources.frameWrites.count++;
-      // Its pages leave the cut outright, neither streamed nor counted: another cut from here.
-      voidCuts();
+      // The root travels behind the stretch in the frame buffer (`resources.ts`).
+      writeFrameWord(w, 1, node);
     },
     markWorld(w, mark) {
       if (state.disposed || state.dead || packed.mark[w] === mark) return;
       packed.mark[w] = mark;
-      // The mark travels behind the record shift in the frame buffer (`primitiveFrameWords`).
-      const at = primitiveWordAt(w) + 3;
-      frameInts[at] = mark;
-      device.queue.writeBuffer(frames, at * 4, frameInts.buffer as ArrayBuffer, at * 4, 4);
-      resources.frameWrites.count++;
-      // A light cut in hand still holds its pages, or lacks them: another cut from here.
-      voidCuts();
+      // The mark travels behind the record shift (`primitiveFrameWords`).
+      writeFrameWord(w, 3, mark);
     },
     updateResidency(next, changes) {
       if (state.disposed || state.dead || !uploadResidency) return false;

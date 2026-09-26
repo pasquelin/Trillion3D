@@ -62,7 +62,7 @@ export class Object3D extends TransformNode {
   set castShadow(value: boolean) {
     if (value === this._castShadow) return;
     this._castShadow = value;
-    this._link?.pose(this);
+    this._link?.shadow?.(this);
   }
   override get parent(): Object3D | null {
     return super.parent as Object3D | null;

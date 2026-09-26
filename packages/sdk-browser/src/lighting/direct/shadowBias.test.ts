@@ -31,9 +31,9 @@ test('the shadow read and page split the fixtures restate are the shader’s', (
   for (const line of [...RESTATED, ...SPLIT]) assert.ok(SHADOW_WGSL.includes(line), line);
 });
 
-/** Whether the first face is fully lit at 97 points along it, ends excluded. */
-const clean = (read: (index: number, x: number) => number) =>
-  Array.from({ length: 97 }, (_, k) => read(0, (k + 1) / 98)).every((lit) => lit === 1);
+/** Whether face `face`, the first by default, is fully lit at 97 points along it, ends excluded. */
+const clean = (read: (index: number, x: number) => number, face = 0) =>
+  Array.from({ length: 97 }, (_, k) => read(face, (k + 1) / 98)).every((lit) => lit === 1);
 
 test('a plane shades no point of itself, at any slope and any texel', () => {
   for (const tilt of [0, 0.4, 0.9, 1.2])
@@ -152,8 +152,7 @@ test('a ball under the sun is clean, and the outline shell 5 cm round it shades 
   for (const texel of [2 ** -8, 2 ** -6]) {
     const alone = sunOverProfile(ball, zenith, texel),
       shelled = sunOverProfile([...ball, ...ring(1.05)], zenith, texel);
-    for (const i of lit)
-      for (let k = 1; k < 20; k++) assert.equal(alone(i, k / 20), 1, `face ${i} at ${k / 20}`);
+    for (const i of lit) assert.ok(clean(alone, i), `texel ${texel}: face ${i}`);
     const facing = lit.reduce((a, b) =>
       dot(ball[a].normal, light) < dot(ball[b].normal, light) ? a : b,
     );

@@ -13,6 +13,13 @@ import { placedBy, type PlacementRows } from './rows.ts';
  * touched are drawn again: their moving casters only, once the placements are known to move
  * (`../webgpu/shadow/mobility.ts`). No table is resized and nothing is prepared again.
  */
+/** Hands a root that was parked or taken, or began or stopped casting, to the GPU cut. */
+export const flipWorld =
+  (rt: WebgpuPagesRuntime) => (rank: number, root: { parked?: boolean; mark?: number }) => {
+    rt.run.gpuSelection?.parkWorld(rank, !!root.parked);
+    rt.run.gpuSelection?.markWorld(rank, root.mark ?? 0);
+  };
+
 export function updateWebgpuPlacements(
   rt: WebgpuPagesRuntime,
   rows: PlacementRows,
@@ -27,10 +34,7 @@ export function updateWebgpuPlacements(
     rows,
     from,
     to,
-    (rank, root) => {
-      run.gpuSelection?.parkWorld(rank, !!root.parked);
-      run.gpuSelection?.markWorld(rank, root.mark ?? 0);
-    },
+    flipWorld(rt),
     lights.mobility.move,
     (rank) => moveRootRows(rt, layout.selectionRoots[rank]),
     lights.plan.worldChanged,
