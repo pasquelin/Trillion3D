@@ -67,13 +67,19 @@ test('an optional file refused otherwise (401) is refused by its address, asked 
   assert.equal(asked.length, 1);
 });
 
-test('an aborted read rejects with the reason and is not asked again', async (t) => {
-  const asked = answering(t, 'lights.json', ['hang']);
-  const abort = new AbortController();
-  const read = checked(LIGHTS, abort.signal);
-  abort.abort(new Error('left'));
-  await assert.rejects(read, /left/);
-  assert.equal(asked.length, 1);
+test('an abort ends a read, even in its Retry-After wait', { timeout: 1000 }, async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const busy = new Response('busy', { status: 429, headers: { 'Retry-After': '3600' } });
+  for (const answer of ['hang', busy] satisfies Answer[]) {
+    t.mock.restoreAll();
+    const asked = answering(t, 'lights.json', [answer]);
+    const abort = new AbortController();
+    const read = checked(LIGHTS, abort.signal);
+    await new Promise(setImmediate);
+    abort.abort(new Error('left'));
+    await assert.rejects(read, /left/);
+    assert.equal(asked.length, 1);
+  }
 });
 
 test('a timeout (408) or a rate limit (429) is asked again and answers', async (t) => {
