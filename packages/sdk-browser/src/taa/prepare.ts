@@ -56,7 +56,7 @@ export function setWebgpuTemporalAntialiasing(rt: WebgpuPagesRuntime, on: boolea
     void rigTemporalAntialiasing(rt, gpu.device).then(
       () => {
         // The history joins the targets as they stand, under a capture too — a capture at the
-        // view's size reallocates nothing after it; unallocated, `ensureTargets` counts it.
+        // view's size reallocates nothing after it; unallocated, `makeTargets` counts it.
         const { temporal } = gpu;
         if (temporal && gpu.colorTexture && temporal.resize(...gpu.targetSize))
           gpu.targetBytes += temporal.historyBytes;

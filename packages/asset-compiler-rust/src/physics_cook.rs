@@ -7,7 +7,8 @@
 //! from the object (`cut.rs`), split into tiles aligned on the culling hierarchy, each a Jolt
 //! `MeshShape` stored as a SHA-addressed object like the pages; a regular grid becomes a height
 //! field (`height.rs`). Per scene: `physics.json` (`stage.rs`), each placement carrying the matter its
-//! source declares through `KHR_physics_rigid_bodies` (`declared.rs`).
+//! source declares through `KHR_physics_rigid_bodies` (`declared.rs`), and the soft bodies its nodes
+//! declare, each Jolt's `SoftBodySharedSettings` as the physics worker would build them (`soft.rs`).
 use crate::dag::{CullingNode, DagCluster};
 use crate::{CompilerError, Options, Result};
 use serde_json::{json, Value};
@@ -20,6 +21,10 @@ pub(crate) mod hausdorff;
 mod height;
 #[cfg(test)]
 mod small_tests;
+mod soft;
+mod soft_record;
+#[cfg(test)]
+mod soft_tests;
 mod stage;
 #[cfg(test)]
 mod tests;
@@ -28,13 +33,16 @@ pub(crate) use stage::stage_physics;
 
 /// The stage contract: its name and version, which enter `physics.json` and the cache key.
 pub const PHYSICS_COOK_STAGE: &str = "physics-cook";
-pub const PHYSICS_COOK_VERSION: u32 = 4;
+pub const PHYSICS_COOK_VERSION: u32 = 5;
 /// Version of `physics.json`, its own: a reader refuses any other.
 pub const PHYSICS_FORMAT_VERSION: u32 = 2;
 /// The Jolt commit the cook links: shapes are Jolt's binary state, readable by this Jolt alone.
 pub const JOLT_COMMIT: &str = env!("JOLT_COMMIT");
 /// Name of the product beside the manifest.
 pub const PHYSICS_FILE: &str = "physics.json";
+/// Words of each soft body vertex, `x, y, z, mass`: the worker's and the builder's stride
+/// (`SOFT_VERTEX_WORDS`, `packages/physics-jolt-wasm/src/words.h`).
+const SOFT_VERTEX_WORDS: usize = 4;
 
 /// The collision of one primitive (`cut::cook_primitive`), or `{"refused": reason}` when Jolt
 /// refuses one of its shapes: that primitive collides with nothing, and `physics.json`'s report
@@ -70,9 +78,21 @@ extern "C" {
         out: *mut *const u8,
         bytes: *mut u32,
     ) -> u32;
+    fn cook_soft_body(
+        vertices: *const f32,
+        vertex_count: u32,
+        scale: *const f32,
+        corners: *const u32,
+        corner_count: u32,
+        stretch: f32,
+        bend: f32,
+        out: *mut *const u8,
+        bytes: *mut u32,
+    ) -> u32;
 }
 
-/// The code of a shape Jolt refuses: the primitive gets no collider, named in the report.
+/// The code of a shape Jolt refuses, or of a soft body the page would refuse: the primitive gets
+/// no collider, the soft body is not simulated, and the report names it.
 pub(crate) const PHYSICS_COOK_FAILED: &str = "PHYSICS_COOK_FAILED";
 
 /// Copies the bytes the cook left for this thread, or names what it refused and Jolt's reason.
@@ -123,4 +143,33 @@ pub(crate) fn height_field_shape(
         cook_height_field(samples.as_ptr(), size as u32, o, s, &mut out, &mut bytes)
     };
     taken(status, out, bytes, "height field")
+}
+
+/// A soft body's `SoftBodySharedSettings`, built by the physics worker's own builder
+/// (`src/softSettings.h`): `vertices` (`x, y, z, mass` each, a mass of 0 a pin) scaled by `scale`,
+/// joined by the triangles of `corners` or, with none, each to the next; compliances `stretch`
+/// and `bend` (`INFINITY` for none).
+fn soft_settings(
+    vertices: &[f32],
+    scale: [f32; 3],
+    corners: &[u32],
+    stretch: f32,
+    bend: f32,
+) -> Result<Vec<u8>> {
+    let (mut out, mut bytes) = (std::ptr::null(), 0u32);
+    // SAFETY: every pointer names a live slice of the length passed with it, `scale` three floats.
+    let status = unsafe {
+        cook_soft_body(
+            vertices.as_ptr(),
+            (vertices.len() / SOFT_VERTEX_WORDS) as u32,
+            scale.as_ptr(),
+            corners.as_ptr(),
+            corners.len() as u32,
+            stretch,
+            bend,
+            &mut out,
+            &mut bytes,
+        )
+    };
+    taken(status, out, bytes, "soft body")
 }

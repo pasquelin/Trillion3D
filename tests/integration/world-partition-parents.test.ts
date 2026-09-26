@@ -16,7 +16,7 @@ import type { RenderBackend } from '../../packages/sdk-browser/src/backend/types
 import { hostFramingCamera } from '../../packages/sdk-browser/src/host/scene/graphObjects.ts';
 import type { PlacementRows } from '../../packages/sdk-browser/src/placement/rows.ts';
 import { cellReach } from '../../packages/sdk-browser/src/scene/partition/plan.ts';
-import { createPageStreamer } from '../../packages/sdk-browser/src/streaming/pages.ts';
+import { createPageStreamer } from '../../packages/sdk-browser/src/streaming/pageStreamer.ts';
 import { loadModel } from '../../packages/sdk-browser/src/world/core/loadedModel.ts';
 import { createWorldPoses } from '../../packages/sdk-browser/src/world/core/worldPoses.ts';
 import {

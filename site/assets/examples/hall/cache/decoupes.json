@@ -1,5 +1,0 @@
-{
-  "about": "Answer per texture: cutout = true for a cutout, false for real transparency, null until someone decides. Preparation asks the question and shows the images; this file can also be edited by hand.",
-  "textures": {},
-  "version": 1
-}

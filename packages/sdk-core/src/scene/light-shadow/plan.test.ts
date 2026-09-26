@@ -17,18 +17,14 @@ import {
   report,
   sunFloor,
   sunPages,
+  sunScene,
 } from './lightShadow.fixture.ts';
 
 /** A sun, planned once so its slice and clipmap exist, and its floor drawn — the four floor pages
  *  its view reaches, the camera on their corner; returns what the tests read it by. */
-function sunScene() {
-  const store = createSceneLightStore();
-  const plan = createShadowPlan(32);
-  store.add(SUN);
-  planFrame(plan, store, 0);
-  plan.commit();
-  const slice = store.sliceOf(0),
-    level = plan.sun.finest[slice] + 4;
+function sunReads() {
+  const { store, plan, slice } = sunScene();
+  const level = plan.sun.finest[slice] + 4;
   const pages = sunPages(plan, slice, level, [
     [0, 0],
     [1, 0],
@@ -38,7 +34,7 @@ function sunScene() {
 }
 
 test('the pages the shading reads are mapped and drawn the frame their report comes back', () => {
-  const { store, plan, pages } = sunScene();
+  const { store, plan, pages } = sunReads();
   report(plan, store, 0, pages);
   const floor = sunFloor(plan, store.sliceOf(0));
   assert.ok(plan.table.words[floor] & PAGE_VALID, 'the floor under them, from the first frame');
@@ -50,7 +46,7 @@ test('the pages the shading reads are mapped and drawn the frame their report co
 });
 
 test('past its first frame, a page nobody reads is never drawn, and a still scene draws nothing', () => {
-  const { store, plan, pages } = sunScene();
+  const { store, plan, pages } = sunReads();
   let frame = 1;
   cycle(plan, store, frame++, () => pages);
   for (let i = 0; i < 3; i++)
@@ -74,7 +70,7 @@ test('past its first frame, a page nobody reads is never drawn, and a still scen
 });
 
 test('an object that moves stales only the mapped pages its box covers', () => {
-  const { store, plan, slice, level, pages } = sunScene();
+  const { store, plan, slice, level, pages } = sunReads();
   let frame = 1;
   for (; frame < 4; frame++) cycle(plan, store, frame, () => pages);
   // The first page's square, shrunk inside it: its neighbours stay current.
@@ -90,7 +86,7 @@ test('an object that moves stales only the mapped pages its box covers', () => {
 });
 
 test('a light removed gives its pages back to the pool and its range back to the table', () => {
-  const { store, plan, slice, pages } = sunScene();
+  const { store, plan, slice, pages } = sunReads();
   cycle(plan, store, 1, () => pages);
   cycle(plan, store, 2, () => pages);
   store.remove(SUN.id);
@@ -131,7 +127,7 @@ test('coarse pages are served first, and a full pool evicts only pages no report
 });
 
 test('a camera that moves by whole pages unmaps the sun pages that leave the clipmap', () => {
-  const { store, plan, slice, level, pages } = sunScene();
+  const { store, plan, slice, level, pages } = sunReads();
   cycle(plan, store, 1, () => pages);
   planFrame(plan, store, 2, { ...VIEW, position: [1e5, 5, 0] });
   const gone = [...pages, sunFloor(plan, slice)].every((entry) => plan.table.words[entry] === 0);
@@ -139,7 +135,7 @@ test('a camera that moves by whole pages unmaps the sun pages that leave the cli
 });
 
 test('an object already moving stales only the moving casters of the pages it crosses', () => {
-  const { store, plan, pages } = sunScene();
+  const { store, plan, pages } = sunReads();
   cycle(plan, store, 1, () => pages);
   cycle(plan, store, 2, () => pages);
   const page = plan.table.words[pages[0]] & 0xffff;
@@ -178,7 +174,7 @@ test('a light that moves reads none of its pages until each is drawn again', () 
 });
 
 test('a stale page no report names is not left readable to a pass that reads without asking', () => {
-  const { store, plan, pages } = sunScene();
+  const { store, plan, pages } = sunReads();
   cycle(plan, store, 1, () => pages);
   cycle(plan, store, 2, () => pages);
   // The opaque shading now reads one page; a blend surface may still read the other two.

@@ -2,7 +2,7 @@
 // and `packages/sdk-browser/src/world/render/draw.ts:72-74` from before batch F, copied as-is.
 import type { Matrix4 } from '../../../packages/sdk-core/src/world/math/matrix4.ts';
 import type { SurfaceBuffer } from '../../../packages/sdk-browser/src/scene/surfaceBuffer.ts';
-import { createPageStreamer } from '../../../packages/sdk-browser/src/streaming/pages.ts';
+import { createPageStreamer } from '../../../packages/sdk-browser/src/streaming/pageStreamer.ts';
 
 /** A page or root as the instance oracle mutates it: only `matrix`/`mesh`/`world` are read or
  *  written, never the rest of `PageRec`/`ClusterRoot`. */

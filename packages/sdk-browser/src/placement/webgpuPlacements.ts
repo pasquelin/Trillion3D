@@ -19,7 +19,9 @@ export function updateWebgpuPlacements(
   to: number,
 ) {
   const { run, layout, lights } = rt;
-  const touched = followPlacementRows(
+  // Each moved root stales its own pages, its moving casters only once it was moving already
+  // (`../webgpu/shadow/mobility.ts`): the plan keeps the boxes apart (`changes.ts`).
+  const moved = followPlacementRows(
     layout.selectionRoots,
     rows,
     from,
@@ -27,15 +29,14 @@ export function updateWebgpuPlacements(
     (rank, parked) => run.gpuSelection?.parkWorld(rank, parked),
     lights.mobility.move,
     (rank) => moveRootRows(rt, layout.selectionRoots[rank]),
+    lights.plan.worldChanged,
   );
   // Blend items posed by these rows read them in place: the frame only has to be drawn again,
   // and their boxes follow at its world refresh (`refreshBlendWorlds`).
-  if (!touched && !placedBy(rt.blendState.blendGpu, rows)) return;
+  if (!moved && !placedBy(rt.blendState.blendGpu, rows)) return;
   // Poses moved and rows were parked or taken: no node entered or left the source graph, so
   // the watched set stands (`frame/gateCore.ts`), and the host index already holds its worlds.
   run.gate.engineWriting();
   run.gate.sceneMoved();
   run.gate.noteWorldsUpdated();
-  // Placements already moving leave the static casters under them unchanged.
-  if (touched) lights.plan.worldChanged(touched.min, touched.max, !lights.mobility.takePromoted());
 }

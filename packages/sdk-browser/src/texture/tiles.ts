@@ -39,6 +39,10 @@ export const MAX_LEVELS = 16;
 /** Dimensions of a texture's `level`, never less than one texel per side. */
 export const levelSize = previewLevelSize;
 
+/** Full mip chain length for a texture of the given size, down to 1×1: both GPU paths' chains. */
+export const mipLevelCountFor = (width: number, height: number) =>
+  previewLastLevel(width, height) + 1;
+
 /** Tiles of a streamed level, columns then rows. */
 export function tilesAt(width: number, height: number, level: number): [number, number] {
   const [w, h] = levelSize(width, height, level);

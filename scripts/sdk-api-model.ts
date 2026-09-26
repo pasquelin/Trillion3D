@@ -43,17 +43,23 @@ function definingModule(symbol: ts.Symbol, checker: ts.TypeChecker): string {
   return file ? relative(ROOT, file) : 'unknown';
 }
 
-/** One program over three entry files: the checker every export inventory reads. */
-export function apiProgram(entries: Record<ExportEntry, string> = ENTRIES): ts.Program {
-  const files = Object.values(entries).map((file) => join(ROOT, file));
-  return ts.createProgram(files, {
-    target: ts.ScriptTarget.ES2022,
-    module: ts.ModuleKind.NodeNext,
-    moduleResolution: ts.ModuleResolutionKind.NodeNext,
-    strict: true,
-    skipLibCheck: true,
-    types: ['node', '@webgpu/types'],
-  });
+let program: ts.Program | undefined;
+/** One program over the entry files and the published facade, built once per process: the
+ *  checker the facade, the export inventory and the reference all read. */
+export function apiProgram(): ts.Program {
+  const files = [...Object.values(ENTRIES), ...Object.values(PUBLIC_ENTRIES)];
+  program ??= ts.createProgram(
+    files.map((file) => join(ROOT, file)),
+    {
+      target: ts.ScriptTarget.ES2022,
+      module: ts.ModuleKind.NodeNext,
+      moduleResolution: ts.ModuleResolutionKind.NodeNext,
+      strict: true,
+      skipLibCheck: true,
+      types: ['node', '@webgpu/types'],
+    },
+  );
+  return program;
 }
 
 /** The module symbol of each entry file, in the order `entries` lists them. */

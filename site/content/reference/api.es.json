@@ -1175,7 +1175,17 @@
   },
   "createPageStreamer": {
     "summary": "Lecturas acotadas, por prioridad y sin duplicado.",
-    "description": "Una solicitud que todavía espera en cola se descarta cuando su último consumidor se va; una solicitud ya en tránsito puede llegar a la caché. La caché es un conjunto «menos recientemente usado» acotado tanto en entradas como en bytes; las entradas fijadas sobreviven al desalojo, así que un llamador conserva su cobertura mostrada reteniéndola."
+    "description": "Una solicitud que todavía espera en cola se descarta cuando su último consumidor se va; una solicitud ya en tránsito puede llegar a la caché. La caché es un conjunto «menos recientemente usado» acotado tanto en entradas como en bytes; las entradas fijadas sobreviven al desalojo, así que un llamador conserva su cobertura mostrada reteniéndola.",
+    "parameters": {
+      "options": "Cómo lee un lector de páginas (`createPageStreamer`). Además de sus páginas, su caché reserva sus tablas de manifiesto y su cola de transferencia; cada miembro tiene un valor por defecto.",
+      "options.signal": "Cancela todas las lecturas una vez abortado.",
+      "options.workerCount": "Lecturas que se ejecutan a la vez; 8 por defecto.",
+      "options.maxPages": "Máximo de páginas retenidas a la vez; limitado solo por bytes si falta.",
+      "options.onEvict": "Escucha cada página que sale de la caché.",
+      "options.maxTransferBytes": "Bytes que puede retener la cola de transferencia; 8 MiB por defecto.",
+      "options.onDiagnostic": "Escucha cada paso de cada lectura.",
+      "options.maxCachedBytes": "Bytes de memoria de CPU que pueden ocupar las páginas de la caché, con sus tablas de manifiesto y su cola de transferencia reservadas aparte; 256 MiB por defecto."
+    }
   },
   "createPathGovernor": {
     "summary": "Un regulador."
@@ -2875,12 +2885,9 @@
       "spotEdgeSoftness": "Anchura del borde suavizado del cono de un foco, en unidades de coseno: contra el efecto escalera.",
       "sunFarShadowOffsetMetres": "Desplazamiento del origen del rayo de sombra lejana a lo largo de la normal, en metros. Solo sirve para salir del plano de la superficie iluminada; el verdadero remedio contra el autosombreado es el inicio a lo largo del rayo, más abajo.",
       "sunFarShadowStartCells": "Inicio del rayo de sombra lejana a lo largo de su propia dirección, en celdas del proxy. El punto iluminado viene de la geometría fina, el obstáculo del proxy grueso: donde el proxy está por encima de la superficie real, un rayo iniciado desde cero tocaría la superficie que ilumina. Una celda del proxy es la escala por debajo de la cual el proxy no dice nada; partir de ahí evita este falso contacto sin inventar una sombra. La consecuencia está nombrada: un obstáculo a menos de una celda a lo largo del rayo no lleva sombra lejana, y esta permanece en los niveles de clipmap.",
-      "shadowDepthBias": "Sesgo de sombra en metros, nunca en unidades de profundidad: la profundidad proyectada de una porción es muy no lineal, una constante en profundidad normalizada daría metros cerca de la luz y milímetros a lo lejos. El shader convierte esos metros en profundidad en el punto considerado.",
-      "shadowSlopeBias": "Sesgo de pendiente, en metros por unidad de `tan(acos(N·L))`, limitado por `shadowSlopeBiasMax`.",
-      "shadowSlopeBiasMax": "Mayor sesgo de pendiente.",
       "shadowNearFraction": "Plano cercano de una porción: una parte del alcance, nunca menos que este suelo.",
       "shadowNearMin": "Distancia de sombra más cercana.",
-      "shadowNormalOffsetTexels": "Desplazamiento del punto de muestreo a lo largo de la normal, en texels de porción. Esto cierra la costura entre dos caras de una luz puntual y quita el acné rasante; está en texels y no en metros para permanecer proporcional a la resolución que ha obtenido la luz.",
+      "shadowNormalOffsetTexels": "Desplazamiento del punto de muestreo a lo largo de la normal, en texels del mapa leído: medio texel, el margen de lo que no es el plano del receptor — su curvatura dentro de un texel, el redondeo de ambas profundidades. La pendiente del receptor la cubre un margen de profundidad sobre el alcance del PCF, y más allá de 45° un desplazamiento adicional, en los mismos texels (`shadowDepthMargin`, `shadowNormalTexels`): ningún sesgo es una longitud de la escena.",
       "shadowPagesPerBatch": "Páginas de sombra que dibuja un lote de GPU: el tamaño de los búferes de un lote, nunca un límite del fotograma. Un fotograma dibuja cada página que marca, en tantos lotes como haga falta.",
       "lampFaceSize": "Lado del mip más fino de una cara de lámpara, en téxeles: 32 × 32 páginas de 128 (el pool: `shadowPoolSide`).",
       "shadowRequestCap": "Páginas virtuales que el sombreado puede pedir por imagen; el resto vuelve a pedirlas en la siguiente.",
@@ -4625,6 +4632,19 @@
       "workers": "Cuántos trabajadores recuperan y decodifican páginas a la vez."
     }
   },
+  "PageStreamerOptions": {
+    "summary": "Cómo lee un lector de páginas (`createPageStreamer`).",
+    "description": "Además de sus páginas, su caché reserva sus tablas de manifiesto y su cola de transferencia; cada miembro tiene un valor por defecto.",
+    "members": {
+      "signal": "Cancela todas las lecturas una vez abortado.",
+      "workerCount": "Lecturas que se ejecutan a la vez; 8 por defecto.",
+      "maxPages": "Máximo de páginas retenidas a la vez; limitado solo por bytes si falta.",
+      "onEvict": "Escucha cada página que sale de la caché.",
+      "maxTransferBytes": "Bytes que puede retener la cola de transferencia; 8 MiB por defecto.",
+      "onDiagnostic": "Escucha cada paso de cada lectura.",
+      "maxCachedBytes": "Bytes de memoria de CPU que pueden ocupar las páginas de la caché, con sus tablas de manifiesto y su cola de transferencia reservadas aparte; 256 MiB por defecto."
+    }
+  },
   "PanZoomCameraControls": {
     "summary": "PANORÁMICA Y ZOOM PLANOS, la vista plana: la cámara nunca gira.",
     "description": "La dirección hacia la que apuntaba cuando se creó el controlador es la que conserva, y cada gesto hace deslizar la vista en el plano que mira la cámara o la acerca a ese plano — un plano, una elevación, un mapa. Cualquier arrastre desplaza, la rueda y el pellizco hacen zoom entre `minDistance` y `maxDistance`, y las flechas desplazan un paso fijo para quien no tiene puntero. `rotateSpeed` viene del contrato de pivote y no hace nada aquí: no hay rotación que acelerar. `enablePan` y `enableZoom` activan o desactivan los dos gestos que existen.",
@@ -5418,10 +5438,10 @@
       "shadowsUpdated": "Luces de sombra con una página dibujada por esta imagen. Cero es el valor normal de una escena quieta: una luz fija conserva sus páginas.",
       "shadowFacesDrawn": "Vistas de luz en las que dibujó el pase de sombras — un nivel de clipmap del sol, una cara de lámpara en un mip —, y las llamadas de dibujo realmente codificadas. Null en un motor que no dibuja sombras.",
       "shadowDrawCalls": "Llamadas de dibujo de sombra.",
-      "shadowPagesDrawn": "Lo que ha producido la invalidación de páginas: páginas redibujadas por el fotograma, páginas dejadas en cola por falta de presupuesto, y el retraso en milisegundos de la más antigua. Cero en todas partes es el valor normal de una escena inmóvil; `null` para un motor sin atlas de sombras.",
+      "shadowPagesDrawn": "Lo que ha producido la invalidación de páginas: páginas redibujadas por el fotograma, páginas dejadas en cola por falta de presupuesto, y cuánto ha esperado la página desactualizada más antigua que lee la imagen. Cero en todas partes es el valor normal de una escena inmóvil; `null` para un motor sin atlas de sombras.",
       "shadowPagesTotal": "Páginas dibujadas desde la apertura del explorador, vaciados de `flush()` incluidos: el coste de un cambio es la diferencia entre dos lecturas.",
       "shadowPagesPending": "Páginas de sombra pendientes.",
-      "shadowWaitMs": "Cuánto tiempo han esperado.",
+      "shadowWaitMs": "Cuántos milisegundos ha esperado a ser redibujada la página desactualizada más antigua que lee la imagen. Solo cuenta el tiempo en que la imagen la lee; 0 una vez redibujada.",
       "gpuLightListsMs": "Tiempo de GPU de las listas de luces.",
       "gpuShadowsMs": "Tiempo de GPU de las sombras.",
       "gpuShadowCullMs": "Tiempo de GPU para elegir los proyectores de las páginas de sombra que dibuja una imagen: el corte de luz, el descarte por página y la prueba de oclusión de los proyectores en movimiento con las pirámides que lee.",
@@ -5444,7 +5464,7 @@
       "representationChanged": "El mismo mundo con otra precisión: su caja espera a que la cámara se detenga.",
       "resting": "La cámara estaba en reposo en el último plan: su vista era la del plan anterior.",
       "deferredChanges": "Verdadero mientras un cambio de representación espera a que la cámara se detenga.",
-      "releaseDeferred": "La imagen no planifica ninguna sombra: las cajas retenidas entran en la lista de inmediato.",
+      "releaseDeferred": "La imagen no planifica ninguna sombra: la unión retenida entra en la lista de inmediato.",
       "setPageInvalidation": "Desactiva la invalidación por página: un objeto en movimiento invalida todas las páginas de las luces que toca. Activa por defecto.",
       "pageInvalidation": "Si un objeto en movimiento invalida solo las páginas que cubre su caja.",
       "plan": "Planifica un fotograma: invalida lo que se movió, lee el último informe y admite cada página que dibujar.",
@@ -6568,7 +6588,7 @@
       "texturePool": "Bytes de memoria GPU reservados para páginas de textura, `null` en un motor sin depósito de texturas (WebGL2); ajústalo para cambiar la envolvente, dentro de lo que `gpu` deja junto a las sombras, las sondas de rebote y el depósito de geometría.",
       "physics": "Los límites de la física (cuerpos, triángulos, cuerpos decorativos, memoria), leídos una vez al arrancar; superar uno lanza `PHYSICS_BUDGET`.",
       "raycastTrees": "Bytes de memoria CPU que `raycast` guarda para los árboles de triángulos, compartidos por todos los mundos de la página; más allá, se descarta el árbol usado hace más tiempo. Ajústalo para cambiar la envolvente.",
-      "gpu": "Bytes de memoria GPU que el mundo puede ocupar, todos los depósitos juntos; ajústalo para redibujar cada depósito según la regla de reparto (`split`). Un total por debajo del depósito de sombras se rechaza (`GPU_BUDGET_UNDER_SHADOW_POOL`). Nunca se lee de la máquina.",
+      "gpu": "Bytes de memoria GPU que el mundo puede ocupar, todos los depósitos juntos; ajústalo para redibujar cada depósito según la regla de reparto (`split`). Un total por debajo de las tres partes fijas —el depósito de sombras, las sondas de rebote y los destinos de efectos— se rechaza (`GPU_BUDGET_UNDER_SHADOW_POOL`). Nunca se lee de la máquina.",
       "canvas": "El lienzo más grande que declara el mundo, en píxeles del búfer de dibujo: los destinos de la cadena de efectos se reservan a su tamaño (`split.effectTargets`); 3840 × 2160 por defecto, y el `gpu` por defecto solo crece en esa reserva. Ajústalo para repartir de nuevo cada depósito según la regla. Un lienzo dibujado más grande se sigue renderizando entero: los diagnósticos dicen `effect targets over budget` con los bytes que pasan de la reserva.",
       "cpu": "Bytes de memoria CPU que puede ocupar el mundo: primero el espejo en el host de la tabla de páginas de sombras, luego las páginas decodificadas, sus tablas de manifiesto, su cola de transferencias y las tablas de corte del motor juntas. Un cambio se aplica al instante: las páginas salen por último uso hasta caber. Un total que no supera el espejo se rechaza (`CPU_BUDGET_UNDER_SHADOW_MIRROR`). Nunca se lee de la máquina.",
       "split": "Cómo se reparten los dos totales: el depósito de sombras y las sondas de rebote a su máximo, los destinos de la cadena de efectos en el `canvas` declarado, luego la mitad para cada uno de los depósitos de geometría y texturas, limitados a su techo; el espejo en el host de la tabla de sombras, luego la caché de páginas decodificadas toma el resto del total de CPU, entero, y dentro de él la sesión en curso reserva sus tablas de manifiesto, su cola de transferencias y las tablas de corte del motor. Lo que da la regla, antes de ajustar un depósito por separado."
@@ -6595,7 +6615,7 @@
   },
   "world.beforeFrame": {
     "summary": "Ejecuta una función antes de cada fotograma dibujado, con `{ delta, time }`; devuelve lo que lo detiene.",
-    "description": "Un fotograma del bucle del mundo transcurre así: el controlador hace avanzar la cámara (a menos que `controls.autoUpdate` sea false), los clips avanzan, estos hooks en el orden en que se añadieron, la escena se escribe y se dibuja, luego los hooks de `onFrame`. Lo que un hook coloca — un cuerpo sobre la cámara, una cabina — se dibuja en ese mismo fotograma, nunca uno tarde. Un `render()` dirigido por el anfitrión también los ejecuta, pero no hace avanzar ningún controlador. Un hook que llama a `invalidate()` mantiene llegando fotogramas.",
+    "description": "Un fotograma transcurre así: el controlador de la cámara (a menos que `controls.autoUpdate` sea false o que el anfitrión dirija, `render()`), los clips, la física, estos hooks en su orden, el dibujo, luego los hooks de `onFrame`. Lo que un hook coloca — un cuerpo sobre la cámara, una cabina — se dibuja en ese mismo fotograma, nunca uno tarde. Un hook que llama a `invalidate()` mantiene llegando fotogramas.",
     "parameters": {
       "hook": "La función a ejecutar; recibe los segundos recién integrados y el tiempo del mundo."
     },
@@ -6612,7 +6632,7 @@
     "summary": "Pide un nuevo fotograma después de un cambio que el mundo no pudo ver."
   },
   "world.render": {
-    "summary": "Dibuja un fotograma de inmediato, sea quien sea el maestro del bucle."
+    "summary": "Dibuja un fotograma de inmediato, sea quien sea el maestro del bucle: los clips y la física avanzan con él."
   },
   "world.resize": {
     "summary": "Dice al mundo que el lienzo ha cambiado de tamaño; sin valor, lee el tamaño del lienzo.",
@@ -6698,10 +6718,10 @@
       "shadowsUpdated": "Luces de sombra con una página dibujada por esta imagen. Cero es el valor normal de una escena quieta: una luz fija conserva sus páginas.",
       "shadowFacesDrawn": "Vistas de luz en las que dibujó el pase de sombras — un nivel de clipmap del sol, una cara de lámpara en un mip —, y las llamadas de dibujo realmente codificadas. Null en un motor que no dibuja sombras.",
       "shadowDrawCalls": "Llamadas de dibujo de sombra.",
-      "shadowPagesDrawn": "Lo que ha producido la invalidación de páginas: páginas redibujadas por el fotograma, páginas dejadas en cola por falta de presupuesto, y el retraso en milisegundos de la más antigua. Cero en todas partes es el valor normal de una escena inmóvil; `null` para un motor sin atlas de sombras.",
+      "shadowPagesDrawn": "Lo que ha producido la invalidación de páginas: páginas redibujadas por el fotograma, páginas dejadas en cola por falta de presupuesto, y cuánto ha esperado la página desactualizada más antigua que lee la imagen. Cero en todas partes es el valor normal de una escena inmóvil; `null` para un motor sin atlas de sombras.",
       "shadowPagesTotal": "Páginas dibujadas desde la apertura del explorador, vaciados de `flush()` incluidos: el coste de un cambio es la diferencia entre dos lecturas.",
       "shadowPagesPending": "Páginas de sombra pendientes.",
-      "shadowWaitMs": "Cuánto tiempo han esperado.",
+      "shadowWaitMs": "Cuántos milisegundos ha esperado a ser redibujada la página desactualizada más antigua que lee la imagen. Solo cuenta el tiempo en que la imagen la lee; 0 una vez redibujada.",
       "gpuLightListsMs": "Tiempo de GPU de las listas de luces.",
       "gpuShadowsMs": "Tiempo de GPU de las sombras.",
       "gpuShadowCullMs": "Tiempo de GPU para elegir los proyectores de las páginas de sombra que dibuja una imagen: el corte de luz, el descarte por página y la prueba de oclusión de los proyectores en movimiento con las pirámides que lee.",

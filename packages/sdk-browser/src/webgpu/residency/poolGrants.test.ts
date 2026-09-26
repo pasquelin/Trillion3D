@@ -5,6 +5,7 @@ import { geometryPoolFor } from '../../residency/pools.ts';
 import { texturePoolFor } from './memoryBudgets.ts';
 import { laneCounts, poolEncoding } from '../../texture/blockFormats.ts';
 import {
+  budgetBeside,
   geometryProbe,
   grantedGeometryPool,
   grantedTexturePool,
@@ -61,6 +62,28 @@ test('a geometry pool the device refuses is drawn at half its bytes until grante
   assert.deepEqual(seen, [
     { kind: 'warning', pool: 'geometry', requestedBytes: 800, grantedBytes: 200, clamp: null },
   ]);
+});
+
+test('a budget pays first for the bytes held beside its pool, and a refusal halves the pool alone', async () => {
+  // #487's pages: 2,848 bytes, beside 48 bytes of vertex buffers.
+  const rule = (budgetBytes: number) =>
+    geometryPoolFor({ budgetBytes, pageBytes: 2848, uniquePages: 276, rootPages: 4 });
+  for (const budget of [393_048, 393_024, 300_001, 4 * 2848 + 48]) {
+    const drawn = rule(budgetBeside(budget, 48).bytes);
+    assert.ok(drawn.allocatedBytes + 48 <= budget, `${budget}`);
+    assert.equal(drawn.slots, Math.floor((budget - 48) / 2848));
+  }
+  // Held past the budget: drawn from one byte, the pool is raised to its root cover, by name.
+  const raised = rule(budgetBeside(100, 400).bytes);
+  assert.deepEqual([raised.slots, raised.clamp], [4, 'root-cover']);
+  const { device } = refusingDevice(200);
+  const small = (budgetBytes: number) =>
+    geometryPoolFor({ budgetBytes, pageBytes: 8, uniquePages: 100, rootPages: 2 });
+  const { bytes } = budgetBeside(1200, 400);
+  const probe = geometryProbe(device);
+  const granted = await grantedGeometryPool(device, bytes, small, diagnostics().diagnose, probe);
+  // 800 → 400 → 200 bytes of slots, beside the 400 held: not straight down to the root cover.
+  assert.deepEqual([granted?.pool.allocatedBytes, granted?.pool.clamp], [200, null]);
 });
 
 test('a pool granted at once is drawn as asked and says nothing', async () => {

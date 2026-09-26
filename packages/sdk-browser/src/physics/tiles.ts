@@ -1,4 +1,4 @@
-import { EngineError } from '../../../sdk-core/src/contracts/cache.ts';
+import type { EngineError } from '../../../sdk-core/src/contracts/cache.ts';
 import {
   BODY_INDEX,
   LAYER,
@@ -12,7 +12,17 @@ import {
 } from '../../../sdk-core/src/physics/index.ts';
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
 import type { createPhysicsBodies } from './bodies.ts';
-import { isModel, locate, moversOf, tilePose, type Model, type Placed } from './tilePlace.ts';
+import { createCookedSoftBodies } from './cookedSoft.ts';
+import {
+  cookedBytes,
+  isModel,
+  locate,
+  moversOf,
+  placedOf,
+  tilePose,
+  type Model,
+  type Placed,
+} from './tilePlace.ts';
 import { boxPointDistance } from '../../../sdk-core/src/math/primitives/box.ts';
 
 /** Tile fetches in flight at once. */
@@ -22,7 +32,8 @@ const FETCHES = 8;
  * The cooked collision of the compiled models in a scene (`physics.json`), streamed into the
  * simulation within `budget.physics.triangles`: tiles load around the eye up to the active range
  * — the camera's draw distance, the scene's own — and around every moving body, nearest first,
- * and leave once no longer wanted. A tile is restored from Jolt's binary state, never rebuilt.
+ * and leave once no longer wanted. A tile is restored from Jolt's binary state, never rebuilt;
+ * so are the soft bodies a model was cooked with (`cookedSoft.ts`), made as it opens.
  */
 export function createTileStreamer(
   writer: CommandWriter,
@@ -31,54 +42,44 @@ export function createTileStreamer(
   invalidate: () => void,
   failed: (error: EngineError) => void,
 ) {
-  const models = new Map<Model, Placed[] | null>();
-  const byIndex = new Map<number, Placed>();
+  /** Each open model's tiles, empty until its file lands: the array is its opening, so one that
+   *  left and came back while its file was on its way lands once, from the later opening. */
+  const models = new Map<Model, Placed[]>();
+  const softs = createCookedSoftBodies(writer, bodies, invalidate, failed);
   let fetching = 0,
-    refused = false;
+    overBudget = false;
   async function open(model: Model) {
-    models.set(model, null);
+    const placed: Placed[] = [];
+    models.set(model, placed);
     const response = await fetch(new URL('physics.json', model.record.base).href);
     // A model compiled before the cook has no file: it collides nowhere, as before.
     if (!response.ok) return;
     const cooked = readCookedPhysics(await response.json());
-    const placed: Placed[] = [];
-    for (const instance of cooked.instances) {
-      const { tiles, material } = cooked.colliders[instance.collider];
-      for (const tile of tiles) {
-        const p: Placed = {
-          model,
-          instance,
-          tile,
-          material: material ?? -1,
-          box: new Float64Array(6),
-          id: -1,
-          loading: false,
-        };
-        locate(p);
-        placed.push(p);
-      }
-    }
-    if (models.has(model)) models.set(model, placed);
+    if (models.get(model) !== placed) return;
+    placed.push(...placedOf(model, cooked));
+    softs.open(model, cooked.softBodies);
     invalidate();
   }
   const evict = (p: Placed) => {
     if (p.id < 0) return;
-    byIndex.delete(p.id & BODY_INDEX);
     bodies.release(p.id & BODY_INDEX);
     p.id = -1;
   };
+  /** Everything `model` holds out: its tiles and its cooked soft bodies. */
+  const drop = (model: Model, placed: Placed[]) => {
+    placed.forEach(evict);
+    softs.forget(model);
+  };
   async function load(p: Placed) {
+    const opening = models.get(p.model);
     p.loading = true;
     fetching++;
     try {
-      const response = await fetch(new URL(p.tile.url, p.model.record.base).href);
-      if (!response.ok)
-        throw new EngineError('PHYSICS_FAILED', `Physics tile ${p.tile.url}: ${response.status}.`);
-      const bytes = new Uint8Array(await response.arrayBuffer());
-      if (!models.get(p.model)) return;
-      p.id = bodies.claim(p.tile.triangles);
+      const bytes = await cookedBytes(p.model, p.tile.url, 'Physics tile');
+      // Its model left, or was opened again meanwhile: this tile is no longer one it holds.
+      if (models.get(p.model) !== opening) return;
+      p.id = bodies.claim(p.tile.triangles, 0, { model: p.model, tile: p });
       const handle = p.id & BODY_INDEX;
-      byIndex.set(handle, p);
       const { position, quaternion, scale } = tilePose(p);
       // The matter the node's collider declares, over the engine's default, as for every body.
       const matter = physicsMatterOf(p.instance);
@@ -120,7 +121,7 @@ export function createTileStreamer(
       });
       for (const [model, placed] of models)
         if (!seen.has(model)) {
-          placed?.forEach(evict);
+          drop(model, placed);
           models.delete(model);
         }
     },
@@ -134,7 +135,7 @@ export function createTileStreamer(
       const wanted: [number, Placed][] = [],
         movers = moversOf(bodies.meshes);
       for (const placed of models.values())
-        for (const p of placed ?? []) {
+        for (const p of placed) {
           let near = boxPointDistance(p.box, 0, eye[0], eye[1], eye[2]);
           if (near > range) near = Infinity;
           for (let m = 0; m < movers.length; m += 4)
@@ -155,17 +156,31 @@ export function createTileStreamer(
         room -= p.tile.triangles;
         if (fetching < FETCHES) void load(p);
       }
-      if (asked > budget.triangles && !refused)
+      if (asked > budget.triangles && !overBudget)
         failed(physicsBudgetError('triangles', budget.triangles, asked));
-      refused = asked > budget.triangles;
+      overBudget = asked > budget.triangles;
     },
-    /** The model a tile body's engine id belongs to, or `null`. */
-    modelOf: (id: number) => byIndex.get(id & BODY_INDEX)?.model ?? null,
+    /** The model a tile body's or a cooked soft body's engine id belongs to, or `null`. */
+    modelOf: bodies.slots.modelOf,
+    /** The worker refused body `id`: a tile or a cooked soft body leaves, its slot and budget
+     *  given back, and is not made again until its model opens again; any other body is ignored. */
+    refused(id: number) {
+      const owner = bodies.slots.of(id);
+      if (owner && 'soft' in owner) return softs.refused(owner);
+      if (!owner || !('tile' in owner)) return;
+      evict(owner.tile);
+      const placed = models.get(owner.model)!;
+      placed.splice(placed.indexOf(owner.tile), 1);
+    },
     /** The glTF material of a tile body's triangles, `-1` for none or for another body. */
-    materialOf: (id: number) => byIndex.get(id & BODY_INDEX)?.material ?? -1,
-    /** A model moved: its resident tiles follow. */
+    materialOf(id: number) {
+      const owner = bodies.slots.of(id);
+      return owner && 'tile' in owner ? owner.tile.material : -1;
+    },
+    /** A model moved: its resident tiles and its cooked soft bodies follow. */
     moved(node: Object3D) {
       node.traverse((child) => {
+        if (isModel(child)) softs.moved(child);
         for (const p of (isModel(child) && models.get(child)) || []) {
           locate(p);
           if (p.id < 0) continue;
@@ -174,9 +189,9 @@ export function createTileStreamer(
         }
       });
     },
-    /** Every tile out (physics turned off). */
+    /** Every tile and cooked soft body out (physics turned off). */
     clear() {
-      for (const placed of models.values()) placed?.forEach(evict);
+      models.forEach((placed, model) => drop(model, placed));
       models.clear();
     },
   };

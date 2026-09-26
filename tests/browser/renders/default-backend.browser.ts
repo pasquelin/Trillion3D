@@ -36,7 +36,7 @@ type MachineResult = {
 const root = resolve(import.meta.dirname, '../../..');
 const out = measureOutput('default-backend');
 await mkdir(out, { recursive: true });
-const SCENE = 'site/assets/kinetic-garden';
+const SCENE = 'tests/fixtures/scenes/kinetic-garden';
 const MANIFEST = '/cache/scene/manifest.json';
 const quantile = (values: number[], q: number) =>
   [...values].sort((a, b) => a - b)[Math.min(values.length - 1, Math.floor(values.length * q))];

@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { JobProgress } from '../../../../sdk-core/src/index.ts';
 import { sha256Hex } from '../../measurement/sha256Hex.ts';
-import { createPageStreamer } from '../../streaming/pages.ts';
+import { createPageStreamer } from '../../streaming/pageStreamer.ts';
 import * as G from '../../host/graph/graph.fixture.ts';
 import { createExplorerLifecycle } from './lifecycle.ts';
 

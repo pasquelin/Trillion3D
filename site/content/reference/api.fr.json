@@ -1175,7 +1175,17 @@
   },
   "createPageStreamer": {
     "summary": "Lectures bornées, par priorité et sans doublon.",
-    "description": "Une demande qui attend encore en file est abandonnée quand son dernier consommateur s’en va ; une demande déjà en transfert peut arriver dans le cache. Le cache est un ensemble « le moins récemment utilisé » borné à la fois en entrées et en octets ; les entrées épinglées survivent à l’éviction, donc un appelant garde sa couverture affichée en la retenant."
+    "description": "Une demande qui attend encore en file est abandonnée quand son dernier consommateur s’en va ; une demande déjà en transfert peut arriver dans le cache. Le cache est un ensemble « le moins récemment utilisé » borné à la fois en entrées et en octets ; les entrées épinglées survivent à l’éviction, donc un appelant garde sa couverture affichée en la retenant.",
+    "parameters": {
+      "options": "Comment un flux de pages lit (`createPageStreamer`). À côté de ses pages, son cache réserve ses tables de manifeste et sa file de transfert ; chaque membre a une valeur par défaut.",
+      "options.signal": "Annule toutes les lectures une fois interrompu.",
+      "options.workerCount": "Lectures menées en même temps ; 8 par défaut.",
+      "options.maxPages": "Nombre maximal de pages gardées à la fois ; borné par les octets seuls en son absence.",
+      "options.onEvict": "Entend chaque page qui quitte le cache.",
+      "options.maxTransferBytes": "Octets que la file de transfert peut contenir ; 8 Mio par défaut.",
+      "options.onDiagnostic": "Entend chaque étape de chaque lecture.",
+      "options.maxCachedBytes": "Octets de mémoire CPU que les pages du cache peuvent tenir, ses tables de manifeste et sa file de transfert réservées en plus ; 256 Mio par défaut."
+    }
   },
   "createPathGovernor": {
     "summary": "Un régulateur."
@@ -2883,12 +2893,9 @@
       "spotEdgeSoftness": "Largeur du bord adouci du cône d’un spot, en unités de cosinus : contre l’effet d’escalier.",
       "sunFarShadowOffsetMetres": "Décalage de l’origine du rayon d’ombre lointaine le long de la normale, en mètres. Il ne sert qu’à quitter le plan de la surface éclairée ; le vrai remède contre l’auto-ombrage est le départ le long du rayon, plus bas.",
       "sunFarShadowStartCells": "Départ du rayon d’ombre lointaine le long de sa propre direction, en cases du proxy. Le point éclairé vient de la géométrie fine, l’obstacle du proxy grossier : là où le proxy est au-dessus de la vraie surface, un rayon parti de zéro toucherait la surface qu’il éclaire. Une case du proxy est l’échelle sous laquelle le proxy ne dit rien ; partir de là évite ce faux contact sans inventer d’ombre. La conséquence est nommée : un obstacle à moins d’une case le long du rayon ne porte pas d’ombre lointaine, et celle-ci reste aux niveaux du clipmap.",
-      "shadowDepthBias": "Biais d’ombre en mètres, jamais en unités de profondeur : la profondeur projetée d’une tranche est très non linéaire, une constante en profondeur normalisée ferait des mètres près de la lumière et des millimètres au loin. Le shader ramène ces mètres en profondeur au point considéré.",
-      "shadowSlopeBias": "Biais de pente, en mètres par unité de `tan(acos(N·L))`, plafonné par `shadowSlopeBiasMax`.",
-      "shadowSlopeBiasMax": "Plus grand biais de pente.",
       "shadowNearFraction": "Plan proche d’une tranche : une part de la portée, jamais moins que ce plancher.",
       "shadowNearMin": "Distance d’ombre la plus proche.",
-      "shadowNormalOffsetTexels": "Décalage du point d’échantillonnage le long de la normale, en texels de tranche. C’est ce qui ferme la couture entre deux faces d’une lumière ponctuelle et retire l’acné rasante ; il est en texels et non en mètres pour rester proportionnel à la résolution qu’a obtenue la lumière.",
+      "shadowNormalOffsetTexels": "Décalage du point d’échantillonnage le long de la normale, en texels de la carte lue : un demi-texel, la marge de ce qui n’est pas le plan du récepteur — sa courbure dans un texel, l’arrondi des deux profondeurs. La pente du récepteur est couverte par une marge de profondeur sur la portée du PCF, et au-delà de 45° par un décalage supplémentaire, dans les mêmes texels (`shadowDepthMargin`, `shadowNormalTexels`) : aucun biais n’est une longueur de la scène.",
       "shadowPagesPerBatch": "Pages d’ombre qu’un lot GPU dessine : la taille des tampons d’un lot, jamais une limite de l’image. Une image dessine chaque page qu’elle marque, en autant de lots qu’il faut.",
       "lampFaceSize": "Côté du mip le plus fin d’une face de lampe, en texels : 32 × 32 pages de 128. Le pool physique n’est pas réglé ici : il se déduit de l’écran à la création du monde (`shadowPoolSide`).",
       "shadowRequestCap": "Pages virtuelles que l’ombrage peut demander par image ; les autres redemandent à l’image suivante.",
@@ -4633,6 +4640,19 @@
       "workers": "Combien de travailleurs récupèrent et décodent des pages à la fois."
     }
   },
+  "PageStreamerOptions": {
+    "summary": "Comment un flux de pages lit (`createPageStreamer`).",
+    "description": "À côté de ses pages, son cache réserve ses tables de manifeste et sa file de transfert ; chaque membre a une valeur par défaut.",
+    "members": {
+      "signal": "Annule toutes les lectures une fois interrompu.",
+      "workerCount": "Lectures menées en même temps ; 8 par défaut.",
+      "maxPages": "Nombre maximal de pages gardées à la fois ; borné par les octets seuls en son absence.",
+      "onEvict": "Entend chaque page qui quitte le cache.",
+      "maxTransferBytes": "Octets que la file de transfert peut contenir ; 8 Mio par défaut.",
+      "onDiagnostic": "Entend chaque étape de chaque lecture.",
+      "maxCachedBytes": "Octets de mémoire CPU que les pages du cache peuvent tenir, ses tables de manifeste et sa file de transfert réservées en plus ; 256 Mio par défaut."
+    }
+  },
   "PanZoomCameraControls": {
     "summary": "PANORAMIQUE ET ZOOM À PLAT, la vue plane : la caméra ne tourne jamais.",
     "description": "La direction vers laquelle elle pointait quand le contrôleur a été créé est celle qu’elle garde, et chaque geste fait glisser la vue dans le plan que regarde la caméra ou la rapproche de ce plan — un plan, une élévation, une carte. Tout glissé fait défiler, la molette et le pincement zooment entre `minDistance` et `maxDistance`, et les flèches font défiler d’un pas fixe pour qui n’a pas de pointeur. `rotateSpeed` vient du contrat à pivot et ne fait rien ici : il n’y a pas de rotation à accélérer. `enablePan` et `enableZoom` allument ou éteignent les deux gestes qui existent.",
@@ -5426,10 +5446,10 @@
       "shadowsUpdated": "Tranches d’ombre redessinées par cette image, au plus le plafond publié du planificateur. Zéro est la valeur normale d’une scène immobile : une lumière fixe garde sa tranche.",
       "shadowFacesDrawn": "Ce que la passe d’ombre a redessiné : faces (vues) et appels de dessin vraiment encodés. C’est le coût par lumière à ombre, séparé du reste. Null pour un moteur qui ne dessine pas d’ombre.",
       "shadowDrawCalls": "Appels de dessin d’ombre.",
-      "shadowPagesDrawn": "Ce qu’a produit l’invalidation des pages : pages redessinées par l’image, pages laissées en file faute de budget, et le retard en millisecondes de la plus ancienne. Zéro partout est la valeur normale d’une scène immobile ; `null` pour un moteur sans atlas d’ombres.",
+      "shadowPagesDrawn": "Ce qu’a produit l’invalidation des pages : pages redessinées par l’image, pages laissées en file faute de budget, et depuis combien de temps attend la plus ancienne page périmée que l’image lit. Zéro partout est la valeur normale d’une scène immobile ; `null` pour un moteur sans atlas d’ombres.",
       "shadowPagesTotal": "Pages dessinées depuis l’ouverture de l’explorateur, vidages de `flush()` compris : le coût d’un changement est l’écart entre deux lectures.",
       "shadowPagesPending": "Pages d’ombre en attente.",
-      "shadowWaitMs": "Combien de temps elles ont attendu.",
+      "shadowWaitMs": "Depuis combien de millisecondes la plus ancienne page périmée que l’image lit attend d’être redessinée. Seul compte le temps où l’image la lit ; 0 une fois redessinée.",
       "gpuLightListsMs": "Temps GPU des listes de lumières.",
       "gpuShadowsMs": "Temps GPU des ombres.",
       "gpuShadowCullMs": "Temps GPU du choix des projeteurs des pages d’ombre qu’une image dessine : la coupe depuis la lumière, le tri par page, et le test d’occultation des projeteurs mobiles avec les pyramides qu’il lit.",
@@ -5452,7 +5472,7 @@
       "representationChanged": "Le même monde à une autre précision — niveau de détail, résidence, tuile de couleur — : sa boîte attend que la caméra s’arrête, puis entre dans la liste (`changes.ts`).",
       "resting": "La caméra était au repos au dernier plan : sa vue était celle du plan précédent.",
       "deferredChanges": "Vrai tant qu’un changement de représentation attend que la caméra s’arrête : l’image ne doit pas être gardée avant qu’un plan le consomme.",
-      "releaseDeferred": "L’image ne planifie aucune ombre — pas d’atlas, pas de lumière, vue sans lumière — : les boîtes tenues entrent tout de suite dans la liste, où les lit le plan suivant, au lieu d’empêcher l’image d’être gardée.",
+      "releaseDeferred": "L’image ne planifie aucune ombre — pas d’atlas, pas de lumière, vue sans lumière — : l’union tenue entre tout de suite dans la liste, où la lit le plan suivant, au lieu d’empêcher l’image d’être gardée.",
       "setPageInvalidation": "Coupe l’invalidation par page : chaque face touchée repart en entier. Actif par défaut.",
       "pageInvalidation": "Pages à redessiner.",
       "plan": "Planifie une image : rend périmé ce qui a bougé, lit le dernier rapport, admet chaque page à dessiner.",
@@ -6576,7 +6596,7 @@
       "texturePool": "Octets de mémoire GPU gardés pour les pages de texture, `null` sur un moteur sans réservoir de textures (WebGL2) ; règle-le pour changer l’enveloppe, dans ce que `gpu` laisse à côté des ombres, des sondes de rebond et du réservoir de géométrie.",
       "physics": "Les enveloppes de la physique (corps, triangles, corps décoratifs, mémoire), lues une fois au démarrage ; en dépasser une lève `PHYSICS_BUDGET`.",
       "raycastTrees": "Octets de mémoire CPU que `raycast` garde pour les arbres de triangles, partagés par tous les mondes de la page ; au-delà, l’arbre visé le moins récemment est lâché. Règle-le pour changer l’enveloppe.",
-      "gpu": "Octets de mémoire GPU que le monde peut tenir, tous réservoirs confondus ; règle-le pour redessiner chaque réservoir par la règle de partage (`split`). Un total sous le réservoir d’ombres est refusé (`GPU_BUDGET_UNDER_SHADOW_POOL`). Jamais lu sur la machine.",
+      "gpu": "Octets de mémoire GPU que le monde peut tenir, tous réservoirs confondus ; règle-le pour redessiner chaque réservoir par la règle de partage (`split`). Un total sous les trois parts fixes — le réservoir d’ombres, les sondes de rebond et les cibles d’effets — est refusé (`GPU_BUDGET_UNDER_SHADOW_POOL`). Jamais lu sur la machine.",
       "canvas": "Le plus grand canvas que le monde déclare, en pixels du tampon de dessin : les cibles de la chaîne d’effets sont réservées à sa taille (`split.effectTargets`) ; 3840 × 2160 par défaut, et le `gpu` par défaut ne grandit que de cette réserve. Règle-le pour redistribuer chaque réservoir par la règle. Un canvas dessiné plus grand est quand même rendu en entier : les diagnostics disent `effect targets over budget` avec les octets au-delà de la réserve.",
       "cpu": "Octets de mémoire CPU que le monde peut tenir : d’abord le miroir hôte de la table des pages d’ombre, puis les pages décodées, leurs tables de manifeste, leur file de transferts et les tables de coupe du moteur ensemble. Un changement s’applique aussitôt : les pages partent par dernier usage jusqu’à tenir. Un total qui ne dépasse pas le miroir est refusé (`CPU_BUDGET_UNDER_SHADOW_MIRROR`). Jamais lu sur la machine.",
       "split": "Le partage des deux totaux : le réservoir d’ombres et les sondes de rebond à leur maximum, les cibles de la chaîne d’effets sur le `canvas` déclaré, puis moitié chacun aux réservoirs de géométrie et de textures, plafonnés à leur maximum ; le miroir hôte de la table d’ombres, puis le cache de pages décodées prend le reste du total CPU, tout entier, et la session en place y réserve ses tables de manifeste, sa file de transferts et les tables de coupe du moteur. Ce que donne la règle, avant un réservoir réglé seul."
@@ -6603,7 +6623,7 @@
   },
   "world.beforeFrame": {
     "summary": "Lance une fonction juste avant chaque image dessinée, avec `{ delta, time }` ; renvoie de quoi l’arrêter.",
-    "description": "Une image de la boucle du monde se déroule ainsi : le contrôleur fait avancer la caméra (sauf si `controls.autoUpdate` vaut false), les animations avancent, ces crochets s’exécutent dans l’ordre où ils ont été ajoutés, la scène est écrite et dessinée, puis viennent les crochets `onFrame`. Ce qu’un crochet place — un corps sur la caméra, un cockpit — est dessiné dans cette image même, jamais une image en retard. Un `render()` mené par l’hôte les lance aussi, mais ne fait avancer aucun contrôleur. Un crochet qui appelle `invalidate()` fait venir les images suivantes.",
+    "description": "Une image se déroule ainsi : le contrôleur de la caméra (sauf si `controls.autoUpdate` vaut false ou si l’hôte mène, `render()`), les animations, la physique, ces crochets dans leur ordre, le dessin, puis les crochets `onFrame`. Ce qu’un crochet place — un corps sur la caméra, un cockpit — est dessiné dans cette image même, jamais une image en retard. Un crochet qui appelle `invalidate()` fait venir les images suivantes.",
     "parameters": {
       "hook": "La fonction à lancer ; elle reçoit les secondes tout juste intégrées et le temps du monde."
     },
@@ -6620,7 +6640,7 @@
     "summary": "Demande une nouvelle image après un changement que le monde n’a pas pu voir."
   },
   "world.render": {
-    "summary": "Dessine une image tout de suite, qui que soit le maître de la boucle."
+    "summary": "Dessine une image tout de suite, qui que soit le maître de la boucle : les animations et la physique avancent avec elle."
   },
   "world.resize": {
     "summary": "Dit au monde que le canevas a changé de taille ; sans valeur, il lit la taille du canevas.",
@@ -6706,10 +6726,10 @@
       "shadowsUpdated": "Tranches d’ombre redessinées par cette image, au plus le plafond publié du planificateur. Zéro est la valeur normale d’une scène immobile : une lumière fixe garde sa tranche.",
       "shadowFacesDrawn": "Ce que la passe d’ombre a redessiné : faces (vues) et appels de dessin vraiment encodés. C’est le coût par lumière à ombre, séparé du reste. Null pour un moteur qui ne dessine pas d’ombre.",
       "shadowDrawCalls": "Appels de dessin d’ombre.",
-      "shadowPagesDrawn": "Ce qu’a produit l’invalidation des pages : pages redessinées par l’image, pages laissées en file faute de budget, et le retard en millisecondes de la plus ancienne. Zéro partout est la valeur normale d’une scène immobile ; `null` pour un moteur sans atlas d’ombres.",
+      "shadowPagesDrawn": "Ce qu’a produit l’invalidation des pages : pages redessinées par l’image, pages laissées en file faute de budget, et depuis combien de temps attend la plus ancienne page périmée que l’image lit. Zéro partout est la valeur normale d’une scène immobile ; `null` pour un moteur sans atlas d’ombres.",
       "shadowPagesTotal": "Pages dessinées depuis l’ouverture de l’explorateur, vidages de `flush()` compris : le coût d’un changement est l’écart entre deux lectures.",
       "shadowPagesPending": "Pages d’ombre en attente.",
-      "shadowWaitMs": "Combien de temps elles ont attendu.",
+      "shadowWaitMs": "Depuis combien de millisecondes la plus ancienne page périmée que l’image lit attend d’être redessinée. Seul compte le temps où l’image la lit ; 0 une fois redessinée.",
       "gpuLightListsMs": "Temps GPU des listes de lumières.",
       "gpuShadowsMs": "Temps GPU des ombres.",
       "gpuShadowCullMs": "Temps GPU du choix des projeteurs des pages d’ombre qu’une image dessine : la coupe depuis la lumière, le tri par page, et le test d’occultation des projeteurs mobiles avec les pyramides qu’il lit.",

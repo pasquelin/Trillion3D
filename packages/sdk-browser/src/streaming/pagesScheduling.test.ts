@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { sha256Hex } from '../measurement/sha256Hex.ts';
-import { createPageStreamer } from './pages.ts';
+import { createPageStreamer } from './pageStreamer.ts';
 test('a priority read overtakes queued detail without exceeding one transfer', async () => {
   const bytes = new Uint32Array([0, 1, 2]);
   const sha = await sha256Hex(bytes.buffer);
@@ -18,15 +18,10 @@ test('a priority read overtakes queued detail without exceeding one transfer', a
     return new Response(bytes);
   };
   const pages = ['a.bin', 'b.bin', 'c.bin'].map((url) => ({ url, bytes: 12, sha256: sha }));
-  const streamer = createPageStreamer(
-    pages,
-    'http://cache/',
-    undefined,
-    1,
-    undefined,
-    undefined,
-    12,
-  );
+  const streamer = createPageStreamer(pages, 'http://cache/', {
+    workerCount: 1,
+    maxTransferBytes: 12,
+  });
   try {
     const detail = streamer.request(['a.bin', 'b.bin'], { priority: 2 });
     const urgent = streamer.read('c.bin');
@@ -60,8 +55,7 @@ test('cancelling obsolete detail leaves a shared page request alive', async () =
   const streamer = createPageStreamer(
     [{ url: 'shared.bin', bytes: 12, sha256: sha }],
     'http://cache/',
-    undefined,
-    1,
+    { workerCount: 1 },
   );
   const obsolete = new AbortController();
   try {
@@ -92,14 +86,14 @@ test('stream diagnostics cover coalescing, verification, retention and eviction'
       { url: 'b.bin', bytes: 4, sha256: sha },
     ],
     'http://cache/',
-    undefined,
-    2,
-    1,
-    undefined,
-    8,
-    (event) => {
-      events.push(event.phase);
-      if (events.length === 1) throw new Error('observer failure');
+    {
+      workerCount: 2,
+      maxPages: 1,
+      maxTransferBytes: 8,
+      onDiagnostic: (event) => {
+        events.push(event.phase);
+        if (events.length === 1) throw new Error('observer failure');
+      },
     },
   );
   try {

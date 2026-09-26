@@ -8,7 +8,7 @@ import { createPartitionCells, type PartitionCells } from '../../scene/partition
 import { cellReach } from '../../scene/partition/plan.ts';
 import { placedMesh } from '../../scene/partition/rows.ts';
 import { PRIORITY_PREFETCH, PRIORITY_VISIBLE } from '../../streaming/priority.ts';
-import type { createPageStreamer } from '../../streaming/pages.ts';
+import type { createPageStreamer } from '../../streaming/pageStreamer.ts';
 import { createPartitionFrame, primePartitions } from './partitionFrame.ts';
 
 type Io = Parameters<PartitionCells['frame']>[2];

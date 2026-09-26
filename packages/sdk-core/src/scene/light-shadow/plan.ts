@@ -11,6 +11,7 @@ import { createSunLevels } from './sunLevels.ts';
 import { createShadowRecords } from './records.ts';
 import { createShadowRequests, type ShadowRequestReport } from './requests.ts';
 import { createShadowThresholds } from './thresholds.ts';
+import { sunCoarseness } from './virtual.ts';
 
 /** The frame's shadow work: which virtual pages are drawn. */
 export type ShadowPlan = ReturnType<typeof createShadowPlan>;
@@ -55,7 +56,7 @@ export function createShadowPlan(poolSide: number) {
     requests,
     /** What the last plan did, in pages. */
     counts,
-    /** This frame's pages, light view by light view. */
+    /** This frame's pages, the coarsest first, light view by light view. */
     admission,
     /** A node has moved: its box stales the pages it covers at the next plan. */
     worldChanged: changes.worldChanged,
@@ -71,7 +72,7 @@ export function createShadowPlan(poolSide: number) {
     get deferredChanges() {
       return changes.deferred || thresholds.pending;
     },
-    /** The frame plans no shadow: the held boxes enter the list at once. */
+    /** The frame plans no shadow: the held union enters the list at once. */
     releaseDeferred: changes.releaseDeferred,
     /** Turns off per-page invalidation: a moving object stales every page of the lights it
      *  touches. On by default. */
@@ -121,11 +122,15 @@ export function createShadowPlan(poolSide: number) {
         if (rank === LIGHT_KIND.directional) {
           if (sun.update(slice, lightDirection(light), view, sceneMin, sceneMax, frame))
             whole = true;
-          for (let page = 0; page < pool.pages; page++)
-            if (pool.owner[page] >= 0 && pool.slice[page] === slice)
-              if (sun.movedLevel(slice, pool.view[page]))
-                if (!sun.holds(slice, pool.view[page], pool.x[page], pool.y[page]))
-                  pool.release(table, page);
+          // A page its level keeps is ranked again: a change of the finest level moves every
+          // level's coarseness, and a view keeps one rank (`admit.ts`).
+          for (let page = 0; page < pool.pages; page++) {
+            if (pool.owner[page] < 0 || pool.slice[page] !== slice) continue;
+            if (!sun.movedLevel(slice, pool.view[page])) continue;
+            if (!sun.holds(slice, pool.view[page], pool.x[page], pool.y[page]))
+              pool.release(table, page);
+            else pool.rank[page] = sunCoarseness(pool.view[page], sun.finest[slice]);
+          }
         }
         counts.invalidatedPages += invalidateLightPages(
           pool,
@@ -151,7 +156,7 @@ export function createShadowPlan(poolSide: number) {
         if (read.stamp === before && requests.complete) settledStamp = stampOf(store);
       }
       requests.floors(posed, view, nowMs, frame);
-      const count = admission.run(pool, table, requests.latest, frame);
+      const count = admission.run(pool, table, requests.latest, frame, records.isFloor);
       for (let i = 0; i < count; i++) {
         const slice = pool.slice[admission.list[i]];
         counts.drewLight(slice, records.kind[slice], frame);

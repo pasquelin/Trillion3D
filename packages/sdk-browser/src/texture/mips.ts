@@ -1,9 +1,5 @@
 import { sharedGpuDevice } from '../gpu/core/sessionHandle.ts';
-
-/** Full mip chain length for a texture of the given size. */
-export function mipLevelCountFor(width: number, height: number) {
-  return 1 + Math.floor(Math.log2(Math.max(width, height)));
-}
+import { mipLevelCountFor } from './tiles.ts';
 
 /**
  * Layout and reduction program, built ONCE per device; its pipeline once per format and per
@@ -47,7 +43,7 @@ const programs = new WeakMap<GPUDevice, MipProgram>();
  * compiler bakes, and its reasons (`packages/asset-compiler-rust/src/texture_preview/reduce.rs`,
  * `halve`, #42).
  */
-const MIP_SHADER = `
+export const MIP_SHADER = `
  @group(0) @binding(0) var source:texture_2d<f32>;
  @group(0) @binding(1) var<uniform> extent:vec4u;
  override weighted:bool;

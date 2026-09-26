@@ -121,24 +121,17 @@ export const LIGHT_SETTINGS = {
    * closer than one cell along the ray carries no far shadow, and that one stays with the clipmap levels.
    */
   sunFarShadowStartCells: 1,
-  /**
-   * Shadow bias in metres, never in depth units: a slice's projected depth
-   * is highly non-linear, a constant in normalised depth would be metres near the
-   * light and millimetres far away. The shader brings those metres back to depth at the considered point.
-   */
-  shadowDepthBias: 0.02,
-  /** Slope bias, in metres per unit of `tan(acos(N·L))`, capped by `shadowSlopeBiasMax`. */
-  shadowSlopeBias: 0.08,
-  /** Largest slope bias. */ shadowSlopeBiasMax: 0.5,
   /** Near plane of a slice: a fraction of the range, never less than this floor. */
   shadowNearFraction: 1 / 200,
   /** Nearest shadow distance. */ shadowNearMin: 0.05,
   /**
-   * Offset of the sample point along the normal, in slice texels. It is what
-   * closes the seam between two faces of a point light and removes grazing acne; it is in
-   * texels and not metres so it stays proportional to the resolution the light obtained.
+   * Offset of the sample point along the normal, in texels of the map read: half a texel, the
+   * margin for what is not the receiver's plane — its curvature within a texel, the rounding of
+   * both depths. The receiver's slope is covered by a depth margin over the PCF's reach, and
+   * past 45° by a further offset, in the same texels (`shadowDepthMargin`, `shadowNormalTexels`):
+   * no bias is a length of the scene.
    */
-  shadowNormalOffsetTexels: 1.5,
+  shadowNormalOffsetTexels: 0.5,
 } as const;
 /** Lights a shadow slice can address in the atlas: one per declared shadow light. */
 export const MAX_SHADOW_SLICES = LIGHT_SETTINGS.maxLights;

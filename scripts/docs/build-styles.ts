@@ -1,4 +1,4 @@
-import { readFile, readdir, writeFile, mkdir } from 'node:fs/promises';
+import { mkdir, readFile, readdir, stat, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { dirname, extname, resolve } from 'node:path';
 import { transform } from 'esbuild';
@@ -22,17 +22,25 @@ async function sourceFiles(directory: string): Promise<string[]> {
   return files.flat();
 }
 
+/** The sources, under the root, scanned for class names: a folder's HTML and TypeScript files. */
+export const STYLE_SOURCES = [
+  'site/index.html',
+  'site/app',
+  'site/content',
+  'site/demos',
+  'site/examples/kit',
+  'site/reports',
+];
+
 async function collectCandidates(root: string): Promise<string[]> {
-  const files = [
-    resolve(root, 'site/index.html'),
-    ...(await sourceFiles(resolve(root, 'site/app'))),
-    ...(await sourceFiles(resolve(root, 'site/content'))),
-    ...(await sourceFiles(resolve(root, 'site/demos'))),
-    ...(await sourceFiles(resolve(root, 'site/examples/kit'))),
-    ...(await sourceFiles(resolve(root, 'site/reports'))),
-  ];
+  const files = await Promise.all(
+    STYLE_SOURCES.map(async (path) => {
+      const source = resolve(root, path);
+      return (await stat(source)).isDirectory() ? sourceFiles(source) : [source];
+    }),
+  );
   const candidates = new Set<string>();
-  for (const file of files) {
+  for (const file of files.flat()) {
     const source = await readFile(file, 'utf8');
     for (const token of source.match(TOKEN) ?? []) candidates.add(token);
   }

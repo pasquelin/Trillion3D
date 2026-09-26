@@ -21,7 +21,7 @@ import { parseArgs } from './options.ts';
 import { ASSETS, sceneDerived } from './scene.ts';
 import { SAMPLE_MODELS, kebab, sceneGltfFile, scenesOnDisk } from './assetsCatalogue.ts';
 import { fetchModels } from './assetsFetch.ts';
-import { TRIANGLE_BUDGET, nativeCompiler } from '../../scripts/native-compiler.ts';
+import { TRIANGLE_BUDGET, requireNativeCompiler } from '../../scripts/native-compiler.ts';
 
 const ROOT = resolve(import.meta.dirname, '../..');
 const CLI = join(ROOT, 'dist/sdk-node/src/cli/cli.mjs');
@@ -93,9 +93,7 @@ function main() {
   if (todo.length === 0) return;
   if (!existsSync(CLI)) throw new Error(`compiler CLI absent: ${CLI} — run \`pnpm run build\``);
   // The executable the CLI runs, by the CLI's own rule: absent or older than its sources, no job.
-  const compiler = nativeCompiler();
-  if (!existsSync(compiler))
-    throw new Error(`native compiler absent: ${compiler} — run \`pnpm run build:native\``);
+  requireNativeCompiler();
   const budget = machineBudget();
   for (const scene of todo) {
     process.stdout.write(

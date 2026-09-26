@@ -139,12 +139,13 @@ test('a dynamic body declared as triangles is refused: triangles hold no mass', 
   });
 });
 
-test('physics.json of another format, or cooked by another Jolt, is refused by name', () => {
+test('physics.json of another format, cooked by another Jolt, or malformed, is refused by name', () => {
   const file = { formatVersion: 2, jolt: JOLT_COMMIT, colliders: [], instances: [] };
   assert.equal(readCookedPhysics(file).colliders.length, 0);
   for (const wrong of [
     { ...file, formatVersion: 3 },
     { ...file, jolt: '0'.repeat(40) },
+    { ...file, softBodies: null },
   ])
     assert.throws(() => readCookedPhysics(wrong), { code: 'PHYSICS_FORMAT' });
 });

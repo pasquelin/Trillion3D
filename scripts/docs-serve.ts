@@ -1,11 +1,16 @@
 /** Serve one built site tree with production paths and no framework dependency. */
 import { pathToFileURL } from 'node:url';
 import { buildSite, SITE_OUTPUT } from './docs/site.ts';
-import { listen, staticServer } from './static-server.ts';
+import { listen, staticServer, type StaticOptions } from './static-server.ts';
 
-/** A static server over `root`: the built site by default, any site-shaped tree otherwise. */
-export function createDocsServer(root = SITE_OUTPUT) {
+/** A static server over `root`: the built site by default, any site-shaped tree otherwise;
+ *  `extra` adds the development server's answer and transform (`docs-dev.ts`). */
+export function createDocsServer(
+  root = SITE_OUTPUT,
+  extra: Pick<StaticOptions, 'answer' | 'transform'> = {},
+) {
   return staticServer({
+    ...extra,
     mounts: [{ prefix: '/', dir: root }],
     headers: {
       'Cache-Control': 'no-store',
@@ -18,6 +23,9 @@ export function createDocsServer(root = SITE_OUTPUT) {
   });
 }
 
+/** The loopback port of the local site, unless `PORT` names another. */
+export const DOCS_PORT = Number(process.env.PORT ?? 4177);
+
 let built: Promise<void> | undefined;
 /** Builds the site once per process (nothing is committed), then listens on the loopback port. */
 export async function startDocsServer(port = 0) {
@@ -27,6 +35,6 @@ export async function startDocsServer(port = 0) {
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  const { port } = await startDocsServer(Number(process.env.PORT ?? 4177));
+  const { port } = await startDocsServer(DOCS_PORT);
   console.log(`Learning portal: http://127.0.0.1:${port}`);
 }

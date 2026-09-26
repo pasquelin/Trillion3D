@@ -6,21 +6,16 @@ import {
   DEFAULT_MATTER,
   DEFAULT_PHYSICS_BUDGET,
   HIT_WORDS,
-  JOLT_COMMIT,
   PHYSICS_MATERIALS,
   SHAPE,
   type BodyRecord,
-  type PhysicsHost,
 } from '../../../sdk-core/src/physics/index.ts';
-import { Group, Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
 import { Ray } from '../../../sdk-core/src/world/math/volumes.ts';
 import { Vector3 } from '../../../sdk-core/src/world/math/vector3.ts';
-import { createPhysicsBodies } from './bodies.ts';
 import { body, castDown, startModule } from './module.fixture.ts';
-import { createPhysicsPoses } from './poses.ts';
 import { physicsRaycast } from './raycast.ts';
 import type { PhysicsSession } from './session.ts';
-import { createTileStreamer } from './tiles.ts';
+import { cooked, landed, place, streamedModel, tile } from './tiles.fixture.ts';
 
 /** The golden tile the compiler's cook writes (`physics_cook/tests.rs`): a 2 × 2 m quad rising
  *  from (0, 0) to (2, 1) along x, in native Jolt's binary state. */
@@ -49,16 +44,11 @@ test('a tile cooked by native Jolt is restored in the module, collides, and answ
 /** A model whose `physics.json` is `file`, streamed in around the origin within `triangles`: its
  *  streamer, the bodies it added, the errors raised and the files fetched. */
 async function streamed(file: object, triangles = DEFAULT_PHYSICS_BUDGET.triangles) {
-  const bytes = await golden();
-  const fetched: string[] = [];
-  globalThis.fetch = (async (url: string) => {
-    fetched.push(url.split('/').pop()!);
-    const json = url.endsWith('physics.json');
-    return new Response(json ? JSON.stringify(file) : new Uint8Array(bytes));
-  }) as typeof fetch;
-  const budget = { ...DEFAULT_PHYSICS_BUDGET, bodies: 8, triangles };
-  const scene = new Group();
-  const writer = new CommandWriter();
+  const { tiles, model, writer, bodies, errors, fetched } = await streamedModel(
+    file,
+    await golden(),
+    { triangles },
+  );
   const added: BodyRecord[] = [];
   const add = writer.add.bind(writer);
   // The pose is scratch the streamer reuses: copied as it goes by.
@@ -66,25 +56,8 @@ async function streamed(file: object, triangles = DEFAULT_PHYSICS_BUDGET.triangl
     added.push({ ...record, position: Array.from(record.position) }),
     add(record)
   );
-  const { state } = createPhysicsPoses(budget.bodies, scene);
-  const bodies = createPhysicsBodies(writer, budget, {} as PhysicsHost, scene, state);
-  const errors: { code: string }[] = [];
-  const tiles = createTileStreamer(
-    writer,
-    budget,
-    bodies,
-    () => {},
-    (e) => errors.push(e),
-  );
-  const model = Object.assign(new Object3D(), {
-    isLoadedModel: true as const,
-    record: { base: 'https://cache.test/model/' },
-  });
-  scene.add(model);
-  tiles.scan(scene);
-  await new Promise((resolve) => setTimeout(resolve, 10));
   tiles.update([0, 0, 0], 1000);
-  await new Promise((resolve) => setTimeout(resolve, 10));
+  await landed();
   const hit = new Uint32Array(HIT_WORDS);
   const session = { cast: async () => hit, objectOf: tiles.modelOf, materialOf: tiles.materialOf };
   return {
@@ -99,34 +72,11 @@ async function streamed(file: object, triangles = DEFAULT_PHYSICS_BUDGET.triangl
   };
 }
 
-/** A two-triangle tile at `x` along its collider. */
-const tile = (x = 0) => ({
-  url: `t${x}.bin`,
-  sha256: 'a'.repeat(64),
-  bytes: 1,
-  triangles: 2,
-  bounds: [x, 0, -1, x + 2, 1, 1],
-});
-/** Collider `collider` placed by its own node, ten metres apart, with the matter it declares. */
-const place = (collider: number, matter = {}) => ({
-  node: collider,
-  collider,
-  position: [collider * 10, 0, 0],
-  rotation: [0, 0, 0, 1],
-  scale: [1, 1, 1],
-  ...matter,
-});
-const cooked = (colliders: object[], instances: object[]) => ({
-  formatVersion: 2,
-  jolt: JOLT_COMMIT,
-  colliders,
-  instances,
-});
 const down = new Ray(new Vector3(1, 5, 0), new Vector3(0, -1, 0));
 
 test('tiles past budget.physics.triangles are refused by name, the nearest loaded', async () => {
   const collider = { kind: 'mesh', tiles: [tile(0), tile(10), tile(20)] };
-  const { errors, fetched, bodies, hit, session, model } = await streamed(
+  const { errors, fetched, bodies, hit, session, model, added } = await streamed(
     cooked([collider], [place(0)]),
     4,
   );
@@ -137,7 +87,7 @@ test('tiles past budget.physics.triangles are refused by name, the nearest loade
   assert.deepEqual(fetched.slice(1).sort(), ['t0.bin', 't10.bin'], 'the two nearest');
   assert.equal(bodies.count.triangles, 4);
   new Float32Array(hit.buffer).set([0.25, 1, 0.5, 0, 0, 1, 0], 1);
-  hit[0] = 0;
+  hit[0] = added[0].id;
   const found = await physicsRaycast(session, down, { exact: true }, 8);
   assert.equal(found?.object, model, 'a tile hit names its model');
   assert.equal(found?.distance, 2);
@@ -148,9 +98,9 @@ const collider = (material: number | null) => ({ kind: 'mesh', material, tiles: 
 
 test('an exact hit on a cooked tile names the glTF material of its collider', async () => {
   const file = cooked([collider(3), collider(5)], [place(0), place(1)]);
-  const { tiles, model, hit, session } = await streamed(file);
+  const { tiles, model, hit, session, added } = await streamed(file);
   const materials: number[] = [];
-  for (const id of [0, 1]) {
+  for (const { id } of added.sort((a, b) => a.position[0] - b.position[0])) {
     hit[0] = id;
     const found = await physicsRaycast(session, down, { exact: true }, 8);
     assert.equal(found?.object, model);

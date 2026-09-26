@@ -4,6 +4,7 @@ import { createSceneLightContractBuffer } from '../state/lights.ts';
 import { prepareWebgpuPresentation } from '../../frame/presentationSetup.ts';
 import { createWebgpuPagesPipelines } from './pipelines.ts';
 import { ensureWebgpuPositionBuffer } from '../../core/positions.ts';
+import { prepareWebgpuGeometry } from '../../core/geometryPrepare.ts';
 import { prepareWebgpuBlend } from '../../blend/prepare.ts';
 import { createTransparentTable } from '../../transparent/table.ts';
 import { prepareBlendResources } from '../../blend/resources.ts';
@@ -12,15 +13,14 @@ import { UNIFORM_STRIDE } from '../../blend/uniforms.ts';
 import { VOLUME_WORDS, createVolumeBuffer } from '../../transparent/transmission.ts';
 import { createGpuDagSelection, packDagSelection } from '../../../gpu/dag/selection.ts';
 import { prepareCones } from './cones.ts';
-import { ensureTargets } from './targets.ts';
+import { grantFrameTargets } from './targetGrant.ts';
 import { ensureUniform } from './pipelineFor.ts';
 import { dropVis, grantCapability } from '../io/drops.ts';
 import { throwIfStopped } from '../io/lost.ts';
 import { prepareWebgpuTextures } from './textures.ts';
 import { prepareWebgpuVisibility } from './visibility.ts';
 import { prepareDirectLights } from './lights.ts';
-import { createWebgpuPagesCache } from './cache.ts';
-import { grantedGeometryPool } from '../../residency/poolGrants.ts';
+import { grantWebgpuPagesCache } from './cache.ts';
 import { prepareGpuTiming } from './timing.ts';
 import { reserveRootBoxes } from '../../../math/batchBoxes.ts';
 import { type WebgpuPagesRuntime } from '../runtime.ts';
@@ -45,7 +45,7 @@ export async function prepareWebgpuBackend(rt: WebgpuPagesRuntime, device: GPUDe
  *  kept on the runtime, and the teardown releases it. */
 export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
   const { gpu, vis, run, context, diag, capabilities, blendState, services } = rt,
-    { allPages, blendCopies, scene, viewport, cap } = rt.setup,
+    { allPages, blendCopies, scene, cap } = rt.setup,
     { packedPages, selectionRoots, rows } = rt.layout;
   const step = <T>(name: string, work: () => Promise<T>) => {
     throwIfStopped(rt);
@@ -86,25 +86,6 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
         : 'texture-only',
     imageReadbackDuringRender: false,
   });
-  // Out of memory absorbed: the geometry pool is the one the device grants, its cache allocated
-  // once, under the out-of-memory scope (`poolGrants.ts`).
-  const setup = rt.setup;
-  const granted = await grantedGeometryPool(
-    gpuDevice,
-    setup.geometryPool.budgetBytes,
-    setup.geometryPoolFor,
-    diag.engineDiagnostic,
-    (pool) => {
-      const cache = createWebgpuPagesCache(rt, gpuDevice, pool.slots);
-      return { cache, destroy: () => void cache.dispose() };
-    },
-  );
-  // Refused even at its floor, the root cover: refused by name, never allocated at the full request
-  // outside any scope.
-  if (!granted) throw new Error('WEBGPU_GEOMETRY_POOL_REFUSED');
-  setup.geometryPool = granted.pool;
-  gpu.cache = granted.made.cache;
-  throwIfStopped(rt);
   ({
     bindGroupLayout: gpu.bindGroupLayout,
     pipelineBack: gpu.pipelineBack,
@@ -145,10 +126,27 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
     gpuCompaction: !!blendState.compaction?.encode,
     transmissiveMeshes: blendState.transmissive,
   });
-  const [width, height] = viewport;
-  ensureTargets(rt, gpuDevice, Math.max(1, width), Math.max(1, height));
+  // The float geometry of what no page covers, concatenated once; then, every vertex buffer
+  // allocated, the geometry pool is drawn from what they leave of its budget. A concatenation that
+  // fails is a material failure, as the textures' are: the pool is still granted, the visibility
+  // buffer dropped below.
+  throwIfStopped(rt);
+  vis.geometryBlocks.clear();
+  let geometryFailure: { error: unknown } | undefined;
+  try {
+    ({
+      concatPos: vis.concatPos,
+      concatUv: vis.concatUv,
+      concatNrm: vis.concatNrm,
+    } = prepareWebgpuGeometry(gpuDevice, allPages, vis.geometryBlocks));
+  } catch (error) {
+    geometryFailure = { error };
+  }
+  await grantWebgpuPagesCache(rt, gpuDevice);
+  await grantFrameTargets(rt, gpuDevice);
   ensureUniform(rt, gpuDevice, cap);
   try {
+    if (geometryFailure) throw geometryFailure.error;
     await step('textures', () => prepareWebgpuTextures(rt, gpuDevice));
     // Item rows cite atlas layers: they are therefore mounted AFTER the textures.
     await step('blend resources', () => prepareBlendResources(rt, gpuDevice));

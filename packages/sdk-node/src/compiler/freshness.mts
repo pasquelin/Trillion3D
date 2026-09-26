@@ -28,7 +28,7 @@ function modified(path: string) {
 }
 
 /** The first file under `path` modified after `since`, or null; stops at the first one found. */
-function firstNewer(path: string, since: number): string | null {
+export function firstNewer(path: string, since: number): string | null {
   const entry = modified(path);
   if (!entry) return null;
   if (!entry.isDirectory()) return entry.mtimeMs > since ? path : null;

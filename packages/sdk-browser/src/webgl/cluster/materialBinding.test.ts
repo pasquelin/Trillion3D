@@ -36,7 +36,7 @@ function recorder() {
     matrices: {
       set: (name: string, value: ArrayLike<number>) => void uploaded.push({ name, value }),
     },
-    textures: { bind: nothing },
+    textures: { bind: nothing, file: nothing },
     state: { apply: nothing },
   } as unknown as Binding;
   return { binding, uploaded };

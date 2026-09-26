@@ -18,6 +18,7 @@
 // restored, and the suite that drives it must run.
 export const VALIDATE_GROUPS = {
   quick: [
+    'generate:api',
     'check:local',
     'format:check',
     'check:lines',
@@ -29,10 +30,10 @@ export const VALIDATE_GROUPS = {
     'check:links',
     'check:docs-three',
     'check:sdk-facade',
-    'check:api-reference',
     'check:i18n',
   ],
   typescript: [
+    'generate:api',
     'build',
     'check:dts',
     'check:structure',
@@ -41,7 +42,7 @@ export const VALIDATE_GROUPS = {
     'check:site-types',
     'check:tools-types',
   ],
-  native: ['lint:native', 'build:native', 'test:native', 'build', 'test'],
+  native: ['lint:native', 'build:native', 'compile:caches', 'test:native', 'build', 'test'],
 } as const satisfies Record<string, readonly string[]>;
 
 type ValidateGroup = keyof typeof VALIDATE_GROUPS;

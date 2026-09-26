@@ -1627,12 +1627,9 @@
       "spotEdgeSoftness": "Bir spot koninin yumuşatılmış kenarının kosinüs birimindeki genişliği: merdivenlenmeye karşı.",
       "sunFarShadowOffsetMetres": "Uzak gölge ışını başlangıcının normal boyunca ötelemesi, metre cinsinden. Yalnızca aydınlatılan yüzeyin düzlemini terk etmeye yarar; kendi kendini gölgelemeye karşı gerçek çare, aşağıdaki, ışın boyunca başlangıçtır.",
       "sunFarShadowStartCells": "Uzak gölge ışınının kendi yönü boyunca başlangıcı, proxy hücrelerinde. Aydınlatılan nokta ince geometriden gelir, gizleyen kaba proxy'den: proxy'nin gerçek yüzeyin üzerinde oturduğu yerde, sıfırdan başlayan bir ışın, aydınlattığı yüzeyin kendisine çarpardı. Bir proxy hücresi, proxy'nin hiçbir şey söylemediği ölçektir; oradan başlamak, bir gölge uydurmadan bu sahte teması atlar. Sonuç adlandırılmıştır: ışın boyunca bir hücreden daha yakın bir gizleyen hiçbir uzak gölge taşımaz, ve o, clipmap düzeyleriyle kalır.",
-      "shadowDepthBias": "Metre cinsinden gölge sapması, asla derinlik biriminde değil: bir kesitin izdüşürülmüş derinliği son derece doğrusal değildir, normalize edilmiş derinlikte bir sabit, ışığa yakın metreler ve uzakta milimetreler olurdu. Shader bu metreleri, ele alınan noktada derinliğe geri getirir.",
-      "shadowSlopeBias": "`shadowSlopeBiasMax` ile sınırlanan, `tan(acos(N·L))` birimi başına metre cinsinden eğim sapması.",
-      "shadowSlopeBiasMax": "En büyük eğim sapması.",
       "shadowNearFraction": "Bir kesitin yakın düzlemi: menzilin bir payı, asla bu tabandan az değil.",
       "shadowNearMin": "En yakın gölge mesafesi.",
-      "shadowNormalOffsetTexels": "Örnek noktasının normal boyunca ötelemesi, kesit tekselleri cinsinden. Bir nokta ışığın iki yüzü arasındaki dikişi kapatan ve sıyırma sivilcelerini kaldıran şey budur; metre değil teksel cinsindedir, böylece ışığın elde ettiği çözünürlükle orantılı kalır.",
+      "shadowNormalOffsetTexels": "Örnek noktasının normal boyunca ötelemesi, okunan haritanın tekselleri cinsinden: yarım teksel, alıcının düzlemi olmayan şeyin payı — bir teksel içindeki eğriliği, iki derinliğin yuvarlanması. Alıcının eğimini, PCF'nin erimi boyunca bir derinlik payı, 45°'nin ötesinde de ek bir öteleme aynı tekseller cinsinden karşılar (`shadowDepthMargin`, `shadowNormalTexels`): hiçbir sapma sahnenin bir uzunluğu değildir.",
       "shadowPagesPerBatch": "Bir GPU partisinin çizdiği gölge sayfaları: bir partinin arabelleklerinin boyutu, asla karenin sınırı değil. Bir kare işaretlediği her sayfayı gerektiği kadar partide çizer.",
       "lampFaceSize": "Bir lamba yüzünün en ince mip düzeyinin kenarı, texel olarak: 128’lik 32 × 32 sayfa (havuz: `shadowPoolSide`).",
       "shadowRequestCap": "Gölgelendirmenin kare başına isteyebileceği sanal sayfalar; kalanlar sonraki karede yeniden ister.",
@@ -2525,6 +2522,19 @@
       "workers": "Aynı anda kaç worker'ın sayfaları getirip çözdüğü."
     }
   },
+  "PageStreamerOptions": {
+    "summary": "Bir sayfa akışının nasıl okuduğu (`createPageStreamer`).",
+    "description": "Önbelleği, sayfalarının yanında bildirim tablolarını ve aktarım kuyruğunu ayırır; her üyenin varsayılan değeri vardır.",
+    "members": {
+      "signal": "İptal edildiğinde tüm okumaları durdurur.",
+      "workerCount": "Aynı anda çalışan okumalar; varsayılan 8.",
+      "maxPages": "Aynı anda tutulan en fazla sayfa; yoksa yalnızca baytlarla sınırlanır.",
+      "onEvict": "Önbellekten çıkan her sayfayı duyar.",
+      "maxTransferBytes": "Aktarım kuyruğunun tutabileceği bayt; varsayılan 8 MiB.",
+      "onDiagnostic": "Her okumanın her adımını duyar.",
+      "maxCachedBytes": "Önbellek sayfalarının tutabileceği CPU belleği baytı; bildirim tabloları ve aktarım kuyruğu bunun üstüne ayrılır; varsayılan 256 MiB."
+    }
+  },
   "PanZoomCameraControls": {
     "summary": "DÜZLEMSEL KAYDIRMA-YAKINLAŞTIRMA, düz görünüm: kamera asla dönmez.",
     "description": "Kontrolcü yapıldığında hangi yöne bakıyorsa o yönü korur, ve her jest, kameranın baktığı düzlemde görünümü kaydırır ya da onu bu düzleme yaklaştırır — bir plan, bir kesit, bir harita. Herhangi bir sürükleme kaydırır, tekerlek ve bir sıkıştırma `minDistance` ile `maxDistance` arasında yakınlaştırır, ve ok tuşları, işaretçisi olmayan bir izleyici için sabit bir adımla kaydırır. `rotateSpeed`, pivot sözleşmesinden miras alınır ve burada hiçbir şey yapmaz: hızlandırılacak bir dönüş yoktur. `enablePan` ve `enableZoom`, var olan iki jesti açıp kapatır.",
@@ -3114,10 +3124,10 @@
       "shadowsUpdated": "Bu karenin bir sayfasını çizdiği gölge ışıkları. Sıfır, durağan bir sahnenin normal değeridir: sabit bir ışık sayfalarını korur.",
       "shadowFacesDrawn": "Gölge geçişinin çizdiği ışık görünümleri — güneşin bir clipmap düzeyi, bir mip düzeyinde bir lamba yüzü — ve gerçekten kodlanan çizim çağrıları. Gölge çizmeyen bir motorda null.",
       "shadowDrawCalls": "Gölge çizim çağrıları.",
-      "shadowPagesDrawn": "Sayfa geçersiz kılmanın ürettiği şey: kare tarafından yeniden çizilen sayfalar, bütçe eksikliğinden kuyrukta bırakılan sayfalar, ve en eskisinin milisaniye cinsinden gecikmesi. Her yerde sıfır, sabit bir sahnenin normal değeridir; gölge atlası olmayan bir motorda `null`.",
+      "shadowPagesDrawn": "Sayfa geçersiz kılmanın ürettiği şey: kare tarafından yeniden çizilen sayfalar, bütçe eksikliğinden kuyrukta bırakılan sayfalar, ve görüntünün okuduğu en eski eskimiş sayfanın ne kadar beklediği. Her yerde sıfır, sabit bir sahnenin normal değeridir; gölge atlası olmayan bir motorda `null`.",
       "shadowPagesTotal": "Gezgin açıldığından beri çizilen sayfalar, `flush()` boşaltmaları dahil: bir değişikliğin maliyeti, iki okuma arasındaki farktır.",
       "shadowPagesPending": "Bekleyen gölge sayfaları.",
-      "shadowWaitMs": "Ne kadar süre bekledikleri.",
+      "shadowWaitMs": "Görüntünün okuduğu en eski eskimiş sayfanın yeniden çizilmek için kaç milisaniye beklediği. Yalnızca görüntünün onu okuduğu süre sayılır; yeniden çizilince 0.",
       "gpuLightListsMs": "Işık listelerinin GPU süresi.",
       "gpuShadowsMs": "Gölgelerin GPU süresi.",
       "gpuShadowCullMs": "Bir karenin çizdiği gölge sayfalarının gölge düşürenlerini seçmenin GPU süresi: ışık kesimi, sayfa başına ayıklama ve hareketli gölge düşürenlerin okuduğu piramitlerle örtme testi.",
@@ -3140,7 +3150,7 @@
       "representationChanged": "Aynı dünya başka bir hassasiyette: kutusu kameranın durmasını bekler.",
       "resting": "Kamera son planda duruyordu: görünümü bir önceki planınkiyle aynıydı.",
       "deferredChanges": "Bir gösterim değişikliği kameranın durmasını beklerken doğru.",
-      "releaseDeferred": "Kare hiçbir gölge planlamıyor: tutulan kutular hemen listeye girer.",
+      "releaseDeferred": "Kare hiçbir gölge planlamıyor: tutulan birleşim hemen listeye girer.",
       "setPageInvalidation": "Sayfa başına geçersiz kılmayı kapatır: hareket eden bir nesne dokunduğu ışıkların her sayfasını eskitir. Varsayılan olarak açık.",
       "pageInvalidation": "Hareket eden bir nesnenin yalnızca kutusunun kapladığı sayfaları eskitip eskitmediği.",
       "plan": "Bir kareyi planlar: hareket edeni eskitir, son raporu okur, çizilecek her sayfayı kabul eder.",
@@ -4035,7 +4045,7 @@
       "texturePool": "Doku sayfaları için ayrılan GPU belleği baytı, doku havuzu olmayan bir motorda (WebGL2) `null`; zarfı değiştirmek için ayarlayın, `gpu`nun gölgelerin, sekme sondalarının ve geometri havuzunun yanında bıraktığı kadarıyla.",
       "physics": "Fiziğin sınırları (cisimler, üçgenler, dekoratif cisimler, bellek), başlangıçta bir kez okunur; birini aşmak `PHYSICS_BUDGET` fırlatır.",
       "raycastTrees": "`raycast`'in üçgen ağaçları için tuttuğu CPU belleği baytı, sayfadaki tüm dünyalar tarafından paylaşılır; aşıldığında en uzun süredir kullanılmayan ağaç bırakılır. Sınırı değiştirmek için ayarlayın.",
-      "gpu": "Dünyanın tutabileceği GPU belleği baytı, tüm havuzlar birlikte; her havuzu paylaşım kuralıyla (`split`) yeniden çizmek için ayarlayın. Gölge havuzunun altındaki bir toplam reddedilir (`GPU_BUDGET_UNDER_SHADOW_POOL`). Asla makineden okunmaz.",
+      "gpu": "Dünyanın tutabileceği GPU belleği baytı, tüm havuzlar birlikte; her havuzu paylaşım kuralıyla (`split`) yeniden çizmek için ayarlayın. Üç sabit payın — gölge havuzu, sekme sondaları ve efekt hedefleri — altındaki bir toplam reddedilir (`GPU_BUDGET_UNDER_SHADOW_POOL`). Asla makineden okunmaz.",
       "canvas": "Dünyanın bildirdiği en büyük tuval, çizim arabelleğinin pikselleriyle: efekt zincirinin hedefleri onun boyutunda ayrılır (`split.effectTargets`); varsayılan 3840 × 2160'dır ve varsayılan `gpu` yalnızca bu rezerv kadar büyür. Her havuzu kurala göre yeniden dağıtmak için ayarlayın. Daha büyük çizilen bir tuval yine de bütünüyle çizilir: tanılama, rezervi aşan baytlarla `effect targets over budget` der.",
       "cpu": "Dünyanın tutabileceği CPU belleği baytı: önce gölge sayfa tablosunun ana makine yansısı, sonra çözülmüş sayfalar, manifest tabloları, aktarım kuyruğu ve motorun kesim tabloları birlikte. Bir değişiklik hemen uygulanır: sayfalar sığana kadar son kullanıma göre çıkar. Yansıyı aşmayan bir toplam reddedilir (`CPU_BUDGET_UNDER_SHADOW_MIRROR`). Asla makineden okunmaz.",
       "split": "İki toplamın nasıl paylaşıldığı: gölge havuzu ve sekme sondaları en büyük hâlinde, efekt zincirinin hedefleri bildirilen `canvas` üzerinde, sonra geometri ve doku havuzlarına yarı yarıya, tavanlarıyla sınırlı; gölge tablosunun ana makine yansısı, sonra çözülmüş sayfa önbelleği CPU toplamının kalanını, tamamen alır; açık oturum manifest tablolarını, aktarım kuyruğunu ve motorun kesim tablolarını bu payın içinden ayırır. Bir havuz tek başına ayarlanmadan önce kuralın verdiği."
@@ -4071,7 +4081,7 @@
     "summary": "Dünyanın göremediği bir değişiklikten sonra yeni bir kare ister."
   },
   "world.render": {
-    "summary": "Döngüyü kim yönetirse yönetsin, şimdi bir kare çizer."
+    "summary": "Döngüyü kim yönetirse yönetsin, şimdi bir kare çizer: klipler ve fizik onunla birlikte ilerler."
   },
   "world.resize": {
     "summary": "Dünyaya canvas'ın boyut değiştirdiğini söyler; ayarlanmazsa, canvas'ın kendi boyutunu okur.",
@@ -4151,10 +4161,10 @@
       "shadowsUpdated": "Bu karenin bir sayfasını çizdiği gölge ışıkları. Sıfır, durağan bir sahnenin normal değeridir: sabit bir ışık sayfalarını korur.",
       "shadowFacesDrawn": "Gölge geçişinin çizdiği ışık görünümleri — güneşin bir clipmap düzeyi, bir mip düzeyinde bir lamba yüzü — ve gerçekten kodlanan çizim çağrıları. Gölge çizmeyen bir motorda null.",
       "shadowDrawCalls": "Gölge çizim çağrıları.",
-      "shadowPagesDrawn": "Sayfa geçersiz kılmanın ürettiği şey: kare tarafından yeniden çizilen sayfalar, bütçe eksikliğinden kuyrukta bırakılan sayfalar, ve en eskisinin milisaniye cinsinden gecikmesi. Her yerde sıfır, sabit bir sahnenin normal değeridir; gölge atlası olmayan bir motorda `null`.",
+      "shadowPagesDrawn": "Sayfa geçersiz kılmanın ürettiği şey: kare tarafından yeniden çizilen sayfalar, bütçe eksikliğinden kuyrukta bırakılan sayfalar, ve görüntünün okuduğu en eski eskimiş sayfanın ne kadar beklediği. Her yerde sıfır, sabit bir sahnenin normal değeridir; gölge atlası olmayan bir motorda `null`.",
       "shadowPagesTotal": "Gezgin açıldığından beri çizilen sayfalar, `flush()` boşaltmaları dahil: bir değişikliğin maliyeti, iki okuma arasındaki farktır.",
       "shadowPagesPending": "Bekleyen gölge sayfaları.",
-      "shadowWaitMs": "Ne kadar süre bekledikleri.",
+      "shadowWaitMs": "Görüntünün okuduğu en eski eskimiş sayfanın yeniden çizilmek için kaç milisaniye beklediği. Yalnızca görüntünün onu okuduğu süre sayılır; yeniden çizilince 0.",
       "gpuLightListsMs": "Işık listelerinin GPU süresi.",
       "gpuShadowsMs": "Gölgelerin GPU süresi.",
       "gpuShadowCullMs": "Bir karenin çizdiği gölge sayfalarının gölge düşürenlerini seçmenin GPU süresi: ışık kesimi, sayfa başına ayıklama ve hareketli gölge düşürenlerin okuduğu piramitlerle örtme testi.",
@@ -4773,7 +4783,17 @@
   },
   "createPageStreamer": {
     "summary": "Sınırlı, önceliklendirilmiş ve tekilleştirilmiş okumalar.",
-    "description": "Kuyrukta hâlâ bekleyen bir istek, son tüketicisi ayrılır ayrılmaz düşürülür; zaten aktarılmakta olan birinin önbelleğe inmesine izin verilir. Önbellek, hem girdiler hem de baytlarla sınırlanmış, en son kullanılan en az olan bir kümedir; sabitlenmiş girdiler tahliyeden kurtulur, bu yüzden bir çağıran, onu tutarak görüntülenen kapsamasını korur."
+    "description": "Kuyrukta hâlâ bekleyen bir istek, son tüketicisi ayrılır ayrılmaz düşürülür; zaten aktarılmakta olan birinin önbelleğe inmesine izin verilir. Önbellek, hem girdiler hem de baytlarla sınırlanmış, en son kullanılan en az olan bir kümedir; sabitlenmiş girdiler tahliyeden kurtulur, bu yüzden bir çağıran, onu tutarak görüntülenen kapsamasını korur.",
+    "parameters": {
+      "options": "Bir sayfa akışının nasıl okuduğu (`createPageStreamer`). Önbelleği, sayfalarının yanında bildirim tablolarını ve aktarım kuyruğunu ayırır; her üyenin varsayılan değeri vardır.",
+      "options.signal": "İptal edildiğinde tüm okumaları durdurur.",
+      "options.workerCount": "Aynı anda çalışan okumalar; varsayılan 8.",
+      "options.maxPages": "Aynı anda tutulan en fazla sayfa; yoksa yalnızca baytlarla sınırlanır.",
+      "options.onEvict": "Önbellekten çıkan her sayfayı duyar.",
+      "options.maxTransferBytes": "Aktarım kuyruğunun tutabileceği bayt; varsayılan 8 MiB.",
+      "options.onDiagnostic": "Her okumanın her adımını duyar.",
+      "options.maxCachedBytes": "Önbellek sayfalarının tutabileceği CPU belleği baytı; bildirim tabloları ve aktarım kuyruğu bunun üstüne ayrılır; varsayılan 256 MiB."
+    }
   },
   "createPathGovernor": {
     "summary": "Bir regülatör."
@@ -6925,7 +6945,7 @@
   },
   "world.beforeFrame": {
     "summary": "`{ delta, time }` ile, çizilen her kareden önce bir fonksiyon çalıştırır; kaldırıcısını döndürür.",
-    "description": "Dünyanın döngüsünün bir karesi çalışır: kontrolcü kamerayı ilerletir (`controls.autoUpdate` yanlış olmadıkça), klipler ilerler, bu kancalar eklendikleri sırada, sahne yazılır ve çizilir, sonra `onFrame` kancaları. Bir kancanın yerleştirdiği şey — kameradaki bir gövde, bir kokpit — tam olarak bu karede çizilir, asla bir geç kalmışta değil. Host güdümlü bir `render()` de onları çalıştırır ama hiçbir kontrolcüyü ilerletmez. `invalidate()`'i çağıran bir kanca karelerin gelmeye devam etmesini sağlar.",
+    "description": "Bir kare çalışır: kameranın kontrolcüsü (`controls.autoUpdate` yanlış olmadıkça ya da host yönetmedikçe, `render()`), klipler, fizik, bu kancalar kendi sıralarında, çizim, sonra `onFrame` kancaları. Bir kancanın yerleştirdiği şey — kameradaki bir gövde, bir kokpit — tam olarak bu karede çizilir, asla bir kare geç değil. `invalidate()`'i çağıran bir kanca karelerin gelmeye devam etmesini sağlar.",
     "returns": "Kancayı durduran bir fonksiyon.",
     "parameters": {
       "hook": "Çalıştırılacak fonksiyon; az önce entegre edilen saniyeleri ve dünyanın zamanını alır."

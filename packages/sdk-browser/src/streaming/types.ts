@@ -34,6 +34,25 @@ export interface StreamPage {
   /** Fingerprint of its bytes. */
   sha256: string;
 }
+/** How a page streamer reads (`createPageStreamer`). Beside its pages, its cache reserves its
+ *  manifest tables and its transfer queue; every member has a default. */
+export interface PageStreamerOptions {
+  /** Cancels every read once aborted. */
+  signal?: AbortSignal;
+  /** Reads running at once; 8 by default. */
+  workerCount?: number;
+  /** Most pages held at once; bounded by bytes only when absent. */
+  maxPages?: number;
+  /** Hears each page that leaves the cache. */
+  onEvict?: (url: string) => void;
+  /** Bytes the transfer queue may hold; 8 MiB by default. */
+  maxTransferBytes?: number;
+  /** Hears each step of every read. */
+  onDiagnostic?: (diagnostic: BackendDiagnostic) => void;
+  /** Bytes of CPU memory the cache's pages may hold, its manifest tables and transfer queue
+   *  reserved on top; 256 MiB by default. */
+  maxCachedBytes?: number;
+}
 export type Job = {
   url: string;
   priority: number;

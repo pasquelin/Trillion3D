@@ -1,5 +1,5 @@
 import { dropGpuSelection, dropVis } from './drops.ts';
-import { disposeBackdrop } from '../../transparent/transmission.ts';
+import { releaseTargets } from '../prepare/targets.ts';
 import { dropBlendBuffers } from '../../blend/buffers.ts';
 import { disposeBlendResources } from '../../blend/resources.ts';
 import { directLightTimings } from '../../../stage/mapping.ts';
@@ -114,7 +114,7 @@ export function metricsOf(rt: WebgpuPagesRuntime) {
 
 /** Releases every GPU resource and the scene; the trace queue is drained before the promise settles. */
 export function disposeWebgpuPages(rt: WebgpuPagesRuntime) {
-  const { gpu, vis, capture, timing, blendState, services } = rt,
+  const { gpu, capture, timing, blendState, services } = rt,
     { scene, pagedBlendCopies } = rt.setup;
   // Disposed, it presents nothing any more: the same withdrawal as a loss, surface included.
   markWebgpuLost(rt);
@@ -123,12 +123,7 @@ export function disposeWebgpuPages(rt: WebgpuPagesRuntime) {
   timing.gpuTiming?.dispose();
   dropGpuSelection(rt);
   dropVis(rt);
-  vis.visTexture?.destroy();
-  vis.visTexture = undefined;
-  vis.visView = undefined;
-  vis.materialDepthTexture?.destroy();
-  vis.materialDepthTexture = undefined;
-  vis.materialDepthView = undefined;
+  releaseTargets(rt);
   for (const buffer of gpu.positionBuffers.values()) buffer.destroy();
   dropBlendBuffers(gpu);
   gpu.vertexBytes = 0;
@@ -146,12 +141,6 @@ export function disposeWebgpuPages(rt: WebgpuPagesRuntime) {
   gpu.uniformBuffer = undefined;
   gpu.volumeBuffer?.destroy();
   gpu.volumeBuffer = undefined;
-  gpu.colorTexture?.destroy();
-  gpu.depthTexture?.destroy();
-  gpu.hdrTexture?.destroy();
-  gpu.feedbackTexture?.destroy();
-  disposeBackdrop(gpu);
-  gpu.surfaces?.dispose();
   capture.surfaceCapture?.dispose();
   gpu.deferred?.dispose();
   gpu.temporal?.dispose();

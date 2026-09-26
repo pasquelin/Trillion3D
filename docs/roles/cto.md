@@ -17,7 +17,7 @@ exchange with the boss, at most one rules pull request every two hours.
    the role's skill (the Skill column of `docs/COMPANY.md`) and carries the brief of
    `skills/t3d-cto` step 3. The boss opens the sessions; the CTO starts none itself. A session
    that ends gets a fresh prompt from the CTO for the rest of its list (state lives in labels).
-3. **Supervision**, every 30 minutes: each lead within AGENTS.md §Leads; one lead per issue;
+3. **Supervision**, every 10 minutes: each lead within AGENTS.md §Leads; one lead per issue;
    merged pull requests close their issue; the audit-ko rate per lead stays under 1 in 10, or the
    lead gets a second reviewer, then is stopped.
 4. **Decisions.** The CTO decides technique (the published reference solution, never an image

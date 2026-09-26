@@ -5,7 +5,7 @@ import { PRIORITY_VISIBLE } from '../../streaming/priority.ts';
 import type { RenderBackend } from '../../backend/types.ts';
 import type { ExplorerHostState } from '../render/hostState.ts';
 import type { ExplorerSession } from '../session/session.ts';
-import type { createPageStreamer } from '../../streaming/pages.ts';
+import type { createPageStreamer } from '../../streaming/pageStreamer.ts';
 
 type Inputs = {
   streamer: ReturnType<typeof createPageStreamer>;

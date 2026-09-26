@@ -4,15 +4,13 @@ import { resolve } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { startServer } from '../../kit/server/staticServer.ts';
 import { launchChrome } from '../../../bench/runner/chrome.ts';
-import { openGalleryScene, sdkMounts } from '../support/renderHarness.ts';
+import { galleryMounts, openGalleryScene } from '../support/renderHarness.ts';
 import { measureOutput } from '../../../bench/core/paths.ts';
 
 const root = resolve(import.meta.dirname, '../../..'),
   output = measureOutput('mountain-terrain');
 await mkdir(output, { recursive: true });
-const { server, port } = await startServer({
-  mounts: [...sdkMounts(root), { prefix: '/site/', dir: resolve(root, 'site') }],
-});
+const { server, port } = await startServer({ mounts: galleryMounts(root) });
 const browser = await launchChrome({ headless: true }),
   errors: string[] = [];
 try {
@@ -26,7 +24,7 @@ try {
     id: 'terrain-proof',
     width: 900,
     height: 620,
-    manifestUrl: '/site/assets/gallery/offline/terrain/cache/native/full/manifest.json',
+    folder: 'tests/fixtures/scenes/mountain-terrain',
     texturePoolBytes: 64 * 1024 * 1024,
     position: [10.5, 8.2, 12.5],
     target: [0, 1.1, 0],

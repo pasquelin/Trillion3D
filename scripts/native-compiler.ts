@@ -5,6 +5,7 @@
  * refused while older than its sources) — and one triangle budget for every full cache.
  */
 import { spawnSync, type StdioOptions } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import { currentCompilerExecutable } from '../packages/sdk-node/src/compiler/process.mts';
 
 /** The triangle budget of a `full` cache, the one every published and measured scene uses. */
@@ -12,6 +13,13 @@ export const TRIANGLE_BUDGET = '150000';
 
 /** The compiler a cook runs; a cook asks first, so a stale build is refused before it writes. */
 export const nativeCompiler = () => currentCompilerExecutable();
+
+/** The compiler a cook runs, refused when it is not built. */
+export function requireNativeCompiler(): void {
+  const compiler = nativeCompiler();
+  if (!existsSync(compiler))
+    throw new Error(`native compiler absent: ${compiler} — run \`pnpm run build:native\``);
+}
 
 /** One `full` compile of `source` into `cache`, both relative to `cwd`. */
 export interface FullCompile {
