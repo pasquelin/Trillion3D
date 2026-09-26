@@ -8,7 +8,6 @@
 import type { HostTexture } from './resources.ts';
 import {
   HOST_FILTER_LINEAR_MIP_LINEAR,
-  HOST_FORMAT_RGBA,
   HOST_FILTER_LINEAR_MIP_NEAREST,
   HOST_FILTER_NEAREST,
   HOST_FILTER_NEAREST_MIP_LINEAR,
@@ -18,7 +17,6 @@ import {
 } from './surfaceConstants.ts';
 import type { Texture, TextureFilter, WrapMode } from '../../../sdk-core/src/index.ts';
 import { AFFINE } from '../../../sdk-core/src/texture/contract.ts';
-import { texelsReason } from '../visibility/types.ts';
 
 /** Addressing the host declared, in the engine's words; anything else repeats, as the samplers do. */
 export function importWrapMode(wrap: number): WrapMode {
@@ -194,11 +192,8 @@ export function followHostTexture(record: Texture) {
   if (fillPlacement(host, entry.placed)) into.placement++;
 }
 
-/** Why the texels a record holds in memory cannot be read as `textureRgba` reads them, in
- *  `texelsReason`'s words: its host's format for raw texels, RGBA for any other picture. The
- *  WebGPU fill throws it (#43), as the WebGL2 gate refuses the host by `texelsReason`. */
-export function texelsRefusal(record: Texture) {
+/** Format its host declares for a record's raw texels; `undefined` for any other picture. */
+export function texelFormatOf(record: Texture) {
   const host = byRecord.get(record)?.host;
-  const format = host?.kind === 'texels' ? host.format : HOST_FORMAT_RGBA;
-  return texelsReason({ format, image: record.image });
+  return host?.kind === 'texels' ? host.format : undefined;
 }
