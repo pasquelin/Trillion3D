@@ -23,7 +23,7 @@ export function engineSources(): string[] {
   const folders = readdirSync(outDir).filter((name) => existsSync(resolve(rootDir, name)));
   return folders.flatMap((name) =>
     readdirSync(resolve(rootDir, name), { recursive: true, encoding: 'utf8' })
-      .filter((file) => /\.m?ts$/.test(file) && !/\.(test|fixture|d)\.ts$/.test(file))
+      .filter((file) => /\.m?ts$/.test(file) && !/\.(test|fixture|d)\.m?ts$/.test(file))
       .map((file) => resolve(rootDir, name, file)),
   );
 }
