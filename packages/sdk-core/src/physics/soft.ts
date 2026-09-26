@@ -192,7 +192,7 @@ function spreadMass(vertices: Float32Array, indices: number[], count: number, s:
     for (let i = 0; i + 1 < count; i++) whole += share([i, i + 1], Math.hypot(...d(i, i + 1)));
   for (let t = 0; t < indices.length; t += 3) {
     const [a, b, c] = [indices[t], indices[t + 1], indices[t + 2]];
-    const [u, v] = [d(a, b), d(a, c)];
+    const [u, v] = [d(a, b), d(a, c)]; // Fresh arrays: the cross is written into `u`.
     whole += share([a, b, c], Math.hypot(...crossVector3(u, u, v)) / 2);
   }
   if (!(whole > 0)) throw new EngineError('PHYSICS_FAILED', 'A soft body has no area or length.');
