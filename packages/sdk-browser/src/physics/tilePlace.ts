@@ -46,7 +46,7 @@ const place = new Matrix4(),
 
 /** The bytes of a cooked object beside `model`'s manifest — a tile, a soft body's settings —
  *  read as every cache file is (`checked`, in `tries` requests), until `signal` aborts. */
-export async function cookedBytes(model: Model, url: string, signal: AbortSignal, tries = 2) {
+export async function cookedBytes(model: Model, url: string, signal: AbortSignal, tries?: number) {
   const response = await checked(new URL(url, model.record.base).href, signal, tries);
   return new Uint8Array(await response.arrayBuffer());
 }
