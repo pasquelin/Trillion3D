@@ -25,16 +25,13 @@ const ORIGIN = [0, 0, 0] as const;
  *   projection the record no longer holds. The floor is drawn first (`admit.ts`); a face whose
  *   floor the frame cannot draw reads no shadow.
  * - **An object moved within its reach**: in each light view — a sun level, a lamp face at a
- *   mip —, the rectangle of pages its box covers, read through the page table: the work is the
- *   pages covered, never the pool; a box covering more entries than the pool holds pages scans
- *   the pool once against its own rectangles instead. Either way it stales its own pages alone,
- *   never a neighbour's. A light examines at most as many pages as it has virtual pages
- *   (`tableEntriesOf`) — past that, its boxes can only cover its entries again —: the boxes
- *   beyond join one union per kind, static layer wrong or kept, each read by one pool scan. A
- *   static caster that moved makes the static layer of those pages wrong: they are read no more
- *   until redrawn. An object already moving stales only their moving casters: the static layer
- *   under them holds, and they stay read. With per-page invalidation off, every page of each
- *   light the box touches.
+ *   mip —, exactly the pages its box covers, never a neighbour's: the entries walked through the
+ *   page table, or, when they outnumber the pool's pages, one pool scan against its rectangles.
+ *   A light examines at most its virtual pages (`tableEntriesOf`) — past that its boxes cover its
+ *   entries again —: the boxes beyond join one union per kind, each read by one pool scan. A
+ *   static caster that moved withdraws those pages until redrawn; one already moving stales only
+ *   their moving casters, and the static layer under them stays read. With per-page
+ *   invalidation off, every page of each light the box touches.
  * - **The representation changed** (the released union of `changes.ts`): the same pages, stale for
  *   detail only — their depth is coarser than the cut, not wrong, and stays read until redrawn.
  *
