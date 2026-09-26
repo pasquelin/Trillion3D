@@ -14,21 +14,19 @@ test('a record is the particle as the GPU keeps it: position, age zero, velocity
   assert.deepEqual({ ...pool.flush() }, { first: 0, count: 1, dt: 0.01 });
 });
 
-test('the ring wraps: emission past capacity takes the oldest slots again', () => {
+test('the ring wraps past capacity onto the oldest slots, and allocates nothing after creation', () => {
   const pool = new ParticlePool({ capacity: 8, emitPerFrame: 4 });
-  const firsts = [];
+  const staging = pool.staging,
+    step = pool.flush(),
+    slots = [];
   for (const n of [4, 4, 3, 2]) {
     emitMany(pool, n);
-    const { first, count } = pool.flush();
-    firsts.push([first, count]);
+    assert.equal(pool.flush(), step, 'the same step object every image');
+    slots.push(`${step.first}+${step.count}`);
   }
   // Slots 0..3, 4..7, then 0..2 overwrite the first image's particles, then 3..4.
-  assert.deepEqual(firsts, [
-    [0, 4],
-    [4, 4],
-    [0, 3],
-    [3, 2],
-  ]);
+  assert.deepEqual(slots, ['0+4', '4+4', '0+3', '3+2']);
+  assert.equal(pool.staging, staging, 'the same staging');
   assert.equal(pool.emitted, 13);
 });
 
@@ -41,20 +39,9 @@ test('a full staging refuses and counts; the step clamps its time and consumes i
   assert.deepEqual({ ...pool.flush() }, { first: 2, count: 0, dt: 0 }, 'nothing twice');
 });
 
-test('nothing is allocated after creation: the same staging and the same step every image', () => {
-  const pool = new ParticlePool({ capacity: 64 });
-  assert.equal(pool.emitPerFrame, 64, 'the default never exceeds the capacity');
-  const staging = pool.staging,
-    step = pool.flush();
-  for (let image = 0; image < 10; image++) {
-    emitMany(pool, 5);
-    assert.equal(pool.flush(), step);
-  }
-  assert.equal(pool.staging, staging);
-});
-
 test('a pool out of bounds is refused by name', () => {
   assert.throws(() => new ParticlePool({ capacity: 0 }), /^Error: PARTICLE_CAPACITY/);
+  assert.equal(new ParticlePool({ capacity: 64 }).emitPerFrame, 64, 'the default, at most it');
   assert.throws(
     () => new ParticlePool({ capacity: 4, emitPerFrame: 5 }),
     /^Error: PARTICLE_EMISSION/,

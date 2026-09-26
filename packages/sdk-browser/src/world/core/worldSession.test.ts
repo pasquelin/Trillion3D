@@ -17,13 +17,11 @@ test('world.awaitPages waits for the scene, then for pages alone, never an image
 });
 
 test('attachParticles gives the pool to every session and the frames the world draws (#420)', () => {
-  const hooks = new Set<(frame: BeforeFrameInfo) => void>();
+  type Hook = (frame: BeforeFrameInfo) => void;
+  const hooks = new Set<Hook>();
   let asked = 0;
   const world = {
-    beforeFrame: (hook: (frame: BeforeFrameInfo) => void) => (
-      hooks.add(hook),
-      () => void hooks.delete(hook)
-    ),
+    beforeFrame: (hook: Hook) => (hooks.add(hook), () => hooks.delete(hook)),
     invalidate: () => void asked++,
   } as unknown as World;
   const held = { particles: [] as ParticlePool[] };
