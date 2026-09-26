@@ -94,10 +94,10 @@ export function createPhysicsJoints(
         if (out(joint.a) || out(joint.b)) joint._break();
         else if (!joint.broken && !made.has(joint)) connect(joint);
     },
-    /** `mesh`'s body leaves the simulation for good (asleep decorative): each joint made on it
-     *  breaks now, one added later at the next `reconcile`. */
-    retired(mesh: Bodied) {
-      gone.add(mesh.physics);
+    /** The body made with `physics` (not one the page set since) leaves the simulation for good,
+     *  asleep decorative: each joint made on it breaks now, one added later at `reconcile`. */
+    retired(physics: Bodied['physics'] | null) {
+      if (physics) gone.add(physics);
       for (const joint of made.keys()) if (out(joint.a) || out(joint.b)) snap(joint);
     },
     /** The joints the simulation broke, by id: out, and told. */
