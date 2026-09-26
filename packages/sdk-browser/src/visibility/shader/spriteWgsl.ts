@@ -74,11 +74,18 @@ export const CASTS_NO_SHADOW = SPRITE_ROOT | SHADOWLESS_ROOT;
 /** `mark` with its shadowless bit set when `shadowless`, cleared otherwise. */
 export const withShadowless = (mark: number, shadowless: boolean) =>
   shadowless ? mark | SHADOWLESS_ROOT : mark & ~SHADOWLESS_ROOT;
+/** Sets or clears `root`'s shadowless bit; true when its mark changed. */
+export function markShadowless(root: { mark?: number }, shadowless: boolean) {
+  const before = root.mark ?? 0,
+    mark = withShadowless(before, shadowless);
+  root.mark = mark || undefined;
+  return mark !== before;
+}
 
 /**
- * THE SPRITE ROOT MARK: what a root carries of its surface, set once at collection and carried to
- * every cut — `ClusterRoot.mark`, `DagRoot.mark`, `PackedDag.mark`, then the GPU cut's frame word
- * (`markOf`). 0 on any surface that draws no sprite.
+ * THE SPRITE BITS of a root's mark: what a root carries of its surface, set at collection and
+ * carried to every cut — `ClusterRoot.mark`, `DagRoot.mark`, `PackedDag.mark`, then the GPU cut's
+ * frame word (`markOf`) — beside its shadowless bit. 0 on any surface that draws no sprite.
  */
 export const spriteMark = (surface: Pick<VisMaterial, 'sprite'> | undefined) =>
   !surface?.sprite ? 0 : SPRITE_ROOT | (neverCulled(surface) ? SPRITE_UNCULLED : 0);

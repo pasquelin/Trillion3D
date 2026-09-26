@@ -81,23 +81,13 @@ test('a root mark written once per change reaches the frame word the light cut r
   installGpuGlobals();
   const fixture = dagFixture();
   const { dag, roots } = packed(fixture);
-  const { device } = mockDagDevice(dag);
-  const queue = device.queue as unknown as { writeBuffer: (...args: unknown[]) => void },
-    written = queue.writeBuffer,
-    words: [number, number][] = [];
-  queue.writeBuffer = (buffer, offset, data, dataOffset, size) => {
-    if (size === 4)
-      words.push([
-        (offset as number) / 4,
-        new Uint32Array(data as ArrayBuffer)[(dataOffset as number) / 4],
-      ]);
-    written.call(queue, buffer, offset, data, dataOffset, size);
-  };
+  const { device, words } = mockDagDevice(dag);
   const selection = await createGpuDagSelection(device, dag);
   assert.ok(selection);
   selection.dispatch(kernelUniforms(dag, roots, wideCamera(), 0));
   await selection.flush();
   const at = primitiveWordAt(0) + 3;
+  words.length = 0;
   for (const mark of [SHADOWLESS_ROOT, SHADOWLESS_ROOT, 0]) selection.markWorld(0, mark);
   assert.deepEqual(
     words,
