@@ -17,7 +17,7 @@ mod boxes;
 pub(super) mod pages;
 pub(super) mod split;
 use boxes::{grow, mesh_boxes, world_box, EMPTY};
-use pages::{write_pages, PAGE_BYTES};
+use pages::write_pages;
 use split::{split_cells, Placed, Region};
 
 /// A box, `[minX, minY, minZ, maxX, maxY, maxZ]`.
@@ -196,5 +196,5 @@ fn write_cells(cells: Vec<Vec<Placed>>, tree: &Region, directory: &Path) -> Resu
         records.push(json!({"url": written.name, "sha256": written.sha256, "bytes": written.bytes, "parents": parents, "meshes": counts.into_iter().collect::<Vec<_>>()}));
         bounds.push(union);
     }
-    write_pages(tree, &records, &bounds, directory, PAGE_BYTES)
+    write_pages(tree, &records, &bounds, directory)
 }
