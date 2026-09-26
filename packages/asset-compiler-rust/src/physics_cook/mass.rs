@@ -42,10 +42,17 @@ pub(super) fn solid_mass(
             "Mesh {mesh} is not closed: it bounds no volume to weigh."
         )));
     }
+    let at = |i: u32| [0, 1, 2].map(|k| pos[i as usize * 3 + k] as f64 * scale[k]);
+    // Tetrahedra spanned from a corner of the mesh, not the mesh's origin: a mesh far from its
+    // origin would otherwise sum huge moments that cancel, losing the inertia to rounding.
+    let origin = at(triangles[0]);
     let (mut volume, mut spanned) = (0.0, 0.0);
     let (mut first, mut second) = ([0.0; 3], [[0.0; 3]; 3]);
     for t in triangles.as_chunks::<3>().0 {
-        let [a, b, c] = t.map(|i| [0, 1, 2].map(|k| pos[i as usize * 3 + k] as f64 * scale[k]));
+        let [a, b, c] = t.map(|i| {
+            let p = at(i);
+            [0, 1, 2].map(|k| p[k] - origin[k])
+        });
         let det = dot(a, cross(b, c));
         let sum = [0, 1, 2].map(|k| a[k] + b[k] + c[k]);
         (volume, spanned) = (volume + det / 6.0, spanned + det.abs() / 6.0);
@@ -65,13 +72,14 @@ pub(super) fn solid_mass(
     // A mesh wound inward, or mirrored by its scale, sums every integral negated.
     let sign = volume.signum();
     let mass = DENSITY * volume * sign;
-    let centre = first.map(|f| f / volume);
+    let local = first.map(|f| f / volume);
     // Second moments about the centre, then the inertia tensor: trace times identity, less them.
-    let about = |r: usize, q: usize| DENSITY * sign * second[r][q] - mass * centre[r] * centre[q];
+    let about = |r: usize, q: usize| DENSITY * sign * second[r][q] - mass * local[r] * local[q];
     let trace = about(0, 0) + about(1, 1) + about(2, 2);
     let inertia: Vec<f64> = (0..9)
         .map(|k| (k / 3, k % 3))
         .map(|(c, r)| if r == c { trace } else { 0.0 } - about(r, c))
         .collect();
+    let centre = [0, 1, 2].map(|k| local[k] + origin[k]);
     Ok(json!({"mass":mass,"centerOfMass":centre,"inertia":inertia}))
 }

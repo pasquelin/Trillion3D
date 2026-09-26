@@ -61,12 +61,12 @@ fn mesh_triangles(g: &Value, bin: &[u8], mesh: usize) -> Result<(Vec<f32>, Vec<u
 }
 
 /// The cooked hull of mesh `mesh`, in its frame or moved by `frame` into the body's, with the
-/// exact `mass` of the solid it bounds at the body's `scale`.
+/// exact `mass` of the solid it bounds at the body's scale when `weigh` names it.
 pub(super) fn cooked_hull(
     o: &Options,
     (g, bin): (&Value, &[u8]),
     (mesh, frame): (usize, Option<Mat4>),
-    scale: [f64; 3],
+    weigh: Option<[f64; 3]>,
 ) -> Result<Value> {
     let (mut pos, triangles) = mesh_triangles(g, bin, mesh)?;
     if let Some(m) = frame {
@@ -74,9 +74,13 @@ pub(super) fn cooked_hull(
             *p = transform_point(&m, p.map(f64::from)).map(|v| v as f32);
         }
     }
-    let mass = solid_mass(&pos, &triangles, scale, mesh)?;
+    let mass = weigh
+        .map(|scale| solid_mass(&pos, &triangles, scale, mesh))
+        .transpose()?;
     let mut shape = store_shape(o, &hull_shape(&compact_region(&pos, &triangles).0)?)?;
     shape["type"] = json!("cooked");
-    shape["mass"] = mass;
+    if let Some(mass) = mass {
+        shape["mass"] = mass;
+    }
     Ok(shape)
 }
