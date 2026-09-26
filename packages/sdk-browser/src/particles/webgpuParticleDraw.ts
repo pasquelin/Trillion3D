@@ -43,12 +43,6 @@ struct Out { @builtin(position) at: vec4f, @location(0) corner: vec2f, @location
   return vec4f(draw.color.rgb * k, select(0.0, k, premultiplied));
 }`;
 
-/** What each blend keeps of the image under it, colour and alpha alike (fire writes no alpha). */
-const KEPT: Record<ParticleBlend, GPUBlendFactor> = {
-  additive: 'one',
-  premultiplied: 'one-minus-src-alpha',
-};
-
 type DrawState = { words: GPUBuffer; group?: GPUBindGroup; state?: GPUBuffer; depth?: object };
 
 /** The WebGPU particle draw: one pass over the lit image, one instanced draw per live pool
@@ -75,7 +69,10 @@ export function createWebgpuParticleDraw(
       const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] });
       return Promise.all(
         PARTICLE_BLENDS.map(async (blend) => {
-          const factor = { srcFactor: 'one', dstFactor: KEPT[blend] } as const;
+          // What the blend keeps of the image, colour and alpha alike (fire writes no alpha).
+          const premultiplied = blend === 'premultiplied',
+            dstFactor = premultiplied ? 'one-minus-src-alpha' : 'one',
+            factor = { srcFactor: 'one', dstFactor } as const;
           pipelines[blend] = await device.createRenderPipelineAsync({
             label: `${PARTICLE_DRAW_PASS} ${blend}`,
             layout: pipelineLayout,
@@ -83,7 +80,7 @@ export function createWebgpuParticleDraw(
             fragment: {
               module,
               entryPoint: 'fs',
-              constants: { premultiplied: blend === 'premultiplied' ? 1 : 0 },
+              constants: { premultiplied: premultiplied ? 1 : 0 },
               targets: [{ format: 'rgba16float', blend: { color: factor, alpha: factor } }],
             },
           });
