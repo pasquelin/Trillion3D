@@ -38,6 +38,7 @@ export function attachParticles(world: World, pool: ParticlePool) {
     for (const stop of stops) stop();
     const at = pools.indexOf(pool);
     if (at >= 0) pools.splice(at, 1);
+    world.invalidate(); // the next image gives the pool's buffers back
   };
 }
 
