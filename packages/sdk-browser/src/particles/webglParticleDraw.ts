@@ -47,8 +47,7 @@ layout(location = 0) out vec4 fragColor; layout(location = 1) out vec4 untoned;
 ${OUTPUT_TRANSFER_GLSL}
 void main() {
   float d = texelFetch(sceneDepth, ivec2(gl_FragCoord.xy), 0).r;
-  vec2 size = vec2(textureSize(sceneDepth, 0));
-  vec4 scene = m[1] * vec4(gl_FragCoord.xy / size * 2. - 1., d * 2. - 1., 1.);
+  vec4 scene = m[1] * vec4(gl_FragCoord.xy / vec2(textureSize(sceneDepth, 0)) * 2. - 1., d * 2. - 1., 1.);
   float behind = distance(scene.xyz / scene.w, look[0].xyz) - distance(local, look[0].xyz);
   float soft = abs(scene.w) > 1e-20 ? clamp(behind / look[2].x, 0., 1.) : 1.;
   float k = clamp(1. - dot(corner, corner), 0., 1.) * soft * life * look[1].a;
@@ -159,6 +158,8 @@ export function createWebglParticleDraw(
       return draws;
     },
     refused: () => held.alive() && !!held.current()?.refused,
+    /** Bytes of the frame's depth copy, none before the first. */
+    bytes: () => (held.alive() ? held.current()!.width * held.current()!.height * 4 : 0),
     dispose: held.dispose,
   };
 }

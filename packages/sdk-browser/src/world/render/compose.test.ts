@@ -130,9 +130,11 @@ test('WebGL2 steps the pools ahead of the engine, which draws an image they move
   compose(backend, null);
   compose(backend, null);
   assert.equal(outputs.length, 1, 'an idle pool: the kept frame is put back');
+  assert.equal(compose.effectBytes(), 0, 'no particle drawn: no depth copy counted');
   pool.emit(0, 0, 0, 0, 1, 0, 2);
   compose(backend, null);
   assert.equal(outputs.length, 2, 'a moving one: the engine draws');
+  assert.equal(compose.effectBytes(), 8 * 4 * 4, "the 8 × 4 frame's depth copy, 4 bytes a texel");
   const drawn = names().lastIndexOf('drawArrays');
   assert.ok(drawn >= 0 && drawn < names().lastIndexOf('clear'), 'the step first');
   const bound = calls.slice(drawn).find((call) => call.name === 'viewport')?.args;

@@ -1,8 +1,4 @@
-import {
-  PARTICLE_BLENDS,
-  type ParticleBlend,
-  type ParticlePool,
-} from '../../../sdk-core/src/fluids/particles.ts';
+import { PARTICLE_BLENDS, type ParticlePool } from '../../../sdk-core/src/fluids/particles.ts';
 import { createCheckedShaderModule } from '../gpu/core/shaderModule.ts';
 import { DISC_CORNERS, DRAW_FLOATS, drawOrder, writeDrawWords } from './drawWords.ts';
 import { refuseAll, usedSlots } from './poolStates.ts';
@@ -61,7 +57,7 @@ export function createWebgpuParticleDraw(
       { binding: 2, visibility: FRAGMENT, texture: { sampleType: 'depth' } },
     ],
   });
-  const pipelines: Partial<Record<ParticleBlend, GPURenderPipeline>> = {};
+  const pipelines: Partial<Record<ParticlePool['blend'], GPURenderPipeline>> = {};
   let failed = false;
   createCheckedShaderModule(device, PARTICLE_DRAW_WGSL, 'PARTICLE_DRAW')
     .then((module) => {
