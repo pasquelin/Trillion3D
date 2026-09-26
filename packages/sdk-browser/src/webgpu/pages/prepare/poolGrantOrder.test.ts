@@ -27,7 +27,7 @@ function granting(
   const { during, after = () => {}, pool = GEOMETRY } = options;
   installGpuGlobals();
   let first = true;
-  const gpu = refusing(pool[0], pool[1], (raise) => {
+  const gpu = refusing(...pool, (raise) => {
     (first ? during : after)(raise);
     first = false;
   });

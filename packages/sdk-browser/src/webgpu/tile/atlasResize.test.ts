@@ -94,43 +94,44 @@ test('a tile from a vanished layer is moved into a free slot â€” queues first â€
   assert.equal(resident.get(tileId({ slot: 0, level: 0, tx: 5, ty: 0 })), 5, 'not moved');
 });
 
-// Behaviour (#726): a pool shrunk to its floor keeps every tail: a streamed tile gives its place
-// to a tail of a vanished layer, and its coarse level takes over; nothing throws.
-test('a tail of a vanished layer takes the place of a streamed tile when none is free', () => {
+// Behaviour (#726): a shrink tells each texture it evicts a tile of, for whoever reads it to
+// follow; a tail it would displace, which only a pool drawn under its floor holds, refuses by name.
+test('a shrink tells the texture of each tile it evicts, and never clears a tail as a tile', () => {
   const { gpu } = textureDevice();
-  const pool = createWebgpuTilePool(gpu, { ...options, layers: 2 });
-  const [cleared, tails]: number[][] = [[], []];
+  const cleared: number[] = [];
   const pages = {
-    setTail: (slot: number) => tails.push(slot),
+    setTail() {},
     setTile() {},
     clearTile: (key: { tx: number }) => cleared.push(key.tx),
   };
+  const pool = createWebgpuTilePool(gpu, { ...options, layers: 2 });
   const resident = new Map<number, number>();
-  for (let index = 0; index < TILES_PER_LAYER; index++) {
-    const id = tileId({ slot: 0, level: 0, tx: index % 256, ty: index >> 8 });
-    pool.adopt(index, id, TILES_PER_LAYER - index);
+  for (let index = 0; index < TILES_PER_LAYER + 2; index++) {
+    const id = tileId({
+      slot: index < TILES_PER_LAYER ? 0 : 1,
+      level: 0,
+      tx: index % 256,
+      ty: index >> 8,
+    });
+    pool.adopt(index, id, 1);
     resident.set(id, index);
   }
-  pool.adopt(TILES_PER_LAYER, tailId(0), 0, true);
-  pool.adopt(TILES_PER_LAYER + 1, tailId(1), 0, true);
   const heard: number[] = [];
   const shrunk = { ...options, layers: 1 };
   const result = resizeTileAtlas(gpu, shrunk, 0, pool, pages as never, resident, (slot) =>
     heard.push(slot),
   );
-  assert.deepEqual(tails, [0, 1], 'both tails are placed');
-  assert.deepEqual(heard, [0, 0], 'the texture of each tile evicted hears it');
-  assert.equal(result.evicted, 2, 'two streamed tiles gave their place');
-  assert.equal(result.pool.resident, TILES_PER_LAYER);
-  assert.equal(resident.size, TILES_PER_LAYER - 2);
-  assert.deepEqual(cleared, [899 % 256, 898 % 256], 'the least looked-at first');
-  // A pool drawn under the floor of its tails refuses by name: a tail is never cleared as a tile.
-  const full = createWebgpuTilePool(gpu, { ...options, layers: 2 });
-  for (let slot = 0; slot <= TILES_PER_LAYER; slot++) full.adopt(slot, tailId(slot), 0, true);
+  assert.deepEqual(heard, [1, 1], 'the texture of each tile evicted hears it');
+  assert.equal(result.evicted, 2);
+  assert.equal(cleared.length, 2);
+  assert.equal(resident.size, TILES_PER_LAYER);
+  const under = createWebgpuTilePool(gpu, { ...options, layers: 2 });
+  for (let slot = 0; slot <= TILES_PER_LAYER; slot++) under.adopt(slot, tailId(slot), 0, true);
   assert.throws(
-    () => resizeTileAtlas(gpu, shrunk, 0, full, pages as never, new Map()),
+    () => resizeTileAtlas(gpu, shrunk, 0, under, pages as never, new Map()),
     /TEXTURE_POOL_UNDER_FLOOR/,
   );
+  assert.equal(cleared.length, 2, 'no tail cleared');
 });
 
 test('growing the pool keeps the resident count, and a pool full for the view refuses before any read', () => {

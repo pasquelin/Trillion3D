@@ -46,11 +46,10 @@ export async function grantWebgpuPagesCache(rt: WebgpuPagesRuntime, gpuDevice: G
     budget: () => setup.geometryPool.budgetBytes,
     draw: (asked) => {
       const { bytes, declared } = geometryBudgetBeside(rt, asked);
-      return declared(setup.geometryPoolFor(bytes));
+      return { bytes, declared, pool: declared(setup.geometryPoolFor(bytes)) };
     },
     same: (drawn, pool) => drawn.slots === pool.slots,
-    grant: async (asked) => {
-      const { bytes, declared } = geometryBudgetBeside(rt, asked);
+    grant: async ({ bytes, declared }) => {
       const granted = await grantedGeometryPool(
         gpuDevice,
         bytes,
