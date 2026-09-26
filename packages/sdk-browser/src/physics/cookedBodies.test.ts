@@ -163,7 +163,7 @@ test('a declared kinematic body follows its model; refusals are named; a removed
   const streamed = await streamedModel(file, new Uint8Array(4), { bodies: 1 });
   const { tiles, scene, model, writer, bodies, errors } = streamed;
   assert.deepEqual(errors.map((e) => e.code).sort(), ['PHYSICS_BUDGET', 'PHYSICS_FAILED']);
-  const named = (errors as Error[]).map((e) => e.message).join();
+  const named = (errors as unknown as Error[]).map((e) => e.message).join();
   assert.match(named, /node 1 declares a capsule/);
   const [made] = adds(writer.take());
   const id = made.w[1];
