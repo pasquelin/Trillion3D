@@ -937,6 +937,23 @@
       "spin": "Rotazione"
     }
   },
+  "health-check": {
+    "banner": "Trascina per guardarti intorno. Spunta Guida per prendere l’auto: W o ↑ accelera, S o ↓ frena, A D o ← → sterzano. Lascia cadere fa ricadere casse e palle.",
+    "words": {
+      "credit": "Valle modellata in codice per questo esempio, CC0 — vedi assets/examples/CREDITS.md",
+      "refused": "Rifiutato su questo backend"
+    },
+    "controls": {
+      "drive": "Guida l’auto",
+      "drop": "Lascia cadere di nuovo",
+      "reset": "Parcheggia di nuovo l’auto"
+    },
+    "readouts": {
+      "bodies": "Corpi",
+      "step": "Passo",
+      "renderer": "Disegnato con"
+    }
+  },
   "helpers-to-see-the-scene": {
     "banner": "Trascina per girare intorno. Spegni gli aiuti per vedere l'immagine pulita.",
     "controls": {
