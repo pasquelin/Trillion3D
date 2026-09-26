@@ -9,3 +9,9 @@ export function deviceAnswer(rt: WebgpuPagesRuntime) {
     targets = grantPending(rt.gpu.targetGrant);
   return shadows && targets ? Promise.all([shadows, targets]) : (shadows ?? targets);
 }
+
+/** Whether `deviceAnswer` has an answer in flight, read without allocating: the held frame asks it
+ *  every frame. The same grants, kept side by side. */
+export const deviceAnswering = (rt: WebgpuPagesRuntime) =>
+  grantPending(rt.lights.shadowGrant) !== undefined ||
+  grantPending(rt.gpu.targetGrant) !== undefined;

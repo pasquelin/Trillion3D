@@ -5,8 +5,8 @@ import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 import { shadowsUnsettled } from '../pages/state/lights.ts';
 import { effectsMoved } from '../pages/render/encodeEffects.ts';
 import { guidesMoved } from '../pages/render/encodeGuides.ts';
-import { grantPending } from '../../gpu/core/errorScope.ts';
 import { frameTargetsAwaited } from '../pages/prepare/targetGrant.ts';
+import { deviceAnswering } from './deviceAnswer.ts';
 
 /** What can still change the frame, one bit each; `unsettledReasons` names them. */
 const REASONS = [
@@ -131,13 +131,8 @@ function recordHeldFrameWork(rt: WebgpuPagesRuntime, presented: boolean, submitM
  * would be drawn without it, an incomplete image (#483): it is held instead, showing the previous
  * image or nothing yet, and `pendingWebgpuFrame` asks the next frame once the device answered. So
  * is a frame whose targets the device has not granted (`targetGrant.ts`). A capture is never held:
- * it waited for those answers before it began.
- */
-const answering = (rt: WebgpuPagesRuntime) =>
-  grantPending(rt.lights.shadowGrant) !== undefined ||
-  grantPending(rt.gpu.targetGrant) !== undefined;
-
-/**
+ * it waited for those answers before it began (`deviceAnswering`).
+ *
  * The held frame. No CPU step is executed and nothing is re-encoded: the previous frame's colour
  * target IS this frame, to the bit, since nothing it depends on has moved. It is simply
  * redisplayed.
@@ -150,7 +145,7 @@ const answering = (rt: WebgpuPagesRuntime) =>
 export function holdWebgpuFrame(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const { run, gpu } = rt,
     awaited = frameTargetsAwaited(rt),
-    answered = !answering(rt);
+    answered = !deviceAnswering(rt);
   if ((answered && !awaited) || rt.capture.capturing) {
     // Still frame: nothing it depends on has moved and nothing is in flight. That is the frame
     // input of temporal accumulation, which restarts there in a fixed phase and converges over a
