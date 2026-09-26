@@ -55,6 +55,9 @@ export function createSunLevels() {
     /** Whether the extent of `level` moved at the last update: only its pages may have left. */
     movedLevel: (slice: number, level: number) =>
       ((moved[slice] >> ringOf(level, SUN_LEVELS)) & 1) !== 0,
+    /** First absolute page of `level`'s extent this frame, along `axis`: 0 right, 1 down `up`. */
+    originOf: (slice: number, level: number, axis: number) =>
+      origins[slice * LEVEL_WORDS + ringOf(level, SUN_LEVELS) * 2 + axis],
     /**
      * This frame's clipmap of the sun in `slice`. Returns true when its frame or depth range
      * changed — every map it drew describes another projection.
