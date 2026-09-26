@@ -2307,7 +2307,7 @@
     "summary": "Atlas data: peta metal-roughness, normal dan oklusi."
   },
   "PREVIEW_ATLAS_NAMES": {
-    "summary": "`{kind}` yang dibawa jalur sebuah tingkat yang dipanggang untuk setiap atlas, seperti dinamai `bake.rs`."
+    "summary": "`{kind}` yang dibawa jalur level terpanggang untuk setiap atlas, sebagaimana `reduce.rs` menamainya; rantai cakupan yang dipotong pada byte C menambahkan `-C`."
   },
   "PREVIEW_BASE": {
     "summary": "Sisi terbesar yang boleh dimiliki sebuah tingkat yang dibawa sidecar."
@@ -3758,7 +3758,7 @@
       "sourceKind": "0 saat byte-nya berasal dari uri gambar, 1 saat berasal dari sourceBufferView.",
       "sourceBufferView": "View buffer scene yang disiapkan, atau -1 untuk sumber uri.",
       "sha256": "SHA-256 byte sumber yang diurai.",
-      "atlas": "Rantai yang dibawa entri ini: PREVIEW_ATLAS_COLOR, PREVIEW_ATLAS_DATA, atau PREVIEW_ATLAS_COVERAGE, disampel di atlas warna.",
+      "atlas": "Rantai yang dibawa entri ini: PREVIEW_ATLAS_COLOR, PREVIEW_ATLAS_DATA, atau PREVIEW_ATLAS_COVERAGE, yang disampel di atlas warna, pada byte rendah; byte potong rantai cakupan mengisi bit 8–15.",
       "firstLevel": "Indeks tingkat pertama yang dibawa rantai mip sumbernya; 0 saat sudah muat di bawah PREVIEW_BASE dan sidecar-nya karena itu membawa resolusi penuhnya.",
       "bakedLevels": "Tingkat yang dipanggang jadi berkas di cache, dari 0 sampai bakedLevels - 1; firstLevel saat rantainya lengkap, 0 saat tidak ada yang ditulis dan mesin memuat gambar sumbernya.",
       "levels": "Tingkat yang dibawa berurutan, dari terhalus sampai 1x1, masing-masing sebuah view atas byte sidecar.",

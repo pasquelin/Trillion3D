@@ -40,12 +40,10 @@ export const PREVIEW_ATLAS_COLOR = 0,
   PREVIEW_ATLAS_DATA = 1,
   /** A chain of the colour atlas, for a texture every reader of which takes its alpha for coverage
    *  (the base colour of MASK or BLEND materials only): the one chain whose colours are weighted
-   *  by alpha, named apart from the plain one (`reduce.rs`, `AtlasKind::Coverage`, #42). An entry's
-   *  word carries it in its low byte and its cutoff byte above (#44). */
+   *  by alpha, named apart from the plain one (`reduce.rs`, `AtlasKind::Coverage`, #42). */
   PREVIEW_ATLAS_COVERAGE = 2;
-/** The `{kind}` a baked level's path carries for each atlas word without a cutoff byte, as
- *  `AtlasKind::name` (`reduce.rs`) names them; a coverage chain cut at byte C is
- *  `srgb-coverage-C` (`previewAtlasName`). */
+/** The `{kind}` a baked level's path carries for each atlas, as `reduce.rs` names them; a coverage
+ *  chain cut at byte C adds `-C`. */
 export const PREVIEW_ATLAS_NAMES = ['srgb', 'linear', 'srgb-coverage'] as const;
 /** The atlas of a word, its first byte: a coverage chain's cutoff fills the second. */
 const atlasByte = (atlas: number) => atlas & 0xff;
