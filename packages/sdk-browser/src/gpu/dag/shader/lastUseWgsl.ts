@@ -15,7 +15,7 @@ export const dagFlagsWords = (queueCap: number, pageCount: number) =>
   queueCap * LEVEL_QUEUES + pageCount * 5;
 
 export const DAG_LAST_USE_WGSL = `fn frameWord()->u32{return drawnGroupsMax()+1u;}
-fn lastUseAt(i:u32)->u32{return views[0u].queueCap*${LEVEL_QUEUES}u+views[0u].clusterCount*4u+i;}
+fn lastUseAt(i:u32)->u32{return queueBase(${LEVEL_QUEUES}u)+i;}
 /** One camera cut more: the clock the pages it uses are stamped with. */
 fn countFrame(){if(!isLightCut()){atomicAdd(&work[frameWord()],1u);}}
 /** Page \`i\` is used by this camera cut: drawn or requested. */

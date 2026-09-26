@@ -75,7 +75,6 @@ test('a page not drawn for the window becomes evictable, oldest first', async ()
   await world.load('y', 'x');
   world.image(1, [], ['x', 'y']);
   world.image(2, [], ['y']);
-  world.image(3, [], []);
   // Within its window, a page the image just drew never leaves.
   for (let frame = 3; frame < 2 + W; frame++) {
     world.image(frame, [], []);

@@ -16,7 +16,7 @@ export const LAST_USE_WINDOW = DAG_READBACK_SLOTS + 1;
  *
  * A page the image keeps — its cut, the pinned cover, and what it draws, the nearest resident
  * ancestor standing in for a missing page included — is held. A page that leaves `keep` stays
- * held for `window` frames, then is released, oldest first: the caller unpins it and sends it to
+ * held for `LAST_USE_WINDOW` frames, then is released, oldest first: the caller unpins it and sends it to
  * the far end of the cache's order, so the cache reclaims released pages in their last-use order.
  *
  * A page also stays held while a held page depends on it (`parentsOf`): holding a page holds its
@@ -34,9 +34,8 @@ export function createLastUse(options: {
   kept: (key: number) => boolean;
   /** A page not kept became held through a child: the caller pins it once resident. */
   onHeld: (key: number) => void;
-  window?: number;
 }) {
-  const { keyOf, parentsOf, kept, onHeld, window = LAST_USE_WINDOW } = options;
+  const { keyOf, parentsOf, kept, onHeld } = options;
   /** The frame, plus one, each page left `keep` at while it waits out its window. */
   const idleSince = createSparseInts();
   /** Held pages that depend on each page. */
@@ -90,7 +89,7 @@ export function createLastUse(options: {
     leave: idle,
     /** Releases, oldest first, every page idle for the window that no held page depends on. */
     release(frame: number, onRelease: (key: number) => void) {
-      while (head < idleKeys.length && frame - idleFrames[head] >= window) {
+      while (head < idleKeys.length && frame - idleFrames[head] >= LAST_USE_WINDOW) {
         const key = idleKeys[head],
           since = idleFrames[head++];
         if (idleSince.get(key) === since + 1 && !kept(key) && children.get(key) === 0)
