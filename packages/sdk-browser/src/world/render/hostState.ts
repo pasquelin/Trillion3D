@@ -91,6 +91,7 @@ export function createExplorerHostState(
             shown: () => state.diagnostic === 'beauty',
           },
           guides: options.guides,
+          particles: options.particles,
         }),
         compositor: createComparisonCompositor(gl),
       }

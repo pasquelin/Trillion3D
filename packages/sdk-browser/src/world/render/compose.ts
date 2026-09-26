@@ -17,6 +17,7 @@ import {
   type WebglRenderTarget,
 } from '../../webgl/core/renderTarget.ts';
 import { createWebglEffects, type WebglEffectOutput } from '../../effects/webglEffects.ts';
+import type { ParticlePool } from '../../../../sdk-core/src/fluids/particles.ts';
 
 const NONE: readonly EffectPass[] = [];
 
@@ -33,15 +34,16 @@ export type ComposedChain = { chain: EffectChain; shown: () => boolean };
  * chain's target instead, and the chain brings its image to the destination
  * (`../../effects/webglEffects.ts`); the copy kept is the chain's image, and a chain changed
  * since it was kept is drawn again. The page's `guides` are drawn over the image the destination
- * got, the chain's included, before that copy is kept; a change to them spares no redraw.
- * Nothing here belongs to a rendering library.
+ * got, the chain's included, before that copy is kept; a change to them spares no redraw. An
+ * engine that draws here does not step the world's `particles` yet: a world with a pool is
+ * refused by name rather than drawn without it. Nothing here belongs to a rendering library.
  */
 export function createFrameComposer(
   gl: WebGL2RenderingContext,
   camera: HostCamera,
-  layers: { effects?: ComposedChain; guides?: GuideSet } = {},
+  layers: { effects?: ComposedChain; guides?: GuideSet; particles?: readonly ParticlePool[] } = {},
 ) {
-  const { effects: composed, guides } = layers;
+  const { effects: composed, guides, particles } = layers;
   const heldFrame = createHeldFrame(gl);
   const guideDraw = createWebglGuideDraw(gl);
   let guidesDrawn = guides?.revision ?? 0;
@@ -103,6 +105,8 @@ export function createFrameComposer(
   ) => {
     const { width, height } = bindWebglTarget(gl, target);
     if (present(backend)) return;
+    if (particles?.length)
+      throw new Error('PARTICLES_UNSUPPORTED: WebGL2 does not step particle pools yet (#420)');
     const revision = composed?.chain.revision ?? 0;
     const guidesHeld = !guides || guides.revision === guidesDrawn;
     if (
