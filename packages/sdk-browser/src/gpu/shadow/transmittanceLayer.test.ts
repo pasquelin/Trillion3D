@@ -106,9 +106,9 @@ test('depth-only then colour-only draws of the blended rows, the opaque depth re
   assert.deepEqual([...opaque.entries][0].texture, { sampleType: 'depth' });
 });
 
-/** The layer's pass over three regions — cleared, static, restored — with `used` blended caster
- *  rows: the calls its render pass received after `begin`, and the draw calls it counted. */
-function encoded(used: number) {
+/** The layer's pass over three regions — cleared, static, restored —, with or without blended
+ *  casters: the calls its render pass received after `begin`, and the draw calls it counted. */
+function encoded(casters: boolean) {
   const r = recorder<GPURenderPassEncoder>();
   const encoder = { beginRenderPass: (d: unknown) => (r.calls.push(['begin', [d]]), r.target) };
   const kept = {},
@@ -127,7 +127,6 @@ function encoded(used: number) {
     },
     gpu: { cache: { buffer: key[0] } },
     run: { gpuDrawCalls: 0 },
-    services: { blendCasters: { used } },
     lights: {
       cull: { kept, indirect },
       shadowGroupsKey: key,
@@ -137,7 +136,7 @@ function encoded(used: number) {
     },
   } as unknown as WebgpuPagesRuntime;
   const layer = { clear: 'clear', depth: 'depth', blend: 'blend', opaqueGroup: 'opaque' };
-  encodeTransmittance(rt, {} as GPUDevice, encoder as never, 3, layer as never, false);
+  encodeTransmittance(rt, {} as GPUDevice, encoder as never, 3, layer as never, false, casters);
   const [begin, ...calls] = r.calls;
   assert.equal((begin[1][0] as GPURenderPassDescriptor).label, SHADOW_TRANSMITTANCE_PASS);
   return { calls, draws: rt.run.gpuDrawCalls, indirect };
@@ -155,7 +154,7 @@ const cleared = (i: number) => [
 ];
 
 test('the pass draws each page the pool drew at half its place, from a clear page', () => {
-  const { calls, draws, indirect } = encoded(1);
+  const { calls, draws, indirect } = encoded(true);
   const region = (i: number) => [
     ...cleared(i),
     ['setPipeline', ['depth']],
@@ -173,7 +172,7 @@ test('the pass draws each page the pool drew at half its place, from a clear pag
 });
 
 test('once no blended caster holds a row, a page is only cleared: no draw of the caster list', () => {
-  const { calls, draws } = encoded(0);
+  const { calls, draws } = encoded(false);
   assert.deepEqual(calls, [
     ['setBindGroup', [2, 'opaque']],
     ...cleared(0),

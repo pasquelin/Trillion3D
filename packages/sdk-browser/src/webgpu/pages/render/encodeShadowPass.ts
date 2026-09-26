@@ -123,10 +123,10 @@ export function encodeShadowAtlas(
   if (regions.layered) draw(staticLayer!.view, SHADOW_LAYER_PASS, true, false);
   const tested = encodeOcclusion(rt, encoder, count);
   draw(shadows.view, SHADOW_PASS, false, tested);
-  const transmittance = rt.services.blendCasters.used
-    ? shadows.ensureTransmittance(encoder)
-    : shadows.transmittance;
-  if (transmittance) encodeTransmittance(rt, device, encoder, count, transmittance, tested);
+  const casters = rt.services.blendCasters.used > 0;
+  const transmittance = casters ? shadows.ensureTransmittance(encoder) : shadows.transmittance;
+  if (transmittance)
+    encodeTransmittance(rt, device, encoder, count, transmittance, tested, casters);
   lights.shadowDrawCalls += run.gpuDrawCalls - drawsBefore;
   return true;
 }
@@ -137,9 +137,9 @@ export function encodeShadowAtlas(
  * and no translucent depth (the static layer keeps no blended caster: their rows count as moving),
  * then draws its list twice, where only the blended casters' corners survive: depth only, for the
  * nearest translucent depth, then colour only, multiplied into the transmittance. Both test the
- * pool's opaque depth, just drawn. Once the last blended caster has given its row back, the layer
- * stays but the list holds none of them: each page is cleared, which is all the read needs, and
- * neither draw is encoded.
+ * pool's opaque depth, just drawn. Without `casters` — the last blended caster gave its row back —
+ * the layer stays but the list holds none of them: each page is cleared, which is all the read
+ * needs, and neither draw is encoded.
  */
 export function encodeTransmittance(
   rt: WebgpuPagesRuntime,
@@ -148,10 +148,10 @@ export function encodeTransmittance(
   count: number,
   layer: ShadowTransmittance,
   tested: boolean,
+  casters: boolean,
 ) {
   const { lights, run } = rt,
-    { shadows, cull, regions, occlusion } = lights,
-    casters = rt.services.blendCasters.used > 0;
+    { shadows, cull, regions, occlusion } = lights;
   const pass = encoder.beginRenderPass({
     label: SHADOW_TRANSMITTANCE_PASS,
     colorAttachments: [{ view: layer.view, loadOp: 'load', storeOp: 'store' }],
