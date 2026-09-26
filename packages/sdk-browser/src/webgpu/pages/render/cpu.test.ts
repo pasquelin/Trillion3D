@@ -14,6 +14,7 @@ import { blendFixture, camera } from '../../../page/selection/blend.fixture.ts';
 import { cameraMoteur } from '../../../camera/camera.fixture.ts';
 import { createHizCounts } from '../../../hiz/hiz.ts';
 import { renderCpuCut } from './cpu.ts';
+import { createHeldResidency } from '../../../page/cut/held.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 
 /** An engine reduced to what the CPU cut walks before drawing. */
@@ -94,7 +95,8 @@ function banc(options: { ready: boolean; resident: boolean }) {
       residencySets: { keepCount: 0 },
       hasBytes: () => true,
       // The pool holds a cluster at its own address, which no page of this fixture quantizes.
-      poolHolds: (rec: PageRec) => residents.has(rec.url),
+      heldResidency: createHeldResidency({ isResident: (rec: PageRec) => residents.has(rec.url) }),
+      syncResidency: () => {},
       forgetReadback: () => journal.push('oubli'),
       adoptCpuCut: (wanted: readonly PageRec[]) => {
         journal.push('publication');
