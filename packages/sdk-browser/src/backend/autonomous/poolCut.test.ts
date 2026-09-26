@@ -123,3 +123,28 @@ test('a pool at the root cover plus a tenth: no hole, no drawn page lost, never 
     before = now;
   }
 });
+
+// #839: a budget cut mid-session is paid one level per image, what each image drew surviving to the
+// next cut, and a still view over budget converges — no page is held past what it can draw.
+test('a budget cut mid-session: drawn pages survive to the next cut, one level coarser per image', () => {
+  const { image, dag, pages, drawnIds, pool, state } = strip(1000, wholeStrip());
+  for (let i = 0; i < 24; i++) image(0.25);
+  let before = levels(dag, drawnIds());
+  let drawn = drawnIds();
+  // About half of what the fine cut holds.
+  pool.resize(30 * PAGE);
+  for (let i = 0; i < 24; i++) {
+    assert.ok(
+      drawn.every((id) => pages[id].array),
+      `image ${i}: a page the last image drew left before this cut`,
+    );
+    image(0.25, 3);
+    drawn = drawnIds();
+    assert.equal(coverFault(dag, drawn), -1, `image ${i}: a leaf not covered exactly once`);
+    const now = levels(dag, drawn);
+    for (let u = 0; u < dag.leaves; u++)
+      assert.ok(now[u] <= before[u] + 1, `image ${i}, leaf ${u}: level ${before[u]} → ${now[u]}`);
+    before = now;
+  }
+  assert.ok(state.allocationBytes <= 30 * PAGE, 'the pool converged to its budget');
+});

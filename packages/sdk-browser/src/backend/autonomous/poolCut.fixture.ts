@@ -11,7 +11,6 @@ import { createGeometryBudget } from './pool.ts';
 import { PAGE } from './pool.fixture.ts';
 import { createImageCut } from './imageCut.ts';
 import { createHeldResidency } from '../../page/cut/held.ts';
-import { createPageKeys } from './poolOrder.ts';
 import { createPageParents } from '../../residency/pageParents.ts';
 import type { HostCamera } from '../../camera/world.ts';
 import type { ClusterRoot, ClusterStructureIndex, PageRec } from '../../page/selection/types.ts';
@@ -74,7 +73,7 @@ export function mount(
     coverRevision: () => 0,
     state,
     floorBytes: () => rootBytes,
-    pages: createPageKeys(createPageParents(roots)),
+    parentsOf: createPageParents(roots),
     drop: (url) => {
       const page = byUrl.get(url)!;
       if (!page.array) return;
