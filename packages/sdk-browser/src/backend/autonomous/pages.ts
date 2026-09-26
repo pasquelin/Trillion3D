@@ -39,7 +39,6 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
     pageDefault = context.residentPagesDefault ?? Math.max(1024, bootstrapUrls.size),
     cap = hostCeiling < Infinity ? hostCeiling : pageDefault,
     scene = hostPageScene(blendCopies);
-  // The cut drawn, the cut wanted, and what the image asks the pool for (`imageCut.ts`).
   const lists = { shown: [] as PageRec[], desired: [] as PageRec[], requested: [] as PageRec[] };
   const baseMaterials = new Map(allPages.map((rec) => [rec, rec.declaration] as const)),
     colorMaterials = new Map<HostMaterial, HostMaterial>();
