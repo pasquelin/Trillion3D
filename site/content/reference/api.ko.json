@@ -932,8 +932,8 @@
       "WEBGL2_UNAVAILABLE": "이 기기는 요청된 방식으로 그릴 수 없거나, 아예 그릴 수 없다.",
       "NO_WEBGL2": "이 기기는 요청된 방식으로 그릴 수 없거나, 아예 그릴 수 없다.",
       "NO_ENGINE_BACKEND": "이 기기는 요청된 방식으로 그릴 수 없거나, 아예 그릴 수 없다.",
-      "RESOURCE_HTTP_ERROR": "파일을 가져올 수 없었거나, 기대했던 내용이 아니었다.",
-      "INVALID_JSON_RESPONSE": "파일을 가져올 수 없었거나, 기대했던 내용이 아니었다.",
+      "RESOURCE_HTTP_ERROR": "파일을 가져올 수 없었거나(일시적일 수 있는 실패라면 먼저 다시 요청한 뒤), 기대했던 내용이 아니었다.",
+      "INVALID_JSON_RESPONSE": "파일을 가져올 수 없었거나(일시적일 수 있는 실패라면 먼저 다시 요청한 뒤), 기대했던 내용이 아니었다.",
       "INVALID_POINTER": "컴파일된 모델의 포인터가 손상되었거나, 미완성이거나, 다른 범위의 것이다.",
       "CACHE_NOT_READY": "컴파일된 모델의 포인터가 손상되었거나, 미완성이거나, 다른 범위의 것이다.",
       "SCOPE_MISMATCH": "컴파일된 모델의 포인터가 손상되었거나, 미완성이거나, 다른 범위의 것이다.",
@@ -3629,7 +3629,7 @@
       "textureBytesLastFrame": "마지막 프레임에 보내진 바이트 수.",
       "textureUploadMs": "타일을 보내는 데 걸린 시간.",
       "textureUploadPeakMs": "한 프레임에서의 가장 긴 전송 시간.",
-      "textureLevelReads": "출처들. `textureLevelReads`: 캐시에서 읽히고 있는 베이크된 레벨. `textureLevelsDecoded`: 시작 이후 디코딩된 베이크된 레벨. `textureLevelCacheBytes`: 고정된 예산 아래, 추가 타일을 잘라내기 위해 보관되는 디코딩된 레벨의 호스트 바이트 수. `textureScratchBuilds`: 베이크된 체인이 없는 텍스처를 위해 매번 원본 전체로부터 만들어지는 작업용 텍스처 수.",
+      "textureLevelReads": "출처들. `textureLevelReads`: 캐시에서 읽히고 있는 베이크된 레벨. `textureLevelsDecoded`: 시작 이후 디코딩된 베이크된 레벨. `textureLevelCacheBytes`: CPU 총량 안에서, 추가 타일을 잘라내기 위해 보관되는 디코딩된 레벨의 호스트 바이트 수. `textureScratchBuilds`: 베이크된 체인이 없는 텍스처를 위해 매번 원본 전체로부터 만들어지는 작업용 텍스처 수.",
       "textureLevelsDecoded": "디코딩된 레벨 수.",
       "textureLevelCacheBytes": "유지되는 디코딩된 레벨의 바이트 수.",
       "textureScratchBuilds": "만들어진 작업용 텍스처 수.",
@@ -4192,7 +4192,7 @@
       "textureBytesLastFrame": "마지막 프레임에 보내진 바이트 수.",
       "textureUploadMs": "타일을 보내는 데 걸린 시간.",
       "textureUploadPeakMs": "한 프레임에서의 가장 긴 전송 시간.",
-      "textureLevelReads": "출처들. `textureLevelReads`: 캐시에서 읽히고 있는 베이크된 레벨. `textureLevelsDecoded`: 시작 이후 디코딩된 베이크된 레벨. `textureLevelCacheBytes`: 고정된 예산 아래, 추가 타일을 잘라내기 위해 보관되는 디코딩된 레벨의 호스트 바이트 수. `textureScratchBuilds`: 베이크된 체인이 없는 텍스처를 위해 매번 원본 전체로부터 만들어지는 작업용 텍스처 수.",
+      "textureLevelReads": "출처들. `textureLevelReads`: 캐시에서 읽히고 있는 베이크된 레벨. `textureLevelsDecoded`: 시작 이후 디코딩된 베이크된 레벨. `textureLevelCacheBytes`: CPU 총량 안에서, 추가 타일을 잘라내기 위해 보관되는 디코딩된 레벨의 호스트 바이트 수. `textureScratchBuilds`: 베이크된 체인이 없는 텍스처를 위해 매번 원본 전체로부터 만들어지는 작업용 텍스처 수.",
       "textureLevelsDecoded": "디코딩된 레벨 수.",
       "textureLevelCacheBytes": "유지되는 디코딩된 레벨의 바이트 수.",
       "textureScratchBuilds": "만들어진 작업용 텍스처 수.",
@@ -7129,7 +7129,7 @@
       "water": "물체가 떠 있는 물: 수위, 파도, 밀도, 항력. 물보다 가벼운 물체는 밀어낸 물의 무게에 밀려 뜬다.",
       "waterSurface": "시뮬레이션 시각의 수면(그리기용): 부력이 읽는 것과 같은 파도, 같은 숫자(`height`, `point`, `normal`).",
       "stats": "개수와 두 시계: worker의 스텝당 밀리초, 페이지의 프레임당 밀리초.",
-      "error": "물리의 마지막 오류(`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`) 또는 `null`. 시뮬레이션을 멈춘 오류는 `enabled`를 끕니다.",
+      "error": "물리의 마지막 오류(`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`, `RESOURCE_HTTP_ERROR`) 또는 `null`. 시뮬레이션을 멈춘 오류는 `enabled`를 끕니다.",
       "add": "관절을 추가합니다(`joint.hinge(door, frame, …)`와 그 친척들). 두 물체가 시뮬레이션되자마자 만들어지고, 제거되거나 끊어질 때까지 유지됩니다.",
       "remove": "관절을 제거합니다. 붙잡혀 있던 물체들이 자유롭게 떨어집니다."
     }
@@ -7337,7 +7337,7 @@
       "water": "물체가 떠 있는 물: 수위, 파도, 밀도, 항력. 물보다 가벼운 물체는 밀어낸 물의 무게에 밀려 뜬다.",
       "waterSurface": "시뮬레이션 시각의 수면(그리기용): 부력이 읽는 것과 같은 파도, 같은 숫자(`height`, `point`, `normal`).",
       "stats": "개수와 두 시계: worker의 스텝당 밀리초, 페이지의 프레임당 밀리초.",
-      "error": "물리의 마지막 오류(`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`) 또는 `null`. 시뮬레이션을 멈춘 오류는 `enabled`를 끕니다.",
+      "error": "물리의 마지막 오류(`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`, `RESOURCE_HTTP_ERROR`) 또는 `null`. 시뮬레이션을 멈춘 오류는 `enabled`를 끕니다.",
       "add": "관절을 추가합니다(`joint.hinge(door, frame, …)`와 그 친척들). 두 물체가 시뮬레이션되자마자 만들어지고, 제거되거나 끊어질 때까지 유지됩니다.",
       "remove": "관절을 제거합니다. 붙잡혀 있던 물체들이 자유롭게 떨어집니다."
     }

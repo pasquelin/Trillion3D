@@ -19,9 +19,6 @@ export function createShadowNeeds(table: ShadowTable, pool: ShadowPool, capacity
   let count = 0;
   const coarsestFirst = (a: number, b: number) => rank[b] - rank[a] || entry[a] - entry[b] || a - b;
   return {
-    get count() {
-      return count;
-    },
     clear() {
       count = 0;
     },

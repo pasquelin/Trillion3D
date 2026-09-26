@@ -939,8 +939,8 @@
       "WEBGL2_UNAVAILABLE": "Máy không thể vẽ theo cách được yêu cầu, hoặc không thể vẽ được chút nào.",
       "NO_WEBGL2": "Máy không thể vẽ theo cách được yêu cầu, hoặc không thể vẽ được chút nào.",
       "NO_ENGINE_BACKEND": "Máy không thể vẽ theo cách được yêu cầu, hoặc không thể vẽ được chút nào.",
-      "RESOURCE_HTTP_ERROR": "Một tệp không thể lấy về được, hoặc không đúng như nó phải là.",
-      "INVALID_JSON_RESPONSE": "Một tệp không thể lấy về được, hoặc không đúng như nó phải là.",
+      "RESOURCE_HTTP_ERROR": "Một tệp không thể lấy về được — được yêu cầu lại trước khi lỗi có thể qua đi — hoặc không đúng như nó phải là.",
+      "INVALID_JSON_RESPONSE": "Một tệp không thể lấy về được — được yêu cầu lại trước khi lỗi có thể qua đi — hoặc không đúng như nó phải là.",
       "INVALID_POINTER": "Con trỏ của mô hình đã biên dịch bị hỏng, chưa xong, hoặc thuộc phạm vi khác.",
       "CACHE_NOT_READY": "Con trỏ của mô hình đã biên dịch bị hỏng, chưa xong, hoặc thuộc phạm vi khác.",
       "SCOPE_MISMATCH": "Con trỏ của mô hình đã biên dịch bị hỏng, chưa xong, hoặc thuộc phạm vi khác.",
@@ -3712,7 +3712,7 @@
       "textureBytesLastFrame": "Số byte đã gửi ở khung hình cuối cùng.",
       "textureUploadMs": "Thời gian dành cho việc gửi các ô.",
       "textureUploadPeakMs": "Lần gửi lâu nhất trong một khung hình.",
-      "textureLevelReads": "Các nguồn. `textureLevelReads`: các mức đã nướng đang được đọc trong bộ nhớ đệm. `textureLevelsDecoded`: các mức đã nướng được giải mã kể từ đầu. `textureLevelCacheBytes`: số byte của ứng dụng chủ dành cho các mức đã giải mã được giữ để cắt thêm các ô từ chúng, dưới một ngân sách cố định. `textureScratchBuilds`: các kết cấu công tác được xây dựng cho một kết cấu không có chuỗi nướng sẵn, toàn bộ nguồn mỗi lần.",
+      "textureLevelReads": "Các nguồn. `textureLevelReads`: các mức đã nướng đang được đọc trong bộ nhớ đệm. `textureLevelsDecoded`: các mức đã nướng được giải mã kể từ đầu. `textureLevelCacheBytes`: số byte của ứng dụng chủ dành cho các mức đã giải mã được giữ để cắt thêm các ô từ chúng, trong tổng ngân sách CPU. `textureScratchBuilds`: các kết cấu công tác được xây dựng cho một kết cấu không có chuỗi nướng sẵn, toàn bộ nguồn mỗi lần.",
       "textureLevelsDecoded": "Các mức đã giải mã.",
       "textureLevelCacheBytes": "Số byte của các mức đã giải mã được giữ lại.",
       "textureScratchBuilds": "Các kết cấu công tác đã xây dựng.",
@@ -4169,7 +4169,7 @@
       "textureBytesLastFrame": "Số byte đã gửi ở khung hình cuối cùng.",
       "textureUploadMs": "Thời gian dành cho việc gửi các ô.",
       "textureUploadPeakMs": "Lần gửi lâu nhất trong một khung hình.",
-      "textureLevelReads": "Các nguồn. `textureLevelReads`: các mức đã nướng đang được đọc trong bộ nhớ đệm. `textureLevelsDecoded`: các mức đã nướng được giải mã kể từ đầu. `textureLevelCacheBytes`: số byte của ứng dụng chủ dành cho các mức đã giải mã được giữ để cắt thêm các ô từ chúng, dưới một ngân sách cố định. `textureScratchBuilds`: các kết cấu công tác được xây dựng cho một kết cấu không có chuỗi nướng sẵn, toàn bộ nguồn mỗi lần.",
+      "textureLevelReads": "Các nguồn. `textureLevelReads`: các mức đã nướng đang được đọc trong bộ nhớ đệm. `textureLevelsDecoded`: các mức đã nướng được giải mã kể từ đầu. `textureLevelCacheBytes`: số byte của ứng dụng chủ dành cho các mức đã giải mã được giữ để cắt thêm các ô từ chúng, trong tổng ngân sách CPU. `textureScratchBuilds`: các kết cấu công tác được xây dựng cho một kết cấu không có chuỗi nướng sẵn, toàn bộ nguồn mỗi lần.",
       "textureLevelsDecoded": "Các mức đã giải mã.",
       "textureLevelCacheBytes": "Số byte của các mức đã giải mã được giữ lại.",
       "textureScratchBuilds": "Các kết cấu công tác đã xây dựng.",
@@ -7130,7 +7130,7 @@
       "water": "Nước nơi các vật nổi: mực nước, sóng, khối lượng riêng và lực cản. Vật nhẹ hơn nước sẽ nổi, được đẩy lên bởi trọng lượng của phần nước nó chiếm chỗ.",
       "waterSurface": "Mặt nước tại thời điểm mô phỏng, để vẽ: cùng các sóng lực nổi đọc, cùng những con số (`height`, `point`, `normal`).",
       "stats": "Số đếm và cả hai đồng hồ: mili giây worker mỗi bước, mili giây trang mỗi khung.",
-      "error": "Lỗi cuối cùng của vật lý (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), hoặc `null`. Một lỗi đã dừng mô phỏng sẽ tắt `enabled`.",
+      "error": "Lỗi cuối cùng của vật lý (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`, `RESOURCE_HTTP_ERROR`), hoặc `null`. Một lỗi đã dừng mô phỏng sẽ tắt `enabled`.",
       "add": "Thêm một khớp (`joint.hinge(door, frame, …)` và họ hàng): nó được tạo ngay khi cả hai vật được mô phỏng, và giữ cho đến khi bị gỡ hoặc gãy.",
       "remove": "Gỡ một khớp: các vật nó giữ tách ra tự do."
     }
@@ -7338,7 +7338,7 @@
       "water": "Nước nơi các vật nổi: mực nước, sóng, khối lượng riêng và lực cản. Vật nhẹ hơn nước sẽ nổi, được đẩy lên bởi trọng lượng của phần nước nó chiếm chỗ.",
       "waterSurface": "Mặt nước tại thời điểm mô phỏng, để vẽ: cùng các sóng lực nổi đọc, cùng những con số (`height`, `point`, `normal`).",
       "stats": "Số đếm và cả hai đồng hồ: mili giây worker mỗi bước, mili giây trang mỗi khung.",
-      "error": "Lỗi cuối cùng của vật lý (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), hoặc `null`. Một lỗi đã dừng mô phỏng sẽ tắt `enabled`.",
+      "error": "Lỗi cuối cùng của vật lý (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`, `RESOURCE_HTTP_ERROR`), hoặc `null`. Một lỗi đã dừng mô phỏng sẽ tắt `enabled`.",
       "add": "Thêm một khớp (`joint.hinge(door, frame, …)` và họ hàng): nó được tạo ngay khi cả hai vật được mô phỏng, và giữ cho đến khi bị gỡ hoặc gãy.",
       "remove": "Gỡ một khớp: các vật nó giữ tách ra tự do."
     }
