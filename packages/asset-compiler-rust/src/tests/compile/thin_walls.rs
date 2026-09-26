@@ -51,7 +51,7 @@ fn every_cut_of_a_chalet_of_thin_closed_shapes_keeps_its_walls_facing_out() {
 #[test]
 fn coarse_levels_turned_inside_out_are_reported_flipped_and_lost() {
     let mut scene = cook();
-    let objects = scene.objects.clone();
+    let objects = &scene.objects;
     let source = scene.mesh(&scene.result["primitives"][1]);
     let wood = &mut scene.result["primitives"][1];
     for page in wood["pages"].as_array_mut().expect("pages") {
@@ -69,7 +69,7 @@ fn coarse_levels_turned_inside_out_are_reported_flipped_and_lost() {
         fs::write(objects.join(format!("{digest}.bin")), &indices).expect("flipped");
         page["sha256"] = json!(digest);
     }
-    let defects = cut_defects(&objects, wood, &source);
+    let defects = cut_defects(objects, wood, &source);
     let _ = fs::remove_dir_all(&scene.root);
     for defect in ["faces against its normals", "loses"] {
         assert!(
