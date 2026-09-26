@@ -920,7 +920,8 @@
       "texturePreviewBc7": "I blocchi BC7 delle anteprime.",
       "texturePreviewAstc": "I blocchi ASTC delle anteprime.",
       "bundleDependencyCount": "Quanti pacchetti servono a ogni pacchetto.",
-      "bundleDependency": "I pacchetti che servono a ogni pacchetto, fino alle radici."
+      "bundleDependency": "I pacchetti che servono a ogni pacchetto, fino alle radici.",
+      "pageCone": "Il cono delle normali di ogni pagina: l’asse, poi il semiangolo."
     }
   },
   "ColumnKind": {
@@ -4431,7 +4432,8 @@
       "source": "Il gruppo che lo ha prodotto.",
       "stream": "Pacchetto di flusso che contiene questo cluster e il suo offset in byte al suo interno. Una richiesta serve decine di cluster; il cluster resta leggibile da solo tramite `url`.",
       "streamOffset": "Il suo offset in byte in quel pacchetto.",
-      "depthLayer": "Strato di profondità coplanare, 0 per ogni cluster che il compilatore ha lasciato così com'è. Un cluster di strato n disegna con un bias di profondità di n passi interi di strato, il che decide il vincitore tra due superfici opache che condividono esattamente un piano. Assente e 0 significano la stessa cosa: il disegno invariato."
+      "depthLayer": "Strato di profondità coplanare, 0 per ogni cluster che il compilatore ha lasciato così com'è. Un cluster di strato n disegna con un bias di profondità di n passi interi di strato, il che decide il vincitore tra due superfici opache che condividono esattamente un piano. Assente e 0 significano la stessa cosa: il disegno invariato.",
+      "cone": "Il cono che racchiude le normali dei suoi triangoli: `axis` un vettore unitario, `angle` il semiangolo in radianti, π per un cono che non scarta nulla. Il compilatore lo calcola dai triangoli; il taglio WebGPU salta un cluster a faccia singola che la camera vede da dietro il suo cono."
     }
   },
   "PAGE_DECODE_FAILURES": {
