@@ -47,7 +47,7 @@ test('after a device loss the texture levels are rebuilt with no level read agai
   await lost.ask(0);
   lost.levels.destroy();
   const reopened = session(cache);
-  assert.ok(reopened.levels.get(request(0), 1) instanceof Uint8Array, 'held across the loss');
+  assert.ok(reopened.levels.get(request(0)) instanceof Uint8Array, 'held across the loss');
   await reopened.ask(0, 1);
   assert.deepEqual([reopened.fetched, reopened.levels.fetched], [[], 0], '0 texture refetch');
   // A read in flight while another cook opens lands for nothing.
@@ -109,5 +109,5 @@ test('the texture levels cap follows world.budget.cpu live', async () => {
   const cap = (3 * 2 * MiB) / 4;
   assert.deepEqual([pools.pageCache.levels.budgetBytes, handle.split.textureLevels], [cap, cap]);
   assert.equal(levels.bytes, MiB, 'the level read first left');
-  assert.ok(levels.get(request(1), 2), 'the one read last stays');
+  assert.ok(levels.get(request(1)), 'the one read last stays');
 });
