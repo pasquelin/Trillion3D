@@ -1678,7 +1678,7 @@
   },
   "EffectChain": {
     "summary": "`world.effects`: le passate ordinate disegnate sull’immagine dopo l’antialiasing temporale e prima che raggiunga il canvas.",
-    "description": "Le passate prima del tone mapping leggono la radianza lineare, nell’ordine in cui sono state aggiunte; quelle dopo leggono l’immagine mostrata, nel loro. Una catena vuota non costa nulla: nessuna passata, nessuna copia, nessun target.",
+    "description": "Le passate prima del tone mapping leggono la radianza lineare, nell’ordine in cui sono state aggiunte; quelle dopo leggono l’immagine mostrata, nel loro. Una catena vuota non costa nulla: nessuna passata, nessuna copia, nessun target. Su WebGL2, un fotogramma che disegna una superficie trasparente con fusione `multiply` o `subtractive` viene disegnato intero senza la catena, e il canale diagnostico del mondo segnala `effects-refused-blending` una volta; WebGPU disegna entrambi.",
     "members": {
       "revision": "Conta le modifiche: un’immagine disegnata a un’altra revisione è superata.",
       "passes": "Le passate, nell’ordine in cui vengono eseguite.",

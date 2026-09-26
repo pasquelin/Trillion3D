@@ -1678,7 +1678,7 @@
   },
   "EffectChain": {
     "summary": "`world.effects`: die geordneten Durchgänge, die nach dem temporalen Antialiasing über das Bild gezeichnet werden, bevor es den Canvas erreicht.",
-    "description": "Die Durchgänge vor dem Tone Mapping lesen die lineare Strahldichte, in der Reihenfolge, in der sie hinzugefügt wurden; die danach lesen das angezeigte Bild, in ihrer. Eine leere Kette kostet nichts: kein Durchgang, keine Kopie, kein Ziel.",
+    "description": "Die Durchgänge vor dem Tone Mapping lesen die lineare Strahldichte, in der Reihenfolge, in der sie hinzugefügt wurden; die danach lesen das angezeigte Bild, in ihrer. Eine leere Kette kostet nichts: kein Durchgang, keine Kopie, kein Ziel. Auf WebGL2 wird ein Bild, das eine transparente Oberfläche mit `multiply`- oder `subtractive`-Überblendung zeichnet, vollständig ohne die Kette gezeichnet, und der Diagnosekanal der Welt meldet einmal `effects-refused-blending`; WebGPU zeichnet beides.",
     "members": {
       "revision": "Zählt die Änderungen: Ein Bild, das bei einer anderen Revision gezeichnet wurde, ist veraltet.",
       "passes": "Die Durchgänge, in der Reihenfolge, in der sie laufen.",
