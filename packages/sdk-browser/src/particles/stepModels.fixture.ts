@@ -11,11 +11,11 @@ import { PARTICLE_ROW, createWebglParticles } from './webglParticles.ts';
 
 const f = Math.fround;
 
-/** A context granting the `granted` extensions, its WebGL2 `particles`, and a `run` of their step
- *  that answers the draws made and the calls it made, by name. */
-export function webgl(granted = ['EXT_color_buffer_float']) {
+/** A context granting the `granted` extensions and giving `answers`, its WebGL2 `particles`, and
+ *  a `run` of their step that answers the draws made and the calls it made, by name. */
+export function webgl(granted = ['EXT_color_buffer_float'], answers = {}) {
   const getExtension = (name: string) => (granted.includes(name) ? {} : null);
-  const ctx = createTestContext({ answers: { getExtension } }),
+  const ctx = createTestContext({ answers: { getExtension, ...answers } }),
     particles = createWebglParticles(ctx.gl);
   const run = (pools: ParticlePool[]) => {
     const from = ctx.calls.length,

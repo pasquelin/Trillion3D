@@ -7,7 +7,7 @@ import { ParticlePool, type ParticlePoolSpec } from '../../../sdk-core/src/fluid
 import { createHostDrawCamera } from '../camera/world.ts';
 import { DRAW_FLOATS, writeDrawWords } from './drawWords.ts';
 import { PARTICLE_DRAW_PASS as P, createWebgpuParticleDraw } from './webgpuParticleDraw.ts';
-import { encodeParticles } from './webgpuParticles.ts';
+import { createWebgpuParticles, encodeParticles } from './webgpuParticles.ts';
 import { webgl } from './stepModels.fixture.ts';
 
 const IDENTITY = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
@@ -73,15 +73,16 @@ test('WebGPU: one pass, fire then the nearer smoke, each with its blend; none wi
   assert.deepEqual(blends, ['one zero one', `${over} one ${over}`]);
 });
 
-test('WebGPU: a draw that cannot compile is heard, and refuses its pools', async () => {
+test('WebGPU: a draw that cannot compile is heard, and the next step keeps its pools refused', async () => {
   const heard: unknown[] = [],
     { device } = fakeDevice(),
     [smoke] = scene();
   device.createRenderPipelineAsync = () => Promise.reject(new Error('NO_PIPELINE'));
-  const draw = createWebgpuParticleDraw(device, kept, (e) => heard.push(e));
+  const step = createWebgpuParticles(device, (e) => heard.push(e));
   await tick();
   const { encoder, log } = renderRecorder();
-  assert.equal(draw.draw([smoke], ...frame(encoder)), 0);
+  assert.equal(step.draw([smoke], ...frame(encoder)), 0);
+  step.run([smoke], encoder);
   assert.deepEqual([heard.length, smoke.refused, log.length], [1, true, 0]);
 });
 
@@ -112,4 +113,26 @@ test("WebGL2: the frame's depth is copied, then the pools far to near, each with
   const drawn =
     'DEPTH_BUFFER_BIT NEAREST, ZERO ONE, 6 1, ZERO ONE, 6 3, ONE ONE_MINUS_SRC_ALPHA, 6 4';
   assert.equal(calls.map(({ args }) => args.slice(-2).join(' ')).join(', '), drawn);
+  const [, fragment] = ctx.of('shaderSource').find(([, text]) => `${text}`.includes('sceneDepth'))!;
+  assert.match(`${fragment}`, /out vec4 untoned;[^]*untoned = vec4\(0\., 0\., 0\., k\);/);
+});
+
+test('WebGL2: an earlier GL error never refuses; a depth not copied refuses, the next step too', () => {
+  const errors = ['INVALID_OPERATION'], // left by an earlier call, not by the copy
+    copy = { fails: false },
+    blitFramebuffer = () => void (copy.fails && errors.push('INVALID_OPERATION')),
+    getError = () => errors.shift() ?? 'NO_ERROR';
+  const { run, particles } = webgl(undefined, { blitFramebuffer, getError }),
+    [smoke] = scene();
+  smoke.emit(0, 0, -2, 0, 1, 0, 2);
+  run([smoke]);
+  assert.equal(particles.draw([smoke], createHostDrawCamera(), output), 1);
+  copy.fails = true;
+  const other = { ...output, framebuffer: {} as WebGLFramebuffer };
+  assert.match(
+    `${particles.draw([smoke], createHostDrawCamera(), other)}`,
+    /PARTICLES_UNSUPPORTED/,
+  );
+  run([smoke]);
+  assert.equal(smoke.refused, true, 'the next step keeps it refused');
 });
