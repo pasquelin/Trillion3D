@@ -920,7 +920,8 @@
       "texturePreviewBc7": "Die BC7-Blöcke der Vorschauen.",
       "texturePreviewAstc": "Die ASTC-Blöcke der Vorschauen.",
       "bundleDependencyCount": "Wie viele Pakete jedes Paket braucht.",
-      "bundleDependency": "Die Pakete, die jedes Paket braucht, bis zu den Wurzeln."
+      "bundleDependency": "Die Pakete, die jedes Paket braucht, bis zu den Wurzeln.",
+      "pageCone": "Der Normalenkegel jeder Seite: Achse, dann halber Öffnungswinkel."
     }
   },
   "ColumnKind": {
@@ -932,28 +933,8 @@
   "compareImages": {
     "summary": "Vergleich zweier RGBA-Bilder: Anzahl unterschiedlicher Pixel, maximaler Fehler auf einem Kanal, und RMSE."
   },
-  "COMPARISON_LIBRARIES": {
-    "summary": "Die Engines, gegen die die Prüfstände verglichen wurden, jede mit ihrem Status und ihrem Grund."
-  },
   "ComparisonLayout": {
     "summary": "Wie zwei Renderings nebeneinander zum Vergleich gezeigt werden."
-  },
-  "CompetitorRecord": {
-    "summary": "Eine andere Engine, mit der die Prüfstände vergleichen, und warum.",
-    "members": {
-      "id": "Ihr Kurzname.",
-      "name": "Ihr Name.",
-      "status": "Ob sie verglichen wird.",
-      "license": "Ihre Lizenz.",
-      "maintained": "Wann sie zuletzt aktualisiert wurde.",
-      "scope": "Was sie abdeckt.",
-      "reason": "Warum sie verglichen wird, oder nicht.",
-      "homepage": "Ihre Webseite."
-    }
-  },
-  "CompetitorStatus": {
-    "summary": "Bestand der Web-Bibliotheken für Geometrie und LOD.",
-    "description": "Der Status beschreibt die Fairness der Integration, nicht eine Marketing-Abdeckung."
   },
   "CompilationJob": {
     "summary": "Eine laufende Kompilierung.",
@@ -4257,7 +4238,7 @@
       "quaternion": "Wie der Knoten gedreht ist, als Quaternion.",
       "scale": "Wie der Knoten auf jeder Achse gestreckt ist.",
       "up": "Wo oben ist, für `lookAt`.",
-      "castShadow": "Ob der Knoten Schatten wirft.",
+      "castShadow": "Ob der Knoten Schatten wirft: ein Mesh tut es, solange es nicht auf `false` gesetzt ist, ein Licht nur, wenn es auf `true` gesetzt ist. Ein auf `false` gesetztes Mesh empfängt weiterhin die Schatten anderer.",
       "receiveShadow": "Ob Schatten auf den Knoten fallen.",
       "renderOrder": "Zeichenreihenfolge unter durchsichtigen Dingen.",
       "frustumCulled": "Ob ein Renderer ihn außerhalb der Sicht auslassen darf.",
@@ -4449,7 +4430,8 @@
       "source": "Die Gruppe, die ihn erzeugt hat.",
       "stream": "Streampaket, das diesen Cluster enthält, und sein Byte-Versatz darin. Eine Anfrage bedient Dutzende Cluster; der Cluster bleibt allein über `url` lesbar.",
       "streamOffset": "Sein Byte-Versatz in diesem Paket.",
-      "depthLayer": "Koplanare Tiefenschicht, 0 für jeden Cluster, den der Compiler unverändert gelassen hat. Ein Cluster der Schicht n zeichnet mit einem Tiefen-Bias von n ganzen Schichtschritten, was über den Gewinner zwischen zwei undurchsichtigen Oberflächen entscheidet, die sich genau eine Ebene teilen. Fehlend und 0 bedeuten dasselbe: die unveränderte Zeichnung."
+      "depthLayer": "Koplanare Tiefenschicht, 0 für jeden Cluster, den der Compiler unverändert gelassen hat. Ein Cluster der Schicht n zeichnet mit einem Tiefen-Bias von n ganzen Schichtschritten, was über den Gewinner zwischen zwei undurchsichtigen Oberflächen entscheidet, die sich genau eine Ebene teilen. Fehlend und 0 bedeuten dasselbe: die unveränderte Zeichnung.",
+      "cone": "Der Kegel, der die Normalen seiner Dreiecke einschließt: `axis` ein Einheitsvektor, `angle` der halbe Öffnungswinkel im Bogenmaß, π für einen Kegel, der nichts verwirft. Der Compiler berechnet ihn aus den Dreiecken; der WebGPU-Schnitt überspringt einen einseitigen Cluster, den die Kamera von hinter seinem Kegel sieht."
     }
   },
   "PAGE_DECODE_FAILURES": {
@@ -4758,6 +4740,7 @@
     "members": {
       "matrices": "Sechzehn Fließkommazahlen spaltenweise pro Zeile, vom Besitzer geschrieben.",
       "live": "1, wo die Zeile die Ressource platziert, 0, wo sie zur Seite gelegt ist.",
+      "shadowless": "1, wo die Zeile keinen Schatten wirft (das `castShadow` ihres Meshes ist `false`), 0, wo sie einen wirft.",
       "capacity": "Zeilen, die Platz haben, bevor er wächst."
     }
   },
@@ -5304,6 +5287,7 @@
       "pose": "Ein Knoten hat sich bewegt.",
       "structure": "Ein Knoten hat Kinder gewonnen oder verloren.",
       "content": "Die Form oder das Material eines Knotens hat sich geändert.",
+      "shadow": "Das `castShadow` eines Knotens hat sich geändert: nichts hat sich bewegt.",
       "posed": "Viele Knoten haben sich auf einmal bewegt, direkt in ihren Baum geschrieben (die Körper der Physik): einmal gemeldet.",
       "seat": "Die Zeile, aus der der Knoten gezeichnet wird, oder `null`: sechzehn spaltenweise Gleitkommazahlen ab `row * 16` in `batch.rows.matrices`, vom Renderer an Ort und Stelle gelesen. Wer Knoten zu Tausenden platziert (die Physik), schreibt ihre Weltmatrizen selbst dorthin, gültig solange `seatEpoch` gleich bleibt, und meldet die geschriebenen Zeilen über `placed`.",
       "seatEpoch": "Ändert sich, sobald eine Zeile belegt, freigegeben oder neu angelegt wird: jede frühere Antwort von `seat` ist veraltet.",
