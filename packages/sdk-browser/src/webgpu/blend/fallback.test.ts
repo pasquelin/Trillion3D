@@ -103,3 +103,15 @@ test('the transparent fallback draws a triangle surface with no line width', () 
   assert.equal(written.length, 1);
   assert.equal(packed[40], 0);
 });
+
+test('the fallback list refuses by name a paged item a GPU cut left without a CPU list', () => {
+  const blendState = createWebgpuBlendState();
+  blendState.table = { itemRanges: new Uint32Array(2), spans: new Uint32Array(0) } as never;
+  blendState.cpuItemCounts = new Uint32Array(1);
+  blendState.visibleBlend = [
+    { paged: true, pagedIndex: 0, count: 0 },
+  ] as unknown as typeof blendState.visibleBlend;
+  assert.throws(() => listFallbackBlendDraws(blendState, true), /FALLBACK_BLEND_WITHOUT_CPU_CUT/);
+  // The same item under a CPU cut that kept none of its clusters draws nothing, and is no error.
+  assert.deepEqual(listFallbackBlendDraws(blendState, false), []);
+});

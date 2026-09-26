@@ -14,9 +14,16 @@ import type { Blending } from '../../../../../sdk-core/src/world/constants/index
 const OPACITY = 0.8;
 
 /** The fallback pass's draws of the quad in `mode`, and the uniform words of each. */
-async function fallbackDraws(mode: Blending) {
+async function fallbackDraws(mode: Blending, refuseCompaction = false) {
   installGpuGlobals();
   const { device, draws, passes, buffers } = mockGpu({ rejectR32: true });
+  // A device that refuses the transparent compaction's pipelines: prepare keeps no compaction.
+  if (refuseCompaction)
+    Object.assign(device, {
+      createComputePipeline: () => {
+        throw new Error('NO_TRANSPARENT_COMPACTION');
+      },
+    });
   const fixture = quadScene();
   Object.assign(fixture.material, {
     transparent: true,
@@ -72,3 +79,10 @@ for (const mode of ['normal', 'additive', 'subtractive', 'multiply'] as const)
     }
     assert.notEqual(drawn[0].ints[36], drawn[1].ints[36], 'each cluster reads its own span');
   });
+
+test('the fallback pass draws its paged clusters when the transparent compaction was refused', async () => {
+  // No compaction to upload to: the CPU cut still writes the lists the fallback pass reads.
+  const drawn = await fallbackDraws('normal', true);
+  assert.equal(drawn.length, 2);
+  for (const { draw } of drawn) assert.equal(draw.vertexCount, 3);
+});
