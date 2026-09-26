@@ -6,53 +6,41 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { PageRec } from '../../page/selection/selection.ts';
-import { createCutDelta } from '../cut/delta.ts';
-import { createWebgpuPageTracking } from '../row/pageTracking.ts';
-import { createWebgpuResidencySets } from './sets.ts';
-import { keysOf } from './sets.fixture.ts';
+import { keysOf, rec, world } from './sets.fixture.ts';
 
+/** 2 754 primitives of 45 clusters of 128 triangles, levels 0 to 4. */
 const PRIMITIVES = 2754,
   CLUSTERS = 45,
-  LEVELS = 5,
-  TRIANGLES = 128;
+  LEVELS = 5;
 
-/** Each primitive's clusters, levels 0 to 4; every even primitive's level-0 cluster carries the
- *  same index bytes as its odd neighbour's level-1 cluster, so both sit at one address. */
+/** Every even primitive's first level-0 cluster carries the same index bytes as its odd
+ *  neighbour's first level-1 cluster, so both sit at one address. */
 function estate() {
   const packed: PageRec[] = [];
   for (let primitive = 0; primitive < PRIMITIVES; primitive++)
     for (let cluster = 0; cluster < CLUSTERS; cluster++) {
-      const level = cluster % LEVELS,
-        pair = primitive >> 1;
-      const shared = (primitive % 2 === 0 && level === 0) || (primitive % 2 === 1 && level === 1);
-      const url = shared && cluster < LEVELS ? `shared-${pair}` : `p${primitive}-c${cluster}`;
-      packed.push({ url, level, triangles: TRIANGLES } as unknown as PageRec);
+      const shared = cluster === (primitive & 1);
+      packed.push(
+        rec(shared ? `shared-${primitive >> 1}` : `p${primitive}-c${cluster}`, cluster % LEVELS),
+      );
     }
-  packed.forEach((page, index) => (page.packedIndex = index));
-  const tracking = createWebgpuPageTracking(packed);
-  const bootstrapKey = new Uint8Array(tracking.keyCount);
-  const sets = createWebgpuResidencySets({ tracking, bootstrapKey, packedPages: packed });
-  return { packed, tracking, sets, delta: createCutDelta(packed, []) };
+  return world(packed);
 }
 
 test('a cut delta of the estate applies when placements of one address differ in level', () => {
   const { packed, tracking, sets, delta } = estate();
-  assert.equal(
-    packed.reduce((sum, page) => sum + page.triangles, 0),
-    PRIMITIVES * CLUSTERS * TRIANGLES,
-  );
-  const ids = (keep: (level: number) => boolean) =>
-    packed.flatMap((page, id) => (keep(page.level ?? 0) ? [id] : []));
-  const coarse = ids((level) => level >= 1),
-    fine = ids((level) => level === 0),
-    all = ids(() => true);
+  const ids = (keep: (level: number) => boolean) => {
+    const cut: number[] = [];
+    for (let id = 0; id < packed.length; id++) if (keep(packed[id].level ?? 0)) cut.push(id);
+    return cut;
+  };
   // Far, then closer — both placements of a shared address held, the level-1 one first — then
   // near, where the level-1 placement leaves, then far again, where the level-0 one leaves last.
   for (const [label, cut] of [
-    ['far', coarse],
-    ['closer', all],
-    ['near', fine],
-    ['far again', coarse],
+    ['far', ids((level) => level >= 1)],
+    ['closer', ids(() => true)],
+    ['near', ids((level) => level === 0)],
+    ['far again', ids((level) => level >= 1)],
   ] as const) {
     delta.apply(cut);
     sets.applyCut(delta);
