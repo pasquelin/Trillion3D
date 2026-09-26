@@ -8,6 +8,7 @@ import { compilingContract } from '../prepare/lightResources.ts';
 import { sunFarState } from '../prepare/sunFar.ts';
 import { renderWebgpuPages } from './render.ts';
 import { settlePose } from '../../tile/converge.ts';
+import { deviceAnswer } from '../../frame/deviceAnswer.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import { sendCoverageBudget } from '../../../diagnostic/engineDiagnostic.ts';
 
@@ -115,6 +116,15 @@ export async function flushWebgpuPages(rt: WebgpuPagesRuntime, options: { image?
   // which is replayed here after the host has taken its lists: it is removed below, and only when
   // it has changed something.
   await Promise.resolve();
+  // A frame held on a device answer — the shadow pool, the frame targets (`holdWebgpuFrame`) —
+  // drew nothing: no cut was dispatched, none can be adopted below. The answer is waited for and
+  // the pose drawn, so a drained pose is a drawn one, as the interactive loop asks it
+  // (`pendingWebgpuFrame`).
+  const answer = deviceAnswer(rt);
+  if (answer) {
+    await answer;
+    if (run.lastCamera && !capture.capturing && !run.lost) renderWebgpuPages(rt, run.lastCamera);
+  }
   // The lighting-contract program compiles outside the image. If a lamp was waiting for it, the
   // pose is redrawn with it before any read: a drained pose is a lit pose.
   const compiling = compilingContract(rt);
