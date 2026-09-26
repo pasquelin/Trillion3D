@@ -66,5 +66,4 @@ fn quantizePriority(pixels:f32)->u32{
  return u32(clamp(pas,0,${REQUEST_STEP_MAX}));
 }
 fn packRequest(page:u32,priority:u32)->u32{return (priority<<PAGE_BITS)|page;}
-fn requestPage(word:u32)->u32{return word&((1u<<PAGE_BITS)-1u);}
 `;
