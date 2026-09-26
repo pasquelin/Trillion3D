@@ -13,10 +13,18 @@ export type PageKeys = {
 };
 
 /** Ranks URLs as the residency first meets them: its tables follow what the image asked for,
- *  never the catalogue. */
-export function createPageKeys(parentsOf: PageKeys['parentsOf']): PageKeys {
+ *  never the catalogue. A page's parents are read once, when it first holds them: a removed
+ *  instance's records keep a stale `placementIndex` once the placements are laid out again, and
+ *  releasing them must give back the very parents they held. */
+export function createPageKeys(readParents: PageKeys['parentsOf']): PageKeys {
   const keys = new Map<string, number>(),
-    urls: string[] = [];
+    urls: string[] = [],
+    parents = new WeakMap<PageRec, readonly PageRec[]>();
+  const parentsOf = (rec: PageRec) => {
+    let found = parents.get(rec);
+    if (!found) parents.set(rec, (found = readParents(rec)));
+    return found;
+  };
   return {
     keyOf(url) {
       let key = keys.get(url);

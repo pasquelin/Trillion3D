@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { fixture, PAGE } from './pool.fixture.ts';
+import { createPageKeys } from './poolOrder.ts';
+import type { PageRec } from '../../page/selection/selection.ts';
 
 test('under its budget the pool walks nothing: an arrival only enters the order', () => {
   const f = fixture(10, { budgetBytes: 5 * PAGE });
@@ -162,4 +164,17 @@ test('an image costs the residency the same work in a world sixteen times larger
   const small = imageWork(1);
   assert.ok(small > 0 && small <= 3 * 8, `${small} reads for eight pages asked for`);
   assert.equal(imageWork(16), small);
+});
+
+test('a page gives back the parents it held, even once its placement is laid out elsewhere', () => {
+  const rec = { url: 'child', placementIndex: 0 } as PageRec;
+  let reads = 0;
+  const keys = createPageKeys((page) => {
+    reads++;
+    return page.placementIndex === 0 ? [{ url: 'parent' } as PageRec] : [];
+  });
+  const held = keys.parentsOf(rec);
+  rec.placementIndex = 3;
+  assert.equal(keys.parentsOf(rec), held);
+  assert.equal(reads, 1);
 });
