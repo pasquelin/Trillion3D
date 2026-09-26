@@ -19,6 +19,8 @@ export type { RenderBackend, BackendFactory, MeasuredWorldOptions } from '../bac
 export { replicateInstances } from '../scene/replicateInstances.ts';
 export { autonomousPagesBackend } from '../backend/autonomous/pages.ts';
 export { webgpuPagesBackend } from '../webgpu/pages/pages.ts';
+export { attachParticles } from '../world/core/worldSession.ts';
+export { ParticlePool } from '../../../sdk-core/src/fluids/particles.ts';
 
 /** Browser job adapter. A completed session is owned by the caller; cancel/fail after construct disposes it. */
 export async function createMeasuredWorldJob(
