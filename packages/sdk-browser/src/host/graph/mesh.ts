@@ -22,6 +22,7 @@ export class GraphMesh extends GraphNode {
   material: GraphSurface | GraphSurface[];
   constructor(geometry: Geometry, material: GraphSurface | GraphSurface[]) {
     super();
+    this.castShadow = true;
     this.geometry = geometry;
     this.material = material;
     this.updateMorphTargets();

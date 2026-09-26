@@ -1,15 +1,17 @@
 import { BODY_INDEX, type ObjectPhysics } from '../../../sdk-core/src/physics/index.ts';
 import type { Bodied } from './bodies.ts';
+import type { CookedMadeBody } from './cookedBodies.ts';
 import type { CookedMade } from './cookedSoft.ts';
 import { createSimulatedIds } from './simulatedIds.ts';
 import type { Model, Placed } from './tilePlace.ts';
 
 /** Who holds a body slot: a page's mesh with the `physics` it was made with, a soft one at its
- *  world `scale`; a cooked tile of a model; or a cooked soft body of one. */
+ *  world `scale`; a cooked tile of a model; a cooked soft body of one; or a body one declares. */
 export type SlotOwner =
   | { mesh: Bodied; physics: ObjectPhysics; scale?: readonly [number, number, number] }
   | { model: Model; tile: Placed }
-  | { model: Model; soft: CookedMade };
+  | { model: Model; soft: CookedMade }
+  | { model: Model; body: CookedMadeBody };
 
 /**
  * The one owner of each body slot, read by engine id (`createSimulatedIds`), so the id of a slot's
@@ -47,7 +49,7 @@ export function createBodySlots(size: number) {
       const owner = of(id);
       return owner && 'mesh' in owner ? owner.mesh : null;
     },
-    /** The model a cooked tile's or soft body's engine id belongs to, or `null`. */
+    /** The model whose cooked tile or body an engine id names, or `null`. */
     modelOf(id: number) {
       const owner = of(id);
       return owner && 'model' in owner ? owner.model : null;

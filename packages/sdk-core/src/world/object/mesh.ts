@@ -29,6 +29,7 @@ export class Mesh extends Object3D {
     primitive: Primitive = 'triangles',
   ) {
     super();
+    this.castShadow = true;
     this.primitive = primitive;
     this.type = primitive === 'triangles' ? 'Mesh' : primitive;
     this._geometry = geometry;

@@ -11,7 +11,7 @@ import { DAG_LEVEL_WGSL } from './levelWgsl.ts';
 import { DAG_LAST_USE_WGSL } from './lastUseWgsl.ts';
 import { DAG_FLOOR_WGSL } from './floorWgsl.ts';
 import { DAG_PAGES_WGSL } from './pagesWgsl.ts';
-import { SPRITE_UNCULLED } from '../../../visibility/shader/spriteWgsl.ts';
+import { CASTS_NO_SHADOW, SPRITE_UNCULLED } from '../../../visibility/shader/spriteWgsl.ts';
 import { DAG_VIEWS_WGSL, LIST_FULL } from './viewsWgsl.ts';
 import { DAG_RECORD_WGSL } from './recordWgsl.ts';
 import { DAG_AHEAD_WGSL } from './aheadWgsl.ts';
@@ -49,7 +49,7 @@ fn outsidePlane(plane:vec4f,bmin:vec3f,bmax:vec3f)->bool{
  return dot(plane.xyz,vec3f(px,py,pz))+plane.w<0.0;
 }
 /** True on a primitive no camera culls (\`SPRITE_UNCULLED\`). */
-fn unculledOf(w:u32)->bool{return (spriteOf(w)&${SPRITE_UNCULLED}u)!=0u;}
+fn unculledOf(w:u32)->bool{return (markOf(w)&${SPRITE_UNCULLED}u)!=0u;}
 /** GPU mirror of \`isConformal\` (../../../page/cone/cone.ts): 3x3 divided by the sum of its absolute values,
  *  relative tolerances only; null, infinite or NaN sum (read at the bit): cluster kept. */
 fn isConformal(m:mat3x3f)->bool{
@@ -129,8 +129,8 @@ fn dagPrepare(@builtin(global_invocation_id) id:vec3u){
  if(t>=world*views[0u].viewCount){return;}
  vi=t/world;let w=t-vi*world;let slot=slotOf(w);
  // The primitive's root opens the descent: one thread, one root, no counter to contend for. A
- // light cut opens none on a sprite (\`spriteOf\`): it casts no shadow.
- let root=select(rootOf(w),0xffffffffu,isLightCut()&&spriteOf(w)!=0u);
+ // light cut opens none on a primitive that casts no shadow (\`markOf\`, \`castsNoShadow\`).
+ let root=select(rootOf(w),0xffffffffu,isLightCut()&&(markOf(w)&${CASTS_NO_SHADOW}u)!=0u);
  flags[queueBase(0u)+t]=select(packEntry(vi,root),root,root==0xffffffffu);
  let m=transpose(worlds[w]);let base=slot*FRAME;
  // A primitive a camera never culls (\`unculledOf\`) takes six planes no box leaves.

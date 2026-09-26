@@ -2108,7 +2108,7 @@
       "quaternion": "Node được xoay như thế nào, dưới dạng một quaternion.",
       "scale": "Node được kéo giãn như thế nào trên mỗi trục.",
       "up": "Hướng nào là hướng lên cho `lookAt`.",
-      "castShadow": "Node có đổ bóng hay không.",
+      "castShadow": "Node có đổ bóng hay không: một mesh đổ bóng trừ khi đặt `false`, một nguồn sáng chỉ khi đặt `true`. Mesh đặt `false` vẫn nhận bóng của các vật khác.",
       "receiveShadow": "Bóng đổ có rơi lên node hay không.",
       "renderOrder": "Thứ tự vẽ giữa các vật thể trong suốt.",
       "frustumCulled": "Trình kết xuất có được bỏ qua nó khi ngoài tầm nhìn hay không.",
@@ -2622,6 +2622,7 @@
     "members": {
       "matrices": "Mười sáu số thực dạng column-major mỗi hàng, do chủ sở hữu ghi.",
       "live": "1 ở nơi hàng đặt tài nguyên đó, 0 ở nơi nó bị đỗ tạm.",
+      "shadowless": "1 ở nơi hàng không đổ bóng (`castShadow` của mesh của nó là `false`), 0 ở nơi nó đổ bóng.",
       "capacity": "Số hàng vừa được trước khi nó phải lớn lên."
     }
   },
@@ -3078,6 +3079,7 @@
       "pose": "Một node đã di chuyển.",
       "structure": "Một node được thêm hoặc mất con.",
       "content": "Hình dạng hoặc vật liệu của một node đã thay đổi.",
+      "shadow": "`castShadow` của một node đã thay đổi: không có gì di chuyển.",
       "posed": "Nhiều nút di chuyển cùng lúc, ghi thẳng vào cây của chúng (các vật thể vật lý): báo một lần.",
       "seat": "Hàng mà nút được vẽ từ đó, hoặc `null`: mười sáu số thực theo cột bắt đầu tại `row * 16` của `batch.rows.matrices`, được bộ vẽ đọc tại chỗ. Bên đặt nút theo hàng nghìn (vật lý) tự ghi ma trận thế giới vào đó, hợp lệ khi `seatEpoch` chưa đổi, và báo các hàng đã ghi qua `placed`.",
       "seatEpoch": "Thay đổi mỗi khi một hàng được lấy, giải phóng hoặc cấp lại: mọi câu trả lời trước đó của `seat` đều cũ.",

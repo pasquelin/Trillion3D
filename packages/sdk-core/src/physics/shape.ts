@@ -6,7 +6,7 @@ import { SHAPE } from './layout.ts';
 import type { PhysicsPart, PhysicsPrimitive, PhysicsShape, PhysicsType } from './options.ts';
 
 /** A shape ready for the ADD command: a primitive's sizes, or scaled vertices and indices. */
-interface ResolvedShape {
+export interface ResolvedShape {
   shape: (typeof SHAPE)[keyof typeof SHAPE];
   size: [number, number, number];
   vertices?: Float32Array;
@@ -40,7 +40,7 @@ function triangleIndices(geometry: Geometry, vertexCount: number) {
 }
 
 /** A primitive the declared or inferred shape names exactly, or `null` when the scale bends it. */
-function primitive(declared: PhysicsPrimitive, s: Scale): ResolvedShape | null {
+export function primitive(declared: PhysicsPrimitive, s: Scale): ResolvedShape | null {
   const x = Math.abs(s.x),
     y = Math.abs(s.y),
     z = Math.abs(s.z);

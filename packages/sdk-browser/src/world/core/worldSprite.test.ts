@@ -70,7 +70,7 @@ test("a sprite's size rule written at run time is a new entry, whose roots carry
     fixture.mesh.material = hostSurface(entry.material, false, new Map(), 'sprite');
     const { roots, dag } = packed(fixture);
     const frames = new Uint32Array(primitiveFrameWords(dag).buffer);
-    assert.equal(roots[0].sprite, dag.sprite[0], 'the CPU cut root and the packed DAG agree');
+    assert.equal(roots[0].mark, dag.mark[0], 'the CPU cut root and the packed DAG agree');
     marks.push(frames[primitiveWordAt(0) + 3]);
     fixture.geometry.dispose();
   }
