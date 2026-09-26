@@ -6,7 +6,7 @@
 //! needing 256 px had to load and decode 2048², residence could
 //! not keep up with screen. Here, every level exists: tail in sidecar,
 //! RGBA8; levels above are lossless PNGs in cache, one file per level,
-//! addressed by source byte hash and chain (`textures/<sha>/<srgb|linear|srgb-coverage>-<k>.png`),
+//! addressed by source byte hash and chain (`textures/<sha>/<srgb|linear|srgb-coverage[-<C>]>-<k>.png`),
 //! shared across scenes sharing image, never rewritten if present. Beside each
 //! PNG, when a quality gate lets it, the same level block-compressed in the
 //! families the cook asked for — the BC family for desktop cards, ASTC for
@@ -28,6 +28,7 @@ pub(crate) mod bake;
 mod bake_write;
 pub(crate) mod blocks;
 pub(crate) mod collect;
+mod coverage;
 mod curves;
 mod entry;
 mod gate;
@@ -46,7 +47,8 @@ pub use levels::*;
 /// binary sidecar version carrying it. Version 3 is GPU rule and full chain,
 /// both atlases included; version 4 adds the gated block-compressed levels and
 /// tails. A new chain under a name of its own moves no existing file and needs
-/// no increment: the `Coverage` chain (#42) is one.
+/// no increment: the `Coverage` chain (#42) is one, and so is each cutoff's
+/// coverage-preserving chain (#44), `srgb-coverage-<C>`.
 pub const TEXTURE_PREVIEW_VERSION: u32 = 4;
 pub use bake_write::{level_path, texture_version_dir, LEVEL_WRITE_FAILED, LOSSLESS, TEXTURE_DIR};
 pub use blocks::{BlockFormat, Layout};
