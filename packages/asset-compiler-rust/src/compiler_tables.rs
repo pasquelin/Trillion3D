@@ -20,14 +20,17 @@ mod textures;
 use documents::document_table;
 use graph::{camera_table, light_table, node_table, scene_roots};
 use materials::material_entry;
+#[cfg(test)]
+pub(crate) use partition::{pages::*, split::Region};
 use textures::texture_table;
 
 /// Version of the `scene-tables.json` cache product. It lives outside the manifest: its version is
 /// its own, and the tables it carries are versioned each in turn. Version 2 carries the whole
 /// scene graph and the geometry layout, which is what lets the runtime build the scene without a
 /// glTF parse; version 3 moves the nodes that only place a mesh into spatial cells read by
-/// distance (`partition.rs`), and the node table keeps the others, renumbered.
-const SCENE_TABLES_VERSION: u32 = 3;
+/// distance (`partition.rs`), and the node table keeps the others, renumbered; version 4 keeps
+/// only the root of the cells' index, whose pages lie beside it (`partition/pages.rs`).
+const SCENE_TABLES_VERSION: u32 = 4;
 const NODE_TABLE_VERSION: u32 = 3;
 const MATERIAL_TABLE_VERSION: u32 = 4;
 const GEOMETRY_TABLE_VERSION: u32 = 1;
@@ -92,15 +95,15 @@ pub(super) fn stage_scene_tables(
     }
     let table = node_table(published)?;
     let roots = crate::compiler_nodes::scene_roots(published, values(published, "nodes")?)?;
-    let (nodes, roots, partition, mut cells) =
+    let (nodes, roots, partition, cells) =
         match partition::partition(published, &table, &roots, directory)? {
-            Some(split) => (split.nodes, split.roots, split.partition, split.products),
-            None => (table, roots, Value::Null, Vec::new()),
+            Some(split) => (split.nodes, split.roots, split.partition, split.cells),
+            None => (table, roots, Value::Null, 0),
         };
     let lights = light_table(published)?;
     let cameras = camera_table(published)?;
     let textures = texture_table(published);
-    let counts = json!({"nodes":nodes.len(),"cells":cells.len(),"materials":surfaces.table.len(),"textures":textures.len(),"lights":lights.len(),"documents":documents.len()});
+    let counts = json!({"nodes":nodes.len(),"cells":cells,"materials":surfaces.table.len(),"textures":textures.len(),"lights":lights.len(),"documents":documents.len()});
     let tables = json!({
         "version": SCENE_TABLES_VERSION,
         "nodeTableVersion": NODE_TABLE_VERSION,
@@ -119,6 +122,36 @@ pub(super) fn stage_scene_tables(
     progress(
         json!({"phase":"tables","completed":1,"total":1,"ms":shared_math::elapsed_ms(started),"counts":counts}),
     );
-    cells.push(written);
-    Ok(cells)
+    Ok(vec![written])
+}
+
+/// Every cell record of the tables in `directory`, in cell order, read through the pages of their
+/// partition, each proven by its slot; none when they have none. Tables of another version are
+/// refused by name.
+pub(crate) fn cell_records(directory: &Path) -> std::result::Result<Vec<Value>, String> {
+    let bytes = fs::read(directory.join(SCENE_TABLES_FILE));
+    let tables: Value = serde_json::from_slice(&bytes.map_err(|e| format!("scene tables: {e}"))?)
+        .map_err(|e| format!("scene tables: {e}"))?;
+    if tables["version"] != json!(SCENE_TABLES_VERSION) {
+        return Err(format!(
+            "scene tables are not version {SCENE_TABLES_VERSION}"
+        ));
+    }
+    let mut records = Vec::new();
+    if !tables["partition"].is_null() {
+        partition::pages::read_records(directory, &tables["partition"], "the root", &mut records)?;
+    }
+    Ok(records)
+}
+
+/// The cells of the tables in `directory` by name, as the manifest's `files` records a product.
+/// The cells and the pages are not in that record, which would grow with the world: a reused
+/// folder proves them through the pages (`compiler_reuse_proof.rs`).
+pub(crate) fn cell_files(
+    directory: &Path,
+) -> std::result::Result<serde_json::Map<String, Value>, String> {
+    let records = cell_records(directory)?.into_iter();
+    Ok(records
+        .map(|cell| (cell["url"].as_str().unwrap_or_default().to_string(), cell))
+        .collect())
 }

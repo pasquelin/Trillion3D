@@ -9,13 +9,13 @@
 use super::*;
 
 /// A full-scope compilation of the fixture with `nodes` as the scene, `roots` its roots and `edit`
-/// any other change to the document: its tables and its folder.
+/// any other change to the document: its options, its tables and its folder.
 fn compiled_with(
     nodes: Vec<Value>,
     roots: Vec<usize>,
     edit: impl FnOnce(&mut Value),
-) -> (PathBuf, Value, PathBuf) {
-    let (root, mut options) = fixture();
+) -> (Options, Value, PathBuf) {
+    let (_root, mut options) = fixture();
     let mut gltf = read_gltf(&options);
     gltf["accessors"][0]["min"] = json!([0.0, 0.0, 0.0]);
     gltf["accessors"][0]["max"] = json!([1.0, 1.0, 0.0]);
@@ -27,11 +27,11 @@ fn compiled_with(
     let result = compile(&options, |_| {}).expect("compile");
     let directory = options.key_directory(result["key"].as_str().expect("key"));
     let tables = read_json(&directory.join("scene-tables.json"));
-    (root, tables, directory)
+    (options, tables, directory)
 }
 
 /// The same with `nodes` as the scene's roots, and a lamp beside them when `lamps`.
-fn compiled(mut nodes: Vec<Value>, lamps: bool) -> (PathBuf, Value, PathBuf) {
+pub(super) fn compiled(mut nodes: Vec<Value>, lamps: bool) -> (Options, Value, PathBuf) {
     if lamps {
         nodes.push(json!({"name":"lamp","extensions":{"KHR_lights_punctual":{"light":0}}}));
     }
@@ -46,7 +46,7 @@ fn compiled(mut nodes: Vec<Value>, lamps: bool) -> (PathBuf, Value, PathBuf) {
 
 /// `side`² placements of the triangle, `spacing` apart, each at its own depth so no two share a
 /// plane, all scaled by `scale`.
-fn grid(side: usize, spacing: f64, scale: f64) -> Vec<Value> {
+pub(super) fn grid(side: usize, spacing: f64, scale: f64) -> Vec<Value> {
     (0..side * side)
         .map(|i| {
             let (x, z) = ((i % side) as f64, (i / side) as f64);
@@ -56,14 +56,15 @@ fn grid(side: usize, spacing: f64, scale: f64) -> Vec<Value> {
         .collect()
 }
 
-fn cells(tables: &Value) -> &Vec<Value> {
-    tables["partition"]["cells"].as_array().expect("cells")
+/// The cell records of the tables in `directory`, read through their pages.
+pub(super) fn cells(directory: &Path) -> Vec<Value> {
+    crate::compiler_tables::cell_records(directory).expect("cell records")
 }
 
 #[test]
 fn a_scene_whose_placements_fit_one_unit_keeps_its_node_table_whole() {
     let (_root, tables, _dir) = compiled(grid(4, 4.0, 1.0), false);
-    assert_eq!(tables["version"], json!(3));
+    assert_eq!(tables["version"], json!(4));
     assert_eq!(
         tables["partition"],
         Value::Null,
@@ -84,9 +85,8 @@ fn placed_nodes_leave_the_core_for_cells_boxed_around_them() {
     );
     assert_eq!(tables["nodes"][0]["name"], json!("lamp"));
     assert_eq!(tables["scene"]["nodes"], json!([0]), "roots renumbered");
-    assert_eq!(tables["partition"]["meshes"], json!([0]));
     let mut seen = 0;
-    for cell in cells(&tables) {
+    for cell in cells(&directory) {
         let bytes = fs::read(directory.join(cell["url"].as_str().expect("url"))).expect("cell");
         assert_eq!(cell["bytes"], json!(bytes.len()));
         assert_eq!(cell["sha256"], json!(hash(&bytes)));
@@ -129,37 +129,19 @@ fn a_cell_boxes_its_nodes_in_the_frame_of_their_core_parent() {
     let children: Vec<usize> = (0..side * side).collect();
     nodes
         .push(json!({"name": "district", "translation": [1000.0, 0.0, 0.0], "children": children}));
-    let (_root, tables, _dir) = compiled_with(nodes, vec![side * side], |_| {});
+    let (_root, tables, directory) = compiled_with(nodes, vec![side * side], |_| {});
     assert_eq!(tables["nodes"][0]["name"], json!("district"));
     let mut low = f64::INFINITY;
-    for cell in cells(&tables) {
+    for cell in cells(&directory) {
         assert_eq!(cell["parents"].as_array().expect("parents").len(), 1);
         assert_eq!(cell["parents"][0][0], json!(0), "the district's core rank");
         low = low.min(cell["parents"][0][1][0].as_f64().expect("min x"));
     }
     assert_eq!(low, 0.0, "in the district's frame, not 1000 m away");
-    let union = tables["partition"]["bounds"][0].as_f64().expect("union");
+    // A world this small is one region page: its slot's box, minimum x, after digest and size.
+    let slot = tables["partition"]["pages"][0].as_str().expect("slot");
+    let union = f64::from_bits(u64::from_str_radix(&slot[72..88], 16).expect("hex"));
     assert_eq!(union, 1000.0, "the union box is at the declared poses");
-}
-
-#[test]
-fn the_core_read_before_the_first_frame_does_not_grow_with_the_world() {
-    // The same density over sixteen times the area: the core keeps the same nodes, every cell the
-    // same budget; only the cell index grows, by one short entry per cell.
-    let core = |side: usize| {
-        let (_root, mut tables, _dir) = compiled(grid(side, 4.0, 1.0), true);
-        let count = cells(&tables).len();
-        tables["partition"]["cells"] = json!([]);
-        tables["partition"]["bounds"] = json!([]);
-        (serde_json::to_vec(&tables).expect("json").len(), count)
-    };
-    let (small, small_cells) = core(48);
-    let (large, large_cells) = core(48 * 4);
-    assert_eq!(small, large, "the core without its cell index");
-    assert!(
-        large_cells > small_cells,
-        "{small_cells} → {large_cells} cells"
-    );
 }
 
 #[test]
