@@ -54,6 +54,14 @@ export function mount(
     ...racine(pages),
     structure: structures[i],
   })) as unknown as ClusterRoot<PageRec>[];
+  /** A page leaves: its geometry and bytes go, and the cut's readiness hears of it. */
+  const drop = (url: string) => {
+    const page = byUrl.get(url)!;
+    if (!page.array) return;
+    page.array = undefined;
+    held.moved(page as PageRec);
+    state.allocationBytes -= bytes(url);
+  };
   const rootBytes = rootPages.reduce((sum, page) => sum + bytes(page.url), 0);
   const pool = createGeometryBudget({
     budgetBytes,
@@ -74,13 +82,7 @@ export function mount(
     state,
     floorBytes: () => rootBytes,
     parentsOf: createPageParents(roots),
-    drop: (url) => {
-      const page = byUrl.get(url)!;
-      if (!page.array) return;
-      page.array = undefined;
-      held.moved(page as PageRec);
-      state.allocationBytes -= bytes(url);
-    },
+    drop,
     onDiagnostic: (diagnostic) => diagnostics.push(diagnostic),
   });
   let camera = view ?? dagCamera();
@@ -130,8 +132,8 @@ export function mount(
   return {
     pool,
     state,
-    /** The cut's readiness: a test that takes a page away names it there, as the pool's drop does. */
-    held,
+    /** Takes a page away as the pool evicts one — a root-cover page included. */
+    drop,
     diagnostics,
     image,
     frame,
