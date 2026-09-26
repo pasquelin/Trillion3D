@@ -15,6 +15,7 @@ import {
   lampEntry,
   lampFacesOf,
   ringOf,
+  tableEntriesOf,
   sunEntry,
 } from './virtual.ts';
 
@@ -35,9 +36,11 @@ const ORIGIN = [0, 0, 0] as const;
  *   floor the frame cannot draw reads no shadow.
  * - **An object moved within its reach**: in each light view — a sun level, a lamp face at a
  *   mip —, the rectangle of pages its box covers, read through the page table: the work is the
- *   pages covered, never the pool. Once a light's boxes cover more entries than the pool holds
- *   pages, the rest join one union per kind — static layer wrong or kept —, read by one scan of
- *   the pool: a light's work stays within twice the pool. A static caster that moved makes the
+ *   pages covered, never the pool; a box covering more entries than the pool holds pages scans
+ *   the pool once against its own rectangles instead. Either way it stales its own pages alone,
+ *   never a neighbour's. A light examines at most as many pages as it has virtual pages
+ *   (`tableEntriesOf`) — past that, its boxes can only cover its entries again —: the boxes
+ *   beyond join one union per kind, static layer wrong or kept, each read by one pool scan. A static caster that moved makes the
  *   static layer of those pages wrong: they are read no more until redrawn. An object already
  *   moving stales only their moving casters: the static layer under them holds, and they stay
  *   read. With per-page invalidation off, every page of each light the box touches.
@@ -54,16 +57,14 @@ export function createPageInvalidation(
   counts: Counts,
 ) {
   const { rects, sunRects, lampFaces, lampRects } = createPageRects();
-  /** The unions of a light's boxes past its walk budget, scanned once: those whose static layer is
-   *  wrong, and the others — a moving caster past the budget keeps the static layer under it read.
-   *  The wrong union's rectangles are set aside while the other's are projected. */
+  /** The unions of a light's boxes past its budget, scanned once each: those whose static layer
+   *  is wrong, and the others — a moving caster past the budget keeps the static layer read. */
   const restWrong = new Float64Array(6),
     restKept = new Float64Array(6),
     wrongMin = restWrong.subarray(0, 3),
     wrongMax = restWrong.subarray(3, 6),
     keptMin = restKept.subarray(0, 3),
-    keptMax = restKept.subarray(3, 6),
-    wrongRects = new Float64Array(rects.length);
+    keptMax = restKept.subarray(3, 6);
   /** The light being invalidated — its slice, its kind, its views — and the frame's stamp. */
   let slice = 0,
     sunLight = false,
@@ -74,35 +75,25 @@ export function createPageInvalidation(
     if (pool.stale(page, nowMs, frame, level)) counts.invalidatedPages++;
     if (wrong) pool.withdraw(table, page);
   };
-  const within = (of: Float64Array, view: number, x: number, y: number) =>
+  const within = (view: number, x: number, y: number) =>
     view >= 0 &&
     view < views &&
-    x >= of[view * 4] &&
-    x <= of[view * 4 + 1] &&
-    y >= of[view * 4 + 2] &&
-    y <= of[view * 4 + 3];
+    x >= rects[view * 4] &&
+    x <= rects[view * 4 + 1] &&
+    y >= rects[view * 4 + 2] &&
+    y <= rects[view * 4 + 3];
   /** The rectangles of box `min..max` in each view of the light: returns the pages covered. */
   const project = (min: ArrayLike<number>, max: ArrayLike<number>) =>
     sunLight ? sunRects(sun, slice, min, max) : lampRects(min, max);
-  /**
-   * Every page of the light at `level`, withdrawn when `wrong`; or, `covered`, the pages of the
-   * rest unions: the wrong one's (`wrongRects`) stale whole and withdrawn when `wrong`, the kept
-   * one's (`rects`) stale at `level` when it is set.
-   */
+  /** Every page of the light, or, `covered`, those the rectangles hold: stale at `level`, and
+   *  withdrawn when `wrong`. */
   const scan = (covered: boolean, level: number, wrong: boolean) => {
     counts.visitedPages += pool.pages;
     for (let page = 0; page < pool.pages; page++) {
       if (pool.owner[page] < 0 || pool.slice[page] !== slice) continue;
-      if (!covered) {
-        mark(page, level, wrong);
-        continue;
-      }
       const key = pool.view[page],
-        view = sunLight ? key - sun.finest[slice] : (key >> 4) * LAMP_MIPS + (key & 15),
-        x = pool.x[page],
-        y = pool.y[page];
-      if (wrong && within(wrongRects, view, x, y)) mark(page, STALE_FULL, true);
-      else if (level && within(rects, view, x, y)) mark(page, level, false);
+        view = sunLight ? key - sun.finest[slice] : (key >> 4) * LAMP_MIPS + (key & 15);
+      if (!covered || within(view, pool.x[page], pool.y[page])) mark(page, level, wrong);
     }
   };
   /** The table entries the rectangles hold: a mapped one names its page. */
@@ -134,9 +125,10 @@ export function createPageInvalidation(
     now: number,
     at: number,
   ) => {
+    const rank = LIGHT_KIND[light.kind];
     slice = lightSlice;
-    sunLight = light.kind === 'directional';
-    views = sunLight ? SUN_LEVELS : lampFacesOf(LIGHT_KIND[light.kind]) * LAMP_MIPS;
+    sunLight = rank === LIGHT_KIND.directional;
+    views = sunLight ? SUN_LEVELS : lampFacesOf(rank) * LAMP_MIPS;
     nowMs = now;
     frame = at;
     if (whole) {
@@ -146,11 +138,12 @@ export function createPageInvalidation(
     const range = sunLight ? 0 : (light.range ?? 0),
       position = light.position ?? ORIGIN;
     if (!sunLight && byPage && changes.count) lampFaces(light);
-    // With per-page invalidation on, each box walks the table entries it covers while the light's
-    // walks stay within the pool's pages; the boxes past that join a rest union by what they stale,
-    // scanned once at the end. Off, every box that touches stales every page: one scan at the
-    // strongest level, withdrawing when any box is wrong, does what one scan a box would.
-    let budget = pool.pages,
+    // With per-page invalidation on, each box stales exactly its own pages — by walking the
+    // entries it covers, or, when they outnumber the pool's pages, by one scan against its own
+    // rectangles — while the light's work stays within its virtual pages; the boxes past that join
+    // a rest union by what they stale, scanned once each at the end. Off, every box that touches
+    // stales every page: one scan at the strongest level, withdrawing when any box is wrong.
+    let budget = tableEntriesOf(rank),
       level = 0,
       wrong = false;
     boxEmpty(restWrong, 0);
@@ -160,30 +153,36 @@ export function createPageInvalidation(
       const moved = changes.read(box),
         boxLevel = moved.moving ? STALE_DYNAMIC : STALE_FULL,
         boxWrong = !moved.detail && !moved.moving;
-      if (byPage) {
-        const covered = project(moved.min, moved.max);
-        if (covered <= budget) {
-          budget -= covered;
-          walk(boxLevel, boxWrong);
-          continue;
-        }
-        const { min, max } = moved,
-          into = boxWrong ? restWrong : restKept;
-        boxUnion(into, 0, min[0], min[1], min[2], max[0], max[1], max[2]);
-        // The wrong union stales whole: `level` is the kept union's alone.
-        if (boxWrong) wrong = true;
-        else level = Math.max(level, boxLevel);
+      if (!byPage) {
+        level = Math.max(level, boxLevel);
+        wrong ||= boxWrong;
         continue;
       }
-      level = Math.max(level, boxLevel);
-      wrong ||= boxWrong;
+      const covered = project(moved.min, moved.max),
+        cost = Math.min(covered, pool.pages);
+      if (cost <= budget) {
+        budget -= cost;
+        if (covered > pool.pages) scan(true, boxLevel, boxWrong);
+        else walk(boxLevel, boxWrong);
+        continue;
+      }
+      const { min, max } = moved;
+      if (boxWrong) wrong = true;
+      else level = Math.max(level, boxLevel);
+      boxUnion(boxWrong ? restWrong : restKept, 0, min[0], min[1], min[2], max[0], max[1], max[2]);
     }
-    if (!level && !wrong) return;
-    if (byPage && wrong) {
+    if (!byPage) {
+      if (level) scan(false, level, wrong);
+      return;
+    }
+    // The wrong union stales whole and withdraws; the kept one at its strongest level.
+    if (wrong) {
       project(wrongMin, wrongMax);
-      wrongRects.set(rects);
+      scan(true, STALE_FULL, true);
     }
-    if (byPage && level) project(keptMin, keptMax);
-    scan(byPage, level, wrong);
+    if (level) {
+      project(keptMin, keptMax);
+      scan(true, level, false);
+    }
   };
 }

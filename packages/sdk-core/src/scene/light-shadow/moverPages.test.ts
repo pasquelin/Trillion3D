@@ -1,14 +1,14 @@
-// #525: each mover stales only the pages its own box covers, in each light view — a sun level, a
-// lamp face at a mip —, however many move at once; and finding them costs the pages covered, never
-// the pool. The shape is the walker's: small balls far apart around a point lamp, under a sun.
+// #525: each mover stales only the pages its own box covers, in each light view, however many move
+// at once, for the cost of the pages covered. The walker's shape: balls round a point lamp, a sun.
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { LIGHT_KIND } from '../light/contracts.ts';
 import { createSceneLightStore } from '../light/store.ts';
 import { createShadowChanges } from './changes.ts';
 import { writeFace } from './faces.ts';
 import { createShadowPlan, type ShadowPlan } from './plan.ts';
 import { STALE_DYNAMIC } from './pool.ts';
-import { LAMP_MIPS, lampPagesAt } from './virtual.ts';
+import { LAMP_MIPS, lampPagesAt, tableEntriesOf } from './virtual.ts';
 import { LAMP, SUN, cycle, lampPages, planFrame, sunPages } from './lightShadow.fixture.ts';
 /** Twenty-six balls of half a metre on a ring of eight metres round the lamp. */
 const BALLS = Array.from({ length: 26 }, (_, i) => {
@@ -160,18 +160,19 @@ test('finding the pages a mover stales costs the pages it covers, not the pool',
   assert.ok(visited[1].visited < visited[1].mapped / 4, `${visited[1].visited} visited`);
 });
 
-test('boxes that each cover more pages than the pool are scanned once per light, not once each', () => {
+test("past a light's virtual pages its boxes join one union per kind: a moving one keeps", () => {
   const { store, plan, frame } = settled(32);
-  // A static caster −X of the lamp, a moving one +X: the +X face lies under the moving one alone.
-  plan.worldChanged([-40, 0, -40], [-1, 5, 40]);
+  // Static casters −X of the lamp, each wider than the pool, then a moving one alone over +X.
+  for (let i = 0; i < 12; i++) plan.worldChanged([-40, 0, -40], [-1 - i / 10, 5, 40]);
   plan.worldChanged([1, 0, -40], [40, 5, 40], true);
   planFrame(plan, store, frame);
-  assert.equal(plan.counts.visitedPages, 2 * plan.pool.pages, 'one pool scan for each light');
+  // The sun scans each of its 13 boxes; the lamp stops at its virtual pages, then two unions.
   const { pool } = plan,
-    front = lampPagesOf(plan, store.sliceOf(0)).filter((page) => pool.view[page] >> 4 === 0),
+    lamp = plan.counts.visitedPages - 13 * pool.pages;
+  assert.ok(lamp <= tableEntriesOf(LIGHT_KIND.point) + 2 * pool.pages, `${lamp} visited`);
+  const front = lampPagesOf(plan, store.sliceOf(0)).filter((page) => pool.view[page] >> 4 === 0),
     lost = front.filter((page) => pool.dirty[page] !== STALE_DYNAMIC || !pool.valid[page]);
-  assert.ok(front.length > 0);
-  assert.equal(lost.length, 0, 'the moving one keeps the static layer under it read');
+  assert.ok(front.length > 0 && !lost.length, 'the moving one keeps the static layer read');
 });
 
 test('a box that bounds nothing finite stales every page of the sun and of the lamp', () => {
