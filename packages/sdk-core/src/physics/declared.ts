@@ -15,7 +15,7 @@ function implicitPrimitive(s: ImplicitShape): PhysicsPrimitive | null {
     return { type: 'box', halfExtents: [x / 2, y / 2, z / 2] };
   }
   if (s.type === 'sphere') return { type: 'sphere', radius: s.sphere?.radius ?? 0.5 };
-  const rounded = s.type === 'capsule' ? s.capsule : s.type === 'cylinder' ? s.cylinder : null;
+  const rounded = s.type === 'capsule' ? s.capsule : s.cylinder;
   const { height = 0.5, radiusTop = 0.25, radiusBottom = 0.25 } = rounded ?? {};
   if (s.type === 'cylinder')
     return { type: 'cylinder', halfHeight: height / 2, radius: radiusTop, radiusBottom };
@@ -66,18 +66,21 @@ function turned(d: readonly number[], [x, y, z, w]: readonly number[] = [0, 0, 0
 
 /**
  * The mass of the body `body` declares, placed at world scale `scale`, and its mass frame (the
- * ADD command's `massFrame`): what its `motion` declares — `mass`, `centerOfMass`,
- * `inertiaDiagonal` turned by `inertiaOrientation` — wins over the cooked weighing, which is taken
- * at the scale it was cooked at to `scale`, its inertia to a declared mass. Nothing declared nor
- * cooked, a mass of 0: Jolt weighs the shape at its matter's density.
+ * ADD command's `massFrame`): what its `motion` declares — `mass`, `centerOfMass` (in the node's
+ * frame, stretched by `scale` as its shape is), `inertiaDiagonal` turned by `inertiaOrientation` —
+ * wins over the cooked weighing, which is taken from the scale it was cooked at to `scale`, its
+ * inertia to a declared mass. Nothing declared nor cooked, a mass of 0: Jolt weighs the shape at
+ * its matter's density.
  */
 export function declaredMass({ motion, shape, scale: cookedAt }: CookedBody, scale: Scale) {
-  const r = [scale.x / cookedAt[0], scale.y / cookedAt[1], scale.z / cookedAt[2]];
+  const s = [scale.x, scale.y, scale.z],
+    r = s.map((v, i) => v / cookedAt[i]);
   const cooked = shape.type === 'cooked' && shape.mass ? rescaled(shape.mass, r) : null;
   const mass = motion.mass ?? cooked?.mass ?? 0;
   const inertia = motion.inertiaDiagonal
     ? turned(motion.inertiaDiagonal, motion.inertiaOrientation)
     : cooked?.inertia.map((v) => (v * mass) / cooked.mass);
-  const centre = motion.centerOfMass ?? cooked?.centerOfMass ?? (inertia && [0, 0, 0]);
+  const declared = motion.centerOfMass?.map((c, i) => c * s[i]);
+  const centre = declared ?? cooked?.centerOfMass ?? (inertia && [0, 0, 0]);
   return { mass, massFrame: centre && [...centre, ...(inertia ?? [])] };
 }
