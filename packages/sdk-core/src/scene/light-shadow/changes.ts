@@ -95,7 +95,6 @@ export function createShadowChanges() {
     add(deferMin, deferMax, false, true);
     boxEmpty(defer, 0);
   };
-  // Data fields only, never an accessor (`pool.ts`).
   const changes = {
     /** Boxes in the list. */
     count: 0,

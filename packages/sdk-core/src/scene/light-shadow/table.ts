@@ -38,7 +38,6 @@ export function createShadowTable(poolPages: number) {
     queued[entry] = 1;
     changed[changedCount++] = entry;
   };
-  // Data fields only, never an accessor: the scheduler reads the words entry by entry (`pool.ts`).
   const table = {
     words,
     /** Bytes of every host array the table holds: what `shadowTableHostBytes` declares. */
