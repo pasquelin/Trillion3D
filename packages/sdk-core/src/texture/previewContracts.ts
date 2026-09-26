@@ -22,8 +22,10 @@ export interface TexturePreview {
   sourceBufferView: number;
   /** SHA-256 of decoded source bytes. */
   sha256: string;
-  /** The chain this entry holds: PREVIEW_ATLAS_COLOR, PREVIEW_ATLAS_DATA, or
-   *  PREVIEW_ATLAS_COVERAGE, sampled in the colour atlas. */
+  /** The chain this entry holds, its atlas in the low byte: PREVIEW_ATLAS_COLOR,
+   *  PREVIEW_ATLAS_DATA, or PREVIEW_ATLAS_COVERAGE, sampled in the colour atlas, whose cutoff
+   *  byte fills bits 8–15 (#44). Read it with previewAtlasOf and its `{kind}` with
+   *  previewAtlasName, never by comparing it with a constant. */
   atlas: number;
   /** Index of the first level carried in the source's mip chain; 0 when it already fits
    *  under PREVIEW_BASE and the sidecar thus carries its full resolution. */
