@@ -1,4 +1,6 @@
 import type { TestContext } from 'node:test';
+import { EngineError } from '../../../sdk-core/src/index.ts';
+import { refusedStatus } from './pages.ts';
 
 /** An answer `answering` gives: a status, `'network'` — a failed request —, or `'hang'` — no
  *  answer until the request aborts. */
@@ -45,12 +47,8 @@ export function answering(
 }
 
 /** Whether `error` is the `RESOURCE_HTTP_ERROR` of `status`, naming an address ending in `name`. */
-export const refusedWith = (status: number | null, name: string) => (error: unknown) => {
-  const { code, details } = error as {
-    code?: string;
-    details?: { url?: string; status?: unknown };
-  };
-  return (
-    code === 'RESOURCE_HTTP_ERROR' && details?.status === status && !!details.url?.endsWith(name)
-  );
-};
+export const refusedWith = (status: number | null, name: string) => (error: unknown) =>
+  error instanceof EngineError &&
+  error.code === 'RESOURCE_HTTP_ERROR' &&
+  refusedStatus(error) === status &&
+  String(error.details.url).endsWith(name);
