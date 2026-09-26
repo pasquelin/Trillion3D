@@ -13,9 +13,8 @@ import {
 import { hostBlending } from '../../../packages/sdk-browser/src/scene/materialBlending.ts';
 import type { Blending } from '../../../packages/sdk-core/src/world/constants/index.ts';
 import { batisseur, cameraFace, carre, engine, libere } from './sharedSceneProof.ts';
-import { difference, image } from './sceneImageProof.ts';
+import { couleurEn, difference, image } from './sceneImageProof.ts';
 import { executerAppareil } from './deviceProof.ts';
-import { project } from '../probes/cameraRig.ts';
 
 export const MODES: readonly Blending[] = ['normal', 'additive', 'subtractive', 'multiply'];
 /** Where each tile's row sits, top to bottom, and the half-size of a tile. */
@@ -65,15 +64,6 @@ function sansVisibilite(device: GPUDevice) {
   return handle;
 }
 
-/** The RGBA read where world point `(x, y, 0)` projects, bottom-left origin like `capture`. */
-function lu(pixels: Uint8Array, camera: G.GraphCamera, x: number, y: number) {
-  const p = project(new G.Vector3(x, y, 0), camera),
-    px = Math.round(((p.x + 1) / 2) * (VUE[0] - 1)),
-    py = Math.round(((p.y + 1) / 2) * (VUE[1] - 1)),
-    i = (py * VUE[0] + px) * 4;
-  return Array.from(pixels.subarray(i, i + 4));
-}
-
 /** One side: its last image, each tile and the background over each half, what it fell back to. */
 async function cote(device: GPUDevice, evenements: unknown[], nom: string) {
   const s = scene(),
@@ -93,11 +83,14 @@ async function cote(device: GPUDevice, evenements: unknown[], nom: string) {
     const tuiles = MODES.map((mode, rang) => ({
       mode,
       ...Object.fromEntries(
-        Object.entries(COTES).map(([moitie, x]) => [moitie, lu(pixels, camera, x, RANGEES[rang])]),
+        Object.entries(COTES).map(([moitie, x]) => [
+          moitie,
+          couleurEn(pixels, camera, x, RANGEES[rang], 0, VUE),
+        ]),
       ),
     }));
     const fond = Object.fromEntries(
-      Object.entries(COTES).map(([moitie, x]) => [moitie, lu(pixels, camera, x, 0)]),
+      Object.entries(COTES).map(([moitie, x]) => [moitie, couleurEn(pixels, camera, x, 0, 0, VUE)]),
     );
     const repli = backend.capabilities.unsupported.includes('visibility buffer');
     return { pixels, lecture: { repli, fond, tuiles } };
