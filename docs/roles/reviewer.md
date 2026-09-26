@@ -10,7 +10,8 @@ merge and never run Chrome, a browser proof or the bench.
 3. **Correctness pass** — invoke the real `code-review` skill with `--fix`. Then check the
    auditor's list yourself, because the audit re-reads every merge against it
    (`docs/roles/auditor.md` step 3):
-   - every To do and Proof item of the issue is delivered, and the body says `Closes #<n>`;
+   - every To do and Proof item of the issue is delivered, and the body says `Closes #<n>`; a
+     diff that leaves part of the issue's goal undelivered is `KO` until the CTO splits the issue;
    - the diff follows the lead's design note on the issue, and a `tests` return adds the fast test the note names;
    - each changed behaviour has a test that fails on `develop`, on the issue's fixture, waiting
      for events, never a fixed delay, and never comparing a result with itself;

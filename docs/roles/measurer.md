@@ -7,7 +7,8 @@ merge; your only commits are examples' thumbnails (steps 6 and 7).
 
 ## Loop
 
-1. **Queue.** `gh issue list --label "to measure" --state all`, oldest merge first, skipping an
+1. **Queue.** A lead's "prove #n on <branch>" first: only the proof the issue names, no bench,
+   answered "branch ok" or with the numbers. Then `gh issue list --label "to measure" --state all`, oldest merge first, skipping an
    issue while it carries `audit ko` (it is measured once the fix is merged). Measuring never blocks anything: you only
    add to the issue. Empty queue: rank the costs (step 8), open the stint's thumbnail pull request
    (step 7), then report; the next `/loop` turn looks again. Never measure anything else.
