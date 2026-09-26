@@ -1,12 +1,7 @@
 import assert from 'node:assert/strict';
 import test, { mock } from 'node:test';
-import { healthCheck } from './verdict.ts';
-
-type Metrics = {
-  gpuFrameMs?: number | null;
-  shadowPagesDrawn?: number | null;
-  shadowPagesRefetched?: number | null;
-};
+import { LIGHT_SETTINGS } from '../../../packages/sdk-core/src/scene/light/contracts.ts';
+import { BUDGETS, healthCheck, type Counters as Metrics } from './verdict.ts';
 
 /** Draws `count` frames of `part`, `gap` ms apart, each with `metrics(k)`, and returns the
  *  verdict's lines as name → [green, motif]. */
@@ -18,7 +13,7 @@ function judged(
     part: string | null = null;
   const hooks: ((frame: { metrics: Metrics }) => void)[] = [];
   mock.method(performance, 'now', () => now);
-  const check = healthCheck({ onFrame: (hook) => hooks.push(hook) }, () => part);
+  const check = healthCheck({ onFrame: (hook) => (hooks.push(hook), () => {}) }, () => part);
   for (const [name, count, gap, metrics] of frames) {
     part = name;
     for (let k = 0; k < count; k++, now += gap)
@@ -44,10 +39,14 @@ test('a part drawn at 120 Hz within its budgets is green on every line, part by 
   ]);
   assert.equal(correct, true);
   assert.deepEqual(lines['close: FPS'], [true, '120 ≥ 60']);
-  assert.deepEqual(lines['far: GPU frame'], [true, '6.00 ms ≤ 16.67']);
+  assert.deepEqual(lines['far: GPU frame'], [true, '6.00 ms ≤ 16.67 ms']);
   assert.deepEqual(lines['far: shadow pages drawn'], [true, '3 ≤ 24']);
   assert.deepEqual(lines['close: shadow pages refetched'], [true, '0 ≤ 0']);
   assert.deepEqual(lines.refused, [true, '—']);
+});
+
+test("the shadow pages a part may draw a frame are one of the engine's batches", () => {
+  assert.equal(BUDGETS.shadowPagesDrawn, LIGHT_SETTINGS.shadowPagesPerBatch);
 });
 
 test('a slowed build turns its rate line red, and the overall verdict with it', () => {
@@ -67,7 +66,7 @@ test('each counter over its budget turns its own line red; one the engine does n
     ],
     ['close', 11, 10, () => ({ gpuFrameMs: null, shadowPagesDrawn: null })],
   ]);
-  assert.deepEqual(lines['pan: GPU frame'], [false, '20.00 ms ≤ 16.67']);
+  assert.deepEqual(lines['pan: GPU frame'], [false, '20.00 ms ≤ 16.67 ms']);
   assert.deepEqual(lines['pan: shadow pages drawn'], [false, '90 ≤ 24']);
   assert.deepEqual(lines['pan: shadow pages refetched'], [false, '10 ≤ 0']);
   for (const quantity of ['GPU frame', 'shadow pages drawn', 'shadow pages refetched'])

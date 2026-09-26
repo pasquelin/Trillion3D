@@ -1,4 +1,5 @@
-import { ease, mix, opening, type CirclingWorld, type Opening, type View } from './opening.ts';
+import { cameraView, ease, glideCamera, opening } from './opening.ts';
+import type { CirclingWorld, Opening, View } from './opening.ts';
 
 /** A named part of a tour: the camera flies `seconds` to its view, then holds it `hold` seconds. */
 export interface Pose extends View {
@@ -20,26 +21,22 @@ export interface Tour extends Opening {
  * hold.
  */
 export function tour(world: CirclingWorld, poses: readonly Pose[], curve = ease.inOut): Tour {
-  const { position } = world.camera,
-    { target } = world.controls;
+  const views = poses.map((pose) => [...pose.position, ...pose.target]);
   let start: number[] = [],
     part: string | null = null;
   const glide = opening(world, (time) => {
-    if (time === 0) start = [position.x, position.y, position.z, target.x, target.y, target.z];
+    if (time === 0) start = cameraView(world);
     let from = start,
       at = time;
-    for (const pose of poses) {
-      const to = [...pose.position, ...pose.target];
+    for (const [k, pose] of poses.entries()) {
+      const to = views[k];
       if (at < pose.seconds + pose.hold) {
-        const [x, y, z, tx, ty, tz] = mix(from, to, curve(at / pose.seconds));
-        position.set(x, y, z);
-        target.set(tx, ty, tz);
+        glideCamera(world, from, to, curve(at / pose.seconds));
         part = pose.name;
         return true;
       }
       [from, at] = [to, at - pose.seconds - pose.hold];
     }
-    part = null;
     return false;
   });
   return Object.defineProperties(glide, {
