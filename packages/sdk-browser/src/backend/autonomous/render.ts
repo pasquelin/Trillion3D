@@ -16,9 +16,7 @@ import type { createAutonomousGeometry } from './geometry.ts';
 /** What the autonomous frame decided, and whether it was held. */
 export type AutonomousRenderState = {
   visible: number;
-  /** The cut's triangles, under their metric names: what it wants (`selectedTriangles`), what the
-   *  image hands to the draw (`drawnTriangles`, the nearest resident ancestors included) and its
-   *  holes (`uncoveredTriangles`, `SelectionResult`). */
+  /** The cut's triangle counts under their metric names, spread into `metrics()`. */
   triangles: { selectedTriangles: number; drawnTriangles: number; uncoveredTriangles: number };
   frustumRejected: number;
   lodLevel: number;
