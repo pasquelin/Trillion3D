@@ -1,6 +1,5 @@
-// #787: the hand copies of add, sub, scale, add-scaled, cross and dot that the kernel's vector forms
-// replaced (`lighting/scene/math.ts`, `world/geometry/round.ts`, `physics/soft.ts`,
-// `sdk-browser/src/physics/jointFrames.ts`), each written here as it stood, give the same bits.
+// #787: every hand copy the kernel's vector forms replaced — add, sub, scale, add-scaled, cross
+// and dot, in lighting, round geometry, soft bodies and joints — written as it stood: same bits.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
@@ -54,7 +53,8 @@ test('copyScaledVector3 gives the bits of the lighting copy of scale', () => {
 test('crossVector3 in place and dotVector3 give the bits of the soft-body and joint copies', () => {
   for (const u of HOSTILE)
     for (const v of HOSTILE) {
-      assertBits(crossVector3([...u], [...u], v), copyCross(u, v), 'cross into u');
+      const into = [...u];
+      assertBits(crossVector3(into, into, v), copyCross(u, v), 'cross into u');
       assert.ok(Object.is(dotVector3(u, v), copyDot(u, v)), `${u} · ${v}`);
     }
 });
