@@ -2,9 +2,10 @@ import { sharedGpuDevice } from '../gpu/core/sessionHandle.ts';
 import { COVERAGE_PICK_WGSL, COVERAGE_SCALE_WGSL } from './coverageRule.ts';
 import { levelSize } from './tiles.ts';
 
-/** Bytes of one level's 256 bins, and the offset of `t` in a level's uniform block. */
-export const LEVEL_BIN_BYTES = 1024,
-  PICKED_OFFSET = 12;
+/** Bytes of one level's 256 bins. */
+export const LEVEL_BIN_BYTES = 1024;
+/** Offset of `t` in a level's uniform block: its fourth word. */
+const PICKED_OFFSET = 12;
 
 /**
  * The counts of the coverage rule (docs/FORMAT.md, "Coverage-preserving alpha"): `count` files each
