@@ -59,12 +59,10 @@ export function bindClusterMaterial(
   const { uniforms, matrices, textures, state, linear } = binding;
   const source = material as { opacity: number },
     mat = visMaterial(material);
-  // A basic material keeps its occlusion map and strength on the host object alone: its map is
+  // An unlit material keeps its occlusion map and strength on the host object alone: its map is
   // imported here, as the boundary imports every other, into the engine record the binding reads.
-  // The other unlit models — normal, matcap, depth — read no occlusion, as on WebGPU.
   const basic = material as { aoMap?: HostTexture | null; aoMapIntensity?: number },
-    unlitBasic = !mat.lit && (mat.model ?? SURFACE_MODEL.standard) === SURFACE_MODEL.standard,
-    aoMap = mat.aoMap ?? (unlitBasic && basic.aoMap ? importHostTexture(basic.aoMap) : undefined),
+    aoMap = mat.aoMap ?? (!mat.lit && basic.aoMap ? importHostTexture(basic.aoMap) : undefined),
     aoIntensity = mat.aoMap ? mat.aoIntensity : (basic.aoMapIntensity ?? 1);
   uniforms.f4(
     0,
@@ -130,9 +128,8 @@ export function bindClusterMaterial(
   uniforms.f2(45, 'sprite', sprite[0], sprite[1]);
   const doubleSided = side === undefined ? mat.doubleSided : false,
     backSide = side === undefined ? mat.backSide : side === 'back';
-  // The model a non-physical family reads in (`SURFACE_MODEL_GLSL`): lambert, toon, normal and
-  // matcap, and depth, which shows the frame's depth ramp in place of its colour (`beginFrame`).
-  uniforms.i1(35, 'surfaceModel', mat.model ?? SURFACE_MODEL.standard);
+  // A depth material shows the frame's depth ramp in place of its colour (`beginFrame`).
+  uniforms.i1(35, 'depthShaded', mat.model === SURFACE_MODEL.depth ? 1 : 0);
   // A diagnostic view's surface is shown as it is, never through the fog
   // (`../../host/pageDiagnostics.ts`).
   uniforms.i1(38, 'fogFree', (material as { fog?: boolean }).fog === false ? 1 : 0);

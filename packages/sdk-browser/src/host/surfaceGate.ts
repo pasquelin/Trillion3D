@@ -10,8 +10,8 @@
 
 import type { HostAttribute, HostAttributes, HostMaterials } from './resources.ts';
 import type { HostMap, HostShadedMaterial } from './shadedMaterial.ts';
+import { metalRough } from '../scene/surfaceModel.ts';
 import { blendingOf, blendingRefusal } from '../scene/materialBlending.ts';
-import { SURFACE_MODEL, hostSurfaceModel, litModel, readsNormal } from '../scene/surfaceModel.ts';
 import { HOST_MAPPING_UV, HOST_NORMAL_MAP_TANGENT_SPACE } from './surfaceConstants.ts';
 import { texelsReason } from '../visibility/types.ts';
 import { declaresCompileHook } from './materialHook.ts';
@@ -44,9 +44,8 @@ export function clusterMaterialReason(
 ) {
   if (Array.isArray(material)) return 'material arrays are unsupported';
   const host = material as HostShadedMaterial;
-  // Every family the one model reads is drawn, each shaded as WebGPU shades it.
-  const normals = readsNormal(host);
-  if (normals === undefined) return `material ${host.family} is unsupported`;
+  if (!metalRough(host) && host.family !== 'basic' && host.family !== 'depth')
+    return `material ${host.family} is unsupported`;
   // The draws' own refusal (`drawnBlending`): a mode admitted here is one every path draws.
   const refusal = blendingRefusal(blendingOf(host.blending), isTransmissive(material));
   if (refusal) return `material ${host.family}: ${refusal} (blending ${host.blending})`;
@@ -76,31 +75,25 @@ export function clusterMaterialReason(
   if (declaresCompileHook(host)) return `material ${host.family} carries a shader hook`;
   if (!ownBuffer(attributes.position)) return 'position attribute is unsupported';
   // The same six maps the import reads, in the same order: a basic material declares none of the
-  // lit ones, so the list is the host's own properties, not a second rule. A matcap's base is its
-  // image, read by the normal, never by a UV: checked as a map below, not asked a UV. An unlit
-  // model reads no relief, and only a basic one its occlusion (`bindClusterMaterial`).
-  const model = hostSurfaceModel(host),
-    matcap = model === SURFACE_MODEL.matcap,
-    lit = litModel(host, model);
+  // lit ones, so the list is the host's own properties, not a second rule.
   const maps = [
-    matcap ? undefined : host.map,
+    host.map,
     host.metalnessMap,
     host.roughnessMap,
-    lit ? host.normalMap : undefined,
-    lit || model === SURFACE_MODEL.standard ? host.aoMap : undefined,
+    host.normalMap,
+    host.aoMap,
     host.emissiveMap,
   ];
   if (maps.some(Boolean) && !ownBuffer(attributes.uv))
     return 'textured material has no UV attribute';
   if (maps.some((texture) => texture?.channel === 1) && !ownBuffer(attributes.uv1))
     return 'texture channel 1 has no UV1 attribute';
-  if (normals && !ownBuffer(attributes.normal))
-    return `${host.family} material has no normal attribute`;
+  if (metalRough(host) && !ownBuffer(attributes.normal))
+    return 'lit material has no normal attribute';
   if (host.vertexColors && !ownBuffer(attributes.color))
     return 'vertex-colour material has no color attribute';
   for (const texture of maps) {
     const reason = textureReason(texture);
     if (reason) return reason;
   }
-  if (matcap) return textureReason(host.matcap);
 }
