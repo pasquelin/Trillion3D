@@ -139,7 +139,7 @@ export class Mixer {
   }
   /** Advances every playing action by `seconds`, then writes each property the weighted blend of
    *  its actions' samples over its rest value. */
-  update(seconds: number) {
+  update(seconds: number): boolean {
     let active = false;
     const blends = this.#blends;
     for (const action of this.actions.values()) {
