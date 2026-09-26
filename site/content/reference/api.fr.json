@@ -6215,7 +6215,7 @@
     "summary": "Des valeurs échantillonnées à des instants : `values` contient `values.length / times.length` nombres par clé.",
     "members": {
       "name": "Ce qu’elle anime : `node.field`.",
-      "kind": "Quel genre de valeur il contient.",
+      "kind": "Quel genre de valeur elle contient.",
       "times": "Quand arrive chaque clé, en secondes.",
       "values": "La valeur à chaque clé, l’une après l’autre."
     }
