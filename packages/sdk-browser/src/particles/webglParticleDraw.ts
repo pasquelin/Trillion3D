@@ -44,7 +44,7 @@ uniform mat4 m[2];
 uniform vec4 look[3];
 uniform bool linearOut;
 in vec2 corner; in vec3 local; in float life;
-out vec4 fragColor;
+layout(location = 0) out vec4 fragColor; layout(location = 1) out vec4 untoned;
 ${OUTPUT_TRANSFER_GLSL}
 void main() {
   float d = texelFetch(sceneDepth, ivec2(gl_FragCoord.xy), 0).r;
@@ -54,7 +54,7 @@ void main() {
   float soft = abs(scene.w) > 1e-20 ? clamp(behind / look[2].x, 0., 1.) : 1.;
   float k = clamp(1. - dot(corner, corner), 0., 1.) * soft * life * look[1].a;
   vec3 shown = linearOut ? look[1].rgb : linearToSrgb(toneMap(look[1].rgb));
-  fragColor = vec4(shown, 1.) * k;
+  fragColor = vec4(shown, 1.) * k; untoned = vec4(0., 0., 0., k); // toned, blended as the colour
 }`;
 
 /** The WebGL2 particle draw over the host's image: its depth copied for the soft edge, then one
@@ -104,18 +104,16 @@ export function createWebglParticleDraw(
       if (!live || !drawOrder(pools, eye, order).length) return 0;
       if (live.refused) return (refuseAll(order), 0);
       // The frame's depth, copied for the soft edge; each framebuffer's first copy asks if refused.
-      const { copy } = live,
-        { framebuffer, width, height } = output;
+      const { framebuffer, width, height } = output;
       if (live.width !== width || live.height !== height) {
-        bindWebglTexture(gl, 1, copy.texture);
+        bindWebglTexture(gl, 1, live.copy.texture);
         const { TEXTURE_2D: T, DEPTH_COMPONENT: D } = gl;
         gl.texImage2D(T, 0, gl.DEPTH_COMPONENT24, width, height, 0, D, gl.UNSIGNED_INT, null);
-        live.width = width;
-        live.height = height;
+        [live.width, live.height] = [width, height];
       }
       gl.disable(gl.SCISSOR_TEST);
       gl.bindFramebuffer(gl.READ_FRAMEBUFFER, framebuffer);
-      gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, copy.framebuffer);
+      gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, live.copy.framebuffer);
       gl.blitFramebuffer(0, 0, width, height, 0, 0, width, height, gl.DEPTH_BUFFER_BIT, gl.NEAREST);
       gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
       if (live.checked !== framebuffer && gl.getError() === gl.INVALID_OPERATION) {
@@ -162,6 +160,7 @@ export function createWebglParticleDraw(
       gl.useProgram(null);
       return draws;
     },
+    refused: () => held.alive() && !!held.current()?.refused,
     dispose: held.dispose,
   };
 }

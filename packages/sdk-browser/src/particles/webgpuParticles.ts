@@ -102,7 +102,7 @@ export function createWebgpuParticles(device: GPUDevice, fail: (error: unknown) 
       let computing: GPUComputePassEncoder | undefined,
         dispatches = 0;
       for (const pool of pools) {
-        pool.refused = !pipeline;
+        pool.refused = !pipeline || drawn.refused();
         const step = pool.flush(),
           { count } = step;
         if (!pipeline || (!count && !step.dt)) continue;

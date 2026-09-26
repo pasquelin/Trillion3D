@@ -135,5 +135,6 @@ export function createWebgpuParticleDraw(
       pass?.end();
       return draws;
     },
+    refused: () => failed,
   };
 }
