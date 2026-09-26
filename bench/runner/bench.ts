@@ -1,23 +1,13 @@
 #!/usr/bin/env node
-// =====================================================================================
 // Measurement benchmark common to all batches. One command, no server to start manually:
-//
 //   node bench/runner/bench.ts --moteur webgl --avant <ref-git|dist> --apres <ref-git|dist> \
 //        --vues generale,sol,rue --images 60 --pixelError 0,1 --max-pages 100000
-//
-// `--moteur` is `webgl`, `webgpu` or `webgl2`; `--moteur-avant` and `--moteur-apres` redefine it
-// per side, setting an engine against Three witness in a single run,
-// same poses, same lights, same cache. All options described in `README.md`.
-//
+// All options described in `README.md`.
 // Harness writes `mesure.json`, `resume.md` and one PNG per view, per threshold and per side, plus
 // A/A witness capture. A field is `null` when not measured: nothing is inferred.
-// Each series runs in a fresh page: previous WebGL context and heap are returned to browser
-// before next requests one.
 // Everything it launches — static server, Chromium — it stops, including on error.
-//
 // NO SERIOUS TIMING IS PROMISED HERE: harness records durations and machine load at start/end
 // of each series. Caller judges if machine was quiet.
-// =====================================================================================
 import { execFileSync } from 'node:child_process';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
@@ -31,6 +21,10 @@ import { benchLights } from './lamps.ts';
 import { measurementProvenance } from './report/provenance.ts';
 import { recordInputs, recordCuts } from './report/evidence.ts';
 import { runSerie } from './series.ts';
+import { readsCache } from './scene.ts';
+import { fluidsLines, runFluids } from './fluids.ts';
+import { limitsLines, readLimits } from './limits.ts';
+import type { Side } from './sideOptions.ts';
 import type { Report, RunContext, Serie } from './report/types.ts';
 
 const ROOT = resolve(dirname(new URL(import.meta.url).pathname), '../..');
@@ -57,10 +51,10 @@ async function main() {
   const sides = rawSides.map((side) => options.equipSide(side, flags, settings));
   const FLAGS = [...new Set(sides.flatMap((side) => side.engine.flags))];
   // Measured scene is from named caches; without any, benchmark reference scene.
-  const scene = options.sceneOf(sides.find((side) => side.cache)?.cache);
+  const scene = options.sceneOf(sides.find((side) => side.cache)?.cache, flags.get('scene'));
   const MANIFEST = options.assetsManifest(
     scene,
-    sides.some((side) => !side.cache),
+    readsCache(scene) && sides.some((side) => !side.cache),
   );
   CTX.MANIFEST = MANIFEST;
   for (const side of sides) {
@@ -123,6 +117,11 @@ async function main() {
     }
   };
   try {
+    report.limits = await onFreshPage((page) => readLimits(page, options.sdkEntryUrl(sides[0])));
+    if (!readsCache(scene)) {
+      report.fluids = await runFluids(sides, onFreshPage, settings, OUT, captures);
+      return await publish(report, sides);
+    }
     report.bounds = await onFreshPage((page) =>
       page.evaluate(readBounds, {
         sdkUrl: options.sdkEntryUrl(sides[0]),
@@ -178,11 +177,16 @@ async function main() {
   } finally {
     await new Promise((done) => server.close(done));
   }
+  await publish(report, sides);
+}
 
+/** Writes `mesure.json` and `resume.md`, and says where. */
+async function publish(report: Report, sides: Side[]) {
   report.finishedAt = new Date().toISOString();
   recordCuts(report, sides, OUT);
   await writeFile(join(OUT, 'mesure.json'), JSON.stringify(report, null, 1));
-  await writeFile(join(OUT, 'resume.md'), resume(report));
+  const appendix = [...limitsLines(report.limits), ...fluidsLines(report.fluids)];
+  await writeFile(join(OUT, 'resume.md'), [resume(report), ...appendix].join('\n'));
   process.stdout.write(`\nJSON: ${join(OUT, 'mesure.json')}\nSummary: ${join(OUT, 'resume.md')}\n`);
   if (report.errors.length) {
     process.stdout.write(`${report.errors.length} page error(s) recorded in the JSON\n`);
