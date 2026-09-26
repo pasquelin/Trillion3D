@@ -19,9 +19,9 @@ import {
 import { createWebglEffects, type WebglEffectOutput } from '../../effects/webglEffects.ts';
 import type { ParticlePool } from '../../../../sdk-core/src/fluids/particles.ts';
 import { createWebglParticles } from '../../particles/webglParticles.ts';
+import { anyMoving } from '../../particles/poolStates.ts';
 
 const NONE: readonly EffectPass[] = [];
-const moving = (pool: ParticlePool) => pool.moving;
 
 /** The world's effect chain as the composer draws it: `shown` is false in a diagnostic view,
  *  which shows the engine's image as it is. */
@@ -112,7 +112,7 @@ export function createFrameComposer(
   ) => {
     const { width, height } = bindWebglTarget(gl, target);
     if (present(backend)) return;
-    const moved = particles.some(moving);
+    const moved = anyMoving(particles);
     // Made by the first pool, the step then runs with none left too: it frees a released
     // pool's targets. It binds its own: the destination is bound again after it.
     if (particles.length) stepped ??= createWebglParticles(gl);

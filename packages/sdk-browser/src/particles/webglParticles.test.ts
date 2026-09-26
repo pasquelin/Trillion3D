@@ -9,7 +9,7 @@ import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts';
 import { ParticlePool, type ParticlePoolSpec } from '../../../sdk-core/src/fluids/particles.ts';
 import { createWebglParticles } from './webglParticles.ts';
 import { createWebgpuParticles } from './webgpuParticles.ts';
-import { webglModel, webgpuModel } from './stepModels.fixture.ts';
+import { computeRecorder, webglModel, webgpuModel } from './stepModels.fixture.ts';
 
 const DT = 1 / 64; // exact in a half float: both steps age a particle alike
 
@@ -84,16 +84,13 @@ test('WebGL2 and WebGPU step a reference emission alike, within half-float toler
   const { run } = webgl(),
     pools = [new ParticlePool(spec), new ParticlePool(spec)];
   const models = { gpu: webgpuModel(spec.capacity), gl: webglModel(spec.capacity) };
-  let groups = 0;
-  const pass = { setPipeline() {}, setBindGroup() {}, end() {} },
-    dispatchWorkgroups = (x: number) => void (groups = x),
-    encoder = { beginComputePass: () => ({ ...pass, dispatchWorkgroups }) };
+  const { encoder, passes } = computeRecorder();
   for (let frame = 0; frame < frames; frame++) {
     emitReference(pools, frame);
     for (const pool of pools) pool.advance(DT);
     const from = gpu.writes.length;
-    stepGpu.run([pools[0]], encoder as unknown as GPUCommandEncoder);
-    models.gpu.step(gpu.writes[from], gpu.writes[from + 1], groups);
+    stepGpu.run([pools[0]], encoder);
+    models.gpu.step(gpu.writes[from], gpu.writes[from + 1], passes.at(-1)!.dispatches[0]);
     models.gl.step(run([pools[1]]).of);
   }
   let moved = 0;

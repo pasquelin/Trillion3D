@@ -3,7 +3,6 @@ import { boundToContext } from '../webgl/core/contextBound.ts';
 import { FULLSCREEN_VERTEX, setFullscreenPassState } from '../webgl/core/fullscreenPass.ts';
 import { createWebglProgram } from '../webgl/core/program.ts';
 import {
-  bindWebglTarget,
   bindWebglTexture,
   createWebglRenderTarget,
   halfFloatTargets,
@@ -54,35 +53,37 @@ type PoolState = { targets: [WebglRenderTarget, WebglRenderTarget]; staged: WebG
  */
 export function createWebglParticles(gl: WebGL2RenderingContext) {
   const supported = halfFloatTargets(gl);
-  const made = createPoolStates<PoolState>(
-    (pool) => {
-      const rows = Math.ceil(pool.capacity / PARTICLE_ROW),
-        target = () => createWebglRenderTarget(gl, TEXELS, rows, { depth: false, hdr: true });
-      const staged = gl.createTexture()!;
-      bindWebglTexture(gl, 1, staged);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-      const stagedRows = Math.ceil(pool.emitPerFrame / PARTICLE_ROW);
-      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, TEXELS, stagedRows, 0, gl.RGBA, gl.FLOAT, null);
-      return { targets: [target(), target()], staged };
-    },
-    ({ targets, staged }) => {
-      for (const target of targets) target.dispose();
-      gl.deleteTexture(staged);
-    },
-  );
+  /** Each pool's targets, made on the live context and lost with it. */
+  const poolStates = () =>
+    createPoolStates<PoolState>(
+      (pool) => {
+        const rows = Math.ceil(pool.capacity / PARTICLE_ROW),
+          target = () => createWebglRenderTarget(gl, TEXELS, rows, { depth: false, hdr: true });
+        const staged = gl.createTexture()!;
+        bindWebglTexture(gl, 1, staged);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+        const stagedRows = Math.ceil(pool.emitPerFrame / PARTICLE_ROW);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, TEXELS, stagedRows, 0, gl.RGBA, gl.FLOAT, null);
+        return { targets: [target(), target()], staged };
+      },
+      ({ targets, staged }) => {
+        for (const target of targets) target.dispose();
+        gl.deleteTexture(staged);
+      },
+    );
   const held = boundToContext(
     gl,
     () => {
-      made.forget(); // a lost context took them
       const program = createWebglProgram(gl, FULLSCREEN_VERTEX, PARTICLES_GLSL);
       const at = (name: string) => gl.getUniformLocation(program, name);
       gl.useProgram(program);
       gl.uniform1i(at('state'), 0);
       gl.uniform1i(at('staged'), 1);
-      return { program, vao: gl.createVertexArray()!, step: at('uStep'), ring: at('uRing') };
+      const vao = gl.createVertexArray()!;
+      return { program, vao, step: at('uStep'), ring: at('uRing'), made: poolStates() };
     },
-    ({ program, vao }) => {
+    ({ program, vao, made }) => {
       made.dispose();
       gl.deleteProgram(program);
       gl.deleteVertexArray(vao);
@@ -117,7 +118,7 @@ export function createWebglParticles(gl: WebGL2RenderingContext) {
       for (const pool of pools) {
         const { first, count, dt } = pool.flush();
         if (!count && !dt) continue;
-        const { targets, staged } = made.of(pool);
+        const { targets, staged } = live.made.of(pool);
         if (!draws++) {
           setFullscreenPassState(gl);
           gl.useProgram(live.program);
@@ -126,7 +127,7 @@ export function createWebglParticles(gl: WebGL2RenderingContext) {
         bindWebglTexture(gl, 1, staged);
         if (count) upload(pool, count);
         // Read the last state, write the other target over the rows emitted into; then swap.
-        bindWebglTarget(gl, targets[1]);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, targets[1].framebuffer);
         gl.viewport(0, 0, TEXELS, Math.ceil(usedSlots(pool) / PARTICLE_ROW));
         bindWebglTexture(gl, 0, targets[0].texture);
         const a = pool.acceleration;
@@ -141,12 +142,9 @@ export function createWebglParticles(gl: WebGL2RenderingContext) {
         gl.useProgram(null);
         gl.enable(gl.DITHER);
       }
-      made.keep(pools);
+      live.made.keep(pools);
       return draws;
     },
-    dispose() {
-      held.dispose();
-      made.forget();
-    },
+    dispose: held.dispose,
   };
 }

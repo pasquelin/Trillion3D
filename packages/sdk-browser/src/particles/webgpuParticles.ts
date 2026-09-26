@@ -6,7 +6,7 @@ import {
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts';
 import { createCheckedShaderModule } from '../gpu/core/shaderModule.ts';
 import { bounceGroup, bounceLayout } from '../bounce/bindings.ts';
-import { createPoolStates, usedSlots } from './poolStates.ts';
+import { anyMoving, createPoolStates, usedSlots } from './poolStates.ts';
 
 /** The pass label the GPU timings name the particle step by (`passesGpu`). */
 export const PARTICLES_PASS = 'Trillion3D particles';
@@ -125,9 +125,9 @@ export function createWebgpuParticles(device: GPUDevice, fail: (error: unknown) 
 
 export type WebgpuParticles = ReturnType<typeof createWebgpuParticles>;
 
-const moving = (pool: ParticlePool) => pool.moving;
 /** True while one of the world's pools moves: the image changes, and is not held. */
-export const particlesMoved = (rt: WebgpuPagesRuntime) => !!rt.context.particles?.some(moving);
+export const particlesMoved = (rt: WebgpuPagesRuntime) =>
+  !!rt.context.particles && anyMoving(rt.context.particles);
 
 /** The world's pools on this image, stepped in the image's command buffer ahead of its
  *  transparent stage, which draws them (#755). */
