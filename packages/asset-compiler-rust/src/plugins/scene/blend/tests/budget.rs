@@ -68,7 +68,8 @@ fn a_wrapped_file_past_the_budget_is_refused_with_the_bytes_it_needs() {
             refusal.message
         );
         envelope::unwrap(&wrapped, plain.len()).expect("under the budget, it unpacks");
-        let read = BlendFile::open(&wrapped, BUDGET).expect("it opens");
+        let read = BlendFile::open(&wrapped, plain.len() + indexed(&plain))
+            .unwrap_or_else(|e| panic!("{case}: room for its bytes and its index: {}", e.message));
         assert!(
             read.held() >= plain.len(),
             "{case}: the unpacked buffer is held"
