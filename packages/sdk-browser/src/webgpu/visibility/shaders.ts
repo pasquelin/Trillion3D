@@ -40,8 +40,7 @@ export async function createWebgpuVisibilityShaders(
       { binding: b.flags, visibility: GPUShaderStage.VERTEX, buffer: readOnly },
       {
         binding: b.uniform,
-        // The fragment reads the cutout stipple word (`STIPPLE_WGSL`).
-        visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
+        visibility: GPUShaderStage.VERTEX,
         buffer: { type: 'uniform', minBindingSize: VIS_UNIFORM_BYTES },
       },
       { binding: b.uv, visibility: GPUShaderStage.VERTEX, buffer: readOnly },
