@@ -943,8 +943,8 @@ Under a light that casts (`castShadow: true` on the light), every opaque mesh ca
 reference engine: `castShadow` is `true` on a mesh by default. `mesh.castShadow = false` opts it out
 of every shadow map; it still receives the shadows of others. A page writes it at any time: the
 shadow the mesh cast is drawn again without it, or with it. An outline drawn as a larger copy of its
-part, a helper or a gizmo wants it off: a copy wrapped round its part would put the part in its
-shade. A light's `castShadow` keeps its own meaning, and is `false` by default.
+part wants it off: a copy wrapped round its part would put the part in its shade. A light's
+`castShadow` keeps its own meaning, and is `false` by default.
 
 ### A see-through surface casts no shadow unless it asks
 

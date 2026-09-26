@@ -103,7 +103,6 @@ test('a row that stops or starts casting flips its mark and stales its box, what
   const collect = (min: ArrayLike<number>, max: ArrayLike<number>, movingOnly: boolean) =>
     boxes.push([[...Array.from(min), ...Array.from(max)], movingOnly]);
   const flip = (rank: number, root: { mark?: number }) => marks.push([rank, root.mark]);
-  rows.shadowless[1] = 1;
   for (const shadowless of [1, 0]) {
     rows.shadowless[1] = shadowless;
     assert.equal(write([], collect, flip), true, 'a change of casting, whatever its pose');
