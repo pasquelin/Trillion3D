@@ -1,13 +1,20 @@
 import type { MeasuredWorld } from '../session/explorer.ts';
 import type { FrameMetrics, JobProgress } from '../../../../sdk-core/src/index.ts';
+import type { ParticlePool } from '../../../../sdk-core/src/fluids/particles.ts';
+import type { World } from './world.ts';
 export type { JobProgress };
 
 /** What the families that read a world's engine reach it by, without the page holding it. */
 type Access = { session: () => MeasuredWorld | null; last: () => FrameMetrics | null };
-const worlds = new WeakMap<object, Access>();
+const worlds = new WeakMap<object, Access & { particles: ParticlePool[] }>();
 
-export const registerWorld = (world: object, access: Access) => {
-  worlds.set(world, access);
+/** `held.particles`: the pools the world gives every session it opens (`worldSwitches.ts`). */
+export const registerWorld = (
+  world: object,
+  access: Access,
+  held: { particles: ParticlePool[] },
+) => {
+  worlds.set(world, { ...access, particles: held.particles });
 };
 
 /** The session drawing `world` now; a world that draws nothing yet is refused by name. */
@@ -16,6 +23,20 @@ export function sessionOf(world: object): MeasuredWorld {
   if (!session)
     throw new Error('This world draws nothing yet: add an object or load a model first');
   return session;
+}
+
+/** Steps `pool` on the GPU at every frame `world` draws, its time advanced by the world's loop:
+ *  the measurement entry's way in (#420) until particles have a public face (#423). Returns the
+ *  remover. */
+export function attachParticles(world: World, pool: ParticlePool) {
+  const pools = worlds.get(world)!.particles;
+  pools.push(pool);
+  const stop = world.beforeFrame(({ delta }) => pool.advance(delta));
+  world.invalidate();
+  return () => {
+    stop();
+    pools.splice(pools.indexOf(pool), 1);
+  };
 }
 
 /** The metrics of the last frame `world` drew, null before its first. */
