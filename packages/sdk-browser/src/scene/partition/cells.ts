@@ -132,10 +132,10 @@ export function createPartitionCells(inputs: Inputs) {
         loading(url: string): boolean;
         request(urls: readonly string[], ahead: boolean): void;
         update(rows: PlacementRows, from: number, to: number): void;
-        grow?: Grow;
+        grow?(from: PlacementRows, to: PlacementRows): void;
         outgrown?: () => void;
       },
-      budget: import('../../page/integration/frameBudget.ts').FrameBudget,
+      budget: { admits(): boolean; spend(): void }, // structurally a `FrameBudget`, kept internal
     ) {
       followParents();
       const local = inCellFrame(hostWorldChainInto(rootWorld, root), eye, reach);
