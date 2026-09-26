@@ -35,8 +35,7 @@ export class Object3D extends TransformNode {
   /** Drawing order among see-through things. */ renderOrder = 0;
   /** Whether a renderer may skip it outside the view. */ frustumCulled = true;
   /** Free room for the page's own data. */ userData: Record<string, unknown> = {};
-  /** The world this node is drawn by; set on attach, cleared on detach. */
-  _link: SceneLink | null = null;
+  /** The world that draws it, or null outside one. */ _link: SceneLink | null = null;
   constructor() {
     const slot = reserveSlot();
     super(slot.state, slot.id, slot.index, slot.visible);
@@ -78,8 +77,7 @@ export class Object3D extends TransformNode {
   override get children(): readonly Object3D[] {
     return super.children as readonly Object3D[];
   }
-  /** A viewer looks down `-z`: cameras and lights say so. */
-  protected get looksDownNegativeZ() {
+  /** A viewer looks down `-z`: cameras and lights say so. */ protected get looksDownNegativeZ() {
     return false;
   }
   /** Makes objects children of this node. */ override add(...objects: Object3D[]) {
@@ -98,6 +96,11 @@ export class Object3D extends TransformNode {
       object.traverse((node) => (node._link = null));
     }
     this._link?.structure(this);
+    return this;
+  }
+  /** Adds `child` where it stands (`SceneNode.attach`). */ override attach(child: Object3D) {
+    super.attach(child);
+    applied.fromArray(child.localMatrix).decompose(child.position, child.quaternion, child.scale);
     return this;
   }
   /** Frees the node and all below it now, rather than when they are collected. */
@@ -143,8 +146,7 @@ export class Object3D extends TransformNode {
     }
     return undefined;
   }
-  /** Composes the local matrix from the pose. */
-  updateMatrix() {
+  /** Composes the local matrix from the pose. */ updateMatrix() {
     this.matrix.compose(this.position, this.quaternion, this.scale);
     this.matrixWorldNeedsUpdate = true;
   }
@@ -192,8 +194,7 @@ export class Object3D extends TransformNode {
   }
 }
 
-/** A node that only groups others. */
-export class Group extends Object3D {
+/** A node that only groups others. */ export class Group extends Object3D {
   /** Always `true`: tells a group apart. */ readonly isGroup = true as const;
   /** The kind of node, `'Group'`. */ override type = 'Group';
 }
