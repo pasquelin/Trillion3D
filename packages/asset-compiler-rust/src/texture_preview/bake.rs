@@ -90,9 +90,11 @@ pub(super) fn one_image(
         AtlasKind::Coverage(_) => AtlasKind::Coverage(cutoff),
         kind => kind,
     };
-    let kinds: BTreeSet<AtlasKind> = readers.iter().map(kind_of).collect();
-    for kind in kinds {
-        let of_kind: Vec<&AtlasTexture> = readers.iter().filter(|r| kind_of(r) == kind).collect();
+    let mut chains: BTreeMap<AtlasKind, Vec<&AtlasTexture>> = BTreeMap::new();
+    for reader in readers {
+        chains.entry(kind_of(reader)).or_default().push(reader);
+    }
+    for (kind, of_kind) in chains {
         let levels = {
             let _t = perf::Timer::new(perf::Phase::TextureBake);
             reduce::chain(&decoded, kind)
