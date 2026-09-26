@@ -65,11 +65,12 @@ impl<'a> BlendFile<'a> {
             index,
         })
     }
-    /// The bytes this file holds in memory: those it unpacked, none when it is read in place.
+    /// The bytes this file holds in memory: the buffer it unpacked into — its capacity, which
+    /// decoding grows past its length —, none when it is read in place.
     pub(super) fn held(&self) -> usize {
         match &self.bytes {
             Cow::Borrowed(_) => 0,
-            Cow::Owned(unpacked) => unpacked.len(),
+            Cow::Owned(unpacked) => unpacked.capacity(),
         }
     }
     /// The block this original address designates. A null pointer, or one to a missing block,

@@ -104,6 +104,7 @@ impl Scene<'_> {
         let normals = normals::corners(&geometry.surface()).normals;
         self.out.count("normalsComputed", 1);
         let slots = self.slots(mesh)?;
+        let before = self.out.bin.bytes.len();
         let (json, triangles) = build::mesh_json(
             &geometry,
             &normals,
@@ -112,6 +113,9 @@ impl Scene<'_> {
             &mut self.out,
             self.cancelled,
         )?;
+        // The geometry joins the scene binary under the same budget as the packed images.
+        let added = self.out.bin.bytes.len() - before;
+        images::fit(&format!("mesh {name}"), added, before, self.images.room)?;
         self.out.meshes.push(json);
         let built = Some((self.out.meshes.len() - 1, triangles));
         self.meshes.insert(mesh.old, built);
