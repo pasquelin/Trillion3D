@@ -1,7 +1,10 @@
 // WGSL body of the descent kernel from BEFORE the "persistent selection" batch, split out of
 // `cut-dispatches.ts` to keep it under the file line budget. See that file for the oracle's
 // buffers and encoding, which read this string as the pipeline's shader module.
-export const DAG_LEVEL_WGSL_AVANT = `fn queueBase(q:u32)->u32{return select(0u,uni.nodeCount+uni.clusterCount*4u,q==1u);}
+import { DAG_SELECTION_SHADER } from '../../../packages/sdk-browser/src/gpu/dag/shader/shader.ts';
+import { DAG_LEVEL_WGSL } from '../../../packages/sdk-browser/src/gpu/dag/shader/levelWgsl.ts';
+
+const DAG_LEVEL_WGSL_AVANT = `fn queueBase(q:u32)->u32{return select(0u,uni.nodeCount+uni.clusterCount*4u,q==1u);}
 fn candBase()->u32{return uni.nodeCount+uni.clusterCount*3u;}
 fn queueCounter(q:u32)->u32{return liveCounter()+2u+q*2u;}
 fn queueGroups(q:u32)->u32{return queueCounter(q)+1u;}
@@ -56,4 +59,22 @@ fn levelStep(src:u32,s:u32){
 fn dagLevel0(@builtin(global_invocation_id) id:vec3u){levelStep(0u,id.x);}
 @compute @workgroup_size(64)
 fn dagLevel1(@builtin(global_invocation_id) id:vec3u){levelStep(1u,id.x);}
+/** Names the shipped shader's other stages call since (\`dagPrepare\`, \`aheadWgsl.ts\`), in this
+ *  descent's own layout: the frozen \`levelStep\` above never reaches the view ahead. */
+fn markOf(w:u32)->u32{return bitcast<u32>(frames[w*FRAME+6u].w);}
+fn tooCoarse(node:CullNode,e:mat4x4f,stretch:f32,focal:f32)->bool{
+ return node.maxParentError>=0.0&&projected(node.maxParentError,node.sphere,e,stretch,focal)<=uni.pixelError;
+}
+fn descend(src:u32,node:CullNode){
+ if(node.childCount>0u){spanAppend(queueCounter(1u-src),queueGroups(1u-src),queueBase(1u-src),node.firstChild,node.childCount);return;}
+ spanAppend(candCounter(),candGroups(),candBase(),node.firstPage,node.pageCount);
+}
 `;
+
+/** The shipped cut shader with this descent in place of its own: the module the oracle compiles.
+ *  The frozen descent reads the camera's block under its old name; the shipped shader binds one
+ *  block per view, and a camera is view 0 (`viewsWgsl.ts`). */
+export const DAG_SELECTION_SHADER_AVANT = DAG_SELECTION_SHADER.replace(
+  DAG_LEVEL_WGSL,
+  DAG_LEVEL_WGSL_AVANT.replaceAll('uni.', 'views[0u].'),
+);
