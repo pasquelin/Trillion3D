@@ -22,8 +22,9 @@ export type TextureLevelRequest = {
   /** Which format. */
   format: TextureLevelFormat;
 };
-/** A function that fetches one baked texture level. The explorer's names the `store` its session
- *  holds them in: its world's (`levelStore.ts`). */
+// The explorer's reader also names the store its session holds the levels in: its world's
+// (`levelStore.ts`).
+/** A function that fetches one baked texture level. */
 export type TextureLevelReader = ((request: TextureLevelRequest) => Promise<TextureLevel>) & {
   readonly store?: TextureLevelStore;
 };
