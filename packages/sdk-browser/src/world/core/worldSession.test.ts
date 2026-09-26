@@ -37,5 +37,5 @@ test('attachParticles gives the pool to every session and the frames the world d
   assert.equal(asked, 2, 'a moving one asks for the next');
   assert.equal(pool.flush().dt, 0.02, "the world's frame time is the step's, the idle one not");
   remove();
-  assert.deepEqual([held.particles, hooks.size], [[], 0]);
+  assert.deepEqual([held.particles, hooks.size, asked], [[], 0, 3], 'and an image to release it');
 });
