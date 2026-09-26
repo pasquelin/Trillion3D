@@ -1,75 +1,16 @@
 //! Rigid bodies a compiled model declares (`KHR_physics_rigid_bodies`): a declared shape kept as
-//! declared, a shapeless one decomposed into hulls and weighed at cook time, both listed in
+//! declared, a shapeless one given one hull and weighed exactly at cook time, both listed in
 //! `physics.json` beside the static ground their nodes still are.
-use super::decompose::decompose;
-use super::hulls::{hulls_shape, DENSITY};
+use super::mass_tests::{assert_boxes, assert_unit_cube, cube, FACES};
 use super::stage_physics;
-use super::tests::assert_golden;
 use crate::compiler_coplanar::DepthLayerScene;
 use serde_json::{json, Value};
 use std::collections::{BTreeMap, BTreeSet};
 
-/// The golden hull: a unit cube from the origin, Jolt's `ConvexHullShape` binary state.
-const GOLDEN: &str = "../../tests/fixtures/physics/cube-hull.bin";
-const FACES: [u32; 36] = [
-    0, 2, 1, 1, 2, 3, 4, 5, 6, 5, 7, 6, 0, 1, 4, 1, 5, 4, 2, 6, 3, 3, 6, 7, 0, 4, 2, 2, 4, 6, 1, 3,
-    5, 3, 7, 5,
-];
-fn cube(o: [f32; 3], s: [f32; 3]) -> Vec<f32> {
-    (0..8)
-        .flat_map(|c| (0..3).map(move |a| o[a] + if c >> a & 1 == 1 { s[a] } else { 0.0 }))
-        .collect()
-}
-/// Asserts the `mass` of a unit cube from the origin at the runtime's density: 1000 kg about its
-/// middle, inertia m/6 on the diagonal, none off it.
-fn assert_unit_cube(mass: &Value) {
-    let floats = |key: &str| {
-        mass[key]
-            .as_array()
-            .unwrap()
-            .iter()
-            .map(|v| v.as_f64().unwrap())
-    };
-    assert!(
-        (mass["mass"].as_f64().unwrap() - 1000.0).abs() < 1e-2,
-        "{mass}"
-    );
-    assert!(
-        floats("centerOfMass").all(|c| (c - 0.5).abs() < 1e-5),
-        "{mass}"
-    );
-    for (k, i) in floats("inertia").enumerate() {
-        let expected = if k % 4 == 0 { 1000.0 / 6.0 } else { 0.0 };
-        assert!((i - expected).abs() < 1e-2, "inertia {k}: {i}");
-    }
-}
-
-// Behaviour: a unit cube's hull weighs 1000 kg about its middle at the runtime's density
-// (`commands.cpp`), and cooks to the golden bytes (`TRILLION3D_WRITE_GOLDEN` rewrites them); an
-// L of two boxes is cut into convex parts, within the cap of 64; a flat square has none.
-#[test]
-fn a_hull_is_weighed_at_cook_and_a_concave_body_decomposed() {
-    let runtime = include_str!("../../../physics-jolt-wasm/src/commands.cpp");
-    assert!(runtime.contains(&format!("SHAPE_DENSITY = {DENSITY:.1}f;")));
-    let (bytes, mass) = hulls_shape(&[cube([0.0; 3], [1.0; 3])]).unwrap();
-    assert_unit_cube(&mass);
-    assert_golden(&bytes, GOLDEN);
-    let (mut pos, mut triangles) = (cube([0.0; 3], [4.0, 1.0, 1.0]), FACES.to_vec());
-    pos.extend(cube([0.0, 1.0, 0.0], [1.0, 3.0, 1.0]));
-    triangles.extend(FACES.iter().map(|i| i + 8));
-    let parts = decompose(&pos, &triangles, 0.05).len();
-    assert!((2..=64).contains(&parts), "{parts} parts");
-    let square = cube([0.0; 3], [1.0, 1.0, 0.0]);
-    assert!(
-        decompose(&square, &FACES, 0.05).is_empty(),
-        "a flat part has no hull"
-    );
-}
-
 // Behaviour: of four drawn unit cubes, the one declaring a dynamic box keeps its shape, motion and
 // matter as declared; the one declaring motion without a shape gets a cooked hull weighed as a unit
 // cube; the one declaring nothing is no body; the one naming a missing shape is refused by name,
-// as is a cube's flat face asking for its convex hull. A body that draws nothing, 5 m away, whose
+// as is an open square asking for its convex hull. A body that draws nothing, 5 m away, whose
 // collider names the plain cube's node, weighs that cube in its own frame; a cube the slice left
 // out is no body. The cubes stay static ground until the page restores their bodies.
 #[test]
@@ -127,15 +68,12 @@ fn declared_bodies_are_cooked_beside_the_static_ground() {
     );
     let shape = &shapeless["shape"];
     assert_eq!(
-        (&shapeless["node"], &shape["type"], &shape["parts"]),
-        (&json!(1), &json!("cooked"), &json!(1))
+        (&shapeless["node"], &shape["type"]),
+        (&json!(1), &json!("cooked"))
     );
     assert_unit_cube(&shape["mass"]);
-    let centre = &offset["shape"]["mass"]["centerOfMass"];
-    assert_eq!(
-        (&offset["node"], centre),
-        (&json!(5), &json!([-4.5, 0.5, 0.5]))
-    );
+    assert_eq!(offset["node"], json!(5));
+    assert_boxes(&offset["shape"]["mass"], &[([-5.0, 0.0, 0.0], [1.0; 3])]);
     let sha = shape["sha256"].as_str().unwrap();
     assert!(o.cache.join(format!("native/objects/{sha}.bin")).exists());
     let placed: Vec<&Value> = written["instances"]
@@ -149,7 +87,7 @@ fn declared_bodies_are_cooked_beside_the_static_ground() {
     assert_eq!(
         written["report"]["bodiesRefused"],
         json!([{"node":3,"reason":"A body's collider names shape 3, which is missing."},
-            {"node":4,"reason":"Mesh 1 is flat: it has no volume to weigh."}])
+            {"node":4,"reason":"Mesh 1 is not closed: it bounds no volume to weigh."}])
     );
     std::fs::remove_dir_all(root).unwrap();
 }

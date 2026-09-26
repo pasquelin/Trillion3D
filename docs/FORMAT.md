@@ -289,11 +289,11 @@ field is additive: a file cooked before it has none, and format 2 still reads it
 
 - `node`: the declaring node.
 - `motion`: the motion as the node declares it (`isKinematic`, `mass`, `gravityFactor`, …).
-- `shape`: the `KHR_implicit_shapes` shape the collider names, as declared, or `cooked`: a
-  SHA-addressed object like a tile (`url`, `sha256`, `bytes`), a `ConvexHullShape` or a
-  `StaticCompoundShape` of `parts` hulls, 64 at most, in the body's frame; `tolerance`, the mesh's
-  mean edge length, which a decomposition's parts keep their concavity within; `mass`: `mass` (kg,
-  at 1000 kg/m³), `centerOfMass` and `inertia` about it (nine floats, column-major), at unit scale.
+- `shape`: the `KHR_implicit_shapes` shape the collider names, as declared, or `cooked`: one
+  `ConvexHullShape` for contact, a SHA-addressed object like a tile (`url`, `sha256`, `bytes`), in
+  the body's frame at unit scale; and `mass`, the exact weighing of the solid its closed mesh
+  bounds at 1000 kg/m³ and at the body's `scale`: `mass` (kg), `centerOfMass` and `inertia` about
+  it (nine numbers, column-major), in the body's frame — the mass the page hands Jolt.
 - `position`, `rotation`, `scale`: the node's world placement in the model, as an instance's.
 - `friction`, `restitution`: as an instance's.
 
