@@ -26,7 +26,8 @@
  */
 export function dagWorkLayout(blockCount: number, views = 1) {
   const base = blockCount * 2,
-    viewWords = base + 9;
+    viewWords = base + 9,
+    drawnGroupsMax = viewWords + VIEW_WORD_ROWS * views;
   return {
     base,
     /** The nine frame counters, in the order `levelWgsl.ts` names them. */
@@ -39,10 +40,10 @@ export function dagWorkLayout(blockCount: number, views = 1) {
     /** First per-view word: row `r` (`VIEW_WORD_ROWS`) of view `v` is `viewWords + r * views + v`. */
     viewWords,
     /** The most sixty-four-wide groups any view drew, behind the per-view rows. */
-    drawnGroupsMax: viewWords + VIEW_WORD_ROWS * views,
+    drawnGroupsMax,
     /** The camera cuts run so far, the clock of each page's last use (`lastUseWgsl.ts`). */
-    frame: viewWords + VIEW_WORD_ROWS * views + 1,
-    words: viewWords + VIEW_WORD_ROWS * views + 2,
+    frame: drawnGroupsMax + 1,
+    words: drawnGroupsMax + 2,
   };
 }
 
