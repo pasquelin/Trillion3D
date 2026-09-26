@@ -1,8 +1,6 @@
 import type { PageRec } from '../../page/selection/selection.ts';
 import { createSparseInts } from '../../page/cut/sparseInts.ts';
 
-const levelOf = (page: PageRec) => page.level ?? 0;
-
 /**
  * Ranks the cut the page budget has to cut down: coarsest level first, and within a level the order
  * the pages joined the weighed set.
@@ -36,9 +34,10 @@ export function createBudgetRanking(options: {
   /** Beside each level's keys, the first placement that named each: the record it is looked up by. */
   const pageLists: PageRec[][] = [];
   /** Placements holding each weighed key, its slot in its level plus one, and that level plus one:
-   *  a key counts once however many hold it. The level is the key's, taken from the placement that
-   *  filed it: index pages are content-addressed (`../row/pageSlots.ts`), so placements of one key
-   *  may carry different levels, and the key leaves the list it was filed in (#824). */
+   *  a key counts once however many hold it. Index pages are content-addressed
+   *  (`../row/pageSlots.ts`), so placements of one key may carry different levels: the key is filed
+   *  at the coarsest level a placement brought it at since it joined, never finer than a holder's —
+   *  a cover page is never ranked behind detail — and it leaves the list it is filed in (#824). */
   const refs = createSparseInts(),
     slotOf = createSparseInts(),
     levelOfKey = createSparseInts();
@@ -60,6 +59,30 @@ export function createBudgetRanking(options: {
     const next = new Int32Array(size);
     if (list) next.set(list);
     return (lists[level] = next);
+  };
+  /** Files `key` at the end of `level`'s list, beside the record it is looked up by. */
+  const file = (key: number, page: PageRec, level: number) => {
+    const list = grow(level),
+      slot = held[level]++;
+    slotOf.set(key, slot + 1);
+    levelOfKey.set(key, level + 1);
+    list[slot] = key;
+    (pageLists[level] ??= [])[slot] = page;
+  };
+  /** Takes `key` out of its level's list: the last key of the level takes the freed slot, so the
+   *  list stays dense without being sorted. */
+  const unfile = (key: number) => {
+    const level = levelOfKey.set(key, 0) - 1,
+      list = lists[level],
+      pages = pageLists[level],
+      slot = slotOf.set(key, 0) - 1,
+      end = --held[level];
+    if (slot !== end) {
+      list[slot] = list[end];
+      pages[slot] = pages[end];
+      slotOf.set(list[slot], slot + 1);
+    }
+    pages.length = end;
   };
   return {
     ranked,
@@ -87,32 +110,22 @@ export function createBudgetRanking(options: {
     /** One placement of the opaque cut joins the weighed set; the cover is never weighed. */
     add(page: PageRec) {
       const key = keyOf(page);
-      if (bootstrapKey[key] || refs.add(key, 1) > 1) return;
-      const level = levelOf(page),
-        list = grow(level),
-        slot = held[level]++;
-      slotOf.set(key, slot + 1);
-      levelOfKey.set(key, level + 1);
-      list[slot] = key;
-      (pageLists[level] ??= [])[slot] = page;
-      weighed++;
+      if (bootstrapKey[key]) return;
+      const level = page.level ?? 0;
+      if (refs.add(key, 1) === 1) {
+        file(key, page, level);
+        weighed++;
+      } else if (level + 1 > levelOfKey.get(key)) {
+        // A coarser placement of a shared address: the key moves up to the level it now covers.
+        unfile(key);
+        file(key, page, level);
+      }
     },
     /** One placement leaves it; the page leaves only with its last placement. */
     remove(page: PageRec) {
       const key = keyOf(page);
       if (bootstrapKey[key] || refs.get(key) <= 0 || refs.add(key, -1) > 0) return;
-      const level = levelOfKey.set(key, 0) - 1,
-        list = lists[level],
-        pages = pageLists[level],
-        slot = slotOf.set(key, 0) - 1,
-        end = --held[level];
-      // The last key of the level takes the freed slot: the list stays dense, without being sorted.
-      if (slot !== end) {
-        list[slot] = list[end];
-        pages[slot] = pages[end];
-        slotOf.set(list[slot], slot + 1);
-      }
-      pages.length = end;
+      unfile(key);
       weighed--;
     },
     /** True when the queue already holds exactly the ranked prefix, in the same order. */
