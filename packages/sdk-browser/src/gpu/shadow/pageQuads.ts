@@ -2,7 +2,7 @@ import { createCheckedShaderModule } from '../core/shaderModule.ts';
 import { MAX_SHADOW_REGIONS as R } from './recordPack.ts';
 import { SHADOW_FACE_STRIDE } from './batchBudget.ts';
 import { shadowBatchWrites } from './batchWrites.ts';
-import { RESTORE_WGSL } from './staticLayer.ts';
+import { RESTORE_WGSL, staticLayerEntries } from './staticLayer.ts';
 
 /** Bytes of the region views at the head of the page data, before the pass order. */
 const VIEW_BYTES = R * SHADOW_FACE_STRIDE;
@@ -45,12 +45,8 @@ export async function createShadowPageQuads(device: GPUDevice) {
       ],
     });
     const none = device.createBindGroupLayout({ entries: [] });
-    // The static layer's own layout (`staticLayer.ts`): its groups bind here as they are.
-    const layerLayout = device.createBindGroupLayout({
-      entries: [
-        { binding: 0, visibility: GPUShaderStage.FRAGMENT, texture: { sampleType: 'depth' } },
-      ],
-    });
+    // The static layer's own layout: its groups bind here as they are.
+    const layerLayout = device.createBindGroupLayout({ entries: staticLayerEntries() });
     const pipeline = (label: string, first: GPUBindGroupLayout, fragment?: string) =>
       device.createRenderPipeline({
         label: `Trillion3D shadow page ${label} v1`,
@@ -70,9 +66,14 @@ export async function createShadowPageQuads(device: GPUDevice) {
     return {
       /** Opens a batch of `regions` regions: their views, copied from the faces' entries once
        *  written, and their pass `order`. */
-      begin(encoder: GPUCommandEncoder, faces: GPUBuffer, regions: number, order: Uint32Array) {
+      begin(
+        encoder: GPUCommandEncoder,
+        faces: GPUBuffer,
+        regions: number,
+        order: Uint32Array<ArrayBuffer>,
+      ) {
         encoder.copyBufferToBuffer(faces, 0, data, 0, regions * SHADOW_FACE_STRIDE);
-        shadowBatchWrites(device).write(data, VIEW_BYTES, order as Uint32Array<ArrayBuffer>);
+        shadowBatchWrites(device).write(data, VIEW_BYTES, order, 0, regions);
       },
       /**
        * Draws into `pass` the `clears` regions from rank `first` of the order, then the `restores`

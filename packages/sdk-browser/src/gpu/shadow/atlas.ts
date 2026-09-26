@@ -95,13 +95,6 @@ export async function createGpuShadowAtlas(device: GPUDevice, pageLayout: GPUBin
       primitive: { topology: 'triangle-list', cullMode: 'none' },
       depthStencil: depthState(DEPTH_COMPARE),
     });
-    const clear = device.createRenderPipeline({
-      label: 'Trillion3D shadow page clear v1',
-      layout,
-      vertex: { module, entryPoint: 'shadow_clear_vs' },
-      primitive: { topology: 'triangle-list', cullMode: 'none' },
-      depthStencil: depthState('always'),
-    });
     const faceGroup = device.createBindGroup({
       layout: faceLayout,
       entries: [{ binding: 0, resource: { buffer: faceUniform, size: FACE_BYTES } }],
@@ -138,7 +131,6 @@ export async function createGpuShadowAtlas(device: GPUDevice, pageLayout: GPUBin
       /** Host mirror of the records: what the shading rereads. */
       records: records as Readonly<Float32Array>,
       depth,
-      clear,
       faceGroup,
       faceUniform,
       faceStride: FACE_STRIDE,
