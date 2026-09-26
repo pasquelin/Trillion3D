@@ -34,7 +34,14 @@ fn foliage(side: u32) -> image::RgbaImage {
 /// by more than 2.5 %, or by more than one texel where 2.5 % is less: a level cannot cover a
 /// fraction of a texel.
 fn strays(chain: &[Vec<u8>], cutoff: u8) -> Vec<usize> {
-    let covered = |level: &[u8]| level.chunks_exact(4).filter(|t| t[3] >= cutoff).count();
+    let covered = |level: &[u8]| {
+        level
+            .as_chunks::<4>()
+            .0
+            .iter()
+            .filter(|t| t[3] >= cutoff)
+            .count()
+    };
     let share = covered(&chain[0]) as f64 / (chain[0].len() / 4) as f64;
     (0..chain.len())
         .filter(|&k| {
