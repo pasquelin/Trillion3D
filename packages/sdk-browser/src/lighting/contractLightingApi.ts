@@ -3,7 +3,11 @@ import { DEFAULT_TONE_MAPPING } from '../../../sdk-core/src/scene/core/environme
 import { DEFAULT_CLEAR_COLOR } from '../backend/common.ts';
 import type { BackendContext } from '../backend/types.ts';
 import { installSceneLighting, sceneLightingApi } from './sceneLighting.ts';
-import { attachContractLights, CONTRACT_LIGHTS_LIGHTING } from './contractLights.ts';
+import {
+  attachContractLights,
+  CONTRACT_LIGHTS_LIGHTING,
+  type ContractShadows,
+} from './contractLights.ts';
 import { Color } from '../../../sdk-core/src/world/math/color.ts';
 import { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
 
@@ -42,8 +46,9 @@ export function contractLightingApi(
   store: SceneLightStore | undefined,
   source: ReturnType<typeof installSceneLighting>,
   sceneChanged: () => void,
+  shadowsRefused?: ContractShadows,
 ) {
-  const contract = attachContractLights(scene, store, source, sceneChanged);
+  const contract = attachContractLights(scene, store, source, sceneChanged, shadowsRefused);
   return {
     ...sceneLightingApi(source, sceneChanged),
     /** The image comes out in real light as soon as either light set carries one. */
@@ -71,6 +76,12 @@ export function createContractLighting(
   );
   return {
     lighting: source,
-    api: contractLightingApi(scene, context.sceneLights, source, sceneChanged),
+    api: contractLightingApi(
+      scene,
+      context.sceneLights,
+      source,
+      sceneChanged,
+      context.shadowsRefused,
+    ),
   };
 }

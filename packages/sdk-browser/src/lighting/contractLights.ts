@@ -11,11 +11,15 @@ const aimOf = (light: ContractLight) => (light instanceof GraphLight ? light.tar
 
 /** A WebGL2 engine applies the contract lights; only their shadows are missing — one map per
  *  light, six faces for a point light, would be outside the frame budget. The engine's published
- *  capabilities say so. */
+ *  capabilities say so, and a light that asks to cast is named (`ContractShadows`). */
 export const CONTRACT_LIGHTS_LIGHTING = {
   shadows: false,
   reason: "contract lights with no cast shadow; the 'bounce' view equals the lit view there",
 };
+
+/** Hears the ids of the lit contract lights that ask to cast, at each change of the store: a
+ *  WebGL2 engine draws them unshadowed and says so (`noticeShadowRefusal`), never silently. */
+export type ContractShadows = (casting: readonly string[]) => void;
 
 /** Raw albedo by light: diffuse is `irradiance · albedo / π`, so an ambient irradiance of π
  *  yields albedo — `createUnlitAlbedo` keeps every material's response to it that albedo. */
@@ -29,7 +33,11 @@ const UNLIT_IRRADIANCE = Math.PI;
  * the one from before this batch, pixel for pixel. As soon as it has, the source graph
  * disappears: two stacked light sets would be nobody's lighting.
  */
-function createContractLights(scene: GraphScene, store: SceneLightStore | undefined) {
+function createContractLights(
+  scene: GraphScene,
+  store: SceneLightStore | undefined,
+  shadowsRefused?: ContractShadows,
+) {
   const group = new Group();
   group.visible = false;
   scene.add(group);
@@ -88,6 +96,7 @@ function createContractLights(scene: GraphScene, store: SceneLightStore | undefi
         scene.fog = null;
         group.visible = false;
         epoch = store.epoch;
+        shadowsRefused?.([]);
         return false;
       }
       governs = true;
@@ -99,6 +108,8 @@ function createContractLights(scene: GraphScene, store: SceneLightStore | undefi
       albedo.setEnabled(store.unlit);
       if (store.unlit) dropAll();
       else rebuild();
+      // The unlit view draws no light, so no shadow is missing from it.
+      shadowsRefused?.(store.unlit ? [] : store.ids.filter((id) => store.light(id)!.castsShadow));
       const sh = store.unlit ? undefined : store.environment?.irradiance;
       scene.fog = (!store.unlit && store.environment?.fog) || null;
       if ((probe.visible = !!sh)) probe.sh.fromArray(sh);
@@ -113,16 +124,18 @@ function createContractLights(scene: GraphScene, store: SceneLightStore | undefi
 
 /**
  * Hooks the contract onto a WebGL2 engine and returns what it takes to hold it:
- * `apply` on every store revision, `lit` every frame. Imported lights are declared before
- * the engine exists, so the first pass happens here, at construction.
+ * `apply` on every store revision, `lit` every frame; `shadowsRefused` hears the casting lights.
+ * Imported lights are declared before the engine exists, so the first pass happens here, at
+ * construction.
  */
 export function attachContractLights(
   scene: GraphScene,
   store: SceneLightStore | undefined,
   source: { setEnabled(enabled: boolean): void; readonly lit: boolean },
   sceneChanged: () => void,
+  shadowsRefused?: ContractShadows,
 ) {
-  const contract = createContractLights(scene, store);
+  const contract = createContractLights(scene, store, shadowsRefused);
   const apply = () => {
     source.setEnabled(!contract.refresh());
     sceneChanged();
