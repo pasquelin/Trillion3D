@@ -58,6 +58,6 @@ export function selectFlat<T extends PageRecord>(s: SelectionState<T>, root: Clu
   if (openToCamera(s, root)) planes.set(OPEN_PLANES);
   // The cut rule's residency, when the cut holds any: the nearest resident representation of each
   // surface is then drawn, the wanted cluster or its nearest resident ancestor (`./rule.ts`).
-  s.flatHeld = s.held?.readiness(s, root);
+  s.flatHeld = s.held?.readiness(root);
   traverse(s, pages, root.culling);
 }
