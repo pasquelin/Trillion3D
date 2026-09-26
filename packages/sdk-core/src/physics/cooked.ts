@@ -66,7 +66,7 @@ export interface CookedSoftBody extends Omit<CookedInstance, 'collider'> {
 }
 
 /** The motion a node declares (`KHR_physics_rigid_bodies`), as `physics.json` carries it. */
-export interface DeclaredMotion {
+interface DeclaredMotion {
   isKinematic?: boolean;
   mass?: number;
   centerOfMass?: readonly [number, number, number];
@@ -95,7 +95,7 @@ export interface CookedMass {
 
 /** A shapeless body's convex hull, cooked at unit scale in its frame: a SHA-addressed object, and
  *  a dynamic body's mass. */
-export type CookedHull = Omit<CookedTile, 'triangles' | 'bounds'> & {
+type CookedHull = Omit<CookedTile, 'triangles' | 'bounds'> & {
   type: 'cooked';
   mass?: CookedMass;
 };
