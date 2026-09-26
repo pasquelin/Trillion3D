@@ -22,7 +22,7 @@
     <canvas id="view"></canvas>
     <script type="module">
       import { createWorld, geometry, material, object, light, math } from '../runtime/engine.js';
-      import { controls, readout } from '../runtime/kit.js';
+      import { controls, physicsReadouts, readout } from '../runtime/kit.js';
 
       // The engine's character, with the physics on: its body is the physics' own. It climbs
       // the stairs and the ramp, rides the platform and pushes the boxes, and they push back;
@@ -97,8 +97,8 @@
         ({ pushStrength }) => (world.controls.pushStrength = pushStrength),
         world,
       );
-      const awake = readout('awake'),
-        speed = readout('speed');
+      physicsReadouts(world, ['awake']);
+      const speed = readout('speed');
       // The platform slides back and forth on a sine; it moves on every frame, so the world does.
       let phase = 0;
       world.beforeFrame(({ delta }) => {
@@ -108,7 +108,6 @@
       });
       world.onFrame(() => {
         const v = world.controls.velocity;
-        awake(String(world.physics.stats.active));
         speed(`${Math.hypot(v.x, v.z).toFixed(1)} m/s`);
       });
     </script>

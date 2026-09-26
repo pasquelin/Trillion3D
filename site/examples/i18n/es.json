@@ -1367,7 +1367,7 @@
     }
   },
   "save-the-scene": {
-    "banner": "Derriba la torre y luego abre otra vez la escena guardada.",
+    "banner": "Guarda la torre, derríbala y luego abre: la torre guardada vuelve a estar en pie.",
     "controls": {
       "knockDown": "Tirar",
       "save": "Guardar",
