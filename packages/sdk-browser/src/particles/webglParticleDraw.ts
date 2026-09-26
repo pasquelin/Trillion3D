@@ -101,7 +101,6 @@ export function createWebglParticleDraw(
       for (let i = 0; i < 3; i++) eye[i] = camera.world[12 + i];
       if (!live || !drawOrder(pools, eye, order).length) return 0;
       if (live.refused) return (refuseAll(order), 0);
-      // The frame's depth, copied for the soft edge; each framebuffer's first copy asks if refused.
       const { framebuffer, width, height } = output;
       if (live.width !== width || live.height !== height) {
         bindWebglTexture(gl, 1, live.copy.texture);
@@ -110,7 +109,7 @@ export function createWebglParticleDraw(
         [live.width, live.height] = [width, height];
       }
       gl.disable(gl.SCISSOR_TEST);
-      // An error an earlier call left never refuses the pools: every flag is cleared (six at most).
+      // The depth copied for the soft edge; a framebuffer's first copy, older errors cleared, asks.
       for (let n = 0; live.checked !== framebuffer && n < 8 && gl.getError() !== gl.NO_ERROR; n++);
       gl.bindFramebuffer(gl.READ_FRAMEBUFFER, framebuffer);
       gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, live.copy.framebuffer);
@@ -142,7 +141,6 @@ export function createWebglParticleDraw(
         writeDrawWords(words, pool, screen, eye);
         gl.uniformMatrix4fv(live.uniforms.m, false, matrices);
         gl.uniform4fv(live.uniforms.look, look);
-        // Smoke covers colour and coverage alike; fire adds light and leaves the coverage.
         if (pool.blend === 'premultiplied') gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
         else gl.blendFuncSeparate(gl.ONE, gl.ONE, gl.ZERO, gl.ONE);
         bindWebglTexture(gl, 0, state);
