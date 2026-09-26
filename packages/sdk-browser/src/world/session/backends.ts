@@ -1,11 +1,5 @@
 import type { HostTexture } from '../../host/resources.ts';
-import {
-  ARRIVAL_BUDGET_MS,
-  DEFAULT_CLEAR_COLOR,
-  isCancelled,
-  pixelRatioOf,
-} from '../../backend/common.ts';
-import { createFrameBudget } from '../../page/integration/frameBudget.ts';
+import { DEFAULT_CLEAR_COLOR, isCancelled, pixelRatioOf } from '../../backend/common.ts';
 import { createSceneLightStore, dagWarningsDiagnostic } from '../../../../sdk-core/src/index.ts';
 import { createSceneProxyReader } from '../../scene/proxyLoad.ts';
 import { createTextureLevelReader } from '../../texture/levelReader.ts';
@@ -30,6 +24,7 @@ type Inputs = {
   backends: RenderBackend[];
   /** Manifest url base: that is what locates the resident-proxy cache object. */
   base: string;
+  /** The session's one integration budget per frame. */ frameBudget: BackendContext['frameBudget'];
 };
 
 export async function prepareExplorerBackends(session: ExplorerSession, inputs: Inputs) {
@@ -77,7 +72,6 @@ export async function prepareExplorerBackends(session: ExplorerSession, inputs: 
       kind: 'preparation',
       ...dagWarnings.context,
     });
-  const frameBudget = createFrameBudget(ARRIVAL_BUDGET_MS);
   const context: BackendContext = {
     source,
     metadata,
@@ -132,7 +126,7 @@ export async function prepareExplorerBackends(session: ExplorerSession, inputs: 
     readTextureLevel: createTextureLevelReader(metadata.textures, base, signal),
     sceneLights,
     importedLightIds,
-    frameBudget,
+    frameBudget: inputs.frameBudget,
   };
   for (const factory of factories) {
     const backend = factory(context);
@@ -202,5 +196,5 @@ export async function prepareExplorerBackends(session: ExplorerSession, inputs: 
   if (!backends.length) throw new Error('No backend');
   // The engines' host tables, which follow the view, come out of the decoded pages' CPU share.
   streamer.reserve(() => backends.reduce((bytes, b) => bytes + (b.hostTableBytes?.() ?? 0), 0));
-  return { viewport, context, frameBudget };
+  return { viewport, context };
 }
