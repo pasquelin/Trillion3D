@@ -1,6 +1,7 @@
 import { LIGHT_KIND, type SceneLight } from '../light/contracts.ts';
 import type { createShadowChanges } from './changes.ts';
 import { writeFace } from './faces.ts';
+import { sunBoxRect } from './math.ts';
 import type { ShadowPool } from './pool.ts';
 import type { ShadowTable } from './table.ts';
 import type { SunLevels } from './sunLevels.ts';
@@ -55,33 +56,14 @@ function lampPageMeets(face: number, mip: number, x: number, y: number) {
   );
 }
 
-/** Writes the light-plane rectangle of a world box under the sun of `slice` into `rects[0..4)`. */
-function sunRect(sun: SunLevels, slice: number, min: ArrayLike<number>, max: ArrayLike<number>) {
-  const f = slice * 9,
-    frame = sun.frame;
-  rects[0] = rects[2] = Infinity;
-  rects[1] = rects[3] = -Infinity;
-  for (let corner = 0; corner < 8; corner++) {
-    const x = corner & 1 ? max[0] : min[0],
-      y = corner & 2 ? max[1] : min[1],
-      z = corner & 4 ? max[2] : min[2];
-    const u = frame[f] * x + frame[f + 1] * y + frame[f + 2] * z,
-      v = frame[f + 3] * x + frame[f + 4] * y + frame[f + 5] * z;
-    rects[0] = Math.min(rects[0], u);
-    rects[1] = Math.max(rects[1], u);
-    rects[2] = Math.min(rects[2], v);
-    rects[3] = Math.max(rects[3], v);
-  }
-}
-
 /** True when sun page `(level, ax, ay)` — rows down the `up` axis — meets `rects[0..4)`. */
 function sunPageMeets(level: number, ax: number, ay: number) {
   const page = sunPageMetres(level);
   return (
     rects[1] >= ax * page &&
     rects[0] <= (ax + 1) * page &&
-    -rects[2] >= ay * page &&
-    -rects[3] <= (ay + 1) * page
+    rects[3] >= ay * page &&
+    rects[2] <= (ay + 1) * page
   );
 }
 
@@ -129,7 +111,7 @@ export function invalidateLightPages(
     const read = whole ? undefined : changes.read(box),
       moved = byPage ? read : undefined,
       wrong = !read || (!read.detail && !read.moving);
-    if (moved && isSun) sunRect(sun, slice, moved.min, moved.max);
+    if (moved && isSun) sunBoxRect(sun.frame, slice * 9, moved.min, moved.max, rects, 0);
     if (moved && !isSun)
       for (let face = 0; face < faces; face++) faceRect(face, moved.min, moved.max);
     for (let page = 0; page < pool.pages; page++) {

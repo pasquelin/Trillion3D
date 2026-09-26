@@ -46,7 +46,8 @@ const CAP: number = LIGHT_SETTINGS.shadowRequestCap;
  * never evicted while anything above it is read; like every page named, it is drawn in the frame it
  * goes stale (`admit.ts`). The
  * floor covers all the light reaches, so it needs no report to know what the view will read: a
- * sun asks every frame for the floor pages its view reaches (`floors`), and a new, moved or
+ * sun asks every frame for the floor pages its view reaches over the scene's box (`floors`) — past
+ * it no caster lies, and a receiver there asks through the report —, and a new, moved or
  * reshaped lamp for each face's until a report written at its pose is read — a report from a past
  * pose names only the pages that pose's receivers read.
  *
@@ -159,9 +160,10 @@ export function createShadowRequests(
       needs.allocate(reportFrame, nowMs, frame, counts);
     },
     /** Asks, as if the latest report named them, for the floor pages a reader may need that no
-     *  report names yet: every sun's within the view's far distance (`sun.floorReach`), whatever
-     *  moved, and each face's of a lamp posed after that report — new, moved or reshaped: what it
-     *  named was read at a past pose. Evicts only what it did not name; the next may evict it. */
+     *  report names yet: every sun's over the scene within the view's far distance
+     *  (`sun.floorReach`), whatever moved, and each face's of a lamp posed after that report — new,
+     *  moved or reshaped: what it named was read at a past pose. Evicts only what it did not name;
+     *  the next may evict it. */
     floors(posed: ArrayLike<number>, view: ShadowViewpoint, nowMs: number, frame: number) {
       reportFrame = counts.latest;
       for (let slice = 0; slice < posed.length; slice++) {
