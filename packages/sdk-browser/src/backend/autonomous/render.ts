@@ -58,12 +58,11 @@ export function createAutonomousRender(options: {
   /** The page store: the image's pages attach there, and its loads and releases move the cut's
    *  readiness (`geometry.ts`). */
   geometry: Pick<ReturnType<typeof createAutonomousGeometry>, 'sync' | 'held'>;
-  /** What the image keeps is gathered again once it drew another cut; `askedUrls` is all of it
-   *  but that cut, what the pool keeps as the next one is about to run (`residency.ts`). */
-  residency: Pick<ReturnType<typeof createAutonomousResidency>, 'keptChanged' | 'askedUrls'>;
-  /** The geometry pool: what it admits of the requests, and the shedding of what the image no
-   *  longer asks for (`pool.ts`). */
-  pool: Pick<ReturnType<typeof createGeometryBudget>, 'admit' | 'fit' | 'held' | 'trim'>;
+  /** What the image keeps is gathered again once it drew another cut (`residency.ts`). */
+  residency: Pick<ReturnType<typeof createAutonomousResidency>, 'keptChanged'>;
+  /** The geometry pool: what it admits of the requests, what it holds of what the image asks for
+   *  and draws, and the shedding of what it no longer holds (`pool.ts`). */
+  pool: Pick<ReturnType<typeof createGeometryBudget>, 'admit' | 'fit' | 'held' | 'follow' | 'trim'>;
 }) {
   const {
     state,
@@ -74,6 +73,7 @@ export function createAutonomousRender(options: {
     blendCopies,
     worlds,
     shown,
+    requested,
     ceiling,
     geometry,
     residency,
@@ -105,11 +105,14 @@ export function createAutonomousRender(options: {
       });
       lighting.update();
     }
-    // Over the budget, the pages the last image drew but no longer asks for can go: this cut
+    // Over the budget, the pages the last image drew but the pool no longer holds can go: this cut
     // draws their nearest resident ancestor, before the scene is drawn again. A pool drawn since
     // the last cut first cuts what it asked for, so the image that sees it holds no more.
-    if (cut.readmit()) residency.keptChanged();
-    pool.trim(residency.askedUrls);
+    if (cut.readmit()) {
+      residency.keptChanged();
+      pool.follow(requested, shown);
+    }
+    pool.trim();
     const selected = cut(gate.cam, gate.pixelError);
     state.visible = selected.visible;
     state.selectedTriangles = selected.selectedTriangles;
@@ -119,6 +122,7 @@ export function createAutonomousRender(options: {
     state.overBudget = attachedPages(shown) > ceiling();
     geometry.sync();
     residency.keptChanged();
+    pool.follow(requested, shown);
     gate.keep(state.visible, state.selectedTriangles, shown, state.lodLevel, state.overBudget);
   };
   return Object.assign(frame, { hostBytes: cut.hostBytes });

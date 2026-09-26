@@ -1,11 +1,14 @@
 import type { GeometryPageDescriptor } from '../../../../sdk-core/src/index.ts';
 import { createGeometryBudget, type PageCopies } from './pool.ts';
+import { createPageKeys } from './poolOrder.ts';
+import type { PageRec } from '../../page/selection/selection.ts';
 import type { BackendDiagnostic } from '../types.ts';
 
 export const PAGE = 100;
 
 /** A catalogue of `count` pages of `PAGE` decoded bytes, each held in `copies` copies until
- *  `instances` changes them, and a store that holds what arrives. */
+ *  `instances` changes them, and a store that holds what arrives. `parents` names the pages each
+ *  page depends on. */
 export function fixture(
   count: number,
   options: {
@@ -14,6 +17,7 @@ export function fixture(
     rootPages?: number;
     maxResidentPages?: number;
     copies?: number;
+    parents?: Record<string, string[]>;
   } = {},
 ) {
   const descriptors = new Map<string, GeometryPageDescriptor>();
@@ -23,10 +27,16 @@ export function fixture(
   for (let i = 0; i < (options.rootPages ?? 0); i++) rootUrls.add(`r${i}`);
   const state = { allocationBytes: 0 },
     resident = new Set<string>(),
-    kept = new Set<string>(),
     dropped: string[] = [];
-  let keptCalls = 0,
-    rootBytes = 0,
+  const recs = new Map<string, PageRec>();
+  const rec = (url: string) => {
+    if (!recs.has(url)) recs.set(url, { url } as PageRec);
+    return recs.get(url)!;
+  };
+  // Every page key and parent list the residency reads: its work.
+  let work = 0;
+  const keys = createPageKeys(({ url }) => (work++, (options.parents?.[url] ?? []).map(rec)));
+  let rootBytes = 0,
     rootReads = 0,
     each = options.copies ?? 1,
     revision = 0;
@@ -49,10 +59,7 @@ export function fixture(
       rootReads++;
       return rootBytes;
     },
-    kept: () => {
-      keptCalls++;
-      return kept;
-    },
+    pages: { ...keys, keyOf: (url) => (work++, keys.keyOf(url)) },
     drop: (url) => {
       if (!resident.delete(url)) return;
       state.allocationBytes -= PAGE;
@@ -76,17 +83,20 @@ export function fixture(
     each = copiesPerPage;
     revision++;
   };
+  /** One image asks for `asked` and draws `drawn`, then its frame ends. */
+  const keep = (asked: string[], drawn: string[] = []) =>
+    pool.follow(asked.map(rec), drawn.map(rec));
   return {
     pool,
     state,
     resident,
-    kept,
+    keep,
     dropped,
     arrive,
     root,
     instances,
     diagnostics,
-    keptCalls: () => keptCalls,
     rootReads: () => rootReads,
+    work: () => work,
   };
 }
