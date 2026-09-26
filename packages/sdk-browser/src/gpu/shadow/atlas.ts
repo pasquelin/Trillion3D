@@ -44,11 +44,15 @@ export type GpuShadowAtlas = Awaited<ReturnType<typeof createGpuShadowAtlas>>;
  */
 export async function createGpuShadowAtlas(device: GPUDevice, pageLayout: GPUBindGroupLayout) {
   let texture: GPUTexture | undefined, transmittance: ShadowTransmittance | undefined;
-  // Also storage: the occlusion test of the moving casters reads each region's matrix there.
+  // Also storage, read by the occlusion test, and a copy source for the page draws' views.
   const faceUniform = device.createBuffer({
     label: 'Trillion3D shadow faces v1',
     size: MAX_SHADOW_REGIONS * FACE_STRIDE,
-    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+    usage:
+      GPUBufferUsage.UNIFORM |
+      GPUBufferUsage.STORAGE |
+      GPUBufferUsage.COPY_SRC |
+      GPUBufferUsage.COPY_DST,
   });
   const dataBuffer = device.createBuffer({
     label: 'Trillion3D shadow records and page table v1',

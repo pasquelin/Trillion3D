@@ -81,6 +81,7 @@ export function planShadowRegions(
   lights.shadowFaces = 0;
   lights.shadowDraws = 0;
   lights.shadowDrawCalls = 0;
+  lights.shadowRenderPasses = 0;
   // An atlas not sized yet holds no page: nothing to plan before the first frame on the canvas.
   if (!shadows?.view || !store.count) {
     plan.releaseDeferred();
