@@ -98,10 +98,7 @@ pub(super) fn normal_texture(
         out.report.add("blend-shader-input-unconverted");
         return Ok(None);
     }
-    let Some(color) = socket(&source, "Color") else {
-        return Ok(None);
-    };
-    texture(&color, tree, root, images, out)
+    socket(&source, "Color").map_or(Ok(None), |color| texture(&color, tree, root, images, out))
 }
 
 /// The image linked on an input, when it is indeed an image that feeds it.
@@ -119,10 +116,9 @@ pub(super) fn texture(
         out.report.add("blend-shader-input-unconverted");
         return Ok(None);
     }
-    match source.follow("id") {
-        Some(image) => images.texture(&image, root, out),
-        None => Ok(None),
-    }
+    source
+        .follow("id")
+        .map_or(Ok(None), |image| images.texture(&image, root, out))
 }
 
 /// The named input of a node: by its identifier, failing that by its label.

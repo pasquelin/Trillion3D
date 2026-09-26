@@ -36,11 +36,24 @@ pub(super) struct Out {
     pub(super) key_material: String,
     /// The file read, as the manifest publishes it.
     pub(super) files: Value,
+    /// The bytes `bin` may reach: the job's RAM budget, less what the open file holds.
+    pub(super) room: usize,
 }
 
 impl Out {
     pub(super) fn count(&mut self, what: &'static str, by: usize) {
         *self.counts.entry(what).or_insert(0) += by;
+    }
+    /// Refuses the scene, naming the `kind` and `name` that adds them, when `adding` bytes more
+    /// take `bin`, which held `held`, past its room.
+    pub(super) fn fit(&self, kind: &str, name: &str, held: usize, adding: usize) -> Result<()> {
+        if held.saturating_add(adding) > self.room {
+            return Err(refused(
+                "blend-too-large",
+                format!("blend: {kind} {name} needs {adding} bytes, and the scene binary already holds {held} of the {}-byte RAM budget of this job (ramBudgetMb)", self.room),
+            ));
+        }
+        Ok(())
     }
     /// A float accessor, of a given component count, poured into the binary.
     pub(super) fn floats(&mut self, values: &[f32], stride: usize, bounds: bool) -> usize {

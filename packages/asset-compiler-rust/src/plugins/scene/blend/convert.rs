@@ -27,8 +27,11 @@ pub(super) fn convert(request: &SceneRequest<'_>, plugin: &dyn ScenePlugin) -> R
     }));
     let root = image_root(request.source);
     let mut scene = walker::Scene {
-        out: Out::default(),
-        images: Images::within(request.ram_budget.saturating_sub(file.held())),
+        out: Out {
+            room: request.ram_budget.saturating_sub(file.held()),
+            ..Out::default()
+        },
+        images: Images::default(),
         materials: HashMap::new(),
         meshes: HashMap::new(),
         root: &root,

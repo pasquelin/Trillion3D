@@ -99,10 +99,11 @@ fn principled_json(
         .map_or_else(Vec::new, |s| shading::value(s, 0.8));
     let metallic = shading::factor(node, tree, "Metallic", 0.0, out);
     let roughness = shading::factor(node, tree, "Roughness", 0.5, out);
-    let linked = match &base {
-        Some(socket) => shading::texture(socket, tree, root, images, out)?,
-        None => None,
-    };
+    let linked = base
+        .as_ref()
+        .map(|s| shading::texture(s, tree, root, images, out))
+        .transpose()?
+        .flatten();
     let alpha = alpha::of(node, tree, base.as_ref(), linked.is_some(), out);
     let mut color = [0.8, 0.8, 0.8, alpha.factor.clamp(0.0, 1.0)];
     for (axis, slot) in color.iter_mut().take(3).enumerate() {

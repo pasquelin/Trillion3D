@@ -1,7 +1,9 @@
 //! The job's RAM budget bounds what the reader decodes, never the file: a bare file is mapped and
-//! read in place whatever its size, a wrapped one unpacks under the budget, and the packed images
-//! the scene binary takes in stay under it too. Each overrun is refused by name, with its bytes.
+//! read in place whatever its size, a wrapped one unpacks under the budget, and the block index,
+//! the packed images and the meshes the scene binary takes in stay under it too. Each overrun is
+//! refused by name, with its bytes.
 use super::*;
+use std::borrow::Cow;
 use std::io::{Seek, SeekFrom, Write};
 
 /// A budget far below the file below: the smallest share a job is given.
@@ -31,7 +33,11 @@ fn a_bare_file_past_a_gigabyte_is_read_in_place_under_a_small_budget() {
     let map = crate::map_source(&path).expect("the map");
     assert!(map.len() > 1 << 30, "{} bytes", map.len());
     let read = BlendFile::open(&map, SMALL).expect("a bare file is read in place");
-    assert_eq!(read.held(), 0, "nothing is copied into memory");
+    assert!(
+        matches!(read.bytes, Cow::Borrowed(_)),
+        "nothing is copied into memory"
+    );
+    assert_eq!(read.held(), read.blocks.len() * file::INDEXED);
     let padding = read.of(*b"TEST").next().expect("the padding block");
     assert_eq!(padding.len, PADDING as usize);
     let data = read.of(*b"DATA").next().expect("the data block");
@@ -41,7 +47,7 @@ fn a_bare_file_past_a_gigabyte_is_read_in_place_under_a_small_budget() {
 }
 
 // Behaviour: a gzip or Zstandard file that unpacks past the budget is refused by name, with the
-// least bytes it needs and the budget it had; one byte more of budget and it opens.
+// least bytes it needs and the budget it had; one byte more of budget and it unpacks.
 #[test]
 fn a_wrapped_file_past_the_budget_is_refused_with_the_bytes_it_needs() {
     let plain = surgery::fixture();
@@ -61,12 +67,40 @@ fn a_wrapped_file_past_the_budget_is_refused_with_the_bytes_it_needs() {
             "{case}: {}",
             refusal.message
         );
-        let read = BlendFile::open(&wrapped, plain.len()).expect("under the budget, it opens");
+        envelope::unwrap(&wrapped, plain.len()).expect("under the budget, it unpacks");
+        let read = BlendFile::open(&wrapped, BUDGET).expect("it opens");
         assert!(
             read.held() >= plain.len(),
             "{case}: the unpacked buffer is held"
         );
     }
+}
+
+// Behaviour: the block index is decoded data too. A file of more blocks than the budget can index
+// is refused by name, with the bytes the index needs, before the index is built.
+#[test]
+fn a_block_index_past_the_budget_is_refused_by_name() {
+    let bytes = legacy_file(2.5);
+    let blocks = BlendFile::open(&bytes, BUDGET)
+        .expect("the file")
+        .blocks
+        .len();
+    let index = blocks * file::INDEXED;
+    let refusal = BlendFile::open(&bytes, index - 1)
+        .err()
+        .expect("the index goes past the budget");
+    assert_eq!(refusal.code, "blend-too-large");
+    assert!(
+        refusal.message.contains(&format!("at least {index} bytes")),
+        "{}",
+        refusal.message
+    );
+    BlendFile::open(&bytes, index).expect("with room for its index, the file opens");
+}
+
+/// What the fixture holds once open, read in place: its block index.
+fn indexed(plain: &[u8]) -> usize {
+    BlendFile::open(plain, BUDGET).expect("the fixture").held()
 }
 
 /// Where the fixture's packed PNG starts and ends, in its unpacked bytes.
@@ -90,7 +124,8 @@ fn packed_png(plain: &[u8]) -> (usize, usize) {
 fn a_packed_image_past_the_budget_is_refused_by_name() {
     let plain = surgery::fixture();
     let (start, end) = packed_png(&plain);
-    let (root, converted) = output::converted(&plain, "image-budget", end - start - 1);
+    let budget = indexed(&plain) + end - start - 1;
+    let (root, converted) = output::converted(&plain, "image-budget", budget);
     fs::remove_dir_all(root).expect("cleanup");
     let refusal = converted.expect_err("the image goes past the budget");
     assert_eq!(refusal.code, "blend-too-large");
@@ -108,7 +143,8 @@ fn a_packed_image_past_the_budget_is_refused_by_name() {
 fn a_mesh_past_the_budget_is_refused_by_name() {
     let plain = surgery::fixture();
     let (start, end) = packed_png(&plain);
-    let (root, converted) = output::converted(&plain, "mesh-budget", end - start);
+    let budget = indexed(&plain) + end - start;
+    let (root, converted) = output::converted(&plain, "mesh-budget", budget);
     fs::remove_dir_all(root).expect("cleanup");
     let refusal = converted.expect_err("the geometry goes past the budget");
     assert_eq!(refusal.code, "blend-too-large");

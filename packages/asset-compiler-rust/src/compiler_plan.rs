@@ -173,10 +173,7 @@ pub(super) fn plan_buffers(
         .checked_add(bin.len())
         .and_then(|total| total.checked_add(decoded_bytes))
         .ok_or_else(|| invalid("Working set overflow"))?;
-    if estimated_working_bytes
-        > o.ram_budget_bytes()
-            .ok_or_else(|| invalid("RAM budget overflow"))?
-    {
+    if estimated_working_bytes > o.ram_budget_bytes() {
         return Err(CompilerError::new(
             "RAM_ADMISSION_BUDGET_EXCEEDED",
             "Estimated working set exceeds configured budget",

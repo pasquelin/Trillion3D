@@ -113,9 +113,10 @@ impl Scene<'_> {
             &mut self.out,
             self.cancelled,
         )?;
-        // The geometry joins the scene binary under the same budget as the packed images.
+        // The geometry joins the scene binary under the same budget as the packed images. The
+        // check follows the pour: it bounds the binary, not the peak of building this mesh.
         let added = self.out.bin.bytes.len() - before;
-        images::fit(&format!("mesh {name}"), added, before, self.images.room)?;
+        self.out.fit("mesh", &name, before, added)?;
         self.out.meshes.push(json);
         let built = Some((self.out.meshes.len() - 1, triangles));
         self.meshes.insert(mesh.old, built);
@@ -140,8 +141,10 @@ impl Scene<'_> {
         if let Some(known) = self.materials.get(&pointer) {
             return Ok(*known);
         }
-        let found = match file.at(pointer).and_then(|block| file.view(block)) {
-            Some(it) => {
+        let found = file
+            .at(pointer)
+            .and_then(|block| file.view(block))
+            .map(|it| -> Result<usize> {
                 let name = short(&it, "Material");
                 let json = material::material_json(
                     &it,
@@ -151,10 +154,9 @@ impl Scene<'_> {
                     &mut self.out,
                 )?;
                 self.out.materials.push(json);
-                Some(self.out.materials.len() - 1)
-            }
-            None => None,
-        };
+                Ok(self.out.materials.len() - 1)
+            })
+            .transpose()?;
         self.materials.insert(pointer, found);
         Ok(found)
     }
