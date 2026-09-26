@@ -22,13 +22,8 @@ const words = (values: number[]) =>
 /** Ulps an angle may stand above the runtime's: twice `ANGLE_MARGIN_ULPS` (4, `normal_cone.rs`). */
 const WIDEST = 2n * 4n;
 
-/** The bytes of `file` as an `ArrayBuffer`, the one `readFileSync` filled when it holds only them. */
-function bytesOf(file: string): ArrayBuffer {
-  const bytes = readFileSync(file);
-  return bytes.byteOffset === 0 && bytes.byteLength === bytes.buffer.byteLength
-    ? (bytes.buffer as ArrayBuffer)
-    : bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
-}
+/** The bytes of `file`, alone in their `ArrayBuffer`. */
+const bytesOf = (file: string) => new Uint8Array(readFileSync(file)).buffer;
 
 /** Every page of the scene cache whose pointer is `pointer`, and how many of them disagree. */
 function checkScene(pointer: string) {
