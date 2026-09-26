@@ -47,6 +47,8 @@ export function createResidentOrder(env: {
     keyOf: keys.keyOf,
     parentsOf: env.parentsOf,
     kept: (key) => marks[key] === stamp,
+    // Held again through a child: out of the order, as a page kept again is.
+    onHeld: (key) => order.delete(keys.urlOf(key)),
   });
   /** Released: its key goes back, and a resident page enters the order, the most recent. */
   const released = (key: number) => {

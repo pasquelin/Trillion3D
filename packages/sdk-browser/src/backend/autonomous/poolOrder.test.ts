@@ -30,3 +30,29 @@ test('a view that lets go of a finer page every image still releases the coarse 
   }
   assert.ok(most <= 10, `${most} keys for a view of 7 pages`);
 });
+
+// #839: a released parent a newly kept child holds again leaves the order, so it never goes first.
+test('a parent held again through a kept child is not evicted under it', () => {
+  const parent = { url: 'p', level: 1 } as PageRec,
+    child = { url: 'c', level: 0 } as PageRec;
+  const state = { allocationBytes: 0 },
+    dropped: string[] = [];
+  const order = createResidentOrder({
+    ...{ state, limit: () => 10, floorBytes: () => 0, pageBytes: () => 1 },
+    drop: (url) => dropped.push(url),
+    parentsOf: (rec) => (rec === child ? [parent] : []),
+  });
+  const image = (view: PageRec[], times = 1) => {
+    for (let i = 0; i < times; i++) {
+      order.follow(view, view);
+      order.trim();
+    }
+  };
+  order.follow([parent, child], [child]);
+  ['p', 'c'].forEach(order.arrived);
+  image([], 4); // the view leaves: both are released into the order
+  image([child]); // it comes back to the child alone, then the pool runs over
+  state.allocationBytes = 20;
+  image([child]);
+  assert.deepEqual(dropped, []);
+});
