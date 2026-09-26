@@ -114,7 +114,7 @@ test('the tile shader writes each kept light at its rank, after the batches befo
       LIGHT_TILES_SHADER,
       new RegExp(
         `if\\(index<count&&maskHolds\\(${slice}_MASK,lane\\)\\)\\{\\n` +
-          ` {2}tiles\\[base\\+${base}\\+kept\\.${kept}\\+rankBefore\\(${slice}_MASK,lane\\)\\]=index;\\n \\}`,
+          ` {3}tiles\\[base\\+${base}\\+kept\\.${kept}\\+rankBefore\\(${slice}_MASK,lane\\)\\]=index;\\n {2}\\}`,
       ),
     );
   assert.match(

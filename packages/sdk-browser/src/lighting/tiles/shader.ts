@@ -161,40 +161,40 @@ fn lightTiles(@builtin(workgroup_id) tile:vec3u,@builtin(local_invocation_index)
  let count=workgroupUniformLoad(&lightCount);
  let base=(tile.y*u32(view.viewport.z)+tile.x)*tileStride(lights.capacity);
  for(var first=0u;first<count;first+=${WORDS * 32}u){
- if(lane<${2 * WORDS}u){atomicStore(&hits[lane],0u);}
- workgroupBarrier();
- let index=first+lane;
- if(index<count){
-  let light=lights.items[index];
-  // A directional light reaches everywhere: no tile bound can reject it. The others are kept
-  // only if their range sphere touches the slice.
-  let sun=isSun(light);
-  let centre=light.positionRange.xyz;
-  let radius=light.positionRange.w;
-  let bit=1u<<(lane%32u);
-  if(atomicLoad(&covered)==1u&&(sun||sphereTouchesBox(opaqueBox,centre,radius))){
-   atomicOr(&hits[OPAQUE_MASK+lane/32u],bit);
+  if(lane<${2 * WORDS}u){atomicStore(&hits[lane],0u);}
+  workgroupBarrier();
+  let index=first+lane;
+  if(index<count){
+   let light=lights.items[index];
+   // A directional light reaches everywhere: no tile bound can reject it. The others are kept
+   // only if their range sphere touches the slice.
+   let sun=isSun(light);
+   let centre=light.positionRange.xyz;
+   let radius=light.positionRange.w;
+   let bit=1u<<(lane%32u);
+   if(atomicLoad(&covered)==1u&&(sun||sphereTouchesBox(opaqueBox,centre,radius))){
+    atomicOr(&hits[OPAQUE_MASK+lane/32u],bit);
+   }
+   var blendTouched=sun;
+   if(!sun&&atomicLoad(&skyward)==1u){blendTouched=sphereTouchesColumn(centre,radius);}
+   else if(!sun){blendTouched=sphereTouchesBox(blendBox,centre,radius);}
+   if(blendTouched){
+    atomicOr(&hits[BLEND_MASK+lane/32u],bit);
+   }
   }
-  var blendTouched=sun;
-  if(!sun&&atomicLoad(&skyward)==1u){blendTouched=sphereTouchesColumn(centre,radius);}
-  else if(!sun){blendTouched=sphereTouchesBox(blendBox,centre,radius);}
-  if(blendTouched){
-   atomicOr(&hits[BLEND_MASK+lane/32u],bit);
+  workgroupBarrier();
+  // Parallel compact: each thread writes its light at its rank after what the batches before
+  // kept, so each list carries the light ranks in increasing order, as a single-thread loop
+  // would. The rank is below \`count\`, at most the table's slots, so it always has its place.
+  if(index<count&&maskHolds(OPAQUE_MASK,lane)){
+   tiles[base+TILE_OPAQUE_BASE+kept.x+rankBefore(OPAQUE_MASK,lane)]=index;
   }
- }
- workgroupBarrier();
- // Parallel compact: each thread writes its light at its rank after what the batches before
- // kept, so each list carries the light ranks in increasing order, as a single-thread loop
- // would. The rank is below \`count\`, at most the table's slots, so it always has its place.
- if(index<count&&maskHolds(OPAQUE_MASK,lane)){
-  tiles[base+TILE_OPAQUE_BASE+kept.x+rankBefore(OPAQUE_MASK,lane)]=index;
- }
- if(index<count&&maskHolds(BLEND_MASK,lane)){
-  tiles[base+tileBlendBase(lights.capacity)+kept.y+rankBefore(BLEND_MASK,lane)]=index;
- }
- workgroupBarrier();
- if(lane==0u){kept+=vec2u(maskTotal(OPAQUE_MASK),maskTotal(BLEND_MASK));}
- workgroupBarrier();
+  if(index<count&&maskHolds(BLEND_MASK,lane)){
+   tiles[base+tileBlendBase(lights.capacity)+kept.y+rankBefore(BLEND_MASK,lane)]=index;
+  }
+  workgroupBarrier();
+  if(lane==0u){kept+=vec2u(maskTotal(OPAQUE_MASK),maskTotal(BLEND_MASK));}
+  workgroupBarrier();
  }
  if(lane==0u){tiles[base]=kept.x;tiles[base+1u]=kept.y;}
 }`;
