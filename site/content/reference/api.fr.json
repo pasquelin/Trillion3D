@@ -6006,7 +6006,6 @@
       "anisotropy": "Netteté vue de biais.",
       "flipY": "Si les rangées sont retournées.",
       "premultiplyAlpha": "Si la couleur est pré-multipliée.",
-      "generateMipmaps": "Si des copies plus petites sont faites.",
       "colorSpace": "Comment ses nombres sont lus.",
       "transform": "Transformation des UV de l’échantillonneur, `KHR_texture_transform` composé en trois rangées de trois."
     }
@@ -7429,7 +7428,7 @@
       "offset": "Ce dont `matrix` est composée.",
       "matrixAutoUpdate": "Si l’hôte reconstruit `matrix`.",
       "matrix": "Transformation des UV de l’échantillonneur, `KHR_texture_transform` composé en trois rangées ; l’hôte la recalcule à partir du décalage, de la répétition et de la rotation quand il fait la mise à jour.",
-      "generateMipmaps": "Si des copies plus petites sont faites.",
+      "generateMipmaps": "Si des copies plus petites sont demandées ; le moteur les fait dès que `minFilter` les lit.",
       "premultiplyAlpha": "Si la couleur est pré-multipliée par l’alpha.",
       "flipY": "Si les rangées sont retournées à l’envoi.",
       "version": "Augmenté par l’hôte à chaque changement de contenu : ce qu’un envoi compare pour éviter une recopie.",
