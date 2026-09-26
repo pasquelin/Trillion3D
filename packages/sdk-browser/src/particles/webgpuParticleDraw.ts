@@ -4,8 +4,8 @@ import {
   type ParticlePool,
 } from '../../../sdk-core/src/fluids/particles.ts';
 import { createCheckedShaderModule } from '../gpu/core/shaderModule.ts';
-import { DRAW_FLOATS, drawOrder, writeDrawWords } from './drawWords.ts';
-import { createPoolStates, usedSlots } from './poolStates.ts';
+import { DISC_CORNERS, DRAW_FLOATS, drawOrder, writeDrawWords } from './drawWords.ts';
+import { createPoolStates, refuseAll, usedSlots } from './poolStates.ts';
 
 /** The pass label the GPU timings name the particle draw by (`passesGpu`). */
 export const PARTICLE_DRAW_PASS = 'Trillion3D particle draw';
@@ -17,14 +17,13 @@ struct Draw { clip: mat4x4f, unclip: mat4x4f, eye: vec3f, size: f32, color: vec4
 @group(0) @binding(0) var<uniform> draw: Draw;
 @group(0) @binding(1) var<storage, read> particles: array<Particle>;
 @group(0) @binding(2) var depth: texture_depth_2d;
-override premultiplied = false;
 struct Out { @builtin(position) at: vec4f, @location(0) corner: vec2f, @location(1) local: vec3f, @location(2) life: f32 }
 @vertex fn vs(@builtin(vertex_index) v: u32, @builtin(instance_index) i: u32) -> Out {
   let p = particles[i];
   var o: Out;
   o.at = vec4f(2, 2, 2, 1);
   if (!(p.position.w < p.velocity.w)) { return o; }
-  var corners = array(vec2f(-1, -1), vec2f(1, -1), vec2f(-1, 1), vec2f(-1, 1), vec2f(1, -1), vec2f(1, 1));
+  var corners = array(${DISC_CORNERS});
   let toEye = normalize(draw.eye - p.position.xyz);
   let right = normalize(cross(select(vec3f(0, 1, 0), vec3f(1, 0, 0), abs(toEye.y) > 0.99), toEye));
   o.corner = corners[v];
@@ -40,7 +39,7 @@ struct Out { @builtin(position) at: vec4f, @location(0) corner: vec2f, @location
   let behind = distance(scene.xyz / scene.w, draw.eye) - distance(in.local, draw.eye);
   let soft = select(1.0, saturate(behind / draw.softness), abs(scene.w) > 1e-20);
   let k = saturate(1 - dot(in.corner, in.corner)) * soft * in.life * draw.color.a;
-  return vec4f(draw.color.rgb * k, select(0.0, k, premultiplied));
+  return vec4f(draw.color.rgb, 1) * k;
 }`;
 
 type DrawState = { words: GPUBuffer; group?: GPUBindGroup; state?: GPUBuffer; depth?: object };
@@ -69,10 +68,11 @@ export function createWebgpuParticleDraw(
       const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] });
       return Promise.all(
         PARTICLE_BLENDS.map(async (blend) => {
-          // What the blend keeps of the image, colour and alpha alike (fire writes no alpha).
-          const premultiplied = blend === 'premultiplied',
-            dstFactor = premultiplied ? 'one-minus-src-alpha' : 'one',
-            factor = { srcFactor: 'one', dstFactor } as const;
+          // Smoke covers colour and coverage alike; fire adds light and leaves the coverage.
+          const smoke = blend === 'premultiplied',
+            over = { srcFactor: 'one', dstFactor: 'one-minus-src-alpha' } as const,
+            color = smoke ? over : ({ srcFactor: 'one', dstFactor: 'one' } as const),
+            alpha = smoke ? over : ({ srcFactor: 'zero', dstFactor: 'one' } as const);
           pipelines[blend] = await device.createRenderPipelineAsync({
             label: `${PARTICLE_DRAW_PASS} ${blend}`,
             layout: pipelineLayout,
@@ -80,8 +80,7 @@ export function createWebgpuParticleDraw(
             fragment: {
               module,
               entryPoint: 'fs',
-              constants: { premultiplied: premultiplied ? 1 : 0 },
-              targets: [{ format: 'rgba16float', blend: { color: factor, alpha: factor } }],
+              targets: [{ format: 'rgba16float', blend: { color, alpha } }],
             },
           });
         }),
@@ -125,7 +124,7 @@ export function createWebgpuParticleDraw(
       viewProj: ArrayLike<number>,
       eye: ArrayLike<number>,
     ) {
-      if (failed) for (const pool of pools) pool.refused = true;
+      if (failed) refuseAll(pools);
       let pass: GPURenderPassEncoder | undefined,
         draws = 0;
       for (const pool of drawOrder(pools, eye, order)) {

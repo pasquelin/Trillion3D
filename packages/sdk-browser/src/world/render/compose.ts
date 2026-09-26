@@ -158,7 +158,13 @@ export function createFrameComposer(
     encode(backend.scene.background as SceneColour);
     if (!linear) clear();
     backend.drawHostGeometry(readHostDrawCamera(drawCamera, camera), output);
-    stepped?.draw(particles, drawCamera, output);
+    // A refused draw leaves the frame to finish, its chain closed and its guides drawn, then says so.
+    let refusal: unknown;
+    try {
+      stepped?.draw(particles, drawCamera, output);
+    } catch (error) {
+      refusal = error;
+    }
     if (linear) {
       display.toneMapped = output.toneMapped;
       display.toneCurve = TONE_MAPPING_RANK[output.toneMapping];
@@ -170,9 +176,11 @@ export function createFrameComposer(
       guidesDrawn = layers.guides.revision;
       guideDraw.draw(layers.guides, drawCamera, output, layers.pixelRatio());
     }
-    if (target) return;
-    heldFrame.keep(width, height);
-    keptRevision = revision;
+    if (!target) {
+      heldFrame.keep(width, height);
+      keptRevision = revision;
+    }
+    if (refusal) throw refusal;
   };
   /** Bytes of the chain's targets on this context. */
   compose.effectBytes = () => effects?.bytes ?? 0;

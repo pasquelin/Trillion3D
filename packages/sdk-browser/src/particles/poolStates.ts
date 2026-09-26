@@ -4,10 +4,12 @@ import type { ParticlePool } from '../../../sdk-core/src/fluids/particles.ts';
 export const usedSlots = (pool: ParticlePool) => Math.min(pool.capacity, pool.emitted);
 
 const moving = (pool: ParticlePool) => pool.moving;
-const refuse = (fresh: boolean, pool: ParticlePool) =>
-  pool.refused ? fresh : (pool.refused = true);
 /** Refuses every pool; true if one was not refused yet, so each refusal is told once. */
-export const refuseAll = (pools: readonly ParticlePool[]) => pools.reduce(refuse, false);
+export function refuseAll(pools: readonly ParticlePool[]) {
+  let fresh = false;
+  for (const pool of pools) if (!pool.refused) fresh = pool.refused = true;
+  return fresh;
+}
 /** True while one of `pools` moves: the image changes, and is not held. */
 export const anyMoving = (pools?: readonly ParticlePool[]) => !!pools?.some(moving);
 

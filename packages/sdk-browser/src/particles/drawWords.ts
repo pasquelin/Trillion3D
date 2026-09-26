@@ -3,8 +3,13 @@ import type { ParticlePool } from '../../../sdk-core/src/fluids/particles.ts';
 import { usedSlots } from './poolStates.ts';
 
 /** The words both particle draws (#755) give a pool: clip matrix from its origin and inverse, made
- *  in double precision, eye from the origin, radius, colour at birth, softness. */
+ *  in double precision, eye from the origin, radius, colour at birth, softness; words 41–43 pad
+ *  to the WGSL struct's size. */
 export const DRAW_FLOATS = 44;
+
+/** A disc's two triangles, corner by corner, in both shading languages (`vec2` infers in WGSL). */
+export const DISC_CORNERS =
+  'vec2(-1.0, -1.0), vec2(1.0, -1.0), vec2(-1.0, 1.0), vec2(-1.0, 1.0), vec2(1.0, -1.0), vec2(1.0, 1.0)';
 
 type Vec = ArrayLike<number>;
 const clip = new Float64Array(16),
