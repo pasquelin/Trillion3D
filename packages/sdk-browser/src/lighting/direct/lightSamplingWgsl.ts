@@ -37,17 +37,25 @@ fn lightWeight(light:DirectLight,N:vec3f,P:vec3f)->f32{
  let incidence=directIncidence(light,P);
  return light.colorIntensity.w*incidence.w*max(dot(N,incidence.xyz),0.0)*dot(light.colorIntensity.rgb,LUMINANCE);
 }
-/** Weight of the tile's opaque light at \`index\`: recomputed where it is read, the same number
- *  each time, so no array as long as the list lives per pixel. */
-fn listedWeight(base:u32,index:u32,N:vec3f,P:vec3f)->f32{
- return lightWeight(directLights.items[tileLights[base+TILE_OPAQUE_BASE+index]],N,P);
+/** Weight of the light at \`index\` of a tile's walk: the one kept in \`weights\` within a list's
+ *  length, recomputed past it — the same number either way. */
+fn walkedWeight(weights:ptr<function,array<f32,TILE_LIGHTS>>,at:u32,index:u32,kept:u32,N:vec3f,P:vec3f)->f32{
+ if(index<TILE_LIGHTS){return (*weights)[index];}
+ return lightWeight(directLights.items[tileLight(at,index,kept)],N,P);
 }
 fn sampledTileLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,tile:vec2u,tilesX:u32,rank:u32,pixel:vec2f)->vec3f{
- let base=(tile.y*tilesX+tile.x)*tileStride(directLights.capacity);
+ let base=(tile.y*tilesX+tile.x)*TILE_STRIDE;
  let kept=tileLights[base];
- if(kept<=LIGHT_SAMPLES){return tileLighting(rgb,metal,rough,N,V,P,ao,tile,tilesX,0u,TILE_OPAQUE_BASE);}
+ let walk=tileWalk(kept);
+ let at=base+TILE_OPAQUE_BASE;
+ if(walk<=LIGHT_SAMPLES){return tileLighting(rgb,metal,rough,N,V,P,ao,tile,tilesX,0u,TILE_OPAQUE_BASE);}
+ var weights:array<f32,TILE_LIGHTS>;
  var total=0.0;
- for(var index=0u;index<kept;index++){total+=listedWeight(base,index,N,P);}
+ for(var index=0u;index<walk;index++){
+  let weight=lightWeight(directLights.items[tileLight(at,index,kept)],N,P);
+  if(index<TILE_LIGHTS){weights[index]=weight;}
+  total+=weight;
+ }
  if(total<=0.0){return vec3f(0.0);}
  // The lights to shade and what each one weighs: exact ones first, then the drawn ones. The
  // shading loop below is the same for every pixel of the group — one call per slot, each
@@ -58,10 +66,11 @@ fn sampledTileLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:
  var used=0u;
  var pool=0.0;
  var last=0u;
- for(var index=0u;index<kept;index++){
-  let weight=listedWeight(base,index,N,P);
+ for(var index=0u;index<walk;index++){
+  let weight=walkedWeight(&weights,at,index,kept,N,P);
   if(weight*f32(LIGHT_SAMPLES)>=total){
    chosen[used]=index;factors[used]=1.0;used+=1u;
+   if(index<TILE_LIGHTS){weights[index]=0.0;}
   }else if(weight>0.0){pool+=weight;last=index;}
  }
  let samples=LIGHT_SAMPLES-used;
@@ -70,9 +79,9 @@ fn sampledTileLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:
   var running=0.0;
   var drawn=0u;
   var next=offset/f32(samples)*pool;
-  for(var index=0u;index<kept&&drawn<samples;index++){
+  for(var index=0u;index<walk&&drawn<samples;index++){
    // An exactly shaded light has left the pool: it weighs nothing here.
-   let weight=listedWeight(base,index,N,P);
+   let weight=walkedWeight(&weights,at,index,kept,N,P);
    if(weight<=0.0||weight*f32(LIGHT_SAMPLES)>=total){continue;}
    running+=weight;
    // Every sample that falls in this light's stratum draws it once; the last light of the
@@ -85,7 +94,7 @@ fn sampledTileLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:
  }
  var result=vec3f(0.0);
  for(var slot=0u;slot<used;slot++){
-  let light=directLights.items[tileLights[base+TILE_OPAQUE_BASE+chosen[slot]]];
+  let light=directLights.items[tileLight(at,chosen[slot],kept)];
   result+=declaredLight(light,rgb,metal,rough,N,V,P,ao)*factors[slot];
  }
  return result;

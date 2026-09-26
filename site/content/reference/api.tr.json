@@ -1599,6 +1599,7 @@
     "summary": "Yayımlanmış doğrudan aydınlatma ayarları.",
     "description": "Bunlar adlandırılmış ürün kararlarıdır, gömülü sabitler değil: her çalışma zamanı sınırı onları yeniden okur, ve tanı onları oldukları gibi yayımlar.",
     "members": {
+      "tileLights": "Bir ekran karosunun listesinin iki derinlik diliminin her birinde tuttuğu ışıklar: belleği, sahne ne tutarsa tutsun, karo başına budur. Daha fazla ışığın ulaştığı bir karo liste tutmaz ve sahnenin her ışığını dolaşır — onu ıskalayanlar tam bir sıfır ekler —, böylece hiçbir ışık kaybolmaz (X2).",
       "tileSize": "Işık listesinin bir ekran karosunun piksel cinsinden kenarı.",
       "samplesPerPixel": "HAREKETLİ bir görselin pikseli başına tamamen gölgelendirilen — gölge okuması dahil — ışıklar (X2): diğerleri gölgeleri olmadan tartılır, ve gölgelendirilenler orantılı olarak çizilir, bu yüzden tahmin yansız kalır ve zamansal kenar yumuşatma onu ortalar. Sabit bir görsel, karosunun her ışığını gölgelendirir ve tam toplama yakınsar; orada bu sayının hiçbir rolü yoktur.",
       "shadowPage": "Bir gölge sayfasının kenarı, texel olarak: fiziksel havuzun, sanal haritaların ve geçersiz kılmanın birimi. Hareket eden bir nesne yalnızca izdüşen kutusunun kapladığı sayfaları eskitir.",
@@ -2806,7 +2807,7 @@
     "summary": "GPU tamponunda bir ışığın float'ları: beş `vec4f`."
   },
   "SCENE_LIGHT_HEADER_FLOATS": {
-    "summary": "Işık tamponu başlığı: sayı, yuvalar (`sceneLightCapacity`), iki ayrılmış sözcük."
+    "summary": "Işık tamponu başlığı: sayı, ardından üç ayrılmış sözcük."
   },
   "SCENE_LIGHT_VERSION": {
     "summary": "Bu motorun okuduğu ışık sözleşmesinin sürümü."
@@ -2970,7 +2971,7 @@
       "remove": "Bir ışığı kaldırır.",
       "setEnvironment": "Ortamı ayarlar.",
       "assignSlice": "Diğer alanlarına dokunmadan, bir ışığın kapladığı atlas kesitini kaydeder. Depo revizyonu yalnızca kesit gerçekten değiştiyse yükselir: aksi halde GPU'ya hiçbir şey itilmez.",
-      "capacity": "Tablonun tuttuğu yuvalar, başlık sözcüğü 1: GPU tablosu ve her karonun listeleri bu uzunluktadır."
+      "capacity": "Tablonun tuttuğu yuvalar: GPU ışık tamponu bu uzunluktadır."
     }
   },
   "SceneLightingView": {
@@ -4785,7 +4786,7 @@
     "summary": "Politika kanıtları değerlendirir; asla bir referans uydurmaz ya da kendisi bir saat örneklemez."
   },
   "createSceneLightStore": {
-    "summary": "Sahne ışıkları, sahnenin bildirdiği kadar: `capacity` yuva, tam maske sözcükleriyle büyütülür ve asla küçültülmez.",
+    "summary": "Sahne ışıkları, sahnenin bildirdiği kadar: `capacity` yuva, dolunca ikiye katlanır ve asla küçültülmez.",
     "description": "Bir ışığı eklemek, ayarlamak ya da kaldırmak float'larını yazar ve `revision` değerini artırır; bu, okuyucuya ışığın değiştiğini bildirir: kare başına hiçbir şey yeniden kurulmaz. Gölge zamanlayıcısı ışığın biçimini kendisi okur, bu yüzden yoğunluk ya da renk değişikliği hiçbir gölge sayfasını eskitmez."
   },
   "createSceneRoot": {
@@ -7692,11 +7693,5 @@
       "center": "Resmin sprite'ın konumuna oturan noktası: `(0.5, 0.5)` ortası, `(0, 0)` sol alt köşesi, `(0.5, 0)` alt kenarının ortası.",
       "material": "Sprite’ın `material.sprite`’ı; değiştirmek için başka birini atayın."
     }
-  },
-  "SCENE_LIGHT_STEP": {
-    "summary": "Işık yuvaları tam maske sözcükleriyle eklenir: bir karonun listesi ve ışık tablosu bu adımla büyür."
-  },
-  "sceneLightCapacity": {
-    "summary": "Tablonun `count` ışık için tuttuğu yuvalar: sahneden boyutlanır, asla sabit bir tavan değil."
   }
 }

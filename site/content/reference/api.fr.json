@@ -1175,7 +1175,7 @@
     "summary": "La règle évalue des preuves ; elle n’invente jamais une référence et ne lit jamais une horloge elle-même."
   },
   "createSceneLightStore": {
-    "summary": "Lumières de la scène, autant que la scène en déclare : `capacity` places, agrandies par mots de masque entiers et jamais réduites.",
+    "summary": "Lumières de la scène, autant que la scène en déclare : `capacity` places, doublées quand elles sont pleines et jamais réduites.",
     "description": "Ajouter, régler ou retirer une lumière écrit ses flottants et augmente sa `revision`, qui indique à un lecteur qu’elle a changé : rien n’est reconstruit par image. Le planificateur d’ombres lit lui-même la forme de la lumière, si bien qu’un changement d’intensité ou de couleur ne périme aucune page d’ombre."
   },
   "createSceneRoot": {
@@ -2865,6 +2865,7 @@
     "summary": "Réglages publiés de l’éclairage direct.",
     "description": "Ce sont des choix produit nommés, pas des constantes enterrées : chaque limite à l’exécution les relit, et le diagnostic les publie tels quels.",
     "members": {
+      "tileLights": "Lumières que tient la liste d’une tuile d’écran, dans chacune de ses deux tranches de profondeur : sa mémoire est celle-ci, par tuile, quoi que tienne la scène. Une tuile qu’atteignent plus de lumières ne garde aucune liste et parcourt toutes les lumières de la scène — celles qui la manquent ajoutent un zéro exact —, si bien qu’aucune lumière n’est jamais perdue (X2).",
       "tileSize": "Côté en pixels d’une tuile d’écran de la liste de lumières.",
       "samplesPerPixel": "Lumières éclairées en entier — lecture de l’ombre comprise — par pixel d’une image EN MOUVEMENT (X2) : les autres sont pesées sans leur ombre, et celles qu’on éclaire sont tirées au sort en proportion, donc l’estimation est sans biais et l’anticrénelage temporel en fait la moyenne. Une image immobile éclaire chaque lumière de sa tuile et converge vers la somme exacte ; là, ce nombre ne joue aucun rôle.",
       "shadowPage": "Côté d’une page de l’atlas d’ombres, en texels : la case d’invalidation d’une face. Un objet qui bouge ne rend périmées que les pages que couvre sa boîte projetée, jamais toute la face.",
@@ -5188,7 +5189,7 @@
     "summary": "Flottants d’une lumière dans le tampon GPU : cinq `vec4f`."
   },
   "SCENE_LIGHT_HEADER_FLOATS": {
-    "summary": "En-tête du tampon de lumières : nombre, places (`sceneLightCapacity`), deux mots réservés."
+    "summary": "En-tête du tampon de lumières : nombre, puis trois mots réservés."
   },
   "SCENE_LIGHT_VERSION": {
     "summary": "La version du contrat de lumière que lit ce moteur."
@@ -5281,7 +5282,7 @@
       "remove": "Retire une lumière.",
       "setEnvironment": "Règle l’environnement.",
       "assignSlice": "Enregistre la tranche d’atlas qu’occupe une lumière, sans toucher au reste de ses champs. La révision du stockage ne monte que si la tranche a vraiment changé : sinon rien n’est envoyé au GPU.",
-      "capacity": "Places que tient la table, mot 1 de l’en-tête : la table GPU et les listes de chaque tuile ont cette longueur."
+      "capacity": "Places que tient la table : le tampon GPU des lumières a cette longueur."
     }
   },
   "SceneLink": {
@@ -7692,11 +7693,5 @@
       "center": "Le point de l’image posé sur la position du sprite : `(0.5, 0.5)` son milieu, `(0, 0)` son coin en bas à gauche, `(0.5, 0)` le milieu de son bord du bas.",
       "material": "Le `material.sprite` du sprite ; affectez-en un autre pour le changer."
     }
-  },
-  "SCENE_LIGHT_STEP": {
-    "summary": "Les places de lumière s’ajoutent par mots de masque entiers : la liste d’une tuile et la table des lumières grandissent de ce pas."
-  },
-  "sceneLightCapacity": {
-    "summary": "Places que la table tient pour `count` lumières : dimensionnées d’après la scène, jamais un plafond fixe."
   }
 }
