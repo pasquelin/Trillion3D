@@ -49,10 +49,11 @@ export function createPhysicsSession(
   const bodies = createPhysicsBodies(writer, budget, host, root, poses.state);
   const joints = createPhysicsJoints(writer, bodies, invalidate);
   const vehicles = createPhysicsVehicles(writer, bodies, invalidate);
-  /** A body leaving the simulation (asleep decorative, refused) takes its joints and vehicles. */
-  const retire = (index: number) => {
+  /** A body out (asleep decorative, or refused by `error`) takes its joints and vehicles. */
+  const retire = (index: number, error?: EngineError) => {
     bodies.retire(index);
     dirty = true;
+    if (error) failed(error);
   };
   const posed = { meshes: bodies.meshes, generation: bodies.generation, retire };
   const view = createPhysicsView();
@@ -103,8 +104,7 @@ export function createPhysicsSession(
       casts.get(data.id)?.(data.hits);
       casts.delete(data.id);
     } else {
-      // Bodies whose shape the module refused leave the simulation, tiles and cooked soft bodies
-      // too; the world runs on, unless the error is fatal: then the world ends this session.
+      // Refused shapes leave, tiles and cooked soft bodies by their owner; a fatal error ends all.
       for (const id of data.bodies ?? []) tiles.refused(id);
       const refused = (data.bodies ?? []).map(bodies.meshOf).filter((mesh) => mesh !== null);
       for (const mesh of refused) retire(mesh.physics._index);
@@ -146,7 +146,7 @@ export function createPhysicsSession(
     },
     /** The page moved or hid a node: its bodies go where the page put them; hidden, no pose. */
     pose(node: Object3D) {
-      placeBodies(node, host, writer);
+      placeBodies(node, bodies.slots, writer, retire);
       tiles.moved(node);
     },
     /** The frame's physics: bodies reconciled, poses drawn, the view and the commands sent. */
