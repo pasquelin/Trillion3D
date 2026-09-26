@@ -3,11 +3,12 @@
 //! chains once they mirror it step for step (#748; until then a hosted texture
 //! the card regenerates keeps the median alone).
 //!
-//! A masked material keeps a texel when its alpha reaches the cutoff
-//! (`alpha >= alphaTest`), and the median of four does not keep the share of texels that do: on foliage the
-//! coarse levels thin out (sponza's masked maps lose up to 57 % of their coverage
-//! at level 8, #44). A texture's cutoff byte `C` is the lowest of its readers'
-//! (`cutoff_byte`), 0 when one of them blends: a blended surface draws the
+//! A masked material keeps a texel when its alpha times the material's
+//! `baseColorFactor` alpha reaches the cutoff (glTF 2.0), and the median of four
+//! does not keep the share of texels that do: on foliage the coarse levels thin
+//! out (sponza's masked maps lose up to 57 % of their coverage at level 8, #44).
+//! A texture's cutoff byte `C` is the lowest of its readers' effective cutoffs
+//! (`material_cutoff`), 0 when one of them blends: a blended surface draws the
 //! alpha itself, whose mean the scale would move. So, at every level `k ≥ 1` of
 //! a coverage chain whose cutoff byte `C` is not 0:
 //!
@@ -29,15 +30,27 @@
 
 use super::reduce::AtlasKind;
 
-/// The smallest byte a masked material keeps at `cutoff`: `b / 255 >= cutoff`,
-/// the test of the WebGPU engine, the one backend that samples baked chains
-/// (`maskKeep`: the sampled alpha, times the vertex colour's, against
-/// `alphaTest`), and the quality gate's (`blocks/quality.rs`). 0 — the median
-/// alone — when no byte reaches it: such a material keeps no texel at any level.
+/// The smallest byte `b` with `b / 255 >= cutoff`, the test of the quality gate
+/// (`blocks/quality.rs`); 0 when no byte reaches it.
 pub(super) fn cutoff_byte(cutoff: f32) -> u8 {
     (1..=255u8)
         .find(|&byte| f32::from(byte) / 255.0 >= cutoff)
         .unwrap_or(0)
+}
+
+/// A masked material's effective cutoff byte. glTF 2.0 cuts the sampled alpha
+/// times the `baseColorFactor` alpha `f` against `alphaCutoff` — WebGL2 does,
+/// WebGPU follows in #748 —, so the texture's own cutoff is `alphaCutoff / f`,
+/// clamped to 1: a factor of 0 or below, or a cutoff at or above the factor, keeps
+/// at most the fully opaque texels (none, once the cutoff exceeds the factor), and
+/// takes 255, which the lowest cutoff over a texture's readers ignores beside any
+/// other one.
+pub(super) fn material_cutoff(material: &serde_json::Value, cutoff: f32) -> u8 {
+    let factor = material
+        .pointer("/pbrMetallicRoughness/baseColorFactor/3")
+        .and_then(serde_json::Value::as_f64)
+        .unwrap_or(1.0) as f32;
+    cutoff_byte((cutoff / factor.max(0.0)).min(1.0))
 }
 
 /// What level 0 covers at the chain's cutoff: the share every level keeps.
