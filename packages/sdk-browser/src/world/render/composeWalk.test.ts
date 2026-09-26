@@ -15,7 +15,7 @@ const FRAMES = 5;
 
 /** The reads of every node's children over `FRAMES` frames of a nested graph, drawn with `chain`:
  *  nothing holds a frame here (the draw has no `frameHeld`), so each composes and draws. */
-function visitsOver(chain: EffectChain) {
+function visitsOver(chain: EffectChain, chained: boolean) {
   const scene = new GraphScene(),
     group = new Group();
   group.add(G.triangleMesh(new GraphSurface('standard')));
@@ -29,16 +29,16 @@ function visitsOver(chain: EffectChain) {
   const view = session(scene, chain);
   visits = 0;
   for (let frame = 0; frame < FRAMES; frame++)
-    assert.equal(view.frame().submitted, 3, 'every frame drawn');
+    assert.deepEqual(view.frame(), { chained, submitted: 3 }, 'every frame drawn');
   view.close();
   return visits;
 }
 
 test('a chain on WebGL2 visits the graph no more than the draw does without one', () => {
-  const without = visitsOver(new EffectChain());
+  const without = visitsOver(new EffectChain(), false);
   assert.ok(without > 0, 'the draw walks its graph');
   assert.equal(
-    visitsOver(new EffectChain().add(effect.bloom())),
+    visitsOver(new EffectChain().add(effect.bloom()), true),
     without,
     'the composer walks nothing',
   );
