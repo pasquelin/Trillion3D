@@ -1,5 +1,6 @@
 import {
   addScaledVector3,
+  copyScaledVector3,
   crossVector3,
   dotVector3,
   subVector3,
@@ -173,7 +174,7 @@ function sweep(
     const n = normals[i - 1],
       t = tangents[i];
     const along = dotVector3(n, t);
-    normals.push(normalize(...addScaledVector3<V3>([...n], t, -along)));
+    normals.push(normalize(n[0] - along * t[0], n[1] - along * t[1], n[2] - along * t[2]));
   }
   // Carried round a closed curve, the frame comes back turned about the tangent: each ring takes
   // back its share of that turn, so the last ring lands on the first and the tube closes.
@@ -186,9 +187,8 @@ function sweep(
       r = radiusAt(u);
     const n0 = normals[i],
       n1 = cross(tangents[i], n0);
-    const n = normalize(
-      ...([0, 1, 2].map((k) => Math.cos(angle) * n0[k] + Math.sin(angle) * n1[k]) as V3),
-    );
+    const m = copyScaledVector3<V3>([0, 0, 0], n0, Math.cos(angle));
+    const n = normalize(...addScaledVector3(m, n1, Math.sin(angle)));
     const c = points[i];
     return { p: addScaledVector3<V3>([c[0], c[1], c[2]], n, r), n, uv: [u, v] };
   });
