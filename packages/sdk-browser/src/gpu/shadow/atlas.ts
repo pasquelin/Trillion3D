@@ -25,7 +25,7 @@ const RECORD_BYTES = MAX_SHADOW_SLICES * SHADOW_RECORD_FLOATS * 4;
 const DATA_BYTES = RECORD_BYTES + SHADOW_TABLE_ENTRIES * 4;
 /** Bytes of the buffers beside the pool — the faces, the records and page table: fixed by the
  *  light contract, the same on every screen, so the memory budget counts them. */
-export const SHADOW_BUFFER_BYTES = MAX_SHADOW_REGIONS * FACE_STRIDE + DATA_BYTES;
+export const SHADOW_BUFFER_BYTES = MAX_SHADOW_REGIONS * (FACE_STRIDE + 4) + DATA_BYTES;
 /** Bytes of a pool of `layers` of `poolSide` pages a side: one 32-bit depth texel each. */
 export const shadowAtlasBytes = (poolSide: number, layers = 1) =>
   (poolSide * SHADOW_PAGE) ** 2 * 4 * layers;
@@ -44,15 +44,12 @@ export type GpuShadowAtlas = Awaited<ReturnType<typeof createGpuShadowAtlas>>;
  */
 export async function createGpuShadowAtlas(device: GPUDevice, pageLayout: GPUBindGroupLayout) {
   let texture: GPUTexture | undefined, transmittance: ShadowTransmittance | undefined;
-  // Also storage, read by the occlusion test, and a copy source for the page draws' views.
+  // Also storage, read by the occlusion test and the page quads; after the faces, the batch's
+  // regions in pass order (`pageQuads.ts`).
   const faceUniform = device.createBuffer({
     label: 'Trillion3D shadow faces v1',
-    size: MAX_SHADOW_REGIONS * FACE_STRIDE,
-    usage:
-      GPUBufferUsage.UNIFORM |
-      GPUBufferUsage.STORAGE |
-      GPUBufferUsage.COPY_SRC |
-      GPUBufferUsage.COPY_DST,
+    size: MAX_SHADOW_REGIONS * (FACE_STRIDE + 4),
+    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
   });
   const dataBuffer = device.createBuffer({
     label: 'Trillion3D shadow records and page table v1',

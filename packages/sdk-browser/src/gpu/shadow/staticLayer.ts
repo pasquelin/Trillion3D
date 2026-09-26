@@ -5,13 +5,6 @@ import { shadowAtlasBytes } from './atlas.ts';
 /** Label of the pass that fills the static layer: timed with the Shadows stage. */
 export const SHADOW_LAYER_PASS = 'Trillion3D shadow static layer v1';
 
-export const RESTORE_WGSL = `@group(0) @binding(0) var layer:texture_depth_2d;
-/** The pool and the layer are the same size, each bound at the page's layer: a texel reads its
- *  own twin. */
-@fragment fn restore_fs(@builtin(position) p:vec4f)->@builtin(frag_depth) f32{
- return textureLoad(layer,vec2i(p.xy),0);
-}`;
-
 /** The layout of a static layer's group: one layer of its depth, read by the restore
  *  (`pageQuads.ts`). */
 export const staticLayerEntries = (): GPUBindGroupLayoutEntry[] => [
