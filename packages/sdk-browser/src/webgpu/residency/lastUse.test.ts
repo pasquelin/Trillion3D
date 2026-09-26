@@ -35,9 +35,13 @@ function residency(slots: number, spare: string[]) {
     traceDiagnostic: () => {},
   });
   const ids = (urls: string[]) => urls.map((url) => packed.findIndex((page) => page.url === url));
-  const image = (frame: number, cutUrls: string[], drawnUrls: string[]) => {
+  /** Publishes a cut outside an image, as a drained readback does: no pin step follows. */
+  const ask = (cutUrls: string[]) => {
     cut.apply(ids(cutUrls));
     sets.applyCut(cut);
+  };
+  const image = (frame: number, cutUrls: string[], drawnUrls: string[]) => {
+    ask(cutUrls);
     drawn.apply(ids(drawnUrls));
     sets.applyDrawn(drawn);
     sets.applyBudget(slots);
@@ -52,7 +56,13 @@ function residency(slots: number, spare: string[]) {
     await cache.load(url);
     return before.find((key) => !cache.resident.has(key));
   };
-  return { image, load, evict, cache };
+  /** The upload job admits `url` while the image asks for it: loaded and pinned at once. */
+  const admit = async (url: string) => {
+    await cache.load(url);
+    cache.pin(url);
+    tracking.markPinned(tracking.keyOf(packed[ids([url])[0]]));
+  };
+  return { image, ask, admit, load, evict, cache };
 }
 
 test('an ancestor drawn in place of a missing page stays resident under pressure', async () => {
@@ -146,4 +156,16 @@ test('pages the image stopped asking for before they arrived put no pressure on 
   world.image(3, [], []);
   // Nothing the image keeps asks for a slot: the pages just drawn stay within their window.
   await assert.rejects(world.load('z'), FULL);
+});
+
+test('a page pinned on arrival and let go before the pin step still leaves', async () => {
+  const world = residency(2, ['x']);
+  world.image(1, [], []);
+  // A readback asks for `x`, the running upload job pins it on arrival, and the next cut drops it
+  // before any pin step saw it kept: it must still wait out its window and leave.
+  world.ask(['x']);
+  await world.admit('x');
+  world.ask([]);
+  for (let frame = 2; frame <= 2 + 2 * W; frame++) world.image(frame, [], []);
+  assert.ok(!world.cache.pins.has('x'), 'the pin of a page nothing keeps is given back');
 });
