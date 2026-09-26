@@ -6,6 +6,7 @@
  * is the measurer's (`tests/browser/probes/particles-step-*.ts`).
  */
 import { PARTICLE_FLOATS } from '../../../sdk-core/src/fluids/particles.ts';
+import { fromHalf, toHalf } from '../../../sdk-core/src/lighting/ltcTable.ts';
 import { written, type FakeWrite } from '../../../../tests/kit/gpu/fakeDevice.ts';
 import { PARTICLE_WORKGROUP } from './webgpuParticles.ts';
 import { PARTICLE_ROW } from './webglParticles.ts';
@@ -13,6 +14,8 @@ import { PARTICLE_ROW } from './webglParticles.ts';
 type Store = (value: number) => number;
 type Ring = { first: number; count: number; capacity: number };
 const f = Math.fround;
+/** The nearest half float, what a half-float target keeps. */
+const f16 = (x: number) => fromHalf(toHalf(x));
 
 /** Both shaders' body for one particle: its eight words from `from`, stored in `into`. */
 function move(from: ArrayLike<number>, at: number, a: ArrayLike<number>, dt: number) {
@@ -61,7 +64,7 @@ export function webgpuModel(capacity: number) {
 
 /** The WebGL2 step as `PARTICLES_GLSL` runs it: one fragment per texel of the viewport, read
  *  from one half-float target and written, `store`d, to the other. */
-export function webglModel(capacity: number, store: Store = Math.f16round) {
+export function webglModel(capacity: number, store: Store = f16) {
   const texels = 2 * PARTICLE_ROW,
     size = Math.ceil(capacity / PARTICLE_ROW) * texels * 4;
   let [read, write] = [new Float32Array(size), new Float32Array(size)];
@@ -88,4 +91,22 @@ export function webglModel(capacity: number, store: Store = Math.f16round) {
       [read, write] = [write, read];
     },
   };
+}
+
+/** An encoder that records its compute passes and their dispatches. */
+export function computeRecorder() {
+  const passes: { label?: string; dispatches: number[] }[] = [];
+  const encoder = {
+    beginComputePass: ({ label }: GPUComputePassDescriptor) => {
+      const pass = { label, dispatches: [] as number[] };
+      passes.push(pass);
+      return {
+        setPipeline() {},
+        setBindGroup() {},
+        dispatchWorkgroups: (x: number) => void pass.dispatches.push(x),
+        end() {},
+      };
+    },
+  } as unknown as GPUCommandEncoder;
+  return { encoder, passes };
 }
