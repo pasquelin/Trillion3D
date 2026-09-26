@@ -9,10 +9,8 @@ import * as G from '../../host/graph/graph.fixture.ts';
 import type { RenderBackend } from '../../backend/types.ts';
 import { EffectChain } from '../../../../sdk-core/src/world/effect/chain.ts';
 import { effect } from '../../../../sdk-core/src/world/effect/index.ts';
-import { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts';
-import { BufferAttribute } from '../../../../sdk-core/src/world/buffer/attribute.ts';
 import { GraphScene } from '../../host/graph/scene.ts';
-import { GraphInstancedMesh, GraphMesh } from '../../host/graph/mesh.ts';
+import { GraphInstancedMesh } from '../../host/graph/mesh.ts';
 import { GraphSurface } from '../../host/graph/surface.ts';
 import {
   HOST_BLENDING_MULTIPLY,
@@ -33,15 +31,6 @@ const halfFloats = {
   getExtension: (name: string) => (name === 'EXT_color_buffer_float' ? {} : null),
 };
 
-/** A drawn mesh of three corners in `surface`. */
-function mesh(surface: GraphSurface) {
-  const geometry = new Geometry().setIndex(new BufferAttribute(new Uint32Array(3), 1));
-  geometry.setAttribute('position', new BufferAttribute(new Float32Array(9), 3));
-  geometry.setAttribute('normal', new BufferAttribute(new Float32Array(9), 3));
-  const made = new GraphMesh(geometry, surface);
-  made.frustumCulled = false;
-  return made;
-}
 const blended = (blending: number) =>
   new GraphSurface('standard', { transparent: true, opacity: 0.5, blending });
 
@@ -89,7 +78,10 @@ const MODES = [
 
 for (const [name, blending] of MODES) {
   test(`a pass added while a ${name} surface is drawn: every frame drawn, said once`, async () => {
-    const scene = new GraphScene().add(mesh(new GraphSurface('standard')), mesh(blended(blending)));
+    const scene = new GraphScene().add(
+      G.triangleMesh(new GraphSurface('standard')),
+      G.triangleMesh(blended(blending)),
+    );
     const chain = new EffectChain();
     const view = session(scene, chain);
     const said = await heard(view, () => {
@@ -102,9 +94,9 @@ for (const [name, blending] of MODES) {
   });
 
   test(`a ${name} surface entering a world with a pass: drawn, said once`, async () => {
-    const scene = new GraphScene().add(mesh(new GraphSurface('standard')));
+    const scene = new GraphScene().add(G.triangleMesh(new GraphSurface('standard')));
     const view = session(scene, new EffectChain().add(effect.bloom()));
-    const glass = mesh(blended(blending));
+    const glass = G.triangleMesh(blended(blending));
     const said = await heard(view, () => {
       assert.deepEqual(view.frame(), { chained: true, submitted: 1 });
       scene.add(glass);
@@ -120,7 +112,7 @@ for (const [name, blending] of MODES) {
   test(`a surface switched to ${name} under a pass: drawn, said once`, async () => {
     const surface = blended(HOST_BLENDING_NORMAL);
     const view = session(
-      new GraphScene().add(mesh(surface)),
+      new GraphScene().add(G.triangleMesh(surface)),
       new EffectChain().add(effect.bloom()),
     );
     const said = await heard(view, () => {
@@ -134,7 +126,7 @@ for (const [name, blending] of MODES) {
 
   test(`a WebGL2 session opened on a world with a pass and a ${name} surface`, async () => {
     // The world falling back to WebGL2 opens its session on what it already holds.
-    const scene = new GraphScene().add(mesh(blended(blending)));
+    const scene = new GraphScene().add(G.triangleMesh(blended(blending)));
     const view = session(scene, new EffectChain().add(effect.bloom()));
     const said = await heard(view, () => {
       assert.deepEqual(view.frame(), { chained: false, submitted: 1 }, 'its first frame drawn');
@@ -146,11 +138,11 @@ for (const [name, blending] of MODES) {
 
 test('a multiply instanced mesh placed nowhere keeps the chain on until it is placed', async () => {
   const surface = blended(HOST_BLENDING_MULTIPLY),
-    placed = mesh(surface),
+    placed = G.triangleMesh(surface),
     pool = new GraphInstancedMesh(placed.geometry, surface, 1);
   pool.count = 0;
   pool.frustumCulled = false;
-  const scene = new GraphScene().add(mesh(new GraphSurface('standard')), pool);
+  const scene = new GraphScene().add(G.triangleMesh(new GraphSurface('standard')), pool);
   const view = session(scene, new EffectChain().add(effect.bloom()));
   const said = await heard(view, () => {
     assert.equal(view.frame().chained, true, 'nothing submitted, nothing refused');

@@ -5,31 +5,20 @@
 // surfaces whose material skips the curve are marked so the chain's output skips it too.
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import * as G from '../../host/graph/graph.fixture.ts';
 import { createSceneDraw } from './sceneDraw.ts';
 import { createTestContext } from '../core/testContext.fixture.ts';
 import { createHostDrawCamera, type HostCamera } from '../../camera/world.ts';
 import { GraphScene } from '../../host/graph/scene.ts';
-import { GraphMesh } from '../../host/graph/mesh.ts';
-import { BufferAttribute } from '../../../../sdk-core/src/world/buffer/attribute.ts';
 import { GraphSurface } from '../../host/graph/surface.ts';
 import { CLUSTER_FRAGMENT, CLUSTER_LINEAR_FRAGMENT, CLUSTER_VERTEX } from './shaders.ts';
-import { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts';
-
-function mesh(surface: GraphSurface) {
-  const geometry = new Geometry().setIndex(new BufferAttribute(new Uint32Array(3), 1));
-  geometry.setAttribute('position', new BufferAttribute(new Float32Array(9), 3));
-  geometry.setAttribute('normal', new BufferAttribute(new Float32Array(9), 3));
-  const made = new GraphMesh(geometry, surface);
-  made.frustumCulled = false;
-  return made;
-}
 
 /** A standard surface, a transparent one and one the curve skips, drawn once per `linear`. */
 function draw(...linear: boolean[]) {
   const scene = new GraphScene();
-  scene.add(mesh(new GraphSurface('standard')));
-  scene.add(mesh(new GraphSurface('standard', { transparent: true, opacity: 0.5 })));
-  scene.add(mesh(new GraphSurface('standard', { toneMapped: false })));
+  scene.add(G.triangleMesh(new GraphSurface('standard')));
+  scene.add(G.triangleMesh(new GraphSurface('standard', { transparent: true, opacity: 0.5 })));
+  scene.add(G.triangleMesh(new GraphSurface('standard', { toneMapped: false })));
   const context = createTestContext();
   const sceneDraw = createSceneDraw(context.gl, scene);
   for (const each of linear) {
