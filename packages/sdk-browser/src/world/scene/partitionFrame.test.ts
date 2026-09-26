@@ -102,6 +102,43 @@ test('a pebble far below any error target is read while the far plane lets it be
   assert.deepEqual(asked, [[['https://cache.test/key/pebble.json'], PRIORITY_VISIBLE]]);
 });
 
+test('a camera zoomed out reads the cells its wider frustum sees', () => {
+  // At zoom 0.5 the frustum is twice as wide: a pebble 560 m aside, 290 m ahead, is within its far
+  // plane's corner, past the reach — and the read-ahead — of the same camera at zoom 1.
+  const bounds = [560, 0, -290, 560.01, 0.01, -289.99];
+  const cells = createPartitionCells({
+    partition: {
+      version: 1,
+      bounds,
+      meshes: [0],
+      cells: [
+        {
+          url: 'aside.json',
+          sha256: '',
+          bytes: 1,
+          meshes: [[0, 1] as const],
+          parents: [[null, bounds] as const],
+        },
+      ],
+    },
+    base: 'https://cache.test/key/',
+    root: new Group(),
+    parents: [],
+    meshes: new Map([[0, placedMesh([{ meshes: 0, primitives: 0 }])]]),
+  });
+  const { port, asked } = streamer();
+  const camera = hostFramingCamera(60, 16 / 9, 0.1, 300);
+  camera.zoom = 0.5;
+  createPartitionFrame({
+    partitions: [cells],
+    streamer: port,
+    camera,
+    active: () => ({}) as RenderBackend,
+    budget,
+  })!();
+  assert.deepEqual(asked, [[['https://cache.test/key/aside.json'], PRIORITY_VISIBLE]]);
+});
+
 test('a reach past the rows sized at open asks the owner to open the session again', () => {
   const renew = () => {};
   const { cells, seen } = recording();
