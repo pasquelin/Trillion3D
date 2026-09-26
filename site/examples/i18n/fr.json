@@ -1367,7 +1367,7 @@
     }
   },
   "save-the-scene": {
-    "banner": "Fais tomber la tour, puis rouvre la scène enregistrée.",
+    "banner": "Enregistre la tour, fais-la tomber, puis ouvre : la tour enregistrée se dresse à nouveau.",
     "controls": {
       "knockDown": "Faire tomber",
       "save": "Enregistrer",
