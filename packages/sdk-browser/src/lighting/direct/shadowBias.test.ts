@@ -134,3 +134,29 @@ test('the new bias puts every shadow edge nearer a ray-cast of its casters than 
     now.forEach((e, i) => assert.ok(e < Math.min(before[i], 5), `${i}: ${e} against ${before[i]}`));
   }
 });
+
+test('a ball under the sun is clean, and the outline shell 5 cm round it shades it', () => {
+  // #456, `toon-shading`: the ink outline is a copy of its part 5 % larger. Casting, it is a real
+  // caster a texel margin must not reach through, so the ball sits in its shade; the example sets
+  // the copy `castShadow = false`, and the ball alone shades no point of itself.
+  const ring = (radius: number, n = 24): Face[] =>
+    Array.from({ length: n }, (_, k) => {
+      const [a, b] = [k, k + 1].map((i) => (2 * Math.PI * i) / n);
+      const at = (t: number) => [radius * Math.cos(t), radius * Math.sin(t)];
+      return { from: at(a), to: at(b), normal: [Math.cos((a + b) / 2), Math.sin((a + b) / 2)] };
+    });
+  const zenith = 1.107,
+    ball = ring(1),
+    light = [Math.sin(zenith), -Math.cos(zenith)];
+  const lit = ball.flatMap((face, i) => (dot(face.normal, light) < 0 ? [i] : []));
+  for (const texel of [2 ** -8, 2 ** -6]) {
+    const alone = sunOverProfile(ball, zenith, texel),
+      shelled = sunOverProfile([...ball, ...ring(1.05)], zenith, texel);
+    for (const i of lit)
+      for (let k = 1; k < 20; k++) assert.equal(alone(i, k / 20), 1, `face ${i} at ${k / 20}`);
+    const facing = lit.reduce((a, b) =>
+      dot(ball[a].normal, light) < dot(ball[b].normal, light) ? a : b,
+    );
+    assert.equal(shelled(facing, 0.5), 0, `texel ${texel}: the shell shades the ball`);
+  }
+});
