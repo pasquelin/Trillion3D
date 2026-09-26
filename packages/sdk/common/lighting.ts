@@ -27,9 +27,7 @@ export {
   POINT_FACES,
   SCENE_LIGHT_FLOATS,
   SCENE_LIGHT_HEADER_FLOATS,
-  SCENE_LIGHT_STEP,
   SCENE_LIGHT_VERSION,
-  sceneLightCapacity,
 } from '../../sdk-core/src/scene/light/contracts.ts';
 export type {
   SceneLight,

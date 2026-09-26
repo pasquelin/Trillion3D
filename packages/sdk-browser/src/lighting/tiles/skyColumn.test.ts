@@ -5,7 +5,6 @@ import {
   multiplyMatrix4,
   perspectiveProjection,
 } from '../../../../sdk-core/src/index.ts';
-import { sceneLightCapacity } from '../../../../sdk-core/src/index.ts';
 import { LIGHT_TILES_SHADER } from './shader.ts';
 import {
   compactTile,
@@ -96,17 +95,17 @@ test('a tile with a sky pixel lights its blend list from the column, whatever op
 test('300 lamps before a sky tile: its blend list is their CPU culling, none dropped (#822)', () => {
   const v = view([0, 0, 0]),
     column = tileColumn(v, tile);
-  // A lamp every metre down the tile's axis, every other one pushed sideways out of its column.
+  // A lamp every metre down the tile's axis, five in six pushed sideways out of its column.
   const lamps = [...Array(300).keys()].map((i) => {
     const centre = onAxis(v, 0.1 / (1 + i));
-    centre[0] += (i % 2) * 0.1 * (1 + i);
+    centre[0] += Math.min(1, i % 6) * 0.1 * (1 + i);
     return { centre, radius: 0.002 * (1 + i) };
   });
   const blend = [...lamps.keys()].filter((i) =>
     sphereTouchesColumn(column, lamps[i].centre, lamps[i].radius),
   );
-  assert.ok(blend.length < 300 && blend.some((i) => i >= 256), 'kept past the first batch');
-  const layout = tileLayout(LIGHT_TILES_SHADER, sceneLightCapacity(300));
+  assert.ok(blend.length <= 64 && blend.some((i) => i >= 256), 'a list, kept past a batch');
+  const layout = tileLayout(LIGHT_TILES_SHADER);
   const record = compactTile(layout, { opaque: [], blend }, 300);
-  assert.deepEqual(tileLists(layout, record), { opaque: [], blend });
+  assert.deepEqual(tileLists(layout, record, 300), { opaque: [], blend });
 });

@@ -138,8 +138,6 @@ export {
   POINT_FACES,
   SCENE_LIGHT_FLOATS,
   SCENE_LIGHT_HEADER_FLOATS,
-  SCENE_LIGHT_STEP,
-  sceneLightCapacity,
   LIGHT_KIND,
   SCENE_LIGHT_VERSION,
 } from './scene/light/contracts.ts';
