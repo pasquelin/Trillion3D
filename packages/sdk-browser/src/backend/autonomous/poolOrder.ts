@@ -110,28 +110,27 @@ export function createResidentOrder(env: {
     drop(url);
   };
   const isArrival = (url: string) => arrivals.has(url);
-  /** Evicts released pages oldest first while over the budget, but those `spared`; when they do
-   *  not suffice, the pages missing are released early, as WebGPU gives way under pressure. */
-  const shed = (spared: (url: string) => boolean = isArrival) => {
+  /** Evicts released pages oldest first while over the budget, but what arrived since the cut;
+   *  when they do not suffice, the pages missing are released early, as WebGPU gives way under
+   *  pressure. */
+  const shed = () => {
     // What nothing may evict only raises the bar: under the pool it is not even read.
     if (exhausted || state.allocationBytes <= limit()) return 0;
     floorBytes = env.floorBytes();
-    if (!over()) return 0;
-    let evicted = evictOldest(order, over, spared, evictOne);
-    const bar = Math.max(limit(), floorBytes),
-      slot = env.pageBytes();
+    let evicted = evictOldest(order, over, isArrival, evictOne);
     while (over()) {
       const before = order.size;
-      lastUse.release(frame, released, Math.ceil((state.allocationBytes - bar) / slot));
+      const bar = Math.max(limit(), floorBytes);
+      lastUse.release(frame, released, Math.ceil((state.allocationBytes - bar) / env.pageBytes()));
       if (order.size === before) break;
-      evicted += evictOldest(order, over, spared, evictOne);
+      evicted += evictOldest(order, over, isArrival, evictOne);
     }
     exhausted = over();
     return evicted;
   };
   return {
     /** Between two cuts — a budget set mid-session —: what the image drew and what arrived stay. */
-    shedBetweenCuts: () => shed(),
+    shed,
     /** A page has arrived, or arrived again: it stays until the next cut, and enters the order at
      *  once when nothing holds it. */
     arrived(url: string) {
@@ -162,7 +161,7 @@ export function createResidentOrder(env: {
       arrivals.clear();
       keep(asked, []);
       lastUse.release(frame, released);
-      return shed(() => false);
+      return shed();
     },
     get keyCount() {
       return keys.size;
