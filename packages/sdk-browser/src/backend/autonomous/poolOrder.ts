@@ -2,150 +2,206 @@ import type { PageRec } from '../../page/selection/selection.ts';
 import { evictOldest } from '../../streaming/evictOldest.ts';
 import { createLastUse } from '../../residency/lastUse.ts';
 
-/** The WebGL2 pages as the shared residency reads them: an integer per URL, and back, and the pages
- *  a page depends on (`../../residency/pageParents.ts`). */
-export type PageKeys = {
-  keyOf: (url: string) => number;
-  /** The key of a URL already ranked, without ranking it. */
-  find: (url: string) => number | undefined;
-  urlOf: (key: number) => string;
-  parentsOf: (rec: PageRec) => readonly PageRec[];
-};
-
-/** Ranks URLs as the residency first meets them: its tables follow what the image asked for,
- *  never the catalogue. A page's parents are read once, when it first holds them: a removed
- *  instance's records keep a stale `placementIndex` once the placements are laid out again, and
- *  releasing them must give back the very parents they held. */
-export function createPageKeys(readParents: PageKeys['parentsOf']): PageKeys {
+/**
+ * The WebGL2 pages as the shared residency reads them: a small integer per URL, memoised on each
+ * record (`PageRec.keyIndex`, checked against the URL it names) so an image hashes no string, and
+ * given back once the page is no longer held, so the tables follow what the view holds, never
+ * every URL ever asked for (#483 rule 6).
+ */
+export function createPageKeys() {
   const keys = new Map<string, number>(),
-    urls: string[] = [],
-    parents = new WeakMap<PageRec, readonly PageRec[]>();
-  const parentsOf = (rec: PageRec) => {
-    let found = parents.get(rec);
-    if (!found) parents.set(rec, (found = readParents(rec)));
-    return found;
-  };
+    urls: (string | undefined)[] = [],
+    free: number[] = [];
   return {
-    keyOf(url) {
-      let key = keys.get(url);
-      if (key === undefined) keys.set(url, (key = urls.push(url) - 1));
-      return key;
+    keyOf(rec: PageRec) {
+      const memo = rec.keyIndex;
+      if (memo !== undefined && urls[memo] === rec.url) return memo;
+      let key = keys.get(rec.url);
+      if (key === undefined) {
+        key = free.pop() ?? urls.length;
+        keys.set(rec.url, key);
+        urls[key] = rec.url;
+      }
+      return (rec.keyIndex = key);
     },
-    find: (url) => keys.get(url),
-    urlOf: (key) => urls[key],
-    parentsOf,
+    find: (url: string) => keys.get(url),
+    urlOf: (key: number) => urls[key]!,
+    /** The page is no longer held: its key is reused. */
+    free(key: number) {
+      keys.delete(urls[key]!);
+      urls[key] = undefined;
+      free.push(key);
+    },
+    /** Keys in use: the pages held. */
+    get size() {
+      return keys.size;
+    },
   };
 }
 
-/** Frames a page stays held once the image stopped asking for it: the WebGL2 image is drawn from
- *  the cut just taken on the CPU, no frame in flight reads a page the next cut no longer holds. */
+/** Frames a page stays held once the image stopped keeping it: the WebGL2 image is drawn from the
+ *  cut just taken on the CPU, no frame in flight reads a page the next cut no longer holds. */
 const IDLE_WINDOW = 1;
 
 /**
- * The pages the WebGL2 geometry pool holds (`pool.ts`), held by the engine's one residency
- * (`../../residency/lastUse.ts`): a page the image asks for is held with its parents, released at
- * the next cut once no longer asked for, and the released ones leave by last use once over `limit`.
- * Between two cuts, what the image drew and every arrival stay. The root cover and the host's pages
- * never enter the order (docs/ENGINE.md, the WebGL2 pool).
+ * The pages the WebGL2 geometry pool holds (`pool.ts`), by the engine's one residency
+ * (`../../residency/lastUse.ts`), fed as WebGPU feeds it: what the image asks for and what it
+ * draws are kept, each holding its parents. Just before a cut, what the last image drew but no
+ * longer asks for leaves `keep`: that cut draws its nearest resident ancestor instead. A page that
+ * leaves is released once its window ends, or at once when the pool is short (the window gives
+ * way to the pages missing), finest first. Only released pages enter the order, by last use, and
+ * leave it oldest first once over `limit`; between two cuts, an arrival stays. The root cover and
+ * the host's pages never enter it (docs/ENGINE.md, the WebGL2 pool).
  */
 export function createResidentOrder(env: {
   state: { readonly allocationBytes: number };
   drop: (url: string) => void;
   limit: () => number;
   floorBytes: () => number;
-  pages: PageKeys;
+  /** Bytes of one slot: what converts the pool's shortfall into pages to release. */
+  pageBytes: () => number;
+  parentsOf: (rec: PageRec) => readonly PageRec[];
 }) {
-  const { state, drop, limit, pages } = env;
-  const order = new Set<string>(),
-    arrivals = new Set<string>(),
-    drawn = new Set<string>();
-  // What the image drew, gathered into `drawn` only when an eviction between two cuts reads it.
-  let shownList: readonly PageRec[] = [],
-    drawnStale = false;
-  // The keys the last cut asked for, and the next one's, swapped: a frame allocates no set.
-  let asked = new Set<number>(),
-    next = new Set<number>(),
+  const { state, drop, limit } = env;
+  const keys = createPageKeys();
+  // Resident pages above the root cover; the released ones in last-use order; arrivals since the
+  // last cut.
+  const resident = new Set<string>(),
+    order = new Set<string>(),
+    arrivals = new Set<string>();
+  // What the image keeps, by key: the stamp of the `keep` that named it, and the list of that
+  // `keep` beside the previous one's, swapped.
+  let marks = new Int32Array(64),
+    stamp = 1,
+    kept: PageRec[] = [],
+    entering: PageRec[] = [],
+    asked: readonly PageRec[] = [],
     frame = 0,
     // A walk found nothing left to evict: nothing is until the next cut.
     exhausted = false,
     floorBytes = 0;
   const lastUse = createLastUse({
     idleWindow: IDLE_WINDOW,
-    keyOf: (rec) => pages.keyOf(rec.url),
-    parentsOf: pages.parentsOf,
-    kept: (key) => asked.has(key),
-    // Gone idle: its last use, where the order now puts it.
-    onIdle: (key) => {
-      const url = pages.urlOf(key);
-      if (order.delete(url)) order.add(url);
-    },
+    levelPerFrame: true,
+    keyOf: keys.keyOf,
+    parentsOf: env.parentsOf,
+    kept: (key) => marks[key] === stamp,
   });
-  const released = (key: number) => order.has(pages.urlOf(key));
-  const held = (url: string) => {
-    const key = pages.find(url);
-    return key !== undefined && lastUse.holds(key);
+  /** Released: its key goes back, and a resident page enters the order, the most recent. */
+  const released = (key: number) => {
+    const url = keys.urlOf(key);
+    keys.free(key);
+    if (!resident.has(url)) return false;
+    order.add(url);
+    return true;
   };
-  const wasDrawn = (url: string) => {
-    if (drawnStale) {
-      drawnStale = false;
-      drawn.clear();
-      for (const rec of shownList) drawn.add(rec.url);
+  const enter = (list: readonly PageRec[], previous: number) => {
+    for (const rec of list) {
+      const key = keys.keyOf(rec);
+      if (key >= marks.length) {
+        const grown = new Int32Array(2 * key + 2);
+        grown.set(marks);
+        marks = grown;
+      }
+      if (marks[key] === stamp) continue;
+      const was = marks[key] === previous;
+      marks[key] = stamp;
+      entering.push(rec);
+      if (was) continue;
+      // Kept again: it is held, out of the order.
+      order.delete(rec.url);
+      lastUse.use(key, rec);
     }
-    return drawn.has(url);
   };
-  const keptBetweenCuts = (url: string) => arrivals.has(url) || wasDrawn(url) || held(url);
+  /** The image keeps `requested` and `shown`: what joined is held, and of what left, the finest
+   *  DAG level starts its window, the coarser ones held one more `keep`, so the image lets go of one
+   *  level at a time. Walks both lists, never what is held. */
+  const keep = (requested: readonly PageRec[], shown: readonly PageRec[]) => {
+    const previous = stamp++;
+    entering.length = 0;
+    enter(requested, previous);
+    enter(shown, previous);
+    let finest = Infinity;
+    for (const rec of kept)
+      if (marks[keys.keyOf(rec)] !== stamp) finest = Math.min(finest, rec.level ?? 0);
+    for (let i = kept.length - 1; i >= 0; i--) {
+      const rec = kept[i],
+        key = keys.keyOf(rec);
+      if (marks[key] === stamp) continue;
+      if ((rec.level ?? 0) > finest) {
+        marks[key] = stamp;
+        entering.push(rec);
+      } else lastUse.leave(key, frame);
+    }
+    const swap = kept;
+    kept = entering;
+    entering = swap;
+    asked = requested;
+  };
   const over = () => state.allocationBytes > Math.max(limit(), floorBytes);
   const evictOne = (url: string) => {
     order.delete(url);
+    resident.delete(url);
     drop(url);
   };
-  const shed = (kept: (url: string) => boolean = keptBetweenCuts) => {
+  const none = () => false;
+  /** Evicts released pages oldest first while over the budget, but those `spared`; when they do
+   *  not suffice, the pages missing are released early, as WebGPU gives way under pressure. */
+  const shed = (spared: (url: string) => boolean) => {
     // What nothing may evict only raises the bar: under the pool it is not even read.
     if (exhausted || state.allocationBytes <= limit()) return 0;
     floorBytes = env.floorBytes();
     if (!over()) return 0;
-    lastUse.release(frame, released, Infinity);
-    const evicted = evictOldest(order, over, kept, evictOne);
+    let evicted = evictOldest(order, over, spared, evictOne);
+    while (over()) {
+      const before = order.size,
+        short = state.allocationBytes - Math.max(limit(), floorBytes);
+      lastUse.release(frame, released, Math.ceil(short / env.pageBytes()));
+      if (order.size === before) break;
+      evicted += evictOldest(order, over, spared, evictOne);
+    }
     exhausted = over();
     return evicted;
   };
+  const isArrival = (url: string) => arrivals.has(url);
   return {
-    shed,
-    /** A page has arrived, or arrived again: it is the most recent, kept until the next cut. */
+    /** Between two cuts — a budget set mid-session —: what the image drew and what arrived stay. */
+    shedBetweenCuts: () => shed(isArrival),
+    /** A page has arrived, or arrived again: it stays until the next cut, and enters the order at
+     *  once when nothing holds it. */
     arrived(url: string) {
-      order.delete(url);
-      order.add(url);
+      resident.add(url);
       arrivals.add(url);
-      shed();
+      const key = keys.find(url);
+      if (key === undefined || !lastUse.holds(key)) {
+        order.delete(url);
+        order.add(url);
+      }
+      shed(isArrival);
     },
     /** A page left by another way — the streamer evicted it —, or the host replaced it, which
      *  holds it for good under the floor. */
     left(url: string) {
+      resident.delete(url);
       order.delete(url);
       arrivals.delete(url);
     },
-    /** What the image asks for and what it drew: the pages that joined the request are held, those
-     *  that left it start their window. Walks the request, never what is held. */
-    follow(requested: readonly PageRec[], shown: readonly PageRec[]) {
-      next.clear();
-      for (const rec of requested) {
-        const key = pages.keyOf(rec.url);
-        next.add(key);
-        if (!asked.has(key)) lastUse.use(key, rec);
-      }
-      for (const key of asked) if (!next.has(key)) lastUse.leave(key, frame);
-      [asked, next] = [next, asked];
-      shownList = shown;
-      drawnStale = true;
-    },
-    /** A cut is about to be drawn: the pages whose window ended are released, and what is not held
-     *  can go, once over the budget; returns the pages evicted. */
+    /** The image drew `shown` and asks for `requested`. */
+    follow: keep,
+    /** A cut is about to be drawn: what the last image drew but no longer asks for leaves `keep`,
+     *  the pages whose window ended are released, and, over the budget, the released ones leave;
+     *  returns the pages evicted. */
     trim() {
       frame++;
       exhausted = false;
       arrivals.clear();
+      keep(asked, []);
       lastUse.release(frame, released);
-      return shed(held);
+      return shed(none);
+    },
+    /** Keys in use, what the residency's tables are sized by. */
+    get keyCount() {
+      return keys.size;
     },
   };
 }

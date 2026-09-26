@@ -1,8 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { fixture, PAGE } from './pool.fixture.ts';
-import { createPageKeys } from './poolOrder.ts';
-import type { PageRec } from '../../page/selection/selection.ts';
 
 test('under its budget the pool walks nothing: an arrival only enters the order', () => {
   const f = fixture(10, { budgetBytes: 5 * PAGE });
@@ -166,15 +164,31 @@ test('an image costs the residency the same work in a world sixteen times larger
   assert.equal(imageWork(16), small);
 });
 
-test('a page gives back the parents it held, even once its placement is laid out elsewhere', () => {
-  const rec = { url: 'child', placementIndex: 0 } as PageRec;
-  let reads = 0;
-  const keys = createPageKeys((page) => {
-    reads++;
-    return page.placementIndex === 0 ? [{ url: 'parent' } as PageRec] : [];
-  });
-  const held = keys.parentsOf(rec);
-  rec.placementIndex = 3;
-  assert.equal(keys.parentsOf(rec), held);
-  assert.equal(reads, 1);
+test('a page gives back the parents it held, even once its parents read otherwise', () => {
+  const parents: Record<string, string[]> = { p1: ['p0'] };
+  const f = fixture(10, { budgetBytes: PAGE, parents });
+  f.arrive('p0');
+  f.keep(['p1']);
+  f.pool.trim();
+  // The placement is laid out elsewhere: p1 now reads no parent, yet p0 is still its to give back.
+  parents.p1 = [];
+  f.keep([]);
+  for (let i = 0; i < 3; i++) f.pool.trim();
+  f.arrive('p2');
+  f.pool.trim();
+  assert.deepEqual(f.dropped, ['p0'], 'p0 was released, and leaves before the newer p2');
+});
+
+// #839: the residency's tables follow the view, never every page it ever asked for.
+test('a view sliding across a large world keeps as many keys as it holds', () => {
+  const f = fixture(4000, { budgetBytes: 40 * PAGE });
+  let most = 0;
+  for (let from = 0; from < 3000; from += 5) {
+    const view = Array.from({ length: 20 }, (_, i) => `p${from + i}`);
+    f.keep(view, view);
+    f.pool.trim();
+    for (const url of view) if (!f.resident.has(url)) f.arrive(url);
+    most = Math.max(most, f.pool.keyCount);
+  }
+  assert.ok(most <= 2 * 20, `${most} keys for a view of 20 pages`);
 });
