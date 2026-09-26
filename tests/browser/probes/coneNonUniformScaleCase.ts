@@ -2,7 +2,7 @@
 // probe (`cone-non-uniform-scale.ts`) and the render proof of the same name: two real triangles at
 // large local coordinates, placed by a scale (1e-8, 1e-6, 1e-6), their face visible and large.
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
-import { triangleCone } from '../../../packages/sdk-browser/src/page/cone/cone.ts';
+import { triangleCone } from '../../kit/cone.ts';
 
 export function triggerCase() {
   const positions = [0, 0, 0, 1e6, 0, -1e6, 0, 1e6, 0, 0, 0, 0, -1e6, 0, -1e6, 0, -1e6, 0];
