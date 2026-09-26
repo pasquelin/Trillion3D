@@ -135,3 +135,39 @@ test('a world texel map is uploaded as stored, with its box chain', () => {
   assert.ok(uploaded.includes(pixels.buffer), 'uploaded as the bytes it holds');
   assert.equal(gl.chains(), 'box', 'a normal map is data: the plain box chain (#42)');
 });
+
+// #748: where float targets blend, a masked chain counts each level — level 0 first — as points,
+// picks its `t` into the scratch's row under the level it holds, then reduces it, and gives the
+// blend function back; a new cutoff reduces it again. Elsewhere it keeps the median alone.
+test('a masked chain is counted at its cutoff where float targets blend, else keeps the median', () => {
+  for (const extension of [{}, null]) {
+    const gl = context({ getExtension: () => extension });
+    const { map, binder, surface } = masked(gl.gl);
+    binder.bind(0, map, true, undefined, true);
+    surface.alphaTest = 0.25;
+    binder.beginFrame();
+    binder.bind(0, map, true, undefined, true);
+    const cutoffs = gl
+      .of('uniform1ui')
+      .flatMap(([at, value]) => ((at as Named).uniform === 'cutoff' ? [value] : []));
+    const draws = gl.of('drawArrays').map(([mode]) => mode);
+    if (!extension) {
+      assert.deepEqual([cutoffs, draws], [[0, 0], Array(4).fill('TRIANGLES')], 'the median alone');
+      continue;
+    }
+    const level = ['POINTS', 'TRIANGLES', 'TRIANGLES'];
+    assert.deepEqual(draws, [...['POINTS', ...level, ...level], ...['POINTS', ...level, ...level]]);
+    assert.deepEqual(cutoffs, [128, 128, 128, 64, 64, 64], 'the reduction and each pick');
+    // Each pick on the row under the level the scratch holds (4, then 2), then level 2's 1 × 1.
+    const picks = [
+      [0, 4, 1, 1],
+      [0, 2, 1, 1],
+      [0, 0, 1, 1],
+    ];
+    assert.deepEqual(
+      gl.of('viewport').filter((box) => box[2] === 1),
+      [...picks, ...picks],
+    );
+    assert.equal(gl.of('blendFuncSeparate').length, 4, 'blend function given back');
+  }
+});
