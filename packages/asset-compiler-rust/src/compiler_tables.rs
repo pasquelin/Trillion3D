@@ -9,6 +9,7 @@
 //! were remapped — and, when one is written, the autonomous `scene.gltf` derived from it. Anything
 //! read from the input document instead would describe a scene nobody draws.
 use super::*;
+use serde_json::Map;
 
 mod documents;
 mod graph;
@@ -125,12 +126,16 @@ pub(super) fn stage_scene_tables(
     Ok(vec![written])
 }
 
-/// Every cell record of the tables in `directory`, in cell order, read through the pages of their
-/// partition, each proven by its slot; none when they have none. Tables of another version are
-/// refused by name.
-pub(crate) fn cell_records(directory: &Path) -> std::result::Result<Vec<Value>, String> {
-    let bytes = fs::read(directory.join(SCENE_TABLES_FILE));
-    let tables: Value = serde_json::from_slice(&bytes.map_err(|e| format!("scene tables: {e}"))?)
+/// The cell records of the tables in `directory` by file name, as the manifest's `files` records a
+/// product, read through the pages of their partition, each proven by its slot; none when they
+/// have none. The cells and the pages are not in that record, which would grow with the world: a
+/// reused folder proves them through this tree (`compiler_reuse_proof.rs`). Tables of another
+/// version are refused by name.
+pub(crate) fn cell_records(directory: &Path) -> std::result::Result<Map<String, Value>, String> {
+    let read = |bytes: &[u8]| serde_json::from_slice::<Value>(bytes).map_err(|e| e.to_string());
+    let tables = fs::read(directory.join(SCENE_TABLES_FILE)).map_err(|e| e.to_string());
+    let tables = tables
+        .and_then(|bytes| read(&bytes))
         .map_err(|e| format!("scene tables: {e}"))?;
     if tables["version"] != json!(SCENE_TABLES_VERSION) {
         return Err(format!(
@@ -141,17 +146,6 @@ pub(crate) fn cell_records(directory: &Path) -> std::result::Result<Vec<Value>, 
     if !tables["partition"].is_null() {
         partition::pages::read_records(directory, &tables["partition"], "the root", &mut records)?;
     }
-    Ok(records)
-}
-
-/// The cells of the tables in `directory` by name, as the manifest's `files` records a product.
-/// The cells and the pages are not in that record, which would grow with the world: a reused
-/// folder proves them through the pages (`compiler_reuse_proof.rs`).
-pub(crate) fn cell_files(
-    directory: &Path,
-) -> std::result::Result<serde_json::Map<String, Value>, String> {
-    let records = cell_records(directory)?.into_iter();
-    Ok(records
-        .map(|cell| (cell["url"].as_str().unwrap_or_default().to_string(), cell))
-        .collect())
+    let named = |cell: Value| (cell["url"].as_str().unwrap_or_default().to_string(), cell);
+    Ok(records.into_iter().map(named).collect())
 }

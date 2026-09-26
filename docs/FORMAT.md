@@ -205,29 +205,21 @@ rotation, scale }`: `parent` the rank in `nodes[]` of the core node it hangs und
 scene), its mesh, and its local pose exactly as declared, each part `null` when silent. A
 placement's name is not kept: it is a row, not a host node.
 
-**The paged cell index** (`partition/pages.rs`, #750). The records are not in the tables: they
-would grow with the world. The halving is kept as a tree whose every node is a contiguous range of
-cells, and the records are written in pages cut from that tree — no second spatial partition:
-
-- A **region page**, `{ version: 2, cells }`, holds the records of one node of the tree, in cell
-  order: the highest node whose records fit **128 KiB** (`PAGE_BYTES`, one stream unit), or a
-  single cell whatever its record's size.
-- An **index page**, `{ version: 2, pages }`, lists at most **8** pages (`FAN_OUT`): the tree under
-  its node opened, widest node first, until eight pages or every one is a region page.
-- `partition` in the tables is the **root**, `{ version: 2, pages }`: exactly eight slots, the
-  pages of the whole tree opened the same way, the empty slots last. The root has the same bytes
-  whatever the world (1 391, from a 48 × 48 grid to one sixteen times larger and to the open-world
-  cell laid 8 × 8, `tests/scene/partition_pages.rs`).
-
-A **slot** is one string of 168 hexadecimal digits: the page's SHA-256 (64), its size in bytes
-(8), and its box — the union of its cells' boxes at the declared poses, scene frame — as the bits
-of six big-endian `f64` (16 each), exact. Its file is `scene-page-<sha256>.json` beside the tables;
-a slot of zeros names no page. The reader (`readTablePartition`) reads the root, then every page it
-names, each verified against its slot, into the partition the runtime holds: every record in cell
-order, `bounds` the union of the root's boxes, and `meshes` the ranks the records place. Pages and
-cells are products of the key folder outside the manifest's `files`: a reused folder proves them
-through the root (`compiler_tables::cell_records`). Version 2 of the partition and version 4 of
-the tables came with the pages; a reader of another version refuses them by name.
+**The paged cell index** (`partition/pages.rs`, #750). The records would grow the tables with the
+world, so they lie in pages beside them, cut from the halving tree (each node a contiguous range of
+cells; no second partition). A **region page** `{ version: 2, cells }` holds the records of the
+highest node that fits **128 KiB** (`PAGE_BYTES`, one stream unit; a single cell whatever its
+size); an **index page** `{ version: 2, pages }` lists at most **8** pages (`FAN_OUT`), its node's
+tree opened widest node first. `partition` is the **root** `{ version: 2, pages }`: the whole tree
+opened the same way into exactly eight slots, empty ones last, so it keeps its bytes whatever the
+world (1 391 for a 48² grid, a 192² one and the open-world cell laid 8 × 8). A **slot** is 168
+hexadecimal digits: the page's SHA-256, its size (8 digits) and its box — the union of its cells'
+at the declared poses — as six big-endian `f64` bit patterns (16 each); its file is
+`scene-page-<sha256>.json`, and zeros name no page. The reader (`readTablePartition`) reads the
+root, then every page, each verified against its slot, into the records in cell order, `bounds` the
+union of the root's boxes, `meshes` the ranks they place. Pages and cells stay out of the manifest's
+`files`: a reused folder proves them through the root. Partition version 2 and tables version 4
+came with the pages; any other is refused by name.
 
 **Reading the cells.** Each mesh the cells place is drawn by one host mesh per primitive whose
 instance buffer the cells fill (`packages/sdk-browser/src/scene/partition/`): a placement takes a

@@ -14,7 +14,7 @@ pub(crate) const PAGE_BYTES: usize = crate::STREAM_BUNDLE_BYTES;
 pub(crate) const FAN_OUT: usize = 8;
 /// A slot: the page's SHA-256 in 64 hexadecimal digits, its size in 8, then its box — the union
 /// of its cells' at the declared poses — as the bits of six `f64` in 16 each. All zeros: no page.
-pub(crate) const SLOT_WIDTH: usize = 64 + 8 + 6 * 16;
+const SLOT_WIDTH: usize = 64 + 8 + 6 * 16;
 
 /// The file of the page whose fingerprint is `sha256`.
 fn page_file(sha256: &str) -> String {

@@ -58,7 +58,8 @@ pub(super) fn grid(side: usize, spacing: f64, scale: f64) -> Vec<Value> {
 
 /// The cell records of the tables in `directory`, read through their pages.
 pub(super) fn cells(directory: &Path) -> Vec<Value> {
-    crate::compiler_tables::cell_records(directory).expect("cell records")
+    let records = crate::compiler_tables::cell_records(directory).expect("cell records");
+    records.into_values().collect()
 }
 
 #[test]

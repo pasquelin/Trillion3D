@@ -63,20 +63,10 @@ export interface CellNode {
   scale: readonly number[] | null;
 }
 
-/** The partition as the tables carry it: `FAN_OUT` slots, each naming a page, empty ones zeros. */
-export interface TablePartitionRoot {
-  /** Version of the partition. */
-  version: number;
-  /** The slots. */
-  pages: readonly string[];
-}
-
+/** The partition as the tables carry it: its version and `FAN_OUT` slots, empty ones zeros. */
+export type TablePartitionRoot = { version: number; pages: readonly string[] };
 /** A page a slot names: its file, relative to the tables, its size and its fingerprint. */
-export interface TablePage {
-  url: string;
-  bytes: number;
-  sha256: string;
-}
+export type TablePage = { url: string; bytes: number; sha256: string };
 
 /** A page's body: the slots of the pages below it, or the records of its cells. */
 type PageBody = { version?: number; pages?: readonly string[]; cells?: readonly TableCell[] };
@@ -104,11 +94,7 @@ export function assertTablePartition(value: unknown): TablePartitionRoot | null 
 
 const bits = new DataView(new ArrayBuffer(8));
 /** The `f64` whose bits are the sixteen hexadecimal digits `hex`. */
-function float64(hex: string) {
-  bits.setUint32(0, parseInt(hex.slice(0, 8), 16));
-  bits.setUint32(4, parseInt(hex.slice(8, 16), 16));
-  return bits.getFloat64(0);
-}
+const float64 = (hex: string) => (bits.setBigUint64(0, BigInt(`0x${hex}`)), bits.getFloat64(0));
 
 /** The page `slot` names and its box, `null` for an empty slot, or a named refusal. */
 function slotPage(slot: unknown) {
@@ -117,7 +103,9 @@ function slotPage(slot: unknown) {
   const bytes = parseInt(slot.slice(64, 72), 16);
   if (bytes === 0) return null;
   const sha256 = slot.slice(0, 64);
-  const bounds = Array.from({ length: 6 }, (_, at) => float64(slot.slice(72 + 16 * at)));
+  const bounds = Array.from({ length: 6 }, (_, at) =>
+    float64(slot.slice(72 + 16 * at, 88 + 16 * at)),
+  );
   return { page: { url: `scene-page-${sha256}.json`, bytes, sha256 }, bounds };
 }
 
@@ -157,12 +145,8 @@ export async function readTablePartition(
 export function assertCellNodes(value: unknown): readonly CellNode[] {
   const cell = value as { version?: number; nodes?: CellNode[] } | null;
   if (!cell || cell.version !== PARTITION_VERSION || !Array.isArray(cell.nodes))
-    throw new EngineError(
-      'INVALID_SCENE_TABLES',
-      `scene cell is not a version ${PARTITION_VERSION} node list`,
-      {
-        version: cell?.version ?? null,
-      },
-    );
+    throw new EngineError('INVALID_SCENE_TABLES', 'scene cell is not a version 2 node list', {
+      version: cell?.version ?? null,
+    });
   return cell.nodes;
 }
