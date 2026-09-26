@@ -24,6 +24,7 @@ type Inputs = {
   backends: RenderBackend[];
   /** Manifest url base: that is what locates the resident-proxy cache object. */
   base: string;
+  frameBudget?: BackendContext['frameBudget'];
 };
 
 export async function prepareExplorerBackends(session: ExplorerSession, inputs: Inputs) {
@@ -126,6 +127,7 @@ export async function prepareExplorerBackends(session: ExplorerSession, inputs: 
     readTextureLevel: createTextureLevelReader(metadata, base, streamer.pageCache.levels, signal),
     sceneLights,
     importedLightIds,
+    frameBudget: inputs.frameBudget,
   };
   for (const factory of factories) {
     const backend = factory(context);

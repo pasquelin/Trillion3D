@@ -10,6 +10,7 @@ import type { CutDelta } from './delta.ts';
 import type { WebgpuPagesCore } from '../pages/runtime.ts';
 import type { WebgpuResidencySets } from '../residency/sets.ts';
 import { createGroupClosure } from '../../page/cut/groupClosure.ts';
+import type { ClusterRoot, PageRec } from '../../page/selection/types.ts';
 
 function banc() {
   const packedPages = fixturePages(4);
@@ -18,6 +19,12 @@ function banc() {
     packedPages[i].min = [0, 0, 0];
     packedPages[i].max = [0, 0, 0];
   }
+  // One placement of the four clusters, laid out as `../pages/prepare/layout.ts` lays it; the pool
+  // holds what `holds` names, and the rank journal's watcher is the one publication subscribes.
+  for (const page of packedPages) page.placementIndex = 0;
+  const root = { pages: packedPages } as unknown as ClusterRoot<PageRec>,
+    holds = new Set<PageRec>();
+  let watcher: (page: number) => void = () => {};
   const shadowChanges: number[] = [];
   let resourceChanges = 0;
   const run = {
@@ -50,8 +57,8 @@ function banc() {
     layout: {
       packedPages,
       gpuWanted: [packedPages[0]],
-      selectionRoots: [],
-      rows: { watchTouched: () => {} },
+      selectionRoots: [root],
+      rows: { watchTouched: (subscriber: typeof watcher) => void (watcher = subscriber) },
     },
   } as unknown as WebgpuPagesCore;
   /** The two lower tiers, and every list handed to the tier ahead. */
@@ -68,6 +75,7 @@ function banc() {
     residencySets,
     createGroupClosure([], packedPages),
     { all: [tiers.shadow, tiers.ahead], ahead: tiers.ahead },
+    (rec) => holds.has(rec),
   );
   return {
     publication,
@@ -78,6 +86,9 @@ function banc() {
     tiers,
     aheadOffers,
     resourceChanges: () => resourceChanges,
+    root,
+    holds,
+    touch: (page: number) => watcher(page),
   };
 }
 
@@ -127,4 +138,19 @@ test('republishing the same cut stirs no set', () => {
   publication.adoptCpuCut(packedPages.slice(0, 3), packedPages.slice(0, 2));
   assert.equal(remue.coupe, coupe, 'the second neither enters nor exits a single page');
   assert.equal(remue.dessinee, dessinee);
+});
+
+test("the rank journal's touches move the CPU cut's readiness, page by page", () => {
+  const { publication, packedPages, root, holds, touch } = banc();
+  const held = publication.heldResidency,
+    ready = () => packedPages.map((_, page) => held.readiness(root).isReady(page));
+  assert.deepEqual(ready(), [false, false, false, false], 'entered whole: the pool holds nothing');
+  holds.add(packedPages[2]);
+  assert.deepEqual(ready(), [false, false, false, false], 'a slot no journal named is not read');
+  touch(2);
+  assert.deepEqual(ready(), [false, false, true, false], 'the journal named it: read, alone');
+  holds.delete(packedPages[2]);
+  touch(2);
+  assert.deepEqual(ready(), [false, false, false, false]);
+  assert.equal(held.unroutedReads, 0, 'the layout routed every move');
 });
