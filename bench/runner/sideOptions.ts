@@ -24,6 +24,8 @@ export interface EngineDescriptor {
   autonomous?: boolean;
   page: string;
   source: 'cache' | 'gltf';
+  /** The world renderer of an engine that draws a scene built through the public API. */
+  renderer?: 'webgpu' | 'webgl2';
 }
 
 /**
@@ -56,6 +58,7 @@ export const ENGINES: Record<string, EngineDescriptor> = {
     flags: WEBGPU_FLAGS,
     page: 'lightingPage.ts',
     source: 'cache',
+    renderer: 'webgpu',
   },
   // Raw Three.js witness: no SDK, raw glTF rendered by Three alone (`threeBarePage.ts`).
   'three-nu': {
@@ -81,6 +84,7 @@ export const ENGINES: Record<string, EngineDescriptor> = {
     three: true,
     page: 'lightingPage.ts',
     source: 'cache',
+    renderer: 'webgl2',
   },
 };
 

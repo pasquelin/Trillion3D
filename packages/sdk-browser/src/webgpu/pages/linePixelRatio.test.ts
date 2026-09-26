@@ -44,7 +44,7 @@ async function frameWords(fallback: boolean, transparent = false, dashed = false
 // widens a line reads the host's pixel ratio, and the shared `lineClip` draws width × ratio.
 test('the rasters, the resolve and the blend pass read the host pixel ratio', async () => {
   const words = await frameWords(false);
-  assert.equal(words('Trillion3D visibility uniforms')[25], 2, 'Uniforms.pixelRatio');
+  assert.equal(words('Trillion3D visibility uniforms')[24], 2, 'Uniforms.pixelRatio');
   assert.equal(words('Trillion3D resolve uniform')[18], 2, 'ShadeUni.pixelRatio');
   const blend = await frameWords(false, true);
   assert.equal(blend('Trillion3D blend view uniform')[32], 2, 'BlendView.pixelRatio');
