@@ -42,7 +42,7 @@ Required fields consumed by the browser adapter:
   - `simplification` is `true` when the compiler ran with `qem-endpoints`.
 - `binary` — `{ version, url, sha256, bytes, pageUrl, geometryUrl, bundleUrl, texturePreviews, texturePreviewBytes, texturePreviewBc7Bytes, texturePreviewAstcBytes }`, the descriptor of the [binary sidecar](#clustersbin). Absent from caches compiled before the sidecar, which carry every array inline; the reader accepts both.
 
-Written for the compiler alone, ignored by the browser: `files` — `{ "<name>": { sha256, bytes } }`, one entry per other product of the key folder (`source.gltf`, `source.bin`, `proxy.bin`, `lights.json`, `scene-tables.json` and its `scene-cell-<n>.json`, `scene.gltf`, `scene.bin`), which a later job of the same key checks before keeping the folder instead of rewriting it ([COMPILER.md](COMPILER.md#reusing-a-compiled-folder)).
+Written for the compiler alone, ignored by the browser: `files` — `{ "<name>": { sha256, bytes } }`, one entry per other product of the key folder (`source.gltf`, `source.bin`, `proxy.bin`, `lights.json`, `scene-tables.json`, `scene.gltf`, `scene.bin`; the pages and cells of the [world partition](#world-partition) are proven through its root instead, so the record does not grow with the world), which a later job of the same key checks before keeping the folder instead of rewriting it ([COMPILER.md](COMPILER.md#reusing-a-compiled-folder)).
 
 ### `clusters.bin`
 
@@ -131,7 +131,7 @@ An image whose decode fails has no entry: its textures load from the source as b
 
 `scene-tables.json`, beside `clusters.json`, says what the prepared scene is made of, and it is the
 only thing the runtime builds that scene from: no glTF is parsed in the browser. Its own version
-governs it — `version` 3, `nodeTableVersion` 3, `materialTableVersion` 4, `geometryTableVersion` 1 —
+governs it — `version` 4, `nodeTableVersion` 3, `materialTableVersion` 4, `geometryTableVersion` 1 —
 and an unknown one is refused rather than half-read (`assertSceneTables`, `UNSUPPORTED_SCENE_TABLES`).
 Every value is read from the `source.gltf` the same compilation publishes (and, for its layout, from
 `scene.gltf` when one is written): the slice's nodes, the cutout answers already applied, the mesh
@@ -194,19 +194,40 @@ the runtime reads the cells by distance to its camera instead of reading every n
 first frame. A scene whose placements fit one unit keeps them in `nodes[]` and has `partition:
 null`: its tables are the ones it always had.
 
-The placements are halved along the widest spread of their centres until a cell's descriptors fit
-the unit. `partition` is `{ version: 1, bounds, meshes, cells }`: `bounds` the box around every cell
-at the declared poses (scene frame, `[minX, minY, minZ, maxX, maxY, maxZ]`), `meshes` the mesh
-ranks the cells place, and per cell `{ url, sha256, bytes, parents, meshes }` — its file beside the
+The placements are halved along the widest spread of their centres until a cell's placements fit
+the unit. Each cell has a **record** `{ url, sha256, bytes, parents, meshes }` — its file beside the
 tables (`scene-cell-<n>.json`), fingerprint and size (the reader verifies them as it verifies a
 page), `parents`, `[[rank, box], …]`: for each core node its placements hang under (`null`, the
 scene), the box around them **in that node's frame**, and `meshes`, `[[rank, count], …]` in rank
 order: how many placements of each mesh it holds, which the runtime sizes its rows by before
-reading any cell. A cell file is `{ version: 1, nodes }`, each node `{ parent, mesh, matrix, translation,
+reading any cell. A cell file is `{ version: 2, nodes }`, each node `{ parent, mesh, matrix, translation,
 rotation, scale }`: `parent` the rank in `nodes[]` of the core node it hangs under (`null`, the
 scene), its mesh, and its local pose exactly as declared, each part `null` when silent. A
-placement's name is not kept: it is a row, not a host node. The cells are products of the key
-folder, recorded in the manifest's `files`.
+placement's name is not kept: it is a row, not a host node.
+
+**The paged cell index** (`partition/pages.rs`, #750). The records are not in the tables: they
+would grow with the world. The halving is kept as a tree whose every node is a contiguous range of
+cells, and the records are written in pages cut from that tree — no second spatial partition:
+
+- A **region page**, `{ version: 2, cells }`, holds the records of one node of the tree, in cell
+  order: the highest node whose records fit **128 KiB** (`PAGE_BYTES`, one stream unit), or a
+  single cell whatever its record's size.
+- An **index page**, `{ version: 2, pages }`, lists at most **8** pages (`FAN_OUT`): the tree under
+  its node opened, widest node first, until eight pages or every one is a region page.
+- `partition` in the tables is the **root**, `{ version: 2, pages }`: exactly eight slots, the
+  pages of the whole tree opened the same way, the empty slots last. The root has the same bytes
+  whatever the world (1 391, from a 48 × 48 grid to one sixteen times larger and to the open-world
+  cell laid 8 × 8, `tests/scene/partition_pages.rs`).
+
+A **slot** is one string of 168 hexadecimal digits: the page's SHA-256 (64), its size in bytes
+(8), and its box — the union of its cells' boxes at the declared poses, scene frame — as the bits
+of six big-endian `f64` (16 each), exact. Its file is `scene-page-<sha256>.json` beside the tables;
+a slot of zeros names no page. The reader (`readTablePartition`) reads the root, then every page it
+names, each verified against its slot, into the partition the runtime holds: every record in cell
+order, `bounds` the union of the root's boxes, and `meshes` the ranks the records place. Pages and
+cells are products of the key folder outside the manifest's `files`: a reused folder proves them
+through the root (`compiler_tables::cell_records`). Version 2 of the partition and version 4 of
+the tables came with the pages; a reader of another version refuses them by name.
 
 **Reading the cells.** Each mesh the cells place is drawn by one host mesh per primitive whose
 instance buffer the cells fill (`packages/sdk-browser/src/scene/partition/`): a placement takes a
