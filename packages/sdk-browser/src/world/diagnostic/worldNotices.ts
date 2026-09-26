@@ -1,6 +1,7 @@
 import { createDiagnosticChannel } from '../../diagnostic/channel.ts';
 import type { BackendDiagnostic } from '../../backend/types.ts';
 import { effectTargetExcess, type BudgetCanvas } from '../../residency/memoryBudget.ts';
+import type { LinearRefusedBlending } from '../../webgl/cluster/linearRefusal.ts';
 
 /** The page channels open now (`diagnostic.createChannel`): every world notice reaches each. */
 const listeners = new Set<(notice: BackendDiagnostic) => void>();
@@ -96,3 +97,18 @@ export function noticeEffectBudget(
     );
   };
 }
+
+/**
+ * The WebGL2 composer's word (`effectsRefused`) that a frame was drawn whole without the effect
+ * chain, a transparent surface drawn blending in `blending`, which the chain's linear target
+ * cannot hold (`linearRefusal`): said once per world, as `effects-refused-blending`. WebGPU draws
+ * both and never says it.
+ */
+export const noticeEffectRefusal =
+  (notices: Pick<WorldNotices, 'once'>) => (blending: LinearRefusedBlending) =>
+    notices.once(
+      'effects-refused-blending',
+      `effect chain not drawn on WebGL2: a transparent surface blends in ${blending}, which ` +
+        `the chain cannot hold; the frame is drawn whole without it until no such surface is drawn`,
+      { blending },
+    );

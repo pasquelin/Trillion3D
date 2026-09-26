@@ -28,7 +28,9 @@ export abstract class EffectPass {
  * `world.effects`: the ordered passes drawn over the image after temporal antialiasing and before
  * it reaches the canvas. The passes that run before tone mapping read the linear radiance, in the
  * order they were added; those that run after read the display image, in theirs. An empty chain
- * costs nothing: no pass, no copy, no target.
+ * costs nothing: no pass, no copy, no target. On WebGL2, a frame that draws a transparent surface
+ * blending in `multiply` or `subtractive` is drawn whole without the chain, and the world's
+ * diagnostic channel says `effects-refused-blending` once; WebGPU draws both.
  */
 export class EffectChain {
   private readonly list: EffectPass[] = [];
