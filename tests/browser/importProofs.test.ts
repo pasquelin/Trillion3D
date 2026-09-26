@@ -82,8 +82,10 @@ else
     );
     // A proof may prepare its outputs, or a temporary folder, before it asks for Chrome: the
     // temporary ones land in a scratch folder, and what appeared in the outputs is removed after.
-    const out = join(RACINE, '.mesure', 'out');
-    const before = existsSync(out) ? pathsUnder(out) : null;
+    const measure = join(RACINE, '.mesure'),
+      out = join(measure, 'out');
+    const before = existsSync(out) ? pathsUnder(out) : null,
+      created = existsSync(measure) ? out : measure;
     const logs = join(RACINE, '.worktrees', 'logs');
     mkdirSync(logs, { recursive: true });
     const scratch = mkdtempSync(join(logs, 'import-proofs-'));
@@ -100,7 +102,7 @@ else
       }
     } finally {
       rmSync(scratch, { recursive: true, force: true });
-      if (!before) rmSync(out, { recursive: true, force: true });
+      if (!before) rmSync(created, { recursive: true, force: true });
       else
         for (const path of pathsUnder(out))
           if (!before.has(path)) rmSync(join(out, path), { recursive: true, force: true });
