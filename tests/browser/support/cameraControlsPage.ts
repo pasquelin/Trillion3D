@@ -102,6 +102,18 @@ export async function endGesture() {
   return { differences, pose: probe.pose(), changes: probe.changes, bytes: image.length };
 }
 
+/** Resolves once the pointer lock a press asked for is granted, at once if it already is; a
+ *  refused lock rejects. Waited for as the event, never by a fixed delay. */
+export function pointerLocked() {
+  return new Promise<void>((granted, refused) => {
+    if (document.pointerLockElement) return granted();
+    document.addEventListener('pointerlockchange', () => granted(), { once: true });
+    document.addEventListener('pointerlockerror', () => refused(new Error('lock refused')), {
+      once: true,
+    });
+  });
+}
+
 /** Every module the page fetched, for the proof that no addon of the host is among them. */
 export function loadedModules() {
   return performance.getEntriesByType('resource').map((entry) => entry.name);
