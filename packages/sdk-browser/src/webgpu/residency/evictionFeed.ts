@@ -8,15 +8,23 @@ type Cache = Pick<ReturnType<typeof createGpuPageCache>, 'slots' | 'evictInOrder
 /**
  * Hands the GPU cut's eviction queue (`../../gpu/dag/evict.ts`) to the cache, once per readback,
  * and the pool's slots to the cut, which bounds the queue by them. The queue names canonical pages;
- * the cache holds addresses, read on each page's record: as many as the pool has slots, never the
- * catalogue. Without a GPU cut the cache goes back to its least recent page (`budgetRanking` then
+ * the cache holds addresses, read on a page's record as each victim is taken, never the catalogue. Without a GPU cut the cache goes back to its least recent page (`budgetRanking` then
  * still chooses what the CPU cut loads, #836).
  */
 export function createEvictionFeed(
   packedPages: readonly PageRec[],
   getCache: () => Cache | undefined,
 ) {
-  let last: unknown;
+  let last: unknown,
+    ids = new Int32Array(0),
+    count = 0;
+  /** The queue as the cache reads it: an address resolved per victim taken, never all of them. */
+  const order = {
+    get count() {
+      return count;
+    },
+    keyAt: (at: number) => pageAddress(packedPages[ids[at]]),
+  };
   /** `null` on a CPU cut's image. */
   return (selection: GpuSelection | null) => {
     const cache = getCache();
@@ -25,9 +33,12 @@ export function createEvictionFeed(
     selection?.setPoolSlots(cache.slots);
     if (cut === last) return;
     last = cut;
-    const ids = cut?.result.evictPageIds;
-    if (!ids) return cache.evictInOrder(undefined);
-    // A new array per queue: the cache may still be reading the previous one in a burst.
-    cache.evictInOrder(ids.map((id) => pageAddress(packedPages[id])));
+    const queue = cut?.result.evictPageIds;
+    if (!queue) return cache.evictInOrder(undefined);
+    // Copied: the readback slot's list is rewritten two readbacks later, the cache may read on.
+    if (ids.length < queue.length) ids = new Int32Array(queue.length);
+    ids.set(queue);
+    count = queue.length;
+    cache.evictInOrder(order);
   };
 }

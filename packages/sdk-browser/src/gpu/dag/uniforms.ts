@@ -8,6 +8,7 @@ import {
   OUT_SELECTED_TRIANGLES,
   OUT_TRANSPARENT_TRIANGLES,
   SELECTION_HEADER_WORDS,
+  evictionWord,
   selectionListCap,
 } from './layout.ts';
 import type { SelectionResult } from '../core/selection.ts';
@@ -17,6 +18,8 @@ import { AHEAD_VIEW } from './shader/aheadWgsl.ts';
 
 /** Word of view 0's block that says what kind of view the cut serves (`shader/pagesWgsl.ts`). */
 export const VIEW_FLAGS_WORD = 54;
+/** Word of view 0's block that bounds a camera cut's eviction queue (`shader/evictWgsl.ts`). */
+export const POOL_SLOTS_WORD = 64;
 
 /** A light cut's views: how many it runs, how many it holds, its queues' bound, and whether it
  *  appends to the requests an earlier batch of the frame listed (`VIEW_APPEND`). */
@@ -101,7 +104,7 @@ export function writeDagUniforms(
   ints[60] = views?.count ?? 1;
   ints[61] = views?.capacity ?? 1;
   ints[62] = views?.queueCap ?? packed.nodeCount;
-  ints[64] = poolSlots;
+  ints[POOL_SLOTS_WORD] = poolSlots;
   const light = uniforms.light;
   ints[VIEW_FLAGS_WORD] = light ? VIEW_LIGHT | VIEW_PAGES | (views?.append ? VIEW_APPEND : 0) : 0;
   writeAheadBlock(target, ints, uniforms);
@@ -114,7 +117,7 @@ export function writeDagUniforms(
 }
 
 /** `drawnWordOffset`: rank of the compacted-list count in the sample, 0 when there is none; the
- *  eviction queue then follows at twice that rank (`evictionWord`, `layout.ts`). */
+ *  eviction queue then follows it (`evictionWord`, `layout.ts`). */
 export function parseDagOutput(
   bytes: ArrayBufferLike,
   byteOffset: number,
@@ -159,18 +162,20 @@ export function parseDagOutput(
   // The drawable list arrives already compacted, in increasing order: the CPU no longer walks
   // one flag per DAG page, only the ranks the GPU kept.
   if (drawnWordOffset) {
-    const drawnCount = Math.min(
-      ints[drawnWordOffset] ?? 0,
-      Math.max(0, ints.length - drawnWordOffset - head),
+    result.drawablePageIds = readCountedList(ints, drawnWordOffset, drawable);
+    result.evictPageIds = readCountedList(
+      ints,
+      evictionWord(drawnWordOffset - head),
+      scratch.evict,
     );
-    drawable.length = drawnCount;
-    for (let i = 0; i < drawnCount; i++) drawable[i] = ints[drawnWordOffset + head + i];
-    result.drawablePageIds = drawable;
-    const at = 2 * drawnWordOffset,
-      evict = scratch.evict;
-    evict.length = Math.min(ints[at] ?? 0, Math.max(0, ints.length - at - head));
-    for (let i = 0; i < evict.length; i++) evict[i] = ints[at + head + i];
-    result.evictPageIds = evict;
   }
   return result;
+}
+
+/** A list the GPU wrote behind a header at word `at`: its count, bounded by what the readback
+ *  holds, then its ranks, copied into `into`. */
+function readCountedList(ints: Uint32Array, at: number, into: number[]) {
+  into.length = Math.min(ints[at] ?? 0, Math.max(0, ints.length - at - SELECTION_HEADER_WORDS));
+  for (let i = 0; i < into.length; i++) into[i] = ints[at + SELECTION_HEADER_WORDS + i];
+  return into;
 }

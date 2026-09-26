@@ -5,13 +5,14 @@ import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 import { createGpuPageCache } from './pages.ts';
 
 const bytes = { read: async () => new Uint8Array([1, 2, 3, 4]) };
+const orderOf = (keys: string[]) => ({ count: keys.length, keyAt: (at: number) => keys[at] });
 
 test('a published order evicts in its order, and never a page it leaves out', async () => {
   const { device } = fakeDevice({ limits: { maxBufferSize: 1024 } });
   const cache = createGpuPageCache(device, bytes, { pageBytes: 4, slots: 3 });
   for (const key of ['read', 'old', 'older']) await cache.load(key);
   // `read` was read by the cut this frame: the queue leaves it out, though nothing pins it.
-  cache.evictInOrder(['older', 'old']);
+  cache.evictInOrder(orderOf(['older', 'old']));
   await cache.load('a');
   assert.ok(!cache.get('older') && cache.get('old') && cache.get('read'));
   await cache.load('b');

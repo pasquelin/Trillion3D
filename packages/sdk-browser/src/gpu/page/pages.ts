@@ -6,7 +6,7 @@ import { createGpuPagePins } from './pins.ts';
 import { createPageBuffer, pageBufferBytes, resizeGpuPages } from './resize.ts';
 import { evictResident } from './commit.ts';
 import { checked, ONE_REQUEST } from '../../cluster/pages.ts';
-import type { ResidentPage, GpuPageContext } from './types.ts';
+import type { ResidentPage, GpuPageContext, EvictionOrder } from './types.ts';
 export type { ResidentPage } from './types.ts';
 /** WebGPU allocation/queue boundary. Page bytes and policy are supplied by the host. Queue writes are ordered; dispose waits for in-flight submits before destroy. */
 export function createGpuPageCache(
@@ -104,7 +104,7 @@ export function createGpuPageCache(
     },
     /** Evicts in `order` from now on: an arrival takes the slot of its first resident, unpinned page
      *  not taken yet, never of a page it leaves out. `undefined` goes back to the least recent. */
-    evictInOrder(order: readonly string[] | undefined) {
+    evictInOrder(order: EvictionOrder | undefined) {
       context.eviction.order = order;
       context.eviction.at = 0;
     },

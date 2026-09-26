@@ -126,8 +126,8 @@ export const residentBase = (pageCount: number) => pageCount;
 export const residentWords = (pageCount: number) => (Math.max(0, pageCount) + 31) >>> 5;
 /** First word of the second bit set, the rule's `resident(childGroup(c))` (`childReady`). */
 export const childBase = (pageCount: number) => residentBase(pageCount) + residentWords(pageCount);
-/** First word of the third bit set: the pool holds the page's content (`poolResident`), whatever
- *  the cut rule's readiness; the eviction queue lists these (`shader/evictWgsl.ts`). */
+/** First word of the third bit set: the pool holds the key of this canonical page (`evict.ts`),
+ *  whatever the cut rule's readiness; the eviction queue lists these (`shader/evictWgsl.ts`). */
 export const poolBase = (pageCount: number) => childBase(pageCount) + residentWords(pageCount);
 /** First word of the key column, one per page: its content key (`evict.ts`). */
 export const keyBase = (pageCount: number) => poolBase(pageCount) + residentWords(pageCount);
