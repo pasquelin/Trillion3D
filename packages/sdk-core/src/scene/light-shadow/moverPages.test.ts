@@ -57,11 +57,7 @@ test('26 small movers far apart stale only the pages their own boxes cover, per 
   const { store, plan, frame } = settled(32);
   for (const ball of BALLS) plan.worldChanged(ball.min, ball.max);
   planFrame(plan, store, frame);
-  assert.deepEqual(
-    staleEntries(plan),
-    [...own].sort((a, b) => a - b),
-    'the union of their own',
-  );
+  assert.deepEqual(new Set(staleEntries(plan)), own, 'the union of their own');
   assert.equal(plan.counts.invalidatedPages, own.size);
   assert.ok(own.size < plan.pool.used() / 2, `${own.size} of ${plan.pool.used()} mapped`);
 });
@@ -107,28 +103,33 @@ const pageKey = ({ pool }: ShadowPlan, page: number) =>
   `${pool.view[page] >> 4}:${pool.view[page] & 15}:${pool.x[page]}:${pool.y[page]}`;
 
 test("a point lamp's faces and mips are staled by overlap only: a face the box is behind keeps", () => {
-  const { store, plan, frame } = settled(32);
-  const min = [6, 0.25, -0.25],
-    max = [6.5, 0.75, 0.25];
-  plan.worldChanged(min, max, true);
-  planFrame(plan, store, frame);
-  const landed = landedPages(min, max),
-    { pool } = plan,
-    slice = store.sliceOf(0),
-    staled = new Set<string>();
-  for (const page of lampPagesOf(plan, slice))
-    if (pool.dirty[page]) staled.add(pageKey(plan, page));
-  assert.ok(staled.size > 0);
-  for (const key of staled) {
-    const [face, mip, x, y] = key.split(':').map(Number);
-    const near = [-1, 0, 1].some((dx) =>
-      [-1, 0, 1].some((dy) => landed.has(`${face}:${mip}:${x + dx}:${y + dy}`)),
-    );
-    assert.ok(near, `page ${key} lies off the box's own pages`);
-  }
-  for (const page of lampPagesOf(plan, slice)) {
-    const at = pageKey(plan, page);
-    if (landed.has(at)) assert.ok(staled.has(at), `page ${at} under the box is not staled`);
+  // Beside the lamp, then across the edge of its +X and +Y faces.
+  for (const [min, max] of [
+    [
+      [6, 0.25, -0.25],
+      [6.5, 0.75, 0.25],
+    ],
+    [
+      [3.6, 6.6, -0.4],
+      [4.4, 7.4, 0.4],
+    ],
+  ]) {
+    const { store, plan, frame } = settled(32);
+    plan.worldChanged(min, max, true);
+    planFrame(plan, store, frame);
+    const landed = landedPages(min, max),
+      pages = lampPagesOf(plan, store.sliceOf(0)),
+      staled = new Set(pages.filter((page) => plan.pool.dirty[page]).map((p) => pageKey(plan, p)));
+    assert.ok(staled.size > 0);
+    for (const key of staled) {
+      const [face, mip, x, y] = key.split(':').map(Number);
+      const near = [-1, 0, 1].some((dx) =>
+        [-1, 0, 1].some((dy) => landed.has(`${face}:${mip}:${x + dx}:${y + dy}`)),
+      );
+      assert.ok(near, `page ${key} lies off the box's own pages`);
+    }
+    for (const at of pages.map((page) => pageKey(plan, page)))
+      if (landed.has(at)) assert.ok(staled.has(at), `page ${at} under the box is not staled`);
   }
 });
 
