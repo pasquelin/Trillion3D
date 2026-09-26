@@ -12,7 +12,6 @@ import { Color } from '../../../../sdk-core/src/world/math/color.ts';
 import { isHelper } from '../helper/mark.ts';
 import {
   assertSavedScene,
-  SCENE_FORMAT_OLDEST,
   notSavable,
   type SavedCamera,
   type SavedGeometry,
@@ -106,8 +105,7 @@ export async function readScene(scene: Target, json: unknown, camera?: Camera) {
     o.scale.fromArray(saved.scale);
     o.visible = saved.visible;
     // Version 1 wrote a mesh's `castShadow` as `false` by default, and no renderer read it.
-    if (json.formatVersion > SCENE_FORMAT_OLDEST || saved.kind !== 'mesh')
-      o.castShadow = saved.castShadow;
+    if (json.formatVersion !== 1 || saved.kind !== 'mesh') o.castShadow = saved.castShadow;
     o.receiveShadow = saved.receiveShadow;
     o.renderOrder = saved.renderOrder;
     o.userData = saved.userData;
