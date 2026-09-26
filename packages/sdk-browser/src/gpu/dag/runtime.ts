@@ -101,6 +101,17 @@ export function createDagRuntime(resources: DagResources): GpuSelection {
       // Its pages leave the cut outright, neither streamed nor counted: another cut from here.
       voidCuts();
     },
+    markWorld(w, mark) {
+      if (state.disposed || state.dead || packed.mark[w] === mark) return;
+      packed.mark[w] = mark;
+      // The mark travels behind the record shift in the frame buffer (`primitiveFrameWords`).
+      const at = primitiveWordAt(w) + 3;
+      frameInts[at] = mark;
+      device.queue.writeBuffer(frames, at * 4, frameInts.buffer as ArrayBuffer, at * 4, 4);
+      resources.frameWrites.count++;
+      // A light cut in hand still holds its pages, or lacks them: another cut from here.
+      voidCuts();
+    },
     updateResidency(next, changes) {
       if (state.disposed || state.dead || !uploadResidency) return false;
       if (next.length !== pageCount) throw new Error('GPU_SELECTION_RESIDENCY_COUNT_CHANGED');

@@ -72,14 +72,15 @@ export function createWorldPoses() {
     } else ranges.set(batch, { rows: batch.rows, from, to });
   };
   const touch = (batch: Batch, row: number) => touchRange(batch, row, row);
-  /** Writes one seated mesh's world matrix — a sprite's row (`spriteRow`) — and flag into its
-   *  row. */
+  /** Writes one seated mesh's world matrix — a sprite's row (`spriteRow`) — and flags into its
+   *  row: whether it is shown, and whether it casts no shadow. */
   const writeSeat = (mesh: Mesh, seat: Seat, shown: boolean) => {
     const rows = seat.batch.rows;
     if (!rows || seat.row < 0) return;
     const world = mesh.matrixWorld.elements;
     rows.matrices.set(mesh.primitive === 'sprite' ? spriteRow(world) : world, seat.row * 16);
     rows.live[seat.row] = shown ? 1 : 0;
+    rows.shadowless[seat.row] = mesh.castShadow ? 0 : 1;
     touch(seat.batch, seat.row);
   };
   const writeTwin = (node: Object3D, twin: PosedTwin, shown: boolean) => {
@@ -92,7 +93,8 @@ export function createWorldPoses() {
     touchRange,
     writeSeat,
     writeTwin,
-    /** A node's pose or visibility moved: it and its subtree are written before the next frame. */
+    /** A node's pose, visibility or `castShadow` moved: it and its subtree are written before the
+     *  next frame. */
     moved(node: Object3D) {
       moved.add(node);
     },
