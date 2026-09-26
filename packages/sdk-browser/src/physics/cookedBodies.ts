@@ -48,18 +48,15 @@ export function createCookedBodies(
    *  their static tiles unwanted —, and the signal its leaving aborts its reads by. */
   type Opening = { made: CookedMadeBody[]; nodes: Set<number>; signal: AbortSignal };
   const held = new Map<Model, Opening>();
-  /** Each hull, fetched once: a body made again restores from it, never waiting on the network. */
+  /** Each hull, fetched once per opening (each reads `physics.json` again): a body made again at
+   *  another scale restores from it, never waiting on the network. */
   const hulls = new WeakMap<CookedBody, Promise<Uint8Array>>();
   const dynamic = (body: CookedBody) => release && !body.motion.isKinematic;
   async function add(model: Model, opening: Opening, body: CookedBody) {
     const { shape } = body;
     let hull = hulls.get(body);
-    if (!hull && shape.type === 'cooked') {
-      hull = cookedBytes(model, shape.url, opening.signal);
-      hulls.set(body, hull);
-      // A read aborted or failed is not kept: the next opening fetches again.
-      hull.catch(() => hulls.delete(body));
-    }
+    if (!hull && shape.type === 'cooked')
+      hulls.set(body, (hull = cookedBytes(model, shape.url, opening.signal)));
     const bytes = await hull;
     // Forgotten or opened again meanwhile: this opening's bodies are no longer wanted.
     if (held.get(model) !== opening) return;
@@ -70,12 +67,13 @@ export function createCookedBodies(
     opening.made.push(made);
     const handle = made.id & BODY_INDEX;
     const matter = physicsMatterOf(body);
+    const moving = dynamic(body);
     if (bytes) writer.restore(handle, bytes);
     writer.add({
-      ...{ id: made.id, motion: dynamic(body) ? MOTION.dynamic : MOTION.kinematic },
+      ...{ id: made.id, motion: moving ? MOTION.dynamic : MOTION.kinematic },
       ...{ layer: LAYER.moving, shape: resolved.shape, position, quaternion },
       // Held or kinematic, it is added asleep: it stands still until its model moves it.
-      flags: dynamic(body) ? 0 : FLAG.asleep,
+      flags: moving ? 0 : FLAG.asleep,
       ...{ size: resolved.size, ...declaredMass(body, scale), density: matter.density },
       ...{ friction: matter.friction, restitution: matter.restitution },
       ...{ gravityScale: body.motion.gravityFactor ?? 1, indices: bytes && [handle] },
@@ -135,10 +133,10 @@ export function createCookedBodies(
      *  opens again. */
     refused({ model, body }: { model: Model; body: CookedMadeBody }) {
       const opening = held.get(model);
-      const at = opening ? opening.made.indexOf(body) : -1;
-      if (!opening || at < 0) return;
-      opening.made.splice(at, 1);
-      opening.nodes.delete(body.body.node);
+      const at = opening?.made.indexOf(body) ?? -1;
+      if (at < 0) return;
+      opening!.made.splice(at, 1);
+      opening!.nodes.delete(body.body.node);
       bodies.release(body.id & BODY_INDEX);
     },
   };
@@ -154,20 +152,15 @@ export function createModelBodies(
 ) {
   const softs = createCookedSoftBodies(writer, bodies, invalidate, failed);
   const rigid = createCookedBodies(writer, bodies, invalidate, failed);
+  const both = [softs, rigid];
   return {
     /** Makes the bodies `model` was `cooked` with, read until `signal` aborts. */
     open(model: Model, cooked: CookedPhysics, signal: AbortSignal) {
       softs.open(model, cooked.softBodies ?? [], signal);
       rigid.open(model, cooked.bodies ?? [], signal);
     },
-    forget(model: Model) {
-      softs.forget(model);
-      rigid.forget(model);
-    },
-    moved(model: Model) {
-      softs.moved(model);
-      rigid.moved(model);
-    },
+    forget: (model: Model) => both.forEach((kind) => kind.forget(model)),
+    moved: (model: Model) => both.forEach((kind) => kind.moved(model)),
     holds: rigid.holds,
     /** The worker refused the body `owner` holds: one of these leaves; any other is ignored. */
     refused(owner: SlotOwner) {
