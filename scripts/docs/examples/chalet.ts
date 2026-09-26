@@ -72,8 +72,10 @@ function log(axis: number, start: Vec3, length: number): Mesh {
     [u, v] = [(axis + 1) % 3, (axis + 2) % 3];
   // `ring` turns from u toward v, counter-clockwise seen from the axis's positive end.
   const radial = ([cu, cv]: readonly number[]) => point((a) => (a === u ? cu : a === v ? cv : 0));
-  const at = (along: number, r: readonly number[]): Vec3 =>
-    point((a) => start[a] + (a === axis ? along : radial(r)[a] * LOG_RADIUS));
+  const at = (along: number, r: readonly number[]) => {
+    const normal = radial(r);
+    return point((a) => start[a] + (a === axis ? along : normal[a] * LOG_RADIUS));
+  };
   const mesh = empty(),
     step = length / LOG_SEGMENTS;
   for (let segment = 0; segment < LOG_SEGMENTS; segment++)

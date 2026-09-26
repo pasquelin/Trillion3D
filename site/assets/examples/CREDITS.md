@@ -32,20 +32,21 @@ scene of the lessons.
 
 ## Scenes modelled in code
 
-Eight scenes are modelled in code for their example and released under
+Nine scenes are modelled in code for their example and released under
 [CC0](https://creativecommons.org/publicdomain/zero/1.0/): nothing in them was taken from another
 work. Each has a writer under `scripts/docs/examples/`, seeded so the same code writes the same
 bytes on every machine, and is rebuilt, source and cache, by
 `node scripts/docs-examples-assets.ts <folder>` with the same compiler arguments as the model
 scenes above (`full`, 2 threads, 256 MB, `qem-endpoints`, the default `bc7` texture family).
 
-| Folder                   | Writer         | Source                                                                                                                  |
-| ------------------------ | -------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| `a-model-from-obj/`      | `chess-obj.ts` | `chess.obj` and `chess.mtl`: the same board and turned pieces in metres, each piece written where it stands, on a table |
-| `a-model-from-usdz/`     | `chess-set.ts` | `chess-set.usdz`: one USD text layer in centimetres, six turned shapes instanced thirty-two times                       |
-| `compressed-textures/`   | `courtyard.ts` | `courtyard.gltf` and its five drawn images: glazed tiles, brick, marble, the tiles' and brick's relief                  |
-| `detail-by-pixel-error/` | `avenue.ts`    | `avenue.gltf`: an avenue of fluted urns and a bronze knot at a tenth of life size                                       |
-| `ten-thousand-objects/`  | `ring.ts`      | `ring.gltf`: a planet and ten thousand moonlets, four rock shapes in three stones placed ten thousand times             |
-| `terrain/`               | `terrain.ts`   | `terrain.gltf`: a valley on a regular two-metre grid and three boulders                                                 |
-| `flag/`                  | `flag.ts`      | `flag.gltf`: a flag on a pole over a lawn, its node declaring a cloth pinned along the pole                             |
-| `chalet/`                | `chalet.ts`    | `chalet.gltf`: a chalet of thin closed shapes, a whitewash ground floor, walls of logs, balcony boards, a shingle roof  |
+| Folder                   | Writer             | Source                                                                                                                  |
+| ------------------------ | ------------------ | ----------------------------------------------------------------------------------------------------------------------- |
+| `a-model-from-obj/`      | `chess-obj.ts`     | `chess.obj` and `chess.mtl`: the same board and turned pieces in metres, each piece written where it stands, on a table |
+| `a-model-from-usdz/`     | `chess-set.ts`     | `chess-set.usdz`: one USD text layer in centimetres, six turned shapes instanced thirty-two times                       |
+| `compressed-textures/`   | `courtyard.ts`     | `courtyard.gltf` and its five drawn images: glazed tiles, brick, marble, the tiles' and brick's relief                  |
+| `detail-by-pixel-error/` | `avenue.ts`        | `avenue.gltf`: an avenue of fluted urns and a bronze knot at a tenth of life size                                       |
+| `ten-thousand-objects/`  | `ring.ts`          | `ring.gltf`: a planet and ten thousand moonlets, four rock shapes in three stones placed ten thousand times             |
+| `terrain/`               | `terrain.ts`       | `terrain.gltf`: a valley on a regular two-metre grid and three boulders                                                 |
+| `terrain-tiles/`         | `terrain-tiles.ts` | `terrain-tiles.gltf` and `ground.png`: a textured terrain of three by three tiles, each a mesh and a node of its own    |
+| `flag/`                  | `flag.ts`          | `flag.gltf`: a flag on a pole over a lawn, its node declaring a cloth pinned along the pole                             |
+| `chalet/`                | `chalet.ts`        | `chalet.gltf`: a chalet of thin closed shapes, a whitewash ground floor, walls of logs, balcony boards, a shingle roof  |
