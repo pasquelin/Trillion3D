@@ -41,7 +41,7 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
   const scene = new Scene(worldModelLoader(device.ready, options.signal, () => device.renderer));
   const invalidate = () => runtime.invalidate();
   const diagnostic = worldDiagnostic(() => runtime.explorer);
-  const switches = worldSwitches(options, () => runtime, device, invalidate);
+  const switches = worldSwitches(options, () => runtime, device, invalidate, diagnostic.notices);
   const runtime = createWorldRuntime({
     canvas,
     ready: () => device.pending,
@@ -192,7 +192,7 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
     },
   };
   frames.add(noticeEffectBudget(world.budget, canvas, world.effects, diagnostic.notices));
-  registerWorld(world, { session: () => runtime.explorer, last: () => frames.last });
+  registerWorld(world, { session: () => runtime.explorer, last: () => frames.last }, switches.held);
   return world;
 }
 

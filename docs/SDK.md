@@ -131,6 +131,21 @@ triangle count, and both raise an `EngineError` (`INVALID_POINTER`, `CACHE_NOT_R
 `SCOPE_MISMATCH`, `UNSUPPORTED_FORMAT`, `INVALID_CACHE`, `STALE_CACHE`) otherwise. They are the
 checks `scene.load` runs, and download no binary sidecar.
 
+### Files over HTTP
+
+Every file of a model the engine reads over HTTP — the manifest, its tables and binary, images,
+lights, pages, cooked physics — goes through one loader. A failure that may pass — the network, a
+timeout (408), a rate limit (429), a server error (5xx) — is asked again once, after the wait its
+`Retry-After` asks (seconds or an HTTP date), or by the reader's own retry, without that wait: the
+page streamer's three attempts, the GPU page cache's two, a physics tile's next update. Another 4xx is
+never asked twice, and an aborted load asks nothing more and rejects with its reason. What still fails
+is `RESOURCE_HTTP_ERROR`, the address in its message and `details.url`, the status in
+`details.status` (`null` for the network). A file a cache may lack — `lights.json` and
+`physics.json`, of a model compiled before them — is absent on a 404, or on the 403 of a store that
+hides what it does not hold. A page read (`httpPageSource`) raises `RESOURCE_HTTP_ERROR` where it
+raised `Error('PAGE_HTTP_<status>')`, and a cooked tile or a soft body's settings where they raised
+`PHYSICS_FAILED`.
+
 ## API rule
 
 State that is read and written is a **property** (`camera.near = 0.1`, `light.intensity = 2`,
@@ -386,6 +401,10 @@ physically based glow on the linear image, before tone mapping, energy-conservin
 spread at every level, in texels of that level. `world.effects.add(pass, index?)`,
 `remove(pass)` and `clear()` change the chain; a setting written on a pass shows at the next frame.
 An empty chain costs nothing, and a still image with a chain is post-processed once, then held.
+On WebGL2, a frame that draws a transparent surface blending in `multiply` or `subtractive` is drawn
+whole without the chain — its linear target cannot hold those modes; WebGPU draws both —, and the
+world's diagnostic channel says `effects-refused-blending` once; the chain comes back once no such
+surface is drawn.
 
 ```js
 const glow = effect.bloom({ intensity: 0.08 });
@@ -515,10 +534,13 @@ draws none. Live example: [move, rotate, scale](../site/examples/move-rotate-sca
 `scene.toJSON(camera)` writes the scene as plain, versioned JSON (`format: 'trillion3d-scene'`,
 `formatVersion: 1`): its hierarchy and poses, each shape by the family call that built it
 (`geometry.box(2, 1, 1)` is stored as that call; a shape changed after it was built, or written by
-hand, stores its vertices), each material by its parameters, lights, background, fog and the
+hand, stores its vertices), each material by its parameters, each mesh's body as `physics`
+declared it (type, mass, shape, gravity scale, sensor, CCD, debris, matter overrides, damping; a
+soft body's settings; not its velocity: it comes back at rest), lights, background, fog and the
 camera's pose; shapes and materials worn by several meshes are stored once; a loaded model is
 stored by its manifest address, never inlined; `helper` marks are left out. A texture, a picture
-environment or a shader material cannot be stored and is refused by name (`SCENE_NOT_SAVABLE`).
+environment, a shader material or a body number JSON cannot hold (an `Infinity` other than a
+free bend's) cannot be stored and is refused by name (`SCENE_NOT_SAVABLE`).
 `await scene.fromJSON(json, camera)` replaces the content — the `helper` marks stay — loads the
 models again, and refuses another format or version (`UNSUPPORTED_SCENE_FORMAT`) before removing
 anything. Calls made while one is reading wait for it and run in order, each replacing what the one
@@ -953,7 +975,9 @@ A light casts a shadow when the file says so (FBX carries the flag; glTF has non
 lights cast one). Beyond 64 lights, the ones that carry furthest are kept — directionals first, then
 by peak channel intensity — and the rest are counted in the `imported-lights` diagnostic. A world
 reads them as `(await scene.load(url)).lights`, in cache order; each lamp is a child of the model,
-changed with `light.visible = false`, `model.remove(light)` or `light.intensity = …`.
+changed with `light.visible = false`, `model.remove(light)` or `light.intensity = …`. A cache
+without `lights.json` has none; one the server refuses otherwise fails the load
+([Files over HTTP](#files-over-http)).
 
 ## Memory budgets
 
@@ -997,8 +1021,12 @@ as `world.budget.split`:
   evicted by a page, until another scene replaces it or the pages a frame keeps no longer fit
   beside it: then it yields its bytes to them (`page-cache-kept-yielded`) and is read again after
   a device loss. It is read on its own request, beside the page queue, and is not counted among
-  the pages read. A change applies at once: pages
-  leave by last use until they fit, save those the frame keeps. The default total is the mirror
+  the pages read. The decoded baked texture levels take at most three quarters of the pages'
+  share (`split.textureLevels`, 192 MiB at the default total), the least recently read leaving
+  first, and yield first, before the proxy, to the pages a frame keeps
+  (`page-cache-levels-yielded`); a level that cannot fit beside them is not read, and its tile
+  stays at its coarser level until room comes back. A change applies at once: pages and levels
+  leave by last use until they fit, save the pages the frame keeps. The default total is the mirror
   plus the cache's own default; a total not above the mirror is refused
   (`CPU_BUDGET_UNDER_SHADOW_MIRROR`).
 
@@ -1020,7 +1048,7 @@ world.budget.geometryPool = 256 * 1024 * 1024; // the call a memory slider makes
 Reading a pool back gives what the engine holds, not what was asked; a pool write is clamped to
 `world.budget.geometryPoolCeiling` / `texturePoolCeiling` and to what `gpu` leaves beside the
 shadows and the other pool, so the pools never sum past the total — save a total too small for
-their floors (the root cover, one texture layer per lane), which they never go below. On WebGPU the
+their floors (the root cover, the texture tails), which they never go below. On WebGPU the
 geometry pool pays first for the vertex buffers held beside its page slots (the float geometry of
 what no page covers, one placeholder vertex at least): `geometryAllocationBytes`, which counts both,
 never passes `geometryPool` above that floor. Two writes before the next frame
@@ -1040,18 +1068,22 @@ says the pool is too small for that view). A value that cannot be held as given 
 - a declared canvas that is not a whole number of pixels above zero: `INVALID_BUDGET_CANVAS`;
 - a total under its fixed share, above: `GPU_BUDGET_UNDER_SHADOW_POOL`,
   `CPU_BUDGET_UNDER_SHADOW_MIRROR`;
-- a device whose limits cannot hold even the root cover: `GEOMETRY_POOL_DEVICE_LIMIT`;
+- a device whose limits cannot hold even the root cover: `GEOMETRY_POOL_DEVICE_LIMIT`, or the
+  tails of one texture lane: `TEXTURE_POOL_DEVICE_LIMIT`;
 - a pool floor the device refuses at prepare: `WEBGPU_GEOMETRY_POOL_REFUSED`,
   `WEBGPU_TEXTURE_POOL_REFUSED`, below;
-- frame targets the device refuses even without Hi-Z: `WEBGPU_FRAME_TARGETS_REFUSED`, below;
-- a texture pool too small for the tails its textures keep resident whole, one tile each: more
-  textures in one lane than its layers hold tiles (900 a layer), at prepare or when
-  `world.budget.texturePool` shrinks the pool: `TEXTURE_POOL_TAILS`.
+- frame targets the device refuses even without Hi-Z: `WEBGPU_FRAME_TARGETS_REFUSED`, below.
+
+The texture pool's floor, `minimum`, holds every tail (one tile per texture, 900 a layer), as the
+geometry pool holds the root cover, and one tile more to stream into when the lane streams: a lane
+whose tails fill whole layers pays one layer more (63.5 MiB lossless, a quarter of that in a block
+lane) rather than stay at its tails. A budget under the floor is raised to it; a shrink never
+displaces a tail.
 
 **Out of memory is absorbed.** The browser may refuse an allocation the budget allows. Each pool is
 allocated under an out-of-memory check at prepare, and probed before every rebalance. When the
 device refuses it, the pool
-is drawn again at half its bytes, down to its floor (the root cover, one layer per lane, the
+is drawn again at half its bytes, down to its floor (the root cover, the texture pool's `minimum`, the
 smallest screen's shadow pool). The shadow pool is granted the same way at the first frame that
 casts a shadow, and that frame is held until the device answers: the previous image stays, or
 nothing yet, never an image without its shadows; a capture waits for the answer too. Its static layer is refused whole: shadow pages
@@ -1062,6 +1094,9 @@ by a `shadows-off` error (`kind: 'error'`, `reason: 'gpu-out-of-memory'`), and t
 without shadows. Shadows are never lost silently.
 The `gpu-out-of-memory` diagnostic names the pool, the bytes asked (`requestedBytes`) and the bytes
 granted (`grantedBytes`, `null` when even the floor was refused and the pool in place stays).
+A geometry or texture budget set while prepare runs is the later word: it is granted in turn, and
+the setting's report waits for prepare and names the pools the device grants; its `durationMs`
+includes that wait.
 
 At prepare there is no pool in place to keep, so a floor the device refuses is refused by name,
 never allocated at the full request outside the check:
@@ -1070,7 +1105,7 @@ never allocated at the full request outside the check:
   preparation fails (`backend-preparation-error`): the world goes on with its other backends (a
   `fallback` event, `WEBGPU_UNAVAILABLE`), and a world drawing straight to a GPU canvas rejects
   with the code.
-- `WEBGPU_TEXTURE_POOL_REFUSED` — one layer per lane was refused. The material pipeline drops
+- `WEBGPU_TEXTURE_POOL_REFUSED` — the texture pool's floor was refused. The material pipeline drops
   (`material-pipeline-failed`, the code in `context.error`) and the pages draw with the fallback
   pass; on a GPU canvas, which needs that pipeline, preparation fails with
   `WEBGPU_MATERIAL_PIPELINE_UNAVAILABLE`.
@@ -1311,6 +1346,9 @@ bend }` simulates the mesh's vertices one by one on Jolt's soft bodies. A cloth 
   around every moving body, nearest first, within `budget.physics.triangles`; past it, the nearest
   stay and `PHYSICS_BUDGET` names the triangles asked. A file of another format or cooked by
   another Jolt is refused (`PHYSICS_FORMAT`); a model compiled before the cook collides nowhere.
+  A tile or a soft body's settings the server refuses is `RESOURCE_HTTP_ERROR` on
+  `world.physics.error` ([Files over HTTP](#files-over-http)); a model that leaves the scene lets
+  go of its reads still on their way, which is no error.
   Its tiles grip and bounce as the source's `KHR_physics_rigid_bodies` collider declares, else with
   the default matter (`DEFAULT_MATTER`); every drawn node is static, as drawn.
 - **Exact raycast.** `await world.raycast(at, { exact: true })` asks the physics: a compiled model
@@ -1334,9 +1372,9 @@ bend }` simulates the mesh's vertices one by one on Jolt's soft bodies. A cloth 
   by the declared-light rule above.
 - A lost device is recovered, the page never reloaded: the world asks for a device again, reopens its
   session on it and rebuilds from its decoded-page cache, fetching no page, bundle or resident proxy
-  it still holds (the proxy is kept whole inside `world.budget.cpu` unless it yielded to the pages).
-  `gpu-device-recovered` says the time from the loss to the first frame drawn after it
-  (`recoveryMs`). Baked texture levels and `lights.json` are read again, and cross-API fallback is
+  it still holds (the proxy and the decoded texture levels are kept inside `world.budget.cpu`
+  unless they yielded to the pages). `gpu-device-recovered` says the time from the loss to the
+  first frame drawn after it (`recoveryMs`). `lights.json` is read again, and cross-API fallback is
   not implemented.
 - Frame targets the device refused are asked again only when the view's size changes, or by a
   capture; until then the frames stay held on the previous image.
