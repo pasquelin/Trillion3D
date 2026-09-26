@@ -125,6 +125,11 @@ void writeSoft() {
     BodyLockRead lock(locks, slot.id);
     if (!lock.Succeeded()) continue;
     const Body &body = lock.GetBody();
+    // Hidden by the page, it sends no vertex; shown again, it is written once, asleep or not.
+    if (slot.flags & HIDDEN) {
+      softs[kept - 1].awake = true;
+      continue;
+    }
     if (!body.IsActive() && !soft.awake) continue;
     softs[kept - 1].awake = body.IsActive();
     const auto &motion = *static_cast<const SoftBodyMotionProperties *>(body.GetMotionProperties());
