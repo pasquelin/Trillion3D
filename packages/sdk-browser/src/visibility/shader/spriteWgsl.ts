@@ -61,11 +61,19 @@ export function writeSpriteWords(
 export const neverCulled = (surface: Pick<VisMaterial, 'sprite'> | undefined) =>
   surface?.sprite?.sizeAttenuation === false;
 
-/** The root mark's bit on every sprite (`ClusterRoot.sprite`): a sprite casts no shadow, so the
+/** The root mark's bit on every sprite (`ClusterRoot.mark`): a sprite casts no shadow, so the
  *  CPU and GPU light cuts open no descent on it and the sun's scene box leaves it out. */
 export const SPRITE_ROOT = 1;
 /** The root mark's bit on a never-culled sprite (`neverCulled`): no camera cut rejects it. */
 export const SPRITE_UNCULLED = 2;
+/** The root mark's bit on a root whose mesh, or the row placing it, says `castShadow = false`
+ *  (`PlacementRows.shadowless`): no light cut opens it either. */
+export const SHADOWLESS_ROOT = 4;
+/** The bits of a root that casts no shadow: what every light cut tests (`castsNoShadow`). */
+export const CASTS_NO_SHADOW = SPRITE_ROOT | SHADOWLESS_ROOT;
+/** `mark` with its shadowless bit set when `shadowless`, cleared otherwise. */
+export const withShadowless = (mark: number, shadowless: boolean) =>
+  shadowless ? mark | SHADOWLESS_ROOT : mark & ~SHADOWLESS_ROOT;
 
 /**
  * THE SPRITE ROOT MARK: what a root carries of its surface, set once at collection and carried to

@@ -8,6 +8,7 @@ import { uploadWorlds } from './render/worldUpload.ts';
 import { orderBlendPasses } from '../blend/order.ts';
 import { selectWebgpuBlend } from '../blend/selection.ts';
 import type { ClusterRoot, PageRec } from '../../page/selection/selection.ts';
+import { SHADOWLESS_ROOT } from '../../visibility/shader/spriteWgsl.ts';
 import type { EngineCamera } from '../../camera/world.ts';
 import type { WebgpuPagesRuntime } from './runtime.ts';
 
@@ -54,6 +55,8 @@ test('a host hide parks the root, hides its blend items and stales the shadow pa
     node = new G.Group(),
     other = new G.Group();
   group.add(node);
+  // The root's node stands for a mesh, which casts unless set otherwise.
+  node.castShadow = true;
   const [item, kept] = blendState.blendGpu;
   item.sourceMesh = node as never;
   kept.sourceMesh = other as never;
@@ -62,11 +65,15 @@ test('a host hide parks the root, hides its blend items and stales the shadow pa
     worldBox: new Float64Array([-1, -2, -3, 1, 2, 3]),
   } as unknown as ClusterRoot<PageRec>;
   const parks: [number, boolean][] = [],
+    marks: number[] = [],
     changed: number[][] = [];
   const rt = {
     run: {
       gate: { updateWorlds: () => true, revisions: { scene: 1 } },
-      gpuSelection: { parkWorld: (rank: number, parked: boolean) => parks.push([rank, parked]) },
+      gpuSelection: {
+        parkWorld: (rank: number, parked: boolean) => parks.push([rank, parked]),
+        markWorld: (_: number, mark: number) => marks.push(mark),
+      },
       worldUploadRevision: 1,
       worldUploadOrigin: new Float64Array(3),
     },
@@ -103,4 +110,9 @@ test('a host hide parks the root, hides its blend items and stales the shadow pa
   assert.equal(blendState.keepPacked[0] & 1, 1);
   selectWebgpuBlend(blendState);
   assert.ok(blendState.visibleBlend.includes(item));
+  // #456: a node set to cast no shadow leaves every light cut; its shadow pages are drawn again.
+  node.castShadow = false;
+  uploadWorlds(rt, cam);
+  assert.deepEqual(marks.slice(-1), [SHADOWLESS_ROOT]);
+  assert.equal(changed.length, 3, 'its shadow is drawn again without it');
 });

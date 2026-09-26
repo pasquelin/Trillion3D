@@ -10,7 +10,7 @@ import { DAG_LIVE_WGSL } from './liveWgsl.ts';
 import { DAG_LEVEL_WGSL } from './levelWgsl.ts';
 import { DAG_FLOOR_WGSL } from './floorWgsl.ts';
 import { DAG_PAGES_WGSL } from './pagesWgsl.ts';
-import { SPRITE_UNCULLED } from '../../../visibility/shader/spriteWgsl.ts';
+import { CASTS_NO_SHADOW, SPRITE_UNCULLED } from '../../../visibility/shader/spriteWgsl.ts';
 import { DAG_VIEWS_WGSL, LIST_FULL } from './viewsWgsl.ts';
 import { DAG_RECORD_WGSL } from './recordWgsl.ts';
 import { DAG_AHEAD_WGSL } from './aheadWgsl.ts';
@@ -129,7 +129,7 @@ fn dagPrepare(@builtin(global_invocation_id) id:vec3u){
  vi=t/world;let w=t-vi*world;let slot=slotOf(w);
  // The primitive's root opens the descent: one thread, one root, no counter to contend for. A
  // light cut opens none on a primitive that casts no shadow (\`markOf\`, \`castsNoShadow\`).
- let root=select(rootOf(w),0xffffffffu,isLightCut()&&markOf(w)!=0u);
+ let root=select(rootOf(w),0xffffffffu,isLightCut()&&(markOf(w)&${CASTS_NO_SHADOW}u)!=0u);
  flags[queueBase(0u)+t]=select(packEntry(vi,root),root,root==0xffffffffu);
  let m=transpose(worlds[w]);let base=slot*FRAME;
  // A primitive a camera never culls (\`unculledOf\`) takes six planes no box leaves.
