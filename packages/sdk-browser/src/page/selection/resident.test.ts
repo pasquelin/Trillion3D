@@ -1,56 +1,11 @@
-// The other changed behaviour: the residency rule is resolved once per cut instead of being
-// re-read on the state at every kept cluster. It must yield, over the whole product of the
-// inputs, exactly what the pre-lot closure used to yield — copied here as an oracle.
+// The residency rule of a cut: nothing held, every page is resident; held without a host rule,
+// a page is resident when it holds its index array; held with one, the host's answer decides.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {
-  RESIDENT_ALL,
-  RESIDENT_ARRAY,
-  RESIDENT_ASK,
-  residentModeOf,
-  residentUnder,
-  type PageRecord,
-  type SelectionState,
-} from '../cut/state.ts';
 import { collectClusterPages, selectVisiblePages } from './selection.ts';
 import { blendFixture, camera } from './blend.fixture.ts';
 import { cameraMoteur } from '../../camera/camera.fixture.ts';
 import { createHeldResidency } from '../cut/held.ts';
-
-/** `../cut/state.ts` before this lot: residency re-read on the state, cluster by cluster. */
-function oracle<T extends PageRecord>(
-  hold: boolean,
-  isResident: ((page: T) => boolean) | undefined,
-  rec: T,
-) {
-  return !hold || (isResident ? isResident(rec) : !!rec.array);
-}
-
-test("the resolved mode yields the pre-lot closure's answer, over the whole product of the inputs", () => {
-  const avec = { triangles: 1, array: new Uint32Array(3) } as PageRecord;
-  const sans = { triangles: 1, array: undefined } as PageRecord;
-  const vide = { triangles: 1 } as PageRecord;
-  for (const hold of [false, true])
-    for (const ask of [undefined, () => true, () => false])
-      for (const rec of [avec, sans, vide]) {
-        const mode = residentModeOf(hold, ask);
-        const etat = { isResident: ask } as unknown as SelectionState<PageRecord>;
-        assert.equal(residentUnder(etat, rec, mode), oracle(hold, ask, rec));
-      }
-});
-
-test('the three modes are those the request describes, and those alone', () => {
-  assert.equal(residentModeOf(false, undefined), RESIDENT_ALL);
-  assert.equal(
-    residentModeOf(false, () => false),
-    RESIDENT_ALL,
-  );
-  assert.equal(residentModeOf(true, undefined), RESIDENT_ARRAY);
-  assert.equal(
-    residentModeOf(true, () => false),
-    RESIDENT_ASK,
-  );
-});
 
 test('the cut follows this mode: without an index array, the page is requested but not shown', () => {
   const fixture = blendFixture();

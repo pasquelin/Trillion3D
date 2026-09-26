@@ -4,7 +4,6 @@ import { castsNoShadow, openToCamera, selectFlat } from './select.ts';
 import {
   IDENTITY_WORLD,
   createSelectionResult,
-  residentModeOf,
   selectionScratch,
   selectionState,
   type PageRecord,
@@ -54,11 +53,7 @@ export function selectVisiblePages<T extends PageRecord>(
   state.cam = cam;
   state.wanted = wanted;
   state.shown = shown;
-  state.isResident = held?.isResident;
   state.light = options.light;
-  // The residency rule depends only on the request: stating it here takes two re-reads of the
-  // state and one indirect call out of the per-cluster loop, without touching the answer.
-  state.residentMode = residentModeOf(!!held, held?.isResident);
   state.held = held;
   state.pixelError = options.pixelError ?? 0;
   state.cameraStretch = maxStretch(cam.view);
@@ -116,7 +111,6 @@ export function selectVisiblePages<T extends PageRecord>(
   held?.end(!options.light);
   // The reused state keeps no hold on this image's scene.
   state.held = undefined;
-  state.isResident = undefined;
   state.light = undefined;
   state.flatHeld = undefined;
   return result;

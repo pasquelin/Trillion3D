@@ -97,7 +97,6 @@ export function createHeldResidency<T extends PageRecord>(
     target.set(page, isResident ? isResident(rec) : !!rec.array);
   };
   return {
-    isResident,
     /** Bytes of every state held, read in constant time. */
     get bytes() {
       return bytes;
