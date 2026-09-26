@@ -2972,7 +2972,7 @@
       "mesh": "Thứ hạng trong `geometries` và `materials`, cách đọc các tam giác, và tâm của một sprite.",
       "light": "Loại, màu, các con số, hướng chiếu và hệ số probe của một ánh sáng.",
       "model": "Một mô hình đã biên dịch, theo địa chỉ manifest mà nó được nạp từ đó: không bao giờ chép vào trong.",
-      "physics": "Thân vật lý của một lưới, đúng như `mesh.physics` khai báo (`savedPhysics`)."
+      "physics": "Thân vật lý của một lưới, đúng như `mesh.physics` khai báo."
     }
   },
   "SavedScene": {
