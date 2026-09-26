@@ -24,8 +24,9 @@ import { SPRITE_UNCULLED, spriteAt } from '../../visibility/shader/spriteWgsl.ts
 import { dagFixture } from '../../page/selection/dag.fixture.ts';
 import { surfaceOf } from '../../page/surface.ts';
 import { drawPasses } from '../../cluster/batchMesh.ts';
-import { buildBlendStatics, planCull, refreshBlendPlan } from '../../webgpu/blend/plan.ts';
-import { createWebgpuBlendState, type BlendGpuItem } from '../../webgpu/blend/state.ts';
+import { planCull } from '../../webgpu/blend/plan.ts';
+import { blendSceneOf } from '../../webgpu/blend/plan.fixture.ts';
+import type { BlendGpuItem } from '../../webgpu/blend/state.ts';
 import { packed } from '../../gpu/dag/selectionHelpers.fixture.ts';
 import { primitiveFrameWords, primitiveWordAt } from '../../gpu/dag/worlds.ts';
 
@@ -106,17 +107,18 @@ test("a sprite's host mesh wears the sprite surface and is bounded by its radius
 // #364 (measure ko): a transparent sprite drawn back then front took two entries of the
 // transparent plan, whose per-frame ranking grows with the square of their count.
 test('a transparent sprite is drawn in one pass: one plan entry, with no cull, and one WebGL2 pass', () => {
-  const mesh = spriteMesh(),
-    blendState = createWebgpuBlendState();
-  for (let i = 0; i < 3; i++)
-    blendState.blendGpu.push({
-      surface: surfaceOf(mesh.material),
-      matrix: { elements: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, i, 0, 0, 1] },
-      count: 6,
-      paged: true,
-    } as unknown as BlendGpuItem);
-  buildBlendStatics(blendState);
-  refreshBlendPlan(blendState);
+  const mesh = spriteMesh();
+  const blendState = blendSceneOf(
+    [0, 1, 2].map(
+      (x) =>
+        ({
+          surface: surfaceOf(mesh.material),
+          matrix: { elements: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, x, 0, 0, 1] },
+          count: 6,
+          paged: true,
+        }) as unknown as BlendGpuItem,
+    ),
+  );
   assert.deepEqual([...blendState.orders[0]].map(planCull), [0, 0, 0]);
   assert.deepEqual(drawPasses(mesh.material), [undefined]);
 });
