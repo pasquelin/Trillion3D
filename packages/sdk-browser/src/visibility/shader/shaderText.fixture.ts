@@ -131,7 +131,8 @@ function evaluate(text: string, scope: Scope): Value {
       if (peek() === ',') take();
     }
     take(')');
-    return ((scope[token] as Call | undefined) ?? CALLS[token] ?? vector)(...args);
+    const own = scope[token];
+    return (typeof own === 'function' ? own : (CALLS[token] ?? vector))(...args);
   };
   const value = level(0);
   if (at !== list.length) throw new Error(`unread tokens in ${text}`);
