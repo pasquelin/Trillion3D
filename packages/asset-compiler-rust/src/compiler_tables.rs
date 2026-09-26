@@ -14,18 +14,13 @@ use serde_json::Map;
 mod documents;
 mod graph;
 mod materials;
-mod partition;
+pub(crate) mod partition;
 mod physical;
 mod sparse;
 mod textures;
 use documents::document_table;
 use graph::{camera_table, light_table, node_table, scene_roots};
 use materials::material_entry;
-#[cfg(test)]
-pub(crate) use partition::{
-    pages::{read_records, write_pages, FAN_OUT, PAGE_BYTES},
-    split::Region,
-};
 use textures::texture_table;
 
 /// Version of the `scene-tables.json` cache product. It lives outside the manifest: its version is
