@@ -28,17 +28,19 @@ export function createResidentOrder(env: {
   const resident = new Set<string>(),
     order = new Set<string>(),
     arrivals = new Set<string>();
-  // The stamp of the `keep` that last named each key; its list, the previous one's, and who left.
+  // The stamp of the `keep` that last named each key, and that last held it over; its list, the
+  // previous one's, and who left.
   let marks = new Int32Array(64),
+    heldOver = new Int32Array(64),
     stamp = 1,
     kept: PageRec[] = [],
     entering: PageRec[] = [],
-    leaving: PageRec[] = [],
     asked: readonly PageRec[] = [],
     frame = 0,
     // A walk found nothing left to evict: nothing is until the next cut.
     exhausted = false,
     floorBytes = 0;
+  const leaving: PageRec[] = [];
   const lastUse = createLastUse({
     idleWindow: IDLE_WINDOW,
     levelPerFrame: true,
@@ -57,7 +59,10 @@ export function createResidentOrder(env: {
   const enter = (list: readonly PageRec[], previous: number) => {
     for (const rec of list) {
       const key = keys.keyOf(rec);
-      if (key >= marks.length) marks = grown(marks, key + 1, marks.length);
+      if (key >= marks.length) {
+        heldOver = grown(heldOver, key + 1, heldOver.length);
+        marks = grown(marks, key + 1, marks.length);
+      }
       if (marks[key] === stamp) continue;
       if (marks[key] !== previous) {
         // Kept again: it is held, out of the order.
@@ -69,8 +74,8 @@ export function createResidentOrder(env: {
     }
   };
   /** The image keeps `requested` and `shown`: what joined is held, and of what left, the finest
-   *  DAG level starts its window, the coarser ones held one more `keep`, so the image lets go of one
-   *  level at a time. Walks both lists, never what is held. */
+   *  DAG level starts its window, the coarser ones held one more `keep` — once —, so the image lets
+   *  go of one level at a time. Walks both lists, never what is held. */
   const keep = (requested: readonly PageRec[], shown: readonly PageRec[]) => {
     const previous = stamp++;
     entering.length = 0;
@@ -86,8 +91,10 @@ export function createResidentOrder(env: {
     for (let i = leaving.length - 1; i >= 0; i--) {
       const rec = leaving[i],
         key = keys.keyOf(rec);
-      if ((rec.level ?? 0) > finest) {
+      // Held over once only: a view that lets go of a finer page every image releases it still.
+      if ((rec.level ?? 0) > finest && heldOver[key] !== previous) {
         marks[key] = stamp;
+        heldOver[key] = stamp;
         entering.push(rec);
       } else lastUse.leave(key, frame);
     }
