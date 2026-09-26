@@ -49,7 +49,12 @@ const KEPT: Record<ParticleBlend, GPUBlendFactor> = {
   premultiplied: 'one-minus-src-alpha',
 };
 
-type DrawState = { words: GPUBuffer; group?: GPUBindGroup; from?: [GPUBuffer, GPUTextureView] };
+type DrawState = {
+  words: GPUBuffer;
+  group?: GPUBindGroup;
+  state?: GPUBuffer;
+  depth?: GPUTextureView;
+};
 
 /** The WebGPU particle draw: one pass over the lit image, one instanced draw per live pool
  *  (`drawOrder`), reading the step's buffer (`stateOf`) and the opaque depth, which the soft edge
@@ -103,8 +108,8 @@ export function createWebgpuParticleDraw(
   );
   /** The pool's group, made again only when the step's buffer or the depth target changed. */
   const groupOf = (kept: DrawState, state: GPUBuffer, depth: GPUTextureView) => {
-    if (kept.from?.[0] !== state || kept.from[1] !== depth) {
-      kept.from = [state, depth];
+    if (kept.state !== state || kept.depth !== depth) {
+      Object.assign(kept, { state, depth });
       kept.group = device.createBindGroup({
         label: PARTICLE_DRAW_PASS,
         layout,

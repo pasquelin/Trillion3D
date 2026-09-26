@@ -150,10 +150,16 @@ export function encodeParticles(
  *  only; a scene with no pool draws nothing. */
 export function drawParticles(rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder) {
   const { gpu, vis, run } = rt,
+    { hdrView, depthView, particles } = gpu,
     pools = rt.context.particles;
-  if (!pools?.length || !gpu.particles || run.diagnostic !== 'beauty' || !run.lastCamera) return;
-  const { hdrView, depthView } = gpu,
-    { eye } = run.gate.cam;
+  if (!pools?.length || !particles || run.diagnostic !== 'beauty' || !run.lastCamera) return;
   if (!vis.visEnabled || !hdrView || !depthView) return;
-  run.gpuDrawCalls += gpu.particles.draw(pools, encoder, hdrView, depthView, viewProj, eye);
+  run.gpuDrawCalls += particles.draw(
+    pools,
+    encoder,
+    hdrView,
+    depthView,
+    viewProj,
+    run.gate.cam.eye,
+  );
 }
