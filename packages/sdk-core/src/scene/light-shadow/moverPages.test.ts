@@ -168,8 +168,8 @@ test("past a light's virtual pages its boxes join one union per kind: a moving o
   plan.worldChanged([1, 0, -40], [40, 5, 40], true);
   planFrame(plan, store, frame);
   const { pool } = plan,
-    { visitedPages } = plan.counts;
-  assert.ok(visitedPages <= tableEntriesOf(LIGHT_KIND.point) + 2 * pool.pages, `${visitedPages}`);
+    spare = tableEntriesOf(LIGHT_KIND.point) + 2 * pool.pages - plan.counts.visitedPages;
+  assert.ok(spare >= 0 && spare < pool.pages, `a box costs the pool at most: ${spare} spare`);
   const front = lampPagesOf(plan, store.sliceOf(0)).filter((page) => pool.view[page] >> 4 === 0),
     lost = front.filter((page) => pool.dirty[page] !== STALE_DYNAMIC || !pool.valid[page]);
   assert.ok(front.length > 0 && !lost.length, 'the moving one keeps the static layer read');

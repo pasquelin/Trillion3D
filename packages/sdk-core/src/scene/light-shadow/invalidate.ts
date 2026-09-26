@@ -28,7 +28,7 @@ const ORIGIN = [0, 0, 0] as const;
  *   mip —, exactly the pages its box covers, never a neighbour's: the entries walked through the
  *   page table, or, when they outnumber the pool's pages, one pool scan against its rectangles.
  *   A light examines at most its virtual pages (`tableEntriesOf`) — past that its boxes cover its
- *   entries again —: the boxes beyond join one union per kind, each read by one pool scan. A
+ *   entries again —: the boxes beyond join one union per kind, each covered the same way. A
  *   static caster that moved withdraws those pages until redrawn; one already moving stales only
  *   their moving casters, and the static layer under them stays read. With per-page
  *   invalidation off, every page of each light the box touches.
@@ -45,7 +45,7 @@ export function createPageInvalidation(
   counts: Counts,
 ) {
   const { rects, sunRects, lampFaces, lampRects } = createPageRects();
-  /** The unions of a light's boxes past its budget, scanned once each: those whose static layer
+  /** The unions of a light's boxes past its budget, covered once each: those whose static layer
    *  is wrong, and the others — a moving caster past the budget keeps the static layer read. */
   const restWrong = new Float64Array(6),
     restKept = new Float64Array(6),
@@ -105,6 +105,9 @@ export function createPageInvalidation(
       }
     }
   };
+  /** The `covered` pages the rectangles hold: walked, or one pool scan when more than the pool. */
+  const cover = (covered: number, level: number, wrong: boolean) =>
+    covered > pool.pages ? scan(true, level, wrong) : walk(level, wrong);
   return (
     light: SceneLight,
     lightSlice: number,
@@ -147,8 +150,7 @@ export function createPageInvalidation(
         cost = Math.min(covered, pool.pages);
       if (cost <= budget) {
         budget -= cost;
-        if (covered > pool.pages) scan(true, boxLevel, boxWrong);
-        else walk(boxLevel, boxWrong);
+        cover(covered, boxLevel, boxWrong);
         continue;
       }
       const { min, max } = moved;
@@ -161,13 +163,7 @@ export function createPageInvalidation(
       return;
     }
     // The wrong union stales whole and withdraws; the kept one at its strongest level.
-    if (wrong) {
-      project(wrongMin, wrongMax);
-      scan(true, STALE_FULL, true);
-    }
-    if (level) {
-      project(keptMin, keptMax);
-      scan(true, level, false);
-    }
+    if (wrong) cover(project(wrongMin, wrongMax), STALE_FULL, true);
+    if (level) cover(project(keptMin, keptMax), level, false);
   };
 }
