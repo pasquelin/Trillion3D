@@ -11,6 +11,7 @@ import * as sun from '../../../sdk-core/src/scene/light-shadow/sunView.fixture.t
 import { createShadowMobility } from '../webgpu/shadow/mobility.ts';
 import { createPlacementRows, placementWorld } from './rows.ts';
 import { followPlacementRows } from './update.ts';
+import { SHADOWLESS_ROOT } from '../visibility/shader/spriteWgsl.ts';
 
 /** A small caster, the ground under it, a box far off: local boxes, placed at the origin. */
 const BOXES = [
@@ -37,6 +38,7 @@ function placed() {
   const write = (
     moves: number[][],
     touched: (min: ArrayLike<number>, max: ArrayLike<number>, movingOnly: boolean) => void,
+    flip?: (rank: number, root: { mark?: number }) => void,
   ) => {
     for (const [index, x] of moves) rows.matrices[index * 16 + 12] = x;
     const last = BOXES.length - 1;
@@ -45,7 +47,7 @@ function placed() {
       rows,
       0,
       last,
-      undefined,
+      flip,
       mobility.move,
       undefined,
       touched,
@@ -90,6 +92,41 @@ test('a row parked or taken back where it stands stales its box', () => {
   rows.live[2] = 1;
   assert.equal(write([], collect), true, 'taken back: a move whatever its pose');
   assert.deepEqual(boxes, [[BOXES[2], true]], 'moving already: its moving casters');
+});
+
+test('a row that stops or starts casting flips its mark and stales its box, whatever its pose', () => {
+  // #456: `castShadow` written on a world mesh reaches its row (`worldPoses.ts`); its root leaves
+  // or enters every light cut, and the pages it covered are drawn again without it, or with it.
+  const { rows, write } = placed(),
+    boxes: [number[], boolean][] = [],
+    marks: [number, number | undefined][] = [];
+  const collect = (min: ArrayLike<number>, max: ArrayLike<number>, movingOnly: boolean) =>
+    boxes.push([[...Array.from(min), ...Array.from(max)], movingOnly]);
+  const flip = (rank: number, root: { mark?: number }) => marks.push([rank, root.mark]);
+  for (const shadowless of [1, 0]) {
+    rows.shadowless[1] = shadowless;
+    assert.equal(write([], collect, flip), true, 'a change of casting, whatever its pose');
+    assert.deepEqual(marks, [[1, shadowless ? SHADOWLESS_ROOT : undefined]]);
+    assert.deepEqual(boxes, [[BOXES[1], false]], 'the static layer, the root never made moving');
+    boxes.length = marks.length = 0;
+    assert.equal(write([], collect, flip), false, 'written again unchanged: nothing');
+  }
+});
+
+test('a moving row that stops casting as it moves stales its moving casters alone', () => {
+  // #456: the static layer leaves a moving placement out (`mobility.ts`), so it has nothing of it.
+  const { rows, write } = placed(),
+    boxes: [number[], boolean][] = [];
+  const collect = (min: ArrayLike<number>, max: ArrayLike<number>, movingOnly: boolean) =>
+    boxes.push([[...Array.from(min), ...Array.from(max)], movingOnly]);
+  write([[0, 0.1]], collect);
+  boxes.length = 0;
+  rows.shadowless[0] = 1;
+  assert.equal(write([[0, 0.2]], collect), true);
+  assert.deepEqual(
+    boxes.map(([, movingOnly]) => movingOnly),
+    [true],
+  );
 });
 
 test('a caster moving over a still ground, under a moving camera, redraws the pages it sweeps', () => {
