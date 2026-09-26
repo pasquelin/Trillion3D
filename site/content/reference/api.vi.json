@@ -2085,7 +2085,7 @@
       "clipAction": "Hành động phát `clip`.",
       "play": "Phát `clip` ngay bây giờ.",
       "stopAll": "Dừng mọi hành động.",
-      "update": "Làm mọi hành động đang phát tiến triển thêm `seconds`, rồi ghi vào mỗi thuộc tính kết quả pha trộn có trọng số của các mẫu từ hành động của nó, chồng lên giá trị khi đứng yên."
+      "update": "Làm mọi hành động đang phát tiến triển thêm `seconds`, rồi ghi vào mỗi thuộc tính kết quả pha trộn có trọng số của các mẫu từ các hành động của thuộc tính đó, chồng lên giá trị khi đứng yên của thuộc tính ấy."
     }
   },
   "ModelRecord": {
