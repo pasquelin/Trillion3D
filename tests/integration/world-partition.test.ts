@@ -78,8 +78,8 @@ async function cellsOf(root: string) {
   const folder = join(root, 'cache/native/full');
   const [key] = (await readdir(folder)).filter((name) => name !== 'manifest.json');
   const tables = JSON.parse(await readFile(join(folder, key, 'scene-tables.json'), 'utf8'));
-  const root = assertTablePartition(tables.partition)!;
-  const { cells } = await readTablePartition(root, (page) => readFile(join(folder, key, page.url)));
+  const index = assertTablePartition(tables.partition)!;
+  const { cells } = await readTablePartition(index, (page) => readFile(join(folder, key, page.url)));
   const side = (b: readonly number[]) => Math.max(b[3] - b[0], b[5] - b[2]);
   const widest = Math.max(...cells.map((cell) => side(cell.parents[0][1])));
   return { bytes: cells.reduce((sum, cell) => sum + cell.bytes, 0), widest };
