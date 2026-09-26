@@ -165,6 +165,7 @@ test('a refused target grant holds the frame, then draws it complete; then nothi
       requested.shift()?.(0);
     }
     assert.equal(asked, stillAt, 'no request once the scene says it is still');
+    assert.ok(s.gpu.draws.length > draws, 'the frame is drawn once granted');
     assert.deepEqual(s.widths(COLOR), [48], 'drawn into the granted targets, at the new size');
     assert.deepEqual(s.backend.selectedPageIds().sort(), ['0', '1'], 'the frame is complete');
   } finally {
