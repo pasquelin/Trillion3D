@@ -107,6 +107,7 @@ export function createWebglParticles(gl: WebGL2RenderingContext) {
       }
       let draws = 0;
       for (const pool of pools) {
+        pool.refused = false; // stepped here, as WebGPU does once its pipeline is made
         const { first, count, dt } = pool.flush();
         if (!count && !dt) continue;
         const { targets, staged } = live.made.of(pool);
