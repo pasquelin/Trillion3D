@@ -1,6 +1,6 @@
 import type { Blending } from '../../../../sdk-core/src/world/constants/index.ts';
 import type { HostScene } from '../../host/resources.ts';
-import { isDrawnNode } from '../../host/graph/kinds.ts';
+import { isDrawnNode, isInstancedNode } from '../../host/graph/kinds.ts';
 import { blendingOf, blendingRefusal } from '../../scene/materialBlending.ts';
 import { isTransmissive } from '../../visibility/shader/material.ts';
 import { firstMaterial } from '../../scene/materialSide.ts';
@@ -22,7 +22,9 @@ type Walked = { readonly visible?: boolean; readonly children?: readonly Walked[
 function refusalUnder(nodes: readonly Walked[]): LinearRefusedBlending | undefined {
   for (const node of nodes) {
     if (!node.visible) continue;
-    const surface = isDrawnNode(node) ? firstMaterial(node.material) : undefined;
+    // An instanced mesh placed nowhere submits nothing (`renderer.ts`): it keeps no chain off.
+    const drawn = isDrawnNode(node) && !(isInstancedNode(node) && !node.count);
+    const surface = drawn ? firstMaterial(node.material) : undefined;
     const mode =
       surface?.visible && surface.transparent
         ? blendingOf(surface.blending as number | undefined)
@@ -37,7 +39,7 @@ function refusalUnder(nodes: readonly Walked[]): LinearRefusedBlending | undefin
 
 /**
  * The mode of the first surface the scene draw would draw (`sceneDraw.ts`: a visible mesh under
- * visible parents, its surface visible) that the linear target cannot hold, or `undefined`. Read
+ * visible parents, its surface visible, an instanced one placed at least once) that the linear target cannot hold, or `undefined`. Read
  * before the chain binds its target, on a frame the composer draws: the frame is then drawn
  * without the chain, never stopped in the middle of its draw. It reads the scene, not what the
  * camera culls: the chain does not blink on and off as such a surface enters and leaves the view.
