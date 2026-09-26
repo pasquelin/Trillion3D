@@ -3,6 +3,7 @@ import { matrixWindingCw } from '../../../sdk-core/src/index.ts';
 import { uvTransformed } from '../../../sdk-core/src/texture/contract.ts';
 import { refreshSurface, surfaceSide, type PageSurface } from '../page/surface.ts';
 import { lineDash } from './shader/lineWgsl.ts';
+import { blendCoverage } from '../gpu/shadow/transmittance.ts';
 import { DEPTH_CLEAR, depthNearer } from '../camera/depthConvention.ts';
 import { triangleAt, perspectiveBary, mapTexel } from './math.ts';
 import {
@@ -31,7 +32,7 @@ function vertexAlpha(
 /**
  * What drops a pixel of a page's triangle, as the GPU rasters drop it, or nothing: a dashed line's
  * gaps (`lineDash`) at the distance its first coordinate carries, then a masked surface's cutout,
- * the base map alpha times the vertex alpha (`maskKeep`, `./shader/pageWgsl.ts`).
+ * the base map alpha times the opacity and the vertex alpha (`maskKeep`, `./shader/pageWgsl.ts`).
  */
 function cutout(
   page: VisPage,
@@ -51,7 +52,7 @@ function cutout(
       : 0;
     if (dashed && !lineDash(u, mat.dashSize!, mat.gapSize ?? 0)) return false;
     if (!masked) return true;
-    let alpha = color ? vertexAlpha(color, tri, bary) : 1;
+    let alpha = (color ? vertexAlpha(color, tri, bary) : 1) * blendCoverage(mat);
     const rgba = mat.map && textureRgba(mat.map);
     if (!rgba) return !color || alpha >= mat.alphaTest;
     const v = uv
