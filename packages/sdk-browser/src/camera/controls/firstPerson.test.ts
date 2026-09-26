@@ -39,19 +39,24 @@ test('first person turns the head with the pointer and lets the lock go on dispo
   assert.equal(surface.listeners(), 0);
 });
 
-test('the first move after the lock is granted is dropped: the cursor jump never turns the head', () => {
+test('the first move after the lock is granted is dropped: the cursor jump never turns the head, and a turn and its reverse return the head', () => {
   const { camera, surface, controls } = steered(createFirstPersonCameraControls);
+  const looking = () => [...facing(camera)].map((v) => round(v));
   controls.lookSpeed = Math.PI / 400;
   controls.update(0);
+  const home = looking();
   surface.fire('pointerdown', { pointerId: 1, button: 0, clientX: 0, clientY: 0 });
   surface.key('pointerlockchange', {});
   surface.fire('pointermove', { pointerId: 1, movementX: -900, movementY: 700 });
   surface.fire('pointermove', { pointerId: 1, movementX: 200, movementY: 0 });
   controls.update(0);
-  assert.deepEqual(
-    [...facing(camera)].map((v) => round(v)),
-    [1, 0, 0],
-  );
+  assert.deepEqual(looking(), [1, 0, 0]);
+  // The examples proof's look (#527): every move after the dropped one counts, so the reverse,
+  // in four steps, lands on the very head the lock started from.
+  for (let step = 0; step < 4; step++)
+    surface.fire('pointermove', { pointerId: 1, movementX: -50, movementY: 0 });
+  controls.update(0);
+  assert.deepEqual(looking(), home);
 });
 
 test('first person stops a downward look at `minPitch`', () => {
@@ -114,22 +119,4 @@ test('first person turns 0.002 radians per pixel until `lookSpeed` is set', () =
   surface.fire('pointermove', { pointerId: 1, movementX: 100, movementY: 0 });
   controls.update(0);
   assert.equal(round(Math.atan2(facing(camera)[0], -facing(camera)[2])), round(0.2));
-});
-
-test("the examples proof's look: after the lock, one dropped move, then four out and four back return the head (#527)", () => {
-  const { camera, surface, controls } = steered(createFirstPersonCameraControls);
-  const looking = () => [...facing(camera)].map((v) => round(v));
-  controls.update(0);
-  const home = looking();
-  surface.fire('pointerdown', { pointerId: 1, button: 0, clientX: 0, clientY: 0 });
-  surface.key('pointerlockchange', {});
-  const move = (movementX: number) =>
-    surface.fire('pointermove', { pointerId: 1, movementX, movementY: 0 });
-  move(1);
-  for (let step = 0; step < 4; step++) move(20);
-  controls.update(0);
-  assert.notDeepEqual(looking(), home, 'the four moves out turn the head');
-  for (let step = 0; step < 4; step++) move(-20);
-  controls.update(0);
-  assert.deepEqual(looking(), home);
 });

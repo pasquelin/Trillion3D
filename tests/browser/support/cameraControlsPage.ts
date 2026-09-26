@@ -107,27 +107,16 @@ export async function endGesture() {
 export function pointerLocked() {
   return new Promise<void>((granted, refused) => {
     if (document.pointerLockElement) return granted();
-    // The first of the two events settles the wait and removes both listeners.
+    // The first of the two events settles the wait and removes both listeners; a change that
+    // leaves the pointer free is a lost lock, never a granted one.
     const settled = new AbortController();
-    const { signal } = settled;
-    // A change that leaves the pointer free is a lost lock, never a granted one.
-    document.addEventListener(
-      'pointerlockchange',
-      () => {
-        settled.abort();
-        if (document.pointerLockElement) granted();
-        else refused(new Error('lock released'));
-      },
-      { signal },
-    );
-    document.addEventListener(
-      'pointerlockerror',
-      () => {
-        settled.abort();
-        refused(new Error('lock refused'));
-      },
-      { signal },
-    );
+    const settle = () => {
+      settled.abort();
+      if (document.pointerLockElement) granted();
+      else refused(new Error('lock refused or released'));
+    };
+    document.addEventListener('pointerlockchange', settle, { signal: settled.signal });
+    document.addEventListener('pointerlockerror', settle, { signal: settled.signal });
   });
 }
 

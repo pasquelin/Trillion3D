@@ -143,13 +143,10 @@ try {
   );
   // The canvas is not empty: a twentieth of it at least differs from the cleared background.
   // Each machine named in its own verdict, with the frame's counters: a blank side says which (#527).
-  for (const [webgpu, run] of [
-    [true, withGpu],
-    [false, withoutGpu],
-  ] as const)
+  for (const run of [withGpu, withoutGpu])
     assert.ok(
       run.drawn && run.drawn.drawn > run.drawn.totalPixels / 20,
-      `${machineLabel(webgpu)}: ${JSON.stringify({ drawn: run.drawn, metrics: run.cases.default.metrics })}`,
+      `${machineLabel(run.cases.default.webgpu)}: ${JSON.stringify({ drawn: run.drawn, metrics: run.cases.default.metrics })}`,
     );
   assert.deepEqual(errors, []);
   const side = (name: string, run: MachineResult) => [
