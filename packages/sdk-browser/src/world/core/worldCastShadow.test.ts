@@ -1,7 +1,7 @@
 // #456: every mesh casts a shadow unless it says `castShadow = false`, as a light casts none unless
 // it says `true`. A write reaches the world (`SceneLink.shadow`), and the mesh's row carries it to the
 // engine (`PlacementRows.shadowless`), where its root leaves every light cut (`update.test.ts`).
-// A saved scene keeps it; one saved before a mesh's flag was read has its meshes cast.
+// A saved scene keeps it; one of version 1, saved before a mesh's flag was read, is refused.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { object, Object3D } from '../../../../sdk-core/src/world/object/index.ts';
@@ -41,7 +41,7 @@ test("a mesh's castShadow reaches its world once per change, and its row carries
   assert.deepEqual([...rows.shadowless], [0, 0]);
 });
 
-test('a saved scene keeps each flag; one of version 1, written when none was read, has meshes cast', async () => {
+test('a saved scene keeps each flag, and one of version 1, whose flags were never read, is refused', async () => {
   const scene = new Scene(async () => new Object3D() as never);
   const [ink, box] = [0, 1].map(() => object.mesh(geometry.box(1, 1, 1)));
   ink.castShadow = false;
@@ -50,10 +50,8 @@ test('a saved scene keeps each flag; one of version 1, written when none was rea
   const saved = scene.toJSON();
   await scene.fromJSON(saved);
   assert.deepEqual(casts(), [false, true, false], 'version 2 keeps every flag');
-  await scene.fromJSON({ ...saved, formatVersion: 1 });
-  assert.deepEqual(
-    casts(),
-    [true, true, false],
-    'a mesh of version 1 casts; a light keeps its own',
-  );
+  await assert.rejects(scene.fromJSON({ ...saved, formatVersion: 1 }), {
+    code: 'UNSUPPORTED_SCENE_FORMAT',
+  });
+  assert.deepEqual(casts(), [false, true, false], 'the scene is left as it was');
 });
