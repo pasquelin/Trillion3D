@@ -35,8 +35,8 @@ async function keyDirectory(cache: string, scope: string): Promise<string | null
   return key ? join(cache, 'native', scope, key) : null;
 }
 
-/** The compiled manifest a scope points at, its folder, JSON head and binary columns. */
-export async function manifestOf(cache: string, scope: string) {
+/** The compiled manifest a scope points at, JSON head and binary columns. */
+async function manifestOf(cache: string, scope: string) {
   const directory = await keyDirectory(cache, scope);
   if (!directory) return null;
   const slim = JSON.parse(
@@ -44,7 +44,6 @@ export async function manifestOf(cache: string, scope: string) {
   ) as SlimClusterManifest;
   const binary = await readFile(join(directory, 'clusters.bin'));
   return {
-    directory,
     slim,
     buffer: binary.buffer.slice(
       binary.byteOffset,
