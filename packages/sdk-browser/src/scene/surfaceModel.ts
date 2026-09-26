@@ -58,13 +58,22 @@ export const litModel = (host: HostShadedMaterial, model: number) =>
   metalRough(host) ||
   host.family === 'phong';
 
+/** Whether a family's colour reads its normal — to light it, to show it or to find its matcap —,
+ *  every family but basic and depth; undefined for a family no model reads, which no path draws. */
+const READS_NORMAL = new Map<string, boolean>();
+for (const family of ['standard', 'physical', 'lambert', 'phong', 'toon', 'normal', 'matcap'])
+  READS_NORMAL.set(family, true);
+READS_NORMAL.set('basic', false).set('depth', false);
+export const readsNormal = ({ family }: HostShadedMaterial): boolean | undefined =>
+  READS_NORMAL.get(family);
+
 /** The roughness a Blinn–Phong exponent reads as, `√(2 / (n + 2))`: its lobe's width. */
 export const shininessRoughness = (shininess: number) =>
   Math.sqrt(2 / (Math.max(0, shininess) + 2));
 
 /** The toon cosine at `nl` = N·L, and the matcap coordinate of a view-space normal `n`: the one text
  *  both languages read, WGSL here and GLSL in `SURFACE_MODEL_GLSL`. */
-const TOON_BANDS = 'mix(0.7,1.0,smoothstep(0.69,0.71,nl*0.5+0.5))';
+export const TOON_BANDS = 'mix(0.7,1.0,smoothstep(0.69,0.71,nl*0.5+0.5))';
 const matcapAt = (vec2: string) => `${vec2}(n.x*0.495+0.5,0.5-n.y*0.495)`;
 
 /**
