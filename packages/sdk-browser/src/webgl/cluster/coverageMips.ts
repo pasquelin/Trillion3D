@@ -14,7 +14,7 @@ void main(){
  ivec2 p=ivec2(gl_VertexID%columns,gl_VertexID/columns);ivec2 q=p*2;ivec2 hi=extent-1;
  uint a=halved?median(vec4(texelFetch(source,min(q,hi),0).a,texelFetch(source,min(q+ivec2(1,0),hi),0).a,
   texelFetch(source,min(q+ivec2(0,1),hi),0).a,texelFetch(source,min(q+ivec2(1,1),hi),0).a))
-  :uint(round(texelFetch(source,p,0).a*255.));
+  :toByte(texelFetch(source,p,0).a);
  gl_Position=vec4((float(a)+.5)/128.-1.,(float(gl_VertexID&15)+.5)/8.-1.,0.,1.);gl_PointSize=1.;
 }`;
 const ONE = `#version 300 es

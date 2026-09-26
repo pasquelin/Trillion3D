@@ -1,14 +1,24 @@
 /**
  * The arithmetic of the coverage-preserving alpha rule (docs/FORMAT.md, "Coverage-preserving alpha
  * (#44)"; `texture_preview/coverage.rs`), in the two shading languages of the card's chains, twin
- * for twin: WGSL for WebGPU, GLSL ES 3.0 for WebGL2 (#769). The scale: `median`, a level's alpha byte as the compiler rounds it, and `scaled`,
- * step 4. The pick: `pick`, step 3 over the level's histogram, `binOf(t)`, which the including
+ * for twin: WGSL for WebGPU, GLSL ES 3.0 for WebGL2 (#769). The scale: `median`, a level's alpha
+ * byte as the compiler rounds it, `scaled`, step 4, and `reducedAlpha`, what a reduced texel
+ * stores — the median alone without a cutoff, byte for byte as before. The pick: `pick`, step 3
+ * over the level's histogram, `binOf(t)`, which the including
  * shader declares; its products pass 32 bits, so `wide` holds one as (high, low) words, `apart`
  * their distance, and `below` orders (error, distance to C, t) as the compiler's `min` does.
  */
 export const COVERAGE_SCALE_WGSL = `
-fn median(a:vec4f)->u32{let b=vec4u(round(a*255.0));return (min(max(b.x,b.y),max(b.z,b.w))+max(min(b.x,b.y),min(b.z,b.w))+1u)>>1u;}
-fn scaled(a:u32,c:u32,t:u32)->u32{return min(255u,u32((2u*a*(2u*c-1u)+2u*t-1u)/(4u*t-2u)));}`;
+fn toByte(x:f32)->u32{return u32(round(x*255.0));}
+fn median(a:vec4f)->u32{
+ let b=vec4u(toByte(a.x),toByte(a.y),toByte(a.z),toByte(a.w));
+ return (min(max(b.x,b.y),max(b.z,b.w))+max(min(b.x,b.y),min(b.z,b.w))+1u)>>1u;
+}
+fn scaled(a:u32,c:u32,t:u32)->u32{return min(255u,u32((2u*a*(2u*c-1u)+2u*t-1u)/(4u*t-2u)));}
+fn reducedAlpha(a:vec4f,c:u32,t:u32)->f32{
+ if(c==0u){let u=min(max(a.x,a.y),max(a.z,a.w));let v=max(min(a.x,a.y),min(a.z,a.w));return (u+v)*0.5;}
+ return f32(scaled(median(a),c,t))/255.0;
+}`;
 export const COVERAGE_PICK_WGSL = `
 fn wide(a:u32,b:u32)->vec2u{
  let al=a&0xffffu;let ah=a>>16u;let bl=b&0xffffu;let bh=b>>16u;
@@ -32,8 +42,16 @@ fn pick(c:u32,covered:u32,texels:vec2u)->u32{
 
 /** The GLSL ES 3.0 twins, line for line. */
 export const COVERAGE_SCALE_GLSL = `
-uint median(vec4 a){uvec4 b=uvec4(round(a*255.));return (min(max(b.x,b.y),max(b.z,b.w))+max(min(b.x,b.y),min(b.z,b.w))+1u)>>1u;}
-uint scaled(uint a,uint c,uint t){return min(255u,uint((2u*a*(2u*c-1u)+2u*t-1u)/(4u*t-2u)));}`;
+uint toByte(float x){return uint(round(x*255.));}
+uint median(vec4 a){
+ uvec4 b=uvec4(toByte(a.x),toByte(a.y),toByte(a.z),toByte(a.w));
+ return (min(max(b.x,b.y),max(b.z,b.w))+max(min(b.x,b.y),min(b.z,b.w))+1u)>>1u;
+}
+uint scaled(uint a,uint c,uint t){return min(255u,uint((2u*a*(2u*c-1u)+2u*t-1u)/(4u*t-2u)));}
+float reducedAlpha(vec4 a,uint c,uint t){
+ if(c==0u){float u=min(max(a.x,a.y),max(a.z,a.w));float v=max(min(a.x,a.y),min(a.z,a.w));return (u+v)*0.5;}
+ return float(scaled(median(a),c,t))/255.;
+}`;
 export const COVERAGE_PICK_GLSL = `
 uvec2 wide(uint a,uint b){
  uint al=a&0xffffu;uint ah=a>>16u;uint bl=b&0xffffu;uint bh=b>>16u;

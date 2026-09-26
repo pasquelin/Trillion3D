@@ -1,5 +1,5 @@
 // #748, #769: the card's two chains pick `t` and scale as the compiler does. The shipped WGSL and
-// GLSL are run here, their types stripped, on the table the compiler's test reads too
+// GLSL are run here (`shaderRule.fixture.ts`), on the table the compiler's test reads too
 // (`texture_preview/tests/coverage_alpha.rs`): one expected answer for every builder.
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -13,6 +13,9 @@ import {
 import { CoverageReaders, cutoffByte } from './coverage.ts';
 import type { PageSurface } from '../page/surface.ts';
 import type { Texture } from '../../../sdk-core/src/index.ts';
+import { shaderFunctions, vec } from './shaderRule.fixture.ts';
+
+const NAMES = ['scaled', 'wide', 'pick', 'below', 'apart'];
 
 const table = JSON.parse(
   readFileSync(
@@ -21,39 +24,11 @@ const table = JSON.parse(
   ),
 ) as { cases: string[] };
 
-/** A vector as both languages build one, flattened, each word an unsigned 32-bit integer. */
-const v = (...parts: Array<number | Record<string, number>>) => {
-  const words = parts.flatMap((part) =>
-    typeof part === 'number' ? [part >>> 0] : Object.values(part),
-  );
-  return Object.fromEntries(words.map((word, i) => ['xyzw'[i], word]));
-};
 type Rule = {
   scaled(a: number, c: number, t: number): number;
   wide(a: number, b: number): { x: number; y: number };
-  pick(c: number, covered: number, texels: ReturnType<typeof v>): number;
+  pick(c: number, covered: number, texels: ReturnType<typeof vec>): number;
 };
-
-/** A rule text as JavaScript: functions and declarations stripped of their types, integer
- *  conversions truncating, shifts unsigned; `binOf` reads the histogram given. */
-function evaluate(source: string, histogram: () => number[]): Rule {
-  // A parameter's name: first in WGSL (`a:u32`), last in GLSL (`uint a`).
-  const params = (list: string) =>
-    list.split(',').map((param) => param.trim().split(/[\s:]+/)[param.includes(':') ? 0 : 1]);
-  const header = (_: string, name: string, list: string) => `function ${name}(${params(list)}){`;
-  const js = source
-    .replace(/fn (\w+)\(([^)]*)\)->\w+\{/g, header)
-    .replace(/^(?:uint|uvec2|bool) (\w+)\(([^)]*)\)\{/gm, header)
-    .replace(/\b(?:let|var|uint|uvec2|uvec4|bool) (\w+)=/g, 'let $1=')
-    .replace(/\b(?:vec2u|vec4u|uvec2|uvec4)\(/g, 'v(')
-    .replace(/\b(?:u32|uint)\(/g, 'Math.trunc(')
-    .replace(/\b(min|max|round)\(/g, 'Math.$1(')
-    .replace(/\b(0x[\da-f]+|\d+)u\b/g, '$1')
-    .replace(/>>/g, '>>>');
-  const select = (no: unknown, yes: unknown, when: boolean) => (when ? yes : no);
-  const binOf = (t: number) => histogram()[t];
-  return new Function('v', 'select', 'binOf', `${js};return {scaled,wide,pick};`)(v, select, binOf);
-}
 
 const languages = {
   WGSL: COVERAGE_SCALE_WGSL + COVERAGE_PICK_WGSL,
@@ -63,14 +38,16 @@ const languages = {
 for (const [language, source] of Object.entries(languages))
   test(`the ${language} pick of t and scale are the compiler's, on its table`, () => {
     let histogram: number[] = [];
-    const rule = evaluate(source, () => histogram);
+    const rule = shaderFunctions<Rule>(source, NAMES, {
+      binOf: (t: number) => histogram[t],
+    });
     for (const row of table.cases) {
       const [[cutoff], level0, level, [t], scaled] = row
         .split('|')
         .map((part) => part.trim().split(' ').map(Number));
       histogram = Array.from({ length: 256 }, (_, byte) => level.filter((a) => a === byte).length);
       const covered = level0.filter((a) => a >= cutoff).length;
-      const picked = rule.pick(cutoff, covered, v(level0.length, level.length));
+      const picked = rule.pick(cutoff, covered, vec(level0.length, level.length));
       assert.equal(picked, t, row);
       assert.deepEqual(
         level.map((a) => rule.scaled(a, cutoff, t)),
