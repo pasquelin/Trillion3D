@@ -83,8 +83,13 @@ test('The lamp and rectangle branches of both languages call the one model alike
     CLUSTER_FRAGMENT,
     /if\(bandedModel\(\)\)\{direct\+=modelLight\([^;]+;continue;\}vec3 E=/,
   );
-  // A matcap reads its base map at the view normal; a normal surface shows it, after the fog.
-  assert.ok(CLUSTER_FRAGMENT.includes(`surfaceModel==${matcap}?matcapUv(surfaceNormal)`));
+  // A matcap reads its base map at the view normal, at its finest level as the surface pass does
+  // (zero gradients); a normal surface shows it, after the fog.
+  assert.ok(
+    CLUSTER_FRAGMENT.includes(
+      `surfaceModel==${matcap}?textureLod(baseMap,mapUv(baseUv,matcapUv(surfaceNormal)),0.0):`,
+    ),
+  );
   const fogAt = CLUSTER_FRAGMENT.indexOf('rgb=fogged(rgb);');
   assert.ok(fogAt < CLUSTER_FRAGMENT.indexOf(`if(surfaceModel==${shown})rgb=N*0.5+0.5;`));
 });
