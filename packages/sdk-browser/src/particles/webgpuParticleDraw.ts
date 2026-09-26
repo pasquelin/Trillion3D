@@ -49,12 +49,7 @@ const KEPT: Record<ParticleBlend, GPUBlendFactor> = {
   premultiplied: 'one-minus-src-alpha',
 };
 
-type DrawState = {
-  words: GPUBuffer;
-  group?: GPUBindGroup;
-  state?: GPUBuffer;
-  depth?: GPUTextureView;
-};
+type DrawState = { words: GPUBuffer; group?: GPUBindGroup; state?: GPUBuffer; depth?: object };
 
 /** The WebGPU particle draw: one pass over the lit image, one instanced draw per live pool
  *  (`drawOrder`), reading the step's buffer (`stateOf`) and the opaque depth, which the soft edge
