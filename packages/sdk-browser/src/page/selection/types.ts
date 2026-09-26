@@ -125,9 +125,10 @@ export type ClusterRoot<T> = {
   stretchKey?: Float64Array;
   structure?: ClusterStructureIndex;
   /** What the root declares of its normal cones, once and for all at prepare time: `false` says
-   *  none of its pages carry one, and the cut then stops reading `cone` per cluster. Absent or
-   *  `true`, the cut tests every page as before. Whoever sets a cone on a page sets this flag on
-   *  its root: that is the only contract that makes the omission visible. */
+   *  the cut reads none of its pages' cones — they may carry the cooked one (`collect.ts`) — and
+   *  then stops reading `cone` per cluster. Absent or `true`, the cut tests every page as before.
+   *  Whoever posts a cone for the cut sets this flag on its root: that is the only contract that
+   *  makes the omission visible. */
   cones?: boolean;
   /** What the root declares of its pages' boxes, once and for all at prepare time: `true` says
    *  each carries `min` and `max`, and the cut then stops checking them per cluster under a node
@@ -141,10 +142,10 @@ export type ClusterRoot<T> = {
   parked?: boolean;
   /** True while the host hides the source node or one of its ancestors (`placement/hidden.ts`). */
   hidden?: boolean;
-  /** Its surface's sprite mark (`spriteMark`), absent on any other surface: `SPRITE_ROOT` keeps it
-   *  out of every light cut and of the shadow scene box, `SPRITE_UNCULLED` opens it to every camera
-   *  cut. Set once at collection. */
-  sprite?: number;
+  /** Its mark, absent when 0: its surface's sprite bits (`spriteMark`), set at collection, and
+   *  `SHADOWLESS_ROOT` while its mesh or row casts no shadow (`followPlacementRows`,
+   *  `followHostVisibility`). */
+  mark?: number;
   /** The instance-buffer row this root reads its world from, when it was collected from one. */
   placement?: PlacementOf;
 };

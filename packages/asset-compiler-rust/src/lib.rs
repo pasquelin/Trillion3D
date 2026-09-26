@@ -10,6 +10,7 @@ mod geometry_page_quant;
 pub mod import;
 mod join;
 mod manifest_binary;
+mod normal_cone;
 #[cfg(any(test, feature = "oracle"))]
 pub mod oracle;
 mod perf;

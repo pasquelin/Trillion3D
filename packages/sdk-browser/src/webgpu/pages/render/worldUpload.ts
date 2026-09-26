@@ -3,6 +3,7 @@ import { rootWorldsToRenderOrigin } from '../../../gpu/dag/pack.ts';
 import { invalidateOccluderHistory } from '../io/drops.ts';
 import type { EngineCamera } from '../../../camera/world.ts';
 import { followHostVisibility } from '../../../placement/hidden.ts';
+import { flipWorld } from '../../../placement/webgpuPlacements.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 
 /**
@@ -18,12 +19,13 @@ export function uploadWorlds(rt: WebgpuPagesRuntime, cam: EngineCamera) {
     { selectionRoots, worldUpdates, rows } = rt.layout;
   const hostWalked = run.gate.updateWorlds(rt.setup.worlds);
   // A node the host hid or showed parks its roots and hides its blend items, or takes them back,
-  // in every cut; the shadow pages its roots covered are drawn again, static casters included.
+  // in every cut, and one set to cast or not leaves or enters every light cut; the shadow pages its
+  // roots covered are drawn again, static casters included.
   if (hostWalked) {
     const flipped = followHostVisibility(
       selectionRoots,
       { entries: rt.blendState.blendGpu, sourceOf: (item) => item.sourceMesh },
-      (rank, parked) => run.gpuSelection?.parkWorld(rank, parked),
+      flipWorld(rt),
     );
     if (flipped) rt.lights.plan.worldChanged(flipped.min, flipped.max);
   }

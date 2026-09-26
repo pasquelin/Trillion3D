@@ -24,6 +24,7 @@ const WRITES: Array<{
   verdict?: WatchVerdict;
 }> = [
   { name: 'visible', node: 'mesh', write: ({ mesh }) => void (mesh.visible = false) },
+  { name: 'castShadow', node: 'mesh', write: ({ mesh }) => void (mesh.castShadow = false) },
   {
     name: 'matrixAutoUpdate',
     node: 'mesh',
