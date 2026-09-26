@@ -67,6 +67,9 @@ pub(super) fn unwrap(raw: &[u8], ceiling: usize) -> Result<Cow<'_, [u8]>> {
         ));
     }
     within(out.len(), ceiling)?;
+    // Decoding doubles the buffer as it grows: returned to its length, a file that unpacks to just
+    // past half the budget does not hold the whole of it.
+    out.shrink_to_fit();
     Ok(Cow::Owned(out))
 }
 
