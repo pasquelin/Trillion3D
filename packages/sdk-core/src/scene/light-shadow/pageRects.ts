@@ -33,14 +33,28 @@ export function createPageRects() {
   let faces = 0,
     near = 0;
 
-  /** Writes view `view`'s rectangle; returns the pages it covers. */
-  function setRect(view: number, x0: number, x1: number, y0: number, y1: number) {
+  /**
+   * Writes view `view`'s rectangle: the pages of `[x0, x0 + pages) × [y0, y0 + pages)` that meet
+   * `[u0, u1] × [v0, v1]`, in pages, edges included. Returns the pages it covers.
+   */
+  function setRect(
+    view: number,
+    u0: number,
+    u1: number,
+    v0: number,
+    v1: number,
+    x0: number,
+    y0: number,
+    pages: number,
+  ) {
     const r = view * 4;
-    rects[r] = x0;
-    rects[r + 1] = x1;
-    rects[r + 2] = y0;
-    rects[r + 3] = y1;
-    return x0 > x1 || y0 > y1 ? 0 : (x1 - x0 + 1) * (y1 - y0 + 1);
+    rects[r] = Math.max(x0, Math.ceil(u0) - 1);
+    rects[r + 1] = Math.min(x0 + pages - 1, Math.floor(u1));
+    rects[r + 2] = Math.max(y0, Math.ceil(v0) - 1);
+    rects[r + 3] = Math.min(y0 + pages - 1, Math.floor(v1));
+    const columns = rects[r + 1] - rects[r] + 1,
+      rows = rects[r + 3] - rects[r + 2] + 1;
+    return columns > 0 && rows > 0 ? columns * rows : 0;
   }
 
   /** The pages of every clipmap level the box covers, within the level's extent: a page meets the
@@ -50,15 +64,16 @@ export function createPageRects() {
     let covered = 0;
     for (let view = 0; view < SUN_LEVELS; view++) {
       const level = sun.finest[slice] + view,
-        metres = sunPageMetres(level),
-        ox = sun.originOf(slice, level, 0),
-        oy = sun.originOf(slice, level, 1);
+        metres = sunPageMetres(level);
       covered += setRect(
         view,
-        Math.max(ox, Math.ceil(plane[0] / metres) - 1),
-        Math.min(ox + SUN_WINDOW - 1, Math.floor(plane[1] / metres)),
-        Math.max(oy, Math.ceil(plane[2] / metres) - 1),
-        Math.min(oy + SUN_WINDOW - 1, Math.floor(plane[3] / metres)),
+        plane[0] / metres,
+        plane[1] / metres,
+        plane[2] / metres,
+        plane[3] / metres,
+        sun.originOf(slice, level, 0),
+        sun.originOf(slice, level, 1),
+        SUN_WINDOW,
       );
     }
     return covered;
@@ -73,20 +88,45 @@ export function createPageRects() {
   function faceRects(face: number, min: ArrayLike<number>, max: ArrayLike<number>) {
     const b = face * 16,
       m = matrices;
+    let bounded = true;
     for (let corner = 0; corner < 8; corner++) {
       const x = corner & 1 ? max[0] : min[0],
         y = corner & 2 ? max[1] : min[1],
-        z = corner & 4 ? max[2] : min[2];
-      clip[corner * 3] = m[b] * x + m[b + 4] * y + m[b + 8] * z + m[b + 12];
-      clip[corner * 3 + 1] = m[b + 1] * x + m[b + 5] * y + m[b + 9] * z + m[b + 13];
-      clip[corner * 3 + 2] = m[b + 3] * x + m[b + 7] * y + m[b + 11] * z + m[b + 15];
+        z = corner & 4 ? max[2] : min[2],
+        c = corner * 3;
+      clip[c] = m[b] * x + m[b + 4] * y + m[b + 8] * z + m[b + 12];
+      clip[c + 1] = m[b + 1] * x + m[b + 5] * y + m[b + 9] * z + m[b + 13];
+      clip[c + 2] = m[b + 3] * x + m[b + 7] * y + m[b + 11] * z + m[b + 15];
+      bounded &&= Number.isFinite(clip[c] + clip[c + 1] + clip[c + 2]);
     }
+    // A box that bounds nothing finite projects nowhere: it covers the whole face, never none.
+    if (bounded) clipToNear();
+    else plane.set(FULL_FACE);
+    let covered = 0;
+    for (let mip = 0; mip < LAMP_MIPS; mip++) {
+      // Columns grow with u, rows downward: page `(x, y)` spans `u ∈ [2x/n − 1, 2(x+1)/n − 1]`.
+      const n = lampPagesAt(mip),
+        half = n / 2;
+      covered += setRect(
+        face * LAMP_MIPS + mip,
+        (plane[0] + 1) * half,
+        (plane[1] + 1) * half,
+        (1 - plane[3]) * half,
+        (1 - plane[2]) * half,
+        0,
+        0,
+        n,
+      );
+    }
+    return covered;
+  }
+
+  /** The face rectangle of the clip-space box: its corners in front of the near plane, and the
+   *  points where its edges cross it. */
+  function clipToNear() {
     plane[0] = plane[2] = Infinity;
     plane[1] = plane[3] = -Infinity;
-    // A box that bounds nothing finite projects nowhere: it covers the whole face, never none.
-    const bounded = clip.every(Number.isFinite);
-    if (!bounded) plane.set(FULL_FACE);
-    for (let corner = 0; bounded && corner < 8; corner++) {
+    for (let corner = 0; corner < 8; corner++) {
       const c = corner * 3,
         w = clip[c + 2];
       if (w >= near) include(clip[c] / w, clip[c + 1] / w);
@@ -102,20 +142,6 @@ export function createPageRects() {
         );
       }
     }
-    let covered = 0;
-    for (let mip = 0; mip < LAMP_MIPS; mip++) {
-      // Columns grow with u, rows downward: page `(x, y)` spans `u ∈ [2x/n − 1, 2(x+1)/n − 1]`.
-      const n = lampPagesAt(mip),
-        half = n / 2;
-      covered += setRect(
-        face * LAMP_MIPS + mip,
-        Math.max(0, Math.ceil((plane[0] + 1) * half) - 1),
-        Math.min(n - 1, Math.floor((plane[1] + 1) * half)),
-        Math.max(0, Math.ceil((1 - plane[3]) * half) - 1),
-        Math.min(n - 1, Math.floor((1 - plane[2]) * half)),
-      );
-    }
-    return covered;
   }
 
   /** Grows the face rectangle to hold normalised point `(u, v)`. */

@@ -35,8 +35,9 @@ const ORIGIN = [0, 0, 0] as const;
  *   floor the frame cannot draw reads no shadow.
  * - **An object moved within its reach**: in each light view — a sun level, a lamp face at a
  *   mip —, the rectangle of pages its box covers, read through the page table: the work is the
- *   pages covered, never the pool. The boxes covering more pages than the pool holds join one,
- *   which scans the pool once: never more than the pool. A static caster that moved makes the
+ *   pages covered, never the pool. Once a light's boxes cover more entries than the pool holds
+ *   pages, the rest join one box that scans the pool once: a light's work stays within twice the
+ *   pool. A static caster that moved makes the
  *   static layer of those pages wrong: they are read no more until redrawn. An object already
  *   moving stales only their moving casters: the static layer under them holds, and they stay
  *   read. With per-page invalidation off, every page of each light the box touches.
@@ -53,51 +54,50 @@ export function createPageInvalidation(
   counts: Counts,
 ) {
   const { rects, sunRects, lampFaces, lampRects } = createPageRects();
-  /** The union of a light's boxes that each cover more pages than the pool: scanned once. */
-  const large = new Float64Array(6),
-    largeMin = large.subarray(0, 3),
-    largeMax = large.subarray(3, 6);
-  let nowMs = 0,
+  /** The union of a light's boxes past its walk budget: scanned once. */
+  const rest = new Float64Array(6),
+    restMin = rest.subarray(0, 3),
+    restMax = rest.subarray(3, 6);
+  /** The light being invalidated — its slice, its kind, its views — and the frame's stamp. */
+  let slice = 0,
+    sunLight = false,
+    views = 0,
+    nowMs = 0,
     frame = 0;
   const mark = (page: number, level: number, wrong: boolean) => {
     if (pool.stale(page, nowMs, frame, level)) counts.invalidatedPages++;
     if (wrong) pool.withdraw(table, page);
   };
-  const within = (views: number, view: number, x: number, y: number) =>
+  const within = (view: number, x: number, y: number) =>
     view >= 0 &&
     view < views &&
     x >= rects[view * 4] &&
     x <= rects[view * 4 + 1] &&
     y >= rects[view * 4 + 2] &&
     y <= rects[view * 4 + 3];
-  /** Every page of `slice`, or, `covered`, those the rectangles of its `views` hold. */
-  const scan = (
-    slice: number,
-    sunLight: boolean,
-    views: number,
-    covered: boolean,
-    level: number,
-    wrong: boolean,
-  ) => {
+  /** Every page of the light, or, `covered`, those the rectangles hold. */
+  const scan = (covered: boolean, level: number, wrong: boolean) => {
     counts.visitedPages += pool.pages;
     for (let page = 0; page < pool.pages; page++) {
       if (pool.owner[page] < 0 || pool.slice[page] !== slice) continue;
       const key = pool.view[page],
         view = sunLight ? key - sun.finest[slice] : (key >> 4) * LAMP_MIPS + (key & 15);
-      if (!covered || within(views, view, pool.x[page], pool.y[page])) mark(page, level, wrong);
+      if (!covered || within(view, pool.x[page], pool.y[page])) mark(page, level, wrong);
     }
   };
   /** The table entries the rectangles hold: a mapped one names its page. */
-  const walk = (slice: number, sunLight: boolean, views: number, level: number, wrong: boolean) => {
-    const base = table.baseOf(slice);
+  const walk = (level: number, wrong: boolean) => {
+    const base = table.baseOf(slice),
+      finest = sun.finest[slice];
     for (let view = 0; view < views; view++) {
-      const r = view * 4,
-        face = Math.floor(view / LAMP_MIPS),
-        mip = view % LAMP_MIPS,
-        sunLevel = sun.finest[slice] + view;
+      const r = view * 4;
       for (let y = rects[r + 2]; y <= rects[r + 3]; y++) {
         // A sun row is a ring of the extent, a lamp row a run of its mip.
-        const row = base + (sunLight ? sunEntry(sunLevel, 0, y) : lampEntry(face, mip, 0, y));
+        const row =
+          base +
+          (sunLight
+            ? sunEntry(finest + view, 0, y)
+            : lampEntry(Math.floor(view / LAMP_MIPS), view % LAMP_MIPS, 0, y));
         for (let x = rects[r]; x <= rects[r + 1]; x++) {
           counts.visitedPages++;
           const word = table.words[row + (sunLight ? ringOf(x, SUN_WINDOW) : x)];
@@ -108,58 +108,55 @@ export function createPageInvalidation(
   };
   return (
     light: SceneLight,
-    slice: number,
+    lightSlice: number,
     whole: boolean,
     byPage: boolean,
     now: number,
     at: number,
   ) => {
-    const sunLight = light.kind === 'directional',
-      views = sunLight ? SUN_LEVELS : lampFacesOf(LIGHT_KIND[light.kind]) * LAMP_MIPS,
-      range = sunLight ? 0 : (light.range ?? 0),
-      [x, y, z] = light.position ?? ORIGIN;
+    slice = lightSlice;
+    sunLight = light.kind === 'directional';
+    views = sunLight ? SUN_LEVELS : lampFacesOf(LIGHT_KIND[light.kind]) * LAMP_MIPS;
     nowMs = now;
     frame = at;
     if (whole) {
-      scan(slice, sunLight, views, false, STALE_FULL, true);
+      scan(false, STALE_FULL, true);
       return;
     }
+    const range = sunLight ? 0 : (light.range ?? 0),
+      position = light.position ?? ORIGIN;
     if (!sunLight && byPage && changes.count) lampFaces(light);
-    // Per-page invalidation off: every box that touches stales the same pages, so one scan at
-    // the strongest level, withdrawing when any box is wrong, does what one scan a box would.
-    // Boxes that each cover more than the pool join one box, scanned once at the end: the light's
-    // work is the pages its other boxes cover, and one pool at most.
-    let every = 0,
-      everyWrong = false,
-      largeLevel = 0,
-      largeWrong = false;
-    boxEmpty(large, 0);
+    // With per-page invalidation on, each box walks the table entries it covers while the light's
+    // walks stay within the pool's pages; the boxes past that join one, scanned once at the end.
+    // Off, every box that touches stales every page: one scan at the strongest level, withdrawing
+    // when any box is wrong, does what one scan a box would.
+    let budget = pool.pages,
+      level = 0,
+      wrong = false;
+    boxEmpty(rest, 0);
     for (let box = 0; box < changes.count; box++) {
-      if (!changes.touches(box, x, y, z, range)) continue;
+      if (!changes.touches(box, position[0], position[1], position[2], range)) continue;
       const moved = changes.read(box),
-        level = moved.moving ? STALE_DYNAMIC : STALE_FULL,
-        wrong = !moved.detail && !moved.moving;
-      if (!byPage) {
-        every = Math.max(every, level);
-        everyWrong ||= wrong;
-        continue;
+        boxLevel = moved.moving ? STALE_DYNAMIC : STALE_FULL,
+        boxWrong = !moved.detail && !moved.moving;
+      if (byPage) {
+        const covered = sunLight
+          ? sunRects(sun, slice, moved.min, moved.max)
+          : lampRects(moved.min, moved.max);
+        if (covered <= budget) {
+          budget -= covered;
+          walk(boxLevel, boxWrong);
+          continue;
+        }
+        const { min, max } = moved;
+        boxUnion(rest, 0, min[0], min[1], min[2], max[0], max[1], max[2]);
       }
-      const covered = sunLight
-        ? sunRects(sun, slice, moved.min, moved.max)
-        : lampRects(moved.min, moved.max);
-      if (covered <= pool.pages) {
-        walk(slice, sunLight, views, level, wrong);
-        continue;
-      }
-      const { min, max } = moved;
-      boxUnion(large, 0, min[0], min[1], min[2], max[0], max[1], max[2]);
-      largeLevel = Math.max(largeLevel, level);
-      largeWrong ||= wrong;
+      level = Math.max(level, boxLevel);
+      wrong ||= boxWrong;
     }
-    if (every) scan(slice, sunLight, views, false, every, everyWrong);
-    if (!largeLevel) return;
-    if (sunLight) sunRects(sun, slice, largeMin, largeMax);
-    else lampRects(largeMin, largeMax);
-    scan(slice, sunLight, views, true, largeLevel, largeWrong);
+    if (!level) return;
+    if (byPage && sunLight) sunRects(sun, slice, restMin, restMax);
+    else if (byPage) lampRects(restMin, restMax);
+    scan(byPage, level, wrong);
   };
 }

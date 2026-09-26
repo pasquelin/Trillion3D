@@ -26,7 +26,13 @@ export const SUN: SceneLight = {
 };
 
 /** A point lamp three units up that casts. */
-const LAMP: SceneLight = { ...SUN, id: 'lamp', kind: 'point', position: [0, 3, 0], range: 20 };
+export const LAMP: SceneLight = {
+  ...SUN,
+  id: 'lamp',
+  kind: 'point',
+  position: [0, 3, 0],
+  range: 20,
+};
 
 const SCENE_MIN = [-50, 0, -50],
   SCENE_MAX = [50, 10, 50];

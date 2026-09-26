@@ -3,15 +3,12 @@
 // the pool. The shape is the walker's: small balls far apart around a point lamp, under a sun.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import type { SceneLight } from '../light/contracts.ts';
 import { createSceneLightStore } from '../light/store.ts';
 import { createShadowChanges } from './changes.ts';
 import { writeFace } from './faces.ts';
 import { createShadowPlan, type ShadowPlan } from './plan.ts';
-import { LAMP_MIPS, lampEntry, lampPagesAt } from './virtual.ts';
-import { SUN, cycle, planFrame, sunPages } from './lightShadow.fixture.ts';
-
-const LAMP: SceneLight = { ...SUN, id: 'lamp', kind: 'point', position: [0, 3, 0], range: 20 };
+import { LAMP_MIPS, lampPagesAt } from './virtual.ts';
+import { LAMP, SUN, cycle, lampPages, planFrame, sunPages } from './lightShadow.fixture.ts';
 /** Twenty-six balls of half a metre on a ring of eight metres round the lamp. */
 const BALLS = Array.from({ length: 26 }, (_, i) => {
   const x = 8 * Math.cos((2 * Math.PI * i) / 26),
@@ -27,13 +24,10 @@ function settled(side: number) {
   store.add(LAMP);
   store.add(SUN);
   planFrame(plan, store, 0);
-  const lamp = plan.table.baseOf(store.sliceOf(0)),
-    sun = store.sliceOf(1),
+  const sun = store.sliceOf(1),
     read: number[] = [];
   for (let face = 0; face < 6; face++)
-    for (const mip of [2, 4])
-      for (let y = 0; y < lampPagesAt(mip); y++)
-        for (let x = 0; x < lampPagesAt(mip); x++) read.push(lamp + lampEntry(face, mip, x, y));
+    for (const mip of [2, 4]) read.push(...lampPages(plan, store.sliceOf(0), face, mip));
   const grid = Array.from({ length: 144 }, (_, i) => [(i % 12) - 6, Math.floor(i / 12) - 6]);
   read.push(...sunPages(plan, sun, plan.sun.finest[sun] + 7, grid));
   let frame = 1;
@@ -79,7 +73,7 @@ function landedPages(min: number[], max: number[]) {
     steps = 12;
   for (let face = 0; face < 6; face++) {
     writeFace(matrix, 0, null, 0, LAMP, face);
-    for (let i = 0; i <= steps ** 3 + steps ** 2 + steps; i++) {
+    for (let i = 0; i < (steps + 1) ** 3; i++) {
       const p = [
         i % (steps + 1),
         Math.floor(i / (steps + 1)) % (steps + 1),
@@ -142,8 +136,7 @@ test('a spot stales only what lies in front of it: a mover behind or beside its 
     plan = createShadowPlan(32);
   store.add({ ...LAMP, kind: 'spot', direction: [0, -1, 0], coneAngle: 0.6 });
   planFrame(plan, store, 0);
-  const base = plan.table.baseOf(store.sliceOf(0)),
-    read = Array.from({ length: 64 }, (_, i) => base + lampEntry(0, 2, i % 8, i >> 3));
+  const read = lampPages(plan, store.sliceOf(0), 0, 2);
   let frame = 1;
   for (; frame < 4; frame++) cycle(plan, store, frame, () => read);
   // Above the lamp, and across its plane two metres aside: no caster there reaches its cone.
