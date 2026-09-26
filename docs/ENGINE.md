@@ -86,8 +86,9 @@ adapter: a live `resize(slots)` that keeps what fits, pins, serialized loads, a 
 buffer and eviction without a device-wide queue fence. `dispose()` aborts in-flight reads and waits
 for submitted work. It reports allocation accounting, bytes read and uploaded and evictions; it does
 not measure physical VRAM. `httpPageSource(baseUrl)` reads its pages by key over HTTP with the
-engine's one loader, one request per read — the cache asks a failed read once more itself — and
-refuses a failed one with `RESOURCE_HTTP_ERROR`, whose `details.status` the read diagnostics carry.
+engine's one loader, one request per read — the cache asks a failed read once more itself, but
+for a refusal another request would meet again (a 4xx) — and refuses a failed one with
+`RESOURCE_HTTP_ERROR`, whose `details.status` the read diagnostics carry.
 
 `webgpuPagesBackend` (`webgpu-page-raster`) consumes that cache. For opaque pages, a compute pass
 selects the camera's drawable resident cut — frustum, `lodScore` and conservative backface cones —
