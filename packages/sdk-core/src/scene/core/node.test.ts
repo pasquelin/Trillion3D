@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { SCENE_MODEL_VERSION, type SceneNode } from './node.ts';
 import { createSceneRoot } from './root.ts';
+import { assertClose } from './nodeAttach.fixture.ts';
 
 const hasCode = (code: string) => (error: unknown) => (error as { code?: string }).code === code;
 
@@ -150,9 +151,6 @@ test('adding children copies nothing: the frozen list is made once, when it is r
   assert.equal(parent.children.length, 1000);
   assert.equal(parent.children, parent.children, 'the list is kept until the next change');
 });
-
-const assertClose = (actual: ArrayLike<number>, expected: ArrayLike<number>) =>
-  Array.from(expected, (value, i) => assert.ok(Math.abs(actual[i] - value) < 1e-12, `[${i}]`));
 
 test('attach moves a child under another parent where it stands in the world', () => {
   const root = createSceneRoot();
