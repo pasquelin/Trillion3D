@@ -4,7 +4,7 @@
 // no path is hardcoded here, and a machine without Chrome installed receives Playwright's error,
 // which names what is missing. The system Chrome is launched, never Playwright's Chromium:
 // measurements and proofs run on the browser used by end users.
-import { realpathSync } from 'node:fs';
+import { realpathSync, writeSync } from 'node:fs';
 import { relative, sep } from 'node:path';
 import { chromium } from 'playwright';
 import type { LaunchOptions } from 'playwright';
@@ -46,12 +46,22 @@ export function assertBrowserEntryPoint(entry = process.argv[1]) {
   );
 }
 
+/** Set on the proof import test's children: a refused launch ends the process there, so no proof
+ *  runs its work past the refusal. */
+export const EXIT_ON_REFUSAL = 'TRILLION3D_EXIT_ON_CHROME_REFUSAL';
+
 /**
  * Launches system Chrome. `options` are those of `chromium.launch` — `headless`, `args` —,
  * with the channel set here and nowhere else. Refused unless a proof, bench or script run is the
  * entry point (`assertBrowserEntryPoint`).
  */
 export async function launchChrome(options: LaunchOptions = {}) {
-  assertBrowserEntryPoint();
+  try {
+    assertBrowserEntryPoint();
+  } catch (error) {
+    if (!process.env[EXIT_ON_REFUSAL]) throw error;
+    writeSync(2, `${(error as Error).message}\n`);
+    process.exit(0);
+  }
   return chromium.launch({ channel: 'chrome', ...options });
 }

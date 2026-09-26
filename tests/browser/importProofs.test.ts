@@ -1,15 +1,19 @@
 // Every file of the two proof folders, imported by Node, opens no browser (AGENTS.md rule 2): the
 // one launcher refuses (`bench/runner/chrome.ts`). Each file is imported in a child process whose
-// entry point is this test, so a proof's CPU work, exit code and `test()` calls stay there; the
+// entry point is this test, so a proof's work, exit code and `test()` calls stay there; the
 // child replaces Playwright's launch, so a broken guard fails here instead of opening Chrome.
+// The child ends at the refusal, and writes its outputs and temporary files only in this run's
+// scratch folder: a measurement running in the same checkout keeps every file it writes.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readdirSync, rmSync, writeSync } from 'node:fs';
 import { availableParallelism } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { chromium } from 'playwright';
+import { MEASURE_OUT } from '../../bench/core/paths.ts';
+import { EXIT_ON_REFUSAL } from '../../bench/runner/chrome.ts';
 import { BROWSER, JUSTESSE, RACINE } from './test-gpu.ts';
 
 const TARGET = 'TRILLION3D_IMPORT_PROOF',
@@ -45,14 +49,16 @@ async function importOne(file: string) {
   );
 }
 
-/** Every path under `root`. */
-const pathsUnder = (root: string) =>
-  new Set(readdirSync(root, { recursive: true, encoding: 'utf8' }));
-
 function importInChild(file: string, scratch: string) {
   // The child runs on its own, not as a test runner's child speaking its protocol on stdout.
   const { NODE_TEST_CONTEXT: _runner, ...inherited } = process.env;
-  const env = { ...inherited, [TARGET]: file, TMPDIR: scratch };
+  const env = {
+    ...inherited,
+    [TARGET]: file,
+    [EXIT_ON_REFUSAL]: '1',
+    [MEASURE_OUT]: join(scratch, 'out'),
+    TMPDIR: scratch,
+  };
   const args = ['--experimental-strip-types', fileURLToPath(import.meta.url)];
   return new Promise<string>((done) =>
     execFile(process.execPath, args, { env, maxBuffer: 1 << 26 }, (_error, out, err) =>
@@ -68,7 +74,9 @@ async function importAll(files: string[], scratch: string) {
     for (let file = queue.shift(); file; file = queue.shift())
       outputs.set(file, await importInChild(file, scratch));
   };
-  await Promise.all(Array.from({ length: availableParallelism() }, worker));
+  // A few children at a time: the test shares the machine with the other sessions' runs.
+  const children = Math.min(4, Math.max(1, availableParallelism() >> 1));
+  await Promise.all(Array.from({ length: children }, worker));
   return outputs;
 }
 
@@ -80,12 +88,7 @@ else
         .filter((name) => name.endsWith('.ts'))
         .map((name) => join(RACINE, folder, name)),
     );
-    // A proof may prepare its outputs, or a temporary folder, before it asks for Chrome: the
-    // temporary ones land in a scratch folder, and what appeared in the outputs is removed after.
-    const measure = join(RACINE, '.mesure'),
-      out = join(measure, 'out');
-    const before = existsSync(out) ? pathsUnder(out) : null,
-      created = existsSync(measure) ? out : measure;
+    // A proof may prepare its outputs, or a temporary folder, before it asks for Chrome.
     const logs = join(RACINE, '.worktrees', 'logs');
     mkdirSync(logs, { recursive: true });
     const scratch = mkdtempSync(join(logs, 'import-proofs-'));
@@ -102,9 +105,5 @@ else
       }
     } finally {
       rmSync(scratch, { recursive: true, force: true });
-      if (!before) rmSync(created, { recursive: true, force: true });
-      else
-        for (const path of pathsUnder(out))
-          if (!before.has(path)) rmSync(join(out, path), { recursive: true, force: true });
     }
   });
