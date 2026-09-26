@@ -1,13 +1,29 @@
 // A blank page served from this repository in system Chrome — the harness mounts, `dist/`,
 // `tests/`, `scripts/` and the engine sources the page modules import by relative path —, for a proof or a
-// fixture that imports its module in the page and runs it there. Nothing outside the repository
-// is read; the browser and the server are closed whatever `use` does.
+// fixture that imports its module in the page and runs it there. An engine source the build emits
+// resolves to its emitted file (`engineInDist`): the page runs one engine, the one under `dist/`.
+// Nothing outside the repository is read; the browser and the server are closed whatever `use` does.
 import assert from 'node:assert/strict';
 import { resolve } from 'node:path';
 import type { Page } from 'playwright';
 import { launchChrome } from '../../../bench/runner/chrome.ts';
 import { resolveMounts } from '../../../bench/runner/options.ts';
 import { startServer } from './staticServer.ts';
+import { engineInDist } from '../../../scripts/engine-in-dist.ts';
+
+/** The server of a repository page: the harness mounts, `dist/`, `tests/`, `scripts/` and
+ *  `packages/`, its import map sending the engine's sources to `dist/`. */
+export const repoServer = (root: string) =>
+  startServer({
+    mounts: [
+      ...resolveMounts(root, []),
+      { prefix: '/dist/', dir: resolve(root, 'dist') },
+      { prefix: '/tests/', dir: resolve(root, 'tests') },
+      { prefix: '/scripts/', dir: resolve(root, 'scripts') },
+      { prefix: '/packages/', dir: resolve(root, 'packages') },
+    ],
+    imports: engineInDist(root),
+  });
 
 /** Runs `use` on the page and returns what it returned; fails when the page threw, since a
  *  reading taken past an error is none. */
@@ -16,14 +32,7 @@ export async function withRepoPage<T>(
   headless: boolean,
   use: (page: Page) => Promise<T>,
 ): Promise<T> {
-  const mounts = [
-    ...resolveMounts(root, []),
-    { prefix: '/dist/', dir: resolve(root, 'dist') },
-    { prefix: '/tests/', dir: resolve(root, 'tests') },
-    { prefix: '/scripts/', dir: resolve(root, 'scripts') },
-    { prefix: '/packages/', dir: resolve(root, 'packages') },
-  ];
-  const { server, port } = await startServer({ mounts });
+  const { server, port } = await repoServer(root);
   const browser = await launchChrome({ headless }).catch((error: unknown) => {
     server.close();
     throw error;
