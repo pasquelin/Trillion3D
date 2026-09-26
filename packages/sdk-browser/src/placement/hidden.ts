@@ -1,7 +1,7 @@
 import { BOX_VALUES, boxEmpty, boxIsEmpty, boxUnionBatch } from '../../../sdk-core/src/index.ts';
 import type { ClusterRoot } from '../page/selection/types.ts';
 import { rowParked, type PlacementOf } from './rows.ts';
-import { withShadowless } from '../visibility/shader/spriteWgsl.ts';
+import { markShadowless } from '../visibility/shader/spriteWgsl.ts';
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
 
 /** A see-through draw — a WebGPU blend item, a WebGL2 blended copy — as visibility reads it:
@@ -53,9 +53,8 @@ const moved = new Float64Array(BOX_VALUES),
  * row is — every cut, the light cuts included, skips it, its tables stay —, and taken back once
  * shown again, unless its row is parked. A root placed at its own node's world casts as its mesh
  * says (`castShadow`, its shadowless bit); a row says for its own (`followPlacementRows`). `flip`
- * hears the rank of each root that flipped. A
- * see-through draw of a hidden node takes `hidden`, which its selection reads (`notDrawn`), and
- * `seeThrough.flipped` hears it. Read once per scene revision, never per frame. Returns the box
+ * hears the rank of each root that flipped. A see-through draw of a hidden node takes `hidden`,
+ * which its selection reads (`notDrawn`), and `seeThrough.flipped` hears it. Read once per scene revision, never per frame. Returns the box
  * of the roots that flipped, where the shadow pages must be drawn again, or `null`.
  */
 export function followHostVisibility<T extends { sourceMesh?: Object3D }, S extends SeeThrough>(
@@ -82,10 +81,7 @@ export function followHostVisibility<T extends { sourceMesh?: Object3D }, S exte
   for (let rank = 0; rank < roots.length; rank++) {
     const root = roots[rank],
       source = root.pages[0]?.sourceMesh;
-    if (root.placement || !source) continue;
-    const mark = withShadowless(root.mark ?? 0, !source.castShadow);
-    if (mark === (root.mark ?? 0)) continue;
-    root.mark = mark || undefined;
+    if (root.placement || !source || !markShadowless(root, !source.castShadow)) continue;
     flip?.(rank, root);
     if (root.worldBox && !root.parked) boxUnionBatch(moved, root.worldBox, 1);
   }
