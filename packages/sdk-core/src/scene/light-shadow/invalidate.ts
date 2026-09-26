@@ -1,3 +1,4 @@
+import { boxEmpty, boxUnion } from '../../math/primitives/box.ts';
 import { LIGHT_KIND, type SceneLight } from '../light/contracts.ts';
 import type { createShadowChanges } from './changes.ts';
 import type { createShadowCounts } from './counts.ts';
@@ -34,11 +35,11 @@ const ORIGIN = [0, 0, 0] as const;
  *   floor the frame cannot draw reads no shadow.
  * - **An object moved within its reach**: in each light view — a sun level, a lamp face at a
  *   mip —, the rectangle of pages its box covers, read through the page table: the work is the
- *   pages covered, never the pool. A box covering more pages than the pool holds scans the pool
- *   instead: never more than the pool. A static caster that moved makes the static layer of those
- *   pages wrong: they are read no more until redrawn. An object already moving stales only their
- *   moving casters: the static layer under them holds, and they stay read. With per-page
- *   invalidation off, every page of each light the box touches.
+ *   pages covered, never the pool. The boxes covering more pages than the pool holds join one,
+ *   which scans the pool once: never more than the pool. A static caster that moved makes the
+ *   static layer of those pages wrong: they are read no more until redrawn. An object already
+ *   moving stales only their moving casters: the static layer under them holds, and they stay
+ *   read. With per-page invalidation off, every page of each light the box touches.
  * - **The representation changed** (the released union of `changes.ts`): the same pages, stale for
  *   detail only — their depth is coarser than the cut, not wrong, and stays read until redrawn.
  *
@@ -52,6 +53,10 @@ export function createPageInvalidation(
   counts: Counts,
 ) {
   const { rects, sunRects, lampFaces, lampRects } = createPageRects();
+  /** The union of a light's boxes that each cover more pages than the pool: scanned once. */
+  const large = new Float64Array(6),
+    largeMin = large.subarray(0, 3),
+    largeMax = large.subarray(3, 6);
   let nowMs = 0,
     frame = 0;
   const mark = (page: number, level: number, wrong: boolean) => {
@@ -122,8 +127,13 @@ export function createPageInvalidation(
     if (!sunLight && byPage && changes.count) lampFaces(light);
     // Per-page invalidation off: every box that touches stales the same pages, so one scan at
     // the strongest level, withdrawing when any box is wrong, does what one scan a box would.
+    // Boxes that each cover more than the pool join one box, scanned once at the end: the light's
+    // work is the pages its other boxes cover, and one pool at most.
     let every = 0,
-      everyWrong = false;
+      everyWrong = false,
+      largeLevel = 0,
+      largeWrong = false;
+    boxEmpty(large, 0);
     for (let box = 0; box < changes.count; box++) {
       if (!changes.touches(box, x, y, z, range)) continue;
       const moved = changes.read(box),
@@ -137,9 +147,19 @@ export function createPageInvalidation(
       const covered = sunLight
         ? sunRects(sun, slice, moved.min, moved.max)
         : lampRects(moved.min, moved.max);
-      if (covered > pool.pages) scan(slice, sunLight, views, true, level, wrong);
-      else walk(slice, sunLight, views, level, wrong);
+      if (covered <= pool.pages) {
+        walk(slice, sunLight, views, level, wrong);
+        continue;
+      }
+      const { min, max } = moved;
+      boxUnion(large, 0, min[0], min[1], min[2], max[0], max[1], max[2]);
+      largeLevel = Math.max(largeLevel, level);
+      largeWrong ||= wrong;
     }
     if (every) scan(slice, sunLight, views, false, every, everyWrong);
+    if (!largeLevel) return;
+    if (sunLight) sunRects(sun, slice, largeMin, largeMax);
+    else lampRects(largeMin, largeMax);
+    scan(slice, sunLight, views, true, largeLevel, largeWrong);
   };
 }
