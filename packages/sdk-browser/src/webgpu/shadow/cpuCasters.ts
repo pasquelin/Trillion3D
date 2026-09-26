@@ -112,6 +112,9 @@ export function selectCpuCasters(rt: WebgpuPagesRuntime, device: GPUDevice, cam:
     if (page !== undefined) marks[page] = stamp;
   }
   lists.runs = 0;
+  // Nothing loads or leaves while the faces select — what they want is offered after the last —:
+  // the cache's changes reach the cut's residency once, before the first.
+  services.syncResidency();
   forEachShadowBatch(rt, (from, to, runBase) => {
     writeShadowPages(lights, cam.eye, from, to);
     lists.runs = runBase + runs.count;
@@ -125,8 +128,6 @@ export function selectCpuCasters(rt: WebgpuPagesRuntime, device: GPUDevice, cam:
         {
           pixelError: face.uniforms.pixelError,
           viewport,
-          holdResident: true,
-          isResident: services.poolHolds,
           held: services.heldResidency,
           wanted: wanted[at],
           result: lists.result,

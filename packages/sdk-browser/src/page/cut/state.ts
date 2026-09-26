@@ -16,6 +16,10 @@ export interface PageRecord extends ClusterCut {
   cone?: NormalCone;
   material?: PageSurface;
   array?: Uint32Array;
+  /** Where a layout placed the record: its placement's rank, and its own among every placement's
+   *  pages (`./held.ts` routes a residency move by them). */
+  placementIndex?: number;
+  packedIndex?: number;
 }
 
 export interface SelectionState<T extends PageRecord> {
@@ -53,7 +57,7 @@ export interface SelectionState<T extends PageRecord> {
    *  mode instead of re-reading the request on the state at each page. */
   residentMode: number;
   /** Where the cut rule's readiness of each root is held and moved (`./held.ts`); absent when
-   *  nothing is held. */
+   *  the cut holds no residency. */
   held: HeldResidency | undefined;
   /** This image's threshold is zero and stretch, focal length and near plane are sound: the
    *  cut then decides without projecting, identically. */

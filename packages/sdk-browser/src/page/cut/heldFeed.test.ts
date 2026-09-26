@@ -10,29 +10,29 @@ import { AWAY, placements } from './cutRuleBackends.fixture.ts';
 import { cpuBackend, webgl2Backend } from './cutRuleHosts.fixture.ts';
 import { random } from './cutRuleChecks.fixture.ts';
 import { packDagSelection } from '../../gpu/dag/pack.ts';
-import { createDagReadiness } from '../../gpu/dag/readiness.ts';
+import { uploadResidency } from '../../gpu/dag/readiness.fixture.ts';
+import { createWebgpuPagesLayout } from '../../webgpu/pages/prepare/layout.ts';
+import type { WebgpuPagesSetup } from '../../webgpu/pages/prepare/setup.ts';
 import type { ClusterRoot, PageRec } from '../selection/types.ts';
 
 const THRESHOLD = 0.1;
 const dag = ruleDag(64),
   n = dag.pages.length;
 
-type Probe = ((resident: Uint8Array) => { drawn: number[] }) & { reads: () => number };
-
-/** The GPU kernel's host, handed the pages the rank journal names as flipped: it draws nothing
- *  here, its readiness is what is counted. */
-function gpuBackend(_dag: unknown, _threshold: number, roots: ClusterRoot<PageRec>[]): Probe {
-  const readiness = createDagReadiness(packDagSelection(roots)),
+/** The GPU kernel's host (`../../gpu/dag/residencyUpload.ts`), handed the pages the rank journal
+ *  names as flipped: it draws nothing here, its readiness is what is counted. */
+function gpuBackend(_dag: unknown, _threshold: number, roots: ClusterRoot<PageRec>[]) {
+  const packed = packDagSelection(roots),
     now = new Uint8Array(roots.length * n);
   let reads = 0,
-    first = true;
+    upload: ReturnType<typeof uploadResidency> | undefined;
   const read = new Proxy(now, { get: (target, key) => (reads++, Reflect.get(target, key)) });
   const frame = (resident: Uint8Array) => {
     const pages = Int32Array.from(resident.keys()).filter((at) => resident[at] !== now[at]);
     now.set(resident);
-    readiness.apply(read, first ? undefined : { pages, count: pages.length, sorted: true });
-    first = false;
-    return { drawn: [] };
+    if (upload) upload(read, { pages, count: pages.length, sorted: true });
+    else upload = uploadResidency(packed, read);
+    return { drawn: [] as number[] };
   };
   return Object.assign(frame, { reads: () => reads });
 }
@@ -42,9 +42,9 @@ const backends = {
   'WebGL2 cut': webgl2Backend,
   'GPU kernel host': gpuBackend,
 };
-/** `name`'s backend over two placements of the DAG, both in view. */
-const mount = (name: keyof typeof backends, roots = placements(dag, 2)) =>
-  backends[name](dag, THRESHOLD, roots);
+/** `name`'s backend over `roots`, by default two placements of the DAG, both in view. */
+const mount = <K extends keyof typeof backends>(name: K, roots = placements(dag, 2)) =>
+  backends[name](dag, THRESHOLD, roots) as ReturnType<(typeof backends)[K]>;
 const sorted = (ids: number[]) => ids.sort((a, b) => a - b);
 
 /** Per-page residency of both placements: every root, and a random share of the rest. */
@@ -91,7 +91,7 @@ for (const name of Object.keys(backends) as (keyof typeof backends)[]) {
 for (const name of ['CPU cut', 'WebGL2 cut'] as const) {
   test(`${name}: a placement leaving the view lets its readiness go, the total exact`, () => {
     const roots = placements(dag, 2),
-      cut = backends[name](dag, THRESHOLD, roots),
+      cut = mount(name, roots),
       resident = residency(random(3));
     cut(resident);
     const both = cut.held.bytes;
@@ -104,7 +104,7 @@ for (const name of ['CPU cut', 'WebGL2 cut'] as const) {
     assert.equal(cut.held.placements, 1);
     const alone = placements(dag, 2);
     alone[1].worldBox = AWAY;
-    const fresh = backends[name](dag, THRESHOLD, alone);
+    const fresh = mount(name, alone);
     assert.deepEqual(sorted(drawn), sorted(fresh(resident).drawn));
     assert.equal(cut.held.bytes, fresh.held.bytes, 'what the first placement holds, no more');
     assert.ok(cut.held.bytes < both);
@@ -117,3 +117,19 @@ for (const name of ['CPU cut', 'WebGL2 cut'] as const) {
     assert.deepEqual([cut.held.placements, cut.held.bytes], [0, 0]);
   });
 }
+
+test('both layouts let the feed route every move; a layout that does not is counted', () => {
+  const setup = { roots: placements(dag, 2), bootstrap: [], cap: 64, pageBytes: 64 };
+  const webgpu = createWebgpuPagesLayout(setup as unknown as WebgpuPagesSetup).selectionRoots;
+  const shuffled = placements(dag, 2),
+    [a, b] = shuffled[1].pages;
+  [a.packedIndex, b.packedIndex] = [b.packedIndex, a.packedIndex];
+  const routed = (cut: ReturnType<typeof cpuBackend>) => {
+    const next = random(4);
+    for (let frame = 0; frame < 4; frame++) cut(residency(next));
+    return cut.held.unroutedReads;
+  };
+  assert.equal(routed(cpuBackend(dag, THRESHOLD, webgpu)), 0, 'the WebGPU layout');
+  assert.equal(routed(webgl2Backend(dag, THRESHOLD, placements(dag, 2))), 0, 'the WebGL2 layout');
+  assert.equal(routed(cpuBackend(dag, THRESHOLD, shuffled)), 3, 'read whole at each later visit');
+});
