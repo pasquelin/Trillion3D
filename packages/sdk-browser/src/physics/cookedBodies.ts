@@ -1,0 +1,160 @@
+import type { EngineError } from '../../../sdk-core/src/contracts/cache.ts';
+import {
+  BODY_INDEX,
+  LAYER,
+  MOTION,
+  declaredMass,
+  declaredShape,
+  physicsMatterOf,
+  type CommandWriter,
+  type CookedBody,
+  type CookedPhysics,
+} from '../../../sdk-core/src/physics/index.ts';
+import type { createPhysicsBodies } from './bodies.ts';
+import type { SlotOwner } from './bodySlots.ts';
+import { createCookedSoftBodies } from './cookedSoft.ts';
+import { fits } from './softBodies.ts';
+import { cookedBytes, tilePose, type Model } from './tilePlace.ts';
+
+/**
+ * Whether a compiled model's nodes can be drawn moving (#432). Until they can, a dynamic body a
+ * model declares is held: made kinematic at the pose its node is drawn at, so its collider never
+ * leaves the node. #432 flips it, and a held body is made dynamic; nothing else changes.
+ */
+export const COMPILED_NODES_MOVE = false;
+
+/** A declared body made: its entry, the world scale it was made at, its engine id. */
+export type CookedMadeBody = { body: CookedBody; scale: number[]; id: number };
+
+/**
+ * The rigid bodies the compiled models in a scene declare (`physics.json` `bodies`), each one a
+ * body of its model's (`bodySlots.ts`): its declared shape in Jolt's terms, or its cooked hull
+ * fetched and restored — nothing built on the page —, with its declared mass over its cooked one
+ * (`declaredMass`), counted against `budget.physics`. A kinematic body follows its model as any
+ * kinematic body; a dynamic one is held until `release` (`COMPILED_NODES_MOVE`). A body made, its
+ * node's static instances leave (`holds`): no collider is doubled.
+ */
+export function createCookedBodies(
+  writer: CommandWriter,
+  bodies: Pick<ReturnType<typeof createPhysicsBodies>, 'claim' | 'release'>,
+  invalidate: () => void,
+  failed: (error: EngineError) => void,
+  release = COMPILED_NODES_MOVE,
+) {
+  /** Each open model's opening: its bodies made, their nodes, and the signal its leaving aborts
+   *  its reads by. */
+  type Opening = { made: CookedMadeBody[]; nodes: Set<number>; signal: AbortSignal };
+  const held = new Map<Model, Opening>();
+  /** Each hull, fetched once: a body made again restores from it, never waiting on the network. */
+  const hulls = new WeakMap<CookedBody, Promise<Uint8Array>>();
+  const dynamic = (body: CookedBody) => release && !body.motion.isKinematic;
+  async function add(model: Model, opening: Opening, body: CookedBody) {
+    const { shape } = body;
+    let hull = hulls.get(body);
+    if (!hull && shape.type === 'cooked')
+      hulls.set(body, (hull = cookedBytes(model, shape.url, opening.signal)));
+    const bytes = await hull;
+    // Forgotten or opened again meanwhile: this opening's bodies are no longer wanted.
+    if (held.get(model) !== opening) return;
+    const { position, quaternion, scale } = tilePose({ model, instance: body });
+    const resolved = declaredShape(body, scale);
+    const made: CookedMadeBody = { body, scale: [scale.x, scale.y, scale.z], id: -1 };
+    made.id = bodies.claim(resolved.triangles, 0, { model, body: made });
+    opening.made.push(made);
+    opening.nodes.add(body.node);
+    const handle = made.id & BODY_INDEX;
+    const matter = physicsMatterOf(body);
+    if (bytes) writer.restore(handle, bytes);
+    writer.add({
+      ...{ id: made.id, motion: dynamic(body) ? MOTION.dynamic : MOTION.kinematic },
+      ...{ layer: LAYER.moving, shape: resolved.shape, flags: 0, position, quaternion },
+      ...{ size: resolved.size, ...declaredMass(body, scale), density: matter.density },
+      ...{ friction: matter.friction, restitution: matter.restitution },
+      ...{ gravityScale: body.motion.gravityFactor ?? 1, indices: bytes && [handle] },
+    });
+    if (bytes) writer.release(handle);
+    invalidate();
+  }
+  /** Makes `body` in `opening`, a refusal reported but for a read its model let go of. */
+  const start = (model: Model, opening: Opening, body: CookedBody) =>
+    void add(model, opening, body).catch(
+      (error) => opening.signal.aborted || failed(error as EngineError),
+    );
+  /** `made` out of `opening`: its slot given back, its node's static ground wanted again. */
+  function drop(opening: Opening, made: CookedMadeBody) {
+    opening.made.splice(opening.made.indexOf(made), 1);
+    opening.nodes.delete(made.body.node);
+    bodies.release(made.id & BODY_INDEX);
+  }
+  const forget = (model: Model) => {
+    const opening = held.get(model);
+    held.delete(model);
+    opening?.made.forEach(({ id }) => bodies.release(id & BODY_INDEX));
+  };
+  return {
+    /** Makes the bodies `model` declares, read until `signal` aborts, the last opening's out. */
+    open(model: Model, declared: readonly CookedBody[], signal: AbortSignal) {
+      forget(model);
+      const opening: Opening = { made: [], nodes: new Set(), signal };
+      held.set(model, opening);
+      for (const body of declared) start(model, opening, body);
+    },
+    /** A model left the scene, or physics turned off: its bodies out. */
+    forget,
+    /** Whether node `node` of `model` has its body: its static instances then leave. */
+    holds: (model: Model, node: number) => held.get(model)?.nodes.has(node) ?? false,
+    /** A model moved: its bodies follow — a kinematic one driven there, pushing what it meets —;
+     *  one rescaled is made again at its new scale, Jolt scaling no body once made. */
+    moved(model: Model) {
+      const opening = held.get(model);
+      for (const made of opening?.made.slice() ?? []) {
+        const { position, quaternion, scale } = tilePose({ model, instance: made.body });
+        const slot = made.id & BODY_INDEX;
+        if (!fits(scale, made.scale)) {
+          drop(opening!, made);
+          start(model, opening!, made.body);
+        } else if (dynamic(made.body)) writer.teleport(slot, position, quaternion);
+        else writer.moveKinematic(slot, position, quaternion);
+      }
+    },
+    /** The worker refused `body`'s shape: out, its node static ground again, until its model
+     *  opens again. */
+    refused({ model, body }: { model: Model; body: CookedMadeBody }) {
+      const opening = held.get(model);
+      if (opening?.made.includes(body)) drop(opening, body);
+    },
+  };
+}
+
+/** The bodies the compiled models in a scene declare, soft (`cookedSoft.ts`) and rigid, opened,
+ *  moved, refused and forgotten together, each by its model. */
+export function createModelBodies(
+  writer: CommandWriter,
+  bodies: Pick<ReturnType<typeof createPhysicsBodies>, 'claim' | 'release'>,
+  invalidate: () => void,
+  failed: (error: EngineError) => void,
+) {
+  const softs = createCookedSoftBodies(writer, bodies, invalidate, failed);
+  const rigid = createCookedBodies(writer, bodies, invalidate, failed);
+  return {
+    /** Makes the bodies `model` was `cooked` with, read until `signal` aborts. */
+    open(model: Model, cooked: CookedPhysics, signal: AbortSignal) {
+      softs.open(model, cooked.softBodies ?? [], signal);
+      rigid.open(model, cooked.bodies ?? [], signal);
+    },
+    forget(model: Model) {
+      softs.forget(model);
+      rigid.forget(model);
+    },
+    moved(model: Model) {
+      softs.moved(model);
+      rigid.moved(model);
+    },
+    holds: rigid.holds,
+    /** The worker refused the body `owner` holds: one of these leaves; any other is ignored. */
+    refused(owner: SlotOwner) {
+      if ('soft' in owner) softs.refused(owner);
+      else if ('body' in owner) rigid.refused(owner);
+    },
+  };
+}

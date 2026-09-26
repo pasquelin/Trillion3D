@@ -11,7 +11,7 @@ import {
 } from '../../../sdk-core/src/physics/index.ts';
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
 import type { createPhysicsBodies } from './bodies.ts';
-import { createCookedSoftBodies } from './cookedSoft.ts';
+import { createModelBodies } from './cookedBodies.ts';
 import {
   cookedBytes,
   cookedPhysics,
@@ -34,7 +34,7 @@ const FETCHES = 8;
  * simulation within `budget.physics.triangles`: tiles load around the eye up to the active range
  * — the camera's draw distance, the scene's own — and around every moving body, nearest first,
  * and leave once no longer wanted. A tile is restored from Jolt's binary state, never rebuilt;
- * so are the soft bodies a model was cooked with (`cookedSoft.ts`), made as it opens.
+ * so are the bodies its nodes declare (`cookedBodies.ts`), made as it opens.
  */
 export function createTileStreamer(
   writer: CommandWriter,
@@ -47,7 +47,7 @@ export function createTileStreamer(
    *  lets go of its reads by — one back while its file was on its way lands once, the later. */
   type Opening = { placed: Placed[]; abort: AbortController };
   const models = new Map<Model, Opening>();
-  const softs = createCookedSoftBodies(writer, bodies, invalidate, failed);
+  const declared = createModelBodies(writer, bodies, invalidate, failed);
   let fetching = 0,
     overBudget = false;
   function open(model: Model) {
@@ -59,7 +59,7 @@ export function createTileStreamer(
         // A model compiled before the cook collides nowhere, as before.
         if (!cooked || signal.aborted) return;
         opening.placed.push(...placedOf(model, cooked));
-        softs.open(model, cooked.softBodies ?? [], signal);
+        declared.open(model, cooked, signal);
         invalidate();
       })
       // A read its model let go of by leaving is no failure.
@@ -70,11 +70,11 @@ export function createTileStreamer(
     bodies.release(p.id & BODY_INDEX);
     p.id = -1;
   };
-  /** Everything `model` holds out: its tiles and its cooked soft bodies. */
+  /** Everything `model` holds out: its tiles and the bodies it declares. */
   const drop = (model: Model, { placed, abort }: Opening) => {
     abort.abort();
     placed.forEach(evict);
-    softs.forget(model);
+    declared.forget(model);
   };
   async function load(p: Placed) {
     const opening = models.get(p.model)!,
@@ -145,7 +145,7 @@ export function createTileStreamer(
               boxPointDistance(p.box, 0, movers[m], movers[m + 1], movers[m + 2]) <= movers[m + 3]
             )
               near = 0;
-          if (near < Infinity) wanted.push([near, p]);
+          if (near < Infinity && !declared.holds(p.model, p.instance.node)) wanted.push([near, p]);
           else evict(p);
         }
       wanted.sort((a, b) => a[0] - b[0]);
@@ -168,8 +168,7 @@ export function createTileStreamer(
      *  given back, and is not made again until its model opens again; any other body is ignored. */
     refused(id: number) {
       const owner = bodies.slots.of(id);
-      if (owner && 'soft' in owner) return softs.refused(owner);
-      if (!owner || !('tile' in owner)) return;
+      if (!owner || !('tile' in owner)) return owner && declared.refused(owner);
       evict(owner.tile);
       const { placed } = models.get(owner.model)!;
       placed.splice(placed.indexOf(owner.tile), 1);
@@ -182,7 +181,7 @@ export function createTileStreamer(
     /** A model moved: its resident tiles and its cooked soft bodies follow. */
     moved(node: Object3D) {
       node.traverse((child) => {
-        if (isModel(child)) softs.moved(child);
+        if (isModel(child)) declared.moved(child);
         for (const p of (isModel(child) && models.get(child)?.placed) || []) {
           locate(p);
           if (p.id < 0) continue;
