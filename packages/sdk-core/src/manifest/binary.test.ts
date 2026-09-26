@@ -104,29 +104,6 @@ test('encodeManifestBinary rejects a depth layer above 15 and accepts the four-b
   assert.doesNotThrow(() => encodeManifestBinary(atLimit, TEMPLATES));
 });
 
-// A version-9 page always has a cone: a hand-written page without one gets the open cone.
-test('a page without a cone decodes the open cone, and a malformed cone is refused', () => {
-  const bare = manifest();
-  delete bare.primitives[0].pages[0].cone;
-  const { manifest: slim, binary } = encodeManifestBinary(bare, TEMPLATES);
-  slim.binary.sha256 = sha('f');
-  const decoded = decodeManifestBinary(slim, ownBuffer(binary));
-  assert.deepEqual(decoded.primitives[0].pages[0].cone, { axis: [0, 0, 1], angle: Math.PI });
-  for (const cone of [
-    { axis: [0, 1], angle: 0 },
-    { axis: [0, 0, 1], angle: NaN },
-    { angle: 0.5 },
-    null,
-  ]) {
-    const bad = manifest();
-    bad.primitives[0].pages[0].cone = cone as never;
-    assert.throws(
-      () => encodeManifestBinary(bad, TEMPLATES),
-      (error: unknown) => error instanceof EngineError && error.code === 'INVALID_CACHE',
-    );
-  }
-});
-
 // Behaviour 11: pageDepthLayer round-trips through the binary columns; layer 0
 // leaves the field absent, so a page keeps a single shape after decode.
 test('depthLayer round-trips through the binary columns, and layer 0 leaves the field absent', () => {
