@@ -1,4 +1,4 @@
-import { checked, corruptObject } from '../cluster/pages.ts';
+import { checked, corruptObject, ONE_REQUEST, retriableError } from '../cluster/pages.ts';
 import { verifyPageBytes } from '../page/decode/host.ts';
 import type { StreamContext } from './types.ts';
 
@@ -11,7 +11,8 @@ export function createStreamingFetcher(
     const page = catalog.get(url);
     if (!page) throw new Error('Unknown page ' + url);
     const combined = AbortSignal.any([abort.signal, jobSignal]);
-    let cause: unknown;
+    let cause: unknown,
+      tried = 0;
     for (let attempt = 1; attempt <= 3; attempt++) {
       combined.throwIfAborted();
       const attemptStart = onDiagnostic ? performance.now() : 0;
@@ -30,7 +31,9 @@ export function createStreamingFetcher(
           expectedBytes: page.bytes,
         }));
         // One request per attempt: this loop is the retry, and it says so page by page.
-        let buffer = await (await checked(new URL(url, base).href, combined, 1)).arrayBuffer();
+        let buffer = await (
+          await checked(new URL(url, base).href, combined, ONE_REQUEST)
+        ).arrayBuffer();
         // Size is taken before any verification: the buffer leaves transferred to the decode
         // worker, so the original reference is detached for the round trip.
         const byteLength = buffer.byteLength;
@@ -98,7 +101,9 @@ export function createStreamingFetcher(
           durationMs: onDiagnostic ? performance.now() - attemptStart : null,
         }));
         combined.throwIfAborted();
-        cause = error;
+        [cause, tried] = [error, attempt];
+        // A refusal another request would meet again (a 4xx) is not asked twice (`checked`).
+        if (!retriableError(error)) break;
         if (attempt < 3)
           emit('page-retry', 'Retry after a read failure', () => ({
             version: 1,
@@ -109,14 +114,15 @@ export function createStreamingFetcher(
           }));
       }
     }
-    const error = new Error('PAGE_STREAM_FAILED: ' + url + ' after 3 attempts: ' + String(cause), {
+    const times = tried === 1 ? 'one attempt' : `${tried} attempts`;
+    const error = new Error(`PAGE_STREAM_FAILED: ${url} after ${times}: ${String(cause)}`, {
       cause,
     });
     failures.set(url, error);
     emit('page-error', 'Persistent page-load failure', () => ({
       version: 1,
       url,
-      attempts: 3,
+      attempts: tried,
       error: String(cause),
       sticky: true,
     }));
