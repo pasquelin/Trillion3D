@@ -68,7 +68,7 @@ export function packDagSelection(roots: readonly DagRoot[]): PackedDag {
     // none, and `rootBases` keeps the node it takes back.
     rootNodes = new Uint32Array(worldSlots).fill(NONE),
     rootBases = new Uint32Array(worldSlots).fill(NONE),
-    sprite = new Uint8Array(worldSlots);
+    mark = new Uint8Array(worldSlots);
   const records = createRecordTable();
   // Culling links, shared by the placements of one node array as the hierarchy is.
   const cutLinks: DagCutLinks[] = [];
@@ -85,7 +85,7 @@ export function packDagSelection(roots: readonly DagRoot[]): PackedDag {
     const owner = new Uint32Array(root.pages.length).fill(NONE);
     rootBases[w] = nodeBase;
     rootNodes[w] = root.parked ? NONE : nodeBase;
-    sprite[w] = root.sprite ?? 0;
+    mark[w] = root.mark ?? 0;
     const packedNodes = packCullingNodes(
       nodes,
       nodeInts,
@@ -131,7 +131,7 @@ export function packDagSelection(roots: readonly DagRoot[]): PackedDag {
     worldStretch,
     rootNodes,
     rootBases,
-    sprite,
+    mark,
     levelSizes,
     nodeCount,
     worldCount: roots.length,

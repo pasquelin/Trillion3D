@@ -535,7 +535,7 @@ e. `attach` or `detach` during a drag ends it first, with its `dragEnd`. The han
 draws none. Live example: [move, rotate, scale](../site/examples/move-rotate-scale-gizmo.html).
 
 `scene.toJSON(camera)` writes the scene as plain, versioned JSON (`format: 'trillion3d-scene'`,
-`formatVersion: 1`): its hierarchy and poses, each shape by the family call that built it
+`formatVersion: 2`; version 1, whose meshes' `castShadow` no renderer read, is refused): its hierarchy and poses, each shape by the family call that built it
 (`geometry.box(2, 1, 1)` is stored as that call; a shape changed after it was built, or written by
 hand, stores its vertices), each material by its parameters, each mesh's body as `physics`
 declared it (type, mass, shape, gravity scale, sensor, CCD, debris, matter overrides, damping; a
@@ -938,6 +938,15 @@ atlas, and at most 24 shadow regions redrawn per frame.
 `capability.lighting(world)` reports what the **active** renderer applies — `{ sceneLights,
 lightingView, shadows, transforms, reason? }` — not what the contract accepts: a call the light
 store accepts is not proof of lighting. `reason` names in one sentence what is not applied.
+
+### Every mesh casts a shadow unless it says `castShadow = false`
+
+Under a light that casts (`castShadow: true` on the light), every opaque mesh casts, as in the
+reference engine: `castShadow` is `true` on a mesh by default. `mesh.castShadow = false` opts it out
+of every shadow map; it still receives the shadows of others. A page writes it at any time: the
+shadow the mesh cast is drawn again without it, or with it. An outline drawn as a larger copy of its
+part wants it off: a copy wrapped round its part would put the part in its shade. A light's
+`castShadow` keeps its own meaning, and is `false` by default.
 
 ### A see-through surface casts no shadow unless it asks
 
