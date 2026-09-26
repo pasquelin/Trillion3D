@@ -1,8 +1,8 @@
-/** Regenerate the original scene and compile its published cache using this checkout. */
-import { resolve } from 'node:path';
+/** Regenerate the original garden scene the tests read and compile its cache using this checkout. */
 import { writeGarden } from './docs/garden-source.ts';
-import { compileFullCache, nativeCompiler } from './native-compiler.ts';
-const scene = resolve(import.meta.dirname, '../site/assets/kinetic-garden');
+import { nativeCompiler } from './native-compiler.ts';
+import { COOKED_SCENES, compileCache, sourceOf } from './site-caches.ts';
+const scene = COOKED_SCENES['kinetic-garden'];
 nativeCompiler();
-await writeGarden(resolve(scene, 'source'));
-compileFullCache({ cwd: scene, source: 'source/garden.gltf' });
+await writeGarden(sourceOf(scene));
+compileCache(scene);

@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { existsSync } from 'node:fs';
 import { access, readdir, readFile } from 'node:fs/promises';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
@@ -80,6 +81,10 @@ test('every example is one standalone HTML file that imports the built engine', 
     // A scene built in code loads nothing; one that loads a compiled cache names a published one.
     const manifest = html.match(/scene\.load\('\.\.\/(assets\/[^']+)'\)/)?.[1];
     if (!manifest) continue;
+    // #719, #716: a scene file carries only its sun; a scene that declares its sky beside its
+    // source has it read by every page loading it, never copied.
+    const sky = manifest.replace(/cache\/.*/, 'source/sky.json');
+    if (existsSync(new URL(sky, site))) assert.ok(html.includes(`fetch('../${sky}')`), entry.id);
     await access(new URL(manifest, site));
     // A scene built around an imported model credits its author on the page, in its words.
     if (

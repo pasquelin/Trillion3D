@@ -9,7 +9,7 @@ A single harness for all test batches. One command, no server to start manually,
     node bench/runner/summaryGlobal.ts --id my-campaign
 
 The report is rendered by the bilingual React portal. See [Published reports](#published-reports)
-for export, immutable campaign staging, provenance and comparison rules. Rebuilding the site does not
+for export, one-report staging, provenance and comparison rules. Rebuilding the site does not
 rerun benchmarks.
 
 - `--moteur`: `webgl` (exact-cluster-pages), `webgpu` (webgpu-page-raster), or `webgl2`
@@ -17,7 +17,8 @@ rerun benchmarks.
   Witnesses to pit on one side via `--moteur-avant`: `three-nu` and `three-lod`, see [The witnesses](#the-witnesses).
 - `--avant` / `--apres`: a built `dist/` directory, or a git ref. Without `--avant`, a single side is measured; `--apres` defaults to `dist/`.
 - `--moteur-avant` / `--moteur-apres`: per-side engine overrides. This is how the engine is pitted against the Three witness in a single execution — same poses, same lights, same caches, same server —, making `ecartAvantApres` a fidelity metric rather than a cross-campaign comparison. Chromium flags are the union of both sides' requirements.
-- `--scene <name>`: asset scene, any folder of `.mesure/assets/` that `assets.ts` compiled (`sponza`, `normal-tangent-mirror-test`, `facade-7`, …). Sets the `derived` cache for each side without `--cache-<side>`. Omission infers cache name or defaults to `sponza`.
+- `--scene <name>`: asset scene, any folder of `.mesure/assets/` that `assets.ts` compiled (`sponza`, `normal-tangent-mirror-test`, `facade-7`, …). Sets the `derived` cache for each side without `--cache-<side>`. Omission infers cache name or defaults to `sponza`. `--scene fluids` (`fluids.ts`, #418) reads no cache: one ocean, 100 floating bodies, 20 fires and 5 smoke volumes built in the page through the public API, on `--moteur webgpu` or `webgl2`; `resume.md` then carries a "Fluids scene" table instead of views.
+- Every run probes the browser limits first (`limits.ts`): WebGL2 half-float and float colour targets, `EXT_disjoint_timer_query_webgl2`, WebGPU `timestamp-query` and the WebGPU limits the adapter grants beyond the defaults, under `limits` in `mesure.json` and "Browser limits" in `resume.md`.
 - `--cache-avant` / `--cache-apres`: path to compiled cache output (`native/full`), to compare two compilers on the same scene. Omission reads the scene cache from assets.
 - `--ressources <dir>`: directory for glTF resources mounted under `/assets/`. Without it, un-based compiled caches yield 404 textures.
 - `--vues` among `generale`, `sol`, `rue`, `detail` (`poses.ts`, `PATH_VERSION` 5); `--pixelError` accepts a list; also `--chauffe`, `--largeur`, `--hauteur`, `--out`, and `--port`.
@@ -194,7 +195,7 @@ quantization grid, normals as octahedral bytes ([`docs/FORMAT.md`](../../docs/FO
 every other path reads the float attributes of `source.bin`. This script compares the two corner
 by corner and prints the largest and mean position gap and the angle between the two normals: the
 input difference behind an image difference between that path and a witness, measured rather than
-supposed. On `site/assets/kinetic-garden` (430 pages, 107 520 corners): `maxPositionGap`
+supposed. On `tests/fixtures/scenes/kinetic-garden` (430 pages, 107 520 corners): `maxPositionGap`
 6.10 × 10⁻⁵, `maxNormalGapDegrees` 0.613, mean 0.284°.
 
 ## What Anisotropy Costs
@@ -219,8 +220,9 @@ separate operations; rebuilding the interface never launches Chrome or benchmark
 2. Export with `node bench/runner/summaryGlobal.ts --dossier .mesure/out/<campaign>
    --vers .mesure/out/<campaign>-report --id <campaign>` (on one line).
 3. Stage with `node bench/runner/publishReport.ts --dossier .mesure/out/<campaign>-report`.
-   Campaign IDs are immutable. The script writes `site/reports/<id>/` and updates the
-   catalogue, which the portal's Measurements area reads. It does not deploy or push anything.
+   The site keeps one report: the script writes `site/reports/<id>/`, then removes the campaign
+   staged before and writes a catalogue naming the new one, which the portal's Measurements area
+   reads. An ID already staged is refused. It does not deploy or push anything.
 4. Validate, then preview with `pnpm docs:serve` (it builds the bundles first).
    Publishing follows the normal issue/PR and maintainer release workflow.
 

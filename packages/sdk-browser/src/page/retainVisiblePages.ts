@@ -1,5 +1,5 @@
 import type { RenderBackend } from '../backend/types.ts';
-import type { createPageStreamer } from '../streaming/pages.ts';
+import type { createPageStreamer } from '../streaming/pageStreamer.ts';
 
 /**
  * Pinning by rank difference when engine supports it: host no longer reconstructs

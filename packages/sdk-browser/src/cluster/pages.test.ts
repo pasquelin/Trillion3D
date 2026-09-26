@@ -38,7 +38,7 @@ test('a corrupt page aborts sibling fetches before they allocate remaining indic
   };
   try {
     const loading = loadClusterPages(pages, 'http://cache/', undefined, () => {});
-    await assert.rejects(loading, /Corrupt cluster page/);
+    await assert.rejects(loading, { code: 'INVALID_CACHE', message: /Corrupt cache object/ });
     hold.resolve();
     await new Promise((resolve) => setImmediate(resolve));
     assert.equal(finished.includes('later.bin'), false);
