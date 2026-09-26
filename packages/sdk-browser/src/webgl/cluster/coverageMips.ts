@@ -30,6 +30,16 @@ void main(){uint covered=0u;for(uint b=cutoff;b<256u;b++)covered+=rows(b,0);colo
 
 type Size = { width: number; height: number };
 
+/** The blend function and equation, which the counts replace: the reducer gives them back. */
+export const BLEND_STATE = [
+  'BLEND_SRC_RGB',
+  'BLEND_DST_RGB',
+  'BLEND_SRC_ALPHA',
+  'BLEND_DST_ALPHA',
+  'BLEND_EQUATION_RGB',
+  'BLEND_EQUATION_ALPHA',
+] as const;
+
 /** The programs, their uniforms, the counts' 256 × 256 float target and its framebuffer; null on
  *  a context that cannot add into it. Binds the counts on the active unit. */
 function buildCounts(gl: WebGL2RenderingContext) {
@@ -87,12 +97,20 @@ function buildCounts(gl: WebGL2RenderingContext) {
 export class WebglCoverageCounts {
   private gl: WebGL2RenderingContext;
   private built: ReturnType<typeof buildCounts> | undefined;
+  /** The context's largest texture side, asked once. */
+  private maxSide = 0;
   constructor(gl: WebGL2RenderingContext) {
     this.gl = gl;
   }
-  /** Whether this context counts, asked once: binds the draw framebuffer and the active unit. */
-  ready() {
-    if (this.built === undefined) this.built = buildCounts(this.gl);
+  /** Whether a `width` × `height` chain is counted: sixteen float rows count exactly up to 2^28
+   *  texels, a 16384² picture; `t` takes a scratch row under the picture, which one as tall as the
+   *  context allows has not; and the context adds into a float target, asked once — that first ask
+   *  binds the draw framebuffer and the active unit. */
+  takes(width: number, height: number) {
+    const gl = this.gl;
+    this.maxSide ||= gl.getParameter(gl.MAX_TEXTURE_SIZE) as number;
+    if (width * height > 2 ** 28 || height >= this.maxSide) return false;
+    if (this.built === undefined) this.built = buildCounts(gl);
     return this.built !== null;
   }
   /** Counts level `level` of a `width` × `height` chain — level 0 too at level 1 — from the scratch
