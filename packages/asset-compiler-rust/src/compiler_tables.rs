@@ -9,11 +9,12 @@
 //! were remapped — and, when one is written, the autonomous `scene.gltf` derived from it. Anything
 //! read from the input document instead would describe a scene nobody draws.
 use super::*;
+use serde_json::Map;
 
 mod documents;
 mod graph;
 mod materials;
-mod partition;
+pub(crate) mod partition;
 mod physical;
 mod sparse;
 mod textures;
@@ -26,8 +27,9 @@ use textures::texture_table;
 /// its own, and the tables it carries are versioned each in turn. Version 2 carries the whole
 /// scene graph and the geometry layout, which is what lets the runtime build the scene without a
 /// glTF parse; version 3 moves the nodes that only place a mesh into spatial cells read by
-/// distance (`partition.rs`), and the node table keeps the others, renumbered.
-const SCENE_TABLES_VERSION: u32 = 3;
+/// distance (`partition.rs`), and the node table keeps the others, renumbered; version 4 keeps
+/// only the root of the cells' index, whose pages lie beside it (`partition/pages.rs`).
+const SCENE_TABLES_VERSION: u32 = 4;
 const NODE_TABLE_VERSION: u32 = 3;
 const MATERIAL_TABLE_VERSION: u32 = 4;
 const GEOMETRY_TABLE_VERSION: u32 = 1;
@@ -72,7 +74,7 @@ pub(super) fn stage_scene_tables(
     autonomous: Option<&Value>,
     directory: &Path,
     progress: impl Fn(Value),
-) -> Result<Vec<Product>> {
+) -> Result<Product> {
     let started = Instant::now();
     let mut surfaces = Materials {
         table: Vec::new(),
@@ -92,15 +94,15 @@ pub(super) fn stage_scene_tables(
     }
     let table = node_table(published)?;
     let roots = crate::compiler_nodes::scene_roots(published, values(published, "nodes")?)?;
-    let (nodes, roots, partition, mut cells) =
+    let (nodes, roots, partition, cells) =
         match partition::partition(published, &table, &roots, directory)? {
-            Some(split) => (split.nodes, split.roots, split.partition, split.products),
-            None => (table, roots, Value::Null, Vec::new()),
+            Some(split) => (split.nodes, split.roots, split.partition, split.cells),
+            None => (table, roots, Value::Null, 0),
         };
     let lights = light_table(published)?;
     let cameras = camera_table(published)?;
     let textures = texture_table(published);
-    let counts = json!({"nodes":nodes.len(),"cells":cells.len(),"materials":surfaces.table.len(),"textures":textures.len(),"lights":lights.len(),"documents":documents.len()});
+    let counts = json!({"nodes":nodes.len(),"cells":cells,"materials":surfaces.table.len(),"textures":textures.len(),"lights":lights.len(),"documents":documents.len()});
     let tables = json!({
         "version": SCENE_TABLES_VERSION,
         "nodeTableVersion": NODE_TABLE_VERSION,
@@ -119,6 +121,23 @@ pub(super) fn stage_scene_tables(
     progress(
         json!({"phase":"tables","completed":1,"total":1,"ms":shared_math::elapsed_ms(started),"counts":counts}),
     );
-    cells.push(written);
-    Ok(cells)
+    Ok(written)
+}
+
+/// The cell records of the tables in `directory` by file name, read through their partition's pages,
+/// each proven by its slot: a reused folder proves its cells so (`compiler_reuse_proof.rs`), the
+/// manifest's `files` would grow with the world. Tables of another version are refused by name.
+pub(crate) fn cell_records(directory: &Path) -> std::result::Result<Map<String, Value>, String> {
+    let what = |e: &dyn std::fmt::Display| format!("{SCENE_TABLES_FILE}: {e}");
+    let bytes = fs::read(directory.join(SCENE_TABLES_FILE)).map_err(|e| what(&e))?;
+    let tables: Value = serde_json::from_slice(&bytes).map_err(|e| what(&e))?;
+    if tables["version"] != json!(SCENE_TABLES_VERSION) {
+        return Err("scene tables of another version".into());
+    }
+    let mut records = Vec::new();
+    if !tables["partition"].is_null() {
+        partition::pages::read_records(directory, &tables["partition"], "the root", &mut records)?;
+    }
+    let named = |cell: Value| (cell["url"].as_str().unwrap_or_default().to_string(), cell);
+    Ok(records.into_iter().map(named).collect())
 }

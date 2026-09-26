@@ -81,6 +81,7 @@ test("the default totals split into each pool's own default", () => {
     texturePool: DEFAULT_TEXTURE_POOL_BUDGET,
     shadowMirror: SHADOW_HOST_BYTES,
     pageCache: DEFAULT_CACHED_BYTES,
+    textureLevels: (3 * DEFAULT_CACHED_BYTES) / 4,
   });
   assert.equal(handle.geometryPool, DEFAULT_GEOMETRY_POOL_BUDGET);
 });

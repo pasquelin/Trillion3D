@@ -115,6 +115,9 @@ export interface MeasuredWorldOptions {
   temporalAntialiasing?: boolean;
   /** The world's effect chain, drawn after temporal antialiasing (`world.effects`). */
   effects?: import('../../../../sdk-core/src/world/effect/chain.ts').EffectChain;
+  /** Hears the mode of a surface that keeps WebGL2 from drawing `effects` on a frame, drawn
+   *  whole without the chain (`ComposedChain.refused`). */
+  effectsRefused?: import('../render/compose.ts').ComposedChain['refused'];
   /** Whether the prepared scene reads the source images. `'cache'`, the default: an image whose
    *  mip chain the cache carries is neither fetched nor decoded — the engine reads the baked
    *  levels, which it does whatever this option says. `'host'`: the scene reads and decodes
@@ -127,6 +130,8 @@ export interface MeasuredWorldOptions {
   sceneLighting?: Object3D;
   /** Lines and points drawn over the image, held by the world (`world.guides`). */
   guides?: import('../../guides/guideSet.ts').GuideSet;
+  /** Particle pools, held by the world (`attachParticles`). */
+  particles?: readonly import('../../../../sdk-core/src/fluids/particles.ts').ParticlePool[];
   /** Bounced light. Off by default; `true` turns it on for the whole session. */
   bounce?: boolean;
   /** Target duration of the "Bounce" step per frame, in milliseconds. 0.8 ms by default. */
