@@ -11,7 +11,7 @@
 import type { HostAttribute, HostAttributes, HostMaterials } from './resources.ts';
 import type { HostMap, HostShadedMaterial } from './shadedMaterial.ts';
 import { blendingOf, blendingRefusal } from '../scene/materialBlending.ts';
-import { readsNormal } from '../scene/surfaceModel.ts';
+import { SURFACE_MODEL, hostSurfaceModel, readsNormal } from '../scene/surfaceModel.ts';
 import { HOST_MAPPING_UV, HOST_NORMAL_MAP_TANGENT_SPACE } from './surfaceConstants.ts';
 import { texelsReason } from '../visibility/types.ts';
 import { declaresCompileHook } from './materialHook.ts';
@@ -76,9 +76,11 @@ export function clusterMaterialReason(
   if (declaresCompileHook(host)) return `material ${host.family} carries a shader hook`;
   if (!ownBuffer(attributes.position)) return 'position attribute is unsupported';
   // The same six maps the import reads, in the same order: a basic material declares none of the
-  // lit ones, so the list is the host's own properties, not a second rule.
+  // lit ones, so the list is the host's own properties, not a second rule. A matcap's base is its
+  // image, read by the normal, never by a UV: checked as a map below, not asked a UV.
+  const matcap = hostSurfaceModel(host) === SURFACE_MODEL.matcap;
   const maps = [
-    host.map,
+    matcap ? undefined : host.map,
     host.metalnessMap,
     host.roughnessMap,
     host.normalMap,
@@ -97,6 +99,5 @@ export function clusterMaterialReason(
     const reason = textureReason(texture);
     if (reason) return reason;
   }
-  // A matcap's image is read by the normal, never by a UV: checked as a map, not asked a UV.
-  return textureReason(host.matcap);
+  if (matcap) return textureReason(host.matcap);
 }
