@@ -7,13 +7,16 @@ import {
   type CommandWriter,
   type Vehicle,
 } from '../../../sdk-core/src/physics/index.ts';
-import type { Quaternion } from '../../../sdk-core/src/world/math/quaternion.ts';
+import { Quaternion } from '../../../sdk-core/src/world/math/quaternion.ts';
 import type { Vector3 } from '../../../sdk-core/src/world/math/vector3.ts';
 import type { createPhysicsBodies } from './bodies.ts';
 import { createSimulatedIds, engineIdOf } from './simulatedIds.ts';
 
 /** Each wheel's pose as the page placed it, given back when the vehicle leaves the simulation. */
 type Rest = { position: Vector3; quaternion: Quaternion }[];
+
+/** A wheel's turn composed before it is written: an unchanged one then notifies nobody. */
+const turned = new Quaternion();
 
 /**
  * The vehicles of a session: which are made in the simulation, under which id (a slot and its
@@ -82,7 +85,8 @@ export function createPhysicsVehicles(
             s = live.body.scale;
           const { position, quaternion } = live.wheels[i];
           position.set(f[0] / s.x, f[1] / s.y, f[2] / s.z);
-          quaternion.set(f[3], f[4], f[5], f[6]).multiply(made.get(live)!.rest[i].quaternion);
+          turned.set(f[3], f[4], f[5], f[6]).multiply(made.get(live)!.rest[i].quaternion);
+          quaternion.copy(turned);
         }
         at += count * WHEEL_STATE_WORDS;
       }
