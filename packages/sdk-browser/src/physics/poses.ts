@@ -86,7 +86,8 @@ export function createPhysicsPoses(maxBodies: number, root: Object3D) {
         const at = r * POSE_WORDS,
           index = words[at] & BODY_INDEX,
           g = generation[index];
-        if (g !== (words[at] >>> GENERATION_SHIFT) % GENERATIONS) continue;
+        // A body that left its slot, or a model's own (`bodySlots.ts`), draws nothing here.
+        if (g !== (words[at] >>> GENERATION_SHIFT) % GENERATIONS || !bodies.meshes[index]) continue;
         if (bound[index] !== g) {
           const mesh = bodies.meshes[index]!;
           placer.bind(index, g, mesh);
