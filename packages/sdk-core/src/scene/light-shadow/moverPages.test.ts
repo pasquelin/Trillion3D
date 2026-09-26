@@ -102,6 +102,15 @@ function landedPages(min: number[], max: number[]) {
   return keys;
 }
 
+/** The pool pages of the lamp in `slice`. */
+const lampPagesOf = (plan: ShadowPlan, slice: number) =>
+  [...plan.pool.owner.keys()].filter(
+    (page) => plan.pool.owner[page] >= 0 && plan.pool.slice[page] === slice,
+  );
+/** `face:mip:x:y` of a lamp's pool page. */
+const pageKey = ({ pool }: ShadowPlan, page: number) =>
+  `${pool.view[page] >> 4}:${pool.view[page] & 15}:${pool.x[page]}:${pool.y[page]}`;
+
 test("a point lamp's faces and mips are staled by overlap only: a face the box is behind keeps", () => {
   const { store, plan, frame } = settled(32);
   const min = [6, 0.25, -0.25],
@@ -112,11 +121,8 @@ test("a point lamp's faces and mips are staled by overlap only: a face the box i
     { pool } = plan,
     slice = store.sliceOf(0),
     staled = new Set<string>();
-  for (let page = 0; page < pool.pages; page++) {
-    if (pool.owner[page] < 0 || pool.slice[page] !== slice || !pool.dirty[page]) continue;
-    const key = pool.view[page];
-    staled.add(`${key >> 4}:${key & 15}:${pool.x[page]}:${pool.y[page]}`);
-  }
+  for (const page of lampPagesOf(plan, slice))
+    if (pool.dirty[page]) staled.add(pageKey(plan, page));
   assert.ok(staled.size > 0);
   for (const key of staled) {
     const [face, mip, x, y] = key.split(':').map(Number);
@@ -125,12 +131,26 @@ test("a point lamp's faces and mips are staled by overlap only: a face the box i
     );
     assert.ok(near, `page ${key} lies off the box's own pages`);
   }
-  for (let page = 0; page < pool.pages; page++) {
-    if (pool.owner[page] < 0 || pool.slice[page] !== slice) continue;
-    const key = pool.view[page],
-      at = `${key >> 4}:${key & 15}:${pool.x[page]}:${pool.y[page]}`;
+  for (const page of lampPagesOf(plan, slice)) {
+    const at = pageKey(plan, page);
     if (landed.has(at)) assert.ok(staled.has(at), `page ${at} under the box is not staled`);
   }
+});
+
+test('a spot stales only what lies in front of it: a mover behind or beside its plane keeps', () => {
+  const store = createSceneLightStore(),
+    plan = createShadowPlan(32);
+  store.add({ ...LAMP, kind: 'spot', direction: [0, -1, 0], coneAngle: 0.6 });
+  planFrame(plan, store, 0);
+  const base = plan.table.baseOf(store.sliceOf(0)),
+    read = Array.from({ length: 64 }, (_, i) => base + lampEntry(0, 2, i % 8, i >> 3));
+  let frame = 1;
+  for (; frame < 4; frame++) cycle(plan, store, frame, () => read);
+  // Above the lamp, and across its plane two metres aside: no caster there reaches its cone.
+  plan.worldChanged([-0.25, 4, -0.25], [0.25, 4.5, 0.25], true);
+  plan.worldChanged([2, 2.95, -0.1], [2.2, 3.05, 0.1], true);
+  planFrame(plan, store, frame);
+  assert.equal(plan.counts.invalidatedPages, 0);
 });
 
 test('finding the pages a mover stales costs the pages it covers, not the pool', () => {
