@@ -97,4 +97,9 @@ test('the pages under the root give back every cell in order, their box and thei
   bodies.b = { version: 1, cells: [] };
   const again = readTablePartition({ version: 2, pages: root }, read);
   await assert.rejects(again, hasCode('UNSUPPORTED_SCENE_TABLES', 'version 1'));
+  bodies.b = { version: 2 }; // Neither pages nor cells: refused, never read as an empty region.
+  await assert.rejects(
+    readTablePartition({ version: 2, pages: root }, read),
+    hasCode('INVALID_SCENE_TABLES'),
+  );
 });

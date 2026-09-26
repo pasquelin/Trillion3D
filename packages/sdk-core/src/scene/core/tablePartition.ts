@@ -114,7 +114,7 @@ export async function readTablePartition(
     const lists = await Promise.all(
       slots.map(async ({ page }) => {
         const body = versioned(JSON.parse(text.decode(await read(page))), page.url);
-        return body.pages ? records(named(body.pages)) : (body.cells ?? []);
+        return Array.isArray(body.pages) ? records(named(body.pages)) : (body.cells as TableCell[]);
       }),
     );
     return lists.flat();

@@ -36,7 +36,7 @@ impl Pager<'_> {
     }
 
     /// The slots of the pages listing `region`'s cells in order, each written: its halving opened,
-    /// widest node first, until `FAN_OUT` pages or every one is a region page.
+    /// the node of most cells first, until `FAN_OUT` pages or every one is a region page.
     fn slots(&self, region: &Region) -> Result<Vec<String>> {
         let mut pages = vec![region];
         while pages.len() < FAN_OUT {

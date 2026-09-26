@@ -208,7 +208,7 @@ placement's name is not kept: it is a row, not a host node.
 **The paged cell index** (`partition/pages.rs`, #750). The records lie in pages cut from the
 halving tree, each node a contiguous range of cells: a region page `{ version: 2, cells }` holds the
 records of the highest node under 128 KiB (`PAGE_BYTES`; one cell whatever its size), an index page
-`{ version: 2, pages }` lists at most 8 pages (`FAN_OUT`), its node opened widest first, and
+`{ version: 2, pages }` lists at most 8 pages (`FAN_OUT`), its node opened largest first, and
 `partition` is the root `{ version: 2, pages }`: the whole tree opened into exactly eight slots,
 empty ones last — 1 391 bytes for grids of 48² and 192² and the open-world cell laid 8 × 8. A slot
 is 168 hexadecimal digits: the page's SHA-256, its size (8) and its box at the declared poses as six
