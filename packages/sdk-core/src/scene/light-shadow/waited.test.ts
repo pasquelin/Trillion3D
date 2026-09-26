@@ -32,3 +32,26 @@ test('a page stale while no one read it has waited only from the frame it is rea
   planFrame(plan, store, 44);
   assert.deepEqual(waited(), [0, 0], 'drawn: nothing waits');
 });
+
+test('a page no report names stops waiting, and waits again from the frame it is read again', () => {
+  const { store, plan, slice } = sunScene();
+  const named = entriesOf(plan, slice, sunBlock(plan, slice, [2, 3, 4], VIEW.position, 4));
+  const waited = () => [plan.counts.waitedMs, plan.counts.waitedFrames];
+  for (let frame = 1; frame < 4; frame++) cycleDrawn(plan, store, frame, () => named);
+  // A static caster moves under pages the image reads: stale, listed, and left undrawn.
+  plan.worldChanged([-1, 0, -1], [1, 1, 1]);
+  assert.ok(planFrame(plan, store, 4) > 0, 'the stale pages read are listed');
+  plan.reissue(0);
+  report(plan, store, 4, []);
+  // Frame 5 reads a report that names none of them: withdrawn, their wait stops.
+  planFrame(plan, store, 5);
+  plan.commit();
+  report(plan, store, 5, named);
+  // Frame 6 reads them again: the frame they were read before counts no more.
+  planFrame(plan, store, 6);
+  assert.deepEqual(waited(), [0, 0], 'read again from this frame');
+  plan.reissue(0);
+  report(plan, store, 6, named);
+  planFrame(plan, store, 7);
+  assert.deepEqual(waited(), [16, 1], 'read one frame, not yet drawn');
+});

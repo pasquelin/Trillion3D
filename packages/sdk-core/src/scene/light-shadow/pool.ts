@@ -108,7 +108,7 @@ export function createShadowPool(side: number) {
     get refetched() {
       return refetched;
     },
-    /** Stale from now on (`STALE_*`), at most what it was; still read. True if it was current. */
+    /** Stale from now on (`STALE_*`), at most what it was; still mapped. True if it was current. */
     stale(page: number, nowMs: number, frame: number, level = STALE_FULL) {
       const was = dirty[page];
       if (was < level) dirty[page] = level;
