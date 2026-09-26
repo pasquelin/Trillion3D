@@ -10,14 +10,16 @@ import { availableParallelism } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { chromium } from 'playwright';
-import { RACINE } from './test-gpu.ts';
+import { BROWSER, JUSTESSE, RACINE } from './test-gpu.ts';
 
 const TARGET = 'TRILLION3D_IMPORT_PROOF',
   REPORT = 'import report: ',
   REFUSED = 'Chrome refused';
-const FOLDERS = ['tests/browser/probes', 'tests/browser/renders'];
-/** How long a child whose proof left a server open waits for a late launch before it leaves. */
+const FOLDERS = [JUSTESSE, BROWSER];
+/** How long a child whose proof left a server open waits, once imported, for a late launch. */
 const SETTLE_MS = 3000;
+/** The most a child's import may take before it leaves: a proof stuck before its launch. */
+const IMPORT_CAP_MS = 60_000;
 
 /** Written at once: a pipe on macOS drops what is still queued when the child exits. */
 const say = (text: string) => void writeSync(1, `${text}\n`);
@@ -30,11 +32,17 @@ async function importOne(file: string) {
     throw new Error('Playwright reached');
   };
   process.on('exit', () => say(REPORT + JSON.stringify({ reached })));
-  setTimeout(() => process.exit(0), SETTLE_MS).unref();
-  await import(pathToFileURL(file).href).catch((error: Error) => {
-    say(error.message);
-    process.exit(0);
-  });
+  const leaveAfter = (ms: number) => setTimeout(() => process.exit(0), ms).unref();
+  leaveAfter(IMPORT_CAP_MS);
+  // The settle wait starts once the import is done: a proof slow to reach its launch still meets
+  // the launcher, instead of passing for having been cut short.
+  await import(pathToFileURL(file).href).then(
+    () => leaveAfter(SETTLE_MS),
+    (error: Error) => {
+      say(error.message);
+      process.exit(0);
+    },
+  );
 }
 
 /** Every path under `root`. */

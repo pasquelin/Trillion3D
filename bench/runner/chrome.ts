@@ -9,7 +9,12 @@ import { relative, sep } from 'node:path';
 import { chromium } from 'playwright';
 import type { LaunchOptions } from 'playwright';
 import { isUnitTest } from '../../scripts/unit-tests.ts';
-import { RACINE, listBrowserTests, listJustesseTests } from '../../tests/browser/test-gpu.ts';
+import {
+  BROWSER,
+  RACINE,
+  listBrowserFiles,
+  listJustesseTests,
+} from '../../tests/browser/test-gpu.ts';
 
 /** Folders whose entry points open Chrome on purpose: the bench and the repository's scripts. */
 const LAUNCHING_FOLDERS = ['bench/', 'scripts/'];
@@ -23,14 +28,16 @@ const repositoryPath = (entry: string) => {
 };
 
 /**
- * Throws unless the process's entry point is a run that opens Chrome on purpose: a proof
- * `test:gpu` runs (`tests/browser/test-gpu.ts` lists them), or a bench or script entry that is no
- * unit test. A Node import — by a unit test, `node -e` or a review agent's scratch file — never
- * starts a browser (AGENTS.md rule 2).
+ * Throws unless the process's entry point is a run that opens Chrome on purpose: a proof of the
+ * `test:gpu` folders (`tests/browser/test-gpu.ts` lists them, a declared exclusion included, so
+ * it can still be run on its own), or a bench or script entry that is no unit test. A Node
+ * import — by a unit test, `node -e` or a review agent's scratch file — never starts a browser
+ * (AGENTS.md rule 2).
  */
 export function assertBrowserEntryPoint(entry = process.argv[1]) {
   const path = entry ? repositoryPath(entry) : null;
-  if (path && [...listJustesseTests(), ...listBrowserTests()].includes(path)) return;
+  const renders = listBrowserFiles().map((file) => `${BROWSER}/${file}`);
+  if (path && [...listJustesseTests(), ...renders].includes(path)) return;
   if (path && LAUNCHING_FOLDERS.some((folder) => path.startsWith(folder)) && !isUnitTest(path))
     return;
   throw new Error(

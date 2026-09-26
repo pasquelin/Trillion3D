@@ -9,11 +9,11 @@ import { spawnSync } from 'node:child_process';
 import { readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { compileSiteCaches } from '../../scripts/site-caches.ts';
 
 export const RACINE = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
-const JUSTESSE = 'tests/browser/probes';
-const BROWSER = 'tests/browser/renders';
+/** The two proof folders `test:gpu` runs: correctness probes, then render proofs. */
+export const JUSTESSE = 'tests/browser/probes';
+export const BROWSER = 'tests/browser/renders';
 
 /** A setup the runner does not provide: the proof is sound, the machine is not ready. */
 export const MONTAGE = 'setup';
@@ -78,7 +78,9 @@ export function runGpuTests(args = process.argv.slice(2)) {
   process.exit(resultat.status ?? 1);
 }
 
+// Loaded only when run: the Chrome launcher reads the lists above without the site's cook.
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  const { compileSiteCaches } = await import('../../scripts/site-caches.ts');
   compileSiteCaches();
   runGpuTests();
 }
