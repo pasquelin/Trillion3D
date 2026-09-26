@@ -334,7 +334,8 @@
       "texturePreviewBc7": "Önizlemelerin BC7 blokları.",
       "texturePreviewAstc": "Önizlemelerin ASTC blokları.",
       "bundleDependencyCount": "Her paketin kaç pakete ihtiyaç duyduğu.",
-      "bundleDependency": "Her paketin ihtiyaç duyduğu paketler, köklere kadar."
+      "bundleDependency": "Her paketin ihtiyaç duyduğu paketler, köklere kadar.",
+      "pageCone": "Her sayfanın normal konisi: eksen, ardından yarım açı."
     }
   },
   "COMPARISON_LIBRARIES": {
@@ -2353,7 +2354,8 @@
       "source": "Onu üreten grup.",
       "stream": "Bu cluster'ı ve içindeki bayt ofsetini tutan akış paketi. Bir istek düzinelerce cluster'a hizmet eder; cluster, `url` aracılığıyla kendi başına okunabilir kalır.",
       "streamOffset": "O pakette bayt ofseti.",
-      "depthLayer": "Derleyicinin dokunmadan bıraktığı her cluster için 0 olan, eş düzlemsel derinlik katmanı. n katmanının bir cluster'ı, n tam katman adımlık bir derinlik sapmasıyla çizilir, tam olarak bir düzlemi paylaşan iki opak yüzey arasında kazananı belirleyen budur. Eksik ve 0 aynı şeyi ifade eder: dokunulmamış çizim."
+      "depthLayer": "Derleyicinin dokunmadan bıraktığı her cluster için 0 olan, eş düzlemsel derinlik katmanı. n katmanının bir cluster'ı, n tam katman adımlık bir derinlik sapmasıyla çizilir, tam olarak bir düzlemi paylaşan iki opak yüzey arasında kazananı belirleyen budur. Eksik ve 0 aynı şeyi ifade eder: dokunulmamış çizim.",
+      "cone": "Üçgenlerinin normallerini sınırlayan koni: `axis` birim vektör, `angle` radyan cinsinden yarım açı, hiçbir şeyi reddetmeyen bir koni için π. Derleyici onu üçgenlerden hesaplar; WebGPU kesimi, kameranın konisinin arkasından gördüğü tek yüzlü bir kümeyi atlar."
     }
   },
   "PageCutPage": {
