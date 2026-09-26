@@ -12,32 +12,19 @@ export function checkedDepthLayer(depthLayer: number) {
   return depthLayer;
 }
 
-/** Writes page `page`'s cone into the cone column: three axis numbers and an angle, all finite,
- *  as the compiler requires; a hand-written page that names none rejects nothing. */
-export function writeCone(column: Float64Array, page: number, cone?: Page['cone']) {
-  // Only an absent cone is open: a `null` one, or one without an axis array, is refused as the
-  // compiler refuses it, never read as open nor thrown as a `TypeError`.
-  const { axis, angle } =
-    cone === undefined
-      ? { axis: [0, 0, 1], angle: Math.PI }
-      : ((cone ?? {}) as Partial<NonNullable<Page['cone']>>);
-  const valid =
-    Array.isArray(axis) &&
-    axis.length === 3 &&
-    Number.isFinite(axis[0]) &&
-    Number.isFinite(axis[1]) &&
-    Number.isFinite(axis[2]) &&
-    Number.isFinite(angle);
-  if (!valid)
-    throw new EngineError(
-      'INVALID_CACHE',
-      'A cluster cone is not three axis numbers and an angle',
-      {
-        cone,
-      },
-    );
-  column[page * 4] = axis![0];
-  column[page * 4 + 1] = axis![1];
-  column[page * 4 + 2] = axis![2];
-  column[page * 4 + 3] = angle!;
+/** Writes page `page`'s cone into the cone column: three finite axis numbers and a finite angle,
+ *  as the compiler requires. Only an absent cone is open (a hand-written page); a `null` or
+ *  malformed one is refused, never read as open nor thrown as a `TypeError`. */
+export function writeCone(
+  column: Float64Array,
+  page: number,
+  cone: Page['cone'] | null = { axis: [0, 0, 1], angle: Math.PI },
+) {
+  const axis: unknown = cone?.axis;
+  if (!Array.isArray(axis) || axis.length !== 3 || !axis.every(Number.isFinite))
+    throw new EngineError('INVALID_CACHE', 'A cluster cone is not three axis numbers', { cone });
+  if (!Number.isFinite(cone!.angle))
+    throw new EngineError('INVALID_CACHE', 'A cluster cone angle is not finite', { cone });
+  column.set(axis as number[], page * 4);
+  column[page * 4 + 3] = cone!.angle;
 }
