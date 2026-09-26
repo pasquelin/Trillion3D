@@ -6,7 +6,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as G from '../../host/graph/graph.fixture.ts';
-import type { RenderBackend } from '../../backend/types.ts';
 import { EffectChain } from '../../../../sdk-core/src/world/effect/chain.ts';
 import { effect } from '../../../../sdk-core/src/world/effect/index.ts';
 import { GraphScene } from '../../host/graph/scene.ts';
@@ -17,60 +16,11 @@ import {
   HOST_BLENDING_NORMAL,
   HOST_BLENDING_SUBTRACTIVE,
 } from '../../host/surfaceConstants.ts';
-import { createSceneDraw } from '../../webgl/cluster/sceneDraw.ts';
 import { createUnlitAlbedo } from '../../lighting/unlitAlbedo.ts';
-import { createTestContext } from '../../webgl/core/testContext.fixture.ts';
-import {
-  createWorldNotices,
-  listenWorldNotices,
-  noticeEffectRefusal,
-} from '../diagnostic/worldNotices.ts';
-import { createFrameComposer } from './compose.ts';
-
-const camera = G.perspectiveCamera();
-const halfFloats = {
-  getExtension: (name: string) => (name === 'EXT_color_buffer_float' ? {} : null),
-};
+import { heard, session } from './composeSession.fixture.ts';
 
 const blended = (blending: number) =>
   new GraphSurface('standard', { transparent: true, opacity: 0.5, blending });
-
-/** A WebGL2 session drawing `scene` with the world's `chain`, its refusals said on a world's
- *  notices; `frame` draws one and returns whether the chain ran and what the scene submitted. */
-function session(scene: GraphScene, chain: EffectChain) {
-  const context = createTestContext({ answers: halfFloats });
-  const draw = createSceneDraw(context.gl, scene);
-  const backend = { id: 'engine', scene, ...draw, ...draw.host } as unknown as RenderBackend;
-  const notices = createWorldNotices();
-  const refused = noticeEffectRefusal(notices);
-  const compose = createFrameComposer(context.gl, camera, {
-    effects: { chain, shown: () => true, refused },
-  });
-  return {
-    frame() {
-      const passes = context.of('drawArrays').length,
-        submitted = context.of('drawElements').length;
-      draw.render(camera);
-      compose(backend, null);
-      return {
-        chained: context.of('drawArrays').length > passes,
-        submitted: context.of('drawElements').length - submitted,
-      };
-    },
-    close: notices.close,
-  };
-}
-
-/** The kinds of every world notice said while `run` draws `view`, once delivered. */
-async function heard(view: ReturnType<typeof session>, run: () => void) {
-  const said: string[] = [];
-  const stop = listenWorldNotices((notice) => void said.push(notice.phase));
-  run();
-  await new Promise(setImmediate);
-  view.close();
-  stop();
-  return said;
-}
 
 const MODES = [
   ['multiply', HOST_BLENDING_MULTIPLY],

@@ -1,5 +1,6 @@
 import type { Blending } from '../../../../sdk-core/src/world/constants/index.ts';
 import type { HostMaterials } from '../../host/resources.ts';
+import { isInstancedNode } from '../../host/graph/kinds.ts';
 import { blendingOf } from '../../scene/materialBlending.ts';
 import { firstMaterial } from '../../scene/materialSide.ts';
 
@@ -12,18 +13,16 @@ import { firstMaterial } from '../../scene/materialSide.ts';
 export const refusesLinear = (mode: Blending | undefined) =>
   mode === 'multiply' || mode === 'subtractive';
 
-/** A drawn mesh as the scene draw's walk meets it (`sceneDraw.ts`, `collect`). */
-type Met = { readonly kind?: string; readonly count?: number; readonly material?: HostMaterials };
-
 /**
- * The mode of a visible drawn mesh that keeps the chain off a frame, or `undefined`: its surface
- * visible and transparent in a mode `refusesLinear` names, an instanced one placed at least once
- * — one placed nowhere submits nothing (`renderer.ts`). Transmissive or not: a view may zero the
- * transmission before the draw (`../../lighting/unlitAlbedo.ts`), which then binds it in this mode.
+ * The mode of a visible see-through mesh the scene draw's walk met (`sceneDraw.ts`) that keeps the
+ * chain off a frame, or `undefined`: its surface visible and transparent in a mode `refusesLinear`
+ * names, an instanced one placed at least once — one placed nowhere submits nothing
+ * (`renderer.ts`). Transmissive or not: a view may zero the transmission before the draw
+ * (`../../lighting/unlitAlbedo.ts`), which then binds it in this mode.
  */
-export function linearRefusalOf(mesh: Met): Blending | undefined {
-  if (mesh.kind === 'instancedMesh' && !mesh.count) return;
-  const surface = mesh.material && firstMaterial(mesh.material);
+export function linearRefusalOf(mesh: { readonly material?: HostMaterials }): Blending | undefined {
+  if (!mesh.material || (isInstancedNode(mesh) && !mesh.count)) return;
+  const surface = firstMaterial(mesh.material);
   if (!surface?.visible || !surface.transparent) return;
   const mode = blendingOf(surface.blending as number | undefined);
   return refusesLinear(mode) ? mode : undefined;
