@@ -20,10 +20,8 @@ test('attachParticles gives the pool to every session and the frames the world d
   type Hook = (frame: BeforeFrameInfo) => void;
   const hooks = new Set<Hook>();
   let asked = 0;
-  const world = {
-    beforeFrame: (hook: Hook) => (hooks.add(hook), () => hooks.delete(hook)),
-    invalidate: () => void asked++,
-  } as unknown as World;
+  const add = (hook: Hook) => (hooks.add(hook), () => hooks.delete(hook));
+  const world = { beforeFrame: add, onFrame: add, invalidate: () => asked++ } as unknown as World;
   const held = { particles: [] as ParticlePool[] };
   registerWorld(world, { session: () => null, last: () => null }, held);
   const pool = new ParticlePool({ capacity: 8 });
