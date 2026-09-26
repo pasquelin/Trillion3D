@@ -34,7 +34,7 @@ export const poseCommand = (object: Object3D, before: Pose, after: Pose) =>
   valueCommand((pose: Pose) => applyPose(object, pose), before, after);
 
 /** `object` put under `parent`: an object added. */
-export const attachCommand = (object: Object3D, parent: Object3D): Command => ({
+export const addCommand = (object: Object3D, parent: Object3D): Command => ({
   undo: () => parent.remove(object),
   redo: () => parent.add(object),
 });
