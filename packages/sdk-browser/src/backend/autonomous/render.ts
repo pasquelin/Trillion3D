@@ -17,6 +17,8 @@ import type { createAutonomousGeometry } from './geometry.ts';
 export type AutonomousRenderState = {
   visible: number;
   selectedTriangles: number;
+  /** Triangles of the cut's holes (`SelectionResult.uncoveredTriangles`). */
+  uncoveredTriangles: number;
   frustumRejected: number;
   lodLevel: number;
   overBudget: boolean;
@@ -26,6 +28,7 @@ export type AutonomousRenderState = {
 export const createAutonomousRenderState = (): AutonomousRenderState => ({
   visible: 0,
   selectedTriangles: 0,
+  uncoveredTriangles: 0,
   frustumRejected: 0,
   lodLevel: 0,
   overBudget: false,
@@ -118,6 +121,7 @@ export function createAutonomousRender(options: {
     const selected = cut(gate.cam, gate.pixelError);
     state.visible = selected.visible;
     state.selectedTriangles = selected.selectedTriangles;
+    state.uncoveredTriangles = selected.uncoveredTriangles;
     state.frustumRejected = selected.frustumRejected;
     state.lodLevel = selected.lodLevel;
     // Drawn pages past the display graph's page ceiling are reported, never replaced.

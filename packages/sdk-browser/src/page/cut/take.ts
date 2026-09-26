@@ -71,7 +71,10 @@ export function take<T extends PageRecord>(
     ready = !held || held.isReady(index);
   // Settled: every cluster under the node meets the threshold and its parent does not.
   let wanted = true,
-    drawn = ready;
+    drawn = ready,
+    // A hole: a root-cover cluster (nothing coarser stands in for it) the rule would draw were it
+    // resident. Readiness being closed upward, nothing under it is ready either.
+    uncovered = !ready && rec.parentError == null;
   if (!settled) {
     const childReady = !held || held.isChildReady(index),
       pixels = selectionScratch.pixels,
@@ -80,9 +83,11 @@ export function take<T extends PageRecord>(
     else framePixels(s, rec, pixels);
     wanted = drawsCluster(true, pixels[1], pixels[0], true, t);
     drawn = drawsCluster(ready, pixels[1], pixels[0], childReady, t);
-    if (!wanted && !drawn) return;
+    uncovered &&= drawsCluster(true, pixels[1], pixels[0], childReady, t);
+    if (!wanted && !drawn && !uncovered) return;
   }
   if (cones && rec.cone && coneSkipsPage(rec, s.flatCone, s.flatWorld, s.cam, rec.min!, rec.max!))
     return;
+  if (uncovered) s.uncoveredTriangles += rec.triangles;
   keep(s, rec, wanted, drawn);
 }

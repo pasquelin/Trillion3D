@@ -130,6 +130,8 @@ export function mount(
   return {
     pool,
     state,
+    /** The cut's readiness: a test that takes a page away names it there, as the pool's drop does. */
+    held,
     diagnostics,
     image,
     frame,

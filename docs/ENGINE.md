@@ -712,6 +712,9 @@ Shared URLs occupy one slot across instances. Two counters say different things:
 | `cacheEvictions` | pages actually evicted from the cache that feeds the drawn geometry: the memory-pressure signal | every backend        |
 
 `coverageReady`, `coverageBudgetLimited` and `streamingError` report coverage;
+on WebGL2, `uncoveredTriangles` counts the holes of the image's cut (`page/cut/take.ts`): the
+triangles of the root-cover clusters in view the cut rule would draw but that are not resident,
+nothing coarser standing in for them. Zero is the only healthy value; the WebGPU path reads `null`;
 the `coverage-*` diagnostics trace bootstrap, budget, upload and streaming failures. A failed URL is
 retried at most three times per session; an initial cover read failure rejects preparation.
 
