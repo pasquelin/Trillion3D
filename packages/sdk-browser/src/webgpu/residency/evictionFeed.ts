@@ -31,7 +31,9 @@ export function createEvictionFeed(
     if (!cache) return;
     const cut = selection?.peek();
     selection?.setPoolSlots(cache.slots);
-    if (cut === last) return;
+    // A residency change voids the cut in hand until the next readback: the last order holds, the
+    // GPU-cut path never falls back to the least recent page, which may be one the cut reads.
+    if (cut === last || (selection && !cut)) return;
     last = cut;
     const queue = cut?.result.evictPageIds;
     if (!queue) return cache.evictInOrder(undefined);
