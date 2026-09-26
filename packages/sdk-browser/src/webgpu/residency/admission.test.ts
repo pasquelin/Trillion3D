@@ -1,39 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createWebgpuPageTracking } from '../row/pageTracking.ts';
-import { structureIndex } from '../../page/selection/structure.ts';
 import type { PageRec } from '../../page/selection/selection.ts';
-import type { ClusterRoot } from '../../page/selection/types.ts';
-import { createPageParents } from './admission.ts';
 import { createWebgpuResidentEnsurer } from './residentEnsurer.ts';
-import { ensurerOptions, lruCache, pageOf } from './residentEnsurer.fixture.ts';
+import { ensurerOptions, lruCache, placement } from './residentEnsurer.fixture.ts';
 import { linkBundleDependencies } from '../../page/selection/bundleDependencies.ts';
 import { RequestStamps, collectPendingUrls } from '../../page/selection/selection.ts';
 import { createCutDelta } from '../cut/delta.ts';
 import { createCutPending } from '../cut/pending.ts';
-
-/** One placement: the root `r`, the mid cluster `m` replacing the leaves `a` and `b`, and `r`
- *  replacing `m`. Group 0 turns `m` into `r`, group 1 turns `a` and `b` into `m`. */
-function placement() {
-  const pages = ['r', 'm', 'a', 'b'].map(pageOf);
-  const groups = [0, 1, 1].map((group, i) => [pages[i + 1], group] as const);
-  for (const [page, group] of groups) page.group = group;
-  for (const page of pages) page.placementIndex = 0;
-  const band = { error: 1, sphere: [0, 0, 0, 1] };
-  const structure = structureIndex(
-    {
-      version: 1,
-      roots: [0],
-      groups: [
-        { level: 1, ...band, children: [1], outputs: [0] },
-        { level: 0, ...band, children: [2, 3], outputs: [1] },
-      ],
-    },
-    pages.length,
-  );
-  const root = { world: { elements: [] }, pages, structure } as unknown as ClusterRoot<PageRec>;
-  return { pages, parentsOf: createPageParents([root]) };
-}
 
 /** A pool of `slots` that journals every load, and an ensurer over it. */
 function ensurerOver(

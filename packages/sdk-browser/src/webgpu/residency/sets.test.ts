@@ -72,3 +72,20 @@ test('an image that moves no page touches no set at all', () => {
   assert.equal(tracking.wanted.list, listBefore);
   assert.deepEqual([...tracking.wanted.list.subarray(0, tracking.wanted.count)], wantedBefore);
 });
+
+test('a queue rebuilt past the budget hands the pin step only the keys it took and let go', () => {
+  const world = scene();
+  const { sets, tracking } = world;
+  // Eight pages, levels 0 to 7, over a budget of three: the ranking keeps the three coarsest.
+  frame(world, [2, 4, 6, 8, 10, 12, 14], 3);
+  const before = keysOf(tracking.keep);
+  sets.entering.clear();
+  sets.leaving.clear();
+  // The coarsest page leaves the cut: the rebuilt queue drops it and takes the next one down.
+  frame(world, [2, 4, 6, 8, 10, 12], 3);
+  const after = keysOf(tracking.keep);
+  const minus = (a: Set<number>, b: Set<number>) => new Set([...a].filter((key) => !b.has(key)));
+  assert.deepEqual(keysOf(sets.entering), minus(after, before), 'joined');
+  assert.deepEqual(keysOf(sets.leaving), minus(before, after), 'left');
+  assert.equal(sets.leaving.count, 1);
+});

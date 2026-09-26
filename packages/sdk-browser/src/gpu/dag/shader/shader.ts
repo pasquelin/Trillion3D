@@ -8,6 +8,7 @@ import { DAG_REQUEST_WGSL } from '../request.ts';
 import { DAG_WANTED_WGSL } from './wantedWgsl.ts';
 import { DAG_LIVE_WGSL } from './liveWgsl.ts';
 import { DAG_LEVEL_WGSL } from './levelWgsl.ts';
+import { DAG_LAST_USE_WGSL } from './lastUseWgsl.ts';
 import { DAG_FLOOR_WGSL } from './floorWgsl.ts';
 import { DAG_PAGES_WGSL } from './pagesWgsl.ts';
 import { CASTS_NO_SHADOW, SPRITE_UNCULLED } from '../../../visibility/shader/spriteWgsl.ts';
@@ -123,7 +124,7 @@ fn dagPrepare(@builtin(global_invocation_id) id:vec3u){
  }
  if(t<blockCount()){atomicStore(&work[blockBase()+t],0u);}
  if(t<views[0u].viewCount){atomicStore(&work[viewWord(0u,t)],0u);atomicStore(&work[viewWord(2u,t)],0u);}
- if(t==0u){atomicStore(&work[drawnGroupsMax()],0u);}
+ if(t==0u){atomicStore(&work[drawnGroupsMax()],0u);countFrame();}
  let world=views[0u].worldCount;
  if(t>=world*views[0u].viewCount){return;}
  vi=t/world;let w=t-vi*world;let slot=slotOf(w);
@@ -161,7 +162,7 @@ fn dagMask(@builtin(global_invocation_id) id:vec3u,@builtin(local_invocation_ind
    let posee=select(0u,1u,draw);
    flags[views[0u].queueCap+i]=posee;
    // Drawn count of this page's block, held here rather than reread later page by page.
-   if(posee!=0u){atomicAdd(&work[blockBase()+i/BLOCK],1u);drawnAppend(i);}
+   if(posee!=0u){atomicAdd(&work[blockBase()+i/BLOCK],1u);drawnAppend(i);stampUse(i);}
   }
  }
  verseTotaux(lid);
@@ -172,6 +173,7 @@ ${INVERSE_TRANSPOSE_WGSL}
 ${DAG_COMPACT_WGSL}${DAG_TOTALS_WGSL}${DAG_REQUEST_WGSL}${DAG_RELEVE_WGSL}${DAG_WANTED_WGSL}
 ${DAG_LIVE_WGSL}
 ${DAG_LEVEL_WGSL}
+${DAG_LAST_USE_WGSL}
 ${DAG_FLOOR_WGSL}
 ${DAG_PAGES_WGSL}
 ${DAG_VIEWS_WGSL}

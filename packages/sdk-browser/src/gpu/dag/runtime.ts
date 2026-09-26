@@ -8,6 +8,7 @@ import {
 import { primitiveWordAt, refreshWorldStretch, worldsChanged } from './worlds.ts';
 import { createDagResidencyUpload } from './residencyUpload.ts';
 import { createDagDispatch } from './dispatch.ts';
+import { DAG_READBACK_SLOTS } from './layout.ts';
 import type { createDagResources } from './resources.ts';
 
 type DagResources = NonNullable<Awaited<ReturnType<typeof createDagResources>>>;
@@ -38,7 +39,7 @@ export function createDagRuntime(resources: DagResources): GpuSelection {
     readbackResidencyRevision: -1,
     submittedWorldRevision: -1,
     readbackWorldRevision: -1,
-    mapped: [false, false],
+    mapped: new Array<boolean>(DAG_READBACK_SLOTS).fill(false),
     slot: 0,
   };
   /** Cuts in hand and in flight name pages the kernel may no longer choose: they are void. */
