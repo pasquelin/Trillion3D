@@ -26,7 +26,6 @@ test('a dolly over a small scene whose reads fit the pool evicts nothing it read
   const store = createSceneLightStore();
   const plan = createShadowPlan(32);
   store.add(SUN);
-  let floors = 0;
   for (let frame = 0; frame < 60; frame++) {
     // The camera rocks over two metres, and reads a block of fine pages under it.
     const x = Math.abs((frame % 20) - 10) * 0.2,
@@ -41,11 +40,11 @@ test('a dolly over a small scene whose reads fit the pool evicts nothing it read
     for (let ay = -6; ay < 6; ay++)
       for (let ax = first; ax < first + 12; ax++) block.push([ax, ay]);
     report(plan, store, frame, sunPages(plan, slice, level, block));
-    const floor = sunFloorLevel(plan.sun.finest[slice]);
-    floors = 0;
-    for (let page = 0; page < plan.pool.pages; page++)
-      if (plan.pool.owner[page] >= 0 && plan.pool.view[page] === floor) floors++;
   }
+  const floor = sunFloorLevel(plan.sun.finest[store.sliceOf(0)]);
+  let floors = 0;
+  for (let page = 0; page < plan.pool.pages; page++)
+    if (plan.pool.owner[page] >= 0 && plan.pool.view[page] === floor) floors++;
   // The box's twenty metres in the floor's four-metre pages, one page around: 8 × 8, where the
   // view's reach held 880.
   assert.ok(floors <= 64, `the floor holds the scene's pages, not the view's reach: ${floors}`);
