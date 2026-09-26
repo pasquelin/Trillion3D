@@ -174,7 +174,7 @@ impl<'a> SceneRequest<'a> {
             cache: &o.cache,
             cancelled: &o.cancelled,
             progress,
-            ram_budget: o.ram_budget_mb.saturating_mul(1024 * 1024),
+            ram_budget: o.ram_budget_bytes().unwrap_or(usize::MAX),
         }
     }
     /// Scene this driver has just written into `directory`, with the root where the image
