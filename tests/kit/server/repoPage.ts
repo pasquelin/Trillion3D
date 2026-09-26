@@ -16,9 +16,10 @@ import { startServer } from './staticServer.ts';
  * (the graph fixtures, the maths) while the page loads the engine from `dist/`: without them each
  * such module would run twice, and two scene states refuse each other's nodes ("Scene nodes belong
  * to different roots", #795). A fixture, which the build leaves out, runs from its source, once. A
- * build older than a source is refused: the page would run another engine than the sources say.
+ * build older than a source is refused (`refuseStale`): the page would run another engine than the
+ * sources say.
  */
-function engineInDist(root: string) {
+function engineInDist(root: string, refuseStale: boolean) {
   const address = (file: string) => `/${relative(root, file).split(sep).join('/')}`;
   const imports: Record<string, string> = {};
   const stale: string[] = [];
@@ -29,14 +30,18 @@ function engineInDist(root: string) {
     if (built < statSync(source).mtimeMs) stale.push(relative(root, source));
     imports[address(source)] = address(emitted);
   }
-  if (stale.length)
-    assert.fail(`dist older than ${stale.join(', ')}: run \`pnpm run build\` first`);
+  if (refuseStale && stale.length) {
+    const named =
+      stale.slice(0, 5).join(', ') + (stale.length > 5 ? ` and ${stale.length - 5} more` : '');
+    assert.fail(`dist older than ${named}: run \`pnpm run build\` first`);
+  }
   return imports;
 }
 
 /** The server of a repository page: the harness mounts, `dist/`, `tests/`, `scripts/` and the
- *  engine sources, each emitted one resolved to `dist/` (`engineInDist`). */
-export function repoServer(root: string) {
+ *  engine sources, each emitted one resolved to `dist/` (`engineInDist`). `refuseStale: false`
+ *  serves the map of a build older than its sources, for a check of the map alone. */
+export function repoServer(root: string, { refuseStale = true } = {}) {
   assert.ok(
     existsSync(resolve(root, 'dist/witnesses/measurement.js')),
     'dist missing: run `pnpm run build` first',
@@ -49,7 +54,7 @@ export function repoServer(root: string) {
       { prefix: '/scripts/', dir: resolve(root, 'scripts') },
       { prefix: '/packages/', dir: resolve(root, 'packages') },
     ],
-    imports: engineInDist(root),
+    imports: engineInDist(root, refuseStale),
   });
 }
 

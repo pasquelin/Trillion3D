@@ -18,9 +18,10 @@ const repoPages = () =>
     .filter((text) => text.includes('withRepoPage('))
     .flatMap((text) => [...text.matchAll(/pageUrl: '\/(tests\/[^']+)'/g)].map((match) => match[1]));
 
-/** The repository page's import map, as the server sends it. */
+/** The repository page's import map, as the server sends it; a build older than a source still
+ *  maps, so the unit suite does not ask for a rebuild after each edit. */
 async function servedImports(): Promise<Record<string, string>> {
-  const { server, port } = await repoServer(ROOT);
+  const { server, port } = await repoServer(ROOT, { refuseStale: false });
   try {
     const page = await (await fetch(`http://127.0.0.1:${port}/`)).text();
     const map = /<script type="importmap">(.*?)<\/script>/s.exec(page)![1];
