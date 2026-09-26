@@ -1,6 +1,7 @@
 import type { Texture } from '../../../../sdk-core/src/index.ts';
-import { textureRgba } from '../../visibility/types.ts';
-import { texelsRefusal } from '../../host/textureImport.ts';
+import { texelsReason, textureRgba } from '../../visibility/types.ts';
+import { texelFormatOf } from '../../host/textureImport.ts';
+import { HOST_FORMAT_RGBA } from '../../host/surfaceConstants.ts';
 import { premultipliedByte } from '../../visibility/math.ts';
 import { generateMaterialMips } from '../../texture/mips.ts';
 import { mipLevelCountFor } from '../../texture/tiles.ts';
@@ -67,7 +68,11 @@ export function createTileScratch(
     const { map } = options;
     const rgba = textureRgba(map);
     if (rgba) {
-      const refusal = texelsRefusal(map);
+      // Texels RGBA8 cannot hold as stored, refused in the WebGL2 gate's words (#43).
+      const refusal = texelsReason({
+        format: texelFormatOf(map) ?? HOST_FORMAT_RGBA,
+        image: map.image,
+      });
       if (refusal) throw new Error(refusal);
       if (rgba.width !== width || rgba.height !== height) throw new Error('TEXTURE_SOURCE_SIZE');
       const texels =
