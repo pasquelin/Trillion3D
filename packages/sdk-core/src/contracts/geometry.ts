@@ -43,7 +43,7 @@ export interface Page {
    *  surfaces that share a plane exactly. Absent and 0 mean the same thing: the untouched draw. */
   depthLayer?: number;
   /** The cone that bounds its triangles' normals: `axis` a unit vector, `angle` the half-angle in
-   *  radians, π for a cone that rejects nothing. The compiler cooks it from the triangles; the
+   *  radians, π for a cone that rejects nothing. The compiler cooks it for every cluster; the
    *  WebGPU cut skips a one-sided cluster the camera sees from behind its cone. */
   cone?: { axis: [number, number, number]; angle: number };
 }

@@ -32,8 +32,8 @@
  *  Version 8 adds the page dependencies of the streaming bundles: a count per bundle, then the
  *  flat lists, closed up to the root cover (`docs/FORMAT.md` §Cluster DAG), that WebGPU requests
  *  and retains with a bundle. A version-7 reader cannot read the lists, so it refuses.
- *  Version 9 adds each page's normal cone, cooked by the compiler (`Page.cone`), in a column of its
- *  own and flagged by `FLAG_CONE`: a version-8 reader would rebuild it from the source vertices. */
+ *  Version 9 adds each page's normal cone, cooked by the compiler (`Page.cone`), in a column a
+ *  version-8 reader lacks. */
 export const MANIFEST_BINARY_VERSION = 9;
 /** The geometry-page format a version-8 sidecar names, as the manifest's `geometryPages` declares
  *  it once and every page header opens with. */

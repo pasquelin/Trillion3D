@@ -1,44 +1,24 @@
-// preparing normal cones and the page catalogue.
-import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
-import { prepareCones } from '../../../packages/sdk-browser/src/webgpu/pages/prepare/cones.ts';
+// Bench of the WebGPU engine-prepare catalogue: the source-byte table and the texture diagnostic
+// counters, against their batch F oracles. (The normal cones it also measured are cooked by the
+// compiler since #272: the prepare no longer computes them.)
 import {
   compteMateriauxEtTangentes,
   indexSourceBytes,
 } from '../../../packages/sdk-browser/src/webgpu/pages/io/catalogue.ts';
 import type { PageRec } from '../../../packages/sdk-browser/src/page/selection/types.ts';
-import type { WebgpuPagesRuntime } from '../../../packages/sdk-browser/src/webgpu/pages/runtime.ts';
-import { graine, mesure, stress, rapport } from '../../core/index.ts';
+import { mesure, rapport } from '../../core/index.ts';
 import {
-  entreeCones,
   referenceCompteMateriauxEtTangentes,
   referenceIndexSourceBytes,
 } from '../../oracles/browser/normal-cones.ts';
 import { catalogueDePages } from './support/scenesLoading.ts';
 
-/** `entreeCones` builds the oracle's `{setup: {allPages, roots}}` shape, a small fraction of the
- *  real `WebgpuPagesRuntime` — the same bridge `packages/sdk-browser/src/webgpu/pages/prepare/prepare.test.ts` already takes for
- *  this pair, since `prepareCones` only ever reads `rt.setup.roots`. */
-const runtimeOf = (rt: ReturnType<typeof entreeCones>) => rt as unknown as WebgpuPagesRuntime;
-
-const alea = graine(6151);
 const pages = catalogueDePages({ pages: 20000, materiaux: 60 });
 const unePage = catalogueDePages({ pages: 1, materiaux: 1, seed: 17 });
-const hostiles = catalogueDePages({ pages: 400, materiaux: 8, seed: 23 }).map((rec, i) => {
-  if (i % 5 === 0) return { ...rec, array: undefined };
-  if (i % 7 === 0) return { ...rec, attributes: {} };
-  if (i % 11 === 0) {
-    const brut = new Float32Array(192 * 4);
-    for (let k = 0; k < brut.length; k++) brut[k] = alea() * 4 - 2;
-    const tampon = new G.InterleavedBuffer(brut, 4);
-    return { ...rec, attributes: { position: new G.InterleavedBufferAttribute(tampon, 3, 0) } };
-  }
-  if (i % 13 === 0) {
-    const brut = new Int16Array(192 * 3);
-    for (let k = 0; k < brut.length; k++) brut[k] = Math.floor(alea() * 65536) - 32768;
-    return { ...rec, attributes: { position: new G.BufferAttribute(brut, 3, true) } };
-  }
-  return rec;
-});
+// Every fifth page has no index bytes yet: the table leaves it out.
+const partiels = catalogueDePages({ pages: 400, materiaux: 8, seed: 23 }).map((rec, i) =>
+  i % 5 === 0 ? { ...rec, array: undefined } : rec,
+);
 
 const blocs = new Map<string, { hasTangent: boolean }>();
 for (let i = 0; i < 4000; i++) blocs.set(`bloc/${i}`, { hasTangent: i % 3 === 0 });
@@ -46,7 +26,7 @@ const blocVide = new Map<string, { hasTangent: boolean }>();
 
 const casPages = [
   { name: '20 000 pages, 60 materials', input: pages, size: 20000 },
-  { name: 'interleaved, normalized, missing attributes', input: hostiles, size: 400 },
+  { name: 'pages without index bytes', input: partiels, size: 400 },
   { name: 'a single page', input: unePage, size: 1 },
   { name: 'no pages', input: [], size: 0 },
 ];
@@ -73,12 +53,6 @@ const resDiagnostic = await mesure({
   attendu: (e: { pages: PageRec[]; blocs: Map<string, { hasTangent: boolean }> }) =>
     referenceCompteMateriauxEtTangentes(e.pages, e.blocs),
   options: { tours: 60, budgetMs: 1500 },
-});
-
-await stress({
-  name: 'prepareCones extremes',
-  calcul: (c: PageRec[]) => prepareCones(runtimeOf(entreeCones(c))),
-  extremes: [{ name: 'empty', input: [] }],
 });
 
 rapport('cones-normaux', [resOctets, resDiagnostic], 'F18 yields the exact same bytes and counts');
