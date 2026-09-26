@@ -8,7 +8,7 @@ import {
 import { createDagOutputScratch, writeDagUniforms, parseDagOutput } from './uniforms.ts';
 import type { createDagResources } from './resources.ts';
 import { encodeDagKernels } from './encode.ts';
-import { DAG_READBACK_SLOTS as SLOTS } from './layout.ts';
+import { DAG_READBACK_SLOTS as SLOTS, residentReadbackBytes } from './layout.ts';
 
 type DagResources = NonNullable<Awaited<ReturnType<typeof createDagResources>>>;
 export type DagRuntimeState = {
@@ -37,8 +37,9 @@ export function createDagDispatch(
     device,
     packed,
     residentCut,
+    listCap,
     outputBytes,
-    readbackBytes,
+    pool,
     uniformData,
     uniforms,
     output,
@@ -80,7 +81,7 @@ export function createDagDispatch(
       undoReadbackWorld = state.readbackWorldRevision,
       undoSlot = state.slot;
     if (compute) {
-      writeDagUniforms(uniformData, packed, next, residentCut);
+      writeDagUniforms(uniformData, packed, next, residentCut, undefined, pool.slots);
       device.queue.writeBuffer(uniforms, 0, uniformData);
       encodeDagKernels(encoder, resources);
       state.lastSubmitted = copySelectionUniforms(next);
@@ -88,8 +89,10 @@ export function createDagDispatch(
       state.submittedWorldRevision = state.worldRevision;
     }
     if (copy) {
-      // Snapshot and compacted list follow each other in the same buffer: a single copy.
-      encoder.copyBufferToBuffer(output, 0, readback[i], 0, readbackBytes);
+      // Snapshot, compacted list and eviction queue follow each other in the same buffer: a single
+      // copy, as long as the pool's slots and never the catalogue.
+      const bytes = residentCut ? residentReadbackBytes(listCap, pool.slots) : outputBytes;
+      encoder.copyBufferToBuffer(output, 0, readback[i], 0, bytes);
     }
     const captured = copy ? copySelectionUniforms(next) : undefined;
     const capturedWorldRevision = state.worldRevision,
