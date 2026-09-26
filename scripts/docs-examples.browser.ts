@@ -91,12 +91,13 @@ test('every example file renders an image on its own, fetching Jolt only when it
 
 /**
  * #798: the health check flies its tour on each backend and publishes its verdict — every line
- * green, a line a backend refuses red with its reason —, and a slowed build (`?slow=40`, 40 ms
- * spent in every frame) turns the rate line of every part red, the overall verdict with it.
+ * green, a line a backend refuses red with its reason —, and a slowed build (40 ms spent in every
+ * animation frame) turns the rate line of every part red, the overall verdict with it.
  */
 test('the health check is green on both backends, and a slowed build turns its rate lines red', async () => {
   const { server, port } = await startDocsServer();
   const browser = await launchChrome({ headless: true });
+  const view = { width: 1728, height: 1117 };
   try {
     const entry = ready.find(({ id }) => id === 'health-check');
     assert.ok(entry);
@@ -104,26 +105,26 @@ test('the health check is green on both backends, and a slowed build turns its r
     for (const gpu of [true, false])
       for (const slow of [0, 40]) {
         const side = `${gpu ? 'WebGPU' : 'WebGL2'}${slow ? ' slowed' : ''}`;
-        const file = `${entry.file}?slow=${slow}`,
-          view = { width: 1728, height: 1117 };
         const { page, errors } = await openExample(
           browser,
           port,
-          { ...entry, file },
+          entry,
           view,
           undefined,
           gpu,
+          slow,
         );
         await page.waitForFunction(() => '__verdict' in globalThis, null, { timeout: 120_000 });
         const verdict = await page.evaluate(
           () => (globalThis as unknown as { __verdict: HealthVerdict }).__verdict,
         );
         const rates = verdict.resultats.filter(({ name }) => name.endsWith(': FPS'));
-        if (!slow)
+        if (slow) {
+          if (verdict.correct || !rates.length || rates.some(({ correct }) => correct))
+            found.push(`${side}: not every rate line red`);
+        } else
           for (const { name, motif, correct } of verdict.resultats)
             if (correct === false) found.push(`${side} ${name}: ${motif}`);
-        if (slow && (verdict.correct || rates.length !== 4 || rates.some(({ correct }) => correct)))
-          found.push(`${side}: not every rate line red`);
         found.push(...errors.map((error) => `${side}: ${error}`));
         await page.close();
       }

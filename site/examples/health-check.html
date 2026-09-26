@@ -47,11 +47,6 @@
       const check = healthCheck(world, () => flown?.part ?? null);
       const refuse = (reason) => (announce(say('refused'), reason), check.refuse(reason));
       diagnostic.createChannel().observe(({ kind, message }) => kind.includes('refused') && refuse(message));
-      // `?slow=<ms>` spends that long in every frame: the slowed build whose rate lines turn red.
-      const slow = Number(new URLSearchParams(location.search).get('slow')) || 0;
-      if (slow) world.beforeFrame(() => {
-        for (const end = performance.now() + slow; performance.now() < end; );
-      });
       world.scene.background = math.color('#bcd3e6');
       world.camera.far = 600;
       const [valley, sky, observatory] = await Promise.all([
