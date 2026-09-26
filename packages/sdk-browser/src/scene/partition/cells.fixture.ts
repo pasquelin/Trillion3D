@@ -15,11 +15,11 @@ export function world(far: number | null = 0, near: number | null = null) {
     scale: [2, 2, 2],
   });
   const bodies: Record<string, unknown> = {
-    'near.json': { version: 1, nodes: [node(1, near), node(3, near)] },
-    'far.json': { version: 1, nodes: [node(5000, far)] },
+    'near.json': { version: 2, nodes: [node(1, near), node(3, near)] },
+    'far.json': { version: 2, nodes: [node(5000, far)] },
   };
   const partition: TablePartition = {
-    version: 1,
+    version: 2,
     bounds: [0, 0, 0, 5010, 5, 5],
     meshes: [7],
     cells: [
