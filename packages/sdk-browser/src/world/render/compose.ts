@@ -106,7 +106,7 @@ export function createFrameComposer(
     const { width, height } = bindWebglTarget(gl, target);
     if (present(backend)) return;
     if (particles?.length)
-      throw new Error('PARTICLES_UNSUPPORTED: WebGL2 does not step particle pools yet (#420)');
+      throw new Error('PARTICLES_UNSUPPORTED: WebGL2 does not step particle pools yet (#759)');
     const revision = composed?.chain.revision ?? 0;
     const guidesHeld = !guides || guides.revision === guidesDrawn;
     if (

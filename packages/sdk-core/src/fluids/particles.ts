@@ -9,6 +9,7 @@
  * would round away. The motion is the same wherever the origin is, so the step never reads it;
  * drawing adds it back (#755).
  */
+import { GRAVITY_PRESETS } from '../physics/options.ts';
 
 /** Floats of one particle and of one emission record, the same eight words: position from the
  *  origin then age, velocity then lifetime. A record's age is zero: the GPU copies it as it is. */
@@ -44,9 +45,11 @@ export class ParticlePool {
   readonly origin: Float64Array;
   /** The staged records, `emitPerFrame` of them, read by the renderer up to `step.count`. */
   readonly staging: Float32Array<ArrayBuffer>;
-  /** Records staged since creation, and those refused because the image's staging was full. */
+  /** Records staged since creation, and those refused: the image's staging full, or the pool
+   *  `refused` by a renderer that cannot step it, which it then no longer asks frames for. */
   emitted = 0;
   dropped = 0;
+  refused = false;
   private readonly step: ParticleStep = { first: 0, count: 0, dt: 0 };
   private cursor = 0;
   private staged = 0;
@@ -54,7 +57,7 @@ export class ParticlePool {
   /** Seconds the longest-lived particle still has, as far as the CPU knows: it never reads back. */
   private liveFor = 0;
 
-  constructor({ capacity, emitPerFrame, acceleration = [0, -9.81, 0], origin }: ParticlePoolSpec) {
+  constructor({ capacity, emitPerFrame, acceleration, origin }: ParticlePoolSpec) {
     const perFrame = emitPerFrame ?? Math.min(capacity, Math.max(256, capacity >> 6));
     if (!Number.isInteger(capacity) || capacity < 1 || capacity > MAX_CAPACITY)
       throw new Error(`PARTICLE_CAPACITY: a pool holds 1 to ${MAX_CAPACITY} particles`);
@@ -62,7 +65,7 @@ export class ParticlePool {
       throw new Error('PARTICLE_EMISSION: a pool stages 1 to `capacity` records a frame');
     this.capacity = capacity;
     this.emitPerFrame = perFrame;
-    this.acceleration = Float32Array.from(acceleration);
+    this.acceleration = Float32Array.from(acceleration ?? [0, -GRAVITY_PRESETS.earth, 0]);
     this.origin = Float64Array.from(origin ?? [0, 0, 0]);
     this.staging = new Float32Array(perFrame * PARTICLE_FLOATS);
   }
@@ -70,7 +73,7 @@ export class ParticlePool {
   /** Stages one particle at world position `x, y, z`, born at the next image; false, and
    *  counted, when the image's staging is full. */
   emit(x: number, y: number, z: number, vx: number, vy: number, vz: number, lifetime: number) {
-    if (this.staged === this.emitPerFrame) {
+    if (this.refused || this.staged === this.emitPerFrame) {
       this.dropped++;
       return false;
     }
@@ -93,7 +96,7 @@ export class ParticlePool {
   /** Whether the next step changes anything: a record staged, or a particle still alive. An idle
    *  pool neither dispatches nor keeps the image from being held. */
   get moving() {
-    return this.staged > 0 || this.liveFor > 0;
+    return !this.refused && (this.staged > 0 || this.liveFor > 0);
   }
 
   /** Adds `seconds` to the time the next image steps; an idle pool lets them pass untaken, so
@@ -109,7 +112,7 @@ export class ParticlePool {
     const step = this.step;
     step.first = this.cursor;
     step.count = this.staged;
-    step.dt = this.moving ? Math.min(this.pending, MAX_STEP) : 0;
+    step.dt = Math.min(this.pending, MAX_STEP);
     this.liveFor -= step.dt;
     this.cursor = (this.cursor + this.staged) % this.capacity;
     this.staged = 0;
