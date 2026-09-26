@@ -1,4 +1,5 @@
 import { evictOldest } from './evictOldest.ts';
+import { createTextureLevelStore, textureLevelShare } from '../texture/levelStore.ts';
 
 /** The CPU total by default. Streaming bundles are far larger than a single cluster page, so a
  *  cache bounded only by entry count would hold hundreds of megabytes. */
@@ -20,8 +21,9 @@ export const manifestTableBytes = (pages: Iterable<{ url: string }>) => {
 };
 
 /** A session's hold on the cache: what it reserves off the total, which may change while it reads,
- *  and how it evicts — past its pins and its transfers — when the total shrinks. */
-type Holder = { reserved(): number; evict(): void };
+ *  the bytes of the pages it keeps or reads (`held`), and how it evicts — past its pins and its
+ *  transfers — when the total shrinks. */
+type Holder = { reserved(): number; held(): number; evict(): void };
 
 const checkBytes = (bytes: number) => {
   if (!Number.isSafeInteger(bytes) || bytes < 1) throw new Error('INVALID_PAGE_CACHE_BUDGET');
@@ -36,9 +38,10 @@ const checkBytes = (bytes: number) => {
  *
  * The total is shared by a fixed rule: the session reading through it reserves its manifest
  * tables, its transfer queue and the engine's tables (`manifestTableBytes`, `maxTransferBytes`, the
- * streamer's `reserve`), the scene's resident proxy its own (`keep`), and the pages hold the
- * rest (`budgetBytes`). A total set lower applies at once: pages leave by last use until they fit,
- * save those the session pins.
+ * streamer's `reserve`), the scene's resident proxy its own (`keep`), the decoded texture levels
+ * theirs (`levels`, at most `textureLevelShare` of the total, within what the pages the session
+ * keeps and the proxy leave), and the pages hold the rest (`budgetBytes`). A total set lower
+ * applies at once: pages leave by last use until they fit, save those the session pins.
  */
 export function createPageCache(cpuBytes = DEFAULT_CACHED_BYTES) {
   checkBytes(cpuBytes);
@@ -75,6 +78,10 @@ export function createPageCache(cpuBytes = DEFAULT_CACHED_BYTES) {
         drop,
       );
   };
+  const levels = createTextureLevelStore(textureLevelShare(cpuBytes));
+  levels.roomBeside = () =>
+    total - (holder?.reserved() ?? 0) - cache.keptBytes - (holder?.held() ?? 0);
+  levels.onHeld = evict;
   const cache = {
     /** The pages, by url, least recently used first. */
     pages: pages as ReadonlyMap<string, Uint8Array>,
@@ -86,9 +93,13 @@ export function createPageCache(cpuBytes = DEFAULT_CACHED_BYTES) {
     get cpuBytes() {
       return total;
     },
-    /** Bytes reserved off the total: the session's in place, and the kept file's. */
+    /** Bytes reserved off the total: the session's in place, and those held beside the pages. */
     get reservedBytes() {
-      return (holder?.reserved() ?? 0) + cache.keptBytes;
+      return (holder?.reserved() ?? 0) + cache.besideBytes;
+    },
+    /** Bytes held beside the pages: the kept file's and the decoded texture levels'. */
+    get besideBytes() {
+      return cache.keptBytes + levels.bytes;
     },
     /** Bytes the pages may hold: the total less what is reserved (`reservedBytes`). */
     get budgetBytes() {
@@ -133,6 +144,9 @@ export function createPageCache(cpuBytes = DEFAULT_CACHED_BYTES) {
       evict();
       return kept.read;
     },
+    /** The decoded texture levels, kept across sessions as the pages are (`levelStore.ts`); they
+     *  yield first to the pages a frame keeps (`streaming/cache.ts`). */
+    levels,
     /** Bytes the kept file takes off the total. */
     get keptBytes() {
       return slot?.bytes ?? 0;
@@ -150,6 +164,7 @@ export function createPageCache(cpuBytes = DEFAULT_CACHED_BYTES) {
     resize(cpu: number) {
       checkBytes(cpu);
       total = cpu;
+      levels.resize(textureLevelShare(cpu));
       evict();
     },
     /** A session reads through the cache until the returned release; one at a time. */
@@ -163,6 +178,7 @@ export function createPageCache(cpuBytes = DEFAULT_CACHED_BYTES) {
     clear() {
       pages.clear();
       release(true);
+      levels.close();
       bytes = 0;
     },
   };
