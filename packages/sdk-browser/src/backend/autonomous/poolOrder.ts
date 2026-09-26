@@ -2,6 +2,7 @@ import type { PageRec } from '../../page/selection/selection.ts';
 import { evictOldest } from '../../streaming/evictOldest.ts';
 import { createLastUse } from '../../residency/lastUse.ts';
 import { createPageKeys } from './pageKeys.ts';
+import { grown } from '../../page/cut/sparseInts.ts';
 
 /** Frames a page stays held once the image stopped keeping it: the WebGL2 image is drawn from the
  *  cut just taken on the CPU, no frame in flight reads a page the next cut no longer holds. */
@@ -9,13 +10,8 @@ const IDLE_WINDOW = 1;
 
 /**
  * The pages the WebGL2 geometry pool holds (`pool.ts`), by the engine's one residency
- * (`../../residency/lastUse.ts`), fed as WebGPU feeds it: what the image asks for and what it
- * draws are kept, each holding its parents. Just before a cut, what the last image drew but no
- * longer asks for leaves `keep`: that cut draws its nearest resident ancestor instead. A page that
- * leaves is released once its window ends, or at once when the pool is short (the window gives
- * way to the pages missing), finest first. Only released pages enter the order, by last use, and
- * leave it oldest first once over `limit`; between two cuts, an arrival stays. The root cover and
- * the host's pages never enter it (docs/ENGINE.md, the WebGL2 pool).
+ * (`../../residency/lastUse.ts`), fed as WebGPU feeds it; only released pages enter the order, and
+ * leave it by last use once over `limit` (docs/ENGINE.md, the WebGL2 pool).
  */
 export function createResidentOrder(env: {
   state: { readonly allocationBytes: number };
@@ -28,17 +24,16 @@ export function createResidentOrder(env: {
 }) {
   const { state, drop, limit } = env;
   const keys = createPageKeys();
-  // Resident pages above the root cover; the released ones in last-use order; arrivals since the
-  // last cut.
+  // Resident pages above the root cover; the released ones by last use; arrivals since the cut.
   const resident = new Set<string>(),
     order = new Set<string>(),
     arrivals = new Set<string>();
-  // What the image keeps, by key: the stamp of the `keep` that named it, and the list of that
-  // `keep` beside the previous one's, swapped.
+  // The stamp of the `keep` that last named each key; its list, the previous one's, and who left.
   let marks = new Int32Array(64),
     stamp = 1,
     kept: PageRec[] = [],
     entering: PageRec[] = [],
+    leaving: PageRec[] = [],
     asked: readonly PageRec[] = [],
     frame = 0,
     // A walk found nothing left to evict: nothing is until the next cut.
@@ -62,19 +57,15 @@ export function createResidentOrder(env: {
   const enter = (list: readonly PageRec[], previous: number) => {
     for (const rec of list) {
       const key = keys.keyOf(rec);
-      if (key >= marks.length) {
-        const grown = new Int32Array(2 * key + 2);
-        grown.set(marks);
-        marks = grown;
-      }
+      if (key >= marks.length) marks = grown(marks, key + 1, marks.length);
       if (marks[key] === stamp) continue;
-      const was = marks[key] === previous;
+      if (marks[key] !== previous) {
+        // Kept again: it is held, out of the order.
+        order.delete(rec.url);
+        lastUse.use(key, rec);
+      }
       marks[key] = stamp;
       entering.push(rec);
-      if (was) continue;
-      // Kept again: it is held, out of the order.
-      order.delete(rec.url);
-      lastUse.use(key, rec);
     }
   };
   /** The image keeps `requested` and `shown`: what joined is held, and of what left, the finest
@@ -86,12 +77,15 @@ export function createResidentOrder(env: {
     enter(requested, previous);
     enter(shown, previous);
     let finest = Infinity;
+    leaving.length = 0;
     for (const rec of kept)
-      if (marks[keys.keyOf(rec)] !== stamp) finest = Math.min(finest, rec.level ?? 0);
-    for (let i = kept.length - 1; i >= 0; i--) {
-      const rec = kept[i],
+      if (marks[keys.keyOf(rec)] !== stamp) {
+        leaving.push(rec);
+        finest = Math.min(finest, rec.level ?? 0);
+      }
+    for (let i = leaving.length - 1; i >= 0; i--) {
+      const rec = leaving[i],
         key = keys.keyOf(rec);
-      if (marks[key] === stamp) continue;
       if ((rec.level ?? 0) > finest) {
         marks[key] = stamp;
         entering.push(rec);
@@ -108,29 +102,29 @@ export function createResidentOrder(env: {
     resident.delete(url);
     drop(url);
   };
-  const none = () => false;
+  const isArrival = (url: string) => arrivals.has(url);
   /** Evicts released pages oldest first while over the budget, but those `spared`; when they do
    *  not suffice, the pages missing are released early, as WebGPU gives way under pressure. */
-  const shed = (spared: (url: string) => boolean) => {
+  const shed = (spared: (url: string) => boolean = isArrival) => {
     // What nothing may evict only raises the bar: under the pool it is not even read.
     if (exhausted || state.allocationBytes <= limit()) return 0;
     floorBytes = env.floorBytes();
     if (!over()) return 0;
     let evicted = evictOldest(order, over, spared, evictOne);
+    const bar = Math.max(limit(), floorBytes),
+      slot = env.pageBytes();
     while (over()) {
-      const before = order.size,
-        short = state.allocationBytes - Math.max(limit(), floorBytes);
-      lastUse.release(frame, released, Math.ceil(short / env.pageBytes()));
+      const before = order.size;
+      lastUse.release(frame, released, Math.ceil((state.allocationBytes - bar) / slot));
       if (order.size === before) break;
       evicted += evictOldest(order, over, spared, evictOne);
     }
     exhausted = over();
     return evicted;
   };
-  const isArrival = (url: string) => arrivals.has(url);
   return {
     /** Between two cuts — a budget set mid-session —: what the image drew and what arrived stay. */
-    shedBetweenCuts: () => shed(isArrival),
+    shedBetweenCuts: () => shed(),
     /** A page has arrived, or arrived again: it stays until the next cut, and enters the order at
      *  once when nothing holds it. */
     arrived(url: string) {
@@ -141,7 +135,7 @@ export function createResidentOrder(env: {
         order.delete(url);
         order.add(url);
       }
-      shed(isArrival);
+      shed();
     },
     /** A page left by another way — the streamer evicted it —, or the host replaced it, which
      *  holds it for good under the floor. */
@@ -161,9 +155,8 @@ export function createResidentOrder(env: {
       arrivals.clear();
       keep(asked, []);
       lastUse.release(frame, released);
-      return shed(none);
+      return shed(() => false);
     },
-    /** Keys in use, what the residency's tables are sized by. */
     get keyCount() {
       return keys.size;
     },

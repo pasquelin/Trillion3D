@@ -86,7 +86,10 @@ export function createLastUse(options: {
     const freed = onRelease(key);
     for (const at of taken)
       if (children.add(at, -1) === 0 && !kept(at)) {
-        if (cascadeFrame !== frame) [cascadeFrame, cascadeAt] = [frame, idleKeys.length];
+        if (levelPerFrame && cascadeFrame !== frame) {
+          cascadeFrame = frame;
+          cascadeAt = idleKeys.length;
+        }
         idle(at, frame);
       }
     return freed;

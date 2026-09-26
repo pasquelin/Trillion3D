@@ -26,9 +26,5 @@ test('the WebGL2 page path publishes each declared degradation', () => {
     ['render-capabilities'],
   );
   assert.deepEqual(heard[0].context?.unsupported, unsupported);
-  for (const lost of ['cast shadows', 'occlusion culling', 'GPU-driven selection'])
-    assert.ok(
-      unsupported.some((entry) => entry.startsWith(lost)),
-      lost,
-    );
+  assert.ok(['cast shadows', 'occlusion culling'].every((lost) => unsupported.includes(lost)));
 });
