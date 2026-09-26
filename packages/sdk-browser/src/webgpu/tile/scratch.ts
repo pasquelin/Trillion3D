@@ -1,7 +1,5 @@
 import type { Texture } from '../../../../sdk-core/src/index.ts';
-import { texelsReason, textureRgba } from '../../visibility/types.ts';
-import { hostOfRecord } from '../../host/textureImport.ts';
-import { HOST_FORMAT_RGBA } from '../../host/surfaceConstants.ts';
+import { texelsRefusal, textureRgba } from '../../visibility/types.ts';
 import { premultipliedByte } from '../../visibility/math.ts';
 import { generateMaterialMips } from '../../texture/mips.ts';
 import { mipLevelCountFor } from '../../texture/tiles.ts';
@@ -100,14 +98,6 @@ export function createTileScratch(
     reduce,
     destroy: () => texture.destroy(),
   };
-}
-
-/** Why texels held in memory cannot be written as RGBA8, in the WebGL2 gate's words
- *  (`texelsReason`): the host's format for raw texels, RGBA for any other picture. */
-function texelsRefusal(map: Texture) {
-  const host = hostOfRecord(map);
-  const format = host?.kind === 'texels' ? host.format : HOST_FORMAT_RGBA;
-  return texelsReason({ format, image: map.image });
 }
 
 /** RGBA8 texels as the WebGL2 upload stores them, written into `out`, which it returns: rows in
