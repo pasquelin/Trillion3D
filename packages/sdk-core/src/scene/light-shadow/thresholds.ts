@@ -10,28 +10,25 @@ import { STALE_FULL, type ShadowPool } from './pool.ts';
  */
 export function createShadowThresholds(pool: ShadowPool) {
   const drawnAt = new Float64Array(pool.pages).fill(NaN);
-  let current = NaN,
-    pending = false;
-  return {
+  let current = NaN;
+  const thresholds = {
     /** The threshold this frame's light cuts select at. */
     set(threshold: number) {
       if (threshold === current) return;
       // The first threshold finds no page drawn at another.
-      pending = !Number.isNaN(current);
+      thresholds.pending = !Number.isNaN(current);
       current = threshold;
     },
     /** True while the threshold moved and the pages drawn at another wait for the camera to rest. */
-    get pending() {
-      return pending;
-    },
+    pending: false,
     /** Page `page` was drawn at the current threshold. */
     drew(page: number) {
       drawnAt[page] = current;
     },
     /** The camera rests: stales the mapped pages drawn at another threshold; returns how many. */
     restale(nowMs: number, frame: number) {
-      if (!pending) return 0;
-      pending = false;
+      if (!thresholds.pending) return 0;
+      thresholds.pending = false;
       let staled = 0;
       for (let page = 0; page < pool.pages; page++) {
         const at = drawnAt[page];
@@ -42,7 +39,8 @@ export function createShadowThresholds(pool: ShadowPool) {
     },
     reset() {
       drawnAt.fill(NaN);
-      pending = false;
+      thresholds.pending = false;
     },
   };
+  return thresholds as Readonly<typeof thresholds>;
 }
