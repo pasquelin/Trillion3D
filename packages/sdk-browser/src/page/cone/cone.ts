@@ -18,7 +18,6 @@ export function leafCone(page: { cone?: NormalCone; material?: PageSurface }): N
   if (page.material && !surfaceFrontOnly(page.material)) return OPEN_CONE;
   return page.cone ?? OPEN_CONE;
 }
-export { triangleCone } from './build.ts';
 
 const loneContext = createConeContext();
 

@@ -1,12 +1,7 @@
 import type { ClusterManifest } from '../contracts/index.ts';
 import * as format from './binaryFormat.ts';
-import {
-  checkedDepthLayer,
-  countManifest,
-  expectTemplate,
-  manifestBinaryRanges,
-  writeSha,
-} from './binaryLayout.ts';
+import { countManifest, expectTemplate, manifestBinaryRanges, writeSha } from './binaryLayout.ts';
+import { checkedDepthLayer, writeCone } from './binaryPageChecks.ts';
 import { encodePreviewColumns } from './binaryPreviewEncode.ts';
 import { slimBinaryOf } from './binaryTypes.ts';
 import type {
@@ -131,10 +126,7 @@ export function encodeManifestBinary(
         geometryWords[page * 5 + 3] = item.geometry.flags;
         geometryWords[page * 5 + 4] = item.geometry.uncompressedBytes;
       }
-      if (item.cone) {
-        flags |= format.FLAG_CONE;
-        pageCone.set([...item.cone.axis, item.cone.angle], page * 4);
-      }
+      writeCone(pageCone, page, item.cone);
       words[page * 2 + format.U32_FLAGS] = flags;
       if (item.depthLayer !== undefined) pageDepthLayer[page] = checkedDepthLayer(item.depthLayer);
       page++;

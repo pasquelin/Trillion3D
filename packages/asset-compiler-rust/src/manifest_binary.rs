@@ -37,8 +37,7 @@ use format::*;
 /// history sits beside the reader (`sdk-core/src/manifest/binaryFormat.ts`). Version 8 adds the
 /// page dependencies of the streaming bundles, a count per bundle then the flat closed lists: a
 /// reader of version 7 would install a bundle before the bundles holding its parents. Version 9
-/// adds each page's normal cone (`src/normal_cone.rs`), which a reader of version 8 would not
-/// know the column of: it would rebuild every cone from the source vertices.
+/// adds each page's normal cone (`src/normal_cone.rs`), a column a reader of version 8 lacks.
 pub const MANIFEST_BINARY_VERSION: u32 = 9;
 /// 'W','G','M','B' read as a little-endian u32.
 pub const MANIFEST_BINARY_MAGIC: u32 = 0x424d_4757;

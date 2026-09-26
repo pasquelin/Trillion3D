@@ -11,7 +11,6 @@ pub(super) const FLAG_PARENT_SPHERE: u32 = 64;
 pub(super) const FLAG_PARENT_SPHERE_SET: u32 = 128;
 pub(super) const FLAG_GROUP: u32 = 256;
 pub(super) const FLAG_SOURCE: u32 = 512;
-pub(super) const FLAG_CONE: u32 = 1024;
 
 pub(super) fn encode_page(
     page: &Value,
@@ -154,13 +153,16 @@ pub(super) fn encode_page(
             }
         }
     }
-    // A page with no cone keeps its slot, zeroed; the flag tells it from a cooked one.
+    // Every page of version 9 has its cone; a hand-written page that names none rejects nothing.
+    let column = &mut columns[PAGE_CONE];
     match item.get("cone") {
-        None => columns[PAGE_CONE].zeros(32),
+        None => {
+            for value in crate::normal_cone::OPEN_CONE {
+                column.f64(value);
+            }
+        }
         Some(cone) => {
-            flags |= FLAG_CONE;
             let cone = object(cone, "page.cone")?;
-            let column = &mut columns[PAGE_CONE];
             vector_into(cone.get("axis"), 3, "page.cone.axis", column)?;
             column.f64(number(cone.get("angle"), "page.cone.angle")?);
         }
