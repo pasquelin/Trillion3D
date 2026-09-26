@@ -131,6 +131,21 @@ triangle count, and both raise an `EngineError` (`INVALID_POINTER`, `CACHE_NOT_R
 `SCOPE_MISMATCH`, `UNSUPPORTED_FORMAT`, `INVALID_CACHE`, `STALE_CACHE`) otherwise. They are the
 checks `scene.load` runs, and download no binary sidecar.
 
+### Files over HTTP
+
+Every file of a model the engine reads over HTTP — the manifest, its tables and binary, images,
+lights, pages, cooked physics — goes through one loader. A failure that may pass — the network, a
+timeout (408), a rate limit (429), a server error (5xx) — is asked again once, after the wait its
+`Retry-After` asks (seconds or an HTTP date), or by the reader's own retry, without that wait: the
+page streamer's three attempts, the GPU page cache's two, a physics tile's next update. Another 4xx is
+never asked twice, and an aborted load asks nothing more and rejects with its reason. What still fails
+is `RESOURCE_HTTP_ERROR`, the address in its message and `details.url`, the status in
+`details.status` (`null` for the network). A file a cache may lack — `lights.json` and
+`physics.json`, of a model compiled before them — is absent on a 404, or on the 403 of a store that
+hides what it does not hold. A page read (`httpPageSource`) raises `RESOURCE_HTTP_ERROR` where it
+raised `Error('PAGE_HTTP_<status>')`, and a cooked tile or a soft body's settings where they raised
+`PHYSICS_FAILED`.
+
 ## API rule
 
 State that is read and written is a **property** (`camera.near = 0.1`, `light.intensity = 2`,
@@ -956,7 +971,9 @@ A light casts a shadow when the file says so (FBX carries the flag; glTF has non
 lights cast one). Beyond 64 lights, the ones that carry furthest are kept — directionals first, then
 by peak channel intensity — and the rest are counted in the `imported-lights` diagnostic. A world
 reads them as `(await scene.load(url)).lights`, in cache order; each lamp is a child of the model,
-changed with `light.visible = false`, `model.remove(light)` or `light.intensity = …`.
+changed with `light.visible = false`, `model.remove(light)` or `light.intensity = …`. A cache
+without `lights.json` has none; one the server refuses otherwise fails the load
+([Files over HTTP](#files-over-http)).
 
 ## Memory budgets
 
@@ -1000,8 +1017,12 @@ as `world.budget.split`:
   evicted by a page, until another scene replaces it or the pages a frame keeps no longer fit
   beside it: then it yields its bytes to them (`page-cache-kept-yielded`) and is read again after
   a device loss. It is read on its own request, beside the page queue, and is not counted among
-  the pages read. A change applies at once: pages
-  leave by last use until they fit, save those the frame keeps. The default total is the mirror
+  the pages read. The decoded baked texture levels take at most three quarters of the pages'
+  share (`split.textureLevels`, 192 MiB at the default total), the least recently read leaving
+  first, and yield first, before the proxy, to the pages a frame keeps
+  (`page-cache-levels-yielded`); a level that cannot fit beside them is not read, and its tile
+  stays at its coarser level until room comes back. A change applies at once: pages and levels
+  leave by last use until they fit, save the pages the frame keeps. The default total is the mirror
   plus the cache's own default; a total not above the mirror is refused
   (`CPU_BUDGET_UNDER_SHADOW_MIRROR`).
 
@@ -1321,6 +1342,9 @@ bend }` simulates the mesh's vertices one by one on Jolt's soft bodies. A cloth 
   around every moving body, nearest first, within `budget.physics.triangles`; past it, the nearest
   stay and `PHYSICS_BUDGET` names the triangles asked. A file of another format or cooked by
   another Jolt is refused (`PHYSICS_FORMAT`); a model compiled before the cook collides nowhere.
+  A tile or a soft body's settings the server refuses is `RESOURCE_HTTP_ERROR` on
+  `world.physics.error` ([Files over HTTP](#files-over-http)); a model that leaves the scene lets
+  go of its reads still on their way, which is no error.
   Its tiles grip and bounce as the source's `KHR_physics_rigid_bodies` collider declares, else with
   the default matter (`DEFAULT_MATTER`); every drawn node is static, as drawn.
 - **Exact raycast.** `await world.raycast(at, { exact: true })` asks the physics: a compiled model
@@ -1344,9 +1368,9 @@ bend }` simulates the mesh's vertices one by one on Jolt's soft bodies. A cloth 
   by the declared-light rule above.
 - A lost device is recovered, the page never reloaded: the world asks for a device again, reopens its
   session on it and rebuilds from its decoded-page cache, fetching no page, bundle or resident proxy
-  it still holds (the proxy is kept whole inside `world.budget.cpu` unless it yielded to the pages).
-  `gpu-device-recovered` says the time from the loss to the first frame drawn after it
-  (`recoveryMs`). Baked texture levels and `lights.json` are read again, and cross-API fallback is
+  it still holds (the proxy and the decoded texture levels are kept inside `world.budget.cpu`
+  unless they yielded to the pages). `gpu-device-recovered` says the time from the loss to the
+  first frame drawn after it (`recoveryMs`). `lights.json` is read again, and cross-API fallback is
   not implemented.
 - Frame targets the device refused are asked again only when the view's size changes, or by a
   capture; until then the frames stay held on the previous image.
