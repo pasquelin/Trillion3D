@@ -150,8 +150,10 @@ export async function writeObservatory(directory: string) {
     length = Math.hypot(...rotation);
   gltf.nodes[1].rotation = rotation.map((value) => value / length);
   await mkdir(directory, { recursive: true });
-  await writeFile(resolve(directory, 'geometry.gltf'), JSON.stringify(gltf));
-  await writeFile(resolve(directory, 'geometry.bin'), Buffer.concat(chunks));
-  await writeFile(resolve(directory, 'sky.json'), JSON.stringify(observatorySky));
+  await Promise.all([
+    writeFile(resolve(directory, 'geometry.gltf'), JSON.stringify(gltf)),
+    writeFile(resolve(directory, 'geometry.bin'), Buffer.concat(chunks)),
+    writeFile(resolve(directory, 'sky.json'), JSON.stringify(observatorySky)),
+  ]);
   return gltf;
 }

@@ -22,6 +22,9 @@ declare global {
 const root = resolve(import.meta.dirname, '../../..');
 const output = measureOutput('observatory');
 const folder = 'site/assets/gallery/signature-architecture';
+// The sky the scene declares beside its source, added as the example pages add it: its share of
+// the imported sun.
+const skyFile = readFile(resolve(root, folder, 'source/sky.json'), 'utf8');
 await mkdir(output, { recursive: true });
 const { server, port } = await startServer({ mounts: galleryMounts(root) });
 const browser = await launchChrome({ headless: true });
@@ -42,20 +45,9 @@ try {
     position: [19, 13, 22],
     target: [0, 3, 0],
   });
-  // The sky the scene declares beside its source, added as the example pages add it: its share
-  // of the imported sun.
-  const sky = JSON.parse(
-    await readFile(resolve(root, folder, 'source/sky.json'), 'utf8'),
-  ) as typeof observatorySky;
+  const sky = JSON.parse(await skyFile) as typeof observatorySky;
   const sun = await page.evaluate(() => window.scene.importedLights()[0].intensity);
-  await addSurroundingLight(
-    page,
-    light.hemisphere({
-      color: sky.color,
-      groundColor: sky.groundColor,
-      intensity: sun * sky.sunShare,
-    }),
-  );
+  await addSurroundingLight(page, light.hemisphere({ ...sky, intensity: sun * sky.sunShare }));
   const samples = [];
   for (const threshold of [0, 1, 8, 0]) {
     const sample = await page.evaluate(async (pixelError) => {
