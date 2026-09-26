@@ -71,20 +71,28 @@ pub(super) fn one_image(
         }
     };
     // A coverage chain whose alpha never varies is the plain chain byte for byte —
-    // `halve` weighs only four alphas that differ —: its readers take the plain one,
+    // `halve` weighs only four alphas that differ, and every level's median already
+    // keeps level 0's coverage —: its readers take the plain one,
     // one chain baked instead of two identical ones.
     // Scanned only when a reader asks for coverage: an opaque image never exits early.
-    let flat = readers.iter().any(|r| r.kind == AtlasKind::Coverage) && {
-        let mut alphas = decoded.pixels().map(|p| p[3]);
-        let first = alphas.next();
-        alphas.all(|a| Some(a) == first)
+    let flat = readers
+        .iter()
+        .any(|r| matches!(r.kind, AtlasKind::Coverage(_)))
+        && {
+            let mut alphas = decoded.pixels().map(|p| p[3]);
+            let first = alphas.next();
+            alphas.all(|a| Some(a) == first)
+        };
+    // Every coverage reader shares one chain, cut at the lowest of their cutoffs.
+    let cutoff = collect::coverage_cutoff(readers);
+    let kind_of = |r: &AtlasTexture| match r.kind {
+        AtlasKind::Coverage(_) if flat => AtlasKind::Color,
+        AtlasKind::Coverage(_) => AtlasKind::Coverage(cutoff),
+        kind => kind,
     };
-    let kind_of = |r: &AtlasTexture| if flat { r.kind.atlas() } else { r.kind };
-    for kind in AtlasKind::ALL {
+    let kinds: BTreeSet<AtlasKind> = readers.iter().map(kind_of).collect();
+    for kind in kinds {
         let of_kind: Vec<&AtlasTexture> = readers.iter().filter(|r| kind_of(r) == kind).collect();
-        if of_kind.is_empty() {
-            continue;
-        }
         let levels = {
             let _t = perf::Timer::new(perf::Phase::TextureBake);
             reduce::chain(&decoded, kind)

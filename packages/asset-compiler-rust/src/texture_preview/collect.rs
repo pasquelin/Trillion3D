@@ -61,10 +61,11 @@ impl Role {
     }
     /// The chain the role asks for: the one role whose alpha the shader reads for
     /// coverage — the base colour of a BLEND material, or of a MASK one that cuts —
-    /// takes the chain weighted by that alpha.
+    /// takes the chain weighted by that alpha. Its cutoff is the image's, which
+    /// `bake` sets from every reader (`coverage_cutoff`).
     fn kind(self, coverage: bool) -> AtlasKind {
         match self {
-            Self::BaseColor if coverage => AtlasKind::Coverage,
+            Self::BaseColor if coverage => AtlasKind::Coverage(0),
             Self::BaseColor | Self::Emissive => AtlasKind::Color,
             _ => AtlasKind::Data,
         }
@@ -153,6 +154,19 @@ pub(super) fn atlas_textures(g: &Value, meshes: &BTreeSet<usize>) -> Result<Vec<
         }
     }
     Ok(wanted.into_values().collect())
+}
+
+/// The cutoff byte of an image's coverage chain: the lowest `alphaCutoff` among
+/// its coverage readers, every one of which cuts above 0 (`atlas_textures`), so
+/// the most texels any of them keeps hold their share at every level; 0 when
+/// every one blends, and the chain keeps the median alone.
+pub(super) fn coverage_cutoff(readers: &[AtlasTexture]) -> u8 {
+    readers
+        .iter()
+        .filter(|r| matches!(r.kind, AtlasKind::Coverage(_)))
+        .flat_map(|r| r.cutoffs.iter().copied())
+        .min_by(f32::total_cmp)
+        .map_or(0, super::coverage::cutoff_byte)
 }
 
 pub(crate) fn texture_index(reference: Option<&Value>) -> Option<usize> {
