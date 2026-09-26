@@ -120,7 +120,7 @@ pub(super) fn atlas_textures(g: &Value, meshes: &BTreeSet<usize>) -> Result<Vec<
         // (`webgpu/water/compositeWgsl.ts`): it draws the RGB under alpha 0 and keeps the plain chain.
         let transmits = crate::compiler_materials::unsplit_material(Some(material));
         let coverage = ((mode == Some("BLEND") && !transmits) || cutoff.is_some_and(|c| c > 0.0))
-            .then(|| cutoff.map_or(0, super::coverage::cutoff_byte));
+            .then(|| cutoff.map_or(0, |c| super::coverage::material_cutoff(material, c)));
         for role in ROLES {
             let Some(texture) = texture_index(role.reference(material)) else {
                 continue;
