@@ -334,11 +334,9 @@
       "texturePreviewBc7": "Blok BC7 pratinjau-pratinjau itu.",
       "texturePreviewAstc": "Blok ASTC pratinjau-pratinjau itu.",
       "bundleDependencyCount": "Berapa banyak bundel yang dibutuhkan tiap bundel.",
-      "bundleDependency": "Bundel yang dibutuhkan tiap bundel, sampai ke akar."
+      "bundleDependency": "Bundel yang dibutuhkan tiap bundel, sampai ke akar.",
+      "pageCone": "Kerucut normal setiap halaman: sumbu, lalu setengah sudut."
     }
-  },
-  "COMPARISON_LIBRARIES": {
-    "summary": "Mesin-mesin yang dijadikan pembanding benchmark, masing-masing dengan status dan alasannya."
   },
   "COMPILER_LINE_LIMIT": {
     "summary": "Baris tunggal terpanjang yang diterima di kedua aliran; kompiler hanya mengeluarkan baris JSON kecil."
@@ -559,23 +557,6 @@
   },
   "ComparisonLayout": {
     "summary": "Bagaimana dua hasil render ditampilkan berdampingan untuk dibandingkan."
-  },
-  "CompetitorRecord": {
-    "summary": "Mesin lain yang dibandingkan benchmark, dan alasannya.",
-    "members": {
-      "id": "Nama singkatnya.",
-      "name": "Namanya.",
-      "status": "Apakah ia dibandingkan.",
-      "license": "Lisensinya.",
-      "maintained": "Kapan terakhir diperbarui.",
-      "scope": "Apa yang dicakupnya.",
-      "reason": "Kenapa ia dibandingkan, atau tidak.",
-      "homepage": "Halaman webnya."
-    }
-  },
-  "CompetitorStatus": {
-    "summary": "Inventarisasi pustaka geometri/LOD yang relevan untuk web.",
-    "description": "Status ini menjelaskan keadilan integrasi, bukan cakupan pemasaran."
   },
   "CompilationJob": {
     "summary": "Sebuah kompilasi yang sedang berjalan.",
@@ -2375,7 +2356,8 @@
       "source": "Grup yang menghasilkannya.",
       "stream": "Bundle streaming yang menyimpan cluster ini dan offset byte-nya di dalamnya. Satu permintaan melayani puluhan cluster; cluster itu tetap bisa dibaca sendiri lewat `url`.",
       "streamOffset": "Offset byte-nya dalam bundle itu.",
-      "depthLayer": "Lapisan kedalaman koplanar, 0 untuk setiap cluster yang dibiarkan kompiler. Sebuah cluster lapisan n digambar dengan bias kedalaman n langkah lapisan penuh, yang menentukan pemenang antara dua permukaan opaque yang berbagi sebuah bidang persis. Tidak ada dan 0 berarti hal yang sama: gambar yang tidak disentuh."
+      "depthLayer": "Lapisan kedalaman koplanar, 0 untuk setiap cluster yang dibiarkan kompiler. Sebuah cluster lapisan n digambar dengan bias kedalaman n langkah lapisan penuh, yang menentukan pemenang antara dua permukaan opaque yang berbagi sebuah bidang persis. Tidak ada dan 0 berarti hal yang sama: gambar yang tidak disentuh.",
+      "cone": "Kerucut yang membatasi normal segitiga-segitiganya: `axis` vektor satuan, `angle` setengah sudut dalam radian, π untuk kerucut yang tidak menolak apa pun. Kompiler menghitungnya dari segitiga; potongan WebGPU melewati klaster satu sisi yang dilihat kamera dari belakang kerucutnya."
     }
   },
   "PageCutPage": {

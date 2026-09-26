@@ -334,11 +334,9 @@
       "texturePreviewBc7": "Os blocos BC7 das pré-visualizações.",
       "texturePreviewAstc": "Os blocos ASTC das pré-visualizações.",
       "bundleDependencyCount": "Quantos pacotes cada pacote precisa.",
-      "bundleDependency": "Os pacotes de que cada pacote precisa, até as raízes."
+      "bundleDependency": "Os pacotes de que cada pacote precisa, até as raízes.",
+      "pageCone": "O cone de normais de cada página: o eixo e depois o semiângulo."
     }
-  },
-  "COMPARISON_LIBRARIES": {
-    "summary": "Os motores contra os quais os benchmarks foram verificados, cada um com seu status e motivo."
   },
   "COMPILER_LINE_LIMIT": {
     "summary": "A linha única mais longa aceita em qualquer um dos fluxos; o compilador emite apenas pequenas linhas JSON."
@@ -552,23 +550,6 @@
   },
   "ComparisonLayout": {
     "summary": "Como dois renders são mostrados lado a lado para comparação."
-  },
-  "CompetitorRecord": {
-    "summary": "Outro motor com o qual os benchmarks comparam, e por quê.",
-    "members": {
-      "id": "Seu nome curto.",
-      "name": "Seu nome.",
-      "status": "Se é comparado.",
-      "license": "Sua licença.",
-      "maintained": "Quando foi atualizado pela última vez.",
-      "scope": "O que cobre.",
-      "reason": "Por que é, ou não é, comparado.",
-      "homepage": "Sua página web."
-    }
-  },
-  "CompetitorStatus": {
-    "summary": "Inventário de bibliotecas de geometria/LOD relevantes para a web.",
-    "description": "O status descreve a justiça da integração, não a cobertura de marketing."
   },
   "CompilationJob": {
     "summary": "Uma compilação em andamento.",
@@ -2357,7 +2338,8 @@
       "source": "O grupo que o produziu.",
       "stream": "Pacote de streaming que contém esse cluster e seu deslocamento de bytes dentro dele. Uma requisição atende dezenas de clusters; o cluster continua legível sozinho através de `url`.",
       "streamOffset": "Seu deslocamento de bytes nesse pacote.",
-      "depthLayer": "Camada de profundidade coplanar, 0 para cada cluster que o compilador deixou intacto. Um cluster da camada n desenha com um viés de profundidade de n passos de camada inteiros, o que decide o vencedor entre duas superfícies opacas que compartilham exatamente um plano. Ausente e 0 significam a mesma coisa: o desenho intocado."
+      "depthLayer": "Camada de profundidade coplanar, 0 para cada cluster que o compilador deixou intacto. Um cluster da camada n desenha com um viés de profundidade de n passos de camada inteiros, o que decide o vencedor entre duas superfícies opacas que compartilham exatamente um plano. Ausente e 0 significam a mesma coisa: o desenho intocado.",
+      "cone": "O cone que delimita as normais dos seus triângulos: `axis` um vetor unitário, `angle` o semiângulo em radianos, π para um cone que não rejeita nada. O compilador o calcula a partir dos triângulos; o corte WebGPU ignora um cluster de face única que a câmera vê por trás do seu cone."
     }
   },
   "PageCutPage": {
