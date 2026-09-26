@@ -51,22 +51,22 @@ export function createLastUse(options: {
   const idleKeys: number[] = [],
     idleFrames: number[] = [];
   let head = 0;
-  const waits = (key: number) => idleSince.get(key) > 0 || children.get(key) > 0;
   const idle = (key: number, frame: number) => {
     idleSince.set(key, frame + 1);
     idleKeys.push(key);
     idleFrames.push(frame);
   };
-  /** A page became held: each of its parents counts one more held child. */
-  const holdParents = (rec: PageRec) => {
+  /** The page holds its parents, unless it already did: each counts one more held child, and a
+   *  parent held for the first time holds its own. True when it did not hold them yet. */
+  const hold = (key: number, rec: PageRec) => {
+    if (recs.has(key)) return false;
+    recs.set(key, rec);
     for (const parent of parentsOf(rec)) {
-      const key = keyOf(parent);
-      children.add(key, 1);
-      if (recs.has(key)) continue;
-      recs.set(key, parent);
-      onHeld(key);
-      holdParents(parent);
+      const at = keyOf(parent);
+      children.add(at, 1);
+      if (hold(at, parent)) onHeld(at);
     }
+    return true;
   };
   /** Releases one page; true when `onRelease` says that gave a slot back. */
   const release = (key: number, frame: number, onRelease: (key: number) => boolean) => {
@@ -83,13 +83,11 @@ export function createLastUse(options: {
   };
   return {
     /** True while the page may not leave: kept, within its window, or depended on. */
-    holds: (key: number) => kept(key) || waits(key),
+    holds: (key: number) => kept(key) || idleSince.get(key) > 0 || children.get(key) > 0,
     /** The page joined `keep`: its window ends, and it holds its parents unless it already did. */
     use(key: number, rec?: PageRec) {
       idleSince.set(key, 0);
-      if (!rec || recs.has(key)) return;
-      recs.set(key, rec);
-      holdParents(rec);
+      if (rec) hold(key, rec);
     },
     /** The page left `keep` at `frame`: its window starts. */
     leave: idle,
@@ -104,7 +102,7 @@ export function createLastUse(options: {
         if (idleSince.get(key) !== since + 1 || kept(key) || children.get(key) !== 0) continue;
         if (release(key, frame, onRelease)) pressure--;
       }
-      if (head * 2 < idleKeys.length) return;
+      if (head === 0 || head * 2 < idleKeys.length) return;
       idleKeys.splice(0, head);
       idleFrames.splice(0, head);
       head = 0;
