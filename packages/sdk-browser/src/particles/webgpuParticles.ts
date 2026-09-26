@@ -145,7 +145,8 @@ export function encodeParticles(
   encoder: GPUCommandEncoder,
 ) {
   const pools = rt.context.particles;
-  if (!pools?.length) return;
+  // Once made, the step runs with no pool left too: it gives a released pool's buffers back.
+  if (!pools || (!pools.length && !rt.gpu.particles)) return;
   rt.gpu.particles ??= createWebgpuParticles(device, (error) =>
     rt.diag.diagnosticFailure('particles-unavailable', error),
   );

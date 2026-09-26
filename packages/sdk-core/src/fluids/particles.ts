@@ -96,9 +96,10 @@ export class ParticlePool {
     return this.staged > 0 || this.liveFor > 0;
   }
 
-  /** Adds `seconds` to the time the next image steps. */
+  /** Adds `seconds` to the time the next image steps; an idle pool lets them pass untaken, so
+   *  a held image's time never flings the next newborn particles. */
   advance(seconds: number) {
-    this.pending += seconds;
+    if (this.moving) this.pending += seconds;
   }
 
   /** The step of the image being encoded, always the same object: the staged records take the
