@@ -16,7 +16,10 @@ export async function validationScope<T>(
   device.pushErrorScope(filter);
   let value: T;
   try {
-    value = await build();
+    // A build that returns at once is popped at once: no other scope opens between its push and
+    // its pop, so a grant stays nested inside any scope still open around it.
+    const built = build();
+    value = built instanceof Promise ? await built : built;
   } catch (error) {
     await device.popErrorScope().catch(() => null);
     throw error;
@@ -28,8 +31,9 @@ export async function validationScope<T>(
 export async function validated<T>(
   device: GPUDevice,
   build: () => T | undefined | Promise<T | undefined>,
+  filter: GPUErrorFilter = 'validation',
 ): Promise<T | undefined> {
-  const { value, error } = await validationScope(device, build);
+  const { value, error } = await validationScope(device, build, filter);
   return error ? undefined : value;
 }
 
@@ -46,3 +50,17 @@ export async function deviceMade<R extends { destroy(): void }>(
   value.destroy();
   return undefined;
 }
+
+/** What the device is asked under `deviceMade` — a pool, the frame targets —, `settled` once done. */
+export type DeviceGrant = { settled: boolean; done: Promise<void> };
+
+/** `work` as a grant, `key` its record: settled once `work` is. */
+export function startGrant<K extends object>(work: Promise<void>, key = {} as K) {
+  const grant: K & DeviceGrant = Object.assign(key, { settled: false, done: work });
+  grant.done = work.finally(() => (grant.settled = true));
+  return grant;
+}
+
+/** What the device still answers for `grant`, while it answers. */
+export const grantPending = (grant: DeviceGrant | undefined) =>
+  grant && !grant.settled ? grant.done : undefined;
