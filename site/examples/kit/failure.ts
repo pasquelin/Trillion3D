@@ -8,9 +8,10 @@ import { kitWord } from './words.ts';
 let shown: HTMLElement | undefined;
 export const failures = new Set<string>();
 
-/** The card, once: the first error is the one that stopped the page. */
+/** The card, once (the first error stopped the page); every error joins `failures`. */
 function showFailure(error: unknown) {
-  if (shown) return;
+  const message = error instanceof Error ? error.message : String(error);
+  if (failures.add(message) && shown) return;
   shown = document.createElement('div');
   shown.role = 'alert';
   shown.className =
@@ -19,8 +20,7 @@ function showFailure(error: unknown) {
   title.textContent = kitWord('failure', 'title', 'This example stopped on an error');
   const detail = document.createElement('p');
   detail.className = 'text-xs break-words';
-  detail.textContent = error instanceof Error ? error.message : String(error);
-  failures.add(detail.textContent);
+  detail.textContent = message;
   const text = document.createElement('div');
   text.append(title, detail);
   shown.append(text);

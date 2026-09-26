@@ -99,9 +99,9 @@ export function healthCheck(
   const unhook = world.onFrame(({ metrics }) => {
     const name = part();
     if (name === null) return;
-    const frames = parts.get(name) ?? [];
-    parts.set(name, frames);
-    frames.push({ ...metrics, at: performance.now() });
+    const frames = parts.get(name) ?? parts.set(name, []).get(name)!;
+    const { gpuFrameMs, shadowPagesDrawn, shadowPagesRefetched } = metrics;
+    frames.push({ at: performance.now(), gpuFrameMs, shadowPagesDrawn, shadowPagesRefetched });
   });
   return {
     refuse: (reason: string) => void failures.add(reason),
