@@ -8,9 +8,7 @@ import {
 import { DOCUMENTED_GAPS } from './sdk-api-documented.ts';
 
 function classification(row: ExportRow): string {
-  return /\/math\/oracles\.ts$|competitors|compareImages|experiment[A-Z]|screenErrorVariant/.test(
-    row.module,
-  )
+  return /\/math\/oracles\.ts$|compareImages|experiment[A-Z]|screenErrorVariant/.test(row.module)
     ? 'experimental'
     : 'public';
 }

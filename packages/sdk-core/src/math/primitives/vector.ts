@@ -86,6 +86,30 @@ export function lengthSqVector3(v: ArrayLike<number>, at = 0) {
   return v[at] * v[at] + v[at + 1] * v[at + 1] + v[at + 2] * v[at + 2];
 }
 
+/** `out.addVectors(a, b)`: `out = a + b` component by component; `out` may be `a` or `b`. */
+export function addVector3<T extends NumberSink>(
+  out: T,
+  a: ArrayLike<number>,
+  b: ArrayLike<number>,
+) {
+  out[0] = a[0] + b[0];
+  out[1] = a[1] + b[1];
+  out[2] = a[2] + b[2];
+  return out;
+}
+
+/** `out.subVectors(a, b)`: `out = a - b` component by component; `out` may be `a` or `b`. */
+export function subVector3<T extends NumberSink>(
+  out: T,
+  a: ArrayLike<number>,
+  b: ArrayLike<number>,
+) {
+  out[0] = a[0] - b[0];
+  out[1] = a[1] - b[1];
+  out[2] = a[2] - b[2];
+  return out;
+}
+
 /** `v.multiplyScalar(s)`: the three components of `out` multiplied in place. */
 export function scaleVector3<T extends NumberSink>(out: T, s: number) {
   out[0] *= s;
