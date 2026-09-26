@@ -40,9 +40,9 @@ export type DagRoot = {
   flat?: boolean;
   /** A parked instance-buffer row: packed with the others, and deposited in no queue. */
   parked?: boolean;
-  /** Its sprite mark (`ClusterRoot.sprite`): left out of a light cut, open to a camera's when
-   *  never culled. */
-  sprite?: number;
+  /** Its root mark (`ClusterRoot.mark`): left out of a light cut when it casts no shadow, open to
+   *  a camera's when never culled. */
+  mark?: number;
   /** `bounds`: per-node bounds `cullingBounds` derives from the pages. The host shares them
    *  among all placements of a primitive; without them, the layout derives them itself. */
   culling?: { nodes: Float64Array; stride: number; bounds?: Float64Array; links?: CullingLinks };
@@ -72,8 +72,8 @@ export type PackedDag = {
   rootNodes: Uint32Array;
   /** Root node of each primitive, parked or not: what `rootNodes` takes back when a row returns. */
   rootBases: Uint32Array;
-  /** One per primitive: its root's sprite mark (`DagRoot.sprite`), else 0. */
-  sprite: Uint8Array;
+  /** One per primitive: its root's mark (`DagRoot.mark`), else 0. */
+  mark: Uint8Array;
   /** Nodes of each stage, all primitives together: the upper bound of each pass's queue. Its
    *  LENGTH is the depth of the deepest hierarchy, hence the number of descent passes; a second
    *  field to restate it would only be state to keep in agreement. */
