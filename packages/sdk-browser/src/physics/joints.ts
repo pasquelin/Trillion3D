@@ -84,8 +84,8 @@ export function createPhysicsJoints(
     /** The joints the simulation broke, by id: out, and told. */
     broke(ids: readonly number[]) {
       for (const id of ids) {
-        const joint = slots.at(id);
-        if (!joint || joint._id !== id) continue;
+        const joint = slots.of(id);
+        if (!joint) continue;
         drop(joint);
         joint._break();
       }
