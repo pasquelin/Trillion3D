@@ -1367,7 +1367,7 @@
     }
   },
   "save-the-scene": {
-    "banner": "Kuleyi yık, sonra kaydedilen sahneyi yeniden aç.",
+    "banner": "Kuleyi kaydet, yık, sonra aç: Kaydedilen kule yeniden ayakta.",
     "controls": {
       "knockDown": "Yık",
       "save": "Kaydet",
