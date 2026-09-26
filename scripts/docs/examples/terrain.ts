@@ -1,5 +1,5 @@
 import { SceneGltf } from './gltf-scene.ts';
-import { moved } from './mesh.ts';
+import { empty, moved } from './mesh.ts';
 import { icosphere } from './solids.ts';
 import type { Mesh } from './mesh.ts';
 
@@ -25,7 +25,7 @@ export function heightGrid(
   height: (x: number, z: number) => number,
   tiling: number,
 ): Mesh {
-  const mesh: Mesh = { positions: [], normals: [], uvs: [], indices: [] };
+  const mesh = empty();
   for (let j = 0; j < side; j++)
     for (let i = 0; i < side; i++) {
       const [x, z] = [x0 + i * step, z0 + j * step];
