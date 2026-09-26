@@ -608,8 +608,8 @@ key, so a cache cooked by another Jolt is another key, never reused. The algorit
   gap between the two diagonals of a cell is published as its `hausdorff`.
 - **Declared matter** (`declared.rs`). A node whose `KHR_physics_rigid_bodies` collider names a
   `physicsMaterial` gives its placements that material's friction and restitution. Every drawn node
-  but a declared soft body (below) is static ground, as drawn, a node declaring motion included: no
-  page restores a rigid body of a compiled model yet.
+  but a declared soft body (below) is static ground, as drawn, a node declaring motion included:
+  the page leaves its placements out once it has restored its body (below).
 - **Declared bodies** (`declared.rs`). A node of the rendered scene whose `KHR_physics_rigid_bodies`
   declares a `motion` (dynamic, or kinematic with `isKinematic`) is also cooked into
   `physics.json`'s `bodies`: its motion as declared, its matter, its pose, and its shape — the
