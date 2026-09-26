@@ -30,7 +30,7 @@ export function tour(world: CirclingWorld, poses: readonly Pose[], curve = ease.
     for (const pose of poses) {
       const to = [...pose.position, ...pose.target];
       if (at < pose.seconds + pose.hold) {
-        glideCamera(world, from, to, curve(at / pose.seconds));
+        glideCamera(world, from, to, curve(pose.seconds ? at / pose.seconds : 1));
         part = pose.name;
         return true;
       }
