@@ -162,14 +162,14 @@ test('finding the pages a mover stales costs the pages it covers, not the pool',
 
 test("past a light's virtual pages its boxes join one union per kind: a moving one keeps", () => {
   const { store, plan, frame } = settled(32);
+  store.remove(SUN.id); // The lamp alone: its virtual pages, then two unions, not a scan a box.
   // Static casters −X of the lamp, each wider than the pool, then a moving one alone over +X.
   for (let i = 0; i < 12; i++) plan.worldChanged([-40, 0, -40], [-1 - i / 10, 5, 40]);
   plan.worldChanged([1, 0, -40], [40, 5, 40], true);
   planFrame(plan, store, frame);
-  // The sun scans each of its 13 boxes; the lamp stops at its virtual pages, then two unions.
   const { pool } = plan,
-    lamp = plan.counts.visitedPages - 13 * pool.pages;
-  assert.ok(lamp <= tableEntriesOf(LIGHT_KIND.point) + 2 * pool.pages, `${lamp} visited`);
+    { visitedPages } = plan.counts;
+  assert.ok(visitedPages <= tableEntriesOf(LIGHT_KIND.point) + 2 * pool.pages, `${visitedPages}`);
   const front = lampPagesOf(plan, store.sliceOf(0)).filter((page) => pool.view[page] >> 4 === 0),
     lost = front.filter((page) => pool.dirty[page] !== STALE_DYNAMIC || !pool.valid[page]);
   assert.ok(front.length > 0 && !lost.length, 'the moving one keeps the static layer read');
