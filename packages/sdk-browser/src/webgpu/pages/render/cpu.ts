@@ -28,6 +28,7 @@ function selectCpuCut(rt: WebgpuPagesRuntime, cam: EngineCamera, pixelError: num
       viewport: rt.setup.viewport,
       holdResident: true,
       isResident: rt.services.poolHolds,
+      held: rt.services.heldResidency,
       wanted: run.selectResult.wanted,
       result: run.selectResult,
     },

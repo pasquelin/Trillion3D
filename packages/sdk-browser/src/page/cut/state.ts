@@ -6,6 +6,7 @@ import { IDENTITY_ELEMENTS, type MatrixElements } from '../../math/matrixElement
 import type { ClusterCut } from '../selection/math.ts';
 import type { PageSurface } from '../surface.ts';
 import type { CutReadiness } from './readiness.ts';
+import type { HeldResidency } from './held.ts';
 
 export interface PageRecord extends ClusterCut {
   triangles: number;
@@ -51,9 +52,9 @@ export interface SelectionState<T extends PageRecord> {
    *  `RESIDENT_ARRAY` when residency is the page's index array. The per-cluster path reads this
    *  mode instead of re-reading the request on the state at each page. */
   residentMode: number;
-  /** Nonzero when the cut shares its residency answers with every cut of the same stamp: the cut
-   *  rule's readiness of a root is then read once for all of them (`./held.ts`). */
-  residencyStamp: number;
+  /** Where the cut rule's readiness of each root is held and moved (`./held.ts`); absent when
+   *  nothing is held. */
+  held: HeldResidency | undefined;
   /** This image's threshold is zero and stretch, focal length and near plane are sound: the
    *  cut then decides without projecting, identically. */
   flatExact: boolean;
@@ -161,7 +162,7 @@ const reusedState: SelectionState<PageRecord> = {
   flatCones: true,
   flatBoxes: false,
   residentMode: RESIDENT_ALL,
-  residencyStamp: 0,
+  held: undefined,
   flatExact: false,
   shownCount: 0,
   wantedCount: 0,
