@@ -1,4 +1,5 @@
 use super::blocks::quality::Channels;
+use super::coverage::Cut;
 use super::reduce::AtlasKind;
 use super::*;
 
@@ -14,7 +15,7 @@ pub(crate) struct AtlasTexture {
     pub channels: Channels,
     /// True when every role is the normal map's: two channels, Z rebuilt.
     pub normal_only: bool,
-    pub cutoffs: Vec<(f32, f32)>,
+    pub cutoffs: Vec<Cut>,
 }
 
 /// Merges what one more reader reads into `channels` and `cutoffs`: the union
@@ -22,9 +23,9 @@ pub(crate) struct AtlasTexture {
 /// chain's textures.
 pub(crate) fn absorb(
     channels: &mut Channels,
-    cutoffs: &mut Vec<(f32, f32)>,
+    cutoffs: &mut Vec<Cut>,
     more: Channels,
-    theirs: &[(f32, f32)],
+    theirs: &[Cut],
 ) {
     for (mine, read) in channels.iter_mut().zip(more) {
         *mine |= read;
@@ -148,7 +149,7 @@ pub(super) fn atlas_textures(g: &Value, meshes: &BTreeSet<usize>) -> Result<Vec<
                 (mine, theirs) if mine != theirs => entry.kind = atlas,
                 _ => {}
             }
-            let cutoffs: Vec<(f32, f32)> = cut
+            let cutoffs: Vec<Cut> = cut
                 .filter(|_| role == Role::BaseColor)
                 .into_iter()
                 .collect();

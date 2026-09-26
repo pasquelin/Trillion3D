@@ -44,16 +44,18 @@ pub(super) fn cutoff_byte(cutoff: f32, factor: f32) -> u8 {
         .unwrap_or(255)
 }
 
-/// Whether a masked material keeps a texel of alpha `alpha` under its `cut`,
-/// its `alphaCutoff` and `baseColorFactor` alpha: `alpha / 255 × factor >=
-/// cutoff` in `f32`.
-pub(super) fn keeps(alpha: u8, (cutoff, factor): (f32, f32)) -> bool {
+/// A masked material's cut: its `alphaCutoff`, then its `baseColorFactor` alpha.
+pub(crate) type Cut = (f32, f32);
+
+/// Whether a masked material keeps a texel of alpha `alpha` under its `cut`:
+/// `alpha / 255 × factor >= cutoff` in `f32`.
+pub(super) fn keeps(alpha: u8, (cutoff, factor): Cut) -> bool {
     f32::from(alpha) / 255.0 * factor >= cutoff
 }
 
 /// A masked material's cut at `cutoff`, under its `baseColorFactor` alpha (1
 /// when absent).
-pub(super) fn material_cut(material: &serde_json::Value, cutoff: f32) -> (f32, f32) {
+pub(super) fn material_cut(material: &serde_json::Value, cutoff: f32) -> Cut {
     let factor = material
         .pointer("/pbrMetallicRoughness/baseColorFactor/3")
         .and_then(serde_json::Value::as_f64)

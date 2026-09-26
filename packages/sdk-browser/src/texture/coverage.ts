@@ -1,6 +1,7 @@
 import type { Texture } from '../../../sdk-core/src/index.ts';
 import { refreshSurface, type PageSurface } from '../page/surface.ts';
 import { weighsByAlpha } from '../scene/materialBlending.ts';
+import { blendCoverage } from '../gpu/shadow/transmittance.ts';
 
 /** Whether a surface takes its map's alpha for coverage: it cuts at `alphaTest`, or it blends
  *  weighing its colour by that alpha. A transmissive one tints what crosses it by its colour
@@ -20,14 +21,22 @@ export function cutoffByte(alphaTest: number, factor: number) {
   return 255;
 }
 
+/** A reader's cutoff byte: 0 when it blends, else the one it cuts at under its opacity, the
+ *  product the engine cuts (`maskKeep`). */
+const cutOf = (surface: PageSurface) =>
+  surface.transparent ? 0 : cutoffByte(surface.alphaTest, blendCoverage(surface));
+
 /** The colour maps' readers, both GPU paths' (#42): mips weigh colours by alpha when EVERY reader
  *  takes alpha for coverage — never an emissive map (`collect.rs`) — and the texels are not
  *  premultiplied. A host switches opaque and masked with no signal: `follow` rereads them. */
 export class CoverageReaders {
   private filed = new WeakMap<PageSurface, number>(); // the version each surface was filed at
-  /** Per colour texture, its readers filed — as a base or emissive map — and whether every one
-   *  takes its alpha for coverage. */
-  private readers = new WeakMap<Texture, { surfaces: Set<PageSurface>; rule: boolean }>();
+  /** Per colour texture, its readers filed — as a base or emissive map —, whether every one takes
+   *  its alpha for coverage, and the lowest of their cutoff bytes (`cutOf`). */
+  private readers = new WeakMap<
+    Texture,
+    { surfaces: Set<PageSurface>; rule: boolean; cutoff: number }
+  >();
   /** Files a surface's colour maps once per version; false when already filed. */
   read(surface: PageSurface) {
     if (this.filed.has(surface) && this.filed.get(surface) === surface.version) return false;
@@ -42,11 +51,13 @@ export class CoverageReaders {
       const held = this.readers.get(map);
       if (!held) continue;
       held.rule = true;
+      held.cutoff = 255;
       for (const surface of held.surfaces) {
         const { map: base, emissiveMap } = refreshSurface(surface);
-        if (base === map || emissiveMap === map)
+        if (base === map || emissiveMap === map) {
           held.rule &&= emissiveMap !== map && alphaIsCoverage(surface);
-        else if (held.surfaces.delete(surface)) this.file(surface);
+          held.cutoff = Math.min(held.cutoff, cutOf(surface));
+        } else if (held.surfaces.delete(surface)) this.file(surface);
       }
       held.rule &&= held.surfaces.size > 0;
     }
@@ -59,14 +70,7 @@ export class CoverageReaders {
    *  (docs/FORMAT.md, "Coverage-preserving alpha"): the lowest of its masked readers', each under
    *  its opacity, 0 — the median alone — when the chain does not weigh or a reader blends. */
   cutoff(texture: Texture) {
-    if (!this.weighs(texture)) return 0;
-    let lowest = 255;
-    for (const surface of this.readers.get(texture)!.surfaces)
-      lowest = Math.min(
-        lowest,
-        surface.transparent ? 0 : cutoffByte(surface.alphaTest, surface.opacity),
-      );
-    return lowest;
+    return this.weighs(texture) ? this.readers.get(texture)!.cutoff : 0;
   }
   private file(surface: PageSurface) {
     const { map, emissiveMap } = surface;
@@ -75,7 +79,11 @@ export class CoverageReaders {
   }
   private wear(texture: Texture, surface: PageSurface, coverage: boolean) {
     const held = this.readers.get(texture);
-    if (!held) this.readers.set(texture, { surfaces: new Set([surface]), rule: coverage });
-    else held.rule = held.surfaces.add(surface) && held.rule && coverage;
+    const cutoff = cutOf(surface);
+    if (!held) this.readers.set(texture, { surfaces: new Set([surface]), rule: coverage, cutoff });
+    else {
+      held.rule = held.surfaces.add(surface) && held.rule && coverage;
+      held.cutoff = Math.min(held.cutoff, cutoff);
+    }
   }
 }

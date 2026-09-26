@@ -1,7 +1,7 @@
 import { sharedGpuDevice } from '../gpu/core/sessionHandle.ts';
 import { levelSize, mipLevelCountFor } from './tiles.ts';
 import { COVERAGE_SCALE_WGSL } from './coverageRule.ts';
-import { countCoverage } from './coverageMips.ts';
+import { countCoverage, LEVEL_BIN_BYTES, type CoverageChain } from './coverageMips.ts';
 
 /**
  * Layout and reduction program, built ONCE per device; its pipeline once per format and per
@@ -149,40 +149,44 @@ export function generateMaterialMips(
   const shared = sharedGpuDevice(device);
   const { layout, pipeline } = mipPipeline(shared, format, weighted);
   const stride = Math.max(256, device.limits.minUniformBufferOffsetAlignment ?? 256);
-  // One uniform per reduced level: the extent of the source level, so as not to read off the image,
-  // and the cutoff; for the counts, level 0's extent and the level, level 0's own block last.
-  const blocks = levels - 1 + Math.sign(cutoff);
-  const packed = new Uint32Array((blocks * stride) / 4);
-  for (let block = 0; block < blocks; block++) {
-    const level = (block + 1) % levels;
+  // One uniform block per level, its reduction's: the extent of the source level, so as not to read
+  // off the image, and the cutoff; for the counts, level 0's extent and the level. Block 0 is level
+  // 0's own count.
+  const packed = new Uint32Array((levels * stride) / 4);
+  for (let level = 0; level < levels; level++) {
     const source = levelSize(width, height, Math.max(0, level - 1));
-    packed.set([...source, cutoff, 0, width, height, level], (block * stride) / 4);
+    packed.set([...source, cutoff, 0, width, height, level], (level * stride) / 4);
   }
-  const { UNIFORM, STORAGE, COPY_SRC } = GPUBufferUsage;
   const uniforms = heldBuffer(
     shared,
     'Trillion3D texture mips uniforms',
     packed.byteLength,
-    UNIFORM,
+    GPUBufferUsage.UNIFORM,
   );
   device.queue.writeBuffer(uniforms, 0, packed);
   const encoder = device.createCommandEncoder();
-  const bins =
-    cutoff && heldBuffer(shared, 'Trillion3D coverage bins', levels * 1024, STORAGE | COPY_SRC);
-  if (bins) encoder.clearBuffer(bins, 0, levels * 1024);
-  const chain = bins && { texture, width, height, uniforms, stride, levels, bins };
-  const viewOf = (level: number) => texture.createView({ baseMipLevel: level, mipLevelCount: 1 });
+  const views = Array.from({ length: levels }, (_, level) =>
+    texture.createView({ baseMipLevel: level, mipLevelCount: 1 }),
+  );
+  let chain: CoverageChain | undefined;
+  if (cutoff) {
+    const size = levels * LEVEL_BIN_BYTES,
+      usage = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC;
+    const bins = heldBuffer(shared, 'Trillion3D coverage bins', size, usage);
+    encoder.clearBuffer(bins, 0, size);
+    chain = { width, height, views, uniforms, stride, bins };
+  }
   for (let level = 1; level < levels; level++) {
-    if (chain) countCoverage(device, shared, encoder, chain, level);
+    if (chain) countCoverage(device, encoder, chain, level);
     const group = device.createBindGroup({
       layout,
       entries: [
-        { binding: 0, resource: viewOf(level - 1) },
-        { binding: 1, resource: { buffer: uniforms, offset: (level - 1) * stride, size: 16 } },
+        { binding: 0, resource: views[level - 1] },
+        { binding: 1, resource: { buffer: uniforms, offset: level * stride, size: 16 } },
       ],
     });
     const pass = encoder.beginRenderPass({
-      colorAttachments: [{ view: viewOf(level), loadOp: 'clear', storeOp: 'store' }],
+      colorAttachments: [{ view: views[level], loadOp: 'clear', storeOp: 'store' }],
     });
     pass.setPipeline(pipeline);
     pass.setBindGroup(0, group);
