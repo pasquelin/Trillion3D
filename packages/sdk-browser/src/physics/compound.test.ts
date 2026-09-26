@@ -18,7 +18,7 @@ test('a mirrored compound is refused by name; it makes no body', async () => {
     assert.equal(error?.code, 'PHYSICS_FAILED');
     assert.deepEqual(error?.details, { name: 'raft' });
     assert.match(error!.message, /"raft" has -1, -1, -1, a mirror/);
-    assert.equal(raft.physics._index, -1, 'no body');
+    assert.equal(raft.physics!._index, -1, 'no body');
     physics.dispose();
   } finally {
     restore();
