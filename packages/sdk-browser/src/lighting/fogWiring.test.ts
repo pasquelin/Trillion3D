@@ -15,7 +15,6 @@ import { BLEND_SHADER, BLEND_VIEW_WGSL } from '../webgpu/blend/shader.ts';
 import { BLEND_VIEW_SIZE } from '../webgpu/blend/uniforms.ts';
 import { WATER_COMPOSITE_SHADER } from '../webgpu/water/compositeWgsl.ts';
 import { CLUSTER_FRAGMENT } from '../webgl/cluster/shaders.ts';
-import { SURFACE_MODEL } from '../scene/surfaceModel.ts';
 import { SHADE_SHADER as SURFACE_SHADE } from '../visibility/shader/shadeWgsl.ts';
 
 test('the opaque resolve fogs its lit sum at the pixel, from the eye in display.yzw', () => {
@@ -55,6 +54,6 @@ test('the WebGL2 program fogs every surface before its display curve, a depth or
   const fogAt = CLUSTER_FRAGMENT.indexOf('\nif(!fogFree)rgb=fogged(rgb);');
   assert.ok(fogAt > 0);
   // A depth material's ramp is written over the fogged colour.
-  assert.ok(fogAt < CLUSTER_FRAGMENT.indexOf(`if(surfaceModel==${SURFACE_MODEL.depth})rgb=`));
+  assert.ok(fogAt < CLUSTER_FRAGMENT.indexOf('if(depthShaded)rgb='));
   assert.ok(fogAt < CLUSTER_FRAGMENT.indexOf('if(toneMapped)rgb=toneMap(rgb);'));
 });

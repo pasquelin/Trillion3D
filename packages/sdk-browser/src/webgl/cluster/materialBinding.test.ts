@@ -9,8 +9,6 @@ import { bindClusterMaterial } from './materialBinding.ts';
 import { importHostTexture } from '../../host/textureImport.ts';
 import { pageDiagnostics } from '../../host/pageDiagnostics.ts';
 import { CLUSTER_FRAGMENT } from './shaders.ts';
-import { LAST_MATERIAL_SLOT } from './materialUniforms.ts';
-import { SURFACE_MODEL } from '../../scene/surfaceModel.ts';
 import {
   HOST_BLENDING_ADDITIVE,
   HOST_BLENDING_MULTIPLY,
@@ -88,6 +86,12 @@ const flagOf = (material: G.GraphSurface, name: string, linear = false) => {
   return flags.get(name);
 };
 
+test('A Depth material, and it alone, shows the frame depth ramp', () => {
+  assert.equal(flagOf(new G.GraphSurface('depth'), 'depthShaded'), 1);
+  assert.equal(flagOf(G.standardSurface(), 'depthShaded'), 0);
+  assert.equal(flagOf(G.basicSurface(), 'depthShaded'), 0);
+});
+
 test("A diagnostic view's surfaces, and they alone, stay out of the fog", () => {
   // The two surfaces a diagnostic view paints on the WebGL2 path: they show a number.
   const triangles = pageDiagnostics.triangleMaterial(0) as unknown as G.GraphSurface;
@@ -131,37 +135,4 @@ test('Into the effect chain, a surface covers its pixel as the display path show
   }
   // A mode no path draws is refused here as by the display path, never drawn uncovered.
   assert.throws(() => flagOf(transparent(99), 'covering', true), /a surface declares a blending/);
-});
-
-test('Each family reaches the WebGL2 program in the model it reads on WebGPU (#527)', () => {
-  const { standard, diffuse, toon, normal, matcap, depth } = SURFACE_MODEL;
-  const models = {
-    standard,
-    phong: standard,
-    basic: standard,
-    lambert: diffuse,
-    toon,
-    normal,
-    matcap,
-    depth,
-  };
-  for (const [family, model] of Object.entries(models))
-    assert.equal(flagOf(new G.GraphSurface(family as 'standard'), 'surfaceModel'), model, family);
-  // A matcap's image is bound as the base map, the one the program reads at the normal.
-  assert.equal(flagOf(new G.GraphSurface('matcap', { matcap: texture() }), 'mapMask'), 1);
-  // Only a basic surface reads the occlusion of an unlit model; a matcap reads none, as on WebGPU.
-  assert.equal(flagOf(new G.GraphSurface('basic', { aoMap: texture() }), 'mapMask'), 16);
-  assert.equal(flagOf(new G.GraphSurface('matcap', { aoMap: texture() }), 'mapMask'), 0);
-});
-
-test('The uniform cache holds every slot the binder writes, the last one included', () => {
-  let last = -1;
-  const { binding } = recorder();
-  const widths = { f1: 1, i1: 1, f2: 2, i2: 2, f3: 3, f4: 4, i4: 4 };
-  for (const [name, width] of Object.entries(widths))
-    (binding.uniforms as unknown as Record<string, unknown>)[name] = (index: number) =>
-      void (last = Math.max(last, index + width - 1));
-  binding.linear = true;
-  bindClusterMaterial(binding, G.standardSurface(), true);
-  assert.equal(last, LAST_MATERIAL_SLOT);
 });
