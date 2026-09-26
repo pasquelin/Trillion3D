@@ -20,14 +20,14 @@ import { coverageBudgetEvent } from '../../../diagnostic/engineDiagnostic.ts';
  *  pool holds of each surface (`../../../page/cut/rule.ts`). */
 function selectCpuCut(rt: WebgpuPagesRuntime, cam: EngineCamera, pixelError: number) {
   const { run } = rt;
+  rt.services.syncResidency();
   return selectVisiblePages(
     rt.setup.roots,
     cam,
     {
       pixelError,
       viewport: rt.setup.viewport,
-      holdResident: true,
-      isResident: rt.services.poolHolds,
+      held: rt.services.heldResidency,
       wanted: run.selectResult.wanted,
       result: run.selectResult,
     },
