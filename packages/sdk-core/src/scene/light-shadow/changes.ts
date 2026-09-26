@@ -2,23 +2,24 @@ import { boxEmpty, boxIsEmpty, boxUnion } from '../../math/primitives/box.ts';
 import { keepNumbers } from '../../math/primitives/vector.ts';
 import { VIEW_NUMBERS, writeView, type ShadowViewpoint } from '../light/contracts.ts';
 
-/** Motion boxes kept separate before merge: beyond that, two boxes join. */
-const MOVED_BOXES = 8;
-
 /** The tested point, allocated once: `touches` is called per light and per box, every frame. */
 const point = new Float64Array(3);
-/** The read box, allocated once: the scheduler projects it face by face without creating anything. */
+/** The read box, allocated once: the scheduler projects it view by view without creating anything. */
 const readMin = new Float64Array(3),
   readMax = new Float64Array(3),
   readBox = { min: readMin, max: readMax, moving: false, detail: false };
 
 /**
- * What has moved in the world since the last frame, as world boxes. They are kept
- * **separate** — up to eight — and not joined into one: a single box enclosing two objects
- * at both ends of the scene would stale every page between them, while nothing there has changed.
- * Beyond eight, two boxes merge, those whose union costs the least volume.
+ * What has moved in the world since the last frame, as world boxes. Each is kept **apart**: a
+ * box stales only the pages it covers in each light view (`invalidate.ts`), and a box joining two
+ * movers at both ends of the scene would stale every page between them, while nothing there
+ * changed (#525).
  *
- * The scheduler consumes them every frame: it derives the stale pages of each face, which
+ * The list is a fixed budget in pages: it holds as many boxes as the pool holds pages
+ * (`capacity`), the most distinct pages a frame can draw. Past it — the one overflow — the last
+ * box absorbs every further one: their union stales a superset of their pages, never fewer.
+ *
+ * The scheduler consumes them every frame: it derives the stale pages of each view, which
  * then carry the state. The boxes therefore have nothing to retain from one frame to the next —
  * only the held union below waits across frames —, and everything is allocated once.
  *
@@ -31,14 +32,14 @@ const readMin = new Float64Array(3),
  * at rest the union restales exactly what changed, so a settled map is that of the current
  * cut, whatever the history (#159).
  */
-export function createShadowChanges() {
-  const min = new Float64Array(MOVED_BOXES * 3),
-    max = new Float64Array(MOVED_BOXES * 3),
+export function createShadowChanges(capacity: number) {
+  const min = new Float64Array(capacity * 3),
+    max = new Float64Array(capacity * 3),
     /** The box holds only objects already moving: the static casters under it are unchanged. */
-    moving = new Uint8Array(MOVED_BOXES),
+    moving = new Uint8Array(capacity),
     /** The box holds only the released union of representation changes: the pages under it are
      *  coarser than the cut, not wrong, and stay read until redrawn. */
-    detail = new Uint8Array(MOVED_BOXES);
+    detail = new Uint8Array(capacity);
   /** The union of representation changes held until the camera rests: empty when none waits. */
   const defer = new Float64Array(6),
     deferMin = defer.subarray(0, 3),
@@ -47,45 +48,24 @@ export function createShadowChanges() {
   /** The view of the last frame and this frame's, to compare them. */
   const lastView = new Float64Array(VIEW_NUMBERS).fill(NaN),
     viewNow = new Float64Array(VIEW_NUMBERS);
-  const volume = (base: number, lo: ArrayLike<number>, hi: ArrayLike<number>) => {
-    let product = 1;
-    for (let axis = 0; axis < 3; axis++)
-      product *= Math.max(max[base + axis], hi[axis]) - Math.min(min[base + axis], lo[axis]);
-    return product;
-  };
-  const own = (base: number) =>
-    (max[base] - min[base]) * (max[base + 1] - min[base + 1]) * (max[base + 2] - min[base + 2]);
   const write = (base: number, lo: ArrayLike<number>, hi: ArrayLike<number>, merge: boolean) => {
     for (let axis = 0; axis < 3; axis++) {
       min[base + axis] = merge ? Math.min(min[base + axis], lo[axis]) : lo[axis];
       max[base + axis] = merge ? Math.max(max[base + axis], hi[axis]) : hi[axis];
     }
   };
+  /** Box `count` takes the change; past the budget the last box absorbs it (the overflow). */
   const add = (
     lo: ArrayLike<number>,
     hi: ArrayLike<number>,
     movingOnly: boolean,
     detailOnly: boolean,
   ) => {
-    if (changes.count < MOVED_BOXES) {
-      write(changes.count * 3, lo, hi, false);
-      moving[changes.count] = movingOnly ? 1 : 0;
-      detail[changes.count] = detailOnly ? 1 : 0;
-      changes.count++;
-      return;
-    }
-    let best = 0,
-      bestGrowth = Infinity;
-    for (let box = 0; box < changes.count; box++) {
-      const growth = volume(box * 3, lo, hi) - own(box * 3);
-      if (growth < bestGrowth) {
-        bestGrowth = growth;
-        best = box;
-      }
-    }
-    write(best * 3, lo, hi, true);
-    if (!movingOnly) moving[best] = 0;
-    if (!detailOnly) detail[best] = 0;
+    const merge = changes.count === capacity,
+      box = merge ? capacity - 1 : changes.count++;
+    write(box * 3, lo, hi, merge);
+    moving[box] = movingOnly && (!merge || moving[box]) ? 1 : 0;
+    detail[box] = detailOnly && (!merge || detail[box]) ? 1 : 0;
   };
   const worldChanged = (lo: ArrayLike<number>, hi: ArrayLike<number>, movingOnly = false) =>
     add(lo, hi, movingOnly, false);
@@ -101,8 +81,8 @@ export function createShadowChanges() {
     /** A representation change waits for the camera to rest: the hold must not close before. */
     deferred: () => !boxIsEmpty(defer, 0),
     /**
-     * A node has moved: its box enters the list, or joins a neighbour. `movingOnly` says it holds
-     * objects that were already moving — the static casters under it did not change.
+     * A node has moved: its box enters the list, or the overflow box past the budget. `movingOnly`
+     * says it holds objects that were already moving — the static casters under it did not change.
      */
     worldChanged,
     /** The same world at another precision: its box joins the union held until the camera rests. */
