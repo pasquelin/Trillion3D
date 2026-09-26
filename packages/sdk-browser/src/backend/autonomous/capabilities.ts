@@ -2,13 +2,8 @@ import type { BackendCapabilities, BackendDiagnostic } from '../types.ts';
 import { TAA_CAPABILITY } from '../../taa/capability.ts';
 import { sendEngineDiagnostic } from '../../diagnostic/engineDiagnostic.ts';
 
-/**
- * What the autonomous WebGL2 page path renders, and what it declares it does not: each feature
- * WebGL2 cannot carry is named, never silent (#483 rule 8), and published once prepared, as the
- * WebGPU engine publishes its own (`render-capabilities`, `publishAutonomousCapabilities`). The
- * page residency, its budget and the cut rule are the engine's own, shared with WebGPU: what
- * degrades is the work, never the coverage.
- */
+/** What the autonomous WebGL2 page path renders, and what it cannot carry, named, never silent
+ *  (#483 rule 8): published by `publishAutonomousCapabilities`. */
 export function autonomousCapabilities(simplification: boolean): BackendCapabilities {
   return {
     renderer: 'WebGL2 autonomous prepared pages',

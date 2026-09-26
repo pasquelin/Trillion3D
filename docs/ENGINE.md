@@ -637,13 +637,14 @@ list in its order while the copies it charges fit its slots, the root cover held
 (`backend/autonomous/pool.ts`); the rest is not asked for, and the cut draws its nearest resident
 ancestor instead. A smaller budget is therefore paid in detail, one DAG level at a time, from the
 finest down: the image that sees it asks for less. What stays resident is decided by the engine's one
-residency, shared with WebGPU (`residency/lastUse.ts`): a page the image asks for is held, and holds
-the pages it depends on (`residency/pageParents.ts`), so the nearest resident ancestor a surface is
-drawn by never leaves under it; a page the image no longer asks for is released at the next cut —
-WebGL2 draws the cut it has just taken, no frame in flight reads it (`backend/autonomous/poolOrder.ts`).
-Over the slots, released pages leave by last use, oldest first (`evictOldest`), the window giving way
-first, as WebGPU's does under pressure. Each image walks what it asked for and drew, never the root
-cover nor what the pool holds (`pool.test.ts`).
+residency, fed as WebGPU feeds it (`residency/lastUse.ts`): what the image asks for and what it draws
+are held, each holding the pages it depends on (`residency/pageParents.ts`), so the ancestor a surface
+falls back to never leaves under it. Just before a cut, what the last image drew but no longer asks
+for lets go, one DAG level per image, finest first; a page let go of is released at the next cut, or
+at once when the pool is short by that many slots, the window giving way as WebGPU's does under
+pressure (`backend/autonomous/poolOrder.ts`). Released pages leave by last use, oldest first
+(`evictOldest`). A budget cut is thus paid one level per image, and the residency's keys follow what
+is held, never every page once asked for (`backend/autonomous/pageKeys.ts`).
 `coverageBudgetLimited` says the wanted cut did not fit; a verdict change is queued and published as
 `coverage-budget` by `flush`, as on WebGPU, with `requiredSlots` the slots the whole request charges
 and `pixelError` the host's threshold. Between two cuts, what the image drew and every page that

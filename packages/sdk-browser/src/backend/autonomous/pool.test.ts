@@ -145,8 +145,7 @@ test('the bytes the pool holds are bounded as its slots are, by the page cap', (
   assert.equal(f.state.allocationBytes, 3 * PAGE);
 });
 
-// #839: the residency's work per image follows the view — what it asks for and draws —, never the
-// world, its root cover or what the pool holds.
+// #839: work and tables follow the view, never the world.
 test('an image costs the residency the same work in a world sixteen times larger', () => {
   const imageWork = (scale: number) => {
     const f = fixture(1000 * scale, { budgetBytes: 40 * PAGE, rootPages: 10 * scale });
@@ -170,7 +169,7 @@ test('a page gives back the parents it held, even once its parents read otherwis
   f.arrive('p0');
   f.keep(['p1']);
   f.pool.trim();
-  // The placement is laid out elsewhere: p1 now reads no parent, yet p0 is still its to give back.
+  // Laid out elsewhere, p1 reads no parent: p0 is still its to give back.
   parents.p1 = [];
   f.keep([]);
   for (let i = 0; i < 3; i++) f.pool.trim();
@@ -179,7 +178,6 @@ test('a page gives back the parents it held, even once its parents read otherwis
   assert.deepEqual(f.dropped, ['p0'], 'p0 was released, and leaves before the newer p2');
 });
 
-// #839: the residency's tables follow the view, never every page it ever asked for.
 test('a view sliding across a large world keeps as many keys as it holds', () => {
   const f = fixture(4000, { budgetBytes: 40 * PAGE });
   let most = 0;
