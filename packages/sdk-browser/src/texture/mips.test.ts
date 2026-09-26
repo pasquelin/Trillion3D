@@ -8,7 +8,7 @@ import { mockGpu } from '../../../../tests/kit/gpu/mockGpu.ts';
 /** A four-texel-wide working texture, as tiles of a host texture cut them. */
 function scratch() {
   installGpuGlobals();
-  const gpu = mockGpu();
+  const gpu = mockGpu({ compute: true });
   const texture = gpu.device.createTexture({
     size: { width: 4, height: 4, depthOrArrayLayers: 1 },
     format: 'rgba8unorm',
@@ -46,4 +46,27 @@ test('one reduction pipeline per rule, the weighted one built with its constant 
     renderPipelines.map((pipeline) => pipeline.fragment?.constants?.weighted),
     [1, 0],
   );
+});
+
+// #748: a chain with a cutoff counts each level — level 0 first — and picks its `t` before reducing
+// it, every level's block carrying the cutoff and level 0's own block last; one without counts
+// nothing, its blocks as before. The shaders' arithmetic is `coverageRule.test.ts`.
+test('a chain with a cutoff counts each level before reducing it, a plain one nothing', () => {
+  const { device, texture, computes, writes } = scratch();
+  generateMaterialMips(device, texture, 'rgba8unorm-srgb', 4, 4, true, 128);
+  assert.deepEqual(computes, ['count', 'count', 'choose', 'count', 'choose']);
+  const stride = Math.max(256, device.limits.minUniformBufferOffsetAlignment ?? 256) / 4;
+  const blocks = (at: number) => {
+    const words = new Uint32Array(writes[at].bytes.buffer);
+    return [0, 1, 2].map((block) => [...words.subarray(block * stride, block * stride + 7)]);
+  };
+  const levels = [
+    [4, 4, 128, 0, 4, 4, 1],
+    [2, 2, 128, 0, 4, 4, 2],
+    [4, 4, 128, 0, 4, 4, 0],
+  ];
+  assert.deepEqual(blocks(0), levels);
+  generateMaterialMips(device, texture, 'rgba8unorm-srgb', 4, 4, true);
+  assert.equal(computes.length, 5, 'a plain chain counts nothing');
+  assert.equal(writes[1].bytes.length, 2 * stride * 4, 'two blocks, one per reduced level');
 });
