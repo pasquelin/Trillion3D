@@ -79,7 +79,7 @@ origin/develop`, nothing else written there) at start and after every merge you 
 ## Budget: context and subscription
 
 - **Subscription usage.** At every pass read the plan usage (the session-management `get_usage`
-  tool when present). At **80 %** of the window (or the threshold the boss sets), start winding
+  tool when present). At **75 %**, tell the leads the first step of AGENTS.md §Roles. At **80 %** of the window (or the threshold the boss sets), start winding
   down: no new agent anywhere; every lead finishes its current agent, names ready what is green
   (you merge it), comments the rest on its issue, cleans its worktrees and stops. Never cut an agent in the middle
   of its work: before the boss closes your session, every agent has ended.
