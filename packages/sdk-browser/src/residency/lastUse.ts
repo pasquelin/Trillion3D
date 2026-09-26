@@ -1,14 +1,5 @@
-import type { PageRec } from '../../page/selection/selection.ts';
-import { createSparseInts } from '../../page/cut/sparseInts.ts';
-import { DAG_READBACK_SLOTS } from '../../gpu/dag/layout.ts';
-
-/**
- * Frames a page stays held once the image stopped using it. The drawn list reaches the cache
- * through the readback slots, so the GPU may have drawn that many frames the cache has not read
- * yet, and one more is being encoded: a page unused for this many frames is unused by every frame
- * the GPU can still be drawing. The rule follows the frame pipeline, never a scene.
- */
-export const LAST_USE_WINDOW = DAG_READBACK_SLOTS + 1;
+import type { PageRec } from '../page/selection/selection.ts';
+import { createSparseInts } from '../page/cut/sparseInts.ts';
 
 /**
  * Eviction by last use, and parents after their children: which pages the image still holds once
@@ -16,10 +7,10 @@ export const LAST_USE_WINDOW = DAG_READBACK_SLOTS + 1;
  *
  * A page the image keeps — its cut, the pinned cover, and what it draws, the nearest resident
  * ancestor standing in for a missing page included — is held. A page that leaves `keep` stays
- * held for `LAST_USE_WINDOW` frames, then is released, oldest first: the caller unpins it. It was
+ * held for `idleWindow` frames — as many as the engine's frame pipeline may still draw it in —, then is released, oldest first: the caller unpins it. It was
  * sent to the far end of the cache's order when it went idle (`onIdle`), so the cache reclaims
  * released pages in their last-use order, and ahead of the pages a lower tier moved there since
- * (`residentEnsurer.ts`), which some view still wants. Under pressure — more kept pages to load than the pool has unpinned slots — the window
+ * (`../webgpu/residency/residentEnsurer.ts`), which some view still wants. Under pressure — more kept pages to load than the pool has unpinned slots — the window
  * gives way first: that many idle pages are released early, still oldest first, so the window
  * never costs the image a page it asks for. A page within its window that is still loading asks
  * for no slot: the image no longer wants it.
@@ -33,6 +24,8 @@ export const LAST_USE_WINDOW = DAG_READBACK_SLOTS + 1;
  * moved and what came due, never the held set.
  */
 export function createLastUse(options: {
+  /** Frames a page stays held once the image stopped using it. */
+  idleWindow: number;
   keyOf: (rec: PageRec) => number;
   parentsOf: (rec: PageRec) => readonly PageRec[];
   /** True while the image keeps the page. */
@@ -42,7 +35,7 @@ export function createLastUse(options: {
   /** A page went idle, its last use: the caller moves it to the far end of the cache's order. */
   onIdle: (key: number) => void;
 }) {
-  const { keyOf, parentsOf, kept, onHeld, onIdle } = options;
+  const { idleWindow, keyOf, parentsOf, kept, onHeld, onIdle } = options;
   /** The frame, plus one, each page left `keep` at while it waits out its window. */
   const idleSince = createSparseInts();
   /** Held pages that depend on each page. */
@@ -100,7 +93,7 @@ export function createLastUse(options: {
      *  whose `onRelease` frees no slot — it never arrived — does not count. */
     release(frame: number, onRelease: (key: number) => boolean, pressure = 0) {
       while (head < idleKeys.length) {
-        if (frame - idleFrames[head] < LAST_USE_WINDOW && pressure <= 0) break;
+        if (frame - idleFrames[head] < idleWindow && pressure <= 0) break;
         const key = idleKeys[head],
           since = idleFrames[head++];
         if (idleSince.get(key) !== since + 1 || kept(key) || children.get(key) !== 0) continue;

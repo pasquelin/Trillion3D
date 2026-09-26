@@ -5,8 +5,7 @@ import assert from 'node:assert/strict';
 import type { PageRec } from '../../page/selection/selection.ts';
 import { createCutDelta } from '../cut/delta.ts';
 import { createWebgpuPageTracking } from '../row/pageTracking.ts';
-import { LAST_USE_WINDOW as W } from './lastUse.ts';
-import { createWebgpuPinUpdater } from './pinUpdater.ts';
+import { LAST_USE_WINDOW as W, createWebgpuPinUpdater } from './pinUpdater.ts';
 import { createWebgpuResidencySets } from './sets.ts';
 import { lruCache, pageOf } from './residentEnsurer.fixture.ts';
 
