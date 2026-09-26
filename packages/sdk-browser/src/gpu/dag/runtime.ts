@@ -119,6 +119,12 @@ export function createDagRuntime(resources: DagResources): GpuSelection {
       voidCuts();
       return true;
     },
+    setPoolSlots(slots) {
+      if (resources.pool.slots === slots) return;
+      resources.pool.slots = slots;
+      // The next dispatch cuts and reads back again, under the new bound: the cut in hand stays.
+      state.submittedResidencyRevision = state.readbackResidencyRevision = -1;
+    },
     dispatch,
     peek() {
       return state.dead ? null : state.last;

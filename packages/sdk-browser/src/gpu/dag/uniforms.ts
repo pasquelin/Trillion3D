@@ -31,6 +31,7 @@ export type DagOutputScratch = {
   result: SelectionResult;
   drawable: number[];
   ahead: number[];
+  evict: number[];
 };
 export const createDagOutputScratch = (): DagOutputScratch => ({
   result: {
@@ -43,6 +44,7 @@ export const createDagOutputScratch = (): DagOutputScratch => ({
   },
   drawable: [],
   ahead: [],
+  evict: [],
 });
 
 /** The view ahead of a moving camera (`shader/aheadWgsl.ts`): block 1 repeats the camera's with the
@@ -68,6 +70,8 @@ export function writeDagUniforms(
   uniforms: DagViewUniforms,
   residentCut: boolean,
   views?: DagCutViews,
+  /** The pool's slots: the eviction queue's bound, following a resize (`shader/evictWgsl.ts`). */
+  poolSlots = 0,
 ) {
   target.fill(0);
   target.set(uniforms.planes, 0);
@@ -97,6 +101,7 @@ export function writeDagUniforms(
   ints[60] = views?.count ?? 1;
   ints[61] = views?.capacity ?? 1;
   ints[62] = views?.queueCap ?? packed.nodeCount;
+  ints[64] = poolSlots;
   const light = uniforms.light;
   ints[VIEW_FLAGS_WORD] = light ? VIEW_LIGHT | VIEW_PAGES | (views?.append ? VIEW_APPEND : 0) : 0;
   writeAheadBlock(target, ints, uniforms);
@@ -108,7 +113,8 @@ export function writeDagUniforms(
   target[59] = light.clipPad;
 }
 
-/** `drawnWordOffset`: rank of the compacted-list count in the sample, 0 when there is none. */
+/** `drawnWordOffset`: rank of the compacted-list count in the sample, 0 when there is none; the
+ *  eviction queue then follows at twice that rank (`evictionWord`, `layout.ts`). */
 export function parseDagOutput(
   bytes: ArrayBufferLike,
   byteOffset: number,
@@ -160,6 +166,11 @@ export function parseDagOutput(
     drawable.length = drawnCount;
     for (let i = 0; i < drawnCount; i++) drawable[i] = ints[drawnWordOffset + head + i];
     result.drawablePageIds = drawable;
+    const at = 2 * drawnWordOffset,
+      evict = scratch.evict;
+    evict.length = Math.min(ints[at] ?? 0, Math.max(0, ints.length - at - head));
+    for (let i = 0; i < evict.length; i++) evict[i] = ints[at + head + i];
+    result.evictPageIds = evict;
   }
   return result;
 }

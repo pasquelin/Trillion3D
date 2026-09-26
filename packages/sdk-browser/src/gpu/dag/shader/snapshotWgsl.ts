@@ -22,9 +22,9 @@ import { REQUEST_PRIORITY_MAX } from '../request.ts';
  * writes its own list straight into its snapshot (`../lightCutReports.ts`).
  */
 export const DAG_RELEVE_WGSL = `fn emitOne(page:u32,pixels:f32){emitWord(page,quantizePriority(pixels),true);}
-/** Where the camera's request \`s\` waits for the sort: behind the drawn list and its header
+/** Where the camera's request \`s\` waits for the sort: behind the eviction queue and its header
  *  (\`stagedRequestsWord\`, \`../layout.ts\`, counted from \`out\`'s first word). */
-fn stagedAt(s:u32)->u32{return 2u*views[0u].listCap+HEAD+s;}
+fn stagedAt(s:u32)->u32{return 3u*views[0u].listCap+2u*HEAD+s;}
 /** One request word in the sample; past the cap it is dropped, and \`declare\` says truncated. */
 fn emitWord(page:u32,priority:u32,declare:bool){
  let slot=atomicAdd(&out.count,1u);
@@ -52,11 +52,14 @@ fn dagSortRequests(@builtin(local_invocation_index) lane:u32){
  workgroupBarrier();
  for(var s=lane;s<n;s+=SORT_LANES){atomicAdd(&rankPlace[requestWordRank(out.pages[stagedAt(s)])],1u);}
  workgroupBarrier();
- if(lane==0u){
-  var place=0u;
-  for(var r=RANKS;r>0u;r--){let held=atomicLoad(&rankPlace[r-1u]);atomicStore(&rankPlace[r-1u],place);place+=held;}
- }
+ if(lane==0u){placeRanks();}
  workgroupBarrier();
  for(var s=lane;s<n;s+=SORT_LANES){let word=out.pages[stagedAt(s)];out.pages[atomicAdd(&rankPlace[requestWordRank(word)],1u)]=word;}
+}
+/** Turns each rank's count into its first place, from the highest rank down; returns the total. */
+fn placeRanks()->u32{
+ var place=0u;
+ for(var r=RANKS;r>0u;r--){let held=atomicLoad(&rankPlace[r-1u]);atomicStore(&rankPlace[r-1u],place);place+=held;}
+ return place;
 }
 `;
