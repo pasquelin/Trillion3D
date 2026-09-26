@@ -42,7 +42,7 @@
       const say = words();
       // What a backend refuses is said on the world's channel, with its reason: shown, never hidden.
       diagnostic.createChannel().observe(({ kind, message }) => {
-        if (/refused|unsupported/.test(kind)) announce(say('refused'), message);
+        if (kind.includes('refused')) announce(say('refused'), message);
       });
       world.scene.background = math.color('#bcd3e6');
       world.camera.far = 600;
@@ -63,7 +63,9 @@
         radius = 9;
       const around = (r) => Array.from({ length: 12 }, (_, k) => [Math.cos((k * Math.PI) / 6) * r, Math.sin((k * Math.PI) / 6) * r]);
       const under = [[0, 0], ...around(radius / 3), ...around((radius * 2) / 3), ...around(radius)];
-      const [, far, ...ground] = await Promise.all([park(driven, start), groundAt(0, edge + 1), ...under.map(([dx, dz]) => groundAt(x + dx, z + dz))]);
+      // One lookup waits for the streamed ground; the other 37 then find it on their first ray.
+      const [, far] = await Promise.all([park(driven, start), groundAt(0, edge + 1)]);
+      const ground = await Promise.all(under.map(([dx, dz]) => groundAt(x + dx, z + dz)));
       world.scene.add(driven.body);
       world.physics.add(driven.driver);
       world.controls.vehicle = driven.driver;
@@ -117,9 +119,10 @@
       }
 
       // Two glass panes, blended, each asking for its shadow as dark as it is opaque.
+      const sheet = geometry.box(1.6, 2.4, 0.04);
       [0.3, 0.7].forEach((opacity, k) => {
         const glass = material.meshStandard({ color: '#9fd3ff', roughness: 0.1, transparent: true, opacity, depthWrite: false, transparentShadow: true });
-        const pane = object.mesh(geometry.box(1.6, 2.4, 0.04), glass);
+        const pane = object.mesh(sheet, glass);
         pane.position.set(-5.5 + k * 2, 1.2, -3);
         stage.add(pane);
       });
