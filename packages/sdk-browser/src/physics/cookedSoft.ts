@@ -36,8 +36,7 @@ export function createCookedSoftBodies(
   const settings = new WeakMap<CookedSoftBody, Promise<Uint8Array>>();
   function settingsOf(model: Model, soft: CookedSoftBody) {
     let bytes = settings.get(soft);
-    if (!bytes)
-      settings.set(soft, (bytes = cookedBytes(model, soft.settings.url, 'Soft body settings')));
+    if (!bytes) settings.set(soft, (bytes = cookedBytes(model, soft.settings.url)));
     return bytes;
   }
   /** Lists `soft` refused in `opening`, and refuses it by name: at another scale than it was
