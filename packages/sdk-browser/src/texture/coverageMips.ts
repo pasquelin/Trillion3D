@@ -27,7 +27,7 @@ export const COVERAGE_WGSL = `
   if(all(id.xy<sizeOf(k))){
    let p=vec2i(id.xy)*2;let hi=vec2i(level.extent.xy)-vec2i(1);
    var a:u32;
-   if(k==0u){a=u32(round(textureLoad(source,vec2i(id.xy),0).w*255.0));}
+   if(k==0u){a=toByte(textureLoad(source,vec2i(id.xy),0).w);}
    else{
     a=median(vec4f(textureLoad(source,min(p,hi),0).w,textureLoad(source,min(p+vec2i(1,0),hi),0).w,
      textureLoad(source,min(p+vec2i(0,1),hi),0).w,textureLoad(source,min(p+vec2i(1,1),hi),0).w));

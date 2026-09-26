@@ -38,7 +38,7 @@ const programs = new WeakMap<GPUDevice, MipProgram>();
  * materials share, and nothing at this place knows which threshold will be applied to it.
  *
  * Sorted decreasing, the median is the mean of the two middle values: `u` is the second, `v` the
- * third, six comparisons with neither a sort nor a branch.
+ * third, six comparisons with neither a sort nor a branch (`reducedAlpha`, `coverageRule.ts`).
  *
  * Under `weighted`, four texels whose alphas differ average their colours
  * weighted by alpha, and `select` keeps the plain mean everywhere else, byte for byte: the rule the
@@ -62,12 +62,9 @@ export const MIP_SHADER = `
   let s0=textureLoad(source,min(p,hi),0);let s1=textureLoad(source,min(p+vec2i(1,0),hi),0);
   let s2=textureLoad(source,min(p+vec2i(0,1),hi),0);let s3=textureLoad(source,min(p+vec2i(1,1),hi),0);
   let mean=(s0+s1+s2+s3)*0.25;
-  let u=min(max(s0.w,s1.w),max(s2.w,s3.w));
-  let v=max(min(s0.w,s1.w),min(s2.w,s3.w));
   let a=vec4f(s0.w,s1.w,s2.w,s3.w);
   let byAlpha=(s0.rgb*s0.w+s1.rgb*s1.w+s2.rgb*s2.w+s3.rgb*s3.w)/dot(a,vec4f(1.0));
-  let cut=f32(scaled(median(a),extent.z,extent.w))/255.0;
-  return vec4f(select(mean.rgb,byAlpha,weighted&&any(a!=vec4f(s0.w))),select((u+v)*0.5,cut,extent.z>0u));
+  return vec4f(select(mean.rgb,byAlpha,weighted&&any(a!=vec4f(s0.w))),reducedAlpha(a,extent.z,extent.w));
  }`;
 
 function mipProgram(device: GPUDevice): MipProgram {
