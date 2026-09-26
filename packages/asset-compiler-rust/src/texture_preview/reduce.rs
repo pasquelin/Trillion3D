@@ -1,5 +1,6 @@
 use super::curves::{linear_to_srgb, srgb_table};
 use super::*;
+use std::borrow::Cow;
 
 /// What the atlas layer does with the bytes, and therefore what reduction must do
 /// with the same: the colour atlas is `rgba8unorm-srgb`, its first three channels
@@ -9,43 +10,53 @@ use super::*;
 ///
 /// `Coverage` is a chain of the colour atlas too, the one of a texture EVERY
 /// reader of which reads its alpha as coverage — the base colour of MASK or BLEND
-/// materials —: the only chain whose colours `halve` weighs by alpha. It has its
-/// own word and its own name, so its files never mix with the plain chain of the
-/// same image read by an opaque material or as emissive in another scene.
-/// Entries sort by the atlas that samples the chain (`atlas`), so one texture
-/// carries a plain or a coverage colour entry, never both.
+/// materials —: the only chain whose colours `halve` weighs by alpha. It carries
+/// the image's byte cutoff (`coverage::cutoff_byte`), whose share of covered texels
+/// every level keeps (`coverage::preserve`); 0 when every reader blends, and the
+/// chain keeps the median alone. Each cutoff has its own word and name, so its
+/// files never mix with the plain chain of the same image, nor with another
+/// cutoff's, read in another scene. Entries sort by the atlas that samples the
+/// chain (`atlas`), so one texture carries a plain or a coverage colour entry, never both.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub enum AtlasKind {
     Color,
     Data,
-    Coverage,
+    Coverage(u8),
 }
 impl AtlasKind {
-    pub const ALL: [Self; 3] = [Self::Color, Self::Data, Self::Coverage];
+    /// The sidecar's atlas word: 0, 1 or 2 in the low byte, a coverage chain's
+    /// cutoff in the next one.
     pub fn word(self) -> u32 {
         match self {
             Self::Color => 0,
             Self::Data => 1,
-            Self::Coverage => 2,
+            Self::Coverage(cutoff) => 2 | u32::from(cutoff) << 8,
         }
     }
-    pub fn name(self) -> &'static str {
+    pub fn name(self) -> Cow<'static, str> {
         match self {
-            Self::Color => "srgb",
-            Self::Data => "linear",
-            Self::Coverage => "srgb-coverage",
+            Self::Color => "srgb".into(),
+            Self::Data => "linear".into(),
+            Self::Coverage(0) => "srgb-coverage".into(),
+            Self::Coverage(cutoff) => format!("srgb-coverage-{cutoff}").into(),
         }
     }
     /// The atlas the chain is sampled in: a `Coverage` chain is the colour atlas's.
     pub fn atlas(self) -> Self {
         match self {
-            Self::Coverage => Self::Color,
+            Self::Coverage(_) => Self::Color,
             kind => kind,
         }
     }
     /// The atlas a sidecar word names; `None` for a word this version never wrote.
     pub fn from_word(word: u32) -> Option<Self> {
-        Self::ALL.into_iter().find(|kind| kind.word() == word)
+        let cutoff = u8::try_from(word >> 8).ok()?;
+        match (word & 0xff, cutoff) {
+            (0, 0) => Some(Self::Color),
+            (1, 0) => Some(Self::Data),
+            (2, cutoff) => Some(Self::Coverage(cutoff)),
+            _ => None,
+        }
     }
 }
 
@@ -59,7 +70,8 @@ impl AtlasKind {
 /// from a kept float; colours are the mean of the four texels, decoded then
 /// re-encoded by the atlas curve, weighted by alpha in a `Coverage` chain
 /// (`halve`); alpha is the MEDIAN of the four, the mean of the two middle
-/// values, which keeps a cutout-threshold coverage from one level to the next; an
+/// values, then scaled in a `Coverage` chain with a cutoff so that the share of
+/// covered texels stays level 0's (`coverage::preserve`); an
 /// odd side repeats its last texel, like `min(p + 1, hi)` in the shader. No curve
 /// declared by the file: the atlas does not know it, and the pyramid follows
 /// display, not the file.
@@ -68,11 +80,16 @@ pub(super) fn chain(source: &image::RgbaImage, kind: AtlasKind) -> Vec<Vec<u8>> 
     let last = preview_last_level(width, height);
     let mut levels = Vec::with_capacity(last as usize + 1);
     levels.push(source.as_raw().clone());
+    let covered = super::coverage::Covered::of(source.as_raw(), kind);
     let mut size = (width, height);
     for level in 1..=last {
         let next = preview_level_size(width, height, level);
         let previous = levels.last().expect("previous level");
-        levels.push(halve(previous, size, next, kind));
+        let mut halved = halve(previous, size, next, kind);
+        if let Some(covered) = &covered {
+            covered.preserve(&mut halved);
+        }
+        levels.push(halved);
         size = next;
     }
     levels
@@ -87,14 +104,14 @@ pub(super) fn tail(levels: &[Vec<u8>], first: u32) -> Vec<u8> {
 /// averages: the sRGB curve for colours of a colour atlas, division by 255 everywhere else.
 fn decode_table(kind: AtlasKind) -> &'static [f32; 256] {
     match kind {
-        AtlasKind::Color | AtlasKind::Coverage => srgb_table(),
+        AtlasKind::Color | AtlasKind::Coverage(_) => srgb_table(),
         AtlasKind::Data => super::curves::linear_table(),
     }
 }
 
 fn encode(value: f32, kind: AtlasKind) -> u8 {
     match kind {
-        AtlasKind::Color | AtlasKind::Coverage => linear_to_srgb(value),
+        AtlasKind::Color | AtlasKind::Coverage(_) => linear_to_srgb(value),
         AtlasKind::Data => (value.clamp(0.0, 1.0) * 255.0).round() as u8,
     }
 }
@@ -125,7 +142,7 @@ fn halve(previous: &[u8], size: (u32, u32), next: (u32, u32), kind: AtlasKind) -
             let at = |x: usize, y: usize| (y * width + x) * 4;
             let texels = [at(x0, y0), at(x1, y0), at(x0, y1), at(x1, y1)];
             let a: [f32; 4] = std::array::from_fn(|i| f32::from(previous[texels[i] + 3]) / 255.0);
-            let coverage = (kind == AtlasKind::Coverage && a.iter().any(|&w| w != a[0]))
+            let coverage = (matches!(kind, AtlasKind::Coverage(_)) && a.iter().any(|&w| w != a[0]))
                 .then(|| a.iter().sum::<f32>());
             for channel in 0..3 {
                 let values = texels.map(|t| table[previous[t + channel] as usize]);
