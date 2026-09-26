@@ -5438,10 +5438,10 @@
       "shadowsUpdated": "Schattenlichter, von denen dieses Bild eine Seite gezeichnet hat. Null ist der normale Wert einer ruhenden Szene: ein festes Licht behält seine Seiten.",
       "shadowFacesDrawn": "Lichtansichten, in die der Schattendurchgang gezeichnet hat — eine Clipmap-Stufe der Sonne, eine Lampenfläche auf einer Mip-Stufe —, und die tatsächlich kodierten Draw-Calls. Null bei einer Engine, die keinen Schatten zeichnet.",
       "shadowDrawCalls": "Schatten-Zeichenaufrufe.",
-      "shadowPagesDrawn": "Was die Seiteninvalidierung erzeugt hat: von dem Bild neu gezeichnete Seiten, aus Budgetmangel in der Warteschlange belassene Seiten, und die Verzögerung der ältesten in Millisekunden. Null überall ist der normale Wert einer unbewegten Szene; `null` für eine Engine ohne Schattenatlas.",
+      "shadowPagesDrawn": "Was die Seiteninvalidierung erzeugt hat: von dem Bild neu gezeichnete Seiten, aus Budgetmangel in der Warteschlange belassene Seiten, und wie lange die älteste veraltete Seite, die das Bild liest, gewartet hat. Null überall ist der normale Wert einer unbewegten Szene; `null` für eine Engine ohne Schattenatlas.",
       "shadowPagesTotal": "Seit der Öffnung des Explorers gezeichnete Seiten, Leerungen von `flush()` eingeschlossen: die Kosten einer Änderung sind der Abstand zwischen zwei Lesungen.",
       "shadowPagesPending": "Wartende Schattenseiten.",
-      "shadowWaitMs": "Wie lange sie gewartet haben.",
+      "shadowWaitMs": "Wie viele Millisekunden die älteste veraltete Seite, die das Bild liest, auf ihr Neuzeichnen gewartet hat. Nur die Zeit, in der das Bild sie liest, zählt; 0, sobald sie neu gezeichnet ist.",
       "gpuLightListsMs": "GPU-Zeit der Lichtlisten.",
       "gpuShadowsMs": "GPU-Zeit der Schatten.",
       "gpuShadowCullMs": "GPU-Zeit für die Auswahl der Schattenwerfer der Schattenseiten, die ein Bild zeichnet: der Lichtschnitt, das Aussortieren pro Seite und der Verdeckungstest bewegter Werfer mit den Pyramiden, die er liest.",
@@ -6615,7 +6615,7 @@
   },
   "world.beforeFrame": {
     "summary": "Führt eine Funktion vor jedem gezeichneten Bild aus, mit `{ delta, time }`; gibt zurück, was ihn stoppt.",
-    "description": "Ein Bild der Schleife der Welt läuft so ab: der Controller lässt die Kamera voranschreiten (außer `controls.autoUpdate` ist false), Clips schreiten voran, diese Hooks in der Reihenfolge, in der sie hinzugefügt wurden, die Szene wird geschrieben und gezeichnet, dann die `onFrame`-Hooks. Was ein Hook platziert — ein Körper auf der Kamera, ein Cockpit — wird in genau diesem Bild gezeichnet, nie ein Bild zu spät. Ein von einem Host geführtes `render()` führt sie auch aus, lässt aber keinen Controller voranschreiten. Ein Hook, der `invalidate()` aufruft, lässt weitere Bilder kommen.",
+    "description": "Ein Bild läuft so ab: der Controller der Kamera (außer `controls.autoUpdate` ist false oder der Host führt, `render()`), die Clips, die Physik, diese Hooks in ihrer Reihenfolge, das Zeichnen, dann die `onFrame`-Hooks. Was ein Hook platziert — ein Körper auf der Kamera, ein Cockpit — wird in genau diesem Bild gezeichnet, nie ein Bild zu spät. Ein Hook, der `invalidate()` aufruft, lässt weitere Bilder kommen.",
     "parameters": {
       "hook": "Die auszuführende Funktion; sie erhält die gerade integrierten Sekunden und die Zeit der Welt."
     },
@@ -6632,7 +6632,7 @@
     "summary": "Fordert ein neues Bild an, nach einer Änderung, die die Welt nicht sehen konnte."
   },
   "world.render": {
-    "summary": "Zeichnet sofort ein Bild, unabhängig davon, wer die Schleife beherrscht."
+    "summary": "Zeichnet sofort ein Bild, unabhängig davon, wer die Schleife beherrscht: Clips und Physik schreiten mit ihm voran."
   },
   "world.resize": {
     "summary": "Sagt der Welt, dass das Canvas seine Größe geändert hat; ohne Wert liest sie die Größe des Canvas.",
@@ -6718,10 +6718,10 @@
       "shadowsUpdated": "Schattenlichter, von denen dieses Bild eine Seite gezeichnet hat. Null ist der normale Wert einer ruhenden Szene: ein festes Licht behält seine Seiten.",
       "shadowFacesDrawn": "Lichtansichten, in die der Schattendurchgang gezeichnet hat — eine Clipmap-Stufe der Sonne, eine Lampenfläche auf einer Mip-Stufe —, und die tatsächlich kodierten Draw-Calls. Null bei einer Engine, die keinen Schatten zeichnet.",
       "shadowDrawCalls": "Schatten-Zeichenaufrufe.",
-      "shadowPagesDrawn": "Was die Seiteninvalidierung erzeugt hat: von dem Bild neu gezeichnete Seiten, aus Budgetmangel in der Warteschlange belassene Seiten, und die Verzögerung der ältesten in Millisekunden. Null überall ist der normale Wert einer unbewegten Szene; `null` für eine Engine ohne Schattenatlas.",
+      "shadowPagesDrawn": "Was die Seiteninvalidierung erzeugt hat: von dem Bild neu gezeichnete Seiten, aus Budgetmangel in der Warteschlange belassene Seiten, und wie lange die älteste veraltete Seite, die das Bild liest, gewartet hat. Null überall ist der normale Wert einer unbewegten Szene; `null` für eine Engine ohne Schattenatlas.",
       "shadowPagesTotal": "Seit der Öffnung des Explorers gezeichnete Seiten, Leerungen von `flush()` eingeschlossen: die Kosten einer Änderung sind der Abstand zwischen zwei Lesungen.",
       "shadowPagesPending": "Wartende Schattenseiten.",
-      "shadowWaitMs": "Wie lange sie gewartet haben.",
+      "shadowWaitMs": "Wie viele Millisekunden die älteste veraltete Seite, die das Bild liest, auf ihr Neuzeichnen gewartet hat. Nur die Zeit, in der das Bild sie liest, zählt; 0, sobald sie neu gezeichnet ist.",
       "gpuLightListsMs": "GPU-Zeit der Lichtlisten.",
       "gpuShadowsMs": "GPU-Zeit der Schatten.",
       "gpuShadowCullMs": "GPU-Zeit für die Auswahl der Schattenwerfer der Schattenseiten, die ein Bild zeichnet: der Lichtschnitt, das Aussortieren pro Seite und der Verdeckungstest bewegter Werfer mit den Pyramiden, die er liest.",
