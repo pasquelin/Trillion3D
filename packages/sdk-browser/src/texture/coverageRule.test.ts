@@ -105,5 +105,5 @@ test('a chain is cut at its readers’ lowest cutoff byte, 0 once one blends', (
   surface(0, true);
   assert.equal(readers.cutoff(map), 0, 'a blended reader: the median alone');
   surface(0);
-  assert.equal(readers.cutoff(map), 0, 'an opaque reader: the plain chain');
+  assert.equal(readers.cutoff(map), undefined, 'an opaque reader: the plain chain');
 });

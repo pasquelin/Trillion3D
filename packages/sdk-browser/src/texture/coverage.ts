@@ -33,12 +33,9 @@ const cutOf = (surface: PageSurface) =>
  *  premultiplied. A host switches opaque and masked with no signal: `follow` rereads them. */
 export class CoverageReaders {
   private filed = new WeakMap<PageSurface, number>(); // the version each surface was filed at
-  /** Per colour texture, its readers filed — as a base or emissive map —, whether every one takes
-   *  its alpha for coverage, and the lowest of their cutoff bytes (`cutOf`). */
-  private readers = new WeakMap<
-    Texture,
-    { surfaces: Set<PageSurface>; rule: boolean; cutoff: number }
-  >();
+  /** Per colour texture, its readers filed — as a base or emissive map — and whether every one
+   *  takes its alpha for coverage. */
+  private readers = new WeakMap<Texture, { surfaces: Set<PageSurface>; rule: boolean }>();
   /** Files a surface's colour maps once per version; false when already filed. */
   read(surface: PageSurface) {
     if (this.filed.has(surface) && this.filed.get(surface) === surface.version) return false;
@@ -53,13 +50,11 @@ export class CoverageReaders {
       const held = this.readers.get(map);
       if (!held) continue;
       held.rule = true;
-      held.cutoff = 255;
       for (const surface of held.surfaces) {
         const { map: base, emissiveMap } = refreshSurface(surface);
-        if (base === map || emissiveMap === map) {
+        if (base === map || emissiveMap === map)
           held.rule &&= emissiveMap !== map && alphaIsCoverage(surface);
-          if (held.rule) held.cutoff = Math.min(held.cutoff, cutOf(surface));
-        } else if (held.surfaces.delete(surface)) this.file(surface);
+        else if (held.surfaces.delete(surface)) this.file(surface);
       }
       held.rule &&= held.surfaces.size > 0;
     }
@@ -70,9 +65,10 @@ export class CoverageReaders {
   }
   /** The cutoff byte `C` whose share of covered texels every level of `texture`'s chain keeps
    *  (docs/FORMAT.md, "Coverage-preserving alpha"): the lowest of its masked readers', each under
-   *  its opacity, 0 — the median alone — when the chain does not weigh or a reader blends. */
+   *  its opacity, 0 — the median alone — once a reader blends; none when the chain does not weigh. */
   cutoff(texture: Texture) {
-    return this.weighs(texture) ? this.readers.get(texture)!.cutoff : 0;
+    const held = this.weighs(texture) ? this.readers.get(texture)! : undefined;
+    return held && Math.min(255, ...[...held.surfaces].map(cutOf));
   }
   private file(surface: PageSurface) {
     const { map, emissiveMap } = surface;
@@ -81,12 +77,7 @@ export class CoverageReaders {
   }
   private wear(texture: Texture, surface: PageSurface, coverage: boolean) {
     const held = this.readers.get(texture);
-    // A reader that does not take alpha for coverage ends the rule: its cutoff is never read.
-    const cutoff = coverage ? cutOf(surface) : 255;
-    if (!held) this.readers.set(texture, { surfaces: new Set([surface]), rule: coverage, cutoff });
-    else {
-      held.rule = held.surfaces.add(surface) && held.rule && coverage;
-      held.cutoff = Math.min(held.cutoff, cutoff);
-    }
+    if (!held) this.readers.set(texture, { surfaces: new Set([surface]), rule: coverage });
+    else held.rule = held.surfaces.add(surface) && held.rule && coverage;
   }
 }
