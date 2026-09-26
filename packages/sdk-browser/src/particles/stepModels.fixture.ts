@@ -11,11 +11,20 @@ import { PARTICLE_ROW, createWebglParticles } from './webglParticles.ts';
 
 const f = Math.fround;
 
-/** A context (`granted`, `answers`), its `particles`, and a `run` of its WebGL2 step that answers the
- *  draws made and the calls it made, by name. */
-export function webgl(granted = ['EXT_color_buffer_float'], answers = {}) {
-  const getExtension = (name: string) => (granted.includes(name) ? {} : null);
-  const ctx = createTestContext({ answers: { getExtension, ...answers } }),
+/** A context granting `granted`, its drawing buffer's depth `depth`: a blit into a depth copy of
+ *  another format is an `errors` entry, as drivers refuse it. Its `particles`, and a `run` of their
+ *  step that answers the draws and calls made. */
+export function webgl(granted = ['EXT_color_buffer_float'], depth = 'DEPTH24_STENCIL8') {
+  const getExtension = (name: string) => (granted.includes(name) ? {} : null),
+    errors: string[] = [],
+    getError = () => errors.shift() ?? 'NO_ERROR';
+  const blitFramebuffer = (...args: unknown[]) => {
+    const copy = ctx.of('texImage2D').findLast(([, , format]) => /^DEPTH/.test(`${format}`));
+    if (copy?.[2] !== depth) errors.push('INVALID_OPERATION');
+    ctx.calls.push({ name: 'blitFramebuffer', args });
+  };
+  const answers = { getExtension, blitFramebuffer, getError },
+    ctx = createTestContext({ answers }),
     particles = createWebglParticles(ctx.gl);
   const run = (pools: ParticlePool[]) => {
     const from = ctx.calls.length,
@@ -23,7 +32,7 @@ export function webgl(granted = ['EXT_color_buffer_float'], answers = {}) {
       calls = ctx.calls.slice(from);
     return { draws, of: (name: string) => calls.filter((c) => c.name === name).map((c) => c.args) };
   };
-  return { ctx, run, particles };
+  return { ctx, run, particles, errors };
 }
 
 /** Both shaders' body for slot `i`, `ring` their uniforms (first slot, count, capacity, then
