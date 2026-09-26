@@ -1,6 +1,6 @@
-// WGSL body of the descent kernel from BEFORE the "persistent selection" batch, split out of
-// `cut-dispatches.ts` to keep it under the file line budget. See that file for the oracle's
-// buffers and encoding, which read this string as the pipeline's shader module.
+// The descent kernel from BEFORE the "persistent selection" batch, and the shipped cut shader
+// with it in place (`DAG_SELECTION_SHADER_AVANT`), split out of `cut-dispatches.ts` to keep it
+// under the file line budget. See that file for the oracle's buffers and encoding.
 import { DAG_SELECTION_SHADER } from '../../../packages/sdk-browser/src/gpu/dag/shader/shader.ts';
 import { DAG_LEVEL_WGSL } from '../../../packages/sdk-browser/src/gpu/dag/shader/levelWgsl.ts';
 
@@ -59,12 +59,20 @@ fn levelStep(src:u32,s:u32){
 fn dagLevel0(@builtin(global_invocation_id) id:vec3u){levelStep(0u,id.x);}
 @compute @workgroup_size(64)
 fn dagLevel1(@builtin(global_invocation_id) id:vec3u){levelStep(1u,id.x);}
-/** Names the shipped shader's other stages call since (\`dagPrepare\`, \`aheadWgsl.ts\`), in this
- *  descent's own layout: the frozen \`levelStep\` above never reaches the view ahead. */
-fn markOf(w:u32)->u32{return bitcast<u32>(frames[w*FRAME+6u].w);}
-fn tooCoarse(node:CullNode,e:mat4x4f,stretch:f32,focal:f32)->bool{
- return node.maxParentError>=0.0&&projected(node.maxParentError,node.sphere,e,stretch,focal)<=uni.pixelError;
+`;
+
+/** A function of the shipped descent, verbatim: from its `fn` to the next doc, `fn` or stage. */
+function shippedFn(name: string) {
+  const found = new RegExp(`^fn ${name}\\(.*?(?=\\n(?:/\\*\\*|fn |@))`, 'ms').exec(DAG_LEVEL_WGSL);
+  if (!found) throw new Error(`levelWgsl.ts no longer defines ${name}`);
+  return found[0];
 }
+
+/** Names the shipped shader's other stages call since (`dagPrepare`, `aheadWgsl.ts`), which the
+ *  frozen `levelStep` never reaches: `markOf` and `tooCoarse` taken from the shipped descent,
+ *  `descend` rewritten, since the shipped one appends to queues this layout does not have. */
+const AVANT_SHIMS = `${shippedFn('markOf')}
+${shippedFn('tooCoarse')}
 fn descend(src:u32,node:CullNode){
  if(node.childCount>0u){spanAppend(queueCounter(1u-src),queueGroups(1u-src),queueBase(1u-src),node.firstChild,node.childCount);return;}
  spanAppend(candCounter(),candGroups(),candBase(),node.firstPage,node.pageCount);
@@ -76,5 +84,5 @@ fn descend(src:u32,node:CullNode){
  *  block per view, and a camera is view 0 (`viewsWgsl.ts`). */
 export const DAG_SELECTION_SHADER_AVANT = DAG_SELECTION_SHADER.replace(
   DAG_LEVEL_WGSL,
-  DAG_LEVEL_WGSL_AVANT.replaceAll('uni.', 'views[0u].'),
+  DAG_LEVEL_WGSL_AVANT.replaceAll('uni.', 'views[0u].') + AVANT_SHIMS,
 );
