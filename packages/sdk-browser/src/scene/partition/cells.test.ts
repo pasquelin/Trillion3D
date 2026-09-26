@@ -10,9 +10,9 @@ import { createPartitionCells, type PartitionCells } from './cells.ts';
 type PartitionIo = Parameters<PartitionCells['frame']>[2];
 import { placedMesh, type RowLink } from './rows.ts';
 
-/** Two cells of one mesh, one near the origin and one 5 km away; the second hangs under a moved
- *  core node, or under the scene root when `far` is null. */
-function world(far: number | null = 0) {
+/** Two cells of one mesh, one near the origin and one 5 km away; each hangs under a moved core
+ *  node, or under the scene root when its `far` or `near` is null. */
+function world(far: number | null = 0, near: number | null = null) {
   const node = (x: number, parent: number | null) => ({
     parent,
     mesh: 7,
@@ -22,7 +22,7 @@ function world(far: number | null = 0) {
     scale: [2, 2, 2],
   });
   const bodies: Record<string, unknown> = {
-    'near.json': { version: 1, nodes: [node(1, null), node(3, null)] },
+    'near.json': { version: 1, nodes: [node(1, near), node(3, near)] },
     'far.json': { version: 1, nodes: [node(5000, far)] },
   };
   const partition: TablePartition = {
@@ -34,7 +34,7 @@ function world(far: number | null = 0) {
         url: 'near.json',
         sha256: '',
         bytes: 1,
-        parents: [[null, [0, 0, 0, 5, 5, 5]]],
+        parents: [near === null ? [null, [0, 0, 0, 5, 5, 5]] : [0, [0, -10, 0, 5, -5, 5]]],
         meshes: [[7, 2]],
       },
       {
@@ -163,6 +163,38 @@ test('the rows are sized at open for the reach, and a reach past them tells the 
   held.add('https://cache.test/key/far.json');
   cells.frame([0, 0, 0], everywhere, port, noBudget);
   assert.deepEqual(cells.stats(), { cells: 2, held: 2, waiting: 0, rows: 4 });
+});
+
+test('a parent scaled down grows the rows in place, on an engine that can, and reopens nothing', async () => {
+  // Shrunk a thousand times, the core node both cells hang under brings the one 5 km off to 5 m:
+  // both are within 100 m, three nodes on rows sized for the near cell's two.
+  for (const grows of [true, false]) {
+    const { cells, links, core, bytes } = world(0, 0);
+    const { port, held, outgrown } = io(bytes);
+    const grown: [PlacementRows, PlacementRows][] = [];
+    if (grows) port.grow = (from, to) => void grown.push([from, to]);
+    ['near.json', 'far.json'].forEach((name) => held.add(`https://cache.test/key/${name}`));
+    await opened(cells, 100);
+    const before = links.map((link) => link.placements!);
+    core.scale.set(1e-3, 1e-3, 1e-3);
+    cells.frame([0, 0, 0], 100, port, noBudget);
+    cells.frame([0, 0, 0], 100, port, noBudget);
+    const { held: placed, waiting } = cells.stats();
+    if (!grows) {
+      assert.deepEqual([placed, waiting, outgrown.count], [1, 1, 1], 'it asks its owner to reopen');
+      continue;
+    }
+    assert.deepEqual([placed, waiting, outgrown.count], [2, 0, 0]);
+    assert.deepEqual(
+      grown,
+      [0, 1].map((at) => [before[at], links[at].placements!]),
+    );
+    for (const link of links)
+      assert.equal(
+        link.placements!.live.reduce((a, b) => a + b, 0),
+        3,
+      );
+  }
 });
 
 test('a world that poses the scene root reads the cells its camera sees there', async () => {
