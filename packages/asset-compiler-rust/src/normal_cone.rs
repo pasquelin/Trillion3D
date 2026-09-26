@@ -8,6 +8,7 @@
 //! fdlibm), so it is fdlibm's (`libm`, the same bits everywhere) raised by [`ANGLE_MARGIN_ULPS`]:
 //! never narrower than any runtime's, and a wider cone only culls less
 //! (`tests/integration/cooked-cones.test.ts`).
+use crate::dag::bounds::point;
 use crate::shared_math::{cross, divide, dot, sub};
 
 /// How many ulps the angle is raised by. fdlibm and the runtime's arccosine each lie within one ulp
@@ -19,10 +20,9 @@ pub(crate) const ANGLE_MARGIN_ULPS: usize = 4;
 pub(crate) const OPEN_CONE: [f64; 4] = [0.0, 0.0, 1.0, std::f64::consts::PI];
 
 /// The cross product of a triangle's two edges from its first corner, in float64.
-fn face_cross(pos: &[f32], a: usize, b: usize, c: usize) -> [f64; 3] {
-    let at = |i: usize| [pos[i] as f64, pos[i + 1] as f64, pos[i + 2] as f64];
-    let origin = at(a);
-    cross(sub(at(b), origin), sub(at(c), origin))
+fn face_cross(pos: &[f32], triangle: [u32; 3]) -> [f64; 3] {
+    let [a, b, c] = triangle.map(|vertex| point(pos, vertex));
+    cross(sub(b, a), sub(c, a))
 }
 
 /// `Math.hypot(x, y, z)` as V8 computes it: every magnitude divided by the largest, the squares
@@ -31,10 +31,8 @@ fn face_cross(pos: &[f32], a: usize, b: usize, c: usize) -> [f64; 3] {
 /// differs in the last bit on a large share of inputs.
 pub(crate) fn hypot3(x: f64, y: f64, z: f64) -> f64 {
     let values = [x.abs(), y.abs(), z.abs()];
-    let max = values
-        .iter()
-        .filter(|v| !v.is_nan())
-        .fold(0.0f64, |max, &v| if v > max { v } else { max });
+    // `f64::max` passes over a NaN, as V8 takes the largest of the others.
+    let max = values[0].max(values[1]).max(values[2]);
     if max == f64::INFINITY {
         return f64::INFINITY;
     }
@@ -64,8 +62,8 @@ pub(crate) fn triangle_cone(pos: &[f32], indices: &[u32]) -> [f64; 4] {
         .as_chunks::<3>()
         .0
         .iter()
-        .filter_map(|&[i, j, k]| {
-            let c = face_cross(pos, i as usize * 3, j as usize * 3, k as usize * 3);
+        .filter_map(|&triangle| {
+            let c = face_cross(pos, triangle);
             let len = hypot3(c[0], c[1], c[2]);
             (len > 0.0).then_some((c, len))
         })
@@ -73,34 +71,22 @@ pub(crate) fn triangle_cone(pos: &[f32], indices: &[u32]) -> [f64; 4] {
     if faces.is_empty() {
         return OPEN_CONE;
     }
-    let (mut sx, mut sy, mut sz) = (0.0f64, 0.0f64, 0.0f64);
-    for (c, _) in &faces {
-        sx += c[0];
-        sy += c[1];
-        sz += c[2];
-    }
-    let sl = hypot3(sx, sy, sz);
+    let s = faces.iter().fold([0.0f64; 3], |s, (c, _)| {
+        [s[0] + c[0], s[1] + c[1], s[2] + c[2]]
+    });
+    let sl = hypot3(s[0], s[1], s[2]);
     // `!(sl > 0)` in the TypeScript: a NaN length opens the cone as a zero one does.
     if sl.is_nan() || sl <= 0.0 {
         return OPEN_CONE;
     }
-    let axis = divide([sx, sy, sz], sl);
-    let mut angle = 0.0f64;
-    for &(c, len) in &faces {
-        let d = (dot(c, axis) / len).clamp(-1.0, 1.0);
-        let a = libm::acos(d);
-        if a > angle {
-            angle = a;
-        }
-    }
+    let axis = divide(s, sl);
+    // `f64::max` passes over a NaN as the TypeScript's `a > angle` does.
+    let angle = faces
+        .iter()
+        .map(|&(c, len)| libm::acos((dot(c, axis) / len).clamp(-1.0, 1.0)))
+        .fold(0.0f64, f64::max);
     let angle = (0..ANGLE_MARGIN_ULPS).fold(angle, |angle, _| angle.next_up());
     [axis[0], axis[1], axis[2], angle]
-}
-
-/// The cone of a page as the manifest spells it (`Page.cone`): `{"axis": [x, y, z], "angle": a}`.
-pub(crate) fn cone_json(pos: &[f32], indices: &[u32]) -> serde_json::Value {
-    let [x, y, z, angle] = triangle_cone(pos, indices);
-    serde_json::json!({"axis": [x, y, z], "angle": angle})
 }
 
 #[cfg(test)]
