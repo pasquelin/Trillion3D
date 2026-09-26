@@ -113,7 +113,7 @@ fn index_pages_list_at_most_the_fan_out_and_give_every_record_back_in_order() {
     .expect("pages");
     let read: Vec<&Value> = pages
         .iter()
-        .flat_map(|p| p["cells"].as_array().expect("cells"))
+        .flat_map(|p| p[CELL_PAGES.records].as_array().expect("cells"))
         .collect();
     assert_eq!(
         read,
