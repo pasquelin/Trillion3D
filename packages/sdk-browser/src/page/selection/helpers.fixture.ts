@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { dagFixture } from './dag.fixture.ts';
 import { collectClusterPages } from './selection.ts';
+import { createHeldResidency } from '../cut/held.ts';
 
 export function assertOneRepresentationPerGroup(shown: readonly string[]) {
   const drawn = new Set(shown);
@@ -51,7 +52,7 @@ export function dagCulling() {
 export const HELD_EXACT_ASK = {
   pixelError: 0,
   viewport: [1280, 720] as [number, number],
-  holdResident: true,
+  held: createHeldResidency(),
 };
 
 /** The test DAG with its node hierarchy, collected into cluster roots. */
