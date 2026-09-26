@@ -7,18 +7,12 @@ import { addVector3, copyScaledVector3, crossVector3, dotVector3, subVector3 } f
 import { assertBits } from '../../../../../tests/kit/assert/bits.ts';
 
 type V3 = [number, number, number];
-/** Zero, both signed zeroes, NaN, infinities, overflow and denormals on every component. */
-const HOSTILE: V3[] = [
-  [0, 0, 0],
-  [-0, 0, -0],
-  [3, -4, 12],
-  [NaN, 1, -1],
-  [Infinity, -Infinity, 1],
-  [1e308, 1e308, -1e308],
-  [5e-324, -5e-324, 1],
-  [0.1, 0.2, 0.3],
-];
-const SCALARS = [0, -0, 1, -1, 2.5, NaN, Infinity, -Infinity, 1 / 3];
+/** Zero, both signed zeroes, NaN, infinities, overflow, denormals and inexact sums. */
+const SCALARS = [0, -0, 1, -1, 2.5, NaN, Infinity, -Infinity, 1e308, -1e308, 5e-324, 0.1, 1 / 3];
+/** Each scalar in turn on every component, beside its next two. */
+const HOSTILE = SCALARS.map(
+  (_, i): V3 => [0, 1, 2].map((k) => SCALARS[(i + k) % SCALARS.length]) as V3,
+);
 
 const copyAdd = (a: V3, b: V3): V3 => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
 const copyScale = (v: V3, f: number): V3 => [v[0] * f, v[1] * f, v[2] * f];
