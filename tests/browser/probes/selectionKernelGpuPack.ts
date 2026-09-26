@@ -9,6 +9,7 @@ import { primitiveFrameWords } from '../../../packages/sdk-browser/src/gpu/dag/w
 import type { PackedDag } from '../../../packages/sdk-browser/src/gpu/dag/types.ts';
 import type { DAG_BINDING } from '../../../packages/sdk-browser/src/gpu/dag/shader/bindings.ts';
 import { dagWorkLayout } from '../../../packages/sdk-browser/src/gpu/dag/shader/floorWgsl.ts';
+import { dagFlagsWords } from '../../../packages/sdk-browser/src/gpu/dag/shader/lastUseWgsl.ts';
 import { createDagReadiness } from '../../../packages/sdk-browser/src/gpu/dag/readiness.ts';
 import { childBase, residentBase } from '../../../packages/sdk-browser/src/gpu/dag/layout.ts';
 
@@ -50,6 +51,8 @@ export function versPage(
   return {
     name,
     travail: dagWorkLayout(blockCount),
+    /** Words of `flags` as the engine sizes them: the page has no module to import. */
+    flagsWords: dagFlagsWords(packed.nodeCount, packed.pageCount),
     pageCount: packed.pageCount,
     nodeCount: packed.nodeCount,
     worldCount: Math.max(1, packed.worldCount),
