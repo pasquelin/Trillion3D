@@ -1,4 +1,4 @@
-import type { PageSource } from '../../../../sdk-core/src/index.ts';
+import { EngineError, type PageSource } from '../../../../sdk-core/src/index.ts';
 import type { BackendDiagnostic } from '../../backend/types.ts';
 
 export function createGpuPageReader(
@@ -17,9 +17,10 @@ export function createGpuPageReader(
     }
   };
   const now = () => (report ? performance.now() : 0);
+  /** The HTTP status a failed read was refused with (`checked`), `null` for none. */
   const statusOf = (error: unknown) => {
-    const match = String(error).match(/PAGE_HTTP_(\d{3})/);
-    return match ? Number(match[1]) : null;
+    const status = error instanceof EngineError ? error.details.status : null;
+    return typeof status === 'number' ? status : null;
   };
   const readBytes = (key: string, combined: AbortSignal, attempt: number) => {
     const started = now();
