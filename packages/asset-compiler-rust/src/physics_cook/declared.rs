@@ -2,8 +2,8 @@
 //! Nothing is guessed: the friction and restitution of the `physicsMaterial` its collider names,
 //! when it names one (a node that names none carries none, and the runtime gives its tiles the
 //! engine's default matter); and, for a node declaring motion, the body it is: its motion and
-//! implicit shape as declared, else the hulls of a mesh (`hulls.rs`), weighed here, at cook time.
-use super::hulls::cooked_hulls;
+//! implicit shape as declared, else the hull of a mesh (`hull.rs`), weighed here, at cook time.
+use super::hull::cooked_hull;
 use super::stage::{place, trs};
 use super::{refused, PHYSICS_COOK_FAILED};
 use crate::compiler_nodes::scene_nodes;
@@ -37,15 +37,16 @@ pub(crate) fn declared_matter(g: &Value, node: &Value) -> Value {
 
 /// The `physics.json` entry of the body node `index` of `nodes` declares, placed by its `world`
 /// matrix: its `motion` as declared, its matter, pose and shape — the `KHR_implicit_shapes` shape
-/// its collider names, as declared; else the cooked hulls of the mesh its collider names (its own
-/// without a collider), moved into the body's frame, one hull when the collider asks for its
-/// convex hull; bodies drawing the same mesh in their own frame share its `cooked` hulls.
+/// its collider names, as declared; else the cooked hull of the mesh its collider names (its own
+/// without a collider), moved into the body's frame, and the exact mass of the solid it bounds —
+/// one hull, whether or not the collider asks for `convexHull`; bodies drawing the same mesh in
+/// their own frame at one scale share it.
 fn body(
     o: &Options,
     source: (&Value, &[u8]),
     nodes: &[Value],
     (index, world): (usize, &[Mat4]),
-    cooked: &mut BTreeMap<(usize, bool), Value>,
+    cooked: &mut BTreeMap<(usize, [u64; 3]), Value>,
 ) -> Result<Value> {
     let declared = &nodes[index]["extensions"]["KHR_physics_rigid_bodies"];
     let pose = trs(&world[index])
@@ -78,12 +79,13 @@ fn body(
             );
             let frame = (at != index)
                 .then(|| multiply(&scaling(s.map(|v| 1.0 / v)), &multiply(&undo, &world[at])));
-            let one_hull = field("convexHull") == Some(&Value::Bool(true));
-            let key = frame.is_none().then_some((mesh as usize, one_hull));
+            let key = frame
+                .is_none()
+                .then_some((mesh as usize, s.map(f64::to_bits)));
             match key.and_then(|k| cooked.get(&k)) {
                 Some(shared) => shared.clone(),
                 None => {
-                    let shape = cooked_hulls(o, source, (mesh as usize, frame), one_hull)?;
+                    let shape = cooked_hull(o, source, (mesh as usize, frame), s)?;
                     key.map(|k| cooked.insert(k, shape.clone()));
                     shape
                 }
