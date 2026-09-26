@@ -102,6 +102,35 @@ test('a physics set anew before the asleep tick arrives keeps the joints added o
   }
 });
 
+test('a body merely asleep keeps its joints; a joint removed before its decorative body retires only leaves', async () => {
+  const { scene, physics, worker, restore } = await fakePhysicsWorld();
+  try {
+    const crate = new Mesh(box(), new Material('meshStandard'));
+    crate.physics = 'dynamic';
+    const debris = new Mesh(box(), new Material('meshStandard'));
+    debris.physics = { type: 'dynamic', decorative: true };
+    scene.add(crate, debris);
+    const [held, pin] = [joint.hinge(crate, null), joint.fixed(debris, null)];
+    physics.handle.add(held);
+    physics.handle.add(pin);
+    physics.frame();
+    physics.handle.remove(pin);
+    const asleep = (mesh: Mesh) =>
+      poseRecord(
+        mesh.physics!._index | (1 << GENERATION_SHIFT) | ASLEEP_BIT,
+        [0, 0, 0, 0, 0, 0, 1],
+      );
+    const words = new Uint32Array([...asleep(crate), ...asleep(debris)]);
+    worker.onmessage({ data: { ...idleTick, buffer: words.buffer, poses: 2, steps: 1 } });
+    physics.frame();
+    assert.ok(!held.broken && held._id >= 0, 'asleep, not retired: still made');
+    assert.ok(!pin.broken && pin._id === -1, 'removed: out, not broken');
+    physics.dispose();
+  } finally {
+    restore();
+  }
+});
+
 test('a distance joint given only limits.min keeps a maximum no shorter than it', async () => {
   const { workers, restore } = fakeWorkers();
   try {
