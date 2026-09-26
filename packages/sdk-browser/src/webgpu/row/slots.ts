@@ -5,7 +5,7 @@ import type { PageRec } from '../../page/selection/selection.ts';
 import { rowHasGeometry, type createPageRowWriter } from './pageRow.ts';
 import { awaitsPageBytes } from './pageSlots.ts';
 import type { createWebgpuRowState } from './state.ts';
-import type { FrameBudget } from '../../page/integration/frameBudget.ts';
+import type { FrameClock } from '../../page/integration/frameBudget.ts';
 
 type Rows = ReturnType<typeof createWebgpuRowState>;
 type Writer = ReturnType<typeof createPageRowWriter>;
@@ -36,7 +36,7 @@ export function createWebgpuRowSlots(
   writePageRow: Writer,
   onResidenceChange: (rec: PageRec) => void,
   /** The frame's one integration budget; absent, an image writes every owed record. */
-  budget?: FrameBudget,
+  budget?: FrameClock,
 ) {
   /** Ranks this pass gave back, waiting for a taker or a fill. */
   const free = { rows: new Int32Array(Math.max(1, drawSlots)), count: 0 };

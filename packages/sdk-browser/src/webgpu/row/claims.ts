@@ -1,5 +1,5 @@
 import { sortPages } from '../../../../sdk-core/src/index.ts';
-import type { FrameBudget } from '../../page/integration/frameBudget.ts';
+import type { FrameClock } from '../../page/integration/frameBudget.ts';
 
 /**
  * Pages that claim the write of a row record and have not yet received it.
@@ -51,7 +51,7 @@ export type WebgpuRowClaims = ReturnType<typeof createWebgpuRowClaims>;
 /**
  * Serves the queue in increasing page order within `budget`: the frame's one integration budget
  * (`BackendContext.frameBudget`), which its frame opened and its cells and arrivals spent from
- * first — the clock is reread after each row and the rest waits for the next image, in the same
+ * first, its clock running only while rows are written — the clock is reread after each row and the rest waits for the next image, in the same
  * order. At least one row always goes through, or a page would never be written. `release` says
  * again whether the page still claims a row — it may have left since it enrolled, and then leaves
  * the queue costing nothing —, `place` writes it and returns `false` when the table is full.
@@ -64,10 +64,11 @@ export function serveClaims(
   claims: WebgpuRowClaims,
   release: (page: number) => boolean,
   place: (page: number) => boolean,
-  budget?: FrameBudget,
+  budget?: FrameClock,
 ) {
   if (!claims.count) return 0;
   claims.sort();
+  budget?.resume();
   let served = 0,
     denied = 0;
   while (served < claims.count) {
@@ -85,6 +86,7 @@ export function serveClaims(
     }
     served++;
   }
+  budget?.pause();
   claims.consume(served);
   return denied;
 }

@@ -99,12 +99,13 @@ export function createExplorerRender(session: ExplorerRenderSession, inputs: Inp
     const start = performance.now();
     if (pose) setPose(pose);
     // One integration budget per frame: the cells placed, then the arrivals drained, both
-    // outside the frame they would have lengthened.
+    // outside the frame they would have lengthened; the engine's row records spend what is left.
     frameBudget.open();
     followCells?.();
     guides?.follow();
     const arrivalStart = performance.now();
     streaming.arrivals.drain();
+    frameBudget.pause();
     (state.active as HostCpuProfile).cpuStep?.('arrivalsMs', performance.now() - arrivalStart);
     try {
       if (comparisonLayout === 'single' || measuring) {

@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { AHEAD, boxDistance, cellReach, inCellFrame, KEEP, planCells } from './plan.ts';
 
-const optics = { fov: 60, aspect: 16 / 9, far: 1e6, zoom: 1 };
+const optics = { fov: 60, aspect: 16 / 9, near: 0.1, far: 1e6, zoom: 1 };
 const cell = (x: number) => ({ bounds: [x, 0, 0, x + 1, 1, 1], meshes: [[0, 1] as const] });
 
 test('a cell is read up to the far plane, met on the frustum diagonal', () => {
@@ -19,6 +19,8 @@ test('the reach follows the zoom: its frustum, and an orthographic box, widen as
   const box = { left: -10, right: 10, top: 5, bottom: -5 };
   const orthographic = { ...optics, far: 1000, zoom: 0.5, orthographic: box };
   assert.equal(cellReach(orthographic), Math.hypot(1000, 20, 10));
+  // A negative near plane draws behind the eye, as far as it goes.
+  assert.equal(cellReach({ ...orthographic, near: -2000 }), Math.hypot(2000, 20, 10));
 });
 
 test('a sheared root reads every cell the world reach holds, by its least singular value', () => {

@@ -47,7 +47,7 @@ export const KEEP = 0.5;
 /** What the reach reads of a camera: the optics its projection is composed from. */
 export type PartitionOptics = Pick<
   CameraOptics,
-  'fov' | 'aspect' | 'far' | 'zoom' | 'orthographic'
+  'fov' | 'aspect' | 'near' | 'far' | 'zoom' | 'orthographic'
 >;
 
 /** The distance past which nothing `optics` sees is drawn: the frustum's farthest corner. */
@@ -56,7 +56,9 @@ export function cellReach(optics: PartitionOptics) {
     zoom = optics.zoom || 1; // as the projection reads it (`writeEngineCamera`)
   if (orthographic) {
     const [x, y, halfWidth, halfHeight] = orthographicView(orthographic, zoom, view);
-    return Math.hypot(far, Math.abs(x) + halfWidth, Math.abs(y) + halfHeight);
+    // Its depth range may reach behind the eye: a negative `near` draws there.
+    const depth = Math.max(Math.abs(far), Math.abs(optics.near));
+    return Math.hypot(depth, Math.abs(x) + halfWidth, Math.abs(y) + halfHeight);
   }
   const slope = perspectiveSlope(optics.fov, zoom);
   return far * Math.sqrt(1 + slope * slope * (1 + optics.aspect * optics.aspect));
