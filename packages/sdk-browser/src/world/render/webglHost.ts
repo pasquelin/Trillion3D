@@ -1,4 +1,4 @@
-import { DEFAULT_HEIGHT, DEFAULT_PIXEL_RATIO, DEFAULT_WIDTH } from '../../backend/common.ts';
+import { DEFAULT_HEIGHT, DEFAULT_WIDTH, pixelRatioOf } from '../../backend/common.ts';
 import { createWebglSurface } from '../../webgl/core/surface.ts';
 
 type Inputs = {
@@ -14,10 +14,6 @@ export function prepareExplorerWebglSurface({ canvas, size = {}, onLifecycle }: 
     onLost: () => onLifecycle('lost'),
     onRestored: () => onLifecycle('restored'),
   });
-  surface.resize(
-    size.width ?? DEFAULT_WIDTH,
-    size.height ?? DEFAULT_HEIGHT,
-    size.pixelRatio ?? DEFAULT_PIXEL_RATIO,
-  );
+  surface.resize(size.width ?? DEFAULT_WIDTH, size.height ?? DEFAULT_HEIGHT, pixelRatioOf(size));
   return surface;
 }
