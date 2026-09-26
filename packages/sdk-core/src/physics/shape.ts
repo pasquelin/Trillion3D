@@ -3,7 +3,7 @@ import type { Geometry } from '../world/geometry/geometry.ts';
 import { readPoints } from '../world/geometry/bounds.ts';
 import type { CompoundPart } from './commands.ts';
 import { SHAPE } from './layout.ts';
-import type { PhysicsPart, PhysicsShape, PhysicsType } from './options.ts';
+import type { PhysicsPart, PhysicsPrimitive, PhysicsShape, PhysicsType } from './options.ts';
 
 /** A shape ready for the ADD command: a primitive's sizes, or scaled vertices and indices. */
 interface ResolvedShape {
@@ -40,8 +40,7 @@ function triangleIndices(geometry: Geometry, vertexCount: number) {
 }
 
 /** A primitive the declared or inferred shape names exactly, or `null` when the scale bends it. */
-function primitive(declared: PhysicsShape, s: Scale, name = ''): ResolvedShape | null {
-  if (declared.type === 'compound') return compound(declared.parts, s, name);
+function primitive(declared: PhysicsPrimitive, s: Scale): ResolvedShape | null {
   const x = Math.abs(s.x),
     y = Math.abs(s.y),
     z = Math.abs(s.z);
@@ -129,8 +128,9 @@ export function resolveShape(
   name = '',
 ): ResolvedShape {
   const wanted = declared ?? recipeShape(geometry);
+  if (wanted?.type === 'compound') return compound(wanted.parts, scale, name);
   const exact = wanted && wanted.type !== 'triangles' && wanted.type !== 'hull';
-  const found = exact ? primitive(wanted, scale, name) : null;
+  const found = exact ? primitive(wanted, scale) : null;
   if (found) return found;
   if (wanted?.type === 'triangles' && type === 'dynamic')
     throw new EngineError(
