@@ -46,7 +46,7 @@ test('WebGL2 without a 32-bit float colour target refuses the pools by name, hal
   assert.deepEqual([pool.moving, pool.emit(0, 0, 0, 0, 1, 0, 2)], [false, false], 'refused');
 });
 
-test('WebGL2: a context restored without 32-bit float targets refuses the pools by name', () => {
+test('WebGL2: a context restored without 32-bit float targets refuses the pools, until granted', () => {
   const granted = ['EXT_color_buffer_float'],
     { run } = webgl(granted);
   const pool = new ParticlePool({ capacity: 8 });
@@ -55,6 +55,9 @@ test('WebGL2: a context restored without 32-bit float targets refuses the pools 
   granted.length = 0;
   pool.emit(0, 0, 0, 0, 1, 0, 2);
   assert.throws(() => run([pool]), /^Error: PARTICLES_UNSUPPORTED/, 'never an incomplete target');
+  granted.push('EXT_color_buffer_float');
+  run([pool]);
+  assert.equal(pool.emit(0, 0, 0, 0, 1, 0, 2), true, 'granted again: the pool steps again');
 });
 
 test('WebGL2: a 1 mm step holds ten kilometres from the world origin', () => {
