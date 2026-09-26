@@ -20,6 +20,18 @@ const BALLS: [MatcapLook, string][] = [
     'a6b5e8680f860fc59481293eb6f7cb6388674ca9a89f363fd1bd5a9812a2a5e4',
   ],
   [
+    { base: [1, 0.72, 0.3], metal: 0.9, shine: 0.9, gloss: 60 },
+    '3aaf4be1cd12ada62a09c2408685d4d7448fb33ff8123bec17b40627ebb6829d',
+  ],
+  [
+    { base: [0.12, 0.42, 0.26], shine: 0.5, gloss: 40, wrap: 0.6, rim: [0.2, 0.6, 0.4] },
+    'eec27cca67386c75ba84c35ee9f0c78053d9d901935aaf489d8bb3213df5396d',
+  ],
+  [
+    { base: [0.82, 0.78, 0.8], shine: 0.35, gloss: 25, wrap: 0.4, rim: [0.35, 0.3, 0.55] },
+    'd8608e9ad6b62c4646a9b0c6b4f61bc3cb2a6c12b3633ae9c4956504cdb495c7',
+  ],
+  [
     { base: [0.03, 0.03, 0.04], metal: 0.35, shine: 1.4, gloss: 200, rim: [0.2, 0.25, 0.4] },
     'bb35269af0df93f446200be44fbbd8e9e8215a51c0bdfdb79d65948c734c14c9',
   ],
@@ -95,7 +107,7 @@ test('the vehicles park on the ground, shaped as they are drawn, the camera behi
 });
 
 test('a vehicle with no ground below it fails by name', async (t) => {
-  t.mock.timers.enable({ apis: ['setTimeout'] });
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
   const world = { camera: new Camera('perspective'), raycast: async () => null };
   const { car, park } = vehicles(world as never, engine, { above: 60 });
   const parked = park(car(), [3, 4]);
