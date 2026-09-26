@@ -31,8 +31,7 @@ fn close(a: &[f64], b: &[f64]) -> bool {
 
 /// The committed fixture: its document and its binary.
 fn committed() -> (Value, Vec<u8>) {
-    let folder =
-        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/fixtures/formats/gltf-world");
+    let folder = golden_dir("gltf-world");
     let bin = fs::read(folder.join("world.bin")).expect("bin");
     (read_json(&folder.join("world.gltf")), bin)
 }
