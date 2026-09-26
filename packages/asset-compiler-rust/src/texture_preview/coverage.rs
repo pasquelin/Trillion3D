@@ -1,14 +1,13 @@
 //! Coverage-preserving alpha: the rule every builder of a coverage chain applies
 //! after the median of four — this compiler, and the card's WebGPU and WebGL2
-//! chains once they mirror it step for step (#748; until then a hosted texture
-//! the card regenerates keeps the median alone).
+//! chains, which mirror it step for step (`texture/coverageRule.ts`, #748, #769).
 //!
 //! A masked material keeps a texel when its alpha times the material's
 //! `baseColorFactor` alpha reaches the cutoff (glTF 2.0), and the median of four
 //! does not keep the share of texels that do: on foliage the coarse levels thin
 //! out (sponza's masked maps lose up to 57 % of their coverage at level 8, #44).
 //! A texture's cutoff byte `C` is the lowest of its readers' effective cutoffs
-//! (`material_cutoff`), 0 when one of them blends: a blended surface draws the
+//! (`material_cut`), 0 when one of them blends: a blended surface draws the
 //! alpha itself, whose mean the scale would move. So, at every level `k ≥ 1` of
 //! a coverage chain whose cutoff byte `C` is not 0:
 //!
@@ -32,26 +31,35 @@ use super::reduce::AtlasKind;
 
 /// The smallest byte `b` a material keeps at `cutoff` under a `baseColorFactor`
 /// alpha `factor`: `b / 255 × factor >= cutoff` in `f32`, the product glTF 2.0
-/// cuts and WebGL2 computes (`base.a < alphaCutoff`, WebGPU follows in #748) —
+/// cuts and both backends compute (`maskKeep`, #748; `baseFactor`, #769) —
 /// dividing the cutoff by the factor instead would land a byte off on exact ties.
-/// With a factor of 1 it is the quality gate's test (`blocks/quality.rs`). 255
+/// The quality gate cuts at the same product (`keeps`, `blocks/quality.rs`). 255
 /// when no byte reaches it — a factor of 0 or below, or a cutoff above the factor,
 /// keeps no texel —, which the lowest cutoff over a texture's readers ignores
 /// beside any other one.
 pub(super) fn cutoff_byte(cutoff: f32, factor: f32) -> u8 {
     (1..=255u8)
-        .find(|&byte| f32::from(byte) / 255.0 * factor >= cutoff)
+        .find(|&byte| keeps(byte, (cutoff, factor)))
         .unwrap_or(255)
 }
 
-/// A masked material's cutoff byte, under its `baseColorFactor` alpha (1 when
-/// absent).
-pub(super) fn material_cutoff(material: &serde_json::Value, cutoff: f32) -> u8 {
+/// A masked material's cut: its `alphaCutoff`, then its `baseColorFactor` alpha.
+pub(crate) type Cut = (f32, f32);
+
+/// Whether a masked material keeps a texel of alpha `alpha` under its `cut`:
+/// `alpha / 255 × factor >= cutoff` in `f32`.
+pub(super) fn keeps(alpha: u8, (cutoff, factor): Cut) -> bool {
+    f32::from(alpha) / 255.0 * factor >= cutoff
+}
+
+/// A masked material's cut at `cutoff`, under its `baseColorFactor` alpha (1
+/// when absent), clamped to [0, 1] as the engine's (`surfaceOpacity`).
+pub(super) fn material_cut(material: &serde_json::Value, cutoff: f32) -> Cut {
     let factor = material
         .pointer("/pbrMetallicRoughness/baseColorFactor/3")
         .and_then(serde_json::Value::as_f64)
         .unwrap_or(1.0) as f32;
-    cutoff_byte(cutoff, factor)
+    (cutoff, factor.clamp(0.0, 1.0))
 }
 
 /// What level 0 covers at the chain's cutoff: the share every level keeps.
