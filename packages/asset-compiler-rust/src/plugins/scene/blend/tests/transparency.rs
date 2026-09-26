@@ -29,10 +29,11 @@ fn an_alpha_on_the_base_colour_image_carries_the_transparency() {
 // name and the declared value of the input takes over, exact.
 #[test]
 fn an_alpha_from_another_channel_or_another_image_falls_back_to_the_factor() {
-    let mut channel = surgery::fixture();
-    let mut elsewhere = surgery::fixture();
+    let original = surgery::fixture();
+    let mut channel = original.clone();
+    let mut elsewhere = original.clone();
     {
-        let file = BlendFile::open(&channel, MAX_BYTES).expect("the fixture");
+        let file = BlendFile::open(&original, BUDGET).expect("the fixture");
         let alpha = surgery::socket(&file, "MATransparent", "Principled BSDF", "inputs", "Alpha");
         let colour = surgery::socket(&file, "MATransparent", "Image Texture", "outputs", "Color");
         let at = surgery::link_field(&file, "MATransparent", alpha, "fromsock");
@@ -79,7 +80,7 @@ fn an_alpha_from_another_channel_or_another_image_falls_back_to_the_factor() {
 fn an_older_file_takes_its_alpha_mode_from_its_own_blend_method() {
     let mut bytes = surgery::without_field("surface_render_method");
     {
-        let file = BlendFile::open(&bytes, MAX_BYTES).expect("the fixture");
+        let file = BlendFile::open(&bytes, BUDGET).expect("the fixture");
         let material = surgery::named(&file, "MATransparent");
         let method = surgery::field(&file, material, &["blend_method"]);
         let threshold = surgery::field(&file, material, &["alpha_threshold"]);

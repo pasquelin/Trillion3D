@@ -16,13 +16,11 @@ const Z_UP_TO_Y_UP: [f32; 16] = [
 pub(super) fn convert(request: &SceneRequest<'_>, plugin: &dyn ScenePlugin) -> Result<PathBuf> {
     let started = Instant::now();
     let source = single(request.inputs)?;
-    // The ceiling applies first to what is read from disk: a file larger than it does not fit any
-    // more once unpacked, and it is not loaded into memory to discover that.
-    let on_disk = usize::try_from(fs::metadata(source)?.len()).unwrap_or(usize::MAX);
-    envelope::within(on_disk, MAX_BYTES)?;
-    let raw = fs::read(source)?;
+    // The file is mapped, never read whole: its size costs no memory. The job's RAM budget bounds
+    // what is decoded from it — the unpacked bytes of a wrapped file, then the scene binary.
+    let raw = file::map(source)?;
     let digest = hash(&raw);
-    let file = BlendFile::open(&raw, MAX_BYTES)?;
+    let file = BlendFile::open(&raw, request.ram_budget)?;
     (request.progress)(json!({
         "phase":"import-source","step":"scan","plugin":NAME,
         "blendVersion":file.version,"blocks":file.blocks.len(),
@@ -30,7 +28,7 @@ pub(super) fn convert(request: &SceneRequest<'_>, plugin: &dyn ScenePlugin) -> R
     let root = image_root(request.source);
     let mut scene = walker::Scene {
         out: Out::default(),
-        images: Images::default(),
+        images: Images::within(request.ram_budget.saturating_sub(file.held())),
         materials: HashMap::new(),
         meshes: HashMap::new(),
         root: &root,
@@ -62,6 +60,7 @@ pub(super) fn convert(request: &SceneRequest<'_>, plugin: &dyn ScenePlugin) -> R
             continue;
         }
         scene.object(&object)?;
+        scene.images.refusal()?;
     }
     scene
         .out

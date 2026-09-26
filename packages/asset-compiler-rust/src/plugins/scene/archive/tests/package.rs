@@ -104,6 +104,7 @@ fn unpacked(name: &str, stream: impl Read) -> (PathBuf, PathBuf, (usize, u64)) {
         cache: &dir,
         cancelled: &cancelled,
         progress: &|_| {},
+        ram_budget: 1 << 30,
     };
     let counts = unpack(&request, stream, &dir, &root).expect("the package extracts");
     (dir, root, counts)

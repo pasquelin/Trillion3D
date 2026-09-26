@@ -8,7 +8,12 @@
 //!
 //! No announced size is trusted without being bounded by the file: any overrun is a truncated
 //! file, named as such.
+//!
+//! A bare file is read in place, through a memory map: the system pages in only the blocks the
+//! reader touches, so the file's size costs no memory. Only a gzip or Zstandard wrapping is
+//! unpacked, under the job's RAM budget.
 use super::*;
+use std::borrow::Cow;
 
 /// The header length of a sixty-four-bit-field block.
 const WIDE_HEADER: usize = 32;
@@ -24,19 +29,29 @@ pub(super) struct Block {
     pub(super) count: usize,
 }
 
-/// An open Blender file: its unpacked bytes, its SDNA, its blocks and their index by address.
-pub(super) struct BlendFile {
-    pub(super) bytes: Vec<u8>,
+/// An open Blender file: its bytes — borrowed when bare, unpacked when wrapped —, its SDNA, its
+/// blocks and their index by address.
+pub(super) struct BlendFile<'a> {
+    pub(super) bytes: Cow<'a, [u8]>,
     pub(super) version: u32,
     pub(super) blocks: Vec<Block>,
     pub(super) dna: Dna,
     index: HashMap<u64, usize>,
 }
 
-impl BlendFile {
+/// Maps a source read-only.
+pub(super) fn map(path: &Path) -> Result<memmap2::Mmap> {
+    let file = fs::File::open(path)?;
+    // SAFETY: a read-only map of a source the compiler never writes, as the glTF and Alembic
+    // readers map theirs; the cook assumes the file is not modified while it runs. Every read
+    // that follows is a bounds-checked slice of the map, never a raw pointer.
+    Ok(unsafe { memmap2::MmapOptions::new().map(&file)? })
+}
+
+impl<'a> BlendFile<'a> {
     /// Opens a Blender file: undoes the wrapping under `ceiling`, reads the header, walks the
     /// blocks, then the `DNA1` block that describes all the structures.
-    pub(super) fn open(raw: &[u8], ceiling: usize) -> Result<BlendFile> {
+    pub(super) fn open(raw: &'a [u8], ceiling: usize) -> Result<BlendFile<'a>> {
         let bytes = envelope::unwrap(raw, ceiling)?;
         let shape = envelope::head(&bytes)?;
         let blocks = walk(&bytes, &shape)?;
@@ -58,6 +73,13 @@ impl BlendFile {
             dna,
             index,
         })
+    }
+    /// The bytes this file holds in memory: those it unpacked, none when it is read in place.
+    pub(super) fn held(&self) -> usize {
+        match &self.bytes {
+            Cow::Borrowed(_) => 0,
+            Cow::Owned(unpacked) => unpacked.len(),
+        }
     }
     /// The block this original address designates. A null pointer, or one to a missing block,
     /// designates none: it is the reader that decides what to say of it, never a panic.

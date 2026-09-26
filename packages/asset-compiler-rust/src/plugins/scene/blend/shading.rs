@@ -12,7 +12,7 @@ const NORMAL_MAP: &str = "ShaderNodeNormalMap";
 /// A material's graph: which node feeds which input, and through which output.
 pub(super) struct Tree<'a> {
     links: HashMap<u64, (u64, u64)>,
-    file: &'a BlendFile,
+    file: &'a BlendFile<'a>,
 }
 
 /// What a link brings to an input: the node it leaves, and the identifier of its output — the

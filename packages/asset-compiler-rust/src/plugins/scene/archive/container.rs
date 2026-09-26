@@ -104,6 +104,7 @@ fn compose(
                 cache: request.cache,
                 cancelled: request.cancelled,
                 progress: request.progress,
+                ram_budget: request.ram_budget,
             };
             let scene = match inner.prepare(&inner_request)? {
                 PreparedScene::InPlace(name) => stage_in_place(&root, &name)?,

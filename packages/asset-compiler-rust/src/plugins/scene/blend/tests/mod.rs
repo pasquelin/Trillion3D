@@ -7,6 +7,7 @@ use super::*;
 use crate::tests::ngons::{rendered_area, U_RING};
 
 mod bounds;
+mod budget;
 mod fidelity;
 mod lamps;
 mod material;
@@ -15,6 +16,9 @@ mod surgery;
 mod transparency;
 mod uri;
 mod vertex_normals;
+
+/// The RAM budget, in bytes, the tests read under.
+const BUDGET: usize = 1 << 30;
 
 /// Writes a minimal Blender file in the old layout, from the format description: a twelve-byte
 /// header, thirty-two-bit-field blocks, a `DNA1` of a single structure and a data block typed by
@@ -78,7 +82,7 @@ fn block(out: &mut Vec<u8>, code: &[u8; 4], sdna: u32, old: u64, data: &[u8]) {
 #[test]
 fn an_old_header_reads_and_its_fields_resolve_by_name() {
     let bytes = legacy_file(2.5);
-    let file = BlendFile::open(&bytes, MAX_BYTES).expect("a file in the old layout");
+    let file = BlendFile::open(&bytes, BUDGET).expect("a file in the old layout");
     assert_eq!(file.version, 405);
     let thing = file.dna.index("Thing").expect("the file's structure");
     let field = file.dna.layout(thing).expect("its layout");
@@ -111,7 +115,7 @@ fn headers_outside_the_subset_are_refused_by_name() {
 }
 
 fn refusal(bytes: &[u8]) -> &'static str {
-    BlendFile::open(bytes, MAX_BYTES)
+    BlendFile::open(bytes, BUDGET)
         .err()
         .expect("this file was expected to be refused")
         .code

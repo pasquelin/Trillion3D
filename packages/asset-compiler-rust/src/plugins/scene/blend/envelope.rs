@@ -1,15 +1,15 @@
 //! The wrapping of a Blender file, and what its header announces.
 //!
 //! A file may arrive bare, in a gzip frame (older versions) or in a Zstandard frame (the default
-//! since Blender 3). The two libraries used only decompress, under a given ceiling, and nothing
-//! is re-encoded.
+//! since Blender 3). A bare file is borrowed as-is, never copied; the two libraries used only
+//! decompress, under the job's RAM budget, and nothing is re-encoded.
 //!
 //! The header comes next: the seven `BLENDER` bytes, the pointer size, the endianness and the
 //! version. The old layout fits in twelve bytes; the recent one first announces its header length
 //! in decimal digits, then a block variant. This reader only reads eight-byte little-endian
 //! pointers, and refuses the rest by name rather than reading it askew.
 use super::*;
-use std::io::Read;
+use std::{borrow::Cow, io::Read};
 
 pub(super) const MAGIC: &[u8] = b"BLENDER";
 const GZIP: &[u8] = b"\x1f\x8b";
@@ -34,29 +34,28 @@ fn truncated() -> CompilerError {
     )
 }
 
-/// The ceiling, checked on the unpacked bytes: the same help for the three wrappings, for a bare
-/// file, measured before being copied, and for what is read from disk.
-pub(super) fn within(length: usize, ceiling: usize) -> Result<()> {
+/// The ceiling — the job's RAM budget —, checked on the unpacked bytes of both wrappings. Decoding
+/// stops one byte past it: the refusal names that byte count as the least the file needs.
+fn within(length: usize, ceiling: usize) -> Result<()> {
     if length > ceiling {
         return Err(refused(
             "blend-too-large",
-            format!("blend: {length} bytes go past the {ceiling}-byte ceiling this reader admits"),
+            format!("blend: unpacking this file needs at least {length} bytes, past the {ceiling}-byte RAM budget of this job (ramBudgetMb); raise it, or save the file uncompressed: a bare file is read in place"),
         ));
     }
     Ok(())
 }
 
-/// Undoes the wrapping: a bare file passes as-is, a gzip or Zstandard stream is decompressed.
-/// The ceiling applies to the unpacked bytes, whatever the wrapping.
-pub(super) fn unwrap(raw: &[u8], ceiling: usize) -> Result<Vec<u8>> {
+/// Undoes the wrapping: a bare file is borrowed as-is, a gzip or Zstandard stream is decompressed
+/// under the ceiling.
+pub(super) fn unwrap(raw: &[u8], ceiling: usize) -> Result<Cow<'_, [u8]>> {
     if raw.starts_with(MAGIC) {
-        within(raw.len(), ceiling)?;
-        return Ok(raw.to_vec());
+        return Ok(Cow::Borrowed(raw));
     }
     let mut out = Vec::new();
     if raw.starts_with(GZIP) {
         flate2::read::MultiGzDecoder::new(raw)
-            .take(ceiling as u64 + 1)
+            .take((ceiling as u64).saturating_add(1))
             .read_to_end(&mut out)
             .map_err(|_| truncated())?;
     } else if raw.starts_with(ZSTD) {
@@ -68,7 +67,7 @@ pub(super) fn unwrap(raw: &[u8], ceiling: usize) -> Result<Vec<u8>> {
         ));
     }
     within(out.len(), ceiling)?;
-    Ok(out)
+    Ok(Cow::Owned(out))
 }
 
 /// A Zstandard stream is a **sequence** of frames, and the specification admits skippable frames
@@ -90,7 +89,7 @@ fn zstandard(raw: &[u8], ceiling: usize, out: &mut Vec<u8>) -> Result<()> {
         if magic != FRAME {
             break;
         }
-        let room = (ceiling + 1).saturating_sub(out.len()) as u64;
+        let room = ceiling.saturating_add(1).saturating_sub(out.len()) as u64;
         if room == 0 {
             break;
         }
