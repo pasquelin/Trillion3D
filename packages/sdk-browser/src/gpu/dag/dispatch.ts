@@ -63,8 +63,8 @@ export function createDagDispatch(
     // The first free slot from the next one in turn, or none.
     let i = -1;
     for (let k = 0; k < SLOTS && i < 0; k++) {
-      const next = (state.slot + k) % SLOTS;
-      if (!state.mapped[next]) i = next;
+      const at = (state.slot + k) % SLOTS;
+      if (!state.mapped[at]) i = at;
     }
     const copy = needsReadback && i >= 0;
     if ((!compute && !copy) || (!residentCut && i < 0)) return;

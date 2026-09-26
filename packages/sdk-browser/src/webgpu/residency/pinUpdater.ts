@@ -43,8 +43,9 @@ export function createWebgpuPinUpdater(options: {
     parentsOf: options.parentsOf,
     kept: tracking.keep.has,
     onHeld: want,
+    onIdle: (key) => current.touch(tracking.pageCatalog[key]),
   });
-  /** The cache of the running update, read by the release callback built once below. */
+  /** The cache of the running update, read by the callbacks built once above and below. */
   let current: Cache;
   /** True when the key held a slot pinned: unpinning it gives that slot back. */
   const unpin = (key: number) => {
@@ -53,7 +54,6 @@ export function createWebgpuPinUpdater(options: {
     const url = tracking.pageCatalog[key];
     if (traceEnabled) removed.push(url);
     current.unpin(url);
-    current.touch(url);
     return true;
   };
   /**
@@ -70,6 +70,7 @@ export function createWebgpuPinUpdater(options: {
     drop: (key: string) => void,
   ) => {
     if (!cache) return;
+    current = cache;
     added.length = 0;
     removed.length = 0;
     const { entering, enteringPages, leaving } = sets;
@@ -106,10 +107,9 @@ export function createWebgpuPinUpdater(options: {
       }
       waiting.remove(key);
     }
-    // Released oldest first, each sent to the far end of the cache's order as it is unpinned: the
-    // cache then reclaims the released pages in their last-use order. What the image still misses
-    // beyond the unpinned slots is the pressure: the window gives way to it (`lastUse.ts`).
-    current = cache;
+    // Released oldest first, each where it went when it went idle: the cache then reclaims the
+    // released pages in their last-use order. What the image still misses beyond the unpinned
+    // slots is the pressure: the window gives way to it (`lastUse.ts`).
     lastUse.release(frame, unpin, missing - cache.unpinnedSlots());
     // Kept keys are clusters; a deferred drop names the request that carries them. The question is
     // therefore asked request by request — a handful — and not by copying the kept set into two
