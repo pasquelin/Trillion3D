@@ -135,8 +135,17 @@ test('Into the effect chain, a surface covers its pixel as the display path show
 
 test('Each family reaches the WebGL2 program in the model it reads on WebGPU (#527)', () => {
   const { standard, diffuse, toon, normal, matcap, depth } = SURFACE_MODEL;
-  const models = { standard, phong: standard, basic: standard, lambert: diffuse, toon, normal };
-  for (const [family, model] of Object.entries({ ...models, matcap, depth }))
+  const models = {
+    standard,
+    phong: standard,
+    basic: standard,
+    lambert: diffuse,
+    toon,
+    normal,
+    matcap,
+    depth,
+  };
+  for (const [family, model] of Object.entries(models))
     assert.equal(flagOf(new G.GraphSurface(family as 'standard'), 'surfaceModel'), model, family);
   // A matcap's image is bound as the base map, the one the program reads at the normal.
   assert.equal(flagOf(new G.GraphSurface('matcap', { matcap: texture() }), 'mapMask'), 1);
