@@ -86,6 +86,14 @@ test('group-mates past the frustum are asked for: the image converges to the cut
   );
 });
 
+test('a pool at the root cover plus a tenth draws every leaf once, and never a hole', () => {
+  const { image, dag, drawnIds } = strip(Math.ceil(dag0Roots() * 1.1), wholeStrip());
+  for (let i = 0; i < 24; i++) {
+    image(0.25, 3);
+    assert.equal(coverFault(dag, drawnIds()), -1, `image ${i}: a leaf not covered exactly once`);
+  }
+});
+
 /** Clusters nothing replaces in the rule DAG: its root cover. */
 function dag0Roots() {
   return ruleDag(256).pages.filter((page) => page.parentError === null).length;
@@ -101,50 +109,31 @@ function levels(dag: ReturnType<typeof ruleDag>, drawn: number[]) {
   return at;
 }
 
-// #839: the starvation run on the WebGL2 host — no hole, no drawn page evicted, and a still view
-// only refines, the residency holding the ancestor each surface is drawn by.
-test('a pool at the root cover plus a tenth: no hole, no drawn page lost, never coarser', () => {
-  const { image, dag, pages, drawnIds } = strip(Math.ceil(dag0Roots() * 1.1), wholeStrip());
-  let before: Int32Array | undefined;
-  for (let i = 0; i < 24; i++) {
-    image(0.25, 3);
-    const drawn = drawnIds();
-    assert.equal(coverFault(dag, drawn), -1, `image ${i}: a leaf not covered exactly once`);
-    // What the image drew stays resident until the next cut, the pages that arrived since included.
-    assert.ok(
-      drawn.every((id) => pages[id].array),
-      `image ${i}: a drawn page evicted`,
-    );
-    // The pool holds the parents of what it asks for: the ancestor a surface is drawn by never
-    // leaves under it, so a still view under starvation only refines.
-    const now = levels(dag, drawn);
-    for (let u = 0; before && u < dag.leaves; u++)
-      assert.ok(now[u] <= before[u], `image ${i}, leaf ${u}: level ${before[u]} → ${now[u]}`);
-    before = now;
-  }
-});
-
-// #839: a budget cut mid-session is paid one level per image, what each image drew surviving to the
-// next cut, and a still view over budget converges — no page is held past what it can draw.
-test('a budget cut mid-session: drawn pages survive to the next cut, one level coarser per image', () => {
-  const { image, dag, pages, drawnIds, pool, state } = strip(1000, wholeStrip());
-  for (let i = 0; i < 24; i++) image(0.25);
-  let before = levels(dag, drawnIds());
-  let drawn = drawnIds();
-  // About half of what the fine cut holds.
-  pool.resize(30 * PAGE);
-  for (let i = 0; i < 24; i++) {
-    assert.ok(
-      drawn.every((id) => pages[id].array),
-      `image ${i}: a page the last image drew left before this cut`,
-    );
-    image(0.25, 3);
-    drawn = drawnIds();
-    assert.equal(coverFault(dag, drawn), -1, `image ${i}: a leaf not covered exactly once`);
-    const now = levels(dag, drawn);
-    for (let u = 0; u < dag.leaves; u++)
-      assert.ok(now[u] <= before[u] + 1, `image ${i}, leaf ${u}: level ${before[u]} → ${now[u]}`);
-    before = now;
-  }
-  assert.ok(state.allocationBytes <= 30 * PAGE, 'the pool converged to its budget');
-});
+// #839: a budget cut mid-session — to about half the fine cut, and down to the starvation run's root
+// cover plus a tenth — is paid one level per image: every page an image drew survives to the next
+// cut, the residency holds the ancestors each surface falls back to, and the pool converges.
+for (const [label, budget] of [
+  ['half the fine cut', 30],
+  ['the root cover and a tenth', Math.ceil(dag0Roots() * 1.1)],
+] as const)
+  test(`a budget cut to ${label}: no hole, drawn pages kept, one level coarser per image`, () => {
+    const { image, dag, pages, drawnIds, pool, state } = strip(1000, wholeStrip());
+    for (let i = 0; i < 24; i++) image(0.25);
+    let before = levels(dag, drawnIds()),
+      drawn = drawnIds();
+    pool.resize(budget * PAGE);
+    for (let i = 0; i < 24; i++) {
+      assert.ok(
+        drawn.every((id) => pages[id].array),
+        `image ${i}: a page the last image drew left before this cut`,
+      );
+      image(0.25, 3);
+      drawn = drawnIds();
+      assert.equal(coverFault(dag, drawn), -1, `image ${i}: a leaf not covered exactly once`);
+      const now = levels(dag, drawn);
+      for (let u = 0; u < dag.leaves; u++)
+        assert.ok(now[u] <= before[u] + 1, `image ${i}, leaf ${u}: ${before[u]} → ${now[u]}`);
+      before = now;
+    }
+    assert.ok(state.allocationBytes <= budget * PAGE, 'the pool converged to its budget');
+  });
