@@ -1,104 +1,54 @@
-// Lot F, F18: three calculations of a WebGPU engine prepare. `prepareCones`
-// (prepare.ts) copies a simple position attribute by block instead of per-vertex
-// accessors, and reads the material once instead of twice. `indexSourceBytes` and
+// Lot F, F18: three calculations of a WebGPU engine prepare. `indexSourceBytes` and
 // `compteMateriauxEtTangentes` (../io/catalogue.ts) replace a `flatMap` of a pair per page and
-// a `map`/two table copies with one walk each. The oracles are the implementations from before lot
-// F, copied as-is into `oracles/cones-normaux.ts`.
+// a `map`/two table copies with one walk each; their oracles are the implementations from before
+// lot F. `prepareCones` no longer computes a cone: it posts the one the compiler cooked (#272).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as G from '../../../host/graph/graph.fixture.ts';
+import { OPEN_CONE, type NormalCone } from '../../../page/cone/cone.ts';
+import { surfaceOf } from '../../../page/surface.ts';
 import { prepareCones } from './cones.ts';
 import { indexSourceBytes, compteMateriauxEtTangentes } from '../io/catalogue.ts';
 import {
-  entreeCones,
-  referencePrepareCones,
   referenceIndexSourceBytes,
   referenceCompteMateriauxEtTangentes,
 } from '../../../../../../bench/oracles/browser/normal-cones.ts';
 import type { PageRec } from '../../../page/selection/selection.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 
-function triangle(material: G.GraphSurface, attributes: G.Geometry['attributes']) {
+const COOKED: NormalCone = { axis: [0, 0, 1], angle: 0.25 };
+
+/** A one-triangle cluster wearing `material`, with its cooked cone and no host vertices at all:
+ *  a `prepareCones` that still read positions would find none. */
+function triangle(material: G.GraphSurface) {
   return {
     array: Uint32Array.of(0, 1, 2),
-    attributes,
-    material,
-    cone: undefined,
+    attributes: {},
+    material: surfaceOf(material),
+    cone: COOKED,
   } as unknown as PageRec;
 }
-/** Input of `prepareCones`, the bench's: one write for both, or one of the two stays on the old
- *  contract with nothing saying so. */
-function runtime(allPages: PageRec[], roots?: Array<{ cones?: boolean; pages: PageRec[] }>) {
-  return entreeCones(allPages, roots) as unknown as WebgpuPagesRuntime;
-}
-const positions = (values: number[]) => G.floatAttribute(values, 3);
-
-function memeCones(pages: PageRec[]) {
-  const a = pages.map((p) => ({ ...p }) as unknown as PageRec);
-  const b = pages.map((p) => ({ ...p }) as unknown as PageRec);
-  prepareCones(runtime(a));
-  referencePrepareCones(runtime(b));
-  for (let i = 0; i < a.length; i++) assert.deepEqual(a[i].cone, b[i].cone, `page ${i}`);
+/** What `prepareCones` reads of a runtime: its roots, each with its pages. */
+function runtime(pages: PageRec[], roots = [{ cones: false, pages }]) {
+  return { setup: { roots } } as unknown as WebgpuPagesRuntime;
 }
 
-test('the shared input carries roots, and an ordinary cluster comes out with a real cone', () => {
-  // Two functions that post nothing would agree on nothing: equality with the oracle alone does not
-  // say a cone was posted. `prepareCones` reads pages by root — an input that carried none would make
-  // it ignore everything in silence, and that is exactly the failure this fix closes. This test
-  // therefore requires it on both sides: roots, and a non-empty cone.
-  const entree = entreeCones([]) as { setup: { allPages: PageRec[]; roots: unknown[] } };
-  assert.ok(Array.isArray(entree.setup.roots), 'the bench input must carry its roots');
-  const attributes = { position: positions([0, 0, 0, 1, 0, 0, 0, 1, 0]) };
-  const page = triangle(G.basicSurface({ side: G.FRONT_SIDE }), attributes);
+test('a one-sided cluster is given the cone the compiler cooked, read from no vertex', () => {
+  const page = triangle(G.basicSurface({ side: G.FRONT_SIDE }));
   prepareCones(runtime([page]));
-  assert.ok(page.cone, 'a one-sided cluster must receive its cone');
-  assert.equal(page.cone!.axis.length, 3);
+  assert.equal(page.cone, COOKED);
 });
 
-test('a simple, unnormalized position attribute takes the same cone as the per-vertex copy', () => {
-  const attributes = { position: positions([0, 0, 0, 1, 0, 0, 0, 1, 0]) };
-  memeCones([triangle(G.basicSurface(), attributes)]);
-});
-
-test('a normalized attribute goes back through accessors and yields the same cone as the reference', () => {
-  const attr = positions([0, 0, 0, 1, 0, 0, 0, 1, 0]);
-  attr.normalized = true;
-  memeCones([triangle(G.basicSurface(), { position: attr })]);
-});
-
-test('an interleaved attribute goes back through accessors and yields the same cone as the reference', () => {
-  const interleaved = new G.InterleavedBuffer(
-    Float32Array.of(0, 0, 0, 9, 1, 0, 0, 9, 0, 1, 0, 9),
-    4,
+test('a double-sided or back-facing material keeps its cone open', () => {
+  const pages = [
+    triangle(G.basicSurface({ side: G.DOUBLE_SIDE })),
+    triangle(G.basicSurface({ side: G.BACK_SIDE })),
+  ];
+  prepareCones(runtime(pages));
+  assert.deepEqual(
+    pages.map((page) => page.cone),
+    [OPEN_CONE, OPEN_CONE],
   );
-  const attr = new G.InterleavedBufferAttribute(interleaved, 3, 0, false);
-  memeCones([triangle(G.basicSurface(), { position: attr })]);
-});
-
-test('a double-sided or back-facing material yields OPEN_CONE on both sides, without computing a cone', () => {
-  const attributes = { position: positions([0, 0, 0, 1, 0, 0, 0, 1, 0]) };
-  memeCones([
-    triangle(G.basicSurface({ side: G.DOUBLE_SIDE }), attributes),
-    triangle(G.basicSurface({ side: G.BACK_SIDE }), attributes),
-  ]);
-});
-
-test('with no index bytes or no position attribute, the page is ignored on both sides (cone left intact)', () => {
-  const attributes = { position: positions([0, 0, 0, 1, 0, 0, 0, 1, 0]) };
-  const sansArray = { ...triangle(G.basicSurface(), attributes), array: undefined };
-  const sansPosition = {
-    ...triangle(G.basicSurface(), {}),
-    array: Uint32Array.of(0, 1, 2),
-  };
-  memeCones([sansArray as unknown as PageRec, sansPosition as unknown as PageRec]);
-});
-
-test('two pages sharing the same attribute recompute the flat array only once, same result', () => {
-  const attributes = { position: positions([0, 0, 0, 1, 0, 0, 0, 1, 0]) };
-  memeCones([
-    triangle(G.basicSurface(), attributes),
-    triangle(G.basicSurface({ side: G.BACK_SIDE }), attributes),
-  ]);
 });
 
 test('indexSourceBytes yields the same table as the reference flatMap, last page of a winning address', () => {
@@ -146,15 +96,15 @@ test('compteMateriauxEtTangentes on an empty catalogue and geometry table yields
 test('posting a cone declares its root; a root whose pages receive no cone stays declared bare', () => {
   // `collectClusterPages` declares `cones: false`; without this sample, the cut would no longer read
   // the cone this prepare just wrote, and cone culling would vanish without a sound. A page without
-  // index bytes receives no cone: its root has nothing to declare.
-  const attributes = { position: positions([0, 0, 0, 1, 0, 0, 0, 1, 0]) };
-  const porte = triangle(G.basicSurface(), attributes);
-  const nue = { ...triangle(G.basicSurface(), attributes), array: undefined };
+  // index bytes yet keeps no cone, as when its cone was built from them: its root declares none.
+  const porte = triangle(G.basicSurface());
+  const nue = { ...triangle(G.basicSurface()), array: undefined } as unknown as PageRec;
   const roots = [
     { cones: false, pages: [porte] },
-    { cones: false, pages: [nue as unknown as PageRec] },
+    { cones: false, pages: [nue] },
   ];
-  prepareCones(runtime([porte, nue as unknown as PageRec], roots));
+  prepareCones(runtime([], roots));
   assert.equal(roots[0].cones, true);
   assert.equal(roots[1].cones, false);
+  assert.equal(nue.cone, undefined);
 });

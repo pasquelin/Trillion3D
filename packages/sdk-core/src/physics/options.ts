@@ -13,7 +13,7 @@ export type PhysicsShape =
   | { type: 'triangles' }
   | { type: 'hull' }
   /** Primitives placed in the object's frame, one rigid body: a raft of two pontoons and a deck.
-   *  Its scale must be the same on all three axes. */
+   *  Its scale must be the same positive one on all three axes: never stretched nor mirrored. */
   | { type: 'compound'; parts: readonly PhysicsPart[] };
 
 /** An exact primitive: its sizes in the object's own frame (a cylinder tapers from its top's

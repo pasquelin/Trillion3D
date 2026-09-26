@@ -77,6 +77,7 @@ export function manifest(): ClusterManifest {
       source: null,
       stream: 0,
       streamOffset: 0,
+      cone: { axis: [-0.0621135613999339, 0.027174688463389093, 0.9976990737678042], angle: 1.75 },
     },
     {
       id: 1,
@@ -97,6 +98,7 @@ export function manifest(): ClusterManifest {
       source: 0,
       stream: 0,
       streamOffset: 48,
+      cone: { axis: [0, 0, 1], angle: Math.PI },
     },
   ];
   // The sparse shape: a cluster band and nothing else — no group, no bundle, no packed geometry.
@@ -114,6 +116,7 @@ export function manifest(): ClusterManifest {
       sphere: [0.5, 0.5, 0.5, 0.8660254037844386],
       parentError: null,
       parentSphere: null,
+      cone: { axis: [1, 0, 0], angle: 0.5 },
     },
   ];
   return {
