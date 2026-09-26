@@ -28,7 +28,6 @@ pub(super) const FILES_FIELD: &str = "files";
 pub(super) fn publish(inputs: &Publication<'_>, result: &Value) -> Result<()> {
     let _t = perf::Timer::new(perf::Phase::Manifest);
     let templates = manifest_binary::Templates {
-        binary: "",
         page: "../../objects/{sha}.bin",
         geometry: "../../objects/{sha}.bin",
         bundle: "../../objects/{sha}.bin",
@@ -45,8 +44,7 @@ pub(super) fn publish(inputs: &Publication<'_>, result: &Value) -> Result<()> {
         bytes: inputs.proxy_bytes.len() as u64,
     };
     slim[FILES_FIELD] = files_record(inputs.products.iter().chain([&proxy]));
-    let root = write_manifest(result, slim, inputs.previews, &templates, directory)?;
-    atomic(&directory.join(MANIFEST_FILE), &serde_json::to_vec(&root)?)?;
+    write_manifest(result, slim, inputs.previews, &templates, directory)?;
     write_pointer(inputs.o, inputs.key, inputs.cache_format)
 }
 
