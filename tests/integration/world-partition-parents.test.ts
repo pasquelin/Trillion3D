@@ -97,3 +97,55 @@ test(
     assert.ok(near > 100, `${near} nodes within reach`);
   },
 );
+
+test(
+  'a page that shrinks the parent of placed nodes grows their rows in place: no reopen, no wait',
+  { skip: !existsSync(compiler) },
+  async (t) => {
+    const root = await mkdtemp(join(tmpdir(), 'world-partition-shrink-'));
+    t.after(() => rm(root, { recursive: true, force: true }));
+    const pointer = await compiled(root, world(384, 'district'));
+    machine(t, pointer);
+    const model = await loadModel(pointer.href, { textureSource: 'host', scope: 'full' });
+    const [cells] = model.record.scene.partitions;
+    const streamer = createPageStreamer(cells.pages, model.record.base);
+    // The camera stands where the middle of the district will be once it is four times smaller.
+    const camera = hostFramingCamera(60, 16 / 9, 0.1, 300);
+    camera.position.set(48 * SPACING, 2, 48 * SPACING);
+    camera.updateMatrixWorld();
+    await primePartitions([cells], camera, streamer, true);
+    const scene = new Object3D();
+    scene.add(model);
+    let renewed = 0,
+      grown = 0;
+    const frame = createPartitionFrame({
+      partitions: [cells],
+      streamer,
+      camera,
+      active: () =>
+        ({
+          updatePlacements() {},
+          growPlacements: () => void grown++,
+        }) as Partial<RenderBackend> as RenderBackend,
+      renew: () => void renewed++,
+      budget: { admits: () => true, spend() {} },
+    })!;
+    const settle = async () => {
+      for (let step = 0; step < 16; step++) {
+        frame();
+        if (!(await frame.pending())) break;
+      }
+      return cells.stats();
+    };
+    const before = await settle();
+    const district = model.getObjectByName('district')!;
+    district.scale.set(0.25, 0.25, 0.25);
+    const poses = createWorldPoses();
+    poses.moved(district);
+    poses.apply(scene, new Map(), new Map(), () => {});
+    const after = await settle();
+    assert.ok(grown > 0 && after.rows > before.rows, JSON.stringify({ before, after, grown }));
+    assert.deepEqual([after.waiting, renewed], [0, 0]);
+    assert.ok(after.held > before.held, 'four times as many cells are within reach');
+  },
+);

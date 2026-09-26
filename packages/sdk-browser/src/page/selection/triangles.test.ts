@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import { collectClusterPages, selectVisiblePages, type PageRec } from './selection.ts';
 import { dagFixture, wideCamera } from './dag.fixture.ts';
 import { cameraMoteur } from '../../camera/camera.fixture.ts';
+import { createHeldResidency } from '../cut/held.ts';
 
 /** The sum the sweeps from before this batch computed: left to right, without reassociation. */
 function sum(pages: readonly PageRec[]) {
@@ -33,8 +34,9 @@ test('returned triangle sums are those of the returned arrays, stand-ins include
       const result = selectVisiblePages(roots, cameraMoteur(cam), {
         pixelError,
         viewport: [1280, 720],
-        holdResident: true,
-        isResident: (page) => ((mask >> allPages.indexOf(page)) & 1) === 1,
+        held: createHeldResidency({
+          isResident: (page: PageRec) => ((mask >> allPages.indexOf(page)) & 1) === 1,
+        }),
         wanted,
       });
       vus++;

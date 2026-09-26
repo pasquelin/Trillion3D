@@ -8,6 +8,7 @@ import { collectClusterPages, selectVisiblePages, type PageRec } from './selecti
 import { dagFixture } from './dag.fixture.ts';
 import { createWebglFrameGate } from '../../webgl/core/frameGate.ts';
 import { cameraMoteur } from '../../camera/camera.fixture.ts';
+import { createHeldResidency } from '../cut/held.ts';
 
 /** DAG fixture, every page resident, tight view on the left half: right-hand clusters
  *  leave the frustum and get counted there. */
@@ -30,7 +31,7 @@ function coupe() {
   const options = {
     pixelError: 0.05,
     viewport: [1280, 720] as [number, number],
-    holdResident: true,
+    held: createHeldResidency(),
     wanted,
   };
   return {

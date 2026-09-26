@@ -54,6 +54,8 @@ export function renderGpuCut(
     return true;
   }
   run.gpuFrameActive = true;
+  // No CPU cut draws this image: the placements' readiness it held lets go (#483 rule 6).
+  services.heldResidency.endImage();
   run.cpuSelectMs = null;
   marks.cpuStart = cpuStart;
   marks.lightsEnd = lightsEnd;

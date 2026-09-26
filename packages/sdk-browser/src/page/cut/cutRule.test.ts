@@ -8,13 +8,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { coverFault, ruleDag, type RuleDag } from './cutRule.fixture.ts';
 import {
-  cpuBackend,
   floorPrunedPages,
   oracleBackend,
-  webgl2Backend,
   wgslBackend,
   type CutBackend,
 } from './cutRuleBackends.fixture.ts';
+import { cpuBackend, webgl2Backend } from './cutRuleHosts.fixture.ts';
 import { DEVELOP_FULL_CUT, ruleChecks } from './cutRuleChecks.fixture.ts';
 
 const THRESHOLD = 0.1;

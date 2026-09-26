@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { sha256Hex } from '../measurement/sha256Hex.ts';
 import { loadClusterPages } from './pages.ts';
+import { untilAborted } from './answers.fixture.ts';
 test('a corrupt page aborts sibling fetches before they allocate remaining indices', async () => {
   const started: string[] = [],
     finished: string[] = [];
@@ -24,15 +25,7 @@ test('a corrupt page aborts sibling fetches before they allocate remaining indic
     const name = String(url).split('/').pop() ?? '';
     started.push(name);
     const signal = init?.signal;
-    if (name === 'later.bin')
-      await Promise.race([
-        hold.promise,
-        new Promise((_, reject) => {
-          const fail = () => reject(signal?.reason ?? new DOMException('Aborted', 'AbortError'));
-          signal?.addEventListener('abort', fail, { once: true });
-          if (signal?.aborted) fail();
-        }),
-      ]);
+    if (name === 'later.bin') await Promise.race([hold.promise, untilAborted(signal)]);
     finished.push(name);
     return new Response(bytes, { status: 200 });
   };
