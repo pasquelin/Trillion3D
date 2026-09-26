@@ -1,13 +1,14 @@
 /**
  * WHICH CELLS OF A PARTITIONED SCENE ARE READ, derived from the camera, never from the scene (#404).
  *
- * A cell is read while the camera can draw any of it: until its box is past the far plane — met
- * on the frustum's diagonal at `far·√(1 + tan²θ)`, `θ` the half diagonal of the field, the same
- * off-axis majorant the certified cluster error takes (`screenErrorBound.ts`). Nothing coarser
- * stands for a cell that is not read (its merged proxy is #23), so its objects are drawn wherever
- * the far plane lets them be, however small they project: dropping one below the error target
- * would leave it out of the image for good, not replace it by a coarser one. An orthographic
- * camera does not shrink what it sees with distance, so every cell of its scene is read.
+ * A cell is read while the camera can draw any of it: until its box is past the frustum's farthest
+ * corner — for a perspective camera `far·√(1 + tan²θ)`, `θ` the half diagonal of the field its
+ * zoom narrows or widens (`perspectiveSlope`), the same off-axis majorant the certified cluster
+ * error takes (`screenErrorBound.ts`); for an orthographic one the far corner of its zoomed box
+ * (`orthographicView`). Nothing coarser stands for a cell that is not read (its merged proxy is
+ * #23), so its objects are drawn wherever the far plane lets them be, however small they project:
+ * dropping one below the error target would leave it out of the image for good, not replace it by
+ * a coarser one.
  *
  * A frame asks for the cells within the reach first, then — at the prefetch priority — those
  * within `AHEAD` of it past it, and a read cell leaves once its box is `KEEP` of the reach past it,
@@ -20,15 +21,26 @@
  * within a reach wherever the page moves the cells' parents (`sizing.ts`): nothing grows while a
  * session draws.
  */
-import { invertMatrix4, MATRIX_VALUES } from '../../../../sdk-core/src/index.ts';
+import {
+  invertMatrix4,
+  MATRIX_VALUES,
+  transformAffinePoint,
+} from '../../../../sdk-core/src/index.ts';
 import { boxPointDistance } from '../../../../sdk-core/src/math/primitives/box.ts';
+import {
+  orthographicView,
+  perspectiveSlope,
+} from '../../../../sdk-core/src/math/primitives/camera.ts';
+import type { CameraOptics } from '../../camera/engineCamera.ts';
+import { stretchOf } from './boxes.ts';
 import type { TableCell } from '../../../../sdk-core/src/scene/core/tablePartition.ts';
 
 /** A cell as the plan reads it: its boxes in the scene root's frame now, six values per parent
  *  (`boxes.ts`), and how many nodes of each mesh it places. */
 export type BoxedCell = { bounds: ArrayLike<number>; meshes: TableCell['meshes'] };
 
-const inverse = new Float64Array(MATRIX_VALUES);
+const inverse = new Float64Array(MATRIX_VALUES),
+  view = new Float64Array(4);
 
 /** How far past the reach, as a fraction of it, a cell is read ahead at the prefetch priority. */
 export const AHEAD = 0.25;
@@ -36,33 +48,39 @@ export const AHEAD = 0.25;
  *  ahead is not dropped by the next step. */
 export const KEEP = 0.5;
 
-/** What the reach reads of a camera: its optics and whether it is orthographic. */
-export type PartitionOptics = {
-  fov: number;
-  aspect: number;
-  far: number;
-  orthographic?: unknown;
-};
+/** What the reach reads of a camera: the optics its projection is composed from. */
+export type PartitionOptics = Pick<
+  CameraOptics,
+  'fov' | 'aspect' | 'near' | 'far' | 'zoom' | 'orthographic'
+>;
 
-/** The distance past which nothing `optics` sees is drawn. */
+/** The distance past which nothing `optics` sees is drawn: the frustum's farthest corner. */
 export function cellReach(optics: PartitionOptics) {
-  if (optics.orthographic) return Infinity;
-  const tangent = Math.tan((optics.fov * Math.PI) / 360);
-  return optics.far * Math.sqrt(1 + tangent * tangent * (1 + optics.aspect * optics.aspect));
+  const { far, orthographic } = optics,
+    zoom = optics.zoom || 1; // a zoom of 0 draws nothing: read as 1, never as an empty reach
+  if (orthographic) {
+    const [x, y, width, height] = orthographicView(orthographic, zoom, view);
+    // Its depth range may reach behind the eye: a negative `near` draws there. A box given right
+    // to left, or top to bottom, is as wide.
+    const depth = Math.max(Math.abs(far), Math.abs(optics.near));
+    return Math.hypot(depth, Math.abs(x) + Math.abs(width), Math.abs(y) + Math.abs(height));
+  }
+  const slope = perspectiveSlope(optics.fov, zoom);
+  return far * Math.sqrt(1 + slope * slope * (1 + optics.aspect * optics.aspect));
 }
 
 /**
  * `eye` and `reach` in the frame the cells' boxes are written in — the scene root's, whose world
- * matrix `world` a world may pose, turn and scale. A world distance is at least the root's smallest
- * stretch times the distance there: what this reach reads holds every cell the world's reach needs.
+ * matrix `world` a world may pose, turn, scale and shear. A world distance is at least the root's
+ * least stretch (`stretchOf`: its smallest singular value, not its shortest column, which a shear
+ * lengthens) times the distance there: what this reach reads holds every cell the world's reach
+ * needs; a flattened root, which stretches some distance by 0, reads every cell.
  */
 export function inCellFrame(world: ArrayLike<number>, eye: ArrayLike<number>, reach: number) {
-  const least = Math.min(...[0, 4, 8].map((c) => Math.hypot(world[c], world[c + 1], world[c + 2])));
+  const [least] = stretchOf(world);
+  if (!least) return { eye: [0, 0, 0], reach: Infinity }; // flattened: no eye there, every cell
   invertMatrix4(inverse, world);
-  const local = [0, 1, 2].map(
-    (a) =>
-      inverse[a] * eye[0] + inverse[4 + a] * eye[1] + inverse[8 + a] * eye[2] + inverse[12 + a],
-  );
+  const local = transformAffinePoint([0, 0, 0], inverse, eye[0], eye[1], eye[2]);
   return { eye: local, reach: reach / least };
 }
 

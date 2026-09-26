@@ -6,6 +6,7 @@
  * The reach is the frame camera's far plane, never a number of the scene's
  * (`../../scene/partition/plan.ts`).
  */
+import { maxStretch } from '../../../../sdk-core/src/index.ts';
 import { PRIORITY_PREFETCH, PRIORITY_VISIBLE } from '../../streaming/priority.ts';
 import type { RenderBackend } from '../../backend/types.ts';
 import type { FrameBudget } from '../../page/integration/frameBudget.ts';
@@ -16,10 +17,15 @@ import type { createPageStreamer } from '../../streaming/pageStreamer.ts';
 
 type Streamer = ReturnType<typeof createPageStreamer>;
 
-/** Where a camera's eye stands in the world. */
-function eyeOf(camera: HostCamera) {
+/** Where a camera's eye stands in the world, and its reach there: the frustum its world matrix
+ *  poses, which a scaled camera — or one under a scaled rig — stretches by up to its largest
+ *  singular value (`maxStretch`). */
+function viewOf(camera: HostCamera) {
   const elements = resolveCameraWorld(camera).matrixWorld.elements;
-  return [elements[12], elements[13], elements[14]];
+  return {
+    eye: [elements[12], elements[13], elements[14]],
+    reach: cellReach(camera) * maxStretch(elements),
+  };
 }
 
 /**
@@ -34,8 +40,7 @@ export async function primePartitions(
   owned: boolean,
   signal?: AbortSignal,
 ) {
-  const reach = cellReach(camera);
-  const eye = eyeOf(camera);
+  const { eye, reach } = viewOf(camera);
   const read = (url: string) => streamer.readBytes(url, signal);
   const bytes = await Promise.all(partitions.map((cells) => cells.prime(eye, reach, read, owned)));
   return bytes.reduce((sum, value) => sum + value, 0);
@@ -46,11 +51,12 @@ type Inputs = {
   streamer: Streamer;
   camera: HostCamera;
   active: () => RenderBackend;
-  /** The frame's one integration budget, the arrival queue's: cells spend from it before the
-   *  drain spends the rest. */
+  /** The session's one integration budget per frame (`BackendContext.frameBudget`): cells spend
+   *  from it before the arrival drain and the engine's row records spend the rest. */
   budget: FrameBudget;
-  /** Asked once the camera's reach outgrew the rows sized at open: the owner opens the session
-   *  again, sized for it. Absent, a cell past those rows waits. */
+  /** Asked once the camera's reach, or a parent's stretch, outgrew the rows sized at open on an
+   *  engine that grows no buffer in place: the owner opens the session again, sized for it.
+   *  Absent, a cell past those rows waits. */
   renew?: () => void;
 };
 
@@ -87,10 +93,10 @@ export function createPartitionFrame(inputs: Inputs) {
       request,
       update: (...range: Parameters<NonNullable<RenderBackend['updatePlacements']>>) =>
         backend.updatePlacements?.(...range),
+      grow: backend.growPlacements?.bind(backend),
       outgrown: renew,
     };
-    const reach = cellReach(camera);
-    const eye = eyeOf(camera);
+    const { eye, reach } = viewOf(camera);
     later = false;
     for (const cells of partitions) later = cells.frame(eye, reach, io, budget) || later;
   };
