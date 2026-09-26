@@ -66,11 +66,12 @@ fn body(
                 .and_then(Value::as_u64)
                 .map_or(index, |n| n as usize);
             let mesh = nodes.get(at).and_then(|n| n["mesh"].as_u64());
-            let mesh = mesh.ok_or_else(|| match at == index {
-                true => refused("A body that draws no mesh names no collider shape.".into()),
-                false => refused(format!(
-                    "A body's collider names node {at}, which draws no mesh."
-                )),
+            let mesh = mesh.ok_or_else(|| {
+                refused(if at == index {
+                    "A body that draws no mesh names no collider shape.".into()
+                } else {
+                    format!("A body's collider names node {at}, which draws no mesh.")
+                })
             })?;
             // Another node's mesh is moved by its placement relative to the body's (`trs`).
             let (t, [x, y, z, w], s) = pose;
@@ -90,7 +91,9 @@ fn body(
                 Some(shared) => shared.clone(),
                 None => {
                     let shape = cooked_hull(o, source, (mesh as usize, frame), weigh)?;
-                    key.map(|k| cooked.insert(k, shape.clone()));
+                    if let Some(k) = key {
+                        cooked.insert(k, shape.clone());
+                    }
                     shape
                 }
             }
