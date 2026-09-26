@@ -31,7 +31,8 @@ export function restampHizSlot(ints: Uint32Array, base: number, row: number) {
  *  reads to cut a masked material, and so what a colour tile's arrival is matched against. */
 export const ROW_MAP_LAYER_WORD = 22,
   ROW_FLAGS_WORD = 23;
-/** Row word of a blended caster's coverage (`PageInfo.blendCoverage`): the light it stops. */
+/** Row word of the surface's opacity, its colour factor's alpha (`PageInfo.blendCoverage`): the
+ *  light a blended caster stops, and what a cutout multiplies its alpha by (`maskKeep`). */
 export const ROW_BLEND_COVERAGE_WORD = 57;
 /** Row word of the width a line page's quads widen to (`PageInfo.lineWidth`); zero for triangles. */
 export const ROW_LINE_WIDTH_WORD = 61;
@@ -100,7 +101,7 @@ export function createPageRowWriter(resources: PageRowResources) {
     // A blended cluster's row is a shadow caster's alone (`blendCasters.ts`): its flag and its
     // coverage are what the shadow raster reads of it.
     ints[base + ROW_FLAGS_WORD] = rec.transparent ? maps.flags | FLAG_BLEND_CASTER : maps.flags;
-    if (rec.transparent) floats[base + ROW_BLEND_COVERAGE_WORD] = blendCoverage(mat);
+    floats[base + ROW_BLEND_COVERAGE_WORD] = blendCoverage(mat);
     ints[base + 24] = offsetWords;
     ints[base + ROW_INDEX_WORDS] = indexCount;
     ints[base + 26] = geo?.vertexBase ?? 0;
