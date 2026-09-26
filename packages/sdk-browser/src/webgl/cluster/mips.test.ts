@@ -136,7 +136,7 @@ test('a world texel map is uploaded as stored, with its box chain', () => {
   assert.equal(gl.chains(), 'box', 'a normal map is data: the plain box chain (#42)');
 });
 
-// #748: where float targets blend, a masked chain counts each level — level 0 first — as points,
+// #769: where float targets blend, a masked chain counts each level — level 0 first — as points,
 // picks its `t` into the scratch's row under the level it holds, then reduces it, and gives the
 // blend function back; a new cutoff reduces it again. Elsewhere it keeps the median alone.
 test('a masked chain is counted at its cutoff where float targets blend, else keeps the median', () => {
