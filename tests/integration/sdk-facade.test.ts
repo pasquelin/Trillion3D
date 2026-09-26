@@ -113,13 +113,15 @@ test('generated inventory and explicit facade files are current', async () => {
       (entry) => entry.name === 'sideOf' && entry.disposition === 'newly exposed',
     ),
   );
-  for (const name of ['openMeasuredWorld', 'MeasuredWorld', 'MeasuredWorldOptions'])
-    assert.ok(
-      !inventory.exports.some((row) => row.name === name),
-      `${name} belongs to the measurement entry, not the package`,
-    );
-  // A joint's host is the world's side of it, typed on its member (#558, #795): no page names it.
-  assert.ok(!inventory.exports.some((row) => row.name === 'JointHost'), 'JointHost is internal');
+  const measurement = 'belongs to the measurement entry, not the package';
+  for (const [name, why] of [
+    ['openMeasuredWorld', measurement],
+    ['MeasuredWorld', measurement],
+    ['MeasuredWorldOptions', measurement],
+    // The world's side of a joint, typed on its member (#558, #795): no page names it.
+    ['JointHost', 'is internal'],
+  ])
+    assert.ok(!inventory.exports.some((row) => row.name === name), `${name} ${why}`);
   for (const [name, entryPoint] of [
     ['CameraPose', 'trillion3d (common)'],
     ['CameraPose', 'trillion3d (browser condition)'],
