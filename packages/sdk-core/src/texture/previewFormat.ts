@@ -40,16 +40,16 @@ export const PREVIEW_ATLAS_COLOR = 0,
   PREVIEW_ATLAS_DATA = 1,
   /** A chain of the colour atlas, for a texture every reader of which takes its alpha for coverage
    *  (the base colour of MASK or BLEND materials only): the one chain whose colours are weighted
-   *  by alpha, named apart from the plain one (`reduce.rs`, `AtlasKind::Coverage`, #42). The
-   *  word's second byte is its cutoff byte, whose share of covered texels every level keeps
-   *  (`coverage.rs`, #44); 0 when every reader blends and the chain keeps the median alone. */
+   *  by alpha, named apart from the plain one (`reduce.rs`, `AtlasKind::Coverage`, #42). */
   PREVIEW_ATLAS_COVERAGE = 2;
 /** The `{kind}` a baked level's path carries for each atlas, as `bake.rs` names them. */
 export const PREVIEW_ATLAS_NAMES = ['srgb', 'linear', 'srgb-coverage'] as const;
 /** The atlas of a word, its first byte: a coverage chain's cutoff fills the second. */
 const atlasByte = (atlas: number) => atlas & 0xff;
-/** The `{kind}` of an atlas word — a coverage chain with a cutoff `C` is `srgb-coverage-C` —,
- *  `undefined` for a word no compiler writes. */
+/** The `{kind}` of an atlas word, `undefined` for a word no compiler writes. A coverage word's
+ *  second byte is its cutoff byte `C`, whose share of covered texels every level keeps
+ *  (`coverage.rs`, #44), and its chain is `srgb-coverage-C`; 0 when every reader blends and the
+ *  chain keeps the median alone. */
 export function previewAtlasName(atlas: number): string | undefined {
   if (!Number.isInteger(atlas) || atlas < 0 || atlas > 0xffff) return undefined;
   const cutoff = atlas >>> 8;
