@@ -115,11 +115,7 @@ export function setupVisibility(
       lecture(b.instances),
       lecture(b.slotOffsets),
       lecture(b.color.pages),
-      {
-        binding: b.uniform,
-        visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
-        buffer: { type: 'uniform' },
-      },
+      { binding: b.uniform, visibility: GPUShaderStage.VERTEX, buffer: { type: 'uniform' } },
       ...b.color.lanes.map(lanePool),
       { binding: b.sampler, visibility: GPUShaderStage.FRAGMENT, sampler: { type: 'filtering' } },
     ],
