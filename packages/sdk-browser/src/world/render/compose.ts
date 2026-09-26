@@ -44,10 +44,10 @@ export function createFrameComposer(
     { guides?: undefined } | { guides: GuideSet; pixelRatio: () => number }
   ) = {},
 ) {
-  const { effects: composed, guides } = layers;
+  const { effects: composed } = layers;
   const heldFrame = createHeldFrame(gl);
   const guideDraw = createWebglGuideDraw(gl);
-  let guidesDrawn = guides?.revision ?? 0;
+  let guidesDrawn = layers.guides?.revision ?? 0;
   const present = createBackendPresenter(gl);
   const effects = composed && createWebglEffects(gl);
   const drawCamera = createHostDrawCamera();
@@ -107,7 +107,7 @@ export function createFrameComposer(
     const { width, height } = bindWebglTarget(gl, target);
     if (present(backend)) return;
     const revision = composed?.chain.revision ?? 0;
-    const guidesHeld = !guides || guides.revision === guidesDrawn;
+    const guidesHeld = !layers.guides || layers.guides.revision === guidesDrawn;
     if (
       reuse &&
       guidesHeld &&
