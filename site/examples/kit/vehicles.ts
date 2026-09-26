@@ -15,11 +15,11 @@ export interface BuiltVehicle extends Hulled {
   driver: Engine.Vehicle;
 }
 
-/** How long a vehicle waits for the ground below it to stream into the physics, in tries
- *  `GROUND_WAIT` ms apart: 30 s, long past what a page's terrain takes, short of a page that
+/** How long a vehicle waits for the ground below it to stream into the physics, in ms, trying
+ *  again every `GROUND_RETRY` ms: long past what a page's terrain takes, short of a page that
  *  seems to hang. */
-const GROUND_TRIES = 300,
-  GROUND_WAIT = 100;
+const GROUND_WAIT = 30_000,
+  GROUND_RETRY = 100;
 
 /**
  * Vehicles on Jolt's own vehicle constraint: `car`, `motorcycle` and `tracked` build a sports
@@ -95,13 +95,16 @@ export function vehicles(
   // The ground below `[x, z]`, once the physics has streamed it in, through the vehicle's own body.
   const groundAt = async (x: number, z: number, ignore: Mesh) => {
     const down = math.ray(math.vector3(x, above, z), math.vector3(0, -1, 0));
-    for (let tries = 0; tries < GROUND_TRIES; tries++) {
+    // A deadline, not a count of tries: each raycast's own round trip counts against the wait.
+    for (const deadline = Date.now() + GROUND_WAIT; ;) {
       const hit = await world.raycast(down, { exact: true, ignore });
       if (hit) return hit.point.y;
-      await new Promise((wait) => setTimeout(wait, GROUND_WAIT));
+      if (Date.now() >= deadline)
+        throw new Error(
+          `No ground below [${x}, ${z}] from ${above} m after ${GROUND_WAIT / 1000} s`,
+        );
+      await new Promise((wait) => setTimeout(wait, GROUND_RETRY));
     }
-    const waited = (GROUND_TRIES * GROUND_WAIT) / 1000;
-    throw new Error(`No ground below [${x}, ${z}] from ${above} m after ${waited} s`);
   };
   // Parked at `[x, z]`: set a little above what the ray meets there, level, facing `yaw`, and
   // simulated anew (setting `physics` again makes the body, and the vehicle with it, afresh).
