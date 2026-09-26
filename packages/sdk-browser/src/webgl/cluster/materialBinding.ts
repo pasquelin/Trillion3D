@@ -9,6 +9,7 @@ import type { Side } from '../../../../sdk-core/src/index.ts';
 import type { WebglClusterTextures } from './textures.ts';
 import { drawnModeOf, type WebglClusterState } from './state.ts';
 import { refusesLinear } from './linearRefusal.ts';
+import { refuseCluster } from './refusal.ts';
 import type { Matrix3UniformCache } from './uniforms.ts';
 import type { WebglClusterMaterialUniforms } from './materialUniforms.ts';
 
@@ -41,7 +42,7 @@ type Binding = {
 function coversLinear(material: Material) {
   if (!material.transparent) return true;
   const mode = drawnModeOf(material);
-  if (refusesLinear(mode)) throw new Error(`the WebGL2 effect chain cannot draw ${mode} blending`);
+  if (refusesLinear(mode)) refuseCluster(`the WebGL2 effect chain cannot draw ${mode} blending`);
   return mode === 'none';
 }
 

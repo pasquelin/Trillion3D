@@ -18,6 +18,7 @@ import {
   HOST_BLENDING_SUBTRACTIVE,
 } from '../../host/surfaceConstants.ts';
 import { createSceneDraw } from '../../webgl/cluster/sceneDraw.ts';
+import { createUnlitAlbedo } from '../../lighting/unlitAlbedo.ts';
 import { createTestContext } from '../../webgl/core/testContext.fixture.ts';
 import {
   createWorldNotices,
@@ -138,8 +139,7 @@ for (const [name, blending] of MODES) {
 
 test('a multiply instanced mesh placed nowhere keeps the chain on until it is placed', async () => {
   const surface = blended(HOST_BLENDING_MULTIPLY),
-    placed = G.triangleMesh(surface),
-    pool = new GraphInstancedMesh(placed.geometry, surface, 1);
+    pool = new GraphInstancedMesh(G.triangleMesh(surface).geometry, surface, 1);
   pool.count = 0;
   pool.frustumCulled = false;
   const scene = new GraphScene().add(G.triangleMesh(new GraphSurface('standard')), pool);
@@ -149,5 +149,24 @@ test('a multiply instanced mesh placed nowhere keeps the chain on until it is pl
     pool.count = 1;
     assert.equal(view.frame().chained, false);
   });
+  assert.deepEqual(said, ['effects-refused-blending']);
+});
+
+test('a transmissive multiply surface in the unlit view, which zeroes its transmission', async () => {
+  // The view zeroes the transmission before the draw reads the surface: the draw then binds it
+  // in multiply, so the chain is off on that frame whatever the surface declares.
+  const glass = new GraphSurface('physical', {
+    transparent: true,
+    opacity: 0.5,
+    transmission: 1,
+    blending: HOST_BLENDING_MULTIPLY,
+  });
+  const scene = new GraphScene().add(G.triangleMesh(glass));
+  createUnlitAlbedo(scene).setEnabled(true);
+  const view = session(scene, new EffectChain().add(effect.bloom()));
+  const said = await heard(view, () => {
+    assert.deepEqual(view.frame(), { chained: false, submitted: 1 }, 'no throw, no hole');
+  });
+  assert.equal(glass.transmission, 1, 'the view gives the surface back');
   assert.deepEqual(said, ['effects-refused-blending']);
 });
