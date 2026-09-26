@@ -20,26 +20,32 @@ const HALF_FLOATS = {
 };
 
 /** A WebGL2 session drawing `scene` with the world's `chain`, its refusals said on a world's
- *  notices; `frame` draws one and returns whether the chain ran and what the scene submitted. */
+ *  notices; `frame` draws one and returns whether the chain ran and what the scene submitted.
+ *  `between` writes the graph after the engine's `render`, as the engine's own frame does
+ *  (`../../backend/autonomous/pages.ts`); `hold` says whether the engine holds its frames. */
 export function session(scene: GraphScene, chain: EffectChain) {
   const context = createTestContext({ answers: HALF_FLOATS });
   const draw = createSceneDraw(context.gl, scene);
-  const backend = { id: 'engine', scene, ...draw, ...draw.host } as unknown as RenderBackend;
+  const backend = { id: 'engine', scene, frameHeld: false, ...draw, ...draw.host };
   const notices = createWorldNotices();
   const refused = noticeEffectRefusal(notices);
   const compose = createFrameComposer(context.gl, camera, {
     effects: { chain, shown: () => true, refused },
   });
   return {
-    frame() {
+    frame(between?: () => void) {
       const passes = context.of('drawArrays').length,
         submitted = context.of('drawElements').length;
       draw.render(camera);
-      compose(backend, null);
+      between?.();
+      compose(backend as unknown as RenderBackend, null);
       return {
         chained: context.of('drawArrays').length > passes,
         submitted: context.of('drawElements').length - submitted,
       };
+    },
+    hold(held: boolean) {
+      backend.frameHeld = held;
     },
     close: notices.close,
   };
