@@ -63,14 +63,14 @@ export const neverCulled = (surface: Pick<VisMaterial, 'sprite'> | undefined) =>
 
 /** The root mark's bit on every sprite (`ClusterRoot.sprite`): a sprite casts no shadow, so the
  *  CPU and GPU light cuts open no descent on it and the sun's scene box leaves it out. */
-const SPRITE_ROOT = 1;
+export const SPRITE_ROOT = 1;
 /** The root mark's bit on a never-culled sprite (`neverCulled`): no camera cut rejects it. */
 export const SPRITE_UNCULLED = 2;
 
 /**
  * THE SPRITE ROOT MARK: what a root carries of its surface, set once at collection and carried to
- * every cut — `ClusterRoot.sprite`, `DagRoot.sprite`, `PackedDag.sprite`, then the GPU cut's frame
- * word (`spriteOf`). 0 on any surface that draws no sprite.
+ * every cut — `ClusterRoot.mark`, `DagRoot.mark`, `PackedDag.mark`, then the GPU cut's frame word
+ * (`markOf`). 0 on any surface that draws no sprite.
  */
 export const spriteMark = (surface: Pick<VisMaterial, 'sprite'> | undefined) =>
   !surface?.sprite ? 0 : SPRITE_ROOT | (neverCulled(surface) ? SPRITE_UNCULLED : 0);
