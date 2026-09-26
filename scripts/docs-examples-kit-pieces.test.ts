@@ -78,7 +78,10 @@ test('the robot is its named joints, and plays its three clips at once', () => {
 test('the vehicles park on the ground, shaped as they are drawn, the camera behind', async () => {
   const camera = new Camera('perspective');
   const world = { camera, raycast: async () => ({ point: { y: 2 } }) };
-  const { car, motorcycle, tracked, park, chase } = vehicles(world as never, engine, { above: 60 });
+  const { car, motorcycle, tracked, park, chase, groundAt } = vehicles(world as never, engine, {
+    above: 60,
+  });
+  assert.equal(await groundAt(5, 5), 2);
   const built = [car(), motorcycle(), tracked()];
   for (const entry of built) await park(entry, [0, 20]);
   assert.deepEqual(
@@ -118,7 +121,7 @@ test('a vehicle with no ground below it fails by name', async (t) => {
   await assert.rejects(parked, /No ground below \[3, 4\] from 60 m after 30 s/);
 });
 
-test('the four pages build their pieces with the kit and keep no copy', () => {
+test('the pages build their pieces with the kit and keep no copy', () => {
   const page = (name: string) =>
     readFileSync(new URL(`../site/examples/${name}.html`, import.meta.url), 'utf8');
   for (const [name, piece, copy] of [
@@ -126,6 +129,11 @@ test('the four pages build their pieces with the kit and keep no copy', () => {
     ['a-robot-that-walks-and-waves', 'walkingRobot', 'animation.clip('],
     ['leaves-cut-by-alpha', 'leafTexture', 'createImageData'],
     ['a-matcap-sculpture', 'matcapBall', 'createImageData'],
+    // #799: the health check gathers all four.
+    ['health-check', 'vehicles', 'chassis'],
+    ['health-check', 'walkingRobot', 'animation.clip('],
+    ['health-check', 'leafTexture', 'createImageData'],
+    ['health-check', 'matcapBall', 'createImageData'],
   ]) {
     const source = page(name);
     assert.match(
