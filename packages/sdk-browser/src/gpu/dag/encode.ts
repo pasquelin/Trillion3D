@@ -68,6 +68,7 @@ function encodeOnce(
     drawPrefixPipeline,
     drawScatterPipeline,
     viewOffsetsPipeline,
+    requestSortPipeline,
     light,
   } = resources;
   // Every view's work items share each dispatch: a level's bound is its stage's nodes per view,
@@ -142,6 +143,12 @@ function encodeOnce(
     live.setPipeline(drawPrefixPipeline);
     live.dispatchWorkgroups(1);
     runLive(drawScatterPipeline);
+  }
+  // The camera's requests, staged by `dagWanted`, go into the snapshot sorted by rank: one
+  // workgroup, in the same pass (`shader/snapshotWgsl.ts`). A light cut sorts its own on the host.
+  if (!light) {
+    live.setPipeline(requestSortPipeline);
+    live.dispatchWorkgroups(1);
   }
   live.end();
 }

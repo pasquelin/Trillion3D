@@ -18,8 +18,9 @@
  * step — order between them is then indifferent, as it is on the reference, which does not break
  * ties either.
  *
- * The RANK the host sorts by (`requestRank`) puts every visible request before every request ahead
- * — the deadline of the first is now, of the second the horizon —, then the larger error first.
+ * The RANK the GPU sorts by (`requestRank`, `shader/snapshotWgsl.ts`) puts every visible request
+ * before every request ahead — the deadline of the first is now, of the second the horizon —, then
+ * the larger error first. The host reads the requests in that order and ranks nothing.
  */
 const REQUEST_PAGE_BITS = 22;
 export const REQUEST_PAGE_MAX = 1 << REQUEST_PAGE_BITS;
@@ -50,6 +51,25 @@ export const packRequest = (page: number, priority: number) =>
   ((priority << REQUEST_PAGE_BITS) | page) >>> 0;
 export const requestPage = (word: number) => word & (REQUEST_PAGE_MAX - 1);
 export const requestPriority = (word: number) => word >>> REQUEST_PAGE_BITS;
+const wordRank = (word: number) => requestRank(requestPriority(word));
+
+/**
+ * CPU mirror of `dagSortRequests` (`shader/snapshotWgsl.ts`), what the oracle and the Node device
+ * replay: the words by `requestRank`, highest first, in one count and one scatter over the ranks.
+ * Within a rank it keeps the order the words came in, one of the orders the kernel's threads give.
+ */
+export function sortRequestWords(words: ArrayLike<number>) {
+  const place = new Uint32Array(REQUEST_PRIORITY_MAX + 1);
+  for (let i = 0; i < words.length; i++) place[wordRank(words[i])]++;
+  for (let rank = REQUEST_PRIORITY_MAX, first = 0; rank >= 0; rank--) {
+    const held = place[rank];
+    place[rank] = first;
+    first += held;
+  }
+  const sorted = new Uint32Array(words.length);
+  for (let i = 0; i < words.length; i++) sorted[place[wordRank(words[i])]++] = words[i];
+  return sorted;
+}
 
 /**
  * WGSL mirror, bit for bit. WGSL `log2` and JavaScript `Math.log2` need not return the same

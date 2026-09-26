@@ -38,7 +38,10 @@ export async function createDagResources(
     liveGroupsOffset = travail.liveGroups * 4,
     candGroupsOffset = travail.candGroups * 4,
     drawnGroupsOffset = travail.drawnGroups * 4,
-    readbackBytes = outputBytes + (residentCut ? drawnBytes : 0);
+    readbackBytes = outputBytes + (residentCut ? drawnBytes : 0),
+    // Behind the drawn list, the requests wait for their sort, outside what the frame copies
+    // (`shader/snapshotWgsl.ts`): the readback stays the size it was.
+    stagedBytes = outputBytes + drawnBytes + listCap * 4;
   // The camera's block, then the view ahead's (`shader/aheadWgsl.ts`).
   const uniformData = new Float32Array(((AHEAD_VIEW + 1) * UNIFORM_BYTES) / 4);
   const frameData = primitiveFrameWords(packed);
@@ -76,7 +79,7 @@ export async function createDagResources(
     device.queue.writeBuffer(dispatchArgs, 0, new Uint32Array([0, 1, 1, 0]));
     const output = device.createBuffer({
       label: 'Trillion3D DAG readback',
-      size: readbackBytes,
+      size: stagedBytes,
       usage: STORAGE | GPUBufferUsage.COPY_SRC,
     });
     // No extra storage buffer, a stage's ceiling is already reached; arming words go to the
