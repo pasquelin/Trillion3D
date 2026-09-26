@@ -16,8 +16,11 @@ export const LAST_USE_WINDOW = DAG_READBACK_SLOTS + 1;
  *
  * A page the image keeps — its cut, the pinned cover, and what it draws, the nearest resident
  * ancestor standing in for a missing page included — is held. A page that leaves `keep` stays
- * held for `LAST_USE_WINDOW` frames, then is released, oldest first: the caller unpins it and sends it to
- * the far end of the cache's order, so the cache reclaims released pages in their last-use order.
+ * held for `LAST_USE_WINDOW` frames, then is released, oldest first: the caller unpins it and sends
+ * it to the far end of the cache's order, so the cache reclaims released pages in their last-use
+ * order. Under pressure — more held pages to load than the pool has unpinned slots — the window
+ * gives way first: that many idle pages are released early, still oldest first, so the window
+ * never costs the image a page it asks for.
  *
  * A page also stays held while a held page depends on it (`parentsOf`): holding a page holds its
  * parents, and a parent its last held child lets go of starts its own window then. A parent
@@ -32,7 +35,7 @@ export function createLastUse(options: {
   parentsOf: (rec: PageRec) => readonly PageRec[];
   /** True while the image keeps the page. */
   kept: (key: number) => boolean;
-  /** A page not kept became held through a child: the caller pins it once resident. */
+  /** A page became held through a child: the caller pins it once resident. */
   onHeld: (key: number) => void;
 }) {
   const { keyOf, parentsOf, kept, onHeld } = options;
@@ -40,7 +43,7 @@ export function createLastUse(options: {
   const idleSince = createSparseInts();
   /** Held pages that depend on each page. */
   const children = createSparseInts();
-  /** The record of each held page, read for its parents when it is released. */
+  /** The record of each held page that holds its parents, read for them when it is released. */
   const recs = new Map<number, PageRec>();
   /** Pages in the order they went idle, beside that frame; entries a later use made stale are
    *  skipped when they come due. */
@@ -57,7 +60,8 @@ export function createLastUse(options: {
   const holdParents = (rec: PageRec) => {
     for (const parent of parentsOf(rec)) {
       const key = keyOf(parent);
-      if (children.add(key, 1) > 1 || kept(key) || idleSince.get(key) > 0) continue;
+      children.add(key, 1);
+      if (recs.has(key)) continue;
       recs.set(key, parent);
       onHeld(key);
       holdParents(parent);
@@ -79,21 +83,23 @@ export function createLastUse(options: {
     holds: (key: number) => kept(key) || waits(key),
     /** The page joined `keep`: its window ends, and it holds its parents unless it already did. */
     use(key: number, rec?: PageRec) {
-      const held = waits(key);
       idleSince.set(key, 0);
-      if (held || !rec) return;
+      if (!rec || recs.has(key)) return;
       recs.set(key, rec);
       holdParents(rec);
     },
     /** The page left `keep` at `frame`: its window starts. */
     leave: idle,
-    /** Releases, oldest first, every page idle for the window that no held page depends on. */
-    release(frame: number, onRelease: (key: number) => void) {
-      while (head < idleKeys.length && frame - idleFrames[head] >= LAST_USE_WINDOW) {
+    /** Releases, oldest first, every page idle for the window that no held page depends on, and
+     *  `pressure` pages in all, those still within their window included. */
+    release(frame: number, onRelease: (key: number) => void, pressure = 0) {
+      while (head < idleKeys.length) {
+        if (frame - idleFrames[head] < LAST_USE_WINDOW && pressure <= 0) break;
         const key = idleKeys[head],
           since = idleFrames[head++];
-        if (idleSince.get(key) === since + 1 && !kept(key) && children.get(key) === 0)
-          release(key, frame, onRelease);
+        if (idleSince.get(key) !== since + 1 || kept(key) || children.get(key) !== 0) continue;
+        release(key, frame, onRelease);
+        pressure--;
       }
       if (head * 2 < idleKeys.length) return;
       idleKeys.splice(0, head);
