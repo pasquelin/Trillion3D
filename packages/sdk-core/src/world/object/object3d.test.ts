@@ -5,6 +5,12 @@ import { Light } from '../light/light.ts';
 import { Camera } from '../camera/camera.ts';
 import { Mesh } from './mesh.ts';
 import { cloneObject } from './clone.ts';
+import { Matrix4 } from '../math/matrix4.ts';
+import { mismatch } from '../../scene/core/nodeAttach.fixture.ts';
+import { Quaternion } from '../math/quaternion.ts';
+import { multiplyMatrix4 } from '../../math/matrix/matrix4.ts';
+import { invertMatrix4 } from '../../math/matrix/matrix4Inverse.ts';
+import { decomposeMatrix4 } from '../../math/matrix/matrix4Trs.ts';
 
 // Re-deriving Euler angles from the quaternion would swap (0, y, 0) past ±90° for the equivalent
 // (π, π − y, π); a later one-axis write would then keep x = z = π and turn the node another way.
@@ -70,4 +76,59 @@ test("a clone keeps a light's values, a camera's optics, and shares a mesh's con
   const twin = lines.clone();
   assert.ok(twin.geometry === lines.geometry && twin.material === lines.material, 'shared');
   assert.equal(twin.primitive, 'lineSegments');
+});
+
+test('attach keeps the world matrix, and position, rotation and scale hold the new pose', () => {
+  const [from, to, node] = [new Group(), new Group(), new Object3D()];
+  from.position.set(1, 2, 3);
+  from.rotation.set(0, Math.PI / 2, 0);
+  from.scale.set(2, 3, 4);
+  to.position.set(-4, 0, 1);
+  to.rotation.set(Math.PI / 2, 0, 0);
+  from.add(node);
+  node.position.set(1, -1, 2);
+  node.updateWorldMatrix(true, false);
+  const world = node.matrixWorld.clone();
+  assert.equal(to.attach(node), to);
+  assert.equal(node.parent, to);
+  node.updateMatrixWorld(true);
+  assert.equal(mismatch(node.matrixWorld.elements, world.elements), null, 'its world matrix, kept');
+  const posed = new Matrix4().compose(node.position, node.quaternion, node.scale);
+  assert.equal(
+    mismatch(posed.premultiply(to.matrixWorld).elements, world.elements),
+    null,
+    'its values',
+  );
+  to.attach(to);
+  assert.ok(to.parent === null && to.position.x === -4, 'attached to itself: declined, untouched');
+  const turn = new Quaternion().setFromEuler(node.rotation);
+  assert.ok(Math.abs(Math.abs(turn.dot(node.quaternion)) - 1) < 1e-12, 'its angles follow');
+});
+
+test("attach gives the reference's pose to the bit: new parent's inverse × old parent × local", () => {
+  const product = new Float64Array(16);
+  const [p, q, s] = [new Float64Array(3), new Float64Array(4), new Float64Array(3)];
+  const wave = (k: number) => Math.sin(k * 12.9898) * 3; // unrounded values, fixed from run to run
+  for (let i = 0; i < 16; i++) {
+    const [from, to, node] = [new Group(), new Group(), new Object3D()];
+    let k = i * 27 + 1;
+    for (const object of [from, to, node]) {
+      object.position.set(wave(k++), wave(k++), wave(k++));
+      object.rotation.set(wave(k++), wave(k++), wave(k++));
+      object.scale.set(2 + wave(k++) / 2, 2 + wave(k++) / 2, 2 + wave(k++) / 2);
+    }
+    from.add(node);
+    node.matrixAutoUpdate = i % 2 === 0; // manual update: the matrix is the pose
+    node.updateMatrix();
+    to.updateWorldMatrix(true, false);
+    node.updateWorldMatrix(true, false);
+    invertMatrix4(product, to.matrixWorld.elements);
+    multiplyMatrix4(product, product, from.matrixWorld.elements as Float64Array);
+    multiplyMatrix4(product, product, node.matrix.elements as Float64Array);
+    decomposeMatrix4(product, p, q, s);
+    to.attach(node);
+    const pose = [...node.position.elements, ...node.quaternion.elements, ...node.scale.elements];
+    assert.equal(mismatch(pose, [...p, ...q, ...s], 0), null, `attach ${i}: its values`);
+    if (!node.matrixAutoUpdate) assert.equal(mismatch(node.matrix.elements, product, 0), null);
+  }
 });

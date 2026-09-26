@@ -7,7 +7,8 @@ use crate::texture_preview::Layout;
 /// Entry names texture and `source.gltf` image it covers, source
 /// dimensions, origin kind — 0 for `uri`, 1 for buffer view whose index follows —
 /// then rank of first carried level, count, pixel start and length, chain it
-/// holds — 0 color, 1 data, 2 color weighted by coverage (`AtlasKind`) — and
+/// holds — 0 color, 1 data, 2 color weighted by coverage, whose cutoff byte fills
+/// bits 8–15 (`AtlasKind::word`) — and
 /// count of levels baked into files under `textures/<sha>/`, from 0 to `baked - 1`.
 /// `uri` itself not copied: read from `images[image]` named by entry,and
 /// duplicating it would create two truths. Levels not described one by one: their
