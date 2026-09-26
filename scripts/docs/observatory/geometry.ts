@@ -38,10 +38,7 @@ export function createWorkshop() {
     const { positions } = surface(material),
       from = positions.length;
     build();
-    const box = new Box3();
-    for (let i = from; i < positions.length; i += 3)
-      box.expandByPoint({ x: positions[i], y: positions[i + 1], z: positions[i + 2] });
-    const { min, max } = box;
+    const { min, max } = new Box3().setFromArray(positions.slice(from));
     const part: Part = { kind, min: min.toArray(), max: max.toArray() };
     parts.push(part);
     return part;

@@ -28,12 +28,13 @@
       // A scene file carries only its sun: what the sun misses would be black. The court is
       // outdoors, and its scene declares its sky beside its source, as a share of the sun; it is
       // read while the model loads.
-      const skyFile = fetch('../assets/gallery/signature-architecture/source/sky.json').then((response) => response.json());
       // The compiler cut the model into clusters of triangles, and each cluster into coarser
       // versions of itself. Every frame the engine picks, for each part of the view, the
       // coarsest version whose error stays under `pixelError` pixels on screen.
-      const model = await world.scene.load('../assets/gallery/signature-architecture/cache/native/full/manifest.json');
-      const sky = await skyFile;
+      const [sky, model] = await Promise.all([
+        fetch('../assets/gallery/signature-architecture/source/sky.json').then((response) => response.json()),
+        world.scene.load('../assets/gallery/signature-architecture/cache/native/full/manifest.json'),
+      ]);
       const [sun] = model.lights;
       world.scene.add(light.hemisphere({ ...sky, intensity: sun.intensity * sky.sunShare }));
       const framing = pose.fromBounds(model.bounds);

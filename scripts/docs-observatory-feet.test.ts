@@ -119,9 +119,7 @@ test("the compiled observatory decodes each block corner within its page's decla
     if (page.role === 'coarse' || !page.geometry) continue;
     const pageCorners = corners.filter((at) => holds(page.min, page.max, at, 1e-3));
     if (!pageCorners.length) continue;
-    const decoded = decodeGeometryPage(
-      new Uint8Array(readFileSync(join(dir, page.geometry.url))),
-    );
+    const decoded = decodeGeometryPage(new Uint8Array(readFileSync(join(dir, page.geometry.url))));
     const { position } = decoded.attributes,
       tolerance = Math.max(1e-4, decoded.quantizationError);
     for (const at of pageCorners) {

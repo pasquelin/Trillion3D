@@ -111,13 +111,13 @@ export function createObservatory() {
     for (const z of [-2, 0, 2].map((stone) => stone * paving.pitch)) {
       // The arch lies in the depth plane, `depth` thick across x; its tapered voussoirs remain a
       // curved LOD witness.
-      for (const [material, side] of [
+      for (const [material, face] of [
         [0, -1],
         [1, 1],
       ])
         w.patch(material, 64, 8, (u, v) => {
           const [y, dz] = arch(u * Math.PI, radius + thickness * v);
-          return [x + (side * depth) / 2, y, z + dz];
+          return [x + (face * depth) / 2, y, z + dz];
         });
       w.patch(0, 64, 4, (u, v) => {
         const [y, dz] = arch(u * Math.PI, radius);
