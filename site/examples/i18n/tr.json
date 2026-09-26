@@ -945,8 +945,7 @@
       "close": "Yakın çekim",
       "far": "Uzak görünüm",
       "pan": "Hızlı kaydırma",
-      "still": "Durağan",
-      "verdict": "Karar"
+      "still": "Durağan"
     },
     "controls": {
       "drive": "Arabayı sür",

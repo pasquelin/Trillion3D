@@ -42,10 +42,10 @@
       const world = createWorld('view', { controls: 'orbit', physics: true });
       const say = words();
       // Every frame the camera's tour draws counts toward the verdict of the part it is in; what
-      // a backend refuses is said on the world's channel, with its reason: a red line, never hidden.
+      // a backend refuses is said with its reason: a red line, but a limit the backend documents.
       let flown = null;
       const check = healthCheck(world, () => flown?.part ?? null);
-      const refuse = (reason) => (announce(say('refused'), reason), check.refuse(reason));
+      const refuse = (reason, documented) => (announce(say('refused'), reason), check.refuse(reason, documented));
       diagnostic.createChannel().observe(({ kind, message }) => kind.includes('refused') && refuse(message));
       world.scene.background = math.color('#bcd3e6');
       world.camera.far = 600;
@@ -195,13 +195,13 @@
         if (ui.drive) chase(driven, delta);
       });
 
-      // The path drawing the world, and what it refuses of the scene file's lights, with why:
+      // The path drawing the world, and what it documents it refuses of the scene's lights, with why:
       // asked once its first frame is drawn, so of a session that is open.
       const asked = world.onFrame(() => {
         asked();
         drawn(world.renderer);
         const { reason } = capability.lighting(world);
-        if (reason) refuse(reason);
+        if (reason) refuse(reason, true);
       });
     </script>
   </body>
