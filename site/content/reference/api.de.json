@@ -4897,7 +4897,7 @@
     "summary": "Der Datenatlas: Bilder von Metall-Rauheit, Normalen und Verdeckung."
   },
   "PREVIEW_ATLAS_NAMES": {
-    "summary": "Das `{kind}`, das der Pfad einer gebackenen Stufe für jeden Atlas trägt, so wie `bake.rs` sie benennt."
+    "summary": "Das `{kind}`, das der Pfad einer gebackenen Stufe für jeden Atlas trägt, so wie `reduce.rs` sie benennt; eine bei Byte C geschnittene Coverage-Kette hängt `-C` an."
   },
   "PREVIEW_BASE": {
     "summary": "Größte Seite, die eine von der Begleitdatei getragene Stufe haben kann."
@@ -6144,7 +6144,7 @@
       "sourceKind": "0, wenn die Bytes von einer Bild-URI kamen, 1, wenn sie von sourceBufferView kamen.",
       "sourceBufferView": "Puffersicht der vorbereiteten Szene, oder -1 für eine URI-Quelle.",
       "sha256": "SHA-256 der dekodierten Quellbytes.",
-      "atlas": "Die Kette, die dieser Eintrag trägt: PREVIEW_ATLAS_COLOR, PREVIEW_ATLAS_DATA oder PREVIEW_ATLAS_COVERAGE, die im Farbatlas abgetastet wird.",
+      "atlas": "Die Kette, die dieser Eintrag trägt: PREVIEW_ATLAS_COLOR, PREVIEW_ATLAS_DATA oder PREVIEW_ATLAS_COVERAGE, die im Farbatlas abgetastet wird, im niedrigen Byte; das Schnitt-Byte einer Coverage-Kette füllt die Bits 8–15.",
       "firstLevel": "Index der ersten in der Mip-Kette der Quelle getragenen Stufe; 0, wenn sie schon unter PREVIEW_BASE passt und die Begleitdatei also ihre ganze Auflösung trägt.",
       "bakedLevels": "In Dateien im Cache gebackene Stufen, von 0 bis bakedLevels - 1; firstLevel, wenn die Kette vollständig ist, 0, wenn nichts geschrieben wurde und die Engine das Quellbild lädt.",
       "levels": "Getragene Stufen in Reihenfolge, von der feinsten bis 1×1, jede eine Sicht auf die Bytes der Begleitdatei.",
