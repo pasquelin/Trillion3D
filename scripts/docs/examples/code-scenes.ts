@@ -1,4 +1,5 @@
 import { writeAvenue } from './avenue.ts';
+import { writeChalet } from './chalet.ts';
 import { writeChessObj } from './chess-obj.ts';
 import { writeChessSet } from './chess-set.ts';
 import { writeCourtyard } from './courtyard.ts';
@@ -22,4 +23,5 @@ export const codeScenes = {
   terrain: inCode(writeTerrain),
   'terrain-tiles': inCode(writeTerrainTiles),
   flag: inCode(writeFlag),
+  chalet: inCode(writeChalet),
 };
