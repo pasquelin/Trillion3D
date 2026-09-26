@@ -3,39 +3,16 @@
 // in that order. Run on the Node device, which replays the kernels through their CPU mirrors.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as G from '../../host/graph/graph.fixture.ts';
 import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts';
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
-import { cameraMoteur } from '../../camera/camera.fixture.ts';
-import { cameraSelectionUniforms } from '../core/selection.ts';
-import {
-  createGpuDagSelection,
-  evaluateDagSelectionKernel,
-  packDagSelection,
-  packedWorldsToRenderOrigin,
-} from './selection.ts';
-import { scenePages, sceneRoots } from './cutFrontierScene.fixture.ts';
+import { createGpuDagSelection, evaluateDagSelectionKernel } from './selection.ts';
+import { requestScene } from './requestScene.fixture.ts';
 import { SELECTION_HEADER_WORDS } from './layout.ts';
 import { REQUEST_STEP_MAX, packRequest, requestWordRank, sortRequestWords } from './request.ts';
 
-/** Four copies of a detail pyramid at four depths: the cut carries many error steps at once. */
-function scene() {
-  const pages = scenePages(1024, 6);
-  const poses = [0, 12, 30, 70].map((z) => new G.Matrix4().makeTranslation(0, 0, -z));
-  const roots = sceneRoots(pages, poses, true);
-  const packed = packDagSelection(roots);
-  const camera = G.perspectiveCamera(55, 16 / 9, 0.1, 200);
-  camera.position.set(0, 0, 16);
-  camera.lookAt(0, 0, 0);
-  camera.updateMatrixWorld(true);
-  const uniforms = cameraSelectionUniforms(cameraMoteur(camera), 1, [1280, 720]);
-  packedWorldsToRenderOrigin(packed, roots, uniforms.cameraWorld);
-  return { packed, uniforms };
-}
-
 test('the requests reach the host in requestRank order, sorted by the GPU', async () => {
   installGpuGlobals();
-  const { packed, uniforms } = scene();
+  const { packed, uni: uniforms } = requestScene(1, 1024, 6);
   const gpu = mockGpu({ packed });
   const selection = await createGpuDagSelection(gpu.device, packed);
   assert.ok(selection);
