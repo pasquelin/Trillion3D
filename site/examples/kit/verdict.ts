@@ -109,13 +109,8 @@ export function healthCheck(
         ...[...parts].flatMap(([name, frames]) => partLines(name, frames)),
         ligne({ name: 'refused', correct: !refused.length, motif: refused.join('; ') || '—' }),
       ];
-      const correct = resultats.every((line) => line.correct !== false);
-      return {
-        name: exampleId(),
-        fichier: `site/examples/${exampleId()}.html`,
-        resultats,
-        correct,
-      };
+      const [name, correct] = [exampleId(), resultats.every((line) => line.correct !== false)];
+      return { name, fichier: `site/examples/${name}.html`, resultats, correct };
     },
   };
 }
