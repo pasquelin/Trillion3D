@@ -94,7 +94,7 @@
       const glass = object.mesh(geometry.sphere(0.09, 24, 12), material.meshStandard({ color: '#000000', emissive: '#ff5ab4', emissiveIntensity: 4 }));
       world.scene.add(sun, sky, bulb, glass);
 
-      // The helpers, by family, drawn as guides: lines and dots of a fixed width on the screen,
+      // The helpers, by family, drawn as guides: lines and dots of a fixed CSS width on the screen,
       // over the picture and hidden by what stands in front of them, never part of the scene.
       const guide = (mark, width) => world.guides.add(mark, { width });
       // A box outline a touch larger than the object's box, grown about its centre.
@@ -114,21 +114,15 @@
         shafts.push(...from, ...to);
         tips.push(...to);
       }
-      // A helper that follows a light or a camera is placed again every frame, where it stands.
-      const follows = [];
-      const following = (mark, width) => {
-        const handle = guide(mark, width);
-        follows.push({ mark, handle });
-        return handle;
-      };
       const lifted = (mark, y) => ((mark.position.y = y), mark);
       const families = {
         grid: [guide(lifted(helper.grid(16, 32, '#8a8f9c', '#4c505c'), 0.01), 1), guide(lifted(helper.polarGrid(1.6, 16, 4, '#c9b27a'), 0.02), 1.5)],
         axes: [guide(lifted(helper.axes(2.2), 0.02), 3)],
         bounds: [outline(knot), outline(ball), outline(vase)],
         normals: [world.guides.lines({ positions: shafts, color: '#7ef0d8', width: 2 }), world.guides.points({ positions: tips, color: '#7ef0d8', size: 7 })],
-        lights: [following(helper.directionalLight(sun, 0.8), 2), following(helper.spotLight(spot), 1.5), following(helper.pointLight(bulb, 0.3), 1.5), following(helper.hemisphereLight(sky, 0.5), 1.5)],
-        camera: [following(helper.camera(filming), 2)],
+        // A light's or a camera's helper follows it by itself: the engine moves it when it moves.
+        lights: [guide(helper.directionalLight(sun, 0.8), 2), guide(helper.spotLight(spot), 1.5), guide(helper.pointLight(bulb, 0.3), 1.5), guide(helper.hemisphereLight(sky, 0.5), 1.5)],
+        camera: [guide(helper.camera(filming), 2)],
       };
       for (const handle of Object.values(families).flat()) handle.setVisible(false);
 
@@ -171,7 +165,7 @@
         const step = Math.min(delta, 0.05);
         time += step;
         if (revealed < ORDER.length && time > 0.8 + revealed * 0.55) show(ORDER.slice(0, ++revealed));
-        // The bulb circles the sculpture; its helper follows it.
+        // The bulb circles the sculpture; its helper follows it, as the camera's follows the dolly.
         const turn = time * 0.7;
         bulb.position.set(Math.cos(turn) * 1.7, 2.1 + 0.3 * Math.sin(turn * 2), Math.sin(turn) * 1.7);
         glass.position.copy(bulb.position);
@@ -185,11 +179,6 @@
         // The engine's camera sits in the lens, looking where the rig looks: down its own -z.
         filming.position.set(4.1 - Math.sin(yaw) * 0.55, 1.55, z - Math.cos(yaw) * 0.55);
         filming.rotation.set(0, yaw, 0);
-        for (const { mark, handle } of follows) {
-          mark.update();
-          mark.updateWorldMatrix(false, false);
-          handle.setTransform(mark.matrixWorld);
-        }
         world.invalidate();
       });
     </script>
