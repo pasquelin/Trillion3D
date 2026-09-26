@@ -6,7 +6,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { readCacheManifest } from '../../bench/runner/cacheManifest.ts';
 import { triangleCone } from '../kit/cone.ts';
 import { preparedGeometries } from '../../packages/sdk-browser/src/host/prepared/geometry.ts';
@@ -27,7 +27,7 @@ const bytesOf = (file: string) => new Uint8Array(readFileSync(file)).buffer;
 
 /** Every page of the scene cache whose pointer is `pointer`, and how many of them disagree. */
 function checkScene(pointer: string) {
-  const { dir, manifest } = readCacheManifest(dirname(new URL(pointer, root).pathname));
+  const { dir, manifest } = readCacheManifest(dirname(fileURLToPath(new URL(pointer, root))));
   const tables = JSON.parse(
     readFileSync(join(dir, 'scene-tables.json'), 'utf8'),
   ) as PreparedSceneTables;
@@ -39,7 +39,7 @@ function checkScene(pointer: string) {
   );
   const geometryOf = preparedGeometries(
     document,
-    bufferUrl ? bytesOf(new URL(bufferUrl).pathname) : null,
+    bufferUrl ? bytesOf(fileURLToPath(bufferUrl)) : null,
   );
   // A streaming bundle holds dozens of index pages: each is read once, and a page viewed in it.
   const bundles = new Map<string, ArrayBuffer>();

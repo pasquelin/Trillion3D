@@ -21,7 +21,8 @@ export function writeCone(
   cone: Page['cone'] | null = { axis: [0, 0, 1], angle: Math.PI },
 ) {
   const axis: unknown = cone?.axis;
-  if (!Array.isArray(axis) || axis.length !== 3 || !axis.every(Number.isFinite))
+  // `Array.from` turns a hole into `undefined`, which `every` alone would skip and `set` write as NaN.
+  if (!Array.isArray(axis) || axis.length !== 3 || !Array.from(axis).every(Number.isFinite))
     throw new EngineError('INVALID_CACHE', 'A cluster cone is not three axis numbers', { cone });
   if (!Number.isFinite(cone!.angle))
     throw new EngineError('INVALID_CACHE', 'A cluster cone angle is not finite', { cone });

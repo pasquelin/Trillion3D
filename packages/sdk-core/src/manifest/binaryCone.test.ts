@@ -14,6 +14,7 @@ test('a page without a cone decodes the open cone, and a malformed cone is refus
   assert.deepEqual(decoded.primitives[0].pages[0].cone, { axis: [0, 0, 1], angle: Math.PI });
   const malformed = [
     { axis: [0, 1], angle: 0 },
+    { axis: new Array(3), angle: 0 },
     { axis: [0, 0, 1], angle: NaN },
     { angle: 1 },
     null,
