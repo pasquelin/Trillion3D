@@ -116,7 +116,8 @@ before. Admission starts no page once it has held the main thread for the publis
 `STREAMING_FRAME_MS` (1 ms): it yields a task and resumes at once (`page/integration/frameBudget.ts`,
 the arrival queue's budget), so a due frame waits on it no longer than the share and the page begun
 within it, and a hidden tab, where no frame comes, still loads.
-Fetching and decoding stay in workers. WebGL2 keeps its own path (#490).
+Fetching and decoding stay in workers. WebGL2 cuts by the same rule and holds pages by the same
+residency, without the GPU cut or its readback (#490, #839).
 
 **Occlusion** is two-phase Hi-Z. Pass 1 draws the rows the previous frame drew that the previous
 frame's pyramid does not hide; a pyramid is built from that depth (background at the far plane, min
@@ -635,19 +636,31 @@ never comes before the pages it depends on (`backend/autonomous/requests.ts`). T
 list in its order while the copies it charges fit its slots, the root cover held beforehand
 (`backend/autonomous/pool.ts`); the rest is not asked for, and the cut draws its nearest resident
 ancestor instead. A smaller budget is therefore paid in detail, one DAG level at a time, from the
-finest down: the image that sees it asks for less, and just before the next cut the pages it drew
-but no longer asks for leave, so that cut draws their ancestors (`backend/autonomous/poolOrder.ts`).
+finest down: the image that sees it asks for less. What stays resident is decided by the engine's one
+residency, fed as WebGPU feeds it (`residency/lastUse.ts`): what the image asks for and what it draws
+are held, each holding the pages it depends on (`residency/pageParents.ts`), so the ancestor a surface
+falls back to never leaves under it. Just before a cut, what the last image drew but no longer asks
+for lets go, one DAG level per image, finest first; a page let go of is released at the next cut, or
+at once when the pool is short by that many slots, the window giving way as WebGPU's does under
+pressure (`backend/autonomous/poolOrder.ts`). Released pages leave by last use, oldest first
+(`evictOldest`). A budget cut is thus paid one level per image, and the residency's keys follow what
+is held, never every page once asked for (`backend/autonomous/pageKeys.ts`).
 `coverageBudgetLimited` says the wanted cut did not fit; a verdict change is queued and published as
 `coverage-budget` by `flush`, as on WebGPU, with `requiredSlots` the slots the whole request charges
-and `pixelError` the host's threshold. Between two cuts, what the image keeps — the root cover, the
-host's pages, what it asks for and what it drew — never leaves; over the slots, the rest leaves
-oldest first (`evictOldest`, the page streamer's order). A refinement may hold more for a while: a
-resident ancestor drawn in place of a missing page is kept while the pages that replace it arrive,
-and leaves with the cut that no longer draws it. Only
-the root cover and the pages the host replaced (`replaceGeometryPage`) stay above it; they are
+and `pixelError` the host's threshold. Between two cuts, what the image drew and every page that
+arrived since never leave: no hole, and a page is not evicted on arrival. Only
+the root cover and the pages the host replaced (`replaceGeometryPage`) stay above the slots; they are
 counted as the pages' bytes are, every geometry copy included. No pool is reserved:
 `geometryPoolAllocatedBytes` is `null`, and what the pages hold is `geometryAllocationBytes`.
 Backends without pools throw `UNSUPPORTED_MEMORY_BUDGETS`.
+
+**What WebGL2 declares it cannot carry.** WebGL2 keeps the cut rule, the residency and the budget
+above; what it lacks it names in `capabilities.unsupported` and in the `render-capabilities`
+diagnostic it publishes when it opens (`backend/autonomous/capabilities.ts`), never silently: no
+GPU-driven selection or indirect draw (the cut runs on the CPU), no occlusion culling, no cast
+shadows (neither the shadow atlas nor virtual shadow pages: its lights reach every surface,
+`webgl/cluster/lights.ts`), no global illumination, no temporal antialiasing, no physical VRAM
+reading. Each costs work or a feature, never coverage: no hole and no stale image.
 
 A region keeps a complete resident representation until every replacement page is uploaded: the
 cut rule below draws its nearest resident ancestor meanwhile, never the root cover in its place.
