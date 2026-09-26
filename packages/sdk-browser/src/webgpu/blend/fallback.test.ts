@@ -5,7 +5,11 @@ import { surfaceOf } from '../../page/surface.ts';
 import { BLEND_EQUATIONS, hostBlending } from '../../scene/materialBlending.ts';
 import { createWebgpuPagesPipelines } from '../pages/prepare/pipelines.ts';
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
-import { drawFallbackBlendPass, writeFallbackBlendUniforms } from './fallback.ts';
+import {
+  drawFallbackBlendPass,
+  listFallbackBlendDraws,
+  writeFallbackBlendUniforms,
+} from './fallback.ts';
 import { createWebgpuBlendState } from './state.ts';
 import type { Blending } from '../../../../sdk-core/src/world/constants/index.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
@@ -47,7 +51,7 @@ function drawn(blendings: (number | undefined)[]) {
     blendState,
   } as unknown as WebgpuPagesRuntime;
   const encoder = { beginRenderPass: () => pass } as unknown as GPUCommandEncoder;
-  drawFallbackBlendPass(rt, device, encoder, 0);
+  drawFallbackBlendPass(rt, device, encoder, 0, listFallbackBlendDraws(blendState));
   return set;
 }
 
@@ -71,22 +75,22 @@ test('the fallback pass refuses by name a blending no path draws', () => {
 // line quad (`lineClip`): it refuses a line surface by name instead of dropping it.
 function writeLines(lineWidth: number) {
   const { device, writes } = fakeDevice();
+  const blendState = createWebgpuBlendState();
+  blendState.visibleBlend = [
+    {
+      surface: surfaceOf(G.basicSurface({ transparent: true, opacity: 0.5, lineWidth })),
+      matrix: new G.Matrix4(),
+      rgba: [1, 1, 1, 0.5],
+      count: 6,
+      flags: 0,
+    },
+  ] as unknown as typeof blendState.visibleBlend;
   const rt = {
     run: { diagnostic: 'beauty' },
-    blendState: {
-      visibleBlend: [
-        {
-          surface: surfaceOf(G.basicSurface({ transparent: true, opacity: 0.5, lineWidth })),
-          matrix: new G.Matrix4(),
-          rgba: [1, 1, 1, 0.5],
-          count: 6,
-          flags: 0,
-        },
-      ],
-    },
+    blendState,
     gpu: { uniformPacked: new Float32Array(64).fill(7), uniformBuffer: {} },
   } as unknown as WebgpuPagesRuntime;
-  writeFallbackBlendUniforms(rt, device, 0);
+  writeFallbackBlendUniforms(rt, device, 0, listFallbackBlendDraws(blendState));
   return { written: writes, packed: rt.gpu.uniformPacked };
 }
 

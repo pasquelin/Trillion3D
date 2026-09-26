@@ -4,7 +4,11 @@ import { writeBlendView } from '../../blend/uniforms.ts';
 import { encodeBlendExpansion } from '../../blend/resources.ts';
 import { selectWebgpuBlend } from '../../blend/selection.ts';
 import { orderBlendPasses, orderVisibleBlend } from '../../blend/order.ts';
-import { drawFallbackBlendPass, writeFallbackBlendUniforms } from '../../blend/fallback.ts';
+import {
+  drawFallbackBlendPass,
+  listFallbackBlendDraws,
+  writeFallbackBlendUniforms,
+} from '../../blend/fallback.ts';
 import { encodeTransparentInstances } from '../../transparent/draw.ts';
 import { encodeWaterPass } from '../../water/pass.ts';
 import { encodeParticles } from '../../../particles/webgpuParticles.ts';
@@ -71,11 +75,12 @@ export function encodeBlend(
       run.gpuFrameActive ? undefined : run.drawn,
     );
     orderVisibleBlend(blendState, eye);
-    ensureUniform(rt, device, uniformBase + blendState.visibleBlend.length);
-    writeFallbackBlendUniforms(rt, device, uniformBase);
+    const draws = listFallbackBlendDraws(blendState);
+    ensureUniform(rt, device, uniformBase + draws);
+    writeFallbackBlendUniforms(rt, device, uniformBase, draws);
     const ready = performance.now();
     timing.transparentPrepareMs += ready - cpuStart;
-    drawFallbackBlendPass(rt, device, encoder, uniformBase);
+    drawFallbackBlendPass(rt, device, encoder, uniformBase, draws);
     timing.transparentDrawMs += performance.now() - ready;
     timing.transparentEncodeMs += performance.now() - cpuStart;
     return;
