@@ -18,6 +18,7 @@ import { startServer } from './staticServer.ts';
  */
 function engineInDist(root: string) {
   const imports: Record<string, string> = {};
+  assert.ok(existsSync(resolve(root, 'dist')), 'dist missing: run `pnpm run build` first');
   for (const file of readdirSync(resolve(root, 'dist'), { recursive: true, encoding: 'utf8' })) {
     const emitted = file.split(sep).join('/');
     const source = emitted.replace(/\.js$/, '.ts').replace(/\.mjs$/, '.mts');
