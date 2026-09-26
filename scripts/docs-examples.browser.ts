@@ -6,6 +6,7 @@ import { startDocsServer } from './docs-serve.ts';
 import { leastDrawn, openExample, RENDER_ONLY } from './docs/examples/capture.ts';
 import { physicsExamples } from './docs/examples/physics.ts';
 import { readyEntries as ready } from '../site/app/examples/list.ts';
+import type { HealthVerdict } from '../site/examples/kit/verdict.ts';
 
 /** The centre of the render, the kit's panels outside it. */
 const centre = (page: Page) =>
@@ -82,6 +83,51 @@ test('every example file renders an image on its own, fetching Jolt only when it
     // Both lists in one verdict: a physics mismatch never hides a blank page (#503).
     assert.deepEqual({ jolt, blank }, { jolt: [], blank: [] });
     await controlsDriveTheRender(browser, port);
+  } finally {
+    await browser.close();
+    await new Promise((resolve) => server.close(resolve));
+  }
+});
+
+/**
+ * #798: the health check flies its tour on each backend and publishes its verdict — every line
+ * green, a line a backend refuses red with its reason —, and a slowed build (`?slow=40`, 40 ms
+ * spent in every frame) turns the rate line of every part red, the overall verdict with it.
+ */
+test('the health check is green on both backends, and a slowed build turns its rate lines red', async () => {
+  const { server, port } = await startDocsServer();
+  const browser = await launchChrome({ headless: true });
+  try {
+    const entry = ready.find(({ id }) => id === 'health-check');
+    assert.ok(entry);
+    const found: string[] = [];
+    for (const gpu of [true, false])
+      for (const slow of [0, 40]) {
+        const side = `${gpu ? 'WebGPU' : 'WebGL2'}${slow ? ' slowed' : ''}`;
+        const file = `${entry.file}?slow=${slow}`,
+          view = { width: 1728, height: 1117 };
+        const { page, errors } = await openExample(
+          browser,
+          port,
+          { ...entry, file },
+          view,
+          undefined,
+          gpu,
+        );
+        await page.waitForFunction(() => '__verdict' in globalThis, null, { timeout: 120_000 });
+        const verdict = await page.evaluate(
+          () => (globalThis as unknown as { __verdict: HealthVerdict }).__verdict,
+        );
+        const rates = verdict.resultats.filter(({ name }) => name.endsWith(': FPS'));
+        if (!slow)
+          for (const { name, motif, correct } of verdict.resultats)
+            if (correct === false) found.push(`${side} ${name}: ${motif}`);
+        if (slow && (verdict.correct || rates.length !== 4 || rates.some(({ correct }) => correct)))
+          found.push(`${side}: not every rate line red`);
+        found.push(...errors.map((error) => `${side}: ${error}`));
+        await page.close();
+      }
+    assert.deepEqual(found, []);
   } finally {
     await browser.close();
     await new Promise((resolve) => server.close(resolve));
