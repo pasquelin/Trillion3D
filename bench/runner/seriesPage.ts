@@ -84,15 +84,22 @@ export async function runInPage(
   page: Page,
   payload: MeasureViewOptions,
 ): Promise<MeasureViewResult> {
-  try {
-    return await page.evaluate(async (o) => {
+  return withGpuIncidents(page, () =>
+    page.evaluate(async (o) => {
       const module = (await import(`${o.modulesUrl}${o.page}`)) as {
         measureView(options: typeof o): Promise<import('./measureOptions.ts').MeasureViewResult>;
       };
       const result = await module.measureView(o);
       if ('erreur' in result) return result;
       return { ...result, size: { ...result.size, dpr: devicePixelRatio } };
-    }, payload);
+    }, payload),
+  );
+}
+
+/** Runs `run` on `page`; a failure is rethrown with the GPU incidents the page published. */
+export async function withGpuIncidents<T>(page: Page, run: () => Promise<T>): Promise<T> {
+  try {
+    return await run();
   } catch (error) {
     const incidents: string[] = await page
       .evaluate(() => globalThis.incidentsGpu ?? [])
