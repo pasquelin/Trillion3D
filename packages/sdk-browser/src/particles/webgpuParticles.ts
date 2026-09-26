@@ -59,11 +59,11 @@ type PoolState = { step: GPUBuffer; staged: GPUBuffer; state: GPUBuffer; group: 
  * that has records or time to take. A pool's state is one storage buffer made the first time it
  * is stepped; its records ride in a staging buffer of the pool's size, written up to the image's
  * count. The pipeline compiles in the background; until it arrives no pool is taken, so what they
- * stage waits. `fail` hears a pipeline that could not be made.
+ * stage waits. `fail` hears a pipeline that could not be made, and every pool is then `refused`.
  */
 export function createWebgpuParticles(device: GPUDevice, fail: (error: unknown) => void) {
   const layout = bounceLayout(device, ['uniform', 'read-only-storage', 'storage']);
-  let pipeline: GPUComputePipeline | undefined;
+  let pipeline: GPUComputePipeline | null | undefined;
   createCheckedShaderModule(device, PARTICLES_WGSL, 'PARTICLES')
     .then((module) =>
       device.createComputePipelineAsync({
@@ -72,12 +72,23 @@ export function createWebgpuParticles(device: GPUDevice, fail: (error: unknown) 
         compute: { module, entryPoint: 'main' },
       }),
     )
-    .then((made) => (pipeline = made), fail);
+    .then(
+      (made) => (pipeline = made),
+      (error) => ((pipeline = null), fail(error)),
+    );
   const words = createStepWords();
   const pass: GPUComputePassDescriptor = { label: PARTICLES_PASS },
     made = new Map<ParticlePool, PoolState>();
   const buffer = (name: string, size: number, usage: number) =>
     device.createBuffer({ label: `${PARTICLES_PASS} ${name}`, size, usage });
+  /** Gives back the buffers of every pool not in `kept`: one the world let go of. */
+  const release = (kept: readonly ParticlePool[]) => {
+    for (const [pool, { step, staged, state }] of made)
+      if (!kept.includes(pool)) {
+        for (const gone of [step, staged, state]) gone.destroy();
+        made.delete(pool);
+      }
+  };
   const make = (pool: ParticlePool) => {
     const { STORAGE, UNIFORM, COPY_DST } = GPUBufferUsage;
     const step = buffer('step', words.buffer.byteLength, UNIFORM | COPY_DST),
@@ -90,13 +101,16 @@ export function createWebgpuParticles(device: GPUDevice, fail: (error: unknown) 
   return {
     /** Steps `pools` in `encoder`; returns the dispatches encoded. */
     run(pools: readonly ParticlePool[], encoder: GPUCommandEncoder) {
-      if (!pipeline) return 0;
+      if (pipeline === undefined) return 0;
       let computing: GPUComputePassEncoder | undefined,
-        dispatches = 0;
+        dispatches = 0,
+        held = 0;
       for (const pool of pools) {
+        if (made.has(pool)) held++;
+        pool.refused = !pipeline;
         const step = pool.flush(),
           { count } = step;
-        if (!count && !step.dt) continue;
+        if (!pipeline || (!count && !step.dt)) continue;
         const kept = made.get(pool) ?? make(pool);
         words.write(pool, step);
         device.queue.writeBuffer(kept.step, 0, words.buffer);
@@ -107,24 +121,16 @@ export function createWebgpuParticles(device: GPUDevice, fail: (error: unknown) 
           computing.setPipeline(pipeline);
         }
         computing.setBindGroup(0, kept.group);
-        computing.dispatchWorkgroups(Math.ceil(pool.capacity / PARTICLE_WORKGROUP));
+        // Slots past the ring's first lap hold nothing yet: they are not dispatched.
+        const slots = Math.min(pool.capacity, pool.emitted);
+        computing.dispatchWorkgroups(Math.ceil(slots / PARTICLE_WORKGROUP));
         dispatches++;
       }
       computing?.end();
-      // A pool the world let go of gives its buffers back.
-      if (made.size > pools.length)
-        for (const [pool, kept] of made)
-          if (!pools.includes(pool)) {
-            for (const gone of [kept.step, kept.staged, kept.state]) gone.destroy();
-            made.delete(pool);
-          }
+      if (made.size > held) release(pools);
       return dispatches;
     },
-    dispose() {
-      for (const { step, staged, state } of made.values())
-        for (const gone of [step, staged, state]) gone.destroy();
-      made.clear();
-    },
+    dispose: () => release([]),
   };
 }
 
