@@ -24,6 +24,17 @@ export function evictResident(
   }));
 }
 
+/** The next page of the published eviction order still resident and unpinned, taken from it. */
+function orderedVictim({ eviction, resident, pins }: GpuPageContext) {
+  const { order } = eviction;
+  while (order && eviction.at < order.length) {
+    const key = order[eviction.at++],
+      page = resident.get(key);
+    if (page && !pins.has(key)) return page;
+  }
+  return undefined;
+}
+
 /** Reserves a slot, evicts only an unpinned page, and uploads one complete fixed-size GPU slot. */
 export function commitGpuPage(
   context: GpuPageContext,
@@ -37,10 +48,10 @@ export function commitGpuPage(
   state.bytesRead += bytes.byteLength;
   let slot = free.pop();
   if (slot === undefined) {
-    let victim: ResidentPage | undefined;
+    let victim = orderedVictim(context);
     // Everything is pinned: stated in O(1), without walking residency — this is a pool full
     // for the view, repeating every burst until the cut has grown.
-    if (pins.size < resident.size)
+    if (!context.eviction.order && pins.size < resident.size)
       for (const page of resident.values()) {
         if (!pins.has(page.key)) {
           victim = page;
