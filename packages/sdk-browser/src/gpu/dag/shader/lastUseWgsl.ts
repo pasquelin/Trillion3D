@@ -10,9 +10,12 @@ import { LEVEL_QUEUES } from './levelWgsl.ts';
  * cleared flag. A light cut stamps nothing — its flags are its own and two views may draw one
  * page. The residency cache applies the same rule from the drawn list it reads back
  * (`../../../webgpu/residency/lastUse.ts`); the eviction queue of #478 reads these words.
+ *
+ * `dagFlagsWords` sizes `flags`: the descent queues, four words per page, and the last-use word
+ * per page unless the cut stamps none (`lastUse` false: a light cut).
  */
-export const dagFlagsWords = (queueCap: number, pageCount: number) =>
-  queueCap * LEVEL_QUEUES + pageCount * 5;
+export const dagFlagsWords = (queueCap: number, pageCount: number, lastUse = true) =>
+  queueCap * LEVEL_QUEUES + pageCount * (lastUse ? 5 : 4);
 
 export const DAG_LAST_USE_WGSL = `fn frameWord()->u32{return drawnGroupsMax()+1u;}
 fn lastUseAt(i:u32)->u32{return queueBase(${LEVEL_QUEUES}u)+i;}
