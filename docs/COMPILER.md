@@ -621,8 +621,8 @@ key, so a cache cooked by another Jolt is another key, never reused. The algorit
   Jolt builds the hulls into one `StaticCompoundShape` (`cook_hulls`, `hulls.rs`) at the runtime's
   density, 1000 kg/m³, and weighs it: mass, centre of mass and inertia are written beside it, in
   the mesh's frame, so the page builds no hull and weighs nothing. A body the cook refuses — a
-  missing shape, a shearing node, hulls Jolt refuses — is named in `report.bodiesRefused`; the
-  compile goes on.
+  missing shape, a shearing node, a flat mesh, hulls Jolt refuses — is named in
+  `report.bodiesRefused`; the compile goes on.
 
 Primitives without a DAG (skinned, morphed, shared blend) cook no collider. A primitive whose shape Jolt
 still refuses (every triangle of zero area) cooks no collider either: `physics.json`'s

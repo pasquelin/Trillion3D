@@ -39,7 +39,8 @@ fn concave(pos: &[f32], triangles: &[u32], planes: &[[f32; 4]], tolerance: f64) 
 fn split(pos: &[f32], triangles: &[u32], tolerance: f64, depth: u32, out: &mut Vec<Vec<f32>>) {
     let points = compact_region(pos, triangles).0;
     let planes = hull_planes(&points);
-    if planes.is_empty() {
+    // Jolt builds a flat part's hull as two back-to-back faces: it has no volume, so no mass.
+    if planes.len() < 4 {
         return;
     }
     if depth >= MAX_DEPTH || triangles.len() < 12 || !concave(pos, triangles, &planes, tolerance) {
@@ -55,9 +56,12 @@ fn split(pos: &[f32], triangles: &[u32], tolerance: f64, depth: u32, out: &mut V
     let mut centres: Vec<f32> = triangles.as_chunks::<3>().0.iter().map(centre).collect();
     let middle = centres.len() / 2;
     let cut = *centres.select_nth_unstable_by(middle, f32::total_cmp).1;
+    // Half the triangles or more centred on the lowest value: the ties go below, else no cut.
+    let ties_below = centres[..middle].iter().all(|&c| c >= cut);
     let (mut below, mut above) = (Vec::new(), Vec::new());
     for tri in triangles.as_chunks::<3>().0.iter() {
-        if centre(tri) < cut {
+        let c = centre(tri);
+        if c < cut || (ties_below && c == cut) {
             &mut below
         } else {
             &mut above
