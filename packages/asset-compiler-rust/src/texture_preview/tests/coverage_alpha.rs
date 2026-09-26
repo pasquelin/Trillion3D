@@ -108,9 +108,12 @@ fn material(mode: &str, cutoff: f64, texture: usize) -> Value {
 #[test]
 fn a_texture_is_cut_at_its_lowest_cutoff_unless_a_reader_blends() {
     assert_eq!(
-        [0.5, 0.25, 1.0 / 255.0, 1.0, 1.5].map(cutoff_byte),
-        [128, 64, 1, 255, 0]
+        [0.5, 0.25, 1.0 / 255.0, 1.0].map(|c| cutoff_byte(c, 1.0)),
+        [128, 64, 1, 255]
     );
+    // The engine's product, never the cutoff over the factor: 0.66 / 0.9 × 255 is 187 on the dot,
+    // which WebGL2 keeps and the quotient rounds to 188.
+    assert_eq!(cutoff_byte(0.66, 0.9), 187);
     let kind_of = |materials: Vec<Value>| {
         let primitives: Vec<Value> = (0..materials.len())
             .map(|m| json!({"attributes": {}, "material": m}))
@@ -134,11 +137,8 @@ fn a_texture_is_cut_at_its_lowest_cutoff_unless_a_reader_blends() {
     // A factor of 0, or one at or under the cutoff, keeps at most the opaque texels: that reader
     // takes 255, and a texture another reader cuts keeps that reader's cutoff.
     for factor in [0.0, 0.25, 0.1] {
-        assert_eq!(
-            fade(masked.clone(), factor),
-            AtlasKind::Coverage(128),
-            "{factor}"
-        );
+        let both = fade(masked.clone(), factor);
+        assert_eq!(both, AtlasKind::Coverage(128), "{factor}");
         let alone = vec![masked[1].clone()];
         assert_eq!(fade(alone, factor), AtlasKind::Coverage(255), "{factor}");
     }

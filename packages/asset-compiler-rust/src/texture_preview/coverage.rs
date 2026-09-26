@@ -30,27 +30,28 @@
 
 use super::reduce::AtlasKind;
 
-/// The smallest byte `b` with `b / 255 >= cutoff`, the test of the quality gate
-/// (`blocks/quality.rs`); 0 when no byte reaches it.
-pub(super) fn cutoff_byte(cutoff: f32) -> u8 {
+/// The smallest byte `b` a material keeps at `cutoff` under a `baseColorFactor`
+/// alpha `factor`: `b / 255 × factor >= cutoff` in `f32`, the product glTF 2.0
+/// cuts and WebGL2 computes (`base.a < alphaCutoff`, WebGPU follows in #748) —
+/// dividing the cutoff by the factor instead would land a byte off on exact ties.
+/// With a factor of 1 it is the quality gate's test (`blocks/quality.rs`). 255
+/// when no byte reaches it — a factor of 0 or below, or a cutoff above the factor,
+/// keeps no texel —, which the lowest cutoff over a texture's readers ignores
+/// beside any other one.
+pub(super) fn cutoff_byte(cutoff: f32, factor: f32) -> u8 {
     (1..=255u8)
-        .find(|&byte| f32::from(byte) / 255.0 >= cutoff)
-        .unwrap_or(0)
+        .find(|&byte| f32::from(byte) / 255.0 * factor >= cutoff)
+        .unwrap_or(255)
 }
 
-/// A masked material's effective cutoff byte. glTF 2.0 cuts the sampled alpha
-/// times the `baseColorFactor` alpha `f` against `alphaCutoff` — WebGL2 does,
-/// WebGPU follows in #748 —, so the texture's own cutoff is `alphaCutoff / f`,
-/// clamped to 1: a factor of 0 or below, or a cutoff at or above the factor, keeps
-/// at most the fully opaque texels (none, once the cutoff exceeds the factor), and
-/// takes 255, which the lowest cutoff over a texture's readers ignores beside any
-/// other one.
+/// A masked material's cutoff byte, under its `baseColorFactor` alpha (1 when
+/// absent).
 pub(super) fn material_cutoff(material: &serde_json::Value, cutoff: f32) -> u8 {
     let factor = material
         .pointer("/pbrMetallicRoughness/baseColorFactor/3")
         .and_then(serde_json::Value::as_f64)
         .unwrap_or(1.0) as f32;
-    cutoff_byte((cutoff / factor.max(0.0)).min(1.0))
+    cutoff_byte(cutoff, factor)
 }
 
 /// What level 0 covers at the chain's cutoff: the share every level keeps.
