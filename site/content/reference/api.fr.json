@@ -6623,7 +6623,7 @@
   },
   "world.beforeFrame": {
     "summary": "Lance une fonction juste avant chaque image dessinée, avec `{ delta, time }` ; renvoie de quoi l’arrêter.",
-    "description": "Une image de la boucle du monde se déroule ainsi : le contrôleur fait avancer la caméra (sauf si `controls.autoUpdate` vaut false), les animations avancent, ces crochets s’exécutent dans l’ordre où ils ont été ajoutés, la scène est écrite et dessinée, puis viennent les crochets `onFrame`. Ce qu’un crochet place — un corps sur la caméra, un cockpit — est dessiné dans cette image même, jamais une image en retard. Un `render()` mené par l’hôte les lance aussi, mais ne fait avancer aucun contrôleur. Un crochet qui appelle `invalidate()` fait venir les images suivantes.",
+    "description": "Une image se déroule ainsi : le contrôleur de la caméra (sauf si `controls.autoUpdate` vaut false ou si l’hôte mène, `render()`), les animations, la physique, ces crochets dans leur ordre, le dessin, puis les crochets `onFrame`. Ce qu’un crochet place — un corps sur la caméra, un cockpit — est dessiné dans cette image même, jamais une image en retard. Un crochet qui appelle `invalidate()` fait venir les images suivantes.",
     "parameters": {
       "hook": "La fonction à lancer ; elle reçoit les secondes tout juste intégrées et le temps du monde."
     },
@@ -6640,7 +6640,7 @@
     "summary": "Demande une nouvelle image après un changement que le monde n’a pas pu voir."
   },
   "world.render": {
-    "summary": "Dessine une image tout de suite, qui que soit le maître de la boucle."
+    "summary": "Dessine une image tout de suite, qui que soit le maître de la boucle : les animations et la physique avancent avec elle."
   },
   "world.resize": {
     "summary": "Dit au monde que le canevas a changé de taille ; sans valeur, il lit la taille du canevas.",
