@@ -38,15 +38,15 @@ pub(crate) fn declared_matter(g: &Value, node: &Value) -> Value {
 /// The `physics.json` entry of the body node `index` of `nodes` declares, placed by its `world`
 /// matrix: its `motion` as declared, its matter, pose and shape — the `KHR_implicit_shapes` shape
 /// its collider names, as declared; else the cooked hull of the mesh its collider names (its own
-/// without a collider), moved into the body's frame, and the exact mass of the solid it bounds —
-/// one hull, whether or not the collider asks for `convexHull`; bodies drawing the same mesh in
-/// their own frame at one scale share it.
+/// without a collider), moved into the body's frame, and, a dynamic body's, the exact mass of the
+/// solid it bounds — one hull, whether or not the collider asks for `convexHull`; bodies drawing
+/// the same mesh in their own frame at one scale share it.
 fn body(
     o: &Options,
     source: (&Value, &[u8]),
     nodes: &[Value],
     (index, world): (usize, &[Mat4]),
-    cooked: &mut BTreeMap<(usize, [u64; 3]), Value>,
+    cooked: &mut BTreeMap<(usize, Option<[u64; 3]>), Value>,
 ) -> Result<Value> {
     let declared = &nodes[index]["extensions"]["KHR_physics_rigid_bodies"];
     let pose = trs(&world[index])
@@ -66,10 +66,11 @@ fn body(
                 .and_then(Value::as_u64)
                 .map_or(index, |n| n as usize);
             let mesh = nodes.get(at).and_then(|n| n["mesh"].as_u64());
-            let mesh = mesh.ok_or_else(|| {
-                refused(format!(
+            let mesh = mesh.ok_or_else(|| match at == index {
+                true => refused("A body that draws no mesh names no collider shape.".into()),
+                false => refused(format!(
                     "A body's collider names node {at}, which draws no mesh."
-                ))
+                )),
             })?;
             // Another node's mesh is moved by its placement relative to the body's (`trs`).
             let (t, [x, y, z, w], s) = pose;
@@ -79,13 +80,16 @@ fn body(
             );
             let frame = (at != index)
                 .then(|| multiply(&scaling(s.map(|v| 1.0 / v)), &multiply(&undo, &world[at])));
+            // A kinematic body is moved, never pushed: it is not weighed.
+            let kinematic = declared.pointer("/motion/isKinematic") == Some(&Value::Bool(true));
+            let weigh = (!kinematic).then_some(s);
             let key = frame
                 .is_none()
-                .then_some((mesh as usize, s.map(f64::to_bits)));
+                .then_some((mesh as usize, weigh.map(|s| s.map(f64::to_bits))));
             match key.and_then(|k| cooked.get(&k)) {
                 Some(shared) => shared.clone(),
                 None => {
-                    let shape = cooked_hull(o, source, (mesh as usize, frame), s)?;
+                    let shape = cooked_hull(o, source, (mesh as usize, frame), weigh)?;
                     key.map(|k| cooked.insert(k, shape.clone()));
                     shape
                 }

@@ -12,7 +12,8 @@ use std::collections::{BTreeMap, BTreeSet};
 // cube; the one declaring nothing is no body; the one naming a missing shape is refused by name,
 // as is an open square asking for its convex hull. A body that draws nothing, 5 m away, whose
 // collider names the plain cube's node, weighs that cube in its own frame; a cube the slice left
-// out is no body. The cubes stay static ground until the page restores their bodies.
+// out is no body; a kinematic open square gets its hull, unweighed. The cubes stay static ground
+// until the page restores their bodies.
 #[test]
 fn declared_bodies_are_cooked_beside_the_static_ground() {
     let mut bin = crate::import::f32_bytes(&cube([0.0; 3], [1.0; 3]));
@@ -32,13 +33,14 @@ fn declared_bodies_are_cooked_beside_the_static_ground() {
             rigid(json!({"motion":{"isKinematic":true},"collider":{"geometry":{"shape":3}}})),
             {"mesh":1,"extensions":{"KHR_physics_rigid_bodies":{"motion":{},"collider":{"geometry":{"convexHull":true}}}}},
             {"translation":[5, 0, 0],"extensions":{"KHR_physics_rigid_bodies":{"motion":{},"collider":{"geometry":{"node":2}}}}},
-            rigid(json!({"motion":{}}))],
+            rigid(json!({"motion":{}})),
+            {"mesh":1,"extensions":{"KHR_physics_rigid_bodies":{"motion":{"isKinematic":true}}}}],
     });
     let root =
         std::path::Path::new(env!("OUT_DIR")).join(format!("body-cook-{}", std::process::id()));
     let o = crate::texture_preview::tests::options(&root);
     std::fs::create_dir_all(o.cache.join("native/objects")).unwrap();
-    let (chosen, mesh_map) = (BTreeSet::from([0, 1, 2, 3, 4]), BTreeMap::from([(0, 0)]));
+    let (chosen, mesh_map) = (BTreeSet::from([0, 1, 2, 3, 4, 7]), BTreeMap::from([(0, 0)]));
     let scene = DepthLayerScene {
         o: &o,
         g: &g,
@@ -57,8 +59,9 @@ fn declared_bodies_are_cooked_beside_the_static_ground() {
     .unwrap();
     let written: Value =
         serde_json::from_slice(&std::fs::read(root.join("physics.json")).unwrap()).unwrap();
-    let [declared, shapeless, offset] = written["bodies"].as_array().unwrap().as_slice() else {
-        panic!("three bodies: {}", written["bodies"]);
+    let bodies = written["bodies"].as_array().unwrap();
+    let [declared, shapeless, offset, kinematic] = bodies.as_slice() else {
+        panic!("four bodies: {}", written["bodies"]);
     };
     assert_eq!(
         declared,
@@ -83,7 +86,12 @@ fn declared_bodies_are_cooked_beside_the_static_ground() {
         .map(|i| &i["node"])
         .collect();
     assert_eq!(placed, [&json!(0), &json!(1), &json!(2), &json!(3)]);
-    assert_eq!(written["report"]["bodies"], json!(3));
+    assert_eq!(written["report"]["bodies"], json!(4));
+    let hull = &kinematic["shape"];
+    assert_eq!(
+        (&kinematic["node"], &hull["type"], &hull["mass"]),
+        (&json!(7), &json!("cooked"), &Value::Null)
+    );
     assert_eq!(
         written["report"]["bodiesRefused"],
         json!([{"node":3,"reason":"A body's collider names shape 3, which is missing."},
