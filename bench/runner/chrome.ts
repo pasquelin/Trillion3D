@@ -9,12 +9,11 @@ import { relative, sep } from 'node:path';
 import { chromium } from 'playwright';
 import type { LaunchOptions } from 'playwright';
 import { isUnitTest } from '../../scripts/unit-tests.ts';
-import {
-  BROWSER,
-  RACINE,
-  listBrowserFiles,
-  listJustesseTests,
-} from '../../tests/browser/test-gpu.ts';
+import { BROWSER, listBrowserFiles, listJustesseTests } from '../../tests/browser/test-gpu.ts';
+import { RACINE } from '../core/paths.ts';
+
+/** How every refusal starts, for the tests that count them. */
+export const CHROME_REFUSED = 'Chrome refused';
 
 /** Folders whose entry points open Chrome on purpose: the bench and the repository's scripts. */
 const LAUNCHING_FOLDERS = ['bench/', 'scripts/'];
@@ -36,18 +35,21 @@ const repositoryPath = (entry: string) => {
  */
 export function assertBrowserEntryPoint(entry = process.argv[1]) {
   const path = entry ? repositoryPath(entry) : null;
-  const renders = listBrowserFiles().map((file) => `${BROWSER}/${file}`);
-  if (path && [...listJustesseTests(), ...renders].includes(path)) return;
-  if (path && LAUNCHING_FOLDERS.some((folder) => path.startsWith(folder)) && !isUnitTest(path))
-    return;
+  const launches =
+    path !== null &&
+    (LAUNCHING_FOLDERS.some((folder) => path.startsWith(folder))
+      ? !isUnitTest(path)
+      : listJustesseTests().includes(path) ||
+        listBrowserFiles().some((file) => path === `${BROWSER}/${file}`));
+  if (launches) return;
   throw new Error(
-    `Chrome refused: the entry point ${entry || '(none)'} is no proof, bench or script run. ` +
+    `${CHROME_REFUSED}: the entry point ${entry || '(none)'} is no proof, bench or script run. ` +
       'Importing a proof never launches a browser; run it on its own (`pnpm run test:gpu <file>`).',
   );
 }
 
-/** Set on the proof import test's children: a refused launch ends the process there, so no proof
- *  runs its work past the refusal. */
+/** Set on the proof import test's children: a refused launch ends the process there, failed, so
+ *  no proof runs its work past the refusal. */
 export const EXIT_ON_REFUSAL = 'TRILLION3D_EXIT_ON_CHROME_REFUSAL';
 
 /**
@@ -61,7 +63,7 @@ export async function launchChrome(options: LaunchOptions = {}) {
   } catch (error) {
     if (!process.env[EXIT_ON_REFUSAL]) throw error;
     writeSync(2, `${(error as Error).message}\n`);
-    process.exit(0);
+    process.exit(1);
   }
   return chromium.launch({ channel: 'chrome', ...options });
 }

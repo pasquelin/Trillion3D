@@ -12,9 +12,13 @@ import { assertBrowserEntryPoint, launchChrome } from './chrome.ts';
 const at = (path: string) => join(RACINE, path);
 
 test('a proof, a bench runner or a script run as the entry point may open Chrome', () => {
-  const runs = [listJustesseTests()[0], listBrowserTests()[0], 'bench/runner/bench.ts'];
-  for (const run of [...runs, 'scripts/site-first-load.ts'])
-    assert.doesNotThrow(() => assertBrowserEntryPoint(at(run)), run);
+  const runs = [
+    listJustesseTests()[0],
+    listBrowserTests()[0],
+    'bench/runner/bench.ts',
+    'scripts/site-first-load.ts',
+  ];
+  for (const run of runs) assert.doesNotThrow(() => assertBrowserEntryPoint(at(run)), run);
 });
 
 test('a unit test, a support module, a missing file or no file at all may not', () => {

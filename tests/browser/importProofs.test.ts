@@ -13,12 +13,11 @@ import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { chromium } from 'playwright';
 import { MEASURE_OUT } from '../../bench/core/paths.ts';
-import { EXIT_ON_REFUSAL } from '../../bench/runner/chrome.ts';
+import { CHROME_REFUSED, EXIT_ON_REFUSAL } from '../../bench/runner/chrome.ts';
 import { BROWSER, JUSTESSE, RACINE } from './test-gpu.ts';
 
 const TARGET = 'TRILLION3D_IMPORT_PROOF',
-  REPORT = 'import report: ',
-  REFUSED = 'Chrome refused';
+  REPORT = 'import report: ';
 const FOLDERS = [JUSTESSE, BROWSER];
 /** How long a child whose proof left a server open waits, once imported, for a late launch. */
 const SETTLE_MS = 3000;
@@ -100,7 +99,9 @@ else
         assert.deepEqual(JSON.parse(report.slice(REPORT.length)), { reached: 0 }, file);
       }
       for (const folder of FOLDERS) {
-        const refused = [...outputs].filter(([f, o]) => f.includes(folder) && o.includes(REFUSED));
+        const refused = [...outputs].filter(
+          ([f, o]) => f.includes(folder) && o.includes(CHROME_REFUSED),
+        );
         assert.ok(refused.length > 0, `no file of ${folder} reached the launcher`);
       }
     } finally {
