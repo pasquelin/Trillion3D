@@ -34,14 +34,7 @@ fn foliage(side: u32) -> image::RgbaImage {
 /// by more than 2.5 %, or by more than one texel where 2.5 % is less: a level cannot cover a
 /// fraction of a texel.
 fn strays(chain: &[Vec<u8>], cutoff: u8) -> Vec<usize> {
-    let covered = |level: &[u8]| {
-        level
-            .as_chunks::<4>()
-            .0
-            .iter()
-            .filter(|t| t[3] >= cutoff)
-            .count()
-    };
+    let covered = |level: &[u8]| level.chunks_exact(4).filter(|t| t[3] >= cutoff).count();
     let share = covered(&chain[0]) as f64 / (chain[0].len() / 4) as f64;
     (0..chain.len())
         .filter(|&k| {
@@ -58,7 +51,7 @@ fn coverage_holds_at_every_level_of_a_masked_chain() {
     let source = foliage(512);
     for cutoff in [64, 128, 191] {
         let chain = reduce::chain(&source, AtlasKind::Coverage(cutoff));
-        assert!(strays(&chain, cutoff).is_empty(), "cutoff {cutoff}");
+        assert_eq!(strays(&chain, cutoff), [0usize; 0], "cutoff {cutoff}");
     }
     let median = reduce::chain(&source, AtlasKind::Coverage(0));
     assert_eq!(strays(&median, 128), [3, 4, 5, 6, 7, 8]);
@@ -79,7 +72,7 @@ fn the_scale_lands_on_the_cutoff_in_integers() {
     assert_eq!(unchanged, texels([255, 128, 127, 0]), "t = C keeps them");
     assert!(
         Covered::of(&level, AtlasKind::Coverage(0)).is_none(),
-        "blended"
+        "blended: median alone"
     );
 }
 
