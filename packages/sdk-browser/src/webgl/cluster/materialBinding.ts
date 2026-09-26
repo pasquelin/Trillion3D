@@ -1,9 +1,9 @@
 import { visMaterial } from '../../visibility/shader/material.ts';
 import { writeSpriteWords } from '../../visibility/shader/spriteWgsl.ts';
-import { SURFACE_MODEL, shownAsIs } from '../../scene/surfaceModel.ts';
+import { SURFACE_MODEL, readsOcclusion, shownAsIs } from '../../scene/surfaceModel.ts';
 import { writeDepthRamp } from '../../camera/depthConvention.ts';
 import { importHostTexture } from '../../host/textureImport.ts';
-import type { HostTexture } from '../../host/resources.ts';
+import type { HostShadedMaterial } from '../../host/shadedMaterial.ts';
 import type { ClusterDrawMesh } from '../../cluster/batchMesh.ts';
 import type { Side } from '../../../../sdk-core/src/index.ts';
 import type { WebglClusterTextures } from './textures.ts';
@@ -61,8 +61,11 @@ export function bindClusterMaterial(
     mat = visMaterial(material);
   // An unlit material keeps its occlusion map and strength on the host object alone: its map is
   // imported here, as the boundary imports every other, into the engine record the binding reads.
-  const basic = material as { aoMap?: HostTexture | null; aoMapIntensity?: number },
-    aoMap = mat.aoMap ?? (!mat.lit && basic.aoMap ? importHostTexture(basic.aoMap) : undefined),
+  // Only a plain colour one reads it; a matcap, normal or depth surface ignores it (`readsOcclusion`).
+  const basic = material as HostShadedMaterial,
+    aoMap =
+      mat.aoMap ??
+      (basic.aoMap && readsOcclusion(basic) ? importHostTexture(basic.aoMap) : undefined),
     aoIntensity = mat.aoMap ? mat.aoIntensity : (basic.aoMapIntensity ?? 1);
   uniforms.f4(
     0,

@@ -58,6 +58,28 @@ export const litModel = (host: HostShadedMaterial, model: number) =>
   metalRough(host) ||
   host.family === 'phong';
 
+/**
+ * Why a surface declares a map the reference draws and its model never reads, or `undefined`: a
+ * toon's tone ramp, a matcap's colour map, the normal map of a surface drawn unlit. The one
+ * refusal the WebGL2 gate (`../host/surfaceGate.ts`) and the page record (`../page/surface.ts`)
+ * share, so no path drops one from the image.
+ */
+export function unreadMapRefusal(host: HostShadedMaterial) {
+  const unread = host.gradientMap
+    ? 'gradientMap'
+    : host.family === 'matcap' && host.map
+      ? 'map'
+      : host.normalMap && !litModel(host, hostSurfaceModel(host))
+        ? 'normalMap'
+        : undefined;
+  if (unread) return `material ${host.family} declares a ${unread} its surface model never reads`;
+}
+
+/** Whether a surface's occlusion map darkens it: a lit one and a plain colour one do; a matcap,
+ *  normal or depth surface ignores one, as the reference does, on both paths. */
+export const readsOcclusion = (host: HostShadedMaterial) =>
+  litModel(host, hostSurfaceModel(host)) || host.family === 'basic';
+
 /** The roughness a Blinn–Phong exponent reads as, `√(2 / (n + 2))`: its lobe's width. */
 export const shininessRoughness = (shininess: number) =>
   Math.sqrt(2 / (Math.max(0, shininess) + 2));
