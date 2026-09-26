@@ -63,18 +63,13 @@ async function resized(
     gpu.textures
       .filter((made) => made.label === label && !made.destroyed)
       .map((made) => made.width);
-  /** The frame drawn whole: both quad clusters, once its readback is in. */
-  const complete = async () => {
-    await backend.flush();
-    assertBothQuadPagesDrawn(backend);
-  };
   const dispose = () => {
     assert.equal(said('gpu-device-lost').length, 0, 'never reported as a lost device');
     disposeQuadRun(backend, scene);
     fixture.geometry.dispose();
     fixture.material.dispose();
   };
-  return { gpu, backend, cam, said, widths, complete, dispose };
+  return { gpu, backend, cam, said, widths, dispose };
 }
 
 test('under pressure, Hi-Z goes first: the targets are granted without it, all others kept', async () => {
@@ -97,7 +92,8 @@ test('under pressure, Hi-Z goes first: the targets are granted without it, all o
       .filter((made) => made?.vertex?.entryPoint === 'vis_vs')
       .map((made) => made.fragment?.targets.length);
     assert.deepEqual([targets[0], targets.at(-1)], [2, 1]);
-    await s.complete();
+    await s.backend.flush();
+    assertBothQuadPagesDrawn(s.backend);
   } finally {
     s.dispose();
   }
@@ -133,7 +129,7 @@ test('frame targets refused at prepare are refused by name', async () => {
   }
 });
 
-test('targets that fit ask nothing of the device and keep no promise: the steady frame is free', () => {
+test('targets that fit ask nothing of the device: the steady frame is free', () => {
   const gpu = { colorTexture: {}, targetSize: [32, 32], surfaces: {}, targetGrant: undefined };
   const rt = { setup: { viewport: [32, 32] }, gpu, vis: {} } as unknown as WebgpuPagesRuntime;
   // A bare device: any creation or error scope would throw.
@@ -146,18 +142,18 @@ test('targets that fit ask nothing of the device and keep no promise: the steady
 test('a refused target grant holds the frame, then draws it complete; then nothing is scheduled', async () => {
   let refusals = 1;
   const s = await resized((raise) => refusals-- > 0 && raise('Out of memory'));
+  let asked = 0,
+    stillAt: number | undefined;
+  const requested: FrameRequestCallback[] = [];
+  const scheduler = createExplorerFrameScheduler({
+    request: (callback) => (asked++, requested.push(callback)),
+    cancel() {},
+    render: () => s.backend.render(s.cam),
+    pending: () => s.backend.pendingFrame(),
+    error: (error) => assert.fail(String(error)),
+    limited: () => assert.fail('the loop hit its frame limit'),
+  });
   try {
-    let asked = 0,
-      stillAt: number | undefined;
-    const requested: FrameRequestCallback[] = [];
-    const scheduler = createExplorerFrameScheduler({
-      request: (callback) => (asked++, requested.push(callback)),
-      cancel() {},
-      render: () => s.backend.render(s.cam),
-      pending: () => s.backend.pendingFrame(),
-      error: (error) => assert.fail(String(error)),
-      limited: () => assert.fail('the loop hit its frame limit'),
-    });
     const draws = s.gpu.draws.length;
     scheduler.invalidate();
     requested.shift()!(0);
@@ -170,9 +166,9 @@ test('a refused target grant holds the frame, then draws it complete; then nothi
     }
     assert.equal(asked, stillAt, 'no request once the scene says it is still');
     assert.deepEqual(s.widths(COLOR), [48], 'drawn into the granted targets, at the new size');
-    scheduler.dispose();
     assert.deepEqual(s.backend.selectedPageIds().sort(), ['0', '1'], 'the frame is complete');
   } finally {
+    scheduler.dispose();
     s.dispose();
   }
 });
