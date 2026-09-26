@@ -16,7 +16,10 @@ const alphaIsCoverage = (mat: PageSurface) =>
 export function cutoffByte(alphaTest: number, factor: number) {
   const cut = Math.fround(alphaTest),
     f = Math.fround(factor);
-  for (let byte = 1; byte < 256; byte++)
+  // The test only grows with the byte, and f32 rounding moves its threshold `cut × 255 / f` by far
+  // less than a byte: the search starts one byte under it, not at 1, on every reader of each image.
+  const from = f > 0 ? Math.max(1, Math.floor((cut * 255) / f) - 1) : 1;
+  for (let byte = from; byte < 256; byte++)
     if (Math.fround(Math.fround(byte / 255) * f) >= cut) return byte;
   return 255;
 }
@@ -56,7 +59,7 @@ export class CoverageReaders {
         const { map: base, emissiveMap } = refreshSurface(surface);
         if (base === map || emissiveMap === map) {
           held.rule &&= emissiveMap !== map && alphaIsCoverage(surface);
-          held.cutoff = Math.min(held.cutoff, cutOf(surface));
+          if (held.rule) held.cutoff = Math.min(held.cutoff, cutOf(surface));
         } else if (held.surfaces.delete(surface)) this.file(surface);
       }
       held.rule &&= held.surfaces.size > 0;
@@ -79,7 +82,8 @@ export class CoverageReaders {
   }
   private wear(texture: Texture, surface: PageSurface, coverage: boolean) {
     const held = this.readers.get(texture);
-    const cutoff = cutOf(surface);
+    // A reader that does not take alpha for coverage ends the rule: its cutoff is never read.
+    const cutoff = coverage ? cutOf(surface) : 255;
     if (!held) this.readers.set(texture, { surfaces: new Set([surface]), rule: coverage, cutoff });
     else {
       held.rule = held.surfaces.add(surface) && held.rule && coverage;
