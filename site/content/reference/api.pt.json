@@ -2067,7 +2067,7 @@
       "clipAction": "A ação que toca `clip`.",
       "play": "Toca `clip` agora.",
       "stopAll": "Para toda ação.",
-      "update": "Avança toda ação tocando por `seconds` e escreve os valores amostrados."
+      "update": "Avança em `seconds` toda ação que está tocando e então escreve em cada propriedade a mistura ponderada das amostras de suas ações sobre seu valor em repouso."
     }
   },
   "ModelRecord": {
