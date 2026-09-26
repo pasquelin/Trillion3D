@@ -2,10 +2,7 @@ import { LIGHT_SETTINGS } from '../../../../sdk-core/src/index.ts';
 import { LIGHT_TILES_SHADER } from './shader.ts';
 import { createCheckedShaderModule } from '../../gpu/core/shaderModule.ts';
 import { createWebgpuBindIdentity } from '../../webgpu/core/bindIdentity.ts';
-
-/** Words per tile: the counts of the opaque and blend lists, then the two lists of `tileLights`
- *  each — they cover two depth slices of the same tile. */
-const TILE_STRIDE_WORDS = LIGHT_SETTINGS.tileLights * 2 + 2;
+import { TILE_STRIDE_WORDS } from '../direct/lightWgsl.ts';
 /** Label of the measured pass; `gpuLightListsMs` is read under this name, not by its rank. */
 export const LIGHT_TILES_PASS = 'Trillion3D light tiles v1';
 /** Tiles on one axis: the list always covers the whole target, never one tile short. */

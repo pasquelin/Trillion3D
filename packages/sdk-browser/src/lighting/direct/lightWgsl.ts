@@ -3,6 +3,9 @@ import { ENVIRONMENT_COEFFICIENTS } from '../../../../sdk-core/src/scene/core/en
 import { RECT_LIGHT_WGSL } from './rectLightWgsl.ts';
 import { LTC_SIZE } from '../../../../sdk-core/src/lighting/ltcTable.ts';
 
+/** Words of a tile record: the two counts, then the two lists of `tileLights` each. */
+export const TILE_STRIDE_WORDS = LIGHT_SETTINGS.tileLights * 2 + 2;
+
 /**
  * Structures shared by the light-list pass and deferred resolve: a single GPU-side
  * declaration of the `SceneLight` contract, and a single physical attenuation. Shader
@@ -14,7 +17,7 @@ const TILE_SIZE:u32=${LIGHT_SETTINGS.tileSize}u;
  *  the blend one, which covers a deeper depth slice. Each list holds \`TILE_LIGHTS\` lights; a
  *  count past it says the tile keeps no list and walks every light of the scene (\`tileLight\`). */
 const TILE_LIGHTS:u32=${LIGHT_SETTINGS.tileLights}u;
-const TILE_STRIDE:u32=${LIGHT_SETTINGS.tileLights * 2 + 2}u;
+const TILE_STRIDE:u32=${TILE_STRIDE_WORDS}u;
 const TILE_OPAQUE_BASE:u32=2u;
 const TILE_BLEND_BASE:u32=${LIGHT_SETTINGS.tileLights + 2}u;
 const POINT_FACES:u32=${POINT_FACES}u;
