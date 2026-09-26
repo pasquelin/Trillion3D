@@ -16,8 +16,7 @@ const MAX_CAPACITY = 1 << 20;
 /** The longest step an image takes, seconds: a stalled tab does not fling its particles away. */
 const MAX_STEP = 1 / 15;
 
-/** How a pool's particles blend over the image: `additive` light that no order changes (fire),
- *  or `premultiplied` cover drawn with the other pools far to near by origin (smoke). */
+/** How particles blend: `additive` light in any order (fire), `premultiplied` cover (smoke). */
 export const PARTICLE_BLENDS = ['additive', 'premultiplied'] as const;
 export type ParticleBlend = (typeof PARTICLE_BLENDS)[number];
 
@@ -50,10 +49,10 @@ export class ParticlePool {
   readonly acceleration: Float32Array;
   /** The origin in double precision: emission subtracts it before rounding to 32 bits. */
   readonly origin: Float64Array;
-  readonly blend: ParticleBlend;
+  readonly blend!: ParticleBlend;
+  readonly size!: number;
+  readonly softness!: number;
   readonly color: Float32Array;
-  readonly size: number;
-  readonly softness: number;
   /** The staged records, `emitPerFrame` of them, read by the renderer up to `step.count`. */
   readonly staging: Float32Array<ArrayBuffer>;
   /** Records staged since creation, and those refused: the image's staging full, or the pool
@@ -85,10 +84,8 @@ export class ParticlePool {
     this.acceleration = Float32Array.from(acceleration ?? [0, -GRAVITY_PRESETS.earth, 0]);
     this.origin = Float64Array.from(origin ?? [0, 0, 0]);
     this.staging = new Float32Array(perFrame * PARTICLE_FLOATS);
-    this.blend = blend;
+    Object.assign(this, { blend, size, softness });
     this.color = Float32Array.from(color);
-    this.size = size;
-    this.softness = softness;
   }
 
   /** Stages one particle at world position `x, y, z`, born at the next image; false, and

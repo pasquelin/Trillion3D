@@ -45,9 +45,8 @@ struct Out { @builtin(position) at: vec4f, @location(0) corner: vec2f, @location
 /** What the draw keeps in a pool's step state: its words, its group and the depth it was made on. */
 export type DrawState = { state: GPUBuffer; draw: GPUBuffer; drawn?: GPUBindGroup; depth?: object };
 
-/** The WebGPU particle draw: one pass over the lit image, one instanced draw per live pool
- *  (`drawOrder`), reading the step's buffer (`stateOf`) and the opaque depth, which the soft edge
- *  alone tests. `fail` hears a pipeline not made, and every pool is then `refused`. */
+/** The WebGPU particle draw: one pass over the lit image, one instanced draw per live pool, the
+ *  opaque depth read for the soft edge. `fail` hears a pipeline not made; pools are then refused. */
 export function createWebgpuParticleDraw(
   device: GPUDevice,
   stateOf: (pool: ParticlePool) => DrawState | undefined,
@@ -90,16 +89,13 @@ export function createWebgpuParticleDraw(
   /** The pool's group, made again only when the depth target changed. */
   const groupOf = (kept: DrawState, depth: GPUTextureView) => {
     if (kept.depth !== depth) {
+      const own = [kept.draw, kept.state].map((buffer, binding) => ({
+        binding,
+        resource: { buffer },
+      }));
+      const entries = [...own, { binding: 2, resource: depth }];
+      kept.drawn = device.createBindGroup({ label: PARTICLE_DRAW_PASS, layout, entries });
       kept.depth = depth;
-      kept.drawn = device.createBindGroup({
-        label: PARTICLE_DRAW_PASS,
-        layout,
-        entries: [
-          { binding: 0, resource: { buffer: kept.draw } },
-          { binding: 1, resource: { buffer: kept.state } },
-          { binding: 2, resource: depth },
-        ],
-      });
     }
     return kept.drawn!;
   };

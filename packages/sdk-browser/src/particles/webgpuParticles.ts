@@ -134,7 +134,7 @@ export type WebgpuParticles = ReturnType<typeof createWebgpuParticles>;
 export const particlesMoved = (rt: WebgpuPagesRuntime) => anyMoving(rt.context.particles);
 
 /** The world's pools on this image, stepped in the image's command buffer ahead of its
- *  transparent stage, drawn after it (`drawParticles`). */
+ *  transparent stage, which draws them (#755). */
 export function encodeParticles(
   rt: WebgpuPagesRuntime,
   device: GPUDevice,
@@ -154,8 +154,7 @@ export function encodeParticles(
   rt.run.gpuComputeDispatches += rt.gpu.particles.run(pools, encoder);
 }
 
-/** The world's stepped pools drawn over the lit image and its transparents, in the beauty view
- *  only; a scene with no pool draws nothing. */
+/** The world's stepped pools drawn over the lit image and its transparents, in beauty only. */
 export function drawParticles(rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder) {
   const { run } = rt,
     { hdrView, depthView, particles } = rt.gpu,
