@@ -179,8 +179,8 @@ test('a page pinned on arrival, let go and taken back before the pin step holds 
   const world = residency(4, []);
   await world.load('r', 'm');
   world.image(1, [], []);
-  // A readback asks for `a`, the upload job pins it on arrival, then a queue rebuilt past the
-  // budget releases and retakes it before any pin step ran: the pin step must still see it join.
+  // A readback asks for `a`, the upload job pins it on arrival, then two more readbacks let it go
+  // and take it back before any pin step ran: the pin step must still see it join.
   world.ask(['a']);
   await world.admit('a');
   world.ask([]);

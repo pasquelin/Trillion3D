@@ -4,7 +4,6 @@ import { createDenseKeySet } from '../cut/denseKeys.ts';
 import { createKeyUnion } from '../cut/keyUnion.ts';
 import { createBudgetRanking } from './budgetRanking.ts';
 import { createHeldKeys } from '../cut/heldKeys.ts';
-import { grown } from '../../page/cut/sparseInts.ts';
 import type { createWebgpuPageTracking } from '../row/pageTracking.ts';
 
 type Tracking = ReturnType<typeof createWebgpuPageTracking>;
@@ -90,27 +89,21 @@ export function createWebgpuResidencySets(options: {
     retain: (key: number, id: number) => keep.retain(key, packedPages[id]),
     release: (key: number) => keep.release(key),
   });
-  /** The queue `refill` replaced, whose holds it lets go of last. */
-  let previous = new Int32Array(8);
   /**
-   * Rebuilds the queue with `fill`, then lets go of the old queue's holds: a key in both never
-   * leaves `keep`, so a queue rebuilt past the budget image after image moves, for the pin step,
-   * only the keys that changed (#477).
+   * Makes the queue the first `count` of `keys`, beside their records: the new holds are taken
+   * before the old queue's are let go of, so a key in both never leaves `keep`, and a queue rebuilt
+   * past the budget image after image moves, for the pin step, only the keys that changed (#477).
    */
-  const refill = (fill: () => void) => {
-    const count = wanted.count;
-    if (previous.length < count) previous = grown(previous, count);
-    previous.set(wanted.list.subarray(0, count));
+  const refill = (keys: Int32Array, pages: readonly PageRec[], count: number) => {
+    for (let i = 0; i < count; i++) keep.retain(keys[i], pages[i]);
+    for (let i = wanted.count - 1; i >= 0; i--) keep.release(wanted.list[i]);
     wanted.clear();
     acceptedRevision++;
-    fill();
-    for (let i = count - 1; i >= 0; i--) keep.release(previous[i]);
+    for (let i = 0; i < count; i++) wanted.add(keys[i], pages[i]);
   };
   const restoreWanted = () => {
     followsDesired = true;
-    refill(() => {
-      for (let i = 0; i < desired.count; i++) enqueue(desired.list[i], desiredPages[i]);
-    });
+    refill(desired.list, desiredPages, desired.count);
   };
   return {
     entering,
@@ -130,7 +123,6 @@ export function createWebgpuResidencySets(options: {
       return (
         entering.byteLength +
         leaving.byteLength +
-        previous.byteLength +
         requested.byteLength +
         keep.byteLength +
         askedKeys.byteLength +
@@ -178,9 +170,7 @@ export function createWebgpuResidencySets(options: {
       }
       followsDesired = false;
       if (ranking.matches(wanted.list, wanted.count, wantedPages)) return true;
-      refill(() => {
-        for (let i = 0; i < ranking.length; i++) enqueue(ranking.keys[i], ranking.ranked[i]);
-      });
+      refill(ranking.keys, ranking.ranked, ranking.length);
       return true;
     },
     wantedPages,
