@@ -15,9 +15,11 @@ export interface BuiltVehicle extends Hulled {
   driver: Engine.Vehicle;
 }
 
-/** How long a vehicle waits for the ground below it to stream into the physics, in 100 ms
- *  tries: 30 s, long past what a page's terrain takes, short of a page that seems to hang. */
-const GROUND_TRIES = 300;
+/** How long a vehicle waits for the ground below it to stream into the physics, in tries
+ *  `GROUND_WAIT` ms apart: 30 s, long past what a page's terrain takes, short of a page that
+ *  seems to hang. */
+const GROUND_TRIES = 300,
+  GROUND_WAIT = 100;
 
 /**
  * Vehicles on Jolt's own vehicle constraint: `car`, `motorcycle` and `tracked` build a sports
@@ -96,9 +98,10 @@ export function vehicles(
     for (let tries = 0; tries < GROUND_TRIES; tries++) {
       const hit = await world.raycast(down, { exact: true, ignore });
       if (hit) return hit.point.y;
-      await new Promise((wait) => setTimeout(wait, 100));
+      await new Promise((wait) => setTimeout(wait, GROUND_WAIT));
     }
-    throw new Error(`No ground below [${x}, ${z}] from ${above} m after ${GROUND_TRIES / 10} s`);
+    const waited = (GROUND_TRIES * GROUND_WAIT) / 1000;
+    throw new Error(`No ground below [${x}, ${z}] from ${above} m after ${waited} s`);
   };
   // Parked at `[x, z]`: set a little above what the ray meets there, level, facing `yaw`, and
   // simulated anew (setting `physics` again makes the body, and the vehicle with it, afresh).
