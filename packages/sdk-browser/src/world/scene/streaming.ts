@@ -1,5 +1,6 @@
 import { createArrivalQueue } from '../../page/integration/arrivalQueue.ts';
-import { ARRIVAL_BUDGET_MS, ARRIVAL_QUEUE_BATCH } from '../../backend/common.ts';
+import type { FrameClock } from '../../page/integration/frameBudget.ts';
+import { ARRIVAL_QUEUE_BATCH } from '../../backend/common.ts';
 import { decodePageOffThread } from '../../page/decode/host.ts';
 import { PRIORITY_VISIBLE } from '../../streaming/priority.ts';
 import type { RenderBackend } from '../../backend/types.ts';
@@ -12,11 +13,13 @@ type Inputs = {
   geometryUrls: Set<string>;
   backends: RenderBackend[];
   state: Pick<ExplorerHostState, 'disposed' | 'measuring' | 'active'>;
+  /** The session's one integration budget per frame (`BackendContext.frameBudget`). */
+  budget: FrameClock;
 };
 
 export function createExplorerStreaming(session: ExplorerSession, inputs: Inputs) {
   const { signal, scope, emit, diagnose } = session;
-  const { streamer, geometryUrls, backends, state } = inputs;
+  const { streamer, geometryUrls, backends, state, budget } = inputs;
   let streamingError: string | null = null,
     lastPrefetch = 0;
   let streamingPromise: Promise<void> | null = null,
@@ -28,10 +31,11 @@ export function createExplorerStreaming(session: ExplorerSession, inputs: Inputs
   // Page arrivals no longer enter the frame that discovers them: the queue stacks them and a
   // single bounded drain, at the head of `render()`, makes them resident before selection of
   // the next frame. The ceiling is TIME — 2 ms of integration per frame, the one budget the cells
-  // of a partitioned scene spend from too (`partitionFrame.ts`); 512 KiB of index and 64 pages
+  // of a partitioned scene (`partitionFrame.ts`) and the engine's row records spend from too, in
+  // that order around the drain (`BackendContext.frameBudget`); 512 KiB of index and 64 pages
   // double it without ever replacing it, because a streaming packet carries a cluster count
   // unknown in advance and no byte count then bounds the duration.
-  const arrivals = createArrivalQueue(512 * 1024, 64, ARRIVAL_BUDGET_MS);
+  const arrivals = createArrivalQueue(512 * 1024, 64, budget);
   // What a frame queues at most. The queue delivers only a handful per frame: stacking
   // thousands ahead would only add, every frame, as many cache reads — and each read moves
   // its address to the head of the least-recently-used order. The rest leaves on the next

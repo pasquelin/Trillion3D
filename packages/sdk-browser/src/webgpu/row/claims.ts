@@ -1,14 +1,13 @@
 import { sortPages } from '../../../../sdk-core/src/index.ts';
-import { createFrameBudget } from '../../page/integration/frameBudget.ts';
-import { ARRIVAL_BUDGET_MS } from '../../backend/common.ts';
+import type { FrameClock } from '../../page/integration/frameBudget.ts';
 
 /**
  * Pages that claim the write of a row record and have not yet received it.
  *
  * Writing a row costs a material, a hash, wrap modes, a shadow sphere, eight corners and five row
  * words: a burst of arrivals pays that many times, on the main thread, in the same image. This list
- * is what remains to do, and the rank allocator consumes only a time budget per image — the rest waits
- * for the next image, in the same order.
+ * is what remains to do, and the rank allocator spends only what the frame's one integration budget
+ * has left — the rest waits for the next image, in the same order.
  *
  * A page enrols only once: per-page marking is what guarantees it, so a page claimed twice before it
  * is served does not double the work. The list is sorted before it is served, because the residency
@@ -20,8 +19,6 @@ export function createWebgpuRowClaims(pageCount: number) {
   let count = 0;
   return {
     pages,
-    /** Time an image grants to writing rows (`serveClaims`): this list's own clock. */
-    budget: createFrameBudget(ARRIVAL_BUDGET_MS),
     get count() {
       return count;
     },
@@ -52,42 +49,46 @@ export function createWebgpuRowClaims(pageCount: number) {
 export type WebgpuRowClaims = ReturnType<typeof createWebgpuRowClaims>;
 
 /**
- * Serves the queue in increasing page order up to the time budget: the arrival drain's ceiling
- * (`ARRIVAL_BUDGET_MS`) on its own `FrameBudget`, opened once per image — the clock is reread after
- * each row and the rest waits for the next image, in the same order. At least one row always goes
- * through, or a page would never be written. `release` says again whether the
- * page still claims a row — it may have left since it enrolled, and then leaves the queue costing
- * nothing —, `place` writes it and returns `false` when the table is full.
+ * Serves the queue in increasing page order within `budget`, the frame's one integration budget
+ * (`BackendContext.frameBudget`): what its cells and arrivals left, its clock running only while
+ * rows are written and reread after each; the rest waits for the next image, in the same order.
+ * At least one row always goes through, or a page would never be written. `release` says again
+ * whether the page still claims a row — it may have left since it enrolled, and then leaves the
+ * queue costing nothing —, `place` writes it and returns `false` when the table is full.
  *
  * Returns the number of pages a table overflow leaves without a rank: never those the time budget
- * alone deferred, which overflow nothing. `bounded` false lifts the time budget: a barrier image,
- * outside the measured loop, writes every owed row.
+ * alone deferred, which overflow nothing. No `budget` — a barrier image, outside the measured
+ * loop, or an engine driven with no frame — writes every owed row.
  */
 export function serveClaims(
   claims: WebgpuRowClaims,
   release: (page: number) => boolean,
   place: (page: number) => boolean,
-  bounded = true,
+  budget?: FrameClock,
 ) {
   if (!claims.count) return 0;
   claims.sort();
-  const budget = claims.budget;
-  budget.open();
+  budget?.resume();
   let served = 0,
     denied = 0;
-  while (served < claims.count) {
-    const page = claims.pages[served];
-    if (release(page)) {
+  try {
+    while (served < claims.count) {
+      const page = claims.pages[served];
+      if (!release(page)) {
+        served++;
+        continue;
+      }
       if (!place(page)) {
         denied = claims.count - served;
         break;
       }
       served++;
-      budget.spend();
-      if (bounded && !budget.admits()) break;
-      continue;
+      budget?.spend();
+      if (budget && !budget.admits()) break;
     }
-    served++;
+  } finally {
+    // Balanced on every path: what runs after the rows is not integration.
+    budget?.pause();
   }
   claims.consume(served);
   return denied;
