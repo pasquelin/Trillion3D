@@ -21,10 +21,9 @@ type ImportedLightsFile = {
 
 /**
  * Reads the lights the source file carried, converted by the compiler into the engine contract.
- * A cache compiled before this product — no file, a 404 —, an unknown version or an unreadable
- * body equal zero imported lights — hence exactly the previous behaviour, `unlit` view by default.
- * A file the server refuses otherwise is refused as every cache file is (`checked`:
- * `RESOURCE_HTTP_ERROR`, asked once more on a network or server error).
+ * A cache compiled before this product (no file: a 404, or a 403), an unknown version or an
+ * unreadable body equal zero imported lights — hence exactly the previous behaviour, `unlit` view
+ * by default. A file the server refuses otherwise is refused as every cache file is (`checked`).
  */
 export async function loadImportedLights(
   base: string,

@@ -1,4 +1,5 @@
-import { EngineError, type PageSource } from '../../../../sdk-core/src/index.ts';
+import type { PageSource } from '../../../../sdk-core/src/index.ts';
+import { refusedStatus } from '../../cluster/pages.ts';
 import type { BackendDiagnostic } from '../../backend/types.ts';
 
 export function createGpuPageReader(
@@ -17,11 +18,6 @@ export function createGpuPageReader(
     }
   };
   const now = () => (report ? performance.now() : 0);
-  /** The HTTP status a failed read was refused with (`checked`), `null` for none. */
-  const statusOf = (error: unknown) => {
-    const status = error instanceof EngineError ? error.details.status : null;
-    return typeof status === 'number' ? status : null;
-  };
   const readBytes = (key: string, combined: AbortSignal, attempt: number) => {
     const started = now();
     emit('gpu-page-read-start', 'GPU page read started', () => ({
@@ -68,7 +64,7 @@ export function createGpuPageReader(
           version: 1,
           key,
           attempt,
-          status: statusOf(error),
+          status: refusedStatus(error),
           error: String(error),
           durationMs: report ? performance.now() - started : null,
         }));
@@ -76,7 +72,7 @@ export function createGpuPageReader(
           version: 1,
           key,
           attempt,
-          status: statusOf(error),
+          status: refusedStatus(error),
           error: String(error),
           durationMs: report ? performance.now() - started : null,
         }));
@@ -100,5 +96,5 @@ export function createGpuPageReader(
     void job.catch(() => {});
     return job;
   };
-  return { report, emit, now, statusOf, readBytes, fetchBytes };
+  return { report, emit, now, readBytes, fetchBytes };
 }
