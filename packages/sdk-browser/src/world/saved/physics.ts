@@ -25,14 +25,13 @@ export function savedPhysics(body: ObjectPhysics): PhysicsOption {
         sensor: body.sensor || undefined,
         ccd: body.ccd || undefined,
         decorative: body.decorative || undefined,
-        damping:
-          damping.linear === DAMPING && damping.angular === DAMPING ? undefined : damping,
+        damping: damping.linear === DAMPING && damping.angular === DAMPING ? undefined : damping,
       };
-  const shared = {
+  return {
+    ...declared,
     mass: body.mass,
     gravityScale: body.gravityScale === 1 ? undefined : body.gravityScale,
     friction: body.friction,
     restitution: body.restitution,
-  };
-  return { ...declared, ...shared } as PhysicsOption;
+  } as PhysicsOption;
 }
