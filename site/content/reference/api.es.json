@@ -4118,7 +4118,7 @@
       "clipAction": "La acción que reproduce `clip`.",
       "play": "Reproduce `clip` de inmediato.",
       "stopAll": "Detiene cada acción.",
-      "update": "Hace avanzar cada acción en curso `seconds` y escribe los valores muestreados."
+      "update": "Hace avanzar cada acción en curso `seconds` y luego escribe en cada propiedad la mezcla ponderada de las muestras de sus acciones sobre su valor en reposo."
     }
   },
   "ModelRecord": {
