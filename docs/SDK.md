@@ -533,7 +533,7 @@ e. `attach` or `detach` during a drag ends it first, with its `dragEnd`. The han
 draws none. Live example: [move, rotate, scale](../site/examples/move-rotate-scale-gizmo.html).
 
 `scene.toJSON(camera)` writes the scene as plain, versioned JSON (`format: 'trillion3d-scene'`,
-`formatVersion: 2`; version 1 is read too, its meshes casting shadows): its hierarchy and poses, each shape by the family call that built it
+`formatVersion: 2`; version 1, whose meshes' `castShadow` no renderer read, is refused): its hierarchy and poses, each shape by the family call that built it
 (`geometry.box(2, 1, 1)` is stored as that call; a shape changed after it was built, or written by
 hand, stores its vertices), each material by its parameters, each mesh's body as `physics`
 declared it (type, mass, shape, gravity scale, sensor, CCD, debris, matter overrides, damping; a
