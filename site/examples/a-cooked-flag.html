@@ -31,7 +31,7 @@
     <script type="module">
       // Waits for #573: the simulated vertices are uploaded in place, so the flag is drawn where it hangs.
       import { createWorld, light, math } from '../runtime/engine.js';
-      import { controls, readout } from '../runtime/kit.js';
+      import { controls, physicsReadouts } from '../runtime/kit.js';
 
       // A compiled model: the flag's node declares a cloth pinned along the pole, and the compiler
       // cooked its soft-body settings with the model. Once the physics is on, the flag is restored
@@ -66,11 +66,7 @@
         world,
       );
 
-      const bodies = readout('bodies'), step = readout('step');
-      world.onFrame(() => {
-        bodies(String(world.physics.stats.bodies));
-        step(`${world.physics.stats.stepMs.toFixed(2)} ms`);
-      });
+      physicsReadouts(world, ['bodies', 'step']);
     </script>
   </body>
 </html>
