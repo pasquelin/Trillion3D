@@ -105,16 +105,18 @@ test('a pebble far below any error target is read while the far plane lets it be
   ]);
 });
 
-test('a camera zoomed out reads the cells its wider frustum sees', () => {
-  // At zoom 0.5 the frustum is twice as wide: a pebble 560 m aside, 290 m ahead, is within its far
-  // plane's corner, past the reach — and the read-ahead — of the same camera at zoom 1.
+test('a camera zoomed out, or scaled up, reads the cells its wider frustum sees', () => {
+  // At zoom 0.5 the frustum is twice as wide, scaled twice it draws twice as far: a pebble 560 m
+  // aside, 290 m ahead, is within either's reach, past the read-ahead of the camera at zoom 1.
   const bounds = [560, 0, -290, 560.01, 0.01, -289.99];
+  const seen = [['https://cache.test/key/aside.json'], PRIORITY_VISIBLE];
   const camera = hostFramingCamera(60, 16 / 9, 0.1, 300);
   assert.deepEqual(asks('aside.json', bounds, camera), []);
   camera.zoom = 0.5;
-  assert.deepEqual(asks('aside.json', bounds, camera), [
-    [['https://cache.test/key/aside.json'], PRIORITY_VISIBLE],
-  ]);
+  assert.deepEqual(asks('aside.json', bounds, camera), [seen]);
+  camera.zoom = 1;
+  (camera as unknown as Group).scale.set(2, 2, 2);
+  assert.deepEqual(asks('aside.json', bounds, camera), [seen]);
 });
 
 test('a reach past the rows sized at open asks the owner to open the session again', () => {

@@ -4,12 +4,10 @@ import { createWebgpuRowClaims, serveClaims } from './claims.ts';
 import { createArrivalQueue } from '../../page/integration/arrivalQueue.ts';
 import { createFrameBudget } from '../../page/integration/frameBudget.ts';
 
+/** The clock the budgets read, which a row write moves: no test waits on the machine's time. */
+let now = 0;
 /** A row write slower than the per-image budget: the clock always runs out after one row. */
-const slowPlace = () => {
-  const until = performance.now() + 3;
-  while (performance.now() < until);
-  return true;
-};
+const slowPlace = () => ((now += 3), true);
 
 const owed = () => {
   const claims = createWebgpuRowClaims(4);
@@ -19,7 +17,7 @@ const owed = () => {
 
 test('an image writes owed rows within its time budget and leaves the rest owed', () => {
   const claims = owed(),
-    budget = createFrameBudget(2);
+    budget = createFrameBudget(2, () => now);
   budget.open();
   assert.equal(
     serveClaims(claims, () => true, slowPlace, budget),
@@ -43,7 +41,6 @@ test('a barrier image lifts the time budget and writes every owed row', () => {
 });
 
 test('the rows a frame writes spend what its arrivals left of its one integration budget', () => {
-  let now = 0;
   const budget = createFrameBudget(2, () => now);
   const arrivals = createArrivalQueue(1 << 20, 64, budget);
   const receiver = { acceptPage: () => void (now += 1) };

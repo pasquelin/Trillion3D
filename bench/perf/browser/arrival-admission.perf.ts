@@ -9,8 +9,9 @@ import {
   referenceArrivalQueue,
 } from '../../oracles/browser/arrival-admission.ts';
 
-/** The frame budget the engine's queue spends, opened before each drain as a frame opens it. */
-const frame = createFrameBudget(2);
+/** The frame budget the engine's queue spends, opened before each drain as a frame opens it: no
+ *  ceiling, like the oracle it is compared with, so the two deliver alike on any machine. */
+const frame = createFrameBudget(Infinity);
 
 /** The fields `findAdmissible`/`sortStreamJobs` read: a lighter shape than the engine's `Job`. */
 interface TravailAdmission {
