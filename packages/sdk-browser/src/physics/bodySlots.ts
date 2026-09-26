@@ -52,5 +52,10 @@ export function createBodySlots(size: number) {
       const owner = of(id);
       return owner && 'model' in owner ? owner.model : null;
     },
+    /** The node an engine id names — a page's mesh, or the model of a cooked body —, or `null`. */
+    objectOf(id: number) {
+      const owner = of(id);
+      return !owner ? null : 'mesh' in owner ? owner.mesh : owner.model;
+    },
   };
 }
