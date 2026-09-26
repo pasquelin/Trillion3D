@@ -2887,7 +2887,7 @@
       "shadowNearMin": "Distance d’ombre la plus proche.",
       "shadowNormalOffsetTexels": "Décalage du point d’échantillonnage le long de la normale, en texels de la carte lue : un demi-texel, la marge de ce qui n’est pas le plan du récepteur — sa courbure dans un texel, l’arrondi des deux profondeurs. La pente du récepteur est couverte par une marge de profondeur sur la portée du PCF, et au-delà de 45° par un décalage supplémentaire, dans les mêmes texels (`shadowDepthMargin`, `shadowNormalTexels`) : aucun biais n’est une longueur de la scène.",
       "shadowPagesPerBatch": "Pages d’ombre qu’un lot GPU dessine : la taille des tampons d’un lot, jamais une limite de l’image. Une image dessine chaque page qu’elle marque, en autant de lots qu’il faut.",
-      "lampFaceSize": "Côté du mip le plus fin d’une face de lampe, en texels : 32 × 32 pages de 128. Le pool physique n’est pas réglé ici : il se déduit de l’écran à la création du monde (`shadowPoolSide`).",
+      "lampFaceSize": "Côté du mip le plus fin d’une face de lampe, en texels : 32 × 32 pages de 128. Le pool physique n’est pas réglé ici : il se déduit de l’écran à la création du monde (`shadowPoolSize`).",
       "shadowRequestCap": "Pages virtuelles que l’ombrage peut demander par image ; les autres redemandent à l’image suivante.",
       "sunLevels": "Niveaux du clipmap d’une lumière directionnelle. Le niveau `L` a des texels de `2^L` mètres, et un pixel lit le niveau dont le texel est au plus son empreinte : seize niveaux couvrent un rapport lointain/proche de 2^15. Au-delà du dernier niveau, l’ombre lointaine prend le relais.",
       "sunLevelPages": "Pages par côté de la fenêtre d’un niveau du clipmap autour de la caméra. C’est une capacité, pas un réglage : chaque pixel lit sa propre densité tant que `height / tan(halfFovY)` reste sous `sunLevelPages · shadowPage / 2` = 4096 (un écran 4K à 55° de champ vertical) ; au-delà, les pixels du bord lisent le niveau suivant, à densité moitié."
@@ -5469,6 +5469,8 @@
       "shadowPagesRequested": "Pages d’ombre virtuelles que l’image a lues, telles que son dernier rapport de demandes les nomme : ce que marquent les récepteurs vus par la caméra.",
       "shadowPagesCached": "Parmi elles, les pages lues directement dans le pool : à jour, sans dessin.",
       "shadowPoolPages": "Pages physiques du pool fixe qui portent une page virtuelle.",
+      "shadowPoolBytes": "Octets GPU du pool d’ombres : ses pages de profondeur, leurs couches statique et de transmittance une fois créées, et les tampons à côté. Null tant que la première image n’a pas dimensionné le pool.",
+      "shadowPoolLayers": "Couches du pool, de 4 096 pages chacune au plus, dimensionnées une fois d’après l’écran et les lumières ombrées de la première image. Null jusque-là.",
       "shadowPagesRefetched": "Pages virtuelles placées de nouveau après que le pool les a évincées pour faire de la place, depuis l’ouverture de l’explorer : les redessins que coûte un pool trop petit pour ce que lisent les images.",
       "shadowCastersKept": "Projeteurs gardés par le tri par page, toutes pages dessinées réunies, sur l’image que l’appareil a échantillonnée en dernier — une sur quinze ; `null` tant qu’aucun échantillon n’est revenu.",
       "shadowCastersHidden": "Projeteurs mobiles que le test d’occultation a trouvés cachés derrière la couche statique de leur page, sur l’image que l’appareil a échantillonnée en dernier ; `null` tant qu’aucun échantillon n’est revenu."
@@ -6787,6 +6789,8 @@
       "shadowPagesRequested": "Pages d’ombre virtuelles que l’image a lues, telles que son dernier rapport de demandes les nomme : ce que marquent les récepteurs vus par la caméra.",
       "shadowPagesCached": "Parmi elles, les pages lues directement dans le pool : à jour, sans dessin.",
       "shadowPoolPages": "Pages physiques du pool fixe qui portent une page virtuelle.",
+      "shadowPoolBytes": "Octets GPU du pool d’ombres : ses pages de profondeur, leurs couches statique et de transmittance une fois créées, et les tampons à côté. Null tant que la première image n’a pas dimensionné le pool.",
+      "shadowPoolLayers": "Couches du pool, de 4 096 pages chacune au plus, dimensionnées une fois d’après l’écran et les lumières ombrées de la première image. Null jusque-là.",
       "shadowPagesRefetched": "Pages virtuelles placées de nouveau après que le pool les a évincées pour faire de la place, depuis l’ouverture de l’explorer : les redessins que coûte un pool trop petit pour ce que lisent les images.",
       "shadowCastersKept": "Projeteurs gardés par le tri par page, toutes pages dessinées réunies, sur l’image que l’appareil a échantillonnée en dernier — une sur quinze ; `null` tant qu’aucun échantillon n’est revenu.",
       "shadowCastersHidden": "Projeteurs mobiles que le test d’occultation a trouvés cachés derrière la couche statique de leur page, sur l’image que l’appareil a échantillonnée en dernier ; `null` tant qu’aucun échantillon n’est revenu."

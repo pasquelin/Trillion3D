@@ -1633,7 +1633,7 @@
       "shadowNearMin": "Jarak bayangan terdekat.",
       "shadowNormalOffsetTexels": "Offset titik sampel sepanjang normal, dalam texel peta yang dibaca: setengah texel, margin untuk apa yang bukan bidang penerima — lengkungannya di dalam satu texel, pembulatan kedua kedalaman. Kemiringan penerima ditutup oleh margin kedalaman sepanjang jangkauan PCF, dan lewat 45° oleh offset tambahan, dalam texel yang sama (`shadowDepthMargin`, `shadowNormalTexels`): tidak ada bias yang berupa panjang dari adegan.",
       "shadowPagesPerBatch": "Halaman bayangan yang digambar satu batch GPU: ukuran buffer satu batch, tidak pernah batas sebuah frame. Sebuah frame menggambar setiap halaman yang ditandainya, dalam sebanyak mungkin batch yang diperlukan.",
-      "lampFaceSize": "Sisi mip terhalus dari muka lampu, dalam texel: 32 × 32 halaman berukuran 128 (pool: `shadowPoolSide`).",
+      "lampFaceSize": "Sisi mip terhalus dari muka lampu, dalam texel: 32 × 32 halaman berukuran 128 (pool: `shadowPoolSize`).",
       "shadowRequestCap": "Halaman virtual yang boleh diminta shading per bingkai; sisanya meminta lagi pada bingkai berikutnya.",
       "sunLevels": "Tingkat clipmap cahaya terarah. Tingkat `L` memiliki texel `2^L` meter, dan sebuah piksel membaca tingkat yang texelnya tidak melebihi jejaknya sendiri: enam belas tingkat mencakup rasio jauh/dekat 2^15. Di luar tingkat terakhir, bayangan jauh mengambil alih.",
       "sunLevelPages": "Halaman per sisi dari cakupan satu tingkat clipmap di sekitar kamera. Ini kapasitas, bukan penyetelan: setiap piksel membaca kerapatannya sendiri selama `height / tan(halfFovY)` tidak melebihi `sunLevelPages · shadowPage / 2` = 4096 (kanvas 4K dengan bidang vertikal 55°); di luar itu, piksel luar membaca tingkat berikutnya dengan setengah kerapatan."
@@ -3210,6 +3210,8 @@
       "shadowPagesRequested": "Halaman bayangan virtual yang dibaca gambar, seperti yang disebut laporan permintaan terakhirnya: yang ditandai penerima kamera.",
       "shadowPagesCached": "Dari itu, halaman yang dibaca langsung dari pool: terkini, tanpa penggambaran.",
       "shadowPoolPages": "Halaman fisik pool tetap yang menyimpan halaman virtual.",
+      "shadowPoolBytes": "Byte GPU pool bayangan: halaman kedalamannya, lapisan statis dan transmitansnya setelah dibuat, serta buffer di sampingnya. Null sampai frame pertama menentukan ukuran pool.",
+      "shadowPoolLayers": "Lapisan pool, masing-masing paling banyak 4 096 halaman, diukur sekali dari layar dan cahaya berbayang pada frame pertama. Null sampai saat itu.",
       "shadowPagesRefetched": "Halaman virtual yang dipetakan lagi setelah pool mengusirnya untuk memberi tempat, sejak explorer dibuka: penggambaran ulang yang menjadi biaya pool yang terlalu kecil untuk yang dibaca bingkai.",
       "shadowCastersKept": "Pembuat bayangan yang dipertahankan culling per halaman, semua halaman yang digambar bersama, pada bingkai yang terakhir diambil sampelnya oleh perangkat — satu dari lima belas; `null` sampai sampel kembali.",
       "shadowCastersHidden": "Pembuat bayangan bergerak yang oleh uji oklusi ditemukan tersembunyi di balik lapisan statis halamannya, pada bingkai yang terakhir diambil sampelnya; `null` sampai sampel kembali."
@@ -4179,6 +4181,8 @@
       "shadowPagesRequested": "Halaman bayangan virtual yang dibaca gambar, seperti yang disebut laporan permintaan terakhirnya: yang ditandai penerima kamera.",
       "shadowPagesCached": "Dari itu, halaman yang dibaca langsung dari pool: terkini, tanpa penggambaran.",
       "shadowPoolPages": "Halaman fisik pool tetap yang menyimpan halaman virtual.",
+      "shadowPoolBytes": "Byte GPU pool bayangan: halaman kedalamannya, lapisan statis dan transmitansnya setelah dibuat, serta buffer di sampingnya. Null sampai frame pertama menentukan ukuran pool.",
+      "shadowPoolLayers": "Lapisan pool, masing-masing paling banyak 4 096 halaman, diukur sekali dari layar dan cahaya berbayang pada frame pertama. Null sampai saat itu.",
       "shadowPagesRefetched": "Halaman virtual yang dipetakan lagi setelah pool mengusirnya untuk memberi tempat, sejak explorer dibuka: penggambaran ulang yang menjadi biaya pool yang terlalu kecil untuk yang dibaca bingkai.",
       "shadowCastersKept": "Pembuat bayangan yang dipertahankan culling per halaman, semua halaman yang digambar bersama, pada bingkai yang terakhir diambil sampelnya oleh perangkat — satu dari lima belas; `null` sampai sampel kembali.",
       "shadowCastersHidden": "Pembuat bayangan bergerak yang oleh uji oklusi ditemukan tersembunyi di balik lapisan statis halamannya, pada bingkai yang terakhir diambil sampelnya; `null` sampai sampel kembali."
