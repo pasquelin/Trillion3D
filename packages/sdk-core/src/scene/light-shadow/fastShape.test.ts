@@ -25,12 +25,12 @@ test('the objects a moving frame reads page by page keep fast properties and tru
   const { pool } = plan;
   const mapped = pool.owner.filter((entry) => entry >= 0).length;
   assert.ok(mapped > 0, 'the frames mapped pages');
-  assert.equal(pool.used, mapped, 'the pages mapped, counted as they are taken and released');
+  assert.equal(pool.used(), mapped, 'the pages mapped, counted as they are taken and released');
   assert.equal(plan.records.count, 2, 'one slice a shadow light');
   store.remove('lamp');
   cycle(plan, store, 8, () => []);
   assert.equal(plan.records.count, 1, 'a light gone gives its slice back');
   plan.reset();
   assert.equal(plan.records.count, 0);
-  assert.equal(pool.used, 0);
+  assert.equal(pool.used(), 0);
 });

@@ -39,7 +39,6 @@ export function createShadowChanges() {
     /** The box holds only the released union of representation changes: the pages under it are
      *  coarser than the cut, not wrong, and stay read until redrawn. */
     detail = new Uint8Array(MOVED_BOXES);
-  let count = 0;
   /** The union of representation changes held until the camera rests: empty when none waits. */
   const defer = new Float64Array(6),
     deferMin = defer.subarray(0, 3),
@@ -68,16 +67,16 @@ export function createShadowChanges() {
     movingOnly: boolean,
     detailOnly: boolean,
   ) => {
-    if (count < MOVED_BOXES) {
-      write(count * 3, lo, hi, false);
-      moving[count] = movingOnly ? 1 : 0;
-      detail[count] = detailOnly ? 1 : 0;
-      count++;
+    if (changes.count < MOVED_BOXES) {
+      write(changes.count * 3, lo, hi, false);
+      moving[changes.count] = movingOnly ? 1 : 0;
+      detail[changes.count] = detailOnly ? 1 : 0;
+      changes.count++;
       return;
     }
     let best = 0,
       bestGrowth = Infinity;
-    for (let box = 0; box < count; box++) {
+    for (let box = 0; box < changes.count; box++) {
       const growth = volume(box * 3, lo, hi) - own(box * 3);
       if (growth < bestGrowth) {
         bestGrowth = growth;
@@ -96,14 +95,12 @@ export function createShadowChanges() {
     add(deferMin, deferMax, false, true);
     boxEmpty(defer, 0);
   };
-  return {
-    get count() {
-      return count;
-    },
+  // Data fields only, never an accessor (`pool.ts`).
+  const changes = {
+    /** Boxes in the list. */
+    count: 0,
     /** A representation change waits for the camera to rest: the hold must not close before. */
-    get deferred() {
-      return !boxIsEmpty(defer, 0);
-    },
+    deferred: () => !boxIsEmpty(defer, 0),
     /**
      * A node has moved: its box enters the list, or joins a neighbour. `movingOnly` says it holds
      * objects that were already moving — the static casters under it did not change.
@@ -154,7 +151,7 @@ export function createShadowChanges() {
     },
     /** The boxes are consumed: the pages they stale now carry the state. */
     settled() {
-      count = 0;
+      changes.count = 0;
     },
     /**
      * No plan consumes the union this frame — no atlas, no light, unlit view — while the slices
@@ -163,9 +160,10 @@ export function createShadowChanges() {
     releaseDeferred: release,
     /** Nothing waits anymore, and the next view is a first one. */
     reset() {
-      count = 0;
+      changes.count = 0;
       boxEmpty(defer, 0);
       lastView.fill(NaN);
     },
   };
+  return changes;
 }

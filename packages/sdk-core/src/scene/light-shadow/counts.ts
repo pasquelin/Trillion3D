@@ -42,12 +42,12 @@ export function createShadowCounts() {
       nowMs: number,
       frame: number,
     ) {
-      const { owner, slice, requested, dirty, valid, since, readFrame } = pool,
+      const { pages, owner, slice, requested, dirty, valid, since, readFrame } = pool,
         { taken } = records;
       let cached = 0,
         waitedMs = 0,
         waitedFrames = 0;
-      for (let page = 0; page < pool.pages; page++) {
+      for (let page = 0; page < pages; page++) {
         if (owner[page] < 0 || !taken[slice[page]]) continue;
         const read = latest >= 0 && requested[page] >= latest;
         if (!dirty[page]) {
@@ -67,7 +67,7 @@ export function createShadowCounts() {
       }
       counts.pendingPages = 0;
       counts.cachedPages = cached;
-      counts.poolPages = pool.used;
+      counts.poolPages = pool.used();
       counts.waitedMs = waitedMs;
       counts.waitedFrames = waitedFrames;
     },
