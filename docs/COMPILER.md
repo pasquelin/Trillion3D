@@ -611,16 +611,17 @@ key, so a cache cooked by another Jolt is another key, never reused. The algorit
   `physicsMaterial` gives its placements that material's friction and restitution. Every drawn node
   but a declared soft body (below) is static ground, as drawn, a node declaring motion included: no
   page restores a rigid body of a compiled model yet.
-- **Declared bodies** (`declared.rs`). A drawn node whose `KHR_physics_rigid_bodies` declares a
-  `motion` (dynamic, or kinematic with `isKinematic`) is also cooked into `physics.json`'s `bodies`:
-  its motion as declared, its matter, its pose, and its shape — the `KHR_implicit_shapes` shape its
-  collider names, as declared; else the convex hull of the mesh its collider names
-  (`convexHull`) or a convex decomposition of it, its own mesh without a collider (`decompose.rs`,
-  after Mamou & Ghorbel's hierarchical approximate convex decomposition: a part is cut across its
-  longest axis until its concavity is within the mesh's mean edge length, 64 hulls at most). Native
+- **Declared bodies** (`declared.rs`). A node of the rendered scene whose `KHR_physics_rigid_bodies`
+  declares a `motion` (dynamic, or kinematic with `isKinematic`) is also cooked into
+  `physics.json`'s `bodies`: its motion as declared, its matter, its pose, and its shape — the
+  `KHR_implicit_shapes` shape its collider names, as declared; else the convex hull of the mesh its
+  collider's node draws, moved into the body's frame (`convexHull`), or a convex decomposition of
+  it, its own mesh without a collider (`decompose.rs`, after Mamou & Ghorbel's hierarchical
+  approximate convex decomposition: a part is cut at the median of its triangles' centres along
+  their longest axis until its concavity is within the mesh's mean edge length, 64 hulls at most). Native
   Jolt builds the hulls into one `StaticCompoundShape` (`cook_hulls`, `hulls.rs`) at the runtime's
   density, 1000 kg/m³, and weighs it: mass, centre of mass and inertia are written beside it, in
-  the mesh's frame, so the page builds no hull and weighs nothing. A body the cook refuses — a
+  the body's frame, so the page builds no hull and weighs nothing. A body the cook refuses — a
   missing shape, a shearing node, a flat mesh, hulls Jolt refuses — is named in
   `report.bodiesRefused`; the compile goes on.
 
