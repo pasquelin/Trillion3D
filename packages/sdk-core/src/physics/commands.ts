@@ -40,6 +40,8 @@ export interface BodyRecord {
   indices?: ArrayLike<number>;
   /** A compound's parts (shape `SHAPE.compound`). */
   parts?: readonly CompoundPart[];
+  /** A primitive's or a cooked shape's mass frame, 3 or 12 floats (`ADD_WORDS`). */
+  massFrame?: readonly number[];
 }
 
 /**
@@ -80,7 +82,8 @@ export class CommandWriter {
   /** Creates a body. */
   add(body: BodyRecord) {
     const vertexCount = body.vertices ? body.vertices.length / 3 : 0;
-    const indexCount = body.indices?.length ?? (body.parts?.length ?? 0) * PART_WORDS;
+    const indices = body.indices?.length ?? (body.parts?.length ?? 0) * PART_WORDS;
+    const indexCount = indices + (body.massFrame?.length ?? 0);
     this.reserve(ADD_WORDS + vertexCount * 3 + indexCount);
     const w = this.words,
       f = this.floats,
@@ -95,6 +98,7 @@ export class CommandWriter {
     w[at + 24] = indexCount;
     if (body.vertices) f.set(body.vertices, at + ADD_WORDS);
     if (body.indices) w.set(body.indices, at + ADD_WORDS + vertexCount * 3);
+    if (body.massFrame) f.set(body.massFrame, at + ADD_WORDS + vertexCount * 3 + indices);
     body.parts?.forEach((part, i) => {
       const p = at + ADD_WORDS + i * PART_WORDS;
       w[p] = part.shape;
@@ -168,10 +172,7 @@ export class CommandWriter {
   }
   /** Sets the world's gravity, m/s². */
   gravity(vector: ArrayLike<number>) {
-    this.reserve(4);
-    this.words[this.length++] = OP.gravity;
-    this.floats.set(vector, this.length);
-    this.length += 3;
+    this.put([OP.gravity], vector);
   }
   /** Connects two bodies, or a body and the world. */
   joint(j: JointRecord) {
