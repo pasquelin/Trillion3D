@@ -5,6 +5,8 @@ import { Light } from '../light/light.ts';
 import { Camera } from '../camera/camera.ts';
 import { Mesh } from './mesh.ts';
 import { cloneObject } from './clone.ts';
+import { Matrix4 } from '../math/matrix4.ts';
+import { Quaternion } from '../math/quaternion.ts';
 
 // Re-deriving Euler angles from the quaternion would swap (0, y, 0) past ±90° for the equivalent
 // (π, π − y, π); a later one-axis write would then keep x = z = π and turn the node another way.
@@ -70,4 +72,26 @@ test("a clone keeps a light's values, a camera's optics, and shares a mesh's con
   const twin = lines.clone();
   assert.ok(twin.geometry === lines.geometry && twin.material === lines.material, 'shared');
   assert.equal(twin.primitive, 'lineSegments');
+});
+
+test('attach keeps the world matrix, and position, rotation and scale hold the new pose', () => {
+  const [from, to, node] = [new Group(), new Group(), new Object3D()];
+  from.position.set(1, 2, 3);
+  from.rotation.set(0, Math.PI / 2, 0);
+  from.scale.set(2, 3, 4);
+  to.position.set(-4, 0, 1);
+  to.rotation.set(Math.PI / 2, 0, 0);
+  from.add(node);
+  node.position.set(1, -1, 2);
+  node.updateWorldMatrix(true, false);
+  const world = node.matrixWorld.clone();
+  assert.equal(to.attach(node), to);
+  assert.equal(node.parent, to);
+  const close = (m: Matrix4) => m.elements.every((v, i) => Math.abs(v - world.elements[i]) < 1e-12);
+  node.updateMatrixWorld(true);
+  assert.ok(close(node.matrixWorld), 'its world matrix, kept');
+  const posed = new Matrix4().compose(node.position, node.quaternion, node.scale);
+  assert.ok(close(posed.premultiply(to.matrixWorld)), 'its fields, rewritten');
+  const turn = new Quaternion().setFromEuler(node.rotation);
+  assert.ok(Math.abs(Math.abs(turn.dot(node.quaternion)) - 1) < 1e-12, 'its angles follow');
 });
