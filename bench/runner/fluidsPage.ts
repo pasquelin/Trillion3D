@@ -98,9 +98,7 @@ export async function measureFluids({
   // A lost context is published where the bench rereads it (`withGpuIncidents`).
   const lost: string[] = (globalThis.incidentsGpu = []);
   canvas.addEventListener('webglcontextlost', () => lost.push('webglcontextlost'));
-  // The world leads its own loop, as every physics example does: a host-led `world.render()`
-  // never runs the frame's physics (`world.ts`: only the loop's `beforeFrame` steps it), so its
-  // bodies would never reach the worker.
+  // The world leads its own loop, as every physics example does.
   const world = sdk.createWorld(canvas, { renderer, physics: true, temporalAntialiasing });
   try {
     await world.ready;

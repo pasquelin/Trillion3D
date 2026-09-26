@@ -335,6 +335,9 @@ function tick() {
 tick();
 ```
 
+`world.render()` runs the frame the world's loop would: clips, physics and `beforeFrame` hooks
+advance with it; only the camera's controller is left to the host.
+
 A value written directly on a node — `mesh.position.x = 100`, `mesh.visible = false`, a light's
 intensity, colour or pose — needs no call to be seen by the next frame, and a light added to or
 removed from the graph is picked up on the next frame too. An asynchronous render failure stops
@@ -540,22 +543,27 @@ reopen.
 
 `world.guides` draws what a page shows _about_ its scene — an axis, a grid, a box, a measured
 segment, a light's cone — without adding it to the scene. A guide is not cut into pages: it is
-drawn by a small pass of its own after the image is composed, as quads of a fixed width in
-device pixels (the drawing buffer's, not CSS pixels), hidden by whatever stands in front of it (the scene's depth is read, never
-written). It never enters temporal accumulation, so it does not smear behind a moving camera
-nor shimmer on a still one.
+drawn by a small pass of its own after the image is composed, as quads of a fixed width in CSS
+pixels — `width × pixelRatio` of the drawing buffer's, as every line of the engine counts it, with
+the engine's own line corner (`lineClip`) — hidden by whatever stands in front of it (the scene's
+depth is read, never written). It never enters temporal accumulation, so it does not smear
+behind a moving camera nor shimmer on a still one.
 
 ```js
-const grid = world.guides.add(helper.grid(20, 20), { width: 1.5 }); // any helper, as it stands
+const grid = world.guides.add(helper.grid(20, 20), { width: 1.5 }); // any helper; it follows it
+const cone = world.guides.add(helper.spotLight(spot)); // follows the light, no update() needed
 const ruler = world.guides.lines({ positions: [0, 0, 0, 4, 0, 0], color: '#ffd24a', width: 3 });
 const marks = world.guides.points({ positions: [0, 0, 0, 4, 0, 0], color: '#ffd24a', size: 8 });
 ruler.setVisible(false); // kept, not drawn
-grid.setTransform(model.matrixWorld); // placed again, e.g. every frame to follow a node
+grid.setTransform(model.matrixWorld); // placed by the page: it stops following its node
 marks.remove();
 ```
 
 - `add(object, { width, size })` reads the line and point meshes of an object — every `helper`
-  builds them — in their material colours; triangles, like an arrow's head, are not guides.
+  builds them — in their material colours; triangles, like an arrow's head, are not guides. The
+  guide follows the object's world transform — for a light's or a camera's helper, that light's
+  or camera's — read at each image the world draws and moved only when it changed, so a page
+  never re-places it and a still view is still held. `setTransform` hands it back to the page.
   `lines` takes two ends per segment, `points` one position per dot.
 - Every call answers a handle: `setVisible(on)`, `setTransform(matrix)` (sixteen column-major
   numbers or a matrix), `remove()`. `world.guides.clear()` removes them all. Placing a guide
@@ -1035,6 +1043,7 @@ says the pool is too small for that view). A value that cannot be held as given 
 - a device whose limits cannot hold even the root cover: `GEOMETRY_POOL_DEVICE_LIMIT`;
 - a pool floor the device refuses at prepare: `WEBGPU_GEOMETRY_POOL_REFUSED`,
   `WEBGPU_TEXTURE_POOL_REFUSED`, below;
+- frame targets the device refuses even without Hi-Z: `WEBGPU_FRAME_TARGETS_REFUSED`, below;
 - a texture pool too small for the tails its textures keep resident whole, one tile each: more
   textures in one lane than its layers hold tiles (900 a layer), at prepare or when
   `world.budget.texturePool` shrinks the pool: `TEXTURE_POOL_TAILS`.
@@ -1075,8 +1084,18 @@ is not proven yet.
 
 Frame targets are **not** budgeted: colour, depth, visibility, HDR, material surfaces, Hi-Z, the
 temporal history and a capture follow the resolution, and `gpuFrameTargetBytes` says what they cost.
-Only a size the device cannot make is refused (`SURFACE_DEVICE_LIMIT`). How the pools are laid out,
-filled and rebalanced: [ENGINE.md](ENGINE.md#memory).
+Only a size the device cannot make is refused (`SURFACE_DEVICE_LIMIT`).
+
+Out of memory on the frame targets is absorbed too: they are made under the pools' out-of-memory
+check, at prepare and when the view's size changes, and the frames are held meanwhile with nothing
+presented, so the canvas keeps the previous image; a capture waits. When the device refuses them,
+Hi-Z goes first, for the rest of the session: its absence costs time, never image
+(`gpu-out-of-memory`, `pool: 'frame-targets'`, `dropped: 'hi-z'`). Refused even then, the
+visibility targets included, they are refused by name and the mode is kept, never a lost device:
+`frame-targets-refused` (`code: 'WEBGPU_FRAME_TARGETS_REFUSED'`, `reason: 'gpu-out-of-memory'`, or
+`'gpu-error'` with its `error` when a creation throws, the size, `requestedBytes`); prepare, a
+capture and its restore reject with the code.
+How the pools are laid out, filled and rebalanced: [ENGINE.md](ENGINE.md#memory).
 
 ## Captures and image checks
 
@@ -1253,8 +1272,11 @@ bend }` simulates the mesh's vertices one by one on Jolt's soft bodies. A cloth 
   `restitution`, `gravityScale` and `damping: { linear }` act as on a rigid body, on each vertex;
   `shape`, `sensor`, `ccd`, `decorative` and an angular damping are refused with a `RangeError`
   (its vertices do not turn). A soft body is a
-  direct child of the scene; moved by the page, it is made again there; it takes no velocity,
-  impulse, joint or vehicle. Rigid bodies and the character collide with its vertices: the
+  direct child of the scene; moved by the page, it is carried there with its vertices, its
+  simulation kept; placed at another scale than it was made at, it is refused with
+  `PHYSICS_FAILED` and leaves the simulation until it is back at that scale (Jolt scales no soft
+  body once made), as a compiled model's cooked one does; hidden, its vertices are not sent. It takes no velocity, impulse, joint or
+  vehicle. Rigid bodies and the character collide with its vertices: the
   character is turned aside or stopped, never pushing it; a rigid body much heavier than the skin
   it lands on can push between its vertices; soft bodies pass through each other (Jolt collides
   them with rigid bodies only). `on('contact' | 'enter' | 'leave')` works on either side of a
@@ -1316,8 +1338,8 @@ bend }` simulates the mesh's vertices one by one on Jolt's soft bodies. A cloth 
   `gpu-device-recovered` says the time from the loss to the first frame drawn after it
   (`recoveryMs`). Baked texture levels and `lights.json` are read again, and cross-API fallback is
   not implemented.
-- Frame targets are allocated without an out-of-memory check: a refusal there is still reported as a
-  lost device.
+- Frame targets the device refused are asked again only when the view's size changes, or by a
+  capture; until then the frames stay held on the previous image.
 - Physics, `ten-thousand-bodies` (10,000 boxes landing at once; headed Chrome, 1280×720, DPR 1,
   cross-origin isolated, eight threads, 120 Hz display; load average 8–14, not a quiet machine;
   commit f56d2dd57; three runs): the worker's step is 3.7–4.2 ms p50 and 20–25 ms p95 during the

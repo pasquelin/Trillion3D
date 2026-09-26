@@ -52,21 +52,6 @@ export function traceDrawnVerify(rt: WebgpuPagesRuntime, elapsedMs: number) {
   }));
 }
 
-export function traceTargetsEnsured(
-  rt: WebgpuPagesRuntime,
-  width: number,
-  height: number,
-  started: number,
-) {
-  rt.diag.traceDiagnostic('targets-ensure', 'GPU targets ensured', () => ({
-    frame: rt.run.frame,
-    scope: 'cpu/ensureTargets',
-    elapsedMs: performance.now() - started,
-    width,
-    height,
-  }));
-}
-
 /** Logs the configuration of the first CPU-cut image once, on the host console too. */
 export function logFirstCpuRenderPath(rt: WebgpuPagesRuntime) {
   const { run, vis, gpu, diag } = rt;

@@ -14,6 +14,7 @@
 import type { TableTextureSlot, TextureFilter, WrapMode } from '../../../../sdk-core/src/index.ts';
 import type { PreparedSceneTables } from '../../../../sdk-core/src/scene/core/tableContracts.ts';
 import type { TableDocument } from '../../../../sdk-core/src/scene/core/tableDocuments.ts';
+import { mipFiltered } from '../../../../sdk-core/src/texture/contract.ts';
 import { GraphTexture } from '../graph/texture.ts';
 import {
   HOST_FILTER_LINEAR,
@@ -89,8 +90,7 @@ export function preparedTextures(
         built.minFilter = FILTERS[declared.minFilter];
         built.wrapS = WRAPS[declared.wrapS];
         built.wrapT = WRAPS[declared.wrapT];
-        built.generateMipmaps =
-          built.minFilter !== HOST_FILTER_NEAREST && built.minFilter !== HOST_FILTER_LINEAR;
+        built.generateMipmaps = mipFiltered(declared.minFilter);
         ranks.set(built, rank);
         return built;
       });
