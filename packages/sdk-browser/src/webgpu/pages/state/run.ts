@@ -103,7 +103,8 @@ export interface WebgpuRunState extends WebgpuBudgetState {
   /** Image entry: revisions, view origin, reread of the source graph, walk of world matrices and
    *  held-image witness. See `../../../frame/gateCore.ts`. */
   gate: FrameGateCore;
-  /** True when the current image was held: no CPU step was executed. */
+  /** True when the current image was held and nothing more will be drawn unasked: no CPU step
+   *  was executed, and no device answer in flight asks another — targets refused included. */
   frameHeld: boolean;
   /** A barrier converges the textures: every pixel publishes its image feedback. */
   textureConverging: boolean;
