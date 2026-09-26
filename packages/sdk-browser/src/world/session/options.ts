@@ -118,6 +118,9 @@ export interface MeasuredWorldOptions {
   /** Hears the mode of a surface that keeps WebGL2 from drawing `effects` on a frame, drawn
    *  whole without the chain (`ComposedChain.refused`). */
   effectsRefused?: import('../render/compose.ts').ComposedChain['refused'];
+  /** Hears the ids of the lights that ask for a shadow WebGL2 draws not, at each change of them
+   *  (`noticeShadowRefusal`). */
+  shadowsRefused?: import('../../lighting/contractLights.ts').ContractShadows;
   /** Whether the prepared scene reads the source images. `'cache'`, the default: an image whose
    *  mip chain the cache carries is neither fetched nor decoded — the engine reads the baked
    *  levels, which it does whatever this option says. `'host'`: the scene reads and decodes
