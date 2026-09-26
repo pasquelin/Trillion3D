@@ -95,7 +95,7 @@ export function createWebglParticles(gl: WebGL2RenderingContext) {
   const latest = (pool: ParticlePool) => held.current()?.made.peek(pool)?.targets[0].texture;
   const drawn = createWebglParticleDraw(gl, TEXELS, latest);
   return {
-    draw: drawn.draw,
+    ...drawn,
     /** Steps `pools`; returns the draws made. Throws `PARTICLES_UNSUPPORTED`, the pools refused,
      *  on a context without 32-bit float targets. */
     run(pools: readonly ParticlePool[]) {
