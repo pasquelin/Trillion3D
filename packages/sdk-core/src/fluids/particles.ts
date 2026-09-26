@@ -11,7 +11,7 @@ import { GRAVITY_PRESETS } from '../physics/options.ts';
 /** Floats of one particle and of one emission record, the same eight words: position from the
  *  origin then age, velocity then lifetime. A record's age is zero: the GPU copies it as it is. */
 export const PARTICLE_FLOATS = 8;
-/** The largest pool: 32 MiB of state on WebGPU, a 1024 × 1024 texture pair on WebGL2. */
+/** The largest pool: 32 MiB of state on WebGPU, a 1024 × 2048 texture pair on WebGL2. */
 const MAX_CAPACITY = 1 << 20;
 /** The longest step an image takes, seconds: a stalled tab does not fling its particles away. */
 const MAX_STEP = 1 / 15;
