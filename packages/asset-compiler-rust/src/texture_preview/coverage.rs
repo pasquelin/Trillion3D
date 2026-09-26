@@ -4,8 +4,8 @@
 //! the card regenerates keeps the median alone).
 //!
 //! A masked material keeps a texel when its alpha, times the material's
-//! `baseColorFactor` alpha, reaches the cutoff (`alpha >= alphaTest`), and the median of four does not keep the share of
-//! texels that do: on foliage the coarse levels thin out (sponza's masked maps
+//! `baseColorFactor` alpha, reaches the cutoff (`alpha >= alphaTest`), and the
+//! median of four does not keep the share of texels that do: on foliage the coarse levels thin out (sponza's masked maps
 //! lose up to 57 % of their coverage at level 8, #44). So, at every level `k ≥ 1`
 //! of a coverage chain whose cutoff byte `C` is not 0 (`cutoff_byte`):
 //!
@@ -25,7 +25,9 @@
 //! Level `k + 1` is reduced from these bytes. Colours are not touched. A chain
 //! whose cutoff is 0 — every reader blends — keeps the median alone.
 
+use super::collect::AtlasTexture;
 use super::reduce::AtlasKind;
+use serde_json::Value;
 
 /// The smallest byte a masked material keeps at `cutoff` (`b / 255 >= cutoff`,
 /// the engine's test on the sampled alpha), for a cutoff above 0 as every
@@ -35,6 +37,29 @@ pub(super) fn cutoff_byte(cutoff: f32) -> u8 {
     (1..=255u8)
         .find(|&byte| f32::from(byte) / 255.0 >= cutoff)
         .unwrap_or(0)
+}
+
+/// The cutoff byte of a masked material's texture. The engine cuts the sampled
+/// alpha times the factor's (`opacity`, `compiler_tables/materials.rs`): the
+/// texture's own cutoff is their quotient, no byte at all under a factor of 0.
+pub(super) fn material_cutoff(material: &Value, cutoff: f32) -> u8 {
+    let opacity = material
+        .pointer("/pbrMetallicRoughness/baseColorFactor/3")
+        .and_then(Value::as_f64)
+        .unwrap_or(1.0) as f32;
+    cutoff_byte(cutoff / opacity.max(0.0))
+}
+
+/// The cutoff byte of an image's coverage chain, which every coverage texture
+/// of the image shares: the lowest one above 0 among them, 0 when every one blends.
+pub(super) fn image_cutoff(readers: &[AtlasTexture]) -> u8 {
+    readers
+        .iter()
+        .filter_map(|r| match r.kind {
+            AtlasKind::Coverage(cutoff) => Some(cutoff),
+            _ => None,
+        })
+        .fold(0, lowest_cutoff)
 }
 
 /// The cutoff two coverage readers share: the lower one that cuts, 0 only when
