@@ -29,7 +29,7 @@ type Binding = {
   matrices: Matrix3UniformCache;
   textures: WebglClusterTextures;
   state: WebglClusterState;
-  /** The effect chain's linear program (`CLUSTER_LINEAR_FRAGMENT`), which reads `covering`. */
+  /** The effect chain's linear program (`CLUSTER_LINEAR_FRAGMENT`): `covering` is coverage. */
   linear?: boolean;
 };
 
@@ -68,25 +68,18 @@ export function bindClusterMaterial(
       mat.aoMap ??
       (basic.aoMap && readsOcclusion(basic) ? importHostTexture(basic.aoMap) : undefined),
     aoIntensity = mat.aoMap ? mat.aoIntensity : (basic.aoMapIntensity ?? 1);
-  // glTF 2.0 cuts the colour factor's alpha times the map's, as WebGPU's `maskKeep` (#769). A
-  // blended surface draws that alpha; an opaque one writes 1, so its opacity divides the cutoff.
-  const opacity = surfaceOpacity(source),
-    blended = material.transparent;
   uniforms.f4(
     0,
     'baseFactor',
     mat.baseColor[0],
     mat.baseColor[1],
     mat.baseColor[2],
-    blended ? opacity : 1,
+    // glTF 2.0 cuts the colour factor's alpha times the map's, as WebGPU's `maskKeep` (#769).
+    material.transparent || mat.alphaTest > 0 ? surfaceOpacity(source) : 1,
   );
   uniforms.f1(4, 'metalFactor', mat.metalness);
   uniforms.f1(5, 'roughFactor', mat.roughness);
-  uniforms.f1(
-    6,
-    'alphaCutoff',
-    blended || mat.alphaTest <= 0 ? mat.alphaTest : mat.alphaTest / opacity,
-  );
+  uniforms.f1(6, 'alphaCutoff', mat.alphaTest);
   uniforms.f2(7, 'normalScale', mat.normalScale, mat.normalScaleY);
   uniforms.f1(9, 'aoStrength', aoIntensity);
   uniforms.f3(10, 'emissiveFactor', mat.emissive);
@@ -95,7 +88,8 @@ export function bindClusterMaterial(
   uniforms.i1(15, 'hasVertexColor', material.vertexColors ? 1 : 0);
   // A debug view, a normal or depth surface, is output untouched (`shownAsIs`).
   uniforms.i1(16, 'toneMapped', toneMapped && material.toneMapped && !shownAsIs(mat.model) ? 1 : 0);
-  if (linear) uniforms.i1(47, 'covering', coversLinear(material) ? 1 : 0);
+  // An opaque surface writes alpha 1 whatever it was cut at; into the chain, alpha is coverage.
+  uniforms.i1(47, 'covering', (linear ? coversLinear(material) : !material.transparent) ? 1 : 0);
   const sharedMetalRough =
     !!mat.roughnessMap &&
     mat.roughnessMap === mat.metalnessMap &&
