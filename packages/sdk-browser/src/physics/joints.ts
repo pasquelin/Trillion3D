@@ -97,10 +97,13 @@ export function createPhysicsJoints(
       }
     },
     /** The body made with `physics` (not one the page set since) leaves the simulation for good,
-     *  asleep decorative: each joint made on it breaks now, one added later at `reconcile`. */
-    retired(physics: Bodied['physics'] | null) {
-      if (physics) gone.add(physics);
-      for (const joint of made.keys()) if (out(joint.a) || out(joint.b)) snap(joint);
+     *  asleep decorative: each joint of `joints` made on it breaks now, one added later at
+     *  `reconcile`; one the page removed since only leaves. */
+    retired(physics: Bodied['physics'] | null, joints: ReadonlySet<Joint>) {
+      if (!physics) return;
+      gone.add(physics);
+      for (const joint of made.keys())
+        if (out(joint.a) || out(joint.b)) (joints.has(joint) ? snap : drop)(joint);
     },
     /** The joints the simulation broke, by id: out, and told. */
     broke(ids: readonly number[]) {
