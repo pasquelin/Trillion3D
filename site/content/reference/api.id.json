@@ -2127,7 +2127,7 @@
       "quaternion": "Bagaimana node itu diputar, sebagai sebuah quaternion.",
       "scale": "Bagaimana node itu direntangkan pada setiap sumbu.",
       "up": "Arah mana yang atas untuk `lookAt`.",
-      "castShadow": "Apakah node itu melempar bayangan.",
+      "castShadow": "Apakah node itu melempar bayangan: mesh melakukannya kecuali diatur ke `false`, cahaya hanya jika diatur ke `true`. Mesh yang diatur ke `false` tetap menerima bayangan dari yang lain.",
       "receiveShadow": "Apakah bayangan jatuh pada node itu.",
       "renderOrder": "Urutan menggambar di antara benda tembus pandang.",
       "frustumCulled": "Apakah renderer boleh melewatinya di luar pandangan.",
@@ -2640,6 +2640,7 @@
     "members": {
       "matrices": "Enam belas float column-major per baris, ditulis pemiliknya.",
       "live": "1 di mana baris menempatkan sumber daya itu, 0 di mana ia diparkir.",
+      "shadowless": "1 di mana baris tidak melempar bayangan (`castShadow` mesh-nya `false`), 0 di mana ia melemparnya.",
       "capacity": "Baris yang muat sebelum ia tumbuh."
     }
   },

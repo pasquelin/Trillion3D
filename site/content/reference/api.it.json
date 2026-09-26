@@ -4257,7 +4257,7 @@
       "quaternion": "Come è ruotato il nodo, in quaternione.",
       "scale": "Come è allungato il nodo su ogni asse.",
       "up": "Dove è l'alto per `lookAt`.",
-      "castShadow": "Se il nodo proietta ombre.",
+      "castShadow": "Se il nodo proietta ombre: una mesh lo fa a meno che non sia impostata a `false`, una luce solo se impostata a `true`. Una mesh impostata a `false` riceve comunque le ombre degli altri.",
       "receiveShadow": "Se le ombre cadono sul nodo.",
       "renderOrder": "Ordine di disegno tra le cose trasparenti.",
       "frustumCulled": "Se un renderer può saltarlo fuori dalla vista.",
@@ -4758,6 +4758,7 @@
     "members": {
       "matrices": "Sedici float colonna per colonna per riga, scritti dal proprietario.",
       "live": "1 dove la riga posiziona la risorsa, 0 dove è messa da parte.",
+      "shadowless": "1 dove la riga non proietta ombra (il `castShadow` della sua mesh è `false`), 0 dove la proietta.",
       "capacity": "Righe che ci stanno prima che cresca."
     }
   },

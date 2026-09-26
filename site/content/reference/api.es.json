@@ -4257,7 +4257,7 @@
       "quaternion": "Cómo está girado el nodo, en cuaternión.",
       "scale": "Cómo está estirado el nodo en cada eje.",
       "up": "Dónde está arriba para `lookAt`.",
-      "castShadow": "Si el nodo proyecta sombras.",
+      "castShadow": "Si el nodo proyecta sombras: una malla lo hace salvo que se ponga en `false`, una luz solo si se pone en `true`. Una malla en `false` sigue recibiendo las sombras de las demás.",
       "receiveShadow": "Si las sombras caen sobre el nodo.",
       "renderOrder": "Orden de dibujo entre las cosas transparentes.",
       "frustumCulled": "Si un renderizador puede omitirlo fuera de la vista.",
@@ -4758,6 +4758,7 @@
     "members": {
       "matrices": "Dieciséis flotantes columna por columna por fila, escritos por el propietario.",
       "live": "1 donde la fila coloca el recurso, 0 donde está apartada.",
+      "shadowless": "1 donde la fila no proyecta sombra (el `castShadow` de su malla es `false`), 0 donde la proyecta.",
       "capacity": "Filas que caben antes de que crezca."
     }
   },

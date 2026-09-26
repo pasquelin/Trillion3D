@@ -2109,7 +2109,7 @@
       "quaternion": "Düğümün bir kuaterniyon olarak nasıl döndürüldüğü.",
       "scale": "Düğümün her eksende nasıl gerildiği.",
       "up": "`lookAt` için hangi yönün yukarı olduğu.",
-      "castShadow": "Düğümün gölge düşürüp düşürmediği.",
+      "castShadow": "Düğümün gölge düşürüp düşürmediği: bir mesh `false` yapılmadıkça düşürür, bir ışık yalnızca `true` yapıldığında. `false` yapılan bir mesh başkalarının gölgelerini yine de alır.",
       "receiveShadow": "Gölgelerin düğümün üzerine düşüp düşmediği.",
       "renderOrder": "Şeffaf şeyler arasında çizim sırası.",
       "frustumCulled": "Bir işleyicinin onu görüş dışında atlayıp atlayamayacağı.",
@@ -2622,6 +2622,7 @@
     "members": {
       "matrices": "Sahip tarafından yazılan, satır başına column-major on altı float.",
       "live": "Satırın kaynağı yerleştirdiği yerde 1, park edildiği yerde 0.",
+      "shadowless": "Satırın gölge düşürmediği yerde 1 (mesh'inin `castShadow` değeri `false`), düşürdüğü yerde 0.",
       "capacity": "Büyümeden önce sığan satırlar."
     }
   },
