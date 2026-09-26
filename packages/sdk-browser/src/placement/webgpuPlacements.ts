@@ -6,7 +6,8 @@ import { placedBy, type PlacementRows } from './rows.ts';
 /**
  * Rows of an instance buffer the WebGPU page raster was opened with were written. The roots read
  * their worlds from the rows, so nothing is copied: their boxes are reprojected, a parked row
- * leaves the GPU cut's first queue and a taken one enters it (`parkWorld`), the page rows of the
+ * leaves the GPU cut's first queue and a taken one enters it (`parkWorld`), a row that stops or
+ * starts casting leaves or enters every light cut (`markWorld`), the page rows of the
  * roots that read them are rewritten, and them alone (`moveRootRows`), and the frame learns that
  * poses moved — the worlds go up in one write at the next image, and the shadow pages the change
  * touched are drawn again: their moving casters only, once the placements are known to move
@@ -26,7 +27,10 @@ export function updateWebgpuPlacements(
     rows,
     from,
     to,
-    (rank, parked) => run.gpuSelection?.parkWorld(rank, parked),
+    (rank, root) => {
+      run.gpuSelection?.parkWorld(rank, !!root.parked);
+      run.gpuSelection?.markWorld(rank, root.mark ?? 0);
+    },
     lights.mobility.move,
     (rank) => moveRootRows(rt, layout.selectionRoots[rank]),
     lights.plan.worldChanged,

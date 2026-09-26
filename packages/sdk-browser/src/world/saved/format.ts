@@ -2,9 +2,11 @@ import type { SceneFog } from '../../../../sdk-core/src/scene/core/fog.ts';
 import { EngineError } from '../../../../sdk-core/src/contracts/cache.ts';
 import type { PhysicsOption } from '../../../../sdk-core/src/physics/options.ts';
 
-/** The name a saved scene carries, and the one version of its layout this runtime reads. */
+/** The name a saved scene carries, and the version of its layout this runtime writes. It reads it
+ *  and version 1, written when a mesh's `castShadow` was `false` by default and read by no
+ *  renderer: a mesh of version 1 casts (`readScene`). */
 export const SCENE_FORMAT = 'trillion3d-scene';
-export const SCENE_FORMAT_VERSION = 1;
+export const SCENE_FORMAT_VERSION = 2;
 
 /** A geometry: the family call that built it, or its vertices when no call can build it again. */
 export interface SavedGeometry {
@@ -94,7 +96,7 @@ export interface SavedCamera {
 export interface SavedScene {
   /** Always `'trillion3d-scene'`. */
   format: typeof SCENE_FORMAT;
-  /** The version of this layout; another one is refused. */
+  /** The version of this layout; one this runtime does not read is refused. */
   formatVersion: number;
   /** The background colour, or `null`. */
   background: [number, number, number] | null;
@@ -110,10 +112,11 @@ export interface SavedScene {
   children: SavedNode[];
 }
 
-/** Refuses what is not a saved scene of the version this runtime reads, by name. */
+/** Refuses what is not a saved scene of a version this runtime reads, by name. */
 export function assertSavedScene(value: unknown): asserts value is SavedScene {
   const saved = value as Partial<SavedScene> | null;
-  if (saved?.format !== SCENE_FORMAT || saved.formatVersion !== SCENE_FORMAT_VERSION)
+  const version = saved?.formatVersion;
+  if (saved?.format !== SCENE_FORMAT || !(version === 1 || version === SCENE_FORMAT_VERSION))
     throw new EngineError(
       'UNSUPPORTED_SCENE_FORMAT',
       `Not a saved scene of version ${SCENE_FORMAT_VERSION}`,
