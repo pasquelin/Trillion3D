@@ -41,6 +41,29 @@ test('a tile a busy server refuses (503) is asked once per update: the next one 
   assert.deepEqual([asked.length, bodies.count.triangles], [2, 2]);
 });
 
+test('a tile the server refuses (404) is asked once, never at the next updates', async (t) => {
+  const { tiles, asked, opened, heard, errors } = streaming(t, 't0.bin', [404]);
+  await opened;
+  const refused = heard();
+  tiles.update([0, 0, 0], 1000);
+  await refused;
+  tiles.update([0, 0, 0], 1000);
+  await landed();
+  assert.deepEqual([asked.length, errors.length], [1, 1]);
+});
+
+test('a cooked file that lists no soft bodies still brings its tiles in, no failure', async (t) => {
+  const { softBodies: _none, ...file } = cooked([{ kind: 'mesh', tiles: [tile()] }], [place(0)]);
+  const served = modelFiles(file, new Uint8Array(1));
+  answering(t, 't0.bin', [200], served, served);
+  const { tiles, scene, bodies, errors } = modelStreamer();
+  tiles.scan(scene);
+  await landed();
+  tiles.update([0, 0, 0], 1000);
+  await landed();
+  assert.deepEqual([bodies.count.triangles, errors], [2, []]);
+});
+
 test('a model leaving while its tile is on its way lets the read go: no failure, no second ask', async (t) => {
   const { tiles, scene, model, asked, opened, errors } = streaming(t, 't0.bin', ['hang']);
   await opened;

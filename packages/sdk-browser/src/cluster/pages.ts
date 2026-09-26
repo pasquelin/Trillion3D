@@ -2,13 +2,15 @@ import { EngineError } from '../../../sdk-core/src/index.ts';
 import { verifyPageBytes } from '../page/decode/host.ts';
 /** Whether a failure of HTTP `status` a second request may not meet: the network (`null`), or a
  *  server error (5xx). A refusal another request would meet again — a 4xx — is not. */
-export const retriable = (status: number | null) => status === null || status >= 500;
+const retriable = (status: number | null) => status === null || status >= 500;
 /** The HTTP status `error` was refused with (`checked`), `null` for none: the network, or an
  *  error of another kind. */
 export const refusedStatus = (error: unknown) => {
   const status = error instanceof EngineError ? error.details.status : null;
   return typeof status === 'number' ? status : null;
 };
+/** Whether the read that failed with `error` is worth asking again (`retriable`): a 4xx is not. */
+export const retriableError = (error: unknown) => retriable(refusedStatus(error));
 /** A refused answer's body let go at once, not left to hold its connection until collected. */
 const letGo = (response: Response) => void response.body?.cancel().catch(() => {});
 /** What an optional file's absence answers: a 404, or the 403 of a store that hides what it lacks. */

@@ -1,6 +1,6 @@
 import type { GpuPageContext, ResidentPage } from './types.ts';
 import { commitGpuPage } from './commit.ts';
-import { refusedStatus, retriable } from '../../cluster/pages.ts';
+import { refusedStatus, retriableError } from '../../cluster/pages.ts';
 
 export function createGpuPageLoader(context: GpuPageContext) {
   const { abort, resident, fetches, state, reader, check, pageBytes, pins } = context;
@@ -57,7 +57,7 @@ export function createGpuPageLoader(context: GpuPageContext) {
           bytes = await (fetched ?? fetchBytes(key, combined));
         } catch (err) {
           // A refusal another request would meet again (a 4xx) is not asked twice (`checked`).
-          if (!combined.aborted && !state.disposed && retriable(refusedStatus(err))) {
+          if (!combined.aborted && !state.disposed && retriableError(err)) {
             emit('gpu-page-retry', 'New GPU read after failure', () => ({
               version: 1,
               key,
