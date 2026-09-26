@@ -36,10 +36,10 @@ fn foliage(side: u32) -> image::RgbaImage {
 fn strays(chain: &[Vec<u8>], cutoff: u8) -> Vec<usize> {
     let covered = |level: &[u8]| {
         level
+            .as_chunks::<4>()
+            .0
             .iter()
-            .skip(3)
-            .step_by(4)
-            .filter(|&&a| a >= cutoff)
+            .filter(|t| t[3] >= cutoff)
             .count()
     };
     let share = covered(&chain[0]) as f64 / (chain[0].len() / 4) as f64;
@@ -58,11 +58,7 @@ fn coverage_holds_at_every_level_of_a_masked_chain() {
     let source = foliage(512);
     for cutoff in [64, 128, 191] {
         let chain = reduce::chain(&source, AtlasKind::Coverage(cutoff));
-        assert_eq!(
-            strays(&chain, cutoff),
-            Vec::<usize>::new(),
-            "cutoff {cutoff}"
-        );
+        assert!(strays(&chain, cutoff).is_empty(), "cutoff {cutoff}");
     }
     let median = reduce::chain(&source, AtlasKind::Coverage(0));
     assert_eq!(strays(&median, 128), [3, 4, 5, 6, 7, 8]);
@@ -73,26 +69,17 @@ fn coverage_holds_at_every_level_of_a_masked_chain() {
 // nearest the cutoff: `s` = 127.5 / 89.5, so 100 → 142, 90 → 128, 10 → 14, 0 → 0.
 #[test]
 fn the_scale_lands_on_the_cutoff_in_integers() {
-    let texels = |alphas: [u8; 4]| {
-        alphas
-            .iter()
-            .flat_map(|&a| [9, 9, 9, a])
-            .collect::<Vec<_>>()
-    };
+    let texels = |alphas: [u8; 4]| alphas.map(|a| [9, 9, 9, a]).concat();
     let covered = Covered::of(&texels([200, 200, 0, 0]), AtlasKind::Coverage(128)).expect("cut");
     let mut level = texels([100, 90, 10, 0]);
     covered.preserve(&mut level);
     assert_eq!(level, texels([142, 128, 14, 0]));
     let mut unchanged = texels([255, 128, 127, 0]);
     covered.preserve(&mut unchanged);
-    assert_eq!(
-        unchanged,
-        texels([255, 128, 127, 0]),
-        "t = C keeps the bytes"
-    );
+    assert_eq!(unchanged, texels([255, 128, 127, 0]), "t = C keeps them");
     assert!(
         Covered::of(&level, AtlasKind::Coverage(0)).is_none(),
-        "blended: median alone"
+        "blended"
     );
 }
 
@@ -163,11 +150,7 @@ fn each_cutoff_names_its_own_chain() {
     for kind in kinds {
         assert_eq!(AtlasKind::from_word(kind.word()), Some(kind));
     }
-    assert_eq!(
-        AtlasKind::from_word(128 << 8),
-        None,
-        "only coverage carries a cutoff"
-    );
+    assert_eq!(AtlasKind::from_word(128 << 8), None, "only coverage is cut");
 }
 
 // #44: two textures of one image, one blended and one masked, bake one chain each: the blended
@@ -191,8 +174,5 @@ fn a_blended_texture_keeps_the_median_beside_a_masked_one_of_its_image() {
     let tail = |kind| reduce::tail(&reduce::chain(&source, kind), first as u32);
     assert_eq!(previews[0].pixels, tail(AtlasKind::Coverage(0)));
     assert_eq!(previews[1].pixels, tail(AtlasKind::Coverage(128)));
-    assert_ne!(
-        previews[0].pixels, previews[1].pixels,
-        "the masked tail is scaled"
-    );
+    assert_ne!(previews[0].pixels, previews[1].pixels, "scaled");
 }
