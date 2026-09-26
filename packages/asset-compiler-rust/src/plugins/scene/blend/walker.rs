@@ -129,7 +129,7 @@ impl Scene<'_> {
     }
 
     /// The glTF rank of a material, poured on first request.
-    fn material(&mut self, file: &BlendFile, pointer: u64) -> Option<usize> {
+    fn material(&mut self, file: &BlendFile<'_>, pointer: u64) -> Option<usize> {
         if pointer == 0 {
             return None;
         }
