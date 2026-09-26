@@ -27,7 +27,11 @@ test("a saved scene keeps each mesh's body as it was declared, and a mesh withou
     { type: 'dynamic', mass: 20, friction: 0.2, damping: { linear: 0 }, ccd: true },
     { type: 'kinematic', shape: { type: 'sphere', radius: 0.5 }, gravityScale: 0 },
     { type: 'cloth', pins: [0, 1], stretch: 0.01 },
+    { type: 'static', sensor: true },
+    { type: 'dynamic', decorative: true, restitution: 0.5 },
+    { type: 'volume', pressure: 40, bend: 0.1 },
   ]);
+  assert.equal(after.length, before.length);
   const read = [
     'type',
     'mass',
@@ -36,6 +40,8 @@ test("a saved scene keeps each mesh's body as it was declared, and a mesh withou
     'restitution',
     'gravityScale',
     'ccd',
+    'sensor',
+    'decorative',
     'damping',
     'soft',
   ] as const;
