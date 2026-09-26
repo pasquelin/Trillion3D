@@ -93,8 +93,7 @@ export function createShadowAdmission(poolPages: number) {
       if (!count) waiting = false;
       for (let i = 0; i < count; i++) {
         // A key is negative for its age or a negative sun level: the page is its remainder, taken
-        // positive. Not `ringOf`: a key is no 32-bit integer, and its float remainder there would
-        // turn every other caller's integer remainder into a float one (#26).
+        // positive. Not `ringOf`: a float key there makes its remainder a float one for all (#26).
         const rest = order[i] % poolPages;
         list[i] = rest < 0 ? rest + poolPages : rest;
         keys[i] = viewKeyOf(pool, list[i]);
@@ -118,7 +117,7 @@ export function createShadowAdmission(poolPages: number) {
     },
     /** Closes the list. The frame drew it up to `stopped`: what it left undrawn stays stale, and
      *  the next list is ordered by age. */
-    reset(stopped = admission.count) {
+    reset(stopped = Infinity) {
       waiting = stopped < admission.count;
       admission.count = 0;
     },

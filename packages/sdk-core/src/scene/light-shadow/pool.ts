@@ -74,7 +74,7 @@ export function createShadowPool(side: number) {
     for (let page = 0; page < pages; page++) free[page] = pages - 1 - page;
     freeCount = pages;
     evicted.fill(0);
-    pool.used = pool.refetched = 0;
+    pool.refetched = 0;
   };
   // Data fields only, never an accessor: V8 keeps an object literal that has one in dictionary
   // mode, and every read of these arrays in a loop over the pool then costs a hash lookup (#26).
@@ -101,7 +101,7 @@ export function createShadowPool(side: number) {
       ...[sinceFrame, readFrame, free, order, evicted],
     ].reduce((n, a) => n + a.byteLength, 0),
     /** Pages mapped. */
-    used: 0,
+    used: () => pages - freeCount,
     /** Entries mapped again after the pool evicted them: redraws the pool's size caused. */
     refetched: 0,
     /** Stale from now on (`STALE_*`), at most what it was; still mapped. True if it was current. */
@@ -148,7 +148,6 @@ export function createShadowPool(side: number) {
       dirty[page] = valid[page] = layered[page] = 0;
       requested[page] = -1;
       free[freeCount++] = page;
-      pool.used--;
     },
     /**
      * Pages that may be taken for a report of frame `reportFrame`: every mapped page no later
@@ -178,7 +177,6 @@ export function createShadowPool(side: number) {
         }
       }
       if (page < 0) return -1;
-      pool.used++;
       if (evicted[entry >> 5] & (1 << (entry & 31))) {
         evicted[entry >> 5] &= ~(1 << (entry & 31));
         pool.refetched++;
