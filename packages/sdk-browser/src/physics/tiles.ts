@@ -166,7 +166,7 @@ export function createTileStreamer(
      *  given back, and is not made again until its model opens again; any other body is ignored. */
     refused(id: number) {
       const owner = bodies.slots.of(id);
-      if (owner && 'soft' in owner) softs.refused(owner);
+      if (owner && 'soft' in owner) return softs.refused(owner);
       if (!owner || !('tile' in owner)) return;
       evict(owner.tile);
       const placed = models.get(owner.model)!;
