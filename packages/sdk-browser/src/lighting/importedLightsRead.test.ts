@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { loadImportedLights } from './importedLights.ts';
-import { answering } from '../cluster/answers.fixture.ts';
+import { answering, refusedWith } from '../cluster/answers.fixture.ts';
 
 const BASE = 'https://cache.test/model/';
 
@@ -24,4 +24,16 @@ test('a lights read aborted while its body arrives rejects, never answering no l
   });
   answering(t, 'lights.json', [200], () => body);
   await assert.rejects(loadImportedLights(BASE, abort.signal), /closed/);
+});
+
+test('a lights file the server refuses otherwise (a 503 twice, a 401) fails the read by its address', async (t) => {
+  for (const [status, requests] of [
+    [503, 2],
+    [401, 1],
+  ]) {
+    t.mock.restoreAll();
+    const asked = answering(t, 'lights.json', [status]);
+    await assert.rejects(loadImportedLights(BASE), refusedWith(status, 'lights.json'));
+    assert.equal(asked.length, requests);
+  }
 });

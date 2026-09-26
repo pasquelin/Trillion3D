@@ -7129,7 +7129,7 @@
       "water": "物体漂浮其中的水：水位、波浪、密度和阻力。比水轻的物体会漂浮，被它排开的水的重量托起。",
       "waterSurface": "模拟时刻的水面,用于绘制:与浮力读取的相同波浪、相同数值(`height`、`point`、`normal`)。",
       "stats": "计数与两个时钟：worker 每步毫秒数，页面每帧毫秒数。",
-      "error": "物理最近一次的错误（`PHYSICS_BUDGET`、`PHYSICS_NESTED`、`PHYSICS_FAILED`），或 `null`。使模拟停止的错误会关闭 `enabled`。",
+      "error": "物理最近一次的错误（`PHYSICS_BUDGET`、`PHYSICS_NESTED`、`PHYSICS_FAILED`、`RESOURCE_HTTP_ERROR`），或 `null`。使模拟停止的错误会关闭 `enabled`。",
       "add": "添加一个关节（`joint.hinge(door, frame, …)` 及其同类）：两个物体一进入模拟它就创建，并保持到被移除或断开。",
       "remove": "移除一个关节：它连接的物体自由分开。"
     }
@@ -7337,7 +7337,7 @@
       "water": "物体漂浮其中的水：水位、波浪、密度和阻力。比水轻的物体会漂浮，被它排开的水的重量托起。",
       "waterSurface": "模拟时刻的水面,用于绘制:与浮力读取的相同波浪、相同数值(`height`、`point`、`normal`)。",
       "stats": "计数与两个时钟：worker 每步毫秒数，页面每帧毫秒数。",
-      "error": "物理最近一次的错误（`PHYSICS_BUDGET`、`PHYSICS_NESTED`、`PHYSICS_FAILED`），或 `null`。使模拟停止的错误会关闭 `enabled`。",
+      "error": "物理最近一次的错误（`PHYSICS_BUDGET`、`PHYSICS_NESTED`、`PHYSICS_FAILED`、`RESOURCE_HTTP_ERROR`），或 `null`。使模拟停止的错误会关闭 `enabled`。",
       "add": "添加一个关节（`joint.hinge(door, frame, …)` 及其同类）：两个物体一进入模拟它就创建，并保持到被移除或断开。",
       "remove": "移除一个关节：它连接的物体自由分开。"
     }
