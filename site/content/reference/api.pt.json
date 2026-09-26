@@ -873,7 +873,7 @@
   },
   "EffectChain": {
     "summary": "`world.effects`: os passes ordenados desenhados sobre a imagem depois do antialiasing temporal e antes de ela chegar ao canvas.",
-    "description": "Os passes antes do tone mapping leem a radiância linear, na ordem em que foram adicionados; os depois leem a imagem exibida, na deles. Uma cadeia vazia não custa nada: nenhum passe, nenhuma cópia, nenhum alvo.",
+    "description": "Os passes antes do tone mapping leem a radiância linear, na ordem em que foram adicionados; os depois leem a imagem exibida, na deles. Uma cadeia vazia não custa nada: nenhum passe, nenhuma cópia, nenhum alvo. No WebGL2, um quadro que desenha uma superfície transparente com mistura `multiply` ou `subtractive` é desenhado inteiro sem a cadeia, e o canal de diagnóstico do mundo diz `effects-refused-blending` uma vez; o WebGPU desenha ambos.",
     "members": {
       "revision": "Conta as mudanças: uma imagem desenhada em outra revisão está desatualizada.",
       "passes": "Os passes, na ordem em que rodam.",
