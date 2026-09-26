@@ -39,7 +39,6 @@ export function createShadowRecords(table: ShadowTable, pool: ShadowPool, sun: S
     kind[slice] = -1;
     last[slice] = null;
   };
-  // Data fields only, never an accessor: the scheduler reads `kind` entry by entry (`pool.ts`).
   const records = {
     taken,
     kind,
