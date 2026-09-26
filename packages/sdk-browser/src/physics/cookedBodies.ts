@@ -24,7 +24,7 @@ import { cookedBytes, tilePose, type Model } from './tilePlace.ts';
  * for a slot no mesh holds (`poses.ts`), then move its node, and it loads tiles as a mover does
  * (`moversOf`).
  */
-export const COMPILED_NODES_MOVE = false;
+const COMPILED_NODES_MOVE = false;
 
 /** A declared body made: its entry, the world scale it was made at, its engine id. */
 export type CookedMadeBody = { body: CookedBody; scale: number[]; id: number };
