@@ -63,7 +63,8 @@ bool add(const uint32_t *w) {
   }
   Body *body = world.system->GetBodyInterfaceNoLock().CreateBody(settings);
   if (!body) return (world.error = BODY_LIMIT, false);
-  world.system->GetBodyInterfaceNoLock().AddBody(body->GetID(), type == EMotionType::Static ? EActivation::DontActivate : EActivation::Activate);
+  bool asleep = type == EMotionType::Static || (flags & ASLEEP);
+  world.system->GetBodyInterfaceNoLock().AddBody(body->GetID(), asleep ? EActivation::DontActivate : EActivation::Activate);
   Slot &slot = world.slots[index];
   slot = {};
   slot.id = body->GetID();

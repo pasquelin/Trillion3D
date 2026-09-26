@@ -24,8 +24,8 @@ namespace trillion {
 /// world only).
 enum Layer : JPH::ObjectLayer { STATIC = 0, MOVING = 1, DECORATIVE = 2, LAYER_COUNT = 3 };
 
-/// Per-body flag bits carried by the ADD and FLAGS commands.
-enum Flag : uint32_t { SENSOR = 1, CCD = 2, EVENTS = 4, HIDDEN = 8 };
+/// Per-body flag bits carried by the ADD and FLAGS commands; ASLEEP, by ADD alone, adds it asleep.
+enum Flag : uint32_t { SENSOR = 1, CCD = 2, EVENTS = 4, HIDDEN = 8, ASLEEP = 16 };
 
 /// Error codes returned by `jolt_error` after a failed `jolt_step` (mirrored in layout.ts).
 enum Error : uint32_t { NONE = 0, BODY_LIMIT = 1, UNKNOWN_BODY = 2, BAD_SHAPE = 3, BAD_COMMAND = 4 };
