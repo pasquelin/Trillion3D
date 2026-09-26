@@ -26,15 +26,11 @@ export function createImageCut(options: {
   /** Moves when the placements change (`requests.ts`). */
   revision: () => number;
   pool: Pick<ReturnType<typeof createGeometryBudget>, 'admit' | 'fit'> & { readonly held: object };
-  /** The rule's readiness of the placements, moved by the pool's loads and releases: routed
-   *  again each time the requests lay the placements out again (`requests.ts`). */
+  /** The rule's readiness of the placements, moved by the pool's loads and releases. */
   held: HeldResidency;
 }) {
   const { roots, shown, desired, requested, pool, held } = options;
-  const requests = createAutonomousRequests(roots, options.revision, requested);
-  const follow = () => {
-    if (requests.follow()) held.track(roots);
-  };
+  const requests = createAutonomousRequests(roots, options.revision, requested, held);
   // Cut request and result, allocated once: an image allocates nothing here, and the cut writes
   // `desired` itself instead of being copied into it.
   const selectOptions = {
@@ -48,7 +44,7 @@ export function createImageCut(options: {
   // fitted again before the next trim, so the image that first sees it already holds no more.
   let admittedTo: unknown;
   const cut = (cam: EngineCamera, pixelError: number) => {
-    follow();
+    requests.follow();
     selectOptions.pixelError = pixelError;
     const selected = selectVisiblePages(roots, cam, selectOptions, shown);
     requests.of(desired);
@@ -60,7 +56,7 @@ export function createImageCut(options: {
     /** Bytes of the cut's host tables: the requests' closure and the rule's readiness of each
      *  placement, all sized by what the view asks for and the pool holds, and read without
      *  walking the placements (#483 rule 7). */
-    hostBytes: () => (follow(), requests.hostBytes + held.bytes),
+    hostBytes: () => (requests.follow(), requests.hostBytes + held.bytes),
     /** Cuts the last requests to the pool drawn since; true when they lost pages, which what the
      *  image keeps must then forget before the pool trims. */
     readmit() {

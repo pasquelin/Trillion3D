@@ -7,7 +7,7 @@ import { blendFixture, camera } from './blend.fixture.ts';
 import { cameraMoteur } from '../../camera/camera.fixture.ts';
 import { createHeldResidency } from '../cut/held.ts';
 
-test('the cut follows this mode: without an index array, the page is requested but not shown', () => {
+test('the cut follows its residency rule: without an index array, the page is requested but not shown', () => {
   const fixture = blendFixture();
   const { roots, allPages } = collectClusterPages(
     fixture.source,

@@ -145,3 +145,16 @@ test('an image that passes its guards publishes its cut, just before queuing res
     'and it is the chosen cut that is published, not the previous one',
   );
 });
+
+test("the cache's changes reach the cut's residency before the cut reads it", () => {
+  const b = banc({ ready: false, resident: false });
+  const services = b.rt.services as unknown as Record<string, unknown>;
+  services.syncResidency = () => b.journal.push('sync');
+  services.heldResidency = createHeldResidency({
+    isResident: () => (b.journal.push('lecture'), false),
+  });
+  image(b);
+  const synced = b.journal.indexOf('sync');
+  assert.ok(synced >= 0, 'the mirror is synced');
+  assert.ok(synced < b.journal.indexOf('lecture'), 'before the first residency the cut reads');
+});
