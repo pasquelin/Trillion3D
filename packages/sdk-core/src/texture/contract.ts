@@ -55,8 +55,6 @@ export interface Texture {
   readonly flipY: boolean;
   /** Whether colour is pre-multiplied. */
   readonly premultiplyAlpha: boolean;
-  /** Whether smaller copies are made. */
-  readonly generateMipmaps: boolean;
   /** How its numbers are read. */
   readonly colorSpace: TextureColorSpace;
   /** UV transform of the sampler, `KHR_texture_transform` composed into a 3 × 3 matrix stored
@@ -72,6 +70,16 @@ export const AFFINE = [0, 1, 3, 4, 6, 7] as const;
  *  applied, on the CPU twins and on both GPU paths. */
 export function uvTransformed(m: ArrayLike<number>) {
   return m[0] !== 1 || m[1] !== 0 || m[3] !== 0 || m[4] !== 1 || m[6] !== 0 || m[7] !== 0;
+}
+
+/**
+ * Whether `filter` reads a mip chain: the one rule of both GPU paths (#732). A page texture read
+ * through a mip filter always has its chain — no other flag withholds it, so it never reads an
+ * empty level —; one read without pins level 0 (WebGPU) or builds none (WebGL2). A texture of the
+ * compiled cache carries the cache's levels whatever its filter.
+ */
+export function mipFiltered(filter: TextureFilter) {
+  return filter !== 'nearest' && filter !== 'linear';
 }
 
 /**
