@@ -85,7 +85,9 @@ export function webglModel(capacity: number, store: Store = f16) {
         const i = t >> 1,
           k = i < ring ? bornAt(i, { first, count, capacity: ring }) : -1;
         const p =
-          i >= ring ? [] : move(k < 0 ? read : staged, (k < 0 ? i : k) * 8, uStep, uStep[3]);
+          i >= ring
+            ? []
+            : move(k < 0 ? read : staged, (k < 0 ? i : k) * PARTICLE_FLOATS, uStep, uStep[3]);
         for (let c = 0; c < 4; c++) write[t * 4 + c] = store(p[(t & 1) * 4 + c] ?? 0);
       }
       [read, write] = [write, read];
