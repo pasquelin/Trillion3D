@@ -8,6 +8,7 @@ import {
   surfaceCacheTexels,
 } from './surfaceWgsl.ts';
 import type { GpuBounceProxy } from './proxy.ts';
+import { createWebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts';
 import { createCheckedShaderModule } from '../gpu/core/shaderModule.ts';
 
 /** What the cache pass binds: the grid, the proxy and its albedo, lights, frozen probes, the
@@ -70,22 +71,21 @@ export async function createGpuBounceSurface(
     release();
     throw error;
   }
-  let bound: GPUBuffer | undefined, group: GPUBindGroup | undefined;
+  const bound = createWebgpuBindIdentity();
+  let group: GPUBindGroup | undefined;
   /** The group, made again when the light buffer it names was replaced. */
   const groupOf = (current: GPUBuffer) => {
-    if (current !== bound || !group) {
-      bound = current;
-      const { uniform, snapshot } = grid;
+    bound.next[0] = current;
+    if (bound.moved() || !group)
       group = bounceGroup(device, layout, [
-        uniform,
+        grid.uniform,
         proxy.buffer,
         proxy.albedo,
         current,
-        snapshot,
+        grid.snapshot,
         buffer,
         span,
       ]);
-    }
     return group;
   };
   const ceiling = Math.min(BOUNCE_SETTINGS.surfaceTexelsPerFrame, texels);

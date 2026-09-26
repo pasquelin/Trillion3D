@@ -1,10 +1,11 @@
 import { LIGHT_SETTINGS } from '../../../../sdk-core/src/index.ts';
 import { LIGHT_TILES_SHADER } from './shader.ts';
 import { createCheckedShaderModule } from '../../gpu/core/shaderModule.ts';
+import { createWebgpuBindIdentity } from '../../webgpu/core/bindIdentity.ts';
 
-/** Words per tile: the counts of the opaque and blend lists, then the two lists, each with room
- *  for every slot of the light table — they cover two depth slices of the same tile. */
-const tileStrideWords = (capacity: number) => capacity * 2 + 2;
+/** Words per tile: the counts of the opaque and blend lists, then the two lists of `tileLights`
+ *  each — they cover two depth slices of the same tile. */
+const TILE_STRIDE_WORDS = LIGHT_SETTINGS.tileLights * 2 + 2;
 /** Label of the measured pass; `gpuLightListsMs` is read under this name, not by its rank. */
 export const LIGHT_TILES_PASS = 'Trillion3D light tiles v1';
 /** Tiles on one axis: the list always covers the whole target, never one tile short. */
@@ -12,9 +13,9 @@ const tilesOn = (pixels: number) => Math.max(1, Math.ceil(pixels / LIGHT_SETTING
 export type GpuLightTiles = Awaited<ReturnType<typeof createGpuLightTiles>>;
 
 /**
- * Per-tile light-list pass. The tile buffer is allocated for the current target and the light
- * table's slots, and reallocated only when either changes — a scene past its slots grows it, and
- * the bind group follows the light buffer, which grows with it; encoding allocates nothing.
+ * Per-tile light-list pass. The tile buffer is allocated for the current target and reallocated
+ * only when it changes size; the group follows the light buffer, which grows with the scene;
+ * encoding allocates nothing.
  */
 export async function createGpuLightTiles(device: GPUDevice) {
   const module = await createCheckedShaderModule(device, LIGHT_TILES_SHADER, 'LIGHT_TILES_SHADER');
@@ -44,11 +45,9 @@ export async function createGpuLightTiles(device: GPUDevice) {
   }
   let tiles: GPUBuffer | undefined,
     group: GPUBindGroup | undefined,
-    boundDepth: GPUTextureView | undefined,
-    boundLights: GPUBuffer | undefined,
     tilesX = 0,
-    tilesY = 0,
-    slots = 0;
+    tilesY = 0;
+  const bound = createWebgpuBindIdentity();
   return {
     /** Buffer the deferred resolve rereads; never undefined after an `ensure()`. */
     get buffer() {
@@ -60,32 +59,24 @@ export async function createGpuLightTiles(device: GPUDevice) {
     get tilesY() {
       return tilesY;
     },
-    /** Ensures the target buffer, sized for `capacity` light slots, and the bind group; returns
-     *  `true` if the pass is ready. */
-    ensure(
-      width: number,
-      height: number,
-      depth: GPUTextureView,
-      lights: GPUBuffer,
-      capacity: number,
-    ) {
+    /** Ensures the target buffer and the bind group; returns `true` if the pass is ready. */
+    ensure(width: number, height: number, depth: GPUTextureView, lights: GPUBuffer) {
       const wantedX = tilesOn(width),
         wantedY = tilesOn(height);
-      if (!tiles || wantedX !== tilesX || wantedY !== tilesY || capacity !== slots) {
+      if (!tiles || wantedX !== tilesX || wantedY !== tilesY) {
         tiles?.destroy();
         tilesX = wantedX;
         tilesY = wantedY;
-        slots = capacity;
         tiles = device.createBuffer({
           label: 'Trillion3D light tiles v1',
-          size: tilesX * tilesY * tileStrideWords(slots) * 4,
+          size: tilesX * tilesY * TILE_STRIDE_WORDS * 4,
           usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
         });
         group = undefined;
       }
-      if (!group || boundDepth !== depth || boundLights !== lights) {
-        boundDepth = depth;
-        boundLights = lights;
+      bound.next[0] = depth;
+      bound.next[1] = lights;
+      if (bound.moved() || !group) {
         group = device.createBindGroup({
           layout,
           entries: [
