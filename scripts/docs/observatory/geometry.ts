@@ -38,7 +38,10 @@ export function createWorkshop() {
     const { positions } = surface(material),
       from = positions.length;
     build();
-    const { min, max } = new Box3().setFromArray(positions.slice(from));
+    const box = new Box3();
+    for (let i = from; i < positions.length; i += 3)
+      box.expandByPoint({ x: positions[i], y: positions[i + 1], z: positions[i + 2] });
+    const { min, max } = box;
     const part: Part = { kind, min: min.toArray(), max: max.toArray() };
     parts.push(part);
     return part;
@@ -61,15 +64,21 @@ export function createWorkshop() {
         ? n.map((x) => x / length)
         : null;
     };
+    /** At a pole every column meets in one point and one tangent vanishes: the normal there is
+     *  the one a hair inside the surface, along whichever parameter leaves it. */
+    const inside = (u: number, v: number) => {
+      const n =
+        normal(u, v < 0.5 ? v + 0.001 : v - 0.001) ?? normal(u < 0.5 ? u + 0.001 : u - 0.001, v);
+      if (!n) throw new Error(`the surface of material ${material} has no normal at (${u}, ${v})`);
+      return n;
+    };
     for (let j = 0; j <= rows; j++) {
       for (let i = 0; i <= columns; i++) {
         const u = i / columns,
           v = j / rows;
-        // At a pole every column meets in one point and the row has no tangent: the normal there
-        // is the one a hair inside the surface.
         const p = point(u, v);
         mesh.positions.push(...p);
-        mesh.normals.push(...(normal(u, v, p) ?? normal(u, v < 0.5 ? v + 0.001 : v - 0.001)!));
+        mesh.normals.push(...(normal(u, v, p) ?? inside(u, v)));
       }
     }
     for (let j = 0; j < rows; j++)
@@ -94,11 +103,12 @@ export function createWorkshop() {
     rows: number,
     point: (u: number, v: number) => number[],
   ) => recorded('patch', material, () => grid(material, columns, rows, point));
-  const block = (material: number, center: number[], size: number[]) =>
+  /** A box standing on `foot`, the centre of its base. */
+  const block = (material: number, foot: number[], size: number[]) =>
     recorded('block', material, () =>
       add(
         material,
-        geometry.box(size[0], size[1], size[2]).translate(center[0], center[1], center[2]),
+        geometry.box(size[0], size[1], size[2]).translate(foot[0], foot[1] + size[1] / 2, foot[2]),
       ),
     );
   /** A turned part standing on `base`, the centre of its foot. */
