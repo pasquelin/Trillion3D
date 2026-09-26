@@ -78,10 +78,10 @@ export function createPageCache(cpuBytes = DEFAULT_CACHED_BYTES) {
         drop,
       );
   };
-  const levels = createTextureLevelStore(textureLevelShare(cpuBytes));
-  levels.roomBeside = () =>
-    total - (holder?.reserved() ?? 0) - cache.keptBytes - (holder?.held() ?? 0);
-  levels.onHeld = evict;
+  const levels = createTextureLevelStore(textureLevelShare(cpuBytes), {
+    roomBeside: () => cache.levelRoom(holder?.held() ?? 0),
+    onHeld: evict,
+  });
   const cache = {
     /** The pages, by url, least recently used first. */
     pages: pages as ReadonlyMap<string, Uint8Array>,
@@ -97,6 +97,9 @@ export function createPageCache(cpuBytes = DEFAULT_CACHED_BYTES) {
     get reservedBytes() {
       return (holder?.reserved() ?? 0) + cache.besideBytes;
     },
+    /** Bytes the texture levels may take beside the kept file and `held` bytes of pages the
+     *  session keeps or reads; negative when those do not fit. */
+    levelRoom: (held: number) => total - (holder?.reserved() ?? 0) - cache.keptBytes - held,
     /** Bytes held beside the pages: the kept file's and the decoded texture levels'. */
     get besideBytes() {
       return cache.keptBytes + levels.bytes;
