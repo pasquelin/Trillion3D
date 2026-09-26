@@ -48,15 +48,13 @@ async function importOne(file: string) {
   );
 }
 
-type Launcher = typeof import('../../bench/runner/chrome.ts');
-
-function importInChild(file: string, scratch: string, { EXIT_ON_REFUSAL }: Launcher) {
+function importInChild(file: string, scratch: string, exitOnRefusal: string) {
   // The child runs on its own, not as a test runner's child speaking its protocol on stdout.
   const { NODE_TEST_CONTEXT: _runner, ...inherited } = process.env;
   const env = {
     ...inherited,
     [TARGET]: file,
-    [EXIT_ON_REFUSAL]: '1',
+    [exitOnRefusal]: '1',
     [MEASURE_OUT]: join(scratch, 'out'),
     TMPDIR: scratch,
   };
@@ -68,12 +66,12 @@ function importInChild(file: string, scratch: string, { EXIT_ON_REFUSAL }: Launc
   );
 }
 
-async function importAll(files: string[], scratch: string, launcher: Launcher) {
+async function importAll(files: string[], scratch: string, exitOnRefusal: string) {
   const outputs = new Map<string, string>();
   const queue = [...files];
   const worker = async () => {
     for (let file = queue.shift(); file; file = queue.shift())
-      outputs.set(file, await importInChild(file, scratch, launcher));
+      outputs.set(file, await importInChild(file, scratch, exitOnRefusal));
   };
   // A few children at a time: the test shares the machine with the other sessions' runs.
   const children = Math.min(4, Math.max(1, availableParallelism() >> 1));
@@ -94,8 +92,8 @@ else
     mkdirSync(logs, { recursive: true });
     const scratch = mkdtempSync(join(logs, 'import-proofs-'));
     try {
-      const launcher = await import('../../bench/runner/chrome.ts');
-      const outputs = await importAll(files, scratch, launcher);
+      const { CHROME_REFUSED, EXIT_ON_REFUSAL } = await import('../../bench/runner/chrome.ts');
+      const outputs = await importAll(files, scratch, EXIT_ON_REFUSAL);
       for (const [file, output] of outputs) {
         const report = output.split('\n').find((line) => line.startsWith(REPORT));
         assert.ok(report, `${file}: the child did not report\n${output}`);
@@ -103,7 +101,7 @@ else
       }
       for (const folder of FOLDERS) {
         const refused = [...outputs].filter(
-          ([f, o]) => f.includes(folder) && o.includes(launcher.CHROME_REFUSED),
+          ([f, o]) => f.includes(folder) && o.includes(CHROME_REFUSED),
         );
         assert.ok(refused.length > 0, `no file of ${folder} reached the launcher`);
       }
