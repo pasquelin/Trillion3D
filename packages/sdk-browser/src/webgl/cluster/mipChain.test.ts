@@ -17,7 +17,7 @@ function sampledContext() {
     const held = new Map<unknown, { picture?: Uint8Array; chain?: boolean; minFilter?: string }>(),
       units = new Map<unknown, unknown>();
     let active: unknown;
-    const bound = () => held.get(units.get(active)) ?? {};
+    const bound = () => held.get(units.get(active))!;
     for (const { name, args } of calls)
       if (name === 'activeTexture') active = args[0];
       else if (name === 'bindTexture') {
@@ -30,8 +30,13 @@ function sampledContext() {
       else if (name === 'generateMipmap') bound().chain = true;
       else if (name === 'texParameteri' && args[1] === 'TEXTURE_MIN_FILTER')
         bound().minFilter = args[2] as string;
-    const { picture, chain, minFilter } = held.get(units.get(`TEXTURE0${unit}`))!;
-    return minFilter?.includes('MIPMAP') && !chain ? [0, 0, 0, 0] : [...picture!.slice(0, 4)];
+    // A texture no sampler was set on reads GL's default min filter, a mip one.
+    const {
+      picture,
+      chain,
+      minFilter = 'NEAREST_MIPMAP_LINEAR',
+    } = held.get(units.get(`TEXTURE0${unit}`))!;
+    return minFilter.includes('MIPMAP') && !chain ? [0, 0, 0, 0] : [...picture!.slice(0, 4)];
   };
   return { gl, sample, chains: () => of('generateMipmap').length };
 }
@@ -46,9 +51,8 @@ function colourMap(minFilter: number, asked = false) {
 
 test('a mip filter samples its colour on WebGL2 though the host asks no chain', () => {
   const { gl, sample } = sampledContext();
-  const { host, map } = colourMap(G.HOST_FILTER_LINEAR_MIP_LINEAR);
+  const { map } = colourMap(G.HOST_FILTER_LINEAR_MIP_LINEAR);
   new WebglClusterTextures(gl).bind(0, map);
-  assert.equal(host.generateMipmaps, false);
   assert.deepEqual(sample(0), [200, 200, 200, 200]);
 });
 
@@ -72,4 +76,22 @@ test('a filter without mip builds no chain on WebGL2 though the host asks one', 
   new WebglClusterTextures(gl).bind(0, map);
   assert.deepEqual(sample(0), [200, 200, 200, 200]);
   assert.equal(chains(), 0);
+});
+
+test('a live picture sent in place under a filter without mip samples its colour once the filter reads the chain again', () => {
+  const { gl, sample } = sampledContext();
+  const { host, map } = colourMap(G.HOST_FILTER_LINEAR_MIP_LINEAR);
+  const binder = new WebglClusterTextures(gl);
+  binder.bind(0, map);
+  host.minFilter = G.HOST_FILTER_NEAREST;
+  hostTextureWritten();
+  binder.bind(0, map);
+  host.image = { data: new Uint8Array(16).fill(90), width: 2, height: 2 };
+  hostTextureWritten();
+  binder.bind(0, map);
+  assert.deepEqual(sample(0), [90, 90, 90, 90], 'the new picture, in place, read at level 0');
+  host.minFilter = G.HOST_FILTER_LINEAR_MIP_LINEAR;
+  hostTextureWritten();
+  binder.bind(0, map);
+  assert.deepEqual(sample(0), [90, 90, 90, 90]);
 });
