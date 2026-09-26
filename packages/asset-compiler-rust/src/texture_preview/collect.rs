@@ -5,7 +5,7 @@ use super::*;
 /// A texture of an engine atlas, and which one: the same glTF texture can feed
 /// both. With it, what the materials read of it — the roles it plays, hence the
 /// channels the gate measures and the layout its blocks take — and the alpha
-/// cutoffs of the masked materials that read it.
+/// cuts — cutoff and colour factor alpha — of the masked materials that read it.
 #[derive(Clone, PartialEq, Debug)]
 pub(crate) struct AtlasTexture {
     pub texture: usize,
@@ -14,7 +14,7 @@ pub(crate) struct AtlasTexture {
     pub channels: Channels,
     /// True when every role is the normal map's: two channels, Z rebuilt.
     pub normal_only: bool,
-    pub cutoffs: Vec<f32>,
+    pub cutoffs: Vec<(f32, f32)>,
 }
 
 /// Merges what one more reader reads into `channels` and `cutoffs`: the union
@@ -22,9 +22,9 @@ pub(crate) struct AtlasTexture {
 /// chain's textures.
 pub(crate) fn absorb(
     channels: &mut Channels,
-    cutoffs: &mut Vec<f32>,
+    cutoffs: &mut Vec<(f32, f32)>,
     more: Channels,
-    theirs: &[f32],
+    theirs: &[(f32, f32)],
 ) {
     for (mine, read) in channels.iter_mut().zip(more) {
         *mine |= read;
@@ -119,8 +119,9 @@ pub(super) fn atlas_textures(g: &Value, meshes: &BTreeSet<usize>) -> Result<Vec<
         // A transmissive BLEND tints what crosses it by its base colour whatever its alpha
         // (`webgpu/water/compositeWgsl.ts`): it draws the RGB under alpha 0 and keeps the plain chain.
         let transmits = crate::compiler_materials::unsplit_material(Some(material));
+        let cut = cutoff.map(|c| super::coverage::material_cut(material, c));
         let coverage = ((mode == Some("BLEND") && !transmits) || cutoff.is_some_and(|c| c > 0.0))
-            .then(|| cutoff.map_or(0, |c| super::coverage::material_cutoff(material, c)));
+            .then(|| cut.map_or(0, |(c, f)| super::coverage::cutoff_byte(c, f)));
         for role in ROLES {
             let Some(texture) = texture_index(role.reference(material)) else {
                 continue;
@@ -147,7 +148,7 @@ pub(super) fn atlas_textures(g: &Value, meshes: &BTreeSet<usize>) -> Result<Vec<
                 (mine, theirs) if mine != theirs => entry.kind = atlas,
                 _ => {}
             }
-            let cutoffs: Vec<f32> = cutoff
+            let cutoffs: Vec<(f32, f32)> = cut
                 .filter(|_| role == Role::BaseColor)
                 .into_iter()
                 .collect();
