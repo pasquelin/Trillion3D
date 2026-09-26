@@ -1,6 +1,7 @@
 import type { EngineError } from '../../../sdk-core/src/contracts/cache.ts';
 import {
   BODY_INDEX,
+  FLAG,
   LAYER,
   MOTION,
   declaredMass,
@@ -53,8 +54,12 @@ export function createCookedBodies(
   async function add(model: Model, opening: Opening, body: CookedBody) {
     const { shape } = body;
     let hull = hulls.get(body);
-    if (!hull && shape.type === 'cooked')
-      hulls.set(body, (hull = cookedBytes(model, shape.url, opening.signal)));
+    if (!hull && shape.type === 'cooked') {
+      hull = cookedBytes(model, shape.url, opening.signal);
+      hulls.set(body, hull);
+      // A read aborted or failed is not kept: the next opening fetches again.
+      hull.catch(() => hulls.delete(body));
+    }
     const bytes = await hull;
     // Forgotten or opened again meanwhile: this opening's bodies are no longer wanted.
     if (held.get(model) !== opening) return;
@@ -68,7 +73,9 @@ export function createCookedBodies(
     if (bytes) writer.restore(handle, bytes);
     writer.add({
       ...{ id: made.id, motion: dynamic(body) ? MOTION.dynamic : MOTION.kinematic },
-      ...{ layer: LAYER.moving, shape: resolved.shape, flags: 0, position, quaternion },
+      ...{ layer: LAYER.moving, shape: resolved.shape, position, quaternion },
+      // Held or kinematic, it is added asleep: it stands still until its model moves it.
+      flags: dynamic(body) ? 0 : FLAG.asleep,
       ...{ size: resolved.size, ...declaredMass(body, scale), density: matter.density },
       ...{ friction: matter.friction, restitution: matter.restitution },
       ...{ gravityScale: body.motion.gravityFactor ?? 1, indices: bytes && [handle] },
