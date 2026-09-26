@@ -1,4 +1,5 @@
 import { EngineError } from '../../contracts/cache.ts';
+import type { SceneState } from './nodeContracts.ts';
 
 export function sceneNodeFail(
   code: string,
@@ -14,4 +15,14 @@ export function sceneNodeVisibility(value: boolean | undefined, allowDefault = t
       visible: value,
     });
   return value ?? true;
+}
+
+/** Refuses to reparent (`SCENE_ROOT_PARENT`) or destroy (`SCENE_ROOT_DESTROY`) a scene's root. */
+export function refuseSceneRoot(state: SceneState, index: number, destroyed = false) {
+  if (index === state.root?.index)
+    sceneNodeFail(
+      destroyed ? 'SCENE_ROOT_DESTROY' : 'SCENE_ROOT_PARENT',
+      `A scene root cannot be ${destroyed ? 'destroyed' : 'reparented'}`,
+      {},
+    );
 }

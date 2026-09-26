@@ -7,10 +7,10 @@ import {
   setNodeScale,
 } from '../../math/transform-tree/transformTree.ts';
 import { removeTransformNode, reparentTransformNode } from '../../math/transform-tree/structure.ts';
-import { nodeLocalUnder, setNodeLocalPose } from '../../math/transform-tree/attach.ts';
 import { updateNodeWorldMatrix } from '../../math/transform-tree/update.ts';
+import { attachSceneNode } from './nodeAttach.ts';
 import { copySceneNodeState } from './nodeCopy.ts';
-import { sceneNodeFail, sceneNodeVisibility } from './nodeError.ts';
+import { refuseSceneRoot, sceneNodeFail, sceneNodeVisibility } from './nodeError.ts';
 import type { SceneNodeOptions, SceneState } from './nodeContracts.ts';
 import type { SceneRoot } from './root.ts';
 
@@ -68,18 +68,18 @@ export class SceneNode {
     this.assertAlive();
     return this.state.tree.worldViews[this.index];
   }
+
   /** Adds a child. */ add(child: SceneNode) {
     this.assertCompatible(child);
-    if (child.index === this.state.root?.index)
-      sceneNodeFail('SCENE_ROOT_PARENT', 'A scene root cannot be reparented', {});
-    const previous = child.parent;
+    refuseSceneRoot(this.state, child.index);
     reparentTransformNode(this.state.tree, child.index, this.index);
-    previous?.detachChild(child);
+    child.parentNode?.detachChild(child);
     this.childNodes.push(child);
     this.childView = null;
     child.parentNode = this;
     return this;
   }
+
   /** Removes a child. */ remove(child: SceneNode) {
     this.assertCompatible(child);
     if (child.parent !== this) return this;
@@ -87,29 +87,25 @@ export class SceneNode {
     this.detachChild(child);
     return this;
   }
+
   /** Removes every child. */ clear() {
     this.assertAlive();
     for (let i = this.childNodes.length - 1; i >= 0; i--) this.remove(this.childNodes[i]);
     return this;
   }
+
   /** Moves it under another parent. */ reparent(parent: SceneNode | null) {
     this.assertAlive();
-    if (this.index === this.state.root?.index)
-      sceneNodeFail('SCENE_ROOT_PARENT', 'A scene root cannot be reparented', {});
+    refuseSceneRoot(this.state, this.index);
     if (parent) parent.add(this);
     else this.parent?.remove(this);
     return this;
   }
-  /** Adds a child where it stands: its world matrix is kept, its local pose rewritten. */
-  attach(child: SceneNode) {
-    this.assertCompatible(child);
-    const local = nodeLocalUnder(this.state.tree, child.index, this.index);
-    this.add(child); // An Object3D skips itself, which then keeps its pose.
-    if (child.parent !== this) return this;
-    setNodeLocalPose(this.state.tree, child.index, local);
-    child.updateWorldMatrix(false, true);
-    return this;
+
+  /** Adds a child where it stands: its world matrix is kept. */ attach(child: SceneNode) {
+    return attachSceneNode(this, child);
   }
+
   /** A copy, children too. */ clone(recursive = true, options: SceneNodeOptions = {}) {
     this.assertAlive();
     const clone = this.root.createNode(options);
@@ -124,31 +120,37 @@ export class SceneNode {
     copySceneNodeState(this.state, this, source, recursive);
     return this;
   }
+
   /** Sets its position. */ setPosition(x: number, y: number, z: number) {
     this.assertAlive();
     setNodePosition(this.state.tree, this.index, x, y, z);
     return this;
   }
+
   /** Sets its rotation. */ setQuaternion(x: number, y: number, z: number, w: number) {
     this.assertAlive();
     setNodeQuaternion(this.state.tree, this.index, x, y, z, w);
     return this;
   }
+
   /** Sets its size. */ setScale(x: number, y: number, z: number) {
     this.assertAlive();
     setNodeScale(this.state.tree, this.index, x, y, z);
     return this;
   }
+
   /** Sets its local matrix. */ setLocalMatrix(matrix: ArrayLike<number>) {
     this.assertAlive();
     setNodeLocalMatrix(this.state.tree, this.index, matrix);
     return this;
   }
+
   /** Whether its matrix follows its pose. */ setAutoUpdate(auto: boolean) {
     this.assertAlive();
     setNodeAutoUpdate(this.state.tree, this.index, auto);
     return this;
   }
+
   /** Updates its world matrix. */ updateWorldMatrix(updateParents = true, updateChildren = true) {
     this.assertAlive();
     updateNodeWorldMatrix(this.state.tree, this.index, updateParents, updateChildren);
@@ -158,8 +160,7 @@ export class SceneNode {
   /** Permanently invalidates this handle and every descendant. */
   destroy() {
     this.assertAlive();
-    if (this.index === this.state.root?.index)
-      sceneNodeFail('SCENE_ROOT_DESTROY', 'A scene root cannot be destroyed', {});
+    refuseSceneRoot(this.state, this.index, true);
     this.parent?.detachChild(this);
     this.invalidate();
     removeTransformNode(this.state.tree, this.index);
