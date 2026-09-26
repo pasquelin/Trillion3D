@@ -4,7 +4,8 @@
  * made at creation. Nothing is compacted or read back: a particle past its lifetime is dead, and
  * the GPU skips it. Positions are from the pool's origin, its emitter's place: ten kilometres out a
  * particle still moves by a fraction of a millimetre, which 32-bit world floats round away. The
- * step never reads the origin; drawing adds it back (#755).
+ * step never reads the origin; drawing adds it back (#755), each pool a camera-facing disc fading
+ * over its life and where it meets the scene, blended as its `blend` says, with no global sort.
  */
 import { GRAVITY_PRESETS } from '../physics/options.ts';
 
@@ -16,6 +17,11 @@ const MAX_CAPACITY = 1 << 20;
 /** The longest step an image takes, seconds: a stalled tab does not fling its particles away. */
 const MAX_STEP = 1 / 15;
 
+/** How a pool's particles blend over the image: `additive` light that no order changes (fire),
+ *  or `premultiplied` cover drawn with the other pools far to near by origin (smoke). */
+export const PARTICLE_BLENDS = ['additive', 'premultiplied'] as const;
+export type ParticleBlend = (typeof PARTICLE_BLENDS)[number];
+
 /** How a pool is made; the capacity is fixed for its life. */
 export interface ParticlePoolSpec {
   /** Particles the pool holds; emission past it overwrites the oldest. */
@@ -26,6 +32,14 @@ export interface ParticlePoolSpec {
   acceleration?: readonly [number, number, number];
   /** The emitter's place in the world, metres, fixed for the pool's life; the origin by default. */
   origin?: readonly [number, number, number];
+  /** How the particles blend; `additive` by default. */
+  blend?: ParticleBlend;
+  /** Linear colour and opacity at birth, fading to nothing at death; a warm white by default. */
+  color?: readonly [number, number, number, number];
+  /** A particle's radius, metres; 0.1 by default. */
+  size?: number;
+  /** Metres over which a particle fades before the surface behind it; its `size` by default. */
+  softness?: number;
 }
 
 /** One image's step: `count` records land from ring slot `first`, then live ones move `dt` s. */
@@ -37,6 +51,10 @@ export class ParticlePool {
   readonly acceleration: Float32Array;
   /** The origin in double precision: emission subtracts it before rounding to 32 bits. */
   readonly origin: Float64Array;
+  readonly blend: ParticleBlend;
+  readonly color: Float32Array;
+  readonly size: number;
+  readonly softness: number;
   /** The staged records, `emitPerFrame` of them, read by the renderer up to `step.count`. */
   readonly staging: Float32Array<ArrayBuffer>;
   /** Records staged since creation, and those refused: the image's staging full, or the pool
@@ -51,17 +69,26 @@ export class ParticlePool {
   /** Seconds the longest-lived particle may have, one step over: the GPU's 32-bit age lags. */
   private liveFor = 0;
 
-  constructor({ capacity, emitPerFrame, acceleration, origin }: ParticlePoolSpec) {
+  constructor({ capacity, emitPerFrame, acceleration, origin, ...look }: ParticlePoolSpec) {
     const perFrame = emitPerFrame ?? Math.min(capacity, Math.max(256, capacity >> 6));
     if (!Number.isInteger(capacity) || capacity < 1 || capacity > MAX_CAPACITY)
       throw new Error(`PARTICLE_CAPACITY: a pool holds 1 to ${MAX_CAPACITY} particles`);
     if (!Number.isInteger(perFrame) || perFrame < 1 || perFrame > capacity)
       throw new Error('PARTICLE_EMISSION: a pool stages 1 to `capacity` records a frame');
+    const { blend = 'additive', color = [1, 0.8, 0.5, 1], size = 0.1, softness = size } = look;
+    if (!PARTICLE_BLENDS.includes(blend))
+      throw new Error(`PARTICLE_BLEND: a pool blends as ${PARTICLE_BLENDS.join(' or ')}`);
+    if (!(size > 0) || !(softness > 0))
+      throw new Error('PARTICLE_SIZE: a particle has a positive size and softness');
     this.capacity = capacity;
     this.emitPerFrame = perFrame;
     this.acceleration = Float32Array.from(acceleration ?? [0, -GRAVITY_PRESETS.earth, 0]);
     this.origin = Float64Array.from(origin ?? [0, 0, 0]);
     this.staging = new Float32Array(perFrame * PARTICLE_FLOATS);
+    this.blend = blend;
+    this.color = Float32Array.from(color);
+    this.size = size;
+    this.softness = softness;
   }
 
   /** Stages one particle at world position `x, y, z`, born at the next image; false, and

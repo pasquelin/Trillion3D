@@ -9,6 +9,7 @@ import {
   type WebglRenderTarget,
 } from '../webgl/core/renderTarget.ts';
 import { createPoolStates, usedSlots } from './poolStates.ts';
+import { createWebglParticleDraw } from './webglParticleDraw.ts';
 
 /** Particles per texture row, two texels each: position and age, then velocity and lifetime. */
 export const PARTICLE_ROW = 512;
@@ -48,7 +49,8 @@ type PoolState = { targets: [WebglRenderTarget, WebglRenderTarget]; staged: Webg
  * pool's records staged as 32-bit float texels. Its targets are made the first time a pool
  * moves, given back the image after the world lets it go, and rebuilt after a lost context. A
  * context without `EXT_color_buffer_float` refuses every pool by name, never steps it with less.
- * The pass leaves no framebuffer, program or vertex array bound.
+ * The pass leaves no framebuffer, program or vertex array bound. `draw` draws the stepped pools
+ * from their latest target (`webglParticleDraw.ts`).
  */
 export function createWebglParticles(gl: WebGL2RenderingContext) {
   /** Each pool's targets, made on the live context and lost with it. */
@@ -91,7 +93,13 @@ export function createWebglParticles(gl: WebGL2RenderingContext) {
       gl.texSubImage2D(TEXTURE_2D, 0, 0, full, 2 * rest, 1, RGBA, FLOAT, pool.staging, from);
     }
   };
+  const drawn = createWebglParticleDraw(
+    gl,
+    TEXELS,
+    (pool) => held.current()?.made.peek(pool)?.targets[0].texture,
+  );
   return {
+    draw: drawn.draw,
     /** Steps `pools`; returns the draws made. Throws `PARTICLES_UNSUPPORTED`, the pools refused,
      *  on a context without 32-bit float targets. */
     run(pools: readonly ParticlePool[]) {
@@ -140,6 +148,9 @@ export function createWebglParticles(gl: WebGL2RenderingContext) {
       live.made.keep(pools);
       return draws;
     },
-    dispose: held.dispose,
+    dispose() {
+      held.dispose();
+      drawn.dispose();
+    },
   };
 }

@@ -43,8 +43,9 @@ export type ComposedChain = {
  * (`../../effects/webglEffects.ts`); the copy kept is the chain's image, and a chain changed
  * since it was kept is drawn again. The page's `guides` are drawn over the image the destination
  * got, the chain's included, before that copy is kept, at the host's `pixelRatio`; a change to
- * them spares no redraw. The world's `particles` step on every image drawn here, and an image
- * they moved in is drawn, never the kept copy (`../../particles/webglParticles.ts`).
+ * them spares no redraw. The world's `particles` step on every image drawn here and are drawn
+ * over the engine's image, before the chain; an image they moved in is drawn, never the kept
+ * copy (`../../particles/webglParticles.ts`).
  * Nothing here belongs to a rendering library.
  */
 export function createFrameComposer(
@@ -157,6 +158,7 @@ export function createFrameComposer(
     encode(backend.scene.background as SceneColour);
     if (!linear) clear();
     backend.drawHostGeometry(readHostDrawCamera(drawCamera, camera), output);
+    stepped?.draw(particles, drawCamera, output);
     if (linear) {
       display.toneMapped = output.toneMapped;
       display.toneCurve = TONE_MAPPING_RANK[output.toneMapping];

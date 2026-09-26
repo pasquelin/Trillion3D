@@ -113,8 +113,12 @@ export function bindWebglTarget(gl: WebGL2RenderingContext, target: WebglRenderT
   return { width, height };
 }
 
-/** Binds `texture` on texture unit `unit` for the next draw to sample. */
-export function bindWebglTexture(gl: WebGL2RenderingContext, unit: number, texture: WebGLTexture) {
+/** Binds `texture` on texture unit `unit` for the next draw to sample; `null` unbinds it. */
+export function bindWebglTexture(
+  gl: WebGL2RenderingContext,
+  unit: number,
+  texture: WebGLTexture | null,
+) {
   gl.activeTexture(gl.TEXTURE0 + unit);
   gl.bindTexture(gl.TEXTURE_2D, texture);
 }
