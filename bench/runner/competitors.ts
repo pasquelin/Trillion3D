@@ -2,7 +2,7 @@
 type CompetitorStatus =
   'integrated' | 'compatible-not-integrated' | 'incompatible' | 'abandoned' | 'not-comparable';
 /** Another engine the benchmarks compare against, and why. */
-export interface CompetitorRecord {
+interface CompetitorRecord {
   /** Its short name. */
   id: string;
   /** Its name. */

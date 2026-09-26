@@ -1,4 +1,9 @@
-import { crossVector3, dotVector3, subVector3 } from '../../math/primitives/vector.ts';
+import {
+  addScaledVector3,
+  crossVector3,
+  dotVector3,
+  subVector3,
+} from '../../math/primitives/vector.ts';
 import { GeometryBuilder, normalize, pieces, withRecipe } from './builder.ts';
 import type { Curve } from '../math/curves.ts';
 
@@ -27,7 +32,7 @@ export function torus(
       t = v * TAU;
     const n: V3 = [Math.cos(t) * Math.cos(a), Math.cos(t) * Math.sin(a), Math.sin(t)];
     const c: V3 = [radius * Math.cos(a), radius * Math.sin(a), 0];
-    return { p: [c[0] + tube * n[0], c[1] + tube * n[1], c[2] + tube * n[2]], n, uv: [u, v] };
+    return { p: addScaledVector3(c, n, tube), n, uv: [u, v] };
   });
   return withRecipe(b.build(), 'torus', [radius, tube, radialSegments, tubularSegments, arc]);
 }
@@ -168,7 +173,7 @@ function sweep(
     const n = normals[i - 1],
       t = tangents[i];
     const along = dotVector3(n, t);
-    normals.push(normalize(n[0] - along * t[0], n[1] - along * t[1], n[2] - along * t[2]));
+    normals.push(normalize(...addScaledVector3<V3>([...n], t, -along)));
   }
   // Carried round a closed curve, the frame comes back turned about the tangent: each ring takes
   // back its share of that turn, so the last ring lands on the first and the tube closes.
@@ -185,10 +190,10 @@ function sweep(
       ...([0, 1, 2].map((k) => Math.cos(angle) * n0[k] + Math.sin(angle) * n1[k]) as V3),
     );
     const c = points[i];
-    return { p: [c[0] + r * n[0], c[1] + r * n[1], c[2] + r * n[2]], n, uv: [u, v] };
+    return { p: addScaledVector3<V3>([...c], n, r), n, uv: [u, v] };
   });
   return b.build();
 }
 
-const sub = (a: ArrayLike<number>, b: ArrayLike<number>) => subVector3([0, 0, 0] as V3, a, b);
-const cross = (a: V3, b: V3): V3 => crossVector3([0, 0, 0] as V3, a, b);
+const sub = (a: ArrayLike<number>, b: ArrayLike<number>): V3 => subVector3<V3>([0, 0, 0], a, b);
+const cross = (a: V3, b: V3): V3 => crossVector3<V3>([0, 0, 0], a, b);
