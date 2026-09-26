@@ -60,7 +60,7 @@ async function countShapeWrites(html: string) {
   };
   const modules = {
     engine: { createWorld, geometry, material, object, light, math },
-    kit: { controls, readout: () => () => {}, seeded },
+    kit: { controls, physicsReadouts: () => {}, seeded },
   };
   const body = source.replace(
     /import \{([^}]*)\} from '\.\.\/runtime\/(engine|kit)\.js';/g,

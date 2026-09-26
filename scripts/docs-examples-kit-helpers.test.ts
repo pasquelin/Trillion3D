@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import { Camera } from '../packages/sdk-core/src/world/camera/camera.ts';
 import { playPickedVideo } from '../site/examples/kit/media.ts';
 import { perFrame } from '../site/examples/kit/perFrame.ts';
+import { PHYSICS_LINES } from '../site/examples/kit/physicsReadouts.ts';
 import { pointerOnPlane } from '../site/examples/kit/pointer.ts';
 import { mulberry32, seeded } from '../site/examples/kit/random.ts';
 
@@ -76,4 +78,33 @@ test('mulberry32 draws the sequence the scenes, the bench and the campaigns were
     [draw(), draw(), draw()],
     [0.3588899802416563, 0.10590326134115458, 0.675290479324758],
   );
+});
+
+test('the physics readouts print the stats as the pages wrote them by hand, each page naming its lines', async () => {
+  const stats = { bodies: 200, active: 12, stepMs: 1.234, stepMaxMs: 3, mainMs: 0.5 };
+  const printed = Object.entries(PHYSICS_LINES).map(([line, read]) => [line, read(stats)]);
+  assert.deepEqual(Object.fromEntries(printed), {
+    bodies: '200',
+    awake: '12',
+    step: '1.23 ms',
+    page: '0.50 ms',
+  });
+  // #717: the lines each page showed before, in their order; no page reads the stats itself.
+  const three = "['bodies', 'awake', 'step']";
+  const pages = {
+    'a-walker-among-balls': three,
+    'rolling-on-terrain': three,
+    'falling-boxes': three,
+    'floating-crates': three,
+    'ten-thousand-bodies': "['bodies', 'awake', 'step', 'page']",
+    'a-cooked-flag': "['bodies', 'step']",
+    'cloth-and-rope': "['step']",
+    'soft-bodies': "['awake']",
+    'walk-with-collisions': "['awake']",
+  };
+  for (const [id, lines] of Object.entries(pages)) {
+    const html = await readFile(new URL(`../site/examples/${id}.html`, import.meta.url), 'utf8');
+    assert.ok(html.includes(`physicsReadouts(world, ${lines});`), id);
+    assert.doesNotMatch(html, /physics\.stats|readout\('(?:bodies|awake|step|page)'\)/, id);
+  }
 });
