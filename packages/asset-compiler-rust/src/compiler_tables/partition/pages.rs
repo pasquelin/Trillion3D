@@ -42,8 +42,8 @@ pub(crate) fn write_page(
         &bytes,
     )?;
     let mut bounds = EMPTY;
-    for cell in boxes {
-        grow(&mut bounds, cell);
+    for record in boxes {
+        grow(&mut bounds, record);
     }
     let mut slot = format!("{sha256}{:08x}", bytes.len());
     for value in bounds {
@@ -54,19 +54,47 @@ pub(crate) fn write_page(
 
 /// The records of one kind of page, their boxes, and where each record starts once written.
 pub(crate) struct Pager<'a> {
-    pub kind: &'a Kind,
-    /// The bytes of a region page of no record.
-    pub empty: usize,
+    kind: &'a Kind,
+    /// The bytes of a region page of no record, as `leaf` lays it out.
+    empty: usize,
     /// Where each record starts in a region page's list, and where the last ends.
-    pub starts: Vec<usize>,
+    starts: Vec<usize>,
     /// The box of each record.
-    pub bounds: &'a [Box6],
-    pub directory: &'a Path,
+    bounds: &'a [Box6],
+    directory: &'a Path,
     /// The region page over a range of records, its version aside.
-    pub leaf: &'a dyn Fn(Range<usize>) -> Result<Value>,
+    leaf: &'a dyn Fn(Range<usize>) -> Result<Value>,
 }
 
-impl Pager<'_> {
+impl<'a> Pager<'a> {
+    /// The pager of `kind` over records starting at `starts`, boxed by `bounds`, whose region pages
+    /// `leaf` lays out: the bytes of an empty region page are measured on `leaf` itself.
+    pub(crate) fn new(
+        kind: &'a Kind,
+        starts: Vec<usize>,
+        bounds: &'a [Box6],
+        directory: &'a Path,
+        leaf: &'a dyn Fn(Range<usize>) -> Result<Value>,
+    ) -> Result<Self> {
+        let mut pager = Pager {
+            kind,
+            empty: 0,
+            starts,
+            bounds,
+            directory,
+            leaf,
+        };
+        pager.empty = serde_json::to_vec(&pager.region(0..0)?)?.len();
+        Ok(pager)
+    }
+
+    /// The region page over `records`, its version stamped.
+    fn region(&self, records: Range<usize>) -> Result<Value> {
+        let mut body = (self.leaf)(records)?;
+        body["version"] = json!(self.kind.version);
+        Ok(body)
+    }
+
     /// Whether `region` is a region page: one record, or records that fit `PAGE_BYTES`.
     fn fits(&self, region: &Region) -> bool {
         let (starts, cells) = (&self.starts, &region.cells);
@@ -94,12 +122,11 @@ impl Pager<'_> {
 
     /// Writes `region` as a region page, or as an index page over its slots; its slot.
     fn write(&self, region: &Region) -> Result<String> {
-        let mut body = if self.fits(region) {
-            (self.leaf)(region.cells.clone())?
+        let body = if self.fits(region) {
+            self.region(region.cells.clone())?
         } else {
-            json!({"pages": self.slots(region)?})
+            json!({"version": self.kind.version, "pages": self.slots(region)?})
         };
-        body["version"] = json!(self.kind.version);
         let boxes = &self.bounds[region.cells.clone()];
         write_page(self.kind, self.directory, &body, boxes)
     }
@@ -125,16 +152,8 @@ pub(crate) fn write_pages(
         starts.push(starts[starts.len() - 1] + serde_json::to_vec(record)?.len() + 1);
     }
     let kind = &CELL_PAGES;
-    let empty = serde_json::to_vec(&json!({"version": kind.version, kind.records: []}))?.len();
     let leaf = |cells: Range<usize>| Ok(json!({kind.records: &records[cells]}));
-    let pager = Pager {
-        kind,
-        empty,
-        starts,
-        bounds,
-        directory,
-        leaf: &leaf,
-    };
+    let pager = Pager::new(kind, starts, bounds, directory, &leaf)?;
     Ok(json!({"version": kind.version, "pages": pager.root(tree)?}))
 }
 
@@ -174,7 +193,7 @@ pub(crate) fn read_slot(
 ) -> std::result::Result<Option<(String, Value)>, String> {
     let text = slot.as_str().unwrap_or_default();
     if text.len() != SLOT_WIDTH || !crate::manifest_binary::is_lower_hex(text) {
-        return Err(format!("{what} lists a slot of another width"));
+        return Err(format!("{what} lists a slot that is not fixed-width hex"));
     }
     let bytes = usize::from_str_radix(&text[64..72], 16).expect("eight hex digits");
     if bytes == 0 {
