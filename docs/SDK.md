@@ -1134,7 +1134,10 @@ never allocated at the full request outside the check:
 - `WEBGPU_TEXTURE_POOL_REFUSED` — the texture pool's floor was refused. The material pipeline drops
   (`material-pipeline-failed`, the code in `context.error`) and the pages draw with the fallback
   pass; on a GPU canvas, which needs that pipeline, preparation fails with
-  `WEBGPU_MATERIAL_PIPELINE_UNAVAILABLE`.
+  `WEBGPU_MATERIAL_PIPELINE_UNAVAILABLE`. The fallback pass draws every transparent blending mode
+  with the surface's alpha, cluster by cluster, and refuses two cases by name:
+  `FALLBACK_TRANSPARENT_LINES_UNSUPPORTED`, a transparent line it cannot widen, and
+  `FALLBACK_BLEND_WITHOUT_CPU_CUT`, a frame the GPU cut selected, which leaves it no cluster list.
 
 WebGL2 has no out-of-memory check to allocate under: nothing there is absorbed. It reserves no
 pool — each page's buffers are made as the page arrives — and it does not read `gl.getError()` after
