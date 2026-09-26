@@ -105,11 +105,13 @@ fn a_texture_under_the_bar_stays_lossless_and_is_named() {
 }
 
 // Behaviour: a masked texture whose compressed alpha crosses the cutoff on one
-// texel stays lossless whatever its decibels — the report counts the flips.
+// texel stays lossless whatever its decibels — the report counts the flips. The
+// cut is the engine's, alpha times the colour factor's (#748): 0.25 under a
+// factor of 0.5 cuts where 0.5 does, alone it cuts nothing the alphas reach.
 #[test]
 fn a_masked_texture_that_flips_a_texel_stays_lossless() {
     let dir = temp_dir("gate-mask");
-    // Alpha climbs through the cutoff along X while the colour varies along Y:
+    // Alpha climbs through 128 along X while the colour varies along Y:
     // one RGBA segment per block cannot hold both, and alpha lands off by a few.
     rgba_from(128, 128, |x, y| {
         let alpha = 120 + (x % 8) as u8 * 2;
@@ -117,13 +119,19 @@ fn a_masked_texture_that_flips_a_texel_stays_lossless() {
     })
     .save(dir.join("map.png"))
     .expect("save");
-    let material = json!({"pbrMetallicRoughness": {"baseColorTexture": {"index": 0}},
-        "alphaMode": "MASK", "alphaCutoff": 0.5});
-    let (previews, report) = stage_scene(&dir, &scene(material));
-    assert_eq!(previews[0].layouts[0], None);
-    let named = &report["lossless"][0];
-    assert!(named["maskFlips"].as_u64().unwrap() > 0);
-    assert_eq!(report["qualityGate"]["maskFlips"], json!(0));
+    let flips = |cutoff: f64, factor: f64| {
+        let material = json!({"pbrMetallicRoughness": {"baseColorTexture": {"index": 0},
+            "baseColorFactor": [1, 1, 1, factor]}, "alphaMode": "MASK", "alphaCutoff": cutoff});
+        let (previews, report) = stage_scene(&dir, &scene(material));
+        let flips = report["lossless"][0]["maskFlips"].as_u64().unwrap_or(0);
+        (previews[0].layouts[0].is_none() && flips > 0, report)
+    };
+    for (cutoff, factor) in [(0.5, 1.0), (0.25, 0.5)] {
+        let (lossless, report) = flips(cutoff, factor);
+        assert!(lossless, "{cutoff} × {factor}");
+        assert_eq!(report["qualityGate"]["maskFlips"], json!(0));
+    }
+    assert!(!flips(0.25, 1.0).0, "no alpha reaches down to 64");
 }
 
 // Behaviour: `--textures-format=none` cooks no block family: PNG only, every

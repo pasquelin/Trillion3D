@@ -10,6 +10,23 @@ import { EngineError } from '../../contracts/cache.ts';
 
 /** The version of the partition, of its pages and of its cell files this runtime reads. */
 const PARTITION_VERSION = 2;
+/** A kind of page (`partition/pages.rs`): the prefix of its files, the version every page carries,
+ *  the member a region page lists its records under, and the codes of a refusal. */
+interface PageKind {
+  prefix: string;
+  version: number;
+  records: string;
+  unsupported: string;
+  invalid: string;
+}
+/** The pages of the cell records. */
+const CELL_PAGES: PageKind = {
+  prefix: 'scene-page-',
+  version: PARTITION_VERSION,
+  records: 'cells',
+  unsupported: 'UNSUPPORTED_SCENE_TABLES',
+  invalid: 'INVALID_SCENE_TABLES',
+};
 /** How many slots the root lists. */
 const FAN_OUT = 8;
 
@@ -63,16 +80,16 @@ export type TablePartitionRoot = { version: number; pages: readonly string[] };
 /** A page a slot names: its file, relative to the tables, its size and its fingerprint. */
 export type TablePage = { url: string; bytes: number; sha256: string };
 
-/** A page's body: the slots of the pages below it, or the records of its cells. */
-type PageBody = { version?: number; pages?: readonly string[]; cells?: readonly TableCell[] };
-/** `body` at this runtime's version, or a named refusal; `what` names it. */
-function versioned(body: unknown, what: string): PageBody {
+/** A page's body: the slots of the pages below it, or its records. */
+type PageBody = { version?: number; pages?: readonly string[]; [records: string]: unknown };
+/** `body` at `kind`'s version, or a named refusal; `what` names it. */
+function versioned(kind: PageKind, body: unknown, what: string): PageBody {
   const page = body as PageBody | null;
-  if (page?.version !== PARTITION_VERSION)
+  if (page?.version !== kind.version)
     throw new EngineError(
-      'UNSUPPORTED_SCENE_TABLES',
-      `${what} partition version ${String(page?.version)} is not the ${PARTITION_VERSION} this runtime reads`,
-      { partitionVersion: page?.version ?? null },
+      kind.unsupported,
+      `${what} version ${String(page?.version)} is not the ${kind.version} this runtime reads`,
+      { version: page?.version ?? null },
     );
   return page;
 }
@@ -80,26 +97,59 @@ function versioned(body: unknown, what: string): PageBody {
 /** The root, `null` when the scene has none, or a named refusal of another version or shape. */
 export function assertTablePartition(value: unknown): TablePartitionRoot | null {
   if (value === null || value === undefined) return null;
-  const root = versioned(value, 'scene');
+  const root = versioned(CELL_PAGES, value, 'scene partition');
   if (!Array.isArray(root.pages) || root.pages.length !== FAN_OUT)
-    throw new EngineError('INVALID_SCENE_TABLES', 'scene partition misses its root', {});
+    throw new EngineError(CELL_PAGES.invalid, 'scene partition misses its root', {});
   return root as TablePartitionRoot;
 }
 
 const bits = new DataView(new ArrayBuffer(8));
+const text = new TextDecoder();
 /** The `f64` whose bits are the sixteen hexadecimal digits `hex`. */
 const float64 = (hex: string) => (bits.setBigUint64(0, BigInt(`0x${hex}`)), bits.getFloat64(0));
 
-/** The page `slot` names and its box, `null` for an empty slot, or a named refusal. A slot is the
- *  page's SHA-256 in 64 hexadecimal digits, its size in 8, its box as six `f64` bit patterns in 16. */
-function slotPage(slot: unknown) {
+/** The page of `kind` that `slot` names and its box, `null` for an empty slot, or a named refusal. A
+ *  slot is the page's SHA-256 in 64 hexadecimal digits, its size in 8, its box as six `f64` bit
+ *  patterns in 16. */
+function slotPage(kind: PageKind, slot: unknown) {
   if (typeof slot !== 'string' || !/^[0-9a-f]{168}$/.test(slot))
-    throw new EngineError('INVALID_SCENE_TABLES', 'a partition slot is not fixed-width hex', {});
+    throw new EngineError(kind.invalid, 'a page slot is not fixed-width hex', {});
   const bytes = parseInt(slot.slice(64, 72), 16);
   if (bytes === 0) return null;
   const sha256 = slot.slice(0, 64);
   const bounds = [0, 1, 2, 3, 4, 5].map((at) => float64(slot.slice(72 + 16 * at, 88 + 16 * at)));
-  return { page: { url: `scene-page-${sha256}.json`, bytes, sha256 }, bounds };
+  return { page: { url: `${kind.prefix}${sha256}.json`, bytes, sha256 }, bounds };
+}
+
+/** The page of `kind` at `page`, read through `read`, at `kind`'s version. */
+async function readPage(
+  kind: PageKind,
+  page: TablePage,
+  read: (page: TablePage) => Promise<Uint8Array>,
+) {
+  return versioned(kind, JSON.parse(text.decode(await read(page))), page.url);
+}
+
+/** The pages `slots` of `kind` name, their boxes beside them, the empty ones left out. */
+const named = (kind: PageKind, slots: readonly unknown[]) =>
+  slots.map((slot) => slotPage(kind, slot)).filter((slot) => slot !== null);
+
+/** Every region page of `kind` under `slots`, in record order, the pages read side by side
+ *  through `read` (which verifies each against its slot). */
+async function readLeaves(
+  kind: PageKind,
+  slots: ReturnType<typeof named>,
+  read: (page: TablePage) => Promise<Uint8Array>,
+): Promise<PageBody[]> {
+  const lists = await Promise.all(
+    slots.map(async ({ page }) => {
+      const body = await readPage(kind, page, read);
+      if (Array.isArray(body.pages)) return readLeaves(kind, named(kind, body.pages), read);
+      if (Array.isArray(body[kind.records])) return [body];
+      throw new EngineError(kind.invalid, `${page.url} lists neither pages nor records`, {});
+    }),
+  );
+  return lists.flat();
 }
 
 /** The partition under `root`, its pages read side by side through `read` (which verifies them
@@ -108,21 +158,11 @@ export async function readTablePartition(
   root: TablePartitionRoot,
   read: (page: TablePage) => Promise<Uint8Array>,
 ): Promise<TablePartition> {
-  const text = new TextDecoder();
-  const named = (slots: readonly string[]) => slots.map(slotPage).filter((slot) => slot !== null);
-  const records = async (slots: ReturnType<typeof named>): Promise<TableCell[]> => {
-    const lists = await Promise.all(
-      slots.map(async ({ page }) => {
-        const body = versioned(JSON.parse(text.decode(await read(page))), page.url);
-        return Array.isArray(body.pages) ? records(named(body.pages)) : (body.cells as TableCell[]);
-      }),
-    );
-    return lists.flat();
-  };
-  const slots = named(root.pages);
-  const cells = await records(slots);
+  const slots = named(CELL_PAGES, root.pages);
+  const pages = await readLeaves(CELL_PAGES, slots, read);
+  const cells = pages.flatMap((page) => page[CELL_PAGES.records] as TableCell[]);
   if (!cells.every((cell) => Array.isArray(cell?.meshes) && Array.isArray(cell.parents)))
-    throw new EngineError('INVALID_SCENE_TABLES', 'scene partition misses its cells', {});
+    throw new EngineError(CELL_PAGES.invalid, 'scene partition misses its cells', {});
   const bounds = [0, 1, 2, 3, 4, 5].map((axis) =>
     (axis < 3 ? Math.min : Math.max)(...slots.map((slot) => slot.bounds[axis])),
   );

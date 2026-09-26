@@ -11,13 +11,19 @@ import { MASK_KEEP_WGSL } from './shader/pageWgsl.ts';
 import { PAGE_GEOMETRY_WGSL } from './shader/pageGeometryWgsl.ts';
 import { rasterSource } from '../gpu/raster/shader.ts';
 import { SHADOW_DEPTH_SHADER } from '../gpu/shadow/shader.ts';
-import { FLAG_HAS_COLOR } from './types.ts';
+import { FLAG_HAS_COLOR, FLAG_SAMPLED } from './types.ts';
 import { CLUSTER_FRAGMENT } from '../webgl/cluster/shaders.ts';
 
 /** Whether the centre of a quad of vertex alpha `alpha` survives the CPU raster. */
-function covered(options: { vertexColors: boolean; map: boolean; alpha: number }) {
+function covered(options: {
+  vertexColors: boolean;
+  map: boolean;
+  alpha: number;
+  opacity?: number;
+}) {
   const map = options.map ? nearestQuadTexture() : null;
-  const surface = G.basicSurface({ map, alphaTest: 0.5, vertexColors: options.vertexColors });
+  const { vertexColors, opacity = 1 } = options;
+  const surface = G.basicSurface({ map, alphaTest: 0.5, vertexColors, opacity });
   const { pages, geometry } = quadPages(surface, [0, 0, 1, 0, 1, 1, 0, 1]);
   geometry.setAttribute(
     'color',
@@ -40,12 +46,24 @@ test('the CPU raster cuts a masked surface at base map alpha times vertex alpha'
   assert.equal(covered({ vertexColors: false, map: false, alpha: 0.2 }), true);
 });
 
+// #748: glTF 2.0 cuts the base colour's alpha, the factor's times the map's, and WebGL2 did; the
+// WebGPU cutout read the map's alone.
+test('a masked surface is cut at its opacity times its map alpha, in both WebGPU tests', () => {
+  assert.equal(covered({ vertexColors: false, map: true, alpha: 1, opacity: 0.4 }), false);
+  assert.equal(covered({ vertexColors: true, map: false, alpha: 1, opacity: 0.4 }), false);
+  assert.equal(covered({ vertexColors: false, map: true, alpha: 1, opacity: 0.6 }), true);
+  assert.equal(covered({ vertexColors: false, map: false, alpha: 1, opacity: 0.4 }), false);
+  assert.ok(MASK_KEEP_WGSL.includes(`(page.flags&${FLAG_SAMPLED}u)!=0u)*page.blendCoverage;`));
+});
+
 test('the cutout multiplies by the vertex alpha only on a row that reads its colours', () => {
   const keep = MASK_KEEP_WGSL.replace(/\s+\/\/[^\n]*/g, '');
   assert.match(keep, /fn maskKeep\(page:PageInfo,uv:vec2f,vertexAlpha:f32,/);
   assert.ok(keep.includes(`let coloured=(page.flags&${FLAG_HAS_COLOR}u)!=0u;`));
   assert.ok(
-    keep.includes('if((page.flags&8u)==0u){return !coloured||vertexAlpha>=page.baseColor.w;}'),
+    keep.includes(
+      'if((page.flags&8u)==0u){return select(1.0,vertexAlpha,coloured)*page.blendCoverage>=page.baseColor.w;}',
+    ),
   );
   const read = keep.indexOf('var alpha=maskAlpha(');
   const multiply = keep.indexOf('if(coloured){alpha*=vertexAlpha;}');

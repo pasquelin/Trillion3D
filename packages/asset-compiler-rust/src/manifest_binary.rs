@@ -87,10 +87,14 @@ const PREVIEW_LAYOUTS: usize = 12;
 /// A digest as the columns and the object store spell it: 64 lowercase
 /// hexadecimal characters, and nothing a path could be made of.
 pub fn is_digest(value: &str) -> bool {
-    value.len() == 64
-        && value
-            .bytes()
-            .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+    value.len() == 64 && is_lower_hex(value)
+}
+
+/// Whether `value` is lowercase hexadecimal only, as a digest and a page slot are spelled.
+pub(crate) fn is_lower_hex(value: &str) -> bool {
+    value
+        .bytes()
+        .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
 }
 
 /// Bytes a page writes in each page column, whichever the page.

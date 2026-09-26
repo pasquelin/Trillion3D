@@ -54,6 +54,11 @@ export const surfaceSide = (surface: PageSurface): Side => {
 /** True when only the front faces are drawn: the one case a normal cone may reject a page. */
 export const surfaceFrontOnly = (surface: PageSurface) => surfaceSide(surface) === 'front';
 
+/** A surface's opacity, its colour factor's alpha, clamped: the light a blended one stops before
+ *  its colour map's alpha, and what a masked one multiplies that alpha by before its cutoff. */
+export const surfaceOpacity = (surface: { opacity: number }) =>
+  Math.min(1, Math.max(0, surface.opacity));
+
 const held = new WeakMap<object, PageSurface>();
 const declarations = new WeakMap<PageSurface, HostMaterials>();
 

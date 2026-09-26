@@ -1,5 +1,6 @@
 // #42: a hosted map follows its readers' coverage rule after prepare: reduced again and copied at
 // the next image's follow, with no new prepare; a still rule reduces nothing, a moved picture once.
+// #748: a new cutoff is a new rule, the chain counted at it.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createWebgpuTileStreamer } from './streamer.ts';
@@ -21,7 +22,7 @@ test('a surface switched from masked to opaque after prepare reduces its hosted 
   readers.read(surfaceOf(material));
   const map = importHostTexture(host as unknown as HostTexture),
     encoding = poolEncoding(undefined);
-  const { device, renderPipelines, textures: made } = mockGpu();
+  const { device, renderPipelines, textures: made, computes } = mockGpu({ compute: true });
   const signalled: number[][] = [];
   const lossless = { lossless: 2, rgba: 0, 'two-channel': 0 };
   const textures = createWebgpuTileStreamer({
@@ -39,6 +40,8 @@ test('a surface switched from masked to opaque after prepare reduces its hosted 
   const rules = () => renderPipelines.map((pipeline) => pipeline.fragment?.constants?.weighted);
   const scratches = () => made.filter((texture) => texture.label === 'Trillion3D texture scratch');
   assert.deepEqual(rules(), [1], 'masked at prepare: weighted');
+  const counted = () => computes.filter((entry) => entry === 'choose').length;
+  assert.equal(counted(), 2, 'both reduced levels of the 4 × 4 chain counted at its cutoff');
   assert.equal(textures.followSampling(), false, 'no filter rule switched');
   assert.deepEqual([signalled, scratches().length], [[], 1], 'a still rule reduces nothing');
   material.alphaTest = 0;
@@ -57,6 +60,9 @@ test('a surface switched from masked to opaque after prepare reduces its hosted 
   await Promise.resolve();
   textures.followSampling();
   assert.equal(scratches().length, 3, 'reduced once, by its new picture, never twice');
+  material.alphaTest = 0.25;
+  textures.followSampling();
+  assert.equal(counted(), 6, 'a new cutoff reduces its chain again');
   textures.destroy();
   material.dispose();
 });
