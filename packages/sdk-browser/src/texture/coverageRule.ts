@@ -1,6 +1,7 @@
 /**
  * The arithmetic of the coverage-preserving alpha rule (docs/FORMAT.md, "Coverage-preserving alpha
- * (#44)"; `texture_preview/coverage.rs`), in WGSL for the card's WebGPU chains. The scale: `median`, a level's alpha byte as the compiler rounds it, and `scaled`,
+ * (#44)"; `texture_preview/coverage.rs`), in the two shading languages of the card's chains, twin
+ * for twin: WGSL for WebGPU, GLSL ES 3.0 for WebGL2 (#769). The scale: `median`, a level's alpha byte as the compiler rounds it, and `scaled`,
  * step 4. The pick: `pick`, step 3 over the level's histogram, `binOf(t)`, which the including
  * shader declares; its products pass 32 bits, so `wide` holds one as (high, low) words, `apart`
  * their distance, and `below` orders (error, distance to C, t) as the compiler's `min` does.
@@ -24,6 +25,31 @@ fn pick(c:u32,covered:u32,texels:vec2u)->u32{
  for(var t=255u;t>0u;t--){
   above+=binOf(t);let error=apart(wide(above,texels.x),goal);
   let next=vec4u(error.x,error.y,max(t,c)-min(t,c),t);
+  if(below(next,best)){best=next;}
+ }
+ return best.w;
+}`;
+
+/** The GLSL ES 3.0 twins, line for line. */
+export const COVERAGE_SCALE_GLSL = `
+uint median(vec4 a){uvec4 b=uvec4(round(a*255.));return (min(max(b.x,b.y),max(b.z,b.w))+max(min(b.x,b.y),min(b.z,b.w))+1u)>>1u;}
+uint scaled(uint a,uint c,uint t){return min(255u,uint((2u*a*(2u*c-1u)+2u*t-1u)/(4u*t-2u)));}`;
+export const COVERAGE_PICK_GLSL = `
+uvec2 wide(uint a,uint b){
+ uint al=a&0xffffu;uint ah=a>>16u;uint bl=b&0xffffu;uint bh=b>>16u;
+ uint mid=((al*bl)>>16u)+((al*bh)&0xffffu)+((ah*bl)&0xffffu);
+ return uvec2(ah*bh+((al*bh)>>16u)+((ah*bl)>>16u)+(mid>>16u),(mid<<16u)|((al*bl)&0xffffu));
+}
+bool below(uvec4 a,uvec4 b){return a.x<b.x||(a.x==b.x&&(a.y<b.y||(a.y==b.y&&(a.z<b.z||(a.z==b.z&&a.w<b.w)))));}
+uvec2 apart(uvec2 a,uvec2 b){
+ bool swap=below(uvec4(a,0u,0u),uvec4(b,0u,0u));uvec2 hi=swap?b:a;uvec2 lo=swap?a:b;
+ return uvec2(hi.x-lo.x-uint(hi.y<lo.y),hi.y-lo.y);
+}
+uint pick(uint c,uint covered,uvec2 texels){
+ uvec2 goal=wide(covered,texels.y);uvec4 best=uvec4(0xffffffffu,0xffffffffu,255u,c);uint above=0u;
+ for(uint t=255u;t>0u;t--){
+  above+=binOf(t);uvec2 error=apart(wide(above,texels.x),goal);
+  uvec4 next=uvec4(error.x,error.y,max(t,c)-min(t,c),t);
   if(below(next,best)){best=next;}
  }
  return best.w;
