@@ -26,7 +26,8 @@ const GROUND_WAIT = 30_000,
  * car, a motorcycle and a tank, each a body on wheels (`vehicle.car`, `.motorcycle`,
  * `.tracked`). The page adds each to its scene and physics once `park` has set it on the ground
  * at `[x, z]`, found by an exact raycast down from `above` (a height over all the ground).
- * `right` puts one back on its wheels where it stands; `chase` eases the camera behind one.
+ * `right` puts one back on its wheels where it stands; `chase` eases the camera behind one;
+ * `groundAt` is the height of that ground below `[x, z]`, for a page placing more on it.
  */
 export function vehicles(
   world: World,
@@ -92,8 +93,8 @@ export function vehicles(
     return { ...built, mass: 61300, radius, wheels, eye: [0, 5.5, 15], aim: 1.5, driver };
   };
 
-  // The ground below `[x, z]`, once the physics has streamed it in, through the vehicle's own body.
-  const groundAt = async (x: number, z: number, ignore: Mesh) => {
+  // The ground below `[x, z]`, once the physics has streamed it in, through `ignore` if given.
+  const groundAt = async (x: number, z: number, ignore?: Mesh) => {
     const down = math.ray(math.vector3(x, above, z), math.vector3(0, -1, 0));
     // A deadline, not a count of tries: each raycast's own round trip counts against the wait.
     for (const deadline = Date.now() + GROUND_WAIT; ;) {
@@ -138,5 +139,5 @@ export function vehicles(
     aim.y += built.aim;
     world.camera.lookAt(aim);
   };
-  return { car, motorcycle, tracked, park, right, chase };
+  return { car, motorcycle, tracked, park, right, chase, groundAt };
 }
