@@ -3206,10 +3206,10 @@
       "shadowsUpdated": "Các đèn đổ bóng có một trang được khung này vẽ. Bằng không là giá trị bình thường của cảnh đứng yên: đèn cố định giữ các trang của nó.",
       "shadowFacesDrawn": "Các góc nhìn đèn mà lượt bóng đã vẽ vào — một mức clipmap của mặt trời, một mặt đèn ở một mip —, và các lệnh vẽ thực sự được mã hóa. Null với engine không vẽ bóng.",
       "shadowDrawCalls": "Các lệnh gọi vẽ bóng đổ.",
-      "shadowPagesDrawn": "Những gì việc làm mất hiệu lực trang đã tạo ra: các trang được vẽ lại bởi khung hình, các trang bị bỏ lại trong hàng đợi do thiếu ngân sách, và độ trễ tính bằng mili giây của trang cũ nhất trong số đó. Số không ở mọi nơi là giá trị bình thường của một cảnh đứng yên; `null` trên một bộ máy không có atlas bóng đổ.",
+      "shadowPagesDrawn": "Những gì việc làm mất hiệu lực trang đã tạo ra: các trang được vẽ lại bởi khung hình, các trang bị bỏ lại trong hàng đợi do thiếu ngân sách, và trang lỗi thời cũ nhất mà hình ảnh đọc đã chờ bao lâu. Số không ở mọi nơi là giá trị bình thường của một cảnh đứng yên; `null` trên một bộ máy không có atlas bóng đổ.",
       "shadowPagesTotal": "Các trang đã vẽ kể từ khi trình khám phá mở, bao gồm cả các lần xả của `flush()`: chi phí của một thay đổi là hiệu số giữa hai lần đọc.",
       "shadowPagesPending": "Các trang bóng đổ đang chờ.",
-      "shadowWaitMs": "Chúng đã chờ bao lâu.",
+      "shadowWaitMs": "Số mili giây trang lỗi thời cũ nhất mà hình ảnh đọc đã chờ để được vẽ lại. Chỉ tính thời gian hình ảnh đọc nó; 0 khi đã được vẽ lại.",
       "gpuLightListsMs": "Thời gian GPU của các danh sách nguồn sáng.",
       "gpuShadowsMs": "Thời gian GPU của các bóng đổ.",
       "gpuShadowCullMs": "Thời gian GPU để chọn các vật đổ bóng của những trang bóng mà khung vẽ: lát cắt từ ánh sáng, loại bỏ theo trang, và phép thử che khuất vật đổ bóng đang chuyển động cùng các kim tự tháp nó đọc.",
@@ -4137,10 +4137,10 @@
       "shadowsUpdated": "Các đèn đổ bóng có một trang được khung này vẽ. Bằng không là giá trị bình thường của cảnh đứng yên: đèn cố định giữ các trang của nó.",
       "shadowFacesDrawn": "Các góc nhìn đèn mà lượt bóng đã vẽ vào — một mức clipmap của mặt trời, một mặt đèn ở một mip —, và các lệnh vẽ thực sự được mã hóa. Null với engine không vẽ bóng.",
       "shadowDrawCalls": "Các lệnh gọi vẽ bóng đổ.",
-      "shadowPagesDrawn": "Những gì việc làm mất hiệu lực trang đã tạo ra: các trang được vẽ lại bởi khung hình, các trang bị bỏ lại trong hàng đợi do thiếu ngân sách, và độ trễ tính bằng mili giây của trang cũ nhất trong số đó. Số không ở mọi nơi là giá trị bình thường của một cảnh đứng yên; `null` trên một bộ máy không có atlas bóng đổ.",
+      "shadowPagesDrawn": "Những gì việc làm mất hiệu lực trang đã tạo ra: các trang được vẽ lại bởi khung hình, các trang bị bỏ lại trong hàng đợi do thiếu ngân sách, và trang lỗi thời cũ nhất mà hình ảnh đọc đã chờ bao lâu. Số không ở mọi nơi là giá trị bình thường của một cảnh đứng yên; `null` trên một bộ máy không có atlas bóng đổ.",
       "shadowPagesTotal": "Các trang đã vẽ kể từ khi trình khám phá mở, bao gồm cả các lần xả của `flush()`: chi phí của một thay đổi là hiệu số giữa hai lần đọc.",
       "shadowPagesPending": "Các trang bóng đổ đang chờ.",
-      "shadowWaitMs": "Chúng đã chờ bao lâu.",
+      "shadowWaitMs": "Số mili giây trang lỗi thời cũ nhất mà hình ảnh đọc đã chờ để được vẽ lại. Chỉ tính thời gian hình ảnh đọc nó; 0 khi đã được vẽ lại.",
       "gpuLightListsMs": "Thời gian GPU của các danh sách nguồn sáng.",
       "gpuShadowsMs": "Thời gian GPU của các bóng đổ.",
       "gpuShadowCullMs": "Thời gian GPU để chọn các vật đổ bóng của những trang bóng mà khung vẽ: lát cắt từ ánh sáng, loại bỏ theo trang, và phép thử che khuất vật đổ bóng đang chuyển động cùng các kim tự tháp nó đọc.",
@@ -6977,7 +6977,7 @@
     "summary": "Một promise hoàn tất ngay khi thế giới biết nó sẽ vẽ như thế nào."
   },
   "world.render": {
-    "summary": "Vẽ một khung hình ngay bây giờ, bất kể ai đang dẫn dắt vòng lặp."
+    "summary": "Vẽ một khung hình ngay bây giờ, bất kể ai đang dẫn dắt vòng lặp: các clip và vật lý tiến bước cùng nó."
   },
   "world.renderer": {
     "summary": "`'webgpu'` hoặc `'webgl2'`: cách thế giới vẽ; `null` trước `ready`."
@@ -7030,7 +7030,7 @@
   },
   "world.beforeFrame": {
     "summary": "Chạy một hàm trước mỗi khung hình được vẽ, với `{ delta, time }`; trả về hàm gỡ bỏ nó.",
-    "description": "Một khung hình của vòng lặp thế giới chạy: bộ điều khiển tiến bước camera (trừ khi `controls.autoUpdate` là sai), các clip tiến triển, các hook này theo thứ tự chúng được thêm vào, cảnh được ghi và vẽ, rồi đến các hook `onFrame`. Những gì một hook đặt vào — một cơ thể trên camera, một buồng lái — được vẽ ngay trong khung hình này, không bao giờ chậm một khung. Một `render()` do ứng dụng chủ dẫn dắt cũng chạy chúng nhưng không tiến bước bộ điều khiển nào. Một hook gọi `invalidate()` giữ cho các khung hình tiếp tục đến.",
+    "description": "Một khung hình chạy: bộ điều khiển camera (trừ khi `controls.autoUpdate` là sai hoặc ứng dụng chủ dẫn dắt, `render()`), các clip, vật lý, các hook này theo thứ tự của chúng, việc vẽ, rồi đến các hook `onFrame`. Những gì một hook đặt vào — một cơ thể trên camera, một buồng lái — được vẽ ngay trong khung hình này, không bao giờ chậm một khung. Một hook gọi `invalidate()` giữ cho các khung hình tiếp tục đến.",
     "parameters": {
       "hook": "Hàm cần chạy; nó nhận được số giây vừa tích hợp và thời gian của thế giới."
     },
