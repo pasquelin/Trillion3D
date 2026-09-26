@@ -1,6 +1,6 @@
-//! Proof that a cached folder is whole before `compiler_reuse.rs` keeps it: every
-//! product of the folder against the fingerprint the manifest recorded, the
-//! sidecar against `binary.sha256`, every object it names against its
+//! Proof that a cached folder is whole before `compiler_reuse.rs` keeps it: every product of the
+//! folder against the fingerprint the manifest recorded, every cell against the record its tables'
+//! pages hold, the sidecar against `binary.sha256`, every object it names against its
 //! content-addressed name, every baked texture level it names by its presence.
 use super::*;
 use compiler_reuse::{Check, Reused};
@@ -34,7 +34,10 @@ pub(super) fn prove(
         .into_iter()
         .collect();
     let levels = manifest_binary::texture_levels(&binary).map_err(|e| e.message)?;
-    let mut items = record_items(directory, &manifest[compiler_publish::FILES_FIELD])?;
+    let files = manifest[compiler_publish::FILES_FIELD].as_object().cloned();
+    let mut files = files.ok_or("manifest records no files")?;
+    files.extend(compiler_tables::cell_files(directory)?);
+    let mut items = record_items(directory, &files)?;
     let files = items.len();
     items.extend(objects.iter().map(|digest| Item {
         path: object_path(o, digest),
@@ -89,11 +92,10 @@ struct Item {
     what: String,
 }
 
-/// Every product the manifest recorded, by fingerprint and size. A missing
-/// record is a folder written before records existed, or by hand: not proven.
-/// A name is checked before it forms a path.
-fn record_items(directory: &Path, record: &Value) -> Check<Vec<Item>> {
-    let files = record.as_object().ok_or("manifest records no files")?;
+/// Every product recorded, by name, fingerprint and size. A missing record is
+/// a folder written before records existed, or by hand: not proven. A name is
+/// checked before it forms a path.
+fn record_items(directory: &Path, files: &serde_json::Map<String, Value>) -> Check<Vec<Item>> {
     files
         .iter()
         .map(|(name, expected)| {
