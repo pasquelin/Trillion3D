@@ -206,17 +206,16 @@ scene), its mesh, and its local pose exactly as declared, each part `null` when 
 placement's name is not kept: it is a row, not a host node.
 
 **The paged cell index** (`partition/pages.rs`, #750). The records lie in pages cut from the
-halving tree, whose every node is a contiguous range of cells. A region page `{ version: 2, cells }`
-holds the records of the highest node under 128 KiB (`PAGE_BYTES`; one cell whatever its size); an
-index page `{ version: 2, pages }` lists at most 8 pages (`FAN_OUT`), its node opened widest first.
+halving tree, each node a contiguous range of cells: a region page `{ version: 2, cells }` holds the
+records of the highest node under 128 KiB (`PAGE_BYTES`; one cell whatever its size), an index page
+`{ version: 2, pages }` lists at most 8 pages (`FAN_OUT`), its node opened widest first, and
 `partition` is the root `{ version: 2, pages }`: the whole tree opened into exactly eight slots,
-empty ones last, the same bytes whatever the world (1 391 for grids of 48² and 192² and for the
-open-world cell laid 8 × 8). A slot is 168 hexadecimal digits: the page's SHA-256, its size (8) and
-its box at the declared poses as six big-endian `f64` bit patterns (16 each); its file is
-`scene-page-<sha256>.json`, and zeros name no page. `readTablePartition` reads the root, then every
-page verified against its slot, into the records in cell order, `bounds` the union of the root's
-boxes, `meshes` the ranks they place. Pages and cells are outside the manifest's `files`: a reused
-folder proves them through the root. Another partition or tables version is refused by name.
+empty ones last — 1 391 bytes for grids of 48² and 192² and the open-world cell laid 8 × 8. A slot
+is 168 hexadecimal digits: the page's SHA-256, its size (8) and its box at the declared poses as six
+big-endian `f64` bit patterns (16 each), naming `scene-page-<sha256>.json`; zeros name no page.
+`readTablePartition` reads every page, verified against its slot, into the records in cell order,
+`bounds` the union of the root's boxes and `meshes` the ranks placed. Pages and cells are outside
+the manifest's `files`: a reused folder proves them through the root.
 
 **Reading the cells.** Each mesh the cells place is drawn by one host mesh per primitive whose
 instance buffer the cells fill (`packages/sdk-browser/src/scene/partition/`): a placement takes a
