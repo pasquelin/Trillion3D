@@ -134,6 +134,10 @@ function drawSprite(surface: GraphSurface, material: Material) {
   writeSpriteTurn(surface, material);
   surface.sizeAttenuation = material.sizeAttenuation !== false;
   surface.side = hostSide('double');
+  // One pass, not the back then the front of a two-sided transparent surface: a second pass
+  // would draw nothing more, and would double every sprite's entries in the transparent plan,
+  // whose per-frame ranking grows with the square of their count (#364).
+  surface.forceSinglePass = true;
 }
 
 /** What a mesh draws of its geometry: faces, line quads (`drawLines`) or a sprite's quad. */
