@@ -69,6 +69,7 @@ fn gltf_and_glb_sources_select_the_gltf_plugin() {
         cache: &dir,
         cancelled: &std::sync::atomic::AtomicBool::new(false),
         progress: &|_| {},
+        ram_budget: 1 << 30,
     });
     assert!(
         matches!(refusal, Err(ref error) if error.code == "SOURCE_FORMAT_AMBIGUOUS"),

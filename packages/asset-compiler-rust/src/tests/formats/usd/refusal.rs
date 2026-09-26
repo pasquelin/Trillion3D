@@ -57,6 +57,7 @@ fn a_cancelled_layer_is_refused_by_name_and_writes_nothing() {
         cache: &cache,
         cancelled: &AtomicBool::new(true),
         progress: &|_| {},
+        ram_budget: 1 << 30,
     });
     let code = match refused {
         Err(error) => error.code,
