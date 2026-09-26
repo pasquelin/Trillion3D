@@ -62,6 +62,11 @@ export const litModel = (host: HostShadedMaterial, model: number) =>
 export const shininessRoughness = (shininess: number) =>
   Math.sqrt(2 / (Math.max(0, shininess) + 2));
 
+/** The toon cosine at `nl` = N·L, and the matcap coordinate of a view-space normal `n`: the one text
+ *  both languages read, WGSL here and GLSL in `SURFACE_MODEL_GLSL`. */
+const TOON_BANDS = 'mix(0.7,1.0,smoothstep(0.69,0.71,nl*0.5+0.5))';
+const matcapAt = (vec2: string) => `${vec2}(n.x*0.495+0.5,0.5-n.y*0.495)`;
+
 /**
  * What a declared lamp gives a pixel of a diffuse or toon surface, read by `declaredLight` through
  * the private `surfaceModel` the resolve sets from the surface flag. Toon keeps the lamp's energy —
@@ -72,7 +77,7 @@ var<private> surfaceModel:u32;
 fn modelLight(rgb:vec3f,metal:f32,N:vec3f,L:vec3f,energy:f32,ao:f32)->vec3f{
  let diffuse=rgb*(1.0-metal)*${INVERSE_PI}*energy*ao;
  let nl=dot(N,L);
- if(surfaceModel==${MODEL_FLAG.toon}u){return diffuse*mix(0.7,1.0,smoothstep(0.69,0.71,nl*0.5+0.5));}
+ if(surfaceModel==${MODEL_FLAG.toon}u){return diffuse*${TOON_BANDS};}
  return diffuse*max(nl,0.0);
 }`;
 
@@ -88,4 +93,17 @@ fn viewNormal(N:vec3f)->vec3f{
  let up=normalize(vec3f(uni.viewProj[0].y,uni.viewProj[1].y,uni.viewProj[2].y));
  return vec3f(dot(N,right),dot(N,up),dot(N,cross(right,up)));
 }
-fn matcapUv(N:vec3f)->vec2f{let n=viewNormal(N);return vec2f(n.x*0.495+0.5,0.5-n.y*0.495);}`;
+fn matcapUv(N:vec3f)->vec2f{let n=viewNormal(N);return ${matcapAt('vec2f')};}`;
+
+/**
+ * The same models in the WebGL2 cluster program (`../webgl/cluster/shaders.ts`), whose normals are
+ * already in view space: `surfaceModel` holds the rank of `SURFACE_MODEL`, a diffuse or toon
+ * surface takes `modelLight` for each lamp in place of the physical lobes, and a matcap reads its
+ * image at `matcapUv`.
+ */
+export const SURFACE_MODEL_GLSL = `
+uniform int surfaceModel;
+bool bandedModel(){return surfaceModel==${SURFACE_MODEL.diffuse}||surfaceModel==${SURFACE_MODEL.toon};}
+vec3 modelLight(vec3 rgb,float metal,vec3 N,vec3 L,float energy,float ao){vec3 diffuse=rgb*(1.0-metal)*${INVERSE_PI}*energy*ao;
+float nl=dot(N,L);if(surfaceModel==${SURFACE_MODEL.toon})return diffuse*${TOON_BANDS};return diffuse*max(nl,0.0);}
+vec2 matcapUv(vec3 n){return ${matcapAt('vec2')};}`;

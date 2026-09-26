@@ -130,6 +130,8 @@ export function bindClusterMaterial(
     backSide = side === undefined ? mat.backSide : side === 'back';
   // A depth material shows the frame's depth ramp in place of its colour (`beginFrame`).
   uniforms.i1(35, 'depthShaded', mat.model === SURFACE_MODEL.depth ? 1 : 0);
+  // The model a non-physical family reads in (`SURFACE_MODEL_GLSL`): lambert, toon, normal, matcap.
+  uniforms.i1(48, 'surfaceModel', mat.model ?? SURFACE_MODEL.standard);
   // A diagnostic view's surface is shown as it is, never through the fog
   // (`../../host/pageDiagnostics.ts`).
   uniforms.i1(38, 'fogFree', (material as { fog?: boolean }).fog === false ? 1 : 0);

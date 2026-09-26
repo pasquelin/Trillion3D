@@ -10,7 +10,6 @@
 
 import type { HostAttribute, HostAttributes, HostMaterials } from './resources.ts';
 import type { HostMap, HostShadedMaterial } from './shadedMaterial.ts';
-import { metalRough } from '../scene/surfaceModel.ts';
 import { blendingOf, blendingRefusal } from '../scene/materialBlending.ts';
 import { HOST_MAPPING_UV, HOST_NORMAL_MAP_TANGENT_SPACE } from './surfaceConstants.ts';
 import { texelsReason } from '../visibility/types.ts';
@@ -32,6 +31,20 @@ const textureReason = (texture: HostMap) => {
  *  its own, not as one view interleaved into a shared one. */
 const ownBuffer = (attribute: HostAttribute | undefined) => attribute?.kind === 'attribute';
 
+/** The families the WebGL2 program draws: the physical ones, the unlit basic and depth, and the
+ *  others mapped onto the one model (`../scene/surfaceModel.ts`), each shaded as WebGPU does. */
+const DRAWN_FAMILIES = new Set([
+  'standard',
+  'physical',
+  'basic',
+  'depth',
+  'lambert',
+  'phong',
+  'toon',
+  'normal',
+  'matcap',
+]);
+
 /**
  * Names material input the autonomous WebGL2 program cannot preserve before it submits a draw.
  * A transmissive physical material is accepted only where `transmissive` says the draw reads
@@ -44,8 +57,7 @@ export function clusterMaterialReason(
 ) {
   if (Array.isArray(material)) return 'material arrays are unsupported';
   const host = material as HostShadedMaterial;
-  if (!metalRough(host) && host.family !== 'basic' && host.family !== 'depth')
-    return `material ${host.family} is unsupported`;
+  if (!DRAWN_FAMILIES.has(host.family)) return `material ${host.family} is unsupported`;
   // The draws' own refusal (`drawnBlending`): a mode admitted here is one every path draws.
   const refusal = blendingRefusal(blendingOf(host.blending), isTransmissive(material));
   if (refusal) return `material ${host.family}: ${refusal} (blending ${host.blending})`;
@@ -88,11 +100,13 @@ export function clusterMaterialReason(
     return 'textured material has no UV attribute';
   if (maps.some((texture) => texture?.channel === 1) && !ownBuffer(attributes.uv1))
     return 'texture channel 1 has no UV1 attribute';
-  if (metalRough(host) && !ownBuffer(attributes.normal))
-    return 'lit material has no normal attribute';
+  // Every family but basic and depth reads the normal: to light, to show it, or to find its matcap.
+  if (host.family !== 'basic' && host.family !== 'depth' && !ownBuffer(attributes.normal))
+    return `${host.family} material has no normal attribute`;
   if (host.vertexColors && !ownBuffer(attributes.color))
     return 'vertex-colour material has no color attribute';
-  for (const texture of maps) {
+  // A matcap's image is read by the normal, never by a UV: checked as a map, not asked a UV.
+  for (const texture of [...maps, host.matcap]) {
     const reason = textureReason(texture);
     if (reason) return reason;
   }
