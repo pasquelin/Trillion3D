@@ -61,7 +61,6 @@ export function createShadowAdmission(poolPages: number) {
     ageWeight = poolPages * 2 * MAX_SHADOW_SLICES * RANKS * LIGHT_VIEWS;
   /** The last frame left pages pending: the next list puts the oldest first. */
   let waiting = false;
-  // Data fields only, never an accessor: the plan reads the list page by page (`pool.ts`).
   const admission = {
     list,
     keys,
@@ -115,12 +114,13 @@ export function createShadowAdmission(poolPages: number) {
       }
       return to;
     },
-    /** Closes the list. The frame drew it up to `stopped`: what it left undrawn stays stale, and
-     *  the next list is ordered by age. */
+    /** Closes the list. The frame drew it up to `stopped`, all of it by default: what it left
+     *  undrawn stays stale, and the next list is ordered by age. */
     reset(stopped = Infinity) {
       waiting = stopped < admission.count;
       admission.count = 0;
     },
   };
+  // Not `Readonly` as the others: the batch tests replace `batchEnd`.
   return admission;
 }
