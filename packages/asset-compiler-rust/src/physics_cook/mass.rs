@@ -5,8 +5,7 @@
 //! meets its reverse once positions are welded: a mesh with an open or one-way edge bounds no
 //! volume, and is refused by name.
 use super::refused;
-use crate::dag::clusters::weld_positions;
-use crate::shared_math::{cross, dot};
+use crate::shared_math::{cross, divide, dot, sub};
 use crate::Result;
 use serde_json::{json, Value};
 use std::collections::HashMap;
@@ -14,12 +13,10 @@ use std::collections::HashMap;
 /// Density a body is weighed at, kg/m³: the runtime's (`SHAPE_DENSITY`, `src/commands.cpp`).
 pub(super) const DENSITY: f64 = 1000.0;
 
-/// Whether every edge of `triangles` over `pos`, positions welded, runs once each way as often.
-fn closed(pos: &[f32], triangles: &[u32]) -> bool {
-    let weld = weld_positions(pos, triangles);
+/// Whether every edge of the welded `triangles` runs once each way as often.
+fn closed(triangles: &[u32]) -> bool {
     let mut balance: HashMap<(u32, u32), i64> = HashMap::new();
-    for t in triangles.as_chunks::<3>().0 {
-        let [a, b, c] = t.map(|i| weld[i as usize]);
+    for &[a, b, c] in triangles.as_chunks::<3>().0 {
         for (from, to) in [(a, b), (b, c), (c, a)].into_iter().filter(|(f, t)| f != t) {
             *balance.entry((from.min(to), from.max(to))).or_default() +=
                 if from < to { 1 } else { -1 };
@@ -29,15 +26,15 @@ fn closed(pos: &[f32], triangles: &[u32]) -> bool {
 }
 
 /// `mass`, `centerOfMass` and `inertia` about it (nine floats, column-major) of the solid mesh
-/// `mesh`'s `triangles` over `pos` bound once scaled by `scale`, at `DENSITY`. Its winding may be
-/// either way; a mesh not closed, or closed on no volume, is refused.
+/// `mesh`'s `triangles` over `pos`, welded (`weld_positions`), bound once scaled by `scale`, at
+/// `DENSITY`. Its winding may be either way; a mesh not closed, or closed on no volume, is refused.
 pub(super) fn solid_mass(
     pos: &[f32],
     triangles: &[u32],
     scale: [f64; 3],
     mesh: usize,
 ) -> Result<Value> {
-    if triangles.is_empty() || !closed(pos, triangles) {
+    if triangles.is_empty() || !closed(triangles) {
         return Err(refused(format!(
             "Mesh {mesh} is not closed: it bounds no volume to weigh."
         )));
@@ -49,10 +46,7 @@ pub(super) fn solid_mass(
     let (mut volume, mut spanned) = (0.0, 0.0);
     let (mut first, mut second) = ([0.0; 3], [[0.0; 3]; 3]);
     for t in triangles.as_chunks::<3>().0 {
-        let [a, b, c] = t.map(|i| {
-            let p = at(i);
-            [0, 1, 2].map(|k| p[k] - origin[k])
-        });
+        let [a, b, c] = t.map(|i| sub(at(i), origin));
         let det = dot(a, cross(b, c));
         let sum = [0, 1, 2].map(|k| a[k] + b[k] + c[k]);
         (volume, spanned) = (volume + det / 6.0, spanned + det.abs() / 6.0);
@@ -72,7 +66,7 @@ pub(super) fn solid_mass(
     // A mesh wound inward, or mirrored by its scale, sums every integral negated.
     let sign = volume.signum();
     let mass = DENSITY * volume * sign;
-    let local = first.map(|f| f / volume);
+    let local = divide(first, volume);
     // Second moments about the centre, then the inertia tensor: trace times identity, less them.
     let about = |r: usize, q: usize| DENSITY * sign * second[r][q] - mass * local[r] * local[q];
     let trace = about(0, 0) + about(1, 1) + about(2, 2);
