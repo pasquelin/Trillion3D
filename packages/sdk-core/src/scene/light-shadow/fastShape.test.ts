@@ -6,21 +6,26 @@ import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { cycle, movingScene } from './lightShadow.fixture.ts';
 
-const SHAPED = ['pool', 'table', 'records', 'admission', 'counts', 'sun'];
+// The plan's own, and the change list and thresholds it keeps to itself.
+const SHAPED = ['pool', 'table', 'records', 'admission', 'counts', 'sun', 'changes', 'thresholds'];
+const url = (file: string) => JSON.stringify(new URL(file, import.meta.url).href);
 
 test('the objects a moving frame reads page by page keep fast properties', () => {
   const probe = `
-    import { movingScene } from ${JSON.stringify(new URL('./lightShadow.fixture.ts', import.meta.url).href)};
+    import { movingScene } from ${url('./lightShadow.fixture.ts')};
+    import { createShadowChanges } from ${url('./changes.ts')};
+    import { createShadowThresholds } from ${url('./thresholds.ts')};
     const { plan } = movingScene();
-    console.log(JSON.stringify(${JSON.stringify(SHAPED)}.map((name) => %HasFastProperties(plan[name]))));`;
+    const own = { changes: createShadowChanges(), thresholds: createShadowThresholds(plan.pool) };
+    console.log(JSON.stringify(${JSON.stringify(SHAPED)}.map((name) => %HasFastProperties(own[name] ?? plan[name]))));`;
   const run = spawnSync(
     process.execPath,
     ['--allow-natives-syntax', '--experimental-strip-types', '--input-type=module', '-e', probe],
-    { encoding: 'utf8' },
+    { encoding: 'utf8', timeout: 60_000 },
   );
-  assert.equal(run.status, 0, run.stderr);
+  assert.equal(run.status, 0, run.error?.message ?? run.stderr);
   assert.deepEqual(
-    JSON.parse(run.stdout),
+    JSON.parse(run.stdout.trim().split('\n').at(-1) ?? ''),
     SHAPED.map(() => true),
     SHAPED.join(', '),
   );
