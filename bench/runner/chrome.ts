@@ -48,22 +48,24 @@ export function assertBrowserEntryPoint(entry = process.argv[1]) {
   );
 }
 
-/** Set on the proof import test's children: a refused launch ends the process there, failed, so
- *  no proof runs its work past the refusal. */
-export const EXIT_ON_REFUSAL = 'TRILLION3D_EXIT_ON_CHROME_REFUSAL';
-
 /**
  * Launches system Chrome. `options` are those of `chromium.launch` — `headless`, `args` —,
  * with the channel set here and nowhere else. Refused unless a proof, bench or script run is the
  * entry point (`assertBrowserEntryPoint`).
  */
 export async function launchChrome(options: LaunchOptions = {}) {
+  assertBrowserEntryPoint();
+  return chromium.launch({ channel: 'chrome', ...options });
+}
+
+/** Set on the proof import test's children: loading this launcher where it would refuse ends the
+ *  process there, failed. Modules run after their imports, so the proof's own work never starts. */
+export const EXIT_ON_REFUSAL = 'TRILLION3D_EXIT_ON_CHROME_REFUSAL';
+
+if (process.env[EXIT_ON_REFUSAL])
   try {
     assertBrowserEntryPoint();
   } catch (error) {
-    if (!process.env[EXIT_ON_REFUSAL]) throw error;
     writeSync(2, `${(error as Error).message}\n`);
     process.exit(1);
   }
-  return chromium.launch({ channel: 'chrome', ...options });
-}

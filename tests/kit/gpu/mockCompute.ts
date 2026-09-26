@@ -158,11 +158,10 @@ export function simulateComputeDispatch(
   const frames = words(byBinding.get(DAG_BINDING.frames)!.data);
   const rootNodes = packed.rootNodes.map((_, w) => frames[primitiveWordAt(w) + 1]);
   const result = evaluateDagSelectionKernel({ ...packed, worlds, rootNodes }, uniforms, resident);
-  if (residentCut) {
-    const flags = new Uint32Array(byBinding.get(DAG_BINDING.flags)!.data.buffer);
-    flags.fill(0, packed.nodeCount);
-    for (const id of result.drawablePageIds ?? []) flags[packed.nodeCount + id] = 1;
-  }
+  // `dagMask` posts a draw flag for every page, resident cut or not: `dagDrawScatter` compacts them.
+  const flags = new Uint32Array(byBinding.get(DAG_BINDING.flags)!.data.buffer);
+  flags.fill(0, packed.nodeCount);
+  for (const id of result.drawablePageIds ?? []) flags[packed.nodeCount + id] = 1;
   const out = byBinding.get(DAG_BINDING.out)!.data;
   const ints = new Uint32Array(out.buffer, out.byteOffset, out.byteLength / 4);
   ints[0] = result.pageIds.length;

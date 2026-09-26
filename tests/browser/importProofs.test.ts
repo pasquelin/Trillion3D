@@ -2,8 +2,9 @@
 // one launcher refuses (`bench/runner/chrome.ts`). Each file is imported in a child process whose
 // entry point is this test, so a proof's work, exit code and `test()` calls stay there; the
 // child replaces Playwright's launch, so a broken guard fails here instead of opening Chrome.
-// The child ends at the refusal, and writes its outputs and temporary files only in this run's
-// scratch folder: a measurement running in the same checkout keeps every file it writes.
+// The launcher ends the child as it loads, before the proof's body runs, and anything written
+// before goes to this run's scratch folder: a measurement in the same checkout keeps its files.
+// The child never loads the launcher before its proof does, so the parent alone imports it.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
@@ -13,7 +14,6 @@ import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { chromium } from 'playwright';
 import { MEASURE_OUT } from '../../bench/core/paths.ts';
-import { CHROME_REFUSED, EXIT_ON_REFUSAL } from '../../bench/runner/chrome.ts';
 import { BROWSER, JUSTESSE, RACINE } from './test-gpu.ts';
 
 const TARGET = 'TRILLION3D_IMPORT_PROOF',
@@ -48,7 +48,9 @@ async function importOne(file: string) {
   );
 }
 
-function importInChild(file: string, scratch: string) {
+type Launcher = typeof import('../../bench/runner/chrome.ts');
+
+function importInChild(file: string, scratch: string, { EXIT_ON_REFUSAL }: Launcher) {
   // The child runs on its own, not as a test runner's child speaking its protocol on stdout.
   const { NODE_TEST_CONTEXT: _runner, ...inherited } = process.env;
   const env = {
@@ -66,12 +68,12 @@ function importInChild(file: string, scratch: string) {
   );
 }
 
-async function importAll(files: string[], scratch: string) {
+async function importAll(files: string[], scratch: string, launcher: Launcher) {
   const outputs = new Map<string, string>();
   const queue = [...files];
   const worker = async () => {
     for (let file = queue.shift(); file; file = queue.shift())
-      outputs.set(file, await importInChild(file, scratch));
+      outputs.set(file, await importInChild(file, scratch, launcher));
   };
   // A few children at a time: the test shares the machine with the other sessions' runs.
   const children = Math.min(4, Math.max(1, availableParallelism() >> 1));
@@ -87,12 +89,13 @@ else
         .filter((name) => name.endsWith('.ts'))
         .map((name) => join(RACINE, folder, name)),
     );
-    // A proof may prepare its outputs, or a temporary folder, before it asks for Chrome.
+    // A file that never loads the launcher runs its body: its outputs land in the scratch.
     const logs = join(RACINE, '.worktrees', 'logs');
     mkdirSync(logs, { recursive: true });
     const scratch = mkdtempSync(join(logs, 'import-proofs-'));
     try {
-      const outputs = await importAll(files, scratch);
+      const launcher = await import('../../bench/runner/chrome.ts');
+      const outputs = await importAll(files, scratch, launcher);
       for (const [file, output] of outputs) {
         const report = output.split('\n').find((line) => line.startsWith(REPORT));
         assert.ok(report, `${file}: the child did not report\n${output}`);
@@ -100,7 +103,7 @@ else
       }
       for (const folder of FOLDERS) {
         const refused = [...outputs].filter(
-          ([f, o]) => f.includes(folder) && o.includes(CHROME_REFUSED),
+          ([f, o]) => f.includes(folder) && o.includes(launcher.CHROME_REFUSED),
         );
         assert.ok(refused.length > 0, `no file of ${folder} reached the launcher`);
       }

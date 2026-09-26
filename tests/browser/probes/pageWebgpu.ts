@@ -65,7 +65,12 @@ export async function dansPageWebgpu<A, R>(
 ) {
   const { titre = 'Trillion3D WebGPU', script = null, erreursPage = null } = options;
   const { server, port } = await blankPageServer(titre, script);
-  const browser = await launchChrome({ headless: true });
+  const closeServer = () => new Promise<void>((done) => server.close(() => done()));
+  // A refused launch closes the server too: a probe imported outside its run ends, never hangs.
+  const browser = await launchChrome({ headless: true }).catch(async (error: unknown) => {
+    await closeServer();
+    throw error;
+  });
   try {
     const page = await browser.newPage();
     if (erreursPage) page.on('pageerror', (error) => erreursPage.push(error.message));
@@ -83,6 +88,6 @@ export async function dansPageWebgpu<A, R>(
     return await evaluate(fonction, argument);
   } finally {
     await browser.close();
-    await new Promise<void>((done) => server.close(() => done()));
+    await closeServer();
   }
 }
