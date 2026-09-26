@@ -7,7 +7,7 @@ import {
 } from '../../../sdk-core/src/index.ts';
 import type { ClusterRoot } from '../page/selection/types.ts';
 import type { PlacementRows } from './rows.ts';
-import { withShadowless } from '../page/cut/select.ts';
+import { withShadowless } from '../visibility/shader/spriteWgsl.ts';
 
 /** What a pose did to a placement: nothing, a move of one already moving, a first move. */
 export const MOVE_NONE = 0,
@@ -53,10 +53,11 @@ const moved = new Float64Array(BOX_VALUES),
  * Brings the roots of rows `from` to `to` level with what the owner wrote in them: each root's
  * world is already the row (a view), so only what the engine DERIVES from it follows — its world
  * box, reprojected from its local box, its parked flag and its shadowless bit (`ClusterRoot.mark`),
- * which `flip` hands to a GPU cut when the engine has one; `posed` hears the rank of every root the
- * rows pose, with the pose it now has and whether its row was taken or parked or began or stopped
- * casting — a move whatever its pose, since the shadow pages it covers change —, and says whether
- * it moved (`MOVE_*`); `follow` names each root that reads a written row. `touched` hears, root by
+ * which `flip` hands to a GPU cut when the engine has one. `posed` hears the rank of every root the
+ * rows pose, with the pose it now has and whether its row was taken or parked — a move whatever its
+ * pose —, and says whether it moved (`MOVE_*`). A root that began or stopped casting stales its box,
+ * static casters included, and is not made a moving caster for it. `follow` names each root that
+ * reads a written row. `touched` hears, root by
  * root, the box each moved or flipped root left and entered, and whether it was moving already: a
  * row of the range left where it stands — a pose written again unchanged, a row between two
  * written ones — touches nothing, and two roots far apart are two boxes, never the room between
@@ -82,12 +83,13 @@ export function followPlacementRows<T>(
     const { root, rank } = entry;
     const parked = rows.live[index] === 0 || !!root.hidden,
       mark = withShadowless(root.mark ?? 0, rows.shadowless[index] === 1),
-      flipped = parked !== !!root.parked || mark !== (root.mark ?? 0);
-    // A row taken, parked or flipped in casting moved, whatever its pose; otherwise its pose says.
+      cast = mark !== (root.mark ?? 0),
+      flipped = parked !== !!root.parked;
+    // A row taken or parked moved, whatever its pose; otherwise its pose says whether it moved.
     const move = posed ? posed(rank, root.world.elements, flipped) : MOVE_PROMOTED;
     boxEmpty(moved, 0);
     if (root.worldBox && !root.parked) boxUnionBatch(moved, root.worldBox, 1);
-    if (flipped) {
+    if (flipped || cast) {
       root.parked = parked;
       root.mark = mark || undefined;
       flip?.(rank, root);
@@ -97,9 +99,9 @@ export function followPlacementRows<T>(
       boxTransform(root.worldBox, 0, root.localBox, 0, root.world.elements);
     if (root.worldBox && !parked) boxUnionBatch(moved, root.worldBox, 1);
     // Its rows and box follow the row all the same; only a move stales shadow pages.
-    if (move === MOVE_NONE || boxIsEmpty(moved, 0)) continue;
+    if ((move === MOVE_NONE && !cast) || boxIsEmpty(moved, 0)) continue;
     any = true;
-    touched?.(movedMin, movedMax, move === MOVE_MOVING);
+    touched?.(movedMin, movedMax, move === MOVE_MOVING && !cast);
   }
   return any;
 }

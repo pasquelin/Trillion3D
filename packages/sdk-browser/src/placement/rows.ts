@@ -67,6 +67,10 @@ export type PlacementOf = { rows: PlacementRows; index: number };
 export const rowParked = (placement: PlacementOf | undefined) =>
   !!placement && placement.rows.live[placement.index] === 0;
 
+/** True when `placement` names a row whose mesh casts no shadow. */
+export const rowShadowless = (placement: PlacementOf) =>
+  placement.rows.shadowless[placement.index] === 1;
+
 /** True when one of `placed` — blended copies, blend items — is posed by a row of `rows`. */
 export const placedBy = (
   placed: readonly { readonly placement?: PlacementOf }[],
