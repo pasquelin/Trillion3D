@@ -19,9 +19,9 @@ function implicitPrimitive(s: ImplicitShape): PhysicsPrimitive | null {
   const { height = 0.5, radiusTop = 0.25, radiusBottom = 0.25 } = rounded ?? {};
   if (s.type === 'cylinder')
     return { type: 'cylinder', halfHeight: height / 2, radius: radiusTop, radiusBottom };
-  if (s.type === 'capsule' && radiusTop === radiusBottom)
-    return { type: 'capsule', halfHeight: height / 2, radius: radiusTop };
-  return null;
+  return radiusTop === radiusBottom
+    ? { type: 'capsule', halfHeight: height / 2, radius: radiusTop }
+    : null;
 }
 
 /**

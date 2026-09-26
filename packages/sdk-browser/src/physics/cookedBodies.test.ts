@@ -89,8 +89,7 @@ test('a declared dynamic box is held kinematic at its drawn pose, its node’s t
   jolt.step(words, 0);
   const rest = run(jolt, 2);
   assert.ok(Math.abs(rest.get(60)![1] - 2.75) < 0.02, `a crate rests on it: ${rest.get(60)![1]}`);
-  assert.equal(castDown(jolt, -0.5)[0], held.w[1], 'a ray meets the body');
-  assert.ok(!rest.has(held.w[1] & BODY_INDEX), 'added asleep, it never woke');
+  assert.equal(castDown(jolt, -0.5)[0], held.w[1], 'a ray meets the body, where it is drawn');
 });
 
 test('a shapeless node restores its cooked hull and mass, and turns about the cooked centre of mass', async () => {

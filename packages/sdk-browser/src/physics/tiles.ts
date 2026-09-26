@@ -162,9 +162,9 @@ export function createTileStreamer(
         failed(physicsBudgetError('triangles', budget.triangles, asked));
       overBudget = asked > budget.triangles;
     },
-    /** The model a tile body's or a cooked soft body's engine id belongs to, or `null`. */
+    /** The model a tile body's or a cooked body's engine id belongs to, or `null`. */
     modelOf: bodies.slots.modelOf,
-    /** The worker refused body `id`: a tile or a cooked soft body leaves, its slot and budget
+    /** The worker refused body `id`: a tile or a cooked body leaves, its slot and budget
      *  given back, and is not made again until its model opens again; any other body is ignored. */
     refused(id: number) {
       const owner = bodies.slots.of(id);
@@ -178,7 +178,7 @@ export function createTileStreamer(
       const owner = bodies.slots.of(id);
       return owner && 'tile' in owner ? owner.tile.material : -1;
     },
-    /** A model moved: its resident tiles and its cooked soft bodies follow. */
+    /** A model moved: its resident tiles and its cooked bodies follow. */
     moved(node: Object3D) {
       node.traverse((child) => {
         if (isModel(child)) declared.moved(child);
@@ -190,7 +190,7 @@ export function createTileStreamer(
         }
       });
     },
-    /** Every tile and cooked soft body out (physics turned off). */
+    /** Every tile and cooked body out (physics turned off). */
     clear() {
       models.forEach((opening, model) => drop(model, opening));
       models.clear();
