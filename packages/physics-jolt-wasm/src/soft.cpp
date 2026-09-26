@@ -122,6 +122,11 @@ void writeSoft() {
     const Slot &slot = world.slots[soft.index];
     if (!slot.used || !slot.soft || slot.engine != soft.engine) continue;
     softs[kept++] = soft;
+    // Hidden by the page, it sends no vertex; shown again, it is written once, asleep or not.
+    if (slot.flags & HIDDEN) {
+      softs[kept - 1].awake = true;
+      continue;
+    }
     BodyLockRead lock(locks, slot.id);
     if (!lock.Succeeded()) continue;
     const Body &body = lock.GetBody();

@@ -17,28 +17,39 @@ export function engineIdOf(bodies: ReturnType<typeof createPhysicsBodies>, node:
 }
 
 /**
- * The ids of what a session makes in the simulation between bodies (joints, vehicles): a slot and
- * its generation, as a body's engine id (`BODY_INDEX`), so a module's report naming one that left
- * is never read as the one that took its slot.
+ * The ids of what a session makes in the simulation (bodies, joints, vehicles): a slot and its
+ * generation, as a body's engine id (`BODY_INDEX`), moved on at every take and release, so a
+ * module's report naming one that left is never read as the one that took its slot. `generation`
+ * is the store the generations are kept in, one per slot.
  */
-export function createSimulatedIds<T>() {
+export function createSimulatedIds<T, G extends number[] | Uint8Array = number[]>(
+  generation: G = [] as number[] as G,
+) {
   const slots: (T | null)[] = [];
-  const generation: number[] = [];
   const free: number[] = [];
+  const next = (index: number) =>
+    (generation[index] = ((generation[index] ?? 0) + 1) % GENERATIONS);
   return {
+    generation,
     /** A fresh id for `item`. */
     take(item: T) {
       const index = free.pop() ?? slots.push(null) - 1;
-      generation[index] = ((generation[index] ?? 0) + 1) % GENERATIONS;
       slots[index] = item;
-      return index | (generation[index] << GENERATION_SHIFT);
+      return index | (next(index) << GENERATION_SHIFT);
     },
-    /** Frees an id. */
+    /** Frees an id: no id of its slot names anything until the slot is taken again. */
     release(id: number) {
-      slots[id & BODY_INDEX] = null;
-      free.push(id & BODY_INDEX);
+      const index = id & BODY_INDEX;
+      slots[index] = null;
+      next(index);
+      free.push(index);
     },
     /** What `id`'s slot holds, whatever its generation. */
     at: (id: number) => slots[id & BODY_INDEX] ?? null,
+    /** What `id` names, or `null` once it left its slot. */
+    of(id: number) {
+      const index = id & BODY_INDEX;
+      return generation[index] === id >>> GENERATION_SHIFT ? (slots[index] ?? null) : null;
+    },
   };
 }
