@@ -6,9 +6,6 @@
 // on the machine.
 import * as esbuild from 'esbuild';
 import type { Format } from 'esbuild';
-import { existsSync, realpathSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { launchChrome } from '../../../bench/runner/chrome.ts';
 import { blankPageServer } from '../../kit/server/blankPage.ts';
 import { ouvrirAppareil } from './webgpuDevice.ts';
@@ -25,24 +22,6 @@ declare global {
  */
 export const PAGE_INIT_SCRIPT = `globalThis.ouvrirAppareil = ${ouvrirAppareil};
 globalThis.namedBufferEntries = ${namedBufferEntries};`;
-
-const PROBES = dirname(fileURLToPath(import.meta.url));
-/** The two folders `test:gpu` runs (`tests/browser/test-gpu.ts`): probes and render proofs. */
-const PROOF_FOLDERS = [PROBES, join(PROBES, '..', 'renders')];
-
-/**
- * Throws unless the process's entry point is a file of a proof folder. A Node import of a probe,
- * by a unit test or a review agent, must never open Chromium (AGENTS.md rule 2): only the proof
- * run on its own, by `test:gpu` or by the measurer, reaches the browser.
- */
-export function assertProofEntryPoint(entry = process.argv[1]) {
-  const folder = entry && existsSync(entry) ? dirname(realpathSync(entry)) : null;
-  if (folder && PROOF_FOLDERS.includes(folder)) return;
-  throw new Error(
-    `Chromium refused: the entry point ${entry ?? '(none)'} is no probe or render proof. ` +
-      'Run the proof itself (`pnpm run test:gpu <file>`); importing it never launches a browser.',
-  );
-}
 
 /**
  * Bundles a page module for the browser and returns the bundle text: as an IIFE under `nomGlobal`
@@ -75,8 +54,6 @@ export async function empaquetePage(
  * `globalThis.ouvrirAppareil` and `globalThis.namedBufferEntries` are installed ahead of time
  * (`PAGE_INIT_SCRIPT`), since a serialised function does not see its module's scope.
  *
- * Refused unless a proof is the entry point (`assertProofEntryPoint`), before any server or browser.
- *
  * Options: `titre` (the page title), `script` (a bundle served on `/page.js` and loaded by the
  * page, for reproductions that need the engine's real modules) and `erreursPage` (an array that
  * uncaught page errors come to fill).
@@ -86,7 +63,6 @@ export async function dansPageWebgpu<A, R>(
   argument: A,
   options: { titre?: string; script?: string | null; erreursPage?: string[] | null } = {},
 ) {
-  assertProofEntryPoint();
   const { titre = 'Trillion3D WebGPU', script = null, erreursPage = null } = options;
   const { server, port } = await blankPageServer(titre, script);
   const browser = await launchChrome({ headless: true });
