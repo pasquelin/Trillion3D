@@ -10,7 +10,6 @@ import { surfaceOf } from '../../../page/surface.ts';
 import { prepareCones } from './cones.ts';
 import { indexSourceBytes, compteMateriauxEtTangentes } from '../io/catalogue.ts';
 import {
-  entreeCones,
   referenceIndexSourceBytes,
   referenceCompteMateriauxEtTangentes,
 } from '../../../../../../bench/oracles/browser/normal-cones.ts';
@@ -26,21 +25,15 @@ function triangle(material: G.GraphSurface) {
     array: Uint32Array.of(0, 1, 2),
     attributes: {},
     material: surfaceOf(material),
-    cookedCone: COOKED,
-    cone: undefined,
+    cone: COOKED,
   } as unknown as PageRec;
 }
-/** Input of `prepareCones`, the bench's: one write for both, or one of the two stays on the old
- *  contract with nothing saying so. */
-function runtime(allPages: PageRec[], roots?: Array<{ cones?: boolean; pages: PageRec[] }>) {
-  return entreeCones(allPages, roots) as unknown as WebgpuPagesRuntime;
+/** What `prepareCones` reads of a runtime: its roots, each with its pages. */
+function runtime(pages: PageRec[], roots = [{ cones: false, pages }]) {
+  return { setup: { roots } } as unknown as WebgpuPagesRuntime;
 }
 
 test('a one-sided cluster is given the cone the compiler cooked, read from no vertex', () => {
-  // `prepareCones` reads pages by root — an input that carried none would make it ignore
-  // everything in silence, so the shared input must carry them.
-  const entree = entreeCones([]) as { setup: { allPages: PageRec[]; roots: unknown[] } };
-  assert.ok(Array.isArray(entree.setup.roots), 'the bench input must carry its roots');
   const page = triangle(G.basicSurface({ side: G.FRONT_SIDE }));
   prepareCones(runtime([page]));
   assert.equal(page.cone, COOKED);
@@ -103,17 +96,15 @@ test('compteMateriauxEtTangentes on an empty catalogue and geometry table yields
 test('posting a cone declares its root; a root whose pages receive no cone stays declared bare', () => {
   // `collectClusterPages` declares `cones: false`; without this sample, the cut would no longer read
   // the cone this prepare just wrote, and cone culling would vanish without a sound. A page without
-  // index bytes, or from a cache that cooked no cone, receives none: its root has nothing to declare.
+  // index bytes yet keeps no cone, as when its cone was built from them: its root declares none.
   const porte = triangle(G.basicSurface());
   const nue = { ...triangle(G.basicSurface()), array: undefined } as unknown as PageRec;
-  const crue = { ...triangle(G.basicSurface()), cookedCone: undefined } as unknown as PageRec;
   const roots = [
     { cones: false, pages: [porte] },
-    { cones: false, pages: [nue, crue] },
+    { cones: false, pages: [nue] },
   ];
-  prepareCones(runtime([porte, nue, crue], roots));
+  prepareCones(runtime([], roots));
   assert.equal(roots[0].cones, true);
   assert.equal(roots[1].cones, false);
   assert.equal(nue.cone, undefined);
-  assert.equal(crue.cone, undefined);
 });

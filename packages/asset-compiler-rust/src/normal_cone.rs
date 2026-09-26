@@ -1,17 +1,17 @@
 //! The normal cone of a cluster: the axis and half-angle that bound its triangles' normals, by
-//! which the WebGPU cut rejects a cluster that faces away. Cooked here once per page and written
-//! into the manifest (`docs/FORMAT.md` §Manifest binary), so the runtime reads it instead of
-//! rebuilding it from the source vertices.
+//! which the WebGPU cut rejects a cluster that faces away. Cooked here once per page into the
+//! manifest (`docs/FORMAT.md`, `pages[].cone`), so the runtime reads no vertex for it.
 //!
-//! The computation is `triangleCone` (`packages/sdk-browser/src/page/cone/build.ts`), operation
-//! for operation in float64. The axis has the same bits: its only rounding beyond the four basic
-//! operations is `Math.hypot`, ported below as V8 computes it. The angle cannot: `Math.acos` is
-//! V8's own build of fdlibm, whose bits follow the machine (on the arm64 machine this was measured
-//! on, they differ from fdlibm's in about one input in two hundred). Every implementation lies within one ulp of the true angle, so
-//! the cooked angle is fdlibm's (the `libm` crate: the same bits on every machine the compiler runs
-//! on) raised by [`ANGLE_MARGIN_ULPS`]: it is never narrower than the cone any runtime would have
-//! built, and a wider cone only culls less. `tests/integration/cooked-cones.test.ts` proves both on
-//! every compiled scene: the same axis bits, and an angle at least the runtime's, a few ulps wide.
+//! The reference it replaces is `triangleCone` (`tests/kit/cone.ts`), which the WebGPU prepare
+//! ran on the host vertices until #272; this is the same computation, operation for operation
+//! in float64. The axis keeps its bits: beyond the four basic operations its only rounding is
+//! `Math.hypot`, ported below as V8 computes it. The angle cannot: V8's `Math.acos` is its own
+//! build of fdlibm, whose bits follow the machine (on arm64 about one input in two hundred differs
+//! from fdlibm). The cooked angle is therefore fdlibm's (the `libm` crate, the same bits on every
+//! machine that compiles) raised by [`ANGLE_MARGIN_ULPS`]: never narrower than the cone any
+//! runtime would have built, and a wider cone only culls less. `tests/integration/cooked-cones.test.ts`
+//! proves both on every compiled scene.
+use crate::shared_math::{cross, divide, dot, sub};
 
 /// How many ulps the angle is raised by. fdlibm and the runtime's arccosine each lie within one ulp
 /// of the true angle, an ulp of which is at most two ulps of fdlibm's result where it crosses a
@@ -23,15 +23,9 @@ pub(crate) const OPEN_CONE: [f64; 4] = [0.0, 0.0, 1.0, std::f64::consts::PI];
 
 /// The cross product of a triangle's two edges from its first corner, in float64.
 fn face_cross(pos: &[f32], a: usize, b: usize, c: usize) -> [f64; 3] {
-    let at = |i: usize| pos[i] as f64;
-    let (ax, ay, az) = (at(a), at(a + 1), at(a + 2));
-    let (e1x, e1y, e1z) = (at(b) - ax, at(b + 1) - ay, at(b + 2) - az);
-    let (e2x, e2y, e2z) = (at(c) - ax, at(c + 1) - ay, at(c + 2) - az);
-    [
-        e1y * e2z - e1z * e2y,
-        e1z * e2x - e1x * e2z,
-        e1x * e2y - e1y * e2x,
-    ]
+    let at = |i: usize| [pos[i] as f64, pos[i + 1] as f64, pos[i + 2] as f64];
+    let origin = at(a);
+    cross(sub(at(b), origin), sub(at(c), origin))
 }
 
 /// `Math.hypot(x, y, z)` as V8 computes it: every magnitude divided by the largest, the squares
@@ -89,10 +83,10 @@ pub(crate) fn triangle_cone(pos: &[f32], indices: &[u32]) -> [f64; 4] {
     if sl.is_nan() || sl <= 0.0 {
         return OPEN_CONE;
     }
-    let axis = [sx / sl, sy / sl, sz / sl];
+    let axis = divide([sx, sy, sz], sl);
     let mut angle = 0.0f64;
     for (c, len) in faces() {
-        let d = ((c[0] * axis[0] + c[1] * axis[1] + c[2] * axis[2]) / len).clamp(-1.0, 1.0);
+        let d = (dot(c, axis) / len).clamp(-1.0, 1.0);
         let a = libm::acos(d);
         if a > angle {
             angle = a;
