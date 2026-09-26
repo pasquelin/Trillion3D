@@ -61,6 +61,11 @@ openusd = "0.7.0"
 # dequantization are written there once; the compiler encodes with them, measures its error with
 # them, and proves that what it encodes decodes identically.
 trillion3d-page-codec = { path = "../page-codec-wasm" }
+# fdlibm's `acos` (MIT or Apache-2.0, rust-lang/libm, already in the lock through `num-traits`):
+# the arccosine V8 builds `Math.acos` from, and the same bits on every machine, where the
+# platform's `f64::acos` would make a cooked normal cone depend on the machine that compiled it
+# (`src/normal_cone.rs`).
+libm = "0.2.16"
 
 [build-dependencies]
 sha2 = "0.10"
