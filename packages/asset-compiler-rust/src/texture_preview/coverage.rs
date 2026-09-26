@@ -1,9 +1,10 @@
 //! Coverage-preserving alpha: the rule every builder of a coverage chain applies
 //! after the median of four — this compiler, and the card's WebGPU and WebGL2
-//! chains, which mirror it step for step (#748).
+//! chains once they mirror it step for step (#748; until then a hosted texture
+//! the card regenerates keeps the median alone).
 //!
-//! A masked material keeps a texel when its alpha reaches the cutoff
-//! (`alpha >= alphaTest`), and the median of four does not keep the share of
+//! A masked material keeps a texel when its alpha, times the material's
+//! `baseColorFactor` alpha, reaches the cutoff (`alpha >= alphaTest`), and the median of four does not keep the share of
 //! texels that do: on foliage the coarse levels thin out (sponza's masked maps
 //! lose up to 57 % of their coverage at level 8, #44). So, at every level `k ≥ 1`
 //! of a coverage chain whose cutoff byte `C` is not 0 (`cutoff_byte`):
@@ -34,6 +35,15 @@ pub(super) fn cutoff_byte(cutoff: f32) -> u8 {
     (1..=255u8)
         .find(|&byte| f32::from(byte) / 255.0 >= cutoff)
         .unwrap_or(0)
+}
+
+/// The cutoff two coverage readers share: the lower one that cuts, 0 only when
+/// neither does — a blended reader, or one that keeps no texel, cuts nothing.
+pub(super) fn lowest_cutoff(a: u8, b: u8) -> u8 {
+    match (a, b) {
+        (0, cut) | (cut, 0) => cut,
+        _ => a.min(b),
+    }
 }
 
 /// What level 0 covers at the chain's cutoff: the share every level keeps.
