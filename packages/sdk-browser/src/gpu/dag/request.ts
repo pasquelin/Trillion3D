@@ -51,7 +51,15 @@ export const packRequest = (page: number, priority: number) =>
   ((priority << REQUEST_PAGE_BITS) | page) >>> 0;
 export const requestPage = (word: number) => word & (REQUEST_PAGE_MAX - 1);
 export const requestPriority = (word: number) => word >>> REQUEST_PAGE_BITS;
-const wordRank = (word: number) => requestRank(requestPriority(word));
+/** The rank of a request word: what `dagSortRequests` orders by. */
+export const requestWordRank = (word: number) => requestRank(requestPriority(word));
+/** In `words[start, end)`, sorted by rank, the first request of the view ahead: every visible
+ *  request comes before it. */
+export function firstAheadRequest(words: ArrayLike<number>, start = 0, end = words.length) {
+  let at = start;
+  while (at < end && !(requestPriority(words[at]) & REQUEST_AHEAD)) at++;
+  return at;
+}
 
 /**
  * CPU mirror of `dagSortRequests` (`shader/snapshotWgsl.ts`), what the oracle and the Node device
@@ -60,14 +68,14 @@ const wordRank = (word: number) => requestRank(requestPriority(word));
  */
 export function sortRequestWords(words: ArrayLike<number>) {
   const place = new Uint32Array(REQUEST_PRIORITY_MAX + 1);
-  for (let i = 0; i < words.length; i++) place[wordRank(words[i])]++;
+  for (let i = 0; i < words.length; i++) place[requestWordRank(words[i])]++;
   for (let rank = REQUEST_PRIORITY_MAX, first = 0; rank >= 0; rank--) {
     const held = place[rank];
     place[rank] = first;
     first += held;
   }
   const sorted = new Uint32Array(words.length);
-  for (let i = 0; i < words.length; i++) sorted[place[wordRank(words[i])]++] = words[i];
+  for (let i = 0; i < words.length; i++) sorted[place[requestWordRank(words[i])]++] = words[i];
   return sorted;
 }
 
@@ -86,4 +94,5 @@ fn quantizePriority(pixels:f32)->u32{
  return u32(clamp(pas,0,${REQUEST_STEP_MAX}));
 }
 fn packRequest(page:u32,priority:u32)->u32{return (priority<<PAGE_BITS)|page;}
+fn requestWordRank(word:u32)->u32{return (word>>PAGE_BITS)^REQUEST_AHEAD;}
 `;

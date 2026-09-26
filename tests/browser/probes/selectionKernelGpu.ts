@@ -58,7 +58,7 @@ async function executer({
   const groupes = (n: number): number => Math.max(1, Math.ceil(n / workgroup));
   const resultats: Resultat[] = [];
   for (const c of cas) {
-    // Requests wait for their sort behind the drawn list (`stagedAt`); the copy reads the sorted.
+    // Requests wait behind the drawn list (`stagedRequestsWord`); the copy reads them sorted.
     const sortieOctets = entete * 4 + c.pageCount * 4,
       octetsAttente = (2 * entete + 3 * c.pageCount) * 4;
     const blockCount = groupes(c.pageCount);

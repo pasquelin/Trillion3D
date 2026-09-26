@@ -8,7 +8,12 @@ import { createDagPipeline } from './pipeline.ts';
 import { dagWorkLayout } from './shader/floorWgsl.ts';
 import { DAG_UNIFORM_BYTES } from './shader/viewsWgsl.ts';
 import { AHEAD_VIEW } from './shader/aheadWgsl.ts';
-import { DAG_READBACK_SLOTS, SELECTION_HEADER_WORDS, selectionListCap } from './layout.ts';
+import {
+  DAG_READBACK_SLOTS,
+  SELECTION_HEADER_WORDS,
+  selectionListCap,
+  stagedRequestsWord,
+} from './layout.ts';
 import { dagFlagsWords } from './shader/lastUseWgsl.ts';
 
 export async function createDagResources(
@@ -41,7 +46,7 @@ export async function createDagResources(
     readbackBytes = outputBytes + (residentCut ? drawnBytes : 0),
     // Behind the drawn list, the requests wait for their sort, outside what the frame copies
     // (`shader/snapshotWgsl.ts`): the readback stays the size it was.
-    stagedBytes = outputBytes + drawnBytes + listCap * 4;
+    stagedBytes = (stagedRequestsWord(listCap) + listCap) * 4;
   // The camera's block, then the view ahead's (`shader/aheadWgsl.ts`).
   const uniformData = new Float32Array(((AHEAD_VIEW + 1) * UNIFORM_BYTES) / 4);
   const frameData = primitiveFrameWords(packed);

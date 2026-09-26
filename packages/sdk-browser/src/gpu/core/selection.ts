@@ -47,9 +47,6 @@ export type SelectionResult = {
   /** Priority of each request, at the same rank as `pageIds` (`../dag/request.ts`). Only the ORACLE
    *  publishes it, for the bench that compares the two rankings; the GPU returns only the order. */
   requestPriorities?: number[];
-  /** Every request word in the order `dagWanted` stages them, before the GPU sorts them. Only the
-   *  ORACLE publishes it: the Node device stages it where the kernel does. */
-  requestWords?: number[];
   frustumRejected: number;
   lodLevel: number;
   drawablePageIds?: number[];
