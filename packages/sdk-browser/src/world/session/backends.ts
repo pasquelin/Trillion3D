@@ -121,8 +121,9 @@ export async function prepareExplorerBackends(session: ExplorerSession, inputs: 
     // the loader: the engine reads the levels the compiler baked and regenerates none it could
     // have read instead. What `textureSource` still decides is whether the LOADER opens the
     // source images for an engine that draws the host scene, not where the engine's texels
-    // come from.
-    readTextureLevel: createTextureLevelReader(metadata, base, options.pageCache?.levels, signal),
+    // come from. The levels are held in the cache the pages are read through: a world's, kept
+    // across a device loss, or the session's own, within its CPU total either way.
+    readTextureLevel: createTextureLevelReader(metadata, base, streamer.pageCache.levels, signal),
     sceneLights,
     importedLightIds,
   };

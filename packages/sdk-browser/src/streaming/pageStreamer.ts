@@ -111,9 +111,7 @@ export function createPageStreamerWith(
       if (array) touch(url, array);
       return array;
     },
-    has(url: string) {
-      return cache.has(url);
-    },
+    has: (url: string) => cache.has(url),
     loading(url: string) {
       return jobs.has(url);
     },
@@ -128,6 +126,8 @@ export function createPageStreamerWith(
       state.requested++;
       return subscribe(url, requestSignal, 0);
     },
+    /** The cache it reads through: its world's, kept across sessions, or its own. */
+    pageCache: store,
     retain,
     reserve,
     /** Pins by rank delta: neither an address list nor a set rebuilt each frame. */
