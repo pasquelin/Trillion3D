@@ -9,19 +9,20 @@ import { createExplorerLifecycle } from './lifecycle.ts';
 type Session = Parameters<typeof createExplorerLifecycle>[0];
 type Inputs = Parameters<typeof createExplorerLifecycle>[1];
 
-/** A session whose one backend lacks `missing` until they are handed to it, and whose view reads
- *  `held` besides, over a real streamer of three verified pages. */
-async function lackingPages(missing: string[], held: string[] = []) {
+/** A session whose one backend lacks `missing` until they are handed to it, and whose view pins
+ *  `pinned` besides, over a real streamer of three verified pages that holds `resident` already. */
+async function lackingPages(missing: string[], pinned: string[] = [], resident = pinned) {
   const bytes = new Uint8Array([1, 0, 0, 0]);
   const sha256 = await sha256Hex(bytes.buffer);
   globalThis.fetch = async () => new Response(bytes, { status: 200 });
   const pages = ['a.bin', 'b.bin', 'c.bin'].map((url) => ({ url, bytes: 4, sha256 }));
   const streamer = createPageStreamer(pages, 'http://cache/');
+  await streamer.request(resident);
   const accepted: string[] = [];
   const backend = {
     render() {},
     pendingUrls: () => missing.filter((url) => !accepted.includes(url)),
-    pageUrls: () => [...held, ...missing],
+    pageUrls: () => [...pinned, ...missing],
     acceptPage: (url: string) => void accepted.push(url),
     syncResident() {},
   };
@@ -91,6 +92,21 @@ test('awaitPages counts the pages the view already holds: never 0 of 0 on a draw
     [
       [2, 3],
       [3, 3],
+    ],
+  );
+  streamer.dispose();
+});
+
+test('awaitPages leaves out a page the view pins but no one reads: resident means held', async () => {
+  // Past the page budget a view pins pages it draws through an ancestor and never reads.
+  const { lifecycle, streamer } = await lackingPages(['b.bin'], ['a.bin', 'c.bin'], ['a.bin']);
+  const heard: JobProgress[] = [];
+  await lifecycle.awaitPages({ onProgress: (event) => heard.push(event) });
+  assert.deepEqual(
+    heard.map(({ completed, total }) => [completed, total]),
+    [
+      [1, 2],
+      [2, 2],
     ],
   );
   streamer.dispose();

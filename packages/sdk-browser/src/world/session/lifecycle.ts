@@ -108,6 +108,14 @@ export function createExplorerLifecycle(session: ExplorerSession, inputs: Inputs
     for (const backend of backends) await backend.flush?.();
     await diagnosticChannel.flush();
   };
+  /** The pages `backend`'s view reads that the streamer holds, `missing` aside: resident already. */
+  const heldPages = (backend: RenderBackend, missing: readonly string[]) => {
+    const lacking = new Set(missing);
+    let held = 0;
+    for (const url of backend.pageUrls?.() ?? [])
+      if (!lacking.has(url) && streamer.has(url)) held++;
+    return held;
+  };
   /** The pages the view reads, made resident; `image: false` takes no picture of them.
    *  `onProgress` hears `pages` once the cut is read: `total` the pages the view reads — those it
    *  holds and those the streamer reads for it —, `completed` those resident, rising as each lands
@@ -121,16 +129,15 @@ export function createExplorerLifecycle(session: ExplorerSession, inputs: Inputs
       await awaitBackendPages(
         backend,
         camera,
-        async (missing, held) => {
-          // The pages it holds count as landed: `completed === total` once the rest has.
-          const before = {
-            completed: pages.completed + held.length,
-            total: pages.total + held.length,
-          };
+        async (missing) => {
+          // The pages the view reads the streamer already holds count as landed.
+          const held = onProgress ? heldPages(backend, missing) : 0;
+          const done = pages.completed + held,
+            all = pages.total + held;
           await streamer.request(missing, {
             onPage: (resident, requested) => {
-              pages.completed = before.completed + resident;
-              pages.total = before.total + requested;
+              pages.completed = done + resident;
+              pages.total = all + requested;
               onProgress?.({
                 phase: 'pages',
                 ...pages,

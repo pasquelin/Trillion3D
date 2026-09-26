@@ -1,18 +1,12 @@
 // A world's first pages are heard while they land, counted on the pages its view reads (#408). The
-// repository's compiled avenue is loaded into a world (`scene.load`) whose session the world
-// runtime opens on the engine's own entry point, on a WebGL2 context that answers all. Frames drawn
+// repository's compiled avenue is opened in a world as a page opens it (`openedWorld`). Frames drawn
 // before the wait — what the page's loop does while it opens — may read every page first: the wait
 // still counts them, `total` never 0 on a world that draws something.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { JobProgress } from '../../packages/sdk-core/src/index.ts';
-import { Camera } from '../../packages/sdk-core/src/world/camera/camera.ts';
-import { Scene } from '../../packages/sdk-browser/src/world/core/scene.ts';
-import { worldModelLoader } from '../../packages/sdk-browser/src/world/core/worldLoader.ts';
-import { createWorldRuntime } from '../../packages/sdk-browser/src/world/core/worldRuntime.ts';
 import { awaitViewPages } from '../../packages/sdk-browser/src/world/core/worldSession.ts';
-import { createWorldNotices } from '../../packages/sdk-browser/src/world/diagnostic/worldNotices.ts';
-import { machine } from './world-partition.fixture.ts';
+import { openedWorld } from './world-runtime.fixture.ts';
 
 const POINTER = new URL(
   '../../site/assets/examples/detail-by-pixel-error/cache/native/full/manifest.json',
@@ -23,27 +17,7 @@ const POINTER = new URL(
  *  loop draws them until the view lacks nothing: each asks a batch of the missing pages, and the
  *  next waits until they landed. */
 async function heardPages(t: test.TestContext, drawnFirst: boolean) {
-  const { canvas } = machine(t, POINTER);
-  const ready = Promise.resolve();
-  const scene = new Scene(worldModelLoader(ready, undefined, () => 'webgl2'));
-  let failure: unknown;
-  const runtime = createWorldRuntime({
-    canvas,
-    scene,
-    ready: () => ready,
-    camera: () => new Camera('perspective'),
-    options: () => ({ manifestUrl: '', renderer: 'webgl2' }),
-    opened: () => {},
-    frame: () => {},
-    drawn: () => false,
-    display: () => ({ exposure: 1, toneMapping: 'aces' }),
-    diagnostic: { notices: createWorldNotices(), failed: (e) => (failure = e), opening() {} },
-  });
-  t.after(() => runtime.dispose());
-  await scene.load(POINTER.href);
-  await runtime.settled();
-  const session = runtime.explorer;
-  assert.ok(session, `the session opened: ${String(failure)}`);
+  const { runtime, session } = await openedWorld(t, POINTER);
   const lacks = () => session.backends[0]!.pendingUrls?.().length;
   if (drawnFirst)
     do {
