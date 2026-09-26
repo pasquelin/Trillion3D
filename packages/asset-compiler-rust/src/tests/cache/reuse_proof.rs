@@ -19,10 +19,16 @@ fn an_unfinished_bake_is_not_reused() {
     let head = read_slot(pages, &directory, &manifest["head"], "root");
     let (_, mut head) = head.unwrap().unwrap();
     head["texturePreviews"]["notes"][texture_preview::LEVEL_WRITE_FAILED] = json!(1);
-    manifest["head"] = json!(write_page(pages, &directory, &head, &[]).expect("head"));
+    let tampered = json!(write_page(pages, &directory, &head, &[]).expect("head"));
+    manifest["head"] = tampered.clone();
     fs::write(&manifest_path, serde_json::to_vec(&manifest).unwrap()).expect("tamper");
     let (second, events) = compile_with_events(&options);
     assert!(second["reused"].is_null(), "not reused");
+    let swept = read_slot(pages, &directory, &tampered, "").is_err();
+    assert!(
+        swept,
+        "the rebuild removes the refused head, which prune would keep"
+    );
     assert_eq!(
         events[0]["reason"],
         "a texture level failed to write when the folder was compiled"

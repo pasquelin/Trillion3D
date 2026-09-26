@@ -118,7 +118,6 @@ const PAGE_COLUMN_WIDTHS: [(usize, usize); 11] = [
 
 /// Object naming templates of a cache. `{sha}` stands for the 64 hexadecimal digest characters.
 pub struct Templates<'a> {
-    pub binary: &'a str,
     pub page: &'a str,
     pub geometry: &'a str,
     pub bundle: &'a str,
@@ -190,7 +189,7 @@ pub fn columns(
     }
     let mut slim = top.clone();
     slim.insert("primitives".into(), Value::Array(slim_primitives));
-    slim.insert("binary".into(),json!({"version":MANIFEST_BINARY_VERSION,"url":templates.binary,"sha256":"","bytes":bytes.len(),
+    slim.insert("binary".into(),json!({"version":MANIFEST_BINARY_VERSION,"sha256":"","bytes":bytes.len(),
   "pageUrl":templates.page,"geometryUrl":templates.geometry,"bundleUrl":templates.bundle,"texturePreviews":previews.len(),
   "texturePreviewBytes":preview_bytes,"texturePreviewBc7Bytes":bc7_bytes,"texturePreviewAstcBytes":astc_bytes}));
     Ok((Value::Object(slim), bytes))

@@ -1,10 +1,6 @@
-/**
- * The manifest as a page tree (`compiler_manifest_pages.rs`): `clusters.json` is a root of fixed
- * size — the fields that name the product, the slot of its head page and eight slots of mesh pages
- * — read through the pager of the scene partition (`tablePartition.ts`). The head page holds every
- * other field and the sidecar of the texture previews; a mesh page, slim primitives and the sidecar
- * of their columns.
- */
+/** The manifest as a page tree (`compiler_manifest_pages.rs`, FORMAT.md): the fixed-size root
+ *  `clusters.json`, its head page (every other field, the previews' sidecar) and its mesh pages
+ *  (slim primitives, their sidecar), read through the scene partition's pager (`tablePartition.ts`). */
 import { EngineError, type ClusterManifest } from '../contracts/index.ts';
 import { named, readLeaves, type PageKind } from '../scene/core/tablePartition.ts';
 import { decodeManifestBinary } from './binaryDecode.ts';
