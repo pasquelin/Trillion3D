@@ -42,10 +42,10 @@ function followHidden<E extends { hidden?: boolean }>(
   }
 }
 
-/** The box the roots that flipped cover, as one union. */
+/** The box the roots that flipped cover, as one union, and its two corners. */
 const moved = new Float64Array(BOX_VALUES),
-  movedMin = [0, 0, 0],
-  movedMax = [0, 0, 0];
+  movedMin = moved.subarray(0, 3),
+  movedMax = moved.subarray(3, 6);
 
 /**
  * Brings the roots and the see-through draws level with the visibility the host wrote on the
@@ -56,7 +56,7 @@ const moved = new Float64Array(BOX_VALUES),
  * hears the rank of each root that flipped. A see-through draw of a hidden node takes `hidden`,
  * which its selection reads (`notDrawn`), and `seeThrough.flipped` hears it. Read once per scene
  * revision, never per frame. Returns the box of the roots that flipped, where the shadow pages must
- * be drawn again, or `null`.
+ * be drawn again, or `null`; its corners are views of one scratch box, read before the next call.
  */
 export function followHostVisibility<T extends { sourceMesh?: Object3D }, S extends SeeThrough>(
   roots: readonly ClusterRoot<T>[],
@@ -87,10 +87,5 @@ export function followHostVisibility<T extends { sourceMesh?: Object3D }, S exte
     if (root.worldBox && !root.parked) boxUnionBatch(moved, root.worldBox, 1);
   }
   followHidden(seeThrough.entries, seeThrough.sourceOf, (entry) => seeThrough.flipped?.(entry));
-  if (boxIsEmpty(moved, 0)) return null;
-  for (let axis = 0; axis < 3; axis++) {
-    movedMin[axis] = moved[axis];
-    movedMax[axis] = moved[axis + 3];
-  }
-  return { min: movedMin, max: movedMax };
+  return boxIsEmpty(moved, 0) ? null : { min: movedMin, max: movedMax };
 }

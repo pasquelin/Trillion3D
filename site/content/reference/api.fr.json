@@ -932,28 +932,8 @@
   "compareImages": {
     "summary": "Comparaison de deux images RGBA : nombre de pixels différents, erreur maximale sur un canal, et RMSE."
   },
-  "COMPARISON_LIBRARIES": {
-    "summary": "Les moteurs avec lesquels les bancs d’essai ont été vérifiés, chacun avec son statut et sa raison."
-  },
   "ComparisonLayout": {
     "summary": "Comment deux rendus sont montrés côte à côte pour être comparés."
-  },
-  "CompetitorRecord": {
-    "summary": "Un autre moteur avec lequel les bancs d’essai comparent, et pourquoi.",
-    "members": {
-      "id": "Son nom court.",
-      "name": "Son nom.",
-      "status": "S’il est comparé.",
-      "license": "Sa licence.",
-      "maintained": "Quand il a été mis à jour pour la dernière fois.",
-      "scope": "Ce qu’il couvre.",
-      "reason": "Pourquoi il est comparé, ou pas.",
-      "homepage": "Sa page web."
-    }
-  },
-  "CompetitorStatus": {
-    "summary": "Inventaire des bibliothèques web de géométrie et de LOD.",
-    "description": "Le statut décrit l’équité de l’intégration, pas une couverture marketing."
   },
   "CompilationJob": {
     "summary": "Une compilation en cours.",

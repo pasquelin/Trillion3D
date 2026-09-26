@@ -337,9 +337,6 @@
       "bundleDependency": "各バンドルが依存するバンドル、ルートまで。"
     }
   },
-  "COMPARISON_LIBRARIES": {
-    "summary": "ベンチマークが比較対象として検証したエンジン群。それぞれのステータスと理由とともに。"
-  },
   "COMPILER_LINE_LIMIT": {
     "summary": "どちらのストリームでも受け付けられる単一行の最大長。コンパイラは小さなJSON行だけを出力する。"
   },
@@ -552,23 +549,6 @@
   },
   "ComparisonLayout": {
     "summary": "2つの描画結果を並べて比較のために表示する方法。"
-  },
-  "CompetitorRecord": {
-    "summary": "ベンチマークが比較対象とする別のエンジンと、その理由。",
-    "members": {
-      "id": "その短い名前。",
-      "name": "その名前。",
-      "status": "比較対象かどうか。",
-      "license": "そのライセンス。",
-      "maintained": "最後に更新された時期。",
-      "scope": "カバーする範囲。",
-      "reason": "比較対象である、またはない理由。",
-      "homepage": "そのウェブページ。"
-    }
-  },
-  "CompetitorStatus": {
-    "summary": "ウェブに関連するジオメトリ/LODライブラリの一覧。",
-    "description": "ステータスは、宣伝上のカバー範囲ではなく、統合の公平さを表す。"
   },
   "CompilationJob": {
     "summary": "実行中のコンパイル。",

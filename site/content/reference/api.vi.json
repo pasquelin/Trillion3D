@@ -337,9 +337,6 @@
       "bundleDependency": "Các gói mà mỗi gói cần, cho đến tận gốc."
     }
   },
-  "COMPARISON_LIBRARIES": {
-    "summary": "Các bộ máy được dùng làm chuẩn so sánh trong các bài đo hiệu năng, mỗi cái kèm trạng thái và lý do."
-  },
   "COMPILER_LINE_LIMIT": {
     "summary": "Dòng đơn dài nhất được chấp nhận trên mỗi luồng; trình biên dịch chỉ phát ra các dòng JSON nhỏ."
   },
@@ -559,23 +556,6 @@
   },
   "ComparisonLayout": {
     "summary": "Cách hai kết quả kết xuất được hiển thị cạnh nhau để so sánh."
-  },
-  "CompetitorRecord": {
-    "summary": "Một bộ máy khác mà các bài đo hiệu năng so sánh với, và lý do vì sao.",
-    "members": {
-      "id": "Tên ngắn của nó.",
-      "name": "Tên của nó.",
-      "status": "Nó có được so sánh hay không.",
-      "license": "Giấy phép của nó.",
-      "maintained": "Lần cập nhật gần nhất.",
-      "scope": "Nó bao phủ những gì.",
-      "reason": "Vì sao nó được, hoặc không được, so sánh.",
-      "homepage": "Trang web của nó."
-    }
-  },
-  "CompetitorStatus": {
-    "summary": "Danh mục các thư viện hình học/LOD liên quan đến web.",
-    "description": "Trạng thái này mô tả tính công bằng của việc tích hợp, không phải mức độ phủ sóng tiếp thị."
   },
   "CompilationJob": {
     "summary": "Một quá trình biên dịch đang chạy.",
