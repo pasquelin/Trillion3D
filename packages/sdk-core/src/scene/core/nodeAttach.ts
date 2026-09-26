@@ -10,16 +10,18 @@ const local = /* @__PURE__ */ new Float64Array(16),
   scale = /* @__PURE__ */ new Float64Array(3);
 
 /**
- * `parent.attach(child)`, as the reference computes it: the child's new local matrix is the inverse
- * of `parent`'s world matrix times its own, both resolved first, so its world matrix is kept. Its
- * position, rotation and scale are read out of that matrix: a sheared one loses its shear there,
- * and a parent scaled to zero inverts to the zero matrix, both as with the reference. The matrix
- * itself is written too, sixteen numbers: under manual update it is the pose. When `parent`'s
- * `add` declines the child, as a subclass's may, the child's pose is left as it was.
+ * `parent.attach(child)`, as the reference computes it and in its order: the inverse of `parent`'s
+ * world matrix times the former parent's, times the child's local matrix, all resolved first, so
+ * its world matrix is kept. Its position, rotation and scale are read out of that matrix: a sheared
+ * one loses its shear there, and a parent scaled to zero inverts to the zero matrix, both as with
+ * the reference. The matrix itself is written too, sixteen numbers: under manual update it is the
+ * pose. When `parent`'s `add` declines the child, as a subclass's may, its pose is left as it was.
  */
 export function attachSceneNode<T extends SceneNode>(parent: T, child: SceneNode): T {
   invertMatrix4(local, parent.updateWorldMatrix(true, false).worldMatrix);
-  multiplyMatrix4(local, local, child.updateWorldMatrix(true, false).worldMatrix as Float64Array);
+  const from = child.updateWorldMatrix(true, false).parent;
+  if (from) multiplyMatrix4(local, local, from.worldMatrix as Float64Array);
+  multiplyMatrix4(local, local, child.localMatrix as Float64Array);
   parent.add(child);
   if (child.parent !== parent) return parent;
   decomposeMatrix4(local, position, quaternion, scale);
