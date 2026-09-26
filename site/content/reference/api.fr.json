@@ -2233,7 +2233,7 @@
     "members": {
       "visible": "S’il est dessiné ; `setVisible` l’écrit.",
       "setVisible": "Le montre ou le cache, ses sommets toujours comptés sous le plafond.",
-      "setTransform": "Le place : seize nombres par colonnes, ou une matrice — `node.matrixWorld` suit un nœud.",
+      "setTransform": "Le place : seize nombres par colonnes, ou une matrice ; un guide qu’`add` a dessiné cesse alors de suivre son nœud.",
       "remove": "Le retire du monde, ses sommets rendus ; un second appel ne fait rien."
     }
   },
@@ -2242,7 +2242,7 @@
     "members": {
       "positions": "Deux extrémités par segment, trois nombres chacune.",
       "color": "Leur couleur ; blanc par défaut.",
-      "width": "Largeur à l’écran, en pixels."
+      "width": "Largeur à l’écran, en pixels CSS, comme toute ligne du moteur."
     }
   },
   "GuidePoints": {
@@ -2250,7 +2250,7 @@
     "members": {
       "positions": "Trois nombres par point.",
       "color": "Leur couleur ; blanc par défaut.",
-      "size": "Côté de chaque point carré à l’écran, en pixels."
+      "size": "Côté de chaque point carré à l’écran, en pixels CSS."
     }
   },
   "Guides": {
@@ -2260,7 +2260,7 @@
       "vertexCount": "Les sommets tenus maintenant, deux par segment et un par point, guides cachés compris.",
       "lines": "Dessine des segments, deux extrémités chacun ; refusé au-dessus du plafond (`GUIDE_CEILING`).",
       "points": "Dessine des points carrés, une position chacun ; refusé au-dessus du plafond (`GUIDE_CEILING`).",
-      "add": "Dessine les maillages de lignes et de points de `object` — chaque `helper` en construit —, dans les couleurs de leurs matériaux, placés là où l’objet se tient maintenant ; ses triangles ne sont pas des guides et sont ignorés.",
+      "add": "Dessine les maillages de lignes et de points de `object` — chaque `helper` en construit —, dans les couleurs de leurs matériaux ; ses triangles ne sont pas des guides et sont ignorés. Le guide suit l’objet — pour une aide de lumière ou de caméra, le nœud qu’elle montre — déplacé à chaque image où ce nœud a bougé, jamais autrement.",
       "clear": "Retire tous les guides."
     }
   },
@@ -5446,10 +5446,10 @@
       "shadowsUpdated": "Tranches d’ombre redessinées par cette image, au plus le plafond publié du planificateur. Zéro est la valeur normale d’une scène immobile : une lumière fixe garde sa tranche.",
       "shadowFacesDrawn": "Ce que la passe d’ombre a redessiné : faces (vues) et appels de dessin vraiment encodés. C’est le coût par lumière à ombre, séparé du reste. Null pour un moteur qui ne dessine pas d’ombre.",
       "shadowDrawCalls": "Appels de dessin d’ombre.",
-      "shadowPagesDrawn": "Ce qu’a produit l’invalidation des pages : pages redessinées par l’image, pages laissées en file faute de budget, et le retard en millisecondes de la plus ancienne. Zéro partout est la valeur normale d’une scène immobile ; `null` pour un moteur sans atlas d’ombres.",
+      "shadowPagesDrawn": "Ce qu’a produit l’invalidation des pages : pages redessinées par l’image, pages laissées en file faute de budget, et depuis combien de temps attend la plus ancienne page périmée que l’image lit. Zéro partout est la valeur normale d’une scène immobile ; `null` pour un moteur sans atlas d’ombres.",
       "shadowPagesTotal": "Pages dessinées depuis l’ouverture de l’explorateur, vidages de `flush()` compris : le coût d’un changement est l’écart entre deux lectures.",
       "shadowPagesPending": "Pages d’ombre en attente.",
-      "shadowWaitMs": "Combien de temps elles ont attendu.",
+      "shadowWaitMs": "Depuis combien de millisecondes la plus ancienne page périmée que l’image lit attend d’être redessinée. Seul compte le temps où l’image la lit ; 0 une fois redessinée.",
       "gpuLightListsMs": "Temps GPU des listes de lumières.",
       "gpuShadowsMs": "Temps GPU des ombres.",
       "gpuShadowCullMs": "Temps GPU du choix des projeteurs des pages d’ombre qu’une image dessine : la coupe depuis la lumière, le tri par page, et le test d’occultation des projeteurs mobiles avec les pyramides qu’il lit.",
@@ -6006,7 +6006,6 @@
       "anisotropy": "Netteté vue de biais.",
       "flipY": "Si les rangées sont retournées.",
       "premultiplyAlpha": "Si la couleur est pré-multipliée.",
-      "generateMipmaps": "Si des copies plus petites sont faites.",
       "colorSpace": "Comment ses nombres sont lus.",
       "transform": "Transformation des UV de l’échantillonneur, `KHR_texture_transform` composé en trois rangées de trois."
     }
@@ -6623,7 +6622,7 @@
   },
   "world.beforeFrame": {
     "summary": "Lance une fonction juste avant chaque image dessinée, avec `{ delta, time }` ; renvoie de quoi l’arrêter.",
-    "description": "Une image de la boucle du monde se déroule ainsi : le contrôleur fait avancer la caméra (sauf si `controls.autoUpdate` vaut false), les animations avancent, ces crochets s’exécutent dans l’ordre où ils ont été ajoutés, la scène est écrite et dessinée, puis viennent les crochets `onFrame`. Ce qu’un crochet place — un corps sur la caméra, un cockpit — est dessiné dans cette image même, jamais une image en retard. Un `render()` mené par l’hôte les lance aussi, mais ne fait avancer aucun contrôleur. Un crochet qui appelle `invalidate()` fait venir les images suivantes.",
+    "description": "Une image se déroule ainsi : le contrôleur de la caméra (sauf si `controls.autoUpdate` vaut false ou si l’hôte mène, `render()`), les animations, la physique, ces crochets dans leur ordre, le dessin, puis les crochets `onFrame`. Ce qu’un crochet place — un corps sur la caméra, un cockpit — est dessiné dans cette image même, jamais une image en retard. Un crochet qui appelle `invalidate()` fait venir les images suivantes.",
     "parameters": {
       "hook": "La fonction à lancer ; elle reçoit les secondes tout juste intégrées et le temps du monde."
     },
@@ -6640,7 +6639,7 @@
     "summary": "Demande une nouvelle image après un changement que le monde n’a pas pu voir."
   },
   "world.render": {
-    "summary": "Dessine une image tout de suite, qui que soit le maître de la boucle."
+    "summary": "Dessine une image tout de suite, qui que soit le maître de la boucle : les animations et la physique avancent avec elle."
   },
   "world.resize": {
     "summary": "Dit au monde que le canevas a changé de taille ; sans valeur, il lit la taille du canevas.",
@@ -6726,10 +6725,10 @@
       "shadowsUpdated": "Tranches d’ombre redessinées par cette image, au plus le plafond publié du planificateur. Zéro est la valeur normale d’une scène immobile : une lumière fixe garde sa tranche.",
       "shadowFacesDrawn": "Ce que la passe d’ombre a redessiné : faces (vues) et appels de dessin vraiment encodés. C’est le coût par lumière à ombre, séparé du reste. Null pour un moteur qui ne dessine pas d’ombre.",
       "shadowDrawCalls": "Appels de dessin d’ombre.",
-      "shadowPagesDrawn": "Ce qu’a produit l’invalidation des pages : pages redessinées par l’image, pages laissées en file faute de budget, et le retard en millisecondes de la plus ancienne. Zéro partout est la valeur normale d’une scène immobile ; `null` pour un moteur sans atlas d’ombres.",
+      "shadowPagesDrawn": "Ce qu’a produit l’invalidation des pages : pages redessinées par l’image, pages laissées en file faute de budget, et depuis combien de temps attend la plus ancienne page périmée que l’image lit. Zéro partout est la valeur normale d’une scène immobile ; `null` pour un moteur sans atlas d’ombres.",
       "shadowPagesTotal": "Pages dessinées depuis l’ouverture de l’explorateur, vidages de `flush()` compris : le coût d’un changement est l’écart entre deux lectures.",
       "shadowPagesPending": "Pages d’ombre en attente.",
-      "shadowWaitMs": "Combien de temps elles ont attendu.",
+      "shadowWaitMs": "Depuis combien de millisecondes la plus ancienne page périmée que l’image lit attend d’être redessinée. Seul compte le temps où l’image la lit ; 0 une fois redessinée.",
       "gpuLightListsMs": "Temps GPU des listes de lumières.",
       "gpuShadowsMs": "Temps GPU des ombres.",
       "gpuShadowCullMs": "Temps GPU du choix des projeteurs des pages d’ombre qu’une image dessine : la coupe depuis la lumière, le tri par page, et le test d’occultation des projeteurs mobiles avec les pyramides qu’il lit.",
@@ -7430,7 +7429,7 @@
       "offset": "Ce dont `matrix` est composée.",
       "matrixAutoUpdate": "Si l’hôte reconstruit `matrix`.",
       "matrix": "Transformation des UV de l’échantillonneur, `KHR_texture_transform` composé en trois rangées ; l’hôte la recalcule à partir du décalage, de la répétition et de la rotation quand il fait la mise à jour.",
-      "generateMipmaps": "Si des copies plus petites sont faites.",
+      "generateMipmaps": "Si des copies plus petites sont demandées ; le moteur les fait dès que `minFilter` les lit.",
       "premultiplyAlpha": "Si la couleur est pré-multipliée par l’alpha.",
       "flipY": "Si les rangées sont retournées à l’envoi.",
       "version": "Augmenté par l’hôte à chaque changement de contenu : ce qu’un envoi compare pour éviter une recopie.",

@@ -8,3 +8,4 @@ package-lock.json
 site/assets/**/cache/
 tests/fixtures/scenes/*/cache/
 tests/fixtures/scenes/mountain-terrain/source/
+site/assets/gallery/signature-architecture/source/
