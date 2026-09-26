@@ -53,13 +53,17 @@
       ]);
 
       // The car of `drive-a-car`, parked on the valley once the physics has streamed it in; the
-      // heights of the valley's far edge and of the plinth's spot are found at the same time.
+      // heights of the valley's far edge and of the ground under the plinth are found at the same
+      // time: its centre and three rings of twelve, out to its rim, so no slope rises through it.
       const { car, park, chase, groundAt } = vehicles(world, { geometry, material, object, math, vehicle }, { above: 60 });
       const driven = car(),
         start = [0, 20],
         edge = valley.bounds.min.z,
-        [x, z] = [-24, -10];
-      const [, far, floor] = await Promise.all([park(driven, start), groundAt(0, edge + 1), groundAt(x, z)]);
+        [x, z] = [-24, -10],
+        radius = 9;
+      const around = (r) => Array.from({ length: 12 }, (_, k) => [Math.cos((k * Math.PI) / 6) * r, Math.sin((k * Math.PI) / 6) * r]);
+      const under = [[0, 0], ...around(radius / 3), ...around((radius * 2) / 3), ...around(radius)];
+      const [, far, ...ground] = await Promise.all([park(driven, start), groundAt(0, edge + 1), ...under.map(([dx, dz]) => groundAt(x + dx, z + dz))]);
       world.scene.add(driven.body);
       world.physics.add(driven.driver);
       world.controls.vehicle = driven.driver;
@@ -73,16 +77,17 @@
       sun.castShadow = true;
       world.scene.add(light.hemisphere({ ...sky, intensity: sun.intensity * sky.sunShare }));
 
-      // A plinth on the valley floor, sunk deep enough to meet every slope under it, its top a
-      // checker (a textured material): the stage of the character, the foliage, the panes, the
-      // balls in each material and the point light over them.
-      const top = floor + 0.4;
+      // A plinth on the valley floor, its top over the highest ground under it and sunk below the
+      // lowest, its top a checker (a textured material): the stage of the character, the foliage,
+      // the panes, the balls in each material and the point light over them.
+      const top = Math.max(...ground) + 0.4,
+        depth = top - Math.min(...ground) + 0.5;
       const pixels = new Uint8Array(8 * 8 * 4).map((_, k) => (k % 4 === 3 ? 255 : ((k >> 2) + (k >> 5)) % 2 ? 210 : 110));
       const checks = texture.data(pixels, 8, 8);
       checks.colorSpace = 'srgb';
       checks.magFilter = filter.nearest;
-      const plinth = object.mesh(geometry.cylinder(9, 9, 4, 64), material.meshStandard({ map: checks, roughness: 0.8, physics: 'stone' }));
-      plinth.position.set(x, top - 2, z);
+      const plinth = object.mesh(geometry.cylinder(radius, radius, depth, 64), material.meshStandard({ map: checks, roughness: 0.8, physics: 'stone' }));
+      plinth.position.set(x, top - depth / 2, z);
       plinth.physics = 'static';
       const stage = object.group();
       stage.position.set(x, top, z);
