@@ -65,7 +65,9 @@ test('each counter over its budget turns its own line red; one the engine does n
       (k) => ({ gpuFrameMs: 20, shadowPagesDrawn: k < 5 ? 2 : 90, shadowPagesRefetched: k }),
     ],
     ['close', 11, 10, () => ({ gpuFrameMs: null, shadowPagesDrawn: null })],
+    ['far', 1, 10, healthy],
   ]);
+  assert.deepEqual(lines['far: FPS'], [null, '—']);
   assert.deepEqual(lines['pan: GPU frame'], [false, '20.00 ms ≤ 16.67 ms']);
   assert.deepEqual(lines['pan: shadow pages drawn'], [false, '90 ≤ 24']);
   assert.deepEqual(lines['pan: shadow pages refetched'], [false, '10 ≤ 0']);
@@ -74,7 +76,10 @@ test('each counter over its budget turns its own line red; one the engine does n
 });
 
 test('what a backend refuses is one red line with its reasons; frames outside a part count nowhere', () => {
-  const { correct, lines } = judged([[null as never, 10, 10, healthy]], ['no shadows', 'no toon']);
+  const { correct, lines } = judged(
+    [[null as never, 10, 10, healthy]],
+    ['no shadows', 'no toon', 'no shadows'],
+  );
   assert.equal(correct, false);
   assert.deepEqual(Object.keys(lines), ['refused']);
   assert.deepEqual(lines.refused, [false, 'no shadows; no toon']);
