@@ -78,8 +78,9 @@ export function serveClaims(
         break;
       }
       served++;
-      budget?.spend();
-      if (budget && !budget.admits()) break;
+      if (!budget) continue;
+      budget.spend();
+      if (!budget.admits()) break;
       continue;
     }
     served++;

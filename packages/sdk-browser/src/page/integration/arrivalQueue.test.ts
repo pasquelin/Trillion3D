@@ -98,9 +98,10 @@ test('the default time budget yields at its boundary and resumes in arrival orde
       now += url === 'slow' ? 3 : 1;
     },
   };
-  const queue = createArrivalQueue(1 << 20, 64);
+  const budget = createFrameBudget(2);
+  const queue = createArrivalQueue(1 << 20, 64, budget);
   for (const url of ['p0', 'p1', 'slow', 'p3']) queue.queue(receiver, url, new Uint32Array(1));
-  const frame = () => (queue.open(), queue.drain());
+  const frame = () => (budget.open(), queue.drain());
   assert.equal(frame(), 2, 'two 1 ms deliveries reach the default 2 ms ceiling');
   assert.deepEqual(accepted, ['p0', 'p1']);
   assert.equal(queue.pending, 2);
@@ -119,11 +120,11 @@ test('a drain spends what its frame left of the budget, and never opens it again
   const budget = createFrameBudget(2);
   const queue = createArrivalQueue(1 << 20, 64, budget);
   queue.queue({ acceptPage() {} }, 'p0', new Uint32Array(1));
-  queue.open();
+  budget.open();
   budget.spend();
   now = 3; // the frame's cells spent it
   assert.equal(queue.drain(), 0, 'the page waits for the next frame');
-  queue.open();
+  budget.open();
   assert.equal(queue.drain(), 1);
 });
 
@@ -176,11 +177,12 @@ test('the cells a frame places and the pages it drains spend one budget, on one 
   };
   const accepted: string[] = [];
   const receiver = { acceptPage: (url: string) => void (accepted.push(url), (now += 1)) };
-  const queue = createArrivalQueue(1 << 20, 64);
+  const budget = createFrameBudget(2);
+  const queue = createArrivalQueue(1 << 20, 64, budget);
   for (const url of ['p0', 'p1']) queue.queue(receiver, url, new Uint32Array(1));
   const frame = () => {
-    queue.open();
-    cells.frame([0, 0.5, 0.5], 100, io, queue);
+    budget.open();
+    cells.frame([0, 0.5, 0.5], 100, io, budget);
     queue.drain();
     return [cells.stats().held, accepted.length];
   };
