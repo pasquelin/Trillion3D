@@ -46,7 +46,8 @@ function boxEdges(min: Vector3, max: Vector3) {
 }
 
 /** A group of marks that follows `target`'s pose when the page calls `update()`; a guide drawn
- *  from it (`world.guides.add`) follows `target` by itself (`poseSourceOf`). */
+ *  from it (`world.guides.add`) follows `target` by itself (`poseSourceOf`), while the group
+ *  added to the scene still waits for `update()`. */
 function following(target: Object3D, marks: Object3D[]) {
   const group = Object.assign(new Group(), {
     update() {

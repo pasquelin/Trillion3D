@@ -24,7 +24,10 @@ function engine(held = false) {
 
 test('a world without guides composes as before: no program, no draw', () => {
   const { gl, of } = createTestContext();
-  const compose = createFrameComposer(gl, camera, { guides: createGuideSet() });
+  const compose = createFrameComposer(gl, camera, {
+    guides: createGuideSet(),
+    pixelRatio: () => 1,
+  });
   compose(engine().backend, null);
   assert.equal(of('createProgram').length, 0);
   assert.equal(of('drawArraysInstanced').length, 0);
@@ -54,7 +57,7 @@ test('guides are drawn over the image, before it is kept, depth tested and unwri
 test('a held frame is put back while the guides stand, redrawn once they change', () => {
   const { gl } = createTestContext();
   const guides = createGuideSet();
-  const compose = createFrameComposer(gl, camera, { guides });
+  const compose = createFrameComposer(gl, camera, { guides, pixelRatio: () => 1 });
   const first = engine();
   compose(first.backend, null);
   const held = engine(true);

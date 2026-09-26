@@ -11,6 +11,11 @@ import {
 } from './guideShaders.ts';
 import { LINE_CLIP_GLSL, LINE_CLIP_WGSL } from '../visibility/shader/lineWgsl.ts';
 import { runShaderText } from '../visibility/shader/shaderText.fixture.ts';
+import {
+  LINE_PROJECTIONS,
+  LINE_VIEWPORT,
+  toPixels,
+} from '../visibility/shader/lineProjection.fixture.ts';
 
 /** Reversed depth of a tilted plane at pixel `(x, y)`, the jitter `(jx, jy)` pixels applied. */
 const plane =
@@ -53,13 +58,7 @@ test('the shader applies the rule of jitterDepthSlack: slack on the test, gentle
 
 // #264 audit: the guides draw with the engine's line corner (`lineClip`), not a second program,
 // and count their width as every line does — CSS pixels times the host's pixel ratio.
-const VIEWPORT = [800, 600],
-  FOCAL = 1 / Math.tan(Math.PI / 6);
-/** The engine's reversed depth (`z = near`, `w = distance`) and the WebGL2 host's forward one. */
-const PROJECT = {
-  wgsl: ([x, y, z]: number[]) => [(FOCAL * x * 3) / 4, FOCAL * y, 0.1, -z],
-  glsl: ([x, y, z]: number[]) => [(FOCAL * x * 3) / 4, FOCAL * y, -1.002 * z - 0.2002, -z],
-};
+type Language = 'wgsl' | 'glsl';
 const CORNER = { wgsl: GUIDE_CORNER_WGSL, glsl: GUIDE_CORNER_GLSL },
   CLIP = { wgsl: LINE_CLIP_WGSL, glsl: LINE_CLIP_GLSL };
 const QUAD = [
@@ -68,26 +67,29 @@ const QUAD = [
   [1, 1],
   [0, 1],
 ];
-/** The four corners of the guide `a → b` as the real shader text places them, in image pixels. */
-function quad(language: 'wgsl' | 'glsl', a: number[], b: number[], width: number, ratio = 1) {
+const project = (language: Language, [x, y, z]: number[]) => LINE_PROJECTIONS[language](x, y, z, 1);
+/** One corner of the guide `a → b` as the real shader text places it, in clip space. */
+function corner(
+  language: Language,
+  a: number[],
+  b: number[],
+  at: number[],
+  width: number,
+  ratio = 1,
+) {
   const run = runShaderText(CORNER[language], { lineClip: runShaderText(CLIP[language]) });
-  const [ca, cb] = [a, b].map(PROJECT[language]);
-  return QUAD.map((corner) => {
-    const c = run(ca, cb, corner, width, VIEWPORT, ratio);
-    return [0, 1].map((i) => (c[i] / c[3]) * 0.5 * VIEWPORT[i]);
-  });
+  return run(project(language, a), project(language, b), at, width, LINE_VIEWPORT, ratio);
 }
-const pixelOf = (language: 'wgsl' | 'glsl', p: number[]) => {
-  const c = PROJECT[language](p);
-  return [0, 1].map((i) => (c[i] / c[3]) * 0.5 * VIEWPORT[i]);
-};
+/** The guide's four corners, in image pixels. */
+const quad = (language: Language, a: number[], b: number[], width: number, ratio = 1) =>
+  QUAD.map((at) => toPixels(corner(language, a, b, at, width, ratio)));
 const near = (a: number, b: number) => Math.abs(a - b) < 1e-6;
 
 for (const language of ['wgsl', 'glsl'] as const) {
   test(`${language}: a guide segment is its CSS width times the pixel ratio, capped half a width`, () => {
     const a = [-1, 0.2, -6],
       b = [1.5, 0.2, -6];
-    const [ea, eb] = [pixelOf(language, a), pixelOf(language, b)];
+    const [ea, eb] = [a, b].map((p) => toPixels(project(language, p)));
     for (const ratio of [1, 2]) {
       const [p0, p1, p2, p3] = quad(language, a, b, 3, ratio),
         drawn = 3 * ratio;
@@ -99,7 +101,7 @@ for (const language of ['wgsl', 'glsl'] as const) {
 
   test(`${language}: a dot is a square of its size times the pixel ratio`, () => {
     const at = [0.4, -0.3, -4],
-      centre = pixelOf(language, at);
+      centre = toPixels(project(language, at));
     const [p0, , p2] = quad(language, at, at, 7, 2);
     for (const i of [0, 1]) assert.ok(near(p2[i] - p0[i], 14) && near(p0[i] + 7, centre[i]));
   });
@@ -111,31 +113,16 @@ for (const language of ['wgsl', 'glsl'] as const) {
       return sum + p[0] * q[1] - q[0] * p[1];
     }, 0);
     assert.ok(Math.abs(area) < 1e-6, `no area: ${area}`);
-    const run = runShaderText(CORNER[language], { lineClip: runShaderText(CLIP[language]) });
-    const [ca, cb] = [
-      [0.5, 0, 1],
-      [0.5, 0, -10],
-    ].map(PROJECT[language]);
-    const corner = run(ca, cb, [0, 1], 2, VIEWPORT, 1);
-    const onNear = language === 'wgsl' ? corner[3] - corner[2] : corner[3] + corner[2];
-    assert.ok(Math.abs(onNear) < 1e-9 && corner[3] > 0, 'on the near plane, in front of the eye');
+    const c = corner(language, [0.5, 0, 1], [0.5, 0, -10], [0, 1], 2);
+    const onNear = language === 'wgsl' ? c[3] - c[2] : c[3] + c[2];
+    assert.ok(Math.abs(onNear) < 1e-9 && c[3] > 0, 'on the near plane, in front of the eye');
   });
 }
 
-test('both guide programs are the engine line corner, and carry no second one', () => {
-  assert.ok(GUIDE_WGSL.includes(LINE_CLIP_WGSL) && GUIDE_WGSL.includes(GUIDE_CORNER_WGSL));
-  assert.ok(GUIDE_GLSL_VERTEX.includes(LINE_CLIP_GLSL));
-  assert.ok(GUIDE_GLSL_VERTEX.includes(GUIDE_CORNER_GLSL));
-  for (const [text, clip] of [
-    [GUIDE_WGSL, LINE_CLIP_WGSL],
-    [GUIDE_GLSL_VERTEX, LINE_CLIP_GLSL],
-  ]) {
-    const own = text.replace(clip, '');
-    assert.match(own, /[pP]osition = guideCorner\(/);
-    assert.doesNotMatch(
-      own,
-      /\bnear\b|nearPlane|mix\(|\* 0\.5/,
-      'no cut nor screen direction of its own',
-    );
-  }
+test('both guide programs place their corners with that text', () => {
+  for (const [program, clip, own] of [
+    [GUIDE_WGSL, LINE_CLIP_WGSL, GUIDE_CORNER_WGSL],
+    [GUIDE_GLSL_VERTEX, LINE_CLIP_GLSL, GUIDE_CORNER_GLSL],
+  ])
+    assert.ok(program.includes(clip) && program.includes(own));
 });

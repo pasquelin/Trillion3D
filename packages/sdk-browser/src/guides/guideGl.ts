@@ -17,10 +17,11 @@ const STRIDE = GUIDE_INSTANCE_FLOATS * 4;
 /**
  * The WebGL2 guide draw: the same program as the WebGPU pass (`guideShaders.ts`), drawn into the
  * framebuffer the host composed the engine's image in, tested against the depth that image left,
- * with the host projection's forward depth, at the host's `pixelRatio`, read each frame. Built on the first frame that shows a guide, rebuilt
- * after a lost context; the path has no temporal accumulation, so nothing else is kept out.
+ * with the host projection's forward depth, at the host's `pixelRatio`. Built on the first frame
+ * that shows a guide, rebuilt after a lost context; the path has no temporal accumulation, so
+ * nothing else is kept out.
  */
-export function createWebglGuideDraw(gl: WebGL2RenderingContext, pixelRatio: () => number) {
+export function createWebglGuideDraw(gl: WebGL2RenderingContext) {
   const view = new Float32Array(GUIDE_UNIFORM_FLOATS),
     screen = new Float64Array(16);
   let uploaded: unknown;
@@ -64,14 +65,14 @@ export function createWebglGuideDraw(gl: WebGL2RenderingContext, pixelRatio: () 
   return {
     /** Draws the visible guides into `output`'s framebuffer; false, and nothing touched, when
      *  none is shown or the context is lost. */
-    draw(guides: GuideSet, camera: HostDrawCamera, output: HostDrawOutput) {
+    draw(guides: GuideSet, camera: HostDrawCamera, output: HostDrawOutput, pixelRatio: number) {
       const { width, height } = output;
       const packed = guides.pack();
       if (!packed.count) return false;
       const live = bound.current();
       if (!live) return false;
       multiplyMatrix4Typed(screen, camera.projection, camera.view);
-      writeGuideView(view, screen, packed.anchor, width, height, pixelRatio());
+      writeGuideView(view, screen, packed.anchor, width, height, pixelRatio);
       gl.bindFramebuffer(gl.FRAMEBUFFER, output.framebuffer);
       gl.useProgram(live.program);
       gl.bindVertexArray(live.vao);
