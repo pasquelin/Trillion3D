@@ -123,3 +123,16 @@ export function lampScene() {
   planFrame(plan, store, 0);
   return { store, plan, slice: store.sliceOf(0) };
 }
+
+/** A sun and a lamp planned over eight frames of a moving view: its store and its plan. */
+export function movingScene() {
+  const store = createSceneLightStore();
+  const plan = createShadowPlan(16);
+  store.add(SUN);
+  store.add({ ...SUN, id: 'lamp', kind: 'point', position: [0, 3, 0], range: 20 });
+  for (let frame = 0; frame < 8; frame++) {
+    const view = { ...VIEW, position: [frame * 3, 5, 0] as [number, number, number] };
+    cycle(plan, store, frame, () => lampPages(plan, store.sliceOf(1), 0, frame % 3), view);
+  }
+  return { store, plan };
+}

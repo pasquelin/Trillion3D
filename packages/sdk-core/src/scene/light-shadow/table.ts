@@ -101,7 +101,7 @@ export function createShadowTable(poolPages: number) {
       table.layoutEpoch++;
     },
   };
-  return table;
+  return table as Readonly<typeof table>;
 }
 
 export type ShadowTable = ReturnType<typeof createShadowTable>;
