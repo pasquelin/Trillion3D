@@ -4,8 +4,7 @@
  * mesh are not in the node table the runtime reads before its first frame, but in spatial cells
  * read by distance to the camera — each cell under one stream unit, boxed in the frame of each core
  * parent it hangs nodes under, so a page that moves that parent moves the box. The tables keep only
- * the root of the cells' records, a fixed number of fixed-width slots; the records lie in pages
- * beside them (`partition/pages.rs`), which `readTablePartition` reads back.
+ * a root of fixed size; the cells' records lie in pages beside them (`partition/pages.rs`).
  */
 import { EngineError } from '../../contracts/cache.ts';
 
@@ -68,7 +67,6 @@ export type TablePage = { url: string; bytes: number; sha256: string };
 
 /** A page's body: the slots of the pages below it, or the records of its cells. */
 type PageBody = { version?: number; pages?: readonly string[]; cells?: readonly TableCell[] };
-
 /** `body` at this runtime's version, or a named refusal; `what` names it. */
 function versioned(body: unknown, what: string): PageBody {
   const page = body as PageBody | null;
@@ -102,9 +100,7 @@ function slotPage(slot: unknown) {
   const bytes = parseInt(slot.slice(64, 72), 16);
   if (bytes === 0) return null;
   const sha256 = slot.slice(0, 64);
-  const bounds = Array.from({ length: 6 }, (_, at) =>
-    float64(slot.slice(72 + 16 * at, 88 + 16 * at)),
-  );
+  const bounds = [0, 1, 2, 3, 4, 5].map((at) => float64(slot.slice(72 + 16 * at, 88 + 16 * at)));
   return { page: { url: `scene-page-${sha256}.json`, bytes, sha256 }, bounds };
 }
 
