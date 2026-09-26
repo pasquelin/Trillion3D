@@ -4257,7 +4257,7 @@
       "quaternion": "Wie der Knoten gedreht ist, als Quaternion.",
       "scale": "Wie der Knoten auf jeder Achse gestreckt ist.",
       "up": "Wo oben ist, für `lookAt`.",
-      "castShadow": "Ob der Knoten Schatten wirft.",
+      "castShadow": "Ob der Knoten Schatten wirft: ein Mesh tut es, solange es nicht auf `false` gesetzt ist, ein Licht nur, wenn es auf `true` gesetzt ist. Ein auf `false` gesetztes Mesh empfängt weiterhin die Schatten anderer.",
       "receiveShadow": "Ob Schatten auf den Knoten fallen.",
       "renderOrder": "Zeichenreihenfolge unter durchsichtigen Dingen.",
       "frustumCulled": "Ob ein Renderer ihn außerhalb der Sicht auslassen darf.",
@@ -4758,6 +4758,7 @@
     "members": {
       "matrices": "Sechzehn Fließkommazahlen spaltenweise pro Zeile, vom Besitzer geschrieben.",
       "live": "1, wo die Zeile die Ressource platziert, 0, wo sie zur Seite gelegt ist.",
+      "shadowless": "1, wo die Zeile keinen Schatten wirft (das `castShadow` ihres Meshes ist `false`), 0, wo sie einen wirft.",
       "capacity": "Zeilen, die Platz haben, bevor er wächst."
     }
   },
