@@ -28,8 +28,8 @@ export function createWebgpuResidencySets(options: {
   const { keyCount, keyOf, wanted, wantedPages } = tracking;
   /** A packed page's cache key, cached on its record by the tracking (`PageRec.keyIndex`). */
   const keyOfId = (id: number) => keyOf(packedPages[id]);
-  /** What joined and left `keep` since the pin step last ran, each joining key beside the record
-   *  it joined by (none for the pinned cover): the pin step reads its parents there. */
+  /** What joined and left `keep`, net, since the pin step last ran, each joining key beside the
+   *  record it joined by (none for the pinned cover): the pin step reads its parents there. */
   const enteringPages: (PageRec | undefined)[] = [];
   const entering = createDenseKeySet(enteringPages),
     leaving = createDenseKeySet();
@@ -53,12 +53,13 @@ export function createWebgpuResidencySets(options: {
     keyCount,
     // Net of what the pin step already saw: a key that leaves and comes back before it runs — a
     // queue rebuilt past the budget releases and retakes all of it — never reaches it, so its
-    // work follows the keys that moved, not the queue.
+    // work follows the keys that moved, not the queue. A key the upload job pinned on arrival in
+    // between still reaches it as leaving: nothing else would ever give that pin back.
     onListed: (key, page) => {
       if (!leaving.remove(key)) entering.add(key, page);
     },
     onUnlisted: (key) => {
-      if (!entering.remove(key)) leaving.add(key);
+      if (!entering.remove(key) || tracking.pinned.has(key)) leaving.add(key);
     },
   });
   for (let key = 0; key < keyCount; key++) if (bootstrapKey[key]) keep.retain(key);
