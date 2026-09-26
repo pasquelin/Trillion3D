@@ -82,7 +82,8 @@ export const BARY_WEIGHTS_WGSL = `fn baryWeights(a:vec2f,b:vec2f,c:vec2f,p:vec2f
  * hard cut accumulates into the pixel's coverage of the alpha as read (`cutoutConverges.test.ts`).
  *
  * `vertexAlpha` is the interpolated alpha of the vertex colours (`pageMaskAlpha`), one on a row
- * that reads none: the reference multiplies the diffuse alpha by it before its alpha test.
+ * that reads none: the reference multiplies the diffuse alpha by it before its alpha test, and by
+ * the colour factor's, the opacity (`surfaceOpacity`, in `blendCoverage`), as glTF 2.0 does (#748).
  * Shadows pass one, as the reference's depth material reads no vertex colour.
  *
  * The host shader declares `uvs`, the colour pool and its page table, then inserts
@@ -96,14 +97,14 @@ export const MASK_KEEP_WGSL = `fn maskKeep(page:PageInfo,uv:vec2f,vertexAlpha:f3
  if(!lineDash(uv.x,page.dash)){return false;}
  if(page.baseColor.w<=0.0){return true;}
  // A row that reads no colour is cut by its base map alone, never by an interpolated one, which
- // need not round back to one exactly.
+ // need not round back to one exactly. Without a map, its opacity still cuts it.
  let coloured=(page.flags&${FLAG_HAS_COLOR}u)!=0u;
- if((page.flags&8u)==0u){return !coloured||vertexAlpha>=page.baseColor.w;}
+ if((page.flags&8u)==0u){return select(1.0,vertexAlpha,coloured)*page.blendCoverage>=page.baseColor.w;}
  // Levels of the chain take the MEDIAN of alpha, never its mean: a coarse texel passes the
  // threshold when half of what it covers passed it, so threshold coverage crosses the levels and
  // the cutout stays right at every level. A mean, itself, made the silhouette grow level after
  // level and made the quad opaque during loading.
- var alpha=maskAlpha(page.mapIndex,uv,ddx,ddy,(page.flags&${FLAG_SAMPLED}u)!=0u);
+ var alpha=maskAlpha(page.mapIndex,uv,ddx,ddy,(page.flags&${FLAG_SAMPLED}u)!=0u)*page.blendCoverage;
  if(coloured){alpha*=vertexAlpha;}
  return alpha>=page.baseColor.w;
 }`;
