@@ -1,0 +1,100 @@
+// Every file of the two proof folders, imported by Node, opens no browser (AGENTS.md rule 2): the
+// one launcher refuses (`bench/runner/chrome.ts`). Each file is imported in a child process whose
+// entry point is this test, so a proof's CPU work, exit code and `test()` calls stay there; the
+// child replaces Playwright's launch, so a broken guard fails here instead of opening Chrome.
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { execFile } from 'node:child_process';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeSync } from 'node:fs';
+import { availableParallelism } from 'node:os';
+import { join } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+import { chromium } from 'playwright';
+import { RACINE } from './test-gpu.ts';
+
+const TARGET = 'TRILLION3D_IMPORT_PROOF',
+  REPORT = 'import report: ',
+  REFUSED = 'Chrome refused';
+const FOLDERS = ['tests/browser/probes', 'tests/browser/renders'];
+/** How long a child whose proof left a server open waits for a late launch before it leaves. */
+const SETTLE_MS = 3000;
+
+/** Written at once: a pipe on macOS drops what is still queued when the child exits. */
+const say = (text: string) => void writeSync(1, `${text}\n`);
+
+/** The child: import one file, count what reached Playwright, report it on exit. */
+async function importOne(file: string) {
+  let reached = 0;
+  chromium.launch = async () => {
+    reached++;
+    throw new Error('Playwright reached');
+  };
+  process.on('exit', () => say(REPORT + JSON.stringify({ reached })));
+  setTimeout(() => process.exit(0), SETTLE_MS).unref();
+  await import(pathToFileURL(file).href).catch((error: Error) => {
+    say(error.message);
+    process.exit(0);
+  });
+}
+
+/** Every path under `root`. */
+const pathsUnder = (root: string) =>
+  new Set(readdirSync(root, { recursive: true, encoding: 'utf8' }));
+
+function importInChild(file: string, scratch: string) {
+  // The child runs on its own, not as a test runner's child speaking its protocol on stdout.
+  const { NODE_TEST_CONTEXT: _runner, ...inherited } = process.env;
+  const env = { ...inherited, [TARGET]: file, TMPDIR: scratch };
+  const args = ['--experimental-strip-types', fileURLToPath(import.meta.url)];
+  return new Promise<string>((done) =>
+    execFile(process.execPath, args, { env, maxBuffer: 1 << 26 }, (_error, out, err) =>
+      done(out + err),
+    ),
+  );
+}
+
+async function importAll(files: string[], scratch: string) {
+  const outputs = new Map<string, string>();
+  const queue = [...files];
+  const worker = async () => {
+    for (let file = queue.shift(); file; file = queue.shift())
+      outputs.set(file, await importInChild(file, scratch));
+  };
+  await Promise.all(Array.from({ length: availableParallelism() }, worker));
+  return outputs;
+}
+
+if (process.env[TARGET]) await importOne(process.env[TARGET]);
+else
+  test('importing any probe or render proof starts no browser: the launcher refuses', async () => {
+    const files = FOLDERS.flatMap((folder) =>
+      readdirSync(join(RACINE, folder))
+        .filter((name) => name.endsWith('.ts'))
+        .map((name) => join(RACINE, folder, name)),
+    );
+    // A proof may prepare its outputs, or a temporary folder, before it asks for Chrome: the
+    // temporary ones land in a scratch folder, and what appeared in the outputs is removed after.
+    const out = join(RACINE, '.mesure', 'out');
+    const before = existsSync(out) ? pathsUnder(out) : null;
+    const logs = join(RACINE, '.worktrees', 'logs');
+    mkdirSync(logs, { recursive: true });
+    const scratch = mkdtempSync(join(logs, 'import-proofs-'));
+    try {
+      const outputs = await importAll(files, scratch);
+      for (const [file, output] of outputs) {
+        const report = output.split('\n').find((line) => line.startsWith(REPORT));
+        assert.ok(report, `${file}: the child did not report\n${output}`);
+        assert.deepEqual(JSON.parse(report.slice(REPORT.length)), { reached: 0 }, file);
+      }
+      for (const folder of FOLDERS) {
+        const refused = [...outputs].filter(([f, o]) => f.includes(folder) && o.includes(REFUSED));
+        assert.ok(refused.length > 0, `no file of ${folder} reached the launcher`);
+      }
+    } finally {
+      rmSync(scratch, { recursive: true, force: true });
+      if (!before) rmSync(out, { recursive: true, force: true });
+      else
+        for (const path of pathsUnder(out))
+          if (!before.has(path)) rmSync(join(out, path), { recursive: true, force: true });
+    }
+  });
