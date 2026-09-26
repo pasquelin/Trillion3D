@@ -52,7 +52,7 @@ const under = (
  *  the p95 of its GPU time and of its shadow pages drawn a frame, and the pages refetched in it. */
 function partLines(part: string, frames: Frame[]): LigneResultat[] {
   const at = frames.map((frame) => frame.at),
-    fps = rate(at) ?? 0,
+    fps = Math.round(rate(at) ?? 0),
     gaps = spread(at.slice(1).map((time, k) => time - at[k]));
   const gpu = spread(measured(frames, 'gpuFrameMs')),
     refetched = measured(frames, 'shadowPagesRefetched');
@@ -62,7 +62,7 @@ function partLines(part: string, frames: Frame[]): LigneResultat[] {
       ...ligne({
         name: `${part}: FPS`,
         correct: fps >= BUDGETS.fps,
-        motif: `${Math.round(fps)} ≥ ${BUDGETS.fps}`,
+        motif: `${fps} ≥ ${BUDGETS.fps}`,
       }),
       medianeMs: gaps?.p50 ?? null,
       p95Ms: gaps?.p95 ?? null,
@@ -118,13 +118,14 @@ export function healthCheck(
 const TONE = { true: 'text-success', false: 'text-error', null: 'opacity-60' };
 
 /**
- * Shows a verdict in the example's corner — the overall verdict, then each line green, red, or
- * dimmed when unmeasured, a part named by `say(part)`, a quantity by the stats corner's words — and
- * publishes it as `window.__verdict`, where the measurer's proof reads it.
+ * Shows a verdict in the example's top-left corner, clear of the stats corner the controls put at
+ * the bottom left — the overall verdict, then each line green, red, or dimmed when unmeasured, a
+ * part named by `say(part)`, a quantity by the stats corner's words — and publishes it as
+ * `window.__verdict`, where the measurer's proof reads it.
  */
 export function showVerdict(verdict: HealthVerdict, say: (key: string) => string) {
   Object.assign(globalThis, { __verdict: verdict });
-  statsCard()([
+  statsCard('top-left')([
     [say('verdict'), verdict.correct ? '✓' : '✗', TONE[`${verdict.correct}`]],
     ...verdict.resultats.map(({ name, motif, correct }): [string, string, string] => {
       const [part, quantity] = name.split(': ');
