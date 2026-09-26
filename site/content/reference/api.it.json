@@ -4118,7 +4118,7 @@
       "clipAction": "L'azione che riproduce `clip`.",
       "play": "Riproduce `clip` subito.",
       "stopAll": "Ferma ogni azione.",
-      "update": "Fa avanzare ogni azione in corso di `seconds` e scrive i valori campionati."
+      "update": "Fa avanzare ogni azione in corso di `seconds`, poi scrive in ogni proprietà la miscela ponderata dei campioni delle sue azioni sul suo valore a riposo."
     }
   },
   "ModelRecord": {
