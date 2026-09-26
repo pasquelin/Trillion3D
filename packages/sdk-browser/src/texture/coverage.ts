@@ -1,7 +1,6 @@
 import type { Texture } from '../../../sdk-core/src/index.ts';
-import { refreshSurface, type PageSurface } from '../page/surface.ts';
+import { refreshSurface, surfaceOpacity, type PageSurface } from '../page/surface.ts';
 import { weighsByAlpha } from '../scene/materialBlending.ts';
-import { blendCoverage } from '../gpu/shadow/transmittance.ts';
 
 /** Whether a surface takes its map's alpha for coverage: it cuts at `alphaTest`, or it blends
  *  weighing its colour by that alpha. A transmissive one tints what crosses it by its colour
@@ -27,7 +26,7 @@ export function cutoffByte(alphaTest: number, factor: number) {
 /** A reader's cutoff byte: 0 when it blends, else the one it cuts at under its opacity, the
  *  product the engine cuts (`maskKeep`). */
 const cutOf = (surface: PageSurface) =>
-  surface.transparent ? 0 : cutoffByte(surface.alphaTest, blendCoverage(surface));
+  surface.transparent ? 0 : cutoffByte(surface.alphaTest, surfaceOpacity(surface));
 
 /** The colour maps' readers, both GPU paths' (#42): mips weigh colours by alpha when EVERY reader
  *  takes alpha for coverage — never an emissive map (`collect.rs`) — and the texels are not

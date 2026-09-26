@@ -7,7 +7,6 @@ import {
   SHADOW_TRANSLUCENT_DEPTH_FORMAT,
   TRANSMITTANCE_BLEND,
   TRANSMITTANCE_CLEAR,
-  blendCoverage,
   castsBlendShadow,
 } from './transmittance.ts';
 import { SHADOW_DEPTH_SHADER } from './shader.ts';
@@ -15,7 +14,7 @@ import { POISSON_16, directShadowWgsl } from '../../lighting/direct/shadowWgsl.t
 import { LIGHT_SETTINGS } from '../../../../sdk-core/src/index.ts';
 import { SHADOW_PAGE } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { fromHalf, toHalf } from '../../../../sdk-core/src/lighting/ltcTable.ts';
-import type { PageSurface } from '../../page/surface.ts';
+import { surfaceOpacity, type PageSurface } from '../../page/surface.ts';
 
 /** A texel of the layer: its transmittance and its translucent depth (reversed: nearer is more). */
 type Texel = { t: number; d: number };
@@ -117,7 +116,7 @@ test('the shadow read multiplies the PCF by the half-resolution layer once per f
 
 test('a filtered blended shadow is uniform over a constant opacity', () => {
   const opacity = 5 / 16;
-  const layer = land(CLEAR, blendCoverage(surface(opacity)), 0.5);
+  const layer = land(CLEAR, surfaceOpacity(surface(opacity)), 0.5);
   const read = pcf(
     () => 0,
     () => layer,
@@ -139,7 +138,7 @@ test('a filtered blended shadow is uniform over a constant opacity', () => {
 test('opacity 0 lets all the light through, opacity 1 none', () => {
   assert.equal(castsBlendShadow(surface(0)), false, 'no row: the texel keeps its clear value');
   assert.equal(CLEAR.t, 1);
-  const opaque = land(CLEAR, blendCoverage(surface(1)), 0.5);
+  const opaque = land(CLEAR, surfaceOpacity(surface(1)), 0.5);
   assert.equal(opaque.t, 0);
   assert.equal(
     pcf(
