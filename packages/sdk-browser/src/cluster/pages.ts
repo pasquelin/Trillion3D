@@ -1,8 +1,22 @@
 import { EngineError } from '../../../sdk-core/src/index.ts';
 import { verifyPageBytes } from '../page/decode/host.ts';
-/** Whether a failure of HTTP `status` a second request may not meet: the network (`null`), or a
- *  server error (5xx). A refusal another request would meet again — a 4xx — is not. */
-const retriable = (status: number | null) => status === null || status >= 500;
+/** Whether a failure of HTTP `status` a second request may not meet: the network (`null`), a
+ *  timeout (408), a rate limit (429) or a server error (5xx). Any other 4xx would meet it again. */
+const retriable = (status: number | null) =>
+  status === null || status >= 500 || status === 408 || status === 429;
+/** The milliseconds `response` asks to wait before the next request (`Retry-After`, in seconds or
+ *  an HTTP date), 0 for none. */
+const retryAfter = (response: Response) => {
+  const value = response.headers.get('retry-after') ?? '';
+  const ms = /^\d+$/.test(value) ? Number(value) * 1000 : Date.parse(value) - Date.now();
+  return ms > 0 ? ms : 0;
+};
+/** Waits `ms`, or rejects with the reason of `signal` once it aborts. */
+const pause = (ms: number, signal?: AbortSignal) =>
+  new Promise<void>((resolve, reject) => {
+    const timer = setTimeout(resolve, ms);
+    signal?.addEventListener('abort', () => (clearTimeout(timer), reject(signal.reason)));
+  });
 /** The HTTP status `error` was refused with (`checked`), `null` for none: the network, or an
  *  error of another kind — one whose details carry the status of an answer taken (a JSON that
  *  does not parse) is no refusal. */
@@ -24,8 +38,8 @@ export const ONE_REQUEST = 1;
 
 /**
  * Reads `url`, asking once more (`attempts`, the most requests it makes) when the first request
- * fails on the network or on a server error (a 5xx such as a busy server's 503); a refusal another
- * request would meet again — a 404, a 403 — is not asked twice. What still fails is refused by an
+ * fails in a way that may pass (`retriable`), after the wait its `Retry-After` asks; a refusal
+ * another request would meet again — a 404, a 403 — is not asked twice. What still fails is refused by an
  * `EngineError` naming the address. An aborted `signal` rejects with its reason and asks nothing
  * more. The SDK guide states this policy (docs/SDK.md).
  */
@@ -40,7 +54,10 @@ export async function checked(url: string, signal?: AbortSignal, attempts = 2) {
       [response, cause] = [undefined, error];
     }
     if (response && !retriable(response.status)) break;
-    if (attempt < attempts && response) letGo(response);
+    if (attempt === attempts || !response) continue;
+    letGo(response);
+    const wait = retryAfter(response);
+    if (wait) await pause(wait, signal);
   }
   // A network failure is the same refusal as an HTTP one, with no status to give.
   if (!response)

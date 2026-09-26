@@ -75,3 +75,31 @@ test('an aborted read rejects with the reason and is not asked again', async (t)
   await assert.rejects(read, /left/);
   assert.equal(asked.length, 1);
 });
+
+test('a timeout (408) or a rate limit (429) is asked again and answers', async (t) => {
+  for (const status of [408, 429]) {
+    t.mock.restoreAll();
+    const asked = answering(t, 'lights.json', [status, 200]);
+    assert.equal((await checked(LIGHTS)).status, 200);
+    assert.equal(asked.length, 2);
+  }
+});
+
+test('a refusal asking to wait (Retry-After, seconds or a date) is asked again once waited', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'], now: 0 });
+  const wait = (status: number, after: string) =>
+    new Response('busy', { status, headers: { 'Retry-After': after } });
+  const answers = [wait(429, '2'), wait(503, new Date(4000).toUTCString()), 200];
+  const asked = answering(t, 'lights.json', answers);
+  const read = checked(LIGHTS, undefined, 3);
+  const settled = () => new Promise(setImmediate);
+  for (const count of [1, 2]) {
+    await settled();
+    t.mock.timers.tick(1999);
+    await settled();
+    assert.equal(asked.length, count, 'not before the wait is over');
+    t.mock.timers.tick(1);
+  }
+  assert.equal((await read).status, 200);
+  assert.equal(asked.length, 3);
+});

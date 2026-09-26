@@ -2,9 +2,9 @@ import type { TestContext } from 'node:test';
 import { EngineError } from '../../../sdk-core/src/index.ts';
 import { refusedStatus } from './pages.ts';
 
-/** An answer `answering` gives: a status, `'network'` — a failed request —, or `'hang'` — no
- *  answer until the request aborts. */
-export type Answer = number | 'network' | 'hang';
+/** An answer `answering` gives: a status, a whole answer, `'network'` — a failed request —, or
+ *  `'hang'` — no answer until the request aborts. */
+export type Answer = number | Response | 'network' | 'hang';
 
 /** One request `answering` heard: its address and its options. */
 type Asked = { url: string; init: RequestInit };
@@ -39,6 +39,7 @@ export function answering(
     const answer = answers[Math.min(asked.length, answers.length) - 1];
     if (answer === 'hang') return untilAborted(init.signal);
     if (answer === 'network') throw new TypeError('Failed to fetch');
+    if (answer instanceof Response) return answer;
     if (answer !== 200) return new Response('refused', { status: answer });
     const sent = body(url);
     return sent instanceof Response ? sent : new Response(sent);
