@@ -3,6 +3,7 @@ import type { WorldRenderer } from '../capability/worldReady.ts';
 import type { WorldOptions } from './worldOptions.ts';
 import { EffectChain } from '../../../../sdk-core/src/world/effect/chain.ts';
 import { createGuideSet, type Guides } from '../../guides/guideSet.ts';
+import { noticeEffectRefusal, type WorldNotices } from '../diagnostic/worldNotices.ts';
 import type { ParticlePool } from '../../../../sdk-core/src/fluids/particles.ts';
 
 /** What of the world's runtime the switches reach: its open session, and its reopening. */
@@ -17,19 +18,21 @@ interface SwitchedRuntime {
  * the open one in place, the session reopened only where it cannot take one. Temporal
  * antialiasing reads back what the open session draws; before one opens, what the page asked
  * (`world.temporalAntialiasing`). The chain is shared by reference: a session reads it at every
- * frame.
+ * frame, and says on the world's `notices` a frame it drew without it (`noticeEffectRefusal`).
  */
 export function worldSwitches(
   options: WorldOptions,
   runtime: () => SwitchedRuntime,
   device: { readonly renderer: WorldRenderer | null },
   invalidate: () => void,
+  notices: Pick<WorldNotices, 'once'>,
 ) {
   const held = {
     bounce: false,
     temporalAntialiasing: options.temporalAntialiasing !== false,
     // One chain for the world's life: every session draws it, a change asks for a frame.
     effects: new EffectChain(invalidate),
+    effectsRefused: noticeEffectRefusal(notices),
     guides: createGuideSet(invalidate),
     // The particle pools the measurement entry attaches (`attachParticles`); none by default.
     particles: [] as ParticlePool[],
