@@ -294,7 +294,8 @@ field is additive: a file cooked before it has none, and format 2 still reads it
   the body's frame at unit scale; and, a dynamic body's, `mass`, the exact weighing of the solid
   its closed mesh bounds at 1000 kg/m³ and at the body's `scale`: `mass` (kg), `centerOfMass` and
   `inertia` about it (nine numbers, column-major), in the body's frame — the mass the page hands
-  Jolt, turning the hull about `centerOfMass` rather than about the hull's own centre.
+  Jolt, turning the hull about `centerOfMass` rather than about the hull's own centre; what the
+  `motion` declares (`mass`, `centerOfMass`, `inertiaDiagonal`) wins over it.
 - `position`, `rotation`, `scale`: the node's world placement in the model, as an instance's.
 - `friction`, `restitution`: as an instance's.
 

@@ -111,6 +111,7 @@ uint32_t cook_soft_body(const float *vertices, uint32_t vertexCount, const float
 uint32_t cook_hull(const float *points, uint32_t count, const uint8_t **out, uint32_t *bytes) {
   start();
   Array<Vec3> hull;
+  hull.reserve(count);
   for (uint32_t i = 0; i < count; ++i) hull.push_back(Vec3(points[i * 3], points[i * 3 + 1], points[i * 3 + 2]));
   return save(ConvexHullShapeSettings(hull).Create(), out, bytes);
 }

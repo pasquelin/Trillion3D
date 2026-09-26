@@ -61,15 +61,35 @@ fn mesh_triangles(g: &Value, bin: &[u8], mesh: usize) -> Result<(Vec<f32>, Vec<u
     Ok((pos, triangles))
 }
 
-/// The cooked hull of mesh `mesh`, in its frame or moved by `frame` into the body's, with the
-/// exact `mass` of the solid it bounds at the body's scale when `weigh` names it.
+/// Mesh `mesh` as a body collides by it: its positions, its triangles welded, and the `cooked`
+/// hull Jolt built around them, once for every scale its bodies are weighed at.
+pub(super) struct Hull {
+    mesh: usize,
+    pos: Vec<f32>,
+    welded: Vec<u32>,
+    shape: Value,
+}
+
+impl Hull {
+    /// The hull's `physics.json` shape, with the exact `mass` of the solid it bounds at the body's
+    /// scale when `weigh` names it.
+    pub(super) fn weighed(&self, weigh: Option<[f64; 3]>) -> Result<Value> {
+        let mut shape = self.shape.clone();
+        if let Some(scale) = weigh {
+            shape["mass"] = solid_mass(&self.pos, &self.welded, scale, self.mesh)?;
+        }
+        Ok(shape)
+    }
+}
+
+/// The hull of mesh `mesh`, in its frame or moved by `frame` into the body's.
 pub(super) fn cooked_hull(
     o: &Options,
     (g, bin): (&Value, &[u8]),
     (mesh, frame): (usize, Option<Mat4>),
-    weigh: Option<[f64; 3]>,
-) -> Result<Value> {
-    let (mut pos, triangles) = mesh_triangles(g, bin, mesh)?;
+) -> Result<Hull> {
+    // A collider may name a node the scene never draws: its unread mesh refuses the body alone.
+    let (mut pos, triangles) = mesh_triangles(g, bin, mesh).map_err(|e| refused(e.message))?;
     if let Some(m) = frame {
         for p in pos.as_chunks_mut::<3>().0 {
             *p = transform_point(&m, p.map(f64::from)).map(|v| v as f32);
@@ -78,13 +98,12 @@ pub(super) fn cooked_hull(
     // One point per position: seam copies neither split an edge nor add a hull point.
     let weld = weld_positions(&pos, &triangles);
     let welded: Vec<u32> = triangles.iter().map(|&i| weld[i as usize]).collect();
-    let mass = weigh
-        .map(|scale| solid_mass(&pos, &welded, scale, mesh))
-        .transpose()?;
     let mut shape = store_shape(o, &hull_shape(&compact_region(&pos, &welded).0)?)?;
     shape["type"] = json!("cooked");
-    if let Some(mass) = mass {
-        shape["mass"] = mass;
-    }
-    Ok(shape)
+    Ok(Hull {
+        mesh,
+        pos,
+        welded,
+        shape,
+    })
 }
