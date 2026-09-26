@@ -64,8 +64,8 @@ fn pixelTile(pixel:vec2f)->vec2u{return vec2u(u32(pixel.x)/TILE_SIZE,u32(pixel.y
 /** Lights of a slice of a tile's list: its count at countSlot, its indices from firstSlot. */
 fn tileLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,tile:vec2u,tilesX:u32,countSlot:u32,firstSlot:u32)->vec3f{
  var result=vec3f(0.0);
- let base=(tile.y*tilesX+tile.x)*TILE_STRIDE;
- let kept=min(tileLights[base+countSlot],MAX_LIGHTS);
+ let base=(tile.y*tilesX+tile.x)*tileStride(directLights.capacity);
+ let kept=tileLights[base+countSlot];
  for(var index=0u;index<kept;index++){
   result+=declaredLight(directLights.items[tileLights[base+firstSlot+index]],rgb,metal,rough,N,V,P,ao);
  }
@@ -116,7 +116,7 @@ fn contractLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32
  * walked, hence the number of shadow-atlas reads.
  *
  * With no list — a device that could not fit the tile pass —, the loop falls back on the
- * declared lights, bounded by `MAX_LIGHTS`, a constant known before the frame (X2).
+ * declared lights, every one of them.
  */
 export const declaredLightingWgsl = (
   proxyBinding: number,
@@ -130,11 +130,10 @@ fn declaredLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32
  let tile=pixelTile(pixel);
  if(tilesX==0u||tilesY==0u||tile.x>=tilesX||tile.y>=tilesY){
   var result=vec3f(0.0);
-  let count=min(directLights.count,MAX_LIGHTS);
-  for(var index=0u;index<count;index++){
+  for(var index=0u;index<directLights.count;index++){
    result+=declaredLight(directLights.items[index],rgb,metal,rough,N,V,P,ao);
   }
   return result;
  }
- return tileLighting(rgb,metal,rough,N,V,P,ao,tile,tilesX,1u,TILE_BLEND_BASE);
+ return tileLighting(rgb,metal,rough,N,V,P,ao,tile,tilesX,1u,tileBlendBase(directLights.capacity));
 }`;

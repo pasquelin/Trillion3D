@@ -1,10 +1,5 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {
-  invertMatrix4,
-  multiplyMatrix4,
-  perspectiveProjection,
-} from '../../../../sdk-core/src/index.ts';
 import { LIGHT_TILES_SHADER } from './shader.ts';
 import {
   sphereTouchesColumn,
@@ -12,40 +7,12 @@ import {
   tileCorner,
   type TileView,
 } from '../../../../../bench/oracles/browser/gpuLightTileColumnOracle.ts';
+import { view } from './tileView.fixture.ts';
 
 // Issue #28: a blend surface in front of the sky may stand at any distance, so a tile with a
 // sky pixel gives its blend list the tile's whole column — never a box that stops at the
 // farthest opaque, and never the whole world either.
 
-const width = 1920,
-  height = 1080;
-function view(eye: [number, number, number]): TileView {
-  const projection = perspectiveProjection(new Float64Array(16), 60, width / height, 0.1, 1);
-  const translate = new Float64Array([
-    1,
-    0,
-    0,
-    0,
-    0,
-    1,
-    0,
-    0,
-    0,
-    0,
-    1,
-    0,
-    -eye[0],
-    -eye[1],
-    -eye[2],
-    1,
-  ]);
-  const viewProjection = multiplyMatrix4(new Float64Array(16), projection, translate);
-  return {
-    inverseViewProjection: invertMatrix4(new Float64Array(16), viewProjection),
-    width,
-    height,
-  };
-}
 const tile: [number, number] = [37, 21];
 /** A point on the axis of the tile's column, `near / depth` metres away from the eye. */
 function onAxis(v: TileView, depth: number) {
