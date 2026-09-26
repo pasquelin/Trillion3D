@@ -16,9 +16,11 @@ export function startInteractiveExplorer(
   const { canvas, options, hostedControls, state } = runtime;
   const view = canvas.ownerDocument.defaultView!;
   const controls = original.ownControls === false ? undefined : explorer.controls();
-  // The loop stops for good: said on the console too, or the canvas would freeze without a word.
+  // The loop stops for good: said on the console too, or the canvas would freeze without a word,
+  // and reported to the page as an uncaught error is, so its own error watcher can name it.
   const reportFailure = (error: unknown) => {
     console.error('[trillion3d] Automatic rendering stopped', error);
+    view.reportError?.(error);
     events.emit({
       eventVersion: 1,
       type: 'fatal',
