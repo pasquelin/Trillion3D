@@ -16,7 +16,7 @@ const OPTION_ON =
  * physics session's code, the worker and Jolt's module (#395, #397).
  */
 export const turnsPhysicsOn = (source: string) =>
-  OPTION_ON.test(source) || /\bphysics\.enabled\s*=\s*true\b/.test(source);
+  OPTION_ON.test(source) || /^(?![ \t]*\/\/).*\bphysics\.enabled\s*=\s*true\b/m.test(source);
 
 /** The ids of the `entries` whose page turns physics on, each read from its own file (#503). */
 export async function physicsExamples(entries: readonly GalleryEntry[]): Promise<Set<string>> {
