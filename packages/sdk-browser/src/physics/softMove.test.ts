@@ -8,8 +8,9 @@ import { CLOTH, flatCloth, softWorld } from './soft.fixture.ts';
 import { fakePhysicsWorld } from './worker.fixture.ts';
 
 // #740: a page-built soft body the page moves is carried there as a cooked one is (#723), its
-// simulation kept; placed at another scale, it is refused by name, as a cooked one is.
-test('a page-built cloth moved is teleported with its flags, never made again; rescaled, refused by name', async () => {
+// simulation kept; placed at another scale, it is refused by name and made again once back at it,
+// as a cooked one is.
+test('a page-built cloth moved is teleported with its flags; rescaled, refused by name until back', async () => {
   const { scene, physics, worker, restore } = await fakePhysicsWorld();
   try {
     const cloth = new Mesh(plane(1, 1, 2, 2), new Material('meshStandard'));
@@ -40,6 +41,10 @@ test('a page-built cloth moved is teleported with its flags, never made again; r
       'out, not made at the new scale',
     );
     assert.equal(physics.session()!.engineIdOf(cloth), -1);
+    cloth.scale.setScalar(1);
+    physics.frame();
+    assert.equal(worker.words.at(-1)![0], OP.soft, 'back at its scale, made again');
+    assert.notEqual(physics.session()!.engineIdOf(cloth), -1);
     physics.dispose();
   } finally {
     restore();

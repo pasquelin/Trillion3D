@@ -16,7 +16,7 @@ import {
 import type { Mesh } from '../../../sdk-core/src/world/object/mesh.ts';
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
 import { worldPoseOf, worldScaleOf } from './bodyFrame.ts';
-import { addSoftBody } from './softBodies.ts';
+import { addSoftBody, fits } from './softBodies.ts';
 import { createBodySlots, type SlotOwner } from './bodySlots.ts';
 
 /** A mesh the simulation holds a body for. */
@@ -49,18 +49,19 @@ export function createPhysicsBodies(
   state: NonNullable<ObjectPhysics['_state']>,
 ) {
   const slots = createBodySlots(budget.bodies);
-  const { meshes } = slots;
-  /** The `physics` slot `index`'s mesh was made with, or `null`. */
-  const heldAt = (index: number) => {
-    const owner = slots.at(index);
-    return owner && 'mesh' in owner ? owner.physics : null;
-  };
+  const { meshes, physicsAt } = slots;
   /** What each slot's body counts against the budget beyond itself; a soft body's vertex map. */
   const claimed = new Map<number, { triangles: number; softVertices: number }>();
   const softMaps: (Uint32Array | null)[] = [];
   const count = { bodies: 0, decorative: 0, triangles: 0, softVertices: 0 };
-  /** Decorative bodies taken out once asleep: their mesh stays where it came to rest. */
-  const retired = new WeakSet<Bodied['physics']>();
+  /** Bodies taken out: asleep decorative or refused ones (`null`), their mesh left where it came
+   *  to rest; soft ones placed at another scale than the one they were made at, kept. */
+  const retired = new WeakMap<Bodied['physics'], readonly number[] | null>();
+  /** Whether `mesh`'s soft body, taken out at another scale, is back at the one it was made at. */
+  const back = (mesh: Bodied) => {
+    const scale = retired.get(mesh.physics);
+    return !!scale && fits(worldScaleOf(mesh), scale);
+  };
   const check = (key: keyof typeof count, more: number) => {
     const limit = budget[key];
     if (count[key] + more > limit) throw physicsBudgetError(key, limit, count[key] + more);
@@ -139,7 +140,7 @@ export function createPhysicsBodies(
     softMaps[index] = null;
   };
   const removeAt = (index: number) => {
-    const p = heldAt(index);
+    const p = physicsAt(index);
     if (!p) return;
     release(index);
     if (p.decorative) count.decorative--;
@@ -161,13 +162,14 @@ export function createPhysicsBodies(
      *  removal. */
     claim,
     release,
-    /** A decorative body fell asleep, or the module refused its shape: out of the simulation and
-     *  of the budget, until its `physics` is set again. */
-    retire(index: number) {
-      const p = heldAt(index);
+    /** A body asleep decorative or refused: out of the simulation and budget until its `physics`
+     *  is set again; a soft body placed off `scale`, the one it was made at, until back at it. */
+    retire(index: number, scale: readonly number[] | null = null) {
+      const p = physicsAt(index);
       removeAt(index);
-      if (p) retired.add(p);
+      if (p) retired.set(p, scale);
     },
+    back,
     /**
      * Brings the bodies in line with the scene, once per frame that changed it: a body whose mesh
      * left the scene, whose `physics` was replaced or whose shape or matter changed (`stale`) is
@@ -177,10 +179,12 @@ export function createPhysicsBodies(
     reconcile(stale: ReadonlySet<Object3D>, refused: (error: unknown) => void) {
       for (let i = 0; i < meshes.length; i++) {
         const mesh = meshes[i];
-        if (mesh && (!mesh._link || mesh.physics !== heldAt(i) || stale.has(mesh))) removeAt(i);
+        if (mesh && (!mesh._link || mesh.physics !== physicsAt(i) || stale.has(mesh))) removeAt(i);
       }
       root.traverse((node) => {
-        if (!hasBody(node) || node.physics._host || retired.has(node.physics)) return;
+        if (!hasBody(node) || node.physics._host) return;
+        if (retired.has(node.physics) && !back(node)) return;
+        retired.delete(node.physics);
         try {
           add(node);
         } catch (error) {

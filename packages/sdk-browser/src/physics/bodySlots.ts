@@ -37,6 +37,11 @@ export function createBodySlots(size: number) {
     of,
     /** What slot `index` holds now, whatever id asks. */
     at: ids.at,
+    /** The `physics` slot `index`'s mesh was made with, or `null`. */
+    physicsAt(index: number) {
+      const owner = ids.at(index);
+      return owner && 'mesh' in owner ? owner.physics : null;
+    },
     /** The mesh an engine id names, or `null`. */
     meshOf(id: number) {
       const owner = of(id);
