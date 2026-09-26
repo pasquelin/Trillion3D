@@ -11,6 +11,7 @@
 import type { HostAttribute, HostAttributes, HostMaterials } from './resources.ts';
 import type { HostMap, HostShadedMaterial } from './shadedMaterial.ts';
 import { blendingOf, blendingRefusal } from '../scene/materialBlending.ts';
+import { hostSurfaceModel, litModel } from '../scene/surfaceModel.ts';
 import { HOST_MAPPING_UV, HOST_NORMAL_MAP_TANGENT_SPACE } from './surfaceConstants.ts';
 import { texelsReason } from '../visibility/types.ts';
 import { declaresCompileHook } from './materialHook.ts';
@@ -67,6 +68,14 @@ export function clusterMaterialReason(
     host.stencilWrite
   )
     return `material ${host.family} uses an unsupported extension or raster state`;
+  // A map the surface model never reads (`../scene/surfaceModel.ts`) is refused, never dropped: a
+  // toon's tone ramp, a matcap's colour map, and the normal map of a surface drawn unlit.
+  if (
+    host.gradientMap ||
+    (host.family === 'matcap' && host.map) ||
+    (host.normalMap && !litModel(host, hostSurfaceModel(host)))
+  )
+    return `material ${host.family} declares a map its surface model never reads`;
   if (host.normalMap && host.normalMapType !== HOST_NORMAL_MAP_TANGENT_SPACE)
     return 'object-space normal mapping is unsupported';
   if (declaresCompileHook(host)) return `material ${host.family} carries a shader hook`;
