@@ -123,10 +123,25 @@ fn a_texture_is_cut_at_its_lowest_cutoff_unless_a_reader_blends() {
     let mut with_blend = masked.clone();
     with_blend.push(material("BLEND", 0.9, 0));
     assert_eq!(kind_of(with_blend), AtlasKind::Coverage(0));
-    // WebGPU, which samples the baked chains, cuts the sampled alpha without the factor's.
-    let mut faded = masked;
-    faded[1]["pbrMetallicRoughness"]["baseColorFactor"] = json!([1, 1, 1, 0.5]);
-    assert_eq!(kind_of(faded), AtlasKind::Coverage(64));
+    // glTF 2.0 cuts the sampled alpha times the factor's: at 0.25 under a factor of 0.5, the
+    // texture's own cutoff is 0.5.
+    let fade = |mut materials: Vec<Value>, factor: f64| {
+        let last = materials.len() - 1;
+        materials[last]["pbrMetallicRoughness"]["baseColorFactor"] = json!([1, 1, 1, factor]);
+        kind_of(materials)
+    };
+    assert_eq!(fade(masked.clone(), 0.5), AtlasKind::Coverage(128));
+    // A factor of 0, or one at or under the cutoff, keeps at most the opaque texels: that reader
+    // takes 255, and a texture another reader cuts keeps that reader's cutoff.
+    for factor in [0.0, 0.25, 0.1] {
+        assert_eq!(
+            fade(masked.clone(), factor),
+            AtlasKind::Coverage(128),
+            "{factor}"
+        );
+        let alone = vec![masked[1].clone()];
+        assert_eq!(fade(alone, factor), AtlasKind::Coverage(255), "{factor}");
+    }
 }
 
 // #44: each cutoff names its own files and sidecar word, so two scenes cutting one image at two
