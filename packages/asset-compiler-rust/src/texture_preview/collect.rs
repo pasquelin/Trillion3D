@@ -61,8 +61,8 @@ impl Role {
     }
     /// The chain the role asks for: the one role whose alpha the shader reads for
     /// coverage — the base colour of a BLEND material, or of a MASK one that cuts —
-    /// takes the chain weighted by that alpha, its cutoff set once every reader
-    /// is known (`atlas_textures`).
+    /// takes the chain weighted by that alpha, its cutoff set by the material
+    /// (`atlas_textures`).
     fn kind(self, coverage: bool) -> AtlasKind {
         match self {
             Self::BaseColor if coverage => AtlasKind::Coverage(0),
@@ -121,11 +121,22 @@ pub(super) fn atlas_textures(g: &Value, meshes: &BTreeSet<usize>) -> Result<Vec<
         // (`webgpu/water/compositeWgsl.ts`): it draws the RGB under alpha 0 and keeps the plain chain.
         let transmits = crate::compiler_materials::unsplit_material(Some(material));
         let coverage = (mode == Some("BLEND") && !transmits) || cutoff.is_some_and(|c| c > 0.0);
+        // The engine cuts the sampled alpha times the factor's (`opacity`,
+        // `compiler_tables/materials.rs`): the texture's own cutoff is their quotient,
+        // no byte at all under a factor of 0.
+        let opacity = material
+            .pointer("/pbrMetallicRoughness/baseColorFactor/3")
+            .and_then(Value::as_f64)
+            .unwrap_or(1.0) as f32;
+        let cut = cutoff.map_or(0, |c| super::coverage::cutoff_byte(c / opacity.max(0.0)));
         for role in ROLES {
             let Some(texture) = texture_index(role.reference(material)) else {
                 continue;
             };
-            let kind = role.kind(coverage);
+            let kind = match role.kind(coverage) {
+                AtlasKind::Coverage(_) => AtlasKind::Coverage(cut),
+                kind => kind,
+            };
             let atlas = kind.atlas();
             let entry = wanted
                 .entry((texture, atlas))
@@ -136,9 +147,15 @@ pub(super) fn atlas_textures(g: &Value, meshes: &BTreeSet<usize>) -> Result<Vec<
                     normal_only: true,
                     cutoffs: Vec::new(),
                 });
-            // Readers that disagree on coverage share the plain chain.
-            if entry.kind != kind {
-                entry.kind = atlas;
+            match (entry.kind, kind) {
+                // Coverage readers share one chain, cut at the lowest of their cutoffs,
+                // so the most texels any of them keeps hold their share at every level.
+                (AtlasKind::Coverage(mine), AtlasKind::Coverage(theirs)) => {
+                    entry.kind = AtlasKind::Coverage(super::coverage::lowest_cutoff(mine, theirs));
+                }
+                // Readers that disagree on coverage share the plain chain.
+                (mine, theirs) if mine != theirs => entry.kind = atlas,
+                _ => {}
             }
             let cutoffs: Vec<f32> = cutoff
                 .filter(|_| role == Role::BaseColor)
@@ -153,15 +170,6 @@ pub(super) fn atlas_textures(g: &Value, meshes: &BTreeSet<usize>) -> Result<Vec<
             entry.normal_only &= role == Role::Normal;
         }
     }
-    // A coverage texture is cut at the lowest of its readers' cutoffs, every one
-    // above 0, so the most texels any of them keeps hold their share at every
-    // level; 0 when every reader blends, and the chain keeps the median alone.
-    for entry in wanted.values_mut() {
-        if let AtlasKind::Coverage(_) = entry.kind {
-            let lowest = entry.cutoffs.iter().copied().min_by(f32::total_cmp);
-            entry.kind = AtlasKind::Coverage(lowest.map_or(0, super::coverage::cutoff_byte));
-        }
-    }
     Ok(wanted.into_values().collect())
 }
 
@@ -171,11 +179,10 @@ pub(super) fn coverage_cutoff(readers: &[AtlasTexture]) -> u8 {
     readers
         .iter()
         .filter_map(|r| match r.kind {
-            AtlasKind::Coverage(cutoff @ 1..) => Some(cutoff),
+            AtlasKind::Coverage(cutoff) => Some(cutoff),
             _ => None,
         })
-        .min()
-        .unwrap_or(0)
+        .fold(0, super::coverage::lowest_cutoff)
 }
 
 pub(crate) fn texture_index(reference: Option<&Value>) -> Option<usize> {

@@ -51,8 +51,8 @@ const atlasByte = (atlas: number) => atlas & 0xff;
 /** The `{kind}` of an atlas word — a coverage chain with a cutoff `C` is `srgb-coverage-C` —,
  *  `undefined` for a word no compiler writes. */
 export function previewAtlasName(atlas: number): string | undefined {
+  if (!Number.isInteger(atlas) || atlas < 0 || atlas > 0xffff) return undefined;
   const cutoff = atlas >>> 8;
-  if (!Number.isInteger(atlas) || atlas < 0 || cutoff > 255) return undefined;
   if (cutoff === 0) return PREVIEW_ATLAS_NAMES[atlas];
   return atlasByte(atlas) === PREVIEW_ATLAS_COVERAGE
     ? `${PREVIEW_ATLAS_NAMES[PREVIEW_ATLAS_COVERAGE]}-${cutoff}`

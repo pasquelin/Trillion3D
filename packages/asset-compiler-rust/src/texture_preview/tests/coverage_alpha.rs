@@ -116,6 +116,12 @@ fn the_chain_is_cut_at_the_lowest_cutoff_of_its_coverage_readers() {
     });
     let found = atlas_textures(&g, &BTreeSet::from([0])).expect("collect");
     assert_eq!(found[0].kind, AtlasKind::Coverage(64));
+    // The engine cuts the sampled alpha times the factor's: at 0.25 under a factor of 0.5, the
+    // texture's own cutoff is 0.5.
+    let mut faded = g.clone();
+    faded["materials"][1]["pbrMetallicRoughness"]["baseColorFactor"] = json!([1, 1, 1, 0.5]);
+    let found_faded = atlas_textures(&faded, &BTreeSet::from([0])).expect("collect");
+    assert_eq!(found_faded[0].kind, AtlasKind::Coverage(128));
     // …and so does an image read by several textures; a blended-only one is not cut.
     let reader = |kind| AtlasTexture {
         kind,
