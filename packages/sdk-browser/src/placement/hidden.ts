@@ -53,7 +53,8 @@ const moved = new Float64Array(BOX_VALUES),
  * shown again, unless its row is parked; `park` hears the rank of each root that flipped. A
  * see-through draw of a hidden node takes `hidden`, which its selection reads (`notDrawn`), and
  * `seeThrough.flipped` hears it. Read once per scene revision, never per frame. Returns the box
- * of the roots that flipped, where the shadow pages must be drawn again, or `null`.
+ * of the roots that flipped, where the shadow pages must be drawn again, or `null`; its corners
+ * are views of one scratch box, read before the next call.
  */
 export function followHostVisibility<T extends { sourceMesh?: Object3D }, S extends SeeThrough>(
   roots: readonly ClusterRoot<T>[],
