@@ -28,15 +28,22 @@ test("a saved scene keeps each mesh's body as it was declared, and a mesh withou
     { type: 'kinematic', shape: { type: 'sphere', radius: 0.5 }, gravityScale: 0 },
     { type: 'cloth', pins: [0, 1], stretch: 0.01 },
   ]);
-  const read = ['type', 'mass', 'shape', 'friction', 'restitution', 'gravityScale', 'ccd'] as const;
+  const read = [
+    'type',
+    'mass',
+    'shape',
+    'friction',
+    'restitution',
+    'gravityScale',
+    'ccd',
+    'damping',
+    'soft',
+  ] as const;
   for (const [k, mesh] of after.entries()) {
     const was = before[k].physics!,
       is = mesh.physics!;
     for (const name of read) assert.deepEqual(is[name], was[name], `${k}: ${name}`);
-    assert.deepEqual(is.damping, was.damping, `${k}: damping`);
-    assert.deepEqual(is.soft, was.soft, `${k}: soft`);
   }
-  assert.equal(after[1].physics?.mass, 20);
   assert.equal(after[3].physics?.soft?.bend, Infinity, 'a free bend comes back free');
   const bare = noModel();
   bare.add(object.mesh(geometry.box(1, 1, 1)));
