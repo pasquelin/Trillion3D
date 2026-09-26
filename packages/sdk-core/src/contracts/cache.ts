@@ -88,8 +88,8 @@ export function assertCacheRoot(root: unknown, scope: AssetScope): void {
       cacheScope: value.scope,
     });
 }
-/** The manifest read through its pages: its root (`assertCacheRoot`) and the geometry it selected,
- *  whose triangle count it returns; the clusters' identity is `assertCacheIdentity`'s. */
+/** The manifest read through its pages: its root (`assertCacheRoot`) and selected geometry.
+ *  Returns that triangle count; the clusters' identity is `assertCacheIdentity`'s. */
 export function assertCacheReady(metadata: unknown, scope: AssetScope): number {
   assertCacheRoot(metadata, scope);
   const value = metadata as Record<string, unknown>;
