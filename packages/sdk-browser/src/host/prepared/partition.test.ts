@@ -88,8 +88,7 @@ test('a partitioned cache places every mesh the loader placed, at its world matr
   assert.deepEqual(prepared.sort(), witness.sort());
 });
 
-// The tables keep only the root of the cells' index (#750): read through its pages, the cells are
-// every cell file of the folder, once, in the order the compiler numbered them, at their bytes.
+// Read through the root's pages (#750), the cells are every cell file of the folder, in order.
 test('the paged tables give back every cell file of the folder, in order', async (t) => {
   const { folder, partition } = await partitioned(t);
   const files = (await readdir(folder)).filter((name) => name.startsWith('scene-cell-'));

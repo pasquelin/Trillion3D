@@ -19,7 +19,7 @@ fn page_file(sha256: &str) -> String {
     format!("scene-page-{sha256}.json")
 }
 
-/// The records of the cells, where each starts once written after a region page's `head`.
+/// The records of the cells, their boxes, and where each record starts once written.
 struct Pager<'a> {
     head: usize,
     records: &'a [Value],
@@ -103,9 +103,8 @@ pub(crate) fn write_pages(
     Ok(json!({"version": PARTITION_VERSION, "pages": slots}))
 }
 
-/// Appends to `into` every cell record under `page`, in cell order: a region page's own, or those
-/// of the pages its slots name, each read from `directory` and proven by its size and fingerprint
-/// first. `what` names `page` in a refusal.
+/// Appends to `into` every cell record under `page` (named `what`), in cell order, each page its
+/// slots name read from `directory` and proven by its size and fingerprint first.
 pub(crate) fn read_records(
     directory: &Path,
     page: &Value,
