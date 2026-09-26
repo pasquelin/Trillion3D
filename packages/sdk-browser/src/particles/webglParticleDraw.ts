@@ -13,8 +13,8 @@ import { DRAW_FLOATS, drawOrder, writeDrawWords } from './drawWords.ts';
 import { usedSlots } from './poolStates.ts';
 
 /** The WGSL draw (`webgpuParticleDraw.ts`) texel by texel, `texels` a row. `m` holds the draw
- *  words' two matrices and `look` the rest: eye and size, colour, softness, target size and
- *  whether the blend is premultiplied. */
+ *  words' two matrices and `look` the rest: eye and size, colour, softness and whether the
+ *  blend is premultiplied. */
 const vertex = (texels: number) => `#version 300 es
 precision highp float;
 uniform highp sampler2D state;
@@ -48,12 +48,13 @@ out vec4 fragColor;
 ${OUTPUT_TRANSFER_GLSL}
 void main() {
   float d = texelFetch(sceneDepth, ivec2(gl_FragCoord.xy), 0).r;
-  vec4 scene = m[1] * vec4(gl_FragCoord.xy / look[2].yz * 2. - 1., d * 2. - 1., 1.);
+  vec2 size = vec2(textureSize(sceneDepth, 0));
+  vec4 scene = m[1] * vec4(gl_FragCoord.xy / size * 2. - 1., d * 2. - 1., 1.);
   float behind = distance(scene.xyz / scene.w, look[0].xyz) - distance(local, look[0].xyz);
   float soft = abs(scene.w) > 1e-20 ? clamp(behind / look[2].x, 0., 1.) : 1.;
   float k = clamp(1. - dot(corner, corner), 0., 1.) * soft * life * look[1].a;
   vec3 shown = linearOut ? look[1].rgb : linearToSrgb(toneMap(look[1].rgb));
-  fragColor = vec4(shown * k, look[2].w * k);
+  fragColor = vec4(shown * k, look[2].y * k);
 }`;
 
 /** The WebGL2 particle draw over the host's image: its depth copied for the soft edge, then one
@@ -95,27 +96,6 @@ export function createWebglParticleDraw(
       gl.deleteFramebuffer(copy.framebuffer);
     },
   );
-  /** Copies the depth of `output` into the draw's texture; false if the context refused it,
-   *  which the first copy alone asks. */
-  const copyDepth = (
-    live: NonNullable<ReturnType<typeof held.current>>,
-    { framebuffer, width, height }: HostDrawOutput,
-  ) => {
-    const { copy } = live,
-      { TEXTURE_2D: T, DEPTH_COMPONENT: D } = gl;
-    if (copy.size !== width * 65536 + height) {
-      bindWebglTexture(gl, 1, copy.texture);
-      gl.texImage2D(T, 0, gl.DEPTH_COMPONENT24, width, height, 0, D, gl.UNSIGNED_INT, null);
-      copy.size = width * 65536 + height;
-    }
-    gl.disable(gl.SCISSOR_TEST);
-    gl.bindFramebuffer(gl.READ_FRAMEBUFFER, framebuffer);
-    gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, copy.framebuffer);
-    gl.blitFramebuffer(0, 0, width, height, 0, 0, width, height, gl.DEPTH_BUFFER_BIT, gl.NEAREST);
-    gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
-    live.checked ||= gl.getError() !== gl.INVALID_OPERATION;
-    return live.checked;
-  };
   return {
     /** Draws `pools` into `output` seen by `camera`; returns the draws made. */
     draw(pools: readonly ParticlePool[], camera: HostDrawCamera, output: HostDrawOutput) {
@@ -123,7 +103,22 @@ export function createWebglParticleDraw(
       // The eye in double precision, the world matrix's: the host's 32-bit eye rounds 10 km out.
       for (let i = 0; i < 3; i++) eye[i] = camera.world[12 + i];
       if (!live || !drawOrder(pools, eye, order).length) return 0;
-      if (!copyDepth(live, output)) {
+      // The frame's depth, copied for the soft edge; the first copy alone asks if it was refused.
+      const { copy } = live,
+        { framebuffer, width, height } = output;
+      if (copy.size !== width * 65536 + height) {
+        bindWebglTexture(gl, 1, copy.texture);
+        const { TEXTURE_2D: T, DEPTH_COMPONENT: D } = gl;
+        gl.texImage2D(T, 0, gl.DEPTH_COMPONENT24, width, height, 0, D, gl.UNSIGNED_INT, null);
+        copy.size = width * 65536 + height;
+      }
+      gl.disable(gl.SCISSOR_TEST);
+      gl.bindFramebuffer(gl.READ_FRAMEBUFFER, framebuffer);
+      gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, copy.framebuffer);
+      gl.blitFramebuffer(0, 0, width, height, 0, 0, width, height, gl.DEPTH_BUFFER_BIT, gl.NEAREST);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
+      live.checked ||= gl.getError() !== gl.INVALID_OPERATION;
+      if (!live.checked) {
         for (const pool of pools) pool.refused = true;
         throw new Error(
           "PARTICLES_UNSUPPORTED: WebGL2 particles fade on the frame's depth, and this context " +
@@ -133,7 +128,7 @@ export function createWebglParticleDraw(
       multiplyMatrix4Typed(screen, camera.projection, camera.view);
       gl.useProgram(live.program);
       gl.bindVertexArray(live.vao);
-      gl.viewport(0, 0, output.width, output.height);
+      gl.viewport(0, 0, width, height);
       gl.uniform1i(live.linear, output.linear ? 1 : 0);
       const curve = output.toneMapped ? (output.toneMapping ?? DEFAULT_TONE_MAPPING) : 'none';
       gl.uniform1i(live.curve, TONE_MAPPING_RANK[curve]);
@@ -149,9 +144,7 @@ export function createWebglParticleDraw(
           premultiplied = pool.blend === 'premultiplied';
         if (!state) continue;
         writeDrawWords(words, pool, screen, eye);
-        words[41] = output.width;
-        words[42] = output.height;
-        words[43] = premultiplied ? 1 : 0;
+        words[41] = premultiplied ? 1 : 0;
         gl.uniformMatrix4fv(live.m, false, matrices);
         gl.uniform4fv(live.look, look);
         gl.blendFunc(gl.ONE, premultiplied ? gl.ONE_MINUS_SRC_ALPHA : gl.ONE);

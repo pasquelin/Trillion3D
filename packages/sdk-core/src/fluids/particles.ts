@@ -68,13 +68,14 @@ export class ParticlePool {
   /** Seconds the longest-lived particle may have, one step over: the GPU's 32-bit age lags. */
   private liveFor = 0;
 
-  constructor({ capacity, emitPerFrame, acceleration, origin, ...look }: ParticlePoolSpec) {
+  constructor(spec: ParticlePoolSpec) {
+    const { capacity, emitPerFrame, acceleration, origin, blend = 'additive' } = spec,
+      { color = [1, 0.8, 0.5, 1], size = 0.1, softness = size } = spec;
     const perFrame = emitPerFrame ?? Math.min(capacity, Math.max(256, capacity >> 6));
     if (!Number.isInteger(capacity) || capacity < 1 || capacity > MAX_CAPACITY)
       throw new Error(`PARTICLE_CAPACITY: a pool holds 1 to ${MAX_CAPACITY} particles`);
     if (!Number.isInteger(perFrame) || perFrame < 1 || perFrame > capacity)
       throw new Error('PARTICLE_EMISSION: a pool stages 1 to `capacity` records a frame');
-    const { blend = 'additive', color = [1, 0.8, 0.5, 1], size = 0.1, softness = size } = look;
     if (!PARTICLE_BLENDS.includes(blend))
       throw new Error(`PARTICLE_BLEND: a pool blends as ${PARTICLE_BLENDS.join(' or ')}`);
     if (!(size > 0) || !(softness > 0))
