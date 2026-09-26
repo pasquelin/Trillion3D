@@ -4,10 +4,8 @@
 //! face lies within twice its error of the model (what `signature-architecture` lost:
 //! `dag/vanished.rs`). The cook refuses a parent error below a child's, so a cook that passes
 //! keeps its errors monotone.
-use super::chalet_fixture::{push_box, push_log};
-use super::silhouette::{page_cuts, page_indices, Mesh};
+use super::silhouette::{page_cuts, page_indices};
 use super::site_scene::cook_site_scene;
-use super::thin_walls::mesh_fixture;
 use super::*;
 use crate::dag::bounds::bounding_sphere;
 use crate::dag::clusters::weld_positions;
@@ -89,63 +87,36 @@ fn missing_part_defects(
     defects
 }
 
-/// Both of the above.
-fn extent_defects(
-    objects: &Path,
-    primitive: &Value,
-    positions: &[f32],
-    indices: &[u32],
-) -> Vec<String> {
-    let mut defects = root_defects(objects, primitive, positions, indices);
-    defects.extend(missing_part_defects(objects, primitive, positions, indices));
+/// The root cover's and the missing parts' defects of a committed site scene's cook, every
+/// primitive.
+fn site_scene_extent_defects(folder: &str, gltf: &str, tag: &str) -> Vec<String> {
+    let scene = cook_site_scene(folder, gltf, tag, "qem-endpoints");
+    let mut defects = Vec::new();
+    for primitive in scene.result["primitives"].as_array().expect("primitives") {
+        let (positions, indices) = (scene.positions(primitive), scene.indices(primitive));
+        let objects = &scene.objects;
+        defects.extend(root_defects(objects, primitive, &positions, &indices));
+        defects.extend(missing_part_defects(
+            objects, primitive, &positions, &indices,
+        ));
+    }
+    let _ = fs::remove_dir_all(&scene.root);
     defects
 }
 
 #[test]
 fn no_part_of_signature_architecture_leaves_a_cut_under_its_extent() {
     let folder = "site/assets/gallery/signature-architecture/source";
-    let scene = cook_site_scene(folder, "geometry.gltf", "geometry", "qem-endpoints");
-    let mut defects = Vec::new();
-    for primitive in scene.result["primitives"].as_array().expect("primitives") {
-        let (positions, indices) = (scene.positions(primitive), scene.indices(primitive));
-        defects.extend(extent_defects(
-            &scene.objects,
-            primitive,
-            &positions,
-            &indices,
-        ));
-    }
-    let _ = fs::remove_dir_all(&scene.root);
+    let defects = site_scene_extent_defects(folder, "geometry.gltf", "geometry");
     assert!(defects.is_empty(), "{defects:#?}");
 }
 
-/// An arcade: a slab, two rows of twenty columns 0.24 m wide and 4 m tall, and a lintel on each
-/// row. Every part is a closed solid with the normals an exporter writes.
-fn arcade() -> Mesh {
-    let mut mesh = Mesh::default();
-    push_box(&mut mesh, [-20.0, -0.2, -3.0], [20.0, 0.0, 3.0]);
-    for z in [-2.0f32, 2.0] {
-        for k in 0..20 {
-            push_log(&mut mesh, 1, [-19.0 + 2.0 * k as f32, 0.0, z], 4.0);
-        }
-        push_box(&mut mesh, [-20.0, 4.0, z - 0.3], [20.0, 4.3, z + 0.3]);
-    }
-    mesh
-}
-
+/// The chalet's balcony boards (`scripts/docs/examples/chalet.ts`) stand like an arcade's
+/// columns: closed parts 1.08 m across, each apart from the rest. Charged only the simplifier's
+/// error, they left the cut at 1 m.
 #[test]
-fn no_column_of_an_arcade_leaves_a_cut_under_its_extent() {
-    let mesh = arcade();
-    let (root, mut options) = mesh_fixture("arcade", std::slice::from_ref(&mesh));
-    options.texture_formats = Vec::new();
-    let result = compile(&options, |_| {}).expect("compile");
-    let objects = options.cache.join("native/objects");
-    let positions: Vec<f32> = mesh.positions.iter().flatten().map(|&v| v as f32).collect();
-    let primitive = &result["primitives"][0];
-    let defects = extent_defects(&objects, primitive, &positions, &mesh.indices);
-    let top = primitive["pages"].as_array().expect("pages").iter();
-    let top = top.filter_map(|page| page["level"].as_u64()).max();
-    let _ = fs::remove_dir_all(root);
+fn no_board_of_the_chalet_balcony_leaves_a_cut_under_its_extent() {
+    let folder = "site/assets/examples/chalet/source";
+    let defects = site_scene_extent_defects(folder, "chalet.gltf", "chalet");
     assert!(defects.is_empty(), "{defects:#?}");
-    assert!(top > Some(1), "the arcade must coarsen more than once");
 }
