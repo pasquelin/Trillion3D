@@ -61,6 +61,22 @@ test('lambert, toon and matcap draw on WebGL2, as Phong and normal do, each by i
   assert.equal(clusterMaterialReason(matcap, { position, normal }), undefined);
   matcap.matcap = G.dataTexture(new Uint8Array(4), 1, 1, 1022);
   assert.match(clusterMaterialReason(matcap, { position, normal })!, /texel format 1022/);
+  // A map the model never reads is refused, never dropped from the image.
+  const map = G.dataTexture(new Uint8Array(4)),
+    uv = new G.BufferAttribute(new Float32Array(6), 2);
+  for (const surface of [
+    new G.GraphSurface('toon', { gradientMap: map }),
+    new G.GraphSurface('matcap', { map }),
+    new G.GraphSurface('matcap', { normalMap: map }),
+    new G.GraphSurface('normal', { normalMap: map }),
+  ])
+    assert.match(
+      clusterMaterialReason(surface, { position, normal, uv })!,
+      /declares a map its surface model never reads/,
+      surface.family,
+    );
+  const lit = new G.GraphSurface('lambert', { normalMap: map });
+  assert.equal(clusterMaterialReason(lit, { position, normal, uv }), undefined);
 });
 
 test('a diffuse and a toon surface take a lamp by the WebGPU formula on WebGL2', () => {
