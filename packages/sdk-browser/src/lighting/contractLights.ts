@@ -5,6 +5,7 @@ import { Color } from '../../../sdk-core/src/world/math/color.ts';
 import { createUnlitAlbedo } from './unlitAlbedo.ts';
 import { createLight, writeLight, type ContractLight } from './lightWrite.ts';
 import { Group } from '../../../sdk-core/src/world/object/object3d.ts';
+import { castsShadow } from '../../../sdk-core/src/scene/light-shadow/casters.ts';
 
 /** The node a light aims at, carried in the graph beside it: a sun's or a spot's, none for a rectangle. */
 const aimOf = (light: ContractLight) => (light instanceof GraphLight ? light.target : undefined);
@@ -91,12 +92,14 @@ function createContractLights(
       const wanted = store.count > 0 || store.lightingView !== 'auto';
       if (!wanted) {
         albedo.setEnabled(false);
-        if (governs) dropAll();
+        if (governs) {
+          dropAll();
+          shadowsRefused?.([]);
+        }
         governs = false;
         scene.fog = null;
         group.visible = false;
         epoch = store.epoch;
-        shadowsRefused?.([]);
         return false;
       }
       governs = true;
@@ -109,7 +112,7 @@ function createContractLights(
       if (store.unlit) dropAll();
       else rebuild();
       // The unlit view draws no light, so no shadow is missing from it.
-      shadowsRefused?.(store.unlit ? [] : store.ids.filter((id) => store.light(id)!.castsShadow));
+      shadowsRefused?.(store.unlit ? [] : store.ids.filter((_, slot) => castsShadow(store, slot)));
       const sh = store.unlit ? undefined : store.environment?.irradiance;
       scene.fog = (!store.unlit && store.environment?.fog) || null;
       if ((probe.visible = !!sh)) probe.sh.fromArray(sh);

@@ -172,8 +172,8 @@ export interface BackendContext {
   particles?: readonly import('../../../sdk-core/src/fluids/particles.ts').ParticlePool[];
   /** Contract lights, owned by the host and shared by every engine of the session. */
   sceneLights?: SceneLightStore;
-  /** Hears the lights asking for a shadow a WebGL2 engine draws not (`MeasuredWorldOptions`). */
-  shadowsRefused?: import('../world/session/options.ts').MeasuredWorldOptions['shadowsRefused'];
+  /** Hears the lights asking for a shadow a WebGL2 engine draws not (`noticeShadowRefusal`). */
+  shadowsRefused?: import('../lighting/contractLights.ts').ContractShadows;
   /** Imported light ids, in cache order: the host sets or removes them (`importedLights()`). */
   importedLightIds?: string[];
   /** Bounced light, off by default: its step stays above the measured one-millisecond bar.
