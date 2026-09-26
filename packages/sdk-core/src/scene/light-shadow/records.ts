@@ -33,19 +33,17 @@ export function createShadowRecords(table: ShadowTable, pool: ShadowPool, sun: S
     dropPages(slice);
     table.release(slice);
     sun.release(slice);
+    // A slice freed twice counts once.
+    records.count -= taken[slice];
     taken[slice] = 0;
     kind[slice] = -1;
     last[slice] = null;
   };
-  return {
+  const records = {
     taken,
     kind,
     /** Slices held by a light: zero when no light casts a shadow. */
-    get count() {
-      let held = 0;
-      for (let slice = 0; slice < MAX_SHADOW_SLICES; slice++) held += taken[slice];
-      return held;
-    },
+    count: 0,
     dropPages,
     free,
     /** Whether pool page `page` is its light's floor — a sun's last level, a lamp face's one-page
@@ -63,6 +61,7 @@ export function createShadowRecords(table: ShadowTable, pool: ShadowPool, sun: S
           taken[slice] = 1;
           kind[slice] = -1;
           last[slice] = null;
+          records.count++;
           return slice;
         }
       return -1;
@@ -98,6 +97,7 @@ export function createShadowRecords(table: ShadowTable, pool: ShadowPool, sun: S
       for (let slice = 0; slice < MAX_SHADOW_SLICES; slice++) if (taken[slice]) free(slice);
     },
   };
+  return records as Readonly<typeof records>;
 }
 
 export type ShadowRecords = ReturnType<typeof createShadowRecords>;

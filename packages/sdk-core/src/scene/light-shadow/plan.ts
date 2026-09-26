@@ -70,7 +70,7 @@ export function createShadowPlan(poolSide: number) {
     },
     /** True while a representation change waits for the camera to rest. */
     get deferredChanges() {
-      return changes.deferred || thresholds.pending;
+      return changes.deferred() || thresholds.pending;
     },
     /** The frame plans no shadow: the held union enters the list at once. */
     releaseDeferred: changes.releaseDeferred,
