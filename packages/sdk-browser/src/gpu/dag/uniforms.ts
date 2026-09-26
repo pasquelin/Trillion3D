@@ -1,5 +1,5 @@
 import type { DagViewUniforms, PackedDag } from './types.ts';
-import { REQUEST_AHEAD, requestPage, requestPriority } from './request.ts';
+import { firstAheadRequest, requestPage } from './request.ts';
 import {
   OUT_COUNT,
   OUT_FLAGS,
@@ -131,8 +131,7 @@ export function parseDagOutput(
   // the view ahead's. The host reads them in that order and ranks nothing: it only finds where the
   // view ahead's start.
   const ahead = scratch.ahead;
-  let visible = 0;
-  while (visible < count && !(requestPriority(ints[head + visible]) & REQUEST_AHEAD)) visible++;
+  const visible = firstAheadRequest(ints, head, head + count) - head;
   pageIds.length = visible;
   ahead.length = count - visible;
   for (let i = 0; i < visible; i++) pageIds[i] = requestPage(ints[head + i]);
