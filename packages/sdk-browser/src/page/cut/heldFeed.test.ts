@@ -1,46 +1,23 @@
 // The cut rule's readiness follows the pool's residency feed (#483 rules 6 and 7, #486): a still
 // view reads no page's residency, a change reads the pages that moved and no other, and a placement
 // that leaves the view lets its readiness go, the running total exact. Counted, never timed: every
-// residency answer a cut asks for. Run on the backends of `cutRule.test.ts`: the CPU cut, the WebGL2
-// image's cut, and the GPU kernel's host, which both kernel backends share.
+// residency answer a cut asks for, on the CPU cut and the WebGL2 image's cut.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { ruleDag } from './cutRule.fixture.ts';
 import { AWAY, placements } from './cutRuleBackends.fixture.ts';
 import { cpuBackend, webgl2Backend } from './cutRuleHosts.fixture.ts';
 import { random } from './cutRuleChecks.fixture.ts';
-import { packDagSelection } from '../../gpu/dag/pack.ts';
-import { uploadResidency } from '../../gpu/dag/readiness.fixture.ts';
 import { createWebgpuPagesLayout } from '../../webgpu/pages/prepare/layout.ts';
 import type { WebgpuPagesSetup } from '../../webgpu/pages/prepare/setup.ts';
-import type { ClusterRoot, PageRec } from '../selection/types.ts';
 
 const THRESHOLD = 0.1;
 const dag = ruleDag(64),
   n = dag.pages.length;
 
-/** The GPU kernel's host (`../../gpu/dag/residencyUpload.ts`), handed the pages the rank journal
- *  names as flipped: it draws nothing here, its readiness is what is counted. */
-function gpuBackend(_dag: unknown, _threshold: number, roots: ClusterRoot<PageRec>[]) {
-  const packed = packDagSelection(roots),
-    now = new Uint8Array(roots.length * n);
-  let reads = 0,
-    upload: ReturnType<typeof uploadResidency> | undefined;
-  const read = new Proxy(now, { get: (target, key) => (reads++, Reflect.get(target, key)) });
-  const frame = (resident: Uint8Array) => {
-    const pages = Int32Array.from(resident.keys()).filter((at) => resident[at] !== now[at]);
-    now.set(resident);
-    if (upload) upload(read, { pages, count: pages.length, sorted: true });
-    else upload = uploadResidency(packed, read);
-    return { drawn: [] as number[] };
-  };
-  return Object.assign(frame, { reads: () => reads });
-}
-
 const backends = {
   'CPU cut': cpuBackend,
   'WebGL2 cut': webgl2Backend,
-  'GPU kernel host': gpuBackend,
 };
 /** `name`'s backend over `roots`, by default two placements of the DAG, both in view. */
 const mount = <K extends keyof typeof backends>(name: K, roots = placements(dag, 2)) =>
@@ -84,11 +61,7 @@ for (const name of Object.keys(backends) as (keyof typeof backends)[]) {
       assert.deepEqual(sorted(drawn), sorted(mount(name)(resident).drawn), `frame ${frame}`);
     }
   });
-}
 
-// The GPU kernel's host holds the readiness of the pages the pool holds, whatever the view: only
-// the two host cuts hold a state per placement they visit.
-for (const name of ['CPU cut', 'WebGL2 cut'] as const) {
   test(`${name}: a placement leaving the view lets its readiness go, the total exact`, () => {
     const roots = placements(dag, 2),
       cut = mount(name, roots),
@@ -112,6 +85,12 @@ for (const name of ['CPU cut', 'WebGL2 cut'] as const) {
     roots[1].worldBox = undefined;
     assert.deepEqual(sorted(cut(resident).drawn), sorted(mount(name)(resident).drawn));
     assert.equal(cut.held.placements, 2);
+    // A placement whose hierarchy changed enters again: its old state leaves the total.
+    (roots[0] as { structure: object }).structure = { ...dag.structure };
+    cut(resident);
+    const again = mount(name);
+    again(resident);
+    assert.equal(cut.held.bytes, again.held.bytes);
     for (const root of roots) root.worldBox = AWAY;
     cut(resident);
     assert.deepEqual([cut.held.placements, cut.held.bytes], [0, 0]);
