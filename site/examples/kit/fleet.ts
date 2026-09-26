@@ -121,7 +121,11 @@ export async function fleet(world: World, engine: Families) {
   }
 
   // The camera follows from behind, eased so a bump never shakes it.
-  const behind = { car: [0, 2.4, 7.5], motorcycle: [0, 1.8, 5], tracked: [0, 5.5, 15] } as const;
+  const behind: Record<Engine.VehicleKind, [number, number, number]> = {
+    car: [0, 2.4, 7.5],
+    motorcycle: [0, 1.8, 5],
+    tracked: [0, 5.5, 15],
+  };
   const eye = math.vector3(),
     aim = math.vector3();
   const chase = ({ body, driver }: FleetVehicle, delta: number) => {
