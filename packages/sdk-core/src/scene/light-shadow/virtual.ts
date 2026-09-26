@@ -59,8 +59,9 @@ export const priorPoolPages = (w: number, h: number, lights: number) =>
  * The pool holds the worst-case bound while it fits one layer, and the smooth read of every
  * shadowed light past it. At 1280 × 720: 20 × 12 tiles, 1 280 pages a frame at worst, 2 560 held —
  * 51 × 51 pages, a 6 528² depth texture of 163 MiB. At 3 456 × 2 234 with one sun: 54 × 35 tiles,
- * 2 520 pages a frame, 5 040 held — two layers of 51 × 51 pages. The only limits are the device's
- * and the memory grant (`webgpu/shadow/poolSize.ts`).
+ * 2 520 pages a frame, 5 040 held — one layer of 71 × 71 pages on a device 16 384 texels wide,
+ * two of 51 × 51 on one of 8 192. The only limits are the device's and the memory grant
+ * (`webgpu/shadow/poolSize.ts`).
  */
 export function shadowPoolSize(width: number, height: number, lights = 1) {
   const worst = 2 * Math.ceil((4 * 4 * tiles(width) * tiles(height)) / 3);
