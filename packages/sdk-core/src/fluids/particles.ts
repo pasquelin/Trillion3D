@@ -49,10 +49,10 @@ export class ParticlePool {
   readonly acceleration: Float32Array;
   /** The origin in double precision: emission subtracts it before rounding to 32 bits. */
   readonly origin: Float64Array;
-  readonly blend!: ParticleBlend;
-  readonly size!: number;
-  readonly softness!: number;
+  readonly blend: ParticleBlend;
   readonly color: Float32Array;
+  readonly size: number;
+  readonly softness: number;
   /** The staged records, `emitPerFrame` of them, read by the renderer up to `step.count`. */
   readonly staging: Float32Array<ArrayBuffer>;
   /** Records staged since creation, and those refused: the image's staging full, or the pool
@@ -84,8 +84,10 @@ export class ParticlePool {
     this.acceleration = Float32Array.from(acceleration ?? [0, -GRAVITY_PRESETS.earth, 0]);
     this.origin = Float64Array.from(origin ?? [0, 0, 0]);
     this.staging = new Float32Array(perFrame * PARTICLE_FLOATS);
-    Object.assign(this, { blend, size, softness });
+    this.blend = blend;
     this.color = Float32Array.from(color);
+    this.size = size;
+    this.softness = softness;
   }
 
   /** Stages one particle at world position `x, y, z`, born at the next image; false, and
