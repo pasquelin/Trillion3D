@@ -49,14 +49,9 @@ fn declared_bodies_are_cooked_beside_the_static_ground() {
         mesh_map: &mesh_map,
         cluster_planes: &[],
     };
+    let primitive = json!({"mesh":0,"primitive":0});
     let collision = json!({"kind":"mesh","tiles":[],"triangles":12});
-    stage_physics(
-        &scene,
-        &[json!({"mesh":0,"primitive":0})],
-        &[collision],
-        &root,
-    )
-    .unwrap();
+    stage_physics(&scene, &[primitive], &[collision], &root).unwrap();
     let written: Value =
         serde_json::from_slice(&std::fs::read(root.join("physics.json")).unwrap()).unwrap();
     let bodies = written["bodies"].as_array().unwrap();
