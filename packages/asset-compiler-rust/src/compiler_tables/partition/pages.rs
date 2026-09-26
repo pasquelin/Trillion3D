@@ -57,10 +57,9 @@ pub(crate) struct Pager<'a> {
     pub kind: &'a Kind,
     /// The bytes of a region page of no record.
     pub empty: usize,
-    /// Where each record starts in a region page's list: a region the tree does not halve is a
-    /// page whatever its bytes, so a tree of one region needs none.
+    /// Where each record starts in a region page's list, and where the last ends.
     pub starts: Vec<usize>,
-    /// The box of each record; none when the records have no place.
+    /// The box of each record.
     pub bounds: &'a [Box6],
     pub directory: &'a Path,
     /// The region page over a range of records, its version aside.
@@ -101,7 +100,7 @@ impl Pager<'_> {
             json!({"pages": self.slots(region)?})
         };
         body["version"] = json!(self.kind.version);
-        let boxes = self.bounds.get(region.cells.clone()).unwrap_or_default();
+        let boxes = &self.bounds[region.cells.clone()];
         write_page(self.kind, self.directory, &body, boxes)
     }
 
@@ -125,17 +124,18 @@ pub(crate) fn write_pages(
     for record in records {
         starts.push(starts[starts.len() - 1] + serde_json::to_vec(record)?.len() + 1);
     }
-    let empty = serde_json::to_vec(&json!({"version": PARTITION_VERSION, "cells": []}))?.len();
-    let leaf = |cells: Range<usize>| Ok(json!({"cells": &records[cells]}));
+    let kind = &CELL_PAGES;
+    let empty = serde_json::to_vec(&json!({"version": kind.version, kind.records: []}))?.len();
+    let leaf = |cells: Range<usize>| Ok(json!({kind.records: &records[cells]}));
     let pager = Pager {
-        kind: &CELL_PAGES,
+        kind,
         empty,
         starts,
         bounds,
         directory,
         leaf: &leaf,
     };
-    Ok(json!({"version": PARTITION_VERSION, "pages": pager.root(tree)?}))
+    Ok(json!({"version": kind.version, "pages": pager.root(tree)?}))
 }
 
 /// The page of `kind` that `slot` names — read from `directory`, proven by its size and
@@ -181,9 +181,12 @@ pub(crate) fn read_leaves(
         let Some((name, page)) = read_slot(kind, directory, slot, what)? else {
             continue;
         };
-        match page["pages"].is_null() && page[kind.records].is_array() {
-            true => into.push(page),
-            false => read_leaves(kind, directory, &page["pages"], &name, into)?,
+        if page["pages"].is_array() {
+            read_leaves(kind, directory, &page["pages"], &name, into)?;
+        } else if page[kind.records].is_array() {
+            into.push(page);
+        } else {
+            return Err(format!("{name} lists neither pages nor records"));
         }
     }
     Ok(())
