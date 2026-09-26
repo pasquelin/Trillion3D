@@ -33,7 +33,7 @@ test('the level format follows the family and the layout, lossless when either s
 });
 
 test('an unknown atlas, an invalid digest or rank, a template without a field are rejected', () => {
-  for (const atlas of [3, (128 << 8) | 0, (128 << 8) | 1, 256 << 8, -1, 2.5])
+  for (const atlas of [3, (128 << 8) | 0, (128 << 8) | 1, 256 << 8, 2 ** 32 + 2, -1, 2.5])
     assert.throws(() => textureLevelUrl(TEMPLATE, SHA, atlas, 0, 'png'), /unknown atlas/);
   assert.throws(() => textureLevelUrl(TEMPLATE, 'abc', 0, 0, 'png'), /invalid address/);
   assert.throws(() => textureLevelUrl(TEMPLATE, SHA, 0, -1, 'png'), /invalid address/);
