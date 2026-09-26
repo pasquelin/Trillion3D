@@ -67,9 +67,10 @@ pub(super) fn assert_boxes(mass: &Value, list: &[([f64; 3], [f64; 3])]) {
 }
 
 // Behaviour: a closed mesh weighs exactly as the solid it bounds at the runtime's density
-// (`commands.cpp`), whichever way it is wound and at its scale: a unit cube 1000 kg about its
-// middle, inertia m/6; an L of two boxes 7000 kg, its analytic centre and inertia. An open box is
-// refused by name; a unit cube's hull cooks to the golden bytes (`TRILLION3D_WRITE_GOLDEN`).
+// (`commands.cpp`), whichever way it is wound, at its scale and 100 km away: a unit cube 1000 kg
+// about its middle, inertia m/6; an L of two boxes 7000 kg, its analytic centre and inertia. An
+// open box is refused by name; a unit cube's hull cooks to the golden bytes
+// (`TRILLION3D_WRITE_GOLDEN`).
 #[test]
 fn a_closed_mesh_is_weighed_exactly_and_its_hull_cooked() {
     let runtime = include_str!("../../../physics-jolt-wasm/src/commands.cpp");
@@ -83,6 +84,8 @@ fn a_closed_mesh_is_weighed_exactly_and_its_hull_cooked() {
         .flat_map(|t| [t[0], t[2], t[1]])
         .collect();
     assert_boxes(&solid_mass(&unit, &inward, [1.0; 3], 0).unwrap(), &UNIT);
+    let far = solid_mass(&cube([1e5; 3], [1.0; 3]), &FACES, [1.0; 3], 0).unwrap();
+    assert_boxes(&far, &[([1e5; 3], [1.0; 3])]);
     let stretched = solid_mass(&unit, &FACES, [2.0, 1.0, 1.0], 0).unwrap();
     assert_boxes(&stretched, &[([0.0; 3], [2.0, 1.0, 1.0])]);
     let (mut pos, mut triangles) = (cube([0.0; 3], [4.0, 1.0, 1.0]), FACES.to_vec());

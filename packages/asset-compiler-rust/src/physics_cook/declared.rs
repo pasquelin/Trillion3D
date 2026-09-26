@@ -3,7 +3,7 @@
 //! when it names one (a node that names none carries none, and the runtime gives its tiles the
 //! engine's default matter); and, for a node declaring motion, the body it is: its motion and
 //! implicit shape as declared, else the hull of a mesh (`hull.rs`), weighed here, at cook time.
-use super::hull::cooked_hull;
+use super::hull::{cooked_hull, Hull};
 use super::stage::{place, trs};
 use super::{refused, PHYSICS_COOK_FAILED};
 use crate::compiler_nodes::scene_nodes;
@@ -11,6 +11,7 @@ use crate::compiler_validate::values;
 use crate::compiler_world::{multiply, rotation_matrix, scaling, translation, Mat4};
 use crate::{Options, Result};
 use serde_json::{json, Value};
+use std::collections::btree_map::Entry;
 use std::collections::{BTreeMap, BTreeSet};
 
 /// `friction` and `restitution` the collider of node `node` declares, each only when declared.
@@ -40,13 +41,13 @@ pub(crate) fn declared_matter(g: &Value, node: &Value) -> Value {
 /// its collider names, as declared; else the cooked hull of the mesh its collider names (its own
 /// without a collider), moved into the body's frame, and, a dynamic body's, the exact mass of the
 /// solid it bounds — one hull, whether or not the collider asks for `convexHull`; bodies drawing
-/// the same mesh in their own frame at one scale share it.
+/// the same mesh in their own frame share it, whatever scale each is weighed at.
 fn body(
     o: &Options,
     source: (&Value, &[u8]),
     nodes: &[Value],
     (index, world): (usize, &[Mat4]),
-    cooked: &mut BTreeMap<(usize, Option<[u64; 3]>), Value>,
+    cooked: &mut BTreeMap<usize, Hull>,
 ) -> Result<Value> {
     let declared = &nodes[index]["extensions"]["KHR_physics_rigid_bodies"];
     let pose = trs(&world[index])
@@ -84,18 +85,15 @@ fn body(
             // A kinematic body is moved, never pushed: it is not weighed.
             let kinematic = declared.pointer("/motion/isKinematic") == Some(&Value::Bool(true));
             let weigh = (!kinematic).then_some(s);
-            let key = frame
-                .is_none()
-                .then_some((mesh as usize, weigh.map(|s| s.map(f64::to_bits))));
-            match key.and_then(|k| cooked.get(&k)) {
-                Some(shared) => shared.clone(),
-                None => {
-                    let shape = cooked_hull(o, source, (mesh as usize, frame), weigh)?;
-                    if let Some(k) = key {
-                        cooked.insert(k, shape.clone());
-                    }
-                    shape
-                }
+            let mesh = mesh as usize;
+            if frame.is_some() {
+                cooked_hull(o, source, (mesh, frame))?.weighed(weigh)?
+            } else {
+                let hull = match cooked.entry(mesh) {
+                    Entry::Occupied(shared) => shared.into_mut(),
+                    Entry::Vacant(slot) => slot.insert(cooked_hull(o, source, (mesh, None))?),
+                };
+                hull.weighed(weigh)?
             }
         }
     };
