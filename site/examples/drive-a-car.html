@@ -31,7 +31,7 @@
     <script type="module">
       import { createWorld, geometry, material, object, light, math } from '../runtime/engine.js';
       import { vehicle } from '../runtime/engine.js';
-      import { controls, fleet, readout } from '../runtime/kit.js';
+      import { controls, readout, vehicles } from '../runtime/kit.js';
 
       // A sports car, a motorcycle and a tank parked in a compiled valley. Each is a body on
       // wheels: `vehicle.car`, `vehicle.motorcycle` and `vehicle.tracked` put it on Jolt's own
@@ -64,20 +64,28 @@
         world.scene.add(cliff);
       }
 
-      // The three are built by the kit's `fleet`: each body and every part drawn on it make its
-      // collision shape, so that what is seen is what collides, and each starts on the ground
-      // below its spot, found by an exact raycast once the physics has streamed the valley in.
+      // Each is built by the kit's `vehicles`: its body and every part drawn on it make its
+      // collision shape, so that what is seen is what collides. Each starts on the ground below its
+      // spot, found by an exact raycast down from 60 m once the physics has streamed the valley in.
+      const { car, motorcycle, tracked, park, right, chase } = vehicles(
+        world,
+        { geometry, material, object, math, vehicle },
+        { above: 60 },
+      );
+      const fleet = {
+        car: { ...car(), start: [0, 20] },
+        motorcycle: { ...motorcycle(), start: [-8, 22] },
+        tracked: { ...tracked(), start: [12, 28] },
+      };
       world.camera.position.set(0, 30, 60);
       world.camera.lookAt(0, 0, 0);
-      const { vehicles, right, chase } = await fleet(world, {
-        geometry,
-        material,
-        object,
-        math,
-        vehicle,
-      });
+      for (const entry of Object.values(fleet)) {
+        await park(entry, entry.start);
+        world.scene.add(entry.body);
+        world.physics.add(entry.driver);
+      }
 
-      let driven = vehicles.car;
+      let driven = fleet.car;
       world.controls.vehicle = driven.driver;
       world.controls.kind = 'vehicle';
       controls(
@@ -86,7 +94,7 @@
           reset: () => right(driven),
         },
         ({ vehicle: kind }) => {
-          driven = vehicles[kind];
+          driven = fleet[kind];
           world.controls.vehicle = driven.driver;
         },
         world,
