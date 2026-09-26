@@ -90,9 +90,11 @@ export function createPhysicsJoints(
     reconcile(joints: ReadonlySet<Joint>) {
       for (const [joint, ends] of made)
         if (!joints.has(joint) || idOf(joint.a) !== ends.a || idOf(joint.b) !== ends.b) drop(joint);
-      for (const joint of joints)
+      for (const joint of joints) {
+        if (joint.broken || made.has(joint)) continue;
         if (out(joint.a) || out(joint.b)) joint._break();
-        else if (!joint.broken && !made.has(joint)) connect(joint);
+        else connect(joint);
+      }
     },
     /** The body made with `physics` (not one the page set since) leaves the simulation for good,
      *  asleep decorative: each joint made on it breaks now, one added later at `reconcile`. */
