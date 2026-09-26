@@ -51,7 +51,8 @@ export class GraphTexture extends Releasable {
   matrixAutoUpdate = true;
   /** The coordinate transform as three rows. */
   readonly matrix = new Matrix3();
-  /** Whether smaller copies are made. */
+  /** Whether smaller copies are asked for; the engine makes them whenever `minFilter` reads
+   *  them. */
   generateMipmaps = true;
   /** Whether colour is pre-multiplied by alpha. */
   premultiplyAlpha = false;
