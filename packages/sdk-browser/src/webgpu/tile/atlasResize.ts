@@ -43,7 +43,8 @@ export function resizeTileAtlas(
   const pinned = (index: number) => Number(pool.pinnedOf(index));
   displaced.sort((a, b) => pinned(b) - pinned(a) || pool.lastUseOf(b) - pool.lastUseOf(a));
   let evicted = 0,
-    yielding: number[] | undefined;
+    yielding: number[] | undefined,
+    yielded = 0;
   const evict = (from: WebgpuTilePool, index: number) => {
     evictTile(from, index, { pages, resident }, onEvicted);
     evicted++;
@@ -55,7 +56,7 @@ export function resizeTileAtlas(
     // A tail never leaves: the pool's floor holds every tail of its lane (`texturePoolFor`), so the
     // least looked-at streamed tile gives it its slot, and its coarse level takes over.
     if (target === undefined && tail !== undefined) {
-      const streamed = (yielding ??= next.candidates(Infinity)).shift();
+      const streamed = (yielding ??= next.candidates(Infinity))[yielded++];
       if (streamed !== undefined) {
         evict(next, streamed);
         target = next.acquire(id, pool.lastUseOf(index), true);
