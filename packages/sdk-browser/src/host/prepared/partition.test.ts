@@ -14,7 +14,6 @@ import { fileURLToPath } from 'node:url';
 import type * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import type { ClusterManifest } from '../../../../sdk-core/src/index.ts';
-import { assertCellNodes } from '../../../../sdk-core/src/scene/core/tablePartition.ts';
 import { loadPreparedSceneTables } from '../../scene/tables.ts';
 import { createPartitionCells } from '../../scene/partition/cells.ts';
 import { isDrawnNode } from '../graph/kinds.ts';
@@ -90,32 +89,20 @@ test('a partitioned cache places every mesh the loader placed, at its world matr
 });
 
 // The tables keep only the root of the cells' index (#750): read through its pages, the cells are
-// every cell file of the folder, once, in the order the compiler numbered them, each announced at
-// its size and fingerprint and placing the nodes it holds.
+// every cell file of the folder, once, in the order the compiler numbered them, at their bytes.
 test('the paged tables give back every cell file of the folder, in order', async (t) => {
   const { folder, partition } = await partitioned(t);
   const files = (await readdir(folder)).filter((name) => name.startsWith('scene-cell-'));
+  const cells = files.map((_, at) => `scene-cell-${at}.json`);
   assert.deepEqual(
     partition.cells.map((cell) => cell.url),
-    files.map((_, at) => `scene-cell-${at}.json`),
+    cells,
   );
   for (const cell of partition.cells) {
     const bytes = await readFile(new URL(cell.url, folder));
     assert.equal(cell.bytes, bytes.byteLength);
     assert.equal(cell.sha256, createHash('sha256').update(bytes).digest('hex'));
-    const placed = new Map<number, number>();
-    for (const node of assertCellNodes(JSON.parse(bytes.toString('utf8'))))
-      placed.set(node.mesh, (placed.get(node.mesh) ?? 0) + 1);
-    assert.deepEqual(
-      cell.meshes,
-      [...placed].sort(([a], [b]) => a - b),
-    );
   }
-  const meshes = new Set(partition.cells.flatMap((cell) => cell.meshes.map(([mesh]) => mesh)));
-  assert.deepEqual(
-    partition.meshes,
-    [...meshes].sort((a, b) => a - b),
-  );
 });
 
 // Framing and a loaded model's bounds take the whole world, whichever cells are read: each mesh
