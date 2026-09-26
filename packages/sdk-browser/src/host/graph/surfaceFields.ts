@@ -36,6 +36,7 @@ export const raster = () => ({
   polygonOffsetFactor: 0,
   polygonOffsetUnits: 0,
   forceSinglePass: false,
+  transparentShadow: false,
   toneMapped: true,
 });
 /** A base colour and the maps an unlit surface samples. */

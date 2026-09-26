@@ -22,6 +22,8 @@
  */
 import type { Side } from '../../../sdk-core/src/index.ts';
 import type { HostMaterials } from '../host/resources.ts';
+import type { HostShadedMaterial } from '../host/shadedMaterial.ts';
+import { unreadMapRefusal } from '../scene/surfaceModel.ts';
 import {
   firstMaterial,
   materialRaster,
@@ -55,8 +57,12 @@ export const surfaceFrontOnly = (surface: PageSurface) => surfaceSide(surface) =
 const held = new WeakMap<object, PageSurface>();
 const declarations = new WeakMap<PageSurface, HostMaterials>();
 
-/** Fills a record from a declaration, reusing the object so every holder sees the new fields. */
+/** Fills a record from a declaration, reusing the object so every holder sees the new fields. A
+ *  map its model never reads is refused by name, as the WebGL2 gate refuses it (`unreadMapRefusal`). */
 function fill(into: PageSurface, material: HostMaterials): PageSurface {
+  const host = firstMaterial(material) as HostShadedMaterial | undefined,
+    unread = host && unreadMapRefusal(host);
+  if (unread) throw new Error(unread);
   return materialRaster(material, Object.assign(into, visMaterial(material)));
 }
 
