@@ -20,7 +20,9 @@ const volumes = new Float32Array(R * SHADOW_CULL_FLOATS),
   volumeWords = new Uint32Array(volumes.buffer);
 
 test("a pass's clear and restore draws do not change when its regions go from 1 to the maximum", async () => {
-  const quads = await createShadowPageQuads(fakeDevice().device);
+  const { device } = fakeDevice();
+  const faces = device.createBuffer({ size: R * (SHADOW_FACE_STRIDE + 4), usage: 0 });
+  const quads = await createShadowPageQuads(device, faces);
   for (const [mode, most, perPass] of [
     [DRAW_ALL, R, [1]],
     [DRAW_DYNAMIC, R, [1]],
@@ -60,7 +62,7 @@ test("each quad covers exactly its page's texels, on any pool side", () => {
   // The corner lines `page_quad_vs` runs, restated below.
   assert.ok(PAGE_QUAD_SHADER.includes('return vec4f(corner*rect.zw+rect.xy,0.0,1.0);'));
   assert.ok(PAGE_QUAD_SHADER.includes('emitter:vec4f,@size(160) rect:vec4f,}'));
-  for (const side of [1, 3, 4, 37, 64]) {
+  for (const side of [1, 3, 4, 37, 64, 71, 74]) {
     const pack = createShadowRecordPack(SHADOW_FACE_STRIDE, side),
       size = side * SHADOW_PAGE;
     for (const phys of [0, side * side - 1, Math.floor((side * side) / 2), side * side + 1]) {
@@ -95,12 +97,12 @@ test('passes follow the static layer first, then the pool, each by layer, clears
   ])
     regions.push(page, mode, volumes, volumeWords);
   planPagePasses(regions, regions.count);
-  const { order, passes, layer, layered, first, clears, restores } = pagePlan;
+  const { order, passes, layerPasses, layer, first, clears, restores } = pagePlan;
   assert.equal(passes, 4);
+  assert.equal(layerPasses, 2);
   // Regions 0, 2 fill the static layer's layers 1 and 0; 1, 3, 4 restore the pool's.
   assert.deepEqual([...order.subarray(0, 5)], [2, 0, 3, 4, 1]);
   assert.deepEqual([...layer.subarray(0, 4)], [0, 1, 0, 1]);
-  assert.deepEqual([...layered.subarray(0, 4)], [1, 1, 0, 0]);
   assert.deepEqual([...first.subarray(0, 4)], [0, 1, 2, 4]);
   assert.deepEqual([...clears.subarray(0, 4)], [1, 1, 0, 0]);
   assert.deepEqual([...restores.subarray(0, 4)], [0, 0, 2, 1]);
