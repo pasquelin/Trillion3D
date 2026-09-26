@@ -75,11 +75,14 @@ export function createPhysicsJoints(
     joint._id = id;
   };
   return {
-    /** Brings the made joints in line with `joints` and with the bodies, after the bodies are. */
-    reconcile(joints: ReadonlySet<Joint>) {
+    /** Brings the made joints in line with `joints` and with the bodies, after the bodies are;
+     *  each joint on `gone`, a body out for good, breaks rather than waits for it. */
+    reconcile(joints: ReadonlySet<Joint>, gone: Object3D | null = null) {
       for (const [joint, ends] of made)
         if (!joints.has(joint) || idOf(joint.a) !== ends.a || idOf(joint.b) !== ends.b) drop(joint);
-      for (const joint of joints) if (!joint.broken && !made.has(joint)) connect(joint);
+      for (const joint of joints)
+        if (gone && (joint.a === gone || joint.b === gone)) joint._break();
+        else if (!joint.broken && !made.has(joint)) connect(joint);
     },
     /** The joints the simulation broke, by id: out, and told. */
     broke(ids: readonly number[]) {
