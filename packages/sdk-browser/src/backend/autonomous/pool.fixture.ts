@@ -1,6 +1,5 @@
 import type { GeometryPageDescriptor } from '../../../../sdk-core/src/index.ts';
 import { createGeometryBudget, type PageCopies } from './pool.ts';
-import { createPageKeys } from './poolOrder.ts';
 import type { PageRec } from '../../page/selection/selection.ts';
 import type { BackendDiagnostic } from '../types.ts';
 
@@ -33,9 +32,8 @@ export function fixture(
     if (!recs.has(url)) recs.set(url, { url } as PageRec);
     return recs.get(url)!;
   };
-  // Every page key and parent list the residency reads: its work.
+  // Every parent list the residency reads, and every record it is handed: its work.
   let work = 0;
-  const keys = createPageKeys(({ url }) => (work++, (options.parents?.[url] ?? []).map(rec)));
   let rootBytes = 0,
     rootReads = 0,
     each = options.copies ?? 1,
@@ -59,7 +57,7 @@ export function fixture(
       rootReads++;
       return rootBytes;
     },
-    pages: { ...keys, keyOf: (url) => (work++, keys.keyOf(url)) },
+    parentsOf: ({ url }) => (work++, (options.parents?.[url] ?? []).map(rec)),
     drop: (url) => {
       if (!resident.delete(url)) return;
       state.allocationBytes -= PAGE;
@@ -84,8 +82,10 @@ export function fixture(
     revision++;
   };
   /** One image asks for `asked` and draws `drawn`, then its frame ends. */
-  const keep = (asked: string[], drawn: string[] = []) =>
+  const keep = (asked: string[], drawn: string[] = []) => {
+    work += asked.length + drawn.length;
     pool.follow(asked.map(rec), drawn.map(rec));
+  };
   return {
     pool,
     state,

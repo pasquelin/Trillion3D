@@ -8,7 +8,6 @@ import type { createAutonomousGeometry } from './geometry.ts';
 import type { createAutonomousResidency } from './residency.ts';
 import { createGeometryBudget, type PageCopies } from './pool.ts';
 import type { HeldFloor } from './heldFloor.ts';
-import { createPageKeys } from './poolOrder.ts';
 import { createPageParents } from '../../residency/pageParents.ts';
 import { checkTexturePoolBudget } from '../../residency/pools.ts';
 import { sendEngineDiagnostic } from '../../diagnostic/engineDiagnostic.ts';
@@ -81,7 +80,7 @@ export function createAutonomousPool(env: {
     coverRevision: () => heldFloor.revision,
     state,
     floorBytes: heldFloor.bytes,
-    pages: createPageKeys(createPageParents(env.roots)),
+    parentsOf: createPageParents(env.roots),
     drop: residency.dropPage,
     onDiagnostic: context.onDiagnostic,
   });
