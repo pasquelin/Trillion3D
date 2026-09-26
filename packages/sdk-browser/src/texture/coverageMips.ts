@@ -1,5 +1,10 @@
+import { sharedGpuDevice } from '../gpu/core/sessionHandle.ts';
 import { COVERAGE_PICK_WGSL, COVERAGE_SCALE_WGSL } from './coverageRule.ts';
 import { levelSize } from './tiles.ts';
+
+/** Bytes of one level's 256 bins, and the offset of `t` in a level's uniform block. */
+export const LEVEL_BIN_BYTES = 1024,
+  PICKED_OFFSET = 12;
 
 /**
  * The counts of the coverage rule (docs/FORMAT.md, "Coverage-preserving alpha"): `count` files each
@@ -20,8 +25,9 @@ export const COVERAGE_WGSL = `
   let k=level.base.z;
   if(any(id.xy>=sizeOf(k))){return;}
   let p=vec2i(id.xy)*2;let hi=vec2i(level.extent.xy)-vec2i(1);
-  var a=u32(round(textureLoad(source,vec2i(id.xy),0).w*255.0));
-  if(k>0u){
+  var a:u32;
+  if(k==0u){a=u32(round(textureLoad(source,vec2i(id.xy),0).w*255.0));}
+  else{
    a=median(vec4f(textureLoad(source,min(p,hi),0).w,textureLoad(source,min(p+vec2i(1,0),hi),0).w,
     textureLoad(source,min(p+vec2i(0,1),hi),0).w,textureLoad(source,min(p+vec2i(1,1),hi),0).w));
   }
@@ -52,26 +58,23 @@ function coverageProgram(device: GPUDevice): CoverageProgram {
       { binding: 2, visibility, buffer: { type: 'storage' } },
     ],
   });
-  const module = device.createShaderModule({ code: COVERAGE_WGSL });
+  const module = device.createShaderModule({ code: COVERAGE_WGSL }),
+    pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] });
   const pipeline = (entryPoint: string) =>
-    device.createComputePipeline({
-      layout: device.createPipelineLayout({ bindGroupLayouts: [layout] }),
-      compute: { module, entryPoint },
-    });
+    device.createComputePipeline({ layout: pipelineLayout, compute: { module, entryPoint } });
   const built = { layout, count: pipeline('count'), pick: pipeline('choose') };
   programs.set(device, built);
   return built;
 }
 
-/** What a chain's counts read: its texture, the uniform blocks of `generateMaterialMips` — block
- *  `k - 1` for level `k`, the last one level 0's — and the device's bins, cleared. */
+/** What a chain's counts read: its size, its levels' views, the uniform blocks of
+ *  `generateMaterialMips`, one per level, and the device's bins, cleared. */
 export type CoverageChain = {
-  texture: GPUTexture;
   width: number;
   height: number;
+  views: GPUTextureView[];
   uniforms: GPUBuffer;
   stride: number;
-  levels: number;
   bins: GPUBuffer;
 };
 
@@ -79,18 +82,17 @@ export type CoverageChain = {
  *  level's uniform block, the one its reduction then scales by. */
 export function countCoverage(
   device: GPUDevice,
-  shared: GPUDevice,
   encoder: GPUCommandEncoder,
   chain: CoverageChain,
   level: number,
 ) {
-  const { layout, count, pick } = coverageProgram(shared);
-  const { texture, width, height, uniforms, stride, levels, bins } = chain;
+  const { layout, count, pick } = coverageProgram(sharedGpuDevice(device));
+  const { width, height, views, uniforms, stride, bins } = chain;
   const group = (block: number, source: number) =>
     device.createBindGroup({
       layout,
       entries: [
-        { binding: 0, resource: texture.createView({ baseMipLevel: source, mipLevelCount: 1 }) },
+        { binding: 0, resource: views[source] },
         { binding: 1, resource: { buffer: uniforms, offset: block * stride, size: 32 } },
         { binding: 2, resource: { buffer: bins } },
       ],
@@ -100,13 +102,14 @@ export function countCoverage(
   const dispatch = ([w, h]: [number, number]) =>
     pass.dispatchWorkgroups(Math.ceil(w / 8), Math.ceil(h / 8));
   if (level === 1) {
-    pass.setBindGroup(0, group(levels - 1, 0));
+    pass.setBindGroup(0, group(0, 0));
     dispatch([width, height]);
   }
-  pass.setBindGroup(0, group(level - 1, level - 1));
+  pass.setBindGroup(0, group(level, level - 1));
   dispatch(levelSize(width, height, level));
   pass.setPipeline(pick);
   pass.dispatchWorkgroups(1);
   pass.end();
-  encoder.copyBufferToBuffer(bins, level * 1024, uniforms, (level - 1) * stride + 12, 4);
+  const picked = level * stride + PICKED_OFFSET;
+  encoder.copyBufferToBuffer(bins, level * LEVEL_BIN_BYTES, uniforms, picked, 4);
 }

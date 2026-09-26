@@ -89,8 +89,8 @@ export function samplingHeaders(color: WebgpuTileAtlas, data: WebgpuTileAtlas) {
 function coverageRules(atlas: WebgpuTileAtlas) {
   let readers: CoverageReaders | undefined;
   const hosts = new Map<number, { map: Texture; rule: number }>();
-  /** The chain's rule as one number: 0 plain, else 1 + its cutoff byte (#748). */
-  const ruleOf = (map: Texture) => (readers?.weighs(map) ? 1 + readers.cutoff(map) : 0);
+  /** The chain's rule: its cutoff byte where it weighs by alpha (#748), -1 plain. */
+  const ruleOf = (map: Texture) => (readers?.weighs(map) ? readers.cutoff(map) : -1);
   for (const [slot, { source }] of atlas.textures.entries())
     if (source.kind === 'host' && (readers ??= source.coverage))
       hosts.set(slot, { map: source.map, rule: ruleOf(source.map) });
