@@ -5,8 +5,7 @@ import {
 } from '../../../../sdk-core/src/index.ts';
 import type { ConeContext } from '../cone/cone.ts';
 import { worldStretch } from './logic.ts';
-import { heldReadiness } from './held.ts';
-import { RESIDENT_ALL, selectionScratch, type PageRecord, type SelectionState } from './state.ts';
+import { selectionScratch, type PageRecord, type SelectionState } from './state.ts';
 import { traverse } from './visit.ts';
 import type { ClusterRoot } from '../selection/types.ts';
 import { SPRITE_UNCULLED } from '../../visibility/shader/spriteWgsl.ts';
@@ -59,6 +58,6 @@ export function selectFlat<T extends PageRecord>(s: SelectionState<T>, root: Clu
   if (openToCamera(s, root)) planes.set(OPEN_PLANES);
   // The cut rule's residency, when the cut holds any: the nearest resident representation of each
   // surface is then drawn, the wanted cluster or its nearest resident ancestor (`./rule.ts`).
-  s.flatHeld = s.residentMode === RESIDENT_ALL ? undefined : heldReadiness(s, root);
+  s.flatHeld = s.held?.readiness(s, root);
   traverse(s, pages, root.culling);
 }
