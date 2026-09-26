@@ -1,4 +1,5 @@
 import { visMaterial } from '../../visibility/shader/material.ts';
+import { surfaceOpacity } from '../../page/surface.ts';
 import { writeSpriteWords } from '../../visibility/shader/spriteWgsl.ts';
 import { SURFACE_MODEL, readsOcclusion, shownAsIs } from '../../scene/surfaceModel.ts';
 import { writeDepthRamp } from '../../camera/depthConvention.ts';
@@ -73,7 +74,8 @@ export function bindClusterMaterial(
     mat.baseColor[0],
     mat.baseColor[1],
     mat.baseColor[2],
-    material.transparent ? source.opacity : 1,
+    // glTF 2.0 cuts the colour factor's alpha times the map's, as WebGPU's `maskKeep` (#769).
+    material.transparent || mat.alphaTest > 0 ? surfaceOpacity(source) : 1,
   );
   uniforms.f1(4, 'metalFactor', mat.metalness);
   uniforms.f1(5, 'roughFactor', mat.roughness);
