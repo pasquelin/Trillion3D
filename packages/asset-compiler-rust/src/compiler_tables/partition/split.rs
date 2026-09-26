@@ -1,8 +1,7 @@
 //! How placed nodes are grouped into cells: halved along the widest axis of their centres until
 //! a cell's bytes fit one stream unit. Nothing here is a distance: the runtime derives when to
-//! read a cell from its boxes and its own camera. The halving is kept as a tree: each of its
-//! nodes holds a contiguous range of cells, which is what the paged cell index is cut from
-//! (`pages.rs`).
+//! read a cell from its boxes and its own camera. The halving is kept: the paged cell index is cut
+//! from its tree (`pages.rs`).
 use super::*;
 use std::ops::Range;
 
@@ -21,8 +20,7 @@ impl Placed {
     }
 }
 
-/// A node of the halving tree: the cells it holds, in cell order, and its two halves unless it
-/// is one cell.
+/// A node of the halving tree: its contiguous range of cells, and its halves unless it is one.
 pub(crate) struct Region {
     pub cells: Range<usize>,
     pub halves: Option<Box<[Region; 2]>>,

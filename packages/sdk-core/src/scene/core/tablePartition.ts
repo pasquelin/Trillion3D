@@ -104,11 +104,8 @@ function slotPage(slot: unknown) {
   return { page: { url: `scene-page-${sha256}.json`, bytes, sha256 }, bounds };
 }
 
-/**
- * The partition under `root`: every page read through `read` — which hands back its bytes once
- * they are the ones the slot announced — the pages of one level side by side, the cells in their
- * order. The box around every cell is the union of the root's; the meshes are those the cells place.
- */
+/** The partition under `root`, its pages read through `read` (which verifies them against their
+ *  slot) a level at a time: the cells in order, the union of the root's boxes, the meshes placed. */
 export async function readTablePartition(
   root: TablePartitionRoot,
   read: (page: TablePage) => Promise<Uint8Array>,
