@@ -3,8 +3,9 @@
  * `spriteAt`; `../../guides/guideShaders.ts`: `guideCorner`) on the CPU: a small reader of the
  * few statements and expressions they are written in — declarations, compound assignments, one
  * guarded return or assignment, arithmetic on scalars, vectors and column-major matrices, column
- * indexing, swizzles, `select`, `?:`, `length`, `normalize`, `floor`, `cos`, `sin`, the vector
- * constructors and the functions of other texts a caller names. The tests then measure
+ * indexing, swizzles, `select`, `?:`, `length`, `normalize`, `floor`, `cos`, `sin`, `dot`,
+ * `cross`, `max`, `mix`, `smoothstep`, unsigned literals, the vector constructors and the functions
+ * of other texts a caller names. The tests then measure
  * what the real text does, in WGSL and in GLSL, instead of a copy of its formula. The cut rule's
  * integer and boolean subset is read by `../../page/cut/wgslPredicate.fixture.ts`.
  */
@@ -46,6 +47,21 @@ const CALLS: Record<string, Call> = {
   floor: (v) => Math.floor(v as number),
   cos: (v) => Math.cos(v as number),
   sin: (v) => Math.sin(v as number),
+  dot: (a, b) => (a as number[]).reduce((sum, x, i) => sum + x * (b as number[])[i], 0),
+  cross: (a, b) => {
+    const [x, y, z] = a as number[],
+      [u, v, w] = b as number[];
+    return [y * w - z * v, z * u - x * w, x * v - y * u];
+  },
+  max: (a, b) => Math.max(a as number, b as number),
+  mix: (a, b, t) => (a as number) * (1 - (t as number)) + (b as number) * (t as number),
+  smoothstep: (from, to, x) => {
+    const t = Math.min(
+      1,
+      Math.max(0, ((x as number) - (from as number)) / ((to as number) - (from as number))),
+    );
+    return t * t * (3 - 2 * t);
+  },
 };
 const vector = (...args: Value[]) => args.flat() as number[];
 
@@ -172,7 +188,8 @@ export function runShaderText<Result = number[]>(source: string, calls: Scope = 
   const open = source.indexOf('{');
   const params = topLevel(source.slice(source.indexOf('(') + 1, source.indexOf(')')));
   const names = params.map((p) => p.trim().split(/[\s:]+/)[p.includes(':') ? 0 : 1]);
-  const body = source.slice(open + 1, source.lastIndexOf('}'));
+  // A WGSL unsigned literal reads as its number.
+  const body = source.slice(open + 1, source.lastIndexOf('}')).replace(/(\d)u\b/g, '$1');
   const statements = body
     .split(/;|\n/)
     .map((s) => s.trim())
