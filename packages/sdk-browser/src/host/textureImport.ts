@@ -76,7 +76,6 @@ function fillPicture(entry: Imported) {
   record.channel = host.channel;
   record.flipY = host.flipY;
   record.premultiplyAlpha = host.premultiplyAlpha;
-  record.generateMipmaps = host.generateMipmaps;
   record.colorSpace = host.colorSpace === 'srgb' ? 'srgb' : 'linear';
   entry.hostVersion = host.version;
   entry.image = host.image;
