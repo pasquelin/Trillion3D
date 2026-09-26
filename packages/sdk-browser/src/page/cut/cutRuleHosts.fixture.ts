@@ -12,7 +12,7 @@ import type { RuleDag } from './cutRule.fixture.ts';
 import type { ClusterRoot, PageRec } from '../selection/types.ts';
 
 /** A backend holding the rule's readiness in `held`; `reads` counts the residency answers. */
-export type HostBackend = CutBackend & { held: HeldResidency; reads: () => number };
+type HostBackend = CutBackend & { held: HeldResidency; reads: () => number };
 
 /** Pages by packed index, as `placements` lays them out. */
 const ids = (list: readonly PageRec[]) => list.map((page) => page.packedIndex!);
