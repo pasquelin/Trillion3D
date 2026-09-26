@@ -47,10 +47,9 @@ export const webgpuPagesBackend: BackendFactory = (context) => {
   // Integer record of a request, set once per address: that is all off-thread integration
   // receives from an arrival.
   const pageSpecs = createArrivalSpecs(setup.byUrl, rt.layout.rows.pageIndexOf);
-  // The device this session holds until it is disposed; the preparation running, settled or not.
-  let claim: GpuDeviceClaim | undefined,
-    preparing: Promise<unknown> | undefined,
-    closing: Promise<void> | undefined;
+  // The device this session holds until it is disposed; the preparation running is
+  // `setup.preparing`, settled or not.
+  let claim: GpuDeviceClaim | undefined, closing: Promise<void> | undefined;
   const backend: WebgpuPagesBackend = {
     id: 'webgpu-page-raster',
     capabilities: rt.capabilities,
@@ -96,14 +95,14 @@ export const webgpuPagesBackend: BackendFactory = (context) => {
       installGpuDeviceLedger(claim.device, { base });
       const building = prepareWebgpuBackend(rt, claim.device);
       // A report of `setMemoryBudgets` made meanwhile waits for it (`io/memory.ts`).
-      preparing = rt.setup.granting = building.catch(() => {});
+      setup.preparing = building.catch(() => {});
       try {
         await building;
       } catch (error) {
         if (!isCancelled(rt.signal)) diag.diagnosticFailure('webgpu-prepare-failed', error);
         throw error;
       } finally {
-        preparing = rt.setup.granting = undefined;
+        setup.preparing = undefined;
       }
     },
     render(camera) {
@@ -189,8 +188,8 @@ export const webgpuPagesBackend: BackendFactory = (context) => {
       rt.closer.abort();
       claim?.release();
       markWebgpuLost(rt);
-      return (closing ??= preparing
-        ? preparing.then(() => disposeWebgpuPages(rt))
+      return (closing ??= setup.preparing
+        ? setup.preparing.then(() => disposeWebgpuPages(rt))
         : disposeWebgpuPages(rt));
     },
   };
