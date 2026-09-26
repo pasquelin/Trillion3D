@@ -64,7 +64,7 @@ export function materialRaster<T extends MaterialRaster>(material: HostMaterials
     : !!material?.transparent;
   into.blending = blendingOf(first?.blending as number | undefined);
   into.forceSinglePass = !!first?.forceSinglePass;
-  into.transparentShadow = first?.transparentShadow === true;
+  into.transparentShadow = !!first?.transparentShadow;
   into.grouped = Array.isArray(material);
   return into;
 }

@@ -12,6 +12,8 @@ import { hostBlending } from '../../scene/materialBlending.ts';
 import { hostSide } from '../../scene/materialSide.ts';
 import { LINE_DEPTH_LAYER, depthLayerUnits } from '../../../../sdk-core/src/lod/depthLayer.ts';
 import { lineDash } from '../../visibility/shader/lineWgsl.ts';
+import { castsBlendShadow } from '../../gpu/shadow/transmittance.ts';
+import { surfaceOf } from '../../page/surface.ts';
 
 // #335: a repainted entry writes its values into the surface the session already holds, and the
 // version bump is what the page rows reread it on (`page/surface.ts`).
@@ -186,4 +188,13 @@ test('a dashed line surface carries its dash and gap, and a repaint writes them'
   assert.equal(solid.dashSize, undefined);
   repaintHostSurface(solid, material.line());
   assert.equal(importHostSurface(solid)?.dashSize, undefined);
+});
+
+// #35, the boss's beam (`site/examples/a-lighthouse-beam.html`): its air casts no shadow unasked.
+test('a see-through world material casts a shadow only when it asks with transparentShadow', () => {
+  const air = { color: '#fff2cc', transparent: true, opacity: 0.22, depthWrite: false };
+  const surface = (asked?: boolean) =>
+    hostSurface(material.meshBasic({ ...air, transparentShadow: asked }), false, new Map());
+  const casts = (asked?: boolean) => castsBlendShadow(surfaceOf(surface(asked)));
+  assert.deepEqual([casts(), casts(false), casts(true)], [false, false, true]);
 });
