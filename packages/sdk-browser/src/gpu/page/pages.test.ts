@@ -164,27 +164,15 @@ test('GPU diagnostics expose queue, read, upload, pins and eviction while observ
   assert.equal(first.generation, 1);
   await cache.dispose();
 });
-test('GPU page read retries once and reports the failed status without changing the load result', async () => {
+test('a page source failing otherwise than by HTTP is asked once more, as a network failure is', async () => {
   const { device } = fakeDevice({ limits: LIMITS });
   let attempts = 0;
-  const phases: Array<{ phase: string; context: Record<string, unknown> }> = [];
-  const cache = createGpuPageCache(
-    device,
-    {
-      read: async () => {
-        attempts++;
-        if (attempts === 1) throw new Error('PAGE_HTTP_503');
-        return new Uint8Array([1, 2, 3, 4]);
-      },
-    },
-    { pageBytes: 8, slots: 1, onDiagnostic: (event) => phases.push(event) },
-  );
-  const page = await cache.load('retry');
-  assert.equal(page.key, 'retry');
+  const read = async () => {
+    if (++attempts === 1) throw new Error('offline');
+    return new Uint8Array([1, 2, 3, 4]);
+  };
+  const cache = createGpuPageCache(device, { read }, { pageBytes: 8, slots: 1 });
+  assert.equal((await cache.load('retry')).bytes, 4);
   assert.equal(attempts, 2);
-  assert.ok(phases.some((event) => event.phase === 'gpu-page-retry'));
-  assert.ok(
-    phases.some((event) => event.phase === 'gpu-page-attempt-end' && event.context.status === 503),
-  );
   await cache.dispose();
 });

@@ -1570,8 +1570,8 @@
       "WEBGL2_UNAVAILABLE": "La macchina non può disegnare nel modo richiesto, o per niente.",
       "NO_WEBGL2": "La macchina non può disegnare nel modo richiesto, o per niente.",
       "NO_ENGINE_BACKEND": "La macchina non può disegnare nel modo richiesto, o per niente.",
-      "RESOURCE_HTTP_ERROR": "Un file non è stato recuperabile, o non era ciò che doveva essere.",
-      "INVALID_JSON_RESPONSE": "Un file non è stato recuperabile, o non era ciò che doveva essere.",
+      "RESOURCE_HTTP_ERROR": "Un file non è stato recuperabile — richiesto di nuovo prima, quando l’errore può passare —, o non era ciò che doveva essere.",
+      "INVALID_JSON_RESPONSE": "Un file non è stato recuperabile — richiesto di nuovo prima, quando l’errore può passare —, o non era ciò che doveva essere.",
       "INVALID_POINTER": "Il puntatore del modello compilato è rotto, incompleto, o di un altro ambito.",
       "CACHE_NOT_READY": "Il puntatore del modello compilato è rotto, incompleto, o di un altro ambito.",
       "SCOPE_MISMATCH": "Il puntatore del modello compilato è rotto, incompleto, o di un altro ambito.",
@@ -7129,7 +7129,7 @@
       "water": "L’acqua in cui galleggiano i corpi: livello, onde, densità e resistenze. Un corpo più leggero dell’acqua galleggia, spinto dal peso dell’acqua che sposta.",
       "waterSurface": "La superficie dell’acqua all’ora della simulazione, per disegnarla: le onde lette dal galleggiamento, gli stessi numeri (`height`, `point`, `normal`).",
       "stats": "Conteggi ed entrambi gli orologi: millisecondi del worker per passo, millisecondi della pagina per fotogramma.",
-      "error": "L’ultimo errore della fisica (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), oppure `null`. Un errore che ha fermato la simulazione disattiva `enabled`.",
+      "error": "L’ultimo errore della fisica (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`, `RESOURCE_HTTP_ERROR`), oppure `null`. Un errore che ha fermato la simulazione disattiva `enabled`.",
       "add": "Aggiunge un giunto (`joint.hinge(door, frame, …)` e simili): viene creato appena entrambi i corpi sono simulati e tiene finché non viene tolto o si rompe.",
       "remove": "Toglie un giunto: i corpi che teneva si separano liberamente."
     }
@@ -7337,7 +7337,7 @@
       "water": "L’acqua in cui galleggiano i corpi: livello, onde, densità e resistenze. Un corpo più leggero dell’acqua galleggia, spinto dal peso dell’acqua che sposta.",
       "waterSurface": "La superficie dell’acqua all’ora della simulazione, per disegnarla: le onde lette dal galleggiamento, gli stessi numeri (`height`, `point`, `normal`).",
       "stats": "Conteggi ed entrambi gli orologi: millisecondi del worker per passo, millisecondi della pagina per fotogramma.",
-      "error": "L’ultimo errore della fisica (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), oppure `null`. Un errore che ha fermato la simulazione disattiva `enabled`.",
+      "error": "L’ultimo errore della fisica (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`, `RESOURCE_HTTP_ERROR`), oppure `null`. Un errore che ha fermato la simulazione disattiva `enabled`.",
       "add": "Aggiunge un giunto (`joint.hinge(door, frame, …)` e simili): viene creato appena entrambi i corpi sono simulati e tiene finché non viene tolto o si rompe.",
       "remove": "Toglie un giunto: i corpi che teneva si separano liberamente."
     }
