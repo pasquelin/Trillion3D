@@ -10,11 +10,11 @@ import { createSparseInts } from '../page/cut/sparseInts.ts';
  * held for `idleWindow` frames — as many as the engine's frame pipeline may still draw it in —,
  * then is released, oldest first: the caller unpins it. It was sent to the far end of the cache's
  * order when it went idle (`onIdle`), so the cache reclaims released pages in their last-use order,
- * and ahead of the pages a lower tier moved there since (`residentEnsurer.ts`), which some view
- * still wants. Under pressure — more kept pages to load than the pool has unpinned slots — the
- * window gives way first: that many idle pages are released early, still oldest first, so the window
- * never costs the image a page it asks for. A page within its window that is still loading asks
- * for no slot: the image no longer wants it.
+ * and ahead of the pages a lower tier moved there since (`../webgpu/residency/residentEnsurer.ts`),
+ * which some view still wants. Under pressure — more kept pages to load than the pool has unpinned
+ * slots — the window gives way first: that many idle pages are released early, still oldest first,
+ * so the window never costs the image a page it asks for. A page within its window that is still
+ * loading asks for no slot: the image no longer wants it.
  *
  * A page also stays held while a held page depends on it (`parentsOf`): holding a page holds its
  * parents, and a parent its last held child lets go of starts its own window then. A parent
