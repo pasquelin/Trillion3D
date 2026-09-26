@@ -61,6 +61,10 @@ export function createPageRects() {
    *  box's light-plane rectangle, edges included. Returns the pages covered. */
   function sunRects(sun: SunLevels, slice: number, min: ArrayLike<number>, max: ArrayLike<number>) {
     sunBoxRect(sun.frame, slice * 9, min, max, plane, 0);
+    // A bound that is no number — `NaN`, or `0 · ∞` on an axis the frame does not lean on — bounds
+    // nothing on that side: the box covers the extent's edge there, never none.
+    for (let side = 0; side < 4; side++)
+      if (Number.isNaN(plane[side])) plane[side] = side & 1 ? Infinity : -Infinity;
     let covered = 0;
     for (let view = 0; view < SUN_LEVELS; view++) {
       const level = sun.finest[slice] + view,

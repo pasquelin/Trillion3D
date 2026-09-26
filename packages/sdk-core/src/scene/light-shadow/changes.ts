@@ -101,7 +101,8 @@ export function createShadowChanges(capacity: number) {
     },
     /**
      * Influence sphere of a light against box `box`: an analytic test, not a ray. A
-     * light without range — the sun — sees everything that moves, and therefore always returns true.
+     * light without range — the sun — sees everything that moves, and therefore always returns true;
+     * so does a box that bounds nothing finite (`NaN`): nothing proves it out of reach.
      */
     touches(box: number, x: number, y: number, z: number, range: number) {
       const base = box * 3;
@@ -114,7 +115,7 @@ export function createShadowChanges(capacity: number) {
         const gap = Math.max(min[base + axis] - point[axis], point[axis] - max[base + axis], 0);
         squared += gap * gap;
       }
-      return squared <= range * range;
+      return !(squared > range * range);
     },
     /** Box `box` in two reused arrays — its minima, its maxima —, whether it moves alone, and
      *  whether it is a change of detail alone. */
