@@ -1,10 +1,5 @@
 import {
-  LAYER,
-  MOTION,
-  SHAPE,
-  physicsMatterOf,
   readCookedPhysics,
-  type BodyRecord,
   type CookedInstance,
   type CookedPhysics,
   type CookedTile,
@@ -17,7 +12,7 @@ import { Vector3 } from '../../../sdk-core/src/world/math/vector3.ts';
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
 import type { Bodied } from './bodies.ts';
 import { resolveCameraWorld } from '../camera/world.ts';
-import { checked } from '../cluster/pages.ts';
+import { checked, type FetchPolicy } from '../cluster/pages.ts';
 
 /** A compiled model as the streamer reads it (`LoadedModel`): where its files are. */
 export type Model = Object3D & { isLoadedModel: true; record: { base: string } };
@@ -50,14 +45,19 @@ const place = new Matrix4(),
   bounds = new Box3();
 
 /** The bytes of a cooked object beside `model`'s manifest — a tile, a soft body's settings —
- *  read as every cache file is (`checked`), until `signal` aborts. */
-export async function cookedBytes(model: Model, url: string, signal?: AbortSignal) {
-  const response = await checked(new URL(url, model.record.base).href, signal);
+ *  read as every cache file is (`checked`, by `policy`), until `signal` aborts. */
+export async function cookedBytes(
+  model: Model,
+  url: string,
+  signal: AbortSignal,
+  policy?: FetchPolicy & { optional?: false },
+) {
+  const response = await checked(new URL(url, model.record.base).href, signal, policy);
   return new Uint8Array(await response.arrayBuffer());
 }
 
 /** The cooked physics beside `model`'s manifest (`physics.json`), until `signal` aborts; `null`
- *  for a model compiled before the cook, which has no file (404). */
+ *  for a model compiled before the cook, which has none. */
 export async function cookedPhysics(model: Model, signal: AbortSignal) {
   const url = new URL('physics.json', model.record.base).href;
   const response = await checked(url, signal, { optional: true });
@@ -94,29 +94,6 @@ export function tilePose(p: { model: Model; instance: Omit<CookedInstance, 'coll
     .multiplyMatrices(resolveCameraWorld(p.model).matrixWorld, local)
     .decompose(position, turn, size);
   return { place, position: position.elements, quaternion: turn.elements, scale: size };
-}
-
-/** The static body of tile `p`, its shape restored into `handle`: at its pose, gripping and bouncing
- *  as its node's collider declares over the engine's default, as every body does. */
-export function tileBody(p: Placed, handle: number): BodyRecord {
-  const { position, quaternion, scale } = tilePose(p);
-  const matter = physicsMatterOf(p.instance);
-  return {
-    id: p.id,
-    motion: MOTION.static,
-    layer: LAYER.static,
-    shape: SHAPE.cooked,
-    flags: 0,
-    position,
-    quaternion,
-    size: [scale.x, scale.y, scale.z],
-    mass: 0,
-    density: 0,
-    friction: matter.friction,
-    restitution: matter.restitution,
-    gravityScale: 1,
-    indices: [handle],
-  };
 }
 
 /** Places a tile's world box from its pose. */

@@ -1,7 +1,11 @@
 import type { EngineError } from '../../../sdk-core/src/contracts/cache.ts';
 import {
   BODY_INDEX,
+  LAYER,
+  MOTION,
+  SHAPE,
   physicsBudgetError,
+  physicsMatterOf,
   type CommandWriter,
   type PhysicsBudget,
 } from '../../../sdk-core/src/physics/index.ts';
@@ -15,12 +19,12 @@ import {
   locate,
   moversOf,
   placedOf,
-  tileBody,
   tilePose,
   type Model,
   type Placed,
 } from './tilePlace.ts';
 import { boxPointDistance } from '../../../sdk-core/src/math/primitives/box.ts';
+import { ONE_REQUEST } from '../cluster/pages.ts';
 
 /** Tile fetches in flight at once. */
 const FETCHES = 8;
@@ -40,28 +44,27 @@ export function createTileStreamer(
   failed: (error: EngineError) => void,
 ) {
   /** Each open model's opening: its tiles, empty until its file lands, and the abort its leaving
-   *  lets go of its reads by. One that left and came back while its file was on its way lands
-   *  once, from the later opening. */
+   *  lets go of its reads by — so one that left and came back while its file was on its way
+   *  lands once, from the later opening. */
   type Opening = { placed: Placed[]; abort: AbortController };
   const models = new Map<Model, Opening>();
-  /** Reports a failed read, but for one its model let go of by leaving. */
-  const unlessLeft = (signal: AbortSignal) => (error: unknown) =>
-    signal.aborted || failed(error as EngineError);
   const softs = createCookedSoftBodies(writer, bodies, invalidate, failed);
   let fetching = 0,
     overBudget = false;
   function open(model: Model) {
     const opening: Opening = { placed: [], abort: new AbortController() };
+    const { signal } = opening.abort;
     models.set(model, opening);
-    cookedPhysics(model, opening.abort.signal)
+    cookedPhysics(model, signal)
       .then((cooked) => {
         // A model compiled before the cook collides nowhere, as before.
-        if (!cooked || models.get(model) !== opening) return;
+        if (!cooked || signal.aborted) return;
         opening.placed.push(...placedOf(model, cooked));
-        softs.open(model, cooked.softBodies);
+        softs.open(model, cooked.softBodies, signal);
         invalidate();
       })
-      .catch(unlessLeft(opening.abort.signal));
+      // A read its model let go of by leaving is no failure.
+      .catch((error) => signal.aborted || failed(error as EngineError));
   }
   const evict = (p: Placed) => {
     if (p.id < 0) return;
@@ -75,23 +78,32 @@ export function createTileStreamer(
     softs.forget(model);
   };
   async function load(p: Placed) {
-    const opening = models.get(p.model)!,
-      { signal } = opening.abort;
+    const { signal } = models.get(p.model)!.abort;
     p.loading = true;
     fetching++;
     try {
-      const bytes = await cookedBytes(p.model, p.tile.url, signal);
+      // One request: a tile still wanted is asked again at the next update.
+      const bytes = await cookedBytes(p.model, p.tile.url, signal, ONE_REQUEST);
       // Its model left, or was opened again meanwhile: this tile is no longer one it holds.
-      if (models.get(p.model) !== opening) return;
+      if (signal.aborted) return;
       p.id = bodies.claim(p.tile.triangles, 0, { model: p.model, tile: p });
       const handle = p.id & BODY_INDEX;
+      const { position, quaternion, scale } = tilePose(p);
+      // The matter the node's collider declares, over the engine's default, as for every body.
+      const matter = physicsMatterOf(p.instance);
       // Restored, built into one static body, and its handle dropped: the body keeps the shape.
       writer.restore(handle, bytes);
-      writer.add(tileBody(p, handle));
+      writer.add({
+        ...{ id: p.id, motion: MOTION.static, layer: LAYER.static, shape: SHAPE.cooked },
+        ...{ flags: 0, position, quaternion, size: [scale.x, scale.y, scale.z] },
+        ...{ mass: 0, density: 0, friction: matter.friction, restitution: matter.restitution },
+        ...{ gravityScale: 1, indices: [handle] },
+      });
       writer.release(handle);
       invalidate();
     } catch (error) {
-      unlessLeft(signal)(error);
+      // Its model left: the read was let go, which is no failure.
+      if (!signal.aborted) failed(error as EngineError);
     } finally {
       p.loading = false;
       fetching--;
