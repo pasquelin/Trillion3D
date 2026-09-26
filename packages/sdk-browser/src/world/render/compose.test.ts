@@ -10,6 +10,7 @@ import type { HostDrawOutput, RenderBackend } from '../../backend/types.ts';
 import { createFrameComposer } from './compose.ts';
 import { createWebglRenderTarget } from '../../webgl/core/renderTarget.ts';
 import { createTestContext } from '../../webgl/core/testContext.fixture.ts';
+import { ParticlePool } from '../../../../sdk-core/src/fluids/particles.ts';
 
 const camera = G.perspectiveCamera();
 
@@ -117,4 +118,13 @@ test('an engine that draws nothing on the host surface is refused by name', () =
   const compose = createFrameComposer(gl, camera);
   const backend = { id: 'mute', scene: {} } as unknown as RenderBackend;
   assert.throws(() => compose(backend, null), /HOST_DRAW_UNSUPPORTED:mute/);
+});
+
+test('a world with a particle pool is refused by name on WebGL2, never drawn without it', () => {
+  const { gl } = createTestContext();
+  const particles = [new ParticlePool({ capacity: 8 })];
+  const compose = createFrameComposer(gl, camera, { particles });
+  const { backend, outputs } = engine();
+  assert.throws(() => compose(backend, null), /^Error: PARTICLES_UNSUPPORTED/);
+  assert.deepEqual([outputs.length, particles[0].moving], [0, false], 'refused, it asks no frame');
 });
