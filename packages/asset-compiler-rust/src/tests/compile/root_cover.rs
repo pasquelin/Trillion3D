@@ -4,10 +4,9 @@
 //! face lies within twice its error of the model (what `signature-architecture` lost:
 //! `dag/vanished.rs`). The cook refuses a parent error below a child's, so a cook that passes
 //! keeps its errors monotone.
-use super::chalet_fixture::{push_box, push_log};
+use super::closed_parts::{mesh_fixture, push_box, push_log};
 use super::silhouette::{page_cuts, page_indices, Mesh};
 use super::site_scene::cook_site_scene;
-use super::thin_walls::mesh_fixture;
 use super::*;
 use crate::dag::bounds::bounding_sphere;
 use crate::dag::clusters::weld_positions;

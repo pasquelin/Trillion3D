@@ -1,4 +1,5 @@
 //! A committed site scene cooked by the compiler's tests, and the source it was cooked from.
+use super::silhouette::Mesh;
 use super::*;
 
 /// A committed site scene, cooked.
@@ -33,6 +34,23 @@ impl SiteScene {
     /// The source indices of cooked `primitive`.
     pub fn indices(&self, primitive: &Value) -> Vec<u32> {
         self.source(primitive, None).collect_u32().expect("indices")
+    }
+
+    /// The source of cooked `primitive`: its positions, normals and indices.
+    pub fn mesh(&self, primitive: &Value) -> Mesh {
+        let points = |flat: Vec<f32>| {
+            flat.as_chunks::<3>()
+                .0
+                .iter()
+                .map(|p| p.map(f64::from))
+                .collect()
+        };
+        let normals = self.source(primitive, Some("NORMAL")).collect_f32();
+        Mesh {
+            positions: points(self.positions(primitive)),
+            normals: points(normals.expect("normals")),
+            indices: self.indices(primitive),
+        }
     }
 }
 
