@@ -1,4 +1,5 @@
 import type { ObjectPhysics } from '../../../../sdk-core/src/physics/objectPhysics.ts';
+import { DAMPING } from '../../../../sdk-core/src/physics/layout.ts';
 import type { PhysicsOption } from '../../../../sdk-core/src/physics/options.ts';
 
 /**
@@ -8,27 +9,28 @@ import type { PhysicsOption } from '../../../../sdk-core/src/physics/options.ts'
  * included, so the declaration is plain JSON.
  */
 export function savedPhysics(body: ObjectPhysics): PhysicsOption {
-  const { soft } = body;
+  const { soft, damping } = body;
   const declared = soft
     ? {
         type: soft.type,
-        pins: [...soft.pins],
-        stretch: soft.stretch,
+        pins: soft.pins.length ? [...soft.pins] : undefined,
+        stretch: soft.stretch || undefined,
         bend: Number.isFinite(soft.bend) ? soft.bend : undefined,
-        pressure: soft.pressure,
-        damping: { linear: body.damping.linear },
+        pressure: soft.type === 'volume' ? soft.pressure : undefined,
+        damping: damping.linear === DAMPING ? undefined : { linear: damping.linear },
       }
     : {
         type: body.type,
         shape: body.shape,
-        sensor: body.sensor,
-        ccd: body.ccd,
-        decorative: body.decorative,
-        damping: { ...body.damping },
+        sensor: body.sensor || undefined,
+        ccd: body.ccd || undefined,
+        decorative: body.decorative || undefined,
+        damping:
+          damping.linear === DAMPING && damping.angular === DAMPING ? undefined : { ...damping },
       };
   const shared = {
     mass: body.mass,
-    gravityScale: body.gravityScale,
+    gravityScale: body.gravityScale === 1 ? undefined : body.gravityScale,
     friction: body.friction,
     restitution: body.restitution,
   };
