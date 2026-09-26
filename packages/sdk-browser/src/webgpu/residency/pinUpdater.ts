@@ -34,14 +34,26 @@ export function createWebgpuPinUpdater(options: {
   const { traceEnabled, traceDiagnostic } = options;
   /** Kept keys the cache cannot pin yet: their bytes have not arrived. */
   const waiting = createDenseKeySet();
+  /** A held key the cache has not pinned yet waits for its bytes. */
+  const want = (key: number) => {
+    if (!tracking.pinned.has(key)) waiting.add(key);
+  };
   const lastUse = createLastUse({
     keyOf: tracking.keyOf,
     parentsOf: options.parentsOf,
     kept: tracking.keep.has,
-    onHeld: (key) => {
-      if (!tracking.pinned.has(key)) waiting.add(key);
-    },
+    onHeld: want,
   });
+  /** The cache of the running update, read by the release callback built once below. */
+  let current: Cache;
+  const unpin = (key: number) => {
+    waiting.remove(key);
+    if (!tracking.pinned.remove(key)) return;
+    const url = tracking.pageCatalog[key];
+    if (traceEnabled) removed.push(url);
+    current.unpin(url);
+    current.touch(url);
+  };
   /**
    * What the pin sample publishes: the image's DELTA, never the pinned set. Copying and filtering
    * it cost four walks of the cut per image as soon as trace was requested, while pins change by a
@@ -64,24 +76,18 @@ export function createWebgpuPinUpdater(options: {
     for (let i = entering.count - 1; i >= 0; i--) {
       const key = entering.list[i];
       lastUse.use(key, enteringPages[i]);
-      if (!tracking.pinned.has(key)) waiting.add(key);
+      want(key);
     }
     entering.clear();
     // Released oldest first, each sent to the far end of the cache's order as it is unpinned: the
     // cache then reclaims the released pages in their last-use order.
-    lastUse.release(frame, (key) => {
-      waiting.remove(key);
-      if (!tracking.pinned.remove(key)) return;
-      const url = tracking.pageCatalog[key];
-      if (traceEnabled) removed.push(url);
-      cache.unpin(url);
-      cache.touch(url);
-    });
+    current = cache;
+    lastUse.release(frame, unpin);
     // A host page drop unpins behind this path's back; a key it still keeps goes back in the queue.
     const notices = tracking.unpinned;
     for (let i = 0; i < notices.length; i++) {
       const key = notices[i];
-      if (lastUse.holds(key) && !tracking.pinned.has(key)) waiting.add(key);
+      if (lastUse.holds(key)) want(key);
     }
     notices.length = 0;
     // Residency is asked of the cache only for a key that is not pinned yet, which is a handful per
