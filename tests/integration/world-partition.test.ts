@@ -27,7 +27,7 @@ type Primed = { bytes: number; cells: { cells: number; held: number; rows: numbe
 
 /** The page's camera: 60°, a 300 m far plane, in the middle of the smaller world; the canvas
  *  stand-in is 16:9. */
-const REACH = cellReach({ fov: 60, aspect: 16 / 9, far: 300 });
+const REACH = cellReach({ fov: 60, aspect: 16 / 9, near: 0.1, far: 300, zoom: 1 });
 function pageCamera() {
   const camera = new Camera('perspective', { fov: 60, near: 0.1, far: 300 });
   camera.position.set(48 * SPACING, 2, 48 * SPACING);

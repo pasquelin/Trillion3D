@@ -6,6 +6,7 @@ import { createWebgpuRowSlots } from './slots.ts';
 import { rowHasGeometry } from './pageRow.ts';
 import { awaitsPageBytes } from './pageSlots.ts';
 import { createBlendCasterRows } from './blendCasters.ts';
+import type { FrameClock } from '../../page/integration/frameBudget.ts';
 
 type Rows = ReturnType<typeof createWebgpuRowState>;
 type Mirror = ReturnType<typeof createWebgpuResidencyMirror>;
@@ -24,6 +25,8 @@ export function createWebgpuRowSync(
   onResidenceChange: (rec: PageRec) => void = () => {},
   /** Called when a blended caster's row is written again with another coverage. */
   onCoverageChange: (rec: PageRec) => void = () => {},
+  /** The frame's one integration budget the owed records spend from (`claims.ts`). */
+  budget?: FrameClock,
 ) {
   const slots = createWebgpuRowSlots(rows, packedPages, drawSlots, writePageRow, onResidenceChange);
   /** The blended clusters' caster rows, behind the visibility rows: they follow the residency the
@@ -33,7 +36,7 @@ export function createWebgpuRowSync(
    * Rows for the drawable set. What the image owes the table now depends only on the pages whose
    * cache slot just changed, and on what the previous image's time budget left to write: the whole
    * catalogue is walked again only on a rebuild, which the rank allocator decides alone, and never
-   * again because a list overflowed. `bounded` false lifts the per-image time budget (a barrier image).
+   * again because a list overflowed. `bounded` false lifts the frame's budget (a barrier image).
    */
   const syncRows = (bounded = true) => {
     if (!cacheReady() || !rows.pageTableFloats) return;
@@ -52,7 +55,7 @@ export function createWebgpuRowSync(
       return;
     mirror.dirty = false;
     rows.rowsEpoch = rows.tableEpoch;
-    slots.apply(bounded);
+    slots.apply(bounded ? budget : undefined);
   };
   /**
    * The CPU cut names its own pages, so its rows are its order; the cut is rebuilt every frame.
