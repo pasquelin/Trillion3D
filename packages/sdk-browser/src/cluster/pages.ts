@@ -4,17 +4,43 @@ import { verifyPageBytes } from '../page/decode/host.ts';
 const transient = (response: Response | undefined) => !response || response.status >= 500;
 
 /**
+ * How `checked` reads: `attempts`, the most requests it makes; `optional`, a file that may be
+ * absent, whose 404 answers `null`; `credentials`, those the request carries.
+ */
+export type FetchPolicy = {
+  attempts?: number;
+  optional?: boolean;
+  credentials?: RequestCredentials;
+};
+
+/**
  * Reads `url`, asking once more when the first request fails on the network or on a server error
  * (a 5xx such as a busy server's 503); a refusal another request would meet again — a 404, a 403 —
- * is not asked twice. What still fails is refused by an `EngineError` naming the address. A caller
- * that retries on its own terms — the page streamer — asks for one `attempts`.
+ * is not asked twice. What still fails is refused by an `EngineError` naming the address, but for
+ * the 404 of an `optional` file, which answers `null`. An aborted `signal` rejects with its reason
+ * and asks nothing more. A caller that retries on its own terms — the page streamer, the GPU page
+ * cache — asks for one `attempts`.
  */
-export async function checked(url: string, signal?: AbortSignal, attempts = 2) {
+export function checked(
+  url: string,
+  signal?: AbortSignal,
+  policy?: FetchPolicy & { optional?: false },
+): Promise<Response>;
+export function checked(
+  url: string,
+  signal: AbortSignal | undefined,
+  policy: FetchPolicy & { optional: true },
+): Promise<Response | null>;
+export async function checked(
+  url: string,
+  signal?: AbortSignal,
+  { attempts = 2, optional = false, credentials }: FetchPolicy = {},
+) {
   let response: Response | undefined, cause: unknown;
   for (let attempt = 1; attempt <= attempts; attempt++) {
     signal?.throwIfAborted();
     try {
-      response = await fetch(url, { signal });
+      response = await fetch(url, { signal, credentials });
     } catch (error) {
       signal?.throwIfAborted();
       [response, cause] = [undefined, error];
@@ -34,6 +60,10 @@ export async function checked(url: string, signal?: AbortSignal, attempts = 2) {
         contentType: null,
       },
     );
+  if (optional && response.status === 404) {
+    void response.body?.cancel().catch(() => {});
+    return null;
+  }
   if (!response.ok)
     throw new EngineError(
       'RESOURCE_HTTP_ERROR',
