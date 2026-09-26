@@ -4,7 +4,37 @@ import { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 import { pose } from '../../host/prepared/nodes.ts';
 import { hostWorldChainInto } from '../../host/world/chain.ts';
 import type { PlacementRows } from '../../placement/rows.ts';
-import { everywhere, io, noBudget, opened, row, world } from './cells.fixture.ts';
+import type { PartitionCells } from './cells.ts';
+import { world } from './cells.fixture.ts';
+
+type PartitionIo = Parameters<PartitionCells['frame']>[2];
+
+/** An io that holds every cell already read, records what it is asked and each time the reach
+ *  outgrew the rows. */
+function io(bytes: (url: string) => Uint8Array) {
+  const asked: string[] = [],
+    updates: [PlacementRows, number, number][] = [];
+  const held = new Set<string>();
+  const outgrown = { count: 0 };
+  const port: PartitionIo = {
+    bytes: (url) => (held.has(url) ? bytes(url) : undefined),
+    loading: () => false,
+    request: (urls) => void asked.push(...urls),
+    update: (rows, from, to) => updates.push([rows, from, to]),
+    outgrown: () => void outgrown.count++,
+  };
+  return { port, asked, updates, held, outgrown };
+}
+
+/** A reach past both cells. */
+const everywhere = 1e5;
+/** Opens a session on `cells` for `reach` from far away, an owner to open it again unless
+ *  `owned` is false: its rows are sized, no cell is read. */
+const opened = (cells: PartitionCells, reach: number, owned = true) =>
+  cells.prime([1e9, 0, 0], reach, () => Promise.reject(new Error('nothing is read')), owned);
+/** No arrival budget: what a test places never depends on the time the machine takes. */
+const noBudget = { admits: () => true, spend() {} };
+const row = (rows: PlacementRows, at: number) => [...rows.matrices.subarray(at * 16, at * 16 + 16)];
 
 test('the cells a camera needs are asked nearest first, then placed on rows once read', async () => {
   const { cells, links, bytes } = world();
