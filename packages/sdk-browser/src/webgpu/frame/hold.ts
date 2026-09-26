@@ -156,8 +156,7 @@ export function holdWebgpuFrame(rt: WebgpuPagesRuntime, device: GPUDevice) {
     // Guides or an effect chain the page changed, or a chain the last image lacked while its
     // programs compiled, are drawn by a full image; the accumulation stays still for it. So is
     // an image whose particles move.
-    const particles = particlesMoved(rt);
-    if (!quiet || !taaSettled(rt) || guidesMoved(rt) || effectsMoved(rt) || particles) {
+    if (!quiet || !taaSettled(rt) || guidesMoved(rt) || effectsMoved(rt) || particlesMoved(rt)) {
       run.frameHeld = false;
       return false;
     }

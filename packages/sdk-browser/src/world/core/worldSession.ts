@@ -6,14 +6,11 @@ export type { JobProgress };
 
 /** What the families that read a world's engine reach it by, without the page holding it. */
 type Access = { session: () => MeasuredWorld | null; last: () => FrameMetrics | null };
-const worlds = new WeakMap<object, Access & { particles: ParticlePool[] }>();
+/** What the world holds for every session it opens (`worldSwitches.ts`): its particle pools. */
+type Held = { particles: ParticlePool[] };
+const worlds = new WeakMap<object, Access & Held>();
 
-/** `held.particles`: the pools the world gives every session it opens (`worldSwitches.ts`). */
-export const registerWorld = (
-  world: object,
-  access: Access,
-  held: { particles: ParticlePool[] },
-) => {
+export const registerWorld = (world: object, access: Access, held: Held) => {
   worlds.set(world, { ...access, particles: held.particles });
 };
 
