@@ -1,5 +1,5 @@
 import type { CameraPose } from '../../../../sdk-core/src/index.ts';
-import { devicePixels } from '../../backend/common.ts';
+import { devicePixels, pixelRatioOf } from '../../backend/common.ts';
 import type { MeasuredWorldOptions, RenderBackend } from '../../backend/types.ts';
 import type { HostCamera } from '../../camera/world.ts';
 import type { BoundTarget } from '../render/hostState.ts';
@@ -60,7 +60,7 @@ export function createExplorerViewportApi(inputs: Inputs) {
       check();
       if (!Number.isSafeInteger(width) || !Number.isSafeInteger(height) || width < 1 || height < 1)
         throw new Error('Invalid viewport size');
-      if (webglSurface) webglSurface.resize(width, height, options.pixelRatio ?? 1);
+      if (webglSurface) webglSurface.resize(width, height, pixelRatioOf(options));
       else {
         canvas.width = devicePixels(width, options.pixelRatio);
         canvas.height = devicePixels(height, options.pixelRatio);

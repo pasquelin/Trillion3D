@@ -1299,7 +1299,7 @@
     "members": {
       "visible": "Se é desenhado; `setVisible` o escreve.",
       "setVisible": "Mostra-o ou oculta-o; seus vértices continuam contando contra o limite.",
-      "setTransform": "Posiciona-o: dezesseis números por colunas, ou uma matriz — `node.matrixWorld` segue um nó.",
+      "setTransform": "Posiciona-o: dezesseis números por colunas, ou uma matriz; um guia que `add` desenhou deixa então de seguir seu nó.",
       "remove": "Retira-o do mundo, devolvendo seus vértices; uma segunda chamada não faz nada."
     }
   },
@@ -1308,7 +1308,7 @@
     "members": {
       "positions": "Duas pontas por segmento, três números cada.",
       "color": "A cor deles; branco por padrão.",
-      "width": "Largura na tela, em pixels."
+      "width": "Largura na tela, em pixels CSS, como toda linha do motor."
     }
   },
   "GuidePoints": {
@@ -1316,7 +1316,7 @@
     "members": {
       "positions": "Três números por ponto.",
       "color": "A cor deles; branco por padrão.",
-      "size": "Lado de cada ponto quadrado na tela, em pixels."
+      "size": "Lado de cada ponto quadrado na tela, em pixels CSS."
     }
   },
   "Guides": {
@@ -1326,7 +1326,7 @@
       "vertexCount": "Vértices mantidos agora, dois por segmento e um por ponto, guias ocultas incluídas.",
       "lines": "Desenha segmentos de linha, duas pontas cada; recusado acima do limite (`GUIDE_CEILING`).",
       "points": "Desenha pontos quadrados, uma posição cada; recusado acima do limite (`GUIDE_CEILING`).",
-      "add": "Desenha as malhas de linhas e pontos de `object` — cada `helper` as constrói —, nas cores de seus materiais, posicionadas onde o objeto está agora; seus triângulos não são guias e são ignorados.",
+      "add": "Desenha as malhas de linhas e pontos de `object` — cada `helper` as constrói —, nas cores de seus materiais; seus triângulos não são guias e são ignorados. O guia segue o objeto — para um auxiliar de luz ou de câmera, o nó que ele mostra — movido a cada imagem em que esse nó se moveu, nunca de outra forma.",
       "clear": "Remove todas as guias."
     }
   },
@@ -3124,10 +3124,10 @@
       "shadowsUpdated": "Luzes de sombra com uma página desenhada por este quadro. Zero é o valor normal de uma cena parada: uma luz fixa mantém as suas páginas.",
       "shadowFacesDrawn": "Vistas de luz em que o passe de sombras desenhou — um nível de clipmap do sol, uma face de lâmpada num mip —, e as chamadas de desenho realmente codificadas. Null num motor que não desenha sombras.",
       "shadowDrawCalls": "Chamadas de desenho de sombra.",
-      "shadowPagesDrawn": "O que a invalidação de página produziu: páginas redesenhadas pelo quadro, páginas deixadas na fila por falta de orçamento, e o atraso em milissegundos da mais antiga delas. Zero em tudo é o valor normal de uma cena parada; `null` em um motor sem atlas de sombras.",
+      "shadowPagesDrawn": "O que a invalidação de página produziu: páginas redesenhadas pelo quadro, páginas deixadas na fila por falta de orçamento, e quanto esperou a página desatualizada mais antiga que a imagem lê. Zero em tudo é o valor normal de uma cena parada; `null` em um motor sem atlas de sombras.",
       "shadowPagesTotal": "Páginas desenhadas desde que o explorador abriu, drenagens de `flush()` incluídas: o que uma mudança custou é a diferença entre duas leituras.",
       "shadowPagesPending": "Páginas de sombra esperando.",
-      "shadowWaitMs": "Quanto tempo esperaram.",
+      "shadowWaitMs": "Quantos milissegundos a página desatualizada mais antiga que a imagem lê esperou para ser redesenhada. Só conta o tempo em que a imagem a lê; 0 depois de redesenhada.",
       "gpuLightListsMs": "Tempo de GPU das listas de luz.",
       "gpuShadowsMs": "Tempo de GPU das sombras.",
       "gpuShadowCullMs": "Tempo de GPU para escolher os projetores das páginas de sombra que um quadro desenha: o corte da luz, o descarte por página e o teste de oclusão dos projetores em movimento com as pirâmides que ele lê.",
@@ -3560,7 +3560,6 @@
       "anisotropy": "Nitidez em ângulo.",
       "flipY": "Se as linhas são invertidas.",
       "premultiplyAlpha": "Se a cor é pré-multiplicada.",
-      "generateMipmaps": "Se cópias menores são feitas.",
       "colorSpace": "Como seus números são lidos.",
       "transform": "Transformação UV do amostrador, `KHR_texture_transform` composta em três linhas de três."
     }
@@ -4081,7 +4080,7 @@
     "summary": "Pede um novo quadro depois de uma mudança que o mundo não conseguiu ver."
   },
   "world.render": {
-    "summary": "Desenha um quadro agora, seja quem for que conduz o laço."
+    "summary": "Desenha um quadro agora, seja quem for que conduz o laço: clipes e física avançam com ele."
   },
   "world.resize": {
     "summary": "Diz ao mundo que o canvas mudou de tamanho; se não definido, ele lê o tamanho próprio do canvas.",
@@ -4161,10 +4160,10 @@
       "shadowsUpdated": "Luzes de sombra com uma página desenhada por este quadro. Zero é o valor normal de uma cena parada: uma luz fixa mantém as suas páginas.",
       "shadowFacesDrawn": "Vistas de luz em que o passe de sombras desenhou — um nível de clipmap do sol, uma face de lâmpada num mip —, e as chamadas de desenho realmente codificadas. Null num motor que não desenha sombras.",
       "shadowDrawCalls": "Chamadas de desenho de sombra.",
-      "shadowPagesDrawn": "O que a invalidação de página produziu: páginas redesenhadas pelo quadro, páginas deixadas na fila por falta de orçamento, e o atraso em milissegundos da mais antiga delas. Zero em tudo é o valor normal de uma cena parada; `null` em um motor sem atlas de sombras.",
+      "shadowPagesDrawn": "O que a invalidação de página produziu: páginas redesenhadas pelo quadro, páginas deixadas na fila por falta de orçamento, e quanto esperou a página desatualizada mais antiga que a imagem lê. Zero em tudo é o valor normal de uma cena parada; `null` em um motor sem atlas de sombras.",
       "shadowPagesTotal": "Páginas desenhadas desde que o explorador abriu, drenagens de `flush()` incluídas: o que uma mudança custou é a diferença entre duas leituras.",
       "shadowPagesPending": "Páginas de sombra esperando.",
-      "shadowWaitMs": "Quanto tempo esperaram.",
+      "shadowWaitMs": "Quantos milissegundos a página desatualizada mais antiga que a imagem lê esperou para ser redesenhada. Só conta o tempo em que a imagem a lê; 0 depois de redesenhada.",
       "gpuLightListsMs": "Tempo de GPU das listas de luz.",
       "gpuShadowsMs": "Tempo de GPU das sombras.",
       "gpuShadowCullMs": "Tempo de GPU para escolher os projetores das páginas de sombra que um quadro desenha: o corte da luz, o descarte por página e o teste de oclusão dos projetores em movimento com as pirâmides que ele lê.",
@@ -6945,7 +6944,7 @@
   },
   "world.beforeFrame": {
     "summary": "Roda uma função antes de cada quadro desenhado, com `{ delta, time }`; devolve seu removedor.",
-    "description": "Um quadro do laço do mundo roda: o controlador avança a câmera (a menos que `controls.autoUpdate` seja falso), clipes avançam, esses hooks na ordem em que foram adicionados, a cena é escrita e desenhada, depois os hooks de `onFrame`. O que um hook posiciona — um corpo na câmera, um cockpit — é desenhado neste mesmo quadro, nunca um atrasado. Um `render()` conduzido pelo host também os roda, mas não avança nenhum controlador. Um hook que chama `invalidate()` mantém os quadros vindo.",
+    "description": "Um quadro roda assim: o controlador da câmera (a menos que `controls.autoUpdate` seja falso ou que o host conduza, `render()`), os clipes, a física, esses hooks na sua ordem, o desenho, depois os hooks de `onFrame`. O que um hook posiciona — um corpo na câmera, um cockpit — é desenhado neste mesmo quadro, nunca um atrasado. Um hook que chama `invalidate()` mantém os quadros vindo.",
     "returns": "Uma função que interrompe o hook.",
     "parameters": {
       "hook": "A função a rodar; ela recebe os segundos recém-integrados e o tempo do mundo."
@@ -7430,7 +7429,7 @@
       "offset": "Aquilo de que `matrix` é composta.",
       "matrixAutoUpdate": "Se o host reconstrói `matrix`.",
       "matrix": "Transformação UV do amostrador, `KHR_texture_transform` composta em três linhas; o host a recalcula a partir de offset, repeat e rotation quando possui a atualização.",
-      "generateMipmaps": "Se cópias menores são feitas.",
+      "generateMipmaps": "Se cópias menores são pedidas; o motor as faz sempre que `minFilter` as lê.",
       "premultiplyAlpha": "Se a cor é pré-multiplicada pelo alfa.",
       "flipY": "Se as linhas são invertidas no envio.",
       "version": "Incrementado pelo host a cada mudança de conteúdo: o que um envio compara para pular uma recópia.",

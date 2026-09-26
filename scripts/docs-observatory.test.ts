@@ -31,7 +31,7 @@ test('the original observatory reproduces its source and retains distinct materi
   try {
     const gltf = await writeObservatory(temporary);
     await writeObservatory(join(temporary, 'repeat'));
-    for (const name of ['geometry.gltf', 'geometry.bin']) {
+    for (const name of ['geometry.gltf', 'geometry.bin', 'sky.json']) {
       const actual = await readFile(join(temporary, name));
       const expected = await readFile(join(temporary, 'repeat', name));
       const first = actual.findIndex((byte, index) => byte !== expected[index]);
@@ -42,12 +42,13 @@ test('the original observatory reproduces its source and retains distinct materi
           expected.subarray(Math.max(0, first - 4), first + 12).toString('hex'),
       );
     }
-    assert.ok(
-      (await readFile(join(temporary, 'geometry.gltf'))).equals(
-        await readFile(new URL('source/geometry.gltf', directory)),
-      ),
-      'source metadata reproduces exactly across platforms',
-    );
+    for (const name of ['geometry.gltf', 'sky.json'])
+      assert.ok(
+        (await readFile(join(temporary, name))).equals(
+          await readFile(new URL(`source/${name}`, directory)),
+        ),
+        `source ${name} reproduces exactly across platforms`,
+      );
     const bytes = await readFile(join(temporary, 'geometry.bin'));
     const reference = await readFile(new URL('source/geometry.bin', directory));
     assert.equal(bytes.length, reference.length);
@@ -89,6 +90,20 @@ test('the original observatory reproduces its source and retains distinct materi
               `normal component ${i} differs beyond 1e-9 at byte ${componentOffset}`,
             );
         }
+      }
+      // #716: every vertex carries a unit normal, the poles where a patch's columns meet too.
+      const normalOffset = gltf.bufferViews[normals.bufferView].byteOffset;
+      for (let i = 0; i < normals.count; i++) {
+        const at = normalOffset + i * 12;
+        const length = Math.hypot(
+          view.getFloat32(at, true),
+          view.getFloat32(at + 4, true),
+          view.getFloat32(at + 8, true),
+        );
+        assert.ok(
+          Math.abs(length - 1) < 1e-6,
+          `normal ${i} of material ${primitive.material}: length ${length}`,
+        );
       }
     }
     assert.equal(triangles, 91352);

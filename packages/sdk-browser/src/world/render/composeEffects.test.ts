@@ -133,6 +133,7 @@ test('guides over a chain land on the destination, over the depth the output car
   const compose = createFrameComposer(context.gl, camera, {
     effects: { chain, shown: () => true },
     guides,
+    pixelRatio: () => 1,
   });
   compose(engine().backend, null);
   const { names, calls, of } = context;
