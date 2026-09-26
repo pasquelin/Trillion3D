@@ -125,7 +125,7 @@ for (const [label, budget] of [
     for (let i = 0; i < 24; i++) {
       assert.ok(
         drawn.every((id) => pages[id].array),
-        `image ${i}: a page the last image drew left before this cut`,
+        `image ${i}: a drawn page left`,
       );
       image(0.25, 3);
       drawn = drawnIds();
