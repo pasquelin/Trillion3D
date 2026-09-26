@@ -5,7 +5,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createExplorerRender } from './render.ts';
-import { createFrameBudget, type FrameClock } from '../../page/integration/frameBudget.ts';
+import { createFrameBudget } from '../../page/integration/frameBudget.ts';
 import { createDiagnosticChannel } from '../../diagnostic/channel.ts';
 import type { RenderBackend } from '../../backend/types.ts';
 import type { FrameMetrics } from '../../../../sdk-core/src/index.ts';
@@ -16,9 +16,9 @@ function harness(options: {
   directGpu: boolean;
   counted?: number | null;
   order?: string[];
-  frameBudget?: FrameClock;
-  drain?: () => void;
+  fails?: boolean;
 }) {
+  const note = (step: string) => void options.order?.push(step);
   const active = { id: 'test-backend' } as unknown as RenderBackend;
   const metricsScratch = { drawCalls: 0, totalSubmittedTriangles: null } as unknown as FrameMetrics;
   const session = {
@@ -44,8 +44,14 @@ function harness(options: {
     camera: {} as never,
     lookAtTarget: { x: 0, y: 0, z: 0 },
     setPose: () => {},
-    streaming: { arrivals: { drain: options.drain ?? (() => {}) } } as never,
-    frameBudget: options.frameBudget ?? createFrameBudget(Infinity),
+    streaming: {
+      arrivals: { drain: () => (note('drain'), options.fails && assert.fail()) },
+    } as never,
+    frameBudget: {
+      ...createFrameBudget(Infinity),
+      open: () => (note('open'), 0),
+      pause: () => note('pause'),
+    },
     drawBackend: () => options.order?.push('draw'),
     ensureTarget: ((target?: unknown) => target) as never,
     directGpu: options.directGpu,
@@ -83,40 +89,14 @@ test('triangles publishes the engine submitted total as soon as it exists', () =
   }
 });
 
-// #264: the guides that follow a node are moved once per frame, before it draws.
-test('each frame moves the followed guides once, before it draws', () => {
+// #264: the guides that follow a node are moved once per frame, before it draws. #404: the frame's
+// one budget runs around its integration only, and stops before the engine draws, on every path.
+test('each frame moves the followed guides once, and integrates within its budget, before it draws', () => {
   const order: string[] = [];
   const { render } = harness({ directGpu: false, order });
   render();
-  render();
-  assert.deepEqual(order, ['follow', 'draw', 'follow', 'draw']);
-});
-
-// #404: the frame's one budget runs while it integrates, and stops before the engine draws — whose
-// row records resume it —, on every path.
-test('a frame runs its integration budget around the arrivals only, and stops it even on a throw', () => {
-  const order: string[] = [];
-  const budget = createFrameBudget(Infinity);
-  const frameBudget = {
-    ...budget,
-    open: () => (order.push('open'), budget.open()),
-    pause: () => void (order.push('pause'), budget.pause()),
-  };
-  const { render } = harness({
-    directGpu: false,
-    order,
-    frameBudget,
-    drain: () => order.push('drain'),
-  });
-  render();
   assert.deepEqual(order, ['follow', 'open', 'drain', 'pause', 'draw']);
   order.length = 0;
-  const failing = harness({
-    directGpu: false,
-    order,
-    frameBudget,
-    drain: () => assert.fail('drain'),
-  });
-  assert.throws(() => failing.render());
-  assert.deepEqual(order, ['follow', 'open', 'pause']);
+  assert.throws(harness({ directGpu: false, order, fails: true }).render);
+  assert.deepEqual(order, ['follow', 'open', 'drain', 'pause'], 'a drain that throws still pauses');
 });
