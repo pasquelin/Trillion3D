@@ -1,7 +1,9 @@
 import { EngineError } from '../../../sdk-core/src/index.ts';
 import { verifyPageBytes } from '../page/decode/host.ts';
-/** A failure a second request may not meet: the network, or a server error (5xx). */
-const transient = (response: Response | undefined) => !response || response.status >= 500;
+/** Whether a failure of HTTP `status` a second request may not meet: the network (`null`), or a
+ *  server error (5xx). A refusal another request would meet again — a 4xx — is not. */
+export const retriable = (status: number | null) => status === null || status >= 500;
+const transient = (response: Response | undefined) => !response || retriable(response.status);
 /** A refused answer's body let go at once, not left to hold its connection until collected. */
 const letGo = (response: Response) => void response.body?.cancel().catch(() => {});
 
