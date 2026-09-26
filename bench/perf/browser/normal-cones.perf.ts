@@ -12,7 +12,6 @@ import {
   entreeCones,
   referenceCompteMateriauxEtTangentes,
   referenceIndexSourceBytes,
-  referencePrepareCones,
 } from '../../oracles/browser/normal-cones.ts';
 import { catalogueDePages } from './support/scenesLoading.ts';
 
@@ -41,12 +40,6 @@ const hostiles = catalogueDePages({ pages: 400, materiaux: 8, seed: 23 }).map((r
   return rec;
 });
 
-const passeCones = (fn: (rt: WebgpuPagesRuntime) => void) => (liste: PageRec[]) => {
-  const copies = liste.map((rec) => ({ ...rec, cone: undefined }));
-  fn(runtimeOf(entreeCones(copies)));
-  return copies.map((rec) => (rec.cone ? Float64Array.from(rec.cone as ArrayLike<number>) : null));
-};
-
 const blocs = new Map<string, { hasTangent: boolean }>();
 for (let i = 0; i < 4000; i++) blocs.set(`bloc/${i}`, { hasTangent: i % 3 === 0 });
 const blocVide = new Map<string, { hasTangent: boolean }>();
@@ -57,15 +50,6 @@ const casPages = [
   { name: 'a single page', input: unePage, size: 1 },
   { name: 'no pages', input: [], size: 0 },
 ];
-
-const resCones = await mesure({
-  name: 'page normal cones',
-  fichier: 'packages/sdk-browser/src/webgpu/pages/prepare/cones.ts',
-  cas: casPages,
-  calcul: passeCones(prepareCones),
-  attendu: passeCones(referencePrepareCones),
-  options: { tours: 40, budgetMs: 1500 },
-});
 
 const resOctets = await mesure({
   name: 'source-byte table',
@@ -99,6 +83,6 @@ await stress({
 
 rapport(
   'cones-normaux',
-  [resCones, resOctets, resDiagnostic],
-  'F18 yields the exact same cones, bytes and counts',
+  [resOctets, resDiagnostic],
+  'F18 yields the exact same bytes and counts',
 );

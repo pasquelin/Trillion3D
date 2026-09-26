@@ -66,6 +66,9 @@ export type PageRec = {
   attached: boolean;
   resident?: boolean;
   cone?: NormalCone;
+  /** The cone the compiler cooked for this cluster (`Page.cone`), shared by every placement:
+   *  `prepareCones` posts it as `cone` on the WebGPU path. Absent from a cache that cooked none. */
+  cookedCone?: NormalCone;
   /** Rank of the request key, set once by `indexPageRequests`: deduplication without hashing. */
   requestIndex?: number;
   /** Rank of the cluster key in the host catalogue, set once: residency and pinning without
