@@ -1,9 +1,9 @@
 //! `physics.json`, the cooked physics of a scene: the colliders of its primitives (tiles, their
 //! objects, tolerance and measured error), the static placements of those colliders by the nodes
-//! that draw them, each with the matter its source declares, and the soft bodies its nodes declare
-//! (`soft.rs`). Its `formatVersion` is its own, and it
-//! names the stage and the Jolt commit that cooked it: a reader refuses any other.
-use super::declared::declared_matter;
+//! that draw them, each with the matter its source declares, and the rigid (`declared.rs`) and soft
+//! (`soft.rs`) bodies its nodes declare. Its `formatVersion` is its own, and it names the stage and
+//! the Jolt commit that cooked it: a reader refuses any other.
+use super::declared::{declared_bodies, declared_matter};
 use super::soft::soft_bodies;
 use super::{
     JOLT_COMMIT, PHYSICS_COOK_STAGE, PHYSICS_COOK_VERSION, PHYSICS_FILE, PHYSICS_FORMAT_VERSION,
@@ -130,10 +130,11 @@ pub(crate) fn stage_physics(
     let nodes = values(g, "nodes")?;
     let (colliders, slot, refused) = gathered(primitives, collisions);
     let (soft_bodies, soft_refused, soft) = soft_bodies(o, (g, bin), chosen, &world)?;
+    let (bodies, bodies_refused) = declared_bodies(o, (g, bin), chosen.difference(&soft), &world)?;
     let by_mesh = crate::proxy::primitives_by_mesh(primitives);
     let (mut instances, mut unplaced) = (Vec::new(), 0usize);
     // Every drawn node but a soft body is static ground, as drawn: a node the source declares
-    // moving is placed too, for no rigid body simulates a node of a compiled model yet.
+    // moving is placed too, beside its `bodies` entry, until the page restores that body.
     for &node in chosen.difference(&soft) {
         let old = required_index(nodes[node].get("mesh"), "node.mesh")?;
         let Some(mesh) = mesh_map.get(&old) else {
@@ -165,11 +166,11 @@ pub(crate) fn stage_physics(
         .iter()
         .filter_map(|c| c["triangles"].as_u64())
         .sum();
-    let report = json!({"colliders":colliders.len(),"instances":instances.len(),"unplaced":unplaced,"triangles":triangles,"hausdorff":largest("hausdorff"),"tolerance":largest("tolerance"),"refused":refused,"softBodies":soft_bodies.len(),"softRefused":soft_refused});
+    let report = json!({"colliders":colliders.len(),"instances":instances.len(),"unplaced":unplaced,"triangles":triangles,"hausdorff":largest("hausdorff"),"tolerance":largest("tolerance"),"refused":refused,"bodies":bodies.len(),"bodiesRefused":bodies_refused,"softBodies":soft_bodies.len(),"softRefused":soft_refused});
     let document = json!({
         "formatVersion":PHYSICS_FORMAT_VERSION,"compilerVersion":COMPILER_VERSION,"jolt":JOLT_COMMIT,
         "stage":{"name":PHYSICS_COOK_STAGE,"version":PHYSICS_COOK_VERSION},
-        "colliders":colliders,"instances":instances,"softBodies":soft_bodies,"report":report,
+        "colliders":colliders,"instances":instances,"bodies":bodies,"softBodies":soft_bodies,"report":report,
     });
     let mut objects = BTreeSet::new();
     crate::compiler_prune::referenced_objects(&document, None, &mut objects)?;
