@@ -1,9 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { EngineError } from '../../../../sdk-core/src/index.ts';
-import { collectClusterPages, rootCoverage, selectVisiblePages } from './selection.ts';
+import {
+  collectClusterPages,
+  rootCoverage,
+  selectVisiblePages,
+  type PageRec,
+} from './selection.ts';
 import { dagFixture, wideCamera } from './dag.fixture.ts';
 import { cameraMoteur } from '../../camera/camera.fixture.ts';
+import { createHeldResidency } from '../cut/held.ts';
 
 test('budget pressure down to the pinned roots still draws the surface once, by the root', () => {
   const cam = wideCamera(),
@@ -22,8 +28,7 @@ test('budget pressure down to the pinned roots still draws the surface once, by 
   const starved = selectVisiblePages(roots, cameraMoteur(cam), {
     pixelError: 0,
     viewport,
-    holdResident: true,
-    isResident: (rec) => pinned.has(rec.url),
+    held: createHeldResidency({ isResident: (rec: PageRec) => pinned.has(rec.url) }),
   });
   assert.equal(starved.complete, false, 'the requested cut is not resident');
   assert.deepEqual(

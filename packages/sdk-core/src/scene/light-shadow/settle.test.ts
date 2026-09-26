@@ -70,7 +70,7 @@ test('sun only: the pages drain', () => {
 
 test('8 lights with shadows off: nothing to drain', () => {
   const setup = scene(8, true, false);
-  assert.equal(setup.plan.pool.used, 0);
+  assert.equal(setup.plan.pool.used(), 0);
   assert.equal(setup.plan.counts.pendingPages, 0);
 });
 
@@ -100,7 +100,7 @@ test('a read set larger than the pool maps what fits, then holds: the rest waits
   for (; frame < DRAIN && !(plan.counts.pendingPages === 0 && plan.settled(store)); frame++)
     cycle(plan, store, frame, () => fine);
   assert.ok(frame < DRAIN, 'the image holds');
-  assert.equal(plan.pool.used, 16);
+  assert.equal(plan.pool.used(), 16);
   assert.equal(
     plan.requests.counts.refused,
     fine.length - 15,
