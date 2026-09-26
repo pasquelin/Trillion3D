@@ -1,13 +1,13 @@
 import { TransformNode } from './transformNode.ts';
 import { collectSlot, reserveSlot, uncollectSlot } from './objectSpace.ts';
 import { copyObject } from './objectCopy.ts';
+import { bindPose, readPose } from './objectPose.ts';
 import { lookAtNode } from '../../math/transform-tree/lookAt.ts';
 import * as read from '../../math/transform-tree/read.ts';
 import { Vector3 } from '../math/vector3.ts';
 import { Euler } from '../math/euler.ts';
 import { Quaternion } from '../math/quaternion.ts';
 import { Matrix4 } from '../math/matrix4.ts';
-import { listen } from '../math/observed.ts';
 import type { Box3 } from '../math/box3.ts';
 import type { SceneLink } from './sceneLink.ts';
 export type { SceneLink } from './sceneLink.ts';
@@ -35,30 +35,13 @@ export class Object3D extends TransformNode {
   /** Drawing order among see-through things. */ renderOrder = 0;
   /** Whether a renderer may skip it outside the view. */ frustumCulled = true;
   /** Free room for the page's own data. */ userData: Record<string, unknown> = {};
-  /** The world that draws it, or null outside one. */ _link: SceneLink | null = null;
+  /** The world this node is drawn by; set on attach, cleared on detach. */
+  _link: SceneLink | null = null;
   constructor() {
     const slot = reserveSlot();
     super(slot.state, slot.id, slot.index, slot.visible);
     collectSlot(this, slot);
-    const pose = () => this._link?.pose(this);
-    listen(this.position, () => {
-      this.setPosition(this.position.x, this.position.y, this.position.z);
-      pose();
-    });
-    listen(this.scale, () => {
-      this.setScale(this.scale.x, this.scale.y, this.scale.z);
-      pose();
-    });
-    /** Written angles stay as written (`object3d.test.ts`); a quaternion write re-derives them. */
-    const turned = (fromAngles: boolean) => {
-      const q = fromAngles ? this.quaternion.setFromEuler(this.rotation, true) : this.quaternion;
-      this.setQuaternion(q.x, q.y, q.z, q.w);
-      if (fromAngles) this.rotation._follow(q);
-      pose();
-    };
-    this.rotation._follow(this.quaternion);
-    listen(this.quaternion, () => turned(false));
-    listen(this.rotation, () => turned(true));
+    bindPose(this);
   }
   /** A node's transform tree, for an owner placing nodes by the thousand (`_link.posed`). */
   static _treeOf(node: Object3D) {
@@ -77,7 +60,8 @@ export class Object3D extends TransformNode {
   override get children(): readonly Object3D[] {
     return super.children as readonly Object3D[];
   }
-  /** A viewer looks down `-z`: cameras and lights say so. */ protected get looksDownNegativeZ() {
+  /** A viewer looks down `-z`: cameras and lights say so. */
+  protected get looksDownNegativeZ() {
     return false;
   }
   /** Makes objects children of this node. */ override add(...objects: Object3D[]) {
@@ -98,9 +82,10 @@ export class Object3D extends TransformNode {
     this._link?.structure(this);
     return this;
   }
-  /** Adds `child` where it stands (`SceneNode.attach`). */ override attach(child: Object3D) {
+  /** Adds `child` where it stands (`SceneNode.attach`). */
+  override attach(child: Object3D) {
     super.attach(child);
-    applied.fromArray(child.localMatrix).decompose(child.position, child.quaternion, child.scale);
+    if (child.parent === this) readPose(child, this.state.tree);
     return this;
   }
   /** Frees the node and all below it now, rather than when they are collected. */
@@ -146,7 +131,8 @@ export class Object3D extends TransformNode {
     }
     return undefined;
   }
-  /** Composes the local matrix from the pose. */ updateMatrix() {
+  /** Composes the local matrix from the pose. */
+  updateMatrix() {
     this.matrix.compose(this.position, this.quaternion, this.scale);
     this.matrixWorldNeedsUpdate = true;
   }
@@ -194,7 +180,8 @@ export class Object3D extends TransformNode {
   }
 }
 
-/** A node that only groups others. */ export class Group extends Object3D {
+/** A node that only groups others. */
+export class Group extends Object3D {
   /** Always `true`: tells a group apart. */ readonly isGroup = true as const;
   /** The kind of node, `'Group'`. */ override type = 'Group';
 }

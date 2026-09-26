@@ -6,6 +6,7 @@ import { Camera } from '../camera/camera.ts';
 import { Mesh } from './mesh.ts';
 import { cloneObject } from './clone.ts';
 import { Matrix4 } from '../math/matrix4.ts';
+import { assertClose } from '../../scene/core/nodeAttach.fixture.ts';
 import { Quaternion } from '../math/quaternion.ts';
 
 // Re-deriving Euler angles from the quaternion would swap (0, y, 0) past ±90° for the equivalent
@@ -87,11 +88,12 @@ test('attach keeps the world matrix, and position, rotation and scale hold the n
   const world = node.matrixWorld.clone();
   assert.equal(to.attach(node), to);
   assert.equal(node.parent, to);
-  const close = (m: Matrix4) => m.elements.every((v, i) => Math.abs(v - world.elements[i]) < 1e-12);
   node.updateMatrixWorld(true);
-  assert.ok(close(node.matrixWorld), 'its world matrix, kept');
+  assertClose(node.matrixWorld.elements, world.elements, 'its world matrix, kept');
   const posed = new Matrix4().compose(node.position, node.quaternion, node.scale);
-  assert.ok(close(posed.premultiply(to.matrixWorld)), 'its fields, rewritten');
+  assertClose(posed.premultiply(to.matrixWorld).elements, world.elements, 'its values, rewritten');
+  to.attach(to);
+  assert.ok(to.parent === null && to.position.x === -4, 'attached to itself: declined, untouched');
   const turn = new Quaternion().setFromEuler(node.rotation);
   assert.ok(Math.abs(Math.abs(turn.dot(node.quaternion)) - 1) < 1e-12, 'its angles follow');
 });
