@@ -28,7 +28,6 @@ export function fakeDevice({ limits, refuse, compute = true, mapping }: FakeDevi
     bindGroupLayouts: GPUBindGroupLayoutDescriptor[] = [],
     bindGroups: GPUBindGroupDescriptor[] = [],
     renderPipelines: GPURenderPipelineDescriptor[] = [],
-    computePipelines: GPUComputePipelineDescriptor[] = [],
     writes: FakeWrite[] = [],
     copies: FakeCopy[] = [],
     textureCopies: FakeTextureCopy[] = [],
@@ -54,10 +53,7 @@ export function fakeDevice({ limits, refuse, compute = true, mapping }: FakeDevi
     renderPipelines.push(descriptor),
     descriptor
   );
-  const computePipeline = (descriptor: GPUComputePipelineDescriptor) => (
-    computePipelines.push(descriptor),
-    descriptor.compute
-  );
+  const computePipeline = (descriptor: GPUComputePipelineDescriptor) => descriptor.compute;
   const device = {
     label: '',
     lost,
@@ -156,7 +152,6 @@ export function fakeDevice({ limits, refuse, compute = true, mapping }: FakeDevi
     bindGroupLayouts,
     bindGroups,
     renderPipelines,
-    computePipelines,
     writes,
     copies,
     textureCopies,
