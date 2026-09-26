@@ -35,7 +35,7 @@
       const model = await world.scene.load('../assets/gallery/signature-architecture/cache/native/full/manifest.json');
       const sky = await skyFile;
       const [sun] = model.lights;
-      world.scene.add(light.hemisphere({ color: sky.color, groundColor: sky.groundColor, intensity: sun.intensity * sky.sunShare }));
+      world.scene.add(light.hemisphere({ ...sky, intensity: sun.intensity * sky.sunShare }));
       const framing = pose.fromBounds(model.bounds);
       world.camera.set(framing);
       world.controls.target.set(...framing.target);

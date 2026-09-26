@@ -92,12 +92,13 @@ export async function openGalleryScene(page: Page, scene: GalleryScene): Promise
   );
 }
 
-/** Adds what `light` gives from every direction — a sky, an ambient — to the environment of the
- *  scene on `window.scene`, as a world adds it (`addLightIrradiance`): a measured world holds no
- *  light nodes. The exposure stays the environment's, 1 when it declares none, as the engine's. */
+/** Sets the irradiance of the scene on `window.scene` to what `light` gives from every direction —
+ *  a sky, an ambient —, as a world sets it from its lights (`addLightIrradiance` from empty,
+ *  `worldLights.sync`): a measured world holds no light nodes. The exposure stays the
+ *  environment's, 1 when it declares none, as the engine's. */
 export async function addSurroundingLight(page: Page, light: Light): Promise<void> {
   const environment = await page.evaluate(() => window.scene.environment);
-  const irradiance = [...(environment?.irradiance ?? emptyIrradiance())];
+  const irradiance = emptyIrradiance();
   addLightIrradiance(light, irradiance);
   await page.evaluate((environment) => window.scene.setEnvironment(environment), {
     exposure: 1,
