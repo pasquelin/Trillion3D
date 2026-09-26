@@ -11,7 +11,7 @@ import type { FrameMetrics } from '../../../../sdk-core/src/index.ts';
 
 /** A minimal set of inputs for `createExplorerRender`: mute draw, diagnostic off, audit
  *  off (no `trillion3dFrameAudit` in the test URL). Only `directGpu` and the engine count vary. */
-function harness(options: { directGpu: boolean; counted?: number | null }) {
+function harness(options: { directGpu: boolean; counted?: number | null; order?: string[] }) {
   const active = { id: 'test-backend' } as unknown as RenderBackend;
   const metricsScratch = { drawCalls: 0, totalSubmittedTriangles: null } as unknown as FrameMetrics;
   const session = {
@@ -23,6 +23,7 @@ function harness(options: { directGpu: boolean; counted?: number | null }) {
   const render = createExplorerRender(session, {
     check: () => {},
     followCells: null,
+    guides: { follow: () => options.order?.push('follow') },
     state: {
       measuring: false,
       diagnostic: 'beauty',
@@ -37,7 +38,7 @@ function harness(options: { directGpu: boolean; counted?: number | null }) {
     lookAtTarget: { x: 0, y: 0, z: 0 },
     setPose: () => {},
     streaming: { arrivals: { open: () => {}, drain: () => {} } } as never,
-    drawBackend: () => {},
+    drawBackend: () => options.order?.push('draw'),
     ensureTarget: ((target?: unknown) => target) as never,
     directGpu: options.directGpu,
     backends: [active],
@@ -72,4 +73,13 @@ test('triangles publishes the engine submitted total as soon as it exists', () =
     render();
     assert.equal(metricsScratch.triangles, 1234);
   }
+});
+
+// #264: the guides that follow a node are moved once per frame, before it draws.
+test('each frame moves the followed guides once, before it draws', () => {
+  const order: string[] = [];
+  const { render } = harness({ directGpu: false, order });
+  render();
+  render();
+  assert.deepEqual(order, ['follow', 'draw', 'follow', 'draw']);
 });
