@@ -42,7 +42,7 @@ Required fields consumed by the browser adapter:
   - `simplification` is `true` when the compiler ran with `qem-endpoints`.
 - `binary` — `{ version, url, sha256, bytes, pageUrl, geometryUrl, bundleUrl, texturePreviews, texturePreviewBytes, texturePreviewBc7Bytes, texturePreviewAstcBytes }`, the descriptor of the [binary sidecar](#clustersbin). Absent from caches compiled before the sidecar, which carry every array inline; the reader accepts both.
 
-Written for the compiler alone, ignored by the browser: `files` — `{ "<name>": { sha256, bytes } }`, one entry per other product of the key folder (`source.gltf`, `source.bin`, `proxy.bin`, `lights.json`, `scene-tables.json` and its `scene-cell-<n>.json`, `scene.gltf`, `scene.bin`), which a later job of the same key checks before keeping the folder instead of rewriting it ([COMPILER.md](COMPILER.md#reusing-a-compiled-folder)).
+Written for the compiler alone, ignored by the browser: `files` — `{ "<name>": { sha256, bytes } }`, one entry per other product of the key folder (`source.gltf`, `source.bin`, `proxy.bin`, `lights.json`, `scene-tables.json`, `scene.gltf`, `scene.bin`; the pages and cells of the [world partition](#world-partition) are proven through its root instead, so the record does not grow with the world), which a later job of the same key checks before keeping the folder instead of rewriting it ([COMPILER.md](COMPILER.md#reusing-a-compiled-folder)).
 
 ### `clusters.bin`
 
@@ -132,7 +132,7 @@ An image whose decode fails has no entry: its textures load from the source as b
 
 `scene-tables.json`, beside `clusters.json`, says what the prepared scene is made of, and it is the
 only thing the runtime builds that scene from: no glTF is parsed in the browser. Its own version
-governs it — `version` 3, `nodeTableVersion` 3, `materialTableVersion` 4, `geometryTableVersion` 1 —
+governs it — `version` 4, `nodeTableVersion` 3, `materialTableVersion` 4, `geometryTableVersion` 1 —
 and an unknown one is refused rather than half-read (`assertSceneTables`, `UNSUPPORTED_SCENE_TABLES`).
 Every value is read from the `source.gltf` the same compilation publishes (and, for its layout, from
 `scene.gltf` when one is written): the slice's nodes, the cutout answers already applied, the mesh
@@ -195,19 +195,29 @@ the runtime reads the cells by distance to its camera instead of reading every n
 first frame. A scene whose placements fit one unit keeps them in `nodes[]` and has `partition:
 null`: its tables are the ones it always had.
 
-The placements are halved along the widest spread of their centres until a cell's descriptors fit
-the unit. `partition` is `{ version: 1, bounds, meshes, cells }`: `bounds` the box around every cell
-at the declared poses (scene frame, `[minX, minY, minZ, maxX, maxY, maxZ]`), `meshes` the mesh
-ranks the cells place, and per cell `{ url, sha256, bytes, parents, meshes }` — its file beside the
+The placements are halved along the widest spread of their centres until a cell's placements fit
+the unit. Each cell has a **record** `{ url, sha256, bytes, parents, meshes }` — its file beside the
 tables (`scene-cell-<n>.json`), fingerprint and size (the reader verifies them as it verifies a
 page), `parents`, `[[rank, box], …]`: for each core node its placements hang under (`null`, the
 scene), the box around them **in that node's frame**, and `meshes`, `[[rank, count], …]` in rank
 order: how many placements of each mesh it holds, which the runtime sizes its rows by before
-reading any cell. A cell file is `{ version: 1, nodes }`, each node `{ parent, mesh, matrix, translation,
+reading any cell. A cell file is `{ version: 2, nodes }`, each node `{ parent, mesh, matrix, translation,
 rotation, scale }`: `parent` the rank in `nodes[]` of the core node it hangs under (`null`, the
 scene), its mesh, and its local pose exactly as declared, each part `null` when silent. A
-placement's name is not kept: it is a row, not a host node. The cells are products of the key
-folder, recorded in the manifest's `files`.
+placement's name is not kept: it is a row, not a host node.
+
+**The paged cell index** (`partition/pages.rs`, #750). The records lie in pages cut from the
+halving tree, each node a contiguous range of cells: a region page `{ version: 2, cells }` holds the
+records of the highest node under 128 KiB (`PAGE_BYTES`; one cell whatever its size), an index page
+`{ version: 2, pages }` lists at most 8 pages (`FAN_OUT`), its node opened largest first, and
+`partition` is the root `{ version: 2, pages }`: the whole tree opened into exactly eight slots,
+empty ones last — 1 391 bytes for grids of 48² and 192² and the open-world cell laid 8 × 8. A slot
+is 168 hexadecimal digits: the page's SHA-256, its size (8) and its box at the declared poses as six
+big-endian `f64` bit patterns (16 each), naming `scene-page-<sha256>.json`; zeros name no page.
+`readTablePartition` reads every page through its caller's `read`, which verifies it against its
+slot (`fetchVerified`), into the records in cell order, `bounds` the union of the root's boxes and
+`meshes` the ranks placed. Pages and cells are outside
+the manifest's `files`: a reused folder proves them through the root.
 
 **Reading the cells.** Each mesh the cells place is drawn by one host mesh per primitive whose
 instance buffer the cells fill (`packages/sdk-browser/src/scene/partition/`): a placement takes a
@@ -217,19 +227,20 @@ there would carry, proven against the host loader on `site/assets/examples/ten-t
 move a core parent (`getObjectByName`): the rows under it are rewritten, and the cell's boxes are
 its parents' boxes under their current matrices (`boxes.ts`), so the cell is read where its
 placements stand, at the distance of its nearest box. A cell is read while the camera can draw any of it: its **reach** is the far plane met on the frustum's
-diagonal, `far·√w`, with `w = 1 + tan²(fov/2)·(1 + aspect²)` the off-axis stretch of the frustum.
+diagonal, `far·√w`, with `w = 1 + (tan(fov/2)/zoom)²·(1 + aspect²)` the off-axis stretch of the frustum.
 The error target does not shorten it: nothing coarser stands for a cell that is not read (the
 proxy of #23), so an object dropped below the target would be missing from the image, not
-replaced. An orthographic camera reads every cell. Before its first frame a session reads the cells within
+replaced. An orthographic camera reads up to the far corner of its zoomed box. Before its first frame a session reads the cells within
 the reach of the camera the page draws with (a world hands its camera to the session it opens; a
 bare explorer, which has none, reads for its framing camera, which sees the whole scene), and
 nothing else. Then, before every frame, cells within the reach are
 asked for nearest first, those within `1.25 × reach` at the prefetch priority, and a read cell
 leaves once its box is past `1.5 × reach` (`AHEAD` and `KEEP` in `plan.ts`): margins of the reach,
 never of the cell, so a cell cut wider than the view is kept only while its box meets that sphere. The cells are read through the session's page streamer
-— one request queue — and placed within the frame's one integration budget, the arrival queue's
+— one request queue — and placed within the frame's one integration budget, the session's
 (`ARRIVAL_BUDGET_MS`, `FrameBudget`): its clock starts once per frame, the cells spend from it
-first and the page arrivals drain the rest; the first integration of a frame always goes through.
+first, the page arrivals drain from what is left, then the WebGPU row records; the first
+integration of a frame always goes through.
 The rows are sized once, when a session opens and before its engines read them, for every
 placement its camera's reach can hold at once **wherever the page moves the core parents**
 (`sizing.ts`). A held cell has a box within `1.5 × reach` of the eye; the boxes one parent carries
@@ -240,10 +251,11 @@ move together, so those held at once are close in that parent's own frame — ce
 parent, summed over the parents and never past every placement, bounds each mesh's rows — set by
 the reach, the cells' size and the parents' count, not by the world or where its parents stand.
 Parents moved together never run the rows short, so they never reopen the session nor leave a
-placement undrawn (CONTRIBUTING.md §Streaming rule 10). Nothing grows under a drawing engine: a
-camera whose reach later outgrows the rows, or a parent scaled down or stretched more unevenly
-than at opening (moved, turned or scaled up, it holds), asks
-the session's owner, once, to open it again sized for them (the world does). A session no owner
+placement undrawn (CONTRIBUTING.md §Streaming rule 10). A camera whose reach later outgrows the
+rows, or a parent scaled down or stretched more unevenly than at opening (moved, turned or scaled
+up, it holds), grows them in place, to twice what is asked, on an engine that follows the growth
+contract (`placement/growth.ts`); on one that does not, it asks the session's owner, once, to
+open it again sized for them (the world does). A session no owner
 can open again (a bare explorer) sizes its rows for every placement, and rows that hold every
 placement never ask. A session drawing on demand draws again, camera still, until the cells it
 asked for within reach are read and placed. A partitioned scene is not
@@ -257,8 +269,8 @@ source and sampler, surfaces and their vertex-colour and flat-shading variants, 
 cameras and lights assembled and named as the host loader assembled and named them — proven equal to the
 loader's graph, field by field and byte by byte, on every cache `site/assets` publishes
 (`packages/sdk-browser/src/host/prepared/build.test.ts`). A layout that names a document the tables
-do not carry, a view outside its binary, or a cell placing a mesh `partition.meshes` does not
-name, is `PREPARED_SCENE_MISMATCH`.
+do not carry, a view outside its binary, or a cell placing a mesh the scene built no rows for,
+is `PREPARED_SCENE_MISMATCH`.
 
 ## `physics.json` — cooked colliders
 

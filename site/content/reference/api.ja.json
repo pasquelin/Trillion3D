@@ -874,7 +874,7 @@
   },
   "EffectChain": {
     "summary": "`world.effects`：テンポラルアンチエイリアスの後、画像が canvas に届く前に画像の上に描かれる、順序付きのパス。",
-    "description": "トーンマッピング前のパスは追加された順に線形放射輝度を読み、後のパスは表示画像を自分たちの順に読みます。空のチェーンはコストがかかりません。パスもコピーもターゲットもありません。",
+    "description": "トーンマッピング前のパスは追加された順に線形放射輝度を読み、後のパスは表示画像を自分たちの順に読みます。空のチェーンはコストがかかりません。パスもコピーもターゲットもありません。WebGL2 では、`multiply` または `subtractive` でブレンドする透明な面を描くフレームはチェーンなしで全体が描かれ、ワールドの診断チャネルが `effects-refused-blending` を一度伝えます。WebGPU は両方を描きます。",
     "members": {
       "revision": "変更を数えます。別のリビジョンで描かれた画像は古くなっています。",
       "passes": "実行される順のパス。",
@@ -933,8 +933,8 @@
       "WEBGL2_UNAVAILABLE": "このマシンは要求された方法で描画できないか、まったく描画できない。",
       "NO_WEBGL2": "このマシンは要求された方法で描画できないか、まったく描画できない。",
       "NO_ENGINE_BACKEND": "このマシンは要求された方法で描画できないか、まったく描画できない。",
-      "RESOURCE_HTTP_ERROR": "ファイルを取得できなかったか、期待された内容ではなかった。",
-      "INVALID_JSON_RESPONSE": "ファイルを取得できなかったか、期待された内容ではなかった。",
+      "RESOURCE_HTTP_ERROR": "ファイルを取得できなかった(一時的な失敗なら先に再び要求した上で)か、期待された内容ではなかった。",
+      "INVALID_JSON_RESPONSE": "ファイルを取得できなかった(一時的な失敗なら先に再び要求した上で)か、期待された内容ではなかった。",
       "INVALID_POINTER": "コンパイル済みモデルのポインターが壊れている、未完成である、あるいは別の範囲のものである。",
       "CACHE_NOT_READY": "コンパイル済みモデルのポインターが壊れている、未完成である、あるいは別の範囲のものである。",
       "SCOPE_MISMATCH": "コンパイル済みモデルのポインターが壊れている、未完成である、あるいは別の範囲のものである。",
@@ -2923,7 +2923,7 @@
       "background": "すべてのオブジェクトの背後の画像を埋めるもの：色、または既定の `null`。変更はセッションを保ったまま次のフレームで表示されます：ここで設定した新しい色、またはそのメソッド（`set`、`setRGB`、`setHex`、`setHSL`...）で書き換えた現在の色。`.r`、`.g`、`.b` への直接書き込みは検知されません：その後に `background` を設定し直してください。画像や `getHex` を持たない値は拒否されます（`UNSUPPORTED_SCENE_UPDATE`）：それを描く経路はありません。",
       "fog": "すべての面にかかる霧。不透明でも透明でも、両方のレンダラーで効きます。既定の `null` は霧なしで、コストもかかりません。`{ color, near, far }` は物体を `near` から `far` にかけて `color` に溶け込ませます（距離はカメラから）。`{ color, density }` は距離 1 単位ごとに `density` だけ濃くなります。`heightFalloff`（と既定 0 の `baseHeight`）を加えると地面に溜まり、`baseHeight` より上で薄くなります — 上へ `1 / heightFalloff` 単位ごとに e で割られます。変更は次のフレームで見えます: ここで設定した新しい霧、またはそのメソッドで書き換えた色。`near`、`far`、`density`... への直接の書き込みは検知されません: その後で `fog` を設定し直してください。範囲外の霧 — `far` が `near` より先にない、負の密度 — は拒否されます（`INVALID_SCENE_ENVIRONMENT`）。",
       "load": "コンパイル済みモデル(そのマニフェストURL)を読み込み、このシーンに追加する。",
-      "toJSON": "バージョン付きのシンプルな JSON にしたシーン: オブジェクト、形はそれを作った呼び出しで、マテリアル、ライト、読み込んだモデルはアドレスで記録します。`camera` を渡せばその姿勢も入ります。",
+      "toJSON": "バージョン付きのシンプルな JSON にしたシーン: オブジェクト、形はそれを作った呼び出しで、マテリアル、ライト、各メッシュの物理ボディは宣言したとおりに、読み込んだモデルはアドレスで記録します。`camera` を渡せばその姿勢も入ります。",
       "fromJSON": "シーンの中身を `toJSON` で保存したシーンに置き換えます。`helper` の印は残します。モデルの読み込みが終わると完了します。別の形式やバージョンは拒否されます (`UNSUPPORTED_SCENE_FORMAT`)。読み込み中の呼び出しは順番に一つずつ実行され、それぞれ前の呼び出しが残したものの上で動きます: 保存された二つのシーンが混ざることはありません。"
     }
   },
@@ -3631,7 +3631,7 @@
       "textureBytesLastFrame": "直前のフレームで送信されたバイト数。",
       "textureUploadMs": "タイルの送信に費やされた時間。",
       "textureUploadPeakMs": "1フレームでの最長の送信時間。",
-      "textureLevelReads": "元データ群。`textureLevelReads`: キャッシュから読み込まれている焼き込み済みレベル。`textureLevelsDecoded`: 開始以来デコードされた焼き込み済みレベル。`textureLevelCacheBytes`: さらなるタイルを切り出すために保持されている、デコード済みレベルのホストバイト数。固定予算のもとで。`textureScratchBuilds`: 焼き込み済みチェーンを持たないテクスチャのために構築される作業用テクスチャ。毎回、元データ全体から。",
+      "textureLevelReads": "元データ群。`textureLevelReads`: キャッシュから読み込まれている焼き込み済みレベル。`textureLevelsDecoded`: 開始以来デコードされた焼き込み済みレベル。`textureLevelCacheBytes`: さらなるタイルを切り出すために保持されている、デコード済みレベルのホストバイト数。CPU 合計の範囲内で。`textureScratchBuilds`: 焼き込み済みチェーンを持たないテクスチャのために構築される作業用テクスチャ。毎回、元データ全体から。",
       "textureLevelsDecoded": "デコードされたレベル数。",
       "textureLevelCacheBytes": "保持されているデコード済みレベルのバイト数。",
       "textureScratchBuilds": "構築された作業用テクスチャ数。",
@@ -4194,7 +4194,7 @@
       "textureBytesLastFrame": "直前のフレームで送信されたバイト数。",
       "textureUploadMs": "タイルの送信に費やされた時間。",
       "textureUploadPeakMs": "1フレームでの最長の送信時間。",
-      "textureLevelReads": "元データ群。`textureLevelReads`: キャッシュから読み込まれている焼き込み済みレベル。`textureLevelsDecoded`: 開始以来デコードされた焼き込み済みレベル。`textureLevelCacheBytes`: さらなるタイルを切り出すために保持されている、デコード済みレベルのホストバイト数。固定予算のもとで。`textureScratchBuilds`: 焼き込み済みチェーンを持たないテクスチャのために構築される作業用テクスチャ。毎回、元データ全体から。",
+      "textureLevelReads": "元データ群。`textureLevelReads`: キャッシュから読み込まれている焼き込み済みレベル。`textureLevelsDecoded`: 開始以来デコードされた焼き込み済みレベル。`textureLevelCacheBytes`: さらなるタイルを切り出すために保持されている、デコード済みレベルのホストバイト数。CPU 合計の範囲内で。`textureScratchBuilds`: 焼き込み済みチェーンを持たないテクスチャのために構築される作業用テクスチャ。毎回、元データ全体から。",
       "textureLevelsDecoded": "デコードされたレベル数。",
       "textureLevelCacheBytes": "保持されているデコード済みレベルのバイト数。",
       "textureScratchBuilds": "構築された作業用テクスチャ数。",
@@ -7023,7 +7023,8 @@
       "children": "その下のノード、順番どおり。",
       "mesh": "`geometries` と `materials` の中の番号、三角形の読み方、そしてスプライトの中心。",
       "light": "ライトの種類、色、数値、向き、プローブの係数。",
-      "model": "コンパイル済みモデル。読み込んだマニフェストのアドレスで記録し、中身を埋め込むことはありません。"
+      "model": "コンパイル済みモデル。読み込んだマニフェストのアドレスで記録し、中身を埋め込むことはありません。",
+      "physics": "メッシュの物理ボディ。`mesh.physics` が宣言したとおりです。"
     }
   },
   "SavedScene": {
@@ -7130,7 +7131,7 @@
       "water": "物体が浮かぶ水：水位、波、密度、抗力。水より軽い物体は、押しのけた水の重さに押されて浮かぶ。",
       "waterSurface": "シミュレーション時刻の水面(描画用):浮力が読むのと同じ波、同じ数値(`height`、`point`、`normal`)。",
       "stats": "カウントと二つの時計：worker の 1 ステップあたりミリ秒、ページの 1 フレームあたりミリ秒。",
-      "error": "物理が最後に出したエラー（`PHYSICS_BUDGET`、`PHYSICS_NESTED`、`PHYSICS_FAILED`）、または `null`。シミュレーションを停止させたエラーは `enabled` をオフにします。",
+      "error": "物理が最後に出したエラー（`PHYSICS_BUDGET`、`PHYSICS_NESTED`、`PHYSICS_FAILED`、`RESOURCE_HTTP_ERROR`）、または `null`。シミュレーションを停止させたエラーは `enabled` をオフにします。",
       "add": "ジョイントを加えます(`joint.hinge(door, frame, …)` とその仲間)。両方の物体がシミュレーションされるとすぐに作られ、取り除かれるか壊れるまで保たれます。",
       "remove": "ジョイントを取り除きます。つないでいた物体は自由に離れます。"
     }
@@ -7338,7 +7339,7 @@
       "water": "物体が浮かぶ水：水位、波、密度、抗力。水より軽い物体は、押しのけた水の重さに押されて浮かぶ。",
       "waterSurface": "シミュレーション時刻の水面(描画用):浮力が読むのと同じ波、同じ数値(`height`、`point`、`normal`)。",
       "stats": "カウントと二つの時計：worker の 1 ステップあたりミリ秒、ページの 1 フレームあたりミリ秒。",
-      "error": "物理が最後に出したエラー（`PHYSICS_BUDGET`、`PHYSICS_NESTED`、`PHYSICS_FAILED`）、または `null`。シミュレーションを停止させたエラーは `enabled` をオフにします。",
+      "error": "物理が最後に出したエラー（`PHYSICS_BUDGET`、`PHYSICS_NESTED`、`PHYSICS_FAILED`、`RESOURCE_HTTP_ERROR`）、または `null`。シミュレーションを停止させたエラーは `enabled` をオフにします。",
       "add": "ジョイントを加えます(`joint.hinge(door, frame, …)` とその仲間)。両方の物体がシミュレーションされるとすぐに作られ、取り除かれるか壊れるまで保たれます。",
       "remove": "ジョイントを取り除きます。つないでいた物体は自由に離れます。"
     }
