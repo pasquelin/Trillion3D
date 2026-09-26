@@ -1,4 +1,17 @@
 use super::*;
+/// The object templates every test of the sidecar splits with.
+pub(super) const TEMPLATES: Templates = Templates {
+    binary: "clusters.bin",
+    page: "../../objects/{sha}.bin",
+    geometry: "../../objects/{sha}.bin",
+    bundle: "../../objects/{sha}.bin",
+};
+/// The bytes of column `index` of a finished sidecar.
+pub(super) fn column(bytes: &[u8], index: usize) -> &[u8] {
+    let at = (HEADER_WORDS + index * 2) * 4;
+    let word = |at: usize| u32::from_le_bytes(bytes[at..at + 4].try_into().unwrap()) as usize;
+    &bytes[word(at)..word(at) + word(at + 4)]
+}
 fn sha(c: char) -> String {
     std::iter::repeat_n(c, 64).collect()
 }
@@ -51,13 +64,7 @@ pub(super) fn sample() -> Value {
 #[test]
 fn digests_reads_back_every_sha_column() {
     let manifest = sample();
-    let templates = Templates {
-        binary: "clusters.bin",
-        page: "../../objects/{sha}.bin",
-        geometry: "../../objects/{sha}.bin",
-        bundle: "../../objects/{sha}.bin",
-    };
-    let (_, bytes) = split(&manifest, &templates, &[]).expect("split");
+    let (_, bytes) = split(&manifest, &TEMPLATES, &[]).expect("split");
     let mut found = digests(&bytes).expect("digests");
     found.sort();
     found.dedup();
@@ -70,13 +77,7 @@ fn digests_reads_back_every_sha_column() {
 // refuses it, so neither the proof nor prune ever forms a path from it.
 #[test]
 fn a_sha_column_entry_that_is_not_a_digest_is_refused() {
-    let templates = Templates {
-        binary: "clusters.bin",
-        page: "../../objects/{sha}.bin",
-        geometry: "../../objects/{sha}.bin",
-        bundle: "../../objects/{sha}.bin",
-    };
-    let (_, mut bytes) = split(&sample(), &templates, &[]).expect("split");
+    let (_, mut bytes) = split(&sample(), &TEMPLATES, &[]).expect("split");
     let at = bytes
         .windows(64)
         .position(|window| window == sha('a').as_bytes())
@@ -89,13 +90,7 @@ fn a_sha_column_entry_that_is_not_a_digest_is_refused() {
 }
 #[test]
 fn columns_declare_their_own_offsets_and_lengths() {
-    let templates = Templates {
-        binary: "clusters.bin",
-        page: "../../objects/{sha}.bin",
-        geometry: "../../objects/{sha}.bin",
-        bundle: "../../objects/{sha}.bin",
-    };
-    let (slim, bytes) = split(&sample(), &templates, &[]).expect("split");
+    let (slim, bytes) = split(&sample(), &TEMPLATES, &[]).expect("split");
     assert_eq!(
         u32::from_le_bytes(bytes[0..4].try_into().unwrap()),
         MANIFEST_BINARY_MAGIC
@@ -143,29 +138,17 @@ fn columns_declare_their_own_offsets_and_lengths() {
 fn a_url_that_leaves_the_template_is_refused() {
     let mut manifest = sample();
     manifest["primitives"][0]["pages"][0]["url"] = json!("pages/0.bin");
-    let templates = Templates {
-        binary: "clusters.bin",
-        page: "../../objects/{sha}.bin",
-        geometry: "../../objects/{sha}.bin",
-        bundle: "../../objects/{sha}.bin",
-    };
     assert_eq!(
-        split(&manifest, &templates, &[]).unwrap_err().code,
+        split(&manifest, &TEMPLATES, &[]).unwrap_err().code,
         "INVALID_MANIFEST"
     );
 }
 // Behavior 10 (Rust): encoding refuses depthLayer exceeding four bits (> 15).
 #[test]
 fn split_rejects_a_depth_layer_that_exceeds_four_bits() {
-    let templates = Templates {
-        binary: "clusters.bin",
-        page: "../../objects/{sha}.bin",
-        geometry: "../../objects/{sha}.bin",
-        bundle: "../../objects/{sha}.bin",
-    };
     let mut manifest = sample();
     manifest["primitives"][0]["pages"][0]["depthLayer"] = json!(16);
-    let error = split(&manifest, &templates, &[]).unwrap_err();
+    let error = split(&manifest, &TEMPLATES, &[]).unwrap_err();
     assert_eq!(error.code, "INVALID_MANIFEST");
     assert!(
         error.message.contains("depthLayer"),
@@ -175,15 +158,9 @@ fn split_rejects_a_depth_layer_that_exceeds_four_bits() {
 }
 #[test]
 fn split_accepts_a_depth_layer_at_the_four_bit_limit_and_writes_it_in_its_column() {
-    let templates = Templates {
-        binary: "clusters.bin",
-        page: "../../objects/{sha}.bin",
-        geometry: "../../objects/{sha}.bin",
-        bundle: "../../objects/{sha}.bin",
-    };
     let mut manifest = sample();
     manifest["primitives"][0]["pages"][0]["depthLayer"] = json!(15);
-    let (_, bytes) = split(&manifest, &templates, &[]).expect("split");
+    let (_, bytes) = split(&manifest, &TEMPLATES, &[]).expect("split");
     let at = (HEADER_WORDS + PAGE_DEPTH_LAYER * 2) * 4;
     let offset = u32::from_le_bytes(bytes[at..at + 4].try_into().unwrap()) as usize;
     let first_page_layer = u32::from_le_bytes(bytes[offset..offset + 4].try_into().unwrap());
