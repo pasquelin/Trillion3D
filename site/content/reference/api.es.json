@@ -2225,7 +2225,7 @@
     "members": {
       "visible": "Si se dibuja; `setVisible` lo escribe.",
       "setVisible": "Lo muestra u oculta; sus vértices siguen contando contra el límite.",
-      "setTransform": "Lo coloca: dieciséis números por columnas, o una matriz — `node.matrixWorld` sigue a un nodo.",
+      "setTransform": "Lo coloca: dieciséis números por columnas, o una matriz; una guía que dibujó `add` deja entonces de seguir a su nodo.",
       "remove": "Lo saca del mundo y devuelve sus vértices; una segunda llamada no hace nada."
     }
   },
@@ -2234,7 +2234,7 @@
     "members": {
       "positions": "Dos extremos por segmento, tres números cada uno.",
       "color": "Su color; blanco por defecto.",
-      "width": "Ancho en pantalla, en píxeles."
+      "width": "Ancho en pantalla, en píxeles CSS, como toda línea del motor."
     }
   },
   "GuidePoints": {
@@ -2242,7 +2242,7 @@
     "members": {
       "positions": "Tres números por punto.",
       "color": "Su color; blanco por defecto.",
-      "size": "Lado de cada punto cuadrado en pantalla, en píxeles."
+      "size": "Lado de cada punto cuadrado en pantalla, en píxeles CSS."
     }
   },
   "Guides": {
@@ -2252,7 +2252,7 @@
       "vertexCount": "Vértices mantenidos ahora, dos por segmento y uno por punto, guías ocultas incluidas.",
       "lines": "Dibuja segmentos de línea, dos extremos cada uno; rechazado por encima del límite (`GUIDE_CEILING`).",
       "points": "Dibuja puntos cuadrados, una posición cada uno; rechazado por encima del límite (`GUIDE_CEILING`).",
-      "add": "Dibuja las mallas de líneas y puntos de `object` — cada `helper` las construye —, en los colores de sus materiales, colocadas donde el objeto está ahora; sus triángulos no son guías y se omiten.",
+      "add": "Dibuja las mallas de líneas y puntos de `object` — cada `helper` las construye —, en los colores de sus materiales; sus triángulos no son guías y se omiten. La guía sigue al objeto — para un ayudante de luz o de cámara, el nodo que muestra — y se mueve en cada imagen en que ese nodo se movió, nunca de otro modo.",
       "clear": "Quita todas las guías."
     }
   },
@@ -5170,7 +5170,7 @@
       "background": "Lo que llena la imagen detrás de cada objeto: un color, o `null` para el predeterminado. Un cambio se muestra en el siguiente fotograma, conservando la sesión: un color nuevo asignado aquí, o el actual escrito con sus métodos (`set`, `setRGB`, `setHex`, `setHSL`...). Una escritura directa de `.r`, `.g` o `.b` no se detecta: vuelve a asignar `background` después. Una imagen, o cualquier valor sin `getHex`, se rechaza (`UNSUPPORTED_SCENE_UPDATE`): ninguna ruta la dibuja.",
       "fog": "Niebla sobre cada superficie, opaca o transparente, en los dos renderizadores; `null`, el valor por defecto, para ninguna, sin coste. `{ color, near, far }` funde los objetos en `color` de `near` a `far`, distancias desde la cámara; `{ color, density }` se espesa `density` por unidad de distancia; añade `heightFalloff` (y `baseHeight`, 0 por defecto) y se posa en el suelo, aclarándose por encima de `baseHeight` — dividida por e cada `1 / heightFalloff` unidades hacia arriba. Un cambio se ve en la imagen siguiente: una niebla nueva dada aquí, o su color escrito con sus métodos. Una escritura directa de `near`, `far`, `density`... no se oye: vuelve a dar `fog` después. Una niebla fuera de rango — `far` no más allá de `near`, una densidad negativa — se rechaza (`INVALID_SCENE_ENVIRONMENT`).",
       "load": "Carga un modelo compilado — la URL de su manifiesto — y lo añade a esta escena.",
-      "toJSON": "La escena como JSON simple y versionado: sus objetos, las formas por la llamada que las construyó, los materiales, las luces y los modelos cargados por dirección; también la pose de `camera` cuando se da una.",
+      "toJSON": "La escena como JSON simple y versionado: sus objetos, las formas por la llamada que las construyó, los materiales, las luces, el cuerpo de cada malla tal como se declaró y los modelos cargados por dirección; también la pose de `camera` cuando se da una.",
       "fromJSON": "Reemplaza lo que contiene la escena por una escena guardada con `toJSON`, conservando sus marcas `helper`; se resuelve cuando sus modelos están cargados. Otro formato u otra versión se rechaza (`UNSUPPORTED_SCENE_FORMAT`). Las llamadas hechas mientras se lee una se ejecutan una tras otra, en orden, cada una sobre lo que dejó la anterior: dos escenas guardadas nunca se mezclan."
     }
   },
@@ -5998,7 +5998,6 @@
       "anisotropy": "Nitidez vista de lado.",
       "flipY": "Si las filas están invertidas.",
       "premultiplyAlpha": "Si el color está premultiplicado.",
-      "generateMipmaps": "Si se hacen copias más pequeñas.",
       "colorSpace": "Cómo se leen sus números.",
       "transform": "Transformación de las UV del muestreador, `KHR_texture_transform` compuesto en tres filas de tres."
     }
@@ -7022,7 +7021,8 @@
       "children": "Los nodos que tiene debajo, en orden.",
       "mesh": "Posiciones en `geometries` y `materials`, cómo se leen los triángulos, y el centro de un sprite.",
       "light": "El tipo de una luz, sus colores, sus números, su dirección y los coeficientes de sonda.",
-      "model": "Un modelo compilado, por la dirección del manifiesto desde la que se cargó: nunca copiado dentro."
+      "model": "Un modelo compilado, por la dirección del manifiesto desde la que se cargó: nunca copiado dentro.",
+      "physics": "El cuerpo de una malla, tal como lo declara `mesh.physics`."
     }
   },
   "SavedScene": {
@@ -7429,7 +7429,7 @@
       "offset": "De qué se compone `matrix`.",
       "matrixAutoUpdate": "Si el host reconstruye `matrix`.",
       "matrix": "Transformación de las UV del muestreador, `KHR_texture_transform` compuesto en tres filas; el host la recalcula a partir del desplazamiento, la repetición y la rotación cuando hace la actualización.",
-      "generateMipmaps": "Si se hacen copias más pequeñas.",
+      "generateMipmaps": "Si se piden copias más pequeñas; el motor las hace siempre que `minFilter` las lee.",
       "premultiplyAlpha": "Si el color está premultiplicado por el alfa.",
       "flipY": "Si las filas se invierten al enviar.",
       "version": "Aumentado por el host en cada cambio de contenido: lo que un envío compara para evitar una nueva copia.",
