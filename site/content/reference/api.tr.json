@@ -2067,7 +2067,7 @@
       "clipAction": "`clip`'i çalan eylem.",
       "play": "`clip`'i şimdi çalar.",
       "stopAll": "Her eylemi durdurur.",
-      "update": "Çalan her eylemi `seconds` kadar ilerletir ve örneklenen değerleri yazar."
+      "update": "Çalan her eylemi `seconds` kadar ilerletir, sonra her özelliğe, durgun değeri üzerinde eylemlerinin örneklerinin ağırlıklı karışımını yazar."
     }
   },
   "ModelRecord": {

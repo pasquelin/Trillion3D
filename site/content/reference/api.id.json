@@ -2085,7 +2085,7 @@
       "clipAction": "Aksi yang memainkan `clip`.",
       "play": "Memainkan `clip` sekarang.",
       "stopAll": "Menghentikan setiap aksi.",
-      "update": "Memajukan setiap aksi yang berjalan sebesar `seconds` dan menulis nilai yang disampel."
+      "update": "Memajukan setiap aksi yang berjalan sebesar `seconds`, lalu menulis ke setiap properti campuran berbobot dari sampel aksi-aksinya di atas nilai diamnya."
     }
   },
   "ModelRecord": {

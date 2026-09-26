@@ -1,7 +1,18 @@
-//! The matter a source declares for a node's collider (`KHR_physics_rigid_bodies`): the friction and
-//! restitution of the `physicsMaterial` its collider names. Nothing is guessed: a node that names
-//! none carries none, and the runtime gives its tiles the engine's default matter.
+//! What a source declares for a node through `KHR_physics_rigid_bodies` and `KHR_implicit_shapes`.
+//! Nothing is guessed: the friction and restitution of the `physicsMaterial` its collider names,
+//! when it names one (a node that names none carries none, and the runtime gives its tiles the
+//! engine's default matter); and, for a node declaring motion, the body it is: its motion and
+//! implicit shape as declared, else the hull of a mesh (`hull.rs`), weighed here, at cook time.
+use super::hull::{cooked_hull, Hull};
+use super::stage::{place, trs};
+use super::{refused, PHYSICS_COOK_FAILED};
+use crate::compiler_nodes::scene_nodes;
+use crate::compiler_validate::values;
+use crate::compiler_world::{multiply, rotation_matrix, scaling, translation, Mat4};
+use crate::{Options, Result};
 use serde_json::{json, Value};
+use std::collections::btree_map::Entry;
+use std::collections::{BTreeMap, BTreeSet};
 
 /// `friction` and `restitution` the collider of node `node` declares, each only when declared.
 pub(crate) fn declared_matter(g: &Value, node: &Value) -> Value {
@@ -23,4 +34,102 @@ pub(crate) fn declared_matter(g: &Value, node: &Value) -> Value {
         }
     }
     matter
+}
+
+/// The `physics.json` entry of the body node `index` of `nodes` declares, placed by its `world`
+/// matrix: its `motion` as declared, its matter, pose and shape — the `KHR_implicit_shapes` shape
+/// its collider names, as declared; else the cooked hull of the mesh its collider names (its own
+/// without a collider), moved into the body's frame, and, a dynamic body's, the exact mass of the
+/// solid it bounds — one hull, whether or not the collider asks for `convexHull`; bodies drawing
+/// the same mesh in their own frame share it, whatever scale each is weighed at.
+fn body(
+    o: &Options,
+    source: (&Value, &[u8]),
+    nodes: &[Value],
+    (index, world): (usize, &[Mat4]),
+    cooked: &mut BTreeMap<usize, Hull>,
+) -> Result<Value> {
+    let declared = &nodes[index]["extensions"]["KHR_physics_rigid_bodies"];
+    let pose = trs(&world[index])
+        .ok_or_else(|| refused("A body's node shears or has no scale.".into()))?;
+    let field = |key: &str| declared.pointer(&format!("/collider/geometry/{key}"));
+    let shape = match field("shape").and_then(Value::as_u64) {
+        Some(id) => (source.0)
+            .pointer(&format!("/extensions/KHR_implicit_shapes/shapes/{id}"))
+            .cloned()
+            .ok_or_else(|| {
+                refused(format!(
+                    "A body's collider names shape {id}, which is missing."
+                ))
+            })?,
+        None => {
+            let at = field("node")
+                .and_then(Value::as_u64)
+                .map_or(index, |n| n as usize);
+            let mesh = nodes.get(at).and_then(|n| n["mesh"].as_u64());
+            let mesh = mesh.ok_or_else(|| {
+                refused(if at == index {
+                    "A body that draws no mesh names no collider shape.".into()
+                } else {
+                    format!("A body's collider names node {at}, which draws no mesh.")
+                })
+            })?;
+            // Another node's mesh is moved by its placement relative to the body's (`trs`).
+            let (t, [x, y, z, w], s) = pose;
+            let undo = multiply(
+                &rotation_matrix([-x, -y, -z, w]),
+                &translation(t.map(|v| -v)),
+            );
+            let frame = (at != index)
+                .then(|| multiply(&scaling(s.map(|v| 1.0 / v)), &multiply(&undo, &world[at])));
+            // A kinematic body is moved, never pushed: it is not weighed.
+            let kinematic = declared.pointer("/motion/isKinematic") == Some(&Value::Bool(true));
+            let weigh = (!kinematic).then_some(s);
+            let mesh = mesh as usize;
+            if frame.is_some() {
+                cooked_hull(o, source, (mesh, frame))?.weighed(weigh)?
+            } else {
+                let hull = match cooked.entry(mesh) {
+                    Entry::Occupied(shared) => shared.into_mut(),
+                    Entry::Vacant(slot) => slot.insert(cooked_hull(o, source, (mesh, None))?),
+                };
+                hull.weighed(weigh)?
+            }
+        }
+    };
+    let mut entry = declared_matter(source.0, &nodes[index]);
+    entry["node"] = json!(index);
+    entry["motion"] = declared["motion"].clone();
+    entry["shape"] = shape;
+    place(&mut entry, pose);
+    Ok(entry)
+}
+
+/// The rigid bodies the rendered scene's nodes but `soft` declare, placed by their `world`
+/// matrices: their `physics.json` entries, and the report's refusals (`node`, `reason`). A node
+/// declaring no motion is no body; one that draws nothing is a body all the same, one whose mesh
+/// the slice left out (`chosen`) none.
+pub(super) fn declared_bodies(
+    o: &Options,
+    source: (&Value, &[u8]),
+    (chosen, soft): (&BTreeSet<usize>, &BTreeSet<usize>),
+    world: &[Mat4],
+) -> Result<(Vec<Value>, Vec<Value>)> {
+    let nodes = values(source.0, "nodes")?;
+    let (mut bodies, mut refusals, mut cooked) = (Vec::new(), Vec::new(), BTreeMap::new());
+    let moving = |i: &&usize| nodes[**i].pointer("/extensions/KHR_physics_rigid_bodies/motion");
+    let drawn = |i: &&usize| nodes[**i].get("mesh").is_none() || chosen.contains(*i);
+    for &index in scene_nodes(source.0)?
+        .difference(soft)
+        .filter(|i| moving(i).is_some() && drawn(i))
+    {
+        match body(o, source, nodes, (index, world), &mut cooked) {
+            Ok(entry) => bodies.push(entry),
+            Err(e) if e.code == PHYSICS_COOK_FAILED => {
+                refusals.push(json!({"node":index,"reason":e.message}))
+            }
+            Err(e) => return Err(e),
+        }
+    }
+    Ok((bodies, refusals))
 }
