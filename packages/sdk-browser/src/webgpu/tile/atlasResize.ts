@@ -9,9 +9,10 @@ import { tailSlotOf, tileKeyOf } from './ids.ts';
  * virtual textures when their pool changes size. Surviving layers are copied in one command, slot
  * for slot: the page table does not move for them. Tiles of vanishing layers are moved into a free
  * slot of the new pool — the pinned tails first, then the most looked-at —, each copied and
- * re-registered in the table; what no longer fits is evicted, the table says so, `onEvicted` hears
- * its texture and the coarse level takes over. A tail always finds a place. Returns the new pool
- * and the evicted-tile count; the old pool is destroyed once the copy is submitted.
+ * re-registered in the table; what no longer fits is evicted, the table says so and the coarse
+ * level takes over. A tail always finds a place: a pool too small for them all refuses, by name.
+ * Returns the new pool and the evicted-tile count; the old pool is destroyed once the copy is
+ * submitted.
  */
 export function resizeTileAtlas(
   device: Pick<GPUDevice, 'createTexture' | 'createCommandEncoder' | 'queue'>,
@@ -20,7 +21,6 @@ export function resizeTileAtlas(
   pool: WebgpuTilePool,
   pages: WebgpuTilePageTable,
   resident: Map<number, number>,
-  onEvicted?: (slot: number) => void,
 ): { pool: WebgpuTilePool; evicted: number } {
   const next = createWebgpuTilePool(device, options);
   const encoder = device.createCommandEncoder({
@@ -46,7 +46,7 @@ export function resizeTileAtlas(
     yielding: number[] | undefined,
     yielded = 0;
   const evict = (from: WebgpuTilePool, index: number) => {
-    evictTile(from, index, { pages, resident }, onEvicted);
+    evictTile(from, index, { pages, resident });
     evicted++;
   };
   for (const index of displaced) {
@@ -63,6 +63,8 @@ export function resizeTileAtlas(
       }
     }
     if (target === undefined) {
+      // Only a pool drawn without its tails' floor gets here: a tail is never cleared as a tile.
+      if (tail !== undefined) throw new Error('TEXTURE_POOL_TAILS');
       evict(pool, index);
       continue;
     }
