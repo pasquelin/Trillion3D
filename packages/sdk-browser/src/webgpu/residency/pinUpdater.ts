@@ -23,8 +23,8 @@ export const LAST_USE_WINDOW = DAG_READBACK_SLOTS + 1;
  *
  * The kept set changed by a difference, so the pins follow that difference: the keys that joined
  * are pinned as soon as the cache holds their bytes, and `waiting` carries the ones still in flight
- * to the next image. The keys that left are unpinned by last use (`../../residency/lastUse.ts`): once unused for
- * its window, oldest first, and never while a held page depends on them. Nothing walks the pinned
+ * to the next image. The keys that left are unpinned by last use (`../../residency/lastUse.ts`):
+ * once unused for its window, oldest first, and never while a held page depends on them. Nothing walks the pinned
  * set per image.
  */
 export function createWebgpuPinUpdater(options: {

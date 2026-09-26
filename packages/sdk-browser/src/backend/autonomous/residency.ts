@@ -46,7 +46,6 @@ export function createAutonomousResidency(env: ResidencyEnvironment) {
     keptChanged() {
       keptStale = true;
     },
-    keptUrls,
     pageUrls() {
       retained.length = 0;
       for (const url of keptUrls()) retained.push(url);
