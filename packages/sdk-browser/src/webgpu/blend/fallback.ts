@@ -30,12 +30,16 @@ export function listFallbackBlendDraws(blendState: BlendState, gpuCut: boolean) 
   } = blendState;
   list.length = 0;
   for (let i = 0; i < items.length; i++) {
-    const { paged, pagedIndex, tableBase = 0, count } = items[i];
+    const { paged, pagedIndex, count } = items[i];
     if (!paged || !table || pagedIndex === undefined) {
       list.push(i, 0, count);
       continue;
     }
     if (gpuCut) throw new Error('FALLBACK_BLEND_WITHOUT_CPU_CUT');
+    // The base the CPU cut wrote this item's instances at (`writeCpuTransparentInstances`), read
+    // from the table: `item.tableBase` is only set by the transparent plan, which a prepare that
+    // failed before the blend resources never builds.
+    const tableBase = table.itemRanges[pagedIndex * 2];
     for (let k = tableBase; k < tableBase + cpuItemCounts[pagedIndex]; k++) {
       const span = cpuInstances[k] * 2;
       if (table.spans[span + 1]) list.push(i, table.spans[span], table.spans[span + 1]);
