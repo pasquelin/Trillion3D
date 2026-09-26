@@ -112,7 +112,7 @@ test('a shapeless node restores its cooked hull and mass, and turns about the co
     'its centre of mass',
   );
   assert.ok(Math.abs(b.f[FRAME + 3] - 1000 / 6) < 1e-3, 'its inertia, as cooked');
-  assert.equal(fetched.filter((f) => f === 'hull.bin').length, 3, 'restored, never built');
+  assert.equal(fetched.filter((f) => f === 'hull.bin').length, 1, 'one read, never built');
   const jolt = await startModule();
   writer.gravity([0, -9.81, 0]);
   // A ledge whose edge, at x = 0.6, holds the hull's own centre and not the cooked one.
@@ -175,6 +175,11 @@ test('a declared kinematic body follows its model; refusals are named; a removed
     [OP.moveKinematic, id & BODY_INDEX, 1, 1, 0],
   );
   assert.equal(tiles.modelOf(id), model, 'a ray on it names its model');
+  model.scale.set(2, 2, 2);
+  model.updateMatrixWorld(true);
+  tiles.moved(model);
+  const again = adds(writer.take()).map(({ f }) => f[13]);
+  assert.deepEqual(again, [1], 'rescaled, made again in the same frame');
   scene.remove(model);
   tiles.scan(scene);
   assert.deepEqual([...writer.take()], [OP.remove, id & BODY_INDEX]);
