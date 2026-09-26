@@ -11,7 +11,7 @@ use crate::compiler_validate::values;
 use crate::compiler_world::{multiply, rotation_matrix, scaling, translation, Mat4};
 use crate::{Options, Result};
 use serde_json::{json, Value};
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 /// `friction` and `restitution` the collider of node `node` declares, each only when declared.
 pub(crate) fn declared_matter(g: &Value, node: &Value) -> Value {
@@ -39,13 +39,13 @@ pub(crate) fn declared_matter(g: &Value, node: &Value) -> Value {
 /// matrix: its `motion` as declared, its matter, pose and shape — the `KHR_implicit_shapes` shape
 /// its collider names, as declared; else the cooked hulls of the mesh its collider names (its own
 /// without a collider), moved into the body's frame, one hull when the collider asks for its
-/// convex hull.
+/// convex hull; bodies drawing the same mesh in their own frame share its `cooked` hulls.
 fn body(
     o: &Options,
     source: (&Value, &[u8]),
     nodes: &[Value],
-    index: usize,
-    world: &[Mat4],
+    (index, world): (usize, &[Mat4]),
+    cooked: &mut BTreeMap<(usize, bool), Value>,
 ) -> Result<Value> {
     let declared = &nodes[index]["extensions"]["KHR_physics_rigid_bodies"];
     let pose = trs(&world[index])
@@ -79,7 +79,15 @@ fn body(
             let frame = (at != index)
                 .then(|| multiply(&scaling(s.map(|v| 1.0 / v)), &multiply(&undo, &world[at])));
             let one_hull = field("convexHull") == Some(&Value::Bool(true));
-            cooked_hulls(o, source, (mesh as usize, frame), one_hull)?
+            let key = frame.is_none().then_some((mesh as usize, one_hull));
+            match key.and_then(|k| cooked.get(&k)) {
+                Some(shared) => shared.clone(),
+                None => {
+                    let shape = cooked_hulls(o, source, (mesh as usize, frame), one_hull)?;
+                    key.map(|k| cooked.insert(k, shape.clone()));
+                    shape
+                }
+            }
         }
     };
     let mut entry = declared_matter(source.0, &nodes[index]);
@@ -90,23 +98,25 @@ fn body(
     Ok(entry)
 }
 
-/// The rigid bodies the rendered scene's nodes but `soft` declare, placed by their `world` matrices: their
-/// `physics.json` entries, and the report's refusals (`node`, `reason`). A node declaring no
-/// motion is no body; one that draws nothing is a body all the same.
+/// The rigid bodies the rendered scene's nodes but `soft` declare, placed by their `world`
+/// matrices: their `physics.json` entries, and the report's refusals (`node`, `reason`). A node
+/// declaring no motion is no body; one that draws nothing is a body all the same, one whose mesh
+/// the slice left out (`chosen`) none.
 pub(super) fn declared_bodies(
     o: &Options,
     source: (&Value, &[u8]),
-    soft: &BTreeSet<usize>,
+    (chosen, soft): (&BTreeSet<usize>, &BTreeSet<usize>),
     world: &[Mat4],
 ) -> Result<(Vec<Value>, Vec<Value>)> {
     let nodes = values(source.0, "nodes")?;
-    let (mut bodies, mut refusals) = (Vec::new(), Vec::new());
+    let (mut bodies, mut refusals, mut cooked) = (Vec::new(), Vec::new(), BTreeMap::new());
     let moving = |i: &&usize| nodes[**i].pointer("/extensions/KHR_physics_rigid_bodies/motion");
+    let drawn = |i: &&usize| nodes[**i].get("mesh").is_none() || chosen.contains(*i);
     for &index in scene_nodes(source.0)?
         .difference(soft)
-        .filter(|i| moving(i).is_some())
+        .filter(|i| moving(i).is_some() && drawn(i))
     {
-        match body(o, source, nodes, index, world) {
+        match body(o, source, nodes, (index, world), &mut cooked) {
             Ok(entry) => bodies.push(entry),
             Err(e) if e.code == PHYSICS_COOK_FAILED => {
                 refusals.push(json!({"node":index,"reason":e.message}))
