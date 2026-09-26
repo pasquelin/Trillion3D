@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { loadClusterManifest } from '../scene/manifestLoad.ts';
-import { checked } from './pages.ts';
+import { checked, optionalFile } from './pages.ts';
 import { answering, refusedWith, type Answer } from './answers.fixture.ts';
 
 /** The example cache that drew nothing in the browser: its own files, served from the site. */
@@ -55,14 +55,14 @@ test('an optional file the server lacks (404) or hides (403) answers null, asked
   for (const status of [404, 403]) {
     t.mock.restoreAll();
     const asked = answering(t, 'lights.json', [status]);
-    assert.equal(await checked(LIGHTS, undefined, { optional: true }), null);
+    assert.equal(await optionalFile(LIGHTS), null);
     assert.equal(asked.length, 1);
   }
 });
 
 test('an optional file refused otherwise (401) is refused by its address, asked once', async (t) => {
   const asked = answering(t, 'lights.json', [401]);
-  const read = checked(LIGHTS, undefined, { optional: true });
+  const read = optionalFile(LIGHTS);
   await assert.rejects(read, refusedWith(401, 'lights.json'));
   assert.equal(asked.length, 1);
 });

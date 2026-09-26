@@ -12,7 +12,7 @@ import { Vector3 } from '../../../sdk-core/src/world/math/vector3.ts';
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
 import type { Bodied } from './bodies.ts';
 import { resolveCameraWorld } from '../camera/world.ts';
-import { checked, type FetchPolicy } from '../cluster/pages.ts';
+import { checked, optionalFile } from '../cluster/pages.ts';
 
 /** A compiled model as the streamer reads it (`LoadedModel`): where its files are. */
 export type Model = Object3D & { isLoadedModel: true; record: { base: string } };
@@ -45,14 +45,14 @@ const place = new Matrix4(),
   bounds = new Box3();
 
 /** The bytes of a cooked object beside `model`'s manifest — a tile, a soft body's settings —
- *  read as every cache file is (`checked`, by `policy`), until `signal` aborts. */
+ *  read as every cache file is (`checked`, in `attempts` requests), until `signal` aborts. */
 export async function cookedBytes(
   model: Model,
   url: string,
   signal: AbortSignal,
-  policy?: FetchPolicy & { optional?: false },
+  attempts?: number,
 ) {
-  const response = await checked(new URL(url, model.record.base).href, signal, policy);
+  const response = await checked(new URL(url, model.record.base).href, signal, attempts);
   return new Uint8Array(await response.arrayBuffer());
 }
 
@@ -60,7 +60,7 @@ export async function cookedBytes(
  *  for a model compiled before the cook, which has none. */
 export async function cookedPhysics(model: Model, signal: AbortSignal) {
   const url = new URL('physics.json', model.record.base).href;
-  const response = await checked(url, signal, { optional: true });
+  const response = await optionalFile(url, signal);
   return response && readCookedPhysics(await response.json());
 }
 
