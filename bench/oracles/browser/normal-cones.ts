@@ -1,24 +1,6 @@
-// Batch F oracles, WebGPU engine-prepare side: `packages/sdk-browser/src/webgpu/pages/prepare/prepare.ts:23-44`,
-// `packages/sdk-browser/src/webgpu/pages/prepare/setup.ts:94-105` and `packages/sdk-browser/src/webgpu/pages/prepare/textures.ts:37-42` from before batch F.
+// Batch F oracles, WebGPU engine-prepare side: the source-byte table and the texture diagnostic
+// counters (`packages/sdk-browser/src/webgpu/pages/io/catalogue.ts`) as they were before batch F.
 import type { PageRec } from '../../../packages/sdk-browser/src/page/selection/types.ts';
-
-interface ConesRoot {
-  cones?: boolean;
-  pages: PageRec[];
-}
-
-/**
- * The input of `prepareCones`, written here once for the bench as for the test.
- *
- * The function walks pages **by root**, because posing a cone is declaring it;
- * the oracle walks the catalogue. Both fields state the same list in the same order,
- * and that is what this function guarantees. A second place that built this input by
- * hand would have no type to reread it — that is how the bench broke when the function
- * moved from the catalogue to the roots.
- */
-export function entreeCones(pages: PageRec[], roots: ConesRoot[] = [{ cones: false, pages }]) {
-  return { setup: { allPages: pages, roots } };
-}
 
 /** Source-byte table before batch F: one `flatMap` of a pair per page. */
 export function referenceIndexSourceBytes(allPages: PageRec[]) {
