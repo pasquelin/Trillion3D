@@ -60,3 +60,26 @@ test('a step smaller than a page moves no extent; a step of one finest page move
   assert.equal(movedNow()[0], true);
   assert.equal(movedNow()[15], false, 'the coarsest extent holds');
 });
+
+test('a box that bounds nothing leaves the floor the whole view reach', () => {
+  const sun = createSunLevels(),
+    bounded = new Int32Array(4),
+    reach = new Int32Array(4);
+  // No box yet, and a plane unbounded along x: neither bounds the floor.
+  for (const [min, max] of [
+    [
+      [Infinity, Infinity, Infinity],
+      [-Infinity, -Infinity, -Infinity],
+    ],
+    [
+      [-Infinity, 0, -10],
+      [Infinity, 0, 10],
+    ],
+  ]) {
+    sun.update(0, AXIS, at(0), min, max, 1);
+    sun.floorReach(0, at(0), reach);
+    sun.update(0, AXIS, at(0), [-1e9, -1, -1e9], [1e9, 1, 1e9], 1);
+    sun.floorReach(0, at(0), bounded);
+    assert.deepEqual(Array.from(reach), Array.from(bounded), `box ${min} … ${max}`);
+  }
+});
