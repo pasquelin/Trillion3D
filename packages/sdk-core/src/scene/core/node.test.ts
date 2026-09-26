@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { SCENE_MODEL_VERSION, type SceneNode } from './node.ts';
 import { createSceneRoot } from './root.ts';
-import { assertClose } from './nodeAttach.fixture.ts';
+import { mismatch } from './nodeAttach.fixture.ts';
 
 const hasCode = (code: string) => (error: unknown) => (error as { code?: string }).code === code;
 
@@ -164,11 +164,14 @@ test('attach moves a child under another parent where it stands in the world', (
   assert.equal(to.attach(child), to);
   assert.equal(child.parent, to);
   assert.deepEqual(from.children, []);
-  assertClose(child.worldMatrix, world);
+  assert.equal(mismatch(child.worldMatrix, world), null);
   child.updateWorldMatrix();
-  assertClose(child.worldMatrix, world); // the rewritten pose recomposes the same matrix
+  assert.equal(mismatch(child.worldMatrix, world), null, 'its rewritten pose, recomposed');
   from.attach(child);
-  assertClose(child.localMatrix, [1, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0.5, 0, 1, -1, 2, 1]);
+  assert.equal(
+    mismatch(child.localMatrix, [1, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0.5, 0, 1, -1, 2, 1]),
+    null,
+  );
   assert.throws(() => child.attach(from), /TRANSFORM_CYCLE|cycle/);
   assert.equal(from.parent, root);
 });
