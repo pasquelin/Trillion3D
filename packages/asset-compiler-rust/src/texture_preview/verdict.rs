@@ -20,7 +20,18 @@ fn verdict_path(sha256: &str, kind: AtlasKind, file: &str, sheet: &GateSheet) ->
         .zip(['r', 'g', 'b', 'a'])
         .filter_map(|(&read, name)| read.then_some(name))
         .collect();
-    let cutoffs: Vec<String> = sheet.cutoffs.iter().map(|c| format!("-{c}")).collect();
+    // A cut under a colour factor alpha of 1 keeps the name it had before the factor.
+    let cutoffs: Vec<String> = sheet
+        .cutoffs
+        .iter()
+        .map(|&(c, f)| {
+            if f == 1.0 {
+                format!("-{c}")
+            } else {
+                format!("-{c}x{f}")
+            }
+        })
+        .collect();
     format!(
         "{}/{sha256}/{}-{file}-{channels}{}.gate.json",
         texture_version_dir(),
