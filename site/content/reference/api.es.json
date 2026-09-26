@@ -6615,7 +6615,7 @@
   },
   "world.beforeFrame": {
     "summary": "Ejecuta una función antes de cada fotograma dibujado, con `{ delta, time }`; devuelve lo que lo detiene.",
-    "description": "Un fotograma del bucle del mundo transcurre así: el controlador hace avanzar la cámara (a menos que `controls.autoUpdate` sea false), los clips avanzan, estos hooks en el orden en que se añadieron, la escena se escribe y se dibuja, luego los hooks de `onFrame`. Lo que un hook coloca — un cuerpo sobre la cámara, una cabina — se dibuja en ese mismo fotograma, nunca uno tarde. Un `render()` dirigido por el anfitrión también los ejecuta, pero no hace avanzar ningún controlador. Un hook que llama a `invalidate()` mantiene llegando fotogramas.",
+    "description": "Un fotograma transcurre así: el controlador de la cámara (a menos que `controls.autoUpdate` sea false o que el anfitrión dirija, `render()`), los clips, la física, estos hooks en su orden, el dibujo, luego los hooks de `onFrame`. Lo que un hook coloca — un cuerpo sobre la cámara, una cabina — se dibuja en ese mismo fotograma, nunca uno tarde. Un hook que llama a `invalidate()` mantiene llegando fotogramas.",
     "parameters": {
       "hook": "La función a ejecutar; recibe los segundos recién integrados y el tiempo del mundo."
     },
@@ -6632,7 +6632,7 @@
     "summary": "Pide un nuevo fotograma después de un cambio que el mundo no pudo ver."
   },
   "world.render": {
-    "summary": "Dibuja un fotograma de inmediato, sea quien sea el maestro del bucle."
+    "summary": "Dibuja un fotograma de inmediato, sea quien sea el maestro del bucle: los clips y la física avanzan con él."
   },
   "world.resize": {
     "summary": "Dice al mundo que el lienzo ha cambiado de tamaño; sin valor, lee el tamaño del lienzo.",

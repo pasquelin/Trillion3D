@@ -6977,7 +6977,7 @@
     "summary": "Một promise hoàn tất ngay khi thế giới biết nó sẽ vẽ như thế nào."
   },
   "world.render": {
-    "summary": "Vẽ một khung hình ngay bây giờ, bất kể ai đang dẫn dắt vòng lặp."
+    "summary": "Vẽ một khung hình ngay bây giờ, bất kể ai đang dẫn dắt vòng lặp: các clip và vật lý tiến bước cùng nó."
   },
   "world.renderer": {
     "summary": "`'webgpu'` hoặc `'webgl2'`: cách thế giới vẽ; `null` trước `ready`."
@@ -7030,7 +7030,7 @@
   },
   "world.beforeFrame": {
     "summary": "Chạy một hàm trước mỗi khung hình được vẽ, với `{ delta, time }`; trả về hàm gỡ bỏ nó.",
-    "description": "Một khung hình của vòng lặp thế giới chạy: bộ điều khiển tiến bước camera (trừ khi `controls.autoUpdate` là sai), các clip tiến triển, các hook này theo thứ tự chúng được thêm vào, cảnh được ghi và vẽ, rồi đến các hook `onFrame`. Những gì một hook đặt vào — một cơ thể trên camera, một buồng lái — được vẽ ngay trong khung hình này, không bao giờ chậm một khung. Một `render()` do ứng dụng chủ dẫn dắt cũng chạy chúng nhưng không tiến bước bộ điều khiển nào. Một hook gọi `invalidate()` giữ cho các khung hình tiếp tục đến.",
+    "description": "Một khung hình chạy: bộ điều khiển camera (trừ khi `controls.autoUpdate` là sai hoặc ứng dụng chủ dẫn dắt, `render()`), các clip, vật lý, các hook này theo thứ tự của chúng, việc vẽ, rồi đến các hook `onFrame`. Những gì một hook đặt vào — một cơ thể trên camera, một buồng lái — được vẽ ngay trong khung hình này, không bao giờ chậm một khung. Một hook gọi `invalidate()` giữ cho các khung hình tiếp tục đến.",
     "parameters": {
       "hook": "Hàm cần chạy; nó nhận được số giây vừa tích hợp và thời gian của thế giới."
     },

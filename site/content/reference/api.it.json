@@ -6615,7 +6615,7 @@
   },
   "world.beforeFrame": {
     "summary": "Esegue una funzione prima di ogni fotogramma disegnato, con `{ delta, time }`; restituisce ciò che lo ferma.",
-    "description": "Un fotogramma del ciclo del mondo si svolge così: il controller fa avanzare la telecamera (a meno che `controls.autoUpdate` sia false), le clip avanzano, questi hook nell'ordine in cui sono stati aggiunti, la scena viene scritta e disegnata, poi gli hook di `onFrame`. Ciò che un hook posiziona — un corpo sulla telecamera, un cockpit — viene disegnato in questo stesso fotogramma, mai uno in ritardo. Un `render()` guidato dall'host li esegue anch'esso, ma non fa avanzare alcun controller. Un hook che chiama `invalidate()` fa continuare ad arrivare fotogrammi.",
+    "description": "Un fotogramma si svolge così: il controller della telecamera (a meno che `controls.autoUpdate` sia false o che l'host guidi, `render()`), le clip, la fisica, questi hook nel loro ordine, il disegno, poi gli hook di `onFrame`. Ciò che un hook posiziona — un corpo sulla telecamera, un cockpit — viene disegnato in questo stesso fotogramma, mai uno in ritardo. Un hook che chiama `invalidate()` fa continuare ad arrivare fotogrammi.",
     "parameters": {
       "hook": "La funzione da eseguire; riceve i secondi appena integrati e il tempo del mondo."
     },
@@ -6632,7 +6632,7 @@
     "summary": "Richiede un nuovo fotogramma dopo un cambiamento che il mondo non ha potuto vedere."
   },
   "world.render": {
-    "summary": "Disegna subito un fotogramma, chiunque sia il maestro del ciclo."
+    "summary": "Disegna subito un fotogramma, chiunque sia il maestro del ciclo: le clip e la fisica avanzano con esso."
   },
   "world.resize": {
     "summary": "Dice al mondo che il canvas ha cambiato dimensione; senza valore, legge la dimensione del canvas.",
