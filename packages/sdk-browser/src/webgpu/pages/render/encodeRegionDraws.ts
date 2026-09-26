@@ -67,6 +67,9 @@ export function drawRegionCasters(
   const { shadows, cull, regions, occlusion } = rt.lights,
     { order, first, clears, restores } = pagePlan,
     side = SHADOW_PAGE / scale;
+  // One pipeline is set once for the pass; two alternate in each region, depth then colour.
+  const one = pipelines.length === 1;
+  if (one) pass.setPipeline(pipelines[0]);
   let draws = 0;
   for (let i = first[k]; i < first[k] + clears[k] + restores[k]; i++) {
     const region = order[i],
@@ -81,7 +84,7 @@ export function drawRegionCasters(
     pass.setBindGroup(1, shadows!.faceGroup, [region * shadows!.faceStride]);
     const commands = visible ? occlusion!.visibleIndirect : cull!.indirect;
     for (const pipeline of pipelines) {
-      pass.setPipeline(pipeline);
+      if (!one) pass.setPipeline(pipeline);
       pass.drawIndirect(commands, region * DRAW_INDIRECT_STRIDE);
     }
     draws += pipelines.length;
