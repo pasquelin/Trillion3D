@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
-import { encodeManifestBinary } from '../packages/sdk-core/src/manifest/binary.ts';
+import { decodeManifestBinary, encodeManifestBinary } from '../packages/sdk-core/src/index.ts';
 import { decodePng, encodePng } from '../packages/sdk-node/src/cutout/png.mts';
 import { manifest, sha, TEMPLATES } from '../tests/fixtures/manifestBinary.ts';
 import { preview } from '../tests/fixtures/manifestBinaryPreview.ts';
@@ -48,7 +48,7 @@ test('each coverage chain is counted at its cutoff at every level, against level
     return found.head;
   };
   const buffer = binary.buffer.slice(binary.byteOffset, binary.byteOffset + binary.byteLength);
-  const counted = await coverageLevels(slim, buffer as ArrayBuffer, read);
+  const counted = await coverageLevels(decodeManifestBinary(slim, buffer as ArrayBuffer), read);
   assert.deepEqual(
     counted.map((c) => [c.texture, c.cutoff, c.levels.map((l) => Math.round(l.relative * 100))]),
     [
