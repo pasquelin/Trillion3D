@@ -15,36 +15,48 @@ import { RACINE } from '../core/paths.ts';
 /** How every refusal starts, for the tests that count them. */
 export const CHROME_REFUSED = 'Chrome refused';
 
-/** Folders whose entry points open Chrome on purpose: the bench and the repository's scripts. */
-const LAUNCHING_FOLDERS = ['bench/', 'scripts/'];
-
-const repositoryPath = (entry: string) => {
+/** The entry file, resolved; `null` with none: `node -e`, `--eval`, `--print`, stdin, the REPL. */
+function entryFile(entry: string | undefined) {
+  if (!entry || process.execArgv.some((flag) => /^(-e|-p|--eval|--print)(=|$)/.test(flag)))
+    return null;
   try {
-    return relative(RACINE, realpathSync(entry)).split(sep).join('/');
+    return realpathSync(entry);
   } catch {
     return null;
   }
-};
+}
+
+/** Whether the process runs under `node --test`: a runner's child (`NODE_TEST_CONTEXT`) or the
+ *  runner itself (`--test`, with `--test-isolation=none`). */
+const underNodeTest = () =>
+  process.env.NODE_TEST_CONTEXT !== undefined || process.execArgv.includes('--test');
+
+/** A proof `test:gpu` runs (`tests/browser/test-gpu.ts` lists them, a declared exclusion
+ *  included, so it can still be run on its own). */
+function isGpuProof(path: string) {
+  const proofs = [
+    ...listJustesseTests(),
+    ...listBrowserFiles().map((file) => `${BROWSER}/${file}`),
+  ];
+  return proofs.includes(path);
+}
 
 /**
- * Throws unless the process's entry point is a run that opens Chrome on purpose: a proof of the
- * `test:gpu` folders (`tests/browser/test-gpu.ts` lists them, a declared exclusion included, so
- * it can still be run on its own), or a bench or script entry that is no unit test. A Node
- * import — by a unit test, `node -e` or a review agent's scratch file — never starts a browser
- * (AGENTS.md rule 2).
+ * Throws when Chrome would start from an import instead of a run (AGENTS.md rule 2): with no entry
+ * file (`node -e`, the REPL), from a unit test entry, or under `node --test` from anything but a
+ * `test:gpu` proof. Any other explicit script opens Chrome on purpose, wherever it lives: a
+ * proof, the bench, a script, a measurer's harness in its scratch folder. `testRun` says whether
+ * the process runs under `node --test`; the guard's own tests set it.
  */
-export function assertBrowserEntryPoint(entry = process.argv[1]) {
-  const path = entry ? repositoryPath(entry) : null;
-  const launches =
-    path !== null &&
-    (LAUNCHING_FOLDERS.some((folder) => path.startsWith(folder))
-      ? !isUnitTest(path)
-      : listJustesseTests().includes(path) ||
-        listBrowserFiles().some((file) => path === `${BROWSER}/${file}`));
-  if (launches) return;
+export function assertBrowserEntryPoint(entry = process.argv[1], testRun = underNodeTest()) {
+  const file = entryFile(entry);
+  const path = file && relative(RACINE, file).split(sep).join('/');
+  const refused = !path || isUnitTest(path) || (testRun && !isGpuProof(path));
+  if (!refused) return;
   throw new Error(
-    `${CHROME_REFUSED}: the entry point ${entry || '(none)'} is no proof, bench or script run. ` +
-      'Importing a proof never launches a browser; run it on its own (`pnpm run test:gpu <file>`).',
+    `${CHROME_REFUSED}: the entry point ${entry || '(none)'} is no explicit run, or is a unit ` +
+      'test. Importing a proof never launches a browser; run it on its own ' +
+      '(`pnpm run test:gpu <file>`).',
   );
 }
 

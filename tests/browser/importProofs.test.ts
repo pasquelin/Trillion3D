@@ -1,7 +1,8 @@
 // Every file of the two proof folders, imported by Node, opens no browser (AGENTS.md rule 2): the
 // one launcher refuses (`bench/runner/chrome.ts`). Each file is imported in a child process whose
-// entry point is this test, so a proof's work, exit code and `test()` calls stay there; the
-// child replaces Playwright's launch, so a broken guard fails here instead of opening Chrome.
+// entry point is this test run by `node --test`, as a unit test would import it: a proof's work,
+// exit code and `test()` calls stay there; the child replaces Playwright's launch, so a broken
+// guard fails here instead of opening Chrome.
 // The launcher ends the child as it loads, before the proof's body runs, and anything written
 // before goes to this run's scratch folder: a measurement in the same checkout keeps its files.
 // The child never loads the launcher before its proof does, so the parent alone imports it.
@@ -49,7 +50,8 @@ async function importOne(file: string) {
 }
 
 function importInChild(file: string, scratch: string, exitOnRefusal: string) {
-  // The child runs on its own, not as a test runner's child speaking its protocol on stdout.
+  // The child is its own test runner, in one process (`--test-isolation=none`): not a runner's
+  // child speaking its protocol on stdout, yet a unit test run for the launcher.
   const { NODE_TEST_CONTEXT: _runner, ...inherited } = process.env;
   const env = {
     ...inherited,
@@ -58,7 +60,7 @@ function importInChild(file: string, scratch: string, exitOnRefusal: string) {
     [MEASURE_OUT]: join(scratch, 'out'),
     TMPDIR: scratch,
   };
-  const args = ['--experimental-strip-types', fileURLToPath(import.meta.url)];
+  const args = ['--test', '--test-isolation=none', fileURLToPath(import.meta.url)];
   return new Promise<string>((done) =>
     execFile(process.execPath, args, { env, maxBuffer: 1 << 26 }, (_error, out, err) =>
       done(out + err),
