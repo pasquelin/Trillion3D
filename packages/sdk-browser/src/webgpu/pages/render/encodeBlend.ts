@@ -32,20 +32,9 @@ export function encodeBlend(
   encoder: GPUCommandEncoder,
   uniformBase: number,
 ) {
-  // Every image path reaches this stage: the particles step before the transparents, and are
-  // drawn over them and the water.
-  encodeParticles(rt, device, encoder);
-  encodeTransparents(rt, device, encoder, uniformBase);
-  drawParticles(rt, encoder);
-}
-
-function encodeTransparents(
-  rt: WebgpuPagesRuntime,
-  device: GPUDevice,
-  encoder: GPUCommandEncoder,
-  uniformBase: number,
-) {
   const { gpu, vis, run, timing, blendState, diag } = rt;
+  // Every image path reaches this stage: the particles step here, beside the water.
+  encodeParticles(rt, device, encoder);
   if (
     !gpu.pipelineBlend ||
     !blendState.blendGpu.length ||
@@ -178,6 +167,7 @@ export function encodeSurfaceLighting(
   run.gpuDrawCalls++;
   encodeShadowReadback(rt, encoder);
   encodeBlend(rt, device, encoder, uniformBase);
+  drawParticles(rt, encoder);
   // Temporal accumulation reads the lit and blended image, and yields what composition reads — the
   // lit image itself when this image does not accumulate. The effect chain follows: its passes
   // read that image and hand composition the last.
