@@ -16,7 +16,8 @@
 //!    (Castaño's practice, #43), not on the texels: four samples a texel, at the
 //!    quarter points of the square between its centre and those of its right,
 //!    lower and diagonal neighbours (an edge texel its own neighbour), each the
-//!    byte `(9a + 3b + 3c + d) / 16` of its corners rounded down (`filtered`).
+//!    byte `(9a + 3b + 3c + d) / 16` of its corners rounded half up (`filtered`),
+//!    as the cut keeps a filtered alpha at `C − 0.5`, where the scale puts `t − 0.5`.
 //!    `n0` counts level 0's samples `≥ C`, `N0` and `Nk` are the texel counts of
 //!    levels 0 and `k` (four samples a texel on both sides of the product), and
 //!    `above(t)` counts level `k`'s samples that the scale at `t` (step 4) lifts
@@ -70,10 +71,10 @@ pub(super) fn material_cut(material: &serde_json::Value, cutoff: f32) -> Cut {
 }
 
 /// Bilinear sample `s` (0 to 3, row by row) of the square of corner alphas `[a, b,
-/// c, d]`, rounded down: 9, 3, 3, 1 sixteenths from the nearest (`filtered`, `coverageRule.ts`).
+/// c, d]`, rounded half up: 9, 3, 3, 1 sixteenths from the nearest (`filtered`, `coverageRule.ts`).
 fn filtered([a, b, c, d]: [u32; 4], s: u32) -> u32 {
     let (x, y) = (3 - 2 * (s & 1), 3 - 2 * (s >> 1));
-    (y * (x * a + (4 - x) * b) + (4 - y) * (x * c + (4 - x) * d)) >> 4
+    (y * (x * a + (4 - x) * b) + (4 - y) * (x * c + (4 - x) * d) + 8) >> 4
 }
 
 /// Step 4: alpha `a` scaled to cutoff `c` at `t`.

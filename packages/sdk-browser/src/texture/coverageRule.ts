@@ -47,7 +47,7 @@ fn pick(c:u32,covered:u32,texels:vec2u)->u32{
 export const COVERAGE_CUT_WGSL = `
 fn filtered(a:vec4u,s:u32)->u32{
  let x=3u-2u*(s&1u);let y=3u-2u*(s>>1u);
- return (y*(x*a.x+(4u-x)*a.y)+(4u-y)*(x*a.z+(4u-x)*a.w))>>4u;
+ return (y*(x*a.x+(4u-x)*a.y)+(4u-y)*(x*a.z+(4u-x)*a.w)+8u)>>4u;
 }
 fn cutBin(a:vec4u,s:u32,c:u32)->u32{
  var low=min(min(a.x,a.y),min(a.z,a.w));var high=max(max(a.x,a.y),max(a.z,a.w))+1u;
@@ -93,7 +93,7 @@ uint pick(uint c,uint covered,uvec2 texels){
 export const COVERAGE_CUT_GLSL = `
 uint filtered(uvec4 a,uint s){
  uint x=3u-2u*(s&1u);uint y=3u-2u*(s>>1u);
- return (y*(x*a.x+(4u-x)*a.y)+(4u-y)*(x*a.z+(4u-x)*a.w))>>4u;
+ return (y*(x*a.x+(4u-x)*a.y)+(4u-y)*(x*a.z+(4u-x)*a.w)+8u)>>4u;
 }
 uint cutBin(uvec4 a,uint s,uint c){
  uint low=min(min(a.x,a.y),min(a.z,a.w));uint high=max(max(a.x,a.y),max(a.z,a.w))+1u;

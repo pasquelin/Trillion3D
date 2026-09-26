@@ -61,7 +61,7 @@ fn the_bin_search_between_the_corners_finds_the_scan_s_bin() {
             .rev()
             .find(|&t| {
                 let [a, b, d, e] = a.map(|a| lift(a, t));
-                (y * (x * a + (4 - x) * b) + (4 - y) * (x * d + (4 - x) * e)) >> 4 >= c
+                (y * (x * a + (4 - x) * b) + (4 - y) * (x * d + (4 - x) * e) + 8) >> 4 >= c
             })
             .unwrap_or(0) as usize
     };
