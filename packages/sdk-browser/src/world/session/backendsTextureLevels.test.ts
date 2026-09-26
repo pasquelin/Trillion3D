@@ -4,6 +4,7 @@ import { probeBackendContext } from './backends.fixture.ts';
 import type { RenderBackend } from '../../backend/types.ts';
 import type { ClusterManifest } from '../../../../sdk-core/src/index.ts';
 import type { ExplorerSession } from './session.ts';
+import { createPageCache } from '../../streaming/pageCache.ts';
 
 /**
  * Behaviour: the reader of baked texture levels follows the CACHE, not `textureSource`. Before
@@ -17,12 +18,15 @@ const reserved: number[] = [];
 const metadata = (textures?: { url: string }) =>
   ({ primitives: [], textures }) as unknown as ClusterManifest;
 
+/** The cache a session with no world reads its pages through: the streamer's own. */
+const ownCache = createPageCache();
 const pageSources = {
   indices: new Map<string, Uint32Array>(),
   streamer: {
     read: async () => undefined,
     readBytes: async () => undefined,
     reserve: (bytes: () => number) => reserved.push(bytes()),
+    pageCache: ownCache,
   },
   attachCap: 1,
   cacheCap: 1,
@@ -49,6 +53,19 @@ test('the baked-level reader follows the cache, not the texture-source option', 
         `a cache with baked chains hands the reader over under ${textureSource ?? 'the default'}`,
       );
     }
+  } finally {
+    delete scope.createImageBitmap;
+  }
+});
+
+// Behaviour (#745): with no world, the levels count in the session's own CPU total, beside its
+// pages, never in a store of their own outside it.
+test("the baked levels are held in the cache the session's pages are read through", async () => {
+  const scope = globalThis as { createImageBitmap?: unknown };
+  scope.createImageBitmap = async () => ({});
+  try {
+    const context = await run({}, { url: 'textures/v4' });
+    assert.equal(context.readTextureLevel?.store, ownCache.levels);
   } finally {
     delete scope.createImageBitmap;
   }

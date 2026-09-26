@@ -19,6 +19,13 @@ export function createTextureLevelStore(
   { roomBeside = () => Infinity, onHeld }: { roomBeside?: () => number; onHeld?: () => void } = {},
 ) {
   const held = new Map<string, { level: TextureLevel; bytes: number }>();
+  const drop = (id: string) => {
+    const entry = held.get(id);
+    if (!entry) return;
+    held.delete(id);
+    store.bytes -= entry.bytes;
+    closeTextureLevel(entry.level);
+  };
   const store = {
     bytes: 0,
     budgetBytes,
@@ -34,29 +41,19 @@ export function createTextureLevelStore(
     },
     /** Bytes one level may take: the share, within what is left beside. */
     room: () => Math.min(store.budgetBytes, roomBeside()),
-    /** Holds `level` under `id`, the least recently read leaving for it; false, holding nothing,
+    /** Holds `level`, read for the cook `key`, under `id`, the least recently read leaving for it.
+     *  The store owns it from here: it closes it, holding nothing, when another cook is open or
      *  when it cannot fit (`room`). A level already held — read meanwhile by the session a device
      *  loss replaced — stays, marked read last, and the copy closes: its bytes are counted once. */
-    take(id: string, level: TextureLevel) {
-      if (store.get(id)) {
-        closeTextureLevel(level);
-        return true;
-      }
+    take(id: string, level: TextureLevel, key: string | undefined) {
+      if (key === undefined || key !== store.key || store.get(id)) return closeTextureLevel(level);
       const bytes = textureLevelBytes(level),
         room = store.room();
-      if (bytes > room) return false;
+      if (bytes > room) return closeTextureLevel(level);
       store.shedTo(room - bytes);
       held.set(id, { level, bytes });
       store.bytes += bytes;
       onHeld?.();
-      return true;
-    },
-    drop(id: string) {
-      const entry = held.get(id);
-      if (!entry) return;
-      held.delete(id);
-      store.bytes -= entry.bytes;
-      closeTextureLevel(entry.level);
     },
     /** Drops the least recently read levels until the rest fit in `limit`; the bytes freed. */
     shedTo(limit: number) {
@@ -65,7 +62,7 @@ export function createTextureLevelStore(
         held.keys(),
         () => store.bytes > limit,
         () => false,
-        store.drop,
+        drop,
       );
       return before - store.bytes;
     },
