@@ -99,7 +99,7 @@ no work is cut midway.
 | Label                    | Set by     | Means                                                     |
 | ------------------------ | ---------- | --------------------------------------------------------- |
 | `🔴 critical` … `🟢 low` | CTO        | the only priority of the leads' issues (order: §Leads)    |
-| `in progress`            | lead       | taken: no other lead touches it                           |
+| `in progress`            | lead       | taken, assigned to the boss: no other lead touches it     |
 | `in review`              | lead       | branch pushed, reviewer at work                           |
 | `to measure`             | lead       | closed engine issue waiting in the measurer's queue       |
 | `measuring`              | measurer   | being measured now                                        |

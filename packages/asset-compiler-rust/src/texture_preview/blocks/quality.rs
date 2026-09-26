@@ -7,6 +7,7 @@
 //! cutoff: a flipped texel is a leaf that appears or a hole that closes,
 //! whatever the decibels say. A chain that fails stays lossless, and the report
 //! names it with its figures.
+use super::super::coverage::{keeps, Cut};
 use super::decode::decode_level;
 use super::{BlockFormat, Layout};
 
@@ -47,13 +48,14 @@ impl Measure {
         self.flips == 0 && self.max_delta <= GATE_MAX_DELTA && self.psnr_db() >= GATE_DB
     }
     /// Adds one level: `decoded` against `source`, on `channels`; `cutoffs` are
-    /// the alpha cutoffs of the masked materials that read the texture.
+    /// the cuts of the masked materials that read the texture, each keeping a
+    /// texel at its alpha times its colour factor's, as the engine does (`keeps`).
     pub fn add_level(
         &mut self,
         source: &[u8],
         decoded: &[u8],
         channels: Channels,
-        cutoffs: &[f32],
+        cutoffs: &[Cut],
     ) {
         debug_assert_eq!(source.len(), decoded.len());
         for (s, d) in source
@@ -68,8 +70,7 @@ impl Measure {
                 self.samples += 1;
                 self.max_delta = self.max_delta.max(gap);
             }
-            let side = |alpha: u8, cutoff: f32| f32::from(alpha) / 255.0 >= cutoff;
-            if cutoffs.iter().any(|&c| side(s[3], c) != side(d[3], c)) {
+            if cutoffs.iter().any(|&c| keeps(s[3], c) != keeps(d[3], c)) {
                 self.flips += 1;
             }
         }
@@ -86,7 +87,7 @@ pub fn encode_chain(
     format: BlockFormat,
     layout: Layout,
     channels: Channels,
-    cutoffs: &[f32],
+    cutoffs: &[Cut],
 ) -> Result<(Vec<Vec<u8>>, Measure), &'static str> {
     let mut measure = Measure::default();
     let mut blocks = Vec::with_capacity(levels.len());
