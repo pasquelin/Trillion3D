@@ -12,9 +12,9 @@ interface SceneRoots {
  * its axis, so every caster lies inside its depth range, and the rectangle its floor pages cover
  * on its plane (`sunLevels.ts` floorReach). A sprite root (`SPRITE_ROOT`) is left out: a sprite
  * casts no shadow, and its box would only spread the range. A mesh set to cast none stays in.
- * Rebuilt only when a pose moved or the scene changed — the scene revision, the row-table epoch and the root list say so: an
- * engine pose or placement move bumps the scene revision alone —, from boxes the engine already
- * holds.
+ * Rebuilt only when a pose moved or the scene changed — the scene revision, the row-table epoch
+ * and the root list say so: an engine pose or placement move bumps the scene revision alone —,
+ * from boxes the engine already holds.
  */
 export function createShadowSceneBox() {
   const box = new Float64Array(6),
