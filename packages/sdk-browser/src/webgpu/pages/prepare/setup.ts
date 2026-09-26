@@ -189,7 +189,7 @@ export function createWebgpuPagesSetup(context: BackendContext, diag: WebgpuDiag
     /** The family, the encoding and the lane pools, set by prepare; `setMemoryBudgets` redraws. */
     texturePools: undefined as TexturePools | undefined,
     /** Prepare, while it runs: a report of `setMemoryBudgets` waits for it (`pages.ts`). */
-    granting: undefined as Promise<void> | undefined,
+    preparing: undefined as Promise<void> | undefined,
     get slots() {
       return this.geometryPool.slots;
     },
