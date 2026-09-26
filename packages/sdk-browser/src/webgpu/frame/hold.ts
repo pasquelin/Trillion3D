@@ -153,8 +153,10 @@ export function holdWebgpuFrame(rt: WebgpuPagesRuntime, device: GPUDevice) {
     const quiet = run.gate.held() && unsettledMask(rt) === 0;
     beginTaaFrame(rt, run.gate.cam, quiet);
     // Guides or an effect chain the page changed, or a chain the last image lacked while its
-    // programs compiled, are drawn by a full image; the accumulation stays still for it.
-    if (!quiet || !taaSettled(rt) || guidesMoved(rt) || effectsMoved(rt)) {
+    // programs compiled, are drawn by a full image; the accumulation stays still for it. So is
+    // an image with particles, which move every frame.
+    const particles = !!rt.context.particles?.length;
+    if (!quiet || !taaSettled(rt) || guidesMoved(rt) || effectsMoved(rt) || particles) {
       run.frameHeld = false;
       return false;
     }

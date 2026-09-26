@@ -1,7 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { awaitViewPages } from './worldSession.ts';
+import { attachParticles, awaitViewPages, registerWorld } from './worldSession.ts';
 import type { MeasuredWorld } from '../session/explorer.ts';
+import type { BeforeFrameInfo, World } from './world.ts';
+import { ParticlePool } from '../../../../sdk-core/src/fluids/particles.ts';
 
 test('world.awaitPages waits for the scene, then for pages alone, never an image, heard (#408)', async () => {
   const steps: unknown[] = [];
@@ -12,4 +14,25 @@ test('world.awaitPages waits for the scene, then for pages alone, never an image
   const onProgress = () => {};
   await awaitViewPages(runtime, () => session, onProgress);
   assert.deepEqual(steps, ['settled', { image: false, onProgress }]);
+});
+
+test('attachParticles gives the pool to every session and the frames the world draws (#420)', () => {
+  const hooks = new Set<(frame: BeforeFrameInfo) => void>();
+  let asked = 0;
+  const world = {
+    beforeFrame: (hook: (frame: BeforeFrameInfo) => void) => (
+      hooks.add(hook),
+      () => void hooks.delete(hook)
+    ),
+    invalidate: () => void asked++,
+  } as unknown as World;
+  const held = { particles: [] as ParticlePool[] };
+  registerWorld(world, { session: () => null, last: () => null }, held);
+  const pool = new ParticlePool({ capacity: 8 });
+  const remove = attachParticles(world, pool);
+  assert.deepEqual([held.particles, asked], [[pool], 1], 'held, and a frame asked');
+  for (const hook of hooks) hook({ delta: 0.02, time: 0.02 });
+  assert.equal(pool.flush().dt, 0.02, "the world's frame time is the step's");
+  remove();
+  assert.deepEqual([held.particles, hooks.size], [[], 0]);
 });
