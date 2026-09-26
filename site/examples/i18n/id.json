@@ -1367,7 +1367,7 @@
     }
   },
   "save-the-scene": {
-    "banner": "Robohkan menaranya, lalu buka lagi adegan yang disimpan.",
+    "banner": "Simpan menaranya, robohkan, lalu buka: menara yang disimpan berdiri lagi.",
     "controls": {
       "knockDown": "Robohkan",
       "save": "Simpan",

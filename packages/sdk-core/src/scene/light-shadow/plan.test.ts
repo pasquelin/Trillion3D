@@ -91,7 +91,7 @@ test('a light removed gives its pages back to the pool and its range back to the
   cycle(plan, store, 2, () => pages);
   store.remove(SUN.id);
   planFrame(plan, store, 3);
-  assert.equal(plan.pool.used, 0);
+  assert.equal(plan.pool.used(), 0);
   assert.equal(plan.table.baseOf(slice), -1);
   for (const entry of pages) assert.equal(plan.table.words[entry], 0);
 });
