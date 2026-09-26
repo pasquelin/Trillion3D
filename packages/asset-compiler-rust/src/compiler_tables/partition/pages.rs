@@ -14,7 +14,7 @@ pub(crate) const FAN_OUT: usize = 8;
 /// of its cells' at the declared poses — as the bits of six `f64` in 16 each. Zeros: no page.
 const SLOT_WIDTH: usize = 64 + 8 + 6 * 16;
 
-/// The file of the page whose fingerprint is `sha256`.
+/// The file of the page whose fingerprint is `sha256`, beside the tables.
 fn page_file(sha256: &str) -> String {
     format!("scene-page-{sha256}.json")
 }
@@ -48,7 +48,7 @@ impl Pager<'_> {
             let halves = pages[at]
                 .halves
                 .as_deref()
-                .expect("a region too big to fit");
+                .expect("a region that does not fit");
             pages.splice(at..=at, halves);
         }
         pages.into_iter().map(|page| self.write(page)).collect()
@@ -119,11 +119,10 @@ pub(crate) fn read_records(
         into.extend(cells.iter().cloned());
         return Ok(());
     }
-    for slot in page["pages"]
+    let slots = page["pages"]
         .as_array()
-        .ok_or(format!("{what} lists no page"))?
-    {
-        let text = slot.as_str().unwrap_or_default();
+        .ok_or(format!("{what} lists no page"))?;
+    for text in slots.iter().map(|slot| slot.as_str().unwrap_or_default()) {
         if text.len() != SLOT_WIDTH || !text.bytes().all(|b| b.is_ascii_hexdigit()) {
             return Err(format!("{what} lists a slot of another width"));
         }
