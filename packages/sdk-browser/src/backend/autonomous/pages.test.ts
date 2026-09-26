@@ -13,9 +13,11 @@ test('autonomous pages add, move and remove an instance while keeping page cover
     backend.render(camera);
     assert.equal(backend.metrics().submittedTriangles, 1);
     assert.equal(backend.metrics().uncoveredTriangles, 0, 'the cut publishes its holes: none');
+    assert.equal(backend.metrics().drawnTriangles, 1, 'and what the image draws');
     backend.addInstance?.('copy', new G.Matrix4().makeTranslation(1, 0, 0).elements.slice());
     backend.render(camera);
     assert.equal(backend.metrics().submittedTriangles, 2);
+    assert.equal(backend.metrics().drawnTriangles, 2, 'the copy drawn too');
     backend.updateInstance?.('copy', new G.Matrix4().makeTranslation(2, 0, 0).elements.slice());
     backend.render(camera);
     const copies = backend.scene.children.filter(G.isDrawnNode);

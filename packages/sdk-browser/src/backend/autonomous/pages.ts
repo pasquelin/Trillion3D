@@ -173,8 +173,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
     metrics() {
       return {
         clusters: state.visible,
-        selectedTriangles: state.selectedTriangles,
-        uncoveredTriangles: state.uncoveredTriangles,
+        ...state.triangles,
         ...pool.metrics,
         cacheEvictions: residency.cacheEvictions,
         frustumRejected: state.frustumRejected,
