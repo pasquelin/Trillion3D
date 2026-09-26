@@ -49,7 +49,6 @@ export async function prepareDirectLights(rt: WebgpuPagesRuntime, device: GPUDev
     if (isCancelled(rt.signal)) throw error;
     lights.shadows?.dispose();
     lights.cull?.dispose();
-    lights.pageQuads = undefined;
     lights.pageRequests?.dispose();
     lights.shadows = undefined;
     lights.cull = undefined;
