@@ -134,10 +134,10 @@ pub(crate) fn cell_records(directory: &Path) -> std::result::Result<Map<String, 
     if tables["version"] != json!(SCENE_TABLES_VERSION) {
         return Err("scene tables of another version".into());
     }
-    let mut records = Vec::new();
-    if !tables["partition"].is_null() {
-        partition::pages::read_records(directory, &tables["partition"], "the root", &mut records)?;
-    }
+    let records = match &tables["partition"] {
+        Value::Null => Vec::new(),
+        root => partition::pages::read_records(directory, root)?,
+    };
     let named = |cell: Value| (cell["url"].as_str().unwrap_or_default().to_string(), cell);
     Ok(records.into_iter().map(named).collect())
 }
