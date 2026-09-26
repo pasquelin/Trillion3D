@@ -159,9 +159,10 @@ export function createShadowRequests(
       needs.allocate(reportFrame, nowMs, frame, counts);
     },
     /** Asks, as if the latest report named them, for the floor pages a reader may need that no
-     *  report names yet: every sun's within the view's far distance (`sun.floorReach`), whatever
-     *  moved, and each face's of a lamp posed after that report — new, moved or reshaped: what it
-     *  named was read at a past pose. Evicts only what it did not name; the next may evict it. */
+     *  report names yet: every sun's over the scene within the view's far distance
+     *  (`sun.floorReach`), whatever moved, and each face's of a lamp posed after that report — new,
+     *  moved or reshaped: what it named was read at a past pose. Evicts only what it did not name;
+     *  the next may evict it. */
     floors(posed: ArrayLike<number>, view: ShadowViewpoint, nowMs: number, frame: number) {
       reportFrame = counts.latest;
       for (let slice = 0; slice < posed.length; slice++) {

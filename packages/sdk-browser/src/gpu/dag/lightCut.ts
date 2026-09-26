@@ -2,10 +2,8 @@ import { FRAME_VEC4, type DagViewUniforms, type DrawnLog } from './types.ts';
 import { writeDagUniforms, type DagCutViews } from './uniforms.ts';
 import { createLightCutReports } from './lightCutReports.ts';
 import { createLightCutRedraws } from './lightCutRedraws.ts';
-import { encodeAskedBest, encodeDagKernels, type DagView } from './encode.ts';
+import { encodeDagKernels, type DagView } from './encode.ts';
 import { dagWorkLayout } from './shader/floorWgsl.ts';
-import { selectionListCap } from './layout.ts';
-import { createAskedStamp } from './askedStamp.ts';
 import { LEVEL_QUEUES } from './shader/levelWgsl.ts';
 import { lightCutCapacity, lightQueueCap } from './lightCutCapacity.ts';
 import { DAG_UNIFORM_BYTES, DAG_VIEW_WORDS } from './shader/viewsWgsl.ts';
@@ -45,7 +43,7 @@ export function createDagLightCut(resources: DagResources) {
   const { worldCount, blockCount, buffers } = resources;
   const capacity = lightCutCapacity(device.limits, resources),
     queueCap = lightQueueCap(resources, capacity),
-    layout = dagWorkLayout(blockCount, capacity, pageCount);
+    layout = dagWorkLayout(blockCount, capacity);
   const storage = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST;
   const own = (descriptor: GPUBufferDescriptor) => {
     const buffer = device.createBuffer(descriptor);
@@ -125,8 +123,6 @@ export function createDagLightCut(resources: DagResources) {
   const cutViews: DagCutViews = { count: 0, capacity, queueCap };
   /** A cut ran since the requests were last copied: the next one appends to its list. */
   let listed = false;
-  const asked = createAskedStamp(),
-    stampWord = new Uint32Array(1);
   const reports = createLightCutReports(own, output, outputBytes);
   const redraws = createLightCutRedraws(own, output, capacity);
   return {
@@ -145,21 +141,6 @@ export function createDagLightCut(resources: DagResources) {
       count: number,
     ) {
       if (count > capacity) throw new Error(`${count} light views, at most ${capacity}`);
-      // The frame's first cut starts its list under a new stamp: what earlier frames asked for loses
-      // to it, and only a wrapped stamp clears the words (`askedStamp.ts`). Both go on the queue, in
-      // order, before this frame's command buffer: a frame whose encoder is dropped still leaves its
-      // stamp, so its wrap clear must land too, or the older, larger stamps would outlive it. An
-      // empty catalogue asks for nothing and has no stamp word (`dagWorkLayout`).
-      if (!listed && pageCount) {
-        const { stamp, clear } = asked.next();
-        if (clear) {
-          const wrap = device.createCommandEncoder();
-          wrap.clearBuffer(work, (layout.askedAt + 1) * 4, pageCount * 4);
-          device.queue.submit([wrap.finish()]);
-        }
-        stampWord[0] = stamp;
-        device.queue.writeBuffer(work, layout.askedAt * 4, stampWord);
-      }
       cutViews.count = light.views = count;
       cutViews.append = listed;
       listed = true;
@@ -180,7 +161,6 @@ export function createDagLightCut(resources: DagResources) {
     encodeReports(encoder: GPUCommandEncoder) {
       if (!listed) return undefined;
       listed = false;
-      encodeAskedBest(encoder, view, selectionListCap(pageCount));
       const settle = reports.encodeReadback(encoder);
       redraws.reported(settle !== undefined);
       return settle;

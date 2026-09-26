@@ -14,6 +14,9 @@ import {
 /** Frames of layout kept to read a request report back: deeper than any readback lag. */
 const HISTORY = 8;
 const LEVEL_WORDS = SUN_LEVELS * 2;
+/** A light-plane rectangle nothing is in yet, and one that bounds nothing (no scene box). */
+const NO_RECT = [Infinity, -Infinity, Infinity, -Infinity],
+  ALL_RECT = NO_RECT.map((x) => -x);
 
 /**
  * THE CLIPMAP OF EACH SUN: its light-plane frame, the depth range its maps span, its finest
@@ -32,6 +35,8 @@ const LEVEL_WORDS = SUN_LEVELS * 2;
 export function createSunLevels() {
   const frame = new Float64Array(MAX_SHADOW_SLICES * 9),
     depth = new Float64Array(MAX_SHADOW_SLICES * 2),
+    /** The scene box's rectangle on the light plane, `u0, u1, v0, v1` in metres, as pages count. */
+    extent = new Float64Array(MAX_SHADOW_SLICES * 4),
     finest = new Int32Array(MAX_SHADOW_SLICES),
     origins = new Int32Array(MAX_SHADOW_SLICES * LEVEL_WORDS),
     /** Clipmap slots whose extent moved at the last update, one bit per slot. */
@@ -40,7 +45,8 @@ export function createSunLevels() {
     pastFinest = new Int32Array(MAX_SHADOW_SLICES * HISTORY),
     pastOrigins = new Int32Array(MAX_SHADOW_SLICES * HISTORY * LEVEL_WORDS);
   const right = new Float64Array(3),
-    up = new Float64Array(3);
+    up = new Float64Array(3),
+    corner3 = new Float64Array(3);
   /** Level held in slot `slot` while the finest level is `low`. */
   const levelIn = (low: number, slot: number) => low + ringOf(slot - low, SUN_LEVELS);
   return {
@@ -75,14 +81,23 @@ export function createSunLevels() {
       }
       let low = Infinity,
         high = -Infinity;
+      const e = slice * 4;
+      extent.set(NO_RECT, e);
       for (let corner = 0; corner < 8; corner++) {
-        const z =
-          axis[0] * (corner & 1 ? boxMax[0] : boxMin[0]) +
-          axis[1] * (corner & 2 ? boxMax[1] : boxMin[1]) +
-          axis[2] * (corner & 4 ? boxMax[2] : boxMin[2]);
+        corner3[0] = corner & 1 ? boxMax[0] : boxMin[0];
+        corner3[1] = corner & 2 ? boxMax[1] : boxMin[1];
+        corner3[2] = corner & 4 ? boxMax[2] : boxMin[2];
+        const z = dotVector3(corner3, axis),
+          cu = dotVector3(corner3, right),
+          cv = -dotVector3(corner3, up);
         low = Math.min(low, z);
         high = Math.max(high, z);
+        extent[e] = Math.min(extent[e], cu);
+        extent[e + 1] = Math.max(extent[e + 1], cu);
+        extent[e + 2] = Math.min(extent[e + 2], cv);
+        extent[e + 3] = Math.max(extent[e + 3], cv);
       }
+      if (!Number.isFinite(low)) extent.set(ALL_RECT, e);
       if (Number.isFinite(low) && Number.isFinite(high)) {
         const grid = 2 ** Math.ceil(Math.log2(Math.max(high - low, 1e-6)));
         const zNear = Math.floor(low / grid) * grid,
@@ -127,9 +142,12 @@ export function createSunLevels() {
         ay - origins[at + 1] < SUN_WINDOW
       );
     },
-    /** The floor pages the view can read, whatever it looks at — every page of the last level
-     *  within its far distance of the camera, in this frame's clipmap —: `x0, y0, x1, y1` into
-     *  `out`, inclusive. */
+    /**
+     * The floor pages the view can read, whatever it looks at — every last-level page within its
+     * far distance and over the scene's box, one page around it for the normal offset and the PCF,
+     * in this frame's clipmap —: `x0, y0, x1, y1` into `out`, inclusive. No receiver lies past the
+     * box: floor pages there held nothing, and half the pool over a small scene (#525).
+     */
     floorReach(slice: number, view: ShadowViewpoint, out: Int32Array) {
       const level = sunFloorLevel(finest[slice]),
         page = sunPageMetres(level),
@@ -137,10 +155,21 @@ export function createSunLevels() {
         at = slice * LEVEL_WORDS + ringOf(level, SUN_LEVELS) * 2;
       const u = dotVector3(view.position, frame, 0, f),
         v = -dotVector3(view.position, frame, 0, f + 3);
-      out[0] = Math.max(origins[at], Math.floor((u - view.far) / page));
-      out[1] = Math.max(origins[at + 1], Math.floor((v - view.far) / page));
-      out[2] = Math.min(origins[at] + SUN_WINDOW - 1, Math.floor((u + view.far) / page));
-      out[3] = Math.min(origins[at + 1] + SUN_WINDOW - 1, Math.floor((v + view.far) / page));
+      const e = slice * 4;
+      for (let k = 0; k < 2; k++) {
+        const c = k ? v : u,
+          o = origins[at + k];
+        out[k] = Math.max(
+          o,
+          Math.floor((c - view.far) / page),
+          Math.floor(extent[e + 2 * k] / page) - 1,
+        );
+        out[k + 2] = Math.min(
+          o + SUN_WINDOW - 1,
+          Math.floor((c + view.far) / page),
+          Math.floor(extent[e + 2 * k + 1] / page) + 1,
+        );
+      }
       return out;
     },
     /**
