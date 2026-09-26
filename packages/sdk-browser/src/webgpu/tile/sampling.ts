@@ -2,6 +2,7 @@ import type { Texture, TextureFilter } from '../../../../sdk-core/src/index.ts';
 import {
   AFFINE,
   grantedAnisotropy,
+  mipFiltered,
   uvTransformed,
 } from '../../../../sdk-core/src/texture/contract.ts';
 import { wrapNibble } from '../../visibility/wrapModes.ts';
@@ -56,10 +57,11 @@ export const MAX_ANISOTROPY = 16;
 /** Header words of a texture's UV transform: the affine 2 × 3 part. */
 export const TRANSFORM_WORDS = 6;
 
-/** Base filter and mip rule of each filter name. */
+/** Base filter and mip rule of each filter name; a filter without `mip` reads no chain
+ *  (`mipFiltered`), its level set below. */
 const MIN_BITS: Record<TextureFilter, number> = {
-  nearest: SAMPLE_MIN_NEAREST | SAMPLE_MIP_NONE,
-  linear: SAMPLE_MIP_NONE,
+  nearest: SAMPLE_MIN_NEAREST,
+  linear: 0,
   'nearest-mip-nearest': SAMPLE_MIN_NEAREST | SAMPLE_MIP_NEAREST,
   'nearest-mip-linear': SAMPLE_MIN_NEAREST,
   'linear-mip-nearest': SAMPLE_MIP_NEAREST,
@@ -80,7 +82,8 @@ export function samplingWords(texture: Texture, compiled: boolean): Uint32Array 
   const m = texture.transform;
   scratch[0] =
     (texture.magFilter === 'nearest' ? SAMPLE_MAG_NEAREST : 0) |
-    (MIN_BITS[texture.minFilter] & (compiled ? ~SAMPLE_MIP_NONE : ~0)) |
+    MIN_BITS[texture.minFilter] |
+    (compiled || mipFiltered(texture.minFilter) ? 0 : SAMPLE_MIP_NONE) |
     ((anisotropy - 1) << SAMPLE_ANISOTROPY_SHIFT) |
     (uvTransformed(m) ? SAMPLE_TRANSFORMED : 0) |
     (texture.magFilter !== 'nearest' && texture.minFilter.startsWith('nearest-mip')

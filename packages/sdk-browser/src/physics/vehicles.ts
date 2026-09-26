@@ -7,13 +7,17 @@ import {
   type CommandWriter,
   type Vehicle,
 } from '../../../sdk-core/src/physics/index.ts';
-import type { Quaternion } from '../../../sdk-core/src/world/math/quaternion.ts';
+import { Quaternion } from '../../../sdk-core/src/world/math/quaternion.ts';
 import type { Vector3 } from '../../../sdk-core/src/world/math/vector3.ts';
 import type { createPhysicsBodies } from './bodies.ts';
 import { createSimulatedIds, engineIdOf } from './simulatedIds.ts';
 
 /** Each wheel's pose as the page placed it, given back when the vehicle leaves the simulation. */
 type Rest = { position: Vector3; quaternion: Quaternion }[];
+
+/** A wheel's turn as the worker sent it: composed with its rest in one write, an unchanged one
+ *  notifies nobody. */
+const turned = new Quaternion();
 
 /**
  * The vehicles of a session: which are made in the simulation, under which id (a slot and its
@@ -72,9 +76,8 @@ export function createPhysicsVehicles(
       if (!words) return;
       const floats = new Float32Array(words.buffer, words.byteOffset, words.length);
       for (let at = 0; at < words.length;) {
-        const vehicle = ids.at(words[at]),
+        const live = ids.of(words[at]),
           count = words[at + 1];
-        const live = vehicle?._id === words[at] ? vehicle : null;
         live?._state(floats[at + 2], floats[at + 3], floats[at + 4]);
         at += VEHICLE_STATE_WORDS;
         for (let i = 0; live && i < count; i++) {
@@ -82,7 +85,8 @@ export function createPhysicsVehicles(
             s = live.body.scale;
           const { position, quaternion } = live.wheels[i];
           position.set(f[0] / s.x, f[1] / s.y, f[2] / s.z);
-          quaternion.set(f[3], f[4], f[5], f[6]).multiply(made.get(live)!.rest[i].quaternion);
+          turned.set(f[3], f[4], f[5], f[6]);
+          quaternion.multiplyQuaternions(turned, made.get(live)!.rest[i].quaternion);
         }
         at += count * WHEEL_STATE_WORDS;
       }

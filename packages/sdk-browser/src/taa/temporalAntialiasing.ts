@@ -165,20 +165,12 @@ export async function createTemporalAntialiasing(device: GPUDevice, roots: reado
       const write = 1 - read;
       const pass = encoder.beginRenderPass({
         label: TAA_PASS,
-        colorAttachments: [
-          {
-            view: images[write].color,
-            loadOp: 'clear',
-            storeOp: 'store',
-            clearValue: [0, 0, 0, 0],
-          },
-          {
-            view: images[write].share,
-            loadOp: 'clear',
-            storeOp: 'store',
-            clearValue: [0, 0, 0, 0],
-          },
-        ],
+        colorAttachments: [images[write].color, images[write].share].map((view) => ({
+          view,
+          loadOp: 'clear' as const,
+          storeOp: 'store' as const,
+          clearValue: [0, 0, 0, 0],
+        })),
       });
       pass.setPipeline(pipeline);
       pass.setBindGroup(0, groups[read]!);
@@ -187,6 +179,9 @@ export async function createTemporalAntialiasing(device: GPUDevice, roots: reado
       read = write;
       return images[write];
     },
+    /** Releases the two targets with the frame targets: the next `resize` makes them again, and
+     *  history no longer exists. */
+    release: dropTargets,
     dispose() {
       dropTargets();
       motion.dispose();

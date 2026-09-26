@@ -3,10 +3,10 @@ import type { ShadowPool } from './pool.ts';
 import type { ShadowRecords } from './records.ts';
 
 /**
- * What the shadow scheduler did in a frame, in pages, never durations: pages staled, drawn, left
- * pending — 0 unless the frame could not encode its pages (`plan.reissue`) —, the lag of the oldest
- * page drawn since it went stale, pages the image reads straight from the cache, pages the pool
- * holds. Everything is allocated once.
+ * What the shadow scheduler did in a frame, in pages: pages staled, drawn, left pending — 0 unless
+ * the frame could not encode its pages (`plan.reissue`) —, pages the image reads straight from the
+ * cache, pages the pool holds; and its one wait, in ms and frames, of the oldest stale page the
+ * image reads. Everything is allocated once.
  */
 export function createShadowCounts() {
   /** Frame (plus one) of the last page drawn for each slice's light. */
@@ -33,8 +33,8 @@ export function createShadowCounts() {
       counts.lights++;
       if (rank === LIGHT_KIND.directional) counts.sunLights++;
     },
-    /** After admission: the lag of the oldest stale page the image reads — every one of them is
-     *  drawn this frame —, and the pages read straight from the cache; one scan of the pool. */
+    /** After admission: the wait of the oldest stale page the image reads, counted only while a
+     *  report names it (`pool.since`, `readFrame`), and the pages read straight from the cache. */
     endFrame(
       pool: ShadowPool,
       records: ShadowRecords,
@@ -49,13 +49,21 @@ export function createShadowCounts() {
       counts.waitedFrames = 0;
       for (let page = 0; page < pool.pages; page++) {
         if (pool.owner[page] < 0 || !records.taken[pool.slice[page]]) continue;
-        if (pool.requested[page] < latest || latest < 0) continue;
+        const read = latest >= 0 && pool.requested[page] >= latest;
         if (!pool.dirty[page]) {
-          if (pool.valid[page]) counts.cachedPages++;
+          if (read && pool.valid[page]) counts.cachedPages++;
           continue;
         }
+        if (!read) {
+          pool.since[page] = NaN;
+          continue;
+        }
+        if (Number.isNaN(pool.since[page])) {
+          pool.since[page] = nowMs;
+          pool.readFrame[page] = frame;
+        }
         counts.waitedMs = Math.max(counts.waitedMs, nowMs - pool.since[page]);
-        counts.waitedFrames = Math.max(counts.waitedFrames, frame - pool.sinceFrame[page]);
+        counts.waitedFrames = Math.max(counts.waitedFrames, frame - pool.readFrame[page]);
       }
     },
     reset() {

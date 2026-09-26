@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
-import { exampleModules } from './docs/examples/capture.ts';
+import { runExampleModule } from './docs/examples/capture.ts';
 import { geometry, light, material, math, object } from '../packages/sdk-browser/src/index.ts';
 import { WaterSurface } from '../packages/sdk-core/src/fluids/waterSurface.ts';
 import type { WaterSpec } from '../packages/sdk-core/src/fluids/buoyancy.ts';
@@ -19,7 +19,6 @@ type Spec = unknown[] | boolean | (() => void);
  * frame never keeps a session long enough to draw, the blank render of #522.
  */
 async function countShapeWrites(html: string) {
-  const [source] = await exampleModules(html);
   const told = { content: 0 };
   const scene = object.group();
   scene._link = {
@@ -43,7 +42,6 @@ async function countShapeWrites(html: string) {
       get waterSurface() {
         return surface?.setTime(time) ?? null;
       },
-      stats: { bodies: 0, active: 0, stepMs: 0 },
     },
     onFrame: (hook: Hook) => frames.push(hook),
     invalidate() {},
@@ -60,13 +58,9 @@ async function countShapeWrites(html: string) {
   };
   const modules = {
     engine: { createWorld, geometry, material, object, light, math },
-    kit: { controls, readout: () => () => {}, seeded },
+    kit: { controls, physicsReadouts: () => {}, seeded },
   };
-  const body = source.replace(
-    /import \{([^}]*)\} from '\.\.\/runtime\/(engine|kit)\.js';/g,
-    'const {$1} = modules.$2;',
-  );
-  new Function('modules', `'use strict';${body}`)(modules);
+  await runExampleModule(html, modules);
   /** Runs one frame at `seconds` and returns the shape writes it told the runtime. */
   return (seconds: number) => {
     const before = told.content;

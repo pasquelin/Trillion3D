@@ -76,7 +76,7 @@ const down = new Ray(new Vector3(1, 5, 0), new Vector3(0, -1, 0));
 
 test('tiles past budget.physics.triangles are refused by name, the nearest loaded', async () => {
   const collider = { kind: 'mesh', tiles: [tile(0), tile(10), tile(20)] };
-  const { errors, fetched, bodies, hit, session, model } = await streamed(
+  const { errors, fetched, bodies, hit, session, model, added } = await streamed(
     cooked([collider], [place(0)]),
     4,
   );
@@ -87,7 +87,7 @@ test('tiles past budget.physics.triangles are refused by name, the nearest loade
   assert.deepEqual(fetched.slice(1).sort(), ['t0.bin', 't10.bin'], 'the two nearest');
   assert.equal(bodies.count.triangles, 4);
   new Float32Array(hit.buffer).set([0.25, 1, 0.5, 0, 0, 1, 0], 1);
-  hit[0] = 0;
+  hit[0] = added[0].id;
   const found = await physicsRaycast(session, down, { exact: true }, 8);
   assert.equal(found?.object, model, 'a tile hit names its model');
   assert.equal(found?.distance, 2);
@@ -98,9 +98,9 @@ const collider = (material: number | null) => ({ kind: 'mesh', material, tiles: 
 
 test('an exact hit on a cooked tile names the glTF material of its collider', async () => {
   const file = cooked([collider(3), collider(5)], [place(0), place(1)]);
-  const { tiles, model, hit, session } = await streamed(file);
+  const { tiles, model, hit, session, added } = await streamed(file);
   const materials: number[] = [];
-  for (const id of [0, 1]) {
+  for (const { id } of added.sort((a, b) => a.position[0] - b.position[0])) {
     hit[0] = id;
     const found = await physicsRaycast(session, down, { exact: true }, 8);
     assert.equal(found?.object, model);
