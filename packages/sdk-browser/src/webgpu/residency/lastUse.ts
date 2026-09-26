@@ -16,9 +16,10 @@ export const LAST_USE_WINDOW = DAG_READBACK_SLOTS + 1;
  *
  * A page the image keeps — its cut, the pinned cover, and what it draws, the nearest resident
  * ancestor standing in for a missing page included — is held. A page that leaves `keep` stays
- * held for `LAST_USE_WINDOW` frames, then is released, oldest first: the caller unpins it and sends
- * it to the far end of the cache's order, so the cache reclaims released pages in their last-use
- * order. Under pressure — more kept pages to load than the pool has unpinned slots — the window
+ * held for `LAST_USE_WINDOW` frames, then is released, oldest first: the caller unpins it. It was
+ * sent to the far end of the cache's order when it went idle (`onIdle`), so the cache reclaims
+ * released pages in their last-use order, and ahead of the pages a lower tier moved there since
+ * (`residentEnsurer.ts`), which some view still wants. Under pressure — more kept pages to load than the pool has unpinned slots — the window
  * gives way first: that many idle pages are released early, still oldest first, so the window
  * never costs the image a page it asks for. A page within its window that is still loading asks
  * for no slot: the image no longer wants it.
@@ -38,8 +39,10 @@ export function createLastUse(options: {
   kept: (key: number) => boolean;
   /** A page became held through a child: the caller pins it once resident. */
   onHeld: (key: number) => void;
+  /** A page went idle, its last use: the caller moves it to the far end of the cache's order. */
+  onIdle: (key: number) => void;
 }) {
-  const { keyOf, parentsOf, kept, onHeld } = options;
+  const { keyOf, parentsOf, kept, onHeld, onIdle } = options;
   /** The frame, plus one, each page left `keep` at while it waits out its window. */
   const idleSince = createSparseInts();
   /** Held pages that depend on each page. */
@@ -53,6 +56,7 @@ export function createLastUse(options: {
   let head = 0;
   const idle = (key: number, frame: number) => {
     idleSince.set(key, frame + 1);
+    onIdle(key);
     idleKeys.push(key);
     idleFrames.push(frame);
   };

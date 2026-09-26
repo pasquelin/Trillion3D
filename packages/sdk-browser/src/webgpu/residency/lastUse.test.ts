@@ -91,6 +91,19 @@ test('a page not drawn for the window becomes evictable, oldest first', async ()
   assert.equal(await world.evict('w'), 'y');
 });
 
+test('a page released after its window goes before the pages a lower tier moved since', async () => {
+  const world = residency(2, ['x', 's', 'z']);
+  await world.load('x');
+  world.image(1, [], ['x']);
+  // `s` is a lower tier's page, never pinned; the camera stops drawing `x`, then the tier's next
+  // pass moves `s` to the far end of the order, as `residentEnsurer.ts` does every job.
+  await world.load('s');
+  world.image(2, [], []);
+  world.cache.touch('s');
+  for (let frame = 3; frame <= 2 + W; frame++) world.image(frame, [], []);
+  assert.equal(await world.evict('z'), 'x');
+});
+
 test('a parent never leaves before its resident children', async () => {
   const world = residency(4, ['x', 'y', 'z', 'w']);
   await world.load('r', 'm', 'a', 'b');
