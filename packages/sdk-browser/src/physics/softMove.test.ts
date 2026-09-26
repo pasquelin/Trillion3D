@@ -18,7 +18,7 @@ test('a page-built cloth moved is teleported with its flags; rescaled, refused b
     cloth.physics = { type: 'cloth' };
     scene.add(cloth);
     physics.frame();
-    const index = cloth.physics._index;
+    const index = cloth.physics!._index;
     cloth.position.set(3, 2, 1);
     cloth.visible = false;
     physics.frame();
