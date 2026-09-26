@@ -23,11 +23,8 @@ import {
 import { writeDagUniforms } from '../../../packages/sdk-browser/src/gpu/dag/uniforms.ts';
 import { SELECTION_HEADER_WORDS } from '../../../packages/sdk-browser/src/gpu/dag/layout.ts';
 import { cameraMoteur } from '../../../packages/sdk-browser/src/camera/camera.fixture.ts';
-import {
-  DAG_SELECTION_SHADER_AVANT,
-  encodeAvant,
-  ressourcesAvant,
-} from '../../../bench/oracles/browser/cut-dispatches.ts';
+import { encodeAvant, ressourcesAvant } from '../../../bench/oracles/browser/cut-dispatches.ts';
+import { DAG_SELECTION_SHADER_AVANT } from '../../../bench/oracles/browser/cut-dispatches-wgsl.ts';
 import { ouvrirAppareil } from './webgpuDevice.ts';
 import { commandes, scene } from './cutDispatchesScene.ts';
 import { median } from '../../../scripts/median.ts';

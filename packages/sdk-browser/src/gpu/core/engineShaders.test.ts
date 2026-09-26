@@ -12,7 +12,7 @@ import { PAGE_GEOMETRY_WGSL } from '../../visibility/shader/pageGeometryWgsl.ts'
 import { PAGE_BINDING, PAGE_INFO_STRUCT_WGSL } from '../../visibility/shader/pageWgsl.ts';
 import { VIS_SHADER } from '../../visibility/buffer.ts';
 import { CLUSTER_DECODING_SHADER } from '../../../../../tests/browser/probes/clusterDecodingGpu.ts';
-import { DAG_SELECTION_SHADER_AVANT } from '../../../../../bench/oracles/browser/cut-dispatches.ts';
+import { DAG_SELECTION_SHADER_AVANT } from '../../../../../bench/oracles/browser/cut-dispatches-wgsl.ts';
 
 test('every WGSL text the engine and its proofs compile declares every name it uses', () => {
   const shaders = { ...ENGINE_SHADERS, CLUSTER_DECODING_SHADER, DAG_SELECTION_SHADER_AVANT };
