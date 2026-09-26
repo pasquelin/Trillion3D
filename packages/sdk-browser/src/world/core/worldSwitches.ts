@@ -4,6 +4,7 @@ import type { WorldOptions } from './worldOptions.ts';
 import { EffectChain } from '../../../../sdk-core/src/world/effect/chain.ts';
 import { createGuideSet, type Guides } from '../../guides/guideSet.ts';
 import { noticeEffectRefusal, type WorldNotices } from '../diagnostic/worldNotices.ts';
+import type { ParticlePool } from '../../../../sdk-core/src/fluids/particles.ts';
 
 /** What of the world's runtime the switches reach: its open session, and its reopening. */
 interface SwitchedRuntime {
@@ -33,6 +34,8 @@ export function worldSwitches(
     effects: new EffectChain(invalidate),
     effectsRefused: noticeEffectRefusal(notices),
     guides: createGuideSet(invalidate),
+    // The particle pools the measurement entry attaches (`attachParticles`); none by default.
+    particles: [] as ParticlePool[],
   };
   return {
     held,

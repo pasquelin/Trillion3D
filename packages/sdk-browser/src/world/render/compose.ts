@@ -18,6 +18,7 @@ import {
 } from '../../webgl/core/renderTarget.ts';
 import { createWebglEffects, type WebglEffectOutput } from '../../effects/webglEffects.ts';
 import type { Blending } from '../../../../sdk-core/src/world/constants/index.ts';
+import type { ParticlePool } from '../../../../sdk-core/src/fluids/particles.ts';
 
 const NONE: readonly EffectPass[] = [];
 
@@ -41,16 +42,17 @@ export type ComposedChain = {
  * since it was kept is drawn again. The page's `guides` are drawn over the image the destination
  * got, the chain's included, before that copy is kept, at the host's `pixelRatio`; a change to
  * them spares no redraw.
+ * No engine drawn here steps particles yet (#759): a world with a pool is refused by name.
  * Nothing here belongs to a rendering library.
  */
 export function createFrameComposer(
   gl: WebGL2RenderingContext,
   camera: HostCamera,
-  layers: { effects?: ComposedChain } & (
+  layers: { effects?: ComposedChain; particles?: readonly ParticlePool[] } & (
     { guides?: undefined } | { guides: GuideSet; pixelRatio: () => number }
   ) = {},
 ) {
-  const { effects: composed } = layers;
+  const { effects: composed, particles = [] } = layers;
   const heldFrame = createHeldFrame(gl);
   const guideDraw = createWebglGuideDraw(gl);
   let guidesDrawn = layers.guides?.revision ?? 0;
@@ -118,6 +120,9 @@ export function createFrameComposer(
   ) => {
     const { width, height } = bindWebglTarget(gl, target);
     if (present(backend)) return;
+    for (const pool of particles) pool.refused = true; // it asks no frame of its own
+    if (particles.length)
+      throw new Error('PARTICLES_UNSUPPORTED: WebGL2 does not step particle pools yet (#759)');
     const revision = composed?.chain.revision ?? 0;
     const guidesHeld = !layers.guides || layers.guides.revision === guidesDrawn;
     if (
