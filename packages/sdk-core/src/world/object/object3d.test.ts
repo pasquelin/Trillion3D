@@ -6,7 +6,7 @@ import { Camera } from '../camera/camera.ts';
 import { Mesh } from './mesh.ts';
 import { cloneObject } from './clone.ts';
 import { Matrix4 } from '../math/matrix4.ts';
-import { assertClose } from '../../scene/core/nodeAttach.fixture.ts';
+import { mismatch } from '../../scene/core/nodeAttach.fixture.ts';
 import { Quaternion } from '../math/quaternion.ts';
 import { multiplyMatrix4 } from '../../math/matrix/matrix4.ts';
 import { invertMatrix4 } from '../../math/matrix/matrix4Inverse.ts';
@@ -92,9 +92,13 @@ test('attach keeps the world matrix, and position, rotation and scale hold the n
   assert.equal(to.attach(node), to);
   assert.equal(node.parent, to);
   node.updateMatrixWorld(true);
-  assertClose(node.matrixWorld.elements, world.elements, 'its world matrix, kept');
+  assert.equal(mismatch(node.matrixWorld.elements, world.elements), null, 'its world matrix, kept');
   const posed = new Matrix4().compose(node.position, node.quaternion, node.scale);
-  assertClose(posed.premultiply(to.matrixWorld).elements, world.elements, 'its values, rewritten');
+  assert.equal(
+    mismatch(posed.premultiply(to.matrixWorld).elements, world.elements),
+    null,
+    'its values',
+  );
   to.attach(to);
   assert.ok(to.parent === null && to.position.x === -4, 'attached to itself: declined, untouched');
   const turn = new Quaternion().setFromEuler(node.rotation);
@@ -124,7 +128,7 @@ test("attach gives the reference's pose to the bit: new parent's inverse × old 
     decomposeMatrix4(product, p, q, s);
     to.attach(node);
     const pose = [...node.position.elements, ...node.quaternion.elements, ...node.scale.elements];
-    assertClose(pose, [...p, ...q, ...s], `attach ${i}: position, quaternion, scale`, 0);
-    if (!node.matrixAutoUpdate) assertClose(node.matrix.elements, product, `attach ${i}`, 0);
+    assert.equal(mismatch(pose, [...p, ...q, ...s], 0), null, `attach ${i}: its values`);
+    if (!node.matrixAutoUpdate) assert.equal(mismatch(node.matrix.elements, product, 0), null);
   }
 });
