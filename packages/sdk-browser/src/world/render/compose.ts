@@ -171,10 +171,8 @@ export function createFrameComposer(
       guidesDrawn = layers.guides.revision;
       guideDraw.draw(layers.guides, drawCamera, output, layers.pixelRatio());
     }
-    if (!target) {
-      heldFrame.keep(width, height);
-      keptRevision = revision;
-    }
+    if (!target) heldFrame.keep(width, height);
+    if (!target) keptRevision = revision;
     if (drawn instanceof Error) throw drawn;
   };
   /** Bytes of the chain's targets on this context. */
