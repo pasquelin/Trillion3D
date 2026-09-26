@@ -132,7 +132,10 @@ export function createHeldResidency(follow?: () => void) {
         states.set(root, held);
       }
       const state = held!;
-      if (state.seen !== image) ((state.seen = image), visited++);
+      if (state.seen !== image) {
+        state.seen = image;
+        visited++;
+      }
       const whole = entering || state.base < 0;
       if (!whole && !state.moved.size) return state.readiness;
       cut = s as unknown as SelectionState<PageRecord>;
