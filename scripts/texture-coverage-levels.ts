@@ -17,7 +17,7 @@ import { manifestOf } from '../packages/sdk-node/src/cutout/thumb.mts';
 
 /** Where a chain that names no cutoff — develop's word 2, before #44 — is counted: glTF's default
  *  `alphaCutoff` of 0.5, so both sides of a comparison count the same texels. */
-export const UNCUT_BYTE = 128;
+const UNCUT_BYTE = 128;
 
 /** Every whole coverage chain of a manifest, `readHead` giving a head level's lossless file from
  *  its address relative to the manifest. */
