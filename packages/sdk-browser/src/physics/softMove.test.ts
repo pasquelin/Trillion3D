@@ -43,7 +43,11 @@ test('a page-built cloth moved is teleported with its flags, never made again; r
     cloth.scale.setScalar(2);
     physics.frame();
     assert.equal(physics.handle.error?.code, 'PHYSICS_FAILED');
-    assert.deepEqual([...worker.words.at(-1)!], [OP.remove, index], 'out, not made at the new scale');
+    assert.deepEqual(
+      [...worker.words.at(-1)!],
+      [OP.remove, index],
+      'out, not made at the new scale',
+    );
     assert.equal(physics.session()!.engineIdOf(cloth), -1);
     physics.dispose();
   } finally {
