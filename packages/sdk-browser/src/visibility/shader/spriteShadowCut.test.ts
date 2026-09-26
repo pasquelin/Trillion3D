@@ -64,7 +64,7 @@ test('the CPU and GPU light cuts select no mesh set to cast no shadow', () => {
 test('the GPU light cut deposits no root for a sprite in its first queue', () => {
   assert.ok(
     DAG_SELECTION_SHADER.includes(
-      'let root=select(rootOf(w),0xffffffffu,isLightCut()&&markOf(w)!=0u);',
+      'let root=select(rootOf(w),0xffffffffu,isLightCut()&&(markOf(w)&5u)!=0u);',
     ),
   );
 });

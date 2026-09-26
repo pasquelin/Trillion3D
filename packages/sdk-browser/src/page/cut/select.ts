@@ -8,7 +8,7 @@ import { worldStretch } from './logic.ts';
 import { selectionScratch, type PageRecord, type SelectionState } from './state.ts';
 import { traverse } from './visit.ts';
 import type { ClusterRoot } from '../selection/types.ts';
-import { SPRITE_UNCULLED } from '../../visibility/shader/spriteWgsl.ts';
+import { CASTS_NO_SHADOW, SPRITE_UNCULLED } from '../../visibility/shader/spriteWgsl.ts';
 
 /** True when a camera cut lets every node and page of a root through: a root never culled
  *  (`SPRITE_UNCULLED`). A light's cut never walks a root that casts no shadow (`castsNoShadow`).
@@ -18,17 +18,10 @@ export const openMark = (mark: number | undefined, light: unknown) =>
 export const openToCamera = <T>(s: { light?: unknown }, root: ClusterRoot<T>) =>
   openMark(root.mark, s.light);
 
-/** The root mark's bit on a root that casts no shadow though it is no sprite: its mesh, or the
- *  row it is placed by, says `castShadow = false` (`PlacementRows.shadowless`). */
-export const SHADOWLESS_ROOT = 4;
-/** `mark` with its shadowless bit set when `shadowless`, cleared otherwise. */
-export const withShadowless = (mark: number, shadowless: boolean) =>
-  shadowless ? mark | SHADOWLESS_ROOT : mark & ~SHADOWLESS_ROOT;
-
-/** True when a light's cut leaves a root out: every bit of its mark says it casts no shadow — a
- *  sprite casts none, nor does a root marked `SHADOWLESS_ROOT` (`ClusterRoot.mark`). Read by the
- *  CPU cut and the GPU cut's oracle (`dagOracleDescent`). */
-export const castsNoShadow = (mark: number | undefined, light: unknown) => !!light && !!mark;
+/** True when a light's cut leaves a root out: a sprite, or a root set to cast no shadow
+ *  (`CASTS_NO_SHADOW`). Read by the CPU cut and the GPU cut's oracle (`dagOracleDescent`). */
+export const castsNoShadow = (mark: number | undefined, light: unknown) =>
+  !!light && ((mark ?? 0) & CASTS_NO_SHADOW) !== 0;
 
 /** Six planes no box leaves, `(0, 0, 0, 1)` each: what an open root is walked against, here and
  *  in the GPU cut's oracle (`dagViewFrames`). */
