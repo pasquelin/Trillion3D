@@ -33,12 +33,11 @@ export function createPageRects() {
    * the pages it covers.
    */
   function setRect(view: number, scale: number, offset: number, x0: number, y0: number, n: number) {
-    const r = view * 4,
-      at = (side: number) => (plane[side] + offset) * scale;
-    rects[r] = Math.max(x0, Math.ceil(at(0)) - 1);
-    rects[r + 1] = Math.min(x0 + n - 1, Math.floor(at(1)));
-    rects[r + 2] = Math.max(y0, Math.ceil(at(2)) - 1);
-    rects[r + 3] = Math.min(y0 + n - 1, Math.floor(at(3)));
+    const r = view * 4;
+    rects[r] = Math.max(x0, Math.ceil((plane[0] + offset) * scale) - 1);
+    rects[r + 1] = Math.min(x0 + n - 1, Math.floor((plane[1] + offset) * scale));
+    rects[r + 2] = Math.max(y0, Math.ceil((plane[2] + offset) * scale) - 1);
+    rects[r + 3] = Math.min(y0 + n - 1, Math.floor((plane[3] + offset) * scale));
     const columns = rects[r + 1] - rects[r] + 1,
       rows = rects[r + 3] - rects[r + 2] + 1;
     return columns > 0 && rows > 0 ? columns * rows : 0;
