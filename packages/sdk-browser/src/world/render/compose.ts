@@ -43,7 +43,7 @@ export function createFrameComposer(
   camera: HostCamera,
   layers: { effects?: ComposedChain; guides?: GuideSet; particles?: readonly ParticlePool[] } = {},
 ) {
-  const { effects: composed, guides, particles } = layers;
+  const { effects: composed, guides, particles = [] } = layers;
   const heldFrame = createHeldFrame(gl);
   const guideDraw = createWebglGuideDraw(gl);
   let guidesDrawn = guides?.revision ?? 0;
@@ -105,7 +105,8 @@ export function createFrameComposer(
   ) => {
     const { width, height } = bindWebglTarget(gl, target);
     if (present(backend)) return;
-    if (particles?.length)
+    for (const pool of particles) pool.refused = true; // it asks no frame of its own
+    if (particles.length)
       throw new Error('PARTICLES_UNSUPPORTED: WebGL2 does not step particle pools yet (#759)');
     const revision = composed?.chain.revision ?? 0;
     const guidesHeld = !guides || guides.revision === guidesDrawn;

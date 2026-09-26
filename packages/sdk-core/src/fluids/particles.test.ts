@@ -64,7 +64,7 @@ test('an idle pool stops moving: its step takes no time once its last particle i
   assert.equal(pool.moving, false, 'nothing emitted');
   pool.emit(0, 0, 0, 0, 0, 0, 0.1);
   assert.equal(pool.moving, true);
-  for (const dt of [0.05, 0.05]) {
+  for (const dt of [0.05, 0.05, 0.05, 0.05]) {
     pool.advance(dt);
     assert.equal(pool.flush().dt, dt);
   }
