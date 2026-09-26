@@ -17,7 +17,7 @@ import type { HostDrawCamera } from '../../camera/world.ts';
 import { Matrix3UniformCache, setClusterSamplers, setMatrix3 } from './uniforms.ts';
 import { WebglClusterMaterialUniforms } from './materialUniforms.ts';
 import { createClusterProgram } from './program.ts';
-import { validateClusterMeshes } from './validation.ts';
+import { validateClusterMeshes, type ReadDegraded } from './validation.ts';
 import { WebglClusterBackdrop } from './backdrop.ts';
 import { BACKDROP_UNITS, ClusterMaterialPass, type Material } from './materialBinding.ts';
 import { refuseCluster } from './refusal.ts';
@@ -144,13 +144,14 @@ export class WebglClusterRenderer {
     srgbDestination: boolean,
     diagnosticMeshes: readonly WholeMesh[] = [],
     copies: readonly SceneCopy[] = [],
+    degraded?: ReadDegraded,
   ) {
     const gl = this.gl;
     const lightReason = unsupportedClusterLight(scene);
     if (lightReason) refuseCluster(lightReason);
     this.copies.cull(copies, camera);
     const { plain, blended, transmissive } = this.copies;
-    validateClusterMeshes(meshes, diagnosticMeshes, this.copies, this.validatedMaterials);
+    validateClusterMeshes(meshes, diagnosticMeshes, this.copies, this.validatedMaterials, degraded);
     gl.useProgram(this.program);
     gl.disable(gl.STENCIL_TEST);
     gl.uniformMatrix4fv(this.at('projectionMatrix'), false, camera.projection);
