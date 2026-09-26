@@ -13,9 +13,9 @@ import { refusingDevice } from './poolDevice.fixture.ts';
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 
-/** A session whose device refuses, as out of memory, every texture past `limit` bytes; its atlas
- *  records the side it was sized at, and what the frame was told. */
-function session(viewport: [number, number], limit = Infinity) {
+/** A session whose device, `textureSide` texels wide, refuses, as out of memory, every texture
+ *  past `limit` bytes; its atlas records the side it was sized at, and what the frame was told. */
+function session(viewport: [number, number], limit = Infinity, textureSide = 8192) {
   installGpuGlobals();
   const lights = createWebgpuLightState(shadowPoolSide(300, 150));
   lights.plan.setPageInvalidation(false);
@@ -24,7 +24,7 @@ function session(viewport: [number, number], limit = Infinity) {
   let texture: object | undefined,
     uncaptured = 0,
     changed = 0;
-  const gpu = refusingDevice(limit);
+  const gpu = refusingDevice(limit, { limits: { maxTextureDimension2D: textureSide } });
   gpu.device.addEventListener('uncapturederror', () => uncaptured++);
   lights.shadows = {
     get texture() {
@@ -176,4 +176,18 @@ test('the side follows the pages the pool holds; the device side is only the cap
     sides.map(({ side, layers }) => side ** 2 * layers),
     [5041, 5476],
   );
+});
+
+test('a pool the memory budget holds short of what the screen asks is said held by the budget', async () => {
+  // Two suns over 3 456 × 2 234 ask more pages than the budget's atlas bytes hold; a device
+  // 16 384 texels wide grants all it is asked: the budget, not the device, cut the pool.
+  const s = session([3456, 2234], Infinity, 16384);
+  s.lights.store.add({ ...SUN, id: 'first sun' });
+  s.lights.store.add({ ...SUN, id: 'second sun' });
+  await s.size();
+  const [, context] = s.said.find(([phase]) => phase === 'shadow-pool')!;
+  assert.ok((context.pages as number) < pages(3456, 2234, 2));
+  assert.equal(context.bytes, shadowAtlasBytes(74));
+  assert.equal(context.clamp, 'ceiling');
+  assert.equal(s.said.filter(([phase]) => phase === 'gpu-out-of-memory').length, 0);
 });
