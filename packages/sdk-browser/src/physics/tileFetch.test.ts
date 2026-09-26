@@ -3,13 +3,13 @@ import assert from 'node:assert/strict';
 import { answering, type Answer } from '../cluster/answers.fixture.ts';
 import { cooked, landed, modelFiles, modelStreamer, place, tile } from './tiles.fixture.ts';
 
-/** A model of one two-triangle tile, `t0.bin`, placed once, whose `name` answers `answers` and
- *  every other file as it is: its streamer, scanned once, and the requests of `name`. */
-function streaming(t: TestContext, name: string, answers: Answer[]) {
-  const served = modelFiles(
-    cooked([{ kind: 'mesh', tiles: [tile()] }], [place(0)]),
-    new Uint8Array(1),
-  );
+/** A cooked file of one two-triangle tile, `t0.bin`, placed once. */
+const FILE = cooked([{ kind: 'mesh', tiles: [tile()] }], [place(0)]);
+
+/** A model whose `physics.json` is `file` and whose `name` answers `answers`, every other file as
+ *  it is: its streamer, scanned once, and the requests of `name`. */
+function streaming(t: TestContext, name: string, answers: Answer[], file: object = FILE) {
+  const served = modelFiles(file, new Uint8Array(1));
   const asked = answering(t, name, answers, served, served);
   const streamer = modelStreamer();
   const opened = streamer.heard();
@@ -53,33 +53,24 @@ test('a tile the server refuses (404) is asked once, never at the next updates',
 });
 
 test('a cooked file that lists no soft bodies still brings its tiles in, no failure', async (t) => {
-  const { softBodies: _none, ...file } = cooked([{ kind: 'mesh', tiles: [tile()] }], [place(0)]);
-  const served = modelFiles(file, new Uint8Array(1));
-  answering(t, 't0.bin', [200], served, served);
-  const { tiles, scene, bodies, errors } = modelStreamer();
-  tiles.scan(scene);
-  await landed();
+  const { softBodies: _none, ...file } = FILE;
+  const { tiles, bodies, opened, heard, errors } = streaming(t, 't0.bin', [200], file);
+  await opened;
+  const resident = heard();
   tiles.update([0, 0, 0], 1000);
-  await landed();
+  await resident;
   assert.deepEqual([bodies.count.triangles, errors], [2, []]);
 });
 
-test('a model leaving while its tile is on its way lets the read go: no failure, no second ask', async (t) => {
-  const { tiles, scene, model, asked, opened, errors } = streaming(t, 't0.bin', ['hang']);
-  await opened;
-  tiles.update([0, 0, 0], 1000);
-  scene.remove(model);
-  tiles.scan(scene);
-  assert.ok(asked[0].init.signal!.aborted);
-  await landed();
-  assert.deepEqual([asked.length, errors], [1, []]);
-});
-
-test('a model leaving while its physics.json is on its way lets the read go, no failure', async (t) => {
-  const { tiles, scene, model, asked, errors } = streaming(t, 'physics.json', ['hang']);
-  scene.remove(model);
-  tiles.scan(scene);
-  assert.ok(asked[0].init.signal!.aborted);
-  await landed();
-  assert.deepEqual([asked.length, errors], [1, []]);
+test('a model leaving while its physics.json or a tile is on its way lets the read go, no failure', async (t) => {
+  for (const name of ['physics.json', 't0.bin']) {
+    t.mock.restoreAll();
+    const { tiles, scene, model, asked, opened, errors } = streaming(t, name, ['hang']);
+    if (name === 't0.bin') tiles.update([0, 0, 0], 1000, await opened);
+    scene.remove(model);
+    tiles.scan(scene);
+    assert.ok(asked[0].init.signal!.aborted);
+    await landed();
+    assert.deepEqual([asked.length, errors], [1, []]);
+  }
 });

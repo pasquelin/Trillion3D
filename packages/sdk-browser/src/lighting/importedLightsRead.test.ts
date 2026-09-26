@@ -27,13 +27,10 @@ test('a lights read aborted while its body arrives rejects, never answering no l
 });
 
 test('a lights file the server refuses otherwise (a 503 twice, a 401) fails the read by its address', async (t) => {
-  for (const [status, requests] of [
-    [503, 2],
-    [401, 1],
-  ]) {
+  for (const status of [503, 401]) {
     t.mock.restoreAll();
     const asked = answering(t, 'lights.json', [status]);
     await assert.rejects(loadImportedLights(BASE), refusedWith(status, 'lights.json'));
-    assert.equal(asked.length, requests);
+    assert.equal(asked.length, status === 503 ? 2 : 1);
   }
 });

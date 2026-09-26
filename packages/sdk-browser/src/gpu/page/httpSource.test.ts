@@ -5,10 +5,10 @@ import { answering, refusedWith } from '../../cluster/answers.fixture.ts';
 import { createGpuPageCache, httpPageSource } from './pages.ts';
 
 const BASE = 'https://cache.test/model/pages/';
+const { device } = fakeDevice({ limits: { maxBufferSize: 1024 } });
 
 test('a page the server does not hold (404) is refused by its address, the cache asking it once', async (t) => {
   const asked = answering(t, 'p0.bin', [404]);
-  const { device } = fakeDevice({ limits: { maxBufferSize: 1024 } });
   const cache = createGpuPageCache(device, httpPageSource(BASE), { pageBytes: 8, slots: 1 });
   // Another request would meet the same refusal.
   await assert.rejects(cache.load('p0.bin'), refusedWith(404, 'p0.bin'));
@@ -18,7 +18,6 @@ test('a page the server does not hold (404) is refused by its address, the cache
 
 test('a page read a busy server refuses once (503) is asked again by the cache, its status reported', async (t) => {
   const asked = answering(t, 'p0.bin', [503, 200], () => new Uint8Array([1, 2, 3, 4]));
-  const { device } = fakeDevice({ limits: { maxBufferSize: 1024 } });
   const phases: Array<{ phase: string; context: Record<string, unknown> }> = [];
   const cache = createGpuPageCache(device, httpPageSource(BASE), {
     ...{ pageBytes: 8, slots: 1 },
