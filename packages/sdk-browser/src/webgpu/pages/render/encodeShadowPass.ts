@@ -64,7 +64,7 @@ function encodeOcclusion(rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder, cou
  * fills the clip square, so the rasterizer clips every caster at its edge and no other page of the
  * pool is touched; the scissor says the same square once more.
  *
- * Once a blended caster holds a row, the pass of the transmittance layer follows
+ * Once a blended caster has held a row, the pass of the transmittance layer follows
  * (`encodeTransmittance`). Before, the shadow passes are the ones they were.
  */
 export function encodeShadowAtlas(
@@ -123,9 +123,8 @@ export function encodeShadowAtlas(
   if (regions.layered) draw(staticLayer!.view, SHADOW_LAYER_PASS, true, false);
   const tested = encodeOcclusion(rt, encoder, count);
   draw(shadows.view, SHADOW_PASS, false, tested);
-  const transmittance = rt.services.blendCasters.used
-    ? shadows.ensureTransmittance(encoder)
-    : shadows.transmittance;
+  const casters = rt.services.blendCasters.used > 0;
+  const transmittance = casters ? shadows.ensureTransmittance(encoder) : shadows.transmittance;
   if (transmittance) encodeTransmittance(rt, device, encoder, count, transmittance, tested);
   lights.shadowDrawCalls += run.gpuDrawCalls - drawsBefore;
   return true;
@@ -137,7 +136,9 @@ export function encodeShadowAtlas(
  * and no translucent depth (the static layer keeps no blended caster: their rows count as moving),
  * then draws its list twice, where only the blended casters' corners survive: depth only, for the
  * nearest translucent depth, then colour only, multiplied into the transmittance. Both test the
- * pool's opaque depth, just drawn.
+ * pool's opaque depth, just drawn. Once the last blended caster has given its row back, the layer
+ * stays but the list holds none of them: each page is cleared, which is all the read needs, and
+ * neither draw is encoded.
  */
 export function encodeTransmittance(
   rt: WebgpuPagesRuntime,
@@ -149,6 +150,7 @@ export function encodeTransmittance(
 ) {
   const { lights, run } = rt,
     { shadows, cull, regions, occlusion } = lights;
+  const casters = rt.services.blendCasters.used > 0;
   const pass = encoder.beginRenderPass({
     label: SHADOW_TRANSMITTANCE_PASS,
     colorAttachments: [{ view: layer.view, loadOp: 'load', storeOp: 'store' }],
@@ -170,12 +172,14 @@ export function encodeTransmittance(
     pass.setBindGroup(1, shadows!.faceGroup, [region * shadows!.faceStride]);
     pass.setPipeline(layer.clear);
     pass.draw(3);
+    run.gpuDrawCalls++;
+    if (!casters) continue;
     const commands = visible ? occlusion!.visibleIndirect : cull!.indirect;
     for (const pipeline of [layer.depth, layer.blend]) {
       pass.setPipeline(pipeline);
       pass.drawIndirect(commands, region * DRAW_INDIRECT_STRIDE);
     }
-    run.gpuDrawCalls += 3;
+    run.gpuDrawCalls += 2;
   }
   pass.end();
 }
