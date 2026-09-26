@@ -7,18 +7,24 @@
 //! from the object (`cut.rs`), split into tiles aligned on the culling hierarchy, each a Jolt
 //! `MeshShape` stored as a SHA-addressed object like the pages; a regular grid becomes a height
 //! field (`height.rs`). Per scene: `physics.json` (`stage.rs`), each placement carrying the matter its
-//! source declares through `KHR_physics_rigid_bodies` (`declared.rs`), and the soft bodies its nodes
-//! declare, each Jolt's `SoftBodySharedSettings` as the physics worker would build them (`soft.rs`).
+//! source declares through `KHR_physics_rigid_bodies` (`declared.rs`); the rigid bodies its nodes
+//! declare, a shapeless one given convex hulls, mass, centre of mass and inertia (`hulls.rs`,
+//! `decompose.rs`); and the soft bodies its nodes declare, each Jolt's `SoftBodySharedSettings` as
+//! the physics worker would build them (`soft.rs`).
 use crate::dag::{CullingNode, DagCluster};
 use crate::{CompilerError, Options, Result};
 use serde_json::{json, Value};
 
+#[cfg(test)]
+mod bodies_tests;
 mod cut;
 #[cfg(test)]
 mod cut_tests;
 mod declared;
+mod decompose;
 pub(crate) mod hausdorff;
 mod height;
+mod hulls;
 #[cfg(test)]
 mod small_tests;
 mod soft;
@@ -33,7 +39,7 @@ pub(crate) use stage::stage_physics;
 
 /// The stage contract: its name and version, which enter `physics.json` and the cache key.
 pub const PHYSICS_COOK_STAGE: &str = "physics-cook";
-pub const PHYSICS_COOK_VERSION: u32 = 5;
+pub const PHYSICS_COOK_VERSION: u32 = 6;
 /// Version of `physics.json`, its own: a reader refuses any other.
 pub const PHYSICS_FORMAT_VERSION: u32 = 2;
 /// The Jolt commit the cook links: shapes are Jolt's binary state, readable by this Jolt alone.

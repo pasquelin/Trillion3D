@@ -7,6 +7,8 @@ The files the native compiler's physics cook tests read (`packages/asset-compile
 - `cloth-settings.bin`: the golden cooked soft body, a 1 m cloth of 2 × 2 squares pinned at its top
   corners, Jolt's `SoftBodySharedSettings` binary state, written the same way (`soft_tests.rs`);
   the physics module's test restores it (`packages/sdk-browser/src/physics/cookedSoft.test.ts`).
+- `cube-hull.bin`: the golden cooked hull of a unit cube, Jolt's `ConvexHullShape` binary state,
+  written the same way (`bodies_tests.rs`).
 - `soft-records.bin`: the cook's soft records of a cloth, a welded rope and a closed tetrahedron,
   written the same way (`soft_tests.rs`); the page rebuilds each with `softBodyOf` and must
   match them bit for bit (`packages/sdk-core/src/physics/softCook.test.ts`).
