@@ -12,7 +12,7 @@ export const PHYSICS_LINES = {
 };
 
 /** A line of `PHYSICS_LINES`. */
-export type PhysicsLine = keyof typeof PHYSICS_LINES;
+type PhysicsLine = keyof typeof PHYSICS_LINES;
 
 /**
  * The physics readouts of an example: one `readout` per line of `lines`, in that order, written

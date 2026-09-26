@@ -22,6 +22,11 @@ test('a readout is declared after the controls panel it joins', () => {
   }
 });
 
+test('no example prints a physics line by hand; each asks the kit for it', () => {
+  for (const [file, html] of pages)
+    assert.doesNotMatch(html, /physics\.stats|readout\('(?:bodies|awake|step|page)'\)/, file);
+});
+
 test("the proof hears the engine's own failures on the console", async () => {
   const engine = new URL('../packages/sdk-browser/src/', import.meta.url);
   for (const source of ['world/session/interactive.ts', 'world/core/worldHandles.ts']) {
@@ -44,8 +49,7 @@ test('a sparse example is declared by name and backend under the tenth; every ot
   }
   // The shares declared under those measured on 2026-09-24, and the examples never declared: the
   // three a refused WebGL2 session left blank, and save-the-scene, whose ground fills its frame
-  // since its tower of four blocks on one-pixel grid lines drew under the tenth (#717). They keep
-  // the tenth on both backends.
+  // (#717). They keep the tenth on both backends.
   const named = [
     'a-staircase-from-one-step',
     'a-cloud-of-points',
