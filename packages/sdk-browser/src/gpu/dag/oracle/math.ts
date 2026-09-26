@@ -97,7 +97,7 @@ export function dagViewFrames(
     copyMatrix4(world, packed.worlds, 0, w * 16);
     const object = new Float64Array(24);
     frustumPlanesToLocal(object, uniforms.planes, world);
-    if (openMark(packed.sprite?.[w], uniforms.light)) object.set(OPEN_PLANES);
+    if (openMark(packed.mark?.[w], uniforms.light)) object.set(OPEN_PLANES);
     planes.push(object);
     multiplyMatrix4(viewMatrix, view, world);
     views.push(Array.from(viewMatrix));

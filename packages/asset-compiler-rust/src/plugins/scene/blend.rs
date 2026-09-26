@@ -25,7 +25,8 @@
 //! power, colour, cone and the emitter radius their `Lamp` block declares.
 //!
 //! **What it refuses, by name.** A file with 32-bit pointers or big-endian, a block-header variant
-//! it does not describe, a truncated file or one larger than its ceiling, an unreadable `DNA1`, a
+//! it does not describe, a truncated file, a wrapped file that unpacks past the job's RAM budget,
+//! a block index, packed images or meshes that would go past it, an unreadable `DNA1`, a
 //! mesh outside the attribute layout — that of Blender 4.4 and beyond; older files, which stored
 //! their geometry in `MPoly`/`MLoop` and `CustomData`, are not read, for lack of a file of that
 //! era to prove it.
@@ -44,7 +45,6 @@ use crate::{hash, CompilerError};
 use serde_json::{json, Value};
 use std::{
     collections::{BTreeMap, HashMap, HashSet},
-    fs,
     sync::atomic::{AtomicBool, Ordering},
     time::Instant,
 };
@@ -81,8 +81,6 @@ pub(super) static BLEND: Blend = Blend;
 pub(super) struct Blend;
 /// The format name, as it travels in the manifest and in the cache key.
 const NAME: &str = "blend";
-/// Unpacking ceiling of a file: beyond it, the wrapping is refused without allocating.
-const MAX_BYTES: usize = 1024 * 1024 * 1024;
 /// Ceiling of a linked-list walk, so a damaged file does not loop.
 const MAX_LIST: usize = 1 << 20;
 
@@ -99,7 +97,7 @@ impl Plugin for Blend {
     /// The version names the layout read and the two decompressors: changing it invalidates
     /// caches, so every already-compiled `.blend` is reread.
     fn version(&self) -> &'static str {
-        "blend-sdna-attributes-flate2-1.1.10-ruzstd-0.7.3-gltf-9"
+        "blend-sdna-attributes-flate2-1.1.10-ruzstd-0.7.3-gltf-10"
     }
     fn extensions(&self) -> &'static [&'static str] {
         &["blend"]

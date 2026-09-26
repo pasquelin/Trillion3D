@@ -1,9 +1,11 @@
 import type { SceneFog } from '../../../../sdk-core/src/scene/core/fog.ts';
 import { EngineError } from '../../../../sdk-core/src/contracts/cache.ts';
+import type { PhysicsOption } from '../../../../sdk-core/src/physics/options.ts';
 
-/** The name a saved scene carries, and the one version of its layout this runtime reads. */
+/** The name a saved scene carries, and the one version of its layout this runtime reads. Version
+ *  1 wrote a mesh's `castShadow` as `false` by default, read by no renderer: it is refused. */
 export const SCENE_FORMAT = 'trillion3d-scene';
-export const SCENE_FORMAT_VERSION = 1;
+export const SCENE_FORMAT_VERSION = 2;
 
 /** A geometry: the family call that built it, or its vertices when no call can build it again. */
 export interface SavedGeometry {
@@ -73,6 +75,8 @@ export interface SavedNode {
   };
   /** A compiled model, by the manifest address it was loaded from: never inlined. */
   model?: { url: string };
+  /** A mesh's body, as `mesh.physics` declares it. */
+  physics?: PhysicsOption;
 }
 
 /** The camera a scene was saved with: its pose, projection and optics. */
@@ -91,7 +95,7 @@ export interface SavedCamera {
 export interface SavedScene {
   /** Always `'trillion3d-scene'`. */
   format: typeof SCENE_FORMAT;
-  /** The version of this layout; another one is refused. */
+  /** The version of this layout; one this runtime does not read is refused. */
   formatVersion: number;
   /** The background colour, or `null`. */
   background: [number, number, number] | null;

@@ -3,17 +3,22 @@ import { createCutDelta } from './delta.ts';
 import { createCutPending, type CutPending } from './pending.ts';
 import { createWebgpuCutAdopter } from './adoption.ts';
 import type { GroupClosure } from '../../page/cut/groupClosure.ts';
-import { createHeldBytes } from '../../page/cut/held.ts';
+import { createHeldResidency, type HeldResidency } from '../../page/cut/held.ts';
 import { markDrawnMirrored } from '../pages/helpers.ts';
 import type { WebgpuResidencySets } from '../residency/sets.ts';
 import type { WebgpuPagesCore } from '../pages/runtime.ts';
 
 /**
- * What the rank journal notifies when a page changes coverage. Set outside publication so that
- * nothing else is captured besides the set it touches: the journal keeps it as long as the
- * engine, and a closure taken inside publication would hold its whole context there.
+ * What the rank journal notifies when a page changes coverage: the pending set, and the CPU cut's
+ * readiness of its placement. Set outside publication so that nothing else is captured besides
+ * what it touches: the journal keeps it as long as the engine, and a closure taken inside
+ * publication would hold its whole context there.
  */
-const coverageWatcher = (pending: CutPending) => (page: number) => pending.touch(page);
+const coverageWatcher =
+  (pending: CutPending, held: HeldResidency, packedPages: readonly PageRec[]) => (page: number) => {
+    pending.touch(page);
+    if (packedPages[page]) held.moved(packedPages[page]);
+  };
 /** The list ahead of a cut that has no view ahead. */
 const NO_IDS: readonly number[] = [];
 
@@ -36,6 +41,8 @@ export function createWebgpuCutPublication(
     all: readonly { readonly hostBytes: number }[];
     ahead: { offerIds(ids: ArrayLike<number>): void };
   },
+  /** Whether the pool holds a cluster's slot: the CPU cut's residency rule. */
+  poolHolds: (rec: PageRec) => boolean,
 ) {
   const { run, gpu } = rt,
     { rows, packedPages } = rt.layout,
@@ -53,12 +60,13 @@ export function createWebgpuCutPublication(
     residencySets.accepts,
     () => residencySets.acceptedRevision,
   );
+  // The CPU cut's residency: the pool's slots, their readiness moved by the rank journal. The
+  // layout's placements never move.
+  const held = createHeldResidency({ isResident: poolHolds });
+  held.track(rt.layout.selectionRoots);
   // The three ways a cluster's coverage flips — bytes received, bytes released, a cache slot taken
   // or given back — all go through the rank journal, which names them one by one.
-  rows.watchTouched(coverageWatcher(cutPending));
-  // The CPU cut's readiness of the placements, a running total: the layout's placements never move.
-  const held = createHeldBytes();
-  held.track(rt.layout.selectionRoots);
+  rows.watchTouched(coverageWatcher(cutPending, held, packedPages));
   const publishCut = () => {
     closure.apply(cutDelta);
     residencySets.applyCut(closure.delta);
@@ -113,6 +121,9 @@ export function createWebgpuCutPublication(
   return {
     /** Pages of the requested cut that are still waiting for their bytes. */
     cutPending,
+    /** The CPU cut's residency, moved by the rank journal: the cache's changes reach it once the
+     *  mirror is synced (`../residency/mirror.ts`). */
+    heldResidency: held,
     /** Bytes of the cut's host tables — the group closure, the rule's readiness on the GPU and in
      *  the CPU cut, the residency sets, the two differences, the pending set and the two lower
      *  tiers —, each sized by what the view asks for and the pool holds, never by the catalogue

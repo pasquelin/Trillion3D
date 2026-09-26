@@ -6,10 +6,10 @@
 //! for that: no re-encoding, no second version on disk, and the compiler's image decoder rereads
 //! exactly the file the author packed. An image only designated stays named by its path, relative
 //! to the served root — the same root as for all drivers, `scene::image_root`.
+//!
+//! The scene binary the packed images join stays under the job's RAM budget: an image that would
+//! take it past is refused by name, never dropped in silence — and so is a mesh.
 use super::*;
-
-/// Ceiling of the bytes of a packed image: beyond it, the image is not poured.
-const MAX_PACKED_BYTES: usize = 256 * 1024 * 1024;
 
 /// Images already poured, by the address of the block that holds them.
 #[derive(Default)]
@@ -18,18 +18,24 @@ pub(super) struct Images {
 }
 
 impl Images {
-    /// The glTF texture rank of this image, poured on first request.
-    pub(super) fn texture(&mut self, image: &At<'_>, root: &Path, out: &mut Out) -> Option<usize> {
+    /// The glTF texture rank of this image, poured on first request; a packed image past the
+    /// scene binary's room refuses the scene.
+    pub(super) fn texture(
+        &mut self,
+        image: &At<'_>,
+        root: &Path,
+        out: &mut Out,
+    ) -> Result<Option<usize>> {
         if let Some(known) = self.by_block.get(&image.old) {
-            return *known;
+            return Ok(*known);
         }
-        let found = resolve(image, root, out);
+        let found = resolve(image, root, out)?;
         self.by_block.insert(image.old, found);
-        found
+        Ok(found)
     }
 }
 
-fn resolve(image: &At<'_>, root: &Path, out: &mut Out) -> Option<usize> {
+fn resolve(image: &At<'_>, root: &Path, out: &mut Out) -> Result<Option<usize>> {
     let declared = image.text("name").replace('\\', "/");
     let name = declared
         .rsplit('/')
@@ -42,27 +48,32 @@ fn resolve(image: &At<'_>, root: &Path, out: &mut Out) -> Option<usize> {
         out.report
             .notes
             .push(format!("image outside the image register: {name}"));
-        return None;
+        return Ok(None);
     };
     if let Some(bytes) = packed(image) {
+        out.fit("packed image", &name, out.bin.bytes.len(), bytes.len())?;
         let view = out.bin.view(bytes, None);
-        return Some(out.image(json!({"name": name, "mimeType": mime, "bufferView": view})));
+        return Ok(Some(out.image(
+            json!({"name": name, "mimeType": mime, "bufferView": view}),
+        )));
     }
     let Some(uri) = linked(&declared, root) else {
         out.report.add("blend-image-outside-source");
         out.report
             .notes
             .push(format!("image outside the served root: {declared}"));
-        return None;
+        return Ok(None);
     };
-    Some(out.image(json!({"name": name, "mimeType": mime, "uri": uri})))
+    Ok(Some(out.image(
+        json!({"name": name, "mimeType": mime, "uri": uri}),
+    )))
 }
 
-/// The packed bytes of an image, when it holds some and they fit under the ceiling.
+/// The packed bytes of an image, when it holds some.
 fn packed<'a>(image: &At<'a>) -> Option<&'a [u8]> {
     let file = image.follow_as("packedfile", "PackedFile")?;
     let size = usize::try_from(file.int("size", 0)).ok()?;
-    if size == 0 || size > MAX_PACKED_BYTES {
+    if size == 0 {
         return None;
     }
     file.block("data").and_then(|bytes| bytes.get(..size))

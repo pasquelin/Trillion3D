@@ -1,29 +1,21 @@
 import type { Texture, TextureFilter, WrapMode } from '../../../../sdk-core/src/index.ts';
 import { textureRgba } from '../../visibility/types.ts';
-import { grantedAnisotropy } from '../../../../sdk-core/src/texture/contract.ts';
+import { grantedAnisotropy, mipFiltered } from '../../../../sdk-core/src/texture/contract.ts';
 import { followHostTexture } from '../../host/textureImport.ts';
 import { pictureSize } from '../../texture/pictureSize.ts';
 import type { HostMaterials } from '../../host/resources.ts';
 import { surfaceOf } from '../../page/surface.ts';
 import { CoverageReaders } from '../../texture/coverage.ts';
-import { WebglMipReducer } from './mips.ts';
+import { WebglMipReducer, type MipChain } from './mips.ts';
 
 /**
  * A texture as uploaded, at its counters (#360, #361) and its size: a new version uploads the
  * picture again — in place at the same size and format (#362) —, a new `sampling` sets the sampler
- * alone. The placement is not uploaded here — the material binding uploads the UV matrix at every
- * draw (`materialBinding.ts`).
+ * alone. Its mip chain exists whenever its `minFilter` reads one (`mipFiltered`, #732). The
+ * placement is not uploaded here — the material binding uploads the UV matrix at every draw
+ * (`materialBinding.ts`).
  */
-type TextureRecord = {
-  texture: WebGLTexture;
-  version: number;
-  sampling: number;
-  width: number;
-  height: number;
-  format: number;
-  /** Whether its mip chain weighs colours by alpha; `undefined` while it has no chain. */
-  weighted?: boolean;
-};
+type TextureRecord = MipChain & { version: number; sampling: number };
 type Anisotropy = { TEXTURE_MAX_ANISOTROPY_EXT: number; MAX_TEXTURE_MAX_ANISOTROPY_EXT: number };
 
 const wrap = (gl: WebGL2RenderingContext, value: WrapMode) =>
@@ -51,8 +43,9 @@ export class WebglClusterTextures {
   private gl: WebGL2RenderingContext;
   private mips: WebglMipReducer;
   private readers = new CoverageReaders();
-  /** The colour maps drawn this image, their readers reread: work bounded by the view. */
-  private followed = new Set<Texture>();
+  /** The colour maps drawn this image, their readers reread — work bounded by the view —, each
+   *  with its chain's rule then (`MipChain.cutoff`): read once per image, not per bind. */
+  private followed = new Map<Texture, number | null>();
   constructor(gl: WebGL2RenderingContext) {
     this.gl = gl;
     this.mips = new WebglMipReducer(gl);
@@ -86,28 +79,36 @@ export class WebglClusterTextures {
     }
     // Brought up to its host at this bind, then uploaded or set again by its counters.
     followHostTexture(texture);
-    if (reader && !this.followed.has(texture)) this.readers.follow([texture]);
-    if (reader) this.followed.add(texture);
+    if (reader && !this.followed.has(texture)) {
+      this.readers.follow([texture]);
+      this.followed.set(texture, this.readers.cutoff(texture) ?? null);
+    }
     const key = `${texture.id}:${color ? 'srgb' : 'linear'}${reader ? ':map' : ''}`,
-      weighted = reader && this.readers.weighs(texture);
+      cutoff = reader ? this.followed.get(texture)! : null;
     let record = this.records.get(key);
     if (!record || record.version !== texture.version) {
-      record = this.upload(unit, texture, color, weighted, record);
+      record = this.upload(unit, texture, color, cutoff, record);
       this.records.set(key, record);
     } else {
       if (this.bound[unit] !== record.texture) {
         gl.activeTexture(gl.TEXTURE0 + unit);
         gl.bindTexture(gl.TEXTURE_2D, record.texture);
       }
+      // The chain a mip filter reads, under its readers' rule: built when a sampling moved to a
+      // mip filter over a picture uploaded without one, reduced again when the rule switched.
       const sampling = record.sampling !== texture.sampling,
-        rule = record.weighted !== undefined && record.weighted !== weighted;
+        mips = record.cutoff !== cutoff && mipFiltered(texture.minFilter);
       // `setSampler` and the chain write the ACTIVE unit's texture: select it even if bound there.
-      if (sampling || rule) gl.activeTexture(gl.TEXTURE0 + unit);
+      if (sampling || mips) gl.activeTexture(gl.TEXTURE0 + unit);
       if (sampling) {
         record.sampling = texture.sampling;
         this.setSampler(texture);
       }
-      if (rule) this.mips.reduce(unit, record, (record.weighted = weighted), false);
+      if (mips) {
+        const allocate = record.cutoff === undefined;
+        record.cutoff = cutoff;
+        this.mips.reduce(unit, record, allocate);
+      }
     }
     this.bound[unit] = record.texture;
   }
@@ -122,7 +123,7 @@ export class WebglClusterTextures {
     unit: number,
     texture: Texture,
     color: boolean,
-    weighted: boolean,
+    cutoff: number | null,
     held?: TextureRecord,
   ) {
     const gl = this.gl;
@@ -153,9 +154,11 @@ export class WebglClusterTextures {
       height,
       format,
     };
-    const allocate = !inPlace || !held?.weighted;
-    if (texture.generateMipmaps)
-      this.mips.reduce(unit, record, (record.weighted = weighted), allocate);
+    const allocate = !inPlace || held?.cutoff == null;
+    if (mipFiltered(texture.minFilter)) {
+      record.cutoff = cutoff;
+      this.mips.reduce(unit, record, allocate);
+    }
     if (!held || held.sampling !== texture.sampling) this.setSampler(texture);
     return record;
   }
@@ -174,9 +177,12 @@ export class WebglClusterTextures {
         grantedAnisotropy(texture, this.maxAnisotropy),
       );
   }
-  /** Files a declaration's readers at first bind, census (`WebglClusterOwner`) or rewrite. */
+  /** Files a declaration's readers at first bind, census (`WebglClusterOwner`) or rewrite; a
+   *  surface filed mid-image has its maps' rule read again at their next bind. */
   file(material: HostMaterials) {
-    this.readers.read(surfaceOf(material));
+    const surface = surfaceOf(material);
+    if (!this.readers.read(surface)) return;
+    for (const map of [surface.map, surface.emissiveMap]) if (map) this.followed.delete(map);
   }
   /** A new image: units unknown, drawn maps' readers reread at first bind, idle scratches out. */
   beginFrame() {

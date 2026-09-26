@@ -43,6 +43,7 @@
 
       // The ink line of a cartoon: a copy of the part a little larger, showing only its back faces,
       // so it peeks out round the silhouette. `size` is the part's radius: the line keeps one width.
+      // The copy casts no shadow: it wraps its part, which would sit in its shade.
       const ink = material.meshBasic({ color: '#241a2a', side: side.back });
       const parts = [], hulls = [];
       function part(shape, paint, size, at = [0, 0, 0], parent = world.scene, outline = true) {
@@ -51,6 +52,7 @@
         if (outline) {
           const hull = object.mesh(shape, ink);
           hull.scale.setScalar(1 + 0.05 / size);
+          hull.castShadow = false;
           holder.add(hull);
           hulls.push(hull);
         }

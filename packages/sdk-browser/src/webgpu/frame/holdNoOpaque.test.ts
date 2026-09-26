@@ -13,6 +13,8 @@ import { camera, flushedGpuScene, quadScene } from '../pages/testScenes.fixture.
 test('#198: a view without a packed row owes no occluder history', () => {
   const rt = settledRt();
   rt.run.noOccluderHistory = true;
+  assert.equal(unsettledMask(rt), 0, 'no partition — Hi-Z dropped —: no history to establish');
+  Object.assign(rt.vis, { gpuPartition: {} });
   assert.deepEqual(unsettledReasons(unsettledMask(rt)), ['noOccluderHistory']);
   rt.layout.rows.packedCount = 0;
   assert.equal(unsettledMask(rt), 0, 'nothing to partition: the frame may be held');

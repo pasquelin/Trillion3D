@@ -26,6 +26,7 @@ export function decodeManifestBinary(
       pageShaText,
       geometryShaText,
       pageDepthLayer,
+      pageCone,
     },
     groups: {
       groupLevel,
@@ -116,6 +117,11 @@ export function decodeManifestBinary(
       }
       // Layer 0 is the untouched draw; leaving the field out keeps one shape for every page record.
       if (pageDepthLayer[page] > 0) item.depthLayer = pageDepthLayer[page];
+      // Every page of version 9 carries its cone.
+      item.cone = {
+        axis: [pageCone[page * 4], pageCone[page * 4 + 1], pageCone[page * 4 + 2]],
+        angle: pageCone[page * 4 + 3],
+      };
       pages[i] = item;
     }
     const culling = decodeCulling(binary, cullingNodes, cursors);

@@ -17,7 +17,7 @@ const MAX_DEPTH: usize = 64;
 const EXCLUDE: i64 = 1;
 
 /// The addresses of the active scene's objects, when the file describes it.
-pub(super) fn objects(file: &BlendFile) -> Option<HashSet<u64>> {
+pub(super) fn objects(file: &BlendFile<'_>) -> Option<HashSet<u64>> {
     let global = file
         .of(*b"GLOB")
         .next()

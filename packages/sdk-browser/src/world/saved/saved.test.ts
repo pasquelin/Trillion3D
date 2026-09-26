@@ -87,7 +87,7 @@ test('a saved scene is read back into the same scene, models by address', async 
 test('another format version is refused, and the scene is left as it was', async () => {
   const scene = sceneWithLoads([]);
   scene.add(object.group());
-  const saved = { ...scene.toJSON(), formatVersion: 2 };
+  const saved = { ...scene.toJSON(), formatVersion: 3 };
   await assert.rejects(scene.fromJSON(saved), { code: 'UNSUPPORTED_SCENE_FORMAT' });
   assert.equal(scene.children.length, 1);
 });

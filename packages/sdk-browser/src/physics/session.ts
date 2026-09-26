@@ -49,12 +49,13 @@ export function createPhysicsSession(
   const bodies = createPhysicsBodies(writer, budget, host, root, poses.state);
   const joints = createPhysicsJoints(writer, bodies, invalidate);
   const vehicles = createPhysicsVehicles(writer, bodies, invalidate);
-  /** A body leaving the simulation (asleep decorative, refused) takes its joints and vehicles. */
-  const retire = (index: number) => {
+  /** A body leaving the simulation takes its joints and vehicles; asleep, its joints break now. */
+  const retire = (index: number, asleep = false) => {
+    if (asleep) joints.retired(bodies.slots.physicsAt(index), wanted.joints);
     bodies.retire(index);
     dirty = true;
   };
-  const posed = { meshes: bodies.meshes, generation: bodies.generation, retire };
+  const posed = { ...bodies, retire: (index: number) => retire(index, true) };
   const view = createPhysicsView();
   const stats = emptyPhysicsStats();
   /** The character's inner capsule is the slot past the page's; its contacts name the camera. */
@@ -103,8 +104,7 @@ export function createPhysicsSession(
       casts.get(data.id)?.(data.hits);
       casts.delete(data.id);
     } else {
-      // Bodies whose shape the module refused leave the simulation, tiles and cooked soft bodies
-      // too; the world runs on, unless the error is fatal: then the world ends this session.
+      // Refused shapes leave, tiles and cooked soft bodies by their owner; a fatal error ends all.
       for (const id of data.bodies ?? []) tiles.refused(id);
       const refused = (data.bodies ?? []).map(bodies.meshOf).filter((mesh) => mesh !== null);
       for (const mesh of refused) retire(mesh.physics._index);
@@ -146,7 +146,7 @@ export function createPhysicsSession(
     },
     /** The page moved or hid a node: its bodies go where the page put them; hidden, no pose. */
     pose(node: Object3D) {
-      placeBodies(node, host, writer);
+      dirty = placeBodies(node, bodies, writer, failed) || dirty;
       tiles.moved(node);
     },
     /** The frame's physics: bodies reconciled, poses drawn, the view and the commands sent. */
@@ -179,7 +179,7 @@ export function createPhysicsSession(
       return new Promise<Uint32Array>((resolve) => casts.set(id, resolve));
     },
     /** The model a tile body's engine id belongs to, or the mesh a body's names, or `null`. */
-    objectOf: (id: number) => tiles.modelOf(id) ?? bodies.meshOf(id),
+    objectOf: bodies.slots.objectOf,
     /** The engine id of `node`'s body; -1 while it is not simulated. */
     engineIdOf: (node: Object3D) => engineIdOf(bodies, node),
     /** The glTF material of a tile body's triangles, `-1` for any other body. */

@@ -172,7 +172,7 @@ test('a coverage working texture reduces weighted by alpha unless uploaded premu
   installGpuGlobals();
   // One device per case: the one reduction pipeline it builds says the rule the texture took.
   const rule = (coverage: boolean, premultiplyAlpha: boolean) => {
-    const { device, renderPipelines } = mockGpu();
+    const { device, renderPipelines } = mockGpu({ compute: true });
     const host = new GraphTexture({ data: new Uint8Array(8), width: 1, height: 2 });
     host.premultiplyAlpha = premultiplyAlpha;
     const map = importHostTexture(host);

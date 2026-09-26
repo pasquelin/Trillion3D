@@ -28,8 +28,10 @@ export function createWebgpuResidencySets(options: {
   const { keyCount, keyOf, wanted, wantedPages } = tracking;
   /** A packed page's cache key, cached on its record by the tracking (`PageRec.keyIndex`). */
   const keyOfId = (id: number) => keyOf(packedPages[id]);
-  /** What joined and left `keep` since the pin step last ran. */
-  const entering = createDenseKeySet(),
+  /** What joined and left `keep` since the pin step last ran, each joining key beside the record
+   *  it joined by (none for the pinned cover): the pin step reads its parents there. */
+  const enteringPages: (PageRec | undefined)[] = [];
+  const entering = createDenseKeySet(enteringPages),
     leaving = createDenseKeySet();
   const desiredPages: PageRec[] = [];
   const desired = createDenseKeySet(desiredPages);
@@ -49,9 +51,9 @@ export function createWebgpuResidencySets(options: {
   const keep = createKeyUnion({
     members: tracking.keep,
     keyCount,
-    onListed: (key) => {
+    onListed: (key, page) => {
       leaving.remove(key);
-      entering.add(key);
+      entering.add(key, page);
     },
     onUnlisted: (key) => {
       entering.remove(key);
@@ -65,7 +67,7 @@ export function createWebgpuResidencySets(options: {
   const enqueue = (key: number, page?: PageRec) => {
     if (!wanted.add(key, page)) return;
     acceptedRevision++;
-    keep.retain(key);
+    keep.retain(key, page);
   };
   const dequeue = (key: number) => {
     if (!wanted.remove(key)) return;
@@ -84,22 +86,28 @@ export function createWebgpuResidencySets(options: {
   });
   const drawnKeys = createHeldKeys({
     keyOf: keyOfId,
-    retain: (key: number) => keep.retain(key),
+    retain: (key: number, id: number) => keep.retain(key, packedPages[id]),
     release: (key: number) => keep.release(key),
   });
-  /** Empties the queue, releasing every hold it placed. */
-  const emptyQueue = () => {
+  /**
+   * Makes the queue the first `count` of `keys`, beside their records: the new holds are taken
+   * before the old queue's are let go of, so a key in both never leaves `keep`, and a queue rebuilt
+   * past the budget image after image moves, for the pin step, only the keys that changed (#477).
+   */
+  const refill = (keys: Int32Array, pages: readonly PageRec[], count: number) => {
+    for (let i = 0; i < count; i++) keep.retain(keys[i], pages[i]);
     for (let i = wanted.count - 1; i >= 0; i--) keep.release(wanted.list[i]);
     wanted.clear();
     acceptedRevision++;
+    for (let i = 0; i < count; i++) wanted.add(keys[i], pages[i]);
   };
   const restoreWanted = () => {
     followsDesired = true;
-    emptyQueue();
-    for (let i = 0; i < desired.count; i++) enqueue(desired.list[i], desiredPages[i]);
+    refill(desired.list, desiredPages, desired.count);
   };
   return {
     entering,
+    enteringPages,
     leaving,
     /** Keys this image asks the cache for, the pinned cover included. */
     get requestedCount() {
@@ -162,8 +170,7 @@ export function createWebgpuResidencySets(options: {
       }
       followsDesired = false;
       if (ranking.matches(wanted.list, wanted.count, wantedPages)) return true;
-      emptyQueue();
-      for (let i = 0; i < ranking.length; i++) enqueue(ranking.keys[i], ranking.ranked[i]);
+      refill(ranking.keys, ranking.ranked, ranking.length);
       return true;
     },
     wantedPages,
