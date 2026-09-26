@@ -15,7 +15,6 @@ import { depthOf } from './meshDepth.ts';
 import { meshes } from '../../scene/meshes.ts';
 import { DEFAULT_PIXEL_RATIO } from '../../backend/common.ts';
 import type { BackendHostDraw } from '../../backend/hostDraw.ts';
-import type { Blending } from '../../../../sdk-core/src/world/constants/index.ts';
 import { linearRefusalOf } from './linearRefusal.ts';
 
 /** The scene the owner reads for its lights and background, its world matrices resolved
@@ -52,7 +51,9 @@ const NO_BATCHES: readonly never[] = [];
  * the composer held — nothing drawn — publishes nothing, never the previous draw; `counters()` is
  * `null` before the first frame. The graph is walked once per drawn image, at the first of
  * `host.linearRefusal` and `host.drawHostGeometry`: never on a held frame, and never in `render`,
- * which runs before the engine's frame writes the graph (`../../backend/autonomous/pages.ts`). Without a context (a session that never draws on the host
+ * which runs before the engine's frame writes the graph (`../../backend/autonomous/pages.ts`). Asked
+ * first, it walks before `onBeforeRender`, whose one hook (`../../lighting/unlitAlbedo.ts`) writes
+ * no field the walk reads. Without a context (a session that never draws on the host
  * surface) the draw is refused by name. `pixelRatio`, read each frame, scales a line's CSS-pixel
  * width to the image's pixels.
  */
@@ -73,8 +74,7 @@ export function createSceneDraw(
     seeThrough: DrawnNode[] = [];
   let owner: WebglClusterOwner | undefined,
     opened = false,
-    walked = false,
-    refused: Blending | undefined;
+    walked = false;
   // The projection times the view, and each drawn mesh's depth, read once a frame.
   const screen = new Float64Array(16),
     depths = new Map<DisplayNode, number>();
@@ -86,7 +86,6 @@ export function createSceneDraw(
       if (copied.has(node) || firstMaterial(node.material!)?.transparent)
         seeThrough.push(node as DrawnNode);
       else opaque.push(node as WholeMesh);
-      refused ??= linearRefusalOf(node);
     }
     for (const child of node.children) collect(child);
   };
@@ -96,7 +95,6 @@ export function createSceneDraw(
     walked = true;
     scene.updateMatrixWorld();
     opaque.length = seeThrough.length = 0;
-    refused = undefined;
     followCopies();
     for (const child of scene.children) collect(child);
   };
@@ -119,9 +117,13 @@ export function createSceneDraw(
   const backToFront = (a: DrawnNode, b: DrawnNode) =>
     a.renderOrder - b.renderOrder || depth(b) - depth(a) || a.serial - b.serial;
   const host: Required<BackendHostDraw> = {
+    // Only a see-through mesh can refuse: the walk's list of them, still in graph order.
     linearRefusal() {
       walk();
-      return refused;
+      for (const node of seeThrough) {
+        const mode = linearRefusalOf(node);
+        if (mode) return mode;
+      }
     },
     drawHostGeometry(drawCamera: HostDrawCamera, output: HostDrawOutput) {
       if (!gl) throw new Error('HOST_SURFACE_MISSING');
