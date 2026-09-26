@@ -49,6 +49,13 @@ export function uploadSceneLights(device: GPUDevice, lights: WebgpuLightState) {
     { packed } = store;
   device.queue.writeBuffer(buffer, 0, packed, 0, SCENE_LIGHT_HEADER_FLOATS);
   device.queue.writeBuffer(buffer, HEAD_BYTES, store.environmentPacked);
-  device.queue.writeBuffer(buffer, ITEMS_BYTES, packed, SCENE_LIGHT_HEADER_FLOATS);
+  // Only the declared slots: those past the count are never read.
+  device.queue.writeBuffer(
+    buffer,
+    ITEMS_BYTES,
+    packed,
+    SCENE_LIGHT_HEADER_FLOATS,
+    store.count * SCENE_LIGHT_FLOATS,
+  );
   return true;
 }
