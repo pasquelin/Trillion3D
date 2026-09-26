@@ -1,4 +1,4 @@
-import { checked, corruptObject, ONE_REQUEST, refusedStatus, retriable } from '../cluster/pages.ts';
+import { checked, corruptObject, ONE_REQUEST, retriableError } from '../cluster/pages.ts';
 import { verifyPageBytes } from '../page/decode/host.ts';
 import type { StreamContext } from './types.ts';
 
@@ -103,7 +103,7 @@ export function createStreamingFetcher(
         combined.throwIfAborted();
         [cause, tried] = [error, attempt];
         // A refusal another request would meet again (a 4xx) is not asked twice (`checked`).
-        if (!retriable(refusedStatus(error))) break;
+        if (!retriableError(error)) break;
         if (attempt < 3)
           emit('page-retry', 'Retry after a read failure', () => ({
             version: 1,

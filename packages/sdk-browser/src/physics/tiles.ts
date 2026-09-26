@@ -24,7 +24,7 @@ import {
   type Placed,
 } from './tilePlace.ts';
 import { boxPointDistance } from '../../../sdk-core/src/math/primitives/box.ts';
-import { ONE_REQUEST } from '../cluster/pages.ts';
+import { ONE_REQUEST, retriableError } from '../cluster/pages.ts';
 
 /** Tile fetches in flight at once. */
 const FETCHES = 8;
@@ -44,8 +44,7 @@ export function createTileStreamer(
   failed: (error: EngineError) => void,
 ) {
   /** Each open model's opening: its tiles, empty until its file lands, and the abort its leaving
-   *  lets go of its reads by — so one that left and came back while its file was on its way
-   *  lands once, from the later opening. */
+   *  lets go of its reads by — one back while its file was on its way lands once, the later. */
   type Opening = { placed: Placed[]; abort: AbortController };
   const models = new Map<Model, Opening>();
   const softs = createCookedSoftBodies(writer, bodies, invalidate, failed);
@@ -60,7 +59,7 @@ export function createTileStreamer(
         // A model compiled before the cook collides nowhere, as before.
         if (!cooked || signal.aborted) return;
         opening.placed.push(...placedOf(model, cooked));
-        softs.open(model, cooked.softBodies, signal);
+        softs.open(model, cooked.softBodies ?? [], signal);
         invalidate();
       })
       // A read its model let go of by leaving is no failure.
@@ -78,11 +77,12 @@ export function createTileStreamer(
     softs.forget(model);
   };
   async function load(p: Placed) {
-    const { signal } = models.get(p.model)!.abort;
+    const opening = models.get(p.model)!,
+      { signal } = opening.abort;
     p.loading = true;
     fetching++;
     try {
-      // One request: a tile still wanted is asked again at the next update.
+      // One request: a tile still wanted is asked again at the next update, but for a 4xx.
       const bytes = await cookedBytes(p.model, p.tile.url, signal, ONE_REQUEST);
       // Its model left, or was opened again meanwhile: this tile is no longer one it holds.
       if (signal.aborted) return;
@@ -102,8 +102,11 @@ export function createTileStreamer(
       writer.release(handle);
       invalidate();
     } catch (error) {
-      // Its model left: the read was let go, which is no failure.
-      if (!signal.aborted) failed(error as EngineError);
+      // Its model left: the read was let go, which is no failure. A 4xx is not asked at the next
+      // update: the tile leaves its opening until its model opens again, as one the worker refused.
+      if (signal.aborted) return;
+      failed(error as EngineError);
+      if (!retriableError(error)) opening.placed.splice(opening.placed.indexOf(p), 1);
     } finally {
       p.loading = false;
       fetching--;
