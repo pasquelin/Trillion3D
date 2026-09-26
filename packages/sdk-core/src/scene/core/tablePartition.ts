@@ -13,8 +13,6 @@ import { EngineError } from '../../contracts/cache.ts';
 const PARTITION_VERSION = 2;
 /** How many slots the root lists. */
 const FAN_OUT = 8;
-/** A slot: SHA-256 in 64 hexadecimal digits, size in 8, box as six `f64` bit patterns in 16. */
-const SLOT_WIDTH = 64 + 8 + 6 * 16;
 
 /** One cell: where it is read, its fingerprint and size, the box around what it holds in the frame
  *  of each parent it hangs nodes under (`[minX, minY, minZ, maxX, maxY, maxZ]`), and how many nodes
@@ -96,9 +94,10 @@ const bits = new DataView(new ArrayBuffer(8));
 /** The `f64` whose bits are the sixteen hexadecimal digits `hex`. */
 const float64 = (hex: string) => (bits.setBigUint64(0, BigInt(`0x${hex}`)), bits.getFloat64(0));
 
-/** The page `slot` names and its box, `null` for an empty slot, or a named refusal. */
+/** The page `slot` names and its box, `null` for an empty slot, or a named refusal. A slot is the
+ *  page's SHA-256 in 64 hexadecimal digits, its size in 8, its box as six `f64` bit patterns in 16. */
 function slotPage(slot: unknown) {
-  if (typeof slot !== 'string' || slot.length !== SLOT_WIDTH || !/^[0-9a-f]+$/.test(slot))
+  if (typeof slot !== 'string' || !/^[0-9a-f]{168}$/.test(slot))
     throw new EngineError('INVALID_SCENE_TABLES', 'a partition slot is not fixed-width hex', {});
   const bytes = parseInt(slot.slice(64, 72), 16);
   if (bytes === 0) return null;
