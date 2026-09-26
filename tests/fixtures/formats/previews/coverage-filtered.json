@@ -1,5 +1,5 @@
 {
-  "about": "Coverage on the filtered cut (docs/FORMAT.md, \"Coverage-preserving alpha\", #43): a 32\u00b2 alpha cut at `cutoff`, row by row, whose texel count and filtered coverage disagree, and, per level of the compiler's chain, its filtered samples at or above the cutoff (four a texel). Read by the compiler's test (texture_preview/tests/coverage_alpha.rs) and the card's (sdk-browser texture/leafCoverage.test.ts), each builder within 2.5 % of these.",
+  "about": "Coverage on the filtered cut (docs/FORMAT.md, \"Coverage-preserving alpha\", #43): a 32\u00b2 alpha cut at `cutoff`, row by row, whose texel count and filtered coverage disagree, and, per level of the compiler's chain, its filtered samples at or above the cutoff (four a texel). Read by the compiler's test (texture_preview/tests/coverage_filtered.rs) and the card's (sdk-browser texture/leafCoverage.test.ts), each builder within 2.5 % of these.",
   "cutoff": 128,
   "side": 32,
   "alpha": [
