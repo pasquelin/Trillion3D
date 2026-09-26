@@ -19,6 +19,7 @@ import { selectVisiblePages } from './cut.ts';
 import { CUT_WALK, cutWalkRuns } from './walkWasm.ts';
 import type { ClusterRoot } from '../selection/types.ts';
 import type { PageRecord } from './state.ts';
+import { createHeldResidency } from './held.ts';
 
 await prepareSdkWasm(readFileSync(join(import.meta.dirname, '../decode/pageCodec.wasm')));
 
@@ -59,8 +60,7 @@ const ASKS = [
   { pixelError: 6 },
   {
     pixelError: 1,
-    holdResident: true,
-    isResident: (p: PageRecord) => p.triangles % 3 !== 0,
+    held: createHeldResidency({ isResident: (p: PageRecord) => p.triangles % 3 !== 0 }),
   },
 ];
 
@@ -123,7 +123,7 @@ for (const byLevel of [false, true])
 test('cut walk: same cut on the prepared DAG fixture, held at a zero threshold', async () => {
   const { roots, fixture } = culledDagRoots();
   for (const cam of [cameraMoteur(wideCamera()), cameraMoteur(obliqueCamera())])
-    for (const ask of [{ pixelError: 0, holdResident: true }, { pixelError: 2 }])
+    for (const ask of [{ pixelError: 0, held: createHeldResidency() }, { pixelError: 2 }])
       await assertSameCut(roots as ClusterRoot<PageRecord>[], cam, ask, 'dag fixture');
   fixture.geometry.dispose();
 });
@@ -143,8 +143,7 @@ test('cut walk: same cut on a DAG missing pages, its open subtrees walked past t
     );
     const ask = {
       pixelError: 0.1,
-      holdResident: true,
-      isResident: (p: PageRecord) => resident.has(p),
+      held: createHeldResidency({ isResident: (p: PageRecord) => resident.has(p) }),
     };
     await assertSameCut(roots, cam, ask, `keep ${keep}`);
     const drawn = (await cut(roots, cam, ask, 'js')).shown.filter((p) => p.lodError! > 0.1).length;
