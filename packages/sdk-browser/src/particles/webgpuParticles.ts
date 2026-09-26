@@ -6,7 +6,7 @@ import {
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts';
 import { createCheckedShaderModule } from '../gpu/core/shaderModule.ts';
 import { bounceGroup, bounceLayout } from '../bounce/bindings.ts';
-import { anyMoving, createPoolStates, usedSlots } from './poolStates.ts';
+import { anyMoving, createPoolStates, refuseAll, usedSlots } from './poolStates.ts';
 import { createWebgpuParticleDraw } from './webgpuParticleDraw.ts';
 import { viewProj } from '../webgpu/pages/helpers.ts';
 
@@ -141,13 +141,8 @@ export function encodeParticles(
   // Once made, the step runs with no pool left too: it gives a released pool's buffers back.
   if (!pools || (!pools.length && !rt.gpu.particles)) return;
   if (!rt.vis.visEnabled) {
-    let fresh = false; // the fallback image has no lit target to draw them on: refused, by name
-    for (const pool of pools) {
-      fresh ||= !pool.refused;
-      pool.refused = true;
-    }
     const error = 'PARTICLES_UNSUPPORTED: particles draw on the visibility buffer, dropped here';
-    if (fresh) rt.diag.diagnosticFailure('particles-unavailable', new Error(error));
+    if (refuseAll(pools)) rt.diag.diagnosticFailure('particles-unavailable', new Error(error));
     return;
   }
   rt.gpu.particles ??= createWebgpuParticles(device, (error) =>

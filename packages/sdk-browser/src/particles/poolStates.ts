@@ -4,12 +4,16 @@ import type { ParticlePool } from '../../../sdk-core/src/fluids/particles.ts';
 export const usedSlots = (pool: ParticlePool) => Math.min(pool.capacity, pool.emitted);
 
 const moving = (pool: ParticlePool) => pool.moving;
+const refuse = (fresh: boolean, pool: ParticlePool) =>
+  pool.refused ? fresh : (pool.refused = true);
+/** Refuses every pool; true if one was not refused yet, so each refusal is told once. */
+export const refuseAll = (pools: readonly ParticlePool[]) => pools.reduce(refuse, false);
 /** True while one of `pools` moves: the image changes, and is not held. */
 export const anyMoving = (pools?: readonly ParticlePool[]) => !!pools?.some(moving);
 
 /**
  * Each pool's GPU state on one renderer, the part the WebGPU and WebGL2 steps share: `of` makes
- * a pool's state the first time it moves, `peek` reads it, `keep` gives back, once per image, the state of every
+ * a pool's state the first time it moves, `keep` gives back, once per image, the state of every
  * pool the world let go of, and `dispose` all of them. Nothing is allocated while the world's
  * pools stay the same.
  */
