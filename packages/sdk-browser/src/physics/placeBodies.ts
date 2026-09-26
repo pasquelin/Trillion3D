@@ -34,9 +34,9 @@ export function placeBodies(
       return;
     }
     const { position, quaternion } = worldPoseOf(child);
-    const move = child.physics.type === 'kinematic' ? 'moveKinematic' : 'teleport';
-    writer[move](child.physics._index, position, quaternion);
-    writer.flags(child.physics._index, flagsOf(child));
+    const move = physics.type === 'kinematic' ? 'moveKinematic' : 'teleport';
+    writer[move](physics._index, position, quaternion);
+    writer.flags(physics._index, flagsOf(child));
   });
   return changed;
 }
