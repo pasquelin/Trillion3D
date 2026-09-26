@@ -15,7 +15,6 @@
 #include <Jolt/Physics/Collision/Shape/StaticCompoundShape.h>
 #include <Jolt/RegisterTypes.h>
 
-#include <algorithm>
 #include <mutex>
 #include <string>
 

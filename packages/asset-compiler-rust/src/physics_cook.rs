@@ -112,13 +112,10 @@ fn taken(status: u32, out: *const u8, bytes: u32, what: &str) -> Result<Vec<u8>>
     let left = (!out.is_null()).then(|| unsafe { std::slice::from_raw_parts(out, bytes as usize) });
     match (status, left) {
         (0, Some(left)) => Ok(left.to_vec()),
-        (_, left) => Err(CompilerError::new(
-            PHYSICS_COOK_FAILED,
-            format!(
-                "Jolt refused the {what}: {}",
-                String::from_utf8_lossy(left.unwrap_or_default())
-            ),
-        )),
+        (_, left) => Err(refused(format!(
+            "Jolt refused the {what}: {}",
+            String::from_utf8_lossy(left.unwrap_or_default())
+        ))),
     }
 }
 

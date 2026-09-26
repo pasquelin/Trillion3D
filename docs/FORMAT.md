@@ -263,7 +263,7 @@ name, is `PREPARED_SCENE_MISMATCH`.
 
 Written beside `clusters.json` by the compiler's `physics-cook` stage ([COMPILER.md](COMPILER.md)),
 with a `formatVersion` of its own (2): a reader refuses any other (`PHYSICS_FORMAT`, recompile the
-model). Format 1 carried the declared `bodies`, and no matter on an instance. The shapes it
+model). Format 1 carried the declared bodies in another shape, and no matter on an instance. The shapes it
 names are Jolt's binary state (`Shape::SaveWithChildren`), readable only by the Jolt that wrote them:
 the file names that commit in `jolt`, and the engine refuses a file cooked by another. `stage` names
 the stage and its version.
@@ -280,8 +280,8 @@ object the file cites (`objects[].sha256`), so a prune keeps them.
 
 ### `bodies` — declared rigid bodies
 
-Stage version 6 adds `bodies`, one entry per drawn node whose `KHR_physics_rigid_bodies` declares a
-`motion` ([COMPILER.md](COMPILER.md#physicsjson--the-cooked-colliders-stage-physics-cook)). The
+Stage version 6 adds `bodies`, one entry per node of the rendered scene whose
+`KHR_physics_rigid_bodies` declares a `motion` ([COMPILER.md](COMPILER.md#physicsjson--the-cooked-colliders-stage-physics-cook)). The
 field is additive: a file cooked before it has none, and format 2 still reads it. The node keeps its
 `instances` entries until the page restores its body. Each entry:
 
@@ -289,7 +289,7 @@ field is additive: a file cooked before it has none, and format 2 still reads it
 - `motion`: the motion as the node declares it (`isKinematic`, `mass`, `gravityFactor`, …).
 - `shape`: the `KHR_implicit_shapes` shape the collider names, as declared, or `cooked`: a
   SHA-addressed object like a tile (`url`, `sha256`, `bytes`), a `ConvexHullShape` or a
-  `StaticCompoundShape` of `parts` hulls, 64 at most, in the mesh's frame; `tolerance`, the mesh's
+  `StaticCompoundShape` of `parts` hulls, 64 at most, in the body's frame; `tolerance`, the mesh's
   mean edge length, which a decomposition's parts keep their concavity within; `mass`: `mass` (kg,
   at 1000 kg/m³), `centerOfMass` and `inertia` about it (nine floats, column-major), at unit scale.
 - `position`, `rotation`, `scale`: the node's world placement in the model, as an instance's.
