@@ -194,3 +194,6 @@ export function followHostTexture(record: Texture) {
   if (fillSampling(into, host)) into.sampling++;
   if (fillPlacement(host, entry.placed)) into.placement++;
 }
+
+/** The host texture a record was made from; `undefined` for a record no host texture made. */
+export const hostOfRecord = (record: Texture) => byRecord.get(record)?.host;
