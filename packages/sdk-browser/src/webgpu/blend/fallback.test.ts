@@ -51,7 +51,7 @@ function drawn(blendings: (number | undefined)[]) {
     blendState,
   } as unknown as WebgpuPagesRuntime;
   const encoder = { beginRenderPass: () => pass } as unknown as GPUCommandEncoder;
-  drawFallbackBlendPass(rt, device, encoder, 0, listFallbackBlendDraws(blendState));
+  drawFallbackBlendPass(rt, device, encoder, 0, listFallbackBlendDraws(blendState, false));
   return set;
 }
 
@@ -90,7 +90,7 @@ function writeLines(lineWidth: number) {
     blendState,
     gpu: { uniformPacked: new Float32Array(64).fill(7), uniformBuffer: {} },
   } as unknown as WebgpuPagesRuntime;
-  writeFallbackBlendUniforms(rt, device, 0, listFallbackBlendDraws(blendState));
+  writeFallbackBlendUniforms(rt, device, 0, listFallbackBlendDraws(blendState, false));
   return { written: writes, packed: rt.gpu.uniformPacked };
 }
 

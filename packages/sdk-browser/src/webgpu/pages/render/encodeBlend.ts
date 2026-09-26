@@ -5,6 +5,7 @@ import { encodeBlendExpansion } from '../../blend/resources.ts';
 import { selectWebgpuBlend } from '../../blend/selection.ts';
 import { orderBlendPasses, orderVisibleBlend } from '../../blend/order.ts';
 import {
+  DRAW_WORDS,
   drawFallbackBlendPass,
   listFallbackBlendDraws,
   writeFallbackBlendUniforms,
@@ -75,8 +76,8 @@ export function encodeBlend(
       run.gpuFrameActive ? undefined : run.drawn,
     );
     orderVisibleBlend(blendState, eye);
-    const draws = listFallbackBlendDraws(blendState);
-    ensureUniform(rt, device, uniformBase + draws);
+    const draws = listFallbackBlendDraws(blendState, run.gpuFrameActive);
+    ensureUniform(rt, device, uniformBase + draws.length / DRAW_WORDS);
     writeFallbackBlendUniforms(rt, device, uniformBase, draws);
     const ready = performance.now();
     timing.transparentPrepareMs += ready - cpuStart;
