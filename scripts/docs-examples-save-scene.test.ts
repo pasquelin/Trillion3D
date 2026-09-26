@@ -42,7 +42,7 @@ async function saveTheScene() {
     (scene.children as Mesh[])
       .filter((node) => node.physics?.type === 'dynamic')
       .sort((a, b) => a.position.y - b.position.y);
-  const ground = () => (scene.children as Mesh[]).find((node) => node.physics?.type === 'static');
+  const ground = (scene.children as Mesh[]).find((node) => node.physics?.type === 'static');
   return { scene, camera, buttons, blocks, ground };
 }
 
@@ -54,11 +54,10 @@ function span(mesh: Mesh) {
 
 test('save-the-scene stacks its blocks in contact, each on the one below, the lowest on the ground', async () => {
   const { blocks, ground } = await saveTheScene();
-  const floor = ground();
-  assert.ok(floor);
+  assert.ok(ground);
   const stack = blocks();
   assert.equal(stack.length, 4);
-  let top = span(floor)[1];
+  let top = span(ground)[1];
   for (const block of stack) {
     const [bottom, up] = span(block);
     assert.ok(
