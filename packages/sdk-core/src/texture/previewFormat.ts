@@ -46,17 +46,21 @@ export const PREVIEW_ATLAS_COLOR = 0,
   PREVIEW_ATLAS_COVERAGE = 2;
 /** The `{kind}` a baked level's path carries for each atlas, as `bake.rs` names them. */
 export const PREVIEW_ATLAS_NAMES = ['srgb', 'linear', 'srgb-coverage'] as const;
+/** The atlas of a word, its first byte: a coverage chain's cutoff fills the second. */
+const atlasByte = (atlas: number) => atlas & 0xff;
 /** The `{kind}` of an atlas word — a coverage chain with a cutoff `C` is `srgb-coverage-C` —,
  *  `undefined` for a word no compiler writes. */
 export function previewAtlasName(atlas: number): string | undefined {
   const cutoff = atlas >>> 8;
   if (!Number.isInteger(atlas) || atlas < 0 || cutoff > 255) return undefined;
   if (cutoff === 0) return PREVIEW_ATLAS_NAMES[atlas];
-  return (atlas & 0xff) === PREVIEW_ATLAS_COVERAGE ? `srgb-coverage-${cutoff}` : undefined;
+  return atlasByte(atlas) === PREVIEW_ATLAS_COVERAGE
+    ? `${PREVIEW_ATLAS_NAMES[PREVIEW_ATLAS_COVERAGE]}-${cutoff}`
+    : undefined;
 }
 /** The atlas an entry's chain is sampled in: a coverage chain is the colour atlas's. */
 export const previewAtlasOf = (atlas: number) =>
-  (atlas & 0xff) === PREVIEW_ATLAS_COVERAGE ? PREVIEW_ATLAS_COLOR : atlas;
+  atlasByte(atlas) === PREVIEW_ATLAS_COVERAGE ? PREVIEW_ATLAS_COLOR : atlas;
 /** The block families a chain may be baked in, in the order of their sidecar columns and of an
  *  entry's layout words, each named by its RGBA codec; `png` is the lossless file beside them. */
 export const PREVIEW_BLOCK_FORMATS = ['bc7', 'astc'] as const;

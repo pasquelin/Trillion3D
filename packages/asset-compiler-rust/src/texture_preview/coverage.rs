@@ -50,11 +50,11 @@ impl Covered {
         let AtlasKind::Coverage(cutoff @ 1..) = kind else {
             return None;
         };
-        let alphas = || level0.as_chunks::<4>().0.iter().map(|texel| texel[3]);
+        let (texels, _) = level0.as_chunks::<4>();
         Some(Self {
             cutoff,
-            covered: alphas().filter(|&a| a >= cutoff).count() as u64,
-            texels: alphas().count() as u64,
+            covered: texels.iter().filter(|texel| texel[3] >= cutoff).count() as u64,
+            texels: texels.len() as u64,
         })
     }
 
@@ -70,9 +70,11 @@ impl Covered {
         if t == c {
             return;
         }
+        let scaled: [u8; 256] = std::array::from_fn(|a| {
+            ((2 * a as u32 * (2 * c - 1) + 2 * t - 1) / (4 * t - 2)).min(255) as u8
+        });
         for texel in level.as_chunks_mut::<4>().0 {
-            let a = u32::from(texel[3]);
-            texel[3] = ((2 * a * (2 * c - 1) + 2 * t - 1) / (4 * t - 2)).min(255) as u8;
+            texel[3] = scaled[usize::from(texel[3])];
         }
     }
 
