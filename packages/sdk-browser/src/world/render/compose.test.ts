@@ -11,6 +11,8 @@ import { createFrameComposer } from './compose.ts';
 import { createWebglRenderTarget } from '../../webgl/core/renderTarget.ts';
 import { createTestContext } from '../../webgl/core/testContext.fixture.ts';
 import { ParticlePool } from '../../../../sdk-core/src/fluids/particles.ts';
+import { EffectChain } from '../../../../sdk-core/src/world/effect/chain.ts';
+import { effect } from '../../../../sdk-core/src/world/effect/index.ts';
 
 const camera = G.perspectiveCamera();
 
@@ -144,4 +146,24 @@ test('WebGL2 without a 32-bit float target refuses the pools by name, never draw
   const { backend, outputs } = engine();
   assert.throws(() => compose(backend, null), /^Error: PARTICLES_UNSUPPORTED/);
   assert.deepEqual([outputs.length, particles[0].moving], [0, false], 'refused, it asks no frame');
+});
+
+test('WebGL2 refuses the pools on a depth it cannot copy, by name once, the frame finished', () => {
+  const answers = { getExtension: () => ({}), getError: () => 'INVALID_OPERATION' };
+  const { gl, names, of } = createTestContext({ answers });
+  const pool = new ParticlePool({ capacity: 8 }),
+    chain = new EffectChain().add(effect.bloom());
+  const compose = createFrameComposer(gl, camera, {
+    effects: { chain, shown: () => true },
+    particles: [pool],
+  });
+  const { backend, outputs } = engine();
+  pool.emit(0, 0, -2, 0, 1, 0, 2);
+  assert.throws(() => compose(backend, null), /^Error: PARTICLES_UNSUPPORTED/);
+  assert.equal(names().indexOf('drawArraysInstanced'), -1, 'nothing drawn on a depth not copied');
+  assert.ok(names().lastIndexOf('drawArrays') > names().indexOf('blitFramebuffer'), 'chain ended');
+  assert.equal(of('bindFramebuffer').at(-1)?.[1], null, 'on the page, nothing left open');
+  pool.emit(0, 0, -2, 0, 1, 0, 2);
+  compose(backend, null);
+  assert.deepEqual([outputs.length, of('drawArraysInstanced').length], [2, 0], 'no throw again');
 });
