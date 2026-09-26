@@ -7,6 +7,7 @@ import { createSceneLightStore } from '../light/store.ts';
 import { createShadowChanges } from './changes.ts';
 import { writeFace } from './faces.ts';
 import { createShadowPlan, type ShadowPlan } from './plan.ts';
+import { STALE_DYNAMIC } from './pool.ts';
 import { LAMP_MIPS, lampPagesAt } from './virtual.ts';
 import { LAMP, SUN, cycle, lampPages, planFrame, sunPages } from './lightShadow.fixture.ts';
 /** Twenty-six balls of half a metre on a ring of eight metres round the lamp. */
@@ -160,11 +161,28 @@ test('finding the pages a mover stales costs the pages it covers, not the pool',
 
 test('boxes that each cover more pages than the pool are scanned once per light, not once each', () => {
   const { store, plan, frame } = settled(32);
-  plan.worldChanged([-40, 0, -40], [0, 5, 40], true);
-  plan.worldChanged([0, 0, -40], [40, 5, 40], true);
+  // A static caster −X of the lamp, a moving one +X: the +X face lies under the moving one alone.
+  plan.worldChanged([-40, 0, -40], [-1, 5, 40]);
+  plan.worldChanged([1, 0, -40], [40, 5, 40], true);
   planFrame(plan, store, frame);
   assert.equal(plan.counts.visitedPages, 2 * plan.pool.pages, 'one pool scan for each light');
-  assert.ok(plan.counts.invalidatedPages > 0);
+  const { pool } = plan,
+    front = lampPagesOf(plan, store.sliceOf(0)).filter((page) => pool.view[page] >> 4 === 0),
+    lost = front.filter((page) => pool.dirty[page] !== STALE_DYNAMIC || !pool.valid[page]);
+  assert.ok(front.length > 0);
+  assert.equal(lost.length, 0, 'the moving one keeps the static layer under it read');
+});
+
+test('a box that bounds nothing finite stales every page of the sun and of the lamp', () => {
+  for (const box of [
+    [NaN, 0, 0, 1, 1, 1],
+    [-Infinity, 0, -Infinity, Infinity, 0.1, Infinity],
+  ]) {
+    const { store, plan, frame } = settled(32);
+    plan.worldChanged(box.slice(0, 3), box.slice(3));
+    planFrame(plan, store, frame);
+    assert.equal(staleEntries(plan).length, plan.pool.used(), `${box}`);
+  }
 });
 
 test('past the budget the movers share the last box: a superset of their pages, never fewer', () => {
