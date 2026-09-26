@@ -1,6 +1,5 @@
 import type { Blending } from '../../../../sdk-core/src/world/constants/index.ts';
-import type { HostScene } from '../../host/resources.ts';
-import { isDrawnNode, isInstancedNode } from '../../host/graph/kinds.ts';
+import type { HostMaterials } from '../../host/resources.ts';
 import { blendingOf } from '../../scene/materialBlending.ts';
 import { firstMaterial } from '../../scene/materialSide.ts';
 
@@ -13,34 +12,19 @@ import { firstMaterial } from '../../scene/materialSide.ts';
 export const refusesLinear = (mode: Blending | undefined) =>
   mode === 'multiply' || mode === 'subtractive';
 
-/** A node as the walk reads it: a published graph's nodes are objects of any shape. */
-type Walked = { readonly visible?: boolean; readonly children?: readonly object[] };
-const LEAF: readonly object[] = [];
-
-function refusalUnder(nodes: readonly object[]): Blending | undefined {
-  for (const node of nodes as readonly Walked[]) {
-    if (!node.visible) continue;
-    // An instanced mesh placed nowhere submits nothing (`renderer.ts`): it keeps no chain off.
-    if (isDrawnNode(node) && !(isInstancedNode(node) && !node.count)) {
-      const surface = firstMaterial(node.material);
-      if (surface?.visible && surface.transparent) {
-        // Transmissive or not: a view may zero the transmission before the draw
-        // (`../../lighting/unlitAlbedo.ts`), which then binds the surface in this mode.
-        const mode = blendingOf(surface.blending as number | undefined);
-        if (refusesLinear(mode)) return mode;
-      }
-    }
-    const below = refusalUnder(node.children ?? LEAF);
-    if (below) return below;
-  }
-}
+/** A drawn mesh as the scene draw's walk meets it (`sceneDraw.ts`, `collect`). */
+type Met = { readonly kind?: string; readonly count?: number; readonly material?: HostMaterials };
 
 /**
- * The mode of the first surface the scene draw would draw (`sceneDraw.ts`: a visible mesh under
- * visible parents, its surface visible and transparent, an instanced one placed at least once)
- * that the linear target cannot hold (`refusesLinear`), or `undefined`. Read before the chain
- * binds its target, the frame is then drawn whole without the chain, never stopped mid-draw. It
- * reads the scene, not what the camera culls: the chain does not blink as such a surface enters
- * and leaves the view.
+ * The mode of a visible drawn mesh that keeps the chain off a frame, or `undefined`: its surface
+ * visible and transparent in a mode `refusesLinear` names, an instanced one placed at least once
+ * — one placed nowhere submits nothing (`renderer.ts`). Transmissive or not: a view may zero the
+ * transmission before the draw (`../../lighting/unlitAlbedo.ts`), which then binds it in this mode.
  */
-export const linearRefusal = (scene: HostScene) => refusalUnder(scene.children);
+export function linearRefusalOf(mesh: Met): Blending | undefined {
+  if (mesh.kind === 'instancedMesh' && !mesh.count) return;
+  const surface = mesh.material && firstMaterial(mesh.material);
+  if (!surface?.visible || !surface.transparent) return;
+  const mode = blendingOf(surface.blending as number | undefined);
+  return refusesLinear(mode) ? mode : undefined;
+}

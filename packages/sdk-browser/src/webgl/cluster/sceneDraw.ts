@@ -14,6 +14,9 @@ import { WebglClusterOwner } from './owner.ts';
 import { depthOf } from './meshDepth.ts';
 import { meshes } from '../../scene/meshes.ts';
 import { DEFAULT_PIXEL_RATIO } from '../../backend/common.ts';
+import type { BackendHostDraw } from '../../backend/hostDraw.ts';
+import type { Blending } from '../../../../sdk-core/src/world/constants/index.ts';
+import { linearRefusalOf } from './linearRefusal.ts';
 
 /** The scene the owner reads for its lights and background, its world matrices resolved
  *  before the read. */
@@ -47,7 +50,9 @@ const NO_BATCHES: readonly never[] = [];
  *
  * `render(camera)` opens the frame: it zeroes the counters, so that a frame
  * the composer held — nothing drawn — publishes nothing, never the previous draw; `counters()` is
- * `null` before the first frame. Without a context (a session that never draws on the host
+ * `null` before the first frame. The graph is walked once per drawn image, at the first of
+ * `host.linearRefusal` and `host.drawHostGeometry`: never on a held frame, and never in `render`,
+ * which runs before the engine's frame writes the graph (`../../backend/autonomous/pages.ts`). Without a context (a session that never draws on the host
  * surface) the draw is refused by name. `pixelRatio`, read each frame, scales a line's CSS-pixel
  * width to the image's pixels.
  */
@@ -67,7 +72,9 @@ export function createSceneDraw(
   const opaque: WholeMesh[] = [],
     seeThrough: DrawnNode[] = [];
   let owner: WebglClusterOwner | undefined,
-    opened = false;
+    opened = false,
+    walked = false,
+    refused: Blending | undefined;
   // The projection times the view, and each drawn mesh's depth, read once a frame.
   const screen = new Float64Array(16),
     depths = new Map<DisplayNode, number>();
@@ -79,9 +86,19 @@ export function createSceneDraw(
       if (copied.has(node) || firstMaterial(node.material!)?.transparent)
         seeThrough.push(node as DrawnNode);
       else opaque.push(node as WholeMesh);
-      depths.set(node, depthOf(node, screen));
+      refused ??= linearRefusalOf(node);
     }
     for (const child of node.children) collect(child);
+  };
+  /** The image's one walk of the graph: its world matrices, then what it draws, sorted later. */
+  const walk = () => {
+    if (walked) return;
+    walked = true;
+    scene.updateMatrixWorld();
+    opaque.length = seeThrough.length = 0;
+    refused = undefined;
+    followCopies();
+    for (const child of scene.children) collect(child);
   };
   // Opaque meshes of one order are grouped by surface, numbered as first met, as the reference
   // groups them by the surfaces it numbers as it meets them — a run of one surface binds it once
@@ -101,10 +118,10 @@ export function createSceneDraw(
     a.serial - b.serial;
   const backToFront = (a: DrawnNode, b: DrawnNode) =>
     a.renderOrder - b.renderOrder || depth(b) - depth(a) || a.serial - b.serial;
-  return {
-    render(_camera: HostCamera) {
-      counters.triangles = 0;
-      opened = true;
+  const host: Required<BackendHostDraw> = {
+    linearRefusal() {
+      walk();
+      return refused;
     },
     drawHostGeometry(drawCamera: HostDrawCamera, output: HostDrawOutput) {
       if (!gl) throw new Error('HOST_SURFACE_MISSING');
@@ -115,12 +132,11 @@ export function createSceneDraw(
       owner.pixelRatio = pixelRatio();
       scene.onBeforeRender?.();
       try {
-        scene.updateMatrixWorld();
-        opaque.length = seeThrough.length = 0;
+        walk();
         depths.clear();
-        followCopies();
         multiplyMatrix4Typed(screen, drawCamera.projection, drawCamera.view);
-        for (const child of scene.children) collect(child);
+        for (const node of opaque as DrawnNode[]) depths.set(node, depthOf(node, screen));
+        for (const node of seeThrough) depths.set(node, depthOf(node, screen));
         (opaque as DrawnNode[]).sort(frontToBack);
         seeThrough.sort(backToFront);
         // A linear output is the effect chain's: its own program, which leaves the curve and the
@@ -136,10 +152,20 @@ export function createSceneDraw(
           output.linear,
         );
       } finally {
+        // A second draw of the same image — a capture — walks again, as every draw did.
+        walked = false;
         scene.onAfterRender?.();
       }
       counters.triangles = owner.submittedTriangles;
     },
+  };
+  return {
+    render(_camera: HostCamera) {
+      counters.triangles = 0;
+      opened = true;
+      walked = false;
+    },
+    host,
     counters: () => (opened ? counters : null),
     dispose() {
       owner?.dispose();
