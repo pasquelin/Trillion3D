@@ -138,7 +138,7 @@ export function createGeometryBudget(env: PoolEnvironment) {
      *  An invalid budget is refused before anything changes. */
     resize(budgetBytes: number) {
       drawn.resize(budgetBytes);
-      return resident.shedBetweenCuts();
+      return resident.shed();
     },
   };
 }
