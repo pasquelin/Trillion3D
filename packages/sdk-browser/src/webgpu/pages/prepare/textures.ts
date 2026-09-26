@@ -128,9 +128,9 @@ export async function prepareWebgpuTextures(rt: WebgpuPagesRuntime, gpuDevice: G
   // `setMemoryBudgets` records while the device answers is the later word (`grantedLatest`).
   const granted = await grantedLatest({
     budget: () => rt.setup.texturePoolBudget,
-    draw: poolFor,
+    draw: (asked) => ({ asked, pool: poolFor(asked) }),
     same: sameLayers,
-    grant: (asked) =>
+    grant: ({ asked }) =>
       grantedTexturePool(gpuDevice, asked, { poolFor }, diag.engineDiagnostic, (pool) =>
         streamer(pool.layers),
       ),
