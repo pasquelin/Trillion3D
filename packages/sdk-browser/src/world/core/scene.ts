@@ -111,7 +111,8 @@ export class Scene extends Object3D {
     return model;
   }
   /** The scene as plain JSON, versioned: its objects, shapes by the call that built them,
-   *  materials, lights and loaded models by address; `camera`'s pose too when one is given.
+   *  materials, lights, each mesh's body as declared and loaded models by address; `camera`'s
+   *  pose too when one is given.
    *  @param camera - A camera to save with the scene, `world.camera` most often. */
   toJSON(camera?: Camera): SavedScene {
     return saveScene(this, camera);

@@ -7,7 +7,8 @@ import { writeTailFromBytes } from './write.ts';
 import { writeTailFromBlocks } from './writeBlocks.ts';
 import type { LaneCounts, PoolEncoding, PoolLane, TailBytes } from '../../texture/blockFormats.ts';
 import { createTileLanes, type Lane } from './lanes.ts';
-import { tailId, tileId, tileKeyOf } from './ids.ts';
+import { tailId, tileId } from './ids.ts';
+import { evictTile } from './atlasResize.ts';
 
 /**
  * Where a texture's texels come from. `bytes`: everything fits in the sidecar tail, nothing is
@@ -104,13 +105,8 @@ export function createWebgpuTileAtlas(
   const evict = (lane: Lane, frame: number) => {
     const index = candidatesAt(lane, frame).shift();
     if (index === undefined) return undefined;
-    const id = lane.pool.keyOf(index),
-      key = tileKeyOf(id);
-    pages.clearTile(key);
-    lane.resident.delete(id);
-    lane.pool.release(index);
+    evictTile(lane.pool, index, { pages, resident: lane.resident }, options.onEvicted);
     evictions++;
-    options.onEvicted?.(key.slot);
     return index;
   };
   return {
@@ -134,7 +130,10 @@ export function createWebgpuTileAtlas(
       textures.forEach((texture, slot) => {
         const { layout, source, lane } = texture;
         const pool = lanes.of(slot).pool;
-        const place = pool.placeOf(pool.acquire(tailId(slot), 0, true)!);
+        // The floor holds every tail (`texturePoolFor`): a pool drawn under it refuses by name.
+        const index = pool.acquire(tailId(slot), 0, true);
+        if (index === undefined) throw new Error('TEXTURE_POOL_UNDER_FLOOR');
+        const place = pool.placeOf(index);
         if (source.kind === 'host') fromHost(slot, place);
         else
           (lane === 'lossless' ? writeTailFromBytes : writeTailFromBlocks)(
