@@ -86,15 +86,40 @@ test('group-mates past the frustum are asked for: the image converges to the cut
   );
 });
 
-test('a pool at the root cover plus a tenth draws every leaf once, and never a hole', () => {
-  const { image, dag, drawnIds } = strip(Math.ceil(dag0Roots() * 1.1), wholeStrip());
-  for (let i = 0; i < 24; i++) {
-    image(0.25, 3);
-    assert.equal(coverFault(dag, drawnIds()), -1, `image ${i}: a leaf not covered exactly once`);
-  }
-});
-
 /** Clusters nothing replaces in the rule DAG: its root cover. */
 function dag0Roots() {
   return ruleDag(256).pages.filter((page) => page.parentError === null).length;
 }
+
+/** The DAG level drawing each leaf unit of the rule DAG. */
+function levels(dag: ReturnType<typeof ruleDag>, drawn: number[]) {
+  const at = new Int32Array(dag.leaves);
+  for (const id of drawn) {
+    const [a, b] = dag.pages[id].units;
+    at.fill(dag.pages[id].level, a, b);
+  }
+  return at;
+}
+
+// #839: the starvation run on the WebGL2 host — no hole, no drawn page evicted, and a still view
+// only refines, the residency holding the ancestor each surface is drawn by.
+test('a pool at the root cover plus a tenth: no hole, no drawn page lost, never coarser', () => {
+  const { image, dag, pages, drawnIds } = strip(Math.ceil(dag0Roots() * 1.1), wholeStrip());
+  let before: Int32Array | undefined;
+  for (let i = 0; i < 24; i++) {
+    image(0.25, 3);
+    const drawn = drawnIds();
+    assert.equal(coverFault(dag, drawn), -1, `image ${i}: a leaf not covered exactly once`);
+    // What the image drew stays resident until the next cut, the pages that arrived since included.
+    assert.ok(
+      drawn.every((id) => pages[id].array),
+      `image ${i}: a drawn page evicted`,
+    );
+    // The pool holds the parents of what it asks for: the ancestor a surface is drawn by never
+    // leaves under it, so a still view under starvation only refines.
+    const now = levels(dag, drawn);
+    for (let u = 0; before && u < dag.leaves; u++)
+      assert.ok(now[u] <= before[u], `image ${i}, leaf ${u}: level ${before[u]} → ${now[u]}`);
+    before = now;
+  }
+});

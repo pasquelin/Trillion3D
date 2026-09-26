@@ -3,7 +3,7 @@ import type { BackendDiagnostic } from '../types.ts';
 import { drawGeometryPool } from './poolDraw.ts';
 import type { GeometryPool, PoolClamp } from '../../residency/pools.ts';
 import { coverageBudgetEvent, sendCoverageBudget } from '../../diagnostic/engineDiagnostic.ts';
-import { createResidentOrder } from './poolOrder.ts';
+import { createResidentOrder, type PageKeys } from './poolOrder.ts';
 
 /**
  * The geometry copies a page holds once resident: one per record that owns its geometry — every
@@ -34,9 +34,9 @@ export type PoolEnvironment = {
   /** Decoded bytes nothing may evict — the root cover and the pages the host replaced —, read
    *  only once the pages hold more than the pool. */
   floorBytes: () => number;
-  /** Pages the image keeps: the root cover, the host's own, the cut drawn and the cut wanted. */
-  kept: () => ReadonlySet<string>;
-  /** Gives a page's geometry back; a kept page is never named. */
+  /** The pages as the shared residency reads them (`poolOrder.ts`). */
+  pages: PageKeys;
+  /** Gives a page's geometry back; a held page is never named. */
   drop: (url: string) => void;
   onDiagnostic?: (diagnostic: BackendDiagnostic) => void;
 };
@@ -55,11 +55,12 @@ export type PoolEnvironment = {
  * place of missing pages stay beside the pages replacing them, and leave with the cut that follows
  * the last arrival.
  *
- * The bytes bound what stays resident, as the slots do (`poolOrder.ts`). Under the budget nothing
- * is walked: an arrival costs two set insertions, an image one comparison of bytes.
+ * The bytes bound what stays resident, as the slots do, by the engine's one residency — last use,
+ * parents after their children (`poolOrder.ts`). Under the budget nothing is evicted: an arrival
+ * costs two set insertions, an image a walk of what it asked for and drew.
  */
 export function createGeometryBudget(env: PoolEnvironment) {
-  const { rootUrls, copies, state, kept, drop, floorBytes, onDiagnostic } = env;
+  const { rootUrls, copies, state, pages, drop, floorBytes, onDiagnostic } = env;
   const drawn = drawGeometryPool(env),
     current = drawn.current,
     shares = drawn.shares;
@@ -68,7 +69,7 @@ export function createGeometryBudget(env: PoolEnvironment) {
   // What the pool may hold above its slots: only what nothing may evict.
   const resident = createResidentOrder({
     state,
-    kept,
+    pages,
     drop,
     limit: () => current().allocatedBytes,
     floorBytes,
@@ -127,6 +128,7 @@ export function createGeometryBudget(env: PoolEnvironment) {
       if (!rootUrls.has(url)) resident.arrived(url);
     },
     left: resident.left,
+    follow: resident.follow,
     trim: resident.trim,
     /** Another budget, mid-session, under the session ceiling; returns the pages evicted at once.
      *  An invalid budget is refused before anything changes. */
