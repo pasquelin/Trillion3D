@@ -83,18 +83,19 @@ fn scaled(a: u32, c: u32, t: u32) -> u32 {
 }
 
 /// Step 2's bin of sample `s` of the square of corner alphas `a`: the highest `t`
-/// whose scale lifts it to `c` or more, 0 when none. `cutBin` of `coverageRule.ts`.
-fn cut_bin(a: [u32; 4], s: u32, c: u32) -> usize {
+/// whose scale lifts it to `c` or more, 0 when none. `cutBin` of `coverageRule.ts`;
+/// `bytes[t][a]` is `scaled(a, c, t)`, tabulated once per level.
+fn cut_bin(a: [u32; 4], s: u32, c: u32, bytes: &[[u8; 256]; 256]) -> usize {
     let (mut low, mut high) = (0, 256);
     for _ in 0..8 {
         let t = (low + high) >> 1;
-        if filtered(a.map(|a| scaled(a, c, t)), s) >= c {
+        if filtered(a.map(|a| u32::from(bytes[t][a as usize])), s) >= c {
             low = t;
         } else {
             high = t;
         }
     }
-    low as usize
+    low
 }
 
 /// The corner alphas of every texel's square in a level (RGBA8, `width` texels
@@ -160,13 +161,17 @@ impl Covered {
         let c = u32::from(self.cutoff);
         // A square of four equal corners — most of a foliage mask — filters to its corner
         // exactly: its four samples share one bin, searched once per byte.
-        let flat: [usize; 256] = std::array::from_fn(|a| cut_bin([a as u32; 4], 0, c));
+        let mut bytes = Box::new([[0u8; 256]; 256]);
+        for (t, row) in bytes.iter_mut().enumerate().skip(1) {
+            *row = std::array::from_fn(|a| scaled(a as u32, c, t as u32) as u8);
+        }
+        let flat: [usize; 256] = std::array::from_fn(|a| cut_bin([a as u32; 4], 0, c, &bytes));
         let mut histogram = [0u64; 256];
         for square in squares(level, width) {
             if square.iter().all(|&a| a == square[0]) {
                 histogram[flat[square[0] as usize]] += 4;
             } else {
-                (0..4).for_each(|s| histogram[cut_bin(square, s, c)] += 1);
+                (0..4).for_each(|s| histogram[cut_bin(square, s, c, &bytes)] += 1);
             }
         }
         let t = self.pick(&histogram, (level.len() / 4) as u64);
