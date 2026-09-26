@@ -1,7 +1,7 @@
-import { EngineError, type ClusterManifest } from '../contracts/index.ts';
-import { MAX_DEPTH_LAYER } from '../lod/depthLayer.ts';
+import type { ClusterManifest } from '../contracts/index.ts';
 import * as format from './binaryFormat.ts';
 import { countManifest, expectTemplate, manifestBinaryRanges, writeSha } from './binaryLayout.ts';
+import { checkedDepthLayer, writeCone } from './binaryPageChecks.ts';
 import { encodePreviewColumns } from './binaryPreviewEncode.ts';
 import { slimBinaryOf } from './binaryTypes.ts';
 import type {
@@ -61,6 +61,7 @@ export function encodeManifestBinary(
   const dependencyCount = view('bundleDependencyCount', words32),
     dependencyList = view('bundleDependency', words32);
   const pageDepthLayer = view('pageDepthLayer', (b, o, n) => new Uint32Array(b, o, n));
+  const pageCone = view('pageCone', (b, o, n) => new Float64Array(b, o, n));
   encodePreviewColumns(manifest.texturePreviews ?? [], view);
   let page = 0,
     node = 0,
@@ -125,18 +126,9 @@ export function encodeManifestBinary(
         geometryWords[page * 5 + 3] = item.geometry.flags;
         geometryWords[page * 5 + 4] = item.geometry.uncompressedBytes;
       }
+      writeCone(pageCone, page, item.cone);
       words[page * 2 + format.U32_FLAGS] = flags;
-      if (item.depthLayer !== undefined) {
-        if (
-          !Number.isInteger(item.depthLayer) ||
-          item.depthLayer < 0 ||
-          item.depthLayer > MAX_DEPTH_LAYER
-        )
-          throw new EngineError('INVALID_CACHE', 'A cluster depth layer does not fit four bits', {
-            depthLayer: item.depthLayer,
-          });
-        pageDepthLayer[page] = item.depthLayer;
-      }
+      if (item.depthLayer !== undefined) pageDepthLayer[page] = checkedDepthLayer(item.depthLayer);
       page++;
     }
     if (primitive.culling) {

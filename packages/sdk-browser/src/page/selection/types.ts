@@ -125,9 +125,10 @@ export type ClusterRoot<T> = {
   stretchKey?: Float64Array;
   structure?: ClusterStructureIndex;
   /** What the root declares of its normal cones, once and for all at prepare time: `false` says
-   *  none of its pages carry one, and the cut then stops reading `cone` per cluster. Absent or
-   *  `true`, the cut tests every page as before. Whoever sets a cone on a page sets this flag on
-   *  its root: that is the only contract that makes the omission visible. */
+   *  the cut reads none of its pages' cones — they may carry the cooked one (`collect.ts`) — and
+   *  then stops reading `cone` per cluster. Absent or `true`, the cut tests every page as before.
+   *  Whoever posts a cone for the cut sets this flag on its root: that is the only contract that
+   *  makes the omission visible. */
   cones?: boolean;
   /** What the root declares of its pages' boxes, once and for all at prepare time: `true` says
    *  each carries `min` and `max`, and the cut then stops checking them per cluster under a node

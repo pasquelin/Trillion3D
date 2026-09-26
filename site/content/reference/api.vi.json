@@ -334,7 +334,8 @@
       "texturePreviewBc7": "Các khối BC7 của các bản xem trước đó.",
       "texturePreviewAstc": "Các khối ASTC của các bản xem trước đó.",
       "bundleDependencyCount": "Mỗi gói cần bao nhiêu gói khác.",
-      "bundleDependency": "Các gói mà mỗi gói cần, cho đến tận gốc."
+      "bundleDependency": "Các gói mà mỗi gói cần, cho đến tận gốc.",
+      "pageCone": "Hình nón pháp tuyến của mỗi trang: trục, rồi nửa góc."
     }
   },
   "COMPILER_LINE_LIMIT": {
@@ -2355,7 +2356,8 @@
       "source": "Nhóm đã tạo ra nó.",
       "stream": "Gói truyền tải chứa cụm này và độ lệch byte của nó bên trong gói. Một yêu cầu phục vụ hàng chục cụm; cụm vẫn có thể đọc được một mình qua `url`.",
       "streamOffset": "Độ lệch byte của nó trong gói đó.",
-      "depthLayer": "Lớp độ sâu đồng phẳng, bằng 0 cho mọi cụm mà trình biên dịch để nguyên. Một cụm ở lớp n được vẽ với độ lệch chuẩn về độ sâu bằng n bước lớp đầy đủ, đó là thứ quyết định người thắng giữa hai bề mặt không trong suốt chia sẻ đúng một mặt phẳng. Vắng mặt và bằng 0 có nghĩa như nhau: bản vẽ không bị động chạm."
+      "depthLayer": "Lớp độ sâu đồng phẳng, bằng 0 cho mọi cụm mà trình biên dịch để nguyên. Một cụm ở lớp n được vẽ với độ lệch chuẩn về độ sâu bằng n bước lớp đầy đủ, đó là thứ quyết định người thắng giữa hai bề mặt không trong suốt chia sẻ đúng một mặt phẳng. Vắng mặt và bằng 0 có nghĩa như nhau: bản vẽ không bị động chạm.",
+      "cone": "Hình nón bao các pháp tuyến của các tam giác của nó: `axis` là một vectơ đơn vị, `angle` là nửa góc tính bằng radian, π cho một hình nón không loại bỏ gì. Trình biên dịch tính nó từ các tam giác; lát cắt WebGPU bỏ qua một cluster một mặt mà camera nhìn thấy từ phía sau hình nón của nó."
     }
   },
   "PageCutPage": {
