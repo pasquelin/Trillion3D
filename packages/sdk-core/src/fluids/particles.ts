@@ -4,8 +4,7 @@
  * made at creation. Nothing is compacted or read back: a particle past its lifetime is dead, and
  * the GPU skips it. Positions are from the pool's origin, its emitter's place: ten kilometres out a
  * particle still moves by a fraction of a millimetre, which 32-bit world floats round away. The
- * step never reads the origin; drawing adds it back (#755), each pool a camera-facing disc fading
- * over its life and where it meets the scene, blended as its `blend` says, with no global sort.
+ * step never reads the origin; drawing adds it back, blended as the pool says (#755).
  */
 import { GRAVITY_PRESETS } from '../physics/options.ts';
 

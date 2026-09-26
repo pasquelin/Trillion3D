@@ -44,32 +44,17 @@ struct Out { @builtin(position) at: vec4f, @location(0) corner: vec2f, @location
   return vec4f(draw.color.rgb * k, select(0.0, k, premultiplied));
 }`;
 
-/** Each blend's colour equation over the lit image; alpha is kept, or covered as the colour. */
-const BLENDS: Record<ParticleBlend, GPUBlendState> = {
-  additive: {
-    color: { srcFactor: 'one', dstFactor: 'one' },
-    alpha: { srcFactor: 'zero', dstFactor: 'one' },
-  },
-  premultiplied: {
-    color: { srcFactor: 'one', dstFactor: 'one-minus-src-alpha' },
-    alpha: { srcFactor: 'one', dstFactor: 'one-minus-src-alpha' },
-  },
+/** What each blend keeps of the image under it, colour and alpha alike (fire writes no alpha). */
+const KEPT: Record<ParticleBlend, GPUBlendFactor> = {
+  additive: 'one',
+  premultiplied: 'one-minus-src-alpha',
 };
 
-type DrawState = {
-  words: GPUBuffer;
-  group?: GPUBindGroup;
-  from?: [GPUBuffer, GPUTextureView];
-};
+type DrawState = { words: GPUBuffer; group?: GPUBindGroup; from?: [GPUBuffer, GPUTextureView] };
 
-/**
- * The WebGPU particle draw: one render pass over the lit image, after the transparents, one
- * instanced draw per pool with particles alive, far to near by origin (`drawOrder`). It reads
- * the step's state buffer in place (`stateOf`) and the opaque depth as a texture, with no depth
- * attachment: the soft edge is the only depth test. Both blends compile in the background; a
- * pool is drawn once its blend's pipeline is made. `fail` hears one that could not be, and every
- * pool is then `refused`: none is ever drawn with the other blend.
- */
+/** The WebGPU particle draw: one pass over the lit image, one instanced draw per live pool
+ *  (`drawOrder`), reading the step's buffer (`stateOf`) and the opaque depth, which the soft edge
+ *  alone tests. `fail` hears a pipeline not made, and every pool is then `refused`. */
 export function createWebgpuParticleDraw(
   device: GPUDevice,
   stateOf: (pool: ParticlePool) => GPUBuffer | undefined,
@@ -91,6 +76,7 @@ export function createWebgpuParticleDraw(
       const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] });
       return Promise.all(
         PARTICLE_BLENDS.map(async (blend) => {
+          const factor = { srcFactor: 'one', dstFactor: KEPT[blend] } as const;
           pipelines[blend] = await device.createRenderPipelineAsync({
             label: `${PARTICLE_DRAW_PASS} ${blend}`,
             layout: pipelineLayout,
@@ -99,7 +85,7 @@ export function createWebgpuParticleDraw(
               module,
               entryPoint: 'fs',
               constants: { premultiplied: blend === 'premultiplied' ? 1 : 0 },
-              targets: [{ format: 'rgba16float', blend: BLENDS[blend] }],
+              targets: [{ format: 'rgba16float', blend: { color: factor, alpha: factor } }],
             },
           });
         }),
@@ -108,13 +94,11 @@ export function createWebgpuParticleDraw(
     .catch((error) => ((failed = true), fail(error)));
   const words = new Float32Array(DRAW_FLOATS),
     order: ParticlePool[] = [];
+  const { UNIFORM, COPY_DST } = GPUBufferUsage,
+    size = DRAW_FLOATS * 4;
   const made = createPoolStates<DrawState>(
     () => ({
-      words: device.createBuffer({
-        label: `${PARTICLE_DRAW_PASS} words`,
-        size: DRAW_FLOATS * 4,
-        usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-      }),
+      words: device.createBuffer({ label: PARTICLE_DRAW_PASS, size, usage: UNIFORM | COPY_DST }),
     }),
     (state) => state.words.destroy(),
   );

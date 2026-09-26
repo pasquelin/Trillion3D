@@ -783,14 +783,10 @@ writes a pose buffer and an event buffer. No emscripten glue is kept; the engine
   Its GPU column is the particle step (`Trillion3D particles`, `particles/webgpuParticles.ts`).
   On WebGL2 the same pools step in a 32-bit float ping-pong pass (`particles/webglParticles.ts`);
   a context without `EXT_color_buffer_float` refuses them (`PARTICLES_UNSUPPORTED`).
-  The stepped pools are drawn in place, with no global sort (`particles/webgpuParticleDraw.ts`,
-  `particles/webglParticleDraw.ts`): each pool is one instanced draw of camera-facing discs over
-  the lit image, after the transparents (`Trillion3D particle draw`, `transparents` stage),
-  blended as its `blend` says — `additive` fire in any order, `premultiplied` smoke far to near
-  by pool origin (`particles/drawWords.ts`) — fading over its life and within `softness` of the
-  opaque depth. WebGL2 copies the frame's depth for that fade; a context that cannot refuses the
-  pools (`PARTICLES_UNSUPPORTED`), and an unknown blend is refused at creation
-  (`PARTICLE_BLEND`). A scene with no pool draws nothing.
+  Each pool is then one instanced draw of eye-facing discs over the lit image, after the
+  transparents (`Trillion3D particle draw`, `particles/*ParticleDraw.ts`), with no global sort:
+  `additive` fire in any order, `premultiplied` smoke far to near by pool origin, fading within
+  `softness` of the opaque depth, which WebGL2 copies or refuses (`PARTICLES_UNSUPPORTED`).
 - **Threads.** On a cross-origin isolated page the page loads `joltPhysicsThreads.wasm` (atomics,
   bulk memory, shared memory) and Jolt's own thread pool steps it: each pool thread starts in C
   through `pthread_create`, which the loader (`physics/joltThreads.ts`) answers with a worker that

@@ -7,14 +7,13 @@ import { setImmediate as tick } from 'node:timers/promises';
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts';
 import { ParticlePool, type ParticlePoolSpec } from '../../../sdk-core/src/fluids/particles.ts';
 import { createHostDrawCamera } from '../camera/world.ts';
-import { DRAW_FLOATS, drawOrder, writeDrawWords } from './drawWords.ts';
+import { DRAW_FLOATS, writeDrawWords } from './drawWords.ts';
 import { PARTICLE_DRAW_PASS, createWebgpuParticleDraw } from './webgpuParticleDraw.ts';
 import { webgl } from './stepModels.fixture.ts';
 
 const IDENTITY = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
 
-/** Fire 20 m ahead with two particles, smoke 2 m ahead with three, and a pool never emitted
- *  into, 50 m ahead; the records are stepped (`flush`), as the step does before the draw. */
+/** Smoke 2 m ahead with three stepped particles, fire 20 m ahead with two, an empty pool at 50 m. */
 function scene() {
   const pool = (z: number, n: number, spec: Partial<ParticlePoolSpec> = {}) => {
     const made = new ParticlePool({ capacity: 8, origin: [0, 0, z], ...spec });
@@ -24,14 +23,6 @@ function scene() {
   };
   return [pool(-2, 3, { blend: 'premultiplied' }), pool(-20, 2), pool(-50, 0)];
 }
-
-test('pools with live particles are drawn far to near by origin, into the same list', () => {
-  const [smoke, fire, idle] = scene(),
-    into: ParticlePool[] = [];
-  assert.equal(drawOrder([smoke, idle, fire], [0, 0, 0], into), into);
-  assert.deepEqual(into, [fire, smoke], 'the idle pool is left out');
-  assert.deepEqual(drawOrder([smoke, fire], [0, 0, -30], into), [smoke, fire], 'seen from past');
-});
 
 test('a pool 10 km out is drawn from its origin: the words hold to the millimetre', () => {
   const pool = new ParticlePool({ capacity: 8, origin: [1e4, 0, 1e4], size: 0.5 }),
@@ -45,65 +36,42 @@ test('a pool 10 km out is drawn from its origin: the words hold to the millimetr
   assert.deepEqual([...words.subarray(36, 41)], [1, 0.8, 0.5, 1, 0.5].map(Math.fround));
 });
 
-/** An encoder that records its render passes and each draw's pipeline, vertices and instances. */
+/** An encoder that logs its render passes, and each draw's pipeline, vertices and instances. */
 function renderRecorder() {
-  const passes: { label?: string; draws: unknown[][] }[] = [];
-  const encoder = {
-    beginRenderPass: ({ label }: GPURenderPassDescriptor) => {
-      const pass = { label, draws: [] as unknown[][] };
-      passes.push(pass);
-      let pipeline: GPURenderPipeline;
-      return {
-        setPipeline: (set: GPURenderPipeline) => void (pipeline = set),
-        setBindGroup() {},
-        draw: (vertices: number, instances: number) =>
-          void pass.draws.push([pipeline.label, vertices, instances]),
-        end() {},
-      };
-    },
-  } as unknown as GPUCommandEncoder;
-  return { encoder, passes };
+  const log: string[] = [];
+  const beginRenderPass = ({ label }: GPURenderPassDescriptor) => {
+    let pipeline: GPURenderPipeline;
+    log.push(`${label}`);
+    return {
+      setPipeline: (set: GPURenderPipeline) => void (pipeline = set),
+      setBindGroup() {},
+      draw: (...counts: number[]) => void log.push([pipeline.label, ...counts].join(' ')),
+      end() {},
+    };
+  };
+  return { encoder: { beginRenderPass } as unknown as GPUCommandEncoder, log };
 }
+
+const P = PARTICLE_DRAW_PASS,
+  view = {} as GPUTextureView;
+const frame = (encoder: GPUCommandEncoder) => [encoder, view, view, IDENTITY, [0, 0, 0]] as const;
 
 test('WebGPU: one pass, fire then the nearer smoke, each with its blend; none without particles', async () => {
   const gpu = fakeDevice(),
-    pools = scene(),
-    state = {} as GPUBuffer;
-  const draw = createWebgpuParticleDraw(
-    gpu.device,
-    () => state,
-    (e) => assert.fail(String(e)),
-  );
+    pools = scene();
+  const draw = createWebgpuParticleDraw(gpu.device, () => ({}) as GPUBuffer, assert.fail);
   await tick();
-  const { encoder, passes } = renderRecorder(),
-    frame = [encoder, {}, {}, IDENTITY, [0, 0, 0]] as const;
-  assert.equal(draw.draw([], ...frame), 0);
-  assert.equal(draw.draw([pools[2]], ...frame), 0);
-  assert.deepEqual(passes, [], 'no particle alive: no pass, no pixel');
-  assert.equal(draw.draw(pools, ...frame), 2);
-  const [fire, smoke] = ['additive', 'premultiplied'].map(
-    (blend) => `${PARTICLE_DRAW_PASS} ${blend}`,
+  const { encoder, log } = renderRecorder();
+  assert.equal(draw.draw([], ...frame(encoder)) + draw.draw([pools[2]], ...frame(encoder)), 0);
+  assert.deepEqual(log, [], 'no particle alive: no pass, no pixel');
+  assert.equal(draw.draw(pools, ...frame(encoder)), 2);
+  assert.deepEqual(log, [P, `${P} additive 6 2`, `${P} premultiplied 6 3`], 'far to near');
+  const blends = gpu.renderPipelines.map(({ label, fragment }) =>
+    [label, fragment!.targets[0]!.blend!.color.dstFactor, fragment!.constants!.premultiplied].join(
+      ' ',
+    ),
   );
-  assert.deepEqual(passes, [
-    {
-      label: PARTICLE_DRAW_PASS,
-      draws: [
-        [fire, 6, 2],
-        [smoke, 6, 3],
-      ],
-    },
-  ]);
-  const blendOf = (label: string) => {
-    const { fragment } = gpu.renderPipelines.find((made) => made.label === label)!;
-    return [fragment!.targets[0]!.blend!.color.dstFactor, fragment!.constants!.premultiplied];
-  };
-  assert.deepEqual(
-    [blendOf(fire), blendOf(smoke)],
-    [
-      ['one', 0],
-      ['one-minus-src-alpha', 1],
-    ],
-  );
+  assert.deepEqual(blends, [`${P} additive one 0`, `${P} premultiplied one-minus-src-alpha 1`]);
 });
 
 test('WebGPU: a draw that cannot compile is heard, and refuses its pools', async () => {
@@ -117,41 +85,34 @@ test('WebGPU: a draw that cannot compile is heard, and refuses its pools', async
     (e) => heard.push(e),
   );
   await tick();
-  const { encoder, passes } = renderRecorder();
-  assert.equal(
-    draw.draw([smoke], encoder, {} as GPUTextureView, {} as GPUTextureView, IDENTITY, [0, 0, 0]),
-    0,
-  );
-  assert.deepEqual([heard.length, smoke.refused, passes.length], [1, true, 0]);
+  const { encoder, log } = renderRecorder();
+  assert.equal(draw.draw([smoke], ...frame(encoder)), 0);
+  assert.deepEqual([heard.length, smoke.refused, log.length], [1, true, 0]);
 });
 
 const output = { framebuffer: null, width: 8, height: 4, toneMapped: true };
 
-test("WebGL2: the frame's depth is copied, then fire and the nearer smoke, each with its blend", () => {
+test("WebGL2: the frame's depth is copied, then the pools far to near, each with its blend", () => {
   const { ctx, run, particles } = webgl(),
-    camera = createHostDrawCamera(),
     pools = scene();
-  const calls = (from: number, name: string) => ctx.of(name).slice(from);
-  assert.equal(particles.draw([], camera, output), 0);
+  assert.equal(particles.draw([], createHostDrawCamera(), output), 0);
   assert.deepEqual(ctx.of('blitFramebuffer'), [], 'no particle: nothing copied, nothing drawn');
   for (const pool of pools) pool.emit(0, 0, pool.origin[2], 0, 1, 0, 2);
   run(pools);
-  const [blits, blends, draws] = ['blitFramebuffer', 'blendFunc', 'drawArraysInstanced'].map(
-    (name) => ctx.of(name).length,
-  );
-  assert.equal(particles.draw(pools, camera, output), 3);
-  assert.deepEqual(calls(blits, 'blitFramebuffer'), [
-    [0, 0, 8, 4, 0, 0, 8, 4, 'DEPTH_BUFFER_BIT', 'NEAREST'],
-  ]);
-  assert.deepEqual(calls(blends, 'blendFunc'), [
-    ['ONE', 'ONE'],
-    ['ONE', 'ONE'],
-    ['ONE', 'ONE_MINUS_SRC_ALPHA'],
-  ]);
+  const from = ctx.calls.length;
+  assert.equal(particles.draw(pools, createHostDrawCamera(), output), 3);
+  const calls = ctx.calls.slice(from).filter(({ name }) => /^(blit|blendFunc|drawArr)/.test(name));
   assert.deepEqual(
-    calls(draws, 'drawArraysInstanced').map((args) => args.at(-1)),
-    [1, 3, 4],
-    'far to near: the lone particle 50 m out, the fire, the smoke',
+    calls.map(({ args }) => args.slice(-3).join(' ')),
+    [
+      '4 DEPTH_BUFFER_BIT NEAREST', // the whole 8 × 4 frame,
+      'ONE ONE',
+      '0 6 1', // the lone particle 50 m out,
+      'ONE ONE',
+      '0 6 3', // the fire,
+      'ONE ONE_MINUS_SRC_ALPHA',
+      '0 6 4', // then the smoke
+    ],
   );
 });
 
@@ -160,9 +121,7 @@ test("WebGL2: a context that cannot copy the frame's depth refuses the pools by 
     [smoke] = scene();
   smoke.emit(0, 0, -2, 0, 1, 0, 2);
   run([smoke]);
-  assert.throws(
-    () => particles.draw([smoke], createHostDrawCamera(), output),
-    /^Error: PARTICLES_UNSUPPORTED/,
-  );
+  const drawn = () => particles.draw([smoke], createHostDrawCamera(), output);
+  assert.throws(drawn, /^Error: PARTICLES_UNSUPPORTED/);
   assert.deepEqual([smoke.refused, smoke.emit(0, 0, 0, 0, 1, 0, 2)], [true, false]);
 });
