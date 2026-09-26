@@ -54,9 +54,7 @@ function resolveRamp(weights: Float32Array, clip: { z: number; w: number }) {
 
 const glsl = rampExpression(
   CLUSTER_FRAGMENT,
-  new RegExp(
-    `if\\(surfaceModel==${SURFACE_MODEL.depth}\\)rgb=vec3\\(clamp\\((.*?),0\\.0,1\\.0\\)\\);`,
-  ),
+  /if\(depthShaded\)rgb=vec3\(clamp\((.*?),0\.0,1\.0\)\);/,
 );
 /** The WebGL2 fragment's line, on its view distance `toEye.z`. */
 const fragmentOf = new Function('depthRamp', 'toEye', `return ${glsl};`) as (

@@ -37,27 +37,15 @@ export const AS_IS_FLAG = 3;
 export const shownAsIs = (model: number | undefined) =>
   model === SURFACE_MODEL.normal || model === SURFACE_MODEL.depth;
 
-/** Each family the one model reads: its model, and whether its colour reads its normal — to light
- *  it, to show it or to find its matcap —; a family absent here is one no path draws. */
-const FAMILIES = new Map<string, readonly [model: number, normals: boolean]>([
-  ['standard', [SURFACE_MODEL.standard, true]],
-  ['physical', [SURFACE_MODEL.standard, true]],
-  ['phong', [SURFACE_MODEL.standard, true]],
-  ['basic', [SURFACE_MODEL.standard, false]],
-  ['lambert', [SURFACE_MODEL.diffuse, true]],
-  ['toon', [SURFACE_MODEL.toon, true]],
-  ['normal', [SURFACE_MODEL.normal, true]],
-  ['matcap', [SURFACE_MODEL.matcap, true]],
-  ['depth', [SURFACE_MODEL.depth, false]],
-]);
-
 /** The model a surface declares by its family; the physical model otherwise. */
-export const hostSurfaceModel = ({ family }: HostShadedMaterial): number =>
-  FAMILIES.get(family)?.[0] ?? SURFACE_MODEL.standard;
-
-/** Whether a family reads its normal; undefined for a family no model reads. */
-export const readsNormal = ({ family }: HostShadedMaterial): boolean | undefined =>
-  FAMILIES.get(family)?.[1];
+export function hostSurfaceModel({ family }: HostShadedMaterial): number {
+  if (family === 'lambert') return SURFACE_MODEL.diffuse;
+  if (family === 'toon') return SURFACE_MODEL.toon;
+  if (family === 'normal') return SURFACE_MODEL.normal;
+  if (family === 'matcap') return SURFACE_MODEL.matcap;
+  if (family === 'depth') return SURFACE_MODEL.depth;
+  return SURFACE_MODEL.standard;
+}
 
 /** Whether a surface carries the metal-rough parameters: a standard or a physical one. */
 export const metalRough = ({ family }: HostShadedMaterial) =>
@@ -74,14 +62,6 @@ export const litModel = (host: HostShadedMaterial, model: number) =>
 export const shininessRoughness = (shininess: number) =>
   Math.sqrt(2 / (Math.max(0, shininess) + 2));
 
-/** The toon cosine at `nl` = N·L, and the matcap coordinate of a view-space normal `n`: the one text
- *  both languages read, WGSL here and GLSL in `SURFACE_MODEL_GLSL`. */
-export const TOON_BANDS = 'mix(0.7,1.0,smoothstep(0.69,0.71,nl*0.5+0.5))';
-/** `modelLight`'s diffuse lobe and its Lambert cosine, the text both languages read. */
-const MODEL_DIFFUSE = `rgb*(1.0-metal)*${INVERSE_PI}*energy*ao`;
-const LAMBERT = 'max(nl,0.0)';
-const matcapAt = (vec2: string) => `${vec2}(n.x*0.495+0.5,0.5-n.y*0.495)`;
-
 /**
  * What a declared lamp gives a pixel of a diffuse or toon surface, read by `declaredLight` through
  * the private `surfaceModel` the resolve sets from the surface flag. Toon keeps the lamp's energy —
@@ -90,10 +70,10 @@ const matcapAt = (vec2: string) => `${vec2}(n.x*0.495+0.5,0.5-n.y*0.495)`;
 export const SURFACE_MODEL_LIGHT_WGSL = `
 var<private> surfaceModel:u32;
 fn modelLight(rgb:vec3f,metal:f32,N:vec3f,L:vec3f,energy:f32,ao:f32)->vec3f{
- let diffuse=${MODEL_DIFFUSE};
+ let diffuse=rgb*(1.0-metal)*${INVERSE_PI}*energy*ao;
  let nl=dot(N,L);
- if(surfaceModel==${MODEL_FLAG.toon}u){return diffuse*${TOON_BANDS};}
- return diffuse*${LAMBERT};
+ if(surfaceModel==${MODEL_FLAG.toon}u){return diffuse*mix(0.7,1.0,smoothstep(0.69,0.71,nl*0.5+0.5));}
+ return diffuse*max(nl,0.0);
 }`;
 
 /**
@@ -108,17 +88,4 @@ fn viewNormal(N:vec3f)->vec3f{
  let up=normalize(vec3f(uni.viewProj[0].y,uni.viewProj[1].y,uni.viewProj[2].y));
  return vec3f(dot(N,right),dot(N,up),dot(N,cross(right,up)));
 }
-fn matcapUv(N:vec3f)->vec2f{let n=viewNormal(N);return ${matcapAt('vec2f')};}`;
-
-/**
- * The same models in the WebGL2 cluster program (`../webgl/cluster/shaders.ts`), whose normals are
- * already in view space: `surfaceModel` holds the rank of `SURFACE_MODEL`, a diffuse or toon
- * surface takes `modelLight` for each lamp in place of the physical lobes, and a matcap reads its
- * image at `matcapUv`.
- */
-export const SURFACE_MODEL_GLSL = `
-uniform int surfaceModel;
-bool bandedModel(){return surfaceModel==${SURFACE_MODEL.diffuse}||surfaceModel==${SURFACE_MODEL.toon};}
-vec3 modelLight(vec3 rgb,float metal,vec3 N,vec3 L,float energy,float ao){vec3 diffuse=${MODEL_DIFFUSE};
-float nl=dot(N,L);if(surfaceModel==${SURFACE_MODEL.toon})return diffuse*${TOON_BANDS};return diffuse*${LAMBERT};}
-vec2 matcapUv(vec3 n){return ${matcapAt('vec2')};}`;
+fn matcapUv(N:vec3f)->vec2f{let n=viewNormal(N);return vec2f(n.x*0.495+0.5,0.5-n.y*0.495);}`;
