@@ -1,10 +1,15 @@
 import { EngineError, IDENTITY_MATRIX4 } from '../../../sdk-core/src/index.ts';
 import { Color, type ColorInput } from '../../../sdk-core/src/world/math/color.ts';
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
-import { copyElements, sameElements } from '../math/matrixElements.ts';
 import { poseSourceOf } from '../world/helper/mark.ts';
-import { objectPieces, type GuidePiece } from './guideObject.ts';
-import { packGuides, type GuideEntry } from './guidePack.ts';
+import {
+  followNode,
+  objectPieces,
+  placeGuide,
+  type FollowedEntry,
+  type GuidePiece,
+} from './guideObject.ts';
+import { packGuides } from './guidePack.ts';
 
 /**
  * Most vertices the guides of one world hold together: two per segment, one per point. Declared,
@@ -68,12 +73,6 @@ export interface Guides {
   clear(): void;
 }
 
-/** A guide with the node whose world pose it follows, if `add` drew it and the page did not
- *  place it. */
-interface FollowedEntry extends GuideEntry {
-  node?: Object3D;
-}
-
 const hexOf = (color: ColorInput | undefined) => new Color(color ?? 0xffffff).getHex();
 
 /**
@@ -92,17 +91,6 @@ export function createGuideSet(onChange: () => void = () => {}) {
     revision++;
     onChange();
   };
-  /** Puts `entry` at `next`; the same pose moves nothing, so a held frame stays. */
-  const place = (entry: GuideEntry, next: ArrayLike<number>) => {
-    if (sameElements(entry.matrix, next)) return false;
-    copyElements(entry.matrix, next);
-    return entries.has(entry);
-  };
-  /** Puts `entry` where `node` stands now. */
-  const track = (entry: GuideEntry, node: Object3D) => {
-    node.updateWorldMatrix(true, false);
-    return place(entry, node.matrixWorld.elements);
-  };
   const open = (pieces: GuidePiece[], node?: Object3D): GuideHandle => {
     const count = pieces.reduce((sum, piece) => sum + piece.vertices, 0);
     if (vertices + count > GUIDE_VERTEX_CEILING)
@@ -120,7 +108,7 @@ export function createGuideSet(onChange: () => void = () => {}) {
     };
     entries.add(entry);
     vertices += count;
-    if (node) track(entry, node);
+    followNode(entry);
     changed();
     const handle: GuideHandle = {
       get visible() {
@@ -134,7 +122,8 @@ export function createGuideSet(onChange: () => void = () => {}) {
       },
       setTransform(matrix) {
         entry.node = undefined;
-        if (place(entry, 'elements' in matrix ? matrix.elements : matrix)) changed();
+        const next = 'elements' in matrix ? matrix.elements : matrix;
+        if (placeGuide(entry, next) && entries.has(entry)) changed();
         return handle;
       },
       remove() {
@@ -157,11 +146,11 @@ export function createGuideSet(onChange: () => void = () => {}) {
     /**
      * Moves each shown guide that follows a node to where the node stands now: called once per
      * frame, before it draws (`../world/render/render.ts`). A node that stood still moves nothing;
-     * one that moved moves the revision, and asks for no frame of its own.
+     * one that moved moves the revision, and asks for no frame of its own; a destroyed one is
+     * let go (`followNode`).
      */
     follow() {
-      for (const entry of entries)
-        if (entry.node && entry.visible && track(entry, entry.node)) revision++;
+      for (const entry of entries) if (entry.visible && followNode(entry)) revision++;
     },
     lines({ positions, color, width = 1 }: GuideLines) {
       const ends = Float64Array.from(positions).subarray(

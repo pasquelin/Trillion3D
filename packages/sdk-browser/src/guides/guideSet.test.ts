@@ -144,4 +144,8 @@ test('a light helper drawn as a guide follows its light with no update from the 
   guides.follow();
   assert.equal(guides.revision, revision + 1, 'the shown guide moved, the hidden one is not read');
   assert.deepEqual([...guides.pack().anchor], [0, 0, 7]);
+  bulb.destroy();
+  guides.follow();
+  assert.equal(guides.revision, revision + 1, 'a destroyed light is let go, the frame goes on');
+  assert.deepEqual([...guides.pack().anchor], [0, 0, 7], 'its guide stays where it last stood');
 });
