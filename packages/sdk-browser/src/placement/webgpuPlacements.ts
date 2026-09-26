@@ -3,10 +3,18 @@ import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts';
 import { followPlacementRows } from './update.ts';
 import { placedBy, type PlacementRows } from './rows.ts';
 
+/** Hands a root that was parked or taken, or began or stopped casting, to the GPU cut. */
+export const flipWorld =
+  (rt: WebgpuPagesRuntime) => (rank: number, root: { parked?: boolean; mark?: number }) => {
+    rt.run.gpuSelection?.parkWorld(rank, !!root.parked);
+    rt.run.gpuSelection?.markWorld(rank, root.mark ?? 0);
+  };
+
 /**
  * Rows of an instance buffer the WebGPU page raster was opened with were written. The roots read
  * their worlds from the rows, so nothing is copied: their boxes are reprojected, a parked row
- * leaves the GPU cut's first queue and a taken one enters it (`parkWorld`), the page rows of the
+ * leaves the GPU cut's first queue and a taken one enters it (`parkWorld`), a row that stops or
+ * starts casting leaves or enters every light cut (`markWorld`), the page rows of the
  * roots that read them are rewritten, and them alone (`moveRootRows`), and the frame learns that
  * poses moved — the worlds go up in one write at the next image, and the shadow pages the change
  * touched are drawn again: their moving casters only, once the placements are known to move
@@ -26,7 +34,7 @@ export function updateWebgpuPlacements(
     rows,
     from,
     to,
-    (rank, parked) => run.gpuSelection?.parkWorld(rank, parked),
+    flipWorld(rt),
     lights.mobility.move,
     (rank) => moveRootRows(rt, layout.selectionRoots[rank]),
     lights.plan.worldChanged,

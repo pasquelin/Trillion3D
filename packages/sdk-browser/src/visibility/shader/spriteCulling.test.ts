@@ -42,8 +42,8 @@ for (const hierarchical of [false, true])
     const constant = spriteFixture(false, hierarchical),
       attenuated = spriteFixture(true, hierarchical);
     const cam = lookingAway();
-    assert.equal(packed(constant).roots[0].sprite, 3, 'the root carries both bits of the mark');
-    assert.equal(packed(attenuated).roots[0].sprite, 1);
+    assert.equal(packed(constant).roots[0].mark, 3, 'the root carries both bits of the mark');
+    assert.equal(packed(attenuated).roots[0].mark, 1);
     assert.ok(cpuUrls(constant, 0, cam).length > 0, 'the CPU cut selects it');
     assert.ok(kernelUrls(constant, 0, cam).urls.length > 0, 'the GPU cut selects it');
     // A sprite that shrinks with distance, and every other surface, is culled as before.
@@ -56,12 +56,12 @@ for (const hierarchical of [false, true])
 test('the GPU cut reads the mark behind the record shift and opens its planes to the camera only', () => {
   const fixture = spriteFixture(false);
   const { dag } = packed(fixture);
-  assert.deepEqual(Array.from(dag.sprite), [3]);
+  assert.deepEqual(Array.from(dag.mark), [3]);
   const frames = new Uint32Array(primitiveFrameWords(dag).buffer);
   assert.equal(frames[primitiveWordAt(0) + 3], 3);
   assert.ok(DAG_SELECTION_SHADER.includes('let open=!isLightCut()&&unculledOf(w);'));
   assert.ok(
-    DAG_SELECTION_SHADER.includes('fn unculledOf(w:u32)->bool{return (spriteOf(w)&2u)!=0u;}'),
+    DAG_SELECTION_SHADER.includes('fn unculledOf(w:u32)->bool{return (markOf(w)&2u)!=0u;}'),
   );
   assert.ok(
     DAG_SELECTION_SHADER.includes(
@@ -70,7 +70,7 @@ test('the GPU cut reads the mark behind the record shift and opens its planes to
   );
   assert.ok(
     DAG_SELECTION_SHADER.includes(
-      'fn spriteOf(w:u32)->u32{return bitcast<u32>(frames[w*FRAME+6u].w);}',
+      'fn markOf(w:u32)->u32{return bitcast<u32>(frames[w*FRAME+6u].w);}',
     ),
   );
   fixture.geometry.dispose();
