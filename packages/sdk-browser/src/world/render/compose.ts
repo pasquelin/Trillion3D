@@ -43,9 +43,8 @@ export type ComposedChain = {
  * (`../../effects/webglEffects.ts`); the copy kept is the chain's image, and a chain changed
  * since it was kept is drawn again. The page's `guides` are drawn over the image the destination
  * got, the chain's included, before that copy is kept, at the host's `pixelRatio`; a change to
- * them spares no redraw. The world's `particles` step on every image drawn here and are drawn
- * over the engine's image, before the chain; an image they moved in is drawn, never the kept
- * copy (`../../particles/webglParticles.ts`).
+ * them spares no redraw. The world's `particles` step and draw before the chain on every image
+ * drawn here: when they move, the image is drawn, never kept (`../../particles/webglParticles.ts`).
  * Nothing here belongs to a rendering library.
  */
 export function createFrameComposer(
@@ -175,8 +174,8 @@ export function createFrameComposer(
     if (!target) keptRevision = revision;
     if (drawn instanceof Error) throw drawn;
   };
-  /** Bytes of the chain's targets on this context. */
-  compose.effectBytes = () => effects?.bytes ?? 0;
+  /** Bytes of the chain's targets and the particles' depth copy on this context. */
+  compose.effectBytes = () => (effects?.bytes ?? 0) + (stepped?.bytes() ?? 0);
   compose.dispose = () => {
     present.dispose();
     heldFrame.dispose();
