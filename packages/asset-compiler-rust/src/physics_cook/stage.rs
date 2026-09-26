@@ -78,8 +78,8 @@ pub(crate) fn trs(m: &Mat4) -> Option<([f64; 3], [f64; 4], [f64; 3])> {
     Some(([m[12], m[13], m[14]], q, s))
 }
 
-/// Writes a placement `trs` into `entry` as `physics.json` carries it: a static instance's or a
-/// soft body's.
+/// Writes a placement `trs` into `entry` as `physics.json` carries it: a static instance's, a
+/// rigid body's or a soft body's.
 pub(super) fn place(entry: &mut Value, (t, q, s): ([f64; 3], [f64; 4], [f64; 3])) {
     entry["position"] = json!(t);
     entry["rotation"] = json!(q);

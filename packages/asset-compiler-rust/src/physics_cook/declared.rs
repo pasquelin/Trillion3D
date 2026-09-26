@@ -5,11 +5,12 @@
 //! implicit shape as declared, else the hulls of a mesh (`hulls.rs`), weighed here, at cook time.
 use super::hulls::cooked_hulls;
 use super::stage::{place, trs};
-use super::PHYSICS_COOK_FAILED;
+use super::{refused, PHYSICS_COOK_FAILED};
 use crate::compiler_validate::{required_index, values};
 use crate::compiler_world::Mat4;
-use crate::{CompilerError, Options, Result};
+use crate::{Options, Result};
 use serde_json::{json, Value};
+use std::collections::hash_map::{Entry, HashMap};
 
 /// `friction` and `restitution` the collider of node `node` declares, each only when declared.
 pub(crate) fn declared_matter(g: &Value, node: &Value) -> Value {
@@ -33,21 +34,21 @@ pub(crate) fn declared_matter(g: &Value, node: &Value) -> Value {
     matter
 }
 
-fn refused(message: String) -> CompilerError {
-    CompilerError::new(PHYSICS_COOK_FAILED, message)
-}
+/// Cooked hulls by mesh and whether one hull is asked: nodes sharing a mesh share its hulls.
+type Hulls = HashMap<(usize, bool), Value>;
 
-/// The `physics.json` entry of the body node `index` (`node`) declares with `declared`, placed by
-/// `matrix`: its `motion` as declared, its matter, pose and shape — the `KHR_implicit_shapes` shape
-/// its collider names, as declared; else the cooked hulls of the mesh its collider names (its own
-/// without a collider), one hull when the collider asks for its convex hull.
+/// The `physics.json` entry of the body node `index` of `nodes` declares, placed by `matrix`: its
+/// `motion` as declared, its matter, pose and shape — the `KHR_implicit_shapes` shape its collider
+/// names, as declared; else the cooked hulls of the mesh its collider names (its own without a
+/// collider), one hull when the collider asks for its convex hull.
 fn body(
     o: &Options,
     (g, bin): (&Value, &[u8]),
-    (index, node): (usize, &Value),
-    declared: &Value,
+    (nodes, index): (&[Value], usize),
     matrix: &Mat4,
+    hulls: &mut Hulls,
 ) -> Result<Value> {
+    let declared = &nodes[index]["extensions"]["KHR_physics_rigid_bodies"];
     let pose =
         trs(matrix).ok_or_else(|| refused("A body's node shears or has no scale.".into()))?;
     let field = |key: &str| {
@@ -68,17 +69,25 @@ fn body(
             let at = field("node")
                 .and_then(Value::as_u64)
                 .map_or(index, |n| n as usize);
-            let mesh = values(g, "nodes")?.get(at).and_then(|n| n.get("mesh"));
+            let mesh = nodes.get(at).and_then(|n| n.get("mesh"));
             let mesh = mesh.ok_or_else(|| {
                 refused(format!(
                     "A body's collider names node {at}, which draws no mesh."
                 ))
             })?;
-            let hull = field("convexHull") == Some(&Value::Bool(true));
-            cooked_hulls(o, (g, bin), required_index(Some(mesh), "node.mesh")?, hull)?
+            let key = (
+                required_index(Some(mesh), "node.mesh")?,
+                field("convexHull") == Some(&Value::Bool(true)),
+            );
+            match hulls.entry(key) {
+                Entry::Occupied(cooked) => cooked.get().clone(),
+                Entry::Vacant(slot) => slot
+                    .insert(cooked_hulls(o, (g, bin), key.0, key.1)?)
+                    .clone(),
+            }
         }
     };
-    let mut entry = declared_matter(g, node);
+    let mut entry = declared_matter(g, &nodes[index]);
     entry["node"] = json!(index);
     entry["motion"] = declared["motion"].clone();
     entry["shape"] = shape;
@@ -96,13 +105,15 @@ pub(super) fn declared_bodies<'a>(
     world: &[Mat4],
 ) -> Result<(Vec<Value>, Vec<Value>)> {
     let nodes = values(source.0, "nodes")?;
-    let (mut bodies, mut refusals) = (Vec::new(), Vec::new());
+    let (mut bodies, mut refusals, mut hulls) = (Vec::new(), Vec::new(), Hulls::new());
     for &index in chosen {
-        let declared = &nodes[index]["extensions"]["KHR_physics_rigid_bodies"];
-        if declared.get("motion").is_none() {
+        if nodes[index]
+            .pointer("/extensions/KHR_physics_rigid_bodies/motion")
+            .is_none()
+        {
             continue;
         }
-        match body(o, source, (index, &nodes[index]), declared, &world[index]) {
+        match body(o, source, (nodes, index), &world[index], &mut hulls) {
             Ok(entry) => bodies.push(entry),
             Err(e) if e.code == PHYSICS_COOK_FAILED => {
                 refusals.push(json!({"node":index,"reason":e.message}))

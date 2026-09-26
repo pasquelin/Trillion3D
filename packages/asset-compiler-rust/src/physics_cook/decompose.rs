@@ -6,29 +6,20 @@
 //! the median of its triangles' centres, and each half is judged again. A flat part, which has no
 //! hull, is dropped. Depth is bounded: at most `1 << MAX_DEPTH` hulls.
 use super::hulls::hull_planes;
+use crate::qem::compact_region;
+use crate::shared_math::{extend_aabb_f32, longest_axis};
 
 /// Cuts a part may go through: 64 hulls at most, the cap on a body's compound, kept at cook.
 const MAX_DEPTH: u32 = 6;
 
-fn points_of(pos: &[f32], triangles: &[u32]) -> Vec<f32> {
-    let mut seen = std::collections::BTreeSet::new();
-    let mut points = Vec::new();
-    for &i in triangles {
-        if seen.insert(i) {
-            points.extend_from_slice(&pos[i as usize * 3..i as usize * 3 + 3]);
-        }
-    }
-    points
-}
-
-/// Largest distance from a part's surface samples (vertices and centroids) to its hull boundary.
-fn concavity(pos: &[f32], triangles: &[u32], planes: &[[f32; 4]]) -> f64 {
+/// Whether a part's surface samples (vertices and centroids) reach deeper than `tolerance` under
+/// its hull's boundary.
+fn concave(pos: &[f32], triangles: &[u32], planes: &[[f32; 4]], tolerance: f64) -> bool {
     let depth = |p: [f32; 3]| {
         planes
             .iter()
             .map(|q| -(q[0] * p[0] + q[1] * p[1] + q[2] * p[2] + q[3]) as f64)
             .fold(f64::MAX, f64::min)
-            .max(0.0)
     };
     triangles
         .as_chunks::<3>()
@@ -42,30 +33,23 @@ fn concavity(pos: &[f32], triangles: &[u32], planes: &[[f32; 4]]) -> f64 {
             let centroid = [0, 1, 2].map(|a| (v(0)[a] + v(1)[a] + v(2)[a]) / 3.0);
             [v(0), v(1), v(2), centroid]
         })
-        .map(depth)
-        .fold(0.0, f64::max)
+        .any(|p| depth(p) > tolerance)
 }
 
 fn split(pos: &[f32], triangles: &[u32], tolerance: f64, depth: u32, out: &mut Vec<Vec<f32>>) {
-    let points = points_of(pos, triangles);
+    let points = compact_region(pos, triangles).0;
     let planes = hull_planes(&points);
     if planes.is_empty() {
         return;
     }
-    if depth >= MAX_DEPTH || triangles.len() < 12 || concavity(pos, triangles, &planes) <= tolerance
-    {
+    if depth >= MAX_DEPTH || triangles.len() < 12 || !concave(pos, triangles, &planes, tolerance) {
         return out.push(points);
     }
     let (mut min, mut max) = ([f32::MAX; 3], [f32::MIN; 3]);
-    for p in points.as_chunks::<3>().0.iter() {
-        for a in 0..3 {
-            min[a] = min[a].min(p[a]);
-            max[a] = max[a].max(p[a]);
-        }
+    for &p in points.as_chunks::<3>().0 {
+        extend_aabb_f32(&mut min, &mut max, p);
     }
-    let axis = (0..3)
-        .max_by(|&a, &b| (max[a] - min[a]).total_cmp(&(max[b] - min[b])))
-        .unwrap_or(0);
+    let axis = longest_axis(&min.map(f64::from), &max.map(f64::from));
     let centre =
         |tri: &[u32; 3]| tri.iter().map(|&i| pos[i as usize * 3 + axis]).sum::<f32>() / 3.0;
     let mut centres: Vec<f32> = triangles.as_chunks::<3>().0.iter().map(centre).collect();
