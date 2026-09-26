@@ -168,6 +168,6 @@ test('a masked chain is counted at its cutoff where float targets blend, else ke
       gl.of('viewport').filter((box) => box[2] === 1),
       [...picks, ...picks],
     );
-    assert.equal(gl.of('blendFuncSeparate').length, 4, 'blend function given back');
+    assert.equal(gl.of('blendFuncSeparate').length, 2, 'blend function given back, once a chain');
   }
 });
