@@ -10,8 +10,7 @@ import { createPoolStates, usedSlots } from './poolStates.ts';
 /** The pass label the GPU timings name the particle draw by (`passesGpu`). */
 export const PARTICLE_DRAW_PASS = 'Trillion3D particle draw';
 
-/** One instance per slot, six vertices: a disc facing the eye, fading over its life, at its
- *  edge, and where the scene's depth comes within `softness` behind it; a dead slot is culled. */
+/** Per slot, a disc facing the eye, fading with age, at its edge and near the scene's depth. */
 export const PARTICLE_DRAW_WGSL = /* wgsl */ `
 struct Particle { position: vec4f, velocity: vec4f }
 struct Draw { clip: mat4x4f, unclip: mat4x4f, eye: vec3f, size: f32, color: vec4f, softness: f32 }
