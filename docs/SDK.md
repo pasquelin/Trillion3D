@@ -910,6 +910,14 @@ atlas, and at most 24 shadow regions redrawn per frame.
 lightingView, shadows, transforms, reason? }` — not what the contract accepts: a call the light
 store accepts is not proof of lighting. `reason` names in one sentence what is not applied.
 
+### A see-through surface casts no shadow unless it asks
+
+A blended material (`transparent: true`) lets the light pass by default, as glass, smoke and a beam
+of light do in the reference solution: it casts no shadow. `transparentShadow: true` asks for one,
+as dark as the surface is opaque: `material.meshStandard({ transparent: true, opacity: 0.5,
+transparentShadow: true })` casts half a shadow. An additive, transmissive or fully transparent
+surface casts none either way, and WebGL2 draws no shadow at all.
+
 ### A luminaire does not block its own light
 
 A real light sits inside something — a lantern glass, a reflector, a shade — and that envelope is

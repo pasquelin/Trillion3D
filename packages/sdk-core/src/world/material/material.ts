@@ -63,8 +63,8 @@ export interface MaterialParameters {
   vertexColors?: boolean;
   /** Whether the surface writes its depth, hiding what is drawn after it. */
   depthWrite?: boolean;
-  /** Whether the surface hides behind what is already closer. */
-  depthTest?: boolean;
+  /** Whether the surface hides behind what is already closer. */ depthTest?: boolean;
+  /** Whether a see-through (`transparent`) surface still casts a shadow, paler the more see-through it is. Off: glass, smoke and beams let the light pass. @defaultValue false */ transparentShadow?: boolean;
   /** The matter of a body wearing it: density, friction, restitution. */ physics?: PhysicsMaterialPreset;
   /** kg/m³, times the volume for the mass. @defaultValue 1000 */ density?: number;
   /** How much a body grips, 0 and up. @defaultValue 0.5 */ friction?: number;

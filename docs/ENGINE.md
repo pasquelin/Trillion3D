@@ -405,7 +405,11 @@ request is a second residency tier, loaded after the camera's pages into slots n
 pinned. The CPU cut does the same, reading the run's view as a camera (`webgpu/shadow/cpuCasters.ts`);
 its casters take rows behind its own (#10, #26).
 
-**Blended surfaces cast a shadow attenuated by their opacity.** A blended cluster is drawn by the
+**A blended surface that asks for it casts a shadow attenuated by its opacity.** By default a
+see-through surface casts none, as the reference solution leaves translucent materials: glass,
+smoke and a beam of light let the light pass. A material asks with `transparentShadow: true`
+(`castsBlendShadow`, `gpu/shadow/transmittance.ts`); a cooked model's materials carry no such flag
+and cast none. A blended cluster is drawn by the
 blend pass and never enters the visibility tables: to cast, it takes a row of the page table
 _behind_ the visibility rows, which only the shadow pass reads (`webgpu/row/blendCasters.ts`). The
 row follows residency like a visibility row — taken when the cluster's slot arrives, given back
@@ -420,7 +424,8 @@ the material's opacity times its colour map's alpha, and the nearest translucent
 of its own follows the pool's (`webgpu/pages/render/encodeShadowPass.ts`): each page the pool drew
 is cleared to full transmittance and far depth, then draws its list twice, where only the blended
 rows survive, from the same shader entry — depth only, depth-tested, for the nearest depth; then
-colour only, blended multiplicatively, without depth. Both discard a fragment the pool's opaque
+colour only, blended multiplicatively, without depth. Once the last blended caster has given its
+row back, the layer stays and its pages are only cleared: neither draw is encoded. Both discard a fragment the pool's opaque
 depth hides at all four of its texels. The shadow read multiplies its filtered PCF result by
 the layer once, at the footprint's centre (`lighting/direct/shadowWgsl.ts`), since the sixteen taps
 lie within one texel of it: the four texels around it, kept within its page, each its transmittance
