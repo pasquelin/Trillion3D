@@ -19,6 +19,7 @@ import { createShadowMobility, type ShadowMobility } from '../../shadow/mobility
 import type { ShadowStaticLayer } from '../../../gpu/shadow/staticLayer.ts';
 import type { ShadowPageHiz } from '../../../gpu/shadow/pageHiz.ts';
 import type { ShadowOcclusion } from '../../../gpu/shadow/occlusion.ts';
+import type { ShadowPageQuads } from '../../../gpu/shadow/pageQuads.ts';
 
 /**
  * Direct-lighting state of the contract: the light store (shared with the host), per-tile lists, the
@@ -51,6 +52,8 @@ export interface WebgpuLightState {
   sceneBox: ReturnType<typeof createShadowSceneBox>;
   /** Per-page cull and the world spheres it reads; absent while the pool does not exist. */
   cull: GpuShadowCull | undefined;
+  /** Each pass's clears and restores, two instanced draws; made with the atlas. */
+  pageQuads: ShadowPageQuads | undefined;
   spheres: { buffer: GPUBuffer; packed: Float32Array<ArrayBuffer>; rows: number } | undefined;
   /** Bind groups of shadow faces, and the resources they were built on. */
   shadowGroups: Array<GPUBindGroup | undefined>;
@@ -90,6 +93,8 @@ export interface WebgpuLightState {
   shadowDraws: number;
   /** Draw calls actually encoded by the shadow pass: a clear to far and an indirect draw per page. */
   shadowDrawCalls: number;
+  /** Render passes the shadow pass opened: one per layer drawn, per batch. */
+  shadowRenderPasses: number;
   /** Why the shadow atlas does not exist, when it does not. */
   shadowReason: string | null;
   /** Configuration of the first image lit by the contract is logged only once. */
@@ -117,6 +122,7 @@ export function createWebgpuLightState(
     pageHiz: undefined,
     occlusion: undefined,
     cull: undefined,
+    pageQuads: undefined,
     spheres: undefined,
     shadowGroups: new Array(2 * MAX_SHADOW_REGIONS).fill(undefined),
     shadowGroupsKey: [],
@@ -138,6 +144,7 @@ export function createWebgpuLightState(
     shadowPagesTotal: 0,
     shadowDraws: 0,
     shadowDrawCalls: 0,
+    shadowRenderPasses: 0,
     shadowReason: null,
     firstFrameLogged: false,
   };
