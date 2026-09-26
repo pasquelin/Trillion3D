@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import { runExampleModule } from './docs/examples/capture.ts';
-import { geometry, light, material, object } from '../packages/sdk-browser/src/index.ts';
+import { geometry, helper, light, material, object } from '../packages/sdk-browser/src/index.ts';
 import { Scene } from '../packages/sdk-browser/src/world/core/scene.ts';
 import { Camera } from '../packages/sdk-core/src/world/camera/camera.ts';
 import { ObjectPhysics } from '../packages/sdk-core/src/physics/objectPhysics.ts';
@@ -27,6 +27,7 @@ async function saveTheScene() {
       material,
       object,
       light,
+      helper,
     },
     kit: {
       controls: (specs: Buttons) => void (buttons = specs),
