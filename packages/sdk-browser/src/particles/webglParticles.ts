@@ -5,17 +5,18 @@ import { createWebglProgram } from '../webgl/core/program.ts';
 import {
   bindWebglTexture,
   createWebglRenderTarget,
+  floatTargets,
   type WebglRenderTarget,
 } from '../webgl/core/renderTarget.ts';
 import { createPoolStates, usedSlots } from './poolStates.ts';
 
 /** Particles per texture row, two texels each: position and age, then velocity and lifetime. */
 export const PARTICLE_ROW = 512;
-const TEXELS = 2 * PARTICLE_ROW;
+const TEXELS = 2 * PARTICLE_ROW,
+  FLOAT = { depth: false, float: true };
 
-/** One fragment per texel: the slot's particle, or the record the ring gives it this image,
- *  moved when alive; the half of it this texel holds is written. The WGSL step, texel by texel,
- *  its positions counted from the pool's origin like WebGPU's. */
+/** The WGSL step texel by texel: the slot's particle, or the record the ring gives it this image,
+ *  moved when alive; the half of it this texel holds is written. */
 const PARTICLES_GLSL = `#version 300 es
 precision highp float;
 precision highp int;
@@ -39,44 +40,31 @@ void main() {
   color = (t & 1) == 0 ? p : v;
 }`;
 
-type PoolState = { targets: [WebglRenderTarget, WebglRenderTarget]; staged: WebGLTexture };
+type PoolState = { targets: [WebglRenderTarget, WebglRenderTarget]; staged: WebglRenderTarget };
 
 /**
  * The WebGL2 particle step: each pool's state in two 32-bit float targets drawn in turn by one
- * full-screen pass over the rows its emitted slots fill, which reads the other target and the
- * pool's staged records, uploaded as 32-bit float texels up to the image's count. A pool's
- * targets are made the first time it moves, given back the image after the world lets it go,
- * and rebuilt after a lost context. Ages, positions and velocities keep the WebGPU step's 32
- * bits: a context without `EXT_color_buffer_float` refuses every pool by name, never steps it
- * with less. The pass leaves no framebuffer, program or vertex array bound.
+ * full-screen pass over the rows its emitted slots fill, reading the other target and the
+ * pool's records staged as 32-bit float texels. Its targets are made the first time a pool
+ * moves, given back the image after the world lets it go, and rebuilt after a lost context. A
+ * context without `EXT_color_buffer_float` refuses every pool by name, never steps it with less.
+ * The pass leaves no framebuffer, program or vertex array bound.
  */
 export function createWebglParticles(gl: WebGL2RenderingContext) {
-  const floatTargets = () => !!gl.getExtension('EXT_color_buffer_float');
-  const supported = floatTargets();
   /** Each pool's targets, made on the live context and lost with it. */
   const poolStates = () =>
     createPoolStates<PoolState>(
       (pool) => {
-        const rows = Math.ceil(pool.capacity / PARTICLE_ROW),
-          target = () => createWebglRenderTarget(gl, TEXELS, rows, { depth: false, float: true });
-        const staged = gl.createTexture()!;
-        bindWebglTexture(gl, 1, staged);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-        const stagedRows = Math.ceil(pool.emitPerFrame / PARTICLE_ROW);
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, TEXELS, stagedRows, 0, gl.RGBA, gl.FLOAT, null);
-        return { targets: [target(), target()], staged };
+        const target = (records: number) =>
+          createWebglRenderTarget(gl, TEXELS, Math.ceil(records / PARTICLE_ROW), FLOAT);
+        const [read, write, staged] = [pool.capacity, pool.capacity, pool.emitPerFrame].map(target);
+        return { targets: [read, write], staged };
       },
-      ({ targets, staged }) => {
-        for (const target of targets) target.dispose();
-        gl.deleteTexture(staged);
-      },
+      ({ targets, staged }) => [...targets, staged].forEach((target) => target.dispose()),
     );
   const held = boundToContext(
     gl,
     () => {
-      // A restored context starts with no extension enabled: the targets need it again.
-      floatTargets();
       const program = createWebglProgram(gl, FULLSCREEN_VERTEX, PARTICLES_GLSL);
       const at = (name: string) => gl.getUniformLocation(program, name);
       gl.useProgram(program);
@@ -97,9 +85,6 @@ export function createWebglParticles(gl: WebGL2RenderingContext) {
     const full = Math.floor(count / PARTICLE_ROW),
       rest = count % PARTICLE_ROW,
       { FLOAT, RGBA, TEXTURE_2D } = gl;
-    // Records as they are: an image texture's upload may have left flipping or premultiplying on.
-    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
-    gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
     if (full) gl.texSubImage2D(TEXTURE_2D, 0, 0, 0, TEXELS, full, RGBA, FLOAT, pool.staging, 0);
     if (rest) {
       const from = full * PARTICLE_ROW * PARTICLE_FLOATS;
@@ -110,7 +95,9 @@ export function createWebglParticles(gl: WebGL2RenderingContext) {
     /** Steps `pools`; returns the draws made. Throws `PARTICLES_UNSUPPORTED`, the pools refused,
      *  on a context without 32-bit float targets. */
     run(pools: readonly ParticlePool[]) {
-      if (!supported) {
+      const live = held.current();
+      if (!live) return 0;
+      if (!floatTargets(gl)) {
         for (const pool of pools) pool.refused = true; // it asks no frame of its own
         if (!pools.length) return 0;
         throw new Error(
@@ -118,8 +105,6 @@ export function createWebglParticles(gl: WebGL2RenderingContext) {
             'does not grant EXT_color_buffer_float',
         );
       }
-      const live = held.current();
-      if (!live) return 0;
       let draws = 0;
       for (const pool of pools) {
         const { first, count, dt } = pool.flush();
@@ -129,8 +114,11 @@ export function createWebglParticles(gl: WebGL2RenderingContext) {
           setFullscreenPassState(gl);
           gl.useProgram(live.program);
           gl.bindVertexArray(live.vao);
+          // Records as they are: an image upload may have left flipping or premultiplying on.
+          gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+          gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
         }
-        bindWebglTexture(gl, 1, staged);
+        bindWebglTexture(gl, 1, staged.texture);
         if (count) upload(pool, count);
         // Read the last state, write the other target over the rows emitted into; then swap.
         gl.bindFramebuffer(gl.FRAMEBUFFER, targets[1].framebuffer);

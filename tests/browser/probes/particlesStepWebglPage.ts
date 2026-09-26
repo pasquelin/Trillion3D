@@ -1,7 +1,5 @@
-// Page side of the WebGL2 particle proof (#759): the engine's own step (`createWebglParticles`)
-// on a real WebGL2 context: two images of a pool ten kilometres from the world origin, then a
-// 60 s life stepped at 144 Hz until its pool is idle. Only this page reads the state back, from
-// the target each image drew into.
+// Page side of the WebGL2 particle proof (#759): the engine's own step on a real context, its
+// state read back from the target each image drew into.
 import { ParticlePool } from '../../../packages/sdk-core/src/fluids/particles.ts';
 import { createWebglParticles } from '../../../packages/sdk-browser/src/particles/webglParticles.ts';
 
@@ -26,7 +24,6 @@ export function executer() {
     const state = new Float32Array(slots * 8); // two texels a slot
     gl.bindFramebuffer(gl.FRAMEBUFFER, drawnInto);
     gl.readPixels(0, 0, 2 * slots, 1, gl.RGBA, gl.FLOAT, state);
-    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     return Array.from(state);
   };
   const images = [0, 1].map(() => {

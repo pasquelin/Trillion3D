@@ -37,10 +37,9 @@ export type ComposedChain = { chain: EffectChain; shown: () => boolean };
  * (`../../effects/webglEffects.ts`); the copy kept is the chain's image, and a chain changed
  * since it was kept is drawn again. The page's `guides` are drawn over the image the destination
  * got, the chain's included, before that copy is kept, at the host's `pixelRatio`; a change to
- * them spares no redraw. The world's `particles` step on every image an engine draws here, and
- * an image one of them moved in is drawn, never the kept copy; a context that renders no 32-bit
- * float refuses them by name (`../../particles/webglParticles.ts`). Nothing here belongs to a
- * rendering library.
+ * them spares no redraw. The world's `particles` step on every image drawn here, and an image
+ * they moved in is drawn, never the kept copy (`../../particles/webglParticles.ts`).
+ * Nothing here belongs to a rendering library.
  */
 export function createFrameComposer(
   gl: WebGL2RenderingContext,
@@ -113,8 +112,7 @@ export function createFrameComposer(
     const { width, height } = bindWebglTarget(gl, target);
     if (present(backend)) return;
     const moved = anyMoving(particles);
-    // Made by the first pool, the step then runs with none left too: it frees a released
-    // pool's targets. It binds its own: the destination is bound again after it.
+    // Made by the first pool, then run with none left too: it frees a released pool's targets.
     if (particles.length) stepped ??= createWebglParticles(gl);
     if (stepped?.run(particles)) bindWebglTarget(gl, target);
     const revision = composed?.chain.revision ?? 0;

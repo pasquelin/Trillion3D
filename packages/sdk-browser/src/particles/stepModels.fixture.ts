@@ -1,16 +1,30 @@
 /**
- * CPU models of the two particle steps (#759), for the fast tests: each runs its shader's
- * arithmetic, in 32-bit floats, on exactly what its step handed the GPU — the WebGPU step's
- * words and records, the WebGL2 step's uniforms, texels and viewport — and keeps its state as
- * the GPU would: 32-bit storage, or two 32-bit float targets in turn. What the GPU itself does
- * is the measurer's (`tests/browser/probes/particles-step-*.ts`).
+ * CPU models of the two particle steps (#759) for the fast tests: each runs its shader's
+ * arithmetic in 32-bit floats on exactly what its step handed the GPU, and keeps its state as the
+ * GPU would. What the GPU itself does is the measurer's (`tests/browser/probes/particles-step-*`).
  */
-import { PARTICLE_FLOATS } from '../../../sdk-core/src/fluids/particles.ts';
+import { PARTICLE_FLOATS, type ParticlePool } from '../../../sdk-core/src/fluids/particles.ts';
 import { written, type FakeWrite } from '../../../../tests/kit/gpu/fakeDevice.ts';
+import { createTestContext } from '../webgl/core/testContext.fixture.ts';
 import { PARTICLE_WORKGROUP } from './webgpuParticles.ts';
-import { PARTICLE_ROW } from './webglParticles.ts';
+import { PARTICLE_ROW, createWebglParticles } from './webglParticles.ts';
 
 const f = Math.fround;
+
+/** A context granting the `granted` extensions, and a `run` of its WebGL2 step that answers the
+ *  draws made and the calls it made, by name. */
+export function webgl(granted = ['EXT_color_buffer_float']) {
+  const getExtension = (name: string) => (granted.includes(name) ? {} : null);
+  const ctx = createTestContext({ answers: { getExtension } }),
+    particles = createWebglParticles(ctx.gl);
+  const run = (pools: ParticlePool[]) => {
+    const from = ctx.calls.length,
+      draws = particles.run(pools),
+      calls = ctx.calls.slice(from);
+    return { draws, of: (name: string) => calls.filter((c) => c.name === name).map((c) => c.args) };
+  };
+  return { ctx, run };
+}
 
 /** Both shaders' body for slot `i`, `ring` their uniforms (first slot, count, capacity, then
  *  acceleration and `dt`): the record `k < count` from `staged`, or its particle in `state`,
@@ -49,8 +63,7 @@ export function webgpuModel(capacity: number) {
   };
 }
 
-/** The WebGL2 step as `PARTICLES_GLSL` runs it: both texels of each slot in the viewport, read
- *  from one target and written to the other; past the ring, a slot stays zero. */
+/** The WebGL2 step as `PARTICLES_GLSL` runs it, from one target into the other. */
 export function webglModel(capacity: number) {
   const texels = 2 * PARTICLE_ROW,
     size = Math.ceil(capacity / PARTICLE_ROW) * texels * 4;
@@ -58,8 +71,7 @@ export function webglModel(capacity: number) {
   const staged = new Float32Array(size);
   return {
     particle: (i: number) => [...read.subarray(i * PARTICLE_FLOATS, (i + 1) * PARTICLE_FLOATS)],
-    /** One draw, from the calls it made by name: its texel uploads, `uStep` and `uRing`, and
-     *  the rows of its viewport. */
+    /** One draw, from its texel uploads, `uStep`, `uRing` and viewport rows, by name. */
     step(of: (name: string) => unknown[][]) {
       const ring = [...of('uniform3i')[0].slice(1), ...of('uniform4f')[0].slice(1)] as number[],
         rows = (of('viewport').at(-1) as number[])[3];
@@ -72,22 +84,4 @@ export function webglModel(capacity: number) {
       [read, write] = [write, read];
     },
   };
-}
-
-/** An encoder that records its compute passes and their dispatches. */
-export function computeRecorder() {
-  const passes: { label?: string; dispatches: number[] }[] = [];
-  const encoder = {
-    beginComputePass: ({ label }: GPUComputePassDescriptor) => {
-      const pass = { label, dispatches: [] as number[] };
-      passes.push(pass);
-      return {
-        setPipeline() {},
-        setBindGroup() {},
-        dispatchWorkgroups: (x: number) => void pass.dispatches.push(x),
-        end() {},
-      };
-    },
-  } as unknown as GPUCommandEncoder;
-  return { encoder, passes };
 }

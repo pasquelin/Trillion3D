@@ -5,7 +5,7 @@ export const usedSlots = (pool: ParticlePool) => Math.min(pool.capacity, pool.em
 
 const moving = (pool: ParticlePool) => pool.moving;
 /** True while one of `pools` moves: the image changes, and is not held. */
-export const anyMoving = (pools: readonly ParticlePool[]) => pools.some(moving);
+export const anyMoving = (pools?: readonly ParticlePool[]) => !!pools?.some(moving);
 
 /**
  * Each pool's GPU state on one renderer, the part the WebGPU and WebGL2 steps share: `of` makes
