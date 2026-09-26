@@ -10,6 +10,7 @@
 #include <Jolt/Physics/Collision/Shape/CapsuleShape.h>
 #include <Jolt/Physics/Collision/Shape/ConvexHullShape.h>
 #include <Jolt/Physics/Collision/Shape/CylinderShape.h>
+#include <Jolt/Physics/Collision/Shape/OffsetCenterOfMassShape.h>
 #include <Jolt/Physics/Collision/Shape/SphereShape.h>
 #include <Jolt/Physics/Collision/Shape/StaticCompoundShape.h>
 #include <Jolt/Physics/Collision/Shape/TaperedCylinderShape.h>
@@ -84,14 +85,26 @@ RefConst<Shape> compoundShape(const uint32_t *data, uint32_t words) {
 
 RefConst<Shape> shapeOf(const uint32_t *w) {
   uint32_t motion = w[2], kind = w[4];
+  if (kind <= CYLINDER || kind == COOKED) {
+    // A cooked shape: its handle is its first data word, `a, b, c` its scale. The words past it
+    // (a primitive's all) are its mass frame, whose centre of mass the shape turns about.
+    uint32_t cooked = kind == COOKED, frame = w[24] - cooked;
+    if (w[24] < cooked || (frame != 0 && frame != 3 && frame != 12)) return nullptr;
+    RefConst<Shape> shape = cooked ? cookedShape(w[ADD_WORDS], vec3(w + 13))
+                                   : primitive(kind, f32(w + 13), f32(w + 14), f32(w + 15));
+    if (!shape || !frame) return shape;
+    return new OffsetCenterOfMassShape(shape, vec3(w + ADD_WORDS + cooked) - shape->GetCenterOfMass());
+  }
   // A mesh has no volume: only a body that never moves by force may be one (the page refuses it).
-  if (kind <= CYLINDER) return primitive(kind, f32(w + 13), f32(w + 14), f32(w + 15));
-  // A cooked shape: its handle is the one data word, `a, b, c` its scale.
-  if (kind == COOKED) return w[24] == 1 ? cookedShape(w[ADD_WORDS], vec3(w + 13)) : nullptr;
   if (kind == TRIANGLES && motion == 2) return nullptr;
   // A compound's parts are its data words (indexCount counts them, vertexCount is 0).
   if (kind == COMPOUND) return compoundShape(w + ADD_WORDS, w[24]);
   return meshShape(kind, w + ADD_WORDS, w[23], w[24]);
+}
+
+const uint32_t *providedInertia(const uint32_t *w) {
+  uint32_t kind = w[4], cooked = kind == COOKED;
+  return (kind <= CYLINDER || cooked) && w[24] == cooked + 12 ? w + ADD_WORDS + cooked + 3 : nullptr;
 }
 
 }  // namespace trillion
