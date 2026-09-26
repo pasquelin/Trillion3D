@@ -87,29 +87,17 @@ fn missing_part_defects(
     defects
 }
 
-/// Both of the above.
-fn extent_defects(
-    objects: &Path,
-    primitive: &Value,
-    positions: &[f32],
-    indices: &[u32],
-) -> Vec<String> {
-    let mut defects = root_defects(objects, primitive, positions, indices);
-    defects.extend(missing_part_defects(objects, primitive, positions, indices));
-    defects
-}
-
-/// The extent defects of a committed site scene's cook, every primitive.
+/// The root cover's and the missing parts' defects of a committed site scene's cook, every
+/// primitive.
 fn site_scene_extent_defects(folder: &str, gltf: &str, tag: &str) -> Vec<String> {
     let scene = cook_site_scene(folder, gltf, tag, "qem-endpoints");
     let mut defects = Vec::new();
     for primitive in scene.result["primitives"].as_array().expect("primitives") {
         let (positions, indices) = (scene.positions(primitive), scene.indices(primitive));
-        defects.extend(extent_defects(
-            &scene.objects,
-            primitive,
-            &positions,
-            &indices,
+        let objects = &scene.objects;
+        defects.extend(root_defects(objects, primitive, &positions, &indices));
+        defects.extend(missing_part_defects(
+            objects, primitive, &positions, &indices,
         ));
     }
     let _ = fs::remove_dir_all(&scene.root);
