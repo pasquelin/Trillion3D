@@ -70,14 +70,10 @@ export function sizeShadowPool(rt: WebgpuPagesRuntime) {
     wanted = shadowPoolSize(viewport[0], viewport[1], casters),
     // One layer as wide as the device draws: a pool that fits it is one pass a batch, as before.
     layerSide = Math.floor(device.limits.maxTextureDimension2D / SHADOW_PAGE),
-    shape = shadowPoolShape(wanted, layerSide),
-    asked = Math.min(shadowAtlasBytes(shape.side, shape.layers), SHADOW_ATLAS_BYTES);
-  const granting = grantedShadowPool(
-    device,
-    asked,
-    shadowPoolFor(wanted, layerSide),
-    diag.engineDiagnostic,
-    (pool) => atlas.makePool(pool.side, pool.layers),
+    rule = shadowPoolFor(wanted, layerSide),
+    asked = rule(SHADOW_ATLAS_BYTES).allocatedBytes;
+  const granting = grantedShadowPool(device, asked, rule, diag.engineDiagnostic, (pool) =>
+    atlas.makePool(pool.side, pool.layers),
   );
   const done = granting.then(
     (granted) => {
@@ -95,7 +91,7 @@ export function sizeShadowPool(rt: WebgpuPagesRuntime) {
       }
       // A session closed, or a device lost, while the device answered keeps nothing.
       if (run.lost || rt.signal.aborted || lights.shadows !== atlas) return granted.made.destroy();
-      const { side, layers, clamp } = granted.pool;
+      const { side, layers, clamp, allocatedBytes } = granted.pool;
       if (side !== lights.plan.pool.side || layers !== lights.plan.pool.layers) {
         const before = lights.plan;
         lights.plan = createShadowPlan(side, layers);
@@ -110,7 +106,7 @@ export function sizeShadowPool(rt: WebgpuPagesRuntime) {
         side,
         layers,
         pages: lights.plan.pool.pages,
-        bytes: shadowAtlasBytes(side, layers),
+        bytes: allocatedBytes,
         clamp,
       });
       run.gate.resourcesChanged();

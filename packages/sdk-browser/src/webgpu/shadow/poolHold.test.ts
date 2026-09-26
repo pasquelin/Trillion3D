@@ -3,10 +3,7 @@
 // presented image lacks the shadow pass while a light casts.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {
-  shadowPoolSize as pages,
-  shadowPoolShape,
-} from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
+import { shadowPoolSide } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { SUN } from '../../../../sdk-core/src/scene/light-shadow/lightShadow.fixture.ts';
 import { refusingDevice } from './poolDevice.fixture.ts';
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
@@ -23,7 +20,7 @@ import type { HostCamera } from '../../camera/world.ts';
 function frames(limit = Infinity) {
   installGpuGlobals();
   const rt = settledRt();
-  const lights = createWebgpuLightState(shadowPoolShape(pages(300, 150)).side);
+  const lights = createWebgpuLightState(shadowPoolSide(300, 150));
   let texture: object | undefined;
   const gpu = refusingDevice(limit, { queue: { onSubmittedWorkDone: async () => {} } });
   lights.shadows = {
@@ -83,7 +80,7 @@ test('no presented frame lacks the shadow pass while a light casts', async () =>
 });
 
 test('a refused pool is held for, then drawn smaller with its shadows', async () => {
-  const s = frames((shadowPoolShape(pages(1280, 720)).side * 128) ** 2);
+  const s = frames((shadowPoolSide(1280, 720) * 128) ** 2);
   for (let i = 0; i < 2; i++) await s.frame();
   assert.deepEqual(s.said, ['gpu-out-of-memory', 'shadow-pool']);
   assert.deepEqual(s.shown, [true], 'the smaller pool still draws the shadow pass');
