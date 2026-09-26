@@ -178,7 +178,7 @@ export function createPhysicsSession(
       return new Promise<Uint32Array>((resolve) => casts.set(id, resolve));
     },
     /** The model a tile body's engine id belongs to, or the mesh a body's names, or `null`. */
-    objectOf: (id: number) => tiles.modelOf(id) ?? bodies.meshOf(id),
+    objectOf: bodies.slots.objectOf,
     /** The engine id of `node`'s body; -1 while it is not simulated. */
     engineIdOf: (node: Object3D) => engineIdOf(bodies, node),
     /** The glTF material of a tile body's triangles, `-1` for any other body. */
