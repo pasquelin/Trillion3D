@@ -1,7 +1,7 @@
 //! Closed solids built in code for the compiler's tests (#484): boxes and octagonal 0.12 m logs,
 //! each a closed part whose faces point away from its centre, with the normals an exporter writes,
-//! and the one-node fixture that cooks them. The chalet of #415 is a committed scene instead
-//! (`scripts/docs/examples/chalet.ts`).
+//! and the one-node fixture that cooks them. The chalet of #415 is a committed scene instead,
+//! built of the same parts by `scripts/docs/examples/closed-parts.ts`: keep the two in step.
 use super::silhouette::Mesh;
 use super::*;
 
@@ -126,9 +126,9 @@ pub(super) fn push_log(mesh: &mut Mesh, axis: usize, start: [f32; 3], length: f3
     push_part(mesh, &triangles, centre);
 }
 
-/// One node drawing every mesh as a primitive of its own material, positions and normals as `f32`.
-pub(super) fn mesh_fixture(tag: &str, meshes: &[Mesh]) -> (PathBuf, Options) {
-    let (mut buffer, mut primitives) = (GltfBuffer::default(), vec![]);
+/// One node drawing `mesh` as one primitive, positions and normals as `f32`.
+pub(super) fn mesh_fixture(tag: &str, mesh: &Mesh) -> (PathBuf, Options) {
+    let mut buffer = GltfBuffer::default();
     let vec3 = |points: &[[f64; 3]]| -> Vec<u8> {
         points
             .iter()
@@ -136,35 +136,30 @@ pub(super) fn mesh_fixture(tag: &str, meshes: &[Mesh]) -> (PathBuf, Options) {
             .flat_map(|&v| (v as f32).to_le_bytes())
             .collect()
     };
-    for (material, mesh) in meshes.iter().enumerate() {
-        let count = mesh.positions.len();
-        let (min, max) = (0..3).fold((vec![], vec![]), |(mut lo, mut hi), a| {
-            let values = mesh.positions.iter().map(|p| p[a] as f32);
-            lo.push(values.clone().fold(f32::INFINITY, f32::min));
-            hi.push(values.fold(f32::NEG_INFINITY, f32::max));
-            (lo, hi)
-        });
-        let position = buffer.push(
-            vec3(&mesh.positions),
-            json!({"componentType":5126,"type":"VEC3","count":count,"min":min,"max":max}),
-        );
-        let normal = buffer.push(
-            vec3(&mesh.normals),
-            json!({"componentType":5126,"type":"VEC3","count":count}),
-        );
-        let indices = mesh.indices.iter().flat_map(|v| v.to_le_bytes()).collect();
-        let index = buffer.push(
-            indices,
-            json!({"componentType":5125,"type":"SCALAR","count":mesh.indices.len()}),
-        );
-        primitives.push(json!({"attributes":{"POSITION":position,"NORMAL":normal},"indices":index,"material":material}));
-    }
-    let materials: Vec<Value> = meshes
-        .iter()
-        .map(|_| json!({"pbrMetallicRoughness":{"metallicFactor":0.0}}))
-        .collect();
+    let count = mesh.positions.len();
+    let (min, max) = (0..3).fold((vec![], vec![]), |(mut lo, mut hi), a| {
+        let values = mesh.positions.iter().map(|p| p[a] as f32);
+        lo.push(values.clone().fold(f32::INFINITY, f32::min));
+        hi.push(values.fold(f32::NEG_INFINITY, f32::max));
+        (lo, hi)
+    });
+    let position = buffer.push(
+        vec3(&mesh.positions),
+        json!({"componentType":5126,"type":"VEC3","count":count,"min":min,"max":max}),
+    );
+    let normal = buffer.push(
+        vec3(&mesh.normals),
+        json!({"componentType":5126,"type":"VEC3","count":count}),
+    );
+    let indices = mesh.indices.iter().flat_map(|v| v.to_le_bytes()).collect();
+    let index = buffer.push(
+        indices,
+        json!({"componentType":5125,"type":"SCALAR","count":mesh.indices.len()}),
+    );
+    let primitive =
+        json!({"attributes":{"POSITION":position,"NORMAL":normal},"indices":index,"material":0});
     let gltf = json!({"asset":{"version":"2.0"},"buffers":[{"uri":format!("{tag}.bin"),"byteLength":buffer.bin.len()}],
-        "bufferViews":buffer.views,"accessors":buffer.accessors,"meshes":[{"primitives":primitives}],"nodes":[{"mesh":0}],
-        "scenes":[{"nodes":[0]}],"scene":0,"materials":materials});
+        "bufferViews":buffer.views,"accessors":buffer.accessors,"meshes":[{"primitives":[primitive]}],"nodes":[{"mesh":0}],
+        "scenes":[{"nodes":[0]}],"scene":0,"materials":[{"pbrMetallicRoughness":{"metallicFactor":0.0}}]});
     gltf_fixture(tag, &gltf, &buffer.bin)
 }

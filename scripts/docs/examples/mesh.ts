@@ -13,6 +13,9 @@ export interface Mesh {
   indices: number[];
 }
 
+/** A mesh with no vertex yet, to push into. */
+export const empty = (): Mesh => ({ positions: [], normals: [], uvs: [], indices: [] });
+
 /** The pairs of flat lists joined, `[a, b], [c, d]` to `[[a, b], [c, d]]`: compact profiles. */
 export function pairs(...lists: readonly (readonly number[])[]) {
   const flat = lists.flat();
@@ -67,7 +70,7 @@ export function fromGeometry(built: Geometry): Mesh {
  * (u, v): a surface a generator cut along a seam, or into loose triangles, shades smooth again.
  */
 export function welded(mesh: Mesh): Mesh {
-  const out: Mesh = { positions: [], normals: [], uvs: [], indices: [] },
+  const out = empty(),
     kept = new Map<string, number>();
   const remap = Array.from({ length: mesh.positions.length / 3 }, (_, v) => {
     const at = mesh.positions.slice(v * 3, v * 3 + 3),
@@ -97,7 +100,7 @@ export function moved(mesh: Mesh, offset: Vec3 = [0, 0, 0], scale: Vec3 = [1, 1,
 /** One mesh of several; texture coordinates survive only when every part has them. */
 export function merge(meshes: readonly Mesh[]): Mesh {
   const withUv = meshes.every(({ uvs }) => uvs.length),
-    merged: Mesh = { positions: [], normals: [], uvs: [], indices: [] };
+    merged = empty();
   for (const mesh of meshes) {
     const base = merged.positions.length / 3;
     // One value at a time: spreading a large array into `push` overflows the call stack.
