@@ -6,7 +6,7 @@ type Node = ReturnType<Families<'object'>['object']['group']>;
  * A robot and its three clips, playing together on one mixer: `walk`, `wave` and `dance`. The
  * robot is a tree of named groups, each joint a group the clips turn; `paint` is its body's
  * material, `actions` the three playing clips by name, whose weights blend them. The caller adds
- * `robot` to its scene.
+ * `robot` to its scene; `walkRound` walks it round a circle.
  */
 export function walkingRobot({
   geometry,
@@ -75,5 +75,11 @@ export function walkingRobot({
   ]);
   const mixer = animation.createMixer(robot);
   const actions = { walk: mixer.play(walk), wave: mixer.play(wave), dance: mixer.play(dance) };
-  return { robot, paint, actions };
+  // Round a circle of `radius` about its parent's origin, facing along it, `heading` radians on.
+  const walkRound = (heading: number, radius: number) => {
+    robot.position.set(Math.sin(heading) * radius, 0, Math.cos(heading) * radius);
+    // All three angles at once: the engine may hand back an equivalent (π, y, π) form past ±90°.
+    robot.rotation.set(0, heading + Math.PI / 2, 0);
+  };
+  return { robot, paint, actions, walkRound };
 }

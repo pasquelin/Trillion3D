@@ -41,37 +41,42 @@
       const world = createWorld('view', { controls: 'orbit', physics: true });
       const say = words();
       // What a backend refuses is said on the world's channel, with its reason: shown, never hidden.
-      diagnostic.createChannel().observe(({ message }) => announce(say('refused'), message));
+      diagnostic.createChannel().observe(({ kind, message }) => {
+        if (/refused|unsupported/.test(kind)) announce(say('refused'), message);
+      });
       world.scene.background = math.color('#bcd3e6');
       world.camera.far = 600;
-      const [, sky, observatory] = await Promise.all([
+      const [valley, sky, observatory] = await Promise.all([
         world.scene.load('../assets/examples/terrain/cache/native/full/manifest.json'),
         fetch('../assets/gallery/signature-architecture/source/sky.json').then((response) => response.json()),
         world.scene.load('../assets/gallery/signature-architecture/cache/native/full/manifest.json'),
       ]);
 
-      // The observatory stands past the valley's far edge (z = -64 m), its floor at that edge's
-      // height. Its scene file carries its sun, which lights the whole world and casts its shadows;
-      // its sky, declared beside its source as a share of that sun, fills what the sun misses.
-      const { min, max } = observatory.bounds;
-      observatory.position.set(-(min.x + max.x) / 2, -min.y, -64 - max.z);
-      const [sun] = observatory.lights;
-      sun.castShadow = true;
-      world.scene.add(light.hemisphere({ ...sky, intensity: sun.intensity * sky.sunShare }));
-
-      // The car of `drive-a-car`, parked on the valley once the physics has streamed it in.
+      // The car of `drive-a-car`, parked on the valley once the physics has streamed it in; the
+      // heights of the valley's far edge and of the plinth's spot are found at the same time.
       const { car, park, chase, groundAt } = vehicles(world, { geometry, material, object, math, vehicle }, { above: 60 });
-      const driven = car();
-      await park(driven, [0, 20]);
+      const driven = car(),
+        start = [0, 20],
+        edge = valley.bounds.min.z,
+        [x, z] = [-24, -10];
+      const [, far, floor] = await Promise.all([park(driven, start), groundAt(0, edge + 1), groundAt(x, z)]);
       world.scene.add(driven.body);
       world.physics.add(driven.driver);
       world.controls.vehicle = driven.driver;
 
+      // The observatory stands past the valley's far edge, its floor at that edge's height found
+      // by the physics. Its scene file carries its sun, which lights the whole world and casts
+      // its shadows; its sky, declared beside its source as a share of that sun, fills the rest.
+      const { min, max } = observatory.bounds;
+      observatory.position.set(-(min.x + max.x) / 2, far - min.y, edge - max.z);
+      const [sun] = observatory.lights;
+      sun.castShadow = true;
+      world.scene.add(light.hemisphere({ ...sky, intensity: sun.intensity * sky.sunShare }));
+
       // A plinth on the valley floor, sunk deep enough to meet every slope under it, its top a
       // checker (a textured material): the stage of the character, the foliage, the panes, the
       // balls in each material and the point light over them.
-      const [x, z] = [-24, -10];
-      const top = (await groundAt(x, z)) + 0.4;
+      const top = floor + 0.4;
       const pixels = new Uint8Array(8 * 8 * 4).map((_, k) => (k % 4 === 3 ? 255 : ((k >> 2) + (k >> 5)) % 2 ? 210 : 110));
       const checks = texture.data(pixels, 8, 8);
       checks.colorSpace = 'srgb';
@@ -85,22 +90,25 @@
       stage.add(light.point({ color: '#ffd9a8', intensity: 60, distance: 14, castShadow: true, position: [0, 5, 0] }));
 
       // The robot walks and waves round the middle, its clips blended on one mixer.
-      const { robot, actions } = walkingRobot({ geometry, material, object, animation });
+      const { robot, actions, walkRound } = walkingRobot({ geometry, material, object, animation });
       actions.dance.weight = 0;
       stage.add(robot);
 
       // A tree: a trunk and a crown of leaves, each one rectangle cut to its outline by `alphaTest`.
       const next = seeded(5);
       const leaf = material.meshStandard({ map: leafTexture({ texture }), alphaTest: 0.5, side: side.double, roughness: 0.6 });
+      const tree = object.group();
+      tree.position.set(5, 0, -3);
+      stage.add(tree);
       const trunk = object.mesh(geometry.cylinder(0.12, 0.2, 3, 12), material.meshStandard({ color: '#6b4a2e', roughness: 0.9 }));
-      trunk.position.set(5, 1.5, -3);
-      stage.add(trunk);
+      trunk.position.y = 1.5;
+      tree.add(trunk);
       const blade = geometry.plane(0.28, 0.6);
       for (let k = 0; k < 150; k++) {
         const one = object.mesh(blade, leaf);
-        one.position.set(5 + (next() - 0.5) * 2.4, 3.4 + (next() - 0.5) * 1.8, -3 + (next() - 0.5) * 2.4);
+        one.position.set((next() - 0.5) * 2.4, 3.4 + (next() - 0.5) * 1.8, (next() - 0.5) * 2.4);
         one.rotation.set(next() * Math.PI, next() * Math.PI * 2, next() * Math.PI);
-        stage.add(one);
+        tree.add(one);
       }
 
       // Two glass panes, blended, each asking for its shadow as dark as it is opaque.
@@ -132,18 +140,18 @@
         rolling = geometry.sphere(0.6, 24, 16);
       const wood = material.meshStandard({ color: '#a8743f', roughness: 0.8 }),
         rubber = material.meshStandard({ color: '#d0453f', roughness: 0.5, physics: 'rubber' });
-      const bodies = Array.from({ length: 16 }, (_, k) => object.mesh(k < 6 ? crate : rolling, k < 6 ? wood : rubber));
-      world.scene.add(...bodies);
-      const drop = () =>
-        bodies.forEach((body, k) => {
-          if (k < 6) body.position.set(x - 6.5 + next() * 2, top + 5 + k, z + 1 + next() * 3);
-          else body.position.set((next() - 0.5) * 90, 30, (next() - 0.5) * 90);
-          body.physics = 'dynamic';
-        });
+      const crates = Array.from({ length: 6 }, () => object.mesh(crate, wood)),
+        balls = Array.from({ length: 10 }, () => object.mesh(rolling, rubber));
+      world.scene.add(...crates, ...balls);
+      const drop = () => {
+        crates.forEach((body, k) => body.position.set(x - 6.5 + next() * 2, top + 5 + k, z + 1 + next() * 3));
+        balls.forEach((body) => body.position.set((next() - 0.5) * 90, 30, (next() - 0.5) * 90));
+        for (const body of [...crates, ...balls]) body.physics = 'dynamic';
+      };
       drop();
 
       // `drive` hands the keyboard to the car and the camera to its chase; `reset` parks it again.
-      const ui = controls({ drive: false, drop, reset: () => park(driven, [0, 20]) }, ({ drive }) => {
+      const ui = controls({ drive: false, drop, reset: () => park(driven, start) }, ({ drive }) => {
         world.controls.kind = drive ? 'vehicle' : 'orbit';
       }, world);
       physicsReadouts(world, ['bodies', 'step']);
@@ -154,10 +162,8 @@
       let heading = 0;
       world.beforeFrame(({ delta }) => {
         heading = (heading + delta * 0.35) % (Math.PI * 2);
-        robot.position.set(Math.sin(heading) * 2.4, 0, Math.cos(heading) * 2.4);
-        robot.rotation.set(0, heading + Math.PI / 2, 0);
+        walkRound(heading, 2.4);
         if (ui.drive) chase(driven, delta);
-        world.invalidate();
       });
 
       // The path drawing the world, and what it refuses of the scene file's lights, with why.

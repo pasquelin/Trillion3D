@@ -55,7 +55,7 @@ test('the leaf and the matcap balls are painted to the byte as their pages paint
 });
 
 test('the robot is its named joints, and plays its three clips at once', () => {
-  const { robot, paint, actions } = walkingRobot(engine);
+  const { robot, paint, actions, walkRound } = walkingRobot(engine);
   const names: string[] = [];
   robot.traverse((node) => void (node.name && names.push(node.name)));
   assert.deepEqual(names, ['hips', 'head', 'armL', 'armR', 'legL', 'legR']);
@@ -73,6 +73,10 @@ test('the robot is its named joints, and plays its three clips at once', () => {
   // Hips and head, two eyes, and a bone and a hand on each limb; the paint is the body's.
   assert.equal(meshes, 12);
   assert.equal(paint.color.getHexString(), 'f2b134');
+  // A quarter of the way round a 2 m circle: on +x, facing along the circle.
+  walkRound(Math.PI / 2, 2);
+  assert.deepEqual(robot.position.toArray().map(Math.round), [2, 0, 0]);
+  assert.equal(robot.rotation.y, Math.PI);
 });
 
 test('the vehicles park on the ground, shaped as they are drawn, the camera behind', async () => {
@@ -124,17 +128,16 @@ test('a vehicle with no ground below it fails by name', async (t) => {
 test('the pages build their pieces with the kit and keep no copy', () => {
   const page = (name: string) =>
     readFileSync(new URL(`../site/examples/${name}.html`, import.meta.url), 'utf8');
+  // #799: the health check gathers all four.
   for (const [name, piece, copy] of [
     ['drive-a-car', 'vehicles', 'chassis'],
     ['a-robot-that-walks-and-waves', 'walkingRobot', 'animation.clip('],
     ['leaves-cut-by-alpha', 'leafTexture', 'createImageData'],
     ['a-matcap-sculpture', 'matcapBall', 'createImageData'],
-    // #799: the health check gathers all four.
-    ['health-check', 'vehicles', 'chassis'],
-    ['health-check', 'walkingRobot', 'animation.clip('],
-    ['health-check', 'leafTexture', 'createImageData'],
-    ['health-check', 'matcapBall', 'createImageData'],
-  ]) {
+  ].flatMap(([name, piece, copy]) => [
+    [name, piece, copy],
+    ['health-check', piece, copy],
+  ])) {
     const source = page(name);
     assert.match(
       source,
