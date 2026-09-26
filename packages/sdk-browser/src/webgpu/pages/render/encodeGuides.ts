@@ -41,6 +41,7 @@ export function encodeWebgpuGuides(
     depthView,
     cam,
     targetSize,
+    rt.setup.pixelRatio(),
     jitter,
   );
   if (drawn) rt.run.gpuDrawCalls++;

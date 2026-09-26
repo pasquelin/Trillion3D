@@ -19,6 +19,8 @@ type Inputs = {
   check: () => void;
   /** Places the cells of a partitioned scene the camera now needs, before the frame draws. */
   followCells: (() => void) | null;
+  /** The page's guides: those that follow a node are moved to it, before the frame draws. */
+  guides?: { follow(): void };
   state: ExplorerHostState;
   camera: HostCamera;
   lookAtTarget: { x: number; y: number; z: number };
@@ -59,6 +61,7 @@ export function createExplorerRender(session: ExplorerRenderSession, inputs: Inp
   const {
     check,
     followCells,
+    guides,
     state,
     camera,
     lookAtTarget,
@@ -95,6 +98,7 @@ export function createExplorerRender(session: ExplorerRenderSession, inputs: Inp
     // outside the frame they would have lengthened.
     streaming.arrivals.open();
     followCells?.();
+    guides?.follow();
     const arrivalStart = performance.now();
     streaming.arrivals.drain();
     (state.active as HostCpuProfile).cpuStep?.('arrivalsMs', performance.now() - arrivalStart);
