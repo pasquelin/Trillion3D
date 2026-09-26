@@ -6,7 +6,7 @@ import { createWebgpuRowSlots } from './slots.ts';
 import { rowHasGeometry } from './pageRow.ts';
 import { awaitsPageBytes } from './pageSlots.ts';
 import { createBlendCasterRows } from './blendCasters.ts';
-import type { FrameBudget } from '../../page/integration/frameBudget.ts';
+import type { FrameClock } from '../../page/integration/frameBudget.ts';
 
 type Rows = ReturnType<typeof createWebgpuRowState>;
 type Mirror = ReturnType<typeof createWebgpuResidencyMirror>;
@@ -26,7 +26,7 @@ export function createWebgpuRowSync(
   /** Called when a blended caster's row is written again with another coverage. */
   onCoverageChange: (rec: PageRec) => void = () => {},
   /** The frame's one integration budget the owed records spend from (`claims.ts`). */
-  budget?: FrameBudget,
+  budget?: FrameClock,
 ) {
   const slots = createWebgpuRowSlots(
     rows,

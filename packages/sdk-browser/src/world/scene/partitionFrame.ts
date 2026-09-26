@@ -46,8 +46,8 @@ type Inputs = {
   streamer: Streamer;
   camera: HostCamera;
   active: () => RenderBackend;
-  /** The frame's one integration budget, the arrival queue's: cells spend from it before the
-   *  drain spends the rest. */
+  /** The session's one integration budget per frame (`BackendContext.frameBudget`): cells spend
+   *  from it before the arrival drain and the engine's row records spend the rest. */
   budget: FrameBudget;
   /** Asked once the camera's reach, or a parent's stretch, outgrew the rows sized at open on an
    *  engine that grows no buffer in place: the owner opens the session again, sized for it.

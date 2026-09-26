@@ -5,6 +5,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createExplorerRender } from './render.ts';
+import { createFrameBudget } from '../../page/integration/frameBudget.ts';
 import { createDiagnosticChannel } from '../../diagnostic/channel.ts';
 import type { RenderBackend } from '../../backend/types.ts';
 import type { FrameMetrics } from '../../../../sdk-core/src/index.ts';
@@ -38,7 +39,7 @@ function harness(options: { directGpu: boolean; counted?: number | null; order?:
     lookAtTarget: { x: 0, y: 0, z: 0 },
     setPose: () => {},
     streaming: { arrivals: { drain: () => {} } } as never,
-    frameBudget: { open: () => 0, admits: () => true, spend() {} },
+    frameBudget: createFrameBudget(Infinity),
     drawBackend: () => options.order?.push('draw'),
     ensureTarget: ((target?: unknown) => target) as never,
     directGpu: options.directGpu,

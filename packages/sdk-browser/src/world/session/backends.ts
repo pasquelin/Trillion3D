@@ -24,7 +24,7 @@ type Inputs = {
   backends: RenderBackend[];
   /** Manifest url base: that is what locates the resident-proxy cache object. */
   base: string;
-  /** The session's one integration budget per frame. */ frameBudget: BackendContext['frameBudget'];
+  frameBudget?: BackendContext['frameBudget'];
 };
 
 export async function prepareExplorerBackends(session: ExplorerSession, inputs: Inputs) {

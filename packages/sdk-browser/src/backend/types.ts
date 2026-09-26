@@ -193,9 +193,7 @@ export interface BackendContext {
   /** Host-owned, validated page reader for the initial complete GPU fallback. */
   readPage?: (url: string) => Promise<Uint32Array>;
   readGeometryPage?: (url: string) => Promise<Uint8Array>;
-  /** The session's one integration budget per frame (CONTRIBUTING.md §Streaming rule 4): its
-   *  frame opens it, the cells and the arrival drain spend from it, then the engine's own
-   *  per-frame integration. Absent — an engine driven with no session frame —, nothing bounds it. */
+  /** The session's one integration budget per frame (`frameBudget.ts`); absent, nothing bounds it. */
   frameBudget?: import('../page/integration/frameBudget.ts').FrameClock;
 }
 export type BackendFactory = (context: BackendContext) => RenderBackend;
