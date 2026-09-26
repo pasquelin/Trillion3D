@@ -25,16 +25,21 @@ function across(a: Part, b: Part, axis: number) {
   if (b1 - b0 < EPSILON) return a0 + EPSILON < b0 && b0 < a1 - EPSILON;
   return Math.min(a1, b1) - Math.max(a0, b0) > EPSILON;
 }
-/** The parts under `part`'s footprint that reach its base: what carries it. */
-const supports = (part: Part) =>
-  parts.filter(
-    (other) =>
-      other !== part &&
-      across(part, other, 0) &&
-      across(part, other, 2) &&
-      bottom(other) < bottom(part) &&
-      bottom(part) <= top(other) + EPSILON,
-  );
+/** For each part, the parts under its footprint that reach its base: what carries it. */
+const carriers = new Map(
+  parts.map((part) => [
+    part,
+    parts.filter(
+      (other) =>
+        other !== part &&
+        across(part, other, 0) &&
+        across(part, other, 2) &&
+        bottom(other) < bottom(part) &&
+        bottom(part) <= top(other) + EPSILON,
+    ),
+  ]),
+);
+const supports = (part: Part) => carriers.get(part)!;
 
 test('no block of the observatory overlaps another beyond contact', () => {
   const overlaps = blocks.flatMap((a, n) =>
@@ -105,7 +110,12 @@ test("the compiled observatory decodes each block corner's coordinates within 1e
     at.every((c, axis) => c >= min[axis] - 1e-4 && c <= max[axis] + 1e-4);
   const pages = manifest.primitives
     .flatMap((primitive) => primitive.pages)
-    .filter((page) => page.role !== 'coarse' && page.geometry)
+    .filter(
+      (page) =>
+        page.role !== 'coarse' &&
+        page.geometry &&
+        corners.some((at) => holds(page.min, page.max, at)),
+    )
     .map((page) => ({
       page,
       position: decodeGeometryPage(new Uint8Array(readFileSync(join(dir, page.geometry!.url))))
@@ -116,7 +126,14 @@ test("the compiled observatory decodes each block corner's coordinates within 1e
     for (const { page, position } of pages) {
       if (!holds(page.min, page.max, at)) continue;
       for (let i = 0; i < position.length && gap > 1e-4; i += 3)
-        gap = Math.min(gap, Math.max(...at.map((c, axis) => Math.abs(position[i + axis] - c))));
+        gap = Math.min(
+          gap,
+          Math.max(
+            Math.abs(position[i] - at[0]),
+            Math.abs(position[i + 1] - at[1]),
+            Math.abs(position[i + 2] - at[2]),
+          ),
+        );
     }
     assert.ok(gap <= 1e-4, `block corner ${at.join(', ')}: nearest decoded vertex ${gap} m`);
   }
