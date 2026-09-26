@@ -65,7 +65,6 @@ function encoded(pages: number, mode: number, casters: boolean) {
       shadows: { faceGroup: 'faces', faceStride: 256 },
       regions,
       shadowRenderPasses: 0,
-      pageQuads: quads,
     },
   } as unknown as WebgpuPagesRuntime;
   const layer = {
@@ -73,7 +72,7 @@ function encoded(pages: number, mode: number, casters: boolean) {
     passes: [{ label: SHADOW_TRANSMITTANCE_PASS }],
     opaqueGroups: ['opaque'],
   };
-  encodeTransmittance(rt, device, encoder as never, layer as never, false);
+  encodeTransmittance(rt, device, encoder as never, quads, layer as never, false);
   const draws = (calls: Array<[string, unknown[]]>) =>
     calls.filter(([name]) => name === 'draw' || name === 'drawIndirect').length;
   assert.equal(rt.lights.shadowRenderPasses, passes.length);
@@ -87,18 +86,19 @@ test("a transmittance pass's clears do not change when its regions go from 1 to 
     // The static layer's regions are not the layer's: only the pool's pass is.
     [DRAW_FULL, R / 2],
   ] as const)
-    for (const pages of [1, 2, most / 2, most]) {
-      const clears = (casters: boolean) =>
-        encoded(pages, mode, casters).passes.map((calls) => calls.filter(([n]) => n === 'draw'));
-      for (const casters of [true, false])
+    for (const pages of [1, 2, most / 2, most])
+      for (const casters of [true, false]) {
+        const { passes, drawCalls } = encoded(pages, mode, casters);
+        const clears = passes.map((calls) => calls.filter(([n]) => n === 'draw'));
+        const where = `mode ${mode}, ${pages} pages, casters ${casters}`;
         assert.deepEqual(
-          clears(casters).map((draws) => draws.length),
+          clears.map((draws) => draws.length),
           [1],
-          `mode ${mode}, ${pages} pages, casters ${casters}: one clear`,
+          `${where}: one clear`,
         );
-      assert.deepEqual(clears(true)[0][0][1].slice(0, 2), [6, pages], 'every region, once');
-      assert.equal(encoded(pages, mode, false).drawCalls, 1, 'no caster: the clear alone');
-    }
+        assert.deepEqual(clears[0][0][1].slice(0, 2), [6, pages], 'every region, once');
+        if (!casters) assert.equal(drawCalls, 1, 'no caster: the clear alone');
+      }
 });
 
 test('each region draws its list twice at half its page place, after the clear', () => {
