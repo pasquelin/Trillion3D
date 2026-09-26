@@ -44,8 +44,8 @@ export interface ShadowFrameMetrics {
   /** Moving casters the occlusion test found hidden behind the static layer of their page, on
    *  the frame the device last sampled; `null` until a sample has returned. */
   shadowCastersHidden?: number | null;
-  /** What page invalidation produced: pages redrawn by the frame, pages left in
-   *  the queue for lack of budget, and the lag in milliseconds of the oldest of them. Zero
+  /** What page invalidation produced: pages redrawn by the frame, pages left in the queue for
+   *  lack of budget, and how long the oldest out-of-date page the image reads has waited. Zero
    *  everywhere is the normal value of a still scene; `null` on an engine without a shadow atlas. */
   shadowPagesDrawn?: number | null;
   /** Pages drawn since the explorer opened, drains of `flush()` included: what a change cost
@@ -53,7 +53,8 @@ export interface ShadowFrameMetrics {
   shadowPagesTotal?: number | null;
   /** Shadow pages waiting. */
   shadowPagesPending?: number | null;
-  /** How long they waited. */
+  /** How many milliseconds the oldest out-of-date page the image reads has waited to be redrawn.
+   *  Only the time the image reads it counts; 0 once it is redrawn. */
   shadowWaitMs?: number | null;
   /** GPU time of light lists. */
   gpuLightListsMs?: number | null;
