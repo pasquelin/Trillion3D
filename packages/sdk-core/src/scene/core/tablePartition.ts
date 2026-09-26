@@ -99,7 +99,7 @@ export function assertTablePartition(value: unknown): TablePartitionRoot | null 
   if (value === null || value === undefined) return null;
   const root = versioned(CELL_PAGES, value, 'scene partition');
   if (!Array.isArray(root.pages) || root.pages.length !== FAN_OUT)
-    throw new EngineError('INVALID_SCENE_TABLES', 'scene partition misses its root', {});
+    throw new EngineError(CELL_PAGES.invalid, 'scene partition misses its root', {});
   return root as TablePartitionRoot;
 }
 
@@ -172,7 +172,7 @@ export async function readTablePartition(
   );
   const cells = pages.flatMap((page) => page[CELL_PAGES.records] as TableCell[]);
   if (!cells.every((cell) => Array.isArray(cell?.meshes) && Array.isArray(cell.parents)))
-    throw new EngineError('INVALID_SCENE_TABLES', 'scene partition misses its cells', {});
+    throw new EngineError(CELL_PAGES.invalid, 'scene partition misses its cells', {});
   const bounds = [0, 1, 2, 3, 4, 5].map((axis) =>
     (axis < 3 ? Math.min : Math.max)(...slots.map((slot) => slot.bounds[axis])),
   );
