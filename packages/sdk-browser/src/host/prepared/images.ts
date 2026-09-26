@@ -27,7 +27,7 @@ async function element(url: string) {
 
 async function decodeAddress(url: string, signal: AbortSignal | undefined, meter: ByteMeter) {
   if (typeof createImageBitmap !== 'function') return element(url);
-  const response = await checked(url, signal, { credentials: 'same-origin' });
+  const response = await checked(url, signal);
   // Metered once accepted: a refused body is never read, so its length never joins the total.
   return createImageBitmap(await meter.read(response, url).blob(), BITMAP);
 }
