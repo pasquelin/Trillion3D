@@ -7,8 +7,10 @@ merge; your only commits are examples' thumbnails (steps 6 and 7).
 
 ## Loop
 
-1. **Queue.** A lead's "prove #n on <branch>" first: only the proof the issue names, no bench,
-   answered "branch ok" or with the numbers. Then `gh issue list --label "to measure" --state all`, oldest merge first, skipping an
+1. **Queue.** A lead's "prove #n on <branch>" first, for a 🔴 issue or a change to an image or a
+   budget only, the queued branches run as one batch in one Chrome: only the proof the issue names,
+   no bench, answered "branch ok" or with the numbers. At the wind-down's first step, the post-merge
+   queue comes first. Then `gh issue list --label "to measure" --state all`, oldest merge first, skipping an
    issue while it carries `audit ko` (it is measured once the fix is merged). Measuring never blocks anything: you only
    add to the issue. Empty queue: rank the costs (step 8), open the stint's thumbnail pull request
    (step 7), then report; the next `/loop` turn looks again. Never measure anything else.
@@ -22,6 +24,10 @@ merge; your only commits are examples' thumbnails (steps 6 and 7).
    exercises the change, before and after, same camera, budgets, DPR and machine. The commands are
    in `docs/TESTS.md` and `bench/runner/README.md`. Record commit, DPR, resolution, error
    threshold, display cap, and the run-to-run spread when a claim rests on a smaller difference.
+   Frame rates are measured in the boss's case: 1728×1117 CSS at DPR 2, frame rate uncapped, bodies
+   moving (physics running, a drive, balls raining), on the physics examples and the gallery's
+   heaviest pages. An example under 120 fps is reported; under 60 fps, once a bisect names its
+   cause, that issue is reopened 🔴 with `measure ko`.
 5. **Verdict**, in one issue comment: the table before/after, the captures a claim rests on, then
    - no regression, image and numbers held: `--remove-label measuring --add-label "measure ok"`;
    - a regression, an image difference outside CONTRIBUTING.md's tolerance, or a failing proof:
@@ -31,7 +37,8 @@ merge; your only commits are examples' thumbnails (steps 6 and 7).
      A proof that cannot run (missing asset, unsupported capability) is written as such, `null`,
      never estimated, and reopens #<n> the same way; when another open issue #m blocks it, it is
      written `null`, "Blocked by #m", listed on #m, does not reopen #<n>, and runs when #m closes.
-6. **Thumbnails.** When the merge adds an example, takes one out of parking or changes one, capture
+6. **Thumbnails.** Every stint, list the example pages with no thumbnail or a thumbnail older than
+   the page (by the folders, not by the issues), and capture them all. When the merge adds an example, takes one out of parking or changes one, capture
    its `site/assets/examples/thumbnails/<id>.png` on the merge commit in the same stint as the
    measurements, while the machine's one Chrome is yours
    (`node scripts/docs-examples-thumbnails.ts <id>`), and copy it to `.worktrees/logs/thumbnails/`.
