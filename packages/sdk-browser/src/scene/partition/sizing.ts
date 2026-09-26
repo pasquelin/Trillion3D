@@ -36,24 +36,26 @@ function boxGap(a: Box, b: Box) {
   return Math.sqrt(sum);
 }
 
-/** The centre of a box and the radius of the ball around it. */
+/** A box as its ball: the centre, then the radius around it. */
 function ball(box: Box) {
-  const half = [0, 1, 2].map((axis) => (box[axis + 3] - box[axis]) / 2);
-  return {
-    centre: [0, 1, 2].map((axis) => box[axis] + half[axis]),
-    radius: Math.hypot(half[0], half[1], half[2]),
-  };
+  const x = (box[3] - box[0]) / 2,
+    y = (box[4] - box[1]) / 2,
+    z = (box[5] - box[2]) / 2;
+  return [box[0] + x, box[1] + y, box[2] + z, Math.sqrt(x * x + y * y + z * z)];
 }
+type Part = { cell: Sized; box: Box; ball: number[] };
 
 /** Whether two boxes of one parent can both lie within `radius` of one eye of the root's frame. */
 function together(radius: number, stretch: Stretch | null) {
-  if (!stretch) return (a: Box, b: Box) => boxGap(a, b) <= 2 * radius; // the root's own frame
+  // The root's own frame: the boxes themselves.
+  if (!stretch) return (a: Part, b: Part) => boxGap(a.box, b.box) <= 2 * radius;
   const [least, most] = stretch;
-  return (a: Box, b: Box) => {
-    const p = ball(a),
-      q = ball(b);
-    const apart = Math.hypot(...p.centre.map((value, axis) => value - q.centre[axis]));
-    return least * apart <= 2 * radius + Math.sqrt(3) * most * (p.radius + q.radius);
+  return ({ ball: p }: Part, { ball: q }: Part) => {
+    const dx = p[0] - q[0],
+      dy = p[1] - q[1],
+      dz = p[2] - q[2];
+    const apart = Math.sqrt(dx * dx + dy * dy + dz * dz);
+    return least * apart <= 2 * radius + Math.sqrt(3) * most * (p[3] + q[3]);
   };
 }
 
@@ -74,21 +76,19 @@ export function residentRows(
   reach: number,
   stretch: ReadonlyMap<number, Stretch>,
 ) {
-  const groups = new Map<number | null, { cell: Sized; box: Box }[]>();
+  const groups = new Map<number | null, Part[]>();
   for (const cell of cells)
     for (const [rank, box] of cell.parents) {
       const group = groups.get(rank) ?? [];
       groups.set(rank, group);
-      group.push({ cell, box });
+      group.push({ cell, box, ball: ball(box) });
     }
   const rows = new Map<number, number>();
   for (const [rank, parts] of groups) {
     const near = together(reach * (1 + KEEP), rank === null ? null : (stretch.get(rank) ?? [1, 1]));
     const most = new Map<number, number>();
     for (const anchor of parts) {
-      const held = meshTotals(
-        parts.filter((part) => near(anchor.box, part.box)).map((p) => p.cell),
-      );
+      const held = meshTotals(parts.filter((part) => near(anchor, part)).map((p) => p.cell));
       for (const [mesh, nodes] of held) most.set(mesh, Math.max(most.get(mesh) ?? 0, nodes));
     }
     for (const [mesh, nodes] of most) rows.set(mesh, (rows.get(mesh) ?? 0) + nodes);
