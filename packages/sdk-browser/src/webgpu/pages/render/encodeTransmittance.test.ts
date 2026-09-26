@@ -16,6 +16,7 @@ import { SHADOW_TRANSMITTANCE_PASS } from '../../../gpu/shadow/transmittance.ts'
 import { createShadowRegionList } from '../../shadow/regions.ts';
 import { planPagePasses } from '../../shadow/pagePasses.ts';
 import { encodeTransmittance } from './encodeTransmittance.ts';
+import { drawRegionCasters } from './encodeRegionDraws.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import { fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts';
 
@@ -76,7 +77,7 @@ function encoded(pages: number, mode: number, casters: boolean) {
   const draws = (calls: Array<[string, unknown[]]>) =>
     calls.filter(([name]) => name === 'draw' || name === 'drawIndirect').length;
   assert.equal(rt.lights.shadowRenderPasses, passes.length);
-  return { passes, perPass: passes.map(draws), drawCalls: rt.run.gpuDrawCalls, regions };
+  return { passes, perPass: passes.map(draws), drawCalls: rt.run.gpuDrawCalls, regions, rt };
 }
 
 test("a transmittance pass's clears do not change when its regions go from 1 to the maximum", () => {
@@ -127,4 +128,15 @@ test('each region draws its list twice at half its page place, after the clear',
     ...region(2),
     ['end', []],
   ]);
+});
+
+test("the pool's depth pass sets its one pipeline once, whatever its regions", () => {
+  for (const pages of [1, R]) {
+    const { rt } = encoded(pages, DRAW_ALL, false),
+      calls: string[] = [];
+    const pass = new Proxy({}, { get: (_, name: string) => () => void calls.push(name) });
+    const draws = drawRegionCasters(rt, device, pass as never, 0, false, 1, ['depth' as never]);
+    assert.equal(draws, pages);
+    assert.equal(calls.filter((name) => name === 'setPipeline').length, 1, `${pages} pages`);
+  }
 });
