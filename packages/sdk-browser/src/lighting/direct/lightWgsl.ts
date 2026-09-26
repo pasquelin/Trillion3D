@@ -11,22 +11,22 @@ import { LTC_SIZE } from '../../../../sdk-core/src/lighting/ltcTable.ts';
 export const DIRECT_LIGHT_WGSL = `
 const TILE_SIZE:u32=${LIGHT_SETTINGS.tileSize}u;
 /** A tile carries two lists: two header words — the count of each —, the opaque list, then
- *  the blend one, which covers a deeper depth slice. Each list has room for every light the
- *  contract accepts, so a tile never drops one, however many touch it. */
-const MAX_LIGHTS:u32=${LIGHT_SETTINGS.maxLights}u;
-const TILE_STRIDE:u32=${LIGHT_SETTINGS.maxLights * 2 + 2}u;
+ *  the blend one, which covers a deeper depth slice. Each list has room for every slot of the
+ *  light table (\`DirectLights.capacity\`), so a tile never drops a light, however many touch it. */
 const TILE_OPAQUE_BASE:u32=2u;
-const TILE_BLEND_BASE:u32=${LIGHT_SETTINGS.maxLights + 2}u;
+fn tileStride(capacity:u32)->u32{return capacity*2u+2u;}
+fn tileBlendBase(capacity:u32)->u32{return capacity+2u;}
 const POINT_FACES:u32=${POINT_FACES}u;
 const SPOT_EDGE:f32=${LIGHT_SETTINGS.spotEdgeSoftness};
 const KIND_SPOT:f32=${LIGHT_KIND.spot}.0;
 const KIND_SUN:f32=${LIGHT_KIND.directional}.0;
 struct DirectLight{positionRange:vec4f,colorIntensity:vec4f,directionCone:vec4f,params:vec4f,shape:vec4f,}
-/** Every light slot, then the environment's irradiance: nine spherical-harmonic coefficients
- *  (\`packages/sdk-core/src/scene/core/environment.ts\`), zero where the host declared none; its fog,
- *  colour and mode then law (\`packages/sdk-core/src/scene/core/fog.ts\`); then the fitted specular lobe
- *  a rectangle is integrated with, written once (\`ltcTable.ts\`). */
-struct DirectLights{count:u32,pad0:u32,pad1:u32,pad2:u32,items:array<DirectLight,MAX_LIGHTS>,environment:array<vec4f,${ENVIRONMENT_COEFFICIENTS}>,fog:array<vec4f,2>,ltc:array<vec4f,${LTC_SIZE * LTC_SIZE * 2}>,}
+/** The count and the table's slots (\`sceneLightCapacity\`); the environment's irradiance: nine
+ *  spherical-harmonic coefficients (\`packages/sdk-core/src/scene/core/environment.ts\`), zero where
+ *  the host declared none; its fog, colour and mode then law (\`packages/sdk-core/src/scene/core/fog.ts\`);
+ *  the fitted specular lobe a rectangle is integrated with, written once (\`ltcTable.ts\`); then
+ *  every light slot, as many as the scene holds. */
+struct DirectLights{count:u32,capacity:u32,pad1:u32,pad2:u32,environment:array<vec4f,${ENVIRONMENT_COEFFICIENTS}>,fog:array<vec4f,2>,ltc:array<vec4f,${LTC_SIZE * LTC_SIZE * 2}>,items:array<DirectLight>,}
 /** The type rank is a float in the buffer: a single place knows how to reread it. */
 fn isSun(light:DirectLight)->bool{return abs(light.params.x-KIND_SUN)<0.5;}
 /** The range window at \`distance\` from a light's centre: one at the centre, zero at its range. */
