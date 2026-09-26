@@ -335,6 +335,9 @@ function tick() {
 tick();
 ```
 
+`world.render()` runs the frame the world's loop would: clips, physics and `beforeFrame` hooks
+advance with it; only the camera's controller is left to the host.
+
 A value written directly on a node — `mesh.position.x = 100`, `mesh.visible = false`, a light's
 intensity, colour or pose — needs no call to be seen by the next frame, and a light added to or
 removed from the graph is picked up on the next frame too. An asynchronous render failure stops
@@ -989,8 +992,12 @@ as `world.budget.split`:
   reserves its manifest tables (a fixed reckoning per catalogue entry, not a measured heap size)
   and its transfer queue, and the engine's cut tables (group closure, residency readiness, the
   residency sets and the cut's differences), which follow what the view asks for and the pool
-  holds, never the size of the world, and are read each time the cache weighs itself. A change
-  applies at once: pages
+  holds, never the size of the world, and are read each time the cache weighs itself. The scene's
+  resident proxy takes its announced size from the moment it is asked, and keeps it, never
+  evicted by a page, until another scene replaces it or the pages a frame keeps no longer fit
+  beside it: then it yields its bytes to them (`page-cache-kept-yielded`) and is read again after
+  a device loss. It is read on its own request, beside the page queue, and is not counted among
+  the pages read. A change applies at once: pages
   leave by last use until they fit, save those the frame keeps. The default total is the mirror
   plus the cache's own default; a total not above the mirror is refused
   (`CPU_BUDGET_UNDER_SHADOW_MIRROR`).
@@ -1013,7 +1020,10 @@ world.budget.geometryPool = 256 * 1024 * 1024; // the call a memory slider makes
 Reading a pool back gives what the engine holds, not what was asked; a pool write is clamped to
 `world.budget.geometryPoolCeiling` / `texturePoolCeiling` and to what `gpu` leaves beside the
 shadows and the other pool, so the pools never sum past the total — save a total too small for
-their floors (the root cover, one texture layer per lane), which they never go below. Two writes before the next frame
+their floors (the root cover, one texture layer per lane), which they never go below. On WebGPU the
+geometry pool pays first for the vertex buffers held beside its page slots (the float geometry of
+what no page covers, one placeholder vertex at least): `geometryAllocationBytes`, which counts both,
+never passes `geometryPool` above that floor. Two writes before the next frame
 settle in one rebalance. The engine keeps what fits: pages and tiles are copied on the GPU into the
 new pool and only what no longer fits is evicted, so the image stays complete throughout.
 
@@ -1033,6 +1043,7 @@ says the pool is too small for that view). A value that cannot be held as given 
 - a device whose limits cannot hold even the root cover: `GEOMETRY_POOL_DEVICE_LIMIT`;
 - a pool floor the device refuses at prepare: `WEBGPU_GEOMETRY_POOL_REFUSED`,
   `WEBGPU_TEXTURE_POOL_REFUSED`, below;
+- frame targets the device refuses even without Hi-Z: `WEBGPU_FRAME_TARGETS_REFUSED`, below;
 - a texture pool too small for the tails its textures keep resident whole, one tile each: more
   textures in one lane than its layers hold tiles (900 a layer), at prepare or when
   `world.budget.texturePool` shrinks the pool: `TEXTURE_POOL_TAILS`.
@@ -1073,8 +1084,18 @@ is not proven yet.
 
 Frame targets are **not** budgeted: colour, depth, visibility, HDR, material surfaces, Hi-Z, the
 temporal history and a capture follow the resolution, and `gpuFrameTargetBytes` says what they cost.
-Only a size the device cannot make is refused (`SURFACE_DEVICE_LIMIT`). How the pools are laid out,
-filled and rebalanced: [ENGINE.md](ENGINE.md#memory).
+Only a size the device cannot make is refused (`SURFACE_DEVICE_LIMIT`).
+
+Out of memory on the frame targets is absorbed too: they are made under the pools' out-of-memory
+check, at prepare and when the view's size changes, and the frames are held meanwhile with nothing
+presented, so the canvas keeps the previous image; a capture waits. When the device refuses them,
+Hi-Z goes first, for the rest of the session: its absence costs time, never image
+(`gpu-out-of-memory`, `pool: 'frame-targets'`, `dropped: 'hi-z'`). Refused even then, the
+visibility targets included, they are refused by name and the mode is kept, never a lost device:
+`frame-targets-refused` (`code: 'WEBGPU_FRAME_TARGETS_REFUSED'`, `reason: 'gpu-out-of-memory'`, or
+`'gpu-error'` with its `error` when a creation throws, the size, `requestedBytes`); prepare, a
+capture and its restore reject with the code.
+How the pools are laid out, filled and rebalanced: [ENGINE.md](ENGINE.md#memory).
 
 ## Captures and image checks
 
@@ -1251,8 +1272,11 @@ bend }` simulates the mesh's vertices one by one on Jolt's soft bodies. A cloth 
   `restitution`, `gravityScale` and `damping: { linear }` act as on a rigid body, on each vertex;
   `shape`, `sensor`, `ccd`, `decorative` and an angular damping are refused with a `RangeError`
   (its vertices do not turn). A soft body is a
-  direct child of the scene; moved by the page, it is made again there; it takes no velocity,
-  impulse, joint or vehicle. Rigid bodies and the character collide with its vertices: the
+  direct child of the scene; moved by the page, it is carried there with its vertices, its
+  simulation kept; placed at another scale than it was made at, it is refused with
+  `PHYSICS_FAILED` and leaves the simulation until it is back at that scale (Jolt scales no soft
+  body once made), as a compiled model's cooked one does; hidden, its vertices are not sent. It takes no velocity, impulse, joint or
+  vehicle. Rigid bodies and the character collide with its vertices: the
   character is turned aside or stopped, never pushing it; a rigid body much heavier than the skin
   it lands on can push between its vertices; soft bodies pass through each other (Jolt collides
   them with rigid bodies only). `on('contact' | 'enter' | 'leave')` works on either side of a
@@ -1309,11 +1333,13 @@ bend }` simulates the mesh's vertices one by one on Jolt's soft bodies. A cloth 
 - Transparent surfaces are lit from the source file's own light graph with a fixed ambient, not yet
   by the declared-light rule above.
 - A lost device is recovered, the page never reloaded: the world asks for a device again, reopens its
-  session on it and rebuilds from its decoded-page cache, fetching no page or bundle it still holds.
+  session on it and rebuilds from its decoded-page cache, fetching no page, bundle or resident proxy
+  it still holds (the proxy is kept whole inside `world.budget.cpu` unless it yielded to the pages).
   `gpu-device-recovered` says the time from the loss to the first frame drawn after it
-  (`recoveryMs`). Baked texture levels are read again, and cross-API fallback is not implemented.
-- Frame targets are allocated without an out-of-memory check: a refusal there is still reported as a
-  lost device.
+  (`recoveryMs`). Baked texture levels and `lights.json` are read again, and cross-API fallback is
+  not implemented.
+- Frame targets the device refused are asked again only when the view's size changes, or by a
+  capture; until then the frames stay held on the previous image.
 - Physics, `ten-thousand-bodies` (10,000 boxes landing at once; headed Chrome, 1280×720, DPR 1,
   cross-origin isolated, eight threads, 120 Hz display; load average 8–14, not a quiet machine;
   commit f56d2dd57; three runs): the worker's step is 3.7–4.2 ms p50 and 20–25 ms p95 during the

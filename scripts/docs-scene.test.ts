@@ -29,7 +29,7 @@ test('the published original garden matches its deterministic source generator',
     for (const file of ['garden.gltf', 'garden.bin']) {
       assert.deepEqual(
         await readFile(join(temporary, file)),
-        await readFile(join(root, 'site/assets/kinetic-garden/source', file)),
+        await readFile(join(root, 'tests/fixtures/scenes/kinetic-garden/source', file)),
       );
     }
     const gltf = JSON.parse(await readFile(join(temporary, 'garden.gltf'), 'utf8')) as GardenGltf;
@@ -39,7 +39,7 @@ test('the published original garden matches its deterministic source generator',
     );
     assert.equal(triangles, 35840);
     assert.equal(gltf.nodes.length, 11);
-    const base = join(root, 'site/assets/kinetic-garden/cache/native/full');
+    const base = join(root, 'tests/fixtures/scenes/kinetic-garden/cache/native/full');
     const pointer = JSON.parse(await readFile(join(base, 'manifest.json'), 'utf8')) as CachePointer;
     const manifest = JSON.parse(await readFile(join(base, pointer.url), 'utf8')) as CacheManifest;
     assert.equal(manifest.sourceTriangles, triangles);

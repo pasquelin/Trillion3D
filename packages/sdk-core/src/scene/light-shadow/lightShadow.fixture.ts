@@ -28,6 +28,12 @@ export const SUN: SceneLight = {
 const SCENE_MIN = [-50, 0, -50],
   SCENE_MAX = [50, 10, 50];
 
+/** The fixture's view moved by `step` hairs: no extent moves by a page, the camera moves. */
+export const nudged = (step: number): ShadowViewpoint => ({
+  ...VIEW,
+  position: [VIEW.position[0] + step * 1e-6, VIEW.position[1], VIEW.position[2]],
+});
+
 /** Plans a frame over the fixture scene. */
 export const planFrame = (
   plan: ShadowPlan,
@@ -96,6 +102,17 @@ export function readPages(plan: ShadowPlan, slice: number) {
   for (let page = 0; page < pool.pages; page++)
     if (pool.owner[page] >= 0 && pool.slice[page] === slice && pool.valid[page]) pages.push(page);
   return pages;
+}
+
+/** The sun, planned once so its slice and clipmap exist, its floor drawn: its store, its plan and
+ *  its slice. */
+export function sunScene() {
+  const store = createSceneLightStore();
+  const plan = createShadowPlan(32);
+  store.add(SUN);
+  planFrame(plan, store, 0);
+  plan.commit();
+  return { store, plan, slice: store.sliceOf(0) };
 }
 
 /** A point lamp three units up that casts, planned once: its store, its plan and its slice. */
