@@ -48,7 +48,7 @@ test('world.physics.add sends the joint once its body is simulated; a break repl
   }
 });
 
-test('a decorative body retired asleep breaks its joints at once, told once, written no more', async () => {
+test('a decorative body retired asleep breaks its joints at once, told once, written no more, and any added after', async () => {
   const { scene, physics, worker, restore } = await fakePhysicsWorld();
   try {
     const debris = new Mesh(box(), new Material('meshStandard'));
@@ -68,8 +68,11 @@ test('a decorative body retired asleep breaks its joints at once, told once, wri
     assert.ok(pin.broken && told === 1, 'broken, and told once, with the tick');
     assert.equal(pin._host, null, 'out of the made joints');
     pin.motor = { mode: 'velocity', target: 1, maxForce: 10 };
+    const late = joint.fixed(debris, null);
+    physics.handle.add(late);
     physics.frame();
-    assert.deepEqual([...worker.words.at(-1)!], [OP.remove, index, OP.unjoint, id], 'no motor');
+    assert.deepEqual([...worker.words.at(-1)!], [OP.unjoint, id, OP.remove, index], 'no motor');
+    assert.ok(late.broken && late._id === -1, 'a joint added after breaks, never made');
     physics.frame();
     assert.equal(told, 1, 'a frame after does not break it again');
     physics.dispose();

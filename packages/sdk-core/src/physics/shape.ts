@@ -135,7 +135,8 @@ export function resolveShape(
   if (wanted?.type === 'triangles' && type === 'dynamic')
     throw new EngineError(
       'PHYSICS_FAILED',
-      "A dynamic body cannot be triangles (no volume, no mass): use shape { type: 'hull' }.",
+      `The dynamic body "${name}" cannot be triangles (no volume, no mass): use shape { type: 'hull' }.`,
+      { name },
     );
   const triangles = wanted?.type === 'triangles' || (wanted?.type !== 'hull' && type === 'static');
   const vertices = scaledVertices(geometry, scale);
