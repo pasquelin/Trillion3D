@@ -73,7 +73,8 @@ export function take<T extends PageRecord>(
   let wanted = true,
     drawn = ready,
     // A hole: a root-cover cluster (nothing coarser stands in for it) the rule would draw were it
-    // resident. Readiness being closed upward, nothing under it is ready either.
+    // resident. With group links, readiness is closed upward: nothing under it is ready either, and
+    // the rule always would. Without them, a finer resident cluster may draw its surface instead.
     uncovered = !ready && rec.parentError == null;
   if (!settled) {
     const childReady = !held || held.isChildReady(index),
