@@ -68,7 +68,7 @@ export function encodeShadowAtlas(
   draw(shadows.passes, false, tested);
   const casters = rt.services.blendCasters.used > 0;
   const transmittance = casters ? shadows.ensureTransmittance(encoder) : shadows.transmittance;
-  if (transmittance) encodeTransmittance(rt, device, encoder, transmittance, tested);
+  if (transmittance) encodeTransmittance(rt, device, encoder, quads, transmittance, tested);
   lights.shadowDrawCalls += run.gpuDrawCalls - drawsBefore;
   return true;
 }

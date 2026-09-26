@@ -55,25 +55,29 @@ export async function createShadowPageQuads(device: GPUDevice, faces: GPUBuffer)
   });
   // The static layer's own layout: its groups bind here as they are.
   const layerLayout = device.createBindGroupLayout({ entries: staticLayerEntries() });
+  const dataOnly = device.createPipelineLayout({ bindGroupLayouts: [dataLayout] });
   const pipeline = (
     label: string,
-    layouts: GPUBindGroupLayout[],
+    layout: GPUPipelineLayout,
     fragment?: string,
     targets: GPUColorTargetState[] = [],
   ) =>
     device.createRenderPipeline({
       label: `Trillion3D shadow page ${label} v1`,
-      layout: device.createPipelineLayout({ bindGroupLayouts: layouts }),
+      layout,
       vertex: { module, entryPoint: 'page_quad_vs' },
       fragment: fragment ? { module, entryPoint: fragment, targets } : undefined,
       primitive: { topology: 'triangle-list', cullMode: 'none' },
       depthStencil: { format: 'depth32float', depthWriteEnabled: true, depthCompare: 'always' },
     });
-  const clear = pipeline('clear', [dataLayout]),
-    restore = pipeline('restore', [dataLayout, layerLayout], 'restore_fs'),
-    clearTransmittance = pipeline('transmittance clear', [dataLayout], 'transmittance_clear_fs', [
-      { format: SHADOW_TRANSMITTANCE_FORMAT },
-    ]);
+  const clear = pipeline('clear', dataOnly),
+    restore = pipeline(
+      'restore',
+      device.createPipelineLayout({ bindGroupLayouts: [dataLayout, layerLayout] }),
+      'restore_fs',
+    );
+  // Built at the first transmittance pass: a scene that blends nothing never compiles it.
+  let clearTransmittance: GPURenderPipeline | undefined;
   const group = device.createBindGroup({
     layout: dataLayout,
     entries: [{ binding: 0, resource: { buffer: faces } }],
@@ -82,8 +86,8 @@ export async function createShadowPageQuads(device: GPUDevice, faces: GPUBuffer)
   const quads = (
     pass: GPURenderPassEncoder,
     pipeline: GPURenderPipeline,
-    count: number,
     first: number,
+    count: number,
   ) => {
     pass.setPipeline(pipeline);
     pass.draw(6, count, 0, first);
@@ -105,18 +109,21 @@ export async function createShadowPageQuads(device: GPUDevice, faces: GPUBuffer)
       layer?: GPUBindGroup,
     ) {
       pass.setBindGroup(0, group);
-      if (clears) quads(pass, clear, clears, first);
+      if (clears) quads(pass, clear, first, clears);
       if (restores) {
         pass.setBindGroup(1, layer!);
-        quads(pass, restore, restores, first + clears);
+        quads(pass, restore, first + clears, restores);
       }
       return +!!clears + +!!restores;
     },
     /** Clears into the transmittance layer's `pass` the `count` regions from rank `first` of the
      *  order, in one draw. */
     clearTransmittance(pass: GPURenderPassEncoder, first: number, count: number) {
+      clearTransmittance ??= pipeline('transmittance clear', dataOnly, 'transmittance_clear_fs', [
+        { format: SHADOW_TRANSMITTANCE_FORMAT },
+      ]);
       pass.setBindGroup(0, group);
-      quads(pass, clearTransmittance, count, first);
+      quads(pass, clearTransmittance, first, count);
     },
   };
 }
