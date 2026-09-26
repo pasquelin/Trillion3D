@@ -42,29 +42,34 @@ export function createShadowCounts() {
       nowMs: number,
       frame: number,
     ) {
-      counts.pendingPages = 0;
-      counts.cachedPages = 0;
-      counts.poolPages = pool.used;
-      counts.waitedMs = 0;
-      counts.waitedFrames = 0;
+      const { owner, slice, requested, dirty, valid, since, readFrame } = pool,
+        { taken } = records;
+      let cached = 0,
+        waitedMs = 0,
+        waitedFrames = 0;
       for (let page = 0; page < pool.pages; page++) {
-        if (pool.owner[page] < 0 || !records.taken[pool.slice[page]]) continue;
-        const read = latest >= 0 && pool.requested[page] >= latest;
-        if (!pool.dirty[page]) {
-          if (read && pool.valid[page]) counts.cachedPages++;
+        if (owner[page] < 0 || !taken[slice[page]]) continue;
+        const read = latest >= 0 && requested[page] >= latest;
+        if (!dirty[page]) {
+          if (read && valid[page]) cached++;
           continue;
         }
         if (!read) {
-          pool.since[page] = NaN;
+          since[page] = NaN;
           continue;
         }
-        if (Number.isNaN(pool.since[page])) {
-          pool.since[page] = nowMs;
-          pool.readFrame[page] = frame;
+        if (Number.isNaN(since[page])) {
+          since[page] = nowMs;
+          readFrame[page] = frame;
         }
-        counts.waitedMs = Math.max(counts.waitedMs, nowMs - pool.since[page]);
-        counts.waitedFrames = Math.max(counts.waitedFrames, frame - pool.readFrame[page]);
+        waitedMs = Math.max(waitedMs, nowMs - since[page]);
+        waitedFrames = Math.max(waitedFrames, frame - readFrame[page]);
       }
+      counts.pendingPages = 0;
+      counts.cachedPages = cached;
+      counts.poolPages = pool.used;
+      counts.waitedMs = waitedMs;
+      counts.waitedFrames = waitedFrames;
     },
     reset() {
       counts.beginFrame();
