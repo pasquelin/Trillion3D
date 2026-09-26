@@ -20,43 +20,54 @@
   <body>
     <canvas id="view"></canvas>
     <script type="module">
-      import { createWorld, geometry, material, object, light, helper } from '../runtime/engine.js';
+      import { createWorld, geometry, material, object, light } from '../runtime/engine.js';
       import { controls, readout, words } from '../runtime/kit.js';
       const say = words();
 
-      const world = createWorld('view', { controls: 'orbit' });
-      world.scene.add(helper.grid(8, 8));
+      const world = createWorld('view', { controls: 'orbit', physics: true });
       world.scene.add(light.directional({ intensity: 3, position: [3, 5, 4] }), light.ambient({ intensity: 0.3 }));
-      const colours = ['#e0663c', '#3c8ce0', '#5fbf6a', '#d8b43c'];
-      const tower = object.group();
-      tower.name = 'tower';
-      colours.forEach((colour, i) => {
-        const block = object.mesh(geometry.box(1, 0.5, 1), material.meshStandard({ color: colour }));
-        block.position.set(0, 0.25 + i * 0.5, 0);
+      // Each size is written once and every height is read from it: the ground's top is at 0,
+      // the lowest block sits on it and each block on the one below, in contact, never inside.
+      const GROUND = [12, 0.2, 12], BLOCK = [1, 0.5, 1], BLOCK_KG = 20;
+      // What each body is rides in its `userData`, which the saved scene keeps: the page makes the
+      // same bodies again on what `fromJSON` builds.
+      const ground = object.mesh(geometry.box(...GROUND), material.meshStandard({ color: '#3a4556', physics: 'stone' }));
+      ground.position.y = -GROUND[1] / 2;
+      ground.userData.body = 'static';
+      world.scene.add(ground);
+      ['#e0663c', '#3c8ce0', '#5fbf6a', '#d8b43c'].forEach((colour, i) => {
+        const block = object.mesh(geometry.box(...BLOCK), material.meshStandard({ color: colour, physics: 'wood' }));
+        block.position.y = BLOCK[1] / 2 + i * BLOCK[1];
         block.rotation.y = i * 0.3;
-        tower.add(block);
+        block.userData.body = { type: 'dynamic', mass: BLOCK_KG };
+        world.scene.add(block);
       });
-      world.scene.add(tower);
+      const bodies = () => world.scene.children.filter((node) => node.userData.body);
+      const makeBodies = () => bodies().forEach((node) => (node.physics = node.userData.body));
+      makeBodies();
       world.camera.position.set(3, 3, 4);
       world.camera.lookAt(0, 1, 0);
       world.controls.target.set(0, 1, 0);
 
       // `toJSON` writes the scene as plain JSON — shapes by the call that built them, materials by
-      // their values; `fromJSON` builds it again. The grid is a helper mark: it is not saved.
+      // their values; `fromJSON` builds it again.
       let saved = world.scene.toJSON(world.camera);
+      // The push a tower tipped about its foot at `TIP` rad/s would give each block: a sideways
+      // impulse growing with its height. The blocks part and gravity brings them down.
+      const TIP = 3;
       controls({
-        knockDown: () => {
-          // Found by name: the tower `fromJSON` builds again is a new group.
-          world.scene.getObjectByName('tower').children.forEach((block, i) => {
-            block.position.set(Math.sin(i * 2) * 2, 0.25, Math.cos(i * 2) * 2);
-            block.rotation.y = i;
-          });
-        },
         save: () => {
           saved = world.scene.toJSON(world.camera);
           size(say('bytes', { bytes: JSON.stringify(saved).length }));
         },
-        open: () => world.scene.fromJSON(JSON.parse(JSON.stringify(saved)), world.camera),
+        knockDown: () => {
+          for (const node of bodies())
+            if (node.physics.type === 'dynamic') node.physics.applyImpulse(BLOCK_KG * TIP * node.position.y, 0, 0);
+        },
+        open: async () => {
+          await world.scene.fromJSON(JSON.parse(JSON.stringify(saved)), world.camera);
+          makeBodies();
+        },
       });
       const size = readout('saved');
       size(say('bytes', { bytes: JSON.stringify(saved).length }));
