@@ -49,7 +49,7 @@ export function webgpuModel(capacity: number) {
   };
 }
 
-/** The WebGL2 step as `PARTICLES_GLSL` runs it: one fragment per texel of the viewport, read
+/** The WebGL2 step as `PARTICLES_GLSL` runs it: both texels of each slot in the viewport, read
  *  from one target and written to the other; past the ring, a slot stays zero. */
 export function webglModel(capacity: number) {
   const texels = 2 * PARTICLE_ROW,
@@ -67,8 +67,8 @@ export function webglModel(capacity: number) {
         const records = (data as unknown as Float32Array).subarray(from, from + width * height * 4);
         staged.set(records, (y * texels + x) * 4);
       }
-      for (let t = 0; t < Math.min(rows * texels, 2 * ring[2]); t++)
-        write.set(move(read, staged, t >> 1, ring).slice((t & 1) * 4, (t & 1) * 4 + 4), t * 4);
+      for (let i = 0; i < Math.min(rows * PARTICLE_ROW, ring[2]); i++)
+        write.set(move(read, staged, i, ring), i * PARTICLE_FLOATS);
       [read, write] = [write, read];
     },
   };
