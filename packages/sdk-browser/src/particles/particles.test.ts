@@ -8,24 +8,7 @@ import { holdWebgpuFrame, keepWebgpuFrame } from '../webgpu/frame/hold.ts';
 import { settledRt } from '../webgpu/frame/hold.fixture.ts';
 import { ParticlePool } from '../../../sdk-core/src/fluids/particles.ts';
 import { PARTICLES_PASS, createWebgpuParticles } from './webgpuParticles.ts';
-
-/** An encoder that records its compute passes and their dispatches. */
-function computeRecorder() {
-  const passes: { label?: string; dispatches: number[] }[] = [];
-  const encoder = {
-    beginComputePass: ({ label }: GPUComputePassDescriptor) => {
-      const pass = { label, dispatches: [] as number[] };
-      passes.push(pass);
-      return {
-        setPipeline() {},
-        setBindGroup() {},
-        dispatchWorkgroups: (x: number) => void pass.dispatches.push(x),
-        end() {},
-      };
-    },
-  } as unknown as GPUCommandEncoder;
-  return { encoder, passes };
-}
+import { computeRecorder } from './stepModels.fixture.ts';
 
 test('WebGPU: one timed pass writes the step words and the staged records, once', async () => {
   const gpu = fakeDevice();

@@ -3,6 +3,10 @@ import type { ParticlePool } from '../../../sdk-core/src/fluids/particles.ts';
 /** The slots a step covers: past them nothing was ever emitted, and nothing changes. */
 export const usedSlots = (pool: ParticlePool) => Math.min(pool.capacity, pool.emitted);
 
+const moving = (pool: ParticlePool) => pool.moving;
+/** True while one of `pools` moves: the image changes, and is not held. */
+export const anyMoving = (pools: readonly ParticlePool[]) => pools.some(moving);
+
 /**
  * Each pool's GPU state on one renderer, the part the WebGPU and WebGL2 steps share: `of` makes
  * a pool's state the first time it moves, `keep` gives back, once per image, the state of every
@@ -33,8 +37,6 @@ export function createPoolStates<State>(
       for (const pool of pools) if (made.has(pool)) held++;
       if (made.size > held) release(pools);
     },
-    /** Forgets every state without freeing it: a lost context took them. */
-    forget: () => made.clear(),
     dispose: () => release([]),
   };
 }
