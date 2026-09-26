@@ -46,13 +46,15 @@ export function createWebgpuPinUpdater(options: {
   });
   /** The cache of the running update, read by the release callback built once below. */
   let current: Cache;
+  /** True when the key held a slot pinned: unpinning it gives that slot back. */
   const unpin = (key: number) => {
     waiting.remove(key);
-    if (!tracking.pinned.remove(key)) return;
+    if (!tracking.pinned.remove(key)) return false;
     const url = tracking.pageCatalog[key];
     if (traceEnabled) removed.push(url);
     current.unpin(url);
     current.touch(url);
+    return true;
   };
   /**
    * What the pin sample publishes: the image's DELTA, never the pinned set. Copying and filtering
@@ -87,12 +89,17 @@ export function createWebgpuPinUpdater(options: {
     }
     notices.length = 0;
     // Residency is asked of the cache only for a key that is not pinned yet, which is a handful per
-    // image once the cut has settled instead of one lookup per kept key.
+    // image once the cut has settled instead of one lookup per kept key. The kept keys still
+    // missing are what asks the pool for slots; a key that only waits out its window asks none.
+    let missing = 0;
     for (let i = waiting.count - 1; i >= 0; i--) {
       const key = waiting.list[i];
       if (!tracking.pinned.has(key)) {
         const url = tracking.pageCatalog[key];
-        if (!cache.get(url)) continue;
+        if (!cache.get(url)) {
+          if (tracking.keep.has(key)) missing++;
+          continue;
+        }
         cache.pin(url);
         tracking.markPinned(key);
         if (traceEnabled) added.push(url);
@@ -100,10 +107,10 @@ export function createWebgpuPinUpdater(options: {
       waiting.remove(key);
     }
     // Released oldest first, each sent to the far end of the cache's order as it is unpinned: the
-    // cache then reclaims the released pages in their last-use order. What still waits for a slot
-    // is the pressure: the window gives way to it (`lastUse.ts`).
+    // cache then reclaims the released pages in their last-use order. What the image still misses
+    // beyond the unpinned slots is the pressure: the window gives way to it (`lastUse.ts`).
     current = cache;
-    lastUse.release(frame, unpin, waiting.count - cache.unpinnedSlots());
+    lastUse.release(frame, unpin, missing - cache.unpinnedSlots());
     // Kept keys are clusters; a deferred drop names the request that carries them. The question is
     // therefore asked request by request — a handful — and not by copying the kept set into two
     // string tables on every image where a drop waits, which the cluster count of a city makes
