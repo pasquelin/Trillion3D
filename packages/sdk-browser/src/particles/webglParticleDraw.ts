@@ -55,6 +55,13 @@ void main() {
   fragColor = vec4(shown, 1.) * k; untoned = vec4(0., 0., 0., k); // toned, blended as the colour
 }`;
 
+/** The copy's depth formats: packed with stencil first, as browsers often keep a drawing buffer's
+ *  depth even unasked; a blit is refused between two formats, so the copy takes the one allowed. */
+const DEPTHS = [
+  ['DEPTH24_STENCIL8', 'DEPTH_STENCIL', 'UNSIGNED_INT_24_8', 'DEPTH_STENCIL_ATTACHMENT'],
+  ['DEPTH_COMPONENT24', 'DEPTH_COMPONENT', 'UNSIGNED_INT', 'DEPTH_ATTACHMENT'],
+] as const;
+
 /** The WebGL2 particle draw over the host's image, its depth copied for the soft edge; a depth
  *  it cannot copy returns `PARTICLES_UNSUPPORTED` once, the pools refused, never drawn. */
 export function createWebglParticleDraw(
@@ -80,10 +87,8 @@ export function createWebglParticleDraw(
       bindWebglTexture(gl, 1, copy.texture);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-      gl.bindFramebuffer(gl.FRAMEBUFFER, copy.framebuffer);
-      gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.TEXTURE_2D, copy.texture, 0);
       const checked = undefined as WebGLFramebuffer | null | undefined;
-      return { program, vao, uniforms, copy, checked, width: 0, height: 0, refused: false };
+      return { program, vao, uniforms, copy, checked, at: 0, width: 0, height: 0, refused: false };
     },
     ({ program, vao, copy }) => {
       gl.deleteProgram(program);
@@ -100,21 +105,30 @@ export function createWebglParticleDraw(
       for (let i = 0; i < 3; i++) eye[i] = camera.world[12 + i];
       if (!live || !drawOrder(pools, eye, order).length) return 0;
       if (live.refused) return (refuseAll(order), 0);
-      const { framebuffer, width, height } = output;
-      if (live.width !== width || live.height !== height) {
-        bindWebglTexture(gl, 1, live.copy.texture);
-        const { TEXTURE_2D: T, DEPTH_COMPONENT: D } = gl;
-        gl.texImage2D(T, 0, gl.DEPTH_COMPONENT24, width, height, 0, D, gl.UNSIGNED_INT, null);
-        [live.width, live.height] = [width, height];
-      }
+      const { framebuffer, width, height } = output,
+        first = live.checked !== framebuffer;
+      const { TEXTURE_2D: T, DRAW_FRAMEBUFFER: F, DEPTH_BUFFER_BIT: D, NEAREST: N } = gl;
       gl.disable(gl.SCISSOR_TEST);
-      // The depth copied for the soft edge; a framebuffer's first copy, older errors cleared, asks.
-      for (let n = 0; live.checked !== framebuffer && n < 8 && gl.getError() !== gl.NO_ERROR; n++);
+      // The depth copied for the soft edge, same rectangles, resolved as they are. A framebuffer's
+      // first copy, older errors cleared, takes the other format when its blit is refused.
+      for (let n = 0; first && n < 8 && gl.getError() !== gl.NO_ERROR; n++);
       gl.bindFramebuffer(gl.READ_FRAMEBUFFER, framebuffer);
-      gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, live.copy.framebuffer);
-      gl.blitFramebuffer(0, 0, width, height, 0, 0, width, height, gl.DEPTH_BUFFER_BIT, gl.NEAREST);
+      gl.bindFramebuffer(F, live.copy.framebuffer);
+      let tries = 0;
+      for (; tries < (first ? 2 : 1); tries++) {
+        if (tries || live.width !== width || live.height !== height) {
+          [live.at, live.width, live.height] = [tries ? 1 - live.at : live.at, width, height];
+          const [internal, format, type, point] = DEPTHS[live.at];
+          bindWebglTexture(gl, 1, live.copy.texture);
+          gl.texImage2D(T, 0, gl[internal], width, height, 0, gl[format], gl[type], null);
+          gl.framebufferTexture2D(F, gl.DEPTH_STENCIL_ATTACHMENT, T, null, 0);
+          gl.framebufferTexture2D(F, gl[point], T, live.copy.texture, 0);
+        }
+        gl.blitFramebuffer(0, 0, width, height, 0, 0, width, height, D, N);
+        if (!first || gl.getError() !== gl.INVALID_OPERATION) break;
+      }
       gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
-      if (live.checked !== framebuffer && gl.getError() === gl.INVALID_OPERATION) {
+      if (tries === 2) {
         live.refused = refuseAll(order);
         return new Error('PARTICLES_UNSUPPORTED: WebGL2 particles fade on a depth it cannot copy');
       }
@@ -146,9 +160,7 @@ export function createWebglParticleDraw(
         gl.drawArraysInstanced(gl.TRIANGLES, 0, 6, usedSlots(pool));
         draws++;
       }
-      // Nothing is left for the next pass to sample into a feedback loop, blend or not write.
-      gl.activeTexture(gl.TEXTURE1);
-      gl.bindTexture(gl.TEXTURE_2D, null);
+      // The state is unbound, its step's next target: no feedback loop, blend or depth left on.
       gl.activeTexture(gl.TEXTURE0);
       gl.bindTexture(gl.TEXTURE_2D, null);
       gl.disable(gl.BLEND);
@@ -158,7 +170,7 @@ export function createWebglParticleDraw(
       return draws;
     },
     refused: () => held.alive() && !!held.current()?.refused,
-    /** Bytes of the frame's depth copy, none before the first. */
+    /** Bytes of the frame's depth copy, 4 a texel in either format, none before the first. */
     bytes: () => (held.alive() ? held.current()!.width * held.current()!.height * 4 : 0),
     dispose: held.dispose,
   };

@@ -98,13 +98,13 @@ test('WebGPU without the visibility buffer refuses the pools by name, heard once
 const output = { framebuffer: null, width: 8, height: 4, toneMapped: true };
 
 test("WebGL2: the frame's depth is copied, then the pools far to near, each with its blend", () => {
-  const errors = ['INVALID_OPERATION'], // left by an earlier call: it never refuses the pools
-    { ctx, run, particles } = webgl(undefined, { getError: () => errors.shift() ?? 'NO_ERROR' }),
+  const { ctx, run, particles, errors } = webgl(),
     pools = scene();
   assert.equal(particles.draw([], createHostDrawCamera(), output), 0);
   assert.deepEqual(ctx.of('blitFramebuffer'), [], 'no particle: nothing copied, nothing drawn');
   for (const pool of pools) pool.emit(0, 0, pool.origin[2], 0, 1, 0, 2);
   run(pools);
+  errors.push('INVALID_OPERATION'); // left by an earlier call: it never refuses the pools
   const from = ctx.calls.length;
   assert.equal(particles.draw(pools, createHostDrawCamera(), output), 3);
   const calls = ctx.calls.slice(from).filter(({ name }) => /^(blit|blendFunc|drawArr)/.test(name));
@@ -117,7 +117,7 @@ test("WebGL2: the frame's depth is copied, then the pools far to near, each with
 });
 
 test('WebGL2: a depth not copied refuses the pools by name, and the next step keeps them so', () => {
-  const { run, particles } = webgl(undefined, { getError: () => 'INVALID_OPERATION' }),
+  const { run, particles } = webgl(undefined, 'DEPTH_COMPONENT16'), // no copy format matches it
     [smoke] = scene();
   smoke.emit(0, 0, -2, 0, 1, 0, 2);
   run([smoke]);
