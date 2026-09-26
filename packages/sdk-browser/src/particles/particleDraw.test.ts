@@ -1,6 +1,4 @@
-// The CPU half of the particle draw (#755) on both renderers: the order and words each pool is
-// drawn with, the blend each draw is given, nothing drawn without a live particle, and a refusal
-// by name where a draw cannot be made. What the GPU makes of them is the measurer's.
+// The CPU half of the particle draw (#755) on both renderers; the GPU's part is the measurer's.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { setImmediate as tick } from 'node:timers/promises';
