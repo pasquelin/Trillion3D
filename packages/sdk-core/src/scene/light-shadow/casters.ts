@@ -5,8 +5,9 @@ import type { SceneLightStore } from '../light/store.ts';
 export const castsShadow = (store: SceneLightStore, slot: number) =>
   store.packed[baseOf(slot) + LIGHT_FIELD.castsShadow] !== 0;
 
-/** True when a light of the store declares a shadow: what a shadow pool is for. */
-export function anyCastsShadow(store: SceneLightStore) {
-  for (let slot = 0; slot < store.count; slot++) if (castsShadow(store, slot)) return true;
-  return false;
+/** Lights of the store that declare a shadow: what a shadow pool is for (`shadowPoolSize`). */
+export function shadowCasterLights(store: SceneLightStore) {
+  let lights = 0;
+  for (let slot = 0; slot < store.count; slot++) if (castsShadow(store, slot)) lights++;
+  return lights;
 }

@@ -1,16 +1,13 @@
 import { DRAW_INDIRECT_STRIDE } from '../../../gpu/draw/draw.ts';
-import { MAX_SHADOW_REGIONS, SHADOW_PASS } from '../../../gpu/shadow/atlas.ts';
-import { SHADOW_LAYER_PASS } from '../../../gpu/shadow/staticLayer.ts';
+import { MAX_SHADOW_REGIONS } from '../../../gpu/shadow/atlas.ts';
+import { layerPass } from '../../../gpu/shadow/layers.ts';
 import { HIZ_UNTESTED } from '../../../gpu/shadow/occlusion.ts';
 import { REGION_RESTORE, REGION_STATIC } from '../../shadow/regions.ts';
 import { shadowRegionGroup } from '../../shadow/regionGroups.ts';
 import { SHADOW_PAGE } from '../../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import { encodeShadowCasters } from '../../shadow/casters.ts';
-import {
-  SHADOW_TRANSMITTANCE_PASS,
-  type ShadowTransmittance,
-} from '../../../gpu/shadow/transmittance.ts';
+import type { ShadowTransmittance } from '../../../gpu/shadow/transmittance.ts';
 
 /** Pyramid slot of each region this frame, `HIZ_UNTESTED` for a region drawn as culled, and the
  *  region each slot was given to. */
@@ -29,7 +26,8 @@ function encodeOcclusion(rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder, cou
   if (!pageHiz || !occlusion || !cull || !spheres || !shadows) return false;
   let pages = 0;
   for (let region = 0; region < count; region++) {
-    const restored = regions.startOf(region) === REGION_RESTORE;
+    // The pyramids read the first layer: a page past it draws its moving casters untested.
+    const restored = regions.startOf(region) === REGION_RESTORE && !regions.layer(region);
     if (restored) regionOf[pages] = region;
     slotOf[region] = restored ? pages++ : HIZ_UNTESTED;
   }
@@ -56,8 +54,8 @@ function encodeOcclusion(rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder, cou
  * Shadow depth pass of one batch, pages `[from, to)` of the frame's list in `count` regions: first
  * their face uniforms, then the casters of each light view drawn, selected from the light and
  * culled per region (`encodeShadowCasters`); then the static layer's pages drawn in full, if any;
- * then the moving casters of each restored page tested against its static layer; then one render
- * pass over the pool, where each region starts from its page cleared to far or restored from the
+ * then the moving casters of each restored page tested against its static layer; then a render
+ * pass per layer of the pool, where each region of that layer starts from its page cleared to far or restored from the
  * static layer, and draws its casters.
  *
  * **The viewport is the physical page, the matrix the virtual page's own projection.** The page
@@ -78,7 +76,7 @@ export function encodeShadowAtlas(
 ) {
   const { lights, vis, run } = rt,
     { shadows, cull, regions, staticLayer, occlusion } = lights;
-  if (!count || !shadows?.view || !cull || !vis.visBindGroupLayout) return false;
+  if (!count || !shadows?.texture || !cull || !vis.visBindGroupLayout) return false;
   if (regions.layered && !staticLayer) return false;
   if (!shadowRegionGroup(rt, device, 0)) return false;
   shadows.flushPages(count);
@@ -86,25 +84,25 @@ export function encodeShadowAtlas(
   cull.counts.sample(encoder, cull.indirect, count, run.frame);
   lights.shadowDraws += count;
   const drawsBefore = run.gpuDrawCalls;
-  const draw = (target: GPUTextureView, label: string, layer: boolean, tested: boolean) => {
-    const pass = encoder.beginRenderPass({
-      label,
-      colorAttachments: [],
-      depthStencilAttachment: { view: target, depthLoadOp: 'load', depthStoreOp: 'store' },
-    });
-    for (let region = 0; region < count; region++) {
+  const draw = (passes: GPURenderPassDescriptor[], layer: boolean, tested: boolean) => {
+    let pass!: GPURenderPassEncoder,
+      open = -1;
+    for (let i = 0; i < count * passes.length; i++) {
+      const region = i % count,
+        at = (i - region) / count;
       const start = regions.startOf(region);
-      if (layer !== (start === REGION_STATIC)) continue;
-      const visible = tested && start === REGION_RESTORE;
+      if (layer !== (start === REGION_STATIC) || regions.layer(region) !== at) continue;
+      const visible = tested && slotOf[region] !== HIZ_UNTESTED;
       const group = shadowRegionGroup(rt, device, region, visible);
       if (!group) continue;
+      if (open !== at) pass = layerPass(encoder, pass, passes[(open = at)]);
       const x = regions.x(region),
         y = regions.y(region);
       pass.setViewport(x, y, SHADOW_PAGE, SHADOW_PAGE, 0, 1);
       pass.setScissorRect(x, y, SHADOW_PAGE, SHADOW_PAGE);
       if (start === REGION_RESTORE) {
         pass.setPipeline(staticLayer!.restore);
-        pass.setBindGroup(0, staticLayer!.group);
+        pass.setBindGroup(0, staticLayer!.groups[at]);
       } else {
         pass.setPipeline(shadows.clear);
         pass.setBindGroup(0, group);
@@ -118,11 +116,11 @@ export function encodeShadowAtlas(
       pass.drawIndirect(commands, region * DRAW_INDIRECT_STRIDE);
       run.gpuDrawCalls += 2;
     }
-    pass.end();
+    if (open >= 0) pass.end();
   };
-  if (regions.layered) draw(staticLayer!.view, SHADOW_LAYER_PASS, true, false);
+  if (regions.layered) draw(staticLayer!.passes, true, false);
   const tested = encodeOcclusion(rt, encoder, count);
-  draw(shadows.view, SHADOW_PASS, false, tested);
+  draw(shadows.passes, false, tested);
   const casters = rt.services.blendCasters.used > 0;
   const transmittance = casters ? shadows.ensureTransmittance(encoder) : shadows.transmittance;
   if (transmittance) encodeTransmittance(rt, device, encoder, count, transmittance, tested);
@@ -151,19 +149,22 @@ export function encodeTransmittance(
   const { lights, run } = rt,
     { shadows, cull, regions, occlusion } = lights;
   const casters = rt.services.blendCasters.used > 0;
-  const pass = encoder.beginRenderPass({
-    label: SHADOW_TRANSMITTANCE_PASS,
-    colorAttachments: [{ view: layer.view, loadOp: 'load', storeOp: 'store' }],
-    depthStencilAttachment: { view: layer.depthView, depthLoadOp: 'load', depthStoreOp: 'store' },
-  });
-  pass.setBindGroup(2, layer.opaqueGroup);
-  const half = SHADOW_PAGE / 2;
-  for (let region = 0; region < count; region++) {
+  const half = SHADOW_PAGE / 2,
+    { passes } = layer;
+  let pass!: GPURenderPassEncoder,
+    open = -1;
+  for (let i = 0; i < count * passes.length; i++) {
+    const region = i % count,
+      at = (i - region) / count;
     const start = regions.startOf(region);
-    if (start === REGION_STATIC) continue;
-    const visible = tested && start === REGION_RESTORE;
+    if (start === REGION_STATIC || regions.layer(region) !== at) continue;
+    const visible = tested && slotOf[region] !== HIZ_UNTESTED;
     const group = shadowRegionGroup(rt, device, region, visible);
     if (!group) continue;
+    if (open !== at) {
+      pass = layerPass(encoder, pass, passes[(open = at)]);
+      pass.setBindGroup(2, layer.opaqueGroups[at]);
+    }
     const x = regions.x(region) / 2,
       y = regions.y(region) / 2;
     pass.setViewport(x, y, half, half, 0, 1);
@@ -181,5 +182,5 @@ export function encodeTransmittance(
     }
     run.gpuDrawCalls += 2;
   }
-  pass.end();
+  if (open >= 0) pass.end();
 }
