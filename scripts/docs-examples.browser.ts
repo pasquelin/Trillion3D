@@ -36,7 +36,38 @@ async function controlsDriveTheRender(browser: Browser, port: number) {
   await page.close();
 }
 
-test('every example file renders an image on its own, fetching Jolt only when it has physics, and the portal page fills with it', async () => {
+/**
+ * #798: the health check flies its tour on each backend and publishes its verdict — every line
+ * green, a line a backend refuses red with its reason —, and a slowed build (40 ms spent in every
+ * animation frame) turns the rate line of every part red, the overall verdict with it.
+ */
+async function healthCheckJudges(browser: Browser, port: number) {
+  const entry = ready.find(({ id }) => id === 'health-check');
+  assert.ok(entry);
+  const found: string[] = [];
+  for (const gpu of [true, false])
+    for (const slow of [0, 40]) {
+      const side = `${gpu ? 'WebGPU' : 'WebGL2'}${slow ? ' slowed' : ''}`;
+      const view = { width: 1728, height: 1117 };
+      const { page, errors } = await openExample(browser, port, entry, view, undefined, gpu, slow);
+      await page.waitForFunction(() => '__verdict' in globalThis, null, { timeout: 120_000 });
+      const verdict = await page.evaluate(
+        () => (globalThis as unknown as { __verdict: HealthVerdict }).__verdict,
+      );
+      const rates = verdict.resultats.filter(({ name }) => name.endsWith(': FPS'));
+      if (slow) {
+        if (verdict.correct || !rates.length || rates.some(({ correct }) => correct))
+          found.push(`${side}: not every rate line red`);
+      } else
+        for (const { name, motif, correct } of verdict.resultats)
+          if (correct === false) found.push(`${side} ${name}: ${motif}`);
+      found.push(...errors.map((error) => `${side}: ${error}`));
+      await page.close();
+    }
+  assert.deepEqual(found, []);
+}
+
+test('every example file renders an image on its own, fetching Jolt only when it has physics, the portal page fills with it, and the health check judges itself', async () => {
   const { server, port } = await startDocsServer();
   const browser = await launchChrome({ headless: true });
   try {
@@ -83,52 +114,7 @@ test('every example file renders an image on its own, fetching Jolt only when it
     // Both lists in one verdict: a physics mismatch never hides a blank page (#503).
     assert.deepEqual({ jolt, blank }, { jolt: [], blank: [] });
     await controlsDriveTheRender(browser, port);
-  } finally {
-    await browser.close();
-    await new Promise((resolve) => server.close(resolve));
-  }
-});
-
-/**
- * #798: the health check flies its tour on each backend and publishes its verdict — every line
- * green, a line a backend refuses red with its reason —, and a slowed build (40 ms spent in every
- * animation frame) turns the rate line of every part red, the overall verdict with it.
- */
-test('the health check is green on both backends, and a slowed build turns its rate lines red', async () => {
-  const { server, port } = await startDocsServer();
-  const browser = await launchChrome({ headless: true });
-  const view = { width: 1728, height: 1117 };
-  try {
-    const entry = ready.find(({ id }) => id === 'health-check');
-    assert.ok(entry);
-    const found: string[] = [];
-    for (const gpu of [true, false])
-      for (const slow of [0, 40]) {
-        const side = `${gpu ? 'WebGPU' : 'WebGL2'}${slow ? ' slowed' : ''}`;
-        const { page, errors } = await openExample(
-          browser,
-          port,
-          entry,
-          view,
-          undefined,
-          gpu,
-          slow,
-        );
-        await page.waitForFunction(() => '__verdict' in globalThis, null, { timeout: 120_000 });
-        const verdict = await page.evaluate(
-          () => (globalThis as unknown as { __verdict: HealthVerdict }).__verdict,
-        );
-        const rates = verdict.resultats.filter(({ name }) => name.endsWith(': FPS'));
-        if (slow) {
-          if (verdict.correct || !rates.length || rates.some(({ correct }) => correct))
-            found.push(`${side}: not every rate line red`);
-        } else
-          for (const { name, motif, correct } of verdict.resultats)
-            if (correct === false) found.push(`${side} ${name}: ${motif}`);
-        found.push(...errors.map((error) => `${side}: ${error}`));
-        await page.close();
-      }
-    assert.deepEqual(found, []);
+    await healthCheckJudges(browser, port);
   } finally {
     await browser.close();
     await new Promise((resolve) => server.close(resolve));
