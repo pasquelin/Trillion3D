@@ -59,6 +59,10 @@ export function previewAtlasName(atlas: number): string | undefined {
     ? `${PREVIEW_ATLAS_NAMES[PREVIEW_ATLAS_COVERAGE]}-${cutoff}`
     : undefined;
 }
+/** The cutoff byte of a coverage chain's word — 0 when it keeps the median alone —, `undefined`
+ *  for any other chain. */
+export const previewCoverageCutoff = (atlas: number) =>
+  atlasByte(atlas) === PREVIEW_ATLAS_COVERAGE ? atlas >>> 8 : undefined;
 /** The atlas an entry's chain is sampled in: a coverage chain is the colour atlas's. */
 export const previewAtlasOf = (atlas: number) =>
   atlasByte(atlas) === PREVIEW_ATLAS_COVERAGE ? PREVIEW_ATLAS_COLOR : atlas;
