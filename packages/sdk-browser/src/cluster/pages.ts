@@ -4,8 +4,7 @@ import { verifyPageBytes } from '../page/decode/host.ts';
  *  timeout (408), a rate limit (429) or a server error (5xx). Any other 4xx would meet it again. */
 const retriable = (status: number | null) =>
   status === null || status >= 500 || status === 408 || status === 429;
-/** The milliseconds `response` asks to wait before the next request (`Retry-After`, in seconds or
- *  an HTTP date), 0 for none. */
+/** The ms `response`'s `Retry-After` asks to wait (in seconds or an HTTP date), 0 for none. */
 const retryAfter = (response: Response) => {
   const value = response.headers.get('retry-after') ?? '';
   const ms = /^\d+$/.test(value) ? Number(value) * 1000 : Date.parse(value) - Date.now();
@@ -14,8 +13,9 @@ const retryAfter = (response: Response) => {
 /** Waits `ms`, or rejects with the reason of `signal` once it aborts. */
 const pause = (ms: number, signal?: AbortSignal) =>
   new Promise<void>((resolve, reject) => {
-    const timer = setTimeout(resolve, ms);
-    signal?.addEventListener('abort', () => (clearTimeout(timer), reject(signal.reason)));
+    const stop = () => (clearTimeout(timer), reject(signal?.reason));
+    const timer = setTimeout(() => resolve(signal?.removeEventListener('abort', stop)), ms);
+    signal?.addEventListener('abort', stop, { once: true });
   });
 /** The HTTP status `error` was refused with (`checked`), `null` for none: the network, or an
  *  error of another kind — one whose details carry the status of an answer taken (a JSON that

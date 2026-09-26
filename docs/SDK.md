@@ -135,9 +135,9 @@ checks `scene.load` runs, and download no binary sidecar.
 
 Every file of a model the engine reads over HTTP — the manifest, its tables and binary, images,
 lights, pages, cooked physics — goes through one loader. A failure that may pass — the network, a
-timeout (408), a rate limit (429), a server error (5xx) — is asked again, after the wait its
-`Retry-After` asks (seconds or an HTTP date): once, or by the reader's own retry — the page
-streamer's three attempts, the GPU page cache's two, a physics tile's next update. Any other 4xx is
+timeout (408), a rate limit (429), a server error (5xx) — is asked again once, after the wait its
+`Retry-After` asks (seconds or an HTTP date), or by the reader's own retry, without that wait: the
+page streamer's three attempts, the GPU page cache's two, a physics tile's next update. Another 4xx is
 never asked twice, and an aborted load asks nothing more and rejects with its reason. What still fails
 is `RESOURCE_HTTP_ERROR`, the address in its message and `details.url`, the status in
 `details.status` (`null` for the network). A file a cache may lack — `lights.json` and
