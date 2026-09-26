@@ -16,6 +16,7 @@ import {
   TILES_PER_LAYER,
 } from './tiles.ts';
 import { texturePoolFor } from '../webgpu/residency/memoryBudgets.ts';
+import { noTails } from './noTails.fixture.ts';
 
 test('a 2048² texture has five streamed levels of 256 + 64 + 16 + 4 + 1 tiles, and its tail starts at 64', () => {
   const layout = tileLayout(2048, 2048);
@@ -67,22 +68,24 @@ const blocks = (lane: string) => (lane === 'lossless' ? 4 : 1);
 // `device-limit` when a lane exceeds the layers the device accepts; no layer for an empty lane.
 test('the pool budget yields whole layers per lane, and never refuses: it raises or brings back, by name', () => {
   const demand = { color: lanes(5000, 0), data: lanes(5000, 0) };
-  assert.deepEqual(texturePoolFor(512 * MiB, undefined, demand, rgba8), {
+  const drawn = (bytes: number, device?: GPUDevice) =>
+    texturePoolFor(bytes, device, demand, rgba8, noTails);
+  assert.deepEqual(drawn(512 * MiB), {
     budgetBytes: 512 * MiB,
     layers: { color: lanes(4, 0), data: lanes(4, 0) },
     allocatedBytes: 8 * 66_585_600,
     clamp: null,
   });
-  assert.equal(texturePoolFor(2 * 66_585_600, undefined, demand, rgba8).layers.color.lossless, 1);
-  assert.deepEqual(texturePoolFor(100_000_000, undefined, demand, rgba8), {
+  assert.equal(drawn(2 * 66_585_600).layers.color.lossless, 1);
+  assert.deepEqual(drawn(100_000_000), {
     budgetBytes: 100_000_000,
     layers: { color: lanes(1, 0), data: lanes(1, 0) },
     allocatedBytes: 2 * 66_585_600,
     clamp: 'minimum',
   });
-  assert.throws(() => texturePoolFor(0, undefined, demand, rgba8), /INVALID_TEXTURE_POOL_BUDGET/);
+  assert.throws(() => drawn(0), /INVALID_TEXTURE_POOL_BUDGET/);
   const { device } = fakeDevice({ limits: { maxTextureArrayLayers: 2 } });
-  assert.deepEqual(texturePoolFor(512 * MiB, device, demand, rgba8), {
+  assert.deepEqual(drawn(512 * MiB, device), {
     budgetBytes: 512 * MiB,
     layers: { color: lanes(2, 0), data: lanes(2, 0) },
     allocatedBytes: 4 * 66_585_600,
@@ -94,9 +97,36 @@ test('the pool budget yields whole layers per lane, and never refuses: it raises
     undefined,
     { color: lanes(3, 0), data: lanes(0, 901) },
     blocks,
+    noTails,
   );
   assert.deepEqual(small.layers, { color: lanes(1, 0), data: lanes(0, 2) });
   assert.equal(small.clamp, 'scene');
+});
+
+// Behaviour (#726): the floor holds every tail of a lane, as the geometry pool holds its root
+// cover: a budget under it is raised to it, by name; only a device too small for it refuses.
+test('a budget under the tails of a lane is raised to the layers they take, by name', () => {
+  const demand = { color: lanes(5000, 0), data: lanes(0, 0) };
+  const tails = { color: lanes(TILES_PER_LAYER + 1, 0), data: lanes(0, 0) };
+  const pool = texturePoolFor(1, undefined, demand, rgba8, tails);
+  assert.deepEqual([pool.layers.color, pool.clamp], [lanes(2, 0), 'minimum']);
+  assert.equal(texturePoolFor(512 * MiB, undefined, demand, rgba8, tails).layers.color.lossless, 4);
+  const { device } = fakeDevice({ limits: { maxTextureArrayLayers: 1 } });
+  assert.throws(() => texturePoolFor(1, device, demand, rgba8, tails), /TEXTURE_POOL_DEVICE_LIMIT/);
+});
+
+// Behaviour (#726): tails that fill whole layers leave a lane that streams one layer more at its
+// floor, never frozen at its tails; a lane with nothing to stream keeps only its tails' layers.
+test('a lane whose tails fill whole layers keeps a layer to stream into at its floor', () => {
+  const full = { color: lanes(TILES_PER_LAYER, 0), data: lanes(0, 0) };
+  const streams = texturePoolFor(1, undefined, { ...full, color: lanes(5000, 0) }, rgba8, full);
+  assert.deepEqual([streams.layers.color, streams.clamp], [lanes(2, 0), 'minimum']);
+  const still = texturePoolFor(1, undefined, full, rgba8, full);
+  assert.deepEqual(still.layers.color, lanes(1, 0));
+  // A device that holds the tails but not the slot beside them brings the lane back, never refuses.
+  const { device } = fakeDevice({ limits: { maxTextureArrayLayers: 1 } });
+  const capped = texturePoolFor(1, device, { ...full, color: lanes(5000, 0) }, rgba8, full);
+  assert.deepEqual([capped.layers.color, capped.clamp], [lanes(1, 0), 'device-limit']);
 });
 
 // Behaviour: a block lane holds one byte per texel — the same budget carries four times its
@@ -107,6 +137,7 @@ test('block lanes draw four times the layers from the same bytes, and a capped l
     undefined,
     { color: lanes(0, 40_000), data: lanes(0, 40_000) },
     blocks,
+    noTails,
   );
   assert.deepEqual(pool, {
     budgetBytes: 512 * MiB,
@@ -122,6 +153,7 @@ test('block lanes draw four times the layers from the same bytes, and a capped l
     undefined,
     { color: lanes(900, 40_000, 40_000), data: lanes(0, 0) },
     blocks,
+    noTails,
   );
   assert.deepEqual(mixed.layers.color, lanes(1, 6, 6));
   assert.equal(mixed.clamp, null);
