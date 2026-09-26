@@ -98,13 +98,13 @@ export function createExplorerRender(session: ExplorerRenderSession, inputs: Inp
     const frameNumber = ++state.hostFrame;
     const start = performance.now();
     if (pose) setPose(pose);
+    guides?.follow(); // no integration: it spends none of the budget
     // One integration budget per frame: the cells placed, then the arrivals drained, both
     // outside the frame they would have lengthened; the engine's row records spend what is left.
     frameBudget.open();
-    let arrivalStart = start;
+    let arrivalStart: number;
     try {
       followCells?.();
-      guides?.follow();
       arrivalStart = performance.now();
       streaming.arrivals.drain();
     } finally {

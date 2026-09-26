@@ -26,10 +26,14 @@ const rootWorld = new Float64Array(MATRIX_VALUES),
   inverse = new Float64Array(MATRIX_VALUES);
 
 /** The least and the most `matrix` stretches a distance — its smallest and largest singular
- *  values —; a flattened frame stretches it by 0. */
+ *  values —; a flattened frame, or one so nearly flat its inverse overflows, stretches it by 0. */
 export function stretchOf(matrix: ArrayLike<number>): Stretch {
-  if (determinantMatrix4(matrix) === 0) return [0, maxStretch(matrix)];
-  return [1 / maxStretch(invertMatrix4(inverse, matrix)), maxStretch(matrix)];
+  const most = maxStretch(matrix);
+  if (determinantMatrix4(matrix) === 0) return [0, most];
+  const back = invertMatrix4(inverse, matrix).every(Number.isFinite)
+    ? maxStretch(inverse)
+    : Infinity;
+  return [1 / back, most];
 }
 
 /**

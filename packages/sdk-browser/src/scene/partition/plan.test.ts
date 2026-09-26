@@ -37,6 +37,9 @@ test('a sheared root reads every cell the world reach holds, by its least singul
   assert.deepEqual(eye, [0, 0, 0]);
   const flat = [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
   assert.equal(inCellFrame(flat, [0, 0, 0], 1).reach, Infinity, 'a flattened root reads all');
+  // So nearly flat its inverse overflows: it reads all too, rather than throw.
+  const nearlyFlat = flat.map((value, at) => (at === 5 ? 1e-310 : value));
+  assert.deepEqual(inCellFrame(nearlyFlat, [1, 2, 3], 1), { eye: [0, 0, 0], reach: Infinity });
 });
 
 test('the distance to a cell is the distance to its box', () => {
