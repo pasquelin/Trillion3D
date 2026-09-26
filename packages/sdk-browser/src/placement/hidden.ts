@@ -54,8 +54,9 @@ const moved = new Float64Array(BOX_VALUES),
  * shown again, unless its row is parked. A root placed at its own node's world casts as its mesh
  * says (`castShadow`, its shadowless bit); a row says for its own (`followPlacementRows`). `flip`
  * hears the rank of each root that flipped. A see-through draw of a hidden node takes `hidden`,
- * which its selection reads (`notDrawn`), and `seeThrough.flipped` hears it. Read once per scene revision, never per frame. Returns the box
- * of the roots that flipped, where the shadow pages must be drawn again, or `null`.
+ * which its selection reads (`notDrawn`), and `seeThrough.flipped` hears it. Read once per scene
+ * revision, never per frame. Returns the box of the roots that flipped, where the shadow pages must
+ * be drawn again, or `null`.
  */
 export function followHostVisibility<T extends { sourceMesh?: Object3D }, S extends SeeThrough>(
   roots: readonly ClusterRoot<T>[],

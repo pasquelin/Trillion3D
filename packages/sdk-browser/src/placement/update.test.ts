@@ -113,6 +113,22 @@ test('a row that stops or starts casting flips its mark and stales its box, what
   }
 });
 
+test('a moving row that stops casting as it moves stales its moving casters alone', () => {
+  // #456: the static layer leaves a moving placement out (`mobility.ts`), so it has nothing of it.
+  const { rows, write } = placed(),
+    boxes: [number[], boolean][] = [];
+  const collect = (min: ArrayLike<number>, max: ArrayLike<number>, movingOnly: boolean) =>
+    boxes.push([[...Array.from(min), ...Array.from(max)], movingOnly]);
+  write([[0, 0.1]], collect);
+  boxes.length = 0;
+  rows.shadowless[0] = 1;
+  assert.equal(write([[0, 0.2]], collect), true);
+  assert.deepEqual(
+    boxes.map(([, movingOnly]) => movingOnly),
+    [true],
+  );
+});
+
 test('a caster moving over a still ground, under a moving camera, redraws the pages it sweeps', () => {
   const { store, plan, slice } = light.sunScene();
   const named = sun.sunBlock(plan, slice, [3, 4, 5], [0, 5, 0], 8),
