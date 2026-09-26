@@ -7,6 +7,7 @@ use super::{refused, taken};
 use crate::compiler_accessor_create::accessor;
 use crate::compiler_validate::{item, required_index, values};
 use crate::compiler_world::{transform_point, Mat4};
+use crate::dag::clusters::weld_positions;
 use crate::qem::compact_region;
 use crate::{Options, Result};
 use serde_json::{json, Value};
@@ -74,10 +75,13 @@ pub(super) fn cooked_hull(
             *p = transform_point(&m, p.map(f64::from)).map(|v| v as f32);
         }
     }
+    // One point per position: seam copies neither split an edge nor add a hull point.
+    let weld = weld_positions(&pos, &triangles);
+    let welded: Vec<u32> = triangles.iter().map(|&i| weld[i as usize]).collect();
     let mass = weigh
-        .map(|scale| solid_mass(&pos, &triangles, scale, mesh))
+        .map(|scale| solid_mass(&pos, &welded, scale, mesh))
         .transpose()?;
-    let mut shape = store_shape(o, &hull_shape(&compact_region(&pos, &triangles).0)?)?;
+    let mut shape = store_shape(o, &hull_shape(&compact_region(&pos, &welded).0)?)?;
     shape["type"] = json!("cooked");
     if let Some(mass) = mass {
         shape["mass"] = mass;
