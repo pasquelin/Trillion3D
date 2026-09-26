@@ -129,11 +129,8 @@ export function createPageInvalidation(
     const range = sunLight ? 0 : (light.range ?? 0),
       position = light.position ?? ORIGIN;
     if (!sunLight && byPage && changes.count) lampFaces(light);
-    // With per-page invalidation on, each box stales exactly its own pages — by walking the
-    // entries it covers, or, when they outnumber the pool's pages, by one scan against its own
-    // rectangles — while the light's work stays within its virtual pages; the boxes past that
-    // join a rest union by what they stale, scanned once each at the end. Off, every box that touches
-    // stales every page: one scan at the strongest level, withdrawing when any box is wrong.
+    // Per page: each box exactly, within the light's virtual pages, then the rest unions. Off: one
+    // scan at the strongest level, withdrawing when any box is wrong.
     let budget = tableEntriesOf(rank),
       level = 0,
       wrong = false;
