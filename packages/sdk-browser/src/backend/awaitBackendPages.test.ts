@@ -132,21 +132,10 @@ test('a wait for pages alone asks every flush for no image (#408)', async () => 
   assert.deepEqual(asked, [{ image: false }, { image: false }, { image: false }]);
 });
 
-test('the view is heard in two: what it lacks, and what it holds once each (#408)', async () => {
-  const heard: string[][][] = [];
-  await awaitBackendPages(
-    {
-      render() {},
-      pendingUrls: () => ['b', 'c'],
-      pageUrls: () => ['a', 'b', 'a', 'c', 'd'],
-    },
-    G.perspectiveCamera(),
-    async (missing, held) => void heard.push([missing, held]),
-  );
-  assert.deepEqual(heard, [
-    [
-      ['b', 'c'],
-      ['a', 'd'],
-    ],
-  ]);
+test('load hears the pages the cut lacks, and is heard with none once the frames read them (#408)', async () => {
+  const heard: string[][] = [];
+  const load = async (missing: string[]) => void heard.push(missing);
+  await awaitBackendPages({ render() {}, pendingUrls: () => ['b'] }, G.perspectiveCamera(), load);
+  await awaitBackendPages({ render() {}, pendingUrls: () => [] }, G.perspectiveCamera(), load);
+  assert.deepEqual(heard, [['b'], []]);
 });
