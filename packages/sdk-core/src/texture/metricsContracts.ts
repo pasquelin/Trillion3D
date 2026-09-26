@@ -65,7 +65,7 @@ export interface TextureFrameMetrics {
   /**
    * The sources. `textureLevelReads`: baked levels being read in the cache. `textureLevelsDecoded`:
    * baked levels decoded since the start. `textureLevelCacheBytes`: host bytes of decoded
-   * levels held to cut further tiles from them, under a fixed budget. `textureScratchBuilds`:
+   * levels held to cut further tiles from them, within the CPU total. `textureScratchBuilds`:
    * work textures built for a texture without a baked chain, the whole source each time.
    */
   textureLevelReads?: number | null;
