@@ -99,7 +99,10 @@ fn triangle_deviation(
             [sum[0] + n[0], sum[1] + n[1], sum[2] + n[2]]
         });
     let shading = unit(mean)?;
-    Some(dot(face, shading).clamp(-1.0, 1.0).acos().to_degrees())
+    // `libm`'s arc cosine, not the platform's: macOS and glibc round its last bit apart, and the
+    // deviation is published in the cook and compared to a bound, whose bytes must not depend on
+    // the machine (#415: a chalet level read 7.861551618584295° on a Mac, …294° on Linux).
+    Some(libm::acos(dot(face, shading).clamp(-1.0, 1.0)).to_degrees())
 }
 
 /// Three floats of `values` at vertex `v`, if it has them.
