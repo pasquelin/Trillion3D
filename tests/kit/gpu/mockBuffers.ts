@@ -1,7 +1,7 @@
 /** What a mock buffer's mapping meets: a refusal, or a gate the test opens when it chooses. */
 export type MapFaults = { failMap?: boolean; mapGate?: Promise<void> };
 
-export type MockBuffer = {
+type MockBuffer = {
   label?: string;
   size: number;
   usage: number;

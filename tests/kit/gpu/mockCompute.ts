@@ -26,7 +26,7 @@ export type ComputeBind = {
 };
 
 /** The DAG selection uniform block as the shader reads it: the camera, and the resident-cut switch. */
-export function readDagUniforms(data: Uint8Array) {
+function readDagUniforms(data: Uint8Array) {
   const f32 = new Float32Array(data.buffer, data.byteOffset, data.byteLength / 4);
   const u32 = new Uint32Array(data.buffer, data.byteOffset, data.byteLength / 4);
   return {
