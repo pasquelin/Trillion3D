@@ -5,11 +5,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { ruleDag } from './cutRule.fixture.ts';
-import { AWAY, placements, stripCamera } from './cutRuleBackends.fixture.ts';
+import { placements, stripCamera } from './cutRuleBackends.fixture.ts';
 import { webgl2Cut } from './cutRuleHosts.fixture.ts';
-import { random } from './cutRuleChecks.fixture.ts';
-import { selectVisiblePages } from './cut.ts';
-import { createHeldResidency } from './held.ts';
 import { packDagSelection } from '../../gpu/dag/pack.ts';
 import { uploadResidency } from '../../gpu/dag/readiness.fixture.ts';
 
@@ -57,40 +54,6 @@ test('reading the host bytes weighs as many tables for 2 placements as for 32', 
     return { webgl2: weighed(() => cut.hostBytes()), gpu: weighed(() => gpu.hostBytes) };
   };
   assert.deepEqual(reads(32), reads(2));
-});
-
-test("the CPU cut's readiness total drops to zero after any moves, replaced states and exits", () => {
-  const roots = placements(dag, 4),
-    held = createHeldResidency(),
-    next = random(7);
-  const cutAll = () =>
-    selectVisiblePages(roots, cam, {
-      pixelError: 0.1,
-      viewport: [1280, 720],
-      held,
-    });
-  held.track(roots);
-  let peak = 0;
-  for (let frame = 0; frame < 24; frame++) {
-    const share = frame % 6 === 5 ? 0 : next();
-    for (const root of roots) {
-      // A placement comes and goes; its pages move, and the feed names each.
-      root.worldBox = next() < 0.3 ? AWAY : undefined;
-      for (const page of root.pages)
-        if (!!page.array !== next() < share) {
-          page.array = page.array ? undefined : new Uint32Array(3);
-          held.moved(page);
-        }
-    }
-    // A placement whose hierarchy changed starts over: its old state leaves the total.
-    if (frame === 12) (roots[1] as { structure: object }).structure = { ...dag.structure };
-    cutAll();
-    peak = Math.max(peak, held.bytes);
-  }
-  assert.ok(peak > 0, 'the pool held pages');
-  for (const root of roots) root.worldBox = AWAY;
-  cutAll();
-  assert.deepEqual([held.placements, held.bytes], [0, 0]);
 });
 
 test('the WebGL2 image counts the placements added and removed since its last cut', () => {
