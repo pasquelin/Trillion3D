@@ -13,7 +13,7 @@ import { UNIFORM_STRIDE } from '../../blend/uniforms.ts';
 import { VOLUME_WORDS, createVolumeBuffer } from '../../transparent/transmission.ts';
 import { createGpuDagSelection, packDagSelection } from '../../../gpu/dag/selection.ts';
 import { prepareCones } from './cones.ts';
-import { ensureTargets } from './targets.ts';
+import { grantFrameTargets } from './targetGrant.ts';
 import { ensureUniform } from './pipelineFor.ts';
 import { dropVis, grantCapability } from '../io/drops.ts';
 import { throwIfStopped } from '../io/lost.ts';
@@ -45,7 +45,7 @@ export async function prepareWebgpuBackend(rt: WebgpuPagesRuntime, device: GPUDe
  *  kept on the runtime, and the teardown releases it. */
 export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
   const { gpu, vis, run, context, diag, capabilities, blendState, services } = rt,
-    { allPages, blendCopies, scene, viewport, cap } = rt.setup,
+    { allPages, blendCopies, scene, cap } = rt.setup,
     { packedPages, selectionRoots, rows } = rt.layout;
   const step = <T>(name: string, work: () => Promise<T>) => {
     throwIfStopped(rt);
@@ -143,8 +143,7 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
     geometryFailure = { error };
   }
   await grantWebgpuPagesCache(rt, gpuDevice);
-  const [width, height] = viewport;
-  ensureTargets(rt, gpuDevice, Math.max(1, width), Math.max(1, height));
+  await grantFrameTargets(rt, gpuDevice);
   ensureUniform(rt, gpuDevice, cap);
   try {
     if (geometryFailure) throw geometryFailure.error;

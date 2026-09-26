@@ -3,7 +3,6 @@ import { cameraSelectionUniforms } from '../../../gpu/core/selection.ts';
 import { mirrorDrawnFromShown } from '../helpers.ts';
 import { abandonFrameEncoder, openFrameEncoder } from './encoder.ts';
 import { fallbackToCpuCut } from '../io/drops.ts';
-import { ensureTargets } from '../prepare/targets.ts';
 import { encodeDraws } from './encodeDraws.ts';
 import { admitGpuCut } from './gpuCutAdmission.ts';
 import { dispatchWaitingSelection, streamCutResidency } from './gpuCutStream.ts';
@@ -107,8 +106,6 @@ export function renderGpuCut(
   // thousand records already in place: the flag says so, the copy abstains.
   mirrorDrawnFromShown(run);
   marks.selectionEnd = performance.now();
-  const [width, height] = viewport;
-  ensureTargets(rt, gpuDevice, Math.max(1, width), Math.max(1, height));
   if (!run.renderPathLogged) {
     run.renderPathLogged = true;
     diag.engineDiagnostic('first-render-path', 'WebGPU first render configuration', {
