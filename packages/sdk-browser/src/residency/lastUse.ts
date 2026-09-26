@@ -7,11 +7,12 @@ import { createSparseInts } from '../page/cut/sparseInts.ts';
  *
  * A page the image keeps — its cut, the pinned cover, and what it draws, the nearest resident
  * ancestor standing in for a missing page included — is held. A page that leaves `keep` stays
- * held for `idleWindow` frames — as many as the engine's frame pipeline may still draw it in —, then is released, oldest first: the caller unpins it. It was
- * sent to the far end of the cache's order when it went idle (`onIdle`), so the cache reclaims
- * released pages in their last-use order, and ahead of the pages a lower tier moved there since
- * (`../webgpu/residency/residentEnsurer.ts`), which some view still wants. Under pressure — more kept pages to load than the pool has unpinned slots — the window
- * gives way first: that many idle pages are released early, still oldest first, so the window
+ * held for `idleWindow` frames — as many as the engine's frame pipeline may still draw it in —,
+ * then is released, oldest first: the caller unpins it. It was sent to the far end of the cache's
+ * order when it went idle (`onIdle`), so the cache reclaims released pages in their last-use order,
+ * and ahead of the pages a lower tier moved there since (`residentEnsurer.ts`), which some view
+ * still wants. Under pressure — more kept pages to load than the pool has unpinned slots — the
+ * window gives way first: that many idle pages are released early, still oldest first, so the window
  * never costs the image a page it asks for. A page within its window that is still loading asks
  * for no slot: the image no longer wants it.
  *
@@ -31,7 +32,7 @@ export function createLastUse(options: {
   /** True while the image keeps the page. */
   kept: (key: number) => boolean;
   /** A page became held through a child: the caller pins it once resident. */
-  onHeld: (key: number) => void;
+  onHeld?: (key: number) => void;
   /** A page went idle, its last use: the caller moves it to the far end of the cache's order. */
   onIdle: (key: number) => void;
 }) {
@@ -61,7 +62,7 @@ export function createLastUse(options: {
     for (const parent of parentsOf(rec)) {
       const at = keyOf(parent);
       children.add(at, 1);
-      if (hold(at, parent)) onHeld(at);
+      if (hold(at, parent)) onHeld?.(at);
     }
     return true;
   };

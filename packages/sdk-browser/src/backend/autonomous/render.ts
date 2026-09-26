@@ -82,6 +82,11 @@ export function createAutonomousRender(options: {
   const motion: CameraMotion = {};
   const cut = createImageCut({ ...options, viewport: context.viewport, held: geometry.held });
   const sourcesDessinees = roots.map((root) => root.pages[0]);
+  /** What the image asks for and draws moved: the streamer's pins and the pool follow it. */
+  const follow = () => {
+    residency.keptChanged();
+    pool.follow(requested, shown);
+  };
   const frame = (camera: HostCamera) => {
     // Frame entry: the order and its guarantees live in `../../frame/gateCore.ts`, which also copies
     // the host camera into the engine camera — the cut now reads only the latter.
@@ -108,10 +113,7 @@ export function createAutonomousRender(options: {
     // Over the budget, the pages the last image drew but the pool no longer holds can go: this cut
     // draws their nearest resident ancestor, before the scene is drawn again. A pool drawn since
     // the last cut first cuts what it asked for, so the image that sees it holds no more.
-    if (cut.readmit()) {
-      residency.keptChanged();
-      pool.follow(requested, shown);
-    }
+    if (cut.readmit()) follow();
     pool.trim();
     const selected = cut(gate.cam, gate.pixelError);
     state.visible = selected.visible;
@@ -121,8 +123,7 @@ export function createAutonomousRender(options: {
     // Drawn pages past the display graph's page ceiling are reported, never replaced.
     state.overBudget = attachedPages(shown) > ceiling();
     geometry.sync();
-    residency.keptChanged();
-    pool.follow(requested, shown);
+    follow();
     gate.keep(state.visible, state.selectedTriangles, shown, state.lodLevel, state.overBudget);
   };
   return Object.assign(frame, { hostBytes: cut.hostBytes });
