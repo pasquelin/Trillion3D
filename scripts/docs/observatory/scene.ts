@@ -1,4 +1,4 @@
-import { createWorkshop } from './geometry.ts';
+import { bottom, createWorkshop, top } from './geometry.ts';
 
 /** Name, glTF base color RGBA, metallic factor, roughness factor. */
 export const observatoryMaterials: [string, [number, number, number, number], number, number][] = [
@@ -10,88 +10,138 @@ export const observatoryMaterials: [string, [number, number, number, number], nu
   ['Terracotta', [0.58, 0.16, 0.075, 1], 0, 0.76],
 ];
 
-/** The paving stones' pitch, centre height and size, in metres, and how many stones run out from
- *  the centre along x and z; the arcades stand on them. */
-export const paving = { pitch: 2, y: 0.11, size: [1.92, 0.08, 1.92], stones: [5, 4] };
+const [, [red, green, blue]] = observatoryMaterials[0];
+/** The court's sky, which a scene file cannot carry (it declares only its sun): a clear sky at a
+ *  fifth of the sun's intensity, the clear-day ratio of sky to sun, tinted from below by the
+ *  court's limestone (its linear source colour). Written beside the source for every reader. */
+export const observatorySky = {
+  color: '#a6c6ff',
+  groundColor: [red, green, blue] as const,
+  sunShare: 1 / 5,
+};
 
-/** Solstice Court: an original, deterministic observatory, not a historical reconstruction. */
+/** The paving stones' pitch and size, in metres, and how many stones run out from the centre
+ *  along x and z; they lie on the court's slab, and the rest of the court stands on them. */
+export const paving = { pitch: 2, size: [1.92, 0.08, 1.92], stones: [5, 4] };
+
+/** Where a part `height` tall stands on a top at `y`: its centre's height. */
+const on = (y: number, height: number) => y + height / 2;
+
+/** Solstice Court: an original, deterministic observatory, not a historical reconstruction.
+ *  Every part stands on the one under it: its height is read from that part's top. */
 export function createObservatory() {
   const w = createWorkshop();
-  w.block(0, [0, -0.45, 0], [25, 0.9, 20]);
-  w.block(1, [0, 0.04, 0], [23.8, 0.08, 18.8]);
+  const ground = w.block(0, [0, -0.45, 0], [25, 0.9, 20]);
+  const slab = [23.8, 0.08, 18.8];
+  const slabTop = top(w.block(1, [0, on(top(ground), slab[1]), 0], slab));
   // Individually raised paving stones cast fine contact shadows without texture assets.
   for (let j = -paving.stones[1]; j <= paving.stones[1]; j++)
     for (let i = -paving.stones[0]; i <= paving.stones[0]; i++)
-      w.block((i + j) % 2 ? 0 : 1, [i * paving.pitch, paving.y, j * paving.pitch], paving.size);
-  for (let step = 0; step < 7; step++)
-    w.block(0, [0, 0.12 + step * 0.13, 7.8 - step * 0.5], [7.4, 0.24 + step * 0.26, 0.5]);
-  w.block(0, [0, 0.52, 0.1], [7.4, 1.04, 10.3]);
-  w.block(4, [0, 1.06, 0], [6.8, 0.08, 7.3]);
-  // Two open arcades leave long views through carved columns to the central instrument; each
-  // column's plinth rests on the fourth paving stone out, centred on it, and the shaft on the plinth.
-  const pavingTop = paving.y + paving.size[1] / 2,
-    plinth = [1.5, 0.52, 1.5],
-    plinthTop = pavingTop + plinth[1];
-  for (const side of [-1, 1]) {
-    const x = side * 4 * paving.pitch;
-    for (const z of [-3, -1, 1, 3].map((stone) => stone * paving.pitch)) {
-      w.block(0, [x, pavingTop + plinth[1] / 2, z], plinth);
-      w.turned(1, [x, plinthTop, z], 0.46, 4.4, 16);
-      w.block(1, [x, 5.1, z], [1.25, 0.28, 1.25]);
-      w.turned(3, [x, plinthTop, z], 0.52, 0.16, 0, 32);
-    }
-    for (const z of [-2, 0, 2].map((stone) => stone * paving.pitch)) {
-      // The arch lies in the depth plane; its tapered voussoirs remain a curved LOD witness.
-      w.patch(0, 64, 8, (u, v) => {
-        const a = u * Math.PI,
-          r = 2 + 0.32 * v;
-        return [x - 0.48, 4.55 + r * Math.sin(a), z + r * Math.cos(a)];
-      });
-      w.patch(1, 64, 8, (u, v) => {
-        const a = u * Math.PI,
-          r = 2 + 0.32 * v;
-        return [x + 0.48, 4.55 + r * Math.sin(a), z + r * Math.cos(a)];
-      });
-      w.patch(0, 64, 4, (u, v) => {
-        const a = u * Math.PI;
-        return [x - 0.48 + v * 0.96, 4.55 + 2 * Math.sin(a), z + 2 * Math.cos(a)];
-      });
-    }
-    w.block(0, [x, 6.95, 0], [1.6, 0.36, 15]);
-    w.block(2, [x, 7.2, 0], [1.85, 0.12, 15.3]);
-  }
-  // A domed asymmetrical lantern anchors the far side of the court.
-  w.block(0, [-3, 2.5, -7], [7, 4.8, 4]);
-  w.block(1, [-3, 5.02, -7], [7.4, 0.24, 4.4]);
-  w.turned(1, [-3, 5.1, -7], 2.1, 1.1, 24);
-  w.patch(2, 128, 32, (u, v) => {
+      w.block(
+        (i + j) % 2 ? 0 : 1,
+        [i * paving.pitch, on(slabTop, paving.size[1]), j * paving.pitch],
+        paving.size,
+      );
+  const pavingTop = slabTop + paving.size[1],
+    far = -(paving.stones[1] * paving.pitch + paving.size[2] / 2);
+  // A domed asymmetrical lantern anchors the far side of the court, its back on the far edge.
+  const lantern = [7, 4.8, 4],
+    lanternZ = far + lantern[2] / 2,
+    front = far + lantern[2];
+  const body = w.block(0, [-3, on(pavingTop, lantern[1]), lanternZ], lantern);
+  const cornice = w.block(1, [-3, on(top(body), 0.24), lanternZ], [7.4, 0.24, 4.4]);
+  const drum = w.turned(1, [-3, top(cornice), lanternZ], 2.1, 1.1, 24);
+  const dome = w.patch(2, 128, 32, (u, v) => {
     const a = u * Math.PI * 2,
       b = (v * Math.PI) / 2;
     const r = 2.35 * Math.cos(b) * (1 + 0.025 * Math.cos(24 * a));
-    return [-3 + r * Math.cos(a), 6.2 + 2.7 * Math.sin(b), -7 - r * Math.sin(a)];
+    return [-3 + r * Math.cos(a), top(drum) + 2.7 * Math.sin(b), lanternZ - r * Math.sin(a)];
   });
-  w.turned(3, [-3, 8.75, -7], 0.12, 0.9, 0, 32);
-  // Deep door and stepped surround give the facade readable scale.
-  w.block(4, [-3, 2.2, -4.96], [2.1, 3.5, 0.08]);
-  for (const x of [-4.3, -1.7]) w.block(1, [x, 2.2, -4.85], [0.38, 3.8, 0.35]);
-  w.block(1, [-3, 4.2, -4.82], [3.1, 0.35, 0.4]);
-  // Brass armillary at the centre: oblique rings, engraved support and a ribbed core.
-  w.turned(0, [0.6, 1.1, 0.2], 1, 0.9, 12);
-  w.turned(1, [0.6, 2, 0.2], 0.55, 1.1, 18);
-  for (const tilt of [0, 0.75, 1.5]) w.ring(3, [0.6, 4.1, 0.2], 2.1, 0.075, tilt);
+  w.turned(3, [-3, top(dome), lanternZ], 0.12, 0.9, 0, 32);
+  // Deep door and stepped surround give the facade readable scale: the jambs stand on the
+  // paving against the facade, the door fills the opening and the lintel spans the jambs.
+  const jamb = [0.38, 3.8, 0.35];
+  const [jambTop] = [-4.3, -1.7].map((x) =>
+    top(w.block(1, [x, on(pavingTop, jamb[1]), front + jamb[2] / 2], jamb)),
+  );
+  w.block(4, [-3, on(pavingTop, jamb[1]), front + 0.04], [2.1, jamb[1], 0.08]);
+  w.block(1, [-3, on(jambTop, 0.35), front + 0.2], [3.1, 0.35, 0.4]);
+  // The instrument's platform runs from the door's surround to its steps; seven steps climb it
+  // from the paving in equal risers, the platform's top the last.
+  const platformFront = 5.25,
+    platform = [7.4, 1.04, platformFront - front - jamb[2]];
+  const deck = w.block(
+    0,
+    [0, on(pavingTop, platform[1]), platformFront - platform[2] / 2],
+    platform,
+  );
+  for (let step = 0, steps = 7; step < steps; step++) {
+    const size = [platform[0], (platform[1] * (steps - step)) / (steps + 1), 0.5];
+    w.block(0, [0, on(pavingTop, size[1]), platformFront + size[2] * (step + 0.5)], size);
+  }
+  const pool = w.block(4, [0, on(top(deck), 0.08), 0], [6.8, 0.08, 7.3]);
+  // Brass armillary at the centre: oblique rings, engraved support and a ribbed core. The upright
+  // ring runs down through the stem to its foot, and the core hangs at the rings' centre.
+  const support = w.turned(0, [0.6, top(pool), 0.2], 1, 0.9, 12);
+  const stem = w.turned(1, [0.6, top(support), 0.2], 0.55, 1.1, 18);
+  const center = [0.6, bottom(stem) + 2.1, 0.2];
+  for (const tilt of [0, 0.75, 1.5]) w.ring(3, center, 2.1, 0.075, tilt);
   w.patch(2, 96, 48, (u, v) => {
     const a = u * Math.PI * 2,
       b = (1 - v) * Math.PI;
     const r = 0.83 + 0.045 * Math.sin(a * 18) * Math.sin(b * 10);
     return [
-      0.6 + r * Math.sin(b) * Math.cos(a),
-      4.1 + r * Math.cos(b),
-      0.2 - r * Math.sin(b) * Math.sin(a),
+      center[0] + r * Math.sin(b) * Math.cos(a),
+      center[1] + r * Math.cos(b),
+      center[2] - r * Math.sin(b) * Math.sin(a),
     ];
   });
-  // A low terracotta pavilion balances the domed tower without repeating its silhouette.
-  w.block(5, [7.5, 1.2, -7.5], [4, 2.2, 3]);
-  w.block(1, [7.5, 2.42, -7.5], [4.4, 0.25, 3.4]);
-  for (let x = 6; x < 10; x += 0.55) w.block(0, [x, 2.8, -7.5], [0.27, 0.5, 3.2]);
-  return { surfaces: w.surfaces, blocks: w.blocks };
+  // Two open arcades leave long views through carved columns to the central instrument; each
+  // column's plinth rests on the fourth paving stone out, centred on it, the shaft on the plinth,
+  // the capital on the shaft, the arches on the capitals and the entablature on their crowns.
+  const plinth = [1.5, 0.52, 1.5],
+    capital = [1.25, 0.28, 1.25],
+    [radius, thickness] = [2, 0.32],
+    columns = [-3, -1, 1, 3].map((stone) => stone * paving.pitch);
+  for (const side of [-1, 1]) {
+    const x = side * 4 * paving.pitch;
+    const [spring] = columns.map((z) => {
+      const foot = w.block(0, [x, on(pavingTop, plinth[1]), z], plinth);
+      const shaft = w.turned(1, [x, top(foot), z], 0.46, 4.4, 16);
+      w.turned(3, [x, top(foot), z], 0.52, 0.16, 0, 32);
+      return top(w.block(1, [x, on(top(shaft), capital[1]), z], capital));
+    });
+    const arch = (a: number, r: number) => [spring + r * Math.sin(a), r * Math.cos(a)];
+    for (const z of [-2, 0, 2].map((stone) => stone * paving.pitch)) {
+      // The arch lies in the depth plane; its tapered voussoirs remain a curved LOD witness.
+      for (const [material, face] of [
+        [0, -0.48],
+        [1, 0.48],
+      ])
+        w.patch(material, 64, 8, (u, v) => {
+          const [y, dz] = arch(u * Math.PI, radius + thickness * v);
+          return [x + face, y, z + dz];
+        });
+      w.patch(0, 64, 4, (u, v) => {
+        const [y, dz] = arch(u * Math.PI, radius);
+        return [x - 0.48 + v * 0.96, y, z + dz];
+      });
+    }
+    const beam = w.block(0, [x, on(spring + radius + thickness, 0.36), 0], [1.6, 0.36, 15]);
+    w.block(2, [x, on(top(beam), 0.12), 0], [1.85, 0.12, 15.3]);
+  }
+  // A low terracotta pavilion balances the domed tower without repeating its silhouette: its back
+  // on the far edge, its front against the last column's plinth, its louvres on its cornice.
+  const clear = columns[0] - plinth[2] / 2,
+    hall = [4, 2.2, clear - far],
+    hallZ = (far + clear) / 2;
+  const walls = w.block(5, [7.5, on(pavingTop, hall[1]), hallZ], hall);
+  const eaves = [hall[0] + 0.4, 0.25, hall[2] + 0.4];
+  const roof = w.block(1, [7.5, on(top(walls), eaves[1]), hallZ], eaves);
+  const louvre = [0.27, 0.5, hall[2] + 0.2],
+    pitch = 0.55,
+    louvres = Math.floor((eaves[0] - louvre[0]) / pitch) + 1;
+  for (let k = 0; k < louvres; k++)
+    w.block(0, [7.5 + (k - (louvres - 1) / 2) * pitch, on(top(roof), louvre[1]), hallZ], louvre);
+  return { surfaces: w.surfaces, parts: w.parts };
 }
