@@ -68,32 +68,31 @@ fn coverage_holds_at_every_level_of_a_masked_chain() {
     assert_eq!(strays(&median, 128), [3, 4, 5, 6, 7, 8]);
 }
 
-// #44, step 4: `a × (C − 0.5) / (t − 0.5)` rounded half up, in integers. The table is the card's
-// too (`texture/coverageRule.test.ts`, #748): one expected answer for the three builders. Its first
-// case: level 0 covers half its texels at 128, the level's median alphas cover two of four from
-// `t` = 11 to 90, and 90 is nearest the cutoff: `s` = 127.5 / 89.5, so 100 → 142, 90 → 128.
+// #44, step 4: `a × (C − 0.5) / (t − 0.5)` rounded half up, in integers, on a table the card's
+// test reads too (`texture/coverageRule.test.ts`, #748). Its first case: level 0 covers half its
+// texels at 128, the level's alphas two of four from `t` = 11 to 90, and 90 is nearest the cutoff.
 #[test]
 fn the_scale_lands_on_the_cutoff_in_integers() {
     let table: Value = serde_json::from_str(include_str!(
         "../../../../../tests/fixtures/formats/previews/coverage-alpha.json"
     ))
     .expect("table");
-    let bytes = |alphas: &Value| -> Vec<u8> {
-        let alphas = alphas.as_array().expect("alphas").iter();
-        alphas
-            .flat_map(|a| [9, 9, 9, a.as_u64().expect("byte") as u8])
-            .collect()
+    let bytes = |alphas: &str| -> Vec<u8> {
+        let alphas = alphas.split_whitespace().map(|a| a.parse().expect("byte"));
+        alphas.flat_map(|a: u8| [9, 9, 9, a]).collect()
     };
     for case in table["cases"].as_array().expect("cases") {
-        let cutoff = case["cutoff"].as_u64().expect("cutoff") as u8;
-        let covered =
-            Covered::of(&bytes(&case["level0"]), AtlasKind::Coverage(cutoff)).expect("cut");
-        let mut level = bytes(&case["level"]);
-        covered.preserve(&mut level);
-        assert_eq!(level, bytes(&case["scaled"]), "{case}");
+        let parts: Vec<&str> = case.as_str().expect("case").split('|').collect();
+        let [cutoff, level0, level, _, scaled] = parts[..] else {
+            panic!("{case}")
+        };
+        let covered = Covered::of(&bytes(level0), AtlasKind::Coverage(bytes(cutoff)[3]));
+        let mut level = bytes(level);
+        covered.expect("cut").preserve(&mut level);
+        assert_eq!(level, bytes(scaled), "{case}");
     }
     assert!(
-        Covered::of(&bytes(&table["cases"][0]["level0"]), AtlasKind::Coverage(0)).is_none(),
+        Covered::of(&bytes("200 200 0 0"), AtlasKind::Coverage(0)).is_none(),
         "blended: median alone"
     );
 }
