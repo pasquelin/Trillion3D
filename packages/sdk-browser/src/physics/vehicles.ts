@@ -76,9 +76,8 @@ export function createPhysicsVehicles(
       if (!words) return;
       const floats = new Float32Array(words.buffer, words.byteOffset, words.length);
       for (let at = 0; at < words.length;) {
-        const vehicle = ids.at(words[at]),
+        const live = ids.of(words[at]),
           count = words[at + 1];
-        const live = vehicle?._id === words[at] ? vehicle : null;
         live?._state(floats[at + 2], floats[at + 3], floats[at + 4]);
         at += VEHICLE_STATE_WORDS;
         for (let i = 0; live && i < count; i++) {
