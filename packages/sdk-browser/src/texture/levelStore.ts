@@ -1,4 +1,5 @@
 import { closeTextureLevel, textureLevelBytes, type TextureLevel } from './levelReader.ts';
+import { evictOldest } from '../streaming/evictOldest.ts';
 
 /** The decoded texture levels' share of the page cache, at most: three quarters, 192 MiB at the
  *  default CPU total. */
@@ -10,19 +11,18 @@ export const textureLevelShare = (pageCacheBytes: number) => Math.floor((pageCac
  * world's page cache holds one across its sessions (`PageCache.levels`): a level belongs to no GPU
  * device, so a session reopened after a device loss cuts its tiles again from the levels held and
  * reads none again. It keeps the levels of one cook, `key`; `undefined` once closed, and a read
- * landing for another key keeps nothing. `onHeld` hears each level taken in.
+ * landing for another key keeps nothing. `roomBeside` is what its owner leaves the levels
+ * (unbounded by default), `onHeld` hears each level taken in.
  */
-export function createTextureLevelStore(budgetBytes: number, key = '') {
+export function createTextureLevelStore(
+  budgetBytes: number,
+  { roomBeside = () => Infinity, onHeld }: { roomBeside?: () => number; onHeld?: () => void } = {},
+) {
   const held = new Map<string, { level: TextureLevel; bytes: number }>();
   const store = {
-    pending: new Map<string, Promise<void>>(),
-    refused: new Set<string>(),
     bytes: 0,
     budgetBytes,
-    key: key as string | undefined,
-    /** Bytes the levels may take beside what the owner keeps first; unbounded by default. */
-    roomBeside: () => Infinity,
-    onHeld: undefined as (() => void) | undefined,
+    key: '' as string | undefined,
     has: (id: string) => held.has(id),
     /** The level held under `id`, marked read last: it leaves last. */
     get(id: string) {
@@ -33,16 +33,17 @@ export function createTextureLevelStore(budgetBytes: number, key = '') {
       return entry.level;
     },
     /** Bytes one level may take: the share, within what is left beside. */
-    room: () => Math.min(store.budgetBytes, store.roomBeside()),
+    room: () => Math.min(store.budgetBytes, roomBeside()),
     /** Holds `level` under `id`, the least recently read leaving for it; false, holding nothing,
      *  when it cannot fit (`room`). */
     take(id: string, level: TextureLevel) {
-      const bytes = textureLevelBytes(level);
-      if (bytes > store.room()) return false;
-      store.shedTo(store.budgetBytes - bytes);
+      const bytes = textureLevelBytes(level),
+        room = store.room();
+      if (bytes > room) return false;
+      store.shedTo(room - bytes);
       held.set(id, { level, bytes });
       store.bytes += bytes;
-      store.onHeld?.();
+      onHeld?.();
       return true;
     },
     drop(id: string) {
@@ -55,27 +56,27 @@ export function createTextureLevelStore(budgetBytes: number, key = '') {
     /** Drops the least recently read levels until the rest fit in `limit`; the bytes freed. */
     shedTo(limit: number) {
       const before = store.bytes;
-      for (const id of held.keys()) {
-        if (store.bytes <= limit) break;
-        store.drop(id);
-      }
+      evictOldest(
+        held.keys(),
+        () => store.bytes > limit,
+        () => false,
+        store.drop,
+      );
       return before - store.bytes;
     },
-    /** A new share, applied at once. */
+    /** A new share, applied at once, within what is left beside. */
     resize(bytes: number) {
       store.budgetBytes = bytes;
-      store.shedTo(bytes);
+      store.shedTo(store.room());
     },
     /** Keeps only the levels of the cook `next`, as its scene opens (the proxy's `keepOnly`). */
-    keepOnly(next: string) {
+    keepOnly(next: string | undefined) {
+      if (next === store.key) return;
       store.key = next;
-      for (const id of held.keys()) if (!id.endsWith(`#${next}`)) store.drop(id);
-    },
-    /** Closes everything: the owner is gone, and a read landing after keeps nothing. */
-    close() {
-      store.key = undefined;
       store.shedTo(0);
     },
+    /** Closes everything: the owner is gone, and a read landing after keeps nothing. */
+    close: () => store.keepOnly(undefined),
   };
   return store;
 }

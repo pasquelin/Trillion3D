@@ -113,7 +113,7 @@ export function createTileSources(options: {
           level: key.level,
           format: encoding.levelFormat(lane),
         };
-        const held = levels?.get(levelKey, frame);
+        const held = levels?.get(levelKey);
         if (!held) {
           if (!atlas.roomFor(key.slot, frame)) return 'refused';
           if (levels && levels.inFlight < MAX_LEVEL_READS)

@@ -22,21 +22,23 @@ export type TextureLevelRequest = {
   /** Which format. */
   format: TextureLevelFormat;
 };
-/** A function that fetches one baked texture level. The explorer's names the cook `key` its levels
- *  are kept under, and the `store` its session holds them in: its world's (`levelStore.ts`). */
+/** A function that fetches one baked texture level. The explorer's names the `store` its session
+ *  holds them in: its world's (`levelStore.ts`). */
 export type TextureLevelReader = ((request: TextureLevelRequest) => Promise<TextureLevel>) & {
-  readonly key?: string;
   readonly store?: TextureLevelStore;
 };
 
+/** Host bytes a decoded bitmap of `width` × `height` texels holds. */
+const bitmapBytes = (width: number, height: number) => width * height * 4;
 /** Host bytes a level holds: the bitmap's texels, or the blocks. */
 export const textureLevelBytes = (level: TextureLevel) =>
-  level instanceof Uint8Array ? level.byteLength : level.width * level.height * 4;
+  level instanceof Uint8Array ? level.byteLength : bitmapBytes(level.width, level.height);
 /** Host bytes the level `request` names will hold once read, `width` × `height` texels. */
 export const requestedLevelBytes = (
   { format }: TextureLevelRequest,
   [width, height]: readonly [number, number],
-) => (format === PREVIEW_LOSSLESS_FORMAT ? width * height * 4 : levelBlockBytes(width, height));
+) =>
+  format === PREVIEW_LOSSLESS_FORMAT ? bitmapBytes(width, height) : levelBlockBytes(width, height);
 export const closeTextureLevel = (level: TextureLevel) => {
   if (!(level instanceof Uint8Array)) level.close();
 };
@@ -71,5 +73,5 @@ export function createTextureLevelReader(
       });
     return new Uint8Array(await response.arrayBuffer());
   };
-  return Object.assign(read, { key, store });
+  return Object.assign(read, { store });
 }

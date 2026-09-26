@@ -36,10 +36,7 @@ export function createStreamingCache(context: StreamContext) {
    *  tile asks and they fit —, then the kept file, read again after a device loss. A notice says
    *  what each gave back. */
   const yieldBeside = (held: number) => {
-    // The room the pages lack, unclamped: `budgetBytes` stops at 0.
-    const { levels } = store,
-      lack = held - (store.cpuBytes - store.reservedBytes);
-    const shed = levels.shedTo(levels.bytes - lack);
+    const shed = store.levels.shedTo(store.levelRoom(held));
     budget = store.budgetBytes;
     if (shed > 0)
       emit(
@@ -72,7 +69,8 @@ export function createStreamingCache(context: StreamContext) {
   const evict = () => {
     budget = store.budgetBytes;
     if (!over()) return;
-    const held = heldBytes();
+    // Nothing beside, nothing to yield: the pages are not walked.
+    const held = store.besideBytes > 0 ? heldBytes() : 0;
     if (held > budget) yieldBeside(held);
     const evicted = evictOldest(cache.keys(), over, pinnedOrLoading, evictOne);
     if (!evicted && over()) {
