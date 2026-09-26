@@ -8,6 +8,7 @@ import { compilingContract } from '../prepare/lightResources.ts';
 import { sunFarState } from '../prepare/sunFar.ts';
 import { renderWebgpuPages } from './render.ts';
 import { settlePose } from '../../tile/converge.ts';
+import { deviceAnswer } from '../../frame/deviceAnswer.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import { sendCoverageBudget } from '../../../diagnostic/engineDiagnostic.ts';
 
@@ -115,12 +116,22 @@ export async function flushWebgpuPages(rt: WebgpuPagesRuntime, options: { image?
   // which is replayed here after the host has taken its lists: it is removed below, and only when
   // it has changed something.
   await Promise.resolve();
+  const redraw = () => {
+    if (run.lastCamera && !capture.capturing && !run.lost) renderWebgpuPages(rt, run.lastCamera);
+  };
+  // A frame held on a device answer (`holdWebgpuFrame`) drew nothing, no cut to adopt below: the
+  // answer is waited for and the pose drawn, as `pendingWebgpuFrame` does. A redraw may ask again
+  // (a view resized meanwhile); a refused grant stays settled, so the loop ends.
+  for (let answer = deviceAnswer(rt); answer; answer = deviceAnswer(rt)) {
+    await answer;
+    redraw();
+  }
   // The lighting-contract program compiles outside the image. If a lamp was waiting for it, the
   // pose is redrawn with it before any read: a drained pose is a lit pose.
   const compiling = compilingContract(rt);
   if (compiling) {
     await compiling.settle();
-    if (run.lastCamera && !capture.capturing && !run.lost) renderWebgpuPages(rt, run.lastCamera);
+    redraw();
   }
   // Texture tiles are part of preparing a pose, not of a per-image decoration: a surface read at
   // a coarse level will change when its tile arrives. `render` only admits a byte budget per
