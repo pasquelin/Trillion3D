@@ -15,7 +15,8 @@ import { createSimulatedIds, engineIdOf } from './simulatedIds.ts';
 /** Each wheel's pose as the page placed it, given back when the vehicle leaves the simulation. */
 type Rest = { position: Vector3; quaternion: Quaternion }[];
 
-/** A wheel's turn composed before it is written: an unchanged one then notifies nobody. */
+/** A wheel's turn as the worker sent it: composed with its rest in one write, an unchanged one
+ *  notifies nobody. */
 const turned = new Quaternion();
 
 /**
@@ -85,8 +86,8 @@ export function createPhysicsVehicles(
             s = live.body.scale;
           const { position, quaternion } = live.wheels[i];
           position.set(f[0] / s.x, f[1] / s.y, f[2] / s.z);
-          turned.set(f[3], f[4], f[5], f[6]).multiply(made.get(live)!.rest[i].quaternion);
-          quaternion.copy(turned);
+          turned.set(f[3], f[4], f[5], f[6]);
+          quaternion.multiplyQuaternions(turned, made.get(live)!.rest[i].quaternion);
         }
         at += count * WHEEL_STATE_WORDS;
       }
