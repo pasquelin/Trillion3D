@@ -1872,6 +1872,7 @@
       "vertexColors": "Geometrinin köşe başına renklerinin yüzeyi tonlayıp tonlamadığı.",
       "depthWrite": "Yüzeyin derinliğini yazıp yazmadığı.",
       "depthTest": "Yüzeyin daha yakın şeylerin arkasına gizlenip gizlenmediği.",
+      "transparentShadow": "Saydam (`transparent`) bir yüzeyin yine de gölge düşürüp düşürmediği; ne kadar saydamsa gölgesi o kadar soluk.",
       "version": "Her yazmada artırılır: dünyanın yeniden boyamak için karşılaştırdığı şey.",
       "kind": "Malzemenin hangi türde yapıldığı: `'meshStandard'`, `'meshBasic'`…",
       "needsUpdate": "`material.needsUpdate = true`: onu giyen meshler yeniden boyanır.",
