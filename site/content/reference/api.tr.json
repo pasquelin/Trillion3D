@@ -337,9 +337,6 @@
       "bundleDependency": "Her paketin ihtiyaç duyduğu paketler, köklere kadar."
     }
   },
-  "COMPARISON_LIBRARIES": {
-    "summary": "Benchmark'ların karşı kontrol edildiği motorlar, her biri durumu ve nedeniyle."
-  },
   "COMPILER_LINE_LIMIT": {
     "summary": "Her iki akışta da kabul edilen en uzun tek satır; derleyici yalnızca küçük JSON satırları yayar."
   },
@@ -552,23 +549,6 @@
   },
   "ComparisonLayout": {
     "summary": "İki render'ın karşılaştırma için nasıl yan yana gösterildiği."
-  },
-  "CompetitorRecord": {
-    "summary": "Benchmark'ların karşılaştırdığı başka bir motor, ve nedeni.",
-    "members": {
-      "id": "Kısa adı.",
-      "name": "Adı.",
-      "status": "Karşılaştırılıp karşılaştırılmadığı.",
-      "license": "Lisansı.",
-      "maintained": "En son ne zaman güncellendiği.",
-      "scope": "Neyi kapsadığı.",
-      "reason": "Neden karşılaştırıldığı, ya da karşılaştırılmadığı.",
-      "homepage": "Web sayfası."
-    }
-  },
-  "CompetitorStatus": {
-    "summary": "Web ile ilgili geometri/LOD kütüphanelerinin envanteri.",
-    "description": "Durum, pazarlama kapsamını değil entegrasyon adilliğini betimler."
   },
   "CompilationJob": {
     "summary": "Çalışan bir derleme.",
