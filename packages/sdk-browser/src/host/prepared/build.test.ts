@@ -31,13 +31,9 @@ async function witness(folder: URL, document: string, text?: string) {
 }
 
 async function prepared(folder: URL, document: string, written?: unknown) {
+  const file = written ?? JSON.parse(await readFile(new URL('scene-tables.json', folder), 'utf8'));
   // The caches compared here have no partition (`partition.test.ts` reads those).
-  const tables = {
-    ...assertSceneTables(
-      written ?? JSON.parse(await readFile(new URL('scene-tables.json', folder), 'utf8')),
-    ),
-    partition: null,
-  };
+  const tables = { ...assertSceneTables(file), partition: null };
   const built = await buildPreparedScene({
     tables,
     metadata: {} as ClusterManifest,
