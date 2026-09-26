@@ -7129,7 +7129,7 @@
       "water": "物体が浮かぶ水：水位、波、密度、抗力。水より軽い物体は、押しのけた水の重さに押されて浮かぶ。",
       "waterSurface": "シミュレーション時刻の水面(描画用):浮力が読むのと同じ波、同じ数値(`height`、`point`、`normal`)。",
       "stats": "カウントと二つの時計：worker の 1 ステップあたりミリ秒、ページの 1 フレームあたりミリ秒。",
-      "error": "物理が最後に出したエラー（`PHYSICS_BUDGET`、`PHYSICS_NESTED`、`PHYSICS_FAILED`）、または `null`。シミュレーションを停止させたエラーは `enabled` をオフにします。",
+      "error": "物理が最後に出したエラー（`PHYSICS_BUDGET`、`PHYSICS_NESTED`、`PHYSICS_FAILED`、`RESOURCE_HTTP_ERROR`）、または `null`。シミュレーションを停止させたエラーは `enabled` をオフにします。",
       "add": "ジョイントを加えます(`joint.hinge(door, frame, …)` とその仲間)。両方の物体がシミュレーションされるとすぐに作られ、取り除かれるか壊れるまで保たれます。",
       "remove": "ジョイントを取り除きます。つないでいた物体は自由に離れます。"
     }
@@ -7337,7 +7337,7 @@
       "water": "物体が浮かぶ水：水位、波、密度、抗力。水より軽い物体は、押しのけた水の重さに押されて浮かぶ。",
       "waterSurface": "シミュレーション時刻の水面(描画用):浮力が読むのと同じ波、同じ数値(`height`、`point`、`normal`)。",
       "stats": "カウントと二つの時計：worker の 1 ステップあたりミリ秒、ページの 1 フレームあたりミリ秒。",
-      "error": "物理が最後に出したエラー（`PHYSICS_BUDGET`、`PHYSICS_NESTED`、`PHYSICS_FAILED`）、または `null`。シミュレーションを停止させたエラーは `enabled` をオフにします。",
+      "error": "物理が最後に出したエラー（`PHYSICS_BUDGET`、`PHYSICS_NESTED`、`PHYSICS_FAILED`、`RESOURCE_HTTP_ERROR`）、または `null`。シミュレーションを停止させたエラーは `enabled` をオフにします。",
       "add": "ジョイントを加えます(`joint.hinge(door, frame, …)` とその仲間)。両方の物体がシミュレーションされるとすぐに作られ、取り除かれるか壊れるまで保たれます。",
       "remove": "ジョイントを取り除きます。つないでいた物体は自由に離れます。"
     }
