@@ -7,8 +7,7 @@ import { fakeDevice, written } from '../../../../tests/kit/gpu/fakeDevice.ts';
 import { holdWebgpuFrame, keepWebgpuFrame } from '../webgpu/frame/hold.ts';
 import { settledRt } from '../webgpu/frame/hold.fixture.ts';
 import { ParticlePool } from '../../../sdk-core/src/fluids/particles.ts';
-import { PARTICLES_PASS } from './backend.ts';
-import { createWebgpuParticles } from './webgpuParticles.ts';
+import { PARTICLES_PASS, createWebgpuParticles } from './webgpuParticles.ts';
 
 /** A pool with `n` records staged, record `i` at x = i, and 10 ms to take. */
 function staged(n: number, capacity = 1000) {
