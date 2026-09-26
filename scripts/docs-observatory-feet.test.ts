@@ -58,11 +58,14 @@ test('every part stands on the part under it; a curved shell or a ring may be se
     const under = supports(part);
     assert.ok(under.length, `${where(part)} floats: nothing under it reaches its base`);
     // A box or a turned part rests on its support's top: it neither floats nor sinks.
-    if (part.kind === 'block' || part.kind === 'turned')
+    if (part.kind === 'block' || part.kind === 'turned') {
+      const sink = (support: Part) => top(support) - bottom(part);
+      const nearest = under.reduce((a, b) => (Math.abs(sink(b)) < Math.abs(sink(a)) ? b : a));
       assert.ok(
-        under.some((support) => Math.abs(bottom(part) - top(support)) <= EPSILON),
-        `${where(part)} sinks ${(top(under[0]) - bottom(part)).toFixed(3)} m into ${where(under[0])}`,
+        Math.abs(sink(nearest)) <= EPSILON,
+        `${where(part)} sinks ${sink(nearest).toFixed(3)} m into ${where(nearest)}`,
       );
+    }
   }
 });
 
