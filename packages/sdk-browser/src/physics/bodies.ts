@@ -87,7 +87,7 @@ export function createPhysicsBodies(
       return hold(mesh, addSoftBody(writer, mesh, pose, size, take, softMaps, flagsOf(mesh)));
     }
     const matter = physicsMatterOf(mesh.material);
-    const shape = resolveShape(mesh.geometry, size, p.type, p.shape);
+    const shape = resolveShape(mesh.geometry, size, p.type, p.shape, mesh.name);
     const id = claim(shape.triangles, 0, owner);
     writer.add({
       id,
