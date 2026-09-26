@@ -134,11 +134,11 @@ fn only_a_texture_every_reader_takes_for_coverage_is_weighted() {
     assert_eq!(
         keys,
         [
-            (0, AtlasKind::Coverage),
+            (0, AtlasKind::Coverage(0)),
             (1, AtlasKind::Color),
             (2, AtlasKind::Color),
             (3, AtlasKind::Color),
-            (4, AtlasKind::Coverage),
+            (4, AtlasKind::Coverage(0)),
             (4, AtlasKind::Data),
             (5, AtlasKind::Color),
             (6, AtlasKind::Color),
