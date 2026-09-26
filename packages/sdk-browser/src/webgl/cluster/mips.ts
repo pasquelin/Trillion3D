@@ -6,7 +6,7 @@ import {
 } from '../core/fullscreenPass.ts';
 import { levelSize, mipLevelCountFor } from '../../texture/tiles.ts';
 import { COVERAGE_SCALE_GLSL } from '../../texture/coverageRule.ts';
-import { savedBlend, WebglCoverageCounts } from './coverageMips.ts';
+import { WebglCoverageCounts } from './coverageMips.ts';
 
 /** The GLSL twin of the WebGPU reduction (`MIP_SHADER`, `../../texture/mips.ts`) under `weighted`;
  *  `source` is a copy of the level above, `extent` its size; with a `cutoff`, the row under it
@@ -41,6 +41,15 @@ export type MipChain = {
   cutoff?: number | null;
 };
 type Scratch = { texture: WebGLTexture; width: number; height: number; used?: boolean };
+/** The blend function and equation, which the coverage counts replace. */
+const BLEND_STATE = [
+  'BLEND_SRC_RGB',
+  'BLEND_DST_RGB',
+  'BLEND_SRC_ALPHA',
+  'BLEND_DST_ALPHA',
+  'BLEND_EQUATION_RGB',
+  'BLEND_EQUATION_ALPHA',
+] as const;
 
 /** The reduction's program, its uniforms, its two framebuffers and its empty vertex array. */
 function buildReducer(gl: WebGL2RenderingContext) {
@@ -103,9 +112,10 @@ export class WebglMipReducer {
       mask: gl.getParameter(gl.COLOR_WRITEMASK) as boolean[],
       toggles: FULLSCREEN_DISABLED.map((name) => gl.isEnabled(gl[name])),
     };
-    // Sixteen float rows a level count exactly up to 2^28 texels, a 16384² picture (`coverageMips.ts`).
+    // Sixteen float rows a level count exactly up to 2^28 texels, a 16384² picture (`coverageMips.ts`);
+    // asked after `saved`: the first ask binds the counts' framebuffer.
     const cut = cutoff && width * height <= 2 ** 28 && this.counts.ready() ? cutoff : 0;
-    const restoreBlend = cut ? savedBlend(gl) : undefined;
+    const blend = cut ? BLEND_STATE.map((name) => gl.getParameter(gl[name]) as number) : undefined;
     let scratch = this.scratches.get(format);
     if (!scratch || scratch.width < width || scratch.height <= height) {
       const w = Math.max(width, scratch?.width ?? 0),
@@ -158,7 +168,11 @@ export class WebglMipReducer {
     gl.viewport(saved.viewport[0], saved.viewport[1], saved.viewport[2], saved.viewport[3]);
     gl.colorMask(saved.mask[0], saved.mask[1], saved.mask[2], saved.mask[3]);
     FULLSCREEN_DISABLED.forEach((name, i) => saved.toggles[i] && gl.enable(gl[name]));
-    restoreBlend?.();
+    if (blend) {
+      const [sr, dr, sa, da, er, ea] = blend;
+      gl.blendFuncSeparate(sr, dr, sa, da);
+      gl.blendEquationSeparate(er, ea);
+    }
   }
   /** A new image: returns each scratch no reduction used since the last one. */
   trim() {
