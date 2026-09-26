@@ -16,35 +16,18 @@ const letGo = (response: Response) => void response.body?.cancel().catch(() => {
 /** What an optional file's absence answers: a 404, or the 403 of a store that hides what it lacks. */
 const ABSENT = new Set([403, 404]);
 
-/** How `checked` reads: `attempts`, the most requests it makes; `optional`, a file that may be
- *  absent, whose 404 or 403 answers `null`. */
-export type FetchPolicy = { attempts?: number; optional?: boolean };
-/** The policy of a caller that retries on its own terms — the page streamer, the GPU page cache,
- *  the physics tiles: one request. */
-export const ONE_REQUEST = { attempts: 1 } as const;
+/** The attempts of a caller that retries on its own terms — the page streamer, the GPU page
+ *  cache, the physics tiles: one request. */
+export const ONE_REQUEST = 1;
 
 /**
- * Reads `url`, asking once more when the first request fails on the network or on a server error
- * (a 5xx such as a busy server's 503); a refusal another request would meet again — a 404, a 403 —
- * is not asked twice. What still fails is refused by an `EngineError` naming the address, but for
- * the absence of an `optional` file (`ABSENT`), which answers `null`. An aborted `signal` rejects
- * with its reason and asks nothing more. The SDK guide states this policy (docs/SDK.md).
+ * Reads `url`, asking once more (`attempts`, the most requests it makes) when the first request
+ * fails on the network or on a server error (a 5xx such as a busy server's 503); a refusal another
+ * request would meet again — a 404, a 403 — is not asked twice. What still fails is refused by an
+ * `EngineError` naming the address. An aborted `signal` rejects with its reason and asks nothing
+ * more. The SDK guide states this policy (docs/SDK.md).
  */
-export function checked(
-  url: string,
-  signal?: AbortSignal,
-  policy?: FetchPolicy & { optional?: false },
-): Promise<Response>;
-export function checked(
-  url: string,
-  signal: AbortSignal | undefined,
-  policy: FetchPolicy & { optional: true },
-): Promise<Response | null>;
-export async function checked(
-  url: string,
-  signal?: AbortSignal,
-  { attempts = 2, optional = false }: FetchPolicy = {},
-) {
+export async function checked(url: string, signal?: AbortSignal, attempts = 2) {
   let response: Response | undefined, cause: unknown;
   for (let attempt = 1; attempt <= attempts; attempt++) {
     signal?.throwIfAborted();
@@ -70,7 +53,6 @@ export async function checked(
     );
   if (response.ok) return response;
   letGo(response);
-  if (optional && ABSENT.has(response.status)) return null;
   const contentType = response.headers.get('content-type');
   throw new EngineError(
     'RESOURCE_HTTP_ERROR',
@@ -78,6 +60,13 @@ export async function checked(
     { url, status: response.status, contentType },
   );
 }
+/** `checked` for a file that may be absent: its 404, or the 403 of a store that hides what it
+ *  lacks (`ABSENT`), answers `null`; any other refusal still rejects. */
+export const optionalFile = (url: string, signal?: AbortSignal) =>
+  checked(url, signal).catch((error: unknown) => {
+    if (ABSENT.has(refusedStatus(error) ?? 0)) return null;
+    throw error;
+  });
 /** A cache object that is not what its manifest announced: its code and facts, whichever it is. */
 export const corruptObject = (
   url: string,

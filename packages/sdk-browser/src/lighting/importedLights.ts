@@ -4,7 +4,7 @@ import {
   type SceneLightStore,
 } from '../../../sdk-core/src/index.ts';
 import { unmetered, type ByteMeter } from '../cluster/byteMeter.ts';
-import { checked } from '../cluster/pages.ts';
+import { optionalFile } from '../cluster/pages.ts';
 
 /** Lights cache product, next to the neighbouring manifest. Its version is its own. */
 const IMPORTED_LIGHTS_FILE = 'lights.json';
@@ -32,7 +32,7 @@ export async function loadImportedLights(
 ): Promise<{ lights: SceneLight[]; rejected: Record<string, number> }> {
   const none = { lights: [], rejected: {} };
   const url = importedLightsUrl(base);
-  const response = await checked(url, signal, { optional: true });
+  const response = await optionalFile(url, signal);
   if (!response) return none;
   let file: ImportedLightsFile;
   try {
