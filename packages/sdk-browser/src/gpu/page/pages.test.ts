@@ -164,3 +164,15 @@ test('GPU diagnostics expose queue, read, upload, pins and eviction while observ
   assert.equal(first.generation, 1);
   await cache.dispose();
 });
+test('a page source failing otherwise than by HTTP is asked once more, as a network failure is', async () => {
+  const { device } = fakeDevice({ limits: LIMITS });
+  let attempts = 0;
+  const read = async () => {
+    if (++attempts === 1) throw new Error('offline');
+    return new Uint8Array([1, 2, 3, 4]);
+  };
+  const cache = createGpuPageCache(device, { read }, { pageBytes: 8, slots: 1 });
+  assert.equal((await cache.load('retry')).bytes, 4);
+  assert.equal(attempts, 2);
+  await cache.dispose();
+});
