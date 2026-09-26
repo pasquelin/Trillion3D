@@ -1,12 +1,7 @@
 import type { EngineError } from '../../../sdk-core/src/contracts/cache.ts';
 import {
   BODY_INDEX,
-  LAYER,
-  MOTION,
-  SHAPE,
   physicsBudgetError,
-  physicsMatterOf,
-  readCookedPhysics,
   type CommandWriter,
   type PhysicsBudget,
 } from '../../../sdk-core/src/physics/index.ts';
@@ -15,10 +10,12 @@ import type { createPhysicsBodies } from './bodies.ts';
 import { createCookedSoftBodies } from './cookedSoft.ts';
 import {
   cookedBytes,
+  cookedPhysics,
   isModel,
   locate,
   moversOf,
   placedOf,
+  tileBody,
   tilePose,
   type Model,
   type Placed,
@@ -45,20 +42,27 @@ export function createTileStreamer(
   /** Each open model's tiles, empty until its file lands: the array is its opening, so one that
    *  left and came back while its file was on its way lands once, from the later opening. */
   const models = new Map<Model, Placed[]>();
+  /** Each opening's abort: its model leaving lets go of the reads it has in flight. */
+  const aborts = new WeakMap<Placed[], AbortController>();
   const softs = createCookedSoftBodies(writer, bodies, invalidate, failed);
   let fetching = 0,
     overBudget = false;
   async function open(model: Model) {
-    const placed: Placed[] = [];
+    const placed: Placed[] = [],
+      abort = new AbortController();
     models.set(model, placed);
-    const response = await fetch(new URL('physics.json', model.record.base).href);
-    // A model compiled before the cook has no file: it collides nowhere, as before.
-    if (!response.ok) return;
-    const cooked = readCookedPhysics(await response.json());
-    if (models.get(model) !== placed) return;
-    placed.push(...placedOf(model, cooked));
-    softs.open(model, cooked.softBodies);
-    invalidate();
+    aborts.set(placed, abort);
+    try {
+      const cooked = await cookedPhysics(model, abort.signal);
+      // A model compiled before the cook collides nowhere, as before.
+      if (!cooked || models.get(model) !== placed) return;
+      placed.push(...placedOf(model, cooked));
+      softs.open(model, cooked.softBodies);
+      invalidate();
+    } catch (error) {
+      // Its model left meanwhile: the read was let go, which is no failure.
+      if (!abort.signal.aborted) failed(error as EngineError);
+    }
   }
   const evict = (p: Placed) => {
     if (p.id < 0) return;
@@ -67,44 +71,29 @@ export function createTileStreamer(
   };
   /** Everything `model` holds out: its tiles and its cooked soft bodies. */
   const drop = (model: Model, placed: Placed[]) => {
+    aborts.get(placed)!.abort();
     placed.forEach(evict);
     softs.forget(model);
   };
   async function load(p: Placed) {
-    const opening = models.get(p.model);
+    const opening = models.get(p.model)!,
+      { signal } = aborts.get(opening)!;
     p.loading = true;
     fetching++;
     try {
-      const bytes = await cookedBytes(p.model, p.tile.url, 'Physics tile');
+      const bytes = await cookedBytes(p.model, p.tile.url, signal);
       // Its model left, or was opened again meanwhile: this tile is no longer one it holds.
       if (models.get(p.model) !== opening) return;
       p.id = bodies.claim(p.tile.triangles, 0, { model: p.model, tile: p });
       const handle = p.id & BODY_INDEX;
-      const { position, quaternion, scale } = tilePose(p);
-      // The matter the node's collider declares, over the engine's default, as for every body.
-      const matter = physicsMatterOf(p.instance);
       // Restored, built into one static body, and its handle dropped: the body keeps the shape.
       writer.restore(handle, bytes);
-      writer.add({
-        id: p.id,
-        motion: MOTION.static,
-        layer: LAYER.static,
-        shape: SHAPE.cooked,
-        flags: 0,
-        position,
-        quaternion,
-        size: [scale.x, scale.y, scale.z],
-        mass: 0,
-        density: 0,
-        friction: matter.friction,
-        restitution: matter.restitution,
-        gravityScale: 1,
-        indices: [handle],
-      });
+      writer.add(tileBody(p, handle));
       writer.release(handle);
       invalidate();
     } catch (error) {
-      failed(error as EngineError);
+      // Its model left: the read was let go, which is no failure.
+      if (!signal.aborted) failed(error as EngineError);
     } finally {
       p.loading = false;
       fetching--;
@@ -117,7 +106,7 @@ export function createTileStreamer(
       root.traverse((node) => {
         if (!isModel(node)) return;
         seen.add(node);
-        if (!models.has(node)) open(node).catch((error) => failed(error as EngineError));
+        if (!models.has(node)) void open(node);
       });
       for (const [model, placed] of models)
         if (!seen.has(model)) {

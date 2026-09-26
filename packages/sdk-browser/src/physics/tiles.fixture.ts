@@ -49,6 +49,32 @@ export const compiledModel = () =>
   });
 
 /**
+ * A tile streamer within `budget` (8 bodies) over a scene holding one compiled model at the
+ * origin, scaled by `scale`, not scanned yet: the streamer, the scene, the model, the writer, the
+ * bodies, the errors raised, and `heard`, which settles at the next change or error it reports.
+ */
+export function modelStreamer(budget: Partial<PhysicsBudget> = {}, scale = 1) {
+  const limits = { ...DEFAULT_PHYSICS_BUDGET, bodies: 8, ...budget };
+  const [scene, writer, errors] = [new Group(), new CommandWriter(), [] as { code: string }[]];
+  const { state } = createPhysicsPoses(limits.bodies, scene);
+  const bodies = createPhysicsBodies(writer, limits, {} as PhysicsHost, scene, state);
+  let wake = () => {};
+  const heard = () => new Promise<void>((resolve) => (wake = resolve));
+  const tiles = createTileStreamer(
+    writer,
+    limits,
+    bodies,
+    () => wake(),
+    (e) => (errors.push(e), wake()),
+  );
+  const model = compiledModel();
+  model.scale.setScalar(scale);
+  model.updateMatrixWorld(true);
+  scene.add(model);
+  return { tiles, scene, model, writer, bodies, errors, heard };
+}
+
+/**
  * A model at the origin, scaled by `scale`, whose `physics.json` is `file` and every other file
  * `bytes`, opened by a tile streamer within `budget` (8 bodies): the streamer, the scene, the model,
  * the writer, the bodies, the errors raised and the files fetched.
@@ -60,22 +86,8 @@ export async function streamedModel(
   scale = 1,
 ) {
   const fetched = stubFetch(file, bytes);
-  const limits = { ...DEFAULT_PHYSICS_BUDGET, bodies: 8, ...budget };
-  const [scene, writer, errors] = [new Group(), new CommandWriter(), [] as { code: string }[]];
-  const { state } = createPhysicsPoses(limits.bodies, scene);
-  const bodies = createPhysicsBodies(writer, limits, {} as PhysicsHost, scene, state);
-  const tiles = createTileStreamer(
-    writer,
-    limits,
-    bodies,
-    () => {},
-    (e) => errors.push(e),
-  );
-  const model = compiledModel();
-  model.scale.setScalar(scale);
-  model.updateMatrixWorld(true);
-  scene.add(model);
-  tiles.scan(scene);
+  const streamer = modelStreamer(budget, scale);
+  streamer.tiles.scan(streamer.scene);
   await landed();
-  return { tiles, scene, model, writer, bodies, errors, fetched };
+  return { ...streamer, fetched };
 }
