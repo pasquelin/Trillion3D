@@ -147,7 +147,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
       hostDraw.render(camera);
       if (ready) frame(camera);
     },
-    drawHostGeometry: hostDraw.drawHostGeometry,
+    ...hostDraw.host,
     ...instances,
     ...autonomousPlacements({
       ...tables,
