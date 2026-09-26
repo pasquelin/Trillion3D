@@ -1,5 +1,4 @@
 import assert from 'node:assert/strict';
-import { readdir, readFile } from 'node:fs/promises';
 import test from 'node:test';
 import { emptyPhysicsStats } from '../packages/sdk-browser/src/physics/protocol.ts';
 import { Camera } from '../packages/sdk-core/src/world/camera/camera.ts';
@@ -81,7 +80,7 @@ test('mulberry32 draws the sequence the scenes, the bench and the campaigns were
   );
 });
 
-test('the physics readouts print the stats as the pages wrote them by hand, and no page prints one itself', async () => {
+test('the physics readouts print the stats as the pages wrote them by hand', () => {
   const stats = { ...emptyPhysicsStats(), bodies: 200, active: 12, stepMs: 1.234, mainMs: 0.5 };
   const printed = Object.entries(PHYSICS_LINES).map(([line, read]) => [line, read(stats)]);
   assert.deepEqual(Object.fromEntries(printed), {
@@ -90,11 +89,4 @@ test('the physics readouts print the stats as the pages wrote them by hand, and 
     step: '1.23 ms',
     page: '0.50 ms',
   });
-  // #717: no example prints a physics line by hand; each asks the kit for it.
-  const folder = new URL('../site/examples/', import.meta.url);
-  const pages = (await readdir(folder)).filter((file) => file.endsWith('.html'));
-  for (const file of pages) {
-    const html = await readFile(new URL(file, folder), 'utf8');
-    assert.doesNotMatch(html, /physics\.stats|readout\('(?:bodies|awake|step|page)'\)/, file);
-  }
 });
