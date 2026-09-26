@@ -1,11 +1,15 @@
-import { PARTICLE_FLOATS, type ParticlePool } from '../../../sdk-core/src/fluids/particles.ts';
+import {
+  PARTICLE_FLOATS,
+  type ParticlePool,
+  type ParticleStep,
+} from '../../../sdk-core/src/fluids/particles.ts';
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts';
 import { createCheckedShaderModule } from '../gpu/core/shaderModule.ts';
+import { bounceGroup, bounceLayout } from '../bounce/bindings.ts';
 import { PARTICLES_PASS, type ParticleBackend } from './backend.ts';
 
-const WORKGROUP = 64;
-/** The step uniform: acceleration and `dt`, then the ring's first slot, count and capacity. */
-const STEP_BYTES = 32;
+/** Slots one workgroup steps. */
+export const PARTICLE_WORKGROUP = 64;
 
 /** One invocation per slot: the record the ring gives it this image replaces it, then a live
  *  particle moves, its position counted from the pool's origin; a dead one nobody emitted into
@@ -16,7 +20,7 @@ struct Step { acceleration: vec3f, dt: f32, first: u32, count: u32, capacity: u3
 @group(0) @binding(0) var<uniform> step: Step;
 @group(0) @binding(1) var<storage, read> staged: array<Particle>;
 @group(0) @binding(2) var<storage, read_write> particles: array<Particle>;
-@compute @workgroup_size(${WORKGROUP})
+@compute @workgroup_size(${PARTICLE_WORKGROUP})
 fn main(@builtin(global_invocation_id) id: vec3u) {
   let i = id.x;
   if (i >= step.capacity) { return; }
@@ -31,6 +35,26 @@ fn main(@builtin(global_invocation_id) id: vec3u) {
   particles[i] = p;
 }`;
 
+/** The step uniform's words: acceleration and `dt`, then the ring's first slot, count and
+ *  capacity; made once, rewritten for each pool. */
+export function createStepWords() {
+  const buffer = new ArrayBuffer(32);
+  return { buffer, floats: new Float32Array(buffer), uints: new Uint32Array(buffer) };
+}
+
+/** Writes `pool`'s step into `words`, the WGSL `Step`. */
+export function writeStepWords(
+  words: ReturnType<typeof createStepWords>,
+  pool: ParticlePool,
+  { first, count, dt }: Readonly<ParticleStep>,
+) {
+  words.floats.set(pool.acceleration);
+  words.floats[3] = dt;
+  words.uints[4] = first;
+  words.uints[5] = count;
+  words.uints[6] = pool.capacity;
+}
+
 type PoolState = { step: GPUBuffer; staged: GPUBuffer; state: GPUBuffer; group: GPUBindGroup };
 
 /**
@@ -44,14 +68,7 @@ export function createWebgpuParticles(
   device: GPUDevice,
   fail: (error: unknown) => void,
 ): ParticleBackend<GPUCommandEncoder> {
-  const layout = device.createBindGroupLayout({
-    label: PARTICLES_PASS,
-    entries: (['uniform', 'read-only-storage', 'storage'] as const).map((type, binding) => ({
-      binding,
-      visibility: GPUShaderStage.COMPUTE,
-      buffer: { type },
-    })),
-  });
+  const layout = bounceLayout(device, ['uniform', 'read-only-storage', 'storage']);
   let pipeline: GPUComputePipeline | undefined;
   createCheckedShaderModule(device, PARTICLES_WGSL, 'PARTICLES')
     .then((module) =>
@@ -62,23 +79,17 @@ export function createWebgpuParticles(
       }),
     )
     .then((made) => (pipeline = made), fail);
-  const words = new ArrayBuffer(STEP_BYTES),
-    floats = new Float32Array(words),
-    uints = new Uint32Array(words);
+  const words = createStepWords();
   const pass: GPUComputePassDescriptor = { label: PARTICLES_PASS },
     made = new Map<ParticlePool, PoolState>();
   const buffer = (name: string, size: number, usage: number) =>
     device.createBuffer({ label: `${PARTICLES_PASS} ${name}`, size, usage });
   const make = (pool: ParticlePool) => {
     const { STORAGE, UNIFORM, COPY_DST } = GPUBufferUsage;
-    const step = buffer('step', STEP_BYTES, UNIFORM | COPY_DST),
+    const step = buffer('step', words.buffer.byteLength, UNIFORM | COPY_DST),
       staged = buffer('staging', pool.staging.byteLength, STORAGE | COPY_DST),
       state = buffer('state', pool.capacity * PARTICLE_FLOATS * 4, STORAGE);
-    const group = device.createBindGroup({
-      layout,
-      entries: [step, staged, state].map((b, binding) => ({ binding, resource: { buffer: b } })),
-    });
-    const kept = { step, staged, state, group };
+    const kept = { step, staged, state, group: bounceGroup(device, layout, [step, staged, state]) };
     made.set(pool, kept);
     return kept;
   };
@@ -88,24 +99,30 @@ export function createWebgpuParticles(
       let computing: GPUComputePassEncoder | undefined,
         dispatches = 0;
       for (const pool of pools) {
-        const { first, count, dt } = pool.flush();
-        if (!count && !dt) continue;
+        const step = pool.flush(),
+          { count } = step;
+        if (!count && !step.dt) continue;
         const kept = made.get(pool) ?? make(pool);
-        floats.set(pool.acceleration);
-        floats[3] = dt;
-        uints[4] = first;
-        uints[5] = count;
-        uints[6] = pool.capacity;
-        device.queue.writeBuffer(kept.step, 0, words);
+        writeStepWords(words, pool, step);
+        device.queue.writeBuffer(kept.step, 0, words.buffer);
         if (count)
           device.queue.writeBuffer(kept.staged, 0, pool.staging, 0, count * PARTICLE_FLOATS);
-        computing ??= encoder.beginComputePass(pass);
-        computing.setPipeline(pipeline);
+        if (!computing) {
+          computing = encoder.beginComputePass(pass);
+          computing.setPipeline(pipeline);
+        }
         computing.setBindGroup(0, kept.group);
-        computing.dispatchWorkgroups(Math.ceil(pool.capacity / WORKGROUP));
+        computing.dispatchWorkgroups(Math.ceil(pool.capacity / PARTICLE_WORKGROUP));
         dispatches++;
       }
       computing?.end();
+      // A pool the world let go of gives its buffers back.
+      if (made.size > pools.length)
+        for (const [pool, kept] of made)
+          if (!pools.includes(pool)) {
+            for (const gone of [kept.step, kept.staged, kept.state]) gone.destroy();
+            made.delete(pool);
+          }
       return dispatches;
     },
     dispose() {
@@ -114,6 +131,13 @@ export function createWebgpuParticles(
       made.clear();
     },
   };
+}
+
+/** True while one of the world's pools moves: the image changes, and is not held. */
+export function particlesMoved(rt: WebgpuPagesRuntime) {
+  const pools = rt.context.particles;
+  if (pools) for (const pool of pools) if (pool.moving) return true;
+  return false;
 }
 
 /** The world's pools on this image, stepped in the image's command buffer ahead of its
