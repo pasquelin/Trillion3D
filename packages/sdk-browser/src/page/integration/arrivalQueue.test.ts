@@ -70,13 +70,11 @@ test('a page already waiting for a target is queued once, and each target keeps 
 
 // Delivery preserves exact pages and order despite removing implicit rendering.
 test('many duplicate targets across a drain deliver exactly like the reference', () => {
-  type Queue = Pick<ReturnType<typeof createArrivalQueue>, 'queue' | 'drain'>;
-  function arrivals(create: (byteBudget: number, countBudget: number) => Queue) {
+  function arrivals(queue: Pick<ReturnType<typeof referenceArrivalQueue>, 'queue' | 'drain'>) {
     const delivered: string[] = [];
     const targets = Array.from({ length: 8 }, (_, c) => ({
       acceptPage: (url: string) => delivered.push(`${c}:${url}`),
     }));
-    const queue = create(1 << 20, 4096);
     const bytes = new Uint32Array(4);
     // Round-robin over the eight targets so the touched list sees many repeats before a drain.
     for (let i = 0; i < 500; i++) queue.queue(targets[i % 8], `page-${i % 50}.bin`, bytes);
@@ -84,10 +82,8 @@ test('many duplicate targets across a drain deliver exactly like the reference',
     for (let d = 0; d < 3; d++) livrs += queue.drain();
     return { delivered, livrs };
   }
-  const optimisee = arrivals((bytes, count) =>
-    createArrivalQueue(bytes, count, createFrameBudget(Infinity)),
-  );
-  const reference = arrivals(referenceArrivalQueue);
+  const optimisee = arrivals(createArrivalQueue(1 << 20, 4096, createFrameBudget(Infinity)));
+  const reference = arrivals(referenceArrivalQueue(1 << 20, 4096));
   assert.deepEqual(optimisee, reference);
 });
 

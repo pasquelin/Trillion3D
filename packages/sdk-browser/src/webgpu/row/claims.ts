@@ -49,12 +49,12 @@ export function createWebgpuRowClaims(pageCount: number) {
 export type WebgpuRowClaims = ReturnType<typeof createWebgpuRowClaims>;
 
 /**
- * Serves the queue in increasing page order within `budget`: the frame's one integration budget
- * (`BackendContext.frameBudget`), which its frame opened and its cells and arrivals spent from
- * first, its clock running only while rows are written — the clock is reread after each row and the rest waits for the next image, in the same
- * order. At least one row always goes through, or a page would never be written. `release` says
- * again whether the page still claims a row — it may have left since it enrolled, and then leaves
- * the queue costing nothing —, `place` writes it and returns `false` when the table is full.
+ * Serves the queue in increasing page order within `budget`, the frame's one integration budget
+ * (`BackendContext.frameBudget`): what its cells and arrivals left, its clock running only while
+ * rows are written and reread after each; the rest waits for the next image, in the same order.
+ * At least one row always goes through, or a page would never be written. `release` says again
+ * whether the page still claims a row — it may have left since it enrolled, and then leaves the
+ * queue costing nothing —, `place` writes it and returns `false` when the table is full.
  *
  * Returns the number of pages a table overflow leaves without a rank: never those the time budget
  * alone deferred, which overflow nothing. No `budget` — a barrier image, outside the measured
