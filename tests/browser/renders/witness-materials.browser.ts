@@ -9,12 +9,12 @@
 // tolerance (#443).
 //
 // The harness server of `bench/runner` serves the page and its import map, the SDK, the page
-// modules of `tests/` and the engine sources they import; nothing outside this repository is
-// read. Per-fixture readings and both images land under `.mesure/out/material-pixels/<run>/`.
+// modules of `tests/` and the fixtures they import; an engine source they import resolves to its
+// file under `dist/`, so the page runs one engine (`repoServer`). Nothing outside this repository
+// is read. Per-fixture readings and both images land under `.mesure/out/material-pixels/<run>/`.
 //
 //   node tests/browser/renders/witness-materials.browser.ts [run-name]
 import assert from 'node:assert/strict';
-import { existsSync } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { withRepoPage } from '../../kit/server/repoPage.ts';
@@ -28,10 +28,6 @@ type RunResult = Awaited<ReturnType<typeof runOnPage>>;
 const ROOT = resolve(import.meta.dirname, '../../..');
 const run = process.argv[2] ?? new Date().toISOString().replaceAll(':', '-');
 const out = measureOutput('material-pixels', run);
-assert.ok(
-  existsSync(resolve(ROOT, 'dist/witnesses/measurement.js')),
-  'dist missing: run `pnpm run build` before this proof',
-);
 const result: RunResult = await withRepoPage(ROOT, true, (page) =>
   page.evaluate(
     // A template literal, not a static specifier: TypeScript cannot resolve this page module

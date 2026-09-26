@@ -298,7 +298,9 @@ object the file cites (`objects[].sha256`), so a prune keeps them.
 Stage version 6 adds `bodies`, one entry per node of the rendered scene whose
 `KHR_physics_rigid_bodies` declares a `motion` ([COMPILER.md](COMPILER.md#physicsjson--the-cooked-colliders-stage-physics-cook)). The
 field is additive: a file cooked before it has none, and format 2 still reads it. The node keeps its
-`instances` entries until the page restores its body. Each entry:
+`instances` entries: the page leaves them out once it has restored its body
+(`packages/sdk-browser/src/physics/cookedBodies.ts`) and falls back on them when it refuses the
+body; another node its collider names keeps its own, still static ground. Each entry:
 
 - `node`: the declaring node.
 - `motion`: the motion as the node declares it (`isKinematic`, `mass`, `gravityFactor`, …).
@@ -307,8 +309,10 @@ field is additive: a file cooked before it has none, and format 2 still reads it
   the body's frame at unit scale; and, a dynamic body's, `mass`, the exact weighing of the solid
   its closed mesh bounds at 1000 kg/m³ and at the body's `scale`: `mass` (kg), `centerOfMass` and
   `inertia` about it (nine numbers, column-major), in the body's frame — the mass the page hands
-  Jolt, turning the hull about `centerOfMass` rather than about the hull's own centre; what the
-  `motion` declares (`mass`, `centerOfMass`, `inertiaDiagonal`) wins over it.
+  Jolt, turning the hull about `centerOfMass` rather than about the hull's own centre, weighed
+  again at the world scale the model is placed at; what the `motion` declares (`mass`,
+  `centerOfMass`, `inertiaDiagonal` turned by `inertiaOrientation`) wins over it, the cooked
+  inertia scaled to a declared mass.
 - `position`, `rotation`, `scale`: the node's world placement in the model, as an instance's.
 - `friction`, `restitution`: as an instance's.
 
