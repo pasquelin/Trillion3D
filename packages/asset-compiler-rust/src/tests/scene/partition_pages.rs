@@ -115,7 +115,7 @@ fn a_reused_folder_proves_its_cells_through_the_pages() {
     for (name, bytes, reason) in [
         ("scene-cell-0.json", &b"{}"[..], "scene-cell-0.json"),
         (page.as_str(), b"{}", "is not the page its slot names"),
-        ("scene-tables.json", &old, "scene tables are not version 4"),
+        ("scene-tables.json", &old, "scene tables of another version"),
     ] {
         let intact = fs::read(directory.join(name)).expect("product");
         fs::write(directory.join(name), bytes).expect("corrupt");
