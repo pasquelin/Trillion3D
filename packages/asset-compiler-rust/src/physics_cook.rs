@@ -101,6 +101,11 @@ extern "C" {
 /// no collider, the soft body is not simulated, and the report names it.
 pub(crate) const PHYSICS_COOK_FAILED: &str = "PHYSICS_COOK_FAILED";
 
+/// A body or collider the cook refuses by `message`: named in the report, never fatal.
+fn refused(message: String) -> CompilerError {
+    CompilerError::new(PHYSICS_COOK_FAILED, message)
+}
+
 /// Copies the bytes the cook left for this thread, or names what it refused and Jolt's reason.
 fn taken(status: u32, out: *const u8, bytes: u32, what: &str) -> Result<Vec<u8>> {
     // SAFETY: the cook left `bytes` bytes at `out`, valid until this thread's next call.

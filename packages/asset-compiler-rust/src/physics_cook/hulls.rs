@@ -6,6 +6,7 @@ use super::decompose::decompose;
 use super::taken;
 use crate::compiler_accessor_create::accessor;
 use crate::compiler_validate::{item, required_index, values};
+use crate::shared_math::{length, sub};
 use crate::{Options, Result};
 use serde_json::{json, Value};
 
@@ -93,6 +94,18 @@ fn mesh_triangles(g: &Value, bin: &[u8], mesh: usize) -> Result<(Vec<f32>, Vec<u
     Ok((pos, triangles))
 }
 
+/// The mesh's grain: the mean length of its triangles' edges.
+fn mean_edge(pos: &[f32], triangles: &[u32]) -> f64 {
+    let at = |i: u32| [0, 1, 2].map(|k| pos[i as usize * 3 + k] as f64);
+    let edges = triangles
+        .as_chunks::<3>()
+        .0
+        .iter()
+        .flat_map(|t| [(t[0], t[1]), (t[1], t[2]), (t[2], t[0])]);
+    let lengths: Vec<f64> = edges.map(|(a, b)| length(sub(at(a), at(b)))).collect();
+    lengths.iter().sum::<f64>() / lengths.len().max(1) as f64
+}
+
 /// The cooked hulls of mesh `mesh`, in its frame — one hull, or a decomposition within the mesh's
 /// grain, its mean edge length, published as `tolerance` — with their mass properties.
 pub(super) fn cooked_hulls(
@@ -102,16 +115,7 @@ pub(super) fn cooked_hulls(
     one_hull: bool,
 ) -> Result<Value> {
     let (pos, triangles) = mesh_triangles(g, bin, mesh)?;
-    let edges = triangles
-        .as_chunks::<3>()
-        .0
-        .iter()
-        .flat_map(|t| [(t[0], t[1]), (t[1], t[2]), (t[2], t[0])]);
-    let (sum, count) = edges.fold((0.0f64, 0usize), |(sum, count), (a, b)| {
-        let d = (0..3).map(|k| (pos[a as usize * 3 + k] - pos[b as usize * 3 + k]) as f64);
-        (sum + d.map(|v| v * v).sum::<f64>().sqrt(), count + 1)
-    });
-    let tolerance = sum / count.max(1) as f64;
+    let tolerance = mean_edge(&pos, &triangles);
     let parts = if one_hull {
         vec![pos]
     } else {
