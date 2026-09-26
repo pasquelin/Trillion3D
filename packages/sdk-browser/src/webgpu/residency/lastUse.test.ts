@@ -7,6 +7,7 @@ import { createCutDelta } from '../cut/delta.ts';
 import { createWebgpuPageTracking } from '../row/pageTracking.ts';
 import { LAST_USE_WINDOW as W } from './lastUse.ts';
 import { createWebgpuPinUpdater } from './pinUpdater.ts';
+import { createPageAdmission } from './admission.ts';
 import { createWebgpuResidencySets } from './sets.ts';
 import { lruCache, pageOf, placement } from './residentEnsurer.fixture.ts';
 
@@ -56,12 +57,16 @@ function residency(slots: number, spare: string[]) {
     await cache.load(url);
     return before.find((key) => !cache.resident.has(key));
   };
-  /** The upload job admits `url` while the image asks for it: loaded and pinned at once. */
-  const admit = async (url: string) => {
-    await cache.load(url);
-    cache.pin(url);
-    tracking.markPinned(tracking.keyOf(packed[ids([url])[0]]));
-  };
+  /** The upload job's admission: a page the image asks for is loaded and pinned at once. */
+  const admission = createPageAdmission({
+    getCache: () => cache as never,
+    tracking,
+    bootstrapKey,
+    isLost: () => false,
+    hasBytes: () => true,
+    parentsOf,
+  });
+  const admit = (url: string) => admission(packed[ids([url])[0]]);
   return { image, ask, admit, load, evict, cache };
 }
 
