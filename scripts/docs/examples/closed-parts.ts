@@ -1,7 +1,6 @@
 /** The closed parts of the scenes built of thin solids (the chalet, #415): boxes and octagonal
  *  logs, each a closed solid whose faces point away from its centre, with the normals an exporter
- *  writes. The compiler's arcade test builds the same parts in Rust (`closed_parts.rs`): keep the
- *  two in step. */
+ *  writes. */
 import type { Mesh } from './mesh.ts';
 import type { Vec3 } from './random.ts';
 
