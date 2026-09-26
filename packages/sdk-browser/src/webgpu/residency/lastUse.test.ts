@@ -69,12 +69,17 @@ test('an ancestor drawn in place of a missing page stays resident under pressure
   }
 });
 
-test('a page not drawn for the window becomes evictable, oldest first', async () => {
+/** A full pool of two where `y` arrives first but `x` is the first to stop being drawn. */
+async function staggered() {
   const world = residency(2, ['x', 'y', 'z', 'w']);
-  // `y` arrives first, but `x` is the first to stop being drawn.
   await world.load('y', 'x');
   world.image(1, [], ['x', 'y']);
   world.image(2, [], ['y']);
+  return world;
+}
+
+test('a page not drawn for the window becomes evictable, oldest first', async () => {
+  const world = await staggered();
   // Within its window, a page the image just drew never leaves.
   for (let frame = 3; frame < 2 + W; frame++) {
     world.image(frame, [], []);
@@ -111,10 +116,7 @@ test('a parent never leaves before its resident children', async () => {
 });
 
 test('a tight pool with the window full never refuses a page the image asks for', async () => {
-  const world = residency(2, ['x', 'y', 'z', 'w']);
-  await world.load('y', 'x');
-  world.image(1, [], ['x', 'y']);
-  world.image(2, [], ['y']);
+  const world = await staggered();
   // Both slots sit in their window when the camera turns to two pages that are not resident: the
   // window gives way, oldest first, instead of the pool refusing the image's pages.
   world.image(3, ['z', 'w'], []);
