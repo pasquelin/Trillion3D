@@ -2225,7 +2225,7 @@
     "members": {
       "visible": "Ob er gezeichnet wird; `setVisible` schreibt es.",
       "setVisible": "Zeigt oder verbirgt ihn; seine Eckpunkte zählen weiter gegen die Obergrenze.",
-      "setTransform": "Platziert ihn: sechzehn Zahlen spaltenweise oder eine Matrix — `node.matrixWorld` folgt einem Knoten.",
+      "setTransform": "Platziert ihn: sechzehn Zahlen spaltenweise oder eine Matrix; eine von `add` gezeichnete Hilfslinie folgt dann ihrem Knoten nicht mehr.",
       "remove": "Nimmt ihn aus der Welt, seine Eckpunkte werden freigegeben; ein zweiter Aufruf tut nichts."
     }
   },
@@ -2234,7 +2234,7 @@
     "members": {
       "positions": "Zwei Enden pro Segment, je drei Zahlen.",
       "color": "Ihre Farbe; standardmäßig weiß.",
-      "width": "Breite auf dem Bildschirm, in Pixeln."
+      "width": "Breite auf dem Bildschirm, in CSS-Pixeln, wie jede Linie der Engine."
     }
   },
   "GuidePoints": {
@@ -2242,7 +2242,7 @@
     "members": {
       "positions": "Drei Zahlen pro Punkt.",
       "color": "Ihre Farbe; standardmäßig weiß.",
-      "size": "Seitenlänge jedes quadratischen Punkts auf dem Bildschirm, in Pixeln."
+      "size": "Seitenlänge jedes quadratischen Punkts auf dem Bildschirm, in CSS-Pixeln."
     }
   },
   "Guides": {
@@ -2252,7 +2252,7 @@
       "vertexCount": "Jetzt gehaltene Eckpunkte, zwei pro Segment und einer pro Punkt, verborgene eingeschlossen.",
       "lines": "Zeichnet Liniensegmente mit je zwei Enden; über der Obergrenze abgelehnt (`GUIDE_CEILING`).",
       "points": "Zeichnet quadratische Punkte mit je einer Position; über der Obergrenze abgelehnt (`GUIDE_CEILING`).",
-      "add": "Zeichnet die Linien- und Punkt-Meshes von `object` — jeder `helper` baut solche —, in ihren Materialfarben, dort platziert, wo das Objekt jetzt steht; seine Dreiecke sind keine Hilfslinien und werden übersprungen.",
+      "add": "Zeichnet die Linien- und Punkt-Meshes von `object` — jeder `helper` baut solche —, in ihren Materialfarben; seine Dreiecke sind keine Hilfslinien und werden übersprungen. Die Hilfslinie folgt dem Objekt — bei einem Licht- oder Kamera-Helfer dem Knoten, den er zeigt — und wird in jedem Bild bewegt, in dem sich dieser Knoten bewegt hat, sonst nie.",
       "clear": "Entfernt alle Hilfslinien."
     }
   },
@@ -5170,7 +5170,7 @@
       "background": "Was das Bild hinter jedem Objekt füllt: eine Farbe oder `null` für den Standard. Eine Änderung erscheint im nächsten Bild, die Sitzung bleibt: eine hier gesetzte neue Farbe oder die gehaltene, über ihre Methoden geschrieben (`set`, `setRGB`, `setHex`, `setHSL`...). Ein direktes Schreiben von `.r`, `.g` oder `.b` wird nicht gehört: danach `background` erneut setzen. Ein Bild oder jeder Wert ohne `getHex` wird abgelehnt (`UNSUPPORTED_SCENE_UPDATE`): kein Pfad zeichnet es.",
       "fog": "Nebel auf jeder Fläche, deckend oder transparent, in beiden Renderern; `null`, der Standard, für keinen, ohne Kosten. `{ color, near, far }` lässt Objekte von `near` bis `far` in `color` übergehen, Entfernungen von der Kamera; `{ color, density }` wird um `density` pro Entfernungseinheit dichter; mit `heightFalloff` (und `baseHeight`, standardmäßig 0) liegt er am Boden und wird über `baseHeight` dünner — alle `1 / heightFalloff` Einheiten nach oben durch e geteilt. Eine Änderung zeigt sich im nächsten Bild: ein hier neu gesetzter Nebel oder seine über ihre Methoden geschriebene Farbe. Ein direktes Schreiben von `near`, `far`, `density`... wird nicht bemerkt: danach `fog` erneut setzen. Ein Nebel außerhalb des Bereichs — `far` nicht hinter `near`, eine negative Dichte — wird abgelehnt (`INVALID_SCENE_ENVIRONMENT`).",
       "load": "Lädt ein kompiliertes Modell — die URL seines Manifests — und fügt es dieser Szene hinzu.",
-      "toJSON": "Die Szene als einfaches, versioniertes JSON: ihre Objekte, Formen über den Aufruf, der sie gebaut hat, Materialien, Lichter und geladene Modelle über ihre Adresse; dazu die Pose von `camera`, wenn eine übergeben wird.",
+      "toJSON": "Die Szene als einfaches, versioniertes JSON: ihre Objekte, Formen über den Aufruf, der sie gebaut hat, Materialien, Lichter, der Körper jedes Meshs, wie er deklariert wurde, und geladene Modelle über ihre Adresse; dazu die Pose von `camera`, wenn eine übergeben wird.",
       "fromJSON": "Ersetzt den Inhalt der Szene durch eine mit `toJSON` gespeicherte Szene, wobei ihre `helper`-Markierungen erhalten bleiben; wird aufgelöst, sobald ihre Modelle geladen sind. Ein anderes Format oder eine andere Version wird abgelehnt (`UNSUPPORTED_SCENE_FORMAT`). Aufrufe während eines Lesevorgangs laufen nacheinander, der Reihe nach, jeder auf dem, was der vorherige hinterlassen hat: Zwei gespeicherte Szenen werden nie vermischt."
     }
   },
@@ -5998,7 +5998,6 @@
       "anisotropy": "Schärfe schräg gesehen.",
       "flipY": "Ob die Zeilen umgedreht sind.",
       "premultiplyAlpha": "Ob die Farbe vormultipliziert ist.",
-      "generateMipmaps": "Ob kleinere Kopien erstellt werden.",
       "colorSpace": "Wie ihre Zahlen gelesen werden.",
       "transform": "Transformation der UV des Samplers, `KHR_texture_transform`, zu drei Dreierzeilen zusammengesetzt."
     }
@@ -7022,7 +7021,8 @@
       "children": "Die Knoten darunter, der Reihe nach.",
       "mesh": "Ränge in `geometries` und `materials`, wie die Dreiecke gelesen werden, und der Mittelpunkt eines Sprites.",
       "light": "Art, Farben, Zahlen, Ausrichtung und Sondenkoeffizienten eines Lichts.",
-      "model": "Ein kompiliertes Modell, über die Manifest-Adresse, von der es geladen wurde: nie eingebettet."
+      "model": "Ein kompiliertes Modell, über die Manifest-Adresse, von der es geladen wurde: nie eingebettet.",
+      "physics": "Der Körper eines Meshs, wie `mesh.physics` ihn deklariert."
     }
   },
   "SavedScene": {
@@ -7429,7 +7429,7 @@
       "offset": "Woraus `matrix` zusammengesetzt wird.",
       "matrixAutoUpdate": "Ob der Host `matrix` neu aufbaut.",
       "matrix": "Transformation der UV des Samplers, `KHR_texture_transform`, zu drei Zeilen zusammengesetzt; der Host berechnet sie aus Versatz, Wiederholung und Rotation neu, wenn er die Aktualisierung macht.",
-      "generateMipmaps": "Ob kleinere Kopien erstellt werden.",
+      "generateMipmaps": "Ob kleinere Kopien verlangt werden; die Engine erstellt sie, sobald `minFilter` sie liest.",
       "premultiplyAlpha": "Ob die Farbe mit Alpha vormultipliziert ist.",
       "flipY": "Ob die Zeilen beim Senden umgedreht werden.",
       "version": "Vom Host bei jeder Inhaltsänderung erhöht: das, was eine Sendung vergleicht, um eine erneute Kopie zu vermeiden.",

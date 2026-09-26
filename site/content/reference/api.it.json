@@ -2225,7 +2225,7 @@
     "members": {
       "visible": "Se viene disegnato; `setVisible` lo scrive.",
       "setVisible": "Lo mostra o lo nasconde; i suoi vertici contano ancora contro il limite.",
-      "setTransform": "Lo posiziona: sedici numeri per colonne, o una matrice — `node.matrixWorld` segue un nodo.",
+      "setTransform": "Lo posiziona: sedici numeri per colonne, o una matrice; una guida disegnata da `add` smette allora di seguire il suo nodo.",
       "remove": "Lo toglie dal mondo, restituendo i suoi vertici; una seconda chiamata non fa nulla."
     }
   },
@@ -2234,7 +2234,7 @@
     "members": {
       "positions": "Due estremi per segmento, tre numeri ciascuno.",
       "color": "Il loro colore; bianco per impostazione predefinita.",
-      "width": "Larghezza sullo schermo, in pixel."
+      "width": "Larghezza sullo schermo, in pixel CSS, come ogni linea del motore."
     }
   },
   "GuidePoints": {
@@ -2242,7 +2242,7 @@
     "members": {
       "positions": "Tre numeri per punto.",
       "color": "Il loro colore; bianco per impostazione predefinita.",
-      "size": "Lato di ogni punto quadrato sullo schermo, in pixel."
+      "size": "Lato di ogni punto quadrato sullo schermo, in pixel CSS."
     }
   },
   "Guides": {
@@ -2252,7 +2252,7 @@
       "vertexCount": "Vertici tenuti ora, due per segmento e uno per punto, guide nascoste comprese.",
       "lines": "Disegna segmenti, due estremi ciascuno; rifiutato sopra il limite (`GUIDE_CEILING`).",
       "points": "Disegna punti quadrati, una posizione ciascuno; rifiutato sopra il limite (`GUIDE_CEILING`).",
-      "add": "Disegna le mesh di linee e punti di `object` — ogni `helper` le costruisce —, nei colori dei loro materiali, poste dove l’oggetto si trova ora; i suoi triangoli non sono guide e vengono saltati.",
+      "add": "Disegna le mesh di linee e punti di `object` — ogni `helper` le costruisce —, nei colori dei loro materiali; i suoi triangoli non sono guide e vengono saltati. La guida segue l’oggetto — per un aiuto di luce o di camera, il nodo che mostra — spostata a ogni immagine in cui quel nodo si è mosso, mai altrimenti.",
       "clear": "Rimuove tutte le guide."
     }
   },
@@ -5170,7 +5170,7 @@
       "background": "Ciò che riempie l’immagine dietro ogni oggetto: un colore, o `null` per quello predefinito. Una modifica appare al fotogramma successivo, mantenendo la sessione: un nuovo colore assegnato qui, o quello attuale scritto con i suoi metodi (`set`, `setRGB`, `setHex`, `setHSL`...). Una scrittura diretta di `.r`, `.g` o `.b` non viene rilevata: riassegna `background` dopo. Un’immagine, o qualsiasi valore senza `getHex`, viene rifiutata (`UNSUPPORTED_SCENE_UPDATE`): nessun percorso la disegna.",
       "fog": "Nebbia su ogni superficie, opaca o trasparente, su entrambi i renderer; `null`, il predefinito, per nessuna, senza costo. `{ color, near, far }` sfuma gli oggetti in `color` da `near` a `far`, distanze dalla telecamera; `{ color, density }` si infittisce di `density` per unità di distanza; aggiungi `heightFalloff` (e `baseHeight`, 0 per impostazione predefinita) e si posa a terra, diradandosi sopra `baseHeight` — divisa per e ogni `1 / heightFalloff` unità verso l’alto. Un cambiamento si vede al fotogramma successivo: una nuova nebbia impostata qui, o il suo colore scritto con i suoi metodi. Una scrittura diretta di `near`, `far`, `density`... non viene sentita: reimposta `fog` dopo. Una nebbia fuori intervallo — `far` non oltre `near`, una densità negativa — è rifiutata (`INVALID_SCENE_ENVIRONMENT`).",
       "load": "Carica un modello compilato — l'URL del suo manifesto — e lo aggiunge a questa scena.",
-      "toJSON": "La scena come JSON semplice e versionato: i suoi oggetti, le forme tramite la chiamata che le ha costruite, i materiali, le luci e i modelli caricati tramite indirizzo; anche la posa di `camera` quando ne viene data una.",
+      "toJSON": "La scena come JSON semplice e versionato: i suoi oggetti, le forme tramite la chiamata che le ha costruite, i materiali, le luci, il corpo di ogni mesh come è stato dichiarato e i modelli caricati tramite indirizzo; anche la posa di `camera` quando ne viene data una.",
       "fromJSON": "Sostituisce il contenuto della scena con una scena salvata da `toJSON`, mantenendo i suoi segni `helper`; si risolve quando i suoi modelli sono caricati. Un altro formato o un'altra versione viene rifiutato (`UNSUPPORTED_SCENE_FORMAT`). Le chiamate fatte mentre se ne legge una vengono eseguite una dopo l'altra, in ordine, ciascuna su ciò che ha lasciato la precedente: due scene salvate non si mescolano mai."
     }
   },
@@ -5998,7 +5998,6 @@
       "anisotropy": "Nitidezza vista di lato.",
       "flipY": "Se le righe sono capovolte.",
       "premultiplyAlpha": "Se il colore è premoltiplicato.",
-      "generateMipmaps": "Se vengono fatte copie più piccole.",
       "colorSpace": "Come vengono letti i suoi numeri.",
       "transform": "Trasformazione delle UV del campionatore, `KHR_texture_transform` composto in tre righe di tre."
     }
@@ -7022,7 +7021,8 @@
       "children": "I nodi sotto di esso, in ordine.",
       "mesh": "Posizioni in `geometries` e `materials`, come si leggono i triangoli, e il centro di uno sprite.",
       "light": "Il tipo di una luce, i suoi colori, i suoi numeri, la sua direzione e i coefficienti della sonda.",
-      "model": "Un modello compilato, tramite l'indirizzo del manifesto da cui è stato caricato: mai copiato dentro."
+      "model": "Un modello compilato, tramite l'indirizzo del manifesto da cui è stato caricato: mai copiato dentro.",
+      "physics": "Il corpo di una mesh, come lo dichiara `mesh.physics`."
     }
   },
   "SavedScene": {
@@ -7429,7 +7429,7 @@
       "offset": "Ciò da cui `matrix` è composta.",
       "matrixAutoUpdate": "Se l'host ricostruisce `matrix`.",
       "matrix": "Trasformazione delle UV del campionatore, `KHR_texture_transform` composto in tre righe; l'host la ricalcola a partire dallo scarto, dalla ripetizione e dalla rotazione quando fa l'aggiornamento.",
-      "generateMipmaps": "Se vengono fatte copie più piccole.",
+      "generateMipmaps": "Se vengono chieste copie più piccole; il motore le fa ogni volta che `minFilter` le legge.",
       "premultiplyAlpha": "Se il colore è premoltiplicato per l'alfa.",
       "flipY": "Se le righe vengono capovolte all'invio.",
       "version": "Incrementato dall'host a ogni cambiamento di contenuto: ciò che un invio confronta per evitare una nuova copia.",

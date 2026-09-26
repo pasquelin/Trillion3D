@@ -185,7 +185,9 @@ onChange)` gives sliders (`[min, max, value, step?]`), colour pickers (`'#rrggbb
    `controls({ … }, world)`), it also opens the stats corner, bottom left: frames drawn per second
    (marked `held` while the image stands still) and the last frame's measured counters, a line
    left out when the engine did not measure it; `stats(world)` opens it alone. `readout(key)`, declared after it, adds a live line to that panel and returns the
-   function that writes it (a counter read every frame). Name each control so that its label says
+   function that writes it (a counter read every frame); `physicsReadouts(world, ['bodies',
+   'awake', 'step'])` adds the physics' lines, written each frame from `world.physics.stats`
+   (`page` adds the page's share of the frame). Name each control so that its label says
    what to try; there is no caption over the
    render. The page hosting the example hides or shows the panel by posting
    `{ type: 'trillion3d:controls', visible }` to its frame. Every word the reader sees goes in the

@@ -1367,7 +1367,7 @@
     }
   },
   "save-the-scene": {
-    "banner": "Làm đổ tòa tháp, rồi mở lại cảnh đã lưu.",
+    "banner": "Lưu tòa tháp, làm đổ nó, rồi mở: tòa tháp đã lưu lại đứng vững.",
     "controls": {
       "knockDown": "Làm đổ",
       "save": "Lưu",

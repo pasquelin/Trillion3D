@@ -3,6 +3,11 @@
  * reads a host object, so this module names no rendering library — the host-library objects a
  * witness publishes live in `../host/scene/objects.ts`.
  */
+/** The ratio a session's drawing buffer was sized at (`devicePixels`): read live, a resize
+ *  rewrites it. */
+export const pixelRatioOf = (options: { pixelRatio?: number }) =>
+  options.pixelRatio ?? DEFAULT_PIXEL_RATIO;
+
 export const DEFAULT_FOV = 55,
   DEFAULT_PIXEL_RATIO = 1,
   DEFAULT_WIDTH = 960,
