@@ -131,11 +131,10 @@ export async function readTablePartition(
   const cells = await records(root.pages);
   if (!cells.every((cell) => Array.isArray(cell?.meshes) && Array.isArray(cell.parents)))
     throw new EngineError('INVALID_SCENE_TABLES', 'scene partition misses its cells', {});
-  const bounds = [Infinity, Infinity, Infinity, -Infinity, -Infinity, -Infinity];
-  for (const slot of root.pages.map(slotPage))
-    slot?.bounds.forEach((value, axis) => {
-      bounds[axis] = axis < 3 ? Math.min(bounds[axis], value) : Math.max(bounds[axis], value);
-    });
+  const boxes = root.pages.map(slotPage).flatMap((slot) => (slot ? [slot.bounds] : []));
+  const bounds = [0, 1, 2, 3, 4, 5].map((axis) =>
+    (axis < 3 ? Math.min : Math.max)(...boxes.map((box) => box[axis])),
+  );
   const meshes = [...new Set(cells.flatMap((cell) => cell.meshes.map(([mesh]) => mesh)))];
   return { version: root.version, bounds, meshes: meshes.sort((a, b) => a - b), cells };
 }
