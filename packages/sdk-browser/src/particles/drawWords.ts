@@ -1,4 +1,5 @@
 import { invertMatrix4 } from '../../../sdk-core/src/math/matrix/matrix4Inverse.ts';
+import { transformHomogeneousPoint } from '../../../sdk-core/src/math/primitives/vector.ts';
 import type { ParticlePool } from '../../../sdk-core/src/fluids/particles.ts';
 import { usedSlots } from './poolStates.ts';
 
@@ -16,10 +17,12 @@ export function writeDrawWords(
   viewProj: ArrayLike<number>,
   eye: ArrayLike<number>,
 ) {
-  const [x, y, z] = pool.origin;
-  for (let i = 0; i < 12; i++) clip[i] = viewProj[i];
-  for (let r = 0; r < 4; r++)
-    clip[12 + r] = viewProj[r] * x + viewProj[4 + r] * y + viewProj[8 + r] * z + viewProj[12 + r];
+  const o = pool.origin,
+    x = o[0],
+    y = o[1],
+    z = o[2];
+  clip.set(viewProj);
+  transformHomogeneousPoint(clip, viewProj, x, y, z, 12);
   invertMatrix4(unclip, clip);
   out.set(clip, 0);
   out.set(unclip, 16);
@@ -31,10 +34,7 @@ export function writeDrawWords(
   out[40] = pool.softness;
 }
 
-let from: ArrayLike<number> = [0, 0, 0];
-const far = ({ origin }: ParticlePool) =>
-  (origin[0] - from[0]) ** 2 + (origin[1] - from[1]) ** 2 + (origin[2] - from[2]) ** 2;
-const farFirst = (a: ParticlePool, b: ParticlePool) => far(b) - far(a);
+const keys: number[] = [];
 
 /** The pools with particles alive, in `into`, far to near from `eye` by origin: one emitter's
  *  smoke over the one behind it, nothing sorted within a pool, nothing allocated. */
@@ -44,7 +44,17 @@ export function drawOrder(
   into: ParticlePool[],
 ) {
   into.length = 0;
-  for (const pool of pools) if (pool.moving && usedSlots(pool)) into.push(pool);
-  from = eye;
-  return into.sort(farFirst);
+  for (const pool of pools) {
+    if (!pool.moving || !usedSlots(pool)) continue;
+    const o = pool.origin,
+      key = (o[0] - eye[0]) ** 2 + (o[1] - eye[1]) ** 2 + (o[2] - eye[2]) ** 2;
+    let at = into.length;
+    for (; at > 0 && keys[at - 1] < key; at--) {
+      into[at] = into[at - 1];
+      keys[at] = keys[at - 1];
+    }
+    into[at] = pool;
+    keys[at] = key;
+  }
+  return into;
 }
