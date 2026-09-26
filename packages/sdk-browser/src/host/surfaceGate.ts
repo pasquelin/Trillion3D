@@ -13,14 +13,16 @@ import type { HostMap, HostShadedMaterial } from './shadedMaterial.ts';
 import { metalRough } from '../scene/surfaceModel.ts';
 import { blendingOf, blendingRefusal } from '../scene/materialBlending.ts';
 import { HOST_MAPPING_UV, HOST_NORMAL_MAP_TANGENT_SPACE } from './surfaceConstants.ts';
+import { texelsReason } from '../visibility/types.ts';
 import { declaresCompileHook } from './materialHook.ts';
 import { physicalExtensionReason } from '../scene/physicalMaterialGate.ts';
 import { isTransmissive } from '../visibility/shader/material.ts';
 
 const textureReason = (texture: HostMap) => {
   if (!texture) return;
-  if (texture.kind === 'texels') return 'non-image texture storage is unsupported';
   if (!texture.image) return 'texture image is unavailable';
+  const texels = texture.kind === 'texels' && texelsReason(texture);
+  if (texels) return texels;
   if (texture.channel !== 0 && texture.channel !== 1)
     return `texture channel ${texture.channel} is unsupported`;
   if (texture.mapping !== HOST_MAPPING_UV) return 'non-UV texture mapping is unsupported';
