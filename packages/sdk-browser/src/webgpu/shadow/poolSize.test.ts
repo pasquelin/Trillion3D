@@ -164,3 +164,16 @@ test('at 3 456 × 2 234, one sun sizes two layers of 51 pages a side: 5 202 page
   const [, context] = s.said.find(([phase]) => phase === 'shadow-pool')!;
   assert.deepEqual([context.layers, context.pages], [2, 5202]);
 });
+
+test('the side follows the pages the pool holds; the device side is only the cap', () => {
+  // A pool of 2 160 pages is the square that holds them, as on develop, bytes alike.
+  const held = shadowPoolFor(2160, 16384 / 128)(Infinity);
+  assert.deepEqual([held.side, held.layers], [47, 1]);
+  assert.equal(held.allocatedBytes, shadowAtlasBytes(47));
+  // One sun over 3 456 × 2 234 asks 5 040 pages, 71²; over 3 840 × 2 160, 5 440 pages, 74².
+  const sides = [pages(3456, 2234), pages(3840, 2160)].map((n) => shadowPoolFor(n, 128)(Infinity));
+  assert.deepEqual(
+    sides.map(({ side, layers }) => side ** 2 * layers),
+    [5041, 5476],
+  );
+});
