@@ -74,9 +74,9 @@ export function createPageInvalidation(
     level: number,
     wrong: boolean,
   ) => {
+    counts.visitedPages += pool.pages;
     for (let page = 0; page < pool.pages; page++) {
       if (pool.owner[page] < 0 || pool.slice[page] !== slice) continue;
-      counts.visitedPages++;
       const key = pool.view[page],
         view = sunLight ? key - sun.finest[slice] : (key >> 4) * LAMP_MIPS + (key & 15);
       if (!covered || within(views, view, pool.x[page], pool.y[page])) mark(page, level, wrong);
@@ -120,13 +120,18 @@ export function createPageInvalidation(
       return;
     }
     if (!sunLight && byPage && changes.count) lampFaces(light);
+    // Per-page invalidation off: every box that touches stales the same pages, so one scan at
+    // the strongest level, withdrawing when any box is wrong, does what one scan a box would.
+    let every = 0,
+      everyWrong = false;
     for (let box = 0; box < changes.count; box++) {
       if (!changes.touches(box, x, y, z, range)) continue;
       const moved = changes.read(box),
         level = moved.moving ? STALE_DYNAMIC : STALE_FULL,
         wrong = !moved.detail && !moved.moving;
       if (!byPage) {
-        scan(slice, sunLight, views, false, level, wrong);
+        every = Math.max(every, level);
+        everyWrong ||= wrong;
         continue;
       }
       const covered = sunLight
@@ -135,5 +140,6 @@ export function createPageInvalidation(
       if (covered > pool.pages) scan(slice, sunLight, views, true, level, wrong);
       else walk(slice, sunLight, views, level, wrong);
     }
+    if (every) scan(slice, sunLight, views, false, every, everyWrong);
   };
 }

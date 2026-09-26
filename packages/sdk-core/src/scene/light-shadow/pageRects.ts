@@ -2,6 +2,7 @@ import { LIGHT_KIND, POINT_FACES, type SceneLight } from '../light/contracts.ts'
 import { writeFace } from './faces.ts';
 import { sunBoxRect } from './math.ts';
 import type { SunLevels } from './sunLevels.ts';
+import { FULL_FACE } from './volume.ts';
 import {
   LAMP_MIPS,
   SUN_LEVELS,
@@ -82,7 +83,10 @@ export function createPageRects() {
     }
     plane[0] = plane[2] = Infinity;
     plane[1] = plane[3] = -Infinity;
-    for (let corner = 0; corner < 8; corner++) {
+    // A box that bounds nothing finite projects nowhere: it covers the whole face, never none.
+    const bounded = clip.every(Number.isFinite);
+    if (!bounded) plane.set(FULL_FACE);
+    for (let corner = 0; bounded && corner < 8; corner++) {
       const c = corner * 3,
         w = clip[c + 2];
       if (w >= near) include(clip[c] / w, clip[c + 1] / w);
