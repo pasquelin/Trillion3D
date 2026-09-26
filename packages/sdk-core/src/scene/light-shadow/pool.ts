@@ -53,8 +53,7 @@ export function createShadowPool(side: number) {
     order = new Float64Array(pages);
   /** One bit per table entry: its page was evicted to make room, and it has not been drawn since. */
   const evicted = new Uint32Array(SHADOW_TABLE_ENTRIES / 32);
-  let refetched = 0,
-    freeCount = 0,
+  let freeCount = 0,
     orderCount = -1,
     orderAt = 0,
     orderFrame = -1;
@@ -75,9 +74,10 @@ export function createShadowPool(side: number) {
     for (let page = 0; page < pages; page++) free[page] = pages - 1 - page;
     freeCount = pages;
     evicted.fill(0);
-    refetched = 0;
+    pool.used = pool.refetched = 0;
   };
-  init();
+  // Data fields only, never an accessor: V8 keeps an object literal that has one in dictionary
+  // mode, and every read of these arrays in a loop over the pool then costs a hash lookup (#26).
   const pool = {
     owner,
     slice,
@@ -96,18 +96,14 @@ export function createShadowPool(side: number) {
     side,
     pages,
     /** Bytes of every host array the pool holds: what `shadowPoolHostBytes` declares. */
-    get hostBytes() {
-      const all = [owner, slice, view, x, y, rank, requested, dirty, valid, layered, since];
-      const rest = [sinceFrame, readFrame, free, order, evicted];
-      return [...all, ...rest].reduce((n, a) => n + a.byteLength, 0);
-    },
-    get used() {
-      return pages - freeCount;
-    },
+    hostBytes: [
+      ...[owner, slice, view, x, y, rank, requested, dirty, valid, layered, since],
+      ...[sinceFrame, readFrame, free, order, evicted],
+    ].reduce((n, a) => n + a.byteLength, 0),
+    /** Pages mapped. */
+    used: 0,
     /** Entries mapped again after the pool evicted them: redraws the pool's size caused. */
-    get refetched() {
-      return refetched;
-    },
+    refetched: 0,
     /** Stale from now on (`STALE_*`), at most what it was; still mapped. True if it was current. */
     stale(page: number, nowMs: number, frame: number, level = STALE_FULL) {
       const was = dirty[page];
@@ -152,6 +148,7 @@ export function createShadowPool(side: number) {
       dirty[page] = valid[page] = layered[page] = 0;
       requested[page] = -1;
       free[freeCount++] = page;
+      pool.used--;
     },
     /**
      * Pages that may be taken for a report of frame `reportFrame`: every mapped page no later
@@ -181,9 +178,10 @@ export function createShadowPool(side: number) {
         }
       }
       if (page < 0) return -1;
+      pool.used++;
       if (evicted[entry >> 5] & (1 << (entry & 31))) {
         evicted[entry >> 5] &= ~(1 << (entry & 31));
-        refetched++;
+        pool.refetched++;
       }
       owner[page] = entry;
       valid[page] = layered[page] = dirty[page] = 0;
@@ -194,6 +192,7 @@ export function createShadowPool(side: number) {
     },
     reset: init,
   };
+  init();
   return pool;
 }
 
