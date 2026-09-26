@@ -3,6 +3,7 @@ import { lineCorners } from '../../../sdk-core/src/world/geometry/drawn.ts';
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
 import type { Mesh } from '../../../sdk-core/src/world/object/mesh.ts';
 import type { Material } from '../../../sdk-core/src/world/material/material.ts';
+import { resolveCameraWorld } from '../camera/world.ts';
 import { copyElements, sameElements } from '../math/matrixElements.ts';
 import type { GuideEntry } from './guidePack.ts';
 
@@ -67,13 +68,14 @@ export function placeGuide(entry: GuideEntry, next: ArrayLike<number>) {
   return true;
 }
 
-/** Puts `entry` where its node stands now; false when nothing moved. A node the page destroyed
- *  is let go: its guide stays where it last stood, and the frame goes on. */
+/** Puts `entry` where its node stands now, its world pose resolved through the engine's one
+ *  contract (`resolveCameraWorld`); false when nothing moved. A node the page destroyed is let
+ *  go: its guide stays where it last stood, and the frame goes on. */
 export function followNode(entry: FollowedEntry) {
   const { node } = entry;
   if (!node) return false;
   try {
-    node.updateWorldMatrix(true, false);
+    resolveCameraWorld(node);
   } catch (error) {
     if (!(error instanceof EngineError) || error.code !== 'STALE_SCENE_NODE') throw error;
     entry.node = undefined;
