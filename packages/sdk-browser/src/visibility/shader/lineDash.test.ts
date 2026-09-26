@@ -75,7 +75,9 @@ test('every path that draws a line reads the dash, and a solid surface keeps eve
     ),
   );
   assert.equal(VIS_SHADER.split('maskKeep(pages[in.instance],in.tc.xy,').length, 3);
-  assert.ok(rasterSource(4, 16).includes('if(!maskKeep(page,tc.xy,tc.z,gx,gy,stipple)){return;}'));
+  assert.ok(
+    rasterSource(4, 16).includes('if(!maskKeep(page,tc.xy,tc.z,vec2f(0.0),vec2f(0.0))){return;}'),
+  );
   // The transparent pass.
   assert.ok(BLEND_SHADER.includes(LINE_DASH_WGSL));
   assert.match(BLEND_ITEM_WGSL, /emissive:vec4f,dash:vec2f,sprite:vec2f,\}/);
