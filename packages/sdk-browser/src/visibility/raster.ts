@@ -43,8 +43,8 @@ function cutout(
 ) {
   const uv = page.attributes.uv,
     dashed = mat.dashSize !== undefined && !!uv,
-    masked = mat.alphaTest > 0 && (!!mat.map || !!color),
-    opacity = blendCoverage(mat);
+    opacity = blendCoverage(mat),
+    masked = mat.alphaTest > 0 && (!!mat.map || !!color || opacity < mat.alphaTest);
   if (!dashed && !masked) return undefined;
   return (_x: number, _y: number, w0: number, w1: number, w2: number) => {
     const bary = perspectiveBary(tri.a, tri.b, tri.c, { w0, w1, w2 });
@@ -55,7 +55,7 @@ function cutout(
     if (!masked) return true;
     let alpha = (color ? vertexAlpha(color, tri, bary) : 1) * opacity;
     const rgba = mat.map && textureRgba(mat.map);
-    if (!rgba) return !color || alpha >= mat.alphaTest;
+    if (!rgba) return (!color && !!mat.map) || alpha >= mat.alphaTest;
     const v = uv
       ? uv.getY(tri.i0) * bary.w0 + uv.getY(tri.i1) * bary.w1 + uv.getY(tri.i2) * bary.w2
       : 0;
