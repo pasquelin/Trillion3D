@@ -87,7 +87,7 @@ export function createWebglParticleDraw(
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
       gl.bindFramebuffer(gl.FRAMEBUFFER, copy.framebuffer);
       gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.TEXTURE_2D, copy.texture, 0);
-      return { program, vao, m, look, linear, curve, copy, checked: false };
+      return { program, vao, m, look, linear, curve, copy, checked: undefined as unknown };
     },
     ({ program, vao, copy }) => {
       gl.deleteProgram(program);
@@ -103,7 +103,7 @@ export function createWebglParticleDraw(
       // The eye in double precision, the world matrix's: the host's 32-bit eye rounds 10 km out.
       for (let i = 0; i < 3; i++) eye[i] = camera.world[12 + i];
       if (!live || !drawOrder(pools, eye, order).length) return 0;
-      // The frame's depth, copied for the soft edge; the first copy alone asks if it was refused.
+      // The frame's depth, copied for the soft edge; each framebuffer's first copy asks if refused.
       const { copy } = live,
         { framebuffer, width, height } = output;
       if (copy.size !== width * 65536 + height) {
@@ -117,14 +117,14 @@ export function createWebglParticleDraw(
       gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, copy.framebuffer);
       gl.blitFramebuffer(0, 0, width, height, 0, 0, width, height, gl.DEPTH_BUFFER_BIT, gl.NEAREST);
       gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
-      live.checked ||= gl.getError() !== gl.INVALID_OPERATION;
-      if (!live.checked) {
+      if (live.checked !== framebuffer && gl.getError() === gl.INVALID_OPERATION) {
         for (const pool of pools) pool.refused = true;
         throw new Error(
           "PARTICLES_UNSUPPORTED: WebGL2 particles fade on the frame's depth, and this context " +
             'cannot copy it',
         );
       }
+      live.checked = framebuffer;
       multiplyMatrix4Typed(screen, camera.projection, camera.view);
       gl.useProgram(live.program);
       gl.bindVertexArray(live.vao);
