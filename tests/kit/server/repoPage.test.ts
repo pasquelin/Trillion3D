@@ -52,7 +52,11 @@ test('each repository page runs the engine it draws with, the one under dist/', 
         .replace(/^packages\//, '/dist/')
         .replace(/\.ts$/, '.js')
         .replace(/\.mts$/, '.mjs');
-      assert.equal(imports[`/${file}`], emitted, `${page}: ${file} would run beside its dist twin`);
+      assert.equal(
+        imports[`/${file}`],
+        emitted,
+        `${page}: ${file} is not resolved to its dist file (a second engine, or a stale build)`,
+      );
     }
   }
 });
