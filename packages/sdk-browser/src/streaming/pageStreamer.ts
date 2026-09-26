@@ -126,8 +126,8 @@ export function createPageStreamerWith(
       state.requested++;
       return subscribe(url, requestSignal, 0);
     },
-    /** The cache it reads through: its world's, kept across sessions, or its own. */
-    pageCache: store,
+    /** Texture levels held beside the pages: its world's, kept across a device loss, or its own. */
+    textureLevels: store.levels,
     retain,
     reserve,
     /** Pins by rank delta: neither an address list nor a set rebuilt each frame. */
