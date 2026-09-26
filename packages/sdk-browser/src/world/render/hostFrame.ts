@@ -67,6 +67,7 @@ export function createExplorerHostFrame(session: ExplorerSession, inputs: Inputs
   const render = createExplorerRender(session, {
     check,
     followCells,
+    guides: options.guides,
     state,
     camera,
     lookAtTarget,
