@@ -6,9 +6,27 @@ import { setImmediate as tick } from 'node:timers/promises';
 import { fakeDevice, written } from '../../../../tests/kit/gpu/fakeDevice.ts';
 import { holdWebgpuFrame, keepWebgpuFrame } from '../webgpu/frame/hold.ts';
 import { settledRt } from '../webgpu/frame/hold.fixture.ts';
-import { ParticlePool } from '../../../sdk-core/src/fluids/particles.ts';
+import { ParticlePool, type ParticlePoolSpec } from '../../../sdk-core/src/fluids/particles.ts';
 import { PARTICLES_PASS, createWebgpuParticles } from './webgpuParticles.ts';
-import { computeRecorder } from './stepModels.fixture.ts';
+import { webgl, webglModel, webgpuModel } from './stepModels.fixture.ts';
+
+/** An encoder that records its compute passes and their dispatches. */
+function computeRecorder() {
+  const passes: { label?: string; dispatches: number[] }[] = [];
+  const encoder = {
+    beginComputePass: ({ label }: GPUComputePassDescriptor) => {
+      const pass = { label, dispatches: [] as number[] };
+      passes.push(pass);
+      return {
+        setPipeline() {},
+        setBindGroup() {},
+        dispatchWorkgroups: (x: number) => void pass.dispatches.push(x),
+        end() {},
+      };
+    },
+  } as unknown as GPUCommandEncoder;
+  return { encoder, passes };
+}
 
 test('WebGPU: one timed pass writes the step words and the staged records, once', async () => {
   const gpu = fakeDevice();
@@ -60,4 +78,40 @@ test("WebGPU: a still frame is held until one of the world's pools moves", () =>
   idle.emit(0, 0, 0, 0, 1, 0, 2);
   assert.equal(holdWebgpuFrame(rt, device), false, 'a moving one does');
   assert.equal(rt.run.frameHeld, false);
+});
+
+/** Emits the same particles into every pool: speeds up to 5 m/s, lives of 1/4 to 2 s. */
+function emitReference(pools: ParticlePool[], frame: number) {
+  for (let n = 0; n < 5; n++) {
+    const s = Math.sin(frame * 7 + n * 13);
+    for (const pool of pools)
+      pool.emit(n, 1, -n, 5 * s, 4 - n, 3 * s * s, 0.25 * (1 + n + (frame % 4)));
+  }
+}
+
+test('WebGL2 and WebGPU step a reference emission to the same 32-bit floats', async () => {
+  const spec: ParticlePoolSpec = { capacity: 300, emitPerFrame: 8 },
+    frames = 64;
+  const gpu = fakeDevice(),
+    stepGpu = createWebgpuParticles(gpu.device, (error) => assert.fail(String(error)));
+  await tick();
+  const { run } = webgl(),
+    pools = [new ParticlePool(spec), new ParticlePool(spec)];
+  const models = { gpu: webgpuModel(spec.capacity), gl: webglModel(spec.capacity) };
+  const { encoder, passes } = computeRecorder();
+  for (let frame = 0; frame < frames; frame++) {
+    emitReference(pools, frame);
+    for (const pool of pools) pool.advance(1 / 64);
+    const from = gpu.writes.length;
+    stepGpu.run([pools[0]], encoder);
+    models.gpu.step(gpu.writes[from], gpu.writes[from + 1], passes.at(-1)!.dispatches[0]);
+    models.gl.step(run([pools[1]]).of);
+  }
+  let moved = 0;
+  for (let i = 0; i < spec.capacity; i++) {
+    const theirs = models.gpu.particle(i);
+    if (theirs[3] > 0) moved++;
+    assert.deepEqual(models.gl.particle(i), theirs, `slot ${i}`);
+  }
+  assert.ok(moved > 200, `${moved} particles stepped`);
 });
