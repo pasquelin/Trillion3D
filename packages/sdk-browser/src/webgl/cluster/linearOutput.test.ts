@@ -24,7 +24,7 @@ function draw(...linear: boolean[]) {
   for (const each of linear) {
     sceneDraw.render({} as HostCamera);
     const output = { toneMapped: true, framebuffer: null, width: 8, height: 4, linear: each };
-    sceneDraw.drawHostGeometry(createHostDrawCamera(), output);
+    sceneDraw.host.drawHostGeometry(createHostDrawCamera(), output);
   }
   const uniforms = context.calls.filter(({ name }) => name.startsWith('uniform'));
   return {

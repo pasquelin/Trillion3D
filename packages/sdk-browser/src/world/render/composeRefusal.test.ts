@@ -40,7 +40,7 @@ const blended = (blending: number) =>
 function session(scene: GraphScene, chain: EffectChain) {
   const context = createTestContext({ answers: halfFloats });
   const draw = createSceneDraw(context.gl, scene);
-  const backend = { id: 'engine', scene, ...draw } as unknown as RenderBackend;
+  const backend = { id: 'engine', scene, ...draw, ...draw.host } as unknown as RenderBackend;
   const notices = createWorldNotices();
   const refused = noticeEffectRefusal(notices);
   const compose = createFrameComposer(context.gl, camera, {
