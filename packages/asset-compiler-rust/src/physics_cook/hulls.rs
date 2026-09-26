@@ -94,7 +94,7 @@ fn mesh_triangles(g: &Value, bin: &[u8], mesh: usize) -> Result<(Vec<f32>, Vec<u
 }
 
 /// The cooked hulls of mesh `mesh`, in its frame — one hull, or a decomposition within the mesh's
-/// own grain (its mean edge length) — with their mass properties.
+/// grain, its mean edge length, published as `tolerance` — with their mass properties.
 pub(super) fn cooked_hulls(
     o: &Options,
     (g, bin): (&Value, &[u8]),
@@ -102,30 +102,26 @@ pub(super) fn cooked_hulls(
     one_hull: bool,
 ) -> Result<Value> {
     let (pos, triangles) = mesh_triangles(g, bin, mesh)?;
-    let mut tolerance = None;
+    let edges = triangles
+        .as_chunks::<3>()
+        .0
+        .iter()
+        .flat_map(|t| [(t[0], t[1]), (t[1], t[2]), (t[2], t[0])]);
+    let (sum, count) = edges.fold((0.0f64, 0usize), |(sum, count), (a, b)| {
+        let d = (0..3).map(|k| (pos[a as usize * 3 + k] - pos[b as usize * 3 + k]) as f64);
+        (sum + d.map(|v| v * v).sum::<f64>().sqrt(), count + 1)
+    });
+    let tolerance = sum / count.max(1) as f64;
     let parts = if one_hull {
         vec![pos]
     } else {
-        let edges = triangles
-            .as_chunks::<3>()
-            .0
-            .iter()
-            .flat_map(|t| [(t[0], t[1]), (t[1], t[2]), (t[2], t[0])]);
-        let (sum, count) = edges.fold((0.0f64, 0usize), |(sum, count), (a, b)| {
-            let d = (0..3).map(|k| (pos[a as usize * 3 + k] - pos[b as usize * 3 + k]) as f64);
-            (sum + d.map(|v| v * v).sum::<f64>().sqrt(), count + 1)
-        });
-        let grain = sum / count.max(1) as f64;
-        tolerance = Some(grain);
-        decompose(&pos, &triangles, grain)
+        decompose(&pos, &triangles, tolerance)
     };
     let (bytes, mass) = hulls_shape(&parts, DENSITY)?;
     let mut shape = store_shape(o, &bytes)?;
     shape["type"] = json!("cooked");
     shape["parts"] = json!(parts.len());
-    if let Some(tolerance) = tolerance {
-        shape["tolerance"] = json!(tolerance);
-    }
+    shape["tolerance"] = json!(tolerance);
     shape["mass"] = json!({"mass":mass.mass,"centerOfMass":mass.centre,"inertia":mass.inertia});
     Ok(shape)
 }

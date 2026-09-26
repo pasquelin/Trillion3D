@@ -287,12 +287,11 @@ field is additive: a file cooked before it has none, and format 2 still reads it
 
 - `node`: the declaring node.
 - `motion`: the motion as the node declares it (`isKinematic`, `mass`, `gravityFactor`, …).
-- `shape`: an implicit shape as the runtime builds it — `box` (`halfExtents`), `sphere`
-  (`radius`), `capsule` or `cylinder` (`halfHeight`, `radius`) — or `cooked`: a SHA-addressed
-  object like a tile (`url`, `sha256`, `bytes`), a `ConvexHullShape` or a `StaticCompoundShape` of
-  `parts` hulls, 64 at most, in the mesh's frame; `tolerance`, the concavity a decomposition's parts
-  keep within; `mass`: `mass` (kg, at 1000 kg/m³), `centerOfMass` and `inertia` about it (nine
-  floats, column-major), all at unit scale.
+- `shape`: the `KHR_implicit_shapes` shape the collider names, as declared, or `cooked`: a
+  SHA-addressed object like a tile (`url`, `sha256`, `bytes`), a `ConvexHullShape` or a
+  `StaticCompoundShape` of `parts` hulls, 64 at most, in the mesh's frame; `tolerance`, the mesh's
+  mean edge length, which a decomposition's parts keep their concavity within; `mass`: `mass` (kg,
+  at 1000 kg/m³), `centerOfMass` and `inertia` about it (nine floats, column-major), at unit scale.
 - `position`, `rotation`, `scale`: the node's world placement in the model, as an instance's.
 - `friction`, `restitution`: as an instance's.
 
