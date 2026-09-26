@@ -2,38 +2,37 @@ import type { Granted } from '../../residency/poolGrants.ts';
 
 /**
  * The pool prepare grants, its budget read again once the device has answered: a budget recorded
- * meanwhile is the later word, granted in turn. As mid-session, a later budget refused even at its
- * floor keeps the pool held, one drawing it (`same`) allocates nothing, and a grant that throws
- * releases it. `undefined` when the first budget is refused at its floor.
+ * meanwhile is the later word, granted in turn. Each budget is drawn once (`draw`), and what it
+ * draws is granted (`grant`). As mid-session, a later budget refused even at its floor keeps the
+ * pool held, one drawing it (`same`) allocates nothing, and a grant that throws releases it.
+ * `undefined` when the first budget is refused at its floor.
  */
-export async function grantedLatest<P, R extends { destroy(): void }>(options: {
+export async function grantedLatest<P, D, R extends { destroy(): void }>(options: {
   budget: () => number;
-  draw: (budgetBytes: number) => P;
+  draw: (budgetBytes: number) => D & { pool: P };
   same: (drawn: P, held: P) => boolean;
-  grant: (budgetBytes: number) => Promise<Granted<P, R> | undefined>;
+  grant: (drawn: D) => Promise<Granted<P, R> | undefined>;
   stopped: () => boolean;
 }): Promise<Granted<P, R> | undefined> {
   const { budget, draw, same, grant, stopped } = options;
   let held: Granted<P, R> | undefined, granted: Granted<P, R> | undefined, asked: number;
-  do {
-    asked = budget();
-    try {
-      if (held) {
-        const drawn = draw(asked);
-        if (same(drawn, held.pool)) {
-          held.pool = drawn;
-          continue;
-        }
+  try {
+    do {
+      asked = budget();
+      const drawn = draw(asked);
+      if (held && same(drawn.pool, held.pool)) {
+        held.pool = drawn.pool;
+        continue;
       }
-      granted = await grant(asked);
-    } catch (error) {
-      held?.made.destroy();
-      throw error;
-    }
-    if (granted) {
-      held?.made.destroy();
-      held = granted;
-    }
-  } while (granted && budget() !== asked && !stopped());
+      granted = await grant(drawn);
+      if (granted) {
+        held?.made.destroy();
+        held = granted;
+      }
+    } while (granted && budget() !== asked && !stopped());
+  } catch (error) {
+    held?.made.destroy();
+    throw error;
+  }
   return held;
 }

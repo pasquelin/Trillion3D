@@ -16,6 +16,7 @@ import {
   TILES_PER_LAYER,
 } from './tiles.ts';
 import { texturePoolFor } from '../webgpu/residency/memoryBudgets.ts';
+import { noTails } from './noTails.fixture.ts';
 
 test('a 2048² texture has five streamed levels of 256 + 64 + 16 + 4 + 1 tiles, and its tail starts at 64', () => {
   const layout = tileLayout(2048, 2048);
@@ -59,8 +60,6 @@ const MiB = 1024 * 1024;
 const lanes = (lossless: number, rgba: number, two = 0) => ({ lossless, rgba, 'two-channel': two });
 const rgba8 = () => 4;
 const blocks = (lane: string) => (lane === 'lossless' ? 4 : 1);
-/** No tail beyond one layer's worth in any lane. */
-const few = { color: lanes(0, 0), data: lanes(0, 0) };
 
 // Behaviour: half the budget per atlas, a layer per lane that has textures, the rest by the
 // bytes each lane's tiles would take — a block texel a quarter of an RGBA8 one —, a lane never
@@ -70,7 +69,7 @@ const few = { color: lanes(0, 0), data: lanes(0, 0) };
 test('the pool budget yields whole layers per lane, and never refuses: it raises or brings back, by name', () => {
   const demand = { color: lanes(5000, 0), data: lanes(5000, 0) };
   const drawn = (bytes: number, device?: GPUDevice) =>
-    texturePoolFor(bytes, device, demand, rgba8, few);
+    texturePoolFor(bytes, device, demand, rgba8, noTails);
   assert.deepEqual(drawn(512 * MiB), {
     budgetBytes: 512 * MiB,
     layers: { color: lanes(4, 0), data: lanes(4, 0) },
@@ -98,7 +97,7 @@ test('the pool budget yields whole layers per lane, and never refuses: it raises
     undefined,
     { color: lanes(3, 0), data: lanes(0, 901) },
     blocks,
-    few,
+    noTails,
   );
   assert.deepEqual(small.layers, { color: lanes(1, 0), data: lanes(0, 2) });
   assert.equal(small.clamp, 'scene');
@@ -116,6 +115,16 @@ test('a budget under the tails of a lane is raised to the layers they take, by n
   assert.throws(() => texturePoolFor(1, device, demand, rgba8, tails), /TEXTURE_POOL_DEVICE_LIMIT/);
 });
 
+// Behaviour (#726): tails that fill whole layers leave a lane that streams one layer more at its
+// floor, never frozen at its tails; a lane with nothing to stream keeps only its tails' layers.
+test('a lane whose tails fill whole layers keeps a layer to stream into at its floor', () => {
+  const full = { color: lanes(TILES_PER_LAYER, 0), data: lanes(0, 0) };
+  const streams = texturePoolFor(1, undefined, { ...full, color: lanes(5000, 0) }, rgba8, full);
+  assert.deepEqual([streams.layers.color, streams.clamp], [lanes(2, 0), 'minimum']);
+  const still = texturePoolFor(1, undefined, full, rgba8, full);
+  assert.deepEqual(still.layers.color, lanes(1, 0));
+});
+
 // Behaviour: a block lane holds one byte per texel — the same budget carries four times its
 // tiles — and a lane served under its share leaves the rest to the lanes still short.
 test('block lanes draw four times the layers from the same bytes, and a capped lane gives the rest back', () => {
@@ -124,7 +133,7 @@ test('block lanes draw four times the layers from the same bytes, and a capped l
     undefined,
     { color: lanes(0, 40_000), data: lanes(0, 40_000) },
     blocks,
-    few,
+    noTails,
   );
   assert.deepEqual(pool, {
     budgetBytes: 512 * MiB,
@@ -140,7 +149,7 @@ test('block lanes draw four times the layers from the same bytes, and a capped l
     undefined,
     { color: lanes(900, 40_000, 40_000), data: lanes(0, 0) },
     blocks,
-    few,
+    noTails,
   );
   assert.deepEqual(mixed.layers.color, lanes(1, 6, 6));
   assert.equal(mixed.clamp, null);

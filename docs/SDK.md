@@ -1038,8 +1038,10 @@ says the pool is too small for that view). A value that cannot be held as given 
   `WEBGPU_TEXTURE_POOL_REFUSED`, below.
 
 The texture pool's floor, `minimum`, holds every tail (one tile per texture, 900 a layer), as the
-geometry pool holds the root cover: a budget under it is raised to it, and a tail a shrink displaces
-takes the place of the least looked-at streamed tile, whose coarser level takes over.
+geometry pool holds the root cover, and one tile more to stream into when the lane streams: a lane
+whose tails fill whole layers pays one layer more (63.5 MiB lossless, a quarter of that in a block
+lane) rather than stay at its tails. A budget under the floor is raised to it; a shrink never
+displaces a tail.
 
 **Out of memory is absorbed.** The browser may refuse an allocation the budget allows. Each pool is
 allocated under an out-of-memory check at prepare, and probed before every rebalance. When the
@@ -1056,7 +1058,8 @@ without shadows. Shadows are never lost silently.
 The `gpu-out-of-memory` diagnostic names the pool, the bytes asked (`requestedBytes`) and the bytes
 granted (`grantedBytes`, `null` when even the floor was refused and the pool in place stays).
 A geometry or texture budget set while prepare runs is the later word: it is granted in turn, and
-the setting's report waits for prepare and names the pools the device grants.
+the setting's report waits for prepare and names the pools the device grants; its `durationMs`
+includes that wait.
 
 At prepare there is no pool in place to keep, so a floor the device refuses is refused by name,
 never allocated at the full request outside the check:

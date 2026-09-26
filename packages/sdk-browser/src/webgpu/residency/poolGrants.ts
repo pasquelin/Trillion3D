@@ -18,9 +18,9 @@ export type Granted<P, R> = { pool: P; made: R };
 /**
  * Out of memory, absorbed: what a pool needs is allocated under an out-of-memory scope
  * (`deviceMade`), and a refusal shrinks that pool — half the bytes it would have held, drawn
- * again by its own rule — until the device grants it or the pool reaches its floor (`floor`: the
- * root cover of the geometry, the tails of each texture lane, the smallest screen's side of
- * the shadows). The pool in place is never replaced by one the device refused, so the frame goes
+ * again by its own rule — until the device grants it or the pool reaches its floor, where half
+ * the bytes draws no smaller pool (the root cover of the geometry, the tails of each texture
+ * lane, the smallest screen's side of the shadows). The pool in place is never replaced by one the device refused, so the frame goes
  * on: what no longer fits draws coarser. A refusal is published once per request as
  * `gpu-out-of-memory`, naming the pool, the bytes asked and the bytes granted (`null` when even
  * the floor was refused: the caller then keeps what it holds).
@@ -31,16 +31,18 @@ async function grantedPool<P extends Pool, R extends Made>(options: {
   budgetBytes: number;
   draw: (budgetBytes: number) => P;
   make: (pool: P) => R;
-  floor: PoolClamp;
   diagnose: Diagnose;
 }): Promise<Granted<P, R> | undefined> {
-  const { device, name, draw, make, floor, diagnose } = options;
+  const { device, name, draw, make, diagnose } = options;
   let pool = draw(options.budgetBytes);
   const requestedBytes = pool.allocatedBytes;
   let made: R | undefined;
   while (!(made = await deviceMade(device, () => make(pool)))) {
     const half = Math.floor(Math.min(pool.budgetBytes, pool.allocatedBytes) / 2);
-    if (pool.clamp === floor || half < 1) {
+    // The floor is where half draws nothing smaller: named by no clamp, which one texture atlas
+    // at its floor would give the whole pool while the other can still shrink.
+    const smaller = half < 1 ? undefined : draw(half);
+    if (!smaller || smaller.allocatedBytes >= pool.allocatedBytes) {
       diagnose('gpu-out-of-memory', `The device refused the ${name} pool's floor`, {
         kind: 'warning',
         pool: name,
@@ -49,7 +51,7 @@ async function grantedPool<P extends Pool, R extends Made>(options: {
       });
       return undefined;
     }
-    pool = draw(half);
+    pool = smaller;
   }
   if (pool.allocatedBytes !== requestedBytes)
     diagnose('gpu-out-of-memory', `The device refused the ${name} pool; drawn smaller`, {
@@ -81,8 +83,7 @@ export const grantedGeometryPool = <R extends Made>(
   draw: (budgetBytes: number) => GeometryPool,
   diagnose: Diagnose,
   make: (pool: GeometryPool) => R,
-) =>
-  grantedPool({ device, name: 'geometry', budgetBytes, draw, make, floor: 'root-cover', diagnose });
+) => grantedPool({ device, name: 'geometry', budgetBytes, draw, make, diagnose });
 
 /** The texture lane pools the device grants for `budgetBytes`, by the session's own rule; `make`
  *  allocates the pools themselves, or their probe (`textureProbe`). */
@@ -99,7 +100,6 @@ export const grantedTexturePool = <R extends Made>(
     budgetBytes,
     draw: pools.poolFor,
     make,
-    floor: 'minimum',
     diagnose,
   });
 
@@ -111,7 +111,7 @@ export const grantedShadowPool = <P extends Pool, R extends Made>(
   draw: (budgetBytes: number) => P,
   diagnose: Diagnose,
   make: (pool: P) => R,
-) => grantedPool({ device, name: 'shadow', budgetBytes, draw, make, floor: 'minimum', diagnose });
+) => grantedPool({ device, name: 'shadow', budgetBytes, draw, make, diagnose });
 
 /** A geometry pool's probe: its buffer, under the probe's label. */
 export const geometryProbe = (device: GPUDevice) => (pool: GeometryPool) =>

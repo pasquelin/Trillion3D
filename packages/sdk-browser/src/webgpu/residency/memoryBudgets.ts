@@ -52,9 +52,9 @@ export type TexturePools = {
 
 /**
  * Layers of each lane pool that the texture-pool budget yields: half the budget per atlas; in an
- * atlas every lane that has textures gets its floor — one layer, or as many as the tails of its
- * textures take, one tile each, kept resident whole (`tails`), as the geometry pool holds its root
- * cover —, then the rest in proportion to the bytes its textures would take resident, a block texel
+ * atlas every lane that has textures gets its floor — the layers the tails of its textures take,
+ * one tile each, kept resident whole (`tails`), as the geometry pool holds its root cover, plus
+ * one tile to stream into when the lane has streamed tiles —, then the rest in proportion to the bytes its textures would take resident, a block texel
  * costing a quarter of an RGBA8 one, and never more layers than its tiles need, what a capped
  * lane leaves going to the others (`scene` when every lane is served under the budget). A lane no
  * texture takes has no layer. A budget under the floor is raised to it, by name (`minimum`); above
@@ -74,10 +74,13 @@ export function texturePoolFor(
   const limit = device?.limits?.maxTextureArrayLayers;
   const clamps = new Set<PoolClamp>();
   const layerBytes = (lane: PoolLane) => poolLayerBytes(texelBytes(lane));
+  const layersFor = (tiles: number) => Math.ceil(tiles / TILES_PER_LAYER);
   const atlas = (lanes: LaneCounts, kept: LaneCounts) => {
     const layers = laneCounts();
     const open = new Set(POOL_LANES.filter((lane) => lanes[lane] > 0));
-    for (const lane of open) layers[lane] = Math.max(1, Math.ceil(kept[lane] / TILES_PER_LAYER));
+    // The tails, and one slot to stream into when the lane streams: never frozen at its tails.
+    for (const lane of open)
+      layers[lane] = layersFor(kept[lane] + Number(lanes[lane] > kept[lane]));
     const floor = { ...layers };
     let budget =
       budgetBytes / 2 - [...open].reduce((sum, lane) => sum + floor[lane] * layerBytes(lane), 0);
@@ -92,14 +95,14 @@ export function texturePoolFor(
       const share = (lane: PoolLane) =>
         Math.floor((budget * weight(lane)) / total / layerBytes(lane));
       const capped = [...open].filter(
-        (lane) => share(lane) >= Math.ceil(lanes[lane] / TILES_PER_LAYER) - floor[lane],
+        (lane) => share(lane) >= layersFor(lanes[lane]) - floor[lane],
       );
       if (!capped.length) {
         for (const lane of open) layers[lane] += share(lane);
         break;
       }
       for (const lane of capped) {
-        layers[lane] = Math.ceil(lanes[lane] / TILES_PER_LAYER);
+        layers[lane] = layersFor(lanes[lane]);
         budget -= (layers[lane] - floor[lane]) * layerBytes(lane);
         open.delete(lane);
       }

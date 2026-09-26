@@ -4,6 +4,8 @@ import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 import { geometryPoolFor } from '../../residency/pools.ts';
 import { texturePoolFor } from './memoryBudgets.ts';
 import { laneCounts, poolEncoding } from '../../texture/blockFormats.ts';
+import { noTails } from '../../texture/noTails.fixture.ts';
+import { poolLayerBytes, TILES_PER_LAYER } from '../../texture/tiles.ts';
 import {
   budgetBeside,
   geometryProbe,
@@ -111,10 +113,9 @@ test('a pool refused even at its floor is not drawn: the caller keeps what it ho
 
 test('a texture pool the device refuses is drawn with fewer layers, down to one per lane', async () => {
   const encoding = poolEncoding(undefined);
-  const lanes = { ...laneCounts(), lossless: 20_000 },
-    few = { color: laneCounts(), data: laneCounts() };
+  const lanes = { ...laneCounts(), lossless: 20_000 };
   const poolFor = (bytes: number) =>
-    texturePoolFor(bytes, undefined, { color: lanes, data: lanes }, encoding.texelBytes, few);
+    texturePoolFor(bytes, undefined, { color: lanes, data: lanes }, encoding.texelBytes, noTails);
   const asked = poolFor(512 * 1024 * 1024);
   const layerBytes = asked.allocatedBytes / (2 * asked.layers.color.lossless);
   // Room for two layers per atlas, not for what the budget asked.
@@ -127,4 +128,35 @@ test('a texture pool the device refuses is drawn with fewer layers, down to one 
   assert.ok(pool.allocatedBytes < asked.allocatedBytes);
   assert.equal(seen[0].pool, 'texture');
   assert.equal(seen[0].grantedBytes, pool.allocatedBytes);
+});
+
+// Behaviour (#726): the floor is where half the bytes draws no smaller pool, not a clamp name: one
+// atlas held at its tails' floor (`minimum`) leaves the other to shrink until the device grants it.
+test('a texture atlas at its floor lets the other shrink until the device grants the pool', async () => {
+  const encoding = poolEncoding('bc7'),
+    layer = poolLayerBytes(4);
+  const demand = {
+    color: { ...laneCounts(), lossless: 5000 },
+    data: { ...laneCounts(), rgba: 20_000 },
+  };
+  const tails = { ...noTails, color: { ...laneCounts(), lossless: 2 * TILES_PER_LAYER + 1 } };
+  const poolFor = (bytes: number) =>
+    texturePoolFor(bytes, undefined, demand, encoding.texelBytes, tails);
+  const budget = 2 * 3 * layer - 2;
+  assert.deepEqual([poolFor(budget).clamp, poolFor(budget).layers.data.rgba], ['minimum', 11]);
+  // Each texture is counted at four bytes a texel: the colour floor's three layers pass, the data
+  // atlas only once drawn under three layers.
+  const { device } = refusingDevice(3 * layer);
+  const { seen, diagnose } = diagnostics();
+  const granted = await grantedTexturePool(
+    device,
+    budget,
+    { poolFor },
+    diagnose,
+    textureProbe(device, encoding),
+  );
+  assert.ok(granted, 'granted, not refused at the colour floor');
+  assert.equal(granted.pool.layers.color.lossless, 3, 'the tails kept');
+  assert.ok(granted.pool.layers.data.rgba < 3);
+  assert.equal(seen[0].grantedBytes, granted.pool.allocatedBytes);
 });
