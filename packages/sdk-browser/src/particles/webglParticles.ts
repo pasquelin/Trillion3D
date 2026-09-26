@@ -17,7 +17,7 @@ const TEXELS = 2 * PARTICLE_ROW;
 /** One fragment per texel: the slot's particle, or the record the ring gives it this image,
  *  moved when alive; the half of it this texel holds is written. The WGSL step, texel by texel,
  *  its positions counted from the pool's origin like WebGPU's. */
-export const PARTICLES_GLSL = `#version 300 es
+const PARTICLES_GLSL = `#version 300 es
 precision highp float;
 precision highp int;
 uniform highp sampler2D state;
