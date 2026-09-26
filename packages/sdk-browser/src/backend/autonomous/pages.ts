@@ -87,7 +87,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
     geometryStore,
   });
   const pool = createAutonomousPool({
-    byUrl,
+    ...tables,
     context,
     descriptors,
     bootstrapUrls,
@@ -119,7 +119,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
     scene,
     hostTableBytes: frame.hostBytes,
     hostDiagnostics: pageDiagnostics,
-    capabilities: autonomousCapabilities(!!context.metadata.simplification),
+    capabilities: autonomousCapabilities(!!context.metadata.simplification, context.onDiagnostic),
     get overBudget() {
       return state.overBudget;
     },
