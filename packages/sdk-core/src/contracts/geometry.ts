@@ -167,7 +167,8 @@ export interface ClusterManifest {
    *  decodable image. */
   texturePreviews?: TexturePreview[];
   /** Template for baked levels, relative to manifest: {sha} the source image digest,
-   *  {kind} the atlas name (PREVIEW_ATLAS_NAMES), {level} the level rank. Absent from a
+   *  {kind} the atlas name (PREVIEW_ATLAS_NAMES; `srgb-coverage-<C>` for a coverage chain cut at
+   *  byte C), {level} the level rank. Absent from a
    *  cache compiled before baked levels, which this reader rejects via sidecar version. */
   textures?: { url: string };
   /** Where to read the resident scene proxy and its BVH: geometry hit by rays.

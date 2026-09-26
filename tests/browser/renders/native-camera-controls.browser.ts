@@ -13,6 +13,7 @@ import {
   endGesture,
   loadedModules,
   openProbe,
+  pointerLocked,
   stepGesture,
 } from '../support/cameraControlsPage.ts';
 import type { Page } from 'playwright';
@@ -76,9 +77,9 @@ try {
     assert.ok(result.changes > 0, `${kind} emitted no change`);
     assert.ok(result.bytes > 0, `${kind} drew nothing`);
     assert.notDeepEqual(moved, home, `${kind} did not move the camera`);
-    // The gesture and its reverse leave the very image the pose started from.
-    assert.equal(result.differences, 0, `${kind} did not come back to its pose`);
+    // The gesture and its reverse leave the pose it started from, then the very image.
     assert.deepEqual(result.pose, home, `${kind} did not come back to its pose`);
+    assert.equal(result.differences, 0, `${kind} did not come back to its image`);
   };
   await run('controls', async () => {
     await drag(page, 120, 0);
@@ -118,12 +119,16 @@ try {
   });
   // A locked pointer turns the head on every move, button or not, so the look here is one
   // press, out and back, rather than two drags that would each reposition the cursor first.
+  // Once the lock is granted the head drops the first move by design, the cursor's jump (#385):
+  // one move is spent on it, then four out and four back all count.
   await run('firstPersonControls', async () => {
     await page.mouse.move(centre.x, centre.y);
     await page.mouse.down();
-    await page.mouse.move(centre.x + 80, centre.y, { steps: 4 });
+    await page.evaluate(pointerLocked);
+    await page.mouse.move(centre.x + 1, centre.y);
+    await page.mouse.move(centre.x + 81, centre.y, { steps: 4 });
     const moved = await page.evaluate(stepGesture, 0);
-    await page.mouse.move(centre.x, centre.y, { steps: 4 });
+    await page.mouse.move(centre.x + 1, centre.y, { steps: 4 });
     await page.mouse.up();
     await page.evaluate(stepGesture, 0);
     await hold(page, 'w');

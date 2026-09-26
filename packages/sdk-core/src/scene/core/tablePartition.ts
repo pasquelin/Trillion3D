@@ -3,12 +3,15 @@
  * `packages/asset-compiler-rust/src/compiler_tables/partition.rs`): the nodes that only place a
  * mesh are not in the node table the runtime reads before its first frame, but in spatial cells
  * read by distance to the camera — each cell under one stream unit, boxed in the frame of each core
- * parent it hangs nodes under, so a page that moves that parent moves the box.
+ * parent it hangs nodes under, so a page that moves that parent moves the box. The tables keep only
+ * a root of fixed size; the cells' records lie in pages beside them (`partition/pages.rs`).
  */
 import { EngineError } from '../../contracts/cache.ts';
 
-/** The version of the partition and of its cell files this runtime reads. */
-const PARTITION_VERSION = 1;
+/** The version of the partition, of its pages and of its cell files this runtime reads. */
+const PARTITION_VERSION = 2;
+/** How many slots the root lists. */
+const FAN_OUT = 8;
 
 /** One cell: where it is read, its fingerprint and size, the box around what it holds in the frame
  *  of each parent it hangs nodes under (`[minX, minY, minZ, maxX, maxY, maxZ]`), and how many nodes
@@ -29,8 +32,6 @@ export interface TableCell {
 
 /** The partition of a scene: its cells, the box around them all, and the meshes they place. */
 export interface TablePartition {
-  /** Version of the partition. */
-  version: number;
   /** The box around every cell, at the poses the file declares. */
   bounds: readonly number[];
   /** The mesh ranks the cells place: each is drawn from rows, whatever cell brings it. */
@@ -57,30 +58,83 @@ export interface CellNode {
   scale: readonly number[] | null;
 }
 
-/** The partition, `null` when the scene has none, or a named refusal of another version. */
-export function assertTablePartition(value: unknown): TablePartition | null {
-  if (value === null || value === undefined) return null;
-  const partition = value as TablePartition;
-  if (partition.version !== PARTITION_VERSION)
+/** The partition as the tables carry it: its version and `FAN_OUT` slots, empty ones zeros. */
+export type TablePartitionRoot = { version: number; pages: readonly string[] };
+/** A page a slot names: its file, relative to the tables, its size and its fingerprint. */
+export type TablePage = { url: string; bytes: number; sha256: string };
+
+/** A page's body: the slots of the pages below it, or the records of its cells. */
+type PageBody = { version?: number; pages?: readonly string[]; cells?: readonly TableCell[] };
+/** `body` at this runtime's version, or a named refusal; `what` names it. */
+function versioned(body: unknown, what: string): PageBody {
+  const page = body as PageBody | null;
+  if (page?.version !== PARTITION_VERSION)
     throw new EngineError(
       'UNSUPPORTED_SCENE_TABLES',
-      `scene partition version ${String(partition.version)} is not the ${PARTITION_VERSION} this runtime reads`,
-      { partitionVersion: partition.version ?? null },
+      `${what} partition version ${String(page?.version)} is not the ${PARTITION_VERSION} this runtime reads`,
+      { partitionVersion: page?.version ?? null },
     );
-  if (
-    !Array.isArray(partition.cells) ||
-    !Array.isArray(partition.meshes) ||
-    !partition.cells.every((cell) => Array.isArray(cell?.meshes) && Array.isArray(cell.parents))
-  )
+  return page;
+}
+
+/** The root, `null` when the scene has none, or a named refusal of another version or shape. */
+export function assertTablePartition(value: unknown): TablePartitionRoot | null {
+  if (value === null || value === undefined) return null;
+  const root = versioned(value, 'scene');
+  if (!Array.isArray(root.pages) || root.pages.length !== FAN_OUT)
+    throw new EngineError('INVALID_SCENE_TABLES', 'scene partition misses its root', {});
+  return root as TablePartitionRoot;
+}
+
+const bits = new DataView(new ArrayBuffer(8));
+/** The `f64` whose bits are the sixteen hexadecimal digits `hex`. */
+const float64 = (hex: string) => (bits.setBigUint64(0, BigInt(`0x${hex}`)), bits.getFloat64(0));
+
+/** The page `slot` names and its box, `null` for an empty slot, or a named refusal. A slot is the
+ *  page's SHA-256 in 64 hexadecimal digits, its size in 8, its box as six `f64` bit patterns in 16. */
+function slotPage(slot: unknown) {
+  if (typeof slot !== 'string' || !/^[0-9a-f]{168}$/.test(slot))
+    throw new EngineError('INVALID_SCENE_TABLES', 'a partition slot is not fixed-width hex', {});
+  const bytes = parseInt(slot.slice(64, 72), 16);
+  if (bytes === 0) return null;
+  const sha256 = slot.slice(0, 64);
+  const bounds = [0, 1, 2, 3, 4, 5].map((at) => float64(slot.slice(72 + 16 * at, 88 + 16 * at)));
+  return { page: { url: `scene-page-${sha256}.json`, bytes, sha256 }, bounds };
+}
+
+/** The partition under `root`, its pages read side by side through `read` (which verifies them
+ *  against their slot): the cells in order, the union of the root's boxes, the meshes placed. */
+export async function readTablePartition(
+  root: TablePartitionRoot,
+  read: (page: TablePage) => Promise<Uint8Array>,
+): Promise<TablePartition> {
+  const text = new TextDecoder();
+  const named = (slots: readonly string[]) => slots.map(slotPage).filter((slot) => slot !== null);
+  const records = async (slots: ReturnType<typeof named>): Promise<TableCell[]> => {
+    const lists = await Promise.all(
+      slots.map(async ({ page }) => {
+        const body = versioned(JSON.parse(text.decode(await read(page))), page.url);
+        return Array.isArray(body.pages) ? records(named(body.pages)) : (body.cells as TableCell[]);
+      }),
+    );
+    return lists.flat();
+  };
+  const slots = named(root.pages);
+  const cells = await records(slots);
+  if (!cells.every((cell) => Array.isArray(cell?.meshes) && Array.isArray(cell.parents)))
     throw new EngineError('INVALID_SCENE_TABLES', 'scene partition misses its cells', {});
-  return partition;
+  const bounds = [0, 1, 2, 3, 4, 5].map((axis) =>
+    (axis < 3 ? Math.min : Math.max)(...slots.map((slot) => slot.bounds[axis])),
+  );
+  const meshes = [...new Set(cells.flatMap((cell) => cell.meshes.map(([mesh]) => mesh)))];
+  return { bounds, meshes: meshes.sort((a, b) => a - b), cells };
 }
 
 /** The nodes of a cell file, or a named refusal. */
 export function assertCellNodes(value: unknown): readonly CellNode[] {
   const cell = value as { version?: number; nodes?: CellNode[] } | null;
   if (!cell || cell.version !== PARTITION_VERSION || !Array.isArray(cell.nodes))
-    throw new EngineError('INVALID_SCENE_TABLES', 'scene cell is not a version 1 node list', {
+    throw new EngineError('INVALID_SCENE_TABLES', 'scene cell is not a version 2 node list', {
       version: cell?.version ?? null,
     });
   return cell.nodes;
