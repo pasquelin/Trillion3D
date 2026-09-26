@@ -1,10 +1,12 @@
 import {
   closeTextureLevel,
-  textureLevelBytes,
+  requestedLevelBytes,
   type TextureLevel,
   type TextureLevelReader,
   type TextureLevelRequest,
 } from '../../texture/levelReader.ts';
+import { createTextureLevelStore, textureLevelShare } from '../../texture/levelStore.ts';
+import { DEFAULT_CACHED_BYTES } from '../../streaming/pageCache.ts';
 import { checkLevelBlocks, LevelBytesError } from './writeBlocks.ts';
 
 /**
@@ -12,9 +14,12 @@ import { checkLevelBlocks, LevelBytesError } from './writeBlocks.ts';
  *
  * A tile is read in the cache's whole level — decoded by the browser, or block-compressed as the
  * file holds it; neighbouring tiles of the same level generally arrive in the same images, and
- * re-reading a 2048² level for each would cost more than the transfer. Levels therefore stay here,
- * under a fixed host-byte budget, the least recently read leaving first. That is the chain's only
- * host memory, and it does not depend on the scene.
+ * re-reading a 2048² level for each would cost more than the transfer. Levels therefore stay, the
+ * least recently read leaving first, in the store the reader names — its world's, off the CPU
+ * total, kept across a device loss (`texture/levelStore.ts`) — or in the session's own, at the
+ * share of the default total. That is the chain's only host memory, and it does not depend on the
+ * scene. A level that cannot fit beside the pages kept is not read: its tile stays served by its
+ * coarse level until room comes back.
  *
  * An in-flight read is never doubled, and a failure is returned to the caller, never retried in
  * silence: the tile will stay served by its coarse level, and the diagnostic will say so. A block
@@ -26,8 +31,8 @@ export type LevelKey = TextureLevelRequest;
 export type WebgpuTileLevels = {
   /** The level if it is there, marking it read; otherwise `undefined`, launching nothing. */
   get(key: LevelKey, frame: number): TextureLevel | undefined;
-  /** Starts the read if it is neither there, nor in flight, nor refused; `size` is the level's
-   *  dimensions, what a block level's bytes are checked against. */
+  /** Starts the read if it is neither there, nor in flight, nor refused, and fits (the store's
+   *  `room`); `size` is the level's dimensions, what its bytes are reckoned and checked from. */
   request(key: LevelKey, frame: number, size: readonly [number, number]): void;
   readonly inFlight: number;
   readonly fetched: number;
@@ -43,60 +48,37 @@ const keyOf = ({ sha256, atlas, level, format }: LevelKey) =>
 
 export function createWebgpuTileLevels(options: {
   read: TextureLevelReader;
-  budgetBytes: number;
   onFailure: (key: LevelKey, error: unknown) => void;
 }): WebgpuTileLevels {
-  const held = new Map<string, { level: TextureLevel; bytes: number; lastUse: number }>();
-  const pending = new Map<string, Promise<void>>();
-  const refused = new Set<string>();
-  let bytes = 0,
+  const { read } = options,
+    { key = '' } = read,
+    store = read.store ?? createTextureLevelStore(textureLevelShare(DEFAULT_CACHED_BYTES), key),
+    { pending, refused } = store;
+  const idOf = (level: LevelKey) => `${keyOf(level)}#${key}`;
+  /** The room a level may take, weighed once a frame: it walks the pages kept. */
+  let roomFrame = -1,
+    room = 0,
     fetched = 0;
-  const drop = (id: string) => {
-    const entry = held.get(id);
-    if (!entry) return;
-    held.delete(id);
-    bytes -= entry.bytes;
-    closeTextureLevel(entry.level);
-  };
-  /** Makes room for `needed` bytes: the least recently read leaves first. */
-  const makeRoom = (needed: number) => {
-    while (bytes + needed > options.budgetBytes && held.size) {
-      let oldest: string | undefined,
-        oldestUse = Infinity;
-      for (const [id, entry] of held)
-        if (entry.lastUse < oldestUse) {
-          oldestUse = entry.lastUse;
-          oldest = id;
-        }
-      if (oldest !== undefined) drop(oldest);
-    }
-  };
   return {
-    get(key, frame) {
-      const entry = held.get(keyOf(key));
-      if (!entry) return undefined;
-      entry.lastUse = frame;
-      return entry.level;
-    },
-    request(key, frame, size) {
-      const id = keyOf(key);
-      if (held.has(id) || pending.has(id) || refused.has(id)) return;
-      const read = options
-        .read(key)
-        .then((level) => {
-          if (level instanceof Uint8Array) checkLevelBlocks(level, size);
+    get: (level) => store.get(idOf(level)),
+    request(level, frame, size) {
+      const id = idOf(level);
+      if (store.has(id) || pending.has(id) || refused.has(id)) return;
+      if (frame !== roomFrame) [roomFrame, room] = [frame, store.room()];
+      if (requestedLevelBytes(level, size) > room) return;
+      const reading = read(level)
+        .then((texels) => {
+          if (store.key !== key) return closeTextureLevel(texels);
+          if (texels instanceof Uint8Array) checkLevelBlocks(texels, size);
           fetched++;
-          const heldBytes = textureLevelBytes(level);
-          makeRoom(heldBytes);
-          held.set(id, { level, bytes: heldBytes, lastUse: frame });
-          bytes += heldBytes;
+          if (!store.take(id, texels)) closeTextureLevel(texels);
         })
         .catch((error: unknown) => {
           if (error instanceof LevelBytesError) refused.add(id);
-          options.onFailure(key, error);
+          options.onFailure(level, error);
         })
         .finally(() => pending.delete(id));
-      pending.set(id, read);
+      pending.set(id, reading);
     },
     get inFlight() {
       return pending.size;
@@ -105,11 +87,12 @@ export function createWebgpuTileLevels(options: {
       return fetched;
     },
     get bytes() {
-      return bytes;
+      return store.bytes;
     },
     settled: () => Promise.all(pending.values()).then(() => undefined),
+    /** Closes the session's own store; a world's stays for its next session. */
     destroy() {
-      for (const id of [...held.keys()]) drop(id);
+      if (!read.store) store.close();
     },
   };
 }

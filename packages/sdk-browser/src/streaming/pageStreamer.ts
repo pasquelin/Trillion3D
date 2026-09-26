@@ -80,11 +80,11 @@ export function createPageStreamerWith(
     emit,
     abortError,
   };
-  const { touch, evict, retain, retainRanks, reserve } = createStreamingCache(context);
+  const { touch, evict, held, retain, retainRanks, reserve } = createStreamingCache(context);
   // A kept page held under this name as another file leaves before the first read.
   store.dropForeign(catalog);
   const reserved = () => tableBytes + maxTransferBytes + state.reservedBytes();
-  const release = store.hold({ reserved, evict });
+  const release = store.hold({ reserved, held, evict });
   if (kept) evict();
   else store.resize(store.cpuBytes + store.reservedBytes);
   emit('page-catalogue', 'Streamer catalogue and configuration ready', () => ({
@@ -168,8 +168,8 @@ export function createPageStreamerWith(
         resident: cache.size,
         residentBytes: store.bytes,
         maxCachedBytes: store.budgetBytes,
-        /** CPU bytes held (manifest tables, transfers, pages, kept files) of `cpuBudgetBytes`. */
-        cpuBytes: tableBytes + state.activeBytes + store.bytes + store.keptBytes,
+        /** CPU bytes held (manifest tables, transfers, pages, kept file, levels) of the total. */
+        cpuBytes: tableBytes + state.activeBytes + store.bytes + store.besideBytes,
         cpuBudgetBytes: store.cpuBytes,
         evictions: state.evictions,
         failed: failures.size,
