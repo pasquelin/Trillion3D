@@ -16,13 +16,18 @@ const TYPESCRIPT = /\.m?ts$/;
 /** One RGBA capture the page posted, or `null` when its byte count did not match `w × h × 4`. */
 export type Capture = { body: Buffer; w: number; h: number } | null;
 
-/** The harness page: an import map, and nothing else. Everything else comes from `evaluate`. */
-const PAGE = `<!doctype html><meta charset="utf-8"><title>Trillion3D measurement bench</title>
-<script type="importmap">{"imports":{
- "three":"/vendor/three/build/three.module.js",
- "three/addons/":"/vendor/three/examples/jsm/",
- "meshoptimizer":"/vendor/meshoptimizer/index.module.js"
-}}</script>
+/** The bare specifiers every harness page resolves. */
+const LIBRARIES = {
+  three: '/vendor/three/build/three.module.js',
+  'three/addons/': '/vendor/three/examples/jsm/',
+  meshoptimizer: '/vendor/meshoptimizer/index.module.js',
+};
+
+/** The harness page: an import map — the libraries, then `imports` — and nothing else. Everything
+ *  else comes from `evaluate`. */
+const page = (imports: Record<string, string>) =>
+  `<!doctype html><meta charset="utf-8"><title>Trillion3D measurement bench</title>
+<script type="importmap">${JSON.stringify({ imports: { ...LIBRARIES, ...imports } })}</script>
 <style>html,body{margin:0;background:#2a303c}</style>
 `;
 
@@ -64,18 +69,21 @@ const ISOLATION = {
 };
 
 /** Listens on `port`, serves `mounts`, stores captures in `captures`. `isolation` sets COOP and
- *  COEP on each response. */
+ *  COEP on each response; `imports` adds to the page's import map. */
 export async function startServer({
   port = 0,
   mounts,
   captures = new Map(),
   isolation = false,
+  imports = {},
 }: {
   port?: number;
   mounts: Mount[];
   captures?: Map<string, Capture>;
   isolation?: boolean;
+  imports?: Record<string, string>;
 }): Promise<{ server: Server; port: number }> {
+  const html = page(imports);
   const server = staticServer({
     mounts,
     headers: { 'cache-control': 'no-store', ...(isolation ? ISOLATION : {}) },
@@ -90,7 +98,7 @@ export async function startServer({
       // let a 404 pollute page errors.
       if (url.pathname === '/favicon.ico') return reply(res, 204);
       if (url.pathname === '/' || url.pathname === '/index.html')
-        return reply(res, 200, contentType('.html'), PAGE);
+        return reply(res, 200, contentType('.html'), html);
       return false;
     },
   });

@@ -9,8 +9,9 @@
 // tolerance (#443).
 //
 // The harness server of `bench/runner` serves the page and its import map, the SDK, the page
-// modules of `tests/` and the engine sources they import; nothing outside this repository is
-// read. Per-fixture readings and both images land under `.mesure/out/material-pixels/<run>/`.
+// modules of `tests/` and the fixtures they import; an engine source they import resolves to its
+// file under `dist/`, so the page runs one engine (`repoServer`). Nothing outside this repository
+// is read. Per-fixture readings and both images land under `.mesure/out/material-pixels/<run>/`.
 //
 //   node tests/browser/renders/witness-materials.browser.ts [run-name]
 import assert from 'node:assert/strict';
