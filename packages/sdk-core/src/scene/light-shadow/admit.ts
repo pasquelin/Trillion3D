@@ -122,5 +122,5 @@ export function createShadowAdmission(poolPages: number) {
       admission.count = 0;
     },
   };
-  return admission as Readonly<typeof admission>;
+  return admission;
 }
