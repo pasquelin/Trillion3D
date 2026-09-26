@@ -126,5 +126,5 @@ test('a world with a particle pool is refused by name on WebGL2, never drawn wit
   const compose = createFrameComposer(gl, camera, { particles });
   const { backend, outputs } = engine();
   assert.throws(() => compose(backend, null), /^Error: PARTICLES_UNSUPPORTED/);
-  assert.equal(outputs.length, 0);
+  assert.deepEqual([outputs.length, particles[0].moving], [0, false], 'refused, it asks no frame');
 });
