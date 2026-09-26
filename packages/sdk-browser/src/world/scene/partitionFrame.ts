@@ -49,8 +49,9 @@ type Inputs = {
   /** The frame's one integration budget, the arrival queue's: cells spend from it before the
    *  drain spends the rest. */
   budget: FrameBudget;
-  /** Asked once the camera's reach outgrew the rows sized at open: the owner opens the session
-   *  again, sized for it. Absent, a cell past those rows waits. */
+  /** Asked once the camera's reach, or a parent's stretch, outgrew the rows sized at open on an
+   *  engine that grows no buffer in place: the owner opens the session again, sized for it.
+   *  Absent, a cell past those rows waits. */
   renew?: () => void;
 };
 
@@ -87,6 +88,7 @@ export function createPartitionFrame(inputs: Inputs) {
       request,
       update: (...range: Parameters<NonNullable<RenderBackend['updatePlacements']>>) =>
         backend.updatePlacements?.(...range),
+      grow: backend.growPlacements?.bind(backend),
       outgrown: renew,
     };
     const reach = cellReach(camera);
