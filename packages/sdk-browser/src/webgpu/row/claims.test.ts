@@ -42,29 +42,28 @@ test('a barrier image lifts the time budget and writes every owed row', () => {
   assert.deepEqual(placed, [0, 1, 2, 3]);
 });
 
-test('the rows a frame writes spend what its arrivals left of its one budget, on one clock', () => {
+test('the rows a frame writes spend what its arrivals left of its one integration budget', () => {
   let now = 0;
   const budget = createFrameBudget(2, () => now);
   const arrivals = createArrivalQueue(1 << 20, 64, budget);
   const receiver = { acceptPage: () => void (now += 1) };
   for (const url of ['p0', 'p1']) arrivals.queue(receiver, url, new Uint32Array(1));
   const claims = owed();
-  budget.open();
-  assert.equal(arrivals.drain(), 2, 'two 1 ms arrivals spend the 2 ms frame');
-  serveClaims(
-    claims,
-    () => true,
-    () => true,
-    budget,
-  );
-  assert.equal(claims.count, 3, 'one row goes through, three wait for the next frame');
-  budget.open();
-  arrivals.drain();
-  serveClaims(
-    claims,
-    () => true,
-    () => true,
-    budget,
-  );
-  assert.equal(claims.count, 0, 'a frame with nothing to drain writes every row within it');
+  /** A frame as the session draws it: the drain, then 5 ms of the engine's other work. */
+  const frame = () => {
+    budget.open();
+    arrivals.drain();
+    budget.pause();
+    now += 5;
+    serveClaims(
+      claims,
+      () => true,
+      () => (now += 0.5) > 0,
+      budget,
+    );
+    return claims.count;
+  };
+  assert.equal(frame(), 3, 'two 1 ms arrivals spend the 2 ms: one row goes through, three wait');
+  // Nothing to drain: the engine's 5 ms are not integration, the rows have the 2 ms to themselves.
+  assert.equal(frame(), 0);
 });

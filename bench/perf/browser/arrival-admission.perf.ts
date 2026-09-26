@@ -3,14 +3,14 @@ import { findAdmissible } from '../../../packages/sdk-browser/src/streaming/queu
 import { sortStreamJobs } from '../../../packages/sdk-browser/src/streaming/queueOrder.fixture.ts';
 import { createArrivalQueue } from '../../../packages/sdk-browser/src/page/integration/arrivalQueue.ts';
 import { createFrameBudget } from '../../../packages/sdk-browser/src/page/integration/frameBudget.ts';
-
-/** The frame budget the engine's queue spends, opened before each drain as a frame opens it. */
-const frame = createFrameBudget(2);
 import { graine, mesure, stress, rapport } from '../../core/index.ts';
 import {
   referenceAdmission,
   referenceArrivalQueue,
 } from '../../oracles/browser/arrival-admission.ts';
+
+/** The frame budget the engine's queue spends, opened before each drain as a frame opens it. */
+const frame = createFrameBudget(2);
 
 /** The fields `findAdmissible`/`sortStreamJobs` read: a lighter shape than the engine's `Job`. */
 interface TravailAdmission {

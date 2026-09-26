@@ -3,15 +3,14 @@
  *
  * Before each frame (`frame`), the cells the camera needs (`plan.ts`, boxed where their parents
  * stand now: `boxes.ts`) are asked of the session's page streamer, nearest first, then those ahead
- * at the prefetch priority; those it holds are placed within the frame's one arrival budget
+ * at the prefetch priority; those it holds are placed within the frame's one integration budget
  * (`FrameBudget`), each node on a row of its mesh (`rows.ts`) at the world matrix the engine
  * composes for a child of its core parent. A cell past its reach parks its rows; a moved parent
  * rewrites the rows under it. `prime`, before the first frame, sizes the rows for every node the
  * reach can hold at once wherever the parents stand (`sizing.ts`; every node when no owner can
  * reopen the session) and reads the cells it needs. Moved, turned or scaled up, parents never run
- * the rows short; a reach past them, or a parent scaled down or stretched unevenly, sizes them
- * again in place, through the engine's growth contract (`placement/growth.ts`) — only an engine
- * that grows no buffer in place asks its owner to reopen the session.
+ * the rows short; a reach past them, or a parent scaled down or stretched unevenly, grows them in
+ * place (`placement/growth.ts`), or asks the owner to reopen on an engine that cannot.
  */
 import { MATRIX_VALUES, multiplyMatrix4 } from '../../../../sdk-core/src/index.ts';
 import {
@@ -101,10 +100,10 @@ export function createPartitionCells(inputs: Inputs) {
         for (const placement of placements) if (placement.parent === node) write(placement);
     }
   };
-  /** Sizes the rows for any place of the parents within a reach `bound` and their stretch now,
-   *  widened `by`; `grown` hands each buffer replaced to its engine, absent before one reads it. */
-  const resize = (bound: number, grown?: Grow, by = 1) => {
-    stretched = sizedStretch(boxes.stretch, by);
+  /** Sizes the rows for any place of the parents within a reach `bound` and a `stretch`; `grown`
+   *  hands each buffer replaced to its engine, absent before one reads it. */
+  const resize = (bound: number, grown?: Grow, stretch = sizedStretch(boxes.stretch)) => {
+    stretched = stretch;
     const rows = residentRows(partition.cells, bound, stretched);
     sizeRows(meshes, rows, grown);
     sized = holdsEvery(rows, cells) ? Infinity : bound;
@@ -136,17 +135,18 @@ export function createPartitionCells(inputs: Inputs) {
         grow?: Grow;
         outgrown?: () => void;
       },
-      /** The frame's one integration budget (`FrameBudget`, the session's). */
-      budget: { admits(): boolean; spend(): void },
+      budget: import('../../page/integration/frameBudget.ts').FrameBudget,
     ) {
       followParents();
       const local = inCellFrame(hostWorldChainInto(rootWorld, root), eye, reach);
       const plan = planCells(boxes(), local.eye, local.reach, new Set(held.keys()));
       const beyond = local.reach > Math.max(sized, wanted);
       if (beyond) wanted = local.reach;
-      if (beyond || (!short && sized < Infinity && outstretched(boxes.stretch, stretched))) {
-        // Twice what is asked, as buffers grow: an ongoing zoom or shrink resizes O(log) times.
-        if (io.grow) resize(Math.max(2 * sized, wanted), io.grow, 2);
+      const over = !short && sized < Infinity && outstretched(boxes.stretch, stretched);
+      if (beyond || over) {
+        // Twice what outgrew them, as buffers grow: an ongoing zoom or shrink resizes O(log) times.
+        const stretch = over ? sizedStretch(boxes.stretch, 2) : stretched;
+        if (io.grow) resize(beyond ? Math.max(2 * sized, wanted) : sized, io.grow, stretch);
         else {
           short = true;
           io.outgrown?.();

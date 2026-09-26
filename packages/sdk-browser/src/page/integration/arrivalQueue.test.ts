@@ -70,12 +70,13 @@ test('a page already waiting for a target is queued once, and each target keeps 
 
 // Delivery preserves exact pages and order despite removing implicit rendering.
 test('many duplicate targets across a drain deliver exactly like the reference', () => {
-  function arrivals(create: typeof createArrivalQueue) {
+  type Queue = Pick<ReturnType<typeof createArrivalQueue>, 'queue' | 'drain'>;
+  function arrivals(create: (byteBudget: number, countBudget: number) => Queue) {
     const delivered: string[] = [];
     const targets = Array.from({ length: 8 }, (_, c) => ({
       acceptPage: (url: string) => delivered.push(`${c}:${url}`),
     }));
-    const queue = create(1 << 20, 4096, createFrameBudget(Infinity));
+    const queue = create(1 << 20, 4096);
     const bytes = new Uint32Array(4);
     // Round-robin over the eight targets so the touched list sees many repeats before a drain.
     for (let i = 0; i < 500; i++) queue.queue(targets[i % 8], `page-${i % 50}.bin`, bytes);
@@ -83,12 +84,14 @@ test('many duplicate targets across a drain deliver exactly like the reference',
     for (let d = 0; d < 3; d++) livrs += queue.drain();
     return { delivered, livrs };
   }
-  const optimisee = arrivals(createArrivalQueue);
-  const reference = arrivals(referenceArrivalQueue as typeof createArrivalQueue);
+  const optimisee = arrivals((bytes, count) =>
+    createArrivalQueue(bytes, count, createFrameBudget(Infinity)),
+  );
+  const reference = arrivals(referenceArrivalQueue);
   assert.deepEqual(optimisee, reference);
 });
 
-test('the default time budget yields at its boundary and resumes in arrival order', (t) => {
+test('the frame budget yields at its boundary and resumes in arrival order', (t) => {
   let now = 0;
   t.mock.method(performance, 'now', () => now);
   const accepted: string[] = [];
@@ -102,7 +105,7 @@ test('the default time budget yields at its boundary and resumes in arrival orde
   const queue = createArrivalQueue(1 << 20, 64, budget);
   for (const url of ['p0', 'p1', 'slow', 'p3']) queue.queue(receiver, url, new Uint32Array(1));
   const frame = () => (budget.open(), queue.drain());
-  assert.equal(frame(), 2, 'two 1 ms deliveries reach the default 2 ms ceiling');
+  assert.equal(frame(), 2, 'two 1 ms deliveries reach the 2 ms ceiling');
   assert.deepEqual(accepted, ['p0', 'p1']);
   assert.equal(queue.pending, 2);
   assert.equal(frame(), 1, 'an over-budget first delivery still makes progress');
@@ -129,7 +132,7 @@ test('a drain spends what its frame left of the budget, and never opens it again
 });
 
 test('the cells a frame places and the pages it drains spend one budget, on one clock', async (t) => {
-  // Reading a cell's bytes costs 1.5 ms and a page 1 ms, against the default 2 ms ceiling.
+  // Reading a cell's bytes costs 1.5 ms and a page 1 ms, against the 2 ms ceiling.
   let now = 0;
   t.mock.method(performance, 'now', () => now);
   const body = (x: number) =>
