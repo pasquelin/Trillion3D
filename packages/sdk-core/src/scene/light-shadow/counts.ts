@@ -54,12 +54,11 @@ export function createShadowCounts() {
           if (read && pool.valid[page]) counts.cachedPages++;
           continue;
         }
-        const unread = Number.isNaN(pool.since[page]);
         if (!read) {
-          if (!unread) pool.since[page] = NaN;
+          pool.since[page] = NaN;
           continue;
         }
-        if (unread) {
+        if (Number.isNaN(pool.since[page])) {
           pool.since[page] = nowMs;
           pool.readFrame[page] = frame;
         }
