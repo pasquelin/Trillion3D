@@ -2,6 +2,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { LINE_CLIP_GLSL, LINE_CLIP_WGSL, lineClip } from './lineWgsl.ts';
 import { runShaderText } from './shaderText.fixture.ts';
+import {
+  LINE_PROJECTIONS as PROJECTIONS,
+  LINE_VIEWPORT as VIEWPORT,
+  toPixels as pixel,
+} from './lineProjection.fixture.ts';
 import { PAGE_INFO_STRUCT_WGSL } from './pageWgsl.ts';
 import { VIS_SHADER } from './visWgsl.ts';
 import { SHADE_SHADER } from './shadeWgsl.ts';
@@ -11,28 +16,7 @@ import { BLEND_ITEM_WGSL } from '../../webgpu/blend/items.ts';
 import { CLUSTER_VERTEX } from '../../webgl/cluster/shaders.ts';
 import { SHADER as FALLBACK_SHADER } from '../../webgpu/pages/prepare/shaders.ts';
 
-const VIEWPORT = [800, 600];
-const NEAR = 0.1;
-const FOCAL = 1 / Math.tan(Math.PI / 6);
-type V4 = number[];
-/** The engine's projection (reversed depth, infinite far: `z = near`, `w = distance`) and a
- *  forward one (`z = −w` at the near plane) as the WebGL2 path draws, on a view-space vector. */
-const PROJECTIONS = {
-  wgsl: (x: number, y: number, z: number, w: number): V4 => [
-    (FOCAL * x * VIEWPORT[1]) / VIEWPORT[0],
-    FOCAL * y,
-    NEAR * w,
-    -z,
-  ],
-  glsl: (x: number, y: number, z: number, w: number): V4 => [
-    (FOCAL * x * VIEWPORT[1]) / VIEWPORT[0],
-    FOCAL * y,
-    -1.002 * z - 0.2002 * w,
-    -z,
-  ],
-};
 const SOURCES = { wgsl: LINE_CLIP_WGSL, glsl: LINE_CLIP_GLSL };
-const pixel = (c: V4) => [0, 1].map((i) => (c[i] / c[3]) * 0.5 * VIEWPORT[i]);
 
 /** The two corners of an endpoint `p` of the segment of direction `d`, widened to `width` CSS
  *  pixels at `pixelRatio` image pixels per CSS pixel. */

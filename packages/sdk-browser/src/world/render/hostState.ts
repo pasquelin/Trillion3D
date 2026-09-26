@@ -2,6 +2,7 @@ import type { CameraPose, DiagnosticMode } from '../../../../sdk-core/src/index.
 import type { MeasuredWorldOptions, RenderBackend } from '../../backend/types.ts';
 import { createComparisonCompositor, type ComparisonLayout } from '../../measurement/comparison.ts';
 import { createFrameComposer } from './compose.ts';
+import { pixelRatioOf } from '../../backend/common.ts';
 import type { createExplorerDiagnosticApi } from '../api/diagnosticApi.ts';
 import type { prepareExplorer } from '../session/prepare.ts';
 import { boundToContext } from '../../webgl/core/contextBound.ts';
@@ -91,6 +92,8 @@ export function createExplorerHostState(
             shown: () => state.diagnostic === 'beauty',
           },
           guides: options.guides,
+          pixelRatio: () => pixelRatioOf(options),
+          particles: options.particles,
         }),
         compositor: createComparisonCompositor(gl),
       }

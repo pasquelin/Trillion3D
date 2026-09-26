@@ -1570,8 +1570,8 @@
       "WEBGL2_UNAVAILABLE": "La macchina non può disegnare nel modo richiesto, o per niente.",
       "NO_WEBGL2": "La macchina non può disegnare nel modo richiesto, o per niente.",
       "NO_ENGINE_BACKEND": "La macchina non può disegnare nel modo richiesto, o per niente.",
-      "RESOURCE_HTTP_ERROR": "Un file non è stato recuperabile, o non era ciò che doveva essere.",
-      "INVALID_JSON_RESPONSE": "Un file non è stato recuperabile, o non era ciò che doveva essere.",
+      "RESOURCE_HTTP_ERROR": "Un file non è stato recuperabile — richiesto di nuovo prima, quando l’errore può passare —, o non era ciò che doveva essere.",
+      "INVALID_JSON_RESPONSE": "Un file non è stato recuperabile — richiesto di nuovo prima, quando l’errore può passare —, o non era ciò che doveva essere.",
       "INVALID_POINTER": "Il puntatore del modello compilato è rotto, incompleto, o di un altro ambito.",
       "CACHE_NOT_READY": "Il puntatore del modello compilato è rotto, incompleto, o di un altro ambito.",
       "SCOPE_MISMATCH": "Il puntatore del modello compilato è rotto, incompleto, o di un altro ambito.",
@@ -2225,7 +2225,7 @@
     "members": {
       "visible": "Se viene disegnato; `setVisible` lo scrive.",
       "setVisible": "Lo mostra o lo nasconde; i suoi vertici contano ancora contro il limite.",
-      "setTransform": "Lo posiziona: sedici numeri per colonne, o una matrice — `node.matrixWorld` segue un nodo.",
+      "setTransform": "Lo posiziona: sedici numeri per colonne, o una matrice; una guida disegnata da `add` smette allora di seguire il suo nodo.",
       "remove": "Lo toglie dal mondo, restituendo i suoi vertici; una seconda chiamata non fa nulla."
     }
   },
@@ -2234,7 +2234,7 @@
     "members": {
       "positions": "Due estremi per segmento, tre numeri ciascuno.",
       "color": "Il loro colore; bianco per impostazione predefinita.",
-      "width": "Larghezza sullo schermo, in pixel."
+      "width": "Larghezza sullo schermo, in pixel CSS, come ogni linea del motore."
     }
   },
   "GuidePoints": {
@@ -2242,7 +2242,7 @@
     "members": {
       "positions": "Tre numeri per punto.",
       "color": "Il loro colore; bianco per impostazione predefinita.",
-      "size": "Lato di ogni punto quadrato sullo schermo, in pixel."
+      "size": "Lato di ogni punto quadrato sullo schermo, in pixel CSS."
     }
   },
   "Guides": {
@@ -2252,7 +2252,7 @@
       "vertexCount": "Vertici tenuti ora, due per segmento e uno per punto, guide nascoste comprese.",
       "lines": "Disegna segmenti, due estremi ciascuno; rifiutato sopra il limite (`GUIDE_CEILING`).",
       "points": "Disegna punti quadrati, una posizione ciascuno; rifiutato sopra il limite (`GUIDE_CEILING`).",
-      "add": "Disegna le mesh di linee e punti di `object` — ogni `helper` le costruisce —, nei colori dei loro materiali, poste dove l’oggetto si trova ora; i suoi triangoli non sono guide e vengono saltati.",
+      "add": "Disegna le mesh di linee e punti di `object` — ogni `helper` le costruisce —, nei colori dei loro materiali; i suoi triangoli non sono guide e vengono saltati. La guida segue l’oggetto — per un aiuto di luce o di camera, il nodo che mostra — spostata a ogni immagine in cui quel nodo si è mosso, mai altrimenti.",
       "clear": "Rimuove tutte le guide."
     }
   },
@@ -5170,7 +5170,7 @@
       "background": "Ciò che riempie l’immagine dietro ogni oggetto: un colore, o `null` per quello predefinito. Una modifica appare al fotogramma successivo, mantenendo la sessione: un nuovo colore assegnato qui, o quello attuale scritto con i suoi metodi (`set`, `setRGB`, `setHex`, `setHSL`...). Una scrittura diretta di `.r`, `.g` o `.b` non viene rilevata: riassegna `background` dopo. Un’immagine, o qualsiasi valore senza `getHex`, viene rifiutata (`UNSUPPORTED_SCENE_UPDATE`): nessun percorso la disegna.",
       "fog": "Nebbia su ogni superficie, opaca o trasparente, su entrambi i renderer; `null`, il predefinito, per nessuna, senza costo. `{ color, near, far }` sfuma gli oggetti in `color` da `near` a `far`, distanze dalla telecamera; `{ color, density }` si infittisce di `density` per unità di distanza; aggiungi `heightFalloff` (e `baseHeight`, 0 per impostazione predefinita) e si posa a terra, diradandosi sopra `baseHeight` — divisa per e ogni `1 / heightFalloff` unità verso l’alto. Un cambiamento si vede al fotogramma successivo: una nuova nebbia impostata qui, o il suo colore scritto con i suoi metodi. Una scrittura diretta di `near`, `far`, `density`... non viene sentita: reimposta `fog` dopo. Una nebbia fuori intervallo — `far` non oltre `near`, una densità negativa — è rifiutata (`INVALID_SCENE_ENVIRONMENT`).",
       "load": "Carica un modello compilato — l'URL del suo manifesto — e lo aggiunge a questa scena.",
-      "toJSON": "La scena come JSON semplice e versionato: i suoi oggetti, le forme tramite la chiamata che le ha costruite, i materiali, le luci e i modelli caricati tramite indirizzo; anche la posa di `camera` quando ne viene data una.",
+      "toJSON": "La scena come JSON semplice e versionato: i suoi oggetti, le forme tramite la chiamata che le ha costruite, i materiali, le luci, il corpo di ogni mesh come è stato dichiarato e i modelli caricati tramite indirizzo; anche la posa di `camera` quando ne viene data una.",
       "fromJSON": "Sostituisce il contenuto della scena con una scena salvata da `toJSON`, mantenendo i suoi segni `helper`; si risolve quando i suoi modelli sono caricati. Un altro formato o un'altra versione viene rifiutato (`UNSUPPORTED_SCENE_FORMAT`). Le chiamate fatte mentre se ne legge una vengono eseguite una dopo l'altra, in ordine, ciascuna su ciò che ha lasciato la precedente: due scene salvate non si mescolano mai."
     }
   },
@@ -5438,10 +5438,10 @@
       "shadowsUpdated": "Luci d’ombra con una pagina disegnata da questo fotogramma. Zero è il valore normale di una scena ferma: una luce fissa conserva le sue pagine.",
       "shadowFacesDrawn": "Viste di luce in cui ha disegnato il passaggio ombre — un livello di clipmap del sole, una faccia di lampada a un mip —, e le draw call effettivamente codificate. Null su un motore che non disegna ombre.",
       "shadowDrawCalls": "Chiamate di disegno dell'ombra.",
-      "shadowPagesDrawn": "Ciò che ha prodotto l'invalidazione delle pagine: pagine ridisegnate dal fotogramma, pagine lasciate in coda per mancanza di budget, e il ritardo in millisecondi della più vecchia. Zero ovunque è il valore normale di una scena immobile; `null` per un motore senza atlante delle ombre.",
+      "shadowPagesDrawn": "Ciò che ha prodotto l'invalidazione delle pagine: pagine ridisegnate dal fotogramma, pagine lasciate in coda per mancanza di budget, e quanto ha atteso la pagina obsoleta più vecchia che l'immagine legge. Zero ovunque è il valore normale di una scena immobile; `null` per un motore senza atlante delle ombre.",
       "shadowPagesTotal": "Pagine disegnate dall'apertura dell'esploratore, svuotamenti di `flush()` inclusi: il costo di un cambiamento è la differenza tra due letture.",
       "shadowPagesPending": "Pagine d'ombra in attesa.",
-      "shadowWaitMs": "Quanto tempo hanno atteso.",
+      "shadowWaitMs": "Quanti millisecondi la pagina obsoleta più vecchia che l'immagine legge ha atteso di essere ridisegnata. Conta solo il tempo in cui l'immagine la legge; 0 una volta ridisegnata.",
       "gpuLightListsMs": "Tempo GPU delle liste di luci.",
       "gpuShadowsMs": "Tempo GPU delle ombre.",
       "gpuShadowCullMs": "Tempo GPU per scegliere i proiettori delle pagine d’ombra che un fotogramma disegna: il taglio dalla luce, lo scarto per pagina e il test di occlusione dei proiettori in movimento con le piramidi che legge.",
@@ -5998,7 +5998,6 @@
       "anisotropy": "Nitidezza vista di lato.",
       "flipY": "Se le righe sono capovolte.",
       "premultiplyAlpha": "Se il colore è premoltiplicato.",
-      "generateMipmaps": "Se vengono fatte copie più piccole.",
       "colorSpace": "Come vengono letti i suoi numeri.",
       "transform": "Trasformazione delle UV del campionatore, `KHR_texture_transform` composto in tre righe di tre."
     }
@@ -6072,7 +6071,7 @@
       "textureBytesLastFrame": "Byte inviati al fotogramma precedente.",
       "textureUploadMs": "Tempo impiegato a inviare le tessere.",
       "textureUploadPeakMs": "Invio più lungo di un fotogramma.",
-      "textureLevelReads": "Le fonti. `textureLevelReads`: livelli cotti in corso di lettura nella cache. `textureLevelsDecoded`: livelli cotti decodificati dall'inizio. `textureLevelCacheBytes`: byte dell'host dei livelli decodificati mantenuti per ritagliarne altre tessere, sotto un budget fisso. `textureScratchBuilds`: texture di lavoro costruite per una texture senza catena cotta, ogni volta l'intera sorgente.",
+      "textureLevelReads": "Le fonti. `textureLevelReads`: livelli cotti in corso di lettura nella cache. `textureLevelsDecoded`: livelli cotti decodificati dall'inizio. `textureLevelCacheBytes`: byte dell'host dei livelli decodificati mantenuti per ritagliarne altre tessere, entro il totale CPU. `textureScratchBuilds`: texture di lavoro costruite per una texture senza catena cotta, ogni volta l'intera sorgente.",
       "textureLevelsDecoded": "Livelli decodificati.",
       "textureLevelCacheBytes": "Byte dei livelli decodificati mantenuti.",
       "textureScratchBuilds": "Texture temporanee costruite.",
@@ -6615,7 +6614,7 @@
   },
   "world.beforeFrame": {
     "summary": "Esegue una funzione prima di ogni fotogramma disegnato, con `{ delta, time }`; restituisce ciò che lo ferma.",
-    "description": "Un fotogramma del ciclo del mondo si svolge così: il controller fa avanzare la telecamera (a meno che `controls.autoUpdate` sia false), le clip avanzano, questi hook nell'ordine in cui sono stati aggiunti, la scena viene scritta e disegnata, poi gli hook di `onFrame`. Ciò che un hook posiziona — un corpo sulla telecamera, un cockpit — viene disegnato in questo stesso fotogramma, mai uno in ritardo. Un `render()` guidato dall'host li esegue anch'esso, ma non fa avanzare alcun controller. Un hook che chiama `invalidate()` fa continuare ad arrivare fotogrammi.",
+    "description": "Un fotogramma si svolge così: il controller della telecamera (a meno che `controls.autoUpdate` sia false o che l'host guidi, `render()`), le clip, la fisica, questi hook nel loro ordine, il disegno, poi gli hook di `onFrame`. Ciò che un hook posiziona — un corpo sulla telecamera, un cockpit — viene disegnato in questo stesso fotogramma, mai uno in ritardo. Un hook che chiama `invalidate()` fa continuare ad arrivare fotogrammi.",
     "parameters": {
       "hook": "La funzione da eseguire; riceve i secondi appena integrati e il tempo del mondo."
     },
@@ -6632,7 +6631,7 @@
     "summary": "Richiede un nuovo fotogramma dopo un cambiamento che il mondo non ha potuto vedere."
   },
   "world.render": {
-    "summary": "Disegna subito un fotogramma, chiunque sia il maestro del ciclo."
+    "summary": "Disegna subito un fotogramma, chiunque sia il maestro del ciclo: le clip e la fisica avanzano con esso."
   },
   "world.resize": {
     "summary": "Dice al mondo che il canvas ha cambiato dimensione; senza valore, legge la dimensione del canvas.",
@@ -6718,10 +6717,10 @@
       "shadowsUpdated": "Luci d’ombra con una pagina disegnata da questo fotogramma. Zero è il valore normale di una scena ferma: una luce fissa conserva le sue pagine.",
       "shadowFacesDrawn": "Viste di luce in cui ha disegnato il passaggio ombre — un livello di clipmap del sole, una faccia di lampada a un mip —, e le draw call effettivamente codificate. Null su un motore che non disegna ombre.",
       "shadowDrawCalls": "Chiamate di disegno dell'ombra.",
-      "shadowPagesDrawn": "Ciò che ha prodotto l'invalidazione delle pagine: pagine ridisegnate dal fotogramma, pagine lasciate in coda per mancanza di budget, e il ritardo in millisecondi della più vecchia. Zero ovunque è il valore normale di una scena immobile; `null` per un motore senza atlante delle ombre.",
+      "shadowPagesDrawn": "Ciò che ha prodotto l'invalidazione delle pagine: pagine ridisegnate dal fotogramma, pagine lasciate in coda per mancanza di budget, e quanto ha atteso la pagina obsoleta più vecchia che l'immagine legge. Zero ovunque è il valore normale di una scena immobile; `null` per un motore senza atlante delle ombre.",
       "shadowPagesTotal": "Pagine disegnate dall'apertura dell'esploratore, svuotamenti di `flush()` inclusi: il costo di un cambiamento è la differenza tra due letture.",
       "shadowPagesPending": "Pagine d'ombra in attesa.",
-      "shadowWaitMs": "Quanto tempo hanno atteso.",
+      "shadowWaitMs": "Quanti millisecondi la pagina obsoleta più vecchia che l'immagine legge ha atteso di essere ridisegnata. Conta solo il tempo in cui l'immagine la legge; 0 una volta ridisegnata.",
       "gpuLightListsMs": "Tempo GPU delle liste di luci.",
       "gpuShadowsMs": "Tempo GPU delle ombre.",
       "gpuShadowCullMs": "Tempo GPU per scegliere i proiettori delle pagine d’ombra che un fotogramma disegna: il taglio dalla luce, lo scarto per pagina e il test di occlusione dei proiettori in movimento con le piramidi che legge.",
@@ -6750,7 +6749,7 @@
       "textureBytesLastFrame": "Byte inviati al fotogramma precedente.",
       "textureUploadMs": "Tempo impiegato a inviare le tessere.",
       "textureUploadPeakMs": "Invio più lungo di un fotogramma.",
-      "textureLevelReads": "Le fonti. `textureLevelReads`: livelli cotti in corso di lettura nella cache. `textureLevelsDecoded`: livelli cotti decodificati dall'inizio. `textureLevelCacheBytes`: byte dell'host dei livelli decodificati mantenuti per ritagliarne altre tessere, sotto un budget fisso. `textureScratchBuilds`: texture di lavoro costruite per una texture senza catena cotta, ogni volta l'intera sorgente.",
+      "textureLevelReads": "Le fonti. `textureLevelReads`: livelli cotti in corso di lettura nella cache. `textureLevelsDecoded`: livelli cotti decodificati dall'inizio. `textureLevelCacheBytes`: byte dell'host dei livelli decodificati mantenuti per ritagliarne altre tessere, entro il totale CPU. `textureScratchBuilds`: texture di lavoro costruite per una texture senza catena cotta, ogni volta l'intera sorgente.",
       "textureLevelsDecoded": "Livelli decodificati.",
       "textureLevelCacheBytes": "Byte dei livelli decodificati mantenuti.",
       "textureScratchBuilds": "Texture temporanee costruite.",
@@ -7022,7 +7021,8 @@
       "children": "I nodi sotto di esso, in ordine.",
       "mesh": "Posizioni in `geometries` e `materials`, come si leggono i triangoli, e il centro di uno sprite.",
       "light": "Il tipo di una luce, i suoi colori, i suoi numeri, la sua direzione e i coefficienti della sonda.",
-      "model": "Un modello compilato, tramite l'indirizzo del manifesto da cui è stato caricato: mai copiato dentro."
+      "model": "Un modello compilato, tramite l'indirizzo del manifesto da cui è stato caricato: mai copiato dentro.",
+      "physics": "Il corpo di una mesh, come lo dichiara `mesh.physics`."
     }
   },
   "SavedScene": {
@@ -7129,7 +7129,7 @@
       "water": "L’acqua in cui galleggiano i corpi: livello, onde, densità e resistenze. Un corpo più leggero dell’acqua galleggia, spinto dal peso dell’acqua che sposta.",
       "waterSurface": "La superficie dell’acqua all’ora della simulazione, per disegnarla: le onde lette dal galleggiamento, gli stessi numeri (`height`, `point`, `normal`).",
       "stats": "Conteggi ed entrambi gli orologi: millisecondi del worker per passo, millisecondi della pagina per fotogramma.",
-      "error": "L’ultimo errore della fisica (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), oppure `null`. Un errore che ha fermato la simulazione disattiva `enabled`.",
+      "error": "L’ultimo errore della fisica (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`, `RESOURCE_HTTP_ERROR`), oppure `null`. Un errore che ha fermato la simulazione disattiva `enabled`.",
       "add": "Aggiunge un giunto (`joint.hinge(door, frame, …)` e simili): viene creato appena entrambi i corpi sono simulati e tiene finché non viene tolto o si rompe.",
       "remove": "Toglie un giunto: i corpi che teneva si separano liberamente."
     }
@@ -7337,7 +7337,7 @@
       "water": "L’acqua in cui galleggiano i corpi: livello, onde, densità e resistenze. Un corpo più leggero dell’acqua galleggia, spinto dal peso dell’acqua che sposta.",
       "waterSurface": "La superficie dell’acqua all’ora della simulazione, per disegnarla: le onde lette dal galleggiamento, gli stessi numeri (`height`, `point`, `normal`).",
       "stats": "Conteggi ed entrambi gli orologi: millisecondi del worker per passo, millisecondi della pagina per fotogramma.",
-      "error": "L’ultimo errore della fisica (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), oppure `null`. Un errore che ha fermato la simulazione disattiva `enabled`.",
+      "error": "L’ultimo errore della fisica (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`, `RESOURCE_HTTP_ERROR`), oppure `null`. Un errore che ha fermato la simulazione disattiva `enabled`.",
       "add": "Aggiunge un giunto (`joint.hinge(door, frame, …)` e simili): viene creato appena entrambi i corpi sono simulati e tiene finché non viene tolto o si rompe.",
       "remove": "Toglie un giunto: i corpi che teneva si separano liberamente."
     }
@@ -7429,7 +7429,7 @@
       "offset": "Ciò da cui `matrix` è composta.",
       "matrixAutoUpdate": "Se l'host ricostruisce `matrix`.",
       "matrix": "Trasformazione delle UV del campionatore, `KHR_texture_transform` composto in tre righe; l'host la ricalcola a partire dallo scarto, dalla ripetizione e dalla rotazione quando fa l'aggiornamento.",
-      "generateMipmaps": "Se vengono fatte copie più piccole.",
+      "generateMipmaps": "Se vengono chieste copie più piccole; il motore le fa ogni volta che `minFilter` le legge.",
       "premultiplyAlpha": "Se il colore è premoltiplicato per l'alfa.",
       "flipY": "Se le righe vengono capovolte all'invio.",
       "version": "Incrementato dall'host a ogni cambiamento di contenuto: ciò che un invio confronta per evitare una nuova copia.",
