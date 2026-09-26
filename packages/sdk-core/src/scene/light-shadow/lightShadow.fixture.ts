@@ -25,6 +25,9 @@ export const SUN: SceneLight = {
   castsShadow: true,
 };
 
+/** A point lamp three units up that casts. */
+const LAMP: SceneLight = { ...SUN, id: 'lamp', kind: 'point', position: [0, 3, 0], range: 20 };
+
 const SCENE_MIN = [-50, 0, -50],
   SCENE_MAX = [50, 10, 50];
 
@@ -119,7 +122,20 @@ export function sunScene() {
 export function lampScene() {
   const store = createSceneLightStore();
   const plan = createShadowPlan(32);
-  store.add({ ...SUN, id: 'lamp', kind: 'point', position: [0, 3, 0], range: 20 });
+  store.add(LAMP);
   planFrame(plan, store, 0);
   return { store, plan, slice: store.sliceOf(0) };
+}
+
+/** A sun and a lamp planned over eight frames of a moving view: its store and its plan. */
+export function movingScene() {
+  const store = createSceneLightStore();
+  const plan = createShadowPlan(16);
+  store.add(SUN);
+  store.add(LAMP);
+  for (let frame = 0; frame < 8; frame++) {
+    const view = { ...VIEW, position: [frame * 3, 5, 0] as [number, number, number] };
+    cycle(plan, store, frame, () => lampPages(plan, store.sliceOf(1), 0, frame % 3), view);
+  }
+  return { store, plan };
 }

@@ -1367,7 +1367,7 @@
     }
   },
   "save-the-scene": {
-    "banner": "Butta giù la torre, poi riapri la scena salvata.",
+    "banner": "Salva la torre, buttala giù, poi apri: la torre salvata è di nuovo in piedi.",
     "controls": {
       "knockDown": "Butta giù",
       "save": "Salva",

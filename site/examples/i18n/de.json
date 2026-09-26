@@ -1367,7 +1367,7 @@
     }
   },
   "save-the-scene": {
-    "banner": "Wirf den Turm um und öffne dann die gespeicherte Szene wieder.",
+    "banner": "Speichere den Turm, wirf ihn um und öffne dann: Der gespeicherte Turm steht wieder.",
     "controls": {
       "knockDown": "Umwerfen",
       "save": "Speichern",

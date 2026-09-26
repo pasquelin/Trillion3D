@@ -1571,8 +1571,8 @@
       "WEBGL2_UNAVAILABLE": "Die Maschine kann nicht auf die angeforderte Weise zeichnen, oder gar nicht.",
       "NO_WEBGL2": "Die Maschine kann nicht auf die angeforderte Weise zeichnen, oder gar nicht.",
       "NO_ENGINE_BACKEND": "Die Maschine kann nicht auf die angeforderte Weise zeichnen, oder gar nicht.",
-      "RESOURCE_HTTP_ERROR": "Eine Datei konnte nicht abgerufen werden, oder war nicht das, was sie sein sollte.",
-      "INVALID_JSON_RESPONSE": "Eine Datei konnte nicht abgerufen werden, oder war nicht das, was sie sein sollte.",
+      "RESOURCE_HTTP_ERROR": "Eine Datei konnte nicht abgerufen werden – zuerst erneut angefragt, wenn der Fehler vorübergehen kann –, oder war nicht das, was sie sein sollte.",
+      "INVALID_JSON_RESPONSE": "Eine Datei konnte nicht abgerufen werden – zuerst erneut angefragt, wenn der Fehler vorübergehen kann –, oder war nicht das, was sie sein sollte.",
       "INVALID_POINTER": "Der Zeiger des kompilierten Modells ist defekt, unvollständig, oder von anderem Umfang.",
       "CACHE_NOT_READY": "Der Zeiger des kompilierten Modells ist defekt, unvollständig, oder von anderem Umfang.",
       "SCOPE_MISMATCH": "Der Zeiger des kompilierten Modells ist defekt, unvollständig, oder von anderem Umfang.",
@@ -1679,7 +1679,7 @@
   },
   "EffectChain": {
     "summary": "`world.effects`: die geordneten Durchgänge, die nach dem temporalen Antialiasing über das Bild gezeichnet werden, bevor es den Canvas erreicht.",
-    "description": "Die Durchgänge vor dem Tone Mapping lesen die lineare Strahldichte, in der Reihenfolge, in der sie hinzugefügt wurden; die danach lesen das angezeigte Bild, in ihrer. Eine leere Kette kostet nichts: kein Durchgang, keine Kopie, kein Ziel.",
+    "description": "Die Durchgänge vor dem Tone Mapping lesen die lineare Strahldichte, in der Reihenfolge, in der sie hinzugefügt wurden; die danach lesen das angezeigte Bild, in ihrer. Eine leere Kette kostet nichts: kein Durchgang, keine Kopie, kein Ziel. Auf WebGL2 wird ein Bild, das eine transparente Oberfläche mit `multiply`- oder `subtractive`-Überblendung zeichnet, vollständig ohne die Kette gezeichnet, und der Diagnosekanal der Welt meldet einmal `effects-refused-blending`; WebGPU zeichnet beides.",
     "members": {
       "revision": "Zählt die Änderungen: Ein Bild, das bei einer anderen Revision gezeichnet wurde, ist veraltet.",
       "passes": "Die Durchgänge, in der Reihenfolge, in der sie laufen.",
@@ -5172,7 +5172,7 @@
       "background": "Was das Bild hinter jedem Objekt füllt: eine Farbe oder `null` für den Standard. Eine Änderung erscheint im nächsten Bild, die Sitzung bleibt: eine hier gesetzte neue Farbe oder die gehaltene, über ihre Methoden geschrieben (`set`, `setRGB`, `setHex`, `setHSL`...). Ein direktes Schreiben von `.r`, `.g` oder `.b` wird nicht gehört: danach `background` erneut setzen. Ein Bild oder jeder Wert ohne `getHex` wird abgelehnt (`UNSUPPORTED_SCENE_UPDATE`): kein Pfad zeichnet es.",
       "fog": "Nebel auf jeder Fläche, deckend oder transparent, in beiden Renderern; `null`, der Standard, für keinen, ohne Kosten. `{ color, near, far }` lässt Objekte von `near` bis `far` in `color` übergehen, Entfernungen von der Kamera; `{ color, density }` wird um `density` pro Entfernungseinheit dichter; mit `heightFalloff` (und `baseHeight`, standardmäßig 0) liegt er am Boden und wird über `baseHeight` dünner — alle `1 / heightFalloff` Einheiten nach oben durch e geteilt. Eine Änderung zeigt sich im nächsten Bild: ein hier neu gesetzter Nebel oder seine über ihre Methoden geschriebene Farbe. Ein direktes Schreiben von `near`, `far`, `density`... wird nicht bemerkt: danach `fog` erneut setzen. Ein Nebel außerhalb des Bereichs — `far` nicht hinter `near`, eine negative Dichte — wird abgelehnt (`INVALID_SCENE_ENVIRONMENT`).",
       "load": "Lädt ein kompiliertes Modell — die URL seines Manifests — und fügt es dieser Szene hinzu.",
-      "toJSON": "Die Szene als einfaches, versioniertes JSON: ihre Objekte, Formen über den Aufruf, der sie gebaut hat, Materialien, Lichter und geladene Modelle über ihre Adresse; dazu die Pose von `camera`, wenn eine übergeben wird.",
+      "toJSON": "Die Szene als einfaches, versioniertes JSON: ihre Objekte, Formen über den Aufruf, der sie gebaut hat, Materialien, Lichter, der Körper jedes Meshs, wie er deklariert wurde, und geladene Modelle über ihre Adresse; dazu die Pose von `camera`, wenn eine übergeben wird.",
       "fromJSON": "Ersetzt den Inhalt der Szene durch eine mit `toJSON` gespeicherte Szene, wobei ihre `helper`-Markierungen erhalten bleiben; wird aufgelöst, sobald ihre Modelle geladen sind. Ein anderes Format oder eine andere Version wird abgelehnt (`UNSUPPORTED_SCENE_FORMAT`). Aufrufe während eines Lesevorgangs laufen nacheinander, der Reihe nach, jeder auf dem, was der vorherige hinterlassen hat: Zwei gespeicherte Szenen werden nie vermischt."
     }
   },
@@ -6073,7 +6073,7 @@
       "textureBytesLastFrame": "An das vorherige Bild gesendete Bytes.",
       "textureUploadMs": "Zeit, die zum Senden der Kacheln aufgewendet wurde.",
       "textureUploadPeakMs": "Längste Sendung eines Bildes.",
-      "textureLevelReads": "Die Quellen. `textureLevelReads`: gebackene Stufen, die gerade im Cache gelesen werden. `textureLevelsDecoded`: seit Beginn dekodierte gebackene Stufen. `textureLevelCacheBytes`: Host-Bytes der dekodierten Stufen, die behalten werden, um daraus weitere Kacheln zu schneiden, unter einem festen Budget. `textureScratchBuilds`: für eine Textur ohne gebackene Kette gebaute Arbeitstexturen, jedes Mal die ganze Quelle.",
+      "textureLevelReads": "Die Quellen. `textureLevelReads`: gebackene Stufen, die gerade im Cache gelesen werden. `textureLevelsDecoded`: seit Beginn dekodierte gebackene Stufen. `textureLevelCacheBytes`: Host-Bytes der dekodierten Stufen, die behalten werden, um daraus weitere Kacheln zu schneiden, innerhalb des CPU-Gesamtbudgets. `textureScratchBuilds`: für eine Textur ohne gebackene Kette gebaute Arbeitstexturen, jedes Mal die ganze Quelle.",
       "textureLevelsDecoded": "Dekodierte Stufen.",
       "textureLevelCacheBytes": "Bytes der behaltenen dekodierten Stufen.",
       "textureScratchBuilds": "Gebaute temporäre Texturen.",
@@ -6751,7 +6751,7 @@
       "textureBytesLastFrame": "An das vorherige Bild gesendete Bytes.",
       "textureUploadMs": "Zeit, die zum Senden der Kacheln aufgewendet wurde.",
       "textureUploadPeakMs": "Längste Sendung eines Bildes.",
-      "textureLevelReads": "Die Quellen. `textureLevelReads`: gebackene Stufen, die gerade im Cache gelesen werden. `textureLevelsDecoded`: seit Beginn dekodierte gebackene Stufen. `textureLevelCacheBytes`: Host-Bytes der dekodierten Stufen, die behalten werden, um daraus weitere Kacheln zu schneiden, unter einem festen Budget. `textureScratchBuilds`: für eine Textur ohne gebackene Kette gebaute Arbeitstexturen, jedes Mal die ganze Quelle.",
+      "textureLevelReads": "Die Quellen. `textureLevelReads`: gebackene Stufen, die gerade im Cache gelesen werden. `textureLevelsDecoded`: seit Beginn dekodierte gebackene Stufen. `textureLevelCacheBytes`: Host-Bytes der dekodierten Stufen, die behalten werden, um daraus weitere Kacheln zu schneiden, innerhalb des CPU-Gesamtbudgets. `textureScratchBuilds`: für eine Textur ohne gebackene Kette gebaute Arbeitstexturen, jedes Mal die ganze Quelle.",
       "textureLevelsDecoded": "Dekodierte Stufen.",
       "textureLevelCacheBytes": "Bytes der behaltenen dekodierten Stufen.",
       "textureScratchBuilds": "Gebaute temporäre Texturen.",
@@ -7023,7 +7023,8 @@
       "children": "Die Knoten darunter, der Reihe nach.",
       "mesh": "Ränge in `geometries` und `materials`, wie die Dreiecke gelesen werden, und der Mittelpunkt eines Sprites.",
       "light": "Art, Farben, Zahlen, Ausrichtung und Sondenkoeffizienten eines Lichts.",
-      "model": "Ein kompiliertes Modell, über die Manifest-Adresse, von der es geladen wurde: nie eingebettet."
+      "model": "Ein kompiliertes Modell, über die Manifest-Adresse, von der es geladen wurde: nie eingebettet.",
+      "physics": "Der Körper eines Meshs, wie `mesh.physics` ihn deklariert."
     }
   },
   "SavedScene": {
@@ -7130,7 +7131,7 @@
       "water": "Das Wasser, in dem die Körper schwimmen: Pegel, Wellen, Dichte und Widerstände. Ein Körper, der leichter als das Wasser ist, schwimmt, getragen vom Gewicht des verdrängten Wassers.",
       "waterSurface": "Die Wasseroberfläche zur Zeit der Simulation, zum Zeichnen: die Wellen, die der Auftrieb liest, dieselben Zahlen (`height`, `point`, `normal`).",
       "stats": "Zählungen und beide Uhren: Worker-Millisekunden pro Schritt, Seiten-Millisekunden pro Bild.",
-      "error": "Der letzte Fehler der Physik (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`) oder `null`. Ein Fehler, der die Simulation angehalten hat, schaltet `enabled` aus.",
+      "error": "Der letzte Fehler der Physik (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`, `RESOURCE_HTTP_ERROR`) oder `null`. Ein Fehler, der die Simulation angehalten hat, schaltet `enabled` aus.",
       "add": "Fügt ein Gelenk hinzu (`joint.hinge(door, frame, …)` und Verwandte): Es entsteht, sobald beide Körper simuliert werden, und hält, bis es entfernt wird oder bricht.",
       "remove": "Entfernt ein Gelenk: Die gehaltenen Körper bewegen sich frei auseinander."
     }
@@ -7338,7 +7339,7 @@
       "water": "Das Wasser, in dem die Körper schwimmen: Pegel, Wellen, Dichte und Widerstände. Ein Körper, der leichter als das Wasser ist, schwimmt, getragen vom Gewicht des verdrängten Wassers.",
       "waterSurface": "Die Wasseroberfläche zur Zeit der Simulation, zum Zeichnen: die Wellen, die der Auftrieb liest, dieselben Zahlen (`height`, `point`, `normal`).",
       "stats": "Zählungen und beide Uhren: Worker-Millisekunden pro Schritt, Seiten-Millisekunden pro Bild.",
-      "error": "Der letzte Fehler der Physik (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`) oder `null`. Ein Fehler, der die Simulation angehalten hat, schaltet `enabled` aus.",
+      "error": "Der letzte Fehler der Physik (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`, `RESOURCE_HTTP_ERROR`) oder `null`. Ein Fehler, der die Simulation angehalten hat, schaltet `enabled` aus.",
       "add": "Fügt ein Gelenk hinzu (`joint.hinge(door, frame, …)` und Verwandte): Es entsteht, sobald beide Körper simuliert werden, und hält, bis es entfernt wird oder bricht.",
       "remove": "Entfernt ein Gelenk: Die gehaltenen Körper bewegen sich frei auseinander."
     }
