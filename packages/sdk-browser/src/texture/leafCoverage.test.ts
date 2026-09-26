@@ -29,7 +29,8 @@ type Level = { alpha: Uint8Array; side: number };
 function shipped(shader: string) {
   const bins = { histogram: [] as number[] };
   const names = ['toByte', 'median', 'scaled', 'reducedAlpha', 'wide', 'below', 'apart', 'pick'];
-  const run = shaderFunctions<Reduction>(shader, [...names, 'filtered', 'cutBin'], {
+  names.push('filtered', 'cutBin'); // the cut (#43)
+  const run = shaderFunctions<Reduction>(shader, names, {
     binOf: (t: number) => bins.histogram[t],
   });
   return { run, bins };
