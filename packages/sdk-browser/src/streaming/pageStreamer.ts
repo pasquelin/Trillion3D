@@ -80,11 +80,11 @@ export function createPageStreamerWith(
     emit,
     abortError,
   };
-  const { touch, evict, retain, retainRanks, reserve } = createStreamingCache(context);
+  const { touch, evict, held, retain, retainRanks, reserve } = createStreamingCache(context);
   // A kept page held under this name as another file leaves before the first read.
   store.dropForeign(catalog);
   const reserved = () => tableBytes + maxTransferBytes + state.reservedBytes();
-  const release = store.hold({ reserved, evict });
+  const release = store.hold({ reserved, held, evict });
   if (kept) evict();
   else store.resize(store.cpuBytes + store.reservedBytes);
   emit('page-catalogue', 'Streamer catalogue and configuration ready', () => ({
@@ -111,9 +111,7 @@ export function createPageStreamerWith(
       if (array) touch(url, array);
       return array;
     },
-    has(url: string) {
-      return cache.has(url);
-    },
+    has: (url: string) => cache.has(url),
     loading(url: string) {
       return jobs.has(url);
     },
@@ -128,6 +126,8 @@ export function createPageStreamerWith(
       state.requested++;
       return subscribe(url, requestSignal, 0);
     },
+    /** Texture levels held beside the pages: its world's, kept across a device loss, or its own. */
+    textureLevels: store.levels,
     retain,
     reserve,
     /** Pins by rank delta: neither an address list nor a set rebuilt each frame. */
@@ -168,8 +168,8 @@ export function createPageStreamerWith(
         resident: cache.size,
         residentBytes: store.bytes,
         maxCachedBytes: store.budgetBytes,
-        /** CPU bytes held (manifest tables, transfers, pages, kept files) of `cpuBudgetBytes`. */
-        cpuBytes: tableBytes + state.activeBytes + store.bytes + store.keptBytes,
+        /** CPU bytes held (manifest tables, transfers, pages, kept file, levels) of the total. */
+        cpuBytes: tableBytes + state.activeBytes + store.bytes + store.besideBytes,
         cpuBudgetBytes: store.cpuBytes,
         evictions: state.evictions,
         failed: failures.size,
