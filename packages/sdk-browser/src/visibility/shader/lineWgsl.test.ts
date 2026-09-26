@@ -2,7 +2,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { LINE_CLIP_GLSL, LINE_CLIP_WGSL, lineClip } from './lineWgsl.ts';
 import { runShaderText } from './shaderText.fixture.ts';
-import { LINE_PROJECTIONS, LINE_VIEWPORT, toPixels } from './lineProjection.fixture.ts';
+import {
+  LINE_PROJECTIONS as PROJECTIONS,
+  LINE_VIEWPORT as VIEWPORT,
+  toPixels as pixel,
+} from './lineProjection.fixture.ts';
 import { PAGE_INFO_STRUCT_WGSL } from './pageWgsl.ts';
 import { VIS_SHADER } from './visWgsl.ts';
 import { SHADE_SHADER } from './shadeWgsl.ts';
@@ -12,10 +16,7 @@ import { BLEND_ITEM_WGSL } from '../../webgpu/blend/items.ts';
 import { CLUSTER_VERTEX } from '../../webgl/cluster/shaders.ts';
 import { SHADER as FALLBACK_SHADER } from '../../webgpu/pages/prepare/shaders.ts';
 
-const VIEWPORT = LINE_VIEWPORT,
-  PROJECTIONS = LINE_PROJECTIONS;
 const SOURCES = { wgsl: LINE_CLIP_WGSL, glsl: LINE_CLIP_GLSL };
-const pixel = toPixels;
 
 /** The two corners of an endpoint `p` of the segment of direction `d`, widened to `width` CSS
  *  pixels at `pixelRatio` image pixels per CSS pixel. */

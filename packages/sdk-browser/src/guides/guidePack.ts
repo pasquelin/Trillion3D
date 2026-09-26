@@ -1,17 +1,14 @@
-import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
 import type { GuidePiece } from './guideObject.ts';
 
 /** Floats of one drawn instance: two ends, the packed colour, the width in pixels. */
 export const GUIDE_INSTANCE_FLOATS = 8;
 
-/** One guide a page drew: its pieces, what the ceiling counts of it, its pose and visibility,
- *  and the node whose world pose it follows, if `add` drew it and the page did not place it. */
+/** One guide a page drew: its pieces, what the ceiling counts of it, its pose and visibility. */
 export interface GuideEntry {
   pieces: GuidePiece[];
   vertices: number;
   matrix: Float64Array;
   visible: boolean;
-  node?: Object3D;
 }
 
 /**

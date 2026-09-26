@@ -59,8 +59,10 @@ test('the shader applies the rule of jitterDepthSlack: slack on the test, gentle
 // #264 audit: the guides draw with the engine's line corner (`lineClip`), not a second program,
 // and count their width as every line does — CSS pixels times the host's pixel ratio.
 type Language = 'wgsl' | 'glsl';
-const CORNER = { wgsl: GUIDE_CORNER_WGSL, glsl: GUIDE_CORNER_GLSL },
-  CLIP = { wgsl: LINE_CLIP_WGSL, glsl: LINE_CLIP_GLSL };
+const RUN = {
+  wgsl: runShaderText(GUIDE_CORNER_WGSL, { lineClip: runShaderText(LINE_CLIP_WGSL) }),
+  glsl: runShaderText(GUIDE_CORNER_GLSL, { lineClip: runShaderText(LINE_CLIP_GLSL) }),
+};
 const QUAD = [
   [0, -1],
   [1, -1],
@@ -77,8 +79,7 @@ function corner(
   width: number,
   ratio = 1,
 ) {
-  const run = runShaderText(CORNER[language], { lineClip: runShaderText(CLIP[language]) });
-  return run(project(language, a), project(language, b), at, width, LINE_VIEWPORT, ratio);
+  return RUN[language](project(language, a), project(language, b), at, width, LINE_VIEWPORT, ratio);
 }
 /** The guide's four corners, in image pixels. */
 const quad = (language: Language, a: number[], b: number[], width: number, ratio = 1) =>
