@@ -10,7 +10,7 @@ import { textureBytesOf } from '../../gpu/core/deviceLedger.ts';
 /**
  * Working texture of a host texture: the whole source, transferred once, and its mip chain built
  * by the GPU with the materials rule (mean in colour, weighted by alpha where every reader takes
- * alpha for coverage, median in alpha). Tiles are then copied into the pool, level by level.
+ * alpha for coverage, median in alpha, scaled at the readers' cutoff). Tiles are then copied into the pool, level by level.
  *
  * This is the path of a texture WITHOUT a cooked chain — one a host decoded itself, or a test
  * scene that gives its texels in memory. It costs the whole source every time a tile of that
@@ -85,8 +85,9 @@ export function createTileScratch(
     reduce();
   };
   const reduce = () => {
-    const weighted = options.coverage?.weighs(options.map) ?? false;
-    generateMaterialMips(device, texture, format, width, height, weighted);
+    const { coverage, map } = options;
+    const weighted = coverage?.weighs(map) ?? false;
+    generateMaterialMips(device, texture, format, width, height, weighted, coverage?.cutoff(map));
   };
   fill();
   return {
