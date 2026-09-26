@@ -2,15 +2,12 @@
 //! which the WebGPU cut rejects a cluster that faces away. Cooked here once per page into the
 //! manifest (`docs/FORMAT.md`, `pages[].cone`), so the runtime reads no vertex for it.
 //!
-//! The reference it replaces is `triangleCone` (`tests/kit/cone.ts`), which the WebGPU prepare
-//! ran on the host vertices until #272; this is the same computation, operation for operation
-//! in float64. The axis keeps its bits: beyond the four basic operations its only rounding is
-//! `Math.hypot`, ported below as V8 computes it. The angle cannot: V8's `Math.acos` is its own
-//! build of fdlibm, whose bits follow the machine (on arm64 about one input in two hundred differs
-//! from fdlibm). The cooked angle is therefore fdlibm's (the `libm` crate, the same bits on every
-//! machine that compiles) raised by [`ANGLE_MARGIN_ULPS`]: never narrower than the cone any
-//! runtime would have built, and a wider cone only culls less. `tests/integration/cooked-cones.test.ts`
-//! proves both on every compiled scene.
+//! It is `triangleCone` (`tests/kit/cone.ts`), which the prepare ran until #272, operation for
+//! operation in float64. The axis keeps its bits, `Math.hypot` ported as V8 computes it. The angle
+//! cannot: V8's `Math.acos` bits follow the machine (on arm64, one input in two hundred differs from
+//! fdlibm), so it is fdlibm's (`libm`, the same bits everywhere) raised by [`ANGLE_MARGIN_ULPS`]:
+//! never narrower than any runtime's, and a wider cone only culls less
+//! (`tests/integration/cooked-cones.test.ts`).
 use crate::shared_math::{cross, divide, dot, sub};
 
 /// How many ulps the angle is raised by. fdlibm and the runtime's arccosine each lie within one ulp

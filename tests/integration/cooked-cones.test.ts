@@ -1,11 +1,7 @@
-// The compiler cooks every cluster's normal cone (`asset-compiler-rust/src/normal_cone.rs`) and the
-// WebGPU prepare posts it as is (`webgpu/pages/prepare/cones.ts`, #272). Before, that prepare built
-// each cone itself with `triangleCone` from the host vertices, so the cooked cone must hold the one
-// it built: a narrower cone would cull a cluster the camera sees. This test rebuilds, on every
-// compiled scene of the repository, the cone the runtime would have built — the host positions of
-// `source.gltf` as the prepared scene views them, the index page as it is stored — and requires the
-// same axis, bit for bit, and an angle no smaller, raised by no more than the compiler's margin
-// allows (`ANGLE_MARGIN_ULPS`: `Math.acos` follows the machine, so the angle is rounded up).
+// The WebGPU prepare posts the cone the compiler cooked (`normal_cone.rs`, #272) where it used to
+// build one with `triangleCone` from the host vertices. On every compiled scene, this rebuilds that
+// cone from `source.gltf` as the prepared scene views it and each index page, and requires the same
+// axis bit for bit and an angle no narrower, at most twice the compiler's margin wider.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -23,15 +19,8 @@ const root = new URL('../../', import.meta.url);
 /** The float64 words of `values`: bit for bit, and ulps apart for two numbers of one sign. */
 const words = (values: number[]) =>
   Array.from(new BigUint64Array(Float64Array.from(values).buffer));
-/** Ulps an angle may stand above the runtime's: the compiler's margin, and as much again for the
- *  two roundings it covers (`normal_cone.rs`, `ANGLE_MARGIN_ULPS`). */
-const WIDEST =
-  2n *
-  BigInt(
-    /ANGLE_MARGIN_ULPS: usize = (\d+);/.exec(
-      readFileSync(new URL('packages/asset-compiler-rust/src/normal_cone.rs', root), 'utf8'),
-    )![1],
-  );
+/** Ulps an angle may stand above the runtime's: twice `ANGLE_MARGIN_ULPS` (4, `normal_cone.rs`). */
+const WIDEST = 2n * 4n;
 
 /** The bytes of `file` as an `ArrayBuffer`, the one `readFileSync` filled when it holds only them. */
 function bytesOf(file: string): ArrayBuffer {

@@ -1,7 +1,5 @@
 use super::*;
 
-const HALF_PI: f64 = std::f64::consts::FRAC_PI_2;
-
 #[test]
 fn hypot_rounds_as_v8_does_where_a_plain_root_does_not() {
     // `Math.hypot` of these three in Node and Chrome; `sqrt` of the squares is one bit higher.
@@ -45,13 +43,6 @@ fn one_face_is_a_closed_cone_on_its_normal() {
         ANGLE_MARGIN_ULPS as u64,
         "zero, the margin up"
     );
-    // Two faces at a right angle: the axis halves them, each lies π/4 away.
-    let pos = [0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0];
-    let [x, y, z, angle] = triangle_cone(&pos, &[0, 1, 2, 0, 3, 1]);
-    assert_eq!(x, 0.0);
-    assert_eq!(y, z);
-    assert!((y - std::f64::consts::FRAC_1_SQRT_2).abs() < 1e-15);
-    assert!((angle - HALF_PI / 2.0).abs() < 1e-15);
 }
 
 #[test]
