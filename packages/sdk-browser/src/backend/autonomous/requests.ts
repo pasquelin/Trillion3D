@@ -1,5 +1,6 @@
 import type { ClusterRoot, PageRec } from '../../page/selection/selection.ts';
 import { createGroupClosure, type GroupClosure } from '../../page/cut/groupClosure.ts';
+import type { HeldResidency } from '../../page/cut/held.ts';
 
 /**
  * What the WebGL2 pool is asked for: the wanted cut closed over its groups (`groupClosure.ts`),
@@ -20,6 +21,8 @@ export function createAutonomousRequests(
   revision: () => number,
   /** Where the requests are written, rewritten at each `of`. */
   requested: PageRec[],
+  /** The cut's readiness, whose moves each layout routes again (`../../page/cut/held.ts`). */
+  held?: HeldResidency,
 ) {
   let closure: GroupClosure | undefined,
     laidOut = -1,
@@ -34,6 +37,7 @@ export function createAutonomousRequests(
       }
     });
     closure = createGroupClosure(roots);
+    held?.track(roots);
     laidOut = revision();
     placements = roots.length;
   };

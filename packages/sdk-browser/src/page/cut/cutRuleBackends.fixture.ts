@@ -13,9 +13,6 @@ import { DAG_SELECTION_SHADER } from '../../gpu/dag/shader/shader.ts';
 import type { CutRuleAt } from '../../gpu/dag/oracle/predicates.ts';
 import type { PackedDag } from '../../gpu/dag/types.ts';
 import { wgslScope } from './wgslPredicate.fixture.ts';
-import { selectVisiblePages } from './cut.ts';
-import type { PageRecord } from './state.ts';
-import { createImageCut } from '../../backend/autonomous/imageCut.ts';
 import type { ClusterRoot, PageRec } from '../selection/types.ts';
 
 export type CutBackend = (resident: Uint8Array) => { drawn: number[]; wanted: number[] };
@@ -116,52 +113,8 @@ export function wgslBackend(dag: RuleDag, threshold: number, source = DAG_SELECT
   });
 }
 
-/** The CPU cut (`./cut.ts`) with the host answering for residency, as the WebGPU CPU path and the
- *  light cuts ask it: the rule on `./held.ts`'s readiness, its descent pruned on the open counts. */
-export function cpuBackend(dag: RuleDag, threshold: number): CutBackend {
-  const cam = stripCamera(dag),
-    pages = dag.pages as PageRecord[],
-    root = { world: dag.world, pages, culling: dag.culling, structure: dag.structure },
-    index = new Map(pages.map((page, i) => [page, i]));
-  const ids = (list: readonly PageRecord[]) => list.map((page) => index.get(page)!);
-  return (resident) => {
-    const cut = selectVisiblePages([root], cam, {
-      pixelError: threshold,
-      viewport: [1280, 720],
-      holdResident: true,
-      isResident: (page) => resident[index.get(page)!] === 1,
-    });
-    return { drawn: ids(cut.shown), wanted: ids(cut.wanted) };
-  };
-}
-
-/** The WebGL2 image's cut (`../../backend/autonomous/imageCut.ts`) over `roots`, under a pool
- *  that admits every request. */
-export const webgl2Cut = (roots: ClusterRoot<PageRec>[]) =>
-  createImageCut({
-    roots,
-    viewport: [1280, 720],
-    shown: [],
-    desired: [],
-    requested: [],
-    revision: () => 0,
-    pool: { admit: (asked) => asked.length, fit: (asked) => asked.length, held: {} },
-  });
-
-/** The WebGL2 image's cut of the DAG, each page resident when it holds its index array, as the
- *  WebGL2 pool loads them. */
-export function webgl2Backend(dag: RuleDag, threshold: number): CutBackend {
-  const cam = stripCamera(dag),
-    [root] = placements(dag, 1),
-    index = new Map(root.pages.map((page, i) => [page, i]));
-  const cut = webgl2Cut([root]);
-  const ids = (list: readonly PageRec[]) => list.map((page) => index.get(page)!);
-  return (resident) => {
-    root.pages.forEach((page, i) => (page.array = resident[i] ? new Uint32Array(3) : undefined));
-    const { shown, wanted } = cut(cam, threshold);
-    return { drawn: ids(shown), wanted: ids(wanted) };
-  };
-}
+/** A world box behind `stripCamera`: the placement that wears it leaves the view. */
+export const AWAY = Float64Array.of(-1e5, -1, -1, -1e5 + 1, 1, 1);
 
 /** `copies` placements of the DAG, each with pages of its own, `spacing` apart along -x: when
  *  they are apart, those past the first carry their world box. */

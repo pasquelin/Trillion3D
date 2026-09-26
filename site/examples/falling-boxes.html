@@ -22,7 +22,7 @@
     <canvas id="view"></canvas>
     <script type="module">
       import { createWorld, geometry, material, object, light, math } from '../runtime/engine.js';
-      import { controls, readout, seeded } from '../runtime/kit.js';
+      import { controls, physicsReadouts, seeded } from '../runtime/kit.js';
 
       // Physics is an option of the world: Jolt starts in a worker, fetched only now.
       const world = createWorld('view', { controls: 'orbit', physics: true });
@@ -78,13 +78,7 @@
       );
       drop(200, 'wood');
       // Once every box sleeps, the worker sends nothing and the world draws nothing.
-      const bodies = readout('bodies'), awake = readout('awake'), step = readout('step');
-      world.onFrame(() => {
-        const s = world.physics.stats;
-        bodies(String(s.bodies));
-        awake(String(s.active));
-        step(`${s.stepMs.toFixed(2)} ms`);
-      });
+      physicsReadouts(world, ['bodies', 'awake', 'step']);
     </script>
   </body>
 </html>

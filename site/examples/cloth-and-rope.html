@@ -23,7 +23,7 @@
     <script type="module">
       // Waits for #573: the simulated vertices are uploaded in place, so the cloth and ropes are drawn where they are.
       import { createWorld, geometry, material, object, light, math, buffer } from '../runtime/engine.js';
-      import { controls, readout } from '../runtime/kit.js';
+      import { controls, physicsReadouts, readout } from '../runtime/kit.js';
 
       const world = createWorld('view', { controls: 'orbit', physics: true });
       world.scene.background = math.color('#d9e4ee');
@@ -95,11 +95,11 @@
         world,
       );
 
-      const vertices = readout('vertices'), step = readout('step');
+      const vertices = readout('vertices');
       world.onFrame(() => {
         vertices(String(simulated.reduce((n, mesh) => n + (mesh.physics?.vertices?.length ?? 0) / 3, 0)));
-        step(`${world.physics.stats.stepMs.toFixed(2)} ms`);
       });
+      physicsReadouts(world, ['step']);
     </script>
   </body>
 </html>

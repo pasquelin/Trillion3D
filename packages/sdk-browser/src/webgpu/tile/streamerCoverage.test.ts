@@ -16,7 +16,6 @@ import * as G from '../../host/graph/graph.fixture.ts';
 test('a surface switched from masked to opaque after prepare reduces its hosted map again', async () => {
   installGpuGlobals();
   const host = G.dataTexture(new Uint8Array(64), 4, 4);
-  host.generateMipmaps = true;
   const material = G.standardSurface({ map: host, alphaTest: 0.5 });
   const readers = new CoverageReaders();
   readers.read(surfaceOf(material));

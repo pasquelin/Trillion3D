@@ -8,6 +8,7 @@ import type { BoundTarget, ExplorerHostState } from './hostState.ts';
 import type { WebglRenderTarget } from '../../webgl/core/renderTarget.ts';
 import type { ExplorerSession } from '../session/session.ts';
 import type { createExplorerStreaming } from '../scene/streaming.ts';
+import type { FrameClock } from '../../page/integration/frameBudget.ts';
 import type { createPageStreamer } from '../../streaming/pageStreamer.ts';
 import type { EngineProfiler } from '../../diagnostic/telemetry.ts';
 import type { ComparisonLayout } from '../../measurement/comparison.ts';
@@ -19,11 +20,15 @@ type Inputs = {
   check: () => void;
   /** Places the cells of a partitioned scene the camera now needs, before the frame draws. */
   followCells: (() => void) | null;
+  /** The page's guides: those that follow a node are moved to it, before the frame draws. */
+  guides?: { follow(): void };
   state: ExplorerHostState;
   camera: HostCamera;
   lookAtTarget: { x: number; y: number; z: number };
   setPose: (pose: CameraPose) => void;
   streaming: ReturnType<typeof createExplorerStreaming>;
+  /** The frame's one integration budget, opened before the cells and the arrivals spend it. */
+  frameBudget: FrameClock;
   drawBackend: (backend: RenderBackend, target: WebglRenderTarget | null) => void;
   ensureTarget: (target?: BoundTarget) => BoundTarget;
   directGpu: boolean;
@@ -59,11 +64,13 @@ export function createExplorerRender(session: ExplorerRenderSession, inputs: Inp
   const {
     check,
     followCells,
+    guides,
     state,
     camera,
     lookAtTarget,
     setPose,
     streaming,
+    frameBudget,
     drawBackend,
     ensureTarget,
     directGpu,
@@ -91,12 +98,18 @@ export function createExplorerRender(session: ExplorerRenderSession, inputs: Inp
     const frameNumber = ++state.hostFrame;
     const start = performance.now();
     if (pose) setPose(pose);
+    guides?.follow(); // no integration: it spends none of the budget
     // One integration budget per frame: the cells placed, then the arrivals drained, both
-    // outside the frame they would have lengthened.
-    streaming.arrivals.open();
-    followCells?.();
-    const arrivalStart = performance.now();
-    streaming.arrivals.drain();
+    // outside the frame they would have lengthened; the engine's row records spend what is left.
+    frameBudget.open();
+    let arrivalStart: number;
+    try {
+      followCells?.();
+      arrivalStart = performance.now();
+      streaming.arrivals.drain();
+    } finally {
+      frameBudget.pause(); // balanced on every path: the engine's own work spends none of it
+    }
     (state.active as HostCpuProfile).cpuStep?.('arrivalsMs', performance.now() - arrivalStart);
     try {
       if (comparisonLayout === 'single' || measuring) {

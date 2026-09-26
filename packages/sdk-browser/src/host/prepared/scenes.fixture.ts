@@ -8,6 +8,7 @@ import * as THREE from 'three';
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 import * as K from './sceneKinds.fixture.ts';
 import { sceneCacheFiles } from '../../../../../tests/kit/scenes/caches.ts';
+import { decodingImages } from './decodedImages.fixture.ts';
 
 const repository = new URL('../../../../../', import.meta.url);
 
@@ -28,15 +29,7 @@ export function serveFiles(t: TestContext) {
     const url = input instanceof Request ? input.url : String(input);
     return new Response(await readFile(fileURLToPath(url)));
   });
-  const decode = async (blob: Blob) => ({ width: 1, height: 1, bytes: blob.size });
-  // The loader reports progress with the browser's event and reads `self`: Node lacks both.
-  class ProgressEvent extends Event {}
-  const scope = globalThis as Record<string, unknown>;
-  const stubs = { createImageBitmap: decode, ProgressEvent, self: globalThis };
-  Object.assign(scope, stubs);
-  t.after(() => {
-    for (const name of Object.keys(stubs)) delete scope[name];
-  });
+  decodingImages(t);
 }
 
 const hash = (array: ArrayLike<number> & ArrayBufferView) =>
@@ -137,7 +130,7 @@ const SURFACE_FIELDS = (
 ).split(' ');
 const NODE_FIELDS =
   'name visible frustumCulled renderOrder castShadow receiveShadow matrixAutoUpdate';
-/** The fields of a texture the engine reads (`../resources.ts`, the admission gate). */
+/** The texture fields the loader sets: what the engine reads, and the host's `generateMipmaps`. */
 const TEXTURE_FIELDS = (
   'name channel wrapS wrapT magFilter minFilter anisotropy flipY premultiplyAlpha ' +
   'generateMipmaps colorSpace matrixAutoUpdate mapping image'

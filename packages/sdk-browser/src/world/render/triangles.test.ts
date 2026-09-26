@@ -5,13 +5,20 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createExplorerRender } from './render.ts';
+import { createFrameBudget } from '../../page/integration/frameBudget.ts';
 import { createDiagnosticChannel } from '../../diagnostic/channel.ts';
 import type { RenderBackend } from '../../backend/types.ts';
 import type { FrameMetrics } from '../../../../sdk-core/src/index.ts';
 
 /** A minimal set of inputs for `createExplorerRender`: mute draw, diagnostic off, audit
  *  off (no `trillion3dFrameAudit` in the test URL). Only `directGpu` and the engine count vary. */
-function harness(options: { directGpu: boolean; counted?: number | null }) {
+function harness(options: {
+  directGpu: boolean;
+  counted?: number | null;
+  order?: string[];
+  fails?: boolean;
+}) {
+  const note = (step: string) => void options.order?.push(step);
   const active = { id: 'test-backend' } as unknown as RenderBackend;
   const metricsScratch = { drawCalls: 0, totalSubmittedTriangles: null } as unknown as FrameMetrics;
   const session = {
@@ -23,6 +30,7 @@ function harness(options: { directGpu: boolean; counted?: number | null }) {
   const render = createExplorerRender(session, {
     check: () => {},
     followCells: null,
+    guides: { follow: () => options.order?.push('follow') },
     state: {
       measuring: false,
       diagnostic: 'beauty',
@@ -36,8 +44,15 @@ function harness(options: { directGpu: boolean; counted?: number | null }) {
     camera: {} as never,
     lookAtTarget: { x: 0, y: 0, z: 0 },
     setPose: () => {},
-    streaming: { arrivals: { open: () => {}, drain: () => {} } } as never,
-    drawBackend: () => {},
+    streaming: {
+      arrivals: { drain: () => (note('drain'), options.fails && assert.fail()) },
+    } as never,
+    frameBudget: {
+      ...createFrameBudget(Infinity),
+      open: () => (note('open'), 0),
+      pause: () => note('pause'),
+    },
+    drawBackend: () => options.order?.push('draw'),
     ensureTarget: ((target?: unknown) => target) as never,
     directGpu: options.directGpu,
     backends: [active],
@@ -72,4 +87,16 @@ test('triangles publishes the engine submitted total as soon as it exists', () =
     render();
     assert.equal(metricsScratch.triangles, 1234);
   }
+});
+
+// #264: the guides that follow a node are moved once per frame, before it draws. #404: the frame's
+// one budget runs around its integration only, and stops before the engine draws, on every path.
+test('each frame moves the followed guides once, and integrates within its budget, before it draws', () => {
+  const order: string[] = [];
+  const { render } = harness({ directGpu: false, order });
+  render();
+  assert.deepEqual(order, ['follow', 'open', 'drain', 'pause', 'draw']);
+  order.length = 0;
+  assert.throws(harness({ directGpu: false, order, fails: true }).render);
+  assert.deepEqual(order, ['follow', 'open', 'drain', 'pause'], 'a drain that throws still pauses');
 });

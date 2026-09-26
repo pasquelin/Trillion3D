@@ -14,6 +14,25 @@ export async function exampleModules(html: string): Promise<string[]> {
   return sources;
 }
 
+/** The constructor of async functions: a module's body may `await` at its top level. */
+const AsyncFunction = (async () => {}).constructor as new (
+  ...args: string[]
+) => (modules: object) => Promise<void>;
+
+/**
+ * Runs an example page's first module in Node, its imports of the built engine and kit taken
+ * from `modules` — the engine's own objects, or stand-ins a test counts with. Resolves once the
+ * module's body has run, its top-level `await`s included.
+ */
+export async function runExampleModule(html: string, modules: { engine: object; kit: object }) {
+  const [source] = await exampleModules(html);
+  const body = source.replace(
+    /import \{([^}]*)\} from '\.\.\/runtime\/(engine|kit)\.js';/g,
+    'const {$1} = modules.$2;',
+  );
+  await new AsyncFunction('modules', `'use strict';${body}`)(modules);
+}
+
 /** One example roadmap entry, as read from `site/content/gallery-roadmap.json`. */
 export interface GalleryEntry {
   id: string;
@@ -37,7 +56,7 @@ export function thumbnailDelay(html: string): number {
  * The examples that legitimately draw under the proof's tenth (#527), each with the share it
  * must still reach, the backends it is sparse on and why: every other example, and every example
  * on a backend it is not declared for, keeps the tenth. The shares sit under the ones measured on
- * 2026-09-24 (6.2 %, 5.5 %, 8.9 %), which a blank or a refused render never reaches.
+ * 2026-09-24, which a blank or a refused render never reaches.
  */
 export const SPARSE: Record<string, { share: number; on: 'both' | 'webgl2' }> = {
   // A slender spiral stair standing alone in a wide view, on either backend.
@@ -45,9 +64,6 @@ export const SPARSE: Record<string, { share: number; on: 'both' | 'webgl2' }> = 
   // Small points on a black sky; the WebGL2 path has no antialiasing, so a point under a pixel
   // that misses the pixel's centre is not drawn. WebGPU's temporal antialiasing keeps the tenth.
   'a-cloud-of-points': { share: 0.04, on: 'webgl2' },
-  // A four-block tower on a grid of one-pixel lines; the WebGL2 path has no antialiasing, so
-  // the lines break up. WebGPU keeps the tenth.
-  'save-the-scene': { share: 0.06, on: 'webgl2' },
 };
 
 /** The share of its canvas an example must draw on a backend: a tenth, or its declared share. */

@@ -17,6 +17,7 @@ import {
   type WebglRenderTarget,
 } from '../../webgl/core/renderTarget.ts';
 import { createWebglEffects, type WebglEffectOutput } from '../../effects/webglEffects.ts';
+import type { ParticlePool } from '../../../../sdk-core/src/fluids/particles.ts';
 
 const NONE: readonly EffectPass[] = [];
 
@@ -33,18 +34,22 @@ export type ComposedChain = { chain: EffectChain; shown: () => boolean };
  * chain's target instead, and the chain brings its image to the destination
  * (`../../effects/webglEffects.ts`); the copy kept is the chain's image, and a chain changed
  * since it was kept is drawn again. The page's `guides` are drawn over the image the destination
- * got, the chain's included, before that copy is kept; a change to them spares no redraw.
+ * got, the chain's included, before that copy is kept, at the host's `pixelRatio`; a change to
+ * them spares no redraw.
+ * No engine drawn here steps particles yet (#759): a world with a pool is refused by name.
  * Nothing here belongs to a rendering library.
  */
 export function createFrameComposer(
   gl: WebGL2RenderingContext,
   camera: HostCamera,
-  layers: { effects?: ComposedChain; guides?: GuideSet } = {},
+  layers: { effects?: ComposedChain; particles?: readonly ParticlePool[] } & (
+    { guides?: undefined } | { guides: GuideSet; pixelRatio: () => number }
+  ) = {},
 ) {
-  const { effects: composed, guides } = layers;
+  const { effects: composed, particles = [] } = layers;
   const heldFrame = createHeldFrame(gl);
   const guideDraw = createWebglGuideDraw(gl);
-  let guidesDrawn = guides?.revision ?? 0;
+  let guidesDrawn = layers.guides?.revision ?? 0;
   const present = createBackendPresenter(gl);
   const effects = composed && createWebglEffects(gl);
   const drawCamera = createHostDrawCamera();
@@ -103,8 +108,11 @@ export function createFrameComposer(
   ) => {
     const { width, height } = bindWebglTarget(gl, target);
     if (present(backend)) return;
+    for (const pool of particles) pool.refused = true; // it asks no frame of its own
+    if (particles.length)
+      throw new Error('PARTICLES_UNSUPPORTED: WebGL2 does not step particle pools yet (#759)');
     const revision = composed?.chain.revision ?? 0;
-    const guidesHeld = !guides || guides.revision === guidesDrawn;
+    const guidesHeld = !layers.guides || layers.guides.revision === guidesDrawn;
     if (
       reuse &&
       guidesHeld &&
@@ -139,9 +147,9 @@ export function createFrameComposer(
       // The guides land where the chain drew, over the depth it carried.
       output.framebuffer = target?.framebuffer ?? null;
     }
-    if (guides) {
-      guidesDrawn = guides.revision;
-      guideDraw.draw(guides, drawCamera, output);
+    if (layers.guides) {
+      guidesDrawn = layers.guides.revision;
+      guideDraw.draw(layers.guides, drawCamera, output, layers.pixelRatio());
     }
     if (target) return;
     heldFrame.keep(width, height);

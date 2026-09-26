@@ -1,4 +1,8 @@
+import { POSE_WORDS } from '../../../sdk-core/src/physics/index.ts';
+import { Camera } from '../../../sdk-core/src/world/camera/camera.ts';
+import { Group } from '../../../sdk-core/src/world/object/object3d.ts';
 import type { PhysicsResults } from './protocol.ts';
+import { createWorldPhysics } from './worldPhysics.ts';
 
 /** A physics worker faked in place of `Worker`: it keeps the command words the page sends it. */
 interface FakeWorker {
@@ -34,3 +38,24 @@ export const idleTick: PhysicsResults = {
   ...{ seconds: 0, water: 0, waterEpoch: 0, stepMs: 0, stepMaxMs: 0, active: 0 },
   ...{ character: null, vehicles: null, soft: null },
 };
+
+/** One pose record for engine id `id`: position and quaternion, velocities zero. */
+export function poseRecord(id: number, pose: number[]) {
+  const words = new Uint32Array(POSE_WORDS);
+  words[0] = id;
+  new Float32Array(words.buffer).set(pose, 1);
+  return words;
+}
+
+/** A scene and its world physics on a fake worker, the session loaded and the worker ready;
+ *  `restore` puts the real `Worker` back. */
+export async function fakePhysicsWorld() {
+  const { workers, restore } = fakeWorkers();
+  const scene = new Group();
+  const runtime = { invalidate() {}, explorer: null };
+  const physics = createWorldPhysics(runtime, scene, () => new Camera('perspective'), true);
+  await loaded();
+  const [worker] = workers;
+  worker.onmessage({ data: { type: 'ready' } });
+  return { scene, physics, worker, restore };
+}

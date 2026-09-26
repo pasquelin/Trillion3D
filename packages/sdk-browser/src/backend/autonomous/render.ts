@@ -11,6 +11,7 @@ import { followHostVisibility } from '../../placement/hidden.ts';
 import type { createGeometryBudget } from './pool.ts';
 import { createImageCut } from './imageCut.ts';
 import type { createAutonomousResidency } from './residency.ts';
+import type { createAutonomousGeometry } from './geometry.ts';
 
 /** What the autonomous frame decided, and whether it was held. */
 export type AutonomousRenderState = {
@@ -54,7 +55,9 @@ export function createAutonomousRender(options: {
   revision: () => number;
   /** The display graph's page ceiling, which the cover it pins may raise (`pages.ts`). */
   ceiling: () => number;
-  sync: () => void;
+  /** The page store: the image's pages attach there, and its loads and releases move the cut's
+   *  readiness (`geometry.ts`). */
+  geometry: Pick<ReturnType<typeof createAutonomousGeometry>, 'sync' | 'held'>;
   /** What the image keeps is gathered again once it drew another cut; `askedUrls` is all of it
    *  but that cut, what the pool keeps as the next one is about to run (`residency.ts`). */
   residency: Pick<ReturnType<typeof createAutonomousResidency>, 'keptChanged' | 'askedUrls'>;
@@ -72,12 +75,12 @@ export function createAutonomousRender(options: {
     worlds,
     shown,
     ceiling,
-    sync,
+    geometry,
     residency,
     pool,
   } = options;
   const motion: CameraMotion = {};
-  const cut = createImageCut({ ...options, viewport: context.viewport });
+  const cut = createImageCut({ ...options, viewport: context.viewport, held: geometry.held });
   const sourcesDessinees = roots.map((root) => root.pages[0]);
   const frame = (camera: HostCamera) => {
     // Frame entry: the order and its guarantees live in `../../frame/gateCore.ts`, which also copies
@@ -114,7 +117,7 @@ export function createAutonomousRender(options: {
     state.lodLevel = selected.lodLevel;
     // Drawn pages past the display graph's page ceiling are reported, never replaced.
     state.overBudget = attachedPages(shown) > ceiling();
-    sync();
+    geometry.sync();
     residency.keptChanged();
     gate.keep(state.visible, state.selectedTriangles, shown, state.lodLevel, state.overBudget);
   };

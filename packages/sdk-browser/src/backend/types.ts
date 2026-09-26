@@ -170,15 +170,15 @@ export interface BackendContext {
   /** The world's effect chain, drawn after temporal antialiasing; absent or empty, nothing is. */
   effects?: import('../../../sdk-core/src/world/effect/chain.ts').EffectChain;
   sceneLighting?: Object3D;
-  /** The page's guides, held by its world (`guides/guideSet.ts`): drawn over the image. */
+  /** The world's guides, drawn over the image, and its particle pools, stepped once per image. */
   guides?: import('../guides/guideSet.ts').GuideSet;
+  particles?: readonly import('../../../sdk-core/src/fluids/particles.ts').ParticlePool[];
   /** Contract lights, owned by the host and shared by every engine of the session. */
   sceneLights?: SceneLightStore;
   /** Imported light ids, in cache order: the host sets or removes them (`importedLights()`). */
   importedLightIds?: string[];
-  /** Bounced light, off by default: its step stays above the measured one-millisecond bar. Its
-   *  budget: the step's target GPU milliseconds per frame, `BOUNCE_SETTINGS.budgetMs` (0.8 ms)
-   *  by default — a target, not a promise. */
+  /** Bounced light, off by default: its step stays above the measured one-millisecond bar.
+   *  `bounceBudgetMs`: its GPU target per frame, `BOUNCE_SETTINGS.budgetMs` (0.8 ms): a target. */
   bounce?: boolean;
   bounceBudgetMs?: number;
   /** Time every step of the frame. Off by default: only the bench and the harness turn it on. */
@@ -193,6 +193,8 @@ export interface BackendContext {
   /** Host-owned, validated page reader for the initial complete GPU fallback. */
   readPage?: (url: string) => Promise<Uint32Array>;
   readGeometryPage?: (url: string) => Promise<Uint8Array>;
+  /** The session's one integration budget per frame (`frameBudget.ts`); absent, nothing bounds it. */
+  frameBudget?: import('../page/integration/frameBudget.ts').FrameClock;
 }
 export type BackendFactory = (context: BackendContext) => RenderBackend;
 export type { MeasuredWorldOptions, PointOfInterest } from '../world/session/options.ts';
