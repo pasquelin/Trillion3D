@@ -121,3 +121,14 @@ test('a tight pool with the window full never refuses a page the image asks for'
   assert.equal(await world.evict('z'), 'x');
   assert.equal(await world.evict('w'), 'y');
 });
+
+test('pages the image stopped asking for before they arrived put no pressure on the window', async () => {
+  const world = residency(2, ['x', 'y', 'z', 'w']);
+  await world.load('x', 'y');
+  world.image(1, [], ['x', 'y']);
+  // The cut asks for two pages that never arrive, then drops them with the pages it drew.
+  world.image(2, ['z', 'w'], ['x', 'y']);
+  world.image(3, [], []);
+  // Nothing the image keeps asks for a slot: the pages just drawn stay within their window.
+  await assert.rejects(world.load('z'), FULL);
+});
