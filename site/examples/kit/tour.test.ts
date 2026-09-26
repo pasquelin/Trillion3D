@@ -2,12 +2,12 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { tour, type Pose } from './tour.ts';
 
-const point = (x: number, y: number, z: number) => ({
-  x,
-  y,
-  z,
-  set(a: number, b: number, c: number) {
-    [this.x, this.y, this.z] = [a, b, c];
+const point = () => ({
+  x: 0,
+  y: 0,
+  z: 0,
+  set(x: number, y: number, z: number) {
+    Object.assign(this, { x, y, z });
   },
 });
 
@@ -22,8 +22,8 @@ function fakeWorld() {
     },
     onFrame: (hook: (frame: { delta: number }) => void) => (hooks.push(hook), () => {}),
     invalidate: () => {},
-    camera: { position: point(0, 0, 0) },
-    controls: { update: () => {}, target: point(0, 0, 0) },
+    camera: { position: point() },
+    controls: { update: () => {}, target: point() },
   };
   return {
     world,
