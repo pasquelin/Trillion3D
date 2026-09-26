@@ -35,8 +35,6 @@ export function createWebgpuRowSlots(
   drawSlots: number,
   writePageRow: Writer,
   onResidenceChange: (rec: PageRec) => void,
-  /** The frame's one integration budget; absent, an image writes every owed record. */
-  budget?: FrameClock,
 ) {
   /** Ranks this pass gave back, waiting for a taker or a fill. */
   const free = { rows: new Int32Array(Math.max(1, drawSlots)), count: 0 };
@@ -160,8 +158,8 @@ export function createWebgpuRowSlots(
   };
 
   /** What the image owes the row table: the pages the cache named, and what the record queue
-   *  left behind, within the frame's budget unless `bounded` is false. */
-  const apply = (bounded = true) => {
+   *  left behind, within the frame's `budget`; absent, every owed record (a barrier image). */
+  const apply = (budget?: FrameClock) => {
     written.changed = false;
     denied = 0;
     const full = revision !== rows.rowsRevision || epoch !== rows.tableEpoch;
@@ -175,7 +173,7 @@ export function createWebgpuRowSlots(
         const page = rows.touched.pages[i];
         if (release(page)) claims.add(page);
       }
-      denied = serveClaims(claims, release, place, bounded ? budget : undefined);
+      denied = serveClaims(claims, release, place, budget);
       closeFreeRows();
     }
     rows.clearTouched();

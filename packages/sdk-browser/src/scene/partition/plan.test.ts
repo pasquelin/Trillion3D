@@ -21,6 +21,9 @@ test('the reach follows the zoom: its frustum, and an orthographic box, widen as
   assert.equal(cellReach(orthographic), Math.hypot(1000, 20, 10));
   // A negative near plane draws behind the eye, as far as it goes.
   assert.equal(cellReach({ ...orthographic, near: -2000 }), Math.hypot(2000, 20, 10));
+  // A box given right to left and bottom up is as wide.
+  const mirrored = { left: 10, right: -10, top: -5, bottom: 5 };
+  assert.equal(cellReach({ ...orthographic, orthographic: mirrored }), Math.hypot(1000, 20, 10));
 });
 
 test('a sheared root reads every cell the world reach holds, by its least singular value', () => {

@@ -71,22 +71,25 @@ export function serveClaims(
   budget?.resume();
   let served = 0,
     denied = 0;
-  while (served < claims.count) {
-    const page = claims.pages[served];
-    if (release(page)) {
+  try {
+    while (served < claims.count) {
+      const page = claims.pages[served];
+      if (!release(page)) {
+        served++;
+        continue;
+      }
       if (!place(page)) {
         denied = claims.count - served;
         break;
       }
       served++;
-      if (!budget) continue;
-      budget.spend();
-      if (!budget.admits()) break;
-      continue;
+      budget?.spend();
+      if (budget && !budget.admits()) break;
     }
-    served++;
+  } finally {
+    // Balanced on every path: what runs after the rows is not integration.
+    budget?.pause();
   }
-  budget?.pause();
   claims.consume(served);
   return denied;
 }
