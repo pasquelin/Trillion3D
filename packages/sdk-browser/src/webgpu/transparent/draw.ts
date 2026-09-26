@@ -14,10 +14,10 @@ import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 export function encodeTransparentInstances(rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder) {
   const { blendState, run } = rt,
     { table, compaction } = blendState;
-  if (!table || !compaction) return;
+  if (!table) return;
   refreshTransparentSpans(rt);
   const selection = run.gpuFrameActive ? run.gpuSelection : undefined;
-  if (selection && compaction.encode) {
+  if (selection && compaction?.encode) {
     // The occlusion verdict is written just before the compaction, in the same submission and on
     // this frame's pyramid: the compaction never reads another frame's verdict.
     refreshTransparentCorners(rt);
@@ -30,7 +30,8 @@ export function encodeTransparentInstances(rt: WebgpuPagesRuntime, encoder: GPUC
     const page = rt.layout.rows.pageIndexOf(rec);
     return page === undefined ? -1 : table.entryOfPage[page];
   });
-  compaction.uploadInstances(
+  // Without a compaction the CPU lists are still written: the fallback pass reads them (#584).
+  compaction?.uploadInstances(
     blendState.cpuInstances,
     blendState.cpuInstanceCount,
     blendState.cpuItemCounts,
