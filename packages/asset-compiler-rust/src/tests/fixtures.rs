@@ -43,24 +43,6 @@ pub(super) fn gltf_fixture(tag: &str, gltf: &Value, bin: &[u8]) -> (PathBuf, Opt
     fs::write(source.join("manifest.json"), manifest_bytes).expect("manifest write");
     (root, simplified_options(source, cache))
 }
-/// The one binary buffer of a glTF fixture being written, with its views and accessors.
-#[derive(Default)]
-pub(super) struct GltfBuffer {
-    pub(super) bin: Vec<u8>,
-    pub(super) views: Vec<Value>,
-    pub(super) accessors: Vec<Value>,
-}
-impl GltfBuffer {
-    /// Appends `bytes` as a view of their own and `accessor` over it; returns the accessor index.
-    pub(super) fn push(&mut self, bytes: Vec<u8>, mut accessor: Value) -> usize {
-        let view = json!({"buffer":0,"byteOffset":self.bin.len(),"byteLength":bytes.len()});
-        self.views.push(view);
-        self.bin.extend(bytes);
-        accessor["bufferView"] = json!(self.views.len() - 1);
-        self.accessors.push(accessor);
-        self.accessors.len() - 1
-    }
-}
 /// The options both fixtures compile with: simplification on, the BC family cooked.
 fn simplified_options(source: PathBuf, cache: PathBuf) -> Options {
     Options {

@@ -16,6 +16,7 @@ import type {
 } from '../../../packages/sdk-browser/src/camera/world.ts';
 import type { HostWorldPlacements } from '../../../packages/sdk-browser/src/host/world/placements.ts';
 import type { Object3D } from '../../../packages/sdk-core/src/world/object/object3d.ts';
+import { createHeldResidency } from '../../../packages/sdk-browser/src/page/cut/held.ts';
 
 export type ExactPagesRenderState = {
   visible: number;
@@ -98,7 +99,7 @@ export function createExactPagesRender(options: {
   const selectOptions = {
     pixelError: 0,
     viewport,
-    holdResident: true,
+    held: createHeldResidency(),
     wanted: desired,
     result: createSelectionResult<PageRec>(),
   };

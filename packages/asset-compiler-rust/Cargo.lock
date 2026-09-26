@@ -900,6 +900,7 @@ dependencies = [
  "exr",
  "flate2",
  "image",
+ "libm",
  "memmap2",
  "meshopt",
  "openusd",

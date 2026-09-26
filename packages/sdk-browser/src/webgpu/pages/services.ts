@@ -175,10 +175,8 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     traceDiagnostic: diag.traceDiagnostic,
     diagnosticFailure: diag.diagnosticFailure,
   });
-  const publication = createWebgpuCutPublication(rt, residencySets, closure, {
-    all: lowerTiers,
-    ahead: aheadTier,
-  });
+  const tiers = { all: lowerTiers, ahead: aheadTier };
+  const publication = createWebgpuCutPublication(rt, residencySets, closure, tiers, poolHolds);
   return {
     syncRows,
     syncRowsFromCut,
@@ -187,6 +185,8 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     pageSource,
     hasBytes,
     poolHolds,
+    /** Hands the cache's residency changes to the rank journal: a CPU cut reads what it holds. */
+    syncResidency: mirror.sync,
     residencySets,
     bootstrapState,
     ensureResident,
