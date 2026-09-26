@@ -1,15 +1,11 @@
 // Page side of the fallback-blend probe (#584): the real WebGPU engine on a real device, twice on
-// one scene — once as the device is, once on a session handle of that device that refuses every
-// render pipeline writing the visibility target, as a device without it does. The engine then
+// one scene — once as the device is, once while that device refuses every render pipeline
+// writing the visibility target, as a device without it does. The engine then
 // draws with its fallback pass; nothing else differs. Four paged transparent tiles, one per mode,
 // sit across a night half and a paper half; the page reads each tile over each half, and the
 // background beside it, on both images.
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import { webgpuPagesBackend } from '../../../packages/sdk-browser/src/webgpu/pages/pages.ts';
-import {
-  sessionHandle,
-  sessionTag,
-} from '../../../packages/sdk-browser/src/gpu/core/sessionHandle.ts';
 import { hostBlending } from '../../../packages/sdk-browser/src/scene/materialBlending.ts';
 import type { Blending } from '../../../packages/sdk-core/src/world/constants/index.ts';
 import { batisseur, cameraFace, carre, engine, libere } from './sharedSceneProof.ts';
@@ -52,16 +48,26 @@ function scene() {
   return bati.fini();
 }
 
-/** `device` as a device that cannot write the visibility target: the fallback's one trigger. */
-function sansVisibilite(device: GPUDevice) {
-  const { device: handle } = sessionHandle(device, sessionTag(584));
-  const make = handle.createRenderPipeline.bind(handle);
-  handle.createRenderPipeline = (descriptor) => {
+/**
+ * Runs `work` while `device` refuses every render pipeline that writes the visibility target, as
+ * a device without it does: the fallback's one trigger. The refusal sits on the device itself —
+ * the engine claims the device through its own session handle, which calls the device's factory
+ * at each creation, and its canvas is configured with the device (`sharedGpuDevice`), which a
+ * wrapper of it is not. The device's own factory comes back afterwards.
+ */
+async function sansVisibilite<T>(device: GPUDevice, work: () => Promise<T>) {
+  const make = device.createRenderPipeline.bind(device);
+  device.createRenderPipeline = (descriptor) => {
     if ([...(descriptor.fragment?.targets ?? [])].some((t) => t?.format === 'r32uint'))
       throw new Error('VISIBILITY_TARGET_REFUSED');
     return make(descriptor);
   };
-  return handle;
+  try {
+    return await work();
+  } finally {
+    // The override is an own property: deleting it gives the prototype's method back.
+    delete (device as Partial<GPUDevice>).createRenderPipeline;
+  }
 }
 
 /** One side: its last image, each tile and the background over each half, what it fell back to. */
@@ -104,7 +110,7 @@ export async function executer() {
     async (device, evenements, resultat) => {
       const principal = await cote(device, evenements, 'principal');
       resultat.principal = principal.lecture;
-      const repli = await cote(sansVisibilite(device), evenements, 'repli');
+      const repli = await sansVisibilite(device, () => cote(device, evenements, 'repli'));
       resultat.repli = repli.lecture;
       resultat.pixelsDifferents = difference(principal.pixels, repli.pixels);
     },
