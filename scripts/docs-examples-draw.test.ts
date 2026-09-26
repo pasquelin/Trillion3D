@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readdir, readFile } from 'node:fs/promises';
 import test from 'node:test';
 import { ENGINE_FAILURE, leastDrawn, SPARSE } from './docs/examples/capture.ts';
+import { physicsExamples, turnsPhysicsOn } from './docs/examples/physics.ts';
 import { readyEntries as ready } from '../site/app/examples/list.ts';
 
 // #527: what left an example blank or stopped in the examples proof, read from the files.
@@ -58,4 +59,30 @@ test('a sparse example is declared by name and backend under the tenth; every ot
   const least = (gpu: boolean) => named.map((id) => leastDrawn(id, gpu));
   assert.deepEqual(least(false), [0.04, 0.04, 0.06, 0.1, 0.1, 0.1, 0.1]);
   assert.deepEqual(least(true), [0.04, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1]);
+});
+
+test('the proof expects Jolt from the pages whose own source turns physics on, and from no other', async () => {
+  assert.ok(turnsPhysicsOn("createWorld('view', { controls: 'orbit', physics: true })"));
+  assert.ok(turnsPhysicsOn("createWorld('view', { physics: { gravity: 'moon' } })"));
+  assert.ok(turnsPhysicsOn("createWorld('view', { size: fit(1, 2), physics: true })"));
+  assert.ok(turnsPhysicsOn('world.physics.enabled = true;'));
+  assert.ok(!turnsPhysicsOn('  // world.physics.enabled = true;'));
+  assert.ok(!turnsPhysicsOn("createWorld('view', { physics: false })"));
+  assert.ok(!turnsPhysicsOn("createWorld('view', { 'physics': undefined })"));
+  assert.ok(turnsPhysicsOn("createWorld('view', { size: fit(at(1), 2), physics: true })"));
+  assert.ok(!turnsPhysicsOn("createWorld('view', { controls: 'orbit' }); // physics: true"));
+  assert.ok(!turnsPhysicsOn("createWorld('physics', { controls: 'orbit' })"));
+  assert.ok(!turnsPhysicsOn("createWorld('view', {\n  controls: 'orbit', // no physics\n})"));
+  assert.ok(!turnsPhysicsOn("createWorld('view', { physics: false, ready: () => w.physics })"));
+  // #503: a ready page that sets a body or reads the world's physics is one that turns it on,
+  // `ride-a-roller-coaster` (#634) included, which the hand-kept list the derivation replaced
+  // missed; a page with no physics is left out.
+  const sources = new Map(pages.map(([file, html]) => [`examples/${file}`, html]));
+  const physics = await physicsExamples(ready);
+  const used = ready
+    .filter(({ file }) => /\.physics\b/.test(sources.get(file) ?? assert.fail(file)))
+    .map(({ id }) => id);
+  assert.deepEqual([...physics].sort(), used.sort());
+  for (const id of ['ride-a-roller-coaster', 'falling-boxes']) assert.ok(physics.has(id), id);
+  assert.ok(!physics.has('shapes-on-a-turntable'));
 });

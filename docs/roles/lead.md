@@ -28,8 +28,10 @@ not write code and you never measure. Every rule of AGENTS.md and CONTRIBUTING.m
 3. **Review.** As soon as the coder pushes its branch, launch one `reviewer` subagent with a fresh context on that branch (`docs/roles/reviewer.md`). `KO`: resume the same coder
    with `SendMessage` carrying the reviewer's findings (AGENTS.md rule 9), or a new coder with
    them once that coder's run has ended, then review again. Three rounds at most; past that,
-   report to the CTO and stop.
-4. **Merge.** With the reviewer's `OK`, the example of step 2 when the batch has one, and every
+   report to the CTO and stop. From an issue's second `measure ko` or `audit ko`, send the CTO
+   the design note and the ko comments before any coder starts again: it keeps, redefines or
+   splits the issue.
+4. **Merge.** For a 🔴 or 🟠 issue whose proof is a browser proof, first ask the measurer "prove #<n> on <branch>" and go on only once it passes. With the reviewer's `OK`, the example of step 2 when the batch has one, and every
    point of "Before merge" below checked by you on the diff: write `## Lead verification` in the body file, check it with `node scripts/check-pr-body.ts`, then open the pull request finished: `gh pr create --base develop --body-file .worktrees/logs/<n>-pr-body.md` (never a draft). Wait for every check to be green (`gh pr checks <pr> --watch`), then send "ready #<pr>" to the CTO, who merges it in
    age order (AGENTS.md §Roles, rule 11); step 1 may start meanwhile, step 5 follows the merge. On a red check, resume the coder on the branch at once; the pull request stays open and is never closed.
 5. **Hand over**, once the CTO has merged. `gh issue edit <n> --remove-label "in review"`, add
