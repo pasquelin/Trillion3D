@@ -1,11 +1,12 @@
 use super::blocks::quality::Channels;
+use super::coverage::Cut;
 use super::reduce::AtlasKind;
 use super::*;
 
 /// A texture of an engine atlas, and which one: the same glTF texture can feed
 /// both. With it, what the materials read of it — the roles it plays, hence the
 /// channels the gate measures and the layout its blocks take — and the alpha
-/// cutoffs of the masked materials that read it.
+/// cuts — cutoff and colour factor alpha — of the masked materials that read it.
 #[derive(Clone, PartialEq, Debug)]
 pub(crate) struct AtlasTexture {
     pub texture: usize,
@@ -14,7 +15,7 @@ pub(crate) struct AtlasTexture {
     pub channels: Channels,
     /// True when every role is the normal map's: two channels, Z rebuilt.
     pub normal_only: bool,
-    pub cutoffs: Vec<f32>,
+    pub cutoffs: Vec<Cut>,
 }
 
 /// Merges what one more reader reads into `channels` and `cutoffs`: the union
@@ -22,9 +23,9 @@ pub(crate) struct AtlasTexture {
 /// chain's textures.
 pub(crate) fn absorb(
     channels: &mut Channels,
-    cutoffs: &mut Vec<f32>,
+    cutoffs: &mut Vec<Cut>,
     more: Channels,
-    theirs: &[f32],
+    theirs: &[Cut],
 ) {
     for (mine, read) in channels.iter_mut().zip(more) {
         *mine |= read;
@@ -61,11 +62,11 @@ impl Role {
     }
     /// The chain the role asks for: the one role whose alpha the shader reads for
     /// coverage — the base colour of a BLEND material, or of a MASK one that cuts —
-    /// takes the chain weighted by that alpha.
-    fn kind(self, coverage: bool) -> AtlasKind {
-        match self {
-            Self::BaseColor if coverage => AtlasKind::Coverage,
-            Self::BaseColor | Self::Emissive => AtlasKind::Color,
+    /// takes the chain weighted by that alpha, at the material's cutoff byte.
+    fn kind(self, coverage: Option<u8>) -> AtlasKind {
+        match (self, coverage) {
+            (Self::BaseColor, Some(cutoff)) => AtlasKind::Coverage(cutoff),
+            (Self::BaseColor | Self::Emissive, _) => AtlasKind::Color,
             _ => AtlasKind::Data,
         }
     }
@@ -119,7 +120,9 @@ pub(super) fn atlas_textures(g: &Value, meshes: &BTreeSet<usize>) -> Result<Vec<
         // A transmissive BLEND tints what crosses it by its base colour whatever its alpha
         // (`webgpu/water/compositeWgsl.ts`): it draws the RGB under alpha 0 and keeps the plain chain.
         let transmits = crate::compiler_materials::unsplit_material(Some(material));
-        let coverage = (mode == Some("BLEND") && !transmits) || cutoff.is_some_and(|c| c > 0.0);
+        let cut = cutoff.map(|c| super::coverage::material_cut(material, c));
+        let coverage = ((mode == Some("BLEND") && !transmits) || cutoff.is_some_and(|c| c > 0.0))
+            .then(|| cut.map_or(0, |(c, f)| super::coverage::cutoff_byte(c, f)));
         for role in ROLES {
             let Some(texture) = texture_index(role.reference(material)) else {
                 continue;
@@ -135,11 +138,18 @@ pub(super) fn atlas_textures(g: &Value, meshes: &BTreeSet<usize>) -> Result<Vec<
                     normal_only: true,
                     cutoffs: Vec::new(),
                 });
-            // Readers that disagree on coverage share the plain chain.
-            if entry.kind != kind {
-                entry.kind = atlas;
+            match (entry.kind, kind) {
+                // Coverage readers share one chain, cut at the lowest of their cutoffs, so
+                // the most texels any of them keeps hold their share at every level; a
+                // blended one (0) keeps the median alone, whose mean alpha it draws.
+                (AtlasKind::Coverage(mine), AtlasKind::Coverage(theirs)) => {
+                    entry.kind = AtlasKind::Coverage(mine.min(theirs));
+                }
+                // Readers that disagree on coverage share the plain chain.
+                (mine, theirs) if mine != theirs => entry.kind = atlas,
+                _ => {}
             }
-            let cutoffs: Vec<f32> = cutoff
+            let cutoffs: Vec<Cut> = cut
                 .filter(|_| role == Role::BaseColor)
                 .into_iter()
                 .collect();

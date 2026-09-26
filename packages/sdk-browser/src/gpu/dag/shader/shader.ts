@@ -8,9 +8,10 @@ import { DAG_REQUEST_WGSL } from '../request.ts';
 import { DAG_WANTED_WGSL } from './wantedWgsl.ts';
 import { DAG_LIVE_WGSL } from './liveWgsl.ts';
 import { DAG_LEVEL_WGSL } from './levelWgsl.ts';
+import { DAG_LAST_USE_WGSL } from './lastUseWgsl.ts';
 import { DAG_FLOOR_WGSL } from './floorWgsl.ts';
 import { DAG_PAGES_WGSL } from './pagesWgsl.ts';
-import { SPRITE_UNCULLED } from '../../../visibility/shader/spriteWgsl.ts';
+import { CASTS_NO_SHADOW, SPRITE_UNCULLED } from '../../../visibility/shader/spriteWgsl.ts';
 import { DAG_VIEWS_WGSL, LIST_FULL } from './viewsWgsl.ts';
 import { DAG_RECORD_WGSL } from './recordWgsl.ts';
 import { DAG_AHEAD_WGSL } from './aheadWgsl.ts';
@@ -48,7 +49,7 @@ fn outsidePlane(plane:vec4f,bmin:vec3f,bmax:vec3f)->bool{
  return dot(plane.xyz,vec3f(px,py,pz))+plane.w<0.0;
 }
 /** True on a primitive no camera culls (\`SPRITE_UNCULLED\`). */
-fn unculledOf(w:u32)->bool{return (spriteOf(w)&${SPRITE_UNCULLED}u)!=0u;}
+fn unculledOf(w:u32)->bool{return (markOf(w)&${SPRITE_UNCULLED}u)!=0u;}
 /** GPU mirror of \`isConformal\` (../../../page/cone/cone.ts): 3x3 divided by the sum of its absolute values,
  *  relative tolerances only; null, infinite or NaN sum (read at the bit): cluster kept. */
 fn isConformal(m:mat3x3f)->bool{
@@ -123,13 +124,13 @@ fn dagPrepare(@builtin(global_invocation_id) id:vec3u){
  }
  if(t<blockCount()){atomicStore(&work[blockBase()+t],0u);}
  if(t<views[0u].viewCount){atomicStore(&work[viewWord(0u,t)],0u);atomicStore(&work[viewWord(2u,t)],0u);}
- if(t==0u){atomicStore(&work[drawnGroupsMax()],0u);}
+ if(t==0u){atomicStore(&work[drawnGroupsMax()],0u);countFrame();}
  let world=views[0u].worldCount;
  if(t>=world*views[0u].viewCount){return;}
  vi=t/world;let w=t-vi*world;let slot=slotOf(w);
  // The primitive's root opens the descent: one thread, one root, no counter to contend for. A
- // light cut opens none on a sprite (\`spriteOf\`): it casts no shadow.
- let root=select(rootOf(w),0xffffffffu,isLightCut()&&spriteOf(w)!=0u);
+ // light cut opens none on a primitive that casts no shadow (\`markOf\`, \`castsNoShadow\`).
+ let root=select(rootOf(w),0xffffffffu,isLightCut()&&(markOf(w)&${CASTS_NO_SHADOW}u)!=0u);
  flags[queueBase(0u)+t]=select(packEntry(vi,root),root,root==0xffffffffu);
  let m=transpose(worlds[w]);let base=slot*FRAME;
  // A primitive a camera never culls (\`unculledOf\`) takes six planes no box leaves.
@@ -161,7 +162,7 @@ fn dagMask(@builtin(global_invocation_id) id:vec3u,@builtin(local_invocation_ind
    let posee=select(0u,1u,draw);
    flags[views[0u].queueCap+i]=posee;
    // Drawn count of this page's block, held here rather than reread later page by page.
-   if(posee!=0u){atomicAdd(&work[blockBase()+i/BLOCK],1u);drawnAppend(i);}
+   if(posee!=0u){atomicAdd(&work[blockBase()+i/BLOCK],1u);drawnAppend(i);stampUse(i);}
   }
  }
  verseTotaux(lid);
@@ -172,6 +173,7 @@ ${INVERSE_TRANSPOSE_WGSL}
 ${DAG_COMPACT_WGSL}${DAG_TOTALS_WGSL}${DAG_REQUEST_WGSL}${DAG_RELEVE_WGSL}${DAG_WANTED_WGSL}
 ${DAG_LIVE_WGSL}
 ${DAG_LEVEL_WGSL}
+${DAG_LAST_USE_WGSL}
 ${DAG_FLOOR_WGSL}
 ${DAG_PAGES_WGSL}
 ${DAG_VIEWS_WGSL}

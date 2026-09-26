@@ -1,7 +1,7 @@
 import { LIGHT_KIND, lightDirection, type ShadowViewpoint } from '../light/contracts.ts';
 import { LIGHT_FIELD, type SceneLightStore } from '../light/store.ts';
 import { createShadowChanges } from './changes.ts';
-import { invalidateLightPages } from './invalidate.ts';
+import { createPageInvalidation } from './invalidate.ts';
 import { createShadowCounts } from './counts.ts';
 import { createShadowAdmission } from './admit.ts';
 import { baseOf, castsShadow } from './casters.ts';
@@ -32,8 +32,9 @@ export function createShadowPlan(poolSide: number) {
     sun = createSunLevels(),
     records = createShadowRecords(table, pool, sun),
     requests = createShadowRequests(table, pool, records, sun),
-    changes = createShadowChanges(),
+    changes = createShadowChanges(pool.pages),
     counts = createShadowCounts(),
+    invalidate = createPageInvalidation(pool, table, sun, changes, counts),
     admission = createShadowAdmission(pool.pages),
     thresholds = createShadowThresholds(pool),
     posed = new Int32Array(records.taken.length);
@@ -70,7 +71,7 @@ export function createShadowPlan(poolSide: number) {
     },
     /** True while a representation change waits for the camera to rest. */
     get deferredChanges() {
-      return changes.deferred || thresholds.pending;
+      return changes.deferred() || thresholds.pending;
     },
     /** The frame plans no shadow: the held union enters the list at once. */
     releaseDeferred: changes.releaseDeferred,
@@ -132,18 +133,7 @@ export function createShadowPlan(poolSide: number) {
             else pool.rank[page] = sunCoarseness(pool.view[page], sun.finest[slice]);
           }
         }
-        counts.invalidatedPages += invalidateLightPages(
-          pool,
-          table,
-          sun,
-          changes,
-          light,
-          slice,
-          whole,
-          byPage,
-          nowMs,
-          frame,
-        );
+        invalidate(light, slice, whole, byPage, nowMs, frame);
         if (whole) posed[slice] = frame;
       }
       changes.settled();

@@ -41,7 +41,7 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
   const scene = new Scene(worldModelLoader(device.ready, options.signal, () => device.renderer));
   const invalidate = () => runtime.invalidate();
   const diagnostic = worldDiagnostic(() => runtime.explorer);
-  const switches = worldSwitches(options, () => runtime, device, invalidate);
+  const switches = worldSwitches(options, () => runtime, device, invalidate, diagnostic.notices);
   const runtime = createWorldRuntime({
     canvas,
     ready: () => device.pending,
@@ -56,7 +56,7 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
         clearColor: scene.background?.getHex(), // read at opening; a change is written in place
         currentClearColor: () => scene.background?.getHex(),
         beforeFrame: () => {
-          animating = frames.step(controls, scene, physics.frame);
+          ahead(controls);
           runtime.beforeFrame();
         },
         onFrame: (metrics) => {
@@ -83,6 +83,7 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
     invalidate,
     physics.character,
   );
+  const ahead = (by: typeof controls | null) => (animating = frames.step(by, scene, physics.frame));
   const live = () => {
     if (disposed) throw new Error('World disposed');
     return runtime.explorer;
@@ -156,16 +157,15 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
     /** Runs a function after every drawn frame, with its time and metrics; returns its remover. */
     onFrame: frames.add,
     /** Runs a function ahead of every drawn frame, with `{ delta, time }`; returns its remover.
-     * A frame of the world's loop runs: the controller steps the camera (unless
-     * `controls.autoUpdate` is false), clips advance, these hooks in the order they were added,
-     * the scene is written and drawn, then the `onFrame` hooks. What a hook places — a body on
-     * the camera, a cockpit — is drawn in this very frame, never one late. A host-led `render()`
-     * runs them too but steps no controller. A hook calling `invalidate()` keeps frames coming. */
+     * A frame runs: the camera's controller (unless `controls.autoUpdate` is false or the host
+     * leads, `render()`), the clips, the physics, these hooks in their order, the draw, then the
+     * `onFrame` hooks. What a hook places — a body on the camera, a cockpit — is drawn in this
+     * very frame, never one late. A hook calling `invalidate()` keeps frames coming. */
     beforeFrame: frames.before,
     /** Another name for `onFrame`. */ loop: frames.add,
     /** Asks for a new frame after a change the world could not see. */ invalidate,
-    /** Draws one frame now, whoever leads the loop. */ render() {
-      if (live()) frames.prepare(frames.advance());
+    /** Draws one frame now, whoever leads the loop: clips and physics step with it. */ render() {
+      if (live()) ahead(null);
       runtime.render();
     },
     /** Tells the world the canvas changed size; unset, it reads the canvas's own size.
@@ -192,7 +192,7 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
     },
   };
   frames.add(noticeEffectBudget(world.budget, canvas, world.effects, diagnostic.notices));
-  registerWorld(world, { session: () => runtime.explorer, last: () => frames.last });
+  registerWorld(world, { session: () => runtime.explorer, last: () => frames.last }, switches.held);
   return world;
 }
 

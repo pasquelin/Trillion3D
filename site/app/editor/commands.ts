@@ -34,7 +34,7 @@ export const poseCommand = (object: Object3D, before: Pose, after: Pose) =>
   valueCommand((pose: Pose) => applyPose(object, pose), before, after);
 
 /** `object` put under `parent`: an object added. */
-export const attachCommand = (object: Object3D, parent: Object3D): Command => ({
+export const addCommand = (object: Object3D, parent: Object3D): Command => ({
   undo: () => parent.remove(object),
   redo: () => parent.add(object),
 });
@@ -59,27 +59,18 @@ export function removeCommand(object: Object3D, reselect: (node: Object3D) => vo
 }
 
 /**
- * `object` moved under `parent`, where it keeps the place it had in the world: its new local pose
- * is its world matrix seen from the new parent. Undone, it goes back under its old parent (last
- * among its siblings) with its old local pose.
+ * `object` moved under `parent` where it stands in the world (`attach`). Undone, it goes back under
+ * its old parent (last among its siblings) with its old local pose.
  */
 export function reparentCommand(object: Object3D, parent: Object3D): Command {
   const from = object.parent!;
   const before = poseOf(object);
-  object.updateWorldMatrix(true, false);
-  parent.updateWorldMatrix(true, false);
-  const local = parent.matrixWorld.clone().invert().multiply(object.matrixWorld);
-  const after = poseOf(object);
-  local.decompose(after.position, after.quaternion, after.scale);
   return {
     undo: () => {
       from.add(object);
       applyPose(object, before);
     },
-    redo: () => {
-      parent.add(object);
-      applyPose(object, after);
-    },
+    redo: () => parent.attach(object),
   };
 }
 

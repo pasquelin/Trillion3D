@@ -24,8 +24,8 @@ namespace trillion {
 /// world only).
 enum Layer : JPH::ObjectLayer { STATIC = 0, MOVING = 1, DECORATIVE = 2, LAYER_COUNT = 3 };
 
-/// Per-body flag bits carried by the ADD and FLAGS commands.
-enum Flag : uint32_t { SENSOR = 1, CCD = 2, EVENTS = 4, HIDDEN = 8 };
+/// Per-body flag bits carried by the ADD and FLAGS commands; ASLEEP, by ADD alone, adds it asleep.
+enum Flag : uint32_t { SENSOR = 1, CCD = 2, EVENTS = 4, HIDDEN = 8, ASLEEP = 16 };
 
 /// Error codes returned by `jolt_error` after a failed `jolt_step` (mirrored in layout.ts).
 enum Error : uint32_t { NONE = 0, BODY_LIMIT = 1, UNKNOWN_BODY = 2, BAD_SHAPE = 3, BAD_COMMAND = 4 };
@@ -129,6 +129,10 @@ bool runCommands(const uint32_t *words, uint32_t count);
 void leaveAll(uint32_t engine);
 /// The shape an ADD command (`w`, from its opcode) describes, or null when refused.
 JPH::RefConst<JPH::Shape> shapeOf(const uint32_t *w);
+/// An ADD command's mass frame — a primitive's 3 or 12 data words, a cooked shape's past its handle:
+/// its centre of mass, then the inertia about it (nine, column-major) — and its `words`; null, 0,
+/// for none.
+const uint32_t *massFrame(const uint32_t *w, uint32_t &words);
 /// Writes the leaves a full event buffer held back at the last step, before anything else.
 void sendOwedLeaves();
 /// Runs the BUOYANCY command at `w` (`buoyancy.cpp`); returns its word count.

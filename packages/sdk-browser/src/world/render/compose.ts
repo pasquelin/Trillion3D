@@ -17,12 +17,21 @@ import {
   type WebglRenderTarget,
 } from '../../webgl/core/renderTarget.ts';
 import { createWebglEffects, type WebglEffectOutput } from '../../effects/webglEffects.ts';
+import type { Blending } from '../../../../sdk-core/src/world/constants/index.ts';
+import type { ParticlePool } from '../../../../sdk-core/src/fluids/particles.ts';
+import { createWebglParticles } from '../../particles/webglParticles.ts';
+import { anyMoving } from '../../particles/poolStates.ts';
 
 const NONE: readonly EffectPass[] = [];
 
 /** The world's effect chain as the composer draws it: `shown` is false in a diagnostic view,
- *  which shows the engine's image as it is. */
-export type ComposedChain = { chain: EffectChain; shown: () => boolean };
+ *  which shows the engine's image as it is; `refused` hears, on each frame it keeps the chain
+ *  off, the mode the engine's `linearRefusal` names. */
+export type ComposedChain = {
+  chain: EffectChain;
+  shown: () => boolean;
+  refused?: (blending: Blending) => void;
+};
 
 /**
  * Composes one engine's frame on the host surface or on a render target — the one place that
@@ -33,18 +42,23 @@ export type ComposedChain = { chain: EffectChain; shown: () => boolean };
  * chain's target instead, and the chain brings its image to the destination
  * (`../../effects/webglEffects.ts`); the copy kept is the chain's image, and a chain changed
  * since it was kept is drawn again. The page's `guides` are drawn over the image the destination
- * got, the chain's included, before that copy is kept; a change to them spares no redraw.
+ * got, the chain's included, before that copy is kept, at the host's `pixelRatio`; a change to
+ * them spares no redraw. The world's `particles` step on every image drawn here, and an image
+ * they moved in is drawn, never the kept copy (`../../particles/webglParticles.ts`).
  * Nothing here belongs to a rendering library.
  */
 export function createFrameComposer(
   gl: WebGL2RenderingContext,
   camera: HostCamera,
-  layers: { effects?: ComposedChain; guides?: GuideSet } = {},
+  layers: { effects?: ComposedChain; particles?: readonly ParticlePool[] } & (
+    { guides?: undefined } | { guides: GuideSet; pixelRatio: () => number }
+  ) = {},
 ) {
-  const { effects: composed, guides } = layers;
+  const { effects: composed, particles = [] } = layers;
   const heldFrame = createHeldFrame(gl);
+  let stepped: ReturnType<typeof createWebglParticles> | undefined;
   const guideDraw = createWebglGuideDraw(gl);
-  let guidesDrawn = guides?.revision ?? 0;
+  let guidesDrawn = layers.guides?.revision ?? 0;
   const present = createBackendPresenter(gl);
   const effects = composed && createWebglEffects(gl);
   const drawCamera = createHostDrawCamera();
@@ -81,13 +95,19 @@ export function createFrameComposer(
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT | gl.STENCIL_BUFFER_BIT);
   };
   /** The passes this frame draws: none without a chain, in a diagnostic view, on a destination
-   *  that takes the engine's image alone, or on a context that cannot hold the targets. */
-  const passesOf = (wanted: boolean) => {
+   *  that takes the engine's image alone, on a context that cannot hold the targets, or on a frame
+   *  the engine's linear draw cannot hold (`linearRefusal`, read from the draw's own walk of its
+   *  graph, which the draw then reuses) — every surface is still drawn. */
+  const passesOf = (backend: RenderBackend, wanted: boolean) => {
     if (!composed) return NONE;
     const passes = composed.chain.stage('before-tone-mapping');
     // An emptied chain gives its targets back; one kept aside for a capture keeps them.
     if (!passes.length) effects!.release();
-    return passes.length && wanted && composed.shown() && effects!.supported() ? passes : NONE;
+    if (!passes.length || !wanted || !composed.shown() || !effects!.supported()) return NONE;
+    const refused = backend.linearRefusal?.();
+    if (!refused) return passes;
+    composed.refused?.(refused);
+    return NONE;
   };
   /**
    * `reuse` is false where the kept frame is not this engine's: a fallback takes over the image
@@ -103,11 +123,16 @@ export function createFrameComposer(
   ) => {
     const { width, height } = bindWebglTarget(gl, target);
     if (present(backend)) return;
+    const moved = anyMoving(particles);
+    // Made by the first pool, then run with none left too: it frees a released pool's targets.
+    if (particles.length) stepped ??= createWebglParticles(gl);
+    if (stepped?.run(particles)) bindWebglTarget(gl, target);
     const revision = composed?.chain.revision ?? 0;
-    const guidesHeld = !guides || guides.revision === guidesDrawn;
+    const guidesHeld = !layers.guides || layers.guides.revision === guidesDrawn;
     if (
       reuse &&
       guidesHeld &&
+      !moved &&
       backend.frameHeld === true &&
       !target &&
       heldFrame.holds(width, height) &&
@@ -123,7 +148,7 @@ export function createFrameComposer(
     // the chain (P4). A target thus holds what the page would show.
     output.toneMapped = backend.sceneLit?.() !== false;
     output.toneMapping = backend.sceneToneMapping?.() ?? DEFAULT_TONE_MAPPING;
-    const passes = passesOf(chained);
+    const passes = passesOf(backend, chained);
     const linear = passes.length ? effects!.begin(passes, width, height) : null;
     output.linear = !!linear;
     output.framebuffer = (linear ?? target)?.framebuffer ?? null;
@@ -139,9 +164,9 @@ export function createFrameComposer(
       // The guides land where the chain drew, over the depth it carried.
       output.framebuffer = target?.framebuffer ?? null;
     }
-    if (guides) {
-      guidesDrawn = guides.revision;
-      guideDraw.draw(guides, drawCamera, output);
+    if (layers.guides) {
+      guidesDrawn = layers.guides.revision;
+      guideDraw.draw(layers.guides, drawCamera, output, layers.pixelRatio());
     }
     if (target) return;
     heldFrame.keep(width, height);
@@ -154,6 +179,7 @@ export function createFrameComposer(
     heldFrame.dispose();
     effects?.dispose();
     guideDraw.dispose();
+    stepped?.dispose();
   };
   return compose;
 }

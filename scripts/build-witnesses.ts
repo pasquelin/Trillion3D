@@ -10,6 +10,7 @@
 import { build, type Plugin } from 'esbuild';
 import { relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { emittedOf } from './engine-dist.ts';
 
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const packages = resolve(root, 'packages');
@@ -22,10 +23,7 @@ const engineInDist: Plugin = {
     bundler.onResolve({ filter: /^\.\.?\// }, ({ path, resolveDir }) => {
       const target = resolve(resolveDir, path);
       if (!target.startsWith(packages + sep)) return undefined;
-      const emitted = resolve(root, 'dist', relative(packages, target))
-        .replace(/\.ts$/, '.js')
-        .replace(/\.mts$/, '.mjs');
-      const address = relative(outdir, emitted).split(sep).join('/');
+      const address = relative(outdir, emittedOf(target)).split(sep).join('/');
       return { path: address.startsWith('.') ? address : `./${address}`, external: true };
     });
   },

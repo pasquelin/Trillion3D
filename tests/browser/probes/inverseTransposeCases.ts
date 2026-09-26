@@ -1,5 +1,6 @@
 // Geometry, camera, ground truth and CPU decision shared by the defect-6 reproduction
 // (`inverseTranspose3`, packages/sdk-browser/src/gpu/dag/shader/shader.ts). Split from the orchestration to hold `check:lines`.
+import { triangleCone } from '../../kit/cone.ts';
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import {
   frustumExcludesBox,
@@ -10,7 +11,6 @@ import {
   coneContextFor,
   coneCullsPageWith,
   createConeContext,
-  triangleCone,
 } from '../../../packages/sdk-browser/src/page/cone/cone.ts';
 import {
   packDagSelection,

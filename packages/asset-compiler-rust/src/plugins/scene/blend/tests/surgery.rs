@@ -11,16 +11,21 @@ const HEADER: usize = 32;
 /// The original address given to the added block: it belongs to no block of the fixture.
 const SPARE: u64 = 0xB1E0_0000_0000_0001;
 
+/// The bytes of the CC0 fixture, as Blender wrote them: in a Zstandard wrapping.
+pub(super) fn wrapped() -> Vec<u8> {
+    let path = crate::tests::golden::golden_dir("blend/procedural-materials").join("scene.blend");
+    fs::read(&path).unwrap_or_else(|e| panic!("{}: {e}", path.display()))
+}
+
 /// The bytes of the CC0 fixture, unpacked from their Zstandard wrapping.
 pub(super) fn fixture() -> Vec<u8> {
-    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../tests/fixtures/formats/blend/procedural-materials/scene.blend");
-    let raw = fs::read(&path).unwrap_or_else(|e| panic!("{}: {e}", path.display()));
-    envelope::unwrap(&raw, MAX_BYTES).expect("the fixture wrapping")
+    envelope::unwrap(&wrapped(), BUDGET)
+        .expect("the fixture wrapping")
+        .into_owned()
 }
 
 /// The original address of the block identified by this name, genre prefix included.
-pub(super) fn named(file: &BlendFile, name: &str) -> u64 {
+pub(super) fn named(file: &BlendFile<'_>, name: &str) -> u64 {
     file.blocks
         .iter()
         .find(|block| file.view(block).is_some_and(|view| view.id_name() == name))
@@ -30,7 +35,7 @@ pub(super) fn named(file: &BlendFile, name: &str) -> u64 {
 
 /// The rank, in the file's bytes, where a field of a block starts — the path walking nested
 /// structures, such as `["id", "name"]`.
-pub(super) fn field(file: &BlendFile, old: u64, path: &[&str]) -> usize {
+pub(super) fn field(file: &BlendFile<'_>, old: u64, path: &[&str]) -> usize {
     let block = file.at(old).expect("the requested block");
     let mut layout = file.dna.layout(block.sdna).expect("its layout");
     let mut at = block.start;
@@ -52,7 +57,7 @@ pub(super) fn put(bytes: &mut [u8], at: usize, value: &[u8]) {
 
 /// The address of a named input or output of a node of a material's graph.
 pub(super) fn socket(
-    file: &BlendFile,
+    file: &BlendFile<'_>,
     material: &str,
     node: &str,
     side: &str,
@@ -69,7 +74,7 @@ pub(super) fn socket(
 }
 
 /// The rank of a field of a graph link, the link being found by the input it feeds.
-pub(super) fn link_field(file: &BlendFile, material: &str, tosock: u64, name: &str) -> usize {
+pub(super) fn link_field(file: &BlendFile<'_>, material: &str, tosock: u64, name: &str) -> usize {
     let link = tree(file, material)
         .list("links")
         .into_iter()
@@ -80,7 +85,7 @@ pub(super) fn link_field(file: &BlendFile, material: &str, tosock: u64, name: &s
 
 /// The rank of the declared value of a node input: it lives in the block its `default_value`
 /// field designates.
-pub(super) fn declared_field(file: &BlendFile, socket: u64, name: &str) -> usize {
+pub(super) fn declared_field(file: &BlendFile<'_>, socket: u64, name: &str) -> usize {
     let held = file
         .at(socket)
         .and_then(|block| file.view(block))
@@ -110,7 +115,7 @@ pub(super) fn without_field(name: &str) -> Vec<u8> {
 }
 
 /// The node graph of a named material.
-fn tree<'a>(file: &'a BlendFile, material: &str) -> At<'a> {
+fn tree<'a>(file: &'a BlendFile<'a>, material: &str) -> At<'a> {
     file.at(named(file, material))
         .and_then(|block| file.view(block))
         .expect("the material")
@@ -123,7 +128,7 @@ fn tree<'a>(file: &'a BlendFile, material: &str) -> At<'a> {
 pub(super) fn with_stray_object(name: &[u8]) -> Vec<u8> {
     let mut bytes = fixture();
     let (mut data, sdna, at, end) = {
-        let file = BlendFile::open(&bytes, MAX_BYTES).expect("the fixture");
+        let file = BlendFile::open(&bytes, BUDGET).expect("the fixture");
         let old = named(&file, "OBSharedMesh_0");
         let block = file.at(old).expect("its block");
         let data = bytes[block.start..block.start + block.len].to_vec();
@@ -149,7 +154,7 @@ pub(super) fn with_stray_object(name: &[u8]) -> Vec<u8> {
 pub(super) fn with_sharp_edges(hard: bool) -> Vec<u8> {
     let mut bytes = fixture();
     let (name_at, domain_at, width, values_at, count) = {
-        let file = BlendFile::open(&bytes, MAX_BYTES).expect("the fixture");
+        let file = BlendFile::open(&bytes, BUDGET).expect("the fixture");
         let mesh = file
             .of(*b"ME\0\0")
             .next()

@@ -56,6 +56,7 @@ pub(super) fn convert(request: &SceneRequest<'_>, plugin: &dyn ScenePlugin) -> R
             cache: request.cache,
             cancelled: request.cancelled,
             progress: request.progress,
+            ram_budget: request.ram_budget,
         };
         traverse(&mut world, file)?;
         world.scene.count("metaFiles", project.meta_files);

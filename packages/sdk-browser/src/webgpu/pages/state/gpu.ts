@@ -12,6 +12,8 @@ import type { WebgpuEffects } from '../../../effects/webgpuEffects.ts';
 import { UNIFORM_STRIDE } from '../../blend/uniforms.ts';
 import type { ModePipelines } from '../../blend/stagePipelines.ts';
 import type { WebgpuGuidePass } from '../../../guides/guidePass.ts';
+import type { WebgpuParticles } from '../../../particles/webgpuParticles.ts';
+import type { DeviceGrant } from '../../../gpu/core/errorScope.ts';
 
 /** GPU resources of the forward path: page cache, pipelines, frame targets and presentation. */
 export interface WebgpuGpuState {
@@ -47,6 +49,9 @@ export interface WebgpuGpuState {
   targetSize: [number, number];
   /** Bytes of the image targets of this size, those the image budget admitted. */
   targetBytes: number;
+  /** The frame targets asked of the device (`targetGrant.ts`): in flight, or settled when refused
+   *  at that size; gone once granted. */
+  targetGrant: ({ width: number; height: number } & DeviceGrant) | undefined;
   positionBuffers: Map<HostAttributes, GPUBuffer>;
   /** Indices, UVs and normals of transparents, held by the source geometry: two instances of the same
    *  object share the same geometry, therefore the same buffers. `undefined` kept in the table says
@@ -85,6 +90,8 @@ export interface WebgpuGpuState {
   guides: WebgpuGuidePass | undefined;
   /** Revision of the page's guides the last encoded image drew (`encodeGuides.ts`). */
   guideRevision: number;
+  /** The particle step, made by the first image with a pool (`../../../particles/`). */
+  particles: WebgpuParticles | undefined;
 }
 
 /** The frozen colour the water composite rereads, and the depth its surface stage tests and
@@ -121,6 +128,7 @@ export function createWebgpuGpuState(viewport: readonly [number, number]): Webgp
     selectionFallback: false,
     targetSize: [viewport[0] ?? 1, viewport[1] ?? 1],
     targetBytes: 0,
+    targetGrant: undefined,
     positionBuffers: new Map(),
     blendIndexBuffers: new Map(),
     blendUvBuffers: new Map(),
@@ -144,5 +152,6 @@ export function createWebgpuGpuState(viewport: readonly [number, number]): Webgp
     effectsRevision: 0,
     guides: undefined,
     guideRevision: 0,
+    particles: undefined,
   };
 }

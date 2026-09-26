@@ -90,7 +90,7 @@ test('a hosted texture is reduced weighted only when every reader takes it for c
   } as unknown as WebgpuTileAtlas;
   // One device per texture: the reduction pipeline it builds says the rule that texture took.
   const ruleOf = (slot: number) => {
-    const { device, renderPipelines } = mockGpu();
+    const { device, renderPipelines } = mockGpu({ compute: true });
     const sources = createTileSources({
       device,
       encoding,

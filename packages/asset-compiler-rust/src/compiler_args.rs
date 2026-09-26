@@ -66,6 +66,10 @@ pub fn parse_compiler_args(
 }
 
 impl Options {
+    /// This job's RAM budget in bytes, `ramBudgetMb`; past what a `usize` counts, no bound.
+    pub fn ram_budget_bytes(&self) -> usize {
+        self.ram_budget_mb.saturating_mul(1024 * 1024)
+    }
     /// Folder of this job's scope in the cache: its pointer, and one folder per key.
     pub fn scope_directory(&self) -> PathBuf {
         self.cache.join("native").join(&self.scope)

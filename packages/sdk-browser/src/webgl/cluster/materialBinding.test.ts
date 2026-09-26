@@ -9,6 +9,8 @@ import { bindClusterMaterial } from './materialBinding.ts';
 import { importHostTexture } from '../../host/textureImport.ts';
 import { pageDiagnostics } from '../../host/pageDiagnostics.ts';
 import { CLUSTER_FRAGMENT } from './shaders.ts';
+import { SURFACE_MODEL } from '../../scene/surfaceModel.ts';
+import { visMaterial } from '../../visibility/shader/material.ts';
 import {
   HOST_BLENDING_ADDITIVE,
   HOST_BLENDING_MULTIPLY,
@@ -86,10 +88,48 @@ const flagOf = (material: G.GraphSurface, name: string, linear = false) => {
   return flags.get(name);
 };
 
-test('A Depth material, and it alone, shows the frame depth ramp', () => {
-  assert.equal(flagOf(new G.GraphSurface('depth'), 'depthShaded'), 1);
-  assert.equal(flagOf(G.standardSurface(), 'depthShaded'), 0);
-  assert.equal(flagOf(G.basicSurface(), 'depthShaded'), 0);
+test('Each family binds the surface model it is shaded by, lit or not (#772)', () => {
+  const families = [
+    ['lambert', 'diffuse', 1],
+    ['toon', 'toon', 1],
+    ['matcap', 'matcap', 0],
+    ['normal', 'normal', 0],
+    ['depth', 'depth', 0],
+    ['phong', 'standard', 1],
+    ['basic', 'standard', 0],
+    ['standard', 'standard', 1],
+  ] as const;
+  for (const [family, model, lit] of families) {
+    const surface = new G.GraphSurface(family);
+    assert.equal(flagOf(surface, 'surfaceModel'), SURFACE_MODEL[model], family);
+    assert.equal(flagOf(surface, 'lit'), lit, family);
+  }
+});
+
+/** A recorder whose texture units keep the map each one was last bound. */
+function unitRecorder() {
+  const { binding } = recorder(),
+    units: unknown[] = [];
+  binding.textures.bind = (unit, map) => void (units[unit] = map);
+  return { binding, units };
+}
+
+test('A matcap binds its image on the base map unit (#772)', () => {
+  const image = texture(),
+    { binding, units } = unitRecorder();
+  bindClusterMaterial(binding, new G.GraphSurface('matcap', { matcap: image }), true);
+  assert.equal(units[0], importHostTexture(image));
+});
+
+test('An occlusion map darkens a matcap on neither path, a plain colour on WebGL2 (#772)', () => {
+  const aoMap = texture(),
+    { binding, units } = unitRecorder();
+  const matcap = new G.GraphSurface('matcap', { aoMap });
+  bindClusterMaterial(binding, matcap, true);
+  assert.equal(visMaterial(matcap).aoMap, undefined, 'the WebGPU record reads none');
+  assert.equal(units[4], undefined, 'nor does the WebGL2 program');
+  bindClusterMaterial(binding, G.basicSurface({ aoMap }), true);
+  assert.equal(units[4], importHostTexture(aoMap));
 });
 
 test("A diagnostic view's surfaces, and they alone, stay out of the fog", () => {
@@ -122,17 +162,34 @@ test('Into the effect chain, a surface covers its pixel as the display path show
   assert.equal(flagOf(transparent(HOST_BLENDING_NONE), 'covering', true), 1, 'none');
   assert.equal(flagOf(transparent(HOST_BLENDING_NORMAL), 'covering', true), 0, 'normal');
   assert.equal(flagOf(transparent(HOST_BLENDING_ADDITIVE), 'covering', true), 0, 'additive');
-  // Multiply and subtractive filter the background the linear target does not hold: refused.
+  // Multiply and subtractive filter the background the linear target does not hold: refused
+  // by the path's named refusal, for a caller that skipped `linearRefusal`.
   for (const [blending, mode] of [
     [HOST_BLENDING_MULTIPLY, 'multiply'],
     [HOST_BLENDING_SUBTRACTIVE, 'subtractive'],
   ] as const) {
-    assert.throws(
-      () => flagOf(transparent(blending), 'covering', true),
-      new Error(`the WebGL2 effect chain cannot draw ${mode} blending`),
-    );
+    assert.throws(() => flagOf(transparent(blending), 'covering', true), {
+      code: 'CLUSTER_MATERIAL_UNSUPPORTED',
+      details: { reason: `the WebGL2 effect chain cannot draw ${mode} blending` },
+    });
     assert.equal(flagOf(transparent(blending), 'covering'), undefined, 'drawn without a chain');
   }
   // A mode no path draws is refused here as by the display path, never drawn uncovered.
   assert.throws(() => flagOf(transparent(99), 'covering', true), /a surface declares a blending/);
+});
+
+// #769: glTF 2.0 cuts the colour factor's alpha times the map's, and WebGPU does since #748; WebGL2
+// multiplied the opacity only into a blended surface, so a masked one was cut at the map alone.
+test('A masked surface is cut at its opacity times its map alpha, as WebGPU cuts it', () => {
+  const baseAlpha = (material: G.GraphSurface) => {
+    const { binding } = recorder();
+    let alpha;
+    (binding.uniforms as unknown as Record<string, unknown>).f4 = (
+      ...[, name, , , , w]: unknown[]
+    ) => void (name === 'baseFactor' && (alpha = w));
+    bindClusterMaterial(binding, material, true);
+    return alpha;
+  };
+  assert.equal(baseAlpha(G.standardSurface({ opacity: 0.4, alphaTest: 0.5 })), 0.4);
+  assert.equal(baseAlpha(G.standardSurface({ opacity: 0.4 })), 1, 'opaque: its alpha is not read');
 });

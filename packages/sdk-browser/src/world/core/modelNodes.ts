@@ -30,6 +30,7 @@ export function modelNode(graph: Object3D): Object3D {
     node.scale.set(graph.scale.x, graph.scale.y, graph.scale.z);
   } else graph.matrix.decompose(node.position, node.quaternion, node.scale);
   node.visible = graph.visible;
+  node.castShadow = graph.castShadow;
   sources.set(node, graph);
   return node;
 }
@@ -47,5 +48,6 @@ export function writeModelNode(node: Object3D) {
   graph.quaternion.set(x, y, z, w);
   graph.scale.set(node.scale.x, node.scale.y, node.scale.z);
   graph.visible = node.visible;
+  graph.castShadow = node.castShadow;
   if (!graph.matrixAutoUpdate) graph.matrix.fromArray(node.matrix.elements);
 }

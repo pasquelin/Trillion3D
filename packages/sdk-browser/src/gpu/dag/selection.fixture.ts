@@ -15,6 +15,7 @@ export function mockDagDevice(
     uniformWriteCount = 0,
     copyCount = 0,
     destroyedMaps = 0;
+  const words: [number, number][] = [];
   const device = {
     limits: { maxBufferSize: 1 << 20, maxStorageBufferBindingSize: 1 << 20 },
     createBuffer: ({ size, usage }: { size: number; usage: number }) => ({
@@ -129,8 +130,11 @@ export function mockDagDevice(
         dataOffset?: number,
         size?: number,
       ) {
-        buffer.data.set(bytesOf(data, dataOffset, size), offset);
+        const bytes = bytesOf(data, dataOffset, size);
+        buffer.data.set(bytes, offset);
         if (buffer.size === DAG_UNIFORM_BYTES) uniformWriteCount++;
+        if (bytes.byteLength === 4)
+          words.push([offset / 4, new DataView(bytes.slice().buffer).getUint32(0, true)]);
       },
       submit() {},
       onSubmittedWorkDone: async () => {},
@@ -143,5 +147,7 @@ export function mockDagDevice(
     readbackCopies: () => copyCount,
     /** Mappings asked of a destroyed buffer: each one a validation error on the device. */
     destroyedMaps: () => destroyedMaps,
+    /** One-word writes, each as its word index in its buffer and the value written. */
+    words,
   };
 }

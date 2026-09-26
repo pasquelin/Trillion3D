@@ -1,15 +1,45 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { AHEAD, boxDistance, cellReach, KEEP, planCells } from './plan.ts';
+import { AHEAD, boxDistance, cellReach, inCellFrame, KEEP, planCells } from './plan.ts';
 
-const optics = { fov: 60, aspect: 16 / 9, far: 1e6 };
+const optics = { fov: 60, aspect: 16 / 9, near: 0.1, far: 1e6, zoom: 1 };
 const cell = (x: number) => ({ bounds: [x, 0, 0, x + 1, 1, 1], meshes: [[0, 1] as const] });
 
 test('a cell is read up to the far plane, met on the frustum diagonal', () => {
   const tangent = Math.tan(Math.PI / 6);
   const widen = 1 + tangent * tangent * (1 + optics.aspect ** 2);
   assert.equal(cellReach({ ...optics, far: 1000 }), 1000 * Math.sqrt(widen));
-  assert.equal(cellReach({ ...optics, orthographic: {} }), Infinity);
+});
+
+test('the reach follows the zoom: its frustum, and an orthographic box, widen as it shrinks', () => {
+  const slope = Math.tan(Math.PI / 6) / 0.5;
+  const widen = 1 + slope * slope * (1 + optics.aspect ** 2);
+  assert.equal(cellReach({ ...optics, far: 1000, zoom: 0.5 }), 1000 * Math.sqrt(widen));
+  // The box `[-10, 10] × [-5, 5]` at zoom 0.5 sees `[-20, 20] × [-10, 10]` up to its far plane.
+  const box = { left: -10, right: 10, top: 5, bottom: -5 };
+  const orthographic = { ...optics, far: 1000, zoom: 0.5, orthographic: box };
+  assert.equal(cellReach(orthographic), Math.hypot(1000, 20, 10));
+  // A negative near plane draws behind the eye, as far as it goes.
+  assert.equal(cellReach({ ...orthographic, near: -2000 }), Math.hypot(2000, 20, 10));
+  // A box given right to left and bottom up is as wide.
+  const mirrored = { left: 10, right: -10, top: -5, bottom: 5 };
+  assert.equal(cellReach({ ...orthographic, orthographic: mirrored }), Math.hypot(1000, 20, 10));
+});
+
+test('a sheared root reads every cell the world reach holds, by its least singular value', () => {
+  // `(x, y, z) → (x + y, y, z)`: every column is at least 1 long, yet it shrinks the direction
+  // `(1, −0.618…, 0)` by 0.618…, the golden ratio's inverse.
+  const shear = [1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
+  const local = [1, (1 - Math.sqrt(5)) / 2, 0];
+  const world = Math.hypot(local[0] + local[1], local[1], local[2]);
+  const { eye, reach } = inCellFrame(shear, [0, 0, 0], world);
+  assert.ok(Math.hypot(...local) <= reach * (1 + 1e-12), `${Math.hypot(...local)} > ${reach}`);
+  assert.deepEqual(eye, [0, 0, 0]);
+  const flat = [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
+  assert.equal(inCellFrame(flat, [0, 0, 0], 1).reach, Infinity, 'a flattened root reads all');
+  // So nearly flat its inverse overflows: it reads all too, rather than throw.
+  const nearlyFlat = flat.map((value, at) => (at === 5 ? 1e-310 : value));
+  assert.deepEqual(inCellFrame(nearlyFlat, [1, 2, 3], 1), { eye: [0, 0, 0], reach: Infinity });
 });
 
 test('the distance to a cell is the distance to its box', () => {

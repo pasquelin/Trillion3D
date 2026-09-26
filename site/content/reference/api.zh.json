@@ -334,11 +334,9 @@
       "texturePreviewBc7": "预览图的 BC7 数据块。",
       "texturePreviewAstc": "预览图的 ASTC 数据块。",
       "bundleDependencyCount": "每个包依赖多少个包。",
-      "bundleDependency": "每个包依赖的包，一直到根。"
+      "bundleDependency": "每个包依赖的包，一直到根。",
+      "pageCone": "每个页面的法线锥：轴，然后是半角。"
     }
-  },
-  "COMPARISON_LIBRARIES": {
-    "summary": "基准测试对照检查过的那些引擎,各自附带状态和原因说明。"
   },
   "COMPILER_LINE_LIMIT": {
     "summary": "两条流上都能接受的单行最大长度;编译器只输出小体积的 JSON 行。"
@@ -552,23 +550,6 @@
   },
   "ComparisonLayout": {
     "summary": "两个渲染结果如何并排展示以便比较。"
-  },
-  "CompetitorRecord": {
-    "summary": "基准测试用来对比的另一个引擎,以及原因说明。",
-    "members": {
-      "id": "它的简称。",
-      "name": "它的名称。",
-      "status": "是否参与对比。",
-      "license": "它的许可协议。",
-      "maintained": "最后一次更新的时间。",
-      "scope": "它覆盖的范围。",
-      "reason": "参与或不参与对比的原因。",
-      "homepage": "它的官方网页。"
-    }
-  },
-  "CompetitorStatus": {
-    "summary": "与 Web 相关的几何/LOD 库的清单。",
-    "description": "状态描述的是集成对比的公平性,而不是市场宣传的覆盖面。"
   },
   "CompilationJob": {
     "summary": "一次正在进行的编译。",
@@ -873,7 +854,7 @@
   },
   "EffectChain": {
     "summary": "`world.effects`：在时间抗锯齿之后、图像到达 canvas 之前绘制在图像上的有序通道。",
-    "description": "色调映射之前的通道按添加顺序读取线性辐射亮度；之后的通道按它们的顺序读取显示图像。空链不花任何代价：没有通道、没有复制、没有目标。",
+    "description": "色调映射之前的通道按添加顺序读取线性辐射亮度；之后的通道按它们的顺序读取显示图像。空链不花任何代价：没有通道、没有复制、没有目标。在 WebGL2 上，绘制以 `multiply` 或 `subtractive` 混合的透明表面的帧会在没有链的情况下完整绘制，世界的诊断通道会报告一次 `effects-refused-blending`；WebGPU 两者都绘制。",
     "members": {
       "revision": "统计变更：在另一个修订号下绘制的图像已经过时。",
       "passes": "按运行顺序排列的通道。",
@@ -932,8 +913,8 @@
       "WEBGL2_UNAVAILABLE": "这台机器无法按要求的方式绘制,或者根本无法绘制。",
       "NO_WEBGL2": "这台机器无法按要求的方式绘制,或者根本无法绘制。",
       "NO_ENGINE_BACKEND": "这台机器无法按要求的方式绘制,或者根本无法绘制。",
-      "RESOURCE_HTTP_ERROR": "无法获取某个文件,或者它的内容不符合预期。",
-      "INVALID_JSON_RESPONSE": "无法获取某个文件,或者它的内容不符合预期。",
+      "RESOURCE_HTTP_ERROR": "无法获取某个文件(若失败可能是暂时的,会先再次请求),或者它的内容不符合预期。",
+      "INVALID_JSON_RESPONSE": "无法获取某个文件(若失败可能是暂时的,会先再次请求),或者它的内容不符合预期。",
       "INVALID_POINTER": "已编译模型的指针已损坏、未完成,或属于另一种范围。",
       "CACHE_NOT_READY": "已编译模型的指针已损坏、未完成,或属于另一种范围。",
       "SCOPE_MISMATCH": "已编译模型的指针已损坏、未完成,或属于另一种范围。",
@@ -1299,7 +1280,7 @@
     "members": {
       "visible": "是否绘制；由 `setVisible` 写入。",
       "setVisible": "显示或隐藏它；它的顶点仍计入上限。",
-      "setTransform": "放置它：按列排列的十六个数，或一个矩阵 —— `node.matrixWorld` 跟随一个节点。",
+      "setTransform": "放置它：按列排列的十六个数，或一个矩阵；由 `add` 绘制的参考线随后不再跟随其节点。",
       "remove": "把它从世界中移除，归还其顶点；再次调用不做任何事。"
     }
   },
@@ -1308,7 +1289,7 @@
     "members": {
       "positions": "每条线段两个端点，每个端点三个数。",
       "color": "它们的颜色；默认为白色。",
-      "width": "屏幕上的宽度，单位为像素。"
+      "width": "屏幕上的宽度，单位为 CSS 像素，与引擎的每条线相同。"
     }
   },
   "GuidePoints": {
@@ -1316,7 +1297,7 @@
     "members": {
       "positions": "每个点三个数。",
       "color": "它们的颜色；默认为白色。",
-      "size": "屏幕上每个方形点的边长，单位为像素。"
+      "size": "屏幕上每个方形点的边长，单位为 CSS 像素。"
     }
   },
   "Guides": {
@@ -1326,7 +1307,7 @@
       "vertexCount": "当前持有的顶点，每条线段两个、每个点一个，包括隐藏的参考线。",
       "lines": "绘制线段，每条两个端点；超过上限时被拒绝（`GUIDE_CEILING`）。",
       "points": "绘制方形点，每个一个位置；超过上限时被拒绝（`GUIDE_CEILING`）。",
-      "add": "以材质颜色、在对象当前所在位置，绘制 `object` 的线和点网格 —— 每个 `helper` 都会构建它们；它的三角形不是参考线，会被跳过。",
+      "add": "以材质颜色绘制 `object` 的线和点网格 —— 每个 `helper` 都会构建它们；它的三角形不是参考线，会被跳过。参考线跟随该对象 —— 对灯光或相机的辅助对象而言，是它所显示的节点 —— 在该节点移动过的每一帧图像中移动，否则从不移动。",
       "clear": "移除所有参考线。"
     }
   },
@@ -1851,6 +1832,7 @@
       "parameters.vertexColors": "几何体的逐顶点 `color` 是否给表面染色。",
       "parameters.depthWrite": "表面是否写入自己的深度,从而遮挡之后绘制的内容。",
       "parameters.depthTest": "表面是否会被已经更近的物体遮挡。",
+      "parameters.transparentShadow": "透明（`transparent`）表面是否仍投下阴影，越透明阴影越淡。",
       "parameters.physics": "穿戴它的物体的材质：密度、摩擦、回弹。",
       "parameters.density": "kg/m³，乘以体积得到质量。",
       "parameters.friction": "物体的抓地程度，0 及以上。",
@@ -1871,6 +1853,7 @@
       "vertexColors": "几何体的逐顶点颜色是否给表面染色。",
       "depthWrite": "表面是否写入自己的深度。",
       "depthTest": "表面是否会被更近的物体遮挡。",
+      "transparentShadow": "透明（`transparent`）表面是否仍投下阴影，越透明阴影越淡。",
       "version": "每次写入都会递增:世界据此比较来决定是否需要重绘。",
       "kind": "该材质创建时所属的类型:`'meshStandard'`、`'meshBasic'`……",
       "needsUpdate": "`material.needsUpdate = true`:穿着它的网格会被重绘。",
@@ -1916,6 +1899,7 @@
       "vertexColors": "几何体的逐顶点 `color` 是否给表面染色。",
       "depthWrite": "表面是否写入自己的深度,从而遮挡之后绘制的内容。",
       "depthTest": "表面是否会被已经更近的物体遮挡。",
+      "transparentShadow": "透明（`transparent`）表面是否仍投下阴影，越透明阴影越淡。",
       "physics": "穿戴它的物体的材质：密度、摩擦、回弹。",
       "density": "kg/m³，乘以体积得到质量。",
       "friction": "物体的抓地程度，0 及以上。",
@@ -2064,7 +2048,7 @@
       "clipAction": "播放 `clip` 的动作对象。",
       "play": "立即播放 `clip`。",
       "stopAll": "停止所有动作。",
-      "update": "把所有正在播放的动作推进 `seconds` 秒,并写入采样得到的数值。"
+      "update": "把所有正在播放的动作推进 `seconds` 秒,然后以每个属性的静止值为底,向该属性写入其各动作采样值的加权混合。"
     }
   },
   "ModelRecord": {
@@ -2106,7 +2090,7 @@
       "quaternion": "该节点的旋转状态,以四元数表示。",
       "scale": "该节点在各坐标轴上的缩放程度。",
       "up": "对 `lookAt` 而言,哪个方向是“上”。",
-      "castShadow": "该节点是否投射阴影。",
+      "castShadow": "该节点是否投射阴影:网格默认投射,除非设为 `false`;光源仅在设为 `true` 时投射。设为 `false` 的网格仍会接收其他物体的阴影。",
       "receiveShadow": "阴影是否会落在该节点上。",
       "renderOrder": "在透明物体之间的绘制顺序。",
       "frustumCulled": "渲染器在视野外是否可以跳过它。",
@@ -2116,6 +2100,7 @@
       "children": "按插入顺序排列的已挂载子节点。返回的列表不可修改。",
       "add": "把若干对象变成这个节点的子节点。",
       "remove": "把若干子节点从这个节点上移除。",
+      "attach": "在 `child` 所在的位置添加它(`SceneNode.attach`)。",
       "destroy": "立即释放该节点及其下所有节点，而不是等到它们被回收。",
       "removeFromParent": "把该节点从它的父节点上移除。",
       "clone": "同类型、同值的节点；除非另有指示，其子节点也会被复制。",
@@ -2289,7 +2274,7 @@
     "summary": "数据图集:金属度-粗糙度贴图、法线贴图和遮蔽贴图。"
   },
   "PREVIEW_ATLAS_NAMES": {
-    "summary": "一个已烘焙层级的路径为每个图集所携带的 `{kind}`,按 `bake.rs` 为它们命名的方式。"
+    "summary": "烘焙层级的路径为每个图集携带的 `{kind}`，与 `reduce.rs` 的命名一致；在字节 C 处裁剪的覆盖链会追加 `-C`。"
   },
   "PREVIEW_BASE": {
     "summary": "旁挂文件所携带的某个层级可能拥有的最大边长。"
@@ -2353,7 +2338,8 @@
       "source": "生成它的组。",
       "stream": "持有该簇的流式资源包,以及它在包内的字节偏移量。一次请求可以服务几十个簇;该簇仍可通过 `url` 独立读取。",
       "streamOffset": "它在该资源包内的字节偏移量。",
-      "depthLayer": "共面深度层,对于编译器未做处理的每个簇均为 0。层为 n 的簇会带着 n 个完整层级步长的深度偏移进行绘制,这正是决定两个精确共面的不透明表面之间谁获胜的因素。缺失和 0 表示同一件事:未经处理的绘制。"
+      "depthLayer": "共面深度层,对于编译器未做处理的每个簇均为 0。层为 n 的簇会带着 n 个完整层级步长的深度偏移进行绘制,这正是决定两个精确共面的不透明表面之间谁获胜的因素。缺失和 0 表示同一件事:未经处理的绘制。",
+      "cone": "包住其三角形法线的锥：`axis` 为单位向量，`angle` 为以弧度计的半角，不剔除任何内容的锥为 π。编译器根据三角形计算它；WebGPU 裁剪会跳过相机从锥背面看到的单面簇。"
     }
   },
   "PageCutPage": {
@@ -2618,6 +2604,7 @@
     "members": {
       "matrices": "每行十六个列优先浮点数,由持有者写入。",
       "live": "该行正在放置资源时为 1,处于闲置状态时为 0。",
+      "shadowless": "该行不投射阴影时为 1(其网格的 `castShadow` 为 `false`),投射时为 0。",
       "capacity": "在需要扩容之前能容纳的行数。"
     }
   },
@@ -2921,7 +2908,7 @@
       "background": "填充每个对象背后画面的内容：一种颜色，或表示默认值的 `null`。更改会在下一帧显示，会话保持不变：在这里设置的新颜色，或通过其方法（`set`、`setRGB`、`setHex`、`setHSL`...）写入的当前颜色。直接写入 `.r`、`.g` 或 `.b` 不会被察觉：之后请重新设置 `background`。图片或任何没有 `getHex` 的值都会被拒绝（`UNSUPPORTED_SCENE_UPDATE`）：没有路径会绘制它。",
       "fog": "覆盖每个表面的雾，不透明和透明表面都有，两种渲染器都支持；默认 `null` 表示无雾，没有任何开销。`{ color, near, far }` 让物体从 `near` 到 `far` 融入 `color`，距离从相机算起；`{ color, density }` 每单位距离变浓 `density`；加上 `heightFalloff`（以及默认为 0 的 `baseHeight`），雾就贴在地面上，在 `baseHeight` 之上变淡——每向上 `1 / heightFalloff` 个单位除以 e。修改在下一帧显示：在这里设置的新雾，或通过其方法写入的颜色。直接写 `near`、`far`、`density`... 不会被察觉：写完后请重新设置 `fog`。超出范围的雾——`far` 不在 `near` 之外、密度为负——会被拒绝（`INVALID_SCENE_ENVIRONMENT`）。",
       "load": "加载一个已编译模型——通过它的清单 URL——并把它添加到这个场景中。",
-      "toJSON": "场景的纯 JSON 表示，带版本号：它的物体、按构建它们的调用记录的形状、材质、光源，以及按地址记录的已加载模型；给出 `camera` 时，也包括它的位姿。",
+      "toJSON": "场景的纯 JSON 表示，带版本号：它的物体、按构建它们的调用记录的形状、材质、光源、按声明记录的每个网格的物理物体，以及按地址记录的已加载模型；给出 `camera` 时，也包括它的位姿。",
       "fromJSON": "用 `toJSON` 保存的场景替换场景当前的内容，保留其 `helper` 标记；模型加载完后完成。其他格式或版本会被拒绝（`UNSUPPORTED_SCENE_FORMAT`）。读取期间发起的调用会按顺序一个接一个执行，每个都基于前一个留下的结果：两个保存的场景绝不会混在一起。"
     }
   },
@@ -3009,6 +2996,7 @@
       "pose": "某个节点移动了。",
       "structure": "某个节点获得或失去了子节点。",
       "content": "某个节点的形状或材质发生了变化。",
+      "shadow": "某节点的 `castShadow` 已改变:没有任何东西移动。",
       "posed": "许多节点同时移动，直接写入其变换树（物理刚体）：只通知一次。",
       "seat": "绘制该节点所用的行，没有则为 `null`：`batch.rows.matrices` 中从 `row * 16` 起按列存放的 16 个浮点数，渲染器就地读取。成千上万地放置节点的所有者（物理）自己把世界矩阵写到那里，在 `seatEpoch` 不变时有效，并通过 `placed` 告知写过的行。",
       "seatEpoch": "每当一行被占用、释放或重新分配时都会变化：之前 `seat` 的所有回答都已过时。",
@@ -3030,6 +3018,7 @@
       "remove": "移除一个子节点。",
       "clear": "移除所有子节点。",
       "reparent": "把它移到另一个父节点之下。",
+      "attach": "在子节点所在的位置添加它:保留其世界矩阵,重写其局部姿态。",
       "clone": "一份副本,连同子节点一起复制。",
       "copy": "复制数值和后代节点;递归的祖先—后代重叠关系会被原子性地拒绝。",
       "setPosition": "设置它的位置。",
@@ -3124,10 +3113,10 @@
       "shadowsUpdated": "本帧绘制了某页的阴影光源数。静止场景的正常值为零：固定光源保留其页。",
       "shadowFacesDrawn": "阴影通道绘制的光视图——太阳的一个 clipmap 级别、某个 mip 的一个灯光面——以及实际编码的绘制调用。不绘制阴影的引擎为 null。",
       "shadowDrawCalls": "阴影绘制调用数。",
-      "shadowPagesDrawn": "页面失效机制产生的结果:本帧重绘的页面数、因预算不足而留在队列中的页面数,以及其中最老一个的滞后时间(毫秒)。全部为零是静止场景的正常值;在没有阴影图集的引擎上为 `null`。",
+      "shadowPagesDrawn": "页面失效机制产生的结果:本帧重绘的页面数、因预算不足而留在队列中的页面数,以及图像读取的最老过期页面已等待的时间。全部为零是静止场景的正常值;在没有阴影图集的引擎上为 `null`。",
       "shadowPagesTotal": "自探索器打开以来已绘制的页面数,包括 `flush()` 排空的部分:某次变化的开销就是两次读数之间的差值。",
       "shadowPagesPending": "等待中的阴影页面。",
-      "shadowWaitMs": "它们等待了多久。",
+      "shadowWaitMs": "图像读取的最老过期页面等待重绘的毫秒数。只计算图像读取它的时间;重绘后为 0。",
       "gpuLightListsMs": "光源列表的 GPU 耗时。",
       "gpuShadowsMs": "阴影的 GPU 耗时。",
       "gpuShadowCullMs": "选择本帧所绘阴影页的投影体的 GPU 时间：光源剪切、逐页剔除，以及运动投影体的遮挡测试及其读取的金字塔。",
@@ -3560,7 +3549,6 @@
       "anisotropy": "倾斜角度下的清晰度。",
       "flipY": "行是否被翻转。",
       "premultiplyAlpha": "颜色是否已预先乘以 alpha。",
-      "generateMipmaps": "是否生成更小的副本。",
       "colorSpace": "它的数值该如何被读取。",
       "transform": "采样器的 UV 变换,即 `KHR_texture_transform` 组合成的一个 3×3 矩阵。"
     }
@@ -3630,7 +3618,7 @@
       "textureBytesLastFrame": "上一帧发送的字节数。",
       "textureUploadMs": "发送图块所花费的时间。",
       "textureUploadPeakMs": "单帧内最长的一次发送耗时。",
-      "textureLevelReads": "各个数据来源。`textureLevelReads`:正在从缓存中读取的已烘焙层级。`textureLevelsDecoded`:自会话开始以来已解码的已烘焙层级数。`textureLevelCacheBytes`:为了从中进一步切出图块而保留的、已解码层级所占用的宿主字节数,受固定预算限制。`textureScratchBuilds`:为没有已烘焙链条的纹理构建的临时纹理数,每次都要用到整个源图像。",
+      "textureLevelReads": "各个数据来源。`textureLevelReads`:正在从缓存中读取的已烘焙层级。`textureLevelsDecoded`:自会话开始以来已解码的已烘焙层级数。`textureLevelCacheBytes`:为了从中进一步切出图块而保留的、已解码层级所占用的宿主字节数,计入 CPU 总预算。`textureScratchBuilds`:为没有已烘焙链条的纹理构建的临时纹理数,每次都要用到整个源图像。",
       "textureLevelsDecoded": "已解码的层级数。",
       "textureLevelCacheBytes": "已解码层级所保留的字节数。",
       "textureScratchBuilds": "已构建的临时纹理数。",
@@ -3677,7 +3665,7 @@
       "sourceKind": "当字节来自图像 uri 时为 0,来自 sourceBufferView 时为 1。",
       "sourceBufferView": "预处理场景中的缓冲区视图,若来源为 uri 则为 -1。",
       "sha256": "解码后源字节的 SHA-256。",
-      "atlas": "这条记录所承载的链:PREVIEW_ATLAS_COLOR、PREVIEW_ATLAS_DATA 或 PREVIEW_ATLAS_COVERAGE,后者在颜色图集中采样。",
+      "atlas": "此条目所承载的链：PREVIEW_ATLAS_COLOR、PREVIEW_ATLAS_DATA，或在颜色图集中采样的 PREVIEW_ATLAS_COVERAGE，位于低字节；覆盖链的裁剪字节占据第 8–15 位。",
       "firstLevel": "源 mip 链中携带的第一个层级的索引;当它本身已经满足 PREVIEW_BASE 以内、旁挂文件因而携带其完整分辨率时为 0。",
       "bakedLevels": "在缓存中被烘焙成文件的层级数,从 0 到 bakedLevels - 1;当链条完整时等于 firstLevel,当没有写入任何内容、引擎需要加载源图像时为 0。",
       "levels": "按顺序携带的各个层级,从最精细的一级到 1x1,每一级都是对旁挂文件字节的一个视图。",
@@ -4081,7 +4069,7 @@
     "summary": "在世界无法察觉的一次变化之后,请求绘制新的一帧。"
   },
   "world.render": {
-    "summary": "无论是谁在主导循环,都立即绘制一帧。"
+    "summary": "无论是谁在主导循环,都立即绘制一帧:剪辑片段和物理随之推进。"
   },
   "world.resize": {
     "summary": "告诉世界画布的尺寸变了;不设置时,它会读取画布自身的尺寸。",
@@ -4161,10 +4149,10 @@
       "shadowsUpdated": "本帧绘制了某页的阴影光源数。静止场景的正常值为零：固定光源保留其页。",
       "shadowFacesDrawn": "阴影通道绘制的光视图——太阳的一个 clipmap 级别、某个 mip 的一个灯光面——以及实际编码的绘制调用。不绘制阴影的引擎为 null。",
       "shadowDrawCalls": "阴影绘制调用数。",
-      "shadowPagesDrawn": "页面失效机制产生的结果:本帧重绘的页面数、因预算不足而留在队列中的页面数,以及其中最老一个的滞后时间(毫秒)。全部为零是静止场景的正常值;在没有阴影图集的引擎上为 `null`。",
+      "shadowPagesDrawn": "页面失效机制产生的结果:本帧重绘的页面数、因预算不足而留在队列中的页面数,以及图像读取的最老过期页面已等待的时间。全部为零是静止场景的正常值;在没有阴影图集的引擎上为 `null`。",
       "shadowPagesTotal": "自探索器打开以来已绘制的页面数,包括 `flush()` 排空的部分:某次变化的开销就是两次读数之间的差值。",
       "shadowPagesPending": "等待中的阴影页面。",
-      "shadowWaitMs": "它们等待了多久。",
+      "shadowWaitMs": "图像读取的最老过期页面等待重绘的毫秒数。只计算图像读取它的时间;重绘后为 0。",
       "gpuLightListsMs": "光源列表的 GPU 耗时。",
       "gpuShadowsMs": "阴影的 GPU 耗时。",
       "gpuShadowCullMs": "选择本帧所绘阴影页的投影体的 GPU 时间：光源剪切、逐页剔除，以及运动投影体的遮挡测试及其读取的金字塔。",
@@ -4193,7 +4181,7 @@
       "textureBytesLastFrame": "上一帧发送的字节数。",
       "textureUploadMs": "发送图块所花费的时间。",
       "textureUploadPeakMs": "单帧内最长的一次发送耗时。",
-      "textureLevelReads": "各个数据来源。`textureLevelReads`:正在从缓存中读取的已烘焙层级。`textureLevelsDecoded`:自会话开始以来已解码的已烘焙层级数。`textureLevelCacheBytes`:为了从中进一步切出图块而保留的、已解码层级所占用的宿主字节数,受固定预算限制。`textureScratchBuilds`:为没有已烘焙链条的纹理构建的临时纹理数,每次都要用到整个源图像。",
+      "textureLevelReads": "各个数据来源。`textureLevelReads`:正在从缓存中读取的已烘焙层级。`textureLevelsDecoded`:自会话开始以来已解码的已烘焙层级数。`textureLevelCacheBytes`:为了从中进一步切出图块而保留的、已解码层级所占用的宿主字节数,计入 CPU 总预算。`textureScratchBuilds`:为没有已烘焙链条的纹理构建的临时纹理数,每次都要用到整个源图像。",
       "textureLevelsDecoded": "已解码的层级数。",
       "textureLevelCacheBytes": "已解码层级所保留的字节数。",
       "textureScratchBuilds": "已构建的临时纹理数。",
@@ -5776,6 +5764,7 @@
       "parameters.vertexColors": "几何体的逐顶点 `color` 是否给表面染色。",
       "parameters.depthWrite": "表面是否写入自己的深度,从而遮挡之后绘制的内容。",
       "parameters.depthTest": "表面是否会被已经更近的物体遮挡。",
+      "parameters.transparentShadow": "透明（`transparent`）表面是否仍投下阴影，越透明阴影越淡。",
       "parameters.physics": "穿戴它的物体的材质：密度、摩擦、回弹。",
       "parameters.density": "kg/m³，乘以体积得到质量。",
       "parameters.friction": "物体的抓地程度，0 及以上。",
@@ -5816,6 +5805,7 @@
       "parameters.vertexColors": "几何体的逐顶点 `color` 是否给表面染色。",
       "parameters.depthWrite": "表面是否写入自己的深度,从而遮挡之后绘制的内容。",
       "parameters.depthTest": "表面是否会被已经更近的物体遮挡。",
+      "parameters.transparentShadow": "透明（`transparent`）表面是否仍投下阴影，越透明阴影越淡。",
       "parameters.physics": "穿戴它的物体的材质：密度、摩擦、回弹。",
       "parameters.density": "kg/m³，乘以体积得到质量。",
       "parameters.friction": "物体的抓地程度，0 及以上。",
@@ -5856,6 +5846,7 @@
       "parameters.vertexColors": "几何体的逐顶点 `color` 是否给表面染色。",
       "parameters.depthWrite": "表面是否写入自己的深度,从而遮挡之后绘制的内容。",
       "parameters.depthTest": "表面是否会被已经更近的物体遮挡。",
+      "parameters.transparentShadow": "透明（`transparent`）表面是否仍投下阴影，越透明阴影越淡。",
       "parameters.physics": "穿戴它的物体的材质：密度、摩擦、回弹。",
       "parameters.density": "kg/m³，乘以体积得到质量。",
       "parameters.friction": "物体的抓地程度，0 及以上。",
@@ -5896,6 +5887,7 @@
       "parameters.vertexColors": "几何体的逐顶点 `color` 是否给表面染色。",
       "parameters.depthWrite": "表面是否写入自己的深度,从而遮挡之后绘制的内容。",
       "parameters.depthTest": "表面是否会被已经更近的物体遮挡。",
+      "parameters.transparentShadow": "透明（`transparent`）表面是否仍投下阴影，越透明阴影越淡。",
       "parameters.physics": "穿戴它的物体的材质：密度、摩擦、回弹。",
       "parameters.density": "kg/m³，乘以体积得到质量。",
       "parameters.friction": "物体的抓地程度，0 及以上。",
@@ -5936,6 +5928,7 @@
       "parameters.vertexColors": "几何体的逐顶点 `color` 是否给表面染色。",
       "parameters.depthWrite": "表面是否写入自己的深度,从而遮挡之后绘制的内容。",
       "parameters.depthTest": "表面是否会被已经更近的物体遮挡。",
+      "parameters.transparentShadow": "透明（`transparent`）表面是否仍投下阴影，越透明阴影越淡。",
       "parameters.physics": "穿戴它的物体的材质：密度、摩擦、回弹。",
       "parameters.density": "kg/m³，乘以体积得到质量。",
       "parameters.friction": "物体的抓地程度，0 及以上。",
@@ -5976,6 +5969,7 @@
       "parameters.vertexColors": "几何体的逐顶点 `color` 是否给表面染色。",
       "parameters.depthWrite": "表面是否写入自己的深度,从而遮挡之后绘制的内容。",
       "parameters.depthTest": "表面是否会被已经更近的物体遮挡。",
+      "parameters.transparentShadow": "透明（`transparent`）表面是否仍投下阴影，越透明阴影越淡。",
       "parameters.physics": "穿戴它的物体的材质：密度、摩擦、回弹。",
       "parameters.density": "kg/m³，乘以体积得到质量。",
       "parameters.friction": "物体的抓地程度，0 及以上。",
@@ -6016,6 +6010,7 @@
       "parameters.vertexColors": "几何体的逐顶点 `color` 是否给表面染色。",
       "parameters.depthWrite": "表面是否写入自己的深度,从而遮挡之后绘制的内容。",
       "parameters.depthTest": "表面是否会被已经更近的物体遮挡。",
+      "parameters.transparentShadow": "透明（`transparent`）表面是否仍投下阴影，越透明阴影越淡。",
       "parameters.physics": "穿戴它的物体的材质：密度、摩擦、回弹。",
       "parameters.density": "kg/m³，乘以体积得到质量。",
       "parameters.friction": "物体的抓地程度，0 及以上。",
@@ -6056,6 +6051,7 @@
       "parameters.vertexColors": "几何体的逐顶点 `color` 是否给表面染色。",
       "parameters.depthWrite": "表面是否写入自己的深度,从而遮挡之后绘制的内容。",
       "parameters.depthTest": "表面是否会被已经更近的物体遮挡。",
+      "parameters.transparentShadow": "透明（`transparent`）表面是否仍投下阴影，越透明阴影越淡。",
       "parameters.physics": "穿戴它的物体的材质：密度、摩擦、回弹。",
       "parameters.density": "kg/m³，乘以体积得到质量。",
       "parameters.friction": "物体的抓地程度，0 及以上。",
@@ -6096,6 +6092,7 @@
       "parameters.vertexColors": "几何体的逐顶点 `color` 是否给表面染色。",
       "parameters.depthWrite": "表面是否写入自己的深度,从而遮挡之后绘制的内容。",
       "parameters.depthTest": "表面是否会被已经更近的物体遮挡。",
+      "parameters.transparentShadow": "透明（`transparent`）表面是否仍投下阴影，越透明阴影越淡。",
       "parameters.physics": "穿戴它的物体的材质：密度、摩擦、回弹。",
       "parameters.density": "kg/m³，乘以体积得到质量。",
       "parameters.friction": "物体的抓地程度，0 及以上。",
@@ -6136,6 +6133,7 @@
       "parameters.vertexColors": "几何体的逐顶点 `color` 是否给表面染色。",
       "parameters.depthWrite": "表面是否写入自己的深度,从而遮挡之后绘制的内容。",
       "parameters.depthTest": "表面是否会被已经更近的物体遮挡。",
+      "parameters.transparentShadow": "透明（`transparent`）表面是否仍投下阴影，越透明阴影越淡。",
       "parameters.physics": "穿戴它的物体的材质：密度、摩擦、回弹。",
       "parameters.density": "kg/m³，乘以体积得到质量。",
       "parameters.friction": "物体的抓地程度，0 及以上。",
@@ -6176,6 +6174,7 @@
       "parameters.vertexColors": "几何体的逐顶点 `color` 是否给表面染色。",
       "parameters.depthWrite": "表面是否写入自己的深度,从而遮挡之后绘制的内容。",
       "parameters.depthTest": "表面是否会被已经更近的物体遮挡。",
+      "parameters.transparentShadow": "透明（`transparent`）表面是否仍投下阴影，越透明阴影越淡。",
       "parameters.physics": "穿戴它的物体的材质：密度、摩擦、回弹。",
       "parameters.density": "kg/m³，乘以体积得到质量。",
       "parameters.friction": "物体的抓地程度，0 及以上。",
@@ -6216,6 +6215,7 @@
       "parameters.vertexColors": "几何体的逐顶点 `color` 是否给表面染色。",
       "parameters.depthWrite": "表面是否写入自己的深度,从而遮挡之后绘制的内容。",
       "parameters.depthTest": "表面是否会被已经更近的物体遮挡。",
+      "parameters.transparentShadow": "透明（`transparent`）表面是否仍投下阴影，越透明阴影越淡。",
       "parameters.physics": "穿戴它的物体的材质：密度、摩擦、回弹。",
       "parameters.density": "kg/m³，乘以体积得到质量。",
       "parameters.friction": "物体的抓地程度，0 及以上。",
@@ -6256,6 +6256,7 @@
       "parameters.vertexColors": "几何体的逐顶点 `color` 是否给表面染色。",
       "parameters.depthWrite": "表面是否写入自己的深度,从而遮挡之后绘制的内容。",
       "parameters.depthTest": "表面是否会被已经更近的物体遮挡。",
+      "parameters.transparentShadow": "透明（`transparent`）表面是否仍投下阴影，越透明阴影越淡。",
       "parameters.physics": "穿戴它的物体的材质：密度、摩擦、回弹。",
       "parameters.density": "kg/m³，乘以体积得到质量。",
       "parameters.friction": "物体的抓地程度，0 及以上。",
@@ -6296,6 +6297,7 @@
       "parameters.vertexColors": "几何体的逐顶点 `color` 是否给表面染色。",
       "parameters.depthWrite": "表面是否写入自己的深度,从而遮挡之后绘制的内容。",
       "parameters.depthTest": "表面是否会被已经更近的物体遮挡。",
+      "parameters.transparentShadow": "透明（`transparent`）表面是否仍投下阴影，越透明阴影越淡。",
       "parameters.physics": "穿戴它的物体的材质：密度、摩擦、回弹。",
       "parameters.density": "kg/m³，乘以体积得到质量。",
       "parameters.friction": "物体的抓地程度，0 及以上。",
@@ -6945,7 +6947,7 @@
   },
   "world.beforeFrame": {
     "summary": "在每一个将要绘制的帧之前,以 `{ delta, time }` 为参数执行一个函数;返回用于移除它的函数。",
-    "description": "世界循环的一帧会依次执行:控制器推进摄像机(除非 `controls.autoUpdate` 为 false),剪辑片段推进,这些钩子按添加顺序执行,场景被写入并绘制,然后执行 `onFrame` 钩子。某个钩子所放置的东西——摄像机上方的身体、驾驶舱——正是在这一帧内被绘制的,绝不会晚一帧。由宿主驱动的 `render()` 同样会执行这些钩子,但不会推进控制器。调用 `invalidate()` 的钩子会让帧持续到来。",
+    "description": "一帧依次执行:摄像机的控制器(除非 `controls.autoUpdate` 为 false,或由宿主主导 `render()`),剪辑片段,物理,这些钩子按其顺序执行,绘制,然后执行 `onFrame` 钩子。某个钩子所放置的东西——摄像机上方的身体、驾驶舱——正是在这一帧内被绘制的,绝不会晚一帧。调用 `invalidate()` 的钩子会让帧持续到来。",
     "returns": "用于停止该钩子的函数。",
     "parameters": {
       "hook": "要执行的函数;接收刚刚积分的秒数,以及世界的当前时间。"
@@ -7022,7 +7024,8 @@
       "children": "它下面的节点，按顺序。",
       "mesh": "在 `geometries` 和 `materials` 中的序号、三角形的读取方式，以及精灵的中心。",
       "light": "光源的类型、颜色、数值、朝向和探针系数。",
-      "model": "编译好的模型，按它加载时的清单地址记录：从不内嵌。"
+      "model": "编译好的模型，按它加载时的清单地址记录：从不内嵌。",
+      "physics": "网格的物理物体，按 `mesh.physics` 的声明记录。"
     }
   },
   "SavedScene": {
@@ -7129,7 +7132,7 @@
       "water": "物体漂浮其中的水：水位、波浪、密度和阻力。比水轻的物体会漂浮，被它排开的水的重量托起。",
       "waterSurface": "模拟时刻的水面,用于绘制:与浮力读取的相同波浪、相同数值(`height`、`point`、`normal`)。",
       "stats": "计数与两个时钟：worker 每步毫秒数，页面每帧毫秒数。",
-      "error": "物理最近一次的错误（`PHYSICS_BUDGET`、`PHYSICS_NESTED`、`PHYSICS_FAILED`），或 `null`。使模拟停止的错误会关闭 `enabled`。",
+      "error": "物理最近一次的错误（`PHYSICS_BUDGET`、`PHYSICS_NESTED`、`PHYSICS_FAILED`、`RESOURCE_HTTP_ERROR`），或 `null`。使模拟停止的错误会关闭 `enabled`。",
       "add": "添加一个关节（`joint.hinge(door, frame, …)` 及其同类）：两个物体一进入模拟它就创建，并保持到被移除或断开。",
       "remove": "移除一个关节：它连接的物体自由分开。"
     }
@@ -7337,7 +7340,7 @@
       "water": "物体漂浮其中的水：水位、波浪、密度和阻力。比水轻的物体会漂浮，被它排开的水的重量托起。",
       "waterSurface": "模拟时刻的水面,用于绘制:与浮力读取的相同波浪、相同数值(`height`、`point`、`normal`)。",
       "stats": "计数与两个时钟：worker 每步毫秒数，页面每帧毫秒数。",
-      "error": "物理最近一次的错误（`PHYSICS_BUDGET`、`PHYSICS_NESTED`、`PHYSICS_FAILED`），或 `null`。使模拟停止的错误会关闭 `enabled`。",
+      "error": "物理最近一次的错误（`PHYSICS_BUDGET`、`PHYSICS_NESTED`、`PHYSICS_FAILED`、`RESOURCE_HTTP_ERROR`），或 `null`。使模拟停止的错误会关闭 `enabled`。",
       "add": "添加一个关节（`joint.hinge(door, frame, …)` 及其同类）：两个物体一进入模拟它就创建，并保持到被移除或断开。",
       "remove": "移除一个关节：它连接的物体自由分开。"
     }
@@ -7427,6 +7430,7 @@
       "transparent": "是否进行混合。",
       "opacity": "不透明程度。",
       "alphaTest": "低于该值的像素会被丢弃的 alpha 阈值。",
+      "transparentShadow": "混合绘制时是否投下阴影；未指定时不投。",
       "depthTest": "是否进行深度测试。"
     }
   },
@@ -7447,7 +7451,7 @@
       "offset": "`matrix` 由之组成的值。",
       "matrixAutoUpdate": "宿主是否会重建 `matrix`。",
       "matrix": "采样器的 UV 变换,即 `KHR_texture_transform` 组合成的三行矩阵;当宿主自己负责更新时,它会根据偏移、重复和旋转重新计算这个矩阵。",
-      "generateMipmaps": "是否生成更小的副本。",
+      "generateMipmaps": "是否要求生成更小的副本；只要 `minFilter` 读取它们，引擎就会生成。",
       "premultiplyAlpha": "颜色是否已预先乘以 alpha。",
       "flipY": "上传时行是否被翻转。",
       "version": "每次内容变化时由宿主递增:某次上传据此比较,以跳过重复拷贝。",

@@ -18,6 +18,8 @@ use crate::{CompilerError, Result};
 use serde_json::{json, Map, Value};
 
 #[cfg(test)]
+mod cone_tests;
+#[cfg(test)]
 mod dependency_tests;
 mod digests;
 pub(crate) mod format;
@@ -34,8 +36,9 @@ use format::*;
 /// Every version changes what a column means, so a reader refuses any version but its own; the
 /// history sits beside the reader (`sdk-core/src/manifest/binaryFormat.ts`). Version 8 adds the
 /// page dependencies of the streaming bundles, a count per bundle then the flat closed lists: a
-/// reader of version 7 would install a bundle before the bundles holding its parents.
-pub const MANIFEST_BINARY_VERSION: u32 = 8;
+/// reader of version 7 would install a bundle before the bundles holding its parents. Version 9
+/// adds each page's normal cone (`src/normal_cone.rs`), a column a reader of version 8 lacks.
+pub const MANIFEST_BINARY_VERSION: u32 = 9;
 /// 'W','G','M','B' read as a little-endian u32.
 pub const MANIFEST_BINARY_MAGIC: u32 = 0x424d_4757;
 const HEADER_WORDS: usize = 4;
@@ -68,7 +71,8 @@ const TEXTURE_PREVIEW_PIXELS: usize = 23;
 const TEXTURE_PREVIEW_BLOCKS: [usize; 2] = [24, 25];
 const BUNDLE_DEPENDENCY_COUNT: usize = 26;
 const BUNDLE_DEPENDENCY: usize = 27;
-const COLUMNS: usize = 28;
+const PAGE_CONE: usize = 28;
+const COLUMNS: usize = 29;
 /// Numbers per level entry: texture, image, width, height, kind and provenance
 /// view, then the first carried level, their count, the start and length of its
 /// pixels, the atlas it serves, the count of levels baked as files, and the
@@ -83,14 +87,18 @@ const PREVIEW_LAYOUTS: usize = 12;
 /// A digest as the columns and the object store spell it: 64 lowercase
 /// hexadecimal characters, and nothing a path could be made of.
 pub fn is_digest(value: &str) -> bool {
-    value.len() == 64
-        && value
-            .bytes()
-            .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+    value.len() == 64 && is_lower_hex(value)
+}
+
+/// Whether `value` is lowercase hexadecimal only, as a digest and a page slot are spelled.
+pub(crate) fn is_lower_hex(value: &str) -> bool {
+    value
+        .bytes()
+        .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
 }
 
 /// Bytes a page writes in each page column, whichever the page.
-const PAGE_COLUMN_WIDTHS: [(usize, usize); 10] = [
+const PAGE_COLUMN_WIDTHS: [(usize, usize); 11] = [
     (PAGE_BOUNDS, 48),
     (PAGE_SPHERE, 32),
     (PAGE_PARENT_SPHERE, 32),
@@ -101,18 +109,8 @@ const PAGE_COLUMN_WIDTHS: [(usize, usize); 10] = [
     (GEOMETRY_SHA, 64),
     (GEOMETRY_U32, 20),
     (PAGE_DEPTH_LAYER, 4),
+    (PAGE_CONE, 32),
 ];
-
-const FLAG_ROLE: u32 = 1;
-const FLAG_COARSE: u32 = 2;
-const FLAG_GEOMETRY: u32 = 4;
-const FLAG_CLUSTER_ERROR: u32 = 8;
-const FLAG_PARENT_ERROR: u32 = 16;
-const FLAG_PARENT_ERROR_FINITE: u32 = 32;
-const FLAG_PARENT_SPHERE: u32 = 64;
-const FLAG_PARENT_SPHERE_SET: u32 = 128;
-const FLAG_GROUP: u32 = 256;
-const FLAG_SOURCE: u32 = 512;
 
 /// Object naming templates of a cache. `{sha}` stands for the 64 hexadecimal digest characters.
 pub struct Templates<'a> {

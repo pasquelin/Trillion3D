@@ -13,7 +13,7 @@ use super::*;
 /// A structure read at an offset of the file.
 #[derive(Clone, Copy)]
 pub(super) struct At<'a> {
-    pub(super) file: &'a BlendFile,
+    pub(super) file: &'a BlendFile<'a>,
     pub(super) layout: &'a Layout,
     pub(super) base: usize,
     /// The end of the reached block's bytes: no field is read beyond it.
@@ -23,7 +23,7 @@ pub(super) struct At<'a> {
     pub(super) old: u64,
 }
 
-impl BlendFile {
+impl BlendFile<'_> {
     /// The view of a block, typed by the structure its header names.
     pub(super) fn view<'a>(&'a self, block: &Block) -> Option<At<'a>> {
         Some(At {

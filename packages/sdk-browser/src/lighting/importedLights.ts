@@ -4,6 +4,7 @@ import {
   type SceneLightStore,
 } from '../../../sdk-core/src/index.ts';
 import { unmetered, type ByteMeter } from '../cluster/byteMeter.ts';
+import { optionalFile } from '../cluster/pages.ts';
 
 /** Lights cache product, next to the neighbouring manifest. Its version is its own. */
 const IMPORTED_LIGHTS_FILE = 'lights.json';
@@ -20,9 +21,9 @@ type ImportedLightsFile = {
 
 /**
  * Reads the lights the source file carried, converted by the compiler into the engine contract.
- * The read is tolerant by construction: a cache compiled before this product, a missing file, an
- * unknown version or an unreadable body equal zero imported lights — hence exactly the previous
- * behaviour, `unlit` view by default. This is never a prepare error.
+ * A cache compiled before this product (no file: a 404, or a 403), an unknown version or an
+ * unreadable body equal zero imported lights — hence exactly the previous behaviour, `unlit` view
+ * by default. A file the server refuses otherwise is refused as every cache file is (`checked`).
  */
 export async function loadImportedLights(
   base: string,
@@ -30,13 +31,14 @@ export async function loadImportedLights(
   meter: ByteMeter = unmetered,
 ): Promise<{ lights: SceneLight[]; rejected: Record<string, number> }> {
   const none = { lights: [], rejected: {} };
+  const url = importedLightsUrl(base);
+  const response = await optionalFile(url, signal);
+  if (!response) return none;
   let file: ImportedLightsFile;
   try {
-    const url = importedLightsUrl(base);
-    const response = await fetch(url, { signal });
-    if (!response.ok) return none;
     file = (await meter.read(response, url).json()) as ImportedLightsFile;
   } catch {
+    signal?.throwIfAborted();
     return none;
   }
   if (!file || typeof file !== 'object') return none;

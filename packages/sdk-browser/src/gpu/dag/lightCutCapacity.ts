@@ -1,7 +1,7 @@
 import { SELECTION_WORKGROUP as WORKGROUP } from '../core/selection.ts';
 import { FRAME_VEC4 } from './types.ts';
 import { dagWorkLayout } from './shader/floorWgsl.ts';
-import { LEVEL_QUEUES } from './shader/levelWgsl.ts';
+import { dagFlagsWords } from './shader/lastUseWgsl.ts';
 import { DAG_MAX_VIEWS } from './shader/viewsWgsl.ts';
 
 /** The device limits a light cut's buffers and dispatches must hold. */
@@ -41,7 +41,7 @@ export function lightCutCapacity(limits: LightCutLimits, shape: LightCutShape) {
     for (let level = 1; level < shape.levelSizes.length; level++)
       if (Math.min(shape.levelSizes[level] * views, queueCap) > threads) return false;
     const frames = views * shape.worldCount * FRAME_VEC4 * 16,
-      flags = (queueCap * LEVEL_QUEUES + shape.pageCount * 4) * 4,
+      flags = dagFlagsWords(queueCap, shape.pageCount, false) * 4,
       work = dagWorkLayout(shape.blockCount, views).words * 4;
     return Math.max(frames, flags, work) <= bytes;
   };

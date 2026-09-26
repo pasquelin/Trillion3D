@@ -145,16 +145,16 @@ export function createWorldFrames() {
      * @returns A function that stops the hook.
      */
     before: (hook: (frame: BeforeFrameInfo) => void) => member(early, hook),
-    prepare,
     /**
-     * The loop's work ahead of a frame, in this order: the controller steps the camera unless the
-     * page took the step, the scene's clips advance, the physics draws its bodies, the early
-     * hooks run. What they move is written to the renderer after them, so it is drawn in this frame.
+     * The work ahead of a frame, whoever leads it, in this order: the controller steps the camera
+     * unless the page took the step or leads the frame (`null`), the scene's clips advance, the
+     * physics runs and draws its bodies, the early hooks run. What they move is written to the
+     * renderer after them, so it is drawn in this frame.
      * @returns Whether a clip still plays or a body still moves, and asks for the next frame.
      */
-    step(controls: Stepped, scene: Object3D, physics: () => boolean = () => false) {
+    step(controls: Stepped | null, scene: Object3D, physics: () => boolean = () => false) {
       const seconds = advance();
-      if (controls.autoUpdate) controls.update(seconds);
+      if (controls?.autoUpdate) controls.update(seconds);
       const playing = advanceMixers(scene, seconds);
       const moving = physics();
       prepare(seconds);

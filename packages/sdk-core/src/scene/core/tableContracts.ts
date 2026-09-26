@@ -10,12 +10,16 @@
 import { EngineError } from '../../contracts/cache.ts';
 import type { TableDocument } from './tableDocuments.ts';
 import type { TableMaterial, TableTexture } from './tableSurfaces.ts';
-import { assertTablePartition, type TablePartition } from './tablePartition.ts';
+import {
+  assertTablePartition,
+  type TablePartition,
+  type TablePartitionRoot,
+} from './tablePartition.ts';
 
 /** The name of the file that holds the scene tables. */
 export const SCENE_TABLES_FILE = 'scene-tables.json';
 /** Version of the product as a whole; each table it carries is versioned in turn. */
-const SCENE_TABLES_VERSION = 3;
+const SCENE_TABLES_VERSION = 4;
 /** The version of the node table this runtime reads: every node but those a cell places, with its
  *  local pose. */
 const NODE_TABLE_VERSION = 3;
@@ -115,13 +119,19 @@ export interface PreparedSceneTables {
   documents: Readonly<Record<string, TableDocument>>;
 }
 
+/** The tables as `scene-tables.json` carries them: of the partition, only its root, whose pages
+ *  `readTablePartition` reads. */
+export type SceneTablesFile = Omit<PreparedSceneTables, 'partition'> & {
+  partition: TablePartitionRoot | null;
+};
+
 /**
  * The tables, or a named refusal. An unknown version is never guessed at: a product written by
  * another compiler, or before a table changed shape, cannot be built into a scene, and reading it
  * half way would turn a format change into a wrong image.
  */
-export function assertSceneTables(value: unknown): PreparedSceneTables {
-  const tables = value as PreparedSceneTables | null;
+export function assertSceneTables(value: unknown): SceneTablesFile {
+  const tables = value as SceneTablesFile | null;
   if (!tables || typeof tables !== 'object' || Array.isArray(tables))
     throw new EngineError('INVALID_SCENE_TABLES', 'scene tables are not a JSON object', {});
   for (const [field, expected] of [

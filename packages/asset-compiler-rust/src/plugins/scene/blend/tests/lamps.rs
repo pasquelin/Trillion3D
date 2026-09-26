@@ -84,7 +84,7 @@ fn packed(values: &[f32; 12]) -> Vec<u8> {
 /// The lamps this file gives the driver, converted, and what it counted.
 fn converted(lamps: &[[f32; 12]], names: &[&str]) -> (Vec<Value>, Out) {
     let bytes = lamp_file(lamps);
-    let file = BlendFile::open(&bytes, MAX_BYTES).expect("the file written for this test");
+    let file = BlendFile::open(&bytes, BUDGET).expect("the file written for this test");
     let mut out = Out::default();
     for (block, name) in file.of(*b"DATA").zip(names) {
         let view = file.view(block).expect("the lamp's view");

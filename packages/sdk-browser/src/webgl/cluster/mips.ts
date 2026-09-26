@@ -5,35 +5,49 @@ import {
   setFullscreenPassState,
 } from '../core/fullscreenPass.ts';
 import { levelSize, mipLevelCountFor } from '../../texture/tiles.ts';
+import { COVERAGE_SCALE_GLSL } from '../../texture/coverageRule.ts';
+import { BLEND_STATE, WebglCoverageCounts } from './coverageMips.ts';
 
 /** The GLSL twin of the WebGPU reduction (`MIP_SHADER`, `../../texture/mips.ts`) under `weighted`;
- *  `source` is a copy of the level above, `extent` its size. */
-const FRAGMENT = `#version 300 es
-precision highp float;
+ *  `source` is a copy of the level above, `extent` its size; with a `cutoff`, the row under it
+ *  holds the level's `t` (`coverageMips.ts`). */
+export const MIP_FRAGMENT_GLSL = `#version 300 es
+precision highp float;precision highp int;
 uniform highp sampler2D source;
 uniform ivec2 extent;
+uniform uint cutoff;
 out vec4 color;
+${COVERAGE_SCALE_GLSL}
 void main(){
  ivec2 p=ivec2(gl_FragCoord.xy)*2;ivec2 hi=extent-1;
  vec4 s0=texelFetch(source,min(p,hi),0);vec4 s1=texelFetch(source,min(p+ivec2(1,0),hi),0);
  vec4 s2=texelFetch(source,min(p+ivec2(0,1),hi),0);vec4 s3=texelFetch(source,min(p+ivec2(1,1),hi),0);
  vec4 mean=(s0+s1+s2+s3)*0.25;vec4 a=vec4(s0.a,s1.a,s2.a,s3.a);
- float u=min(max(s0.a,s1.a),max(s2.a,s3.a));float v=max(min(s0.a,s1.a),min(s2.a,s3.a));
  vec3 byAlpha=(s0.rgb*s0.a+s1.rgb*s1.a+s2.rgb*s2.a+s3.rgb*s3.a)/dot(a,vec4(1.0));
- color=vec4(any(notEqual(a,vec4(s0.a)))?byAlpha:mean.rgb,(u+v)*0.5);
+ uint t=cutoff>0u?toByte(texelFetch(source,ivec2(0,extent.y),0).a):0u;
+ color=vec4(any(notEqual(a,vec4(s0.a)))?byAlpha:mean.rgb,reducedAlpha(a,cutoff,t));
 }`;
 
-/** A texture as the reducer reads it: its GL name, its format and size. */
-type Chain = { texture: WebGLTexture; format: number; width: number; height: number };
-type Scratch = Omit<Chain, 'format'> & { used?: boolean };
+/** A texture as the reducer reads it: its GL name, its format and size, then its chain's rule —
+ *  `null` plain, else weighted by alpha and scaled at its cutoff byte (`CoverageReaders`, 0 the
+ *  median alone) —, `undefined` while it has no chain. */
+export type MipChain = {
+  texture: WebGLTexture;
+  format: number;
+  width: number;
+  height: number;
+  cutoff?: number | null;
+};
+type Scratch = { texture: WebGLTexture; width: number; height: number; used?: boolean };
 
 /** The reduction's program, its uniforms, its two framebuffers and its empty vertex array. */
 function buildReducer(gl: WebGL2RenderingContext) {
-  const program = createWebglProgram(gl, FULLSCREEN_VERTEX, FRAGMENT);
+  const program = createWebglProgram(gl, FULLSCREEN_VERTEX, MIP_FRAGMENT_GLSL);
   return {
     program,
     source: gl.getUniformLocation(program, 'source'),
     extent: gl.getUniformLocation(program, 'extent'),
+    cutoff: gl.getUniformLocation(program, 'cutoff'),
     draw: gl.createFramebuffer()!,
     read: gl.createFramebuffer()!,
     vertexArray: gl.createVertexArray()!,
@@ -44,16 +58,19 @@ function buildReducer(gl: WebGL2RenderingContext) {
  * WebGL2 coverage mips (#42), drawn over `generateMipmap`'s box: one draw per level from a scratch
  * copy of the level above — #709 sampled the texture it drew into, a loop the browser refused, and
  * left every level empty (alpha 0). A plain chain, or a format no framebuffer holds (asked once),
- * keeps the box chain, byte for byte. sRGB is read decoded, written encoded; the state touched is
- * restored, so it runs mid-pass.
+ * keeps the box chain, byte for byte. A `cutoff` scales each level's median to keep level 0's
+ * coverage when the context counts (`WebglCoverageCounts`). sRGB is read decoded, written encoded;
+ * the state touched is restored, so it runs mid-pass.
  */
 export class WebglMipReducer {
   private gl: WebGL2RenderingContext;
   private built: ReturnType<typeof buildReducer> | undefined;
+  private counts: WebglCoverageCounts;
   /** Per format, whether a framebuffer holds its levels. */
   private drawable = new Map<number, boolean>();
-  /** Per format, the copy of the level above, at the largest size seen (`extent` clamps); `used`
-   *  since the last `trim`, which returns the others: a live picture's stays. */
+  /** Per format, the copy of the level above, at the largest size seen (`extent` clamps) and, for
+   *  a counted chain, a row more, for `t`; `used` since the last `trim`, which returns the others:
+   *  a live picture's stays. */
   private scratches = new Map<number, Scratch>();
   private drop(format: number) {
     const held = this.scratches.get(format);
@@ -62,16 +79,17 @@ export class WebglMipReducer {
   }
   constructor(gl: WebGL2RenderingContext) {
     this.gl = gl;
+    this.counts = new WebglCoverageCounts(gl);
   }
   /** Builds levels 1… of `chain.texture`, bound on the active `unit`'s TEXTURE_2D, each from the
-   *  one above weighted by alpha — the box chain if not `weighted`; `allocate`: a new picture. */
-  reduce(unit: number, chain: Chain, weighted: boolean, allocate: boolean) {
+   *  one above weighted by alpha — the box chain if plain; `allocate`: a new picture. */
+  reduce(unit: number, chain: MipChain, allocate: boolean) {
     const gl = this.gl,
-      { texture, format, width, height } = chain;
+      { texture, format, width, height, cutoff } = chain;
     const levels = mipLevelCountFor(width, height);
     // A plain chain is the box chain; a new weighted one is first that box, complete so its levels
     // attach, and what stays wherever a draw below is refused — never an empty level.
-    const box = levels === 1 || !weighted || this.drawable.get(format) === false;
+    const box = levels === 1 || cutoff == null || this.drawable.get(format) === false;
     if (allocate || box) gl.generateMipmap(gl.TEXTURE_2D);
     if (box) return;
     const built = (this.built ??= buildReducer(gl));
@@ -84,10 +102,14 @@ export class WebglMipReducer {
       mask: gl.getParameter(gl.COLOR_WRITEMASK) as boolean[],
       toggles: FULLSCREEN_DISABLED.map((name) => gl.isEnabled(gl[name])),
     };
+    // Asked after `saved`: the first ask binds the counts' framebuffer.
+    const cut = cutoff && this.counts.takes(width, height) ? cutoff : 0;
+    const blend = cut ? BLEND_STATE.map((name) => gl.getParameter(gl[name]) as number) : undefined;
+    const rows = cut ? height + 1 : height;
     let scratch = this.scratches.get(format);
-    if (!scratch || scratch.width < width || scratch.height < height) {
+    if (!scratch || scratch.width < width || scratch.height < rows) {
       const w = Math.max(width, scratch?.width ?? 0),
-        h = Math.max(height, scratch?.height ?? 0);
+        h = Math.max(rows, scratch?.height ?? 0);
       this.drop(format);
       this.scratches.set(format, (scratch = { texture: gl.createTexture()!, width: w, height: h }));
       gl.bindTexture(gl.TEXTURE_2D, scratch.texture);
@@ -98,6 +120,7 @@ export class WebglMipReducer {
     setFullscreenPassState(gl);
     gl.useProgram(built.program);
     gl.uniform1i(built.source, unit);
+    gl.uniform1ui(built.cutoff, cut);
     gl.bindVertexArray(built.vertexArray);
     gl.bindFramebuffer(gl.READ_FRAMEBUFFER, built.read);
     gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, built.draw);
@@ -117,6 +140,11 @@ export class WebglMipReducer {
         [w, h] = levelSize(width, height, level);
       attach(level - 1);
       gl.copyTexSubImage2D(gl.TEXTURE_2D, 0, 0, 0, 0, 0, sw, sh);
+      if (cut) {
+        this.counts.count(unit, scratch.texture, chain, level, cut);
+        gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, built.draw);
+        gl.useProgram(built.program);
+      }
       gl.uniform2i(built.extent, sw, sh);
       gl.viewport(0, 0, w, h);
       gl.drawArrays(gl.TRIANGLES, 0, 3);
@@ -130,6 +158,11 @@ export class WebglMipReducer {
     gl.viewport(saved.viewport[0], saved.viewport[1], saved.viewport[2], saved.viewport[3]);
     gl.colorMask(saved.mask[0], saved.mask[1], saved.mask[2], saved.mask[3]);
     FULLSCREEN_DISABLED.forEach((name, i) => saved.toggles[i] && gl.enable(gl[name]));
+    if (blend) {
+      const [sr, dr, sa, da, er, ea] = blend;
+      gl.blendFuncSeparate(sr, dr, sa, da);
+      gl.blendEquationSeparate(er, ea);
+    }
   }
   /** A new image: returns each scratch no reduction used since the last one. */
   trim() {
@@ -140,6 +173,7 @@ export class WebglMipReducer {
   dispose() {
     const { gl, built } = this;
     for (const format of [...this.scratches.keys()]) this.drop(format);
+    this.counts.dispose();
     if (!built) return;
     gl.deleteProgram(built.program);
     gl.deleteFramebuffer(built.draw);

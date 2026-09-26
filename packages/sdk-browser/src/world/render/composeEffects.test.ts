@@ -22,7 +22,7 @@ function engine(held = false) {
   const outputs: HostDrawOutput[] = [];
   const backend = {
     id: 'engine',
-    scene: { background: { isColor: true, r: 0.5, g: 0, b: 1 } },
+    scene: { background: { isColor: true, r: 0.5, g: 0, b: 1 }, children: [] },
     frameHeld: held,
     drawHostGeometry: (_camera: unknown, output: HostDrawOutput) => outputs.push({ ...output }),
   } as unknown as RenderBackend;
@@ -133,6 +133,7 @@ test('guides over a chain land on the destination, over the depth the output car
   const compose = createFrameComposer(context.gl, camera, {
     effects: { chain, shown: () => true },
     guides,
+    pixelRatio: () => 1,
   });
   compose(engine().backend, null);
   const { names, calls, of } = context;

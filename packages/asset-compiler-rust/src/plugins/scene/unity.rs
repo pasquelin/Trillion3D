@@ -114,6 +114,7 @@ struct World<'a> {
     cache: &'a Path,
     cancelled: &'a AtomicBool,
     progress: &'a (dyn Fn(Value) + Sync),
+    ram_budget: usize,
 }
 impl World<'_> {
     /// Cancellation, checked at each object: the walk stops, `convert` then refuses.

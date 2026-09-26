@@ -56,7 +56,6 @@ function anneauParSeconde(input: Scene) {
     {
       pixelError: input.pixelError > 0 ? input.pixelError * 0.5 : 0.5,
       viewport: image,
-      holdResident: false,
       wanted: input.wantedAnneau,
       result: input.resultatAnneau,
     },
@@ -73,7 +72,6 @@ function anneauParLaCoupe(input: Scene) {
     {
       pixelError: input.pixelError,
       viewport: image,
-      holdResident: false,
       wanted: input.wantedCoupe,
       result: input.resultatCoupe,
     },

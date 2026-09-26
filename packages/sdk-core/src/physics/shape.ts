@@ -3,10 +3,10 @@ import type { Geometry } from '../world/geometry/geometry.ts';
 import { readPoints } from '../world/geometry/bounds.ts';
 import type { CompoundPart } from './commands.ts';
 import { SHAPE } from './layout.ts';
-import type { PhysicsPart, PhysicsShape, PhysicsType } from './options.ts';
+import type { PhysicsPart, PhysicsPrimitive, PhysicsShape, PhysicsType } from './options.ts';
 
 /** A shape ready for the ADD command: a primitive's sizes, or scaled vertices and indices. */
-interface ResolvedShape {
+export interface ResolvedShape {
   shape: (typeof SHAPE)[keyof typeof SHAPE];
   size: [number, number, number];
   vertices?: Float32Array;
@@ -40,8 +40,7 @@ function triangleIndices(geometry: Geometry, vertexCount: number) {
 }
 
 /** A primitive the declared or inferred shape names exactly, or `null` when the scale bends it. */
-function primitive(declared: PhysicsShape, s: Scale): ResolvedShape | null {
-  if (declared.type === 'compound') return compound(declared.parts, s);
+export function primitive(declared: PhysicsPrimitive, s: Scale): ResolvedShape | null {
   const x = Math.abs(s.x),
     y = Math.abs(s.y),
     z = Math.abs(s.z);
@@ -73,15 +72,18 @@ function primitive(declared: PhysicsShape, s: Scale): ResolvedShape | null {
 
 /**
  * A compound's parts scaled into the body's frame. A scale that differs between axes would shear
- * a turned part, and a negative one would move each part to its mirror image with its turn
- * unchanged: both are refused rather than approximated.
+ * a turned part, and a mirrored one (a negative determinant) would move each part to its mirror
+ * image with its turn unchanged: both are refused rather than approximated, the mesh `name`d.
  */
-function compound(parts: readonly PhysicsPart[], s: Scale): ResolvedShape {
-  if (!(s.x > 0 && s.y > 0 && s.z > 0) || !same(s.x, s.y) || !same(s.x, s.z))
+function compound(parts: readonly PhysicsPart[], s: Scale, name: string): ResolvedShape {
+  if (!(s.x > 0 && s.y > 0 && s.z > 0) || !same(s.x, s.y) || !same(s.x, s.z)) {
+    const mirror = s.x * s.y * s.z < 0 ? ', a mirror' : '';
     throw new EngineError(
       'PHYSICS_FAILED',
-      'A compound shape needs the same positive scale on all axes: neither stretched nor mirrored.',
+      `A compound shape needs the same positive scale on all axes: "${name}" has ${s.x}, ${s.y}, ${s.z}${mirror}.`,
+      { name },
     );
+  }
   const resolved = parts.map((part): CompoundPart => {
     const { shape, size } = primitive(part, s)!;
     const [x, y, z] = part.position ?? [0, 0, 0];
@@ -122,15 +124,19 @@ export function resolveShape(
   scale: Scale,
   type: PhysicsType,
   declared?: PhysicsShape,
+  /** The mesh's name, in a refusal. */
+  name = '',
 ): ResolvedShape {
   const wanted = declared ?? recipeShape(geometry);
+  if (wanted?.type === 'compound') return compound(wanted.parts, scale, name);
   const exact = wanted && wanted.type !== 'triangles' && wanted.type !== 'hull';
   const found = exact ? primitive(wanted, scale) : null;
   if (found) return found;
   if (wanted?.type === 'triangles' && type === 'dynamic')
     throw new EngineError(
       'PHYSICS_FAILED',
-      "A dynamic body cannot be triangles (no volume, no mass): use shape { type: 'hull' }.",
+      `The dynamic body "${name}" cannot be triangles (no volume, no mass): use shape { type: 'hull' }.`,
+      { name },
     );
   const triangles = wanted?.type === 'triangles' || (wanted?.type !== 'hull' && type === 'static');
   const vertices = scaledVertices(geometry, scale);

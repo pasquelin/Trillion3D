@@ -67,10 +67,8 @@ export type GpuCut = {
   /** Pose revision it was cut under: behind the selection's, it streams, counts, holds no image. */
   worldRevision: number;
 };
-/**
- * Pages whose residency flag just changed, in increasing order. `sorted` false means the list
- * no longer describes the set: the reader then starts over from every page.
- */
+/** Pages whose residency flag just changed, in increasing order. `sorted` false means the list
+ *  no longer describes the set: the reader then starts over from every page. */
 export type ResidencyChanges = { pages: Int32Array; count: number; sorted: boolean };
 /** Told `true` when the shared command buffer reached the queue, `false` when the image dropped it. */
 export type SelectionSubmission = (submitted: boolean) => void;
@@ -87,6 +85,8 @@ export type GpuSelection = {
   updateWorlds(worldMatrices: Float32Array, posesMoved?: boolean): boolean;
   /** Parks placement `world` — its root enters no descent queue — or takes it back. */
   parkWorld(world: number, parked: boolean): void;
+  /** Writes placement `world`'s root mark (`ClusterRoot.mark`): whether a light cut opens it. */
+  markWorld(world: number, mark: number): void;
   updateResidency(resident: Uint32Array, changes?: ResidencyChanges): boolean;
   /**
    * Encodes the selection. Given `shared`, the caller owns the command buffer — one image submits one

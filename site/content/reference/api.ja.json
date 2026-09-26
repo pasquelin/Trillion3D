@@ -334,11 +334,9 @@
       "texturePreviewBc7": "プレビューのBC7ブロック群。",
       "texturePreviewAstc": "プレビューのASTCブロック群。",
       "bundleDependencyCount": "各バンドルがいくつのバンドルに依存するか。",
-      "bundleDependency": "各バンドルが依存するバンドル、ルートまで。"
+      "bundleDependency": "各バンドルが依存するバンドル、ルートまで。",
+      "pageCone": "各ページの法線コーン。軸、次に半角。"
     }
-  },
-  "COMPARISON_LIBRARIES": {
-    "summary": "ベンチマークが比較対象として検証したエンジン群。それぞれのステータスと理由とともに。"
   },
   "COMPILER_LINE_LIMIT": {
     "summary": "どちらのストリームでも受け付けられる単一行の最大長。コンパイラは小さなJSON行だけを出力する。"
@@ -552,23 +550,6 @@
   },
   "ComparisonLayout": {
     "summary": "2つの描画結果を並べて比較のために表示する方法。"
-  },
-  "CompetitorRecord": {
-    "summary": "ベンチマークが比較対象とする別のエンジンと、その理由。",
-    "members": {
-      "id": "その短い名前。",
-      "name": "その名前。",
-      "status": "比較対象かどうか。",
-      "license": "そのライセンス。",
-      "maintained": "最後に更新された時期。",
-      "scope": "カバーする範囲。",
-      "reason": "比較対象である、またはない理由。",
-      "homepage": "そのウェブページ。"
-    }
-  },
-  "CompetitorStatus": {
-    "summary": "ウェブに関連するジオメトリ/LODライブラリの一覧。",
-    "description": "ステータスは、宣伝上のカバー範囲ではなく、統合の公平さを表す。"
   },
   "CompilationJob": {
     "summary": "実行中のコンパイル。",
@@ -873,7 +854,7 @@
   },
   "EffectChain": {
     "summary": "`world.effects`：テンポラルアンチエイリアスの後、画像が canvas に届く前に画像の上に描かれる、順序付きのパス。",
-    "description": "トーンマッピング前のパスは追加された順に線形放射輝度を読み、後のパスは表示画像を自分たちの順に読みます。空のチェーンはコストがかかりません。パスもコピーもターゲットもありません。",
+    "description": "トーンマッピング前のパスは追加された順に線形放射輝度を読み、後のパスは表示画像を自分たちの順に読みます。空のチェーンはコストがかかりません。パスもコピーもターゲットもありません。WebGL2 では、`multiply` または `subtractive` でブレンドする透明な面を描くフレームはチェーンなしで全体が描かれ、ワールドの診断チャネルが `effects-refused-blending` を一度伝えます。WebGPU は両方を描きます。",
     "members": {
       "revision": "変更を数えます。別のリビジョンで描かれた画像は古くなっています。",
       "passes": "実行される順のパス。",
@@ -932,8 +913,8 @@
       "WEBGL2_UNAVAILABLE": "このマシンは要求された方法で描画できないか、まったく描画できない。",
       "NO_WEBGL2": "このマシンは要求された方法で描画できないか、まったく描画できない。",
       "NO_ENGINE_BACKEND": "このマシンは要求された方法で描画できないか、まったく描画できない。",
-      "RESOURCE_HTTP_ERROR": "ファイルを取得できなかったか、期待された内容ではなかった。",
-      "INVALID_JSON_RESPONSE": "ファイルを取得できなかったか、期待された内容ではなかった。",
+      "RESOURCE_HTTP_ERROR": "ファイルを取得できなかった(一時的な失敗なら先に再び要求した上で)か、期待された内容ではなかった。",
+      "INVALID_JSON_RESPONSE": "ファイルを取得できなかった(一時的な失敗なら先に再び要求した上で)か、期待された内容ではなかった。",
       "INVALID_POINTER": "コンパイル済みモデルのポインターが壊れている、未完成である、あるいは別の範囲のものである。",
       "CACHE_NOT_READY": "コンパイル済みモデルのポインターが壊れている、未完成である、あるいは別の範囲のものである。",
       "SCOPE_MISMATCH": "コンパイル済みモデルのポインターが壊れている、未完成である、あるいは別の範囲のものである。",
@@ -1299,7 +1280,7 @@
     "members": {
       "visible": "描かれるかどうか。`setVisible` が書き込みます。",
       "setVisible": "表示または非表示にします。頂点は上限に数えられたままです。",
-      "setTransform": "配置します：列優先の 16 個の数値、または行列 — `node.matrixWorld` でノードに追従します。",
+      "setTransform": "配置します：列優先の 16 個の数値、または行列。`add` が描いたガイドはそのノードへの追従をやめます。",
       "remove": "ワールドから取り除き、頂点を返します。2 回目の呼び出しは何もしません。"
     }
   },
@@ -1308,7 +1289,7 @@
     "members": {
       "positions": "線分ごとに 2 つの端点、それぞれ 3 つの数値。",
       "color": "色。既定は白。",
-      "width": "画面上の幅（ピクセル）。"
+      "width": "画面上の幅（CSS ピクセル）。エンジンのすべての線と同じです。"
     }
   },
   "GuidePoints": {
@@ -1316,7 +1297,7 @@
     "members": {
       "positions": "点ごとに 3 つの数値。",
       "color": "色。既定は白。",
-      "size": "画面上の各正方形の点の一辺（ピクセル）。"
+      "size": "画面上の各正方形の点の一辺（CSS ピクセル）。"
     }
   },
   "Guides": {
@@ -1326,7 +1307,7 @@
       "vertexCount": "現在保持している頂点。線分ごとに 2、点ごとに 1、非表示のガイドも含みます。",
       "lines": "線分を描きます（端点 2 つずつ）。上限を超えると拒否されます（`GUIDE_CEILING`）。",
       "points": "正方形の点を描きます（位置 1 つずつ）。上限を超えると拒否されます（`GUIDE_CEILING`）。",
-      "add": "`object` の線と点のメッシュ — どの `helper` もこれを作ります — をマテリアルの色で、オブジェクトの現在の位置に描きます。三角形はガイドではないので飛ばされます。",
+      "add": "`object` の線と点のメッシュ — どの `helper` もこれを作ります — をマテリアルの色で描きます。三角形はガイドではないので飛ばされます。ガイドはオブジェクト — ライトやカメラのヘルパーなら、それが示すノード — に追従し、そのノードが動いた画像ごとに動き、それ以外では動きません。",
       "clear": "すべてのガイドを取り除きます。"
     }
   },
@@ -1851,6 +1832,7 @@
       "parameters.vertexColors": "ジオメトリの頂点ごとの`color`が表面を色づけするかどうか。",
       "parameters.depthWrite": "表面が自身の深度を書き込み、その後に描かれるものを隠すかどうか。",
       "parameters.depthTest": "表面が、すでにより近くにあるものの陰に隠れるかどうか。",
+      "parameters.transparentShadow": "透ける（`transparent`）面がそれでも影を落とすかどうか。透けるほど影は薄くなる。",
       "parameters.physics": "これをまとう物体の素材：密度、摩擦、反発。",
       "parameters.density": "kg/m³。体積を掛けると質量になる。",
       "parameters.friction": "物体のすべりにくさ。0 以上。",
@@ -1871,6 +1853,7 @@
       "vertexColors": "ジオメトリの頂点ごとの色が表面を色づけするかどうか。",
       "depthWrite": "表面が自身の深度を書き込むかどうか。",
       "depthTest": "表面がより近いものの陰に隠れるかどうか。",
+      "transparentShadow": "透ける（`transparent`）面がそれでも影を落とすかどうか。透けるほど影は薄くなる。",
       "version": "すべての書き込みで増える: 世界がこれを比較して再描画を判断する。",
       "kind": "そのマテリアルが作られた種別: `'meshStandard'`、`'meshBasic'`…",
       "needsUpdate": "`material.needsUpdate = true`: それをまとうメッシュが再描画される。",
@@ -1916,6 +1899,7 @@
       "vertexColors": "ジオメトリの頂点ごとの`color`が表面を色づけするかどうか。",
       "depthWrite": "表面が自身の深度を書き込み、その後に描かれるものを隠すかどうか。",
       "depthTest": "表面が、すでにより近くにあるものの陰に隠れるかどうか。",
+      "transparentShadow": "透ける（`transparent`）面がそれでも影を落とすかどうか。透けるほど影は薄くなる。",
       "physics": "これをまとう物体の素材：密度、摩擦、反発。",
       "density": "kg/m³。体積を掛けると質量になる。",
       "friction": "物体のすべりにくさ。0 以上。",
@@ -2064,7 +2048,7 @@
       "clipAction": "`clip`を再生するアクション。",
       "play": "今すぐ`clip`を再生する。",
       "stopAll": "すべてのアクションを停止する。",
-      "update": "再生中のすべてのアクションを`seconds`だけ進め、サンプリングされた値を書き込む。"
+      "update": "再生中のすべてのアクションを`seconds`だけ進め、各プロパティに、そのプロパティのアクションのサンプルを静止値の上で重み付きブレンドした値を書き込む。"
     }
   },
   "ModelRecord": {
@@ -2106,7 +2090,7 @@
       "quaternion": "ノードがどう回転しているか、クォータニオンとして。",
       "scale": "ノードが各軸でどう拡大縮小されているか。",
       "up": "`lookAt`にとってどちらが上か。",
-      "castShadow": "ノードが影を落とすかどうか。",
+      "castShadow": "ノードが影を落とすかどうか。メッシュは `false` にしない限り落とし、ライトは `true` にしたときだけ落とす。`false` にしたメッシュも他の影は受ける。",
       "receiveShadow": "ノードに影が落ちるかどうか。",
       "renderOrder": "透けるもの同士の描画順序。",
       "frustumCulled": "視野外でレンダラーが省略してよいかどうか。",
@@ -2116,6 +2100,7 @@
       "children": "挿入順で並んだ、アタッチされた子ノード群。返されるリストは変更できない。",
       "add": "オブジェクトをこのノードの子にする。",
       "remove": "このノードから子を外す。",
+      "attach": "`child`をその場のまま追加する(`SceneNode.attach`)。",
       "destroy": "ノードとその下のすべてを、回収を待たずに今すぐ解放する。",
       "removeFromParent": "このノードをその親から外す。",
       "clone": "同じ種類・同じ値のノード。指定がなければ子も複製される。",
@@ -2289,7 +2274,7 @@
     "summary": "データアトラス: メタル・ラフネス、法線、オクルージョンマップ。"
   },
   "PREVIEW_ATLAS_NAMES": {
-    "summary": "焼き込まれたレベルのパスが各アトラスに対して持つ`{kind}`。`bake.rs`がそれらに名前をつける形で。"
+    "summary": "ベイク済みレベルのパスが各アトラスについて持つ `{kind}`。`reduce.rs` の命名に従う。バイト C でカットされるカバレッジチェーンは `-C` を付け加える。"
   },
   "PREVIEW_BASE": {
     "summary": "サイドカーが運ぶレベルが持ち得る、最大の一辺。"
@@ -2353,7 +2338,8 @@
       "source": "これを作ったグループ。",
       "stream": "このクラスターを保持するストリーミングバンドルと、その中でのバイトオフセット。1回のリクエストが何十ものクラスターを供給する; クラスターは`url`を通じて単独でも読み取り可能なままだ。",
       "streamOffset": "そのバンドル内でのバイトオフセット。",
-      "depthLayer": "共面深度レイヤー。コンパイラが手を加えなかったすべてのクラスターでは0。レイヤーnのクラスターは、n層分丸ごとの深度バイアスをつけて描画される。これが、まさに同じ平面を共有する2つの不透明表面の勝者を決めるものだ。値がないことと0は同じ意味: 手を加えられていない描画。"
+      "depthLayer": "共面深度レイヤー。コンパイラが手を加えなかったすべてのクラスターでは0。レイヤーnのクラスターは、n層分丸ごとの深度バイアスをつけて描画される。これが、まさに同じ平面を共有する2つの不透明表面の勝者を決めるものだ。値がないことと0は同じ意味: 手を加えられていない描画。",
+      "cone": "三角形の法線を包むコーン。`axis` は単位ベクトル、`angle` はラジアン単位の半角で、何も棄却しないコーンでは π。コンパイラが三角形から求め、WebGPU のカットは、カメラがコーンの裏側から見る片面のクラスターを飛ばす。"
     }
   },
   "PageCutPage": {
@@ -2618,6 +2604,7 @@
     "members": {
       "matrices": "行あたり16個の列優先浮動小数点数。所有者が書き込む。",
       "live": "その行がリソースを配置している場合は1、待機中の場合は0。",
+      "shadowless": "その行が影を落とさない場合は1(メッシュの `castShadow` が `false`)、落とす場合は0。",
       "capacity": "拡張が必要になる前に収まる行数。"
     }
   },
@@ -2921,7 +2908,7 @@
       "background": "すべてのオブジェクトの背後の画像を埋めるもの：色、または既定の `null`。変更はセッションを保ったまま次のフレームで表示されます：ここで設定した新しい色、またはそのメソッド（`set`、`setRGB`、`setHex`、`setHSL`...）で書き換えた現在の色。`.r`、`.g`、`.b` への直接書き込みは検知されません：その後に `background` を設定し直してください。画像や `getHex` を持たない値は拒否されます（`UNSUPPORTED_SCENE_UPDATE`）：それを描く経路はありません。",
       "fog": "すべての面にかかる霧。不透明でも透明でも、両方のレンダラーで効きます。既定の `null` は霧なしで、コストもかかりません。`{ color, near, far }` は物体を `near` から `far` にかけて `color` に溶け込ませます（距離はカメラから）。`{ color, density }` は距離 1 単位ごとに `density` だけ濃くなります。`heightFalloff`（と既定 0 の `baseHeight`）を加えると地面に溜まり、`baseHeight` より上で薄くなります — 上へ `1 / heightFalloff` 単位ごとに e で割られます。変更は次のフレームで見えます: ここで設定した新しい霧、またはそのメソッドで書き換えた色。`near`、`far`、`density`... への直接の書き込みは検知されません: その後で `fog` を設定し直してください。範囲外の霧 — `far` が `near` より先にない、負の密度 — は拒否されます（`INVALID_SCENE_ENVIRONMENT`）。",
       "load": "コンパイル済みモデル(そのマニフェストURL)を読み込み、このシーンに追加する。",
-      "toJSON": "バージョン付きのシンプルな JSON にしたシーン: オブジェクト、形はそれを作った呼び出しで、マテリアル、ライト、読み込んだモデルはアドレスで記録します。`camera` を渡せばその姿勢も入ります。",
+      "toJSON": "バージョン付きのシンプルな JSON にしたシーン: オブジェクト、形はそれを作った呼び出しで、マテリアル、ライト、各メッシュの物理ボディは宣言したとおりに、読み込んだモデルはアドレスで記録します。`camera` を渡せばその姿勢も入ります。",
       "fromJSON": "シーンの中身を `toJSON` で保存したシーンに置き換えます。`helper` の印は残します。モデルの読み込みが終わると完了します。別の形式やバージョンは拒否されます (`UNSUPPORTED_SCENE_FORMAT`)。読み込み中の呼び出しは順番に一つずつ実行され、それぞれ前の呼び出しが残したものの上で動きます: 保存された二つのシーンが混ざることはありません。"
     }
   },
@@ -3009,6 +2996,7 @@
       "pose": "あるノードが動いた。",
       "structure": "あるノードが子を得たか失った。",
       "content": "あるノードの形やマテリアルが変わった。",
+      "shadow": "ノードの `castShadow` が変わった。何も動いていない。",
       "posed": "多数のノードが一度に動き、ツリーに直接書き込まれた（物理の剛体）：一度だけ通知されます。",
       "seat": "ノードを描画する行、なければ `null`。`batch.rows.matrices` の `row * 16` から列優先の 16 個の浮動小数で、レンダラーがその場で読みます。ノードを数千単位で配置する所有者（物理）はワールド行列を自らそこに書き、`seatEpoch` が変わらない間有効で、書いた行を `placed` で知らせます。",
       "seatEpoch": "行が確保・解放・再割り当てされるたびに変わります。それ以前の `seat` の答えはすべて古くなります。",
@@ -3030,6 +3018,7 @@
       "remove": "子を削除する。",
       "clear": "すべての子を削除する。",
       "reparent": "別の親の下に動かす。",
+      "attach": "子をその場のまま追加する。ワールド行列は保たれ、ローカルの姿勢が書き直される。",
       "clone": "子も含めたコピー。",
       "copy": "値と子孫をコピーする; 祖先から子孫への再帰的な重なりはアトミックに拒否される。",
       "setPosition": "その位置を設定する。",
@@ -3124,10 +3113,10 @@
       "shadowsUpdated": "このフレームがページを描いたシャドウ光源の数。静止シーンの通常値は 0：固定の光はページを保持します。",
       "shadowFacesDrawn": "シャドウパスが描いた光ビュー — 太陽のクリップマップレベル 1 つ、ある mip のランプ面 1 つ — と、実際にエンコードした描画呼び出し。影を描かないエンジンでは null。",
       "shadowDrawCalls": "シャドウの描画コール数。",
-      "shadowPagesDrawn": "ページ無効化が生み出したもの: このフレームで再描画されたページ、予算不足でキューに残されたページ、そしてそのうち最も古いものの遅延(ミリ秒)。すべてゼロが静止シーンの通常値; シャドウアトラスのないエンジンでは`null`。",
+      "shadowPagesDrawn": "ページ無効化が生み出したもの: このフレームで再描画されたページ、予算不足でキューに残されたページ、そして画像が読む更新待ちのページのうち最も古いものが待った時間。すべてゼロが静止シーンの通常値; シャドウアトラスのないエンジンでは`null`。",
       "shadowPagesTotal": "エクスプローラーが開いてから描画されたページ数。`flush()`による排出も含む: ある変更のコストは、2つの読み取りの差である。",
       "shadowPagesPending": "待機中のシャドウページ。",
-      "shadowWaitMs": "それらがどれだけ待ったか。",
+      "shadowWaitMs": "画像が読む更新待ちのページのうち最も古いものが、再描画を待った時間(ミリ秒)。画像が読んでいる間だけ数える; 再描画されると0。",
       "gpuLightListsMs": "ライトリストのGPU時間。",
       "gpuShadowsMs": "影のGPU時間。",
       "gpuShadowCullMs": "フレームが描く影ページの投影体を選ぶGPU時間：ライトカット、ページごとのカリング、そして動く投影体の遮蔽テストとそれが読むピラミッド。",
@@ -3560,7 +3549,6 @@
       "anisotropy": "斜めから見たときの鮮明さ。",
       "flipY": "行が反転されるかどうか。",
       "premultiplyAlpha": "色があらかじめ乗算されているかどうか。",
-      "generateMipmaps": "より小さいコピーが作られるかどうか。",
       "colorSpace": "その数値がどう読まれるか。",
       "transform": "サンプラーのUV変換。`KHR_texture_transform`が3×3の行列にまとめられたもの。"
     }
@@ -3630,7 +3618,7 @@
       "textureBytesLastFrame": "直前のフレームで送信されたバイト数。",
       "textureUploadMs": "タイルの送信に費やされた時間。",
       "textureUploadPeakMs": "1フレームでの最長の送信時間。",
-      "textureLevelReads": "元データ群。`textureLevelReads`: キャッシュから読み込まれている焼き込み済みレベル。`textureLevelsDecoded`: 開始以来デコードされた焼き込み済みレベル。`textureLevelCacheBytes`: さらなるタイルを切り出すために保持されている、デコード済みレベルのホストバイト数。固定予算のもとで。`textureScratchBuilds`: 焼き込み済みチェーンを持たないテクスチャのために構築される作業用テクスチャ。毎回、元データ全体から。",
+      "textureLevelReads": "元データ群。`textureLevelReads`: キャッシュから読み込まれている焼き込み済みレベル。`textureLevelsDecoded`: 開始以来デコードされた焼き込み済みレベル。`textureLevelCacheBytes`: さらなるタイルを切り出すために保持されている、デコード済みレベルのホストバイト数。CPU 合計の範囲内で。`textureScratchBuilds`: 焼き込み済みチェーンを持たないテクスチャのために構築される作業用テクスチャ。毎回、元データ全体から。",
       "textureLevelsDecoded": "デコードされたレベル数。",
       "textureLevelCacheBytes": "保持されているデコード済みレベルのバイト数。",
       "textureScratchBuilds": "構築された作業用テクスチャ数。",
@@ -3677,7 +3665,7 @@
       "sourceKind": "バイト列が画像uriから来た場合は0、sourceBufferViewから来た場合は1。",
       "sourceBufferView": "準備済みシーンのバッファビュー。uriソースの場合は-1。",
       "sha256": "デコードされた元バイト列のSHA-256。",
-      "atlas": "このエントリが持つチェーン: PREVIEW_ATLAS_COLOR、PREVIEW_ATLAS_DATA、またはカラーアトラスでサンプリングされるPREVIEW_ATLAS_COVERAGE。",
+      "atlas": "このエントリが保持するチェーン：PREVIEW_ATLAS_COLOR、PREVIEW_ATLAS_DATA、またはカラーアトラスでサンプリングされる PREVIEW_ATLAS_COVERAGE を下位バイトに持つ。カバレッジチェーンのカットオフバイトはビット 8–15 を占める。",
       "firstLevel": "元データのミップチェーンで運ばれる最初のレベルのインデックス; すでにPREVIEW_BASE以下に収まっており、サイドカーがその完全な解像度を運んでいる場合は0。",
       "bakedLevels": "キャッシュ内でファイルに焼き込まれたレベル数、0からbakedLevels - 1まで; チェーンが完全であればfirstLevel、何も書き込まれずエンジンが元画像を読み込む場合は0。",
       "levels": "順番に運ばれるレベル。最も細かいものから1×1まで、それぞれサイドカーのバイト列に対するビュー。",
@@ -4081,7 +4069,7 @@
     "summary": "世界が気づけなかった変更の後、新しいフレームを要求する。"
   },
   "world.render": {
-    "summary": "誰がループを主導していても、今すぐ1フレームを描く。"
+    "summary": "誰がループを主導していても、今すぐ1フレームを描く。クリップと物理もそれとともに進む。"
   },
   "world.resize": {
     "summary": "canvasのサイズが変わったことを世界に伝える; 指定しなければ、canvas自身のサイズを読む。",
@@ -4161,10 +4149,10 @@
       "shadowsUpdated": "このフレームがページを描いたシャドウ光源の数。静止シーンの通常値は 0：固定の光はページを保持します。",
       "shadowFacesDrawn": "シャドウパスが描いた光ビュー — 太陽のクリップマップレベル 1 つ、ある mip のランプ面 1 つ — と、実際にエンコードした描画呼び出し。影を描かないエンジンでは null。",
       "shadowDrawCalls": "シャドウの描画コール数。",
-      "shadowPagesDrawn": "ページ無効化が生み出したもの: このフレームで再描画されたページ、予算不足でキューに残されたページ、そしてそのうち最も古いものの遅延(ミリ秒)。すべてゼロが静止シーンの通常値; シャドウアトラスのないエンジンでは`null`。",
+      "shadowPagesDrawn": "ページ無効化が生み出したもの: このフレームで再描画されたページ、予算不足でキューに残されたページ、そして画像が読む更新待ちのページのうち最も古いものが待った時間。すべてゼロが静止シーンの通常値; シャドウアトラスのないエンジンでは`null`。",
       "shadowPagesTotal": "エクスプローラーが開いてから描画されたページ数。`flush()`による排出も含む: ある変更のコストは、2つの読み取りの差である。",
       "shadowPagesPending": "待機中のシャドウページ。",
-      "shadowWaitMs": "それらがどれだけ待ったか。",
+      "shadowWaitMs": "画像が読む更新待ちのページのうち最も古いものが、再描画を待った時間(ミリ秒)。画像が読んでいる間だけ数える; 再描画されると0。",
       "gpuLightListsMs": "ライトリストのGPU時間。",
       "gpuShadowsMs": "影のGPU時間。",
       "gpuShadowCullMs": "フレームが描く影ページの投影体を選ぶGPU時間：ライトカット、ページごとのカリング、そして動く投影体の遮蔽テストとそれが読むピラミッド。",
@@ -4193,7 +4181,7 @@
       "textureBytesLastFrame": "直前のフレームで送信されたバイト数。",
       "textureUploadMs": "タイルの送信に費やされた時間。",
       "textureUploadPeakMs": "1フレームでの最長の送信時間。",
-      "textureLevelReads": "元データ群。`textureLevelReads`: キャッシュから読み込まれている焼き込み済みレベル。`textureLevelsDecoded`: 開始以来デコードされた焼き込み済みレベル。`textureLevelCacheBytes`: さらなるタイルを切り出すために保持されている、デコード済みレベルのホストバイト数。固定予算のもとで。`textureScratchBuilds`: 焼き込み済みチェーンを持たないテクスチャのために構築される作業用テクスチャ。毎回、元データ全体から。",
+      "textureLevelReads": "元データ群。`textureLevelReads`: キャッシュから読み込まれている焼き込み済みレベル。`textureLevelsDecoded`: 開始以来デコードされた焼き込み済みレベル。`textureLevelCacheBytes`: さらなるタイルを切り出すために保持されている、デコード済みレベルのホストバイト数。CPU 合計の範囲内で。`textureScratchBuilds`: 焼き込み済みチェーンを持たないテクスチャのために構築される作業用テクスチャ。毎回、元データ全体から。",
       "textureLevelsDecoded": "デコードされたレベル数。",
       "textureLevelCacheBytes": "保持されているデコード済みレベルのバイト数。",
       "textureScratchBuilds": "構築された作業用テクスチャ数。",
@@ -5776,6 +5764,7 @@
       "parameters.vertexColors": "ジオメトリの頂点ごとの`color`が表面を色づけするかどうか。",
       "parameters.depthWrite": "表面が自身の深度を書き込み、その後に描かれるものを隠すかどうか。",
       "parameters.depthTest": "表面が、すでにより近くにあるものの陰に隠れるかどうか。",
+      "parameters.transparentShadow": "透ける（`transparent`）面がそれでも影を落とすかどうか。透けるほど影は薄くなる。",
       "parameters.physics": "これをまとう物体の素材：密度、摩擦、反発。",
       "parameters.density": "kg/m³。体積を掛けると質量になる。",
       "parameters.friction": "物体のすべりにくさ。0 以上。",
@@ -5816,6 +5805,7 @@
       "parameters.vertexColors": "ジオメトリの頂点ごとの`color`が表面を色づけするかどうか。",
       "parameters.depthWrite": "表面が自身の深度を書き込み、その後に描かれるものを隠すかどうか。",
       "parameters.depthTest": "表面が、すでにより近くにあるものの陰に隠れるかどうか。",
+      "parameters.transparentShadow": "透ける（`transparent`）面がそれでも影を落とすかどうか。透けるほど影は薄くなる。",
       "parameters.physics": "これをまとう物体の素材：密度、摩擦、反発。",
       "parameters.density": "kg/m³。体積を掛けると質量になる。",
       "parameters.friction": "物体のすべりにくさ。0 以上。",
@@ -5856,6 +5846,7 @@
       "parameters.vertexColors": "ジオメトリの頂点ごとの`color`が表面を色づけするかどうか。",
       "parameters.depthWrite": "表面が自身の深度を書き込み、その後に描かれるものを隠すかどうか。",
       "parameters.depthTest": "表面が、すでにより近くにあるものの陰に隠れるかどうか。",
+      "parameters.transparentShadow": "透ける（`transparent`）面がそれでも影を落とすかどうか。透けるほど影は薄くなる。",
       "parameters.physics": "これをまとう物体の素材：密度、摩擦、反発。",
       "parameters.density": "kg/m³。体積を掛けると質量になる。",
       "parameters.friction": "物体のすべりにくさ。0 以上。",
@@ -5896,6 +5887,7 @@
       "parameters.vertexColors": "ジオメトリの頂点ごとの`color`が表面を色づけするかどうか。",
       "parameters.depthWrite": "表面が自身の深度を書き込み、その後に描かれるものを隠すかどうか。",
       "parameters.depthTest": "表面が、すでにより近くにあるものの陰に隠れるかどうか。",
+      "parameters.transparentShadow": "透ける（`transparent`）面がそれでも影を落とすかどうか。透けるほど影は薄くなる。",
       "parameters.physics": "これをまとう物体の素材：密度、摩擦、反発。",
       "parameters.density": "kg/m³。体積を掛けると質量になる。",
       "parameters.friction": "物体のすべりにくさ。0 以上。",
@@ -5936,6 +5928,7 @@
       "parameters.vertexColors": "ジオメトリの頂点ごとの`color`が表面を色づけするかどうか。",
       "parameters.depthWrite": "表面が自身の深度を書き込み、その後に描かれるものを隠すかどうか。",
       "parameters.depthTest": "表面が、すでにより近くにあるものの陰に隠れるかどうか。",
+      "parameters.transparentShadow": "透ける（`transparent`）面がそれでも影を落とすかどうか。透けるほど影は薄くなる。",
       "parameters.physics": "これをまとう物体の素材：密度、摩擦、反発。",
       "parameters.density": "kg/m³。体積を掛けると質量になる。",
       "parameters.friction": "物体のすべりにくさ。0 以上。",
@@ -5976,6 +5969,7 @@
       "parameters.vertexColors": "ジオメトリの頂点ごとの`color`が表面を色づけするかどうか。",
       "parameters.depthWrite": "表面が自身の深度を書き込み、その後に描かれるものを隠すかどうか。",
       "parameters.depthTest": "表面が、すでにより近くにあるものの陰に隠れるかどうか。",
+      "parameters.transparentShadow": "透ける（`transparent`）面がそれでも影を落とすかどうか。透けるほど影は薄くなる。",
       "parameters.physics": "これをまとう物体の素材：密度、摩擦、反発。",
       "parameters.density": "kg/m³。体積を掛けると質量になる。",
       "parameters.friction": "物体のすべりにくさ。0 以上。",
@@ -6016,6 +6010,7 @@
       "parameters.vertexColors": "ジオメトリの頂点ごとの`color`が表面を色づけするかどうか。",
       "parameters.depthWrite": "表面が自身の深度を書き込み、その後に描かれるものを隠すかどうか。",
       "parameters.depthTest": "表面が、すでにより近くにあるものの陰に隠れるかどうか。",
+      "parameters.transparentShadow": "透ける（`transparent`）面がそれでも影を落とすかどうか。透けるほど影は薄くなる。",
       "parameters.physics": "これをまとう物体の素材：密度、摩擦、反発。",
       "parameters.density": "kg/m³。体積を掛けると質量になる。",
       "parameters.friction": "物体のすべりにくさ。0 以上。",
@@ -6056,6 +6051,7 @@
       "parameters.vertexColors": "ジオメトリの頂点ごとの`color`が表面を色づけするかどうか。",
       "parameters.depthWrite": "表面が自身の深度を書き込み、その後に描かれるものを隠すかどうか。",
       "parameters.depthTest": "表面が、すでにより近くにあるものの陰に隠れるかどうか。",
+      "parameters.transparentShadow": "透ける（`transparent`）面がそれでも影を落とすかどうか。透けるほど影は薄くなる。",
       "parameters.physics": "これをまとう物体の素材：密度、摩擦、反発。",
       "parameters.density": "kg/m³。体積を掛けると質量になる。",
       "parameters.friction": "物体のすべりにくさ。0 以上。",
@@ -6096,6 +6092,7 @@
       "parameters.vertexColors": "ジオメトリの頂点ごとの`color`が表面を色づけするかどうか。",
       "parameters.depthWrite": "表面が自身の深度を書き込み、その後に描かれるものを隠すかどうか。",
       "parameters.depthTest": "表面が、すでにより近くにあるものの陰に隠れるかどうか。",
+      "parameters.transparentShadow": "透ける（`transparent`）面がそれでも影を落とすかどうか。透けるほど影は薄くなる。",
       "parameters.physics": "これをまとう物体の素材：密度、摩擦、反発。",
       "parameters.density": "kg/m³。体積を掛けると質量になる。",
       "parameters.friction": "物体のすべりにくさ。0 以上。",
@@ -6136,6 +6133,7 @@
       "parameters.vertexColors": "ジオメトリの頂点ごとの`color`が表面を色づけするかどうか。",
       "parameters.depthWrite": "表面が自身の深度を書き込み、その後に描かれるものを隠すかどうか。",
       "parameters.depthTest": "表面が、すでにより近くにあるものの陰に隠れるかどうか。",
+      "parameters.transparentShadow": "透ける（`transparent`）面がそれでも影を落とすかどうか。透けるほど影は薄くなる。",
       "parameters.physics": "これをまとう物体の素材：密度、摩擦、反発。",
       "parameters.density": "kg/m³。体積を掛けると質量になる。",
       "parameters.friction": "物体のすべりにくさ。0 以上。",
@@ -6176,6 +6174,7 @@
       "parameters.vertexColors": "ジオメトリの頂点ごとの`color`が表面を色づけするかどうか。",
       "parameters.depthWrite": "表面が自身の深度を書き込み、その後に描かれるものを隠すかどうか。",
       "parameters.depthTest": "表面が、すでにより近くにあるものの陰に隠れるかどうか。",
+      "parameters.transparentShadow": "透ける（`transparent`）面がそれでも影を落とすかどうか。透けるほど影は薄くなる。",
       "parameters.physics": "これをまとう物体の素材：密度、摩擦、反発。",
       "parameters.density": "kg/m³。体積を掛けると質量になる。",
       "parameters.friction": "物体のすべりにくさ。0 以上。",
@@ -6216,6 +6215,7 @@
       "parameters.vertexColors": "ジオメトリの頂点ごとの`color`が表面を色づけするかどうか。",
       "parameters.depthWrite": "表面が自身の深度を書き込み、その後に描かれるものを隠すかどうか。",
       "parameters.depthTest": "表面が、すでにより近くにあるものの陰に隠れるかどうか。",
+      "parameters.transparentShadow": "透ける（`transparent`）面がそれでも影を落とすかどうか。透けるほど影は薄くなる。",
       "parameters.physics": "これをまとう物体の素材：密度、摩擦、反発。",
       "parameters.density": "kg/m³。体積を掛けると質量になる。",
       "parameters.friction": "物体のすべりにくさ。0 以上。",
@@ -6256,6 +6256,7 @@
       "parameters.vertexColors": "ジオメトリの頂点ごとの`color`が表面を色づけするかどうか。",
       "parameters.depthWrite": "表面が自身の深度を書き込み、その後に描かれるものを隠すかどうか。",
       "parameters.depthTest": "表面が、すでにより近くにあるものの陰に隠れるかどうか。",
+      "parameters.transparentShadow": "透ける（`transparent`）面がそれでも影を落とすかどうか。透けるほど影は薄くなる。",
       "parameters.physics": "これをまとう物体の素材：密度、摩擦、反発。",
       "parameters.density": "kg/m³。体積を掛けると質量になる。",
       "parameters.friction": "物体のすべりにくさ。0 以上。",
@@ -6296,6 +6297,7 @@
       "parameters.vertexColors": "ジオメトリの頂点ごとの`color`が表面を色づけするかどうか。",
       "parameters.depthWrite": "表面が自身の深度を書き込み、その後に描かれるものを隠すかどうか。",
       "parameters.depthTest": "表面が、すでにより近くにあるものの陰に隠れるかどうか。",
+      "parameters.transparentShadow": "透ける（`transparent`）面がそれでも影を落とすかどうか。透けるほど影は薄くなる。",
       "parameters.physics": "これをまとう物体の素材：密度、摩擦、反発。",
       "parameters.density": "kg/m³。体積を掛けると質量になる。",
       "parameters.friction": "物体のすべりにくさ。0 以上。",
@@ -6945,7 +6947,7 @@
   },
   "world.beforeFrame": {
     "summary": "描画される各フレームより前に、`{ delta, time }`とともに関数を実行する; その削除用の関数を返す。",
-    "description": "世界のループの1フレームが実行される: コントローラーがカメラを進め(`controls.autoUpdate`がfalseでない限り)、クリップが進み、これらのフックが追加された順に実行され、シーンが書き込まれ描画され、その後`onFrame`フックが実行される。あるフックが配置するもの — カメラの上のボディ、コックピット — は、まさにこのフレーム内で描画され、1フレーム遅れることは決してない。ホスト主導の`render()`もこれらを実行するが、コントローラーは進めない。`invalidate()`を呼ぶフックは、フレームが来続けるようにする。",
+    "description": "1フレームは次のように実行される: カメラのコントローラー(`controls.autoUpdate`がfalseの場合、またはホストが主導する`render()`の場合を除く)、クリップ、物理、これらのフックが順に実行され、描画、その後`onFrame`フック。あるフックが配置するもの — カメラの上のボディ、コックピット — は、まさにこのフレーム内で描画され、1フレーム遅れることは決してない。`invalidate()`を呼ぶフックは、フレームが来続けるようにする。",
     "returns": "そのフックを止める関数。",
     "parameters": {
       "hook": "実行する関数; ちょうど積分された秒数と、世界の時刻を受け取る。"
@@ -7022,7 +7024,8 @@
       "children": "その下のノード、順番どおり。",
       "mesh": "`geometries` と `materials` の中の番号、三角形の読み方、そしてスプライトの中心。",
       "light": "ライトの種類、色、数値、向き、プローブの係数。",
-      "model": "コンパイル済みモデル。読み込んだマニフェストのアドレスで記録し、中身を埋め込むことはありません。"
+      "model": "コンパイル済みモデル。読み込んだマニフェストのアドレスで記録し、中身を埋め込むことはありません。",
+      "physics": "メッシュの物理ボディ。`mesh.physics` が宣言したとおりです。"
     }
   },
   "SavedScene": {
@@ -7129,7 +7132,7 @@
       "water": "物体が浮かぶ水：水位、波、密度、抗力。水より軽い物体は、押しのけた水の重さに押されて浮かぶ。",
       "waterSurface": "シミュレーション時刻の水面(描画用):浮力が読むのと同じ波、同じ数値(`height`、`point`、`normal`)。",
       "stats": "カウントと二つの時計：worker の 1 ステップあたりミリ秒、ページの 1 フレームあたりミリ秒。",
-      "error": "物理が最後に出したエラー（`PHYSICS_BUDGET`、`PHYSICS_NESTED`、`PHYSICS_FAILED`）、または `null`。シミュレーションを停止させたエラーは `enabled` をオフにします。",
+      "error": "物理が最後に出したエラー（`PHYSICS_BUDGET`、`PHYSICS_NESTED`、`PHYSICS_FAILED`、`RESOURCE_HTTP_ERROR`）、または `null`。シミュレーションを停止させたエラーは `enabled` をオフにします。",
       "add": "ジョイントを加えます(`joint.hinge(door, frame, …)` とその仲間)。両方の物体がシミュレーションされるとすぐに作られ、取り除かれるか壊れるまで保たれます。",
       "remove": "ジョイントを取り除きます。つないでいた物体は自由に離れます。"
     }
@@ -7337,7 +7340,7 @@
       "water": "物体が浮かぶ水：水位、波、密度、抗力。水より軽い物体は、押しのけた水の重さに押されて浮かぶ。",
       "waterSurface": "シミュレーション時刻の水面(描画用):浮力が読むのと同じ波、同じ数値(`height`、`point`、`normal`)。",
       "stats": "カウントと二つの時計：worker の 1 ステップあたりミリ秒、ページの 1 フレームあたりミリ秒。",
-      "error": "物理が最後に出したエラー（`PHYSICS_BUDGET`、`PHYSICS_NESTED`、`PHYSICS_FAILED`）、または `null`。シミュレーションを停止させたエラーは `enabled` をオフにします。",
+      "error": "物理が最後に出したエラー（`PHYSICS_BUDGET`、`PHYSICS_NESTED`、`PHYSICS_FAILED`、`RESOURCE_HTTP_ERROR`）、または `null`。シミュレーションを停止させたエラーは `enabled` をオフにします。",
       "add": "ジョイントを加えます(`joint.hinge(door, frame, …)` とその仲間)。両方の物体がシミュレーションされるとすぐに作られ、取り除かれるか壊れるまで保たれます。",
       "remove": "ジョイントを取り除きます。つないでいた物体は自由に離れます。"
     }
@@ -7410,6 +7413,7 @@
       "transparent": "ブレンドするかどうか。",
       "opacity": "どれだけ不透明か。",
       "alphaTest": "これを下回るとピクセルが破棄されるアルファ値。",
+      "transparentShadow": "ブレンドで描かれるときに影を落とすかどうか。指定がなければ落とさない。",
       "depthTest": "深度テストを行うかどうか。"
     },
     "summary": "サーフェス：1 つのファミリーのパラメータ。シーンが別の値を示さない限りリファレンスの値。",
@@ -7429,7 +7433,7 @@
       "offset": "`matrix` を組み立てる元。",
       "matrixAutoUpdate": "ホストが`matrix`を再構築するかどうか。",
       "matrix": "サンプラーのUV変換。`KHR_texture_transform`が3行にまとめられたもの; 更新をホストが所有する場合、ホストはオフセット・繰り返し・回転からこれを再計算する。",
-      "generateMipmaps": "より小さいコピーが作られるかどうか。",
+      "generateMipmaps": "より小さいコピーを求めるかどうか。`minFilter` がそれを読むときは、エンジンが常に作ります。",
       "premultiplyAlpha": "色があらかじめアルファで乗算されているかどうか。",
       "flipY": "アップロード時に行が反転されるかどうか。",
       "version": "内容が変わるたびにホストが増やす: アップロード処理が、コピーし直す必要があるかどうかを比較するもの。",

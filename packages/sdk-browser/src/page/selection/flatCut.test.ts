@@ -5,6 +5,7 @@ import { collectClusterPages, rootCoverage, selectVisiblePages } from './selecti
 import { dagFixture, wideCamera, urls } from './dag.fixture.ts';
 import { assertOneRepresentationPerGroup } from './helpers.fixture.ts';
 import { cameraMoteur } from '../../camera/camera.fixture.ts';
+import { createHeldResidency } from '../cut/held.ts';
 
 test('a flat cluster cut selects exactly one level per chain and covers the surface once', () => {
   const fixture = dagFixture();
@@ -49,7 +50,7 @@ test('a flat cluster cut keeps the frustum cut and reports the root cover', () =
   const selected = selectVisiblePages(roots, cameraMoteur(cam), {
     pixelError: 0,
     viewport: [1280, 720],
-    holdResident: true,
+    held: createHeldResidency(),
   });
   assert.deepEqual(selected.shown.map((page) => page.url).sort(), ['leaf0', 'leaf1']);
   assert.ok(selected.frustumRejected > 0);
@@ -70,7 +71,7 @@ function cutWithout(...missing: string[]) {
   const selected = selectVisiblePages(roots, cameraMoteur(wideCamera()), {
     pixelError: 0,
     viewport: [1280, 720],
-    holdResident: true,
+    held: createHeldResidency(),
   });
   const shown = selected.shown.map((page) => page.url).sort();
   return { fixture, selected, shown };
@@ -122,7 +123,7 @@ test('the cut rule covers the surface once for every residency pattern', () => {
       const selected = selectVisiblePages(roots, cameraMoteur(wideCamera()), {
         pixelError,
         viewport: [1280, 720],
-        holdResident: true,
+        held: createHeldResidency(),
       });
       const shown = selected.shown.map((page) => page.url).sort();
       assert.ok(shown.length > 0, `mask ${mask} px ${pixelError}: nothing drawn`);

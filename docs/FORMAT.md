@@ -42,13 +42,13 @@ Required fields consumed by the browser adapter:
   - `simplification` is `true` when the compiler ran with `qem-endpoints`.
 - `binary` — `{ version, url, sha256, bytes, pageUrl, geometryUrl, bundleUrl, texturePreviews, texturePreviewBytes, texturePreviewBc7Bytes, texturePreviewAstcBytes }`, the descriptor of the [binary sidecar](#clustersbin). Absent from caches compiled before the sidecar, which carry every array inline; the reader accepts both.
 
-Written for the compiler alone, ignored by the browser: `files` — `{ "<name>": { sha256, bytes } }`, one entry per other product of the key folder (`source.gltf`, `source.bin`, `proxy.bin`, `lights.json`, `scene-tables.json` and its `scene-cell-<n>.json`, `scene.gltf`, `scene.bin`), which a later job of the same key checks before keeping the folder instead of rewriting it ([COMPILER.md](COMPILER.md#reusing-a-compiled-folder)).
+Written for the compiler alone, ignored by the browser: `files` — `{ "<name>": { sha256, bytes } }`, one entry per other product of the key folder (`source.gltf`, `source.bin`, `proxy.bin`, `lights.json`, `scene-tables.json`, `scene.gltf`, `scene.bin`; the pages and cells of the [world partition](#world-partition) are proven through its root instead, so the record does not grow with the world), which a later job of the same key checks before keeping the folder instead of rewriting it ([COMPILER.md](COMPILER.md#reusing-a-compiled-folder)).
 
 ### `clusters.bin`
 
 Per-cluster numbers are the bulk of a manifest: tens of thousands of clusters with a dozen values each. When `binary` is present the compiler writes them as typed-array columns instead, and `clusters.json` keeps only what a human or a tool reads — primitives, materials, passes, reports, and the counts needed to find each primitive's slice of the columns. Emerald Square falls from 48.4 MB of JSON to 387 KB plus a 17.0 MB sidecar, and the reader maps the columns instead of tokenizing them.
 
-The file is little-endian: `u32` magic `WGMB` (`0x424d4757`), `u32` version `8`, `u32` column count `28`, `u32` reserved, then one `(byteOffset, byteLength)` `u32` pair per column, then the payloads, each starting on an 8-byte boundary. Lengths and spheres stay `f64` — they decide a cut, so truncating them would change the image. A digest is stored as its 64 ASCII hexadecimal characters, and an object URL is rebuilt from the `pageUrl` / `geometryUrl` / `bundleUrl` templates by substituting `{sha}` — and a texture level from `textures.url` by substituting `{sha}`, `{kind}`, `{level}` and `{format}` —, which is why no URL is stored at all.
+The file is little-endian: `u32` magic `WGMB` (`0x424d4757`), `u32` version `9`, `u32` column count `29`, `u32` reserved, then one `(byteOffset, byteLength)` `u32` pair per column, then the payloads, each starting on an 8-byte boundary. Lengths and spheres stay `f64` — they decide a cut, so truncating them would change the image. A digest is stored as its 64 ASCII hexadecimal characters, and an object URL is rebuilt from the `pageUrl` / `geometryUrl` / `bundleUrl` templates by substituting `{sha}` — and a texture level from `textures.url` by substituting `{sha}`, `{kind}`, `{level}` and `{format}` —, which is why no URL is stored at all.
 
 Indices inside a column stay local to the primitive: a group names the pages of its primitive, a page names the bundle of its primitive. Each primitive declares only its own counts in `primitives[].binary` — `pages`, and the `culling`, `structure` and `streams` counts — and the reader derives its base offsets by prefix sum, so the small JSON carries no offset to maintain. A reader refuses a missing magic, an unknown version, a different column count, a column out of bounds, a column whose length contradicts the declared counts, or a file whose size does not match `bytes`; it refuses the version before fetching the columns.
 
@@ -67,6 +67,7 @@ Level 0 partitions the source triangles into clusters of at most 128 triangles, 
 - `start` — offset of the earliest source index this cluster descends from, which restores a transparent draw order
 - `stream` / `streamOffset` — streaming bundle holding this cluster and its byte offset inside it
 - `geometry` — the optional independently decodable geometry page described under [Pages](#pages)
+- `cone` — `{ axis: [x, y, z], angle }`, the normal cone of the cluster's triangles: the normalized sum of their non-degenerate face normals, each weighted by its triangle's area, and the half-angle, in radians, that holds them all; `{ axis: [0, 0, 1], angle: π }`, which rejects nothing, when no face is left or the normals cancel out. Every cluster has one. The axis has the bits the runtime's reference `triangleCone` gives for the same triangles, and the angle is never narrower than its angle, by at most a few ulps (`normal_cone.rs` says why); the WebGPU prepare reads no vertex for it. In `clusters.bin` it is the `pageCone` column, four `f64` per page; sidecar version 9 added it, and a reader of version 8 refuses the file
 
 `structure` — `{ version, roots, groups[] }`. `roots` lists the clusters nothing replaces. Each group is `{ level, error, sphere, children, outputs }`, where `children` and `outputs` cover the same surface and are never both drawn.
 
@@ -86,7 +87,7 @@ The compiler validates selected accessors against their own `bufferView` length,
 
 Each page is a tightly packed little-endian `u32` index buffer covering at most 128 triangles (384 indices) of one DAG cluster. The runtime verifies SHA-256 and byte length before attaching a page. A streaming bundle is the concatenation of those index buffers for the clusters it holds, in the order their `streamOffset` values give.
 
-Static opaque, alpha-mask and clustered BLEND primitives can additionally carry `pages[].geometry`: an independently decodable quantized cluster page with URL, SHA-256, byte length, vertex/index counts, attribute flags and decoded-byte estimate (`uncompressedBytes`: the page once unpacked to float attributes and 32-bit indices, what a reader that expands the page holds; `bytes` is what a reader that decodes in place keeps resident). The manifest declares the page format once, at its top: `geometryPages: { formatVersion: 3, codec: "quantized" }`. This geometry-page version is independent of the outer cache version: the optional fields and `autonomousScene` are additive, while `clustered-blend` requires outer cache format 8. A reader of a cache whose `geometryPages` is missing or of another format refuses it whole, as it refuses a sidecar of another version than 8 — the sidecar names only this page — and every page header opens with the same version. The index pages remain available for existing backends.
+Static opaque, alpha-mask and clustered BLEND primitives can additionally carry `pages[].geometry`: an independently decodable quantized cluster page with URL, SHA-256, byte length, vertex/index counts, attribute flags and decoded-byte estimate (`uncompressedBytes`: the page once unpacked to float attributes and 32-bit indices, what a reader that expands the page holds; `bytes` is what a reader that decodes in place keeps resident). The manifest declares the page format once, at its top: `geometryPages: { formatVersion: 3, codec: "quantized" }`. This geometry-page version is independent of the outer cache version: the optional fields and `autonomousScene` are additive, while `clustered-blend` requires outer cache format 8. A reader of a cache whose `geometryPages` is missing or of another format refuses it whole, as it refuses a sidecar of another version than 9 — the sidecar names only this page — and every page header opens with the same version. The index pages remain available for existing backends.
 
 #### Quantized cluster page (`WGP3`)
 
@@ -118,12 +119,14 @@ When every selected primitive has autonomous pages, the compiler also publishes 
 
 The compiler bakes the **whole mip chain** of every texture an atlas reads — base colour and emissive for the colour atlas, metal-roughness, normal and occlusion for the data atlas — and the engine reads those levels wherever the cache carries them, whatever the host asked of its loader: it regenerates a chain only for a texture the cache has none for. The chain is split in two:
 
-- The **tail**, from the first level no side of which exceeds `PREVIEW_BASE` (64 px) down to 1×1, lives in the sidecar (`clusters.bin`) and is on the card before the first frame: raw RGBA8 in `texturePreviewPixels`, and, for each block family the quality gate kept the chain in, the same levels block-compressed in `texturePreviewBc7` (the BC family) or `texturePreviewAstc` (ASTC 4×4), one byte per texel, no offset written — each kept entry's range follows the previous one's at the length its dimensions imply. One entry per `(texture, atlas)` pair, fourteen `u32` in `texturePreviewU32`: `texture`, `image`, `width`, `height`, source kind and buffer view, first level, level count, pixel offset and byte length, `atlas` (0 colour, 1 data, 2 colour weighted by coverage), `bakedLevels`, then the **layout word** of each family — `0` lossless (no blocks in that family), `1` RGBA blocks, `2` two-channel blocks. Entries are strictly increasing by `(texture, atlas)`, a coverage chain counting as its texture's colour-atlas entry — one texture carries a plain or a coverage colour chain, never both —, and a reader recomputes every level's geometry from `width`/`height` instead of trusting the entry; a block column that ends before or after the last kept entry, a layout word no layout owns, or blocks under a lossless word, refuse the sidecar whole.
-- The **head**, levels `0` to `bakedLevels - 1`, is one file per level and per kept format at the template `clusters.json` publishes in `textures.url` (`../../textures/v<N>/{sha}/{kind}-{level}.{format}`, relative to `clusters.json`): `{sha}` is the SHA-256 of the source image bytes, `{kind}` is `srgb`, `linear` or `srgb-coverage`, `{level}` the mip rank, `{format}` `png` (lossless, always there), `bc7` / `bc5` (the BC family, RGBA and two-channel layouts) or `astc` / `astc-la` (ASTC 4×4, the same two layouts) — a level's blocks row-major, a side that is not a multiple of four padded by its edge. Levels are content-addressed, shared by every scene that shares the image, never rewritten once present, and pruned like objects when no surviving manifest names their digest. `v<N>` is `TEXTURE_PREVIEW_VERSION`: a change of the reduction rule, of a codec or of the gate's bar changes the path, so stale levels are never served.
+- The **tail**, from the first level no side of which exceeds `PREVIEW_BASE` (64 px) down to 1×1, lives in the sidecar (`clusters.bin`) and is on the card before the first frame: raw RGBA8 in `texturePreviewPixels`, and, for each block family the quality gate kept the chain in, the same levels block-compressed in `texturePreviewBc7` (the BC family) or `texturePreviewAstc` (ASTC 4×4), one byte per texel, no offset written — each kept entry's range follows the previous one's at the length its dimensions imply. One entry per `(texture, atlas)` pair, fourteen `u32` in `texturePreviewU32`: `texture`, `image`, `width`, `height`, source kind and buffer view, first level, level count, pixel offset and byte length, `atlas` (0 colour, 1 data, 2 colour weighted by coverage, whose cutoff byte `C` fills bits 8–15, 0 when a reader blends), `bakedLevels`, then the **layout word** of each family — `0` lossless (no blocks in that family), `1` RGBA blocks, `2` two-channel blocks. Entries are strictly increasing by `(texture, atlas)`, a coverage chain counting as its texture's colour-atlas entry — one texture carries a plain or a coverage colour chain, never both —, and a reader recomputes every level's geometry from `width`/`height` instead of trusting the entry; a block column that ends before or after the last kept entry, a layout word no layout owns, or blocks under a lossless word, refuse the sidecar whole.
+- The **head**, levels `0` to `bakedLevels - 1`, is one file per level and per kept format at the template `clusters.json` publishes in `textures.url` (`../../textures/v<N>/{sha}/{kind}-{level}.{format}`, relative to `clusters.json`): `{sha}` is the SHA-256 of the source image bytes, `{kind}` is `srgb`, `linear`, `srgb-coverage` or `srgb-coverage-<C>`, `{level}` the mip rank, `{format}` `png` (lossless, always there), `bc7` / `bc5` (the BC family, RGBA and two-channel layouts) or `astc` / `astc-la` (ASTC 4×4, the same two layouts) — a level's blocks row-major, a side that is not a multiple of four padded by its edge. Levels are content-addressed, shared by every scene that shares the image, never rewritten once present, and pruned like objects when no surviving manifest names their digest. `v<N>` is `TEXTURE_PREVIEW_VERSION`: a change of the reduction rule, of a codec or of the gate's bar changes the path, so stale levels are never served.
 
-**Block layouts and the quality gate.** A cook writes one block family (`--textures-format=bc7|astc|both|none`, `bc7` by default: a cook runs on a desktop). A texture's layout follows its role: **RGBA** — BC7 mode 6 (one subset, 7-bit RGBA endpoints with a shared low bit, 4-bit weights) or ASTC single-partition colour endpoint mode 12 at the 192-level range with 3-bit weights — for base colour, emissive, metal-roughness and occlusion maps; **two channels** — BC5 (two BC4 channels, eight rungs each) or ASTC luminance-alpha (colour endpoint mode 4, dual plane, quint weights) — for a texture only `normalTexture` reads, X in the first channel, Y in the second (BC5) or in alpha (ASTC), Z rebuilt by the shader as `sqrt(1 − x² − y²)`. Every chain is then read back through an independent decoder (`texture2ddecoder`) and compared with its RGBA8 levels on the channels the materials read — an opaque base colour's alpha is not read, a normal map's three are, Z rebuilt against Z stored — and it is **kept only if** its PSNR over the whole chain reaches **48 dB**, no texel moves by more than **3 levels** of 255 on a read channel — the definition of "no visible loss" for a block texture: on a still capture at 1280×720, DPR 1, every channel of every pixel within 3 of 255, below what an 8-bit display discriminates, and 0 px of A/A; the bound is carried to the texel, since filtering only averages texels, and measured on the captures of the batch —, and no texel of a masked texture changes side of its alpha cutoff. A chain under the bar stays lossless in that family: no block file, no block tail, the layout word says so, and the engine samples it from an RGBA8 pool. The compile report (`clusters.json`, `texturePreviews`) publishes the bar (`qualityGate`), the counts per family and layout (`encoded`), the kept chains' PSNR quantiles, and every chain left lossless with its PSNR, largest gap and flips (`lossless`). The codecs are the compiler's own, pure Rust, one layout each and no mode search; their blocks are proved on the same independent decoder.
+**Block layouts and the quality gate.** A cook writes one block family (`--textures-format=bc7|astc|both|none`, `bc7` by default: a cook runs on a desktop). A texture's layout follows its role: **RGBA** — BC7 mode 6 (one subset, 7-bit RGBA endpoints with a shared low bit, 4-bit weights) or ASTC single-partition colour endpoint mode 12 at the 192-level range with 3-bit weights — for base colour, emissive, metal-roughness and occlusion maps; **two channels** — BC5 (two BC4 channels, eight rungs each) or ASTC luminance-alpha (colour endpoint mode 4, dual plane, quint weights) — for a texture only `normalTexture` reads, X in the first channel, Y in the second (BC5) or in alpha (ASTC), Z rebuilt by the shader as `sqrt(1 − x² − y²)`. Every chain is then read back through an independent decoder (`texture2ddecoder`) and compared with its RGBA8 levels on the channels the materials read — an opaque base colour's alpha is not read, a normal map's three are, Z rebuilt against Z stored — and it is **kept only if** its PSNR over the whole chain reaches **48 dB**, no texel moves by more than **3 levels** of 255 on a read channel — the definition of "no visible loss" for a block texture: on a still capture at 1280×720, DPR 1, every channel of every pixel within 3 of 255, below what an 8-bit display discriminates, and 0 px of A/A; the bound is carried to the texel, since filtering only averages texels, and measured on the captures of the batch —, and no texel of a masked texture changes side of its alpha cutoff, its alpha times the material's colour factor alpha against the cutoff, as the engine cuts it. A chain under the bar stays lossless in that family: no block file, no block tail, the layout word says so, and the engine samples it from an RGBA8 pool. The compile report (`clusters.json`, `texturePreviews`) publishes the bar (`qualityGate`), the counts per family and layout (`encoded`), the kept chains' PSNR quantiles, and every chain left lossless with its PSNR, largest gap and flips (`lossless`). The codecs are the compiler's own, pure Rust, one layout each and no mode search; their blocks are proved on the same independent decoder.
 
-Every level, tail and head, follows the rule the card applied when it regenerated the chain itself (`packages/sdk-browser/src/texture/mips.ts`): level `k` from the **quantized** level `k - 1`, colours averaged in the atlas's own encoding (sRGB decoded and re-encoded for the colour atlas, linear for the data atlas), alpha the **median** of the four texels, an odd side repeating its last texel. The colours are a plain mean, except for a colour texture **every** reader of which takes its alpha for coverage — the base colour of `BLEND` materials that do not transmit, or of `MASK` ones whose cutoff is above 0, only —: that texture has its own chain, `atlas` word `2` and `{kind}` `srgb-coverage`, where four texels whose alphas differ average their linear colours weighted by alpha (premultiplied, averaged, divided by the summed alpha, stored straight), so the colour under a transparent texel no longer darkens a cutout's border (#42); an image whose alpha never varies keeps the plain chain, which weighting would not change by a byte. One opaque or transmissive base colour or one emissive among the readers, and the texture keeps the plain chain byte for byte, since that reader draws the colour under alpha 0; the data atlas never weighs. Its files, named apart, are never shared with the plain chain of the same image in another scene, and the card regenerating a hosted texture takes the same decision from the same material census. The file's declared transfer does not enter the rule: the pyramid follows the display, not the file. Baking instead of regenerating therefore keeps the image within rounding — measured on Emerald at 2496×1404: 0 pixels beyond ±2 per channel on the general view, and on the lawn view 1 720 isolated pixels (0,05 %) where the median alpha of a coarse texel lands on the other side of the 0,5 cutoff, plus their shadows when the sun is on. Remeasured when the engine stopped regenerating what the cache carries (#289), at 1280×720, DPR 1, threshold 0, TAA off, lossless pools on both sides: the four Emerald views differ by at most 2 of 255 on a channel — one channel of one frame at 3 — with a mean absolute channel error of 0,009 to 0,049 of 255, Whisperwind by 5 pixels at 1 of 255, against an A/A witness of 0 px on every view. The same rule written twice, once on the card and once on the processor, is a rounding apart and no more.
+Every level, tail and head, follows the rule the card applied when it regenerated the chain itself (`packages/sdk-browser/src/texture/mips.ts`): level `k` from the **quantized** level `k - 1`, colours averaged in the atlas's own encoding (sRGB decoded and re-encoded for the colour atlas, linear for the data atlas), alpha the **median** of the four texels, an odd side repeating its last texel. The colours are a plain mean, except for a colour texture **every** reader of which takes its alpha for coverage — the base colour of `BLEND` materials that do not transmit, or of `MASK` ones whose cutoff is above 0, only —: that texture has its own chain, `atlas` word `2` and `{kind}` `srgb-coverage`, where four texels whose alphas differ average their linear colours weighted by alpha (premultiplied, averaged, divided by the summed alpha, stored straight), so the colour under a transparent texel no longer darkens a cutout's border (#42); when every reader cuts, the median alpha of every level is then scaled so that it covers the share of texels level 0 covers (#44, below); an image whose alpha never varies keeps the plain chain, which weighting would not change by a byte. One opaque or transmissive base colour or one emissive among the readers, and the texture keeps the plain chain byte for byte, since that reader draws the colour under alpha 0; the data atlas never weighs. Its files, named apart, are never shared with the plain chain of the same image in another scene, and the card regenerating a hosted texture takes the same decision from the same material census. The file's declared transfer does not enter the rule: the pyramid follows the display, not the file. Baking instead of regenerating therefore keeps the image within rounding — measured on Emerald at 2496×1404: 0 pixels beyond ±2 per channel on the general view, and on the lawn view 1 720 isolated pixels (0,05 %) where the median alpha of a coarse texel lands on the other side of the 0,5 cutoff, plus their shadows when the sun is on. Remeasured when the engine stopped regenerating what the cache carries (#289), at 1280×720, DPR 1, threshold 0, TAA off, lossless pools on both sides: the four Emerald views differ by at most 2 of 255 on a channel — one channel of one frame at 3 — with a mean absolute channel error of 0,009 to 0,049 of 255, Whisperwind by 5 pixels at 1 of 255, against an A/A witness of 0 px on every view. The same rule written twice, once on the card and once on the processor, is a rounding apart and no more.
+
+**Coverage-preserving alpha (#44).** The median alone thins a masked texture out at the coarse levels — sponza's masked maps held their coverage within ±2.4 % down to 32² texels, then lost 3 to 15 % at level 6, up to 40 % at level 7 and 57 % at level 8. A coverage chain therefore carries the cutoff byte `C` of its texture: the lowest cutoff among the materials that read the texture's alpha as coverage, each material's the smallest byte `b` with `b / 255 × f >= alphaCutoff` in `f32`, `f` its `baseColorFactor` alpha — the product itself, since the cutoff divided by `f` lands a byte off on exact ties; glTF 2.0 cuts the sampled alpha times the factor's against `alphaCutoff`, and both backends do (`maskKeep`, #748; WebGL2's `baseFactor`, #769) —; a factor of 0 or below, or a cutoff at or above the factor, keeps at most the fully opaque texels and takes `C = 255`, which the lowest over the readers ignores beside any other cutoff; or 0, and the median alone, when one of them blends — a blended surface draws the alpha itself, and the scale would move its mean. Two textures of one image cut at two cutoffs, or one of them blended, bake one chain each. Then, at each level `k >= 1`, after the median: with `n0` the texels of level 0 whose alpha is `>= C`, `N0` and `Nk` the texel counts of levels 0 and `k`, and `above(t)` the texels of level `k` whose alpha is `>= t` (a 256-bin histogram), `t` is the byte of `1..=255` minimising `|above(t) × N0 − n0 × Nk|` — ties to the `t` nearest `C`, then to the lower —, and every alpha `a` of the level becomes `min(255, (2a(2C − 1) + 2t − 1) / (4t − 2))` in integers, the division truncating: `a × (C − 0.5) / (t − 0.5)` rounded half up, which sends exactly the texels at or above `t` to `C` or more. Every level is matched against level 0, never against the previous one; `t = C` leaves a level byte for byte; level `k + 1` is reduced from the scaled bytes; colours are not touched. This compiler (`texture_preview/coverage.rs`) applies this rule and this arithmetic, and so do the chains the card builds for a hosted texture, from the same arithmetic in WGSL and GLSL (`texture/coverageRule.ts`): WebGPU counts each level and picks its `t` in a compute pass (#748, `texture/coverageMips.ts`), WebGL2 counts by additive blending into a float target and picks `t` in a one-texel draw (#769, `webgl/cluster/coverageMips.ts`) — a context without `EXT_color_buffer_float` and `EXT_float_blend` keeps the median alone —, once per chain built — a live texture builds one per new picture —, never per frame otherwise. Its files are `srgb-coverage-<C>`, one name per cutoff, so two scenes cutting one image at two cutoffs never serve each other's levels; the blended-only chain keeps `srgb-coverage` and its bytes, and no existing file moves, hence no version change.
 
 An image whose decode fails has no entry: its textures load from the source as before. A texture whose chain is not whole (`bakedLevels < firstLevel`) also keeps the source path, in the engine's lossless lane, whatever the family the device samples.
 
@@ -131,7 +134,7 @@ An image whose decode fails has no entry: its textures load from the source as b
 
 `scene-tables.json`, beside `clusters.json`, says what the prepared scene is made of, and it is the
 only thing the runtime builds that scene from: no glTF is parsed in the browser. Its own version
-governs it — `version` 3, `nodeTableVersion` 3, `materialTableVersion` 4, `geometryTableVersion` 1 —
+governs it — `version` 4, `nodeTableVersion` 3, `materialTableVersion` 4, `geometryTableVersion` 1 —
 and an unknown one is refused rather than half-read (`assertSceneTables`, `UNSUPPORTED_SCENE_TABLES`).
 Every value is read from the `source.gltf` the same compilation publishes (and, for its layout, from
 `scene.gltf` when one is written): the slice's nodes, the cutout answers already applied, the mesh
@@ -194,19 +197,29 @@ the runtime reads the cells by distance to its camera instead of reading every n
 first frame. A scene whose placements fit one unit keeps them in `nodes[]` and has `partition:
 null`: its tables are the ones it always had.
 
-The placements are halved along the widest spread of their centres until a cell's descriptors fit
-the unit. `partition` is `{ version: 1, bounds, meshes, cells }`: `bounds` the box around every cell
-at the declared poses (scene frame, `[minX, minY, minZ, maxX, maxY, maxZ]`), `meshes` the mesh
-ranks the cells place, and per cell `{ url, sha256, bytes, parents, meshes }` — its file beside the
+The placements are halved along the widest spread of their centres until a cell's placements fit
+the unit. Each cell has a **record** `{ url, sha256, bytes, parents, meshes }` — its file beside the
 tables (`scene-cell-<n>.json`), fingerprint and size (the reader verifies them as it verifies a
 page), `parents`, `[[rank, box], …]`: for each core node its placements hang under (`null`, the
 scene), the box around them **in that node's frame**, and `meshes`, `[[rank, count], …]` in rank
 order: how many placements of each mesh it holds, which the runtime sizes its rows by before
-reading any cell. A cell file is `{ version: 1, nodes }`, each node `{ parent, mesh, matrix, translation,
+reading any cell. A cell file is `{ version: 2, nodes }`, each node `{ parent, mesh, matrix, translation,
 rotation, scale }`: `parent` the rank in `nodes[]` of the core node it hangs under (`null`, the
 scene), its mesh, and its local pose exactly as declared, each part `null` when silent. A
-placement's name is not kept: it is a row, not a host node. The cells are products of the key
-folder, recorded in the manifest's `files`.
+placement's name is not kept: it is a row, not a host node.
+
+**The paged cell index** (`partition/pages.rs`, #750). The records lie in pages cut from the
+halving tree, each node a contiguous range of cells: a region page `{ version: 2, cells }` holds the
+records of the highest node under 128 KiB (`PAGE_BYTES`; one cell whatever its size), an index page
+`{ version: 2, pages }` lists at most 8 pages (`FAN_OUT`), its node opened largest first, and
+`partition` is the root `{ version: 2, pages }`: the whole tree opened into exactly eight slots,
+empty ones last — 1 391 bytes for grids of 48² and 192² and the open-world cell laid 8 × 8. A slot
+is 168 hexadecimal digits: the page's SHA-256, its size (8) and its box at the declared poses as six
+big-endian `f64` bit patterns (16 each), naming `scene-page-<sha256>.json`; zeros name no page.
+`readTablePartition` reads every page through its caller's `read`, which verifies it against its
+slot (`fetchVerified`), into the records in cell order, `bounds` the union of the root's boxes and
+`meshes` the ranks placed. Pages and cells are outside
+the manifest's `files`: a reused folder proves them through the root.
 
 **Reading the cells.** Each mesh the cells place is drawn by one host mesh per primitive whose
 instance buffer the cells fill (`packages/sdk-browser/src/scene/partition/`): a placement takes a
@@ -216,19 +229,20 @@ there would carry, proven against the host loader on `site/assets/examples/ten-t
 move a core parent (`getObjectByName`): the rows under it are rewritten, and the cell's boxes are
 its parents' boxes under their current matrices (`boxes.ts`), so the cell is read where its
 placements stand, at the distance of its nearest box. A cell is read while the camera can draw any of it: its **reach** is the far plane met on the frustum's
-diagonal, `far·√w`, with `w = 1 + tan²(fov/2)·(1 + aspect²)` the off-axis stretch of the frustum.
+diagonal, `far·√w`, with `w = 1 + (tan(fov/2)/zoom)²·(1 + aspect²)` the off-axis stretch of the frustum.
 The error target does not shorten it: nothing coarser stands for a cell that is not read (the
 proxy of #23), so an object dropped below the target would be missing from the image, not
-replaced. An orthographic camera reads every cell. Before its first frame a session reads the cells within
+replaced. An orthographic camera reads up to the far corner of its zoomed box. Before its first frame a session reads the cells within
 the reach of the camera the page draws with (a world hands its camera to the session it opens; a
 bare explorer, which has none, reads for its framing camera, which sees the whole scene), and
 nothing else. Then, before every frame, cells within the reach are
 asked for nearest first, those within `1.25 × reach` at the prefetch priority, and a read cell
 leaves once its box is past `1.5 × reach` (`AHEAD` and `KEEP` in `plan.ts`): margins of the reach,
 never of the cell, so a cell cut wider than the view is kept only while its box meets that sphere. The cells are read through the session's page streamer
-— one request queue — and placed within the frame's one integration budget, the arrival queue's
+— one request queue — and placed within the frame's one integration budget, the session's
 (`ARRIVAL_BUDGET_MS`, `FrameBudget`): its clock starts once per frame, the cells spend from it
-first and the page arrivals drain the rest; the first integration of a frame always goes through.
+first, the page arrivals drain from what is left, then the WebGPU row records; the first
+integration of a frame always goes through.
 The rows are sized once, when a session opens and before its engines read them, for every
 placement its camera's reach can hold at once **wherever the page moves the core parents**
 (`sizing.ts`). A held cell has a box within `1.5 × reach` of the eye; the boxes one parent carries
@@ -239,10 +253,11 @@ move together, so those held at once are close in that parent's own frame — ce
 parent, summed over the parents and never past every placement, bounds each mesh's rows — set by
 the reach, the cells' size and the parents' count, not by the world or where its parents stand.
 Parents moved together never run the rows short, so they never reopen the session nor leave a
-placement undrawn (CONTRIBUTING.md §Streaming rule 10). Nothing grows under a drawing engine: a
-camera whose reach later outgrows the rows, or a parent scaled down or stretched more unevenly
-than at opening (moved, turned or scaled up, it holds), asks
-the session's owner, once, to open it again sized for them (the world does). A session no owner
+placement undrawn (CONTRIBUTING.md §Streaming rule 10). A camera whose reach later outgrows the
+rows, or a parent scaled down or stretched more unevenly than at opening (moved, turned or scaled
+up, it holds), grows them in place, to twice what is asked, on an engine that follows the growth
+contract (`placement/growth.ts`); on one that does not, it asks the session's owner, once, to
+open it again sized for them (the world does). A session no owner
 can open again (a bare explorer) sizes its rows for every placement, and rows that hold every
 placement never ask. A session drawing on demand draws again, camera still, until the cells it
 asked for within reach are read and placed. A partitioned scene is not
@@ -256,14 +271,14 @@ source and sampler, surfaces and their vertex-colour and flat-shading variants, 
 cameras and lights assembled and named as the host loader assembled and named them — proven equal to the
 loader's graph, field by field and byte by byte, on every cache `site/assets` publishes
 (`packages/sdk-browser/src/host/prepared/build.test.ts`). A layout that names a document the tables
-do not carry, a view outside its binary, or a cell placing a mesh `partition.meshes` does not
-name, is `PREPARED_SCENE_MISMATCH`.
+do not carry, a view outside its binary, or a cell placing a mesh the scene built no rows for,
+is `PREPARED_SCENE_MISMATCH`.
 
 ## `physics.json` — cooked colliders
 
 Written beside `clusters.json` by the compiler's `physics-cook` stage ([COMPILER.md](COMPILER.md)),
 with a `formatVersion` of its own (2): a reader refuses any other (`PHYSICS_FORMAT`, recompile the
-model). Format 1 carried the declared `bodies`, and no matter on an instance. The shapes it
+model). Format 1 carried the declared bodies in another shape, and no matter on an instance. The shapes it
 names are Jolt's binary state (`Shape::SaveWithChildren`), readable only by the Jolt that wrote them:
 the file names that commit in `jolt`, and the engine refuses a file cooked by another. `stage` names
 the stage and its version.
@@ -277,6 +292,32 @@ the stage and its version.
 
 The manifest's `physics` field names the file, its format, the Jolt commit, the report and every
 object the file cites (`objects[].sha256`), so a prune keeps them.
+
+### `bodies` — declared rigid bodies
+
+Stage version 6 adds `bodies`, one entry per node of the rendered scene whose
+`KHR_physics_rigid_bodies` declares a `motion` ([COMPILER.md](COMPILER.md#physicsjson--the-cooked-colliders-stage-physics-cook)). The
+field is additive: a file cooked before it has none, and format 2 still reads it. The node keeps its
+`instances` entries: the page leaves them out once it has restored its body
+(`packages/sdk-browser/src/physics/cookedBodies.ts`) and falls back on them when it refuses the
+body; another node its collider names keeps its own, still static ground. Each entry:
+
+- `node`: the declaring node.
+- `motion`: the motion as the node declares it (`isKinematic`, `mass`, `gravityFactor`, …).
+- `shape`: the `KHR_implicit_shapes` shape the collider names, as declared, or `cooked`: one
+  `ConvexHullShape` for contact, a SHA-addressed object like a tile (`url`, `sha256`, `bytes`), in
+  the body's frame at unit scale; and, a dynamic body's, `mass`, the exact weighing of the solid
+  its closed mesh bounds at 1000 kg/m³ and at the body's `scale`: `mass` (kg), `centerOfMass` and
+  `inertia` about it (nine numbers, column-major), in the body's frame — the mass the page hands
+  Jolt, turning the hull about `centerOfMass` rather than about the hull's own centre, weighed
+  again at the world scale the model is placed at; what the `motion` declares (`mass`,
+  `centerOfMass`, `inertiaDiagonal` turned by `inertiaOrientation`) wins over it, the cooked
+  inertia scaled to a declared mass.
+- `position`, `rotation`, `scale`: the node's world placement in the model, as an instance's.
+- `friction`, `restitution`: as an instance's.
+
+`report.bodies` counts them; `report.bodiesRefused` lists each declaring node the cook refused
+(`node`, `reason`): it has no body, and stays static ground.
 
 ### `softBodies` — cooked soft bodies
 
