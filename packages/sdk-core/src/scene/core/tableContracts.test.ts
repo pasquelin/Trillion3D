@@ -84,24 +84,17 @@ test('the pages under the root give back every cell in order, their box and thei
     assert.equal(url, `scene-page-${sha256}.json`);
     return new TextEncoder().encode(JSON.stringify(bodies[sha256.replace(/^0+/, '')]));
   };
-  const root = [
-    slot('a', [0, 0, 0, 2, 1, 1]),
-    slot('b', [-3, 0, 0, -2, 5, 1]),
-    ...Array(6).fill(EMPTY),
-  ];
+  const [a, b] = [slot('a', [0, 0, 0, 2, 1, 1]), slot('b', [-3, 0, 0, -2, 5, 1])];
+  const root = [a, b, ...Array(6).fill(EMPTY)];
   const paged = await readTablePartition({ version: 2, pages: root }, read);
-  assert.deepEqual(
-    paged.cells.map(({ url }) => url),
-    ['0', '1', '2', '3'],
-  );
+  const urls = paged.cells.map(({ url }) => url);
+  assert.deepEqual(urls, ['0', '1', '2', '3']);
   assert.deepEqual(paged.bounds, [-3, 0, 0, 2, 5, 1]);
   assert.deepEqual(paged.meshes, [0, 1, 2, 3]);
   // A slot that is not fixed-width hexadecimal, or a page of another version, is refused.
   const bad = { version: 2, pages: ['z'.repeat(168), ...root.slice(1)] };
   await assert.rejects(readTablePartition(bad, read), hasCode('INVALID_SCENE_TABLES'));
   bodies.b = { version: 1, cells: [] };
-  await assert.rejects(
-    readTablePartition({ version: 2, pages: root }, read),
-    hasCode('UNSUPPORTED_SCENE_TABLES', 'version 1'),
-  );
+  const again = readTablePartition({ version: 2, pages: root }, read);
+  await assert.rejects(again, hasCode('UNSUPPORTED_SCENE_TABLES', 'version 1'));
 });

@@ -16,11 +16,10 @@ import { unmetered, type ByteMeter } from '../cluster/byteMeter.ts';
 /** Where a cache keeps its scene tables: the one address their reader and a load's plan use. */
 export const sceneTablesUrl = (base: string) => new URL(SCENE_TABLES_FILE, base).href;
 
-/** The tables of a prepared cache, with the size of the product read — the tables and the pages
- *  of their partition, each page verified against its slot: this read is on the load critical
- *  path of every session, so what it costs is published, not supposed. Absent or of an unknown
- *  version, the tables are a refusal: the cache format that carries them is the only one this
- *  runtime reads. `meter` counts its bytes as they arrive. */
+/** The tables of a prepared cache and their partition's pages, each verified, with the bytes read:
+ *  this read is on the load critical path of every session, so what it costs is published, not
+ *  supposed. Absent or of an unknown version, the tables are a refusal: the cache format that
+ *  carries them is the only one this runtime reads. `meter` counts its bytes as they arrive. */
 export async function loadPreparedSceneTables(
   base: string,
   signal?: AbortSignal,
