@@ -90,6 +90,12 @@ test('a declared dynamic box is held kinematic at its drawn pose, its node’s t
   const rest = run(jolt, 2);
   assert.ok(Math.abs(rest.get(60)![1] - 2.75) < 0.02, `a crate rests on it: ${rest.get(60)![1]}`);
   assert.equal(castDown(jolt, -0.5)[0], held.w[1], 'a ray meets the body, where it is drawn');
+  tiles.refused(held.w[1]);
+  tiles.update([0, 0, 0], 1000);
+  await landed();
+  const [back, ...others] = adds(writer.take());
+  assert.deepEqual([back.w[4], back.f[6], others], [SHAPE.cooked, 0, []], 'refused, its tile back');
+  assert.equal(bodies.count.bodies, 2, 'its slot given back, node 0’s tile ground again');
 });
 
 test('a shapeless node restores its cooked hull and mass, and turns about the cooked centre of mass', async () => {
@@ -106,11 +112,7 @@ test('a shapeless node restores its cooked hull and mass, and turns about the co
   const words = writer.take();
   const [a, b, c] = adds(words);
   assert.deepEqual([b.w[2], b.w[4], b.f[16], b.w[24]], [MOTION.dynamic, SHAPE.cooked, 1000, 13]);
-  assert.deepEqual(
-    [...b.f.subarray(FRAME, FRAME + 3)],
-    [0.9, 0.5, 0.5].map(Math.fround),
-    'its centre of mass',
-  );
+  assert.deepEqual([...b.f.subarray(FRAME, FRAME + 3)], [0.9, 0.5, 0.5].map(Math.fround));
   assert.ok(Math.abs(b.f[FRAME + 3] - 1000 / 6) < 1e-3, 'its inertia, as cooked');
   assert.equal(fetched.filter((f) => f === 'hull.bin').length, 1, 'one read, never built');
   const jolt = await startModule();
@@ -124,11 +126,8 @@ test('a shapeless node restores its cooked hull and mass, and turns about the co
   jolt.step(writer.take(), 0);
   jolt.step(words, 0);
   const last = run(jolt, 1);
-  assert.ok(
-    Math.abs(last.get(a.w[1] & BODY_INDEX)?.[6] ?? 1) > 0.999,
-    'about its centre, it stays',
-  );
   const turn = (made: { w: Uint32Array }) => Math.abs(last.get(made.w[1] & BODY_INDEX)![6]);
+  assert.ok(turn(a) > 0.999, `about its centre, it stays: ${turn(a)}`);
   assert.ok(turn(b) < 0.95, `about the cooked centre, it tips: ${turn(b)}`);
   assert.ok(turn(c) > 0.995, `the provided inertia holds it: ${turn(c)}`);
 });
@@ -145,11 +144,7 @@ test('a declared mass and centre win over the cooked ones; a model scaled weighs
   assert.ok(Math.abs(won.f[FRAME + 3] - 5 / 6) < 1e-5, 'the cooked inertia, to the declared mass');
   const file = { ...cooked([], []), bodies: [declared(0, [0, 0, 0], {}, cube())] };
   const [scaled] = adds((await streamedModel(file, await hull(), {}, 2)).writer.take());
-  assert.deepEqual(
-    [...scaled.f.subarray(13, 17)],
-    [2, 2, 2, 8000],
-    'the hull and its mass, scaled',
-  );
+  assert.deepEqual([...scaled.f.subarray(13, 17)], [2, 2, 2, 8000], 'the hull and its mass');
   assert.deepEqual([...scaled.f.subarray(FRAME, FRAME + 3)], [1, 1, 1]);
   assert.ok(Math.abs(scaled.f[FRAME + 3] - 16000 / 3) < 1e-2, `inertia ${scaled.f[FRAME + 3]}`);
 });
