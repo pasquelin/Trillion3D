@@ -1,5 +1,6 @@
 import { EngineError } from '../../../sdk-core/src/index.ts';
 import { verifyPageBytes } from '../page/decode/host.ts';
+import { unmetered, type ByteMeter } from './byteMeter.ts';
 /** Whether a failure of HTTP `status` a second request may not meet: the network (`null`), a
  *  timeout (408), a rate limit (429) or a server error (5xx). Any other 4xx would meet it again. */
 const retriable = (status: number | null) =>
@@ -111,14 +112,16 @@ export const corruptObject = (
 /**
  * Reads the cache object at `url` (`checked`) and hands its bytes back only when they are the ones
  * its manifest `announced`, size then fingerprint; `corruptObject` otherwise. The size is taken
- * before the fingerprint, which transfers the buffer to a decode worker and back.
+ * before the fingerprint, which transfers the buffer to a decode worker and back. `meter` counts
+ * its bytes as they arrive.
  */
 export async function fetchVerified(
   url: string,
   announced: { bytes: number; sha256: string },
   signal?: AbortSignal,
+  meter: ByteMeter = unmetered,
 ) {
-  const buffer = await (await checked(url, signal)).arrayBuffer();
+  const buffer = await meter.read(await checked(url, signal), url).arrayBuffer();
   const bytes = buffer.byteLength;
   signal?.throwIfAborted();
   if (bytes !== announced.bytes) throw corruptObject(url, announced, bytes, undefined);

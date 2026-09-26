@@ -5,6 +5,9 @@ import { sessionOptions } from './worldOptions.ts';
 import { worldSwitches } from './worldSwitches.ts';
 import { effect } from '../../../../sdk-core/src/world/effect/index.ts';
 
+/** The world's notices, where nothing here is said. */
+const silent = { once() {} };
+
 /** An open session that records the switches written into it. */
 function session(draws = true) {
   const written: boolean[] = [];
@@ -30,6 +33,7 @@ test('temporal antialiasing is given to the session and switched in place', () =
     () => runtime,
     device,
     () => void invalidated++,
+    silent,
   );
   assert.equal(sessionOptions(options, switches.held).temporalAntialiasing, false);
   assert.equal(switches.temporalAntialiasing, false, 'before a session: what the page asked');
@@ -49,6 +53,7 @@ test('temporal antialiasing reads false on WebGL2 and as the session draws it', 
     () => runtime,
     { renderer: 'webgl2' },
     () => {},
+    silent,
   );
   assert.equal(switches.held.temporalAntialiasing, true, 'on by default');
   assert.equal(switches.temporalAntialiasing, false, 'WebGL2 has none');
@@ -61,12 +66,14 @@ test('temporal antialiasing reads false on WebGL2 and as the session draws it', 
 test('the effect chain is given to every session, and a change of it asks for a frame', () => {
   let renewed = 0,
     invalidated = 0;
+  const said: string[] = [];
   const runtime = { explorer: null as MeasuredWorld | null, renew: () => void renewed++ };
   const switches = worldSwitches(
     {},
     () => runtime,
     { renderer: 'webgpu' },
     () => void invalidated++,
+    { once: (kind) => void said.push(kind) },
   );
   const chain = switches.held.effects;
   assert.equal(sessionOptions({}, switches.held).effects, chain);
@@ -74,4 +81,7 @@ test('the effect chain is given to every session, and a change of it asks for a 
   (chain.passes[0] as ReturnType<typeof effect.bloom>).radius = 2;
   assert.equal(sessionOptions({}, switches.held).effects, chain, 'the same chain on reopen');
   assert.deepEqual([invalidated, renewed], [2, 0]);
+  // A WebGL2 frame drawn without the chain is said on the world's own channel.
+  sessionOptions({}, switches.held).effectsRefused!('multiply');
+  assert.deepEqual(said, ['effects-refused-blending']);
 });

@@ -29,9 +29,12 @@ function drawn(scene: GraphScene) {
   const context = createTestContext();
   const draw = createSceneDraw(context.gl, scene);
   assert.equal(draw.counters(), null, 'no count before the first frame');
-  assert.throws(() => draw.drawHostGeometry(createHostDrawCamera(), OUTPUT), /Draw before render/);
+  assert.throws(
+    () => draw.host.drawHostGeometry(createHostDrawCamera(), OUTPUT),
+    /Draw before render/,
+  );
   draw.render({} as HostCamera);
-  draw.drawHostGeometry(createHostDrawCamera(), OUTPUT);
+  draw.host.drawHostGeometry(createHostDrawCamera(), OUTPUT);
   return { context, draw };
 }
 
@@ -70,7 +73,7 @@ test('without a context the draw is refused by name', () => {
   const draw = createSceneDraw(undefined, new GraphScene());
   draw.render({} as HostCamera);
   assert.throws(
-    () => draw.drawHostGeometry(createHostDrawCamera(), OUTPUT),
+    () => draw.host.drawHostGeometry(createHostDrawCamera(), OUTPUT),
     /HOST_SURFACE_MISSING/,
   );
 });
@@ -107,7 +110,7 @@ test('a mesh under a translated and rotated group draws where the reference draw
     draw = createSceneDraw(context.gl, scene),
     camera = new GraphCamera({ fov: 60, aspect: 1, near: 0.1, far: 100 });
   draw.render({} as HostCamera);
-  draw.drawHostGeometry(readHostDrawCamera(createHostDrawCamera(), camera), OUTPUT);
+  draw.host.drawHostGeometry(readHostDrawCamera(createHostDrawCamera(), camera), OUTPUT);
   const uploaded = context
     .of('uniformMatrix4fv')
     .find((args) => (args[0] as { uniform: string }).uniform === 'modelViewMatrix')!;
@@ -131,7 +134,7 @@ test('a transmissive copy draws over the backdrop the opaque meshes were drawn i
   scene.add(mesh(6, 0), glass);
   const draw = createSceneDraw(context.gl, scene, [glass]);
   draw.render({} as HostCamera);
-  draw.drawHostGeometry(createHostDrawCamera(), OUTPUT);
+  draw.host.drawHostGeometry(createHostDrawCamera(), OUTPUT);
   const submitted = context.calls.filter((call) =>
     ['drawElements', 'bindFramebuffer', 'uniform1i'].includes(call.name),
   );
@@ -175,7 +178,7 @@ test('a line surface draws with its CSS width, the host pixel ratio and its dash
   for (const frame of [2, 1.5]) {
     ratio = frame;
     draw.render({} as HostCamera);
-    draw.drawHostGeometry(createHostDrawCamera(), OUTPUT);
+    draw.host.drawHostGeometry(createHostDrawCamera(), OUTPUT);
   }
   assert.deepEqual(uniform('pixelRatio'), [2, 1.5], 'each frame reads the ratio');
   assert.deepEqual(uniform('lineWidth'), [3]);

@@ -25,6 +25,13 @@ test('a target stores bytes as written, unfiltered, and 24-bit depth at the size
   assert.equal(of('bindTexture').at(-1)?.[1], null, 'the texture leaves no sampler unit');
 });
 
+test('a float target stores 32-bit floats, read texel by texel', () => {
+  const { gl, of } = createTestContext();
+  createWebglRenderTarget(gl, 8, 4, { depth: false, float: true });
+  assert.deepEqual(of('texImage2D')[0].slice(2, 9), ['RGBA32F', 8, 4, 0, 'RGBA', 'FLOAT', null]);
+  assert.equal(of('texParameteri')[0][2], 'NEAREST');
+});
+
 test('a colour-only target has no depth attachment', () => {
   const { gl, of } = createTestContext();
   const target = createWebglRenderTarget(gl, 8, 4, { depth: false });

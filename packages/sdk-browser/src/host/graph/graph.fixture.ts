@@ -64,6 +64,17 @@ export const mesh = (
   material: GraphSurface | GraphSurface[] = new GraphSurface('basic'),
 ) => new GraphMesh(geometry, material);
 
+/** A drawn triangle — three indices, positions and normals — in `surface`, never culled: what a
+ *  draw test submits once per pass. */
+export function triangleMesh(surface: GraphSurface) {
+  const geometry = new Geometry().setIndex(new BufferAttribute(new Uint32Array(3), 1));
+  geometry.setAttribute('position', new BufferAttribute(new Float32Array(9), 3));
+  geometry.setAttribute('normal', new BufferAttribute(new Float32Array(9), 3));
+  const made = new GraphMesh(geometry, surface);
+  made.frustumCulled = false;
+  return made;
+}
+
 /** A surface of each family a scene declares. */
 export const basicSurface = (parameters?: SurfaceParameters) => surface('basic', parameters);
 export const standardSurface = (parameters?: SurfaceParameters) => surface('standard', parameters);

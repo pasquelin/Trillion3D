@@ -48,8 +48,8 @@ test('a sparse example is declared by name and backend under the tenth; every ot
     assert.ok(share > 0 && share < 0.1, id);
   }
   // The shares declared under those measured on 2026-09-24, and the examples never declared: the
-  // three a refused WebGL2 session left blank, and save-the-scene, whose ground fills its frame
-  // (#717). They keep the tenth on both backends.
+  // three a refused WebGL2 session left blank, save-the-scene, whose ground fills its frame
+  // (#717), and click-to-pick, framed closer (#527). They keep the tenth on both backends.
   const named = [
     'a-staircase-from-one-step',
     'a-cloud-of-points',
@@ -58,13 +58,14 @@ test('a sparse example is declared by name and backend under the tenth; every ot
     'fly-over-a-model-town',
     'from-a-grain-to-a-planet',
     'snow-of-sprites',
+    'click-to-pick',
   ];
   for (const id of named) assert.ok(ids.has(id), id);
   // A new declaration is asserted here too, with its literal share.
   for (const id of Object.keys(SPARSE)) assert.ok(named.includes(id), id);
   const least = (gpu: boolean) => named.map((id) => leastDrawn(id, gpu));
-  assert.deepEqual(least(false), [0.04, 0.04, 0.1, 0.1, 0.1, 0.1, 0.1]);
-  assert.deepEqual(least(true), [0.04, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1]);
+  assert.deepEqual(least(false), [0.04, 0.04, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1]);
+  assert.deepEqual(least(true), [0.04, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1]);
 });
 
 test('the proof expects Jolt from the pages whose own source turns physics on, and from no other', async () => {

@@ -11,6 +11,7 @@ import { shadowTableHostBytes } from '../../../sdk-core/src/scene/light-shadow/t
 import { shadowPoolHostBytes } from '../../../sdk-core/src/scene/light-shadow/pool.ts';
 import { shadowAdmissionHostBytes } from '../../../sdk-core/src/scene/light-shadow/admit.ts';
 import { DEFAULT_CACHED_BYTES } from '../streaming/pageCache.ts';
+import { textureLevelShare } from '../texture/levelStore.ts';
 import { BOUNCE_SETTINGS } from '../../../sdk-core/src/bounce/contracts.ts';
 import { bounceProbeBytes } from '../bounce/limits.ts';
 import { effectChainBytesAt } from '../effects/targets.ts';
@@ -96,7 +97,8 @@ const checkTotal = (bytes: number, name: string) => {
  *   differences, sized by what the view asks for and the pool holds (#483 rule 6) — are held in
  *   the cache's share too: the session reserves their bytes there (`hostTableBytes`, the
  *   streamer's `reserve`), read each time the cache weighs itself, and the decoded pages keep the
- *   rest.
+ *   rest. The decoded texture levels take at most `textureLevelShare` of it (`textureLevels`), and
+ *   yield first to the pages a frame keeps.
  * At a canvas's default total (`defaultGpuBudget`), the split gives each pool its own default.
  */
 export function splitMemoryBudget(
@@ -120,5 +122,6 @@ export function splitMemoryBudget(
     texturePool: Math.max(1, Math.min(DEFAULT_TEXTURE_POOL_BUDGET, half)),
     shadowMirror: SHADOW_HOST_BYTES,
     pageCache: cpu - SHADOW_HOST_BYTES,
+    textureLevels: textureLevelShare(cpu - SHADOW_HOST_BYTES),
   };
 }

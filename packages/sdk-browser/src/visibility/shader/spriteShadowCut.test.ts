@@ -73,3 +73,14 @@ test('the shadow scene box leaves every sprite root out', () => {
   });
   assert.deepEqual([...min, ...max], [-1, -1, -1, 1, 1, 1]);
 });
+
+test('the shadow scene box follows a pose the engine moved, with no table change', () => {
+  const sceneBox = createShadowSceneBox(),
+    worldBox = Float64Array.of(-1, -1, -1, 1, 1, 1),
+    layout = { selectionRoots: [{ worldBox }], rows: { tableEpoch: 0 } };
+  sceneBox(layout, 0);
+  // A placement or engine pose moves the root's box and bumps the scene revision alone.
+  worldBox.set([9, -1, -1, 11, 1, 1]);
+  const { min, max } = sceneBox(layout, 1);
+  assert.deepEqual([...min, ...max], [9, -1, -1, 11, 1, 1]);
+});
