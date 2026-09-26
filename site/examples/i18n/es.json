@@ -937,6 +937,23 @@
       "spin": "Girar"
     }
   },
+  "health-check": {
+    "banner": "Arrastra para mirar alrededor. Marca Conducir para tomar el coche: W o ↑ acelera, S o ↓ frena, A D o ← → giran. Soltar hace caer de nuevo las cajas y las pelotas.",
+    "words": {
+      "credit": "Valle modelado en código para este ejemplo, CC0 — ver assets/examples/CREDITS.md",
+      "refused": "Rechazado en este backend"
+    },
+    "controls": {
+      "drive": "Conducir el coche",
+      "drop": "Soltar de nuevo",
+      "reset": "Aparcar el coche de nuevo"
+    },
+    "readouts": {
+      "bodies": "Cuerpos",
+      "step": "Paso",
+      "renderer": "Dibujado con"
+    }
+  },
   "helpers-to-see-the-scene": {
     "banner": "Arrastra para dar la vuelta. Apaga las ayudas para ver la imagen sola.",
     "controls": {

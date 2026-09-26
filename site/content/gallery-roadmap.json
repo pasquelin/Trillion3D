@@ -912,6 +912,11 @@
       "file": "examples/observatory-streamed.html"
     },
     {
+      "id": "health-check",
+      "theme": "streaming",
+      "file": "examples/health-check.html"
+    },
+    {
       "id": "memory-on-a-budget",
       "theme": "streaming",
       "file": "examples/memory-on-a-budget.html"
