@@ -140,9 +140,9 @@ export function createShadowTransmittance(
     ],
   });
   const layout = device.createPipelineLayout({ bindGroupLayouts: [...layouts, opaqueLayout] });
+  // The blended casters' two draws, from the same entry points.
   const pipeline = (
     label: string,
-    [vertex, fragment]: [string, string],
     target: GPUColorTargetState,
     depthWriteEnabled: boolean,
     depthCompare: GPUCompareFunction,
@@ -150,13 +150,12 @@ export function createShadowTransmittance(
     device.createRenderPipeline({
       label,
       layout,
-      vertex: { module, entryPoint: vertex },
-      fragment: { module, entryPoint: fragment, targets: [target] },
+      vertex: { module, entryPoint: 'shadow_blend_vs' },
+      fragment: { module, entryPoint: 'shadow_blend_fs', targets: [target] },
       primitive: { topology: 'triangle-list', cullMode: 'none' },
       depthStencil: { format: SHADOW_TRANSLUCENT_DEPTH_FORMAT, depthWriteEnabled, depthCompare },
     });
-  const format = SHADOW_TRANSMITTANCE_FORMAT,
-    blended: [string, string] = ['shadow_blend_vs', 'shadow_blend_fs'];
+  const format = SHADOW_TRANSMITTANCE_FORMAT;
   return {
     view: arrayView(colour),
     depthView: arrayView(nearest),
@@ -171,14 +170,12 @@ export function createShadowTransmittance(
     draws: [
       pipeline(
         'Trillion3D shadow translucent depth v1',
-        blended,
         { format, writeMask: 0 },
         true,
         DEPTH_COMPARE,
       ),
       pipeline(
         'Trillion3D shadow transmittance v1',
-        blended,
         { format, blend: TRANSMITTANCE_BLEND },
         false,
         'always',
