@@ -8,8 +8,7 @@ import {
   floatTargets,
   type WebglRenderTarget,
 } from '../webgl/core/renderTarget.ts';
-import { createPoolStates, refuseAll, usedSlots } from './poolStates.ts';
-import { createWebglParticleDraw } from './webglParticleDraw.ts';
+import { createPoolStates, usedSlots } from './poolStates.ts';
 
 /** Particles per texture row, two texels each: position and age, then velocity and lifetime. */
 export const PARTICLE_ROW = 512;
@@ -92,17 +91,14 @@ export function createWebglParticles(gl: WebGL2RenderingContext) {
       gl.texSubImage2D(TEXTURE_2D, 0, 0, full, 2 * rest, 1, RGBA, FLOAT, pool.staging, from);
     }
   };
-  const latest = (pool: ParticlePool) => held.current()?.made.peek(pool)?.targets[0].texture;
-  const drawn = createWebglParticleDraw(gl, TEXELS, latest);
   return {
-    ...drawn,
     /** Steps `pools`; returns the draws made. Throws `PARTICLES_UNSUPPORTED`, the pools refused,
      *  on a context without 32-bit float targets. */
     run(pools: readonly ParticlePool[]) {
       const live = held.current();
       if (!live) return 0;
       if (!floatTargets(gl)) {
-        refuseAll(pools); // it asks no frame of its own
+        for (const pool of pools) pool.refused = true; // it asks no frame of its own
         if (!pools.length) return 0;
         throw new Error(
           'PARTICLES_UNSUPPORTED: WebGL2 particles render 32-bit floats, and this context ' +
@@ -111,7 +107,7 @@ export function createWebglParticles(gl: WebGL2RenderingContext) {
       }
       let draws = 0;
       for (const pool of pools) {
-        pool.refused = drawn.refused(); // stepped here unless its draw refused it, as on WebGPU
+        pool.refused = false; // stepped here, as WebGPU does once its pipeline is made
         const { first, count, dt } = pool.flush();
         if (!count && !dt) continue;
         const { targets, staged } = live.made.of(pool);
@@ -144,6 +140,6 @@ export function createWebglParticles(gl: WebGL2RenderingContext) {
       live.made.keep(pools);
       return draws;
     },
-    dispose: () => (held.dispose(), drawn.dispose()),
+    dispose: held.dispose,
   };
 }

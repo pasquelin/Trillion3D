@@ -1,14 +1,12 @@
-// The CPU half of the particle draw (#755) on both renderers; the GPU's part is the measurer's.
+// The CPU half of the WebGPU particle draw (#755); the GPU's part is the measurer's.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { setImmediate as tick } from 'node:timers/promises';
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts';
 import { ParticlePool, type ParticlePoolSpec } from '../../../sdk-core/src/fluids/particles.ts';
-import { createHostDrawCamera } from '../camera/world.ts';
 import { DRAW_FLOATS, writeDrawWords } from './drawWords.ts';
 import { PARTICLE_DRAW_PASS as P, createWebgpuParticleDraw } from './webgpuParticleDraw.ts';
 import { createWebgpuParticles, encodeParticles } from './webgpuParticles.ts';
-import { webgl } from './stepModels.fixture.ts';
 
 const IDENTITY = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
 
@@ -93,36 +91,4 @@ test('WebGPU without the visibility buffer refuses the pools by name, heard once
   [0, 1].forEach(encode);
   assert.deepEqual([smoke.refused, heard.length], [true, 1]);
   assert.match(heard[0], /^particles-unavailable PARTICLES_UNSUPPORTED/);
-});
-
-const output = { framebuffer: null, width: 8, height: 4, toneMapped: true };
-
-test("WebGL2: the frame's depth is copied, then the pools far to near, each with its blend", () => {
-  const { ctx, run, particles, errors } = webgl(),
-    pools = scene();
-  assert.equal(particles.draw([], createHostDrawCamera(), output), 0);
-  assert.deepEqual(ctx.of('blitFramebuffer'), [], 'no particle: nothing copied, nothing drawn');
-  for (const pool of pools) pool.emit(0, 0, pool.origin[2], 0, 1, 0, 2);
-  run(pools);
-  errors.push('INVALID_OPERATION'); // left by an earlier call: it never refuses the pools
-  const from = ctx.calls.length;
-  assert.equal(particles.draw(pools, createHostDrawCamera(), output), 3);
-  const calls = ctx.calls.slice(from).filter(({ name }) => /^(blit|blendFunc|drawArr)/.test(name));
-  // The depth, then far to near: the lone particle 50 m out, the fire (its alpha kept), the smoke.
-  const drawn =
-    'DEPTH_BUFFER_BIT NEAREST, ZERO ONE, 6 1, ZERO ONE, 6 3, ONE ONE_MINUS_SRC_ALPHA, 6 4';
-  assert.equal(calls.map(({ args }) => args.slice(-2).join(' ')).join(', '), drawn);
-  const [, fragment] = ctx.of('shaderSource').find(([, text]) => `${text}`.includes('sceneDepth'))!;
-  assert.match(`${fragment}`, /out vec4 untoned;[^]*untoned = vec4\(0\., 0\., 0\., k\);/);
-});
-
-test('WebGL2: a depth not copied refuses the pools by name, and the next step keeps them so', () => {
-  const { run, particles } = webgl(undefined, 'DEPTH_COMPONENT16'), // no copy format matches it
-    [smoke] = scene();
-  smoke.emit(0, 0, -2, 0, 1, 0, 2);
-  run([smoke]);
-  const refused = particles.draw([smoke], createHostDrawCamera(), output);
-  assert.match(`${refused}`, /PARTICLES_UNSUPPORTED/);
-  run([smoke]);
-  assert.equal(smoke.refused, true);
 });
