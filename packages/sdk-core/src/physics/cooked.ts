@@ -65,6 +65,47 @@ export interface CookedSoftBody extends Omit<CookedInstance, 'collider'> {
   pressure: number;
 }
 
+/** The motion a node declares (`KHR_physics_rigid_bodies`), as `physics.json` carries it. */
+export interface DeclaredMotion {
+  isKinematic?: boolean;
+  mass?: number;
+  centerOfMass?: readonly [number, number, number];
+  inertiaDiagonal?: readonly [number, number, number];
+  /** The turn of the inertia's principal axes, `[x, y, z, w]`. */
+  inertiaOrientation?: readonly [number, number, number, number];
+  gravityFactor?: number;
+}
+
+/** A capsule's or a cylinder's sizes: `height` between its caps' centres, or its faces. */
+type Rounded = { height?: number; radiusTop?: number; radiusBottom?: number };
+/** A `KHR_implicit_shapes` shape, as declared: its sizes under its type's name. */
+export type ImplicitShape =
+  | { type: 'box'; box?: { size?: readonly [number, number, number] } }
+  | { type: 'sphere'; sphere?: { radius?: number } }
+  | { type: 'capsule'; capsule?: Rounded }
+  | { type: 'cylinder'; cylinder?: Rounded };
+
+/** The exact weighing of the solid a cooked hull's mesh bounds, at the body's `scale` and 1000
+ *  kg/m³: its centre of mass and the inertia about it (nine, column-major), in the body's frame. */
+export interface CookedMass {
+  mass: number;
+  centerOfMass: [number, number, number];
+  inertia: number[];
+}
+
+/** A shapeless body's convex hull, cooked at unit scale in its frame: a SHA-addressed object, and
+ *  a dynamic body's mass. */
+export type CookedHull = Omit<CookedTile, 'triangles' | 'bounds'> & {
+  type: 'cooked';
+  mass?: CookedMass;
+};
+
+/** A rigid body a node of the model declares, placed by it, with its collider's matter. */
+export interface CookedBody extends Omit<CookedInstance, 'collider'> {
+  motion: DeclaredMotion;
+  shape: ImplicitShape | CookedHull;
+}
+
 /** A primitive whose collider Jolt refused: it collides with nothing, and is drawn all the same. */
 interface CookRefusal {
   primitive: number;
@@ -86,6 +127,9 @@ interface CookReport {
   /** Soft bodies cooked, and those refused: a node and the cook's reason. */
   softBodies?: number;
   softRefused?: { node: number; reason: string }[];
+  /** Declared bodies cooked, and those refused: static ground alone. */
+  bodies?: number;
+  bodiesRefused?: { node: number; reason: string }[];
 }
 
 /** The whole file. */
@@ -97,6 +141,8 @@ export interface CookedPhysics {
   instances: CookedInstance[];
   /** Absent from a file cooked before soft bodies were. */
   softBodies?: CookedSoftBody[];
+  /** Absent from a file cooked before declared bodies were. */
+  bodies?: CookedBody[];
   report: CookReport;
 }
 
@@ -120,7 +166,8 @@ export function readCookedPhysics(file: unknown, jolt = JOLT_COMMIT): CookedPhys
     );
   if (!Array.isArray(cooked.colliders) || !Array.isArray(cooked.instances))
     throw new EngineError('PHYSICS_FORMAT', 'physics.json lists no colliders or instances.');
-  if (cooked.softBodies !== undefined && !Array.isArray(cooked.softBodies))
-    throw new EngineError('PHYSICS_FORMAT', 'physics.json softBodies is no list.');
+  for (const key of ['softBodies', 'bodies'] as const)
+    if (cooked[key] !== undefined && !Array.isArray(cooked[key]))
+      throw new EngineError('PHYSICS_FORMAT', `physics.json ${key} is no list.`);
   return cooked as CookedPhysics;
 }
