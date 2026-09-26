@@ -24,9 +24,8 @@ sha2 = "0.10"
 rayon = "1.10"
 memmap2 = "0.9"
 meshopt = "0.6"
-# The arc cosine of the normal deviation (`dag/quality.rs`), in pure Rust from musl (MIT): the
-# platform's `acos` rounds its last bit apart on macOS and glibc, and the deviation enters the
-# cook's bytes (#415). Already in the tree through `num-traits`.
+# A portable arc cosine for `dag/quality.rs` (#415), pure Rust from musl (MIT); already in the
+# tree through `num-traits`.
 libm = "0.2.16"
 ufbx = "0.11.3"
 image = { version = "0.25.10", default-features = false, features = ["png", "jpeg", "tga", "tiff", "webp", "bmp", "gif"] }
