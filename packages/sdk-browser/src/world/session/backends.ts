@@ -123,8 +123,8 @@ export async function prepareExplorerBackends(session: ExplorerSession, inputs: 
     // the loader: the engine reads the levels the compiler baked and regenerates none it could
     // have read instead. What `textureSource` still decides is whether the LOADER opens the
     // source images for an engine that draws the host scene, not where the engine's texels
-    // come from.
-    readTextureLevel: createTextureLevelReader(metadata.textures, base, signal),
+    // come from. Its levels are held beside the pages the streamer reads (`textureLevels`).
+    readTextureLevel: createTextureLevelReader(metadata, base, streamer.textureLevels, signal),
     sceneLights,
     importedLightIds,
     frameBudget: inputs.frameBudget,
@@ -132,19 +132,12 @@ export async function prepareExplorerBackends(session: ExplorerSession, inputs: 
   for (const factory of factories) {
     const backend = factory(context);
     if (backends.some((b) => b.id === backend.id)) throw new Error('Duplicate backend id');
-    diagnose('backend-preparation-start', 'Backend preparation started', {
-      kind: 'preparation',
-      backend: backend.id,
-      scope,
-    });
+    const preparation = { kind: 'preparation' as const, backend: backend.id, scope };
+    diagnose('backend-preparation-start', 'Backend preparation started', { ...preparation });
     try {
       await backend.prepare();
       backends.push(backend);
-      diagnose('backend-preparation-complete', 'Backend preparation completed', {
-        kind: 'preparation',
-        backend: backend.id,
-        scope,
-      });
+      diagnose('backend-preparation-complete', 'Backend preparation completed', { ...preparation });
     } catch (error) {
       // A release that fails is diagnosed; what went wrong before it still goes on.
       const release = async () => {
