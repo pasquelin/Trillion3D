@@ -17,19 +17,15 @@ test('an untextured Basic material needs no unused UV or normal attribute', () =
   assert.equal(clusterMaterialReason(G.basicSurface(), { position }), undefined);
 });
 
-test('a Depth material draws on the autonomous path; another unlit family is still refused', () => {
+test('a Depth material draws on the autonomous path with no normal attribute', () => {
   assert.equal(clusterMaterialReason(new G.GraphSurface('depth'), { position }), undefined);
-  assert.match(
-    clusterMaterialReason(new G.GraphSurface('normal'), { position })!,
-    /normal is unsupported/,
-  );
 });
 
 test('unsupported mutations refuse the autonomous draw before it becomes partial', () => {
   const material = G.standardSurface();
   assert.equal(
     clusterMaterialReason(material, { position }),
-    'lit material has no normal attribute',
+    'material standard has no normal attribute',
   );
   material.transparent = true;
   assert.equal(

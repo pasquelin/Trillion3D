@@ -1,11 +1,5 @@
 import type { Object3D } from '../../../packages/sdk-browser/src/index.ts';
-import {
-  attachCommand,
-  isWithin,
-  removeCommand,
-  reparentCommand,
-  valueCommand,
-} from './commands.ts';
+import { addCommand, isWithin, removeCommand, reparentCommand, valueCommand } from './commands.ts';
 import { build, type AddKind } from './objects.ts';
 import type { Session } from './session.ts';
 import { buildStarter, type StarterNames } from './starter.ts';
@@ -30,7 +24,7 @@ export function sceneActions(
   return {
     add(kind: AddKind) {
       const node = build(engine, kind, name(kind));
-      session.run(attachCommand(node, scene));
+      session.run(addCommand(node, scene));
       session.select(node);
     },
     remove() {
@@ -42,7 +36,7 @@ export function sceneActions(
       const node = session.selected;
       const copy = node?.parent && engine.object.clone(node);
       if (!node?.parent || !copy) return;
-      session.run(attachCommand(copy, node.parent));
+      session.run(addCommand(copy, node.parent));
       session.select(copy);
     },
     /** Moves `node` under `parent`, keeping where it stands; never under itself. */
@@ -76,7 +70,7 @@ export function sceneActions(
       try {
         const model = await scene.load(url);
         model.name = label;
-        session.record(attachCommand(model, scene));
+        session.record(addCommand(model, scene));
         session.select(model);
       } catch (error) {
         failed(error);

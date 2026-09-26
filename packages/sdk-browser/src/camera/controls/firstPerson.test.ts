@@ -39,19 +39,24 @@ test('first person turns the head with the pointer and lets the lock go on dispo
   assert.equal(surface.listeners(), 0);
 });
 
-test('the first move after the lock is granted is dropped: the cursor jump never turns the head', () => {
+test('the first move after the lock is granted is dropped: the cursor jump never turns the head, and a turn and its reverse return the head', () => {
   const { camera, surface, controls } = steered(createFirstPersonCameraControls);
+  const looking = () => [...facing(camera)].map((v) => round(v));
   controls.lookSpeed = Math.PI / 400;
   controls.update(0);
+  const home = looking();
   surface.fire('pointerdown', { pointerId: 1, button: 0, clientX: 0, clientY: 0 });
   surface.key('pointerlockchange', {});
   surface.fire('pointermove', { pointerId: 1, movementX: -900, movementY: 700 });
   surface.fire('pointermove', { pointerId: 1, movementX: 200, movementY: 0 });
   controls.update(0);
-  assert.deepEqual(
-    [...facing(camera)].map((v) => round(v)),
-    [1, 0, 0],
-  );
+  assert.deepEqual(looking(), [1, 0, 0]);
+  // The examples proof's look (#527): every move after the dropped one counts, so the reverse,
+  // in four steps, lands on the very head the lock started from.
+  for (let step = 0; step < 4; step++)
+    surface.fire('pointermove', { pointerId: 1, movementX: -50, movementY: 0 });
+  controls.update(0);
+  assert.deepEqual(looking(), home);
 });
 
 test('first person stops a downward look at `minPitch`', () => {
