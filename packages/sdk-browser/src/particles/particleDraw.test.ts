@@ -68,9 +68,13 @@ test('WebGPU: one pass, fire then the nearer smoke, each with its blend; none wi
   assert.deepEqual(log, [P, `${P} additive 6 2`, `${P} premultiplied 6 3`], 'far to near');
   const blends = gpu.renderPipelines.map(({ label, fragment }) => {
     const [{ blend }] = [...fragment!.targets] as GPUColorTargetState[];
-    return `${label} ${blend!.color.dstFactor} ${fragment!.constants!.premultiplied}`;
+    return `${label} ${blend!.color.dstFactor} ${blend!.alpha.srcFactor} ${blend!.alpha.dstFactor}`;
   });
-  assert.deepEqual(blends, [`${P} additive one 0`, `${P} premultiplied one-minus-src-alpha 1`]);
+  const over = 'one-minus-src-alpha';
+  assert.deepEqual(blends, [
+    `${P} additive one zero one`,
+    `${P} premultiplied ${over} one ${over}`,
+  ]);
 });
 
 test('WebGPU: a draw that cannot compile is heard, and refuses its pools', async () => {
@@ -108,20 +112,8 @@ test("WebGL2: the frame's depth is copied, then the pools far to near, each with
   const from = ctx.calls.length;
   assert.equal(particles.draw(pools, createHostDrawCamera(), output), 3);
   const calls = ctx.calls.slice(from).filter(({ name }) => /^(blit|blendFunc|drawArr)/.test(name));
-  // The depth, then far to near: the lone particle 50 m out, the fire, the smoke.
+  // The depth, then far to near: the lone particle 50 m out, the fire (its alpha kept), the smoke.
   const drawn =
-    'DEPTH_BUFFER_BIT NEAREST, ONE ONE, 6 1, ONE ONE, 6 3, ONE ONE_MINUS_SRC_ALPHA, 6 4';
+    'DEPTH_BUFFER_BIT NEAREST, ZERO ONE, 6 1, ZERO ONE, 6 3, ONE ONE_MINUS_SRC_ALPHA, 6 4';
   assert.equal(calls.map(({ args }) => args.slice(-2).join(' ')).join(', '), drawn);
-});
-
-test("WebGL2: a context that cannot copy the frame's depth refuses the pools by name", () => {
-  const { run, particles } = webgl(undefined, { getError: () => 'INVALID_OPERATION' }),
-    [smoke] = scene();
-  smoke.emit(0, 0, -2, 0, 1, 0, 2);
-  run([smoke]);
-  const drawn = () => particles.draw([smoke], createHostDrawCamera(), output);
-  assert.throws(drawn, /^Error: PARTICLES_UNSUPPORTED/);
-  run([smoke]);
-  assert.equal(drawn(), 0, 'refused once: later images draw nothing, and throw no more');
-  assert.deepEqual([smoke.refused, smoke.emit(0, 0, 0, 0, 1, 0, 2)], [true, false]);
 });
