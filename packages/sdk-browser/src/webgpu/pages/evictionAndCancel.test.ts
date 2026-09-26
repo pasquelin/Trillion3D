@@ -10,6 +10,7 @@ import { quadScene, camera } from './testScenes.fixture.ts';
 import { coarseQuadScene } from './testOccluder.fixture.ts';
 import type { ClusterManifest } from '../../../../sdk-core/src/index.ts';
 import type { WebgpuPagesBackend } from './runtime.ts';
+import { LAST_USE_WINDOW } from '../residency/lastUse.ts';
 
 test('a host eviction deferred for coverage is applied once the page is no longer pinned', async () => {
   installGpuGlobals();
@@ -30,7 +31,8 @@ test('a host eviction deferred for coverage is applied once the page is no longe
     assert.deepEqual(backend.selectedPageIds().sort(), ['0', '1']);
     const cam = camera();
     cam.lookAt(0, 0, 10);
-    backend.render(cam);
+    // The drop waits out the window of the page the image stopped drawing.
+    for (let i = 0; i <= LAST_USE_WINDOW; i++) backend.render(cam);
     await backend.flush();
     backend.render(camera());
     assert.deepEqual(backend.selectedPageIds(), ['2']);

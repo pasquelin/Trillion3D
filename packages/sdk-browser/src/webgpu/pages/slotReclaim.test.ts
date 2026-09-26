@@ -9,6 +9,7 @@ import { drawnPageIds, installGpuGlobals } from '../../../../../tests/kit/gpu/gl
 import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts';
 import { camera } from './testScenes.fixture.ts';
 import { twoCoarseQuadsScene } from './testOccluder.fixture.ts';
+import { LAST_USE_WINDOW } from '../residency/lastUse.ts';
 import { type ClusterManifest, type Primitive } from '../../../../sdk-core/src/index.ts';
 
 /** The mock GPU always builds the full backend; these tests reach the WebGPU-only members the
@@ -103,7 +104,8 @@ test('a recycled page-table row describes its new cluster and reaches the GPU be
   try {
     await backend.prepare();
     for (let round = 0; round < 6; round++) {
-      look(round % 2 ? 100 : 0);
+      // Each jump waits out the window of the pages the other side stopped drawing.
+      for (let frame = 0; frame <= LAST_USE_WINDOW; frame++) look(round % 2 ? 100 : 0);
       await backend.flush();
       look(round % 2 ? 100 : 0);
     }

@@ -100,21 +100,21 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     readGeometryPageHeader(bytes);
     return bytes;
   };
-  const pageSource = { read };
   // A cluster drawn from its quantized page needs no index page: its slot is filled from the page
   // reader above. Only a cluster that still draws from an index buffer waits for one.
   const hasBytes = (rec: PageRec) => !awaitsPageBytes(rec) || sourceBytes.has(pageAddress(rec));
   /** True while the pool holds the slot this cluster draws from, at its own address. */
   const poolHolds = (rec: PageRec) => !!gpu.cache?.get(pageAddress(rec));
-  /** The sets residency is decided with, and the difference the GPU readback is read as. Both
-   *  outlive the image: an image that moves no page touches neither. */
-  const residencySets = createWebgpuResidencySets({ tracking, bootstrapKey, packedPages });
+  /** The residency sets and the page dependencies: an image that moves no page touches neither. */
+  const residencySets = createWebgpuResidencySets({ tracking, bootstrapKey, packedPages }),
+    parentsOf = createPageParents(rt.layout.selectionRoots);
   const pinUpdater = createWebgpuPinUpdater({
     tracking,
     sets: residencySets,
     bootstrapUrls,
     deferredDrops: run.deferredDrops,
     byUrl,
+    parentsOf,
     traceEnabled: diag.traceEnabled,
     traceDiagnostic: diag.traceDiagnostic,
   });
@@ -157,7 +157,7 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     bootstrapKey,
     signal: context.signal,
     hasBytes,
-    parentsOf: createPageParents(rt.layout.selectionRoots),
+    parentsOf,
     isLost: () => run.lost,
     traceEnabled: diag.traceEnabled,
     traceDiagnostic: diag.traceDiagnostic,
@@ -183,7 +183,7 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     syncRowsFromCut,
     rowsOwed,
     blendCasters,
-    pageSource,
+    pageSource: { read },
     hasBytes,
     poolHolds,
     /** Hands the cache's residency changes to the rank journal: a CPU cut reads what it holds. */

@@ -28,8 +28,10 @@ export function createWebgpuResidencySets(options: {
   const { keyCount, keyOf, wanted, wantedPages } = tracking;
   /** A packed page's cache key, cached on its record by the tracking (`PageRec.keyIndex`). */
   const keyOfId = (id: number) => keyOf(packedPages[id]);
-  /** What joined and left `keep` since the pin step last ran. */
-  const entering = createDenseKeySet(),
+  /** What joined and left `keep` since the pin step last ran, each joining key beside the record
+   *  it joined by (none for the pinned cover): the pin step reads its parents there. */
+  const enteringPages: (PageRec | undefined)[] = [];
+  const entering = createDenseKeySet(enteringPages),
     leaving = createDenseKeySet();
   const desiredPages: PageRec[] = [];
   const desired = createDenseKeySet(desiredPages);
@@ -49,9 +51,9 @@ export function createWebgpuResidencySets(options: {
   const keep = createKeyUnion({
     members: tracking.keep,
     keyCount,
-    onListed: (key) => {
+    onListed: (key, page) => {
       leaving.remove(key);
-      entering.add(key);
+      entering.add(key, page);
     },
     onUnlisted: (key) => {
       entering.remove(key);
@@ -65,7 +67,7 @@ export function createWebgpuResidencySets(options: {
   const enqueue = (key: number, page?: PageRec) => {
     if (!wanted.add(key, page)) return;
     acceptedRevision++;
-    keep.retain(key);
+    keep.retain(key, page);
   };
   const dequeue = (key: number) => {
     if (!wanted.remove(key)) return;
@@ -84,7 +86,7 @@ export function createWebgpuResidencySets(options: {
   });
   const drawnKeys = createHeldKeys({
     keyOf: keyOfId,
-    retain: (key: number) => keep.retain(key),
+    retain: (key: number, id: number) => keep.retain(key, packedPages[id]),
     release: (key: number) => keep.release(key),
   });
   /** Empties the queue, releasing every hold it placed. */
@@ -100,6 +102,7 @@ export function createWebgpuResidencySets(options: {
   };
   return {
     entering,
+    enteringPages,
     leaving,
     /** Keys this image asks the cache for, the pinned cover included. */
     get requestedCount() {

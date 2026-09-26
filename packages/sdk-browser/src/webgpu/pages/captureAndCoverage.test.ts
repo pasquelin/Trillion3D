@@ -11,6 +11,7 @@ import {
 } from './testScenes.fixture.ts';
 import { twoCoarseQuadsScene } from './testOccluder.fixture.ts';
 import type { WebgpuPagesBackend } from './runtime.ts';
+import { LAST_USE_WINDOW } from '../residency/lastUse.ts';
 import {
   DEFAULT_SCOPE,
   type ClusterManifest,
@@ -124,6 +125,8 @@ test('camera jumps and obsolete uploads preserve coverage while detail slots are
     assert.deepEqual(backend.selectedPageIds().sort(), ['0', '1']);
     move(100);
     assert.deepEqual(backend.selectedPageIds(), ['b2']);
+    // The pages the image stopped drawing keep their slots for their window, then give them up.
+    for (let i = 0; i < LAST_USE_WINDOW; i++) move(100);
     await backend.flush();
     move(100);
     assert.deepEqual(backend.selectedPageIds().sort(), ['b0', 'b1']);
@@ -131,7 +134,7 @@ test('camera jumps and obsolete uploads preserve coverage while detail slots are
       move(i % 2 ? 100 : 0);
       await Promise.resolve();
     }
-    move(0);
+    for (let i = 0; i <= LAST_USE_WINDOW; i++) move(0);
     await backend.flush();
     move(0);
     assert.deepEqual(backend.selectedPageIds().sort(), ['0', '1']);

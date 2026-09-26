@@ -4,6 +4,7 @@ import type { createWebgpuDiagnostics } from '../pages/io/diagnostics.ts';
 import type { createWebgpuPageTracking } from '../row/pageTracking.ts';
 import { createDenseKeySet } from '../cut/denseKeys.ts';
 import type { WebgpuResidencySets } from './sets.ts';
+import { createLastUse } from './lastUse.ts';
 type Cache = ReturnType<typeof createGpuPageCache>;
 type Trace = ReturnType<typeof createWebgpuDiagnostics>['traceDiagnostic'];
 type Tracking = ReturnType<typeof createWebgpuPageTracking>;
@@ -11,9 +12,11 @@ type Tracking = ReturnType<typeof createWebgpuPageTracking>;
 /**
  * Keeps the complete root cover and current cut pinned while admitting new detail.
  *
- * The kept set changed by a difference, so the pins follow that difference: the keys that left are
- * unpinned, the keys that joined are pinned as soon as the cache holds their bytes, and `waiting`
- * carries the ones still in flight to the next image. Nothing walks the pinned set per image.
+ * The kept set changed by a difference, so the pins follow that difference: the keys that joined
+ * are pinned as soon as the cache holds their bytes, and `waiting` carries the ones still in flight
+ * to the next image. The keys that left are unpinned by last use (`lastUse.ts`): once unused for
+ * its window, oldest first, and never while a held page depends on them. Nothing walks the pinned
+ * set per image.
  */
 export function createWebgpuPinUpdater(options: {
   tracking: Tracking;
@@ -22,6 +25,8 @@ export function createWebgpuPinUpdater(options: {
   deferredDrops: Set<string>;
   /** Clusters each request carries: a deferred drop names the request, not the cluster. */
   byUrl: Map<string, PageRec[]>;
+  /** The pages a page depends on (`admission.ts`): they leave after it. */
+  parentsOf: (rec: PageRec) => readonly PageRec[];
   traceEnabled: boolean;
   traceDiagnostic: Trace;
 }) {
@@ -29,6 +34,14 @@ export function createWebgpuPinUpdater(options: {
   const { traceEnabled, traceDiagnostic } = options;
   /** Kept keys the cache cannot pin yet: their bytes have not arrived. */
   const waiting = createDenseKeySet();
+  const lastUse = createLastUse({
+    keyOf: tracking.keyOf,
+    parentsOf: options.parentsOf,
+    kept: tracking.keep.has,
+    onHeld: (key) => {
+      if (!tracking.pinned.has(key)) waiting.add(key);
+    },
+  });
   /**
    * What the pin sample publishes: the image's DELTA, never the pinned set. Copying and filtering
    * it cost four walks of the cut per image as soon as trace was requested, while pins change by a
@@ -45,26 +58,30 @@ export function createWebgpuPinUpdater(options: {
     if (!cache) return;
     added.length = 0;
     removed.length = 0;
-    const { entering, leaving } = sets;
-    for (let i = leaving.count - 1; i >= 0; i--) {
-      const key = leaving.list[i];
-      waiting.remove(key);
-      if (!tracking.pinned.remove(key)) continue;
-      const url = tracking.pageCatalog[key];
-      if (traceEnabled) removed.push(url);
-      cache.unpin(url);
-    }
+    const { entering, enteringPages, leaving } = sets;
+    for (let i = leaving.count - 1; i >= 0; i--) lastUse.leave(leaving.list[i], frame);
     leaving.clear();
     for (let i = entering.count - 1; i >= 0; i--) {
       const key = entering.list[i];
+      lastUse.use(key, enteringPages[i]);
       if (!tracking.pinned.has(key)) waiting.add(key);
     }
     entering.clear();
+    // Released oldest first, each sent to the far end of the cache's order as it is unpinned: the
+    // cache then reclaims the released pages in their last-use order.
+    lastUse.release(frame, (key) => {
+      waiting.remove(key);
+      if (!tracking.pinned.remove(key)) return;
+      const url = tracking.pageCatalog[key];
+      if (traceEnabled) removed.push(url);
+      cache.unpin(url);
+      cache.touch(url);
+    });
     // A host page drop unpins behind this path's back; a key it still keeps goes back in the queue.
     const notices = tracking.unpinned;
     for (let i = 0; i < notices.length; i++) {
       const key = notices[i];
-      if (tracking.keep.has(key) && !tracking.pinned.has(key)) waiting.add(key);
+      if (lastUse.holds(key) && !tracking.pinned.has(key)) waiting.add(key);
     }
     notices.length = 0;
     // Residency is asked of the cache only for a key that is not pinned yet, which is a handful per
@@ -89,7 +106,7 @@ export function createWebgpuPinUpdater(options: {
       let kept = false;
       if (recs)
         for (let i = 0; i < recs.length && !kept; i++)
-          kept = tracking.keep.has(tracking.keyOf(recs[i]));
+          kept = lastUse.holds(tracking.keyOf(recs[i]));
       if (!kept) drop(key);
     }
     if (!traceEnabled || (!added.length && !removed.length)) return;
