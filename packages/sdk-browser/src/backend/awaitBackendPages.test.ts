@@ -50,8 +50,8 @@ test('awaiting already cached GPU bytes still settles GPU upload before the fina
       return [];
     },
   };
-  await awaitBackendPages(backend, G.perspectiveCamera(), async () => {
-    assert.fail('cached bytes must not be fetched again');
+  await awaitBackendPages(backend, G.perspectiveCamera(), async (missing) => {
+    assert.deepEqual(missing, [], 'cached bytes must not be fetched again');
   });
   assert.equal(drawn, true);
 });
@@ -68,7 +68,7 @@ test('synchronous backends keep one selection when their pages are already avail
       },
     },
     G.perspectiveCamera(),
-    async () => assert.fail('unexpected request'),
+    async (missing) => assert.deepEqual(missing, [], 'unexpected request'),
   );
   assert.equal(renders, 1);
 });
@@ -130,4 +130,23 @@ test('a wait for pages alone asks every flush for no image (#408)', async () => 
   };
   await awaitBackendPages(backend, G.perspectiveCamera(), async () => {}, { image: false });
   assert.deepEqual(asked, [{ image: false }, { image: false }, { image: false }]);
+});
+
+test('the view is heard in two: what it lacks, and what it holds once each (#408)', async () => {
+  const heard: string[][][] = [];
+  await awaitBackendPages(
+    {
+      render() {},
+      pendingUrls: () => ['b', 'c'],
+      pageUrls: () => ['a', 'b', 'a', 'c', 'd'],
+    },
+    G.perspectiveCamera(),
+    async (missing, held) => void heard.push([missing, held]),
+  );
+  assert.deepEqual(heard, [
+    [
+      ['b', 'c'],
+      ['a', 'd'],
+    ],
+  ]);
 });
