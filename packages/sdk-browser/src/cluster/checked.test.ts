@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { loadClusterManifest } from '../scene/manifestLoad.ts';
-import { checked, optionalFile } from './pages.ts';
+import { checked, optionalFile, RETRY_AFTER_CAP_MS } from './pages.ts';
 import { answering, refusedWith, type Answer } from './answers.fixture.ts';
 
 /** The example cache that drew nothing in the browser: its own files, served from the site. */
@@ -109,3 +109,21 @@ test('a refusal asking to wait (Retry-After, seconds or a date) is asked again o
   assert.equal((await read).status, 200);
   assert.equal(asked.length, 3);
 });
+
+test(
+  'a server asking an hour (Retry-After) is waited only the cap',
+  { timeout: 1000 },
+  async (t) => {
+    t.mock.timers.enable({ apis: ['setTimeout'] });
+    const hour = new Response('busy', { status: 503, headers: { 'Retry-After': '3600' } });
+    const asked = answering(t, 'lights.json', [hour, 200]);
+    const read = checked(LIGHTS);
+    await new Promise(setImmediate);
+    t.mock.timers.tick(RETRY_AFTER_CAP_MS - 1);
+    await new Promise(setImmediate);
+    assert.equal(asked.length, 1, 'not before the cap is over');
+    t.mock.timers.tick(1);
+    assert.equal((await read).status, 200);
+    assert.equal(asked.length, 2);
+  },
+);
