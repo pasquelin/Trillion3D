@@ -68,6 +68,12 @@ export interface Guides {
   clear(): void;
 }
 
+/** A guide with the node whose world pose it follows, if `add` drew it and the page did not
+ *  place it. */
+interface FollowedEntry extends GuideEntry {
+  node?: Object3D;
+}
+
 const hexOf = (color: ColorInput | undefined) => new Color(color ?? 0xffffff).getHex();
 
 /**
@@ -77,7 +83,7 @@ const hexOf = (color: ColorInput | undefined) => new Color(color ?? 0xffffff).ge
  * while the set is empty: `revision` and `visibleInstances` are what a pass reads first.
  */
 export function createGuideSet(onChange: () => void = () => {}) {
-  const entries = new Set<GuideEntry>();
+  const entries = new Set<FollowedEntry>();
   let vertices = 0,
     revision = 0,
     packedAt = -1,
@@ -105,7 +111,7 @@ export function createGuideSet(onChange: () => void = () => {}) {
         `Guides would hold ${vertices + count} vertices, above the ceiling of ${GUIDE_VERTEX_CEILING}`,
         { held: vertices, asked: count, ceiling: GUIDE_VERTEX_CEILING },
       );
-    const entry: GuideEntry = {
+    const entry: FollowedEntry = {
       pieces,
       vertices: count,
       matrix: Float64Array.from(IDENTITY_MATRIX4),

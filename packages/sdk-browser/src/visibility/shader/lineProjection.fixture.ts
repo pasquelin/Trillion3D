@@ -6,7 +6,7 @@
 export const LINE_VIEWPORT = [800, 600];
 const NEAR = 0.1,
   FOCAL = 1 / Math.tan(Math.PI / 6);
-export type Clip = number[];
+type Clip = number[];
 export const LINE_PROJECTIONS = {
   wgsl: (x: number, y: number, z: number, w: number): Clip => [
     (FOCAL * x * LINE_VIEWPORT[1]) / LINE_VIEWPORT[0],
