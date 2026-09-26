@@ -49,9 +49,10 @@ function declared(source: string, name: string) {
   return source.slice(start, end).replace(/(\d)u\b/g, '$1');
 }
 
+const position = new G.BufferAttribute(new Float32Array(9), 3),
+  normal = new G.BufferAttribute(new Float32Array(9), 3);
+
 test('lambert, toon and matcap draw on WebGL2, as Phong and normal do, each by its normal', () => {
-  const position = new G.BufferAttribute(new Float32Array(9), 3),
-    normal = new G.BufferAttribute(new Float32Array(9), 3);
   for (const family of ['lambert', 'toon', 'matcap', 'phong', 'normal'] as const) {
     const surface = new G.GraphSurface(family);
     assert.equal(clusterMaterialReason(surface, { position, normal }), undefined, family);
@@ -63,8 +64,10 @@ test('lambert, toon and matcap draw on WebGL2, as Phong and normal do, each by i
   assert.equal(clusterMaterialReason(matcap, { position, normal }), undefined);
   matcap.matcap = G.dataTexture(new Uint8Array(4), 1, 1, 1022);
   assert.match(clusterMaterialReason(matcap, { position, normal })!, /texel format 1022/);
-  // A map the model never reads is refused by name on both paths, never dropped from the image:
-  // by the WebGL2 gate, and by the page record the WebGPU path draws from; it asks for no UV.
+});
+
+test('a map the model never reads is refused by name on both paths, and asks for no UV', () => {
+  // By the WebGL2 gate, and by the page record the WebGPU path draws from: never dropped.
   const map = G.dataTexture(new Uint8Array(4)),
     uv = new G.BufferAttribute(new Float32Array(6), 2);
   for (const [family, name] of [
@@ -81,42 +84,35 @@ test('lambert, toon and matcap draw on WebGL2, as Phong and normal do, each by i
   const lit = new G.GraphSurface('lambert', { normalMap: map });
   assert.equal(clusterMaterialReason(lit, { position, normal, uv }), undefined);
   // An occlusion map asks for a UV only where its model reads it: never on a matcap or a normal view.
-  for (const family of ['matcap', 'normal', 'lambert', 'basic'] as const) {
-    const reason = clusterMaterialReason(new G.GraphSurface(family, { aoMap: map }), {
-      position,
-      normal,
-    });
-    const reads = family === 'lambert' || family === 'basic';
-    assert.equal(reason, reads ? 'textured material has no UV attribute' : undefined, family);
+  for (const [family, reason] of [
+    ['matcap', undefined],
+    ['normal', undefined],
+    ['lambert', 'textured material has no UV attribute'],
+    ['basic', 'textured material has no UV attribute'],
+  ] as const) {
+    const surface = new G.GraphSurface(family, { aoMap: map });
+    assert.equal(clusterMaterialReason(surface, { position, normal }), reason, family);
   }
 });
 
 test('a diffuse and a toon surface take a lamp by the WebGPU formula on WebGL2', () => {
-  const gl = (model: number) =>
-    runShaderText<number>(declared(CLUSTER_FRAGMENT, 'modelLight'), {
-      ...BUILTINS,
-      surfaceModel: model,
-    });
-  const gpu = (flag: number) =>
-    runShaderText<number>(declared(DIRECT_LIGHTING_SHADER, 'modelLight'), {
-      ...BUILTINS,
-      surfaceModel: flag,
-    });
-  const N = [0, 0, 1],
-    grey = 0.6,
-    ao = 0.9,
+  // Each program's `modelLight`, under the value its `surfaceModel` holds for the model.
+  const light = (source: string, model: number) =>
+    runShaderText<number>(declared(source, 'modelLight'), { ...BUILTINS, surfaceModel: model });
+  const [grey, ao] = [0.6, 0.9],
     lobe = (grey * ao * 2.5) / Math.PI;
   for (const [L, cosine, band] of [
     [[0, 0.6, 0.8], 0.8, 1],
     [[0.8, 0, 0.6], 0.6, 1],
     [[0, 0.8, -0.6], 0, 0.7],
-  ]) {
-    const diffuse = gl(SURFACE_MODEL.diffuse)(grey, 0, N, L, 2.5, ao);
-    assert.equal(diffuse, gpu(MODEL_FLAG.diffuse)(grey, 0, N, L, 2.5, ao));
-    assert.ok(Math.abs(diffuse - lobe * (cosine as number)) < 1e-12, `the lobe at ${cosine}`);
-    const toon = gl(SURFACE_MODEL.toon)(grey, 0, N, L, 2.5, ao);
-    assert.equal(toon, gpu(MODEL_FLAG.toon)(grey, 0, N, L, 2.5, ao));
-    assert.ok(Math.abs(toon - lobe * (band as number)) < 1e-12, `the band ${band}`);
+  ] as const) {
+    const args = [grey, 0, [0, 0, 1], L, 2.5, ao];
+    const diffuse = light(CLUSTER_FRAGMENT, SURFACE_MODEL.diffuse)(...args);
+    assert.equal(diffuse, light(DIRECT_LIGHTING_SHADER, MODEL_FLAG.diffuse)(...args));
+    assert.ok(Math.abs(diffuse - lobe * cosine) < 1e-12, `the lobe at ${cosine}`);
+    const toon = light(CLUSTER_FRAGMENT, SURFACE_MODEL.toon)(...args);
+    assert.equal(toon, light(DIRECT_LIGHTING_SHADER, MODEL_FLAG.toon)(...args));
+    assert.ok(Math.abs(toon - lobe * band) < 1e-12, `the band ${band}`);
   }
   // Both the lamp loop and the rectangle send those two models there, and no specular after; a
   // WebGL2 lamp's colour already carries its energy (`lights.ts`), a WebGPU one passes it apart.
