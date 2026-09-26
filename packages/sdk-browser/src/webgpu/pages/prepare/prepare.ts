@@ -1,6 +1,6 @@
 import { createDeferredLighting } from '../../../lighting/deferred/deferred.ts';
 import { prepareTemporalAntialiasing } from '../../../taa/prepare.ts';
-import { createSceneLightContractBuffer } from '../state/lights.ts';
+import { createSceneLightContractBuffer } from '../state/lightBuffer.ts';
 import { prepareWebgpuPresentation } from '../../frame/presentationSetup.ts';
 import { createWebgpuPagesPipelines } from './pipelines.ts';
 import { ensureWebgpuPositionBuffer } from '../../core/positions.ts';
@@ -52,7 +52,7 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
     rt.context.preparationStep?.(name);
     return work();
   };
-  const lightBuffer = createSceneLightContractBuffer((gpu.device = gpuDevice));
+  const lightBuffer = createSceneLightContractBuffer((gpu.device = gpuDevice), rt.lights.store);
   rt.lights.buffer = lightBuffer;
   // No more light written into the scene, on either side: opaques and transparents read the same
   // declared-light buffer, with the same shadows and the same exposure (P6).
