@@ -26,8 +26,8 @@ import { cookedBytes, tilePose, type Model } from './tilePlace.ts';
  */
 const COMPILED_NODES_MOVE = false;
 
-/** A declared body made: its entry, the world scale it was made at, its engine id. */
-export type CookedMadeBody = { body: CookedBody; scale: number[]; id: number };
+/** A declared body made: its entry, its hull's bytes, the world scale it was made at, its id. */
+export type CookedMadeBody = { body: CookedBody; bytes?: Uint8Array; scale: number[]; id: number };
 
 /**
  * The rigid bodies the compiled models in a scene declare (`physics.json` `bodies`), each one a
@@ -45,26 +45,23 @@ export function createCookedBodies(
   release = COMPILED_NODES_MOVE,
 ) {
   /** Each open model's opening: its bodies made, the nodes whose body is made or on its way —
-   *  their static tiles unwanted —, and the signal its leaving aborts its reads by. */
-  type Opening = { made: CookedMadeBody[]; nodes: Set<number>; signal: AbortSignal };
+   *  their static tiles unwanted —, each hull read once by URL (bodies drawing one mesh share
+   *  it), and the signal its leaving aborts its reads by. */
+  type Opening = {
+    made: CookedMadeBody[];
+    nodes: Set<number>;
+    hulls: Map<string, Promise<Uint8Array>>;
+    signal: AbortSignal;
+  };
   const held = new Map<Model, Opening>();
-  /** Each hull, fetched once per opening (each reads `physics.json` again): a body made again at
-   *  another scale restores from it, never waiting on the network. */
-  const hulls = new WeakMap<CookedBody, Promise<Uint8Array>>();
   const dynamic = (body: CookedBody) => release && !body.motion.isKinematic;
-  async function add(model: Model, opening: Opening, body: CookedBody) {
-    const { shape } = body;
-    let hull = hulls.get(body);
-    if (!hull && shape.type === 'cooked')
-      hulls.set(body, (hull = cookedBytes(model, shape.url, opening.signal)));
-    const bytes = await hull;
-    // Forgotten or opened again meanwhile: this opening's bodies are no longer wanted.
-    if (held.get(model) !== opening) return;
+  /** `body` made where its model places it now, from its hull's `bytes`; throws, nothing held,
+   *  for a shape the scale bends or a body past the budget. */
+  function make(model: Model, body: CookedBody, bytes?: Uint8Array) {
     const { position, quaternion, scale } = tilePose({ model, instance: body });
     const resolved = declaredShape(body, scale);
-    const made: CookedMadeBody = { body, scale: [scale.x, scale.y, scale.z], id: -1 };
+    const made: CookedMadeBody = { body, bytes, scale: [scale.x, scale.y, scale.z], id: -1 };
     made.id = bodies.claim(resolved.triangles, 0, { model, body: made });
-    opening.made.push(made);
     const handle = made.id & BODY_INDEX;
     const matter = physicsMatterOf(body);
     const moving = dynamic(body);
@@ -80,15 +77,26 @@ export function createCookedBodies(
     });
     if (bytes) writer.release(handle);
     invalidate();
+    return made;
   }
-  /** Makes `body` in `opening`; refused — but for a read its model let go of —, reported, and
-   *  its node static ground again. */
+  async function add(model: Model, opening: Opening, body: CookedBody) {
+    const { shape } = body,
+      { hulls, signal } = opening;
+    const url = shape.type === 'cooked' ? shape.url : '';
+    if (url && !hulls.has(url)) hulls.set(url, cookedBytes(model, url, signal));
+    const bytes = url ? await hulls.get(url) : undefined;
+    // Forgotten or opened again meanwhile: this opening's bodies are no longer wanted.
+    if (held.get(model) === opening) opening.made.push(make(model, body, bytes));
+  }
+  /** `body` refused — but for a read its model let go of —: reported, its node static ground
+   *  again. */
+  const refuse = (opening: Opening, body: CookedBody, error: unknown) => {
+    if (opening.signal.aborted) return;
+    opening.nodes.delete(body.node);
+    failed(error as EngineError);
+  };
   const start = (model: Model, opening: Opening, body: CookedBody) =>
-    void add(model, opening, body).catch((error) => {
-      if (opening.signal.aborted) return;
-      opening.nodes.delete(body.node);
-      failed(error as EngineError);
-    });
+    void add(model, opening, body).catch((error) => refuse(opening, body, error));
   const forget = (model: Model) => {
     const opening = held.get(model);
     held.delete(model);
@@ -99,7 +107,7 @@ export function createCookedBodies(
     open(model: Model, declared: readonly CookedBody[], signal: AbortSignal) {
       forget(model);
       const nodes = new Set(declared.map((body) => body.node));
-      const opening: Opening = { made: [], nodes, signal };
+      const opening: Opening = { made: [], nodes, hulls: new Map(), signal };
       held.set(model, opening);
       for (const body of declared) start(model, opening, body);
     },
@@ -108,8 +116,8 @@ export function createCookedBodies(
     /** Whether node `node` of `model` has its body, made or on its way: its tiles then leave. */
     holds: (model: Model, node: number) => held.get(model)?.nodes.has(node) ?? false,
     /** A model moved: its bodies follow — a kinematic one driven there, pushing what it meets —;
-     *  one rescaled is made again at its new scale, Jolt scaling no body once made. The list is
-     *  compacted in place: a model moved every frame makes no new one. */
+     *  one rescaled is made again at once at its new scale, Jolt scaling no body once made. The
+     *  list is compacted in place: a model moved every frame makes no new one. */
     moved(model: Model) {
       const opening = held.get(model);
       if (!opening) return;
@@ -120,7 +128,12 @@ export function createCookedBodies(
         const slot = one.id & BODY_INDEX;
         if (!fits(scale, one.scale)) {
           bodies.release(slot);
-          start(model, opening, one.body);
+          try {
+            made[kept] = make(model, one.body, one.bytes);
+            kept++;
+          } catch (error) {
+            refuse(opening, one.body, error);
+          }
           continue;
         }
         if (dynamic(one.body)) writer.teleport(slot, position, quaternion);
