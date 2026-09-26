@@ -16,8 +16,6 @@ pub(super) struct Images {
     by_block: HashMap<u64, Option<usize>>,
     /// The bytes the scene binary may reach: the job's RAM budget, less the unpacked file.
     room: usize,
-    /// The first packed image past that room, refused once the walk hands it back.
-    refused: Option<CompilerError>,
 }
 
 impl Images {
@@ -26,24 +24,22 @@ impl Images {
         Images {
             by_block: HashMap::new(),
             room,
-            refused: None,
         }
     }
-    /// The glTF texture rank of this image, poured on first request.
-    pub(super) fn texture(&mut self, image: &At<'_>, root: &Path, out: &mut Out) -> Option<usize> {
+    /// The glTF texture rank of this image, poured on first request; a packed image past the
+    /// room refuses the scene.
+    pub(super) fn texture(
+        &mut self,
+        image: &At<'_>,
+        root: &Path,
+        out: &mut Out,
+    ) -> Result<Option<usize>> {
         if let Some(known) = self.by_block.get(&image.old) {
-            return *known;
+            return Ok(*known);
         }
-        let found = resolve(image, root, out, self.room).unwrap_or_else(|refusal| {
-            self.refused.get_or_insert(refusal);
-            None
-        });
+        let found = resolve(image, root, out, self.room)?;
         self.by_block.insert(image.old, found);
-        found
-    }
-    /// The refusal of a packed image past the room, if the walk met one.
-    pub(super) fn refusal(&mut self) -> Result<()> {
-        self.refused.take().map_or(Ok(()), Err)
+        Ok(found)
     }
 }
 

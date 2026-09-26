@@ -1,6 +1,7 @@
 //! What the driver produced, read as a caller would read it: the scene compiled in a throwaway
 //! directory, then the values the tests compare.
 use super::*;
+pub(super) use crate::tests::directories::scratch;
 use std::sync::atomic::AtomicBool;
 
 /// Compiles these bytes through the driver in a throwaway directory, and yields the glTF and the
@@ -19,7 +20,7 @@ pub(super) fn compiled(bytes: &[u8], tag: &str) -> (Value, Value) {
 /// Converts these bytes through the driver under this RAM budget, in a throwaway directory the
 /// caller removes: that directory, and what the driver returned.
 pub(super) fn converted(bytes: &[u8], tag: &str, ram_budget: usize) -> (PathBuf, Result<PathBuf>) {
-    let root = scratch(tag);
+    let root = scratch("blend", tag);
     let source = root.join("scene.blend");
     fs::write(&source, bytes).expect("write");
     let cache = root.join("cache");
@@ -35,20 +36,6 @@ pub(super) fn converted(bytes: &[u8], tag: &str, ram_budget: usize) -> (PathBuf,
         &BLEND,
     );
     (root, directory)
-}
-
-/// A throwaway directory of this test's own, which the test removes.
-pub(super) fn scratch(tag: &str) -> PathBuf {
-    let root = std::env::temp_dir().join(format!(
-        "trillion3d-blend-{tag}-{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .expect("clock")
-            .as_nanos()
-    ));
-    fs::create_dir_all(&root).expect("directory");
-    root
 }
 
 /// The glTF material of this name, in a compiled scene.

@@ -14,7 +14,7 @@ fn prepare(source: &Path, cache: &Path) -> std::result::Result<PathBuf, (&'stati
                 cache,
                 cancelled: &AtomicBool::new(false),
                 progress: &|_| {},
-                ram_budget: 1 << 30,
+                ram_budget: crate::tests::RAM_BUDGET,
             })
         }
         Routed::Manifest => panic!("routed to the manifest"),

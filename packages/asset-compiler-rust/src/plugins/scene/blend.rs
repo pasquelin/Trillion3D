@@ -45,7 +45,6 @@ use crate::{hash, CompilerError};
 use serde_json::{json, Value};
 use std::{
     collections::{BTreeMap, HashMap, HashSet},
-    fs,
     sync::atomic::{AtomicBool, Ordering},
     time::Instant,
 };
