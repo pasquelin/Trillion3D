@@ -30,24 +30,6 @@ void main(){uint covered=0u;for(uint b=cutoff;b<256u;b++)covered+=rows(b,0);colo
 
 type Size = { width: number; height: number };
 
-const BLEND_STATE = [
-  'BLEND_SRC_RGB',
-  'BLEND_DST_RGB',
-  'BLEND_SRC_ALPHA',
-  'BLEND_DST_ALPHA',
-  'BLEND_EQUATION_RGB',
-  'BLEND_EQUATION_ALPHA',
-] as const;
-
-/** The blend function and equation as they are now, which the counts replace: their restore. */
-export function savedBlend(gl: WebGL2RenderingContext) {
-  const [sr, dr, sa, da, er, ea] = BLEND_STATE.map((name) => gl.getParameter(gl[name]) as number);
-  return () => {
-    gl.blendFuncSeparate(sr, dr, sa, da);
-    gl.blendEquationSeparate(er, ea);
-  };
-}
-
 /** The programs, their uniforms, the counts' 256 × 256 float target and its framebuffer; null on
  *  a context that cannot add into it. Binds the counts on the active unit. */
 function buildCounts(gl: WebGL2RenderingContext) {
@@ -107,14 +89,13 @@ export class WebglCoverageCounts {
   /** Counts level `level` of a `width` × `height` chain — level 0 too at level 1 — from the scratch
    *  bound on `unit`, which holds the level above, and writes its `t` under it. Leaves the counts'
    *  framebuffer bound, holding the counts again — never the scratch, which `trim` must free —,
-   *  blending off and its function additive (`savedBlend` gives it back). */
+   *  blending off and its function additive (the reducer gives it back). */
   count(unit: number, scratch: WebGLTexture, chain: Size, level: number, cutoff: number) {
     const gl = this.gl,
       { width, height } = chain,
       built = this.built!;
     const [sw, sh] = levelSize(width, height, level - 1),
       [w, h] = levelSize(width, height, level);
-    const frame = gl.COLOR_ATTACHMENT0;
     gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, built.frame);
     if (level === 1) gl.clearBufferfv(gl.COLOR, 0, [0, 0, 0, 0]);
     gl.enable(gl.BLEND);
@@ -132,7 +113,7 @@ export class WebglCoverageCounts {
     }
     gl.disable(gl.BLEND);
     gl.bindTexture(gl.TEXTURE_2D, built.counts);
-    gl.framebufferTexture2D(gl.DRAW_FRAMEBUFFER, frame, gl.TEXTURE_2D, scratch, 0);
+    gl.framebufferTexture2D(gl.DRAW_FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, scratch, 0);
     gl.useProgram(built.pick);
     gl.uniform1i(built.sampled, unit);
     gl.uniform1ui(built.cutoff, cutoff);
@@ -140,7 +121,13 @@ export class WebglCoverageCounts {
     gl.uniform2ui(built.texels, width * height, w * h);
     gl.viewport(0, sh, 1, 1);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
-    gl.framebufferTexture2D(gl.DRAW_FRAMEBUFFER, frame, gl.TEXTURE_2D, built.counts, 0);
+    gl.framebufferTexture2D(
+      gl.DRAW_FRAMEBUFFER,
+      gl.COLOR_ATTACHMENT0,
+      gl.TEXTURE_2D,
+      built.counts,
+      0,
+    );
     gl.bindTexture(gl.TEXTURE_2D, scratch);
   }
   dispose() {
