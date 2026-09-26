@@ -144,7 +144,7 @@ fn each_cutoff_names_its_own_chain() {
         assert_eq!(AtlasKind::from_word(kind.word()), Some(kind));
     }
     assert_eq!(
-        AtlasKind::from_word((128 << 8) | 0),
+        AtlasKind::from_word(128 << 8),
         None,
         "only coverage carries a cutoff"
     );
