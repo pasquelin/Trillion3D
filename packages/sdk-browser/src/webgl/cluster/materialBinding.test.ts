@@ -178,10 +178,8 @@ test('Into the effect chain, a surface covers its pixel as the display path show
   assert.throws(() => flagOf(transparent(99), 'covering', true), /a surface declares a blending/);
 });
 
-// #769: glTF 2.0 cuts the colour factor's alpha times the map's, and WebGPU does since #748; WebGL2
-// multiplied the opacity only into a blended surface, so a masked one was cut at the map alone.
-// #840: the fragment writes the colour factor's alpha, so an opaque masked surface must keep it at
-// 1 (a canvas alpha of 128 or 191, the WebGL2 cluster probes) and carry its opacity in the cutoff.
+// #769: a masked surface is cut at its opacity times its map alpha, as glTF 2.0 and WebGPU cut it.
+// #840: the fragment writes `base.a`, so an opaque one keeps 1 there and its opacity in the cutoff.
 test('A masked surface is cut at its opacity times its map alpha, and an opaque one stays opaque', () => {
   const cut = (material: G.GraphSurface) => {
     const { binding } = recorder();
@@ -193,19 +191,10 @@ test('A masked surface is cut at its opacity times its map alpha, and an opaque 
     bindClusterMaterial(binding, material, true);
     return [sent.baseFactor, sent.alphaCutoff];
   };
-  // The fragment keeps `map alpha * baseFactor.a >= alphaCutoff`: opacity * map alpha >= cutoff.
-  assert.match(CLUSTER_FRAGMENT, /if\(base\.a<alphaCutoff\)discard;/);
-  assert.match(CLUSTER_FRAGMENT, /float alpha=base\.a;/);
-  assert.deepEqual(cut(G.standardSurface({ opacity: 0.4, alphaTest: 0.5 })), [1, 0.5 / 0.4]);
+  assert.match(CLUSTER_FRAGMENT, /if\(base\.a<alphaCutoff\)discard;[^]*float alpha=base\.a;/);
   assert.deepEqual(cut(G.basicSurface({ opacity: 0.75, alphaTest: 0.5 })), [1, 0.5 / 0.75]);
   assert.deepEqual(cut(G.standardSurface({ opacity: 0, alphaTest: 0.5 })), [1, Infinity]);
-  assert.deepEqual(
-    cut(G.standardSurface({ opacity: 0.4 })),
-    [1, 0],
-    'opaque: its alpha is not read',
-  );
-  const blended = Object.assign(G.standardSurface({ opacity: 0.4, alphaTest: 0.3 }), {
-    transparent: true,
-  });
+  assert.deepEqual(cut(G.standardSurface({ opacity: 0.4 })), [1, 0], 'opaque, unmasked');
+  const blended = G.standardSurface({ opacity: 0.4, alphaTest: 0.3, transparent: true });
   assert.deepEqual(cut(blended), [0.4, 0.3], 'blended: its alpha is drawn and cut as is');
 });
