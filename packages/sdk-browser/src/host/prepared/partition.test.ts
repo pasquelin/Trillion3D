@@ -8,12 +8,12 @@
  */
 import test, { type TestContext } from 'node:test';
 import assert from 'node:assert/strict';
-import { createHash } from 'node:crypto';
 import { readdir, readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import type * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import type { ClusterManifest } from '../../../../sdk-core/src/index.ts';
+import { fetchVerified } from '../../cluster/pages.ts';
 import { loadPreparedSceneTables } from '../../scene/tables.ts';
 import { createPartitionCells } from '../../scene/partition/cells.ts';
 import { isDrawnNode } from '../graph/kinds.ts';
@@ -97,11 +97,8 @@ test('the paged tables give back every cell file of the folder, in order', async
     partition.cells.map((cell) => cell.url),
     cells,
   );
-  for (const cell of partition.cells) {
-    const bytes = await readFile(new URL(cell.url, folder));
-    assert.equal(cell.bytes, bytes.byteLength);
-    assert.equal(cell.sha256, createHash('sha256').update(bytes).digest('hex'));
-  }
+  // Each at the size and fingerprint its record announces: the runtime's own check passes.
+  for (const cell of partition.cells) await fetchVerified(new URL(cell.url, folder).href, cell);
 });
 
 // Framing and a loaded model's bounds take the whole world, whichever cells are read: each mesh

@@ -52,7 +52,7 @@ function twoRows() {
   parents.forEach((parent) => root.add(parent));
   parents[1].position.set(0, 1e4, 0);
   const partitioned = createPartitionCells({
-    partition: { version: 2, bounds: [0, 0, 0, 901, 1e4 + 1, 1], meshes: [0], cells },
+    partition: { bounds: [0, 0, 0, 901, 1e4 + 1, 1], meshes: [0], cells },
     base: 'https://cache.test/key/',
     root,
     parents,
