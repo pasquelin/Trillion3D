@@ -1,7 +1,7 @@
 import { createDiagnosticChannel } from '../../diagnostic/channel.ts';
 import type { BackendDiagnostic } from '../../backend/types.ts';
 import { effectTargetExcess, type BudgetCanvas } from '../../residency/memoryBudget.ts';
-import type { LinearRefusedBlending } from '../../webgl/cluster/linearRefusal.ts';
+import type { Blending } from '../../../../sdk-core/src/world/constants/index.ts';
 
 /** The page channels open now (`diagnostic.createChannel`): every world notice reaches each. */
 const listeners = new Set<(notice: BackendDiagnostic) => void>();
@@ -104,11 +104,10 @@ export function noticeEffectBudget(
  * cannot hold (`linearRefusal`): said once per world, as `effects-refused-blending`. WebGPU draws
  * both and never says it.
  */
-export const noticeEffectRefusal =
-  (notices: Pick<WorldNotices, 'once'>) => (blending: LinearRefusedBlending) =>
-    notices.once(
-      'effects-refused-blending',
-      `effect chain not drawn on WebGL2: a transparent surface blends in ${blending}, which ` +
-        `the chain cannot hold; the frame is drawn whole without it until no such surface is drawn`,
-      { blending },
-    );
+export const noticeEffectRefusal = (notices: Pick<WorldNotices, 'once'>) => (blending: Blending) =>
+  notices.once(
+    'effects-refused-blending',
+    `effect chain not drawn on WebGL2: a transparent surface blends in ${blending}, which ` +
+      `the chain cannot hold; the frame is drawn whole without it until no such surface is drawn`,
+    { blending },
+  );
