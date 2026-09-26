@@ -51,9 +51,9 @@ function baseOf(routes: readonly Root[], root: Root) {
  * placements that stay keep their state. A placement whose moves cannot be routed is read whole
  * at every visit, and counted.
  *
- * Bounded by the view (#483 rule 6): the cut of an image — a cut that is not a light's — releases
- * the states no cut visited since the previous image's, so the states held are those of the
- * placements the image and its lights see. `bytes` is their running total, read without walking.
+ * Bounded by the view (#483 rule 6): each image ends (`endImage`: its cut, or a GPU cut's image)
+ * by releasing the states no cut visited since the previous one, so the states held are those of
+ * the placements the image and its lights see. `bytes` is their running total, read without walking.
  */
 export function createHeldResidency<T extends PageRecord>(
   rule: { isResident?: (page: T) => boolean } = {},
@@ -112,11 +112,10 @@ export function createHeldResidency<T extends PageRecord>(
     /** Routes the moves of `roots`' records from now on: the placements that left let go. */
     track(roots: readonly Root[]) {
       routes = roots.slice();
-      const kept = new Set(routes);
       // The pending moves are ranks within their placement: they survive a new layout. A state
       // no move reached, read whole at each visit so far, is read whole once more.
       for (const [root, held] of states) {
-        const base = kept.has(root) ? baseOf(routes, root) : -1;
+        const base = baseOf(routes, root);
         if (base < 0 || held.base < 0) release(root, held);
         else held.base = base;
       }
@@ -158,9 +157,8 @@ export function createHeldResidency<T extends PageRecord>(
       weigh(held);
       return held.readiness;
     },
-    /** Ends a cut: an image's lets go of every state no cut visited since the previous image's. */
-    end(imageCut: boolean) {
-      if (!imageCut) return;
+    /** Ends an image's cut: lets go of every state no cut visited since the previous image's. */
+    endImage() {
       for (const [root, held] of states) if (held.seen !== image) release(root, held);
       image++;
     },

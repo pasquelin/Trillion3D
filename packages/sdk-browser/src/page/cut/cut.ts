@@ -108,7 +108,7 @@ export function selectVisiblePages<T extends PageRecord>(
   result.complete = state.complete;
   result.pixelError = state.pixelError;
   // An image's cut lets go of the readiness of the roots no cut saw since the previous one.
-  held?.end(!options.light);
+  if (!options.light) held?.endImage();
   // The reused state keeps no hold on this image's scene.
   state.held = undefined;
   state.light = undefined;
