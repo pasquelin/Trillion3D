@@ -12,12 +12,14 @@ import {
 } from '../../../../../bench/oracles/browser/selection.ts';
 import type { PageRec } from '../../page/selection/selection.ts';
 import { surfaceOf } from '../../page/surface.ts';
+import { createHeldResidency } from '../../page/cut/held.ts';
 
 // A minimal but complete geometry store: only `releasePage` is read by
 // `createAutonomousResidency`, but its parameter type is the full geometry-store shape.
 function fakeGeometryStore() {
   return {
     state: { allocationBytes: 0, submittedTriangles: 0, residentPages: 0 },
+    held: createHeldResidency(),
     colorMaterials: new Map(),
     releasePage: (_url: string) => false,
     sync: () => {},

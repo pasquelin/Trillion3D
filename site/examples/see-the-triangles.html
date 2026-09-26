@@ -52,13 +52,21 @@
       };
       // `?model=terrain-tiles` opens instead a terrain cooked tile by tile, the open world's path,
       // and `?model=terrain-tiles-none` its exact cook: a stretched triangle shows at once here.
-      const cook = new Map([['terrain-tiles', 'cache'], ['terrain-tiles-none', 'cache-none']]).get(new URLSearchParams(location.search).get('model'));
-      const load = (scene) => cook ? scene.load(`../assets/examples/terrain-tiles/${cook}/native/full/manifest.json`) : scene.load('../assets/examples/bust/cache/native/full/manifest.json');
-      const [eye, target] = cook ? [[-160, 260, 920], [384, 40, 384]] : [[0.36, 0.34, 0.64], [0, 0.25, 0]];
-      // The terrain is no one's scan: the bust's credit is not shown over it.
+      // `?model=chalet` opens a chalet of thin closed walls, 0.1 m slabs and 0.12 m logs, whose
+      // walls every view and every pixel error must keep. Each: its cache, the eye, the target.
+      const terrain = [[-160, 260, 920], [384, 40, 384]];
+      const cook = new Map([
+        ['terrain-tiles', ['terrain-tiles/cache', ...terrain]],
+        ['terrain-tiles-none', ['terrain-tiles/cache-none', ...terrain]],
+        ['chalet', ['chalet/cache', [13, 7, 15], [0, 3.4, 0]]],
+      ]).get(new URLSearchParams(location.search).get('model'));
+      const [cache, eye, target] = cook ?? [null, [0.36, 0.34, 0.64], [0, 0.25, 0]];
+      // The bust's path stays literal: the examples test reads it to check the file and its credit.
+      const load = (scene) => cache ? scene.load(`../assets/examples/${cache}/native/full/manifest.json`) : scene.load('../assets/examples/bust/cache/native/full/manifest.json');
+      // Only the bust is a scan: its credit is not shown over the scenes built in code.
       document.querySelector('[data-words="credit"]').hidden = Boolean(cook);
 
-      // The scanned bust (or the terrain), drawn as its triangles: each one its own colour.
+      // The scanned bust (or a scene built in code), drawn as its triangles: each its own colour.
       const world = createWorld('view', { controls: 'orbit' });
       await load(world.scene);
       lit(world);

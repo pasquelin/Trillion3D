@@ -10,6 +10,7 @@ import { cameraMoteur } from '../../camera/camera.fixture.ts';
 import { createGeometryBudget } from './pool.ts';
 import { PAGE } from './pool.fixture.ts';
 import { createImageCut } from './imageCut.ts';
+import { createHeldResidency } from '../../page/cut/held.ts';
 import type { HostCamera } from '../../camera/world.ts';
 import type { ClusterRoot, ClusterStructureIndex, PageRec } from '../../page/selection/types.ts';
 
@@ -44,6 +45,8 @@ export function mount(
   for (const page of rootPages) page.array ??= new Uint32Array(3);
   const byUrl = new Map(all.map((page) => [page.url, page]));
   const state = { allocationBytes: 0 },
+    // The pool's loads and drops below move the cut's readiness, as the page store's do.
+    held = createHeldResidency(),
     kept = new Set<string>(),
     asked = new Set<string>(),
     diagnostics: BackendDiagnostic[] = [];
@@ -72,6 +75,7 @@ export function mount(
       const page = byUrl.get(url)!;
       if (!page.array) return;
       page.array = undefined;
+      held.moved(page as PageRec);
       state.allocationBytes -= bytes(url);
     },
     onDiagnostic: (diagnostic) => diagnostics.push(diagnostic),
@@ -92,6 +96,7 @@ export function mount(
     requested,
     revision: () => 0,
     pool,
+    held,
   });
   /** One image at the host's `pixelError`, as `render.ts` draws it, then the pages it asked for —
    *  at most `arrivals` of them, as a streamer spreads them; returns the most the pages held
@@ -123,6 +128,7 @@ export function mount(
     for (const page of requested)
       if (!page.array && left-- > 0) {
         page.array = new Uint32Array(3);
+        held.moved(page as PageRec);
         state.allocationBytes += bytes(page.url);
         pool.arrived(page.url);
         most = Math.max(most, state.allocationBytes);
