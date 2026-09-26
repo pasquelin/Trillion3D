@@ -1,15 +1,7 @@
-// #787: every hand copy the kernel's vector forms replaced — add, sub, scale, add-scaled, cross
-// and dot, in lighting, round geometry, soft bodies and joints — written as it stood: same bits.
+// #787: the out-parameter add and sub that replaced the hand copies in lighting, round geometry
+// and joints, written as they stood: same bits.
 import test from 'node:test';
-import assert from 'node:assert/strict';
-import {
-  addScaledVector3,
-  addVector3,
-  copyScaledVector3,
-  crossVector3,
-  dotVector3,
-  subVector3,
-} from './vector.ts';
+import { addVector3, subVector3 } from './vector.ts';
 import { assertBits } from '../../../../../tests/kit/assert/bits.ts';
 import { HOSTILE_FLOATS } from '../../../../../tests/kit/assert/hostile.ts';
 
@@ -22,51 +14,18 @@ const HOSTILE = SCALARS.map(
 );
 
 const copyAdd = (a: V3, b: V3): V3 => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
-const copyScale = (v: V3, f: number): V3 => [v[0] * f, v[1] * f, v[2] * f];
 const copySub = (a: V3, b: V3): V3 => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
-const copyCross = (u: V3, v: V3) => [
-  u[1] * v[2] - u[2] * v[1],
-  u[2] * v[0] - u[0] * v[2],
-  u[0] * v[1] - u[1] * v[0],
-];
-const copyDot = (u: V3, v: V3) => u[0] * v[0] + u[1] * v[1] + u[2] * v[2];
+/** The lighting copy of `subtract`: `add(a, scale(b, -1))`. */
+const copySubtract = (a: V3, b: V3): V3 => copyAdd(a, [b[0] * -1, b[1] * -1, b[2] * -1]);
 
 test('addVector3 and subVector3 give the bits of the copies they replace, aliased or not', () => {
   for (const a of HOSTILE)
     for (const b of HOSTILE) {
       assertBits(addVector3<V3>([7, 7, 7], a, b), copyAdd(a, b), 'add');
       assertBits(subVector3<V3>([7, 7, 7], a, b), copySub(a, b), 'sub');
-      // The lighting copy subtracted as `add(a, scale(b, -1))`: the same bits as `a - b`.
-      assertBits(subVector3<V3>([7, 7, 7], a, b), copyAdd(a, copyScale(b, -1)), 'subtract');
+      assertBits(subVector3<V3>([7, 7, 7], a, b), copySubtract(a, b), 'subtract');
       const [intoA, intoB]: V3[] = [[...a], [...b]];
       assertBits(addVector3(intoA, intoA, b), copyAdd(a, b), 'add into a');
       assertBits(subVector3(intoB, a, intoB), copySub(a, b), 'sub into b');
     }
-});
-
-test('copyScaledVector3 gives the bits of the lighting copy of scale', () => {
-  for (const v of HOSTILE)
-    for (const f of SCALARS)
-      assertBits(copyScaledVector3<V3>([7, 7, 7], v, f), copyScale(v, f), `${v} · ${f}`);
-});
-
-test('crossVector3 in place and dotVector3 give the bits of the soft-body and joint copies', () => {
-  for (const u of HOSTILE)
-    for (const v of HOSTILE) {
-      const into = [...u];
-      assertBits(crossVector3(into, into, v), copyCross(u, v), 'cross into u');
-      assert.ok(Object.is(dotVector3(u, v), copyDot(u, v)), `${u} · ${v}`);
-    }
-});
-
-test('addScaledVector3 on a copy gives the bits of the joint and tube copies it replaced', () => {
-  for (const a of HOSTILE)
-    for (const b of HOSTILE)
-      for (const s of SCALARS) {
-        // `a - s · b` (jointFrames `squared`, round's carried normal) and `a + s · b` (ring points).
-        const minus: V3 = [a[0] - s * b[0], a[1] - s * b[1], a[2] - s * b[2]];
-        const plus: V3 = [a[0] + s * b[0], a[1] + s * b[1], a[2] + s * b[2]];
-        assertBits(addScaledVector3<V3>([...a], b, -s), minus, `${a} - ${s} · ${b}`);
-        assertBits(addScaledVector3<V3>([...a], b, s), plus, `${a} + ${s} · ${b}`);
-      }
 });
