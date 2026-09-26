@@ -50,7 +50,7 @@ impl Covered {
         let AtlasKind::Coverage(cutoff @ 1..) = kind else {
             return None;
         };
-        let alphas = || level0.chunks_exact(4).map(|texel| texel[3]);
+        let alphas = || level0.as_chunks::<4>().0.iter().map(|texel| texel[3]);
         Some(Self {
             cutoff,
             covered: alphas().filter(|&a| a >= cutoff).count() as u64,
@@ -62,7 +62,7 @@ impl Covered {
     /// or above the cutoff is level 0's, steps 2 to 4 of the module's rule.
     pub(super) fn preserve(&self, level: &mut [u8]) {
         let mut histogram = [0u64; 256];
-        for texel in level.chunks_exact(4) {
+        for texel in level.as_chunks::<4>().0 {
             histogram[usize::from(texel[3])] += 1;
         }
         let t = u32::from(self.pick(&histogram, (level.len() / 4) as u64));
@@ -70,7 +70,7 @@ impl Covered {
         if t == c {
             return;
         }
-        for texel in level.chunks_exact_mut(4) {
+        for texel in level.as_chunks_mut::<4>().0 {
             let a = u32::from(texel[3]);
             texel[3] = ((2 * a * (2 * c - 1) + 2 * t - 1) / (4 * t - 2)).min(255) as u8;
         }
