@@ -6,15 +6,11 @@ import { drawRegionCasters } from './encodeRegionDraws.ts';
 
 /**
  * The pass of the transmittance layer (`../../../gpu/shadow/transmittance.ts`), at half the pool's
- * resolution, one render pass per pool pass of the batch planned in `pagePlan`: every page the
- * pool's pass drew — cleared or restored — starts from all the light and no translucent depth (the
- * static layer keeps no blended caster: their rows count as moving), one instanced draw for the
- * pass (`quads`); then each region draws its list twice in its page's
- * viewport, where only the blended casters' corners survive: depth only, for the nearest
- * translucent depth, then colour only, multiplied into the transmittance. Both test the pool's
- * opaque depth, just drawn; `tested` names the regions that draw their visible lists. Once the last
- * blended caster has given its row back, the layer stays but the list holds none of them: each
- * page is cleared, which is all the read needs, and neither draw is encoded.
+ * resolution, one render pass per pool pass of `pagePlan`: every page the pool's pass drew starts
+ * from all the light and far, in one instanced clear (`quads`) — a region `drawRegionCasters`
+ * skips for want of its groups is cleared too —, then `drawRegionCasters` draws each region's
+ * blended casters at half its place, depth only then colour only, both against the pool's opaque
+ * depth. With no blended caster left, the pages are only cleared.
  */
 export function encodeTransmittance(
   rt: WebgpuPagesRuntime,
