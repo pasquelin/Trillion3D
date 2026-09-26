@@ -18,9 +18,10 @@ export const LAST_USE_WINDOW = DAG_READBACK_SLOTS + 1;
  * ancestor standing in for a missing page included — is held. A page that leaves `keep` stays
  * held for `LAST_USE_WINDOW` frames, then is released, oldest first: the caller unpins it and sends
  * it to the far end of the cache's order, so the cache reclaims released pages in their last-use
- * order. Under pressure — more held pages to load than the pool has unpinned slots — the window
+ * order. Under pressure — more kept pages to load than the pool has unpinned slots — the window
  * gives way first: that many idle pages are released early, still oldest first, so the window
- * never costs the image a page it asks for.
+ * never costs the image a page it asks for. A page within its window that is still loading asks
+ * for no slot: the image no longer wants it.
  *
  * A page also stays held while a held page depends on it (`parentsOf`): holding a page holds its
  * parents, and a parent its last held child lets go of starts its own window then. A parent
@@ -67,16 +68,18 @@ export function createLastUse(options: {
       holdParents(parent);
     }
   };
-  const release = (key: number, frame: number, onRelease: (key: number) => void) => {
+  /** Releases one page; true when `onRelease` says that gave a slot back. */
+  const release = (key: number, frame: number, onRelease: (key: number) => boolean) => {
     idleSince.set(key, 0);
     const rec = recs.get(key);
     recs.delete(key);
-    onRelease(key);
-    if (!rec) return;
-    for (const parent of parentsOf(rec)) {
-      const at = keyOf(parent);
-      if (children.add(at, -1) === 0 && !kept(at)) idle(at, frame);
-    }
+    const freed = onRelease(key);
+    if (rec)
+      for (const parent of parentsOf(rec)) {
+        const at = keyOf(parent);
+        if (children.add(at, -1) === 0 && !kept(at)) idle(at, frame);
+      }
+    return freed;
   };
   return {
     /** True while the page may not leave: kept, within its window, or depended on. */
@@ -90,16 +93,16 @@ export function createLastUse(options: {
     },
     /** The page left `keep` at `frame`: its window starts. */
     leave: idle,
-    /** Releases, oldest first, every page idle for the window that no held page depends on, and
-     *  `pressure` pages in all, those still within their window included. */
-    release(frame: number, onRelease: (key: number) => void, pressure = 0) {
+    /** Releases, oldest first, every page idle for the window that no held page depends on, and,
+     *  those still within their window included, until `pressure` slots are given back: a page
+     *  whose `onRelease` frees no slot — it never arrived — does not count. */
+    release(frame: number, onRelease: (key: number) => boolean, pressure = 0) {
       while (head < idleKeys.length) {
         if (frame - idleFrames[head] < LAST_USE_WINDOW && pressure <= 0) break;
         const key = idleKeys[head],
           since = idleFrames[head++];
         if (idleSince.get(key) !== since + 1 || kept(key) || children.get(key) !== 0) continue;
-        release(key, frame, onRelease);
-        pressure--;
+        if (release(key, frame, onRelease)) pressure--;
       }
       if (head * 2 < idleKeys.length) return;
       idleKeys.splice(0, head);
