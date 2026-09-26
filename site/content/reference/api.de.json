@@ -1570,8 +1570,8 @@
       "WEBGL2_UNAVAILABLE": "Die Maschine kann nicht auf die angeforderte Weise zeichnen, oder gar nicht.",
       "NO_WEBGL2": "Die Maschine kann nicht auf die angeforderte Weise zeichnen, oder gar nicht.",
       "NO_ENGINE_BACKEND": "Die Maschine kann nicht auf die angeforderte Weise zeichnen, oder gar nicht.",
-      "RESOURCE_HTTP_ERROR": "Eine Datei konnte nicht abgerufen werden, oder war nicht das, was sie sein sollte.",
-      "INVALID_JSON_RESPONSE": "Eine Datei konnte nicht abgerufen werden, oder war nicht das, was sie sein sollte.",
+      "RESOURCE_HTTP_ERROR": "Eine Datei konnte nicht abgerufen werden – zuerst erneut angefragt, wenn der Fehler vorübergehen kann –, oder war nicht das, was sie sein sollte.",
+      "INVALID_JSON_RESPONSE": "Eine Datei konnte nicht abgerufen werden – zuerst erneut angefragt, wenn der Fehler vorübergehen kann –, oder war nicht das, was sie sein sollte.",
       "INVALID_POINTER": "Der Zeiger des kompilierten Modells ist defekt, unvollständig, oder von anderem Umfang.",
       "CACHE_NOT_READY": "Der Zeiger des kompilierten Modells ist defekt, unvollständig, oder von anderem Umfang.",
       "SCOPE_MISMATCH": "Der Zeiger des kompilierten Modells ist defekt, unvollständig, oder von anderem Umfang.",
@@ -7129,7 +7129,7 @@
       "water": "Das Wasser, in dem die Körper schwimmen: Pegel, Wellen, Dichte und Widerstände. Ein Körper, der leichter als das Wasser ist, schwimmt, getragen vom Gewicht des verdrängten Wassers.",
       "waterSurface": "Die Wasseroberfläche zur Zeit der Simulation, zum Zeichnen: die Wellen, die der Auftrieb liest, dieselben Zahlen (`height`, `point`, `normal`).",
       "stats": "Zählungen und beide Uhren: Worker-Millisekunden pro Schritt, Seiten-Millisekunden pro Bild.",
-      "error": "Der letzte Fehler der Physik (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`) oder `null`. Ein Fehler, der die Simulation angehalten hat, schaltet `enabled` aus.",
+      "error": "Der letzte Fehler der Physik (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`, `RESOURCE_HTTP_ERROR`) oder `null`. Ein Fehler, der die Simulation angehalten hat, schaltet `enabled` aus.",
       "add": "Fügt ein Gelenk hinzu (`joint.hinge(door, frame, …)` und Verwandte): Es entsteht, sobald beide Körper simuliert werden, und hält, bis es entfernt wird oder bricht.",
       "remove": "Entfernt ein Gelenk: Die gehaltenen Körper bewegen sich frei auseinander."
     }
@@ -7337,7 +7337,7 @@
       "water": "Das Wasser, in dem die Körper schwimmen: Pegel, Wellen, Dichte und Widerstände. Ein Körper, der leichter als das Wasser ist, schwimmt, getragen vom Gewicht des verdrängten Wassers.",
       "waterSurface": "Die Wasseroberfläche zur Zeit der Simulation, zum Zeichnen: die Wellen, die der Auftrieb liest, dieselben Zahlen (`height`, `point`, `normal`).",
       "stats": "Zählungen und beide Uhren: Worker-Millisekunden pro Schritt, Seiten-Millisekunden pro Bild.",
-      "error": "Der letzte Fehler der Physik (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`) oder `null`. Ein Fehler, der die Simulation angehalten hat, schaltet `enabled` aus.",
+      "error": "Der letzte Fehler der Physik (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`, `RESOURCE_HTTP_ERROR`) oder `null`. Ein Fehler, der die Simulation angehalten hat, schaltet `enabled` aus.",
       "add": "Fügt ein Gelenk hinzu (`joint.hinge(door, frame, …)` und Verwandte): Es entsteht, sobald beide Körper simuliert werden, und hält, bis es entfernt wird oder bricht.",
       "remove": "Entfernt ein Gelenk: Die gehaltenen Körper bewegen sich frei auseinander."
     }

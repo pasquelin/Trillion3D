@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { ruleDag } from './cutRule.fixture.ts';
 import { placements, stripCamera } from './cutRuleBackends.fixture.ts';
 import { selectVisiblePages } from './cut.ts';
-import { createHeldBytes } from './held.ts';
+import { createHeldResidency } from './held.ts';
 import { createGroupClosure } from './groupClosure.ts';
 import { packDagSelection } from '../../gpu/dag/pack.ts';
 import { uploadResidency } from '../../gpu/dag/readiness.fixture.ts';
@@ -32,14 +32,13 @@ function world(copies: number) {
 function tables(copies: number) {
   const { roots, packed, inView } = world(copies);
   const ids = (list: readonly PageRec[]) => list.map((page) => page.packedIndex!);
-  const held = createHeldBytes();
+  const held = createHeldResidency({ isResident: inView });
   held.track(roots);
   // The CPU cut — the WebGPU CPU path and the WebGL2 image — with the pool holding the view.
   const cut = selectVisiblePages(roots, stripCamera(dag), {
     pixelError: 0.1,
     viewport: [1280, 720],
-    holdResident: true,
-    isResident: inView,
+    held,
   });
   assert.ok(cut.wanted.length > 0 && cut.wanted.every(inView), 'the view wants its placement');
   const cpuReadiness = held.bytes;
@@ -103,13 +102,11 @@ test("a placement's readiness follows what the pool holds of it, not its size", 
         structure: strip.structure,
       };
     const roots = strip.pages.filter((page) => page.group === null),
-      held = createHeldBytes();
-    held.track([root]);
+      held = createHeldResidency({ isResident: (page) => roots.includes(page as never) });
     selectVisiblePages([root as unknown as ClusterRoot<PageRec>], stripCamera(strip), {
       pixelError: 0.1,
       viewport: [1280, 720],
-      holdResident: true,
-      isResident: (page) => roots.includes(page as never),
+      held,
     });
     const gpu = uploadResidency(
       packDagSelection([root as unknown as ClusterRoot<PageRec>]),
