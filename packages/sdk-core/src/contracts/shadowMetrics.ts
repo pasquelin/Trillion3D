@@ -26,6 +26,9 @@ export interface ShadowFrameMetrics {
   shadowFacesDrawn?: number | null;
   /** Shadow draw calls. */
   shadowDrawCalls?: number | null;
+  /** Render passes the shadow pass opened: static layer, pool and transmittance, one per layer
+   *  drawn, per batch. */
+  shadowRenderPasses?: number | null;
   /** Cluster cuts run from the lights: one per light view drawn in, zero on a still frame. */
   shadowLightCuts?: number | null;
   /** Virtual shadow pages the image read, as its latest request report named them: what the

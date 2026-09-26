@@ -44,6 +44,7 @@ function recordStages(rt: WebgpuPagesRuntime) {
     lampesRedessinees: lights.shadowsUpdated,
     facesRedessinees: lights.shadowFaces,
     appelsDeDessin: lights.shadowDrawCalls,
+    passesDeRendu: lights.shadowRenderPasses,
     soleilsRedessines: counts.sunLights,
     pagesDemandees: lights.plan.requests.counts.requested,
     pagesEnCache: counts.cachedPages,
