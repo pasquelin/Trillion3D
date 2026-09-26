@@ -26,7 +26,7 @@ test('a mesh casts by default, a light and a group do not, and a clone keeps the
 test("a mesh's castShadow reaches its world once per change, and its row carries it", () => {
   const mesh = object.mesh(geometry.box(1, 1, 1));
   const posed: unknown[] = [];
-  mesh._link = { shadow: (node) => posed.push(node) } as SceneLink;
+  mesh._link = { shadow: (node) => void posed.push(node) } as Partial<SceneLink> as SceneLink;
   mesh.castShadow = false;
   mesh.castShadow = false;
   assert.deepEqual(posed, [mesh], 'a write that changes nothing tells nothing');
