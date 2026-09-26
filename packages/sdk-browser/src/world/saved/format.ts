@@ -74,7 +74,7 @@ export interface SavedNode {
   };
   /** A compiled model, by the manifest address it was loaded from: never inlined. */
   model?: { url: string };
-  /** A mesh's body, as `mesh.physics` declares it (`savedPhysics`). */
+  /** A mesh's body, as `mesh.physics` declares it. */
   physics?: PhysicsOption;
 }
 

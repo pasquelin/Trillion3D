@@ -7023,7 +7023,7 @@
       "mesh": "`geometries`와 `materials` 안의 순위, 삼각형을 읽는 방식, 그리고 스프라이트의 중심.",
       "light": "조명의 종류, 색, 숫자, 방향, 프로브 계수.",
       "model": "컴파일된 모델로, 불러온 매니페스트 주소로 저장합니다: 절대 안에 복사하지 않습니다.",
-      "physics": "메시의 물리 바디. `mesh.physics`가 선언한 그대로입니다(`savedPhysics`)."
+      "physics": "메시의 물리 바디. `mesh.physics`가 선언한 그대로입니다."
     }
   },
   "SavedScene": {

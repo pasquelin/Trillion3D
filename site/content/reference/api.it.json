@@ -7023,7 +7023,7 @@
       "mesh": "Posizioni in `geometries` e `materials`, come si leggono i triangoli, e il centro di uno sprite.",
       "light": "Il tipo di una luce, i suoi colori, i suoi numeri, la sua direzione e i coefficienti della sonda.",
       "model": "Un modello compilato, tramite l'indirizzo del manifesto da cui è stato caricato: mai copiato dentro.",
-      "physics": "Il corpo di una mesh, come lo dichiara `mesh.physics` (`savedPhysics`)."
+      "physics": "Il corpo di una mesh, come lo dichiara `mesh.physics`."
     }
   },
   "SavedScene": {

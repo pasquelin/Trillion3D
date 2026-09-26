@@ -2972,7 +2972,7 @@
       "mesh": "Peringkat di `geometries` dan `materials`, cara segitiga dibaca, dan pusat sebuah sprite.",
       "light": "Jenis cahaya, warna, angka, arah bidikan, dan koefisien probe-nya.",
       "model": "Model terkompilasi, lewat alamat manifest tempat ia dimuat: tidak pernah disalin ke dalam.",
-      "physics": "Bodi fisika sebuah mesh, seperti yang dideklarasikan `mesh.physics` (`savedPhysics`)."
+      "physics": "Bodi fisika sebuah mesh, seperti yang dideklarasikan `mesh.physics`."
     }
   },
   "SavedScene": {

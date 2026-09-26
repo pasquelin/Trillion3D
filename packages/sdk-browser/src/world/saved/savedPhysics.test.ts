@@ -82,3 +82,13 @@ test("a saved body leaves out what the engine's own defaults give, and keeps wha
   });
   assert.deepEqual(saved(new ObjectPhysics(cloth)), cloth);
 });
+
+test('a body number JSON cannot hold is refused by name, never saved as another body', () => {
+  const refused = { code: 'SCENE_NOT_SAVABLE' };
+  assert.throws(
+    () => savedPhysics(new ObjectPhysics({ type: 'cloth', stretch: Infinity })),
+    refused,
+  );
+  const endless = new ObjectPhysics({ type: 'dynamic', damping: { linear: Infinity } });
+  assert.throws(() => savedPhysics(endless), refused);
+});

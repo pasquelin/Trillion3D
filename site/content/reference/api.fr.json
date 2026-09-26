@@ -7023,7 +7023,7 @@
       "mesh": "Rangs dans `geometries` et `materials`, la façon de lire les triangles, et le centre d’un sprite.",
       "light": "Le type d’une lumière, ses couleurs, ses nombres, sa visée et les coefficients de sonde.",
       "model": "Un modèle compilé, par l’adresse du manifeste d’où il a été chargé : jamais recopié dedans.",
-      "physics": "Le corps d’un maillage, tel que `mesh.physics` le déclare (`savedPhysics`)."
+      "physics": "Le corps d’un maillage, tel que `mesh.physics` le déclare."
     }
   },
   "SavedScene": {

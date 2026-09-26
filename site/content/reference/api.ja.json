@@ -7023,7 +7023,7 @@
       "mesh": "`geometries` と `materials` の中の番号、三角形の読み方、そしてスプライトの中心。",
       "light": "ライトの種類、色、数値、向き、プローブの係数。",
       "model": "コンパイル済みモデル。読み込んだマニフェストのアドレスで記録し、中身を埋め込むことはありません。",
-      "physics": "メッシュの物理ボディ。`mesh.physics` が宣言したとおりです（`savedPhysics`）。"
+      "physics": "メッシュの物理ボディ。`mesh.physics` が宣言したとおりです。"
     }
   },
   "SavedScene": {
