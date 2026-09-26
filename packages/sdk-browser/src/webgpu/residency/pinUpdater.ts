@@ -4,19 +4,28 @@ import type { createWebgpuDiagnostics } from '../pages/io/diagnostics.ts';
 import type { createWebgpuPageTracking } from '../row/pageTracking.ts';
 import { createDenseKeySet } from '../cut/denseKeys.ts';
 import type { WebgpuResidencySets } from './sets.ts';
-import { createLastUse } from './lastUse.ts';
+import { createLastUse } from '../../residency/lastUse.ts';
+import { DAG_READBACK_SLOTS } from '../../gpu/dag/layout.ts';
 type Cache = ReturnType<typeof createGpuPageCache>;
 type Trace = ReturnType<typeof createWebgpuDiagnostics>['traceDiagnostic'];
 type Tracking = ReturnType<typeof createWebgpuPageTracking>;
+
+/**
+ * Frames a page stays held once the image stopped using it. The drawn list reaches the cache
+ * through the readback slots, so the GPU may have drawn that many frames the cache has not read
+ * yet, and one more is being encoded: a page unused for this many frames is unused by every frame
+ * the GPU can still be drawing. The rule follows the frame pipeline, never a scene.
+ */
+export const LAST_USE_WINDOW = DAG_READBACK_SLOTS + 1;
 
 /**
  * Keeps the complete root cover and current cut pinned while admitting new detail.
  *
  * The kept set changed by a difference, so the pins follow that difference: the keys that joined
  * are pinned as soon as the cache holds their bytes, and `waiting` carries the ones still in flight
- * to the next image. The keys that left are unpinned by last use (`lastUse.ts`): once unused for
- * its window, oldest first, and never while a held page depends on them. Nothing walks the pinned
- * set per image.
+ * to the next image. The keys that left are unpinned by last use (`../../residency/lastUse.ts`):
+ * once unused for its window, oldest first, and never while a held page depends on them. Nothing
+ * walks the pinned set per image.
  */
 export function createWebgpuPinUpdater(options: {
   tracking: Tracking;
@@ -39,6 +48,7 @@ export function createWebgpuPinUpdater(options: {
     if (!tracking.pinned.has(key)) waiting.add(key);
   };
   const lastUse = createLastUse({
+    idleWindow: LAST_USE_WINDOW,
     keyOf: tracking.keyOf,
     parentsOf: options.parentsOf,
     kept: tracking.keep.has,
@@ -109,7 +119,7 @@ export function createWebgpuPinUpdater(options: {
     }
     // Released oldest first, each where it went when it went idle: the cache then reclaims the
     // released pages in their last-use order. What the image still misses beyond the unpinned
-    // slots is the pressure: the window gives way to it (`lastUse.ts`).
+    // slots is the pressure: the window gives way to it (`../../residency/lastUse.ts`).
     lastUse.release(frame, unpin, missing - cache.unpinnedSlots());
     // Kept keys are clusters; a deferred drop names the request that carries them. The question is
     // therefore asked request by request — a handful — and not by copying the kept set into two
