@@ -26,7 +26,7 @@ const pageSources = {
     read: async () => undefined,
     readBytes: async () => undefined,
     reserve: (bytes: () => number) => reserved.push(bytes()),
-    pageCache: ownCache,
+    textureLevels: ownCache.levels,
   },
   attachCap: 1,
   cacheCap: 1,
