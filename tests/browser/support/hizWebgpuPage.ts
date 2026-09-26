@@ -16,6 +16,10 @@ export interface HizArgs {
   shader: string;
   cases: HizCaseSample[];
   bindEntries: ReturnType<typeof hizBindEntries>;
+  /** Group 1 of `testHiz` (`HIZ_TEST_PAGES_ENTRIES`): the page table it reads each row's Hi-Z
+   *  slot from. One zeroed row: slot 0, a row the pyramid judges. */
+  pagesEntries: GPUBindGroupLayoutEntry[];
+  pageInfoBytes: number;
   stateWords: number;
   stTested: number;
   testedU32: number;
@@ -26,6 +30,8 @@ export async function executerHiz({
   shader,
   cases,
   bindEntries,
+  pagesEntries,
+  pageInfoBytes,
   stateWords,
   stTested,
   testedU32,
@@ -55,9 +61,10 @@ export async function executerHiz({
     .filter((message) => message.type === 'error')
     .map((message) => message.message);
   if (compilationErrors.length) return { adapter: adapterInfo, compilationErrors, errors };
-  const layout = device.createBindGroupLayout({ entries: bindEntries });
+  const layout = device.createBindGroupLayout({ entries: bindEntries }),
+    pagesLayout = device.createBindGroupLayout({ entries: pagesEntries });
   const pipeline = device.createComputePipeline({
-    layout: device.createPipelineLayout({ bindGroupLayouts: [layout] }),
+    layout: device.createPipelineLayout({ bindGroupLayouts: [layout, pagesLayout] }),
     compute: { module, entryPoint: 'testHiz' },
   });
   const texture = device.createTexture({
@@ -80,6 +87,11 @@ export async function executerHiz({
   const state = device.createBuffer({
     size: stateWords * 4,
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC,
+  });
+  const pages = device.createBuffer({ size: pageInfoBytes, usage: GPUBufferUsage.STORAGE });
+  const pagesGroup = device.createBindGroup({
+    layout: pagesLayout,
+    entries: [{ binding: 0, resource: { buffer: pages } }],
   });
   const readback = device.createBuffer({
     size: 4,
@@ -123,6 +135,7 @@ export async function executerHiz({
     const pass = encoder.beginComputePass();
     pass.setPipeline(pipeline);
     pass.setBindGroup(0, group, [0]);
+    pass.setBindGroup(1, pagesGroup);
     pass.dispatchWorkgroups(1);
     pass.end();
     encoder.copyBufferToBuffer(flags, 0, readback, 0, 4);
@@ -139,6 +152,7 @@ export async function executerHiz({
   bounds.destroy();
   flags.destroy();
   state.destroy();
+  pages.destroy();
   readback.destroy();
   device.destroy();
   return { adapter: adapterInfo, results, errors };
