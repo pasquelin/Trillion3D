@@ -15,11 +15,16 @@ const pages = await Promise.all(
 
 test('a readout is declared after the controls panel it joins', () => {
   for (const [file, html] of pages) {
-    const readout = html.search(/\breadout\(/);
+    const readout = html.search(/\b(?:readout|physicsReadouts)\(/);
     if (readout < 0) continue;
     const panel = html.search(/\bcontrols\(/);
     assert.ok(panel >= 0 && panel < readout, `${file}: readout before controls`);
   }
+});
+
+test('no example prints a physics line by hand; each asks the kit for it', () => {
+  for (const [file, html] of pages)
+    assert.doesNotMatch(html, /physics\.stats|readout\('(?:bodies|awake|step|page)'\)/, file);
 });
 
 test("the proof hears the engine's own failures on the console", async () => {
@@ -42,8 +47,9 @@ test('a sparse example is declared by name and backend under the tenth; every ot
     assert.ok(ids.has(id), id);
     assert.ok(share > 0 && share < 0.1, id);
   }
-  // The shares declared under those measured on 2026-09-24, and the three examples a refused
-  // WebGL2 session left blank, which are never declared: they keep the tenth on both backends.
+  // The shares declared under those measured on 2026-09-24, and the examples never declared: the
+  // three a refused WebGL2 session left blank, and save-the-scene, whose ground fills its frame
+  // (#717). They keep the tenth on both backends.
   const named = [
     'a-staircase-from-one-step',
     'a-cloud-of-points',
@@ -57,7 +63,7 @@ test('a sparse example is declared by name and backend under the tenth; every ot
   // A new declaration is asserted here too, with its literal share.
   for (const id of Object.keys(SPARSE)) assert.ok(named.includes(id), id);
   const least = (gpu: boolean) => named.map((id) => leastDrawn(id, gpu));
-  assert.deepEqual(least(false), [0.04, 0.04, 0.06, 0.1, 0.1, 0.1, 0.1]);
+  assert.deepEqual(least(false), [0.04, 0.04, 0.1, 0.1, 0.1, 0.1, 0.1]);
   assert.deepEqual(least(true), [0.04, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1]);
 });
 

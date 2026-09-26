@@ -90,6 +90,7 @@ export async function readScene(scene: Target, json: unknown, camera?: Camera) {
         if (center) sprite.center.set(center[0], center[1]);
         o = sprite;
       } else o = new Mesh(geometries[geometry], matter, primitive as Primitive);
+      if (saved.physics) (o as Mesh).physics = saved.physics;
     } else if (saved.light) {
       const { kind, color, groundColor, values, target, sh } = saved.light;
       o = new Light(kind, { ...values, color, groundColor, target, sh: sh ?? undefined });

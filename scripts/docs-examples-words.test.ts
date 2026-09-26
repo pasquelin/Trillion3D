@@ -30,6 +30,8 @@ function asked(html: string): Map<string, string | undefined> {
       const [first] = node.arguments;
       const call = node.expression.getText();
       if (call === 'readout' && text(first)) keys.set(`readouts.${text(first)}`, undefined);
+      if (call === 'physicsReadouts')
+        for (const key of strings(node.arguments[1])) keys.set(`readouts.${key}`, undefined);
       if (call === 'say' && text(first)) keys.set(`words.${text(first)}`, undefined);
       if (call === 'play') keys.set('game.title', undefined);
       if (call === 'controls' && first && ts.isObjectLiteralExpression(first))
