@@ -57,15 +57,11 @@ fn the_root_has_one_size_whatever_the_world_and_every_page_its_limit() {
         open_world(8),
     ];
     let size = |value: &Value| serde_json::to_vec(value).expect("json").len();
+    let root = size(&worlds[0].1["partition"]);
     for (options, tables, directory) in &worlds {
-        assert_eq!(
-            size(&tables["partition"]),
-            size(&worlds[0].1["partition"]),
-            "the root's bytes"
-        );
-        assert!(pages(directory)
-            .iter()
-            .all(|(bytes, _)| *bytes <= PAGE_BYTES));
+        assert_eq!(size(&tables["partition"]), root, "the root's bytes");
+        let largest = pages(directory).into_iter().map(|(bytes, _)| bytes).max();
+        assert!(largest <= Some(PAGE_BYTES), "{largest:?} bytes");
         let files = fs::read_dir(directory)
             .expect("folder")
             .map(|e| e.expect("entry").file_name());
@@ -74,11 +70,8 @@ fn the_root_has_one_size_whatever_the_world_and_every_page_its_limit() {
         fs::remove_dir_all(options.source.parent().expect("root")).expect("cleanup");
     }
     // Sixteen times the area at the same density: the whole tables keep their bytes.
-    assert_eq!(
-        size(&worlds[0].1),
-        size(&worlds[1].1),
-        "the core does not grow with the world"
-    );
+    let (small, large) = (size(&worlds[0].1), size(&worlds[1].1));
+    assert_eq!(small, large, "the core does not grow with the world");
 }
 
 /// The halving of `cells` in two down to single cells: the shape `split.rs` records.
@@ -97,10 +90,8 @@ fn index_pages_list_at_most_the_fan_out_and_give_every_record_back_in_order() {
     let bounds = vec![[0.0, 0.0, 0.0, 1.0, 1.0, 1.0]; records.len()];
     let root = write_pages(&halving(0..300), &records, &bounds, &directory, 2048).expect("pages");
     let written = pages(&directory);
-    assert!(
-        written.iter().any(|(_, page)| page["pages"].is_array()),
-        "index pages are written"
-    );
+    let index = written.iter().filter(|(_, page)| page["pages"].is_array());
+    assert!(index.count() > 0, "index pages are written");
     for (bytes, page) in &written {
         match page["pages"].as_array() {
             Some(slots) => assert!(slots.len() <= FAN_OUT),
@@ -116,15 +107,10 @@ fn index_pages_list_at_most_the_fan_out_and_give_every_record_back_in_order() {
 #[test]
 fn a_reused_folder_proves_its_cells_through_the_pages() {
     let (options, tables, directory) = compiled(grid(48, 4.0, 1.0), false);
-    assert_eq!(
-        compile_with_events(&options).1[0]["completed"],
-        1,
-        "reused whole"
-    );
-    let page = format!(
-        "scene-page-{}.json",
-        &tables["partition"]["pages"][0].as_str().expect("slot")[..64]
-    );
+    let (_, events) = compile_with_events(&options);
+    assert_eq!(events[0]["completed"], 1, "reused whole");
+    let slot = tables["partition"]["pages"][0].as_str().expect("slot");
+    let page = format!("scene-page-{}.json", &slot[..64]);
     let old = serde_json::to_vec(&json!({"version": 3})).expect("json");
     for (name, bytes, reason) in [
         ("scene-cell-0.json", &b"{}"[..], "scene-cell-0.json"),
@@ -137,11 +123,8 @@ fn a_reused_folder_proves_its_cells_through_the_pages() {
         assert!(second["reused"].is_null(), "{reason}: not reused");
         let announced = events[0]["reason"].as_str().expect("reason");
         assert!(announced.contains(reason), "{reason}: {announced}");
-        assert_eq!(
-            fs::read(directory.join(name)).expect("rebuilt"),
-            intact,
-            "{reason}"
-        );
+        let rebuilt = fs::read(directory.join(name)).expect("rebuilt");
+        assert_eq!(rebuilt, intact, "{reason}");
     }
     fs::remove_dir_all(options.source.parent().expect("root")).expect("cleanup");
 }
