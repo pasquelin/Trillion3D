@@ -14,6 +14,7 @@ const retryAfter = (response: Response) => {
 const pause = (ms: number, signal?: AbortSignal) =>
   new Promise<void>((resolve, reject) => {
     const stop = () => (clearTimeout(timer), reject(signal?.reason));
+    if (signal?.aborted) return reject(signal.reason);
     const timer = setTimeout(() => resolve(signal?.removeEventListener('abort', stop)), ms);
     signal?.addEventListener('abort', stop, { once: true });
   });
