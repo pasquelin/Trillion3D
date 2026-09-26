@@ -6,6 +6,7 @@ import { evaluateDagSelectionKernel, packDagSelection } from '../../gpu/dag/sele
 import { kernelUniforms } from '../../gpu/dag/selectionHelpers.fixture.ts';
 import { blendFixture, camera } from './blend.fixture.ts';
 import { cameraMoteur } from '../../camera/camera.fixture.ts';
+import { createHeldResidency } from '../cut/held.ts';
 
 test('clustered blend pages retain their source and only select the intersecting part of a mesh', () => {
   const fixture = blendFixture();
@@ -24,7 +25,7 @@ test('clustered blend pages retain their source and only select the intersecting
   const selected = selectVisiblePages(roots, cameraMoteur(camera()), {
     pixelError: 100,
     viewport: [960, 540],
-    holdResident: true,
+    held: createHeldResidency(),
   });
   assert.deepEqual(
     selected.shown.map((page) => page.url),
@@ -50,7 +51,9 @@ test('clustered blend never reports missing exact coverage as resident', () => {
     fixture.associations,
     { allowMissing: true },
   );
-  const selected = selectVisiblePages(roots, cameraMoteur(camera()), { holdResident: true });
+  const selected = selectVisiblePages(roots, cameraMoteur(camera()), {
+    held: createHeldResidency(),
+  });
   assert.equal(selected.complete, false);
   assert.deepEqual(
     selected.wanted.map((page) => page.url),
