@@ -85,7 +85,9 @@ view-projection the GPU consumes, the Hi-Z bounds and the CPU visibility raster 
 adapter: a live `resize(slots)` that keeps what fits, pins, serialized loads, a reusable staging
 buffer and eviction without a device-wide queue fence. `dispose()` aborts in-flight reads and waits
 for submitted work. It reports allocation accounting, bytes read and uploaded and evictions; it does
-not measure physical VRAM.
+not measure physical VRAM. `httpPageSource(baseUrl)` reads its pages by key over HTTP, one request
+per read: the cache asks again as [the SDK guide](SDK.md#files-over-http) says, and its read
+diagnostics carry the `details.status` of the `RESOURCE_HTTP_ERROR` refusing one.
 
 `webgpuPagesBackend` (`webgpu-page-raster`) consumes that cache. For opaque pages, a compute pass
 selects the camera's drawable resident cut — frustum, `lodScore` and conservative backface cones —

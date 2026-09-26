@@ -1,4 +1,5 @@
 import type { PageSource } from '../../../../sdk-core/src/index.ts';
+import { refusedStatus } from '../../cluster/pages.ts';
 import type { BackendDiagnostic } from '../../backend/types.ts';
 
 export function createGpuPageReader(
@@ -17,10 +18,6 @@ export function createGpuPageReader(
     }
   };
   const now = () => (report ? performance.now() : 0);
-  const statusOf = (error: unknown) => {
-    const match = String(error).match(/PAGE_HTTP_(\d{3})/);
-    return match ? Number(match[1]) : null;
-  };
   const readBytes = (key: string, combined: AbortSignal, attempt: number) => {
     const started = now();
     emit('gpu-page-read-start', 'GPU page read started', () => ({
@@ -67,7 +64,7 @@ export function createGpuPageReader(
           version: 1,
           key,
           attempt,
-          status: statusOf(error),
+          status: refusedStatus(error),
           error: String(error),
           durationMs: report ? performance.now() - started : null,
         }));
@@ -75,7 +72,7 @@ export function createGpuPageReader(
           version: 1,
           key,
           attempt,
-          status: statusOf(error),
+          status: refusedStatus(error),
           error: String(error),
           durationMs: report ? performance.now() - started : null,
         }));
@@ -99,5 +96,5 @@ export function createGpuPageReader(
     void job.catch(() => {});
     return job;
   };
-  return { report, emit, now, statusOf, readBytes, fetchBytes };
+  return { report, emit, now, readBytes, fetchBytes };
 }
