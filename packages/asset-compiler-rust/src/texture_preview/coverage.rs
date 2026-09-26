@@ -54,13 +54,13 @@ pub(super) fn keeps(alpha: u8, (cutoff, factor): Cut) -> bool {
 }
 
 /// A masked material's cut at `cutoff`, under its `baseColorFactor` alpha (1
-/// when absent).
+/// when absent), clamped to [0, 1] as the engine's (`surfaceOpacity`).
 pub(super) fn material_cut(material: &serde_json::Value, cutoff: f32) -> Cut {
     let factor = material
         .pointer("/pbrMetallicRoughness/baseColorFactor/3")
         .and_then(serde_json::Value::as_f64)
         .unwrap_or(1.0) as f32;
-    (cutoff, factor)
+    (cutoff, factor.clamp(0.0, 1.0))
 }
 
 /// What level 0 covers at the chain's cutoff: the share every level keeps.
