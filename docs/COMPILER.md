@@ -614,7 +614,7 @@ key, so a cache cooked by another Jolt is another key, never reused. The algorit
 - **Declared bodies** (`declared.rs`). A drawn node whose `KHR_physics_rigid_bodies` declares a
   `motion` (dynamic, or kinematic with `isKinematic`) is also cooked into `physics.json`'s `bodies`:
   its motion as declared, its matter, its pose, and its shape — the `KHR_implicit_shapes` shape its
-  collider names, as the runtime builds it; else the convex hull of the mesh its collider names
+  collider names, as declared; else the convex hull of the mesh its collider names
   (`convexHull`) or a convex decomposition of it, its own mesh without a collider (`decompose.rs`,
   after Mamou & Ghorbel's hierarchical approximate convex decomposition: a part is cut across its
   longest axis until its concavity is within the mesh's mean edge length, 64 hulls at most). Native
