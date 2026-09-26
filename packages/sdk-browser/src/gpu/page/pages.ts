@@ -5,7 +5,7 @@ import { createGpuPageLoader } from './load.ts';
 import { createGpuPagePins } from './pins.ts';
 import { createPageBuffer, pageBufferBytes, resizeGpuPages } from './resize.ts';
 import { evictResident } from './commit.ts';
-import { checked } from '../../cluster/pages.ts';
+import { checked, ONE_REQUEST } from '../../cluster/pages.ts';
 import type { ResidentPage, GpuPageContext } from './types.ts';
 export type { ResidentPage } from './types.ts';
 /** WebGPU allocation/queue boundary. Page bytes and policy are supplied by the host. Queue writes are ordered; dispose waits for in-flight submits before destroy. */
@@ -185,7 +185,7 @@ export function createGpuPageCache(
 export function httpPageSource(baseUrl: string): PageSource {
   return {
     async read(key, signal) {
-      const response = await checked(new URL(key, baseUrl).href, signal, { attempts: 1 });
+      const response = await checked(new URL(key, baseUrl).href, signal, ONE_REQUEST);
       return new Uint8Array(await response.arrayBuffer());
     },
   };

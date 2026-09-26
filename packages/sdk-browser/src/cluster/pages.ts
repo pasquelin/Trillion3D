@@ -3,27 +3,30 @@ import { verifyPageBytes } from '../page/decode/host.ts';
 /** Whether a failure of HTTP `status` a second request may not meet: the network (`null`), or a
  *  server error (5xx). A refusal another request would meet again — a 4xx — is not. */
 export const retriable = (status: number | null) => status === null || status >= 500;
-const transient = (response: Response | undefined) => !response || retriable(response.status);
+/** The HTTP status `error` was refused with (`checked`), `null` for none: the network, or an
+ *  error of another kind. */
+export const refusedStatus = (error: unknown) => {
+  const status = error instanceof EngineError ? error.details.status : null;
+  return typeof status === 'number' ? status : null;
+};
 /** A refused answer's body let go at once, not left to hold its connection until collected. */
 const letGo = (response: Response) => void response.body?.cancel().catch(() => {});
+/** What an optional file's absence answers: a 404, or the 403 of a store that hides what it lacks. */
+const ABSENT = new Set([403, 404]);
 
-/**
- * How `checked` reads: `attempts`, the most requests it makes; `optional`, a file that may be
- * absent, whose 404 answers `null`; `credentials`, those the request carries.
- */
-export type FetchPolicy = {
-  attempts?: number;
-  optional?: boolean;
-  credentials?: RequestCredentials;
-};
+/** How `checked` reads: `attempts`, the most requests it makes; `optional`, a file that may be
+ *  absent, whose 404 or 403 answers `null`. */
+export type FetchPolicy = { attempts?: number; optional?: boolean };
+/** The policy of a caller that retries on its own terms — the page streamer, the GPU page cache,
+ *  the physics tiles: one request. */
+export const ONE_REQUEST = { attempts: 1 } as const;
 
 /**
  * Reads `url`, asking once more when the first request fails on the network or on a server error
  * (a 5xx such as a busy server's 503); a refusal another request would meet again — a 404, a 403 —
  * is not asked twice. What still fails is refused by an `EngineError` naming the address, but for
- * the 404 of an `optional` file, which answers `null`. An aborted `signal` rejects with its reason
- * and asks nothing more. A caller that retries on its own terms — the page streamer, the GPU page
- * cache — asks for one `attempts`.
+ * the absence of an `optional` file (`ABSENT`), which answers `null`. An aborted `signal` rejects
+ * with its reason and asks nothing more. The SDK guide states this policy (docs/SDK.md).
  */
 export function checked(
   url: string,
@@ -38,18 +41,18 @@ export function checked(
 export async function checked(
   url: string,
   signal?: AbortSignal,
-  { attempts = 2, optional = false, credentials }: FetchPolicy = {},
+  { attempts = 2, optional = false }: FetchPolicy = {},
 ) {
   let response: Response | undefined, cause: unknown;
   for (let attempt = 1; attempt <= attempts; attempt++) {
     signal?.throwIfAborted();
     try {
-      response = await fetch(url, { signal, credentials });
+      response = await fetch(url, { signal });
     } catch (error) {
       signal?.throwIfAborted();
       [response, cause] = [undefined, error];
     }
-    if (!transient(response)) break;
+    if (response && !retriable(response.status)) break;
     if (attempt < attempts && response) letGo(response);
   }
   // A network failure is the same refusal as an HTTP one, with no status to give.
@@ -65,11 +68,12 @@ export async function checked(
     );
   if (response.ok) return response;
   letGo(response);
-  if (optional && response.status === 404) return null;
+  if (optional && ABSENT.has(response.status)) return null;
+  const contentType = response.headers.get('content-type');
   throw new EngineError(
     'RESOURCE_HTTP_ERROR',
-    `${url}: HTTP ${response.status}, type ${response.headers.get('content-type') ?? 'absent'}`,
-    { url, status: response.status, contentType: response.headers.get('content-type') },
+    `${url}: HTTP ${response.status}, type ${contentType ?? 'absent'}`,
+    { url, status: response.status, contentType },
   );
 }
 /** A cache object that is not what its manifest announced: its code and facts, whichever it is. */

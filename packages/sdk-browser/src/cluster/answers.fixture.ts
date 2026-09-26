@@ -1,22 +1,32 @@
 import type { TestContext } from 'node:test';
 
-/** An answer `answering` gives: a status, or `'hang'` — no answer until the request aborts. */
-export type Answer = number | 'hang';
+/** An answer `answering` gives: a status, `'network'` — a failed request —, or `'hang'` — no
+ *  answer until the request aborts. */
+export type Answer = number | 'network' | 'hang';
 
 /** One request `answering` heard: its address and its options. */
 type Asked = { url: string; init: RequestInit };
 
+/** A request held until `signal` aborts, already aborted or later: it then rejects with the
+ *  signal's reason, as `fetch` does. */
+export const untilAborted = (signal: AbortSignal | null | undefined) =>
+  new Promise<never>((_, reject) => {
+    const fail = () => reject(signal?.reason ?? new DOMException('Aborted', 'AbortError'));
+    if (signal?.aborted) fail();
+    else signal?.addEventListener('abort', fail, { once: true });
+  });
+
 /**
  * Stubs `fetch` for the test `t`: a request whose address ends in `name` gets the next of
- * `answers` (the last one again once they run out), its body `body` when the status is 200; a
- * `'hang'` rejects with the signal's reason once it aborts. Any other address answers `other`.
- * The requests to `name` are returned as they are asked.
+ * `answers` (the last one again once they run out) — on a 200, `body` of its address, a body or
+ * the whole answer. Any other address answers `other`. The requests to `name` are returned as
+ * they are asked.
  */
 export function answering(
   t: TestContext,
   name: string,
   answers: Answer[],
-  body: () => BodyInit = () => '{}',
+  body: (url: string) => BodyInit | Response = () => '{}',
   other: (url: string) => Response = () => new Response('missing', { status: 404 }),
 ) {
   const asked: Asked[] = [];
@@ -25,11 +35,11 @@ export function answering(
     if (!url.endsWith(name)) return other(url);
     asked.push({ url, init });
     const answer = answers[Math.min(asked.length, answers.length) - 1];
-    if (answer === 'hang')
-      return new Promise<Response>((_, reject) =>
-        init.signal?.addEventListener('abort', () => reject(init.signal!.reason)),
-      );
-    return new Response(answer === 200 ? body() : 'refused', { status: answer });
+    if (answer === 'hang') return untilAborted(init.signal);
+    if (answer === 'network') throw new TypeError('Failed to fetch');
+    if (answer !== 200) return new Response('refused', { status: answer });
+    const sent = body(url);
+    return sent instanceof Response ? sent : new Response(sent);
   });
   return asked;
 }

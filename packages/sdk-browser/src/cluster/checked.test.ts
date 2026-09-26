@@ -1,90 +1,76 @@
 import test, { type TestContext } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { EngineError } from '../../../sdk-core/src/index.ts';
 import { loadClusterManifest } from '../scene/manifestLoad.ts';
 import { checked } from './pages.ts';
-import { answering, refusedWith } from './answers.fixture.ts';
+import { answering, refusedWith, type Answer } from './answers.fixture.ts';
 
 /** The example cache that drew nothing in the browser: its own files, served from the site. */
 const site = resolve(import.meta.dirname, '../../../../site');
 const MANIFEST =
   'http://localhost/assets/examples/detail-by-pixel-error/cache/native/full/manifest.json';
+const LIGHTS = 'https://cache.test/model/lights.json';
 
-/** Serves the site's files; the first `failures` requests of the metadata answer `failure`. */
-function serve(t: TestContext, failures: number, failure: () => Response | Promise<Response>) {
-  const asked: string[] = [];
+/** A site file, as the server sends it. */
+const siteFile = (url: string) =>
+  new Response(readFileSync(site + new URL(url).pathname), {
+    headers: { 'Content-Type': 'application/json' },
+  });
+
+/** Serves the site's files, the cache's metadata (`clusters.json`) answering `answers`; the
+ *  requests of the metadata. */
+function serve(t: TestContext, answers: Answer[]) {
   // The pointer's target is resolved against the page, as a browser does it.
   Object.defineProperty(globalThis, 'location', { configurable: true, value: { href: MANIFEST } });
   t.after(() => Reflect.deleteProperty(globalThis, 'location'));
-  t.mock.method(globalThis, 'fetch', async (input: RequestInfo | URL) => {
-    const url = new URL(String(input));
-    asked.push(url.pathname.split('/').pop()!);
-    if (url.pathname.endsWith('clusters.json') && failures-- > 0) return failure();
-    const body = await readFile(site + url.pathname);
-    return new Response(body, { headers: { 'Content-Type': 'application/json' } });
-  });
-  return asked;
+  return answering(t, 'clusters.json', answers, siteFile, siteFile);
 }
 
 test('a cache resource the server refuses once (503) is asked again and the cache opens', async (t) => {
-  const asked = serve(t, 1, () => new Response('busy', { status: 503 }));
+  const asked = serve(t, [503, 200]);
   const { metadata } = await loadClusterManifest(MANIFEST, 'full');
   assert.equal(metadata.sourceTriangles, 819612);
-  assert.deepEqual(asked, ['manifest.json', 'clusters.json', 'clusters.json', 'clusters.bin']);
-});
-
-test('a resource still failing after its second request is refused by its address', async (t) => {
-  const refused = (code: string) => (error: unknown) =>
-    error instanceof EngineError && error.code === code && /clusters\.json/.test(error.message);
-  let asked = serve(t, 2, () => new Response('busy', { status: 503 }));
-  await assert.rejects(loadClusterManifest(MANIFEST, 'full'), refused('RESOURCE_HTTP_ERROR'));
-  assert.equal(asked.filter((name) => name === 'clusters.json').length, 2);
-  t.mock.restoreAll();
-  serve(t, 2, () => Promise.reject(new TypeError('Failed to fetch')));
-  await assert.rejects(loadClusterManifest(MANIFEST, 'full'), refused('RESOURCE_HTTP_ERROR'));
-  // A refusal a second request would meet again is not asked twice.
-  t.mock.restoreAll();
-  asked = serve(t, 2, () => new Response('missing', { status: 404 }));
-  await assert.rejects(loadClusterManifest(MANIFEST, 'full'), refused('RESOURCE_HTTP_ERROR'));
-  assert.equal(asked.filter((name) => name === 'clusters.json').length, 1);
-});
-
-const URL_ = 'https://cache.test/model/lights.json';
-
-test('an optional file the server does not hold (404) answers null, asked once', async (t) => {
-  const asked = answering(t, 'lights.json', [404]);
-  assert.equal(await checked(URL_, undefined, { optional: true }), null);
-  assert.equal(asked.length, 1);
-});
-
-test('an optional file refused otherwise (403) is refused by its address, asked once', async (t) => {
-  const asked = answering(t, 'lights.json', [403]);
-  await assert.rejects(
-    checked(URL_, undefined, { optional: true }),
-    refusedWith(403, 'lights.json'),
-  );
-  assert.equal(asked.length, 1);
-});
-
-test('an optional file a busy server refuses once (503) is asked again and answers', async (t) => {
-  const asked = answering(t, 'lights.json', [503, 200]);
-  const response = await checked(URL_, undefined, { optional: true });
-  assert.equal(response?.status, 200);
   assert.equal(asked.length, 2);
 });
 
-test('the credentials asked are the ones the request carries', async (t) => {
-  const asked = answering(t, 'lights.json', [200]);
-  await checked(URL_, undefined, { credentials: 'same-origin' });
-  assert.equal(asked[0].init.credentials, 'same-origin');
+test('a resource still failing after its second request is refused by its address', async (t) => {
+  let asked = serve(t, [503]);
+  const loaded = () => loadClusterManifest(MANIFEST, 'full');
+  await assert.rejects(loaded(), refusedWith(503, 'clusters.json'));
+  assert.equal(asked.length, 2);
+  t.mock.restoreAll();
+  serve(t, ['network']);
+  await assert.rejects(loaded(), refusedWith(null, 'clusters.json'));
+  // A refusal a second request would meet again is not asked twice.
+  for (const status of [404, 403]) {
+    t.mock.restoreAll();
+    asked = serve(t, [status]);
+    await assert.rejects(loaded(), refusedWith(status, 'clusters.json'));
+    assert.equal(asked.length, 1);
+  }
+});
+
+test('an optional file the server lacks (404) or hides (403) answers null, asked once', async (t) => {
+  for (const status of [404, 403]) {
+    t.mock.restoreAll();
+    const asked = answering(t, 'lights.json', [status]);
+    assert.equal(await checked(LIGHTS, undefined, { optional: true }), null);
+    assert.equal(asked.length, 1);
+  }
+});
+
+test('an optional file refused otherwise (401) is refused by its address, asked once', async (t) => {
+  const asked = answering(t, 'lights.json', [401]);
+  const read = checked(LIGHTS, undefined, { optional: true });
+  await assert.rejects(read, refusedWith(401, 'lights.json'));
+  assert.equal(asked.length, 1);
 });
 
 test('an aborted read rejects with the reason and is not asked again', async (t) => {
   const asked = answering(t, 'lights.json', ['hang']);
   const abort = new AbortController();
-  const read = checked(URL_, abort.signal);
+  const read = checked(LIGHTS, abort.signal);
   abort.abort(new Error('left'));
   await assert.rejects(read, /left/);
   assert.equal(asked.length, 1);

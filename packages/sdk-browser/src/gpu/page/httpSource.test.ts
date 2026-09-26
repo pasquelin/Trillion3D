@@ -6,14 +6,13 @@ import { createGpuPageCache, httpPageSource } from './pages.ts';
 
 const BASE = 'https://cache.test/model/pages/';
 
-test('a page the server does not hold (404) is refused by its address, asked once', async (t) => {
+test('a page the server does not hold (404) is refused by its address, the cache asking it once', async (t) => {
   const asked = answering(t, 'p0.bin', [404]);
-  await assert.rejects(httpPageSource(BASE).read('p0.bin'), refusedWith(404, 'p0.bin'));
   const { device } = fakeDevice({ limits: { maxBufferSize: 1024 } });
   const cache = createGpuPageCache(device, httpPageSource(BASE), { pageBytes: 8, slots: 1 });
-  // Nor does the cache ask it again: another request would meet the same refusal.
+  // Another request would meet the same refusal.
   await assert.rejects(cache.load('p0.bin'), refusedWith(404, 'p0.bin'));
-  assert.equal(asked.length, 2);
+  assert.equal(asked.length, 1);
   await cache.dispose();
 });
 
@@ -34,13 +33,4 @@ test('a page read a busy server refuses once (503) is asked again by the cache, 
     phases.some((event) => event.phase === 'gpu-page-attempt-end' && event.context.status === 503),
   );
   await cache.dispose();
-});
-
-test('an aborted page read rejects and is not asked again', async (t) => {
-  const asked = answering(t, 'p0.bin', ['hang']);
-  const abort = new AbortController();
-  const read = httpPageSource(BASE).read('p0.bin', abort.signal);
-  abort.abort(new Error('evicted'));
-  await assert.rejects(read, /evicted/);
-  assert.equal(asked.length, 1);
 });

@@ -1,10 +1,10 @@
 import type { GpuPageContext, ResidentPage } from './types.ts';
 import { commitGpuPage } from './commit.ts';
-import { retriable } from '../../cluster/pages.ts';
+import { refusedStatus, retriable } from '../../cluster/pages.ts';
 
 export function createGpuPageLoader(context: GpuPageContext) {
   const { abort, resident, fetches, state, reader, check, pageBytes, pins } = context;
-  const { report, emit, now, statusOf, readBytes, fetchBytes } = reader;
+  const { report, emit, now, readBytes, fetchBytes } = reader;
   return function load(key: string, signal?: AbortSignal): Promise<ResidentPage> {
     const combined = signal ? AbortSignal.any([signal, abort.signal]) : abort.signal;
     const abortListener =
@@ -57,7 +57,7 @@ export function createGpuPageLoader(context: GpuPageContext) {
           bytes = await (fetched ?? fetchBytes(key, combined));
         } catch (err) {
           // A refusal another request would meet again (a 4xx) is not asked twice (`checked`).
-          if (!combined.aborted && !state.disposed && retriable(statusOf(err))) {
+          if (!combined.aborted && !state.disposed && retriable(refusedStatus(err))) {
             emit('gpu-page-retry', 'New GPU read after failure', () => ({
               version: 1,
               key,
@@ -91,7 +91,7 @@ export function createGpuPageLoader(context: GpuPageContext) {
         emit('gpu-page-error', 'GPU load failed', () => ({
           version: 1,
           key,
-          status: statusOf(error),
+          status: refusedStatus(error),
           aborted: combined.aborted,
           error: String(error),
           resident: resident.size,

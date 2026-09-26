@@ -28,15 +28,16 @@ export function createCookedSoftBodies(
   invalidate: () => void,
   failed: (error: EngineError) => void,
 ) {
-  /** Each open model's opening: its soft bodies made, and those refused at another scale. */
-  type Opening = { made: CookedMade[]; refused: CookedSoftBody[] };
+  /** Each open model's opening: its soft bodies made, those refused at another scale, and the
+   *  signal its model's leaving aborts its reads by. */
+  type Opening = { made: CookedMade[]; refused: CookedSoftBody[]; signal: AbortSignal };
   const held = new Map<Model, Opening>();
   /** Each soft body's settings, fetched once: a body made again, its model opened again or back
    *  at its scale, restores from them, never waiting on the network. */
   const settings = new WeakMap<CookedSoftBody, Promise<Uint8Array>>();
-  function settingsOf(model: Model, soft: CookedSoftBody) {
+  function settingsOf(model: Model, soft: CookedSoftBody, signal: AbortSignal) {
     let bytes = settings.get(soft);
-    if (!bytes) settings.set(soft, (bytes = cookedBytes(model, soft.settings.url)));
+    if (!bytes) settings.set(soft, (bytes = cookedBytes(model, soft.settings.url, signal)));
     return bytes;
   }
   /** Lists `soft` refused in `opening`, and refuses it by name: at another scale than it was
@@ -46,7 +47,7 @@ export function createCookedSoftBodies(
     failed(rescaledSoft(`of node ${soft.node}`, soft.scale, { node: soft.node }));
   }
   async function add(model: Model, opening: Opening, soft: CookedSoftBody) {
-    const cooked = await settingsOf(model, soft);
+    const cooked = await settingsOf(model, soft, opening.signal);
     // Forgotten or opened again meanwhile: this opening's bodies are no longer wanted.
     if (held.get(model) !== opening) return;
     const { position, quaternion, scale } = tilePose({ model, instance: soft });
@@ -64,17 +65,20 @@ export function createCookedSoftBodies(
     writeSoftBody(writer, made.id, p, matter, pose, record, flags);
     invalidate();
   }
-  /** Restores `soft` in `opening`, a failure reported. */
+  /** Restores `soft` in `opening`, a failure reported but for a read its model let go of. */
   const start = (model: Model, opening: Opening, soft: CookedSoftBody) =>
-    void add(model, opening, soft).catch((error) => failed(error as EngineError));
+    void add(model, opening, soft).catch(
+      (error) => opening.signal.aborted || failed(error as EngineError),
+    );
   const forget = (model: Model) => {
     held.get(model)?.made.forEach(({ id }) => bodies.release(id & BODY_INDEX));
     held.delete(model);
   };
-  /** Makes the soft bodies `model` was cooked with, the last opening's out: none held twice. */
-  function open(model: Model, softBodies: readonly CookedSoftBody[] = []) {
+  /** Makes the soft bodies `model` was cooked with, read until `signal` aborts, the last
+   *  opening's out: none held twice. */
+  function open(model: Model, softBodies: readonly CookedSoftBody[], signal: AbortSignal) {
     forget(model);
-    const opening: Opening = { made: [], refused: [] };
+    const opening: Opening = { made: [], refused: [], signal };
     held.set(model, opening);
     for (const soft of softBodies) start(model, opening, soft);
   }

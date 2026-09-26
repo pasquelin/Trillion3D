@@ -29,15 +29,18 @@ export const cooked = (colliders: object[], instances: object[], softBodies: obj
   ...{ formatVersion: 2, jolt: JOLT_COMMIT, colliders, instances, softBodies },
 });
 
-/** Answers every fetch from now on: `physics.json` with `file`, any other file with `bytes`;
- *  the names of the files fetched. */
+/** The files of a compiled model: `physics.json` answered with `file`, any other with `bytes`. */
+export const modelFiles = (file: object, bytes: Uint8Array) => (url: string) =>
+  new Response(url.endsWith('physics.json') ? JSON.stringify(file) : bytes.slice());
+
+/** Answers every fetch from now on with `modelFiles`; the names of the files fetched. */
 export function stubFetch(file: object, bytes: Uint8Array) {
   const fetched: string[] = [];
+  const serve = modelFiles(file, bytes);
   globalThis.fetch = (async (url: string) => {
     fetched.push(url.split('/').pop()!);
-    const json = async () => JSON.parse(JSON.stringify(file));
-    return { ok: true, json, arrayBuffer: async () => bytes.slice().buffer };
-  }) as unknown as typeof fetch;
+    return serve(url);
+  }) as typeof fetch;
   return fetched;
 }
 
