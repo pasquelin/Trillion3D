@@ -880,7 +880,7 @@
   },
   "EffectChain": {
     "summary": "`world.effects`: các pass có thứ tự được vẽ lên ảnh sau khử răng cưa theo thời gian và trước khi ảnh tới canvas.",
-    "description": "Các pass trước tone mapping đọc độ rọi tuyến tính, theo thứ tự được thêm vào; các pass sau đọc ảnh hiển thị, theo thứ tự của chúng. Một chuỗi rỗng không tốn gì: không pass, không bản sao, không đích.",
+    "description": "Các pass trước tone mapping đọc độ rọi tuyến tính, theo thứ tự được thêm vào; các pass sau đọc ảnh hiển thị, theo thứ tự của chúng. Một chuỗi rỗng không tốn gì: không pass, không bản sao, không đích. Trên WebGL2, một khung hình vẽ bề mặt trong suốt hòa trộn `multiply` hoặc `subtractive` được vẽ trọn vẹn không có chuỗi, và kênh chẩn đoán của thế giới báo `effects-refused-blending` một lần; WebGPU vẽ cả hai.",
     "members": {
       "revision": "Đếm các thay đổi: ảnh được vẽ ở một phiên bản khác là đã cũ.",
       "passes": "Các pass, theo thứ tự chúng chạy.",

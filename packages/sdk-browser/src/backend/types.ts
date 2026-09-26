@@ -1,5 +1,5 @@
 import type { HostDiagnosticFactory, HostScene, HostTexture } from '../host/resources.ts';
-import type { HostCamera, HostDrawCamera } from '../camera/world.ts';
+import type { HostCamera } from '../camera/world.ts';
 import type { HostDrawOutput } from '../webgl/core/renderTarget.ts';
 import type {
   BackendCapabilities,
@@ -15,10 +15,11 @@ import type { CpuStepSummary } from '../stage/cpuProfile.ts';
 import type { BackendDiagnostic, DiagnosticDetail } from '../diagnostic/types.ts';
 import type { PlacementRows } from '../placement/rows.ts';
 import type { BackendSceneUpdates } from '../placement/backendSceneUpdates.ts';
+import type { BackendHostDraw } from './hostDraw.ts';
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
 export type { BackendCapabilities, BackendDiagnostic, DiagnosticDetail, HostDrawOutput };
 type ViewSize = { width: number; height: number };
-export interface RenderBackend extends BackendSceneUpdates {
+export interface RenderBackend extends BackendSceneUpdates, BackendHostDraw {
   id: string;
   capabilities: BackendCapabilities;
   setDiagnostic?(mode: DiagnosticMode): void;
@@ -45,10 +46,6 @@ export interface RenderBackend extends BackendSceneUpdates {
   signal?: AbortSignal; // Aborted by its dispose or its session's: `prepare` then fails as cancelled.
   prepare(): Promise<void>;
   render(camera: HostCamera): void;
-  /** Draws the engine's whole image — paged clusters, diagnostic pages, scene copies, or the
-   *  scene a witness holds — into the framebuffer the host has bound and cleared, `output`
-   *  naming it and its display chain. Absent from an engine that presents its own surface. */
-  drawHostGeometry?(camera: HostDrawCamera, output: HostDrawOutput): void;
   readonly overBudget: boolean;
   /** True when the last rendered frame was held: nothing was reselected or rebuilt, and the
    *  attached scene IS this frame. Read per frame; absent from an engine that holds nothing. */
