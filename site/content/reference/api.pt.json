@@ -4081,7 +4081,7 @@
     "summary": "Pede um novo quadro depois de uma mudança que o mundo não conseguiu ver."
   },
   "world.render": {
-    "summary": "Desenha um quadro agora, seja quem for que conduz o laço."
+    "summary": "Desenha um quadro agora, seja quem for que conduz o laço: clipes e física avançam com ele."
   },
   "world.resize": {
     "summary": "Diz ao mundo que o canvas mudou de tamanho; se não definido, ele lê o tamanho próprio do canvas.",
@@ -6945,7 +6945,7 @@
   },
   "world.beforeFrame": {
     "summary": "Roda uma função antes de cada quadro desenhado, com `{ delta, time }`; devolve seu removedor.",
-    "description": "Um quadro do laço do mundo roda: o controlador avança a câmera (a menos que `controls.autoUpdate` seja falso), clipes avançam, esses hooks na ordem em que foram adicionados, a cena é escrita e desenhada, depois os hooks de `onFrame`. O que um hook posiciona — um corpo na câmera, um cockpit — é desenhado neste mesmo quadro, nunca um atrasado. Um `render()` conduzido pelo host também os roda, mas não avança nenhum controlador. Um hook que chama `invalidate()` mantém os quadros vindo.",
+    "description": "Um quadro roda assim: o controlador da câmera (a menos que `controls.autoUpdate` seja falso ou que o host conduza, `render()`), os clipes, a física, esses hooks na sua ordem, o desenho, depois os hooks de `onFrame`. O que um hook posiciona — um corpo na câmera, um cockpit — é desenhado neste mesmo quadro, nunca um atrasado. Um hook que chama `invalidate()` mantém os quadros vindo.",
     "returns": "Uma função que interrompe o hook.",
     "parameters": {
       "hook": "A função a rodar; ela recebe os segundos recém-integrados e o tempo do mundo."

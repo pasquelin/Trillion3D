@@ -6615,7 +6615,7 @@
   },
   "world.beforeFrame": {
     "summary": "Führt eine Funktion vor jedem gezeichneten Bild aus, mit `{ delta, time }`; gibt zurück, was ihn stoppt.",
-    "description": "Ein Bild der Schleife der Welt läuft so ab: der Controller lässt die Kamera voranschreiten (außer `controls.autoUpdate` ist false), Clips schreiten voran, diese Hooks in der Reihenfolge, in der sie hinzugefügt wurden, die Szene wird geschrieben und gezeichnet, dann die `onFrame`-Hooks. Was ein Hook platziert — ein Körper auf der Kamera, ein Cockpit — wird in genau diesem Bild gezeichnet, nie ein Bild zu spät. Ein von einem Host geführtes `render()` führt sie auch aus, lässt aber keinen Controller voranschreiten. Ein Hook, der `invalidate()` aufruft, lässt weitere Bilder kommen.",
+    "description": "Ein Bild läuft so ab: der Controller der Kamera (außer `controls.autoUpdate` ist false oder der Host führt, `render()`), die Clips, die Physik, diese Hooks in ihrer Reihenfolge, das Zeichnen, dann die `onFrame`-Hooks. Was ein Hook platziert — ein Körper auf der Kamera, ein Cockpit — wird in genau diesem Bild gezeichnet, nie ein Bild zu spät. Ein Hook, der `invalidate()` aufruft, lässt weitere Bilder kommen.",
     "parameters": {
       "hook": "Die auszuführende Funktion; sie erhält die gerade integrierten Sekunden und die Zeit der Welt."
     },
@@ -6632,7 +6632,7 @@
     "summary": "Fordert ein neues Bild an, nach einer Änderung, die die Welt nicht sehen konnte."
   },
   "world.render": {
-    "summary": "Zeichnet sofort ein Bild, unabhängig davon, wer die Schleife beherrscht."
+    "summary": "Zeichnet sofort ein Bild, unabhängig davon, wer die Schleife beherrscht: Clips und Physik schreiten mit ihm voran."
   },
   "world.resize": {
     "summary": "Sagt der Welt, dass das Canvas seine Größe geändert hat; ohne Wert liest sie die Größe des Canvas.",
