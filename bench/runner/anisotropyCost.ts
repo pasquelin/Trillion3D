@@ -7,7 +7,6 @@
 //   node bench/runner/anisotropyCost.ts [--anisotropy 1,16] [--images 240]
 //        [--width 1920] [--height 1080] [--visible]
 import assert from 'node:assert/strict';
-import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { parseArgs } from './options.ts';
 import { withRepoPage } from '../../tests/kit/server/repoPage.ts';
@@ -37,10 +36,6 @@ export function anisotropyOptions(argv: string[]) {
 async function main() {
   const ROOT = resolve(import.meta.dirname, '../..');
   const { anisotropies, size, frames, headless } = anisotropyOptions(process.argv.slice(2));
-  assert.ok(
-    existsSync(resolve(ROOT, 'dist/sdk-browser/src/measurement/measurement.js')),
-    'dist missing: run `pnpm run build` before this fixture',
-  );
   const result = await withRepoPage(
     ROOT,
     headless,

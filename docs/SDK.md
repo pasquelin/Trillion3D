@@ -137,10 +137,12 @@ Every file of a model the engine reads over HTTP — the manifest, its tables an
 lights, pages, cooked physics — goes through one loader. A failure that may pass — the network, a
 timeout (408), a rate limit (429), a server error (5xx) — is asked again once, after the wait its
 `Retry-After` asks (seconds or an HTTP date), or by the reader's own retry, without that wait: the
-page streamer's three attempts, the GPU page cache's two, a physics tile's next update. Another 4xx is
-never asked twice, and an aborted load asks nothing more and rejects with its reason. What still fails
-is `RESOURCE_HTTP_ERROR`, the address in its message and `details.url`, the status in
-`details.status` (`null` for the network). A file a cache may lack — `lights.json` and
+page streamer's three attempts, the GPU page cache's two, a physics tile's next update. That wait
+is ten seconds at most: only a whole-file read waits, while a user watches the model load, some
+without an abort signal, and past ten seconds a named failure serves them better than an open wait.
+Another 4xx is never asked twice, and an aborted load asks nothing more and rejects with its
+reason. What still fails is `RESOURCE_HTTP_ERROR`, the address in its message and `details.url`,
+the status in `details.status` (`null` for the network). A file a cache may lack — `lights.json` and
 `physics.json`, of a model compiled before them — is absent on a 404, or on the 403 of a store that
 hides what it does not hold. A page read (`httpPageSource`) raises `RESOURCE_HTTP_ERROR` where it
 raised `Error('PAGE_HTTP_<status>')`, and a cooked tile or a soft body's settings where they raised
