@@ -2090,7 +2090,7 @@
       "quaternion": "Como o nó está girado, como um quatérnio.",
       "scale": "Como o nó está esticado em cada eixo.",
       "up": "Qual direção é para cima, para `lookAt`.",
-      "castShadow": "Se o nó projeta sombras.",
+      "castShadow": "Se o nó projeta sombras: uma malha projeta, a menos que seja definida como `false`, uma luz só quando definida como `true`. Uma malha definida como `false` continua recebendo as sombras das outras.",
       "receiveShadow": "Se sombras caem sobre o nó.",
       "renderOrder": "Ordem de desenho entre coisas transparentes.",
       "frustumCulled": "Se um renderizador pode ignorá-lo fora da vista.",
@@ -2604,6 +2604,7 @@
     "members": {
       "matrices": "Dezesseis floats em ordem de coluna por linha, escritos pelo dono.",
       "live": "1 onde a linha posiciona o recurso, 0 onde está estacionada.",
+      "shadowless": "1 onde a linha não projeta sombra (o `castShadow` da sua malha é `false`), 0 onde projeta.",
       "capacity": "Linhas que cabem antes de crescer."
     }
   },
@@ -2995,6 +2996,7 @@
       "pose": "Um nó se moveu.",
       "structure": "Um nó ganhou ou perdeu filhos.",
       "content": "A forma ou o material de um nó mudou.",
+      "shadow": "O `castShadow` de um nó mudou: nada se moveu.",
       "posed": "Muitos nós moveram-se de uma vez, escritos diretamente na sua árvore (os corpos da física): avisado uma vez.",
       "seat": "A linha de onde o nó é desenhado, ou `null`: dezesseis floats por coluna a partir de `row * 16` em `batch.rows.matrices`, lidos no lugar pelo renderizador. Quem posiciona nós aos milhares (a física) escreve ali as matrizes de mundo, válidas enquanto `seatEpoch` não mudar, e indica as linhas escritas com `placed`.",
       "seatEpoch": "Muda sempre que uma linha é ocupada, liberada ou realocada: toda resposta anterior de `seat` fica obsoleta.",

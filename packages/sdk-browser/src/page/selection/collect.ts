@@ -1,6 +1,6 @@
 import { BOX_VALUES, boxTransform, type ClusterManifest } from '../../../../sdk-core/src/index.ts';
 import { meshSurface } from '../surface.ts';
-import { spriteMark } from '../../visibility/shader/spriteWgsl.ts';
+import { spriteMark, withShadowless } from '../../visibility/shader/spriteWgsl.ts';
 import type { BlendCopy } from '../../cluster/blendCopyContract.ts';
 import { createBlendCopyRecord } from '../../cluster/blendCopyRecord.ts';
 import { objects, quantizationErrorOf } from './helpers.ts';
@@ -11,7 +11,7 @@ import { linkBundleDependencies } from './bundleDependencies.ts';
 import { hostWorldPlacements } from '../../host/world/placements.ts';
 import type { PageRec, ClusterRoot } from './types.ts';
 import { placementsOf } from '../../placement/roots.ts';
-import type { PlacementRows } from '../../placement/rows.ts';
+import { rowShadowless, type PlacementRows } from '../../placement/rows.ts';
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 
 export function collectClusterPages(
@@ -134,7 +134,12 @@ export function collectClusterPages(
         boxes: true,
         parked,
         placement,
-        sprite: spriteMark(surface) || undefined,
+        // A row says whether its placement casts; a node placed at its own world, its mesh.
+        mark:
+          withShadowless(
+            spriteMark(surface),
+            placement ? rowShadowless(placement) : !mesh.castShadow,
+          ) || undefined,
       });
       // The clusters nothing replaces are the coarsest complete cover; they stay resident so the cut
       // always has something to fall back on.

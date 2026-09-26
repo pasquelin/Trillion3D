@@ -8,19 +8,20 @@ import { worldStretch } from './logic.ts';
 import { selectionScratch, type PageRecord, type SelectionState } from './state.ts';
 import { traverse } from './visit.ts';
 import type { ClusterRoot } from '../selection/types.ts';
-import { SPRITE_UNCULLED } from '../../visibility/shader/spriteWgsl.ts';
+import { CASTS_NO_SHADOW, SPRITE_UNCULLED } from '../../visibility/shader/spriteWgsl.ts';
 
-/** True when a camera cut lets every node and page of a root marked `sprite` through: a root
- *  never culled (`SPRITE_UNCULLED`). A light's cut never walks a sprite (`castsNoShadow`). Read
- *  here and by the GPU cut's oracle (`dagViewFrames`). */
-export const openMark = (sprite: number | undefined, light: unknown) =>
-  ((sprite ?? 0) & SPRITE_UNCULLED) !== 0 && !light;
+/** True when a camera cut lets every node and page of a root through: a root never culled
+ *  (`SPRITE_UNCULLED`). A light's cut never walks a root that casts no shadow (`castsNoShadow`).
+ *  Read here and by the GPU cut's oracle (`dagViewFrames`). */
+export const openMark = (mark: number | undefined, light: unknown) =>
+  ((mark ?? 0) & SPRITE_UNCULLED) !== 0 && !light;
 export const openToCamera = <T>(s: { light?: unknown }, root: ClusterRoot<T>) =>
-  openMark(root.sprite, s.light);
+  openMark(root.mark, s.light);
 
-/** True when a light's cut leaves a root marked `sprite` out: a sprite casts no shadow
- *  (`ClusterRoot.sprite`). Read by the CPU cut and the GPU cut's oracle (`dagOracleDescent`). */
-export const castsNoShadow = (sprite: number | undefined, light: unknown) => !!light && !!sprite;
+/** True when a light's cut leaves a root out: a sprite, or a root set to cast no shadow
+ *  (`CASTS_NO_SHADOW`). Read by the CPU cut and the GPU cut's oracle (`dagOracleDescent`). */
+export const castsNoShadow = (mark: number | undefined, light: unknown) =>
+  !!light && ((mark ?? 0) & CASTS_NO_SHADOW) !== 0;
 
 /** Six planes no box leaves, `(0, 0, 0, 1)` each: what an open root is walked against, here and
  *  in the GPU cut's oracle (`dagViewFrames`). */
