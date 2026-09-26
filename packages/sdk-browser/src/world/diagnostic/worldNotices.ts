@@ -99,15 +99,21 @@ export function noticeEffectBudget(
 }
 
 /**
- * The WebGL2 composer's word (`effectsRefused`) that a frame was drawn whole without the effect
- * chain, a transparent surface drawn blending in `blending`, which the chain's linear target
+ * The WebGL2 composer's word (`effectsRefused`) that a frame was drawn without the effect chain,
+ * a transparent surface drawn blending in `blending`, which the chain's linear target
  * cannot hold (`linearRefusal`): said once per world, as `effects-refused-blending`. WebGPU draws
- * both and never says it.
+ * both and never says it. Heard on every refused frame: past the first, it builds nothing.
  */
-export const noticeEffectRefusal = (notices: Pick<WorldNotices, 'once'>) => (blending: Blending) =>
-  notices.once(
-    'effects-refused-blending',
-    `effect chain not drawn on WebGL2: a transparent surface blends in ${blending}, which ` +
-      `the chain cannot hold; the frame is drawn whole without it until no such surface is drawn`,
-    { blending },
-  );
+export function noticeEffectRefusal(notices: Pick<WorldNotices, 'once'>) {
+  let said = false;
+  return (blending: Blending) => {
+    if (said) return;
+    said = true;
+    notices.once(
+      'effects-refused-blending',
+      `effect chain not drawn on WebGL2: a transparent surface blends in ${blending}, which ` +
+        `the chain cannot hold; the chain comes back once no such surface is drawn`,
+      { blending },
+    );
+  };
+}
