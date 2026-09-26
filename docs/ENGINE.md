@@ -652,13 +652,16 @@ or the normal cone would stay one level coarse. Top-down pruning drops a subtree
 is above the threshold only when none of its clusters has a missing finer group: each culling node
 carries that count (`NODE_OPEN`), so the nearest resident ancestor of a missing page is always a
 candidate. No frame waits for coverage once the root cover is resident. The CPU cut
-(`page/cut/take.ts`) applies the same predicate on the same readiness, kept per placement
-(`page/cut/held.ts`), and prunes its descent on the same open counts, in JavaScript and in its
+(`page/cut/take.ts`) applies the same predicate on the same readiness, kept per placement in view
+and moved by the pool's residency feed — the rank journal on WebGPU, the page store's loads and
+releases on WebGL2 —, so a still view reads no page and a change reads only the pages that moved
+(`page/cut/held.ts`); it prunes its descent on the same open counts, in JavaScript and in its
 WebAssembly node walk (`page-codec-wasm/src/cut.rs`) alike; the WebGPU CPU path, its light cuts and
 the WebGL2 image draw through it, with no fallback of their own. None of these tables is sized by the
 world: the readiness holds the resident pages alone — every other page reads its state with nothing
 resident, derived from the DAG —, and the closure, the cut's differences, the residency sets and
-the pending set hold what the cut names, all in sparse maps (`page/cut/sparseInts.ts`). A world
+the pending set hold what the cut names, all in sparse maps (`page/cut/sparseInts.ts`); a
+placement that leaves the view lets its readiness go at the end of the image's cut. A world
 sixteen times larger, seen from the same view with the same pool, costs the same bytes
 (`page/cut/viewBound.test.ts`).
 Shared URLs occupy one slot across instances. Two counters say different things:
