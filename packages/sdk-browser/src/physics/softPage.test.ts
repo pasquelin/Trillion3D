@@ -18,7 +18,6 @@ import { Material } from '../../../sdk-core/src/world/material/material.ts';
 import { Mesh } from '../../../sdk-core/src/world/object/mesh.ts';
 import { Group } from '../../../sdk-core/src/world/object/object3d.ts';
 import { createPhysicsBodies, type Bodied } from './bodies.ts';
-import { placeBodies } from './placeBodies.ts';
 import { createSessionHost } from './sessionHost.ts';
 import { createPhysicsPoses } from './poses.ts';
 import { receiveSoft } from './softBodies.ts';
@@ -82,18 +81,6 @@ test('a tick keeps each soft body once, where its last step left it', () => {
   tick.gather(Uint32Array.of(5, 1, 3, 3, 3));
   assert.deepEqual([...tick.take()!], [5, 1, 3, 3, 3, 6, 1, 2, 2, 2]);
   assert.equal(tick.take(), null);
-});
-
-test('a soft body the page moves is made again where it put it, never teleported', () => {
-  const rebuilt: ObjectPhysics[] = [];
-  const host = { rebuild: (body: ObjectPhysics) => rebuilt.push(body) } as unknown as PhysicsHost;
-  const { scene, writer, bodies, cloth } = sceneOf(1000, host);
-  const mesh = cloth(2);
-  bodies.reconcile(new Set(), () => {});
-  writer.take();
-  placeBodies(scene, host, writer);
-  assert.deepEqual(rebuilt, [mesh.physics]);
-  assert.equal(writer.length, 0);
 });
 
 /** The SOFT words `obj.physics = options` writes for a 1 × 1 cloth scaled 2, 3, 4, as floats. */

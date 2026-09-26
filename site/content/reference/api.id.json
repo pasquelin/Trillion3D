@@ -3206,10 +3206,10 @@
       "shadowsUpdated": "Cahaya bayangan yang halamannya digambar bingkai ini. Nol adalah nilai normal adegan diam: cahaya tetap mempertahankan halamannya.",
       "shadowFacesDrawn": "Tampilan cahaya yang digambar pass bayangan — satu tingkat clipmap matahari, satu muka lampu pada satu mip —, dan panggilan gambar yang benar-benar dikodekan. Null pada mesin yang tidak menggambar bayangan.",
       "shadowDrawCalls": "Panggilan gambar bayangan.",
-      "shadowPagesDrawn": "Yang dihasilkan invalidasi halaman: halaman digambar ulang bingkai ini, halaman ditinggalkan dalam antrean karena kekurangan anggaran, dan keterlambatan dalam milidetik yang tertua di antaranya. Nol di mana pun adalah nilai normal sebuah scene diam; `null` pada mesin tanpa atlas bayangan.",
+      "shadowPagesDrawn": "Yang dihasilkan invalidasi halaman: halaman digambar ulang bingkai ini, halaman ditinggalkan dalam antrean karena kekurangan anggaran, dan berapa lama halaman usang tertua yang dibaca gambar telah menunggu. Nol di mana pun adalah nilai normal sebuah scene diam; `null` pada mesin tanpa atlas bayangan.",
       "shadowPagesTotal": "Halaman digambar sejak explorer dibuka, termasuk kurasan `flush()`: biaya sebuah perubahan adalah selisih antara dua bacaan.",
       "shadowPagesPending": "Halaman bayangan yang menunggu.",
-      "shadowWaitMs": "Berapa lama mereka menunggu.",
+      "shadowWaitMs": "Berapa milidetik halaman usang tertua yang dibaca gambar telah menunggu untuk digambar ulang. Hanya waktu saat gambar membacanya yang dihitung; 0 setelah digambar ulang.",
       "gpuLightListsMs": "Waktu GPU daftar cahaya.",
       "gpuShadowsMs": "Waktu GPU bayangan.",
       "gpuShadowCullMs": "Waktu GPU untuk memilih pembentuk bayangan dari halaman bayangan yang digambar bingkai: potongan cahaya, penyaringan per halaman, dan uji oklusi pembentuk yang bergerak beserta piramida yang dibacanya.",
@@ -4137,10 +4137,10 @@
       "shadowsUpdated": "Cahaya bayangan yang halamannya digambar bingkai ini. Nol adalah nilai normal adegan diam: cahaya tetap mempertahankan halamannya.",
       "shadowFacesDrawn": "Tampilan cahaya yang digambar pass bayangan — satu tingkat clipmap matahari, satu muka lampu pada satu mip —, dan panggilan gambar yang benar-benar dikodekan. Null pada mesin yang tidak menggambar bayangan.",
       "shadowDrawCalls": "Panggilan gambar bayangan.",
-      "shadowPagesDrawn": "Yang dihasilkan invalidasi halaman: halaman digambar ulang bingkai ini, halaman ditinggalkan dalam antrean karena kekurangan anggaran, dan keterlambatan dalam milidetik yang tertua di antaranya. Nol di mana pun adalah nilai normal sebuah scene diam; `null` pada mesin tanpa atlas bayangan.",
+      "shadowPagesDrawn": "Yang dihasilkan invalidasi halaman: halaman digambar ulang bingkai ini, halaman ditinggalkan dalam antrean karena kekurangan anggaran, dan berapa lama halaman usang tertua yang dibaca gambar telah menunggu. Nol di mana pun adalah nilai normal sebuah scene diam; `null` pada mesin tanpa atlas bayangan.",
       "shadowPagesTotal": "Halaman digambar sejak explorer dibuka, termasuk kurasan `flush()`: biaya sebuah perubahan adalah selisih antara dua bacaan.",
       "shadowPagesPending": "Halaman bayangan yang menunggu.",
-      "shadowWaitMs": "Berapa lama mereka menunggu.",
+      "shadowWaitMs": "Berapa milidetik halaman usang tertua yang dibaca gambar telah menunggu untuk digambar ulang. Hanya waktu saat gambar membacanya yang dihitung; 0 setelah digambar ulang.",
       "gpuLightListsMs": "Waktu GPU daftar cahaya.",
       "gpuShadowsMs": "Waktu GPU bayangan.",
       "gpuShadowCullMs": "Waktu GPU untuk memilih pembentuk bayangan dari halaman bayangan yang digambar bingkai: potongan cahaya, penyaringan per halaman, dan uji oklusi pembentuk yang bergerak beserta piramida yang dibacanya.",
@@ -6977,7 +6977,7 @@
     "summary": "Sebuah promise yang selesai begitu dunia tahu bagaimana ia akan menggambar."
   },
   "world.render": {
-    "summary": "Menggambar satu bingkai sekarang, siapa pun yang memimpin loop."
+    "summary": "Menggambar satu bingkai sekarang, siapa pun yang memimpin loop: clip dan fisika maju bersamanya."
   },
   "world.renderer": {
     "summary": "`'webgpu'` atau `'webgl2'`: bagaimana dunia menggambar; `null` sebelum `ready`."
@@ -7030,7 +7030,7 @@
   },
   "world.beforeFrame": {
     "summary": "Menjalankan sebuah fungsi sebelum setiap bingkai yang digambar, dengan `{ delta, time }`; mengembalikan penghapusnya.",
-    "description": "Sebuah bingkai loop dunia berjalan: pengontrol melangkahkan kamera (kecuali `controls.autoUpdate` salah), clip maju, hook-hook ini dalam urutan mereka ditambahkan, scene ditulis dan digambar, lalu hook `onFrame`. Apa yang ditempatkan sebuah hook — sebuah badan pada kamera, sebuah kokpit — digambar pada bingkai ini juga, tidak pernah terlambat satu bingkai. Sebuah `render()` yang dipimpin host juga menjalankannya tapi tidak melangkahkan pengontrol apa pun. Sebuah hook yang memanggil `invalidate()` menjaga bingkai terus datang.",
+    "description": "Sebuah bingkai berjalan: pengontrol kamera (kecuali `controls.autoUpdate` salah atau host yang memimpin, `render()`), clip, fisika, hook-hook ini sesuai urutannya, penggambaran, lalu hook `onFrame`. Apa yang ditempatkan sebuah hook — sebuah badan pada kamera, sebuah kokpit — digambar pada bingkai ini juga, tidak pernah terlambat satu bingkai. Sebuah hook yang memanggil `invalidate()` menjaga bingkai terus datang.",
     "parameters": {
       "hook": "Fungsi yang dijalankan; ia mendapat detik yang baru diintegrasikan dan waktu dunia."
     },
