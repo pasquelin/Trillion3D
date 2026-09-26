@@ -6,7 +6,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 static NEXT_FIXTURE_ID: AtomicU64 = AtomicU64::new(0);
 
 /// Each fixture owns its directory, even when concurrent calls share a clock tick.
-pub(super) fn scratch(prefix: &str, tag: &str) -> PathBuf {
+pub(crate) fn scratch(prefix: &str, tag: &str) -> PathBuf {
     scratch_at(
         prefix,
         tag,

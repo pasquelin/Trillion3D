@@ -1,6 +1,6 @@
 //! The reader's bounds, proven on minimal files written here from the public description of the
-//! format: an SDNA that announces more than the file carries, a view that does not leave its
-//! block's bytes, and the size ceiling, which holds whatever the wrapping.
+//! format: an SDNA that announces more than the file carries, and a view that does not leave its
+//! block's bytes. The RAM budget is proven in `budget`.
 use super::*;
 
 /// An SDNA in the old layout, each part of which can be laid askew: the field names — all of
@@ -68,7 +68,7 @@ fn a_hostile_sdna_is_refused_by_name_never_by_panic() {
 #[test]
 fn a_view_never_reads_past_the_end_of_its_block() {
     let bytes = file(&sdna(&["value"], 1), 0);
-    let read = BlendFile::open(&bytes, MAX_BYTES).expect("a minimal file");
+    let read = BlendFile::open(&bytes, BUDGET).expect("a minimal file");
     let block = read.of(*b"DATA").next().expect("the data block");
     let view = read.view(block).expect("its view");
     assert_eq!(
@@ -76,32 +76,6 @@ fn a_view_never_reads_past_the_end_of_its_block() {
         7.0,
         "a field outside the block yields the default, never the next block's bytes"
     );
-}
-
-/// The refusal code of these bytes read under this ceiling.
-fn under(bytes: &[u8], ceiling: usize) -> &'static str {
-    BlendFile::open(bytes, ceiling)
-        .err()
-        .expect("this file was expected to be refused")
-        .code
-}
-
-// Finding 25: the size ceiling applies to the unpacked bytes, whatever the wrapping. A bare file
-// passed as-is, without being measured: the ceiling only held for compressed ones.
-#[test]
-fn the_size_ceiling_holds_whatever_the_envelope() {
-    let bare = file(&sdna(&["value"], 1), 0);
-    let mut encoder = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
-    std::io::Write::write_all(&mut encoder, &bare).expect("compression");
-    let zipped = encoder.finish().expect("gzip frame");
-    for (case, bytes) in [("nu", &bare), ("gzip", &zipped)] {
-        assert_eq!(
-            under(bytes, bare.len() - 1),
-            "blend-too-large",
-            "{case}: the unpacked bytes exceed the ceiling"
-        );
-    }
-    BlendFile::open(&bare, bare.len()).expect("under the ceiling, the bare file opens");
 }
 
 // Finding 27: cancellation is reread inside a mesh. Checked between objects only, a scene of a

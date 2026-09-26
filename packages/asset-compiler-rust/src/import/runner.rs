@@ -58,7 +58,7 @@ pub fn import_source(request: &SceneRequest<'_>, plugin: &dyn ScenePlugin) -> Re
     // Map every input once: the mapping hashes now and feeds the parser later without a second read.
     let mapped = inputs
         .iter()
-        .map(|input| Ok(unsafe { memmap2::MmapOptions::new().map(&fs::File::open(input)?)? }))
+        .map(|input| crate::map_source(input))
         .collect::<Result<Vec<memmap2::Mmap>>>()?;
     let hashes: Vec<String> = mapped.iter().map(|m| hash(m)).collect();
     let base = base_key(plugin, inputs, &hashes);
