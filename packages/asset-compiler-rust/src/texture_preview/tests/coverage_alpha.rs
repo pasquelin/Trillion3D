@@ -1,5 +1,5 @@
 use super::*;
-use crate::texture_preview::collect::{coverage_cutoff, AtlasTexture};
+use crate::texture_preview::collect::{atlas_textures, coverage_cutoff, AtlasTexture};
 use crate::texture_preview::coverage::{cutoff_byte, Covered};
 
 /// Foliage: a smooth random field cut by a soft edge, four octaves of value noise from 32 texels
@@ -104,20 +104,26 @@ fn the_chain_is_cut_at_the_lowest_cutoff_of_its_coverage_readers() {
         [0.5, 0.25, 1.0 / 255.0, 1.0, 1.5].map(cutoff_byte),
         [128, 64, 1, 255, 0]
     );
-    let reader = |kind, cutoffs: &[f32]| AtlasTexture {
-        texture: 0,
-        kind,
-        channels: [true; 4],
-        normal_only: false,
-        cutoffs: cutoffs.to_vec(),
+    // One texture read by two masked materials and a blended one takes the lowest cutoff…
+    let base = |mode: &str, cutoff: f64| {
+        json!({"pbrMetallicRoughness": {"baseColorTexture": {"index": 0}},
+            "alphaMode": mode, "alphaCutoff": cutoff})
     };
-    let masked = [
-        reader(AtlasKind::Coverage(0), &[0.5]),
-        reader(AtlasKind::Coverage(0), &[0.7, 0.25]),
-        reader(AtlasKind::Color, &[0.1]),
-    ];
-    assert_eq!(coverage_cutoff(&masked), 64);
-    assert_eq!(coverage_cutoff(&[reader(AtlasKind::Coverage(0), &[])]), 0);
+    let primitives = [0, 1, 2].map(|m| json!({"attributes": {}, "material": m}));
+    let g = json!({
+        "materials": [base("MASK", 0.5), base("MASK", 0.25), base("BLEND", 0.9)],
+        "meshes": [{"primitives": primitives}],
+    });
+    let found = atlas_textures(&g, &BTreeSet::from([0])).expect("collect");
+    assert_eq!(found[0].kind, AtlasKind::Coverage(64));
+    // …and so does an image read by several textures; a blended-only one is not cut.
+    let reader = |kind| AtlasTexture {
+        kind,
+        ..found[0].clone()
+    };
+    let image = [128, 64, 0].map(|cutoff| reader(AtlasKind::Coverage(cutoff)));
+    assert_eq!(coverage_cutoff(&image), 64);
+    assert_eq!(coverage_cutoff(&[reader(AtlasKind::Coverage(0))]), 0);
 }
 
 // #44: each cutoff names its own files and sidecar word, so two scenes cutting one image at two
@@ -136,10 +142,13 @@ fn each_cutoff_names_its_own_chain() {
         .map(|(mode, cutoff)| stage_scene(&dir, &material(mode, cutoff)).0[0].kind);
     let expected = [128, 64, 0].map(AtlasKind::Coverage);
     assert_eq!(kinds, expected);
-    let names = kinds.map(|kind| (kind.name().into_owned(), kind.word()));
-    let words = [(128 << 8) | 2, (64 << 8) | 2, 2];
-    let named = ["srgb-coverage-128", "srgb-coverage-64", "srgb-coverage"];
-    assert_eq!(names, [0, 1, 2].map(|i| (named[i].to_string(), words[i])));
+    let names = kinds.map(|kind| (kind.name(), kind.word()));
+    let expected = [
+        ("srgb-coverage-128", (128 << 8) | 2),
+        ("srgb-coverage-64", (64 << 8) | 2),
+        ("srgb-coverage", 2),
+    ];
+    assert_eq!(names, expected.map(|(name, word)| (name.into(), word)));
     for kind in kinds {
         assert_eq!(AtlasKind::from_word(kind.word()), Some(kind));
     }

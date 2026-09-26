@@ -38,7 +38,7 @@ impl AtlasKind {
             Self::Color => "srgb".into(),
             Self::Data => "linear".into(),
             Self::Coverage(0) => "srgb-coverage".into(),
-            Self::Coverage(cutoff) => format!("srgb-coverage-{cutoff}").into(),
+            Self::Coverage(cutoff) => format!("{}-{cutoff}", Self::Coverage(0).name()).into(),
         }
     }
     /// The atlas the chain is sampled in: a `Coverage` chain is the colour atlas's.

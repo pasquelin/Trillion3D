@@ -61,8 +61,8 @@ impl Role {
     }
     /// The chain the role asks for: the one role whose alpha the shader reads for
     /// coverage — the base colour of a BLEND material, or of a MASK one that cuts —
-    /// takes the chain weighted by that alpha. Its cutoff is the image's, which
-    /// `bake` sets from every reader (`coverage_cutoff`).
+    /// takes the chain weighted by that alpha, its cutoff set once every reader
+    /// is known (`atlas_textures`).
     fn kind(self, coverage: bool) -> AtlasKind {
         match self {
             Self::BaseColor if coverage => AtlasKind::Coverage(0),
@@ -153,20 +153,29 @@ pub(super) fn atlas_textures(g: &Value, meshes: &BTreeSet<usize>) -> Result<Vec<
             entry.normal_only &= role == Role::Normal;
         }
     }
+    // A coverage texture is cut at the lowest of its readers' cutoffs, every one
+    // above 0, so the most texels any of them keeps hold their share at every
+    // level; 0 when every reader blends, and the chain keeps the median alone.
+    for entry in wanted.values_mut() {
+        if let AtlasKind::Coverage(_) = entry.kind {
+            let lowest = entry.cutoffs.iter().copied().min_by(f32::total_cmp);
+            entry.kind = AtlasKind::Coverage(lowest.map_or(0, super::coverage::cutoff_byte));
+        }
+    }
     Ok(wanted.into_values().collect())
 }
 
-/// The cutoff byte of an image's coverage chain: the lowest `alphaCutoff` among
-/// its coverage readers, every one of which cuts above 0 (`atlas_textures`), so
-/// the most texels any of them keeps hold their share at every level; 0 when
-/// every one blends, and the chain keeps the median alone.
+/// The cutoff byte of an image's coverage chain, which every coverage texture
+/// of the image shares: the lowest one above 0 among them, 0 when every one blends.
 pub(super) fn coverage_cutoff(readers: &[AtlasTexture]) -> u8 {
     readers
         .iter()
-        .filter(|r| matches!(r.kind, AtlasKind::Coverage(_)))
-        .flat_map(|r| r.cutoffs.iter().copied())
-        .min_by(f32::total_cmp)
-        .map_or(0, super::coverage::cutoff_byte)
+        .filter_map(|r| match r.kind {
+            AtlasKind::Coverage(cutoff @ 1..) => Some(cutoff),
+            _ => None,
+        })
+        .min()
+        .unwrap_or(0)
 }
 
 pub(crate) fn texture_index(reference: Option<&Value>) -> Option<usize> {
