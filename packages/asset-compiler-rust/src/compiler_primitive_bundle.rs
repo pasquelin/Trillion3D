@@ -154,7 +154,7 @@ pub(super) fn bundle_dag_pages(
       let (geometry,packed_reused)={let _t=perf::Timer::new(perf::Phase::PagePacked);store_packed(&cluster.indices)?};if packed_reused{reused+=1;}
       let finite_parent=cluster.parent_error.is_finite();
       emitted.push((base_id+rank,json!({"id":base_id+rank,"url":name,"sha256":digest,"bytes":bytes.len(),"count":cluster.indices.len(),"start":cluster.source_rank as usize*3,"min":min,"max":max,
-       "role":if cluster.level==0{"exact"}else{"coarse"},"geometry":geometry,"level":cluster.level,
+       "cone":crate::normal_cone::cone_json(pos,&cluster.indices),"role":if cluster.level==0{"exact"}else{"coarse"},"geometry":geometry,"level":cluster.level,
        "lodError":cluster.lod_error,"sphere":cluster.sphere,
        "parentError":if finite_parent{json!(cluster.parent_error)}else{Value::Null},
        "parentSphere":if finite_parent{json!(cluster.parent_sphere)}else{Value::Null},

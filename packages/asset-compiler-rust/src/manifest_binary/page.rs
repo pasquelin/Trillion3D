@@ -1,5 +1,18 @@
 use super::*;
 
+/// The bits of a page's flag word (`pageU32`, second word).
+pub(super) const FLAG_ROLE: u32 = 1;
+pub(super) const FLAG_COARSE: u32 = 2;
+pub(super) const FLAG_GEOMETRY: u32 = 4;
+pub(super) const FLAG_CLUSTER_ERROR: u32 = 8;
+pub(super) const FLAG_PARENT_ERROR: u32 = 16;
+pub(super) const FLAG_PARENT_ERROR_FINITE: u32 = 32;
+pub(super) const FLAG_PARENT_SPHERE: u32 = 64;
+pub(super) const FLAG_PARENT_SPHERE_SET: u32 = 128;
+pub(super) const FLAG_GROUP: u32 = 256;
+pub(super) const FLAG_SOURCE: u32 = 512;
+pub(super) const FLAG_CONE: u32 = 1024;
+
 pub(super) fn encode_page(
     page: &Value,
     columns: &mut [Column],
@@ -139,6 +152,17 @@ pub(super) fn encode_page(
             ] {
                 columns[GEOMETRY_U32].u32(as_u32(integer(geometry.get(key), label)?, label)?);
             }
+        }
+    }
+    // A page with no cone keeps its slot, zeroed; the flag tells it from a cooked one.
+    match item.get("cone") {
+        None => columns[PAGE_CONE].zeros(32),
+        Some(cone) => {
+            flags |= FLAG_CONE;
+            let cone = object(cone, "page.cone")?;
+            let column = &mut columns[PAGE_CONE];
+            vector_into(cone.get("axis"), 3, "page.cone.axis", column)?;
+            column.f64(number(cone.get("angle"), "page.cone.angle")?);
         }
     }
     columns[PAGE_U32].u32(flags);
