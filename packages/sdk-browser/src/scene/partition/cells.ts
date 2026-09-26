@@ -27,6 +27,7 @@ import { holdsEvery, outstretched, residentRows, sizedStretch, type Stretch } fr
 import { capacityOf, createTouchedRows, releaseRow, rowLocal, rowsFree } from './rows.ts';
 import { sizeRows, takeRow, type PlacedMesh } from './rows.ts';
 
+type Grow = (from: PlacementRows, to: PlacementRows) => void;
 type Placement = { mesh: PlacedMesh; row: number; parent: Object3D; local: Float64Array };
 type Inputs = {
   partition: TablePartition;
@@ -100,11 +101,10 @@ export function createPartitionCells(inputs: Inputs) {
         for (const placement of placements) if (placement.parent === node) write(placement);
     }
   };
-  /** Sizes the rows for a reach `bound` and the parents' stretch now; `grown` hands each buffer
-   *  replaced to the engine drawing it, absent before the engines read them. */
-  const resize = (bound: number, grown?: (from: PlacementRows, to: PlacementRows) => void) => {
-    // Sized for any place of the parents; rows that hold every node are never short.
-    stretched = sizedStretch(boxes.stretch);
+  /** Sizes the rows for any place of the parents within a reach `bound` and their stretch now,
+   *  widened `by`; `grown` hands each buffer replaced to its engine, absent before one reads it. */
+  const resize = (bound: number, grown?: Grow, by = 1) => {
+    stretched = sizedStretch(boxes.stretch, by);
     const rows = residentRows(partition.cells, bound, stretched);
     sizeRows(meshes, rows, grown);
     sized = holdsEvery(rows, cells) ? Infinity : bound;
@@ -133,10 +133,10 @@ export function createPartitionCells(inputs: Inputs) {
         loading(url: string): boolean;
         request(urls: readonly string[], ahead: boolean): void;
         update(rows: PlacementRows, from: number, to: number): void;
-        grow?: (from: PlacementRows, to: PlacementRows) => void;
+        grow?: Grow;
         outgrown?: () => void;
       },
-      /** The frame's one integration budget (`FrameBudget`, the arrival queue's). */
+      /** The frame's one integration budget (`FrameBudget`, the session's). */
       budget: { admits(): boolean; spend(): void },
     ) {
       followParents();
@@ -145,7 +145,8 @@ export function createPartitionCells(inputs: Inputs) {
       const beyond = local.reach > Math.max(sized, wanted);
       if (beyond) wanted = local.reach;
       if (beyond || (!short && sized < Infinity && outstretched(boxes.stretch, stretched))) {
-        if (io.grow) resize(Math.max(sized, wanted), io.grow);
+        // Twice what is asked, as buffers grow: an ongoing zoom or shrink resizes O(log) times.
+        if (io.grow) resize(Math.max(2 * sized, wanted), io.grow, 2);
         else {
           short = true;
           io.outgrown?.();
