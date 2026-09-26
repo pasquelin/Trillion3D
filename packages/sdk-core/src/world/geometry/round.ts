@@ -1,4 +1,4 @@
-import { crossVector3, dotVector3 } from '../../math/primitives/vector.ts';
+import { crossVector3, dotVector3, subVector3 } from '../../math/primitives/vector.ts';
 import { GeometryBuilder, normalize, pieces, withRecipe } from './builder.ts';
 import type { Curve } from '../math/curves.ts';
 
@@ -190,9 +190,5 @@ function sweep(
   return b.build();
 }
 
-const sub = (a: ArrayLike<number>, b: ArrayLike<number>): V3 => [
-  a[0] - b[0],
-  a[1] - b[1],
-  a[2] - b[2],
-];
+const sub = (a: ArrayLike<number>, b: ArrayLike<number>) => subVector3([0, 0, 0] as V3, a, b);
 const cross = (a: V3, b: V3): V3 => crossVector3([0, 0, 0] as V3, a, b);
