@@ -1379,7 +1379,13 @@ bend }` simulates the mesh's vertices one by one on Jolt's soft bodies. A cloth 
   `world.physics.error` ([Files over HTTP](#files-over-http)); a model that leaves the scene lets
   go of its reads still on their way, which is no error.
   Its tiles grip and bounce as the source's `KHR_physics_rigid_bodies` collider declares, else with
-  the default matter (`DEFAULT_MATTER`); every drawn node is static, as drawn.
+  the default matter (`DEFAULT_MATTER`); every drawn node is static, as drawn, but one declaring a
+  `motion`: its body is restored as cooked (its implicit shape, or its hull fetched), counted
+  against `budget.physics`, with the mass, centre of mass and inertia its motion declares, else the
+  cooked ones; its tiles then leave. A kinematic one follows its model, pushing what it meets; a
+  dynamic one is held kinematic and asleep where its node is drawn until compiled nodes can move
+  (#432, `COMPILED_NODES_MOVE`). A shape Jolt cannot make at the body's scale is `PHYSICS_FAILED`
+  naming its node, and the node stays static ground.
 - **Exact raycast.** `await world.raycast(at, { exact: true })` asks the physics: a compiled model
   is hit on its cooked triangles (the hit names the model and the glTF `material` of the triangle),
   any body on its shape. `{ shape: { type: 'sphere', radius } }` (or `box` with `halfExtents`,
