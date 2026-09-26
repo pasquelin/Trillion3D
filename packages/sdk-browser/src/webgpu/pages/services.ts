@@ -9,6 +9,7 @@ import { createWebgpuPinUpdater } from '../residency/pinUpdater.ts';
 import { createWebgpuBootstrap } from '../frame/bootstrap.ts';
 import { createWebgpuResidentEnsurer } from '../residency/residentEnsurer.ts';
 import { createWebgpuResidencyQueue } from '../residency/queue.ts';
+import { createEvictionFeed } from '../residency/evictionFeed.ts';
 import { createPageParents } from '../../residency/pageParents.ts';
 import { createLowerTier } from '../residency/lowerTier.ts';
 import { createGroupClosure } from '../../page/cut/groupClosure.ts';
@@ -81,12 +82,10 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     (rec) => noteResidenceChange(rt.lights, rec),
     context.frameBudget,
   );
-  /**
-   * The bytes one pool slot holds for a cluster: its quantized geometry page, read from the
-   * host's page reader at the address the manifest gives it, or — for a transparent cluster and
-   * for a cache that carries no geometry page — the index page the arrival already left in
-   * memory. The slot is written from one of the two, never from both.
-   */
+  /** The bytes one pool slot holds for a cluster: its quantized geometry page, read from the host's
+   *  page reader at the address the manifest gives it, or — for a transparent cluster and for a
+   *  cache that carries no geometry page — the index page the arrival already left in memory. The
+   *  slot is written from one of the two, never from both. */
   const read = async (key: string) => {
     const geometryUrl = geometryUrls.get(key);
     if (geometryUrl === undefined)
@@ -195,6 +194,7 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     shadowTier,
     affectsImage,
     queueCutResidency: residency.queueCutResidency,
+    followEvictions: createEvictionFeed(packedPages, () => gpu.cache),
     ...publication,
   };
 }
