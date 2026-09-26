@@ -79,6 +79,7 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     ),
     // A blended caster's opacity moved: the shadow pages under it are drawn again.
     (rec) => noteResidenceChange(rt.lights, rec),
+    context.frameBudget,
   );
   /**
    * The bytes one pool slot holds for a cluster: its quantized geometry page, read from the

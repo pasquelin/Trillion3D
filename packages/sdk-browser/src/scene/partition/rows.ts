@@ -3,7 +3,8 @@
  * one host mesh per primitive whose association carries an instance buffer (`placement/rows.ts`):
  * a cell's node takes the same row in every one of them, and gives it back — parked — when its
  * cell leaves. The buffers are sized when a session opens, before its engines read them
- * (`sizeRows`), for every node its reach can hold at once (`plan.ts`): none grows while it draws.
+ * (`sizeRows`), for every node its reach can hold at once (`plan.ts`): only a reach or a parent's
+ * stretch past that grows them, in place, under the engine that draws them.
  */
 import {
   createPlacementRows,
@@ -43,14 +44,23 @@ export function placedMesh(links: readonly RowLink[]): PlacedMesh {
 export const capacityOf = (mesh: PlacedMesh) => mesh.links[0]?.placements?.capacity ?? 0;
 
 /** Sizes every buffer of each mesh rank of `needed` to hold that many rows at least, its rows
- *  kept: before its session's engines read them, never under one that draws. */
-export function sizeRows(meshes: ReadonlyMap<number, PlacedMesh>, needed: Map<number, number>) {
+ *  kept: before its session's engines read them, or — `grown` handed each buffer replaced — under
+ *  one that grows them in place (`placement/growth.ts`). */
+export function sizeRows(
+  meshes: ReadonlyMap<number, PlacedMesh>,
+  needed: Map<number, number>,
+  grown?: (from: PlacementRows, to: PlacementRows) => void,
+) {
   for (const [rank, rows] of needed) {
     const mesh = meshes.get(rank);
     if (!mesh) continue; // placing its cell refuses it (`PREPARED_SCENE_MISMATCH`)
     const held = capacityOf(mesh);
     if (rows <= held) continue;
-    for (const link of mesh.links) link.placements = growPlacementRows(link.placements!, rows);
+    for (const link of mesh.links) {
+      const from = link.placements!;
+      link.placements = growPlacementRows(from, rows);
+      grown?.(from, link.placements);
+    }
     for (let row = capacityOf(mesh) - 1; row >= held; row--) mesh.free.push(row);
   }
 }
@@ -82,4 +92,22 @@ export const takeRow = (mesh: PlacedMesh) => mesh.free.pop()!;
 export function releaseRow(mesh: PlacedMesh, row: number) {
   for (const link of mesh.links) link.placements!.live[row] = 0;
   mesh.free.push(row);
+}
+
+/** The range of rows each buffer had written since the last `flush`, which tells the engine. */
+export function createTouchedRows() {
+  const touched = new Map<RowLink, { from: number; to: number }>();
+  return {
+    touch(link: RowLink, row: number) {
+      const range = touched.get(link) ?? { from: row, to: row };
+      range.from = Math.min(range.from, row);
+      range.to = Math.max(range.to, row);
+      touched.set(link, range);
+    },
+    flush(update: (rows: PlacementRows, from: number, to: number) => void) {
+      for (const [link, { from, to }] of touched) update(link.placements!, from, to);
+      touched.clear();
+    },
+    clear: () => touched.clear(),
+  };
 }

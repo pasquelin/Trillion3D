@@ -70,36 +70,53 @@ test('a frame reads the cells within the far plane of its camera, visible first 
   ]);
 });
 
-test('a pebble far below any error target is read while the far plane lets it be drawn', () => {
-  // Nothing coarser stands for an unread cell before #23: a small object within the far plane is
-  // read whatever it projects to, or it would be missing from the image for good.
-  const pebble = {
-    url: 'pebble.json',
+/** What a first frame from `camera` asks of one cell of one node, boxed by `bounds` under the root. */
+function asks(
+  url: string,
+  bounds: number[],
+  camera: Parameters<typeof createPartitionFrame>[0]['camera'],
+) {
+  const cell = {
+    url,
     sha256: '',
     bytes: 1,
     meshes: [[0, 1] as const],
+    parents: [[null, bounds] as const],
   };
   const cells = createPartitionCells({
-    partition: {
-      version: 1,
-      bounds: [200, 0, 0, 200.01, 0.01, 0.01],
-      meshes: [0],
-      cells: [{ ...pebble, parents: [[null, [200, 0, 0, 200.01, 0.01, 0.01]] as const] }],
-    },
+    partition: { version: 1, bounds, meshes: [0], cells: [cell] },
     base: 'https://cache.test/key/',
     root: new Group(),
     parents: [],
     meshes: new Map([[0, placedMesh([{ meshes: 0, primitives: 0 }])]]),
   });
   const { port, asked } = streamer();
-  createPartitionFrame({
-    partitions: [cells],
-    streamer: port,
-    camera: hostFramingCamera(60, 16 / 9, 0.1, 300),
-    active: () => ({}) as RenderBackend,
-    budget,
-  })!();
-  assert.deepEqual(asked, [[['https://cache.test/key/pebble.json'], PRIORITY_VISIBLE]]);
+  const active = () => ({}) as RenderBackend;
+  createPartitionFrame({ partitions: [cells], streamer: port, camera, active, budget })!();
+  return asked;
+}
+
+test('a pebble far below any error target is read while the far plane lets it be drawn', () => {
+  // Nothing coarser stands for an unread cell before #23: a small object within the far plane is
+  // read whatever it projects to, or it would be missing from the image for good.
+  const camera = hostFramingCamera(60, 16 / 9, 0.1, 300);
+  assert.deepEqual(asks('pebble.json', [200, 0, 0, 200.01, 0.01, 0.01], camera), [
+    [['https://cache.test/key/pebble.json'], PRIORITY_VISIBLE],
+  ]);
+});
+
+test('a camera zoomed out, or scaled up, reads the cells its wider frustum sees', () => {
+  // At zoom 0.5 the frustum is twice as wide, scaled twice it draws twice as far: a pebble 560 m
+  // aside, 290 m ahead, is within either's reach, past the read-ahead of the camera at zoom 1.
+  const bounds = [560, 0, -290, 560.01, 0.01, -289.99];
+  const seen = [['https://cache.test/key/aside.json'], PRIORITY_VISIBLE];
+  const camera = hostFramingCamera(60, 16 / 9, 0.1, 300);
+  assert.deepEqual(asks('aside.json', bounds, camera), []);
+  camera.zoom = 0.5;
+  assert.deepEqual(asks('aside.json', bounds, camera), [seen]);
+  camera.zoom = 1;
+  (camera as unknown as Group).scale.set(2, 2, 2);
+  assert.deepEqual(asks('aside.json', bounds, camera), [seen]);
 });
 
 test('a reach past the rows sized at open asks the owner to open the session again', () => {
