@@ -42,6 +42,10 @@ export interface Page {
    *  with a depth bias of n whole layer steps, which is what decides the winner between two opaque
    *  surfaces that share a plane exactly. Absent and 0 mean the same thing: the untouched draw. */
   depthLayer?: number;
+  /** The cone that bounds its triangles' normals: `axis` a unit vector, `angle` the half-angle in
+   *  radians, π for a cone that rejects nothing. The compiler cooks it for every cluster; the
+   *  WebGPU cut skips a one-sided cluster the camera sees from behind its cone. */
+  cone?: { axis: [number, number, number]; angle: number };
 }
 /** A bounding sphere an error band can be projected through: four finite values, a radius of at
  *  least zero. Unrolled on purpose: it runs once per cluster at preparation, with no closure. */

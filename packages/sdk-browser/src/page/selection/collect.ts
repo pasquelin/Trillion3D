@@ -106,7 +106,7 @@ export function collectClusterPages(
           placement,
           renderOrder: order,
           attached: false,
-          cone: undefined,
+          cone: page.cone,
           geometry: undefined,
           mesh: undefined,
           resident: false,
@@ -126,9 +126,8 @@ export function collectClusterPages(
         worldBox,
         localBox: shape.local.slice(),
         structure,
-        // No collected page carries a cone: `prepareCones` is the only one to set them, and it
-        // raises this flag at the same time. The WebGL2 engine does not call it and therefore no
-        // longer pays a `cone` read per tested cluster.
+        // Each page carries its cooked cone, but only `prepareCones` declares it, raising this flag:
+        // the WebGL2 engine does not call it and therefore pays no `cone` read per tested cluster.
         cones: false,
         // Each record receives `min` and `max` from the manifest, which the page contract makes
         // mandatory: the root declares it, and the cut stops checking it per cluster.

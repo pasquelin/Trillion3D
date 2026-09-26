@@ -920,7 +920,8 @@
       "texturePreviewBc7": "Les blocs BC7 des aperçus.",
       "texturePreviewAstc": "Les blocs ASTC des aperçus.",
       "bundleDependencyCount": "Combien de paquets chaque paquet attend.",
-      "bundleDependency": "Les paquets que chaque paquet attend, jusqu’aux racines."
+      "bundleDependency": "Les paquets que chaque paquet attend, jusqu’aux racines.",
+      "pageCone": "Le cône des normales de chaque page : l’axe, puis le demi-angle."
     }
   },
   "ColumnKind": {
@@ -4437,7 +4438,8 @@
       "source": "Le groupe qui l’a produit.",
       "stream": "Paquet de flux qui contient ce cluster et son décalage en octets dedans. Une demande sert des dizaines de clusters ; le cluster reste lisible seul par `url`.",
       "streamOffset": "Son décalage en octets dans ce paquet.",
-      "depthLayer": "Couche de profondeur coplanaire, 0 pour chaque cluster que le compilateur a laissé tel quel. Un cluster de couche n dessine avec un biais de profondeur de n pas de couche entiers, ce qui décide du gagnant entre deux surfaces opaques qui partagent exactement un plan. Absent et 0 veulent dire la même chose : le dessin inchangé."
+      "depthLayer": "Couche de profondeur coplanaire, 0 pour chaque cluster que le compilateur a laissé tel quel. Un cluster de couche n dessine avec un biais de profondeur de n pas de couche entiers, ce qui décide du gagnant entre deux surfaces opaques qui partagent exactement un plan. Absent et 0 veulent dire la même chose : le dessin inchangé.",
+      "cone": "Le cône qui borne les normales de ses triangles : `axis` un vecteur unitaire, `angle` le demi-angle en radians, π pour un cône qui ne rejette rien. Le compilateur le calcule à partir des triangles ; la coupe WebGPU écarte un cluster à face unique que la caméra voit depuis l’arrière de son cône."
     }
   },
   "PAGE_DECODE_FAILURES": {

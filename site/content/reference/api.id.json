@@ -334,7 +334,8 @@
       "texturePreviewBc7": "Blok BC7 pratinjau-pratinjau itu.",
       "texturePreviewAstc": "Blok ASTC pratinjau-pratinjau itu.",
       "bundleDependencyCount": "Berapa banyak bundel yang dibutuhkan tiap bundel.",
-      "bundleDependency": "Bundel yang dibutuhkan tiap bundel, sampai ke akar."
+      "bundleDependency": "Bundel yang dibutuhkan tiap bundel, sampai ke akar.",
+      "pageCone": "Kerucut normal setiap halaman: sumbu, lalu setengah sudut."
     }
   },
   "COMPILER_LINE_LIMIT": {
@@ -2355,7 +2356,8 @@
       "source": "Grup yang menghasilkannya.",
       "stream": "Bundle streaming yang menyimpan cluster ini dan offset byte-nya di dalamnya. Satu permintaan melayani puluhan cluster; cluster itu tetap bisa dibaca sendiri lewat `url`.",
       "streamOffset": "Offset byte-nya dalam bundle itu.",
-      "depthLayer": "Lapisan kedalaman koplanar, 0 untuk setiap cluster yang dibiarkan kompiler. Sebuah cluster lapisan n digambar dengan bias kedalaman n langkah lapisan penuh, yang menentukan pemenang antara dua permukaan opaque yang berbagi sebuah bidang persis. Tidak ada dan 0 berarti hal yang sama: gambar yang tidak disentuh."
+      "depthLayer": "Lapisan kedalaman koplanar, 0 untuk setiap cluster yang dibiarkan kompiler. Sebuah cluster lapisan n digambar dengan bias kedalaman n langkah lapisan penuh, yang menentukan pemenang antara dua permukaan opaque yang berbagi sebuah bidang persis. Tidak ada dan 0 berarti hal yang sama: gambar yang tidak disentuh.",
+      "cone": "Kerucut yang membatasi normal segitiga-segitiganya: `axis` vektor satuan, `angle` setengah sudut dalam radian, π untuk kerucut yang tidak menolak apa pun. Kompiler menghitungnya dari segitiga; potongan WebGPU melewati klaster satu sisi yang dilihat kamera dari belakang kerucutnya."
     }
   },
   "PageCutPage": {
