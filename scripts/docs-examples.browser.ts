@@ -44,13 +44,16 @@ async function controlsDriveTheRender(browser: Browser, port: number) {
 async function healthCheckJudges(browser: Browser, port: number) {
   const entry = ready.find(({ id }) => id === 'health-check');
   assert.ok(entry);
-  const found: string[] = [];
+  const found: string[] = [],
+    view = { width: 1728, height: 1117 };
   for (const gpu of [true, false])
     for (const slow of [0, 40]) {
       const side = `${gpu ? 'WebGPU' : 'WebGL2'}${slow ? ' slowed' : ''}`;
-      const view = { width: 1728, height: 1117 };
       const { page, errors } = await openExample(browser, port, entry, view, undefined, gpu, slow);
-      await page.waitForFunction(() => '__verdict' in globalThis, null, { timeout: 120_000 });
+      await page.waitForFunction(() => '__verdict' in globalThis, null, {
+        polling: 500,
+        timeout: 120_000,
+      });
       const verdict = await page.evaluate(
         () => (globalThis as unknown as { __verdict: HealthVerdict }).__verdict,
       );
