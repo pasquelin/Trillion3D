@@ -1,4 +1,4 @@
-import { crc32, deflateSync } from 'node:zlib';
+import { crc32, deflateSync, inflateSync } from 'node:zlib';
 
 /** One PNG chunk: length, type, payload, and the CRC that `node:zlib` already knows how to compute. */
 function chunk(kind: string, body: Uint8Array): Buffer {
@@ -38,4 +38,46 @@ export function encodePng(width: number, height: number, rgba: Uint8Array, flipY
     chunk('IDAT', deflateSync(raw)),
     chunk('IEND', new Uint8Array(0)),
   ]);
+}
+
+/** A PNG row filter's prediction from the texel on the left, above, and above-left. */
+function predict(filter: number, left: number, up: number, corner: number) {
+  const p = left + up - corner;
+  const [a, b, c] = [Math.abs(p - left), Math.abs(p - up), Math.abs(p - corner)];
+  const paeth = a <= b && a <= c ? left : b <= c ? up : corner;
+  return [0, left, up, (left + up) >> 1, paeth][filter] ?? 0;
+}
+
+/** The reader of what the compiler writes for a baked level: straight RGBA8, no interlacing, the
+ *  five row filters. Any other PNG is refused rather than misread. */
+export function decodePng(png: Uint8Array) {
+  const bytes = Buffer.from(png.buffer, png.byteOffset, png.byteLength);
+  const data: Buffer[] = [];
+  let [width, height, at] = [0, 0, 8];
+  while (at + 8 <= bytes.length) {
+    const length = bytes.readUInt32BE(at);
+    const body = bytes.subarray(at + 8, at + 8 + length);
+    const kind = bytes.toString('ascii', at + 4, at + 8);
+    if (kind === 'IHDR') {
+      [width, height] = [body.readUInt32BE(0), body.readUInt32BE(4)];
+      if (body[8] !== 8 || body[9] !== 6 || body[12] !== 0)
+        throw new Error('decodePng reads 8-bit RGBA without interlacing only');
+    } else if (kind === 'IDAT') data.push(body);
+    at += length + 12;
+  }
+  const [raw, stride] = [inflateSync(Buffer.concat(data)), width * 4];
+  if (bytes.readBigUInt64BE(0) !== 0x89504e470d0a1a0an || raw.length !== height * (stride + 1))
+    throw new Error('decodePng reads a whole PNG only: its signature, IHDR and every row');
+  const rgba = new Uint8Array(height * stride);
+  for (let y = 0; y < height; y++) {
+    const [filter, from, row] = [raw[y * (stride + 1)] ?? 0, y * (stride + 1) + 1, y * stride];
+    if (filter > 4) throw new Error(`PNG filter ${filter} does not exist`);
+    for (let x = 0; x < stride; x++) {
+      const left = x >= 4 ? (rgba[row + x - 4] ?? 0) : 0;
+      const up = y > 0 ? (rgba[row - stride + x] ?? 0) : 0;
+      const corner = x >= 4 && y > 0 ? (rgba[row - stride + x - 4] ?? 0) : 0;
+      rgba[row + x] = ((raw[from + x] ?? 0) + predict(filter, left, up, corner)) & 0xff;
+    }
+  }
+  return { width, height, rgba };
 }
