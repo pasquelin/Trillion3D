@@ -105,7 +105,7 @@ test('a diffuse and a toon surface take a lamp by the WebGPU formula on WebGL2',
     [[0, 0.6, 0.8], 0.8, 1],
     [[0.8, 0, 0.6], 0.6, 1],
     [[0, 0.8, -0.6], 0, 0.7],
-  ] as const) {
+  ] as [number[], number, number][]) {
     const args = [grey, 0, [0, 0, 1], L, 2.5, ao];
     const diffuse = light(CLUSTER_FRAGMENT, SURFACE_MODEL.diffuse)(...args);
     assert.equal(diffuse, light(DIRECT_LIGHTING_SHADER, MODEL_FLAG.diffuse)(...args));
