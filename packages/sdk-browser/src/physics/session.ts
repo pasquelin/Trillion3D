@@ -51,7 +51,7 @@ export function createPhysicsSession(
   const vehicles = createPhysicsVehicles(writer, bodies, invalidate);
   /** A body leaving the simulation takes its joints and vehicles; asleep, its joints break now. */
   const retire = (index: number, asleep = false) => {
-    if (asleep) joints.retired(bodies.meshes[index]!);
+    if (asleep) joints.retired(bodies.slots.physicsAt(index));
     bodies.retire(index);
     dirty = true;
   };

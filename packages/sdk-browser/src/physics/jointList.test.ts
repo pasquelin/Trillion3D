@@ -81,6 +81,27 @@ test('a decorative body retired asleep breaks its joints at once, told once, wri
   }
 });
 
+test('a physics set anew before the asleep tick arrives keeps the joints added on it', async () => {
+  const { scene, physics, worker, restore } = await fakePhysicsWorld();
+  try {
+    const debris = new Mesh(box(), new Material('meshStandard'));
+    debris.physics = { type: 'dynamic', decorative: true };
+    scene.add(debris);
+    physics.frame();
+    const index = debris.physics!._index;
+    debris.physics = { type: 'dynamic', decorative: true };
+    const words = poseRecord(index | (1 << GENERATION_SHIFT) | ASLEEP_BIT, [0, 0, 0, 0, 0, 0, 1]);
+    worker.onmessage({ data: { ...idleTick, buffer: words.buffer, poses: 1, steps: 1 } });
+    const pin = joint.fixed(debris, null);
+    physics.handle.add(pin);
+    physics.frame();
+    assert.ok(!pin.broken && pin._id >= 0, 'made on the new body');
+    physics.dispose();
+  } finally {
+    restore();
+  }
+});
+
 test('a distance joint given only limits.min keeps a maximum no shorter than it', async () => {
   const { workers, restore } = fakeWorkers();
   try {
