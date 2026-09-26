@@ -89,11 +89,8 @@ export function createWebgpuParticleDraw(
   /** The pool's group, made again only when the depth target changed. */
   const groupOf = (kept: DrawState, depth: GPUTextureView) => {
     if (kept.depth !== depth) {
-      const own = [kept.draw, kept.state].map((buffer, binding) => ({
-        binding,
-        resource: { buffer },
-      }));
-      const entries = [...own, { binding: 2, resource: depth }];
+      const buffers = [kept.draw, kept.state].map((buffer) => ({ buffer }));
+      const entries = [...buffers, depth].map((resource, binding) => ({ binding, resource }));
       kept.drawn = device.createBindGroup({ label: PARTICLE_DRAW_PASS, layout, entries });
       kept.depth = depth;
     }
