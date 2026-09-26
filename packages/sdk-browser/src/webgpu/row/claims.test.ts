@@ -49,7 +49,7 @@ test('the rows a frame writes spend what its arrivals left of its one budget, on
   const receiver = { acceptPage: () => void (now += 1) };
   for (const url of ['p0', 'p1']) arrivals.queue(receiver, url, new Uint32Array(1));
   const claims = owed();
-  arrivals.open();
+  budget.open();
   assert.equal(arrivals.drain(), 2, 'two 1 ms arrivals spend the 2 ms frame');
   serveClaims(
     claims,
@@ -58,7 +58,7 @@ test('the rows a frame writes spend what its arrivals left of its one budget, on
     budget,
   );
   assert.equal(claims.count, 3, 'one row goes through, three wait for the next frame');
-  arrivals.open();
+  budget.open();
   arrivals.drain();
   serveClaims(
     claims,

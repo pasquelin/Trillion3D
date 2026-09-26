@@ -8,6 +8,7 @@ import type { BoundTarget, ExplorerHostState } from './hostState.ts';
 import type { WebglRenderTarget } from '../../webgl/core/renderTarget.ts';
 import type { ExplorerSession } from '../session/session.ts';
 import type { createExplorerStreaming } from '../scene/streaming.ts';
+import type { FrameClock } from '../../page/integration/frameBudget.ts';
 import type { createPageStreamer } from '../../streaming/pageStreamer.ts';
 import type { EngineProfiler } from '../../diagnostic/telemetry.ts';
 import type { ComparisonLayout } from '../../measurement/comparison.ts';
@@ -26,6 +27,8 @@ type Inputs = {
   lookAtTarget: { x: number; y: number; z: number };
   setPose: (pose: CameraPose) => void;
   streaming: ReturnType<typeof createExplorerStreaming>;
+  /** The frame's one integration budget, opened before the cells and the arrivals spend it. */
+  frameBudget: FrameClock;
   drawBackend: (backend: RenderBackend, target: WebglRenderTarget | null) => void;
   ensureTarget: (target?: BoundTarget) => BoundTarget;
   directGpu: boolean;
@@ -67,6 +70,7 @@ export function createExplorerRender(session: ExplorerRenderSession, inputs: Inp
     lookAtTarget,
     setPose,
     streaming,
+    frameBudget,
     drawBackend,
     ensureTarget,
     directGpu,
@@ -96,7 +100,7 @@ export function createExplorerRender(session: ExplorerRenderSession, inputs: Inp
     if (pose) setPose(pose);
     // One integration budget per frame: the cells placed, then the arrivals drained, both
     // outside the frame they would have lengthened.
-    streaming.arrivals.open();
+    frameBudget.open();
     followCells?.();
     guides?.follow();
     const arrivalStart = performance.now();

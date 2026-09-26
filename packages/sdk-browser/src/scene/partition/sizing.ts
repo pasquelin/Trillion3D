@@ -102,10 +102,13 @@ export function residentRows(
  *  page sets: a parent turned and moved back keeps its stretch within it. */
 const SLACK = 2 ** -20;
 
-/** The stretch rows are sized for: each parent's `now`, widened by the rounding. */
-export const sizedStretch = (now: ReadonlyMap<number, Stretch>) =>
+/** The stretch rows are sized for: each parent's `now`, widened by the rounding and `by` more. */
+export const sizedStretch = (now: ReadonlyMap<number, Stretch>, by = 1) =>
   new Map(
-    [...now].map(([rank, [least, most]]) => [rank, [least * (1 - SLACK), most * (1 + SLACK)]]),
+    [...now].map(([rank, [least, most]]) => [
+      rank,
+      [(least * (1 - SLACK)) / by, most * (1 + SLACK) * by],
+    ]),
   ) as ReadonlyMap<number, Stretch>;
 
 /** Whether a parent stretches its cells' frame, `now`, past what rows `sized` for hold: a least

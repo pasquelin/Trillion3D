@@ -68,7 +68,7 @@ export function createExplorerHostFrame(session: ExplorerSession, inputs: Inputs
     camera,
     active: () => state.active,
     renew: options.onRowsOutgrown,
-    budget: streaming.arrivals,
+    budget: frameBudget,
   });
   const render = createExplorerRender(session, {
     check,
@@ -79,6 +79,7 @@ export function createExplorerHostFrame(session: ExplorerSession, inputs: Inputs
     lookAtTarget,
     setPose,
     streaming,
+    frameBudget,
     drawBackend,
     ensureTarget,
     directGpu,
