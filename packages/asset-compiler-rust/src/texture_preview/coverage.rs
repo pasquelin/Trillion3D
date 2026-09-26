@@ -158,9 +158,16 @@ impl Covered {
     /// its filtered share at or above the cutoff is level 0's, steps 2 to 4.
     pub(super) fn preserve(&self, level: &mut [u8], width: usize) {
         let c = u32::from(self.cutoff);
+        // A square of four equal corners — most of a foliage mask — filters to its corner
+        // exactly: its four samples share one bin, searched once per byte.
+        let flat: [usize; 256] = std::array::from_fn(|a| cut_bin([a as u32; 4], 0, c));
         let mut histogram = [0u64; 256];
         for square in squares(level, width) {
-            (0..4).for_each(|s| histogram[cut_bin(square, s, c)] += 1);
+            if square.iter().all(|&a| a == square[0]) {
+                histogram[flat[square[0] as usize]] += 4;
+            } else {
+                (0..4).for_each(|s| histogram[cut_bin(square, s, c)] += 1);
+            }
         }
         let t = self.pick(&histogram, (level.len() / 4) as u64);
         self.scale(level, t);

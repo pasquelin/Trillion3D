@@ -93,7 +93,7 @@ function buildCounts(gl: WebGL2RenderingContext) {
     extent: at(count, 'extent'),
     size: at(count, 'size'),
     halved: at(count, 'halved'),
-    counted: at(count, 'cutoff'),
+    countCutoff: at(count, 'cutoff'),
     sampled: at(pick, 'counts'),
     cutoff: at(pick, 'cutoff'),
     level: at(pick, 'level'),
@@ -145,7 +145,7 @@ export class WebglCoverageCounts {
     gl.useProgram(built.count);
     gl.uniform1i(built.source, unit);
     gl.uniform2i(built.extent, sw, sh);
-    gl.uniform1ui(built.counted, cutoff);
+    gl.uniform1ui(built.countCutoff, cutoff);
     for (const at of level === 1 ? [0, 1] : [level]) {
       const [side, rows] = levelSize(width, height, at);
       gl.uniform2i(built.size, side, rows);
