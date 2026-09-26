@@ -36,8 +36,8 @@ export const COVERAGE_WGSL = `
   if(all(id.xy<sizeOf(k))){
    let q=id.xy;
    let a=vec4u(alphaAt(q),alphaAt(q+vec2u(1u,0u)),alphaAt(q+vec2u(0u,1u)),alphaAt(q+vec2u(1u,1u)));
-   // Four equal corners filter to their byte exactly: one search files the square's four samples.
-   if(all(a==vec4u(a.x))){atomicAdd(&tally[cutBin(a,0u,level.extent.z)],4u);}
+   // Four equal corners filter to their byte, which is their bin: no search.
+   if(all(a==vec4u(a.x))){atomicAdd(&tally[a.x],4u);}
    else{for(var s=0u;s<4u;s++){atomicAdd(&tally[cutBin(a,s,level.extent.z)],1u);}}
   }
   // Foliage lands nearly every texel in two bins: the workgroup counts apart, then adds its own

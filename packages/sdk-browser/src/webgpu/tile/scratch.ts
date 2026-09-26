@@ -1,5 +1,6 @@
 import type { Texture } from '../../../../sdk-core/src/index.ts';
-import { texelsRefusal, textureRgba } from '../../visibility/types.ts';
+import { textureRgba } from '../../visibility/types.ts';
+import { texelsRefusal } from '../../host/textureImport.ts';
 import { premultipliedByte } from '../../visibility/math.ts';
 import { generateMaterialMips } from '../../texture/mips.ts';
 import { mipLevelCountFor } from '../../texture/tiles.ts';
