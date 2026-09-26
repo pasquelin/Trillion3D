@@ -7,7 +7,7 @@ import type { PhysicsOption } from '../../../../sdk-core/src/physics/options.ts'
  *  a mesh of version 1 casts (`readScene`). */
 export const SCENE_FORMAT = 'trillion3d-scene';
 export const SCENE_FORMAT_VERSION = 2;
-export const SCENE_FORMAT_OLDEST = 1;
+const SCENE_FORMAT_OLDEST = 1;
 
 /** A geometry: the family call that built it, or its vertices when no call can build it again. */
 export interface SavedGeometry {
