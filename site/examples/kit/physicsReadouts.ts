@@ -11,9 +11,6 @@ export const PHYSICS_LINES = {
   page: ({ mainMs }: PhysicsStats) => ms(mainMs),
 };
 
-/** A line of `PHYSICS_LINES`. */
-type PhysicsLine = keyof typeof PHYSICS_LINES;
-
 /**
  * The physics readouts of an example: one `readout` per line of `lines`, in that order, written
  * each frame the world draws from `world.physics.stats`. Declared after `controls`, like any
@@ -21,7 +18,7 @@ type PhysicsLine = keyof typeof PHYSICS_LINES;
  */
 export function physicsReadouts(
   world: { onFrame(hook: () => void): unknown; physics: { stats: PhysicsStats } },
-  lines: readonly PhysicsLine[],
+  lines: readonly (keyof typeof PHYSICS_LINES)[],
 ) {
   const shown = lines.map((line) => [readout(line), PHYSICS_LINES[line]] as const);
   world.onFrame(() => {
