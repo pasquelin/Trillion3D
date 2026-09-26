@@ -103,6 +103,7 @@ test('a small CPU total: no page a frame keeps is refused for a texture level, t
   );
   for (let frame = 1; frame < 4; frame++) await ask(0, frame);
   assert.deepEqual(fetched, urls, 'a level that cannot fit is not read again');
+  assert.equal(levels.request(request(0), 4, [8, 8]), false, 'refused, not waited for');
   streamer.dispose();
 });
 

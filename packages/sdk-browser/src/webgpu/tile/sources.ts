@@ -94,7 +94,8 @@ export function createTileSources(options: {
     levels,
     /**
      * Serves a tile from its source. `waiting`: its bytes are not there yet, it will come back;
-     * `refused`: the pool is full for this view, nothing will come — and nothing was read for it.
+     * `refused`: the pool is full for this view, or the level does not fit beside the pages kept,
+     * nothing will come — and nothing was read for it.
      */
     serve(
       atlas: WebgpuTileAtlas,
@@ -116,9 +117,9 @@ export function createTileSources(options: {
         const held = levels?.get(levelKey);
         if (!held) {
           if (!atlas.roomFor(key.slot, frame)) return 'refused';
-          if (levels && levels.inFlight < MAX_LEVEL_READS)
-            levels.request(levelKey, frame, [width, height]);
-          return 'waiting';
+          const asked = levels && levels.inFlight < MAX_LEVEL_READS;
+          // A level that cannot fit beside the pages kept will not come: refused, not waited for.
+          return asked && !levels.request(levelKey, frame, [width, height]) ? 'refused' : 'waiting';
         }
         const place = atlas.place(key, frame);
         if (!place) return 'refused';

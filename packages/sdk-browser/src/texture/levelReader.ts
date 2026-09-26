@@ -27,6 +27,8 @@ export type TextureLevelRequest = {
 /** A function that fetches one baked texture level. */
 export type TextureLevelReader = ((request: TextureLevelRequest) => Promise<TextureLevel>) & {
   readonly store?: TextureLevelStore;
+  /** The cook the reader was made for: its levels are held in `store` under it. */
+  readonly key?: string;
 };
 
 /** Host bytes a decoded bitmap of `width` × `height` texels holds. */
@@ -74,5 +76,5 @@ export function createTextureLevelReader(
       });
     return new Uint8Array(await response.arrayBuffer());
   };
-  return Object.assign(read, { store });
+  return Object.assign(read, { store, key });
 }
