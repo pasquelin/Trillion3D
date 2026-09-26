@@ -8,9 +8,9 @@
 //! `MeshShape` stored as a SHA-addressed object like the pages; a regular grid becomes a height
 //! field (`height.rs`). Per scene: `physics.json` (`stage.rs`), each placement carrying the matter its
 //! source declares through `KHR_physics_rigid_bodies` (`declared.rs`); the rigid bodies its nodes
-//! declare, a shapeless one given one convex hull (`hull.rs`) and the exact mass, centre of mass
-//! and inertia of its closed mesh (`mass.rs`); and the soft bodies its nodes declare, each Jolt's `SoftBodySharedSettings` as
-//! the physics worker would build them (`soft.rs`).
+//! declare, a shapeless one given one convex hull (`hull.rs`) and the exact mass of its closed mesh
+//! (`mass.rs`); and the soft bodies its nodes declare, each Jolt's `SoftBodySharedSettings` as the
+//! physics worker would build them (`soft.rs`).
 use crate::dag::{CullingNode, DagCluster};
 use crate::{CompilerError, Options, Result};
 use serde_json::{json, Value};
