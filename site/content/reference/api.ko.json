@@ -2289,7 +2289,7 @@
     "summary": "데이터 아틀라스: 메탈-러프니스, 법선, 오클루전 맵."
   },
   "PREVIEW_ATLAS_NAMES": {
-    "summary": "베이크된 레벨의 경로가 각 아틀라스에 대해 담는 `{kind}`, `bake.rs`가 그것들에 이름을 붙이는 방식으로."
+    "summary": "구운 레벨의 경로가 각 아틀라스에 대해 담는 `{kind}`로, `reduce.rs`가 붙이는 이름이다. 바이트 C에서 잘리는 커버리지 체인은 `-C`를 덧붙인다."
   },
   "PREVIEW_BASE": {
     "summary": "사이드카가 담는 레벨이 가질 수 있는 최대 한 변."
@@ -3676,7 +3676,7 @@
       "sourceKind": "바이트가 이미지 uri에서 왔으면 0, sourceBufferView에서 왔으면 1.",
       "sourceBufferView": "준비된 씬의 버퍼 뷰, uri 소스면 -1.",
       "sha256": "디코딩된 원본 바이트의 SHA-256.",
-      "atlas": "이 항목이 담는 체인: PREVIEW_ATLAS_COLOR, PREVIEW_ATLAS_DATA, 또는 컬러 아틀라스에서 샘플링되는 PREVIEW_ATLAS_COVERAGE.",
+      "atlas": "이 항목이 담는 체인: PREVIEW_ATLAS_COLOR, PREVIEW_ATLAS_DATA, 또는 색상 아틀라스에서 샘플링되는 PREVIEW_ATLAS_COVERAGE를 하위 바이트에 담는다. 커버리지 체인의 컷오프 바이트는 비트 8–15를 채운다.",
       "firstLevel": "원본의 밉 체인에 담긴 첫 레벨의 인덱스; 이미 PREVIEW_BASE 이하에 맞아서 사이드카가 완전한 해상도를 담고 있으면 0.",
       "bakedLevels": "캐시 안 파일로 베이크된 레벨 수, 0부터 bakedLevels - 1까지; 체인이 완전하면 firstLevel, 아무것도 쓰이지 않아 엔진이 원본 이미지를 로드하면 0.",
       "levels": "순서대로 담긴 레벨들, 가장 세밀한 것부터 1×1까지, 각각 사이드카 바이트에 대한 뷰.",
