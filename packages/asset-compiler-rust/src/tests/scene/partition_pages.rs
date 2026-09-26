@@ -102,24 +102,8 @@ fn index_pages_list_at_most_the_fan_out_and_give_every_record_back_in_order() {
             None => assert!(*bytes <= PAGE_BYTES, "a region page of {bytes} bytes"),
         }
     }
-    let mut pages = Vec::new();
-    read_leaves(
-        &CELL_PAGES,
-        &directory,
-        &root["pages"],
-        "the root",
-        &mut pages,
-    )
-    .expect("pages");
-    let read: Vec<&Value> = pages
-        .iter()
-        .flat_map(|p| p[CELL_PAGES.records].as_array().expect("cells"))
-        .collect();
-    assert_eq!(
-        read,
-        records.iter().collect::<Vec<_>>(),
-        "every record, in cell order"
-    );
+    let read = read_records(&directory, &root).expect("records");
+    assert_eq!(read, records, "every record, in cell order");
     fs::remove_dir_all(directory).expect("cleanup");
 }
 

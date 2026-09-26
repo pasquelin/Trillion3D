@@ -134,23 +134,17 @@ async function readPage(
 const named = (kind: PageKind, slots: readonly unknown[]) =>
   slots.map((slot) => slotPage(kind, slot)).filter((slot) => slot !== null);
 
-/** Every region page of `kind` under `pages`, in record order, the pages read side by side through
- *  `read` (which verifies each against its slot). */
+/** Every region page of `kind` under `slots`, in record order, the pages read side by side
+ *  through `read` (which verifies each against its slot). */
 async function readLeaves(
   kind: PageKind,
-  pages: readonly TablePage[],
+  slots: ReturnType<typeof named>,
   read: (page: TablePage) => Promise<Uint8Array>,
 ): Promise<PageBody[]> {
   const lists = await Promise.all(
-    pages.map(async (page) => {
+    slots.map(async ({ page }) => {
       const body = await readPage(kind, page, read);
-      const below = Array.isArray(body.pages) ? named(kind, body.pages) : null;
-      if (below)
-        return readLeaves(
-          kind,
-          below.map((slot) => slot.page),
-          read,
-        );
+      if (Array.isArray(body.pages)) return readLeaves(kind, named(kind, body.pages), read);
       if (Array.isArray(body[kind.records])) return [body];
       throw new EngineError(kind.invalid, `${page.url} lists neither pages nor records`, {});
     }),
@@ -165,11 +159,7 @@ export async function readTablePartition(
   read: (page: TablePage) => Promise<Uint8Array>,
 ): Promise<TablePartition> {
   const slots = named(CELL_PAGES, root.pages);
-  const pages = await readLeaves(
-    CELL_PAGES,
-    slots.map((slot) => slot.page),
-    read,
-  );
+  const pages = await readLeaves(CELL_PAGES, slots, read);
   const cells = pages.flatMap((page) => page[CELL_PAGES.records] as TableCell[]);
   if (!cells.every((cell) => Array.isArray(cell?.meshes) && Array.isArray(cell.parents)))
     throw new EngineError(CELL_PAGES.invalid, 'scene partition misses its cells', {});
