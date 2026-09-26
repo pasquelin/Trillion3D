@@ -42,5 +42,5 @@ export function createShadowThresholds(pool: ShadowPool) {
       thresholds.pending = false;
     },
   };
-  return thresholds;
+  return thresholds as Readonly<typeof thresholds>;
 }

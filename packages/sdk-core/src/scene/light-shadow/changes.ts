@@ -165,5 +165,5 @@ export function createShadowChanges() {
       lastView.fill(NaN);
     },
   };
-  return changes;
+  return changes as Readonly<typeof changes>;
 }

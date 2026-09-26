@@ -191,7 +191,7 @@ export function createShadowPool(side: number) {
     reset: init,
   };
   init();
-  return pool;
+  return pool as Readonly<typeof pool>;
 }
 
 export type ShadowPool = ReturnType<typeof createShadowPool>;
