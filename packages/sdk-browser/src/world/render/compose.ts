@@ -38,7 +38,7 @@ export type ComposedChain = { chain: EffectChain; shown: () => boolean };
  * since it was kept is drawn again. The page's `guides` are drawn over the image the destination
  * got, the chain's included, before that copy is kept, at the host's `pixelRatio`; a change to
  * them spares no redraw. The world's `particles` step on every image an engine draws here, and
- * an image one of them moved in is drawn, never the kept copy; a context that renders no half
+ * an image one of them moved in is drawn, never the kept copy; a context that renders no 32-bit
  * float refuses them by name (`../../particles/webglParticles.ts`). Nothing here belongs to a
  * rendering library.
  */

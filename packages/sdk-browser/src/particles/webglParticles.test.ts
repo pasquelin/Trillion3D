@@ -1,6 +1,6 @@
 // The CPU half of the WebGL2 particle step (#759): the texels, uniforms and targets it hands its
 // GPU for a pool, what they come to against the WebGPU step's, and its refusal without a
-// half-float target. What the GPU does with them is the measurer's.
+// 32-bit float target. What the GPU does with them is the measurer's.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { setImmediate as tick } from 'node:timers/promises';
@@ -11,11 +11,13 @@ import { createWebglParticles } from './webglParticles.ts';
 import { createWebgpuParticles } from './webgpuParticles.ts';
 import { computeRecorder, webglModel, webgpuModel } from './stepModels.fixture.ts';
 
-const DT = 1 / 64; // exact in a half float: both steps age a particle alike
+const DT = 1 / 64;
 
-/** A context with half-float targets, its WebGL2 step, and what one `run` handed the GPU. */
-function webgl(extensions: object | null = {}) {
-  const ctx = createTestContext({ answers: { getExtension: () => extensions } });
+/** A context granting the `granted` extensions, its WebGL2 step, and what one `run` handed
+ *  the GPU. */
+function webgl(granted = ['EXT_color_buffer_float']) {
+  const getExtension = (name: string) => (granted.includes(name) ? {} : null);
+  const ctx = createTestContext({ answers: { getExtension } });
   const particles = createWebglParticles(ctx.gl);
   const run = (pools: ParticlePool[]) => {
     const from = ctx.calls.length,
@@ -58,8 +60,8 @@ test('WebGL2: the records land as float texels, only emitted rows are drawn, the
   assert.equal(ctx.of('deleteFramebuffer').length, 2, 'a pool the world let go of frees them');
 });
 
-test('WebGL2 without a half-float colour target refuses the pools by name', () => {
-  const { run } = webgl(null);
+test('WebGL2 without a 32-bit float colour target refuses the pools by name, half floats too', () => {
+  const { run } = webgl(['EXT_color_buffer_half_float']);
   const pool = new ParticlePool({ capacity: 8 });
   pool.emit(0, 0, 0, 0, 1, 0, 2);
   assert.throws(() => run([pool]), /^Error: PARTICLES_UNSUPPORTED/);
@@ -75,7 +77,7 @@ function emitReference(pools: ParticlePool[], frame: number) {
   }
 }
 
-test('WebGL2 and WebGPU step a reference emission alike, within half-float tolerance', async () => {
+test('WebGL2 and WebGPU step a reference emission to the same 32-bit floats', async () => {
   const spec: ParticlePoolSpec = { capacity: 300, emitPerFrame: 8 },
     frames = 64;
   const gpu = fakeDevice(),
@@ -95,15 +97,9 @@ test('WebGL2 and WebGPU step a reference emission alike, within half-float toler
   }
   let moved = 0;
   for (let i = 0; i < spec.capacity; i++) {
-    const [ours, theirs] = [models.gl.particle(i), models.gpu.particle(i)];
+    const theirs = models.gpu.particle(i);
     if (theirs[3] > 0) moved++;
-    ours.forEach((value, k) => {
-      const tolerance = frames * 2 ** -11 * Math.max(1, Math.abs(theirs[k]));
-      assert.ok(
-        Math.abs(value - theirs[k]) <= tolerance,
-        `slot ${i}[${k}]: ${value} vs ${theirs[k]}`,
-      );
-    });
+    assert.deepEqual(models.gl.particle(i), theirs, `slot ${i}`);
   }
   assert.ok(moved > 200, `${moved} particles stepped`);
 });
@@ -118,7 +114,29 @@ test('WebGL2: a 1 mm step holds ten kilometres from the world origin', () => {
     pool.advance(DT);
     model.step(run([pool]).of);
     const moved = model.particle(0)[0] - x;
-    assert.ok(Math.abs(moved - 0.001) <= 2 ** -13, `step ${frame}: ${moved * 1000} mm`);
+    assert.ok(Math.abs(moved - 0.001) <= 2 ** -20, `step ${frame}: ${moved * 1000} mm`);
     x += moved;
   }
+});
+
+test('WebGL2: a particle of a 60 s lifetime dies after 60 s of 144 Hz steps, and stays put', () => {
+  const { run } = webgl(),
+    model = webglModel(8),
+    hz = 144;
+  const pool = new ParticlePool({ capacity: 8, acceleration: [0, 0, 0] });
+  pool.emit(0, 0, 0, 0, 1, 0, 60);
+  let died = 0,
+    steps = 0,
+    atDeath: number[] = [];
+  while (pool.moving && steps < 62 * hz) {
+    pool.advance(1 / hz);
+    model.step(run([pool]).of);
+    const particle = model.particle(0);
+    if (!died && particle[3] >= particle[7]) [died, atDeath] = [steps + 1, particle];
+    steps++;
+  }
+  assert.ok(Math.abs(died - 60 * hz) <= 3, `died at step ${died} of ${60 * hz}`);
+  assert.ok(steps > died, 'stepped on past its death');
+  assert.deepEqual(model.particle(0), atDeath, 'dead: neither aged nor moved');
+  assert.ok(Math.abs(atDeath[1] - 60) < 0.02, `rose 60 m: ${atDeath[1]}`);
 });

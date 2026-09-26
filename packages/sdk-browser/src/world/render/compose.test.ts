@@ -137,7 +137,7 @@ test('WebGL2 steps the pools ahead of the engine, which draws an image they move
   assert.deepEqual(bound, [0, 0, 8, 4], 'then the page, bound again');
 });
 
-test('WebGL2 without a half-float target refuses the pools by name, never draws without them', () => {
+test('WebGL2 without a 32-bit float target refuses the pools by name, never draws without them', () => {
   const { gl } = createTestContext({ answers: { getExtension: () => null } });
   const particles = [new ParticlePool({ capacity: 8 })];
   const compose = createFrameComposer(gl, camera, { particles });
