@@ -2,7 +2,6 @@ import { invertMatrix4, updateCameraFrame } from '../../../../sdk-core/src/index
 import { createEngineCamera, type EngineCamera } from '../../camera/world.ts';
 import { selectVisiblePages, type PageRec } from '../../page/selection/selection.ts';
 import { createSelectionResult } from '../../page/cut/state.ts';
-import { nextResidencyStamp } from '../../page/cut/held.ts';
 import { MAX_SHADOW_RUNS } from '../../gpu/shadow/batchBudget.ts';
 import { DRAW_INDIRECT_STRIDE } from '../../gpu/draw/contract.ts';
 import { planImageShadows } from '../pages/render/encodeShadows.ts';
@@ -113,9 +112,6 @@ export function selectCpuCasters(rt: WebgpuPagesRuntime, device: GPUDevice, cam:
     if (page !== undefined) marks[page] = stamp;
   }
   lists.runs = 0;
-  // Nothing loads or leaves while the faces select — what they want is offered after the last —:
-  // each root's residency is read once for all of them.
-  const residencyStamp = nextResidencyStamp();
   forEachShadowBatch(rt, (from, to, runBase) => {
     writeShadowPages(lights, cam.eye, from, to);
     lists.runs = runBase + runs.count;
@@ -131,7 +127,7 @@ export function selectCpuCasters(rt: WebgpuPagesRuntime, device: GPUDevice, cam:
           viewport,
           holdResident: true,
           isResident: services.poolHolds,
-          residencyStamp,
+          held: services.heldResidency,
           wanted: wanted[at],
           result: lists.result,
           light: face.pages,

@@ -7,7 +7,7 @@ import {
 import type { EngineCamera } from '../../camera/world.ts';
 import type { createGeometryBudget } from './pool.ts';
 import { createAutonomousRequests } from './requests.ts';
-import { createHeldBytes } from '../../page/cut/held.ts';
+import type { HeldResidency } from '../../page/cut/held.ts';
 
 /**
  * The cut of a WebGL2 image and what it asks the pool for. The cut is drawn at the host's
@@ -26,12 +26,12 @@ export function createImageCut(options: {
   /** Moves when the placements change (`requests.ts`). */
   revision: () => number;
   pool: Pick<ReturnType<typeof createGeometryBudget>, 'admit' | 'fit'> & { readonly held: object };
+  /** The rule's readiness of the placements, moved by the pool's loads and releases: routed
+   *  again each time the requests lay the placements out again (`requests.ts`). */
+  held: HeldResidency;
 }) {
-  const { roots, shown, desired, requested, pool } = options;
+  const { roots, shown, desired, requested, pool, held } = options;
   const requests = createAutonomousRequests(roots, options.revision, requested);
-  // The rule's readiness of the placements, a running total counted again each time the requests
-  // lay the placements out again (`requests.ts`), so a read between two cuts is exact too.
-  const held = createHeldBytes();
   const follow = () => {
     if (requests.follow()) held.track(roots);
   };
@@ -41,6 +41,7 @@ export function createImageCut(options: {
     pixelError: 0,
     viewport: options.viewport,
     holdResident: true,
+    held,
     wanted: desired,
     result: createSelectionResult<PageRec>(),
   };

@@ -14,6 +14,7 @@ import { copyElements } from '../../math/matrixElements.ts';
 import type { ClusterRoot } from '../selection/types.ts';
 import { pixelScaleOf } from '../../streaming/priority.ts';
 import type { EngineCamera } from '../../camera/world.ts';
+import { createHeldResidency, type HeldResidency } from './held.ts';
 
 /**
  * World pose of a root copied into an owned buffer, once per root: the base product
@@ -21,6 +22,8 @@ import type { EngineCamera } from '../../camera/world.ts';
  * arrays.
  */
 const rootWorld = new Float64Array(16);
+/** Where a cut holding residency with no feed of its own keeps each root's readiness. */
+const UNFED = createHeldResidency();
 
 /** Select the requested LOD cut and the resident cut that can be displayed this frame. */
 export function selectVisiblePages<T extends PageRecord>(
@@ -31,9 +34,9 @@ export function selectVisiblePages<T extends PageRecord>(
     viewport?: [number, number];
     holdResident?: boolean;
     isResident?: (page: T) => boolean;
-    /** Cuts of one stamp (`nextResidencyStamp`) answer residency alike: nothing loads or leaves
-     *  between them, and each root's readiness is read at the first (`./held.ts`). */
-    residencyStamp?: number;
+    /** Where the pool holds the rule's readiness of the roots, moved by its residency feed
+     *  (`./held.ts`); a cut holding residency without one reads every page of the roots it visits. */
+    held?: HeldResidency;
     wanted?: T[];
     result?: SelectionResult<T>;
     /** Selects shadow casters from a light into these pages (`SelectionState.light`). */
@@ -60,7 +63,8 @@ export function selectVisiblePages<T extends PageRecord>(
   // The residency rule depends only on the request: stating it here takes two re-reads of the
   // state and one indirect call out of the per-cluster loop, without touching the answer.
   state.residentMode = residentModeOf(hold, options.isResident);
-  state.residencyStamp = options.residencyStamp ?? 0;
+  state.held = hold ? (options.held ?? UNFED) : undefined;
+  state.held?.follow();
   state.pixelError = options.pixelError ?? 0;
   state.cameraStretch = maxStretch(cam.view);
   state.flatWorld = roots[0]?.world ?? IDENTITY_WORLD;
@@ -113,7 +117,10 @@ export function selectVisiblePages<T extends PageRecord>(
   result.lodLevel = state.lodLevel;
   result.complete = state.complete;
   result.pixelError = state.pixelError;
+  // An image's cut lets go of the readiness of the roots no cut saw since the previous one.
+  state.held?.end(!options.light);
   // The reused state keeps no hold on this image's scene.
+  state.held = undefined;
   state.isResident = undefined;
   state.light = undefined;
   state.flatHeld = undefined;
