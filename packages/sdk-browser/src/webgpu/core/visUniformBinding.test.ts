@@ -1,11 +1,11 @@
-// #55: the visibility uniform grew to carry the cutout stipple word. Defect this test catches: a
-// group binds it at its old size, or the layout hides it from the fragment that reads the word —
-// the real device then refuses the pipeline or the dispatch.
+// The visibility uniform (`VIS_UNIFORM_BYTES`). Defect this test catches: a group binds it at
+// another size than the struct the shaders declare — the real device then refuses the dispatch.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createWebgpuVisibilityShaders } from '../visibility/shaders.ts';
 import { smallBindEntries, visBindEntries } from './bindEntries.ts';
 import { SMALL_BINDINGS, VIS_BINDINGS, VIS_UNIFORM_BYTES } from './bindLayout.ts';
+import { VIS_UNIFORMS_WGSL } from '../../visibility/shader/pageWgsl.ts';
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 import type { WebgpuTileStreamer } from '../tile/streamer.ts';
 
@@ -43,12 +43,21 @@ test('every group that binds the visibility uniform spans the whole struct', () 
   assert.equal(sizeAt(small, SMALL_BINDINGS.uniform), VIS_UNIFORM_BYTES);
 });
 
-test('the fragment of the visibility pass sees the uniform it reads the stipple from', async () => {
+test('only the vertex stage reads the visibility uniform, at the size of its struct', async () => {
   const { device } = fakeDevice();
   const { visBindGroupLayout } = await createWebgpuVisibilityShaders(device, 8);
   const entry = (
     visBindGroupLayout as unknown as { entries: GPUBindGroupLayoutEntry[] }
   ).entries.find((candidate) => candidate.binding === VIS_BINDINGS.uniform)!;
-  assert.ok(entry.visibility & GPUShaderStage.FRAGMENT);
+  // No fragment of the pass reads it.
+  assert.equal(entry.visibility, GPUShaderStage.VERTEX);
   assert.equal(entry.buffer?.minBindingSize, VIS_UNIFORM_BYTES);
+});
+
+test('the uniform size covers its words, rounded to the matrix alignment', () => {
+  const words = VIS_UNIFORMS_WGSL.replace(/.*viewProj:mat4x4f,/, '').match(/:(f32|u32)/g)!;
+  const vec2 = (VIS_UNIFORMS_WGSL.match(/:vec2f/g) ?? []).length;
+  const bytes = 64 + 4 * words.length + 8 * vec2;
+  assert.match(VIS_UNIFORMS_WGSL, /selectionEnabled:u32,pixelRatio:f32,\}$/);
+  assert.equal(VIS_UNIFORM_BYTES, Math.ceil(bytes / 16) * 16);
 });
