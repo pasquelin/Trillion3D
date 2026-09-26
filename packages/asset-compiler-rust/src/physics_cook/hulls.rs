@@ -6,6 +6,7 @@ use super::decompose::decompose;
 use super::{refused, taken};
 use crate::compiler_accessor_create::accessor;
 use crate::compiler_validate::{item, required_index, values};
+use crate::compiler_world::{transform_point, Mat4};
 use crate::qem::compact_region;
 use crate::shared_math::{length, sub};
 use crate::{Options, Result};
@@ -27,31 +28,31 @@ extern "C" {
     fn cook_hull_planes(points: *const f32, count: u32, planes: *mut f32, room: u32) -> u32;
 }
 
-/// Mass, centre of mass and inertia about it (column-major) of a cooked body.
-pub(super) struct MassProperties {
-    pub mass: f32,
-    pub centre: [f32; 3],
-    pub inertia: [f32; 9],
-}
-
-/// A compound of convex hulls (one hull alone when `parts` has one) at `density` kg/m³.
-pub(super) fn hulls_shape(parts: &[Vec<f32>], density: f32) -> Result<(Vec<u8>, MassProperties)> {
+/// A compound of convex hulls (one hull alone when `parts` has one) at `DENSITY`, and its `mass`,
+/// `centerOfMass` and `inertia` about it (column-major).
+pub(super) fn hulls_shape(parts: &[Vec<f32>]) -> Result<(Vec<u8>, Value)> {
     let points: Vec<f32> = parts.concat();
     let counts: Vec<u32> = parts.iter().map(|p| (p.len() / 3) as u32).collect();
-    let mut mass = [0f32; 13];
+    let mut m = [0f32; 13];
     let (mut out, mut bytes) = (std::ptr::null(), 0u32);
-    // SAFETY: `counts` sums to the points `points` holds; `mass` has the 13 floats written.
+    // SAFETY: `counts` sums to the points `points` holds; `m` has the 13 floats written.
     let status = unsafe {
-        let (p, c, m) = (points.as_ptr(), counts.as_ptr(), mass.as_mut_ptr());
-        cook_hulls(p, c, parts.len() as u32, density, m, &mut out, &mut bytes)
+        let (p, c) = (points.as_ptr(), counts.as_ptr());
+        cook_hulls(
+            p,
+            c,
+            parts.len() as u32,
+            DENSITY,
+            m.as_mut_ptr(),
+            &mut out,
+            &mut bytes,
+        )
     };
     let shape = taken(status, out, bytes, "convex hulls")?;
-    let properties = MassProperties {
-        mass: mass[0],
-        centre: [mass[1], mass[2], mass[3]],
-        inertia: mass[4..13].try_into().expect("nine floats"),
-    };
-    Ok((shape, properties))
+    Ok((
+        shape,
+        json!({"mass":m[0],"centerOfMass":&m[1..4],"inertia":&m[4..13]}),
+    ))
 }
 
 /// The planes of the convex hull of `points` (normal and constant each; inside is negative), none
@@ -110,15 +111,21 @@ fn mean_edge(pos: &[f32], triangles: &[u32]) -> f64 {
     lengths.iter().sum::<f64>() / lengths.len().max(1) as f64
 }
 
-/// The cooked hulls of mesh `mesh`, in its frame — one hull, or a decomposition within the mesh's
-/// grain, its mean edge length, published as `tolerance` — with their mass properties.
+/// The cooked hulls of mesh `mesh`, in its frame or moved by `frame` — one hull, or a
+/// decomposition within the mesh's grain, its mean edge length, published as `tolerance` — with
+/// their mass properties.
 pub(super) fn cooked_hulls(
     o: &Options,
     (g, bin): (&Value, &[u8]),
-    mesh: usize,
+    (mesh, frame): (usize, Option<Mat4>),
     one_hull: bool,
 ) -> Result<Value> {
-    let (pos, triangles) = mesh_triangles(g, bin, mesh)?;
+    let (mut pos, triangles) = mesh_triangles(g, bin, mesh)?;
+    if let Some(m) = frame {
+        for p in pos.as_chunks_mut::<3>().0 {
+            *p = transform_point(&m, p.map(f64::from)).map(|v| v as f32);
+        }
+    }
     let tolerance = mean_edge(&pos, &triangles);
     let parts = if one_hull {
         vec![compact_region(&pos, &triangles).0]
@@ -129,14 +136,14 @@ pub(super) fn cooked_hulls(
     if parts.is_empty() {
         return Err(flat());
     }
-    let (bytes, mass) = hulls_shape(&parts, DENSITY)?;
-    if mass.mass <= 0.0 {
+    let (bytes, mass) = hulls_shape(&parts)?;
+    if mass["mass"].as_f64().is_none_or(|m| m <= 0.0) {
         return Err(flat());
     }
     let mut shape = store_shape(o, &bytes)?;
     shape["type"] = json!("cooked");
     shape["parts"] = json!(parts.len());
     shape["tolerance"] = json!(tolerance);
-    shape["mass"] = json!({"mass":mass.mass,"centerOfMass":mass.centre,"inertia":mass.inertia});
+    shape["mass"] = mass;
     Ok(shape)
 }
