@@ -70,8 +70,8 @@ fn a_hull_is_weighed_at_cook_and_a_concave_body_decomposed() {
 // matter as declared; the one declaring motion without a shape gets a cooked hull weighed as a unit
 // cube; the one declaring nothing is no body; the one naming a missing shape is refused by name,
 // as is a cube's flat face asking for its convex hull. A body that draws nothing, 5 m away, whose
-// collider names the plain cube's node, weighs that cube in its own frame. The cubes stay static
-// ground until the page restores their bodies.
+// collider names the plain cube's node, weighs that cube in its own frame; a cube the slice left
+// out is no body. The cubes stay static ground until the page restores their bodies.
 #[test]
 fn declared_bodies_are_cooked_beside_the_static_ground() {
     let mut bin = crate::import::f32_bytes(&cube([0.0; 3], [1.0; 3]));
@@ -90,7 +90,8 @@ fn declared_bodies_are_cooked_beside_the_static_ground() {
             rigid(json!({"motion":{}})), {"mesh":0},
             rigid(json!({"motion":{"isKinematic":true},"collider":{"geometry":{"shape":3}}})),
             {"mesh":1,"extensions":{"KHR_physics_rigid_bodies":{"motion":{},"collider":{"geometry":{"convexHull":true}}}}},
-            {"translation":[5, 0, 0],"extensions":{"KHR_physics_rigid_bodies":{"motion":{},"collider":{"geometry":{"node":2}}}}}],
+            {"translation":[5, 0, 0],"extensions":{"KHR_physics_rigid_bodies":{"motion":{},"collider":{"geometry":{"node":2}}}}},
+            rigid(json!({"motion":{}}))],
     });
     let root =
         std::path::Path::new(env!("OUT_DIR")).join(format!("body-cook-{}", std::process::id()));
