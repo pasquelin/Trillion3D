@@ -13,5 +13,6 @@ packages/sdk/browser/** linguist-generated
 site/content/reference/api.*.json linguist-generated
 # A generated scene source, as in .prettierignore
 tests/fixtures/scenes/mountain-terrain/** linguist-generated
+site/assets/gallery/*/source/** linguist-generated
 # Third-party models and textures the examples compile
 site/assets/examples/*/source/** linguist-vendored
