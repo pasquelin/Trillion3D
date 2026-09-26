@@ -19,7 +19,6 @@ export function world(far: number | null = 0, near: number | null = null) {
     'far.json': { version: 2, nodes: [node(5000, far)] },
   };
   const partition: TablePartition = {
-    version: 2,
     bounds: [0, 0, 0, 5010, 5, 5],
     meshes: [7],
     cells: [

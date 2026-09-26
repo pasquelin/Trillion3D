@@ -84,7 +84,7 @@ function asks(
     parents: [[null, bounds] as const],
   };
   const cells = createPartitionCells({
-    partition: { version: 2, bounds, meshes: [0], cells: [cell] },
+    partition: { bounds, meshes: [0], cells: [cell] },
     base: 'https://cache.test/key/',
     root: new Group(),
     parents: [],
@@ -154,7 +154,6 @@ function grid(side: number) {
       cells.push({ url, sha256: '', bytes: 1, parents: [[null, bounds]], meshes: [[mesh, 4]] });
     }
   const partition = {
-    version: 2,
     bounds: [0, 0, 0, side * 10, 1, side * 10],
     meshes: [0, 1],
     cells,

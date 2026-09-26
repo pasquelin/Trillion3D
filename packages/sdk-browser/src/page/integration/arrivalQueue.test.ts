@@ -147,7 +147,6 @@ test('the cells a frame places and the pages it drains spend one budget, on one 
     });
   const cells = createPartitionCells({
     partition: {
-      version: 2,
       bounds: [0, 0, 0, 3, 1, 1],
       meshes: [0],
       cells: [0, 1, 2].map((x) => ({

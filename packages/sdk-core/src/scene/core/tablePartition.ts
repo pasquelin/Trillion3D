@@ -32,8 +32,6 @@ export interface TableCell {
 
 /** The partition of a scene: its cells, the box around them all, and the meshes they place. */
 export interface TablePartition {
-  /** Version of the partition. */
-  version: number;
   /** The box around every cell, at the poses the file declares. */
   bounds: readonly number[];
   /** The mesh ranks the cells place: each is drawn from rows, whatever cell brings it. */
@@ -104,32 +102,32 @@ function slotPage(slot: unknown) {
   return { page: { url: `scene-page-${sha256}.json`, bytes, sha256 }, bounds };
 }
 
-/** The partition under `root`, its pages read through `read` (which verifies them against their
- *  slot) a level at a time: the cells in order, the union of the root's boxes, the meshes placed. */
+/** The partition under `root`, its pages read side by side through `read` (which verifies them
+ *  against their slot): the cells in order, the union of the root's boxes, the meshes placed. */
 export async function readTablePartition(
   root: TablePartitionRoot,
   read: (page: TablePage) => Promise<Uint8Array>,
 ): Promise<TablePartition> {
-  const records = async (slots: readonly string[]): Promise<TableCell[]> => {
-    const pages = slots.map(slotPage).filter((slot) => slot !== null);
+  const text = new TextDecoder();
+  const named = (slots: readonly string[]) => slots.map(slotPage).filter((slot) => slot !== null);
+  const records = async (slots: ReturnType<typeof named>): Promise<TableCell[]> => {
     const lists = await Promise.all(
-      pages.map(async ({ page }) => {
-        const text = new TextDecoder().decode(await read(page));
-        const body = versioned(JSON.parse(text), page.url);
-        return body.pages ? records(body.pages) : (body.cells ?? []);
+      slots.map(async ({ page }) => {
+        const body = versioned(JSON.parse(text.decode(await read(page))), page.url);
+        return body.pages ? records(named(body.pages)) : (body.cells ?? []);
       }),
     );
     return lists.flat();
   };
-  const cells = await records(root.pages);
+  const slots = named(root.pages);
+  const cells = await records(slots);
   if (!cells.every((cell) => Array.isArray(cell?.meshes) && Array.isArray(cell.parents)))
     throw new EngineError('INVALID_SCENE_TABLES', 'scene partition misses its cells', {});
-  const boxes = root.pages.map(slotPage).flatMap((slot) => (slot ? [slot.bounds] : []));
   const bounds = [0, 1, 2, 3, 4, 5].map((axis) =>
-    (axis < 3 ? Math.min : Math.max)(...boxes.map((box) => box[axis])),
+    (axis < 3 ? Math.min : Math.max)(...slots.map((slot) => slot.bounds[axis])),
   );
   const meshes = [...new Set(cells.flatMap((cell) => cell.meshes.map(([mesh]) => mesh)))];
-  return { version: root.version, bounds, meshes: meshes.sort((a, b) => a - b), cells };
+  return { bounds, meshes: meshes.sort((a, b) => a - b), cells };
 }
 
 /** The nodes of a cell file, or a named refusal. */
