@@ -40,7 +40,7 @@ function draw(...linear: boolean[]) {
   };
 }
 
-test('without a chain, the program and its uniforms are the ones before the chain', () => {
+test('without a chain, one program draws, an opaque surface at alpha 1', () => {
   const display = draw(false, false);
   assert.deepEqual(
     display.sources,
