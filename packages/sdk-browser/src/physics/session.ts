@@ -49,11 +49,10 @@ export function createPhysicsSession(
   const bodies = createPhysicsBodies(writer, budget, host, root, poses.state);
   const joints = createPhysicsJoints(writer, bodies, invalidate);
   const vehicles = createPhysicsVehicles(writer, bodies, invalidate);
-  /** A body out (asleep decorative, or refused by `error`) takes its joints and vehicles. */
-  const retire = (index: number, error?: EngineError) => {
+  /** A body leaving the simulation (asleep decorative, refused) takes its joints and vehicles. */
+  const retire = (index: number) => {
     bodies.retire(index);
     dirty = true;
-    if (error) failed(error);
   };
   const posed = { meshes: bodies.meshes, generation: bodies.generation, retire };
   const view = createPhysicsView();
@@ -146,7 +145,7 @@ export function createPhysicsSession(
     },
     /** The page moved or hid a node: its bodies go where the page put them; hidden, no pose. */
     pose(node: Object3D) {
-      placeBodies(node, bodies.slots, writer, retire);
+      dirty = placeBodies(node, bodies, writer, failed) || dirty;
       tiles.moved(node);
     },
     /** The frame's physics: bodies reconciled, poses drawn, the view and the commands sent. */
