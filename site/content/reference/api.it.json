@@ -3717,6 +3717,7 @@
       "vertexColors": "Se i colori per vertice della geometria tingono la superficie.",
       "depthWrite": "Se la superficie scrive la propria profondità.",
       "depthTest": "Se la superficie si nasconde dietro ciò che è più vicino.",
+      "transparentShadow": "Se una superficie trasparente (`transparent`) proietta comunque un’ombra, tanto più pallida quanto più è trasparente.",
       "version": "Incrementata a ogni scrittura: ciò che il mondo confronta per ridipingere.",
       "kind": "Il tipo con cui è stato fatto il materiale: `'meshStandard'`, `'meshBasic'`…",
       "needsUpdate": "`material.needsUpdate = true`: le mesh che lo portano vengono ridipinte.",

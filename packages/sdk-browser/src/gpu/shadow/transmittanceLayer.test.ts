@@ -127,6 +127,7 @@ function encoded(casters: boolean) {
     },
     gpu: { cache: { buffer: key[0] } },
     run: { gpuDrawCalls: 0 },
+    services: { blendCasters: { used: casters ? 1 : 0 } },
     lights: {
       cull: { kept, indirect },
       shadowGroupsKey: key,
@@ -136,7 +137,7 @@ function encoded(casters: boolean) {
     },
   } as unknown as WebgpuPagesRuntime;
   const layer = { clear: 'clear', depth: 'depth', blend: 'blend', opaqueGroup: 'opaque' };
-  encodeTransmittance(rt, {} as GPUDevice, encoder as never, 3, layer as never, false, casters);
+  encodeTransmittance(rt, {} as GPUDevice, encoder as never, 3, layer as never, false);
   const [begin, ...calls] = r.calls;
   assert.equal((begin[1][0] as GPURenderPassDescriptor).label, SHADOW_TRANSMITTANCE_PASS);
   return { calls, draws: rt.run.gpuDrawCalls, indirect };

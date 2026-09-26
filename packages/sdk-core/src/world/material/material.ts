@@ -114,8 +114,8 @@ export class Material {
   vertexColors = false;
   /** Whether the surface writes its depth. */
   depthWrite = true;
-  /** Whether the surface hides behind closer things. */
-  depthTest = true;
+  /** Whether the surface hides behind closer things. */ depthTest = true;
+  /** Whether a see-through (`transparent`) surface still casts a shadow, paler the more see-through it is. */ transparentShadow = false;
   /** Physics matter preset of the bodies wearing it. */ declare physics?: PhysicsMaterialPreset;
   /** kg/m³, for a body's mass. */ declare density?: number;
   /** Physics friction. */ declare friction?: number;

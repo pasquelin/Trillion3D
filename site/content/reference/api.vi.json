@@ -1877,6 +1877,7 @@
       "vertexColors": "Các màu theo từng đỉnh của hình học có tô màu bề mặt hay không.",
       "depthWrite": "Bề mặt có ghi độ sâu của nó hay không.",
       "depthTest": "Bề mặt có ẩn sau những thứ gần hơn hay không.",
+      "transparentShadow": "Bề mặt trong suốt (`transparent`) có vẫn đổ bóng hay không, càng trong suốt bóng càng nhạt.",
       "version": "Tăng lên ở mỗi lần ghi: điều mà thế giới so sánh để tô lại.",
       "kind": "Loại mà vật liệu được tạo ra: `'meshStandard'`, `'meshBasic'`…",
       "needsUpdate": "`material.needsUpdate = true`: các mesh mang nó được tô lại.",

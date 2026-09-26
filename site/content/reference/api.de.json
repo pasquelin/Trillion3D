@@ -3717,6 +3717,7 @@
       "vertexColors": "Ob die Farben pro Scheitelpunkt der Geometrie die Oberfläche färben.",
       "depthWrite": "Ob die Oberfläche ihre Tiefe schreibt.",
       "depthTest": "Ob sich die Oberfläche hinter dem versteckt, was näher ist.",
+      "transparentShadow": "Ob eine durchsichtige (`transparent`) Fläche trotzdem einen Schatten wirft, umso blasser, je durchsichtiger sie ist.",
       "version": "Bei jedem Schreibvorgang erhöht: das, was die Welt vergleicht, um neu zu bemalen.",
       "kind": "Die Art, mit der das Material gemacht wurde: `'meshStandard'`, `'meshBasic'`…",
       "needsUpdate": "`material.needsUpdate = true`: die Meshes, die es tragen, werden neu bemalt.",

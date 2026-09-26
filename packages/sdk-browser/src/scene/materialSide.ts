@@ -40,8 +40,8 @@ export const hostSide = (side: Side): number =>
  * is, its opacity, its alpha cutoff, whether it is drawn blended and how (`undefined`: a mode
  * the engine has no name for, refused by the transparent plan), whether the host draws a
  * double-sided blended surface in one pass, whether a blended surface casts a shadow (unsaid: no),
- * and whether it is declared as one material per geometry group. The host declaration they are read from is built from the cache's material
- * table (`../host/prepared/materials.ts`); they are read here, at the same boundary as the side, and travel on inside the engine's own surface record (`../page/surface.ts`).
+ * and whether it is declared as one material per geometry group. The host declaration they are
+ * read from is built from the cache's material table (`../host/prepared/materials.ts`); they are read here, at the same boundary as the side, and travel on inside the engine's own surface record (`../page/surface.ts`).
  * They are written INTO the record given: this runs per page row and per plan entry.
  */
 export type MaterialRaster = {

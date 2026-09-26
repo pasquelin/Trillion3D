@@ -1872,6 +1872,7 @@
       "vertexColors": "지오메트리의 정점별 색상이 표면을 물들이는지 여부.",
       "depthWrite": "표면이 자신의 깊이를 기록하는지 여부.",
       "depthTest": "표면이 더 가까운 것들 뒤에 가려지는지 여부.",
+      "transparentShadow": "비치는(`transparent`) 표면이 그래도 그림자를 드리우는지 여부로, 더 비칠수록 그림자가 옅어집니다.",
       "version": "모든 쓰기마다 증가한다: 세계가 이것을 비교해 다시 그릴지 판단한다.",
       "kind": "그 재질이 만들어진 종류: `'meshStandard'`, `'meshBasic'`…",
       "needsUpdate": "`material.needsUpdate = true`: 그것을 두른 메시들이 다시 그려진다.",
