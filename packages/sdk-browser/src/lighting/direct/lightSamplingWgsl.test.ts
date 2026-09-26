@@ -29,13 +29,11 @@ test('the sample budget is the published setting, and a list within it is summed
   );
   assert.match(
     DIRECT_LIGHT_SAMPLING_WGSL,
-    /if\(kept<=LIGHT_SAMPLES\)\{return tileLighting\(rgb,metal,rough,N,V,P,ao,tile,tilesX,0u,TILE_OPAQUE_BASE\);\}/,
+    /if\(walk<=LIGHT_SAMPLES\)\{return tileLighting\(rgb,metal,rough,N,V,P,ao,tile,tilesX,0u,TILE_OPAQUE_BASE\);\}/,
   );
   // A light worth a sample's share is shaded exactly and leaves the pool; the drawn ones are
   // divided by their probability, copies counted.
   assert.match(DIRECT_LIGHT_SAMPLING_WGSL, /if\(weight\*f32\(LIGHT_SAMPLES\)>=total\)\{/);
-  // No per-pixel array as long as the list: a weight is recomputed where it is read (#822).
-  assert.doesNotMatch(DIRECT_LIGHT_SAMPLING_WGSL, /var weights:array/);
   assert.match(DIRECT_LIGHT_SAMPLING_WGSL, /factors\[used\]=pool\/\(f32\(samples\)\*weight\);/);
   // The offset depends on the pixel and the bounded rank only: a replayed image is the same image.
   assert.match(

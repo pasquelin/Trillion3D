@@ -5,7 +5,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { LIGHT_FIELD, createSceneLightStore } from './store.ts';
-import { SCENE_LIGHT_HEADER_FLOATS, sceneLightCapacity, type SceneLight } from './contracts.ts';
+import { SCENE_LIGHT_HEADER_FLOATS, type SceneLight } from './contracts.ts';
 import { baseOf } from './fields.ts';
 
 const LAMPE: SceneLight = {
@@ -82,8 +82,8 @@ test('300 lights: every one is published, in the grown table the GPU reads (#822
     store.add({ ...LAMPE, id: `l${i}`, position: [i, 0, 0], castsShadow: false });
   const header = new Uint32Array(store.packed.buffer, 0, SCENE_LIGHT_HEADER_FLOATS);
   assert.equal(store.count, 300);
-  assert.equal(store.capacity, sceneLightCapacity(300));
-  assert.deepEqual([header[0], header[1]], [300, store.capacity], 'count and slots published');
+  assert.ok(store.capacity >= 300);
+  assert.equal(header[0], 300, 'count published');
   assert.notEqual(store.packed, first, 'the table grew');
   assert.ok(store.revision.length >= 300);
   for (let slot = 0; slot < 300; slot++)

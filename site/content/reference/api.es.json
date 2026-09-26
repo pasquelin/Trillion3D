@@ -1175,7 +1175,7 @@
     "summary": "La regla evalúa pruebas; nunca inventa una referencia ni lee un reloj por sí misma."
   },
   "createSceneLightStore": {
-    "summary": "Luces de la escena, tantas como la escena declara: `capacity` plazas, ampliadas por palabras de máscara enteras y nunca reducidas.",
+    "summary": "Luces de la escena, tantas como la escena declara: `capacity` plazas, duplicadas cuando se llenan y nunca reducidas.",
     "description": "Añadir, ajustar o quitar una luz escribe sus flotantes y aumenta su `revision`, que indica a un lector que ha cambiado: nada se reconstruye por fotograma. El planificador de sombras lee por sí mismo la forma de la luz, así que un cambio de intensidad o de color no deja obsoleta ninguna página de sombra."
   },
   "createSceneRoot": {
@@ -2857,6 +2857,7 @@
     "summary": "Ajustes publicados de la iluminación directa.",
     "description": "Son decisiones de producto nombradas, no constantes enterradas: cada límite en tiempo de ejecución las vuelve a leer, y el diagnóstico las publica tal cual.",
     "members": {
+      "tileLights": "Luces que guarda la lista de una tesela de pantalla, en cada una de sus dos porciones de profundidad: su memoria es esta, por tesela, tenga lo que tenga la escena. Una tesela a la que llegan más luces no guarda lista y recorre todas las luces de la escena — las que no la alcanzan suman un cero exacto —, así que nunca se pierde una luz (X2).",
       "tileSize": "Lado en píxeles de una tesela de pantalla de la lista de luces.",
       "samplesPerPixel": "Luces iluminadas por completo — lectura de sombra incluida — por píxel de una imagen EN MOVIMIENTO (X2): las demás se ponderan sin su sombra, y las que se iluminan se sortean en proporción, así que la estimación no tiene sesgo y el antialiasing temporal las promedia. Una imagen inmóvil ilumina cada luz de su tesela y converge hacia la suma exacta; ahí, este número no juega ningún papel.",
       "shadowPage": "Lado de una página de sombra, en téxeles: la unidad del pool físico, de los mapas virtuales y de la invalidación. Un objeto en movimiento solo invalida las páginas que cubre su caja proyectada.",
@@ -5180,7 +5181,7 @@
     "summary": "Flotantes de una luz en el búfer GPU: cinco `vec4f`."
   },
   "SCENE_LIGHT_HEADER_FLOATS": {
-    "summary": "Cabecera del búfer de luces: número, plazas (`sceneLightCapacity`), dos palabras reservadas."
+    "summary": "Cabecera del búfer de luces: número, luego tres palabras reservadas."
   },
   "SCENE_LIGHT_VERSION": {
     "summary": "La versión del contrato de luz que lee este motor."
@@ -5273,7 +5274,7 @@
       "remove": "Retira una luz.",
       "setEnvironment": "Fija el entorno.",
       "assignSlice": "Registra la porción de atlas que ocupa una luz, sin tocar el resto de sus campos. La revisión del almacenamiento solo sube si la porción ha cambiado de verdad: si no, nada se envía a la GPU.",
-      "capacity": "Plazas que tiene la tabla, palabra 1 de la cabecera: la tabla GPU y las listas de cada tesela tienen esta longitud."
+      "capacity": "Plazas que tiene la tabla: el búfer GPU de luces tiene esta longitud."
     }
   },
   "SceneLink": {
@@ -7692,11 +7693,5 @@
       "center": "El punto de la imagen que se apoya en la posición del sprite: `(0.5, 0.5)` su centro, `(0, 0)` su esquina inferior izquierda, `(0.5, 0)` el centro de su borde inferior.",
       "material": "El `material.sprite` del sprite; asigna otro para cambiarlo."
     }
-  },
-  "SCENE_LIGHT_STEP": {
-    "summary": "Las plazas de luz se añaden por palabras de máscara enteras: la lista de una tesela y la tabla de luces crecen con este paso."
-  },
-  "sceneLightCapacity": {
-    "summary": "Plazas que la tabla tiene para `count` luces: dimensionadas según la escena, nunca un techo fijo."
   }
 }

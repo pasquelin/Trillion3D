@@ -1617,6 +1617,7 @@
     "summary": "Các cài đặt đã công bố của ánh sáng trực tiếp.",
     "description": "Đây là các lựa chọn sản phẩm có tên, không phải các hằng số bị chôn giấu: mọi giới hạn khi chạy đều đọc lại chúng, và bảng chẩn đoán công bố chúng nguyên trạng.",
     "members": {
+      "tileLights": "Số nguồn sáng mà danh sách của một ô màn hình giữ, trong mỗi lát độ sâu của nó: bộ nhớ của nó là bấy nhiêu, mỗi ô, bất kể cảnh chứa gì. Một ô được nhiều nguồn sáng hơn chạm tới sẽ không giữ danh sách và duyệt mọi nguồn sáng của cảnh — những nguồn không chạm tới nó cộng thêm một số không chính xác —, nên không nguồn sáng nào bị bỏ (X2).",
       "tileSize": "Cạnh tính bằng điểm ảnh của một ô màn hình trong danh sách nguồn sáng.",
       "samplesPerPixel": "Số nguồn sáng được tô bóng đầy đủ — kể cả đọc bóng đổ — cho mỗi điểm ảnh của một hình ảnh ĐANG CHUYỂN ĐỘNG (X2): những nguồn còn lại được cân nhắc mà không có bóng đổ của chúng, và những nguồn được tô bóng thì được vẽ theo tỉ lệ, nên ước lượng không thiên lệch và khử răng cưa theo thời gian sẽ lấy trung bình nó. Một hình ảnh đứng yên tô bóng mọi nguồn sáng trong ô của nó và hội tụ về tổng chính xác; ở đó, con số này không có vai trò gì.",
       "shadowPage": "Cạnh của một trang bóng, tính bằng texel: đơn vị của bể vật lý, của các bản đồ ảo và của việc vô hiệu hóa. Một vật chuyển động chỉ làm cũ các trang mà hộp chiếu của nó phủ.",
@@ -2830,7 +2831,7 @@
     "summary": "Các số thực của một nguồn sáng trong bộ đệm GPU: năm `vec4f`."
   },
   "SCENE_LIGHT_HEADER_FLOATS": {
-    "summary": "Phần đầu bộ đệm nguồn sáng: số lượng, số ô (`sceneLightCapacity`), hai từ dự trữ."
+    "summary": "Phần đầu bộ đệm nguồn sáng: số lượng, rồi ba từ dự trữ."
   },
   "SCENE_LIGHT_VERSION": {
     "summary": "Phiên bản của hợp đồng nguồn sáng mà bộ máy này đọc."
@@ -3053,7 +3054,7 @@
       "remove": "Gỡ bỏ một nguồn sáng.",
       "setEnvironment": "Đặt môi trường đó.",
       "assignSlice": "Ghi lại lát atlas mà một nguồn sáng chiếm, mà không chạm vào các trường còn lại của nó. Số phiên bản của kho lưu trữ chỉ tăng nếu lát đó thực sự thay đổi: nếu không, không có gì được đẩy tới GPU.",
-      "capacity": "Số ô bảng giữ, từ 1 của phần đầu: bảng GPU và danh sách của mỗi ô màn hình dài bằng này."
+      "capacity": "Số ô bảng giữ: bộ đệm nguồn sáng GPU dài bằng này."
     }
   },
   "SceneLightingView": {
@@ -4776,7 +4777,7 @@
     "summary": "Chính sách đánh giá bằng chứng; nó không bao giờ bịa ra một tham chiếu hay tự lấy mẫu đồng hồ."
   },
   "createSceneLightStore": {
-    "summary": "Các nguồn sáng của cảnh, nhiều như cảnh khai báo: `capacity` ô, được mở rộng theo từng từ mặt nạ nguyên và không bao giờ thu nhỏ.",
+    "summary": "Các nguồn sáng của cảnh, nhiều như cảnh khai báo: `capacity` ô, được nhân đôi khi đầy và không bao giờ thu nhỏ.",
     "description": "Việc thêm, đặt hoặc xóa một nguồn sáng ghi các số thực của nó và tăng `revision` của nó, cho người đọc biết nó đã thay đổi: không có gì được xây dựng lại theo từng khung hình. Bộ lập lịch bóng đổ tự đọc hình dạng của nguồn sáng, nên một thay đổi về cường độ hay màu sắc không làm cũ trang bóng đổ nào."
   },
   "createSceneRoot": {
@@ -7693,11 +7694,5 @@
       "center": "Điểm của hình nằm trên vị trí của sprite: `(0.5, 0.5)` là giữa, `(0, 0)` là góc dưới bên trái, `(0.5, 0)` là giữa cạnh dưới.",
       "material": "`material.sprite` của sprite; gán một cái khác để thay đổi."
     }
-  },
-  "SCENE_LIGHT_STEP": {
-    "summary": "Các ô nguồn sáng được thêm theo từng từ mặt nạ nguyên: danh sách của một ô màn hình và bảng nguồn sáng tăng theo bước này."
-  },
-  "sceneLightCapacity": {
-    "summary": "Số ô bảng giữ cho `count` nguồn sáng: định cỡ theo cảnh, không bao giờ là trần cố định."
   }
 }

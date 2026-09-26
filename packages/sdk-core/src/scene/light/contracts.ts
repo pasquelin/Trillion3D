@@ -63,6 +63,12 @@ export type SceneLightingView = 'auto' | 'lit' | 'unlit' | 'bounce';
  * constants: every runtime bound rereads them, and the diagnostic publishes them as-is.
  */
 export const LIGHT_SETTINGS = {
+  /**
+   * Lights a screen tile's list holds, in each of its two depth slices: its memory is this, per
+   * tile, whatever the scene holds. A tile more lights reach keeps no list and walks every light
+   * of the scene — those that miss it add an exact zero —, so no light is ever dropped (X2).
+   */
+  tileLights: 64,
   /** Side in pixels of a screen tile of the light list. */
   tileSize: 16,
   /**
@@ -136,16 +142,12 @@ export const LIGHT_SETTINGS = {
  * (`shadowCastersUnsliced`).
  */
 export const MAX_SHADOW_SLICES = 64;
-/** Light slots are added by whole mask words: a tile's list and the light table grow by this. */
-export const SCENE_LIGHT_STEP = 32;
-/** Light slots the table holds for `count` lights: sized from the scene, never a fixed ceiling. */
-export const sceneLightCapacity = (count: number) =>
-  Math.max(1, Math.ceil(count / SCENE_LIGHT_STEP)) * SCENE_LIGHT_STEP;
+
 /** Faces of a point light's slice: six. */
 export const POINT_FACES = 6;
 /** Floats of a light in the GPU buffer: five `vec4f`. */
 export const SCENE_LIGHT_FLOATS = 20;
-/** Light-buffer header: count, slots (`sceneLightCapacity`), two reserved words. */
+/** Light-buffer header: count, then three reserved words. */
 export const SCENE_LIGHT_HEADER_FLOATS = 4;
 /** Rank of a light kind in the GPU buffer: the shader refers to it by this number, not by name.
  *  @property point - A bulb. @property spot - A torch. @property directional - The sun.

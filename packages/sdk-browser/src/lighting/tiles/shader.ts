@@ -2,17 +2,16 @@ import { LIGHT_SETTINGS } from '../../../../sdk-core/src/index.ts';
 import { DEPTH_CLEAR, DEPTH_NEAR } from '../../camera/depthConvention.ts';
 import { DIRECT_LIGHT_WGSL } from '../direct/lightWgsl.ts';
 
-/** Mask words of a batch: one bit per thread, and a thread per light. */
-const WORDS = LIGHT_SETTINGS.tileSize ** 2 / 32;
+const WORDS = LIGHT_SETTINGS.tileSize ** 2 / 32; // one mask bit per thread, a thread per light
 
 /**
  * Light lists per 16 × 16 pixel screen tile. One workgroup per tile: the 256 threads reduce the
  * tile's min and max depth, thread zero derives the tile's world bounds, each thread tests one
  * light, then each kept thread writes its rank at the place the bit count before it names —
  * order stays increasing and determined, so the frame is too. Past 256 lights, the lights are
- * tested 256 at a time, each batch writing after what the batches before kept. Each list has room
- * for every slot of the light table (`DirectLights.capacity`): no tile drops a light, however
- * many touch it, and each pixel walks only the lights reaching its tile.
+ * tested 256 at a time, each batch writing after what the batches before kept. Each list holds
+ * `TILE_LIGHTS` lights, its memory bounded by the view: its count stays the true one, and a tile
+ * more lights reach walks them all (`tileLight`), so no light is dropped.
  *
  * **Two lists per tile, two depth slices.** The opaque list covers the slice between the tile's
  * two depths, the tightest there is, and deferred resolve loses neither a light nor a
@@ -53,9 +52,8 @@ var<workgroup> hits:array<atomic<u32>,${2 * WORDS}u>;
 var<workgroup> opaqueBox:Box;
 var<workgroup> blendBox:Box;
 var<workgroup> column:array<vec4f,5>;
-/** The light count, one bound for the whole workgroup, and what the batches before kept. */
+/** The light count: one bound for the whole workgroup. */
 var<workgroup> lightCount:u32;
-var<workgroup> kept:vec2u;
 fn unproject(ndc:vec3f)->vec3f{
  let point=view.inverseViewProjection*vec4f(ndc,1.0);
  return point.xyz/point.w;
@@ -137,7 +135,6 @@ fn lightTiles(@builtin(workgroup_id) tile:vec3u,@builtin(local_invocation_index)
   atomicStore(&covered,0u);
   atomicStore(&skyward,0u);
   lightCount=lights.count;
-  kept=vec2u(0u);
  }
  workgroupBarrier();
  let pixel=vec2u(tile.x*TILE_SIZE+lane%TILE_SIZE,tile.y*TILE_SIZE+lane/TILE_SIZE);
@@ -159,7 +156,9 @@ fn lightTiles(@builtin(workgroup_id) tile:vec3u,@builtin(local_invocation_index)
   if(atomicLoad(&skyward)==1u){tileColumn(tile.xy);}else{blendBox=tileBox(tile.xy,${DEPTH_NEAR}.0,back);}
  }
  let count=workgroupUniformLoad(&lightCount);
- let base=(tile.y*u32(view.viewport.z)+tile.x)*tileStride(lights.capacity);
+ let base=(tile.y*u32(view.viewport.z)+tile.x)*TILE_STRIDE;
+ // What the batches before kept, in each list: every thread counts it from the masks.
+ var kept=vec2u(0u);
  for(var first=0u;first<count;first+=${WORDS * 32}u){
   if(lane<${2 * WORDS}u){atomicStore(&hits[lane],0u);}
   workgroupBarrier();
@@ -185,15 +184,16 @@ fn lightTiles(@builtin(workgroup_id) tile:vec3u,@builtin(local_invocation_index)
   workgroupBarrier();
   // Parallel compact: each thread writes its light at its rank after what the batches before
   // kept, so each list carries the light ranks in increasing order, as a single-thread loop
-  // would. The rank is below \`count\`, at most the table's slots, so it always has its place.
-  if(index<count&&maskHolds(OPAQUE_MASK,lane)){
-   tiles[base+TILE_OPAQUE_BASE+kept.x+rankBefore(OPAQUE_MASK,lane)]=index;
+  // would. A rank past TILE_LIGHTS is not written: that tile walks every light.
+  let opaqueAt=kept.x+rankBefore(OPAQUE_MASK,lane);
+  if(index<count&&maskHolds(OPAQUE_MASK,lane)&&opaqueAt<TILE_LIGHTS){
+   tiles[base+TILE_OPAQUE_BASE+opaqueAt]=index;
   }
-  if(index<count&&maskHolds(BLEND_MASK,lane)){
-   tiles[base+tileBlendBase(lights.capacity)+kept.y+rankBefore(BLEND_MASK,lane)]=index;
+  let blendAt=kept.y+rankBefore(BLEND_MASK,lane);
+  if(index<count&&maskHolds(BLEND_MASK,lane)&&blendAt<TILE_LIGHTS){
+   tiles[base+TILE_BLEND_BASE+blendAt]=index;
   }
-  workgroupBarrier();
-  if(lane==0u){kept+=vec2u(maskTotal(OPAQUE_MASK),maskTotal(BLEND_MASK));}
+  kept+=vec2u(maskTotal(OPAQUE_MASK),maskTotal(BLEND_MASK));
   workgroupBarrier();
  }
  if(lane==0u){tiles[base]=kept.x;tiles[base+1u]=kept.y;}

@@ -1617,6 +1617,7 @@
     "summary": "Pengaturan pencahayaan langsung yang dipublikasikan.",
     "description": "Ini adalah pilihan produk bernama, bukan konstanta terkubur: setiap batas saat berjalan membacanya ulang, dan diagnostik mempublikasikannya apa adanya.",
     "members": {
+      "tileLights": "Lampu yang disimpan daftar sebuah tile layar, di tiap dua irisan kedalamannya: memorinya sebesar ini, per tile, apa pun isi adegan. Tile yang dicapai lebih banyak lampu tidak menyimpan daftar dan menelusuri setiap lampu adegan — yang meleset menambah nol yang tepat —, sehingga tidak ada lampu yang hilang (X2).",
       "tileSize": "Sisi dalam piksel sebuah tile layar daftar cahaya.",
       "samplesPerPixel": "Cahaya yang dishading penuh — termasuk pembacaan bayangan — per piksel sebuah gambar BERGERAK (X2): yang lain ditimbang tanpa bayangannya, dan yang dishading digambar sebanding, jadi perkiraannya tidak bias dan antialiasing temporal merata-ratakannya. Sebuah gambar diam men-shading setiap cahaya tile-nya dan berkonvergensi ke jumlah pasti; di situ, angka ini tidak berperan.",
       "shadowPage": "Sisi halaman bayangan, dalam texel: satuan pool fisik, peta virtual, dan invalidasi. Objek bergerak hanya membuat usang halaman yang tertutup kotak proyeksinya.",
@@ -2830,7 +2831,7 @@
     "summary": "Float sebuah lampu dalam buffer GPU: lima `vec4f`."
   },
   "SCENE_LIGHT_HEADER_FLOATS": {
-    "summary": "Kepala buffer lampu: jumlah, slot (`sceneLightCapacity`), dua kata cadangan."
+    "summary": "Kepala buffer lampu: jumlah, lalu tiga kata cadangan."
   },
   "SCENE_LIGHT_VERSION": {
     "summary": "Versi kontrak cahaya yang dibaca mesin ini."
@@ -3053,7 +3054,7 @@
       "remove": "Menghapus sebuah cahaya.",
       "setEnvironment": "Mengatur lingkungan itu.",
       "assignSlice": "Mencatat irisan atlas yang ditempati sebuah cahaya, tanpa menyentuh bidang lainnya. Revisi store hanya naik jika irisannya benar-benar berubah: kalau tidak, tidak ada yang didorong ke GPU.",
-      "capacity": "Slot yang disimpan tabel, kata kepala 1: tabel GPU dan daftar setiap tile sepanjang ini."
+      "capacity": "Slot yang disimpan tabel: buffer lampu GPU sepanjang ini."
     }
   },
   "SceneLightingView": {
@@ -4776,7 +4777,7 @@
     "summary": "Kebijakan mengevaluasi bukti; ia tidak pernah mengarang sebuah referensi atau mengambil sampel jam sendiri."
   },
   "createSceneLightStore": {
-    "summary": "Lampu adegan, sebanyak yang dideklarasikan adegan: `capacity` slot, diperbesar per kata mask utuh dan tidak pernah diperkecil.",
+    "summary": "Lampu adegan, sebanyak yang dideklarasikan adegan: `capacity` slot, digandakan saat penuh dan tidak pernah diperkecil.",
     "description": "Menambah, mengatur atau menghapus sebuah lampu menulis float-nya dan menaikkan `revision`-nya, yang memberi tahu pembaca bahwa lampu itu berubah: tidak ada yang dibangun ulang per bingkai. Penjadwal bayangan membaca sendiri bentuk lampu, sehingga perubahan intensitas atau warna tidak membuat satu pun halaman bayangan usang."
   },
   "createSceneRoot": {
@@ -7693,11 +7694,5 @@
       "center": "Titik gambar yang berada di posisi sprite: `(0.5, 0.5)` tengahnya, `(0, 0)` sudut kiri bawahnya, `(0.5, 0)` tengah tepi bawahnya.",
       "material": "`material.sprite` milik sprite; set yang lain untuk menggantinya."
     }
-  },
-  "SCENE_LIGHT_STEP": {
-    "summary": "Slot lampu ditambahkan per kata mask utuh: daftar sebuah tile dan tabel lampu tumbuh dengan langkah ini."
-  },
-  "sceneLightCapacity": {
-    "summary": "Slot yang disimpan tabel untuk `count` lampu: diukur dari adegan, tidak pernah plafon tetap."
   }
 }

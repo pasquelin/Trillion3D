@@ -2,17 +2,18 @@
  * Oracle D4: a line-by-line port of the batched compaction of `lightTiles` in
  * packages/sdk-browser/src/lighting/tiles/shader.ts. The scene's lights are tested 256 at a time,
  * one per thread; each thread, in any order, writes its kept light at what the batches before
- * kept plus the rank `rankBefore` reads from the batch's mask, with no per-tile cap, and thread
- * zero writes the two counts once every batch is done.
+ * kept plus the rank `rankBefore` reads from the batch's mask while that rank is within the
+ * list's `TILE_LIGHTS`, and thread zero writes the two true counts once every batch is done. A
+ * count past `TILE_LIGHTS` makes the reader walk every light (`tileWalk`, `tileLight`).
  *
- * The tile layout is read from the shader's own WGSL, never restated here, so a shader whose
+ * The tile layout is read from the shader's own WGSL constants, never restated here, so a shader whose
  * record has no room for a light it keeps fails the port: a write that leaves its list lands in
  * the neighbouring list or tile on the GPU, and throws here.
  */
 
 export type TileLayout = {
   threads: number;
-  capacity: number;
+  tileLights: number;
   stride: number;
   opaqueBase: number;
   blendBase: number;
@@ -27,26 +28,17 @@ function wgslConstant(shader: string, name: string) {
   return Number(found[1]);
 }
 
-/** A `fn name(capacity:u32)->u32{return capacity*a+b;}` of the shader, at `capacity`. */
-function wgslOfCapacity(shader: string, name: string, capacity: number) {
-  const found = new RegExp(
-    `fn ${name}\\(capacity:u32\\)->u32\\{return capacity(?:\\*(\\d+)u)?\\+(\\d+)u;\\}`,
-  ).exec(shader);
-  if (!found) throw new Error(`the tile shader declares no ${name}`);
-  return capacity * Number(found[1] ?? 1) + Number(found[2]);
-}
-
-/** The tile record layout the shader declares, for a light table of `capacity` slots. */
-export function tileLayout(shader: string, capacity: number): TileLayout {
+/** The tile record layout the shader declares. */
+export function tileLayout(shader: string): TileLayout {
   const tileSize = wgslConstant(shader, 'TILE_SIZE');
   const opaqueMask = wgslConstant(shader, 'OPAQUE_MASK');
   const blendMask = wgslConstant(shader, 'BLEND_MASK');
   return {
     threads: tileSize * tileSize,
-    capacity,
-    stride: wgslOfCapacity(shader, 'tileStride', capacity),
+    tileLights: wgslConstant(shader, 'TILE_LIGHTS'),
+    stride: wgslConstant(shader, 'TILE_STRIDE'),
     opaqueBase: wgslConstant(shader, 'TILE_OPAQUE_BASE'),
-    blendBase: wgslOfCapacity(shader, 'tileBlendBase', capacity),
+    blendBase: wgslConstant(shader, 'TILE_BLEND_BASE'),
     opaqueMask,
     blendMask,
     words: blendMask - opaqueMask,
@@ -113,14 +105,20 @@ export function compactTile(
     }
     for (const lane of order) {
       const index = first + lane;
-      if (index < lightCount && maskHolds(hits, layout.opaqueMask, lane)) {
-        const at = layout.opaqueBase + opaqueKept + rankBefore(hits, layout.opaqueMask, lane);
-        write(layout.opaqueBase, layout.blendBase, at, index);
-      }
-      if (index < lightCount && maskHolds(hits, layout.blendMask, lane)) {
-        const at = layout.blendBase + blendKept + rankBefore(hits, layout.blendMask, lane);
-        write(layout.blendBase, layout.stride, at, index);
-      }
+      const opaqueAt = opaqueKept + rankBefore(hits, layout.opaqueMask, lane);
+      if (
+        index < lightCount &&
+        maskHolds(hits, layout.opaqueMask, lane) &&
+        opaqueAt < layout.tileLights
+      )
+        write(layout.opaqueBase, layout.blendBase, layout.opaqueBase + opaqueAt, index);
+      const blendAt = blendKept + rankBefore(hits, layout.blendMask, lane);
+      if (
+        index < lightCount &&
+        maskHolds(hits, layout.blendMask, lane) &&
+        blendAt < layout.tileLights
+      )
+        write(layout.blendBase, layout.stride, layout.blendBase + blendAt, index);
     }
     opaqueKept += maskTotal(hits, layout, layout.opaqueMask);
     blendKept += maskTotal(hits, layout, layout.blendMask);
@@ -130,10 +128,12 @@ export function compactTile(
   return tiles;
 }
 
-/** The two lists a record carries, each read up to its count. */
-export function tileLists(layout: TileLayout, tiles: Uint32Array) {
-  return {
-    opaque: [...tiles.subarray(layout.opaqueBase, layout.opaqueBase + tiles[0])],
-    blend: [...tiles.subarray(layout.blendBase, layout.blendBase + tiles[1])],
-  };
+/** The lights a pixel of the tile walks in each slice: its list, or every light of the scene
+ *  when the count passes `TILE_LIGHTS` (`tileWalk` and `tileLight` of the resolve). */
+export function tileLists(layout: TileLayout, tiles: Uint32Array, lightCount: number) {
+  const walk = (count: number, base: number) =>
+    count <= layout.tileLights
+      ? [...tiles.subarray(base, base + count)]
+      : Array.from({ length: lightCount }, (_, index) => index);
+  return { opaque: walk(tiles[0], layout.opaqueBase), blend: walk(tiles[1], layout.blendBase) };
 }

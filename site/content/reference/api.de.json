@@ -1175,7 +1175,7 @@
     "summary": "Die Regel bewertet Nachweise; sie erfindet nie eine Referenz und liest nie selbst eine Uhr."
   },
   "createSceneLightStore": {
-    "summary": "Szenenlichter, so viele wie die Szene deklariert: `capacity` Plätze, in ganzen Maskenwörtern vergrößert und nie verkleinert.",
+    "summary": "Szenenlichter, so viele wie die Szene deklariert: `capacity` Plätze, verdoppelt wenn voll und nie verkleinert.",
     "description": "Das Hinzufügen, Einstellen oder Entfernen eines Lichts schreibt seine Fließkommazahlen und erhöht seine `revision`, die einem Leser zeigt, dass es sich geändert hat: pro Bild wird nichts neu gebaut. Der Schattenplaner liest die Form des Lichts selbst, sodass eine Änderung von Intensität oder Farbe keine Schattenseite veralten lässt."
   },
   "createSceneRoot": {
@@ -2857,6 +2857,7 @@
     "summary": "Veröffentlichte Einstellungen der direkten Beleuchtung.",
     "description": "Das sind benannte Produktentscheidungen, keine vergrabenen Konstanten: jede Laufzeitgrenze liest sie erneut, und die Diagnose veröffentlicht sie unverändert.",
     "members": {
+      "tileLights": "Lichter, die die Liste einer Bildschirmkachel hält, in jeder ihrer zwei Tiefenscheiben: ihr Speicher ist dieser, pro Kachel, was die Szene auch hält. Eine Kachel, die mehr Lichter erreichen, hält keine Liste und durchläuft jedes Licht der Szene — die sie verfehlen, addieren eine exakte Null —, sodass nie ein Licht verloren geht (X2).",
       "tileSize": "Seitenlänge in Pixeln einer Bildschirmkachel der Lichtliste.",
       "samplesPerPixel": "Vollständig beleuchtete Lichter — Schattenlesung eingeschlossen — pro Pixel eines BEWEGTEN Bildes (X2): die anderen werden ohne ihren Schatten gewichtet, und die beleuchteten werden proportional ausgelost, sodass die Schätzung unverzerrt ist und die zeitliche Kantenglättung sie mittelt. Ein unbewegtes Bild beleuchtet jedes Licht seiner Kachel und konvergiert zur exakten Summe; dort spielt diese Zahl keine Rolle.",
       "shadowPage": "Seitenlänge einer Schattenseite in Texeln: die Einheit des physischen Pools, der virtuellen Karten und der Invalidierung. Ein bewegtes Objekt macht nur die Seiten ungültig, die seine projizierte Box bedeckt.",
@@ -5180,7 +5181,7 @@
     "summary": "Fließkommazahlen eines Lichts im GPU-Puffer: fünf `vec4f`."
   },
   "SCENE_LIGHT_HEADER_FLOATS": {
-    "summary": "Kopf des Lichtpuffers: Anzahl, Plätze (`sceneLightCapacity`), zwei reservierte Wörter."
+    "summary": "Kopf des Lichtpuffers: Anzahl, dann drei reservierte Wörter."
   },
   "SCENE_LIGHT_VERSION": {
     "summary": "Die Version des Lichtvertrags, die diese Engine liest."
@@ -5273,7 +5274,7 @@
       "remove": "Entfernt ein Licht.",
       "setEnvironment": "Legt die Umgebung fest.",
       "assignSlice": "Zeichnet die Atlaskachel auf, die ein Licht belegt, ohne den Rest seiner Felder zu berühren. Die Revision der Speicherung steigt nur, wenn sich die Kachel wirklich geändert hat: sonst wird nichts an die GPU gesendet.",
-      "capacity": "Plätze, die die Tabelle hält, Kopfwort 1: die GPU-Tabelle und die Listen jeder Kachel sind so lang."
+      "capacity": "Plätze, die die Tabelle hält: der GPU-Lichtpuffer ist so lang."
     }
   },
   "SceneLink": {
@@ -7692,11 +7693,5 @@
       "center": "Der Punkt des Bildes, der auf der Position des Sprites liegt: `(0.5, 0.5)` seine Mitte, `(0, 0)` seine linke untere Ecke, `(0.5, 0)` die Mitte seiner unteren Kante.",
       "material": "Das `material.sprite` des Sprites; weise ein anderes zu, um es zu ändern."
     }
-  },
-  "SCENE_LIGHT_STEP": {
-    "summary": "Lichtplätze kommen in ganzen Maskenwörtern hinzu: die Liste einer Kachel und die Lichttabelle wachsen um diesen Schritt."
-  },
-  "sceneLightCapacity": {
-    "summary": "Plätze, die die Tabelle für `count` Lichter hält: aus der Szene bemessen, nie eine feste Obergrenze."
   }
 }

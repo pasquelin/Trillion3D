@@ -75,7 +75,7 @@ export function encodeDirectLights(
   }
   noteShadowFrame(lights);
   if (!tiles || !gpu.depthView) return directParams;
-  if (!lights.buffer || !tiles.ensure(width, height, gpu.depthView, lights.buffer, store.capacity))
+  if (!lights.buffer || !tiles.ensure(width, height, gpu.depthView, lights.buffer))
     return directParams;
   tiles.update(inverseViewProjection, width, height);
   if (!tiles.encode(encoder)) return directParams;

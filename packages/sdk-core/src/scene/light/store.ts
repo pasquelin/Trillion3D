@@ -3,7 +3,6 @@ import { grown } from '../../math/transform-tree/transformTree.ts';
 import {
   LIGHT_SETTINGS,
   SCENE_LIGHT_HEADER_FLOATS,
-  sceneLightCapacity,
   type SceneEnvironment,
   type SceneLight,
   type SceneLightingView,
@@ -19,7 +18,7 @@ export { LIGHT_FIELD } from './fields.ts';
 export type SceneLightStore = ReturnType<typeof createSceneLightStore>;
 
 /**
- * Scene lights, as many as the scene declares: `capacity` slots, grown by whole mask words and
+ * Scene lights, as many as the scene declares: `capacity` slots, doubled when full and
  * never shrunk. Adding, setting or removing a light writes its floats and bumps its `revision`,
  * which tells a reader it changed: nothing is rebuilt per frame. The shadow scheduler reads the
  * light's shape itself, so an intensity or colour change stales no shadow page.
@@ -37,12 +36,11 @@ export function createSceneLightStore() {
     view: SceneLightingView = 'auto',
     epoch = 1,
     fogOnly = 0;
-  /** Room for `slots` lights, by whole mask words (`sceneLightCapacity`), content kept. */
+  /** Room for `slots` lights, doubling, content kept: N lights cost log N copies. */
   const reserve = (slots: number) => {
-    capacity = sceneLightCapacity(slots);
+    capacity = Math.max(slots, capacity * 2, 32);
     packed = grown(packed, Float32Array, baseOf(capacity));
     header = new Uint32Array(packed.buffer, 0, SCENE_LIGHT_HEADER_FLOATS);
-    header[1] = capacity;
     revision = grown(revision, Uint32Array, capacity);
   };
   reserve(0);
@@ -65,7 +63,7 @@ export function createSceneLightStore() {
     get revision() {
       return revision;
     },
-    /** Slots the table holds, header word 1: the GPU table and each tile's lists are this long. */
+    /** Slots the table holds: the GPU light buffer is this long. */
     get capacity() {
       return capacity;
     },
