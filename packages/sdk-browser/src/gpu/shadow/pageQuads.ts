@@ -3,6 +3,7 @@ import { MAX_SHADOW_REGIONS as R } from './recordPack.ts';
 import { SHADOW_FACE_STRIDE } from './batchBudget.ts';
 import { shadowBatchWrites } from './batchWrites.ts';
 import { staticLayerEntries } from './staticLayer.ts';
+import { SHADOW_TRANSMITTANCE_FORMAT, TRANSMITTANCE_CLEAR_WGSL } from './transmittance.ts';
 
 /** Bytes of the faces' entries, before the batch's pass order in the same buffer (`atlas.ts`). */
 const ORDER_OFFSET = R * SHADOW_FACE_STRIDE;
@@ -29,6 +30,10 @@ struct PageData{views:array<PageView,${R}>,order:array<u32,${R}>,}
  *  own twin. */
 @fragment fn restore_fs(@builtin(position) p:vec4f)->@builtin(frag_depth) f32{
  return textureLoad(layer,vec2i(p.xy),0);
+}
+/** A page of the transmittance layer cleared: all the light, and far. */
+@fragment fn transmittance_clear_fs()->@location(0) vec4f{
+ return ${TRANSMITTANCE_CLEAR_WGSL};
 }`;
 
 export type ShadowPageQuads = Awaited<ReturnType<typeof createShadowPageQuads>>;
@@ -36,8 +41,10 @@ export type ShadowPageQuads = Awaited<ReturnType<typeof createShadowPageQuads>>;
 /**
  * THE PAGE QUADS of a shadow render pass (#815): every region of the pass that starts cleared to
  * far is one instance of a single draw, every region restored from the static layer one instance of
- * another — two draws a pass, whatever its regions, over the whole atlas's viewport. They read the
- * face buffer `faces` (`atlas.ts`) as it is.
+ * another — two draws a pass, whatever its regions, over the whole atlas's viewport. The
+ * transmittance layer's pass clears its pages in one more (`transmittance.ts`): its viewport is half
+ * the pool's, and so is the square in texels. They read the face buffer `faces` (`atlas.ts`) as it
+ * is.
  */
 export async function createShadowPageQuads(device: GPUDevice, faces: GPUBuffer) {
   const module = await createCheckedShaderModule(device, PAGE_QUAD_SHADER, 'PAGE_QUAD');
@@ -48,21 +55,39 @@ export async function createShadowPageQuads(device: GPUDevice, faces: GPUBuffer)
   });
   // The static layer's own layout: its groups bind here as they are.
   const layerLayout = device.createBindGroupLayout({ entries: staticLayerEntries() });
-  const pipeline = (label: string, layouts: GPUBindGroupLayout[], fragment?: string) =>
+  const pipeline = (
+    label: string,
+    layouts: GPUBindGroupLayout[],
+    fragment?: string,
+    targets: GPUColorTargetState[] = [],
+  ) =>
     device.createRenderPipeline({
       label: `Trillion3D shadow page ${label} v1`,
       layout: device.createPipelineLayout({ bindGroupLayouts: layouts }),
       vertex: { module, entryPoint: 'page_quad_vs' },
-      fragment: fragment ? { module, entryPoint: fragment, targets: [] } : undefined,
+      fragment: fragment ? { module, entryPoint: fragment, targets } : undefined,
       primitive: { topology: 'triangle-list', cullMode: 'none' },
       depthStencil: { format: 'depth32float', depthWriteEnabled: true, depthCompare: 'always' },
     });
   const clear = pipeline('clear', [dataLayout]),
-    restore = pipeline('restore', [dataLayout, layerLayout], 'restore_fs');
+    restore = pipeline('restore', [dataLayout, layerLayout], 'restore_fs'),
+    clearTransmittance = pipeline('transmittance clear', [dataLayout], 'transmittance_clear_fs', [
+      { format: SHADOW_TRANSMITTANCE_FORMAT },
+    ]);
   const group = device.createBindGroup({
     layout: dataLayout,
     entries: [{ binding: 0, resource: { buffer: faces } }],
   });
+  /** `count` regions from rank `first` of the order, one instance each, by `pipeline`. */
+  const quads = (
+    pass: GPURenderPassEncoder,
+    pipeline: GPURenderPipeline,
+    count: number,
+    first: number,
+  ) => {
+    pass.setPipeline(pipeline);
+    pass.draw(6, count, 0, first);
+  };
   return {
     /** Writes a batch's pass `order` of its `regions` regions, after their faces. */
     begin(regions: number, order: Uint32Array<ArrayBuffer>) {
@@ -80,16 +105,18 @@ export async function createShadowPageQuads(device: GPUDevice, faces: GPUBuffer)
       layer?: GPUBindGroup,
     ) {
       pass.setBindGroup(0, group);
-      if (clears) {
-        pass.setPipeline(clear);
-        pass.draw(6, clears, 0, first);
-      }
+      if (clears) quads(pass, clear, clears, first);
       if (restores) {
-        pass.setPipeline(restore);
         pass.setBindGroup(1, layer!);
-        pass.draw(6, restores, 0, first + clears);
+        quads(pass, restore, restores, first + clears);
       }
       return +!!clears + +!!restores;
+    },
+    /** Clears into the transmittance layer's `pass` the `count` regions from rank `first` of the
+     *  order, in one draw. */
+    clearTransmittance(pass: GPURenderPassEncoder, first: number, count: number) {
+      pass.setBindGroup(0, group);
+      quads(pass, clearTransmittance, count, first);
     },
   };
 }
