@@ -1035,6 +1035,7 @@ says the pool is too small for that view). A value that cannot be held as given 
 - a device whose limits cannot hold even the root cover: `GEOMETRY_POOL_DEVICE_LIMIT`;
 - a pool floor the device refuses at prepare: `WEBGPU_GEOMETRY_POOL_REFUSED`,
   `WEBGPU_TEXTURE_POOL_REFUSED`, below;
+- frame targets the device refuses even without Hi-Z: `WEBGPU_FRAME_TARGETS_REFUSED`, below;
 - a texture pool too small for the tails its textures keep resident whole, one tile each: more
   textures in one lane than its layers hold tiles (900 a layer), at prepare or when
   `world.budget.texturePool` shrinks the pool: `TEXTURE_POOL_TAILS`.
@@ -1075,8 +1076,18 @@ is not proven yet.
 
 Frame targets are **not** budgeted: colour, depth, visibility, HDR, material surfaces, Hi-Z, the
 temporal history and a capture follow the resolution, and `gpuFrameTargetBytes` says what they cost.
-Only a size the device cannot make is refused (`SURFACE_DEVICE_LIMIT`). How the pools are laid out,
-filled and rebalanced: [ENGINE.md](ENGINE.md#memory).
+Only a size the device cannot make is refused (`SURFACE_DEVICE_LIMIT`).
+
+Out of memory on the frame targets is absorbed too: they are made under the pools' out-of-memory
+check, at prepare and when the view's size changes, and the frames are held meanwhile with nothing
+presented, so the canvas keeps the previous image; a capture waits. When the device refuses them,
+Hi-Z goes first, for the rest of the session: its absence costs time, never image
+(`gpu-out-of-memory`, `pool: 'frame-targets'`, `dropped: 'hi-z'`). Refused even then, the
+visibility targets included, they are refused by name and the mode is kept, never a lost device:
+`frame-targets-refused` (`code: 'WEBGPU_FRAME_TARGETS_REFUSED'`, `reason: 'gpu-out-of-memory'`, or
+`'gpu-error'` with its `error` when a creation throws, the size, `requestedBytes`); prepare, a
+capture and its restore reject with the code.
+How the pools are laid out, filled and rebalanced: [ENGINE.md](ENGINE.md#memory).
 
 ## Captures and image checks
 
@@ -1316,8 +1327,8 @@ bend }` simulates the mesh's vertices one by one on Jolt's soft bodies. A cloth 
   `gpu-device-recovered` says the time from the loss to the first frame drawn after it
   (`recoveryMs`). Baked texture levels and `lights.json` are read again, and cross-API fallback is
   not implemented.
-- Frame targets are allocated without an out-of-memory check: a refusal there is still reported as a
-  lost device.
+- Frame targets the device refused are asked again only when the view's size changes, or by a
+  capture; until then the frames stay held on the previous image.
 - Physics, `ten-thousand-bodies` (10,000 boxes landing at once; headed Chrome, 1280×720, DPR 1,
   cross-origin isolated, eight threads, 120 Hz display; load average 8–14, not a quiet machine;
   commit f56d2dd57; three runs): the worker's step is 3.7–4.2 ms p50 and 20–25 ms p95 during the

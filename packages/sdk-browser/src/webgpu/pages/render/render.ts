@@ -7,6 +7,7 @@ import { uploadWorlds } from './worldUpload.ts';
 import { setWindingEpoch } from './winding.ts';
 import { holdWebgpuFrame } from '../../frame/hold.ts';
 import { sizeShadowPool } from '../../shadow/poolSize.ts';
+import { requestFrameTargets } from '../prepare/targetGrant.ts';
 import { pumpResidentTiles } from '../prepare/lightResources.ts';
 import { refreshBlendWorlds } from '../../blend/worlds.ts';
 import { refreshBlendScene } from '../../blend/resources.ts';
@@ -41,6 +42,8 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: HostCamera, as
     aspect,
   );
   sizeShadowPool(rt);
+  // Targets that no longer fit the view are asked; the frame is held until granted.
+  void requestFrameTargets(rt, gpuDevice);
   const pixelError = run.gate.pixelError,
     cam = run.gate.cam;
   // The atlases' records brought up to their host textures once for the image (#360, #361): a
