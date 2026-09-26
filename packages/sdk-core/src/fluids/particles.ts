@@ -55,6 +55,8 @@ export class ParticlePool {
   private cursor = 0;
   private staged = 0;
   private pending = 0;
+  /** Seconds the longest-lived particle still has, as far as the CPU knows: it never reads back. */
+  private liveFor = 0;
 
   constructor({ capacity, emitPerFrame, acceleration = [0, -9.81, 0], origin }: ParticlePoolSpec) {
     const perFrame = emitPerFrame ?? Math.min(capacity, Math.max(256, capacity >> 6));
@@ -87,8 +89,15 @@ export class ParticlePool {
     words[at + 5] = vy;
     words[at + 6] = vz;
     words[at + 7] = lifetime;
+    this.liveFor = Math.max(this.liveFor, lifetime);
     this.emitted++;
     return true;
+  }
+
+  /** Whether the next step changes anything: a record staged, or a particle still alive. An idle
+   *  pool neither dispatches nor keeps the image from being held. */
+  get moving() {
+    return this.staged > 0 || this.liveFor > 0;
   }
 
   /** Adds `seconds` to the time the next image steps. */
@@ -97,12 +106,14 @@ export class ParticlePool {
   }
 
   /** The step of the image being encoded, always the same object: the staged records take the
-   *  ring's next slots, and the time advanced since the last step, clamped, is consumed. */
+   *  ring's next slots, and the time advanced since the last step, clamped, is consumed; an idle
+   *  pool's step takes no time. */
   flush(): Readonly<ParticleStep> {
     const step = this.step;
     step.first = this.cursor;
     step.count = this.staged;
-    step.dt = Math.min(this.pending, MAX_STEP);
+    step.dt = this.moving ? Math.min(this.pending, MAX_STEP) : 0;
+    this.liveFor -= step.dt;
     this.cursor = (this.cursor + this.staged) % this.capacity;
     this.staged = 0;
     this.pending = 0;

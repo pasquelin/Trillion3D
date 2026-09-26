@@ -25,17 +25,21 @@ export function sessionOf(world: object): MeasuredWorld {
   return session;
 }
 
-/** Steps `pool` on the GPU at every frame `world` draws, its time advanced by the world's loop:
- *  the measurement entry's way in (#420) until particles have a public face (#423). Returns the
- *  remover. */
+/** Steps `pool` on the GPU at every frame `world` draws, its time advanced by the world's loop,
+ *  which draws on while the pool moves: the measurement entry's way in (#420) until particles
+ *  have a public face (#423). Returns the remover. */
 export function attachParticles(world: World, pool: ParticlePool) {
   const pools = worlds.get(world)!.particles;
   pools.push(pool);
-  const stop = world.beforeFrame(({ delta }) => pool.advance(delta));
+  const stop = world.beforeFrame(({ delta }) => {
+    pool.advance(delta);
+    if (pool.moving) world.invalidate();
+  });
   world.invalidate();
   return () => {
     stop();
-    pools.splice(pools.indexOf(pool), 1);
+    const at = pools.indexOf(pool);
+    if (at >= 0) pools.splice(at, 1);
   };
 }
 

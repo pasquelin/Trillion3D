@@ -56,11 +56,11 @@ test('WebGPU: one timed pass writes the step words and the staged records, once'
   assert.deepEqual([...written(records)].slice(8, 16), [1, 1, 2, 0, 3, 4, 5, 6]);
   assert.equal(particles.run([pool], encoder), 0, 'nothing staged, no time: no pass');
   assert.equal(gpu.buffers.length, 3, 'state, staging and step made once');
-  particles.dispose();
-  assert.equal(gpu.destroyed.length, 3);
+  particles.run([], encoder);
+  assert.equal(gpu.destroyed.length, 3, 'a pool the world let go of gives its buffers back');
 });
 
-test('WebGPU: a still frame is held until the world has a pool, whose particles move every frame', () => {
+test("WebGPU: a still frame is held until one of the world's pools moves", () => {
   const rt = settledRt(),
     { device } = fakeDevice();
   for (let i = 0; i < 2; i++) {
@@ -68,7 +68,10 @@ test('WebGPU: a still frame is held until the world has a pool, whose particles 
     keepWebgpuFrame(rt);
   }
   assert.equal(holdWebgpuFrame(rt, device), true, 'still, and no pool: held');
-  Object.assign(rt.context, { particles: [staged(0)] });
-  assert.equal(holdWebgpuFrame(rt, device), false);
+  const idle = new ParticlePool({ capacity: 8 });
+  Object.assign(rt.context, { particles: [idle] });
+  assert.equal(holdWebgpuFrame(rt, device), true, 'an idle pool changes nothing');
+  idle.emit(0, 0, 0, 0, 1, 0, 2);
+  assert.equal(holdWebgpuFrame(rt, device), false, 'a moving one does');
   assert.equal(rt.run.frameHeld, false);
 });

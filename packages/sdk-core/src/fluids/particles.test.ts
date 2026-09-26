@@ -71,3 +71,17 @@ test('a particle ten kilometres out keeps its sub-millimetre steps: positions ar
   assert.ok(step(pool.staging[0]) > pool.staging[0], 'from the origin, the step is kept');
   assert.equal(step(Math.fround(far + 0.5)), Math.fround(far + 0.5), 'in world floats, lost');
 });
+
+test('an idle pool stops moving: its step takes no time once its last particle is dead', () => {
+  const pool = new ParticlePool({ capacity: 8 });
+  assert.equal(pool.moving, false, 'nothing emitted');
+  pool.emit(0, 0, 0, 0, 0, 0, 0.1);
+  assert.equal(pool.moving, true);
+  for (const dt of [0.05, 0.05]) {
+    pool.advance(dt);
+    assert.equal(pool.flush().dt, dt);
+  }
+  assert.equal(pool.moving, false, 'the lifetime has run out');
+  pool.advance(0.05);
+  assert.equal(pool.flush().dt, 0);
+});
