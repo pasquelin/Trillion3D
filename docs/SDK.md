@@ -675,8 +675,12 @@ transform foundation, scene-model version `SCENE_MODEL_VERSION` 1: `SceneRoot` a
 own outside a world.
 
 A `SceneRoot` owns one transform hierarchy; nodes created by `root.createNode({ id, visible })`
-have stable, root-unique identifiers and are attached with `add` or `reparent`. `remove` and `clear`
-detach live nodes, while `destroy` permanently invalidates a whole subtree. `clone` gives the new
+have stable, root-unique identifiers and are attached with `add` or `reparent`, which keep the local
+pose, or with `attach`, which keeps the node where it stands in the world: `shelf.attach(crate)`
+rewrites the crate's local pose from its world matrix seen from the shelf (a sheared result loses
+its shear, as with the reference), and an `Object3D`'s `position`, `rotation`, `quaternion` and
+`scale` follow. `remove` and `clear` detach live nodes, while `destroy` permanently invalidates a
+whole subtree. `clone` gives the new
 node a fresh identifier unless one is supplied; `copy` keeps the destination identifier. Both
 reproduce the local pose and optionally the descendants. Recursive copying from an ancestor into its
 descendant is rejected with `SCENE_COPY_OVERLAP` before either node changes.

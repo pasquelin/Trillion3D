@@ -2119,6 +2119,7 @@
       "children": "Filhos anexados na ordem de inserção. A lista devolvida não pode ser alterada.",
       "add": "Torna objetos filhos deste nó.",
       "remove": "Tira filhos deste nó.",
+      "attach": "Adiciona `child` onde ele está (`SceneNode.attach`).",
       "destroy": "Liberta o nó e tudo abaixo dele agora, em vez de quando forem recolhidos.",
       "removeFromParent": "Tira o nó de seu pai.",
       "clone": "Um nó do mesmo tipo com os mesmos valores; os seus filhos também copiados salvo indicação em contrário.",
@@ -2292,7 +2293,7 @@
     "summary": "O atlas de dados: mapas de metal-rugosidade, normal e oclusão."
   },
   "PREVIEW_ATLAS_NAMES": {
-    "summary": "O `{kind}` que o caminho de um nível pré-processado carrega para cada atlas, como `bake.rs` os nomeia."
+    "summary": "O `{kind}` que o caminho de um nível cozido carrega para cada atlas, tal como `reduce.rs` os nomeia; uma cadeia de cobertura cortada no byte C acrescenta `-C`."
   },
   "PREVIEW_BASE": {
     "summary": "Maior lado que um nível carregado pelo arquivo auxiliar pode ter."
@@ -3033,6 +3034,7 @@
       "remove": "Remove um filho.",
       "clear": "Remove cada filho.",
       "reparent": "Move-o para sob outro pai.",
+      "attach": "Adiciona um filho onde ele está: a sua matriz no mundo é mantida, a sua pose local reescrita.",
       "clone": "Uma cópia, filhos também.",
       "copy": "Copia valores e descendentes; sobreposição recursiva de ancestral para descendente é recusada de forma atômica.",
       "setPosition": "Define sua posição.",
@@ -3679,7 +3681,7 @@
       "sourceKind": "0 quando os bytes vieram de uma uri de imagem, 1 quando vieram de sourceBufferView.",
       "sourceBufferView": "Visão de buffer da cena preparada, ou -1 para uma origem por uri.",
       "sha256": "SHA-256 dos bytes de origem decodificados.",
-      "atlas": "A cadeia que essa entrada carrega: PREVIEW_ATLAS_COLOR, PREVIEW_ATLAS_DATA, ou PREVIEW_ATLAS_COVERAGE, amostrada no atlas de cor.",
+      "atlas": "A cadeia que esta entrada carrega: PREVIEW_ATLAS_COLOR, PREVIEW_ATLAS_DATA, ou PREVIEW_ATLAS_COVERAGE, amostrada no atlas de cor, no byte baixo; o byte de corte de uma cadeia de cobertura ocupa os bits 8–15.",
       "firstLevel": "Índice do primeiro nível carregado na cadeia de mip da origem; 0 quando já cabe sob PREVIEW_BASE e o arquivo auxiliar assim carrega sua resolução completa.",
       "bakedLevels": "Níveis pré-processados em arquivos no cache, de 0 a bakedLevels - 1; firstLevel quando a cadeia está completa, 0 quando nada foi escrito e o motor carrega a imagem de origem.",
       "levels": "Níveis carregados em ordem, do mais fino a 1x1, cada um uma view sobre bytes do arquivo auxiliar.",
