@@ -9,6 +9,15 @@ export interface CpuSteps {
   steps: Record<string, Spread>;
 }
 
+/** What the kit reads of `world.physics.stats`: the physics' counts and both clocks. */
+export interface PhysicsStats {
+  bodies: number;
+  active: number;
+  stepMs: number;
+  stepMaxMs: number;
+  mainMs: number;
+}
+
 /** The world as far as profiling goes: its frame hooks, the engine's CPU steps and, when on,
  *  the physics' clocks (`world.physics.stats`). */
 export interface ProfiledWorld<Frame = unknown> {
@@ -16,7 +25,7 @@ export interface ProfiledWorld<Frame = unknown> {
   beforeFrame?(hook: (info: { delta: number; time: number }) => void): unknown;
   cpuSteps?(): CpuSteps | null;
   resetCpuSteps?(): void;
-  physics?: { enabled: boolean; stats: { stepMaxMs: number } };
+  physics?: { enabled: boolean; stats: PhysicsStats };
 }
 
 /** One second of profile, as `window.__profile` holds it; `null` where nothing was measured. */

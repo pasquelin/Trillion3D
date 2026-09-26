@@ -15,7 +15,7 @@ const pages = await Promise.all(
 
 test('a readout is declared after the controls panel it joins', () => {
   for (const [file, html] of pages) {
-    const readout = html.search(/\breadout\(/);
+    const readout = html.search(/\b(?:readout|physicsReadouts)\(/);
     if (readout < 0) continue;
     const panel = html.search(/\bcontrols\(/);
     assert.ok(panel >= 0 && panel < readout, `${file}: readout before controls`);
