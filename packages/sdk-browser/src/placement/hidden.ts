@@ -41,10 +41,10 @@ function followHidden<E extends { hidden?: boolean }>(
   }
 }
 
-/** The box the roots that flipped cover, as one union. */
+/** The box the roots that flipped cover, as one union, and its two corners. */
 const moved = new Float64Array(BOX_VALUES),
-  movedMin = [0, 0, 0],
-  movedMax = [0, 0, 0];
+  movedMin = moved.subarray(0, 3),
+  movedMax = moved.subarray(3, 6);
 
 /**
  * Brings the roots and the see-through draws level with the visibility the host wrote on the
@@ -77,10 +77,5 @@ export function followHostVisibility<T extends { sourceMesh?: Object3D }, S exte
     },
   );
   followHidden(seeThrough.entries, seeThrough.sourceOf, (entry) => seeThrough.flipped?.(entry));
-  if (boxIsEmpty(moved, 0)) return null;
-  for (let axis = 0; axis < 3; axis++) {
-    movedMin[axis] = moved[axis];
-    movedMax[axis] = moved[axis + 3];
-  }
-  return { min: movedMin, max: movedMax };
+  return boxIsEmpty(moved, 0) ? null : { min: movedMin, max: movedMax };
 }
