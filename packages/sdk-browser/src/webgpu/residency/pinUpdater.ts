@@ -79,10 +79,6 @@ export function createWebgpuPinUpdater(options: {
       want(key);
     }
     entering.clear();
-    // Released oldest first, each sent to the far end of the cache's order as it is unpinned: the
-    // cache then reclaims the released pages in their last-use order.
-    current = cache;
-    lastUse.release(frame, unpin);
     // A host page drop unpins behind this path's back; a key it still keeps goes back in the queue.
     const notices = tracking.unpinned;
     for (let i = 0; i < notices.length; i++) {
@@ -103,6 +99,11 @@ export function createWebgpuPinUpdater(options: {
       }
       waiting.remove(key);
     }
+    // Released oldest first, each sent to the far end of the cache's order as it is unpinned: the
+    // cache then reclaims the released pages in their last-use order. What still waits for a slot
+    // is the pressure: the window gives way to it (`lastUse.ts`).
+    current = cache;
+    lastUse.release(frame, unpin, waiting.count - cache.unpinnedSlots());
     // Kept keys are clusters; a deferred drop names the request that carries them. The question is
     // therefore asked request by request — a handful — and not by copying the kept set into two
     // string tables on every image where a drop waits, which the cluster count of a city makes
