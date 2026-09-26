@@ -37,6 +37,11 @@ test("A matcap's image is checked as a map, and asks for no UV: the normal reads
   // A base map beside it is never read, the import binding the matcap in its place: no UV asked.
   const both = new G.GraphSurface('matcap', { matcap: image, map: image });
   assert.equal(clusterMaterialReason(both, { position, normal }), undefined);
+  // Nor does the relief or occlusion an unlit model never reads: the import drops them.
+  for (const family of ['normal', 'matcap'] as const) {
+    const unread = new G.GraphSurface(family, { normalMap: image, aoMap: image });
+    assert.equal(clusterMaterialReason(unread, { position, normal }), undefined, family);
+  }
   image.image = undefined as never;
   assert.equal(clusterMaterialReason(matcap, { position, normal }), 'texture image is unavailable');
 });

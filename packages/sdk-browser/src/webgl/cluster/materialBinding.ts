@@ -59,10 +59,12 @@ export function bindClusterMaterial(
   const { uniforms, matrices, textures, state, linear } = binding;
   const source = material as { opacity: number },
     mat = visMaterial(material);
-  // An unlit material keeps its occlusion map and strength on the host object alone: its map is
+  // A basic material keeps its occlusion map and strength on the host object alone: its map is
   // imported here, as the boundary imports every other, into the engine record the binding reads.
+  // The other unlit models — normal, matcap, depth — read no occlusion, as on WebGPU.
   const basic = material as { aoMap?: HostTexture | null; aoMapIntensity?: number },
-    aoMap = mat.aoMap ?? (!mat.lit && basic.aoMap ? importHostTexture(basic.aoMap) : undefined),
+    unlitBasic = !mat.lit && (mat.model ?? SURFACE_MODEL.standard) === SURFACE_MODEL.standard,
+    aoMap = mat.aoMap ?? (unlitBasic && basic.aoMap ? importHostTexture(basic.aoMap) : undefined),
     aoIntensity = mat.aoMap ? mat.aoIntensity : (basic.aoMapIntensity ?? 1);
   uniforms.f4(
     0,
