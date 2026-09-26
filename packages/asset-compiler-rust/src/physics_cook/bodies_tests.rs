@@ -1,7 +1,7 @@
 //! Rigid bodies a compiled model declares (`KHR_physics_rigid_bodies`): a declared shape kept as
 //! declared, a shapeless one given one hull and weighed exactly at cook time, both listed in
 //! `physics.json` beside the static ground their nodes still are.
-use super::mass_tests::{assert_boxes, assert_unit_cube, cube, FACES};
+use super::mass_tests::{assert_boxes, cube, FACES, UNIT};
 use super::stage_physics;
 use crate::compiler_coplanar::DepthLayerScene;
 use serde_json::{json, Value};
@@ -74,7 +74,7 @@ fn declared_bodies_are_cooked_beside_the_static_ground() {
         (&shapeless["node"], &shape["type"]),
         (&json!(1), &json!("cooked"))
     );
-    assert_unit_cube(&shape["mass"]);
+    assert_boxes(&shape["mass"], &UNIT);
     assert_eq!(offset["node"], json!(5));
     assert_boxes(&offset["shape"]["mass"], &[([-5.0, 0.0, 0.0], [1.0; 3])]);
     let sha = shape["sha256"].as_str().unwrap();

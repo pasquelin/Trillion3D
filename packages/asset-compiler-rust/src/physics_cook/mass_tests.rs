@@ -16,30 +16,6 @@ pub(super) fn cube(o: [f32; 3], s: [f32; 3]) -> Vec<f32> {
         .flat_map(|c| (0..3).map(move |a| o[a] + if c >> a & 1 == 1 { s[a] } else { 0.0 }))
         .collect()
 }
-/// Asserts the `mass` of a unit cube from the origin at the runtime's density: 1000 kg about its
-/// middle, inertia m/6 on the diagonal, none off it.
-pub(super) fn assert_unit_cube(mass: &Value) {
-    let floats = |key: &str| {
-        mass[key]
-            .as_array()
-            .unwrap()
-            .iter()
-            .map(|v| v.as_f64().unwrap())
-    };
-    assert!(
-        (mass["mass"].as_f64().unwrap() - 1000.0).abs() < 1e-2,
-        "{mass}"
-    );
-    assert!(
-        floats("centerOfMass").all(|c| (c - 0.5).abs() < 1e-5),
-        "{mass}"
-    );
-    for (k, i) in floats("inertia").enumerate() {
-        let expected = if k % 4 == 0 { 1000.0 / 6.0 } else { 0.0 };
-        assert!((i - expected).abs() < 1e-2, "inertia {k}: {i}");
-    }
-}
-
 /// Mass, centre and inertia of solid boxes (`corner`, `size`) at `DENSITY`, by the textbook box
 /// formula and the parallel-axis theorem: the analytic values the integrals must meet.
 fn boxes(list: &[([f64; 3], [f64; 3])]) -> (f64, [f64; 3], [[f64; 3]; 3]) {
@@ -67,6 +43,9 @@ fn boxes(list: &[([f64; 3], [f64; 3])]) -> (f64, [f64; 3], [[f64; 3]; 3]) {
     }
     (mass, centre, inertia)
 }
+
+/// A unit cube from the origin.
+pub(super) const UNIT: [([f64; 3], [f64; 3]); 1] = [([0.0; 3], [1.0; 3])];
 
 /// Asserts `mass` is the analytic weighing of `list`.
 pub(super) fn assert_boxes(mass: &Value, list: &[([f64; 3], [f64; 3])]) {
@@ -96,14 +75,14 @@ fn a_closed_mesh_is_weighed_exactly_and_its_hull_cooked() {
     let runtime = include_str!("../../../physics-jolt-wasm/src/commands.cpp");
     assert!(runtime.contains(&format!("SHAPE_DENSITY = {DENSITY:.1}f;")));
     let unit = cube([0.0; 3], [1.0; 3]);
-    assert_unit_cube(&solid_mass(&unit, &FACES, [1.0; 3], 0).unwrap());
+    assert_boxes(&solid_mass(&unit, &FACES, [1.0; 3], 0).unwrap(), &UNIT);
     let inward: Vec<u32> = FACES
         .as_chunks::<3>()
         .0
         .iter()
         .flat_map(|t| [t[0], t[2], t[1]])
         .collect();
-    assert_unit_cube(&solid_mass(&unit, &inward, [1.0; 3], 0).unwrap());
+    assert_boxes(&solid_mass(&unit, &inward, [1.0; 3], 0).unwrap(), &UNIT);
     let stretched = solid_mass(&unit, &FACES, [2.0, 1.0, 1.0], 0).unwrap();
     assert_boxes(&stretched, &[([0.0; 3], [2.0, 1.0, 1.0])]);
     let (mut pos, mut triangles) = (cube([0.0; 3], [4.0, 1.0, 1.0]), FACES.to_vec());
