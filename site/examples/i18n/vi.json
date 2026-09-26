@@ -937,6 +937,23 @@
       "spin": "Xoay"
     }
   },
+  "health-check": {
+    "banner": "Kéo để nhìn quanh. Chọn Lái xe để lấy xe: W hoặc ↑ tăng tốc, S hoặc ↓ phanh, A D hoặc ← → lái. Thả lại làm thùng và bóng rơi xuống lần nữa.",
+    "words": {
+      "credit": "Thung lũng được dựng bằng mã cho ví dụ này, CC0 — xem assets/examples/CREDITS.md",
+      "refused": "Bị từ chối trên backend này"
+    },
+    "controls": {
+      "drive": "Lái xe",
+      "drop": "Thả lại",
+      "reset": "Đỗ xe lại"
+    },
+    "readouts": {
+      "bodies": "Vật thể",
+      "step": "Bước",
+      "renderer": "Vẽ bằng"
+    }
+  },
   "helpers-to-see-the-scene": {
     "banner": "Kéo để đi quanh. Tắt các công cụ trợ giúp để xem bức hình trơn.",
     "controls": {
