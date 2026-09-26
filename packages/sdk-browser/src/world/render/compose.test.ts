@@ -152,11 +152,8 @@ test('WebGL2 refuses the pools on a depth it cannot copy, by name once, the fram
   const answers = { getExtension: () => ({}), getError: () => 'INVALID_OPERATION' };
   const { gl, names, of } = createTestContext({ answers });
   const pool = new ParticlePool({ capacity: 8 }),
-    chain = new EffectChain().add(effect.bloom());
-  const compose = createFrameComposer(gl, camera, {
-    effects: { chain, shown: () => true },
-    particles: [pool],
-  });
+    effects = { chain: new EffectChain().add(effect.bloom()), shown: () => true };
+  const compose = createFrameComposer(gl, camera, { effects, particles: [pool] });
   const { backend, outputs } = engine();
   pool.emit(0, 0, -2, 0, 1, 0, 2);
   assert.throws(() => compose(backend, null), /^Error: PARTICLES_UNSUPPORTED/);

@@ -6,7 +6,7 @@ import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts';
 import { ParticlePool, type ParticlePoolSpec } from '../../../sdk-core/src/fluids/particles.ts';
 import { createHostDrawCamera } from '../camera/world.ts';
 import { DRAW_FLOATS, writeDrawWords } from './drawWords.ts';
-import { PARTICLE_DRAW_PASS, createWebgpuParticleDraw } from './webgpuParticleDraw.ts';
+import { PARTICLE_DRAW_PASS as P, createWebgpuParticleDraw } from './webgpuParticleDraw.ts';
 import { encodeParticles } from './webgpuParticles.ts';
 import { webgl } from './stepModels.fixture.ts';
 
@@ -51,30 +51,26 @@ function renderRecorder() {
   return { encoder: { beginRenderPass } as unknown as GPUCommandEncoder, log };
 }
 
-const P = PARTICLE_DRAW_PASS,
-  view = {} as GPUTextureView,
-  buffer = () => ({}) as GPUBuffer;
+const view = {} as GPUTextureView,
+  kept = () => ({}) as never;
 const frame = (encoder: GPUCommandEncoder) => [encoder, view, view, IDENTITY, [0, 0, 0]] as const;
 
 test('WebGPU: one pass, fire then the nearer smoke, each with its blend; none without particles', async () => {
   const gpu = fakeDevice(),
     pools = scene();
-  const draw = createWebgpuParticleDraw(gpu.device, buffer, (e) => assert.fail(`${e}`));
+  const draw = createWebgpuParticleDraw(gpu.device, kept, (e) => assert.fail(`${e}`));
   await tick();
   const { encoder, log } = renderRecorder();
   assert.equal(draw.draw([], ...frame(encoder)) + draw.draw([pools[2]], ...frame(encoder)), 0);
   assert.deepEqual(log, [], 'no particle alive: no pass, no pixel');
   assert.equal(draw.draw(pools, ...frame(encoder)), 2);
   assert.deepEqual(log, [P, `${P} additive 6 2`, `${P} premultiplied 6 3`], 'far to near');
-  const blends = gpu.renderPipelines.map(({ label, fragment }) => {
-    const [{ blend }] = [...fragment!.targets] as GPUColorTargetState[];
-    return `${label} ${blend!.color.dstFactor} ${blend!.alpha.srcFactor} ${blend!.alpha.dstFactor}`;
+  const blends = gpu.renderPipelines.map(({ fragment }) => {
+    const { color, alpha } = (fragment!.targets as GPUColorTargetState[])[0].blend!;
+    return [color.dstFactor, alpha.srcFactor, alpha.dstFactor].join(' ');
   });
-  const over = 'one-minus-src-alpha';
-  assert.deepEqual(blends, [
-    `${P} additive one zero one`,
-    `${P} premultiplied ${over} one ${over}`,
-  ]);
+  const over = 'one-minus-src-alpha'; // fire keeps the coverage, smoke covers
+  assert.deepEqual(blends, ['one zero one', `${over} one ${over}`]);
 });
 
 test('WebGPU: a draw that cannot compile is heard, and refuses its pools', async () => {
@@ -82,7 +78,7 @@ test('WebGPU: a draw that cannot compile is heard, and refuses its pools', async
     { device } = fakeDevice(),
     [smoke] = scene();
   device.createRenderPipelineAsync = () => Promise.reject(new Error('NO_PIPELINE'));
-  const draw = createWebgpuParticleDraw(device, buffer, (e) => heard.push(e));
+  const draw = createWebgpuParticleDraw(device, kept, (e) => heard.push(e));
   await tick();
   const { encoder, log } = renderRecorder();
   assert.equal(draw.draw([smoke], ...frame(encoder)), 0);
@@ -90,14 +86,14 @@ test('WebGPU: a draw that cannot compile is heard, and refuses its pools', async
 });
 
 test('WebGPU without the visibility buffer refuses the pools by name, heard once', () => {
-  const heard: unknown[] = [],
+  const heard: string[] = [],
     [smoke] = scene(),
     diag = { diagnosticFailure: (code: string, e: Error) => heard.push(`${code} ${e.message}`) };
   const rt = { context: { particles: [smoke] }, vis: { visEnabled: false }, gpu: {}, diag };
   const encode = () => encodeParticles(rt as never, fakeDevice().device, {} as GPUCommandEncoder);
   [0, 1].forEach(encode);
-  const told = heard.map((line) => `${line}`.split(':')[0]);
-  assert.deepEqual([smoke.refused, told], [true, ['particles-unavailable PARTICLES_UNSUPPORTED']]);
+  assert.deepEqual([smoke.refused, heard.length], [true, 1]);
+  assert.match(heard[0], /^particles-unavailable PARTICLES_UNSUPPORTED/);
 });
 
 const output = { framebuffer: null, width: 8, height: 4, toneMapped: true };
