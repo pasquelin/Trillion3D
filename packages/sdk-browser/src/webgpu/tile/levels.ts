@@ -1,5 +1,4 @@
 import {
-  closeTextureLevel,
   requestedLevelBytes,
   type TextureLevel,
   type TextureLevelReader,
@@ -15,10 +14,10 @@ import { checkLevelBlocks, LevelBytesError } from './writeBlocks.ts';
  * A tile is read in the cache's whole level — decoded by the browser, or block-compressed as the
  * file holds it; neighbouring tiles of the same level generally arrive in the same images, and
  * re-reading a 2048² level for each would cost more than the transfer. Levels therefore stay, the
- * least recently read leaving first, in the store the reader names — its world's, off the CPU
- * total, kept across a device loss (`texture/levelStore.ts`) — or in the session's own, at the
- * share of the default total. That is the chain's only host memory, and it does not depend on the
- * scene. A level that cannot fit beside the pages kept is not read: its tile stays served by its
+ * least recently read leaving first, in the store the reader names — that of the page cache the
+ * session reads through, within its CPU total, a world's kept across a device loss
+ * (`texture/levelStore.ts`) — or, for a reader that names none, in one of its own, at the share of
+ * the default total. That is the chain's only host memory, and it does not depend on the scene. A level that cannot fit beside the pages kept is not read: its tile stays served by its
  * coarse level until room comes back.
  *
  * An in-flight read is never doubled, and a failure is returned to the caller, never retried in
@@ -69,10 +68,9 @@ export function createWebgpuTileLevels(options: {
       if (requestedLevelBytes(level, size) > room) return;
       const reading = read(level)
         .then((texels) => {
-          if (key === undefined || store.key !== key) return closeTextureLevel(texels);
           if (texels instanceof Uint8Array) checkLevelBlocks(texels, size);
           fetched++;
-          if (!store.take(id, texels)) closeTextureLevel(texels);
+          store.take(id, texels, key);
         })
         .catch((error: unknown) => {
           if (error instanceof LevelBytesError) refused.add(id);
@@ -91,7 +89,7 @@ export function createWebgpuTileLevels(options: {
       return store.bytes;
     },
     settled: () => Promise.all(pending.values()).then(() => undefined),
-    /** Closes the session's own store; a world's stays for its next session. */
+    /** Closes the store made here; the reader's is its page cache's, which closes it. */
     destroy() {
       if (!read.store) store.close();
     },
