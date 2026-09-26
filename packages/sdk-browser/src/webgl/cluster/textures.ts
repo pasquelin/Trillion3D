@@ -106,7 +106,8 @@ export class WebglClusterTextures {
       }
       if (mips) {
         const allocate = record.cutoff === undefined;
-        this.mips.reduce(unit, Object.assign(record, { cutoff }), allocate);
+        record.cutoff = cutoff;
+        this.mips.reduce(unit, record, allocate);
       }
     }
     this.bound[unit] = record.texture;
@@ -154,8 +155,10 @@ export class WebglClusterTextures {
       format,
     };
     const allocate = !inPlace || held?.cutoff == null;
-    if (mipFiltered(texture.minFilter))
-      this.mips.reduce(unit, Object.assign(record, { cutoff }), allocate);
+    if (mipFiltered(texture.minFilter)) {
+      record.cutoff = cutoff;
+      this.mips.reduce(unit, record, allocate);
+    }
     if (!held || held.sampling !== texture.sampling) this.setSampler(texture);
     return record;
   }

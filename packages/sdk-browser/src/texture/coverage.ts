@@ -60,7 +60,7 @@ export class CoverageReaders {
     }
   }
   /** True when `texture`'s chain weighs its colours by alpha; false for one no surface wears. */
-  weighs(texture: Texture) {
+  private weighs(texture: Texture) {
     return !!this.readers.get(texture)?.rule && !texture.premultiplyAlpha;
   }
   /** The cutoff byte `C` whose share of covered texels every level of `texture`'s chain keeps
