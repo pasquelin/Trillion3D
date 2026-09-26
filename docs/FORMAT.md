@@ -267,8 +267,8 @@ source and sampler, surfaces and their vertex-colour and flat-shading variants, 
 cameras and lights assembled and named as the host loader assembled and named them — proven equal to the
 loader's graph, field by field and byte by byte, on every cache `site/assets` publishes
 (`packages/sdk-browser/src/host/prepared/build.test.ts`). A layout that names a document the tables
-do not carry, a view outside its binary, or a cell placing a mesh `partition.meshes` does not
-name, is `PREPARED_SCENE_MISMATCH`.
+do not carry, a view outside its binary, or a cell placing a mesh the scene built no rows for,
+is `PREPARED_SCENE_MISMATCH`.
 
 ## `physics.json` — cooked colliders
 
