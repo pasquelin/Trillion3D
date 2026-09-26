@@ -112,6 +112,8 @@ export function createWebglParticleDraw(
         [live.width, live.height] = [width, height];
       }
       gl.disable(gl.SCISSOR_TEST);
+      // An error an earlier call left never refuses the pools: every flag is cleared (six at most).
+      for (let n = 0; live.checked !== framebuffer && n < 8 && gl.getError() !== gl.NO_ERROR; n++);
       gl.bindFramebuffer(gl.READ_FRAMEBUFFER, framebuffer);
       gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, live.copy.framebuffer);
       gl.blitFramebuffer(0, 0, width, height, 0, 0, width, height, gl.DEPTH_BUFFER_BIT, gl.NEAREST);
