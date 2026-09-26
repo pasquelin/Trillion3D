@@ -48,6 +48,12 @@ export function createWorldLink(parts: Parts): WorldSceneLink {
       lights.boundsMoved();
       schedule();
     },
+    // A mesh's row carries the flag, written as a pose is; a light's is written with the lights.
+    shadow(node: Object3D) {
+      if (isLight(node)) return parts.relight();
+      contents.poses.moved(node);
+      parts.invalidate();
+    },
     content(node: Object3D) {
       if (isLight(node)) return parts.relight();
       contents.stale(node as Mesh);

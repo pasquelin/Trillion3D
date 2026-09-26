@@ -1,0 +1,12 @@
+{
+  "about": "Coverage-preserving alpha (docs/FORMAT.md, #44), one case per line: the cutoff byte C | level 0's alphas | a level's median alphas | the t the rule picks | the level's alphas once scaled. Read by the compiler's test (texture_preview/tests/coverage_alpha.rs) and the card's (sdk-browser texture/coverageRule.test.ts).",
+  "cases": [
+    "128 | 200 200 0 0 | 100 90 10 0 | 90 | 142 128 14 0",
+    "128 | 200 200 0 0 | 255 128 127 0 | 128 | 255 128 127 0",
+    "64 | 255 240 180 150 120 90 70 64 63 40 30 20 10 5 0 0 | 200 60 30 0 | 60 | 213 64 32 0",
+    "191 | 255 255 255 0 0 0 0 0 0 0 0 0 0 0 0 0 | 250 100 40 0 | 191 | 250 100 40 0",
+    "128 | 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 | 90 50 20 0 | 128 | 90 50 20 0",
+    "200 | 255 255 255 255 | 255 100 50 10 | 10 | 255 255 255 210",
+    "1 | 255 255 255 255 255 255 255 255 255 255 255 255 255 255 255 255 | 255 0 0 0 | 1 | 255 0 0 0"
+  ]
+}

@@ -8,10 +8,10 @@ import { VIS_SHADER } from './visWgsl.ts';
 import { ENGINE_SHADERS } from '../../gpu/core/engineShaders.fixture.ts';
 import { FLAG_HAS_COLOR, FLAG_SAMPLED } from '../types.ts';
 
-test('the cutout is the hard threshold: the test of 9893b51d9, with the dash and vertex alpha', () => {
+test('the cutout is the hard threshold: the test of 9893b51d9, with the dash, vertex alpha and opacity', () => {
   // 9893b51d9 read `maskAlpha(...)>=page.baseColor.w` after the flag test. Since then #359 cuts a
-  // dashed line's gaps and #347 multiplies by the vertex alpha; nothing else may stand between
-  // the read and the threshold.
+  // dashed line's gaps, #347 multiplies by the vertex alpha and #748 by the colour factor's, the
+  // opacity; nothing else may stand between the read and the threshold.
   assert.equal(
     MASK_KEEP_WGSL.replace(/\n *\/\/[^\n]*/g, ''),
     `fn maskKeep(page:PageInfo,uv:vec2f,vertexAlpha:f32,ddx:vec2f,ddy:vec2f)->bool{
@@ -19,8 +19,8 @@ test('the cutout is the hard threshold: the test of 9893b51d9, with the dash and
  if(!lineDash(uv.x,page.dash)){return false;}
  if(page.baseColor.w<=0.0){return true;}
  let coloured=(page.flags&${FLAG_HAS_COLOR}u)!=0u;
- if((page.flags&8u)==0u){return !coloured||vertexAlpha>=page.baseColor.w;}
- var alpha=maskAlpha(page.mapIndex,uv,ddx,ddy,(page.flags&${FLAG_SAMPLED}u)!=0u);
+ if((page.flags&8u)==0u){return select(1.0,vertexAlpha,coloured)*page.blendCoverage>=page.baseColor.w;}
+ var alpha=maskAlpha(page.mapIndex,uv,ddx,ddy,(page.flags&${FLAG_SAMPLED}u)!=0u)*page.blendCoverage;
  if(coloured){alpha*=vertexAlpha;}
  return alpha>=page.baseColor.w;
 }`,

@@ -52,10 +52,19 @@ bool add(const uint32_t *w) {
     if (mass <= 0) mass = f32(w + 17) * shape->GetMassProperties().mMass / SHAPE_DENSITY;
     settings.mOverrideMassProperties = EOverrideMassProperties::CalculateInertia;
     settings.mMassPropertiesOverride.mMass = std::max(mass, 1e-6f);
+    uint32_t words;
+    const uint32_t *frame = massFrame(w, words);
+    if (words == 12) {
+      const uint32_t *i = frame + 3;
+      settings.mOverrideMassProperties = EOverrideMassProperties::MassAndInertiaProvided;
+      settings.mMassPropertiesOverride.mInertia =
+          Mat44(Vec4(vec3(i), 0), Vec4(vec3(i + 3), 0), Vec4(vec3(i + 6), 0), Vec4(0, 0, 0, 1));
+    }
   }
   Body *body = world.system->GetBodyInterfaceNoLock().CreateBody(settings);
   if (!body) return (world.error = BODY_LIMIT, false);
-  world.system->GetBodyInterfaceNoLock().AddBody(body->GetID(), type == EMotionType::Static ? EActivation::DontActivate : EActivation::Activate);
+  bool asleep = type == EMotionType::Static || (flags & ASLEEP);
+  world.system->GetBodyInterfaceNoLock().AddBody(body->GetID(), asleep ? EActivation::DontActivate : EActivation::Activate);
   Slot &slot = world.slots[index];
   slot = {};
   slot.id = body->GetID();

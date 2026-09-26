@@ -4246,7 +4246,7 @@
       "quaternion": "Comment le nœud est tourné, en quaternion.",
       "scale": "Comment le nœud est étiré sur chaque axe.",
       "up": "Où est le haut pour `lookAt`.",
-      "castShadow": "Si le nœud projette des ombres.",
+      "castShadow": "Si le nœud projette des ombres : un maillage le fait sauf s’il est mis à `false`, une lumière seulement s’il est mis à `true`. Un maillage mis à `false` reçoit toujours les ombres des autres.",
       "receiveShadow": "Si les ombres tombent sur le nœud.",
       "renderOrder": "Ordre de dessin parmi les choses transparentes.",
       "frustumCulled": "Si un moteur de rendu peut l’omettre hors de la vue.",
@@ -4748,6 +4748,7 @@
     "members": {
       "matrices": "Seize flottants colonne par colonne par rangée, écrits par le propriétaire.",
       "live": "1 là où la rangée place la ressource, 0 là où elle est rangée de côté.",
+      "shadowless": "1 là où la rangée ne projette aucune ombre (le `castShadow` de son maillage vaut `false`), 0 là où elle en projette.",
       "capacity": "Rangées qui tiennent avant qu’il grandisse."
     }
   },
@@ -5294,6 +5295,7 @@
       "pose": "Un nœud a bougé.",
       "structure": "Un nœud a gagné ou perdu des enfants.",
       "content": "La forme ou le matériau d’un nœud a changé.",
+      "shadow": "Le `castShadow` d’un nœud a changé : rien n’a bougé.",
       "posed": "Plusieurs nœuds ont bougé d’un coup, écrits directement dans leur arbre (les corps de la physique) : dit une seule fois.",
       "seat": "La ligne d’où le nœud est dessiné, ou `null` : seize flottants par colonne à `row * 16` de `batch.rows.matrices`, lus sur place par le rendu. Un propriétaire qui place des nœuds par milliers (la physique) y écrit lui-même leurs matrices monde, tant que `seatEpoch` tient, et nomme les lignes écrites par `placed`.",
       "seatEpoch": "Change dès qu’une ligne est prise, libérée ou réallouée : toute réponse de `seat` antérieure est périmée.",

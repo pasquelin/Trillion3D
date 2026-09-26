@@ -6,6 +6,7 @@ use super::bake_write::{write_levels, LEVEL_WRITE_FAILED};
 use super::blocks::quality::{encode_chain, Channels, Measure};
 use super::blocks::{encode_level, BlockFormat, Layout};
 use super::collect::{absorb, AtlasTexture};
+use super::coverage::Cut;
 use super::reduce::AtlasKind;
 use super::{verdict, *};
 use std::borrow::Cow;
@@ -14,7 +15,7 @@ use std::borrow::Cow;
 pub(super) struct GateSheet {
     pub layout: Layout,
     pub channels: Channels,
-    pub cutoffs: Vec<f32>,
+    pub cutoffs: Vec<Cut>,
 }
 
 impl GateSheet {
@@ -32,7 +33,7 @@ impl GateSheet {
                 &reader.cutoffs,
             );
         }
-        cutoffs.sort_by(f32::total_cmp);
+        cutoffs.sort_by(|a, b| a.0.total_cmp(&b.0).then(a.1.total_cmp(&b.1)));
         let layout = if readers.iter().all(|r| r.normal_only) {
             Layout::TwoChannel
         } else {
