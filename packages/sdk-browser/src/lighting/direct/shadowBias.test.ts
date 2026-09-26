@@ -31,9 +31,9 @@ test('the shadow read and page split the fixtures restate are the shader’s', (
   for (const line of [...RESTATED, ...SPLIT]) assert.ok(SHADOW_WGSL.includes(line), line);
 });
 
-/** Whether the first face is fully lit at 97 points along it, ends excluded. */
-const clean = (read: (index: number, x: number) => number) =>
-  Array.from({ length: 97 }, (_, k) => read(0, (k + 1) / 98)).every((lit) => lit === 1);
+/** Whether face `face`, the first by default, is fully lit at 97 points along it, ends excluded. */
+const clean = (read: (index: number, x: number) => number, face = 0) =>
+  Array.from({ length: 97 }, (_, k) => read(face, (k + 1) / 98)).every((lit) => lit === 1);
 
 test('a plane shades no point of itself, at any slope and any texel', () => {
   for (const tilt of [0, 0.4, 0.9, 1.2])
@@ -132,5 +132,30 @@ test('the new bias puts every shadow edge nearer a ray-cast of its casters than 
       zeniths.flatMap((z) => texels.map((t) => edgeError(faces, z, t, bias, length)));
     const [now, before] = [errors(BIAS), errors(DEVELOP_BIAS)];
     now.forEach((e, i) => assert.ok(e < Math.min(before[i], 5), `${i}: ${e} against ${before[i]}`));
+  }
+});
+
+test('a ball under the sun is clean, and the outline shell 5 cm round it shades it', () => {
+  // #456, `toon-shading`: the ink outline is a copy of its part 5 % larger. Casting, it is a real
+  // caster a texel margin must not reach through, so the ball sits in its shade; the example sets
+  // the copy `castShadow = false`, and the ball alone shades no point of itself.
+  const ring = (radius: number, n = 24): Face[] =>
+    Array.from({ length: n }, (_, k) => {
+      const [a, b] = [k, k + 1].map((i) => (2 * Math.PI * i) / n);
+      const at = (t: number) => [radius * Math.cos(t), radius * Math.sin(t)];
+      return { from: at(a), to: at(b), normal: [Math.cos((a + b) / 2), Math.sin((a + b) / 2)] };
+    });
+  const zenith = 1.107,
+    ball = ring(1),
+    light = [Math.sin(zenith), -Math.cos(zenith)];
+  const lit = ball.flatMap((face, i) => (dot(face.normal, light) < 0 ? [i] : []));
+  for (const texel of [2 ** -8, 2 ** -6]) {
+    const alone = sunOverProfile(ball, zenith, texel),
+      shelled = sunOverProfile([...ball, ...ring(1.05)], zenith, texel);
+    for (const i of lit) assert.ok(clean(alone, i), `texel ${texel}: face ${i}`);
+    const facing = lit.reduce((a, b) =>
+      dot(ball[a].normal, light) < dot(ball[b].normal, light) ? a : b,
+    );
+    assert.equal(shelled(facing, 0.5), 0, `texel ${texel}: the shell shades the ball`);
   }
 });

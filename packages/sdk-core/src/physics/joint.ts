@@ -82,7 +82,8 @@ export class Joint {
     this._motor = motor;
     this._host?.motor(this);
   }
-  /** Whether it broke: pulled past its `breakForce`. A broken joint holds no more. */
+  /** Whether it broke: pulled past its `breakForce`, or its decorative body left the simulation
+   *  asleep. A broken joint holds no more. */
   get broken() {
     return this._broken;
   }

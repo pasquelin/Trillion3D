@@ -6,7 +6,6 @@ import {
   DEFAULT_PHYSICS_BUDGET,
   GENERATION_SHIFT,
   ObjectPhysics,
-  POSE_WORDS,
   type PhysicsHost,
 } from '../../../sdk-core/src/physics/index.ts';
 import { box } from '../../../sdk-core/src/world/geometry/basic.ts';
@@ -16,22 +15,16 @@ import { Group } from '../../../sdk-core/src/world/object/object3d.ts';
 import { createPhysicsBodies, type Bodied } from './bodies.ts';
 import { createPosePlacer } from './placer.ts';
 import { createPhysicsPoses } from './poses.ts';
+import { poseRecord } from './worker.fixture.ts';
 
 /** One mesh in slot 0 at generation 0, as a tick's records name it. */
 const lone = (mesh: Bodied) => ({ meshes: [mesh], generation: new Uint8Array(1), retire() {} });
-/** One pose record for engine id `id`: position and quaternion, velocities zero. */
-const record = (id: number, pose: number[]) => {
-  const words = new Uint32Array(POSE_WORDS);
-  words[0] = id;
-  new Float32Array(words.buffer).set(pose, 1);
-  return words;
-};
 
 test('a pose sent again unchanged moves nothing and asks for no frame', () => {
   const poses = createPhysicsPoses(4, new Group());
   const crate = new Mesh(box()) as Bodied;
   crate.physics = new ObjectPhysics('dynamic');
-  const words = record(0, [0, 2, 0, 0, 0, 0, 1]);
+  const words = poseRecord(0, [0, 2, 0, 0, 0, 0, 1]);
   assert.equal(poses.receive(words, 1, lone(crate), 0), 1);
   assert.equal(poses.apply(lone(crate)), false);
   assert.equal(crate.position.y, 2);
@@ -44,7 +37,7 @@ test('a pose drawn by the batch leaves position, quaternion and angles coherent'
   const crate = new Mesh(box()) as Bodied;
   crate.physics = new ObjectPhysics('dynamic');
   const half = Math.SQRT1_2;
-  poses.receive(record(0, [1, 2, 3, 0, half, 0, half]), 1, lone(crate), 0);
+  poses.receive(poseRecord(0, [1, 2, 3, 0, half, 0, half]), 1, lone(crate), 0);
   poses.apply(lone(crate));
   assert.deepEqual([crate.position.x, crate.position.y, crate.position.z], [1, 2, 3]);
   assert.ok(
@@ -74,7 +67,7 @@ test('a seated body is drawn straight into its row, the world told the span once
   };
   crate._link = scene._link;
   const poses = createPhysicsPoses(4, scene);
-  poses.receive(record(0, [1, 2, 3, 0, 0, 0, 1]), 1, lone(crate), 0);
+  poses.receive(poseRecord(0, [1, 2, 3, 0, 0, 0, 1]), 1, lone(crate), 0);
   told.length = 0;
   poses.apply(lone(crate));
   assert.deepEqual(told, [[true, 2, 2]]);
@@ -99,7 +92,7 @@ test('a decorative body asleep is placed, taken out, and never added again', () 
   scene.add(chip);
   bodies.reconcile(new Set(), (error) => assert.fail(String(error)));
   const id = chip.physics._index | (bodies.generation[chip.physics._index] << GENERATION_SHIFT);
-  poses.receive(record(id | ASLEEP_BIT, [0, 0.5, 0, 0, 0, 0, 1]), 1, bodies, 16);
+  poses.receive(poseRecord(id | ASLEEP_BIT, [0, 0.5, 0, 0, 0, 0, 1]), 1, bodies, 16);
   assert.equal(chip.position.y, 0.5);
   assert.equal(chip.physics.asleep, true, 'kept once out of the simulation');
   assert.equal(bodies.count.decorative, 0);
@@ -129,7 +122,7 @@ test('a record of a body that left its slot moves neither it nor the body in its
   scene.add(next);
   bodies.add(next);
   assert.equal(next.physics._index, 0, 'the slot is taken again');
-  assert.equal(poses.receive(record(old, [5, 5, 5, 0, 0, 0, 1]), 1, bodies, 0), 0);
+  assert.equal(poses.receive(poseRecord(old, [5, 5, 5, 0, 0, 0, 1]), 1, bodies, 0), 0);
   assert.deepEqual([crate.position.y, next.position.y], [0, 0]);
 });
 
@@ -170,15 +163,15 @@ test('a slot retired and taken again before a frame is drawn once, not twice', (
   chip.physics = new ObjectPhysics({ decorative: true });
   const id = add(chip);
   // Listed while it falls, then asleep and out before any frame drew it.
-  poses.receive(record(id, [0, 1, 0, 0, 0, 0, 1]), 1, bodies, 16);
+  poses.receive(poseRecord(id, [0, 1, 0, 0, 0, 0, 1]), 1, bodies, 16);
   clock += 16;
-  poses.receive(record(id | ASLEEP_BIT, [0, 0.5, 0, 0, 0, 0, 1]), 1, bodies, 16);
+  poses.receive(poseRecord(id | ASLEEP_BIT, [0, 0.5, 0, 0, 0, 0, 1]), 1, bodies, 16);
   const crate = new Mesh(box(), new Material('meshStandard')) as Bodied;
   crate.physics = new ObjectPhysics('dynamic');
   const next = add(crate);
   assert.equal(crate.physics._index, 0, 'the slot is taken again');
   clock += 16;
-  poses.receive(record(next, [0, 2, 0, 0, 0, 0, 1]), 1, bodies, 16);
+  poses.receive(poseRecord(next, [0, 2, 0, 0, 0, 0, 1]), 1, bodies, 16);
   // Halfway through the tick: halfway to the target, from where it stood.
   clock += 8;
   poses.apply(bodies);

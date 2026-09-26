@@ -6,6 +6,9 @@ import { compileFullCache } from '../../../scripts/native-compiler.ts';
 import type { Mount } from '../../../scripts/static-server.ts';
 import type { MeasuredWorld } from '../../../packages/sdk-browser/src/world/session/explorer.ts';
 import { manifestUrlOf, sceneMounts } from '../../kit/scenes/caches.ts';
+import { emptyIrradiance } from '../../../packages/sdk-core/src/scene/core/environment.ts';
+import type { Light } from '../../../packages/sdk-core/src/world/light/light.ts';
+import { addLightIrradiance } from '../../../packages/sdk-core/src/world/light/lightRecord.ts';
 
 // `window.scene` only exists in the page a proof evaluates code in, never in Node; declared here so
 // the `page.evaluate` callbacks of the proofs that open a scene (type-checked, though they run in
@@ -87,4 +90,19 @@ export async function openGalleryScene(page: Page, scene: GalleryScene): Promise
     },
     { sdkUrl: '/sdk/witnesses/measurement.js', manifestUrl: manifestUrlOf(scene.folder), scene },
   );
+}
+
+/** Sets the irradiance of the scene on `window.scene` to what `light` gives from every direction —
+ *  a sky, an ambient —, as a world sets it from its lights (`addLightIrradiance` from empty,
+ *  `worldLights.sync`): a measured world holds no light nodes. The exposure stays the
+ *  environment's, 1 when it declares none, as the engine's. */
+export async function addSurroundingLight(page: Page, light: Light): Promise<void> {
+  const environment = await page.evaluate(() => window.scene.environment);
+  const irradiance = emptyIrradiance();
+  addLightIrradiance(light, irradiance);
+  await page.evaluate((environment) => window.scene.setEnvironment(environment), {
+    exposure: 1,
+    ...environment,
+    irradiance,
+  });
 }

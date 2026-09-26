@@ -7,18 +7,26 @@
 //! from the object (`cut.rs`), split into tiles aligned on the culling hierarchy, each a Jolt
 //! `MeshShape` stored as a SHA-addressed object like the pages; a regular grid becomes a height
 //! field (`height.rs`). Per scene: `physics.json` (`stage.rs`), each placement carrying the matter its
-//! source declares through `KHR_physics_rigid_bodies` (`declared.rs`), and the soft bodies its nodes
-//! declare, each Jolt's `SoftBodySharedSettings` as the physics worker would build them (`soft.rs`).
+//! source declares through `KHR_physics_rigid_bodies` (`declared.rs`); the rigid bodies its nodes
+//! declare, a shapeless one given one convex hull (`hull.rs`) and the exact mass of its closed mesh
+//! (`mass.rs`); and the soft bodies its nodes declare, each Jolt's `SoftBodySharedSettings` as the
+//! physics worker would build them (`soft.rs`).
 use crate::dag::{CullingNode, DagCluster};
 use crate::{CompilerError, Options, Result};
 use serde_json::{json, Value};
 
+#[cfg(test)]
+mod bodies_tests;
 mod cut;
 #[cfg(test)]
 mod cut_tests;
 mod declared;
 pub(crate) mod hausdorff;
 mod height;
+mod hull;
+mod mass;
+#[cfg(test)]
+mod mass_tests;
 #[cfg(test)]
 mod small_tests;
 mod soft;
@@ -33,7 +41,7 @@ pub(crate) use stage::stage_physics;
 
 /// The stage contract: its name and version, which enter `physics.json` and the cache key.
 pub const PHYSICS_COOK_STAGE: &str = "physics-cook";
-pub const PHYSICS_COOK_VERSION: u32 = 5;
+pub const PHYSICS_COOK_VERSION: u32 = 6;
 /// Version of `physics.json`, its own: a reader refuses any other.
 pub const PHYSICS_FORMAT_VERSION: u32 = 2;
 /// The Jolt commit the cook links: shapes are Jolt's binary state, readable by this Jolt alone.
@@ -95,19 +103,21 @@ extern "C" {
 /// no collider, the soft body is not simulated, and the report names it.
 pub(crate) const PHYSICS_COOK_FAILED: &str = "PHYSICS_COOK_FAILED";
 
+/// A body or collider the cook refuses by `message`: named in the report, never fatal.
+fn refused(message: String) -> CompilerError {
+    CompilerError::new(PHYSICS_COOK_FAILED, message)
+}
+
 /// Copies the bytes the cook left for this thread, or names what it refused and Jolt's reason.
 fn taken(status: u32, out: *const u8, bytes: u32, what: &str) -> Result<Vec<u8>> {
     // SAFETY: the cook left `bytes` bytes at `out`, valid until this thread's next call.
     let left = (!out.is_null()).then(|| unsafe { std::slice::from_raw_parts(out, bytes as usize) });
     match (status, left) {
         (0, Some(left)) => Ok(left.to_vec()),
-        (_, left) => Err(CompilerError::new(
-            PHYSICS_COOK_FAILED,
-            format!(
-                "Jolt refused the {what}: {}",
-                String::from_utf8_lossy(left.unwrap_or_default())
-            ),
-        )),
+        (_, left) => Err(refused(format!(
+            "Jolt refused the {what}: {}",
+            String::from_utf8_lossy(left.unwrap_or_default())
+        ))),
     }
 }
 

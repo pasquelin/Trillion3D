@@ -3,10 +3,10 @@ import type { ShadowPool } from './pool.ts';
 import type { ShadowRecords } from './records.ts';
 
 /**
- * What the shadow scheduler did in a frame, in pages, never durations: pages staled, drawn, left
- * pending — 0 unless the frame could not encode its pages (`plan.reissue`) —, the lag of the oldest
- * page drawn since it went stale, pages the image reads straight from the cache, pages the pool
- * holds. Everything is allocated once.
+ * What the shadow scheduler did in a frame, in pages: pages staled, drawn, left pending — 0 unless
+ * the frame could not encode its pages (`plan.reissue`) —, pages the image reads straight from the
+ * cache, pages the pool holds; and its one wait, in ms and frames, of the oldest stale page the
+ * image reads. Everything is allocated once.
  */
 export function createShadowCounts() {
   /** Frame (plus one) of the last page drawn for each slice's light. */
@@ -15,6 +15,9 @@ export function createShadowCounts() {
     lights: 0,
     sunLights: 0,
     invalidatedPages: 0,
+    /** Pages the invalidation examined — table entries the moved boxes cover, or pool pages when
+     *  they cover more —: its work, which the pool's size does not set (`invalidate.ts`). */
+    visitedPages: 0,
     pendingPages: 0,
     /** Pages the latest report read that were current: no draw, straight from the cache. */
     cachedPages: 0,
@@ -24,7 +27,7 @@ export function createShadowCounts() {
     beginFrame() {
       counts.lights = 0;
       counts.sunLights = 0;
-      counts.invalidatedPages = 0;
+      counts.invalidatedPages = counts.visitedPages = 0;
     },
     /** A page of this slice's light is drawn this frame: the light counts once per frame. */
     drewLight(slice: number, rank: number, frame: number) {
@@ -33,8 +36,8 @@ export function createShadowCounts() {
       counts.lights++;
       if (rank === LIGHT_KIND.directional) counts.sunLights++;
     },
-    /** After admission: the lag of the oldest stale page the image reads — every one of them is
-     *  drawn this frame —, and the pages read straight from the cache; one scan of the pool. */
+    /** After admission: the wait of the oldest stale page the image reads, counted only while a
+     *  report names it (`pool.since`, `readFrame`), and the pages read straight from the cache. */
     endFrame(
       pool: ShadowPool,
       records: ShadowRecords,
@@ -42,21 +45,34 @@ export function createShadowCounts() {
       nowMs: number,
       frame: number,
     ) {
-      counts.pendingPages = 0;
-      counts.cachedPages = 0;
-      counts.poolPages = pool.used;
-      counts.waitedMs = 0;
-      counts.waitedFrames = 0;
-      for (let page = 0; page < pool.pages; page++) {
-        if (pool.owner[page] < 0 || !records.taken[pool.slice[page]]) continue;
-        if (pool.requested[page] < latest || latest < 0) continue;
-        if (!pool.dirty[page]) {
-          if (pool.valid[page]) counts.cachedPages++;
+      const { pages, owner, slice, requested, dirty, valid, since, readFrame } = pool,
+        { taken } = records;
+      let cached = 0,
+        waitedMs = 0,
+        waitedFrames = 0;
+      for (let page = 0; page < pages; page++) {
+        if (owner[page] < 0 || !taken[slice[page]]) continue;
+        const read = latest >= 0 && requested[page] >= latest;
+        if (!dirty[page]) {
+          if (read && valid[page]) cached++;
           continue;
         }
-        counts.waitedMs = Math.max(counts.waitedMs, nowMs - pool.since[page]);
-        counts.waitedFrames = Math.max(counts.waitedFrames, frame - pool.sinceFrame[page]);
+        if (!read) {
+          since[page] = NaN;
+          continue;
+        }
+        if (Number.isNaN(since[page])) {
+          since[page] = nowMs;
+          readFrame[page] = frame;
+        }
+        waitedMs = Math.max(waitedMs, nowMs - since[page]);
+        waitedFrames = Math.max(waitedFrames, frame - readFrame[page]);
       }
+      counts.pendingPages = 0;
+      counts.cachedPages = cached;
+      counts.poolPages = pool.used();
+      counts.waitedMs = waitedMs;
+      counts.waitedFrames = waitedFrames;
     },
     reset() {
       counts.beginFrame();

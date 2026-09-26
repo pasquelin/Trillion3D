@@ -1,7 +1,7 @@
 import { signedArea, type Projected } from './projection.ts';
 import { matrixWindingCw } from '../../../sdk-core/src/index.ts';
 import { uvTransformed } from '../../../sdk-core/src/texture/contract.ts';
-import { refreshSurface, surfaceSide, type PageSurface } from '../page/surface.ts';
+import { refreshSurface, surfaceOpacity, surfaceSide, type PageSurface } from '../page/surface.ts';
 import { lineDash } from './shader/lineWgsl.ts';
 import { DEPTH_CLEAR, depthNearer } from '../camera/depthConvention.ts';
 import { triangleAt, perspectiveBary, mapTexel } from './math.ts';
@@ -31,7 +31,7 @@ function vertexAlpha(
 /**
  * What drops a pixel of a page's triangle, as the GPU rasters drop it, or nothing: a dashed line's
  * gaps (`lineDash`) at the distance its first coordinate carries, then a masked surface's cutout,
- * the base map alpha times the vertex alpha (`maskKeep`, `./shader/pageWgsl.ts`).
+ * the base map alpha times the opacity and the vertex alpha (`maskKeep`, `./shader/pageWgsl.ts`).
  */
 function cutout(
   page: VisPage,
@@ -42,7 +42,8 @@ function cutout(
 ) {
   const uv = page.attributes.uv,
     dashed = mat.dashSize !== undefined && !!uv,
-    masked = mat.alphaTest > 0 && (!!mat.map || !!color);
+    opacity = surfaceOpacity(mat),
+    masked = mat.alphaTest > 0 && (!!mat.map || !!color || opacity < mat.alphaTest);
   if (!dashed && !masked) return undefined;
   return (_x: number, _y: number, w0: number, w1: number, w2: number) => {
     const bary = perspectiveBary(tri.a, tri.b, tri.c, { w0, w1, w2 });
@@ -51,9 +52,9 @@ function cutout(
       : 0;
     if (dashed && !lineDash(u, mat.dashSize!, mat.gapSize ?? 0)) return false;
     if (!masked) return true;
-    let alpha = color ? vertexAlpha(color, tri, bary) : 1;
+    let alpha = (color ? vertexAlpha(color, tri, bary) : 1) * opacity;
     const rgba = mat.map && textureRgba(mat.map);
-    if (!rgba) return !color || alpha >= mat.alphaTest;
+    if (!rgba) return alpha >= mat.alphaTest;
     const v = uv
       ? uv.getY(tri.i0) * bary.w0 + uv.getY(tri.i1) * bary.w1 + uv.getY(tri.i2) * bary.w2
       : 0;

@@ -920,7 +920,8 @@
       "texturePreviewBc7": "Les blocs BC7 des aperçus.",
       "texturePreviewAstc": "Les blocs ASTC des aperçus.",
       "bundleDependencyCount": "Combien de paquets chaque paquet attend.",
-      "bundleDependency": "Les paquets que chaque paquet attend, jusqu’aux racines."
+      "bundleDependency": "Les paquets que chaque paquet attend, jusqu’aux racines.",
+      "pageCone": "Le cône des normales de chaque page : l’axe, puis le demi-angle."
     }
   },
   "ColumnKind": {
@@ -932,28 +933,8 @@
   "compareImages": {
     "summary": "Comparaison de deux images RGBA : nombre de pixels différents, erreur maximale sur un canal, et RMSE."
   },
-  "COMPARISON_LIBRARIES": {
-    "summary": "Les moteurs avec lesquels les bancs d’essai ont été vérifiés, chacun avec son statut et sa raison."
-  },
   "ComparisonLayout": {
     "summary": "Comment deux rendus sont montrés côte à côte pour être comparés."
-  },
-  "CompetitorRecord": {
-    "summary": "Un autre moteur avec lequel les bancs d’essai comparent, et pourquoi.",
-    "members": {
-      "id": "Son nom court.",
-      "name": "Son nom.",
-      "status": "S’il est comparé.",
-      "license": "Sa licence.",
-      "maintained": "Quand il a été mis à jour pour la dernière fois.",
-      "scope": "Ce qu’il couvre.",
-      "reason": "Pourquoi il est comparé, ou pas.",
-      "homepage": "Sa page web."
-    }
-  },
-  "CompetitorStatus": {
-    "summary": "Inventaire des bibliothèques web de géométrie et de LOD.",
-    "description": "Le statut décrit l’équité de l’intégration, pas une couverture marketing."
   },
   "CompilationJob": {
     "summary": "Une compilation en cours.",
@@ -1570,8 +1551,8 @@
       "WEBGL2_UNAVAILABLE": "La machine ne peut pas dessiner de la façon demandée, ou pas du tout.",
       "NO_WEBGL2": "La machine ne peut pas dessiner de la façon demandée, ou pas du tout.",
       "NO_ENGINE_BACKEND": "La machine ne peut pas dessiner de la façon demandée, ou pas du tout.",
-      "RESOURCE_HTTP_ERROR": "Un fichier n’a pas pu être récupéré, ou n’était pas ce qu’il devait être.",
-      "INVALID_JSON_RESPONSE": "Un fichier n’a pas pu être récupéré, ou n’était pas ce qu’il devait être.",
+      "RESOURCE_HTTP_ERROR": "Un fichier n’a pas pu être récupéré — redemandé d’abord quand l’échec peut passer —, ou n’était pas ce qu’il devait être.",
+      "INVALID_JSON_RESPONSE": "Un fichier n’a pas pu être récupéré — redemandé d’abord quand l’échec peut passer —, ou n’était pas ce qu’il devait être.",
       "INVALID_POINTER": "Le pointeur du modèle compilé est cassé, inachevé, ou d’une autre portée.",
       "CACHE_NOT_READY": "Le pointeur du modèle compilé est cassé, inachevé, ou d’une autre portée.",
       "SCOPE_MISMATCH": "Le pointeur du modèle compilé est cassé, inachevé, ou d’une autre portée.",
@@ -1678,7 +1659,7 @@
   },
   "EffectChain": {
     "summary": "`world.effects` : les passes ordonnées dessinées sur l’image après l’antialiasing temporel et avant qu’elle n’atteigne le canvas.",
-    "description": "Les passes qui agissent avant le tone mapping lisent la radiance linéaire, dans l’ordre où elles ont été ajoutées ; celles qui agissent après lisent l’image affichée, dans le leur. Une chaîne vide ne coûte rien : aucune passe, aucune copie, aucune cible.",
+    "description": "Les passes qui agissent avant le tone mapping lisent la radiance linéaire, dans l’ordre où elles ont été ajoutées ; celles qui agissent après lisent l’image affichée, dans le leur. Une chaîne vide ne coûte rien : aucune passe, aucune copie, aucune cible. Sur WebGL2, une image qui dessine une surface transparente en mélange `multiply` ou `subtractive` est dessinée entière sans la chaîne, et le canal de diagnostic du monde dit `effects-refused-blending` une fois ; WebGPU dessine les deux.",
     "members": {
       "revision": "Compte les changements : une image dessinée à une autre révision est périmée.",
       "passes": "Les passes, dans l’ordre où elles s’exécutent.",
@@ -2233,7 +2214,7 @@
     "members": {
       "visible": "S’il est dessiné ; `setVisible` l’écrit.",
       "setVisible": "Le montre ou le cache, ses sommets toujours comptés sous le plafond.",
-      "setTransform": "Le place : seize nombres par colonnes, ou une matrice — `node.matrixWorld` suit un nœud.",
+      "setTransform": "Le place : seize nombres par colonnes, ou une matrice ; un guide qu’`add` a dessiné cesse alors de suivre son nœud.",
       "remove": "Le retire du monde, ses sommets rendus ; un second appel ne fait rien."
     }
   },
@@ -2242,7 +2223,7 @@
     "members": {
       "positions": "Deux extrémités par segment, trois nombres chacune.",
       "color": "Leur couleur ; blanc par défaut.",
-      "width": "Largeur à l’écran, en pixels."
+      "width": "Largeur à l’écran, en pixels CSS, comme toute ligne du moteur."
     }
   },
   "GuidePoints": {
@@ -2250,7 +2231,7 @@
     "members": {
       "positions": "Trois nombres par point.",
       "color": "Leur couleur ; blanc par défaut.",
-      "size": "Côté de chaque point carré à l’écran, en pixels."
+      "size": "Côté de chaque point carré à l’écran, en pixels CSS."
     }
   },
   "Guides": {
@@ -2260,7 +2241,7 @@
       "vertexCount": "Les sommets tenus maintenant, deux par segment et un par point, guides cachés compris.",
       "lines": "Dessine des segments, deux extrémités chacun ; refusé au-dessus du plafond (`GUIDE_CEILING`).",
       "points": "Dessine des points carrés, une position chacun ; refusé au-dessus du plafond (`GUIDE_CEILING`).",
-      "add": "Dessine les maillages de lignes et de points de `object` — chaque `helper` en construit —, dans les couleurs de leurs matériaux, placés là où l’objet se tient maintenant ; ses triangles ne sont pas des guides et sont ignorés.",
+      "add": "Dessine les maillages de lignes et de points de `object` — chaque `helper` en construit —, dans les couleurs de leurs matériaux ; ses triangles ne sont pas des guides et sont ignorés. Le guide suit l’objet — pour une aide de lumière ou de caméra, le nœud qu’elle montre — déplacé à chaque image où ce nœud a bougé, jamais autrement.",
       "clear": "Retire tous les guides."
     }
   },
@@ -3110,6 +3091,7 @@
       "parameters.vertexColors": "Si la liste `color` par sommet de la géométrie teinte la surface.",
       "parameters.depthWrite": "Si la surface écrit sa profondeur, et cache ce qui est dessiné après elle.",
       "parameters.depthTest": "Si la surface se cache derrière ce qui est déjà plus proche.",
+      "parameters.transparentShadow": "Si une surface transparente (`transparent`) projette quand même une ombre, d’autant plus pâle qu’elle est transparente.",
       "parameters.physics": "La matière d’un corps qui le porte : densité, frottement, rebond.",
       "parameters.density": "kg/m³, fois le volume pour la masse.",
       "parameters.friction": "À quel point un corps accroche, de 0 à plus.",
@@ -3150,6 +3132,7 @@
       "parameters.vertexColors": "Si la liste `color` par sommet de la géométrie teinte la surface.",
       "parameters.depthWrite": "Si la surface écrit sa profondeur, et cache ce qui est dessiné après elle.",
       "parameters.depthTest": "Si la surface se cache derrière ce qui est déjà plus proche.",
+      "parameters.transparentShadow": "Si une surface transparente (`transparent`) projette quand même une ombre, d’autant plus pâle qu’elle est transparente.",
       "parameters.physics": "La matière d’un corps qui le porte : densité, frottement, rebond.",
       "parameters.density": "kg/m³, fois le volume pour la masse.",
       "parameters.friction": "À quel point un corps accroche, de 0 à plus.",
@@ -3190,6 +3173,7 @@
       "parameters.vertexColors": "Si la liste `color` par sommet de la géométrie teinte la surface.",
       "parameters.depthWrite": "Si la surface écrit sa profondeur, et cache ce qui est dessiné après elle.",
       "parameters.depthTest": "Si la surface se cache derrière ce qui est déjà plus proche.",
+      "parameters.transparentShadow": "Si une surface transparente (`transparent`) projette quand même une ombre, d’autant plus pâle qu’elle est transparente.",
       "parameters.physics": "La matière d’un corps qui le porte : densité, frottement, rebond.",
       "parameters.density": "kg/m³, fois le volume pour la masse.",
       "parameters.friction": "À quel point un corps accroche, de 0 à plus.",
@@ -3230,6 +3214,7 @@
       "parameters.vertexColors": "Si la liste `color` par sommet de la géométrie teinte la surface.",
       "parameters.depthWrite": "Si la surface écrit sa profondeur, et cache ce qui est dessiné après elle.",
       "parameters.depthTest": "Si la surface se cache derrière ce qui est déjà plus proche.",
+      "parameters.transparentShadow": "Si une surface transparente (`transparent`) projette quand même une ombre, d’autant plus pâle qu’elle est transparente.",
       "parameters.physics": "La matière d’un corps qui le porte : densité, frottement, rebond.",
       "parameters.density": "kg/m³, fois le volume pour la masse.",
       "parameters.friction": "À quel point un corps accroche, de 0 à plus.",
@@ -3270,6 +3255,7 @@
       "parameters.vertexColors": "Si la liste `color` par sommet de la géométrie teinte la surface.",
       "parameters.depthWrite": "Si la surface écrit sa profondeur, et cache ce qui est dessiné après elle.",
       "parameters.depthTest": "Si la surface se cache derrière ce qui est déjà plus proche.",
+      "parameters.transparentShadow": "Si une surface transparente (`transparent`) projette quand même une ombre, d’autant plus pâle qu’elle est transparente.",
       "parameters.physics": "La matière d’un corps qui le porte : densité, frottement, rebond.",
       "parameters.density": "kg/m³, fois le volume pour la masse.",
       "parameters.friction": "À quel point un corps accroche, de 0 à plus.",
@@ -3310,6 +3296,7 @@
       "parameters.vertexColors": "Si la liste `color` par sommet de la géométrie teinte la surface.",
       "parameters.depthWrite": "Si la surface écrit sa profondeur, et cache ce qui est dessiné après elle.",
       "parameters.depthTest": "Si la surface se cache derrière ce qui est déjà plus proche.",
+      "parameters.transparentShadow": "Si une surface transparente (`transparent`) projette quand même une ombre, d’autant plus pâle qu’elle est transparente.",
       "parameters.physics": "La matière d’un corps qui le porte : densité, frottement, rebond.",
       "parameters.density": "kg/m³, fois le volume pour la masse.",
       "parameters.friction": "À quel point un corps accroche, de 0 à plus.",
@@ -3350,6 +3337,7 @@
       "parameters.vertexColors": "Si la liste `color` par sommet de la géométrie teinte la surface.",
       "parameters.depthWrite": "Si la surface écrit sa profondeur, et cache ce qui est dessiné après elle.",
       "parameters.depthTest": "Si la surface se cache derrière ce qui est déjà plus proche.",
+      "parameters.transparentShadow": "Si une surface transparente (`transparent`) projette quand même une ombre, d’autant plus pâle qu’elle est transparente.",
       "parameters.physics": "La matière d’un corps qui le porte : densité, frottement, rebond.",
       "parameters.density": "kg/m³, fois le volume pour la masse.",
       "parameters.friction": "À quel point un corps accroche, de 0 à plus.",
@@ -3390,6 +3378,7 @@
       "parameters.vertexColors": "Si la liste `color` par sommet de la géométrie teinte la surface.",
       "parameters.depthWrite": "Si la surface écrit sa profondeur, et cache ce qui est dessiné après elle.",
       "parameters.depthTest": "Si la surface se cache derrière ce qui est déjà plus proche.",
+      "parameters.transparentShadow": "Si une surface transparente (`transparent`) projette quand même une ombre, d’autant plus pâle qu’elle est transparente.",
       "parameters.physics": "La matière d’un corps qui le porte : densité, frottement, rebond.",
       "parameters.density": "kg/m³, fois le volume pour la masse.",
       "parameters.friction": "À quel point un corps accroche, de 0 à plus.",
@@ -3430,6 +3419,7 @@
       "parameters.vertexColors": "Si la liste `color` par sommet de la géométrie teinte la surface.",
       "parameters.depthWrite": "Si la surface écrit sa profondeur, et cache ce qui est dessiné après elle.",
       "parameters.depthTest": "Si la surface se cache derrière ce qui est déjà plus proche.",
+      "parameters.transparentShadow": "Si une surface transparente (`transparent`) projette quand même une ombre, d’autant plus pâle qu’elle est transparente.",
       "parameters.physics": "La matière d’un corps qui le porte : densité, frottement, rebond.",
       "parameters.density": "kg/m³, fois le volume pour la masse.",
       "parameters.friction": "À quel point un corps accroche, de 0 à plus.",
@@ -3470,6 +3460,7 @@
       "parameters.vertexColors": "Si la liste `color` par sommet de la géométrie teinte la surface.",
       "parameters.depthWrite": "Si la surface écrit sa profondeur, et cache ce qui est dessiné après elle.",
       "parameters.depthTest": "Si la surface se cache derrière ce qui est déjà plus proche.",
+      "parameters.transparentShadow": "Si une surface transparente (`transparent`) projette quand même une ombre, d’autant plus pâle qu’elle est transparente.",
       "parameters.physics": "La matière d’un corps qui le porte : densité, frottement, rebond.",
       "parameters.density": "kg/m³, fois le volume pour la masse.",
       "parameters.friction": "À quel point un corps accroche, de 0 à plus.",
@@ -3510,6 +3501,7 @@
       "parameters.vertexColors": "Si la liste `color` par sommet de la géométrie teinte la surface.",
       "parameters.depthWrite": "Si la surface écrit sa profondeur, et cache ce qui est dessiné après elle.",
       "parameters.depthTest": "Si la surface se cache derrière ce qui est déjà plus proche.",
+      "parameters.transparentShadow": "Si une surface transparente (`transparent`) projette quand même une ombre, d’autant plus pâle qu’elle est transparente.",
       "parameters.physics": "La matière d’un corps qui le porte : densité, frottement, rebond.",
       "parameters.density": "kg/m³, fois le volume pour la masse.",
       "parameters.friction": "À quel point un corps accroche, de 0 à plus.",
@@ -3550,6 +3542,7 @@
       "parameters.vertexColors": "Si la liste `color` par sommet de la géométrie teinte la surface.",
       "parameters.depthWrite": "Si la surface écrit sa profondeur, et cache ce qui est dessiné après elle.",
       "parameters.depthTest": "Si la surface se cache derrière ce qui est déjà plus proche.",
+      "parameters.transparentShadow": "Si une surface transparente (`transparent`) projette quand même une ombre, d’autant plus pâle qu’elle est transparente.",
       "parameters.physics": "La matière d’un corps qui le porte : densité, frottement, rebond.",
       "parameters.density": "kg/m³, fois le volume pour la masse.",
       "parameters.friction": "À quel point un corps accroche, de 0 à plus.",
@@ -3590,6 +3583,7 @@
       "parameters.vertexColors": "Si la liste `color` par sommet de la géométrie teinte la surface.",
       "parameters.depthWrite": "Si la surface écrit sa profondeur, et cache ce qui est dessiné après elle.",
       "parameters.depthTest": "Si la surface se cache derrière ce qui est déjà plus proche.",
+      "parameters.transparentShadow": "Si une surface transparente (`transparent`) projette quand même une ombre, d’autant plus pâle qu’elle est transparente.",
       "parameters.physics": "La matière d’un corps qui le porte : densité, frottement, rebond.",
       "parameters.density": "kg/m³, fois le volume pour la masse.",
       "parameters.friction": "À quel point un corps accroche, de 0 à plus.",
@@ -3630,6 +3624,7 @@
       "parameters.vertexColors": "Si la liste `color` par sommet de la géométrie teinte la surface.",
       "parameters.depthWrite": "Si la surface écrit sa profondeur, et cache ce qui est dessiné après elle.",
       "parameters.depthTest": "Si la surface se cache derrière ce qui est déjà plus proche.",
+      "parameters.transparentShadow": "Si une surface transparente (`transparent`) projette quand même une ombre, d’autant plus pâle qu’elle est transparente.",
       "parameters.physics": "La matière d’un corps qui le porte : densité, frottement, rebond.",
       "parameters.density": "kg/m³, fois le volume pour la masse.",
       "parameters.friction": "À quel point un corps accroche, de 0 à plus.",
@@ -3690,6 +3685,7 @@
       "parameters.vertexColors": "Si la liste `color` par sommet de la géométrie teinte la surface.",
       "parameters.depthWrite": "Si la surface écrit sa profondeur, et cache ce qui est dessiné après elle.",
       "parameters.depthTest": "Si la surface se cache derrière ce qui est déjà plus proche.",
+      "parameters.transparentShadow": "Si une surface transparente (`transparent`) projette quand même une ombre, d’autant plus pâle qu’elle est transparente.",
       "parameters.physics": "La matière d’un corps qui le porte : densité, frottement, rebond.",
       "parameters.density": "kg/m³, fois le volume pour la masse.",
       "parameters.friction": "À quel point un corps accroche, de 0 à plus.",
@@ -3710,6 +3706,7 @@
       "vertexColors": "Si les couleurs par sommet de la géométrie teintent la surface.",
       "depthWrite": "Si la surface écrit sa profondeur.",
       "depthTest": "Si la surface se cache derrière ce qui est plus proche.",
+      "transparentShadow": "Si une surface transparente (`transparent`) projette quand même une ombre, d’autant plus pâle qu’elle est transparente.",
       "version": "Augmenté à chaque écriture : ce que le monde compare pour repeindre.",
       "kind": "Le genre avec lequel le matériau a été fait : `'meshStandard'`, `'meshBasic'`…",
       "needsUpdate": "`material.needsUpdate = true` : les maillages qui le portent sont repeints.",
@@ -3755,6 +3752,7 @@
       "vertexColors": "Si la liste `color` par sommet de la géométrie teinte la surface.",
       "depthWrite": "Si la surface écrit sa profondeur, et cache ce qui est dessiné après elle.",
       "depthTest": "Si la surface se cache derrière ce qui est déjà plus proche.",
+      "transparentShadow": "Si une surface transparente (`transparent`) projette quand même une ombre, d’autant plus pâle qu’elle est transparente.",
       "physics": "La matière d’un corps qui le porte : densité, frottement, rebond.",
       "density": "kg/m³, fois le volume pour la masse.",
       "friction": "À quel point un corps accroche, de 0 à plus.",
@@ -4105,11 +4103,11 @@
   "Mixer": {
     "summary": "Joue des clips sur les nœuds sous `root` ; la boucle d’un monde le fait avancer tant qu’une action joue.",
     "members": {
-      "root": "Le nœud dont elle anime les enfants.",
+      "root": "Le nœud dont il anime les enfants.",
       "clipAction": "L’action qui joue `clip`.",
       "play": "Joue `clip` tout de suite.",
       "stopAll": "Arrête chaque action.",
-      "update": "Fait avancer chaque action en cours de `seconds` et écrit les valeurs échantillonnées."
+      "update": "Fait avancer chaque action en cours de `seconds`, puis écrit dans chaque propriété le mélange pondéré des échantillons de ses actions sur sa valeur au repos."
     }
   },
   "ModelRecord": {
@@ -4248,7 +4246,7 @@
       "quaternion": "Comment le nœud est tourné, en quaternion.",
       "scale": "Comment le nœud est étiré sur chaque axe.",
       "up": "Où est le haut pour `lookAt`.",
-      "castShadow": "Si le nœud projette des ombres.",
+      "castShadow": "Si le nœud projette des ombres : un maillage le fait sauf s’il est mis à `false`, une lumière seulement s’il est mis à `true`. Un maillage mis à `false` reçoit toujours les ombres des autres.",
       "receiveShadow": "Si les ombres tombent sur le nœud.",
       "renderOrder": "Ordre de dessin parmi les choses transparentes.",
       "frustumCulled": "Si un moteur de rendu peut l’omettre hors de la vue.",
@@ -4258,6 +4256,7 @@
       "children": "Enfants attachés dans l’ordre d’ajout. La liste renvoyée ne peut pas être modifiée.",
       "add": "Fait des objets les enfants de ce nœud.",
       "remove": "Retire des enfants de ce nœud.",
+      "attach": "Ajoute `child` là où il se trouve (`SceneNode.attach`).",
       "destroy": "Libère le nœud et tout ce qui est dessous tout de suite, plutôt qu’à leur collecte.",
       "removeFromParent": "Retire le nœud de son parent.",
       "clone": "Un nœud du même genre avec les mêmes valeurs ; ses enfants copiés aussi sauf avis contraire.",
@@ -4439,7 +4438,8 @@
       "source": "Le groupe qui l’a produit.",
       "stream": "Paquet de flux qui contient ce cluster et son décalage en octets dedans. Une demande sert des dizaines de clusters ; le cluster reste lisible seul par `url`.",
       "streamOffset": "Son décalage en octets dans ce paquet.",
-      "depthLayer": "Couche de profondeur coplanaire, 0 pour chaque cluster que le compilateur a laissé tel quel. Un cluster de couche n dessine avec un biais de profondeur de n pas de couche entiers, ce qui décide du gagnant entre deux surfaces opaques qui partagent exactement un plan. Absent et 0 veulent dire la même chose : le dessin inchangé."
+      "depthLayer": "Couche de profondeur coplanaire, 0 pour chaque cluster que le compilateur a laissé tel quel. Un cluster de couche n dessine avec un biais de profondeur de n pas de couche entiers, ce qui décide du gagnant entre deux surfaces opaques qui partagent exactement un plan. Absent et 0 veulent dire la même chose : le dessin inchangé.",
+      "cone": "Le cône qui borne les normales de ses triangles : `axis` un vecteur unitaire, `angle` le demi-angle en radians, π pour un cône qui ne rejette rien. Le compilateur le calcule à partir des triangles ; la coupe WebGPU écarte un cluster à face unique que la caméra voit depuis l’arrière de son cône."
     }
   },
   "PAGE_DECODE_FAILURES": {
@@ -4748,6 +4748,7 @@
     "members": {
       "matrices": "Seize flottants colonne par colonne par rangée, écrits par le propriétaire.",
       "live": "1 là où la rangée place la ressource, 0 là où elle est rangée de côté.",
+      "shadowless": "1 là où la rangée ne projette aucune ombre (le `castShadow` de son maillage vaut `false`), 0 là où elle en projette.",
       "capacity": "Rangées qui tiennent avant qu’il grandisse."
     }
   },
@@ -4887,7 +4888,7 @@
     "summary": "L’atlas de données : images de métal-rugosité, de normales et d’occlusion."
   },
   "PREVIEW_ATLAS_NAMES": {
-    "summary": "Le `{kind}` que porte le chemin d’un niveau cuit pour chaque atlas, tel que `bake.rs` les nomme."
+    "summary": "Le `{kind}` que porte le chemin d’un niveau cuit pour chaque atlas, tel que `reduce.rs` les nomme ; une chaîne de couverture coupée à l’octet C y ajoute `-C`."
   },
   "PREVIEW_BASE": {
     "summary": "Plus grand côté que peut avoir un niveau porté par le fichier annexe."
@@ -5178,7 +5179,7 @@
       "background": "Ce qui remplit l’image derrière chaque objet : une couleur, ou `null` pour le fond par défaut. Un changement s’affiche à l’image suivante, la session gardée : une nouvelle couleur donnée ici, ou celle en place écrite par ses méthodes (`set`, `setRGB`, `setHex`, `setHSL`...). Une écriture directe de `.r`, `.g` ou `.b` n’est pas entendue : redonnez `background` après. Une image, ou toute valeur sans `getHex`, est refusée (`UNSUPPORTED_SCENE_UPDATE`) : aucun chemin ne la dessine.",
       "fog": "Un brouillard sur chaque surface, opaque ou transparente, sur les deux moteurs de rendu ; `null`, la valeur par défaut, pour aucun, sans aucun coût. `{ color, near, far }` fond les objets dans `color` de `near` à `far`, distances depuis la caméra ; `{ color, density }` s’épaissit de `density` par unité de distance ; ajoutez `heightFalloff` (et `baseHeight`, 0 par défaut) et il se pose au sol, s’éclaircissant au-dessus de `baseHeight` — divisé par e toutes les `1 / heightFalloff` unités vers le haut. Un changement se voit à l’image suivante : un nouveau brouillard donné ici, ou sa couleur écrite par ses méthodes. Une écriture directe de `near`, `far`, `density`... n’est pas entendue : redonnez `fog` après. Un brouillard hors limites — `far` pas au-delà de `near`, une densité négative — est refusé (`INVALID_SCENE_ENVIRONMENT`).",
       "load": "Charge un modèle compilé — l’URL de son manifeste — et l’ajoute à cette scène.",
-      "toJSON": "La scène en JSON simple, versionné : ses objets, les formes par l’appel qui les a construites, les matériaux, les lumières et les modèles chargés par adresse ; la pose de `camera` aussi quand on en donne une.",
+      "toJSON": "La scène en JSON simple, versionné : ses objets, les formes par l’appel qui les a construites, les matériaux, les lumières, le corps de chaque maillage tel qu’il a été déclaré et les modèles chargés par adresse ; la pose de `camera` aussi quand on en donne une.",
       "fromJSON": "Remplace ce que contient la scène par une scène enregistrée par `toJSON`, ses repères `helper` gardés ; se résout une fois ses modèles chargés. Un autre format ou une autre version est refusé (`UNSUPPORTED_SCENE_FORMAT`)."
     }
   },
@@ -5294,6 +5295,7 @@
       "pose": "Un nœud a bougé.",
       "structure": "Un nœud a gagné ou perdu des enfants.",
       "content": "La forme ou le matériau d’un nœud a changé.",
+      "shadow": "Le `castShadow` d’un nœud a changé : rien n’a bougé.",
       "posed": "Plusieurs nœuds ont bougé d’un coup, écrits directement dans leur arbre (les corps de la physique) : dit une seule fois.",
       "seat": "La ligne d’où le nœud est dessiné, ou `null` : seize flottants par colonne à `row * 16` de `batch.rows.matrices`, lus sur place par le rendu. Un propriétaire qui place des nœuds par milliers (la physique) y écrit lui-même leurs matrices monde, tant que `seatEpoch` tient, et nomme les lignes écrites par `placed`.",
       "seatEpoch": "Change dès qu’une ligne est prise, libérée ou réallouée : toute réponse de `seat` antérieure est périmée.",
@@ -5315,6 +5317,7 @@
       "remove": "Retire un enfant.",
       "clear": "Retire chaque enfant.",
       "reparent": "Le place sous un autre parent.",
+      "attach": "Ajoute un enfant là où il se trouve : sa matrice dans le monde est gardée, sa pose locale réécrite.",
       "clone": "Une copie, enfants compris.",
       "copy": "Copie les valeurs et les descendants ; un chevauchement récursif d’un ancêtre vers un descendant est refusé en bloc.",
       "setPosition": "Règle sa position.",
@@ -5446,10 +5449,10 @@
       "shadowsUpdated": "Tranches d’ombre redessinées par cette image, au plus le plafond publié du planificateur. Zéro est la valeur normale d’une scène immobile : une lumière fixe garde sa tranche.",
       "shadowFacesDrawn": "Ce que la passe d’ombre a redessiné : faces (vues) et appels de dessin vraiment encodés. C’est le coût par lumière à ombre, séparé du reste. Null pour un moteur qui ne dessine pas d’ombre.",
       "shadowDrawCalls": "Appels de dessin d’ombre.",
-      "shadowPagesDrawn": "Ce qu’a produit l’invalidation des pages : pages redessinées par l’image, pages laissées en file faute de budget, et le retard en millisecondes de la plus ancienne. Zéro partout est la valeur normale d’une scène immobile ; `null` pour un moteur sans atlas d’ombres.",
+      "shadowPagesDrawn": "Ce qu’a produit l’invalidation des pages : pages redessinées par l’image, pages laissées en file faute de budget, et depuis combien de temps attend la plus ancienne page périmée que l’image lit. Zéro partout est la valeur normale d’une scène immobile ; `null` pour un moteur sans atlas d’ombres.",
       "shadowPagesTotal": "Pages dessinées depuis l’ouverture de l’explorateur, vidages de `flush()` compris : le coût d’un changement est l’écart entre deux lectures.",
       "shadowPagesPending": "Pages d’ombre en attente.",
-      "shadowWaitMs": "Combien de temps elles ont attendu.",
+      "shadowWaitMs": "Depuis combien de millisecondes la plus ancienne page périmée que l’image lit attend d’être redessinée. Seul compte le temps où l’image la lit ; 0 une fois redessinée.",
       "gpuLightListsMs": "Temps GPU des listes de lumières.",
       "gpuShadowsMs": "Temps GPU des ombres.",
       "gpuShadowCullMs": "Temps GPU du choix des projeteurs des pages d’ombre qu’une image dessine : la coupe depuis la lumière, le tri par page, et le test d’occultation des projeteurs mobiles avec les pyramides qu’il lit.",
@@ -6006,7 +6009,6 @@
       "anisotropy": "Netteté vue de biais.",
       "flipY": "Si les rangées sont retournées.",
       "premultiplyAlpha": "Si la couleur est pré-multipliée.",
-      "generateMipmaps": "Si des copies plus petites sont faites.",
       "colorSpace": "Comment ses nombres sont lus.",
       "transform": "Transformation des UV de l’échantillonneur, `KHR_texture_transform` composé en trois rangées de trois."
     }
@@ -6080,7 +6082,7 @@
       "textureBytesLastFrame": "Octets envoyés à l’image précédente.",
       "textureUploadMs": "Temps passé à envoyer les tuiles.",
       "textureUploadPeakMs": "Envoi le plus long d’une image.",
-      "textureLevelReads": "Les sources. `textureLevelReads` : niveaux cuits en cours de lecture dans le cache. `textureLevelsDecoded` : niveaux cuits décodés depuis le début. `textureLevelCacheBytes` : octets de l’hôte des niveaux décodés gardés pour y découper d’autres tuiles, sous un budget fixe. `textureScratchBuilds` : textures de travail construites pour une texture sans chaîne cuite, toute la source à chaque fois.",
+      "textureLevelReads": "Les sources. `textureLevelReads` : niveaux cuits en cours de lecture dans le cache. `textureLevelsDecoded` : niveaux cuits décodés depuis le début. `textureLevelCacheBytes` : octets de l’hôte des niveaux décodés gardés pour y découper d’autres tuiles, dans le total CPU. `textureScratchBuilds` : textures de travail construites pour une texture sans chaîne cuite, toute la source à chaque fois.",
       "textureLevelsDecoded": "Niveaux décodés.",
       "textureLevelCacheBytes": "Octets des niveaux décodés gardés.",
       "textureScratchBuilds": "Textures temporaires construites.",
@@ -6134,7 +6136,7 @@
       "sourceKind": "0 quand les octets venaient d’une uri d’image, 1 quand ils venaient de sourceBufferView.",
       "sourceBufferView": "Vue de tampon de la scène préparée, ou -1 pour une source uri.",
       "sha256": "SHA-256 des octets source décodés.",
-      "atlas": "La chaîne que porte cette entrée : PREVIEW_ATLAS_COLOR, PREVIEW_ATLAS_DATA, ou PREVIEW_ATLAS_COVERAGE, échantillonnée dans l’atlas de couleur.",
+      "atlas": "La chaîne que porte cette entrée : PREVIEW_ATLAS_COLOR, PREVIEW_ATLAS_DATA, ou PREVIEW_ATLAS_COVERAGE, échantillonnée dans l’atlas de couleur, dans l’octet bas ; l’octet de coupe d’une chaîne de couverture occupe les bits 8 à 15.",
       "firstLevel": "Indice du premier niveau porté dans la chaîne de mips de la source ; 0 quand elle tient déjà sous PREVIEW_BASE et que le fichier annexe porte donc toute sa résolution.",
       "bakedLevels": "Niveaux cuits en fichiers dans le cache, de 0 à bakedLevels - 1 ; firstLevel quand la chaîne est complète, 0 quand rien n’a été écrit et que le moteur charge l’image source.",
       "levels": "Niveaux portés dans l’ordre, du plus fin à 1×1, chacun une vue sur les octets du fichier annexe.",
@@ -6197,7 +6199,7 @@
     "summary": "Des valeurs échantillonnées à des instants : `values` contient `values.length / times.length` nombres par clé.",
     "members": {
       "name": "Ce qu’elle anime : `node.field`.",
-      "kind": "Quel genre de valeur il contient.",
+      "kind": "Quel genre de valeur elle contient.",
       "times": "Quand arrive chaque clé, en secondes.",
       "values": "La valeur à chaque clé, l’une après l’autre."
     }
@@ -6623,7 +6625,7 @@
   },
   "world.beforeFrame": {
     "summary": "Lance une fonction juste avant chaque image dessinée, avec `{ delta, time }` ; renvoie de quoi l’arrêter.",
-    "description": "Une image de la boucle du monde se déroule ainsi : le contrôleur fait avancer la caméra (sauf si `controls.autoUpdate` vaut false), les animations avancent, ces crochets s’exécutent dans l’ordre où ils ont été ajoutés, la scène est écrite et dessinée, puis viennent les crochets `onFrame`. Ce qu’un crochet place — un corps sur la caméra, un cockpit — est dessiné dans cette image même, jamais une image en retard. Un `render()` mené par l’hôte les lance aussi, mais ne fait avancer aucun contrôleur. Un crochet qui appelle `invalidate()` fait venir les images suivantes.",
+    "description": "Une image se déroule ainsi : le contrôleur de la caméra (sauf si `controls.autoUpdate` vaut false ou si l’hôte mène, `render()`), les animations, la physique, ces crochets dans leur ordre, le dessin, puis les crochets `onFrame`. Ce qu’un crochet place — un corps sur la caméra, un cockpit — est dessiné dans cette image même, jamais une image en retard. Un crochet qui appelle `invalidate()` fait venir les images suivantes.",
     "parameters": {
       "hook": "La fonction à lancer ; elle reçoit les secondes tout juste intégrées et le temps du monde."
     },
@@ -6640,7 +6642,7 @@
     "summary": "Demande une nouvelle image après un changement que le monde n’a pas pu voir."
   },
   "world.render": {
-    "summary": "Dessine une image tout de suite, qui que soit le maître de la boucle."
+    "summary": "Dessine une image tout de suite, qui que soit le maître de la boucle : les animations et la physique avancent avec elle."
   },
   "world.resize": {
     "summary": "Dit au monde que le canevas a changé de taille ; sans valeur, il lit la taille du canevas.",
@@ -6726,10 +6728,10 @@
       "shadowsUpdated": "Tranches d’ombre redessinées par cette image, au plus le plafond publié du planificateur. Zéro est la valeur normale d’une scène immobile : une lumière fixe garde sa tranche.",
       "shadowFacesDrawn": "Ce que la passe d’ombre a redessiné : faces (vues) et appels de dessin vraiment encodés. C’est le coût par lumière à ombre, séparé du reste. Null pour un moteur qui ne dessine pas d’ombre.",
       "shadowDrawCalls": "Appels de dessin d’ombre.",
-      "shadowPagesDrawn": "Ce qu’a produit l’invalidation des pages : pages redessinées par l’image, pages laissées en file faute de budget, et le retard en millisecondes de la plus ancienne. Zéro partout est la valeur normale d’une scène immobile ; `null` pour un moteur sans atlas d’ombres.",
+      "shadowPagesDrawn": "Ce qu’a produit l’invalidation des pages : pages redessinées par l’image, pages laissées en file faute de budget, et depuis combien de temps attend la plus ancienne page périmée que l’image lit. Zéro partout est la valeur normale d’une scène immobile ; `null` pour un moteur sans atlas d’ombres.",
       "shadowPagesTotal": "Pages dessinées depuis l’ouverture de l’explorateur, vidages de `flush()` compris : le coût d’un changement est l’écart entre deux lectures.",
       "shadowPagesPending": "Pages d’ombre en attente.",
-      "shadowWaitMs": "Combien de temps elles ont attendu.",
+      "shadowWaitMs": "Depuis combien de millisecondes la plus ancienne page périmée que l’image lit attend d’être redessinée. Seul compte le temps où l’image la lit ; 0 une fois redessinée.",
       "gpuLightListsMs": "Temps GPU des listes de lumières.",
       "gpuShadowsMs": "Temps GPU des ombres.",
       "gpuShadowCullMs": "Temps GPU du choix des projeteurs des pages d’ombre qu’une image dessine : la coupe depuis la lumière, le tri par page, et le test d’occultation des projeteurs mobiles avec les pyramides qu’il lit.",
@@ -6758,7 +6760,7 @@
       "textureBytesLastFrame": "Octets envoyés à l’image précédente.",
       "textureUploadMs": "Temps passé à envoyer les tuiles.",
       "textureUploadPeakMs": "Envoi le plus long d’une image.",
-      "textureLevelReads": "Les sources. `textureLevelReads` : niveaux cuits en cours de lecture dans le cache. `textureLevelsDecoded` : niveaux cuits décodés depuis le début. `textureLevelCacheBytes` : octets de l’hôte des niveaux décodés gardés pour y découper d’autres tuiles, sous un budget fixe. `textureScratchBuilds` : textures de travail construites pour une texture sans chaîne cuite, toute la source à chaque fois.",
+      "textureLevelReads": "Les sources. `textureLevelReads` : niveaux cuits en cours de lecture dans le cache. `textureLevelsDecoded` : niveaux cuits décodés depuis le début. `textureLevelCacheBytes` : octets de l’hôte des niveaux décodés gardés pour y découper d’autres tuiles, dans le total CPU. `textureScratchBuilds` : textures de travail construites pour une texture sans chaîne cuite, toute la source à chaque fois.",
       "textureLevelsDecoded": "Niveaux décodés.",
       "textureLevelCacheBytes": "Octets des niveaux décodés gardés.",
       "textureScratchBuilds": "Textures temporaires construites.",
@@ -7022,7 +7024,8 @@
       "children": "Les nœuds en dessous, dans l’ordre.",
       "mesh": "Rangs dans `geometries` et `materials`, la façon de lire les triangles, et le centre d’un sprite.",
       "light": "Le type d’une lumière, ses couleurs, ses nombres, sa visée et les coefficients de sonde.",
-      "model": "Un modèle compilé, par l’adresse du manifeste d’où il a été chargé : jamais recopié dedans."
+      "model": "Un modèle compilé, par l’adresse du manifeste d’où il a été chargé : jamais recopié dedans.",
+      "physics": "Le corps d’un maillage, tel que `mesh.physics` le déclare."
     }
   },
   "SavedScene": {
@@ -7129,7 +7132,7 @@
       "water": "L’eau où flottent les corps : son niveau, ses vagues, sa densité et ses traînées. Un corps plus léger que l’eau flotte, poussé par le poids de l’eau qu’il déplace.",
       "waterSurface": "La surface de l’eau à l’heure de la simulation, pour la dessiner : les vagues que lit la flottaison, les mêmes nombres (`height`, `point`, `normal`).",
       "stats": "Comptes et les deux horloges : millisecondes du worker par pas, millisecondes de la page par image.",
-      "error": "La dernière erreur levée par la physique (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), ou `null`. Une erreur qui a arrêté la simulation désactive `enabled`.",
+      "error": "La dernière erreur levée par la physique (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`, `RESOURCE_HTTP_ERROR`), ou `null`. Une erreur qui a arrêté la simulation désactive `enabled`.",
       "add": "Ajoute une liaison (`joint.hinge(door, frame, …)` et ses sœurs) : elle est créée dès que ses deux corps sont simulés, et tient jusqu’à ce qu’on la retire ou qu’elle rompe.",
       "remove": "Retire une liaison : les corps qu’elle tenait se séparent librement."
     }
@@ -7337,7 +7340,7 @@
       "water": "L’eau où flottent les corps : son niveau, ses vagues, sa densité et ses traînées. Un corps plus léger que l’eau flotte, poussé par le poids de l’eau qu’il déplace.",
       "waterSurface": "La surface de l’eau à l’heure de la simulation, pour la dessiner : les vagues que lit la flottaison, les mêmes nombres (`height`, `point`, `normal`).",
       "stats": "Comptes et les deux horloges : millisecondes du worker par pas, millisecondes de la page par image.",
-      "error": "La dernière erreur levée par la physique (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), ou `null`. Une erreur qui a arrêté la simulation désactive `enabled`.",
+      "error": "La dernière erreur levée par la physique (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`, `RESOURCE_HTTP_ERROR`), ou `null`. Une erreur qui a arrêté la simulation désactive `enabled`.",
       "add": "Ajoute une liaison (`joint.hinge(door, frame, …)` et ses sœurs) : elle est créée dès que ses deux corps sont simulés, et tient jusqu’à ce qu’on la retire ou qu’elle rompe.",
       "remove": "Retire une liaison : les corps qu’elle tenait se séparent librement."
     }
@@ -7410,6 +7413,7 @@
       "transparent": "S’il se mélange.",
       "opacity": "À quel point il est opaque.",
       "alphaTest": "Alpha en dessous duquel les pixels disparaissent.",
+      "transparentShadow": "S’il projette une ombre lorsqu’il est mélangé ; non précisé, il n’en projette aucune.",
       "depthTest": "S’il teste la profondeur."
     },
     "summary": "Une surface : les paramètres d’une famille, aux valeurs de la référence sauf si la scène a dit autrement.",
@@ -7429,7 +7433,7 @@
       "offset": "Ce dont `matrix` est composée.",
       "matrixAutoUpdate": "Si l’hôte reconstruit `matrix`.",
       "matrix": "Transformation des UV de l’échantillonneur, `KHR_texture_transform` composé en trois rangées ; l’hôte la recalcule à partir du décalage, de la répétition et de la rotation quand il fait la mise à jour.",
-      "generateMipmaps": "Si des copies plus petites sont faites.",
+      "generateMipmaps": "Si des copies plus petites sont demandées ; le moteur les fait dès que `minFilter` les lit.",
       "premultiplyAlpha": "Si la couleur est pré-multipliée par l’alpha.",
       "flipY": "Si les rangées sont retournées à l’envoi.",
       "version": "Augmenté par l’hôte à chaque changement de contenu : ce qu’un envoi compare pour éviter une recopie.",

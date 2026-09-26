@@ -4,7 +4,6 @@ import { applyTemporalHiz, resetHizCounts } from '../../../hiz/hiz.ts';
 import { pageAddress } from '../../row/pageSlots.ts';
 import { appendAll, markDrawnDiverged, partitionByPass, triangleSum } from '../helpers.ts';
 import { publishCpuProfile } from './cpuSteps.ts';
-import { ensureTargets } from '../prepare/targets.ts';
 import { encodeDraws } from './encodeDraws.ts';
 import { traceCpuFrame, traceCpuFrameWaiting, traceCpuSelection } from './trace.ts';
 import {
@@ -13,7 +12,6 @@ import {
   traceAdmission,
   traceDrawnVerify,
   traceQueueReconstruct,
-  traceTargetsEnsured,
 } from './steps.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import { coverageBudgetEvent } from '../../../diagnostic/engineDiagnostic.ts';
@@ -22,14 +20,14 @@ import { coverageBudgetEvent } from '../../../diagnostic/engineDiagnostic.ts';
  *  pool holds of each surface (`../../../page/cut/rule.ts`). */
 function selectCpuCut(rt: WebgpuPagesRuntime, cam: EngineCamera, pixelError: number) {
   const { run } = rt;
+  rt.services.syncResidency();
   return selectVisiblePages(
     rt.setup.roots,
     cam,
     {
       pixelError,
       viewport: rt.setup.viewport,
-      holdResident: true,
-      isResident: rt.services.poolHolds,
+      held: rt.services.heldResidency,
       wanted: run.selectResult.wanted,
       result: run.selectResult,
     },
@@ -76,7 +74,7 @@ export function renderCpuCut(
   lightsEnd: number,
 ) {
   const { run, gpu, timing, services } = rt,
-    { bootstrapUrls, slots, viewport } = rt.setup,
+    { bootstrapUrls, slots } = rt.setup,
     gpuDevice = gpu.device!;
   // The CPU cut rewrites the lists itself: no held image leans on its own.
   run.gate.resourcesChanged();
@@ -150,10 +148,6 @@ export function renderCpuCut(
   // drop out here — `hizRejectedTriangles` counts it.
   run.drawnTriangles = run.selectedTriangles;
   traceDrawnVerify(rt, performance.now() - drawnVerifyStarted);
-  const [width, height] = viewport ?? gpu.targetSize,
-    targetStarted = performance.now();
-  ensureTargets(rt, gpuDevice, Math.max(1, width), Math.max(1, height));
-  traceTargetsEnsured(rt, width, height, targetStarted);
   logFirstCpuRenderPath(rt);
   const encodeStart = performance.now();
   run.submittedTriangles = encodeDraws(rt, gpuDevice, cam);

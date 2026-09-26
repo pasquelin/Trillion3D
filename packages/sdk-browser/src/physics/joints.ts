@@ -6,7 +6,7 @@ import {
   type JointMotor,
 } from '../../../sdk-core/src/physics/index.ts';
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
-import type { createPhysicsBodies } from './bodies.ts';
+import { hasBody, type Bodied, type createPhysicsBodies } from './bodies.ts';
 import { framesOf, sixDofAxis } from './jointFrames.ts';
 import { createSimulatedIds, engineIdOf } from './simulatedIds.ts';
 
@@ -20,7 +20,8 @@ const motorOf = (motor: JointMotor | null) => ({
 /**
  * The joints of a session: which are made in the simulation, under which id (a slot and its
  * generation, as a body's engine id). A joint is made once both its bodies are simulated, and
- * taken out when one leaves, is rebuilt, or the joint is removed or breaks.
+ * taken out when one leaves, is rebuilt, or the joint is removed or breaks — as it does when a
+ * body leaves for good.
  */
 export function createPhysicsJoints(
   writer: CommandWriter,
@@ -44,6 +45,15 @@ export function createPhysicsJoints(
     made.delete(joint);
     joint._host = null;
     joint._id = -1;
+  };
+  /** The `physics` of the bodies out for good (asleep decorative), until set anew: a joint on one
+   *  breaks. */
+  const gone = new WeakSet<object>();
+  const out = (node: Object3D | null) => !!node && hasBody(node) && gone.has(node.physics);
+  /** Out of the simulation, and told it broke. */
+  const snap = (joint: Joint) => {
+    drop(joint);
+    joint._break();
   };
   const connect = (joint: Joint) => {
     const a = idOf(joint.a),
@@ -75,19 +85,31 @@ export function createPhysicsJoints(
     joint._id = id;
   };
   return {
-    /** Brings the made joints in line with `joints` and with the bodies, after the bodies are. */
+    /** Brings the made joints in line with `joints` and with the bodies, after the bodies are;
+     *  a joint on a body out for good (`retired`) breaks rather than waits for it. */
     reconcile(joints: ReadonlySet<Joint>) {
       for (const [joint, ends] of made)
         if (!joints.has(joint) || idOf(joint.a) !== ends.a || idOf(joint.b) !== ends.b) drop(joint);
-      for (const joint of joints) if (!joint.broken && !made.has(joint)) connect(joint);
+      for (const joint of joints) {
+        if (joint.broken || made.has(joint)) continue;
+        if (out(joint.a) || out(joint.b)) joint._break();
+        else connect(joint);
+      }
+    },
+    /** The body made with `physics` (not one the page set since) leaves the simulation for good,
+     *  asleep decorative: each joint of `joints` made on it breaks now, one added later at
+     *  `reconcile`; one the page removed since only leaves. */
+    retired(physics: Bodied['physics'] | null, joints: ReadonlySet<Joint>) {
+      if (!physics) return;
+      gone.add(physics);
+      for (const joint of made.keys())
+        if (out(joint.a) || out(joint.b)) (joints.has(joint) ? snap : drop)(joint);
     },
     /** The joints the simulation broke, by id: out, and told. */
     broke(ids: readonly number[]) {
       for (const id of ids) {
-        const joint = slots.at(id);
-        if (!joint || joint._id !== id) continue;
-        drop(joint);
-        joint._break();
+        const joint = slots.of(id);
+        if (joint) snap(joint);
       }
       invalidate();
     },

@@ -20,6 +20,7 @@ const finite = (value: number | undefined) => (Number.isFinite(value) ? (value a
 export interface NodeState {
   node: Object3D;
   visible: boolean;
+  castShadow: boolean;
   parent: Object3D | null;
   auto: boolean;
   matrix: Float64Array | null;
@@ -63,6 +64,7 @@ export function snapshot(node: Object3D): NodeState {
   return {
     node,
     visible: node.visible,
+    castShadow: node.castShadow,
     parent: node.parent,
     auto: node.matrixAutoUpdate,
     matrix: node.matrixAutoUpdate ? null : Float64Array.from(node.matrix.elements),
@@ -93,8 +95,9 @@ export function scan(state: NodeState): WatchVerdict {
   // A reparented node changes its ancestor chain: the watched set is reshaped.
   const reparented = node.parent !== state.parent;
   state.parent = node.parent;
-  let moved = node.visible !== state.visible;
+  let moved = node.visible !== state.visible || node.castShadow !== state.castShadow;
   state.visible = node.visible;
+  state.castShadow = node.castShadow;
   if (node.matrixAutoUpdate !== state.auto) {
     // Frozen from now on: the matrix it holds is the pose, whatever wrote it.
     state.auto = node.matrixAutoUpdate;
