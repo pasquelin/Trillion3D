@@ -1,15 +1,15 @@
 import type { PackedDag } from '../../../packages/sdk-browser/src/gpu/dag/selection.ts';
 import { createMockCommandEncoderFactory, type MockDraw, type MockPass } from './mockEncoder.ts';
 import { bytesOf } from './globals.ts';
+import { mockBuffers, type MapFaults } from './mockBuffers.ts';
 import { asWebgpuDevice, untag } from './webgpuDevice.ts';
 
 /** What a test asks of `mockGpu`: the device limits, the DAG its compute selection runs on, and
  *  the failures it injects. `compute` gives the device compute pipelines without a DAG. */
-export type MockGpuOptions = {
+export type MockGpuOptions = MapFaults & {
   limits?: Record<string, number>;
   packed?: PackedDag;
   compute?: boolean;
-  failMap?: boolean;
   rejectR32?: boolean;
   failVisPass?: boolean;
   failCompact?: boolean;
@@ -28,16 +28,24 @@ export function mockGpu({
   packed,
   compute = false,
   failMap = false,
+  mapGate,
   rejectR32 = false,
   failVisPass = false,
   failCompact = false,
   failCompile = false,
 }: MockGpuOptions = {}) {
   const draws: MockDraw[] = [],
-    writes: Array<{ offset: number; bytes: Uint8Array; label?: string; seq: number }> = [];
+    writes: Array<{
+      offset: number;
+      bytes: Uint8Array;
+      label?: string;
+      size?: number;
+      seq: number;
+    }> = [];
   // One counter over writes and submits: a row has to reach the GPU before the image that reads it.
-  const buffers: Array<{ label?: string; size: number; usage: number; data: Uint8Array }> = [],
-    submits: number[] = [];
+  const { buffers, createBuffer, destroyedMaps } = mockBuffers({ failMap, mapGate }),
+    submits: number[] = [],
+    copies: Array<{ usage?: number }> = [];
   let seq = 0;
   const textures: Array<{
     label?: string;
@@ -66,25 +74,8 @@ export function mockGpu({
     limits,
     // No block family: every lane pool is RGBA8, as on a software adapter.
     features: new Set<string>(),
-    createBuffer: (descriptor: { size: number; usage: number; label?: string }) => {
-      const { size, usage } = descriptor,
-        label = untag(descriptor.label);
-      const data = new Uint8Array(size);
-      const buffer = {
-        size,
-        usage,
-        label,
-        data,
-        destroy() {},
-        mapAsync: async () => {
-          if (failMap && label !== 'Trillion3D explicit capture') throw new Error('MAP_FAILED');
-        },
-        getMappedRange: () => data.buffer,
-        unmap() {},
-      };
-      buffers.push(buffer);
-      return buffer;
-    },
+    createBuffer: (descriptor: { size: number; usage: number; label?: string }) =>
+      createBuffer({ ...descriptor, label: untag(descriptor.label) }),
     createTexture: ({
       label: tagged,
       size,
@@ -141,19 +132,21 @@ export function mockGpu({
       passes,
       computes,
       imageCopies,
+      copies,
       packed,
       failVisPass,
     }),
     queue: {
       writeBuffer(
-        buffer: { data?: Uint8Array; label?: string },
+        buffer: { data?: Uint8Array; label?: string; size?: number },
         offset: number,
         data: BufferSource,
         dataOffset?: number,
         size?: number,
       ) {
         const bytes = bytesOf(data, dataOffset, size);
-        writes.push({ offset, bytes: new Uint8Array(bytes), label: buffer.label, seq: seq++ });
+        const { label, size: target } = buffer;
+        writes.push({ offset, bytes: new Uint8Array(bytes), label, size: target, seq: seq++ });
         buffer.data?.set(bytes, offset);
       },
       writeTexture(
@@ -192,6 +185,8 @@ export function mockGpu({
     computes,
     layouts,
     imageCopies,
+    copies,
+    destroyedMaps,
     textureWrites,
     renderPipelines,
   };

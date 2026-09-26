@@ -120,10 +120,19 @@ export function simulateComputeDispatch(
     );
     return;
   }
-  if (!packed || computePipeline?.entryPoint !== 'dagMask' || !computeBind) return;
+  const stage = computePipeline?.entryPoint;
+  if (!packed || (stage !== 'dagMask' && stage !== 'dagDrawScatter') || !computeBind) return;
   const byBinding = new Map(
     computeBind.entries.map((entry) => [entry.binding, entry.resource.buffer]),
   );
+  // Compaction rereads the draw flags `dagMask` left, as `dagDrawPrefix` then `dagDrawScatter` do.
+  if (stage === 'dagDrawScatter')
+    return compactDrawnPages(
+      byBinding.get(DAG_BINDING.flags)!.data,
+      byBinding.get(DAG_BINDING.out)!.data,
+      packed.nodeCount,
+      packed.pageCount,
+    );
   const { uniforms, residentCut } = readDagUniforms(byBinding.get(DAG_BINDING.views)!.data);
   // The rule's residency lives in bits behind the cold records: the double rereads it through the
   // shared decoder, in the buffer the host writes, where the shader reads it.
@@ -149,13 +158,6 @@ export function simulateComputeDispatch(
     const flags = new Uint32Array(byBinding.get(DAG_BINDING.flags)!.data.buffer);
     flags.fill(0, packed.nodeCount);
     for (const id of result.drawablePageIds ?? []) flags[packed.nodeCount + id] = 1;
-    // The cut then compacts these flags: the sample reports only the count and its ranks.
-    compactDrawnPages(
-      byBinding.get(DAG_BINDING.flags)!.data,
-      byBinding.get(DAG_BINDING.out)!.data,
-      packed.nodeCount,
-      packed.pageCount,
-    );
   }
   const out = byBinding.get(DAG_BINDING.out)!.data;
   const ints = new Uint32Array(out.buffer, out.byteOffset, out.byteLength / 4);
