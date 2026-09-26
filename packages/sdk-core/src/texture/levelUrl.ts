@@ -1,8 +1,8 @@
 import { EngineError } from '../contracts/cache.ts';
 import {
-  PREVIEW_ATLAS_NAMES,
   PREVIEW_LAYOUT_FILES,
   PREVIEW_LOSSLESS_FORMAT,
+  previewAtlasName,
   type TextureBlockFormat,
   type TextureLayout,
 } from '../manifest/binaryFormat.ts';
@@ -36,7 +36,7 @@ export function textureLevelUrl(
   level: number,
   format: TextureLevelFormat,
 ) {
-  const kind = PREVIEW_ATLAS_NAMES[atlas];
+  const kind = previewAtlasName(atlas);
   if (kind === undefined)
     throw new EngineError('INVALID_CACHE', 'A texture level names an unknown atlas', { atlas });
   if (!/^[0-9a-f]{64}$/.test(sha256) || !Number.isInteger(level) || level < 0)
