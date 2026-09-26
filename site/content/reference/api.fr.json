@@ -4905,7 +4905,7 @@
     "summary": "L’atlas de données : images de métal-rugosité, de normales et d’occlusion."
   },
   "PREVIEW_ATLAS_NAMES": {
-    "summary": "Le `{kind}` que porte le chemin d’un niveau cuit pour chaque atlas, tel que `bake.rs` les nomme."
+    "summary": "Le `{kind}` que porte le chemin d’un niveau cuit pour chaque atlas, tel que `reduce.rs` les nomme ; une chaîne de couverture coupée à l’octet C y ajoute `-C`."
   },
   "PREVIEW_BASE": {
     "summary": "Plus grand côté que peut avoir un niveau porté par le fichier annexe."
@@ -6152,7 +6152,7 @@
       "sourceKind": "0 quand les octets venaient d’une uri d’image, 1 quand ils venaient de sourceBufferView.",
       "sourceBufferView": "Vue de tampon de la scène préparée, ou -1 pour une source uri.",
       "sha256": "SHA-256 des octets source décodés.",
-      "atlas": "La chaîne que porte cette entrée : PREVIEW_ATLAS_COLOR, PREVIEW_ATLAS_DATA, ou PREVIEW_ATLAS_COVERAGE, échantillonnée dans l’atlas de couleur.",
+      "atlas": "La chaîne que porte cette entrée : PREVIEW_ATLAS_COLOR, PREVIEW_ATLAS_DATA, ou PREVIEW_ATLAS_COVERAGE, échantillonnée dans l’atlas de couleur, dans l’octet bas ; l’octet de coupe d’une chaîne de couverture occupe les bits 8 à 15.",
       "firstLevel": "Indice du premier niveau porté dans la chaîne de mips de la source ; 0 quand elle tient déjà sous PREVIEW_BASE et que le fichier annexe porte donc toute sa résolution.",
       "bakedLevels": "Niveaux cuits en fichiers dans le cache, de 0 à bakedLevels - 1 ; firstLevel quand la chaîne est complète, 0 quand rien n’a été écrit et que le moteur charge l’image source.",
       "levels": "Niveaux portés dans l’ordre, du plus fin à 1×1, chacun une vue sur les octets du fichier annexe.",

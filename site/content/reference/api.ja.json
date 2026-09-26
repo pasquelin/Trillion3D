@@ -2293,7 +2293,7 @@
     "summary": "データアトラス: メタル・ラフネス、法線、オクルージョンマップ。"
   },
   "PREVIEW_ATLAS_NAMES": {
-    "summary": "焼き込まれたレベルのパスが各アトラスに対して持つ`{kind}`。`bake.rs`がそれらに名前をつける形で。"
+    "summary": "ベイク済みレベルのパスが各アトラスについて持つ `{kind}`。`reduce.rs` の命名に従う。バイト C でカットされるカバレッジチェーンは `-C` を付け加える。"
   },
   "PREVIEW_BASE": {
     "summary": "サイドカーが運ぶレベルが持ち得る、最大の一辺。"
@@ -3681,7 +3681,7 @@
       "sourceKind": "バイト列が画像uriから来た場合は0、sourceBufferViewから来た場合は1。",
       "sourceBufferView": "準備済みシーンのバッファビュー。uriソースの場合は-1。",
       "sha256": "デコードされた元バイト列のSHA-256。",
-      "atlas": "このエントリが持つチェーン: PREVIEW_ATLAS_COLOR、PREVIEW_ATLAS_DATA、またはカラーアトラスでサンプリングされるPREVIEW_ATLAS_COVERAGE。",
+      "atlas": "このエントリが保持するチェーン：PREVIEW_ATLAS_COLOR、PREVIEW_ATLAS_DATA、またはカラーアトラスでサンプリングされる PREVIEW_ATLAS_COVERAGE を下位バイトに持つ。カバレッジチェーンのカットオフバイトはビット 8–15 を占める。",
       "firstLevel": "元データのミップチェーンで運ばれる最初のレベルのインデックス; すでにPREVIEW_BASE以下に収まっており、サイドカーがその完全な解像度を運んでいる場合は0。",
       "bakedLevels": "キャッシュ内でファイルに焼き込まれたレベル数、0からbakedLevels - 1まで; チェーンが完全であればfirstLevel、何も書き込まれずエンジンが元画像を読み込む場合は0。",
       "levels": "順番に運ばれるレベル。最も細かいものから1×1まで、それぞれサイドカーのバイト列に対するビュー。",

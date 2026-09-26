@@ -2311,7 +2311,7 @@
     "summary": "Atlas dữ liệu: các bản đồ kim loại-độ nhám, pháp tuyến và occlusion."
   },
   "PREVIEW_ATLAS_NAMES": {
-    "summary": "`{kind}` mà đường dẫn của một mức nướng sẵn mang theo cho mỗi atlas, đúng như `bake.rs` đặt tên chúng."
+    "summary": "`{kind}` mà đường dẫn của một mức đã nướng mang theo cho mỗi atlas, như `reduce.rs` đặt tên; một chuỗi độ phủ bị cắt ở byte C thêm `-C`."
   },
   "PREVIEW_BASE": {
     "summary": "Cạnh lớn nhất mà một mức do tệp phụ mang theo có thể có."
@@ -3764,7 +3764,7 @@
       "sourceKind": "0 khi các byte đến từ một uri hình ảnh, 1 khi chúng đến từ sourceBufferView.",
       "sourceBufferView": "View bộ đệm của cảnh đã chuẩn bị, hoặc -1 cho một nguồn uri.",
       "sha256": "SHA-256 của các byte nguồn đã giải mã.",
-      "atlas": "Chuỗi mà mục này mang: PREVIEW_ATLAS_COLOR, PREVIEW_ATLAS_DATA, hoặc PREVIEW_ATLAS_COVERAGE, được lấy mẫu trong atlas màu.",
+      "atlas": "Chuỗi mà mục này mang: PREVIEW_ATLAS_COLOR, PREVIEW_ATLAS_DATA, hoặc PREVIEW_ATLAS_COVERAGE, được lấy mẫu trong atlas màu, ở byte thấp; byte cắt của một chuỗi độ phủ chiếm các bit 8–15.",
       "firstLevel": "Chỉ số của mức đầu tiên được mang trong chuỗi mip của nguồn; 0 khi nó đã vừa dưới PREVIEW_BASE và do đó tệp phụ mang theo toàn bộ độ phân giải của nó.",
       "bakedLevels": "Các mức được nướng thành tệp trong bộ nhớ đệm, từ 0 đến bakedLevels - 1; firstLevel khi chuỗi hoàn chỉnh, 0 khi không có gì được ghi và bộ máy tải hình ảnh nguồn.",
       "levels": "Các mức được mang theo thứ tự, từ mịn nhất đến 1x1, mỗi mức là một view trên các byte của tệp phụ.",
