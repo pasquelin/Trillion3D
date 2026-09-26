@@ -87,7 +87,7 @@ export function createWebglParticleDraw(
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
       gl.bindFramebuffer(gl.FRAMEBUFFER, copy.framebuffer);
       gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.TEXTURE_2D, copy.texture, 0);
-      return { program, vao, m, look, linear, curve, copy, checked: undefined as unknown };
+      return { program, vao, m, look, linear, curve, copy, from: gl as unknown, refused: false };
     },
     ({ program, vao, copy }) => {
       gl.deleteProgram(program);
@@ -103,6 +103,9 @@ export function createWebglParticleDraw(
       // The eye in double precision, the world matrix's: the host's 32-bit eye rounds 10 km out.
       for (let i = 0; i < 3; i++) eye[i] = camera.world[12 + i];
       if (!live || !drawOrder(pools, eye, order).length) return 0;
+      // Refused once, by name; every later image refuses the pools again, drawing nothing.
+      if (live.refused) for (const pool of pools) pool.refused = true;
+      if (live.refused) return 0;
       // The frame's depth, copied for the soft edge; each framebuffer's first copy asks if refused.
       const { copy } = live,
         { framebuffer, width, height } = output;
@@ -117,14 +120,11 @@ export function createWebglParticleDraw(
       gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, copy.framebuffer);
       gl.blitFramebuffer(0, 0, width, height, 0, 0, width, height, gl.DEPTH_BUFFER_BIT, gl.NEAREST);
       gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
-      if (live.checked !== framebuffer && gl.getError() === gl.INVALID_OPERATION) {
-        for (const pool of pools) pool.refused = true;
-        throw new Error(
-          "PARTICLES_UNSUPPORTED: WebGL2 particles fade on the frame's depth, and this context " +
-            'cannot copy it',
-        );
+      if (live.from !== framebuffer && gl.getError() === gl.INVALID_OPERATION) {
+        for (const pool of pools) pool.refused = live.refused = true;
+        throw new Error('PARTICLES_UNSUPPORTED: WebGL2 particles fade on a depth it cannot copy');
       }
-      live.checked = framebuffer;
+      live.from = framebuffer;
       multiplyMatrix4Typed(screen, camera.projection, camera.view);
       gl.useProgram(live.program);
       gl.bindVertexArray(live.vao);
@@ -153,8 +153,10 @@ export function createWebglParticleDraw(
         draws++;
       }
       // Nothing is left for the next pass to sample into a feedback loop, blend or not write.
-      bindWebglTexture(gl, 0, null);
-      bindWebglTexture(gl, 1, null);
+      gl.activeTexture(gl.TEXTURE1);
+      gl.bindTexture(gl.TEXTURE_2D, null);
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, null);
       gl.disable(gl.BLEND);
       gl.depthMask(true);
       gl.bindVertexArray(null);

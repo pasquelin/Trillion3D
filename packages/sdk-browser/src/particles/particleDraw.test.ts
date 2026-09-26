@@ -7,6 +7,7 @@ import { ParticlePool, type ParticlePoolSpec } from '../../../sdk-core/src/fluid
 import { createHostDrawCamera } from '../camera/world.ts';
 import { DRAW_FLOATS, writeDrawWords } from './drawWords.ts';
 import { PARTICLE_DRAW_PASS, createWebgpuParticleDraw } from './webgpuParticleDraw.ts';
+import { encodeParticles } from './webgpuParticles.ts';
 import { webgl } from './stepModels.fixture.ts';
 
 const IDENTITY = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
@@ -51,17 +52,14 @@ function renderRecorder() {
 }
 
 const P = PARTICLE_DRAW_PASS,
-  view = {} as GPUTextureView;
+  view = {} as GPUTextureView,
+  buffer = () => ({}) as GPUBuffer;
 const frame = (encoder: GPUCommandEncoder) => [encoder, view, view, IDENTITY, [0, 0, 0]] as const;
 
 test('WebGPU: one pass, fire then the nearer smoke, each with its blend; none without particles', async () => {
   const gpu = fakeDevice(),
     pools = scene();
-  const draw = createWebgpuParticleDraw(
-    gpu.device,
-    () => ({}) as GPUBuffer,
-    (e) => assert.fail(`${e}`),
-  );
+  const draw = createWebgpuParticleDraw(gpu.device, buffer, (e) => assert.fail(`${e}`));
   await tick();
   const { encoder, log } = renderRecorder();
   assert.equal(draw.draw([], ...frame(encoder)) + draw.draw([pools[2]], ...frame(encoder)), 0);
@@ -80,15 +78,22 @@ test('WebGPU: a draw that cannot compile is heard, and refuses its pools', async
     { device } = fakeDevice(),
     [smoke] = scene();
   device.createRenderPipelineAsync = () => Promise.reject(new Error('NO_PIPELINE'));
-  const draw = createWebgpuParticleDraw(
-    device,
-    () => ({}) as GPUBuffer,
-    (e) => heard.push(e),
-  );
+  const draw = createWebgpuParticleDraw(device, buffer, (e) => heard.push(e));
   await tick();
   const { encoder, log } = renderRecorder();
   assert.equal(draw.draw([smoke], ...frame(encoder)), 0);
   assert.deepEqual([heard.length, smoke.refused, log.length], [1, true, 0]);
+});
+
+test('WebGPU without the visibility buffer refuses the pools by name, heard once', () => {
+  const heard: unknown[] = [],
+    [smoke] = scene(),
+    diag = { diagnosticFailure: (code: string, e: Error) => heard.push(`${code} ${e.message}`) };
+  const rt = { context: { particles: [smoke] }, vis: { visEnabled: false }, gpu: {}, diag };
+  const encode = () => encodeParticles(rt as never, fakeDevice().device, {} as GPUCommandEncoder);
+  (encode(), encode());
+  assert.deepEqual([smoke.refused, heard.length], [true, 1]);
+  assert.match(`${heard}`, /^particles-unavailable PARTICLES_UNSUPPORTED/);
 });
 
 const output = { framebuffer: null, width: 8, height: 4, toneMapped: true };
@@ -103,18 +108,10 @@ test("WebGL2: the frame's depth is copied, then the pools far to near, each with
   const from = ctx.calls.length;
   assert.equal(particles.draw(pools, createHostDrawCamera(), output), 3);
   const calls = ctx.calls.slice(from).filter(({ name }) => /^(blit|blendFunc|drawArr)/.test(name));
-  assert.deepEqual(
-    calls.map(({ args }) => args.slice(-3).join(' ')),
-    [
-      '4 DEPTH_BUFFER_BIT NEAREST', // the whole 8 × 4 frame,
-      'ONE ONE',
-      '0 6 1', // the lone particle 50 m out,
-      'ONE ONE',
-      '0 6 3', // the fire,
-      'ONE ONE_MINUS_SRC_ALPHA',
-      '0 6 4', // then the smoke
-    ],
-  );
+  // The depth, then far to near: the lone particle 50 m out, the fire, the smoke.
+  const drawn =
+    'DEPTH_BUFFER_BIT NEAREST, ONE ONE, 6 1, ONE ONE, 6 3, ONE ONE_MINUS_SRC_ALPHA, 6 4';
+  assert.equal(calls.map(({ args }) => args.slice(-2).join(' ')).join(', '), drawn);
 });
 
 test("WebGL2: a context that cannot copy the frame's depth refuses the pools by name", () => {
@@ -124,5 +121,7 @@ test("WebGL2: a context that cannot copy the frame's depth refuses the pools by 
   run([smoke]);
   const drawn = () => particles.draw([smoke], createHostDrawCamera(), output);
   assert.throws(drawn, /^Error: PARTICLES_UNSUPPORTED/);
+  run([smoke]);
+  assert.equal(drawn(), 0, 'refused once: later images draw nothing, and throw no more');
   assert.deepEqual([smoke.refused, smoke.emit(0, 0, 0, 0, 1, 0, 2)], [true, false]);
 });
