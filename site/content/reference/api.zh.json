@@ -337,9 +337,6 @@
       "bundleDependency": "每个包依赖的包，一直到根。"
     }
   },
-  "COMPARISON_LIBRARIES": {
-    "summary": "基准测试对照检查过的那些引擎,各自附带状态和原因说明。"
-  },
   "COMPILER_LINE_LIMIT": {
     "summary": "两条流上都能接受的单行最大长度;编译器只输出小体积的 JSON 行。"
   },
@@ -552,23 +549,6 @@
   },
   "ComparisonLayout": {
     "summary": "两个渲染结果如何并排展示以便比较。"
-  },
-  "CompetitorRecord": {
-    "summary": "基准测试用来对比的另一个引擎,以及原因说明。",
-    "members": {
-      "id": "它的简称。",
-      "name": "它的名称。",
-      "status": "是否参与对比。",
-      "license": "它的许可协议。",
-      "maintained": "最后一次更新的时间。",
-      "scope": "它覆盖的范围。",
-      "reason": "参与或不参与对比的原因。",
-      "homepage": "它的官方网页。"
-    }
-  },
-  "CompetitorStatus": {
-    "summary": "与 Web 相关的几何/LOD 库的清单。",
-    "description": "状态描述的是集成对比的公平性,而不是市场宣传的覆盖面。"
   },
   "CompilationJob": {
     "summary": "一次正在进行的编译。",
