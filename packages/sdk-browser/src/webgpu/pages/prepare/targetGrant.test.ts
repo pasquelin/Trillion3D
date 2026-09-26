@@ -17,6 +17,7 @@ import { refusing } from './refusing.fixture.ts';
 import type { BackendDiagnostic } from '../../../backend/types.ts';
 import type { WebgpuPagesBackend, WebgpuPagesRuntime } from '../runtime.ts';
 import { requestFrameTargets } from './targetGrant.ts';
+import { createExplorerFrameScheduler } from '../../../world/render/frameScheduler.ts';
 
 const COLOR = 'Trillion3D display color';
 type Backend = WebgpuPagesBackend & { pendingFrame(): Promise<boolean> };
@@ -76,33 +77,6 @@ async function resized(
   return { gpu, backend, cam, said, widths, complete, dispose };
 }
 
-test('a refused target grant holds the frame, then draws it complete', async () => {
-  let refusals = 1;
-  const s = await resized((raise) => refusals-- > 0 && raise('Out of memory'));
-  try {
-    // The device answers only once the frame has been asked.
-    let answer = () => {};
-    const answered = new Promise<void>((resolve) => (answer = resolve));
-    const pop = s.gpu.device.popErrorScope.bind(s.gpu.device);
-    Object.assign(s.gpu.device, { popErrorScope: async () => (await answered, pop()) });
-    const draws = s.gpu.draws.length;
-    s.backend.render(s.cam);
-    // Held, yet not still: the page waits for the answer, not for this frame.
-    assert.equal(s.backend.metrics().frameHeld, false, 'not the still frame while asked');
-    assert.equal(s.gpu.draws.length, draws, 'nothing is drawn into targets not granted');
-    const next = s.backend.pendingFrame();
-    answer();
-    assert.equal(await next, true, 'the answer asks the next frame');
-    s.backend.render(s.cam);
-    assert.equal(s.backend.metrics().frameHeld, false);
-    assert.ok(s.gpu.draws.length > draws, 'the frame is drawn');
-    assert.deepEqual(s.widths(COLOR), [48], 'drawn into the granted targets, at the new size');
-    await s.complete();
-  } finally {
-    s.dispose();
-  }
-});
-
 test('under pressure, Hi-Z goes first: the targets are granted without it, all others kept', async () => {
   // The device lacks what Hi-Z holds: the targets fit once it is released.
   const s = await resized((raise, hizAlive) => hizAlive && raise('Out of memory'));
@@ -160,14 +134,47 @@ test('frame targets refused at prepare are refused by name', async () => {
 });
 
 test('targets that fit ask nothing of the device and keep no promise: the steady frame is free', () => {
-  const rt = {
-    setup: { viewport: [32, 32] },
-    gpu: { colorTexture: {}, targetSize: [32, 32], surfaces: {}, targetGrant: undefined },
-    vis: { visEnabled: false },
-  } as unknown as WebgpuPagesRuntime;
+  const gpu = { colorTexture: {}, targetSize: [32, 32], surfaces: {}, targetGrant: undefined };
+  const rt = { setup: { viewport: [32, 32] }, gpu, vis: {} } as unknown as WebgpuPagesRuntime;
   // A bare device: any creation or error scope would throw.
   assert.equal(requestFrameTargets(rt, {} as GPUDevice), undefined);
-  assert.equal(rt.gpu.targetGrant, undefined);
+});
+
+// A refused grant holds the frame, draws nothing into targets not granted, then draws it complete.
+// And `renders/explorer-startup`: the page reads `frameHeld` as "nothing more to draw", so a frame
+// held while the device answers must not say it: a still scene then schedules no more work.
+test('a refused target grant holds the frame, then draws it complete; then nothing is scheduled', async () => {
+  let refusals = 1;
+  const s = await resized((raise) => refusals-- > 0 && raise('Out of memory'));
+  try {
+    let asked = 0,
+      stillAt: number | undefined;
+    const requested: FrameRequestCallback[] = [];
+    const scheduler = createExplorerFrameScheduler({
+      request: (callback) => (asked++, requested.push(callback)),
+      cancel() {},
+      render: () => s.backend.render(s.cam),
+      pending: () => s.backend.pendingFrame(),
+      error: (error) => assert.fail(String(error)),
+      limited: () => assert.fail('the loop hit its frame limit'),
+    });
+    const draws = s.gpu.draws.length;
+    scheduler.invalidate();
+    requested.shift()!(0);
+    assert.equal(s.gpu.draws.length, draws, 'held: nothing is drawn into targets not granted');
+    assert.equal(s.backend.metrics().frameHeld, false, 'not the still frame while asked');
+    for (let round = 0; round < 200 && (requested.length || stillAt === undefined); round++) {
+      await new Promise((done) => setImmediate(done));
+      if (s.backend.metrics().frameHeld) stillAt ??= asked;
+      requested.shift()?.(0);
+    }
+    assert.equal(asked, stillAt, 'no request once the scene says it is still');
+    assert.deepEqual(s.widths(COLOR), [48], 'drawn into the granted targets, at the new size');
+    scheduler.dispose();
+    assert.deepEqual(s.backend.selectedPageIds().sort(), ['0', '1'], 'the frame is complete');
+  } finally {
+    s.dispose();
+  }
 });
 
 test('a visibility target the device cannot make is refused by name, once, the mode kept', async () => {
