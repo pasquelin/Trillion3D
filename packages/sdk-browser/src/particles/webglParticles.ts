@@ -75,11 +75,14 @@ export function createWebglParticles(gl: WebGL2RenderingContext) {
   const held = boundToContext(
     gl,
     () => {
+      // A restored context starts with no extension enabled: the targets need it again.
+      halfFloatTargets(gl);
       const program = createWebglProgram(gl, FULLSCREEN_VERTEX, PARTICLES_GLSL);
       const at = (name: string) => gl.getUniformLocation(program, name);
       gl.useProgram(program);
       gl.uniform1i(at('state'), 0);
       gl.uniform1i(at('staged'), 1);
+      gl.useProgram(null);
       const vao = gl.createVertexArray()!;
       return { program, vao, step: at('uStep'), ring: at('uRing'), made: poolStates() };
     },
@@ -94,6 +97,9 @@ export function createWebglParticles(gl: WebGL2RenderingContext) {
     const full = Math.floor(count / PARTICLE_ROW),
       rest = count % PARTICLE_ROW,
       { FLOAT, RGBA, TEXTURE_2D } = gl;
+    // Records as they are: an image texture's upload may have left flipping or premultiplying on.
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+    gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
     if (full) gl.texSubImage2D(TEXTURE_2D, 0, 0, 0, TEXELS, full, RGBA, FLOAT, pool.staging, 0);
     if (rest) {
       const from = full * PARTICLE_ROW * PARTICLE_FLOATS;
