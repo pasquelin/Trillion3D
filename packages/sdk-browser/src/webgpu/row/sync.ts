@@ -28,14 +28,7 @@ export function createWebgpuRowSync(
   /** The frame's one integration budget the owed records spend from (`claims.ts`). */
   budget?: FrameClock,
 ) {
-  const slots = createWebgpuRowSlots(
-    rows,
-    packedPages,
-    drawSlots,
-    writePageRow,
-    onResidenceChange,
-    budget,
-  );
+  const slots = createWebgpuRowSlots(rows, packedPages, drawSlots, writePageRow, onResidenceChange);
   /** The blended clusters' caster rows, behind the visibility rows: they follow the residency the
    *  mirror reports (`follow`), and the table's age here, whichever cut draws the image. */
   const blendCasters = createBlendCasterRows(rows, packedPages, writePageRow, onCoverageChange);
@@ -62,7 +55,7 @@ export function createWebgpuRowSync(
       return;
     mirror.dirty = false;
     rows.rowsEpoch = rows.tableEpoch;
-    slots.apply(bounded);
+    slots.apply(bounded ? budget : undefined);
   };
   /**
    * The CPU cut names its own pages, so its rows are its order; the cut is rebuilt every frame.

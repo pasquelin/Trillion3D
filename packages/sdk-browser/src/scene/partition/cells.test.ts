@@ -80,7 +80,7 @@ test('a parent scaled down grows the rows in place, on an engine that can, and r
   // both are within 100 m, three nodes on rows sized for the near cell's two.
   for (const grows of [true, false]) {
     const { cells, links, core, bytes } = world(0, 0);
-    const { port, held, outgrown } = io(bytes);
+    const { port, held, outgrown, updates } = io(bytes);
     const grown: [PlacementRows, PlacementRows][] = [];
     if (grows) port.grow = (from, to) => void grown.push([from, to]);
     ['near.json', 'far.json'].forEach((name) => held.add(`https://cache.test/key/${name}`));
@@ -90,20 +90,16 @@ test('a parent scaled down grows the rows in place, on an engine that can, and r
     cells.frame([0, 0, 0], 100, port, noBudget);
     cells.frame([0, 0, 0], 100, port, noBudget);
     const { held: placed, waiting } = cells.stats();
-    if (!grows) {
-      assert.deepEqual([placed, waiting, outgrown.count], [1, 1, 1], 'it asks its owner to reopen');
-      continue;
-    }
-    assert.deepEqual([placed, waiting, outgrown.count], [2, 0, 0]);
+    assert.deepEqual([placed, waiting, outgrown.count], grows ? [2, 0, 0] : [1, 1, 1]);
+    if (!grows) continue; // it asks its owner to reopen
+    const after = links.map((link) => link.placements!);
     assert.deepEqual(
       grown,
-      [0, 1].map((at) => [before[at], links[at].placements!]),
+      [0, 1].map((at) => [before[at], after[at]]),
     );
-    for (const link of links)
-      assert.equal(
-        link.placements!.live.reduce((a, b) => a + b, 0),
-        3,
-      );
+    // The engine is told of the grown buffers only: no row of the old ones is read again.
+    assert.ok(updates.every(([rows]) => after.includes(rows)));
+    assert.ok(after.every((rows) => rows.live.reduce((a, b) => a + b, 0) === 3));
   }
 });
 
