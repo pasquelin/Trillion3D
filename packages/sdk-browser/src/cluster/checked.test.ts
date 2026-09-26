@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { loadClusterManifest } from '../scene/manifestLoad.ts';
-import { checked, optionalFile } from './pages.ts';
+import { checked, optionalFile, RETRY_AFTER_CAP_MS } from './pages.ts';
 import { answering, refusedWith, type Answer } from './answers.fixture.ts';
 
 /** The example cache that drew nothing in the browser: its own files, served from the site. */
@@ -91,14 +91,17 @@ test('a timeout (408) or a rate limit (429) is asked again and answers', async (
   }
 });
 
+/** A refusal of `status` asking to wait `after` (`Retry-After`, seconds or an HTTP date). */
+const wait = (status: number, after: string) =>
+  new Response('busy', { status, headers: { 'Retry-After': after } });
+/** Lets the pending reads run up to their next timer. */
+const settled = () => new Promise(setImmediate);
+
 test('a refusal asking to wait (Retry-After, seconds or a date) is asked again once waited', async (t) => {
   t.mock.timers.enable({ apis: ['setTimeout', 'Date'], now: 0 });
-  const wait = (status: number, after: string) =>
-    new Response('busy', { status, headers: { 'Retry-After': after } });
   const answers = [wait(429, '2'), wait(503, new Date(4000).toUTCString()), 200];
   const asked = answering(t, 'lights.json', answers);
   const read = checked(LIGHTS, undefined, 3);
-  const settled = () => new Promise(setImmediate);
   for (const count of [1, 2]) {
     await settled();
     t.mock.timers.tick(1999);
@@ -109,3 +112,20 @@ test('a refusal asking to wait (Retry-After, seconds or a date) is asked again o
   assert.equal((await read).status, 200);
   assert.equal(asked.length, 3);
 });
+
+test(
+  'a server asking an hour (Retry-After) is waited only the cap',
+  { timeout: 1000 },
+  async (t) => {
+    t.mock.timers.enable({ apis: ['setTimeout'] });
+    const asked = answering(t, 'lights.json', [wait(503, '3600'), 200]);
+    const read = checked(LIGHTS);
+    await settled();
+    t.mock.timers.tick(RETRY_AFTER_CAP_MS - 1);
+    await settled();
+    assert.equal(asked.length, 1, 'not before the cap is over');
+    t.mock.timers.tick(1);
+    assert.equal((await read).status, 200);
+    assert.equal(asked.length, 2);
+  },
+);

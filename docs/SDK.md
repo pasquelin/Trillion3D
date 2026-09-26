@@ -137,10 +137,12 @@ Every file of a model the engine reads over HTTP — the manifest, its tables an
 lights, pages, cooked physics — goes through one loader. A failure that may pass — the network, a
 timeout (408), a rate limit (429), a server error (5xx) — is asked again once, after the wait its
 `Retry-After` asks (seconds or an HTTP date), or by the reader's own retry, without that wait: the
-page streamer's three attempts, the GPU page cache's two, a physics tile's next update. Another 4xx is
-never asked twice, and an aborted load asks nothing more and rejects with its reason. What still fails
-is `RESOURCE_HTTP_ERROR`, the address in its message and `details.url`, the status in
-`details.status` (`null` for the network). A file a cache may lack — `lights.json` and
+page streamer's three attempts, the GPU page cache's two, a physics tile's next update. That wait
+is ten seconds at most: only a whole-file read waits, while a user watches the model load, some
+without an abort signal, and past ten seconds a named failure serves them better than an open wait.
+Another 4xx is never asked twice, and an aborted load asks nothing more and rejects with its
+reason. What still fails is `RESOURCE_HTTP_ERROR`, the address in its message and `details.url`,
+the status in `details.status` (`null` for the network). A file a cache may lack — `lights.json` and
 `physics.json`, of a model compiled before them — is absent on a 404, or on the 403 of a store that
 hides what it does not hold. A page read (`httpPageSource`) raises `RESOURCE_HTTP_ERROR` where it
 raised `Error('PAGE_HTTP_<status>')`, and a cooked tile or a soft body's settings where they raised
@@ -533,7 +535,7 @@ e. `attach` or `detach` during a drag ends it first, with its `dragEnd`. The han
 draws none. Live example: [move, rotate, scale](../site/examples/move-rotate-scale-gizmo.html).
 
 `scene.toJSON(camera)` writes the scene as plain, versioned JSON (`format: 'trillion3d-scene'`,
-`formatVersion: 1`): its hierarchy and poses, each shape by the family call that built it
+`formatVersion: 2`; version 1, whose meshes' `castShadow` no renderer read, is refused): its hierarchy and poses, each shape by the family call that built it
 (`geometry.box(2, 1, 1)` is stored as that call; a shape changed after it was built, or written by
 hand, stores its vertices), each material by its parameters, each mesh's body as `physics`
 declared it (type, mass, shape, gravity scale, sensor, CCD, debris, matter overrides, damping; a
@@ -936,6 +938,15 @@ atlas, and at most 24 shadow regions redrawn per frame.
 `capability.lighting(world)` reports what the **active** renderer applies — `{ sceneLights,
 lightingView, shadows, transforms, reason? }` — not what the contract accepts: a call the light
 store accepts is not proof of lighting. `reason` names in one sentence what is not applied.
+
+### Every mesh casts a shadow unless it says `castShadow = false`
+
+Under a light that casts (`castShadow: true` on the light), every opaque mesh casts, as in the
+reference engine: `castShadow` is `true` on a mesh by default. `mesh.castShadow = false` opts it out
+of every shadow map; it still receives the shadows of others. A page writes it at any time: the
+shadow the mesh cast is drawn again without it, or with it. An outline drawn as a larger copy of its
+part wants it off: a copy wrapped round its part would put the part in its shade. A light's
+`castShadow` keeps its own meaning, and is `false` by default.
 
 ### A see-through surface casts no shadow unless it asks
 
@@ -1368,7 +1379,13 @@ bend }` simulates the mesh's vertices one by one on Jolt's soft bodies. A cloth 
   `world.physics.error` ([Files over HTTP](#files-over-http)); a model that leaves the scene lets
   go of its reads still on their way, which is no error.
   Its tiles grip and bounce as the source's `KHR_physics_rigid_bodies` collider declares, else with
-  the default matter (`DEFAULT_MATTER`); every drawn node is static, as drawn.
+  the default matter (`DEFAULT_MATTER`); every drawn node is static, as drawn, but one declaring a
+  `motion`: its body is restored as cooked (its implicit shape, or its hull fetched), counted
+  against `budget.physics`, with the mass, centre of mass and inertia its motion declares, else the
+  cooked ones; its tiles then leave. A kinematic one follows its model, pushing what it meets; a
+  dynamic one is held kinematic and asleep where its node is drawn until compiled nodes can move
+  (#432, `COMPILED_NODES_MOVE`). A shape Jolt cannot make at the body's scale is `PHYSICS_FAILED`
+  naming its node, and the node stays static ground.
 - **Exact raycast.** `await world.raycast(at, { exact: true })` asks the physics: a compiled model
   is hit on its cooked triangles (the hit names the model and the glTF `material` of the triangle),
   any body on its shape. `{ shape: { type: 'sphere', radius } }` (or `box` with `halfExtents`,

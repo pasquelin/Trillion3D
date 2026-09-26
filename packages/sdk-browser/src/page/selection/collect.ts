@@ -1,6 +1,6 @@
 import { BOX_VALUES, boxTransform, type ClusterManifest } from '../../../../sdk-core/src/index.ts';
 import { meshSurface } from '../surface.ts';
-import { spriteMark } from '../../visibility/shader/spriteWgsl.ts';
+import { spriteMark, withShadowless } from '../../visibility/shader/spriteWgsl.ts';
 import type { BlendCopy } from '../../cluster/blendCopyContract.ts';
 import { createBlendCopyRecord } from '../../cluster/blendCopyRecord.ts';
 import { objects, quantizationErrorOf } from './helpers.ts';
@@ -11,7 +11,7 @@ import { linkBundleDependencies } from './bundleDependencies.ts';
 import { hostWorldPlacements } from '../../host/world/placements.ts';
 import type { PageRec, ClusterRoot } from './types.ts';
 import { placementsOf } from '../../placement/roots.ts';
-import type { PlacementRows } from '../../placement/rows.ts';
+import { rowShadowless, type PlacementRows } from '../../placement/rows.ts';
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 
 export function collectClusterPages(
@@ -106,7 +106,7 @@ export function collectClusterPages(
           placement,
           renderOrder: order,
           attached: false,
-          cone: undefined,
+          cone: page.cone,
           geometry: undefined,
           mesh: undefined,
           resident: false,
@@ -126,16 +126,20 @@ export function collectClusterPages(
         worldBox,
         localBox: shape.local.slice(),
         structure,
-        // No collected page carries a cone: `prepareCones` is the only one to set them, and it
-        // raises this flag at the same time. The WebGL2 engine does not call it and therefore no
-        // longer pays a `cone` read per tested cluster.
+        // Each page carries its cooked cone, but only `prepareCones` declares it, raising this flag:
+        // the WebGL2 engine does not call it and therefore pays no `cone` read per tested cluster.
         cones: false,
         // Each record receives `min` and `max` from the manifest, which the page contract makes
         // mandatory: the root declares it, and the cut stops checking it per cluster.
         boxes: true,
         parked,
         placement,
-        sprite: spriteMark(surface) || undefined,
+        // A row says whether its placement casts; a node placed at its own world, its mesh.
+        mark:
+          withShadowless(
+            spriteMark(surface),
+            placement ? rowShadowless(placement) : !mesh.castShadow,
+          ) || undefined,
       });
       // The clusters nothing replaces are the coarsest complete cover; they stay resident so the cut
       // always has something to fall back on.
