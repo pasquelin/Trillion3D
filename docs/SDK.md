@@ -133,8 +133,8 @@ checks `scene.load` runs, and download no binary sidecar.
 
 ### Files over HTTP
 
-Every file the engine reads over HTTP — the manifest, its tables and binary, images, lights,
-pages, cooked physics — goes through one loader. A network failure or a server error (5xx) is asked
+Every file of a model the engine reads over HTTP — the manifest, its tables and binary, images,
+lights, pages, cooked physics — goes through one loader. A network failure or a server error (5xx) is asked
 again: once, or by the reader's own retry — the page streamer's three attempts, the GPU page cache's
 two, a physics tile's next update. A refusal another request would meet again (a 4xx) is never
 asked twice, and an aborted load asks nothing more and rejects with its reason. What still fails
