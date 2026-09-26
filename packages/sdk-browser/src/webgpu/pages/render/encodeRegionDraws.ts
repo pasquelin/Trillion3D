@@ -67,7 +67,8 @@ export function drawRegionCasters(
   const { shadows, cull, regions, occlusion } = rt.lights,
     { order, first, clears, restores } = pagePlan,
     side = SHADOW_PAGE / scale;
-  // One pipeline is set once for the pass; two alternate in each region, depth then colour.
+  // One pipeline is set once for the pass, two alternate in each region (depth, then colour):
+  // develop's call sequences, kept as they are.
   const one = pipelines.length === 1;
   if (one) pass.setPipeline(pipelines[0]);
   let draws = 0;
