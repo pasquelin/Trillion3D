@@ -175,10 +175,8 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     traceDiagnostic: diag.traceDiagnostic,
     diagnosticFailure: diag.diagnosticFailure,
   });
-  const publication = createWebgpuCutPublication(rt, residencySets, closure, {
-    all: lowerTiers,
-    ahead: aheadTier,
-  });
+  const tiers = { all: lowerTiers, ahead: aheadTier };
+  const publication = createWebgpuCutPublication(rt, residencySets, closure, tiers, mirror.sync);
   return {
     syncRows,
     syncRowsFromCut,
