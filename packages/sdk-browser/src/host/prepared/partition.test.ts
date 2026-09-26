@@ -8,12 +8,14 @@
  */
 import test, { type TestContext } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
+import { readdir, readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import type * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import type { ClusterManifest } from '../../../../sdk-core/src/index.ts';
-import { assertSceneTables } from '../../../../sdk-core/src/scene/core/tableContracts.ts';
+import { assertCellNodes } from '../../../../sdk-core/src/scene/core/tablePartition.ts';
+import { loadPreparedSceneTables } from '../../scene/tables.ts';
 import { createPartitionCells } from '../../scene/partition/cells.ts';
 import { isDrawnNode } from '../graph/kinds.ts';
 import { hostWorldChainInto } from '../world/chain.ts';
@@ -26,13 +28,11 @@ import { caches, serveFiles } from './scenes.fixture.ts';
 const line = (mesh: number, primitive: number, world: ArrayLike<number>) =>
   `${mesh}/${primitive} ${Array.from(world).join(',')}`;
 
-/** The published partitioned cache, built from its tables. */
+/** The published partitioned cache, built from its tables and the pages of their partition. */
 async function partitioned(t: TestContext) {
   serveFiles(t);
   const folder = (await caches()).find((one) => one.pathname.includes('/ten-thousand-objects/'))!;
-  const tables = assertSceneTables(
-    JSON.parse(await readFile(new URL('scene-tables.json', folder), 'utf8')),
-  );
+  const { tables } = await loadPreparedSceneTables(folder.href);
   assert.ok(tables.partition && tables.partition.cells.length > 1, 'the cache is partitioned');
   const built = await buildPreparedScene({
     tables,
@@ -87,6 +87,35 @@ test('a partitioned cache places every mesh the loader placed, at its world matr
   });
   assert.equal(prepared.length, witness.length, 'as many placements');
   assert.deepEqual(prepared.sort(), witness.sort());
+});
+
+// The tables keep only the root of the cells' index (#750): read through its pages, the cells are
+// every cell file of the folder, once, in the order the compiler numbered them, each announced at
+// its size and fingerprint and placing the nodes it holds.
+test('the paged tables give back every cell file of the folder, in order', async (t) => {
+  const { folder, partition } = await partitioned(t);
+  const files = (await readdir(folder)).filter((name) => name.startsWith('scene-cell-'));
+  assert.deepEqual(
+    partition.cells.map((cell) => cell.url),
+    files.map((_, at) => `scene-cell-${at}.json`),
+  );
+  for (const cell of partition.cells) {
+    const bytes = await readFile(new URL(cell.url, folder));
+    assert.equal(cell.bytes, bytes.byteLength);
+    assert.equal(cell.sha256, createHash('sha256').update(bytes).digest('hex'));
+    const placed = new Map<number, number>();
+    for (const node of assertCellNodes(JSON.parse(bytes.toString('utf8'))))
+      placed.set(node.mesh, (placed.get(node.mesh) ?? 0) + 1);
+    assert.deepEqual(
+      cell.meshes,
+      [...placed].sort(([a], [b]) => a - b),
+    );
+  }
+  const meshes = new Set(partition.cells.flatMap((cell) => cell.meshes.map(([mesh]) => mesh)));
+  assert.deepEqual(
+    partition.meshes,
+    [...meshes].sort((a, b) => a - b),
+  );
 });
 
 // Framing and a loaded model's bounds take the whole world, whichever cells are read: each mesh
