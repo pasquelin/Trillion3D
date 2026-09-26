@@ -6,7 +6,7 @@ import { unmetered, type ByteMeter } from './byteMeter.ts';
 const retriable = (status: number | null) =>
   status === null || status >= 500 || status === 408 || status === 429;
 /** The longest wait a `Retry-After` gets, in ms: a page streamed while the view moves cannot wait
- *  longer, and a load without an abort signal never waits as long as a server asks. */
+ *  longer, and a load without an abort signal never waits longer whatever a server asks. */
 export const RETRY_AFTER_CAP_MS = 10_000;
 /** The ms `response`'s `Retry-After` asks to wait (seconds or an HTTP date), capped, 0 for none. */
 const retryAfter = (response: Response) => {
