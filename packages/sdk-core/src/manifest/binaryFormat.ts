@@ -31,9 +31,11 @@
  *  them, so it refuses.
  *  Version 8 adds the page dependencies of the streaming bundles: a count per bundle, then the
  *  flat lists, closed up to the root cover (`docs/FORMAT.md` §Cluster DAG), that WebGPU requests
- *  and retains with a bundle. A version-7 reader cannot read the lists, so it refuses. */
-export const MANIFEST_BINARY_VERSION = 8;
-/** The geometry-page format a version-8 sidecar names, as the manifest's `geometryPages` declares
+ *  and retains with a bundle. A version-7 reader cannot read the lists, so it refuses.
+ *  Version 9 adds each page's normal cone, cooked by the compiler (`Page.cone`), in a column a
+ *  version-8 reader lacks. */
+export const MANIFEST_BINARY_VERSION = 9;
+/** The geometry-page format a version-9 sidecar names, as the manifest's `geometryPages` declares
  *  it once and every page header opens with. */
 export const GEOMETRY_PAGE_FORMAT_VERSION = 3;
 /** The codec geometry pages are written with. */
@@ -44,6 +46,7 @@ export const MANIFEST_BINARY_HEADER_WORDS = 4;
 
 import { PREVIEW_WORDS } from '../texture/previewFormat.ts';
 export * from '../texture/previewFormat.ts';
+export * from './binaryPageWords.ts';
 
 export const COLUMN_NAMES = [
   'pageBounds',
@@ -74,6 +77,7 @@ export const COLUMN_NAMES = [
   'texturePreviewAstc',
   'bundleDependencyCount',
   'bundleDependency',
+  'pageCone',
 ] as const;
 export type ColumnName = (typeof COLUMN_NAMES)[number];
 /** How one column of the binary manifest is stored. */
@@ -108,6 +112,7 @@ export type ColumnKind = 'f64' | 'i32' | 'u32' | 'u8';
  * @property texturePreviewAstc - The previews' ASTC blocks.
  * @property bundleDependencyCount - How many bundles each bundle depends on.
  * @property bundleDependency - The bundles each bundle depends on, closed to the root cover.
+ * @property pageCone - Each page's normal cone: axis, then half-angle.
  */
 export const COLUMN_KIND: Record<ColumnName, ColumnKind> = {
   pageBounds: 'f64',
@@ -138,6 +143,7 @@ export const COLUMN_KIND: Record<ColumnName, ColumnKind> = {
   texturePreviewAstc: 'u8',
   bundleDependencyCount: 'u32',
   bundleDependency: 'u32',
+  pageCone: 'f64',
 };
 /** Numbers per element. A sha is 64 ASCII hexadecimal characters: one `TextDecoder` for the whole
  *  column, then one `substring` per entry, is far cheaper than re-encoding 32 raw bytes each time. */
@@ -173,6 +179,7 @@ export const COLUMN_STRIDE: Record<ColumnName, number> = {
   texturePreviewAstc: 1,
   bundleDependencyCount: 1,
   bundleDependency: 1,
+  pageCone: 4,
 };
 export const BYTES_PER_ELEMENT: Record<ColumnKind, number> = { f64: 8, i32: 4, u32: 4, u8: 1 };
 
@@ -188,13 +195,3 @@ export const INT_ID = 0,
 /** `pageU32` slots. */
 export const U32_BYTES = 0,
   U32_FLAGS = 1;
-export const FLAG_ROLE = 1,
-  FLAG_COARSE = 2,
-  FLAG_GEOMETRY = 4,
-  FLAG_CLUSTER_ERROR = 8,
-  FLAG_PARENT_ERROR = 16,
-  FLAG_PARENT_ERROR_FINITE = 32,
-  FLAG_PARENT_SPHERE = 64,
-  FLAG_PARENT_SPHERE_SET = 128,
-  FLAG_GROUP = 256,
-  FLAG_SOURCE = 512;

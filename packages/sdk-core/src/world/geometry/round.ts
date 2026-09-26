@@ -1,4 +1,10 @@
-import { crossVector3, dotVector3 } from '../../math/primitives/vector.ts';
+import {
+  addScaledVector3,
+  copyScaledVector3,
+  crossVector3,
+  dotVector3,
+  subVector3,
+} from '../../math/primitives/vector.ts';
 import { GeometryBuilder, normalize, pieces, withRecipe } from './builder.ts';
 import type { Curve } from '../math/curves.ts';
 
@@ -27,7 +33,7 @@ export function torus(
       t = v * TAU;
     const n: V3 = [Math.cos(t) * Math.cos(a), Math.cos(t) * Math.sin(a), Math.sin(t)];
     const c: V3 = [radius * Math.cos(a), radius * Math.sin(a), 0];
-    return { p: [c[0] + tube * n[0], c[1] + tube * n[1], c[2] + tube * n[2]], n, uv: [u, v] };
+    return { p: addScaledVector3(c, n, tube), n, uv: [u, v] };
   });
   return withRecipe(b.build(), 'torus', [radius, tube, radialSegments, tubularSegments, arc]);
 }
@@ -181,18 +187,13 @@ function sweep(
       r = radiusAt(u);
     const n0 = normals[i],
       n1 = cross(tangents[i], n0);
-    const n = normalize(
-      ...([0, 1, 2].map((k) => Math.cos(angle) * n0[k] + Math.sin(angle) * n1[k]) as V3),
-    );
+    const m = copyScaledVector3<V3>([0, 0, 0], n0, Math.cos(angle));
+    const n = normalize(...addScaledVector3(m, n1, Math.sin(angle)));
     const c = points[i];
-    return { p: [c[0] + r * n[0], c[1] + r * n[1], c[2] + r * n[2]], n, uv: [u, v] };
+    return { p: addScaledVector3<V3>([c[0], c[1], c[2]], n, r), n, uv: [u, v] };
   });
   return b.build();
 }
 
-const sub = (a: ArrayLike<number>, b: ArrayLike<number>): V3 => [
-  a[0] - b[0],
-  a[1] - b[1],
-  a[2] - b[2],
-];
-const cross = (a: V3, b: V3): V3 => crossVector3([0, 0, 0] as V3, a, b);
+const sub = (a: ArrayLike<number>, b: ArrayLike<number>): V3 => subVector3<V3>([0, 0, 0], a, b);
+const cross = (a: V3, b: V3): V3 => crossVector3<V3>([0, 0, 0], a, b);

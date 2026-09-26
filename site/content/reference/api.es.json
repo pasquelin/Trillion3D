@@ -920,7 +920,8 @@
       "texturePreviewBc7": "Los bloques BC7 de las vistas previas.",
       "texturePreviewAstc": "Los bloques ASTC de las vistas previas.",
       "bundleDependencyCount": "Cuántos paquetes necesita cada paquete.",
-      "bundleDependency": "Los paquetes que necesita cada paquete, hasta las raíces."
+      "bundleDependency": "Los paquetes que necesita cada paquete, hasta las raíces.",
+      "pageCone": "El cono de normales de cada página: el eje y luego el semiángulo."
     }
   },
   "ColumnKind": {
@@ -932,28 +933,8 @@
   "compareImages": {
     "summary": "Comparación de dos imágenes RGBA: número de píxeles diferentes, error máximo en un canal, y RMSE."
   },
-  "COMPARISON_LIBRARIES": {
-    "summary": "Los motores con los que se han verificado los bancos de pruebas, cada uno con su estado y su razón."
-  },
   "ComparisonLayout": {
     "summary": "Cómo se muestran dos renders lado a lado para compararlos."
-  },
-  "CompetitorRecord": {
-    "summary": "Otro motor con el que comparan los bancos de pruebas, y por qué.",
-    "members": {
-      "id": "Su nombre corto.",
-      "name": "Su nombre.",
-      "status": "Si se compara.",
-      "license": "Su licencia.",
-      "maintained": "Cuándo se actualizó por última vez.",
-      "scope": "Lo que cubre.",
-      "reason": "Por qué se compara, o no.",
-      "homepage": "Su página web."
-    }
-  },
-  "CompetitorStatus": {
-    "summary": "Inventario de las bibliotecas web de geometría y LOD.",
-    "description": "El estado describe la equidad de la integración, no una cobertura de marketing."
   },
   "CompilationJob": {
     "summary": "Una compilación en curso.",
@@ -4449,7 +4430,8 @@
       "source": "El grupo que lo produjo.",
       "stream": "Paquete de flujo que contiene este clúster y su desplazamiento en bytes dentro de él. Una solicitud sirve decenas de clústeres; el clúster sigue siendo legible solo mediante `url`.",
       "streamOffset": "Su desplazamiento en bytes en ese paquete.",
-      "depthLayer": "Capa de profundidad coplanaria, 0 para cada clúster que el compilador dejó tal cual. Un clúster de capa n se dibuja con un sesgo de profundidad de n pasos enteros de capa, lo que decide el ganador entre dos superficies opacas que comparten exactamente un plano. Ausente y 0 significan lo mismo: el dibujo sin cambios."
+      "depthLayer": "Capa de profundidad coplanaria, 0 para cada clúster que el compilador dejó tal cual. Un clúster de capa n se dibuja con un sesgo de profundidad de n pasos enteros de capa, lo que decide el ganador entre dos superficies opacas que comparten exactamente un plano. Ausente y 0 significan lo mismo: el dibujo sin cambios.",
+      "cone": "El cono que acota las normales de sus triángulos: `axis` un vector unitario, `angle` el semiángulo en radianes, π para un cono que no descarta nada. El compilador lo calcula a partir de los triángulos; el corte WebGPU omite un clúster de una sola cara que la cámara ve desde detrás de su cono."
     }
   },
   "PAGE_DECODE_FAILURES": {
