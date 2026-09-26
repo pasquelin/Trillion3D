@@ -84,8 +84,9 @@ export class Object3D extends TransformNode {
   }
   /** Adds `child` where it stands (`SceneNode.attach`). */
   override attach(child: Object3D) {
+    if (child === this) return this;
     super.attach(child);
-    if (child.parent === this) readPose(child, this.state.tree);
+    readPose(child, this.state.tree);
     return this;
   }
   /** Frees the node and all below it now, rather than when they are collected. */
@@ -148,7 +149,7 @@ export class Object3D extends TransformNode {
     else aim.copy(x);
     const tree = this.state.tree;
     lookAtNode(tree, this.index, aim.x, aim.y, aim.z, this.up.elements, this.looksDownNegativeZ);
-    this.quaternion.fromArray(tree.quaternion, this.index * 4);
+    readPose(this, tree);
   }
   /** Turns the node around `axis` by `angle` radians. */
   rotateOnAxis(axis: { x: number; y: number; z: number }, angle: number) {

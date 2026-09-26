@@ -26,7 +26,7 @@ export function bindPose(node: Object3D) {
   listen(node.rotation, () => turned(true));
 }
 
-/** The other way, after the tree was written first (`attach`): `node`'s values take its slot's
+/** The other way, after the tree was written first (`attach`, `lookAt`): `node`'s values take its slot's
  *  pose quietly, the angles following the quaternion when read, and the world hears it once. */
 export function readPose(node: Object3D, tree: TransformTree) {
   const { position, quaternion, scale } = tree,
