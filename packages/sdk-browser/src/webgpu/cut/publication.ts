@@ -41,8 +41,8 @@ export function createWebgpuCutPublication(
     all: readonly { readonly hostBytes: number }[];
     ahead: { offerIds(ids: ArrayLike<number>): void };
   },
-  /** Hands the pool's residency changes to the rank journal (`../residency/mirror.ts`). */
-  syncResidency: () => void,
+  /** Whether the pool holds a cluster's slot: the CPU cut's residency rule. */
+  poolHolds: (rec: PageRec) => boolean,
 ) {
   const { run, gpu } = rt,
     { rows, packedPages } = rt.layout,
@@ -60,9 +60,9 @@ export function createWebgpuCutPublication(
     residencySets.accepts,
     () => residencySets.acceptedRevision,
   );
-  // The CPU cut's readiness of the placements: the layout's placements never move. Each cut
-  // first flushes the cache's changes into the journal, so it reads what the pool holds now.
-  const held = createHeldResidency(syncResidency);
+  // The CPU cut's residency: the pool's slots, their readiness moved by the rank journal. The
+  // layout's placements never move.
+  const held = createHeldResidency({ isResident: poolHolds });
   held.track(rt.layout.selectionRoots);
   // The three ways a cluster's coverage flips — bytes received, bytes released, a cache slot taken
   // or given back — all go through the rank journal, which names them one by one.
@@ -121,7 +121,8 @@ export function createWebgpuCutPublication(
   return {
     /** Pages of the requested cut that are still waiting for their bytes. */
     cutPending,
-    /** The CPU cut's readiness of the placements, moved by the rank journal. */
+    /** The CPU cut's residency, moved by the rank journal: the cache's changes reach it once the
+     *  mirror is synced (`../residency/mirror.ts`). */
     heldResidency: held,
     /** Bytes of the cut's host tables — the group closure, the rule's readiness on the GPU and in
      *  the CPU cut, the residency sets, the two differences, the pending set and the two lower

@@ -51,6 +51,12 @@ export function createAutonomousGeometry(env: GeometryEnvironment) {
   const { scene, allPages, shown, byUrl, baseMaterials, colorMaterials } = env;
   const state = { allocationBytes: 0, submittedTriangles: 0, residentPages: 0 };
   const held = createHeldResidency();
+  /** The one writer of a record's residency, its index array: the cut's readiness follows it. */
+  const setArray = (rec: PageRec, array: Uint32Array | undefined) => {
+    const moved = !rec.array !== !array;
+    rec.array = array;
+    if (moved) held.moved(rec);
+  };
   const affichees = new Set<PageRec>(); // displayed pages, reused from frame to frame
   // Pages actually attached to the scene, held by `attach` and `detach`. A frame detaches
   // only a delta bounded by the cut: it no longer has to scan the whole DAG to find it.
@@ -108,17 +114,19 @@ export function createAutonomousGeometry(env: GeometryEnvironment) {
       state.allocationBytes -= hostPageBytes(geometry);
       releaseHostGeometry(geometry);
     }
-    rec.geometry = rec.mesh = rec.array = undefined;
-    held.moved(rec);
+    rec.geometry = rec.mesh = undefined;
+    setArray(rec, undefined);
   };
   // An instance's records: a geometry rows place is the page's, kept by the model's rows.
   const removeRecords = (records: PageRec[]) => {
     const removed = new Set(records);
     for (const rec of records) {
       release(rec, !!rec.placement);
-      const list = byUrl.get(rec.url),
-        index = list ? list.indexOf(rec) : -1;
-      if (index >= 0) list!.splice(index, 1);
+      const list = byUrl.get(rec.url);
+      if (list) {
+        const index = list.indexOf(rec);
+        if (index >= 0) list.splice(index, 1);
+      }
       baseMaterials.delete(rec);
     }
     for (const list of [allPages, env.bootstrap, shown, env.desired, env.requested])
@@ -150,7 +158,7 @@ export function createAutonomousGeometry(env: GeometryEnvironment) {
       const paint = () => (Array.isArray(base) ? base.map(twin) : twin(base));
       rec.declaration = data.attributes.color ? paint() : base;
       rec.material = surfaceOf(rec.declaration);
-      rec.array = data.indices;
+      setArray(rec, data.indices);
       rec.attributes = geometry.attributes;
       rec.geometry = geometry;
       // Each geometry uploads its own buffers: counted as `release` gives them back.
@@ -163,7 +171,7 @@ export function createAutonomousGeometry(env: GeometryEnvironment) {
     !env.modifiedPages.has(url) && storeGeometryPage(url, data);
   return {
     state,
-    /** The cut rule's readiness of the placements, moved at each load and release. */
+    /** The cut's residency: each record's index array, its readiness moved as `setArray` writes. */
     held,
     /** The one twin cache of the backend: whoever paints a surface reads it through here. */
     colorMaterials,

@@ -67,7 +67,6 @@ test("the CPU cut's readiness total drops to zero after any moves, replaced stat
     selectVisiblePages(roots, cam, {
       pixelError: 0.1,
       viewport: [1280, 720],
-      holdResident: true,
       held,
     });
   held.track(roots);
