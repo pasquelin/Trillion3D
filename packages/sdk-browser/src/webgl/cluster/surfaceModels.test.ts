@@ -23,7 +23,8 @@ import {
 } from '../../../../sdk-core/src/math/primitives/camera.ts';
 
 type Vector = number[];
-/** The built-ins these functions call beyond the reader's own (`runShaderText`). */
+type Scope = NonNullable<Parameters<typeof runShaderText>[1]>;
+/** The built-ins these functions call beyond the reader's own (`runShaderText`), on its values. */
 const BUILTINS = {
   dot: (a: Vector, b: Vector) => dotVector3(a, b),
   cross: (a: Vector, b: Vector) => crossVector3([0, 0, 0], a, b),
@@ -33,7 +34,7 @@ const BUILTINS = {
     const t = Math.min(1, Math.max(0, (x - from) / (to - from)));
     return t * t * (3 - 2 * t);
   },
-};
+} as unknown as Scope;
 
 /** The function `name` a shader text declares, from its signature to its closing brace; a WGSL
  *  unsigned literal reads as its number. */
