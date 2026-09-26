@@ -33,10 +33,11 @@ export function createShadowRecords(table: ShadowTable, pool: ShadowPool, sun: S
     dropPages(slice);
     table.release(slice);
     sun.release(slice);
+    // A slice freed twice counts once.
+    records.count -= taken[slice];
     taken[slice] = 0;
     kind[slice] = -1;
     last[slice] = null;
-    records.count--;
   };
   // Data fields only, never an accessor: the scheduler reads `kind` entry by entry (`pool.ts`).
   const records = {
@@ -97,7 +98,7 @@ export function createShadowRecords(table: ShadowTable, pool: ShadowPool, sun: S
       for (let slice = 0; slice < MAX_SHADOW_SLICES; slice++) if (taken[slice]) free(slice);
     },
   };
-  return records;
+  return records as Readonly<typeof records>;
 }
 
 export type ShadowRecords = ReturnType<typeof createShadowRecords>;

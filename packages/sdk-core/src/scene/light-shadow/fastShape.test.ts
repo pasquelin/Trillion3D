@@ -3,26 +3,32 @@
 // and every read of its arrays in those loops then costs a hash lookup (#26).
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import v8 from 'node:v8';
-import { createSceneLightStore } from '../light/store.ts';
-import { createShadowPlan } from './plan.ts';
-import { SUN, VIEW, cycle, lampPages } from './lightShadow.fixture.ts';
+import { spawnSync } from 'node:child_process';
+import { cycle, movingScene } from './lightShadow.fixture.ts';
 
-v8.setFlagsFromString('--allow-natives-syntax');
-const fastProperties = new Function('o', 'return %HasFastProperties(o)') as (o: object) => boolean;
+const SHAPED = ['pool', 'table', 'records', 'admission', 'counts', 'sun'];
 
-test('the objects a moving frame reads page by page keep fast properties and true counts', () => {
-  const store = createSceneLightStore(),
-    plan = createShadowPlan(16);
-  store.add(SUN);
-  store.add({ ...SUN, id: 'lamp', kind: 'point', position: [0, 3, 0], range: 20 });
-  for (let frame = 0; frame < 8; frame++) {
-    const view = { ...VIEW, position: [frame * 3, 5, 0] as [number, number, number] };
-    cycle(plan, store, frame, () => lampPages(plan, store.sliceOf(1), 0, frame % 3), view);
-  }
-  for (const name of ['pool', 'table', 'records', 'admission', 'counts', 'sun'] as const)
-    assert.ok(fastProperties(plan[name]), `${name} is read without a hash lookup`);
-  const { pool } = plan;
+test('the objects a moving frame reads page by page keep fast properties', () => {
+  const probe = `
+    import { movingScene } from ${JSON.stringify(new URL('./lightShadow.fixture.ts', import.meta.url).href)};
+    const { plan } = movingScene();
+    console.log(JSON.stringify(${JSON.stringify(SHAPED)}.map((name) => %HasFastProperties(plan[name]))));`;
+  const run = spawnSync(
+    process.execPath,
+    ['--allow-natives-syntax', '--experimental-strip-types', '--input-type=module', '-e', probe],
+    { encoding: 'utf8' },
+  );
+  assert.equal(run.status, 0, run.stderr);
+  assert.deepEqual(
+    JSON.parse(run.stdout),
+    SHAPED.map(() => true),
+    SHAPED.join(', '),
+  );
+});
+
+test('the counts kept as data fields stay true as pages and slices are taken and released', () => {
+  const { store, plan } = movingScene(),
+    { pool } = plan;
   const mapped = pool.owner.filter((entry) => entry >= 0).length;
   assert.ok(mapped > 0, 'the frames mapped pages');
   assert.equal(pool.used(), mapped, 'the pages mapped, counted as they are taken and released');
