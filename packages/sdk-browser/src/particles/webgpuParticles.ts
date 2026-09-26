@@ -154,11 +154,12 @@ export function encodeParticles(
 /** The world's stepped pools drawn over the lit image and its transparents, in the beauty view
  *  only; a scene with no pool draws nothing. */
 export function drawParticles(rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder) {
-  const { gpu, vis, run } = rt,
-    { hdrView, depthView, particles } = gpu,
+  const { run } = rt,
+    { hdrView, depthView, particles } = rt.gpu,
     pools = rt.context.particles;
-  if (!pools?.length || !particles || run.diagnostic !== 'beauty' || !run.lastCamera) return;
-  if (!vis.visEnabled || !hdrView || !depthView) return;
+  // Without the visibility buffer the step refused every pool: nothing is left to draw.
+  if (!pools || !particles || !hdrView || !depthView) return;
+  if (run.diagnostic !== 'beauty' || !run.lastCamera) return;
   const { eye } = run.gate.cam;
   run.gpuDrawCalls += particles.draw(pools, encoder, hdrView, depthView, viewProj, eye);
 }
