@@ -148,7 +148,7 @@ pub(crate) fn read_slot(
     what: &str,
 ) -> std::result::Result<Option<(String, Value)>, String> {
     let text = slot.as_str().unwrap_or_default();
-    if text.len() != SLOT_WIDTH || !text.bytes().all(|b| b.is_ascii_hexdigit()) {
+    if text.len() != SLOT_WIDTH || !text.bytes().all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f')) {
         return Err(format!("{what} lists a slot of another width"));
     }
     let bytes = usize::from_str_radix(&text[64..72], 16).expect("eight hex digits");
