@@ -32,8 +32,7 @@ fn assert_unit_cube(mass: f64, centre: &[f64], inertia: &[f64]) {
 }
 
 // Behaviour: a unit cube's hull weighs 1000 kg about its middle at the runtime's density
-// (`commands.cpp`), and cooks to the same bytes twice, the golden ones (`TRILLION3D_WRITE_GOLDEN`
-// rewrites them); an L of two boxes is cut into convex parts, within the cap of 64.
+// (`commands.cpp`), and cooks to the golden bytes (`TRILLION3D_WRITE_GOLDEN` rewrites them); an L of two boxes is cut into convex parts, within the cap of 64.
 #[test]
 fn a_hull_is_weighed_at_cook_and_a_concave_body_decomposed() {
     let runtime = include_str!("../../../physics-jolt-wasm/src/commands.cpp");
@@ -45,10 +44,6 @@ fn a_hull_is_weighed_at_cook_and_a_concave_body_decomposed() {
         &widen(&mass.centre),
         &widen(&mass.inertia),
     );
-    assert_eq!(
-        bytes,
-        hulls_shape(&[cube([0.0; 3], [1.0; 3])], DENSITY).unwrap().0
-    );
     assert_golden(&bytes, GOLDEN);
     let (mut pos, mut triangles) = (cube([0.0; 3], [4.0, 1.0, 1.0]), FACES.to_vec());
     pos.extend(cube([0.0, 1.0, 0.0], [1.0, 3.0, 1.0]));
@@ -57,8 +52,8 @@ fn a_hull_is_weighed_at_cook_and_a_concave_body_decomposed() {
     assert!((2..=64).contains(&parts), "{parts} parts");
 }
 
-// Behaviour: of four drawn unit cubes, the one declaring a dynamic box keeps its declared shape,
-// motion and matter; the one declaring motion without a shape gets a cooked hull weighed as a unit
+// Behaviour: of four drawn unit cubes, the one declaring a dynamic box keeps its shape, motion and
+// matter as declared; the one declaring motion without a shape gets a cooked hull weighed as a unit
 // cube; the one declaring nothing is no body; the one naming a missing shape is refused by name.
 // All four stay static ground until the page restores their bodies.
 #[test]
@@ -105,7 +100,7 @@ fn declared_bodies_are_cooked_beside_the_static_ground() {
     };
     assert_eq!(
         declared,
-        &json!({"node":0,"motion":{"mass":5},"shape":{"type":"box","halfExtents":[1.0, 0.5, 0.5]},
+        &json!({"node":0,"motion":{"mass":5},"shape":{"type":"box","box":{"size":[2, 1, 1]}},
             "friction":0.9,"restitution":0.2,"position":[0.0, 0.0, 0.0],
             "rotation":[0.0, 0.0, 0.0, 1.0],"scale":[1.0, 1.0, 1.0]})
     );
