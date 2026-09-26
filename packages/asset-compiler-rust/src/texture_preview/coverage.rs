@@ -3,12 +3,11 @@
 //! chains once they mirror it step for step (#748; until then a hosted texture
 //! the card regenerates keeps the median alone).
 //!
-//! A masked material keeps a texel when its alpha, times the material's
-//! `baseColorFactor` alpha, reaches the cutoff (`alpha >= alphaTest`), and the
-//! median of four does not keep the share of texels that do: on foliage the
+//! A masked material keeps a texel when its alpha reaches the cutoff
+//! (`alpha >= alphaTest`), and the median of four does not keep the share of texels that do: on foliage the
 //! coarse levels thin out (sponza's masked maps lose up to 57 % of their coverage
 //! at level 8, #44). A texture's cutoff byte `C` is the lowest of its readers'
-//! (`material_cutoff`), 0 when one of them blends: a blended surface draws the
+//! (`cutoff_byte`), 0 when one of them blends: a blended surface draws the
 //! alpha itself, whose mean the scale would move. So, at every level `k ≥ 1` of
 //! a coverage chain whose cutoff byte `C` is not 0:
 //!
@@ -29,27 +28,16 @@
 //! whose cutoff is 0 keeps the median alone.
 
 use super::reduce::AtlasKind;
-use serde_json::Value;
 
-/// The smallest byte a masked material keeps at `cutoff` (`b / 255 >= cutoff`,
-/// the engine's test on the sampled alpha), for a cutoff above 0 as every
-/// coverage reader's is; 0 — the median alone — when no byte reaches it, since
-/// such a material keeps no texel at any level.
+/// The smallest byte a masked material keeps at `cutoff`: `b / 255 >= cutoff`,
+/// the test of the WebGPU engine, the one backend that samples baked chains
+/// (`maskKeep`: the sampled alpha, times the vertex colour's, against
+/// `alphaTest`), and the quality gate's (`blocks/quality.rs`). 0 — the median
+/// alone — when no byte reaches it: such a material keeps no texel at any level.
 pub(super) fn cutoff_byte(cutoff: f32) -> u8 {
     (1..=255u8)
         .find(|&byte| f32::from(byte) / 255.0 >= cutoff)
         .unwrap_or(0)
-}
-
-/// The cutoff byte of a masked material's texture. The engine cuts the sampled
-/// alpha times the factor's (`opacity`, `compiler_tables/materials.rs`): the
-/// texture's own cutoff is their quotient, no byte at all under a factor of 0.
-pub(super) fn material_cutoff(material: &Value, cutoff: f32) -> u8 {
-    let opacity = material
-        .pointer("/pbrMetallicRoughness/baseColorFactor/3")
-        .and_then(Value::as_f64)
-        .unwrap_or(1.0) as f32;
-    cutoff_byte(cutoff / opacity.max(0.0))
 }
 
 /// What level 0 covers at the chain's cutoff: the share every level keeps.
