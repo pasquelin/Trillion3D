@@ -1,7 +1,5 @@
 // Batch F oracles, WebGPU engine-prepare side: `packages/sdk-browser/src/webgpu/pages/prepare/prepare.ts:23-44`,
 // `packages/sdk-browser/src/webgpu/pages/prepare/setup.ts:94-105` and `packages/sdk-browser/src/webgpu/pages/prepare/textures.ts:37-42` from before batch F.
-import type { HostAttributes } from '../../../packages/sdk-browser/src/host/resources.ts';
-import { OPEN_CONE, triangleCone } from '../../../packages/sdk-browser/src/page/cone/cone.ts';
 import type { PageRec } from '../../../packages/sdk-browser/src/page/selection/types.ts';
 
 interface ConesRoot {
@@ -20,28 +18,6 @@ interface ConesRoot {
  */
 export function entreeCones(pages: PageRec[], roots: ConesRoot[] = [{ cones: false, pages }]) {
   return { setup: { allPages: pages, roots } };
-}
-
-/** `prepareCones` before batch F: per-vertex accessors and the material read twice. */
-export function referencePrepareCones(rt: { setup: { allPages: PageRec[] } }) {
-  const xyzCache = new WeakMap<HostAttributes, Float32Array>();
-  for (const rec of rt.setup.allPages) {
-    const array = rec.array,
-      attr = rec.attributes.position;
-    if (!array || !attr) continue;
-    let xyz = xyzCache.get(rec.attributes);
-    if (!xyz) {
-      xyz = new Float32Array(attr.count * 3);
-      for (let i = 0; i < attr.count; i++) {
-        xyz[i * 3] = attr.getX(i);
-        xyz[i * 3 + 1] = attr.getY(i);
-        xyz[i * 3 + 2] = attr.getZ(i);
-      }
-      xyzCache.set(rec.attributes, xyz);
-    }
-    rec.cone =
-      rec.material.doubleSided || rec.material.backSide ? OPEN_CONE : triangleCone(xyz, array);
-  }
 }
 
 /** Source-byte table before batch F: one `flatMap` of a pair per page. */
