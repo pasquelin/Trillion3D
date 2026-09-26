@@ -169,3 +169,17 @@ test('a page pinned on arrival and let go before the pin step still leaves', asy
   for (let frame = 2; frame <= 2 + 2 * W; frame++) world.image(frame, [], []);
   assert.ok(!world.cache.pins.has('x'), 'the pin of a page nothing keeps is given back');
 });
+
+test('a page pinned on arrival, let go and taken back before the pin step holds its parents', async () => {
+  const world = residency(4, []);
+  await world.load('r', 'm');
+  world.image(1, [], []);
+  // A readback asks for `a`, the upload job pins it on arrival, then a queue rebuilt past the
+  // budget releases and retakes it before any pin step ran: the pin step must still see it join.
+  world.ask(['a']);
+  await world.admit('a');
+  world.ask([]);
+  world.ask(['a']);
+  world.image(2, ['a'], []);
+  assert.ok(world.cache.pins.has('m') && world.cache.pins.has('r'), 'its parents are held');
+});
