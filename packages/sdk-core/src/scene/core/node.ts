@@ -160,7 +160,7 @@ export class SceneNode {
   /** Permanently invalidates this handle and every descendant. */
   destroy() {
     this.assertAlive();
-    refuseSceneRoot(this.state, this.index, true);
+    refuseSceneRoot(this.state, this.index, 'destroyed');
     this.parent?.detachChild(this);
     this.invalidate();
     removeTransformNode(this.state.tree, this.index);
