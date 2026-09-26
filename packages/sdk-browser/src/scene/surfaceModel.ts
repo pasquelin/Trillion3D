@@ -51,10 +51,11 @@ export function hostSurfaceModel({ family }: HostShadedMaterial): number {
 export const metalRough = ({ family }: HostShadedMaterial) =>
   family === 'standard' || family === 'physical';
 
-/** True when the model is lit by the scene's lights: a Phong material is the standard model. */
-export const litModel = (host: HostShadedMaterial, model: number) =>
-  model === SURFACE_MODEL.diffuse ||
-  model === SURFACE_MODEL.toon ||
+/** True when the surface's model is lit by the scene's lights: a Phong material is the standard
+ *  model. */
+export const litModel = (host: HostShadedMaterial) =>
+  host.family === 'lambert' ||
+  host.family === 'toon' ||
   metalRough(host) ||
   host.family === 'phong';
 
@@ -65,20 +66,17 @@ export const litModel = (host: HostShadedMaterial, model: number) =>
  * share, so no path drops one from the image.
  */
 export function unreadMapRefusal(host: HostShadedMaterial) {
-  const unread = host.gradientMap
-    ? 'gradientMap'
-    : host.family === 'matcap' && host.map
-      ? 'map'
-      : host.normalMap && !litModel(host, hostSurfaceModel(host))
-        ? 'normalMap'
-        : undefined;
-  if (unread) return `material ${host.family} declares a ${unread} its surface model never reads`;
+  const named = (map: string) =>
+    `material ${host.family} declares a ${map} its surface model never reads`;
+  if (host.gradientMap) return named('gradientMap');
+  if (host.family === 'matcap' && host.map) return named('map');
+  if (host.normalMap && !litModel(host)) return named('normalMap');
 }
 
-/** Whether a surface's occlusion map darkens it: a lit one and a plain colour one do; a matcap,
- *  normal or depth surface ignores one, as the reference does, on both paths. */
+/** Whether a surface's occlusion map darkens it: a lit one does, and a plain colour one on the
+ *  WebGL2 path; a matcap, normal or depth surface ignores one on both paths, as the reference does. */
 export const readsOcclusion = (host: HostShadedMaterial) =>
-  litModel(host, hostSurfaceModel(host)) || host.family === 'basic';
+  litModel(host) || host.family === 'basic';
 
 /** The roughness a Blinn–Phong exponent reads as, `√(2 / (n + 2))`: its lobe's width. */
 export const shininessRoughness = (shininess: number) =>

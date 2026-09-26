@@ -106,20 +106,24 @@ test('Each family binds the surface model it is shaded by, lit or not (#772)', (
   }
 });
 
-test('A matcap binds its image on the base map unit (#772)', () => {
-  const image = texture();
-  const { binding } = recorder();
-  const units: unknown[] = [];
+/** A recorder whose texture units keep the map each one was last bound. */
+function unitRecorder() {
+  const { binding } = recorder(),
+    units: unknown[] = [];
   binding.textures.bind = (unit, map) => void (units[unit] = map);
+  return { binding, units };
+}
+
+test('A matcap binds its image on the base map unit (#772)', () => {
+  const image = texture(),
+    { binding, units } = unitRecorder();
   bindClusterMaterial(binding, new G.GraphSurface('matcap', { matcap: image }), true);
   assert.equal(units[0], importHostTexture(image));
 });
 
 test('An occlusion map darkens a matcap on neither path, a plain colour on WebGL2 (#772)', () => {
   const aoMap = texture(),
-    { binding } = recorder(),
-    units: unknown[] = [];
-  binding.textures.bind = (unit, map) => void (units[unit] = map);
+    { binding, units } = unitRecorder();
   const matcap = new G.GraphSurface('matcap', { aoMap });
   bindClusterMaterial(binding, matcap, true);
   assert.equal(visMaterial(matcap).aoMap, undefined, 'the WebGPU record reads none');
