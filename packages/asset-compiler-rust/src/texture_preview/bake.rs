@@ -83,13 +83,9 @@ pub(super) fn one_image(
             let first = alphas.next();
             alphas.all(|a| Some(a) == first)
         };
-    // Every coverage reader shares one chain, cut at the lowest of their cutoffs.
-    let cutoff = coverage::image_cutoff(readers);
-    let kind_of = |r: &AtlasTexture| match r.kind {
-        AtlasKind::Coverage(_) if flat => AtlasKind::Color,
-        AtlasKind::Coverage(_) => AtlasKind::Coverage(cutoff),
-        kind => kind,
-    };
+    // Each texture keeps its own cutoff: textures of one image cut at two cutoffs, or
+    // one of them blended, bake one chain each.
+    let kind_of = |r: &AtlasTexture| if flat { r.kind.atlas() } else { r.kind };
     let mut chains: BTreeMap<AtlasKind, Vec<&AtlasTexture>> = BTreeMap::new();
     for reader in readers {
         chains.entry(kind_of(reader)).or_default().push(reader);

@@ -1,6 +1,6 @@
 use super::*;
-use crate::texture_preview::collect::{atlas_textures, AtlasTexture};
-use crate::texture_preview::coverage::{cutoff_byte, image_cutoff, Covered};
+use crate::texture_preview::collect::atlas_textures;
+use crate::texture_preview::coverage::{cutoff_byte, Covered};
 
 /// Foliage: a smooth random field cut by a soft edge, four octaves of value noise from 32 texels
 /// down to 4, the alpha ramp two texels wide — what a leaf atlas's mask looks like.
@@ -96,40 +96,38 @@ fn the_scale_lands_on_the_cutoff_in_integers() {
     );
 }
 
-// #44: the cutoff is the lowest among the image's coverage readers, as the smallest byte the
-// engine keeps (`alpha >= alphaTest`); 0 — median alone — when every one blends.
+/// A material reading texture `texture` as its base colour, blended or cut at `cutoff`.
+fn material(mode: &str, cutoff: f64, texture: usize) -> Value {
+    json!({"pbrMetallicRoughness": {"baseColorTexture": {"index": texture}},
+        "alphaMode": mode, "alphaCutoff": cutoff})
+}
+
+// #44: a texture is cut at the lowest cutoff of its masked readers, as the smallest byte the
+// engine keeps (`alpha >= alphaTest`), and not at all — median alone — once one of them blends:
+// the scale would move the mean alpha a blended surface draws.
 #[test]
-fn the_chain_is_cut_at_the_lowest_cutoff_of_its_coverage_readers() {
+fn a_texture_is_cut_at_its_lowest_cutoff_unless_a_reader_blends() {
     assert_eq!(
         [0.5, 0.25, 1.0 / 255.0, 1.0, 1.5].map(cutoff_byte),
         [128, 64, 1, 255, 0]
     );
-    // One texture read by two masked materials and a blended one takes the lowest cutoff…
-    let base = |mode: &str, cutoff: f64| {
-        json!({"pbrMetallicRoughness": {"baseColorTexture": {"index": 0}},
-            "alphaMode": mode, "alphaCutoff": cutoff})
+    let kind_of = |materials: Vec<Value>| {
+        let primitives: Vec<Value> = (0..materials.len())
+            .map(|m| json!({"attributes": {}, "material": m}))
+            .collect();
+        let g = json!({"materials": materials, "meshes": [{"primitives": primitives}]});
+        atlas_textures(&g, &BTreeSet::from([0])).expect("collect")[0].kind
     };
-    let primitives = [0, 1, 2].map(|m| json!({"attributes": {}, "material": m}));
-    let g = json!({
-        "materials": [base("MASK", 0.5), base("MASK", 0.25), base("BLEND", 0.9)],
-        "meshes": [{"primitives": primitives}],
-    });
-    let found = atlas_textures(&g, &BTreeSet::from([0])).expect("collect");
-    assert_eq!(found[0].kind, AtlasKind::Coverage(64));
+    let masked = vec![material("MASK", 0.5, 0), material("MASK", 0.25, 0)];
+    assert_eq!(kind_of(masked.clone()), AtlasKind::Coverage(64));
+    let mut with_blend = masked.clone();
+    with_blend.push(material("BLEND", 0.9, 0));
+    assert_eq!(kind_of(with_blend), AtlasKind::Coverage(0));
     // The engine cuts the sampled alpha times the factor's: at 0.25 under a factor of 0.5, the
     // texture's own cutoff is 0.5.
-    let mut faded = g.clone();
-    faded["materials"][1]["pbrMetallicRoughness"]["baseColorFactor"] = json!([1, 1, 1, 0.5]);
-    let found_faded = atlas_textures(&faded, &BTreeSet::from([0])).expect("collect");
-    assert_eq!(found_faded[0].kind, AtlasKind::Coverage(128));
-    // …and so does an image read by several textures; a blended-only one is not cut.
-    let reader = |kind| AtlasTexture {
-        kind,
-        ..found[0].clone()
-    };
-    let image = [128, 64, 0].map(|cutoff| reader(AtlasKind::Coverage(cutoff)));
-    assert_eq!(image_cutoff(&image), 64);
-    assert_eq!(image_cutoff(&[reader(AtlasKind::Coverage(0))]), 0);
+    let mut faded = masked;
+    faded[1]["pbrMetallicRoughness"]["baseColorFactor"] = json!([1, 1, 1, 0.5]);
+    assert_eq!(kind_of(faded), AtlasKind::Coverage(128));
 }
 
 // #44: each cutoff names its own files and sidecar word, so two scenes cutting one image at two
@@ -138,16 +136,9 @@ fn the_chain_is_cut_at_the_lowest_cutoff_of_its_coverage_readers() {
 fn each_cutoff_names_its_own_chain() {
     let dir = temp_dir("bake-cutoffs");
     foliage(256).save(dir.join("map.png")).expect("save");
-    let material = |mode: &str, cutoff: f64| {
-        gate::scene(
-            json!({"pbrMetallicRoughness": {"baseColorTexture": {"index": 0}},
-            "alphaMode": mode, "alphaCutoff": cutoff}),
-        )
-    };
     let kinds = [("MASK", 0.5), ("MASK", 0.25), ("BLEND", 0.5)]
-        .map(|(mode, cutoff)| stage_scene(&dir, &material(mode, cutoff)).0[0].kind);
-    let expected = [128, 64, 0].map(AtlasKind::Coverage);
-    assert_eq!(kinds, expected);
+        .map(|(mode, cutoff)| stage_scene(&dir, &gate::scene(material(mode, cutoff, 0))).0[0].kind);
+    assert_eq!(kinds, [128, 64, 0].map(AtlasKind::Coverage));
     let names = kinds.map(|kind| (kind.name(), kind.word()));
     let expected = [
         ("srgb-coverage-128", (128 << 8) | 2),
@@ -162,5 +153,32 @@ fn each_cutoff_names_its_own_chain() {
         AtlasKind::from_word(128 << 8),
         None,
         "only coverage carries a cutoff"
+    );
+}
+
+// #44: two textures of one image, one blended and one masked, bake one chain each: the blended
+// one keeps the median alone, byte for byte, and only the masked one is scaled.
+#[test]
+fn a_blended_texture_keeps_the_median_beside_a_masked_one_of_its_image() {
+    let dir = temp_dir("bake-shared-image");
+    let source = foliage(256);
+    source.save(dir.join("map.png")).expect("save");
+    let primitives = [0, 1].map(|m| json!({"attributes": {}, "material": m}));
+    let g = json!({
+        "materials": [material("BLEND", 0.5, 0), material("MASK", 0.5, 1)],
+        "meshes": [{"primitives": primitives}],
+        "textures": [{"source": 0}, {"source": 0}],
+        "images": [{"uri": "map.png"}],
+    });
+    let (previews, _) = stage_scene(&dir, &g);
+    let kinds: Vec<_> = previews.iter().map(|p| p.kind).collect();
+    assert_eq!(kinds, [AtlasKind::Coverage(0), AtlasKind::Coverage(128)]);
+    let first = previews[0].first_level as usize;
+    let tail = |kind| reduce::tail(&reduce::chain(&source, kind), first as u32);
+    assert_eq!(previews[0].pixels, tail(AtlasKind::Coverage(0)));
+    assert_eq!(previews[1].pixels, tail(AtlasKind::Coverage(128)));
+    assert_ne!(
+        previews[0].pixels, previews[1].pixels,
+        "the masked tail is scaled"
     );
 }

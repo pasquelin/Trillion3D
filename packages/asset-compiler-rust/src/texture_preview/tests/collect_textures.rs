@@ -108,7 +108,7 @@ fn a_texture_read_by_both_atlases_has_one_entry_per_atlas() {
 // colour or one emissive among its readers and it keeps the plain chain, which that reader
 // draws as before; so do a MASK cutoff of 0 and a mode glTF does not name, which the engine
 // draws opaque, and a transmissive BLEND, which tints by its colour whatever its alpha; the data
-// atlas never weighs.
+// atlas never weighs. A texture a blended reader shares with a masked one is not cut (#44).
 #[test]
 fn only_a_texture_every_reader_takes_for_coverage_is_weighted() {
     let base = |index: u64, mode: &str| json!({"pbrMetallicRoughness": {"baseColorTexture": {"index": index}}, "alphaMode": mode});
@@ -134,7 +134,7 @@ fn only_a_texture_every_reader_takes_for_coverage_is_weighted() {
     assert_eq!(
         keys,
         [
-            (0, AtlasKind::Coverage(128)),
+            (0, AtlasKind::Coverage(0)),
             (1, AtlasKind::Color),
             (2, AtlasKind::Color),
             (3, AtlasKind::Color),
