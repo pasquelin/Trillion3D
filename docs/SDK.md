@@ -356,7 +356,8 @@ advance with it; only the camera's controller is left to the host.
 A value written directly on a node — `mesh.position.x = 100`, `mesh.visible = false`, a light's
 intensity, colour or pose — needs no call to be seen by the next frame, and a light added to or
 removed from the graph is picked up on the next frame too. An asynchronous render failure stops
-automatic work and emits `INTERACTIVE_RENDER_FAILED` as a diagnostic.
+automatic work, emits `INTERACTIVE_RENDER_FAILED` as a diagnostic and reports the error to the
+page as an uncaught one is (`reportError`), so the page's own `error` listener sees it.
 
 ## What draws: the renderer option
 
