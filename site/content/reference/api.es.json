@@ -1570,8 +1570,8 @@
       "WEBGL2_UNAVAILABLE": "La máquina no puede dibujar de la manera pedida, o no puede en absoluto.",
       "NO_WEBGL2": "La máquina no puede dibujar de la manera pedida, o no puede en absoluto.",
       "NO_ENGINE_BACKEND": "La máquina no puede dibujar de la manera pedida, o no puede en absoluto.",
-      "RESOURCE_HTTP_ERROR": "Un archivo no se pudo recuperar, o no era lo que debía ser.",
-      "INVALID_JSON_RESPONSE": "Un archivo no se pudo recuperar, o no era lo que debía ser.",
+      "RESOURCE_HTTP_ERROR": "Un archivo no se pudo recuperar —pedido de nuevo antes cuando el fallo puede pasar—, o no era lo que debía ser.",
+      "INVALID_JSON_RESPONSE": "Un archivo no se pudo recuperar —pedido de nuevo antes cuando el fallo puede pasar—, o no era lo que debía ser.",
       "INVALID_POINTER": "El puntero del modelo compilado está roto, incompleto, o de otro alcance.",
       "CACHE_NOT_READY": "El puntero del modelo compilado está roto, incompleto, o de otro alcance.",
       "SCOPE_MISMATCH": "El puntero del modelo compilado está roto, incompleto, o de otro alcance.",
@@ -7129,7 +7129,7 @@
       "water": "El agua en la que flotan los cuerpos: su nivel, sus olas, su densidad y sus arrastres. Un cuerpo más ligero que el agua flota, empujado por el peso del agua que desplaza.",
       "waterSurface": "La superficie del agua a la hora de la simulación, para dibujarla: las olas que lee la flotación, los mismos números (`height`, `point`, `normal`).",
       "stats": "Recuentos y los dos relojes: milisegundos del worker por paso, milisegundos de la página por fotograma.",
-      "error": "El último error de la física (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), o `null`. Un error que detuvo la simulación desactiva `enabled`.",
+      "error": "El último error de la física (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`, `RESOURCE_HTTP_ERROR`), o `null`. Un error que detuvo la simulación desactiva `enabled`.",
       "add": "Añade una unión (`joint.hinge(door, frame, …)` y sus parientes): se crea en cuanto sus dos cuerpos se simulan y se mantiene hasta que se quita o se rompe.",
       "remove": "Quita una unión: los cuerpos que sujetaba se separan libremente."
     }
@@ -7337,7 +7337,7 @@
       "water": "El agua en la que flotan los cuerpos: su nivel, sus olas, su densidad y sus arrastres. Un cuerpo más ligero que el agua flota, empujado por el peso del agua que desplaza.",
       "waterSurface": "La superficie del agua a la hora de la simulación, para dibujarla: las olas que lee la flotación, los mismos números (`height`, `point`, `normal`).",
       "stats": "Recuentos y los dos relojes: milisegundos del worker por paso, milisegundos de la página por fotograma.",
-      "error": "El último error de la física (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), o `null`. Un error que detuvo la simulación desactiva `enabled`.",
+      "error": "El último error de la física (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`, `RESOURCE_HTTP_ERROR`), o `null`. Un error que detuvo la simulación desactiva `enabled`.",
       "add": "Añade una unión (`joint.hinge(door, frame, …)` y sus parientes): se crea en cuanto sus dos cuerpos se simulan y se mantiene hasta que se quita o se rompe.",
       "remove": "Quita una unión: los cuerpos que sujetaba se separan libremente."
     }
