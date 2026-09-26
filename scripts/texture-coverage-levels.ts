@@ -1,7 +1,6 @@
 /** The measure of #44: each coverage chain of a compiled cache, its share of texels at or above
- *  its cutoff byte at every level against level 0's, one JSON line per chain — the head from the
- *  lossless files the manifest names, the tail from the sidecar: the bytes the engine samples,
- *  or its block chain, which the quality gate keeps only if no masked texel changes side.
+ *  its cutoff byte at every level against level 0's, one JSON line per chain, from the texels the
+ *  engine samples: the head's lossless files and the sidecar's tail, or blocks the gate kept.
  *  `node scripts/texture-coverage-levels.ts <cache directory> [scope, full by default]` */
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -28,12 +27,11 @@ export async function coverageLevels(
   readHead: (url: string) => Promise<Uint8Array>,
 ) {
   const template = manifest.textures?.url;
-  if (!template) return [];
   const chains = [];
   for (const preview of manifest.texturePreviews ?? []) {
     const { texture, sha256, atlas } = preview;
     const named = previewCoverageCutoff(atlas);
-    if (named === undefined || !previewIsWhole(preview)) continue;
+    if (named === undefined || !template || !previewIsWhole(preview)) continue;
     const cutoff = named || UNCUT_BYTE;
     const count = (rgba: Uint8Array) => {
       let covered = 0;
