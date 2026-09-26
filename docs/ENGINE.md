@@ -715,9 +715,8 @@ Shared URLs occupy one slot across instances. Two counters say different things:
 on WebGL2, `uncoveredTriangles` counts the holes of the image's cut (`page/cut/take.ts`): the
 triangles of the root-cover clusters in view the cut rule would draw but that are not resident,
 nothing coarser standing in for them. Zero is the only healthy value. The WebGPU path reads `null`
-by design: its cuts draw what they select, so the no-hole proof is on the drawn set. WebGL2's
-`drawnTriangles` is the cut it hands to the draw, nearest resident ancestors included;
-the `coverage-*` diagnostics trace bootstrap, budget, upload and streaming failures. A failed URL is
+by design: its cuts draw what they select, so the no-hole proof is on the drawn set. WebGL2 also
+publishes `drawnTriangles` (`bench/runner/README.md`). The `coverage-*` diagnostics trace bootstrap, budget, upload and streaming failures. A failed URL is
 retried at most three times per session; an initial cover read failure rejects preparation.
 
 ## Virtual textures
