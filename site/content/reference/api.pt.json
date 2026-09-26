@@ -932,8 +932,8 @@
       "WEBGL2_UNAVAILABLE": "A máquina não consegue desenhar da forma pedida, ou não consegue desenhar de jeito nenhum.",
       "NO_WEBGL2": "A máquina não consegue desenhar da forma pedida, ou não consegue desenhar de jeito nenhum.",
       "NO_ENGINE_BACKEND": "A máquina não consegue desenhar da forma pedida, ou não consegue desenhar de jeito nenhum.",
-      "RESOURCE_HTTP_ERROR": "Um arquivo não pôde ser buscado, ou não era o que deveria ser.",
-      "INVALID_JSON_RESPONSE": "Um arquivo não pôde ser buscado, ou não era o que deveria ser.",
+      "RESOURCE_HTTP_ERROR": "Um arquivo não pôde ser buscado — pedido de novo antes, quando a falha pode passar —, ou não era o que deveria ser.",
+      "INVALID_JSON_RESPONSE": "Um arquivo não pôde ser buscado — pedido de novo antes, quando a falha pode passar —, ou não era o que deveria ser.",
       "INVALID_POINTER": "O ponteiro do modelo compilado está corrompido, incompleto, ou de outro escopo.",
       "CACHE_NOT_READY": "O ponteiro do modelo compilado está corrompido, incompleto, ou de outro escopo.",
       "SCOPE_MISMATCH": "O ponteiro do modelo compilado está corrompido, incompleto, ou de outro escopo.",
@@ -2921,7 +2921,7 @@
       "background": "O que preenche a imagem atrás de cada objeto: uma cor, ou `null` para o padrão. Uma mudança aparece no quadro seguinte, mantendo a sessão: uma nova cor atribuída aqui, ou a atual escrita pelos seus métodos (`set`, `setRGB`, `setHex`, `setHSL`...). Uma escrita direta de `.r`, `.g` ou `.b` não é detetada: atribua `background` de novo depois. Uma imagem, ou qualquer valor sem `getHex`, é recusada (`UNSUPPORTED_SCENE_UPDATE`): nenhum caminho a desenha.",
       "fog": "Névoa sobre cada superfície, opaca ou transparente, nos dois renderizadores; `null`, o padrão, para nenhuma, sem custo. `{ color, near, far }` esvai os objetos em `color` de `near` a `far`, distâncias a partir da câmera; `{ color, density }` se adensa `density` por unidade de distância; acrescente `heightFalloff` (e `baseHeight`, 0 por padrão) e ela assenta no chão, rareando acima de `baseHeight` — dividida por e a cada `1 / heightFalloff` unidades para cima. Uma mudança aparece no quadro seguinte: uma névoa nova dada aqui, ou sua cor escrita pelos seus métodos. Uma escrita direta de `near`, `far`, `density`... não é ouvida: dê `fog` de novo depois. Uma névoa fora do intervalo — `far` não além de `near`, uma densidade negativa — é recusada (`INVALID_SCENE_ENVIRONMENT`).",
       "load": "Carrega um modelo compilado — a URL de seu manifesto — e o adiciona a esta cena.",
-      "toJSON": "A cena como JSON simples e versionado: seus objetos, as formas pela chamada que as construiu, os materiais, as luzes e os modelos carregados por endereço; também a pose de `camera` quando uma é informada.",
+      "toJSON": "A cena como JSON simples e versionado: seus objetos, as formas pela chamada que as construiu, os materiais, as luzes, o corpo de cada malha como foi declarado e os modelos carregados por endereço; também a pose de `camera` quando uma é informada.",
       "fromJSON": "Substitui o que a cena contém por uma cena salva com `toJSON`, mantendo suas marcas `helper`; é resolvida quando seus modelos estão carregados. Outro formato ou outra versão é recusado (`UNSUPPORTED_SCENE_FORMAT`). Chamadas feitas enquanto uma está sendo lida rodam uma depois da outra, em ordem, cada uma sobre o que a anterior deixou: duas cenas salvas nunca se misturam."
     }
   },
@@ -7021,7 +7021,8 @@
       "children": "Os nós abaixo dele, em ordem.",
       "mesh": "Posições em `geometries` e `materials`, como os triângulos são lidos, e o centro de um sprite.",
       "light": "O tipo de uma luz, suas cores, seus números, sua mira e os coeficientes de sonda.",
-      "model": "Um modelo compilado, pelo endereço do manifesto de onde foi carregado: nunca copiado para dentro."
+      "model": "Um modelo compilado, pelo endereço do manifesto de onde foi carregado: nunca copiado para dentro.",
+      "physics": "O corpo de uma malha, como `mesh.physics` o declara."
     }
   },
   "SavedScene": {
@@ -7128,7 +7129,7 @@
       "water": "A água onde os corpos flutuam: o seu nível, as suas ondas, a sua densidade e os seus arrastos. Um corpo mais leve que a água flutua, empurrado pelo peso da água que desloca.",
       "waterSurface": "A superfície da água à hora da simulação, para a desenhar: as ondas que a flutuação lê, os mesmos números (`height`, `point`, `normal`).",
       "stats": "Contagens e os dois relógios: milissegundos do worker por passo, milissegundos da página por imagem.",
-      "error": "O último erro da física (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), ou `null`. Um erro que parou a simulação desativa `enabled`.",
+      "error": "O último erro da física (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`, `RESOURCE_HTTP_ERROR`), ou `null`. Um erro que parou a simulação desativa `enabled`.",
       "add": "Adiciona uma junta (`joint.hinge(door, frame, …)` e parentes): ela é criada assim que os dois corpos são simulados e segura até ser removida ou se romper.",
       "remove": "Remove uma junta: os corpos que ela segurava se afastam livremente."
     }
@@ -7336,7 +7337,7 @@
       "water": "A água onde os corpos flutuam: o seu nível, as suas ondas, a sua densidade e os seus arrastos. Um corpo mais leve que a água flutua, empurrado pelo peso da água que desloca.",
       "waterSurface": "A superfície da água à hora da simulação, para a desenhar: as ondas que a flutuação lê, os mesmos números (`height`, `point`, `normal`).",
       "stats": "Contagens e os dois relógios: milissegundos do worker por passo, milissegundos da página por imagem.",
-      "error": "O último erro da física (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), ou `null`. Um erro que parou a simulação desativa `enabled`.",
+      "error": "O último erro da física (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`, `RESOURCE_HTTP_ERROR`), ou `null`. Um erro que parou a simulação desativa `enabled`.",
       "add": "Adiciona uma junta (`joint.hinge(door, frame, …)` e parentes): ela é criada assim que os dois corpos são simulados e segura até ser removida ou se romper.",
       "remove": "Remove uma junta: os corpos que ela segurava se afastam livremente."
     }

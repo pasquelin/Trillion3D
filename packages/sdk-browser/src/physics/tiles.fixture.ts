@@ -29,15 +29,18 @@ export const cooked = (colliders: object[], instances: object[], softBodies: obj
   ...{ formatVersion: 2, jolt: JOLT_COMMIT, colliders, instances, softBodies },
 });
 
-/** Answers every fetch from now on: `physics.json` with `file`, any other file with `bytes`;
- *  the names of the files fetched. */
+/** The files of a compiled model: `physics.json` answered with `file`, any other with `bytes`. */
+export const modelFiles = (file: object, bytes: Uint8Array) => (url: string) =>
+  new Response(url.endsWith('physics.json') ? JSON.stringify(file) : bytes.slice());
+
+/** Answers every fetch from now on with `modelFiles`; the names of the files fetched. */
 export function stubFetch(file: object, bytes: Uint8Array) {
   const fetched: string[] = [];
+  const serve = modelFiles(file, bytes);
   globalThis.fetch = (async (url: string) => {
     fetched.push(url.split('/').pop()!);
-    const json = async () => JSON.parse(JSON.stringify(file));
-    return { ok: true, json, arrayBuffer: async () => bytes.slice().buffer };
-  }) as unknown as typeof fetch;
+    return serve(url);
+  }) as typeof fetch;
   return fetched;
 }
 
@@ -47,6 +50,32 @@ export const compiledModel = () =>
     isLoadedModel: true as const,
     record: { base: 'https://cache.test/model/' },
   });
+
+/**
+ * A tile streamer within `budget` (8 bodies) over a scene holding one compiled model at the
+ * origin, scaled by `scale`, not scanned yet: the streamer, the scene, the model, the writer, the
+ * bodies, the errors raised, and `heard`, which settles at the next change or error it reports.
+ */
+export function modelStreamer(budget: Partial<PhysicsBudget> = {}, scale = 1) {
+  const limits = { ...DEFAULT_PHYSICS_BUDGET, bodies: 8, ...budget };
+  const [scene, writer, errors] = [new Group(), new CommandWriter(), [] as { code: string }[]];
+  const { state } = createPhysicsPoses(limits.bodies, scene);
+  const bodies = createPhysicsBodies(writer, limits, {} as PhysicsHost, scene, state);
+  let wake = () => {};
+  const heard = () => new Promise<void>((resolve) => (wake = resolve));
+  const tiles = createTileStreamer(
+    writer,
+    limits,
+    bodies,
+    () => wake(),
+    (e) => (errors.push(e), wake()),
+  );
+  const model = compiledModel();
+  model.scale.setScalar(scale);
+  model.updateMatrixWorld(true);
+  scene.add(model);
+  return { tiles, scene, model, writer, bodies, errors, heard };
+}
 
 /**
  * A model at the origin, scaled by `scale`, whose `physics.json` is `file` and every other file
@@ -60,22 +89,8 @@ export async function streamedModel(
   scale = 1,
 ) {
   const fetched = stubFetch(file, bytes);
-  const limits = { ...DEFAULT_PHYSICS_BUDGET, bodies: 8, ...budget };
-  const [scene, writer, errors] = [new Group(), new CommandWriter(), [] as { code: string }[]];
-  const { state } = createPhysicsPoses(limits.bodies, scene);
-  const bodies = createPhysicsBodies(writer, limits, {} as PhysicsHost, scene, state);
-  const tiles = createTileStreamer(
-    writer,
-    limits,
-    bodies,
-    () => {},
-    (e) => errors.push(e),
-  );
-  const model = compiledModel();
-  model.scale.setScalar(scale);
-  model.updateMatrixWorld(true);
-  scene.add(model);
-  tiles.scan(scene);
+  const streamer = modelStreamer(budget, scale);
+  streamer.tiles.scan(streamer.scene);
   await landed();
-  return { tiles, scene, model, writer, bodies, errors, fetched };
+  return { ...streamer, fetched };
 }
