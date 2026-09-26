@@ -59,18 +59,21 @@ const frame = (encoder: GPUCommandEncoder) => [encoder, view, view, IDENTITY, [0
 test('WebGPU: one pass, fire then the nearer smoke, each with its blend; none without particles', async () => {
   const gpu = fakeDevice(),
     pools = scene();
-  const draw = createWebgpuParticleDraw(gpu.device, () => ({}) as GPUBuffer, assert.fail);
+  const draw = createWebgpuParticleDraw(
+    gpu.device,
+    () => ({}) as GPUBuffer,
+    (e) => assert.fail(`${e}`),
+  );
   await tick();
   const { encoder, log } = renderRecorder();
   assert.equal(draw.draw([], ...frame(encoder)) + draw.draw([pools[2]], ...frame(encoder)), 0);
   assert.deepEqual(log, [], 'no particle alive: no pass, no pixel');
   assert.equal(draw.draw(pools, ...frame(encoder)), 2);
   assert.deepEqual(log, [P, `${P} additive 6 2`, `${P} premultiplied 6 3`], 'far to near');
-  const blends = gpu.renderPipelines.map(({ label, fragment }) =>
-    [label, fragment!.targets[0]!.blend!.color.dstFactor, fragment!.constants!.premultiplied].join(
-      ' ',
-    ),
-  );
+  const blends = gpu.renderPipelines.map(({ label, fragment }) => {
+    const [{ blend }] = [...fragment!.targets] as GPUColorTargetState[];
+    return `${label} ${blend!.color.dstFactor} ${fragment!.constants!.premultiplied}`;
+  });
   assert.deepEqual(blends, [`${P} additive one 0`, `${P} premultiplied one-minus-src-alpha 1`]);
 });
 
