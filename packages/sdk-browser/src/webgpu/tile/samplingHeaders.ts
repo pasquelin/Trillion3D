@@ -88,9 +88,9 @@ export function samplingHeaders(color: WebgpuTileAtlas, data: WebgpuTileAtlas) {
  *  whose rule moved goes to `reduce`, its slot to `moved`; one just `copied` already carries it. */
 function coverageRules(atlas: WebgpuTileAtlas) {
   let readers: CoverageReaders | undefined;
-  const hosts = new Map<number, { map: Texture; rule: number }>();
-  /** The chain's rule: its cutoff byte where it weighs by alpha (#748), -1 plain. */
-  const ruleOf = (map: Texture) => (readers?.weighs(map) ? readers.cutoff(map) : -1);
+  const hosts = new Map<number, { map: Texture; rule?: number }>();
+  /** The chain's rule: its cutoff byte where it weighs by alpha (#748), none plain. */
+  const ruleOf = (map: Texture) => readers?.cutoff(map);
   for (const [slot, { source }] of atlas.textures.entries())
     if (source.kind === 'host' && (readers ??= source.coverage))
       hosts.set(slot, { map: source.map, rule: ruleOf(source.map) });
