@@ -1,7 +1,7 @@
 import { LIGHT_KIND, type SceneLight } from '../light/contracts.ts';
 import type { createShadowChanges } from './changes.ts';
 import type { createShadowCounts } from './counts.ts';
-import { lampFaces, lampRects, rects, sunRects } from './pageRects.ts';
+import { createPageRects } from './pageRects.ts';
 import { STALE_DYNAMIC, STALE_FULL, type ShadowPool } from './pool.ts';
 import type { ShadowTable } from './table.ts';
 import type { SunLevels } from './sunLevels.ts';
@@ -39,6 +39,7 @@ export function createPageInvalidation(
   changes: Changes,
   counts: Counts,
 ) {
+  const { rects, sunRects, lampFaces, lampRects } = createPageRects();
   let level = STALE_FULL,
     wrong = true,
     nowMs = 0,
