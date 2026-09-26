@@ -21,10 +21,8 @@
 //!    levels 0 and `k` (four samples a texel on both sides of the product), and
 //!    `above(t)` counts level `k`'s samples that the scale at `t` (step 4) lifts
 //!    to `≥ C`: each sample is filed in a 256-bin histogram under the highest
-//!    such `t`, 0 when none (`cut_bin`, a binary search, since the scale only grows
-//!    as `t` falls, between the square's lowest and highest corners, since a corner
-//!    reaches `C` exactly when `t` is at most its byte and a sample lies between its
-//!    corners), so `above(t)` is exactly what the scaled level covers;
+//!    such `t`, 0 when none (`cut_bin`, a binary search between the square's lowest
+//!    and highest corners), so `above(t)` is exactly what the scaled level covers;
 //! 3. `t` is the byte of `1..=255` that minimises `|above(t) × N0 − n0 × Nk|` —
 //!    level 0's share, never the previous level's, so no error carries over —, a
 //!    tie going to the `t` nearest `C`, then to the lower one;
@@ -84,22 +82,15 @@ fn scaled(a: u32, c: u32, t: u32) -> u32 {
 }
 
 /// Step 2's bin of sample `s` of square `a`: the highest `t` whose scale, `bytes[t]`,
-/// lifts it to `c` or more, 0 when none (`cutBin`, `coverageRule.ts`). A corner reaches `c`
-/// exactly when `t` is at most its byte, and a sample lies between its lowest and highest
-/// corners: the bin is searched between them.
+/// lifts it to `c` or more (`cutBin`, `coverageRule.ts`): a corner reaches `c` exactly while
+/// `t` is at most its byte, and a sample lies between its corners, so the bin does too.
 pub(super) fn cut_bin(a: [u32; 4], s: u32, c: u32, bytes: &[[u8; 256]; 256]) -> usize {
-    let [w, x, y, z] = a;
-    let (mut low, mut high) = (
-        w.min(x).min(y).min(z) as usize,
-        w.max(x).max(y).max(z) as usize + 1,
-    );
+    let mut low = a.into_iter().min().unwrap_or(0) as usize;
+    let mut high = a.into_iter().max().unwrap_or(0) as usize + 1;
     while high - low > 1 {
         let t = (low + high) >> 1;
-        if filtered(a.map(|a| u32::from(bytes[t][a as usize])), s) >= c {
-            low = t;
-        } else {
-            high = t;
-        }
+        let lifted = filtered(a.map(|a| u32::from(bytes[t][a as usize])), s) >= c;
+        *if lifted { &mut low } else { &mut high } = t;
     }
     low
 }
@@ -171,13 +162,9 @@ impl Covered {
         let c = u32::from(self.cutoff);
         let bytes = scale_table(c);
         let mut histogram = [0u64; 256];
+        // Four equal corners — most of a foliage mask — are their bin, searched in no step.
         for square in squares(level, width) {
-            // Four equal corners — most of a foliage mask — filter to their byte, their bin.
-            if square.iter().all(|&a| a == square[0]) {
-                histogram[square[0] as usize] += 4;
-            } else {
-                (0..4).for_each(|s| histogram[cut_bin(square, s, c, &bytes)] += 1);
-            }
+            (0..4).for_each(|s| histogram[cut_bin(square, s, c, &bytes)] += 1);
         }
         let t = self.pick(&histogram, (level.len() / 4) as u64);
         self.scale(level, t);
