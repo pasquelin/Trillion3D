@@ -199,11 +199,13 @@ revision and asks for a frame.
   surfaces whose material skips the curve (`toneMapped: false`); the output program leaves that
   share as drawn. Coverage past one is read as light (`effects/webglOutput.ts`). With a chain, a
   `none`-blended surface covers as an opaque one. Multiply and subtractive filter the background,
-  which the linear target does not hold: before it binds the target, the composer walks the scene as
-  the draw does (`webgl/cluster/linearRefusal.ts`), and a frame that draws a transparent surface in
-  either mode is drawn whole without the chain, never stopped mid-draw; `ComposedChain.refused`
-  hears the mode when the refusal starts, and the world says `effects-refused-blending` once
-  (`noticeEffectRefusal`). A context that cannot render half floats draws without the chain.
+  which the linear target does not hold: before it binds the target, the composer asks the engine
+  (`RenderBackend.linearRefusal`, a walk of the scene as the draw reads it,
+  `webgl/cluster/linearRefusal.ts`), and a frame that draws a transparent surface in either mode,
+  transmissive or not, is drawn whole without the chain, never stopped mid-draw;
+  `ComposedChain.refused` hears the mode on each such frame, and the world says
+  `effects-refused-blending` once (`noticeEffectRefusal`). A context that cannot render half floats
+  draws without the chain.
 - **Kinds**: each renderer holds one table from pass kind to implementation (`WEBGPU_KINDS`,
   `WEBGL_KINDS`); a new built-in or the custom pass is one entry. The kinds of a chain share its two
   pass targets; each holds its own resources besides, sized for the passes of its kind — the

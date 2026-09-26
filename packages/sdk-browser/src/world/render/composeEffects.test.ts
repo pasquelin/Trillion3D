@@ -22,7 +22,7 @@ function engine(held = false) {
   const outputs: HostDrawOutput[] = [];
   const backend = {
     id: 'engine',
-    scene: { background: { isColor: true, r: 0.5, g: 0, b: 1 }, children: [] },
+    scene: { background: { isColor: true, r: 0.5, g: 0, b: 1 } },
     frameHeld: held,
     drawHostGeometry: (_camera: unknown, output: HostDrawOutput) => outputs.push({ ...output }),
   } as unknown as RenderBackend;

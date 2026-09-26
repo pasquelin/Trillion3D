@@ -115,11 +115,9 @@ export interface MeasuredWorldOptions {
   temporalAntialiasing?: boolean;
   /** The world's effect chain, drawn after temporal antialiasing (`world.effects`). */
   effects?: import('../../../../sdk-core/src/world/effect/chain.ts').EffectChain;
-  /** Hears the mode of a surface that keeps WebGL2 from drawing `effects` on a frame, each time
-   *  one starts to: that frame is drawn whole without the chain (`world/render/compose.ts`). */
-  effectsRefused?: (
-    blending: import('../../webgl/cluster/linearRefusal.ts').LinearRefusedBlending,
-  ) => void;
+  /** Hears the mode of a surface that keeps WebGL2 from drawing `effects` on a frame, drawn
+   *  whole without the chain (`ComposedChain.refused`). */
+  effectsRefused?: import('../render/compose.ts').ComposedChain['refused'];
   /** Whether the prepared scene reads the source images. `'cache'`, the default: an image whose
    *  mip chain the cache carries is neither fetched nor decoded — the engine reads the baked
    *  levels, which it does whatever this option says. `'host'`: the scene reads and decodes

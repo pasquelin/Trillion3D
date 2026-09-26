@@ -148,6 +148,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
       if (ready) frame(camera);
     },
     drawHostGeometry: hostDraw.drawHostGeometry,
+    linearRefusal: hostDraw.linearRefusal,
     ...instances,
     ...autonomousPlacements({
       ...tables,

@@ -122,15 +122,16 @@ test('Into the effect chain, a surface covers its pixel as the display path show
   assert.equal(flagOf(transparent(HOST_BLENDING_NONE), 'covering', true), 1, 'none');
   assert.equal(flagOf(transparent(HOST_BLENDING_NORMAL), 'covering', true), 0, 'normal');
   assert.equal(flagOf(transparent(HOST_BLENDING_ADDITIVE), 'covering', true), 0, 'additive');
-  // Multiply and subtractive filter the background the linear target does not hold: refused.
+  // Multiply and subtractive filter the background the linear target does not hold: refused
+  // by the path's named refusal, for a caller that skipped `linearRefusal`.
   for (const [blending, mode] of [
     [HOST_BLENDING_MULTIPLY, 'multiply'],
     [HOST_BLENDING_SUBTRACTIVE, 'subtractive'],
   ] as const) {
-    assert.throws(
-      () => flagOf(transparent(blending), 'covering', true),
-      new Error(`the WebGL2 effect chain cannot draw ${mode} blending`),
-    );
+    assert.throws(() => flagOf(transparent(blending), 'covering', true), {
+      code: 'CLUSTER_MATERIAL_UNSUPPORTED',
+      details: { reason: `the WebGL2 effect chain cannot draw ${mode} blending` },
+    });
     assert.equal(flagOf(transparent(blending), 'covering'), undefined, 'drawn without a chain');
   }
   // A mode no path draws is refused here as by the display path, never drawn uncovered.

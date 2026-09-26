@@ -17,17 +17,17 @@ import {
   type WebglRenderTarget,
 } from '../../webgl/core/renderTarget.ts';
 import { createWebglEffects, type WebglEffectOutput } from '../../effects/webglEffects.ts';
-import { linearRefusal, type LinearRefusedBlending } from '../../webgl/cluster/linearRefusal.ts';
+import type { Blending } from '../../../../sdk-core/src/world/constants/index.ts';
 
 const NONE: readonly EffectPass[] = [];
 
 /** The world's effect chain as the composer draws it: `shown` is false in a diagnostic view,
- *  which shows the engine's image as it is; `refused` hears the mode of a surface that keeps the
- *  chain off a frame (`linearRefusal`), each time one starts to. */
+ *  which shows the engine's image as it is; `refused` hears, on each frame it keeps the chain
+ *  off, the mode `RenderBackend.linearRefusal` names. */
 export type ComposedChain = {
   chain: EffectChain;
   shown: () => boolean;
-  refused?: (blending: LinearRefusedBlending) => void;
+  refused?: (blending: Blending) => void;
 };
 
 /**
@@ -67,8 +67,7 @@ export function createFrameComposer(
     toneCurve: 0,
     background: [0, 0, 0],
   };
-  let keptRevision = 0,
-    refusal: LinearRefusedBlending | undefined;
+  let keptRevision = 0;
   /** The engine's background, sRGB-encoded like everything the destinations store. */
   const encode = (background: SceneColour) => {
     const { r, g, b } = background?.isColor ? background : { r: 0, g: 0, b: 0 };
@@ -88,19 +87,18 @@ export function createFrameComposer(
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT | gl.STENCIL_BUFFER_BIT);
   };
   /** The passes this frame draws: none without a chain, in a diagnostic view, on a destination
-   *  that takes the engine's image alone, on a context that cannot hold the targets, or while a
-   *  surface drawn blends in a mode the chain's target cannot hold — every surface is still drawn,
-   *  the chain comes back once none does. */
+   *  that takes the engine's image alone, on a context that cannot hold the targets, or on a frame
+   *  the engine's linear draw cannot hold (`linearRefusal`) — every surface is still drawn. */
   const passesOf = (backend: RenderBackend, wanted: boolean) => {
     if (!composed) return NONE;
     const passes = composed.chain.stage('before-tone-mapping');
     // An emptied chain gives its targets back; one kept aside for a capture keeps them.
     if (!passes.length) effects!.release();
     if (!passes.length || !wanted || !composed.shown() || !effects!.supported()) return NONE;
-    const refused = linearRefusal(backend.scene);
-    if (refused && refused !== refusal) composed.refused?.(refused);
-    refusal = refused;
-    return refused ? NONE : passes;
+    const refused = backend.linearRefusal?.();
+    if (!refused) return passes;
+    composed.refused?.(refused);
+    return NONE;
   };
   /**
    * `reuse` is false where the kept frame is not this engine's: a fallback takes over the image
