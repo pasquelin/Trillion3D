@@ -1,9 +1,9 @@
-import {
-  readCookedPhysics,
-  type CookedInstance,
-  type CookedPhysics,
-  type CookedTile,
+import type {
+  CookedInstance,
+  CookedPhysics,
+  CookedTile,
 } from '../../../sdk-core/src/physics/index.ts';
+import { readCookedPhysics } from '../../../sdk-core/src/physics/index.ts';
 import { boxTransform } from '../../../sdk-core/src/math/primitives/box.ts';
 import { Box3 } from '../../../sdk-core/src/world/math/box3.ts';
 import { Matrix4 } from '../../../sdk-core/src/world/math/matrix4.ts';
@@ -45,14 +45,9 @@ const place = new Matrix4(),
   bounds = new Box3();
 
 /** The bytes of a cooked object beside `model`'s manifest — a tile, a soft body's settings —
- *  read as every cache file is (`checked`, in `attempts` requests), until `signal` aborts. */
-export async function cookedBytes(
-  model: Model,
-  url: string,
-  signal: AbortSignal,
-  attempts?: number,
-) {
-  const response = await checked(new URL(url, model.record.base).href, signal, attempts);
+ *  read as every cache file is (`checked`, in `tries` requests), until `signal` aborts. */
+export async function cookedBytes(model: Model, url: string, signal: AbortSignal, tries = 2) {
+  const response = await checked(new URL(url, model.record.base).href, signal, tries);
   return new Uint8Array(await response.arrayBuffer());
 }
 
