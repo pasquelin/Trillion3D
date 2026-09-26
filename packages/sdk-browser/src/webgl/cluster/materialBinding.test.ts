@@ -177,3 +177,19 @@ test('Into the effect chain, a surface covers its pixel as the display path show
   // A mode no path draws is refused here as by the display path, never drawn uncovered.
   assert.throws(() => flagOf(transparent(99), 'covering', true), /a surface declares a blending/);
 });
+
+// #769: glTF 2.0 cuts the colour factor's alpha times the map's, and WebGPU does since #748; WebGL2
+// multiplied the opacity only into a blended surface, so a masked one was cut at the map alone.
+test('A masked surface is cut at its opacity times its map alpha, as WebGPU cuts it', () => {
+  const baseAlpha = (material: G.GraphSurface) => {
+    const { binding } = recorder();
+    let alpha;
+    (binding.uniforms as unknown as Record<string, unknown>).f4 = (
+      ...[, name, , , , w]: unknown[]
+    ) => void (name === 'baseFactor' && (alpha = w));
+    bindClusterMaterial(binding, material, true);
+    return alpha;
+  };
+  assert.equal(baseAlpha(G.standardSurface({ opacity: 0.4, alphaTest: 0.5 })), 0.4);
+  assert.equal(baseAlpha(G.standardSurface({ opacity: 0.4 })), 1, 'opaque: its alpha is not read');
+});
