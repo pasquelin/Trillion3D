@@ -56,6 +56,10 @@ function buildCounts(gl: WebGL2RenderingContext) {
     frame = gl.createFramebuffer()!;
   gl.bindTexture(gl.TEXTURE_2D, counts);
   gl.texStorage2D(gl.TEXTURE_2D, 1, gl.R32F, 256, 256);
+  // A 32-bit float texture filters under no default: left to them, it is incomplete and every
+  // `texelFetch` of the pick reads 0.
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
   gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, frame);
   gl.framebufferTexture2D(gl.DRAW_FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, counts, 0);
   if (gl.checkFramebufferStatus(gl.DRAW_FRAMEBUFFER) !== gl.FRAMEBUFFER_COMPLETE) {
@@ -102,7 +106,8 @@ export class WebglCoverageCounts {
   }
   /** Counts level `level` of a `width` × `height` chain — level 0 too at level 1 — from the scratch
    *  bound on `unit`, which holds the level above, and writes its `t` under it. Leaves the counts'
-   *  framebuffer bound, blending off and its function additive (`savedBlend` gives it back). */
+   *  framebuffer bound, holding the counts again — never the scratch, which `trim` must free —,
+   *  blending off and its function additive (`savedBlend` gives it back). */
   count(unit: number, scratch: WebGLTexture, chain: Size, level: number, cutoff: number) {
     const gl = this.gl,
       { width, height } = chain,
@@ -111,7 +116,6 @@ export class WebglCoverageCounts {
       [w, h] = levelSize(width, height, level);
     const frame = gl.COLOR_ATTACHMENT0;
     gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, built.frame);
-    gl.framebufferTexture2D(gl.DRAW_FRAMEBUFFER, frame, gl.TEXTURE_2D, built.counts, 0);
     if (level === 1) gl.clearBufferfv(gl.COLOR, 0, [0, 0, 0, 0]);
     gl.enable(gl.BLEND);
     gl.blendFunc(gl.ONE, gl.ONE);
@@ -136,6 +140,7 @@ export class WebglCoverageCounts {
     gl.uniform2ui(built.texels, width * height, w * h);
     gl.viewport(0, sh, 1, 1);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
+    gl.framebufferTexture2D(gl.DRAW_FRAMEBUFFER, frame, gl.TEXTURE_2D, built.counts, 0);
     gl.bindTexture(gl.TEXTURE_2D, scratch);
   }
   dispose() {

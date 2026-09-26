@@ -103,7 +103,8 @@ export class WebglMipReducer {
       mask: gl.getParameter(gl.COLOR_WRITEMASK) as boolean[],
       toggles: FULLSCREEN_DISABLED.map((name) => gl.isEnabled(gl[name])),
     };
-    const cut = cutoff && this.counts.ready() ? cutoff : 0;
+    // Sixteen float rows a level count exactly up to 2^28 texels, a 16384² picture (`coverageMips.ts`).
+    const cut = cutoff && width * height <= 2 ** 28 && this.counts.ready() ? cutoff : 0;
     const restoreBlend = cut ? savedBlend(gl) : undefined;
     let scratch = this.scratches.get(format);
     if (!scratch || scratch.width < width || scratch.height <= height) {

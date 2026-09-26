@@ -174,9 +174,12 @@ export class WebglClusterTextures {
         grantedAnisotropy(texture, this.maxAnisotropy),
       );
   }
-  /** Files a declaration's readers at first bind, census (`WebglClusterOwner`) or rewrite. */
+  /** Files a declaration's readers at first bind, census (`WebglClusterOwner`) or rewrite; a
+   *  surface filed mid-image has its maps' rule read again at their next bind. */
   file(material: HostMaterials) {
-    this.readers.read(surfaceOf(material));
+    const surface = surfaceOf(material);
+    if (!this.readers.read(surface)) return;
+    for (const map of [surface.map, surface.emissiveMap]) if (map) this.followed.delete(map);
   }
   /** A new image: units unknown, drawn maps' readers reread at first bind, idle scratches out. */
   beginFrame() {
