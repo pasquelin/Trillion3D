@@ -111,7 +111,7 @@ test('a still scene files each surface once across frames, a hidden opaque one i
   const draw = createSceneDraw(gl.gl, scene);
   for (let frame = 0; frame < 3; frame++) {
     draw.render({} as HostCamera);
-    draw.drawHostGeometry(createHostDrawCamera(), output);
+    draw.host.drawHostGeometry(createHostDrawCamera(), output);
   }
   const filed = read.mock.calls.filter((call) => call.result).length;
   assert.deepEqual([filed, follow.mock.callCount()], [2, 3]);
@@ -129,7 +129,7 @@ test('a world texel map is uploaded as stored, with its box chain', () => {
   const gl = context();
   const draw = createSceneDraw(gl.gl, scene);
   draw.render({} as HostCamera);
-  draw.drawHostGeometry(createHostDrawCamera(), output);
+  draw.host.drawHostGeometry(createHostDrawCamera(), output);
   draw.dispose();
   const uploaded = gl.of('texImage2D').map((args) => (args[8] as ArrayBufferView | null)?.buffer);
   assert.ok(uploaded.includes(pixels.buffer), 'uploaded as the bytes it holds');
