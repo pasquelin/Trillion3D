@@ -76,8 +76,9 @@ request and starts its reviewer. Agents cannot merge from this app: the CTO merg
 each pull request a lead names ready (green CI, reviewer `OK`, Lead verification written). A bug
 goes to its domain's lead; there is no bug domain. There is one CTO session, one measurer and one
 acceptance agent. Every agent reports to the CTO; only the CTO speaks to the boss. The CTO watches
-the plan usage: at 80 % (or the threshold the boss sets) it winds the company down (current agents
-finish, nothing new starts) so no work is cut midway.
+the plan usage: at 75 % no lead starts a coder on an issue one run cannot finish; at 80 % (or the
+threshold the boss sets) it winds the company down (current agents finish, nothing new starts) so
+no work is cut midway.
 
 ## Leads: limits that hold at every moment
 
