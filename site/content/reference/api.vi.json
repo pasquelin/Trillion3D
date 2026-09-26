@@ -1307,7 +1307,7 @@
     "members": {
       "visible": "Nó có được vẽ hay không; `setVisible` ghi giá trị này.",
       "setVisible": "Hiện hoặc ẩn nó; các đỉnh của nó vẫn được tính vào giới hạn.",
-      "setTransform": "Đặt nó: mười sáu số theo cột, hoặc một ma trận — `node.matrixWorld` bám theo một nút.",
+      "setTransform": "Đặt nó: mười sáu số theo cột, hoặc một ma trận; một đường dẫn do `add` vẽ khi đó thôi bám theo nút của nó.",
       "remove": "Gỡ nó khỏi thế giới, trả lại các đỉnh; lần gọi thứ hai không làm gì."
     }
   },
@@ -1316,7 +1316,7 @@
     "members": {
       "positions": "Hai đầu mỗi đoạn, mỗi đầu ba số.",
       "color": "Màu của chúng; mặc định là trắng.",
-      "width": "Độ rộng trên màn hình, tính bằng pixel."
+      "width": "Độ rộng trên màn hình, tính bằng pixel CSS, như mọi đường của engine."
     }
   },
   "GuidePoints": {
@@ -1324,7 +1324,7 @@
     "members": {
       "positions": "Ba số cho mỗi điểm.",
       "color": "Màu của chúng; mặc định là trắng.",
-      "size": "Cạnh của mỗi điểm vuông trên màn hình, tính bằng pixel."
+      "size": "Cạnh của mỗi điểm vuông trên màn hình, tính bằng pixel CSS."
     }
   },
   "Guides": {
@@ -1334,7 +1334,7 @@
       "vertexCount": "Số đỉnh đang giữ, hai cho mỗi đoạn và một cho mỗi điểm, kể cả đường dẫn bị ẩn.",
       "lines": "Vẽ các đoạn thẳng, mỗi đoạn hai đầu; bị từ chối khi vượt giới hạn (`GUIDE_CEILING`).",
       "points": "Vẽ các điểm vuông, mỗi điểm một vị trí; bị từ chối khi vượt giới hạn (`GUIDE_CEILING`).",
-      "add": "Vẽ các lưới đường và điểm của `object` — mỗi `helper` đều dựng chúng — theo màu vật liệu, đặt ở nơi đối tượng đang đứng; các tam giác của nó không phải đường dẫn và bị bỏ qua.",
+      "add": "Vẽ các lưới đường và điểm của `object` — mỗi `helper` đều dựng chúng — theo màu vật liệu; các tam giác của nó không phải đường dẫn và bị bỏ qua. Đường dẫn bám theo đối tượng — với helper của đèn hoặc camera, là nút mà nó thể hiện — được dời ở mỗi ảnh mà nút đó đã di chuyển, không bao giờ khác.",
       "clear": "Gỡ mọi đường dẫn."
     }
   },

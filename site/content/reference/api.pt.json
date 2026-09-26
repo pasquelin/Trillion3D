@@ -1299,7 +1299,7 @@
     "members": {
       "visible": "Se é desenhado; `setVisible` o escreve.",
       "setVisible": "Mostra-o ou oculta-o; seus vértices continuam contando contra o limite.",
-      "setTransform": "Posiciona-o: dezesseis números por colunas, ou uma matriz — `node.matrixWorld` segue um nó.",
+      "setTransform": "Posiciona-o: dezesseis números por colunas, ou uma matriz; um guia que `add` desenhou deixa então de seguir seu nó.",
       "remove": "Retira-o do mundo, devolvendo seus vértices; uma segunda chamada não faz nada."
     }
   },
@@ -1308,7 +1308,7 @@
     "members": {
       "positions": "Duas pontas por segmento, três números cada.",
       "color": "A cor deles; branco por padrão.",
-      "width": "Largura na tela, em pixels."
+      "width": "Largura na tela, em pixels CSS, como toda linha do motor."
     }
   },
   "GuidePoints": {
@@ -1316,7 +1316,7 @@
     "members": {
       "positions": "Três números por ponto.",
       "color": "A cor deles; branco por padrão.",
-      "size": "Lado de cada ponto quadrado na tela, em pixels."
+      "size": "Lado de cada ponto quadrado na tela, em pixels CSS."
     }
   },
   "Guides": {
@@ -1326,7 +1326,7 @@
       "vertexCount": "Vértices mantidos agora, dois por segmento e um por ponto, guias ocultas incluídas.",
       "lines": "Desenha segmentos de linha, duas pontas cada; recusado acima do limite (`GUIDE_CEILING`).",
       "points": "Desenha pontos quadrados, uma posição cada; recusado acima do limite (`GUIDE_CEILING`).",
-      "add": "Desenha as malhas de linhas e pontos de `object` — cada `helper` as constrói —, nas cores de seus materiais, posicionadas onde o objeto está agora; seus triângulos não são guias e são ignorados.",
+      "add": "Desenha as malhas de linhas e pontos de `object` — cada `helper` as constrói —, nas cores de seus materiais; seus triângulos não são guias e são ignorados. O guia segue o objeto — para um auxiliar de luz ou de câmera, o nó que ele mostra — movido a cada imagem em que esse nó se moveu, nunca de outra forma.",
       "clear": "Remove todas as guias."
     }
   },
