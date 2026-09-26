@@ -25,13 +25,11 @@ export function createShadowTable(poolPages: number) {
   const queued = new Uint8Array(ENTRIES),
     changed = new Int32Array(changedCap);
   let changedCount = 0,
-    whole = true,
-    layoutEpoch = 0,
-    version = 0;
+    whole = true;
   const write = (entry: number, value: number) => {
     if (words[entry] === value) return;
     words[entry] = value;
-    version++;
+    table.version++;
     if (whole || queued[entry]) return;
     if (changedCount >= changedCap) {
       whole = true;
@@ -40,37 +38,29 @@ export function createShadowTable(poolPages: number) {
     queued[entry] = 1;
     changed[changedCount++] = entry;
   };
-  return {
+  const table = {
     words,
     /** Bytes of every host array the table holds: what `shadowTableHostBytes` declares. */
-    get hostBytes() {
-      return [words, base, size, queued, changed].reduce((sum, a) => sum + a.byteLength, 0);
-    },
-    get entries() {
-      return ENTRIES;
-    },
+    hostBytes: [words, base, size, queued, changed].reduce((sum, a) => sum + a.byteLength, 0),
+    entries: ENTRIES,
     /** Rises whenever a range is claimed or freed: requests read against another layout drop. */
-    get layoutEpoch() {
-      return layoutEpoch;
-    },
+    layoutEpoch: 0,
     /** Rises with every word that changes: what the shading reads, and so asks, changed. */
-    get version() {
-      return version;
-    },
+    version: 0,
     baseOf: (slice: number) => base[slice],
     /** Claims `count` words, at most `SHADOW_TABLE_STRIDE`, at the start of `slice`'s span. */
     claim(slice: number, count: number) {
       if (base[slice] >= 0 && size[slice] === count) return;
       base[slice] = slice * STRIDE;
       size[slice] = count;
-      layoutEpoch++;
+      table.layoutEpoch++;
     },
     /** Frees the range of `slice`; its words must already be unmapped by the caller. */
     release(slice: number) {
       if (base[slice] < 0) return;
       base[slice] = -1;
       size[slice] = 0;
-      layoutEpoch++;
+      table.layoutEpoch++;
     },
     /** The slice whose range holds `entry`, or −1. */
     sliceAt(entry: number) {
@@ -107,9 +97,10 @@ export function createShadowTable(poolPages: number) {
       queued.fill(0);
       changedCount = 0;
       whole = true;
-      layoutEpoch++;
+      table.layoutEpoch++;
     },
   };
+  return table as Readonly<typeof table>;
 }
 
 export type ShadowTable = ReturnType<typeof createShadowTable>;

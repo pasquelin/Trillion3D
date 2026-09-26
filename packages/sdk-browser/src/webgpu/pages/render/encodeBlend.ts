@@ -7,6 +7,7 @@ import { orderBlendPasses, orderVisibleBlend } from '../../blend/order.ts';
 import { drawFallbackBlendPass, writeFallbackBlendUniforms } from '../../blend/fallback.ts';
 import { encodeTransparentInstances } from '../../transparent/draw.ts';
 import { encodeWaterPass } from '../../water/pass.ts';
+import { encodeParticles } from '../../../particles/webgpuParticles.ts';
 import { blendLightResources } from '../../blend/lighting.ts';
 import { voidStaleBlendGroups } from '../../blend/identity.ts';
 import { viewProj } from '../helpers.ts';
@@ -32,6 +33,8 @@ export function encodeBlend(
   uniformBase: number,
 ) {
   const { gpu, vis, run, timing, blendState, diag } = rt;
+  // Every image path reaches this stage: the particles step here, beside the water.
+  encodeParticles(rt, device, encoder);
   if (
     !gpu.pipelineBlend ||
     !blendState.blendGpu.length ||
