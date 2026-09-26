@@ -19,7 +19,11 @@ const output = { toneMapped: false, framebuffer: null, width: 8, height: 4 };
 /** A test context; `draws`: per draw, the texture sampled, and the texture and level drawn. */
 function context(answers: Record<string, unknown> = {}) {
   const view = (name: string) =>
-    name === 'COLOR_WRITEMASK' ? [true, true, true, true] : new Int32Array([0, 0, 8, 4]);
+    name === 'COLOR_WRITEMASK'
+      ? [true, true, true, true]
+      : name === 'MAX_TEXTURE_SIZE'
+        ? 16384
+        : new Int32Array([0, 0, 8, 4]);
   const gl = createTestContext({ answers: { getParameter: view, ...answers } });
   const uniforms = (name: string) =>
     gl.of('uniform1i').flatMap(([at, value]) => ((at as Named).uniform === name ? [value] : []));
@@ -170,4 +174,24 @@ test('a masked chain is counted at its cutoff where float targets blend, else ke
     );
     assert.equal(gl.of('blendFuncSeparate').length, 2, 'blend function given back, once a chain');
   }
+});
+
+// A picture as tall as the context allows has no row under it for `t`: its chain keeps the median,
+// its scratch no taller than the picture — a row more would be refused, every level left empty.
+test('a chain as tall as the context allows keeps the median, its scratch no row more', () => {
+  const view = (name: string) =>
+    name === 'COLOR_WRITEMASK'
+      ? [true, true, true, true]
+      : name === 'MAX_TEXTURE_SIZE'
+        ? 4
+        : new Int32Array([0, 0, 8, 4]);
+  const gl = context({ getParameter: view });
+  const { map, binder } = masked(gl.gl);
+  binder.bind(0, map, true, undefined, true);
+  assert.deepEqual(gl.of('uniform1ui'), [[{ uniform: 'cutoff' }, 0]]);
+  assert.equal(gl.of('drawArrays').length, 2, 'two levels reduced, none counted');
+  assert.deepEqual(
+    gl.of('texImage2D').flatMap((args) => (args.at(-1) === null ? [args[4]] : [])),
+    [4],
+  );
 });

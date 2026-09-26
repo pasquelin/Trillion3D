@@ -34,6 +34,15 @@ type Size = { width: number; height: number };
  *  a context that cannot add into it. Binds the counts on the active unit. */
 function buildCounts(gl: WebGL2RenderingContext) {
   if (!floatTargets(gl) || !gl.getExtension('EXT_float_blend')) return null;
+  // Compiled before any binding: a refused program throws with the caller's state untouched.
+  const count = createWebglProgram(gl, COUNT, ONE);
+  let pick: WebGLProgram;
+  try {
+    pick = createWebglProgram(gl, FULLSCREEN_VERTEX, PICK);
+  } catch (error) {
+    gl.deleteProgram(count);
+    throw error;
+  }
   const counts = gl.createTexture()!,
     frame = gl.createFramebuffer()!;
   gl.bindTexture(gl.TEXTURE_2D, counts);
@@ -47,10 +56,10 @@ function buildCounts(gl: WebGL2RenderingContext) {
   if (gl.checkFramebufferStatus(gl.DRAW_FRAMEBUFFER) !== gl.FRAMEBUFFER_COMPLETE) {
     gl.deleteFramebuffer(frame);
     gl.deleteTexture(counts);
+    gl.deleteProgram(count);
+    gl.deleteProgram(pick);
     return null;
   }
-  const count = createWebglProgram(gl, COUNT, ONE),
-    pick = createWebglProgram(gl, FULLSCREEN_VERTEX, PICK);
   const at = (program: WebGLProgram, name: string) => gl.getUniformLocation(program, name);
   return {
     count,
