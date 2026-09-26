@@ -8,8 +8,7 @@ const retriable = (status: number | null) =>
 /** The longest wait a `Retry-After` gets, in ms: a page streamed while the view moves cannot wait
  *  longer, and a load without an abort signal never waits as long as a server asks. */
 export const RETRY_AFTER_CAP_MS = 10_000;
-/** The ms `response`'s `Retry-After` asks to wait (in seconds or an HTTP date), at most
- *  `RETRY_AFTER_CAP_MS`, 0 for none. */
+/** The ms `response`'s `Retry-After` asks to wait (seconds or an HTTP date), capped, 0 for none. */
 const retryAfter = (response: Response) => {
   const value = response.headers.get('retry-after') ?? '';
   const ms = /^\d+$/.test(value) ? Number(value) * 1000 : Date.parse(value) - Date.now();
@@ -46,8 +45,9 @@ export const ONE_REQUEST = 1;
  * Reads `url`, asking once more (`attempts`, the most requests it makes) when the first request
  * fails in a way that may pass (`retriable`), after the wait its `Retry-After` asks, capped
  * (`RETRY_AFTER_CAP_MS`); a refusal another request would meet again — a 404, a 403 — is not
- * asked twice. What still fails is refused by an `EngineError` naming the address. An aborted `signal` rejects with its reason and asks nothing
- * more. The SDK guide states this policy (docs/SDK.md).
+ * asked twice. What still fails is refused by an `EngineError` naming the address. An aborted
+ * `signal` rejects with its reason and asks nothing more. The SDK guide states this policy
+ * (docs/SDK.md).
  */
 export async function checked(url: string, signal?: AbortSignal, attempts = 2) {
   let response: Response | undefined, cause: unknown;

@@ -1,8 +1,5 @@
-// A repository page runs one engine: every engine module its page modules import by relative
-// path resolves, through the page's import map, to the file the engine loaded from `dist/` runs.
-// Two instances would hold two scene states, and the material proof's nodes would refuse each
-// other ("Scene nodes belong to different roots", #795). Read without a browser: the served
-// import map against what the proof's page imports.
+// A repository page runs one engine (`repoServer`, #795), read without a browser: the served
+// import map against what each page module served through `withRepoPage` imports.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { resolve } from 'node:path';
@@ -39,16 +36,23 @@ async function imported(entry: string) {
   return Object.keys(metafile.inputs);
 }
 
-test('the material proof page runs the engine it draws with, the one under dist/', async () => {
+test('each repository page runs the engine it draws with, the one under dist/', async () => {
   const imports = await servedImports();
-  const files = await imported('tests/browser/support/materialPixelsPage.ts');
-  const engine = files.filter((file) => file.startsWith('packages/'));
-  // The node space whose second copy refused the proof's nodes is among them.
-  assert.ok(engine.includes('packages/sdk-core/src/world/object/objectSpace.ts'));
-  for (const file of engine) {
+  for (const page of ['materialPixelsPage.ts', 'anisotropyCostPage.ts']) {
+    const files = await imported(`tests/browser/support/${page}`);
+    // The node space whose second copy refused the proof's nodes is among them.
+    assert.ok(files.includes('packages/sdk-core/src/world/object/objectSpace.ts'), page);
     // A fixture is not built: it runs from its source, once, on the emitted engine.
-    if (file.endsWith('.fixture.ts')) continue;
-    const emitted = file.replace(/^packages\//, '/dist/').replace(/\.ts$/, '.js');
-    assert.equal(imports[`/${file}`], emitted, `${file} would run beside its dist twin`);
+    const engine = files.filter(
+      (file) => file.startsWith('packages/') && !/\.fixture\.ts$/.test(file),
+    );
+    for (const file of engine) {
+      // Written out, not taken from the harness: the file the build emits for each source.
+      const emitted = file
+        .replace(/^packages\//, '/dist/')
+        .replace(/\.ts$/, '.js')
+        .replace(/\.mts$/, '.mjs');
+      assert.equal(imports[`/${file}`], emitted, `${page}: ${file} would run beside its dist twin`);
+    }
   }
 });
