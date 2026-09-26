@@ -94,12 +94,9 @@ test('the pages under the root give back every cell in order, their box and thei
   // A slot that is not fixed-width hexadecimal, or a page of another version, is refused.
   const bad = { version: 2, pages: ['z'.repeat(168), ...root.slice(1)] };
   await assert.rejects(readTablePartition(bad, read), hasCode('INVALID_SCENE_TABLES'));
+  const again = () => readTablePartition({ version: 2, pages: root }, read);
   bodies.b = { version: 1, cells: [] };
-  const again = readTablePartition({ version: 2, pages: root }, read);
-  await assert.rejects(again, hasCode('UNSUPPORTED_SCENE_TABLES', 'version 1'));
-  bodies.b = { version: 2 }; // Neither pages nor cells: refused, never read as an empty region.
-  await assert.rejects(
-    readTablePartition({ version: 2, pages: root }, read),
-    hasCode('INVALID_SCENE_TABLES'),
-  );
+  await assert.rejects(again(), hasCode('UNSUPPORTED_SCENE_TABLES', 'version 1'));
+  bodies.b = { version: 2 }; // Neither pages nor cells: refused, never an empty region.
+  await assert.rejects(again(), hasCode('INVALID_SCENE_TABLES'));
 });
