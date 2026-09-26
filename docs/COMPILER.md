@@ -576,7 +576,8 @@ with no envelope, and a `directional` lamp — which has no centre — receive n
 
 ### `physics.json` — the cooked colliders (stage `physics-cook`)
 
-At runtime, loading a collider is a decode and a copy: no tree is computed in the browser. Native
+At runtime, loading a collider is a decode and a copy: no tree, hull or mass is computed in the
+browser. Native
 Jolt is linked into the compiler from the same pinned submodule as the web module (`build.rs`
 builds `packages/physics-jolt-wasm` with `-DCOOK=ON`, which needs CMake and a C++17 compiler, and
 the submodule checked out: `git submodule update --init`). The stage contract is
@@ -609,7 +610,19 @@ key, so a cache cooked by another Jolt is another key, never reused. The algorit
 - **Declared matter** (`declared.rs`). A node whose `KHR_physics_rigid_bodies` collider names a
   `physicsMaterial` gives its placements that material's friction and restitution. Every drawn node
   but a declared soft body (below) is static ground, as drawn, a node declaring motion included: no
-  rigid body simulates a node of a compiled model yet.
+  page restores a rigid body of a compiled model yet.
+- **Declared bodies** (`declared.rs`). A drawn node whose `KHR_physics_rigid_bodies` declares a
+  `motion` (dynamic, or kinematic with `isKinematic`) is also cooked into `physics.json`'s `bodies`:
+  its motion as declared, its matter, its pose, and its shape — the `KHR_implicit_shapes` shape its
+  collider names, as the runtime builds it; else the convex hull of the mesh its collider names
+  (`convexHull`) or a convex decomposition of it, its own mesh without a collider (`decompose.rs`,
+  after Mamou & Ghorbel's hierarchical approximate convex decomposition: a part is cut across its
+  longest axis until its concavity is within the mesh's mean edge length, 64 hulls at most). Native
+  Jolt builds the hulls into one `StaticCompoundShape` (`cook_hulls`, `hulls.rs`) at the runtime's
+  density, 1000 kg/m³, and weighs it: mass, centre of mass and inertia are written beside it, in
+  the mesh's frame, so the page builds no hull and weighs nothing. A body the cook refuses — a
+  missing shape, a shearing node, hulls Jolt refuses — is named in `report.bodiesRefused`; the
+  compile goes on.
 
 Primitives without a DAG (skinned, morphed, shared blend) cook no collider. A primitive whose shape Jolt
 still refuses (every triangle of zero area) cooks no collider either: `physics.json`'s

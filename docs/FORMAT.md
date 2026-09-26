@@ -278,6 +278,27 @@ the stage and its version.
 The manifest's `physics` field names the file, its format, the Jolt commit, the report and every
 object the file cites (`objects[].sha256`), so a prune keeps them.
 
+### `bodies` — declared rigid bodies
+
+Stage version 6 adds `bodies`, one entry per drawn node whose `KHR_physics_rigid_bodies` declares a
+`motion` ([COMPILER.md](COMPILER.md#physicsjson--the-cooked-colliders-stage-physics-cook)). The
+field is additive: a file cooked before it has none, and format 2 still reads it. The node keeps its
+`instances` entries until the page restores its body. Each entry:
+
+- `node`: the declaring node.
+- `motion`: the motion as the node declares it (`isKinematic`, `mass`, `gravityFactor`, …).
+- `shape`: an implicit shape as the runtime builds it — `box` (`halfExtents`), `sphere`
+  (`radius`), `capsule` or `cylinder` (`halfHeight`, `radius`) — or `cooked`: a SHA-addressed
+  object like a tile (`url`, `sha256`, `bytes`), a `ConvexHullShape` or a `StaticCompoundShape` of
+  `parts` hulls, 64 at most, in the mesh's frame; `tolerance`, the concavity a decomposition's parts
+  keep within; `mass`: `mass` (kg, at 1000 kg/m³), `centerOfMass` and `inertia` about it (nine
+  floats, column-major), all at unit scale.
+- `position`, `rotation`, `scale`: the node's world placement in the model, as an instance's.
+- `friction`, `restitution`: as an instance's.
+
+`report.bodies` counts them; `report.bodiesRefused` lists each declaring node the cook refused
+(`node`, `reason`): it has no body, and stays static ground.
+
 ### `softBodies` — cooked soft bodies
 
 Stage version 5 adds `softBodies`, one entry per drawn node whose `extras.physics` declares a
