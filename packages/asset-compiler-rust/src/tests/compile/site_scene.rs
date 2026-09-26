@@ -31,6 +31,12 @@ impl SiteScene {
         positions.expect("positions")
     }
 
+    /// The source normals of cooked `primitive`, flat `xyz`.
+    pub fn normals(&self, primitive: &Value) -> Vec<f32> {
+        let normals = self.source(primitive, Some("NORMAL")).collect_f32();
+        normals.expect("normals")
+    }
+
     /// The source indices of cooked `primitive`.
     pub fn indices(&self, primitive: &Value) -> Vec<u32> {
         self.source(primitive, None).collect_u32().expect("indices")
@@ -45,10 +51,9 @@ impl SiteScene {
                 .map(|p| p.map(f64::from))
                 .collect()
         };
-        let normals = self.source(primitive, Some("NORMAL")).collect_f32();
         Mesh {
             positions: points(self.positions(primitive)),
-            normals: points(normals.expect("normals")),
+            normals: points(self.normals(primitive)),
             indices: self.indices(primitive),
         }
     }

@@ -1,6 +1,7 @@
 /** The closed parts of the scenes built of thin solids (the chalet, #415): boxes and octagonal
  *  logs, each a closed solid whose faces point away from its centre, with the normals an exporter
- *  writes. */
+ *  writes. The compiler's arcade test builds the same parts in Rust (`closed_parts.rs`): keep the
+ *  two in step. */
 import type { Mesh } from './mesh.ts';
 import type { Vec3 } from './random.ts';
 
@@ -12,7 +13,6 @@ const LOG_SEGMENTS = 8;
 export type Corner = readonly [Vec3, Vec3];
 export type Triangle = readonly [Corner, Corner, Corner];
 
-export const empty = (): Mesh => ({ positions: [], normals: [], uvs: [], indices: [] });
 /** The point whose coordinate on axis `a` is `coordinate(a)`. */
 export const point = (coordinate: (a: number) => number): Vec3 =>
   [0, 1, 2].map(coordinate) as never;
@@ -98,7 +98,7 @@ export function pushLog(mesh: Mesh, axis: number, start: Vec3, length: number) {
     ] as const,
     plane = [(axis + 1) % 3, (axis + 2) % 3];
   const at = (along: number, round: readonly number[]) =>
-    point((a) => start[a] + (a === axis ? along : (round[plane.indexOf(a)] ?? 0) * LOG_RADIUS));
+    point((a) => start[a] + (a === axis ? along : round[plane.indexOf(a)] * LOG_RADIUS));
   const side = (along: number, r: readonly number[]): Corner => [at(along, r), on(plane, r)];
   const triangles: Triangle[] = [],
     step = length / LOG_SEGMENTS;

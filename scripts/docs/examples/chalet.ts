@@ -1,7 +1,6 @@
 import { SceneGltf } from './gltf-scene.ts';
 import {
   boxTriangles,
-  empty,
   LOG_RADIUS,
   point,
   pushBox,
@@ -10,7 +9,7 @@ import {
   type Corner,
   type Triangle,
 } from './closed-parts.ts';
-import type { Mesh } from './mesh.ts';
+import { empty, type Mesh } from './mesh.ts';
 import type { Vec3 } from './random.ts';
 
 /** Footprint and storey of the chalet, in metres; its walls of logs, 0.12 m in radius
@@ -27,14 +26,16 @@ const RISE = 2.6,
   BOARD = [0.6, 0.5] as const,
   THICKNESS = 0.03;
 
-/** One shingle centred on `at`, pitched down the slope by `angle`, mirrored across the ridge
- *  when `side` is negative. */
-function pushShingle(mesh: Mesh, at: Vec3, angle: number, side: number) {
+/** One shingle centred on `at`, pitched down the slope by the angle of sine `sin` and cosine
+ *  `cos`, mirrored across the ridge when `side` is negative. */
+function pushShingle(mesh: Mesh, at: Vec3, [sin, cos]: readonly number[], side: number) {
   const half: Vec3 = [BOARD[0] * 0.47, THICKNESS / 2, BOARD[1] / 2];
-  const [sin, cos] = [Math.sin(angle), Math.cos(angle)];
   const turn = ([x, y, z]: Vec3): Vec3 => [x, y * cos - z * sin, (y * sin + z * cos) * side];
   const centre: Vec3 = [at[0], at[1], at[2] * side],
-    move = ([p, n]: Corner): Corner => [point((a) => turn(p)[a] + centre[a]), turn(n)];
+    move = ([p, n]: Corner): Corner => {
+      const turned = turn(p);
+      return [point((a) => turned[a] + centre[a]), turn(n)];
+    };
   const triangles = boxTriangles(
     point((a) => -half[a]),
     half,
@@ -50,6 +51,7 @@ function shingleRoof(eaves: number): Mesh {
   const mesh = empty();
   const run = DEPTH / 2 + OVERHANG,
     angle = Math.atan2(RISE, run),
+    pitch = [Math.sin(angle), Math.cos(angle)],
     slope = Math.hypot(RISE, run),
     along = WIDTH + 2 * OVERHANG,
     [bw, bl] = BOARD,
@@ -59,11 +61,12 @@ function shingleRoof(eaves: number): Mesh {
     for (let row = 0; row < rows; row++) {
       const s = Math.min(slope - bl / 2, bl / 2 + row * lap),
         odd = row % 2,
-        start = -along / 2 - (odd * bw) / 2 + bw / 2;
-      for (let k = 0; k < Math.ceil(along / bw) + odd; k++) {
+        start = -along / 2 - (odd * bw) / 2 + bw / 2,
+        y = eaves + RISE - s * pitch[0] + 0.02 + odd * 0.005,
+        count = Math.ceil(along / bw) + odd;
+      for (let k = 0; k < count; k++) {
         const x = Math.min(Math.max(start + k * bw, -along / 2 + bw / 4), along / 2 - bw / 4);
-        const y = eaves + RISE - s * Math.sin(angle) + 0.02 + odd * 0.005;
-        pushShingle(mesh, [x, y, s * Math.cos(angle)], angle, side);
+        pushShingle(mesh, [x, y, s * pitch[1]], pitch, side);
       }
     }
   const top = eaves + RISE + 0.04;
@@ -100,13 +103,14 @@ export async function writeChalet(directory: string) {
     }
   }
   const gltf = new SceneGltf();
-  const materials = [
-    gltf.material('whitewash', [0.9, 0.88, 0.82], { roughness: 0.9 }),
-    gltf.material('log wood', [0.42, 0.27, 0.15], { roughness: 0.8 }),
-    gltf.material('shingles', [0.3, 0.22, 0.17], { roughness: 0.85 }),
-  ];
-  const roof = shingleRoof(GROUND + 2 * LOG_RADIUS * LOGS_PER_WALL);
-  const parts = [whitewash, wood, roof].map((mesh, k) => [mesh, materials[k]] as const);
+  const parts = [
+    [whitewash, gltf.material('whitewash', [0.9, 0.88, 0.82], { roughness: 0.9 })],
+    [wood, gltf.material('log wood', [0.42, 0.27, 0.15], { roughness: 0.8 })],
+    [
+      shingleRoof(GROUND + 2 * LOG_RADIUS * LOGS_PER_WALL),
+      gltf.material('shingles', [0.3, 0.22, 0.17], { roughness: 0.85 }),
+    ],
+  ] as const;
   gltf.node({ name: 'chalet', mesh: gltf.mesh('chalet', parts) }, true);
   await gltf.write(directory, 'chalet');
 }
