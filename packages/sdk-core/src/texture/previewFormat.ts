@@ -42,11 +42,30 @@ export const PREVIEW_ATLAS_COLOR = 0,
    *  (the base colour of MASK or BLEND materials only): the one chain whose colours are weighted
    *  by alpha, named apart from the plain one (`reduce.rs`, `AtlasKind::Coverage`, #42). */
   PREVIEW_ATLAS_COVERAGE = 2;
-/** The `{kind}` a baked level's path carries for each atlas, as `bake.rs` names them. */
+/** The `{kind}` a baked level's path carries for each atlas, as `reduce.rs` names them; a coverage
+ *  chain cut at byte C adds `-C`. */
 export const PREVIEW_ATLAS_NAMES = ['srgb', 'linear', 'srgb-coverage'] as const;
+/** The atlas of a word, its first byte: a coverage chain's cutoff fills the second. */
+const atlasByte = (atlas: number) => atlas & 0xff;
+/** The `{kind}` of an atlas word, `undefined` for a word no compiler writes. A coverage word's
+ *  second byte is its cutoff byte `C`, whose share of covered texels every level keeps
+ *  (`coverage.rs`, #44), and its chain is `srgb-coverage-C`; 0 when one of its readers blends, or
+ *  when no byte reaches a reader's cutoff, and the chain keeps the median alone. */
+export function previewAtlasName(atlas: number): string | undefined {
+  if (!Number.isInteger(atlas) || atlas < 0 || atlas > 0xffff) return undefined;
+  const cutoff = atlas >>> 8;
+  if (cutoff === 0) return PREVIEW_ATLAS_NAMES[atlas];
+  return atlasByte(atlas) === PREVIEW_ATLAS_COVERAGE
+    ? `${PREVIEW_ATLAS_NAMES[PREVIEW_ATLAS_COVERAGE]}-${cutoff}`
+    : undefined;
+}
+/** The cutoff byte of a coverage chain's word — 0 when it keeps the median alone —, `undefined`
+ *  for any other chain. */
+export const previewCoverageCutoff = (atlas: number) =>
+  atlasByte(atlas) === PREVIEW_ATLAS_COVERAGE ? atlas >>> 8 : undefined;
 /** The atlas an entry's chain is sampled in: a coverage chain is the colour atlas's. */
 export const previewAtlasOf = (atlas: number) =>
-  atlas === PREVIEW_ATLAS_COVERAGE ? PREVIEW_ATLAS_COLOR : atlas;
+  atlasByte(atlas) === PREVIEW_ATLAS_COVERAGE ? PREVIEW_ATLAS_COLOR : atlas;
 /** The block families a chain may be baked in, in the order of their sidecar columns and of an
  *  entry's layout words, each named by its RGBA codec; `png` is the lossless file beside them. */
 export const PREVIEW_BLOCK_FORMATS = ['bc7', 'astc'] as const;

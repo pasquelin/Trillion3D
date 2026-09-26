@@ -158,9 +158,9 @@ fn encode_previews_keeps_one_colour_entry_per_texture() {
         ..preview(2, 4, 4, 1)
     };
     use AtlasKind::{Color, Coverage, Data};
-    encode(&[with(Coverage), with(Data)]).expect("coverage then data");
-    assert!(encode(&[with(Data), with(Coverage)]).is_err());
-    assert!(encode(&[with(Color), with(Coverage)]).is_err());
+    encode(&[with(Coverage(128)), with(Data)]).expect("coverage then data");
+    assert!(encode(&[with(Data), with(Coverage(128))]).is_err());
+    assert!(encode(&[with(Color), with(Coverage(128))]).is_err());
 }
 
 // Behavior 9 (g): more baked levels than tail leaves above it refused.

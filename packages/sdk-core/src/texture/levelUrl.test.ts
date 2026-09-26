@@ -14,6 +14,11 @@ test('a baked level is addressed by digest, atlas, rank and format, from the man
     textureLevelUrl(TEMPLATE, SHA, 2, 3, 'png'),
     `../../textures/${SHA}/srgb-coverage-3.png`,
   );
+  // #44: a coverage chain cut at byte 128 keeps its share of covered texels: its own files.
+  assert.equal(
+    textureLevelUrl(TEMPLATE, SHA, (128 << 8) | 2, 3, 'png'),
+    `../../textures/${SHA}/srgb-coverage-128-3.png`,
+  );
 });
 
 // Behaviour: the file a chain's layout names in the family a session samples — the lossless one
@@ -28,7 +33,8 @@ test('the level format follows the family and the layout, lossless when either s
 });
 
 test('an unknown atlas, an invalid digest or rank, a template without a field are rejected', () => {
-  assert.throws(() => textureLevelUrl(TEMPLATE, SHA, 3, 0, 'png'), /unknown atlas/);
+  for (const atlas of [3, (128 << 8) | 0, (128 << 8) | 1, 256 << 8, 2 ** 32 + 2, -1, 2.5])
+    assert.throws(() => textureLevelUrl(TEMPLATE, SHA, atlas, 0, 'png'), /unknown atlas/);
   assert.throws(() => textureLevelUrl(TEMPLATE, 'abc', 0, 0, 'png'), /invalid address/);
   assert.throws(() => textureLevelUrl(TEMPLATE, SHA, 0, -1, 'png'), /invalid address/);
   assert.throws(() => textureLevelUrl(TEMPLATE, SHA, 0, 1.5, 'png'), /invalid address/);

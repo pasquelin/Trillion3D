@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { SCENE_MODEL_VERSION, type SceneNode } from './node.ts';
 import { createSceneRoot } from './root.ts';
+import { mismatch } from './nodeAttach.fixture.ts';
 
 const hasCode = (code: string) => (error: unknown) => (error as { code?: string }).code === code;
 
@@ -149,4 +150,28 @@ test('adding children copies nothing: the frozen list is made once, when it is r
   assert.equal(frozen, 0);
   assert.equal(parent.children.length, 1000);
   assert.equal(parent.children, parent.children, 'the list is kept until the next change');
+});
+
+test('attach moves a child under another parent where it stands in the world', () => {
+  const root = createSceneRoot();
+  const s = Math.SQRT1_2;
+  const from = root.createNode().setPosition(1, 2, 3).setQuaternion(0, s, 0, s).setScale(2, 3, 4);
+  const to = root.createNode().setPosition(-4, 0, 1).setQuaternion(s, 0, 0, s).setScale(5, 5, 5);
+  const child = root.createNode().setPosition(1, -1, 2).setScale(1, 2, 0.5);
+  root.add(from).add(to);
+  from.add(child);
+  const world = child.updateWorldMatrix().worldMatrix.slice();
+  assert.equal(to.attach(child), to);
+  assert.equal(child.parent, to);
+  assert.deepEqual(from.children, []);
+  assert.equal(mismatch(child.worldMatrix, world), null);
+  child.updateWorldMatrix();
+  assert.equal(mismatch(child.worldMatrix, world), null, 'its rewritten pose, recomposed');
+  from.attach(child);
+  assert.equal(
+    mismatch(child.localMatrix, [1, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0.5, 0, 1, -1, 2, 1]),
+    null,
+  );
+  assert.throws(() => child.attach(from), /TRANSFORM_CYCLE|cycle/);
+  assert.equal(from.parent, root);
 });

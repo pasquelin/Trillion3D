@@ -356,7 +356,8 @@ advance with it; only the camera's controller is left to the host.
 A value written directly on a node — `mesh.position.x = 100`, `mesh.visible = false`, a light's
 intensity, colour or pose — needs no call to be seen by the next frame, and a light added to or
 removed from the graph is picked up on the next frame too. An asynchronous render failure stops
-automatic work and emits `INTERACTIVE_RENDER_FAILED` as a diagnostic.
+automatic work, emits `INTERACTIVE_RENDER_FAILED` as a diagnostic and reports the error to the
+page as an uncaught one is (`reportError`), so the page's own `error` listener sees it.
 
 ## What draws: the renderer option
 
@@ -674,8 +675,12 @@ transform foundation, scene-model version `SCENE_MODEL_VERSION` 1: `SceneRoot` a
 own outside a world.
 
 A `SceneRoot` owns one transform hierarchy; nodes created by `root.createNode({ id, visible })`
-have stable, root-unique identifiers and are attached with `add` or `reparent`. `remove` and `clear`
-detach live nodes, while `destroy` permanently invalidates a whole subtree. `clone` gives the new
+have stable, root-unique identifiers and are attached with `add` or `reparent`, which keep the local
+pose, or with `attach`, which keeps the node where it stands in the world: `shelf.attach(crate)`
+rewrites the crate's local pose from its world matrix seen from the shelf (a sheared result loses
+its shear, as with the reference), and an `Object3D`'s `position`, `rotation`, `quaternion` and
+`scale` follow. `remove` and `clear` detach live nodes, while `destroy` permanently invalidates a
+whole subtree. `clone` gives the new
 node a fresh identifier unless one is supplied; `copy` keeps the destination identifier. Both
 reproduce the local pose and optionally the descendants. Recursive copying from an ancestor into its
 descendant is rejected with `SCENE_COPY_OVERLAP` before either node changes.
@@ -909,7 +914,10 @@ so a windowless corridor stays black at noon. Emission is a material property an
 `world.exposure` sets the camera exposure, applied to linear radiance before tone mapping; it is not
 a light and cannot brighten a surface no light reaches. Debug views are untouched by both: a
 `material.meshNormal()` or `material.meshDepth()` surface is output as stored, with neither exposure
-nor `world.toneMapping`, on both renderers, as in the reference. `scene.background` is the colour behind every
+nor `world.toneMapping`, on both renderers, as in the reference. A map a family's model never reads
+— a `meshToon` `gradientMap`, a `meshMatcap` `map`, the `normalMap` of a `meshMatcap` or `meshNormal`
+surface — is refused by name on both renderers, never dropped from the image; a `meshMatcap`,
+`meshNormal` or `meshDepth` surface ignores an `aoMap`, as the reference does. `scene.background` is the colour behind every
 object, `null` for the default; set, or written through its methods (`scene.background.setHSL(...)`,
 `set`, `setRGB`, `setHex`), it shows at the next frame on every renderer, the session kept. A direct
 write of `.r`, `.g` or `.b` is not heard: set `scene.background` again after one. A picture
@@ -928,6 +936,14 @@ atlas, and at most 24 shadow regions redrawn per frame.
 `capability.lighting(world)` reports what the **active** renderer applies — `{ sceneLights,
 lightingView, shadows, transforms, reason? }` — not what the contract accepts: a call the light
 store accepts is not proof of lighting. `reason` names in one sentence what is not applied.
+
+### A see-through surface casts no shadow unless it asks
+
+A blended material (`transparent: true`) lets the light pass by default, as glass, smoke and a beam
+of light do in the reference solution: it casts no shadow. `transparentShadow: true` asks for one,
+as dark as the surface is opaque: `material.meshStandard({ transparent: true, opacity: 0.5,
+transparentShadow: true })` casts half a shadow. An additive, transmissive or fully transparent
+surface casts none either way, and WebGL2 draws no shadow at all.
 
 ### A luminaire does not block its own light
 

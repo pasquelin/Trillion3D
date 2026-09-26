@@ -17,7 +17,7 @@ fn an_opaque_colour_beside_transparent_black_is_not_darkened() {
                 [200, 90, 30, alpha]
             }
         });
-        let chain = reduce::chain(&source, AtlasKind::Coverage);
+        let chain = reduce::chain(&source, AtlasKind::Coverage(0));
         assert_eq!(chain[1], vec![200, 90, 30, median], "alphas {alphas:?}");
     }
 }
@@ -34,7 +34,7 @@ fn a_partly_transparent_texel_counts_for_its_alpha() {
             [0, 0, 0, 128]
         }
     });
-    let chain = reduce::chain(&source, AtlasKind::Coverage);
+    let chain = reduce::chain(&source, AtlasKind::Coverage(0));
     assert_eq!(&chain[1][..3], &[213, 213, 213]);
 }
 
@@ -69,17 +69,19 @@ fn cutout(x: u32, y: u32) -> u8 {
 // plain colour chain — an opaque base colour, an emissive, readers that disagree — keeps the RGB
 // under alpha 0 exactly as develop reduced it, since those readers draw it; so does the data
 // atlas, whose alpha is a packed channel or a height. A `Coverage` chain whose alpha does not vary
-// — opaque, uniform, fully transparent — is byte-identical to the plain one as well. Only a
-// `Coverage` chain whose alpha varies moves.
+// — opaque, uniform, fully transparent — is byte-identical to the plain one as well, cutoff or
+// not. A `Coverage` chain read only by blended materials keeps the median alone: its bytes are
+// develop's, before #44. Only a `Coverage` chain whose alpha varies moves.
 #[test]
 fn every_chain_but_a_varying_coverage_one_keeps_the_develop_bytes() {
     let varied = |x: u32, y: u32| ((x * 41 + y * 23) % 256) as u8;
     let cases = [
         (noisy(cutout), AtlasKind::Color),
         (noisy(varied), AtlasKind::Data),
-        (noisy(|_, _| 255), AtlasKind::Coverage),
-        (noisy(|_, _| 128), AtlasKind::Coverage),
-        (noisy(|_, _| 0), AtlasKind::Coverage),
+        (noisy(|_, _| 255), AtlasKind::Coverage(128)),
+        (noisy(|_, _| 128), AtlasKind::Coverage(128)),
+        (noisy(|_, _| 0), AtlasKind::Coverage(128)),
+        (noisy(cutout), AtlasKind::Coverage(0)),
     ];
     let digests: Vec<String> = cases.iter().map(|(s, k)| digest(s, *k)).collect();
     assert_eq!(
@@ -90,11 +92,11 @@ fn every_chain_but_a_varying_coverage_one_keeps_the_develop_bytes() {
             "c87c2f7337162b5b3cb272deedfb87d5b8eaa89b58cc648599ac18a3a856dde7",
             "b32e7fde0ddebd03ac87dba0d453465f92a0367fc880749299f7cf41d50b0139",
             "97bfdc6d57021ef7ad015deaf7e03d6651b426ebea61d121dae04276e8cd32e0",
+            "cef886a6c89945c091e52ab56e4804401e1a75a4ca5fa360ffd10d56f92e27c6",
         ]
     );
     assert_ne!(
-        digest(&noisy(cutout), AtlasKind::Coverage),
-        digests[0],
+        digests[5], digests[0],
         "the same cutout read as coverage is weighted"
     );
 }
@@ -118,7 +120,7 @@ fn a_plain_and_a_coverage_chain_of_one_image_never_share_files() {
     let (weighted, _) = stage_scene(&dir, &scene("MASK"));
     assert_eq!(plain[0].sha256, weighted[0].sha256, "one image");
     let kinds = [plain[0].kind, weighted[0].kind];
-    assert_eq!(kinds, [AtlasKind::Color, AtlasKind::Coverage]);
+    assert_eq!(kinds, [AtlasKind::Color, AtlasKind::Coverage(128)]);
     let native = dir.join("cache").join("native");
     let levels = kinds.map(|kind| {
         let path = native.join(level_path(&plain[0].sha256, kind, 1, LOSSLESS));
