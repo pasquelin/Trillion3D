@@ -20,18 +20,6 @@ export function createAutonomousResidency(env: ResidencyEnvironment) {
   // One set for the life of the host: a frame fills and clears it, it does not allocate it.
   const kept = new Set<string>();
   let keptStale = true;
-  /** The pages the image keeps — the root cover, the host's own, the cut it drew and what it asks
-   *  for —, gathered once an image, and only when the streamer's pins read them. */
-  const keptUrls = (): ReadonlySet<string> => {
-    if (!keptStale) return kept;
-    keptStale = false;
-    kept.clear();
-    for (const url of bootstrapUrls) kept.add(url);
-    for (const url of modifiedPages) kept.add(url);
-    for (const rec of shown) kept.add(rec.url);
-    for (const rec of requested) kept.add(rec.url);
-    return kept;
-  };
   return {
     get cacheEvictions() {
       return state.cacheEvictions;
@@ -46,9 +34,18 @@ export function createAutonomousResidency(env: ResidencyEnvironment) {
     keptChanged() {
       keptStale = true;
     },
+    /** The pages the image keeps — the root cover, the host's own, the cut it drew and what it
+     *  asks for —, gathered once an image, and only when the streamer's pins read them. */
     pageUrls() {
+      if (!keptStale) return retained;
+      keptStale = false;
+      kept.clear();
+      for (const url of bootstrapUrls) kept.add(url);
+      for (const url of modifiedPages) kept.add(url);
+      for (const rec of shown) kept.add(rec.url);
+      for (const rec of requested) kept.add(rec.url);
       retained.length = 0;
-      for (const url of keptUrls()) retained.push(url);
+      for (const url of kept) retained.push(url);
       return retained;
     },
     /** Gives a page's geometry back: one eviction per page, as the WebGPU page cache counts them,
