@@ -87,13 +87,13 @@ export function encodeShadowAtlas(
   lights.shadowDraws += count;
   const drawsBefore = run.gpuDrawCalls;
   planPagePasses(regions, count);
-  const { order, layer, layered, first, clears, restores } = pagePlan;
-  quads.begin(encoder, shadows.faceUniform, count, order);
+  const { order, layer, first, clears, restores, layerPasses } = pagePlan;
+  quads.begin(count, order);
   // Each pass of the static layer's (`inLayer`) or the pool's: its clears and restores, two
   // instanced draws, then each region's casters in its page's viewport.
   const draw = (passes: GPURenderPassDescriptor[], inLayer: boolean, tested: boolean) => {
-    for (let k = 0; k < pagePlan.passes; k++) {
-      if (layered[k] !== +inLayer) continue;
+    const end = inLayer ? layerPasses : pagePlan.passes;
+    for (let k = inLayer ? 0 : layerPasses; k < end; k++) {
       const at = layer[k],
         pass = encoder.beginRenderPass(passes[at]);
       lights.shadowRenderPasses++;
