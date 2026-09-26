@@ -1,5 +1,4 @@
-import { invertMatrix4 } from '../../../sdk-core/src/math/matrix/matrix4Inverse.ts';
-import { transformHomogeneousPoint } from '../../../sdk-core/src/math/primitives/vector.ts';
+import { invertMatrix4, transformHomogeneousPoint } from '../../../sdk-core/src/math/index.ts';
 import type { ParticlePool } from '../../../sdk-core/src/fluids/particles.ts';
 import { usedSlots } from './poolStates.ts';
 
@@ -7,16 +6,12 @@ import { usedSlots } from './poolStates.ts';
  *  in double precision, eye from the origin, radius, colour at birth, softness. */
 export const DRAW_FLOATS = 44;
 
+type Vec = ArrayLike<number>;
 const clip = new Float64Array(16),
   unclip = new Float64Array(16);
 
 /** Writes `pool`'s draw words into `out` from the image's world `viewProj` and `eye`. */
-export function writeDrawWords(
-  out: Float32Array,
-  pool: ParticlePool,
-  viewProj: ArrayLike<number>,
-  eye: ArrayLike<number>,
-) {
+export function writeDrawWords(out: Float32Array, pool: ParticlePool, viewProj: Vec, eye: Vec) {
   const o = pool.origin,
     x = o[0],
     y = o[1],
@@ -38,11 +33,7 @@ const keys: number[] = [];
 
 /** The pools with particles alive, in `into`, far to near from `eye` by origin: one emitter's
  *  smoke over the one behind it, nothing sorted within a pool, nothing allocated. */
-export function drawOrder(
-  pools: readonly ParticlePool[],
-  eye: ArrayLike<number>,
-  into: ParticlePool[],
-) {
+export function drawOrder(pools: readonly ParticlePool[], eye: Vec, into: ParticlePool[]) {
   into.length = 0;
   for (const pool of pools) {
     if (!pool.moving || !usedSlots(pool)) continue;
