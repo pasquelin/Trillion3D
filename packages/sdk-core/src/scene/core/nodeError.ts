@@ -18,11 +18,15 @@ export function sceneNodeVisibility(value: boolean | undefined, allowDefault = t
 }
 
 /** Refuses to reparent (`SCENE_ROOT_PARENT`) or destroy (`SCENE_ROOT_DESTROY`) a scene's root. */
-export function refuseSceneRoot(state: SceneState, index: number, destroyed = false) {
+export function refuseSceneRoot(
+  state: SceneState,
+  index: number,
+  refused: 'reparented' | 'destroyed' = 'reparented',
+) {
   if (index === state.root?.index)
     sceneNodeFail(
-      destroyed ? 'SCENE_ROOT_DESTROY' : 'SCENE_ROOT_PARENT',
-      `A scene root cannot be ${destroyed ? 'destroyed' : 'reparented'}`,
+      refused === 'destroyed' ? 'SCENE_ROOT_DESTROY' : 'SCENE_ROOT_PARENT',
+      `A scene root cannot be ${refused}`,
       {},
     );
 }
