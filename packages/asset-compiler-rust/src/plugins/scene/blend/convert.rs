@@ -16,9 +16,9 @@ const Z_UP_TO_Y_UP: [f32; 16] = [
 pub(super) fn convert(request: &SceneRequest<'_>, plugin: &dyn ScenePlugin) -> Result<PathBuf> {
     let started = Instant::now();
     let source = single(request.inputs)?;
-    // The file is mapped, never read whole: its size costs no memory. The job's RAM budget bounds
-    // what is decoded from it — the unpacked bytes of a wrapped file, then the scene binary.
-    let raw = file::map(source)?;
+    // The file is mapped, never copied: its pages stay the system's to evict. The job's RAM budget
+    // bounds what is decoded from it — the unpacked bytes of a wrapped file, then the scene binary.
+    let raw = crate::map_source(source)?;
     let digest = hash(&raw);
     let file = BlendFile::open(&raw, request.ram_budget)?;
     (request.progress)(json!({
@@ -60,7 +60,6 @@ pub(super) fn convert(request: &SceneRequest<'_>, plugin: &dyn ScenePlugin) -> R
             continue;
         }
         scene.object(&object)?;
-        scene.images.refusal()?;
     }
     scene
         .out
