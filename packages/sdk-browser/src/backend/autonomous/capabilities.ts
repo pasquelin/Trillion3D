@@ -4,15 +4,13 @@ import { sendEngineDiagnostic } from '../../diagnostic/engineDiagnostic.ts';
 
 /**
  * What the autonomous WebGL2 page path renders, and what it declares it does not: each feature
- * WebGL2 cannot carry is named, never silent (#483 rule 8), and published once as the WebGPU engine
- * publishes its own (`render-capabilities`). The page residency, its budget and the cut rule are
- * the engine's own, shared with WebGPU: what degrades is the work, never the coverage.
+ * WebGL2 cannot carry is named, never silent (#483 rule 8), and published once prepared, as the
+ * WebGPU engine publishes its own (`render-capabilities`, `publishAutonomousCapabilities`). The
+ * page residency, its budget and the cut rule are the engine's own, shared with WebGPU: what
+ * degrades is the work, never the coverage.
  */
-export function autonomousCapabilities(
-  simplification: boolean,
-  onDiagnostic?: (diagnostic: BackendDiagnostic) => void,
-): BackendCapabilities {
-  const capabilities = {
+export function autonomousCapabilities(simplification: boolean): BackendCapabilities {
+  return {
     renderer: 'WebGL2 autonomous prepared pages',
     materials:
       'glTF opaque, alpha-mask and blended materials, and the transmission volume, drawn whole ' +
@@ -31,9 +29,15 @@ export function autonomousCapabilities(
       TAA_CAPABILITY,
     ],
   };
+}
+
+/** Publishes the declared capabilities once the path is prepared, as WebGPU does at the end of its
+ *  own preparation: a path that failed to prepare announces nothing ready. */
+export function publishAutonomousCapabilities(
+  onDiagnostic?: (diagnostic: BackendDiagnostic) => void,
+) {
   sendEngineDiagnostic(onDiagnostic, 'render-capabilities', 'Render paths ready', {
     gpuSelection: false,
-    unsupported: [...capabilities.unsupported],
+    unsupported: autonomousCapabilities(false).unsupported,
   });
-  return capabilities;
 }

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { autonomousCapabilities } from './capabilities.ts';
+import { autonomousCapabilities, publishAutonomousCapabilities } from './capabilities.ts';
 
 // #337: the WebGL2 page path draws blended and transmissive surfaces as whole scene copies; its
 // declaration names them among what it renders, never among what it does not.
@@ -19,7 +19,8 @@ test('the WebGL2 page path declares temporal antialiasing unsupported', () => {
 // #839: what WebGL2 cannot carry reaches the diagnostics by name, as WebGPU publishes its own.
 test('the WebGL2 page path publishes each declared degradation', () => {
   const heard: { phase: string; context?: Record<string, unknown> }[] = [];
-  const { unsupported } = autonomousCapabilities(false, (diagnostic) => heard.push(diagnostic));
+  publishAutonomousCapabilities((diagnostic) => heard.push(diagnostic));
+  const { unsupported } = autonomousCapabilities(false);
   assert.deepEqual(
     heard.map(({ phase }) => phase),
     ['render-capabilities'],
