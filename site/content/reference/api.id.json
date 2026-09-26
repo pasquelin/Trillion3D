@@ -3674,7 +3674,6 @@
       "anisotropy": "Ketajaman pada kemiringan.",
       "flipY": "Apakah baris dibalik.",
       "premultiplyAlpha": "Apakah warna dikalikan awal.",
-      "generateMipmaps": "Apakah salinan lebih kecil dibuat.",
       "colorSpace": "Bagaimana angka-angkanya dibaca.",
       "transform": "Transform UV sampler, `KHR_texture_transform` disusun jadi tiga baris berisi tiga."
     }
@@ -7430,7 +7429,7 @@
       "offset": "Dari apa `matrix` disusun.",
       "matrixAutoUpdate": "Apakah host membangun ulang `matrix`.",
       "matrix": "Transform UV sampler, `KHR_texture_transform` disusun jadi tiga baris; host menghitungnya ulang dari offset, repeat dan rotation saat memiliki pembaruannya.",
-      "generateMipmaps": "Apakah salinan lebih kecil dibuat.",
+      "generateMipmaps": "Apakah salinan lebih kecil diminta; mesin membuatnya setiap kali `minFilter` membacanya.",
       "premultiplyAlpha": "Apakah warna dikalikan awal dengan alpha.",
       "flipY": "Apakah baris dibalik saat diunggah.",
       "version": "Dinaikkan host setiap perubahan konten: yang dibandingkan sebuah unggahan untuk melewati penyalinan ulang.",

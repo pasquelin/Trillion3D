@@ -47,7 +47,6 @@ const record = (fields: Partial<Texture> = {}) =>
     anisotropy: 1,
     flipY: false,
     premultiplyAlpha: false,
-    generateMipmaps: true,
     colorSpace: 'srgb',
     transform: [1, 0, 0, 0, 1, 0, 0, 0, 1],
     ...fields,

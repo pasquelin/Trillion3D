@@ -5998,7 +5998,6 @@
       "anisotropy": "Nitidezza vista di lato.",
       "flipY": "Se le righe sono capovolte.",
       "premultiplyAlpha": "Se il colore è premoltiplicato.",
-      "generateMipmaps": "Se vengono fatte copie più piccole.",
       "colorSpace": "Come vengono letti i suoi numeri.",
       "transform": "Trasformazione delle UV del campionatore, `KHR_texture_transform` composto in tre righe di tre."
     }
@@ -7429,7 +7428,7 @@
       "offset": "Ciò da cui `matrix` è composta.",
       "matrixAutoUpdate": "Se l'host ricostruisce `matrix`.",
       "matrix": "Trasformazione delle UV del campionatore, `KHR_texture_transform` composto in tre righe; l'host la ricalcola a partire dallo scarto, dalla ripetizione e dalla rotazione quando fa l'aggiornamento.",
-      "generateMipmaps": "Se vengono fatte copie più piccole.",
+      "generateMipmaps": "Se vengono chieste copie più piccole; il motore le fa ogni volta che `minFilter` le legge.",
       "premultiplyAlpha": "Se il colore è premoltiplicato per l'alfa.",
       "flipY": "Se le righe vengono capovolte all'invio.",
       "version": "Incrementato dall'host a ogni cambiamento di contenuto: ciò che un invio confronta per evitare una nuova copia.",
