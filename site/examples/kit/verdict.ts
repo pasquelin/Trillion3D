@@ -52,18 +52,21 @@ const under = (
  *  the p95 of its GPU time and of its shadow pages drawn a frame, and the pages refetched in it. */
 function partLines(part: string, frames: Frame[]): LigneResultat[] {
   const at = frames.map((frame) => frame.at),
-    fps = Math.round(rate(at) ?? 0),
+    fps = rate(at),
     gaps = spread(at.slice(1).map((time, k) => time - at[k]));
   const gpu = spread(measured(frames, 'gpuFrameMs')),
     refetched = measured(frames, 'shadowPagesRefetched');
   const pages = refetched.length ? refetched[refetched.length - 1] - refetched[0] : null;
   return [
     {
-      ...ligne({
-        name: `${part}: FPS`,
-        correct: fps >= BUDGETS.fps,
-        motif: `${fps} ≥ ${BUDGETS.fps}`,
-      }),
+      // One frame gives no rate: unmeasured, never a red line.
+      ...(fps === null
+        ? ligne({ name: `${part}: FPS`, motif: '—' })
+        : ligne({
+            name: `${part}: FPS`,
+            correct: Math.round(fps) >= BUDGETS.fps,
+            motif: `${Math.round(fps)} ≥ ${BUDGETS.fps}`,
+          })),
       medianeMs: gaps?.p50 ?? null,
       p95Ms: gaps?.p95 ?? null,
       tours: frames.length,
@@ -92,7 +95,7 @@ export function healthCheck(
   part: () => string | null,
 ) {
   const parts = new Map<string, Frame[]>(),
-    refused: string[] = [];
+    refused = new Set<string>();
   const unhook = world.onFrame(({ metrics }) => {
     const name = part();
     if (name === null) return;
@@ -102,12 +105,12 @@ export function healthCheck(
     frames.push({ at: performance.now(), gpuFrameMs, shadowPagesDrawn, shadowPagesRefetched });
   });
   return {
-    refuse: (reason: string) => void refused.push(reason),
+    refuse: (reason: string) => void refused.add(reason),
     verdict(): HealthVerdict {
       unhook();
       const resultats = [
         ...[...parts].flatMap(([name, frames]) => partLines(name, frames)),
-        ligne({ name: 'refused', correct: !refused.length, motif: refused.join('; ') || '—' }),
+        ligne({ name: 'refused', correct: !refused.size, motif: [...refused].join('; ') || '—' }),
       ];
       const [name, correct] = [exampleId(), resultats.every((line) => line.correct !== false)];
       return { name, fichier: `site/examples/${name}.html`, resultats, correct };
