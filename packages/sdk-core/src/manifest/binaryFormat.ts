@@ -182,3 +182,16 @@ export const COLUMN_STRIDE: Record<ColumnName, number> = {
   pageCone: 4,
 };
 export const BYTES_PER_ELEMENT: Record<ColumnKind, number> = { f64: 8, i32: 4, u32: 4, u8: 1 };
+
+/** `pageInt` slots. -1 is «absent or null»; the flag word says which. */
+export const INT_ID = 0,
+  INT_LEVEL = 1,
+  INT_GROUP = 2,
+  INT_SOURCE = 3,
+  INT_STREAM = 4,
+  INT_STREAM_OFFSET = 5,
+  INT_COUNT = 6,
+  INT_START = 7;
+/** `pageU32` slots. */
+export const U32_BYTES = 0,
+  U32_FLAGS = 1;

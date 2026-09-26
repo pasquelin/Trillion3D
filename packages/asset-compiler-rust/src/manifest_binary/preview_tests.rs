@@ -1,3 +1,4 @@
+use super::tests::TEMPLATES;
 use super::*;
 use crate::texture_preview::{AtlasKind, Layout, PreviewSource};
 
@@ -42,12 +43,7 @@ fn texture_previews_round_trip_through_the_binary_columns() {
         lossless_astc(2, 64, 64, 7),
         preview(3, 8, 8, 222),
     ];
-    let (_, bytes) = split(
-        &json!({"primitives": []}),
-        &super::tests::TEMPLATES,
-        &previews,
-    )
-    .expect("split");
+    let (_, bytes) = split(&json!({"primitives": []}), &TEMPLATES, &previews).expect("split");
     let word = |at: usize| u32::from_le_bytes(bytes[at..at + 4].try_into().unwrap());
     let column = |index: usize| {
         let at = (HEADER_WORDS + index * 2) * 4;
@@ -130,8 +126,7 @@ fn encode_previews_rejects_the_wrong_block_byte_length() {
 // refused outright, never read as if it had new section.
 #[test]
 fn a_sidecar_of_an_older_version_is_refused() {
-    let (_, bytes) =
-        split(&json!({"primitives": []}), &super::tests::TEMPLATES, &[]).expect("split");
+    let (_, bytes) = split(&json!({"primitives": []}), &TEMPLATES, &[]).expect("split");
     let mut old = bytes.clone();
     old[4..8].copy_from_slice(&3u32.to_le_bytes());
     assert!(digests(&old).is_err());
