@@ -4,11 +4,9 @@ import { resolve } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { startServer } from '../../kit/server/staticServer.ts';
 import { launchChrome } from '../../../bench/runner/chrome.ts';
-import { galleryMounts, openGalleryScene } from '../support/renderHarness.ts';
+import { addSurroundingLight, galleryMounts, openGalleryScene } from '../support/renderHarness.ts';
 import { measureOutput } from '../../../bench/core/paths.ts';
-import { emptyIrradiance } from '../../../packages/sdk-core/src/scene/core/environment.ts';
 import { light } from '../../../packages/sdk-core/src/world/light/light.ts';
-import { addLightIrradiance } from '../../../packages/sdk-core/src/world/light/lightRecord.ts';
 import type { observatorySky } from '../../../scripts/docs/observatory/scene.ts';
 
 // `firstPixels`/`lastPixels` only exist in the page this harness evaluates code in, never in Node;
@@ -45,24 +43,18 @@ try {
     target: [0, 3, 0],
   });
   // The sky the scene declares beside its source, added as the example pages add it: its share
-  // of the imported sun, which the engine turns into the environment's irradiance as a world does.
+  // of the imported sun.
   const sky = JSON.parse(
     await readFile(resolve(root, folder, 'source/sky.json'), 'utf8'),
   ) as typeof observatorySky;
   const sun = await page.evaluate(() => window.scene.importedLights()[0].intensity);
-  const irradiance = emptyIrradiance();
-  addLightIrradiance(
+  await addSurroundingLight(
+    page,
     light.hemisphere({
       color: sky.color,
       groundColor: sky.groundColor,
       intensity: sun * sky.sunShare,
     }),
-    irradiance,
-  );
-  await page.evaluate(
-    (irradiance) =>
-      window.scene.setEnvironment({ exposure: 1, ...window.scene.environment, irradiance }),
-    irradiance,
   );
   const samples = [];
   for (const threshold of [0, 1, 8, 0]) {

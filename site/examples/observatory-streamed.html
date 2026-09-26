@@ -25,13 +25,15 @@
       import { controls } from '../runtime/kit.js';
 
       const world = createWorld('view', { controls: 'orbit' });
+      // A scene file carries only its sun: what the sun misses would be black. The court is
+      // outdoors, and its scene declares its sky beside its source, as a share of the sun; it is
+      // read while the model loads.
+      const skyFile = fetch('../assets/gallery/signature-architecture/source/sky.json').then((response) => response.json());
       // The compiler cut the model into clusters of triangles, and each cluster into coarser
       // versions of itself. Every frame the engine picks, for each part of the view, the
       // coarsest version whose error stays under `pixelError` pixels on screen.
       const model = await world.scene.load('../assets/gallery/signature-architecture/cache/native/full/manifest.json');
-      // A scene file carries only its sun: what the sun misses would be black. The court is
-      // outdoors, and its scene declares its sky beside its source, as a share of the sun.
-      const sky = await (await fetch('../assets/gallery/signature-architecture/source/sky.json')).json();
+      const sky = await skyFile;
       const [sun] = model.lights;
       world.scene.add(light.hemisphere({ color: sky.color, groundColor: sky.groundColor, intensity: sun.intensity * sky.sunShare }));
       const framing = pose.fromBounds(model.bounds);
