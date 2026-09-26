@@ -35,7 +35,7 @@ export function createSunLevels() {
   const frame = new Float64Array(MAX_SHADOW_SLICES * 9),
     depth = new Float64Array(MAX_SHADOW_SLICES * 2),
     /** The scene box's rectangle on the light plane, `u0, u1, v0, v1` in metres (`sunBoxRect`). */
-    extent = new Float64Array(MAX_SHADOW_SLICES * 4),
+    boxRect = new Float64Array(MAX_SHADOW_SLICES * 4),
     finest = new Int32Array(MAX_SHADOW_SLICES),
     origins = new Int32Array(MAX_SHADOW_SLICES * LEVEL_WORDS),
     /** Clipmap slots whose extent moved at the last update, one bit per slot. */
@@ -87,9 +87,10 @@ export function createSunLevels() {
         low = Math.min(low, z);
         high = Math.max(high, z);
       }
-      sunBoxRect(frame, f, boxMin, boxMax, extent, slice * 4);
-      if (!Number.isFinite(low)) extent.set(UNBOUNDED, slice * 4);
-      if (Number.isFinite(low) && Number.isFinite(high)) {
+      // An empty or unbounded box bounds neither the depth range nor the floor.
+      if (!Number.isFinite(low) || !Number.isFinite(high)) boxRect.set(UNBOUNDED, slice * 4);
+      else {
+        sunBoxRect(frame, f, boxMin, boxMax, boxRect, slice * 4);
         const grid = 2 ** Math.ceil(Math.log2(Math.max(high - low, 1e-6)));
         const zNear = Math.floor(low / grid) * grid,
           zFar = Math.max(zNear + grid, Math.ceil(high / grid) * grid);
@@ -136,8 +137,10 @@ export function createSunLevels() {
     /**
      * The floor pages the view can read, whatever it looks at — every last-level page within its
      * far distance and over the scene's box, one page around it for the normal offset and the PCF,
-     * in this frame's clipmap —: `x0, y0, x1, y1` into `out`, inclusive. No receiver lies past the
-     * box: floor pages there held nothing, and half the pool over a small scene (#525).
+     * in this frame's clipmap —: `x0, y0, x1, y1` into `out`, inclusive. No caster lies past the
+     * box: a receiver there is lit, and its floor pages held nothing but half the pool over a small
+     * scene (#525). A sprite, left out of the box, reads the far-shadow ray there until the page it
+     * asks for is drawn: lit too.
      */
     floorReach(slice: number, view: ShadowViewpoint, out: Int32Array) {
       const level = sunFloorLevel(finest[slice]),
@@ -150,10 +153,10 @@ export function createSunLevels() {
         const c = k ? v : u,
           o = origins[at + k],
           e = slice * 4 + 2 * k;
-        out[k] = Math.max(o, Math.floor(Math.max(c - view.far, extent[e] - page) / page));
+        out[k] = Math.max(o, Math.floor(Math.max(c - view.far, boxRect[e] - page) / page));
         out[k + 2] = Math.min(
           o + SUN_WINDOW - 1,
-          Math.floor(Math.min(c + view.far, extent[e + 1] + page) / page),
+          Math.floor(Math.min(c + view.far, boxRect[e + 1] + page) / page),
         );
       }
       return out;
