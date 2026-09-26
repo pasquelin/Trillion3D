@@ -58,9 +58,9 @@ async function executer({
   const groupes = (n: number): number => Math.max(1, Math.ceil(n / workgroup));
   const resultats: Resultat[] = [];
   for (const c of cas) {
-    // Requests wait behind the eviction queue (`stagedRequestsWord`); the copy reads them sorted.
+    // Requests wait behind the drawn list (`stagedRequestsWord`); the copy reads them sorted.
     const sortieOctets = entete * 4 + c.pageCount * 4,
-      octetsAttente = (3 * entete + 4 * c.pageCount) * 4;
+      octetsAttente = c.stagedBytes;
     const blockCount = groupes(c.pageCount);
     // The `work` layout is the one the engine lays down, computed on the Node side and
     // carried with the case: the page has no module to import, and the bench cannot derive another.

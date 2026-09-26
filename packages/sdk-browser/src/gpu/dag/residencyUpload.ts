@@ -1,6 +1,7 @@
 import type { ResidencyChanges } from '../core/selection.ts';
 import { RESIDENCY_RANGE_MAX, coalesceResidencyRanges } from '../../webgpu/residency/ranges.ts';
-import { childBase, poolBase, residentBase, residentWords } from './layout.ts';
+import { childBase, keyBase, poolBase, residentBase, residentWords } from './layout.ts';
+import { canonicalPage } from './evict.ts';
 import { grown } from '../../page/cut/sparseInts.ts';
 import { DAG_NODE_FLOATS, type PackedDag } from './types.ts';
 import { createDagReadiness } from './readiness.ts';
@@ -104,18 +105,16 @@ export function createDagResidencyUpload(resources: {
     );
   whole(pageCones, packed.pageCones, residentBase(pageCount), 3 * residentWords(pageCount));
   whole(nodes, packed.nodes, 0, packed.nodeCount * DAG_NODE_FLOATS);
-  const inPool = (page: number) => poolNext[page] !== 0;
-  let poolNext: ArrayLike<number> = [];
-  /** The pool's own residency, whatever the rule's readiness: the eviction queue's listing. */
+  /** The pool's own residency, whatever the rule's readiness, on each key's canonical page alone
+   *  (`evict.ts`): what the eviction queue lists. */
   const applyPool = (next: ArrayLike<number>, changes?: ResidencyChanges) => {
-    poolNext = next;
     const base = poolBase(pageCount),
-      words = residentWords(pageCount);
-    // No change list: every word is compared, into a list dropped after, and all written at once.
+      keys = keyBase(pageCount);
+    const inPool = (page: number) => next[page] !== 0 && canonicalPage(bits[keys + page]) === page;
+    // No change list: every word is compared, and the whole set written at once.
     if (!changes?.sorted) {
-      const all = new Int32Array(words);
-      if (!updateResidencyBits(inPool, pageCount, bits, base, undefined, all)) return false;
-      whole(pageCones, packed.pageCones, base, words);
+      if (!updateResidencyBits(inPool, pageCount, bits, base, undefined, words)) return false;
+      whole(pageCones, packed.pageCones, base, residentWords(pageCount));
       return true;
     }
     if (touched.length < changes.count) touched = grown(touched, changes.count);

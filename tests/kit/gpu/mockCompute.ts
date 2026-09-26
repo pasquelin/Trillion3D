@@ -23,7 +23,10 @@ import {
   writeTriangleTotals,
 } from '../../../packages/sdk-browser/src/gpu/dag/layout.ts';
 import { sortRequestWords } from '../../../packages/sdk-browser/src/gpu/dag/request.ts';
-import { VIEW_FLAGS_WORD } from '../../../packages/sdk-browser/src/gpu/dag/uniforms.ts';
+import {
+  POOL_SLOTS_WORD,
+  VIEW_FLAGS_WORD,
+} from '../../../packages/sdk-browser/src/gpu/dag/uniforms.ts';
 import { VIEW_LIGHT } from '../../../packages/sdk-browser/src/gpu/dag/shader/pagesWgsl.ts';
 import { listPoolEvictions, stampCameraCut } from './mockEvict.ts';
 
@@ -47,7 +50,7 @@ export function readDagUniforms(data: Uint8Array) {
     },
     residentCut: !!u32[47],
     light: (u32[VIEW_FLAGS_WORD] & VIEW_LIGHT) !== 0,
-    poolSlots: u32[64],
+    poolSlots: u32[POOL_SLOTS_WORD],
   };
 }
 

@@ -43,12 +43,16 @@ export function writeKeyColumn(roots: readonly DagRoot[], words: Uint32Array, at
   for (const root of roots)
     for (const rec of root.pages) {
       const address = pageAddress(rec),
-        canonical = first.get(address) ?? page,
+        canonical = first.get(address),
         level = Math.min(LEVEL_MAX, Math.max(0, Math.trunc(rec.level ?? 0)));
-      if (canonical === page) first.set(address, page);
-      const held = canonical === page ? 0 : words[at + canonical] >>> KEY_PAGE_BITS;
-      words[at + canonical] = ((Math.max(held, level) << KEY_PAGE_BITS) | canonical) >>> 0;
-      if (canonical !== page) words[at + page] = canonical;
+      if (canonical === undefined) {
+        first.set(address, page);
+        words[at + page] = ((level << KEY_PAGE_BITS) | page) >>> 0;
+      } else {
+        words[at + page] = canonical;
+        const held = words[at + canonical] >>> KEY_PAGE_BITS;
+        if (level > held) words[at + canonical] = ((level << KEY_PAGE_BITS) | canonical) >>> 0;
+      }
       page++;
     }
 }
@@ -66,7 +70,7 @@ export function evictionRank(keyWord: number, age: number) {
 
 /**
  * CPU mirror of `dagListEvictions`, what the Node device replays: the canonical pages the pool
- * holds (`pool`, one bit per page), less those stamped `now`, sorted by `evictionRank` through
+ * holds (`pool`, one bit per canonical page), less those stamped `now`, sorted by `evictionRank` through
  * `dagSortRequests`' own mirror, the first `cap` of them. Within a rank, page order: one of the
  * orders the kernel's threads give.
  */
@@ -83,7 +87,7 @@ export function listEvictions(options: {
     for (let bits = pool[w]; bits !== 0; bits &= bits - 1) {
       const page = w * 32 + (31 - Math.clz32(bits & -bits)),
         used = stampOf(page);
-      if (canonicalPage(keys[page]) !== page || used === now) continue;
+      if (used === now) continue;
       words.push(packRequest(page, evictionRank(keys[page], now - used) ^ REQUEST_AHEAD));
     }
   return Array.from(sortRequestWords(words).subarray(0, Math.max(0, cap)), requestPage);
