@@ -51,9 +51,7 @@ export type PoolEnvironment = {
  * and the pages it asks for are admitted in their order (`./requests.ts`, coarsest first), each
  * charging its copies, the root cover held beforehand, while they fit (`admit`). What does not fit
  * is not asked for: the cut rule draws its nearest resident ancestor instead
- * (`../../page/cut/rule.ts`). A refinement holds more for a while: the resident ancestors drawn in
- * place of missing pages stay beside the pages replacing them, and leave with the cut that follows
- * the last arrival.
+ * (`../../page/cut/rule.ts`).
  *
  * The bytes bound what stays resident, as the slots do, by the engine's one residency — last use,
  * parents after their children (`poolOrder.ts`). Under the budget nothing is evicted: an arrival

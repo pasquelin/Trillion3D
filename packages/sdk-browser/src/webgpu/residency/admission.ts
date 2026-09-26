@@ -13,8 +13,8 @@ type Tracking = ReturnType<typeof createWebgpuPageTracking>;
  * special case: whatever the tier, a page never enters the pool before its parents.
  *
  * Two readers, one closure. The pool holds clusters, not bundles, so admission walks the cluster
- * parents (`createPageParents`, `../../residency/pageParents.ts`); the bytes come by bundle, so the request reads the compiled bundle
- * lists (`PageRec.dependencies`, `../cut/pending.ts`). The cook refuses a bundle list that misses
+ * parents (`createPageParents`, `../../residency/pageParents.ts`); the bytes come by bundle, so
+ * the request reads the compiled bundle lists (`PageRec.dependencies`, `../cut/pending.ts`). The cook refuses a bundle list that misses
  * the bundle of a parent or is not closed, so the bundles of every page walked here are requested
  * and retained with the page. The group-mates the cut rule needs are asked for by the cut itself
  * (`../../page/cut/groupClosure.ts`), each admitted in its own right: whole bundles are never loaded, their
