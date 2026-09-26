@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { listen } from '../../../sdk-core/src/world/math/observed.ts';
 import { vehicleRig } from './vehicles.fixture.ts';
 
 /** Per kind, the gear and the speed (m/s) ten seconds of full throttle reach at least: the car
@@ -128,4 +129,22 @@ test('a vehicle taken out gives its wheels back their pose, its body left withou
   assert.equal(rig.wheels[0].quaternion.z.toFixed(6), Math.sin(Math.PI / 4).toFixed(6));
   assert.equal(rig.vehicle.speed, 0);
   assert.ok(rig.at(rig.body)[1] < 0.3, 'the body fell onto the ground');
+});
+
+// #740: a wheel's quaternion is written only when it changes, so a parked car re-stales nothing.
+test('a parked car notifies no wheel; a driven one notifies its turning wheels', async () => {
+  const rig = await vehicleRig('car');
+  // Parked until it sleeps: its wheels' turn, crept by the solver, stops changing.
+  let [steps, before] = [0, NaN];
+  for (; steps < 60 * 60 && rig.wheels[0].quaternion.x !== before; steps++) {
+    before = rig.wheels[0].quaternion.x;
+    rig.run(1);
+  }
+  assert.ok(steps < 60 * 60, 'it came to rest');
+  let heard = 0;
+  for (const wheel of rig.wheels) listen(wheel.quaternion, () => heard++);
+  rig.run(60);
+  assert.equal(heard, 0, 'parked: the same turn, told to nobody');
+  rig.hold({ throttle: 1 }, 1);
+  assert.ok(heard > 0 && heard <= 4 * 60, `driven: each wheel told once a step at most, ${heard}`);
 });
