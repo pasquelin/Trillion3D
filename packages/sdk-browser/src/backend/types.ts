@@ -193,6 +193,8 @@ export interface BackendContext {
   /** Host-owned, validated page reader for the initial complete GPU fallback. */
   readPage?: (url: string) => Promise<Uint32Array>;
   readGeometryPage?: (url: string) => Promise<Uint8Array>;
+  /** The session's one integration budget per frame (`frameBudget.ts`); absent, nothing bounds it. */
+  frameBudget?: import('../page/integration/frameBudget.ts').FrameClock;
 }
 export type BackendFactory = (context: BackendContext) => RenderBackend;
 export type { MeasuredWorldOptions, PointOfInterest } from '../world/session/options.ts';

@@ -1570,8 +1570,8 @@
       "WEBGL2_UNAVAILABLE": "La machine ne peut pas dessiner de la façon demandée, ou pas du tout.",
       "NO_WEBGL2": "La machine ne peut pas dessiner de la façon demandée, ou pas du tout.",
       "NO_ENGINE_BACKEND": "La machine ne peut pas dessiner de la façon demandée, ou pas du tout.",
-      "RESOURCE_HTTP_ERROR": "Un fichier n’a pas pu être récupéré, ou n’était pas ce qu’il devait être.",
-      "INVALID_JSON_RESPONSE": "Un fichier n’a pas pu être récupéré, ou n’était pas ce qu’il devait être.",
+      "RESOURCE_HTTP_ERROR": "Un fichier n’a pas pu être récupéré — redemandé d’abord quand l’échec peut passer —, ou n’était pas ce qu’il devait être.",
+      "INVALID_JSON_RESPONSE": "Un fichier n’a pas pu être récupéré — redemandé d’abord quand l’échec peut passer —, ou n’était pas ce qu’il devait être.",
       "INVALID_POINTER": "Le pointeur du modèle compilé est cassé, inachevé, ou d’une autre portée.",
       "CACHE_NOT_READY": "Le pointeur du modèle compilé est cassé, inachevé, ou d’une autre portée.",
       "SCOPE_MISMATCH": "Le pointeur du modèle compilé est cassé, inachevé, ou d’une autre portée.",
@@ -7129,7 +7129,7 @@
       "water": "L’eau où flottent les corps : son niveau, ses vagues, sa densité et ses traînées. Un corps plus léger que l’eau flotte, poussé par le poids de l’eau qu’il déplace.",
       "waterSurface": "La surface de l’eau à l’heure de la simulation, pour la dessiner : les vagues que lit la flottaison, les mêmes nombres (`height`, `point`, `normal`).",
       "stats": "Comptes et les deux horloges : millisecondes du worker par pas, millisecondes de la page par image.",
-      "error": "La dernière erreur levée par la physique (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), ou `null`. Une erreur qui a arrêté la simulation désactive `enabled`.",
+      "error": "La dernière erreur levée par la physique (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`, `RESOURCE_HTTP_ERROR`), ou `null`. Une erreur qui a arrêté la simulation désactive `enabled`.",
       "add": "Ajoute une liaison (`joint.hinge(door, frame, …)` et ses sœurs) : elle est créée dès que ses deux corps sont simulés, et tient jusqu’à ce qu’on la retire ou qu’elle rompe.",
       "remove": "Retire une liaison : les corps qu’elle tenait se séparent librement."
     }
@@ -7337,7 +7337,7 @@
       "water": "L’eau où flottent les corps : son niveau, ses vagues, sa densité et ses traînées. Un corps plus léger que l’eau flotte, poussé par le poids de l’eau qu’il déplace.",
       "waterSurface": "La surface de l’eau à l’heure de la simulation, pour la dessiner : les vagues que lit la flottaison, les mêmes nombres (`height`, `point`, `normal`).",
       "stats": "Comptes et les deux horloges : millisecondes du worker par pas, millisecondes de la page par image.",
-      "error": "La dernière erreur levée par la physique (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), ou `null`. Une erreur qui a arrêté la simulation désactive `enabled`.",
+      "error": "La dernière erreur levée par la physique (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`, `RESOURCE_HTTP_ERROR`), ou `null`. Une erreur qui a arrêté la simulation désactive `enabled`.",
       "add": "Ajoute une liaison (`joint.hinge(door, frame, …)` et ses sœurs) : elle est créée dès que ses deux corps sont simulés, et tient jusqu’à ce qu’on la retire ou qu’elle rompe.",
       "remove": "Retire une liaison : les corps qu’elle tenait se séparent librement."
     }

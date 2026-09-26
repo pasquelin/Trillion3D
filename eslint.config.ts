@@ -70,6 +70,23 @@ export default tseslint.config(
     },
   },
   {
+    // The shadow scheduler reads these objects page by page: V8 keeps an object literal with an
+    // accessor in dictionary mode, a hash lookup per read (#26). The plan and the request reader
+    // are read a few times a frame.
+    files: ['packages/sdk-core/src/scene/light-shadow/*.ts'],
+    ignores: ['**/*.test.ts', '**/plan.ts', '**/requests.ts'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: 'ObjectExpression > Property[kind=/^(get|set)$/]',
+          message:
+            'A data field or a function, never an accessor: it puts the object in dictionary mode.',
+        },
+      ],
+    },
+  },
+  {
     // Tests and golden fixtures; `timingDevice.ts` was a fixture before it joined the kit.
     files: ['**/*.test.ts', 'tests/fixtures/**/*.ts', 'tests/kit/gpu/timingDevice.ts'],
     rules: { '@typescript-eslint/no-explicit-any': 'off' },

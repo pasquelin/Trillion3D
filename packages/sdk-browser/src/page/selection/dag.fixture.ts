@@ -2,6 +2,7 @@ import { createEngineCamera, readCameraWorld } from '../../camera/world.ts';
 import * as G from '../../host/graph/graph.fixture.ts';
 import type { ClusterManifest } from '../../../../sdk-core/src/index.ts';
 import { collectClusterPages, selectVisiblePages } from './selection.ts';
+import { createHeldResidency } from '../cut/held.ts';
 
 export function dagFixture() {
   const positions: number[] = [];
@@ -164,7 +165,7 @@ export function urls(
   return selectVisiblePages(roots, readCameraWorld(fixtureCam, cam), {
     pixelError,
     viewport: [1280, 720],
-    holdResident: true,
+    held: createHeldResidency(),
   })
     .shown.map((page) => page.url)
     .sort();

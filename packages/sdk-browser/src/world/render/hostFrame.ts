@@ -18,7 +18,7 @@ type Inputs = {
 export function createExplorerHostFrame(session: ExplorerSession, inputs: Inputs) {
   const { options, metadata } = session;
   const { prepared, host, backends } = inputs;
-  const { camera, directGpu, pageSources, partitions } = prepared;
+  const { camera, directGpu, pageSources, partitions, frameBudget } = prepared;
   const { geometryUrls, pageIdByUrl, streamer } = pageSources;
   const {
     state,
@@ -44,7 +44,13 @@ export function createExplorerHostFrame(session: ExplorerSession, inputs: Inputs
       effectBytes: compose.effectBytes(),
     }),
   );
-  const streaming = createExplorerStreaming(session, { streamer, geometryUrls, backends, state });
+  const streaming = createExplorerStreaming(session, {
+    streamer,
+    geometryUrls,
+    backends,
+    state,
+    budget: frameBudget,
+  });
   const drawBackend = createExplorerDraw(session, {
     camera,
     geometryUrls,
@@ -62,7 +68,7 @@ export function createExplorerHostFrame(session: ExplorerSession, inputs: Inputs
     camera,
     active: () => state.active,
     renew: options.onRowsOutgrown,
-    budget: streaming.arrivals,
+    budget: frameBudget,
   });
   const render = createExplorerRender(session, {
     check,
@@ -73,6 +79,7 @@ export function createExplorerHostFrame(session: ExplorerSession, inputs: Inputs
     lookAtTarget,
     setPose,
     streaming,
+    frameBudget,
     drawBackend,
     ensureTarget,
     directGpu,

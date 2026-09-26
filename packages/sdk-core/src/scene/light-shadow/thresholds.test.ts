@@ -19,7 +19,7 @@ test('at rest, only the pages drawn at another threshold than the current one go
   let frame = 1;
   for (; frame < 8; frame++) cycle(plan, store, frame, () => read);
   // The two pages read, and the four floor pages the view reached at the sun's first frame.
-  assert.equal(plan.pool.used, 2 + 4);
+  assert.equal(plan.pool.used(), 2 + 4);
   plan.setThreshold(8);
   plan.setThreshold(1);
   cycle(plan, store, frame++, () => read);
