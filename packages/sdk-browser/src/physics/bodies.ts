@@ -3,8 +3,6 @@ import {
   BODY_INDEX,
   type ObjectPhysics,
   FLAG,
-  GENERATION_SHIFT,
-  GENERATIONS,
   LAYER,
   MOTION,
   physicsBudgetError,
@@ -19,6 +17,7 @@ import type { Mesh } from '../../../sdk-core/src/world/object/mesh.ts';
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
 import { worldPoseOf, worldScaleOf } from './bodyFrame.ts';
 import { addSoftBody } from './softBodies.ts';
+import { createBodySlots, type SlotOwner } from './bodySlots.ts';
 
 /** A mesh the simulation holds a body for. */
 export type Bodied = Mesh & { physics: NonNullable<Mesh['physics']> };
@@ -49,12 +48,9 @@ export function createPhysicsBodies(
   root: Object3D,
   state: NonNullable<ObjectPhysics['_state']>,
 ) {
-  const meshes: (Bodied | null)[] = [];
+  const slots = createBodySlots(budget.bodies);
+  const { meshes } = slots;
   const held: (Bodied['physics'] | null)[] = [];
-  /** Each slot's generation, the high bits of its body's engine id (`BODY_INDEX`): moved on at
-   *  every add and removal, so no record names a slot's next body or an empty slot. */
-  const generation = new Uint8Array(budget.bodies);
-  const free: number[] = [];
   /** What each slot's body counts against the budget beyond itself; a soft body's vertex map. */
   const claimed = new Map<number, { triangles: number; softVertices: number }>();
   const softMaps: (Uint32Array | null)[] = [];
@@ -79,11 +75,14 @@ export function createPhysicsBodies(
     // The world pose as the transform tree composes it.
     const pose = worldPoseOf(mesh),
       size = worldScaleOf(mesh);
-    if (isSoftType(p.type))
-      return hold(mesh, addSoftBody(writer, mesh, pose, size, claim, softMaps, flagsOf(mesh)));
+    const owner: SlotOwner = { mesh, scale: [size.x, size.y, size.z] };
+    if (isSoftType(p.type)) {
+      const take = (triangles: number, vertices: number) => claim(triangles, vertices, owner);
+      return hold(mesh, addSoftBody(writer, mesh, pose, size, take, softMaps, flagsOf(mesh)));
+    }
     const matter = physicsMatterOf(mesh.material);
     const shape = resolveShape(mesh.geometry, size, p.type, p.shape);
-    const id = claim(shape.triangles);
+    const id = claim(shape.triangles, 0, owner);
     writer.add({
       id,
       motion: MOTION[p.type],
@@ -108,31 +107,28 @@ export function createPhysicsBodies(
   /** A slot's body made: the mesh that holds it. */
   const hold = (mesh: Bodied, index: number) => {
     const p = mesh.physics;
-    meshes[index] = mesh;
     held[index] = p;
     if (p.decorative) count.decorative++;
     p._attach(host, index, state);
   };
-  /** A slot and its engine id, counted against the budget with `triangles` triangles and
-   *  `softVertices` soft-body vertices; no mesh yet. */
-  const claim = (triangles: number, softVertices = 0) => {
+  /** A slot held by `owner` and its engine id, counted against the budget with `triangles`
+   *  triangles and `softVertices` soft-body vertices. */
+  const claim = (triangles: number, softVertices: number, owner: SlotOwner) => {
     check('bodies', 1);
     check('triangles', triangles);
     check('softVertices', softVertices);
-    const index = free.pop() ?? meshes.push(null) - 1;
-    const next = (generation[index] = (generation[index] + 1) % GENERATIONS);
+    const id = slots.take(owner);
     count.bodies++;
-    if (triangles || softVertices) claimed.set(index, { triangles, softVertices });
+    if (triangles || softVertices) claimed.set(id & BODY_INDEX, { triangles, softVertices });
     count.triangles += triangles;
     count.softVertices += softVertices;
-    return index | (next << GENERATION_SHIFT);
+    return id;
   };
   /** A slot's body removed, and the slot freed for the next. */
   const release = (index: number) => {
     writer.remove(index);
-    meshes[index] = held[index] = null;
-    generation[index] = (generation[index] + 1) % GENERATIONS;
-    free.push(index);
+    held[index] = null;
+    slots.release(index);
     count.bodies--;
     count.triangles -= claimed.get(index)?.triangles ?? 0;
     count.softVertices -= claimed.get(index)?.softVertices ?? 0;
@@ -147,21 +143,20 @@ export function createPhysicsBodies(
     if (p.decorative) count.decorative--;
     p._detach();
   };
-  /** The mesh an engine id names, or `null` once that body left its slot. */
-  const meshOf = (id: number) => {
-    const index = id & BODY_INDEX;
-    return generation[index] === id >>> GENERATION_SHIFT ? (meshes[index] ?? null) : null;
-  };
   return {
     meshes,
-    generation,
+    generation: slots.generation,
     count,
     add,
     removeAt,
-    meshOf,
+    /** The mesh an engine id names, or `null` once that body left its slot. */
+    meshOf: slots.meshOf,
+    /** Who holds each slot, by engine id (`createBodySlots`). */
+    slots,
     /** Each geometry vertex's simulated vertex, for the soft body in slot `index`. */
     softMap: (index: number) => softMaps[index] ?? null,
-    /** A body no mesh holds — a cooked tile (`tiles.ts`) —: its slot, then its removal. */
+    /** A body no mesh holds — a cooked tile or soft body (`tiles.ts`) —: its slot, then its
+     *  removal. */
     claim,
     release,
     /** A decorative body fell asleep, or the module refused its shape: out of the simulation and
