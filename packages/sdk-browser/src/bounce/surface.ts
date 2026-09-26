@@ -35,7 +35,7 @@ export type GpuBounceSurface = Awaited<ReturnType<typeof createGpuBounceSurface>
 export async function createGpuBounceSurface(
   device: GPUDevice,
   proxy: GpuBounceProxy,
-  lights: GPUBuffer,
+  lights: () => GPUBuffer,
   grid: { uniform: GPUBuffer; snapshot: GPUBuffer },
 ) {
   const texels = surfaceCacheTexels(proxy.triangleCount);
@@ -70,15 +70,24 @@ export async function createGpuBounceSurface(
     release();
     throw error;
   }
-  const group = bounceGroup(device, layout, [
-    grid.uniform,
-    proxy.buffer,
-    proxy.albedo,
-    lights,
-    grid.snapshot,
-    buffer,
-    span,
-  ]);
+  let bound: GPUBuffer | undefined, group: GPUBindGroup | undefined;
+  /** The group, made again when the light buffer it names was replaced. */
+  const groupOf = (current: GPUBuffer) => {
+    if (current !== bound || !group) {
+      bound = current;
+      const { uniform, snapshot } = grid;
+      group = bounceGroup(device, layout, [
+        uniform,
+        proxy.buffer,
+        proxy.albedo,
+        current,
+        snapshot,
+        buffer,
+        span,
+      ]);
+    }
+    return group;
+  };
   const ceiling = Math.min(BOUNCE_SETTINGS.surfaceTexelsPerFrame, texels);
   const words = new Uint32Array(4);
   let cursor = 0,
@@ -118,7 +127,7 @@ export async function createGpuBounceSurface(
       device.queue.writeBuffer(span, 0, words);
       const pass = encoder.beginComputePass({ label: BOUNCE_SURFACE_PASS });
       pass.setPipeline(pipeline);
-      pass.setBindGroup(0, group);
+      pass.setBindGroup(0, groupOf(lights()));
       pass.dispatchWorkgroups(Math.ceil(batch / SURFACE_WORKGROUP), 1, 1);
       pass.end();
       updated = batch;
