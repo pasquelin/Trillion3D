@@ -4,7 +4,7 @@ import { attachedPages, autonomousPlacements } from '../../placement/autonomousP
 import { collectClusterPages, indexPagesByUrl } from '../../page/selection/selection.ts';
 import type { PageRec } from '../../page/selection/selection.ts';
 import { createAutonomousRender, createAutonomousRenderState } from './render.ts';
-import { autonomousCapabilities } from './capabilities.ts';
+import { autonomousCapabilities, publishAutonomousCapabilities } from './capabilities.ts';
 import { createWebglFrameGate } from '../../webgl/core/frameGate.ts';
 import { decodePageOffThread } from '../../page/decode/host.ts';
 import { createAutonomousGeometry } from './geometry.ts';
@@ -47,9 +47,8 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
   const state = createAutonomousRenderState(),
     gate = createWebglFrameGate(),
     hostDraw = createSceneDraw(context.webglContext, scene, blendCopies, context);
-  // The engine's own lighting: the cache's radiometric light table where it declares one, the
-  // source graph's lights otherwise (`../../lighting/contractLightingApi.ts`). A transmissive
-  // surface is not paged: it is a copy the program draws whole (`hostPageScene`).
+  // The engine's own lighting: the cache's light table, else the source graph's lights
+  // (`../../lighting/contractLightingApi.ts`). A transmissive surface is a copy drawn whole.
   const { lighting, api: lightingApi } = createContractLighting(scene, context, gate.sceneChanged);
   let ready = false;
   const geometryStore = createAutonomousGeometry({
@@ -119,7 +118,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
     scene,
     hostTableBytes: frame.hostBytes,
     hostDiagnostics: pageDiagnostics,
-    capabilities: autonomousCapabilities(!!context.metadata.simplification, context.onDiagnostic),
+    capabilities: autonomousCapabilities(!!context.metadata.simplification),
     get overBudget() {
       return state.overBudget;
     },
@@ -142,6 +141,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
       for (const page of bootstrap) lists.shown.push(page); // a spread overflows the stack
       sync();
       residency.keptChanged();
+      publishAutonomousCapabilities(context.onDiagnostic);
     },
     render(camera) {
       hostDraw.render(camera);
