@@ -12,13 +12,10 @@ import type { CameraMotion, EngineCamera } from '../../camera/world.ts';
 import { aheadViewOf, copyAheadView, sameAheadView, type AheadView } from './aheadView.ts';
 
 const NONE = 0xffffffff,
-  UNIFORM_BYTES = 256,
   WORKGROUP = 64;
-/** Words per cluster of the shared cold record — cone, box, owning node, triangles.
- *  Public mirror of `COLD_WORDS` (`../dag/layout.ts`), which is its only source. */
+/** Words of the shared cold record (cone, box, owner, triangles): `COLD_WORDS`'s public mirror. */
 export const PAGE_CONE_FLOATS = 13,
   SELECTION_NONE = NONE,
-  SELECTION_UNIFORM_BYTES = UNIFORM_BYTES,
   SELECTION_WORKGROUP = WORKGROUP;
 
 /**
@@ -50,14 +47,15 @@ export type SelectionResult = {
   frustumRejected: number;
   lodLevel: number;
   drawablePageIds?: number[];
+  /** A resident cut's eviction queue (`../dag/evict.ts`): canonical pages, first evicted first. */
+  evictPageIds?: number[];
   /** Triangle totals HELD BY THE GPU, where the verdict is given: what the cut rule draws — one
-   *  counter, read as both `selected` and `drawn` — and its blend share. The only source of these
-   *  totals: the CPU sums none. */
+   *  counter, read as `selected` and `drawn` — and its blend share. The CPU sums none. */
   selectedTriangles: number;
   drawnTriangles: number;
   transparentTriangles: number;
-  /** True when the cut exceeded the sample cap: the lists are truncated, and the frame must go
-   *  back through the CPU cut rather than adopt them (`../dag/layout.ts`). */
+  /** The cut exceeded the sample cap: the lists are truncated, and the frame goes back through the
+   *  CPU cut rather than adopt them (`../dag/layout.ts`). */
   truncated?: boolean;
 };
 /** A readback and its uniforms (`../../webgpu/cut/adoption.ts`). */
@@ -67,8 +65,8 @@ export type GpuCut = {
   /** Pose revision it was cut under: behind the selection's, it streams, counts, holds no image. */
   worldRevision: number;
 };
-/** Pages whose residency flag just changed, in increasing order. `sorted` false means the list
- *  no longer describes the set: the reader then starts over from every page. */
+/** Pages whose residency flag just changed, in increasing order; `sorted` false: the list no
+ *  longer describes the set, and the reader starts over from every page. */
 export type ResidencyChanges = { pages: Int32Array; count: number; sorted: boolean };
 /** Told `true` when the shared command buffer reached the queue, `false` when the image dropped it. */
 export type SelectionSubmission = (submitted: boolean) => void;
@@ -88,6 +86,8 @@ export type GpuSelection = {
   /** Writes placement `world`'s root mark (`ClusterRoot.mark`): whether a light cut opens it. */
   markWorld(world: number, mark: number): void;
   updateResidency(resident: Uint32Array, changes?: ResidencyChanges): boolean;
+  /** The pool's slots, the eviction queue's bound: the next cut and readback follow them. */
+  setPoolSlots(slots: number): void;
   /**
    * Encodes the selection. Given `shared`, the caller owns the command buffer — one image submits one
    * buffer — and takes back the settlement it must call: `true` once that buffer is on the queue,

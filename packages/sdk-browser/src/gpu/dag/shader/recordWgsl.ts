@@ -3,9 +3,9 @@
  *
  * Cone, box and residency lived in a forty-eight-byte structure that the five frame passes read
  * whole, most of the time to take only a flag. The buffer is now an array of words: the working
- * table first — one word per page, its placement —, then the two residency bit sets — one word
- * for thirty-two pages, hence one cache line for five hundred —, then the cold records, one per
- * UNIQUE cluster, which the opening pass reads cone and box from.
+ * table first — one word per page, its placement —, then the three residency bit sets — one word
+ * for thirty-two pages, hence one cache line for five hundred —, then the key column (`../evict.ts`),
+ * then the cold records, one per UNIQUE cluster, which the opening pass reads cone and box from.
  *
  * A page reaches its hot and cold records through `recordOf`: its index plus its placement's
  * shift, the third frame word (`../worlds.ts`). Ranks are those of `../layout.ts`, sole source of
@@ -17,7 +17,9 @@ fn pageWorld(i:u32)->u32{return cold[i];}
 /** Shared record of page \`i\` of primitive \`w\`: a wrapping add, as \`recordOf\` on the host. */
 fn recordOf(i:u32,w:u32)->u32{return i+bitcast<u32>(frames[w*FRAME+6u].z);}
 fn residentWords()->u32{return (views[0u].clusterCount+31u)>>5u;}
-fn coldBase()->u32{return views[0u].clusterCount+2u*residentWords();}
+fn poolBase()->u32{return views[0u].clusterCount+2u*residentWords();}
+fn keyBase()->u32{return poolBase()+residentWords();}
+fn coldBase()->u32{return keyBase()+views[0u].clusterCount;}
 fn coldF(r:u32,k:u32)->f32{return bitcast<f32>(cold[coldBase()+r*COLD+k]);}
 fn coneOf(r:u32)->vec4f{return vec4f(coldF(r,0u),coldF(r,1u),coldF(r,2u),coldF(r,3u));}
 fn boxMin(r:u32)->vec3f{return vec3f(coldF(r,4u),coldF(r,5u),coldF(r,6u));}

@@ -9,6 +9,7 @@ import { DAG_WANTED_WGSL } from './wantedWgsl.ts';
 import { DAG_LIVE_WGSL } from './liveWgsl.ts';
 import { DAG_LEVEL_WGSL } from './levelWgsl.ts';
 import { DAG_LAST_USE_WGSL } from './lastUseWgsl.ts';
+import { DAG_EVICT_WGSL } from './evictWgsl.ts';
 import { DAG_FLOOR_WGSL } from './floorWgsl.ts';
 import { DAG_PAGES_WGSL } from './pagesWgsl.ts';
 import { CASTS_NO_SHADOW, SPRITE_UNCULLED } from '../../../visibility/shader/spriteWgsl.ts';
@@ -30,7 +31,8 @@ struct CullNode{minimum:vec3f,firstChild:u32,maximum:vec3f,maxParentError:f32,sp
 // \`viewFlags\`, \`pageRows\`, \`pageMask\`, \`clipScale\` and \`clipPad\` serve a light cut alone (\`pagesWgsl.ts\`): a camera sends zeros.
 // One block per view (\`viewsWgsl.ts\`): block 0 also carries what the views share — counts, caps, flags — and the
 // \`view*\` words; \`queueCap\` is the capacity of each descent queue; \`ahead\`, non-zero, says block 1 is the view ahead (\`aheadWgsl.ts\`).
-struct Uniforms{planes:array<vec4f,6>,view:mat4x4f,pixelScale:vec2f,pixelError:f32,near:f32,clusterCount:u32,nodeCount:u32,worldCount:u32,residentCut:u32,cameraWorld:vec3f,cameraStretch:f32,listCap:u32,perspective:f32,viewFlags:u32,pageRows:u32,pageMask:vec2<u32>,clipScale:f32,clipPad:f32,viewCount:u32,viewCapacity:u32,queueCap:u32,ahead:u32,}
+// \`poolSlots\`, block 0 of a camera cut, bounds its eviction queue (\`evictWgsl.ts\`).
+struct Uniforms{planes:array<vec4f,6>,view:mat4x4f,pixelScale:vec2f,pixelError:f32,near:f32,clusterCount:u32,nodeCount:u32,worldCount:u32,residentCut:u32,cameraWorld:vec3f,cameraStretch:f32,listCap:u32,perspective:f32,viewFlags:u32,pageRows:u32,pageMask:vec2<u32>,clipScale:f32,clipPad:f32,viewCount:u32,viewCapacity:u32,queueCap:u32,ahead:u32,poolSlots:u32,}
 struct Output{count:atomic<u32>,frustumRejected:atomic<u32>,lodLevel:atomic<u32>,overflow:atomic<u32>,selectedTriangles:atomic<u32>,transparentTriangles:atomic<u32>,reserved:array<u32,2>,pages:array<u32>,}
 ${DAG_BINDINGS_WGSL}
 /** A WGSL const-expression may not be infinite, so the unreachable band uses the largest f32:
@@ -173,7 +175,7 @@ ${INVERSE_TRANSPOSE_WGSL}
 ${DAG_COMPACT_WGSL}${DAG_TOTALS_WGSL}${DAG_REQUEST_WGSL}${DAG_RELEVE_WGSL}${DAG_WANTED_WGSL}
 ${DAG_LIVE_WGSL}
 ${DAG_LEVEL_WGSL}
-${DAG_LAST_USE_WGSL}
+${DAG_LAST_USE_WGSL}${DAG_EVICT_WGSL}
 ${DAG_FLOOR_WGSL}
 ${DAG_PAGES_WGSL}
 ${DAG_VIEWS_WGSL}
