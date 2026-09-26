@@ -51,7 +51,7 @@ export const CLUSTER_FRAGMENT = `#version 300 es
 precision highp float;const float PI=${PI},INVERSE_PI=${INVERSE_PI};const int MAX_LIGHTS=64;
 in vec3 toEye;in vec3 viewNormal;vec3 viewPosition;in vec2 texcoord0;in vec2 texcoord1;in vec4 vertexColor;out vec4 outColor;
 uniform vec4 baseFactor;uniform float metalFactor,roughFactor,alphaCutoff,aoStrength;uniform vec2 normalScale;
-uniform vec3 emissiveFactor;uniform vec2 depthRamp,dash;uniform bool depthShaded,fogFree,lit,flatShaded,toneMapped,srgbDestination,hasNormalMap,hasVertexColor,sharedMetalRough;uniform int mapMask,faceSides;
+uniform vec3 emissiveFactor;uniform vec2 depthRamp,dash;uniform bool fogFree,lit,flatShaded,toneMapped,srgbDestination,hasNormalMap,hasVertexColor,sharedMetalRough;uniform int mapMask,faceSides;
 uniform sampler2D baseMap,roughMap,metalMap,normalMap,aoMap,emissiveMap;
 uniform mat3 baseUv,roughUv,metalUv,normalUv,aoUv,emissiveUv;
 uniform mat4 projectionMatrix;uniform int lightCount;uniform ivec4 mapChannels;uniform ivec2 extraChannels;layout(std140) uniform ClusterLights{vec4 lightData[256];};
@@ -93,10 +93,10 @@ color*=attenuation(length(toLight),positionRange.w,cone.z);}
 if(bandedModel()){direct+=modelLight(base,metal,N,L,1.0,ao)*color;continue;}vec3 E=clamp(dot(N,L),0.0,1.0)*color;specular+=E*specularLobe(L,V,N,f0,rough);direct+=E*(INVERSE_PI*diffuse);}
 irradiance+=probeIrradiance(N);return(direct+irradiance*(INVERSE_PI*diffuse)*ao)+specular;}
 ${TRANSMISSION_GLSL}
-void main(){if(!lineDash(texcoord0.x,dash))discard;viewPosition=-toEye;vec4 base=baseFactor;if((mapMask&1)!=0)base*=texture(baseMap,mapUv(baseUv,surfaceModel==${SURFACE_MODEL.matcap}?matcapUv(normalize(viewNormal)):sourceUv(mapChannels.x)));if(hasVertexColor)base*=vertexColor;if(base.a<alphaCutoff)discard;
+void main(){if(!lineDash(texcoord0.x,dash))discard;viewPosition=-toEye;vec3 surfaceNormal=normalize(viewNormal);vec4 base=baseFactor;if((mapMask&1)!=0)base*=texture(baseMap,mapUv(baseUv,surfaceModel==${SURFACE_MODEL.matcap}?matcapUv(surfaceNormal):sourceUv(mapChannels.x)));if(hasVertexColor)base*=vertexColor;if(base.a<alphaCutoff)discard;
 float roughSample=1.0,metalSample=1.0;if((mapMask&2)!=0){vec4 packed=texture(roughMap,mapUv(roughUv,sourceUv(mapChannels.y)));roughSample=packed.g;if(sharedMetalRough)metalSample=packed.b;}if((mapMask&4)!=0&&!sharedMetalRough)metalSample=texture(metalMap,mapUv(metalUv,sourceUv(mapChannels.z))).b;
 float metal=clamp(metalFactor*metalSample,0.0,1.0);
-float facing=gl_FrontFacing?1.0:-1.0;vec3 N;if(flatShaded)N=normalize(cross(dFdx(viewPosition),dFdy(viewPosition)));else{N=normalize(viewNormal);if(faceSides!=0)N*=facing;}
+float facing=gl_FrontFacing?1.0:-1.0;vec3 N;if(flatShaded)N=normalize(cross(dFdx(viewPosition),dFdy(viewPosition)));else{N=surfaceNormal;if(faceSides!=0)N*=facing;}
 float rough=min(max(roughFactor*roughSample,${ROUGHNESS_FLOOR})+geometryRoughness(N),1.0);
 if(hasNormalMap){vec2 st=sourceUv(mapChannels.w);vec3 n=texture(normalMap,mapUv(normalUv,st)).xyz*2.0-1.0;n.xy*=normalScale;
 CotangentFrame frame=cotangentFrame(N,dFdx(viewPosition),dFdy(viewPosition),dFdx(st),dFdy(st));vec3 T=frame.T,B=frame.B;if(faceSides==2&&!flatShaded){T*=facing;B*=facing;}N=normalize(mat3(T,B,N)*n);}
@@ -104,7 +104,7 @@ float p=-projectionMatrix[2][3];vec3 V=normalize(vec3(0.0,0.0,1.0-p)-viewPositio
 vec3 rgb=lit?shade(N,V,base.rgb,metal,rough,ao):base.rgb*ao;
 if((mapMask&32)!=0)rgb+=emissiveFactor*texture(emissiveMap,mapUv(emissiveUv,sourceUv(extraChannels.y))).rgb;else rgb+=emissiveFactor;
 if(!fogFree)rgb=fogged(rgb);
-if(depthShaded)rgb=vec3(clamp(depthRamp.x*toEye.z+depthRamp.y,0.0,1.0));if(surfaceModel==${SURFACE_MODEL.normal})rgb=N*0.5+0.5;
+if(surfaceModel==${SURFACE_MODEL.depth})rgb=vec3(clamp(depthRamp.x*toEye.z+depthRamp.y,0.0,1.0));if(surfaceModel==${SURFACE_MODEL.normal})rgb=N*0.5+0.5;
 float alpha=base.a;if(transmissive){vec4 through=transmissionColor(rgb,base.rgb,alpha,N,V,viewPosition,rough,ao);rgb=through.rgb;alpha=through.a;}
 if(toneMapped)rgb=toneMap(rgb);if(srgbDestination)rgb=linearToSrgb(rgb);outColor=vec4(rgb,alpha);}`;
 

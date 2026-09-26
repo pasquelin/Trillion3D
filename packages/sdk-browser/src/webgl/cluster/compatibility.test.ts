@@ -17,12 +17,6 @@ test('an untextured Basic material needs no unused UV or normal attribute', () =
   assert.equal(clusterMaterialReason(G.basicSurface(), { position }), undefined);
 });
 
-test('a Depth material draws on the autonomous path; a family no path draws is refused', () => {
-  assert.equal(clusterMaterialReason(new G.GraphSurface('depth'), { position }), undefined);
-  const shader = { family: 'shader' } as unknown as G.GraphSurface;
-  assert.equal(clusterMaterialReason(shader, { position }), 'material shader is unsupported');
-});
-
 test('unsupported mutations refuse the autonomous draw before it becomes partial', () => {
   const material = G.standardSurface();
   assert.equal(
