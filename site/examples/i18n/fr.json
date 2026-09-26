@@ -945,8 +945,7 @@
       "close": "Gros plan",
       "far": "Vue lointaine",
       "pan": "Panoramique rapide",
-      "still": "Immobile",
-      "verdict": "Verdict"
+      "still": "Immobile"
     },
     "controls": {
       "drive": "Conduire la voiture",

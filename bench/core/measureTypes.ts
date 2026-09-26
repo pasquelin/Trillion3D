@@ -1,5 +1,4 @@
-// The shapes `measure.ts` measures with: statistics, result lines, cases and parameters, and the
-// row with no timer, which a page's verdict also builds (`site/examples/kit/verdict.ts`).
+// The shapes `measure.ts` measures with: statistics, result lines, cases and parameters.
 import type { Compteur } from './ulp.ts';
 
 export interface Stats {
@@ -28,8 +27,12 @@ export interface LigneResultat {
   ecartBaseline?: number | null;
 }
 
-/** Fields of a row not fed by any timer. `null` is never zero. */
-const SANS_MESURE = {
+/** A row no timer fed, `null` never zero: its name, and what verifies it. */
+export const ligne = (
+  row: Pick<LigneResultat, 'name'> &
+    Partial<Pick<LigneResultat, 'size' | 'motif' | 'correct' | 'difference'>>,
+): LigneResultat => ({
+  size: null,
   medianeMs: null,
   p95Ms: null,
   minMs: null,
@@ -38,28 +41,10 @@ const SANS_MESURE = {
   opsParSec: null,
   temoin: null,
   ecartTemoin: null,
-} as const;
-
-/** A row with no timer: its name, and what verifies it. */
-export const ligne = ({
-  name,
-  size = null,
-  motif = null,
-  correct = null,
-  difference = null,
-}: {
-  name: string;
-  size?: number | null;
-  motif?: string | null;
-  correct?: boolean | null;
-  difference?: string | null;
-}): LigneResultat => ({
-  name,
-  size,
-  ...SANS_MESURE,
-  correct,
-  difference,
-  motif,
+  correct: null,
+  difference: null,
+  motif: null,
+  ...row,
 });
 
 /** A named benchmark's result: the file(s) it measures and its rows, one per case. */
