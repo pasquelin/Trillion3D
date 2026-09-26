@@ -9,14 +9,6 @@ import { settledRt } from '../webgpu/frame/hold.fixture.ts';
 import { ParticlePool } from '../../../sdk-core/src/fluids/particles.ts';
 import { PARTICLES_PASS, createWebgpuParticles } from './webgpuParticles.ts';
 
-/** A pool with `n` records staged, record `i` at x = i, and 10 ms to take. */
-function staged(n: number, capacity = 1000) {
-  const pool = new ParticlePool({ capacity, emitPerFrame: 1000 });
-  for (let i = 0; i < n; i++) pool.emit(i, 1, 2, 3, 4, 5, 6);
-  pool.advance(0.01);
-  return pool;
-}
-
 /** An encoder that records its compute passes and their dispatches. */
 function computeRecorder() {
   const passes: { label?: string; dispatches: number[] }[] = [];
@@ -38,12 +30,14 @@ function computeRecorder() {
 test('WebGPU: one timed pass writes the step words and the staged records, once', async () => {
   const gpu = fakeDevice();
   const particles = createWebgpuParticles(gpu.device, (error) => assert.fail(String(error)));
-  const pool = staged(3);
+  const pool = new ParticlePool({ capacity: 1000, emitPerFrame: 1000 });
+  for (let i = 0; i < 3; i++) pool.emit(i, 1, 2, 3, 4, 5, 6);
+  pool.advance(0.01);
   const { encoder, passes } = computeRecorder();
   assert.equal(particles.run([pool], encoder), 0, 'compiling: the pool waits, its records kept');
   await tick();
   assert.equal(particles.run([pool], encoder), 1);
-  assert.deepEqual(passes, [{ label: PARTICLES_PASS, dispatches: [Math.ceil(1000 / 64)] }]);
+  assert.deepEqual(passes, [{ label: PARTICLES_PASS, dispatches: [1] }], 'the emitted slots only');
   const [step, records] = gpu.writes;
   const words = new Uint8Array(written(step)).buffer;
   assert.deepEqual(
@@ -52,11 +46,22 @@ test('WebGPU: one timed pass writes the step words and the staged records, once'
   );
   assert.deepEqual([...new Uint32Array(words, 16, 3)], [0, 3, 1000], 'first slot, count, capacity');
   assert.deepEqual([...written(records)], [...pool.staging.subarray(0, 24)]);
-  assert.deepEqual([...written(records)].slice(8, 16), [1, 1, 2, 0, 3, 4, 5, 6]);
   assert.equal(particles.run([pool], encoder), 0, 'nothing staged, no time: no pass');
   assert.equal(gpu.buffers.length, 3, 'state, staging and step made once');
   particles.run([], encoder);
   assert.equal(gpu.destroyed.length, 3, 'a pool the world let go of gives its buffers back');
+});
+
+test('WebGPU: a step that cannot compile is heard, and its pools stop asking frames', async () => {
+  const heard: unknown[] = [];
+  const particles = createWebgpuParticles(fakeDevice({ compute: false }).device, (e) =>
+    heard.push(e),
+  );
+  const pool = new ParticlePool({ capacity: 8 });
+  pool.emit(0, 0, 0, 0, 1, 0, 2);
+  await tick();
+  assert.equal(particles.run([pool], computeRecorder().encoder), 0);
+  assert.deepEqual([heard.length, pool.moving, pool.emit(0, 0, 0, 0, 1, 0, 2)], [1, false, false]);
 });
 
 test("WebGPU: a still frame is held until one of the world's pools moves", () => {

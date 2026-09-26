@@ -29,6 +29,8 @@ test('attachParticles gives the pool to every session and the frames the world d
   const pool = new ParticlePool({ capacity: 8 });
   const remove = attachParticles(world, pool);
   assert.deepEqual([held.particles, asked], [[pool], 1], 'held, and a frame asked');
+  for (const again of [world, {} as World])
+    assert.throws(() => attachParticles(again, pool), /^Error: PARTICLES_ATTACH/);
   const frame = () => hooks.forEach((hook) => hook({ delta: 0.02, time: 0.02 }));
   frame();
   assert.equal(asked, 1, 'an idle pool asks for no frame');
