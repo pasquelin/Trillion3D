@@ -143,7 +143,7 @@ export async function prepareExplorer(session: ExplorerSession, inputs: Inputs) 
       cells: loadedScene.partitions.map((cells) => cells.stats()),
     });
   }
-  const { viewport, context } = await prepareExplorerBackends(session, {
+  const { viewport, context, frameBudget } = await prepareExplorerBackends(session, {
     source,
     sceneLightingSource: loadedScene.sceneLightingSource,
     associations: loadedScene.associations,
@@ -164,6 +164,7 @@ export async function prepareExplorer(session: ExplorerSession, inputs: Inputs) 
     directGpu,
     viewport,
     context,
+    frameBudget,
     ...cameraState,
   };
 }

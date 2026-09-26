@@ -4,12 +4,15 @@
  * longer than the ceiling still goes through, then while the clock since `open` is within it —,
  * and one counted.
  *
- * The arrival queue opens one per frame and drains within it (`./arrivalQueue.ts`), as do the
- * WebGPU row claims (`../../webgpu/row/claims.ts`) and texture tiles (`../../webgpu/tile/streamer.ts`);
- * the WebGPU residency queue opens one per turn of the event loop and yields past it
- * (`../../webgpu/residency/residentEnsurer.ts`).
+ * A session holds one integration budget per frame (`BackendContext.frameBudget`): its frame opens
+ * it, the cells and the arrival drain spend from it (`./arrivalQueue.ts`), then the WebGPU row
+ * records (`../../webgpu/row/claims.ts`). Texture tiles keep their own upload ceiling
+ * (`../../webgpu/tile/streamer.ts`); the WebGPU residency queue opens one per turn of the event
+ * loop and yields past it (`../../webgpu/residency/residentEnsurer.ts`).
  */
 export type FrameBudget = { admits(): boolean; spend(): void };
+/** A budget with its clock: the frame that owns it opens it. */
+export type FrameClock = ReturnType<typeof createFrameBudget>;
 
 /** `now` is the clock the budget is read on: `performance.now` unless a test drives it. */
 export function createFrameBudget(ms: number, now = () => performance.now()) {
