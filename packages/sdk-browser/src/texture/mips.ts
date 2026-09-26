@@ -1,5 +1,7 @@
 import { sharedGpuDevice } from '../gpu/core/sessionHandle.ts';
-import { mipLevelCountFor } from './tiles.ts';
+import { levelSize, mipLevelCountFor } from './tiles.ts';
+import { COVERAGE_SCALE_WGSL } from './coverageRule.ts';
+import { countCoverage, LEVEL_BIN_BYTES, type CoverageChain } from './coverageMips.ts';
 
 /**
  * Layout and reduction program, built ONCE per device; its pipeline once per format and per
@@ -42,11 +44,16 @@ const programs = new WeakMap<GPUDevice, MipProgram>();
  * weighted by alpha, and `select` keeps the plain mean everywhere else, byte for byte: the rule the
  * compiler bakes, and its reasons (`packages/asset-compiler-rust/src/texture_preview/reduce.rs`,
  * `halve`, #42).
+ *
+ * `extent` is the source's size, then a coverage chain's cutoff byte `C` and the level's `t`: with
+ * `C`, the median byte is scaled to keep level 0's coverage (`coverageMips.ts`); without, the
+ * median stays as it was, byte for byte.
  */
 export const MIP_SHADER = `
  @group(0) @binding(0) var source:texture_2d<f32>;
  @group(0) @binding(1) var<uniform> extent:vec4u;
  override weighted:bool;
+ ${COVERAGE_SCALE_WGSL}
  @vertex fn vs(@builtin(vertex_index) i:u32)->@builtin(position) vec4f{
   return vec4f(f32(i32(i&1u)*4-1),f32(i32(i>>1u)*4-1),0.0,1.0);
  }
@@ -59,7 +66,8 @@ export const MIP_SHADER = `
   let v=max(min(s0.w,s1.w),min(s2.w,s3.w));
   let a=vec4f(s0.w,s1.w,s2.w,s3.w);
   let byAlpha=(s0.rgb*s0.w+s1.rgb*s1.w+s2.rgb*s2.w+s3.rgb*s3.w)/dot(a,vec4f(1.0));
-  return vec4f(select(mean.rgb,byAlpha,weighted&&any(a!=vec4f(s0.w))),(u+v)*0.5);
+  let cut=f32(scaled(median(a),extent.z,extent.w))/255.0;
+  return vec4f(select(mean.rgb,byAlpha,weighted&&any(a!=vec4f(s0.w))),select((u+v)*0.5,cut,extent.z>0u));
  }`;
 
 function mipProgram(device: GPUDevice): MipProgram {
@@ -103,32 +111,28 @@ function mipPipeline(device: GPUDevice, format: GPUTextureFormat, weighted: bool
 }
 
 /**
- * Uniform buffer of the reductions, kept per device and grown as needed.
- *
- * Creating then destroying it at every texture forced waiting for the end of the device's work
- * before releasing it — a full round trip of the GPU queue per texture. A buffer that lives as
- * long as the device rewrites itself in queue order, waiting for nothing. Like the program, it
- * is the device's own.
+ * The buffers of the reductions — their uniforms, a coverage chain's bins —, kept per device and
+ * label and grown as needed. Creating then destroying one at every texture forced waiting for the
+ * end of the device's work before releasing it — a full round trip of the GPU queue per texture;
+ * one that lives as long as the device rewrites itself in queue order, waiting for nothing. An
+ * outgrown one is not destroyed: already-submitted passes may still read it, the collector frees it.
  */
-const uniformBuffers = new WeakMap<GPUDevice, { buffer: GPUBuffer; size: number }>();
+const heldBuffers = new WeakMap<GPUDevice, Map<string, GPUBuffer>>();
 
-function mipUniforms(device: GPUDevice, size: number) {
-  const held = uniformBuffers.get(device);
-  if (held && held.size >= size) return held.buffer;
-  const buffer = device.createBuffer({
-    label: 'Trillion3D texture mips uniforms',
-    size,
-    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-  });
-  // The old buffer is not destroyed: already-submitted passes may still read it, and the
-  // garbage collector will release it. Growth only happens at the first larger texture.
-  uniformBuffers.set(device, { buffer, size });
+function heldBuffer(device: GPUDevice, label: string, size: number, usage: number) {
+  const kept = heldBuffers.get(device) ?? new Map<string, GPUBuffer>();
+  heldBuffers.set(device, kept);
+  const held = kept.get(label);
+  if (held && held.size >= size) return held;
+  const buffer = device.createBuffer({ label, size, usage: usage | GPUBufferUsage.COPY_DST });
+  kept.set(label, buffer);
   return buffer;
 }
 
 /** Generates the mip chain of a 2D texture: averaged colour — weighted by alpha when `weighted`,
  * for a texture every reader takes for coverage, in straight alpha (`../webgpu/tile/scratch.ts`) —,
- * median alpha so that threshold coverage survives every level.
+ * median alpha so that threshold coverage survives every level, scaled to keep level 0's share at
+ * `cutoff` when the readers give one (`CoverageReaders.cutoff`).
  * Commands are submitted without being awaited: the device queue runs them in order, therefore
  * before any copy that will read a level. */
 export function generateMaterialMips(
@@ -138,33 +142,51 @@ export function generateMaterialMips(
   width: number,
   height: number,
   weighted: boolean,
+  cutoff = 0,
 ) {
   const levels = mipLevelCountFor(width, height);
   if (levels === 1) return;
   const shared = sharedGpuDevice(device);
   const { layout, pipeline } = mipPipeline(shared, format, weighted);
   const stride = Math.max(256, device.limits.minUniformBufferOffsetAlignment ?? 256);
-  // One uniform per reduced level: the extent of the source level, so as not to read off the image.
-  const packed = new Uint32Array(((levels - 1) * stride) / 4);
-  for (let level = 1; level < levels; level++) {
-    const at = ((level - 1) * stride) / 4;
-    packed[at] = Math.max(1, width >> (level - 1));
-    packed[at + 1] = Math.max(1, height >> (level - 1));
+  // One uniform block per level, its reduction's: the extent of the source level, so as not to read
+  // off the image, and the cutoff; for the counts, level 0's extent and the level. Block 0 is level
+  // 0's own count.
+  const packed = new Uint32Array((levels * stride) / 4);
+  for (let level = 0; level < levels; level++) {
+    const source = levelSize(width, height, Math.max(0, level - 1));
+    packed.set([...source, cutoff, 0, width, height, level], (level * stride) / 4);
   }
-  const uniforms = mipUniforms(shared, packed.byteLength);
+  const uniforms = heldBuffer(
+    shared,
+    'Trillion3D texture mips uniforms',
+    packed.byteLength,
+    GPUBufferUsage.UNIFORM,
+  );
   device.queue.writeBuffer(uniforms, 0, packed);
   const encoder = device.createCommandEncoder();
-  const viewOf = (level: number) => texture.createView({ baseMipLevel: level, mipLevelCount: 1 });
+  const views = Array.from({ length: levels }, (_, level) =>
+    texture.createView({ baseMipLevel: level, mipLevelCount: 1 }),
+  );
+  let chain: CoverageChain | undefined;
+  if (cutoff) {
+    const size = levels * LEVEL_BIN_BYTES,
+      usage = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC;
+    const bins = heldBuffer(shared, 'Trillion3D coverage bins', size, usage);
+    encoder.clearBuffer(bins, 0, size);
+    chain = { width, height, views, uniforms, stride, bins };
+  }
   for (let level = 1; level < levels; level++) {
+    if (chain) countCoverage(device, encoder, chain, level);
     const group = device.createBindGroup({
       layout,
       entries: [
-        { binding: 0, resource: viewOf(level - 1) },
-        { binding: 1, resource: { buffer: uniforms, offset: (level - 1) * stride, size: 16 } },
+        { binding: 0, resource: views[level - 1] },
+        { binding: 1, resource: { buffer: uniforms, offset: level * stride, size: 16 } },
       ],
     });
     const pass = encoder.beginRenderPass({
-      colorAttachments: [{ view: viewOf(level), loadOp: 'clear', storeOp: 'store' }],
+      colorAttachments: [{ view: views[level], loadOp: 'clear', storeOp: 'store' }],
     });
     pass.setPipeline(pipeline);
     pass.setBindGroup(0, group);

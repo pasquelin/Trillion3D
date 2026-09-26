@@ -88,22 +88,23 @@ export function samplingHeaders(color: WebgpuTileAtlas, data: WebgpuTileAtlas) {
  *  whose rule moved goes to `reduce`, its slot to `moved`; one just `copied` already carries it. */
 function coverageRules(atlas: WebgpuTileAtlas) {
   let readers: CoverageReaders | undefined;
-  const hosts = new Map<number, { map: Texture; rule: boolean }>();
-  const weighs = (map: Texture) => !!readers?.weighs(map);
+  const hosts = new Map<number, { map: Texture; rule?: number }>();
+  /** The chain's rule: its cutoff byte where it weighs by alpha (#748), none plain. */
+  const ruleOf = (map: Texture) => readers?.cutoff(map);
   for (const [slot, { source }] of atlas.textures.entries())
     if (source.kind === 'host' && (readers ??= source.coverage))
-      hosts.set(slot, { map: source.map, rule: weighs(source.map) });
+      hosts.set(slot, { map: source.map, rule: ruleOf(source.map) });
   const maps = [...hosts.values()].map(({ map }) => map);
   return {
     follow: () => readers?.follow(maps),
     copied(slot: number) {
       const host = hosts.get(slot);
-      if (host) host.rule = weighs(host.map);
+      if (host) host.rule = ruleOf(host.map);
     },
     reduce(reduce: PictureCopy, moved?: Set<number>) {
       let result = 0;
       for (const [slot, host] of hosts) {
-        const rule = weighs(host.map);
+        const rule = ruleOf(host.map);
         if (rule === host.rule) continue;
         host.rule = rule;
         if (!reduce(atlas, slot)) continue;

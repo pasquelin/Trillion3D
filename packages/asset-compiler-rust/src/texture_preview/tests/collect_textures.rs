@@ -60,7 +60,7 @@ fn an_entry_reads_the_channels_and_cutoffs_of_its_roles() {
                 kind: AtlasKind::Color,
                 channels: [true; 4],
                 normal_only: false,
-                cutoffs: vec![0.3, 0.5],
+                cutoffs: vec![(0.3, 1.0), (0.5, 1.0)],
             },
             AtlasTexture {
                 texture: 1,
