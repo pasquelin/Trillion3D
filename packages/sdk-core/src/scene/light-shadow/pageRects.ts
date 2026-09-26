@@ -27,11 +27,8 @@ export function createPageRects() {
   let faces = 0,
     near = 0;
 
-  /**
-   * Writes view `view`'s rectangle: the pages of `[x0, x0 + n) × [y0, y0 + n)` that meet
-   * the `plane` rectangle carried to pages, `(plane + offset) · scale`, edges included. Returns
-   * the pages it covers.
-   */
+  /** Writes view `view`'s rectangle: the pages of `[x0, x0 + n) × [y0, y0 + n)` meeting `plane`
+   *  carried to pages, `(plane + offset) · scale`, edges included. Returns the pages covered. */
   function setRect(view: number, scale: number, offset: number, x0: number, y0: number, n: number) {
     const r = view * 4;
     rects[r] = Math.max(x0, Math.ceil((plane[0] + offset) * scale) - 1);
