@@ -15,3 +15,19 @@ test('the WebGL2 page path declares the blend and transmission it draws', () => 
 test('the WebGL2 page path declares temporal antialiasing unsupported', () => {
   assert.ok(autonomousCapabilities(false).unsupported.includes('temporal antialiasing'));
 });
+
+// #839: what WebGL2 cannot carry reaches the diagnostics by name, as WebGPU publishes its own.
+test('the WebGL2 page path publishes each declared degradation', () => {
+  const heard: { phase: string; context?: Record<string, unknown> }[] = [];
+  const { unsupported } = autonomousCapabilities(false, (diagnostic) => heard.push(diagnostic));
+  assert.deepEqual(
+    heard.map(({ phase }) => phase),
+    ['render-capabilities'],
+  );
+  assert.deepEqual(heard[0].context?.unsupported, unsupported);
+  for (const lost of ['cast shadows', 'occlusion culling', 'GPU-driven selection'])
+    assert.ok(
+      unsupported.some((entry) => entry.startsWith(lost)),
+      lost,
+    );
+});
