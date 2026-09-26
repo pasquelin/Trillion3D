@@ -72,8 +72,13 @@ export function sizeShadowPool(rt: WebgpuPagesRuntime) {
     layerSide = Math.floor(device.limits.maxTextureDimension2D / SHADOW_PAGE),
     rule = shadowPoolFor(wanted, layerSide),
     asked = rule(SHADOW_ATLAS_BYTES).allocatedBytes;
-  const granting = grantedShadowPool(device, asked, rule, diag.engineDiagnostic, (pool) =>
-    atlas.makePool(pool.side, pool.layers),
+  // Granted from the budget itself: a pool it holds short of `wanted` stays named `ceiling`.
+  const granting = grantedShadowPool(
+    device,
+    SHADOW_ATLAS_BYTES,
+    rule,
+    diag.engineDiagnostic,
+    (pool) => atlas.makePool(pool.side, pool.layers),
   );
   const done = granting.then(
     (granted) => {
