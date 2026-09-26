@@ -16,7 +16,7 @@
 /**
  * Layout of the `work` buffer, in words, as the kernel reads it — `blockBase()`,
  * `liveCounter()` and the nine frame counters from `levelWgsl.ts`, then the
- * per-view words (`viewsWgsl.ts`). Set HERE and
+ * per-view words (`viewsWgsl.ts`) and the frame count. Set HERE and
  * nowhere else: the engine allocates it (`../resources.ts`) and benches that mount the
  * kernel by hand reread it, so a word added to the kernel can no longer leave a caller
  * with a buffer that is too short — where out-of-bounds counters read as zero, and
@@ -40,7 +40,9 @@ export function dagWorkLayout(blockCount: number, views = 1) {
     viewWords,
     /** The most sixty-four-wide groups any view drew, behind the per-view rows. */
     drawnGroupsMax: viewWords + VIEW_WORD_ROWS * views,
-    words: viewWords + VIEW_WORD_ROWS * views + 1,
+    /** The camera cuts run so far, the clock of each page's last use (`lastUseWgsl.ts`). */
+    frame: viewWords + VIEW_WORD_ROWS * views + 1,
+    words: viewWords + VIEW_WORD_ROWS * views + 2,
   };
 }
 
