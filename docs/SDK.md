@@ -110,6 +110,16 @@ resolves is queued and drawn once it does. The SDK has no asset URL default: a h
 `manifestUrl` to `scene.load`. The default scope is `slice` (`scene.load(url, { scope: 'full' })`
 for a full cache); a pointer or manifest of another scope is rejected with `SCOPE_MISMATCH`.
 
+Every file the engine reads over HTTP — the manifest, its tables and binary, images, lights,
+pages, cooked physics — goes through one loader. A network failure or a server error (5xx) is asked
+once more; a refusal another request would meet again (a 404, a 403) is not; an aborted load asks
+nothing more and rejects with its reason. What still fails is `RESOURCE_HTTP_ERROR`, the address in
+its message and `details.url`, the status in `details.status` (`null` for the network). A file a
+cache may lack answers none on a 404: `lights.json` and `physics.json`, of a model compiled before
+them. A page read (`httpPageSource`) raises `RESOURCE_HTTP_ERROR` where it raised
+`Error('PAGE_HTTP_<status>')`, and a cooked tile or soft body's settings where it raised
+`PHYSICS_FAILED`.
+
 `scene.load(url, { onProgress })` reports how far a load has got, with the `JobProgress` shape
 `createJob` uses. `{ phase: 'bytes', completed, total }` is heard from the moment the manifest is read:
 `total` is then every file the manifest declares, at once, and each chunk of every file the load
@@ -956,7 +966,9 @@ A light casts a shadow when the file says so (FBX carries the flag; glTF has non
 lights cast one). Beyond 64 lights, the ones that carry furthest are kept — directionals first, then
 by peak channel intensity — and the rest are counted in the `imported-lights` diagnostic. A world
 reads them as `(await scene.load(url)).lights`, in cache order; each lamp is a child of the model,
-changed with `light.visible = false`, `model.remove(light)` or `light.intensity = …`.
+changed with `light.visible = false`, `model.remove(light)` or `light.intensity = …`. A cache
+without `lights.json` (a 404) has none; one the server refuses otherwise fails the load with
+`RESOURCE_HTTP_ERROR`, as any cache file does.
 
 ## Memory budgets
 
@@ -1314,6 +1326,9 @@ bend }` simulates the mesh's vertices one by one on Jolt's soft bodies. A cloth 
   around every moving body, nearest first, within `budget.physics.triangles`; past it, the nearest
   stay and `PHYSICS_BUDGET` names the triangles asked. A file of another format or cooked by
   another Jolt is refused (`PHYSICS_FORMAT`); a model compiled before the cook collides nowhere.
+  A tile or a soft body's settings the server refuses is `RESOURCE_HTTP_ERROR` on
+  `world.physics.error`, its address named; a model that leaves the scene lets go of the tiles
+  still on their way, which is no error.
   Its tiles grip and bounce as the source's `KHR_physics_rigid_bodies` collider declares, else with
   the default matter (`DEFAULT_MATTER`); every drawn node is static, as drawn.
 - **Exact raycast.** `await world.raycast(at, { exact: true })` asks the physics: a compiled model
