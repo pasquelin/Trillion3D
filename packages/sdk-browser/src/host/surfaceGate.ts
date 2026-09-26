@@ -10,8 +10,8 @@
 
 import type { HostAttribute, HostAttributes, HostMaterials } from './resources.ts';
 import type { HostMap, HostShadedMaterial } from './shadedMaterial.ts';
-import { metalRough } from '../scene/surfaceModel.ts';
 import { blendingOf, blendingRefusal } from '../scene/materialBlending.ts';
+import { readsOcclusion, unreadMapRefusal } from '../scene/surfaceModel.ts';
 import { HOST_MAPPING_UV, HOST_NORMAL_MAP_TANGENT_SPACE } from './surfaceConstants.ts';
 import { texelsReason } from '../visibility/types.ts';
 import { declaresCompileHook } from './materialHook.ts';
@@ -44,8 +44,6 @@ export function clusterMaterialReason(
 ) {
   if (Array.isArray(material)) return 'material arrays are unsupported';
   const host = material as HostShadedMaterial;
-  if (!metalRough(host) && host.family !== 'basic' && host.family !== 'depth')
-    return `material ${host.family} is unsupported`;
   // The draws' own refusal (`drawnBlending`): a mode admitted here is one every path draws.
   const refusal = blendingRefusal(blendingOf(host.blending), isTransmissive(material));
   if (refusal) return `material ${host.family}: ${refusal} (blending ${host.blending})`;
@@ -70,30 +68,37 @@ export function clusterMaterialReason(
     host.stencilWrite
   )
     return `material ${host.family} uses an unsupported extension or raster state`;
+  const unread = unreadMapRefusal(host);
+  if (unread) return unread;
   if (host.normalMap && host.normalMapType !== HOST_NORMAL_MAP_TANGENT_SPACE)
     return 'object-space normal mapping is unsupported';
   if (declaresCompileHook(host)) return `material ${host.family} carries a shader hook`;
   if (!ownBuffer(attributes.position)) return 'position attribute is unsupported';
   // The same six maps the import reads, in the same order: a basic material declares none of the
-  // lit ones, so the list is the host's own properties, not a second rule.
+  // lit ones, so the list is the host's own properties, not a second rule. An occlusion map its
+  // model ignores asks for no UV.
   const maps = [
     host.map,
     host.metalnessMap,
     host.roughnessMap,
     host.normalMap,
-    host.aoMap,
+    readsOcclusion(host) ? host.aoMap : undefined,
     host.emissiveMap,
   ];
   if (maps.some(Boolean) && !ownBuffer(attributes.uv))
     return 'textured material has no UV attribute';
   if (maps.some((texture) => texture?.channel === 1) && !ownBuffer(attributes.uv1))
     return 'texture channel 1 has no UV1 attribute';
-  if (metalRough(host) && !ownBuffer(attributes.normal))
-    return 'lit material has no normal attribute';
+  // Every family but the plain colour and the depth ramp shades by the normal: the lit ones, the
+  // normal view, and the matcap, which reads its image by it.
+  if (host.family !== 'basic' && host.family !== 'depth' && !ownBuffer(attributes.normal))
+    return `material ${host.family} has no normal attribute`;
   if (host.vertexColors && !ownBuffer(attributes.color))
     return 'vertex-colour material has no color attribute';
   for (const texture of maps) {
     const reason = textureReason(texture);
     if (reason) return reason;
   }
+  // A matcap's image is read at its normal's coordinate, never by a UV attribute.
+  return textureReason(host.matcap);
 }

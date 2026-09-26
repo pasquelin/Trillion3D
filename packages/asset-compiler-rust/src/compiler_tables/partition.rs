@@ -8,27 +8,30 @@
 //! (`STREAM_BUNDLE_BYTES`), the budget a geometry bundle has. It carries, for each core parent its
 //! nodes hang under, the box around them in that parent's frame: a page that moves the parent
 //! moves the box, and the runtime reads the cell where its objects are. A scene whose placed nodes
-//! fit one unit is not partitioned: its table is the one it was.
+//! fit one unit is not partitioned: its table is the one it was. The cells' records are paged
+//! (`pages.rs`): the core keeps a root of fixed size.
 use super::*;
 use crate::compiler_world::{local_matrix, world_matrices, Mat4};
 
 mod boxes;
-mod split;
+pub(crate) mod pages;
+pub(crate) mod split;
 use boxes::{grow, mesh_boxes, world_box, EMPTY};
-use split::{split_cells, Placed};
+use pages::write_pages;
+use split::{split_cells, Placed, Region};
 
 /// A box, `[minX, minY, minZ, maxX, maxY, maxZ]`.
 type Box6 = [f64; 6];
 
-/// Version of a cell file and of the partition descriptor the core carries.
-const PARTITION_VERSION: u32 = 1;
+/// Version of a cell file, of a page and of the root the core carries.
+const PARTITION_VERSION: u32 = 2;
 
-/// The core the runtime reads first, and the cells it reads by distance.
+/// The core the runtime reads first, the root of the cells it reads by distance, and their count.
 pub(super) struct Partitioned {
     pub nodes: Vec<Value>,
     pub roots: Vec<usize>,
     pub partition: Value,
-    pub products: Vec<Product>,
+    pub cells: usize,
 }
 
 /// The nodes an animation moves: their pose is not the one the table declares.
@@ -156,26 +159,25 @@ pub(super) fn partition(
         })
         .collect();
     let roots = roots.iter().filter_map(|id| rank[*id]).collect();
-    let (partition, products) = write_cells(split_cells(placed), directory)?;
+    let (cells, tree) = split_cells(placed);
     Ok(Some(Partitioned {
         nodes,
         roots,
-        partition,
-        products,
+        cells: cells.len(),
+        partition: write_cells(cells, &tree, directory)?,
     }))
 }
 
-/// Writes one file per cell and returns the descriptor the core carries: every cell's address,
-/// fingerprint, size, its box in the frame of each core parent it hangs nodes under, and how many
-/// nodes of each mesh it places — what the runtime sizes its rows by before its first frame —, the
-/// union box at the declared poses, and the meshes the cells place.
-fn write_cells(cells: Vec<Vec<Placed>>, directory: &Path) -> Result<(Value, Vec<Product>)> {
-    let mut products = Vec::with_capacity(cells.len());
-    let mut descriptors = Vec::with_capacity(cells.len());
-    let mut meshes = BTreeSet::new();
-    let mut union = EMPTY;
+/// Writes one file per cell and the pages of their records, and returns the root the core
+/// carries. A record is the cell's address, fingerprint, size, its box in the frame of each core
+/// parent it hangs nodes under, and how many nodes of each mesh it places — what the runtime sizes
+/// its rows by before its first frame.
+fn write_cells(cells: Vec<Vec<Placed>>, tree: &Region, directory: &Path) -> Result<Value> {
+    let mut records = Vec::with_capacity(cells.len());
+    let mut bounds = Vec::with_capacity(cells.len());
     for (at, cell) in cells.iter().enumerate() {
         let mut parents = BTreeMap::<Option<usize>, Box6>::new();
+        let mut union = EMPTY;
         for placed in cell {
             grow(parents.entry(placed.parent).or_insert(EMPTY), &placed.local);
             grow(&mut union, &placed.bounds);
@@ -184,7 +186,6 @@ fn write_cells(cells: Vec<Vec<Placed>>, directory: &Path) -> Result<(Value, Vec<
         for mesh in cell.iter().filter_map(|p| p.entry["mesh"].as_u64()) {
             *counts.entry(mesh).or_default() += 1;
         }
-        meshes.extend(counts.keys().copied());
         let parents: Vec<Value> = parents.iter().map(|(p, b)| json!([p, b])).collect();
         let body = json!({"version": PARTITION_VERSION, "nodes": cell.iter().map(|p| &p.entry).collect::<Vec<_>>()});
         let written = product(
@@ -192,9 +193,8 @@ fn write_cells(cells: Vec<Vec<Placed>>, directory: &Path) -> Result<(Value, Vec<
             &format!("scene-cell-{at}.json"),
             &serde_json::to_vec(&body)?,
         )?;
-        descriptors.push(json!({"url": written.name, "sha256": written.sha256, "bytes": written.bytes, "parents": parents, "meshes": counts.into_iter().collect::<Vec<_>>()}));
-        products.push(written);
+        records.push(json!({"url": written.name, "sha256": written.sha256, "bytes": written.bytes, "parents": parents, "meshes": counts.into_iter().collect::<Vec<_>>()}));
+        bounds.push(union);
     }
-    let partition = json!({"version": PARTITION_VERSION, "bounds": union, "meshes": meshes, "cells": descriptors});
-    Ok((partition, products))
+    write_pages(tree, &records, &bounds, directory)
 }

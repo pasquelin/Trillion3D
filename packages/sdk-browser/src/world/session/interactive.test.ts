@@ -16,6 +16,7 @@ function start(
   schedule: {
     requestAnimationFrame: (callback: () => void) => unknown;
     cancelAnimationFrame: (id: number) => void;
+    reportError?: (error: unknown) => void;
   },
   {
     width = 4,
@@ -56,30 +57,32 @@ function start(
   return { canvas, invalidate };
 }
 
-test('a frame that throws after the first stops the loop and says so on the console', async (t) => {
+test('a frame that throws after the first stops the loop and says so on the console and to the page', (t) => {
   const logged = t.mock.method(console, 'error', () => {});
-  let frames = 0;
+  const frames: (() => void)[] = [],
+    reported: unknown[] = [];
+  let drawn = 0;
   const explorer = {
     render() {
-      if (++frames > 1) throw new Error('WEBGPU_LOST');
+      if (++drawn > 1) throw new Error('WEBGPU_LOST');
       return {};
     },
     resize() {},
   };
-  const { invalidate } = start(
+  // Reported as an uncaught error is, the page's own watcher names it: the example kit's card (#772).
+  const reportError = (error: unknown) => void reported.push(error);
+  start(
     explorer,
-    {
-      requestAnimationFrame: (callback) => setTimeout(callback, 0),
-      cancelAnimationFrame: (id) => clearTimeout(id),
-    },
+    { ...queued(frames), reportError },
     { config: { ownControls: false, pixelRatio: 1, onFrame() {} } },
   );
-  invalidate();
-  await new Promise((wake) => setTimeout(wake, 10));
-  assert.equal(frames, 2);
+  frames.shift()!();
+  assert.equal(drawn, 2);
+  assert.equal(frames.length, 0, 'no frame after it');
   assert.equal(logged.mock.callCount(), 1);
   assert.match(String(logged.mock.calls[0].arguments[0]), /Automatic rendering stopped/);
   assert.match(String(logged.mock.calls[0].arguments[1]), /WEBGPU_LOST/);
+  assert.match(String(reported), /WEBGPU_LOST/);
 });
 
 test('the first image is drawn at start even for a host with no frame hook', async () => {

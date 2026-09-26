@@ -43,7 +43,7 @@ function twoRows() {
       const url = `https://cache.test/key/${parent}-${at}.json`;
       const node = { parent, mesh: 0, matrix: null, translation: [100 * at, 0, 0] };
       const nodes = [{ ...node, rotation: null, scale: null }];
-      bodies.set(url, new TextEncoder().encode(JSON.stringify({ version: 1, nodes })));
+      bodies.set(url, new TextEncoder().encode(JSON.stringify({ version: 2, nodes })));
       const box = [100 * at, 0, 0, 100 * at + 1, 1, 1];
       cells.push({ url, sha256: '', bytes: 1, parents: [[parent, box]], meshes: [[0, 1]] });
     }
@@ -52,7 +52,7 @@ function twoRows() {
   parents.forEach((parent) => root.add(parent));
   parents[1].position.set(0, 1e4, 0);
   const partitioned = createPartitionCells({
-    partition: { version: 1, bounds: [0, 0, 0, 901, 1e4 + 1, 1], meshes: [0], cells },
+    partition: { bounds: [0, 0, 0, 901, 1e4 + 1, 1], meshes: [0], cells },
     base: 'https://cache.test/key/',
     root,
     parents,

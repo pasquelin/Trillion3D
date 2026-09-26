@@ -51,7 +51,7 @@ export function importHostSurface(material: HostMaterials): VisMaterial | undefi
   // A non-physical family reads in the one model (`../scene/surfaceModel.ts`): Lambert and toon lit
   // apart, Phong as the physical model at the roughness of its exponent, the others unlit.
   const model = hostSurfaceModel(first),
-    lit = litModel(first, model),
+    lit = litModel(first),
     standard = metalRough(first),
     physical = first.family === 'physical',
     side = sideOf(first),

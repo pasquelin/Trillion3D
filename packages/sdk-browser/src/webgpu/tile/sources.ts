@@ -21,12 +21,10 @@ const MAX_LEVEL_READS = 6;
  *  for the next pass. They live until the pass is submitted: an encoded copy names its texture, which
  *  cannot be destroyed before. */
 const MAX_SCRATCHES = 2;
-/** Host bytes of decoded cooked levels, held to cut more tiles from them. */
-const LEVEL_CACHE_BYTES = 192 * 1024 * 1024;
 
 /**
  * Where a tile's texels come from, and how they reach the pool of its lane: a cooked level —
- * decoded by the browser, or block-compressed as the file holds it — held in the level cache, or a
+ * decoded by the browser, or block-compressed as the file holds it — held in the level store, or a
  * working texture built from the host image, which only the lossless lane receives. A tile whose
  * source is not yet in hand is not served; it will come back on the next feedback. A host texture's
  * queue goes through here too, at prepare: its working texture, the queue copied, submitted, then
@@ -44,7 +42,6 @@ export function createTileSources(options: {
   const levels = options.readLevel
     ? createWebgpuTileLevels({
         read: options.readLevel,
-        budgetBytes: LEVEL_CACHE_BYTES,
         onFailure: (key: LevelKey, error) =>
           options.onFailure(
             `texture-level-read-failed ${key.sha256}/${key.atlas}/${key.level}`,
@@ -97,7 +94,8 @@ export function createTileSources(options: {
     levels,
     /**
      * Serves a tile from its source. `waiting`: its bytes are not there yet, it will come back;
-     * `refused`: the pool is full for this view, nothing will come — and nothing was read for it.
+     * `refused`: the pool is full for this view, or the level does not fit beside the pages kept,
+     * nothing will come — and nothing was read for it.
      */
     serve(
       atlas: WebgpuTileAtlas,
@@ -116,12 +114,12 @@ export function createTileSources(options: {
           level: key.level,
           format: encoding.levelFormat(lane),
         };
-        const held = levels?.get(levelKey, frame);
+        const held = levels?.get(levelKey);
         if (!held) {
           if (!atlas.roomFor(key.slot, frame)) return 'refused';
-          if (levels && levels.inFlight < MAX_LEVEL_READS)
-            levels.request(levelKey, frame, [width, height]);
-          return 'waiting';
+          const asked = levels && levels.inFlight < MAX_LEVEL_READS;
+          // A level that cannot fit beside the pages kept will not come: refused, not waited for.
+          return asked && !levels.request(levelKey, frame, [width, height]) ? 'refused' : 'waiting';
         }
         const place = atlas.place(key, frame);
         if (!place) return 'refused';

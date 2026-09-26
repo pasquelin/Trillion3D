@@ -90,9 +90,11 @@ export function createExplorerHostState(
           effects: options.effects && {
             chain: options.effects,
             shown: () => state.diagnostic === 'beauty',
+            refused: options.effectsRefused,
           },
           guides: options.guides,
           pixelRatio: () => pixelRatioOf(options),
+          particles: options.particles,
         }),
         compositor: createComparisonCompositor(gl),
       }

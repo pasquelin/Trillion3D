@@ -1,6 +1,6 @@
 import { dotVector3 } from '../../math/primitives/vector.ts';
 import { MAX_SHADOW_SLICES, type ShadowViewpoint } from '../light/contracts.ts';
-import { faceFrame } from './math.ts';
+import { faceFrame, sunBoxRect } from './math.ts';
 import {
   SUN_LEVELS,
   SUN_LEVEL_ENTRIES,
@@ -14,6 +14,8 @@ import {
 /** Frames of layout kept to read a request report back: deeper than any readback lag. */
 const HISTORY = 8;
 const LEVEL_WORDS = SUN_LEVELS * 2;
+/** The light-plane rectangle of no box: it bounds nothing. */
+const UNBOUNDED = [-Infinity, Infinity, -Infinity, Infinity];
 
 /**
  * THE CLIPMAP OF EACH SUN: its light-plane frame, the depth range its maps span, its finest
@@ -32,6 +34,8 @@ const LEVEL_WORDS = SUN_LEVELS * 2;
 export function createSunLevels() {
   const frame = new Float64Array(MAX_SHADOW_SLICES * 9),
     depth = new Float64Array(MAX_SHADOW_SLICES * 2),
+    /** The scene box's rectangle on the light plane, `u0, u1, v0, v1` in metres (`sunBoxRect`). */
+    boxRect = new Float64Array(MAX_SHADOW_SLICES * 4),
     finest = new Int32Array(MAX_SHADOW_SLICES),
     origins = new Int32Array(MAX_SHADOW_SLICES * LEVEL_WORDS),
     /** Clipmap slots whose extent moved at the last update, one bit per slot. */
@@ -83,7 +87,10 @@ export function createSunLevels() {
         low = Math.min(low, z);
         high = Math.max(high, z);
       }
-      if (Number.isFinite(low) && Number.isFinite(high)) {
+      // An empty or unbounded box bounds neither the depth range nor the floor.
+      if (!Number.isFinite(low) || !Number.isFinite(high)) boxRect.set(UNBOUNDED, slice * 4);
+      else {
+        sunBoxRect(frame, f, boxMin, boxMax, boxRect, slice * 4);
         const grid = 2 ** Math.ceil(Math.log2(Math.max(high - low, 1e-6)));
         const zNear = Math.floor(low / grid) * grid,
           zFar = Math.max(zNear + grid, Math.ceil(high / grid) * grid);
@@ -127,9 +134,14 @@ export function createSunLevels() {
         ay - origins[at + 1] < SUN_WINDOW
       );
     },
-    /** The floor pages the view can read, whatever it looks at — every page of the last level
-     *  within its far distance of the camera, in this frame's clipmap —: `x0, y0, x1, y1` into
-     *  `out`, inclusive. */
+    /**
+     * The floor pages the view can read, whatever it looks at — every last-level page within its
+     * far distance and over the scene's box, one page around it for the normal offset and the PCF,
+     * in this frame's clipmap —: `x0, y0, x1, y1` into `out`, inclusive. No caster lies past the
+     * box: a receiver there is lit, and its floor pages held nothing but half the pool over a small
+     * scene (#525). A sprite, left out of the box, reads the far-shadow ray there until the page it
+     * asks for is drawn: lit too.
+     */
     floorReach(slice: number, view: ShadowViewpoint, out: Int32Array) {
       const level = sunFloorLevel(finest[slice]),
         page = sunPageMetres(level),
@@ -137,10 +149,16 @@ export function createSunLevels() {
         at = slice * LEVEL_WORDS + ringOf(level, SUN_LEVELS) * 2;
       const u = dotVector3(view.position, frame, 0, f),
         v = -dotVector3(view.position, frame, 0, f + 3);
-      out[0] = Math.max(origins[at], Math.floor((u - view.far) / page));
-      out[1] = Math.max(origins[at + 1], Math.floor((v - view.far) / page));
-      out[2] = Math.min(origins[at] + SUN_WINDOW - 1, Math.floor((u + view.far) / page));
-      out[3] = Math.min(origins[at + 1] + SUN_WINDOW - 1, Math.floor((v + view.far) / page));
+      for (let k = 0; k < 2; k++) {
+        const c = k ? v : u,
+          o = origins[at + k],
+          e = slice * 4 + 2 * k;
+        out[k] = Math.max(o, Math.floor(Math.max(c - view.far, boxRect[e] - page) / page));
+        out[k + 2] = Math.min(
+          o + SUN_WINDOW - 1,
+          Math.floor(Math.min(c + view.far, boxRect[e + 1] + page) / page),
+        );
+      }
       return out;
     },
     /**

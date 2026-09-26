@@ -1,13 +1,13 @@
 import { TransformNode } from './transformNode.ts';
 import { collectSlot, reserveSlot, uncollectSlot } from './objectSpace.ts';
 import { copyObject } from './objectCopy.ts';
+import { bindPose, readPose } from './objectPose.ts';
 import { lookAtNode } from '../../math/transform-tree/lookAt.ts';
 import * as read from '../../math/transform-tree/read.ts';
 import { Vector3 } from '../math/vector3.ts';
 import { Euler } from '../math/euler.ts';
 import { Quaternion } from '../math/quaternion.ts';
 import { Matrix4 } from '../math/matrix4.ts';
-import { listen } from '../math/observed.ts';
 import type { Box3 } from '../math/box3.ts';
 import type { SceneLink } from './sceneLink.ts';
 export type { SceneLink } from './sceneLink.ts';
@@ -41,25 +41,7 @@ export class Object3D extends TransformNode {
     const slot = reserveSlot();
     super(slot.state, slot.id, slot.index, slot.visible);
     collectSlot(this, slot);
-    const pose = () => this._link?.pose(this);
-    listen(this.position, () => {
-      this.setPosition(this.position.x, this.position.y, this.position.z);
-      pose();
-    });
-    listen(this.scale, () => {
-      this.setScale(this.scale.x, this.scale.y, this.scale.z);
-      pose();
-    });
-    /** Written angles stay as written (`object3d.test.ts`); a quaternion write re-derives them. */
-    const turned = (fromAngles: boolean) => {
-      const q = fromAngles ? this.quaternion.setFromEuler(this.rotation, true) : this.quaternion;
-      this.setQuaternion(q.x, q.y, q.z, q.w);
-      if (fromAngles) this.rotation._follow(q);
-      pose();
-    };
-    this.rotation._follow(this.quaternion);
-    listen(this.quaternion, () => turned(false));
-    listen(this.rotation, () => turned(true));
+    bindPose(this);
   }
   /** A node's transform tree, for an owner placing nodes by the thousand (`_link.posed`). */
   static _treeOf(node: Object3D) {
@@ -98,6 +80,13 @@ export class Object3D extends TransformNode {
       object.traverse((node) => (node._link = null));
     }
     this._link?.structure(this);
+    return this;
+  }
+  /** Adds `child` where it stands (`SceneNode.attach`). */
+  override attach(child: Object3D) {
+    if (child === this) return this;
+    super.attach(child);
+    readPose(child, this.state.tree);
     return this;
   }
   /** Frees the node and all below it now, rather than when they are collected. */
@@ -160,7 +149,7 @@ export class Object3D extends TransformNode {
     else aim.copy(x);
     const tree = this.state.tree;
     lookAtNode(tree, this.index, aim.x, aim.y, aim.z, this.up.elements, this.looksDownNegativeZ);
-    this.quaternion.fromArray(tree.quaternion, this.index * 4);
+    readPose(this, tree);
   }
   /** Turns the node around `axis` by `angle` radians. */
   rotateOnAxis(axis: { x: number; y: number; z: number }, angle: number) {

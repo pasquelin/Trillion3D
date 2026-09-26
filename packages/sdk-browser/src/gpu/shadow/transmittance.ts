@@ -40,13 +40,13 @@ const MULTIPLY: GPUBlendComponent = { operation: 'add', srcFactor: 'zero', dstFa
 export const TRANSMITTANCE_BLEND: GPUBlendState = { color: MULTIPLY, alpha: MULTIPLY };
 
 /**
- * True when a blended surface casts at all: drawn over what is behind it (normal blending), not
- * transmissive, and stopping some light. An additive surface adds light and stops none; a
- * transmissive one tints what crosses it — its coloured shadow is #33's, on this same layer. A
- * fully transparent one stops nothing: none of them takes a caster row.
+ * True when a blended surface casts at all: asked to (`transparentShadow`; unasked, see-through
+ * casts nothing, as the reference solution leaves translucent materials), drawn over what is behind
+ * it (normal blending), not transmissive, and stopping some light. Additive stops none; transmissive
+ * tints what crosses it (#33, on this same layer); fully transparent stops nothing: no caster row.
  */
-export const castsBlendShadow = (surface: PageSurface) =>
-  surface.blending === 'normal' && !(surface.transmission > 0) && surface.opacity > 0;
+export const castsBlendShadow = (s: PageSurface) =>
+  s.transparentShadow && s.blending === 'normal' && !(s.transmission > 0) && s.opacity > 0;
 
 /**
  * The texel a blended caster writes: `1 − coverage`, the coverage being its opacity times its
