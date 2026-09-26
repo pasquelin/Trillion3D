@@ -109,25 +109,33 @@ export function createExplorerLifecycle(session: ExplorerSession, inputs: Inputs
     await diagnosticChannel.flush();
   };
   /** The pages the view reads, made resident; `image: false` takes no picture of them.
-   *  `onProgress` hears `pages`: how many of those it lacked are resident, the last event once
-   *  they all are (`completed === total`). */
+   *  `onProgress` hears `pages` once the cut is read: `total` the pages the view reads — those it
+   *  holds and those the streamer reads for it —, `completed` those resident, rising as each lands
+   *  up to `completed === total`. */
   const awaitPages = async (options: PageWait = {}) => {
     const { onProgress, ...wait } = options;
     const pages = { completed: 0, total: 0 };
-    const report = (message: string) => onProgress?.({ phase: 'pages', ...pages, message });
     check();
     if (streaming.promise) await streaming.promise;
     for (const backend of backends) {
       await awaitBackendPages(
         backend,
         camera,
-        async (missing) => {
-          const before = { ...pages };
+        async (missing, held) => {
+          // The pages it holds count as landed: `completed === total` once the rest has.
+          const before = {
+            completed: pages.completed + held.length,
+            total: pages.total + held.length,
+          };
           await streamer.request(missing, {
             onPage: (resident, requested) => {
               pages.completed = before.completed + resident;
               pages.total = before.total + requested;
-              report(`${resident} of ${requested} pages the view reads`);
+              onProgress?.({
+                phase: 'pages',
+                ...pages,
+                message: `${pages.completed} of ${pages.total} pages the view reads`,
+              });
             },
           });
           for (const url of missing) {
@@ -144,7 +152,6 @@ export function createExplorerLifecycle(session: ExplorerSession, inputs: Inputs
       );
       retainVisiblePages(backend, streamer);
     }
-    report('The pages the view reads are resident');
     state.loaded = streamer.stats().loaded;
     state.pageBytesRead = streamer.stats().bytesRead;
   };

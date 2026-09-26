@@ -9,9 +9,9 @@ import { createExplorerLifecycle } from './lifecycle.ts';
 type Session = Parameters<typeof createExplorerLifecycle>[0];
 type Inputs = Parameters<typeof createExplorerLifecycle>[1];
 
-/** A session whose one backend lacks `missing` until they are handed to it, over a real streamer
- *  of three verified pages. */
-async function lackingPages(missing: string[]) {
+/** A session whose one backend lacks `missing` until they are handed to it, and whose view reads
+ *  `held` besides, over a real streamer of three verified pages. */
+async function lackingPages(missing: string[], held: string[] = []) {
   const bytes = new Uint8Array([1, 0, 0, 0]);
   const sha256 = await sha256Hex(bytes.buffer);
   globalThis.fetch = async () => new Response(bytes, { status: 200 });
@@ -21,6 +21,7 @@ async function lackingPages(missing: string[]) {
   const backend = {
     render() {},
     pendingUrls: () => missing.filter((url) => !accepted.includes(url)),
+    pageUrls: () => [...held, ...missing],
     acceptPage: (url: string) => void accepted.push(url),
     syncResident() {},
   };
@@ -49,7 +50,6 @@ test('awaitPages reports each page the view lacked as it lands, then completed =
       [0, 2],
       [1, 2],
       [2, 2],
-      [2, 2],
     ],
   );
   streamer.dispose();
@@ -65,7 +65,6 @@ test('awaitPages counts the pages the streamer reads: once each, only those it h
       [0, 2],
       [1, 2],
       [2, 2],
-      [2, 2],
     ],
     'the total is what the streamer requests, reached without a jump',
   );
@@ -79,6 +78,20 @@ test('awaitPages with every page resident still closes its count', async () => {
   assert.deepEqual(
     heard.map(({ phase, completed, total }) => [phase, completed, total]),
     [['pages', 0, 0]],
+  );
+  streamer.dispose();
+});
+
+test('awaitPages counts the pages the view already holds: never 0 of 0 on a drawn view', async () => {
+  const { lifecycle, streamer } = await lackingPages(['b.bin'], ['a.bin', 'c.bin']);
+  const heard: JobProgress[] = [];
+  await lifecycle.awaitPages({ onProgress: (event) => heard.push(event) });
+  assert.deepEqual(
+    heard.map(({ completed, total }) => [completed, total]),
+    [
+      [2, 3],
+      [3, 3],
+    ],
   );
   streamer.dispose();
 });

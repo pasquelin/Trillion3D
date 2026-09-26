@@ -119,9 +119,10 @@ dropped, has `completed === total`; a manifest that declares no file is heard on
 `{ phase: 'tables' }` once the scene tables are, then `{ phase: 'resources', completed, total }`
 as each file the scene reads lands. The first pages follow the load:
 `await world.awaitPages({ onProgress })` settles once the pages the view reads are resident, and
-reports `{ phase: 'pages', completed, total }` as each one it lacked lands (`total` counts each
-page once), the last event with
-`completed === total`. One callback given to both drives a progress bar from the first byte to
+reports `{ phase: 'pages', completed, total }` once the view's cut is read: `total` counts each page
+the view reads once, those it already holds — the frames drawn before the wait may have read them
+all — as well as those it lacks, `completed` those resident, rising as each lacking one lands; the
+last event has `completed === total`, above 0 on a world that draws something. One callback given to both drives a progress bar from the first byte to
 the first pages (example `watch-a-world-load`).
 
 A host that probes a cache before opening it — to enable a button, to tell a user to recompile —
