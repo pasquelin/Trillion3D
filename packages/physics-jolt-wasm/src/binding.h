@@ -129,6 +129,9 @@ bool runCommands(const uint32_t *words, uint32_t count);
 void leaveAll(uint32_t engine);
 /// The shape an ADD command (`w`, from its opcode) describes, or null when refused.
 JPH::RefConst<JPH::Shape> shapeOf(const uint32_t *w);
+/// The inertia an ADD command's mass frame provides (nine floats, column-major, about its centre
+/// of mass), or null when it provides none.
+const uint32_t *providedInertia(const uint32_t *w);
 /// Writes the leaves a full event buffer held back at the last step, before anything else.
 void sendOwedLeaves();
 /// Runs the BUOYANCY command at `w` (`buoyancy.cpp`); returns its word count.

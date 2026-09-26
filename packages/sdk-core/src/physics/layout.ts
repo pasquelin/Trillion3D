@@ -4,7 +4,7 @@
  * event records the module writes back. Every word is 32 bits, read as `uint32` or `float32` in
  * place. A change to any layout below bumps `PHYSICS_LAYOUT_VERSION` and the module with it.
  */
-export const PHYSICS_LAYOUT_VERSION = 15;
+export const PHYSICS_LAYOUT_VERSION = 16;
 
 /** Command opcodes, the first word of each command. */
 export const OP = {
@@ -45,8 +45,8 @@ export const MOTION = { static: 0, kinematic: 1, dynamic: 2 } as const;
 export const LAYER = { static: 0, moving: 1, decorative: 2 } as const;
 
 /** Shape kinds of the ADD command: four exact primitives, a triangle mesh, a convex hull, a
- *  cooked shape (`physics.json`), named by the handle a RESTORE gave it — its one data word — and
- *  scaled by `a, b, c`, and a compound of primitives. */
+ *  cooked shape (`physics.json`), named by the handle a RESTORE gave it — its first data word —
+ *  and scaled by `a, b, c`, and a compound of primitives. */
 export const SHAPE = {
   box: 0,
   sphere: 1,
@@ -65,10 +65,8 @@ export const SHAPE = {
  */
 export const PART_WORDS = 11;
 
-/**
- * Words of RESTORE before its bytes: `op, handle, byteCount`, then the shape's Jolt binary state
- * padded to whole words. RELEASE is `op, handle`: bodies built from the shape keep it.
- */
+/** Words of RESTORE before its bytes: `op, handle, byteCount`, then the shape's Jolt binary state
+ *  padded to whole words. RELEASE is `op, handle`: bodies built from the shape keep it. */
 export const RESTORE_WORDS = 3;
 
 /**
@@ -131,10 +129,11 @@ export const GENERATIONS = 128;
 /**
  * Words of the fixed part of ADD: `op, engine id, motion, layer, shape, flags, px, py, pz, qx, qy,
  * qz, qw, a, b, c, mass, density, friction, restitution, gravityScale, linearDamping,
- * angularDamping, vertexCount, indexCount`,
- * followed by `vertexCount × 3` floats and `indexCount` indices. `a, b, c` are the primitive's
- * sizes (box half extents; sphere radius; capsule and cylinder half height, radius; a tapered
- * cylinder's bottom radius, 0 for none); a mass of 0 takes `density × volume`.
+ * angularDamping, vertexCount, indexCount`, then `vertexCount × 3` floats and `indexCount` words.
+ * `a, b, c` are a box's half extents; a sphere's radius; a capsule's or cylinder's half height,
+ * radius and a tapered cylinder's bottom radius (0: none). A mass of 0 takes `density × volume`.
+ * A primitive's 3 or 12 data words, a cooked shape's past its handle, are its mass frame: the
+ * centre of mass it turns about, then a dynamic body's inertia about it (nine, column-major).
  */
 export const ADD_WORDS = 25;
 /** The simulation's own damping, per second, linear and angular alike: what ADD carries for a
