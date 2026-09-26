@@ -102,26 +102,31 @@ test('re-placing a guide at the pose it holds moves nothing, so a held frame sta
 });
 
 // #264 audit: a guide drawn from a node follows it in the engine, as a page would have placed it
-// every frame — moved when the node moved, and only then.
+// every frame — moved when the node moved, and only then. `follow` is what each frame calls.
 test('a guide added from a node follows it, and moves nothing while it stands still', () => {
   let asked = 0;
   const guides = createGuideSet(() => asked++);
   const parent = new Group(),
     box = helper.box(new Box3(new Vector3(0, 0, 0), new Vector3(1, 1, 1)));
+  parent.position.set(2, 0, 0);
   parent.add(box);
   guides.add(box);
   const first = guides.pack(),
     revision = guides.revision;
-  assert.deepEqual([...first.anchor], [0, 0, 0]);
+  assert.deepEqual([...first.anchor], [2, 0, 0], 'placed where the node stands when added');
+  guides.follow();
   assert.equal(guides.pack(), first, 'a node standing still packs nothing again');
   assert.equal(guides.revision, revision);
   parent.position.set(4, 0, 0);
+  assert.equal(guides.revision, revision, 'reading the set moves nothing: the frame follows');
+  guides.follow();
   assert.equal(guides.revision, revision + 1, 'its parent moved: the node moved');
   assert.deepEqual([...guides.pack().anchor], [4, 0, 0], 'the guide stands where the node does');
-  assert.equal(asked, 1, 'read in the frame that draws: no frame asked of its own');
+  assert.equal(asked, 1, 'moved in the frame that draws: no frame asked of its own');
   guides.add(box).setTransform([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 9, 9, 9, 1]);
   const placed = guides.revision;
   parent.position.set(5, 0, 0);
+  guides.follow();
   assert.equal(guides.revision, placed + 1, 'the first guide still follows');
   assert.deepEqual([...guides.pack().data.subarray(96, 99)], [4, 9, 9], 'placed: it stays');
 });
@@ -129,13 +134,14 @@ test('a guide added from a node follows it, and moves nothing while it stands st
 test('a light helper drawn as a guide follows its light with no update from the page', () => {
   const guides = createGuideSet();
   const bulb = new Light('PointLight');
-  const mark = helper.pointLight(bulb, 0.5);
-  guides.add(mark);
+  guides.add(helper.pointLight(bulb, 0.5));
   bulb.position.set(1, 2, 3);
+  guides.follow();
   assert.deepEqual([...guides.pack().anchor], [1, 2, 3]);
   guides.add(helper.pointLight(bulb)).setVisible(false);
   const revision = guides.revision;
   bulb.position.set(0, 0, 7);
+  guides.follow();
   assert.equal(guides.revision, revision + 1, 'the shown guide moved, the hidden one is not read');
   assert.deepEqual([...guides.pack().anchor], [0, 0, 7]);
 });
