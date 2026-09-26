@@ -8,6 +8,7 @@ import {
 import { createDagOutputScratch, writeDagUniforms, parseDagOutput } from './uniforms.ts';
 import type { createDagResources } from './resources.ts';
 import { encodeDagKernels } from './encode.ts';
+import { DAG_READBACK_SLOTS as SLOTS } from './layout.ts';
 
 type DagResources = NonNullable<Awaited<ReturnType<typeof createDagResources>>>;
 export type DagRuntimeState = {
@@ -46,7 +47,7 @@ export function createDagDispatch(
   // One readback slot, one set of arrays: the snapshot rewrites them instead of reallocating.
   // The pair returned to the caller stays new on every readback, so it always distinguishes two
   // snapshots by identity — that is what adoption compares to know if the cut moved.
-  const scratch = [createDagOutputScratch(), createDagOutputScratch()];
+  const scratch = Array.from({ length: SLOTS }, createDagOutputScratch);
   const dispatch: GpuSelection['dispatch'] = (next, shared) => {
     if (state.disposed || state.dead) return;
     const compute =
@@ -59,11 +60,10 @@ export function createDagDispatch(
       !sameSelectionUniforms(state.lastReadback, next) ||
       state.readbackResidencyRevision !== state.residencyRevision ||
       state.readbackWorldRevision !== state.worldRevision;
-    const i = !state.mapped[state.slot]
-      ? state.slot
-      : !state.mapped[state.slot ^ 1]
-        ? state.slot ^ 1
-        : -1;
+    // The first free slot from the next one in turn, or none.
+    let i = -1;
+    for (let k = 0; k < SLOTS && i < 0; k++)
+      if (!state.mapped[(state.slot + k) % SLOTS]) i = (state.slot + k) % SLOTS;
     const copy = needsReadback && i >= 0;
     if ((!compute && !copy) || (!residentCut && i < 0)) return;
     const encoder = shared ?? device.createCommandEncoder();
@@ -97,7 +97,7 @@ export function createDagDispatch(
       state.readbackResidencyRevision = state.residencyRevision;
       state.readbackWorldRevision = capturedWorldRevision;
       state.mapped[i] = true;
-      state.slot = i ^ 1;
+      state.slot = (i + 1) % SLOTS;
     }
     const read = () => {
       if (!captured) return;

@@ -109,3 +109,15 @@ test('a parent never leaves before its resident children', async () => {
   assert.deepEqual(new Set(order.slice(0, 2)), new Set(['a', 'b']), 'the children leave first');
   assert.deepEqual(order.slice(2), ['m', 'r'], 'then each parent, after its children');
 });
+
+test('a tight pool with the window full never refuses a page the image asks for', async () => {
+  const world = residency(2, ['x', 'y', 'z', 'w']);
+  await world.load('y', 'x');
+  world.image(1, [], ['x', 'y']);
+  world.image(2, [], ['y']);
+  // Both slots sit in their window when the camera turns to two pages that are not resident: the
+  // window gives way, oldest first, instead of the pool refusing the image's pages.
+  world.image(3, ['z', 'w'], []);
+  assert.equal(await world.evict('z'), 'x');
+  assert.equal(await world.evict('w'), 'y');
+});
