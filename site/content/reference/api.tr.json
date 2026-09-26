@@ -1299,7 +1299,7 @@
     "members": {
       "visible": "Çizilip çizilmediği; `setVisible` bunu yazar.",
       "setVisible": "Onu gösterir ya da gizler; köşeleri sınıra sayılmaya devam eder.",
-      "setTransform": "Onu yerleştirir: sütun sıralı on altı sayı ya da bir matris — `node.matrixWorld` bir düğümü izler.",
+      "setTransform": "Onu yerleştirir: sütun sıralı on altı sayı ya da bir matris; `add` ile çizilen kılavuz bundan sonra düğümünü izlemez.",
       "remove": "Onu dünyadan çıkarır, köşelerini geri verir; ikinci çağrı hiçbir şey yapmaz."
     }
   },
@@ -1308,7 +1308,7 @@
     "members": {
       "positions": "Segment başına iki uç, her biri üç sayı.",
       "color": "Renkleri; varsayılan beyaz.",
-      "width": "Ekrandaki genişlik, piksel cinsinden."
+      "width": "Ekrandaki genişlik, CSS pikseli cinsinden, motorun her çizgisi gibi."
     }
   },
   "GuidePoints": {
@@ -1316,7 +1316,7 @@
     "members": {
       "positions": "Nokta başına üç sayı.",
       "color": "Renkleri; varsayılan beyaz.",
-      "size": "Her kare noktanın ekrandaki kenarı, piksel cinsinden."
+      "size": "Her kare noktanın ekrandaki kenarı, CSS pikseli cinsinden."
     }
   },
   "Guides": {
@@ -1326,7 +1326,7 @@
       "vertexCount": "Şu an tutulan köşeler, segment başına iki ve nokta başına bir, gizli kılavuzlar dahil.",
       "lines": "Her biri iki uçlu çizgi segmentleri çizer; sınırın üzerinde reddedilir (`GUIDE_CEILING`).",
       "points": "Her biri bir konumlu kare noktalar çizer; sınırın üzerinde reddedilir (`GUIDE_CEILING`).",
-      "add": "`object` nesnesinin çizgi ve nokta ağlarını — her `helper` bunları kurar — malzeme renklerinde, nesnenin şu an durduğu yerde çizer; üçgenleri kılavuz değildir ve atlanır.",
+      "add": "`object` nesnesinin çizgi ve nokta ağlarını — her `helper` bunları kurar — malzeme renklerinde çizer; üçgenleri kılavuz değildir ve atlanır. Kılavuz nesneyi izler — bir ışık ya da kamera yardımcısı için gösterdiği düğümü — ve o düğümün hareket ettiği her görüntüde taşınır, başka zaman asla.",
       "clear": "Tüm kılavuzları kaldırır."
     }
   },

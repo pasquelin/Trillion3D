@@ -1307,7 +1307,7 @@
     "members": {
       "visible": "Apakah ia digambar; `setVisible` menuliskannya.",
       "setVisible": "Menampilkan atau menyembunyikannya; verteksnya tetap dihitung terhadap batas.",
-      "setTransform": "Menempatkannya: enam belas angka per kolom, atau sebuah matriks — `node.matrixWorld` mengikuti sebuah node.",
+      "setTransform": "Menempatkannya: enam belas angka per kolom, atau sebuah matriks; pemandu yang digambar `add` lalu berhenti mengikuti node-nya.",
       "remove": "Mengeluarkannya dari dunia, verteksnya dikembalikan; panggilan kedua tidak berbuat apa-apa."
     }
   },
@@ -1316,7 +1316,7 @@
     "members": {
       "positions": "Dua ujung per segmen, masing-masing tiga angka.",
       "color": "Warnanya; putih secara bawaan.",
-      "width": "Lebar di layar, dalam piksel."
+      "width": "Lebar di layar, dalam piksel CSS, seperti setiap garis mesin."
     }
   },
   "GuidePoints": {
@@ -1324,7 +1324,7 @@
     "members": {
       "positions": "Tiga angka per titik.",
       "color": "Warnanya; putih secara bawaan.",
-      "size": "Sisi setiap titik persegi di layar, dalam piksel."
+      "size": "Sisi setiap titik persegi di layar, dalam piksel CSS."
     }
   },
   "Guides": {
@@ -1334,7 +1334,7 @@
       "vertexCount": "Verteks yang dipegang sekarang, dua per segmen dan satu per titik, termasuk pemandu tersembunyi.",
       "lines": "Menggambar segmen garis, masing-masing dua ujung; ditolak di atas batas (`GUIDE_CEILING`).",
       "points": "Menggambar titik persegi, masing-masing satu posisi; ditolak di atas batas (`GUIDE_CEILING`).",
-      "add": "Menggambar mesh garis dan titik dari `object` — setiap `helper` membangunnya — dengan warna materialnya, ditempatkan di posisi objek saat ini; segitiganya bukan pemandu dan dilewati.",
+      "add": "Menggambar mesh garis dan titik dari `object` — setiap `helper` membangunnya — dengan warna materialnya; segitiganya bukan pemandu dan dilewati. Pemandu mengikuti objek — untuk helper cahaya atau kamera, node yang ditunjukkannya — dipindahkan pada setiap gambar ketika node itu bergerak, tidak pernah selain itu.",
       "clear": "Menghapus semua pemandu."
     }
   },
