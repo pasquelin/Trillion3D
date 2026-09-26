@@ -17,8 +17,9 @@ export interface HizArgs {
   cases: HizCaseSample[];
   bindEntries: ReturnType<typeof hizBindEntries>;
   /** Group 1 of `testHiz` (`HIZ_TEST_PAGES_ENTRIES`): the page table it reads each row's Hi-Z
-   *  slot from. One zeroed row: slot 0, a row the pyramid judges. */
+   *  slot from. */
   pagesEntries: GPUBindGroupLayoutEntry[];
+  /** Bytes of that table: one zeroed row, slot 0, a row the pyramid judges (`PAGE_INFO_STRIDE`). */
   pageInfoBytes: number;
   stateWords: number;
   stTested: number;
