@@ -4267,6 +4267,7 @@
       "children": "Figli collegati nell'ordine di aggiunta. La lista restituita non può essere modificata.",
       "add": "Rende oggetti figli di questo nodo.",
       "remove": "Rimuove figli da questo nodo.",
+      "attach": "Aggiunge `child` dove si trova (`SceneNode.attach`).",
       "destroy": "Libera subito il nodo e tutto ciò che sta sotto, invece che alla loro raccolta.",
       "removeFromParent": "Rimuove il nodo dal suo genitore.",
       "clone": "Un nodo dello stesso tipo con gli stessi valori; anche i figli copiati salvo indicazione contraria.",
@@ -4896,7 +4897,7 @@
     "summary": "L'atlante dei dati: immagini di metallo-ruvidità, normali e occlusione."
   },
   "PREVIEW_ATLAS_NAMES": {
-    "summary": "Il `{kind}` portato dal percorso di un livello cotto per ogni atlante, così come li nomina `bake.rs`."
+    "summary": "Il `{kind}` che il percorso di un livello cotto porta per ogni atlante, come li nomina `reduce.rs`; una catena di copertura tagliata al byte C aggiunge `-C`."
   },
   "PREVIEW_BASE": {
     "summary": "Lato più grande che può avere un livello portato dal file separato."
@@ -5324,6 +5325,7 @@
       "remove": "Rimuove un figlio.",
       "clear": "Rimuove ogni figlio.",
       "reparent": "Lo colloca sotto un altro genitore.",
+      "attach": "Aggiunge un figlio dove si trova: la sua matrice nel mondo è mantenuta, la sua posa locale riscritta.",
       "clone": "Una copia, figli inclusi.",
       "copy": "Copia i valori e i discendenti; una sovrapposizione ricorsiva da un antenato verso un discendente viene rifiutata in blocco.",
       "setPosition": "Imposta la sua posizione.",
@@ -6142,7 +6144,7 @@
       "sourceKind": "0 quando i byte venivano da un uri di immagine, 1 quando venivano da sourceBufferView.",
       "sourceBufferView": "Vista di buffer della scena preparata, o -1 per una fonte uri.",
       "sha256": "SHA-256 dei byte sorgente decodificati.",
-      "atlas": "La catena che questa voce porta: PREVIEW_ATLAS_COLOR, PREVIEW_ATLAS_DATA, o PREVIEW_ATLAS_COVERAGE, campionata nell'atlante dei colori.",
+      "atlas": "La catena che questa voce porta: PREVIEW_ATLAS_COLOR, PREVIEW_ATLAS_DATA, o PREVIEW_ATLAS_COVERAGE, campionata nell’atlante del colore, nel byte basso; il byte di taglio di una catena di copertura occupa i bit 8–15.",
       "firstLevel": "Indice del primo livello portato nella catena di mip della sorgente; 0 quando rientra già sotto PREVIEW_BASE e il file separato porta quindi tutta la sua risoluzione.",
       "bakedLevels": "Livelli cotti in file nella cache, da 0 a bakedLevels - 1; firstLevel quando la catena è completa, 0 quando nulla è stato scritto e il motore carica l'immagine sorgente.",
       "levels": "Livelli portati in ordine, dal più fine a 1×1, ciascuno una vista sui byte del file separato.",

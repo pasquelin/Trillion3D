@@ -6,6 +6,7 @@ mod bake_files;
 mod box_reduce;
 mod cancellation;
 mod collect_textures;
+mod coverage_alpha;
 mod decode_failure;
 mod gate;
 mod gate_verdict;
