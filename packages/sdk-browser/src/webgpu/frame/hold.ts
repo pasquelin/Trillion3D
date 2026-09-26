@@ -5,6 +5,7 @@ import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 import { shadowsUnsettled } from '../pages/state/lights.ts';
 import { effectsMoved } from '../pages/render/encodeEffects.ts';
 import { guidesMoved } from '../pages/render/encodeGuides.ts';
+import { particlesMoved } from '../../particles/webgpuParticles.ts';
 import { frameTargetsAwaited } from '../pages/prepare/targetGrant.ts';
 import { deviceAnswering } from './deviceAnswer.ts';
 
@@ -154,7 +155,7 @@ export function holdWebgpuFrame(rt: WebgpuPagesRuntime, device: GPUDevice) {
     beginTaaFrame(rt, run.gate.cam, quiet);
     // Guides or an effect chain the page changed, or a chain the last image lacked while its
     // programs compiled, are drawn by a full image; the accumulation stays still for it.
-    if (!quiet || !taaSettled(rt) || guidesMoved(rt) || effectsMoved(rt)) {
+    if (!quiet || !taaSettled(rt) || guidesMoved(rt) || effectsMoved(rt) || particlesMoved(rt)) {
       run.frameHeld = false;
       return false;
     }
