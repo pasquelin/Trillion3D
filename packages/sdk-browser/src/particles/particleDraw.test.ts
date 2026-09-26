@@ -91,7 +91,7 @@ test('WebGPU without the visibility buffer refuses the pools by name, heard once
     diag = { diagnosticFailure: (code: string, e: Error) => heard.push(`${code} ${e.message}`) };
   const rt = { context: { particles: [smoke] }, vis: { visEnabled: false }, gpu: {}, diag };
   const encode = () => encodeParticles(rt as never, fakeDevice().device, {} as GPUCommandEncoder);
-  (encode(), encode());
+  [0, 1].forEach(encode);
   const told = heard.map((line) => `${line}`.split(':')[0]);
   assert.deepEqual([smoke.refused, told], [true, ['particles-unavailable PARTICLES_UNSUPPORTED']]);
 });
