@@ -149,6 +149,9 @@ test('Each family reaches the WebGL2 program in the model it reads on WebGPU (#5
     assert.equal(flagOf(new G.GraphSurface(family as 'standard'), 'surfaceModel'), model, family);
   // A matcap's image is bound as the base map, the one the program reads at the normal.
   assert.equal(flagOf(new G.GraphSurface('matcap', { matcap: texture() }), 'mapMask'), 1);
+  // Only a basic surface reads the occlusion of an unlit model; a matcap reads none, as on WebGPU.
+  assert.equal(flagOf(new G.GraphSurface('basic', { aoMap: texture() }), 'mapMask'), 16);
+  assert.equal(flagOf(new G.GraphSurface('matcap', { aoMap: texture() }), 'mapMask'), 0);
 });
 
 test('The uniform cache holds every slot the binder writes, the last one included', () => {
