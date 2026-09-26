@@ -93,13 +93,14 @@ pub(super) fn expand_gpu_instances(g: &mut Value, bin: &[u8]) -> Result<()> {
         if let Some(extensions) = node.get_mut("extensions").and_then(Value::as_object_mut) {
             extensions.remove(EXTENSION);
         }
+        let range = first..first + children.len();
         node.entry("children")
             .or_insert_with(|| json!([]))
             .as_array_mut()
             .ok_or_else(|| invalid("node.children is not an array"))?
-            .extend((first..first + children.len()).map(|child| json!(child)));
+            .extend(range.clone().map(|child| json!(child)));
         nodes.extend(children);
-        moved.push((id, first..nodes.len()));
+        moved.push((id, range));
     }
     retarget_weight_channels(g, &moved);
     for list in ["extensionsUsed", "extensionsRequired"] {
@@ -122,12 +123,11 @@ fn retarget_weight_channels(g: &mut Value, moved: &[(usize, std::ops::Range<usiz
         };
         let mut added = Vec::new();
         channels.retain(|channel| {
-            let weights =
-                channel.pointer("/target/path").and_then(Value::as_str) == Some("weights");
+            if channel.pointer("/target/path").and_then(Value::as_str) != Some("weights") {
+                return true;
+            }
             let target = channel.pointer("/target/node").and_then(Value::as_u64);
-            let Some((_, children)) = moved
-                .iter()
-                .find(|(id, _)| weights && target == Some(*id as u64))
+            let Some((_, children)) = moved.iter().find(|(id, _)| target == Some(*id as u64))
             else {
                 return true;
             };
