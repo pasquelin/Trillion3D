@@ -1021,8 +1021,12 @@ as `world.budget.split`:
   evicted by a page, until another scene replaces it or the pages a frame keeps no longer fit
   beside it: then it yields its bytes to them (`page-cache-kept-yielded`) and is read again after
   a device loss. It is read on its own request, beside the page queue, and is not counted among
-  the pages read. A change applies at once: pages
-  leave by last use until they fit, save those the frame keeps. The default total is the mirror
+  the pages read. The decoded baked texture levels take at most three quarters of the pages'
+  share (`split.textureLevels`, 192 MiB at the default total), the least recently read leaving
+  first, and yield first, before the proxy, to the pages a frame keeps
+  (`page-cache-levels-yielded`); a level that cannot fit beside them is not read, and its tile
+  stays at its coarser level until room comes back. A change applies at once: pages and levels
+  leave by last use until they fit, save the pages the frame keeps. The default total is the mirror
   plus the cache's own default; a total not above the mirror is refused
   (`CPU_BUDGET_UNDER_SHADOW_MIRROR`).
 
@@ -1368,9 +1372,9 @@ bend }` simulates the mesh's vertices one by one on Jolt's soft bodies. A cloth 
   by the declared-light rule above.
 - A lost device is recovered, the page never reloaded: the world asks for a device again, reopens its
   session on it and rebuilds from its decoded-page cache, fetching no page, bundle or resident proxy
-  it still holds (the proxy is kept whole inside `world.budget.cpu` unless it yielded to the pages).
-  `gpu-device-recovered` says the time from the loss to the first frame drawn after it
-  (`recoveryMs`). Baked texture levels and `lights.json` are read again, and cross-API fallback is
+  it still holds (the proxy and the decoded texture levels are kept inside `world.budget.cpu`
+  unless they yielded to the pages). `gpu-device-recovered` says the time from the loss to the
+  first frame drawn after it (`recoveryMs`). `lights.json` is read again, and cross-API fallback is
   not implemented.
 - Frame targets the device refused are asked again only when the view's size changes, or by a
   capture; until then the frames stay held on the previous image.
