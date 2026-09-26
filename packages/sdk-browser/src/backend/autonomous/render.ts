@@ -16,7 +16,8 @@ import type { createAutonomousGeometry } from './geometry.ts';
 /** What the autonomous frame decided, and whether it was held. */
 export type AutonomousRenderState = {
   visible: number;
-  selectedTriangles: number;
+  /** The cut's triangle counts under their metric names, spread into `metrics()`. */
+  triangles: { selectedTriangles: number; drawnTriangles: number; uncoveredTriangles: number };
   frustumRejected: number;
   lodLevel: number;
   overBudget: boolean;
@@ -25,7 +26,7 @@ export type AutonomousRenderState = {
 
 export const createAutonomousRenderState = (): AutonomousRenderState => ({
   visible: 0,
-  selectedTriangles: 0,
+  triangles: { selectedTriangles: 0, drawnTriangles: 0, uncoveredTriangles: 0 },
   frustumRejected: 0,
   lodLevel: 0,
   overBudget: false,
@@ -117,14 +118,17 @@ export function createAutonomousRender(options: {
     pool.trim();
     const selected = cut(gate.cam, gate.pixelError);
     state.visible = selected.visible;
-    state.selectedTriangles = selected.selectedTriangles;
+    const { triangles } = state;
+    triangles.selectedTriangles = selected.selectedTriangles;
+    triangles.drawnTriangles = selected.displayedTriangles;
+    triangles.uncoveredTriangles = selected.uncoveredTriangles;
     state.frustumRejected = selected.frustumRejected;
     state.lodLevel = selected.lodLevel;
     // Drawn pages past the display graph's page ceiling are reported, never replaced.
     state.overBudget = attachedPages(shown) > ceiling();
     geometry.sync();
     follow();
-    gate.keep(state.visible, state.selectedTriangles, shown, state.lodLevel, state.overBudget);
+    gate.keep(state.visible, triangles.selectedTriangles, shown, state.lodLevel, state.overBudget);
   };
   return Object.assign(frame, { hostBytes: cut.hostBytes });
 }

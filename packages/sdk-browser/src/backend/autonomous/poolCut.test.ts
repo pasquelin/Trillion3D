@@ -94,6 +94,25 @@ test('a pool at the root cover plus a tenth draws every leaf once, and never a h
   }
 });
 
+// #490: the WebGL2 image publishes its holes from the cut it takes. A missing fine page is drawn
+// by its ancestor, no hole; a missing root-cover page has nothing coarser, and its triangles read
+// uncovered — the reading the no-hole proof takes under WebGL2.
+test('the image cut counts as uncovered only a surface nothing resident draws', () => {
+  const { image, cut, dag, pages, drawnIds, drop } = strip(1000, wholeStrip());
+  for (let i = 0; i < 24; i++) image(0.25);
+  assert.equal(cut().uncoveredTriangles, 0, 'a full view has no hole');
+  const fine = pages.find((page) => page.parentError !== null && page.array)!;
+  drop(fine.url);
+  image(0.25, 0);
+  assert.equal(coverFault(dag, drawnIds()), -1, 'an ancestor stands in for the missing page');
+  assert.equal(cut().uncoveredTriangles, 0, 'a covered surface is no hole');
+  const root = pages.find((page) => page.parentError === null)!;
+  drop(root.url);
+  image(0.25, 0);
+  assert.notEqual(coverFault(dag, drawnIds()), -1, 'the surface under the root is not drawn');
+  assert.equal(cut().uncoveredTriangles, root.triangles, 'its triangles read uncovered');
+});
+
 /** Clusters nothing replaces in the rule DAG: its root cover. */
 function dag0Roots() {
   return ruleDag(256).pages.filter((page) => page.parentError === null).length;

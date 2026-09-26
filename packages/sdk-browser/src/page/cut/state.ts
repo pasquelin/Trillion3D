@@ -66,6 +66,8 @@ export interface SelectionState<T extends PageRecord> {
    *  sweep of `wanted` and `shown`, in the same order and at the same bits. */
   wantedTriangles: number;
   shownTriangles: number;
+  /** Triangles of the holes, see `SelectionResult.uncoveredTriangles`. */
+  uncoveredTriangles: number;
 }
 
 /** Cut result, filled in place: the caller supplies the object, the image allocates none. */
@@ -80,6 +82,10 @@ export interface SelectionResult<T> {
   nodesTested: number;
   lodLevel: number;
   complete: boolean;
+  /** Triangles of the root-cover clusters in view the rule would draw but that are not resident:
+   *  nothing coarser stands in for them, so their surface is a hole (`./take.ts`). Zero when the
+   *  cut holds no residency. */
+  uncoveredTriangles: number;
   pixelError: number;
 }
 
@@ -96,6 +102,7 @@ export function createSelectionResult<T>(): SelectionResult<T> {
     nodesTested: 0,
     lodLevel: 0,
     complete: true,
+    uncoveredTriangles: 0,
     pixelError: 0,
   };
 }
@@ -140,6 +147,7 @@ const reusedState: SelectionState<PageRecord> = {
   wantedCount: 0,
   wantedTriangles: 0,
   shownTriangles: 0,
+  uncoveredTriangles: 0,
 };
 
 /** The reused state, viewed at the requested page type. */

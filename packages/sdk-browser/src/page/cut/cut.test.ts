@@ -111,6 +111,7 @@ test('the hierarchical cut reuses its result and arrays from one frame to the ne
     nodesTested: 0,
     lodLevel: 0,
     complete: true,
+    uncoveredTriangles: 0,
     pixelError: 0,
   };
   const ask = { ...ASK, result, wanted };
