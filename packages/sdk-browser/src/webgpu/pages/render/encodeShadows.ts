@@ -89,7 +89,7 @@ export function planShadowRegions(
   // The light cuts measure their error at the camera's threshold.
   lights.shadowPixelError = followLightThreshold(lights, rt.run.gate.pixelError);
   const view = shadowViewpointOf(cam, rt.gpu.targetSize[1]);
-  const box = lights.sceneBox(rt.layout);
+  const box = lights.sceneBox(rt.layout, rt.run.gate.revisions.scene);
   ensureStaticLayer(rt);
   redrawShortPages(rt, frame, nowMs, residencyMoved);
   const count = plan.plan(store, view, box.min, box.max, frame, nowMs);

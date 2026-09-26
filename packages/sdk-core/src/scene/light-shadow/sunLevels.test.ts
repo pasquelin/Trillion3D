@@ -65,7 +65,7 @@ test('a box that bounds nothing leaves the floor the whole view reach', () => {
   const sun = createSunLevels(),
     bounded = new Int32Array(4),
     reach = new Int32Array(4);
-  // No box yet, and a plane unbounded along x: neither bounds the floor.
+  // No box yet, a plane unbounded along x, a box unbounded along the axis: none bounds the floor.
   for (const [min, max] of [
     [
       [Infinity, Infinity, Infinity],
@@ -74,6 +74,11 @@ test('a box that bounds nothing leaves the floor the whole view reach', () => {
     [
       [-Infinity, 0, -10],
       [Infinity, 0, 10],
+    ],
+    // Unbounded down the axis only: the near end is finite, the far one is not.
+    [
+      [-10, -Infinity, -10],
+      [10, 0, 10],
     ],
   ]) {
     sun.update(0, AXIS, at(0), min, max, 1);
