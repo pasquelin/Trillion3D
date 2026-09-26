@@ -50,7 +50,7 @@ impl Out {
         if held.saturating_add(adding) > self.room {
             return Err(refused(
                 "blend-too-large",
-                format!("blend: {kind} {name} needs {adding} bytes, and the scene binary already holds {held} of the {}-byte RAM budget of this job (ramBudgetMb)", self.room),
+                format!("blend: {kind} {name} needs {adding} bytes, and the scene binary already holds {held} of the {} bytes this job's RAM budget (ramBudgetMb) leaves it once the file is open", self.room),
             ));
         }
         Ok(())
