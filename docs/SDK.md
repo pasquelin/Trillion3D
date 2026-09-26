@@ -356,7 +356,8 @@ advance with it; only the camera's controller is left to the host.
 A value written directly on a node — `mesh.position.x = 100`, `mesh.visible = false`, a light's
 intensity, colour or pose — needs no call to be seen by the next frame, and a light added to or
 removed from the graph is picked up on the next frame too. An asynchronous render failure stops
-automatic work and emits `INTERACTIVE_RENDER_FAILED` as a diagnostic.
+automatic work, emits `INTERACTIVE_RENDER_FAILED` as a diagnostic and reports the error to the
+page as an uncaught one is (`reportError`), so the page's own `error` listener sees it.
 
 ## What draws: the renderer option
 
@@ -401,6 +402,10 @@ physically based glow on the linear image, before tone mapping, energy-conservin
 spread at every level, in texels of that level. `world.effects.add(pass, index?)`,
 `remove(pass)` and `clear()` change the chain; a setting written on a pass shows at the next frame.
 An empty chain costs nothing, and a still image with a chain is post-processed once, then held.
+On WebGL2, a frame that draws a transparent surface blending in `multiply` or `subtractive` is drawn
+whole without the chain — its linear target cannot hold those modes; WebGPU draws both —, and the
+world's diagnostic channel says `effects-refused-blending` once; the chain comes back once no such
+surface is drawn.
 
 ```js
 const glow = effect.bloom({ intensity: 0.08 });
@@ -905,7 +910,10 @@ so a windowless corridor stays black at noon. Emission is a material property an
 `world.exposure` sets the camera exposure, applied to linear radiance before tone mapping; it is not
 a light and cannot brighten a surface no light reaches. Debug views are untouched by both: a
 `material.meshNormal()` or `material.meshDepth()` surface is output as stored, with neither exposure
-nor `world.toneMapping`, on both renderers, as in the reference. `scene.background` is the colour behind every
+nor `world.toneMapping`, on both renderers, as in the reference. A map a family's model never reads
+— a `meshToon` `gradientMap`, a `meshMatcap` `map`, the `normalMap` of a `meshMatcap` or `meshNormal`
+surface — is refused by name on both renderers, never dropped from the image; a `meshMatcap`,
+`meshNormal` or `meshDepth` surface ignores an `aoMap`, as the reference does. `scene.background` is the colour behind every
 object, `null` for the default; set, or written through its methods (`scene.background.setHSL(...)`,
 `set`, `setRGB`, `setHex`), it shows at the next frame on every renderer, the session kept. A direct
 write of `.r`, `.g` or `.b` is not heard: set `scene.background` again after one. A picture
@@ -924,6 +932,14 @@ atlas, and at most 24 shadow regions redrawn per frame.
 `capability.lighting(world)` reports what the **active** renderer applies — `{ sceneLights,
 lightingView, shadows, transforms, reason? }` — not what the contract accepts: a call the light
 store accepts is not proof of lighting. `reason` names in one sentence what is not applied.
+
+### A see-through surface casts no shadow unless it asks
+
+A blended material (`transparent: true`) lets the light pass by default, as glass, smoke and a beam
+of light do in the reference solution: it casts no shadow. `transparentShadow: true` asks for one,
+as dark as the surface is opaque: `material.meshStandard({ transparent: true, opacity: 0.5,
+transparentShadow: true })` casts half a shadow. An additive, transmissive or fully transparent
+surface casts none either way, and WebGL2 draws no shadow at all.
 
 ### A luminaire does not block its own light
 
@@ -1017,8 +1033,12 @@ as `world.budget.split`:
   evicted by a page, until another scene replaces it or the pages a frame keeps no longer fit
   beside it: then it yields its bytes to them (`page-cache-kept-yielded`) and is read again after
   a device loss. It is read on its own request, beside the page queue, and is not counted among
-  the pages read. A change applies at once: pages
-  leave by last use until they fit, save those the frame keeps. The default total is the mirror
+  the pages read. The decoded baked texture levels take at most three quarters of the pages'
+  share (`split.textureLevels`, 192 MiB at the default total), the least recently read leaving
+  first, and yield first, before the proxy, to the pages a frame keeps
+  (`page-cache-levels-yielded`); a level that cannot fit beside them is not read, and its tile
+  stays at its coarser level until room comes back. A change applies at once: pages and levels
+  leave by last use until they fit, save the pages the frame keeps. The default total is the mirror
   plus the cache's own default; a total not above the mirror is refused
   (`CPU_BUDGET_UNDER_SHADOW_MIRROR`).
 
@@ -1364,9 +1384,9 @@ bend }` simulates the mesh's vertices one by one on Jolt's soft bodies. A cloth 
   by the declared-light rule above.
 - A lost device is recovered, the page never reloaded: the world asks for a device again, reopens its
   session on it and rebuilds from its decoded-page cache, fetching no page, bundle or resident proxy
-  it still holds (the proxy is kept whole inside `world.budget.cpu` unless it yielded to the pages).
-  `gpu-device-recovered` says the time from the loss to the first frame drawn after it
-  (`recoveryMs`). Baked texture levels and `lights.json` are read again, and cross-API fallback is
+  it still holds (the proxy and the decoded texture levels are kept inside `world.budget.cpu`
+  unless they yielded to the pages). `gpu-device-recovered` says the time from the loss to the
+  first frame drawn after it (`recoveryMs`). `lights.json` is read again, and cross-API fallback is
   not implemented.
 - Frame targets the device refused are asked again only when the view's size changes, or by a
   capture; until then the frames stay held on the previous image.
