@@ -61,22 +61,26 @@ pub(crate) fn hypot3(x: f64, y: f64, z: f64) -> f64 {
 /// The bounding cone of the normals of `indices`' triangles over `pos`, as `[x, y, z, angle]`.
 /// Degenerate faces are skipped; with none left, or normals that cancel out, the cone is open.
 pub(crate) fn triangle_cone(pos: &[f32], indices: &[u32]) -> [f64; 4] {
-    let faces = || {
-        indices.as_chunks::<3>().0.iter().filter_map(|&[i, j, k]| {
+    // Each face's cross product and length once: the same values both passes of the TypeScript
+    // recompute, so the bits do not change.
+    let faces: Vec<([f64; 3], f64)> = indices
+        .as_chunks::<3>()
+        .0
+        .iter()
+        .filter_map(|&[i, j, k]| {
             let c = face_cross(pos, i as usize * 3, j as usize * 3, k as usize * 3);
             let len = hypot3(c[0], c[1], c[2]);
             (len > 0.0).then_some((c, len))
         })
-    };
-    let (mut sx, mut sy, mut sz, mut count) = (0.0f64, 0.0f64, 0.0f64, 0usize);
-    for (c, _) in faces() {
+        .collect();
+    if faces.is_empty() {
+        return OPEN_CONE;
+    }
+    let (mut sx, mut sy, mut sz) = (0.0f64, 0.0f64, 0.0f64);
+    for (c, _) in &faces {
         sx += c[0];
         sy += c[1];
         sz += c[2];
-        count += 1;
-    }
-    if count == 0 {
-        return OPEN_CONE;
     }
     let sl = hypot3(sx, sy, sz);
     // `!(sl > 0)` in the TypeScript: a NaN length opens the cone as a zero one does.
@@ -85,7 +89,7 @@ pub(crate) fn triangle_cone(pos: &[f32], indices: &[u32]) -> [f64; 4] {
     }
     let axis = divide([sx, sy, sz], sl);
     let mut angle = 0.0f64;
-    for (c, len) in faces() {
+    for &(c, len) in &faces {
         let d = (dot(c, axis) / len).clamp(-1.0, 1.0);
         let a = libm::acos(d);
         if a > angle {
