@@ -1872,6 +1872,7 @@
       "vertexColors": "几何体的逐顶点颜色是否给表面染色。",
       "depthWrite": "表面是否写入自己的深度。",
       "depthTest": "表面是否会被更近的物体遮挡。",
+      "transparentShadow": "透明（`transparent`）表面是否仍投下阴影，越透明阴影越淡。",
       "version": "每次写入都会递增:世界据此比较来决定是否需要重绘。",
       "kind": "该材质创建时所属的类型:`'meshStandard'`、`'meshBasic'`……",
       "needsUpdate": "`material.needsUpdate = true`:穿着它的网格会被重绘。",

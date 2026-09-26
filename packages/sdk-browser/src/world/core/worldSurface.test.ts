@@ -193,8 +193,8 @@ test('a dashed line surface carries its dash and gap, and a repaint writes them'
 // #35, the boss's beam (`site/examples/a-lighthouse-beam.html`): its air casts no shadow unasked.
 test('a see-through world material casts a shadow only when it asks with transparentShadow', () => {
   const air = { color: '#fff2cc', transparent: true, opacity: 0.22, depthWrite: false };
-  const surface = (asked?: boolean) =>
-    hostSurface(material.meshBasic({ ...air, transparentShadow: asked }), false, new Map());
-  const casts = (asked?: boolean) => castsBlendShadow(surfaceOf(surface(asked)));
-  assert.deepEqual([casts(), casts(false), casts(true)], [false, false, true]);
+  const beam = (asked?: boolean) => material.meshBasic({ ...air, transparentShadow: asked });
+  const worn = [beam(), beam(false), beam(true), material.shadow()];
+  const casts = worn.map((m) => castsBlendShadow(surfaceOf(hostSurface(m, false, new Map()))));
+  assert.deepEqual(casts, [false, false, true, false], 'the shadow catcher casts none either');
 });

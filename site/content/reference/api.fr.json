@@ -3725,6 +3725,7 @@
       "vertexColors": "Si les couleurs par sommet de la géométrie teintent la surface.",
       "depthWrite": "Si la surface écrit sa profondeur.",
       "depthTest": "Si la surface se cache derrière ce qui est plus proche.",
+      "transparentShadow": "Si une surface transparente (`transparent`) projette quand même une ombre, d’autant plus pâle qu’elle est transparente.",
       "version": "Augmenté à chaque écriture : ce que le monde compare pour repeindre.",
       "kind": "Le genre avec lequel le matériau a été fait : `'meshStandard'`, `'meshBasic'`…",
       "needsUpdate": "`material.needsUpdate = true` : les maillages qui le portent sont repeints.",
