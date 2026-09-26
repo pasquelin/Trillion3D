@@ -35,35 +35,31 @@ export function createStreamingCache(context: StreamContext) {
    *  rule 1). The decoded texture levels first, the least recently read first — read again when a
    *  tile asks and they fit —, then the kept file, read again after a device loss. A notice says
    *  what each gave back. */
-  const yieldBeside = (held: number) => {
-    const shed = store.levels.shedTo(store.levelRoom(held));
+  const yielded = (phase: string, message: string, bytes: number) => {
     budget = store.budgetBytes;
-    if (shed > 0)
-      emit(
-        'page-cache-levels-yielded',
-        'Texture levels yield to the pages kept or in flight',
-        () => ({
-          version: 1,
-          bytes: shed,
-          residentBytes: store.bytes,
-          maxCachedBytes: budget,
-        }),
-      );
-    const kept = store.keptBytes;
-    if (kept === 0 || held <= budget) return;
-    store.yieldKept();
-    budget = store.budgetBytes;
-    emit(
-      'page-cache-kept-yielded',
-      'The kept file yields its bytes to the pages kept or in flight',
-      () => ({
+    if (bytes > 0)
+      emit(phase, message, () => ({
         version: 1,
-        bytes: kept,
+        bytes,
         residentBytes: store.bytes,
         maxCachedBytes: budget,
         pinned: pinned.size,
         loading: state.active,
-      }),
+      }));
+  };
+  const yieldBeside = (held: number) => {
+    yielded(
+      'page-cache-levels-yielded',
+      'Texture levels yield to the pages kept or in flight',
+      store.levels.shedTo(store.levelRoom(held)),
+    );
+    const kept = store.keptBytes;
+    if (kept === 0 || held <= budget) return;
+    store.yieldKept();
+    yielded(
+      'page-cache-kept-yielded',
+      'The kept file yields its bytes to the pages kept or in flight',
+      kept,
     );
   };
   const evict = () => {
