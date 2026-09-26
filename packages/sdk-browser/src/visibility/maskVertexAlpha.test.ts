@@ -49,7 +49,9 @@ test('the cutout multiplies by the vertex alpha only on a row that reads its col
   );
   const read = keep.indexOf('var alpha=maskAlpha(');
   const multiply = keep.indexOf('if(coloured){alpha*=vertexAlpha;}');
-  assert.ok(read > 0 && multiply > read && multiply < keep.indexOf('if(stipple==0.0)'));
+  assert.ok(
+    read > 0 && multiply > read && multiply < keep.indexOf('return alpha>=page.baseColor.w;'),
+  );
   assert.ok(
     PAGE_GEOMETRY_WGSL.includes(
       `if((page.flags&${FLAG_HAS_COLOR}u)!=0u){return pageColor(page,h,vertex).w;}`,
@@ -68,8 +70,8 @@ test('both WebGPU rasters hand the interpolated vertex alpha to the cutout; shad
   const small = rasterSource(4, 16);
   assert.ok(small.includes('ua=vec3f(pageUv(page,h,ia),pageMaskAlpha(page,h,ia));'));
   assert.ok(small.includes('u:array<vec3f,4>'), 'the near clip carries it');
-  assert.ok(small.includes('if(!maskKeep(page,tc.xy,tc.z,gx,gy,stipple)){return;}'));
-  assert.ok(SHADOW_DEPTH_SHADER.includes('maskKeep(pages[in.instance],in.uv,1.0,gx,gy,0.0)'));
+  assert.ok(small.includes('if(!maskKeep(page,tc.xy,tc.z,vec2f(0.0),vec2f(0.0))){return;}'));
+  assert.ok(SHADOW_DEPTH_SHADER.includes('maskKeep(pages[in.instance],in.uv,1.0,gx,gy)'));
 });
 
 test('WebGL2 cuts at the same product: vertex colour first, then the alpha test', () => {

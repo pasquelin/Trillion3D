@@ -2111,5 +2111,19 @@
       "volumes": "体積",
       "awake": "動作中"
     }
+  },
+  "a-cooked-flag": {
+    "banner": "旗はモデルと一緒に事前計算されています。モデルを読み込むとすぐに復元され、ポールから垂れ下がります。もう一度読み込んで確かめてください。",
+    "controls": {
+      "again": "もう一度",
+      "slowMotion": "スロー"
+    },
+    "readouts": {
+      "bodies": "物体",
+      "step": "ステップ"
+    },
+    "words": {
+      "credit": "この例のためにコードでモデリングしたポールの旗、CC0 — assets/examples/CREDITS.md を参照"
+    }
   }
 }

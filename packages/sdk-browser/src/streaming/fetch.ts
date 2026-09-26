@@ -1,10 +1,10 @@
-import { checked } from '../cluster/pages.ts';
+import { checked, corruptObject } from '../cluster/pages.ts';
 import { verifyPageBytes } from '../page/decode/host.ts';
 import type { StreamContext } from './types.ts';
 
 export function createStreamingFetcher(
   context: StreamContext,
-  touch: (url: string, bytes: Uint8Array) => void,
+  touch: (url: string, bytes: Uint8Array, sha256: string) => void,
 ) {
   const { catalog, cache, base, abort, onDiagnostic, emit, failures, state } = context;
   const loadOne = async (url: string, jobSignal: AbortSignal) => {
@@ -72,11 +72,12 @@ export function createStreamingFetcher(
             url,
             attempt,
           }));
-          throw new Error('Corrupt cluster page');
+          // Named by what failed: the retries and the final `PAGE_STREAM_FAILED` repeat it.
+          throw corruptObject(url, page, byteLength, actualHash);
         }
         combined.throwIfAborted();
         const array = new Uint8Array(buffer);
-        touch(url, array);
+        touch(url, array, page.sha256);
         state.bytesRead += byteLength;
         state.loaded++;
         emit('page-attempt-end', 'Page read attempt succeeded', () => ({

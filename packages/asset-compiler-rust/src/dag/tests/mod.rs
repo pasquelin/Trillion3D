@@ -68,6 +68,19 @@ pub(super) fn grouped(n: usize) -> Grouped {
     }
 }
 
+/// Every cut of `dag`, finest first: its threshold and the clusters the runtime draws at it.
+fn cuts(dag: &[DagCluster]) -> Vec<(f64, Vec<&DagCluster>)> {
+    let mut thresholds: Vec<f64> = dag.iter().map(|c| c.lod_error).collect();
+    thresholds.sort_by(f64::total_cmp);
+    thresholds.dedup();
+    let cut = |t| {
+        dag.iter()
+            .filter(|c| crate::proxy::cut::selected(c, t))
+            .collect()
+    };
+    thresholds.into_iter().map(|t| (t, cut(t))).collect()
+}
+
 mod part1;
 mod part10;
 mod part11;
