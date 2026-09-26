@@ -128,6 +128,7 @@ pub(super) fn stage_scene_tables(
 /// each proven by its slot: a reused folder proves its cells so (`compiler_reuse_proof.rs`), the
 /// manifest's `files` would grow with the world. Tables of another version are refused by name.
 pub(crate) fn cell_records(directory: &Path) -> std::result::Result<Map<String, Value>, String> {
+    use partition::pages::{read_leaves, CELL_PAGES};
     let what = |e: &dyn std::fmt::Display| format!("{SCENE_TABLES_FILE}: {e}");
     let bytes = fs::read(directory.join(SCENE_TABLES_FILE)).map_err(|e| what(&e))?;
     let tables: Value = serde_json::from_slice(&bytes).map_err(|e| what(&e))?;
@@ -136,7 +137,6 @@ pub(crate) fn cell_records(directory: &Path) -> std::result::Result<Map<String, 
     }
     let (root, mut pages) = (&tables["partition"], Vec::new());
     if !root.is_null() {
-        use partition::pages::{read_leaves, CELL_PAGES};
         if root["version"] != json!(CELL_PAGES.version) {
             return Err("the partition root is of another version".into());
         }
@@ -150,7 +150,7 @@ pub(crate) fn cell_records(directory: &Path) -> std::result::Result<Map<String, 
     }
     let cells = pages
         .into_iter()
-        .flat_map(|mut page| match page["cells"].take() {
+        .flat_map(|mut page| match page[CELL_PAGES.records].take() {
             Value::Array(cells) => cells,
             _ => Vec::new(),
         });

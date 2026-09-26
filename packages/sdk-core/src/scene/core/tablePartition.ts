@@ -104,6 +104,7 @@ export function assertTablePartition(value: unknown): TablePartitionRoot | null 
 }
 
 const bits = new DataView(new ArrayBuffer(8));
+const text = new TextDecoder();
 /** The `f64` whose bits are the sixteen hexadecimal digits `hex`. */
 const float64 = (hex: string) => (bits.setBigUint64(0, BigInt(`0x${hex}`)), bits.getFloat64(0));
 
@@ -126,21 +127,30 @@ async function readPage(
   page: TablePage,
   read: (page: TablePage) => Promise<Uint8Array>,
 ) {
-  return versioned(kind, JSON.parse(new TextDecoder().decode(await read(page))), page.url);
+  return versioned(kind, JSON.parse(text.decode(await read(page))), page.url);
 }
 
-/** Every region page of `kind` under `slots`, in record order, the pages read side by side through
+/** The pages `slots` of `kind` name, their boxes beside them, the empty ones left out. */
+const named = (kind: PageKind, slots: readonly unknown[]) =>
+  slots.map((slot) => slotPage(kind, slot)).filter((slot) => slot !== null);
+
+/** Every region page of `kind` under `pages`, in record order, the pages read side by side through
  *  `read` (which verifies each against its slot). */
 async function readLeaves(
   kind: PageKind,
-  slots: readonly unknown[],
+  pages: readonly TablePage[],
   read: (page: TablePage) => Promise<Uint8Array>,
 ): Promise<PageBody[]> {
-  const named = slots.map((slot) => slotPage(kind, slot)).filter((slot) => slot !== null);
   const lists = await Promise.all(
-    named.map(async ({ page }) => {
+    pages.map(async (page) => {
       const body = await readPage(kind, page, read);
-      if (Array.isArray(body.pages)) return readLeaves(kind, body.pages, read);
+      const below = Array.isArray(body.pages) ? named(kind, body.pages) : null;
+      if (below)
+        return readLeaves(
+          kind,
+          below.map((slot) => slot.page),
+          read,
+        );
       if (Array.isArray(body[kind.records])) return [body];
       throw new EngineError(kind.invalid, `${page.url} lists neither pages nor records`, {});
     }),
@@ -154,11 +164,13 @@ export async function readTablePartition(
   root: TablePartitionRoot,
   read: (page: TablePage) => Promise<Uint8Array>,
 ): Promise<TablePartition> {
-  const slots = root.pages
-    .map((slot) => slotPage(CELL_PAGES, slot))
-    .filter((slot) => slot !== null);
-  const pages = await readLeaves(CELL_PAGES, root.pages, read);
-  const cells = pages.flatMap((page) => page.cells as TableCell[]);
+  const slots = named(CELL_PAGES, root.pages);
+  const pages = await readLeaves(
+    CELL_PAGES,
+    slots.map((slot) => slot.page),
+    read,
+  );
+  const cells = pages.flatMap((page) => page[CELL_PAGES.records] as TableCell[]);
   if (!cells.every((cell) => Array.isArray(cell?.meshes) && Array.isArray(cell.parents)))
     throw new EngineError('INVALID_SCENE_TABLES', 'scene partition misses its cells', {});
   const bounds = [0, 1, 2, 3, 4, 5].map((axis) =>
