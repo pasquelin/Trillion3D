@@ -1,11 +1,6 @@
 import type { GuideSet } from './guideSet.ts';
 import { GUIDE_INSTANCE_FLOATS } from './guidePack.ts';
-import {
-  GUIDE_UNIFORM_FLOATS,
-  GUIDE_WGSL,
-  REVERSED_NEAR_PLANE,
-  writeGuideView,
-} from './guideShaders.ts';
+import { GUIDE_UNIFORM_FLOATS, GUIDE_WGSL, writeGuideView } from './guideShaders.ts';
 
 /** Label of the guide pass: its GPU time is read under this name, apart from the beauty passes. */
 const GUIDE_PASS = 'Trillion3D guides';
@@ -101,8 +96,8 @@ export function createWebgpuGuidePass(device: GPUDevice) {
   return {
     /**
      * Draws the visible guides over `color`, tested against `depth`, seen through the camera's
-     * own view-projection — never the jittered one; `jitter` is the pixel offset `depth` was drawn
-     * with. Returns false, and encodes nothing, when none is shown.
+     * own view-projection — never the jittered one — at the host's `pixelRatio`; `jitter` is the
+     * pixel offset `depth` was drawn with. Returns false, and encodes nothing, when none is shown.
      */
     encode(
       encoder: GPUCommandEncoder,
@@ -111,6 +106,7 @@ export function createWebgpuGuidePass(device: GPUDevice) {
       depth: GPUTextureView,
       camera: { viewProjection: ArrayLike<number> },
       [width, height]: readonly number[],
+      pixelRatio: number,
       jitter: ArrayLike<number>,
     ) {
       const packed = guides.pack();
@@ -118,15 +114,7 @@ export function createWebgpuGuidePass(device: GPUDevice) {
       if (!pipeline) build();
       upload(packed);
       bind(depth);
-      writeGuideView(
-        view,
-        camera.viewProjection,
-        packed.anchor,
-        width,
-        height,
-        REVERSED_NEAR_PLANE,
-        jitter,
-      );
+      writeGuideView(view, camera.viewProjection, packed.anchor, width, height, pixelRatio, jitter);
       device.queue.writeBuffer(uniform!, 0, view);
       const pass = encoder.beginRenderPass({
         label: GUIDE_PASS,
