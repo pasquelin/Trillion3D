@@ -22,48 +22,16 @@
     <canvas id="view"></canvas>
     <script type="module">
       import { createWorld, geometry, material, object, light, math, texture } from '../runtime/engine.js';
-      import { controls, opening, ease, mix } from '../runtime/kit.js';
+      import { controls, opening, ease, matcapBall } from '../runtime/kit.js';
 
       const world = createWorld('view', { controls: 'orbit' });
       world.scene.background = math.color('#1a1614');
 
       // A matcap is a picture of a lit ball. Each pixel of the sculpture looks up the point of the
       // ball whose surface faces the camera the same way: the light is baked into the picture, and
-      // the scene's lamps do not touch it. Every ball here is painted on a canvas, pixel by pixel,
-      // from its normal: a diffuse part, a highlight, a rim, and for metals a reflected room.
-      const KEY = (() => { const l = [-0.5, 0.65, 0.58], n = Math.hypot(...l); return l.map((value) => value / n); })();
-      // The room a metal reflects: a warm window high on the left, a dark floor, a bright horizon.
-      const room = (r) => {
-        const up = r[1], window = math.clamp((r[0] * KEY[0] + r[1] * KEY[1] + r[2] * KEY[2] - 0.8) * 6, 0, 1);
-        const sky = up > 0 ? mix([0.55, 0.52, 0.5], [0.2, 0.2, 0.24], math.clamp(up * 1.6, 0, 1)) : mix([0.55, 0.5, 0.45], [0.05, 0.04, 0.04], math.clamp(-up * 3, 0, 1));
-        return mix(sky, [1.4, 1.25, 1.05], window);
-      };
-      function ball({ base, rim = [0, 0, 0], shine = 0, gloss = 20, metal = 0, wrap = 0 }) {
-        const size = 256, canvas = document.createElement('canvas');
-        canvas.width = canvas.height = size;
-        const context = canvas.getContext('2d'), image = context.createImageData(size, size);
-        for (let py = 0; py < size; py++)
-          for (let px = 0; px < size; px++) {
-            // The normal of the ball at this pixel; outside it, the edge's normal, so a sample at
-            // the silhouette never reads the background.
-            let x = ((px + 0.5) / size) * 2 - 1, y = 1 - ((py + 0.5) / size) * 2;
-            const reach = Math.hypot(x, y);
-            if (reach > 0.999) [x, y] = [(x / reach) * 0.999, (y / reach) * 0.999];
-            const n = [x, y, Math.sqrt(Math.max(0, 1 - x * x - y * y))];
-            const lit = math.clamp((n[0] * KEY[0] + n[1] * KEY[1] + n[2] * KEY[2] + wrap) / (1 + wrap), 0, 1);
-            const half = [KEY[0], KEY[1], KEY[2] + 1], length = Math.hypot(...half);
-            const spot = math.clamp((n[0] * half[0] + n[1] * half[1] + n[2] * half[2]) / length, 0, 1) ** gloss;
-            const fresnel = (1 - n[2]) ** 3;
-            const reflected = [2 * n[2] * n[0], 2 * n[2] * n[1], 2 * n[2] * n[2] - 1];
-            const diffuse = base.map((value) => value * (0.18 + 0.9 * lit));
-            const colour = mix(diffuse, room(reflected).map((value, k) => value * base[k] * 1.6), metal)
-              .map((value, k) => value + spot * shine + fresnel * rim[k]);
-            colour.forEach((value, k) => (image.data[(py * size + px) * 4 + k] = Math.round(math.clamp(value, 0, 1) ** (1 / 2.2) * 255)));
-            image.data[(py * size + px) * 4 + 3] = 255;
-          }
-        context.putImageData(image, 0, 0);
-        return texture.canvas(canvas);
-      }
+      // the scene's lamps do not touch it. The kit's `matcapBall` paints each on a canvas, pixel by
+      // pixel, from its normal: a diffuse part, a highlight, a rim, and for metals a reflected room.
+      const ball = (look) => matcapBall({ math, texture }, look);
       const BALLS = {
         'red clay': ball({ base: [0.55, 0.16, 0.08], shine: 0.08, gloss: 6, wrap: 0.3, rim: [0.25, 0.1, 0.05] }),
         chrome: ball({ base: [0.9, 0.92, 0.95], metal: 1, shine: 1.2, gloss: 120 }),
