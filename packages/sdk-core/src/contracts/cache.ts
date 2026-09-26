@@ -64,10 +64,8 @@ export function assertCachePointer(pointer: unknown, scope: AssetScope): string 
   if (value.formatVersion !== undefined) assertFormat(value.formatVersion as number);
   return value.url;
 }
-/**
- * What a host can check on the root of a cache manifest (`clusters.json`) before any of its pages:
- * the cache is ready, of the requested scope, in a format this SDK reads.
- */
+/** What a host checks on the root `clusters.json` before any page: the cache is ready, of the
+ *  requested scope, in a format this SDK reads. */
 export function assertCacheRoot(root: unknown, scope: AssetScope): void {
   if (!root || typeof root !== 'object' || Array.isArray(root))
     throw new EngineError('INVALID_CACHE', 'cache manifest is not a JSON object', {});
@@ -90,15 +88,8 @@ export function assertCacheRoot(root: unknown, scope: AssetScope): void {
       cacheScope: value.scope,
     });
 }
-/**
- * What a host can check on the cache manifest read through its pages (`readPagedManifest`): its
- * root (`assertCacheRoot`: ready, of the requested scope, in a format this SDK reads), and it
- * declares the geometry it selected. Returns that triangle count, so an availability probe needs to
- * read nothing else and needs to know no field name.
- *
- * The identity of the clusters themselves is `assertCacheIdentity`: it reads the pages, so it runs
- * on a decoded manifest, which a probe deliberately does not download.
- */
+/** The manifest read through its pages: its root (`assertCacheRoot`) and the geometry it selected,
+ *  whose triangle count it returns; the clusters' identity is `assertCacheIdentity`'s. */
 export function assertCacheReady(metadata: unknown, scope: AssetScope): number {
   assertCacheRoot(metadata, scope);
   const value = metadata as Record<string, unknown>;
