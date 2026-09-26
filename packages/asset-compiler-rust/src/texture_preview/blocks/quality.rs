@@ -7,6 +7,7 @@
 //! cutoff: a flipped texel is a leaf that appears or a hole that closes,
 //! whatever the decibels say. A chain that fails stays lossless, and the report
 //! names it with its figures.
+use super::super::coverage::{keeps, Cut};
 use super::decode::decode_level;
 use super::{BlockFormat, Layout};
 
@@ -54,7 +55,7 @@ impl Measure {
         source: &[u8],
         decoded: &[u8],
         channels: Channels,
-        cutoffs: &[(f32, f32)],
+        cutoffs: &[Cut],
     ) {
         debug_assert_eq!(source.len(), decoded.len());
         for (s, d) in source
@@ -69,8 +70,7 @@ impl Measure {
                 self.samples += 1;
                 self.max_delta = self.max_delta.max(gap);
             }
-            let side = |alpha: u8, cut: (f32, f32)| super::super::coverage::keeps(alpha, cut);
-            if cutoffs.iter().any(|&c| side(s[3], c) != side(d[3], c)) {
+            if cutoffs.iter().any(|&c| keeps(s[3], c) != keeps(d[3], c)) {
                 self.flips += 1;
             }
         }
@@ -87,7 +87,7 @@ pub fn encode_chain(
     format: BlockFormat,
     layout: Layout,
     channels: Channels,
-    cutoffs: &[(f32, f32)],
+    cutoffs: &[Cut],
 ) -> Result<(Vec<Vec<u8>>, Measure), &'static str> {
     let mut measure = Measure::default();
     let mut blocks = Vec::with_capacity(levels.len());
