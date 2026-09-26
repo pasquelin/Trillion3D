@@ -120,19 +120,19 @@ export function simulateComputeDispatch(
     );
     return;
   }
-  const stage = computePipeline?.entryPoint;
-  if (!packed || (stage !== 'dagMask' && stage !== 'dagDrawScatter') || !computeBind) return;
+  if (!packed || !computeBind) return;
   const byBinding = new Map(
     computeBind.entries.map((entry) => [entry.binding, entry.resource.buffer]),
   );
   // Compaction rereads the draw flags `dagMask` left, as `dagDrawPrefix` then `dagDrawScatter` do.
-  if (stage === 'dagDrawScatter')
+  if (computePipeline?.entryPoint === 'dagDrawScatter')
     return compactDrawnPages(
       byBinding.get(DAG_BINDING.flags)!.data,
       byBinding.get(DAG_BINDING.out)!.data,
       packed.nodeCount,
       packed.pageCount,
     );
+  if (computePipeline?.entryPoint !== 'dagMask') return;
   const { uniforms, residentCut } = readDagUniforms(byBinding.get(DAG_BINDING.views)!.data);
   // The rule's residency lives in bits behind the cold records: the double rereads it through the
   // shared decoder, in the buffer the host writes, where the shader reads it.

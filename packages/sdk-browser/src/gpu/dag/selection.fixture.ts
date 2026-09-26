@@ -13,8 +13,7 @@ export function mockDagDevice(packed: PackedDag, faults: MapFaults = {}) {
     device: gpu.device,
     uniformWrites: () => gpu.writes.filter(({ size }) => size === DAG_UNIFORM_BYTES).length,
     /** Copies to a READABLE slot: one per due readback, never one per send. */
-    readbackCopies: () =>
-      gpu.copies.filter(({ usage = 0 }) => usage & GPUBufferUsage.MAP_READ).length,
+    readbackCopies: () => gpu.copyUsages.filter((usage) => usage & GPUBufferUsage.MAP_READ).length,
     /** Mappings asked of a destroyed buffer: each one a validation error on the device. */
     destroyedMaps: gpu.destroyedMaps,
   };

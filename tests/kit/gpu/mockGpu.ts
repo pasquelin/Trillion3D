@@ -27,12 +27,11 @@ export function mockGpu({
   limits = { maxBufferSize: 1 << 20, maxStorageBufferBindingSize: 1 << 20 },
   packed,
   compute = false,
-  failMap = false,
-  mapGate,
   rejectR32 = false,
   failVisPass = false,
   failCompact = false,
   failCompile = false,
+  ...faults
 }: MockGpuOptions = {}) {
   const draws: MockDraw[] = [],
     writes: Array<{
@@ -43,9 +42,9 @@ export function mockGpu({
       seq: number;
     }> = [];
   // One counter over writes and submits: a row has to reach the GPU before the image that reads it.
-  const { buffers, createBuffer, destroyedMaps } = mockBuffers({ failMap, mapGate }),
+  const { buffers, createBuffer, destroyedMaps } = mockBuffers(faults),
     submits: number[] = [],
-    copies: Array<{ usage?: number }> = [];
+    copyUsages: number[] = [];
   let seq = 0;
   const textures: Array<{
     label?: string;
@@ -132,7 +131,7 @@ export function mockGpu({
       passes,
       computes,
       imageCopies,
-      copies,
+      copyUsages,
       packed,
       failVisPass,
     }),
@@ -185,7 +184,7 @@ export function mockGpu({
     computes,
     layouts,
     imageCopies,
-    copies,
+    copyUsages,
     destroyedMaps,
     textureWrites,
     renderPipelines,
