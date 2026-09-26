@@ -190,7 +190,7 @@ function sweep(
       ...([0, 1, 2].map((k) => Math.cos(angle) * n0[k] + Math.sin(angle) * n1[k]) as V3),
     );
     const c = points[i];
-    return { p: addScaledVector3<V3>([...c], n, r), n, uv: [u, v] };
+    return { p: addScaledVector3<V3>([c[0], c[1], c[2]], n, r), n, uv: [u, v] };
   });
   return b.build();
 }
