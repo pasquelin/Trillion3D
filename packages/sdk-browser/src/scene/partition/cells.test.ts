@@ -1,73 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import type { TablePartition } from '../../../../sdk-core/src/scene/core/tablePartition.ts';
-import { Group, Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
+import { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 import { pose } from '../../host/prepared/nodes.ts';
 import { hostWorldChainInto } from '../../host/world/chain.ts';
 import type { PlacementRows } from '../../placement/rows.ts';
-import { createPartitionCells, type PartitionCells } from './cells.ts';
+import type { PartitionCells } from './cells.ts';
+import { world } from './cells.fixture.ts';
 
 type PartitionIo = Parameters<PartitionCells['frame']>[2];
-import { placedMesh, type RowLink } from './rows.ts';
-
-/** Two cells of one mesh, one near the origin and one 5 km away; the second hangs under a moved
- *  core node, or under the scene root when `far` is null. */
-function world(far: number | null = 0) {
-  const node = (x: number, parent: number | null) => ({
-    parent,
-    mesh: 7,
-    matrix: null,
-    translation: [x, 1, 2],
-    rotation: [0, Math.SQRT1_2, 0, Math.SQRT1_2],
-    scale: [2, 2, 2],
-  });
-  const bodies: Record<string, unknown> = {
-    'near.json': { version: 1, nodes: [node(1, null), node(3, null)] },
-    'far.json': { version: 1, nodes: [node(5000, far)] },
-  };
-  const partition: TablePartition = {
-    version: 1,
-    bounds: [0, 0, 0, 5010, 5, 5],
-    meshes: [7],
-    cells: [
-      {
-        url: 'near.json',
-        sha256: '',
-        bytes: 1,
-        parents: [[null, [0, 0, 0, 5, 5, 5]]],
-        meshes: [[7, 2]],
-      },
-      {
-        url: 'far.json',
-        sha256: '',
-        bytes: 1,
-        // Under the core node, 10 m up, or at the same place under the root.
-        parents: [
-          far === null ? [null, [5000, 0, 0, 5010, 5, 5]] : [0, [5000, -10, 0, 5010, -5, 5]],
-        ],
-        meshes: [[7, 1]],
-      },
-    ],
-  };
-  const root = new Group();
-  const core = new Object3D();
-  core.position.set(0, 10, 0);
-  root.add(core);
-  const links: RowLink[] = [
-    { meshes: 7, primitives: 0 },
-    { meshes: 7, primitives: 1 },
-  ];
-  const cells = createPartitionCells({
-    partition,
-    base: 'https://cache.test/key/',
-    root,
-    parents: [core],
-    meshes: new Map([[7, placedMesh(links)]]),
-  });
-  const bytes = (url: string) =>
-    new TextEncoder().encode(JSON.stringify(bodies[url.split('/').at(-1)!]));
-  return { cells, links, root, core, bytes, node };
-}
 
 /** An io that holds every cell already read, records what it is asked and each time the reach
  *  outgrew the rows. */
@@ -163,6 +103,34 @@ test('the rows are sized at open for the reach, and a reach past them tells the 
   held.add('https://cache.test/key/far.json');
   cells.frame([0, 0, 0], everywhere, port, noBudget);
   assert.deepEqual(cells.stats(), { cells: 2, held: 2, waiting: 0, rows: 4 });
+});
+
+test('a parent scaled down grows the rows in place, on an engine that can, and reopens nothing', async () => {
+  // Shrunk a thousand times, the core node both cells hang under brings the one 5 km off to 5 m:
+  // both are within 100 m, three nodes on rows sized for the near cell's two.
+  for (const grows of [true, false]) {
+    const { cells, links, core, bytes } = world(0, 0);
+    const { port, held, outgrown, updates } = io(bytes);
+    const grown: [PlacementRows, PlacementRows][] = [];
+    if (grows) port.grow = (from, to) => void grown.push([from, to]);
+    ['near.json', 'far.json'].forEach((name) => held.add(`https://cache.test/key/${name}`));
+    await opened(cells, 100);
+    const before = links.map((link) => link.placements!);
+    core.scale.set(1e-3, 1e-3, 1e-3);
+    cells.frame([0, 0, 0], 100, port, noBudget);
+    cells.frame([0, 0, 0], 100, port, noBudget);
+    const { held: placed, waiting } = cells.stats();
+    assert.deepEqual([placed, waiting, outgrown.count], grows ? [2, 0, 0] : [1, 1, 1]);
+    if (!grows) continue; // it asks its owner to reopen
+    const after = links.map((link) => link.placements!);
+    assert.deepEqual(
+      grown,
+      [0, 1].map((at) => [before[at], after[at]]),
+    );
+    // The engine is told of the grown buffers only: no row of the old ones is read again.
+    assert.ok(updates.every(([rows]) => after.includes(rows)));
+    assert.ok(after.every((rows) => rows.live.reduce((a, b) => a + b, 0) === 3));
+  }
 });
 
 test('a world that poses the scene root reads the cells its camera sees there', async () => {

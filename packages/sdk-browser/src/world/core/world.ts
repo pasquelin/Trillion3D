@@ -192,7 +192,7 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
     },
   };
   frames.add(noticeEffectBudget(world.budget, canvas, world.effects, diagnostic.notices));
-  registerWorld(world, { session: () => runtime.explorer, last: () => frames.last });
+  registerWorld(world, { session: () => runtime.explorer, last: () => frames.last }, switches.held);
   return world;
 }
 

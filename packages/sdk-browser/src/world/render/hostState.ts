@@ -94,6 +94,7 @@ export function createExplorerHostState(
           },
           guides: options.guides,
           pixelRatio: () => pixelRatioOf(options),
+          particles: options.particles,
         }),
         compositor: createComparisonCompositor(gl),
       }

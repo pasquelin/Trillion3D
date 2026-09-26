@@ -24,6 +24,7 @@ type Inputs = {
   backends: RenderBackend[];
   /** Manifest url base: that is what locates the resident-proxy cache object. */
   base: string;
+  frameBudget?: BackendContext['frameBudget'];
 };
 
 export async function prepareExplorerBackends(session: ExplorerSession, inputs: Inputs) {
@@ -113,6 +114,7 @@ export async function prepareExplorerBackends(session: ExplorerSession, inputs: 
     shadowPageInvalidation: options.shadowPageInvalidation,
     sceneLighting: sceneLightingSource,
     guides: options.guides,
+    particles: options.particles,
     // Bounced light stays off unless asked: its step holds 1.1 to 1.3 ms on Emerald, above 1 ms.
     bounce: options.bounce,
     bounceBudgetMs: options.bounceBudgetMs,
@@ -125,6 +127,7 @@ export async function prepareExplorerBackends(session: ExplorerSession, inputs: 
     readTextureLevel: createTextureLevelReader(metadata.textures, base, signal),
     sceneLights,
     importedLightIds,
+    frameBudget: inputs.frameBudget,
   };
   for (const factory of factories) {
     const backend = factory(context);

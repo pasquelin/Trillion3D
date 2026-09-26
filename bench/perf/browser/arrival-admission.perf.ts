@@ -2,11 +2,16 @@
 import { findAdmissible } from '../../../packages/sdk-browser/src/streaming/queueOrder.ts';
 import { sortStreamJobs } from '../../../packages/sdk-browser/src/streaming/queueOrder.fixture.ts';
 import { createArrivalQueue } from '../../../packages/sdk-browser/src/page/integration/arrivalQueue.ts';
+import { createFrameBudget } from '../../../packages/sdk-browser/src/page/integration/frameBudget.ts';
 import { graine, mesure, stress, rapport } from '../../core/index.ts';
 import {
   referenceAdmission,
   referenceArrivalQueue,
 } from '../../oracles/browser/arrival-admission.ts';
+
+/** The frame budget the engine's queue spends, opened before each drain as a frame opens it: no
+ *  ceiling, like the oracle it is compared with, so the two deliver alike on any machine. */
+const frame = createFrameBudget(Infinity);
 
 /** The fields `findAdmissible`/`sortStreamJobs` read: a lighter shape than the engine's `Job`. */
 interface TravailAdmission {
@@ -77,7 +82,10 @@ function arrivees(fabrique: (byteBudget: number, countBudget: number) => Fabriqu
   const octets = new Uint32Array(16);
   for (let i = 0; i < 5000; i++) file.queue(cibles[i % 8], `page-${i % 900}.bin`, octets);
   let livrs = 0;
-  for (let d = 0; d < 4; d++) livrs += file.drain();
+  for (let d = 0; d < 4; d++) {
+    frame.open();
+    livrs += file.drain();
+  }
   return { livrees, livrs };
 }
 
@@ -97,14 +105,14 @@ const resArrivees = await mesure({
   name: 'arrival queue',
   fichier: 'packages/sdk-browser/src/page/integration/arrivalQueue.ts',
   cas: [{ name: '5 000 arrivals on 8 targets', input: null, size: 5000 }],
-  calcul: () => arrivees(createArrivalQueue),
+  calcul: () => arrivees((bytes, count) => createArrivalQueue(bytes, count, frame)),
   attendu: () => arrivees(referenceArrivalQueue),
   options: { tours: 60, budgetMs: 1500 },
 });
 
 await stress({
   name: 'createArrivalQueue extremes',
-  calcul: (size: number) => createArrivalQueue(size, 4096),
+  calcul: (size: number) => createArrivalQueue(size, 4096, frame),
   extremes: [
     { name: 'small', input: 4096 },
     { name: 'large', input: 1 << 28 },
