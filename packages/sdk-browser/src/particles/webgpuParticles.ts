@@ -6,6 +6,7 @@ import {
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts';
 import { createCheckedShaderModule } from '../gpu/core/shaderModule.ts';
 import { bounceGroup, bounceLayout } from '../bounce/bindings.ts';
+import { createPoolStates, usedSlots } from './poolStates.ts';
 
 /** The pass label the GPU timings name the particle step by (`passesGpu`). */
 export const PARTICLES_PASS = 'Trillion3D particles';
@@ -75,40 +76,33 @@ export function createWebgpuParticles(device: GPUDevice, fail: (error: unknown) 
     .then((made) => (pipeline = made))
     .catch((error) => ((pipeline = null), fail(error)));
   const words = createStepWords();
-  const pass: GPUComputePassDescriptor = { label: PARTICLES_PASS },
-    made = new Map<ParticlePool, PoolState>();
+  const pass: GPUComputePassDescriptor = { label: PARTICLES_PASS };
   const buffer = (name: string, size: number, usage: number) =>
     device.createBuffer({ label: `${PARTICLES_PASS} ${name}`, size, usage });
-  const release = (kept: readonly ParticlePool[]) => {
-    for (const [pool, { step, staged, state }] of made)
-      if (!kept.includes(pool)) {
-        for (const gone of [step, staged, state]) gone.destroy();
-        made.delete(pool);
-      }
-  };
-  const make = (pool: ParticlePool) => {
-    const { STORAGE, UNIFORM, COPY_DST } = GPUBufferUsage;
-    const step = buffer('step', words.buffer.byteLength, UNIFORM | COPY_DST),
-      staged = buffer('staging', pool.staging.byteLength, STORAGE | COPY_DST),
-      state = buffer('state', pool.capacity * PARTICLE_FLOATS * 4, STORAGE);
-    const kept = { step, staged, state, group: bounceGroup(device, layout, [step, staged, state]) };
-    made.set(pool, kept);
-    return kept;
-  };
+  const made = createPoolStates<PoolState>(
+    (pool) => {
+      const { STORAGE, UNIFORM, COPY_DST } = GPUBufferUsage;
+      const step = buffer('step', words.buffer.byteLength, UNIFORM | COPY_DST),
+        staged = buffer('staging', pool.staging.byteLength, STORAGE | COPY_DST),
+        state = buffer('state', pool.capacity * PARTICLE_FLOATS * 4, STORAGE);
+      return { step, staged, state, group: bounceGroup(device, layout, [step, staged, state]) };
+    },
+    ({ step, staged, state }) => {
+      for (const gone of [step, staged, state]) gone.destroy();
+    },
+  );
   return {
     /** Steps `pools` in `encoder`; returns the dispatches encoded. */
     run(pools: readonly ParticlePool[], encoder: GPUCommandEncoder) {
       if (pipeline === undefined) return 0;
       let computing: GPUComputePassEncoder | undefined,
-        dispatches = 0,
-        held = 0;
+        dispatches = 0;
       for (const pool of pools) {
-        if (made.has(pool)) held++;
         pool.refused = !pipeline;
         const step = pool.flush(),
           { count } = step;
         if (!pipeline || (!count && !step.dt)) continue;
-        const kept = made.get(pool) ?? make(pool);
+        const kept = made.of(pool);
         words.write(pool, step);
         device.queue.writeBuffer(kept.step, 0, words.buffer);
         if (count)
@@ -118,15 +112,14 @@ export function createWebgpuParticles(device: GPUDevice, fail: (error: unknown) 
           computing.setPipeline(pipeline);
         }
         computing.setBindGroup(0, kept.group);
-        const slots = Math.min(pool.capacity, pool.emitted); // past them, nothing was emitted
-        computing.dispatchWorkgroups(Math.ceil(slots / PARTICLE_WORKGROUP));
+        computing.dispatchWorkgroups(Math.ceil(usedSlots(pool) / PARTICLE_WORKGROUP));
         dispatches++;
       }
       computing?.end();
-      if (made.size > held) release(pools); // a pool the world let go of
+      made.keep(pools);
       return dispatches;
     },
-    dispose: () => release([]),
+    dispose: made.dispose,
   };
 }
 
