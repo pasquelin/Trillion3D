@@ -379,10 +379,10 @@
       "psnrDb": 48.0
     },
     "skipped": {},
-    "version": 4
+    "version": 5
   },
   "rule": "Each colour texture carries the lossless tail of its mip chain, from the first level whose neither side exceeds 64 through 1×1, in RGBA8 sRGB with straight alpha. Only the texture whose every binding is a MASK base colour has its alpha rescaled to preserve source coverage at the material threshold; the other two keep their alpha intact.",
   "textures": {
-    "url": "../../textures/v4/{sha}/{kind}-{level}.{format}"
+    "url": "../../textures/v5/{sha}/{kind}-{level}.{format}"
   }
 }
