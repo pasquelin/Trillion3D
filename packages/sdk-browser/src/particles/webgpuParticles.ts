@@ -87,9 +87,7 @@ export function createWebgpuParticles(device: GPUDevice, fail: (error: unknown) 
         state = buffer('state', pool.capacity * PARTICLE_FLOATS * 4, STORAGE);
       return { step, staged, state, group: bounceGroup(device, layout, [step, staged, state]) };
     },
-    ({ step, staged, state }) => {
-      for (const gone of [step, staged, state]) gone.destroy();
-    },
+    ({ step, staged, state }) => [step, staged, state].forEach((gone) => gone.destroy()),
   );
   return {
     /** Steps `pools` in `encoder`; returns the dispatches encoded. */
@@ -126,8 +124,7 @@ export function createWebgpuParticles(device: GPUDevice, fail: (error: unknown) 
 export type WebgpuParticles = ReturnType<typeof createWebgpuParticles>;
 
 /** True while one of the world's pools moves: the image changes, and is not held. */
-export const particlesMoved = (rt: WebgpuPagesRuntime) =>
-  !!rt.context.particles && anyMoving(rt.context.particles);
+export const particlesMoved = (rt: WebgpuPagesRuntime) => anyMoving(rt.context.particles);
 
 /** The world's pools on this image, stepped in the image's command buffer ahead of its
  *  transparent stage, which draws them (#755). */

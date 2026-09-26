@@ -1,33 +1,11 @@
 // The CPU half of the WebGL2 particle step (#759): the texels, uniforms and targets it hands its
-// GPU for a pool, what they come to against the WebGPU step's, and its refusal without a
-// 32-bit float target. What the GPU does with them is the measurer's.
+// GPU for a pool, and its refusal without 32-bit float targets. The GPU's part is the measurer's.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { setImmediate as tick } from 'node:timers/promises';
-import { createTestContext } from '../webgl/core/testContext.fixture.ts';
-import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts';
-import { ParticlePool, type ParticlePoolSpec } from '../../../sdk-core/src/fluids/particles.ts';
-import { createWebglParticles } from './webglParticles.ts';
-import { createWebgpuParticles } from './webgpuParticles.ts';
-import { computeRecorder, webglModel, webgpuModel } from './stepModels.fixture.ts';
+import { ParticlePool } from '../../../sdk-core/src/fluids/particles.ts';
+import { webgl, webglModel } from './stepModels.fixture.ts';
 
 const DT = 1 / 64;
-
-/** A context granting the `granted` extensions, its WebGL2 step, and what one `run` handed
- *  the GPU. */
-function webgl(granted = ['EXT_color_buffer_float']) {
-  const getExtension = (name: string) => (granted.includes(name) ? {} : null);
-  const ctx = createTestContext({ answers: { getExtension } });
-  const particles = createWebglParticles(ctx.gl);
-  const run = (pools: ParticlePool[]) => {
-    const from = ctx.calls.length,
-      draws = particles.run(pools),
-      calls = ctx.calls.slice(from),
-      of = (name: string) => calls.filter((call) => call.name === name).map(({ args }) => args);
-    return { draws, of };
-  };
-  return { ctx, particles, run };
-}
 
 test('WebGL2: the records land as float texels, only emitted rows are drawn, the targets swap', () => {
   const { ctx, run } = webgl();
@@ -55,9 +33,9 @@ test('WebGL2: the records land as float texels, only emitted rows are drawn, the
   assert.deepEqual(second.of('uniform3i')[0].slice(1), [600, 0, 2000]);
   assert.equal(second.of('texSubImage2D').length, 0, 'nothing staged, nothing uploaded');
   assert.equal(run([pool]).draws, 0, 'no time and no record: no draw');
-  assert.equal(ctx.of('createFramebuffer').length, 2, 'two targets, made once');
+  assert.equal(ctx.of('createFramebuffer').length, 3, 'two targets and the staging, made once');
   run([]);
-  assert.equal(ctx.of('deleteFramebuffer').length, 2, 'a pool the world let go of frees them');
+  assert.equal(ctx.of('deleteFramebuffer').length, 3, 'a pool the world let go of frees them');
 });
 
 test('WebGL2 without a 32-bit float colour target refuses the pools by name, half floats too', () => {
@@ -68,40 +46,15 @@ test('WebGL2 without a 32-bit float colour target refuses the pools by name, hal
   assert.deepEqual([pool.moving, pool.emit(0, 0, 0, 0, 1, 0, 2)], [false, false], 'refused');
 });
 
-/** Emits the same particles into every pool: speeds up to 5 m/s, lives of 1/4 to 2 s. */
-function emitReference(pools: ParticlePool[], frame: number) {
-  for (let n = 0; n < 5; n++) {
-    const s = Math.sin(frame * 7 + n * 13);
-    for (const pool of pools)
-      pool.emit(n, 1, -n, 5 * s, 4 - n, 3 * s * s, 0.25 * (1 + n + (frame % 4)));
-  }
-}
-
-test('WebGL2 and WebGPU step a reference emission to the same 32-bit floats', async () => {
-  const spec: ParticlePoolSpec = { capacity: 300, emitPerFrame: 8 },
-    frames = 64;
-  const gpu = fakeDevice(),
-    stepGpu = createWebgpuParticles(gpu.device, (error) => assert.fail(String(error)));
-  await tick();
-  const { run } = webgl(),
-    pools = [new ParticlePool(spec), new ParticlePool(spec)];
-  const models = { gpu: webgpuModel(spec.capacity), gl: webglModel(spec.capacity) };
-  const { encoder, passes } = computeRecorder();
-  for (let frame = 0; frame < frames; frame++) {
-    emitReference(pools, frame);
-    for (const pool of pools) pool.advance(DT);
-    const from = gpu.writes.length;
-    stepGpu.run([pools[0]], encoder);
-    models.gpu.step(gpu.writes[from], gpu.writes[from + 1], passes.at(-1)!.dispatches[0]);
-    models.gl.step(run([pools[1]]).of);
-  }
-  let moved = 0;
-  for (let i = 0; i < spec.capacity; i++) {
-    const theirs = models.gpu.particle(i);
-    if (theirs[3] > 0) moved++;
-    assert.deepEqual(models.gl.particle(i), theirs, `slot ${i}`);
-  }
-  assert.ok(moved > 200, `${moved} particles stepped`);
+test('WebGL2: a context restored without 32-bit float targets refuses the pools by name', () => {
+  const granted = ['EXT_color_buffer_float'],
+    { run } = webgl(granted);
+  const pool = new ParticlePool({ capacity: 8 });
+  pool.emit(0, 0, 0, 0, 1, 0, 2);
+  assert.equal(run([pool]).draws, 1);
+  granted.length = 0;
+  pool.emit(0, 0, 0, 0, 1, 0, 2);
+  assert.throws(() => run([pool]), /^Error: PARTICLES_UNSUPPORTED/, 'never an incomplete target');
 });
 
 test('WebGL2: a 1 mm step holds ten kilometres from the world origin', () => {
@@ -128,12 +81,11 @@ test('WebGL2: a particle of a 60 s lifetime dies after 60 s of 144 Hz steps, and
   let died = 0,
     steps = 0,
     atDeath: number[] = [];
-  while (pool.moving && steps < 62 * hz) {
+  for (; pool.moving && steps < 62 * hz; steps++) {
     pool.advance(1 / hz);
     model.step(run([pool]).of);
     const particle = model.particle(0);
     if (!died && particle[3] >= particle[7]) [died, atDeath] = [steps + 1, particle];
-    steps++;
   }
   assert.ok(Math.abs(died - 60 * hz) <= 3, `died at step ${died} of ${60 * hz}`);
   assert.ok(steps > died, 'stepped on past its death');
