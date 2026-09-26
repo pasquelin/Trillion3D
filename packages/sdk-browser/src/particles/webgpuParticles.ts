@@ -154,12 +154,6 @@ export function drawParticles(rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder
     pools = rt.context.particles;
   if (!pools?.length || !particles || run.diagnostic !== 'beauty' || !run.lastCamera) return;
   if (!vis.visEnabled || !hdrView || !depthView) return;
-  run.gpuDrawCalls += particles.draw(
-    pools,
-    encoder,
-    hdrView,
-    depthView,
-    viewProj,
-    run.gate.cam.eye,
-  );
+  const { eye } = run.gate.cam;
+  run.gpuDrawCalls += particles.draw(pools, encoder, hdrView, depthView, viewProj, eye);
 }
