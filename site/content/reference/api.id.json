@@ -939,8 +939,8 @@
       "WEBGL2_UNAVAILABLE": "Mesin komputer tidak bisa menggambar dengan cara yang diminta, atau tidak bisa menggambar sama sekali.",
       "NO_WEBGL2": "Mesin komputer tidak bisa menggambar dengan cara yang diminta, atau tidak bisa menggambar sama sekali.",
       "NO_ENGINE_BACKEND": "Mesin komputer tidak bisa menggambar dengan cara yang diminta, atau tidak bisa menggambar sama sekali.",
-      "RESOURCE_HTTP_ERROR": "Sebuah berkas tidak bisa diambil, atau bukan yang seharusnya.",
-      "INVALID_JSON_RESPONSE": "Sebuah berkas tidak bisa diambil, atau bukan yang seharusnya.",
+      "RESOURCE_HTTP_ERROR": "Sebuah berkas tidak bisa diambil — diminta lagi dulu bila kegagalannya bisa berlalu — atau bukan yang seharusnya.",
+      "INVALID_JSON_RESPONSE": "Sebuah berkas tidak bisa diambil — diminta lagi dulu bila kegagalannya bisa berlalu — atau bukan yang seharusnya.",
       "INVALID_POINTER": "Pointer model yang dikompilasi rusak, belum selesai, atau dari cakupan lain.",
       "CACHE_NOT_READY": "Pointer model yang dikompilasi rusak, belum selesai, atau dari cakupan lain.",
       "SCOPE_MISMATCH": "Pointer model yang dikompilasi rusak, belum selesai, atau dari cakupan lain.",
@@ -7130,7 +7130,7 @@
       "water": "Air tempat benda-benda mengapung: permukaannya, gelombangnya, massa jenisnya, dan hambatannya. Benda yang lebih ringan dari air mengapung, didorong oleh berat air yang dipindahkannya.",
       "waterSurface": "Permukaan air pada waktu simulasi, untuk digambar: gelombang yang dibaca daya apung, angka yang sama (`height`, `point`, `normal`).",
       "stats": "Hitungan dan kedua jam: milidetik worker per langkah, milidetik halaman per bingkai.",
-      "error": "Galat terakhir fisika (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), atau `null`. Galat yang menghentikan simulasi mematikan `enabled`.",
+      "error": "Galat terakhir fisika (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`, `RESOURCE_HTTP_ERROR`), atau `null`. Galat yang menghentikan simulasi mematikan `enabled`.",
       "add": "Menambahkan sambungan (`joint.hinge(door, frame, …)` dan kerabatnya): dibuat begitu kedua bendanya disimulasikan, dan menahan sampai dilepas atau putus.",
       "remove": "Melepas sambungan: benda-benda yang ditahannya berpisah dengan bebas."
     }
@@ -7338,7 +7338,7 @@
       "water": "Air tempat benda-benda mengapung: permukaannya, gelombangnya, massa jenisnya, dan hambatannya. Benda yang lebih ringan dari air mengapung, didorong oleh berat air yang dipindahkannya.",
       "waterSurface": "Permukaan air pada waktu simulasi, untuk digambar: gelombang yang dibaca daya apung, angka yang sama (`height`, `point`, `normal`).",
       "stats": "Hitungan dan kedua jam: milidetik worker per langkah, milidetik halaman per bingkai.",
-      "error": "Galat terakhir fisika (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), atau `null`. Galat yang menghentikan simulasi mematikan `enabled`.",
+      "error": "Galat terakhir fisika (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`, `RESOURCE_HTTP_ERROR`), atau `null`. Galat yang menghentikan simulasi mematikan `enabled`.",
       "add": "Menambahkan sambungan (`joint.hinge(door, frame, …)` dan kerabatnya): dibuat begitu kedua bendanya disimulasikan, dan menahan sampai dilepas atau putus.",
       "remove": "Melepas sambungan: benda-benda yang ditahannya berpisah dengan bebas."
     }

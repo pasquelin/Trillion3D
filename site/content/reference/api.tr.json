@@ -932,8 +932,8 @@
       "WEBGL2_UNAVAILABLE": "Makine istenen şekilde çizemiyor, ya da hiç çizemiyor.",
       "NO_WEBGL2": "Makine istenen şekilde çizemiyor, ya da hiç çizemiyor.",
       "NO_ENGINE_BACKEND": "Makine istenen şekilde çizemiyor, ya da hiç çizemiyor.",
-      "RESOURCE_HTTP_ERROR": "Bir dosya getirilemedi, ya da olması gerektiği gibi değildi.",
-      "INVALID_JSON_RESPONSE": "Bir dosya getirilemedi, ya da olması gerektiği gibi değildi.",
+      "RESOURCE_HTTP_ERROR": "Bir dosya getirilemedi — hata geçebilecekse önce yeniden istendi —, ya da olması gerektiği gibi değildi.",
+      "INVALID_JSON_RESPONSE": "Bir dosya getirilemedi — hata geçebilecekse önce yeniden istendi —, ya da olması gerektiği gibi değildi.",
       "INVALID_POINTER": "Derlenmiş modelin göstericisi bozuk, tamamlanmamış, ya da başka bir kapsamdan.",
       "CACHE_NOT_READY": "Derlenmiş modelin göstericisi bozuk, tamamlanmamış, ya da başka bir kapsamdan.",
       "SCOPE_MISMATCH": "Derlenmiş modelin göstericisi bozuk, tamamlanmamış, ya da başka bir kapsamdan.",
@@ -7129,7 +7129,7 @@
       "water": "Cisimlerin yüzdüğü su: seviyesi, dalgaları, yoğunluğu ve sürüklemeleri. Sudan hafif bir cisim, yer değiştirdiği suyun ağırlığıyla itilerek yüzer.",
       "waterSurface": "Simülasyon zamanındaki su yüzeyi, çizmek için: kaldırma kuvvetinin okuduğu dalgalar, aynı sayılar (`height`, `point`, `normal`).",
       "stats": "Sayımlar ve iki saat: adım başına worker milisaniyesi, kare başına sayfa milisaniyesi.",
-      "error": "Fiziğin son hatası (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`) ya da `null`. Simülasyonu durduran bir hata `enabled` değerini kapatır.",
+      "error": "Fiziğin son hatası (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`, `RESOURCE_HTTP_ERROR`) ya da `null`. Simülasyonu durduran bir hata `enabled` değerini kapatır.",
       "add": "Bir eklem ekler (`joint.hinge(door, frame, …)` ve akrabaları): iki cismi de simüle edilir edilmez oluşturulur, çıkarılana ya da kırılana dek tutar.",
       "remove": "Bir eklemi çıkarır: tuttuğu cisimler serbestçe ayrılır."
     }
@@ -7337,7 +7337,7 @@
       "water": "Cisimlerin yüzdüğü su: seviyesi, dalgaları, yoğunluğu ve sürüklemeleri. Sudan hafif bir cisim, yer değiştirdiği suyun ağırlığıyla itilerek yüzer.",
       "waterSurface": "Simülasyon zamanındaki su yüzeyi, çizmek için: kaldırma kuvvetinin okuduğu dalgalar, aynı sayılar (`height`, `point`, `normal`).",
       "stats": "Sayımlar ve iki saat: adım başına worker milisaniyesi, kare başına sayfa milisaniyesi.",
-      "error": "Fiziğin son hatası (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`) ya da `null`. Simülasyonu durduran bir hata `enabled` değerini kapatır.",
+      "error": "Fiziğin son hatası (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`, `RESOURCE_HTTP_ERROR`) ya da `null`. Simülasyonu durduran bir hata `enabled` değerini kapatır.",
       "add": "Bir eklem ekler (`joint.hinge(door, frame, …)` ve akrabaları): iki cismi de simüle edilir edilmez oluşturulur, çıkarılana ya da kırılana dek tutar.",
       "remove": "Bir eklemi çıkarır: tuttuğu cisimler serbestçe ayrılır."
     }

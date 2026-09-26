@@ -3,6 +3,7 @@
 import { IDENTITY_MATRIX4 } from '../../../../sdk-core/src/index.ts';
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 import { renderGpuCut } from '../pages/render/gpuCut.ts';
+import { createHeldResidency } from '../../page/cut/held.ts';
 import { fixtureTotals, mountCutAdopter } from './adopter.fixture.ts';
 import { cameraSelectionUniforms, createSelectionUniforms } from '../../gpu/core/selection.ts';
 import { createEngineCamera, writeEngineCamera } from '../../camera/engineCamera.ts';
@@ -136,6 +137,7 @@ export function banc(panne?: 'debordement' | 'envoi') {
         residentFlags[0] = page.array ? 1 : 0;
       },
       adoptGpuCut: () => adopter.adopt(),
+      heldResidency: createHeldResidency(),
     },
   } as unknown as WebgpuPagesRuntime;
   return {

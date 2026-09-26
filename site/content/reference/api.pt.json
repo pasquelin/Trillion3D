@@ -932,8 +932,8 @@
       "WEBGL2_UNAVAILABLE": "A máquina não consegue desenhar da forma pedida, ou não consegue desenhar de jeito nenhum.",
       "NO_WEBGL2": "A máquina não consegue desenhar da forma pedida, ou não consegue desenhar de jeito nenhum.",
       "NO_ENGINE_BACKEND": "A máquina não consegue desenhar da forma pedida, ou não consegue desenhar de jeito nenhum.",
-      "RESOURCE_HTTP_ERROR": "Um arquivo não pôde ser buscado, ou não era o que deveria ser.",
-      "INVALID_JSON_RESPONSE": "Um arquivo não pôde ser buscado, ou não era o que deveria ser.",
+      "RESOURCE_HTTP_ERROR": "Um arquivo não pôde ser buscado — pedido de novo antes, quando a falha pode passar —, ou não era o que deveria ser.",
+      "INVALID_JSON_RESPONSE": "Um arquivo não pôde ser buscado — pedido de novo antes, quando a falha pode passar —, ou não era o que deveria ser.",
       "INVALID_POINTER": "O ponteiro do modelo compilado está corrompido, incompleto, ou de outro escopo.",
       "CACHE_NOT_READY": "O ponteiro do modelo compilado está corrompido, incompleto, ou de outro escopo.",
       "SCOPE_MISMATCH": "O ponteiro do modelo compilado está corrompido, incompleto, ou de outro escopo.",
@@ -7129,7 +7129,7 @@
       "water": "A água onde os corpos flutuam: o seu nível, as suas ondas, a sua densidade e os seus arrastos. Um corpo mais leve que a água flutua, empurrado pelo peso da água que desloca.",
       "waterSurface": "A superfície da água à hora da simulação, para a desenhar: as ondas que a flutuação lê, os mesmos números (`height`, `point`, `normal`).",
       "stats": "Contagens e os dois relógios: milissegundos do worker por passo, milissegundos da página por imagem.",
-      "error": "O último erro da física (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), ou `null`. Um erro que parou a simulação desativa `enabled`.",
+      "error": "O último erro da física (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`, `RESOURCE_HTTP_ERROR`), ou `null`. Um erro que parou a simulação desativa `enabled`.",
       "add": "Adiciona uma junta (`joint.hinge(door, frame, …)` e parentes): ela é criada assim que os dois corpos são simulados e segura até ser removida ou se romper.",
       "remove": "Remove uma junta: os corpos que ela segurava se afastam livremente."
     }
@@ -7337,7 +7337,7 @@
       "water": "A água onde os corpos flutuam: o seu nível, as suas ondas, a sua densidade e os seus arrastos. Um corpo mais leve que a água flutua, empurrado pelo peso da água que desloca.",
       "waterSurface": "A superfície da água à hora da simulação, para a desenhar: as ondas que a flutuação lê, os mesmos números (`height`, `point`, `normal`).",
       "stats": "Contagens e os dois relógios: milissegundos do worker por passo, milissegundos da página por imagem.",
-      "error": "O último erro da física (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), ou `null`. Um erro que parou a simulação desativa `enabled`.",
+      "error": "O último erro da física (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`, `RESOURCE_HTTP_ERROR`), ou `null`. Um erro que parou a simulação desativa `enabled`.",
       "add": "Adiciona uma junta (`joint.hinge(door, frame, …)` e parentes): ela é criada assim que os dois corpos são simulados e segura até ser removida ou se romper.",
       "remove": "Remove uma junta: os corpos que ela segurava se afastam livremente."
     }

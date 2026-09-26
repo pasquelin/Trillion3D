@@ -11,6 +11,7 @@ import {
 import { dagFixture, wideCamera } from './dag.fixture.ts';
 import { withBundles } from './helpers.fixture.ts';
 import { cameraMoteur } from '../../camera/camera.fixture.ts';
+import { createHeldResidency } from '../cut/held.ts';
 
 test('a streaming bundle is one request that makes every cluster it carries drawable', () => {
   const fixture = dagFixture();
@@ -48,7 +49,7 @@ test('a streaming bundle is one request that makes every cluster it carries draw
   const selected = selectVisiblePages(roots, cameraMoteur(wideCamera()), {
     pixelError: 0,
     viewport: [1280, 720],
-    holdResident: true,
+    held: createHeldResidency(),
   });
   assert.deepEqual(selected.shown.map((page) => page.url).sort(), [
     'leaf0',
@@ -77,7 +78,7 @@ test('only the root bundle resident still covers the surface once', () => {
   const selected = selectVisiblePages(roots, cameraMoteur(wideCamera()), {
     pixelError: 0,
     viewport: [1280, 720],
-    holdResident: true,
+    held: createHeldResidency(),
   });
   assert.deepEqual(
     selected.shown.map((page) => page.url),

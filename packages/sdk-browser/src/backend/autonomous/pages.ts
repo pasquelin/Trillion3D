@@ -110,7 +110,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
     ...lists,
     revision: () => heldFloor.placements,
     ceiling,
-    sync,
+    geometry: geometryStore,
     residency,
     pool: pool.budget,
   });
