@@ -51,7 +51,7 @@ toEye=-view.xyz;gl_Position=projectionMatrix*view;}}`;
 // reads its image at its normal's coordinate, at the image's full detail as the WebGPU resolve
 // does; a normal or depth surface shows its view normal or the frame's depth ramp.
 // A `covering` surface writes alpha 1 whatever its cut alpha: an opaque one, as the reference's
-// opaque surfaces do (#840), and into the effect chain also a `none` one (`covering`, binding).
+// opaque surfaces do (#840), and into the effect chain also a `none` one (`bindClusterMaterial`).
 export const CLUSTER_FRAGMENT = `#version 300 es
 precision highp float;const float PI=${PI},INVERSE_PI=${INVERSE_PI};const int MAX_LIGHTS=64;
 in vec3 toEye;in vec3 viewNormal;vec3 viewPosition;in vec2 texcoord0;in vec2 texcoord1;in vec4 vertexColor;out vec4 outColor;
