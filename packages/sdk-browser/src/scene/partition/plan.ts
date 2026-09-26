@@ -21,7 +21,11 @@
  * within a reach wherever the page moves the cells' parents (`sizing.ts`): nothing grows while a
  * session draws.
  */
-import { invertMatrix4, MATRIX_VALUES } from '../../../../sdk-core/src/index.ts';
+import {
+  invertMatrix4,
+  MATRIX_VALUES,
+  transformAffinePoint,
+} from '../../../../sdk-core/src/index.ts';
 import { boxPointDistance } from '../../../../sdk-core/src/math/primitives/box.ts';
 import {
   orthographicView,
@@ -53,12 +57,13 @@ export type PartitionOptics = Pick<
 /** The distance past which nothing `optics` sees is drawn: the frustum's farthest corner. */
 export function cellReach(optics: PartitionOptics) {
   const { far, orthographic } = optics,
-    zoom = optics.zoom || 1; // as the projection reads it (`writeEngineCamera`)
+    zoom = optics.zoom || 1; // a zoom of 0 draws nothing: read as 1, never as an empty reach
   if (orthographic) {
-    const [x, y, halfWidth, halfHeight] = orthographicView(orthographic, zoom, view);
-    // Its depth range may reach behind the eye: a negative `near` draws there.
+    const [x, y, width, height] = orthographicView(orthographic, zoom, view);
+    // Its depth range may reach behind the eye: a negative `near` draws there. A box given right
+    // to left, or top to bottom, is as wide.
     const depth = Math.max(Math.abs(far), Math.abs(optics.near));
-    return Math.hypot(depth, Math.abs(x) + halfWidth, Math.abs(y) + halfHeight);
+    return Math.hypot(depth, Math.abs(x) + Math.abs(width), Math.abs(y) + Math.abs(height));
   }
   const slope = perspectiveSlope(optics.fov, zoom);
   return far * Math.sqrt(1 + slope * slope * (1 + optics.aspect * optics.aspect));
@@ -73,10 +78,7 @@ export function cellReach(optics: PartitionOptics) {
  */
 export function inCellFrame(world: ArrayLike<number>, eye: ArrayLike<number>, reach: number) {
   invertMatrix4(inverse, world);
-  const local = [0, 1, 2].map(
-    (a) =>
-      inverse[a] * eye[0] + inverse[4 + a] * eye[1] + inverse[8 + a] * eye[2] + inverse[12 + a],
-  );
+  const local = transformAffinePoint([0, 0, 0], inverse, eye[0], eye[1], eye[2]);
   return { eye: local, reach: reach / stretchOf(world)[0] };
 }
 
