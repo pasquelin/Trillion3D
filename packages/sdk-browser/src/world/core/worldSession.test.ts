@@ -31,8 +31,13 @@ test('attachParticles gives the pool to every session and the frames the world d
   const pool = new ParticlePool({ capacity: 8 });
   const remove = attachParticles(world, pool);
   assert.deepEqual([held.particles, asked], [[pool], 1], 'held, and a frame asked');
-  for (const hook of hooks) hook({ delta: 0.02, time: 0.02 });
-  assert.equal(pool.flush().dt, 0.02, "the world's frame time is the step's");
+  const frame = () => hooks.forEach((hook) => hook({ delta: 0.02, time: 0.02 }));
+  frame();
+  assert.equal(asked, 1, 'an idle pool asks for no frame');
+  pool.emit(0, 0, 0, 0, 1, 0, 2);
+  frame();
+  assert.equal(asked, 2, 'a moving one asks for the next');
+  assert.equal(pool.flush().dt, 0.04, "the world's frame time is the step's");
   remove();
   assert.deepEqual([held.particles, hooks.size], [[], 0]);
 });
