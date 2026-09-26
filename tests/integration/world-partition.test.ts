@@ -15,9 +15,9 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Camera } from '../../packages/sdk-core/src/world/camera/camera.ts';
 import {
-  assertSceneTables,
-  readSceneTables,
-} from '../../packages/sdk-core/src/scene/core/tableContracts.ts';
+  assertTablePartition,
+  readTablePartition,
+} from '../../packages/sdk-core/src/scene/core/tablePartition.ts';
 import type { BackendDiagnostic } from '../../packages/sdk-browser/src/diagnostic/types.ts';
 import { cellReach, KEEP } from '../../packages/sdk-browser/src/scene/partition/plan.ts';
 import { Scene } from '../../packages/sdk-browser/src/world/core/scene.ts';
@@ -77,11 +77,9 @@ async function openWorld(t: TestContext, pointer: URL) {
 async function cellsOf(root: string) {
   const folder = join(root, 'cache/native/full');
   const [key] = (await readdir(folder)).filter((name) => name !== 'manifest.json');
-  const file = assertSceneTables(
-    JSON.parse(await readFile(join(folder, key, 'scene-tables.json'), 'utf8')),
-  );
-  const tables = await readSceneTables(file, (page) => readFile(join(folder, key, page.url)));
-  const { cells } = tables.partition!;
+  const tables = JSON.parse(await readFile(join(folder, key, 'scene-tables.json'), 'utf8'));
+  const root = assertTablePartition(tables.partition)!;
+  const { cells } = await readTablePartition(root, (page) => readFile(join(folder, key, page.url)));
   const side = (b: readonly number[]) => Math.max(b[3] - b[0], b[5] - b[2]);
   const widest = Math.max(...cells.map((cell) => side(cell.parents[0][1])));
   return { bytes: cells.reduce((sum, cell) => sum + cell.bytes, 0), widest };

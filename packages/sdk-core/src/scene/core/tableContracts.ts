@@ -12,8 +12,6 @@ import type { TableDocument } from './tableDocuments.ts';
 import type { TableMaterial, TableTexture } from './tableSurfaces.ts';
 import {
   assertTablePartition,
-  readTablePartition,
-  type TablePage,
   type TablePartition,
   type TablePartitionRoot,
 } from './tablePartition.ts';
@@ -121,7 +119,8 @@ export interface PreparedSceneTables {
   documents: Readonly<Record<string, TableDocument>>;
 }
 
-/** The tables as `scene-tables.json` carries them: of the partition, only its root. */
+/** The tables as `scene-tables.json` carries them: of the partition, only its root, whose pages
+ *  `readTablePartition` reads. */
 export type SceneTablesFile = Omit<PreparedSceneTables, 'partition'> & {
   partition: TablePartitionRoot | null;
 };
@@ -162,13 +161,4 @@ export function assertSceneTables(value: unknown): SceneTablesFile {
     });
   tables.partition = assertTablePartition(tables.partition);
   return tables;
-}
-
-/** The tables with their partition read whole, its pages through `read` (`readTablePartition`). */
-export async function readSceneTables(
-  file: SceneTablesFile,
-  read: (page: TablePage) => Promise<Uint8Array>,
-): Promise<PreparedSceneTables> {
-  const partition = file.partition && (await readTablePartition(file.partition, read));
-  return { ...file, partition };
 }

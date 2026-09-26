@@ -7,9 +7,9 @@ import { EngineError } from '../../../sdk-core/src/index.ts';
 import {
   SCENE_TABLES_FILE,
   assertSceneTables,
-  readSceneTables,
   type PreparedSceneTables,
 } from '../../../sdk-core/src/scene/core/tableContracts.ts';
+import { readTablePartition } from '../../../sdk-core/src/scene/core/tablePartition.ts';
 import { checked, fetchVerified } from '../cluster/pages.ts';
 import { unmetered, type ByteMeter } from '../cluster/byteMeter.ts';
 
@@ -31,11 +31,14 @@ export async function loadPreparedSceneTables(
   const body = await response.arrayBuffer();
   let bytes = body.byteLength;
   const file = assertSceneTables(JSON.parse(new TextDecoder().decode(body)));
-  const tables = await readSceneTables(file, async (page) => {
-    const read = await fetchVerified(new URL(page.url, base).href, page, signal, meter);
-    bytes += read.byteLength;
-    return new Uint8Array(read);
-  });
+  const partition =
+    file.partition &&
+    (await readTablePartition(file.partition, async (page) => {
+      const read = await fetchVerified(new URL(page.url, base).href, page, signal, meter);
+      bytes += read.byteLength;
+      return new Uint8Array(read);
+    }));
+  const tables: PreparedSceneTables = { ...file, partition };
   return { tables, bytes };
 }
 

@@ -16,10 +16,7 @@ import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { type ClusterManifest } from '../../../../sdk-core/src/index.ts';
-import {
-  assertSceneTables,
-  readSceneTables,
-} from '../../../../sdk-core/src/scene/core/tableContracts.ts';
+import { assertSceneTables } from '../../../../sdk-core/src/scene/core/tableContracts.ts';
 import { buildPreparedScene } from './build.ts';
 import { threeGraph } from '../../../../../bench/witnesses/three/fromGraphNodes.ts';
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
@@ -34,11 +31,13 @@ async function witness(folder: URL, document: string, text?: string) {
 }
 
 async function prepared(folder: URL, document: string, written?: unknown) {
-  // The caches compared here have no partition: no page is read.
-  const file = assertSceneTables(
-    written ?? JSON.parse(await readFile(new URL('scene-tables.json', folder), 'utf8')),
-  );
-  const tables = await readSceneTables(file, () => Promise.reject(new Error('no partition')));
+  // The caches compared here have no partition (`partition.test.ts` reads those).
+  const tables = {
+    ...assertSceneTables(
+      written ?? JSON.parse(await readFile(new URL('scene-tables.json', folder), 'utf8')),
+    ),
+    partition: null,
+  };
   const built = await buildPreparedScene({
     tables,
     metadata: {} as ClusterManifest,
