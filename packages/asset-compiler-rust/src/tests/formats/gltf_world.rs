@@ -97,6 +97,16 @@ fn instance_attributes_of_different_counts_are_refused() {
 }
 
 #[test]
+fn a_scene_root_past_the_node_table_stays_refused() {
+    let (mut document, bin) = committed();
+    // Node 4 does not exist in the file: it must not become `wing`'s first instance.
+    document["scenes"][0]["nodes"] = json!([0, 4]);
+    let (_root, options) = gltf_fixture("world", &document, &bin);
+    let error = compile(&options, |_| {}).expect_err("scene root out of bounds");
+    assert_eq!(error.code, "INVALID_GLTF", "{error:?}");
+}
+
+#[test]
 fn a_morph_channel_on_an_instanced_node_drives_each_instance() {
     let (mut document, bin) = committed();
     document["animations"] = json!([{
