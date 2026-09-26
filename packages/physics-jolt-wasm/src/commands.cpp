@@ -52,7 +52,10 @@ bool add(const uint32_t *w) {
     if (mass <= 0) mass = f32(w + 17) * shape->GetMassProperties().mMass / SHAPE_DENSITY;
     settings.mOverrideMassProperties = EOverrideMassProperties::CalculateInertia;
     settings.mMassPropertiesOverride.mMass = std::max(mass, 1e-6f);
-    if (const uint32_t *i = providedInertia(w)) {
+    uint32_t words;
+    const uint32_t *frame = massFrame(w, words);
+    if (words == 12) {
+      const uint32_t *i = frame + 3;
       settings.mOverrideMassProperties = EOverrideMassProperties::MassAndInertiaProvided;
       settings.mMassPropertiesOverride.mInertia =
           Mat44(Vec4(vec3(i), 0), Vec4(vec3(i + 3), 0), Vec4(vec3(i + 6), 0), Vec4(0, 0, 0, 1));

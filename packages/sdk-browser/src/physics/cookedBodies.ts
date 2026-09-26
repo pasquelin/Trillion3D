@@ -19,7 +19,9 @@ import { cookedBytes, tilePose, type Model } from './tilePlace.ts';
 /**
  * Whether a compiled model's nodes can be drawn moving (#432). Until they can, a dynamic body a
  * model declares is held: made kinematic at the pose its node is drawn at, so its collider never
- * leaves the node. #432 flips it, and a held body is made dynamic; nothing else changes.
+ * leaves the node. #432 flips it, a held body then made dynamic; its poses, which the page drops
+ * for a slot no mesh holds (`poses.ts`), then move its node, and it loads tiles as a mover does
+ * (`moversOf`).
  */
 export const COMPILED_NODES_MOVE = false;
 
@@ -41,8 +43,8 @@ export function createCookedBodies(
   failed: (error: EngineError) => void,
   release = COMPILED_NODES_MOVE,
 ) {
-  /** Each open model's opening: its bodies made, their nodes, and the signal its leaving aborts
-   *  its reads by. */
+  /** Each open model's opening: its bodies made, the nodes whose body is made or on its way —
+   *  their static tiles unwanted —, and the signal its leaving aborts its reads by. */
   type Opening = { made: CookedMadeBody[]; nodes: Set<number>; signal: AbortSignal };
   const held = new Map<Model, Opening>();
   /** Each hull, fetched once: a body made again restores from it, never waiting on the network. */
@@ -61,7 +63,6 @@ export function createCookedBodies(
     const made: CookedMadeBody = { body, scale: [scale.x, scale.y, scale.z], id: -1 };
     made.id = bodies.claim(resolved.triangles, 0, { model, body: made });
     opening.made.push(made);
-    opening.nodes.add(body.node);
     const handle = made.id & BODY_INDEX;
     const matter = physicsMatterOf(body);
     if (bytes) writer.restore(handle, bytes);
@@ -75,17 +76,14 @@ export function createCookedBodies(
     if (bytes) writer.release(handle);
     invalidate();
   }
-  /** Makes `body` in `opening`, a refusal reported but for a read its model let go of. */
+  /** Makes `body` in `opening`; refused — but for a read its model let go of —, reported, and
+   *  its node static ground again. */
   const start = (model: Model, opening: Opening, body: CookedBody) =>
-    void add(model, opening, body).catch(
-      (error) => opening.signal.aborted || failed(error as EngineError),
-    );
-  /** `made` out of `opening`: its slot given back, its node's static ground wanted again. */
-  function drop(opening: Opening, made: CookedMadeBody) {
-    opening.made.splice(opening.made.indexOf(made), 1);
-    opening.nodes.delete(made.body.node);
-    bodies.release(made.id & BODY_INDEX);
-  }
+    void add(model, opening, body).catch((error) => {
+      if (opening.signal.aborted) return;
+      opening.nodes.delete(body.node);
+      failed(error as EngineError);
+    });
   const forget = (model: Model) => {
     const opening = held.get(model);
     held.delete(model);
@@ -95,33 +93,46 @@ export function createCookedBodies(
     /** Makes the bodies `model` declares, read until `signal` aborts, the last opening's out. */
     open(model: Model, declared: readonly CookedBody[], signal: AbortSignal) {
       forget(model);
-      const opening: Opening = { made: [], nodes: new Set(), signal };
+      const nodes = new Set(declared.map((body) => body.node));
+      const opening: Opening = { made: [], nodes, signal };
       held.set(model, opening);
       for (const body of declared) start(model, opening, body);
     },
     /** A model left the scene, or physics turned off: its bodies out. */
     forget,
-    /** Whether node `node` of `model` has its body: its static instances then leave. */
+    /** Whether node `node` of `model` has its body, made or on its way: its tiles then leave. */
     holds: (model: Model, node: number) => held.get(model)?.nodes.has(node) ?? false,
     /** A model moved: its bodies follow — a kinematic one driven there, pushing what it meets —;
-     *  one rescaled is made again at its new scale, Jolt scaling no body once made. */
+     *  one rescaled is made again at its new scale, Jolt scaling no body once made. The list is
+     *  compacted in place: a model moved every frame makes no new one. */
     moved(model: Model) {
       const opening = held.get(model);
-      for (const made of opening?.made.slice() ?? []) {
-        const { position, quaternion, scale } = tilePose({ model, instance: made.body });
-        const slot = made.id & BODY_INDEX;
-        if (!fits(scale, made.scale)) {
-          drop(opening!, made);
-          start(model, opening!, made.body);
-        } else if (dynamic(made.body)) writer.teleport(slot, position, quaternion);
+      if (!opening) return;
+      const { made } = opening;
+      let kept = 0;
+      for (const one of made) {
+        const { position, quaternion, scale } = tilePose({ model, instance: one.body });
+        const slot = one.id & BODY_INDEX;
+        if (!fits(scale, one.scale)) {
+          bodies.release(slot);
+          start(model, opening, one.body);
+          continue;
+        }
+        if (dynamic(one.body)) writer.teleport(slot, position, quaternion);
         else writer.moveKinematic(slot, position, quaternion);
+        made[kept++] = one;
       }
+      made.length = kept;
     },
     /** The worker refused `body`'s shape: out, its node static ground again, until its model
      *  opens again. */
     refused({ model, body }: { model: Model; body: CookedMadeBody }) {
       const opening = held.get(model);
-      if (opening?.made.includes(body)) drop(opening, body);
+      const at = opening ? opening.made.indexOf(body) : -1;
+      if (!opening || at < 0) return;
+      opening.made.splice(at, 1);
+      opening.nodes.delete(body.body.node);
+      bodies.release(body.id & BODY_INDEX);
     },
   };
 }

@@ -41,14 +41,16 @@ function adds(words: Uint32Array) {
   const f = new Float32Array(words.buffer, words.byteOffset, words.length);
   const found: { w: Uint32Array; f: Float32Array }[] = [];
   for (let at = 0; at < words.length;) {
-    const [op, , bytes, , , , , , , , , , , , , , , , , , , , , vertices, data] =
-      words.subarray(at);
-    if (op === OP.add) found.push({ w: words.subarray(at), f: f.subarray(at) });
-    if (op === OP.add) at += ADD_WORDS + vertices * 3 + data;
-    else at += op === OP.restore ? RESTORE_WORDS + Math.ceil(bytes / 4) : 2;
+    const op = words[at];
+    if (op === OP.add) {
+      found.push({ w: words.subarray(at), f: f.subarray(at) });
+      at += ADD_WORDS + words[at + 23] * 3 + words[at + 24];
+    } else at += op === OP.restore ? RESTORE_WORDS + Math.ceil(words[at + 2] / 4) : 2;
   }
   return found;
 }
+/** Where a cooked body's mass frame starts in its ADD: past its handle. */
+const FRAME = ADD_WORDS + 1;
 /** Steps `jolt` for `seconds` at 60 Hz: each body's last pose, by slot. */
 function run(jolt: Module, seconds: number) {
   const last = new Map<number, Float32Array>();
@@ -101,11 +103,11 @@ test('a shapeless node restores its cooked hull and mass, and turns about the co
   const [a, b] = adds(words);
   assert.deepEqual([b.w[2], b.w[4], b.f[16], b.w[24]], [MOTION.dynamic, SHAPE.cooked, 1000, 13]);
   assert.deepEqual(
-    [...b.f.subarray(26, 29)],
+    [...b.f.subarray(FRAME, FRAME + 3)],
     [0.9, 0.5, 0.5].map(Math.fround),
     'its centre of mass',
   );
-  assert.ok(Math.abs(b.f[29] - 1000 / 6) < 1e-3, 'its inertia, as cooked');
+  assert.ok(Math.abs(b.f[FRAME + 3] - 1000 / 6) < 1e-3, 'its inertia, as cooked');
   assert.equal(fetched.filter((f) => f === 'hull.bin').length, 2, 'restored, never built');
   const jolt = await startModule();
   writer.gravity([0, -9.81, 0]);
@@ -133,8 +135,8 @@ test('a declared mass and centre win over the cooked ones; a model scaled weighs
   );
   const [won] = adds(own.writer.take());
   assert.deepEqual([won.w[2], won.f[16]], [MOTION.kinematic, 5], 'held, at its declared mass');
-  assert.deepEqual([...won.f.subarray(26, 29)], [0.2, 0.3, 0.4].map(Math.fround));
-  assert.ok(Math.abs(won.f[29] - 5 / 6) < 1e-5, 'the cooked inertia, to the declared mass');
+  assert.deepEqual([...won.f.subarray(FRAME, FRAME + 3)], [0.2, 0.3, 0.4].map(Math.fround));
+  assert.ok(Math.abs(won.f[FRAME + 3] - 5 / 6) < 1e-5, 'the cooked inertia, to the declared mass');
   const file = { ...cooked([], []), bodies: [declared(0, [0, 0, 0], {}, cube())] };
   const [scaled] = adds((await streamedModel(file, await hull(), {}, 2)).writer.take());
   assert.deepEqual(
@@ -142,8 +144,8 @@ test('a declared mass and centre win over the cooked ones; a model scaled weighs
     [2, 2, 2, 8000],
     'the hull and its mass, scaled',
   );
-  assert.deepEqual([...scaled.f.subarray(26, 29)], [1, 1, 1]);
-  assert.ok(Math.abs(scaled.f[29] - 16000 / 3) < 1e-2, `inertia ${scaled.f[29]}`);
+  assert.deepEqual([...scaled.f.subarray(FRAME, FRAME + 3)], [1, 1, 1]);
+  assert.ok(Math.abs(scaled.f[FRAME + 3] - 16000 / 3) < 1e-2, `inertia ${scaled.f[FRAME + 3]}`);
 });
 
 test('a declared kinematic body follows its model; refusals are named; a removed model gives its slots back', async () => {

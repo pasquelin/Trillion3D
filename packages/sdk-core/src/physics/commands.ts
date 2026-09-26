@@ -82,8 +82,8 @@ export class CommandWriter {
   /** Creates a body. */
   add(body: BodyRecord) {
     const vertexCount = body.vertices ? body.vertices.length / 3 : 0;
-    const indices = body.indices?.length ?? (body.parts?.length ?? 0) * PART_WORDS;
-    const indexCount = indices + (body.massFrame?.length ?? 0);
+    const dataWords = body.indices?.length ?? (body.parts?.length ?? 0) * PART_WORDS;
+    const indexCount = dataWords + (body.massFrame?.length ?? 0);
     this.reserve(ADD_WORDS + vertexCount * 3 + indexCount);
     const w = this.words,
       f = this.floats,
@@ -98,7 +98,7 @@ export class CommandWriter {
     w[at + 24] = indexCount;
     if (body.vertices) f.set(body.vertices, at + ADD_WORDS);
     if (body.indices) w.set(body.indices, at + ADD_WORDS + vertexCount * 3);
-    if (body.massFrame) f.set(body.massFrame, at + ADD_WORDS + vertexCount * 3 + indices);
+    if (body.massFrame) f.set(body.massFrame, at + ADD_WORDS + vertexCount * 3 + dataWords);
     body.parts?.forEach((part, i) => {
       const p = at + ADD_WORDS + i * PART_WORDS;
       w[p] = part.shape;
