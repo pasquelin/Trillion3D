@@ -129,20 +129,22 @@ test('the pages build their pieces with the kit and keep no copy', () => {
   const page = (name: string) =>
     readFileSync(new URL(`../site/examples/${name}.html`, import.meta.url), 'utf8');
   // #799: the health check gathers all four.
+  const gathered = page('health-check');
   for (const [name, piece, copy] of [
     ['drive-a-car', 'vehicles', 'chassis'],
     ['a-robot-that-walks-and-waves', 'walkingRobot', 'animation.clip('],
     ['leaves-cut-by-alpha', 'leafTexture', 'createImageData'],
     ['a-matcap-sculpture', 'matcapBall', 'createImageData'],
-  ].flatMap(([name, piece, copy]) => [
-    [name, piece, copy],
-    ['health-check', piece, copy],
-  ])) {
-    const source = page(name);
-    assert.match(
-      source,
-      new RegExp(`import \\{[^}]*\\b${piece}\\b[^}]*\\} from '../runtime/kit.js'`),
-    );
-    assert.ok(!source.includes(copy), `${name} keeps no copy of ${piece}`);
+  ]) {
+    for (const [source, of] of [
+      [page(name), name],
+      [gathered, 'health-check'],
+    ]) {
+      assert.match(
+        source,
+        new RegExp(`import \\{[^}]*\\b${piece}\\b[^}]*\\} from '../runtime/kit.js'`),
+      );
+      assert.ok(!source.includes(copy), `${of} keeps no copy of ${piece}`);
+    }
   }
 });
