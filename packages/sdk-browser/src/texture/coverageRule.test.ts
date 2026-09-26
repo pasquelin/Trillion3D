@@ -1,0 +1,111 @@
+// #748: the card's two chains pick `t` and scale as the compiler does. The shipped WGSL and GLSL
+// texts are run here, their types stripped, on the table the compiler's test reads too
+// (`texture_preview/tests/coverage_alpha.rs`): one expected answer for the three builders.
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import {
+  COVERAGE_PICK_GLSL,
+  COVERAGE_PICK_WGSL,
+  COVERAGE_SCALE_GLSL,
+  COVERAGE_SCALE_WGSL,
+} from './coverageRule.ts';
+import { CoverageReaders, cutoffByte } from './coverage.ts';
+import type { PageSurface } from '../page/surface.ts';
+import type { Texture } from '../../../sdk-core/src/index.ts';
+
+type Case = { cutoff: number; level0: number[]; level: number[]; t: number; scaled: number[] };
+const table = JSON.parse(
+  readFileSync(
+    new URL('../../../../tests/fixtures/formats/previews/coverage-alpha.json', import.meta.url),
+    'utf8',
+  ),
+) as { cases: Case[] };
+
+/** A vector as both languages build one, flattened, each word an unsigned 32-bit integer. */
+const v = (...parts: Array<number | Record<string, number>>) => {
+  const words = parts.flatMap((part) =>
+    typeof part === 'number' ? [part >>> 0] : Object.values(part),
+  );
+  return Object.fromEntries(words.map((word, i) => ['xyzw'[i], word]));
+};
+type Rule = {
+  scaled(a: number, c: number, t: number): number;
+  wide(a: number, b: number): { x: number; y: number };
+  pick(c: number, covered: number, texels: ReturnType<typeof v>): number;
+};
+
+/** A rule text as JavaScript: functions and declarations stripped of their types, integer
+ *  conversions truncating, shifts unsigned; `binOf` reads the histogram given. */
+function evaluate(source: string, histogram: () => number[]): Rule {
+  const params = (list: string) =>
+    list.split(',').map((param) => param.trim().split(/[\s:]+/)[param.includes(':') ? 0 : 1]);
+  const js = source
+    .replace(/fn (\w+)\(([^)]*)\)->\w+\{/g, (_, name, list) => `function ${name}(${params(list)}){`)
+    .replace(
+      /^(?:uint|uvec2|bool) (\w+)\(([^)]*)\)\{/gm,
+      (_, name, list) => `function ${name}(${params(list)}){`,
+    )
+    .replace(/\b(?:let|var|uint|uvec2|uvec4|bool) (\w+)=/g, 'let $1=')
+    .replace(/\b(?:vec2u|vec4u|uvec2|uvec4)\(/g, 'v(')
+    .replace(/\b(?:u32|uint)\(/g, 'Math.trunc(')
+    .replace(/\b(min|max|round)\(/g, 'Math.$1(')
+    .replace(/\b(0x[\da-f]+|\d+)u\b/g, '$1')
+    .replace(/>>/g, '>>>');
+  const select = (no: unknown, yes: unknown, when: boolean) => (when ? yes : no);
+  const binOf = (t: number) => histogram()[t];
+  return new Function('v', 'select', 'binOf', `${js};return {scaled,wide,pick};`)(v, select, binOf);
+}
+
+const languages = {
+  WGSL: COVERAGE_SCALE_WGSL + COVERAGE_PICK_WGSL,
+  GLSL: COVERAGE_SCALE_GLSL + COVERAGE_PICK_GLSL,
+};
+
+for (const [language, source] of Object.entries(languages))
+  test(`${language}: the pick of t and the scale are the compiler's, on its table`, () => {
+    let histogram: number[] = [];
+    const rule = evaluate(source, () => histogram);
+    for (const { cutoff, level0, level, t, scaled } of table.cases) {
+      histogram = Array.from({ length: 256 }, (_, byte) => level.filter((a) => a === byte).length);
+      const covered = level0.filter((a) => a >= cutoff).length;
+      const picked = rule.pick(cutoff, covered, v(level0.length, level.length));
+      assert.equal(picked, t, `cutoff ${cutoff}, level ${level}`);
+      assert.deepEqual(
+        level.map((a) => rule.scaled(a, cutoff, t)),
+        scaled,
+      );
+    }
+    // Products past 32 bits: a 16384² level 0 against its level 1.
+    for (const [a, b] of [
+      [16384 ** 2, 8192 ** 2 - 3],
+      [0xffffffff, 0xffffffff],
+      [65536, 65535],
+    ]) {
+      const { x, y } = rule.wide(a, b);
+      assert.equal((BigInt(x) << 32n) | BigInt(y), BigInt(a) * BigInt(b), `${a} × ${b}`);
+    }
+  });
+
+// #44's `cutoff_byte`, and a texture cut at the lowest cutoff of its masked readers, not at all
+// once one of them blends or its chain does not weigh by alpha.
+test('a chain is cut at its readers’ lowest cutoff byte, 0 once one blends', () => {
+  assert.deepEqual([0.5, 0.25, 1 / 255, 1, 1.5].map(cutoffByte), [128, 64, 1, 255, 0]);
+  const map = { premultiplyAlpha: false } as Texture,
+    readers = new CoverageReaders();
+  const surface = (alphaTest: number, transparent = false) =>
+    readers.read({
+      map,
+      alphaTest,
+      transparent,
+      blending: 'normal',
+      transmission: 0,
+    } as PageSurface);
+  surface(0.5);
+  surface(0.25);
+  assert.equal(readers.cutoff(map), 64);
+  surface(0, true);
+  assert.equal(readers.cutoff(map), 0, 'a blended reader: the median alone');
+  surface(0);
+  assert.equal(readers.cutoff(map), 0, 'an opaque reader: the plain chain');
+});

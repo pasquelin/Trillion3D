@@ -8,6 +8,14 @@ import { weighsByAlpha } from '../scene/materialBlending.ts';
 const alphaIsCoverage = (mat: PageSurface) =>
   mat.alphaTest > 0 || (mat.transparent && !(mat.transmission > 0) && weighsByAlpha(mat.blending));
 
+/** The smallest byte `b` a surface cutting at `alphaTest` keeps, `b / 255 >= alphaTest` in f32 as
+ *  the WebGPU engine compares them; 0 when none does (`cutoff_byte`, `coverage.rs`). */
+export function cutoffByte(alphaTest: number) {
+  for (let byte = 1; byte < 256; byte++)
+    if (Math.fround(byte / 255) >= Math.fround(alphaTest)) return byte;
+  return 0;
+}
+
 /** The colour maps' readers, both GPU paths' (#42): mips weigh colours by alpha when EVERY reader
  *  takes alpha for coverage — never an emissive map (`collect.rs`) — and the texels are not
  *  premultiplied. A host switches opaque and masked with no signal: `follow` rereads them. */
@@ -42,6 +50,16 @@ export class CoverageReaders {
   /** True when `texture`'s chain weighs its colours by alpha; false for one no surface wears. */
   weighs(texture: Texture) {
     return !!this.readers.get(texture)?.rule && !texture.premultiplyAlpha;
+  }
+  /** The cutoff byte `C` whose share of covered texels every level of `texture`'s chain keeps
+   *  (docs/FORMAT.md, "Coverage-preserving alpha"): the lowest of its masked readers', 0 — the
+   *  median alone — when the chain does not weigh or a reader blends. */
+  cutoff(texture: Texture) {
+    if (!this.weighs(texture)) return 0;
+    let lowest = 255;
+    for (const surface of this.readers.get(texture)!.surfaces)
+      lowest = Math.min(lowest, surface.transparent ? 0 : cutoffByte(surface.alphaTest));
+    return lowest;
   }
   private file(surface: PageSurface) {
     const { map, emissiveMap } = surface;
