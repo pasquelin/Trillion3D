@@ -7129,7 +7129,7 @@
       "water": "물체가 떠 있는 물: 수위, 파도, 밀도, 항력. 물보다 가벼운 물체는 밀어낸 물의 무게에 밀려 뜬다.",
       "waterSurface": "시뮬레이션 시각의 수면(그리기용): 부력이 읽는 것과 같은 파도, 같은 숫자(`height`, `point`, `normal`).",
       "stats": "개수와 두 시계: worker의 스텝당 밀리초, 페이지의 프레임당 밀리초.",
-      "error": "물리의 마지막 오류(`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`) 또는 `null`. 시뮬레이션을 멈춘 오류는 `enabled`를 끕니다.",
+      "error": "물리의 마지막 오류(`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`, `RESOURCE_HTTP_ERROR`) 또는 `null`. 시뮬레이션을 멈춘 오류는 `enabled`를 끕니다.",
       "add": "관절을 추가합니다(`joint.hinge(door, frame, …)`와 그 친척들). 두 물체가 시뮬레이션되자마자 만들어지고, 제거되거나 끊어질 때까지 유지됩니다.",
       "remove": "관절을 제거합니다. 붙잡혀 있던 물체들이 자유롭게 떨어집니다."
     }
@@ -7337,7 +7337,7 @@
       "water": "물체가 떠 있는 물: 수위, 파도, 밀도, 항력. 물보다 가벼운 물체는 밀어낸 물의 무게에 밀려 뜬다.",
       "waterSurface": "시뮬레이션 시각의 수면(그리기용): 부력이 읽는 것과 같은 파도, 같은 숫자(`height`, `point`, `normal`).",
       "stats": "개수와 두 시계: worker의 스텝당 밀리초, 페이지의 프레임당 밀리초.",
-      "error": "물리의 마지막 오류(`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`) 또는 `null`. 시뮬레이션을 멈춘 오류는 `enabled`를 끕니다.",
+      "error": "물리의 마지막 오류(`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`, `RESOURCE_HTTP_ERROR`) 또는 `null`. 시뮬레이션을 멈춘 오류는 `enabled`를 끕니다.",
       "add": "관절을 추가합니다(`joint.hinge(door, frame, …)`와 그 친척들). 두 물체가 시뮬레이션되자마자 만들어지고, 제거되거나 끊어질 때까지 유지됩니다.",
       "remove": "관절을 제거합니다. 붙잡혀 있던 물체들이 자유롭게 떨어집니다."
     }
