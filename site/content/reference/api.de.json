@@ -4118,7 +4118,7 @@
       "clipAction": "Die Aktion, die `clip` abspielt.",
       "play": "Spielt `clip` sofort ab.",
       "stopAll": "Stoppt jede Aktion.",
-      "update": "Lässt jede laufende Aktion um `seconds` voranschreiten und schreibt die abgetasteten Werte."
+      "update": "Lässt jede laufende Aktion um `seconds` voranschreiten und schreibt dann in jede Eigenschaft die gewichtete Mischung der Abtastwerte ihrer Aktionen über ihrem Ruhewert."
     }
   },
   "ModelRecord": {

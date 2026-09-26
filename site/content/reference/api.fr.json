@@ -4122,11 +4122,11 @@
   "Mixer": {
     "summary": "Joue des clips sur les nœuds sous `root` ; la boucle d’un monde le fait avancer tant qu’une action joue.",
     "members": {
-      "root": "Le nœud dont elle anime les enfants.",
+      "root": "Le nœud dont il anime les enfants.",
       "clipAction": "L’action qui joue `clip`.",
       "play": "Joue `clip` tout de suite.",
       "stopAll": "Arrête chaque action.",
-      "update": "Fait avancer chaque action en cours de `seconds` et écrit les valeurs échantillonnées."
+      "update": "Fait avancer chaque action en cours de `seconds`, puis écrit dans chaque propriété le mélange pondéré des échantillons de ses actions sur sa valeur au repos."
     }
   },
   "ModelRecord": {
