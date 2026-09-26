@@ -175,6 +175,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
       return {
         clusters: state.visible,
         selectedTriangles: state.selectedTriangles,
+        uncoveredTriangles: state.uncoveredTriangles,
         ...pool.metrics,
         cacheEvictions: residency.cacheEvictions,
         frustumRejected: state.frustumRejected,
