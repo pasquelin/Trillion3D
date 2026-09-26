@@ -2,11 +2,12 @@
 // imports its module in the page and runs it there (`repoServer`). Nothing outside the repository
 // is read; the browser and the server are closed whatever `use` does.
 import assert from 'node:assert/strict';
-import { existsSync, readdirSync } from 'node:fs';
-import { resolve, sep } from 'node:path';
+import { existsSync, statSync } from 'node:fs';
+import { relative, resolve, sep } from 'node:path';
 import type { Page } from 'playwright';
 import { launchChrome } from '../../../bench/runner/chrome.ts';
 import { resolveMounts } from '../../../bench/runner/options.ts';
+import { emittedOf, engineSources } from '../../../scripts/engine-dist.ts';
 import { startServer } from './staticServer.ts';
 
 /**
@@ -14,24 +15,33 @@ import { startServer } from './staticServer.ts';
  * `/packages/`, to its file under `/dist/`. A page module imports engine sources by relative path
  * (the graph fixtures, the maths) while the page loads the engine from `dist/`: without them each
  * such module would run twice, and two scene states refuse each other's nodes ("Scene nodes belong
- * to different roots", #795). A fixture, which the build leaves out, runs from its source, once.
+ * to different roots", #795). A fixture, which the build leaves out, runs from its source, once. A
+ * build older than a source is refused: the page would run another engine than the sources say.
  */
 function engineInDist(root: string) {
+  const address = (file: string) => `/${relative(root, file).split(sep).join('/')}`;
   const imports: Record<string, string> = {};
-  assert.ok(existsSync(resolve(root, 'dist')), 'dist missing: run `pnpm run build` first');
-  for (const file of readdirSync(resolve(root, 'dist'), { recursive: true, encoding: 'utf8' })) {
-    const emitted = file.split(sep).join('/');
-    const source = emitted.replace(/\.js$/, '.ts').replace(/\.mjs$/, '.mts');
-    if (source !== emitted && existsSync(resolve(root, 'packages', source)))
-      imports[`/packages/${source}`] = `/dist/${emitted}`;
+  const stale: string[] = [];
+  for (const source of engineSources()) {
+    const emitted = emittedOf(source);
+    const built = statSync(emitted, { throwIfNoEntry: false })?.mtimeMs;
+    if (built === undefined) continue;
+    if (built < statSync(source).mtimeMs) stale.push(relative(root, source));
+    imports[address(source)] = address(emitted);
   }
+  if (stale.length)
+    assert.fail(`dist older than ${stale.join(', ')}: run \`pnpm run build\` first`);
   return imports;
 }
 
 /** The server of a repository page: the harness mounts, `dist/`, `tests/`, `scripts/` and the
  *  engine sources, each emitted one resolved to `dist/` (`engineInDist`). */
-export const repoServer = (root: string) =>
-  startServer({
+export function repoServer(root: string) {
+  assert.ok(
+    existsSync(resolve(root, 'dist/witnesses/measurement.js')),
+    'dist missing: run `pnpm run build` first',
+  );
+  return startServer({
     mounts: [
       ...resolveMounts(root, []),
       { prefix: '/dist/', dir: resolve(root, 'dist') },
@@ -41,6 +51,7 @@ export const repoServer = (root: string) =>
     ],
     imports: engineInDist(root),
   });
+}
 
 /** Runs `use` on the page and returns what it returned; fails when the page threw, since a
  *  reading taken past an error is none. */

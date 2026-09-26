@@ -2,11 +2,21 @@
 // import map against what each page module served through `withRepoPage` imports.
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { build } from 'esbuild';
+import { repositoryFiles } from '../../../scripts/repository-files.ts';
 import { repoServer } from './repoPage.ts';
 
 const ROOT = resolve(import.meta.dirname, '../../..');
+
+/** Every page module a caller of `withRepoPage` names (`pageUrl`), from the repository root. */
+const repoPages = () =>
+  repositoryFiles()!
+    .filter((file) => /^(bench|tests)\/.*\.ts$/.test(file))
+    .map((file) => readFileSync(resolve(ROOT, file), 'utf8'))
+    .filter((text) => text.includes('withRepoPage('))
+    .flatMap((text) => [...text.matchAll(/pageUrl: '\/(tests\/[^']+)'/g)].map((match) => match[1]));
 
 /** The repository page's import map, as the server sends it. */
 async function servedImports(): Promise<Record<string, string>> {
@@ -37,9 +47,11 @@ async function imported(entry: string) {
 }
 
 test('each repository page runs the engine it draws with, the one under dist/', async () => {
-  const imports = await servedImports();
-  for (const page of ['materialPixelsPage.ts', 'anisotropyCostPage.ts']) {
-    const files = await imported(`tests/browser/support/${page}`);
+  const pages = repoPages();
+  assert.ok(pages.length >= 2, `the pages served by withRepoPage: ${pages.join(', ')}`);
+  const [imports, ...importsOf] = await Promise.all([servedImports(), ...pages.map(imported)]);
+  for (const [at, page] of pages.entries()) {
+    const files = importsOf[at];
     // The node space whose second copy refused the proof's nodes is among them.
     assert.ok(files.includes('packages/sdk-core/src/world/object/objectSpace.ts'), page);
     // A fixture is not built: it runs from its source, once, on the emitted engine.
@@ -48,10 +60,7 @@ test('each repository page runs the engine it draws with, the one under dist/', 
     );
     for (const file of engine) {
       // Written out, not taken from the harness: the file the build emits for each source.
-      const emitted = file
-        .replace(/^packages\//, '/dist/')
-        .replace(/\.ts$/, '.js')
-        .replace(/\.mts$/, '.mjs');
+      const emitted = file.replace(/^packages\//, '/dist/').replace(/\.ts$/, '.js');
       assert.equal(
         imports[`/${file}`],
         emitted,
