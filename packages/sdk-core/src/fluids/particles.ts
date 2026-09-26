@@ -34,11 +34,7 @@ export interface ParticlePoolSpec {
 
 /** What one image does with a pool: `count` records land from ring slot `first`, then every
  *  live particle moves by `dt` seconds. */
-export interface ParticleStep {
-  first: number;
-  count: number;
-  dt: number;
-}
+export type ParticleStep = { first: number; count: number; dt: number };
 
 export class ParticlePool {
   readonly capacity: number;
