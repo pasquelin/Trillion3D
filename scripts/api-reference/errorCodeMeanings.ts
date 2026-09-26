@@ -6,7 +6,8 @@ export const ENGINE_ERROR_MEANINGS: Readonly<Record<string, string>> = {
   CANVAS_NOT_FOUND: 'The world has no canvas to draw into: none found, or no page around it.',
   INVALID_CANVAS_LAYOUT: 'The canvas has no usable size or pixel ratio.',
   WEBGPU_UNAVAILABLE: 'The machine cannot draw the way asked, or cannot draw at all.',
-  RESOURCE_HTTP_ERROR: 'A file could not be fetched, or was not what it should be.',
+  RESOURCE_HTTP_ERROR:
+    'A file could not be fetched — a page, a cooked physics tile or any other, asked once more after a network or server error — or was not what it should be.',
   INVALID_POINTER: "The compiled model's pointer is broken, unfinished, or of another scope.",
   INVALID_CACHE:
     'The compiled model is damaged, too old, too new or of a format not read yet: compile it again.',
