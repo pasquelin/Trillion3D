@@ -93,10 +93,10 @@ test('a counter over its budget turns its line red; a reading or one not measure
 test("a backend's documented limit is a neutral line; any other refusal or uncaught error is red", () => {
   const { correct, lines } = judged(
     [[null as never, 10, 10, healthy]],
-    [['no shadows', true], ['boom'], ['no toon'], ['no toon']],
+    [['no shadows', true], ['no toon'], ['boom, until #1'], ['no toon']],
   );
   assert.equal(correct, false);
   assert.deepEqual(Object.keys(lines), ['refused: webgl2', 'refused']);
   assert.deepEqual(lines['refused: webgl2'], [null, 'no shadows']);
-  assert.deepEqual(lines.refused, [false, 'boom; no toon']);
+  assert.deepEqual(lines.refused, [false, 'no toon; boom, until #1']);
 });

@@ -10,14 +10,14 @@ import { exampleId, kitWord } from './words.ts';
  * thresholds, none of these quantities: the floor of the 60–120 Hz a frame targets, the GPU time
  * of one 60 Hz frame, and #525's shadows within 2 ms of GPU. Shadow pages are read, not judged.
  */
-export const BUDGETS = { fps: 60, gpuFrameMs: 1000 / 60, gpuShadowsMs: 2 };
+const BUDGETS = { fps: 60, gpuFrameMs: 1000 / 60, gpuShadowsMs: 2 };
 
 /** The budgets the engine does not meet yet, each with the open issue that delivers it: its line
- *  shows red, `until #<issue>`, and counts against no verdict. The issue's pull request drops it. */
+ *  is `flagged`: red, `until #<issue>`, and counts against no verdict. Its pull request drops it. */
 export const UNTIL: Partial<Record<keyof typeof BUDGETS, number>> = { gpuShadowsMs: 525 };
 
-/** Whether a line waits on an open issue (`UNTIL`): red, but no verdict's. */
-export const flagged = ({ motif }: LigneResultat) => /, until #\d+$/.test(motif ?? '');
+export const flagged = ({ name, motif }: LigneResultat) =>
+  name !== 'refused' && /, until #\d+$/.test(motif ?? '');
 
 /** The engine's counters of a drawn frame the verdict reads, `null` when not measured. */
 export interface Counters {
@@ -120,8 +120,8 @@ export function healthCheck(
         ligne({ name: `refused: ${world.renderer}`, motif: [...byDesign].join('; ') || '—' }),
         ligne({ name: 'refused', correct: !failures.size, motif: [...failures].join('; ') || '—' }),
       ];
-      const counted = resultats.filter((line) => !flagged(line));
-      const [name, correct] = [exampleId(), counted.every((line) => line.correct !== false)];
+      const correct = resultats.every((line) => line.correct !== false || flagged(line)),
+        name = exampleId();
       return { name, fichier: `site/examples/${name}.html`, resultats, correct };
     },
   };
