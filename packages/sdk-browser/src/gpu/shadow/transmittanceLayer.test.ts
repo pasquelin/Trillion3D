@@ -106,7 +106,9 @@ test('depth-only then colour-only draws of the blended rows, the opaque depth re
   assert.deepEqual([...opaque.entries][0].texture, { sampleType: 'depth' });
 });
 
-test('the pass draws each page the pool drew at half its place, from a clear page', () => {
+/** The layer's pass over three regions — cleared, static, restored —, with or without blended
+ *  casters: the calls its render pass received after `begin`, and the draw calls it counted. */
+function encoded(casters: boolean) {
   const r = recorder<GPURenderPassEncoder>();
   const encoder = { beginRenderPass: (d: unknown) => (r.calls.push(['begin', [d]]), r.target) };
   const kept = {},
@@ -125,6 +127,7 @@ test('the pass draws each page the pool drew at half its place, from a clear pag
     },
     gpu: { cache: { buffer: key[0] } },
     run: { gpuDrawCalls: 0 },
+    services: { blendCasters: { used: casters ? 1 : 0 } },
     lights: {
       cull: { kept, indirect },
       shadowGroupsKey: key,
@@ -137,14 +140,24 @@ test('the pass draws each page the pool drew at half its place, from a clear pag
   encodeTransmittance(rt, {} as GPUDevice, encoder as never, 3, layer as never, false);
   const [begin, ...calls] = r.calls;
   assert.equal((begin[1][0] as GPURenderPassDescriptor).label, SHADOW_TRANSMITTANCE_PASS);
-  const half = SHADOW_PAGE / 2;
+  return { calls, draws: rt.run.gpuDrawCalls, indirect };
+}
+
+/** What region `i` of `encoded` receives: its half-size place, its groups, its clear. */
+const half = SHADOW_PAGE / 2;
+const cleared = (i: number) => [
+  ['setViewport', [128 * i, 64, half, half, 0, 1]],
+  ['setScissorRect', [128 * i, 64, half, half]],
+  ['setBindGroup', [0, `g${i}`]],
+  ['setBindGroup', [1, 'faces', [256 * i]]],
+  ['setPipeline', ['clear']],
+  ['draw', [3]],
+];
+
+test('the pass draws each page the pool drew at half its place, from a clear page', () => {
+  const { calls, draws, indirect } = encoded(true);
   const region = (i: number) => [
-    ['setViewport', [128 * i, 64, half, half, 0, 1]],
-    ['setScissorRect', [128 * i, 64, half, half]],
-    ['setBindGroup', [0, `g${i}`]],
-    ['setBindGroup', [1, 'faces', [256 * i]]],
-    ['setPipeline', ['clear']],
-    ['draw', [3]],
+    ...cleared(i),
     ['setPipeline', ['depth']],
     ['drawIndirect', [indirect, DRAW_INDIRECT_STRIDE * i]],
     ['setPipeline', ['blend']],
@@ -156,5 +169,16 @@ test('the pass draws each page the pool drew at half its place, from a clear pag
     ...region(2),
     ['end', []],
   ]);
-  assert.equal(rt.run.gpuDrawCalls, 6);
+  assert.equal(draws, 6);
+});
+
+test('once no blended caster holds a row, a page is only cleared: no draw of the caster list', () => {
+  const { calls, draws } = encoded(false);
+  assert.deepEqual(calls, [
+    ['setBindGroup', [2, 'opaque']],
+    ...cleared(0),
+    ...cleared(2),
+    ['end', []],
+  ]);
+  assert.equal(draws, 2);
 });

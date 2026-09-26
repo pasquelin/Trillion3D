@@ -414,13 +414,16 @@ request is a second residency tier, loaded after the camera's pages into slots n
 pinned. The CPU cut does the same, reading the run's view as a camera (`webgpu/shadow/cpuCasters.ts`);
 its casters take rows behind its own (#10, #26).
 
-**Blended surfaces cast a shadow attenuated by their opacity.** A blended cluster is drawn by the
-blend pass and never enters the visibility tables: to cast, it takes a row of the page table
-_behind_ the visibility rows, which only the shadow pass reads (`webgpu/row/blendCasters.ts`). The
-row follows residency like a visibility row — taken when the cluster's slot arrives, given back
-when it leaves — and the pool bounds how many exist; a scene that blends nothing has none. The
-light cut finds the cluster at that row (`gpu/draw/lightRows.ts`, pinned by the host), the CPU cut
-lists it there, and the same cull draws it. It never writes the pool's depth: it fills the
+**A blended surface that asks for it casts a shadow attenuated by its opacity.** By default a
+see-through surface casts none, as the reference solution leaves translucent materials: glass,
+smoke and a beam of light let the light pass. A material asks with `transparentShadow: true`
+(`castsBlendShadow`, `gpu/shadow/transmittance.ts`); a cooked model's materials carry no such flag
+and cast none. A blended cluster is drawn by the blend pass and never enters the visibility tables:
+to cast, it takes a row of the page table _behind_ the visibility rows, which only the shadow pass
+reads (`webgpu/row/blendCasters.ts`). The row follows residency like a visibility row — taken when
+the cluster's slot arrives, given back when it leaves — and the pool bounds how many exist; a scene
+that blends nothing has none. The light cut finds the cluster at that row (`gpu/draw/lightRows.ts`,
+pinned by the host), the CPU cut lists it there, and the same cull draws it. It never writes the pool's depth: it fills the
 **transmittance layer** (`gpu/shadow/transmittance.ts`), two textures at half the pool's
 resolution — one texel for each 2 × 2 depth texels, addressed by the same pages and page table
 (texel / 2): the transmittance, `rgba8unorm`, whose RGB keeps `Π(1 − coverage)`, the coverage being
@@ -430,8 +433,9 @@ of its own follows the pool's (`webgpu/pages/render/encodeShadowPass.ts`): each 
 is cleared to full transmittance and far depth, then draws its list twice, where only the blended
 rows survive, from the same shader entry — depth only, depth-tested, for the nearest depth; then
 colour only, blended multiplicatively, without depth. Both discard a fragment the pool's opaque
-depth hides at all four of its texels. The shadow read multiplies its filtered PCF result by
-the layer once, at the footprint's centre (`lighting/direct/shadowWgsl.ts`), since the sixteen taps
+depth hides at all four of its texels. Once the last blended caster has given its row back, the
+layer stays and its pages are only cleared: neither draw is encoded. The shadow read multiplies its
+filtered PCF result by the layer once, at the footprint's centre (`lighting/direct/shadowWgsl.ts`), since the sixteen taps
 lie within one texel of it: the four texels around it, kept within its page, each its transmittance
 where the receiver lies behind its translucent depth, filtered bilinearly. A pixel the opaque depth
 already darkens fully reads nothing of the layer. A constant opacity gives a constant shadow, two panes multiply, a
