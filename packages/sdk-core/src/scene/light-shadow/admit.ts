@@ -1,7 +1,6 @@
 import { MAX_SHADOW_SLICES } from '../light/contracts.ts';
 import { RANKS, type ShadowPool } from './pool.ts';
 import type { ShadowTable } from './table.ts';
-import { ringOf } from './virtual.ts';
 
 /** Light views a light holds, its sun levels or lamp faces and mips (`pool.view`). */
 const LIGHT_VIEWS = 4096;
@@ -60,16 +59,15 @@ export function createShadowAdmission(poolPages: number) {
     /** A sort key's weight of one frame of age: a multiple of the pool's pages, past the span of
      *  list keys, a sun level negative or not. */
     ageWeight = poolPages * 2 * MAX_SHADOW_SLICES * RANKS * LIGHT_VIEWS;
-  let count = 0,
-    /** The last frame left pages pending: the next list puts the oldest first. */
-    waiting = false;
-  return {
+  /** The last frame left pages pending: the next list puts the oldest first. */
+  let waiting = false;
+  // Data fields only, never an accessor: the plan reads the list page by page (`pool.ts`).
+  const admission = {
     list,
     keys,
     hostBytes: list.byteLength + keys.byteLength + order.byteLength,
-    get count() {
-      return count;
-    },
+    /** Pages listed. */
+    count: 0,
     /** Lists every stale page the report of frame `latest` named, at frame `frame`; returns how
      *  many. */
     run(
@@ -79,7 +77,7 @@ export function createShadowAdmission(poolPages: number) {
       frame: number,
       isFloor: (page: number) => boolean,
     ) {
-      count = 0;
+      let count = 0;
       for (let page = 0; page < pool.pages; page++) {
         if (pool.owner[page] < 0 || !pool.dirty[page]) continue;
         if (pool.requested[page] < latest) pool.withdraw(table, page);
@@ -95,10 +93,13 @@ export function createShadowAdmission(poolPages: number) {
       if (!count) waiting = false;
       for (let i = 0; i < count; i++) {
         // A key is negative for its age or a negative sun level: the page is its remainder, taken
-        // positive.
-        list[i] = ringOf(order[i], poolPages);
+        // positive. Not `ringOf`: a key is no 32-bit integer, and its float remainder there would
+        // turn every other caller's integer remainder into a float one (#26).
+        const rest = order[i] % poolPages;
+        list[i] = rest < 0 ? rest + poolPages : rest;
         keys[i] = viewKeyOf(pool, list[i]);
       }
+      admission.count = count;
       return count;
     },
     /**
@@ -108,7 +109,7 @@ export function createShadowAdmission(poolPages: number) {
     batchEnd(from: number, pages: number, views: number) {
       let opened = 0,
         to = from;
-      for (; to < count && to - from < Math.max(1, pages); to++) {
+      for (; to < admission.count && to - from < Math.max(1, pages); to++) {
         if (to > from && keys[to] === keys[to - 1]) continue;
         if (opened >= Math.max(1, views)) break;
         opened++;
@@ -117,9 +118,10 @@ export function createShadowAdmission(poolPages: number) {
     },
     /** Closes the list. The frame drew it up to `stopped`: what it left undrawn stays stale, and
      *  the next list is ordered by age. */
-    reset(stopped = count) {
-      waiting = stopped < count;
-      count = 0;
+    reset(stopped = admission.count) {
+      waiting = stopped < admission.count;
+      admission.count = 0;
     },
   };
+  return admission;
 }
