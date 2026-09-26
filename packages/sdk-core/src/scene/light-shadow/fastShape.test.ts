@@ -16,7 +16,7 @@ test('the objects a moving frame reads page by page keep fast properties', () =>
     import { createShadowChanges } from ${url('./changes.ts')};
     import { createShadowThresholds } from ${url('./thresholds.ts')};
     const { plan } = movingScene();
-    const own = { changes: createShadowChanges(), thresholds: createShadowThresholds(plan.pool) };
+    const own = { changes: createShadowChanges(plan.pool.pages), thresholds: createShadowThresholds(plan.pool) };
     console.log(JSON.stringify(${JSON.stringify(SHAPED)}.map((name) => %HasFastProperties(own[name] ?? plan[name]))));`;
   const run = spawnSync(
     process.execPath,

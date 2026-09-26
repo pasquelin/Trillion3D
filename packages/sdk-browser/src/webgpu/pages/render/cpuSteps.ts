@@ -32,8 +32,9 @@ function recordStages(rt: WebgpuPagesRuntime) {
     });
   // What the shadow pass actually did: counts, never durations. `pagesDemandees` is what the image
   // read, `pagesEnCache` what it read straight from the pool, `pagesInvalidees` what staled this
-  // image, `pagesRedessinees` what it drew, `pagesEnAttente` what the budget left for later, and
-  // `retardMaxMs` the wait of the oldest page in that queue.
+  // image, `pagesVisitees` what the invalidation examined to find them, `pagesRedessinees` what
+  // it drew, `pagesEnAttente` what the budget left for later, and `retardMaxMs` the wait of the
+  // oldest page in that queue.
   const { counts } = lights.plan;
   // What the region culls kept, sampled on the device one frame in fifteen: the frame it
   // describes is named, and until a sample has returned there is no count at all.
@@ -47,6 +48,7 @@ function recordStages(rt: WebgpuPagesRuntime) {
     pagesEnCache: counts.cachedPages,
     pagesDuPool: counts.poolPages,
     pagesInvalidees: counts.invalidatedPages,
+    pagesVisitees: counts.visitedPages,
     pagesRedessinees: lights.shadowPages,
     pagesEnAttente: counts.pendingPages,
     retardMaxMs: counts.waitedMs,
