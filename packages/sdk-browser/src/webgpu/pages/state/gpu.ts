@@ -12,6 +12,7 @@ import type { WebgpuEffects } from '../../../effects/webgpuEffects.ts';
 import { UNIFORM_STRIDE } from '../../blend/uniforms.ts';
 import type { ModePipelines } from '../../blend/stagePipelines.ts';
 import type { WebgpuGuidePass } from '../../../guides/guidePass.ts';
+import type { WebgpuParticles } from '../../../particles/webgpuParticles.ts';
 import type { DeviceGrant } from '../../../gpu/core/errorScope.ts';
 
 /** GPU resources of the forward path: page cache, pipelines, frame targets and presentation. */
@@ -89,6 +90,8 @@ export interface WebgpuGpuState {
   guides: WebgpuGuidePass | undefined;
   /** Revision of the page's guides the last encoded image drew (`encodeGuides.ts`). */
   guideRevision: number;
+  /** The particle step, made by the first image with a pool (`../../../particles/`). */
+  particles: WebgpuParticles | undefined;
 }
 
 /** The frozen colour the water composite rereads, and the depth its surface stage tests and
@@ -149,5 +152,6 @@ export function createWebgpuGpuState(viewport: readonly [number, number]): Webgp
     effectsRevision: 0,
     guides: undefined,
     guideRevision: 0,
+    particles: undefined,
   };
 }

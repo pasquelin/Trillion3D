@@ -22,7 +22,7 @@
     <canvas id="view"></canvas>
     <script type="module">
       import { createWorld, geometry, material, object, light, math } from '../runtime/engine.js';
-      import { controls, readout, seeded } from '../runtime/kit.js';
+      import { controls, physicsReadouts, seeded } from '../runtime/kit.js';
 
       // A compiled hall collides with its own triangles, cooked by the compiler: the balls roll on
       // its floor and stop at its walls. You are the walker: the engine's character, whose body is
@@ -56,15 +56,7 @@
 
       controls({ balls: () => drop(20) }, () => {}, world);
 
-      const bodies = readout('bodies'),
-        awake = readout('awake'),
-        step = readout('step');
-      world.onFrame(() => {
-        const s = world.physics.stats;
-        bodies(String(s.bodies));
-        awake(String(s.active));
-        step(`${s.stepMs.toFixed(2)} ms`);
-      });
+      physicsReadouts(world, ['bodies', 'awake', 'step']);
     </script>
   </body>
 </html>

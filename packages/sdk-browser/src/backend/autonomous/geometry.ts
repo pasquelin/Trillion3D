@@ -14,6 +14,7 @@ import { createWebglPageBatches } from '../../placement/webglPageBatches.ts';
 import { drawnInstanced } from '../../placement/autonomousPlacements.ts';
 import type { PageRec } from '../../page/selection/selection.ts';
 import type { DecodedGeometryPage } from '../../page/decode/geometryPage.ts';
+import { createHeldResidency } from '../../page/cut/held.ts';
 
 type GeometryEnvironment = {
   scene: GraphScene;
@@ -47,19 +48,15 @@ const ITEM_SIZE: Record<string, number> = { position: 3, normal: 3, color: 4 };
 const itemSize = (name: string) => ITEM_SIZE[name] ?? 2;
 
 export function createAutonomousGeometry(env: GeometryEnvironment) {
-  const {
-    scene,
-    allPages,
-    bootstrap,
-    shown,
-    desired,
-    byUrl,
-    descriptors,
-    baseMaterials,
-    colorMaterials,
-    modifiedPages,
-  } = env;
+  const { scene, allPages, shown, byUrl, baseMaterials, colorMaterials } = env;
   const state = { allocationBytes: 0, submittedTriangles: 0, residentPages: 0 };
+  const held = createHeldResidency();
+  /** The one writer of a record's residency, its index array: the cut's readiness follows it. */
+  const setArray = (rec: PageRec, array: Uint32Array | undefined) => {
+    const moved = !rec.array !== !array;
+    rec.array = array;
+    if (moved) held.moved(rec);
+  };
   const affichees = new Set<PageRec>(); // displayed pages, reused from frame to frame
   // Pages actually attached to the scene, held by `attach` and `detach`. A frame detaches
   // only a delta bounded by the cut: it no longer has to scan the whole DAG to find it.
@@ -117,7 +114,8 @@ export function createAutonomousGeometry(env: GeometryEnvironment) {
       state.allocationBytes -= hostPageBytes(geometry);
       releaseHostGeometry(geometry);
     }
-    rec.geometry = rec.mesh = rec.array = undefined;
+    rec.geometry = rec.mesh = undefined;
+    setArray(rec, undefined);
   };
   // An instance's records: a geometry rows place is the page's, kept by the model's rows.
   const removeRecords = (records: PageRec[]) => {
@@ -131,13 +129,13 @@ export function createAutonomousGeometry(env: GeometryEnvironment) {
       }
       baseMaterials.delete(rec);
     }
-    for (const list of [allPages, bootstrap, shown, desired, env.requested])
+    for (const list of [allPages, env.bootstrap, shown, env.desired, env.requested])
       for (let i = list.length - 1; i >= 0; i--) if (removed.has(list[i])) list.splice(i, 1);
   };
   const storeGeometryPage = (url: string, data: DecodedGeometryPage) => {
     const recs = byUrl.get(url);
     if (!recs) return false;
-    const descriptor = descriptors.get(url);
+    const descriptor = env.descriptors.get(url);
     if (
       !descriptor ||
       data.vertexCount !== descriptor.vertexCount ||
@@ -160,7 +158,7 @@ export function createAutonomousGeometry(env: GeometryEnvironment) {
       const paint = () => (Array.isArray(base) ? base.map(twin) : twin(base));
       rec.declaration = data.attributes.color ? paint() : base;
       rec.material = surfaceOf(rec.declaration);
-      rec.array = data.indices;
+      setArray(rec, data.indices);
       rec.attributes = geometry.attributes;
       rec.geometry = geometry;
       // Each geometry uploads its own buffers: counted as `release` gives them back.
@@ -170,9 +168,11 @@ export function createAutonomousGeometry(env: GeometryEnvironment) {
   };
   // True when the store now holds the page: the host did not replace it, and a record draws it.
   const acceptGeometryPage = (url: string, data: DecodedGeometryPage) =>
-    !modifiedPages.has(url) && storeGeometryPage(url, data);
+    !env.modifiedPages.has(url) && storeGeometryPage(url, data);
   return {
     state,
+    /** The cut's residency: each record's index array, its readiness moved as `setArray` writes. */
+    held,
     /** The one twin cache of the backend: whoever paints a surface reads it through here. */
     colorMaterials,
     sync,
@@ -185,13 +185,13 @@ export function createAutonomousGeometry(env: GeometryEnvironment) {
     },
     /** Gives a page's geometry back in every record that draws it; true when it held some. */
     releasePage(url: string) {
-      let held = false;
+      let had = false;
       for (const rec of byUrl.get(url) ?? []) {
-        held ||= !!rec.array;
+        had ||= !!rec.array;
         release(rec);
       }
-      if (held) state.residentPages--;
-      return held;
+      if (had) state.residentPages--;
+      return had;
     },
     removeRecords,
     storeGeometryPage,

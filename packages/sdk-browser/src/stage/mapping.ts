@@ -10,6 +10,7 @@ import { SHADOW_LAYER_PASS } from '../gpu/shadow/staticLayer.ts';
 import { SHADOW_TRANSMITTANCE_PASS } from '../gpu/shadow/transmittance.ts';
 import { LIGHT_CUT_PASS } from '../gpu/dag/encode.ts';
 import { MATERIAL_DEPTH_PASS, MATERIAL_SURFACES_PASS } from '../webgpu/core/materialPasses.ts';
+import { PARTICLES_PASS } from '../particles/webgpuParticles.ts';
 import type { StageAdd } from './profiler.ts';
 
 /**
@@ -75,6 +76,7 @@ const PASSES: Readonly<Record<string, PassRow>> = Object.freeze({
   [LIGHT_TILES_PASS]: ['lightLists', 'other'],
   [BOUNCE_SURFACE_PASS]: ['bounce', 'other'],
   [BOUNCE_PROBE_PASS]: ['bounce', 'other'],
+  [PARTICLES_PASS]: ['physics', 'other'],
   [DEFERRED_LIGHTING_PASS]: ['lighting', 'other'],
   [TAA_PASS]: ['antialiasing', 'other'],
   'Trillion3D HDR composition': ['present', 'other'],

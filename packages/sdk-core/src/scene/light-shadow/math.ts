@@ -154,3 +154,31 @@ export function composeFace(
   multiplyMatrix4(faceScratch, faceProjection, faceView);
   copyMatrix4(out, faceScratch, base);
 }
+
+/**
+ * The rectangle a world box covers on a sun's light plane, `u0, u1, v0, v1` in metres from `out[o]`:
+ * `u` along `right` (`frame[f..f+3)`), `v` DOWN `up` (`frame[f+3..f+6)`), as sun pages count their
+ * rows (`sunLevels.ts`).
+ */
+export function sunBoxRect(
+  frame: ArrayLike<number>,
+  f: number,
+  min: ArrayLike<number>,
+  max: ArrayLike<number>,
+  out: Float64Array,
+  o: number,
+) {
+  out[o] = out[o + 2] = Infinity;
+  out[o + 1] = out[o + 3] = -Infinity;
+  for (let corner = 0; corner < 8; corner++) {
+    const x = corner & 1 ? max[0] : min[0],
+      y = corner & 2 ? max[1] : min[1],
+      z = corner & 4 ? max[2] : min[2];
+    const u = frame[f] * x + frame[f + 1] * y + frame[f + 2] * z,
+      v = -(frame[f + 3] * x + frame[f + 4] * y + frame[f + 5] * z);
+    out[o] = Math.min(out[o], u);
+    out[o + 1] = Math.max(out[o + 1], u);
+    out[o + 2] = Math.min(out[o + 2], v);
+    out[o + 3] = Math.max(out[o + 3], v);
+  }
+}

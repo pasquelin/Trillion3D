@@ -8,12 +8,13 @@
  */
 import test, { type TestContext } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { readdir, readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import type * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import type { ClusterManifest } from '../../../../sdk-core/src/index.ts';
-import { assertSceneTables } from '../../../../sdk-core/src/scene/core/tableContracts.ts';
+import { fetchVerified } from '../../cluster/pages.ts';
+import { loadPreparedSceneTables } from '../../scene/tables.ts';
 import { createPartitionCells } from '../../scene/partition/cells.ts';
 import { isDrawnNode } from '../graph/kinds.ts';
 import { hostWorldChainInto } from '../world/chain.ts';
@@ -26,13 +27,11 @@ import { caches, serveFiles } from './scenes.fixture.ts';
 const line = (mesh: number, primitive: number, world: ArrayLike<number>) =>
   `${mesh}/${primitive} ${Array.from(world).join(',')}`;
 
-/** The published partitioned cache, built from its tables. */
+/** The published partitioned cache, built from its tables and the pages of their partition. */
 async function partitioned(t: TestContext) {
   serveFiles(t);
   const folder = (await caches()).find((one) => one.pathname.includes('/ten-thousand-objects/'))!;
-  const tables = assertSceneTables(
-    JSON.parse(await readFile(new URL('scene-tables.json', folder), 'utf8')),
-  );
+  const { tables } = await loadPreparedSceneTables(folder.href);
   assert.ok(tables.partition && tables.partition.cells.length > 1, 'the cache is partitioned');
   const built = await buildPreparedScene({
     tables,
@@ -87,6 +86,19 @@ test('a partitioned cache places every mesh the loader placed, at its world matr
   });
   assert.equal(prepared.length, witness.length, 'as many placements');
   assert.deepEqual(prepared.sort(), witness.sort());
+});
+
+// Read through the root's pages (#750), the cells are every cell file of the folder, in order.
+test('the paged tables give back every cell file of the folder, in order', async (t) => {
+  const { folder, partition } = await partitioned(t);
+  const files = (await readdir(folder)).filter((name) => name.startsWith('scene-cell-'));
+  const cells = files.map((_, at) => `scene-cell-${at}.json`);
+  assert.deepEqual(
+    partition.cells.map((cell) => cell.url),
+    cells,
+  );
+  // Each at the size and fingerprint its record announces: the runtime's own check passes.
+  for (const cell of partition.cells) await fetchVerified(new URL(cell.url, folder).href, cell);
 });
 
 // Framing and a loaded model's bounds take the whole world, whichever cells are read: each mesh

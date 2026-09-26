@@ -1571,8 +1571,8 @@
       "WEBGL2_UNAVAILABLE": "La máquina no puede dibujar de la manera pedida, o no puede en absoluto.",
       "NO_WEBGL2": "La máquina no puede dibujar de la manera pedida, o no puede en absoluto.",
       "NO_ENGINE_BACKEND": "La máquina no puede dibujar de la manera pedida, o no puede en absoluto.",
-      "RESOURCE_HTTP_ERROR": "Un archivo no se pudo recuperar, o no era lo que debía ser.",
-      "INVALID_JSON_RESPONSE": "Un archivo no se pudo recuperar, o no era lo que debía ser.",
+      "RESOURCE_HTTP_ERROR": "Un archivo no se pudo recuperar —pedido de nuevo antes cuando el fallo puede pasar—, o no era lo que debía ser.",
+      "INVALID_JSON_RESPONSE": "Un archivo no se pudo recuperar —pedido de nuevo antes cuando el fallo puede pasar—, o no era lo que debía ser.",
       "INVALID_POINTER": "El puntero del modelo compilado está roto, incompleto, o de otro alcance.",
       "CACHE_NOT_READY": "El puntero del modelo compilado está roto, incompleto, o de otro alcance.",
       "SCOPE_MISMATCH": "El puntero del modelo compilado está roto, incompleto, o de otro alcance.",
@@ -1679,7 +1679,7 @@
   },
   "EffectChain": {
     "summary": "`world.effects`: las pasadas ordenadas que se dibujan sobre la imagen tras el antialiasing temporal y antes de que llegue al canvas.",
-    "description": "Las pasadas anteriores al tone mapping leen la radiancia lineal, en el orden en que se añadieron; las posteriores leen la imagen mostrada, en el suyo. Una cadena vacía no cuesta nada: ninguna pasada, ninguna copia, ningún destino.",
+    "description": "Las pasadas anteriores al tone mapping leen la radiancia lineal, en el orden en que se añadieron; las posteriores leen la imagen mostrada, en el suyo. Una cadena vacía no cuesta nada: ninguna pasada, ninguna copia, ningún destino. En WebGL2, un fotograma que dibuja una superficie transparente con fusión `multiply` o `subtractive` se dibuja entero sin la cadena, y el canal de diagnóstico del mundo dice `effects-refused-blending` una vez; WebGPU dibuja ambos.",
     "members": {
       "revision": "Cuenta los cambios: una imagen dibujada en otra revisión está desfasada.",
       "passes": "Las pasadas, en el orden en que se ejecutan.",
@@ -5172,7 +5172,7 @@
       "background": "Lo que llena la imagen detrás de cada objeto: un color, o `null` para el predeterminado. Un cambio se muestra en el siguiente fotograma, conservando la sesión: un color nuevo asignado aquí, o el actual escrito con sus métodos (`set`, `setRGB`, `setHex`, `setHSL`...). Una escritura directa de `.r`, `.g` o `.b` no se detecta: vuelve a asignar `background` después. Una imagen, o cualquier valor sin `getHex`, se rechaza (`UNSUPPORTED_SCENE_UPDATE`): ninguna ruta la dibuja.",
       "fog": "Niebla sobre cada superficie, opaca o transparente, en los dos renderizadores; `null`, el valor por defecto, para ninguna, sin coste. `{ color, near, far }` funde los objetos en `color` de `near` a `far`, distancias desde la cámara; `{ color, density }` se espesa `density` por unidad de distancia; añade `heightFalloff` (y `baseHeight`, 0 por defecto) y se posa en el suelo, aclarándose por encima de `baseHeight` — dividida por e cada `1 / heightFalloff` unidades hacia arriba. Un cambio se ve en la imagen siguiente: una niebla nueva dada aquí, o su color escrito con sus métodos. Una escritura directa de `near`, `far`, `density`... no se oye: vuelve a dar `fog` después. Una niebla fuera de rango — `far` no más allá de `near`, una densidad negativa — se rechaza (`INVALID_SCENE_ENVIRONMENT`).",
       "load": "Carga un modelo compilado — la URL de su manifiesto — y lo añade a esta escena.",
-      "toJSON": "La escena como JSON simple y versionado: sus objetos, las formas por la llamada que las construyó, los materiales, las luces y los modelos cargados por dirección; también la pose de `camera` cuando se da una.",
+      "toJSON": "La escena como JSON simple y versionado: sus objetos, las formas por la llamada que las construyó, los materiales, las luces, el cuerpo de cada malla tal como se declaró y los modelos cargados por dirección; también la pose de `camera` cuando se da una.",
       "fromJSON": "Reemplaza lo que contiene la escena por una escena guardada con `toJSON`, conservando sus marcas `helper`; se resuelve cuando sus modelos están cargados. Otro formato u otra versión se rechaza (`UNSUPPORTED_SCENE_FORMAT`). Las llamadas hechas mientras se lee una se ejecutan una tras otra, en orden, cada una sobre lo que dejó la anterior: dos escenas guardadas nunca se mezclan."
     }
   },
@@ -6073,7 +6073,7 @@
       "textureBytesLastFrame": "Bytes enviados al fotograma anterior.",
       "textureUploadMs": "Tiempo empleado en enviar las teselas.",
       "textureUploadPeakMs": "Envío más largo de un fotograma.",
-      "textureLevelReads": "Las fuentes. `textureLevelReads`: niveles horneados en curso de lectura en la caché. `textureLevelsDecoded`: niveles horneados decodificados desde el inicio. `textureLevelCacheBytes`: bytes del host de los niveles decodificados conservados para recortar de ahí otras teselas, bajo un presupuesto fijo. `textureScratchBuilds`: texturas de trabajo construidas para una textura sin cadena horneada, toda la fuente cada vez.",
+      "textureLevelReads": "Las fuentes. `textureLevelReads`: niveles horneados en curso de lectura en la caché. `textureLevelsDecoded`: niveles horneados decodificados desde el inicio. `textureLevelCacheBytes`: bytes del host de los niveles decodificados conservados para recortar de ahí otras teselas, dentro del total de CPU. `textureScratchBuilds`: texturas de trabajo construidas para una textura sin cadena horneada, toda la fuente cada vez.",
       "textureLevelsDecoded": "Niveles decodificados.",
       "textureLevelCacheBytes": "Bytes de los niveles decodificados conservados.",
       "textureScratchBuilds": "Texturas temporales construidas.",
@@ -6751,7 +6751,7 @@
       "textureBytesLastFrame": "Bytes enviados al fotograma anterior.",
       "textureUploadMs": "Tiempo empleado en enviar las teselas.",
       "textureUploadPeakMs": "Envío más largo de un fotograma.",
-      "textureLevelReads": "Las fuentes. `textureLevelReads`: niveles horneados en curso de lectura en la caché. `textureLevelsDecoded`: niveles horneados decodificados desde el inicio. `textureLevelCacheBytes`: bytes del host de los niveles decodificados conservados para recortar de ahí otras teselas, bajo un presupuesto fijo. `textureScratchBuilds`: texturas de trabajo construidas para una textura sin cadena horneada, toda la fuente cada vez.",
+      "textureLevelReads": "Las fuentes. `textureLevelReads`: niveles horneados en curso de lectura en la caché. `textureLevelsDecoded`: niveles horneados decodificados desde el inicio. `textureLevelCacheBytes`: bytes del host de los niveles decodificados conservados para recortar de ahí otras teselas, dentro del total de CPU. `textureScratchBuilds`: texturas de trabajo construidas para una textura sin cadena horneada, toda la fuente cada vez.",
       "textureLevelsDecoded": "Niveles decodificados.",
       "textureLevelCacheBytes": "Bytes de los niveles decodificados conservados.",
       "textureScratchBuilds": "Texturas temporales construidas.",
@@ -7023,7 +7023,8 @@
       "children": "Los nodos que tiene debajo, en orden.",
       "mesh": "Posiciones en `geometries` y `materials`, cómo se leen los triángulos, y el centro de un sprite.",
       "light": "El tipo de una luz, sus colores, sus números, su dirección y los coeficientes de sonda.",
-      "model": "Un modelo compilado, por la dirección del manifiesto desde la que se cargó: nunca copiado dentro."
+      "model": "Un modelo compilado, por la dirección del manifiesto desde la que se cargó: nunca copiado dentro.",
+      "physics": "El cuerpo de una malla, tal como lo declara `mesh.physics`."
     }
   },
   "SavedScene": {
@@ -7130,7 +7131,7 @@
       "water": "El agua en la que flotan los cuerpos: su nivel, sus olas, su densidad y sus arrastres. Un cuerpo más ligero que el agua flota, empujado por el peso del agua que desplaza.",
       "waterSurface": "La superficie del agua a la hora de la simulación, para dibujarla: las olas que lee la flotación, los mismos números (`height`, `point`, `normal`).",
       "stats": "Recuentos y los dos relojes: milisegundos del worker por paso, milisegundos de la página por fotograma.",
-      "error": "El último error de la física (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), o `null`. Un error que detuvo la simulación desactiva `enabled`.",
+      "error": "El último error de la física (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`, `RESOURCE_HTTP_ERROR`), o `null`. Un error que detuvo la simulación desactiva `enabled`.",
       "add": "Añade una unión (`joint.hinge(door, frame, …)` y sus parientes): se crea en cuanto sus dos cuerpos se simulan y se mantiene hasta que se quita o se rompe.",
       "remove": "Quita una unión: los cuerpos que sujetaba se separan libremente."
     }
@@ -7338,7 +7339,7 @@
       "water": "El agua en la que flotan los cuerpos: su nivel, sus olas, su densidad y sus arrastres. Un cuerpo más ligero que el agua flota, empujado por el peso del agua que desplaza.",
       "waterSurface": "La superficie del agua a la hora de la simulación, para dibujarla: las olas que lee la flotación, los mismos números (`height`, `point`, `normal`).",
       "stats": "Recuentos y los dos relojes: milisegundos del worker por paso, milisegundos de la página por fotograma.",
-      "error": "El último error de la física (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), o `null`. Un error que detuvo la simulación desactiva `enabled`.",
+      "error": "El último error de la física (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`, `RESOURCE_HTTP_ERROR`), o `null`. Un error que detuvo la simulación desactiva `enabled`.",
       "add": "Añade una unión (`joint.hinge(door, frame, …)` y sus parientes): se crea en cuanto sus dos cuerpos se simulan y se mantiene hasta que se quita o se rompe.",
       "remove": "Quita una unión: los cuerpos que sujetaba se separan libremente."
     }

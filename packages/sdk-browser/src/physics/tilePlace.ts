@@ -1,9 +1,9 @@
-import { EngineError } from '../../../sdk-core/src/contracts/cache.ts';
 import type {
   CookedInstance,
   CookedPhysics,
   CookedTile,
 } from '../../../sdk-core/src/physics/index.ts';
+import { readCookedPhysics } from '../../../sdk-core/src/physics/index.ts';
 import { boxTransform } from '../../../sdk-core/src/math/primitives/box.ts';
 import { Box3 } from '../../../sdk-core/src/world/math/box3.ts';
 import { Matrix4 } from '../../../sdk-core/src/world/math/matrix4.ts';
@@ -12,6 +12,7 @@ import { Vector3 } from '../../../sdk-core/src/world/math/vector3.ts';
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
 import type { Bodied } from './bodies.ts';
 import { resolveCameraWorld } from '../camera/world.ts';
+import { checked, optionalFile } from '../cluster/pages.ts';
 
 /** A compiled model as the streamer reads it (`LoadedModel`): where its files are. */
 export type Model = Object3D & { isLoadedModel: true; record: { base: string } };
@@ -44,11 +45,18 @@ const place = new Matrix4(),
   bounds = new Box3();
 
 /** The bytes of a cooked object beside `model`'s manifest — a tile, a soft body's settings —
- *  refused by `what` and its url when the fetch fails. */
-export async function cookedBytes(model: Model, url: string, what: string) {
-  const response = await fetch(new URL(url, model.record.base).href);
-  if (!response.ok) throw new EngineError('PHYSICS_FAILED', `${what} ${url}: ${response.status}.`);
+ *  read as every cache file is (`checked`, in `tries` requests), until `signal` aborts. */
+export async function cookedBytes(model: Model, url: string, signal: AbortSignal, tries?: number) {
+  const response = await checked(new URL(url, model.record.base).href, signal, tries);
   return new Uint8Array(await response.arrayBuffer());
+}
+
+/** The cooked physics beside `model`'s manifest (`physics.json`), until `signal` aborts; `null`
+ *  for a model compiled before the cook, which has none. */
+export async function cookedPhysics(model: Model, signal: AbortSignal) {
+  const url = new URL('physics.json', model.record.base).href;
+  const response = await optionalFile(url, signal);
+  return response && readCookedPhysics(await response.json());
 }
 
 /** Each cooked tile of `cooked` placed by each instance of its collider in `model`, out. */

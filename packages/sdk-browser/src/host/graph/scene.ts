@@ -13,7 +13,8 @@ export class GraphScene extends GraphNode {
   background: Color | null = null;
   /** The contract's fog over every drawn surface (`../../lighting/contractLights.ts`); `null`, none. */
   fog: SceneFog | null = null;
-  /** Called by the draw before it reads the graph. */
+  /** Called by the draw before it binds the graph's surfaces; its walk of the graph may come
+   *  first (`../../webgl/cluster/sceneDraw.ts`). */
   onBeforeRender = () => {};
   /** Called by the draw once it is done. */
   onAfterRender = () => {};

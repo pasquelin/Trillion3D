@@ -30,29 +30,44 @@ export function createStreamingCache(context: StreamContext) {
     }));
     onEvict?.(url);
   };
+  /** What is held beside the pages yields to those the frame keeps or reads, before any page
+   *  leaves, so none is evicted that fits once it has gone: it never costs the image a page (#483
+   *  rule 1). The decoded texture levels first, the least recently read first — read again when a
+   *  tile asks and they fit —, then the kept file, read again after a device loss. A notice says
+   *  what each gave back. */
+  const yielded = (phase: string, message: string, bytes: number) => {
+    budget = store.budgetBytes;
+    if (bytes > 0)
+      emit(phase, message, () => ({
+        version: 1,
+        bytes,
+        residentBytes: store.bytes,
+        maxCachedBytes: budget,
+        pinned: pinned.size,
+        loading: state.active,
+      }));
+  };
+  const yieldBeside = (held: number) => {
+    yielded(
+      'page-cache-levels-yielded',
+      'Texture levels yield to the pages kept or in flight',
+      store.levels.shedTo(store.levelRoom(held)),
+    );
+    const kept = store.keptBytes;
+    if (kept === 0 || held <= budget) return;
+    store.yieldKept();
+    yielded(
+      'page-cache-kept-yielded',
+      'The kept file yields its bytes to the pages kept or in flight',
+      kept,
+    );
+  };
   const evict = () => {
     budget = store.budgetBytes;
     if (!over()) return;
-    // The kept file yields to the pages the frame keeps: it never costs the image a page (#483
-    // rule 1). It yields before any page leaves, so none is evicted that fits once it has gone.
-    // It is read again after a device loss, and the notice says what it gave back.
-    const kept = store.keptBytes;
-    if (kept > 0 && heldBytes() > budget) {
-      store.yieldKept();
-      budget = store.budgetBytes;
-      emit(
-        'page-cache-kept-yielded',
-        'The kept file yields its bytes to the pages kept or in flight',
-        () => ({
-          version: 1,
-          bytes: kept,
-          residentBytes: store.bytes,
-          maxCachedBytes: budget,
-          pinned: pinned.size,
-          loading: state.active,
-        }),
-      );
-    }
+    // Nothing beside, nothing to yield: the pages are not walked.
+    const held = store.besideBytes > 0 ? heldBytes() : 0;
+    if (held > budget) yieldBeside(held);
     const evicted = evictOldest(cache.keys(), over, pinnedOrLoading, evictOne);
     if (!evicted && over()) {
       state.admissionBlocked++;
@@ -151,5 +166,5 @@ export function createStreamingCache(context: StreamContext) {
     state.reservedBytes = bytes;
     evict();
   };
-  return { touch, evict, retain, retainRanks, reserve };
+  return { touch, evict, held: heldBytes, retain, retainRanks, reserve };
 }

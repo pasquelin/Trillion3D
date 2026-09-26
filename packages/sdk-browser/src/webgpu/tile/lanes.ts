@@ -15,7 +15,8 @@ export type Lane = { pool: WebgpuTilePool; resident: Map<number, number>; candid
  * The pools of an atlas, one per lane its textures take: the lossless RGBA8 lane, the RGBA block
  * lane, the two-channel one. A lane with no layer has no pool and a 1×1 stand-in view at its
  * binding — the shader never reads it, since no texture names that lane. Each pool is sized by
- * the layers the budget gave its lane, and resized on its own.
+ * the layers the budget gave its lane, never below the tails of its textures (`texturePoolFor`),
+ * and resized on its own.
  */
 export function createTileLanes(
   device: Pick<GPUDevice, 'createTexture'>,
@@ -25,6 +26,8 @@ export function createTileLanes(
     /** Layers of each lane's pool; a lane no texture takes has none, and no pool. */
     layers: LaneCounts;
     textures: readonly { lane: PoolLane }[];
+    /** A tile a resize gave up: its texture. */
+    onEvicted?: (slot: number) => void;
   },
 ) {
   const { kind, encoding, textures } = options;
@@ -43,11 +46,6 @@ export function createTileLanes(
         resident: new Map(),
         candidates: [],
       });
-  for (const [lane, { pool }] of lanes) {
-    const tails = textures.filter((texture) => texture.lane === lane).length;
-    if (tails > pool.tiles)
-      throw new Error(`TEXTURE_POOL_TAILS: ${tails} ${lane} textures, ${pool.tiles} tiles`);
-  }
   const standInTexture = device.createTexture({
     label: `Trillion3D texture pool ${kind} stand-in`,
     size: { width: 4, height: 4, depthOrArrayLayers: 1 },
@@ -85,6 +83,7 @@ export function createTileLanes(
           lane.pool,
           pages,
           lane.resident,
+          options.onEvicted,
         );
         lane.pool = result.pool;
         evicted += result.evicted;

@@ -50,7 +50,7 @@ export interface WebgpuLightState {
   /** The static layer's page pyramids and the test of the moving casters against them. */
   pageHiz: ShadowPageHiz | undefined;
   occlusion: ShadowOcclusion | undefined;
-  /** The scene's world box, what a sun's depth range spans (`../../shadow/sceneBox.ts`). */
+  /** The scene's world box, what a sun's depth range and floor span (`../../shadow/sceneBox.ts`). */
   sceneBox: ReturnType<typeof createShadowSceneBox>;
   /** Per-page cull and the world spheres it reads; absent while the pool does not exist. */
   cull: GpuShadowCull | undefined;
