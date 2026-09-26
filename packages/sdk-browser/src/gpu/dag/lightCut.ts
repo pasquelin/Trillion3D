@@ -4,7 +4,7 @@ import { createLightCutReports } from './lightCutReports.ts';
 import { createLightCutRedraws } from './lightCutRedraws.ts';
 import { encodeDagKernels, type DagView } from './encode.ts';
 import { dagWorkLayout } from './shader/floorWgsl.ts';
-import { LEVEL_QUEUES } from './shader/levelWgsl.ts';
+import { dagFlagsWords } from './shader/lastUseWgsl.ts';
 import { lightCutCapacity, lightQueueCap } from './lightCutCapacity.ts';
 import { DAG_UNIFORM_BYTES, DAG_VIEW_WORDS } from './shader/viewsWgsl.ts';
 import type { createDagResources } from './resources.ts';
@@ -53,7 +53,7 @@ export function createDagLightCut(resources: DagResources) {
   };
   const flags = own({
     label: 'Trillion3D light cut flags',
-    size: (queueCap * LEVEL_QUEUES + pageCount * 4) * 4,
+    size: dagFlagsWords(queueCap, pageCount, false) * 4,
     usage: storage,
   });
   const work = own({

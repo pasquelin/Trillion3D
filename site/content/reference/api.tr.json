@@ -338,9 +338,6 @@
       "pageCone": "Her sayfanın normal konisi: eksen, ardından yarım açı."
     }
   },
-  "COMPARISON_LIBRARIES": {
-    "summary": "Benchmark'ların karşı kontrol edildiği motorlar, her biri durumu ve nedeniyle."
-  },
   "COMPILER_LINE_LIMIT": {
     "summary": "Her iki akışta da kabul edilen en uzun tek satır; derleyici yalnızca küçük JSON satırları yayar."
   },
@@ -553,23 +550,6 @@
   },
   "ComparisonLayout": {
     "summary": "İki render'ın karşılaştırma için nasıl yan yana gösterildiği."
-  },
-  "CompetitorRecord": {
-    "summary": "Benchmark'ların karşılaştırdığı başka bir motor, ve nedeni.",
-    "members": {
-      "id": "Kısa adı.",
-      "name": "Adı.",
-      "status": "Karşılaştırılıp karşılaştırılmadığı.",
-      "license": "Lisansı.",
-      "maintained": "En son ne zaman güncellendiği.",
-      "scope": "Neyi kapsadığı.",
-      "reason": "Neden karşılaştırıldığı, ya da karşılaştırılmadığı.",
-      "homepage": "Web sayfası."
-    }
-  },
-  "CompetitorStatus": {
-    "summary": "Web ile ilgili geometri/LOD kütüphanelerinin envanteri.",
-    "description": "Durum, pazarlama kapsamını değil entegrasyon adilliğini betimler."
   },
   "CompilationJob": {
     "summary": "Çalışan bir derleme.",
@@ -2068,7 +2048,7 @@
       "clipAction": "`clip`'i çalan eylem.",
       "play": "`clip`'i şimdi çalar.",
       "stopAll": "Her eylemi durdurur.",
-      "update": "Çalan her eylemi `seconds` kadar ilerletir ve örneklenen değerleri yazar."
+      "update": "Çalan her eylemi `seconds` kadar ilerletir, sonra her özelliğe, durgun değeri üzerinde eylemlerinin örneklerinin ağırlıklı karışımını yazar."
     }
   },
   "ModelRecord": {

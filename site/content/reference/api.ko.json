@@ -338,9 +338,6 @@
       "pageCone": "각 페이지의 법선 원뿔: 축, 그다음 반각."
     }
   },
-  "COMPARISON_LIBRARIES": {
-    "summary": "벤치마크가 대조 검증한 엔진들, 각각의 상태와 이유와 함께."
-  },
   "COMPILER_LINE_LIMIT": {
     "summary": "두 스트림 모두에서 허용되는 한 줄의 최대 길이; 컴파일러는 작은 JSON 줄만 내보낸다."
   },
@@ -553,23 +550,6 @@
   },
   "ComparisonLayout": {
     "summary": "두 렌더링 결과를 나란히 놓고 비교하는 방식."
-  },
-  "CompetitorRecord": {
-    "summary": "벤치마크가 비교 대상으로 삼는 다른 엔진, 그리고 그 이유.",
-    "members": {
-      "id": "짧은 이름.",
-      "name": "이름.",
-      "status": "비교 대상인지 여부.",
-      "license": "라이선스.",
-      "maintained": "마지막으로 업데이트된 시점.",
-      "scope": "다루는 범위.",
-      "reason": "비교 대상이거나 아닌 이유.",
-      "homepage": "웹페이지."
-    }
-  },
-  "CompetitorStatus": {
-    "summary": "웹과 관련된 지오메트리/LOD 라이브러리 목록.",
-    "description": "상태는 통합 비교의 공정성을 나타낼 뿐, 마케팅 상의 범위를 나타내지 않는다."
   },
   "CompilationJob": {
     "summary": "실행 중인 컴파일.",
@@ -2068,7 +2048,7 @@
       "clipAction": "`clip`을 재생하는 액션.",
       "play": "지금 `clip`을 재생한다.",
       "stopAll": "모든 액션을 멈춘다.",
-      "update": "재생 중인 모든 액션을 `seconds`만큼 진행시키고 샘플링된 값을 기록한다."
+      "update": "재생 중인 모든 액션을 `seconds`만큼 진행시킨 뒤, 각 속성에 그 정지 값 위로 그 속성의 액션들의 샘플을 가중 혼합한 값을 기록한다."
     }
   },
   "ModelRecord": {

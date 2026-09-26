@@ -933,28 +933,8 @@
   "compareImages": {
     "summary": "Comparación de dos imágenes RGBA: número de píxeles diferentes, error máximo en un canal, y RMSE."
   },
-  "COMPARISON_LIBRARIES": {
-    "summary": "Los motores con los que se han verificado los bancos de pruebas, cada uno con su estado y su razón."
-  },
   "ComparisonLayout": {
     "summary": "Cómo se muestran dos renders lado a lado para compararlos."
-  },
-  "CompetitorRecord": {
-    "summary": "Otro motor con el que comparan los bancos de pruebas, y por qué.",
-    "members": {
-      "id": "Su nombre corto.",
-      "name": "Su nombre.",
-      "status": "Si se compara.",
-      "license": "Su licencia.",
-      "maintained": "Cuándo se actualizó por última vez.",
-      "scope": "Lo que cubre.",
-      "reason": "Por qué se compara, o no.",
-      "homepage": "Su página web."
-    }
-  },
-  "CompetitorStatus": {
-    "summary": "Inventario de las bibliotecas web de geometría y LOD.",
-    "description": "El estado describe la equidad de la integración, no una cobertura de marketing."
   },
   "CompilationJob": {
     "summary": "Una compilación en curso.",
@@ -4119,7 +4099,7 @@
       "clipAction": "La acción que reproduce `clip`.",
       "play": "Reproduce `clip` de inmediato.",
       "stopAll": "Detiene cada acción.",
-      "update": "Hace avanzar cada acción en curso `seconds` y escribe los valores muestreados."
+      "update": "Hace avanzar cada acción en curso `seconds` y luego escribe en cada propiedad la mezcla ponderada de las muestras de sus acciones sobre su valor en reposo."
     }
   },
   "ModelRecord": {
