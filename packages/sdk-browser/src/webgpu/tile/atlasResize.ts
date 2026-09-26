@@ -8,10 +8,12 @@ import { tailSlotOf, tileKeyOf } from './ids.ts';
  * An atlas pool changes layers WITHOUT losing what it holds — the reference, itself, empties its
  * virtual textures when their pool changes size. Surviving layers are copied in one command, slot
  * for slot: the page table does not move for them. Tiles of vanishing layers are moved into a free
- * slot of the new pool — pinned queues first, then the most looked-at —, each copied on the GPU and
- * re-registered in the table; what no longer fits is evicted, the table says so and the coarse level
- * takes over. Returns the new pool and the evicted-tile count; the old pool is destroyed once the
- * copy is submitted.
+ * slot of the new pool — pinned queues first, then the most looked-at —, each copied and
+ * re-registered in the table; what no longer fits is evicted, the table says so, `onEvicted` hears
+ * its texture and the coarse level takes over. A tail never leaves: only a pool drawn under its
+ * tails' floor, which `texturePoolFor` never draws, displaces one, and refuses by name.
+ * Returns the new pool and the evicted-tile count; the old pool is destroyed once the copy is
+ * submitted.
  */
 export function resizeTileAtlas(
   device: Pick<GPUDevice, 'createTexture' | 'createCommandEncoder' | 'queue'>,
@@ -20,6 +22,7 @@ export function resizeTileAtlas(
   pool: WebgpuTilePool,
   pages: WebgpuTilePageTable,
   resident: Map<number, number>,
+  onEvicted?: (slot: number) => void,
 ): { pool: WebgpuTilePool; evicted: number } {
   const next = createWebgpuTilePool(device, options);
   const encoder = device.createCommandEncoder({
@@ -46,9 +49,10 @@ export function resizeTileAtlas(
       tail = tailSlotOf(id),
       target = next.acquire(id, pool.lastUseOf(index), pool.pinnedOf(index));
     if (target === undefined) {
-      if (tail !== undefined) throw new Error('TEXTURE_POOL_TAILS');
-      pages.clearTile(tileKeyOf(id));
-      resident.delete(id);
+      // The tails hold the lowest places, pinned first into a fresh pool, and the floor keeps them
+      // all (`texturePoolFor`): only a pool drawn under it displaces one, never cleared as a tile.
+      if (tail !== undefined) throw new Error('TEXTURE_POOL_UNDER_FLOOR');
+      evictTile(pool, index, { pages, resident }, onEvicted);
       evicted++;
       continue;
     }
@@ -68,4 +72,20 @@ export function resizeTileAtlas(
   device.queue.submit([encoder.finish()]);
   pool.destroy();
   return { pool: next, evicted };
+}
+
+/** Gives the streamed tile at `index` of `pool` back: the table and `resident` forget it, and
+ *  `onEvicted` hears its texture, for whoever reads it to follow. */
+export function evictTile(
+  pool: WebgpuTilePool,
+  index: number,
+  table: { pages: Pick<WebgpuTilePageTable, 'clearTile'>; resident: Map<number, number> },
+  onEvicted?: (slot: number) => void,
+) {
+  const id = pool.keyOf(index),
+    key = tileKeyOf(id);
+  table.pages.clearTile(key);
+  table.resident.delete(id);
+  pool.release(index);
+  onEvicted?.(key.slot);
 }
