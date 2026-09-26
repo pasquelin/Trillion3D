@@ -130,7 +130,10 @@ export function createWebgpuTileAtlas(
       textures.forEach((texture, slot) => {
         const { layout, source, lane } = texture;
         const pool = lanes.of(slot).pool;
-        const place = pool.placeOf(pool.acquire(tailId(slot), 0, true)!);
+        // The floor holds every tail (`texturePoolFor`): a pool drawn under it refuses by name.
+        const index = pool.acquire(tailId(slot), 0, true);
+        if (index === undefined) throw new Error('TEXTURE_POOL_UNDER_FLOOR');
+        const place = pool.placeOf(index);
         if (source.kind === 'host') fromHost(slot, place);
         else
           (lane === 'lossless' ? writeTailFromBytes : writeTailFromBlocks)(
