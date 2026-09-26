@@ -945,8 +945,7 @@
       "close": "클로즈업",
       "far": "원경",
       "pan": "빠른 패닝",
-      "still": "정지",
-      "verdict": "판정"
+      "still": "정지"
     },
     "controls": {
       "drive": "차 운전",

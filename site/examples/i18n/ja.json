@@ -945,8 +945,7 @@
       "close": "クローズアップ",
       "far": "遠景",
       "pan": "高速パン",
-      "still": "静止",
-      "verdict": "判定"
+      "still": "静止"
     },
     "controls": {
       "drive": "車を運転",

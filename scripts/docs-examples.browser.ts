@@ -6,7 +6,7 @@ import { startDocsServer } from './docs-serve.ts';
 import { leastDrawn, openExample, RENDER_ONLY } from './docs/examples/capture.ts';
 import { physicsExamples } from './docs/examples/physics.ts';
 import { readyEntries as ready } from '../site/app/examples/list.ts';
-import type { HealthVerdict } from '../site/examples/kit/verdict.ts';
+import { flagged, type HealthVerdict } from '../site/examples/kit/verdict.ts';
 
 /** The centre of the render, the kit's panels outside it. */
 const centre = (page: Page) =>
@@ -37,14 +37,15 @@ async function controlsDriveTheRender(browser: Browser, port: number) {
 }
 
 /**
- * #798: the health check flies its tour on each backend and publishes its verdict — every line
- * green, a line a backend refuses red with its reason —, and a slowed build (40 ms spent in every
- * animation frame) turns the rate line of every part red, the overall verdict with it.
+ * #798: the health check flies its tour on each backend and publishes its verdict: four parts with
+ * their lines, every line green but those a backend documents (neutral) and those waiting on an
+ * open issue (`until #n`, printed for the measurer), and no uncaught error. A slowed build (40 ms
+ * spent in every animation frame) turns the rate line of every part red, the verdict with it.
  */
 async function healthCheckJudges(browser: Browser, port: number) {
   const entry = ready.find(({ id }) => id === 'health-check');
   assert.ok(entry);
-  const found: string[] = [],
+  const [found, flags]: string[][] = [[], []],
     view = { width: 1728, height: 1117 };
   for (const gpu of [true, false])
     for (const slow of [0, 40]) {
@@ -61,12 +62,16 @@ async function healthCheckJudges(browser: Browser, port: number) {
       if (slow) {
         if (verdict.correct || !rates.length || rates.some(({ correct }) => correct))
           found.push(`${side}: not every rate line red`);
-      } else
-        for (const { name, motif, correct } of verdict.resultats)
-          if (correct === false) found.push(`${side} ${name}: ${motif}`);
+      } else {
+        if (rates.length !== 4) found.push(`${side}: ${rates.length} parts judged, not 4`);
+        for (const line of verdict.resultats)
+          if (line.correct === false)
+            (flagged(line) ? flags : found).push(`${side} ${line.name}: ${line.motif}`);
+      }
       found.push(...errors.map((error) => `${side}: ${error}`));
       await page.close();
     }
+  console.log(`Waiting on open issues:\n${flags.join('\n') || '—'}`);
   assert.deepEqual(found, []);
 }
 

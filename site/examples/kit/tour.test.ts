@@ -42,15 +42,11 @@ const POSES: Pose[] = [
 test('a tour reaches every pose in order at its time, then ends', () => {
   const fake = fakeWorld();
   const flown = tour(fake.world as never, POSES);
-  const seen: [string | null, number, number][] = [];
+  const seen: unknown[][] = [],
+    [{ position }, { target }] = [fake.world.camera, fake.world.controls];
   for (let frame = 1; frame <= 90; frame++) {
     fake.frame();
-    const round = (value: number) => Math.round(value * 100) / 100;
-    seen.push([
-      flown.part,
-      round(fake.world.camera.position.x),
-      round(fake.world.controls.target.x),
-    ]);
+    seen.push([flown.part, +position.x.toFixed(2), +target.x.toFixed(2)]);
   }
   // At 50 ms a frame: the close-up lands at 1 s (frame 20), the far view at 2.5 s (frame 50),
   // the pan at 3.25 s (frame 65), and the still hold ends at 4.4 s (frame 88).

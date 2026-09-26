@@ -945,8 +945,7 @@
       "close": "特写",
       "far": "远景",
       "pan": "快速平移",
-      "still": "静止",
-      "verdict": "结论"
+      "still": "静止"
     },
     "controls": {
       "drive": "驾驶汽车",

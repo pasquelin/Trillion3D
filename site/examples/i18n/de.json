@@ -945,8 +945,7 @@
       "close": "Nahaufnahme",
       "far": "Fernsicht",
       "pan": "Schneller Schwenk",
-      "still": "Stillstand",
-      "verdict": "Urteil"
+      "still": "Stillstand"
     },
     "controls": {
       "drive": "Auto fahren",

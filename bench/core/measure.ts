@@ -85,7 +85,7 @@ export async function mesure<Entree = unknown, Sortie = unknown>({
     const verdict = await verifie(item, conf);
 
     if (item.mesure === false) {
-      resultats.push(ligne({ ...verdict, name: item.name, size: item.size }));
+      resultats.push(ligne({ ...verdict, name: item.name, size: item.size ?? null }));
       continue;
     }
 

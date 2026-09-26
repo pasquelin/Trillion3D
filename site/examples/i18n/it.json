@@ -945,8 +945,7 @@
       "close": "Primo piano",
       "far": "Vista lontana",
       "pan": "Panoramica rapida",
-      "still": "Fermo",
-      "verdict": "Verdetto"
+      "still": "Fermo"
     },
     "controls": {
       "drive": "Guida l’auto",

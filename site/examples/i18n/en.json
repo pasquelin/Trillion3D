@@ -945,8 +945,7 @@
       "close": "Close-up",
       "far": "Far view",
       "pan": "Fast pan",
-      "still": "Still",
-      "verdict": "Verdict"
+      "still": "Still"
     },
     "controls": {
       "drive": "Drive the car",

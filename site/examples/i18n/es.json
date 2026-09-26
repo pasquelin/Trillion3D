@@ -945,8 +945,7 @@
       "close": "Primer plano",
       "far": "Vista lejana",
       "pan": "Barrido rápido",
-      "still": "Quieto",
-      "verdict": "Veredicto"
+      "still": "Quieto"
     },
     "controls": {
       "drive": "Conducir el coche",
