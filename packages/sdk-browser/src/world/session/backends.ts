@@ -126,6 +126,7 @@ export async function prepareExplorerBackends(session: ExplorerSession, inputs: 
     // come from. Its levels are held beside the pages the streamer reads (`textureLevels`).
     readTextureLevel: createTextureLevelReader(metadata, base, streamer.textureLevels, signal),
     sceneLights,
+    shadowsRefused: options.shadowsRefused,
     importedLightIds,
     frameBudget: inputs.frameBudget,
   };
