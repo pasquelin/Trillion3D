@@ -165,6 +165,15 @@ test('finding the pages a mover stales costs the pages it covers, not the pool',
   assert.ok(visited[1].visited < visited[1].mapped / 4, `${visited[1].visited} visited`);
 });
 
+test('boxes that each cover more pages than the pool are scanned once per light, not once each', () => {
+  const { store, plan, frame } = settled(32);
+  plan.worldChanged([-40, 0, -40], [0, 5, 40], true);
+  plan.worldChanged([0, 0, -40], [40, 5, 40], true);
+  planFrame(plan, store, frame);
+  assert.equal(plan.counts.visitedPages, 2 * plan.pool.pages, 'one pool scan for each light');
+  assert.ok(plan.counts.invalidatedPages > 0);
+});
+
 test('past the budget the movers share the last box: a superset of their pages, never fewer', () => {
   const changes = createShadowChanges(2);
   changes.worldChanged([0, 0, 0], [1, 1, 1], true);
