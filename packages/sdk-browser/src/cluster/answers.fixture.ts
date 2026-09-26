@@ -4,7 +4,7 @@ import type { TestContext } from 'node:test';
 export type Answer = number | 'hang';
 
 /** One request `answering` heard: its address and its options. */
-export type Asked = { url: string; init: RequestInit };
+type Asked = { url: string; init: RequestInit };
 
 /**
  * Stubs `fetch` for the test `t`: a request whose address ends in `name` gets the next of
