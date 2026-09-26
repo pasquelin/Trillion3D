@@ -175,11 +175,13 @@
       });
 
       // The path drawing the world, and what it refuses of the scene file's lights, with why:
-      // asked of the session, so once it has opened on everything added above.
-      await world.awaitPages();
-      drawn(world.renderer);
-      const { reason } = capability.lighting(world);
-      if (reason) announce(say('refused'), reason);
+      // asked once its first frame is drawn, so of a session that is open.
+      const asked = world.onFrame(() => {
+        asked();
+        drawn(world.renderer);
+        const { reason } = capability.lighting(world);
+        if (reason) announce(say('refused'), reason);
+      });
     </script>
   </body>
 </html>
