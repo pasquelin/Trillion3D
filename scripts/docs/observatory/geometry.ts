@@ -1,4 +1,6 @@
+import { crossVector3 } from '../../../packages/sdk-core/src/math/primitives/vector.ts';
 import { geometry, type Geometry } from '../../../packages/sdk-core/src/world/geometry/index.ts';
+import { Box3 } from '../../../packages/sdk-core/src/world/math/box3.ts';
 
 /** One material's authored surface: interleaved position/normal streams and triangle indices. */
 export interface SurfaceMesh {
@@ -36,15 +38,8 @@ export function createWorkshop() {
     const { positions } = surface(material),
       from = positions.length;
     build();
-    const part: Part = {
-      kind,
-      min: [Infinity, Infinity, Infinity],
-      max: [-Infinity, -Infinity, -Infinity],
-    };
-    for (let i = from; i < positions.length; i++) {
-      part.min[i % 3] = Math.min(part.min[i % 3], positions[i]);
-      part.max[i % 3] = Math.max(part.max[i % 3], positions[i]);
-    }
+    const { min, max } = new Box3().setFromArray(positions.slice(from));
+    const part: Part = { kind, min: min.toArray(), max: max.toArray() };
     parts.push(part);
     return part;
   }
@@ -57,15 +52,10 @@ export function createWorkshop() {
     const mesh = surface(material),
       base = mesh.positions.length / 3;
     /** The surface's normal at (u, v), or null where one tangent vanishes against the other. */
-    const normal = (u: number, v: number) => {
-      const p = point(u, v);
+    const normal = (u: number, v: number, p = point(u, v)) => {
       const du = point(u + 0.00001, v).map((x, k) => x - p[k]);
       const dv = point(u, v + 0.00001).map((x, k) => x - p[k]);
-      const n = [
-        du[1] * dv[2] - du[2] * dv[1],
-        du[2] * dv[0] - du[0] * dv[2],
-        du[0] * dv[1] - du[1] * dv[0],
-      ];
+      const n = crossVector3([0, 0, 0], du, dv);
       const length = Math.hypot(...n);
       return length > 1e-6 * (Math.hypot(...du) ** 2 + Math.hypot(...dv) ** 2)
         ? n.map((x) => x / length)
@@ -77,8 +67,9 @@ export function createWorkshop() {
           v = j / rows;
         // At a pole every column meets in one point and the row has no tangent: the normal there
         // is the one a hair inside the surface.
-        mesh.positions.push(...point(u, v));
-        mesh.normals.push(...(normal(u, v) ?? normal(u, v < 0.5 ? v + 0.001 : v - 0.001)!));
+        const p = point(u, v);
+        mesh.positions.push(...p);
+        mesh.normals.push(...(normal(u, v, p) ?? normal(u, v < 0.5 ? v + 0.001 : v - 0.001)!));
       }
     }
     for (let j = 0; j < rows; j++)

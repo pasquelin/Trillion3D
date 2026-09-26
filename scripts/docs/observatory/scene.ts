@@ -10,7 +10,9 @@ export const observatoryMaterials: [string, [number, number, number, number], nu
   ['Terracotta', [0.58, 0.16, 0.075, 1], 0, 0.76],
 ];
 
-const [, [red, green, blue]] = observatoryMaterials[0];
+const limestone = observatoryMaterials.find(([name]) => name === 'Warm limestone');
+if (!limestone) throw new Error('the observatory names no Warm limestone');
+const [, [red, green, blue]] = limestone;
 /** The court's sky, which a scene file cannot carry (it declares only its sun): a clear sky at a
  *  fifth of the sun's intensity, the clear-day ratio of sky to sun, tinted from below by the
  *  court's limestone (its linear source colour). Written beside the source for every reader. */
@@ -61,9 +63,8 @@ export function createObservatory() {
   // Deep door and stepped surround give the facade readable scale: the jambs stand on the
   // paving against the facade, the door fills the opening and the lintel spans the jambs.
   const jamb = [0.38, 3.8, 0.35];
-  const [jambTop] = [-4.3, -1.7].map((x) =>
-    top(w.block(1, [x, on(pavingTop, jamb[1]), front + jamb[2] / 2], jamb)),
-  );
+  for (const x of [-4.3, -1.7]) w.block(1, [x, on(pavingTop, jamb[1]), front + jamb[2] / 2], jamb);
+  const jambTop = pavingTop + jamb[1];
   w.block(4, [-3, on(pavingTop, jamb[1]), front + 0.04], [2.1, jamb[1], 0.08]);
   w.block(1, [-3, on(jambTop, 0.35), front + 0.2], [3.1, 0.35, 0.4]);
   // The instrument's platform runs from the door's surround to its steps; seven steps climb it
@@ -105,12 +106,14 @@ export function createObservatory() {
     columns = [-3, -1, 1, 3].map((stone) => stone * paving.pitch);
   for (const side of [-1, 1]) {
     const x = side * 4 * paving.pitch;
-    const [spring] = columns.map((z) => {
+    let spring = 0;
+    for (const z of columns) {
       const foot = w.block(0, [x, on(pavingTop, plinth[1]), z], plinth);
       const shaft = w.turned(1, [x, top(foot), z], 0.46, 4.4, 16);
       w.turned(3, [x, top(foot), z], 0.52, 0.16, 0, 32);
-      return top(w.block(1, [x, on(top(shaft), capital[1]), z], capital));
-    });
+      // Every capital tops the same column: the arches spring from their common height.
+      spring = top(w.block(1, [x, on(top(shaft), capital[1]), z], capital));
+    }
     const arch = (a: number, r: number) => [spring + r * Math.sin(a), r * Math.cos(a)];
     for (const z of [-2, 0, 2].map((stone) => stone * paving.pitch)) {
       // The arch lies in the depth plane; its tapered voussoirs remain a curved LOD witness.
