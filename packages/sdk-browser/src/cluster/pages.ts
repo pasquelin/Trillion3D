@@ -2,6 +2,8 @@ import { EngineError } from '../../../sdk-core/src/index.ts';
 import { verifyPageBytes } from '../page/decode/host.ts';
 /** A failure a second request may not meet: the network, or a server error (5xx). */
 const transient = (response: Response | undefined) => !response || response.status >= 500;
+/** A refused answer's body let go at once, not left to hold its connection until collected. */
+const letGo = (response: Response) => void response.body?.cancel().catch(() => {});
 
 /**
  * How `checked` reads: `attempts`, the most requests it makes; `optional`, a file that may be
@@ -46,8 +48,7 @@ export async function checked(
       [response, cause] = [undefined, error];
     }
     if (!transient(response)) break;
-    // A refused answer's body is let go before the next request, not left to the collector.
-    if (attempt < attempts) void response?.body?.cancel().catch(() => {});
+    if (attempt < attempts && response) letGo(response);
   }
   // A network failure is the same refusal as an HTTP one, with no status to give.
   if (!response)
@@ -60,17 +61,14 @@ export async function checked(
         contentType: null,
       },
     );
-  if (optional && response.status === 404) {
-    void response.body?.cancel().catch(() => {});
-    return null;
-  }
-  if (!response.ok)
-    throw new EngineError(
-      'RESOURCE_HTTP_ERROR',
-      `${url}: HTTP ${response.status}, type ${response.headers.get('content-type') ?? 'absent'}`,
-      { url, status: response.status, contentType: response.headers.get('content-type') },
-    );
-  return response;
+  if (response.ok) return response;
+  letGo(response);
+  if (optional && response.status === 404) return null;
+  throw new EngineError(
+    'RESOURCE_HTTP_ERROR',
+    `${url}: HTTP ${response.status}, type ${response.headers.get('content-type') ?? 'absent'}`,
+    { url, status: response.status, contentType: response.headers.get('content-type') },
+  );
 }
 /** A cache object that is not what its manifest announced: its code and facts, whichever it is. */
 export const corruptObject = (

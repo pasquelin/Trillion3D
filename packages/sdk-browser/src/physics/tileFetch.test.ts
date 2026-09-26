@@ -8,9 +8,9 @@ const FILE = () => JSON.stringify(cooked([{ kind: 'mesh', tiles: [tile()] }], [p
 const served = (url: string) =>
   url.endsWith('physics.json') ? new Response(FILE()) : new Response('missing', { status: 404 });
 
-/** A model streamer whose `name` answers `answers` and every other file `other`, scanned once. */
-function streaming(t: TestContext, name: string, answers: Answer[], other = served) {
-  const asked = answering(t, name, answers, name === 'physics.json' ? FILE : () => 'tile', other);
+/** A model streamer whose `name` answers `answers` and every other file `served`, scanned once. */
+function streaming(t: TestContext, name: string, answers: Answer[]) {
+  const asked = answering(t, name, answers, name === 'physics.json' ? FILE : () => 'tile', served);
   const streamer = modelStreamer();
   const opened = streamer.heard();
   streamer.tiles.scan(streamer.scene);

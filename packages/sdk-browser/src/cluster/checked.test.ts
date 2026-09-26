@@ -4,6 +4,8 @@ import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { EngineError } from '../../../sdk-core/src/index.ts';
 import { loadClusterManifest } from '../scene/manifestLoad.ts';
+import { checked } from './pages.ts';
+import { answering, refusedWith } from './answers.fixture.ts';
 
 /** The example cache that drew nothing in the browser: its own files, served from the site. */
 const site = resolve(import.meta.dirname, '../../../../site');
@@ -47,4 +49,43 @@ test('a resource still failing after its second request is refused by its addres
   asked = serve(t, 2, () => new Response('missing', { status: 404 }));
   await assert.rejects(loadClusterManifest(MANIFEST, 'full'), refused('RESOURCE_HTTP_ERROR'));
   assert.equal(asked.filter((name) => name === 'clusters.json').length, 1);
+});
+
+const URL_ = 'https://cache.test/model/lights.json';
+
+test('an optional file the server does not hold (404) answers null, asked once', async (t) => {
+  const asked = answering(t, 'lights.json', [404]);
+  assert.equal(await checked(URL_, undefined, { optional: true }), null);
+  assert.equal(asked.length, 1);
+});
+
+test('an optional file refused otherwise (403) is refused by its address, asked once', async (t) => {
+  const asked = answering(t, 'lights.json', [403]);
+  await assert.rejects(
+    checked(URL_, undefined, { optional: true }),
+    refusedWith(403, 'lights.json'),
+  );
+  assert.equal(asked.length, 1);
+});
+
+test('an optional file a busy server refuses once (503) is asked again and answers', async (t) => {
+  const asked = answering(t, 'lights.json', [503, 200]);
+  const response = await checked(URL_, undefined, { optional: true });
+  assert.equal(response?.status, 200);
+  assert.equal(asked.length, 2);
+});
+
+test('the credentials asked are the ones the request carries', async (t) => {
+  const asked = answering(t, 'lights.json', [200]);
+  await checked(URL_, undefined, { credentials: 'same-origin' });
+  assert.equal(asked[0].init.credentials, 'same-origin');
+});
+
+test('an aborted read rejects with the reason and is not asked again', async (t) => {
+  const asked = answering(t, 'lights.json', ['hang']);
+  const abort = new AbortController();
+  const read = checked(URL_, abort.signal);
+  abort.abort(new Error('left'));
+  await assert.rejects(read, /left/);
+  assert.equal(asked.length, 1);
 });
