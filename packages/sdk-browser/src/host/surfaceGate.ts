@@ -10,7 +10,6 @@
 
 import type { HostAttribute, HostAttributes, HostMaterials } from './resources.ts';
 import type { HostMap, HostShadedMaterial } from './shadedMaterial.ts';
-import { metalRough } from '../scene/surfaceModel.ts';
 import { blendingOf, blendingRefusal } from '../scene/materialBlending.ts';
 import { HOST_MAPPING_UV, HOST_NORMAL_MAP_TANGENT_SPACE } from './surfaceConstants.ts';
 import { texelsReason } from '../visibility/types.ts';
@@ -44,8 +43,6 @@ export function clusterMaterialReason(
 ) {
   if (Array.isArray(material)) return 'material arrays are unsupported';
   const host = material as HostShadedMaterial;
-  if (!metalRough(host) && host.family !== 'basic' && host.family !== 'depth')
-    return `material ${host.family} is unsupported`;
   // The draws' own refusal (`drawnBlending`): a mode admitted here is one every path draws.
   const refusal = blendingRefusal(blendingOf(host.blending), isTransmissive(material));
   if (refusal) return `material ${host.family}: ${refusal} (blending ${host.blending})`;
@@ -88,12 +85,16 @@ export function clusterMaterialReason(
     return 'textured material has no UV attribute';
   if (maps.some((texture) => texture?.channel === 1) && !ownBuffer(attributes.uv1))
     return 'texture channel 1 has no UV1 attribute';
-  if (metalRough(host) && !ownBuffer(attributes.normal))
-    return 'lit material has no normal attribute';
+  // Every family but the plain colour and the depth ramp shades by the normal: the lit ones, the
+  // normal view, and the matcap, which reads its image by it.
+  if (host.family !== 'basic' && host.family !== 'depth' && !ownBuffer(attributes.normal))
+    return `material ${host.family} has no normal attribute`;
   if (host.vertexColors && !ownBuffer(attributes.color))
     return 'vertex-colour material has no color attribute';
   for (const texture of maps) {
     const reason = textureReason(texture);
     if (reason) return reason;
   }
+  // A matcap's image is read at its normal's coordinate, never by a UV attribute.
+  return textureReason(host.matcap);
 }
