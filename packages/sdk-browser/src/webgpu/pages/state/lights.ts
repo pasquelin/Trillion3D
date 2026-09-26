@@ -91,9 +91,11 @@ export interface WebgpuLightState {
   /** Pages drawn since the state was created, every frame and drain together. */
   shadowPagesTotal: number;
   shadowDraws: number;
-  /** Draw calls actually encoded by the shadow pass: a clear to far and an indirect draw per page. */
+  /** Draw calls actually encoded by the shadow pass: per render pass its clears and restores, then
+   *  an indirect draw per region. */
   shadowDrawCalls: number;
-  /** Render passes the shadow pass opened: one per layer drawn, per batch. */
+  /** Render passes the shadow pass opened: static layer, pool and transmittance, one per layer
+   *  drawn, per batch. */
   shadowRenderPasses: number;
   /** Why the shadow atlas does not exist, when it does not. */
   shadowReason: string | null;
