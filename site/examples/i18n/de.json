@@ -937,6 +937,23 @@
       "spin": "Drehen"
     }
   },
+  "health-check": {
+    "banner": "Ziehen, um sich umzusehen. Auto fahren ankreuzen, um es zu nehmen: W oder ↑ gibt Gas, S oder ↓ bremst, A D oder ← → lenken. Erneut fallen lassen schickt Kisten und Bälle wieder hinab.",
+    "words": {
+      "credit": "Tal für dieses Beispiel im Code modelliert, CC0 — siehe assets/examples/CREDITS.md",
+      "refused": "Von diesem Backend abgelehnt"
+    },
+    "controls": {
+      "drive": "Auto fahren",
+      "drop": "Erneut fallen lassen",
+      "reset": "Auto neu abstellen"
+    },
+    "readouts": {
+      "bodies": "Körper",
+      "step": "Schritt",
+      "renderer": "Gezeichnet mit"
+    }
+  },
   "helpers-to-see-the-scene": {
     "banner": "Ziehe, um herumzugehen. Schalte die Helfer aus, um das reine Bild zu sehen.",
     "controls": {
