@@ -123,7 +123,7 @@ function fillSampling(record: Editable, host: HostTexture) {
 function fillPlacement(host: HostTexture, placed: Float64Array) {
   const e = host.matrix.elements;
   if (!host.matrixAutoUpdate)
-    return AFFINE.reduce((moved, k, i) => moved | put(placed, i, e[k]), put(placed, 6, 0));
+    return AFFINE.reduce<number>((moved, k, i) => moved | put(placed, i, e[k]), put(placed, 6, 0));
   const { offset, repeat, center } = host;
   const moved =
     put(placed, 0, offset.x) |

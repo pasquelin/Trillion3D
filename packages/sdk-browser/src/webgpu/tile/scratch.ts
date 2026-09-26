@@ -90,7 +90,13 @@ export function createTileScratch(
     const weighted = options.coverage?.weighs(options.map) ?? false;
     generateMaterialMips(device, texture, format, width, height, weighted);
   };
-  fill();
+  try {
+    fill();
+  } catch (error) {
+    // A picture refused at its first fill leaves no texture behind: its tile asks again.
+    texture.destroy();
+    throw error;
+  }
   return {
     texture,
     bytes: textureBytesOf(descriptor) ?? 0,
