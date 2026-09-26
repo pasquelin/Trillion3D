@@ -22,12 +22,13 @@
  * enter.
  *
  * That ceiling is the frame's one integration budget (`./frameBudget.ts`, CONTRIBUTING.md
- * §Streaming rule 4): `open` starts its clock, what else a frame integrates before the
- * drain — the cells of a partitioned scene (`scene/partition/cells.ts`) — spends from it,
- * and the drain spends the rest and closes it.
+ * §Streaming rule 4), handed in by the session: its frame opens it, what else the frame
+ * integrates before the drain — the cells of a partitioned scene (`scene/partition/cells.ts`) —
+ * spends from it, the drain spends the rest, and the WebGPU row records written after it
+ * (`webgpu/row/claims.ts`) whatever is left.
  */
 import { planArrival, planArrivalHere, type ArrivalPlan } from './host.ts';
-import { createFrameBudget } from './frameBudget.ts';
+import type { FrameBudget } from './frameBudget.ts';
 
 /** What the queue requires of a target: a way to receive a page before the next render, and
  *  the catalogue sheet for the request — the integers the plan is deduced from, and nothing else. */
@@ -54,18 +55,17 @@ type Arrival = {
  */
 const MAX_PLAN_WAITS = 2;
 
-export function createArrivalQueue(byteBudget: number, countBudget: number, msBudget = 2) {
+export function createArrivalQueue(
+  byteBudget: number,
+  countBudget: number,
+  /** The frame's one integration budget, which its frame opens (`./frameBudget.ts`). */
+  budget: FrameBudget,
+) {
   const items: Arrival[] = [];
   // The same page may be seen by the cache then by the end of its download: while it waits,
   // it is queued only once per target. The wait is forgotten as soon as it is delivered.
   const waiting = new Map<ArrivalTarget, Set<string>>();
-  let head = 0,
-    opened = false;
-  const { admits, spend, ...budget } = createFrameBudget(msBudget);
-  const open = () => {
-    opened = true;
-    budget.open();
-  };
+  let head = 0;
   /** Delivers an arrival with its plan, and removes its address from the waiting pages. */
   const deliver = (item: Arrival) => {
     item.done = true;
@@ -73,10 +73,6 @@ export function createArrivalQueue(byteBudget: number, countBudget: number, msBu
     item.target.acceptPage?.(item.url, item.array, item.plan);
   };
   return {
-    /** Opens the frame's budget: every integration until the drain shares its clock. */
-    open,
-    admits,
-    spend,
     /** Arrivals still waiting to drain. */
     get pending() {
       return items.length - head;
@@ -119,16 +115,14 @@ export function createArrivalQueue(byteBudget: number, countBudget: number, msBu
     },
     /**
      * Delivers arrivals up to the budget — at most `countBudget` pages, `byteBudget` index bytes
-     * and what the frame's budget still admits (opened here unless `open` was called) —, then
-     * closes that budget. The following render synchronizes residency; calling `syncResident`
-     * here could draw a second frame. Returns the pages delivered.
+     * and what the frame's budget still admits. The following render
+     * synchronizes residency; calling `syncResident` here could draw a second frame. Returns the
+     * pages delivered.
      */
     drain() {
-      if (!opened) open();
-      opened = false;
       let bytes = 0,
         count = 0;
-      while (head < items.length && bytes < byteBudget && count < countBudget && admits()) {
+      while (head < items.length && bytes < byteBudget && count < countBudget && budget.admits()) {
         const item = items[head];
         if (!item.ready) {
           // Order is priority: an arrival whose plan has not returned holds back those that
@@ -143,7 +137,7 @@ export function createArrivalQueue(byteBudget: number, countBudget: number, msBu
         }
         head++;
         deliver(item);
-        spend();
+        budget.spend();
         bytes += item.array.byteLength;
         count++;
       }

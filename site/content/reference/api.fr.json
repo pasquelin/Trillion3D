@@ -1570,8 +1570,8 @@
       "WEBGL2_UNAVAILABLE": "La machine ne peut pas dessiner de la façon demandée, ou pas du tout.",
       "NO_WEBGL2": "La machine ne peut pas dessiner de la façon demandée, ou pas du tout.",
       "NO_ENGINE_BACKEND": "La machine ne peut pas dessiner de la façon demandée, ou pas du tout.",
-      "RESOURCE_HTTP_ERROR": "Un fichier n’a pas pu être récupéré, ou n’était pas ce qu’il devait être.",
-      "INVALID_JSON_RESPONSE": "Un fichier n’a pas pu être récupéré, ou n’était pas ce qu’il devait être.",
+      "RESOURCE_HTTP_ERROR": "Un fichier n’a pas pu être récupéré — redemandé d’abord quand l’échec peut passer —, ou n’était pas ce qu’il devait être.",
+      "INVALID_JSON_RESPONSE": "Un fichier n’a pas pu être récupéré — redemandé d’abord quand l’échec peut passer —, ou n’était pas ce qu’il devait être.",
       "INVALID_POINTER": "Le pointeur du modèle compilé est cassé, inachevé, ou d’une autre portée.",
       "CACHE_NOT_READY": "Le pointeur du modèle compilé est cassé, inachevé, ou d’une autre portée.",
       "SCOPE_MISMATCH": "Le pointeur du modèle compilé est cassé, inachevé, ou d’une autre portée.",
@@ -5178,7 +5178,7 @@
       "background": "Ce qui remplit l’image derrière chaque objet : une couleur, ou `null` pour le fond par défaut. Un changement s’affiche à l’image suivante, la session gardée : une nouvelle couleur donnée ici, ou celle en place écrite par ses méthodes (`set`, `setRGB`, `setHex`, `setHSL`...). Une écriture directe de `.r`, `.g` ou `.b` n’est pas entendue : redonnez `background` après. Une image, ou toute valeur sans `getHex`, est refusée (`UNSUPPORTED_SCENE_UPDATE`) : aucun chemin ne la dessine.",
       "fog": "Un brouillard sur chaque surface, opaque ou transparente, sur les deux moteurs de rendu ; `null`, la valeur par défaut, pour aucun, sans aucun coût. `{ color, near, far }` fond les objets dans `color` de `near` à `far`, distances depuis la caméra ; `{ color, density }` s’épaissit de `density` par unité de distance ; ajoutez `heightFalloff` (et `baseHeight`, 0 par défaut) et il se pose au sol, s’éclaircissant au-dessus de `baseHeight` — divisé par e toutes les `1 / heightFalloff` unités vers le haut. Un changement se voit à l’image suivante : un nouveau brouillard donné ici, ou sa couleur écrite par ses méthodes. Une écriture directe de `near`, `far`, `density`... n’est pas entendue : redonnez `fog` après. Un brouillard hors limites — `far` pas au-delà de `near`, une densité négative — est refusé (`INVALID_SCENE_ENVIRONMENT`).",
       "load": "Charge un modèle compilé — l’URL de son manifeste — et l’ajoute à cette scène.",
-      "toJSON": "La scène en JSON simple, versionné : ses objets, les formes par l’appel qui les a construites, les matériaux, les lumières et les modèles chargés par adresse ; la pose de `camera` aussi quand on en donne une.",
+      "toJSON": "La scène en JSON simple, versionné : ses objets, les formes par l’appel qui les a construites, les matériaux, les lumières, le corps de chaque maillage tel qu’il a été déclaré et les modèles chargés par adresse ; la pose de `camera` aussi quand on en donne une.",
       "fromJSON": "Remplace ce que contient la scène par une scène enregistrée par `toJSON`, ses repères `helper` gardés ; se résout une fois ses modèles chargés. Un autre format ou une autre version est refusé (`UNSUPPORTED_SCENE_FORMAT`)."
     }
   },
@@ -7021,7 +7021,8 @@
       "children": "Les nœuds en dessous, dans l’ordre.",
       "mesh": "Rangs dans `geometries` et `materials`, la façon de lire les triangles, et le centre d’un sprite.",
       "light": "Le type d’une lumière, ses couleurs, ses nombres, sa visée et les coefficients de sonde.",
-      "model": "Un modèle compilé, par l’adresse du manifeste d’où il a été chargé : jamais recopié dedans."
+      "model": "Un modèle compilé, par l’adresse du manifeste d’où il a été chargé : jamais recopié dedans.",
+      "physics": "Le corps d’un maillage, tel que `mesh.physics` le déclare."
     }
   },
   "SavedScene": {
@@ -7128,7 +7129,7 @@
       "water": "L’eau où flottent les corps : son niveau, ses vagues, sa densité et ses traînées. Un corps plus léger que l’eau flotte, poussé par le poids de l’eau qu’il déplace.",
       "waterSurface": "La surface de l’eau à l’heure de la simulation, pour la dessiner : les vagues que lit la flottaison, les mêmes nombres (`height`, `point`, `normal`).",
       "stats": "Comptes et les deux horloges : millisecondes du worker par pas, millisecondes de la page par image.",
-      "error": "La dernière erreur levée par la physique (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), ou `null`. Une erreur qui a arrêté la simulation désactive `enabled`.",
+      "error": "La dernière erreur levée par la physique (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`, `RESOURCE_HTTP_ERROR`), ou `null`. Une erreur qui a arrêté la simulation désactive `enabled`.",
       "add": "Ajoute une liaison (`joint.hinge(door, frame, …)` et ses sœurs) : elle est créée dès que ses deux corps sont simulés, et tient jusqu’à ce qu’on la retire ou qu’elle rompe.",
       "remove": "Retire une liaison : les corps qu’elle tenait se séparent librement."
     }
@@ -7336,7 +7337,7 @@
       "water": "L’eau où flottent les corps : son niveau, ses vagues, sa densité et ses traînées. Un corps plus léger que l’eau flotte, poussé par le poids de l’eau qu’il déplace.",
       "waterSurface": "La surface de l’eau à l’heure de la simulation, pour la dessiner : les vagues que lit la flottaison, les mêmes nombres (`height`, `point`, `normal`).",
       "stats": "Comptes et les deux horloges : millisecondes du worker par pas, millisecondes de la page par image.",
-      "error": "La dernière erreur levée par la physique (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`), ou `null`. Une erreur qui a arrêté la simulation désactive `enabled`.",
+      "error": "La dernière erreur levée par la physique (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`, `RESOURCE_HTTP_ERROR`), ou `null`. Une erreur qui a arrêté la simulation désactive `enabled`.",
       "add": "Ajoute une liaison (`joint.hinge(door, frame, …)` et ses sœurs) : elle est créée dès que ses deux corps sont simulés, et tient jusqu’à ce qu’on la retire ou qu’elle rompe.",
       "remove": "Retire une liaison : les corps qu’elle tenait se séparent librement."
     }

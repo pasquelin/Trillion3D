@@ -4,6 +4,7 @@ import * as G from '../../host/graph/graph.fixture.ts';
 import { webgpuPagesBackend } from '../pages/pages.ts';
 import { exactPagesBackend } from '../../../../../bench/witnesses/exact/backend.ts';
 import { createArrivalQueue } from '../../page/integration/arrivalQueue.ts';
+import { createFrameBudget } from '../../page/integration/frameBudget.ts';
 import { collectClusterPages } from '../../page/selection/selection.ts';
 import { packDagSelection } from '../../gpu/dag/selection.ts';
 import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts';
@@ -86,7 +87,7 @@ test('queued page arrivals are integrated by the next render without a second GP
       const view = camera();
       backend.render(view);
       mock.submits.length = 0;
-      const arrivals = createArrivalQueue(512 * 1024, 64);
+      const arrivals = createArrivalQueue(512 * 1024, 64, createFrameBudget(2));
       arrivals.queue(backend, '0', fixture.indices.get('0')!);
       assert.equal(arrivals.drain(), 1);
       assert.equal(mock.submits.length, 0, 'accepting bytes must not render an image');

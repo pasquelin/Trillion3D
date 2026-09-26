@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { emptyPhysicsStats } from '../packages/sdk-browser/src/physics/protocol.ts';
 import { Camera } from '../packages/sdk-core/src/world/camera/camera.ts';
 import { playPickedVideo } from '../site/examples/kit/media.ts';
 import { perFrame } from '../site/examples/kit/perFrame.ts';
+import { PHYSICS_LINES } from '../site/examples/kit/physicsReadouts.ts';
 import { pointerOnPlane } from '../site/examples/kit/pointer.ts';
 import { mulberry32, seeded } from '../site/examples/kit/random.ts';
 
@@ -76,4 +78,15 @@ test('mulberry32 draws the sequence the scenes, the bench and the campaigns were
     [draw(), draw(), draw()],
     [0.3588899802416563, 0.10590326134115458, 0.675290479324758],
   );
+});
+
+test('the physics readouts print the stats as the pages wrote them by hand', () => {
+  const stats = { ...emptyPhysicsStats(), bodies: 200, active: 12, stepMs: 1.234, mainMs: 0.5 };
+  const printed = Object.entries(PHYSICS_LINES).map(([line, read]) => [line, read(stats)]);
+  assert.deepEqual(Object.fromEntries(printed), {
+    bodies: '200',
+    awake: '12',
+    step: '1.23 ms',
+    page: '0.50 ms',
+  });
 });

@@ -6,6 +6,7 @@ import { IDENTITY_ELEMENTS, type MatrixElements } from '../../math/matrixElement
 import type { ClusterCut } from '../selection/math.ts';
 import type { PageSurface } from '../surface.ts';
 import type { CutReadiness } from './readiness.ts';
+import type { HeldResidency } from './held.ts';
 
 export interface PageRecord extends ClusterCut {
   triangles: number;
@@ -15,13 +16,16 @@ export interface PageRecord extends ClusterCut {
   cone?: NormalCone;
   material?: PageSurface;
   array?: Uint32Array;
+  /** Where a layout placed the record: its placement's rank, and its own among every placement's
+   *  pages (`./held.ts` routes a residency move by them). */
+  placementIndex?: number;
+  packedIndex?: number;
 }
 
 export interface SelectionState<T extends PageRecord> {
   cam: EngineCamera;
   wanted: T[];
   shown: T[];
-  isResident?: (page: T) => boolean;
   pixelError: number;
   frustumRejected: number;
   /** Hierarchy nodes popped by this image's cut. */
@@ -46,14 +50,9 @@ export interface SelectionState<T extends PageRecord> {
   flatBoxes: boolean;
   /** A light's cut: its redrawn pages (`boxMissesLightPages`), and no cone test. */
   light?: LightPages;
-  /** Residency rule of this cut, resolved once: `RESIDENT_ALL` when nothing is held
-   *  (everything is deemed resident), `RESIDENT_ASK` when the host supplies its answer,
-   *  `RESIDENT_ARRAY` when residency is the page's index array. The per-cluster path reads this
-   *  mode instead of re-reading the request on the state at each page. */
-  residentMode: number;
-  /** Nonzero when the cut shares its residency answers with every cut of the same stamp: the cut
-   *  rule's readiness of a root is then read once for all of them (`./held.ts`). */
-  residencyStamp: number;
+  /** Where the cut rule's readiness of each root is held and moved (`./held.ts`); absent when
+   *  the cut holds no residency. */
+  held: HeldResidency | undefined;
   /** This image's threshold is zero and stretch, focal length and near plane are sound: the
    *  cut then decides without projecting, identically. */
   flatExact: boolean;
@@ -101,30 +100,6 @@ export function createSelectionResult<T>(): SelectionResult<T> {
   };
 }
 
-/** Nothing is held: the cut has no residency to test. */
-export const RESIDENT_ALL = 0;
-/** The host itself answers for a page's residency. */
-export const RESIDENT_ASK = 1;
-/** A page's residency is its index array. */
-export const RESIDENT_ARRAY = 2;
-
-/** Residency rule of a cut, stated once per call: the cut rule's readiness reads it once per page
- *  (`./held.ts`). */
-export function residentModeOf(hold: boolean, isResident: unknown) {
-  return !hold ? RESIDENT_ALL : isResident ? RESIDENT_ASK : RESIDENT_ARRAY;
-}
-
-/** Residency of a page under an already-resolved mode. */
-export function residentUnder<T extends PageRecord>(
-  s: SelectionState<T>,
-  rec: T,
-  mode: number,
-): boolean {
-  if (mode === RESIDENT_ALL) return true;
-  if (mode === RESIDENT_ARRAY) return !!rec.array;
-  return (s.isResident as (page: T) => boolean)(rec);
-}
-
 export const IDENTITY_WORLD: MatrixElements = { elements: IDENTITY_ELEMENTS };
 /** Synchronous selection reuses these buffers between frames without allocating a new cut. */
 export const selectionScratch = {
@@ -146,7 +121,6 @@ const reusedState: SelectionState<PageRecord> = {
   cam: undefined as unknown as EngineCamera,
   wanted: [],
   shown: [],
-  isResident: undefined,
   pixelError: 0,
   frustumRejected: 0,
   nodesTested: 0,
@@ -160,8 +134,7 @@ const reusedState: SelectionState<PageRecord> = {
   flatCone: createConeContext(),
   flatCones: true,
   flatBoxes: false,
-  residentMode: RESIDENT_ALL,
-  residencyStamp: 0,
+  held: undefined,
   flatExact: false,
   shownCount: 0,
   wantedCount: 0,

@@ -37,6 +37,8 @@ export interface StatsSample extends FrameCounters {
 }
 
 const count = (value: number) => Math.round(value).toLocaleString(language());
+/** A duration as the kit prints it: milliseconds to two places. */
+export const ms = (value: number) => `${value.toFixed(2)} ms`;
 
 /**
  * The shadow counters of a frame, read from the names the engine publishes (`shadow…`): a
@@ -47,7 +49,7 @@ export function shadowLines(frame: object): [string, string][] {
   const lines: [string, string][] = [];
   for (const [key, value] of Object.entries(frame)) {
     if (!/^shadows?[A-Z]/.test(key) || typeof value !== 'number') continue;
-    if (key.endsWith('Ms')) lines.push([labelOf(key.slice(0, -2)), `${value.toFixed(2)} ms`]);
+    if (key.endsWith('Ms')) lines.push([labelOf(key.slice(0, -2)), ms(value)]);
     else lines.push([labelOf(key), count(value)]);
   }
   return lines;
@@ -73,10 +75,7 @@ export function statLines(sample: StatsSample): [string, string][] {
     lines.push(['geometry pool', `${(sample.geometryPoolBytes / 2 ** 20).toFixed(1)} MiB`]);
   if (sample.lightsActive) lines.push(['lights', count(sample.lightsActive)]);
   if (sample.gpuFrameMs != null)
-    lines.push([
-      sample.gpuFrameLast ? 'GPU frame (last)' : 'GPU frame',
-      `${sample.gpuFrameMs.toFixed(2)} ms`,
-    ]);
+    lines.push([sample.gpuFrameLast ? 'GPU frame (last)' : 'GPU frame', ms(sample.gpuFrameMs)]);
   return [...lines, ...shadowLines(sample)];
 }
 

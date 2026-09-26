@@ -16,6 +16,7 @@ test('the scenes modelled in code rebuild their committed sources byte for byte'
       'ten-thousand-objects',
       'terrain',
       'terrain-tiles',
+      'chalet',
     ],
     out = await mkdtemp(join(tmpdir(), 'example-scenes-'));
   try {

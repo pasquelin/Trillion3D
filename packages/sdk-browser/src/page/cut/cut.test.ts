@@ -5,11 +5,12 @@ import { collectClusterPages, selectVisiblePages, type PageRec } from '../select
 import { dagFixture, wideCamera } from '../selection/dag.fixture.ts';
 import { dagCulling } from '../selection/helpers.fixture.ts';
 import { cameraMoteur } from '../../camera/camera.fixture.ts';
+import { createHeldResidency } from './held.ts';
 
 const ASK = {
   pixelError: 0,
   viewport: [1280, 720] as [number, number],
-  holdResident: true,
+  held: createHeldResidency(),
 };
 
 /** Test DAG with its culling hierarchy, hence with the hierarchical cut. */

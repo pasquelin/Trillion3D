@@ -5,6 +5,7 @@ import type { PageRec } from '../../page/selection/selection.ts';
 import { rowHasGeometry, type createPageRowWriter } from './pageRow.ts';
 import { awaitsPageBytes } from './pageSlots.ts';
 import type { createWebgpuRowState } from './state.ts';
+import type { FrameClock } from '../../page/integration/frameBudget.ts';
 
 type Rows = ReturnType<typeof createWebgpuRowState>;
 type Writer = ReturnType<typeof createPageRowWriter>;
@@ -157,8 +158,8 @@ export function createWebgpuRowSlots(
   };
 
   /** What the image owes the row table: the pages the cache named, and what the record queue
-   *  left behind, within the time budget unless `bounded` is false. */
-  const apply = (bounded = true) => {
+   *  left behind, within the frame's `budget`; absent, every owed record (a barrier image). */
+  const apply = (budget?: FrameClock) => {
     written.changed = false;
     denied = 0;
     const full = revision !== rows.rowsRevision || epoch !== rows.tableEpoch;
@@ -172,7 +173,7 @@ export function createWebgpuRowSlots(
         const page = rows.touched.pages[i];
         if (release(page)) claims.add(page);
       }
-      denied = serveClaims(claims, release, place, bounded);
+      denied = serveClaims(claims, release, place, budget);
       closeFreeRows();
     }
     rows.clearTouched();

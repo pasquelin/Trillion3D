@@ -3,14 +3,10 @@ import { compteMateriauxEtTangentes } from '../io/catalogue.ts';
 import { collectWebgpuMaterialTextures } from '../../core/materialTextures.ts';
 import { previewsByAtlas, tileCatalogue } from '../../tile/catalogue.ts';
 import { createWebgpuTileStreamer } from '../../tile/streamer.ts';
-import {
-  chooseBlockFormat,
-  laneCounts,
-  POOL_LANES,
-  poolEncoding,
-} from '../../../texture/blockFormats.ts';
+import { chooseBlockFormat, laneCounts, poolEncoding } from '../../../texture/blockFormats.ts';
 import { texturePoolFor, type TexturePool } from '../../residency/memoryBudgets.ts';
-import { grantedTexturePool } from '../../residency/poolGrants.ts';
+import { grantedTexturePool, sameLayers } from '../../residency/poolGrants.ts';
+import { grantedLatest } from './grantLatest.ts';
 import { shadowsFollowTextures } from './lightResources.ts';
 import {
   PREVIEW_ATLAS_COLOR,
@@ -27,6 +23,12 @@ const laneDemand = (textures: TileTexture[]) => {
   for (const texture of textures) demand[texture.lane] += 1 + texture.layout.entries;
   return demand;
 };
+/** Textures per lane: the tails the pool keeps resident whole, one tile each. */
+const laneTails = (textures: TileTexture[]) => {
+  const tails = laneCounts();
+  for (const texture of textures) tails[texture.lane]++;
+  return tails;
+};
 
 /** What a diagnostic says of a catalogue: how many textures per source and per lane, their tiles. */
 const catalogueReport = (textures: TileTexture[]) => ({
@@ -34,9 +36,7 @@ const catalogueReport = (textures: TileTexture[]) => ({
   baked: textures.filter((texture) => texture.source.kind === 'baked').length,
   tailOnly: textures.filter((texture) => texture.source.kind === 'bytes').length - 1,
   host: textures.filter((texture) => texture.source.kind === 'host').length,
-  lanes: Object.fromEntries(
-    POOL_LANES.map((lane) => [lane, textures.filter((texture) => texture.lane === lane).length]),
-  ),
+  lanes: laneTails(textures),
   streamedTiles: textures.reduce((total, texture) => total + texture.layout.entries, 0),
 });
 
@@ -97,11 +97,12 @@ export async function prepareWebgpuTextures(rt: WebgpuPagesRuntime, gpuDevice: G
     readLevel,
     encoding,
   );
-  // The lanes settle here, where the textures are known: each pool is sized by what its lane holds.
+  // The lanes settle here, where the textures are known: each pool is sized by what its lane holds,
+  // never below the tails it keeps resident whole, one tile each.
   const demand = { color: laneDemand(color), data: laneDemand(data) };
+  const tails = { color: laneTails(color), data: laneTails(data) };
   const poolFor = (budgetBytes: number) =>
-    texturePoolFor(budgetBytes, gpuDevice, demand, encoding.texelBytes);
-  const budget = rt.setup.texturePoolBudget;
+    texturePoolFor(budgetBytes, gpuDevice, demand, encoding.texelBytes, tails);
   const streamer = (layers: TexturePool['layers']) =>
     createWebgpuTileStreamer({
       device: gpuDevice,
@@ -123,14 +124,18 @@ export async function prepareWebgpuTextures(rt: WebgpuPagesRuntime, gpuDevice: G
     });
   // Out of memory absorbed: the lane pools are those the device grants, allocated once, under the
   // out-of-memory scope (`poolGrants.ts`). One refused even at its floor is refused by name, never
-  // allocated at the full request outside any scope: the material pipeline then drops.
-  const granted = await grantedTexturePool(
-    gpuDevice,
-    budget,
-    { poolFor },
-    diag.engineDiagnostic,
-    (pool) => streamer(pool.layers),
-  );
+  // allocated at the full request outside any scope: the material pipeline then drops. A budget
+  // `setMemoryBudgets` records while the device answers is the later word (`grantedLatest`).
+  const granted = await grantedLatest({
+    budget: () => rt.setup.texturePoolBudget,
+    draw: (asked) => ({ asked, pool: poolFor(asked) }),
+    same: sameLayers,
+    grant: ({ asked }) =>
+      grantedTexturePool(gpuDevice, asked, { poolFor }, diag.engineDiagnostic, (pool) =>
+        streamer(pool.layers),
+      ),
+    stopped: () => rt.signal.aborted || run.lost,
+  });
   if (!granted) throw new Error('WEBGPU_TEXTURE_POOL_REFUSED');
   const pools = { choice, encoding, pool: granted.pool, poolFor };
   rt.setup.texturePools = pools;
