@@ -126,11 +126,9 @@ pub(super) fn stage_scene_tables(
     Ok(vec![written])
 }
 
-/// The cell records of the tables in `directory` by file name, as the manifest's `files` records a
-/// product, read through the pages of their partition, each proven by its slot; none when they
-/// have none. The cells and the pages are not in that record, which would grow with the world: a
-/// reused folder proves them through this tree (`compiler_reuse_proof.rs`). Tables of another
-/// version are refused by name.
+/// The cell records of the tables in `directory` by file name, read through their partition's pages,
+/// each proven by its slot: a reused folder proves its cells so (`compiler_reuse_proof.rs`), the
+/// manifest's `files` would grow with the world. Tables of another version are refused by name.
 pub(crate) fn cell_records(directory: &Path) -> std::result::Result<Map<String, Value>, String> {
     let read = |bytes: &[u8]| serde_json::from_slice::<Value>(bytes).map_err(|e| e.to_string());
     let tables = fs::read(directory.join(SCENE_TABLES_FILE)).map_err(|e| e.to_string());
