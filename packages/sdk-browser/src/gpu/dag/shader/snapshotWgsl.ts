@@ -22,7 +22,8 @@ import { REQUEST_PRIORITY_MAX } from '../request.ts';
  * writes its own list straight into its snapshot (`../lightCutReports.ts`).
  */
 export const DAG_RELEVE_WGSL = `fn emitOne(page:u32,pixels:f32){emitWord(page,quantizePriority(pixels),true);}
-/** Where the camera's request \`s\` waits for the sort: behind the drawn list and its header. */
+/** Where the camera's request \`s\` waits for the sort: behind the drawn list and its header
+ *  (\`stagedRequestsWord\`, \`../layout.ts\`, counted from \`out\`'s first word). */
 fn stagedAt(s:u32)->u32{return 2u*views[0u].listCap+HEAD+s;}
 /** One request word in the sample; past the cap it is dropped, and \`declare\` says truncated. */
 fn emitWord(page:u32,priority:u32,declare:bool){
@@ -41,7 +42,6 @@ fn aheadFull()->bool{return atomicLoad(&out.count)>=views[0u].listCap/2u;}
 const RANKS:u32=${REQUEST_PRIORITY_MAX + 1}u;
 const SORT_LANES:u32=256u;
 var<workgroup> rankPlace:array<atomic<u32>,RANKS>;
-fn rankOf(word:u32)->u32{return (word>>PAGE_BITS)^REQUEST_AHEAD;}
 /** Counting sort of the staged requests into the snapshot, one workgroup: count each rank, give
  *  each rank its first place from the highest down, then scatter. Within a rank the order is the
  *  threads', as it was the counter's: the rank alone orders, as on the reference. */
@@ -50,13 +50,13 @@ fn dagSortRequests(@builtin(local_invocation_index) lane:u32){
  let n=min(atomicLoad(&out.count),views[0u].listCap);
  for(var r=lane;r<RANKS;r+=SORT_LANES){atomicStore(&rankPlace[r],0u);}
  workgroupBarrier();
- for(var s=lane;s<n;s+=SORT_LANES){atomicAdd(&rankPlace[rankOf(out.pages[stagedAt(s)])],1u);}
+ for(var s=lane;s<n;s+=SORT_LANES){atomicAdd(&rankPlace[requestWordRank(out.pages[stagedAt(s)])],1u);}
  workgroupBarrier();
  if(lane==0u){
   var place=0u;
   for(var r=RANKS;r>0u;r--){let held=atomicLoad(&rankPlace[r-1u]);atomicStore(&rankPlace[r-1u],place);place+=held;}
  }
  workgroupBarrier();
- for(var s=lane;s<n;s+=SORT_LANES){let word=out.pages[stagedAt(s)];out.pages[atomicAdd(&rankPlace[rankOf(word)],1u)]=word;}
+ for(var s=lane;s<n;s+=SORT_LANES){let word=out.pages[stagedAt(s)];out.pages[atomicAdd(&rankPlace[requestWordRank(word)],1u)]=word;}
 }
 `;

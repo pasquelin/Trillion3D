@@ -6,7 +6,7 @@ import type { DagViewUniforms } from '../types.ts';
 import { dagViewFrames } from './math.ts';
 import { AHEAD_LEAF, dagOracleDescent } from './descent.ts';
 import {
-  REQUEST_AHEAD,
+  firstAheadRequest,
   packRequest,
   quantizeRequestPriority,
   requestPage,
@@ -136,7 +136,7 @@ export function evaluateDagSelectionKernel(
   // The readout is returned as `dagSortRequests` writes it: highest `requestRank` first, every
   // visible request before the view ahead's (`../request.ts`).
   const sorted = [...sortRequestWords(requestWords)],
-    visibleWords = sorted.filter((word) => !(requestPriority(word) & REQUEST_AHEAD));
+    visibleWords = sorted.slice(0, firstAheadRequest(sorted));
   return {
     pageIds: visibleWords.map(requestPage),
     aheadPageIds: sorted.slice(visibleWords.length).map(requestPage),
@@ -148,5 +148,8 @@ export function evaluateDagSelectionKernel(
     selectedTriangles: totaux.drawn,
     transparentTriangles: totaux.transparent,
     drawnTriangles: totaux.drawn,
-  } as SelectionResult;
+  } as SelectionResult & {
+    /** The request words in the order `dagWanted` stages them, before the GPU sorts them. */
+    requestWords: number[];
+  };
 }
