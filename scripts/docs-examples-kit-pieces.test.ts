@@ -34,7 +34,7 @@ const LOOKS: Record<string, MatcapLook> = {
 };
 
 test('the leaf and the matcap balls are painted to the byte as their pages painted them', (t) => {
-  let pixels = new Uint8ClampedArray();
+  let pixels: Uint8ClampedArray = new Uint8ClampedArray();
   const context = {
     createImageData: (width: number, height: number) => ({
       data: new Uint8ClampedArray(width * height * 4),
