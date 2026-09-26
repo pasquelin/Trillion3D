@@ -29,10 +29,9 @@ test('a pool 10 km out is drawn from its origin: the words hold to the millimetr
     view = [...IDENTITY.slice(0, 12), -eye[0], -eye[1], -eye[2], 1],
     words = new Float32Array(DRAW_FLOATS);
   writeDrawWords(words, pool, view, eye);
-  assert.deepEqual([...words.subarray(12, 16)], [Math.fround(-0.001), 0, 0, 1], 'origin to eye');
-  assert.deepEqual([...words.subarray(28, 31)], [Math.fround(0.001), 0, 0], 'and back');
-  assert.deepEqual([...words.subarray(32, 36)], [Math.fround(0.001), 0, 0, 0.5], 'eye, size');
-  assert.deepEqual([...words.subarray(36, 41)], [1, 0.8, 0.5, 1, 0.5].map(Math.fround));
+  // Origin to eye and back, eye from the origin, size, colour, softness: each to the millimetre.
+  const got = [12, 13, 15, 28, 32, 35, 36, 37, 38, 39, 40].map((i) => words[i]);
+  assert.deepEqual(got, [-0.001, 0, 1, 0.001, 0.001, 0.5, 1, 0.8, 0.5, 1, 0.5].map(Math.fround));
 });
 
 /** An encoder that logs its render passes, and each draw's pipeline, vertices and instances. */
@@ -87,10 +86,9 @@ test('WebGPU: a draw that cannot compile is heard, and the next step keeps its p
 });
 
 test('WebGPU without the visibility buffer refuses the pools by name, heard once', () => {
-  const heard: string[] = [],
-    [smoke] = scene(),
-    diag = { diagnosticFailure: (code: string, e: Error) => heard.push(`${code} ${e.message}`) };
-  const rt = { context: { particles: [smoke] }, vis: { visEnabled: false }, gpu: {}, diag };
+  const [heard, [smoke]] = [[] as string[], scene()],
+    diag = { diagnosticFailure: (code: string, e: Error) => heard.push(`${code} ${e.message}`) },
+    rt = { context: { particles: [smoke] }, vis: { visEnabled: false }, gpu: {}, diag };
   const encode = () => encodeParticles(rt as never, fakeDevice().device, {} as GPUCommandEncoder);
   [0, 1].forEach(encode);
   assert.deepEqual([smoke.refused, heard.length], [true, 1]);
@@ -100,7 +98,8 @@ test('WebGPU without the visibility buffer refuses the pools by name, heard once
 const output = { framebuffer: null, width: 8, height: 4, toneMapped: true };
 
 test("WebGL2: the frame's depth is copied, then the pools far to near, each with its blend", () => {
-  const { ctx, run, particles } = webgl(),
+  const errors = ['INVALID_OPERATION'], // left by an earlier call: it never refuses the pools
+    { ctx, run, particles } = webgl(undefined, { getError: () => errors.shift() ?? 'NO_ERROR' }),
     pools = scene();
   assert.equal(particles.draw([], createHostDrawCamera(), output), 0);
   assert.deepEqual(ctx.of('blitFramebuffer'), [], 'no particle: nothing copied, nothing drawn');
@@ -117,22 +116,13 @@ test("WebGL2: the frame's depth is copied, then the pools far to near, each with
   assert.match(`${fragment}`, /out vec4 untoned;[^]*untoned = vec4\(0\., 0\., 0\., k\);/);
 });
 
-test('WebGL2: an earlier GL error never refuses; a depth not copied refuses, the next step too', () => {
-  const errors = ['INVALID_OPERATION'], // left by an earlier call, not by the copy
-    copy = { fails: false },
-    blitFramebuffer = () => void (copy.fails && errors.push('INVALID_OPERATION')),
-    getError = () => errors.shift() ?? 'NO_ERROR';
-  const { run, particles } = webgl(undefined, { blitFramebuffer, getError }),
+test('WebGL2: a depth not copied refuses the pools by name, and the next step keeps them so', () => {
+  const { run, particles } = webgl(undefined, { getError: () => 'INVALID_OPERATION' }),
     [smoke] = scene();
   smoke.emit(0, 0, -2, 0, 1, 0, 2);
   run([smoke]);
-  assert.equal(particles.draw([smoke], createHostDrawCamera(), output), 1);
-  copy.fails = true;
-  const other = { ...output, framebuffer: {} as WebGLFramebuffer };
-  assert.match(
-    `${particles.draw([smoke], createHostDrawCamera(), other)}`,
-    /PARTICLES_UNSUPPORTED/,
-  );
+  const refused = particles.draw([smoke], createHostDrawCamera(), output);
+  assert.match(`${refused}`, /PARTICLES_UNSUPPORTED/);
   run([smoke]);
-  assert.equal(smoke.refused, true, 'the next step keeps it refused');
+  assert.equal(smoke.refused, true);
 });

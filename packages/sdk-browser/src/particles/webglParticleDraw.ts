@@ -35,8 +35,7 @@ void main() {
   life = 1. - p.w / w.w;
 }`;
 
-/** Written where the host composed its image: linear radiance for the effect chain, otherwise
- *  through the display chain every engine program writes by. */
+/** Linear radiance for the effect chain, otherwise through the engine's display chain. */
 const FRAGMENT = `#version 300 es
 precision highp float;
 uniform highp sampler2D sceneDepth;
@@ -57,9 +56,8 @@ void main() {
   fragColor = vec4(shown, 1.) * k; untoned = vec4(0., 0., 0., k); // toned, blended as the colour
 }`;
 
-/** The WebGL2 particle draw over the host's image: its depth copied for the soft edge, then one
- *  instanced draw per live pool (`drawOrder`) from the step's target (`stateOf`). A context that
- *  cannot copy the depth returns `PARTICLES_UNSUPPORTED` once, the pools refused, never drawn. */
+/** The WebGL2 particle draw over the host's image, its depth copied for the soft edge; a depth
+ *  it cannot copy returns `PARTICLES_UNSUPPORTED` once, the pools refused, never drawn. */
 export function createWebglParticleDraw(
   gl: WebGL2RenderingContext,
   texels: number,
@@ -133,9 +131,7 @@ export function createWebglParticleDraw(
       gl.uniform1i(live.uniforms.curve, TONE_MAPPING_RANK[curve]);
       bindWebglTexture(gl, 1, live.copy.texture);
       gl.enable(gl.BLEND);
-      gl.enable(gl.DEPTH_TEST);
-      gl.depthFunc(gl.LEQUAL);
-      gl.depthMask(false);
+      gl.disable(gl.DEPTH_TEST); // the soft edge is the only depth test, as on WebGPU
       gl.disable(gl.CULL_FACE);
       let draws = 0;
       for (const pool of order) {
@@ -157,7 +153,6 @@ export function createWebglParticleDraw(
       gl.activeTexture(gl.TEXTURE0);
       gl.bindTexture(gl.TEXTURE_2D, null);
       gl.disable(gl.BLEND);
-      gl.depthMask(true);
       gl.bindVertexArray(null);
       gl.useProgram(null);
       return draws;
