@@ -1,3 +1,4 @@
+import { EngineError } from '../../../sdk-core/src/contracts/cache.ts';
 import {
   BODY_INDEX,
   SOFT_STATE_WORDS,
@@ -13,6 +14,22 @@ import type { Mesh } from '../../../sdk-core/src/world/object/mesh.ts';
 import { type Bodied, type createPhysicsBodies } from './bodies.ts';
 
 type Pose = { position: ArrayLike<number>; quaternion: ArrayLike<number> };
+
+/** How far, relatively, a soft body's world scale may stray from the one it was made at. */
+const SCALE_TOLERANCE = 1e-4;
+const near = (s: number, at: number) => Math.abs(s - at) <= SCALE_TOLERANCE * Math.abs(at);
+/** Whether `scale`, a soft body's world scale, is `at`, the one it was made (or cooked) at. */
+export const fits = (scale: { x: number; y: number; z: number }, at: ArrayLike<number>) =>
+  near(scale.x, at[0]) && near(scale.y, at[1]) && near(scale.z, at[2]);
+
+/** The refusal of soft body `what`, made at scale `at` and placed at another: Jolt scales no soft
+ *  body once made. `names` say which. */
+export const rescaledSoft = (what: string, at: ArrayLike<number>, names: Record<string, unknown>) =>
+  new EngineError(
+    'PHYSICS_FAILED',
+    `The soft body ${what} was made at scale ${Array.from(at).join(', ')}: it is placed at another.`,
+    names,
+  );
 
 /**
  * Writes the SOFT command of body `id`, made with the options `p` over the matter `matter` of its
