@@ -7,7 +7,6 @@ import { effectsMoved } from '../pages/render/encodeEffects.ts';
 import { guidesMoved } from '../pages/render/encodeGuides.ts';
 import { grantPending } from '../../gpu/core/errorScope.ts';
 import { frameTargetsAwaited } from '../pages/prepare/targetGrant.ts';
-import { deviceAnswer } from './deviceAnswer.ts';
 
 /** What can still change the frame, one bit each; `unsettledReasons` names them. */
 const REASONS = [
@@ -134,9 +133,9 @@ function recordHeldFrameWork(rt: WebgpuPagesRuntime, presented: boolean, submitM
  * is a frame whose targets the device has not granted (`targetGrant.ts`). A capture is never held:
  * it waited for those answers before it began.
  */
-const awaitsDevice = (rt: WebgpuPagesRuntime) =>
-  (grantPending(rt.lights.shadowGrant) !== undefined || frameTargetsAwaited(rt)) &&
-  !rt.capture.capturing;
+const answering = (rt: WebgpuPagesRuntime) =>
+  grantPending(rt.lights.shadowGrant) !== undefined ||
+  grantPending(rt.gpu.targetGrant) !== undefined;
 
 /**
  * The held frame. No CPU step is executed and nothing is re-encoded: the previous frame's colour
@@ -149,8 +148,10 @@ const awaitsDevice = (rt: WebgpuPagesRuntime) =>
  * Redisplaying the intact target yields it exactly, and that is the only command encoded.
  */
 export function holdWebgpuFrame(rt: WebgpuPagesRuntime, device: GPUDevice) {
-  const { run, gpu } = rt;
-  if (!awaitsDevice(rt)) {
+  const { run, gpu } = rt,
+    awaited = frameTargetsAwaited(rt),
+    answered = !answering(rt);
+  if ((answered && !awaited) || rt.capture.capturing) {
     // Still frame: nothing it depends on has moved and nothing is in flight. That is the frame
     // input of temporal accumulation, which restarts there in a fixed phase and converges over a
     // full cycle of those frames before one of them can be held (`TAA_STILL_FRAMES`).
@@ -164,13 +165,13 @@ export function holdWebgpuFrame(rt: WebgpuPagesRuntime, device: GPUDevice) {
     }
   }
   // Held on an answer still in flight is not the still frame the page waits for (`frameHeld`):
-  // that answer asks the next frame.
-  run.frameHeld = deviceAnswer(rt) === undefined;
+  // that answer asks the next frame, and nothing it holds is this frame.
+  run.frameHeld = answered;
   run.frame++;
   const start = performance.now();
   let presented = false;
   // Nothing drawn yet, or targets not granted: nothing is shown.
-  if (gpu.presenter && gpu.colorTexture && run.imageRevision > 0 && !frameTargetsAwaited(rt)) {
+  if (gpu.presenter && gpu.colorTexture && run.imageRevision > 0 && !awaited) {
     const encoder = device.createCommandEncoder({ label: 'Trillion3D held frame' });
     gpu.presenter.present(encoder, gpu.colorTexture, gpu.targetSize[0], gpu.targetSize[1]);
     device.queue.submit([encoder.finish()]);
