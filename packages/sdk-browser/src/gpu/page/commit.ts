@@ -24,14 +24,23 @@ export function evictResident(
   }));
 }
 
-/** The next page of the published eviction order still resident and unpinned, taken from it. */
+/** The next page of the published eviction order still resident and unpinned, taken from it:
+ *  once it is spent, the burst stops until the next readback. */
 function orderedVictim({ eviction, resident, pins }: GpuPageContext) {
-  const { order } = eviction;
-  while (order && eviction.at < order.length) {
-    const key = order[eviction.at++],
+  const order = eviction.order!;
+  while (eviction.at < order.count) {
+    const key = order.keyAt(eviction.at++),
       page = resident.get(key);
     if (page && !pins.has(key)) return page;
   }
+  return undefined;
+}
+
+/** The least recently loaded or touched unpinned page. Everything pinned is stated in O(1),
+ *  without walking residency: a pool full for the view, every burst until the cut has grown. */
+function leastRecentVictim({ resident, pins }: GpuPageContext) {
+  if (pins.size < resident.size)
+    for (const page of resident.values()) if (!pins.has(page.key)) return page;
   return undefined;
 }
 
@@ -48,21 +57,13 @@ export function commitGpuPage(
   state.bytesRead += bytes.byteLength;
   let slot = free.pop();
   if (slot === undefined) {
-    let victim = orderedVictim(context);
-    // Everything is pinned: stated in O(1), without walking residency — this is a pool full
-    // for the view, repeating every burst until the cut has grown.
-    if (!context.eviction.order && pins.size < resident.size)
-      for (const page of resident.values()) {
-        if (!pins.has(page.key)) {
-          victim = page;
-          break;
-        }
-      }
+    const ordered = !!context.eviction.order;
+    const victim = ordered ? orderedVictim(context) : leastRecentVictim(context);
     if (!victim) {
       emit('gpu-page-admission-blocked', 'No evictable GPU slot', () => ({
         version: 1,
         key,
-        reason: 'all-pages-pinned',
+        reason: ordered ? 'eviction-queue-spent' : 'all-pages-pinned',
         resident: resident.size,
         slots,
         pinned: pins.size,

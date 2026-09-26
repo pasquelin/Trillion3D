@@ -6,7 +6,7 @@ import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts';
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
 import { createGpuDagSelection } from './selection.ts';
 import { requestScene } from './requestScene.fixture.ts';
-import { canonicalPage, evictionRank, listEvictions } from './evict.ts';
+import { KEY_PAGE_BITS, canonicalPage, evictionRank, listEvictions } from './evict.ts';
 import { keyBase } from './layout.ts';
 
 /** Four placements of one page set, every page in the pool: each call cuts with the pool at
@@ -27,7 +27,7 @@ async function residentCut() {
     assert.ok(result?.evictPageIds);
     return { result, queue: [...result.evictPageIds] };
   };
-  return { scene, keys, cut, levelOf: (page: number) => keys[page] >>> 22 };
+  return { scene, keys, cut, levelOf: (page: number) => keys[page] >>> KEY_PAGE_BITS };
 }
 const WIDE = 1 << 20;
 

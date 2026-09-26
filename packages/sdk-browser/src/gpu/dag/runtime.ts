@@ -41,6 +41,7 @@ export function createDagRuntime(resources: DagResources): GpuSelection {
     readbackWorldRevision: -1,
     mapped: new Array<boolean>(DAG_READBACK_SLOTS).fill(false),
     slot: 0,
+    poolSlots: 0,
   };
   /** Cuts in hand and in flight name pages the kernel may no longer choose: they are void. */
   const voidCuts = () => {
@@ -120,8 +121,8 @@ export function createDagRuntime(resources: DagResources): GpuSelection {
       return true;
     },
     setPoolSlots(slots) {
-      if (resources.pool.slots === slots) return;
-      resources.pool.slots = slots;
+      if (state.poolSlots === slots) return;
+      state.poolSlots = slots;
       // The next dispatch cuts and reads back again, under the new bound: the cut in hand stays.
       state.submittedResidencyRevision = state.readbackResidencyRevision = -1;
     },
