@@ -2,29 +2,20 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { BODY_INDEX, CommandWriter, FLAG, OP } from '../../../sdk-core/src/physics/index.ts';
 import { plane } from '../../../sdk-core/src/world/geometry/basic.ts';
-import { Camera } from '../../../sdk-core/src/world/camera/camera.ts';
 import { Material } from '../../../sdk-core/src/world/material/material.ts';
 import { Mesh } from '../../../sdk-core/src/world/object/mesh.ts';
-import { Group } from '../../../sdk-core/src/world/object/object3d.ts';
 import { CLOTH, flatCloth, softWorld } from './soft.fixture.ts';
-import { fakeWorkers, loaded } from './worker.fixture.ts';
-import { createWorldPhysics } from './worldPhysics.ts';
+import { fakePhysicsWorld } from './worker.fixture.ts';
 
 // #740: a page-built soft body the page moves is carried there as a cooked one is (#723), its
 // simulation kept; placed at another scale, it is refused by name, as a cooked one is.
 test('a page-built cloth moved is teleported with its flags, never made again; rescaled, refused by name', async () => {
-  const { workers, restore } = fakeWorkers();
+  const { scene, physics, worker, restore } = await fakePhysicsWorld();
   try {
-    const scene = new Group();
-    const runtime = { invalidate() {}, explorer: null };
-    const physics = createWorldPhysics(runtime, scene, () => new Camera('perspective'), true);
     const cloth = new Mesh(plane(1, 1, 2, 2), new Material('meshStandard'));
     cloth.name = 'flag';
     cloth.physics = { type: 'cloth' };
     scene.add(cloth);
-    await loaded();
-    const [worker] = workers;
-    worker.onmessage({ data: { type: 'ready' } });
     physics.frame();
     const index = cloth.physics._index;
     cloth.position.set(3, 2, 1);

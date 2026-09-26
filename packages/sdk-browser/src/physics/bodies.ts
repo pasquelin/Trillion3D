@@ -50,7 +50,11 @@ export function createPhysicsBodies(
 ) {
   const slots = createBodySlots(budget.bodies);
   const { meshes } = slots;
-  const held: (Bodied['physics'] | null)[] = [];
+  /** The `physics` slot `index`'s mesh was made with, or `null`. */
+  const heldAt = (index: number) => {
+    const owner = slots.at(index);
+    return owner && 'mesh' in owner ? owner.physics : null;
+  };
   /** What each slot's body counts against the budget beyond itself; a soft body's vertex map. */
   const claimed = new Map<number, { triangles: number; softVertices: number }>();
   const softMaps: (Uint32Array | null)[] = [];
@@ -75,8 +79,9 @@ export function createPhysicsBodies(
     // The world pose as the transform tree composes it.
     const pose = worldPoseOf(mesh),
       size = worldScaleOf(mesh);
-    const owner: SlotOwner = { mesh, scale: [size.x, size.y, size.z] };
+    const owner: SlotOwner = { mesh, physics: p };
     if (isSoftType(p.type)) {
+      owner.scale = [size.x, size.y, size.z];
       const take = (triangles: number, vertices: number) => claim(triangles, vertices, owner);
       return hold(mesh, addSoftBody(writer, mesh, pose, size, take, softMaps, flagsOf(mesh)));
     }
@@ -107,7 +112,6 @@ export function createPhysicsBodies(
   /** A slot's body made: the mesh that holds it. */
   const hold = (mesh: Bodied, index: number) => {
     const p = mesh.physics;
-    held[index] = p;
     if (p.decorative) count.decorative++;
     p._attach(host, index, state);
   };
@@ -127,7 +131,6 @@ export function createPhysicsBodies(
   /** A slot's body removed, and the slot freed for the next. */
   const release = (index: number) => {
     writer.remove(index);
-    held[index] = null;
     slots.release(index);
     count.bodies--;
     count.triangles -= claimed.get(index)?.triangles ?? 0;
@@ -136,9 +139,8 @@ export function createPhysicsBodies(
     softMaps[index] = null;
   };
   const removeAt = (index: number) => {
-    const mesh = meshes[index],
-      p = held[index];
-    if (!mesh || !p) return;
+    const p = heldAt(index);
+    if (!p) return;
     release(index);
     if (p.decorative) count.decorative--;
     p._detach();
@@ -162,7 +164,7 @@ export function createPhysicsBodies(
     /** A decorative body fell asleep, or the module refused its shape: out of the simulation and
      *  of the budget, until its `physics` is set again. */
     retire(index: number) {
-      const p = held[index];
+      const p = heldAt(index);
       removeAt(index);
       if (p) retired.add(p);
     },
@@ -175,7 +177,7 @@ export function createPhysicsBodies(
     reconcile(stale: ReadonlySet<Object3D>, refused: (error: unknown) => void) {
       for (let i = 0; i < meshes.length; i++) {
         const mesh = meshes[i];
-        if (mesh && (!mesh._link || mesh.physics !== held[i] || stale.has(mesh))) removeAt(i);
+        if (mesh && (!mesh._link || mesh.physics !== heldAt(i) || stale.has(mesh))) removeAt(i);
       }
       root.traverse((node) => {
         if (!hasBody(node) || node.physics._host || retired.has(node.physics)) return;

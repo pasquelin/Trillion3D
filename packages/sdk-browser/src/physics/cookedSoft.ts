@@ -118,7 +118,8 @@ export function createCookedSoftBodies(
      *  again. */
     refused({ model, soft }: { model: Model; soft: CookedMade }) {
       const made = held.get(model)?.made ?? [];
-      if (made.includes(soft)) made.splice(made.indexOf(soft), 1);
+      const at = made.indexOf(soft);
+      if (at >= 0) made.splice(at, 1);
       bodies.release(soft.id & BODY_INDEX);
     },
   };

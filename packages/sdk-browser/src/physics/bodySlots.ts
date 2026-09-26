@@ -1,50 +1,42 @@
-import { BODY_INDEX, GENERATION_SHIFT, GENERATIONS } from '../../../sdk-core/src/physics/index.ts';
+import { BODY_INDEX, type ObjectPhysics } from '../../../sdk-core/src/physics/index.ts';
 import type { Bodied } from './bodies.ts';
 import type { CookedMade } from './cookedSoft.ts';
+import { createSimulatedIds } from './simulatedIds.ts';
 import type { Model, Placed } from './tilePlace.ts';
 
-/** Who holds a body slot: a page's mesh, made at its world `scale`; a cooked tile of a model; or
- *  a cooked soft body of one. */
+/** Who holds a body slot: a page's mesh with the `physics` it was made with, a soft one at its
+ *  world `scale`; a cooked tile of a model; or a cooked soft body of one. */
 export type SlotOwner =
-  | { mesh: Bodied; scale: readonly [number, number, number] }
+  | { mesh: Bodied; physics: ObjectPhysics; scale?: readonly [number, number, number] }
   | { model: Model; tile: Placed }
   | { model: Model; soft: CookedMade };
 
 /**
- * The one owner of each body slot, read by engine id — a slot and its generation (`BODY_INDEX`),
- * moved on at every take and release —, so the id of a slot's earlier body, in a tick or a ray's
- * hit, names nothing. `meshes` is the page's column of it, by slot, for the poses.
+ * The one owner of each body slot, read by engine id (`createSimulatedIds`), so the id of a slot's
+ * earlier body, in a tick or a ray's hit, names nothing. `meshes` is the page's column of it, by
+ * slot, for the poses.
  */
 export function createBodySlots(size: number) {
-  const owners: (SlotOwner | null)[] = [];
+  const ids = createSimulatedIds<SlotOwner, Uint8Array>(new Uint8Array(size));
   const meshes: (Bodied | null)[] = [];
-  const generation = new Uint8Array(size);
-  const free: number[] = [];
-  const next = (index: number) => (generation[index] = (generation[index] + 1) % GENERATIONS);
-  /** What engine id `id` names, or `null` once that body left its slot. */
-  const of = (id: number): SlotOwner | null => {
-    const index = id & BODY_INDEX;
-    return generation[index] === id >>> GENERATION_SHIFT ? (owners[index] ?? null) : null;
-  };
+  const { of } = ids;
   return {
     meshes,
-    generation,
+    generation: ids.generation,
     /** A free slot held by `owner`: its engine id. */
     take(owner: SlotOwner) {
-      const index = free.pop() ?? owners.push(null) - 1;
-      owners[index] = owner;
-      meshes[index] = 'mesh' in owner ? owner.mesh : null;
-      return index | (next(index) << GENERATION_SHIFT);
+      const id = ids.take(owner);
+      meshes[id & BODY_INDEX] = 'mesh' in owner ? owner.mesh : null;
+      return id;
     },
     /** Slot `index` given back: no id of it names anything until it is taken again. */
     release(index: number) {
-      owners[index] = meshes[index] = null;
-      next(index);
-      free.push(index);
+      ids.release(index);
+      meshes[index] = null;
     },
     of,
     /** What slot `index` holds now, whatever id asks. */
-    at: (index: number): SlotOwner | null => owners[index] ?? null,
+    at: ids.at,
     /** The mesh an engine id names, or `null`. */
     meshOf(id: number) {
       const owner = of(id);
