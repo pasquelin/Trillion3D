@@ -48,7 +48,19 @@ const ITEM_SIZE: Record<string, number> = { position: 3, normal: 3, color: 4 };
 const itemSize = (name: string) => ITEM_SIZE[name] ?? 2;
 
 export function createAutonomousGeometry(env: GeometryEnvironment) {
-  const { scene, allPages, shown, byUrl, baseMaterials, colorMaterials } = env;
+  const {
+    scene,
+    allPages,
+    bootstrap,
+    shown,
+    desired,
+    requested,
+    byUrl,
+    descriptors,
+    baseMaterials,
+    colorMaterials,
+    modifiedPages,
+  } = env;
   const state = { allocationBytes: 0, submittedTriangles: 0, residentPages: 0 };
   const held = createHeldResidency();
   /** The one writer of a record's residency, its index array: the cut's readiness follows it. */
@@ -129,13 +141,13 @@ export function createAutonomousGeometry(env: GeometryEnvironment) {
       }
       baseMaterials.delete(rec);
     }
-    for (const list of [allPages, env.bootstrap, shown, env.desired, env.requested])
+    for (const list of [allPages, bootstrap, shown, desired, requested])
       for (let i = list.length - 1; i >= 0; i--) if (removed.has(list[i])) list.splice(i, 1);
   };
   const storeGeometryPage = (url: string, data: DecodedGeometryPage) => {
     const recs = byUrl.get(url);
     if (!recs) return false;
-    const descriptor = env.descriptors.get(url);
+    const descriptor = descriptors.get(url);
     if (
       !descriptor ||
       data.vertexCount !== descriptor.vertexCount ||
@@ -168,7 +180,7 @@ export function createAutonomousGeometry(env: GeometryEnvironment) {
   };
   // True when the store now holds the page: the host did not replace it, and a record draws it.
   const acceptGeometryPage = (url: string, data: DecodedGeometryPage) =>
-    !env.modifiedPages.has(url) && storeGeometryPage(url, data);
+    !modifiedPages.has(url) && storeGeometryPage(url, data);
   return {
     state,
     /** The cut's residency: each record's index array, its readiness moved as `setArray` writes. */

@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import * as G from '../../host/graph/graph.fixture.ts';
 import { createAutonomousGeometry } from './geometry.ts';
 import { referenceAutonomousSync } from '../../../../../bench/oracles/browser/autonomous-backend.ts';
-import type { PageRec } from '../../page/selection/types.ts';
+import type { ClusterRoot, PageRec } from '../../page/selection/types.ts';
 import { surfaceOf } from '../../page/surface.ts';
 
 function fakeScene() {
@@ -195,6 +195,40 @@ test('the store keeps a page by page, checked against the catalogue even when no
   assert.equal(store.state.residentPages, 1, 'one page, two records, stored twice');
   assert.deepEqual([store.releasePage('p.bin'), store.releasePage('p.bin')], [true, false]);
   assert.equal(store.state.residentPages, 0, 'the page, not its two records, left');
+  store.dispose();
+  material.dispose();
+});
+
+test("the store's loads and releases move the cut's readiness, and only through its feed", () => {
+  const { scene } = fakeScene();
+  const material = G.standardSurface();
+  const recs = [0, 1].map((id) => ({
+    ...makeRec(id, 1),
+    ...{ url: `p${id}.bin`, array: undefined, geometry: undefined },
+    ...{ placementIndex: 0, packedIndex: id },
+  }));
+  const env = environnement(scene, recs, []);
+  const descriptor = { vertexCount: 3, indexCount: 3, flags: 0 } as never;
+  for (const rec of recs) {
+    env.byUrl.set(rec.url, [rec]);
+    env.descriptors.set(rec.url, descriptor);
+    env.baseMaterials.set(rec, material);
+  }
+  const store = createAutonomousGeometry(env);
+  // One placement laid out as `requests.ts` lays it: its moves route by rank.
+  const root = { pages: recs } as unknown as ClusterRoot<PageRec>;
+  store.held.track([root]);
+  const ready = () => recs.map((_, page) => store.held.readiness(root).isReady(page));
+  assert.deepEqual(ready(), [false, false], 'entered whole: nothing held yet');
+  const page = () => ({
+    ...{ indices: new Uint32Array([0, 1, 2]), vertexCount: 3, flags: 0, decodedBytes: 48 },
+    ...{ attributes: { position: new Float32Array(9) }, quantizationError: 0 },
+  });
+  store.storeGeometryPage('p1.bin', page());
+  assert.deepEqual(ready(), [false, true], 'the load reached the cut');
+  store.releasePage('p1.bin');
+  assert.deepEqual(ready(), [false, false], 'the release reached the cut');
+  assert.equal(store.held.unroutedReads, 0, 'every move was routed, none read whole');
   store.dispose();
   material.dispose();
 });
