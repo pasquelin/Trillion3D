@@ -769,6 +769,7 @@ writes a pose buffer and an event buffer. No emscripten glue is kept; the engine
 - **Timing.** The `physics` stage of `WEBGPU_STAGES` / `WEBGL_STAGES` (host step `physicsMs`) is the
   page's share; the worker's per-step time is reported apart, in `world.physics.stats.stepMs`
   (the module's step alone, the clock `scripts/bench-physics.ts` reads in Node).
+  Its GPU column is the particle step (`Trillion3D particles`, `particles/webgpuParticles.ts`).
 - **Threads.** On a cross-origin isolated page the page loads `joltPhysicsThreads.wasm` (atomics,
   bulk memory, shared memory) and Jolt's own thread pool steps it: each pool thread starts in C
   through `pthread_create`, which the loader (`physics/joltThreads.ts`) answers with a worker that
