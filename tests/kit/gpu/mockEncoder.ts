@@ -11,6 +11,8 @@ export type MockDraw = {
   indirect?: boolean;
   entryPoint?: string;
   fragment?: string;
+  /** The blend of the pipeline's first colour target, as it was made. */
+  blend?: GPUBlendState;
 };
 export type MockPass = {
   label?: string;
@@ -31,7 +33,8 @@ export function createMockCommandEncoderFactory(inputs: {
 }) {
   const { draws, passes, computes, imageCopies, packed, failVisPass } = inputs;
   let currentRenderEntry = '',
-    currentFragment = '';
+    currentFragment = '',
+    currentBlend: GPUBlendState | undefined;
   let currentBind: unknown,
     computeBind: ComputeBind | undefined,
     computeOffsets: readonly number[] | undefined,
@@ -61,9 +64,10 @@ export function createMockCommandEncoderFactory(inputs: {
         formats: colors.map((color) => color.view?.format ?? ''),
       });
       return {
-        setPipeline(pipeline: { entryPoint?: string; fragment?: string }) {
+        setPipeline(pipeline: { entryPoint?: string; fragment?: string; blend?: GPUBlendState }) {
           currentRenderEntry = pipeline.entryPoint ?? '';
           currentFragment = pipeline.fragment ?? '';
+          currentBlend = pipeline.blend;
         },
         setBindGroup(_i: number, group: unknown) {
           currentBind = group;
@@ -77,6 +81,7 @@ export function createMockCommandEncoderFactory(inputs: {
             firstInstance,
             entryPoint: currentRenderEntry,
             fragment: currentFragment,
+            ...(currentBlend && { blend: currentBlend }),
           });
           void currentBind;
         },

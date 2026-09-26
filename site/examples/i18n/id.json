@@ -937,6 +937,23 @@
       "spin": "Putar"
     }
   },
+  "health-check": {
+    "banner": "Seret untuk melihat sekeliling. Centang Kemudikan untuk mengambil mobil: W atau ↑ mempercepat, S atau ↓ mengerem, A D atau ← → membelok. Jatuhkan lagi menjatuhkan peti dan bola sekali lagi.",
+    "words": {
+      "credit": "Lembah dimodelkan dalam kode untuk contoh ini, CC0 — lihat assets/examples/CREDITS.md",
+      "refused": "Ditolak di backend ini"
+    },
+    "controls": {
+      "drive": "Kemudikan mobil",
+      "drop": "Jatuhkan lagi",
+      "reset": "Parkir mobil lagi"
+    },
+    "readouts": {
+      "bodies": "Benda",
+      "step": "Langkah",
+      "renderer": "Digambar dengan"
+    }
+  },
   "helpers-to-see-the-scene": {
     "banner": "Geser untuk berkeliling. Matikan alat bantu untuk melihat gambar polosnya.",
     "controls": {

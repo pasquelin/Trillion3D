@@ -28,7 +28,7 @@
 
       // The robot is a tree of named groups, each joint a group turned by three clips — walk,
       // wave and dance — keyed tracks the kit's `walkingRobot` plays together on one mixer.
-      const { robot, paint, actions } = walkingRobot({ geometry, material, object, animation });
+      const { robot, paint, actions, walkRound } = walkingRobot({ geometry, material, object, animation });
       world.scene.add(robot);
 
       // A stage: a dark floor, rings of tiles, a still spotlight wide enough for the whole walk —
@@ -64,9 +64,7 @@
       let heading = 0;
       world.onFrame(({ delta }) => {
         heading = (heading + delta * ui.speed * ui.walk * 0.35) % (Math.PI * 2);
-        robot.position.set(Math.sin(heading) * 2.4, 0, Math.cos(heading) * 2.4);
-        // All three angles at once: the engine may hand back an equivalent (π, y, π) form past ±90°.
-        robot.rotation.set(0, heading + Math.PI / 2, 0);
+        walkRound(heading, 2.4);
         world.invalidate();
       });
     </script>

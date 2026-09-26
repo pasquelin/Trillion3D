@@ -95,6 +95,8 @@ export function createWebgpuBlendState() {
     dirtySpans: new Set<number>(),
     /** Instances each item drew this image; only a CPU cut counts them, a GPU cut does not. */
     cpuItemCounts: new Uint32Array(0),
+    /** The fallback pass's draws of the image, three words each (`fallback.ts`). */
+    fallbackDraws: [] as number[],
     /** What the transparent groups currently name: a moved identity voids them. */
     identity: createWebgpuBindIdentity(),
     /** Lighting resources of the image, resolved once by `encodeBlend`: the blends, the water

@@ -1,7 +1,9 @@
 // Reading a rendered frame back: pixels, the frame-held wait, and the pixel comparisons the
 // browser proofs share. Split from `sharedSceneProof.ts` (scene construction and mounting)
 // to keep each file under the line gate.
-import type * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
+import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
+import { VIEWPORT } from './sharedSceneProof.ts';
+import { project } from '../probes/cameraRig.ts';
 import type { RenderBackend } from '../../../packages/sdk-browser/src/backend/types.ts';
 
 /** `RenderBackend` does not declare `cpuFrameEnd` publicly; the object `webgpuPagesBackend`
@@ -60,4 +62,23 @@ export function redCount(pixels: Uint8Array | number[]): number {
   let n = 0;
   for (let i = 0; i < pixels.length; i += 4) if (estRouge(pixels, i)) n++;
   return n;
+}
+
+const point = new G.Vector3();
+
+/** RGB read where world point `(x, y, z)` projects in an image of `viewport`, clamped to it.
+ *  Bottom-left origin, like `capture`. */
+export function couleurEn(
+  pixels: Uint8Array,
+  camera: G.GraphCamera,
+  x: number,
+  y: number,
+  z = 0,
+  [w, h]: readonly [number, number] = VIEWPORT,
+) {
+  project(point.set(x, y, z), camera);
+  const px = Math.min(w - 1, Math.max(0, Math.round(((point.x + 1) / 2) * (w - 1)))),
+    py = Math.min(h - 1, Math.max(0, Math.round(((point.y + 1) / 2) * (h - 1)))),
+    i = (py * w + px) * 4;
+  return [pixels[i], pixels[i + 1], pixels[i + 2]];
 }

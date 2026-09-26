@@ -937,6 +937,23 @@
       "spin": "回転"
     }
   },
+  "health-check": {
+    "banner": "ドラッグで見回します。「車を運転」をオンにすると車を操作: W か ↑ で加速、S か ↓ でブレーキ、A D か ← → で操舵。「もう一度落とす」で木箱とボールがまた落ちます。",
+    "words": {
+      "credit": "この例のためにコードでモデリングした谷、CC0 — assets/examples/CREDITS.md を参照",
+      "refused": "このバックエンドで拒否"
+    },
+    "controls": {
+      "drive": "車を運転",
+      "drop": "もう一度落とす",
+      "reset": "車を停め直す"
+    },
+    "readouts": {
+      "bodies": "物体",
+      "step": "ステップ",
+      "renderer": "描画"
+    }
+  },
   "helpers-to-see-the-scene": {
     "banner": "ドラッグして歩き回ろう。ヘルパーを消すとそのままの絵が見えるよ。",
     "controls": {

@@ -5,7 +5,11 @@ import { surfaceOf } from '../../page/surface.ts';
 import { BLEND_EQUATIONS, hostBlending } from '../../scene/materialBlending.ts';
 import { createWebgpuPagesPipelines } from '../pages/prepare/pipelines.ts';
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
-import { drawFallbackBlendPass, writeFallbackBlendUniforms } from './fallback.ts';
+import {
+  drawFallbackBlendPass,
+  listFallbackBlendDraws,
+  writeFallbackBlendUniforms,
+} from './fallback.ts';
 import { createWebgpuBlendState } from './state.ts';
 import type { Blending } from '../../../../sdk-core/src/world/constants/index.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
@@ -47,7 +51,7 @@ function drawn(blendings: (number | undefined)[]) {
     blendState,
   } as unknown as WebgpuPagesRuntime;
   const encoder = { beginRenderPass: () => pass } as unknown as GPUCommandEncoder;
-  drawFallbackBlendPass(rt, device, encoder, 0);
+  drawFallbackBlendPass(rt, device, encoder, 0, listFallbackBlendDraws(blendState, false));
   return set;
 }
 
@@ -71,22 +75,22 @@ test('the fallback pass refuses by name a blending no path draws', () => {
 // line quad (`lineClip`): it refuses a line surface by name instead of dropping it.
 function writeLines(lineWidth: number) {
   const { device, writes } = fakeDevice();
+  const blendState = createWebgpuBlendState();
+  blendState.visibleBlend = [
+    {
+      surface: surfaceOf(G.basicSurface({ transparent: true, opacity: 0.5, lineWidth })),
+      matrix: new G.Matrix4(),
+      rgba: [1, 1, 1, 0.5],
+      count: 6,
+      flags: 0,
+    },
+  ] as unknown as typeof blendState.visibleBlend;
   const rt = {
     run: { diagnostic: 'beauty' },
-    blendState: {
-      visibleBlend: [
-        {
-          surface: surfaceOf(G.basicSurface({ transparent: true, opacity: 0.5, lineWidth })),
-          matrix: new G.Matrix4(),
-          rgba: [1, 1, 1, 0.5],
-          count: 6,
-          flags: 0,
-        },
-      ],
-    },
+    blendState,
     gpu: { uniformPacked: new Float32Array(64).fill(7), uniformBuffer: {} },
   } as unknown as WebgpuPagesRuntime;
-  writeFallbackBlendUniforms(rt, device, 0);
+  writeFallbackBlendUniforms(rt, device, 0, listFallbackBlendDraws(blendState, false));
   return { written: writes, packed: rt.gpu.uniformPacked };
 }
 
@@ -98,4 +102,16 @@ test('the transparent fallback draws a triangle surface with no line width', () 
   const { written, packed } = writeLines(0);
   assert.equal(written.length, 1);
   assert.equal(packed[40], 0);
+});
+
+test('the fallback list refuses by name a paged item a GPU cut left without a CPU list', () => {
+  const blendState = createWebgpuBlendState();
+  blendState.table = { itemRanges: new Uint32Array(2), spans: new Uint32Array(0) } as never;
+  blendState.cpuItemCounts = new Uint32Array(1);
+  blendState.visibleBlend = [
+    { paged: true, pagedIndex: 0, count: 0 },
+  ] as unknown as typeof blendState.visibleBlend;
+  assert.throws(() => listFallbackBlendDraws(blendState, true), /FALLBACK_BLEND_WITHOUT_CPU_CUT/);
+  // The same item under a CPU cut that kept none of its clusters draws nothing, and is no error.
+  assert.deepEqual(listFallbackBlendDraws(blendState, false), []);
 });
