@@ -933,7 +933,8 @@ light is a `SceneLight` (version 2) of one of three kinds. `point` and `spot` ca
 overcast sky) carries only `direction` — the propagation direction — and is refused if given a
 `position`, a `range` or a `coneAngle`. All three carry linear `color`, a positive radiometric
 `intensity` and `castsShadow`. Bounds: none on the count — the light table grows with the scene;
-a 16×16 screen tile lists up to 64 lights reaching it and walks every light past that —; 64 shadow slices,
+a 16×16 screen tile lists up to 64 lights reaching it and walks every light of the scene past
+that, a walk #849 bounds by the view —; 64 shadow slices,
 past which a caster lights without a shadow (`shadowCastersUnsliced`), a 4096-square shadow atlas,
 and at most 24 shadow regions redrawn per frame. WebGL2 draws 64 lights and refuses more (#835).
 
