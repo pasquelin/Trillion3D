@@ -3,7 +3,11 @@ import { MAX_SHADOW_REGIONS as R } from './recordPack.ts';
 import { SHADOW_FACE_STRIDE } from './batchBudget.ts';
 import { shadowBatchWrites } from './batchWrites.ts';
 import { staticLayerEntries } from './staticLayer.ts';
-import { SHADOW_TRANSMITTANCE_FORMAT, TRANSMITTANCE_CLEAR_WGSL } from './transmittance.ts';
+import {
+  SHADOW_TRANSLUCENT_DEPTH_FORMAT,
+  SHADOW_TRANSMITTANCE_FORMAT,
+  TRANSMITTANCE_CLEAR_WGSL,
+} from './transmittance.ts';
 
 /** Bytes of the faces' entries, before the batch's pass order in the same buffer (`atlas.ts`). */
 const ORDER_OFFSET = R * SHADOW_FACE_STRIDE;
@@ -61,6 +65,7 @@ export async function createShadowPageQuads(device: GPUDevice, faces: GPUBuffer)
     layout: GPUPipelineLayout,
     fragment?: string,
     targets: GPUColorTargetState[] = [],
+    depth: GPUTextureFormat = 'depth32float',
   ) =>
     device.createRenderPipeline({
       label: `Trillion3D shadow page ${label} v1`,
@@ -68,7 +73,7 @@ export async function createShadowPageQuads(device: GPUDevice, faces: GPUBuffer)
       vertex: { module, entryPoint: 'page_quad_vs' },
       fragment: fragment ? { module, entryPoint: fragment, targets } : undefined,
       primitive: { topology: 'triangle-list', cullMode: 'none' },
-      depthStencil: { format: 'depth32float', depthWriteEnabled: true, depthCompare: 'always' },
+      depthStencil: { format: depth, depthWriteEnabled: true, depthCompare: 'always' },
     });
   const clear = pipeline('clear', dataOnly),
     restore = pipeline(
@@ -119,9 +124,13 @@ export async function createShadowPageQuads(device: GPUDevice, faces: GPUBuffer)
     /** Clears into the transmittance layer's `pass` the `count` regions from rank `first` of the
      *  order, in one draw. */
     clearTransmittance(pass: GPURenderPassEncoder, first: number, count: number) {
-      clearTransmittance ??= pipeline('transmittance clear', dataOnly, 'transmittance_clear_fs', [
-        { format: SHADOW_TRANSMITTANCE_FORMAT },
-      ]);
+      clearTransmittance ??= pipeline(
+        'transmittance clear',
+        dataOnly,
+        'transmittance_clear_fs',
+        [{ format: SHADOW_TRANSMITTANCE_FORMAT }],
+        SHADOW_TRANSLUCENT_DEPTH_FORMAT,
+      );
       pass.setBindGroup(0, group);
       quads(pass, clearTransmittance, first, count);
     },

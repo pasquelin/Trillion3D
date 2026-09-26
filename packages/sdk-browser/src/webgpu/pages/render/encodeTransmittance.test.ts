@@ -12,7 +12,11 @@ import { SHADOW_PAGE } from '../../../../../sdk-core/src/scene/light-shadow/virt
 import { DRAW_INDIRECT_STRIDE } from '../../../gpu/draw/draw.ts';
 import { MAX_SHADOW_REGIONS as R } from '../../../gpu/shadow/atlas.ts';
 import { createShadowPageQuads } from '../../../gpu/shadow/pageQuads.ts';
-import { SHADOW_TRANSMITTANCE_PASS } from '../../../gpu/shadow/transmittance.ts';
+import {
+  SHADOW_TRANSLUCENT_DEPTH_FORMAT,
+  SHADOW_TRANSMITTANCE_FORMAT,
+  SHADOW_TRANSMITTANCE_PASS,
+} from '../../../gpu/shadow/transmittance.ts';
 import { createShadowRegionList } from '../../shadow/regions.ts';
 import { planPagePasses } from '../../shadow/pagePasses.ts';
 import { encodeTransmittance } from './encodeTransmittance.ts';
@@ -25,23 +29,27 @@ const volumes = new Float32Array(R * SHADOW_CULL_FLOATS),
 const { device } = fakeDevice(),
   quads = await createShadowPageQuads(device, device.createBuffer({ size: 4, usage: 0 }));
 
+type Calls = Array<[string, unknown[]]>;
+/** A render pass that records every call it receives into `calls`, by name, in order. */
+const recorder = (calls: Calls) =>
+  new Proxy({} as GPURenderPassEncoder, {
+    get:
+      (_, name: string) =>
+      (...args: unknown[]) =>
+        void calls.push([name, args]),
+  });
+
 /** The layer's pass over `pages` pages drawn in `mode`, with or without blended casters: each
  *  render pass's calls, and the draw calls counted. */
 function encoded(pages: number, mode: number, casters: boolean) {
   const regions = createShadowRegionList(8);
   for (let page = 0; page < pages; page++) regions.push(page, mode, volumes, volumeWords);
   planPagePasses(regions, regions.count);
-  const passes: Array<Array<[string, unknown[]]>> = [];
-  const pass = new Proxy({} as Record<string, unknown>, {
-    get:
-      (_, name: string) =>
-      (...args: unknown[]) =>
-        void passes.at(-1)!.push([name, args]),
-  });
+  const passes: Calls[] = [];
   const encoder = {
     beginRenderPass: (d: GPURenderPassDescriptor) => {
       assert.equal(d.label, SHADOW_TRANSMITTANCE_PASS);
-      return (passes.push([]), pass);
+      return recorder((passes[passes.length] = []));
     },
   };
   const kept = {},
@@ -74,7 +82,7 @@ function encoded(pages: number, mode: number, casters: boolean) {
     opaqueGroups: ['opaque'],
   };
   encodeTransmittance(rt, device, encoder as never, quads, layer as never, false);
-  const draws = (calls: Array<[string, unknown[]]>) =>
+  const draws = (calls: Calls) =>
     calls.filter(([name]) => name === 'draw' || name === 'drawIndirect').length;
   assert.equal(rt.lights.shadowRenderPasses, passes.length);
   return { passes, perPass: passes.map(draws), drawCalls: rt.run.gpuDrawCalls, regions, rt };
@@ -118,8 +126,21 @@ test('each region draws its list twice at half its page place, after the clear',
     ['setPipeline', ['rblend']],
     ['drawIndirect', ['indirect', DRAW_INDIRECT_STRIDE * i]],
   ];
-  const clear = passes[0][1][1][0] as GPURenderPipelineDescriptor;
+  const [, [clear]] = passes[0].find(([name]) => name === 'setPipeline')! as [
+    string,
+    [GPURenderPipelineDescriptor],
+  ];
   assert.equal(clear.label, 'Trillion3D shadow page transmittance clear v1');
+  // The layer's own formats, and far written whatever was there.
+  assert.deepEqual(
+    [...clear.fragment!.targets].map((t) => t!.format),
+    [SHADOW_TRANSMITTANCE_FORMAT],
+  );
+  assert.deepEqual(clear.depthStencil, {
+    format: SHADOW_TRANSLUCENT_DEPTH_FORMAT,
+    depthWriteEnabled: true,
+    depthCompare: 'always',
+  });
   assert.deepEqual(passes[0].slice(2), [
     ['draw', [6, pages, 0, 0]],
     ['setBindGroup', [2, 'opaque']],
@@ -133,10 +154,9 @@ test('each region draws its list twice at half its page place, after the clear',
 test("the pool's depth pass sets its one pipeline once, whatever its regions", () => {
   for (const pages of [1, R]) {
     const { rt } = encoded(pages, DRAW_ALL, false),
-      calls: string[] = [];
-    const pass = new Proxy({}, { get: (_, name: string) => () => void calls.push(name) });
-    const draws = drawRegionCasters(rt, device, pass as never, 0, false, 1, ['depth' as never]);
+      calls: Calls = [];
+    const draws = drawRegionCasters(rt, device, recorder(calls), 0, false, 1, ['depth' as never]);
     assert.equal(draws, pages);
-    assert.equal(calls.filter((name) => name === 'setPipeline').length, 1, `${pages} pages`);
+    assert.equal(calls.filter(([name]) => name === 'setPipeline').length, 1, `${pages} pages`);
   }
 });
