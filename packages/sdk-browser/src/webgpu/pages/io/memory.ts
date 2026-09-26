@@ -110,6 +110,9 @@ export async function setWebgpuMemoryBudgets(
   }
   // Origin of the resource change: what the image holds has changed place or size.
   run.gate.resourcesChanged();
+  // Set while prepare runs, a budget is only recorded: the report waits for prepare, and names the
+  // pools the device grants. A prepare that fails reports its own failure.
+  await setup.preparing;
   const report = {
     geometryPool: setup.geometryPool,
     texturePool: setup.texturePools?.pool ?? null,

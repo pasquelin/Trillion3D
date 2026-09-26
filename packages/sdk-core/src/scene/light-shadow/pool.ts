@@ -14,9 +14,9 @@ export const DRAW_ALL = 0,
   DRAW_FULL = 1,
   DRAW_DYNAMIC = 2;
 
-/** Host bytes a `side × side` pool allocates, per page 9·4 + 3 + 2·8, one bit per table entry. */
+/** Host bytes a `side × side` pool allocates, per page 10·4 + 3 + 2·8, one bit per table entry. */
 export function shadowPoolHostBytes(side: number) {
-  return side * side * (9 * 4 + 3 + 2 * 8) + SHADOW_TABLE_ENTRIES / 8;
+  return side * side * (10 * 4 + 3 + 2 * 8) + SHADOW_TABLE_ENTRIES / 8;
 }
 
 /**
@@ -24,10 +24,8 @@ export function shadowPoolHostBytes(side: number) {
  * the light and the virtual page it draws — a sun level and its absolute page, or a lamp face,
  * mip and page —, whether its depth is current, and the last request that read it.
  *
- * A page is taken from the free list, or from the page least recently requested; a page the
- * latest request report named is never taken. Only mapped pages can be stale, so the scheduler
- * walks this table — at most `pages` records — never the virtual one. Allocated once, `side ×
- * side` pages (`shadowPoolSide`).
+ * A page is taken from the free list, else from the least recently requested page the latest
+ * report did not name. Only mapped pages go stale: the scheduler walks this table alone.
  */
 export function createShadowPool(side: number) {
   const pages = side * side;
@@ -45,20 +43,21 @@ export function createShadowPool(side: number) {
     valid = new Uint8Array(pages),
     /** The static layer holds this page's static casters, current. */
     layered = new Uint8Array(pages),
+    /** The frame it turned stale — its age in the list (`admit.ts`) —, and since when the image
+     *  has read it stale, in ms and frames, NaN unread (`counts.ts`). */
+    sinceFrame = new Int32Array(pages),
     since = new Float64Array(pages),
-    sinceFrame = new Int32Array(pages);
+    readFrame = new Int32Array(pages);
   const free = new Int32Array(pages),
     /** Eviction keys: last request, then rank, then page, packed into one exact number. */
     order = new Float64Array(pages);
   /** One bit per table entry: its page was evicted to make room, and it has not been drawn since. */
   const evicted = new Uint32Array(SHADOW_TABLE_ENTRIES / 32);
-  let refetched = 0,
-    freeCount = 0,
+  let freeCount = 0,
     orderCount = -1,
     orderAt = 0,
     orderFrame = -1;
-  /** The evictable pages of the report of `orderFrame`, in eviction order: built by the first
-   *  `take` the free list cannot serve, with one native numeric sort. */
+  /** The evictable pages of the report of `orderFrame`, in eviction order: one sort, at need. */
   const buildOrder = () => {
     orderCount = 0;
     orderAt = 0;
@@ -75,9 +74,10 @@ export function createShadowPool(side: number) {
     for (let page = 0; page < pages; page++) free[page] = pages - 1 - page;
     freeCount = pages;
     evicted.fill(0);
-    refetched = 0;
+    pool.refetched = 0;
   };
-  init();
+  // Data fields only, never an accessor: V8 keeps an object literal that has one in dictionary
+  // mode, and every read of these arrays in a loop over the pool then costs a hash lookup (#26).
   const pool = {
     owner,
     slice,
@@ -91,30 +91,26 @@ export function createShadowPool(side: number) {
     layered,
     since,
     sinceFrame,
+    readFrame,
     /** Physical pages per side of the atlas, and in all. */
     side,
     pages,
     /** Bytes of every host array the pool holds: what `shadowPoolHostBytes` declares. */
-    get hostBytes() {
-      const all = [owner, slice, view, x, y, rank, requested, dirty, valid, layered, since];
-      return [...all, sinceFrame, free, order, evicted].reduce((n, a) => n + a.byteLength, 0);
-    },
-    get used() {
-      return pages - freeCount;
-    },
+    hostBytes: [
+      ...[owner, slice, view, x, y, rank, requested, dirty, valid, layered, since],
+      ...[sinceFrame, readFrame, free, order, evicted],
+    ].reduce((n, a) => n + a.byteLength, 0),
+    /** Pages mapped. */
+    used: () => pages - freeCount,
     /** Entries mapped again after the pool evicted them: redraws the pool's size caused. */
-    get refetched() {
-      return refetched;
-    },
-    /** The page is stale from now on — its moving casters only, or its static ones too —, at the
-     *  most of what it already was; its wait never restarts. It stays read: only `withdraw` stops
-     *  that. True when it was current. */
+    refetched: 0,
+    /** Stale from now on (`STALE_*`), at most what it was; still mapped. True if it was current. */
     stale(page: number, nowMs: number, frame: number, level = STALE_FULL) {
       const was = dirty[page];
       if (was < level) dirty[page] = level;
       if (was) return false;
       since[page] = nowMs;
-      sinceFrame[page] = frame;
+      sinceFrame[page] = readFrame[page] = frame;
       return true;
     },
     /** How the page is to be drawn, a static layer existing or not (`DRAW_*`). */
@@ -183,7 +179,7 @@ export function createShadowPool(side: number) {
       if (page < 0) return -1;
       if (evicted[entry >> 5] & (1 << (entry & 31))) {
         evicted[entry >> 5] &= ~(1 << (entry & 31));
-        refetched++;
+        pool.refetched++;
       }
       owner[page] = entry;
       valid[page] = layered[page] = dirty[page] = 0;
@@ -194,7 +190,8 @@ export function createShadowPool(side: number) {
     },
     reset: init,
   };
-  return pool;
+  init();
+  return pool as Readonly<typeof pool>;
 }
 
 export type ShadowPool = ReturnType<typeof createShadowPool>;
