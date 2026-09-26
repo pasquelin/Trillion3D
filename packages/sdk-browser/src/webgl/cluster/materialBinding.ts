@@ -128,8 +128,9 @@ export function bindClusterMaterial(
   uniforms.f2(45, 'sprite', sprite[0], sprite[1]);
   const doubleSided = side === undefined ? mat.doubleSided : false,
     backSide = side === undefined ? mat.backSide : side === 'back';
-  // A depth material shows the frame's depth ramp in place of its colour (`beginFrame`).
-  uniforms.i1(35, 'depthShaded', mat.model === SURFACE_MODEL.depth ? 1 : 0);
+  // The surface model the program shades by (`../../scene/surfaceModel.ts`); a depth material
+  // shows the frame's depth ramp in place of its colour (`beginFrame`).
+  uniforms.i1(35, 'surfaceModel', mat.model ?? SURFACE_MODEL.standard);
   // A diagnostic view's surface is shown as it is, never through the fog
   // (`../../host/pageDiagnostics.ts`).
   uniforms.i1(38, 'fogFree', (material as { fog?: boolean }).fog === false ? 1 : 0);
