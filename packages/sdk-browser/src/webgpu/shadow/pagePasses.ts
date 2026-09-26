@@ -16,36 +16,39 @@ export const pagePlan = {
   restores: new Int32Array(R),
 };
 
-/** Where a region falls: the static layer's passes first, then the pool's, each by layer, and in a
- *  pass the clears before the restores. */
-const passKey = (regions: ShadowRegionList, region: number) =>
-  (regions.startOf(region) === REGION_STATIC ? 0 : 1 << 24) +
-  regions.layer(region) * 2 +
-  (regions.startOf(region) === REGION_RESTORE ? 1 : 0);
+/** Where a region falls: the static layer's passes first, then the pool's, each by layer — the
+ *  key without its lowest bit is the pass —, and in a pass the clears before the restores. */
+const passKey = (regions: ShadowRegionList, region: number) => {
+  const start = regions.startOf(region);
+  return (
+    (start === REGION_STATIC ? 0 : 1 << 24) +
+    regions.layer(region) * 2 +
+    (start === REGION_RESTORE ? 1 : 0)
+  );
+};
+const keys = new Int32Array(R);
 
 /** Plans the `count` regions of a batch into its render passes (`pagePlan`). */
 export function planPagePasses(regions: ShadowRegionList, count: number) {
   const { order, layer, layered, first, clears, restores } = pagePlan;
   // Insertion sort, stable: a batch holds a few dozen regions, and nothing is allocated.
   for (let region = 0; region < count; region++) {
-    const key = passKey(regions, region);
+    const key = (keys[region] = passKey(regions, region));
     let at = region;
-    for (; at > 0 && passKey(regions, order[at - 1]) > key; at--) order[at] = order[at - 1];
+    for (; at > 0 && keys[order[at - 1]] > key; at--) order[at] = order[at - 1];
     order[at] = region;
   }
   let k = -1;
   for (let at = 0; at < count; at++) {
-    const region = order[at],
-      start = regions.startOf(region),
-      inLayer = start === REGION_STATIC ? 1 : 0;
-    if (k < 0 || layer[k] !== regions.layer(region) || layered[k] !== inLayer) {
+    const key = keys[order[at]];
+    if (k < 0 || key >> 1 !== keys[order[first[k]]] >> 1) {
       k++;
-      layer[k] = regions.layer(region);
-      layered[k] = inLayer;
+      layer[k] = (key & 0xffffff) >> 1;
+      layered[k] = key < 1 << 24 ? 1 : 0;
       first[k] = at;
       clears[k] = restores[k] = 0;
     }
-    if (start === REGION_RESTORE) restores[k]++;
+    if (key & 1) restores[k]++;
     else clears[k]++;
   }
   pagePlan.passes = k + 1;

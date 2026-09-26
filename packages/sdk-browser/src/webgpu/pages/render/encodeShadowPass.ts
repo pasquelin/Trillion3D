@@ -104,6 +104,7 @@ export function encodeShadowAtlas(
         restores[k],
         staticLayer?.groups[at],
       );
+      pass.setPipeline(shadows.depth);
       for (let i = first[k]; i < first[k] + clears[k] + restores[k]; i++) {
         const region = order[i],
           visible = tested && slotOf[region] !== HIZ_UNTESTED;
@@ -113,7 +114,6 @@ export function encodeShadowAtlas(
           y = regions.y(region);
         pass.setViewport(x, y, SHADOW_PAGE, SHADOW_PAGE, 0, 1);
         pass.setScissorRect(x, y, SHADOW_PAGE, SHADOW_PAGE);
-        pass.setPipeline(shadows.depth);
         pass.setBindGroup(0, group);
         pass.setBindGroup(1, shadows.faceGroup, [region * shadows.faceStride]);
         const commands = visible ? occlusion!.visibleIndirect : cull.indirect;
