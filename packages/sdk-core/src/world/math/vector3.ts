@@ -1,11 +1,13 @@
 import {
   addScaledVector3,
+  addVector3,
   applyMatrix3Vector3,
   crossVector3,
   dotVector3,
   lengthSqVector3,
   normalizeVector3,
   scaleVector3,
+  subVector3,
   transformDirectionVector3,
   transformHomogeneousPoint,
 } from '../../math/primitives/vector.ts';
@@ -66,7 +68,7 @@ export class Vector3 extends ObservedComponents {
     return this.set(this.x + s, this.y + s, this.z + s);
   }
   /** Becomes `u + v`. */ addVectors(u: XYZ, v: XYZ) {
-    return this.set(u.x + v.x, u.y + v.y, u.z + v.z);
+    return this.written(addVector3(a, load(a, u), load(b, v)));
   }
   /** Adds `v` times `s`. */ addScaledVector(v: XYZ, s: number) {
     return this.written(addScaledVector3(load(a, this), load(b, v), s));
@@ -74,8 +76,9 @@ export class Vector3 extends ObservedComponents {
   /** Takes another vector away. */ sub(v: XYZ) {
     return this.addScaledVector(v, -1);
   }
-  /** Becomes `u − v`. */ subVectors(u: XYZ, v: XYZ) {
-    return this.copy(u).sub(v);
+  /** Becomes `u − v`: `u` copied first, then `v` taken from what was written. */
+  subVectors(u: XYZ, v: XYZ) {
+    return this.copy(u).written(subVector3(a, this.elements, load(b, v)));
   }
   /** Multiplies x, y and z one by one. */ multiply(v: XYZ) {
     return this.set(this.x * v.x, this.y * v.y, this.z * v.z);

@@ -338,9 +338,6 @@
       "pageCone": "Kerucut normal setiap halaman: sumbu, lalu setengah sudut."
     }
   },
-  "COMPARISON_LIBRARIES": {
-    "summary": "Mesin-mesin yang dijadikan pembanding benchmark, masing-masing dengan status dan alasannya."
-  },
   "COMPILER_LINE_LIMIT": {
     "summary": "Baris tunggal terpanjang yang diterima di kedua aliran; kompiler hanya mengeluarkan baris JSON kecil."
   },
@@ -560,23 +557,6 @@
   },
   "ComparisonLayout": {
     "summary": "Bagaimana dua hasil render ditampilkan berdampingan untuk dibandingkan."
-  },
-  "CompetitorRecord": {
-    "summary": "Mesin lain yang dibandingkan benchmark, dan alasannya.",
-    "members": {
-      "id": "Nama singkatnya.",
-      "name": "Namanya.",
-      "status": "Apakah ia dibandingkan.",
-      "license": "Lisensinya.",
-      "maintained": "Kapan terakhir diperbarui.",
-      "scope": "Apa yang dicakupnya.",
-      "reason": "Kenapa ia dibandingkan, atau tidak.",
-      "homepage": "Halaman webnya."
-    }
-  },
-  "CompetitorStatus": {
-    "summary": "Inventarisasi pustaka geometri/LOD yang relevan untuk web.",
-    "description": "Status ini menjelaskan keadilan integrasi, bukan cakupan pemasaran."
   },
   "CompilationJob": {
     "summary": "Sebuah kompilasi yang sedang berjalan.",
@@ -2086,7 +2066,7 @@
       "clipAction": "Aksi yang memainkan `clip`.",
       "play": "Memainkan `clip` sekarang.",
       "stopAll": "Menghentikan setiap aksi.",
-      "update": "Memajukan setiap aksi yang berjalan sebesar `seconds` dan menulis nilai yang disampel."
+      "update": "Memajukan setiap aksi yang berjalan sebesar `seconds`, lalu menulis ke setiap properti campuran berbobot dari sampel aksi-aksinya di atas nilai diamnya."
     }
   },
   "ModelRecord": {

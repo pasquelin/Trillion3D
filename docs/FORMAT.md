@@ -278,7 +278,7 @@ is `PREPARED_SCENE_MISMATCH`.
 
 Written beside `clusters.json` by the compiler's `physics-cook` stage ([COMPILER.md](COMPILER.md)),
 with a `formatVersion` of its own (2): a reader refuses any other (`PHYSICS_FORMAT`, recompile the
-model). Format 1 carried the declared `bodies`, and no matter on an instance. The shapes it
+model). Format 1 carried the declared bodies in another shape, and no matter on an instance. The shapes it
 names are Jolt's binary state (`Shape::SaveWithChildren`), readable only by the Jolt that wrote them:
 the file names that commit in `jolt`, and the engine refuses a file cooked by another. `stage` names
 the stage and its version.
@@ -292,6 +292,28 @@ the stage and its version.
 
 The manifest's `physics` field names the file, its format, the Jolt commit, the report and every
 object the file cites (`objects[].sha256`), so a prune keeps them.
+
+### `bodies` — declared rigid bodies
+
+Stage version 6 adds `bodies`, one entry per node of the rendered scene whose
+`KHR_physics_rigid_bodies` declares a `motion` ([COMPILER.md](COMPILER.md#physicsjson--the-cooked-colliders-stage-physics-cook)). The
+field is additive: a file cooked before it has none, and format 2 still reads it. The node keeps its
+`instances` entries until the page restores its body. Each entry:
+
+- `node`: the declaring node.
+- `motion`: the motion as the node declares it (`isKinematic`, `mass`, `gravityFactor`, …).
+- `shape`: the `KHR_implicit_shapes` shape the collider names, as declared, or `cooked`: one
+  `ConvexHullShape` for contact, a SHA-addressed object like a tile (`url`, `sha256`, `bytes`), in
+  the body's frame at unit scale; and, a dynamic body's, `mass`, the exact weighing of the solid
+  its closed mesh bounds at 1000 kg/m³ and at the body's `scale`: `mass` (kg), `centerOfMass` and
+  `inertia` about it (nine numbers, column-major), in the body's frame — the mass the page hands
+  Jolt, turning the hull about `centerOfMass` rather than about the hull's own centre; what the
+  `motion` declares (`mass`, `centerOfMass`, `inertiaDiagonal`) wins over it.
+- `position`, `rotation`, `scale`: the node's world placement in the model, as an instance's.
+- `friction`, `restitution`: as an instance's.
+
+`report.bodies` counts them; `report.bodiesRefused` lists each declaring node the cook refused
+(`node`, `reason`): it has no body, and stays static ground.
 
 ### `softBodies` — cooked soft bodies
 

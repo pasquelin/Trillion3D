@@ -67,7 +67,7 @@ async function executer({
       clusters: { buffer: tampon(64, c.clusters) },
       nodes: { buffer: tampon(64, c.nodes) },
       views: { buffer: tampon(256, c.uniforms, GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST) },
-      flags: { buffer: tampon(Math.max(16, (c.nodeCount * 3 + c.pageCount * 4) * 4)) },
+      flags: { buffer: tampon(Math.max(16, c.flagsWords * 4)) },
       out: { buffer: tampon(sortieOctets) },
       work: { buffer: tampon(Math.max(8, travail.words * 4)) },
       worlds: { buffer: tampon(64, c.worlds) },
