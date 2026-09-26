@@ -52,8 +52,8 @@ export function createShadowRecordPack(faceStride: number, poolSide: number) {
     },
     /**
      * Region `index`: its page's matrix — the page's own projection, which the viewport lands on
-     * physical page `phys` —, that page's atlas rectangle, and the light envelope the depth pass
-     * strips (a zero radius strips nothing).
+     * physical page `phys` —, that page's atlas rectangle, the light envelope the depth pass
+     * strips (a zero radius strips nothing), and the page's clip square in the atlas's.
      */
     writePage(
       index: number,
@@ -65,15 +65,21 @@ export function createShadowRecordPack(faceStride: number, poolSide: number) {
     ) {
       const uniform = (index * faceStride) / 4;
       for (let i = 0; i < 16; i++) facePacked[uniform + i] = matrices[matrixBase + i];
-      const local = phys % (side * side);
-      facePacked[uniform + 16] = ((local % side) * SHADOW_PAGE) / size;
-      facePacked[uniform + 17] = (Math.floor(local / side) * SHADOW_PAGE) / size;
+      const local = phys % (side * side),
+        x = (local % side) * SHADOW_PAGE,
+        y = Math.floor(local / side) * SHADOW_PAGE;
+      facePacked[uniform + 16] = x / size;
+      facePacked[uniform + 17] = y / size;
       facePacked[uniform + 18] = SHADOW_PAGE / size;
       facePacked[uniform + 19] = SHADOW_PAGE;
       facePacked[uniform + 20] = center ? center[0] : 0;
       facePacked[uniform + 21] = center ? center[1] : 0;
       facePacked[uniform + 22] = center ? center[2] : 0;
       facePacked[uniform + 23] = center ? radius : 0;
+      // Its clip square in the whole atlas's: `xy * s + o`, what the page draws read.
+      facePacked[uniform + 24] = (2 * x + SHADOW_PAGE) / size - 1;
+      facePacked[uniform + 25] = 1 - (2 * y + SHADOW_PAGE) / size;
+      facePacked[uniform + 26] = facePacked[uniform + 27] = SHADOW_PAGE / size;
     },
     /** A lamp's record: its face matrices, face count, tangent half-field, near plane, table base. */
     writeLamp(
