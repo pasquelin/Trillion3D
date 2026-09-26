@@ -29,13 +29,13 @@ export function attachParticles(world: World, pool: ParticlePool) {
   const pools = worlds.get(world)?.particles;
   if (!pools || pools.includes(pool)) throw new Error('PARTICLES_ATTACH: attached, or no world');
   pools.push(pool);
-  const stop = world.beforeFrame(({ delta }) => {
-    pool.advance(delta);
-    if (pool.moving) world.invalidate();
-  });
+  const stops = [
+    world.beforeFrame(({ delta }) => pool.advance(delta)),
+    world.onFrame(() => pool.moving && world.invalidate()), // after every hook's emission
+  ];
   world.invalidate();
   return () => {
-    stop();
+    for (const stop of stops) stop();
     const at = pools.indexOf(pool);
     if (at >= 0) pools.splice(at, 1);
   };

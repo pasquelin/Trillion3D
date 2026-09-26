@@ -48,7 +48,7 @@ export class ParticlePool {
   private cursor = 0;
   private staged = 0;
   private pending = 0;
-  /** Seconds the longest-lived particle still has, as far as the CPU knows: it never reads back. */
+  /** Seconds the longest-lived particle may have, one step over: the GPU's 32-bit age lags. */
   private liveFor = 0;
 
   constructor({ capacity, emitPerFrame, acceleration, origin }: ParticlePoolSpec) {
@@ -82,7 +82,7 @@ export class ParticlePool {
     words[at + 5] = vy;
     words[at + 6] = vz;
     words[at + 7] = lifetime;
-    this.liveFor = Math.max(this.liveFor, lifetime);
+    this.liveFor = Math.max(this.liveFor, lifetime + MAX_STEP);
     this.emitted++;
     return true;
   }
