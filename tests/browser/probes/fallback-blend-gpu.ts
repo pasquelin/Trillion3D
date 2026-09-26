@@ -2,8 +2,8 @@
 //
 // The fallback pass draws only when the device cannot build the visibility buffer, and no public
 // option reaches that state. The page (`../support/fallbackBlendPage.ts`) mounts the real engine
-// twice on one scene: on the device as it is (the main pass), then on a session handle of it that
-// refuses the visibility target's pipelines. It publishes, for each blending mode, the tile read
+// twice on one scene: on the device as it is (the main pass), then while the same device refuses
+// the visibility target's pipelines. It publishes, for each blending mode, the tile read
 // over a night half and a paper half on both images, the background beside it, and how many
 // pixels the two images differ by: what the measurer compares. It fails when the second side did
 // not fall back, or when a tile is missing from its image — the mode the pass once dropped.
