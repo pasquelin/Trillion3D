@@ -86,8 +86,8 @@ test('a model opened again before its settings arrive holds its cooked cloth onc
   const { model, writer, bodies } = await opened();
   writer.take();
   const softs = createCookedSoftBodies(writer, bodies, () => {}, assert.fail);
-  softs.open(model, [cookedCloth(1)]);
-  softs.open(model, [cookedCloth(1)]);
+  softs.open(model, [cookedCloth(1)], new AbortController().signal);
+  softs.open(model, [cookedCloth(1)], new AbortController().signal);
   await landed();
   assert.equal(bodies.count.softVertices, 9 + 9, 'the streamer’s cloth, and this opening’s once');
 });
@@ -148,7 +148,7 @@ test('a cooked cloth takes the flags a page-built one does, its model’s visibi
   writer.take();
   const softs = createCookedSoftBodies(writer, bodies, () => {}, assert.fail);
   model.visible = false;
-  softs.open(model, [cookedCloth(1)]);
+  softs.open(model, [cookedCloth(1)], new AbortController().signal);
   await landed();
   const made = writer.take();
   const index = made[1] & BODY_INDEX;

@@ -154,8 +154,8 @@ export function createWorldPhysics(
     get stats(): Readonly<PhysicsStats> {
       return session?.stats ?? stopped;
     },
-    /** The last error the physics raised (`PHYSICS_BUDGET`, `PHYSICS_NESTED`,
-     *  `PHYSICS_FAILED`), or `null`. One that stopped the simulation turns `enabled` off. */
+    /** The last error the physics raised (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`,
+     *  `RESOURCE_HTTP_ERROR`), or `null`. One that stopped the simulation turns `enabled` off. */
     get error() {
       return error;
     },
