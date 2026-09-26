@@ -30,7 +30,7 @@ export type LevelKey = TextureLevelRequest;
 
 export type WebgpuTileLevels = {
   /** The level if it is there, marking it read; otherwise `undefined`, launching nothing. */
-  get(key: LevelKey, frame: number): TextureLevel | undefined;
+  get(key: LevelKey): TextureLevel | undefined;
   /** Starts the read if it is neither there, nor in flight, nor refused, and fits (the store's
    *  `room`); `size` is the level's dimensions, what its bytes are reckoned and checked from. */
   request(key: LevelKey, frame: number, size: readonly [number, number]): void;
@@ -51,24 +51,25 @@ export function createWebgpuTileLevels(options: {
   onFailure: (key: LevelKey, error: unknown) => void;
 }): WebgpuTileLevels {
   const { read } = options,
-    { key = '' } = read,
-    store = read.store ?? createTextureLevelStore(textureLevelShare(DEFAULT_CACHED_BYTES), key),
-    { pending, refused } = store;
-  const idOf = (level: LevelKey) => `${keyOf(level)}#${key}`;
+    store = read.store ?? createTextureLevelStore(textureLevelShare(DEFAULT_CACHED_BYTES)),
+    pending = new Map<string, Promise<void>>(),
+    refused = new Set<string>(),
+    // The cook the reader opened: a read landing once the store holds another's keeps nothing.
+    { key } = store;
   /** The room a level may take, weighed once a frame: it walks the pages kept. */
   let roomFrame = -1,
     room = 0,
     fetched = 0;
   return {
-    get: (level) => store.get(idOf(level)),
+    get: (level) => store.get(keyOf(level)),
     request(level, frame, size) {
-      const id = idOf(level);
+      const id = keyOf(level);
       if (store.has(id) || pending.has(id) || refused.has(id)) return;
       if (frame !== roomFrame) [roomFrame, room] = [frame, store.room()];
       if (requestedLevelBytes(level, size) > room) return;
       const reading = read(level)
         .then((texels) => {
-          if (store.key !== key) return closeTextureLevel(texels);
+          if (key === undefined || store.key !== key) return closeTextureLevel(texels);
           if (texels instanceof Uint8Array) checkLevelBlocks(texels, size);
           fetched++;
           if (!store.take(id, texels)) closeTextureLevel(texels);
