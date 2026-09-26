@@ -2225,7 +2225,7 @@
     "members": {
       "visible": "Si se dibuja; `setVisible` lo escribe.",
       "setVisible": "Lo muestra u oculta; sus vértices siguen contando contra el límite.",
-      "setTransform": "Lo coloca: dieciséis números por columnas, o una matriz — `node.matrixWorld` sigue a un nodo.",
+      "setTransform": "Lo coloca: dieciséis números por columnas, o una matriz; una guía que dibujó `add` deja entonces de seguir a su nodo.",
       "remove": "Lo saca del mundo y devuelve sus vértices; una segunda llamada no hace nada."
     }
   },
@@ -2234,7 +2234,7 @@
     "members": {
       "positions": "Dos extremos por segmento, tres números cada uno.",
       "color": "Su color; blanco por defecto.",
-      "width": "Ancho en pantalla, en píxeles."
+      "width": "Ancho en pantalla, en píxeles CSS, como toda línea del motor."
     }
   },
   "GuidePoints": {
@@ -2242,7 +2242,7 @@
     "members": {
       "positions": "Tres números por punto.",
       "color": "Su color; blanco por defecto.",
-      "size": "Lado de cada punto cuadrado en pantalla, en píxeles."
+      "size": "Lado de cada punto cuadrado en pantalla, en píxeles CSS."
     }
   },
   "Guides": {
@@ -2252,7 +2252,7 @@
       "vertexCount": "Vértices mantenidos ahora, dos por segmento y uno por punto, guías ocultas incluidas.",
       "lines": "Dibuja segmentos de línea, dos extremos cada uno; rechazado por encima del límite (`GUIDE_CEILING`).",
       "points": "Dibuja puntos cuadrados, una posición cada uno; rechazado por encima del límite (`GUIDE_CEILING`).",
-      "add": "Dibuja las mallas de líneas y puntos de `object` — cada `helper` las construye —, en los colores de sus materiales, colocadas donde el objeto está ahora; sus triángulos no son guías y se omiten.",
+      "add": "Dibuja las mallas de líneas y puntos de `object` — cada `helper` las construye —, en los colores de sus materiales; sus triángulos no son guías y se omiten. La guía sigue al objeto — para un ayudante de luz o de cámara, el nodo que muestra — y se mueve en cada imagen en que ese nodo se movió, nunca de otro modo.",
       "clear": "Quita todas las guías."
     }
   },
@@ -5438,10 +5438,10 @@
       "shadowsUpdated": "Luces de sombra con una página dibujada por esta imagen. Cero es el valor normal de una escena quieta: una luz fija conserva sus páginas.",
       "shadowFacesDrawn": "Vistas de luz en las que dibujó el pase de sombras — un nivel de clipmap del sol, una cara de lámpara en un mip —, y las llamadas de dibujo realmente codificadas. Null en un motor que no dibuja sombras.",
       "shadowDrawCalls": "Llamadas de dibujo de sombra.",
-      "shadowPagesDrawn": "Lo que ha producido la invalidación de páginas: páginas redibujadas por el fotograma, páginas dejadas en cola por falta de presupuesto, y el retraso en milisegundos de la más antigua. Cero en todas partes es el valor normal de una escena inmóvil; `null` para un motor sin atlas de sombras.",
+      "shadowPagesDrawn": "Lo que ha producido la invalidación de páginas: páginas redibujadas por el fotograma, páginas dejadas en cola por falta de presupuesto, y cuánto ha esperado la página desactualizada más antigua que lee la imagen. Cero en todas partes es el valor normal de una escena inmóvil; `null` para un motor sin atlas de sombras.",
       "shadowPagesTotal": "Páginas dibujadas desde la apertura del explorador, vaciados de `flush()` incluidos: el coste de un cambio es la diferencia entre dos lecturas.",
       "shadowPagesPending": "Páginas de sombra pendientes.",
-      "shadowWaitMs": "Cuánto tiempo han esperado.",
+      "shadowWaitMs": "Cuántos milisegundos ha esperado a ser redibujada la página desactualizada más antigua que lee la imagen. Solo cuenta el tiempo en que la imagen la lee; 0 una vez redibujada.",
       "gpuLightListsMs": "Tiempo de GPU de las listas de luces.",
       "gpuShadowsMs": "Tiempo de GPU de las sombras.",
       "gpuShadowCullMs": "Tiempo de GPU para elegir los proyectores de las páginas de sombra que dibuja una imagen: el corte de luz, el descarte por página y la prueba de oclusión de los proyectores en movimiento con las pirámides que lee.",
@@ -5998,7 +5998,6 @@
       "anisotropy": "Nitidez vista de lado.",
       "flipY": "Si las filas están invertidas.",
       "premultiplyAlpha": "Si el color está premultiplicado.",
-      "generateMipmaps": "Si se hacen copias más pequeñas.",
       "colorSpace": "Cómo se leen sus números.",
       "transform": "Transformación de las UV del muestreador, `KHR_texture_transform` compuesto en tres filas de tres."
     }
@@ -6615,7 +6614,7 @@
   },
   "world.beforeFrame": {
     "summary": "Ejecuta una función antes de cada fotograma dibujado, con `{ delta, time }`; devuelve lo que lo detiene.",
-    "description": "Un fotograma del bucle del mundo transcurre así: el controlador hace avanzar la cámara (a menos que `controls.autoUpdate` sea false), los clips avanzan, estos hooks en el orden en que se añadieron, la escena se escribe y se dibuja, luego los hooks de `onFrame`. Lo que un hook coloca — un cuerpo sobre la cámara, una cabina — se dibuja en ese mismo fotograma, nunca uno tarde. Un `render()` dirigido por el anfitrión también los ejecuta, pero no hace avanzar ningún controlador. Un hook que llama a `invalidate()` mantiene llegando fotogramas.",
+    "description": "Un fotograma transcurre así: el controlador de la cámara (a menos que `controls.autoUpdate` sea false o que el anfitrión dirija, `render()`), los clips, la física, estos hooks en su orden, el dibujo, luego los hooks de `onFrame`. Lo que un hook coloca — un cuerpo sobre la cámara, una cabina — se dibuja en ese mismo fotograma, nunca uno tarde. Un hook que llama a `invalidate()` mantiene llegando fotogramas.",
     "parameters": {
       "hook": "La función a ejecutar; recibe los segundos recién integrados y el tiempo del mundo."
     },
@@ -6632,7 +6631,7 @@
     "summary": "Pide un nuevo fotograma después de un cambio que el mundo no pudo ver."
   },
   "world.render": {
-    "summary": "Dibuja un fotograma de inmediato, sea quien sea el maestro del bucle."
+    "summary": "Dibuja un fotograma de inmediato, sea quien sea el maestro del bucle: los clips y la física avanzan con él."
   },
   "world.resize": {
     "summary": "Dice al mundo que el lienzo ha cambiado de tamaño; sin valor, lee el tamaño del lienzo.",
@@ -6718,10 +6717,10 @@
       "shadowsUpdated": "Luces de sombra con una página dibujada por esta imagen. Cero es el valor normal de una escena quieta: una luz fija conserva sus páginas.",
       "shadowFacesDrawn": "Vistas de luz en las que dibujó el pase de sombras — un nivel de clipmap del sol, una cara de lámpara en un mip —, y las llamadas de dibujo realmente codificadas. Null en un motor que no dibuja sombras.",
       "shadowDrawCalls": "Llamadas de dibujo de sombra.",
-      "shadowPagesDrawn": "Lo que ha producido la invalidación de páginas: páginas redibujadas por el fotograma, páginas dejadas en cola por falta de presupuesto, y el retraso en milisegundos de la más antigua. Cero en todas partes es el valor normal de una escena inmóvil; `null` para un motor sin atlas de sombras.",
+      "shadowPagesDrawn": "Lo que ha producido la invalidación de páginas: páginas redibujadas por el fotograma, páginas dejadas en cola por falta de presupuesto, y cuánto ha esperado la página desactualizada más antigua que lee la imagen. Cero en todas partes es el valor normal de una escena inmóvil; `null` para un motor sin atlas de sombras.",
       "shadowPagesTotal": "Páginas dibujadas desde la apertura del explorador, vaciados de `flush()` incluidos: el coste de un cambio es la diferencia entre dos lecturas.",
       "shadowPagesPending": "Páginas de sombra pendientes.",
-      "shadowWaitMs": "Cuánto tiempo han esperado.",
+      "shadowWaitMs": "Cuántos milisegundos ha esperado a ser redibujada la página desactualizada más antigua que lee la imagen. Solo cuenta el tiempo en que la imagen la lee; 0 una vez redibujada.",
       "gpuLightListsMs": "Tiempo de GPU de las listas de luces.",
       "gpuShadowsMs": "Tiempo de GPU de las sombras.",
       "gpuShadowCullMs": "Tiempo de GPU para elegir los proyectores de las páginas de sombra que dibuja una imagen: el corte de luz, el descarte por página y la prueba de oclusión de los proyectores en movimiento con las pirámides que lee.",
@@ -7429,7 +7428,7 @@
       "offset": "De qué se compone `matrix`.",
       "matrixAutoUpdate": "Si el host reconstruye `matrix`.",
       "matrix": "Transformación de las UV del muestreador, `KHR_texture_transform` compuesto en tres filas; el host la recalcula a partir del desplazamiento, la repetición y la rotación cuando hace la actualización.",
-      "generateMipmaps": "Si se hacen copias más pequeñas.",
+      "generateMipmaps": "Si se piden copias más pequeñas; el motor las hace siempre que `minFilter` las lee.",
       "premultiplyAlpha": "Si el color está premultiplicado por el alfa.",
       "flipY": "Si las filas se invierten al enviar.",
       "version": "Aumentado por el host en cada cambio de contenido: lo que un envío compara para evitar una nueva copia.",

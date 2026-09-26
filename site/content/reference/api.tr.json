@@ -1299,7 +1299,7 @@
     "members": {
       "visible": "Çizilip çizilmediği; `setVisible` bunu yazar.",
       "setVisible": "Onu gösterir ya da gizler; köşeleri sınıra sayılmaya devam eder.",
-      "setTransform": "Onu yerleştirir: sütun sıralı on altı sayı ya da bir matris — `node.matrixWorld` bir düğümü izler.",
+      "setTransform": "Onu yerleştirir: sütun sıralı on altı sayı ya da bir matris; `add` ile çizilen kılavuz bundan sonra düğümünü izlemez.",
       "remove": "Onu dünyadan çıkarır, köşelerini geri verir; ikinci çağrı hiçbir şey yapmaz."
     }
   },
@@ -1308,7 +1308,7 @@
     "members": {
       "positions": "Segment başına iki uç, her biri üç sayı.",
       "color": "Renkleri; varsayılan beyaz.",
-      "width": "Ekrandaki genişlik, piksel cinsinden."
+      "width": "Ekrandaki genişlik, CSS pikseli cinsinden, motorun her çizgisi gibi."
     }
   },
   "GuidePoints": {
@@ -1316,7 +1316,7 @@
     "members": {
       "positions": "Nokta başına üç sayı.",
       "color": "Renkleri; varsayılan beyaz.",
-      "size": "Her kare noktanın ekrandaki kenarı, piksel cinsinden."
+      "size": "Her kare noktanın ekrandaki kenarı, CSS pikseli cinsinden."
     }
   },
   "Guides": {
@@ -1326,7 +1326,7 @@
       "vertexCount": "Şu an tutulan köşeler, segment başına iki ve nokta başına bir, gizli kılavuzlar dahil.",
       "lines": "Her biri iki uçlu çizgi segmentleri çizer; sınırın üzerinde reddedilir (`GUIDE_CEILING`).",
       "points": "Her biri bir konumlu kare noktalar çizer; sınırın üzerinde reddedilir (`GUIDE_CEILING`).",
-      "add": "`object` nesnesinin çizgi ve nokta ağlarını — her `helper` bunları kurar — malzeme renklerinde, nesnenin şu an durduğu yerde çizer; üçgenleri kılavuz değildir ve atlanır.",
+      "add": "`object` nesnesinin çizgi ve nokta ağlarını — her `helper` bunları kurar — malzeme renklerinde çizer; üçgenleri kılavuz değildir ve atlanır. Kılavuz nesneyi izler — bir ışık ya da kamera yardımcısı için gösterdiği düğümü — ve o düğümün hareket ettiği her görüntüde taşınır, başka zaman asla.",
       "clear": "Tüm kılavuzları kaldırır."
     }
   },
@@ -3124,10 +3124,10 @@
       "shadowsUpdated": "Bu karenin bir sayfasını çizdiği gölge ışıkları. Sıfır, durağan bir sahnenin normal değeridir: sabit bir ışık sayfalarını korur.",
       "shadowFacesDrawn": "Gölge geçişinin çizdiği ışık görünümleri — güneşin bir clipmap düzeyi, bir mip düzeyinde bir lamba yüzü — ve gerçekten kodlanan çizim çağrıları. Gölge çizmeyen bir motorda null.",
       "shadowDrawCalls": "Gölge çizim çağrıları.",
-      "shadowPagesDrawn": "Sayfa geçersiz kılmanın ürettiği şey: kare tarafından yeniden çizilen sayfalar, bütçe eksikliğinden kuyrukta bırakılan sayfalar, ve en eskisinin milisaniye cinsinden gecikmesi. Her yerde sıfır, sabit bir sahnenin normal değeridir; gölge atlası olmayan bir motorda `null`.",
+      "shadowPagesDrawn": "Sayfa geçersiz kılmanın ürettiği şey: kare tarafından yeniden çizilen sayfalar, bütçe eksikliğinden kuyrukta bırakılan sayfalar, ve görüntünün okuduğu en eski eskimiş sayfanın ne kadar beklediği. Her yerde sıfır, sabit bir sahnenin normal değeridir; gölge atlası olmayan bir motorda `null`.",
       "shadowPagesTotal": "Gezgin açıldığından beri çizilen sayfalar, `flush()` boşaltmaları dahil: bir değişikliğin maliyeti, iki okuma arasındaki farktır.",
       "shadowPagesPending": "Bekleyen gölge sayfaları.",
-      "shadowWaitMs": "Ne kadar süre bekledikleri.",
+      "shadowWaitMs": "Görüntünün okuduğu en eski eskimiş sayfanın yeniden çizilmek için kaç milisaniye beklediği. Yalnızca görüntünün onu okuduğu süre sayılır; yeniden çizilince 0.",
       "gpuLightListsMs": "Işık listelerinin GPU süresi.",
       "gpuShadowsMs": "Gölgelerin GPU süresi.",
       "gpuShadowCullMs": "Bir karenin çizdiği gölge sayfalarının gölge düşürenlerini seçmenin GPU süresi: ışık kesimi, sayfa başına ayıklama ve hareketli gölge düşürenlerin okuduğu piramitlerle örtme testi.",
@@ -3560,7 +3560,6 @@
       "anisotropy": "Eğik açıda keskinlik.",
       "flipY": "Satırların çevrilip çevrilmediği.",
       "premultiplyAlpha": "Rengin önceden çarpılıp çarpılmadığı.",
-      "generateMipmaps": "Daha küçük kopyaların yapılıp yapılmadığı.",
       "colorSpace": "Sayılarının nasıl okunduğu.",
       "transform": "Örnekleyicinin UV dönüşümü, üçe üç satıra bileşik `KHR_texture_transform`."
     }
@@ -4081,7 +4080,7 @@
     "summary": "Dünyanın göremediği bir değişiklikten sonra yeni bir kare ister."
   },
   "world.render": {
-    "summary": "Döngüyü kim yönetirse yönetsin, şimdi bir kare çizer."
+    "summary": "Döngüyü kim yönetirse yönetsin, şimdi bir kare çizer: klipler ve fizik onunla birlikte ilerler."
   },
   "world.resize": {
     "summary": "Dünyaya canvas'ın boyut değiştirdiğini söyler; ayarlanmazsa, canvas'ın kendi boyutunu okur.",
@@ -4161,10 +4160,10 @@
       "shadowsUpdated": "Bu karenin bir sayfasını çizdiği gölge ışıkları. Sıfır, durağan bir sahnenin normal değeridir: sabit bir ışık sayfalarını korur.",
       "shadowFacesDrawn": "Gölge geçişinin çizdiği ışık görünümleri — güneşin bir clipmap düzeyi, bir mip düzeyinde bir lamba yüzü — ve gerçekten kodlanan çizim çağrıları. Gölge çizmeyen bir motorda null.",
       "shadowDrawCalls": "Gölge çizim çağrıları.",
-      "shadowPagesDrawn": "Sayfa geçersiz kılmanın ürettiği şey: kare tarafından yeniden çizilen sayfalar, bütçe eksikliğinden kuyrukta bırakılan sayfalar, ve en eskisinin milisaniye cinsinden gecikmesi. Her yerde sıfır, sabit bir sahnenin normal değeridir; gölge atlası olmayan bir motorda `null`.",
+      "shadowPagesDrawn": "Sayfa geçersiz kılmanın ürettiği şey: kare tarafından yeniden çizilen sayfalar, bütçe eksikliğinden kuyrukta bırakılan sayfalar, ve görüntünün okuduğu en eski eskimiş sayfanın ne kadar beklediği. Her yerde sıfır, sabit bir sahnenin normal değeridir; gölge atlası olmayan bir motorda `null`.",
       "shadowPagesTotal": "Gezgin açıldığından beri çizilen sayfalar, `flush()` boşaltmaları dahil: bir değişikliğin maliyeti, iki okuma arasındaki farktır.",
       "shadowPagesPending": "Bekleyen gölge sayfaları.",
-      "shadowWaitMs": "Ne kadar süre bekledikleri.",
+      "shadowWaitMs": "Görüntünün okuduğu en eski eskimiş sayfanın yeniden çizilmek için kaç milisaniye beklediği. Yalnızca görüntünün onu okuduğu süre sayılır; yeniden çizilince 0.",
       "gpuLightListsMs": "Işık listelerinin GPU süresi.",
       "gpuShadowsMs": "Gölgelerin GPU süresi.",
       "gpuShadowCullMs": "Bir karenin çizdiği gölge sayfalarının gölge düşürenlerini seçmenin GPU süresi: ışık kesimi, sayfa başına ayıklama ve hareketli gölge düşürenlerin okuduğu piramitlerle örtme testi.",
@@ -6945,7 +6944,7 @@
   },
   "world.beforeFrame": {
     "summary": "`{ delta, time }` ile, çizilen her kareden önce bir fonksiyon çalıştırır; kaldırıcısını döndürür.",
-    "description": "Dünyanın döngüsünün bir karesi çalışır: kontrolcü kamerayı ilerletir (`controls.autoUpdate` yanlış olmadıkça), klipler ilerler, bu kancalar eklendikleri sırada, sahne yazılır ve çizilir, sonra `onFrame` kancaları. Bir kancanın yerleştirdiği şey — kameradaki bir gövde, bir kokpit — tam olarak bu karede çizilir, asla bir geç kalmışta değil. Host güdümlü bir `render()` de onları çalıştırır ama hiçbir kontrolcüyü ilerletmez. `invalidate()`'i çağıran bir kanca karelerin gelmeye devam etmesini sağlar.",
+    "description": "Bir kare çalışır: kameranın kontrolcüsü (`controls.autoUpdate` yanlış olmadıkça ya da host yönetmedikçe, `render()`), klipler, fizik, bu kancalar kendi sıralarında, çizim, sonra `onFrame` kancaları. Bir kancanın yerleştirdiği şey — kameradaki bir gövde, bir kokpit — tam olarak bu karede çizilir, asla bir kare geç değil. `invalidate()`'i çağıran bir kanca karelerin gelmeye devam etmesini sağlar.",
     "returns": "Kancayı durduran bir fonksiyon.",
     "parameters": {
       "hook": "Çalıştırılacak fonksiyon; az önce entegre edilen saniyeleri ve dünyanın zamanını alır."
@@ -7447,7 +7446,7 @@
       "offset": "`matrix`in neyden oluşturulduğu.",
       "matrixAutoUpdate": "Host'un `matrix`'i yeniden inşa edip etmediği.",
       "matrix": "Örnekleyicinin UV dönüşümü, üç satıra bileşik `KHR_texture_transform`; host, güncellemeye sahip olduğunda onu offset, repeat ve rotation'dan yeniden hesaplar.",
-      "generateMipmaps": "Daha küçük kopyaların yapılıp yapılmadığı.",
+      "generateMipmaps": "Daha küçük kopyaların istenip istenmediği; `minFilter` onları okuduğunda motor onları her zaman yapar.",
       "premultiplyAlpha": "Rengin alfa ile önceden çarpılıp çarpılmadığı.",
       "flipY": "Yüklemede satırların çevrilip çevrilmediği.",
       "version": "Her içerik değişikliğinde host tarafından artırılır: bir yüklemenin yeniden kopyalamayı atlamak için karşılaştırdığı şey.",
