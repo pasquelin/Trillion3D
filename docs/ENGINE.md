@@ -409,9 +409,9 @@ its casters take rows behind its own (#10, #26).
 see-through surface casts none, as the reference solution leaves translucent materials: glass,
 smoke and a beam of light let the light pass. A material asks with `transparentShadow: true`
 (`castsBlendShadow`, `gpu/shadow/transmittance.ts`); a cooked model's materials carry no such flag
-and cast none. A blended cluster is drawn by the
-blend pass and never enters the visibility tables: to cast, it takes a row of the page table
-_behind_ the visibility rows, which only the shadow pass reads (`webgpu/row/blendCasters.ts`). The
+and cast none. A blended cluster is drawn by the blend pass and never enters the visibility tables:
+to cast, it takes a row of the page table _behind_ the visibility rows, which only the shadow pass
+reads (`webgpu/row/blendCasters.ts`). The
 row follows residency like a visibility row — taken when the cluster's slot arrives, given back
 when it leaves — and the pool bounds how many exist; a scene that blends nothing has none. The
 light cut finds the cluster at that row (`gpu/draw/lightRows.ts`, pinned by the host), the CPU cut
@@ -424,9 +424,9 @@ the material's opacity times its colour map's alpha, and the nearest translucent
 of its own follows the pool's (`webgpu/pages/render/encodeShadowPass.ts`): each page the pool drew
 is cleared to full transmittance and far depth, then draws its list twice, where only the blended
 rows survive, from the same shader entry — depth only, depth-tested, for the nearest depth; then
-colour only, blended multiplicatively, without depth. Once the last blended caster has given its
-row back, the layer stays and its pages are only cleared: neither draw is encoded. Both discard a fragment the pool's opaque
-depth hides at all four of its texels. The shadow read multiplies its filtered PCF result by
+colour only, blended multiplicatively, without depth. Both discard a fragment the pool's opaque
+depth hides at all four of its texels. Once the last blended caster has given its row back, the
+layer stays and its pages are only cleared: neither draw is encoded. The shadow read multiplies its filtered PCF result by
 the layer once, at the footprint's centre (`lighting/direct/shadowWgsl.ts`), since the sixteen taps
 lie within one texel of it: the four texels around it, kept within its page, each its transmittance
 where the receiver lies behind its translucent depth, filtered bilinearly. A pixel the opaque depth

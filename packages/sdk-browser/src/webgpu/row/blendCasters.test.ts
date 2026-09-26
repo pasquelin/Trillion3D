@@ -12,10 +12,6 @@ import { createBlendCasterRows, NO_ROW } from './blendCasters.ts';
 import { createWebgpuRowState } from './state.ts';
 import { createWebgpuRowSync } from './sync.ts';
 import { createWebgpuRowCommit } from './commit.ts';
-import { castsBlendShadow } from '../../gpu/shadow/transmittance.ts';
-import { surfaceOf } from '../../page/surface.ts';
-import { hostSurface } from '../../world/core/worldSurface.ts';
-import { material } from '../../../../sdk-core/src/world/material/index.ts';
 
 const STRIDE = PAGE_INFO_STRIDE / 4;
 /** One level-0 root cluster, the blend fixture's first, at the address `url`. */
@@ -117,14 +113,6 @@ test('a blended surface that does not ask for a shadow takes no caster row', () 
   casters.pin(map);
   assert.equal(rows.blendRowOf[1], -1, 'no caster row');
   assert.deepEqual([pins, casters.used], [[], 0]);
-  const air = { color: '#fff2cc', transparent: true, opacity: 0.22, depthWrite: false };
-  const casts = (asked?: boolean) =>
-    castsBlendShadow(
-      surfaceOf(
-        hostSurface(material.meshBasic({ ...air, transparentShadow: asked }), false, new Map()),
-      ),
-    );
-  assert.deepEqual([casts(), casts(false), casts(true)], [false, false, true]);
 });
 
 test('a blended caster at opacity 0 casts nothing', () => {

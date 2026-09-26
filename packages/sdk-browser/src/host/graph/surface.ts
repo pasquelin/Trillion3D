@@ -103,7 +103,7 @@ export class GraphSurface extends Releasable {
   /** Alpha below which pixels drop. */
   declare alphaTest: number;
   /** Whether it casts a shadow while blended; unsaid, it casts none. */
-  declare transparentShadow?: boolean;
+  declare transparentShadow: boolean;
   [field: string]: unknown;
   /** The family it belongs to. */
   readonly family: GraphSurfaceFamily;
