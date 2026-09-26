@@ -107,6 +107,7 @@ export function collectClusterPages(
           renderOrder: order,
           attached: false,
           cone: undefined,
+          cookedCone: page.cone,
           geometry: undefined,
           mesh: undefined,
           resident: false,
