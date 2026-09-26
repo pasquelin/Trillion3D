@@ -451,7 +451,8 @@ shadow of transmission is #33's, which colours the same RGB layer. An unpaged bl
 nothing. WebGL2 has no shadow path, so none of this exists there: `CONTRACT_LIGHTS_LIGHTING`
 publishes `shadows: false`, and the contract lights (`lighting/contractLights.ts`) hand the ids of
 the lit lights that ask to cast, at each change of the store, to `ContractShadows`; the world says
-each once as `shadows-refused` (`noticeShadowRefusal`), again after its cast went off and back on.
+each once as `shadows-refused` (`noticeShadowRefusal`), again after it stopped casting (cast
+off, light gone, unlit view) and casts anew.
 
 When a colour tile arrives, the shadow pages of the masked surfaces that read its texture are
 invalidated, and those alone. A masked cut-out is read at the mip level the reading texel's

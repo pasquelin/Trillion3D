@@ -957,7 +957,8 @@ transparentShadow: true })` casts half a shadow. An additive, transmissive or fu
 surface casts none either way, and WebGL2 draws no shadow at all: its published capability says
 `shadows: false`, and a light set `castShadow: true` there is drawn unshadowed and named on the
 world's diagnostic channel as `shadows-refused` (its store id in `context.light`), once per light,
-said again only after its `castShadow` went off and back on. WebGPU draws that shadow.
+said again only after it stopped casting (its `castShadow` off, the light removed, or the
+unlit view shown) and casts anew. WebGPU draws that shadow.
 
 ### A luminaire does not block its own light
 
