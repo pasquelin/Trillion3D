@@ -84,16 +84,16 @@ RefConst<Shape> compoundShape(const uint32_t *data, uint32_t words) {
 }  // namespace
 
 RefConst<Shape> shapeOf(const uint32_t *w) {
-  uint32_t motion = w[2], kind = w[4];
+  uint32_t motion = w[2], kind = w[4], words = 0;
   if (kind <= CYLINDER || kind == COOKED) {
-    // A cooked shape: its handle is its first data word, `a, b, c` its scale. The words past it
-    // (a primitive's all) are its mass frame, whose centre of mass the shape turns about.
-    uint32_t cooked = kind == COOKED, frame = w[24] - cooked;
-    if (w[24] < cooked || (frame != 0 && frame != 3 && frame != 12)) return nullptr;
-    RefConst<Shape> shape = cooked ? cookedShape(w[ADD_WORDS], vec3(w + 13))
-                                   : primitive(kind, f32(w + 13), f32(w + 14), f32(w + 15));
+    // A cooked shape: its handle is its first data word, `a, b, c` its scale.
+    const uint32_t *frame = massFrame(w, words);
+    if (words == 0 && w[24] != (kind == COOKED)) return nullptr;
+    RefConst<Shape> shape = kind == COOKED ? cookedShape(w[ADD_WORDS], vec3(w + 13))
+                                           : primitive(kind, f32(w + 13), f32(w + 14), f32(w + 15));
+    // Its mass frame names the centre of mass it turns about.
     if (!shape || !frame) return shape;
-    return new OffsetCenterOfMassShape(shape, vec3(w + ADD_WORDS + cooked) - shape->GetCenterOfMass());
+    return new OffsetCenterOfMassShape(shape, vec3(frame) - shape->GetCenterOfMass());
   }
   // A mesh has no volume: only a body that never moves by force may be one (the page refuses it).
   if (kind == TRIANGLES && motion == 2) return nullptr;
@@ -102,9 +102,11 @@ RefConst<Shape> shapeOf(const uint32_t *w) {
   return meshShape(kind, w + ADD_WORDS, w[23], w[24]);
 }
 
-const uint32_t *providedInertia(const uint32_t *w) {
+const uint32_t *massFrame(const uint32_t *w, uint32_t &words) {
   uint32_t kind = w[4], cooked = kind == COOKED;
-  return (kind <= CYLINDER || cooked) && w[24] == cooked + 12 ? w + ADD_WORDS + cooked + 3 : nullptr;
+  words = (kind <= CYLINDER || cooked) && w[24] >= cooked ? w[24] - cooked : 0;
+  if (words != 3 && words != 12) words = 0;
+  return words ? w + ADD_WORDS + cooked : nullptr;
 }
 
 }  // namespace trillion

@@ -129,9 +129,10 @@ bool runCommands(const uint32_t *words, uint32_t count);
 void leaveAll(uint32_t engine);
 /// The shape an ADD command (`w`, from its opcode) describes, or null when refused.
 JPH::RefConst<JPH::Shape> shapeOf(const uint32_t *w);
-/// The inertia an ADD command's mass frame provides (nine floats, column-major, about its centre
-/// of mass), or null when it provides none.
-const uint32_t *providedInertia(const uint32_t *w);
+/// An ADD command's mass frame — a primitive's 3 or 12 data words, a cooked shape's past its handle:
+/// its centre of mass, then the inertia about it (nine, column-major) — and its `words`; null, 0,
+/// for none.
+const uint32_t *massFrame(const uint32_t *w, uint32_t &words);
 /// Writes the leaves a full event buffer held back at the last step, before anything else.
 void sendOwedLeaves();
 /// Runs the BUOYANCY command at `w` (`buoyancy.cpp`); returns its word count.
