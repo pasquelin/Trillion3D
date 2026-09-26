@@ -15,6 +15,9 @@ export function createShadowCounts() {
     lights: 0,
     sunLights: 0,
     invalidatedPages: 0,
+    /** Pages the invalidation examined — table entries the moved boxes cover, or pool pages when
+     *  they cover more —: its work, which the pool's size does not set (`invalidate.ts`). */
+    visitedPages: 0,
     pendingPages: 0,
     /** Pages the latest report read that were current: no draw, straight from the cache. */
     cachedPages: 0,
@@ -24,7 +27,7 @@ export function createShadowCounts() {
     beginFrame() {
       counts.lights = 0;
       counts.sunLights = 0;
-      counts.invalidatedPages = 0;
+      counts.invalidatedPages = counts.visitedPages = 0;
     },
     /** A page of this slice's light is drawn this frame: the light counts once per frame. */
     drewLight(slice: number, rank: number, frame: number) {
