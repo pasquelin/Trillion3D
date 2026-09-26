@@ -9,7 +9,7 @@ import { preview } from '../tests/fixtures/manifestBinaryPreview.ts';
 import { coverageLevels } from './texture-coverage-levels.ts';
 
 // The compiler's own PNG, Paeth-filtered, decodes to the level 0 its golden recorded.
-test('a PNG the compiler reads decodes to its golden texels, and a written one round-trips', () => {
+test('a PNG the compiler reads decodes to its golden texels, a written one round-trips, a short one is refused', () => {
   const png = readFileSync('tests/fixtures/formats/previews/atlas-couleur/base-degrade.png');
   const { width, height, rgba } = decodePng(png);
   assert.deepEqual([width, height], [40, 24]);
@@ -17,6 +17,9 @@ test('a PNG the compiler reads decodes to its golden texels, and a written one r
   assert.equal(digest, 'b4321ad8ab9746b57e5e2f6aff7716207a0e8cf8efbe951558d782f23e5679bf');
   const written = Uint8Array.from({ length: 24 }, (_, i) => i * 11);
   assert.deepEqual(decodePng(encodePng(3, 2, written)).rgba, written);
+  const taller = Buffer.from(encodePng(3, 2, written));
+  taller[23] = 3; // IHDR's height says 3 rows, the data holds 2: refused, not read as zeros
+  assert.throws(() => decodePng(taller), /every row/);
 });
 
 /** A 128² chain whose level `k` covers its top rows, `share(k)` of its texels, at alpha 200. */
