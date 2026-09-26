@@ -4,8 +4,6 @@ import { levelSize } from './tiles.ts';
 
 /** Bytes of one level's 256 bins. */
 export const LEVEL_BIN_BYTES = 1024;
-/** Offset of `t` in a level's uniform block: its fourth word. */
-const PICKED_OFFSET = 12;
 
 /**
  * The counts of the coverage rule (docs/FORMAT.md, "Coverage-preserving alpha"): `count` files each
@@ -118,6 +116,6 @@ export function countCoverage(
   pass.setPipeline(pick);
   pass.dispatchWorkgroups(1);
   pass.end();
-  const picked = level * stride + PICKED_OFFSET;
-  encoder.copyBufferToBuffer(bins, level * LEVEL_BIN_BYTES, uniforms, picked, 4);
+  // `t` lands in the block's fourth word, the `extent.w` its reduction scales by.
+  encoder.copyBufferToBuffer(bins, level * LEVEL_BIN_BYTES, uniforms, level * stride + 12, 4);
 }

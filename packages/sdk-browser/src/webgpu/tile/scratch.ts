@@ -85,9 +85,8 @@ export function createTileScratch(
     reduce();
   };
   const reduce = () => {
-    const { coverage, map } = options;
-    const weighted = coverage?.weighs(map) ?? false;
-    generateMaterialMips(device, texture, format, width, height, weighted, coverage?.cutoff(map));
+    const cutoff = options.coverage?.cutoff(options.map);
+    generateMaterialMips(device, texture, format, width, height, cutoff !== undefined, cutoff);
   };
   fill();
   return {
