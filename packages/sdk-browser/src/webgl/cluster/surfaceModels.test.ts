@@ -6,6 +6,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as G from '../../host/graph/graph.fixture.ts';
 import { clusterMaterialReason } from './compatibility.ts';
+import { surfaceOf } from '../../page/surface.ts';
 import { CLUSTER_FRAGMENT } from './shaders.ts';
 import { runShaderText } from '../../visibility/shader/shaderText.fixture.ts';
 import { DIRECT_LIGHTING_SHADER } from '../../lighting/deferred/shaders.ts';
@@ -62,22 +63,32 @@ test('lambert, toon and matcap draw on WebGL2, as Phong and normal do, each by i
   assert.equal(clusterMaterialReason(matcap, { position, normal }), undefined);
   matcap.matcap = G.dataTexture(new Uint8Array(4), 1, 1, 1022);
   assert.match(clusterMaterialReason(matcap, { position, normal })!, /texel format 1022/);
-  // A map the model never reads is refused, never dropped from the image.
+  // A map the model never reads is refused by name on both paths, never dropped from the image:
+  // by the WebGL2 gate, and by the page record the WebGPU path draws from; it asks for no UV.
   const map = G.dataTexture(new Uint8Array(4)),
     uv = new G.BufferAttribute(new Float32Array(6), 2);
-  for (const surface of [
-    new G.GraphSurface('toon', { gradientMap: map }),
-    new G.GraphSurface('matcap', { map }),
-    new G.GraphSurface('matcap', { normalMap: map }),
-    new G.GraphSurface('normal', { normalMap: map }),
-  ])
-    assert.match(
-      clusterMaterialReason(surface, { position, normal, uv })!,
-      /declares a map its surface model never reads/,
-      surface.family,
-    );
+  for (const [family, name] of [
+    ['toon', 'gradientMap'],
+    ['matcap', 'map'],
+    ['matcap', 'normalMap'],
+    ['normal', 'normalMap'],
+  ] as const) {
+    const surface = new G.GraphSurface(family, { [name]: map }),
+      named = `material ${family} declares a ${name} its surface model never reads`;
+    assert.equal(clusterMaterialReason(surface, { position, normal }), named);
+    assert.throws(() => surfaceOf(surface), { message: named });
+  }
   const lit = new G.GraphSurface('lambert', { normalMap: map });
   assert.equal(clusterMaterialReason(lit, { position, normal, uv }), undefined);
+  // An occlusion map asks for a UV only where its model reads it: never on a matcap or a normal view.
+  for (const family of ['matcap', 'normal', 'lambert', 'basic'] as const) {
+    const reason = clusterMaterialReason(new G.GraphSurface(family, { aoMap: map }), {
+      position,
+      normal,
+    });
+    const reads = family === 'lambert' || family === 'basic';
+    assert.equal(reason, reads ? 'textured material has no UV attribute' : undefined, family);
+  }
 });
 
 test('a diffuse and a toon surface take a lamp by the WebGPU formula on WebGL2', () => {

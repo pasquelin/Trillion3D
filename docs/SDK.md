@@ -906,7 +906,10 @@ so a windowless corridor stays black at noon. Emission is a material property an
 `world.exposure` sets the camera exposure, applied to linear radiance before tone mapping; it is not
 a light and cannot brighten a surface no light reaches. Debug views are untouched by both: a
 `material.meshNormal()` or `material.meshDepth()` surface is output as stored, with neither exposure
-nor `world.toneMapping`, on both renderers, as in the reference. `scene.background` is the colour behind every
+nor `world.toneMapping`, on both renderers, as in the reference. A map a family's model never reads
+— a `meshToon` `gradientMap`, a `meshMatcap` `map`, the `normalMap` of a `meshMatcap` or `meshNormal`
+surface — is refused by name on both renderers, never dropped from the image; a `meshMatcap`,
+`meshNormal` or `meshDepth` surface ignores an `aoMap`, as the reference does. `scene.background` is the colour behind every
 object, `null` for the default; set, or written through its methods (`scene.background.setHSL(...)`,
 `set`, `setRGB`, `setHex`), it shows at the next frame on every renderer, the session kept. A direct
 write of `.r`, `.g` or `.b` is not heard: set `scene.background` again after one. A picture

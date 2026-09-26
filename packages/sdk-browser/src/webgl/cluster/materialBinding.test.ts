@@ -10,6 +10,7 @@ import { importHostTexture } from '../../host/textureImport.ts';
 import { pageDiagnostics } from '../../host/pageDiagnostics.ts';
 import { CLUSTER_FRAGMENT } from './shaders.ts';
 import { SURFACE_MODEL } from '../../scene/surfaceModel.ts';
+import { visMaterial } from '../../visibility/shader/material.ts';
 import {
   HOST_BLENDING_ADDITIVE,
   HOST_BLENDING_MULTIPLY,
@@ -112,6 +113,19 @@ test('A matcap binds its image on the base map unit (#772)', () => {
   binding.textures.bind = (unit, map) => void (units[unit] = map);
   bindClusterMaterial(binding, new G.GraphSurface('matcap', { matcap: image }), true);
   assert.equal(units[0], importHostTexture(image));
+});
+
+test('An occlusion map darkens a matcap on neither path, a plain colour on WebGL2 (#772)', () => {
+  const aoMap = texture(),
+    { binding } = recorder(),
+    units: unknown[] = [];
+  binding.textures.bind = (unit, map) => void (units[unit] = map);
+  const matcap = new G.GraphSurface('matcap', { aoMap });
+  bindClusterMaterial(binding, matcap, true);
+  assert.equal(visMaterial(matcap).aoMap, undefined, 'the WebGPU record reads none');
+  assert.equal(units[4], undefined, 'nor does the WebGL2 program');
+  bindClusterMaterial(binding, G.basicSurface({ aoMap }), true);
+  assert.equal(units[4], importHostTexture(aoMap));
 });
 
 test("A diagnostic view's surfaces, and they alone, stay out of the fog", () => {
