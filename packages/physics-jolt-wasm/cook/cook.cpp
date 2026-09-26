@@ -1,14 +1,16 @@
 // The compiler's physics cook (`packages/asset-compiler-rust`, stage `physics-cook`): native Jolt,
 // from the same pinned submodule as the web module, turns triangles into shapes and writes them
 // with Jolt's own binary state (`src/blob.h`), so the physics worker restores them without
-// building a tree; a soft body's settings are built as the worker builds them (`src/softSettings.h`)
-// and written the same way. Every entry point returns 0 on success, else 1 and Jolt's error text in place of
-// the bytes; either stays valid until the calling thread's next call.
+// building a tree or a hull; a soft body's settings are built as the worker builds them
+// (`src/softSettings.h`) and written the same way. Every entry point returns 0 on success, else 1
+// and Jolt's error text in place of the bytes; either stays valid until the calling thread's next
+// call.
 #include "../src/blob.h"
 #include "../src/mesh.h"
 #include "../src/softSettings.h"
 
 #include <Jolt/Core/Factory.h>
+#include <Jolt/Physics/Collision/Shape/ConvexHullShape.h>
 #include <Jolt/Physics/Collision/Shape/HeightFieldShape.h>
 #include <Jolt/RegisterTypes.h>
 
@@ -102,6 +104,16 @@ uint32_t cook_soft_body(const float *vertices, uint32_t vertexCount, const float
   shared->SaveWithMaterials(blob, settings, materials);
   written.swap(blob.bytes);
   return taken(0, out, bytes);
+}
+
+/// The convex hull of `count` points (3 floats each), for a body's contact: its mass is the
+/// compiler's, weighed from the closed mesh it wraps.
+uint32_t cook_hull(const float *points, uint32_t count, const uint8_t **out, uint32_t *bytes) {
+  start();
+  Array<Vec3> hull;
+  hull.reserve(count);
+  for (uint32_t i = 0; i < count; ++i) hull.push_back(Vec3(points[i * 3], points[i * 3 + 1], points[i * 3 + 2]));
+  return save(ConvexHullShapeSettings(hull).Create(), out, bytes);
 }
 
 }  // extern "C"
