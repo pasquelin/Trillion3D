@@ -143,8 +143,8 @@ test('the streamer pins the set the image gathered, without gathering it again',
   const pinned = [...residency.pageUrls()];
   env.shown.push(fakePageRec('z.bin'));
   assert.deepEqual(residency.pageUrls(), pinned, 'read, not rebuilt');
-  assert.ok(!residency.keptUrls().has('z.bin'));
+  assert.ok(!residency.pageUrls().includes('z.bin'));
   residency.keptChanged();
   assert.ok(residency.pageUrls().includes('z.bin'));
-  assert.equal(residency.keptUrls().size, pinned.length + 1);
+  assert.equal(residency.pageUrls().length, pinned.length + 1);
 });
