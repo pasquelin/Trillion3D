@@ -174,8 +174,9 @@
         if (ui.drive) chase(driven, delta);
       });
 
-      // The path drawing the world, and what it refuses of the scene file's lights, with why.
-      await world.ready;
+      // The path drawing the world, and what it refuses of the scene file's lights, with why:
+      // asked of the session, so once it has opened on everything added above.
+      await world.awaitPages();
       drawn(world.renderer);
       const { reason } = capability.lighting(world);
       if (reason) announce(say('refused'), reason);
