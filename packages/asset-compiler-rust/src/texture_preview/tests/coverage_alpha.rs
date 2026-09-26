@@ -80,11 +80,15 @@ fn the_scale_lands_on_the_cutoff_in_integers() {
     .expect("table");
     let bytes = |alphas: &Value| -> Vec<u8> {
         let alphas = alphas.as_array().expect("alphas");
-        alphas.iter().flat_map(|a| [9, 9, 9, a.as_u64().expect("byte") as u8]).collect()
+        alphas
+            .iter()
+            .flat_map(|a| [9, 9, 9, a.as_u64().expect("byte") as u8])
+            .collect()
     };
     for case in table["cases"].as_array().expect("cases") {
         let cutoff = case["cutoff"].as_u64().expect("cutoff") as u8;
-        let covered = Covered::of(&bytes(&case["level0"]), AtlasKind::Coverage(cutoff)).expect("cut");
+        let covered =
+            Covered::of(&bytes(&case["level0"]), AtlasKind::Coverage(cutoff)).expect("cut");
         let mut level = bytes(&case["level"]);
         covered.preserve(&mut level);
         assert_eq!(level, bytes(&case["scaled"]), "{case}");

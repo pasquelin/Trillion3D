@@ -14,7 +14,7 @@ use std::borrow::Cow;
 pub(super) struct GateSheet {
     pub layout: Layout,
     pub channels: Channels,
-    pub cutoffs: Vec<f32>,
+    pub cutoffs: Vec<(f32, f32)>,
 }
 
 impl GateSheet {
@@ -32,7 +32,7 @@ impl GateSheet {
                 &reader.cutoffs,
             );
         }
-        cutoffs.sort_by(f32::total_cmp);
+        cutoffs.sort_by(|a, b| a.0.total_cmp(&b.0).then(a.1.total_cmp(&b.1)));
         let layout = if readers.iter().all(|r| r.normal_only) {
             Layout::TwoChannel
         } else {
