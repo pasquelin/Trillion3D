@@ -14,8 +14,8 @@ use super::*;
 use crate::compiler_world::{local_matrix, world_matrices, Mat4};
 
 mod boxes;
-pub(super) mod pages;
-pub(super) mod split;
+pub(crate) mod pages;
+pub(crate) mod split;
 use boxes::{grow, mesh_boxes, world_box, EMPTY};
 use pages::write_pages;
 use split::{split_cells, Placed, Region};

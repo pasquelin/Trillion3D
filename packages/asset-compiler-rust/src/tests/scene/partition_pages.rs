@@ -6,7 +6,7 @@
 //! the index pages, which a cooked world reaches only past eight pages of records.
 use super::partition::{cells, compiled, compiled_full, grid};
 use super::*;
-use crate::compiler_tables::{read_records, write_pages, Region, FAN_OUT, PAGE_BYTES};
+use crate::compiler_tables::partition::{pages::*, split::Region};
 use crate::tests::cache::reuse::compile_with_events;
 
 /// Every file of `directory` whose name starts with `prefix`: its size and its body.
@@ -52,7 +52,7 @@ fn the_root_has_one_size_whatever_the_world_and_every_page_its_limit() {
         open_world(8),
     ];
     let size = |value: &Value| serde_json::to_vec(value).expect("json").len();
-    let root = size(&worlds[0].1["partition"]);
+    let root = 1_391; // FORMAT.md, and the index-page root below
     for (options, tables, directory) in &worlds {
         assert_eq!(size(&tables["partition"]), root, "the root's bytes");
         let largest = files(directory, "scene-page-")
@@ -87,6 +87,11 @@ fn index_pages_list_at_most_the_fan_out_and_give_every_record_back_in_order() {
     let written = files(&directory, "scene-page-");
     let index = written.iter().filter(|(_, page)| page["pages"].is_array());
     assert!(index.count() > 0, "index pages are written");
+    let root_bytes = serde_json::to_vec(&root).expect("json").len();
+    assert_eq!(
+        root_bytes, 1_391,
+        "the root of small worlds, index pages under it"
+    );
     for (bytes, page) in &written {
         match page["pages"].as_array() {
             Some(slots) => assert!(slots.len() <= FAN_OUT),
