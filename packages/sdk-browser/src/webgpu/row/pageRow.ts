@@ -15,7 +15,7 @@ import {
   PAGE_INFO_STRIDE,
   VIS_TRIANGLE_BITS,
 } from '../../visibility/buffer.ts';
-import { blendCoverage } from '../../gpu/shadow/transmittance.ts';
+import { surfaceOpacity } from '../../page/surface.ts';
 import { neverCulled, writeSpriteWords } from '../../visibility/shader/spriteWgsl.ts';
 
 export const ROW_ID_BASE_WORD = 27,
@@ -101,7 +101,7 @@ export function createPageRowWriter(resources: PageRowResources) {
     // A blended cluster's row is a shadow caster's alone (`blendCasters.ts`): its flag and its
     // coverage are what the shadow raster reads of it.
     ints[base + ROW_FLAGS_WORD] = rec.transparent ? maps.flags | FLAG_BLEND_CASTER : maps.flags;
-    floats[base + ROW_BLEND_COVERAGE_WORD] = blendCoverage(mat);
+    floats[base + ROW_BLEND_COVERAGE_WORD] = surfaceOpacity(mat);
     ints[base + 24] = offsetWords;
     ints[base + ROW_INDEX_WORDS] = indexCount;
     ints[base + 26] = geo?.vertexBase ?? 0;
