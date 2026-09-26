@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { assertSceneTables, readSceneTables } from './tableContracts.ts';
-import { assertCellNodes, type TablePage } from './tablePartition.ts';
+import { assertSceneTables } from './tableContracts.ts';
+import { assertCellNodes, readTablePartition, type TablePage } from './tablePartition.ts';
 
 const hasCode =
   (code: string, text = '') =>
@@ -84,12 +84,12 @@ test('the pages under the root give back every cell in order, their box and thei
     assert.equal(url, `scene-page-${sha256}.json`);
     return new TextEncoder().encode(JSON.stringify(bodies[sha256.replace(/^0+/, '')]));
   };
-  const pages = [slot('a', [0, 0, 0, 2, 1, 1]), slot('b', [-3, 0, 0, -2, 5, 1])];
-  const file = assertSceneTables({
-    ...tables(),
-    partition: { version: 2, pages: [...pages, ...Array(6).fill(EMPTY)] },
-  });
-  const paged = (await readSceneTables(file, read)).partition!;
+  const root = [
+    slot('a', [0, 0, 0, 2, 1, 1]),
+    slot('b', [-3, 0, 0, -2, 5, 1]),
+    ...Array(6).fill(EMPTY),
+  ];
+  const paged = await readTablePartition({ version: 2, pages: root }, read);
   assert.deepEqual(
     paged.cells.map(({ url }) => url),
     ['0', '1', '2', '3'],
@@ -97,12 +97,11 @@ test('the pages under the root give back every cell in order, their box and thei
   assert.deepEqual(paged.bounds, [-3, 0, 0, 2, 5, 1]);
   assert.deepEqual(paged.meshes, [0, 1, 2, 3]);
   // A slot that is not fixed-width hexadecimal, or a page of another version, is refused.
-  const bad = { version: 2, pages: ['z'.repeat(168), ...Array(7).fill(EMPTY)] };
-  const refused = assertSceneTables({ ...tables(), partition: bad });
-  await assert.rejects(readSceneTables(refused, read), hasCode('INVALID_SCENE_TABLES'));
+  const bad = { version: 2, pages: ['z'.repeat(168), ...root.slice(1)] };
+  await assert.rejects(readTablePartition(bad, read), hasCode('INVALID_SCENE_TABLES'));
   bodies.b = { version: 1, cells: [] };
   await assert.rejects(
-    readSceneTables(file, read),
+    readTablePartition({ version: 2, pages: root }, read),
     hasCode('UNSUPPORTED_SCENE_TABLES', 'version 1'),
   );
 });
