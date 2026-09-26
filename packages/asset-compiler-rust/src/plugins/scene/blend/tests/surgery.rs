@@ -13,8 +13,7 @@ const SPARE: u64 = 0xB1E0_0000_0000_0001;
 
 /// The bytes of the CC0 fixture, as Blender wrote them: in a Zstandard wrapping.
 pub(super) fn wrapped() -> Vec<u8> {
-    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../tests/fixtures/formats/blend/procedural-materials/scene.blend");
+    let path = crate::tests::golden::golden_dir("blend/procedural-materials").join("scene.blend");
     fs::read(&path).unwrap_or_else(|e| panic!("{}: {e}", path.display()))
 }
 

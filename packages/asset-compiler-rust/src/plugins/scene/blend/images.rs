@@ -12,22 +12,14 @@
 use super::*;
 
 /// Images already poured, by the address of the block that holds them.
+#[derive(Default)]
 pub(super) struct Images {
     by_block: HashMap<u64, Option<usize>>,
-    /// The bytes the scene binary may reach: the job's RAM budget, less the unpacked file.
-    pub(super) room: usize,
 }
 
 impl Images {
-    /// No image poured yet, under this room.
-    pub(super) fn within(room: usize) -> Images {
-        Images {
-            by_block: HashMap::new(),
-            room,
-        }
-    }
     /// The glTF texture rank of this image, poured on first request; a packed image past the
-    /// room refuses the scene.
+    /// scene binary's room refuses the scene.
     pub(super) fn texture(
         &mut self,
         image: &At<'_>,
@@ -37,24 +29,13 @@ impl Images {
         if let Some(known) = self.by_block.get(&image.old) {
             return Ok(*known);
         }
-        let found = resolve(image, root, out, self.room)?;
+        let found = resolve(image, root, out)?;
         self.by_block.insert(image.old, found);
         Ok(found)
     }
 }
 
-/// Refuses the scene when `adding` bytes more take its binary, `held` bytes so far, past `room`.
-pub(super) fn fit(what: &str, adding: usize, held: usize, room: usize) -> Result<()> {
-    if held.saturating_add(adding) > room {
-        return Err(refused(
-            "blend-too-large",
-            format!("blend: {what} needs {adding} bytes, and the scene binary already holds {held} of the {room}-byte RAM budget of this job (ramBudgetMb)"),
-        ));
-    }
-    Ok(())
-}
-
-fn resolve(image: &At<'_>, root: &Path, out: &mut Out, room: usize) -> Result<Option<usize>> {
+fn resolve(image: &At<'_>, root: &Path, out: &mut Out) -> Result<Option<usize>> {
     let declared = image.text("name").replace('\\', "/");
     let name = declared
         .rsplit('/')
@@ -70,12 +51,7 @@ fn resolve(image: &At<'_>, root: &Path, out: &mut Out, room: usize) -> Result<Op
         return Ok(None);
     };
     if let Some(bytes) = packed(image) {
-        fit(
-            &format!("packed image {name}"),
-            bytes.len(),
-            out.bin.bytes.len(),
-            room,
-        )?;
+        out.fit("packed image", &name, out.bin.bytes.len(), bytes.len())?;
         let view = out.bin.view(bytes, None);
         return Ok(Some(out.image(
             json!({"name": name, "mimeType": mime, "bufferView": view}),
