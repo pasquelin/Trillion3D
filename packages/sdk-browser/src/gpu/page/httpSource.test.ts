@@ -9,7 +9,12 @@ const BASE = 'https://cache.test/model/pages/';
 test('a page the server does not hold (404) is refused by its address, asked once', async (t) => {
   const asked = answering(t, 'p0.bin', [404]);
   await assert.rejects(httpPageSource(BASE).read('p0.bin'), refusedWith(404, 'p0.bin'));
-  assert.equal(asked.length, 1);
+  const { device } = fakeDevice({ limits: { maxBufferSize: 1024 } });
+  const cache = createGpuPageCache(device, httpPageSource(BASE), { pageBytes: 8, slots: 1 });
+  // Nor does the cache ask it again: another request would meet the same refusal.
+  await assert.rejects(cache.load('p0.bin'), refusedWith(404, 'p0.bin'));
+  assert.equal(asked.length, 2);
+  await cache.dispose();
 });
 
 test('a page read a busy server refuses once (503) is asked again by the cache, its status reported', async (t) => {

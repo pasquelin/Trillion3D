@@ -180,7 +180,7 @@ export function createGpuPageCache(
 /**
  * A page source that fetches pages over HTTP, by key, from `baseUrl` (`checked`): a failed read is
  * refused by `RESOURCE_HTTP_ERROR`, its status in `details.status`, after one request — the GPU
- * page cache asks it once more on its own terms.
+ * page cache asks a network failure or a 5xx once more on its own terms.
  */
 export function httpPageSource(baseUrl: string): PageSource {
   return {

@@ -55,7 +55,9 @@ export function createGpuPageLoader(context: GpuPageContext) {
         try {
           bytes = await (fetched ?? fetchBytes(key, combined));
         } catch (err) {
-          if (!combined.aborted && !state.disposed) {
+          // A refusal another request would meet again (a 4xx) is not asked twice (`checked`).
+          const final = (statusOf(err) ?? 500) < 500;
+          if (!combined.aborted && !state.disposed && !final) {
             emit('gpu-page-retry', 'New GPU read after failure', () => ({
               version: 1,
               key,
