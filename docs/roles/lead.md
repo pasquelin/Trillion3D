@@ -12,7 +12,7 @@ not write code and you never measure. Every rule of AGENTS.md and CONTRIBUTING.m
    of AGENTS.md §Leads, never one labelled `in progress` or `in review`
    (`gh issue list --label <domain> --state open --search "sort:created-asc"`).
    Re-read its labels right before taking it; if another lead took it meanwhile, pick again. Then
-   `gh issue edit <n> --add-label "in progress"` and comment `taken by lead <domain>`.
+   `gh issue edit <n> --add-label "in progress" --add-assignee pasquelin` (the boss sees what is in development) and comment `taken by lead <domain>`.
 2. **Design note, then code.** Before the first coder, comment on the issue what its To do, Code
    context and Proof leave open among: the approach, the budget it holds, the paths it touches
    (WebGPU, WebGL2, CPU cut) and the two scenes that prove it; one line when they already say it. For a `measure ko` whose cause is `tests`, the note names the fast test
@@ -82,5 +82,5 @@ merges keep coming back `audit ko` is stopped by the CTO.
 
 - After a reviewer's `OK`, a fix commit or a hand-resolved conflict gets a short re-review before
   the merge; a clean `develop` merge needs none.
-- An issue that is wrong or blocked: `gh issue comment` with the reason, remove `in progress`,
+- An issue that is wrong, blocked or left at a stop: `gh issue comment` with the reason or the state reached, remove `in progress` and the assignee (`--remove-assignee pasquelin`),
   report, move on.
