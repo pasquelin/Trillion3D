@@ -9,6 +9,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { banc } from './resume.fixture.ts';
+import type { ClusterRoot, PageRec } from '../../page/selection/types.ts';
 
 test('a pending image requests, syncs and dispatches: resume has what it needs to happen', () => {
   const b = banc();
@@ -71,4 +72,15 @@ test('a wait whose dispatch fails falls back once, it does not retry three times
   assert.equal(b.comptes.envois, 1, 'a single dispatch attempted');
   assert.equal(b.comptes.attentes, 0, 'no image waited');
   assert.deepEqual(b.shown, [], 'nothing is drawn before the root cover');
+});
+
+test("the GPU cut's images let go of the readiness the CPU cut held", () => {
+  const b = banc(),
+    held = b.rt.services.heldResidency;
+  held.readiness({ pages: [{ triangles: 1 }] } as unknown as ClusterRoot<PageRec>);
+  assert.equal(held.placements, 1);
+  // A light's cut of the last CPU image may still have visited it: the next image lets it go.
+  b.image();
+  b.image();
+  assert.deepEqual([held.placements, held.bytes], [0, 0]);
 });
