@@ -11,14 +11,32 @@ import { runShaderText } from '../../visibility/shader/shaderText.fixture.ts';
 import { DIRECT_LIGHTING_SHADER } from '../../lighting/deferred/shaders.ts';
 import { PI } from '../../lighting/shaderConstants.ts';
 import { MODEL_FLAG, SURFACE_MODEL, SURFACE_MODEL_SHADE_WGSL } from '../../scene/surfaceModel.ts';
-import { transformDirectionVector3 } from '../../../../sdk-core/src/math/primitives/vector.ts';
+import {
+  crossVector3,
+  dotVector3,
+  transformDirectionVector3,
+} from '../../../../sdk-core/src/math/primitives/vector.ts';
 import {
   createCameraFrame,
   perspectiveProjection,
   updateCameraFrame,
 } from '../../../../sdk-core/src/math/primitives/camera.ts';
 
-/** The function `name` a shader text declares, from its signature to its closing brace. */
+type Vector = number[];
+/** The built-ins these functions call beyond the reader's own (`runShaderText`). */
+const BUILTINS = {
+  dot: (a: Vector, b: Vector) => dotVector3(a, b),
+  cross: (a: Vector, b: Vector) => crossVector3([0, 0, 0], a, b),
+  max: Math.max,
+  mix: (a: number, b: number, t: number) => a * (1 - t) + b * t,
+  smoothstep: (from: number, to: number, x: number) => {
+    const t = Math.min(1, Math.max(0, (x - from) / (to - from)));
+    return t * t * (3 - 2 * t);
+  },
+};
+
+/** The function `name` a shader text declares, from its signature to its closing brace; a WGSL
+ *  unsigned literal reads as its number. */
 function declared(source: string, name: string) {
   const start = source.search(new RegExp(`(?:fn|vec[23]) ${name}\\(`));
   assert.ok(start >= 0, `no function ${name}`);
@@ -26,7 +44,7 @@ function declared(source: string, name: string) {
     depth = 0;
   do depth += { '{': 1, '}': -1 }[source[end++]] ?? 0;
   while (depth);
-  return source.slice(start, end);
+  return source.slice(start, end).replace(/(\d)u\b/g, '$1');
 }
 
 test('lambert, toon and matcap draw on WebGL2, as Phong and normal do, each by its normal', () => {
@@ -47,9 +65,15 @@ test('lambert, toon and matcap draw on WebGL2, as Phong and normal do, each by i
 
 test('a diffuse and a toon surface take a lamp by the WebGPU formula on WebGL2', () => {
   const gl = (model: number) =>
-    runShaderText<number>(declared(CLUSTER_FRAGMENT, 'modelLight'), { surfaceModel: model });
+    runShaderText<number>(declared(CLUSTER_FRAGMENT, 'modelLight'), {
+      ...BUILTINS,
+      surfaceModel: model,
+    });
   const gpu = (flag: number) =>
-    runShaderText<number>(declared(DIRECT_LIGHTING_SHADER, 'modelLight'), { surfaceModel: flag });
+    runShaderText<number>(declared(DIRECT_LIGHTING_SHADER, 'modelLight'), {
+      ...BUILTINS,
+      surfaceModel: flag,
+    });
   const N = [0, 0, 1],
     grey = 0.6,
     ao = 0.9,
@@ -99,7 +123,7 @@ test('a matcap reads its image where the WebGPU resolve does, and a normal view 
   const viewProj = [0, 4, 8, 12].map((at) => [...viewProjection.subarray(at, at + 4)]);
   const viewNormal = runShaderText(
     declared(SURFACE_MODEL_SHADE_WGSL, 'viewNormal').replaceAll('uni.viewProj', 'viewProj'),
-    { viewProj },
+    { ...BUILTINS, viewProj },
   );
   const gpu = runShaderText(declared(SURFACE_MODEL_SHADE_WGSL, 'matcapUv'), { viewNormal });
   const gl = runShaderText(declared(CLUSTER_FRAGMENT, 'matcapUv'));
