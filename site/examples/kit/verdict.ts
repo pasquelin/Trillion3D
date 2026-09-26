@@ -57,20 +57,15 @@ function line(name: string, values: number[], key?: keyof typeof BUDGETS) {
  *  of its GPU and shadow times and of its shadow pages drawn a frame, the pages refetched in it. */
 function partLines(part: string, frames: Frame[]): LigneResultat[] {
   const at = frames.map((frame) => frame.at),
-    fps = rate(at),
-    gaps = spread(at.slice(1).map((time, k) => time - at[k]));
+    gaps = spread(at.slice(1).map((time, k) => time - at[k])),
+    [fps, mean] = [gaps && Math.round(1000 / gaps.p50), Math.round(rate(at) ?? 0)];
   const refetched = measured(frames, 'shadowPagesRefetched'),
     pages = refetched.length ? [refetched.at(-1)! - refetched[0]] : [];
   return [
     {
-      // One frame gives no rate: unmeasured, never a red line.
-      ...(fps === null
-        ? ligne({ name: `${part}: FPS`, motif: '—' })
-        : ligne({
-            name: `${part}: FPS`,
-            correct: Math.round(fps) >= BUDGETS.fps,
-            motif: `${Math.round(fps)} ≥ ${BUDGETS.fps}`,
-          })),
+      ...ligne({ name: `${part}: FPS`, motif: '—' }),
+      // The median gap judges, a late frame is no slow part; one frame gives no rate, no red line.
+      ...(fps && { correct: fps >= BUDGETS.fps, motif: `${fps} ≥ ${BUDGETS.fps}, mean ${mean}` }),
       medianeMs: gaps?.p50 ?? null,
       p95Ms: gaps?.p95 ?? null,
       tours: frames.length,

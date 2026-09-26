@@ -45,7 +45,7 @@ test('a part drawn at 120 Hz within its budgets is green on every line, part by 
     ['far', 61, 1000 / 120, healthy],
   ]);
   assert.equal(correct, true);
-  assert.deepEqual(lines['close: FPS'], [true, '120 ≥ 60']);
+  assert.deepEqual(lines['close: FPS'], [true, '120 ≥ 60, mean 120']);
   assert.deepEqual(lines['far: GPU frame'], [true, '6.00 ms ≤ 16.67 ms']);
   assert.deepEqual(lines['far: GPU shadows'], [true, '1.50 ms ≤ 2.00 ms, until #525']);
   assert.deepEqual(lines['far: shadow pages drawn'], [null, '3']);
@@ -61,10 +61,15 @@ test('a budget the engine does not meet yet names its issue, shows red and count
   assert.ok(flagged({ motif: ', until #525' } as never) && !flagged({ motif: '3' } as never));
 });
 
-test('a slowed build turns its rate line red, and the overall verdict with it', () => {
+test('a part at 60 Hz with a few late frames stays green; a slowed build is red, the verdict too', () => {
+  const late = judged([
+    ['close', 50, 1000 / 60, healthy],
+    ['close', 5, 25, healthy],
+  ]);
+  assert.deepEqual(late.lines['close: FPS'], [true, '60 ≥ 60, mean 58']);
   const { correct, lines } = judged([['still', 31, 1000 / 30, healthy]]);
   assert.equal(correct, false);
-  assert.deepEqual(lines['still: FPS'], [false, '30 ≥ 60']);
+  assert.deepEqual(lines['still: FPS'], [false, '30 ≥ 60, mean 30']);
   assert.equal(lines['still: GPU frame'][0], true);
 });
 
