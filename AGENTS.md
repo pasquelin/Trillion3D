@@ -41,7 +41,7 @@ disagreement is reported to the maintainer.
     in the issue or the pull request, never on disk.
 11. **A pull request is opened finished.** The coder and the reviewer work on the pushed branch, with no pull request; the lead opens the pull request (never a draft) only after the reviewer's `OK` and its Lead verification, so it waits only for CI and the CTO's merge: minutes, never hours. **Small, short-lived pull requests.** One issue per pull request, about 500 hand-written lines at most (generated files excluded); an issue that needs more goes back to the CTO to be split (rule 5). A lead brings its conflicting PR up to date at every pick, never lets two of its PRs wait
     on the same files, and keeps it open one hour at most: that is the limit, not a trigger. The
-    CTO merges pull requests oldest first: a younger ready PR waits until every older one is merged. No pull request is closed unmerged.
+    CTO merges pull requests oldest first: a younger ready PR waits until every older ready one is merged; a red one holds nobody. No pull request is closed unmerged.
 
 ## Roles
 
@@ -76,8 +76,8 @@ request and starts its reviewer. Agents cannot merge from this app: the CTO merg
 each pull request a lead names ready (green CI, reviewer `OK`, Lead verification written). A bug
 goes to its domain's lead; there is no bug domain. There is one CTO session, one measurer and one
 acceptance agent. Every agent reports to the CTO; only the CTO speaks to the boss. The CTO watches
-the plan usage: at 75 % no lead starts a coder on an issue one run cannot finish; at 80 % (or the
-threshold the boss sets) it winds the company down (current agents finish, nothing new starts) so
+the plan usage: 5 points below the threshold (80 % unless the boss sets another) no lead starts a
+coder on an issue one run cannot finish; at the threshold it winds the company down (current agents finish, nothing new starts) so
 no work is cut midway.
 
 ## Leads: limits that hold at every moment
@@ -99,7 +99,7 @@ no work is cut midway.
 | Label                    | Set by     | Means                                                     |
 | ------------------------ | ---------- | --------------------------------------------------------- |
 | `🔴 critical` … `🟢 low` | CTO        | the only priority of the leads' issues (order: §Leads)    |
-| `in progress`            | lead       | taken: no other lead touches it                           |
+| `in progress`            | lead       | taken, assigned to the boss: no other lead touches it     |
 | `in review`              | lead       | branch pushed, reviewer at work                           |
 | `to measure`             | lead       | closed engine issue waiting in the measurer's queue       |
 | `measuring`              | measurer   | being measured now                                        |
