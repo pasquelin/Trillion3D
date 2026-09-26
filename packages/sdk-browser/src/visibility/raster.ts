@@ -54,7 +54,7 @@ function cutout(
     if (!masked) return true;
     let alpha = (color ? vertexAlpha(color, tri, bary) : 1) * opacity;
     const rgba = mat.map && textureRgba(mat.map);
-    if (!rgba) return (!color && !!mat.map) || alpha >= mat.alphaTest;
+    if (!rgba) return alpha >= mat.alphaTest;
     const v = uv
       ? uv.getY(tri.i0) * bary.w0 + uv.getY(tri.i1) * bary.w1 + uv.getY(tri.i2) * bary.w2
       : 0;
