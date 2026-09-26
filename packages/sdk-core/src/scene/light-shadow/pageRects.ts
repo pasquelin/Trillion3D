@@ -3,14 +3,8 @@ import { writeFace } from './faces.ts';
 import { sunBoxRect } from './math.ts';
 import type { SunLevels } from './sunLevels.ts';
 import { FULL_FACE } from './volume.ts';
-import {
-  LAMP_MIPS,
-  SUN_LEVELS,
-  SUN_WINDOW,
-  lampFacesOf,
-  lampPagesAt,
-  sunPageMetres,
-} from './virtual.ts';
+import { LAMP_MIPS, SUN_LEVELS, SUN_WINDOW, lampFacesOf, lampPagesAt } from './virtual.ts';
+import { sunPageMetres } from './virtual.ts';
 
 /** Light views of one light: a sun's clipmap levels, a lamp face at each mip. */
 const VIEWS = Math.max(SUN_LEVELS, POINT_FACES * LAMP_MIPS);
@@ -34,24 +28,17 @@ export function createPageRects() {
     near = 0;
 
   /**
-   * Writes view `view`'s rectangle: the pages of `[x0, x0 + pages) × [y0, y0 + pages)` that meet
-   * `[u0, u1] × [v0, v1]`, in pages, edges included. Returns the pages it covers.
+   * Writes view `view`'s rectangle: the pages of `[x0, x0 + n) × [y0, y0 + n)` that meet
+   * the `plane` rectangle carried to pages, `(plane + offset) · scale`, edges included. Returns
+   * the pages it covers.
    */
-  function setRect(
-    view: number,
-    u0: number,
-    u1: number,
-    v0: number,
-    v1: number,
-    x0: number,
-    y0: number,
-    pages: number,
-  ) {
-    const r = view * 4;
-    rects[r] = Math.max(x0, Math.ceil(u0) - 1);
-    rects[r + 1] = Math.min(x0 + pages - 1, Math.floor(u1));
-    rects[r + 2] = Math.max(y0, Math.ceil(v0) - 1);
-    rects[r + 3] = Math.min(y0 + pages - 1, Math.floor(v1));
+  function setRect(view: number, scale: number, offset: number, x0: number, y0: number, n: number) {
+    const r = view * 4,
+      at = (side: number) => (plane[side] + offset) * scale;
+    rects[r] = Math.max(x0, Math.ceil(at(0)) - 1);
+    rects[r + 1] = Math.min(x0 + n - 1, Math.floor(at(1)));
+    rects[r + 2] = Math.max(y0, Math.ceil(at(2)) - 1);
+    rects[r + 3] = Math.min(y0 + n - 1, Math.floor(at(3)));
     const columns = rects[r + 1] - rects[r] + 1,
       rows = rects[r + 3] - rects[r + 2] + 1;
     return columns > 0 && rows > 0 ? columns * rows : 0;
@@ -67,18 +54,10 @@ export function createPageRects() {
       if (Number.isNaN(plane[side])) plane[side] = side & 1 ? Infinity : -Infinity;
     let covered = 0;
     for (let view = 0; view < SUN_LEVELS; view++) {
-      const level = sun.finest[slice] + view,
-        metres = sunPageMetres(level);
-      covered += setRect(
-        view,
-        plane[0] / metres,
-        plane[1] / metres,
-        plane[2] / metres,
-        plane[3] / metres,
-        sun.originOf(slice, level, 0),
-        sun.originOf(slice, level, 1),
-        SUN_WINDOW,
-      );
+      const level = sun.finest[slice] + view;
+      const ox = sun.originOf(slice, level, 0),
+        oy = sun.originOf(slice, level, 1);
+      covered += setRect(view, 1 / sunPageMetres(level), 0, ox, oy, SUN_WINDOW);
     }
     return covered;
   }
@@ -108,19 +87,9 @@ export function createPageRects() {
     else plane.set(FULL_FACE);
     let covered = 0;
     for (let mip = 0; mip < LAMP_MIPS; mip++) {
-      // Columns grow with u, rows downward: page `(x, y)` spans `u ∈ [2x/n − 1, 2(x+1)/n − 1]`.
-      const n = lampPagesAt(mip),
-        half = n / 2;
-      covered += setRect(
-        face * LAMP_MIPS + mip,
-        (plane[0] + 1) * half,
-        (plane[1] + 1) * half,
-        (1 - plane[3]) * half,
-        (1 - plane[2]) * half,
-        0,
-        0,
-        n,
-      );
+      // Page `(x, y)` spans `u ∈ [2x/n − 1, 2(x+1)/n − 1]`; rows grow downward, as `plane` holds −v.
+      const n = lampPagesAt(mip);
+      covered += setRect(face * LAMP_MIPS + mip, n / 2, 1, 0, 0, n);
     }
     return covered;
   }
@@ -148,12 +117,12 @@ export function createPageRects() {
     }
   }
 
-  /** Grows the face rectangle to hold normalised point `(u, v)`. */
+  /** Grows the face rectangle to hold normalised point `(u, v)`, rows down: it holds `−v`. */
   function include(u: number, v: number) {
     plane[0] = Math.min(plane[0], u);
     plane[1] = Math.max(plane[1], u);
-    plane[2] = Math.min(plane[2], v);
-    plane[3] = Math.max(plane[3], v);
+    plane[2] = Math.min(plane[2], -v);
+    plane[3] = Math.max(plane[3], -v);
   }
 
   /** Composes the lamp's face matrices: every box of the frame is projected by them. */
