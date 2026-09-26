@@ -1,9 +1,8 @@
 import { signedArea, type Projected } from './projection.ts';
 import { matrixWindingCw } from '../../../sdk-core/src/index.ts';
 import { uvTransformed } from '../../../sdk-core/src/texture/contract.ts';
-import { refreshSurface, surfaceSide, type PageSurface } from '../page/surface.ts';
+import { refreshSurface, surfaceOpacity, surfaceSide, type PageSurface } from '../page/surface.ts';
 import { lineDash } from './shader/lineWgsl.ts';
-import { blendCoverage } from '../gpu/shadow/transmittance.ts';
 import { DEPTH_CLEAR, depthNearer } from '../camera/depthConvention.ts';
 import { triangleAt, perspectiveBary, mapTexel } from './math.ts';
 import {
@@ -43,7 +42,7 @@ function cutout(
 ) {
   const uv = page.attributes.uv,
     dashed = mat.dashSize !== undefined && !!uv,
-    opacity = blendCoverage(mat),
+    opacity = surfaceOpacity(mat),
     masked = mat.alphaTest > 0 && (!!mat.map || !!color || opacity < mat.alphaTest);
   if (!dashed && !masked) return undefined;
   return (_x: number, _y: number, w0: number, w1: number, w2: number) => {
