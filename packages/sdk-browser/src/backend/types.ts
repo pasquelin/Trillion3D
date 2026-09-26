@@ -172,6 +172,8 @@ export interface BackendContext {
   sceneLighting?: Object3D;
   /** The page's guides, held by its world (`guides/guideSet.ts`): drawn over the image. */
   guides?: import('../guides/guideSet.ts').GuideSet;
+  /** The world's particle pools, stepped once per image (`../particles/`). */
+  particles?: readonly import('../../../sdk-core/src/fluids/particles.ts').ParticlePool[];
   /** Contract lights, owned by the host and shared by every engine of the session. */
   sceneLights?: SceneLightStore;
   /** Imported light ids, in cache order: the host sets or removes them (`importedLights()`). */
