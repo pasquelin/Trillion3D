@@ -1,7 +1,7 @@
 import type { PageRec } from '../page/selection/selection.ts';
 import { createSparseInts } from '../page/cut/sparseInts.ts';
 
-const NO_PARENTS: readonly number[] = [];
+const NO_PARENTS: readonly PageRec[] = [];
 
 /**
  * Eviction by last use, and parents after their children: which pages the image still holds once
@@ -48,7 +48,7 @@ export function createLastUse(options: {
   const children = createSparseInts();
   /** The parents each held page took, given back as they were when it is released: a record's
    *  placement may be laid out elsewhere in between. */
-  const heldParents = new Map<number, readonly number[]>();
+  const heldParents = new Map<number, readonly PageRec[]>();
   /** Pages in the order they went idle, beside that frame; entries a later use made stale are
    *  skipped when they come due. */
   const idleKeys: number[] = [],
@@ -67,12 +67,10 @@ export function createLastUse(options: {
    *  parent held for the first time holds its own. True when it did not hold them yet. */
   const hold = (key: number, rec: PageRec) => {
     if (heldParents.has(key)) return false;
-    const parents = parentsOf(rec),
-      taken: number[] = [];
-    heldParents.set(key, parents.length ? taken : NO_PARENTS);
+    const parents = parentsOf(rec);
+    heldParents.set(key, parents);
     for (const parent of parents) {
       const at = keyOf(parent);
-      taken.push(at);
       children.add(at, 1);
       if (hold(at, parent)) onHeld?.(at);
     }
@@ -84,7 +82,8 @@ export function createLastUse(options: {
     const taken = heldParents.get(key) ?? NO_PARENTS;
     heldParents.delete(key);
     const freed = onRelease(key);
-    for (const at of taken)
+    for (const parent of taken) {
+      const at = keyOf(parent);
       if (children.add(at, -1) === 0 && !kept(at)) {
         if (levelPerFrame && cascadeFrame !== frame) {
           cascadeFrame = frame;
@@ -92,6 +91,7 @@ export function createLastUse(options: {
         }
         idle(at, frame);
       }
+    }
     return freed;
   };
   return {
