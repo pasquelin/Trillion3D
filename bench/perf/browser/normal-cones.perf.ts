@@ -81,8 +81,4 @@ await stress({
   extremes: [{ name: 'empty', input: [] }],
 });
 
-rapport(
-  'cones-normaux',
-  [resOctets, resDiagnostic],
-  'F18 yields the exact same bytes and counts',
-);
+rapport('cones-normaux', [resOctets, resDiagnostic], 'F18 yields the exact same bytes and counts');
