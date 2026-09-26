@@ -6,12 +6,12 @@ use super::*;
 use split::Region;
 use std::{fmt::Write as _, ops::Range};
 
-/// The most bytes a region page of more than one cell holds: one stream unit.
+/// The most bytes a region page of more than one record holds: one stream unit.
 pub(crate) const PAGE_BYTES: usize = crate::STREAM_BUNDLE_BYTES;
 /// How many pages the root and an index page list at most.
 pub(crate) const FAN_OUT: usize = 8;
 /// A slot: the page's SHA-256 in 64 hexadecimal digits, its size in 8, then its box — the union
-/// of its cells' at the declared poses — as the bits of six `f64` in 16 each. Zeros: no page.
+/// of its records' at the declared poses — as the bits of six `f64` in 16 each. Zeros: no page.
 const SLOT_WIDTH: usize = 64 + 8 + 6 * 16;
 
 /// A kind of page: the prefix of its files, the version every page carries, and the member a
@@ -67,15 +67,15 @@ pub(crate) struct Pager<'a> {
 }
 
 impl Pager<'_> {
-    /// Whether `region` is a region page: one cell, or records that fit `PAGE_BYTES`.
+    /// Whether `region` is a region page: one record, or records that fit `PAGE_BYTES`.
     fn fits(&self, region: &Region) -> bool {
         let (starts, cells) = (&self.starts, &region.cells);
         region.halves.is_none()
             || self.empty + starts[cells.end] - starts[cells.start] <= PAGE_BYTES
     }
 
-    /// The slots of the pages listing `region`'s cells in order, each written: its halving opened,
-    /// the node of most cells first, until `FAN_OUT` pages or every one is a region page.
+    /// The slots of the pages listing `region`'s records in order, each written: its halving
+    /// opened, the node of most records first, until `FAN_OUT` pages or every one is a region page.
     fn slots(&self, region: &Region) -> Result<Vec<String>> {
         let mut pages = vec![region];
         while pages.len() < FAN_OUT {
@@ -138,6 +138,31 @@ pub(crate) fn write_pages(
     Ok(json!({"version": kind.version, "pages": pager.root(tree)?}))
 }
 
+/// Every cell record under `root`, of `CELL_PAGES`' version, in cell order.
+pub(crate) fn read_records(
+    directory: &Path,
+    root: &Value,
+) -> std::result::Result<Vec<Value>, String> {
+    if root["version"] != json!(CELL_PAGES.version) {
+        return Err("the partition root is of another version".into());
+    }
+    let mut pages = Vec::new();
+    read_leaves(
+        &CELL_PAGES,
+        directory,
+        &root["pages"],
+        "the root",
+        &mut pages,
+    )?;
+    let mut records = Vec::new();
+    for mut page in pages {
+        if let Value::Array(cells) = page[CELL_PAGES.records].take() {
+            records.extend(cells);
+        }
+    }
+    Ok(records)
+}
+
 /// The page of `kind` that `slot` names — read from `directory`, proven by its size and
 /// fingerprint, of `kind`'s version — and its file; `None` for an empty slot. `what` names the
 /// page that lists it.
@@ -148,7 +173,7 @@ pub(crate) fn read_slot(
     what: &str,
 ) -> std::result::Result<Option<(String, Value)>, String> {
     let text = slot.as_str().unwrap_or_default();
-    if text.len() != SLOT_WIDTH || !text.bytes().all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f')) {
+    if text.len() != SLOT_WIDTH || !crate::manifest_binary::is_lower_hex(text) {
         return Err(format!("{what} lists a slot of another width"));
     }
     let bytes = usize::from_str_radix(&text[64..72], 16).expect("eight hex digits");
