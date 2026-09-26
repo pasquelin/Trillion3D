@@ -6,16 +6,21 @@ use std::sync::atomic::AtomicBool;
 /// Compiles these bytes through the driver in a throwaway directory, and yields the glTF and the
 /// manifest it wrote — the manifest carries the counts and the report codes.
 pub(super) fn compiled(bytes: &[u8], tag: &str) -> (Value, Value) {
-    let root = std::env::temp_dir().join(format!(
-        "trillion3d-blend-{tag}-{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .expect("clock")
-            .as_nanos()
-    ));
+    let (root, directory) = converted(bytes, tag, BUDGET);
+    let directory = directory.expect("conversion");
+    let read = |name: &str| -> Value {
+        serde_json::from_slice(&fs::read(directory.join(name)).expect(name)).expect(name)
+    };
+    let pair = (read("model.gltf"), read("manifest.json"));
+    fs::remove_dir_all(&root).expect("cleanup");
+    pair
+}
+
+/// Converts these bytes through the driver under this RAM budget, in a throwaway directory the
+/// caller removes: that directory, and what the driver returned.
+pub(super) fn converted(bytes: &[u8], tag: &str, ram_budget: usize) -> (PathBuf, Result<PathBuf>) {
+    let root = scratch(tag);
     let source = root.join("scene.blend");
-    fs::create_dir_all(&root).expect("directory");
     fs::write(&source, bytes).expect("write");
     let cache = root.join("cache");
     let directory = convert::convert(
@@ -25,16 +30,25 @@ pub(super) fn compiled(bytes: &[u8], tag: &str) -> (Value, Value) {
             cache: &cache,
             cancelled: &AtomicBool::new(false),
             progress: &|_| {},
+            ram_budget,
         },
         &BLEND,
-    )
-    .expect("conversion");
-    let read = |name: &str| -> Value {
-        serde_json::from_slice(&fs::read(directory.join(name)).expect(name)).expect(name)
-    };
-    let pair = (read("model.gltf"), read("manifest.json"));
-    fs::remove_dir_all(&root).expect("cleanup");
-    pair
+    );
+    (root, directory)
+}
+
+/// A throwaway directory of this test's own, which the test removes.
+pub(super) fn scratch(tag: &str) -> PathBuf {
+    let root = std::env::temp_dir().join(format!(
+        "trillion3d-blend-{tag}-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("clock")
+            .as_nanos()
+    ));
+    fs::create_dir_all(&root).expect("directory");
+    root
 }
 
 /// The glTF material of this name, in a compiled scene.
