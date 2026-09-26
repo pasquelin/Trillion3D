@@ -1,6 +1,6 @@
 use crate::shared_math::{extend_aabb, length};
 
-pub(super) fn point(positions: &[f32], id: u32) -> [f64; 3] {
+pub(crate) fn point(positions: &[f32], id: u32) -> [f64; 3] {
     let i = id as usize * 3;
     [
         positions[i] as f64,
