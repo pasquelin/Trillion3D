@@ -79,12 +79,13 @@ fn coarse_levels_turned_inside_out_are_reported_flipped_and_lost() {
     }
 }
 /// Digest of what the chalet cooks to: every page, its objects by digest, its errors and bounds.
-const CHALET_COOK: &str = "801259cd25116078b7cd3c01d5361023678049c0dd74d66ae6b888b56e7b3bd2";
+const CHALET_COOK: &str = "3f76621057b636598c9b48d2b88eec8d8792afb4112a8c51ecc8f895955f52b5";
 
 /// The cook is the same bytes on every platform: its cache keys and every test above depend on
 /// it. A different digest on one platform alone is a cook that is not portable (the C++ of
-/// meshoptimizer fused into FMA on arm64 cooked three faces apart from x86_64); a different
-/// digest everywhere is a cook that changed, and the constant follows it.
+/// meshoptimizer fused into FMA on arm64 cooked three faces apart from x86_64; the platform's
+/// `acos` published a normal deviation one bit apart on macOS and glibc); a different digest
+/// everywhere is a cook that changed, and the constant follows it.
 #[test]
 fn the_chalet_cooks_to_the_same_bytes_on_every_platform() {
     let scene = cook();
