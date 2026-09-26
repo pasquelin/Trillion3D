@@ -34,6 +34,9 @@ test("A matcap's image is checked as a map, and asks for no UV: the normal reads
   const image = G.dataTexture(new Uint8Array([255, 0, 0, 255]), 1, 1, G.HOST_FORMAT_RGBA);
   const matcap = new G.GraphSurface('matcap', { matcap: image });
   assert.equal(clusterMaterialReason(matcap, { position, normal }), undefined);
+  // A base map beside it is never read, the import binding the matcap in its place: no UV asked.
+  const both = new G.GraphSurface('matcap', { matcap: image, map: image });
+  assert.equal(clusterMaterialReason(both, { position, normal }), undefined);
   image.image = undefined as never;
   assert.equal(clusterMaterialReason(matcap, { position, normal }), 'texture image is unavailable');
 });
