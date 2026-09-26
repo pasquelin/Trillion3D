@@ -9,13 +9,12 @@ import { CoverageReaders, cutoffByte } from './coverage.ts';
 import type { PageSurface } from '../page/surface.ts';
 import type { Texture } from '../../../sdk-core/src/index.ts';
 
-type Case = { cutoff: number; level0: number[]; level: number[]; t: number; scaled: number[] };
 const table = JSON.parse(
   readFileSync(
     new URL('../../../../tests/fixtures/formats/previews/coverage-alpha.json', import.meta.url),
     'utf8',
   ),
-) as { cases: Case[] };
+) as { cases: string[] };
 
 /** A vector as WGSL builds one, flattened, each word an unsigned 32-bit integer. */
 const v = (...parts: Array<number | Record<string, number>>) => {
@@ -50,14 +49,18 @@ function evaluate(source: string, histogram: () => number[]): Rule {
 test("the WGSL pick of t and scale are the compiler's, on its table", () => {
   let histogram: number[] = [];
   const rule = evaluate(COVERAGE_SCALE_WGSL + COVERAGE_PICK_WGSL, () => histogram);
-  for (const { cutoff, level0, level, t, scaled } of table.cases) {
+  for (const row of table.cases) {
+    const [[cutoff], level0, level, [t], scaled] = row
+      .split('|')
+      .map((part) => part.trim().split(' ').map(Number));
     histogram = Array.from({ length: 256 }, (_, byte) => level.filter((a) => a === byte).length);
     const covered = level0.filter((a) => a >= cutoff).length;
     const picked = rule.pick(cutoff, covered, v(level0.length, level.length));
-    assert.equal(picked, t, `cutoff ${cutoff}, level ${level}`);
+    assert.equal(picked, t, row);
     assert.deepEqual(
       level.map((a) => rule.scaled(a, cutoff, t)),
       scaled,
+      row,
     );
   }
   // Products past 32 bits: a 16384² level 0 against its level 1.
