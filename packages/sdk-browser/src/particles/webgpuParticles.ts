@@ -72,16 +72,13 @@ export function createWebgpuParticles(device: GPUDevice, fail: (error: unknown) 
         compute: { module, entryPoint: 'main' },
       }),
     )
-    .then(
-      (made) => (pipeline = made),
-      (error) => ((pipeline = null), fail(error)),
-    );
+    .then((made) => (pipeline = made))
+    .catch((error) => ((pipeline = null), fail(error)));
   const words = createStepWords();
   const pass: GPUComputePassDescriptor = { label: PARTICLES_PASS },
     made = new Map<ParticlePool, PoolState>();
   const buffer = (name: string, size: number, usage: number) =>
     device.createBuffer({ label: `${PARTICLES_PASS} ${name}`, size, usage });
-  /** Gives back the buffers of every pool not in `kept`: one the world let go of. */
   const release = (kept: readonly ParticlePool[]) => {
     for (const [pool, { step, staged, state }] of made)
       if (!kept.includes(pool)) {
@@ -121,13 +118,12 @@ export function createWebgpuParticles(device: GPUDevice, fail: (error: unknown) 
           computing.setPipeline(pipeline);
         }
         computing.setBindGroup(0, kept.group);
-        // Slots past the ring's first lap hold nothing yet: they are not dispatched.
-        const slots = Math.min(pool.capacity, pool.emitted);
+        const slots = Math.min(pool.capacity, pool.emitted); // past them, nothing was emitted
         computing.dispatchWorkgroups(Math.ceil(slots / PARTICLE_WORKGROUP));
         dispatches++;
       }
       computing?.end();
-      if (made.size > held) release(pools);
+      if (made.size > held) release(pools); // a pool the world let go of
       return dispatches;
     },
     dispose: () => release([]),

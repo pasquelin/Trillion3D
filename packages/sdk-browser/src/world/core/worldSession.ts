@@ -6,7 +6,7 @@ export type { JobProgress };
 
 /** What the families that read a world's engine reach it by, without the page holding it. */
 type Access = { session: () => MeasuredWorld | null; last: () => FrameMetrics | null };
-/** What the world holds for every session it opens (`worldSwitches.ts`): its particle pools. */
+/** What the world holds for every session it opens (`worldSwitches.ts`). */
 type Held = { particles: ParticlePool[] };
 const worlds = new WeakMap<object, Access & Held>();
 

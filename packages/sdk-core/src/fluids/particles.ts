@@ -1,13 +1,10 @@
 /**
- * The engine's particle pool (#420), the one the renderers step on the GPU: a fixed capacity, a
- * ring where emission writes the oldest slot, and the frame's emission records staged in one
- * buffer made at creation. Nothing is compacted and nothing is read back: a particle whose age
- * reached its lifetime is dead, and the GPU skips it. The CPU only stages records and hands each
- * image its step (`flush`), which the renderer's particle step reads (`sdk-browser/src/particles/`).
- * Positions are kept relative to the pool's origin, its emitter's place in the world: a particle
- * ten kilometres out still moves by a fraction of a millimetre, which a 32-bit world coordinate
- * would round away. The motion is the same wherever the origin is, so the step never reads it;
- * drawing adds it back (#755).
+ * The engine's particle pool (#420), stepped on the GPU (`sdk-browser/src/particles/`): a fixed
+ * capacity, a ring where emission writes the oldest slot, the image's records staged in one buffer
+ * made at creation. Nothing is compacted or read back: a particle past its lifetime is dead, and
+ * the GPU skips it. Positions are from the pool's origin, its emitter's place: ten kilometres out a
+ * particle still moves by a fraction of a millimetre, which 32-bit world floats round away. The
+ * step never reads the origin; drawing adds it back (#755).
  */
 import { GRAVITY_PRESETS } from '../physics/options.ts';
 
@@ -23,18 +20,15 @@ const MAX_STEP = 1 / 15;
 export interface ParticlePoolSpec {
   /** Particles the pool holds; emission past it overwrites the oldest. */
   capacity: number;
-  /** Records one image may stage; by default a capacity's sixty-fourth, 256 at least, the
-   *  capacity at most. */
+  /** Records one image may stage: a sixty-fourth of the capacity by default, 256 to capacity. */
   emitPerFrame?: number;
   /** Metres per second squared on every live particle; gravity by default. */
   acceleration?: readonly [number, number, number];
-  /** The emitter's place in the world, metres, fixed for the pool's life; the world origin by
-   *  default. */
+  /** The emitter's place in the world, metres, fixed for the pool's life; the origin by default. */
   origin?: readonly [number, number, number];
 }
 
-/** What one image does with a pool: `count` records land from ring slot `first`, then every
- *  live particle moves by `dt` seconds. */
+/** One image's step: `count` records land from ring slot `first`, then live ones move `dt` s. */
 export type ParticleStep = { first: number; count: number; dt: number };
 
 export class ParticlePool {
