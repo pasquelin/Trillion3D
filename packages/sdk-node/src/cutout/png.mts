@@ -40,16 +40,14 @@ export function encodePng(width: number, height: number, rgba: Uint8Array, flipY
   ]);
 }
 
-/** A PNG filter's prediction from the texel on the left, above, and above-left. */
+/** A PNG row filter's prediction from the texel on the left, above, and above-left. */
 function predict(filter: number, left: number, up: number, corner: number) {
-  if (filter === 0) return 0;
-  if (filter === 1) return left;
-  if (filter === 2) return up;
-  if (filter === 3) return (left + up) >> 1;
-  if (filter !== 4) throw new Error(`PNG filter ${filter} does not exist`);
   const p = left + up - corner;
   const [a, b, c] = [Math.abs(p - left), Math.abs(p - up), Math.abs(p - corner)];
-  return a <= b && a <= c ? left : b <= c ? up : corner;
+  const paeth = a <= b && a <= c ? left : b <= c ? up : corner;
+  const all = [0, left, up, (left + up) >> 1, paeth];
+  if (all[filter] === undefined) throw new Error(`PNG filter ${filter} does not exist`);
+  return all[filter];
 }
 
 /** The reader of what the compiler writes for a baked level: straight RGBA8, no interlacing, the
