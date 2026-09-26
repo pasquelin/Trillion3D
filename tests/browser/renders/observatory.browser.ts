@@ -1,11 +1,15 @@
 import assert from 'node:assert/strict';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { startServer } from '../../kit/server/staticServer.ts';
 import { launchChrome } from '../../../bench/runner/chrome.ts';
 import { galleryMounts, openGalleryScene } from '../support/renderHarness.ts';
 import { measureOutput } from '../../../bench/core/paths.ts';
+import { emptyIrradiance } from '../../../packages/sdk-core/src/scene/core/environment.ts';
+import { light } from '../../../packages/sdk-core/src/world/light/light.ts';
+import { addLightIrradiance } from '../../../packages/sdk-core/src/world/light/lightRecord.ts';
+import type { observatorySky } from '../../../scripts/docs/observatory/scene.ts';
 
 // `firstPixels`/`lastPixels` only exist in the page this harness evaluates code in, never in Node;
 // declared here so the `page.evaluate` callbacks below (type-checked, though they run in the
@@ -19,6 +23,7 @@ declare global {
 
 const root = resolve(import.meta.dirname, '../../..');
 const output = measureOutput('observatory');
+const folder = 'site/assets/gallery/signature-architecture';
 await mkdir(output, { recursive: true });
 const { server, port } = await startServer({ mounts: galleryMounts(root) });
 const browser = await launchChrome({ headless: true });
@@ -34,11 +39,31 @@ try {
     id: 'observatory',
     width: 800,
     height: 520,
-    folder: 'site/assets/gallery/signature-architecture',
+    folder,
     texturePoolBytes: 128 * 1024 * 1024,
     position: [19, 13, 22],
     target: [0, 3, 0],
   });
+  // The sky the scene declares beside its source, added as the example pages add it: its share
+  // of the imported sun, which the engine turns into the environment's irradiance as a world does.
+  const sky = JSON.parse(
+    await readFile(resolve(root, folder, 'source/sky.json'), 'utf8'),
+  ) as typeof observatorySky;
+  const sun = await page.evaluate(() => window.scene.importedLights()[0].intensity);
+  const irradiance = emptyIrradiance();
+  addLightIrradiance(
+    light.hemisphere({
+      color: sky.color,
+      groundColor: sky.groundColor,
+      intensity: sun * sky.sunShare,
+    }),
+    irradiance,
+  );
+  await page.evaluate(
+    (irradiance) =>
+      window.scene.setEnvironment({ exposure: 1, ...window.scene.environment, irradiance }),
+    irradiance,
+  );
   const samples = [];
   for (const threshold of [0, 1, 8, 0]) {
     const sample = await page.evaluate(async (pixelError) => {
