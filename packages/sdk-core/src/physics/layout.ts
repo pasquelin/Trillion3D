@@ -65,8 +65,8 @@ export const SHAPE = {
  */
 export const PART_WORDS = 11;
 
-/** Words of RESTORE before its bytes: `op, handle, byteCount`, then the shape's Jolt binary state
- *  padded to whole words. RELEASE is `op, handle`: bodies built from the shape keep it. */
+/** Words of RESTORE before its bytes: `op, handle, byteCount`, then a shape's Jolt binary state
+ *  padded to whole words. RELEASE is `op, handle`: bodies built from it keep it. */
 export const RESTORE_WORDS = 3;
 
 /**
@@ -113,8 +113,8 @@ export const MOTOR = { off: 0, velocity: 1, position: 2 } as const;
  */
 export const JOINT_WORDS = 33;
 
-/** Per-body flag bits: sensor, continuous collision, contact events wanted, hidden (no pose). */
-export const FLAG = { sensor: 1, ccd: 2, events: 4, hidden: 8 } as const;
+/** Per-body flag bits: sensor, continuous collision, events wanted, hidden (no pose), asleep (ADD). */
+export const FLAG = { sensor: 1, ccd: 2, events: 4, hidden: 8, asleep: 16 } as const;
 
 /**
  * A body's engine id, carried by ADD and by every pose and event record: its slot in the bits of

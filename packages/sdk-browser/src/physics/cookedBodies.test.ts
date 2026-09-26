@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises';
 import {
   ADD_WORDS,
   BODY_INDEX,
+  FLAG,
   MOTION,
   OP,
   POSE_WORDS,
@@ -73,7 +74,8 @@ test('a declared dynamic box is held kinematic at its drawn pose, its node’s t
   const words = writer.take();
   const [held, ground, ...more] = adds(words);
   assert.deepEqual([errors, more], [[], []]);
-  assert.deepEqual([held.w[2], held.w[4]], [MOTION.kinematic, SHAPE.box], 'held, as declared');
+  const [kind, flags] = [[held.w[2], held.w[4]], held.w[5]];
+  assert.deepEqual([kind, flags], [[MOTION.kinematic, SHAPE.box], FLAG.asleep], 'held, asleep');
   assert.deepEqual(
     [...held.f.subarray(6, 9), ...held.f.subarray(13, 17)],
     [0, 2, 0, 1, 0.5, 0.5, 5],
@@ -88,19 +90,22 @@ test('a declared dynamic box is held kinematic at its drawn pose, its node’s t
   const rest = run(jolt, 2);
   assert.ok(Math.abs(rest.get(60)![1] - 2.75) < 0.02, `a crate rests on it: ${rest.get(60)![1]}`);
   assert.equal(castDown(jolt, -0.5)[0], held.w[1], 'a ray meets the body');
+  assert.ok(!rest.has(held.w[1] & BODY_INDEX), 'added asleep, it never woke');
 });
 
 test('a shapeless node restores its cooked hull and mass, and turns about the cooked centre of mass', async () => {
   const bytes = await hull();
   const upright = declared(0, [0, 0, -2], {}, cube());
   const tipped = declared(1, [0, 0, 2], {}, cube([0.9, 0.5, 0.5]));
+  // Its inertia provided a thousand times the cooked one's: the same fall barely turns it.
+  const stiff = declared(2, [0, 0, 5], { inertiaDiagonal: [2e5, 2e5, 2e5] }, tipped.shape);
   const fetched = stubFetch(cooked([], []), bytes);
   const { model, writer, bodies } = modelStreamer();
   const released = createCookedBodies(writer, bodies, () => {}, assert.fail, true);
-  released.open(model, [upright, tipped], new AbortController().signal);
+  released.open(model, [upright, tipped, stiff], new AbortController().signal);
   await landed();
   const words = writer.take();
-  const [a, b] = adds(words);
+  const [a, b, c] = adds(words);
   assert.deepEqual([b.w[2], b.w[4], b.f[16], b.w[24]], [MOTION.dynamic, SHAPE.cooked, 1000, 13]);
   assert.deepEqual(
     [...b.f.subarray(FRAME, FRAME + 3)],
@@ -108,14 +113,14 @@ test('a shapeless node restores its cooked hull and mass, and turns about the co
     'its centre of mass',
   );
   assert.ok(Math.abs(b.f[FRAME + 3] - 1000 / 6) < 1e-3, 'its inertia, as cooked');
-  assert.equal(fetched.filter((f) => f === 'hull.bin').length, 2, 'restored, never built');
+  assert.equal(fetched.filter((f) => f === 'hull.bin').length, 3, 'restored, never built');
   const jolt = await startModule();
   writer.gravity([0, -9.81, 0]);
   // A ledge whose edge, at x = 0.6, holds the hull's own centre and not the cooked one.
   writer.add({
     ...body(60, MOTION.static, -0.5, 1),
     position: [-0.7, -0.5, 0],
-    size: [1.3, 0.5, 5],
+    size: [1.3, 0.5, 8],
   });
   jolt.step(writer.take(), 0);
   jolt.step(words, 0);
@@ -124,7 +129,9 @@ test('a shapeless node restores its cooked hull and mass, and turns about the co
     Math.abs(last.get(a.w[1] & BODY_INDEX)?.[6] ?? 1) > 0.999,
     'about its centre, it stays',
   );
-  assert.ok(Math.abs(last.get(b.w[1] & BODY_INDEX)![6]) < 0.95, 'about the cooked centre, it tips');
+  const turn = (made: { w: Uint32Array }) => Math.abs(last.get(made.w[1] & BODY_INDEX)![6]);
+  assert.ok(turn(b) < 0.95, `about the cooked centre, it tips: ${turn(b)}`);
+  assert.ok(turn(c) > 0.995, `the provided inertia holds it: ${turn(c)}`);
 });
 
 test('a declared mass and centre win over the cooked ones; a model scaled weighs the solid scaled', async () => {

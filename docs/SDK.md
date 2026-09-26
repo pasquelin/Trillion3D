@@ -1372,7 +1372,7 @@ bend }` simulates the mesh's vertices one by one on Jolt's soft bodies. A cloth 
   `motion`: its body is restored as cooked (its implicit shape, or its hull fetched), counted
   against `budget.physics`, with the mass, centre of mass and inertia its motion declares, else the
   cooked ones; its tiles then leave. A kinematic one follows its model, pushing what it meets; a
-  dynamic one is held kinematic where its node is drawn until compiled nodes can be drawn moving
+  dynamic one is held kinematic and asleep where its node is drawn until compiled nodes can move
   (#432, `COMPILED_NODES_MOVE`). A shape Jolt cannot make at the body's scale is `PHYSICS_FAILED`
   naming its node, and the node stays static ground.
 - **Exact raycast.** `await world.raycast(at, { exact: true })` asks the physics: a compiled model
