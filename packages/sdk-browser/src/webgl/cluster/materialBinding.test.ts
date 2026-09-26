@@ -136,3 +136,16 @@ test('Into the effect chain, a surface covers its pixel as the display path show
   // A mode no path draws is refused here as by the display path, never drawn uncovered.
   assert.throws(() => flagOf(transparent(99), 'covering', true), /a surface declares a blending/);
 });
+
+test('Each family reaches the WebGL2 program in the model it reads on WebGPU (#527)', () => {
+  const models = { standard: 0, phong: 0, basic: 0, lambert: 1, toon: 2, normal: 3, matcap: 4 };
+  for (const [family, model] of Object.entries(models))
+    assert.equal(flagOf(new G.GraphSurface(family as 'standard'), 'surfaceModel'), model, family);
+  // A matcap's image is bound as the base map, the one the program reads at the normal.
+  const masks = new Map<string, number>();
+  const { binding } = recorder();
+  (binding.uniforms as unknown as Record<string, unknown>).i1 = (_: number, n: string, v: number) =>
+    void masks.set(n, v);
+  bindClusterMaterial(binding, new G.GraphSurface('matcap', { matcap: texture() }), true);
+  assert.equal(masks.get('mapMask'), 1);
+});
