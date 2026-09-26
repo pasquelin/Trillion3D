@@ -130,7 +130,7 @@ export function saveScene(scene: SceneLike, camera?: Camera): SavedScene {
       };
       const center = mesh instanceof Sprite ? mesh.center : undefined;
       if (center) saved.mesh.center = [center.x, center.y];
-      if (mesh.physics) saved.physics = savedPhysics(mesh.physics);
+      if (mesh.physics) saved.physics = plain(savedPhysics(mesh.physics));
     }
     if (lamp.isLight)
       saved.light = {
