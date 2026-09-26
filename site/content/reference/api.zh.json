@@ -2289,7 +2289,7 @@
     "summary": "数据图集:金属度-粗糙度贴图、法线贴图和遮蔽贴图。"
   },
   "PREVIEW_ATLAS_NAMES": {
-    "summary": "一个已烘焙层级的路径为每个图集所携带的 `{kind}`,按 `bake.rs` 为它们命名的方式。"
+    "summary": "烘焙层级的路径为每个图集携带的 `{kind}`，与 `reduce.rs` 的命名一致；在字节 C 处裁剪的覆盖链会追加 `-C`。"
   },
   "PREVIEW_BASE": {
     "summary": "旁挂文件所携带的某个层级可能拥有的最大边长。"
@@ -3676,7 +3676,7 @@
       "sourceKind": "当字节来自图像 uri 时为 0,来自 sourceBufferView 时为 1。",
       "sourceBufferView": "预处理场景中的缓冲区视图,若来源为 uri 则为 -1。",
       "sha256": "解码后源字节的 SHA-256。",
-      "atlas": "这条记录所承载的链:PREVIEW_ATLAS_COLOR、PREVIEW_ATLAS_DATA 或 PREVIEW_ATLAS_COVERAGE,后者在颜色图集中采样。",
+      "atlas": "此条目所承载的链：PREVIEW_ATLAS_COLOR、PREVIEW_ATLAS_DATA，或在颜色图集中采样的 PREVIEW_ATLAS_COVERAGE，位于低字节；覆盖链的裁剪字节占据第 8–15 位。",
       "firstLevel": "源 mip 链中携带的第一个层级的索引;当它本身已经满足 PREVIEW_BASE 以内、旁挂文件因而携带其完整分辨率时为 0。",
       "bakedLevels": "在缓存中被烘焙成文件的层级数,从 0 到 bakedLevels - 1;当链条完整时等于 firstLevel,当没有写入任何内容、引擎需要加载源图像时为 0。",
       "levels": "按顺序携带的各个层级,从最精细的一级到 1x1,每一级都是对旁挂文件字节的一个视图。",
