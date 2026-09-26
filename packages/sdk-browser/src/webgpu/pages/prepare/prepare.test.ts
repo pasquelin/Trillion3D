@@ -6,6 +6,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as G from '../../../host/graph/graph.fixture.ts';
 import { OPEN_CONE, type NormalCone } from '../../../page/cone/cone.ts';
+import { surfaceOf } from '../../../page/surface.ts';
 import { prepareCones } from './cones.ts';
 import { indexSourceBytes, compteMateriauxEtTangentes } from '../io/catalogue.ts';
 import {
@@ -20,12 +21,12 @@ const COOKED: NormalCone = { axis: [0, 0, 1], angle: 0.25 };
 
 /** A one-triangle cluster wearing `material`, with its cooked cone and no host vertices at all:
  *  a `prepareCones` that still read positions would find none. */
-function triangle(material: G.GraphSurface, cookedCone: NormalCone | undefined = COOKED) {
+function triangle(material: G.GraphSurface) {
   return {
     array: Uint32Array.of(0, 1, 2),
     attributes: {},
-    material,
-    cookedCone,
+    material: surfaceOf(material),
+    cookedCone: COOKED,
     cone: undefined,
   } as unknown as PageRec;
 }
@@ -105,7 +106,7 @@ test('posting a cone declares its root; a root whose pages receive no cone stays
   // index bytes, or from a cache that cooked no cone, receives none: its root has nothing to declare.
   const porte = triangle(G.basicSurface());
   const nue = { ...triangle(G.basicSurface()), array: undefined } as unknown as PageRec;
-  const crue = triangle(G.basicSurface(), undefined);
+  const crue = { ...triangle(G.basicSurface()), cookedCone: undefined } as unknown as PageRec;
   const roots = [
     { cones: false, pages: [porte] },
     { cones: false, pages: [nue, crue] },
