@@ -513,11 +513,12 @@ draws none. Live example: [move, rotate, scale](../site/examples/move-rotate-sca
 `formatVersion: 1`): its hierarchy and poses, each shape by the family call that built it
 (`geometry.box(2, 1, 1)` is stored as that call; a shape changed after it was built, or written by
 hand, stores its vertices), each material by its parameters, each mesh's body as `physics`
-declared it (type, mass, shape, matter overrides, damping; a soft body's settings; not its
-velocity: it comes back at rest), lights, background, fog and the camera's pose; shapes and
-materials worn by several meshes are stored once; a loaded model is stored by its manifest
-address, never inlined; `helper` marks are left out. A texture, a picture
-environment or a shader material cannot be stored and is refused by name (`SCENE_NOT_SAVABLE`).
+declared it (type, mass, shape, gravity scale, sensor, CCD, debris, matter overrides, damping; a
+soft body's settings; not its velocity: it comes back at rest), lights, background, fog and the
+camera's pose; shapes and materials worn by several meshes are stored once; a loaded model is
+stored by its manifest address, never inlined; `helper` marks are left out. A texture, a picture
+environment, a shader material or a body number JSON cannot hold (an `Infinity` other than a
+free bend's) cannot be stored and is refused by name (`SCENE_NOT_SAVABLE`).
 `await scene.fromJSON(json, camera)` replaces the content — the `helper` marks stay — loads the
 models again, and refuses another format or version (`UNSUPPORTED_SCENE_FORMAT`) before removing
 anything. Calls made while one is reading wait for it and run in order, each replacing what the one
