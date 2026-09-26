@@ -45,9 +45,7 @@ function predict(filter: number, left: number, up: number, corner: number) {
   const p = left + up - corner;
   const [a, b, c] = [Math.abs(p - left), Math.abs(p - up), Math.abs(p - corner)];
   const paeth = a <= b && a <= c ? left : b <= c ? up : corner;
-  const all = [0, left, up, (left + up) >> 1, paeth];
-  if (all[filter] === undefined) throw new Error(`PNG filter ${filter} does not exist`);
-  return all[filter];
+  return [0, left, up, (left + up) >> 1, paeth][filter] ?? 0;
 }
 
 /** The reader of what the compiler writes for a baked level: straight RGBA8, no interlacing, the
@@ -67,11 +65,13 @@ export function decodePng(png: Uint8Array) {
     } else if (kind === 'IDAT') data.push(body);
     at += length + 12;
   }
-  const raw = inflateSync(Buffer.concat(data));
-  const stride = width * 4;
+  const [raw, stride] = [inflateSync(Buffer.concat(data)), width * 4];
+  if (bytes.readBigUInt64BE(0) !== 0x89504e470d0a1a0an || raw.length !== height * (stride + 1))
+    throw new Error('decodePng reads a whole PNG only: its signature, IHDR and every row');
   const rgba = new Uint8Array(height * stride);
   for (let y = 0; y < height; y++) {
     const [filter, from, row] = [raw[y * (stride + 1)] ?? 0, y * (stride + 1) + 1, y * stride];
+    if (filter > 4) throw new Error(`PNG filter ${filter} does not exist`);
     for (let x = 0; x < stride; x++) {
       const left = x >= 4 ? (rgba[row + x - 4] ?? 0) : 0;
       const up = y > 0 ? (rgba[row - stride + x] ?? 0) : 0;
