@@ -1,5 +1,6 @@
-/** The binder's highest slot, `surfaceModel` (`materialBinding.ts`): one cached value per slot. */
-export const LAST_MATERIAL_SLOT = 48;
+/** The binder's highest slot, the linear program's `covering` (`materialBinding.ts`): one cached
+ *  value per slot. */
+export const LAST_MATERIAL_SLOT = 47;
 
 export class WebglClusterMaterialUniforms {
   private values = new Float64Array(LAST_MATERIAL_SLOT + 1).fill(Number.NaN);

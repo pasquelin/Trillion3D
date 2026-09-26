@@ -107,7 +107,12 @@ export async function endGesture() {
 export function pointerLocked() {
   return new Promise<void>((granted, refused) => {
     if (document.pointerLockElement) return granted();
-    document.addEventListener('pointerlockchange', () => granted(), { once: true });
+    // A change that leaves the pointer free is a lost lock, never a granted one.
+    document.addEventListener(
+      'pointerlockchange',
+      () => (document.pointerLockElement ? granted() : refused(new Error('lock released'))),
+      { once: true },
+    );
     document.addEventListener('pointerlockerror', () => refused(new Error('lock refused')), {
       once: true,
     });
