@@ -89,6 +89,7 @@ export function createExplorerHostState(
           effects: options.effects && {
             chain: options.effects,
             shown: () => state.diagnostic === 'beauty',
+            refused: options.effectsRefused,
           },
           guides: options.guides,
         }),

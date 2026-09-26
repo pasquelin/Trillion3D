@@ -8,6 +8,7 @@ import type { ClusterDrawMesh } from '../../cluster/batchMesh.ts';
 import type { Side } from '../../../../sdk-core/src/index.ts';
 import type { WebglClusterTextures } from './textures.ts';
 import { drawnModeOf, type WebglClusterState } from './state.ts';
+import { refusesLinear } from './linearRefusal.ts';
 import type { Matrix3UniformCache } from './uniforms.ts';
 import type { WebglClusterMaterialUniforms } from './materialUniforms.ts';
 
@@ -33,16 +34,14 @@ type Binding = {
 /**
  * Whether a surface drawn into the effect chain's linear target, whose alpha is coverage
  * (`../../effects/webglOutput.ts`), covers its pixel whatever its alpha: an opaque one, and a
- * transparent one that replaces what is behind it (`none`), as the display path shows it.
- * Multiply and subtractive filter what the display target holds, the background included, which
- * the linear target does not hold: they are refused by name, never drawn as another mode, as
- * every mode the display path refuses (`drawnBlending`).
+ * transparent one that replaces what is behind it (`none`), as the display path shows it. A mode
+ * the target cannot hold (`refusesLinear`) never reaches here: the composer draws such a frame
+ * without the chain (`linearRefusal`); a caller that skipped that read is refused by name.
  */
 function coversLinear(material: Material) {
   if (!material.transparent) return true;
   const mode = drawnModeOf(material);
-  if (mode === 'multiply' || mode === 'subtractive')
-    throw new Error(`the WebGL2 effect chain cannot draw ${mode} blending`);
+  if (refusesLinear(mode)) throw new Error(`the WebGL2 effect chain cannot draw ${mode} blending`);
   return mode === 'none';
 }
 
