@@ -22,8 +22,8 @@ type Texel = { t: number; d: number };
 /** The nearest half float, portable where `Math.f16round` is missing. */
 const f16 = (x: number) => fromHalf(toHalf(x));
 const unorm8 = (x: number) => Math.round(Math.min(1, Math.max(0, x)) * 255) / 255;
-const surface = (opacity: number) =>
-  ({ blending: 'normal', transmission: 0, opacity }) as unknown as PageSurface;
+const asked = { blending: 'normal', transmission: 0, transparentShadow: true };
+const surface = (opacity: number) => ({ ...asked, opacity }) as unknown as PageSurface;
 const CLEAR: Texel = { t: TRANSMITTANCE_CLEAR.r, d: 0 };
 
 /** The GPU's colour blend on the layer's state, stored in 8 bits; its depth test keeps the

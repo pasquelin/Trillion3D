@@ -12,19 +12,24 @@ import { createBlendCasterRows, NO_ROW } from './blendCasters.ts';
 import { createWebgpuRowState } from './state.ts';
 import { createWebgpuRowSync } from './sync.ts';
 import { createWebgpuRowCommit } from './commit.ts';
+import { castsBlendShadow } from '../../gpu/shadow/transmittance.ts';
+import { surfaceOf } from '../../page/surface.ts';
+import { hostSurface } from '../../world/core/worldSurface.ts';
+import { material } from '../../../../sdk-core/src/world/material/index.ts';
 
 const STRIDE = PAGE_INFO_STRIDE / 4;
 /** One level-0 root cluster, the blend fixture's first, at the address `url`. */
 const [template] = blendFixture().metadata.primitives[0].pages;
 const cluster = (url: string) => ({ ...template, url, sha256: url });
 
-/** One opaque triangle, then one blended at `opacity`: the catalogue pages, placed. */
-function catalogue(opacity: number, blended = true) {
+/** One opaque triangle, then one blended at `opacity`, which asks for its shadow unless
+ *  `transparentShadow` is false: the catalogue pages, placed. */
+function catalogue(opacity: number, blended = true, transparentShadow = true) {
   const source = new G.Group(),
     associations = new Map<G.Object3D, { meshes: number; primitives: number }>();
   const materials = [
     G.standardSurface(),
-    G.standardSurface({ transparent: blended, opacity: blended ? opacity : 1 }),
+    G.standardSurface({ transparent: blended, opacity: blended ? opacity : 1, transparentShadow }),
   ];
   const primitives = materials.map((material, index) => {
     const geometry = new G.Geometry();
@@ -103,6 +108,23 @@ test('a blended caster is listed in a shadow-only row and pinned where the light
   casters.pin(map);
   assert.deepEqual(pins.at(-1), [1, NO_ROW]);
   assert.equal(casters.used, 0);
+});
+
+// The boss's beam (`site/examples/a-lighthouse-beam.html`): see-through air casts no shadow.
+test('a blended surface that does not ask for a shadow takes no caster row', () => {
+  const { rows, casters, map, pins } = mount(catalogue(0.22, true, false), 1);
+  casters.refresh();
+  casters.pin(map);
+  assert.equal(rows.blendRowOf[1], -1, 'no caster row');
+  assert.deepEqual([pins, casters.used], [[], 0]);
+  const air = { color: '#fff2cc', transparent: true, opacity: 0.22, depthWrite: false };
+  const casts = (asked?: boolean) =>
+    castsBlendShadow(
+      surfaceOf(
+        hostSurface(material.meshBasic({ ...air, transparentShadow: asked }), false, new Map()),
+      ),
+    );
+  assert.deepEqual([casts(), casts(false), casts(true)], [false, false, true]);
 });
 
 test('a blended caster at opacity 0 casts nothing', () => {

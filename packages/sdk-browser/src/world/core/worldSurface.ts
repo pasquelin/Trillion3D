@@ -159,6 +159,7 @@ export function hostSurface(
   if ('flatShading' in surface) surface.flatShading = material.flatShading === true;
   surface.depthWrite = material.depthWrite;
   surface.depthTest = material.depthTest;
+  surface.transparentShadow = material.transparentShadow === true;
   // A mode that composes with the background is drawn in the transparent pass, whatever
   // `transparent` says: the opaque pass has nothing behind to add to.
   surface.blending = hostBlending(material.blending);
