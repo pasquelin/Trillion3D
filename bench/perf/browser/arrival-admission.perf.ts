@@ -63,6 +63,8 @@ interface FabriqueFile {
     url: string,
     array: Uint32Array,
   ): unknown;
+  /** Opens the frame's budget: a frame opens it before its drain. */
+  open?(): void;
   drain(): number;
 }
 
@@ -77,7 +79,10 @@ function arrivees(fabrique: (byteBudget: number, countBudget: number) => Fabriqu
   const octets = new Uint32Array(16);
   for (let i = 0; i < 5000; i++) file.queue(cibles[i % 8], `page-${i % 900}.bin`, octets);
   let livrs = 0;
-  for (let d = 0; d < 4; d++) livrs += file.drain();
+  for (let d = 0; d < 4; d++) {
+    file.open?.();
+    livrs += file.drain();
+  }
   return { livrees, livrs };
 }
 
