@@ -49,7 +49,7 @@ type PoolState = { targets: [WebglRenderTarget, WebglRenderTarget]; staged: Webg
  * pool's records staged as 32-bit float texels. Its targets are made the first time a pool
  * moves, given back the image after the world lets it go, and rebuilt after a lost context. A
  * context without `EXT_color_buffer_float` refuses every pool by name, never steps it with less.
- * The pass leaves no framebuffer, program or vertex array bound; `webglParticleDraw.ts` draws.
+ * The pass leaves no framebuffer, program or vertex array bound.
  */
 export function createWebglParticles(gl: WebGL2RenderingContext) {
   /** Each pool's targets, made on the live context and lost with it. */

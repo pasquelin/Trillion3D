@@ -10,7 +10,7 @@ import { OUTPUT_TRANSFER_GLSL } from '../webgl/core/outputGlsl.ts';
 import { createWebglProgram } from '../webgl/core/program.ts';
 import { bindWebglTexture, type HostDrawOutput } from '../webgl/core/renderTarget.ts';
 import { DRAW_FLOATS, drawOrder, writeDrawWords } from './drawWords.ts';
-import { usedSlots } from './poolStates.ts';
+import { refuseAll, usedSlots } from './poolStates.ts';
 
 /** The WGSL draw (`webgpuParticleDraw.ts`) texel by texel, `texels` a row. `m` holds the draw
  *  words' two matrices and `look` the rest: eye and size, colour, softness and whether the
@@ -87,7 +87,17 @@ export function createWebglParticleDraw(
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
       gl.bindFramebuffer(gl.FRAMEBUFFER, copy.framebuffer);
       gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.TEXTURE_2D, copy.texture, 0);
-      return { program, vao, m, look, linear, curve, copy, from: gl as unknown, refused: false };
+      return {
+        program,
+        vao,
+        m,
+        look,
+        linear,
+        curve,
+        copy,
+        checked: undefined as unknown,
+        refused: false,
+      };
     },
     ({ program, vao, copy }) => {
       gl.deleteProgram(program);
@@ -104,8 +114,7 @@ export function createWebglParticleDraw(
       for (let i = 0; i < 3; i++) eye[i] = camera.world[12 + i];
       if (!live || !drawOrder(pools, eye, order).length) return 0;
       // Refused once, by name; every later image refuses the pools again, drawing nothing.
-      if (live.refused) for (const pool of pools) pool.refused = true;
-      if (live.refused) return 0;
+      if (live.refused && refuseAll(order)) return 0; // told once, by the throw below
       // The frame's depth, copied for the soft edge; each framebuffer's first copy asks if refused.
       const { copy } = live,
         { framebuffer, width, height } = output;
@@ -120,11 +129,11 @@ export function createWebglParticleDraw(
       gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, copy.framebuffer);
       gl.blitFramebuffer(0, 0, width, height, 0, 0, width, height, gl.DEPTH_BUFFER_BIT, gl.NEAREST);
       gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
-      if (live.from !== framebuffer && gl.getError() === gl.INVALID_OPERATION) {
-        for (const pool of pools) pool.refused = live.refused = true;
+      if (live.checked !== framebuffer && gl.getError() === gl.INVALID_OPERATION) {
+        live.refused = refuseAll(order);
         throw new Error('PARTICLES_UNSUPPORTED: WebGL2 particles fade on a depth it cannot copy');
       }
-      live.from = framebuffer;
+      live.checked = framebuffer;
       multiplyMatrix4Typed(screen, camera.projection, camera.view);
       gl.useProgram(live.program);
       gl.bindVertexArray(live.vao);
