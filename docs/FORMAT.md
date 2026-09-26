@@ -48,7 +48,7 @@ Written for the compiler alone, ignored by the browser: `files` — `{ "<name>":
 
 Per-cluster numbers are the bulk of a manifest: tens of thousands of clusters with a dozen values each. When `binary` is present the compiler writes them as typed-array columns instead, and `clusters.json` keeps only what a human or a tool reads — primitives, materials, passes, reports, and the counts needed to find each primitive's slice of the columns. Emerald Square falls from 48.4 MB of JSON to 387 KB plus a 17.0 MB sidecar, and the reader maps the columns instead of tokenizing them.
 
-The file is little-endian: `u32` magic `WGMB` (`0x424d4757`), `u32` version `8`, `u32` column count `28`, `u32` reserved, then one `(byteOffset, byteLength)` `u32` pair per column, then the payloads, each starting on an 8-byte boundary. Lengths and spheres stay `f64` — they decide a cut, so truncating them would change the image. A digest is stored as its 64 ASCII hexadecimal characters, and an object URL is rebuilt from the `pageUrl` / `geometryUrl` / `bundleUrl` templates by substituting `{sha}` — and a texture level from `textures.url` by substituting `{sha}`, `{kind}`, `{level}` and `{format}` —, which is why no URL is stored at all.
+The file is little-endian: `u32` magic `WGMB` (`0x424d4757`), `u32` version `9`, `u32` column count `29`, `u32` reserved, then one `(byteOffset, byteLength)` `u32` pair per column, then the payloads, each starting on an 8-byte boundary. Lengths and spheres stay `f64` — they decide a cut, so truncating them would change the image. A digest is stored as its 64 ASCII hexadecimal characters, and an object URL is rebuilt from the `pageUrl` / `geometryUrl` / `bundleUrl` templates by substituting `{sha}` — and a texture level from `textures.url` by substituting `{sha}`, `{kind}`, `{level}` and `{format}` —, which is why no URL is stored at all.
 
 Indices inside a column stay local to the primitive: a group names the pages of its primitive, a page names the bundle of its primitive. Each primitive declares only its own counts in `primitives[].binary` — `pages`, and the `culling`, `structure` and `streams` counts — and the reader derives its base offsets by prefix sum, so the small JSON carries no offset to maintain. A reader refuses a missing magic, an unknown version, a different column count, a column out of bounds, a column whose length contradicts the declared counts, or a file whose size does not match `bytes`; it refuses the version before fetching the columns.
 
@@ -67,6 +67,7 @@ Level 0 partitions the source triangles into clusters of at most 128 triangles, 
 - `start` — offset of the earliest source index this cluster descends from, which restores a transparent draw order
 - `stream` / `streamOffset` — streaming bundle holding this cluster and its byte offset inside it
 - `geometry` — the optional independently decodable geometry page described under [Pages](#pages)
+- `cone` — `{ axis: [x, y, z], angle }`, the normal cone of the cluster's triangles: the normalized sum of their non-degenerate face normals, each weighted by its triangle's area, and the half-angle, in radians, that holds them all; `{ axis: [0, 0, 1], angle: π }`, which rejects nothing, when no face is left or the normals cancel out. Every cluster has one. The axis has the bits the runtime's reference `triangleCone` gives for the same triangles, and the angle is never narrower than its angle, by at most a few ulps (`normal_cone.rs` says why); the WebGPU prepare reads no vertex for it. In `clusters.bin` it is the `pageCone` column, four `f64` per page; sidecar version 9 added it, and a reader of version 8 refuses the file
 
 `structure` — `{ version, roots, groups[] }`. `roots` lists the clusters nothing replaces. Each group is `{ level, error, sphere, children, outputs }`, where `children` and `outputs` cover the same surface and are never both drawn.
 
@@ -86,7 +87,7 @@ The compiler validates selected accessors against their own `bufferView` length,
 
 Each page is a tightly packed little-endian `u32` index buffer covering at most 128 triangles (384 indices) of one DAG cluster. The runtime verifies SHA-256 and byte length before attaching a page. A streaming bundle is the concatenation of those index buffers for the clusters it holds, in the order their `streamOffset` values give.
 
-Static opaque, alpha-mask and clustered BLEND primitives can additionally carry `pages[].geometry`: an independently decodable quantized cluster page with URL, SHA-256, byte length, vertex/index counts, attribute flags and decoded-byte estimate (`uncompressedBytes`: the page once unpacked to float attributes and 32-bit indices, what a reader that expands the page holds; `bytes` is what a reader that decodes in place keeps resident). The manifest declares the page format once, at its top: `geometryPages: { formatVersion: 3, codec: "quantized" }`. This geometry-page version is independent of the outer cache version: the optional fields and `autonomousScene` are additive, while `clustered-blend` requires outer cache format 8. A reader of a cache whose `geometryPages` is missing or of another format refuses it whole, as it refuses a sidecar of another version than 8 — the sidecar names only this page — and every page header opens with the same version. The index pages remain available for existing backends.
+Static opaque, alpha-mask and clustered BLEND primitives can additionally carry `pages[].geometry`: an independently decodable quantized cluster page with URL, SHA-256, byte length, vertex/index counts, attribute flags and decoded-byte estimate (`uncompressedBytes`: the page once unpacked to float attributes and 32-bit indices, what a reader that expands the page holds; `bytes` is what a reader that decodes in place keeps resident). The manifest declares the page format once, at its top: `geometryPages: { formatVersion: 3, codec: "quantized" }`. This geometry-page version is independent of the outer cache version: the optional fields and `autonomousScene` are additive, while `clustered-blend` requires outer cache format 8. A reader of a cache whose `geometryPages` is missing or of another format refuses it whole, as it refuses a sidecar of another version than 9 — the sidecar names only this page — and every page header opens with the same version. The index pages remain available for existing backends.
 
 #### Quantized cluster page (`WGP3`)
 
@@ -297,7 +298,9 @@ object the file cites (`objects[].sha256`), so a prune keeps them.
 Stage version 6 adds `bodies`, one entry per node of the rendered scene whose
 `KHR_physics_rigid_bodies` declares a `motion` ([COMPILER.md](COMPILER.md#physicsjson--the-cooked-colliders-stage-physics-cook)). The
 field is additive: a file cooked before it has none, and format 2 still reads it. The node keeps its
-`instances` entries until the page restores its body. Each entry:
+`instances` entries: the page leaves them out once it has restored its body
+(`packages/sdk-browser/src/physics/cookedBodies.ts`) and falls back on them when it refuses the
+body; another node its collider names keeps its own, still static ground. Each entry:
 
 - `node`: the declaring node.
 - `motion`: the motion as the node declares it (`isKinematic`, `mass`, `gravityFactor`, …).
@@ -306,8 +309,10 @@ field is additive: a file cooked before it has none, and format 2 still reads it
   the body's frame at unit scale; and, a dynamic body's, `mass`, the exact weighing of the solid
   its closed mesh bounds at 1000 kg/m³ and at the body's `scale`: `mass` (kg), `centerOfMass` and
   `inertia` about it (nine numbers, column-major), in the body's frame — the mass the page hands
-  Jolt, turning the hull about `centerOfMass` rather than about the hull's own centre; what the
-  `motion` declares (`mass`, `centerOfMass`, `inertiaDiagonal`) wins over it.
+  Jolt, turning the hull about `centerOfMass` rather than about the hull's own centre, weighed
+  again at the world scale the model is placed at; what the `motion` declares (`mass`,
+  `centerOfMass`, `inertiaDiagonal` turned by `inertiaOrientation`) wins over it, the cooked
+  inertia scaled to a declared mass.
 - `position`, `rotation`, `scale`: the node's world placement in the model, as an instance's.
 - `friction`, `restitution`: as an instance's.
 
