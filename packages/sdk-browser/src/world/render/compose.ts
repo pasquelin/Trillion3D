@@ -17,13 +17,15 @@ import {
   type WebglRenderTarget,
 } from '../../webgl/core/renderTarget.ts';
 import { createWebglEffects, type WebglEffectOutput } from '../../effects/webglEffects.ts';
+import { linearRefusal } from '../../webgl/cluster/linearRefusal.ts';
+import type { HostScene } from '../../host/resources.ts';
 import type { Blending } from '../../../../sdk-core/src/world/constants/index.ts';
 
 const NONE: readonly EffectPass[] = [];
 
 /** The world's effect chain as the composer draws it: `shown` is false in a diagnostic view,
  *  which shows the engine's image as it is; `refused` hears, on each frame it keeps the chain
- *  off, the mode `RenderBackend.linearRefusal` names. */
+ *  off, the mode `linearRefusal` names. */
 export type ComposedChain = {
   chain: EffectChain;
   shown: () => boolean;
@@ -92,13 +94,13 @@ export function createFrameComposer(
   /** The passes this frame draws: none without a chain, in a diagnostic view, on a destination
    *  that takes the engine's image alone, on a context that cannot hold the targets, or on a frame
    *  the engine's linear draw cannot hold (`linearRefusal`) — every surface is still drawn. */
-  const passesOf = (backend: RenderBackend, wanted: boolean) => {
+  const passesOf = (scene: HostScene, wanted: boolean) => {
     if (!composed) return NONE;
     const passes = composed.chain.stage('before-tone-mapping');
     // An emptied chain gives its targets back; one kept aside for a capture keeps them.
     if (!passes.length) effects!.release();
     if (!passes.length || !wanted || !composed.shown() || !effects!.supported()) return NONE;
-    const refused = backend.linearRefusal?.();
+    const refused = linearRefusal(scene);
     if (!refused) return passes;
     composed.refused?.(refused);
     return NONE;
@@ -137,7 +139,7 @@ export function createFrameComposer(
     // the chain (P4). A target thus holds what the page would show.
     output.toneMapped = backend.sceneLit?.() !== false;
     output.toneMapping = backend.sceneToneMapping?.() ?? DEFAULT_TONE_MAPPING;
-    const passes = passesOf(backend, chained);
+    const passes = passesOf(backend.scene, chained);
     const linear = passes.length ? effects!.begin(passes, width, height) : null;
     output.linear = !!linear;
     output.framebuffer = (linear ?? target)?.framebuffer ?? null;

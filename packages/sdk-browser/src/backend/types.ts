@@ -10,7 +10,6 @@ import type {
 } from '../../../sdk-core/src/index.ts';
 import type { BackendDrawCounters, BackendMetrics } from '../diagnostic/metricKeys.ts';
 import type { SceneToneMapping } from '../../../sdk-core/src/scene/core/environment.ts';
-import type { Blending } from '../../../sdk-core/src/world/constants/index.ts';
 import type { MemoryBudgets, MemoryBudgetsReport } from '../residency/pools.ts';
 import type { CpuStepSummary } from '../stage/cpuProfile.ts';
 import type { BackendDiagnostic, DiagnosticDetail } from '../diagnostic/types.ts';
@@ -50,10 +49,6 @@ export interface RenderBackend extends BackendSceneUpdates {
    *  scene a witness holds — into the framebuffer the host has bound and cleared, `output`
    *  naming it and its display chain. Absent from an engine that presents its own surface. */
   drawHostGeometry?(camera: HostDrawCamera, output: HostDrawOutput): void;
-  /** The blending of a surface its next `drawHostGeometry` draws that a linear output cannot
-   *  hold, or `undefined`; read before the effect chain binds its target, which such a frame is
-   *  drawn whole without. Absent from an engine whose linear draw holds every mode. */
-  linearRefusal?(): Blending | undefined;
   readonly overBudget: boolean;
   /** True when the last rendered frame was held: nothing was reselected or rebuilt, and the
    *  attached scene IS this frame. Read per frame; absent from an engine that holds nothing. */

@@ -12,7 +12,6 @@ import type { WebglClusterScene } from './lights.ts';
 import type { SceneCopy } from './copyCulling.ts';
 import { WebglClusterOwner } from './owner.ts';
 import { depthOf } from './meshDepth.ts';
-import { linearRefusal } from './linearRefusal.ts';
 import { meshes } from '../../scene/meshes.ts';
 import { DEFAULT_PIXEL_RATIO } from '../../backend/common.ts';
 
@@ -141,8 +140,6 @@ export function createSceneDraw(
       }
       counters.triangles = owner.submittedTriangles;
     },
-    /** A surface this graph draws that the linear output cannot hold (`linearRefusal`). */
-    linearRefusal: () => linearRefusal(display),
     counters: () => (opened ? counters : null),
     dispose() {
       owner?.dispose();
