@@ -33,6 +33,9 @@ export function createWebgpuResidencySets(options: {
   const enteringPages: (PageRec | undefined)[] = [];
   const entering = createDenseKeySet(enteringPages),
     leaving = createDenseKeySet();
+  /** Keys in `leaving` only because the upload job pinned them after they joined: they were out
+   *  when the pin step last ran, so taken back, they still join. */
+  const leftPinned = createDenseKeySet();
   const desiredPages: PageRec[] = [];
   const desired = createDenseKeySet(desiredPages);
   const ranking = createBudgetRanking({ bootstrapKey, keyOf });
@@ -54,12 +57,18 @@ export function createWebgpuResidencySets(options: {
     // Net of what the pin step already saw: a key that leaves and comes back before it runs — a
     // queue rebuilt past the budget releases and retakes all of it — never reaches it, so its
     // work follows the keys that moved, not the queue. A key the upload job pinned on arrival in
-    // between still reaches it as leaving: nothing else would ever give that pin back.
+    // between still reaches it as leaving: nothing else would ever give that pin back. Taken back
+    // then, it joins again: the pin step never saw it kept.
     onListed: (key, page) => {
-      if (!leaving.remove(key)) entering.add(key, page);
+      const pinnedMeanwhile = leftPinned.remove(key);
+      if (!leaving.remove(key) || pinnedMeanwhile) entering.add(key, page);
     },
     onUnlisted: (key) => {
-      if (!entering.remove(key) || tracking.pinned.has(key)) leaving.add(key);
+      const joined = entering.remove(key);
+      if (joined && !tracking.pinned.has(key)) return;
+      leaving.add(key);
+      if (joined) leftPinned.add(key);
+      else leftPinned.remove(key);
     },
   });
   for (let key = 0; key < keyCount; key++) if (bootstrapKey[key]) keep.retain(key);
@@ -120,6 +129,7 @@ export function createWebgpuResidencySets(options: {
       return (
         entering.byteLength +
         leaving.byteLength +
+        leftPinned.byteLength +
         requested.byteLength +
         keep.byteLength +
         askedKeys.byteLength +
