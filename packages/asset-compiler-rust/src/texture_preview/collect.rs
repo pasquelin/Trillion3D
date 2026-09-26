@@ -61,12 +61,11 @@ impl Role {
     }
     /// The chain the role asks for: the one role whose alpha the shader reads for
     /// coverage — the base colour of a BLEND material, or of a MASK one that cuts —
-    /// takes the chain weighted by that alpha, its cutoff set by the material
-    /// (`atlas_textures`).
-    fn kind(self, coverage: bool) -> AtlasKind {
-        match self {
-            Self::BaseColor if coverage => AtlasKind::Coverage(0),
-            Self::BaseColor | Self::Emissive => AtlasKind::Color,
+    /// takes the chain weighted by that alpha, at the material's cutoff byte.
+    fn kind(self, coverage: Option<u8>) -> AtlasKind {
+        match (self, coverage) {
+            (Self::BaseColor, Some(cutoff)) => AtlasKind::Coverage(cutoff),
+            (Self::BaseColor | Self::Emissive, _) => AtlasKind::Color,
             _ => AtlasKind::Data,
         }
     }
@@ -120,16 +119,13 @@ pub(super) fn atlas_textures(g: &Value, meshes: &BTreeSet<usize>) -> Result<Vec<
         // A transmissive BLEND tints what crosses it by its base colour whatever its alpha
         // (`webgpu/water/compositeWgsl.ts`): it draws the RGB under alpha 0 and keeps the plain chain.
         let transmits = crate::compiler_materials::unsplit_material(Some(material));
-        let coverage = (mode == Some("BLEND") && !transmits) || cutoff.is_some_and(|c| c > 0.0);
-        let cut = cutoff.map_or(0, |c| super::coverage::material_cutoff(material, c));
+        let coverage = ((mode == Some("BLEND") && !transmits) || cutoff.is_some_and(|c| c > 0.0))
+            .then(|| cutoff.map_or(0, |c| super::coverage::material_cutoff(material, c)));
         for role in ROLES {
             let Some(texture) = texture_index(role.reference(material)) else {
                 continue;
             };
-            let kind = match role.kind(coverage) {
-                AtlasKind::Coverage(_) => AtlasKind::Coverage(cut),
-                kind => kind,
-            };
+            let kind = role.kind(coverage);
             let atlas = kind.atlas();
             let entry = wanted
                 .entry((texture, atlas))
@@ -141,10 +137,11 @@ pub(super) fn atlas_textures(g: &Value, meshes: &BTreeSet<usize>) -> Result<Vec<
                     cutoffs: Vec::new(),
                 });
             match (entry.kind, kind) {
-                // Coverage readers share one chain, cut at the lowest of their cutoffs,
-                // so the most texels any of them keeps hold their share at every level.
+                // Coverage readers share one chain, cut at the lowest of their cutoffs, so
+                // the most texels any of them keeps hold their share at every level; a
+                // blended one (0) keeps the median alone, whose mean alpha it draws.
                 (AtlasKind::Coverage(mine), AtlasKind::Coverage(theirs)) => {
-                    entry.kind = AtlasKind::Coverage(super::coverage::lowest_cutoff(mine, theirs));
+                    entry.kind = AtlasKind::Coverage(mine.min(theirs));
                 }
                 // Readers that disagree on coverage share the plain chain.
                 (mine, theirs) if mine != theirs => entry.kind = atlas,

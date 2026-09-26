@@ -1,6 +1,5 @@
 use super::curves::{linear_to_srgb, srgb_table};
 use super::*;
-use std::borrow::Cow;
 
 /// What the atlas layer does with the bytes, and therefore what reduction must do
 /// with the same: the colour atlas is `rgba8unorm-srgb`, its first three channels
@@ -11,9 +10,9 @@ use std::borrow::Cow;
 /// `Coverage` is a chain of the colour atlas too, the one of a texture EVERY
 /// reader of which reads its alpha as coverage — the base colour of MASK or BLEND
 /// materials —: the only chain whose colours `halve` weighs by alpha. It carries
-/// the image's byte cutoff (`coverage::cutoff_byte`), whose share of covered texels
-/// every level keeps (`coverage::preserve`); 0 when every reader blends, and the
-/// chain keeps the median alone. Each cutoff has its own word and name, so its
+/// the texture's cutoff byte, whose share of covered texels every level keeps
+/// (`coverage.rs`); 0 when a reader blends, and the chain keeps the median alone.
+/// Each cutoff has its own word and name, so its
 /// files never mix with the plain chain of the same image, nor with another
 /// cutoff's, read in another scene. Entries sort by the atlas that samples the
 /// chain (`atlas`), so one texture carries a plain or a coverage colour entry, never both.
@@ -33,12 +32,12 @@ impl AtlasKind {
             Self::Coverage(cutoff) => 2 | u32::from(cutoff) << 8,
         }
     }
-    pub fn name(self) -> Cow<'static, str> {
+    pub fn name(self) -> String {
         match self {
             Self::Color => "srgb".into(),
             Self::Data => "linear".into(),
             Self::Coverage(0) => "srgb-coverage".into(),
-            Self::Coverage(cutoff) => format!("{}-{cutoff}", Self::Coverage(0).name()).into(),
+            Self::Coverage(cutoff) => format!("srgb-coverage-{cutoff}"),
         }
     }
     /// The atlas the chain is sampled in: a `Coverage` chain is the colour atlas's.
@@ -71,7 +70,7 @@ impl AtlasKind {
 /// re-encoded by the atlas curve, weighted by alpha in a `Coverage` chain
 /// (`halve`); alpha is the MEDIAN of the four, the mean of the two middle
 /// values, then scaled in a `Coverage` chain with a cutoff so that the share of
-/// covered texels stays level 0's (`coverage::preserve`); an
+/// covered texels stays level 0's (`coverage.rs`); an
 /// odd side repeats its last texel, like `min(p + 1, hi)` in the shader. No curve
 /// declared by the file: the atlas does not know it, and the pyramid follows
 /// display, not the file.
