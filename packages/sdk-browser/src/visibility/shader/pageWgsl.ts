@@ -97,9 +97,9 @@ export const MASK_KEEP_WGSL = `fn maskKeep(page:PageInfo,uv:vec2f,vertexAlpha:f3
  if(!lineDash(uv.x,page.dash)){return false;}
  if(page.baseColor.w<=0.0){return true;}
  // A row that reads no colour is cut by its base map alone, never by an interpolated one, which
- // need not round back to one exactly.
+ // need not round back to one exactly. Without a map, its opacity still cuts it, as WebGL2 does.
  let coloured=(page.flags&${FLAG_HAS_COLOR}u)!=0u;
- if((page.flags&8u)==0u){return !coloured||vertexAlpha*page.blendCoverage>=page.baseColor.w;}
+ if((page.flags&8u)==0u){return select(1.0,vertexAlpha,coloured)*page.blendCoverage>=page.baseColor.w;}
  // Levels of the chain take the MEDIAN of alpha, never its mean: a coarse texel passes the
  // threshold when half of what it covers passed it, so threshold coverage crosses the levels and
  // the cutout stays right at every level. A mean, itself, made the silhouette grow level after

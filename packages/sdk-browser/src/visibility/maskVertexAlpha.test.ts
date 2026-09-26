@@ -52,6 +52,7 @@ test('a masked surface is cut at its opacity times its map alpha, in both WebGPU
   assert.equal(covered({ vertexColors: false, map: true, alpha: 1, opacity: 0.4 }), false);
   assert.equal(covered({ vertexColors: true, map: false, alpha: 1, opacity: 0.4 }), false);
   assert.equal(covered({ vertexColors: false, map: true, alpha: 1, opacity: 0.6 }), true);
+  assert.equal(covered({ vertexColors: false, map: false, alpha: 1, opacity: 0.4 }), false);
   assert.ok(MASK_KEEP_WGSL.includes(`(page.flags&${FLAG_SAMPLED}u)!=0u)*page.blendCoverage;`));
 });
 
@@ -61,7 +62,7 @@ test('the cutout multiplies by the vertex alpha only on a row that reads its col
   assert.ok(keep.includes(`let coloured=(page.flags&${FLAG_HAS_COLOR}u)!=0u;`));
   assert.ok(
     keep.includes(
-      'if((page.flags&8u)==0u){return !coloured||vertexAlpha*page.blendCoverage>=page.baseColor.w;}',
+      'if((page.flags&8u)==0u){return select(1.0,vertexAlpha,coloured)*page.blendCoverage>=page.baseColor.w;}',
     ),
   );
   const read = keep.indexOf('var alpha=maskAlpha(');
