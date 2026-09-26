@@ -8,7 +8,7 @@ import { exampleId, kitWord } from './words.ts';
  * What one part of the health check holds, named here once — the bench's baselines hold relative
  * thresholds, none of these quantities: the floor of the 60–120 Hz a frame targets, the GPU time
  * of one 60 Hz frame, one batch of shadow pages a frame (the engine's `shadowPagesPerBatch`), and
- * no page the fixed pool evicts and maps again while a view stands still in it.
+ * no page the fixed pool evicts and maps again within a part.
  */
 export const BUDGETS = {
   fps: 60,

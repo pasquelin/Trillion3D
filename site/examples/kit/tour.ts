@@ -21,15 +21,14 @@ export interface Tour extends Opening {
  * hold.
  */
 export function tour(world: CirclingWorld, poses: readonly Pose[], curve = ease.inOut): Tour {
-  const views = poses.map((pose) => [...pose.position, ...pose.target]);
   let start: number[] = [],
     part: string | null = null;
   const glide = opening(world, (time) => {
     if (time === 0) start = cameraView(world);
     let from = start,
       at = time;
-    for (const [k, pose] of poses.entries()) {
-      const to = views[k];
+    for (const pose of poses) {
+      const to = [...pose.position, ...pose.target];
       if (at < pose.seconds + pose.hold) {
         glideCamera(world, from, to, curve(at / pose.seconds));
         part = pose.name;
