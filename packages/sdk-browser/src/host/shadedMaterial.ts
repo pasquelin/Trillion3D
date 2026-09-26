@@ -25,6 +25,8 @@ export type HostShadedMaterial = HostMaterial & {
   /** A Phong material's exponent, and a matcap material's image. */
   readonly shininess?: number;
   readonly matcap?: HostMap;
+  /** A toon material's tone ramp; the engine draws its two fixed bands, so the gate refuses one. */
+  readonly gradientMap?: HostMap;
   readonly color?: unknown;
   readonly map?: HostMap;
   readonly metalness?: number;

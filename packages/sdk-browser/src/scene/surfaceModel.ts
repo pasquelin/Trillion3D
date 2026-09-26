@@ -51,16 +51,47 @@ export function hostSurfaceModel({ family }: HostShadedMaterial): number {
 export const metalRough = ({ family }: HostShadedMaterial) =>
   family === 'standard' || family === 'physical';
 
-/** True when the model is lit by the scene's lights: a Phong material is the standard model. */
-export const litModel = (host: HostShadedMaterial, model: number) =>
-  model === SURFACE_MODEL.diffuse ||
-  model === SURFACE_MODEL.toon ||
+/** True when the surface's model is lit by the scene's lights: a Phong material is the standard
+ *  model. */
+export const litModel = (host: HostShadedMaterial) =>
+  host.family === 'lambert' ||
+  host.family === 'toon' ||
   metalRough(host) ||
   host.family === 'phong';
+
+/**
+ * Why a surface declares a map the reference draws and its model never reads, or `undefined`: a
+ * toon's tone ramp, a matcap's colour map, the normal map of a surface drawn unlit. The one
+ * refusal the WebGL2 gate (`../host/surfaceGate.ts`) and the page record (`../page/surface.ts`)
+ * share, so no path drops one from the image.
+ */
+export function unreadMapRefusal(host: HostShadedMaterial) {
+  const named = (map: string) =>
+    `material ${host.family} declares a ${map} its surface model never reads`;
+  if (host.gradientMap) return named('gradientMap');
+  if (host.family === 'matcap' && host.map) return named('map');
+  if (host.normalMap && !litModel(host)) return named('normalMap');
+}
+
+/** Whether a surface's occlusion map darkens it: a lit one does, and a plain colour one on the
+ *  WebGL2 path; a matcap, normal or depth surface ignores one on both paths, as the reference does. */
+export const readsOcclusion = (host: HostShadedMaterial) =>
+  litModel(host) || host.family === 'basic';
 
 /** The roughness a Blinn–Phong exponent reads as, `√(2 / (n + 2))`: its lobe's width. */
 export const shininessRoughness = (shininess: number) =>
   Math.sqrt(2 / (Math.max(0, shininess) + 2));
+
+// The formulas of the models, written once: WGSL and GLSL spell these expressions alike, so both
+// GPU paths shade a diffuse, toon or matcap surface from the same text, never a restated copy.
+/** The diffuse lobe of a lamp's `energy`, occlusion `ao` included. */
+const MODEL_DIFFUSE = `rgb*(1.0-metal)*${INVERSE_PI}*energy*ao`;
+/** Toon's two bands of the cosine `nl`, 0.7 and 1. */
+const TOON_BANDS = 'mix(0.7,1.0,smoothstep(0.69,0.71,nl*0.5+0.5))';
+/** A diffuse surface's cosine. */
+const DIFFUSE_COSINE = 'max(nl,0.0)';
+/** The matcap coordinate of the view-space normal `n`. */
+const MATCAP_UV = 'n.x*0.495+0.5,0.5-n.y*0.495';
 
 /**
  * What a declared lamp gives a pixel of a diffuse or toon surface, read by `declaredLight` through
@@ -70,11 +101,21 @@ export const shininessRoughness = (shininess: number) =>
 export const SURFACE_MODEL_LIGHT_WGSL = `
 var<private> surfaceModel:u32;
 fn modelLight(rgb:vec3f,metal:f32,N:vec3f,L:vec3f,energy:f32,ao:f32)->vec3f{
- let diffuse=rgb*(1.0-metal)*${INVERSE_PI}*energy*ao;
+ let diffuse=${MODEL_DIFFUSE};
  let nl=dot(N,L);
- if(surfaceModel==${MODEL_FLAG.toon}u){return diffuse*mix(0.7,1.0,smoothstep(0.69,0.71,nl*0.5+0.5));}
- return diffuse*max(nl,0.0);
+ if(surfaceModel==${MODEL_FLAG.toon}u){return diffuse*${TOON_BANDS};}
+ return diffuse*${DIFFUSE_COSINE};
 }`;
+
+/**
+ * The same models in the WebGL2 program (`../webgl/cluster/shaders.ts`), whose `surfaceModel`
+ * uniform is the surface's `SURFACE_MODEL` rank: a lamp's diffuse or toon light, and the matcap
+ * coordinate of a view-space normal — the program's normals are in view space already.
+ */
+export const SURFACE_MODEL_GLSL = `
+vec3 modelLight(vec3 rgb,float metal,vec3 N,vec3 L,float energy,float ao){vec3 diffuse=${MODEL_DIFFUSE};float nl=dot(N,L);
+if(surfaceModel==${SURFACE_MODEL.toon})return diffuse*${TOON_BANDS};return diffuse*${DIFFUSE_COSINE};}
+vec2 matcapUv(vec3 n){return vec2(${MATCAP_UV});}`;
 
 /**
  * The unlit models in the surface pass: the view basis read off the view-projection (its first two
@@ -88,4 +129,4 @@ fn viewNormal(N:vec3f)->vec3f{
  let up=normalize(vec3f(uni.viewProj[0].y,uni.viewProj[1].y,uni.viewProj[2].y));
  return vec3f(dot(N,right),dot(N,up),dot(N,cross(right,up)));
 }
-fn matcapUv(N:vec3f)->vec2f{let n=viewNormal(N);return vec2f(n.x*0.495+0.5,0.5-n.y*0.495);}`;
+fn matcapUv(N:vec3f)->vec2f{let n=viewNormal(N);return vec2f(${MATCAP_UV});}`;

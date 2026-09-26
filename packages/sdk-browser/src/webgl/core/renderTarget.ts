@@ -6,6 +6,8 @@ import type { SceneToneMapping } from '../../../../sdk-core/src/scene/core/envir
  * drew it, stored as written — so that a side of a comparison is the single view of that engine,
  * byte for byte, and no value is clamped or requantised on the way. An `hdr` target holds linear
  * radiance instead, half floats read with bilinear filtering: what the effect chain draws on.
+ * A `float` target holds 32-bit floats read texel by texel (`EXT_color_buffer_float`): state a
+ * pass carries from image to image with no precision lost.
  */
 export type WebglRenderTarget = ReturnType<typeof createWebglRenderTarget>;
 
@@ -31,15 +33,21 @@ export type HostDrawOutput = {
 export const halfFloatTargets = (gl: WebGL2RenderingContext) =>
   ['EXT_color_buffer_float', 'EXT_color_buffer_half_float'].some((name) => gl.getExtension(name));
 
+/** Whether the context renders into 32-bit floats, the extension enabled on the way. */
+export const floatTargets = (gl: WebGL2RenderingContext) =>
+  !!gl.getExtension('EXT_color_buffer_float');
+
 export function createWebglRenderTarget(
   gl: WebGL2RenderingContext,
   width: number,
   height: number,
-  options: { depth?: boolean; hdr?: boolean } = {},
+  options: { depth?: boolean; hdr?: boolean; float?: boolean } = {},
 ) {
-  const [format, type, filter] = options.hdr
-    ? [gl.RGBA16F, gl.HALF_FLOAT, gl.LINEAR]
-    : [gl.RGBA8, gl.UNSIGNED_BYTE, gl.NEAREST];
+  const [format, type, filter] = options.float
+    ? [gl.RGBA32F, gl.FLOAT, gl.NEAREST]
+    : options.hdr
+      ? [gl.RGBA16F, gl.HALF_FLOAT, gl.LINEAR]
+      : [gl.RGBA8, gl.UNSIGNED_BYTE, gl.NEAREST];
   const texture = gl.createTexture()!,
     depth = options.depth === false ? null : gl.createRenderbuffer()!,
     framebuffer = gl.createFramebuffer()!;
