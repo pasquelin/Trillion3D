@@ -5,7 +5,7 @@ import {
 } from '../../../sdk-core/src/fluids/particles.ts';
 import { createCheckedShaderModule } from '../gpu/core/shaderModule.ts';
 import { DISC_CORNERS, DRAW_FLOATS, drawOrder, writeDrawWords } from './drawWords.ts';
-import { createPoolStates, refuseAll, usedSlots } from './poolStates.ts';
+import { refuseAll, usedSlots } from './poolStates.ts';
 
 /** The pass label the GPU timings name the particle draw by (`passesGpu`). */
 export const PARTICLE_DRAW_PASS = 'Trillion3D particle draw';
@@ -42,14 +42,15 @@ struct Out { @builtin(position) at: vec4f, @location(0) corner: vec2f, @location
   return vec4f(draw.color.rgb, 1) * k;
 }`;
 
-type DrawState = { words: GPUBuffer; group?: GPUBindGroup; state?: GPUBuffer; depth?: object };
+/** What the draw keeps in a pool's step state: its words, its group and the depth it was made on. */
+export type DrawState = { state: GPUBuffer; draw: GPUBuffer; drawn?: GPUBindGroup; depth?: object };
 
 /** The WebGPU particle draw: one pass over the lit image, one instanced draw per live pool
  *  (`drawOrder`), reading the step's buffer (`stateOf`) and the opaque depth, which the soft edge
  *  alone tests. `fail` hears a pipeline not made, and every pool is then `refused`. */
 export function createWebgpuParticleDraw(
   device: GPUDevice,
-  stateOf: (pool: ParticlePool) => GPUBuffer | undefined,
+  stateOf: (pool: ParticlePool) => DrawState | undefined,
   fail: (error: unknown) => void,
 ) {
   const { VERTEX, FRAGMENT } = GPUShaderStage;
@@ -72,16 +73,13 @@ export function createWebgpuParticleDraw(
           const smoke = blend === 'premultiplied',
             over = { srcFactor: 'one', dstFactor: 'one-minus-src-alpha' } as const,
             color = smoke ? over : ({ srcFactor: 'one', dstFactor: 'one' } as const),
-            alpha = smoke ? over : ({ srcFactor: 'zero', dstFactor: 'one' } as const);
+            alpha = smoke ? over : ({ srcFactor: 'zero', dstFactor: 'one' } as const),
+            targets: GPUColorTargetState[] = [{ format: 'rgba16float', blend: { color, alpha } }];
           pipelines[blend] = await device.createRenderPipelineAsync({
             label: `${PARTICLE_DRAW_PASS} ${blend}`,
             layout: pipelineLayout,
             vertex: { module, entryPoint: 'vs' },
-            fragment: {
-              module,
-              entryPoint: 'fs',
-              targets: [{ format: 'rgba16float', blend: { color, alpha } }],
-            },
+            fragment: { module, entryPoint: 'fs', targets },
           });
         }),
       );
@@ -89,29 +87,21 @@ export function createWebgpuParticleDraw(
     .catch((error) => ((failed = true), fail(error)));
   const words = new Float32Array(DRAW_FLOATS),
     order: ParticlePool[] = [];
-  const { UNIFORM, COPY_DST } = GPUBufferUsage,
-    size = DRAW_FLOATS * 4;
-  const made = createPoolStates<DrawState>(
-    () => ({
-      words: device.createBuffer({ label: PARTICLE_DRAW_PASS, size, usage: UNIFORM | COPY_DST }),
-    }),
-    (state) => state.words.destroy(),
-  );
-  /** The pool's group, made again only when the step's buffer or the depth target changed. */
-  const groupOf = (kept: DrawState, state: GPUBuffer, depth: GPUTextureView) => {
-    if (kept.state !== state || kept.depth !== depth) {
-      Object.assign(kept, { state, depth });
-      kept.group = device.createBindGroup({
+  /** The pool's group, made again only when the depth target changed. */
+  const groupOf = (kept: DrawState, depth: GPUTextureView) => {
+    if (kept.depth !== depth) {
+      kept.depth = depth;
+      kept.drawn = device.createBindGroup({
         label: PARTICLE_DRAW_PASS,
         layout,
         entries: [
-          { binding: 0, resource: { buffer: kept.words } },
-          { binding: 1, resource: { buffer: state } },
+          { binding: 0, resource: { buffer: kept.draw } },
+          { binding: 1, resource: { buffer: kept.state } },
           { binding: 2, resource: depth },
         ],
       });
     }
-    return kept.group!;
+    return kept.drawn!;
   };
   return {
     /** Draws `pools` over `target` in `encoder`, seen through `viewProj` from `eye`, softened
@@ -124,29 +114,26 @@ export function createWebgpuParticleDraw(
       viewProj: ArrayLike<number>,
       eye: ArrayLike<number>,
     ) {
-      if (failed) refuseAll(pools);
+      if (failed) return (refuseAll(pools), 0);
       let pass: GPURenderPassEncoder | undefined,
         draws = 0;
       for (const pool of drawOrder(pools, eye, order)) {
         const pipeline = pipelines[pool.blend],
-          state = stateOf(pool);
-        if (!pipeline || !state) continue;
-        const kept = made.of(pool);
+          kept = stateOf(pool);
+        if (!pipeline || !kept) continue;
         writeDrawWords(words, pool, viewProj, eye);
-        device.queue.writeBuffer(kept.words, 0, words);
+        device.queue.writeBuffer(kept.draw, 0, words);
         pass ??= encoder.beginRenderPass({
           label: PARTICLE_DRAW_PASS,
           colorAttachments: [{ view: target, loadOp: 'load', storeOp: 'store' }],
         });
         pass.setPipeline(pipeline);
-        pass.setBindGroup(0, groupOf(kept, state, depth));
+        pass.setBindGroup(0, groupOf(kept, depth));
         pass.draw(6, usedSlots(pool));
         draws++;
       }
       pass?.end();
-      made.keep(pools);
       return draws;
     },
-    dispose: made.dispose,
   };
 }

@@ -12,23 +12,17 @@ export const DISC_CORNERS =
   'vec2(-1.0, -1.0), vec2(1.0, -1.0), vec2(-1.0, 1.0), vec2(-1.0, 1.0), vec2(1.0, -1.0), vec2(1.0, 1.0)';
 
 type Vec = ArrayLike<number>;
-const clip = new Float64Array(16),
-  unclip = new Float64Array(16);
+const [clip, unclip] = [new Float64Array(16), new Float64Array(16)];
 
 /** Writes `pool`'s draw words into `out` from the image's world `viewProj` and `eye`. */
 export function writeDrawWords(out: Float32Array, pool: ParticlePool, viewProj: Vec, eye: Vec) {
-  const o = pool.origin,
-    x = o[0],
-    y = o[1],
-    z = o[2];
+  const o = pool.origin;
   clip.set(viewProj);
-  transformHomogeneousPoint(clip, viewProj, x, y, z, 12);
+  transformHomogeneousPoint(clip, viewProj, o[0], o[1], o[2], 12);
   invertMatrix4(unclip, clip);
   out.set(clip, 0);
   out.set(unclip, 16);
-  out[32] = eye[0] - x;
-  out[33] = eye[1] - y;
-  out[34] = eye[2] - z;
+  for (let i = 0; i < 3; i++) out[32 + i] = eye[i] - o[i];
   out[35] = pool.size;
   out.set(pool.color, 36);
   out[40] = pool.softness;

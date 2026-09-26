@@ -8,7 +8,7 @@ import {
   floatTargets,
   type WebglRenderTarget,
 } from '../webgl/core/renderTarget.ts';
-import { createPoolStates, usedSlots } from './poolStates.ts';
+import { createPoolStates, refuseAll, usedSlots } from './poolStates.ts';
 import { createWebglParticleDraw } from './webglParticleDraw.ts';
 
 /** Particles per texture row, two texels each: position and age, then velocity and lifetime. */
@@ -102,7 +102,7 @@ export function createWebglParticles(gl: WebGL2RenderingContext) {
       const live = held.current();
       if (!live) return 0;
       if (!floatTargets(gl)) {
-        for (const pool of pools) pool.refused = true; // it asks no frame of its own
+        refuseAll(pools); // it asks no frame of its own
         if (!pools.length) return 0;
         throw new Error(
           'PARTICLES_UNSUPPORTED: WebGL2 particles render 32-bit floats, and this context ' +

@@ -59,7 +59,7 @@ void main() {
 
 /** The WebGL2 particle draw over the host's image: its depth copied for the soft edge, then one
  *  instanced draw per live pool (`drawOrder`) from the step's target (`stateOf`). A context that
- *  cannot copy the depth throws `PARTICLES_UNSUPPORTED`, the pools refused, never drawn hard. */
+ *  cannot copy the depth returns `PARTICLES_UNSUPPORTED` once, the pools refused, never drawn. */
 export function createWebglParticleDraw(
   gl: WebGL2RenderingContext,
   texels: number,
@@ -75,31 +75,18 @@ export function createWebglParticleDraw(
     () => {
       const program = createWebglProgram(gl, vertex(texels), FRAGMENT);
       const at = (name: string) => gl.getUniformLocation(program, name);
-      gl.useProgram(program);
-      gl.uniform1i(at('state'), 0);
-      gl.uniform1i(at('sceneDepth'), 1);
-      gl.useProgram(null);
-      const [m, look, linear, curve] = ['m', 'look', 'linearOut', 'toneCurve'].map(at);
-      const copy = { framebuffer: gl.createFramebuffer()!, texture: gl.createTexture()! },
+      const names = ['m', 'look', 'linearOut', 'toneCurve', 'sceneDepth'],
+        [m, look, linear, curve, depth] = names.map(at),
+        uniforms = { m, look, linear, curve, depth },
         vao = gl.createVertexArray()!;
+      const copy = { framebuffer: gl.createFramebuffer()!, texture: gl.createTexture()! };
       bindWebglTexture(gl, 1, copy.texture);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
       gl.bindFramebuffer(gl.FRAMEBUFFER, copy.framebuffer);
       gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.TEXTURE_2D, copy.texture, 0);
-      return {
-        program,
-        vao,
-        m,
-        look,
-        linear,
-        curve,
-        copy,
-        width: 0,
-        height: 0,
-        checked: undefined as WebGLFramebuffer | null | undefined,
-        refused: false,
-      };
+      const checked = undefined as WebGLFramebuffer | null | undefined;
+      return { program, vao, uniforms, copy, checked, width: 0, height: 0, refused: false };
     },
     ({ program, vao, copy }) => {
       gl.deleteProgram(program);
@@ -109,17 +96,13 @@ export function createWebglParticleDraw(
     },
   );
   return {
-    /** Draws `pools` into `output` seen by `camera`; returns the draws made. */
+    /** Draws `pools` into `output` seen by `camera`; returns the draws made, or the refusal. */
     draw(pools: readonly ParticlePool[], camera: HostDrawCamera, output: HostDrawOutput) {
       const live = held.current();
       // The eye in double precision, the world matrix's: the host's 32-bit eye rounds 10 km out.
       for (let i = 0; i < 3; i++) eye[i] = camera.world[12 + i];
       if (!live || !drawOrder(pools, eye, order).length) return 0;
-      // Refused once, by name; every later image refuses the pools again, drawing nothing.
-      if (live.refused) {
-        refuseAll(order); // told once, by the throw below
-        return 0;
-      }
+      if (live.refused) return (refuseAll(order), 0);
       // The frame's depth, copied for the soft edge; each framebuffer's first copy asks if refused.
       const { copy } = live,
         { framebuffer, width, height } = output;
@@ -136,18 +119,18 @@ export function createWebglParticleDraw(
       gl.blitFramebuffer(0, 0, width, height, 0, 0, width, height, gl.DEPTH_BUFFER_BIT, gl.NEAREST);
       gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
       if (live.checked !== framebuffer && gl.getError() === gl.INVALID_OPERATION) {
-        live.refused = true;
-        refuseAll(order);
-        throw new Error('PARTICLES_UNSUPPORTED: WebGL2 particles fade on a depth it cannot copy');
+        live.refused = refuseAll(order);
+        return new Error('PARTICLES_UNSUPPORTED: WebGL2 particles fade on a depth it cannot copy');
       }
       live.checked = framebuffer;
       multiplyMatrix4Typed(screen, camera.projection, camera.view);
       gl.useProgram(live.program);
       gl.bindVertexArray(live.vao);
       gl.viewport(0, 0, width, height);
-      gl.uniform1i(live.linear, output.linear ? 1 : 0);
+      gl.uniform1i(live.uniforms.depth, 1); // the state samples unit 0, where samplers start
+      gl.uniform1i(live.uniforms.linear, output.linear ? 1 : 0);
       const curve = output.toneMapped ? (output.toneMapping ?? DEFAULT_TONE_MAPPING) : 'none';
-      gl.uniform1i(live.curve, TONE_MAPPING_RANK[curve]);
+      gl.uniform1i(live.uniforms.curve, TONE_MAPPING_RANK[curve]);
       bindWebglTexture(gl, 1, live.copy.texture);
       gl.enable(gl.BLEND);
       gl.enable(gl.DEPTH_TEST);
@@ -159,8 +142,8 @@ export function createWebglParticleDraw(
         const state = stateOf(pool);
         if (!state) continue;
         writeDrawWords(words, pool, screen, eye);
-        gl.uniformMatrix4fv(live.m, false, matrices);
-        gl.uniform4fv(live.look, look);
+        gl.uniformMatrix4fv(live.uniforms.m, false, matrices);
+        gl.uniform4fv(live.uniforms.look, look);
         // Smoke covers colour and coverage alike; fire adds light and leaves the coverage.
         if (pool.blend === 'premultiplied') gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
         else gl.blendFuncSeparate(gl.ONE, gl.ONE, gl.ZERO, gl.ONE);
