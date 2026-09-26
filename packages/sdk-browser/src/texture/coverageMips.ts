@@ -8,8 +8,9 @@ export const LEVEL_BIN_BYTES = 1024;
 /**
  * The counts of the coverage rule (docs/FORMAT.md, "Coverage-preserving alpha"): `count` files the
  * four filtered samples of each texel's square (`cutBin`) — its alpha bytes level 0's own, a
- * level's medians from the one above — in its level's 256 bins, through a workgroup's own 256; `choose` then picks that level's `t`, one thread, and leaves
- * it in bin 0, which it never reads (`t >= 1`). `level`: the source's extent, `C`, `t`, then level
+ * level's medians from the one above — in its level's 256 bins, through a workgroup's own 256;
+ * `choose` then picks that level's `t`, one thread, and leaves it in bin 0, which it never reads
+ * (`t >= 1`). `level`: the source's extent, `C`, `t`, then level
  * 0's extent and the level.
  */
 export const COVERAGE_WGSL = `
