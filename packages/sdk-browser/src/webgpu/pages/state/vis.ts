@@ -50,6 +50,8 @@ export interface WebgpuVisState {
   /** GPU partition of the image: projection, split and occlusion bounds per row. */
   gpuPartition: GpuPartition | undefined;
   visBindGroupLayout: GPUBindGroupLayout | undefined;
+  /** The visibility module, kept to make its raster pipelines again without Hi-Z. */
+  visModule: GPUShaderModule | undefined;
   visBindGroup: GPUBindGroup | undefined;
   visHizBindGroup: GPUBindGroup | undefined;
   visUniform: GPUBuffer | undefined;
@@ -109,6 +111,7 @@ export function createWebgpuVisState(): WebgpuVisState {
     drawLayerSlots: 1,
     gpuPartition: undefined,
     visBindGroupLayout: undefined,
+    visModule: undefined,
     visBindGroup: undefined,
     visHizBindGroup: undefined,
     visUniform: undefined,
