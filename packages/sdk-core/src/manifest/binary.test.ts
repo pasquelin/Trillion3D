@@ -115,6 +115,8 @@ test('a page without a cone decodes the open cone, and a malformed cone is refus
   for (const cone of [
     { axis: [0, 1], angle: 0 },
     { axis: [0, 0, 1], angle: NaN },
+    { angle: 0.5 },
+    null,
   ]) {
     const bad = manifest();
     bad.primitives[0].pages[0].cone = cone as never;

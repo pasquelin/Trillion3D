@@ -35,7 +35,7 @@
  *  Version 9 adds each page's normal cone, cooked by the compiler (`Page.cone`), in a column a
  *  version-8 reader lacks. */
 export const MANIFEST_BINARY_VERSION = 9;
-/** The geometry-page format a version-8 sidecar names, as the manifest's `geometryPages` declares
+/** The geometry-page format a version-9 sidecar names, as the manifest's `geometryPages` declares
  *  it once and every page header opens with. */
 export const GEOMETRY_PAGE_FORMAT_VERSION = 3;
 /** The codec geometry pages are written with. */
