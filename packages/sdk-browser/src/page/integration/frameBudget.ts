@@ -1,27 +1,35 @@
 /**
  * The main thread's budget, one definition for every stage that spends it (CONTRIBUTING.md
  * §Streaming rule 4): whether one more piece of work is admitted — the first always is, so a piece
- * longer than the ceiling still goes through, then while the clock since `open` is within it —,
- * and one counted.
+ * longer than the ceiling still goes through, then while the clock since `open`, stopped between
+ * two stages (`pause`, `resume`), is within it —, and one counted.
  *
- * The arrival queue opens one per frame and drains within it (`./arrivalQueue.ts`), as do the
- * WebGPU row claims (`../../webgpu/row/claims.ts`) and texture tiles (`../../webgpu/tile/streamer.ts`);
- * the WebGPU residency queue opens one per turn of the event loop and yields past it
- * (`../../webgpu/residency/residentEnsurer.ts`).
+ * A session holds one integration budget per frame (`BackendContext.frameBudget`): its frame opens
+ * it, the cells and the arrival drain spend from it (`./arrivalQueue.ts`), and it pauses while the
+ * engine does its other work, then the WebGPU row records spend what is left
+ * (`../../webgpu/row/claims.ts`). Texture tiles keep their own upload ceiling
+ * (`../../webgpu/tile/streamer.ts`); the WebGPU residency queue opens one per turn of the event
+ * loop and yields past it (`../../webgpu/residency/residentEnsurer.ts`).
  */
 export type FrameBudget = { admits(): boolean; spend(): void };
+/** A budget with its clock: the frame that owns it opens it. */
+export type FrameClock = ReturnType<typeof createFrameBudget>;
 
 /** `now` is the clock the budget is read on: `performance.now` unless a test drives it. */
 export function createFrameBudget(ms: number, now = () => performance.now()) {
   let started = 0,
+    used = 0,
     spent = 0;
   return {
     /** Starts the clock: every piece until the next `open` shares it. Returns the time it read. */
     open() {
-      spent = 0;
+      spent = used = 0;
       return (started = now());
     },
-    admits: () => spent === 0 || now() - started < ms,
+    /** Stops the clock: what runs until `resume` is not integration and spends none of it. */
+    pause: () => void (used += now() - started),
+    resume: () => void (started = now()),
+    admits: () => spent === 0 || used + now() - started < ms,
     spend: () => void spent++,
   };
 }
