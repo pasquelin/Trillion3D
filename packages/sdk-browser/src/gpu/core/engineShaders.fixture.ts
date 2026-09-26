@@ -18,7 +18,6 @@ import { REST_COMPACT_SHADER } from '../raster/restCompactWgsl.ts';
 import { SHADOW_CULL_SHADER, SHADOW_LIGHT_CULL_SHADER } from '../shadow/cullShader.ts';
 import { SHADOW_OCCLUSION_SHADER } from '../shadow/occlusionShader.ts';
 import { SHADOW_DEPTH_SHADER } from '../shadow/shader.ts';
-import { RESTORE_WGSL } from '../shadow/staticLayer.ts';
 import { PAGE_QUAD_SHADER } from '../shadow/pageQuads.ts';
 import { BOUNCE_PROBE_SHADER } from '../../bounce/probeWgsl.ts';
 import { BOUNCE_SURFACE_SHADER } from '../../bounce/surfaceWgsl.ts';
@@ -67,7 +66,6 @@ export const ENGINE_SHADERS: Record<string, string> = {
   SHADOW_LIGHT_CULL_SHADER,
   SHADOW_OCCLUSION_SHADER,
   SHADOW_DEPTH_SHADER,
-  RESTORE_WGSL,
   PAGE_QUAD_SHADER,
   BOUNCE_PROBE_SHADER,
   BOUNCE_SURFACE_SHADER,
