@@ -3,9 +3,10 @@
 //! at: the page restores the compound, it builds no hull and weighs nothing.
 use super::cut::store_shape;
 use super::decompose::decompose;
-use super::taken;
+use super::{refused, taken};
 use crate::compiler_accessor_create::accessor;
 use crate::compiler_validate::{item, required_index, values};
+use crate::qem::compact_region;
 use crate::shared_math::{length, sub};
 use crate::{Options, Result};
 use serde_json::{json, Value};
@@ -88,6 +89,9 @@ fn mesh_triangles(g: &Value, bin: &[u8], mesh: usize) -> Result<(Vec<f32>, Vec<u
             }
             None => (0..positions.count as u32).collect(),
         };
+        if local.iter().any(|&i| i as usize >= positions.count) {
+            return Err(refused(format!("Mesh {mesh} indexes a vertex it lacks.")));
+        }
         pos.extend(positions.collect_f32()?);
         triangles.extend(local.iter().map(|i| i + base));
     }
@@ -117,11 +121,18 @@ pub(super) fn cooked_hulls(
     let (pos, triangles) = mesh_triangles(g, bin, mesh)?;
     let tolerance = mean_edge(&pos, &triangles);
     let parts = if one_hull {
-        vec![pos]
+        vec![compact_region(&pos, &triangles).0]
     } else {
         decompose(&pos, &triangles, tolerance)
     };
+    let flat = || refused(format!("Mesh {mesh} is flat: it has no volume to weigh."));
+    if parts.is_empty() {
+        return Err(flat());
+    }
     let (bytes, mass) = hulls_shape(&parts, DENSITY)?;
+    if mass.mass <= 0.0 {
+        return Err(flat());
+    }
     let mut shape = store_shape(o, &bytes)?;
     shape["type"] = json!("cooked");
     shape["parts"] = json!(parts.len());

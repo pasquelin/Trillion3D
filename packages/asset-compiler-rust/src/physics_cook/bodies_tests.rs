@@ -32,7 +32,8 @@ fn assert_unit_cube(mass: f64, centre: &[f64], inertia: &[f64]) {
 }
 
 // Behaviour: a unit cube's hull weighs 1000 kg about its middle at the runtime's density
-// (`commands.cpp`), and cooks to the golden bytes (`TRILLION3D_WRITE_GOLDEN` rewrites them); an L of two boxes is cut into convex parts, within the cap of 64.
+// (`commands.cpp`), and cooks to the golden bytes (`TRILLION3D_WRITE_GOLDEN` rewrites them); an
+// L of two boxes is cut into convex parts, within the cap of 64; a flat square has none.
 #[test]
 fn a_hull_is_weighed_at_cook_and_a_concave_body_decomposed() {
     let runtime = include_str!("../../../physics-jolt-wasm/src/commands.cpp");
@@ -50,12 +51,18 @@ fn a_hull_is_weighed_at_cook_and_a_concave_body_decomposed() {
     triangles.extend(FACES.iter().map(|i| i + 8));
     let parts = decompose(&pos, &triangles, 0.05).len();
     assert!((2..=64).contains(&parts), "{parts} parts");
+    let square = cube([0.0; 3], [1.0, 1.0, 0.0]);
+    assert!(
+        decompose(&square, &FACES, 0.05).is_empty(),
+        "a flat part has no hull"
+    );
 }
 
 // Behaviour: of four drawn unit cubes, the one declaring a dynamic box keeps its shape, motion and
 // matter as declared; the one declaring motion without a shape gets a cooked hull weighed as a unit
-// cube; the one declaring nothing is no body; the one naming a missing shape is refused by name.
-// All four stay static ground until the page restores their bodies.
+// cube; the one declaring nothing is no body; the one naming a missing shape is refused by name,
+// as is a cube's flat face asking for its convex hull. The cubes stay static ground until the page
+// restores their bodies.
 #[test]
 fn declared_bodies_are_cooked_beside_the_static_ground() {
     let mut bin = crate::import::f32_bytes(&cube([0.0; 3], [1.0; 3]));
@@ -64,19 +71,22 @@ fn declared_bodies_are_cooked_beside_the_static_ground() {
     let g = json!({
         "bufferViews":[{"buffer":0,"byteLength":96},{"buffer":0,"byteOffset":96,"byteLength":144}],
         "accessors":[{"bufferView":0,"componentType":5126,"type":"VEC3","count":8},
-            {"bufferView":1,"componentType":5125,"type":"SCALAR","count":36}],
-        "meshes":[{"primitives":[{"attributes":{"POSITION":0},"indices":1}]}],
+            {"bufferView":1,"componentType":5125,"type":"SCALAR","count":36},
+            {"bufferView":1,"componentType":5125,"type":"SCALAR","count":6}],
+        "meshes":[{"primitives":[{"attributes":{"POSITION":0},"indices":1}]},
+            {"primitives":[{"attributes":{"POSITION":0},"indices":2}]}],
         "extensions":{"KHR_implicit_shapes":{"shapes":[{"type":"box","box":{"size":[2, 1, 1]}}]},
             "KHR_physics_rigid_bodies":{"physicsMaterials":[{"dynamicFriction":0.9,"restitution":0.2}]}},
         "nodes":[rigid(json!({"motion":{"mass":5},"collider":{"geometry":{"shape":0},"physicsMaterial":0}})),
             rigid(json!({"motion":{}})), {"mesh":0},
-            rigid(json!({"motion":{"isKinematic":true},"collider":{"geometry":{"shape":3}}}))],
+            rigid(json!({"motion":{"isKinematic":true},"collider":{"geometry":{"shape":3}}})),
+            {"mesh":1,"extensions":{"KHR_physics_rigid_bodies":{"motion":{},"collider":{"geometry":{"convexHull":true}}}}}],
     });
     let root =
         std::path::Path::new(env!("OUT_DIR")).join(format!("body-cook-{}", std::process::id()));
     let o = crate::texture_preview::tests::options(&root);
     std::fs::create_dir_all(o.cache.join("native/objects")).unwrap();
-    let (chosen, mesh_map) = (BTreeSet::from([0, 1, 2, 3]), BTreeMap::from([(0, 0)]));
+    let (chosen, mesh_map) = (BTreeSet::from([0, 1, 2, 3, 4]), BTreeMap::from([(0, 0)]));
     let scene = DepthLayerScene {
         o: &o,
         g: &g,
@@ -127,7 +137,8 @@ fn declared_bodies_are_cooked_beside_the_static_ground() {
     assert_eq!(written["report"]["bodies"], json!(2));
     assert_eq!(
         written["report"]["bodiesRefused"],
-        json!([{"node":3,"reason":"A body's collider names shape 3, which is missing."}])
+        json!([{"node":3,"reason":"A body's collider names shape 3, which is missing."},
+            {"node":4,"reason":"Mesh 1 is flat: it has no volume to weigh."}])
     );
     std::fs::remove_dir_all(root).unwrap();
 }
