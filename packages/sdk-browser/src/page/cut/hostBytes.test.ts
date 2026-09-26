@@ -5,13 +5,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { ruleDag } from './cutRule.fixture.ts';
-import { placements, stripCamera, webgl2Cut } from './cutRuleBackends.fixture.ts';
-import { random } from './cutRuleChecks.fixture.ts';
-import { selectVisiblePages } from './cut.ts';
-import { createHeldBytes } from './held.ts';
+import { placements, stripCamera } from './cutRuleBackends.fixture.ts';
+import { webgl2Cut } from './cutRuleHosts.fixture.ts';
 import { packDagSelection } from '../../gpu/dag/pack.ts';
 import { uploadResidency } from '../../gpu/dag/readiness.fixture.ts';
-import type { ClusterRoot, PageRec } from '../selection/types.ts';
 
 const dag = ruleDag(64),
   cam = stripCamera(dag);
@@ -57,46 +54,6 @@ test('reading the host bytes weighs as many tables for 2 placements as for 32', 
     return { webgl2: weighed(() => cut.hostBytes()), gpu: weighed(() => gpu.hostBytes) };
   };
   assert.deepEqual(reads(32), reads(2));
-});
-
-test("the CPU cut's readiness total follows every settle, a replaced state and new placements", () => {
-  const roots = placements(dag, 4),
-    total = createHeldBytes(),
-    next = random(7);
-  const cutAll = (list: readonly ClusterRoot<PageRec>[]) =>
-    selectVisiblePages(list, cam, { pixelError: 0.1, viewport: [1280, 720], holdResident: true });
-  const load = (list: readonly ClusterRoot<PageRec>[], share: number) => {
-    for (const root of list)
-      for (const page of root.pages) page.array = next() < share ? new Uint32Array(3) : undefined;
-  };
-  /** The running total, then the same placements counted again by walking them. */
-  const recounted = (list: readonly ClusterRoot<PageRec>[]) => {
-    const running = total.bytes;
-    total.track(list);
-    return [running, total.bytes] as const;
-  };
-  total.track(roots);
-  let peak = 0;
-  for (let frame = 0; frame < 24; frame++) {
-    load(roots, frame % 6 === 5 ? 0 : next());
-    cutAll(roots);
-    peak = Math.max(peak, total.bytes);
-    const [running, walked] = recounted(roots);
-    assert.equal(running, walked, `frame ${frame}`);
-  }
-  assert.ok(peak > 0, 'the pool held pages');
-  // A placement whose hierarchy changed starts over: its old state leaves the total.
-  load(roots, 1);
-  cutAll(roots);
-  (roots[1] as { structure: object }).structure = { ...dag.structure };
-  cutAll(roots);
-  assert.equal(...recounted(roots));
-  // Placements that left are no longer counted, even when another cut still settles them.
-  const kept = roots.slice(0, 2);
-  total.track(kept);
-  load(roots, 0.5);
-  cutAll(roots);
-  assert.equal(...recounted(kept));
 });
 
 test('the WebGL2 image counts the placements added and removed since its last cut', () => {

@@ -92,7 +92,7 @@ test('a representation change under an unlit frame stales its pages once the vie
   });
   planAt(1);
   plan.commit();
-  assert.equal(plan.pool.used, 1 + 4, 'the page and the floor are mapped');
+  assert.equal(plan.pool.used(), 1 + 4, 'the page and the floor are mapped');
   // The slices survive the unlit view: what changes meanwhile must reach them.
   store.setView('unlit');
   plan.representationChanged([-1e3, 0, -1e3], [1e3, 2, 1e3]);

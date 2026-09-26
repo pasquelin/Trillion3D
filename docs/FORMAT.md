@@ -216,19 +216,20 @@ there would carry, proven against the host loader on `site/assets/examples/ten-t
 move a core parent (`getObjectByName`): the rows under it are rewritten, and the cell's boxes are
 its parents' boxes under their current matrices (`boxes.ts`), so the cell is read where its
 placements stand, at the distance of its nearest box. A cell is read while the camera can draw any of it: its **reach** is the far plane met on the frustum's
-diagonal, `far·√w`, with `w = 1 + tan²(fov/2)·(1 + aspect²)` the off-axis stretch of the frustum.
+diagonal, `far·√w`, with `w = 1 + (tan(fov/2)/zoom)²·(1 + aspect²)` the off-axis stretch of the frustum.
 The error target does not shorten it: nothing coarser stands for a cell that is not read (the
 proxy of #23), so an object dropped below the target would be missing from the image, not
-replaced. An orthographic camera reads every cell. Before its first frame a session reads the cells within
+replaced. An orthographic camera reads up to the far corner of its zoomed box. Before its first frame a session reads the cells within
 the reach of the camera the page draws with (a world hands its camera to the session it opens; a
 bare explorer, which has none, reads for its framing camera, which sees the whole scene), and
 nothing else. Then, before every frame, cells within the reach are
 asked for nearest first, those within `1.25 × reach` at the prefetch priority, and a read cell
 leaves once its box is past `1.5 × reach` (`AHEAD` and `KEEP` in `plan.ts`): margins of the reach,
 never of the cell, so a cell cut wider than the view is kept only while its box meets that sphere. The cells are read through the session's page streamer
-— one request queue — and placed within the frame's one integration budget, the arrival queue's
+— one request queue — and placed within the frame's one integration budget, the session's
 (`ARRIVAL_BUDGET_MS`, `FrameBudget`): its clock starts once per frame, the cells spend from it
-first and the page arrivals drain the rest; the first integration of a frame always goes through.
+first, the page arrivals drain from what is left, then the WebGPU row records; the first
+integration of a frame always goes through.
 The rows are sized once, when a session opens and before its engines read them, for every
 placement its camera's reach can hold at once **wherever the page moves the core parents**
 (`sizing.ts`). A held cell has a box within `1.5 × reach` of the eye; the boxes one parent carries
@@ -239,10 +240,11 @@ move together, so those held at once are close in that parent's own frame — ce
 parent, summed over the parents and never past every placement, bounds each mesh's rows — set by
 the reach, the cells' size and the parents' count, not by the world or where its parents stand.
 Parents moved together never run the rows short, so they never reopen the session nor leave a
-placement undrawn (CONTRIBUTING.md §Streaming rule 10). Nothing grows under a drawing engine: a
-camera whose reach later outgrows the rows, or a parent scaled down or stretched more unevenly
-than at opening (moved, turned or scaled up, it holds), asks
-the session's owner, once, to open it again sized for them (the world does). A session no owner
+placement undrawn (CONTRIBUTING.md §Streaming rule 10). A camera whose reach later outgrows the
+rows, or a parent scaled down or stretched more unevenly than at opening (moved, turned or scaled
+up, it holds), grows them in place, to twice what is asked, on an engine that follows the growth
+contract (`placement/growth.ts`); on one that does not, it asks the session's owner, once, to
+open it again sized for them (the world does). A session no owner
 can open again (a bare explorer) sizes its rows for every placement, and rows that hold every
 placement never ask. A session drawing on demand draws again, camera still, until the cells it
 asked for within reach are read and placed. A partitioned scene is not
