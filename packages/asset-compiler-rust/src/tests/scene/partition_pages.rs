@@ -84,6 +84,10 @@ fn index_pages_list_at_most_the_fan_out_and_give_every_record_back_in_order() {
     let records: Vec<Value> = (0..12_000).map(record).collect();
     let bounds = vec![[0.0, 0.0, 0.0, 1.0, 1.0, 1.0]; records.len()];
     let root = write_pages(&halving(0..12_000), &records, &bounds, &directory).expect("pages");
+    // The root names every page by its fingerprint: the pages of #750, byte for byte (#796).
+    let named = hash(&serde_json::to_vec(&root).expect("json"));
+    let pages = "82acb9d51d873ffb057832bcf0980118b9441b7962b42a6be5bfcd37dfb520d2";
+    assert_eq!(named, pages, "the index and region pages develop wrote");
     let written = files(&directory, "scene-page-");
     let index = written.iter().filter(|(_, page)| page["pages"].is_array());
     assert!(index.count() > 0, "index pages are written");
@@ -98,9 +102,24 @@ fn index_pages_list_at_most_the_fan_out_and_give_every_record_back_in_order() {
             None => assert!(*bytes <= PAGE_BYTES, "a region page of {bytes} bytes"),
         }
     }
-    let mut read = Vec::new();
-    read_records(&directory, &root, "the root", &mut read).expect("records");
-    assert_eq!(read, records, "every record, in cell order");
+    let mut pages = Vec::new();
+    read_leaves(
+        &CELL_PAGES,
+        &directory,
+        &root["pages"],
+        "the root",
+        &mut pages,
+    )
+    .expect("pages");
+    let read: Vec<&Value> = pages
+        .iter()
+        .flat_map(|p| p["cells"].as_array().expect("cells"))
+        .collect();
+    assert_eq!(
+        read,
+        records.iter().collect::<Vec<_>>(),
+        "every record, in cell order"
+    );
     fs::remove_dir_all(directory).expect("cleanup");
 }
 

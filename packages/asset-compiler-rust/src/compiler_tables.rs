@@ -134,10 +134,26 @@ pub(crate) fn cell_records(directory: &Path) -> std::result::Result<Map<String, 
     if tables["version"] != json!(SCENE_TABLES_VERSION) {
         return Err("scene tables of another version".into());
     }
-    let mut records = Vec::new();
-    if !tables["partition"].is_null() {
-        partition::pages::read_records(directory, &tables["partition"], "the root", &mut records)?;
+    let (root, mut pages) = (&tables["partition"], Vec::new());
+    if !root.is_null() {
+        use partition::pages::{read_leaves, CELL_PAGES};
+        if root["version"] != json!(CELL_PAGES.version) {
+            return Err("the partition root is of another version".into());
+        }
+        read_leaves(
+            &CELL_PAGES,
+            directory,
+            &root["pages"],
+            "the root",
+            &mut pages,
+        )?;
     }
+    let cells = pages
+        .into_iter()
+        .flat_map(|mut page| match page["cells"].take() {
+            Value::Array(cells) => cells,
+            _ => Vec::new(),
+        });
     let named = |cell: Value| (cell["url"].as_str().unwrap_or_default().to_string(), cell);
-    Ok(records.into_iter().map(named).collect())
+    Ok(cells.map(named).collect())
 }
