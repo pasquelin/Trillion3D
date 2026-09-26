@@ -23,14 +23,16 @@ test('every bundle keeps its closed dependency list and the published bound thro
   assert.equal(streams.maxDependencies, 1);
 });
 
-test('a version-7 sidecar, written before bundle dependencies, is refused before it is read', () => {
-  assert.equal(MANIFEST_BINARY_VERSION, 8);
-  const { slim, buffer } = encoded();
-  new Uint32Array(buffer, 4, 1)[0] = 7;
-  assert.throws(
-    () => decodeManifestBinary(slim, buffer),
-    (error: EngineError) => error.code === 'UNSUPPORTED_FORMAT',
-  );
+test('a sidecar written before bundle dependencies or cooked cones is refused before it is read', () => {
+  assert.equal(MANIFEST_BINARY_VERSION, 9);
+  for (const version of [7, 8]) {
+    const { slim, buffer } = encoded();
+    new Uint32Array(buffer, 4, 1)[0] = version;
+    assert.throws(
+      () => decodeManifestBinary(slim, buffer),
+      (error: EngineError) => error.code === 'UNSUPPORTED_FORMAT',
+    );
+  }
 });
 
 test('a dependency column whose length contradicts the per-bundle counts is refused', () => {

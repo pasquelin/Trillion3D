@@ -920,7 +920,8 @@
       "texturePreviewBc7": "I blocchi BC7 delle anteprime.",
       "texturePreviewAstc": "I blocchi ASTC delle anteprime.",
       "bundleDependencyCount": "Quanti pacchetti servono a ogni pacchetto.",
-      "bundleDependency": "I pacchetti che servono a ogni pacchetto, fino alle radici."
+      "bundleDependency": "I pacchetti che servono a ogni pacchetto, fino alle radici.",
+      "pageCone": "Il cono delle normali di ogni pagina: l’asse, poi il semiangolo."
     }
   },
   "ColumnKind": {
@@ -932,28 +933,8 @@
   "compareImages": {
     "summary": "Confronto di due immagini RGBA: numero di pixel diversi, errore massimo su un canale, e RMSE."
   },
-  "COMPARISON_LIBRARIES": {
-    "summary": "I motori con cui sono stati verificati i banchi di prova, ciascuno con il suo stato e la sua ragione."
-  },
   "ComparisonLayout": {
     "summary": "Come vengono mostrati due render affiancati per essere confrontati."
-  },
-  "CompetitorRecord": {
-    "summary": "Un altro motore con cui confrontano i banchi di prova, e perché.",
-    "members": {
-      "id": "Il suo nome breve.",
-      "name": "Il suo nome.",
-      "status": "Se viene confrontato.",
-      "license": "La sua licenza.",
-      "maintained": "Quando è stato aggiornato l'ultima volta.",
-      "scope": "Ciò che copre.",
-      "reason": "Perché viene confrontato, o no.",
-      "homepage": "La sua pagina web."
-    }
-  },
-  "CompetitorStatus": {
-    "summary": "Inventario delle librerie web di geometria e LOD.",
-    "description": "Lo stato descrive l'equità dell'integrazione, non una copertura di marketing."
   },
   "CompilationJob": {
     "summary": "Una compilazione in corso.",
@@ -4449,7 +4430,8 @@
       "source": "Il gruppo che lo ha prodotto.",
       "stream": "Pacchetto di flusso che contiene questo cluster e il suo offset in byte al suo interno. Una richiesta serve decine di cluster; il cluster resta leggibile da solo tramite `url`.",
       "streamOffset": "Il suo offset in byte in quel pacchetto.",
-      "depthLayer": "Strato di profondità coplanare, 0 per ogni cluster che il compilatore ha lasciato così com'è. Un cluster di strato n disegna con un bias di profondità di n passi interi di strato, il che decide il vincitore tra due superfici opache che condividono esattamente un piano. Assente e 0 significano la stessa cosa: il disegno invariato."
+      "depthLayer": "Strato di profondità coplanare, 0 per ogni cluster che il compilatore ha lasciato così com'è. Un cluster di strato n disegna con un bias di profondità di n passi interi di strato, il che decide il vincitore tra due superfici opache che condividono esattamente un piano. Assente e 0 significano la stessa cosa: il disegno invariato.",
+      "cone": "Il cono che racchiude le normali dei suoi triangoli: `axis` un vettore unitario, `angle` il semiangolo in radianti, π per un cono che non scarta nulla. Il compilatore lo calcola dai triangoli; il taglio WebGPU salta un cluster a faccia singola che la camera vede da dietro il suo cono."
     }
   },
   "PAGE_DECODE_FAILURES": {

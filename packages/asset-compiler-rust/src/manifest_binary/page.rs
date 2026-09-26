@@ -1,5 +1,17 @@
 use super::*;
 
+/// The bits of a page's flag word (`pageU32`, second word).
+pub(super) const FLAG_ROLE: u32 = 1;
+pub(super) const FLAG_COARSE: u32 = 2;
+pub(super) const FLAG_GEOMETRY: u32 = 4;
+pub(super) const FLAG_CLUSTER_ERROR: u32 = 8;
+pub(super) const FLAG_PARENT_ERROR: u32 = 16;
+pub(super) const FLAG_PARENT_ERROR_FINITE: u32 = 32;
+pub(super) const FLAG_PARENT_SPHERE: u32 = 64;
+pub(super) const FLAG_PARENT_SPHERE_SET: u32 = 128;
+pub(super) const FLAG_GROUP: u32 = 256;
+pub(super) const FLAG_SOURCE: u32 = 512;
+
 pub(super) fn encode_page(
     page: &Value,
     columns: &mut [Column],
@@ -139,6 +151,20 @@ pub(super) fn encode_page(
             ] {
                 columns[GEOMETRY_U32].u32(as_u32(integer(geometry.get(key), label)?, label)?);
             }
+        }
+    }
+    // Every page of version 9 has its cone; a hand-written page that names none rejects nothing.
+    let column = &mut columns[PAGE_CONE];
+    match item.get("cone") {
+        None => {
+            for value in crate::normal_cone::OPEN_CONE {
+                column.f64(value);
+            }
+        }
+        Some(cone) => {
+            let cone = object(cone, "page.cone")?;
+            vector_into(cone.get("axis"), 3, "page.cone.axis", column)?;
+            column.f64(number(cone.get("angle"), "page.cone.angle")?);
         }
     }
     columns[PAGE_U32].u32(flags);
