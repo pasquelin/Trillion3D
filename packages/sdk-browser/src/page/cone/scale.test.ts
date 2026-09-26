@@ -3,16 +3,11 @@
 // anisotropic deformation. The first test retakes the trigger case of
 // `tests/browser/probes/cone-non-uniform-scale.ts`; the following cover degenerate 3×3s, then
 // confirm that reject remains possible for any uniform scale and rotation, as before this batch.
+import { triangleCone } from '../../../../../tests/kit/cone.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as G from '../../host/graph/graph.fixture.ts';
-import {
-  coneContextFor,
-  coneCullsPageWith,
-  createConeContext,
-  triangleCone,
-  type NormalCone,
-} from './cone.ts';
+import { coneContextFor, coneCullsPageWith, createConeContext, type NormalCone } from './cone.ts';
 import { selectVisiblePages } from '../cut/cut.ts';
 import type { ClusterRoot } from '../selection/types.ts';
 import type { PageRecord } from '../cut/state.ts';

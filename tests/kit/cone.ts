@@ -1,4 +1,8 @@
-import { OPEN_CONE, type NormalCone } from './cone.ts';
+// The normal cone the WebGPU prepare built from the host vertices until #272, kept as the reference
+// the compiler's cooked cone is checked against (`asset-compiler-rust/src/normal_cone.rs`,
+// `tests/integration/cooked-cones.test.ts`) and the input the cone tests and probes build from.
+// No engine source calls it: the engine reads the cooked cone.
+import { OPEN_CONE, type NormalCone } from '../../packages/sdk-browser/src/page/cone/cone.ts';
 
 function faceCross(positions: ArrayLike<number>, ia: number, ib: number, ic: number) {
   const ax = positions[ia],

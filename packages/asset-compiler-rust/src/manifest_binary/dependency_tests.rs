@@ -1,11 +1,5 @@
+use super::tests::{column, TEMPLATES};
 use super::*;
-
-const TEMPLATES: Templates = Templates {
-    binary: "clusters.bin",
-    page: "../../objects/{sha}.bin",
-    geometry: "../../objects/{sha}.bin",
-    bundle: "../../objects/{sha}.bin",
-};
 
 /// The sample with a second, non-pinned bundle that depends on the pinned one.
 fn two_bundles() -> Value {
@@ -17,12 +11,6 @@ fn two_bundles() -> Value {
     streams["dependencyBound"] = json!(1);
     streams["maxDependencies"] = json!(1);
     manifest
-}
-
-fn column(bytes: &[u8], index: usize) -> &[u8] {
-    let at = (HEADER_WORDS + index * 2) * 4;
-    let word = |at: usize| u32::from_le_bytes(bytes[at..at + 4].try_into().unwrap()) as usize;
-    &bytes[word(at)..word(at) + word(at + 4)]
 }
 
 #[test]
