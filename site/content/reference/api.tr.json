@@ -7022,7 +7022,8 @@
       "children": "Altındaki düğümler, sırayla.",
       "mesh": "`geometries` ve `materials` içindeki sıralar, üçgenlerin nasıl okunduğu ve bir sprite'ın merkezi.",
       "light": "Bir ışığın türü, renkleri, sayıları, hedefi ve sonda katsayıları.",
-      "model": "Derlenmiş bir model, yüklendiği manifest adresiyle: asla içine kopyalanmaz."
+      "model": "Derlenmiş bir model, yüklendiği manifest adresiyle: asla içine kopyalanmaz.",
+      "physics": "Bir ağın fizik gövdesi, `mesh.physics` onu nasıl bildiriyorsa öyle (`savedPhysics`)."
     }
   },
   "SavedScene": {
