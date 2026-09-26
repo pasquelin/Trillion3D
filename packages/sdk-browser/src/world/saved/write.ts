@@ -10,6 +10,7 @@ import type { Camera } from '../../../../sdk-core/src/world/camera/camera.ts';
 import type { Color } from '../../../../sdk-core/src/world/math/color.ts';
 import type { LoadedModel } from '../core/loadedModel.ts';
 import { isHelper } from '../helper/mark.ts';
+import { savedPhysics } from './physics.ts';
 import {
   notSavable,
   SCENE_FORMAT,
@@ -129,6 +130,7 @@ export function saveScene(scene: SceneLike, camera?: Camera): SavedScene {
       };
       const center = mesh instanceof Sprite ? mesh.center : undefined;
       if (center) saved.mesh.center = [center.x, center.y];
+      if (mesh.physics) saved.physics = savedPhysics(mesh.physics);
     }
     if (lamp.isLight)
       saved.light = {

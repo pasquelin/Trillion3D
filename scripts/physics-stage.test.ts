@@ -18,7 +18,7 @@ test('a profile window carries the physics stage and the worker step, p50 and p9
 });
 
 test("a frame reads the worker's slowest step of the tick, not its mean, and nothing while off", () => {
-  const stats = { bodies: 1, active: 1, stepMs: 9, stepMaxMs: 31, mainMs: 0 };
+  const stats = { stepMs: 9, stepMaxMs: 31 };
   const onFrame = () => {};
   assert.equal(workerStep({ onFrame, physics: { enabled: true, stats } }), 31);
   assert.equal(workerStep({ onFrame, physics: { enabled: false, stats } }), null);

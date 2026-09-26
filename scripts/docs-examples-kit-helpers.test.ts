@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { readdir, readFile } from 'node:fs/promises';
 import test from 'node:test';
+import { emptyPhysicsStats } from '../packages/sdk-browser/src/physics/protocol.ts';
 import { Camera } from '../packages/sdk-core/src/world/camera/camera.ts';
 import { playPickedVideo } from '../site/examples/kit/media.ts';
 import { perFrame } from '../site/examples/kit/perFrame.ts';
@@ -80,8 +81,8 @@ test('mulberry32 draws the sequence the scenes, the bench and the campaigns were
   );
 });
 
-test('the physics readouts print the stats as the pages wrote them by hand, each page naming its lines', async () => {
-  const stats = { bodies: 200, active: 12, stepMs: 1.234, stepMaxMs: 3, mainMs: 0.5 };
+test('the physics readouts print the stats as the pages wrote them by hand, and no page prints one itself', async () => {
+  const stats = { ...emptyPhysicsStats(), bodies: 200, active: 12, stepMs: 1.234, mainMs: 0.5 };
   const printed = Object.entries(PHYSICS_LINES).map(([line, read]) => [line, read(stats)]);
   assert.deepEqual(Object.fromEntries(printed), {
     bodies: '200',
@@ -89,22 +90,11 @@ test('the physics readouts print the stats as the pages wrote them by hand, each
     step: '1.23 ms',
     page: '0.50 ms',
   });
-  // #717: the lines each page showed before, in their order; no page reads the stats itself.
-  const three = "['bodies', 'awake', 'step']";
-  const pages = {
-    'a-walker-among-balls': three,
-    'rolling-on-terrain': three,
-    'falling-boxes': three,
-    'floating-crates': three,
-    'ten-thousand-bodies': "['bodies', 'awake', 'step', 'page']",
-    'a-cooked-flag': "['bodies', 'step']",
-    'cloth-and-rope': "['step']",
-    'soft-bodies': "['awake']",
-    'walk-with-collisions': "['awake']",
-  };
-  for (const [id, lines] of Object.entries(pages)) {
-    const html = await readFile(new URL(`../site/examples/${id}.html`, import.meta.url), 'utf8');
-    assert.ok(html.includes(`physicsReadouts(world, ${lines});`), id);
-    assert.doesNotMatch(html, /physics\.stats|readout\('(?:bodies|awake|step|page)'\)/, id);
+  // #717: no example prints a physics line by hand; each asks the kit for it.
+  const folder = new URL('../site/examples/', import.meta.url);
+  const pages = (await readdir(folder)).filter((file) => file.endsWith('.html'));
+  for (const file of pages) {
+    const html = await readFile(new URL(file, folder), 'utf8');
+    assert.doesNotMatch(html, /physics\.stats|readout\('(?:bodies|awake|step|page)'\)/, file);
   }
 });

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
-import { exampleModules } from './docs/examples/capture.ts';
+import { runExampleModule } from './docs/examples/capture.ts';
 import { geometry, light, material, object } from '../packages/sdk-browser/src/index.ts';
 import { Scene } from '../packages/sdk-browser/src/world/core/scene.ts';
 import { Camera } from '../packages/sdk-core/src/world/camera/camera.ts';
@@ -13,12 +13,14 @@ type Buttons = Record<'save' | 'knockDown' | 'open', () => unknown>;
 /** Runs save-the-scene's module in Node on the engine's own scene, its buttons returned: the
  *  physics is not stepped here, so what a push leaves is written by the test. */
 async function saveTheScene() {
-  const html = await readFile(new URL('../site/examples/save-the-scene.html', import.meta.url));
-  const [source] = await exampleModules(html.toString());
+  const html = await readFile(
+    new URL('../site/examples/save-the-scene.html', import.meta.url),
+    'utf8',
+  );
   const scene = new Scene(() => Promise.reject(new Error('the page loads no model')));
   const camera = new Camera('perspective');
   let buttons = {} as Buttons;
-  const modules = {
+  await runExampleModule(html, {
     engine: {
       createWorld: () => ({ scene, camera, controls: { target: { set() {} } } }),
       geometry,
@@ -34,12 +36,7 @@ async function saveTheScene() {
         (_key: string, { bytes }: { bytes: number }) =>
           `${bytes} bytes`,
     },
-  };
-  const body = source.replace(
-    /import \{([^}]*)\} from '\.\.\/runtime\/(engine|kit)\.js';/g,
-    'const {$1} = modules.$2;',
-  );
-  new Function('modules', `'use strict';${body}`)(modules);
+  });
   const blocks = () =>
     (scene.children as Mesh[])
       .filter((node) => node.physics?.type === 'dynamic')
@@ -50,7 +47,7 @@ async function saveTheScene() {
 
 /** The bottom and top of a mesh standing upright, from its shape's own bounds. */
 function span(mesh: Mesh) {
-  const { min, max } = mesh.geometry.computeBoundingBox();
+  const { min, max } = mesh.localBounds()!;
   return [mesh.position.y + min.y, mesh.position.y + max.y];
 }
 
@@ -97,5 +94,6 @@ test('save-the-scene: saved standing, pushed down by impulses, opened standing a
   );
   await buttons.open();
   assert.deepEqual(poses(), standing, 'the tower stands again');
-  for (const block of blocks()) assert.equal(block.physics?.mass, 20, 'each block a body again');
+  for (const block of blocks())
+    assert.equal(block.physics?.mass, 20, 'each block the body it was declared');
 });

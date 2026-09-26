@@ -14,6 +14,19 @@ export async function exampleModules(html: string): Promise<string[]> {
   return sources;
 }
 
+/**
+ * Runs an example page's first module in Node, its imports of the built engine and kit taken
+ * from `modules` — the engine's own objects, or stand-ins a test counts with.
+ */
+export async function runExampleModule(html: string, modules: { engine: object; kit: object }) {
+  const [source] = await exampleModules(html);
+  const body = source.replace(
+    /import \{([^}]*)\} from '\.\.\/runtime\/(engine|kit)\.js';/g,
+    'const {$1} = modules.$2;',
+  );
+  new Function('modules', `'use strict';${body}`)(modules);
+}
+
 /** One example roadmap entry, as read from `site/content/gallery-roadmap.json`. */
 export interface GalleryEntry {
   id: string;
