@@ -93,7 +93,7 @@ color*=attenuation(length(toLight),positionRange.w,cone.z);}
 if(bandedModel()){direct+=modelLight(base,metal,N,L,1.0,ao)*color;continue;}vec3 E=clamp(dot(N,L),0.0,1.0)*color;specular+=E*specularLobe(L,V,N,f0,rough);direct+=E*(INVERSE_PI*diffuse);}
 irradiance+=probeIrradiance(N);return(direct+irradiance*(INVERSE_PI*diffuse)*ao)+specular;}
 ${TRANSMISSION_GLSL}
-void main(){if(!lineDash(texcoord0.x,dash))discard;viewPosition=-toEye;vec3 surfaceNormal=normalize(viewNormal);vec4 base=baseFactor;if((mapMask&1)!=0)base*=texture(baseMap,mapUv(baseUv,surfaceModel==${SURFACE_MODEL.matcap}?matcapUv(surfaceNormal):sourceUv(mapChannels.x)));if(hasVertexColor)base*=vertexColor;if(base.a<alphaCutoff)discard;
+void main(){if(!lineDash(texcoord0.x,dash))discard;viewPosition=-toEye;vec3 surfaceNormal=normalize(viewNormal);vec4 base=baseFactor;if((mapMask&1)!=0)base*=surfaceModel==${SURFACE_MODEL.matcap}?textureLod(baseMap,mapUv(baseUv,matcapUv(surfaceNormal)),0.0):texture(baseMap,mapUv(baseUv,sourceUv(mapChannels.x)));if(hasVertexColor)base*=vertexColor;if(base.a<alphaCutoff)discard;
 float roughSample=1.0,metalSample=1.0;if((mapMask&2)!=0){vec4 packed=texture(roughMap,mapUv(roughUv,sourceUv(mapChannels.y)));roughSample=packed.g;if(sharedMetalRough)metalSample=packed.b;}if((mapMask&4)!=0&&!sharedMetalRough)metalSample=texture(metalMap,mapUv(metalUv,sourceUv(mapChannels.z))).b;
 float metal=clamp(metalFactor*metalSample,0.0,1.0);
 float facing=gl_FrontFacing?1.0:-1.0;vec3 N;if(flatShaded)N=normalize(cross(dFdx(viewPosition),dFdy(viewPosition)));else{N=surfaceNormal;if(faceSides!=0)N*=facing;}

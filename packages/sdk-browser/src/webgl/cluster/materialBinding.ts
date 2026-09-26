@@ -9,7 +9,7 @@ import type { Side } from '../../../../sdk-core/src/index.ts';
 import type { WebglClusterTextures } from './textures.ts';
 import { drawnModeOf, type WebglClusterState } from './state.ts';
 import type { Matrix3UniformCache } from './uniforms.ts';
-import { LAST_MATERIAL_SLOT, type WebglClusterMaterialUniforms } from './materialUniforms.ts';
+import type { WebglClusterMaterialUniforms } from './materialUniforms.ts';
 
 export type Material = Exclude<ClusterDrawMesh['material'], unknown[]>;
 const MAPS = ['map', 'roughnessMap', 'metalnessMap', 'normalMap', 'aoMap', 'emissiveMap'] as const;
@@ -130,7 +130,7 @@ export function bindClusterMaterial(
     backSide = side === undefined ? mat.backSide : side === 'back';
   // The model a non-physical family reads in (`SURFACE_MODEL_GLSL`): lambert, toon, normal and
   // matcap, and depth, which shows the frame's depth ramp in place of its colour (`beginFrame`).
-  uniforms.i1(LAST_MATERIAL_SLOT, 'surfaceModel', mat.model ?? SURFACE_MODEL.standard);
+  uniforms.i1(35, 'surfaceModel', mat.model ?? SURFACE_MODEL.standard);
   // A diagnostic view's surface is shown as it is, never through the fog
   // (`../../host/pageDiagnostics.ts`).
   uniforms.i1(38, 'fogFree', (material as { fog?: boolean }).fog === false ? 1 : 0);
