@@ -1,128 +1,15 @@
-import { LIGHT_KIND, POINT_FACES, type SceneLight } from '../light/contracts.ts';
+import { LIGHT_KIND, type SceneLight } from '../light/contracts.ts';
 import type { createShadowChanges } from './changes.ts';
 import type { createShadowCounts } from './counts.ts';
-import { writeFace } from './faces.ts';
-import { sunBoxRect } from './math.ts';
+import { lampFaces, lampRects, rects, sunRects } from './pageRects.ts';
 import { STALE_DYNAMIC, STALE_FULL, type ShadowPool } from './pool.ts';
 import type { ShadowTable } from './table.ts';
 import type { SunLevels } from './sunLevels.ts';
-import { LAMP_MIPS, PAGE_INDEX_MASK, PAGE_MAPPED, SUN_LEVELS, SUN_WINDOW } from './virtual.ts';
-import { lampEntry, lampFacesOf, lampPagesAt, sunEntry, sunPageMetres } from './virtual.ts';
+import { LAMP_MIPS, PAGE_INDEX_MASK, PAGE_MAPPED, SUN_LEVELS } from './virtual.ts';
+import { lampEntry, lampFacesOf, sunEntry } from './virtual.ts';
 
 type Changes = ReturnType<typeof createShadowChanges>;
 type Counts = ReturnType<typeof createShadowCounts>;
-
-/** Light views of one light: a sun's clipmap levels, a lamp face at each mip. */
-const VIEWS = Math.max(SUN_LEVELS, POINT_FACES * LAMP_MIPS);
-/** The pages a box covers in each view, `x0, x1, y0, y1` inclusive: absolute pages of a sun
- *  level, pages of a lamp face's mip. Empty when `x0 > x1` or `y0 > y1`. */
-const rects = new Float64Array(VIEWS * 4);
-/** Face matrices of the lamp being invalidated; the box's light-plane or face rectangle; the box
- *  clipped to a point face's depth span. All allocated once. */
-const matrices = new Float32Array(POINT_FACES * 16),
-  plane = new Float64Array(4),
-  low = new Float64Array(3),
-  high = new Float64Array(3);
-
-/** Writes view `view`'s rectangle; returns the pages it covers. */
-function setRect(view: number, x0: number, x1: number, y0: number, y1: number) {
-  const r = view * 4;
-  rects[r] = x0;
-  rects[r + 1] = x1;
-  rects[r + 2] = y0;
-  rects[r + 3] = y1;
-  return x0 > x1 || y0 > y1 ? 0 : (x1 - x0 + 1) * (y1 - y0 + 1);
-}
-
-/** The pages of every clipmap level the box covers, within the level's extent: a page meets the
- *  box's light-plane rectangle, edges included. Returns the pages covered. */
-function sunRects(sun: SunLevels, slice: number, min: ArrayLike<number>, max: ArrayLike<number>) {
-  sunBoxRect(sun.frame, slice * 9, min, max, plane, 0);
-  let covered = 0;
-  for (let view = 0; view < SUN_LEVELS; view++) {
-    const level = sun.finest[slice] + view,
-      metres = sunPageMetres(level),
-      ox = sun.originOf(slice, level, 0),
-      oy = sun.originOf(slice, level, 1);
-    covered += setRect(
-      view,
-      Math.max(ox, Math.ceil(plane[0] / metres) - 1),
-      Math.min(ox + SUN_WINDOW - 1, Math.floor(plane[1] / metres)),
-      Math.max(oy, Math.ceil(plane[2] / metres) - 1),
-      Math.min(oy + SUN_WINDOW - 1, Math.floor(plane[3] / metres)),
-    );
-  }
-  return covered;
-}
-
-/**
- * The pages of every mip of `face` the box `low..high` covers. A corner at or behind the light's
- * plane leaves the rectangle unbounded: the whole face. A point face never meets one — its box was
- * clipped to its depth span —, a spot may.
- */
-function faceRects(face: number) {
-  const b = face * 16,
-    m = matrices;
-  plane[0] = plane[2] = Infinity;
-  plane[1] = plane[3] = -Infinity;
-  const empty = low[0] > high[0] || low[1] > high[1] || low[2] > high[2];
-  for (let corner = 0; corner < 8 && !empty; corner++) {
-    const x = corner & 1 ? high[0] : low[0],
-      y = corner & 2 ? high[1] : low[1],
-      z = corner & 4 ? high[2] : low[2];
-    const w = m[b + 3] * x + m[b + 7] * y + m[b + 11] * z + m[b + 15];
-    if (w <= 1e-6) {
-      plane[0] = plane[2] = -Infinity;
-      plane[1] = plane[3] = Infinity;
-      break;
-    }
-    const u = (m[b] * x + m[b + 4] * y + m[b + 8] * z + m[b + 12]) / w,
-      v = (m[b + 1] * x + m[b + 5] * y + m[b + 9] * z + m[b + 13]) / w;
-    plane[0] = Math.min(plane[0], u);
-    plane[1] = Math.max(plane[1], u);
-    plane[2] = Math.min(plane[2], v);
-    plane[3] = Math.max(plane[3], v);
-  }
-  let covered = 0;
-  for (let mip = 0; mip < LAMP_MIPS; mip++) {
-    // Columns grow with u, rows downward: page `(x, y)` spans `u ∈ [2x/n − 1, 2(x+1)/n − 1]`.
-    const n = lampPagesAt(mip),
-      half = n / 2;
-    covered += setRect(
-      face * LAMP_MIPS + mip,
-      Math.max(0, Math.ceil((plane[0] + 1) * half) - 1),
-      Math.min(n - 1, Math.floor((plane[1] + 1) * half)),
-      Math.max(0, Math.ceil((1 - plane[3]) * half) - 1),
-      Math.min(n - 1, Math.floor((1 - plane[2]) * half)),
-    );
-  }
-  return covered;
-}
-
-/** The pages of every face and mip of a lamp the box covers. A point face is axis-aligned: the
- *  box is clipped to its depth span `[near, far]` along the axis, where alone a caster writes. */
-function lampRects(
-  light: SceneLight,
-  faces: number,
-  min: ArrayLike<number>,
-  max: ArrayLike<number>,
-) {
-  let covered = 0;
-  for (let face = 0; face < faces; face++) {
-    const { near, far } = writeFace(matrices, face * 16, null, 0, light, face);
-    low.set(min);
-    high.set(max);
-    if (faces === POINT_FACES) {
-      const axis = face >> 1,
-        at = light.position![axis],
-        sign = face & 1 ? -1 : 1;
-      low[axis] = Math.max(low[axis], sign > 0 ? at + near : at - far);
-      high[axis] = Math.min(high[axis], sign > 0 ? at + far : at - near);
-    }
-    covered += faceRects(face);
-  }
-  return covered;
-}
 
 /**
  * What stales the mapped pages of a shadow light, and nothing more — the reference invalidation
@@ -217,6 +104,7 @@ export function createPageInvalidation(
       scan(slice, sunLight, 0);
       return;
     }
+    if (!sunLight && byPage && changes.count) lampFaces(light, faces);
     for (let box = 0; box < changes.count; box++) {
       if (!changes.touches(box, x, y, z, range)) continue;
       const moved = changes.read(box);
