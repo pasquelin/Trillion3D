@@ -60,7 +60,7 @@ fn an_entry_reads_the_channels_and_cutoffs_of_its_roles() {
                 kind: AtlasKind::Color,
                 channels: [true; 4],
                 normal_only: false,
-                cutoffs: vec![0.3, 0.5],
+                cutoffs: vec![(0.3, 1.0), (0.5, 1.0)],
             },
             AtlasTexture {
                 texture: 1,
@@ -108,7 +108,7 @@ fn a_texture_read_by_both_atlases_has_one_entry_per_atlas() {
 // colour or one emissive among its readers and it keeps the plain chain, which that reader
 // draws as before; so do a MASK cutoff of 0 and a mode glTF does not name, which the engine
 // draws opaque, and a transmissive BLEND, which tints by its colour whatever its alpha; the data
-// atlas never weighs.
+// atlas never weighs. A texture a blended reader shares with a masked one is not cut (#44).
 #[test]
 fn only_a_texture_every_reader_takes_for_coverage_is_weighted() {
     let base = |index: u64, mode: &str| json!({"pbrMetallicRoughness": {"baseColorTexture": {"index": index}}, "alphaMode": mode});
@@ -134,11 +134,11 @@ fn only_a_texture_every_reader_takes_for_coverage_is_weighted() {
     assert_eq!(
         keys,
         [
-            (0, AtlasKind::Coverage),
+            (0, AtlasKind::Coverage(0)),
             (1, AtlasKind::Color),
             (2, AtlasKind::Color),
             (3, AtlasKind::Color),
-            (4, AtlasKind::Coverage),
+            (4, AtlasKind::Coverage(0)),
             (4, AtlasKind::Data),
             (5, AtlasKind::Color),
             (6, AtlasKind::Color),

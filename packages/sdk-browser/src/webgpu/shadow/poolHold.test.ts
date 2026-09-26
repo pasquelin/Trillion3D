@@ -122,6 +122,9 @@ for (const asked of ['by a frame', 'by the capture'])
       temporalHizState: {},
     });
     Object.assign(s.rt.services, { residency: { busy: false, pending: undefined } });
+    // The frame targets already fit the capture's size: nothing else is asked of the device.
+    Object.assign(s.rt.gpu, { targetSize: [64, 64], surfaces: {} });
+    Object.assign(s.rt.vis, { visTexture: {} });
     if (asked === 'by a frame') sizeShadowPool(s.rt);
     const capture = captureColorView(s.rt, {} as HostCamera, { width: 64, height: 64 });
     // The capture runs up to its first wait before the call returns: it is under way, and waits.

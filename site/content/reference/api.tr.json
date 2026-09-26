@@ -334,11 +334,9 @@
       "texturePreviewBc7": "Önizlemelerin BC7 blokları.",
       "texturePreviewAstc": "Önizlemelerin ASTC blokları.",
       "bundleDependencyCount": "Her paketin kaç pakete ihtiyaç duyduğu.",
-      "bundleDependency": "Her paketin ihtiyaç duyduğu paketler, köklere kadar."
+      "bundleDependency": "Her paketin ihtiyaç duyduğu paketler, köklere kadar.",
+      "pageCone": "Her sayfanın normal konisi: eksen, ardından yarım açı."
     }
-  },
-  "COMPARISON_LIBRARIES": {
-    "summary": "Benchmark'ların karşı kontrol edildiği motorlar, her biri durumu ve nedeniyle."
   },
   "COMPILER_LINE_LIMIT": {
     "summary": "Her iki akışta da kabul edilen en uzun tek satır; derleyici yalnızca küçük JSON satırları yayar."
@@ -552,23 +550,6 @@
   },
   "ComparisonLayout": {
     "summary": "İki render'ın karşılaştırma için nasıl yan yana gösterildiği."
-  },
-  "CompetitorRecord": {
-    "summary": "Benchmark'ların karşılaştırdığı başka bir motor, ve nedeni.",
-    "members": {
-      "id": "Kısa adı.",
-      "name": "Adı.",
-      "status": "Karşılaştırılıp karşılaştırılmadığı.",
-      "license": "Lisansı.",
-      "maintained": "En son ne zaman güncellendiği.",
-      "scope": "Neyi kapsadığı.",
-      "reason": "Neden karşılaştırıldığı, ya da karşılaştırılmadığı.",
-      "homepage": "Web sayfası."
-    }
-  },
-  "CompetitorStatus": {
-    "summary": "Web ile ilgili geometri/LOD kütüphanelerinin envanteri.",
-    "description": "Durum, pazarlama kapsamını değil entegrasyon adilliğini betimler."
   },
   "CompilationJob": {
     "summary": "Çalışan bir derleme.",
@@ -873,7 +854,7 @@
   },
   "EffectChain": {
     "summary": "`world.effects`: zamansal kenar yumuşatmadan sonra ve görüntü canvas’a ulaşmadan önce görüntünün üzerine çizilen sıralı geçişler.",
-    "description": "Ton eşlemeden önceki geçişler doğrusal ışımayı eklendikleri sırayla okur; sonrakiler gösterilen görüntüyü kendi sıralarıyla okur. Boş bir zincir hiçbir şeye mal olmaz: geçiş yok, kopya yok, hedef yok.",
+    "description": "Ton eşlemeden önceki geçişler doğrusal ışımayı eklendikleri sırayla okur; sonrakiler gösterilen görüntüyü kendi sıralarıyla okur. Boş bir zincir hiçbir şeye mal olmaz: geçiş yok, kopya yok, hedef yok. WebGL2'de, `multiply` veya `subtractive` karıştırmalı saydam bir yüzey çizen kare zincir olmadan eksiksiz çizilir ve dünyanın tanılama kanalı bir kez `effects-refused-blending` der; WebGPU ikisini de çizer.",
     "members": {
       "revision": "Değişiklikleri sayar: başka bir revizyonda çizilmiş görüntü eskimiştir.",
       "passes": "Geçişler, çalıştıkları sırayla.",
@@ -932,8 +913,8 @@
       "WEBGL2_UNAVAILABLE": "Makine istenen şekilde çizemiyor, ya da hiç çizemiyor.",
       "NO_WEBGL2": "Makine istenen şekilde çizemiyor, ya da hiç çizemiyor.",
       "NO_ENGINE_BACKEND": "Makine istenen şekilde çizemiyor, ya da hiç çizemiyor.",
-      "RESOURCE_HTTP_ERROR": "Bir dosya getirilemedi, ya da olması gerektiği gibi değildi.",
-      "INVALID_JSON_RESPONSE": "Bir dosya getirilemedi, ya da olması gerektiği gibi değildi.",
+      "RESOURCE_HTTP_ERROR": "Bir dosya getirilemedi — hata geçebilecekse önce yeniden istendi —, ya da olması gerektiği gibi değildi.",
+      "INVALID_JSON_RESPONSE": "Bir dosya getirilemedi — hata geçebilecekse önce yeniden istendi —, ya da olması gerektiği gibi değildi.",
       "INVALID_POINTER": "Derlenmiş modelin göstericisi bozuk, tamamlanmamış, ya da başka bir kapsamdan.",
       "CACHE_NOT_READY": "Derlenmiş modelin göstericisi bozuk, tamamlanmamış, ya da başka bir kapsamdan.",
       "SCOPE_MISMATCH": "Derlenmiş modelin göstericisi bozuk, tamamlanmamış, ya da başka bir kapsamdan.",
@@ -1299,7 +1280,7 @@
     "members": {
       "visible": "Çizilip çizilmediği; `setVisible` bunu yazar.",
       "setVisible": "Onu gösterir ya da gizler; köşeleri sınıra sayılmaya devam eder.",
-      "setTransform": "Onu yerleştirir: sütun sıralı on altı sayı ya da bir matris — `node.matrixWorld` bir düğümü izler.",
+      "setTransform": "Onu yerleştirir: sütun sıralı on altı sayı ya da bir matris; `add` ile çizilen kılavuz bundan sonra düğümünü izlemez.",
       "remove": "Onu dünyadan çıkarır, köşelerini geri verir; ikinci çağrı hiçbir şey yapmaz."
     }
   },
@@ -1308,7 +1289,7 @@
     "members": {
       "positions": "Segment başına iki uç, her biri üç sayı.",
       "color": "Renkleri; varsayılan beyaz.",
-      "width": "Ekrandaki genişlik, piksel cinsinden."
+      "width": "Ekrandaki genişlik, CSS pikseli cinsinden, motorun her çizgisi gibi."
     }
   },
   "GuidePoints": {
@@ -1316,7 +1297,7 @@
     "members": {
       "positions": "Nokta başına üç sayı.",
       "color": "Renkleri; varsayılan beyaz.",
-      "size": "Her kare noktanın ekrandaki kenarı, piksel cinsinden."
+      "size": "Her kare noktanın ekrandaki kenarı, CSS pikseli cinsinden."
     }
   },
   "Guides": {
@@ -1326,7 +1307,7 @@
       "vertexCount": "Şu an tutulan köşeler, segment başına iki ve nokta başına bir, gizli kılavuzlar dahil.",
       "lines": "Her biri iki uçlu çizgi segmentleri çizer; sınırın üzerinde reddedilir (`GUIDE_CEILING`).",
       "points": "Her biri bir konumlu kare noktalar çizer; sınırın üzerinde reddedilir (`GUIDE_CEILING`).",
-      "add": "`object` nesnesinin çizgi ve nokta ağlarını — her `helper` bunları kurar — malzeme renklerinde, nesnenin şu an durduğu yerde çizer; üçgenleri kılavuz değildir ve atlanır.",
+      "add": "`object` nesnesinin çizgi ve nokta ağlarını — her `helper` bunları kurar — malzeme renklerinde çizer; üçgenleri kılavuz değildir ve atlanır. Kılavuz nesneyi izler — bir ışık ya da kamera yardımcısı için gösterdiği düğümü — ve o düğümün hareket ettiği her görüntüde taşınır, başka zaman asla.",
       "clear": "Tüm kılavuzları kaldırır."
     }
   },
@@ -1851,6 +1832,7 @@
       "parameters.vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
       "parameters.depthWrite": "Yüzeyin derinliğini yazıp yazmadığı, ondan sonra çizileni gizleyerek.",
       "parameters.depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği.",
+      "parameters.transparentShadow": "Saydam (`transparent`) bir yüzeyin yine de gölge düşürüp düşürmediği; ne kadar saydamsa gölgesi o kadar soluk.",
       "parameters.physics": "Onu giyen cismin maddesi: yoğunluk, sürtünme, sekme.",
       "parameters.density": "kg/m³; hacimle çarpılınca kütleyi verir.",
       "parameters.friction": "Cismin ne kadar tuttuğu, 0 ve üstü.",
@@ -1871,6 +1853,7 @@
       "vertexColors": "Geometrinin köşe başına renklerinin yüzeyi tonlayıp tonlamadığı.",
       "depthWrite": "Yüzeyin derinliğini yazıp yazmadığı.",
       "depthTest": "Yüzeyin daha yakın şeylerin arkasına gizlenip gizlenmediği.",
+      "transparentShadow": "Saydam (`transparent`) bir yüzeyin yine de gölge düşürüp düşürmediği; ne kadar saydamsa gölgesi o kadar soluk.",
       "version": "Her yazmada artırılır: dünyanın yeniden boyamak için karşılaştırdığı şey.",
       "kind": "Malzemenin hangi türde yapıldığı: `'meshStandard'`, `'meshBasic'`…",
       "needsUpdate": "`material.needsUpdate = true`: onu giyen meshler yeniden boyanır.",
@@ -1916,6 +1899,7 @@
       "vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
       "depthWrite": "Yüzeyin derinliğini yazıp yazmadığı, ondan sonra çizileni gizleyerek.",
       "depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği.",
+      "transparentShadow": "Saydam (`transparent`) bir yüzeyin yine de gölge düşürüp düşürmediği; ne kadar saydamsa gölgesi o kadar soluk.",
       "physics": "Onu giyen cismin maddesi: yoğunluk, sürtünme, sekme.",
       "density": "kg/m³; hacimle çarpılınca kütleyi verir.",
       "friction": "Cismin ne kadar tuttuğu, 0 ve üstü.",
@@ -2064,7 +2048,7 @@
       "clipAction": "`clip`'i çalan eylem.",
       "play": "`clip`'i şimdi çalar.",
       "stopAll": "Her eylemi durdurur.",
-      "update": "Çalan her eylemi `seconds` kadar ilerletir ve örneklenen değerleri yazar."
+      "update": "Çalan her eylemi `seconds` kadar ilerletir, sonra her özelliğe, durgun değeri üzerinde eylemlerinin örneklerinin ağırlıklı karışımını yazar."
     }
   },
   "ModelRecord": {
@@ -2106,7 +2090,7 @@
       "quaternion": "Düğümün bir kuaterniyon olarak nasıl döndürüldüğü.",
       "scale": "Düğümün her eksende nasıl gerildiği.",
       "up": "`lookAt` için hangi yönün yukarı olduğu.",
-      "castShadow": "Düğümün gölge düşürüp düşürmediği.",
+      "castShadow": "Düğümün gölge düşürüp düşürmediği: bir mesh `false` yapılmadıkça düşürür, bir ışık yalnızca `true` yapıldığında. `false` yapılan bir mesh başkalarının gölgelerini yine de alır.",
       "receiveShadow": "Gölgelerin düğümün üzerine düşüp düşmediği.",
       "renderOrder": "Şeffaf şeyler arasında çizim sırası.",
       "frustumCulled": "Bir işleyicinin onu görüş dışında atlayıp atlayamayacağı.",
@@ -2116,6 +2100,7 @@
       "children": "Ekleme sırasına göre eklenmiş çocuklar. Döndürülen liste değiştirilemez.",
       "add": "Nesneleri bu düğümün çocukları yapar.",
       "remove": "Çocukları bu düğümden çıkarır.",
+      "attach": "`child` öğesini durduğu yerde ekler (`SceneNode.attach`).",
       "destroy": "Düğümü ve altındaki her şeyi toplanmalarını beklemeden hemen serbest bırakır.",
       "removeFromParent": "Düğümü ebeveyninden çıkarır.",
       "clone": "Aynı türde, aynı değerlerde bir düğüm; aksi söylenmedikçe çocukları da kopyalanır.",
@@ -2289,7 +2274,7 @@
     "summary": "Veri atlası: metal-pürüzlülük, normal ve gizlenme haritaları."
   },
   "PREVIEW_ATLAS_NAMES": {
-    "summary": "`bake.rs`'in onları adlandırdığı şekliyle, her atlas için pişirilmiş bir seviyenin yolunun taşıdığı `{kind}`."
+    "summary": "Pişirilmiş bir seviyenin yolunun her atlas için taşıdığı `{kind}`, `reduce.rs` onları nasıl adlandırıyorsa; C baytında kesilen bir kapsama zinciri `-C` ekler."
   },
   "PREVIEW_BASE": {
     "summary": "Yardımcı dosyanın taşıdığı bir seviyenin sahip olabileceği en büyük kenar."
@@ -2353,7 +2338,8 @@
       "source": "Onu üreten grup.",
       "stream": "Bu cluster'ı ve içindeki bayt ofsetini tutan akış paketi. Bir istek düzinelerce cluster'a hizmet eder; cluster, `url` aracılığıyla kendi başına okunabilir kalır.",
       "streamOffset": "O pakette bayt ofseti.",
-      "depthLayer": "Derleyicinin dokunmadan bıraktığı her cluster için 0 olan, eş düzlemsel derinlik katmanı. n katmanının bir cluster'ı, n tam katman adımlık bir derinlik sapmasıyla çizilir, tam olarak bir düzlemi paylaşan iki opak yüzey arasında kazananı belirleyen budur. Eksik ve 0 aynı şeyi ifade eder: dokunulmamış çizim."
+      "depthLayer": "Derleyicinin dokunmadan bıraktığı her cluster için 0 olan, eş düzlemsel derinlik katmanı. n katmanının bir cluster'ı, n tam katman adımlık bir derinlik sapmasıyla çizilir, tam olarak bir düzlemi paylaşan iki opak yüzey arasında kazananı belirleyen budur. Eksik ve 0 aynı şeyi ifade eder: dokunulmamış çizim.",
+      "cone": "Üçgenlerinin normallerini sınırlayan koni: `axis` birim vektör, `angle` radyan cinsinden yarım açı, hiçbir şeyi reddetmeyen bir koni için π. Derleyici onu üçgenlerden hesaplar; WebGPU kesimi, kameranın konisinin arkasından gördüğü tek yüzlü bir kümeyi atlar."
     }
   },
   "PageCutPage": {
@@ -2618,6 +2604,7 @@
     "members": {
       "matrices": "Sahip tarafından yazılan, satır başına column-major on altı float.",
       "live": "Satırın kaynağı yerleştirdiği yerde 1, park edildiği yerde 0.",
+      "shadowless": "Satırın gölge düşürmediği yerde 1 (mesh'inin `castShadow` değeri `false`), düşürdüğü yerde 0.",
       "capacity": "Büyümeden önce sığan satırlar."
     }
   },
@@ -2921,7 +2908,7 @@
       "background": "Her nesnenin arkasındaki görüntüyü dolduran şey: bir renk ya da varsayılan için `null`. Bir değişiklik oturum korunarak sonraki karede görünür: burada atanan yeni bir renk ya da mevcut rengin yöntemleriyle (`set`, `setRGB`, `setHex`, `setHSL`...) yazılması. `.r`, `.g` veya `.b` alanına doğrudan yazma algılanmaz: ardından `background` değerini yeniden atayın. Bir resim ya da `getHex` içermeyen herhangi bir değer reddedilir (`UNSUPPORTED_SCENE_UPDATE`): hiçbir yol onu çizmez.",
       "fog": "Her yüzeyin üzerinde sis, opak ya da saydam, iki çizicide de; varsayılan `null` sis yok demektir, bedelsiz. `{ color, near, far }` nesneleri `near` ile `far` arasında `color` rengine eritir, kameradan uzaklıklar; `{ color, density }` uzaklık birimi başına `density` kadar koyulaşır; `heightFalloff` (ve varsayılanı 0 olan `baseHeight`) ekleyin, sis yere çöker ve `baseHeight` üzerinde incelir — yukarı doğru her `1 / heightFalloff` birimde e'ye bölünür. Bir değişiklik sonraki karede görünür: burada verilen yeni bir sis ya da yöntemleriyle yazılan rengi. `near`, `far`, `density`... alanlarına doğrudan yazmak duyulmaz: ardından `fog` alanını yeniden verin. Aralık dışı bir sis — `far` değeri `near` değerinin ötesinde değilse, negatif bir yoğunluk — reddedilir (`INVALID_SCENE_ENVIRONMENT`).",
       "load": "Derlenmiş bir modeli — manifesto URL'sini — yükler ve bu sahneye ekler.",
-      "toJSON": "Sahne, sürümlü düz JSON olarak: nesneleri, şekiller onları yapan çağrıyla, malzemeler, ışıklar ve yüklenen modeller adresle; bir `camera` verilirse onun duruşu da.",
+      "toJSON": "Sahne, sürümlü düz JSON olarak: nesneleri, şekiller onları yapan çağrıyla, malzemeler, ışıklar, her ağın fizik gövdesi bildirildiği gibi ve yüklenen modeller adresle; bir `camera` verilirse onun duruşu da.",
       "fromJSON": "Sahnenin içeriğini `toJSON` ile kaydedilmiş bir sahneyle değiştirir, `helper` işaretleri korunur; modelleri yüklenince tamamlanır. Başka bir biçim ya da sürüm reddedilir (`UNSUPPORTED_SCENE_FORMAT`). Biri okunurken yapılan çağrılar sırayla, birbiri ardına çalışır, her biri öncekinin bıraktığı üzerinde: iki kaydedilmiş sahne asla karışmaz."
     }
   },
@@ -3009,6 +2996,7 @@
       "pose": "Bir düğüm hareket etti.",
       "structure": "Bir düğüm çocuk kazandı ya da kaybetti.",
       "content": "Bir düğümün şekli ya da malzemesi değişti.",
+      "shadow": "Bir düğümün `castShadow` değeri değişti: hiçbir şey hareket etmedi.",
       "posed": "Birçok düğüm aynı anda hareket etti, doğrudan ağaçlarına yazıldı (fiziğin cisimleri): bir kez bildirilir.",
       "seat": "Düğümün çizildiği satır ya da `null`: `batch.rows.matrices` içinde `row * 16` konumundan başlayan, sütun sıralı on altı sayı; çizici bunları yerinde okur. Düğümleri binlerce yerleştiren (fizik) dünya matrislerini oraya kendisi yazar, `seatEpoch` değişmediği sürece geçerlidir, yazdığı satırları `placed` ile bildirir.",
       "seatEpoch": "Bir satır alındığında, bırakıldığında ya da yeniden ayrıldığında değişir: `seat`in önceki her yanıtı eskir.",
@@ -3030,6 +3018,7 @@
       "remove": "Bir çocuğu kaldırır.",
       "clear": "Her çocuğu kaldırır.",
       "reparent": "Onu başka bir ebeveynin altına taşır.",
+      "attach": "Bir çocuğu durduğu yerde ekler: dünya matrisi korunur, yerel pozu yeniden yazılır.",
       "clone": "Çocuklar dahil bir kopya.",
       "copy": "Değerleri ve torunları kopyalar; özyinelemeli ata-torun çakışması atomik olarak reddedilir.",
       "setPosition": "Pozisyonunu ayarlar.",
@@ -3124,10 +3113,10 @@
       "shadowsUpdated": "Bu karenin bir sayfasını çizdiği gölge ışıkları. Sıfır, durağan bir sahnenin normal değeridir: sabit bir ışık sayfalarını korur.",
       "shadowFacesDrawn": "Gölge geçişinin çizdiği ışık görünümleri — güneşin bir clipmap düzeyi, bir mip düzeyinde bir lamba yüzü — ve gerçekten kodlanan çizim çağrıları. Gölge çizmeyen bir motorda null.",
       "shadowDrawCalls": "Gölge çizim çağrıları.",
-      "shadowPagesDrawn": "Sayfa geçersiz kılmanın ürettiği şey: kare tarafından yeniden çizilen sayfalar, bütçe eksikliğinden kuyrukta bırakılan sayfalar, ve en eskisinin milisaniye cinsinden gecikmesi. Her yerde sıfır, sabit bir sahnenin normal değeridir; gölge atlası olmayan bir motorda `null`.",
+      "shadowPagesDrawn": "Sayfa geçersiz kılmanın ürettiği şey: kare tarafından yeniden çizilen sayfalar, bütçe eksikliğinden kuyrukta bırakılan sayfalar, ve görüntünün okuduğu en eski eskimiş sayfanın ne kadar beklediği. Her yerde sıfır, sabit bir sahnenin normal değeridir; gölge atlası olmayan bir motorda `null`.",
       "shadowPagesTotal": "Gezgin açıldığından beri çizilen sayfalar, `flush()` boşaltmaları dahil: bir değişikliğin maliyeti, iki okuma arasındaki farktır.",
       "shadowPagesPending": "Bekleyen gölge sayfaları.",
-      "shadowWaitMs": "Ne kadar süre bekledikleri.",
+      "shadowWaitMs": "Görüntünün okuduğu en eski eskimiş sayfanın yeniden çizilmek için kaç milisaniye beklediği. Yalnızca görüntünün onu okuduğu süre sayılır; yeniden çizilince 0.",
       "gpuLightListsMs": "Işık listelerinin GPU süresi.",
       "gpuShadowsMs": "Gölgelerin GPU süresi.",
       "gpuShadowCullMs": "Bir karenin çizdiği gölge sayfalarının gölge düşürenlerini seçmenin GPU süresi: ışık kesimi, sayfa başına ayıklama ve hareketli gölge düşürenlerin okuduğu piramitlerle örtme testi.",
@@ -3560,7 +3549,6 @@
       "anisotropy": "Eğik açıda keskinlik.",
       "flipY": "Satırların çevrilip çevrilmediği.",
       "premultiplyAlpha": "Rengin önceden çarpılıp çarpılmadığı.",
-      "generateMipmaps": "Daha küçük kopyaların yapılıp yapılmadığı.",
       "colorSpace": "Sayılarının nasıl okunduğu.",
       "transform": "Örnekleyicinin UV dönüşümü, üçe üç satıra bileşik `KHR_texture_transform`."
     }
@@ -3630,7 +3618,7 @@
       "textureBytesLastFrame": "Son karede gönderilen baytlar.",
       "textureUploadMs": "Parçaları göndermeye harcanan süre.",
       "textureUploadPeakMs": "Bir karedeki en uzun gönderim.",
-      "textureLevelReads": "Kaynaklar. `textureLevelReads`: önbellekten okunan pişirilmiş seviyeler. `textureLevelsDecoded`: başlangıçtan beri çözülen pişirilmiş seviyeler. `textureLevelCacheBytes`: sabit bir bütçe altında, onlardan daha fazla parça kesmek için tutulan çözülmüş seviyelerin host baytları. `textureScratchBuilds`: pişirilmiş zinciri olmayan bir doku için her seferinde tüm kaynaktan inşa edilen çalışma dokuları.",
+      "textureLevelReads": "Kaynaklar. `textureLevelReads`: önbellekten okunan pişirilmiş seviyeler. `textureLevelsDecoded`: başlangıçtan beri çözülen pişirilmiş seviyeler. `textureLevelCacheBytes`: CPU toplamı içinde, onlardan daha fazla parça kesmek için tutulan çözülmüş seviyelerin host baytları. `textureScratchBuilds`: pişirilmiş zinciri olmayan bir doku için her seferinde tüm kaynaktan inşa edilen çalışma dokuları.",
       "textureLevelsDecoded": "Çözülen seviyeler.",
       "textureLevelCacheBytes": "Tutulan çözülmüş seviyelerin baytları.",
       "textureScratchBuilds": "İnşa edilen çalışma dokuları.",
@@ -3677,7 +3665,7 @@
       "sourceKind": "Baytlar bir görsel uri'sinden geldiğinde 0, sourceBufferView'dan geldiğinde 1.",
       "sourceBufferView": "Hazırlanmış sahnenin tampon görünümü, ya da uri kaynağı için -1.",
       "sha256": "Çözülmüş kaynak baytların SHA-256'sı.",
-      "atlas": "Bu girdinin taşıdığı zincir: PREVIEW_ATLAS_COLOR, PREVIEW_ATLAS_DATA ya da PREVIEW_ATLAS_COVERAGE; renk atlasında örneklenir.",
+      "atlas": "Bu girdinin taşıdığı zincir: PREVIEW_ATLAS_COLOR, PREVIEW_ATLAS_DATA veya renk atlasında örneklenen PREVIEW_ATLAS_COVERAGE, alt baytta; bir kapsama zincirinin kesme baytı 8–15 bitlerini doldurur.",
       "firstLevel": "Kaynağın mip zincirinde taşınan ilk seviyenin indeksi; zaten PREVIEW_BASE'in altına sığdığında ve yardımcı dosya böylece tam çözünürlüğünü taşıdığında 0.",
       "bakedLevels": "0'dan bakedLevels - 1'e kadar, önbellekte dosyalara pişirilen seviyeler; zincir tamamlandığında firstLevel, hiçbir şey yazılmadığında ve motor kaynak görseli yüklediğinde 0.",
       "levels": "Sırayla, en inceden 1x1'e kadar taşınan seviyeler, her biri yardımcı dosya baytları üzerinde bir görünüm.",
@@ -4081,7 +4069,7 @@
     "summary": "Dünyanın göremediği bir değişiklikten sonra yeni bir kare ister."
   },
   "world.render": {
-    "summary": "Döngüyü kim yönetirse yönetsin, şimdi bir kare çizer."
+    "summary": "Döngüyü kim yönetirse yönetsin, şimdi bir kare çizer: klipler ve fizik onunla birlikte ilerler."
   },
   "world.resize": {
     "summary": "Dünyaya canvas'ın boyut değiştirdiğini söyler; ayarlanmazsa, canvas'ın kendi boyutunu okur.",
@@ -4161,10 +4149,10 @@
       "shadowsUpdated": "Bu karenin bir sayfasını çizdiği gölge ışıkları. Sıfır, durağan bir sahnenin normal değeridir: sabit bir ışık sayfalarını korur.",
       "shadowFacesDrawn": "Gölge geçişinin çizdiği ışık görünümleri — güneşin bir clipmap düzeyi, bir mip düzeyinde bir lamba yüzü — ve gerçekten kodlanan çizim çağrıları. Gölge çizmeyen bir motorda null.",
       "shadowDrawCalls": "Gölge çizim çağrıları.",
-      "shadowPagesDrawn": "Sayfa geçersiz kılmanın ürettiği şey: kare tarafından yeniden çizilen sayfalar, bütçe eksikliğinden kuyrukta bırakılan sayfalar, ve en eskisinin milisaniye cinsinden gecikmesi. Her yerde sıfır, sabit bir sahnenin normal değeridir; gölge atlası olmayan bir motorda `null`.",
+      "shadowPagesDrawn": "Sayfa geçersiz kılmanın ürettiği şey: kare tarafından yeniden çizilen sayfalar, bütçe eksikliğinden kuyrukta bırakılan sayfalar, ve görüntünün okuduğu en eski eskimiş sayfanın ne kadar beklediği. Her yerde sıfır, sabit bir sahnenin normal değeridir; gölge atlası olmayan bir motorda `null`.",
       "shadowPagesTotal": "Gezgin açıldığından beri çizilen sayfalar, `flush()` boşaltmaları dahil: bir değişikliğin maliyeti, iki okuma arasındaki farktır.",
       "shadowPagesPending": "Bekleyen gölge sayfaları.",
-      "shadowWaitMs": "Ne kadar süre bekledikleri.",
+      "shadowWaitMs": "Görüntünün okuduğu en eski eskimiş sayfanın yeniden çizilmek için kaç milisaniye beklediği. Yalnızca görüntünün onu okuduğu süre sayılır; yeniden çizilince 0.",
       "gpuLightListsMs": "Işık listelerinin GPU süresi.",
       "gpuShadowsMs": "Gölgelerin GPU süresi.",
       "gpuShadowCullMs": "Bir karenin çizdiği gölge sayfalarının gölge düşürenlerini seçmenin GPU süresi: ışık kesimi, sayfa başına ayıklama ve hareketli gölge düşürenlerin okuduğu piramitlerle örtme testi.",
@@ -4193,7 +4181,7 @@
       "textureBytesLastFrame": "Son karede gönderilen baytlar.",
       "textureUploadMs": "Parçaları göndermeye harcanan süre.",
       "textureUploadPeakMs": "Bir karedeki en uzun gönderim.",
-      "textureLevelReads": "Kaynaklar. `textureLevelReads`: önbellekten okunan pişirilmiş seviyeler. `textureLevelsDecoded`: başlangıçtan beri çözülen pişirilmiş seviyeler. `textureLevelCacheBytes`: sabit bir bütçe altında, onlardan daha fazla parça kesmek için tutulan çözülmüş seviyelerin host baytları. `textureScratchBuilds`: pişirilmiş zinciri olmayan bir doku için her seferinde tüm kaynaktan inşa edilen çalışma dokuları.",
+      "textureLevelReads": "Kaynaklar. `textureLevelReads`: önbellekten okunan pişirilmiş seviyeler. `textureLevelsDecoded`: başlangıçtan beri çözülen pişirilmiş seviyeler. `textureLevelCacheBytes`: CPU toplamı içinde, onlardan daha fazla parça kesmek için tutulan çözülmüş seviyelerin host baytları. `textureScratchBuilds`: pişirilmiş zinciri olmayan bir doku için her seferinde tüm kaynaktan inşa edilen çalışma dokuları.",
       "textureLevelsDecoded": "Çözülen seviyeler.",
       "textureLevelCacheBytes": "Tutulan çözülmüş seviyelerin baytları.",
       "textureScratchBuilds": "İnşa edilen çalışma dokuları.",
@@ -5605,6 +5593,7 @@
       "parameters.vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
       "parameters.depthWrite": "Yüzeyin derinliğini yazıp yazmadığı, ondan sonra çizileni gizleyerek.",
       "parameters.depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği.",
+      "parameters.transparentShadow": "Saydam (`transparent`) bir yüzeyin yine de gölge düşürüp düşürmediği; ne kadar saydamsa gölgesi o kadar soluk.",
       "parameters.physics": "Onu giyen cismin maddesi: yoğunluk, sürtünme, sekme.",
       "parameters.density": "kg/m³; hacimle çarpılınca kütleyi verir.",
       "parameters.friction": "Cismin ne kadar tuttuğu, 0 ve üstü.",
@@ -5645,6 +5634,7 @@
       "parameters.vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
       "parameters.depthWrite": "Yüzeyin derinliğini yazıp yazmadığı, ondan sonra çizileni gizleyerek.",
       "parameters.depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği.",
+      "parameters.transparentShadow": "Saydam (`transparent`) bir yüzeyin yine de gölge düşürüp düşürmediği; ne kadar saydamsa gölgesi o kadar soluk.",
       "parameters.physics": "Onu giyen cismin maddesi: yoğunluk, sürtünme, sekme.",
       "parameters.density": "kg/m³; hacimle çarpılınca kütleyi verir.",
       "parameters.friction": "Cismin ne kadar tuttuğu, 0 ve üstü.",
@@ -5685,6 +5675,7 @@
       "parameters.vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
       "parameters.depthWrite": "Yüzeyin derinliğini yazıp yazmadığı, ondan sonra çizileni gizleyerek.",
       "parameters.depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği.",
+      "parameters.transparentShadow": "Saydam (`transparent`) bir yüzeyin yine de gölge düşürüp düşürmediği; ne kadar saydamsa gölgesi o kadar soluk.",
       "parameters.physics": "Onu giyen cismin maddesi: yoğunluk, sürtünme, sekme.",
       "parameters.density": "kg/m³; hacimle çarpılınca kütleyi verir.",
       "parameters.friction": "Cismin ne kadar tuttuğu, 0 ve üstü.",
@@ -5725,6 +5716,7 @@
       "parameters.vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
       "parameters.depthWrite": "Yüzeyin derinliğini yazıp yazmadığı, ondan sonra çizileni gizleyerek.",
       "parameters.depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği.",
+      "parameters.transparentShadow": "Saydam (`transparent`) bir yüzeyin yine de gölge düşürüp düşürmediği; ne kadar saydamsa gölgesi o kadar soluk.",
       "parameters.physics": "Onu giyen cismin maddesi: yoğunluk, sürtünme, sekme.",
       "parameters.density": "kg/m³; hacimle çarpılınca kütleyi verir.",
       "parameters.friction": "Cismin ne kadar tuttuğu, 0 ve üstü.",
@@ -5765,6 +5757,7 @@
       "parameters.vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
       "parameters.depthWrite": "Yüzeyin derinliğini yazıp yazmadığı, ondan sonra çizileni gizleyerek.",
       "parameters.depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği.",
+      "parameters.transparentShadow": "Saydam (`transparent`) bir yüzeyin yine de gölge düşürüp düşürmediği; ne kadar saydamsa gölgesi o kadar soluk.",
       "parameters.physics": "Onu giyen cismin maddesi: yoğunluk, sürtünme, sekme.",
       "parameters.density": "kg/m³; hacimle çarpılınca kütleyi verir.",
       "parameters.friction": "Cismin ne kadar tuttuğu, 0 ve üstü.",
@@ -5805,6 +5798,7 @@
       "parameters.vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
       "parameters.depthWrite": "Yüzeyin derinliğini yazıp yazmadığı, ondan sonra çizileni gizleyerek.",
       "parameters.depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği.",
+      "parameters.transparentShadow": "Saydam (`transparent`) bir yüzeyin yine de gölge düşürüp düşürmediği; ne kadar saydamsa gölgesi o kadar soluk.",
       "parameters.physics": "Onu giyen cismin maddesi: yoğunluk, sürtünme, sekme.",
       "parameters.density": "kg/m³; hacimle çarpılınca kütleyi verir.",
       "parameters.friction": "Cismin ne kadar tuttuğu, 0 ve üstü.",
@@ -5845,6 +5839,7 @@
       "parameters.vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
       "parameters.depthWrite": "Yüzeyin derinliğini yazıp yazmadığı, ondan sonra çizileni gizleyerek.",
       "parameters.depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği.",
+      "parameters.transparentShadow": "Saydam (`transparent`) bir yüzeyin yine de gölge düşürüp düşürmediği; ne kadar saydamsa gölgesi o kadar soluk.",
       "parameters.physics": "Onu giyen cismin maddesi: yoğunluk, sürtünme, sekme.",
       "parameters.density": "kg/m³; hacimle çarpılınca kütleyi verir.",
       "parameters.friction": "Cismin ne kadar tuttuğu, 0 ve üstü.",
@@ -5885,6 +5880,7 @@
       "parameters.vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
       "parameters.depthWrite": "Yüzeyin derinliğini yazıp yazmadığı, ondan sonra çizileni gizleyerek.",
       "parameters.depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği.",
+      "parameters.transparentShadow": "Saydam (`transparent`) bir yüzeyin yine de gölge düşürüp düşürmediği; ne kadar saydamsa gölgesi o kadar soluk.",
       "parameters.physics": "Onu giyen cismin maddesi: yoğunluk, sürtünme, sekme.",
       "parameters.density": "kg/m³; hacimle çarpılınca kütleyi verir.",
       "parameters.friction": "Cismin ne kadar tuttuğu, 0 ve üstü.",
@@ -5925,6 +5921,7 @@
       "parameters.vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
       "parameters.depthWrite": "Yüzeyin derinliğini yazıp yazmadığı, ondan sonra çizileni gizleyerek.",
       "parameters.depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği.",
+      "parameters.transparentShadow": "Saydam (`transparent`) bir yüzeyin yine de gölge düşürüp düşürmediği; ne kadar saydamsa gölgesi o kadar soluk.",
       "parameters.physics": "Onu giyen cismin maddesi: yoğunluk, sürtünme, sekme.",
       "parameters.density": "kg/m³; hacimle çarpılınca kütleyi verir.",
       "parameters.friction": "Cismin ne kadar tuttuğu, 0 ve üstü.",
@@ -5965,6 +5962,7 @@
       "parameters.vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
       "parameters.depthWrite": "Yüzeyin derinliğini yazıp yazmadığı, ondan sonra çizileni gizleyerek.",
       "parameters.depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği.",
+      "parameters.transparentShadow": "Saydam (`transparent`) bir yüzeyin yine de gölge düşürüp düşürmediği; ne kadar saydamsa gölgesi o kadar soluk.",
       "parameters.physics": "Onu giyen cismin maddesi: yoğunluk, sürtünme, sekme.",
       "parameters.density": "kg/m³; hacimle çarpılınca kütleyi verir.",
       "parameters.friction": "Cismin ne kadar tuttuğu, 0 ve üstü.",
@@ -6005,6 +6003,7 @@
       "parameters.vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
       "parameters.depthWrite": "Yüzeyin derinliğini yazıp yazmadığı, ondan sonra çizileni gizleyerek.",
       "parameters.depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği.",
+      "parameters.transparentShadow": "Saydam (`transparent`) bir yüzeyin yine de gölge düşürüp düşürmediği; ne kadar saydamsa gölgesi o kadar soluk.",
       "parameters.physics": "Onu giyen cismin maddesi: yoğunluk, sürtünme, sekme.",
       "parameters.density": "kg/m³; hacimle çarpılınca kütleyi verir.",
       "parameters.friction": "Cismin ne kadar tuttuğu, 0 ve üstü.",
@@ -6045,6 +6044,7 @@
       "parameters.vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
       "parameters.depthWrite": "Yüzeyin derinliğini yazıp yazmadığı, ondan sonra çizileni gizleyerek.",
       "parameters.depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği.",
+      "parameters.transparentShadow": "Saydam (`transparent`) bir yüzeyin yine de gölge düşürüp düşürmediği; ne kadar saydamsa gölgesi o kadar soluk.",
       "parameters.physics": "Onu giyen cismin maddesi: yoğunluk, sürtünme, sekme.",
       "parameters.density": "kg/m³; hacimle çarpılınca kütleyi verir.",
       "parameters.friction": "Cismin ne kadar tuttuğu, 0 ve üstü.",
@@ -6085,6 +6085,7 @@
       "parameters.vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
       "parameters.depthWrite": "Yüzeyin derinliğini yazıp yazmadığı, ondan sonra çizileni gizleyerek.",
       "parameters.depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği.",
+      "parameters.transparentShadow": "Saydam (`transparent`) bir yüzeyin yine de gölge düşürüp düşürmediği; ne kadar saydamsa gölgesi o kadar soluk.",
       "parameters.physics": "Onu giyen cismin maddesi: yoğunluk, sürtünme, sekme.",
       "parameters.density": "kg/m³; hacimle çarpılınca kütleyi verir.",
       "parameters.friction": "Cismin ne kadar tuttuğu, 0 ve üstü.",
@@ -6125,6 +6126,7 @@
       "parameters.vertexColors": "Geometrinin köşe başına `color`'ının yüzeyi tonlayıp tonlamadığı.",
       "parameters.depthWrite": "Yüzeyin derinliğini yazıp yazmadığı, ondan sonra çizileni gizleyerek.",
       "parameters.depthTest": "Yüzeyin zaten daha yakın olanın arkasına gizlenip gizlenmediği.",
+      "parameters.transparentShadow": "Saydam (`transparent`) bir yüzeyin yine de gölge düşürüp düşürmediği; ne kadar saydamsa gölgesi o kadar soluk.",
       "parameters.physics": "Onu giyen cismin maddesi: yoğunluk, sürtünme, sekme.",
       "parameters.density": "kg/m³; hacimle çarpılınca kütleyi verir.",
       "parameters.friction": "Cismin ne kadar tuttuğu, 0 ve üstü.",
@@ -6945,7 +6947,7 @@
   },
   "world.beforeFrame": {
     "summary": "`{ delta, time }` ile, çizilen her kareden önce bir fonksiyon çalıştırır; kaldırıcısını döndürür.",
-    "description": "Dünyanın döngüsünün bir karesi çalışır: kontrolcü kamerayı ilerletir (`controls.autoUpdate` yanlış olmadıkça), klipler ilerler, bu kancalar eklendikleri sırada, sahne yazılır ve çizilir, sonra `onFrame` kancaları. Bir kancanın yerleştirdiği şey — kameradaki bir gövde, bir kokpit — tam olarak bu karede çizilir, asla bir geç kalmışta değil. Host güdümlü bir `render()` de onları çalıştırır ama hiçbir kontrolcüyü ilerletmez. `invalidate()`'i çağıran bir kanca karelerin gelmeye devam etmesini sağlar.",
+    "description": "Bir kare çalışır: kameranın kontrolcüsü (`controls.autoUpdate` yanlış olmadıkça ya da host yönetmedikçe, `render()`), klipler, fizik, bu kancalar kendi sıralarında, çizim, sonra `onFrame` kancaları. Bir kancanın yerleştirdiği şey — kameradaki bir gövde, bir kokpit — tam olarak bu karede çizilir, asla bir kare geç değil. `invalidate()`'i çağıran bir kanca karelerin gelmeye devam etmesini sağlar.",
     "returns": "Kancayı durduran bir fonksiyon.",
     "parameters": {
       "hook": "Çalıştırılacak fonksiyon; az önce entegre edilen saniyeleri ve dünyanın zamanını alır."
@@ -7022,7 +7024,8 @@
       "children": "Altındaki düğümler, sırayla.",
       "mesh": "`geometries` ve `materials` içindeki sıralar, üçgenlerin nasıl okunduğu ve bir sprite'ın merkezi.",
       "light": "Bir ışığın türü, renkleri, sayıları, hedefi ve sonda katsayıları.",
-      "model": "Derlenmiş bir model, yüklendiği manifest adresiyle: asla içine kopyalanmaz."
+      "model": "Derlenmiş bir model, yüklendiği manifest adresiyle: asla içine kopyalanmaz.",
+      "physics": "Bir ağın fizik gövdesi, `mesh.physics` onu nasıl bildiriyorsa öyle."
     }
   },
   "SavedScene": {
@@ -7129,7 +7132,7 @@
       "water": "Cisimlerin yüzdüğü su: seviyesi, dalgaları, yoğunluğu ve sürüklemeleri. Sudan hafif bir cisim, yer değiştirdiği suyun ağırlığıyla itilerek yüzer.",
       "waterSurface": "Simülasyon zamanındaki su yüzeyi, çizmek için: kaldırma kuvvetinin okuduğu dalgalar, aynı sayılar (`height`, `point`, `normal`).",
       "stats": "Sayımlar ve iki saat: adım başına worker milisaniyesi, kare başına sayfa milisaniyesi.",
-      "error": "Fiziğin son hatası (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`) ya da `null`. Simülasyonu durduran bir hata `enabled` değerini kapatır.",
+      "error": "Fiziğin son hatası (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`, `RESOURCE_HTTP_ERROR`) ya da `null`. Simülasyonu durduran bir hata `enabled` değerini kapatır.",
       "add": "Bir eklem ekler (`joint.hinge(door, frame, …)` ve akrabaları): iki cismi de simüle edilir edilmez oluşturulur, çıkarılana ya da kırılana dek tutar.",
       "remove": "Bir eklemi çıkarır: tuttuğu cisimler serbestçe ayrılır."
     }
@@ -7337,7 +7340,7 @@
       "water": "Cisimlerin yüzdüğü su: seviyesi, dalgaları, yoğunluğu ve sürüklemeleri. Sudan hafif bir cisim, yer değiştirdiği suyun ağırlığıyla itilerek yüzer.",
       "waterSurface": "Simülasyon zamanındaki su yüzeyi, çizmek için: kaldırma kuvvetinin okuduğu dalgalar, aynı sayılar (`height`, `point`, `normal`).",
       "stats": "Sayımlar ve iki saat: adım başına worker milisaniyesi, kare başına sayfa milisaniyesi.",
-      "error": "Fiziğin son hatası (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`) ya da `null`. Simülasyonu durduran bir hata `enabled` değerini kapatır.",
+      "error": "Fiziğin son hatası (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`, `RESOURCE_HTTP_ERROR`) ya da `null`. Simülasyonu durduran bir hata `enabled` değerini kapatır.",
       "add": "Bir eklem ekler (`joint.hinge(door, frame, …)` ve akrabaları): iki cismi de simüle edilir edilmez oluşturulur, çıkarılana ya da kırılana dek tutar.",
       "remove": "Bir eklemi çıkarır: tuttuğu cisimler serbestçe ayrılır."
     }
@@ -7427,6 +7430,7 @@
       "transparent": "Karışıp karışmadığı.",
       "opacity": "Ne kadar opak olduğu.",
       "alphaTest": "Piksellerin altında düştüğü alfa.",
+      "transparentShadow": "Karıştırılırken gölge düşürüp düşürmediği; belirtilmezse hiç düşürmez.",
       "depthTest": "Derinlik testi yapıp yapmadığı."
     }
   },
@@ -7447,7 +7451,7 @@
       "offset": "`matrix`in neyden oluşturulduğu.",
       "matrixAutoUpdate": "Host'un `matrix`'i yeniden inşa edip etmediği.",
       "matrix": "Örnekleyicinin UV dönüşümü, üç satıra bileşik `KHR_texture_transform`; host, güncellemeye sahip olduğunda onu offset, repeat ve rotation'dan yeniden hesaplar.",
-      "generateMipmaps": "Daha küçük kopyaların yapılıp yapılmadığı.",
+      "generateMipmaps": "Daha küçük kopyaların istenip istenmediği; `minFilter` onları okuduğunda motor onları her zaman yapar.",
       "premultiplyAlpha": "Rengin alfa ile önceden çarpılıp çarpılmadığı.",
       "flipY": "Yüklemede satırların çevrilip çevrilmediği.",
       "version": "Her içerik değişikliğinde host tarafından artırılır: bir yüklemenin yeniden kopyalamayı atlamak için karşılaştırdığı şey.",

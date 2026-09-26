@@ -5,11 +5,11 @@ import {
 import type { PackedDag } from './types.ts';
 import { primitiveFrameWords } from './worlds.ts';
 import { createDagPipeline } from './pipeline.ts';
-import { LEVEL_QUEUES } from './shader/levelWgsl.ts';
 import { dagWorkLayout } from './shader/floorWgsl.ts';
 import { DAG_UNIFORM_BYTES } from './shader/viewsWgsl.ts';
 import { AHEAD_VIEW } from './shader/aheadWgsl.ts';
-import { SELECTION_HEADER_WORDS, selectionListCap } from './layout.ts';
+import { DAG_READBACK_SLOTS, SELECTION_HEADER_WORDS, selectionListCap } from './layout.ts';
+import { dagFlagsWords } from './shader/lastUseWgsl.ts';
 
 export async function createDagResources(
   device: GPUDevice,
@@ -60,11 +60,11 @@ export async function createDagResources(
     });
     // Descent queue 0, then draw flags, then the cone rejection kept by `dagWanted` for the four
     // passes that reread it, then the live-cluster list, then the candidate list — which also
-    // serves as the previous frame's drawn journal —, then the remaining queues: never read by
-    // the CPU, which still only copies draw flags.
+    // serves as the previous frame's drawn journal —, then the remaining queues, then each page's
+    // last use (`shader/lastUseWgsl.ts`): never read by the CPU, which still only copies draw flags.
     const flags = device.createBuffer({
       label: 'Trillion3D DAG flags',
-      size: Math.max(16, (nodeCount * LEVEL_QUEUES + pageCount * 4) * 4),
+      size: Math.max(16, dagFlagsWords(nodeCount, pageCount) * 4),
       usage: STORAGE | GPUBufferUsage.COPY_SRC,
     });
     // Three argument words, of which the last two are one once and for all: only the first is
@@ -100,16 +100,12 @@ export async function createDagResources(
       size: Math.max(48, packed.pageCones.byteLength),
       usage: STORAGE,
     });
-    const readback = [
+    const readback = Array.from({ length: DAG_READBACK_SLOTS }, () =>
       device.createBuffer({
         size: readbackBytes,
         usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST,
       }),
-      device.createBuffer({
-        size: readbackBytes,
-        usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST,
-      }),
-    ];
+    );
     buffers.push(
       clusters,
       nodes,

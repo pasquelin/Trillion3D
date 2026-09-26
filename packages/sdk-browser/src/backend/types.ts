@@ -1,5 +1,5 @@
 import type { HostDiagnosticFactory, HostScene, HostTexture } from '../host/resources.ts';
-import type { HostCamera, HostDrawCamera } from '../camera/world.ts';
+import type { HostCamera } from '../camera/world.ts';
 import type { HostDrawOutput } from '../webgl/core/renderTarget.ts';
 import type {
   BackendCapabilities,
@@ -15,10 +15,11 @@ import type { CpuStepSummary } from '../stage/cpuProfile.ts';
 import type { BackendDiagnostic, DiagnosticDetail } from '../diagnostic/types.ts';
 import type { PlacementRows } from '../placement/rows.ts';
 import type { BackendSceneUpdates } from '../placement/backendSceneUpdates.ts';
+import type { BackendHostDraw } from './hostDraw.ts';
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
 export type { BackendCapabilities, BackendDiagnostic, DiagnosticDetail, HostDrawOutput };
 type ViewSize = { width: number; height: number };
-export interface RenderBackend extends BackendSceneUpdates {
+export interface RenderBackend extends BackendSceneUpdates, BackendHostDraw {
   id: string;
   capabilities: BackendCapabilities;
   setDiagnostic?(mode: DiagnosticMode): void;
@@ -45,10 +46,6 @@ export interface RenderBackend extends BackendSceneUpdates {
   signal?: AbortSignal; // Aborted by its dispose or its session's: `prepare` then fails as cancelled.
   prepare(): Promise<void>;
   render(camera: HostCamera): void;
-  /** Draws the engine's whole image — paged clusters, diagnostic pages, scene copies, or the
-   *  scene a witness holds — into the framebuffer the host has bound and cleared, `output`
-   *  naming it and its display chain. Absent from an engine that presents its own surface. */
-  drawHostGeometry?(camera: HostDrawCamera, output: HostDrawOutput): void;
   readonly overBudget: boolean;
   /** True when the last rendered frame was held: nothing was reselected or rebuilt, and the
    *  attached scene IS this frame. Read per frame; absent from an engine that holds nothing. */
@@ -170,15 +167,15 @@ export interface BackendContext {
   /** The world's effect chain, drawn after temporal antialiasing; absent or empty, nothing is. */
   effects?: import('../../../sdk-core/src/world/effect/chain.ts').EffectChain;
   sceneLighting?: Object3D;
-  /** The page's guides, held by its world (`guides/guideSet.ts`): drawn over the image. */
+  /** The world's guides, drawn over the image, and its particle pools, stepped once per image. */
   guides?: import('../guides/guideSet.ts').GuideSet;
+  particles?: readonly import('../../../sdk-core/src/fluids/particles.ts').ParticlePool[];
   /** Contract lights, owned by the host and shared by every engine of the session. */
   sceneLights?: SceneLightStore;
   /** Imported light ids, in cache order: the host sets or removes them (`importedLights()`). */
   importedLightIds?: string[];
-  /** Bounced light, off by default: its step stays above the measured one-millisecond bar. Its
-   *  budget: the step's target GPU milliseconds per frame, `BOUNCE_SETTINGS.budgetMs` (0.8 ms)
-   *  by default — a target, not a promise. */
+  /** Bounced light, off by default: its step stays above the measured one-millisecond bar.
+   *  `bounceBudgetMs`: its GPU target per frame, `BOUNCE_SETTINGS.budgetMs` (0.8 ms): a target. */
   bounce?: boolean;
   bounceBudgetMs?: number;
   /** Time every step of the frame. Off by default: only the bench and the harness turn it on. */
@@ -193,6 +190,8 @@ export interface BackendContext {
   /** Host-owned, validated page reader for the initial complete GPU fallback. */
   readPage?: (url: string) => Promise<Uint32Array>;
   readGeometryPage?: (url: string) => Promise<Uint8Array>;
+  /** The session's one integration budget per frame (`frameBudget.ts`); absent, nothing bounds it. */
+  frameBudget?: import('../page/integration/frameBudget.ts').FrameClock;
 }
 export type BackendFactory = (context: BackendContext) => RenderBackend;
 export type { MeasuredWorldOptions, PointOfInterest } from '../world/session/options.ts';

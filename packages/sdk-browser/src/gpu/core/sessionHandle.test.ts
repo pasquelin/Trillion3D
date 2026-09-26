@@ -91,7 +91,7 @@ test('the ledger, on the handle, counts by the label as the engine wrote it, the
   assert.equal(byLabel['page table'], 8);
   assert.equal(
     byLabel['Trillion3D texture mips uniforms'],
-    2 * 256,
+    3 * 256,
     'one aligned uniform per level',
   );
   assert.deepEqual(Object.keys(caches.snapshot().byLabel), ['Trillion3D texture mips uniforms']);

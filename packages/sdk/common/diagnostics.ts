@@ -15,8 +15,6 @@ export {
 } from '../../sdk-core/src/math/oracles.ts';
 export { CAMERA_SCENARIOS, makeCameraPath } from '../../sdk-core/src/runtime/paths.ts';
 export { compareImages } from '../../sdk-core/src/runtime/compareImages.ts';
-export { COMPARISON_LIBRARIES } from '../../sdk-core/src/runtime/competitors.ts';
-export type { CompetitorRecord, CompetitorStatus } from '../../sdk-core/src/runtime/competitors.ts';
 export { DIAGNOSTICS } from '../../sdk-core/src/runtime/diagnostics.ts';
 export type {
   DiagnosticCapabilities,

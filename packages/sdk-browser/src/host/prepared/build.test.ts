@@ -25,15 +25,19 @@ import { caches, describe, describeShape, serveFiles, type Ranks } from './scene
 async function witness(folder: URL, document: string, text?: string) {
   text ??= await readFile(new URL(document, folder), 'utf8');
   const gltf = await new GLTFLoader().parseAsync(text, folder.href);
+  // The engine's mesh casts unless it says otherwise (#456); the loader's keeps `false`.
+  gltf.scene.traverse((node) => {
+    if ((node as { isMesh?: boolean }).isMesh) node.castShadow = true;
+  });
   const associations = gltf.parser.associations as Map<object, ReturnType<Ranks>>;
   const ranks: Ranks = (object) => associations.get(object);
   return { shape: describeShape(gltf.scene, ranks), whole: describe(gltf.scene, () => undefined) };
 }
 
 async function prepared(folder: URL, document: string, written?: unknown) {
-  const tables = assertSceneTables(
-    written ?? JSON.parse(await readFile(new URL('scene-tables.json', folder), 'utf8')),
-  );
+  const file = written ?? JSON.parse(await readFile(new URL('scene-tables.json', folder), 'utf8'));
+  // The caches compared here have no partition (`partition.test.ts` reads those).
+  const tables = { ...assertSceneTables(file), partition: null };
   const built = await buildPreparedScene({
     tables,
     metadata: {} as ClusterManifest,

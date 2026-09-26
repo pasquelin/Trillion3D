@@ -53,6 +53,7 @@ fn import(asset: &Path, world: &mut World<'_>, meta: &ModelImport) -> Option<Par
         cache: world.cache,
         cancelled: world.cancelled,
         progress: world.progress,
+        ram_budget: world.ram_budget,
     };
     let prepared = match plugin.prepare(&request) {
         Ok(prepared) => prepared,

@@ -85,7 +85,9 @@ view-projection the GPU consumes, the Hi-Z bounds and the CPU visibility raster 
 adapter: a live `resize(slots)` that keeps what fits, pins, serialized loads, a reusable staging
 buffer and eviction without a device-wide queue fence. `dispose()` aborts in-flight reads and waits
 for submitted work. It reports allocation accounting, bytes read and uploaded and evictions; it does
-not measure physical VRAM.
+not measure physical VRAM. `httpPageSource(baseUrl)` reads its pages by key over HTTP, one request
+per read: the cache asks again as [the SDK guide](SDK.md#files-over-http) says, and its read
+diagnostics carry the `details.status` of the `RESOURCE_HTTP_ERROR` refusing one.
 
 `webgpuPagesBackend` (`webgpu-page-raster`) consumes that cache. For opaque pages, a compute pass
 selects the camera's drawable resident cut — frustum, `lodScore` and conservative backface cones —
@@ -198,9 +200,16 @@ revision and asks for a frame.
   drawn before the chain existed. Its second output marks, one byte a pixel, the coverage of the
   surfaces whose material skips the curve (`toneMapped: false`); the output program leaves that
   share as drawn. Coverage past one is read as light (`effects/webglOutput.ts`). With a chain, a
-  `none`-blended surface covers as an opaque one, and multiply and subtractive surfaces are
-  refused (`coversLinear`, `webgl/cluster/materialBinding.ts`). A context that cannot render half
-  floats draws without the chain.
+  `none`-blended surface covers as an opaque one. Multiply and subtractive filter the background,
+  which the linear target does not hold: before it binds the target, the composer asks the engine
+  (`BackendHostDraw.linearRefusal`), whose scene draw answers from its own walk of the graph — the
+  one walk per drawn image it already made, now at the first of that question and the draw, never
+  on a held frame (`webgl/cluster/sceneDraw.ts`, `linearRefusal.ts`). A frame that draws a
+  transparent surface in either mode, transmissive or not, is drawn whole without the chain, never
+  stopped mid-draw;
+  `ComposedChain.refused` hears the mode on each such frame, and the world says
+  `effects-refused-blending` once (`noticeEffectRefusal`). A context that cannot render half floats
+  draws without the chain.
 - **Kinds**: each renderer holds one table from pass kind to implementation (`WEBGPU_KINDS`,
   `WEBGL_KINDS`); a new built-in or the custom pass is one entry. The kinds of a chain share its two
   pass targets; each holds its own resources besides, sized for the passes of its kind — the
@@ -335,7 +344,9 @@ real allocations) — is the CPU total's first share, before the decoded-page ca
   that waits for nothing, and the diagnostic counts it (`shadowPagesOverflow`). A page is drawn
   with its own projection into its physical page — viewport and scissor —, so no other page of the
   pool is touched. `shadowPagesRequested`, `shadowPagesCached`, `shadowPoolPages`,
-  `shadowPagesDrawn`, `shadowPagesPending` and `shadowWaitMs` publish the work;
+  `shadowPagesDrawn`, `shadowPagesPending` and `shadowWaitMs` publish the work — the wait, in ms
+  and in frames (`shadowWaitFrames`, the direct-lighting diagnostic only), of the oldest stale page
+  the image reads, counted only while a report names it (#489);
   `diagnostic.shadowAtlas(world)` returns the pool's raw depth hash. A still scene runs no resolve
   and asks for nothing; the image holds once a report proves it reads only pages drawn.
 - **The floor is always current.** Every page a report names asks for its light's floor under it
@@ -403,13 +414,16 @@ request is a second residency tier, loaded after the camera's pages into slots n
 pinned. The CPU cut does the same, reading the run's view as a camera (`webgpu/shadow/cpuCasters.ts`);
 its casters take rows behind its own (#10, #26).
 
-**Blended surfaces cast a shadow attenuated by their opacity.** A blended cluster is drawn by the
-blend pass and never enters the visibility tables: to cast, it takes a row of the page table
-_behind_ the visibility rows, which only the shadow pass reads (`webgpu/row/blendCasters.ts`). The
-row follows residency like a visibility row — taken when the cluster's slot arrives, given back
-when it leaves — and the pool bounds how many exist; a scene that blends nothing has none. The
-light cut finds the cluster at that row (`gpu/draw/lightRows.ts`, pinned by the host), the CPU cut
-lists it there, and the same cull draws it. It never writes the pool's depth: it fills the
+**A blended surface that asks for it casts a shadow attenuated by its opacity.** By default a
+see-through surface casts none, as the reference solution leaves translucent materials: glass,
+smoke and a beam of light let the light pass. A material asks with `transparentShadow: true`
+(`castsBlendShadow`, `gpu/shadow/transmittance.ts`); a cooked model's materials carry no such flag
+and cast none. A blended cluster is drawn by the blend pass and never enters the visibility tables:
+to cast, it takes a row of the page table _behind_ the visibility rows, which only the shadow pass
+reads (`webgpu/row/blendCasters.ts`). The row follows residency like a visibility row — taken when
+the cluster's slot arrives, given back when it leaves — and the pool bounds how many exist; a scene
+that blends nothing has none. The light cut finds the cluster at that row (`gpu/draw/lightRows.ts`,
+pinned by the host), the CPU cut lists it there, and the same cull draws it. It never writes the pool's depth: it fills the
 **transmittance layer** (`gpu/shadow/transmittance.ts`), two textures at half the pool's
 resolution — one texel for each 2 × 2 depth texels, addressed by the same pages and page table
 (texel / 2): the transmittance, `rgba8unorm`, whose RGB keeps `Π(1 − coverage)`, the coverage being
@@ -419,8 +433,9 @@ of its own follows the pool's (`webgpu/pages/render/encodeShadowPass.ts`): each 
 is cleared to full transmittance and far depth, then draws its list twice, where only the blended
 rows survive, from the same shader entry — depth only, depth-tested, for the nearest depth; then
 colour only, blended multiplicatively, without depth. Both discard a fragment the pool's opaque
-depth hides at all four of its texels. The shadow read multiplies its filtered PCF result by
-the layer once, at the footprint's centre (`lighting/direct/shadowWgsl.ts`), since the sixteen taps
+depth hides at all four of its texels. Once the last blended caster has given its row back, the
+layer stays and its pages are only cleared: neither draw is encoded. The shadow read multiplies its
+filtered PCF result by the layer once, at the footprint's centre (`lighting/direct/shadowWgsl.ts`), since the sixteen taps
 lie within one texel of it: the four texels around it, kept within its page, each its transmittance
 where the receiver lies behind its translucent depth, filtered bilinearly. A pixel the opaque depth
 already darkens fully reads nothing of the layer. A constant opacity gives a constant shadow, two panes multiply, a
@@ -648,13 +663,16 @@ or the normal cone would stay one level coarse. Top-down pruning drops a subtree
 is above the threshold only when none of its clusters has a missing finer group: each culling node
 carries that count (`NODE_OPEN`), so the nearest resident ancestor of a missing page is always a
 candidate. No frame waits for coverage once the root cover is resident. The CPU cut
-(`page/cut/take.ts`) applies the same predicate on the same readiness, kept per placement
-(`page/cut/held.ts`), and prunes its descent on the same open counts, in JavaScript and in its
+(`page/cut/take.ts`) applies the same predicate on the same readiness, kept per placement in view
+and moved by the pool's residency feed — the rank journal on WebGPU, the page store's loads and
+releases on WebGL2 —, so a still view reads no page and a change reads only the pages that moved
+(`page/cut/held.ts`); it prunes its descent on the same open counts, in JavaScript and in its
 WebAssembly node walk (`page-codec-wasm/src/cut.rs`) alike; the WebGPU CPU path, its light cuts and
 the WebGL2 image draw through it, with no fallback of their own. None of these tables is sized by the
 world: the readiness holds the resident pages alone — every other page reads its state with nothing
 resident, derived from the DAG —, and the closure, the cut's differences, the residency sets and
-the pending set hold what the cut names, all in sparse maps (`page/cut/sparseInts.ts`). A world
+the pending set hold what the cut names, all in sparse maps (`page/cut/sparseInts.ts`); a
+placement that leaves the view lets its readiness go at the end of the image's cut. A world
 sixteen times larger, seen from the same view with the same pool, costs the same bytes
 (`page/cut/viewBound.test.ts`).
 Shared URLs occupy one slot across instances. Two counters say different things:
@@ -692,8 +710,8 @@ replays the temporal accumulation identically, so a flushed pose is deterministi
 diagnostic).
 
 **The engine reads the levels the compiler baked.** As soon as the cache declares texture chains,
-each baked level is read on demand (decoded by the browser, held in a 192 MiB host cache) and tiles
-are cut from it. A chain is generated at run time only for a texture the cache carries none for.
+each baked level is read on demand (decoded by the browser, held within `world.budget.cpu` and
+kept across a device loss) and tiles are cut from it. A chain is generated at run time only for a texture the cache carries none for.
 `textureSource` (`'cache'` by default) says whether the prepared scene reads the source images: under
 `'cache'` an image whose chain the cache carries is never fetched; `'cache'` is honoured only where
 every mounted backend reads the baked levels, and `backend-choice` publishes what was settled.
@@ -762,6 +780,9 @@ writes a pose buffer and an event buffer. No emscripten glue is kept; the engine
 - **Timing.** The `physics` stage of `WEBGPU_STAGES` / `WEBGL_STAGES` (host step `physicsMs`) is the
   page's share; the worker's per-step time is reported apart, in `world.physics.stats.stepMs`
   (the module's step alone, the clock `scripts/bench-physics.ts` reads in Node).
+  Its GPU column is the particle step (`Trillion3D particles`, `particles/webgpuParticles.ts`).
+  On WebGL2 the same pools step in a 32-bit float ping-pong pass (`particles/webglParticles.ts`);
+  a context without `EXT_color_buffer_float` refuses them (`PARTICLES_UNSUPPORTED`).
 - **Threads.** On a cross-origin isolated page the page loads `joltPhysicsThreads.wasm` (atomics,
   bulk memory, shared memory) and Jolt's own thread pool steps it: each pool thread starts in C
   through `pthread_create`, which the loader (`physics/joltThreads.ts`) answers with a worker that

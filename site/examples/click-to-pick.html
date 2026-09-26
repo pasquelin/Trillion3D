@@ -38,7 +38,8 @@
         mesh.name = names[i];
         world.scene.add(mesh);
       });
-      world.camera.position.set(0, 4, 6);
+      // Close enough that the ring fills the view: six shapes on a wide grid are a small target.
+      world.camera.position.set(0, 3.2, 4.8);
       world.camera.lookAt(0, 0, 0);
 
       controls({});

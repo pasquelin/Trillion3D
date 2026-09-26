@@ -64,6 +64,8 @@ pub struct SceneRequest<'a> {
     pub cancelled: &'a AtomicBool,
     /// Named progress report: a driver publishes its steps under its own `phase`.
     pub progress: &'a (dyn Fn(Value) + Sync),
+    /// The job's RAM budget in bytes (`ramBudgetMb`): what a driver decodes stays under it.
+    pub ram_budget: usize,
 }
 
 /// Directory against which relative image URIs of a source resolve: the source itself when it
@@ -172,6 +174,7 @@ impl<'a> SceneRequest<'a> {
             cache: &o.cache,
             cancelled: &o.cancelled,
             progress,
+            ram_budget: o.ram_budget_bytes(),
         }
     }
     /// Scene this driver has just written into `directory`, with the root where the image
