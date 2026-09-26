@@ -49,7 +49,7 @@ impl<'a> BlendFile<'a> {
     pub(super) fn open(raw: &'a [u8], ceiling: usize) -> Result<BlendFile<'a>> {
         let bytes = envelope::unwrap(raw, ceiling)?;
         let shape = envelope::head(&bytes)?;
-        // A wrapped file's buffer counts by its capacity, which decoding grows past its length.
+        // A wrapped file's buffer counts by its capacity, what the allocator actually holds.
         let unpacked = match &bytes {
             Cow::Borrowed(_) => 0,
             Cow::Owned(buffer) => buffer.capacity(),
