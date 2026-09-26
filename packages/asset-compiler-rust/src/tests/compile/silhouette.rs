@@ -14,7 +14,6 @@ use crate::shared_math::{cross, dot, sub};
 type Point = [f64; 3];
 
 /// One source primitive: its vertices and, per corner, the vertex it draws.
-#[derive(Default)]
 pub(in crate::tests) struct Mesh {
     pub positions: Vec<Point>,
     pub normals: Vec<Point>,
