@@ -10,6 +10,7 @@ import { dansPageWebgpu } from './pageWebgpu.ts';
 import { SELECTION_WORKGROUP } from '../../../packages/sdk-browser/src/gpu/core/selection.ts';
 import type { SelectionUniforms } from '../../../packages/sdk-browser/src/gpu/core/selection.ts';
 import { REQUEST_PAGE_MAX } from '../../../packages/sdk-browser/src/gpu/dag/request.ts';
+import { dagFlagsWords } from '../../../packages/sdk-browser/src/gpu/dag/shader/lastUseWgsl.ts';
 import {
   OUT_SELECTED_TRIANGLES,
   OUT_TRANSPARENT_TRIANGLES,
@@ -67,7 +68,7 @@ async function executer({
       clusters: { buffer: tampon(64, c.clusters) },
       nodes: { buffer: tampon(64, c.nodes) },
       views: { buffer: tampon(256, c.uniforms, GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST) },
-      flags: { buffer: tampon(Math.max(16, (c.nodeCount * 3 + c.pageCount * 4) * 4)) },
+      flags: { buffer: tampon(Math.max(16, dagFlagsWords(c.nodeCount, c.pageCount) * 4)) },
       out: { buffer: tampon(sortieOctets) },
       work: { buffer: tampon(Math.max(8, travail.words * 4)) },
       worlds: { buffer: tampon(64, c.worlds) },
