@@ -15,7 +15,7 @@ import { createFrameComposer } from './compose.ts';
 
 const camera = G.perspectiveCamera();
 /** A context that renders half floats, as every desktop WebGL2 does. */
-export const HALF_FLOATS = {
+const HALF_FLOATS = {
   getExtension: (name: string) => (name === 'EXT_color_buffer_float' ? {} : null),
 };
 
