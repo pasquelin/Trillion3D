@@ -12,7 +12,7 @@ import { effect } from '../../../../sdk-core/src/world/effect/index.ts';
 import { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts';
 import { BufferAttribute } from '../../../../sdk-core/src/world/buffer/attribute.ts';
 import { GraphScene } from '../../host/graph/scene.ts';
-import { GraphMesh } from '../../host/graph/mesh.ts';
+import { GraphInstancedMesh, GraphMesh } from '../../host/graph/mesh.ts';
 import { GraphSurface } from '../../host/graph/surface.ts';
 import {
   HOST_BLENDING_MULTIPLY,
@@ -143,3 +143,19 @@ for (const [name, blending] of MODES) {
     assert.deepEqual(said, ['effects-refused-blending']);
   });
 }
+
+test('a multiply instanced mesh placed nowhere keeps the chain on until it is placed', async () => {
+  const surface = blended(HOST_BLENDING_MULTIPLY),
+    placed = mesh(surface),
+    pool = new GraphInstancedMesh(placed.geometry, surface, 1);
+  pool.count = 0;
+  pool.frustumCulled = false;
+  const scene = new GraphScene().add(mesh(new GraphSurface('standard')), pool);
+  const view = session(scene, new EffectChain().add(effect.bloom()));
+  const said = await heard(view, () => {
+    assert.equal(view.frame().chained, true, 'nothing submitted, nothing refused');
+    pool.count = 1;
+    assert.equal(view.frame().chained, false);
+  });
+  assert.deepEqual(said, ['effects-refused-blending']);
+});
