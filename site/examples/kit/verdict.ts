@@ -1,4 +1,5 @@
 import { ligne, type LigneResultat, type Mesure } from '../../../bench/core/measureTypes.ts';
+import { failures } from './failure.ts';
 import { spread } from './profile.ts';
 import { statsCard } from './stats.ts';
 import { ms, rate } from './statsLines.ts';
@@ -88,29 +89,27 @@ function partLines(part: string, frames: Frame[]): LigneResultat[] {
 /**
  * Judges a world part by part: each frame it draws while `part()` names a part counts toward that
  * part's lines, from the counters the engine gives the frame. `refuse` records what a backend
- * refused, with its reason — one red line, never hidden; `verdict()` stops the counting and judges.
+ * refused, beside every uncaught error (`failures`): one red line; `verdict()` stops and judges.
  */
 export function healthCheck(
   world: { onFrame(hook: (frame: { metrics: Counters }) => void): () => void },
   part: () => string | null,
 ) {
-  const parts = new Map<string, Frame[]>(),
-    refused = new Set<string>();
+  const parts = new Map<string, Frame[]>();
   const unhook = world.onFrame(({ metrics }) => {
     const name = part();
     if (name === null) return;
     const frames = parts.get(name) ?? [];
     parts.set(name, frames);
-    const { gpuFrameMs, shadowPagesDrawn, shadowPagesRefetched } = metrics;
-    frames.push({ at: performance.now(), gpuFrameMs, shadowPagesDrawn, shadowPagesRefetched });
+    frames.push({ ...metrics, at: performance.now() });
   });
   return {
-    refuse: (reason: string) => void refused.add(reason),
+    refuse: (reason: string) => void failures.add(reason),
     verdict(): HealthVerdict {
       unhook();
       const resultats = [
         ...[...parts].flatMap(([name, frames]) => partLines(name, frames)),
-        ligne({ name: 'refused', correct: !refused.size, motif: [...refused].join('; ') || '—' }),
+        ligne({ name: 'refused', correct: !failures.size, motif: [...failures].join('; ') || '—' }),
       ];
       const [name, correct] = [exampleId(), resultats.every((line) => line.correct !== false)];
       return { name, fichier: `site/examples/${name}.html`, resultats, correct };
