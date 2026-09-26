@@ -5,6 +5,8 @@ import { dagFixture, wideCamera } from '../../page/selection/dag.fixture.ts';
 import { mockDagDevice } from './selection.fixture.ts';
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
 import { gatedDag, kernelUniforms, packed } from './selectionHelpers.fixture.ts';
+import { primitiveWordAt } from './worlds.ts';
+import { SHADOWLESS_ROOT } from '../../page/cut/select.ts';
 
 test("a shared command buffer is the caller's to submit, and abandoning it gives everything back", async () => {
   installGpuGlobals();
@@ -70,6 +72,43 @@ test('updating an instance world matrix leaves the old GPU cut one pose late', a
   assert.notEqual(selection.peek()?.worldRevision, selection.worldRevision);
   selection.dispatch(uniforms);
   assert.equal((await selection.flush())?.pageIds.length, 0);
+  selection.dispose();
+  fixture.geometry.dispose();
+});
+
+test('a root mark written once per change reaches the frame word the light cut reads', async () => {
+  // #456: a world mesh that stops casting leaves every GPU light cut (`markOf` in the shader).
+  installGpuGlobals();
+  const fixture = dagFixture();
+  const { dag, roots } = packed(fixture);
+  const { device } = mockDagDevice(dag);
+  const queue = device.queue as unknown as { writeBuffer: (...args: unknown[]) => void },
+    written = queue.writeBuffer,
+    words: [number, number][] = [];
+  queue.writeBuffer = (buffer, offset, data, dataOffset, size) => {
+    if (size === 4)
+      words.push([
+        (offset as number) / 4,
+        new Uint32Array(data as ArrayBuffer)[(dataOffset as number) / 4],
+      ]);
+    written.call(queue, buffer, offset, data, dataOffset, size);
+  };
+  const selection = await createGpuDagSelection(device, dag);
+  assert.ok(selection);
+  selection.dispatch(kernelUniforms(dag, roots, wideCamera(), 0));
+  await selection.flush();
+  const at = primitiveWordAt(0) + 3;
+  for (const mark of [SHADOWLESS_ROOT, SHADOWLESS_ROOT, 0]) selection.markWorld(0, mark);
+  assert.deepEqual(
+    words,
+    [
+      [at, SHADOWLESS_ROOT],
+      [at, 0],
+    ],
+    'one write per change',
+  );
+  assert.equal(dag.mark[0], 0);
+  assert.equal(selection.peek(), null, 'the cut in hand is void');
   selection.dispose();
   fixture.geometry.dispose();
 });

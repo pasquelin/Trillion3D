@@ -7,6 +7,7 @@ import {
 } from '../../../sdk-core/src/index.ts';
 import type { ClusterRoot } from '../page/selection/types.ts';
 import type { PlacementRows } from './rows.ts';
+import { withShadowless } from '../page/cut/select.ts';
 
 /** What a pose did to a placement: nothing, a move of one already moving, a first move. */
 export const MOVE_NONE = 0,
@@ -51,10 +52,11 @@ const moved = new Float64Array(BOX_VALUES),
 /**
  * Brings the roots of rows `from` to `to` level with what the owner wrote in them: each root's
  * world is already the row (a view), so only what the engine DERIVES from it follows — its world
- * box, reprojected from its local box, and its parked flag, which `park` hands to a GPU cut when
- * the engine has one; `posed` hears the rank of every root the rows pose, with the pose it now
- * has and whether its row was taken or parked — a move whatever its pose —, and says whether it
- * moved (`MOVE_*`); `follow` names each root that reads a written row. `touched` hears, root by
+ * box, reprojected from its local box, its parked flag and its shadowless bit (`ClusterRoot.mark`),
+ * which `flip` hands to a GPU cut when the engine has one; `posed` hears the rank of every root the
+ * rows pose, with the pose it now has and whether its row was taken or parked or began or stopped
+ * casting — a move whatever its pose, since the shadow pages it covers change —, and says whether
+ * it moved (`MOVE_*`); `follow` names each root that reads a written row. `touched` hears, root by
  * root, the box each moved or flipped root left and entered, and whether it was moving already: a
  * row of the range left where it stands — a pose written again unchanged, a row between two
  * written ones — touches nothing, and two roots far apart are two boxes, never the room between
@@ -66,7 +68,7 @@ export function followPlacementRows<T>(
   rows: PlacementRows,
   from: number,
   to: number,
-  park?: (rank: number, parked: boolean) => void,
+  flip?: (rank: number, root: ClusterRoot<T>) => void,
   posed?: (rank: number, world: ArrayLike<number>, forced: boolean) => number,
   follow?: (rank: number) => void,
   touched?: (min: ArrayLike<number>, max: ArrayLike<number>, movingOnly: boolean) => void,
@@ -79,14 +81,16 @@ export function followPlacementRows<T>(
     if (!entry) continue;
     const { root, rank } = entry;
     const parked = rows.live[index] === 0 || !!root.hidden,
-      flipped = parked !== !!root.parked;
-    // A row taken or parked moved, whatever its pose; otherwise its pose says whether it moved.
+      mark = withShadowless(root.mark ?? 0, rows.shadowless[index] === 1),
+      flipped = parked !== !!root.parked || mark !== (root.mark ?? 0);
+    // A row taken, parked or flipped in casting moved, whatever its pose; otherwise its pose says.
     const move = posed ? posed(rank, root.world.elements, flipped) : MOVE_PROMOTED;
     boxEmpty(moved, 0);
     if (root.worldBox && !root.parked) boxUnionBatch(moved, root.worldBox, 1);
     if (flipped) {
       root.parked = parked;
-      park?.(rank, parked);
+      root.mark = mark || undefined;
+      flip?.(rank, root);
     }
     follow?.(rank);
     if (root.worldBox && root.localBox)

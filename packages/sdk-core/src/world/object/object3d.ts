@@ -30,7 +30,6 @@ export class Object3D extends TransformNode {
   /** How the node is turned, as a quaternion. */ readonly quaternion = new Quaternion();
   /** How the node is stretched on each axis. */ readonly scale = new Vector3(1, 1, 1);
   /** Which way is up for `lookAt`. */ readonly up = new Vector3(0, 1, 0);
-  /** Whether the node casts shadows. */ castShadow = false;
   /** Whether shadows fall on the node. */ receiveShadow = false;
   /** Drawing order among see-through things. */ renderOrder = 0;
   /** Whether a renderer may skip it outside the view. */ frustumCulled = true;
@@ -52,6 +51,17 @@ export class Object3D extends TransformNode {
   }
   override set visible(value: boolean) {
     super.visible = value;
+    this._link?.pose(this);
+  }
+  private _castShadow = false;
+  /** Whether the node casts shadows: a mesh does unless set `false`, a light only when set `true`.
+   *  A mesh set `false` still receives the shadows of others. */
+  get castShadow() {
+    return this._castShadow;
+  }
+  set castShadow(value: boolean) {
+    if (value === this._castShadow) return;
+    this._castShadow = value;
     this._link?.pose(this);
   }
   override get parent(): Object3D | null {

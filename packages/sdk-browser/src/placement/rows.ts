@@ -3,7 +3,8 @@
  *
  * A resource — a primitive cut into pages, worn with one surface — is drawn at many places. Its
  * placements are not host nodes: they are rows of one buffer the owner writes, sixteen
- * column-major floats each, and a flag saying whether the row places the resource or is parked.
+ * column-major floats each, a flag saying whether the row places the resource or is parked, and one
+ * saying whether it casts no shadow.
  * The engine reads each row IN PLACE: a cluster root's world matrix is a view on its row
  * (`placementWorld`), so a pose the owner writes is the pose the next frame reads, with nothing
  * copied. A parked row keeps its root in every table and is skipped by every cut: taking it back
@@ -21,13 +22,20 @@ export type PlacementRows = {
   readonly matrices: Float64Array;
   /** 1 where the row places the resource, 0 where it is parked. */
   readonly live: Uint8Array;
+  /** 1 where the row casts no shadow (its mesh's `castShadow` is `false`), 0 where it casts. */
+  readonly shadowless: Uint8Array;
   /** Rows that fit before it grows. */
   readonly capacity: number;
 };
 
 export function createPlacementRows(capacity: number): PlacementRows {
   const rows = Math.max(1, capacity);
-  return { matrices: new Float64Array(rows * 16), live: new Uint8Array(rows), capacity: rows };
+  return {
+    matrices: new Float64Array(rows * 16),
+    live: new Uint8Array(rows),
+    shadowless: new Uint8Array(rows),
+    capacity: rows,
+  };
 }
 
 /** The capacity a table holding `held` entries grows to when it needs `needed`: twice as large at
@@ -41,6 +49,7 @@ export function growPlacementRows(before: PlacementRows | null, needed: number) 
   if (before) {
     rows.matrices.set(before.matrices);
     rows.live.set(before.live);
+    rows.shadowless.set(before.shadowless);
   }
   return rows;
 }

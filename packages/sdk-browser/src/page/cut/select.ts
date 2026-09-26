@@ -10,17 +10,25 @@ import { traverse } from './visit.ts';
 import type { ClusterRoot } from '../selection/types.ts';
 import { SPRITE_UNCULLED } from '../../visibility/shader/spriteWgsl.ts';
 
-/** True when a camera cut lets every node and page of a root marked `sprite` through: a root
- *  never culled (`SPRITE_UNCULLED`). A light's cut never walks a sprite (`castsNoShadow`). Read
- *  here and by the GPU cut's oracle (`dagViewFrames`). */
-export const openMark = (sprite: number | undefined, light: unknown) =>
-  ((sprite ?? 0) & SPRITE_UNCULLED) !== 0 && !light;
+/** True when a camera cut lets every node and page of a root through: a root never culled
+ *  (`SPRITE_UNCULLED`). A light's cut never walks a root that casts no shadow (`castsNoShadow`).
+ *  Read here and by the GPU cut's oracle (`dagViewFrames`). */
+export const openMark = (mark: number | undefined, light: unknown) =>
+  ((mark ?? 0) & SPRITE_UNCULLED) !== 0 && !light;
 export const openToCamera = <T>(s: { light?: unknown }, root: ClusterRoot<T>) =>
-  openMark(root.sprite, s.light);
+  openMark(root.mark, s.light);
 
-/** True when a light's cut leaves a root marked `sprite` out: a sprite casts no shadow
- *  (`ClusterRoot.sprite`). Read by the CPU cut and the GPU cut's oracle (`dagOracleDescent`). */
-export const castsNoShadow = (sprite: number | undefined, light: unknown) => !!light && !!sprite;
+/** The root mark's bit on a root that casts no shadow though it is no sprite: its mesh, or the
+ *  row it is placed by, says `castShadow = false` (`PlacementRows.shadowless`). */
+export const SHADOWLESS_ROOT = 4;
+/** `mark` with its shadowless bit set when `shadowless`, cleared otherwise. */
+export const withShadowless = (mark: number, shadowless: boolean) =>
+  shadowless ? mark | SHADOWLESS_ROOT : mark & ~SHADOWLESS_ROOT;
+
+/** True when a light's cut leaves a root out: every bit of its mark says it casts no shadow — a
+ *  sprite casts none, nor does a root marked `SHADOWLESS_ROOT` (`ClusterRoot.mark`). Read by the
+ *  CPU cut and the GPU cut's oracle (`dagOracleDescent`). */
+export const castsNoShadow = (mark: number | undefined, light: unknown) => !!light && !!mark;
 
 /** Six planes no box leaves, `(0, 0, 0, 1)` each: what an open root is walked against, here and
  *  in the GPU cut's oracle (`dagViewFrames`). */

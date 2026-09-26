@@ -141,10 +141,12 @@ export type ClusterRoot<T> = {
   parked?: boolean;
   /** True while the host hides the source node or one of its ancestors (`placement/hidden.ts`). */
   hidden?: boolean;
-  /** Its surface's sprite mark (`spriteMark`), absent on any other surface: `SPRITE_ROOT` keeps it
-   *  out of every light cut and of the shadow scene box, `SPRITE_UNCULLED` opens it to every camera
-   *  cut. Set once at collection. */
-  sprite?: number;
+  /** Its mark, absent when it is 0: its surface's sprite mark (`spriteMark`) — `SPRITE_ROOT` keeps
+   *  it out of every light cut and of the shadow scene box, `SPRITE_UNCULLED` opens it to every
+   *  camera cut —, and `SHADOWLESS_ROOT` when its mesh or row casts no shadow, which keeps it out
+   *  of every light cut. The sprite bits are set at collection; the shadowless one follows its row
+   *  (`followPlacementRows`). */
+  mark?: number;
   /** The instance-buffer row this root reads its world from, when it was collected from one. */
   placement?: PlacementOf;
 };

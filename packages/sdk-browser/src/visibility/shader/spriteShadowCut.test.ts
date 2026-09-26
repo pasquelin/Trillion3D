@@ -1,6 +1,7 @@
 // #364: a sprite casts no shadow. Its root carries `SPRITE_ROOT`, so the CPU light cut, the GPU
 // light cut and its oracle open no descent on it, and the sun's scene box leaves it out: no
 // caster row, no draw, no stretched depth range. Every other surface is selected as before.
+// #456: a mesh set `castShadow = false` is left out of both light cuts the same way.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { dagFixture, wideCamera } from '../../page/selection/dag.fixture.ts';
@@ -53,10 +54,17 @@ test('the CPU and GPU light cuts select no sprite, attenuated or not, and every 
     assert.deepEqual(lightCut(surfaceFixture(sizeAttenuation)), { cpu: 0, gpu: 0 });
 });
 
+test('the CPU and GPU light cuts select no mesh set to cast no shadow', () => {
+  const fixture = dagFixture();
+  assert.equal(fixture.mesh.castShadow, true, 'a mesh casts unless it says otherwise');
+  fixture.mesh.castShadow = false;
+  assert.deepEqual(lightCut(fixture), { cpu: 0, gpu: 0 });
+});
+
 test('the GPU light cut deposits no root for a sprite in its first queue', () => {
   assert.ok(
     DAG_SELECTION_SHADER.includes(
-      'let root=select(rootOf(w),0xffffffffu,isLightCut()&&spriteOf(w)!=0u);',
+      'let root=select(rootOf(w),0xffffffffu,isLightCut()&&markOf(w)!=0u);',
     ),
   );
 });
@@ -66,8 +74,8 @@ test('the shadow scene box leaves every sprite root out', () => {
   const { min, max } = sceneBox({
     selectionRoots: [
       { worldBox: Float64Array.of(-1, -1, -1, 1, 1, 1) },
-      { worldBox: Float64Array.of(50, 50, 50, 60, 60, 60), sprite: 1 },
-      { worldBox: Float64Array.of(-60, -60, -60, -50, -50, -50), sprite: 3 },
+      { worldBox: Float64Array.of(50, 50, 50, 60, 60, 60), mark: 1 },
+      { worldBox: Float64Array.of(-60, -60, -60, -50, -50, -50), mark: 3 },
     ],
     rows: { tableEpoch: 0 },
   });
