@@ -57,6 +57,18 @@ test('after a device loss the texture levels are rebuilt with no level read agai
   assert.equal(cache.levels.bytes, 0, "the first cook's levels left with it");
 });
 
+// Behaviour (#745): a level the lost session was reading, read again by the next one, is held once.
+test('a level read by both sides of a device loss is counted once', async () => {
+  const cache = createPageCache();
+  const lost = session(cache);
+  lost.levels.request(request(0), 0, [1024, 1024]);
+  lost.levels.destroy();
+  const reopened = session(cache);
+  await reopened.ask(0);
+  await lost.levels.settled();
+  assert.equal(cache.levels.bytes, 1024 * 1024);
+});
+
 // Behaviour (#745, #483 rule 1): the levels yield to the pages a frame keeps, before the proxy
 // and before any page leaves; a level that cannot fit is not read again every frame.
 test('a small CPU total: no page a frame keeps is refused for a texture level, the levels yield first', async () => {
