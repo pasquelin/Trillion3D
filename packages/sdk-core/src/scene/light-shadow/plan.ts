@@ -113,6 +113,11 @@ export function createShadowPlan(poolSide: number) {
         let slice = store.sliceOf(slot);
         if (slice < 0) {
           slice = records.claim();
+          // Every slice is held: this light lights unshadowed, and the frame counts it.
+          if (slice < 0) {
+            counts.unslicedCasters++;
+            continue;
+          }
           posed[slice] = frame;
         }
         records.fit(slice, rank);
