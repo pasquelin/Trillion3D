@@ -131,7 +131,9 @@ export function createWebglParticleDraw(
       gl.uniform1i(live.uniforms.curve, TONE_MAPPING_RANK[curve]);
       bindWebglTexture(gl, 1, live.copy.texture);
       gl.enable(gl.BLEND);
-      gl.disable(gl.DEPTH_TEST); // the soft edge is the only depth test, as on WebGPU
+      gl.enable(gl.DEPTH_TEST); // hidden fragments skipped; the soft edge fades the rest
+      gl.depthFunc(gl.LEQUAL);
+      gl.depthMask(false);
       gl.disable(gl.CULL_FACE);
       let draws = 0;
       for (const pool of order) {
@@ -153,6 +155,7 @@ export function createWebglParticleDraw(
       gl.activeTexture(gl.TEXTURE0);
       gl.bindTexture(gl.TEXTURE_2D, null);
       gl.disable(gl.BLEND);
+      gl.depthMask(true);
       gl.bindVertexArray(null);
       gl.useProgram(null);
       return draws;
