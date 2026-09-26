@@ -2067,7 +2067,7 @@
       "clipAction": "播放 `clip` 的动作对象。",
       "play": "立即播放 `clip`。",
       "stopAll": "停止所有动作。",
-      "update": "把所有正在播放的动作推进 `seconds` 秒,并写入采样得到的数值。"
+      "update": "把所有正在播放的动作推进 `seconds` 秒,然后向每个属性写入其各动作采样值在其静止值之上的加权混合。"
     }
   },
   "ModelRecord": {
