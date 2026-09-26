@@ -45,7 +45,6 @@ export function createTileStreamer(
   /** Each open model's tiles, empty until its file lands: the array is its opening, so one that
    *  left and came back while its file was on its way lands once, from the later opening. */
   const models = new Map<Model, Placed[]>();
-  const byIndex = new Map<number, Placed>();
   const softs = createCookedSoftBodies(writer, bodies, invalidate, failed);
   let fetching = 0,
     overBudget = false;
@@ -63,7 +62,6 @@ export function createTileStreamer(
   }
   const evict = (p: Placed) => {
     if (p.id < 0) return;
-    byIndex.delete(p.id & BODY_INDEX);
     bodies.release(p.id & BODY_INDEX);
     p.id = -1;
   };
@@ -80,9 +78,8 @@ export function createTileStreamer(
       const bytes = await cookedBytes(p.model, p.tile.url, 'Physics tile');
       // Its model left, or was opened again meanwhile: this tile is no longer one it holds.
       if (models.get(p.model) !== opening) return;
-      p.id = bodies.claim(p.tile.triangles);
+      p.id = bodies.claim(p.tile.triangles, 0, { model: p.model, tile: p });
       const handle = p.id & BODY_INDEX;
-      byIndex.set(handle, p);
       const { position, quaternion, scale } = tilePose(p);
       // The matter the node's collider declares, over the engine's default, as for every body.
       const matter = physicsMatterOf(p.instance);
@@ -164,21 +161,22 @@ export function createTileStreamer(
       overBudget = asked > budget.triangles;
     },
     /** The model a tile body's or a cooked soft body's engine id belongs to, or `null`. */
-    modelOf: (id: number) => byIndex.get(id & BODY_INDEX)?.model ?? softs.modelOf(id),
+    modelOf: bodies.slots.modelOf,
     /** The worker refused body `id`: a tile or a cooked soft body leaves, its slot and budget
      *  given back, and is not made again until its model opens again; any other body is ignored. */
     refused(id: number) {
-      const p = byIndex.get(id & BODY_INDEX);
-      if (p?.id !== id) {
-        softs.refused(id);
-        return;
-      }
-      evict(p);
-      const placed = models.get(p.model)!;
-      placed.splice(placed.indexOf(p), 1);
+      const owner = bodies.slots.of(id);
+      if (owner && 'soft' in owner) return softs.refused(owner);
+      if (!owner || !('tile' in owner)) return;
+      evict(owner.tile);
+      const placed = models.get(owner.model)!;
+      placed.splice(placed.indexOf(owner.tile), 1);
     },
     /** The glTF material of a tile body's triangles, `-1` for none or for another body. */
-    materialOf: (id: number) => byIndex.get(id & BODY_INDEX)?.material ?? -1,
+    materialOf(id: number) {
+      const owner = bodies.slots.of(id);
+      return owner && 'tile' in owner ? owner.tile.material : -1;
+    },
     /** A model moved: its resident tiles and its cooked soft bodies follow. */
     moved(node: Object3D) {
       node.traverse((child) => {

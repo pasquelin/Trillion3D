@@ -5,7 +5,8 @@ import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 import { shadowsUnsettled } from '../pages/state/lights.ts';
 import { effectsMoved } from '../pages/render/encodeEffects.ts';
 import { guidesMoved } from '../pages/render/encodeGuides.ts';
-import { shadowPoolPending } from '../shadow/poolSize.ts';
+import { frameTargetsAwaited } from '../pages/prepare/targetGrant.ts';
+import { deviceAnswering } from './deviceAnswer.ts';
 
 /** What can still change the frame, one bit each; `unsettledReasons` names them. */
 const REASONS = [
@@ -57,8 +58,9 @@ export function unsettledMask(rt: WebgpuPagesRuntime) {
   if (run.overBudget) mask |= BIT.overBudget;
   // Only the partition establishes that history, and it runs only on opaque rows: a view without
   // any — blend clusters alone, the sky — has no occluder to remember. The bit stays set, so the
-  // first frame that packs a row still frees the rows the partition kept.
-  if (run.noOccluderHistory && rows.packedCount) mask |= BIT.noOccluderHistory;
+  // first frame that packs a row still frees the rows the partition kept. Without a partition —
+  // Hi-Z dropped — there is no history to establish.
+  if (run.noOccluderHistory && rows.packedCount && vis.gpuPartition) mask |= BIT.noOccluderHistory;
   if (run.deferredDrops.size) mask |= BIT.deferredDrops;
   if (!services.bootstrapState.ready) mask |= BIT.bootstrap;
   if (services.residency.busy) mask |= BIT.residencyBusy;
@@ -127,13 +129,10 @@ function recordHeldFrameWork(rt: WebgpuPagesRuntime, presented: boolean, submitM
 /**
  * A frame that casts a shadow while the device still answers for its shadow pool (`poolSize.ts`)
  * would be drawn without it, an incomplete image (#483): it is held instead, showing the previous
- * image or nothing yet, and `pendingWebgpuFrame` asks the next frame once the device answered. A
- * capture is never held: it waited for that answer before it began.
- */
-const awaitsShadowPool = (rt: WebgpuPagesRuntime) =>
-  shadowPoolPending(rt) !== undefined && !rt.capture.capturing;
-
-/**
+ * image or nothing yet, and `pendingWebgpuFrame` asks the next frame once the device answered. So
+ * is a frame whose targets the device has not granted (`targetGrant.ts`). A capture is never held:
+ * it waited for those answers before it began (`deviceAnswering`).
+ *
  * The held frame. No CPU step is executed and nothing is re-encoded: the previous frame's colour
  * target IS this frame, to the bit, since nothing it depends on has moved. It is simply
  * redisplayed.
@@ -144,8 +143,10 @@ const awaitsShadowPool = (rt: WebgpuPagesRuntime) =>
  * Redisplaying the intact target yields it exactly, and that is the only command encoded.
  */
 export function holdWebgpuFrame(rt: WebgpuPagesRuntime, device: GPUDevice) {
-  const { run, gpu } = rt;
-  if (!awaitsShadowPool(rt)) {
+  const { run, gpu } = rt,
+    awaited = frameTargetsAwaited(rt),
+    answered = !deviceAnswering(rt);
+  if ((answered && !awaited) || rt.capture.capturing) {
     // Still frame: nothing it depends on has moved and nothing is in flight. That is the frame
     // input of temporal accumulation, which restarts there in a fixed phase and converges over a
     // full cycle of those frames before one of them can be held (`TAA_STILL_FRAMES`).
@@ -158,12 +159,14 @@ export function holdWebgpuFrame(rt: WebgpuPagesRuntime, device: GPUDevice) {
       return false;
     }
   }
-  run.frameHeld = true;
+  // Held on an answer still in flight is not the still frame the page waits for (`frameHeld`):
+  // that answer asks the next frame, and nothing it holds is this frame.
+  run.frameHeld = answered;
   run.frame++;
   const start = performance.now();
   let presented = false;
-  // Nothing drawn yet — a first frame waiting on its shadow pool —: nothing is shown.
-  if (gpu.presenter && gpu.colorTexture && run.imageRevision > 0) {
+  // Nothing drawn yet, or targets not granted: nothing is shown.
+  if (gpu.presenter && gpu.colorTexture && run.imageRevision > 0 && !awaited) {
     const encoder = device.createCommandEncoder({ label: 'Trillion3D held frame' });
     gpu.presenter.present(encoder, gpu.colorTexture, gpu.targetSize[0], gpu.targetSize[1]);
     device.queue.submit([encoder.finish()]);
