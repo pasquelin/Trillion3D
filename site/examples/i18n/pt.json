@@ -937,6 +937,23 @@
       "spin": "Girar"
     }
   },
+  "health-check": {
+    "banner": "Arraste para olhar em volta. Marque Conduzir para pegar o carro: W ou ↑ acelera, S ou ↓ trava, A D ou ← → viram. Soltar faz cair de novo as caixas e as bolas.",
+    "words": {
+      "credit": "Vale modelado em código para este exemplo, CC0 — ver assets/examples/CREDITS.md",
+      "refused": "Recusado neste backend"
+    },
+    "controls": {
+      "drive": "Conduzir o carro",
+      "drop": "Soltar de novo",
+      "reset": "Estacionar o carro de novo"
+    },
+    "readouts": {
+      "bodies": "Corpos",
+      "step": "Passo",
+      "renderer": "Desenhado com"
+    }
+  },
   "helpers-to-see-the-scene": {
     "banner": "Arraste para andar em volta. Desligue os ajudantes para ver só a imagem.",
     "controls": {
