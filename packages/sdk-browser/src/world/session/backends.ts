@@ -122,7 +122,7 @@ export async function prepareExplorerBackends(session: ExplorerSession, inputs: 
     // have read instead. What `textureSource` still decides is whether the LOADER opens the
     // source images for an engine that draws the host scene, not where the engine's texels
     // come from.
-    readTextureLevel: createTextureLevelReader(metadata.textures, base, signal),
+    readTextureLevel: createTextureLevelReader(metadata, base, options.pageCache?.levels, signal),
     sceneLights,
     importedLightIds,
   };

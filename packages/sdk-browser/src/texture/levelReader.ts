@@ -1,9 +1,12 @@
 import {
+  levelBlockBytes,
   PREVIEW_LOSSLESS_FORMAT,
   textureLevelUrl,
+  type ClusterManifest,
   type TextureLevelFormat,
 } from '../../../sdk-core/src/index.ts';
 import { checked } from '../cluster/pages.ts';
+import type { TextureLevelStore } from './levelStore.ts';
 
 /** What an engine reads of a baked level: the image decoded by the browser, ready to copy —
  *  or, block-compressed, the bytes as the file holds them, which the GPU reads as they are. */
@@ -19,12 +22,21 @@ export type TextureLevelRequest = {
   /** Which format. */
   format: TextureLevelFormat;
 };
-/** A function that fetches one baked texture level. */
-export type TextureLevelReader = (request: TextureLevelRequest) => Promise<TextureLevel>;
+/** A function that fetches one baked texture level. The explorer's names the cook `key` its levels
+ *  are kept under, and the `store` its session holds them in: its world's (`levelStore.ts`). */
+export type TextureLevelReader = ((request: TextureLevelRequest) => Promise<TextureLevel>) & {
+  readonly key?: string;
+  readonly store?: TextureLevelStore;
+};
 
 /** Host bytes a level holds: the bitmap's texels, or the blocks. */
 export const textureLevelBytes = (level: TextureLevel) =>
   level instanceof Uint8Array ? level.byteLength : level.width * level.height * 4;
+/** Host bytes the level `request` names will hold once read, `width` × `height` texels. */
+export const requestedLevelBytes = (
+  { format }: TextureLevelRequest,
+  [width, height]: readonly [number, number],
+) => (format === PREVIEW_LOSSLESS_FORMAT ? width * height * 4 : levelBlockBytes(width, height));
 export const closeTextureLevel = (level: TextureLevel) => {
   if (!(level instanceof Uint8Array)) level.close();
 };
@@ -36,14 +48,20 @@ export const closeTextureLevel = (level: TextureLevel) => {
  * (`premultiplyAlpha: 'none'`, `colorSpaceConversion: 'none'`, `../host/prepared/images.ts`): the bytes that reach the atlas
  * by this path are those that reached it by the other. A block level is read as bytes; the
  * write that cuts tiles from it checks their length against the level's geometry.
+ *
+ * Levels are kept in `store` under the cook's `key`, which hashes the source, its images, the
+ * compiler and every option that decides the product: under one key a level names one file.
+ * Another key's levels leave the store as this reader is made.
  */
 export function createTextureLevelReader(
-  textures: { url: string } | undefined,
+  { textures, key }: Pick<ClusterManifest, 'textures' | 'key'>,
   base: string,
+  store?: TextureLevelStore,
   signal?: AbortSignal,
 ): TextureLevelReader | undefined {
+  store?.keepOnly(key);
   if (!textures || typeof createImageBitmap !== 'function') return undefined;
-  return async ({ sha256, atlas, level, format }) => {
+  const read = async ({ sha256, atlas, level, format }: TextureLevelRequest) => {
     const url = new URL(textureLevelUrl(textures.url, sha256, atlas, level, format), base).href;
     const response = await checked(url, signal);
     if (format === PREVIEW_LOSSLESS_FORMAT)
@@ -53,4 +71,5 @@ export function createTextureLevelReader(
       });
     return new Uint8Array(await response.arrayBuffer());
   };
+  return Object.assign(read, { key, store });
 }
