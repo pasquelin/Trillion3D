@@ -27,9 +27,9 @@ export const GUIDE_CORNER_WGSL = `fn guideCorner(ca:vec4f,cb:vec4f,corner:vec2f,
  let na=lineClip(ca,run,0.0,viewport,pixelRatio);
  let nb=lineClip(cb,run,0.0,viewport,pixelRatio);
  let shown=select(width,0.0,length(na-ca)>0.0&&length(nb-cb)>0.0);
- let onPlane=select(na,nb,corner.x>0.5);
- let side=lineClip(select(ca,cb,corner.x>0.5),run*corner.y,shown,viewport,pixelRatio);
- return lineClip(side,(side-onPlane)*(corner.y*(1.0-2.0*corner.x)),shown,viewport,pixelRatio);
+ let end=select(na,nb,corner.x>0.5);
+ let side=lineClip(end,run*corner.y,shown,viewport,pixelRatio);
+ return lineClip(side,(side-end)*(corner.y*(1.0-2.0*corner.x)),shown,viewport,pixelRatio);
 }`;
 
 /** The same corner in the WebGL2 program, over `LINE_CLIP_GLSL`'s forward depth. */
@@ -38,9 +38,9 @@ export const GUIDE_CORNER_GLSL = `vec4 guideCorner(vec4 ca,vec4 cb,vec2 corner,f
  vec4 na=lineClip(ca,run,0.0,viewport,pixelRatio);
  vec4 nb=lineClip(cb,run,0.0,viewport,pixelRatio);
  float shown=length(na-ca)>0.0&&length(nb-cb)>0.0?0.0:width;
- vec4 onPlane=corner.x>0.5?nb:na;
- vec4 side=lineClip(corner.x>0.5?cb:ca,run*corner.y,shown,viewport,pixelRatio);
- return lineClip(side,(side-onPlane)*(corner.y*(1.0-2.0*corner.x)),shown,viewport,pixelRatio);
+ vec4 end=corner.x>0.5?nb:na;
+ vec4 side=lineClip(end,run*corner.y,shown,viewport,pixelRatio);
+ return lineClip(side,(side-end)*(corner.y*(1.0-2.0*corner.x)),shown,viewport,pixelRatio);
 }`;
 
 /**

@@ -9,7 +9,6 @@ import { createHostDrawCamera, readHostDrawCamera, type HostCamera } from '../..
 import { createBackendPresenter } from './composeSurface.ts';
 import { createHeldFrame } from './heldFrame.ts';
 import { createWebglGuideDraw } from '../../guides/guideGl.ts';
-import { DEFAULT_PIXEL_RATIO } from '../../backend/common.ts';
 import type { GuideSet } from '../../guides/guideSet.ts';
 import type { SceneColour } from '../../webgl/cluster/lights.ts';
 import {
@@ -41,11 +40,13 @@ export type ComposedChain = { chain: EffectChain; shown: () => boolean };
 export function createFrameComposer(
   gl: WebGL2RenderingContext,
   camera: HostCamera,
-  layers: { effects?: ComposedChain; guides?: GuideSet; pixelRatio?: () => number } = {},
+  layers: { effects?: ComposedChain } & (
+    { guides?: undefined } | { guides: GuideSet; pixelRatio: () => number }
+  ) = {},
 ) {
-  const { effects: composed, guides, pixelRatio = () => DEFAULT_PIXEL_RATIO } = layers;
+  const { effects: composed, guides } = layers;
   const heldFrame = createHeldFrame(gl);
-  const guideDraw = createWebglGuideDraw(gl, pixelRatio);
+  const guideDraw = createWebglGuideDraw(gl);
   let guidesDrawn = guides?.revision ?? 0;
   const present = createBackendPresenter(gl);
   const effects = composed && createWebglEffects(gl);
@@ -141,9 +142,9 @@ export function createFrameComposer(
       // The guides land where the chain drew, over the depth it carried.
       output.framebuffer = target?.framebuffer ?? null;
     }
-    if (guides) {
-      guidesDrawn = guides.revision;
-      guideDraw.draw(guides, drawCamera, output);
+    if (layers.guides) {
+      guidesDrawn = layers.guides.revision;
+      guideDraw.draw(layers.guides, drawCamera, output, layers.pixelRatio());
     }
     if (target) return;
     heldFrame.keep(width, height);
