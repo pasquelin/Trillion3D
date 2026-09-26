@@ -1,8 +1,8 @@
-/** A vector as the shaders build one, flattened: an integer word as an unsigned 32-bit integer, a
- *  float as it is. */
+/** An unsigned vector as the shaders build one (`vec2u`, `uvec4`…), flattened: each word converted
+ *  as the GPU does, truncated and wrapped to an unsigned 32-bit integer. */
 export const vec = (...parts: Array<number | Record<string, number>>) => {
   const words = parts.flatMap((part) =>
-    typeof part === 'number' ? [Number.isInteger(part) ? part >>> 0 : part] : Object.values(part),
+    typeof part === 'number' ? [part >>> 0] : Object.values(part),
   );
   return Object.fromEntries(words.map((word, i) => ['xyzw'[i], word]));
 };
