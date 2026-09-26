@@ -53,10 +53,9 @@ test('WebGPU: one timed pass writes the step words and the staged records, once'
 });
 
 test('WebGPU: a step that cannot compile is heard, and its pools stop asking frames', async () => {
-  const heard: unknown[] = [];
-  const particles = createWebgpuParticles(fakeDevice({ compute: false }).device, (e) =>
-    heard.push(e),
-  );
+  const heard: unknown[] = [],
+    { device } = fakeDevice({ compute: false });
+  const particles = createWebgpuParticles(device, (error) => heard.push(error));
   const pool = new ParticlePool({ capacity: 8 });
   pool.emit(0, 0, 0, 0, 1, 0, 2);
   await tick();
