@@ -5,9 +5,12 @@
 //!
 //! A masked material keeps a texel when its alpha, times the material's
 //! `baseColorFactor` alpha, reaches the cutoff (`alpha >= alphaTest`), and the
-//! median of four does not keep the share of texels that do: on foliage the coarse levels thin out (sponza's masked maps
-//! lose up to 57 % of their coverage at level 8, #44). So, at every level `k ≥ 1`
-//! of a coverage chain whose cutoff byte `C` is not 0 (`cutoff_byte`):
+//! median of four does not keep the share of texels that do: on foliage the
+//! coarse levels thin out (sponza's masked maps lose up to 57 % of their coverage
+//! at level 8, #44). A texture's cutoff byte `C` is the lowest of its readers'
+//! (`material_cutoff`), 0 when one of them blends: a blended surface draws the
+//! alpha itself, whose mean the scale would move. So, at every level `k ≥ 1` of
+//! a coverage chain whose cutoff byte `C` is not 0:
 //!
 //! 1. the level is reduced as any other — colours, then the median alpha;
 //! 2. `n0` counts level 0's texels whose alpha is `≥ C`, `N0` and `Nk` are the
@@ -23,16 +26,15 @@
 //!    below it: exactly `above(t)` texels pass. `t = C` leaves the level as it is.
 //!
 //! Level `k + 1` is reduced from these bytes. Colours are not touched. A chain
-//! whose cutoff is 0 — every reader blends — keeps the median alone.
+//! whose cutoff is 0 keeps the median alone.
 
-use super::collect::AtlasTexture;
 use super::reduce::AtlasKind;
 use serde_json::Value;
 
 /// The smallest byte a masked material keeps at `cutoff` (`b / 255 >= cutoff`,
 /// the engine's test on the sampled alpha), for a cutoff above 0 as every
-/// coverage reader's is; 0 — no scaling — when no byte reaches it, since such a
-/// material keeps no texel at any level.
+/// coverage reader's is; 0 — the median alone — when no byte reaches it, since
+/// such a material keeps no texel at any level.
 pub(super) fn cutoff_byte(cutoff: f32) -> u8 {
     (1..=255u8)
         .find(|&byte| f32::from(byte) / 255.0 >= cutoff)
@@ -48,27 +50,6 @@ pub(super) fn material_cutoff(material: &Value, cutoff: f32) -> u8 {
         .and_then(Value::as_f64)
         .unwrap_or(1.0) as f32;
     cutoff_byte(cutoff / opacity.max(0.0))
-}
-
-/// The cutoff byte of an image's coverage chain, which every coverage texture
-/// of the image shares: the lowest one above 0 among them, 0 when every one blends.
-pub(super) fn image_cutoff(readers: &[AtlasTexture]) -> u8 {
-    readers
-        .iter()
-        .filter_map(|r| match r.kind {
-            AtlasKind::Coverage(cutoff) => Some(cutoff),
-            _ => None,
-        })
-        .fold(0, lowest_cutoff)
-}
-
-/// The cutoff two coverage readers share: the lower one that cuts, 0 only when
-/// neither does — a blended reader, or one that keeps no texel, cuts nothing.
-pub(super) fn lowest_cutoff(a: u8, b: u8) -> u8 {
-    match (a, b) {
-        (0, cut) | (cut, 0) => cut,
-        _ => a.min(b),
-    }
 }
 
 /// What level 0 covers at the chain's cutoff: the share every level keeps.
