@@ -5,7 +5,6 @@ import { createWebglProgram } from '../webgl/core/program.ts';
 import {
   bindWebglTexture,
   createWebglRenderTarget,
-  halfFloatTargets,
   type WebglRenderTarget,
 } from '../webgl/core/renderTarget.ts';
 import { createPoolStates, usedSlots } from './poolStates.ts';
@@ -43,22 +42,23 @@ void main() {
 type PoolState = { targets: [WebglRenderTarget, WebglRenderTarget]; staged: WebGLTexture };
 
 /**
- * The WebGL2 particle step: each pool's state in two half-float targets drawn in turn by one
+ * The WebGL2 particle step: each pool's state in two 32-bit float targets drawn in turn by one
  * full-screen pass over the rows its emitted slots fill, which reads the other target and the
  * pool's staged records, uploaded as 32-bit float texels up to the image's count. A pool's
  * targets are made the first time it moves, given back the image after the world lets it go,
- * and rebuilt after a lost context. A context that renders no half float refuses every pool by
- * name: the ping-pong has no other target. The pass leaves no framebuffer, program or vertex
- * array bound.
+ * and rebuilt after a lost context. Ages, positions and velocities keep the WebGPU step's 32
+ * bits: a context without `EXT_color_buffer_float` refuses every pool by name, never steps it
+ * with less. The pass leaves no framebuffer, program or vertex array bound.
  */
 export function createWebglParticles(gl: WebGL2RenderingContext) {
-  const supported = halfFloatTargets(gl);
+  const floatTargets = () => !!gl.getExtension('EXT_color_buffer_float');
+  const supported = floatTargets();
   /** Each pool's targets, made on the live context and lost with it. */
   const poolStates = () =>
     createPoolStates<PoolState>(
       (pool) => {
         const rows = Math.ceil(pool.capacity / PARTICLE_ROW),
-          target = () => createWebglRenderTarget(gl, TEXELS, rows, { depth: false, hdr: true });
+          target = () => createWebglRenderTarget(gl, TEXELS, rows, { depth: false, float: true });
         const staged = gl.createTexture()!;
         bindWebglTexture(gl, 1, staged);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
@@ -76,7 +76,7 @@ export function createWebglParticles(gl: WebGL2RenderingContext) {
     gl,
     () => {
       // A restored context starts with no extension enabled: the targets need it again.
-      halfFloatTargets(gl);
+      floatTargets();
       const program = createWebglProgram(gl, FULLSCREEN_VERTEX, PARTICLES_GLSL);
       const at = (name: string) => gl.getUniformLocation(program, name);
       gl.useProgram(program);
@@ -108,14 +108,14 @@ export function createWebglParticles(gl: WebGL2RenderingContext) {
   };
   return {
     /** Steps `pools`; returns the draws made. Throws `PARTICLES_UNSUPPORTED`, the pools refused,
-     *  on a context without half-float targets. */
+     *  on a context without 32-bit float targets. */
     run(pools: readonly ParticlePool[]) {
       if (!supported) {
         for (const pool of pools) pool.refused = true; // it asks no frame of its own
         if (!pools.length) return 0;
         throw new Error(
-          'PARTICLES_UNSUPPORTED: WebGL2 particles render half floats, and this context grants ' +
-            'neither EXT_color_buffer_half_float nor EXT_color_buffer_float',
+          'PARTICLES_UNSUPPORTED: WebGL2 particles render 32-bit floats, and this context ' +
+            'does not grant EXT_color_buffer_float',
         );
       }
       const live = held.current();
