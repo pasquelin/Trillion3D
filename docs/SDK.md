@@ -1258,8 +1258,8 @@ bend }` simulates the mesh's vertices one by one on Jolt's soft bodies. A cloth 
   (its vertices do not turn). A soft body is a
   direct child of the scene; moved by the page, it is carried there with its vertices, its
   simulation kept; placed at another scale than it was made at, it is refused with
-  `PHYSICS_FAILED` and leaves the simulation until its `physics` is set again (Jolt scales no soft
-  body once made); hidden, its vertices are not sent. It takes no velocity, impulse, joint or
+  `PHYSICS_FAILED` and leaves the simulation until it is back at that scale (Jolt scales no soft
+  body once made), as a compiled model's cooked one does; hidden, its vertices are not sent. It takes no velocity, impulse, joint or
   vehicle. Rigid bodies and the character collide with its vertices: the
   character is turned aside or stopped, never pushing it; a rigid body much heavier than the skin
   it lands on can push between its vertices; soft bodies pass through each other (Jolt collides
