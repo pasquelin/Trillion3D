@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test, { mock } from 'node:test';
 import { LIGHT_SETTINGS } from '../../../packages/sdk-core/src/scene/light/contracts.ts';
+import { failures } from './failure.ts';
 import { BUDGETS, healthCheck, type Counters as Metrics } from './verdict.ts';
 
 /** Draws `count` frames of `part`, `gap` ms apart, each with `metrics(k)`, and returns the
@@ -75,12 +76,13 @@ test('each counter over its budget turns its own line red; one the engine does n
     assert.deepEqual(lines[`close: ${quantity}`], [null, '—']);
 });
 
-test('what a backend refuses is one red line with its reasons; frames outside a part count nowhere', () => {
+test('what a backend refuses and every uncaught error are one red line; frames outside a part count nowhere', () => {
+  failures.add('boom');
   const { correct, lines } = judged(
     [[null as never, 10, 10, healthy]],
     ['no shadows', 'no toon', 'no shadows'],
   );
   assert.equal(correct, false);
   assert.deepEqual(Object.keys(lines), ['refused']);
-  assert.deepEqual(lines.refused, [false, 'no shadows; no toon']);
+  assert.deepEqual(lines.refused, [false, 'boom; no shadows; no toon']);
 });

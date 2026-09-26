@@ -3,9 +3,10 @@ import { kitWord } from './words.ts';
 
 /**
  * What the reader sees when the example stops on an error — a model that did not load, a device
- * the engine refused: a card over the render naming the error, instead of a black page.
+ * the engine refused: a card naming the error, and its message in `failures`, a verdict's reasons.
  */
 let shown: HTMLElement | undefined;
+export const failures = new Set<string>();
 
 /** The card, once: the first error is the one that stopped the page. */
 function showFailure(error: unknown) {
@@ -19,6 +20,7 @@ function showFailure(error: unknown) {
   const detail = document.createElement('p');
   detail.className = 'text-xs break-words';
   detail.textContent = error instanceof Error ? error.message : String(error);
+  failures.add(detail.textContent);
   const text = document.createElement('div');
   text.append(title, detail);
   shown.append(text);
