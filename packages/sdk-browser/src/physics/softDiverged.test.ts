@@ -14,12 +14,14 @@ test('a finite scene steps exactly as before, but for pinned cloths that never s
 
 /** A module whose cloth rests on the floor and on a box (the pairs entered), all wanting events;
  *  then the body `index` sent to `x`, not finite, in a step of no time. */
-async function spoiled(index: number, x: number) {
+async function spoiled(index: number, x: number, cone = false) {
   const jolt = await softWorld();
   const record = flatCloth(jolt, 1, [], true);
   addBox(jolt, 1, 0.1, FLAG.events);
   settle(jolt, record, 2);
   const writer = new CommandWriter();
+  // A view cone: a body gone non-finite is in none, and is named all the same.
+  if (cone) writer.view([0, 1, 5], [0, 0, -1], 0.5, 400);
   writer.teleport(index & BODY_INDEX, [x, 1, 0], [0, 0, 0, 1]);
   const posed = jolt.step(writer.take(), 0);
   return { jolt, record, posed };
@@ -51,8 +53,14 @@ test('a soft body whose vertices go non-finite sends none, is named once, and le
 });
 
 test('a rigid body whose pose goes non-finite sends none, is named once, and leaves', async () => {
-  for (const x of [NaN, Infinity, -Infinity]) {
-    const { jolt, posed } = await spoiled(BOX, x);
+  for (const [x, cone] of [NaN, Infinity, -Infinity].flatMap(
+    (x) =>
+      [
+        [x, false],
+        [x, true],
+      ] as const,
+  )) {
+    const { jolt, posed } = await spoiled(BOX, x, cone);
     assert.equal(posed, 0, `${x}: no pose reaches the page`);
     assert.deepEqual(jolt.diverged(), [BOX], `${x}: named`);
     assert.deepEqual(leftBy(jolt, BOX), [FLOOR, CLOTH].sort(), `${x}: its pairs left`);

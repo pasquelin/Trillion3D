@@ -26,6 +26,8 @@ Placement place(const World &w, const Slot &slot, const Body &body) {
   AABox bounds = body.GetWorldSpaceBounds();
   Vec3 to = Vec3(bounds.GetCenter()) - v.eye;
   float radius = bounds.GetExtent().Length(), distance = to.Length();
+  // A body gone non-finite is placed nowhere: seen, so its pose is checked and it leaves (`put`).
+  if (!std::isfinite(distance - radius)) return {false, true};
   bool far = v.range > 0 && distance - radius > v.range;
   bool inCone = v.halfCone <= 0 || distance <= radius ||
                 std::acos(std::clamp(to.Dot(v.facing) / distance, -1.0f, 1.0f)) -

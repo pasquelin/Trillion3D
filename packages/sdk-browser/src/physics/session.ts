@@ -107,7 +107,9 @@ export function createPhysicsSession(
       // Refused shapes leave, tiles and cooked soft bodies by their owner; a fatal error ends all.
       for (const id of data.bodies ?? []) tiles.refused(id);
       const refused = (data.bodies ?? []).map(bodies.meshOf).filter((mesh) => mesh !== null);
-      for (const mesh of refused) retire(mesh.physics._index);
+      // A diverged body is out for good, as an asleep decorative one: its joints break.
+      const gone = data.code === 'PHYSICS_DIVERGED';
+      for (const mesh of refused) retire(mesh.physics._index, gone);
       const names = refused.map((mesh) => mesh.name);
       failed(new EngineError(data.code, data.message, names.length ? { names } : {}), data.fatal);
     }
