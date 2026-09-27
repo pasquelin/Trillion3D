@@ -1,4 +1,10 @@
 /** Record builders the physics tests share, free of Node: a page or a worker imports them too. */
+import { GENERATION_SHIFT } from '../../../sdk-core/src/physics/index.ts';
+
+/** Generation 1 of an engine id. */
+const GENERATION = 1 << GENERATION_SHIFT;
+/** Generation 1 of slot `slot`'s engine id. */
+export const id = (slot: number) => slot | GENERATION;
 
 /** A box body for the ADD command: engine id `id`, a motion, its height and half size. */
 export const body = (id: number, motion: number, y: number, half: number, flags = 0) => ({
