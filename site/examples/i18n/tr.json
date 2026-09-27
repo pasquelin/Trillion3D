@@ -1710,11 +1710,18 @@
   },
   "the-home-pose": {
     "banner": "Bir görünüm seçin, kamerayı hareket ettirin, sonra dönmek için Başlangıç'ı seçin.",
-    "controls": { "home": "Başlangıç", "tower": "Kule", "square": "Meydan", "hillside": "Yamaç" }
+    "controls": {
+      "home": "Başlangıç",
+      "tower": "Kule",
+      "square": "Meydan",
+      "hillside": "Yamaç"
+    }
   },
   "the-near-plane-cuts-a-wall": {
     "banner": "Yakın düzlemi ilerletin ve her duvarı kesmesini izleyin.",
-    "controls": { "nearPlane": "Yakın düzlem" }
+    "controls": {
+      "nearPlane": "Yakın düzlem"
+    }
   },
   "the-material-family": {
     "banner": "Etrafta dolaşmak için sürükle. Işığı geceye çevir ve hâlâ neyin parladığını gör.",
@@ -2190,6 +2197,16 @@
     },
     "readouts": {
       "progress": "İlerleme"
+    }
+  },
+  "a-folder-merged-into-one-scene": {
+    "banner": "Sokak köşesini incelemek için sürükleyin. Derleyici bir klasördeki üç OBJ dosyasını bu sahnede birleştirdi.",
+    "controls": {
+      "visible": "Görünür",
+      "home": "Başlangıç"
+    },
+    "words": {
+      "credit": "Sokak lambası modeli: W. Sitters, CC BY 3.0 — bkz. assets/examples/CREDITS.md"
     }
   }
 }
