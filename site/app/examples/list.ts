@@ -17,22 +17,32 @@ interface RoadmapEntry {
 
 export const roadmapEntries = roadmap.entries as RoadmapEntry[];
 
-/** Whether the gallery opens an entry: it has a file, and nothing left to wait for. */
+/** Whether an example is complete: it has source and waits on no engine capability. */
 export const isReady = ({ file, status }: RoadmapEntry) => Boolean(file) && !status;
 
 export const readyEntries = roadmapEntries.filter(isReady);
 
+/** Complete examples used by capture and browser proofs. */
 export const readyExampleIds = readyEntries.map(({ id }) => id);
 
-/** The ready examples, theme by theme, in the order of the file; a theme with none is left out. */
-export const readyThemes = roadmap.themes
-  .map((theme) => ({ theme, entries: readyEntries.filter((entry) => entry.theme === theme) }))
+/** Examples with source to open: complete ones and pages parked on an engine capability. */
+export const writtenEntries = roadmapEntries.filter(({ file }) => Boolean(file));
+
+export const writtenExampleIds = writtenEntries.map(({ id }) => id);
+
+/** Written examples in the sidebar, including parked pages whose source is useful to inspect. */
+export const writtenThemes = roadmap.themes
+  .map((theme) => ({ theme, entries: writtenEntries.filter((entry) => entry.theme === theme) }))
   .filter(({ entries }) => entries.length > 0);
 
-/** Every entry of the list, theme by theme: the ready examples, and those still to come. */
+/** Each theme's presentation: runnable work first, then parked source, then unwritten titles. */
 export const themedEntries = roadmap.themes.map((theme) => ({
   theme,
-  entries: roadmapEntries.filter((entry) => entry.theme === theme),
+  ready: roadmapEntries.filter((entry) => entry.theme === theme && isReady(entry)),
+  parked: roadmapEntries.filter(
+    (entry) => entry.theme === theme && Boolean(entry.file) && !isReady(entry),
+  ),
+  coming: roadmapEntries.filter((entry) => entry.theme === theme && !entry.file),
 }));
 
 /** A theme's title in `locale`: `gallery.themes.<id>`. */
@@ -75,3 +85,4 @@ export const mosaicEntries = [
 
 /** The thumbnail an example's card and menu row show: its settled render. */
 export const thumbnailOf = (id: string) => `./assets/examples/thumbnails/${id}.png`;
+export const examplePlaceholder = './assets/example-in-progress.svg';

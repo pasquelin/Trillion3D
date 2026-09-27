@@ -35,7 +35,9 @@
     "jumpTo": "테마로 이동",
     "inProgress": "제작 중",
     "waitsFor": "엔진을 기다리는 중:",
-    "waitingEngine": "엔진을 기다리는 중"
+    "waitingEngine": "엔진을 기다리는 중",
+    "partial": "부분 지원",
+    "coming": "예정: {{titles}}"
   },
   "gallery": {
     "themes": {

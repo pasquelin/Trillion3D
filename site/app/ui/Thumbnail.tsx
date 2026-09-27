@@ -1,9 +1,20 @@
+import type { SyntheticEvent } from 'react';
+
 interface ThumbnailProps {
   href: string;
   src: string;
   label: string;
+  fallbackSrc?: string;
   /** The page the reader is on: outlined, and named current. */
   active?: boolean;
+}
+
+/** Replaces a missing capture once, leaving the shared placeholder failure inert. */
+function showFallbackImage(
+  image: Pick<HTMLImageElement, 'getAttribute' | 'src'>,
+  fallbackSrc: string,
+) {
+  if (image.getAttribute('src') !== fallbackSrc) image.src = fallbackSrc;
 }
 
 /** A render as a list shows it, the width of its column at 16:10 and loaded when it scrolls
@@ -11,11 +22,20 @@ interface ThumbnailProps {
  *  still to come. */
 export function Cover({
   src,
+  fallbackSrc,
   look = 'list',
 }: {
   src: string;
+  fallbackSrc?: string;
   look?: 'list' | 'card' | 'placeholder';
 }) {
+  const fallback = fallbackSrc
+    ? {
+        'data-fallback-src': fallbackSrc,
+        onError: (event: SyntheticEvent<HTMLImageElement>) =>
+          showFallbackImage(event.currentTarget, fallbackSrc),
+      }
+    : {};
   if (look === 'card') {
     return (
       <div className="aspect-[16/10] overflow-hidden rounded-box bg-base-300">
@@ -25,6 +45,7 @@ export function Cover({
           decoding="async"
           src={src}
           alt=""
+          {...fallback}
         />
       </div>
     );
@@ -35,13 +56,14 @@ export function Cover({
       src={src}
       alt=""
       loading="lazy"
+      {...fallback}
     />
   );
 }
 
 /** A picture that opens a page: the render the width of its column, its title under it on at most
  * two lines. */
-export function Thumbnail({ href, src, label, active = false }: ThumbnailProps) {
+export function Thumbnail({ href, src, label, fallbackSrc, active = false }: ThumbnailProps) {
   return (
     <a
       className={`grid gap-2 rounded-box p-2 hover:bg-base-300 ${active ? 'bg-base-300 ring-2 ring-primary' : ''}`}
@@ -49,7 +71,7 @@ export function Thumbnail({ href, src, label, active = false }: ThumbnailProps) 
       title={label}
       aria-current={active ? 'page' : undefined}
     >
-      <Cover src={src} />
+      <Cover src={src} fallbackSrc={fallbackSrc} />
       <span className="line-clamp-2 text-sm font-medium">{label}</span>
     </a>
   );
