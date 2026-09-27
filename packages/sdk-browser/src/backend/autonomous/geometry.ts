@@ -125,7 +125,10 @@ export function createAutonomousGeometry(env: GeometryEnvironment) {
       const list = byUrl.get(rec.url) ?? [],
         index = list.indexOf(rec);
       if (index >= 0) list.splice(index, 1);
-      if (!list.length && byUrl.delete(rec.url) && rec.array) state.residentPages--;
+      // The page leaves residency with the last record holding it, not the last listed: a
+      // mount's record of it may still wait for its bytes.
+      if (rec.array && !list.some((other) => other.array)) state.residentPages--;
+      if (!list.length) byUrl.delete(rec.url);
       release(rec, !!rec.placement && list.some((other) => other.geometry === rec.geometry));
       baseMaterials.delete(rec);
     }

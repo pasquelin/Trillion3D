@@ -103,7 +103,8 @@ export function createPageStreamerWith(
   return {
     admit: (more: readonly StreamPage[]) => more.forEach((page) => catalog.set(page.url, page)),
     forget: (urls: readonly string[]) =>
-      urls.forEach((url) => catalog.delete(url) && store.drop(url)),
+      // A page in transfer stays catalogued: its job reads its size when it settles.
+      urls.forEach((url) => !jobs.has(url) && catalog.delete(url) && store.drop(url)),
     get(url: string) {
       const array = cache.get(url);
       if (array) touch(url, array);
