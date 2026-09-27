@@ -42,7 +42,7 @@ test('DAG warnings from cache surface as a diagnostic on open', () => {
     primitives: [{ ...flat, index: 1, mesh: 1, primitive: 0 }],
     stalled: [row],
   });
-  // A primitive whose stall kept no level-0 root is not in the compiler's table: nothing is said.
+  // No warning and an empty stall table: nothing is said, even if a primitive's report has stalls.
   assert.equal(
     dagWarningsDiagnostic({ primitives: primitives.slice(0, 1), worstStalls: [] }),
     null,
