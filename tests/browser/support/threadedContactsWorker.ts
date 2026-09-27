@@ -11,6 +11,7 @@ import {
 } from '../../../packages/sdk-browser/src/physics/joltThreads.ts';
 import {
   pile,
+  PILE_BUDGET,
   type PileStep,
 } from '../../../packages/sdk-browser/src/physics/contactPile.fixture.ts';
 
@@ -28,8 +29,8 @@ const scope = globalThis as unknown as {
 };
 
 const MODULES = '../../../packages/sdk-browser/src/physics/';
-/** The budget of the Node proof (`startModule`): 64 bodies, 64 MB, 256 events a step. */
-const BUDGET = { ...DEFAULT_PHYSICS_BUDGET, bodies: 64, memoryBytes: 64 << 20, contactEvents: 256 };
+/** The Node proof's budget: the pile's, in 64 MB (`startModule`). */
+const BUDGET = { ...DEFAULT_PHYSICS_BUDGET, memoryBytes: 64 << 20, ...PILE_BUDGET };
 
 /** A module stepped by `threads` threads, the threaded module's when more than one, once each
  *  of its threads has loaded. */
