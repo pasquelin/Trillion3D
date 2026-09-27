@@ -1,6 +1,5 @@
-import { hizLevelSizes } from '../hiz/oracle.ts';
 import { createHizPipelines } from '../hiz/pipelines.ts';
-import { hizBuildPasses, writeHizBuildUniforms } from '../hiz/uniforms.ts';
+import { hizBuildPasses, pyramidBytes, writeHizBuildUniforms } from '../hiz/uniforms.ts';
 import { encodeHizPyramid } from '../hiz/pyramid.ts';
 import { SHADOW_PAGE } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { MAX_SHADOW_PAGES } from './recordPack.ts';
@@ -8,15 +7,12 @@ import { shadowBatchWrites } from './batchWrites.ts';
 import { PAGE_BOUNDS_WORDS } from './batchBudget.ts';
 
 const UNIFORM_BYTES = 256;
-/** Levels of a page's pyramid, from the page's 128 texels down to one. */
-export const PAGE_HIZ_LEVELS = Math.log2(SHADOW_PAGE) + 1;
-/** First word of each level inside one page's pyramid, and the words of a whole pyramid. */
-export const PAGE_HIZ_OFFSETS = Array.from({ length: PAGE_HIZ_LEVELS }, (_, level) => {
-  let offset = 0;
-  for (let l = 0; l < level; l++) offset += (SHADOW_PAGE >> l) ** 2;
-  return offset;
-});
-export const PAGE_HIZ_WORDS = PAGE_HIZ_OFFSETS[PAGE_HIZ_LEVELS - 1] + 1;
+/** One page's pyramid, from the page's 128 texels down to one: its mip sizes, the first word of
+ *  each level and the words of a whole pyramid. */
+const PAGE_PYRAMID = pyramidBytes(SHADOW_PAGE, SHADOW_PAGE);
+export const PAGE_HIZ_LEVELS = PAGE_PYRAMID.sizes.length;
+export const PAGE_HIZ_OFFSETS = PAGE_PYRAMID.offsets;
+export const PAGE_HIZ_WORDS = PAGE_PYRAMID.texels;
 
 /**
  * THE DEPTH PYRAMIDS OF THE STATIC LAYER'S PAGES, built by the camera's own Hi-Z kernels
@@ -32,7 +28,7 @@ export async function createShadowPageHiz(device: GPUDevice, layer: GPUTextureVi
   const pipelines = await createHizPipelines(device, UNIFORM_BYTES);
   if (!pipelines) throw new Error('SHADOW_PAGE_HIZ_UNAVAILABLE');
   const storage = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST;
-  const sizes = hizLevelSizes(SHADOW_PAGE, SHADOW_PAGE),
+  const { sizes } = PAGE_PYRAMID,
     passes = hizBuildPasses(sizes, PAGE_HIZ_LEVELS);
   const pyramid = device.createBuffer({
       label: 'Trillion3D shadow page pyramids v1',
