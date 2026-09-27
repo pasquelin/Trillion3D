@@ -1,16 +1,16 @@
 /**
- * WHAT A NODE OF THE ENGINE'S GRAPH IS, READ FROM ITS `kind`: the one discriminant every reader
- * of the graph narrows on — a walk keeping the drawn nodes, the lighting keeping the lights, the
- * view keeping the eye. Each guard answers from `kind` alone, and the type it returns is the
- * class that kind is built by, so no reader has to assert what the graph already says; a mesh is
- * told by its class, the core's. A guard takes any object: a published display graph may be a
- * witness's, whose nodes carry no `kind` and are none of these.
+ * WHAT A NODE OF THE ENGINE'S GRAPH IS: the one test every reader of the graph narrows on — a
+ * walk keeping the drawn nodes, the lighting keeping the lights, the view keeping the eye. A mesh
+ * is told by its class, the core's `Mesh` or `InstancedMesh`; any other node by its `kind`. The
+ * type a guard returns is the class the node is built by, so no reader has to assert what the
+ * graph already says. A guard takes any object: a published display graph may be a witness's,
+ * whose nodes are none of these.
  */
 import type { GraphCamera } from './camera.ts';
 import type { GraphAmbientLight, GraphLight, GraphLightProbe, GraphRectLight } from './light.ts';
 import { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts';
 import { InstancedMesh } from '../../../../sdk-core/src/world/object/instancedMesh.ts';
-import type { GraphSurface } from './surface.ts';
+import type { HostInstancedMesh, HostMesh } from '../resources.ts';
 import type { GraphScene } from './scene.ts';
 
 /** The kind of a node, or `undefined` for an object that is not one of the graph's. */
@@ -20,10 +20,10 @@ const kindOf = (node: object) => ('kind' in node ? node.kind : undefined);
 export type GraphAnyLight = GraphLight | GraphAmbientLight | GraphRectLight | GraphLightProbe;
 
 /** The nodes a draw submits: a mesh of the core's at one placement, or at several. */
-export const isDrawnNode = (node: object): node is Mesh<GraphSurface> => node instanceof Mesh;
+export const isDrawnNode = (node: object): node is HostMesh => node instanceof Mesh;
 
 /** A mesh drawn at several placements. */
-export const isInstancedNode = (node: object): node is InstancedMesh<GraphSurface> =>
+export const isInstancedNode = (node: object): node is HostInstancedMesh =>
   node instanceof InstancedMesh;
 
 /** A light that aims or reaches: directional, point or spot. */

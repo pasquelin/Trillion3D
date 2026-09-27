@@ -12,7 +12,7 @@
  * witnesses' `bench/witnesses/three/fromGraph.ts`), never one of these.
  */
 import { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
-import { takeSerial } from '../../../../sdk-core/src/world/object/mesh.ts';
+import { takeSerial } from '../../../../sdk-core/src/world/object/objectSpace.ts';
 import type { GraphNodeKind } from './nodeKind.ts';
 export type { GraphLightKind, GraphNodeKind } from './nodeKind.ts';
 
