@@ -55,12 +55,12 @@ impl Geometry {
 fn unsupported(mesh: &str, what: &str) -> CompilerError {
     refused(
         "blend-mesh-layout-unsupported",
-        format!("blend: mesh {mesh} carries no {what}; this reader reads the named-attribute layout of Blender 4.4 and later"),
+        format!("blend: mesh {mesh} carries no {what}; this reader reads the mesh layouts of Blender 2.8 and later"),
     )
 }
 
-/// Reads the geometry of a mesh. A mesh that does not carry the named-attribute layout is
-/// refused by name rather than guessed.
+/// Reads the geometry of a mesh, whichever layout `attrs` decoded it from. A mesh that carries
+/// none of them is refused by name rather than guessed.
 pub(super) fn read(mesh: &At<'_>, name: &str) -> Result<Geometry> {
     let vertices = mesh.int("totvert", 0).max(0) as usize;
     let corner_count = mesh.int("totloop", 0).max(0) as usize;
@@ -156,10 +156,14 @@ fn named<'t, 'b>(
 
 /// Face offsets: an array of `faces + 1` increasing integers, bounded by the corners.
 fn offsets(mesh: &At<'_>, faces: usize, corners: usize) -> Option<Vec<u32>> {
-    let bytes = ["poly_offset_indices", "face_offset_indices"]
+    let bytes = match ["poly_offset_indices", "face_offset_indices"]
         .into_iter()
-        .find_map(|name| mesh.block(name))?;
-    let values = bytes::ints(bytes, faces + 1);
+        .find_map(|name| mesh.block(name))
+    {
+        Some(bytes) => std::borrow::Cow::Borrowed(bytes),
+        None => std::borrow::Cow::Owned(layers::offsets(mesh, faces, corners)?),
+    };
+    let values = bytes::ints(&bytes, faces + 1);
     if values.len() != faces + 1 {
         return None;
     }
