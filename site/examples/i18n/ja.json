@@ -563,6 +563,17 @@
       "bricks": "レンガ"
     }
   },
+  "measure-a-distance": {
+    "banner": "2つの面をクリックして間の距離を測ります。3回目のクリックで新しい測定を始めます。 1単位は1メートルです。",
+    "controls": {
+      "clear": "クリア"
+    },
+    "readouts": {
+      "pointA": "点A",
+      "pointB": "点B",
+      "distance": "距離"
+    }
+  },
   "click-to-pick": {
     "banner": "形をクリックしよう。光って、パネルがどこに当たったか教えてくれるよ。",
     "readouts": {

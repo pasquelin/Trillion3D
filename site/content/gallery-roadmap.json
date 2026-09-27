@@ -1192,6 +1192,11 @@
       "file": "examples/click-to-pick.html"
     },
     {
+      "id": "measure-a-distance",
+      "theme": "interaction",
+      "file": "examples/measure-a-distance.html"
+    },
+    {
       "id": "hover-over-triangles",
       "theme": "interaction",
       "file": "",

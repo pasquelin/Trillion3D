@@ -563,6 +563,17 @@
       "bricks": "Bata"
     }
   },
+  "measure-a-distance": {
+    "banner": "Klik dua permukaan untuk mengukur jarak di antaranya. Klik ketiga memulai pengukuran baru. Satu unit mewakili satu meter.",
+    "controls": {
+      "clear": "Hapus"
+    },
+    "readouts": {
+      "pointA": "Titik A",
+      "pointB": "Titik B",
+      "distance": "Jarak"
+    }
+  },
   "click-to-pick": {
     "banner": "Klik sebuah bentuk. Ia menyala dan panel memberi tahu di mana kamu mengenainya.",
     "readouts": {
