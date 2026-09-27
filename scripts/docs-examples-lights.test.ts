@@ -10,6 +10,11 @@ test('the wide-lamp control changes the public emitter radius', async () => {
     new URL('../site/examples/soft-shadows-from-a-wide-lamp.html', import.meta.url),
     'utf8',
   );
+  const roadmap = JSON.parse(
+    await readFile(new URL('../site/content/gallery-roadmap.json', import.meta.url), 'utf8'),
+  ) as { entries: { id: string; issue?: number }[] };
+  assert.match(html, /Waits for #33: light\.point\(\{ radius \}\) must widen the shadow penumbra/);
+  assert.equal(roadmap.entries.find(({ id }) => id === 'soft-shadows-from-a-wide-lamp')?.issue, 33);
   const scene = object.group();
   let change: ((values: { lampWidth: number; moveSubject: boolean }) => void) | undefined,
     frame: ((event: { delta: number }) => void) | undefined,
