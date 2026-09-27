@@ -45,10 +45,6 @@ impl BlendFile<'_> {
             scope: block.owner,
         })
     }
-    /// The bytes of a block.
-    pub(super) fn bytes_of(&self, block: &Block) -> Option<&[u8]> {
-        self.bytes.get(block.start..block.start + block.len)
-    }
 }
 
 impl<'a> At<'a> {
@@ -135,8 +131,7 @@ impl<'a> At<'a> {
     }
     /// The structure a pointer field designates, typed by the header of the reached block.
     pub(super) fn follow(&self, name: &str) -> Option<At<'a>> {
-        let block = self.reach(self.pointer(name))?;
-        self.file.view(block)
+        self.array(name).map(|(view, _)| view)
     }
     /// The structure array a pointer field designates, and the number of structures its block
     /// holds — as many as it announces, and as its bytes carry.
@@ -153,7 +148,8 @@ impl<'a> At<'a> {
     }
     /// The bytes of the block a pointer field designates.
     pub(super) fn block(&self, name: &str) -> Option<&'a [u8]> {
-        self.file.bytes_of(self.reach(self.pointer(name))?)
+        let block = self.reach(self.pointer(name))?;
+        self.file.bytes.get(block.start..block.start + block.len)
     }
     /// The view of an element of a structure array: the pointed-to block holds `count` structures
     /// in a row, and it is the size the SDNA declares that gives the stride.

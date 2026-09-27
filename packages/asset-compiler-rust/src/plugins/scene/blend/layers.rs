@@ -43,7 +43,7 @@ pub(super) fn attributes<'a>(mesh: &At<'a>, out: &mut Vec<(String, Attr<'a>)>) {
         let Some(data) = mesh.inner(field) else {
             continue;
         };
-        for layer in layers(&data) {
+        for layer in items(&data, "totlayer", "layers") {
             let name = layer.text("name");
             if let Some(kind) = property(layer.int("type", -1)) {
                 let span = Attr::width(kind).and_then(|width| width.checked_mul(count));
@@ -61,12 +61,13 @@ pub(super) fn attributes<'a>(mesh: &At<'a>, out: &mut Vec<(String, Attr<'a>)>) {
     }
 }
 
-/// The layers of a `CustomData` block, as many as it announces and its layer array holds.
-fn layers<'a>(data: &At<'a>) -> impl Iterator<Item = At<'a>> {
-    let announced = data.int("totlayer", 0).max(0) as usize;
-    let (head, held) = data.array("layers").unzip();
+/// The entries of a counted array — the layers of a `CustomData` block, the attributes of the
+/// store —: as many as `total` announces and the array's block holds, at most `MAX_ATTRIBUTES`.
+pub(super) fn items<'a>(data: &At<'a>, total: &str, array: &str) -> impl Iterator<Item = At<'a>> {
+    let announced = data.int(total, 0).max(0) as usize;
+    let (head, held) = data.array(array).unzip();
     let total = announced.min(held.unwrap_or(0)).min(MAX_ATTRIBUTES);
-    (0..total).filter_map(move |rank| head.and_then(|head| head.item(rank)))
+    (0..total).map_while(move |rank| head?.item(rank))
 }
 
 fn attr(domain: i64, kind: i64, values: Cow<'_, [u8]>, count: usize) -> Attr<'_> {
@@ -104,62 +105,41 @@ fn column<'a>(
     ))
 }
 
-/// The attributes a legacy structure array carries, repacked under the names of the later layouts.
+/// The attributes a legacy structure array carries, repacked under the names of the later layouts:
+/// a float field copied, an integer widened to `i32`, a flag `bit` kept as whether it equals `set`.
+/// `.face_start` is the first corner of each face, which the later layouts store as face offsets.
 fn structures<'a>(view: &At<'a>, count: usize, name: String, out: &mut Vec<(String, Attr<'a>)>) {
-    type Pack<'p> = &'p dyn Fn(i64, &mut Vec<u8>);
-    let mut add = |name: &str, domain: i64, kind: i64, field: &str, pack: Pack<'_>| {
+    let mut add = |name: &str, domain: i64, kind: i64, field: &str, bit: Option<(i64, bool)>| {
         let Some((field, cells)) = column(view, count, field) else {
             return;
         };
+        let (float, int) = (field.kind == "float", |cell| {
+            bytes::scalar(field, cell).unwrap_or(0)
+        });
         let mut values = Vec::with_capacity(count * Attr::width(kind).unwrap_or(0));
         for cell in cells {
-            match field.kind.as_str() {
-                "float" => values.extend_from_slice(cell),
-                _ => pack(bytes::scalar(field, cell).unwrap_or(0), &mut values),
+            match bit {
+                _ if float => values.extend_from_slice(cell),
+                Some((bit, set)) => values.push(u8::from((int(cell) & bit != 0) == set)),
+                None => values.extend((int(cell) as i32).to_le_bytes()),
             }
         }
-        out.push((
-            name.to_string(),
-            attr(domain, kind, Cow::Owned(values), count),
-        ));
-    };
-    let int: Pack<'_> = &|value, values| values.extend((value as i32).to_le_bytes());
-    let flag = |bit: i64, set: bool| {
-        move |value: i64, values: &mut Vec<u8>| {
-            values.push(u8::from((value & bit != 0) == set));
-        }
+        let values = Cow::Owned(values);
+        out.push((name.to_string(), attr(domain, kind, values, count)));
     };
     match view.layout.name.as_str() {
-        "MVert" => add("position", POINT, FLOAT3, "co", int),
-        "MEdge" => add("sharp_edge", EDGE, BOOLEAN, "flag", &flag(SHARP, true)),
+        "MVert" => add("position", POINT, FLOAT3, "co", None),
+        "MEdge" => add("sharp_edge", EDGE, BOOLEAN, "flag", Some((SHARP, true))),
         "MPoly" => {
-            add("material_index", FACE, INT32, "mat_nr", int);
-            add("sharp_face", FACE, BOOLEAN, "flag", &flag(SMOOTH, false));
+            add("material_index", FACE, INT32, "mat_nr", None);
+            add("sharp_face", FACE, BOOLEAN, "flag", Some((SMOOTH, false)));
+            add(".face_start", FACE, INT32, "loopstart", None);
         }
         "MLoop" => {
-            add(".corner_vert", CORNER, INT32, "v", int);
-            add(".corner_edge", CORNER, INT32, "e", int);
+            add(".corner_vert", CORNER, INT32, "v", None);
+            add(".corner_edge", CORNER, INT32, "e", None);
         }
-        "MLoopUV" => add(&name, CORNER, FLOAT2, "uv", int),
+        "MLoopUV" => add(&name, CORNER, FLOAT2, "uv", None),
         _ => {}
     }
-}
-
-/// The face offsets of a mesh that stores its faces as `MPoly`: the first corner of each face,
-/// then the end of the last. The caller checks that they rise and end at the corner count. The
-/// structures are read from the face layer, not from `Mesh.mpoly`, which Blender 3.4 no longer
-/// writes.
-pub(super) fn offsets(mesh: &At<'_>, faces: usize, corners: usize) -> Option<Vec<i32>> {
-    let (polygons, held) = layers(&mesh.inner("pdata")?)
-        .filter_map(|layer| layer.array("data"))
-        .find(|(view, _)| view.layout.name == "MPoly")?;
-    if faces > held {
-        return None;
-    }
-    let (field, starts) = column(&polygons, faces, "loopstart")?;
-    let mut out: Vec<i32> = starts
-        .map(|cell| bytes::scalar(field, cell).unwrap_or(-1) as i32)
-        .collect();
-    out.push(i32::try_from(corners).ok()?);
-    Some(out)
 }
