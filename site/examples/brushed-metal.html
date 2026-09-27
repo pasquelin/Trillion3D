@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Brushed metal</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #161922;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <script type="module">
+      // Waits for #880: faithful anisotropy rendering; engine owner assignment pending.
+      import { createWorld, geometry, material, object, light, math } from '../runtime/engine.js';
+      import { controls } from '../runtime/kit.js';
+
+      const world = createWorld('view', { controls: 'orbit' });
+      world.scene.background = math.color('#161922');
+      const steel = material.meshPhysical({
+        color: '#b8c3cc',
+        metalness: 1,
+        roughness: 0.32,
+        anisotropy: 0.85,
+        anisotropyRotation: 0,
+      });
+      const discs = [];
+      const discShape = geometry.cylinder(0.82, 0.82, 0.18, 96);
+      for (let column = -2; column <= 2; column++) {
+        const disc = object.mesh(discShape, steel);
+        disc.position.set(column * 1.75, 0.9, 0);
+        disc.rotation.set(Math.PI / 2, 0, column * 0.32);
+        disc.castShadow = true;
+        world.scene.add(disc);
+        discs.push(disc);
+      }
+      const bench = object.mesh(
+        geometry.box(10, 0.35, 3.2),
+        material.meshStandard({ color: '#403329', roughness: 0.88 }),
+      );
+      bench.position.y = -0.18;
+      bench.receiveShadow = true;
+      world.scene.add(bench);
+      world.scene.add(
+        light.directional({
+          intensity: 4,
+          color: '#fff2db',
+          position: [-5, 8, 6],
+          castShadow: true,
+        }),
+      );
+      world.scene.add(
+        light.point({ intensity: 55, color: '#79aaff', position: [5, 3, 2], distance: 18 }),
+      );
+      world.camera.position.set(0, 3.1, 7.2);
+      world.controls.target.set(0, 0.7, 0);
+
+      const ui = controls(
+        {
+          anisotropy: [0, 1, 0.85, 0.01],
+          direction: [0, 6.28, 0, 0.01],
+          roughness: [0.05, 0.8, 0.32, 0.01],
+          spin: true,
+        },
+        (values) => {
+          steel.anisotropy = values.anisotropy;
+          steel.anisotropyRotation = values.direction;
+          steel.roughness = values.roughness;
+        },
+        world,
+      );
+      world.onFrame(({ delta }) => {
+        if (!ui.spin) return;
+        for (const disc of discs) disc.rotation.z += delta * 0.24;
+        world.invalidate();
+      });
+      world.invalidate();
+    </script>
+  </body>
+</html>
