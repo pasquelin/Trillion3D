@@ -948,6 +948,7 @@
       "UNKNOWN_MATERIAL": "Perubahan material tidak dikenal, di luar rentang, akan memindahkannya ke kelas gambar yang ditetapkan sebuah mesin saat adegan dibuka, atau akan mengulang peta yang dibagikannya.",
       "MATERIAL_CLASS_CHANGE": "Perubahan material tidak dikenal, di luar rentang, akan memindahkannya ke kelas gambar yang ditetapkan sebuah mesin saat adegan dibuka, atau akan mengulang peta yang dibagikannya.",
       "MATERIAL_TEXTURE_SHARED": "Perubahan material tidak dikenal, di luar rentang, akan memindahkannya ke kelas gambar yang ditetapkan sebuah mesin saat adegan dibuka, atau akan mengulang peta yang dibagikannya.",
+      "MATERIAL_CEILING": "Sebuah halaman akan membuat lebih banyak material daripada `RUNTIME_MATERIAL_CEILING` dalam satu sesi; tidak ada yang dibuat.",
       "INVALID_TRANSFORM": "Penempatan sebuah node bukan matriks yang bisa dipakai, atau sebuah node akan jadi leluhurnya sendiri.",
       "NON_FINITE_TRANSFORM": "Penempatan sebuah node bukan matriks yang bisa dipakai, atau sebuah node akan jadi leluhurnya sendiri.",
       "SINGULAR_PARENT_TRANSFORM": "Penempatan sebuah node bukan matriks yang bisa dipakai, atau sebuah node akan jadi leluhurnya sendiri.",

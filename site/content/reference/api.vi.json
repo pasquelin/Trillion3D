@@ -948,6 +948,7 @@
       "UNKNOWN_MATERIAL": "Một thay đổi vật liệu không xác định, ngoài phạm vi, sẽ chuyển nó sang một lớp vẽ mà một engine cố định khi mở cảnh, hoặc sẽ lặp lại một bản đồ mà nó dùng chung.",
       "MATERIAL_CLASS_CHANGE": "Một thay đổi vật liệu không xác định, ngoài phạm vi, sẽ chuyển nó sang một lớp vẽ mà một engine cố định khi mở cảnh, hoặc sẽ lặp lại một bản đồ mà nó dùng chung.",
       "MATERIAL_TEXTURE_SHARED": "Một thay đổi vật liệu không xác định, ngoài phạm vi, sẽ chuyển nó sang một lớp vẽ mà một engine cố định khi mở cảnh, hoặc sẽ lặp lại một bản đồ mà nó dùng chung.",
+      "MATERIAL_CEILING": "Một trang sẽ tạo nhiều vật liệu hơn `RUNTIME_MATERIAL_CEILING` trong một phiên; không có gì được tạo.",
       "INVALID_TRANSFORM": "Vị trí đặt của một node không phải là một ma trận dùng được, hoặc một node sẽ trở thành tổ tiên của chính nó.",
       "NON_FINITE_TRANSFORM": "Vị trí đặt của một node không phải là một ma trận dùng được, hoặc một node sẽ trở thành tổ tiên của chính nó.",
       "SINGULAR_PARENT_TRANSFORM": "Vị trí đặt của một node không phải là một ma trận dùng được, hoặc một node sẽ trở thành tổ tiên của chính nó.",

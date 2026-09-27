@@ -1585,6 +1585,7 @@
       "UNKNOWN_MATERIAL": "Un changement de matériau est inconnu, hors limites, le mettrait dans une classe de dessin qu’un moteur fixe à l’ouverture de la scène, ou répéterait une texture qu’il partage.",
       "MATERIAL_CLASS_CHANGE": "Un changement de matériau est inconnu, hors limites, le mettrait dans une classe de dessin qu’un moteur fixe à l’ouverture de la scène, ou répéterait une texture qu’il partage.",
       "MATERIAL_TEXTURE_SHARED": "Un changement de matériau est inconnu, hors limites, le mettrait dans une classe de dessin qu’un moteur fixe à l’ouverture de la scène, ou répéterait une texture qu’il partage.",
+      "MATERIAL_CEILING": "Une page créerait plus de matériaux que `RUNTIME_MATERIAL_CEILING` en une session ; rien n’a été créé.",
       "INVALID_TRANSFORM": "Le placement d’un nœud n’est pas une matrice utilisable, ou un nœud serait son propre ancêtre.",
       "NON_FINITE_TRANSFORM": "Le placement d’un nœud n’est pas une matrice utilisable, ou un nœud serait son propre ancêtre.",
       "SINGULAR_PARENT_TRANSFORM": "Le placement d’un nœud n’est pas une matrice utilisable, ou un nœud serait son propre ancêtre.",
