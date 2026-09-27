@@ -33,10 +33,15 @@ pub(super) fn named(file: &BlendFile<'_>, name: &str) -> u64 {
         .unwrap_or_else(|| panic!("no block named {name}"))
 }
 
+/// The block at an original address, `DATA` included: no two blocks of the fixture share one.
+fn block<'a>(file: &'a BlendFile<'_>, old: u64) -> Option<&'a Block> {
+    file.blocks.iter().find(|block| block.old == old)
+}
+
 /// The rank, in the file's bytes, where a field of a block starts — the path walking nested
 /// structures, such as `["id", "name"]`.
 pub(super) fn field(file: &BlendFile<'_>, old: u64, path: &[&str]) -> usize {
-    let block = file.at(old).expect("the requested block");
+    let block = block(file, old).expect("the requested block");
     let mut layout = file.dna.layout(block.sdna).expect("its layout");
     let mut at = block.start;
     for (rank, step) in path.iter().enumerate() {
@@ -86,8 +91,7 @@ pub(super) fn link_field(file: &BlendFile<'_>, material: &str, tosock: u64, name
 /// The rank of the declared value of a node input: it lives in the block its `default_value`
 /// field designates.
 pub(super) fn declared_field(file: &BlendFile<'_>, socket: u64, name: &str) -> usize {
-    let held = file
-        .at(socket)
+    let held = block(file, socket)
         .and_then(|block| file.view(block))
         .expect("the input");
     field(file, held.pointer("default_value"), &[name])
@@ -116,7 +120,7 @@ pub(super) fn without_field(name: &str) -> Vec<u8> {
 
 /// The node graph of a named material.
 fn tree<'a>(file: &'a BlendFile<'a>, material: &str) -> At<'a> {
-    file.at(named(file, material))
+    block(file, named(file, material))
         .and_then(|block| file.view(block))
         .expect("the material")
         .follow("nodetree")
@@ -130,7 +134,7 @@ pub(super) fn with_stray_object(name: &[u8]) -> Vec<u8> {
     let (mut data, sdna, at, end) = {
         let file = BlendFile::open(&bytes, BUDGET).expect("the fixture");
         let old = named(&file, "OBSharedMesh_0");
-        let block = file.at(old).expect("its block");
+        let block = block(&file, old).expect("its block");
         let data = bytes[block.start..block.start + block.len].to_vec();
         let at = field(&file, old, &["id", "name"]) - block.start;
         let end = file.of(*b"ENDB").next().expect("the ENDB block").start - HEADER;
@@ -170,9 +174,9 @@ pub(super) fn with_sharp_edges(hard: bool) -> Vec<u8> {
             .expect("the fixture's sharp_face attribute");
         let domain = entry.layout.field("domain").expect("the domain field");
         let data = entry.follow("data").expect("the value block");
-        let values = file.at(data.pointer("data")).expect("its bytes");
+        let values = block(&file, data.pointer("data")).expect("its bytes");
         (
-            file.at(entry.pointer("name")).expect("the name").start,
+            block(&file, entry.pointer("name")).expect("the name").start,
             entry.base + domain.offset,
             domain.unit,
             values.start,
