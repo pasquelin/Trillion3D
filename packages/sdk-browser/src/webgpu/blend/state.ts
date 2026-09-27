@@ -18,7 +18,8 @@ import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.
 export type BlendGpuItem = {
   /** The material transmits: the item is drawn in the transmission pass, not in the blend. */
   transmissive?: boolean;
-  position: GPUBuffer;
+  /** Own positions; absent for a paged item that reads its quantized pages. */
+  position?: GPUBuffer;
   /** Own index buffer of an unpaged primitive; a paged one reads the page cache instead. */
   index?: GPUBuffer;
   uv?: GPUBuffer;
