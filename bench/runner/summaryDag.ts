@@ -14,7 +14,7 @@ export function stalls(report: Report) {
   const lines = [
     '## DAG stalls',
     '',
-    'The compiler\'s stall table: the primitives with a stalled DAG group that kept the most',
+    "The compiler's stall table: the primitives with a stalled DAG group that kept the most",
     'level-0 triangles as roots, in its order. The cause is decided by rerunning the stalled',
     'reduction with its locks lifted, then with its seams welded, never by a threshold.',
     '',

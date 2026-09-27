@@ -835,6 +835,7 @@
       "totalNodes": "Nœuds au total.",
       "autonomousScene": "Sa scène intégrée.",
       "primitives": "Ses primitives.",
+      "worstStalls": "La table des blocages du compilateur : au plus dix primitives avec un groupe bloqué qui a gardé des racines au niveau 0, la pire d’abord. Absente d’un cache compilé avant elle.",
       "texturePreviews": "Une entrée par couple (texture, atlas) décodé, rangée par texture puis par atlas ; vide sans image décodable.",
       "textures": "Modèle des niveaux cuits, relatif au manifeste : {sha} l’empreinte de l’image source, {kind} le nom de l’atlas (PREVIEW_ATLAS_NAMES), {level} le rang du niveau. Absent d’un cache compilé avant les niveaux cuits, que ce lecteur refuse par la version du fichier annexe.",
       "proxy": "Où lire le proxy de scène résident et son BVH : la géométrie que touchent les rayons. Absent d’un cache compilé avant le rebond, qui reste lisible tel quel."
@@ -1338,7 +1339,7 @@
     }
   },
   "dagWarningsDiagnostic": {
-    "summary": "Le diagnostic `dag-warnings` d’un cache : les primitives signalées par le compilateur, et chaque primitive avec un groupe bloqué — l’ensemble que le compilateur classe sur stderr à la fin d’une cuisson."
+    "summary": "Le diagnostic `dag-warnings` d’un cache : les primitives signalées par le compilateur, et la table des blocages du compilateur (`worstStalls`), les lignes qu’il écrit sur stderr à la fin d’une cuisson, dans son ordre."
   },
   "DecodedGeometryPage": {
     "summary": "Une page décodée : `indices` et chaque attribut sont des vues sur un seul tampon de `decodedBytes` (`geometryPageBlock.ts`).",
@@ -5592,7 +5593,8 @@
       "textures": "Modèle des niveaux cuits, relatif au manifeste : {sha} l’empreinte de l’image source, {kind} le nom de l’atlas (PREVIEW_ATLAS_NAMES), {level} le rang du niveau. Absent d’un cache compilé avant les niveaux cuits, que ce lecteur refuse par la version du fichier annexe.",
       "proxy": "Où lire le proxy de scène résident et son BVH : la géométrie que touchent les rayons. Absent d’un cache compilé avant le rebond, qui reste lisible tel quel.",
       "binary": "Le fichier binaire.",
-      "primitives": "Ses primitives."
+      "primitives": "Ses primitives.",
+      "worstStalls": "La table des blocages du compilateur : au plus dix primitives avec un groupe bloqué qui a gardé des racines au niveau 0, la pire d’abord. Absente d’un cache compilé avant elle."
     }
   },
   "SlimCulling": {
