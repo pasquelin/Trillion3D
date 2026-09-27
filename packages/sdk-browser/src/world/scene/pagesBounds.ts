@@ -1,5 +1,6 @@
 import { meshes as objects } from '../../scene/meshes.ts';
-import type { HostBoundedNode, HostGraphMesh } from '../../host/scene/graphNodes.ts';
+import type { HostBoundedNode } from '../../host/scene/graphNodes.ts';
+import type { HostMesh } from '../../host/resources.ts';
 import { hostWorldTree } from '../../host/world/tree.ts';
 import { primitiveFinder } from '../../scene/primitiveLookup.ts';
 import { emptyWorldBox } from '../../host/world/bounds.ts';
@@ -36,7 +37,7 @@ function ecritPage(out: Float64Array, at: number, item: ManifestPage) {
 
 /** The box a mesh placed by rows holds for every row (`host/prepared/placed.ts`): its pages
  *  bound one placement, and its own pose places none. */
-function placedBox(mesh: HostGraphMesh, associations: BackendContext['associations']) {
+function placedBox(mesh: HostMesh, associations: BackendContext['associations']) {
   return associations.get(mesh)?.placements ? (mesh as HostBoundedNode).boundingBox : undefined;
 }
 
@@ -72,7 +73,7 @@ export function pagesBounds(
   source: Object3D,
   associations: BackendContext['associations'],
   metadata: ClusterManifest,
-  onMissing: (mesh: HostGraphMesh) => void,
+  onMissing: (mesh: HostMesh) => void,
   into = emptyWorldBox(),
   lot?: BoxTransformLot | null,
 ) {

@@ -33,9 +33,9 @@
   "examples": {
     "lead": "예제는 모두 짧은 파일 하나로 되어 있습니다: 실행해 보고, 코드를 열어 보고, 직접 바꿔 보세요.",
     "jumpTo": "테마로 이동",
-    "inProgress": "제작 중",
     "waitsFor": "엔진을 기다리는 중:",
-    "waitingEngine": "엔진을 기다리는 중"
+    "partial": "부분 지원",
+    "coming": "예정: {{titles}}"
   },
   "gallery": {
     "themes": {
@@ -121,10 +121,10 @@
       "a-refracting-pane": "빛을 굴절시키는 유리판",
       "a-light-map": "라이트맵",
       "two-materials-one-mesh": "두 재질, 하나의 메시",
-      "clearcoat-paint": "클리어코트 도장",
       "velvet-sheen": "벨벳 광택",
       "soap-bubble-iridescence": "무지갯빛",
       "brushed-metal": "헤어라인 금속",
+      "car-paint-under-clear-coat": "클리어 코트 아래의 자동차 도장",
       "a-prism-that-disperses": "빛을 분산시키는 프리즘",
       "retroreflective-paint": "재귀반사",
       "light-through-skin": "피부를 통과하는 빛",
@@ -153,7 +153,7 @@
       "flat-shadows-on-the-floor": "평평하게 투영된 그림자",
       "a-softbox-panel": "소프트박스 패널",
       "light-from-a-probe": "프로브에서 나오는 빛",
-      "soft-shadow-edges": "부드러운 그림자 가장자리",
+      "soft-shadows-from-a-wide-lamp": "넓은 램프의 부드러운 그림자",
       "contact-shadow-under-a-car": "접촉 그림자",
       "coloured-shadows-through-glass": "유리를 통과하는 그림자",
       "shadows-in-the-corners": "구석의 그림자",
@@ -182,9 +182,12 @@
       "several-views-one-page": "한 페이지의 여러 시점",
       "before-and-after-slider": "전후 비교 슬라이더",
       "side-by-side-stereo": "나란히 놓인 스테레오",
+      "the-near-plane-cuts-a-wall": "근거리 평면이 벽을 자른다",
+      "the-home-pose": "홈 포즈와 관심 지점",
       "red-cyan-anaglyph": "빨강-청록 애너글리프",
       "camera-layers": "카메라 레이어",
       "a-robot-that-walks-and-waves": "섞인 로봇 동작",
+      "a-crane-that-swings": "짐을 흔드는 크레인",
       "a-wave-across-a-grid": "큐브의 물결",
       "keyframes-by-hand": "손으로 만든 키프레임",
       "one-clip-many-objects": "하나의 클립, 여러 물체",
@@ -218,6 +221,7 @@
       "observatory-streamed": "스트리밍되는 클러스터",
       "health-check": "상태 점검",
       "memory-on-a-budget": "메모리 예산",
+      "a-walk-through-the-city": "도시 산책",
       "detail-by-pixel-error": "픽셀 오차에 따른 디테일",
       "watch-a-world-load": "세계가 로드되는 모습 보기",
       "ten-thousand-objects": "만 개의 물체",
@@ -328,6 +332,8 @@
       "shadows-case-by-case": "그림자, 사례별로",
       "shadows-through-see-through-panes": "투명한 유리가 드리우는 그림자",
       "a-walker-among-balls": "공 사이를 걷는 사람",
+      "a-dolly-along-the-canal": "운하를 따라가는 카메라 돌리",
+      "a-folder-merged-into-one-scene": "하나의 장면으로 병합된 폴더",
       "drag-a-crate": "상자 드래그"
     },
     "missing": {
@@ -356,10 +362,10 @@
       "a-refracting-pane": "텍스처로 렌더링",
       "a-light-map": "라이트맵 슬롯",
       "two-materials-one-mesh": "다중 재질 메시",
-      "clearcoat-paint": "물리 기반 재질 레이어: 클리어코트",
       "velvet-sheen": "물리 기반 재질 레이어: 광택",
       "soap-bubble-iridescence": "물리 기반 재질 레이어: 무지갯빛",
       "brushed-metal": "물리 기반 재질 레이어: 이방성",
+      "car-paint-under-clear-coat": "물리 기반 재질 레이어: 클리어 코트",
       "a-prism-that-disperses": "물리 기반 재질 레이어: 분산",
       "retroreflective-paint": "직접 만드는 셰이더 재질",
       "light-through-skin": "표면 하 산란",
@@ -374,7 +380,7 @@
       "a-stack-of-texture-layers": "데이터, 배열, 3D 텍스처",
       "wide-gamut-colour": "광색역 출력",
       "energy-conservation-test": "환경 조명(IBL)",
-      "soft-shadow-edges": "부드러운 그림자 필터링(반그림자)",
+      "soft-shadows-from-a-wide-lamp": "램프 너비에 따른 부드러운 그림자",
       "contact-shadow-under-a-car": "텍스처로 렌더링",
       "coloured-shadows-through-glass": "그림자를 드리우는 투명 물체",
       "shadows-in-the-corners": "화면 공간 앰비언트 오클루전",
@@ -1149,7 +1155,9 @@
     },
     "IDENTITY_MATRIX4": {
       "description": "열 우선(column-major) 단위 행렬. 읽기 전용이며 절대 다시 쓰이지 않습니다: 자세가 없는 노드나 루트의 자세를 나타냅니다.",
-      "values": ["열 우선으로 배열된 16개의 숫자."]
+      "values": [
+        "열 우선으로 배열된 16개의 숫자."
+      ]
     },
     "DiagnosticMode": {
       "description": "한 프레임이 무엇을 그리는가. 사용 가능 여부는 실제 파이프라인 출력을 나타낼 뿐, 합성된 오버레이가 아닙니다: `DIAGNOSTICS`는 모드별로 현재 렌더러가 그것을 생성할 수 있는지, 그리고 없다면 그 이유를 알려줍니다.",
@@ -1210,7 +1218,10 @@
     },
     "GpuTimingMethod": {
       "description": "단계 프로파일의 GPU 시간이 어떻게 측정되었는가. 패스별 시간은 「어디서」인지만 알려줄 뿐 「얼마나」인지는 알려주지 않습니다: 타일 기반 GPU에서는 패스들이 서로 겹치며, 한 패스가 인접 패스의 작업을 흡수해 버립니다. 프레임 총합은 `gpuImageMs`, 즉 전체 시간이며, 각 단계의 시간을 더한 값이 아닙니다.",
-      "values": ["네이티브 WebGPU 타임스탬프 쿼리.", "해당 경로를 위한 WebGL2 확장."]
+      "values": [
+        "네이티브 WebGPU 타임스탬프 쿼리.",
+        "해당 경로를 위한 WebGL2 확장."
+      ]
     },
     "ColumnKind": {
       "description": "이진 매니페스트의 각 열이 저장되는 방식. `COLUMN_KIND`는 각 열 이름을 그 종류에 매핑하여, 읽는 쪽이 부가 바이트 데이터를 어떤 뷰로 다뤄야 하는지 알 수 있게 합니다.",

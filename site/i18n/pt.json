@@ -33,9 +33,9 @@
   "examples": {
     "lead": "Cada exemplo é um arquivo curto: veja-o rodando, abra o código, mude-o.",
     "jumpTo": "Ir para um tema",
-    "inProgress": "Em construção",
     "waitsFor": "Espera pelo motor:",
-    "waitingEngine": "Esperando o motor"
+    "partial": "Parcial",
+    "coming": "Em breve: {{titles}}"
   },
   "gallery": {
     "themes": {
@@ -121,10 +121,10 @@
       "a-refracting-pane": "Um vidro que refrata",
       "a-light-map": "Um light map",
       "two-materials-one-mesh": "Dois materiais, uma malha",
-      "clearcoat-paint": "Pintura com verniz",
       "velvet-sheen": "Brilho de veludo",
       "soap-bubble-iridescence": "Iridescência",
       "brushed-metal": "Metal escovado",
+      "car-paint-under-clear-coat": "Pintura automóvel sob verniz",
       "a-prism-that-disperses": "Um prisma que dispersa",
       "retroreflective-paint": "Retrorreflexão",
       "light-through-skin": "Luz sob a pele",
@@ -153,7 +153,7 @@
       "flat-shadows-on-the-floor": "Sombras projetadas planas",
       "a-softbox-panel": "Um painel de luz suave",
       "light-from-a-probe": "Luz de uma sonda",
-      "soft-shadow-edges": "Bordas de sombra suaves",
+      "soft-shadows-from-a-wide-lamp": "Sombras suaves de uma lâmpada larga",
       "contact-shadow-under-a-car": "Sombra de contato",
       "coloured-shadows-through-glass": "Sombras através do vidro",
       "shadows-in-the-corners": "Sombras nos cantos",
@@ -182,9 +182,12 @@
       "several-views-one-page": "Várias vistas, uma página",
       "before-and-after-slider": "Controle deslizante antes/depois",
       "side-by-side-stereo": "Estéreo lado a lado",
+      "the-near-plane-cuts-a-wall": "O plano próximo corta uma parede",
+      "the-home-pose": "A pose inicial e os pontos de interesse",
       "red-cyan-anaglyph": "Anaglifo vermelho-ciano",
       "camera-layers": "Camadas de câmera",
       "a-robot-that-walks-and-waves": "Movimentos de robô misturados",
+      "a-crane-that-swings": "Um guindaste que balança a carga",
       "a-wave-across-a-grid": "Onda de cubos",
       "keyframes-by-hand": "Quadros-chave à mão",
       "one-clip-many-objects": "Um clipe, vários objetos",
@@ -218,6 +221,7 @@
       "observatory-streamed": "Clusters em streaming",
       "health-check": "Verificação de saúde",
       "memory-on-a-budget": "Orçamento de memória",
+      "a-walk-through-the-city": "Um passeio pela cidade",
       "detail-by-pixel-error": "Detalhe por erro de pixel",
       "watch-a-world-load": "Ver um mundo carregar",
       "ten-thousand-objects": "Dez mil objetos",
@@ -328,6 +332,8 @@
       "shadows-case-by-case": "As sombras, caso a caso",
       "shadows-through-see-through-panes": "Sombras através de vidros",
       "a-walker-among-balls": "Um caminhante entre bolas",
+      "a-dolly-along-the-canal": "Um travelling ao longo do canal",
+      "a-folder-merged-into-one-scene": "Uma pasta reunida numa cena",
       "drag-a-crate": "Arrastar uma caixa"
     },
     "missing": {
@@ -356,10 +362,10 @@
       "a-refracting-pane": "renderização em textura",
       "a-light-map": "slot de light map",
       "two-materials-one-mesh": "malhas multimaterial",
-      "clearcoat-paint": "camadas do material físico: verniz",
       "velvet-sheen": "camadas do material físico: brilho",
       "soap-bubble-iridescence": "camadas do material físico: iridescência",
       "brushed-metal": "camadas do material físico: anisotropia",
+      "car-paint-under-clear-coat": "camadas do material físico: verniz",
       "a-prism-that-disperses": "camadas do material físico: dispersão",
       "retroreflective-paint": "materiais com shader sob medida",
       "light-through-skin": "espalhamento sob a superfície",
@@ -374,7 +380,7 @@
       "a-stack-of-texture-layers": "texturas de dados, em array e 3D",
       "wide-gamut-colour": "saída de gama ampla",
       "energy-conservation-test": "iluminação por ambiente (IBL)",
-      "soft-shadow-edges": "filtragem de sombras suaves (penumbra)",
+      "soft-shadows-from-a-wide-lamp": "sombras suaves conforme a largura da lâmpada",
       "contact-shadow-under-a-car": "renderização em textura",
       "coloured-shadows-through-glass": "objetos transparentes que projetam sombra",
       "shadows-in-the-corners": "oclusão de ambiente em espaço de tela",
@@ -1149,7 +1155,9 @@
     },
     "IDENTITY_MATRIX4": {
       "description": "Identidade em ordem de coluna (column-major), lida e nunca escrita: a pose de um nó ou de uma raiz sem pose.",
-      "values": ["Dezesseis números, em ordem de coluna (column-major)."]
+      "values": [
+        "Dezesseis números, em ordem de coluna (column-major)."
+      ]
     },
     "DiagnosticMode": {
       "description": "O que um quadro desenha. A disponibilidade descreve saídas reais do pipeline, nunca sobreposições sintéticas: `DIAGNOSTICS` informa, para cada modo, se o renderizador ativo pode produzi-lo e por que não.",
