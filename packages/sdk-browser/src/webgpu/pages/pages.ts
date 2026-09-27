@@ -31,11 +31,7 @@ import { updateWebgpuPlacements } from '../../placement/webgpuPlacements.ts';
 import { disposeWebgpuPages, metricsOf } from './io/metrics.ts';
 import { setWebgpuMemoryBudgets } from './io/memory.ts';
 import { setWebgpuClearColor } from './io/clearColor.ts';
-import {
-  refreshWebgpuMaterials,
-  wearWebgpuSurface,
-  webgpuMaterialClassRefusal,
-} from './io/refreshMaterials.ts';
+import * as materials from './io/refreshMaterials.ts';
 import { installGpuDeviceLedger } from '../../gpu/core/deviceLedger.ts';
 import { namesNoSession } from '../../gpu/core/sessionHandle.ts';
 import { claimWebgpuDevice, markWebgpuLost } from './io/lost.ts';
@@ -85,9 +81,9 @@ export const webgpuPagesBackend: BackendFactory = (context) => {
     updatePlacements(rows, from, to) {
       updateWebgpuPlacements(rt, rows, from, to);
     },
-    refreshMaterials: (values, alpha) => refreshWebgpuMaterials(rt, values, alpha),
-    materialClassRefusal: (alpha) => webgpuMaterialClassRefusal(alpha, rt.setup.allPages),
-    wearSurface: (assignment) => wearWebgpuSurface(rt, assignment),
+    refreshMaterials: (values, alpha) => materials.refreshWebgpuMaterials(rt, values, alpha),
+    materialClassRefusal: (alpha) => materials.webgpuMaterialClassRefusal(alpha, rt.setup.allPages),
+    wearSurface: (assignment) => materials.wearWebgpuSurface(rt, assignment),
     setMemoryBudgets: (budgets) => setWebgpuMemoryBudgets(rt, budgets),
     setClearColor: (hex) => setWebgpuClearColor(rt, hex),
     async prepare() {
