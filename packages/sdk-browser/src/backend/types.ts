@@ -1,5 +1,6 @@
 import type { HostDiagnosticFactory, HostScene, HostTexture } from '../host/resources.ts';
 import type { HostCamera } from '../camera/world.ts';
+import type { PageCatalogue } from '../streaming/types.ts';
 import type { HostDrawOutput } from '../webgl/core/renderTarget.ts';
 import type {
   BackendCapabilities,
@@ -186,13 +187,12 @@ export interface BackendContext {
   diagnosticGpuVariant?: import('../diagnostic/gpuVariant.ts').DiagnosticGpuVariant;
   /** Page-by-page shadow-map invalidation, on by default. */
   shadowPageInvalidation?: boolean;
-  /** Reads the resident-proxy cache object. Absent when the cache does not carry one;
-   *  called at most once, on the first frame that carries a declared light. */
+  /** Reads the cache's resident-proxy object once, at the first lit frame; absent without one. */
   readSceneProxy?: () => Promise<import('../../../sdk-core/src/index.ts').SceneProxy>;
   /** Host-owned, validated page reader for the initial complete GPU fallback. */
   readPage?: (url: string) => Promise<Uint32Array>;
   readGeometryPage?: (url: string) => Promise<Uint8Array>;
-  pageCatalogue?: import('../streaming/types.ts').PageCatalogue; // what a mount reads (#572)
+  pageCatalogue?: PageCatalogue; // what a mount reads (#572)
   /** The session's one integration budget per frame (`frameBudget.ts`); absent, nothing bounds it. */
   frameBudget?: import('../page/integration/frameBudget.ts').FrameClock;
 }

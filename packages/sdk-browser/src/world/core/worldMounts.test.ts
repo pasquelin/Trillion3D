@@ -8,6 +8,7 @@ import { material } from '../../../../sdk-core/src/world/material/index.ts';
 import type { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts';
 import type { PlacementMount } from '../../placement/backendSceneUpdates.ts';
 import type { PlacementRows } from '../../placement/rows.ts';
+import type { ExplorerSource } from '../session/prepare.ts';
 import { Scene } from './scene.ts';
 import { runtimeOf, sessionStandIn, type Open } from './worldRuntime.fixture.ts';
 
@@ -34,12 +35,12 @@ function mountingSession(late: number) {
       }),
     unmountPlacements: (rows: PlacementRows) => drawn.delete(rows),
   });
-  const open = (async (_canvas, _options, source) => {
+  const open = (async (_canvas: unknown, _options: unknown, source: ExplorerSource) => {
     opened++;
     for (const link of source.scene.associations.values())
       if (link.placements) drawn.set(link.placements, -1);
     return session;
-  }) as Open;
+  }) as unknown as Open;
   const frame = (at: number) => {
     now = at;
     for (const mount of pending.filter((mount) => mount.at <= at)) mount.done();
