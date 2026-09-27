@@ -3,7 +3,7 @@
 use super::mass::{solid_mass, DENSITY};
 use super::mass_tests::{cube, FACES};
 use super::pieces::{pieces, PIECES};
-use super::voronoi::{cells, clip, face_planes, welded};
+use super::voronoi::{cells, clip, face_planes, supporting, welded};
 /// Share of a solid its cells may miss or overlap: their corners are rounded to 32 bits.
 const TILED: f64 = 1e-6;
 
@@ -72,6 +72,42 @@ fn voronoi_cells_tile_a_convex_solid_without_gap_or_overlap() {
             }
         }
     }
+}
+
+// Behaviour: a turned cube whose bottom face holds a sliver, a corner 1e-6 off one edge, is still
+// tiled by its cells: the sliver's plane, tilted into the cube by its corners' 32-bit rounding,
+// is no supporting plane and cuts nothing.
+#[test]
+fn a_sliver_plane_tilted_by_rounding_cuts_nothing() {
+    let turn = |[x, y, z]: [f64; 3]| {
+        let (a, b) = (0.7f64, 0.4f64);
+        let (y, z) = (y * a.cos() - z * a.sin(), y * a.sin() + z * a.cos());
+        [x * b.cos() - z * b.sin(), y, x * b.sin() + z * b.cos()]
+    };
+    let mut corners: Vec<[f64; 3]> = (0..8)
+        .map(|c| [c & 1, c >> 1 & 1, c >> 2 & 1].map(f64::from))
+        .collect();
+    corners.push([0.5, 1e-6, 0.0]);
+    let pos: Vec<f32> = corners
+        .iter()
+        .flat_map(|&p| turn(p).map(|v| v as f32))
+        .collect();
+    let triangles = [
+        0, 2, 8, 2, 3, 8, 3, 1, 8, 1, 0, 8, 4, 5, 7, 4, 7, 6, 0, 1, 5, 0, 5, 4, 2, 6, 7, 2, 7, 3,
+        0, 4, 6, 0, 6, 2, 1, 3, 7, 1, 7, 5,
+    ];
+    let whole = solid_mass(&pos, &triangles, [1.0; 3], 0).unwrap()["mass"]
+        .as_f64()
+        .unwrap()
+        / DENSITY;
+    let bounds = ([-2.0; 3], [2.0; 3]);
+    let planes = supporting(face_planes(&pos, &triangles), &pos, &triangles, 1e-6);
+    let seeds = [turn([0.3, 0.3, 0.3]), turn([0.7, 0.6, 0.5])];
+    let total: f64 = cells(&seeds, bounds, &planes)
+        .iter()
+        .map(|f| volume(f))
+        .sum();
+    assert!((total - whole).abs() <= whole * TILED, "{total} of {whole}");
 }
 
 // Behaviour: a dense convex mesh, a sphere of 7 080 triangles whose neighbouring faces are nearly

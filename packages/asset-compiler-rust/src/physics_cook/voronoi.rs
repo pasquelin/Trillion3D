@@ -176,3 +176,22 @@ pub(super) fn face_planes(pos: &[f32], triangles: &[u32]) -> Vec<Plane> {
     });
     planes.collect()
 }
+
+/// The `planes` of the closed mesh `triangles` over `pos` that no corner of it lies more than
+/// `eps` beyond. A sliver's corners, rounded to 32 bits, tilt its plane into the solid it bounds:
+/// that plane would cut the solid, while the faces around the sliver bound it already.
+pub(super) fn supporting(
+    planes: Vec<Plane>,
+    pos: &[f32],
+    triangles: &[u32],
+    eps: f64,
+) -> Vec<Plane> {
+    let mut used = triangles.to_vec();
+    used.sort_unstable();
+    used.dedup();
+    let corners: Vec<Point> = used.into_iter().map(|i| point(pos, i)).collect();
+    planes
+        .into_par_iter()
+        .filter(|&(n, c)| corners.iter().all(|&p| dot(n, p) - c <= eps))
+        .collect()
+}

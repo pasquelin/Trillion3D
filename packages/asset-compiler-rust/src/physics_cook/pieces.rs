@@ -8,7 +8,7 @@
 use super::hull::cooked_shape;
 use super::mass::solid_mass;
 use super::refused;
-use super::voronoi::{cells, face_planes, welded};
+use super::voronoi::{cells, face_planes, supporting, welded};
 use crate::shared_math::{dot, extend_aabb, length, point, sub};
 use crate::{Options, Result};
 use rayon::prelude::*;
@@ -65,8 +65,8 @@ pub(super) fn pieces(
     for i in 0..corners {
         extend_aabb(&mut low, &mut high, point(pos, i));
     }
-    let planes = face_planes(pos, triangles);
     let eps = length(sub(high, low)) * 1e-6;
+    let planes = supporting(face_planes(pos, triangles), pos, triangles, eps);
     let (mut state, mut seeds) = (seed, Vec::new());
     // A seed is a random mean of four corners: inside a convex mesh, whatever its shape.
     for _ in 0..ATTEMPTS {

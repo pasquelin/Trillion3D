@@ -630,7 +630,8 @@ key, so a cache cooked by another Jolt is another key, never reused. The algorit
   declares `breakable` (its threshold, above 0, as `obj.physics` will take it) is also cut into
   Voronoi pieces: up to 12 seeds, each a random mean of four corners of its mesh drawn by a
   generator seeded from the node's index, so the same source cooks the same bytes. Each seed's
-  cell — the points nearer it than any other seed, inside the solid the mesh's face planes bound —
+  cell — the points nearer it than any other seed, inside the solid the mesh's face planes bound,
+  a plane some corner of the mesh lies beyond left out (a sliver's, tilted by 32-bit rounding) —
   is a box clipped by its bisectors first, then by each face plane, so a plane meets a cell of a
   twelfth of the solid (a sphere of 20 000 triangles cuts in about a second): a convex polytope
   capped on each cut along the edges no touched face walks back, where a point on an edge is
