@@ -16,7 +16,7 @@ import { median } from '../../../scripts/median.ts';
  */
 import { createDagResources } from '../../../packages/sdk-browser/src/gpu/dag/resources.ts';
 import { encodeDagKernels } from '../../../packages/sdk-browser/src/gpu/dag/encode.ts';
-import { SELECTION_UNIFORM_BYTES } from '../../../packages/sdk-browser/src/gpu/core/selection.ts';
+import { DAG_VIEW_WORDS } from '../../../packages/sdk-browser/src/gpu/dag/shader/viewsWgsl.ts';
 import { writeDagUniforms } from '../../../packages/sdk-browser/src/gpu/dag/uniforms.ts';
 import { SELECTION_HEADER_WORDS } from '../../../packages/sdk-browser/src/gpu/dag/layout.ts';
 import { ouvrirAppareil } from './webgpuDevice.ts';
@@ -65,7 +65,7 @@ async function mesure(
 ) {
   const livre = await createDagResources(device, packed, true);
   if (!livre) throw new Error('the shipped cut does not mount');
-  const uni = new Float32Array(SELECTION_UNIFORM_BYTES / 4);
+  const uni = new Float32Array(DAG_VIEW_WORDS);
   /** The frame's screen threshold: it is what decides the CUT SIZE, hence what a
    *  cap can lose. Time is measured at the last one set. */
   const poseSeuil = (erreur: number): void => {

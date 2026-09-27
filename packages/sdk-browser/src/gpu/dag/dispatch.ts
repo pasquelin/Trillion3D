@@ -33,17 +33,8 @@ export function createDagDispatch(
   state: DagRuntimeState,
   fail: () => void,
 ): GpuSelection['dispatch'] {
-  const {
-    device,
-    packed,
-    residentCut,
-    outputBytes,
-    readbackBytes,
-    uniformData,
-    uniforms,
-    output,
-    readback,
-  } = resources;
+  const { device, packed, residentCut, uniformData, uniforms, output, readback } = resources;
+  const { outputBytes, readbackBytes: copied } = resources;
   // One readback slot, one set of arrays: the snapshot rewrites them instead of reallocating.
   // The pair returned to the caller stays new on every readback, so it always distinguishes two
   // snapshots by identity — that is what adoption compares to know if the cut moved.
@@ -87,10 +78,7 @@ export function createDagDispatch(
       state.submittedResidencyRevision = state.residencyRevision;
       state.submittedWorldRevision = state.worldRevision;
     }
-    if (copy) {
-      // Snapshot and compacted list follow each other in the same buffer: a single copy.
-      encoder.copyBufferToBuffer(output, 0, readback[i], 0, readbackBytes);
-    }
+    if (copy) encoder.copyBufferToBuffer(output, 0, readback[i], 0, copied);
     const captured = copy ? copySelectionUniforms(next) : undefined;
     const capturedWorldRevision = state.worldRevision,
       capturedResidencyRevision = state.residencyRevision;
@@ -115,7 +103,7 @@ export function createDagDispatch(
             const parsed = parseDagOutput(
               bytes,
               0,
-              bytes.byteLength,
+              copied,
               residentCut ? outputBytes / 4 : 0,
               scratch[i],
             );

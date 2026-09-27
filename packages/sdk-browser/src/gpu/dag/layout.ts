@@ -79,9 +79,17 @@ export const selectionListCap = (pageCount: number) =>
  * held by the GPU survives the disappearance of the list it was the sum of.
  */
 export const SELECTION_HEADER_WORDS = 8;
-/** Word of `out` where the camera's requests wait for their sort, behind the drawn list and its
- *  header, outside what the frame copies (`stagedAt` of `shader/snapshotWgsl.ts`). */
-export const stagedRequestsWord = (listCap: number) => 2 * (SELECTION_HEADER_WORDS + listCap);
+/** Word of `out` where the eviction queue's header starts, behind the drawn list. */
+export const evictionWord = (listCap: number) => 2 * (SELECTION_HEADER_WORDS + listCap);
+/** Victims one readback hands the cache, a chosen margin over what one frame's 1 ms admission share
+ *  (`STREAMING_FRAME_MS`) commits; the next readback brings the next burst, whatever the pool. */
+export const EVICTION_BURST = 1024;
+/** Word of `out` where the camera's requests wait for their sort, behind the eviction queue's
+ *  burst, outside what the frame copies (`stagedAt` of `shader/snapshotWgsl.ts`). */
+export const stagedRequestsWord = (listCap: number) =>
+  evictionWord(listCap) + SELECTION_HEADER_WORDS + EVICTION_BURST;
+/** Bytes a resident cut's frame copies: everything before the staged requests. */
+export const residentReadbackBytes = (listCap: number) => stagedRequestsWord(listCap) * 4;
 /** Bytes of `out` with the staged requests behind: what the kernels write, more than the frame
  *  copies. */
 export const stagedOutputBytes = (listCap: number) => (stagedRequestsWord(listCap) + listCap) * 4;
@@ -119,8 +127,12 @@ export const residentBase = (pageCount: number) => pageCount;
 export const residentWords = (pageCount: number) => (Math.max(0, pageCount) + 31) >>> 5;
 /** First word of the second bit set, the rule's `resident(childGroup(c))` (`childReady`). */
 export const childBase = (pageCount: number) => residentBase(pageCount) + residentWords(pageCount);
-/** First cold record, behind both bit sets. */
-export const coldBase = (pageCount: number) => childBase(pageCount) + residentWords(pageCount);
+/** First word of the pool's list: its count, then a canonical page per held slot (`poolList.ts`). */
+export const poolBase = (pageCount: number) => childBase(pageCount) + residentWords(pageCount);
+/** First word of the key column, one per page: its content key (`evict.ts`). */
+export const keyBase = (pageCount: number) => poolBase(pageCount) + 1 + selectionListCap(pageCount);
+/** First cold record, behind the bit sets, the pool's list and the key column. */
+export const coldBase = (pageCount: number) => keyBase(pageCount) + Math.max(0, pageCount);
 const residentBit = (bits: Uint32Array, base: number, page: number) =>
   (bits[base + (page >>> 5)] & (1 << (page & 31))) !== 0;
 
