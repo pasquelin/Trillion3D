@@ -13,8 +13,7 @@ import { aheadViewOf, copyAheadView, sameAheadView, type AheadView } from './ahe
 
 const NONE = 0xffffffff,
   WORKGROUP = 64;
-/** Words per cluster of the shared cold record — cone, box, owning node, triangles.
- *  Public mirror of `COLD_WORDS` (`../dag/layout.ts`), which is its only source. */
+/** Words of the shared cold record (cone, box, owner, triangles): `COLD_WORDS`'s public mirror. */
 export const PAGE_CONE_FLOATS = 13,
   SELECTION_NONE = NONE,
   SELECTION_WORKGROUP = WORKGROUP;
@@ -51,8 +50,7 @@ export type SelectionResult = {
   /** A resident cut's eviction queue (`../dag/evict.ts`): canonical pages, first evicted first. */
   evictPageIds?: number[];
   /** Triangle totals HELD BY THE GPU, where the verdict is given: what the cut rule draws — one
-   *  counter, read as both `selected` and `drawn` — and its blend share. The only source of these
-   *  totals: the CPU sums none. */
+   *  counter, read as `selected` and `drawn` — and its blend share. The CPU sums none. */
   selectedTriangles: number;
   drawnTriangles: number;
   transparentTriangles: number;
