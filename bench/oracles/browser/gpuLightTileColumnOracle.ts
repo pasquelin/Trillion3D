@@ -51,7 +51,7 @@ export function tileCorners(view: TileView, tile: [number, number], front: numbe
   );
 }
 
-export function tileBox(corners: Vec3[], front: number, back: number) {
+function tileBox(corners: Vec3[], front: number, back: number) {
   const eight = [...Array(8).keys()].map((c) => corners[(c & 4 ? back : front) * 4 + (c & 3)]);
   return {
     lo: map((a) => Math.min(...eight.map((p) => p[a]))),
@@ -78,7 +78,7 @@ export function tileColumn(corners: Vec3[]) {
 }
 
 /** The opaque slice's front and back planes, oriented by the column's near plane. */
-export function tileSlab(corners: Vec3[], column: Plane[]) {
+function tileSlab(corners: Vec3[], column: Plane[]) {
   const away = column[4].n;
   const plane = (row: number, toward: Vec3) => {
     const [p0, p1, p2] = [0, 1, 2].map((c) => corners[row * 4 + c]);
@@ -96,7 +96,7 @@ export function sphereTouchesColumn(column: Plane[], centre: Vec3, radius: numbe
   return column.every((plane) => f(dot(plane.n, centre) + plane.w) >= -radius);
 }
 
-export function sphereInFront(plane: Plane, centre: Vec3, radius: number) {
+function sphereInFront(plane: Plane, centre: Vec3, radius: number) {
   const side = dot(plane.n, centre);
   const margin = f(f(radius + f(1e-5 * f(Math.abs(side) + Math.abs(plane.w)))) + f(1e-4));
   return f(side + plane.w) >= -margin;
