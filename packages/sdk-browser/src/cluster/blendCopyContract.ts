@@ -38,5 +38,5 @@ export type BlendCopy = {
   readonly frustumCulled: boolean;
   renderOrder: number;
   /** Set by the engine itself: the source mesh the copy stands for, and whether it is paged. */
-  readonly userData: { pagedBlend?: boolean; sourceMesh?: HostMesh };
+  readonly userData: { pagedBlend?: boolean; pageGeometry?: boolean; sourceMesh?: HostMesh };
 };
