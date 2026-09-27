@@ -1586,6 +1586,7 @@
       "MATERIAL_CLASS_CHANGE": "Una modifica del materiale è sconosciuta, fuori intervallo, lo sposterebbe in una classe di disegno che un motore fissa all’apertura della scena, o ripeterebbe una mappa che condivide.",
       "MATERIAL_TEXTURE_SHARED": "Una modifica del materiale è sconosciuta, fuori intervallo, lo sposterebbe in una classe di disegno che un motore fissa all’apertura della scena, o ripeterebbe una mappa che condivide.",
       "MATERIAL_CEILING": "Una pagina creerebbe più materiali di `RUNTIME_MATERIAL_CEILING` in una sessione; non è stato creato nulla.",
+      "TEXTURE_BUDGET": "Una texture aggiunta dopo l’apertura della scena porterebbe il pool delle texture oltre `texturePoolBytes` o oltre i livelli che il dispositivo contiene; non è stato aggiunto nulla.",
       "INVALID_TRANSFORM": "Il posizionamento di un nodo non è una matrice utilizzabile, oppure un nodo sarebbe un proprio antenato.",
       "NON_FINITE_TRANSFORM": "Il posizionamento di un nodo non è una matrice utilizzabile, oppure un nodo sarebbe un proprio antenato.",
       "SINGULAR_PARENT_TRANSFORM": "Il posizionamento di un nodo non è una matrice utilizzabile, oppure un nodo sarebbe un proprio antenato.",
