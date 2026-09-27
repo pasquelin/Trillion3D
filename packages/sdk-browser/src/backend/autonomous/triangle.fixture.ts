@@ -2,8 +2,18 @@ import * as G from '../../host/graph/graph.fixture.ts';
 import { pagedManifest } from './geometryPages.fixture.ts';
 import { autonomousPagesBackend } from './pages.ts';
 import type { ClusterManifest } from '../../../../sdk-core/src/index.ts';
-import type { PlacementRows } from '../../placement/rows.ts';
+import { createPlacementRows, type PlacementRows } from '../../placement/rows.ts';
 import type { BackendContext } from '../types.ts';
+
+/** `count` live rows, side by side. */
+export function liveRows(count: number) {
+  const rows = createPlacementRows(count);
+  for (let row = 0; row < count; row++) {
+    rows.matrices.set(new G.Matrix4().makeTranslation(row, 0, 0).toArray(), row * 16);
+    rows.live[row] = 1;
+  }
+  return rows;
+}
 
 /** One triangle cut into one page, and the WebGL2 page path opened on `mesh`, under `source`,
  *  placed by `link`, wearing `material` (a basic double-sided surface by default), under the page
