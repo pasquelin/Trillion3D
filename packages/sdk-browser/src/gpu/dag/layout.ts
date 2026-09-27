@@ -79,11 +79,9 @@ export const selectionListCap = (pageCount: number) =>
  * held by the GPU survives the disappearance of the list it was the sum of.
  */
 export const SELECTION_HEADER_WORDS = 8;
-/** Word of `out` where the eviction queue's header starts, behind the drawn list: a count, then
- *  the queue, at most the pool's slots (`shader/evictWgsl.ts`). */
+/** Word of `out` where the eviction queue's header starts, behind the drawn list. */
 export const evictionWord = (listCap: number) => 2 * (SELECTION_HEADER_WORDS + listCap);
-/** Bytes the frame copies of a resident cut: requests, drawn list, and the eviction queue bounded
- *  by the pool's `slots`, never by the catalogue. */
+/** Bytes a resident cut's frame copies: its eviction queue is bounded by the pool's `slots`. */
 export const residentReadbackBytes = (listCap: number, slots: number) =>
   (evictionWord(listCap) + SELECTION_HEADER_WORDS + Math.min(Math.max(0, slots), listCap)) * 4;
 /** Word of `out` where the camera's requests wait for their sort, behind the eviction queue,
@@ -126,8 +124,7 @@ export const residentBase = (pageCount: number) => pageCount;
 export const residentWords = (pageCount: number) => (Math.max(0, pageCount) + 31) >>> 5;
 /** First word of the second bit set, the rule's `resident(childGroup(c))` (`childReady`). */
 export const childBase = (pageCount: number) => residentBase(pageCount) + residentWords(pageCount);
-/** First word of the third bit set: the pool holds the key of this canonical page (`evict.ts`),
- *  whatever the cut rule's readiness; the eviction queue lists these (`shader/evictWgsl.ts`). */
+/** First word of the third bit set: the pool holds this canonical page's key (`evict.ts`). */
 export const poolBase = (pageCount: number) => childBase(pageCount) + residentWords(pageCount);
 /** First word of the key column, one per page: its content key (`evict.ts`). */
 export const keyBase = (pageCount: number) => poolBase(pageCount) + residentWords(pageCount);

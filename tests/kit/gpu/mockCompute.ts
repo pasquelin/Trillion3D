@@ -23,10 +23,7 @@ import {
   writeTriangleTotals,
 } from '../../../packages/sdk-browser/src/gpu/dag/layout.ts';
 import { sortRequestWords } from '../../../packages/sdk-browser/src/gpu/dag/request.ts';
-import {
-  POOL_SLOTS_WORD,
-  VIEW_FLAGS_WORD,
-} from '../../../packages/sdk-browser/src/gpu/dag/uniforms.ts';
+import { VIEW_FLAGS_WORD } from '../../../packages/sdk-browser/src/gpu/dag/uniforms.ts';
 import { VIEW_LIGHT } from '../../../packages/sdk-browser/src/gpu/dag/shader/pagesWgsl.ts';
 import { listPoolEvictions, stampCameraCut } from './mockEvict.ts';
 
@@ -50,7 +47,6 @@ export function readDagUniforms(data: Uint8Array) {
     },
     residentCut: !!u32[47],
     light: (u32[VIEW_FLAGS_WORD] & VIEW_LIGHT) !== 0,
-    poolSlots: u32[POOL_SLOTS_WORD],
   };
 }
 
@@ -137,10 +133,8 @@ export function simulateComputeDispatch(
   );
   if (computePipeline?.entryPoint === 'dagSortRequests')
     return sortStagedRequests(byBinding.get(DAG_BINDING.out)!.data, packed.pageCount);
-  if (computePipeline?.entryPoint === 'dagListEvictions') {
-    const { poolSlots } = readDagUniforms(byBinding.get(DAG_BINDING.views)!.data);
-    return listPoolEvictions(byBinding, packed, poolSlots);
-  }
+  if (computePipeline?.entryPoint === 'dagListEvictions')
+    return listPoolEvictions(byBinding, packed);
   if (computePipeline?.entryPoint !== 'dagMask') return;
   const { uniforms, residentCut, light } = readDagUniforms(byBinding.get(DAG_BINDING.views)!.data);
   // The rule's residency lives in bits behind the cold records: the double rereads it through the

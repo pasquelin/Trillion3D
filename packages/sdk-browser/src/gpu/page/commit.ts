@@ -24,8 +24,7 @@ export function evictResident(
   }));
 }
 
-/** The next page of the published eviction order still resident and unpinned, taken from it:
- *  once it is spent, the burst stops until the next readback. */
+/** The published order's next resident, unpinned page, taken from it. */
 function orderedVictim({ eviction, resident, pins }: GpuPageContext) {
   const order = eviction.order!;
   while (eviction.at < order.count) {

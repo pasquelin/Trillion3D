@@ -133,7 +133,7 @@ export function parseDagOutput(
   );
   // Arrays sized in advance: reading a frame does not grow an empty array element by element,
   // and a typed-array iterator is never unrolled.
-  const { result, drawable } = scratch,
+  const { result, drawable, evict } = scratch,
     pageIds = result.pageIds;
   // Each rank is a REQUEST: the page and its priority in one word (`request.ts`). The GPU wrote
   // them SORTED, highest `requestRank` first (`shader/snapshotWgsl.ts`): every visible request, then
@@ -163,11 +163,7 @@ export function parseDagOutput(
   // one flag per DAG page, only the ranks the GPU kept.
   if (drawnWordOffset) {
     result.drawablePageIds = readCountedList(ints, drawnWordOffset, drawable);
-    result.evictPageIds = readCountedList(
-      ints,
-      evictionWord(drawnWordOffset - head),
-      scratch.evict,
-    );
+    result.evictPageIds = readCountedList(ints, evictionWord(drawnWordOffset - head), evict);
   }
   return result;
 }

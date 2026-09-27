@@ -25,7 +25,7 @@ export const DAG_LAST_USE_WGSL = `fn frameWord()->u32{return drawnGroupsMax()+1u
 fn lastUseAt(i:u32)->u32{return queueBase(${LEVEL_QUEUES}u)+i;}
 /** One camera cut more: the clock the pages it uses are stamped with. */
 fn countFrame(){if(!isLightCut()){atomicAdd(&work[frameWord()],1u);}}
-/** Page \`i\` is used by this camera cut: drawn or requested. The stamp goes to its content key's
- *  canonical page (\`../evict.ts\`), so it holds the key's last use over all its placements. */
+/** Page \`i\` is used by this camera cut, drawn or requested: its key's canonical page is stamped
+ *  (\`../evict.ts\`). */
 fn stampUse(i:u32){if(!isLightCut()){flags[lastUseAt(cold[keyBase()+i]&KEY_PAGE)]=atomicLoad(&work[frameWord()]);}}
 `;
