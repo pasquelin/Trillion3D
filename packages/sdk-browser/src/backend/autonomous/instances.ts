@@ -8,7 +8,7 @@ import {
   setHostSurface,
   colouredTwin,
 } from '../../host/pageObjects.ts';
-import { recordsOfMeshes, wearDeclaration } from '../../page/surface.ts';
+import { recordsBySurface, unpagedRefusal, wearDeclaration } from '../../page/surface.ts';
 import type { PageRec, ClusterRoot } from '../../page/selection/selection.ts';
 import type { createAutonomousGeometry } from './geometry.ts';
 import { composedPose, deplaceInstance } from './instancePose.ts';
@@ -16,6 +16,7 @@ import { attachedPages, drawnInstanced } from '../../placement/autonomousPlaceme
 import type { HeldFloor } from './heldFloor.ts';
 import {
   blendMoves,
+  isAssignment,
   type AlphaChange,
   type SurfaceAssignment,
 } from '../../placement/backendSceneUpdates.ts';
@@ -96,6 +97,8 @@ export function createAutonomousInstances(env: InstanceEnvironment) {
      *  (#846): rows are one instanced mesh while opaque, one mesh a row once blended. */
     materialClassRefusal(alpha: AlphaChange) {
       const instanced = (rec: PageRec) => drawnInstanced(rec, blendOf(rec, alpha));
+      const unpaged = unpagedRefusal(allPages, isAssignment(alpha) ? alpha.meshes : undefined);
+      if (unpaged) return unpaged;
       if (blendMoves(alpha) && overCeiling(0, attachedPages(bootstrap, instanced)))
         return 'AUTONOMOUS_ROOT_BUDGET: the cover would hang more meshes than the host allows';
     },
@@ -187,12 +190,11 @@ export function createAutonomousInstances(env: InstanceEnvironment) {
       wear(records, painted);
       if (previous) releasePaint(previous);
     },
-    /** The records of the assigned meshes wear their surface (`wearSurface`, #847); false when
-     *  pages draw none of them — a blended copy's, laid out at open. */
-    wearSurface({ meshes, surfaces }: SurfaceAssignment) {
-      const records = recordsOfMeshes(allPages, meshes);
-      wear(records, surfaces[0] as HostMaterial);
-      return records.length > 0;
+    /** Each assigned mesh's records wear its surface (`wearSurface`, #847); copies refused. */
+    wearSurface({ meshes }: SurfaceAssignment) {
+      for (const [surface, records] of recordsBySurface(allPages, meshes))
+        wear(records, surface as HostMaterial);
+      return true;
     },
   };
 }

@@ -41,6 +41,13 @@ const isSlot = (value: unknown): value is TableTextureSlot =>
 /** The variant of a surface a primitive asks for: what its geometry carries. */
 export type SurfaceVariant = { vertexColors: boolean; flatShading: boolean };
 
+/** The variant a geometry asks for: vertex colours where it has some, flat shading where it has
+ *  no normal — at open (`graph.ts`) and for a created material assigned later (#847). */
+export const surfaceVariantOf = (attributes: Record<string, unknown>): SurfaceVariant => ({
+  vertexColors: attributes.color !== undefined,
+  flatShading: attributes.normal === undefined,
+});
+
 function extensionParams(
   entry: TableMaterial,
   params: Params,
