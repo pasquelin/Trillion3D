@@ -1,0 +1,49 @@
+/**
+ * A mesh costs what it holds (#874): its shape, its matter and how it reads them. The flag, the
+ * morph weights and the listener live on the class or appear when used; the geometry and the
+ * materials hear the mesh only while it is in a world.
+ */
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { Mesh } from './mesh.ts';
+import { Group } from './object3d.ts';
+import { Geometry } from '../geometry/geometry.ts';
+import { BufferAttribute } from '../buffer/attribute.ts';
+import { Material } from '../material/material.ts';
+import type { SceneLink } from './sceneLink.ts';
+
+/** A world's link that counts the content changes it hears. */
+function countingLink() {
+  const heard: object[] = [];
+  const link = { content: (node: object) => heard.push(node), pose() {}, structure() {} };
+  return { link: link as unknown as SceneLink, heard };
+}
+
+test('a mesh holds its shape, its matter and its primitive, nothing more of its own', () => {
+  const mesh = new Mesh(new Geometry(), new Material('meshBasic'));
+  const own = Object.keys(new Group());
+  const added = Object.keys(mesh).filter((key) => !own.includes(key));
+  assert.deepEqual(added.sort(), ['_geometry', '_material', 'primitive']);
+  assert.equal(mesh.isMesh, true, 'the flag reads from the class');
+  assert.equal(mesh.morphTargetInfluences, undefined, 'no morph, no weights');
+});
+
+test('a mesh is heard by its geometry and materials only while it is in a world', () => {
+  const geometry = new Geometry(),
+    material = new Material('meshBasic');
+  const mesh = new Mesh(geometry, material);
+  assert.equal(geometry._listeners.size + material._listeners.size, 0, 'outside a world: none');
+  const scene = new Group(),
+    { link, heard } = countingLink();
+  scene._link = link;
+  scene.add(mesh);
+  assert.deepEqual([geometry._listeners.size, material._listeners.size], [1, 1]);
+  geometry.setAttribute('position', new BufferAttribute(new Float32Array(3), 3));
+  material.opacity = 0.5;
+  assert.ok(heard.filter((node) => node === mesh).length >= 2, 'both changes reach the world');
+  const other = new Geometry();
+  mesh.geometry = other;
+  assert.deepEqual([geometry._listeners.size, other._listeners.size], [0, 1], 'the new shape');
+  scene.remove(mesh);
+  assert.equal(other._listeners.size + material._listeners.size, 0, 'left the world: none');
+});

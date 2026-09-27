@@ -4081,7 +4081,6 @@
       "material": "Le matériau du maillage, ou un par groupe ; donnes-en un autre pour le changer.",
       "localBounds": "La boîte du contenu propre à ce nœud, dans son repère local ; un simple nœud n’en a pas.",
       "physics": "Le maillage comme corps de la physique du monde, `null` s’il n’en est pas un. Mets `'static'`, `'dynamic'`, `'kinematic'` ou des options ; la forme est déduite de la géométrie.",
-      "serial": "Le numéro du nœud, unique dans la session.",
       "morphTargetInfluences": "Le poids de chaque cible de morphose, quand la géométrie en déclare.",
       "morphTargetDictionary": "Le rang de chaque cible de morphose, par son nom.",
       "updateMorphTargets": "Un poids nul par cible de morphose du premier attribut déformé, nommée par son rang.",

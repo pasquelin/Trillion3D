@@ -2043,7 +2043,6 @@
       "material": "该网格的材质,或每个分组各一个;设置另一个即可改变它。",
       "localBounds": "该节点自身内容所占据的包围盒,局部坐标系;一个普通节点不含任何内容。",
       "physics": "网格作为世界物理中的物体，不是时为 `null`。设为 `'static'`、`'dynamic'`、`'kinematic'` 或选项；形状由几何体推断。",
-      "serial": "节点的编号，在会话中唯一。",
       "morphTargetInfluences": "几何体声明变形目标时，每个变形目标的权重。",
       "morphTargetDictionary": "按名称给出的每个变形目标的序号。",
       "updateMorphTargets": "为第一个变形属性的每个变形目标设一个零权重，按序号命名。",

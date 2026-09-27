@@ -11,6 +11,7 @@
  * Nothing is decided here: the pose, the component counts, the box and the surface parameters
  * all arrive computed.
  */
+import { numbered } from './graph/serial.ts';
 import type { Material } from '../../../sdk-core/src/index.ts';
 import type { HostInstancedMesh, HostMaterial, HostMaterials, HostMesh } from './resources.ts';
 import type { DecodedGeometryPage } from '../page/decode/geometryPage.ts';
@@ -48,7 +49,7 @@ export function hostPageMesh(
   declaration: HostMaterials,
   renderOrder: number,
 ): HostMesh {
-  const mesh = new Mesh(geometry, declaration as unknown as Surfaces);
+  const mesh = numbered(new Mesh(geometry, declaration as unknown as Surfaces));
   mesh.matrixAutoUpdate = false;
   mesh.frustumCulled = false;
   mesh.renderOrder = renderOrder;
@@ -66,7 +67,7 @@ export function hostPageInstances(
   renderOrder: number,
   capacity: number,
 ): HostInstancedMesh {
-  const mesh = new InstancedMesh(geometry, declaration as unknown as Surfaces, capacity);
+  const mesh = numbered(new InstancedMesh(geometry, declaration as unknown as Surfaces, capacity));
   mesh.matrixAutoUpdate = false;
   mesh.frustumCulled = false;
   mesh.renderOrder = renderOrder;

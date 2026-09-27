@@ -712,7 +712,8 @@ The engine's graph is built of the same classes: a bare node is an `Object3D`, a
 and a drawn node a `Mesh` (or the core's instanced mesh) wearing the engine's surfaces, and every
 function of the browser facade that takes or returns a node of that graph names `Object3D`.
 `GraphNode` is abstract: it is only the base of the camera and light classes the engine builds,
-which add a `kind` and a creation number, counted with the meshes'.
+which add a `kind` and a creation number; the engine numbers the meshes it builds in the same
+count, beside them, so a mesh a page builds carries none.
 
 `clone(recursive)` of an `Object3D` returns a node of the same class — a `Group` stays a `Group`, a
 `Light` a `Light`, a `Camera` a `Camera`, a graph node its own kind — holding the source's name,
