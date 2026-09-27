@@ -86,7 +86,7 @@ function createContractLights(scene: Scene, store: SceneLightStore | undefined) 
         albedo.setEnabled(false);
         if (governs) dropAll();
         governs = false;
-        scene.fog = null;
+        if (scene.fog) scene.fog = null;
         group.visible = false;
         epoch = store.epoch;
         return false;
