@@ -3,6 +3,15 @@
 use super::*;
 use crate::dag::{DagCluster, DagStall, DagStrategy, GroupTally, StallCause};
 
+/// The summary's fields, in the order `StallSummary::json` writes them.
+const SUMMARY_FIELDS: [&str; 5] = [
+    "rootTriangles",
+    "cause",
+    "seamVertices",
+    "lockedVertices",
+    "uvIslands",
+];
+
 /// What a primitive's stalls come to, read once for the report and its warning.
 pub(super) struct StallSummary {
     /// Level-0 triangles that no coarser level replaces.
@@ -42,15 +51,17 @@ impl StallSummary {
             islands: stalls.iter().map(|s| s.outcome.islands).sum(),
         }
     }
-    /// The fields the report and the warning both carry.
+    /// The fields the report, the warning and the stall table carry, named by `SUMMARY_FIELDS`.
     pub fn json(&self) -> Value {
-        json!({
-            "rootTriangles": self.root_triangles,
-            "cause": self.cause.map(StallCause::name),
-            "seamVertices": self.seam,
-            "lockedVertices": self.locked,
-            "uvIslands": self.islands,
-        })
+        let values = [
+            json!(self.root_triangles),
+            json!(self.cause.map(StallCause::name)),
+            json!(self.seam),
+            json!(self.locked),
+            json!(self.islands),
+        ];
+        let fields = SUMMARY_FIELDS.iter().map(|f| f.to_string());
+        Value::Object(fields.zip(values).collect())
     }
 }
 
@@ -120,15 +131,15 @@ pub(super) fn worst_stalls(primitives: &[Value]) -> Value {
             p["dag"]["stalls"].as_array().is_some_and(|s| !s.is_empty()) && roots(p) > 0
         })
         .collect();
-    stalled.sort_by_key(|(_, p)| std::cmp::Reverse(roots(p)));
+    stalled.sort_by_cached_key(|(_, p)| std::cmp::Reverse(roots(p)));
     stalled
         .iter()
         .take(WORST)
         .map(|&(index, p)| {
-            let dag = &p["dag"];
-            json!({"index":index,"mesh":p["mesh"],"primitive":p["primitive"],
-             "rootTriangles":dag["rootTriangles"],"cause":dag["cause"],"seamVertices":dag["seamVertices"],
-             "lockedVertices":dag["lockedVertices"],"uvIslands":dag["uvIslands"]})
+            let mut row = json!({"index":index,"mesh":p["mesh"],"primitive":p["primitive"]});
+            let summary = SUMMARY_FIELDS.map(|f| (f.to_string(), p["dag"][f].clone()));
+            merge(&mut row, Value::Object(summary.into_iter().collect()));
+            row
         })
         .collect()
 }

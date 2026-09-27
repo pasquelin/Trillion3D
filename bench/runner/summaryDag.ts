@@ -23,8 +23,8 @@ export function stalls(report: Report) {
     const recorded = report.series
       .map((serie) => serie.sides[side]?.avertissementsDag as DagWarnings | null | undefined)
       .find((warnings) => warnings?.stalled);
-    const worst = recorded?.stalled ?? [];
-    if (!worst.length) {
+    const table = recorded?.stalled ?? [];
+    if (!table.length) {
       lines.push(`- ${side}: no stall recorded`, '');
       continue;
     }
@@ -33,7 +33,7 @@ export function stalls(report: Report) {
       '',
       '| mesh/primitive | level-0 triangles kept as roots | cause | seam | locked | islands |',
       '|---|---|---|---|---|---|',
-      ...worst.map(
+      ...table.map(
         (w) =>
           `| ${w.mesh}/${w.primitive} | ${w.rootTriangles} | ${w.cause ?? '—'} ` +
           `| ${w.seamVertices} | ${w.lockedVertices} | ${w.uvIslands} |`,
