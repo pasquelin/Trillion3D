@@ -4,8 +4,8 @@ This is the on-disk contract implemented today: what the compiler writes and the
 
 ## Layout
 
-| Pointer                        | Payload                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-| ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Pointer                        | Payload                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `native/<scope>/manifest.json` | `native/<scope>/<key>/clusters.json` and its pages, `source.gltf`, `source.bin`, SHA-addressed objects under `native/objects/`: `<digest>.bin`, one file per index page, geometry page or streaming bundle — and baked texture levels under `native/textures/v<N>/<digest>/<kind>-<level>.<format>`, one lossless PNG per mip level above the sidecar's tail, plus the same level in the cooked block family where the quality gate kept it |
 
 `<scope>` is `slice` or `full`. A pointer or payload with another scope is rejected (`SCOPE_MISMATCH`).
@@ -282,8 +282,8 @@ is `PREPARED_SCENE_MISMATCH`.
 ## `physics.json` — cooked colliders
 
 Written beside `clusters.json` by the compiler's `physics-cook` stage ([COMPILER.md](COMPILER.md)),
-with a `formatVersion` of its own (2): a reader refuses any other (`PHYSICS_FORMAT`, recompile the
-model). Format 1 carried the declared bodies in another shape, and no matter on an instance. The shapes it
+with a `formatVersion` of its own (2, or 3 when a body carries `pieces`): a reader refuses any other
+(`PHYSICS_FORMAT`, recompile the model). Format 1 carried the declared bodies in another shape, and no matter on an instance. The shapes it
 names are Jolt's binary state (`Shape::SaveWithChildren`), readable only by the Jolt that wrote them:
 the file names that commit in `jolt`, and the engine refuses a file cooked by another. `stage` names
 the stage and its version.
@@ -323,6 +323,19 @@ body; another node its collider names keeps its own, still static ground. Each e
 
 `report.bodies` counts them; `report.bodiesRefused` lists each declaring node the cook refused
 (`node`, `reason`): it has no body, and stays static ground.
+
+A body whose node's `extras.physics` declares `breakable` also carries ([COMPILER.md](COMPILER.md#physicsjson--the-cooked-colliders-stage-physics-cook)):
+
+- `breakable`: the threshold as declared, above 0.
+- `pieces`: at most 12 convex pieces the cook cut its mesh into, each a shape as a `cooked` body's
+  (`type`, `url`, `sha256`, `bytes`) in the body's frame at unit scale, with its own `mass`
+  weighed at the body's `scale`, a kinematic body's too. Together they fill the mesh: their masses
+  sum to its own within 1e-5 of it, no two overlapping.
+
+A file whose bodies carry pieces is format 3, which a reader of format 2 alone refuses by name
+rather than lose them; a file without is format 2, the bytes it had before. The runtime reads
+format 3 and leaves the pieces unused: the body is drawn and collides as one, and nothing breaks
+yet (#519).
 
 ### `softBodies` — cooked soft bodies
 
