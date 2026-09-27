@@ -27,16 +27,17 @@ test('the canal dolly is scene-driven and its controls pause, replay and change 
   let values: Values = {};
   let change: (next: Values, key?: string) => void = () => {};
   let specs: Record<string, ControlSpec> = {};
+  const world = {
+    scene,
+    camera,
+    invalidate() {},
+    onFrame() {},
+    onPageHide() {},
+    dispose() {},
+  };
   await runExampleModule(html, {
     engine: {
-      createWorld: () => ({
-        scene,
-        camera,
-        invalidate() {},
-        onFrame() {},
-        onPageHide() {},
-        dispose() {},
-      }),
+      createWorld: () => world,
       animation,
       geometry,
       material,
@@ -45,7 +46,12 @@ test('the canal dolly is scene-driven and its controls pause, replay and change 
       math,
     },
     kit: {
-      controls: (nextSpecs: Record<string, ControlSpec>, callback: typeof change) => {
+      controls: (
+        nextSpecs: Record<string, ControlSpec>,
+        callback: typeof change,
+        watched: unknown,
+      ) => {
+        assert.equal(watched, world);
         specs = nextSpecs;
         values = describe(specs).values as Values;
         change = callback;
