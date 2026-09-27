@@ -31,12 +31,12 @@ export function createGpuPagePins(context: GpuPageContext) {
      * Moves a resident page to the far end of the eviction order, without a load: a page a
      * lower tier still wants is then the last unpinned page a new arrival takes the slot of.
      */
-    touch(key: string) {
+    touch(key: string, lower = false) {
       const page = resident.get(key);
       if (!page) return false;
       resident.delete(key);
       resident.set(key, page);
-      page.touched = context.eviction.epoch;
+      if (lower) context.eviction.lower.set(key, context.eviction.epoch);
       return true;
     },
     /** Slots a load can take without evicting a pinned page: the free ones and the unpinned. */
