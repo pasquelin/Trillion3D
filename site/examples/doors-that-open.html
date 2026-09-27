@@ -64,10 +64,12 @@
       const platform = put(geometry.box(8, 0.2, 7), stone, [0, -0.1, 3]);
       platform.receiveShadow = true;
       platform.castShadow = false;
+      const railShape = geometry.box(0.18, 1.1, 7),
+        stepShape = geometry.box(1.1, 0.18, 0.5);
       for (const side of [-1, 1]) {
-        put(geometry.box(0.18, 1.1, 7), stone, [side * 3.9, 0.55, 3]);
+        put(railShape, stone, [side * 3.9, 0.55, 3]);
         for (let step = 0; step < 5; step++)
-          put(geometry.box(1.1, 0.18, 0.5), stone, [side * 2.7, step * 0.18, 6 - step * 0.45]);
+          put(stepShape, stone, [side * 2.7, step * 0.18, 6 - step * 0.45]);
       }
       world.scene.add(
         light.directional({
@@ -85,6 +87,7 @@
       ]);
       const mixer = animation.createMixer(world.scene),
         action = mixer.clipAction(clip);
+      // Played once: a repeating clip would wrap time 1 back to 0 and shut the open doors.
       action.loop = 'once';
       // The engine has no seek: pose the stopped action at a time with one zero-length update.
       let shown;
@@ -105,10 +108,11 @@
       world.controls.minDistance = 1.5;
       world.controls.maxDistance = 18;
       world.controls.maxPolarAngle = Math.PI / 2 - 0.04;
+      const fullyOpen = 2;
       const updateDoors = (settings = ui) => {
         if (settings.mode === 'manual') return sample(settings.openness);
         const distance = world.camera.position.distanceTo(entrance);
-        sample((settings.openingDistance - distance) / (settings.openingDistance - 2));
+        sample((settings.openingDistance - distance) / (settings.openingDistance - fullyOpen));
       };
       const ui = controls(
         {
