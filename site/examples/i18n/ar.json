@@ -1710,11 +1710,18 @@
   },
   "the-home-pose": {
     "banner": "اختر عرضًا، وحرّك الكاميرا، ثم اختر البداية للعودة.",
-    "controls": { "home": "البداية", "tower": "البرج", "square": "الساحة", "hillside": "التل" }
+    "controls": {
+      "home": "البداية",
+      "tower": "البرج",
+      "square": "الساحة",
+      "hillside": "التل"
+    }
   },
   "the-near-plane-cuts-a-wall": {
     "banner": "حرّك المستوى القريب إلى الأمام وشاهده يقطع كل جدار.",
-    "controls": { "nearPlane": "المستوى القريب" }
+    "controls": {
+      "nearPlane": "المستوى القريب"
+    }
   },
   "the-material-family": {
     "banner": "اسحب لتمشي حولها. اجعل الضوء ليلًا وشاهد ما يزال يلمع.",
@@ -2179,6 +2186,12 @@
     },
     "words": {
       "credit": "علم على سارية نُمذج بالشيفرة لهذا المثال، CC0 — انظر assets/examples/CREDITS.md"
+    }
+  },
+  "hover-to-highlight": {
+    "banner": "مرّر المؤشر فوق أجزاء العربة لإبراز كل جزء، أو أوقف الإبراز من اللوحة.",
+    "controls": {
+      "highlightEnabled": "تفعيل الإبراز"
     }
   }
 }
