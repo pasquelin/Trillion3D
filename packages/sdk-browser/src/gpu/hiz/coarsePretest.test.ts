@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { HIZ_KERNEL_TEXELS } from '../../hiz/counts.ts';
 import { HIZ_TEST_VALUES, hizTestRect } from '../../hiz/occlusion.ts';
 import { packHizPyramid, type PackedHiz } from './oracle.ts';
+import { lcg } from './buildTranscripts.fixture.ts';
 
 // The Hi-Z rectangle test reads a coarse mip first and stops at the first texel that does not
 // hide (`pyramidHides`), where it used to take the minimum of the whole footprint
@@ -103,10 +104,6 @@ function judge(
   const after =
     (shift > 0 && texelsHide(p, c, coarse, nearest, bias)) || texelsHide(p, l, fine, nearest, bias);
   return { before, after, shift };
-}
-
-function lcg(seed: number) {
-  return () => (seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 2 ** 32;
 }
 
 const SPECIALS = [0, -0, 1, Infinity, -Infinity, Number.NaN, f32(0.5), f32(1e-30)];
