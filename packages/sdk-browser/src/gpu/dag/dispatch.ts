@@ -26,8 +26,8 @@ export type DagRuntimeState = {
   readbackWorldRevision: number;
   mapped: boolean[];
   slot: number;
-  /** The pool's slots the next cut lists evictions for, and its readback copies. */
-  poolSlots: number;
+  /** Keys the pool's list holds (`poolList.ts`): the eviction queue's bound, which the copy follows. */
+  poolHeld: number;
 };
 
 export function createDagDispatch(
@@ -82,7 +82,7 @@ export function createDagDispatch(
       undoReadbackWorld = state.readbackWorldRevision,
       undoSlot = state.slot;
     if (compute) {
-      writeDagUniforms(uniformData, packed, next, residentCut, undefined, state.poolSlots);
+      writeDagUniforms(uniformData, packed, next, residentCut);
       device.queue.writeBuffer(uniforms, 0, uniformData);
       encodeDagKernels(encoder, resources);
       state.lastSubmitted = copySelectionUniforms(next);
@@ -90,8 +90,8 @@ export function createDagDispatch(
       state.submittedWorldRevision = state.worldRevision;
     }
     if (copy) {
-      // Snapshot, drawn list and eviction queue: one copy, bounded by the slots, not the catalogue.
-      const bytes = residentCut ? residentReadbackBytes(listCap, state.poolSlots) : outputBytes;
+      // Snapshot, drawn list and eviction queue: one copy, bounded by the pool, not the catalogue.
+      const bytes = residentCut ? residentReadbackBytes(listCap, state.poolHeld) : outputBytes;
       encoder.copyBufferToBuffer(output, 0, readback[i], 0, bytes);
     }
     const captured = copy ? copySelectionUniforms(next) : undefined;

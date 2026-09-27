@@ -34,9 +34,17 @@ export type GpuPageContext = {
     uploadedBytes: number;
     evictions: number;
   };
-  /** The order slots are given back in, when a GPU cut publishes one (`../dag/evict.ts`), its first
-   *  entry not taken yet and the orders published; else the least recent page goes first. */
-  eviction: { order?: EvictionOrder; at: number; epoch: number; lower: Map<string, number> };
+  /** The order slots are given back in, when a GPU cut publishes one (`../dag/evict.ts`), its next
+   *  entry and those set aside (`commit.ts`), and the orders published; else the least recent. */
+  eviction: {
+    order?: EvictionOrder;
+    at: number;
+    epoch: number;
+    lower: Map<string, number>;
+    held: string[];
+    late: string[];
+    lateAt: number;
+  };
   changeKeys: string[];
   changeSlots: number[];
   reader: ReturnType<typeof createGpuPageReader>;
