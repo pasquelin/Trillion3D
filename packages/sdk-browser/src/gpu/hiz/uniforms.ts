@@ -34,6 +34,9 @@ export function writeUni(
 /** Mips one build pass reduces in workgroup memory: an 8 × 8 workgroup reduces a 16 × 16 source
  *  tile down to one texel. */
 export const HIZ_PASS_LEVELS = 4;
+/** Threads per side of a build workgroup: each reduces one 2 × 2 square, and the workgroup
+ *  halves them `HIZ_PASS_LEVELS - 1` more times down to one texel. */
+export const HIZ_BUILD_SIDE = 1 << (HIZ_PASS_LEVELS - 1);
 /** Words of one pass's uniform: the source level, then one `vec4u` per level it writes. */
 const PASS_HEADER_WORDS = 8;
 
@@ -51,8 +54,9 @@ export const hizBuildSlots = (maxLevels: number) =>
 export function hizBuildPasses(sizes: Array<[number, number]>, maxLevels: number) {
   const last = Math.min(sizes.length, maxLevels) - 1;
   const passes: HizBuildPass[] = [];
-  for (let source = 0; source === 0 || source < last; source += HIZ_PASS_LEVELS)
-    passes.push({ source, levels: Math.min(HIZ_PASS_LEVELS, last - source) });
+  let source = 0;
+  do passes.push({ source, levels: Math.min(HIZ_PASS_LEVELS, last - source) });
+  while ((source += HIZ_PASS_LEVELS) < last);
   return passes;
 }
 

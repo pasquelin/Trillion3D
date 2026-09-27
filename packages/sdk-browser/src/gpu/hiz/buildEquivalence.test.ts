@@ -108,4 +108,25 @@ test('the shipped build is one kernel over workgroup memory, with no copy kernel
   assert.match(HIZ_SHADER, /@compute @workgroup_size\(8, 8\)\s*fn buildHiz\(/);
   assert.doesNotMatch(HIZ_SHADER, /fn copyDepth|fn reduceHiz/);
   assert.match(HIZ_SHADER, /dst:array<vec4u,4>,\}/);
+  // The lines the transcript follows, pinned: a slip in the WGSL alone shows here.
+  const build = HIZ_SHADER.slice(
+    HIZ_SHADER.indexOf('fn hizSource'),
+    HIZ_SHADER.indexOf('fn texelsHide'),
+  );
+  for (const line of [
+    'if(uni.e==0u){return pyramid[at];}',
+    'pyramid[at]=depth;',
+    'var far=hizTile[ly*8u+lx];',
+    'if(x0+1u<w){far=min(far,hizTile[ly*8u+lx+1u]);}',
+    'far=min(far,hizTile[(ly+1u)*8u+lx]);',
+    'if(x0+1u<w){far=min(far,hizTile[(ly+1u)*8u+lx+1u]);}',
+    'if(x0+1u<uni.b){far=min(far,hizSource(z,x0+1u,y0));}',
+    'far=min(far,hizSource(z,x0,y0+1u));',
+    'if(uni.d>0u){pyramid[uni.dst[0].x+z*uni.g+y*uni.dst[0].y+x]=far;}',
+    'let live=k<uni.d&&lid.x<side&&lid.y<side&&tx<dst.y&&ty<dst.z;',
+    'if(live){far=hizTileFar(lid.x*2u,lid.y*2u,tx*2u,ty*2u,src.y,src.z);}',
+    'pyramid[dst.x+z*uni.g+ty*dst.y+tx]=far;',
+  ])
+    assert.ok(build.includes(line), line);
+  assert.equal(build.match(/workgroupBarrier\(\);/g)?.length, 2, 'read, barrier, write, barrier');
 });

@@ -1,4 +1,11 @@
-import { HIZ_PASS_LEVELS, hizBuildPasses, hizBuildWords, pyramidBytes } from './uniforms.ts';
+import { encodeHizPyramid } from './pyramid.ts';
+import {
+  HIZ_BUILD_SIDE as S,
+  HIZ_PASS_LEVELS,
+  hizBuildPasses,
+  hizBuildWords,
+  pyramidBytes,
+} from './uniforms.ts';
 
 // The pyramid build of develop (`copyDepth`, then one `reduceHiz` per mip) and `buildHiz`,
 // transcribed line by line for `buildEquivalence.test.ts`.
@@ -56,7 +63,7 @@ export function buildBefore(scene: Scene, pyramid: Float32Array) {
   }
 }
 
-/** One `buildHiz` workgroup: 64 lanes, the barriers as phases, stale workgroup memory kept. */
+/** One `buildHiz` workgroup: S × S lanes, the barriers as phases, stale workgroup memory kept. */
 function workgroup(
   scene: Scene,
   u: Uint32Array,
@@ -72,10 +79,10 @@ function workgroup(
     if (e === 0) return pyramid[at];
     return (pyramid[at] = texel(scene, z, x, y));
   };
-  const far = new Float32Array(64);
-  for (let lane = 0; lane < 64; lane++) {
-    const x = wg[0] * 8 + (lane & 7),
-      y = wg[1] * 8 + (lane >> 3),
+  const far = new Float32Array(S * S);
+  for (let lane = 0; lane < S * S; lane++) {
+    const x = wg[0] * S + (lane % S),
+      y = wg[1] * S + Math.floor(lane / S),
       x0 = x * 2,
       y0 = y * 2;
     far[lane] = 0;
@@ -90,30 +97,30 @@ function workgroup(
     }
     tile[lane] = far[lane];
   }
-  for (let k = 1, side = 4; k < HIZ_PASS_LEVELS; k++, side >>= 1) {
+  for (let k = 1, side = S >> 1; k < HIZ_PASS_LEVELS; k++, side >>= 1) {
     const [, w, h] = dst(k - 1),
       [offset, dstW, dstH] = dst(k);
     const live: number[] = [];
-    for (let lane = 0; lane < 64; lane++) {
-      const lx = lane & 7,
-        ly = lane >> 3,
+    for (let lane = 0; lane < S * S; lane++) {
+      const lx = lane % S,
+        ly = Math.floor(lane / S),
         tx = wg[0] * side + lx,
         ty = wg[1] * side + ly;
       if (!(k < d && lx < side && ly < side && tx < dstW && ty < dstH)) continue;
-      const at = ly * 2 * 8 + lx * 2;
+      const at = ly * 2 * S + lx * 2;
       let v = tile[at];
       if (tx * 2 + 1 < w) v = Math.min(v, tile[at + 1]);
       if (ty * 2 + 1 < h) {
-        v = Math.min(v, tile[at + 8]);
-        if (tx * 2 + 1 < w) v = Math.min(v, tile[at + 9]);
+        v = Math.min(v, tile[at + S]);
+        if (tx * 2 + 1 < w) v = Math.min(v, tile[at + S + 1]);
       }
       far[lane] = v;
       live.push(lane);
     }
     // workgroupBarrier(): every read of the level is done before any lane overwrites the tile.
     for (const lane of live) {
-      const tx = wg[0] * side + (lane & 7),
-        ty = wg[1] * side + (lane >> 3);
+      const tx = wg[0] * side + (lane % S),
+        ty = wg[1] * side + Math.floor(lane / S);
       tile[lane] = far[lane];
       pyramid[offset + z * g + ty * dstW + tx] = far[lane];
     }
@@ -131,15 +138,27 @@ export function buildAfter(scene: Scene, pyramid: Float32Array, rand: () => numb
     SLOT_WORDS * 4,
     stride,
   );
-  passes.forEach(({ source }, i) => {
-    const u = words.subarray(i * SLOT_WORDS, (i + 1) * SLOT_WORDS);
-    const [w, h] = sizes[source];
-    for (let z = 0; z < count; z++)
-      for (let gy = 0; gy < Math.ceil(h / 16); gy++)
-        for (let gx = 0; gx < Math.ceil(w / 16); gx++) {
-          // Workgroup memory starts undefined: garbage that an exact kernel never reads.
-          const tile = Float32Array.from({ length: 64 }, () => rand() * 1e9 - 5e8);
-          workgroup(scene, u, pyramid, [gx, gy, z], tile);
+  // The grid and the uniform slot of each dispatch are the ones the host encodes.
+  let slot = 0;
+  const grids: number[][] = [];
+  const pass = {
+    setPipeline() {},
+    setBindGroup: (_: number, __: unknown, offsets: number[]) => (slot = offsets[0] / 4),
+    dispatchWorkgroups: (...grid: number[]) => grids.push([slot, ...grid]),
+    end() {},
+  };
+  const encoder = { beginComputePass: () => pass } as unknown as GPUCommandEncoder;
+  const group = {} as GPUBindGroup,
+    pipeline = {} as GPUComputePipeline;
+  encodeHizPyramid(encoder, '', group, pipeline, sizes, passes, SLOT_WORDS * 4, count);
+  for (const [at, gx, gy, gz] of grids) {
+    const u = words.subarray(at, at + SLOT_WORDS);
+    for (let z = 0; z < gz; z++)
+      for (let y = 0; y < gy; y++)
+        for (let x = 0; x < gx; x++) {
+          // Whatever workgroup memory holds: an exact kernel never reads a texel it did not write.
+          const tile = Float32Array.from({ length: S * S }, () => rand() * 1e9 - 5e8);
+          workgroup(scene, u, pyramid, [x, y, z], tile);
         }
-  });
+  }
 }

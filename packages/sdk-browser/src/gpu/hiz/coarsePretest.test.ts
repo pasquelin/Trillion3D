@@ -42,7 +42,7 @@ function footprintFar(p: PackedHiz, l: number, rect: number[], min: Min) {
   return far;
 }
 
-/** `reduceHiz` again over every mip with `min`: the pyramid such a GPU builds. */
+/** The per-level 2 × 2 reduction (`buildHiz`) again with `min`: the pyramid such a GPU builds. */
 function reduceWith(p: PackedHiz, min: Min) {
   for (let l = 1; l < p.sizes.length; l++) {
     const [w, h] = p.sizes[l],
