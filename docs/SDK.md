@@ -255,7 +255,8 @@ const bob = animation.clip('bob', 2, [
   animation.vectorTrack('.position', [0, 1, 2], [0, 1, 0, 0, 2, 0, 0, 1, 0]),
 ]);
 mixer.play(bob);
-// a clip posed at a time, playing or not: the pose is written at once, a playing action goes on from there
+// a clip posed at a time, at once, playing or not: a playing action goes on from there, a stopped one
+// keeps the pose until a playing action of the same mixer writes over it
 mixer.clipAction(bob).seek(0.5);
 ```
 

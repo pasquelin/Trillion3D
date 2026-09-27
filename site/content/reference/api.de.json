@@ -12,7 +12,7 @@
       "bindingOf": "Was `tr` schreibt, einmal aufgelöst; null, solange ihr Ziel nicht unter der Wurzel liegt.",
       "play": "Beginnt zu spielen.",
       "stop": "Hält an und kehrt zum Anfang zurück.",
-      "seek": "Setzt den Clip sofort auf `time` Sekunden, nach seinem Schleifenmodus, ob die Aktion spielt oder nicht: eine spielende Aktion läuft von dort weiter, eine angehaltene bleibt so stehen.",
+      "seek": "Setzt den Clip sofort auf `time` Sekunden, nach seinem Schleifenmodus, ob die Aktion spielt oder nicht: eine spielende Aktion läuft von dort weiter, eine angehaltene behält die Pose, bis eine spielende Aktion ihres Mischers sie überschreibt.",
       "clipTime": "Wo die Aktion im Clip steht, nach ihrem Schleifenmodus."
     }
   },

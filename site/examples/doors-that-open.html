@@ -92,7 +92,9 @@
       let shown;
       const sample = (openness) => {
         openness = math.clamp(openness, 0, 1);
-        if (openness !== shown) action.seek((shown = openness));
+        if (openness === shown) return;
+        shown = openness;
+        action.seek(openness);
       };
 
       world.camera.position.set(7, 4.5, 11);
