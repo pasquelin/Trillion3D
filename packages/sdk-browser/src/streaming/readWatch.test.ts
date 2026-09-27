@@ -22,7 +22,7 @@ function reads() {
 test('a watch hears the reads the view waits on: each page once, a dropped one taken back (#408)', async () => {
   const { read, watch, settle } = reads();
   const heard: PageReads[] = [];
-  const { stop, landed, reads: now } = watch((event) => heard.push(event));
+  const { stop, hold, reads: now } = watch((event) => heard.push(event));
   const caught = (url: string, priority?: number) =>
     void read(url, undefined, priority).catch(() => {});
   ['a', 'b', 'c', 'a'].forEach((url) => caught(url));
@@ -40,10 +40,12 @@ test('a watch hears the reads the view waits on: each page once, a dropped one t
     { landed: 1, asked: 2 }, // one of its two reads dropped: still asked
   ]);
   await settle('c', 'land');
-  assert.deepEqual([landed('c'), landed('b')], [true, false]);
+  hold('c');
+  hold('held');
+  assert.deepEqual(now(), { landed: 3, asked: 3 }, 'a held page counts once, landed');
   stop();
   caught('d');
   await settle('a', 'land');
   assert.equal(heard.length, 6, 'a stopped watch hears nothing more');
-  assert.deepEqual(now(), { landed: 2, asked: 2 });
+  assert.deepEqual(now(), { landed: 3, asked: 3 });
 });

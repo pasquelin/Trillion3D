@@ -110,14 +110,13 @@ export function createExplorerLifecycle(session: ExplorerSession, inputs: Inputs
     for (const backend of backends) await backend.flush?.();
     await diagnosticChannel.flush();
   };
-  /** The pages `backend`'s view reads that the streamer holds, `missing` aside and those `read`
-   *  heard land aside: resident already. */
-  const heldPages = (backend: RenderBackend, missing: readonly string[], read: Read) => {
+  /** Counts as landed, once, the pages `backend`'s view reads that the streamer holds, `missing`
+   *  aside: resident already. A page read again later — the WebGPU residency uploading it — or
+   *  shared with another backend is not counted twice. */
+  const holdPages = (backend: RenderBackend, missing: readonly string[], read: Read) => {
     const lacking = new Set(missing);
-    let held = 0;
     for (const url of backend.pageUrls?.() ?? [])
-      if (!lacking.has(url) && !read.landed(url) && streamer.has(url)) held++;
-    return held;
+      if (!lacking.has(url) && streamer.has(url)) read.hold(url);
   };
   /** The pages the view reads, made resident; `image: false` takes no picture of them.
    *  `onProgress` hears `pages`: `total` the pages the view reads — those the streamer held already
@@ -127,12 +126,11 @@ export function createExplorerLifecycle(session: ExplorerSession, inputs: Inputs
    *  `completed === total`. */
   const awaitPages = async (options: PageWait = {}) => {
     const { onProgress, ...wait } = options;
-    let held = 0,
-      said = [-1, -1];
+    let said = [-1, -1];
     const report = (last = false) => {
       const reads = read.reads(),
-        completed = held + reads.landed,
-        total = last ? completed : held + reads.asked;
+        completed = reads.landed,
+        total = last ? completed : reads.asked;
       if (completed === said[0] && total === said[1]) return;
       said = [completed, total];
       const message = `${completed} of ${total} pages the view reads`;
@@ -147,7 +145,7 @@ export function createExplorerLifecycle(session: ExplorerSession, inputs: Inputs
           backend,
           camera,
           async (missing) => {
-            held += heldPages(backend, missing, read);
+            holdPages(backend, missing, read);
             await streamer.request(missing);
             for (const url of missing) {
               if (geometryUrls.has(url)) {
