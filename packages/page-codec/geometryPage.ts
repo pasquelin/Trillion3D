@@ -6,7 +6,15 @@
  * compiler's, coarser only where a caller passes a primitive's own), octahedral normal bytes,
  * colour bytes — and packs the same streams, without sharing a line.
  */
-import { bitsFor, ceil32, octEncode, Packer, quantize, type QuantizedGrid } from './pageGrids.ts';
+import {
+  bitsFor,
+  ceil32,
+  octEncode,
+  packCorners,
+  Packer,
+  quantize,
+  type QuantizedGrid,
+} from './pageGrids.ts';
 import {
   ATTRIBUTES,
   type PageAttribute,
@@ -15,7 +23,7 @@ import {
 } from './pageAttributes.ts';
 
 const MAGIC = 0x33504757,
-  VERSION = 3,
+  VERSION = 4,
   HEADER_WORDS = 24,
   COLOR_EXPONENT = -8;
 /** The format's texture grid, 2^-14: a quarter of a texel on a 4096-wide map. */
@@ -128,7 +136,8 @@ export function encodeGeometryPage(
     return id;
   });
   const pack = new Packer();
-  pack.stream(
+  const cornerBits = packCorners(
+    pack,
     corners.map((id) => remap[id]),
     bitsFor(unique.length - 1),
   );
@@ -176,6 +185,7 @@ export function encodeGeometryPage(
   record(12, uvRecords[1], 2, uvExponent);
   record(15, colorRecord, 4, COLOR_EXPONENT);
   head.setFloat32(80, error, true);
+  head.setUint32(84, cornerBits, true);
   pack.words.forEach((word, i) => head.setUint32((HEADER_WORDS + i) * 4, word, true));
   let floats = 3;
   for (const [, size, bit] of ATTRIBUTES) if (flags & bit) floats += size;
