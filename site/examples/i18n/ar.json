@@ -510,6 +510,21 @@
       "outer": "الخارج"
     }
   },
+
+  "a-carousel": {
+    "banner": "دُر حول الدوّامة. أوقفها أو حرّك الخيول الخشبية في الاتجاه الآخر.",
+    "controls": {
+      "running": "تعمل",
+      "speed": "السرعة",
+      "direction": "الاتجاه"
+    },
+    "choices": {
+      "direction": {
+        "clockwise": "مع عقارب الساعة",
+        "counterclockwise": "عكس عقارب الساعة"
+      }
+    }
+  },
   "a-world-of-blocks": {
     "banner": "اسحب لتطير حول الجزيرة. ارفع البحر ليغمر الوديان.",
     "controls": {
