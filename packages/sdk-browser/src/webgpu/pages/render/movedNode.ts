@@ -1,5 +1,6 @@
 import type { ClusterRoot } from '../../../page/selection/types.ts';
 import type { PageRec } from '../../../page/selection/selection.ts';
+import { objectEdits } from '../../../../../sdk-core/src/world/object/objectEdits.ts';
 import type { Object3D } from '../../../../../sdk-core/src/world/object/object3d.ts';
 
 /**
@@ -11,50 +12,28 @@ import type { Object3D } from '../../../../../sdk-core/src/world/object/object3d
  * answers stay those of the walks (#915).
  */
 
-/** The first node of `source`, in prefix order, that bears `nodeName`: the reference walk. */
-function walkForNode(source: Object3D, nodeName: string) {
-  let found: Object3D | undefined;
-  source.traverse((node) => {
-    if (!found && node.name === nodeName) found = node;
-  });
-  return found;
-}
-
-/** Name → node of each prepared source, built by one walk. `null` marks a name two nodes bore
- *  at build time: the walk decides it every time, exactly as the reference does. */
-const nameIndexes = new WeakMap<Object3D, Map<string, Object3D | null>>();
+/** Name → the first node of `source` in prefix order that bears it, and the edit count it was
+ *  built under: while no object was renamed or reparented (`objectEdits`), the walk answers the
+ *  same, ambiguous names included. */
+const nameIndexes = new WeakMap<Object3D, { edits: number; names: Map<string, Object3D> }>();
 
 function buildNameIndex(source: Object3D) {
-  const index = new Map<string, Object3D | null>();
-  source.traverse((node) => void index.set(node.name, index.has(node.name) ? null : node));
+  const names = new Map<string, Object3D>();
+  source.traverse((node) => void (names.has(node.name) || names.set(node.name, node)));
+  const index = { edits: objectEdits(), names };
   nameIndexes.set(source, index);
   return index;
 }
 
-/** True when `node` is `source` or lies below it, read on the live parent chain. */
-function isUnder(node: Object3D, source: Object3D) {
-  for (let walk: Object3D | null = node; walk; walk = walk.parent) if (walk === source) return true;
-  return false;
-}
-
 /**
- * The named node of the prepared scene, or `undefined`. A hit is checked before use — still so
- * named, still under the source — and a failed check rebuilds the index. A name the index does
- * not hold, or holds as ambiguous, takes the reference walk, which also sees a node added since
- * the build; finding one there rebuilds the index. What no check sees is a node added or renamed
- * after the build that takes, ahead of the indexed one in walk order, a name only that one bore.
+ * The named node of the prepared scene, or `undefined`: the first node of `source`, in prefix
+ * order, that bears `nodeName` — the walk's answer. The index is dropped whenever a name or a
+ * parent changed anywhere since it was built, a node added, renamed or freed included.
  */
 export function findNode(source: Object3D, nodeName: string) {
-  let index = nameIndexes.get(source) ?? buildNameIndex(source);
-  let hit = index.get(nodeName);
-  if (hit && (hit.name !== nodeName || !isUnder(hit, source))) {
-    index = buildNameIndex(source);
-    hit = index.get(nodeName);
-  }
-  if (hit) return hit;
-  const found = walkForNode(source, nodeName);
-  if (found && hit === undefined) buildNameIndex(source);
-  return found;
+  let index = nameIndexes.get(source);
+  if (index?.edits !== objectEdits()) index = buildNameIndex(source);
+  return index.names.get(nodeName);
 }
 
 type Roots = readonly ClusterRoot<PageRec>[];
