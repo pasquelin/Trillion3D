@@ -150,7 +150,14 @@ fn a_mesh_past_the_budget_is_refused_by_name() {
     let refusal = converted.expect_err("the geometry goes past the budget");
     assert_eq!(refusal.code, "blend-too-large");
     assert!(
-        refusal.message.contains("blend: mesh "),
+        refusal.message.contains("blend: mesh ") && refusal.message.contains(" announces "),
+        "{}",
+        refusal.message
+    );
+    assert!(
+        refusal
+            .message
+            .contains("past the 0 bytes this job's RAM budget"),
         "{}",
         refusal.message
     );
