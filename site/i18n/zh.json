@@ -35,7 +35,9 @@
     "jumpTo": "跳转到主题",
     "inProgress": "制作中",
     "waitsFor": "等待引擎:",
-    "waitingEngine": "正在等待引擎"
+    "waitingEngine": "正在等待引擎",
+    "partial": "部分可用",
+    "coming": "即将推出：{{titles}}"
   },
   "gallery": {
     "themes": {

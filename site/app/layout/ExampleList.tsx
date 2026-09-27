@@ -5,6 +5,7 @@ interface ExampleLink {
   label: string;
   href: string;
   thumbnail: string;
+  fallbackThumbnail?: string;
   active: boolean;
 }
 
@@ -28,6 +29,7 @@ export function ExampleList({ groups }: { groups: ExampleGroup[] }) {
                 <Thumbnail
                   href={item.href}
                   src={item.thumbnail}
+                  fallbackSrc={item.fallbackThumbnail}
                   label={item.label}
                   active={item.active}
                 />

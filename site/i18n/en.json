@@ -35,7 +35,9 @@
     "jumpTo": "Jump to a theme",
     "inProgress": "In progress",
     "waitingEngine": "Waiting for the engine",
-    "waitsFor": "Waits for the engine:"
+    "waitsFor": "Waits for the engine:",
+    "partial": "Partial",
+    "coming": "Coming: {{titles}}"
   },
   "gallery": {
     "themes": {

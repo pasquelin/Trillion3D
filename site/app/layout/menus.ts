@@ -3,7 +3,13 @@ import type { Locale } from '../../content/locale.ts';
 import { entrySummary, SECTIONS } from '../../content/model.ts';
 import { REPORT_SECTIONS } from '../../reports/presentation.ts';
 import type { PortalEntry } from '../../content/model.ts';
-import { exampleTitle, readyThemes, themeTitle, thumbnailOf } from '../examples/list.ts';
+import {
+  examplePlaceholder,
+  exampleTitle,
+  themeTitle,
+  thumbnailOf,
+  writtenThemes,
+} from '../examples/list.ts';
 import { expandEntryLinks } from '../portal/entryLinks.ts';
 import { entryRoute, LEARN_SECTIONS, routeHref } from '../portal/routes.ts';
 import type { PortalRoute } from '../portal/routes.ts';
@@ -73,9 +79,9 @@ export function apiIndex(entries: PortalEntry[], route: PortalRoute) {
     .filter(({ items }) => items.length > 0);
 }
 
-/** Examples: the ready examples theme by theme, with their thumbnails, those matching `query`. */
+/** Examples: written source theme by theme, with thumbnail fallbacks, matching `query`. */
 export function examplesMenu(route: PortalRoute, query = ''): ExampleGroup[] {
-  return readyThemes
+  return writtenThemes
     .map(({ theme, entries }) => ({
       id: theme,
       title: themeTitle(theme, route.locale),
@@ -92,6 +98,7 @@ export function examplesMenu(route: PortalRoute, query = ''): ExampleGroup[] {
         href: routeHref({ locale: route.locale, area: 'examples', id: entry.id }),
         active: entry.id === route.id,
         thumbnail: thumbnailOf(entry.id),
+        fallbackThumbnail: examplePlaceholder,
       })),
     }))
     .filter(({ items }) => items.length > 0);
