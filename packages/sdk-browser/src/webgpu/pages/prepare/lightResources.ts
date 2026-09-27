@@ -1,6 +1,7 @@
 import { FLAG_BLEND_CASTER, FLAG_MASK, PAGE_INFO_STRIDE } from '../../../visibility/buffer.ts';
 import type { DirectLightResources } from '../../../lighting/deferred/program.ts';
 import type { PageRec } from '../../../page/selection/selection.ts';
+import type { PageSurface } from '../../../page/surface.ts';
 import { ROW_FLAGS_WORD, ROW_MAP_LAYER_WORD } from '../../row/pageRow.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import type { WebgpuLightState } from '../state/lights.ts';
@@ -47,36 +48,46 @@ export function shadowsFollowTextures(
   }
   const ints = rows.pageTableInts;
   if (!ints || !slots.size) return;
-  boxEmpty(changeBox, 0);
-  const touched =
-    growAlphaReaders(ints, rows, slots, 0, rows.rowCount) |
-    growAlphaReaders(ints, rows, slots, rows.blendFirst, rows.casterSlots);
-  if (touched) lights.plan.representationChanged(changeMin, changeMax);
+  shadowsFollowRows(lights, rows, (row) => {
+    const base = row * ROW_WORDS;
+    return (
+      !!(ints[base + ROW_FLAGS_WORD] & ALPHA_READERS) && slots.has(ints[base + ROW_MAP_LAYER_WORD])
+    );
+  });
 }
 
-/** Grows the change box by rows `[from, to)` whose shadow reads the alpha of a map of `slots`;
- *  1 when one did. */
-function growAlphaReaders(
-  ints: Uint32Array,
+/**
+ * Surfaces whose alpha mode or cutoff a page changed (#846): the depth their rows cast is no longer
+ * the one drawn, whether they cut it before or not, and the shadow pages over those rows alone go
+ * back to waiting, as a colour tile's do (`shadowsFollowTextures`).
+ */
+export function shadowsFollowSurfaces(
+  lights: WebgpuLightState,
   rows: ShadowRowTable,
-  slots: ReadonlySet<number>,
-  from: number,
-  to: number,
+  surfaces: ReadonlySet<PageSurface>,
 ) {
-  let touched = 0;
-  for (let row = from; row < to; row++) {
-    const base = row * ROW_WORDS;
-    if (
-      !(ints[base + ROW_FLAGS_WORD] & ALPHA_READERS) ||
-      !slots.has(ints[base + ROW_MAP_LAYER_WORD])
-    )
-      continue;
-    const rec = rows.packedRecs[row];
-    if (!rec) continue;
-    growClusterBox(rec, changeBox);
-    touched = 1;
-  }
-  return touched;
+  if (lights.store.count) shadowsFollowRows(lights, rows, (_, rec) => surfaces.has(rec.material));
+}
+
+/** Stales the box of the rows, visibility then blended casters, that `stale` names; one box. */
+function shadowsFollowRows(
+  lights: WebgpuLightState,
+  rows: ShadowRowTable,
+  stale: (row: number, rec: PageRec) => boolean,
+) {
+  boxEmpty(changeBox, 0);
+  let touched = false;
+  for (const [from, to] of [
+    [0, rows.rowCount],
+    [rows.blendFirst, rows.casterSlots],
+  ])
+    for (let row = from; row < to; row++) {
+      const rec = rows.packedRecs[row];
+      if (!rec || !stale(row, rec)) continue;
+      growClusterBox(rec, changeBox);
+      touched = true;
+    }
+  if (touched) lights.plan.representationChanged(changeMin, changeMax);
 }
 
 /**
