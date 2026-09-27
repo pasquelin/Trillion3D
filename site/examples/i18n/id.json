@@ -14,7 +14,7 @@
       "paint": "Cat",
       "clearCoat": "Lapisan bening",
       "coatRoughness": "Kekasaran lapisan",
-      "turntable": "Meja putar"
+      "spin": "Putar"
     }
   },
   "kit": {

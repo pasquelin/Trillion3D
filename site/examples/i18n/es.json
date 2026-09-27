@@ -14,7 +14,7 @@
       "paint": "Pintura",
       "clearCoat": "Capa transparente",
       "coatRoughness": "Rugosidad de la capa",
-      "turntable": "Plataforma giratoria"
+      "spin": "Girar"
     }
   },
   "kit": {

@@ -14,7 +14,7 @@
       "paint": "Peinture",
       "clearCoat": "Vernis",
       "coatRoughness": "Rugosité du vernis",
-      "turntable": "Plateau tournant"
+      "spin": "Rotation"
     }
   },
   "kit": {
