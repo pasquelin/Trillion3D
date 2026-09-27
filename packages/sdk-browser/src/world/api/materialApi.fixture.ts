@@ -7,6 +7,8 @@ import type { RenderBackend } from '../../backend/types.ts';
 import type { AlphaChange } from '../../placement/backendSceneUpdates.ts';
 import { createExplorerMaterialApi } from './materialApi.ts';
 import { webgpuMaterialClassRefusal } from '../../webgpu/pages/io/refreshMaterials.ts';
+import type { PageRec } from '../../page/selection/selection.ts';
+import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 
 const slot = (texture: number): TableTextureSlot => ({
   texture,
@@ -49,7 +51,10 @@ export const entry = (overrides: Partial<TableMaterial>): TableMaterial => ({
 
 /** Rank 0 opaque with its own map, worn in two geometry variants; rank 1 masked; ranks 2 and 3
  *  share one map; rank 4 blended. */
-export async function scene(refresh = true, materialClassRefusal = webgpuMaterialClassRefusal) {
+export async function scene(
+  refresh = true,
+  materialClassRefusal: typeof webgpuMaterialClassRefusal = webgpuMaterialClassRefusal,
+) {
   const textures = [new G.GraphTexture(), new G.GraphTexture()];
   const materialOf = preparedMaterials(
     [
@@ -64,27 +69,39 @@ export async function scene(refresh = true, materialClassRefusal = webgpuMateria
   const plain = { vertexColors: false, flatShading: false };
   const source = new G.Group();
   const floor = [await materialOf(0, plain), await materialOf(0, { ...plain, vertexColors: true })];
+  // Each mesh draws manifest primitive `i/0`: the drawable a created material is assigned to.
+  const associations = new Map<Object3D, { meshes: number }>();
   for (const surface of [
     ...floor,
     ...(await Promise.all([1, 2, 3, 4].map((r) => materialOf(r, plain)))),
-  ])
-    source.add(G.mesh(undefined, surface));
+  ]) {
+    const mesh = G.mesh(undefined, surface);
+    source.add(mesh);
+    associations.set(mesh, { meshes: associations.size });
+  }
   // One entry per refresh: the alpha change it carried, `undefined` for values alone.
   const refreshes: (AlphaChange | undefined)[] = [];
+  // One page record per mesh, as the open collects them: the glass one drawn blended.
+  const pages = [...associations.keys()].map((sourceMesh, at) => ({
+    sourceMesh,
+    transparent: at === 5,
+  })) as unknown as PageRec[];
   const backend = {
     id: 'webgpu-page-raster',
-    materialClassRefusal,
+    materialClassRefusal: (alpha: AlphaChange) => materialClassRefusal(alpha, pages),
     ...(refresh && {
       refreshMaterials: (_: boolean, alpha?: AlphaChange) => void refreshes.push(alpha),
+      wearSurface: () => {},
     }),
   } as unknown as RenderBackend;
   const api = createExplorerMaterialApi({
     check: () => {},
     source,
+    associations,
     backends: [backend],
     active: () => backend,
   });
-  return { api, floor, textures, refreshes };
+  return { api, associations, floor, textures, refreshes, source };
 }
 
 export const refusal = (code: string) => (error: unknown) =>

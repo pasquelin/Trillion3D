@@ -11,6 +11,7 @@ import { DEFAULT_CLEAR_COLOR } from '../../backend/common.ts';
 import type { DecodedGeometryPage } from '../../page/decode/geometryPage.ts';
 import type { MemoryBudgets } from '../../residency/pools.ts';
 import type { PlacementRows } from '../../placement/rows.ts';
+import type { AlphaChange, PlacementMount } from '../../placement/backendSceneUpdates.ts';
 import { TAA_CAPABILITY } from '../../taa/capability.ts';
 
 type Inputs = {
@@ -96,6 +97,10 @@ export function createExplorerSceneApi(inputs: Inputs) {
         );
       active.growPlacements(from, to);
     },
+    /** Whether the active path mounts and unmounts resources in the open session (#572). */
+    mountsPlacements: () => !!getActive().mountPlacements,
+    mountPlacements: (mount: PlacementMount) => (check(), getActive().mountPlacements!(mount)),
+    unmountPlacements: (rows: PlacementRows) => (check(), getActive().unmountPlacements!(rows)),
     /** Bounced light on or off in the session; false when the active path cannot toggle it in
      *  place, and only a session opened with the other setting will have it. */
     setBounce(on: boolean) {
@@ -130,11 +135,12 @@ export function createExplorerSceneApi(inputs: Inputs) {
     },
     /** Host surfaces rewritten in place are read again; false when the active path cannot — or
      *  cannot for this change, a picture that changed size —, and only a new session will draw
-     *  them. `values` false says only their textures moved (`BackendSceneUpdates`). */
-    refreshMaterials(values = true) {
+     *  them. `values` false says only their textures moved, `alpha` that their alpha mode or
+     *  cutoff did (`BackendSceneUpdates`). */
+    refreshMaterials(values = true, alpha?: AlphaChange) {
       check();
       const active = getActive();
-      return !!active.refreshMaterials && active.refreshMaterials(values) !== false;
+      return !!active.refreshMaterials && active.refreshMaterials(values, alpha) !== false;
     },
     updateMaterial(primitive: string, material: Material) {
       check();

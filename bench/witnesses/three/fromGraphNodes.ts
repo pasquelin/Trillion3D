@@ -5,7 +5,7 @@
  * hold cross through `fromGraph.ts`; nothing is computed here.
  */
 import * as THREE from 'three';
-import type { GraphCamera } from '../../../packages/sdk-browser/src/host/graph/camera.ts';
+import { Camera } from '../../../packages/sdk-core/src/world/camera/camera.ts';
 import type { GraphLight } from '../../../packages/sdk-browser/src/host/graph/light.ts';
 import {
   isDrawnNode,
@@ -20,7 +20,7 @@ import { Group, type Object3D } from '../../../packages/sdk-core/src/world/objec
 import type { GraphNodeKind } from '../../../packages/sdk-browser/src/host/graph/nodeKind.ts';
 import type { Geometry } from '../../../packages/sdk-core/src/world/geometry/geometry.ts';
 
-const cameras = new WeakMap<GraphCamera, THREE.PerspectiveCamera | THREE.OrthographicCamera>();
+const cameras = new WeakMap<Camera, THREE.PerspectiveCamera | THREE.OrthographicCamera>();
 
 /** A mesh of the library drawing an engine mesh's geometry and surface, posed by its caller;
  *  an instanced one keeps its placements' matrices and count. */
@@ -106,6 +106,7 @@ function threeNode(node: Object3D): THREE.Object3D {
     if (node.morphTargetDictionary) mesh.morphTargetDictionary = { ...node.morphTargetDictionary };
     return place(mesh, node);
   }
+  if (node instanceof Camera) return place(threeCameraOf(node), node);
   switch ((node as { kind?: GraphNodeKind }).kind) {
     case 'directional':
     case 'point':
@@ -118,8 +119,6 @@ function threeNode(node: Object3D): THREE.Object3D {
       if ('target' in light) (light as THREE.DirectionalLight).target = new THREE.Object3D();
       return light;
     }
-    case 'camera':
-      return place(threeCameraOf(node as GraphCamera), node);
     default:
       return place(node instanceof Group ? new THREE.Group() : new THREE.Object3D(), node);
   }
@@ -149,17 +148,18 @@ export function threeGraph(root: Object3D | THREE.Object3D): THREE.Object3D {
 }
 
 /** A library camera of the engine camera's kind, at its optics. */
-function threeCameraOf(camera: GraphCamera) {
-  const made = camera.frame
-    ? new THREE.OrthographicCamera(
-        camera.frame.left,
-        camera.frame.right,
-        camera.frame.top,
-        camera.frame.bottom,
-        camera.near,
-        camera.far,
-      )
-    : new THREE.PerspectiveCamera(camera.fov, camera.aspect, camera.near, camera.far);
+function threeCameraOf(camera: Camera) {
+  const made =
+    camera.projection === 'orthographic'
+      ? new THREE.OrthographicCamera(
+          camera.left,
+          camera.right,
+          camera.top,
+          camera.bottom,
+          camera.near,
+          camera.far,
+        )
+      : new THREE.PerspectiveCamera(camera.fov, camera.aspect, camera.near, camera.far);
   made.zoom = camera.zoom;
   made.updateProjectionMatrix();
   return made;
@@ -170,7 +170,7 @@ function threeCameraOf(camera: GraphCamera) {
  * optics at each call: the renderer composes its view from the world matrix the engine resolved,
  * and its projection from the same optics. A library camera crosses as it is.
  */
-export function threeCamera(camera: GraphCamera | THREE.Camera): THREE.Camera {
+export function threeCamera(camera: Camera | THREE.Camera): THREE.Camera {
   if (camera instanceof THREE.Camera) return camera;
   let made = cameras.get(camera);
   if (!made) {
@@ -186,7 +186,10 @@ export function threeCamera(camera: GraphCamera | THREE.Camera): THREE.Camera {
   if (made instanceof THREE.PerspectiveCamera) {
     made.fov = camera.fov;
     made.aspect = camera.aspect;
-  } else if (camera.frame) Object.assign(made, camera.frame);
+  } else {
+    const { left, right, top, bottom } = camera;
+    Object.assign(made, { left, right, top, bottom });
+  }
   made.updateProjectionMatrix();
   made.updateMatrixWorld();
   return made;
