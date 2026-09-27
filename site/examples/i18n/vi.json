@@ -2185,5 +2185,16 @@
     "words": {
       "credit": "Lá cờ trên cột được dựng bằng mã cho ví dụ này, CC0 — xem assets/examples/CREDITS.md"
     }
+  },
+  "a-dolly-along-the-canal": {
+    "banner": "Tạm dừng, phát lại hành trình hoặc đổi tốc độ khi máy quay trượt dọc theo kênh.",
+    "controls": {
+      "paused": "Tạm dừng",
+      "replay": "Phát lại",
+      "speed": "Tốc độ"
+    },
+    "readouts": {
+      "progress": "Tiến độ"
+    }
   }
 }

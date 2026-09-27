@@ -2180,5 +2180,16 @@
     "words": {
       "credit": "Bendera pada tiang dimodelkan dalam kode untuk contoh ini, CC0 — lihat assets/examples/CREDITS.md"
     }
+  },
+  "a-dolly-along-the-canal": {
+    "banner": "Jeda dolly, ulangi perjalanan, atau ubah kecepatannya saat kamera menyusuri kanal.",
+    "controls": {
+      "paused": "Dijeda",
+      "replay": "Ulangi",
+      "speed": "Kecepatan"
+    },
+    "readouts": {
+      "progress": "Kemajuan"
+    }
   }
 }
