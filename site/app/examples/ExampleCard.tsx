@@ -49,14 +49,15 @@ interface PendingProps {
 }
 
 /** An example still to come: its title, "in progress" — or "waiting for the engine" and its issue
- * when it is written already —, and the feature it waits for. It opens nothing. */
+ * when it is written already —, and the feature it waits for. It opens nothing. A parked one shows
+ * no picture: it has no render yet, and no thumbnail to break. */
 export function PendingExampleCard({ title, locale, missing, issue }: PendingProps) {
   const t = useWords(locale);
   return (
     <div aria-disabled="true" className="h-full opacity-75">
       <Card
         className="h-full overflow-hidden shadow-sm"
-        media={<Cover look="placeholder" src="./assets/example-in-progress.svg" />}
+        media={!issue && <Cover look="placeholder" src="./assets/example-in-progress.svg" />}
         eyebrow={
           <Badge tone="info" soft>
             {t(issue ? 'examples.waitingEngine' : 'examples.inProgress')}

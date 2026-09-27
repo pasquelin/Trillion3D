@@ -36,7 +36,8 @@
       "engine CPU": "CPU của engine"
     },
     "failure": {
-      "title": "Ví dụ này đã dừng vì một lỗi"
+      "title": "Ví dụ này đã dừng vì một lỗi",
+      "missingCache": "Thiếu bộ nhớ đệm đã biên dịch: hãy chạy pnpm compile:caches"
     },
     "banner": {
       "close": "Đóng"

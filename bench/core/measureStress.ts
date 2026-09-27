@@ -1,6 +1,6 @@
 // Stress cases and the reference/optimised comparison, over `mesure`.
 import { mesure } from './measure.ts';
-import type { MesureParams } from './measureTypes.ts';
+import type { MesureParams } from './measure.ts';
 
 export interface CasExtreme<Entree = unknown> {
   name: string;

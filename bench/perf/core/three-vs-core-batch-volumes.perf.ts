@@ -10,7 +10,7 @@ import {
   transformPointsBatch,
 } from '../../../packages/sdk-core/src/math/index.ts';
 import { rapport } from '../../core/index.ts';
-import type { Mesure } from '../../core/index.ts';
+import type { Measurement } from '../../core/index.ts';
 import { duel } from '../../oracles/core/three-duel.ts';
 import { N, prepareBatchData } from '../../oracles/core/batch-duel.ts';
 
@@ -28,7 +28,7 @@ const {
   outExThree,
   outExCore,
 } = prepareBatchData();
-const lines: Mesure[] = [];
+const lines: Measurement[] = [];
 // 4. Vector3.applyMatrix4 batch
 lines.push(
   await duel({
