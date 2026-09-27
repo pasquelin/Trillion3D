@@ -177,7 +177,7 @@ test('a created material assigned over a paint frees the pair the paint owned', 
   });
   assert.equal(plain.declaration, created as unknown as HostMaterial, 'the page wears it');
   assert.equal(disposed, 2, 'the paint and its twin are freed as the page stops wearing them');
-  assert.equal(colorMaterials.size, 1, "only the created material's twin is cached");
+  assert.equal(colorMaterials.size, 0, 'the variant given is worn as is, no twin cached');
   instances.disposeOwnedMaterials();
   assert.equal(disposed, 2, 'nothing freed twice');
 });
