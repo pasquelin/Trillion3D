@@ -1,4 +1,22 @@
 {
+  "brushed-metal": {
+    "banner": "Drag to inspect the brushed highlights. Change their strength and direction.",
+    "controls": {
+      "anisotropy": "Brush strength",
+      "direction": "Brush direction",
+      "roughness": "Roughness",
+      "spin": "Spin"
+    }
+  },
+  "car-paint-under-clear-coat": {
+    "banner": "Drag around the car. Change the paint and the clear coat above it.",
+    "controls": {
+      "paint": "Paint",
+      "clearCoat": "Clear coat",
+      "coatRoughness": "Coat roughness",
+      "spin": "Spin"
+    }
+  },
   "kit": {
     "panel": {
       "controls": "Controls"
@@ -308,6 +326,13 @@
       "hour": "Hour",
       "wind": "Wind",
       "roof": "Roof"
+    }
+  },
+  "soft-shadows-from-a-wide-lamp": {
+    "banner": "Drag to orbit. Change the lamp width and watch the shadow edges.",
+    "controls": {
+      "lampWidth": "Lamp width",
+      "moveSubject": "Move subject"
     }
   },
   "a-softbox-panel": {
@@ -1683,6 +1708,21 @@
       "fourthLaneAnisotropy": "Fourth lane anisotropy"
     }
   },
+  "the-home-pose": {
+    "banner": "Choose a view, move the camera, then choose Home to return.",
+    "controls": {
+      "home": "Home",
+      "tower": "Tower",
+      "square": "Square",
+      "hillside": "Hillside"
+    }
+  },
+  "the-near-plane-cuts-a-wall": {
+    "banner": "Move the near plane forward and watch it cut through each wall.",
+    "controls": {
+      "nearPlane": "Near plane"
+    }
+  },
   "the-material-family": {
     "banner": "Drag to walk around. Turn the light to night and see what still shines.",
     "controls": {
@@ -2146,6 +2186,17 @@
     },
     "words": {
       "credit": "Flag on a pole modelled in code for this example, CC0 — see assets/examples/CREDITS.md"
+    }
+  },
+  "a-dolly-along-the-canal": {
+    "banner": "Pause the dolly, replay the journey or change its speed as the camera travels along the canal.",
+    "controls": {
+      "paused": "Paused",
+      "replay": "Replay",
+      "speed": "Speed"
+    },
+    "readouts": {
+      "progress": "Progress"
     }
   },
   "a-folder-merged-into-one-scene": {

@@ -1,4 +1,22 @@
 {
+  "brushed-metal": {
+    "banner": "Rode para observar os reflexos escovados. Altere a força e a direção.",
+    "controls": {
+      "anisotropy": "Força da escovagem",
+      "direction": "Direção da escovagem",
+      "roughness": "Rugosidade",
+      "spin": "Rodar"
+    }
+  },
+  "car-paint-under-clear-coat": {
+    "banner": "Rode em volta do carro. Altere a pintura e o verniz.",
+    "controls": {
+      "paint": "Pintura",
+      "clearCoat": "Verniz",
+      "coatRoughness": "Rugosidade do verniz",
+      "spin": "Rodar"
+    }
+  },
   "kit": {
     "panel": {
       "controls": "Ajustes"
@@ -308,6 +326,13 @@
       "hour": "Hora",
       "wind": "Vento",
       "roof": "Telhado"
+    }
+  },
+  "soft-shadows-from-a-wide-lamp": {
+    "banner": "Arraste para girar. Mude a largura da lâmpada e observe as bordas das sombras.",
+    "controls": {
+      "lampWidth": "Largura da lâmpada",
+      "moveSubject": "Mover objeto"
     }
   },
   "a-softbox-panel": {
@@ -1683,6 +1708,21 @@
       "fourthLaneAnisotropy": "Anisotropia da quarta pista"
     }
   },
+  "the-home-pose": {
+    "banner": "Escolha uma vista, mova a câmera e depois escolha Início para voltar.",
+    "controls": {
+      "home": "Início",
+      "tower": "Torre",
+      "square": "Praça",
+      "hillside": "Encosta"
+    }
+  },
+  "the-near-plane-cuts-a-wall": {
+    "banner": "Avance o plano próximo e veja-o cortar cada parede.",
+    "controls": {
+      "nearPlane": "Plano próximo"
+    }
+  },
   "the-material-family": {
     "banner": "Arraste para andar em volta. Ponha a luz de noite e veja o que ainda brilha.",
     "controls": {
@@ -2146,6 +2186,17 @@
     },
     "words": {
       "credit": "Bandeira num mastro modelada em código para este exemplo, CC0 — ver assets/examples/CREDITS.md"
+    }
+  },
+  "a-dolly-along-the-canal": {
+    "banner": "Pause o travelling, repita o percurso ou mude a velocidade enquanto a câmera segue pelo canal.",
+    "controls": {
+      "paused": "Pausado",
+      "replay": "Repetir",
+      "speed": "Velocidade"
+    },
+    "readouts": {
+      "progress": "Progresso"
     }
   },
   "a-folder-merged-into-one-scene": {

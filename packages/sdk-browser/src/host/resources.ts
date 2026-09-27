@@ -4,7 +4,8 @@
 // box, the diagnostic factory — stays a shape.
 // The 4×4 pose is `MatrixElements` (`matrixElements.ts`).
 import type { VertexAttribute } from '../../../sdk-core/src/world/buffer/attribute.ts';
-import type { GraphMesh } from './graph/mesh.ts';
+import type { Mesh } from '../../../sdk-core/src/world/object/mesh.ts';
+import type { InstancedMesh } from '../../../sdk-core/src/world/object/instancedMesh.ts';
 import type { GraphSurface } from './graph/surface.ts';
 import type { GraphTexture } from './graph/texture.ts';
 
@@ -46,7 +47,9 @@ export type HostMaterials = GraphSurface | GraphSurface[];
 
 /** A drawn node of the graph, held by identity: the draw record, the transparent table and the
  *  selection sets name the mesh the engine placed. */
-export type HostMesh = GraphMesh;
+export type HostMesh = Mesh<GraphSurface>;
+/** A drawn node of the graph at several placements, one matrix each. */
+export type HostInstancedMesh = InstancedMesh<GraphSurface>;
 
 /** A host colour: three linear components, read one by one and written the same way. The engine
  *  never converts here — a colour crosses as the host holds it. */
@@ -80,9 +83,8 @@ export type HostDiagnosticGeometry = HostDisposable & {
 };
 /** A mesh a diagnostic view repaints: its surface and geometry swapped, its identity a seed. */
 export type HostDiagnosticMesh = {
-  /** The colour seed of a mesh with no cluster: the engine's node's `serial`, else its `id`. */
-  readonly serial?: number;
-  /** A witness's mesh numbers itself here. */
+  /** The colour seed of a mesh with no cluster the engine did not number (`serialOf`); a
+   *  witness's mesh numbers itself here. */
   readonly id: number | string;
   material: HostDiagnosticMaterial | HostDiagnosticMaterial[];
   geometry: HostDiagnosticGeometry;

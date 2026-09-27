@@ -1,4 +1,22 @@
 {
+  "brushed-metal": {
+    "banner": "Ruota intorno ai riflessi spazzolati. Cambiane forza e direzione.",
+    "controls": {
+      "anisotropy": "Forza spazzolatura",
+      "direction": "Direzione spazzolatura",
+      "roughness": "Ruvidità",
+      "spin": "Rotazione"
+    }
+  },
+  "car-paint-under-clear-coat": {
+    "banner": "Ruota intorno all'auto. Cambia la vernice e lo strato trasparente.",
+    "controls": {
+      "paint": "Vernice",
+      "clearCoat": "Strato trasparente",
+      "coatRoughness": "Ruvidità dello strato",
+      "spin": "Rotazione"
+    }
+  },
   "kit": {
     "panel": {
       "controls": "Impostazioni"
@@ -308,6 +326,13 @@
       "hour": "Ora",
       "wind": "Vento",
       "roof": "Tetto"
+    }
+  },
+  "soft-shadows-from-a-wide-lamp": {
+    "banner": "Trascina per ruotare. Cambia la larghezza della lampada e osserva i bordi delle ombre.",
+    "controls": {
+      "lampWidth": "Larghezza lampada",
+      "moveSubject": "Muovi soggetto"
     }
   },
   "a-softbox-panel": {
@@ -1683,6 +1708,21 @@
       "fourthLaneAnisotropy": "Anisotropia della quarta corsia"
     }
   },
+  "the-home-pose": {
+    "banner": "Scegli una vista, muovi la camera, poi scegli Inizio per tornare.",
+    "controls": {
+      "home": "Inizio",
+      "tower": "Torre",
+      "square": "Piazza",
+      "hillside": "Collina"
+    }
+  },
+  "the-near-plane-cuts-a-wall": {
+    "banner": "Avanza il piano vicino e guardalo tagliare ogni muro.",
+    "controls": {
+      "nearPlane": "Piano vicino"
+    }
+  },
   "the-material-family": {
     "banner": "Trascina per girare intorno. Metti la luce di notte e guarda cosa brilla ancora.",
     "controls": {
@@ -2146,6 +2186,17 @@
     },
     "words": {
       "credit": "Bandiera su un'asta modellata in codice per questo esempio, CC0 — vedi assets/examples/CREDITS.md"
+    }
+  },
+  "a-dolly-along-the-canal": {
+    "banner": "Metti in pausa la carrellata, ripeti il percorso o cambia la velocità mentre la camera segue il canale.",
+    "controls": {
+      "paused": "In pausa",
+      "replay": "Ripeti",
+      "speed": "Velocità"
+    },
+    "readouts": {
+      "progress": "Avanzamento"
     }
   },
   "a-folder-merged-into-one-scene": {
