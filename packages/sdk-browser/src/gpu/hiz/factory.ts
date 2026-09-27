@@ -4,7 +4,7 @@ import {
   hizBuildSlots,
   pyramidBytes,
   writeHizBuildUniforms,
-  writeUni,
+  writeHizTestUniforms,
   type HizBuildPass,
 } from './uniforms.ts';
 import { cleanupFailedHiz, createHizPipelines } from './pipelines.ts';
@@ -29,7 +29,7 @@ export async function createGpuHiz(
   // `COPY_SRC` serves only the proof tools, which reread depth; no frame copies.
   const level0Usage =
     GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_SRC;
-  const uniData = new Float32Array(UNIFORM_BYTES / 4);
+  const testWords = new Uint32Array(UNIFORM_BYTES / 4);
   const buffers: GPUBuffer[] = [];
   let disposed = false,
     level0: GPUTexture | undefined,
@@ -138,19 +138,13 @@ export async function createGpuHiz(
         if (disposed || !bindGroup || bounds === idle) return 0;
         const rows = Math.min(maxRows, cap);
         if (flagRows > 0) encoder.clearBuffer(flags, 0, Math.min(cap, flagRows) * 4);
-        const biasBits = new Uint32Array(new Float32Array([0]).buffer)[0];
-        writeUni(
-          queueDevice,
-          uniforms,
-          uniData,
-          [gpu.width, gpu.height, rows, biasBits],
-          TEST_SLOT * UNIFORM_BYTES,
-        );
+        const at = TEST_SLOT * UNIFORM_BYTES;
+        writeHizTestUniforms(queueDevice, uniforms, testWords, at, gpu.width, gpu.height, rows);
         // The compacted box count lives in the state: the dispatch covers every drawable row
         // and threads past the count leave at the first test.
         const pass = encoder.beginComputePass({ label: 'Trillion3D HiZ test' });
         pass.setPipeline(testPipeline);
-        pass.setBindGroup(0, bindGroup, [TEST_SLOT * UNIFORM_BYTES]);
+        pass.setBindGroup(0, bindGroup, [at]);
         pass.setBindGroup(1, pagesGroup(pages));
         pass.dispatchWorkgroups(Math.max(1, Math.ceil(rows / TEST_WORKGROUP)));
         pass.end();

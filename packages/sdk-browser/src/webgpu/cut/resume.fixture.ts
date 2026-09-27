@@ -98,6 +98,7 @@ export function banc(panne?: 'debordement' | 'envoi') {
     run: {
       gpuSelection: selection,
       selectionUniforms: uniforms,
+      motion: {}, // a still camera: no view ahead
       ...createWebgpuBudgetState(),
       gpuMetricsReady: false,
       desired,
