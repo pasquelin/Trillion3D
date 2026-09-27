@@ -333,7 +333,8 @@
       "shadows-through-see-through-panes": "透过半透明玻璃的阴影",
       "a-walker-among-balls": "球堆里的行走者",
       "a-dolly-along-the-canal": "沿运河移动的摄影机",
-      "a-folder-merged-into-one-scene": "合并为一个场景的文件夹"
+      "a-folder-merged-into-one-scene": "合并为一个场景的文件夹",
+      "drag-a-crate": "拖动木箱"
     },
     "missing": {
       "floating-crates": "每帧重写的几何体",

@@ -333,7 +333,8 @@
       "shadows-through-see-through-panes": "Shadows through see-through panes",
       "a-walker-among-balls": "A walker among balls",
       "a-dolly-along-the-canal": "A dolly along the canal",
-      "a-folder-merged-into-one-scene": "A folder merged into one scene"
+      "a-folder-merged-into-one-scene": "A folder merged into one scene",
+      "drag-a-crate": "Drag a crate"
     },
     "missing": {
       "floating-crates": "geometry rewritten every frame",
