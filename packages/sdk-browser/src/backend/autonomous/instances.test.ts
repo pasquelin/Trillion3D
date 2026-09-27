@@ -135,9 +135,10 @@ function primitivePeinte() {
       colorMaterials,
     } as Parameters<typeof createAutonomousInstances>[0]['geometryStore'],
     hostCeiling: 0,
-    coverMeshes: () => 0,
+    overCeiling: () => false,
     sceneChanged: () => {},
     coverChanged: () => {},
+    blendOf: () => false,
   });
   return { plain, coloured, colorMaterials, instances };
 }
