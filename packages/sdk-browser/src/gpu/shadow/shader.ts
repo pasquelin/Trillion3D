@@ -13,7 +13,7 @@ import {
 } from '../../webgpu/tile/wgsl.ts';
 import { VIS_BINDINGS } from '../../webgpu/core/bindLayout.ts';
 import { FLAG_BLEND_CASTER } from '../../visibility/types.ts';
-import { BLEND_TRANSMITTANCE_WGSL, TRANSMITTANCE_CLEAR_WGSL } from './transmittance.ts';
+import { BLEND_TRANSMITTANCE_WGSL } from './transmittance.ts';
 
 /**
  * Shadow depth passes. Group 0 is that of the visibility-buffer raster, but for one binding:
@@ -107,13 +107,4 @@ fn shadowHiddenByOpaque(p:vec4f)->bool{
  let gx=dpdx(in.uv);let gy=dpdy(in.uv);
  if(!shadowKeep(in,gx,gy)||shadowHiddenByOpaque(in.position)){discard;}
  return blendTransmittance(pages[in.instance],in.uv,gx,gy);
-}
-/** The transmittance of a page cleared: all the light, no translucent caster. */
-@fragment fn shadow_clear_fs()->@location(0) vec4f{
- return ${TRANSMITTANCE_CLEAR_WGSL};
-}
-/** Resets the slice to FAR without clearing the rest of the atlas. Face depth is reverse-Z
- *  like the camera's (\`../../camera/depthConvention.ts\`): far is zero. */
-@vertex fn shadow_clear_vs(@builtin(vertex_index) i:u32)->@builtin(position) vec4f{
- return vec4f(f32(i32(i&1u)*4-1),f32(i32(i>>1u)*4-1),0.0,1.0);
 }`;
