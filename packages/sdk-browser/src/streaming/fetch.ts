@@ -34,11 +34,12 @@ export function createStreamingFetcher(
           expectedBytes: page.bytes,
         }));
         // One request per attempt: this loop is the retry, and it says so page by page. Its round
-        // trip is the wait for the headers: the body's transfer is the bandwidth's, not the latency's.
+        // trip runs until the page's bytes have landed: what a page asked for ahead has to cover.
         const sent = performance.now();
-        const response = await checked(new URL(url, base).href, combined, ONE_REQUEST);
+        let buffer = await (
+          await checked(new URL(url, base).href, combined, ONE_REQUEST)
+        ).arrayBuffer();
         roundTrip.note(performance.now() - sent);
-        let buffer = await response.arrayBuffer();
         // Size is taken before any verification: the buffer leaves transferred to the decode
         // worker, so the original reference is detached for the round trip.
         const byteLength = buffer.byteLength;

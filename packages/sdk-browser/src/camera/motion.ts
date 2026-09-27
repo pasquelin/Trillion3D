@@ -10,6 +10,9 @@ export type CameraMotion = {
   velocity?: Float64Array;
   turn?: number;
   ahead?: Float64Array;
+  /** How far ahead, in milliseconds, the view ahead looks: the pages' round trip past the published
+   *  horizon (`prefetchHorizonMs`), set by the cut each frame; absent, the published horizon. */
+  horizonMs?: number;
 };
 
 /**

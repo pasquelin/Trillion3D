@@ -1,20 +1,15 @@
 /**
- * The page reads' round trip, as a transport estimates its own: the time from a request to its
- * response's headers, smoothed with TCP's gain of an eighth (RFC 6298), so one slow answer moves it
- * by an eighth of its lateness. The first measure is taken as it is; zero until there is one. A
- * measure that is not a finite duration is not one.
+ * The page reads' round trip, as a transport estimates its own: the time from a request until the
+ * page's bytes have landed, smoothed with TCP's gain of an eighth (RFC 6298), so one slow answer
+ * moves it by an eighth of its lateness. The first measure is taken as it is; zero until there is
+ * one. A measure that is not a finite duration is not one.
  */
 export function createRoundTrip() {
-  let ms = 0,
-    measured = false;
+  let ms: number | undefined;
   return {
-    get ms() {
-      return ms;
-    },
+    ms: () => ms ?? 0,
     note(sample: number) {
-      if (!(sample >= 0 && sample < Infinity)) return;
-      ms = measured ? ms + (sample - ms) / 8 : sample;
-      measured = true;
+      if (sample >= 0 && sample < Infinity) ms = ms === undefined ? sample : ms + (sample - ms) / 8;
     },
   };
 }

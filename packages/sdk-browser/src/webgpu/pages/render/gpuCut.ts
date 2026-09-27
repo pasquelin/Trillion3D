@@ -63,8 +63,8 @@ export function renderGpuCut(
   // The host's threshold, and no other: residency coarsens, one DAG level where a page is missing
   // (`../../../page/cut/rule.ts`).
   // The view ahead looks a round trip further for pages that come from further away.
-  const horizonMs = prefetchHorizonMs(context.pageRoundTripMs?.());
-  cameraSelectionUniforms(cam, pixelError, viewport, run.selectionUniforms, run.motion, horizonMs);
+  run.motion.horizonMs = prefetchHorizonMs(context.pageRoundTripMs?.());
+  cameraSelectionUniforms(cam, pixelError, viewport, run.selectionUniforms, run.motion);
   // An image that adopts no readback moves no page; the adoption reports what it actually moved.
   run.pagesEntered = 0;
   run.pagesExited = 0;

@@ -2,25 +2,29 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { Server } from 'node:http';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { request } from 'node:http';
 import { join, resolve } from 'node:path';
 import { brotliDecompressSync } from 'node:zlib';
-import { createDocsServer, isCacheObject } from './docs-serve.ts';
+import { compressCacheObjects, isCacheObject } from './compress-cache-objects.ts';
+import { createDocsServer } from './docs-serve.ts';
 import { installedServer, type RequestRecord } from './installed-package-server.ts';
 import { acceptsBrotli, listen, staticServer } from './static-server.ts';
 
-const SITE = resolve(import.meta.dirname, '../site');
+const SITE = resolve(import.meta.dirname, '../site'),
+  LOGS = resolve(import.meta.dirname, '../.worktrees/logs');
+
+/** Closes `server` and every connection: a kept-alive one would hold the close back for seconds. */
+async function closeAll(server: Server) {
+  const closed = new Promise((done) => server.close(done));
+  server.closeAllConnections();
+  await closed;
+}
 
 /** The status and content type `server` answers on `path`, the server closed afterwards. */
 async function fetched(server: Server, path: string) {
   const response = await fetch(`http://127.0.0.1:${await listen(server)}${path}`);
   await response.arrayBuffer();
-  // Every connection closed before the caller reads what the server recorded; a kept-alive one
-  // would hold the close back for seconds.
-  const closed = new Promise((done) => server.close(done));
-  server.closeAllConnections();
-  await closed;
+  await closeAll(server); // before the caller reads what the server recorded
   return [response.status, response.headers.get('content-type')];
 }
 
@@ -70,9 +74,7 @@ async function raw(server: Server, path: string, accept?: string) {
       response.on('end', () => done({ headers: response.headers, body: Buffer.concat(chunks) }));
     }).end(),
   );
-  const closed = new Promise((done) => server.close(done));
-  server.closeAllConnections();
-  await closed;
+  await closeAll(server);
   return answer;
 }
 
@@ -96,20 +98,34 @@ test('a compressed file goes brotli to who accepts it, as is to anyone else', as
   assert.equal(text.headers['content-encoding'], undefined, 'no compress option, no encoding');
 });
 
-test('the docs server sends a cache object brotli-encoded, any other file as is', async () => {
-  const root = mkdtempSync(join(tmpdir(), 'docs-serve-')),
-    page = Buffer.alloc(4096, 7);
-  try {
-    mkdirSync(join(root, 'cache/objects'), { recursive: true });
-    writeFileSync(join(root, 'cache/objects/ab12.bin'), page);
-    writeFileSync(join(root, 'cache/page.bin'), page);
-    const object = await raw(createDocsServer(root), '/cache/objects/ab12.bin', 'br');
-    assert.equal(object.headers['content-encoding'], 'br');
-    assert.deepEqual(brotliDecompressSync(object.body), page);
-    const other = await raw(createDocsServer(root), '/cache/page.bin', 'br');
-    assert.equal(other.headers['content-encoding'], undefined);
-    assert.deepEqual(other.body, page);
-  } finally {
-    rmSync(root, { recursive: true, force: true });
-  }
+/** A site-shaped tree in `.worktrees/logs/`: one cache object and one other binary, both `page`. */
+function cacheTree(t: test.TestContext, page: Buffer) {
+  mkdirSync(LOGS, { recursive: true });
+  const root = mkdtempSync(join(LOGS, 'static-server-'));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  mkdirSync(join(root, 'cache/objects'), { recursive: true });
+  writeFileSync(join(root, 'cache/objects/ab12.bin'), page);
+  writeFileSync(join(root, 'cache/page.bin'), page);
+  return root;
+}
+
+test('the docs server sends a cache object brotli-encoded, any other file as is', async (t) => {
+  const page = Buffer.alloc(4096, 7),
+    root = cacheTree(t, page);
+  const object = await raw(createDocsServer(root), '/cache/objects/ab12.bin', 'br');
+  assert.equal(object.headers['content-encoding'], 'br');
+  assert.deepEqual(brotliDecompressSync(object.body), page);
+  const other = await raw(createDocsServer(root), '/cache/page.bin', 'br');
+  assert.equal(other.headers['content-encoding'], undefined);
+  assert.deepEqual(other.body, page);
+});
+
+test('the deploy pre-compresses the cache objects only, which decode to themselves', async (t) => {
+  const page = Buffer.alloc(4096, 7),
+    root = cacheTree(t, page);
+  assert.equal(await compressCacheObjects(root), 1);
+  const encoded = readFileSync(join(root, 'cache/objects/ab12.bin.br'));
+  assert.ok(encoded.byteLength < page.byteLength);
+  assert.deepEqual(brotliDecompressSync(encoded), page);
+  assert.throws(() => readFileSync(join(root, 'cache/page.bin.br')), { code: 'ENOENT' });
 });

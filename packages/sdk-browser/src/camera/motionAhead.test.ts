@@ -10,6 +10,7 @@ import type { EngineCamera } from './engineCamera.ts';
 import { aheadViewOf } from '../gpu/core/aheadView.ts';
 import * as G from '../host/graph/graph.fixture.ts';
 import { cameraMoteur } from './camera.fixture.ts';
+import { random as reproducible } from '../page/cut/cutRuleChecks.fixture.ts';
 import {
   MAX_PREFETCH_HORIZON_MS,
   PREFETCH_HORIZON_MS,
@@ -24,8 +25,7 @@ const pose = (eye: number[], back = [0, 0, 1]) => {
 };
 
 test('what the image reads never depends on the view ahead, on random paths', () => {
-  let seed = 921;
-  const random = () => (seed = (seed * 1103515245 + 12345) >>> 0) / 4294967296;
+  const random = reproducible(921);
   const special = [0, -0, NaN, Infinity, -Infinity, 1e-300, 1e300];
   const pick = () => (random() < 0.1 ? special[Math.floor(random() * 7)] : random() * 200 - 100);
   // `scrambled` has its velocity ahead overwritten before every read: the speed of the adaptive
@@ -100,14 +100,17 @@ test('the view ahead at the published horizon is the one of before; a longer one
   camera.position.set(0, 0, 10);
   camera.updateMatrixWorld(true);
   const cam = cameraMoteur(camera);
-  const still: CameraMotion = { velocity: new Float64Array(3), turn: 0 };
-  assert.equal(aheadViewOf(cam, still, null, prefetchHorizonMs(80)), null, 'still: none');
+  const still: CameraMotion = { velocity: new Float64Array(3), turn: 0, horizonMs: 330 };
+  assert.equal(aheadViewOf(cam, still), null, 'still: none');
   const motion: CameraMotion = { velocity: Float64Array.of(40, 0, 0), turn: 0.5 };
   const published = aheadViewOf(cam, motion)!;
   for (const none of [undefined, 0, NaN])
-    assert.deepEqual(aheadViewOf(cam, motion, null, prefetchHorizonMs(none)), published);
+    assert.deepEqual(
+      aheadViewOf(cam, { ...motion, horizonMs: prefetchHorizonMs(none) }),
+      published,
+    );
   // The eye moved by `v·h` sees the world moved back by it: the view's translation says how far.
-  const further = aheadViewOf(cam, motion, null, prefetchHorizonMs(250))!;
+  const further = aheadViewOf(cam, { ...motion, horizonMs: prefetchHorizonMs(250) })!;
   assert.ok(Math.abs(published.view[12] + 40 * 0.25) < 1e-4);
   assert.ok(Math.abs(further.view[12] + 40 * 0.5) < 1e-4);
   // The smoothed velocity, when there is one, is what the view ahead extrapolates.

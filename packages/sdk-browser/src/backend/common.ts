@@ -48,8 +48,8 @@ export const DEFAULT_FOV = 55,
  * as a duration: the published horizon, as before.
  */
 export const prefetchHorizonMs = (roundTripMs?: number) =>
-  roundTripMs !== undefined && roundTripMs > 0
-    ? Math.min(PREFETCH_HORIZON_MS + roundTripMs, MAX_PREFETCH_HORIZON_MS)
+  roundTripMs! > 0
+    ? Math.min(PREFETCH_HORIZON_MS + roundTripMs!, MAX_PREFETCH_HORIZON_MS)
     : PREFETCH_HORIZON_MS;
 /**
  * Device pixels of a logical dimension, at the ratio the host has set. Canvas creation and

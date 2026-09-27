@@ -68,6 +68,12 @@ jobs:
       # Styles, demo maths, browser engine, workers, portal, API files, scene caches and statics;
       # `--published` adds the audience measurement, which no local or proof build carries.
       - run: node scripts/docs-build.ts --published
+      # The scene caches' objects, geometry pages among them, are the exception to the gzip below:
+      # brotli takes 11 to 24 % off them (#921). Sent beside each original with
+      # `Content-Encoding: br` to a browser that accepts it; `isCacheObject` picks them, as the
+      # docs server does locally, and the engine reads the decoded bytes its fingerprints check.
+      - if: steps.plan.outputs.deploy == 'true'
+        run: node scripts/compress-cache-objects.ts dist/site
       - if: steps.plan.outputs.deploy == 'true'
         uses: actions/upload-artifact@v7
         with:
@@ -106,14 +112,6 @@ jobs:
           find dist/site -type f \( -name '*.html' -o -name '*.css' -o -name '*.js' -o -name '*.mjs'
           -o -name '*.svg' -o -name '*.json' -o -name '*.xml' -o -name '*.txt' -o -name '*.gltf'
           -o -name '*.obj' -o -name '*.wasm' \) -exec gzip -9 -k -f {} +
-      # The scene caches' objects, geometry pages among them, are the exception: brotli takes 11 to
-      # 24 % off them (#921). Served beside each original as the text files are, with
-      # `Content-Encoding: br`, to a browser that accepts it; the engine reads the decoded bytes,
-      # which its fingerprints check. `scripts/docs-serve.ts` encodes them the same way locally.
-      - name: Pre-compress the cache objects
-        run: |
-          command -v brotli || { sudo apt-get update && sudo apt-get install -y brotli; }
-          find dist/site -type f -path '*/objects/*.bin' -exec brotli -q 11 -k -f {} +
       - name: Install the deploy key
         env:
           KEY: ${{ secrets.DEPLOY_SSH_KEY }}

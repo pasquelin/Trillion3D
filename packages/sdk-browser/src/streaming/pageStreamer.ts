@@ -123,7 +123,7 @@ export function createPageStreamerWith(
     loading: (url: string) => jobs.has(url),
     failed: (url: string) => failures.has(url),
     /** The reads' measured round trip in milliseconds, 0 before the first (`roundTrip.ts`). */
-    roundTripMs: () => roundTrip.ms,
+    roundTripMs: roundTrip.ms,
     read: (url: string, signal?: AbortSignal) => readBytes(url, signal).then(asIndices),
     readBytes,
     /** Texture levels held beside the pages: its world's, kept across a device loss, or its own. */

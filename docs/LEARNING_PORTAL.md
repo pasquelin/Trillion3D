@@ -152,10 +152,10 @@ and only from `main`:
 gh workflow run pages.yml -f deploy=true --ref main
 ```
 
-A deploying run builds the native compiler, then the scene caches (`pnpm run compile:caches`).
+A deploying run builds the native compiler, then the scene caches (`pnpm run compile:caches`), and
+writes each cache object's brotli sibling (`scripts/compress-cache-objects.ts`, #921).
 The deploy job refuses an output without `index.html` or `runtime/portal.js`, or with fewer files
-than the build copies, pre-compresses the text files beside their originals (gzip) and the scene
-caches' objects (brotli, #921), sends the tree over
+than the build copies, pre-compresses the text files beside their originals, sends the tree over
 SSH with `rsync --delete-delay --delay-updates` — excluding `openworld/`, which the open world's
 own repository publishes and this deploy must never delete —, then checks that the site root and the portal
 bundle answer, each with `Cross-Origin-Opener-Policy: same-origin` and
@@ -189,7 +189,7 @@ onChange)` gives sliders (`[min, max, value, step?]`), colour pickers (`'#rrggbb
    (marked `held` while the image stands still) and the last frame's measured counters, a line
    left out when the engine did not measure it; `stats(world)` opens it alone. `readout(key)`, declared after it, adds a live line to that panel and returns the
    function that writes it (a counter read every frame); `physicsReadouts(world, ['bodies',
-   'awake', 'step'])` adds the physics' lines, written each frame from `world.physics.stats`
+'awake', 'step'])` adds the physics' lines, written each frame from `world.physics.stats`
    (`page` adds the page's share of the frame). Name each control so that its label says
    what to try; there is no caption over the
    render. The page hosting the example hides or shows the panel by posting

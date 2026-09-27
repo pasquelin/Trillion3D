@@ -15,9 +15,9 @@ import type { EngineCamera } from '../../camera/engineCamera.ts';
  * evaluates to request the pages the camera will need before they are on screen (#488,
  * `../dag/shader/aheadWgsl.ts`).
  *
- * - `view` is the camera moved by its velocity over the horizon (`PREFETCH_HORIZON_MS` and the
- *   pages' round trip, `prefetchHorizonMs`): the view whose screen error ranks and selects what is
- *   asked for. The velocity is the one smoothed for it (`CameraMotion.ahead`), the eye's otherwise.
+ * - `view` is the camera moved by its velocity over the horizon (`CameraMotion.horizonMs`, else the
+ *   published `PREFETCH_HORIZON_MS`): the view whose screen error ranks and selects what is asked
+ *   for. The velocity is the one smoothed for it (`CameraMotion.ahead`), the eye's otherwise.
  * - `planes` hold BOTH frusta, the current one and the one ahead, and the GUARD BAND the camera
  *   turns into meanwhile: each side plane is opened by the angle it turns over the horizon, then
  *   every plane is pushed out by the distance it travels towards it. Nothing is tuned: the horizon
@@ -40,14 +40,9 @@ function opened(scale: number, turn: number) {
 
 /** Writes the view ahead of `cam` into `into`, or returns null for a camera that neither moves nor
  *  turns: its cut is then the one of before, bit for bit. */
-export function aheadViewOf(
-  cam: EngineCamera,
-  motion: CameraMotion,
-  into?: AheadView | null,
-  horizonMs = PREFETCH_HORIZON_MS,
-) {
+export function aheadViewOf(cam: EngineCamera, motion: CameraMotion, into?: AheadView | null) {
   const velocity = motion.ahead ?? motion.velocity,
-    horizon = horizonMs / 1000,
+    horizon = (motion.horizonMs ?? PREFETCH_HORIZON_MS) / 1000,
     turn = (motion.turn ?? 0) * horizon;
   const dx = (velocity?.[0] ?? 0) * horizon,
     dy = (velocity?.[1] ?? 0) * horizon,

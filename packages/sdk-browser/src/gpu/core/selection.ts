@@ -156,9 +156,8 @@ export function cameraSelectionUniforms(
   pixelError: number,
   viewport?: [number, number],
   into?: SelectionUniforms,
-  /** The camera's motion: given, a moving camera also sends its view ahead, `horizonMs` ahead. */
+  /** The camera's motion: given, a moving camera also sends its view ahead. */
   motion?: CameraMotion,
-  horizonMs?: number,
 ): SelectionUniforms {
   const planes = into?.planes ?? planeScratch;
   const view = into?.view ?? viewScratch;
@@ -183,7 +182,7 @@ export function cameraSelectionUniforms(
     into.cameraWorld = cameraWorld;
     into.cameraStretch = cameraStretch;
     into.perspective = cam.perspective;
-    into.ahead = motion ? aheadViewOf(cam, motion, into.ahead, horizonMs) : null;
+    into.ahead = motion ? aheadViewOf(cam, motion, into.ahead) : null;
     return into;
   }
   return {
@@ -195,6 +194,6 @@ export function cameraSelectionUniforms(
     cameraWorld: [cameraWorld[0], cameraWorld[1], cameraWorld[2]],
     cameraStretch,
     perspective: cam.perspective,
-    ahead: motion ? aheadViewOf(cam, motion, null, horizonMs) : null,
+    ahead: motion ? aheadViewOf(cam, motion) : null,
   };
 }

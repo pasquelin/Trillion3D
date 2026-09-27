@@ -74,8 +74,8 @@ const ON_THE_FLY = { params: { [constants.BROTLI_PARAM_QUALITY]: 5 } };
 async function serveFile(
   dir: string,
   path: string,
-  request: IncomingMessage,
   response: ServerResponse,
+  acceptEncoding: string | undefined,
   { refuse, transform, compress }: StaticOptions,
 ) {
   let file = fileUnder(dir, path);
@@ -88,17 +88,16 @@ async function serveFile(
   // The file is opened before the headers leave, so a file it cannot read is still a 404.
   const stream = createReadStream(file);
   await once(stream, 'open');
-  const type = contentType(extname(file));
+  const encoded = compress?.(file),
+    brotli = encoded && acceptsBrotli(acceptEncoding);
+  response.writeHead(200, {
+    'content-type': contentType(extname(file)),
+    ...(encoded && { vary: 'accept-encoding' }),
+    ...(brotli ? { 'content-encoding': 'br' } : { 'content-length': found.size }),
+  });
   // A read error past the headers destroys the response, so the socket never waits on it.
-  if (compress?.(file)) {
-    const vary = { 'content-type': type, vary: 'accept-encoding' };
-    if (acceptsBrotli(request.headers['accept-encoding'])) {
-      response.writeHead(200, { ...vary, 'content-encoding': 'br' });
-      return pipeline(stream, createBrotliCompress(ON_THE_FLY), response, () => {});
-    }
-    response.writeHead(200, { ...vary, 'content-length': found.size });
-  } else response.writeHead(200, { 'content-type': type, 'content-length': found.size });
-  pipeline(stream, response, () => {});
+  if (brotli) pipeline(stream, createBrotliCompress(ON_THE_FLY), response, () => {});
+  else pipeline(stream, response, () => {});
 }
 
 /** A server over `options.mounts`; a path no mount takes, or no file answers, is a 404. */
@@ -111,14 +110,17 @@ export function staticServer(options: StaticOptions = {}): Server {
     if (answer?.(request, response, url)) return;
     const mount = mounts.find(({ prefix }) => url.pathname.startsWith(prefix));
     if (!mount) return reply(response, 404);
-    const path = url.pathname.slice(mount.prefix.length);
-    serveFile(mount.dir, path, request, response, options).catch((error: NodeJS.ErrnoException) => {
-      // A missing file is an ordinary 404; anything else (a transform that throws, a file it
-      // may not read) is still a 404, but said, so the page's failed import has its cause.
-      if (error.code !== 'ENOENT' && error.code !== 'ENOTDIR')
-        console.error(`static server: ${url.pathname}:`, error);
-      if (!response.headersSent) reply(response, 404);
-    });
+    const path = url.pathname.slice(mount.prefix.length),
+      acceptEncoding = request.headers['accept-encoding'];
+    serveFile(mount.dir, path, response, acceptEncoding, options).catch(
+      (error: NodeJS.ErrnoException) => {
+        // A missing file is an ordinary 404; anything else (a transform that throws, a file it
+        // may not read) is still a 404, but said, so the page's failed import has its cause.
+        if (error.code !== 'ENOENT' && error.code !== 'ENOTDIR')
+          console.error(`static server: ${url.pathname}:`, error);
+        if (!response.headersSent) reply(response, 404);
+      },
+    );
   });
 }
 

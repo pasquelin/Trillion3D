@@ -1,11 +1,8 @@
 /** Serve one built site tree with production paths and no framework dependency. */
 import { pathToFileURL } from 'node:url';
+import { isCacheObject } from './compress-cache-objects.ts';
 import { buildSite, SITE_OUTPUT } from './docs/site.ts';
 import { listen, staticServer, type StaticOptions } from './static-server.ts';
-
-/** A scene cache's content-addressed object, geometry pages among them: binary, yet 11 to 24 %
- *  lighter in brotli (#921), as the published site also serves them (`pages.yml`). */
-export const isCacheObject = (file: string) => /[\\/]objects[\\/][^\\/]+\.bin$/.test(file);
 
 /** A static server over `root`: the built site by default, any site-shaped tree otherwise;
  *  `extra` adds the development server's answer and transform (`docs-dev.ts`). */
