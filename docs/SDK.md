@@ -122,7 +122,7 @@ as each file the scene reads lands. The first pages follow the load:
 reports `{ phase: 'session' }` first, while the session that draws the view opens, then
 `{ phase: 'pages', completed, total }`: `total` counts each page the view reads once — those the
 engine already holds, since the frames drawn before the wait may have read them all, and every page
-read while the wait runs, whether the host reads it for the cut or the WebGPU engine for its own
+read for the view while the wait runs (a prefetch aside), whether the host reads it for the cut or the WebGPU engine for its own
 residency —, `completed` those resident, rising as each lands; the last event has
 `completed === total`. One callback given to both drives a progress bar from the first byte to
 the first pages (example `watch-a-world-load`).
