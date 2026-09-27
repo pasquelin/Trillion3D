@@ -28,11 +28,14 @@ export function materialEngines(backends: RenderBackend[], active: () => RenderB
           { id },
         );
     },
-    /** Every engine rereads its surfaces; one that cannot has not taken the change
-     *  (`setClearColor`). */
+    /** Every engine rereads its surfaces, each asked even once one has refused; one that cannot
+     *  has not taken the change (`setClearColor`). */
     refreshed: (alpha?: AlphaChange) =>
-      backends.every(
-        (backend) => !!backend.refreshMaterials && backend.refreshMaterials(true, alpha) !== false,
-      ),
+      backends
+        .map(
+          (backend) =>
+            !!backend.refreshMaterials && backend.refreshMaterials(true, alpha) !== false,
+        )
+        .every(Boolean),
   };
 }
