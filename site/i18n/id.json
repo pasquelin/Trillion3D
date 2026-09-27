@@ -33,9 +33,9 @@
   "examples": {
     "lead": "Setiap contoh adalah satu berkas pendek: lihat cara kerjanya, buka kodenya, ubah isinya.",
     "jumpTo": "Lompat ke tema",
-    "inProgress": "Sedang dikerjakan",
     "waitsFor": "Menunggu mesin:",
-    "waitingEngine": "Menunggu mesin"
+    "partial": "Sebagian",
+    "coming": "Segera hadir: {{titles}}"
   },
   "api": {
     "title": "Referensi mesin",
@@ -696,7 +696,9 @@
     },
     "IDENTITY_MATRIX4": {
       "description": "Identitas column-major, dibaca dan tidak pernah ditulis: pose sebuah node atau sebuah root tanpa pose.",
-      "values": ["Enam belas angka, column-major."]
+      "values": [
+        "Enam belas angka, column-major."
+      ]
     },
     "DiagnosticMode": {
       "description": "Apa yang digambar sebuah bingkai. Ketersediaannya menjelaskan keluaran pipeline sungguhan, tidak pernah overlay buatan: `DIAGNOSTICS` memberikan, untuk tiap mode, apakah perender yang aktif bisa menghasilkannya dan kenapa tidak.",
@@ -757,7 +759,10 @@
     },
     "GpuTimingMethod": {
       "description": "Bagaimana durasi GPU sebuah profil tahap diambil. Durasi per-tahap menunjukkan di mana, tidak pernah seberapa banyak: pada GPU berbasis ubin tahap-tahap saling tumpang tindih dan sebuah tahap menyerap tahap tetangganya. Total bingkainya adalah `gpuImageMs`, selangnya — durasi tahap tidak dijumlahkan ke dalamnya.",
-      "values": ["Kueri stempel waktu WebGPU asli.", "Ekstensi WebGL2, untuk jalur itu."]
+      "values": [
+        "Kueri stempel waktu WebGPU asli.",
+        "Ekstensi WebGL2, untuk jalur itu."
+      ]
     },
     "ColumnKind": {
       "description": "Penyimpanan satu kolom manifest biner. `COLUMN_KIND` memetakan tiap nama kolom ke jenisnya, jadi sebuah pembaca tahu tampilan mana yang dipakai atas byte sidecar-nya.",
@@ -1305,10 +1310,10 @@
       "a-refracting-pane": "Panel pembias",
       "a-light-map": "Sebuah light map",
       "two-materials-one-mesh": "Dua material, satu mesh",
-      "clearcoat-paint": "Cat clearcoat",
       "velvet-sheen": "Kilau beludru",
       "soap-bubble-iridescence": "Iridesensi",
       "brushed-metal": "Logam disikat",
+      "car-paint-under-clear-coat": "Cat mobil di bawah lapisan bening",
       "a-prism-that-disperses": "Prisma yang mendispersi",
       "retroreflective-paint": "Retroreflektif",
       "light-through-skin": "Cahaya menembus kulit",
@@ -1337,7 +1342,7 @@
       "flat-shadows-on-the-floor": "Bayangan datar terproyeksi",
       "a-softbox-panel": "Panel softbox",
       "light-from-a-probe": "Cahaya dari sebuah probe",
-      "soft-shadow-edges": "Tepi bayangan lembut",
+      "soft-shadows-from-a-wide-lamp": "Bayangan lembut dari lampu lebar",
       "contact-shadow-under-a-car": "Bayangan kontak",
       "coloured-shadows-through-glass": "Bayangan lewat kaca",
       "shadows-in-the-corners": "Bayangan di sudut-sudut",
@@ -1366,9 +1371,12 @@
       "several-views-one-page": "Beberapa tampilan, satu halaman",
       "before-and-after-slider": "Slider sebelum/sesudah",
       "side-by-side-stereo": "Stereo berdampingan",
+      "the-near-plane-cuts-a-wall": "Bidang dekat memotong dinding",
+      "the-home-pose": "Pose awal dan titik perhatian",
       "red-cyan-anaglyph": "Anaglyph merah-cyan",
       "camera-layers": "Layer kamera",
       "a-robot-that-walks-and-waves": "Mencampur gerakan robot",
+      "a-crane-that-swings": "Derek yang mengayunkan muatan",
       "a-wave-across-a-grid": "Gelombang kubus",
       "keyframes-by-hand": "Keyframe manual",
       "one-clip-many-objects": "Satu klip, banyak objek",
@@ -1402,6 +1410,7 @@
       "observatory-streamed": "Cluster di-stream",
       "health-check": "Pemeriksaan kesehatan",
       "memory-on-a-budget": "Anggaran memori",
+      "a-walk-through-the-city": "Berjalan melintasi kota",
       "detail-by-pixel-error": "Detail menurut galat piksel",
       "watch-a-world-load": "Melihat dunia dimuat",
       "ten-thousand-objects": "Sepuluh ribu objek",
@@ -1512,6 +1521,8 @@
       "shadows-case-by-case": "Bayangan, kasus demi kasus",
       "shadows-through-see-through-panes": "Bayangan menembus kaca bening",
       "a-walker-among-balls": "Pejalan di antara bola",
+      "a-dolly-along-the-canal": "Dolly kamera di sepanjang kanal",
+      "a-folder-merged-into-one-scene": "Folder digabung menjadi satu adegan",
       "drag-a-crate": "Seret peti"
     },
     "missing": {
@@ -1540,10 +1551,10 @@
       "a-refracting-pane": "render ke tekstur",
       "a-light-map": "slot light-map",
       "two-materials-one-mesh": "mesh multi-material",
-      "clearcoat-paint": "lapisan material fisik: clearcoat",
       "velvet-sheen": "lapisan material fisik: sheen",
       "soap-bubble-iridescence": "lapisan material fisik: iridescence",
       "brushed-metal": "lapisan material fisik: anisotropy",
+      "car-paint-under-clear-coat": "lapisan material fisik: lapisan bening",
       "a-prism-that-disperses": "lapisan material fisik: dispersion",
       "retroreflective-paint": "material shader kustom",
       "light-through-skin": "hamburan bawah permukaan",
@@ -1558,7 +1569,7 @@
       "a-stack-of-texture-layers": "tekstur data, array dan 3D",
       "wide-gamut-colour": "output wide-gamut",
       "energy-conservation-test": "pencahayaan lingkungan (IBL)",
-      "soft-shadow-edges": "penyaringan bayangan lembut (penumbra)",
+      "soft-shadows-from-a-wide-lamp": "bayangan lembut menurut lebar lampu",
       "contact-shadow-under-a-car": "render ke tekstur",
       "coloured-shadows-through-glass": "pelempar bayangan transparan",
       "shadows-in-the-corners": "occlusion ambien screen-space",

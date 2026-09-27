@@ -835,6 +835,7 @@
       "totalNodes": "Nœuds au total.",
       "autonomousScene": "Sa scène intégrée.",
       "primitives": "Ses primitives.",
+      "worstStalls": "La table des blocages du compilateur : au plus dix primitives avec un groupe bloqué qui a gardé des racines au niveau 0, la pire d’abord. Absente d’un cache compilé avant elle.",
       "texturePreviews": "Une entrée par couple (texture, atlas) décodé, rangée par texture puis par atlas ; vide sans image décodable.",
       "textures": "Modèle des niveaux cuits, relatif au manifeste : {sha} l’empreinte de l’image source, {kind} le nom de l’atlas (PREVIEW_ATLAS_NAMES), {level} le rang du niveau. Absent d’un cache compilé avant les niveaux cuits, que ce lecteur refuse par la version du fichier annexe.",
       "proxy": "Où lire le proxy de scène résident et son BVH : la géométrie que touchent les rayons. Absent d’un cache compilé avant le rebond, qui reste lisible tel quel."
@@ -1338,7 +1339,7 @@
     }
   },
   "dagWarningsDiagnostic": {
-    "summary": "Le diagnostic `dag-warnings` d’un cache : les primitives signalées par le compilateur, et chaque primitive avec un groupe bloqué — l’ensemble que le compilateur classe sur stderr à la fin d’une cuisson."
+    "summary": "Le diagnostic `dag-warnings` d’un cache : les primitives signalées par le compilateur, et la table des blocages du compilateur (`worstStalls`), les lignes qu’il écrit sur stderr à la fin d’une cuisson, dans son ordre."
   },
   "DecodedGeometryPage": {
     "summary": "Une page décodée : `indices` et chaque attribut sont des vues sur un seul tampon de `decodedBytes` (`geometryPageBlock.ts`).",
@@ -1584,6 +1585,7 @@
       "UNKNOWN_MATERIAL": "Un changement de matériau est inconnu, hors limites, le mettrait dans une classe de dessin qu’un moteur fixe à l’ouverture de la scène, ou répéterait une texture qu’il partage.",
       "MATERIAL_CLASS_CHANGE": "Un changement de matériau est inconnu, hors limites, le mettrait dans une classe de dessin qu’un moteur fixe à l’ouverture de la scène, ou répéterait une texture qu’il partage.",
       "MATERIAL_TEXTURE_SHARED": "Un changement de matériau est inconnu, hors limites, le mettrait dans une classe de dessin qu’un moteur fixe à l’ouverture de la scène, ou répéterait une texture qu’il partage.",
+      "MATERIAL_CEILING": "Une page créerait plus de matériaux que `RUNTIME_MATERIAL_CEILING` en une session ; rien n’a été créé.",
       "INVALID_TRANSFORM": "Le placement d’un nœud n’est pas une matrice utilisable, ou un nœud serait son propre ancêtre.",
       "NON_FINITE_TRANSFORM": "Le placement d’un nœud n’est pas une matrice utilisable, ou un nœud serait son propre ancêtre.",
       "SINGULAR_PARENT_TRANSFORM": "Le placement d’un nœud n’est pas une matrice utilisable, ou un nœud serait son propre ancêtre.",
@@ -4079,7 +4081,11 @@
       "geometry": "La forme du maillage ; donne une autre géométrie pour la changer.",
       "material": "Le matériau du maillage, ou un par groupe ; donnes-en un autre pour le changer.",
       "localBounds": "La boîte du contenu propre à ce nœud, dans son repère local ; un simple nœud n’en a pas.",
-      "physics": "Le maillage comme corps de la physique du monde, `null` s’il n’en est pas un. Mets `'static'`, `'dynamic'`, `'kinematic'` ou des options ; la forme est déduite de la géométrie."
+      "physics": "Le maillage comme corps de la physique du monde, `null` s’il n’en est pas un. Mets `'static'`, `'dynamic'`, `'kinematic'` ou des options ; la forme est déduite de la géométrie.",
+      "morphTargetInfluences": "Le poids de chaque cible de morphose, quand la géométrie en déclare.",
+      "morphTargetDictionary": "Le rang de chaque cible de morphose, par son nom.",
+      "updateMorphTargets": "Un poids nul par cible de morphose du premier attribut déformé, nommée par son rang.",
+      "copy": "Prend les valeurs de `source`, et des copies de ses enfants sauf avis contraire."
     }
   },
   "metric": {
@@ -5592,7 +5598,8 @@
       "textures": "Modèle des niveaux cuits, relatif au manifeste : {sha} l’empreinte de l’image source, {kind} le nom de l’atlas (PREVIEW_ATLAS_NAMES), {level} le rang du niveau. Absent d’un cache compilé avant les niveaux cuits, que ce lecteur refuse par la version du fichier annexe.",
       "proxy": "Où lire le proxy de scène résident et son BVH : la géométrie que touchent les rayons. Absent d’un cache compilé avant le rebond, qui reste lisible tel quel.",
       "binary": "Le fichier binaire.",
-      "primitives": "Ses primitives."
+      "primitives": "Ses primitives.",
+      "worstStalls": "La table des blocages du compilateur : au plus dix primitives avec un groupe bloqué qui a gardé des racines au niveau 0, la pire d’abord. Absente d’un cache compilé avant elle."
     }
   },
   "SlimCulling": {
@@ -7462,20 +7469,8 @@
     },
     "summary": "Une image et l’état d’échantillonnage avec lequel elle est lue, et la transformation de ses coordonnées."
   },
-  "GraphMesh": {
-    "summary": "Un nœud dessiné : une géométrie et sa surface, ou une surface par groupe de la géométrie.",
-    "members": {
-      "kind": "Dessiné à un emplacement, ou à plusieurs (`GraphInstancedMesh`).",
-      "morphTargetInfluences": "Le poids de chaque cible de morphose, quand la géométrie en déclare.",
-      "morphTargetDictionary": "Le rang de chaque cible de morphose, par son nom.",
-      "geometry": "Sa forme.",
-      "material": "Sa surface, ou une par groupe de la géométrie.",
-      "updateMorphTargets": "Un poids nul par cible de morphose du premier attribut déformé, nommée par son rang.",
-      "copy": "Prend les valeurs de `source`, et des copies de ses enfants sauf avis contraire."
-    }
-  },
   "GraphNodeKind": {
-    "summary": "Ce qu’est un nœud du graphe : la racine, un maillage dessiné (à un emplacement ou plusieurs), un œil, ou l’une des lumières qu’une scène déclare."
+    "summary": "Ce qu’est un nœud du graphe : la racine, un œil, ou l’une des lumières qu’une scène déclare."
   },
   "Joint": {
     "summary": "Une liaison entre deux corps, ou entre un corps et le monde (`b` à null), créée par `joint.*` et ajoutée à la simulation par `world.physics.add`.",

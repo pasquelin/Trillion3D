@@ -1,4 +1,22 @@
 {
+  "brushed-metal": {
+    "banner": "Drehen Sie sich um die gebürsteten Glanzlichter. Ändern Sie Stärke und Richtung.",
+    "controls": {
+      "anisotropy": "Bürstenstärke",
+      "direction": "Bürstenrichtung",
+      "roughness": "Rauheit",
+      "spin": "Drehen"
+    }
+  },
+  "car-paint-under-clear-coat": {
+    "banner": "Drehen Sie sich um das Auto. Ändern Sie Lack und Klarlack.",
+    "controls": {
+      "paint": "Lack",
+      "clearCoat": "Klarlack",
+      "coatRoughness": "Klarlackrauheit",
+      "spin": "Drehen"
+    }
+  },
   "kit": {
     "panel": {
       "controls": "Einstellungen"
@@ -310,6 +328,13 @@
       "roof": "Dach"
     }
   },
+  "soft-shadows-from-a-wide-lamp": {
+    "banner": "Ziehe, um die Szene zu drehen. Ändere die Lampenbreite und beobachte die Schattenränder.",
+    "controls": {
+      "lampWidth": "Lampenbreite",
+      "moveSubject": "Objekt bewegen"
+    }
+  },
   "a-softbox-panel": {
     "banner": "Ziehe, um herumzugehen. Vergrößere das Lichtfeld, um den Glanz weicher zu machen.",
     "controls": {
@@ -473,6 +498,14 @@
       "patrol": "STREIFE",
       "car": "VERFOLGT DAS AUTO",
       "balloon": "VERFOLGT DEN BALLON"
+    }
+  },
+  "a-crane-that-swings": {
+    "banner": "Kreise um den Kran, während ein Clip den Ausleger dreht, die Laufkatze bewegt, die Last hebt und schwingen lässt.",
+    "controls": {
+      "speed": "Tempo",
+      "paused": "Pausiert",
+      "replay": "Neu starten"
     }
   },
   "a-wave-across-a-grid": {
@@ -1234,6 +1267,25 @@
       }
     }
   },
+  "a-walk-through-the-city": {
+    "banner": "Klicke in die Ansicht, gehe mit W A S D und sieh dich mit der Maus um. Senke beim Gehen das Speicherbudget.",
+    "controls": {
+      "walkSpeed": "Gehgeschwindigkeit",
+      "memory": "Speicher",
+      "view": "Ansicht",
+      "home": "Zum Start"
+    },
+    "choices": {
+      "view": {
+        "beauty": "Bild",
+        "lod": "Detailstufen",
+        "clusters": "Cluster"
+      }
+    },
+    "words": {
+      "credit": "Urnenallee für dieses Beispiel im Code modelliert, CC0 — siehe assets/examples/CREDITS.md"
+    }
+  },
   "migrating-from-three": {
     "words": {
       "credit": "Marble Bust 01 von Rico Cilliers, Poly Haven, CC0; Kiste von W. Sitters, CC BY 3.0 — siehe assets/examples/CREDITS.md"
@@ -1681,6 +1733,21 @@
     },
     "readouts": {
       "fourthLaneAnisotropy": "Anisotropie der vierten Bahn"
+    }
+  },
+  "the-home-pose": {
+    "banner": "Wähle eine Ansicht, bewege die Kamera und kehre dann mit Ausgang zurück.",
+    "controls": {
+      "home": "Ausgang",
+      "tower": "Turm",
+      "square": "Platz",
+      "hillside": "Hang"
+    }
+  },
+  "the-near-plane-cuts-a-wall": {
+    "banner": "Schiebe die Nahgrenze vor und sieh zu, wie sie jede Wand schneidet.",
+    "controls": {
+      "nearPlane": "Nahgrenze"
     }
   },
   "the-material-family": {
@@ -2146,6 +2213,27 @@
     },
     "words": {
       "credit": "Flagge an einem Mast für dieses Beispiel im Code modelliert, CC0 — siehe assets/examples/CREDITS.md"
+    }
+  },
+  "a-dolly-along-the-canal": {
+    "banner": "Pausiere die Kamerafahrt, starte sie neu oder ändere ihre Geschwindigkeit entlang des Kanals.",
+    "controls": {
+      "paused": "Pausiert",
+      "replay": "Neu starten",
+      "speed": "Tempo"
+    },
+    "readouts": {
+      "progress": "Fortschritt"
+    }
+  },
+  "a-folder-merged-into-one-scene": {
+    "banner": "Ziehen Sie, um die Straßenecke anzusehen. Der Compiler hat drei OBJ-Dateien aus einem Ordner zu dieser Szene vereint.",
+    "controls": {
+      "visible": "Sichtbar",
+      "home": "Startansicht"
+    },
+    "words": {
+      "credit": "Straßenlaternenmodell von W. Sitters, CC BY 3.0 — siehe assets/examples/CREDITS.md"
     }
   },
   "drag-a-crate": {
