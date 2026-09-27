@@ -78,15 +78,19 @@ test('sixteen threads de-project the corners between two barriers; thread zero c
   assert.match(LIGHT_TILES_SHADER, /corners\[lane\]=tileCorner\(tile,lane%4u,z\);/);
   assert.match(
     LIGHT_TILES_SHADER,
-    / workgroupBarrier\(\);\n tileCornerOfLane\(tile\.xy,lane,[^\n]*\);\n workgroupBarrier\(\);\n if\(lane==0u\)\{/,
+    /workgroupBarrier\(\);\s*tileCornerOfLane\(tile\.xy,lane\);\s*workgroupBarrier\(\);\s*if\(lane==0u\)\{/,
   );
   // The rows' depths, near, column, front, back: \`ROW\` and \`tileCorners\` of the oracle.
   assert.match(
     LIGHT_TILES_SHADER,
     /let z=select\(select\(1\.0,COLUMN_DEPTH,row==DEEP_ROW\),select\(front,back,row==BACK_ROW\),row>=FRONT_ROW\);/,
   );
-  assert.match(
-    LIGHT_TILES_SHADER,
-    /const DEEP_ROW:u32=1u;\nconst FRONT_ROW:u32=2u;\nconst BACK_ROW:u32=3u;/,
+  for (const [name, row] of Object.entries(ROW))
+    assert.match(LIGHT_TILES_SHADER, new RegExp(`const ${name.toUpperCase()}_ROW:u32=${row}u;`));
+  // The column walks the corners in turn, the oracle's order 0, 1, 3, 2: the Gray code of i.
+  assert.match(LIGHT_TILES_SHADER, /return corners\[row\*4u\+\(i\^\(i>>1u\)\)\];/);
+  assert.deepEqual(
+    [0, 1, 2, 3].map((i) => i ^ (i >> 1)),
+    [0, 1, 3, 2],
   );
 });

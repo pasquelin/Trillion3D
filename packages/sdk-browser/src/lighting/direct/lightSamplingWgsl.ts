@@ -41,10 +41,6 @@ fn lightWeight(light:DirectLight,N:vec3f,P:vec3f)->f32{
 fn listedWeight(base:u32,index:u32,N:vec3f,P:vec3f)->f32{
  return lightWeight(directLights.items[tileLights[base+TILE_OPAQUE_BASE+index]],N,P);
 }
-/** A light's weight in the drawing pool: zero for one heavy enough to be shaded exactly. */
-fn pooledWeight(weight:f32,total:f32)->f32{
- return select(weight,0.0,weight*f32(LIGHT_SAMPLES)>=total);
-}
 fn sampledTileLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,tile:vec2u,tilesX:u32,rank:u32,pixel:vec2f)->vec3f{
  let base=(tile.y*tilesX+tile.x)*TILE_STRIDE;
  let kept=tileLights[base];
@@ -78,9 +74,9 @@ fn sampledTileLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:
   var drawn=0u;
   var next=offset/f32(samples)*pool;
   for(var index=0u;index<kept&&drawn<samples;index++){
-   // A light shaded exactly has left the pool: its weight there is zero.
-   let weight=pooledWeight(listedWeight(base,index,N,P),total);
-   if(weight<=0.0){continue;}
+   // A light shaded exactly has left the pool.
+   let weight=listedWeight(base,index,N,P);
+   if(weight<=0.0||weight*f32(LIGHT_SAMPLES)>=total){continue;}
    running+=weight;
    // Every sample that falls in this light's stratum draws it once; the last light of the
    // pool takes what rounding left behind, so no sample is ever lost.

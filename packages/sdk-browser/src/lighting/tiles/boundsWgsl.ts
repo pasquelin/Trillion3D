@@ -62,15 +62,22 @@ fn tileCorner(tile:vec2u,corner:u32,z:f32)->vec3f{
  let y=select(f32(tile.y*TILE_SIZE)/size.y,min(f32((tile.y+1u)*TILE_SIZE)/size.y,1.0),(corner&2u)!=0u);
  return unproject(vec3f(x*2.0-1.0,1.0-y*2.0,z));
 }
-/** Thread \`lane\` below 16 de-projects its corner: the corners of the rows are independent,
- *  so sixteen threads do at once what thread zero did one after the other, to the same bits.
- *  The row's depth is selected, never indexed: no private array. */
-fn tileCornerOfLane(tile:vec2u,lane:u32,front:f32,back:f32){
+/** Thread \`lane\` below 16 de-projects its corner, after the depth bounds: the corners of the
+ *  rows are independent, so sixteen threads do at once what thread zero did one after the
+ *  other, to the same bits. The row's depth is selected, never indexed: no private array. */
+fn tileCornerOfLane(tile:vec2u,lane:u32){
  if(lane<16u){
   let row=lane/4u;
+  let front=bitcast<f32>(atomicLoad(&nearest));
+  let back=bitcast<f32>(atomicLoad(&farthest));
   let z=select(select(${DEPTH_NEAR}.0,COLUMN_DEPTH,row==DEEP_ROW),select(front,back,row==BACK_ROW),row>=FRONT_ROW);
   corners[lane]=tileCorner(tile,lane%4u,z);
  }
+}
+/** The \`i\`th corner of a row in turn around the tile — top left, top right, bottom right,
+ *  bottom left —: the Gray code of \`i\`, so no private array of the order. */
+fn columnCorner(row:u32,i:u32)->vec3f{
+ return corners[row*4u+(i^(i>>1u))];
 }
 /** The opaque slice's depth planes, after \`tileColumn\`: a plane of one depth is parallel to
  *  the near plane, so both take its normal — read from corners spread across the column, never

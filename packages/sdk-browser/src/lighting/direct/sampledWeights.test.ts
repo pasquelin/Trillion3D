@@ -57,9 +57,8 @@ function withArray(weightOf: (i: number) => number, kept: number, offset: number
   return { chosen, factors };
 }
 
-/** The sampler now: `listedWeight` wherever a weight is read, `pooledWeight` for the pool's. */
+/** The sampler now: `listedWeight` wherever a weight is read, an exact light skipped in the pool. */
 function recomputed(weightOf: (i: number) => number, kept: number, offset: number): Choice {
-  const pooled = (weight: number, total: number) => (f(weight * SAMPLES) >= total ? 0 : weight);
   let total = 0;
   for (let i = 0; i < kept; i++) total = f(total + weightOf(i));
   if (total <= 0) return 'none';
@@ -81,8 +80,8 @@ function recomputed(weightOf: (i: number) => number, kept: number, offset: numbe
       drawn = 0,
       next = f(f(offset / samples) * pool);
     for (let i = 0; i < kept && drawn < samples; i++) {
-      const weight = pooled(weightOf(i), total);
-      if (weight <= 0) continue;
+      const weight = weightOf(i);
+      if (weight <= 0 || f(weight * SAMPLES) >= total) continue;
       running = f(running + weight);
       while (drawn < samples && (next < running || i === last)) {
         chosen.push(i);

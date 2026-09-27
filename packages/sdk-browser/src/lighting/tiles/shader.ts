@@ -76,19 +76,15 @@ fn inwardPlane(normal:vec3f,point:vec3f,inside:vec3f)->vec4f{
 /** The tile's column from the near plane to infinity: four side planes, each through two
  *  neighbouring corner rays, and the near plane, all facing the column's inside. */
 fn tileColumn(){
- var order=array<u32,4>(0u,1u,3u,2u);
- var near:array<vec3f,4>;
- var deep:array<vec3f,4>;
  var inside=vec3f(0.0);
+ for(var i=0u;i<4u;i++){inside+=columnCorner(DEEP_ROW,i)*0.25;}
  for(var i=0u;i<4u;i++){
-  near[i]=corners[NEAR_ROW*4u+order[i]];
-  deep[i]=corners[DEEP_ROW*4u+order[i]];
-  inside+=deep[i]*0.25;
+  let near=columnCorner(NEAR_ROW,i);
+  let deep=columnCorner(DEEP_ROW,i);
+  column[i]=inwardPlane(cross(columnCorner(DEEP_ROW,(i+1u)%4u)-deep,deep-near),near,inside);
  }
- for(var i=0u;i<4u;i++){
-  column[i]=inwardPlane(cross(deep[(i+1u)%4u]-deep[i],deep[i]-near[i]),near[i],inside);
- }
- column[4]=inwardPlane(cross(deep[1]-deep[0],deep[3]-deep[0]),near[0],inside);
+ let first=columnCorner(DEEP_ROW,0u);
+ column[4]=inwardPlane(cross(columnCorner(DEEP_ROW,1u)-first,columnCorner(DEEP_ROW,3u)-first),columnCorner(NEAR_ROW,0u),inside);
 }
 fn sphereTouchesBox(box:Box,centre:vec3f,radius:f32)->bool{
  let outside=max(box.lo-centre,centre-box.hi);
@@ -141,7 +137,7 @@ fn lightTiles(@builtin(workgroup_id) tile:vec3u,@builtin(local_invocation_index)
  if(inside){z=textureLoad(depth,vec2i(pixel),0);}
 ${tileDepthBoundsWgsl(subgroups)}
  workgroupBarrier();
- tileCornerOfLane(tile.xy,lane,bitcast<f32>(atomicLoad(&nearest)),bitcast<f32>(atomicLoad(&farthest)));
+ tileCornerOfLane(tile.xy,lane);
  workgroupBarrier();
  if(lane==0u){
   // The column's sides bound both slices: every tile builds it, before the depth planes.
