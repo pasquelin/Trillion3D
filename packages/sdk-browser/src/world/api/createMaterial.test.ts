@@ -35,7 +35,7 @@ test('a created material reads back what the page named, glTF defaults elsewhere
   assert.deepEqual(api.materials().at(-1), made, 'listed after the scene materials');
   assert.equal(api.createMaterial().id, 'created-1');
   // A value named undefined is one not named: the default, not a hole in the surface.
-  const unnamed = api.createMaterial({ baseColor: undefined, opacity: undefined });
+  const unnamed = api.createMaterial({ baseColor: undefined, opacity: undefined, map: undefined });
   assert.deepEqual([unnamed.baseColor, unnamed.opacity], [[1, 1, 1], 1]);
 });
 
@@ -57,7 +57,7 @@ test('a created material is worn by the drawable it is assigned to, every engine
 });
 
 test('a created material is refused by name before anything is built or written', async () => {
-  const { api, source } = await scene();
+  const { api, refreshes, source } = await scene();
   assert.throws(
     () => api.createMaterial({ map: {} as ImageBitmap }),
     refusal('UNSUPPORTED_SCENE_UPDATE'),
@@ -77,6 +77,8 @@ test('a created material is refused by name before anything is built or written'
     worn,
     'no drawable wears another',
   );
+  api.setMaterial(opaque, { alphaMode: 'mask' });
+  assert.equal(refreshes.at(-1)!.surfaces.length, 1, 'no variant built by a refused assignment');
 });
 
 test('past the declared ceiling a created material is refused by name', async () => {
