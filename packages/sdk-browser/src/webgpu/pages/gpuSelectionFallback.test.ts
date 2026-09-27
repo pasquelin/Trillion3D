@@ -117,7 +117,7 @@ test('webgpu visbuffer ids match the CPU oracle for a stable pose', async () => 
   backend.render(cam);
   await backend.flush();
   backend.render(cam);
-  const mesh = source.children[0] as G.GraphMesh;
+  const mesh = source.children[0] as G.HostMesh;
   const pages = [
     {
       array: indices.get('0')!,

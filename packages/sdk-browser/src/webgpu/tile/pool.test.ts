@@ -67,10 +67,16 @@ test('eviction candidates are unpinned tiles that neither this image nor the pre
   const old = pool.acquire(2, 2)!;
   const older = pool.acquire(3, 1)!;
   const fresh = pool.acquire(4, 7)!;
-  assert.deepEqual(pool.candidates(7), [older, old]);
-  assert.deepEqual(pool.candidates(8), [older, old], 'seen on the previous image: kept');
-  assert.deepEqual(pool.candidates(9), [older, old, fresh]);
-  assert.equal(pool.candidates(2).length, 0);
+  const drain = (frame: number) => {
+    const queue = pool.victims(frame),
+      out: number[] = [];
+    for (let index = queue.take(); index !== undefined; index = queue.take()) out.push(index);
+    return out;
+  };
+  assert.deepEqual(drain(7), [older, old]);
+  assert.deepEqual(drain(8), [older, old], 'seen on the previous image: kept');
+  assert.deepEqual(drain(9), [older, old, fresh]);
+  assert.equal(pool.victims(2).length, 0);
   pool.release(tail);
   assert.equal(pool.resident, 3);
 });
