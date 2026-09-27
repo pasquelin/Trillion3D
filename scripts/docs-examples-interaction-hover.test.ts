@@ -38,7 +38,7 @@ test('hover highlights one filtered part and restores it on transitions and clea
   let change = (_next: Values, _key?: keyof Values) => {};
   let invalidations = 0;
   let disposed = 0;
-  let pagehide: EventListenerOrEventListenerObject | undefined;
+  let pagehide: EventListener | undefined;
   const raycast = ((_: unknown, options?: { objects?: readonly object[] }) => {
     filter = options?.objects;
     return hit;
@@ -58,10 +58,15 @@ test('hover highlights one filtered part and restores it on transitions and clea
   } satisfies Pick<World, 'scene' | 'camera' | 'canvas' | 'raycast' | 'invalidate' | 'dispose'> & {
     controls: Pick<World['controls'], 'target'>;
   };
-  const previous = globalThis.addEventListener;
-  globalThis.addEventListener = ((type: string, listener: EventListenerOrEventListenerObject) => {
+  const previous = globalThis.addEventListener,
+    previousFrame = globalThis.requestAnimationFrame;
+  globalThis.addEventListener = ((type: string, listener: EventListener) => {
     if (type === 'pagehide') pagehide = listener;
   }) as typeof globalThis.addEventListener;
+  // The page rays once a frame: frames run when the test flushes them.
+  const frames: FrameRequestCallback[] = [];
+  const flush = () => frames.splice(0).forEach((callback) => callback(0));
+  globalThis.requestAnimationFrame = (callback) => frames.push(callback);
   try {
     await runExampleModule(html, {
       engine: {
@@ -83,65 +88,69 @@ test('hover highlights one filtered part and restores it on transitions and clea
       },
     });
 
-    const parts = scene.children.filter((child) => 'material' in child);
+    type Part = ReturnType<typeof object.mesh>;
+    const parts = scene.children.filter((child) => 'material' in child) as Part[];
     assert.equal(parts.length, 7);
     assert.deepEqual(values, { highlightEnabled: true });
-    const [first, second] = parts as ReturnType<typeof object.mesh>[];
-    const matter = (part: ReturnType<typeof object.mesh>) =>
-      part.material as ReturnType<typeof material.meshStandard>;
-    const hitOn = (part: ReturnType<typeof object.mesh>): Intersection => ({
+    const [first, second] = parts as [Part, Part];
+    const paint = (part: Part) => {
+      const matter = part.material as ReturnType<typeof material.meshStandard>;
+      return [matter.color.getHex(), matter.emissive.getHex()];
+    };
+    const hitOn = (part: Part): Intersection => ({
       object: part,
       point: math.vector3(),
       normal: math.vector3(0, 1, 0),
       distance: 1,
       face: -1,
     });
-    const original = parts.map((part) => {
-      const mesh = part as ReturnType<typeof object.mesh>;
-      return [matter(mesh).color.getHex(), matter(mesh).emissive.getHex()];
-    });
+    const original = parts.map(paint);
     const move = listeners.get('pointermove');
     const leave = listeners.get('pointerleave');
     assert.ok(move && leave);
+    const over = (part: Part | null, buttons = 0) => {
+      hit = part && hitOn(part);
+      move({ offsetX: 23, offsetY: 41, buttons } as unknown as Event);
+      flush();
+    };
 
-    hit = hitOn(first);
-    move({ offsetX: 23, offsetY: 41 } as unknown as Event);
+    over(first);
     assert.equal(filter?.length, parts.length, 'raycast receives only the cart parts');
     assert.ok(filter?.every((part, at) => part === parts[at]));
-    assert.notDeepEqual(
-      [matter(first).color.getHex(), matter(first).emissive.getHex()],
-      original[0],
-    );
+    assert.notDeepEqual(paint(first), original[0]);
 
-    hit = hitOn(second);
-    move({ offsetX: 40, offsetY: 52 } as unknown as Event);
-    assert.deepEqual([matter(first).color.getHex(), matter(first).emissive.getHex()], original[0]);
-    hit = null;
-    move({ offsetX: 70, offsetY: 80 } as unknown as Event);
-    assert.deepEqual(
-      [matter(second).color.getHex(), matter(second).emissive.getHex()],
-      original[1],
-    );
+    over(second);
+    assert.deepEqual(paint(first), original[0]);
+    over(null);
+    assert.deepEqual(paint(second), original[1]);
+    over(first, 1);
+    assert.deepEqual(paint(first), original[0], 'an orbit drag highlights nothing');
 
-    hit = hitOn(first);
-    move({ offsetX: 23, offsetY: 41 } as unknown as Event);
+    over(first);
     leave(new Event('pointerleave'));
-    assert.deepEqual([matter(first).color.getHex(), matter(first).emissive.getHex()], original[0]);
+    assert.deepEqual(paint(first), original[0]);
     hit = hitOn(second);
-    move({ offsetX: 40, offsetY: 52 } as unknown as Event);
+    move({ offsetX: 23, offsetY: 41, buttons: 0 } as unknown as Event);
+    leave(new Event('pointerleave'));
+    flush();
+    assert.deepEqual(
+      paint(second),
+      original[1],
+      'a frame queued before leaving highlights nothing',
+    );
+    over(second);
     values.highlightEnabled = false;
     change(values, 'highlightEnabled');
-    assert.deepEqual(
-      [matter(second).color.getHex(), matter(second).emissive.getHex()],
-      original[1],
-    );
+    assert.deepEqual(paint(second), original[1]);
+    over(first);
+    assert.deepEqual(paint(first), original[0], 'switched off, hovering highlights nothing');
     assert.ok(invalidations >= 6);
 
     assert.ok(pagehide);
-    if (typeof pagehide === 'function') pagehide(new Event('pagehide'));
-    else pagehide.handleEvent(new Event('pagehide'));
+    pagehide(new Event('pagehide'));
     assert.equal(disposed, 1);
   } finally {
     globalThis.addEventListener = previous;
+    globalThis.requestAnimationFrame = previousFrame;
   }
 });
