@@ -1,4 +1,22 @@
 {
+  "brushed-metal": {
+    "banner": "드래그하여 헤어라인 반사를 살펴보고 강도와 방향을 바꿔 보세요.",
+    "controls": {
+      "anisotropy": "헤어라인 강도",
+      "direction": "헤어라인 방향",
+      "roughness": "거칠기",
+      "spin": "회전"
+    }
+  },
+  "car-paint-under-clear-coat": {
+    "banner": "자동차 주위를 돌며 도장과 그 위의 클리어 코트를 바꿔 보세요.",
+    "controls": {
+      "paint": "도장",
+      "clearCoat": "클리어 코트",
+      "coatRoughness": "코트 거칠기",
+      "spin": "회전"
+    }
+  },
   "kit": {
     "panel": {
       "controls": "설정"
@@ -310,6 +328,13 @@
       "roof": "지붕"
     }
   },
+  "soft-shadows-from-a-wide-lamp": {
+    "banner": "드래그하여 둘러보세요. 램프 너비를 바꾸고 그림자 가장자리를 관찰하세요.",
+    "controls": {
+      "lampWidth": "램프 너비",
+      "moveSubject": "피사체 움직이기"
+    }
+  },
   "a-softbox-panel": {
     "banner": "끌어서 주위를 걸어 봐. 조명 판을 키우면 반짝임이 부드러워져.",
     "controls": {
@@ -473,6 +498,14 @@
       "patrol": "순찰 중",
       "car": "자동차 추적 중",
       "balloon": "풍선 추적 중"
+    }
+  },
+  "a-crane-that-swings": {
+    "banner": "크레인 주위를 돌며 하나의 클립이 지브를 돌리고, 트롤리를 움직이고, 짐을 들어 흔드는 모습을 보세요.",
+    "controls": {
+      "speed": "속도",
+      "paused": "일시 정지",
+      "replay": "다시 재생"
     }
   },
   "a-wave-across-a-grid": {
@@ -1234,6 +1267,25 @@
       }
     }
   },
+  "a-walk-through-the-city": {
+    "banner": "화면을 클릭하고 W A S D로 걸으며 마우스로 둘러보세요. 이동하면서 메모리 예산을 낮춰 보세요.",
+    "controls": {
+      "walkSpeed": "걷기 속도",
+      "memory": "메모리",
+      "view": "보기",
+      "home": "시작점으로"
+    },
+    "choices": {
+      "view": {
+        "beauty": "완성 화면",
+        "lod": "세부 수준",
+        "clusters": "클러스터"
+      }
+    },
+    "words": {
+      "credit": "이 예제를 위해 코드로 만든 항아리 거리, CC0 — assets/examples/CREDITS.md 참고"
+    }
+  },
   "migrating-from-three": {
     "words": {
       "credit": "Marble Bust 01, 제작 Rico Cilliers, Poly Haven, CC0; 상자 제작 W. Sitters, CC BY 3.0 — assets/examples/CREDITS.md 참고"
@@ -1681,6 +1733,21 @@
     },
     "readouts": {
       "fourthLaneAnisotropy": "네 번째 길의 비등방성"
+    }
+  },
+  "the-home-pose": {
+    "banner": "보기를 선택하고 카메라를 움직인 다음 홈을 선택해 돌아갑니다.",
+    "controls": {
+      "home": "홈",
+      "tower": "탑",
+      "square": "광장",
+      "hillside": "언덕"
+    }
+  },
+  "the-near-plane-cuts-a-wall": {
+    "banner": "근거리 평면을 앞으로 움직여 벽을 차례로 자르는 모습을 확인하세요.",
+    "controls": {
+      "nearPlane": "근거리 평면"
     }
   },
   "the-material-family": {
@@ -2146,6 +2213,41 @@
     },
     "words": {
       "credit": "이 예제를 위해 코드로 만든 깃대의 깃발, CC0 — assets/examples/CREDITS.md 참고"
+    }
+  },
+  "a-dolly-along-the-canal": {
+    "banner": "카메라가 운하를 따라 이동하는 동안 일시 정지하거나 다시 재생하고 속도를 바꿔 보세요.",
+    "controls": {
+      "paused": "일시 정지",
+      "replay": "다시 재생",
+      "speed": "속도"
+    },
+    "readouts": {
+      "progress": "진행률"
+    }
+  },
+  "a-folder-merged-into-one-scene": {
+    "banner": "드래그하여 거리 모퉁이를 살펴보세요. 컴파일러가 한 폴더의 OBJ 파일 세 개를 이 장면으로 병합했습니다.",
+    "controls": {
+      "visible": "표시",
+      "home": "홈"
+    },
+    "words": {
+      "credit": "W. Sitters의 가로등 모델, CC BY 3.0 — assets/examples/CREDITS.md 참고"
+    }
+  },
+  "drag-a-crate": {
+    "banner": "상자를 바닥 위로 드래그하세요. 스냅을 켜면 0.5미터 간격으로 배치됩니다.",
+    "controls": {
+      "snap": "스냅",
+      "home": "홈"
+    }
+  },
+  "outline-the-selection": {
+    "banner": "도형을 클릭해 선택하세요. 바닥을 클릭하면 선택이 해제됩니다.",
+    "controls": {
+      "color": "색상",
+      "thickness": "두께"
     }
   },
   "a-hundred-thousand-instances": {

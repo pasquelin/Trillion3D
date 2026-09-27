@@ -77,6 +77,9 @@ export const SHADOW_BATCH_GPU_BYTES =
   SHADOW_FLAG_FRAMES * FLAG_GPU_BYTES +
   MAX_SHADOW_RUNS * CPU_RUN_GPU_BYTES +
   SHADOW_COUNT_SAMPLERS * SHADOW_COUNT_SAMPLE_BYTES;
-/** Host bytes the batches add, at their largest: the flag frames' pages, the CPU cut's faces. */
+/** Host bytes the batches add, at their largest: the flag frames' pages, the CPU cut's faces, and
+ *  the staging buffer's host mirror (`batchWrites.ts`). */
 export const SHADOW_BATCH_HOST_BYTES =
-  SHADOW_FLAG_FRAMES * FLAG_HOST_BYTES + MAX_SHADOW_RUNS * CPU_RUN_HOST_BYTES;
+  SHADOW_FLAG_FRAMES * FLAG_HOST_BYTES +
+  MAX_SHADOW_RUNS * CPU_RUN_HOST_BYTES +
+  SHADOW_STAGING_BYTES;
