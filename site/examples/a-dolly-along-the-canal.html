@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>A dolly along the canal</title>
+    <meta name="thumbnail" content="4" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #b9d4dc;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <script type="module">
+      import { createWorld } from '../runtime/engine.js';
+      import { geometry, material, object, light, math, animation } from '../runtime/engine.js';
+      import { controls, readout } from '../runtime/kit.js';
+
+      const world = createWorld('view');
+      world.scene.background = math.color('#b9d4dc');
+      const paint = (color, roughness = 0.75, metalness = 0) =>
+        material.meshStandard({ color, roughness, metalness });
+      const stone = paint('#b8aa91', 0.95);
+      const brick = paint('#a96348', 0.9);
+      const darkBrick = paint('#744536', 0.95);
+      const water = paint('#367b8b', 0.22, 0.05);
+      const leaf = paint('#497149', 1);
+      const trunk = paint('#6c4930', 1);
+      const iron = paint('#30363b', 0.45, 0.7);
+      const glass = paint('#d7c47c', 0.55);
+      const windowShape = geometry.box(0.65, 0.9, 0.08);
+      const trunkShape = geometry.cylinder(0.14, 0.2, 2.2, 10);
+      const crownShape = geometry.sphere(1.15, 16, 12);
+      const pierShape = geometry.box(0.55, 3.2, 2.8);
+      const railShape = geometry.box(0.12, 1, 2.9);
+      const put = (shape, matter, at, parent = world.scene) => {
+        const mesh = object.mesh(shape, matter);
+        mesh.position.set(...at);
+        parent.add(mesh);
+        return mesh;
+      };
+
+      // A long, readable canal made entirely from public primitives: water, stone quays,
+      // warehouse fronts, trees and two bridges make the camera's travel visible.
+      put(geometry.box(10, 0.18, 96), water, [0, -0.1, -4]);
+      for (const side of [-1, 1]) {
+        put(geometry.box(1.2, 1.3, 96), stone, [side * 5.6, 0.35, -4]);
+        put(geometry.box(5, 0.35, 96), stone, [side * 8.7, 1.15, -4]);
+        for (let z = 34; z >= -42; z -= 9) {
+          const tall = (z / 9) & 1;
+          const building = put(geometry.box(4.2, 4.2 + tall, 6.8), tall ? brick : darkBrick, [
+            side * 9.2,
+            3.3,
+            z,
+          ]);
+          building.rotation.y = side * 0.025;
+          for (const floor of [2.5, 4])
+            for (const offset of [-1.2, 1.2])
+              put(windowShape, glass, [side * 7.05, floor, z + offset]);
+        }
+        for (let z = 30; z >= -40; z -= 14) {
+          put(trunkShape, trunk, [side * 6.9, 2.25, z]);
+          put(crownShape, leaf, [side * 6.9, 4, z]);
+        }
+      }
+      for (const z of [15, -22]) {
+        put(geometry.box(13, 0.65, 2.8), stone, [0, 3.1, z]);
+        for (const x of [-5.2, 5.2]) put(pierShape, stone, [x, 1.45, z]);
+        for (const x of [-4, -2, 2, 4]) put(railShape, iron, [x, 3.85, z]);
+      }
+      world.scene.add(
+        light.hemisphere({ color: '#d9efff', groundColor: '#5b5548', intensity: 1.5 }),
+        light.directional({
+          color: '#fff1d2',
+          intensity: 2.8,
+          position: [-12, 20, 15],
+          castShadow: true,
+        }),
+      );
+
+      const DURATION = 12;
+      world.camera.position.set(0, 4.6, 39);
+      world.camera.lookAt(0, 3.3, -50);
+      world.scene.add(world.camera); // a scene descendant is advanced by the world's animation loop
+      const mixer = animation.createMixer(world.camera);
+      const journey = animation.clip('canal dolly', DURATION, [
+        animation.vectorTrack(
+          '.position',
+          [0, 3, 6, 9, 12],
+          [0, 4.6, 39, 0, 4.4, 21, 0, 4.8, 2, 0, 4.3, -19, 0, 4.6, -39],
+        ),
+      ]);
+      const action = mixer.clipAction(journey);
+      action.loop = 'once';
+      action.play();
+
+      const values = controls(
+        { paused: false, replay: () => replay(), speed: [0.25, 2, 1] },
+        (next, key) => {
+          if (!key || key === 'speed') action.timeScale = next.speed;
+          if (key === 'paused') next.paused ? (action.playingNow = false) : action.play();
+          world.invalidate();
+        },
+        world,
+      );
+      const progress = readout('progress');
+      function replay() {
+        action.time = 0;
+        action.play();
+        mixer.update(0);
+        if (values.paused) action.playingNow = false;
+        world.invalidate();
+      }
+      world.onFrame(() => progress(`${Math.round((action.clipTime() / DURATION) * 100)}%`));
+      world.invalidate();
+      addEventListener('pagehide', () => world.dispose(), { once: true });
+    </script>
+  </body>
+</html>
