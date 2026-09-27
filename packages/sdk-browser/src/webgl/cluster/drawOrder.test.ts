@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { createDrawOrder, type OrderedNode } from './drawOrder.ts';
 import { depthOf } from './meshDepth.ts';
 import { serialOf } from '../../host/graph/serial.ts';
+import { random } from '../../page/cut/cutRuleChecks.fixture.ts';
 
 /** The screen the depths are read through: the identity, so a node's depth is its centre's z
  *  over its matrix's w (`node` below). */
@@ -51,16 +52,6 @@ function frozenOrder() {
     for (const n of seeThrough) depths.set(n, depthOf(n, screen));
     opaque.sort(frontToBack);
     seeThrough.sort(backToFront);
-  };
-}
-
-/** A seeded generator (mulberry32): the same lists at every run. */
-function random(seed: number) {
-  return () => {
-    seed = (seed + 0x6d2b79f5) | 0;
-    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
 }
 
