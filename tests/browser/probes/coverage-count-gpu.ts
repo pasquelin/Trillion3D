@@ -4,7 +4,10 @@
 //
 //   node --experimental-strip-types tests/browser/probes/coverage-count-gpu.ts
 import assert from 'node:assert/strict';
-import { COVERAGE_WGSL } from '../../../packages/sdk-browser/src/texture/coverageMips.ts';
+import {
+  COVERAGE_WGSL,
+  LEVEL_BIN_BYTES,
+} from '../../../packages/sdk-browser/src/texture/coverageMips.ts';
 import { levelSize } from '../../../packages/sdk-browser/src/texture/tiles.ts';
 import { random } from '../../../packages/sdk-browser/src/page/cut/cutRuleChecks.fixture.ts';
 import { dansPageWebgpu } from './pageWebgpu.ts';
@@ -38,7 +41,10 @@ const cases = sizes.map(([width, height, level], n) => {
   const texels = Array.from({ length: w * h * 4 }, () =>
     flat < 0 ? Math.floor(next() * 256) : flat,
   );
-  return { width, height, level, w, h, cutoff: 1 + Math.floor(next() * 255), texels };
+  const cutoff = 1 + Math.floor(next() * 255),
+    bytes = (level + 1) * LEVEL_BIN_BYTES,
+    dispatch = levelSize(width, height, level);
+  return { width, height, level, w, h, cutoff, texels, bytes, dispatch };
 });
 
 const lu = await dansPageWebgpu(
@@ -78,8 +84,8 @@ const lu = await dansPageWebgpu(
         0,
         Uint32Array.of(c.w, c.h, c.cutoff, 0, c.width, c.height, c.level, 0),
       );
-      const size = (c.level + 1) * 1024;
-      const [dw, dh] = [Math.max(1, c.width >> c.level), Math.max(1, c.height >> c.level)];
+      const size = c.bytes,
+        [dw, dh] = c.dispatch;
       bins.push(
         await Promise.all(
           pipelines.map(async (pipeline) => {

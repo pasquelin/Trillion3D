@@ -22,26 +22,28 @@ export type MipChain = {
  * Commands are submitted without being awaited: the device queue runs them in order, therefore
  * before any copy that will read a level. */
 export function generateMaterialMips(device: GPUDevice, chains: MipChain[]) {
-  const reduced = chains.filter(({ width, height }) => mipLevelCountFor(width, height) > 1);
+  // Each chain's levels, and its first uniform block: one per level, after the previous chain's.
+  const reduced: Array<{ chain: MipChain; levels: number; first: number }> = [];
+  let blocks = 0;
+  for (const chain of chains) {
+    const levels = mipLevelCountFor(chain.width, chain.height);
+    if (levels === 1) continue;
+    reduced.push({ chain, levels, first: blocks });
+    blocks += levels;
+  }
   if (!reduced.length) return;
   const shared = sharedGpuDevice(device);
   const stride = Math.max(256, device.limits.minUniformBufferOffsetAlignment ?? 256);
-  // One uniform block per level, its reduction's: the extent of the source level, so as not to read
-  // off the image, and the cutoff; for the counts, level 0's extent and the level. Block 0 is level
-  // 0's own count. Each chain's blocks follow the previous chain's.
-  const firsts: number[] = [];
-  let blocks = 0;
-  for (const { width, height } of reduced) {
-    firsts.push(blocks);
-    blocks += mipLevelCountFor(width, height);
-  }
+  // A block holds its level's reduction: the extent of the source level, so as not to read off the
+  // image, and the cutoff; for the counts, level 0's extent and the level. Block 0 is level 0's own
+  // count.
   const packed = new Uint32Array((blocks * stride) / 4);
-  reduced.forEach(({ width, height, cutoff = 0 }, i) => {
-    for (let level = 0; level < mipLevelCountFor(width, height); level++) {
-      const source = levelSize(width, height, Math.max(0, level - 1));
-      packed.set([...source, cutoff, 0, width, height, level], ((firsts[i] + level) * stride) / 4);
+  for (const { chain, levels, first } of reduced)
+    for (let level = 0; level < levels; level++) {
+      const { width, height, cutoff = 0 } = chain,
+        source = levelSize(width, height, Math.max(0, level - 1));
+      packed.set([...source, cutoff, 0, width, height, level], ((first + level) * stride) / 4);
     }
-  });
   const uniforms = heldBuffer(
     shared,
     'Trillion3D texture mips uniforms',
@@ -50,22 +52,21 @@ export function generateMaterialMips(device: GPUDevice, chains: MipChain[]) {
   );
   device.queue.writeBuffer(uniforms, 0, packed);
   const encoder = device.createCommandEncoder();
-  reduced.forEach((chain, i) => encodeChain(device, encoder, chain, uniforms, firsts[i], stride));
+  for (const { chain, levels, first } of reduced)
+    encodeChain(device, shared, encoder, chain, levels, { uniforms, first, stride });
   device.queue.submit([encoder.finish()]);
 }
 
 /** One chain's passes into `encoder`, its uniform blocks from block `first`. */
 function encodeChain(
   device: GPUDevice,
+  shared: GPUDevice,
   encoder: GPUCommandEncoder,
   { texture, format, width, height, weighted, cutoff = 0 }: MipChain,
-  uniforms: GPUBuffer,
-  first: number,
-  stride: number,
+  levels: number,
+  { uniforms, first, stride }: { uniforms: GPUBuffer; first: number; stride: number },
 ) {
-  const shared = sharedGpuDevice(device);
   const { layout, pipeline } = mipPipeline(shared, format, weighted);
-  const levels = mipLevelCountFor(width, height);
   const views = Array.from({ length: levels }, (_, level) =>
     texture.createView({ baseMipLevel: level, mipLevelCount: 1 }),
   );

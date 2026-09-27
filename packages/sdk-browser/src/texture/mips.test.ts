@@ -1,18 +1,18 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { generateMaterialMips as batch } from './mipBatch.ts';
+import { generateMaterialMips } from './mipBatch.ts';
 import { mipLevelCountFor } from './tiles.ts';
 import { installGpuGlobals } from '../../../../tests/kit/gpu/globals.ts';
 import { mockGpu } from '../../../../tests/kit/gpu/mockGpu.ts';
 
 /** One chain alone: a 4×4 texture under `format`, its rule and its cutoff. */
-const generateMaterialMips = (
+const oneChain = (
   device: GPUDevice,
   texture: GPUTexture,
   format: GPUTextureFormat,
   weighted: boolean,
   cutoff?: number,
-) => batch(device, [{ texture, format, width: 4, height: 4, weighted, cutoff }]);
+) => generateMaterialMips(device, [{ texture, format, width: 4, height: 4, weighted, cutoff }]);
 
 /** A four-texel-wide working texture, as tiles of a host texture cut them. */
 function scratch() {
@@ -30,8 +30,8 @@ function scratch() {
 test('reduction submits without waiting for the device and keeps a single uniform buffer', () => {
   const { device, texture, buffers, submits } = scratch();
   const before = buffers.length;
-  generateMaterialMips(device, texture, 'rgba8unorm', false);
-  generateMaterialMips(device, texture, 'rgba8unorm', false);
+  oneChain(device, texture, 'rgba8unorm', false);
+  oneChain(device, texture, 'rgba8unorm', false);
   assert.equal(submits.length, 2, 'both chains went out');
   assert.equal(buffers.length - before, 1, 'one uniform buffer for both, never destroyed');
 });
@@ -39,7 +39,7 @@ test('reduction submits without waiting for the device and keeps a single unifor
 test('uniforms describe one level each, at the device alignment', () => {
   const { device, texture, buffers } = scratch();
   const before = buffers.length;
-  generateMaterialMips(device, texture, 'rgba8unorm', false);
+  oneChain(device, texture, 'rgba8unorm', false);
   const stride = Math.max(256, device.limits.minUniformBufferOffsetAlignment ?? 256);
   assert.equal(buffers[before].size, mipLevelCountFor(4, 4) * stride);
 });
@@ -49,8 +49,7 @@ test('uniforms describe one level each, at the device alignment', () => {
 // which texture takes which rule is `scratch.test.ts` and `sources.test.ts`.
 test('one reduction pipeline per rule, the weighted one built with its constant and reused', () => {
   const { device, texture, renderPipelines } = scratch();
-  for (const rule of [true, false, true])
-    generateMaterialMips(device, texture, 'rgba8unorm-srgb', rule);
+  for (const rule of [true, false, true]) oneChain(device, texture, 'rgba8unorm-srgb', rule);
   assert.deepEqual(
     renderPipelines.map((pipeline) => pipeline.fragment?.constants?.weighted),
     [1, 0],
@@ -62,7 +61,7 @@ test('one reduction pipeline per rule, the weighted one built with its constant 
 // is `coverageRule.test.ts`.
 test('a chain with a cutoff counts each level before reducing it, a plain one nothing', () => {
   const { device, texture, computes, writes } = scratch();
-  generateMaterialMips(device, texture, 'rgba8unorm-srgb', true, 128);
+  oneChain(device, texture, 'rgba8unorm-srgb', true, 128);
   assert.deepEqual(computes, ['count', 'count', 'choose', 'count', 'choose']);
   const stride = Math.max(256, device.limits.minUniformBufferOffsetAlignment ?? 256) / 4;
   const blocks = (at: number) => {
@@ -75,7 +74,7 @@ test('a chain with a cutoff counts each level before reducing it, a plain one no
     [2, 2, 128, 0, 4, 4, 2],
   ];
   assert.deepEqual(blocks(0), levels);
-  generateMaterialMips(device, texture, 'rgba8unorm-srgb', true);
+  oneChain(device, texture, 'rgba8unorm-srgb', true);
   assert.equal(computes.length, 5, 'a plain chain counts nothing');
   assert.deepEqual(
     blocks(1),
@@ -95,7 +94,7 @@ test('a batch writes its chains’ blocks once, in order, and submits them toget
     return createBindGroup(desc);
   };
   const eight = device.createTexture({ ...texture, size: [8, 8], format: 'rgba8unorm' });
-  batch(device, [
+  generateMaterialMips(device, [
     { texture, format: 'rgba8unorm-srgb', width: 4, height: 4, weighted: true, cutoff: 128 },
     { texture, format: 'rgba8unorm', width: 1, height: 1, weighted: false },
     { texture: eight, format: 'rgba8unorm', width: 8, height: 8, weighted: false },

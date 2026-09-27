@@ -1,7 +1,7 @@
 import type { Texture } from '../../../../sdk-core/src/index.ts';
 import { texelsRefusal, textureRgba } from '../../visibility/types.ts';
 import { premultipliedByte } from '../../visibility/math.ts';
-import { generateMaterialMips } from '../../texture/mipBatch.ts';
+import { generateMaterialMips, type MipChain } from '../../texture/mipBatch.ts';
 import { mipLevelCountFor } from '../../texture/tiles.ts';
 import type { CoverageReaders } from '../../texture/coverage.ts';
 import { writeRgba } from './write.ts';
@@ -28,6 +28,8 @@ export type TileScratch = {
   fill(): void;
   /** Builds its mips again from the picture it holds, under its readers' rule now (#42). */
   reduce(): void;
+  /** What `reduce` hands `generateMaterialMips`, for a batch that reduces several at once. */
+  chain(): MipChain;
   destroy(): void;
 };
 
@@ -41,6 +43,8 @@ export function createTileScratch(
     errorCode: string;
     /** The colour census's readers, whose rule each reduction asks; none for a data texture. */
     coverage?: CoverageReaders;
+    /** Its first mips left to the caller's batch (`chain`). */
+    batched?: boolean;
   },
 ): TileScratch {
   const { width, height, format } = options;
@@ -62,7 +66,7 @@ export function createTileScratch(
   /** Sends the picture as it is now and builds its mips again, in the same texture. `flipY` and
    *  `premultiplyAlpha` as the WebGL2 upload (`UNPACK_FLIP_Y_WEBGL`,
    *  `UNPACK_PREMULTIPLY_ALPHA_WEBGL`): the picture's last row lands at v = 0 (#362). */
-  const fill = () => {
+  const fill = (reduced = true) => {
     const { map } = options;
     const rgba = textureRgba(map);
     if (rgba) {
@@ -84,15 +88,15 @@ export function createTileScratch(
         [width, height],
       );
     }
-    reduce();
+    if (reduced) reduce();
   };
-  const reduce = () => {
+  const chain = (): MipChain => {
     const cutoff = options.coverage?.cutoff(options.map);
-    const weighted = cutoff !== undefined;
-    generateMaterialMips(device, [{ texture, format, width, height, weighted, cutoff }]);
+    return { texture, format, width, height, weighted: cutoff !== undefined, cutoff };
   };
+  const reduce = () => generateMaterialMips(device, [chain()]);
   try {
-    fill();
+    fill(!options.batched);
   } catch (error) {
     // A picture refused at its first fill leaves no texture behind: its tile asks again.
     texture.destroy();
@@ -103,6 +107,7 @@ export function createTileScratch(
     bytes: textureBytesOf(descriptor) ?? 0,
     fill,
     reduce,
+    chain,
     destroy: () => texture.destroy(),
   };
 }
