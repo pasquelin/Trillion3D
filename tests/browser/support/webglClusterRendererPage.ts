@@ -16,7 +16,7 @@ export async function execute() {
   const gl = canvas.getContext('webgl2');
   if (!gl) return { unavailable: 'WebGL2 unavailable' };
   const renderer = new WebglClusterRenderer(gl),
-    scene = new G.GraphScene(),
+    scene = new G.Scene(),
     camera = G.perspectiveCamera(60, 1, 0.1, 10),
     drawCamera = host.readHostDrawCamera(host.createHostDrawCamera(), camera),
     { mesh, material: basic, geometry: triangleGeometry } = triangle();
@@ -124,7 +124,7 @@ export async function execute() {
   scene.clear();
   const textures = textureFixtures(renderer, gl, mesh, scene, drawCamera, pixel);
   const normalFrames = normalMapFrames(renderer, gl, mesh, drawCamera, pixel);
-  const sourceLights = new G.GraphScene(),
+  const sourceLights = new G.Scene(),
     nonPhysicalPoint = G.pointLight(0xffffff, 1);
   nonPhysicalPoint.decay = 1;
   sourceLights.add(nonPhysicalPoint);

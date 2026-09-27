@@ -6,6 +6,7 @@
  * table is computed once, and never per frame nor per pixel.
  */
 import { TAA_SAMPLES, taaJitter } from './jitter.ts';
+import { hypot2 } from '../../../sdk-core/src/math/primitives/hypot.ts';
 
 /** Nine weights, stored neighbour by neighbour (dy then dx, from −1 to 1), three `vec4f` in the uniform. */
 export const TAA_WEIGHTS = 12;
@@ -27,7 +28,7 @@ export function taaWeights(jx: number, jy: number, out: Float32Array, at: number
     k = 0;
   for (let dy = -1; dy <= 1; dy++)
     for (let dx = -1; dx <= 1; dx++, k++) {
-      const w = blackmanHarris(Math.hypot(dx - jx, dy + jy));
+      const w = blackmanHarris(hypot2(dx - jx, dy + jy));
       out[at + k] = w;
       sum += w;
     }

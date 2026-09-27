@@ -392,7 +392,9 @@
       "bottom": "Tepi bawah kotak orthographic.",
       "projection": "`'perspective'` membuat benda jauh kecil; `'orthographic'` menjaga setiap ukuran.",
       "copy": "Mengambil nilai simpul dari `source` dan, dari kamera, optiknya; `projection` miliknya sendiri tetap.",
-      "updateProjectionMatrix": "Disimpan untuk halaman yang ditulis terhadap sebuah perender yang membutuhkannya: setiap penulisan optik sudah menggambar ulang.",
+      "updateProjectionMatrix": "Menyusun kembali `projectionMatrix`; setiap penulisan optik sudah melakukannya, dan menggambar ulang.",
+      "projectionMatrix": "Proyeksi yang disusun oleh optik, dalam konvensi kedalaman referensi dengan bidang jauh yang terbatas, untuk renderer yang menggambar dengannya; setiap penulisan optik menyusunnya kembali. Dunia menggambar dengan miliknya sendiri (`engineCamera.ts`).",
+      "matrixWorldInverse": "Invers matriks dunia sebagaimana terakhir disusun: tampilan yang dibaca renderer.",
       "rayThrough": "Sinar dunia yang melewati sebuah titik gambar, menurut proyeksi mesin itu sendiri (`engineCamera.ts`): dari mata sepanjang arah pandang untuk kamera perspektif, lurus searah pandang dari kotak untuk kamera ortografis. Arahnya adalah vektor satuan.",
       "set": "Menaruh mata di `pose.position`, melihat ke `pose.target`, pada bidang yang disebutkannya."
     }
@@ -970,9 +972,10 @@
       "WEBGPU_LOST": "WebGPU kehilangan perangkatnya, atau sebuah galat padanya meninggalkan keadaan yang tidak bisa dipakai untuk menggambar: dilempar oleh `render`, `flush`, dan pembacaan yang memerlukan perangkat, dinamai oleh diagnostik `gpu-device-lost`, dan muncul di `world.diagnostic.error` ketika sebuah sesi tidak bisa dibuka karenanya.",
       "UNSUPPORTED_SCENE_FORMAT": "Scene tersimpan memakai format atau versi lain, atau berisi sesuatu yang tidak bisa disimpan scene tersimpan.",
       "SCENE_NOT_SAVABLE": "Scene tersimpan memakai format atau versi lain, atau berisi sesuatu yang tidak bisa disimpan scene tersimpan.",
-      "PHYSICS_BUDGET": "Fisika diminta melampaui salah satu batasnya (`world.budget.physics`: benda, benda dekoratif, memori), atau benda dinamis bukan anak langsung adegan (`PHYSICS_NESTED`), atau modul fisika gagal (`PHYSICS_FAILED`): di `world.physics.error`.",
-      "PHYSICS_NESTED": "Fisika diminta melampaui salah satu batasnya (`world.budget.physics`: benda, benda dekoratif, memori), atau benda dinamis bukan anak langsung adegan (`PHYSICS_NESTED`), atau modul fisika gagal (`PHYSICS_FAILED`): di `world.physics.error`.",
-      "PHYSICS_FAILED": "Fisika diminta melampaui salah satu batasnya (`world.budget.physics`: benda, benda dekoratif, memori), atau benda dinamis bukan anak langsung adegan (`PHYSICS_NESTED`), atau modul fisika gagal (`PHYSICS_FAILED`): di `world.physics.error`.",
+      "PHYSICS_BUDGET": "Fisika diminta melampaui salah satu batasnya (`world.budget.physics`: benda, benda dekoratif, memori), atau benda dinamis bukan anak langsung adegan (`PHYSICS_NESTED`), atau modul fisika gagal (`PHYSICS_FAILED`), atau pose atau verteks sebuah benda menjadi tak hingga dan benda itu keluar dari simulasi (`PHYSICS_DIVERGED`): di `world.physics.error`.",
+      "PHYSICS_NESTED": "Fisika diminta melampaui salah satu batasnya (`world.budget.physics`: benda, benda dekoratif, memori), atau benda dinamis bukan anak langsung adegan (`PHYSICS_NESTED`), atau modul fisika gagal (`PHYSICS_FAILED`), atau pose atau verteks sebuah benda menjadi tak hingga dan benda itu keluar dari simulasi (`PHYSICS_DIVERGED`): di `world.physics.error`.",
+      "PHYSICS_FAILED": "Fisika diminta melampaui salah satu batasnya (`world.budget.physics`: benda, benda dekoratif, memori), atau benda dinamis bukan anak langsung adegan (`PHYSICS_NESTED`), atau modul fisika gagal (`PHYSICS_FAILED`), atau pose atau verteks sebuah benda menjadi tak hingga dan benda itu keluar dari simulasi (`PHYSICS_DIVERGED`): di `world.physics.error`.",
+      "PHYSICS_DIVERGED": "Fisika diminta melampaui salah satu batasnya (`world.budget.physics`: benda, benda dekoratif, memori), atau benda dinamis bukan anak langsung adegan (`PHYSICS_NESTED`), atau modul fisika gagal (`PHYSICS_FAILED`), atau pose atau verteks sebuah benda menjadi tak hingga dan benda itu keluar dari simulasi (`PHYSICS_DIVERGED`): di `world.physics.error`.",
       "PHYSICS_FORMAT": "Fisika siap pakai dari model terkompilasi (`physics.json`) berformat lain, atau disiapkan oleh Jolt yang berbeda dari milik mesin (`PHYSICS_FORMAT`): kompilasi ulang. Raycast tepat diminta saat fisika mati (`PHYSICS_OFF`).",
       "PHYSICS_OFF": "Fisika siap pakai dari model terkompilasi (`physics.json`) berformat lain, atau disiapkan oleh Jolt yang berbeda dari milik mesin (`PHYSICS_FORMAT`): kompilasi ulang. Raycast tepat diminta saat fisika mati (`PHYSICS_OFF`).",
       "NO_VEHICLE": "`world.controls.kind` disetel ke `'vehicle'` saat `world.controls.vehicle` bernilai `null`: tidak ada yang dikemudikan.",
@@ -2989,6 +2992,8 @@
       "environment": "Sebuah gambar lingkungan yang dipantulkan permukaan mengkilap; `null` untuk tidak ada.",
       "background": "Yang mengisi gambar di belakang setiap objek: sebuah warna, atau `null` untuk bawaan. Perubahan tampil pada bingkai berikutnya, sesi tetap dipertahankan: warna baru yang diatur di sini, atau warna yang ada ditulis lewat metodenya (`set`, `setRGB`, `setHex`, `setHSL`...). Penulisan langsung ke `.r`, `.g`, atau `.b` tidak terdengar: atur ulang `background` sesudahnya. Gambar, atau nilai apa pun tanpa `getHex`, ditolak (`UNSUPPORTED_SCENE_UPDATE`): tidak ada jalur yang menggambarnya.",
       "fog": "Kabut di atas setiap permukaan, buram maupun transparan, di kedua perender; `null`, bawaannya, berarti tanpa kabut, tanpa biaya. `{ color, near, far }` memudarkan objek ke `color` dari `near` hingga `far`, jarak dari kamera; `{ color, density }` menebal `density` per satuan jarak; tambahkan `heightFalloff` (dan `baseHeight`, bawaannya 0) dan kabut menempel di tanah, menipis di atas `baseHeight` — dibagi e setiap `1 / heightFalloff` satuan ke atas. Perubahan tampak di bingkai berikutnya: kabut baru yang diberikan di sini, atau warnanya yang ditulis lewat metodenya. Penulisan langsung `near`, `far`, `density`... tidak terdengar: berikan `fog` lagi sesudahnya. Kabut di luar rentang — `far` tidak melewati `near`, kerapatan negatif — ditolak (`INVALID_SCENE_ENVIRONMENT`).",
+      "onBeforeRender": "Dipanggil oleh renderer sebelum menggambar adegan; tidak ada secara bawaan.",
+      "onAfterRender": "Dipanggil oleh renderer setelah selesai menggambar adegan; tidak ada secara bawaan.",
       "load": "Memuat sebuah model terkompilasi — URL manifestnya — dan menambahkannya ke scene ini.",
       "toJSON": "Scene sebagai JSON sederhana berversi: objeknya, bentuk lewat panggilan yang membangunnya, material, cahaya, bodi fisika tiap mesh seperti yang dideklarasikan, dan model yang dimuat lewat alamatnya; pose `camera` juga jika diberikan.",
       "fromJSON": "Mengganti isi scene dengan scene yang disimpan `toJSON`, penanda `helper`-nya tetap dipertahankan; selesai setelah model-modelnya dimuat. Format atau versi lain ditolak (`UNSUPPORTED_SCENE_FORMAT`). Panggilan yang dilakukan selama pembacaan berjalan satu per satu, berurutan, masing-masing pada hasil yang ditinggalkan panggilan sebelumnya: dua scene tersimpan tidak pernah bercampur."
@@ -7150,6 +7155,7 @@
       "gravity": "Gravitasi dalam m/s², vektor hidup; isi preset (`'earth'`, `'moon'`, `'mars'`, `'none'`) atau vektor.",
       "paused": "Apakah waktu berhenti; penulisan tetap sampai ke benda.",
       "timeScale": "Detik simulasi per detik nyata: 0.25 adalah gerak lambat.",
+      "simulationRange": "Meter di sekitar kamera tempat benda disimulasikan (di luarnya dibekukan seperti semula, dan tidak ada ubin tabrakan yang dimuat); `null` mengikuti `camera.far`.",
       "water": "Air tempat benda-benda mengapung: permukaannya, gelombangnya, massa jenisnya, dan hambatannya. Benda yang lebih ringan dari air mengapung, didorong oleh berat air yang dipindahkannya.",
       "waterSurface": "Permukaan air pada waktu simulasi, untuk digambar: gelombang yang dibaca daya apung, angka yang sama (`height`, `point`, `normal`).",
       "stats": "Hitungan dan kedua jam: milidetik worker per langkah, milidetik halaman per bingkai.",
@@ -7356,6 +7362,7 @@
       "gravity": "Gravitasi dalam m/s², vektor hidup; isi preset (`'earth'`, `'moon'`, `'mars'`, `'none'`) atau vektor.",
       "paused": "Apakah waktu berhenti; penulisan tetap sampai ke benda.",
       "timeScale": "Detik simulasi per detik nyata: 0.25 adalah gerak lambat.",
+      "simulationRange": "Meter di sekitar kamera tempat benda disimulasikan (di luarnya dibekukan seperti semula, dan tidak ada ubin tabrakan yang dimuat); `null` mengikuti `camera.far`.",
       "water": "Air tempat benda-benda mengapung: permukaannya, gelombangnya, massa jenisnya, dan hambatannya. Benda yang lebih ringan dari air mengapung, didorong oleh berat air yang dipindahkannya.",
       "waterSurface": "Permukaan air pada waktu simulasi, untuk digambar: gelombang yang dibaca daya apung, angka yang sama (`height`, `point`, `normal`).",
       "stats": "Hitungan dan kedua jam: milidetik worker per langkah, milidetik halaman per bingkai.",
@@ -7368,6 +7375,7 @@
     "summary": "Apa yang diterima `createWorld(canvas, { physics })` selain `true`.",
     "members": {
       "budget": "Batas tetap, dibaca sekali saat fisika mulai.",
+      "simulationRange": "Meter di sekitar kamera tempat benda disimulasikan (`world.physics.simulationRange`); `null` mengikuti `camera.far`.",
       "gravity": "Gravitasi dunia: preset atau vektor."
     }
   },
@@ -7471,7 +7479,7 @@
     "summary": "Sebuah gambar dan keadaan sampler yang dipakai untuk membacanya, serta transformasi koordinatnya."
   },
   "GraphNodeKind": {
-    "summary": "Apa sebuah node graf: akar, mata, atau salah satu cahaya yang dideklarasikan adegan."
+    "summary": "Apa itu cahaya dari graf: salah satu cahaya yang dideklarasikan sebuah adegan."
   },
   "Joint": {
     "summary": "Sambungan antara dua benda, atau antara benda dan dunia (`b` null), dibuat dengan `joint.*` dan ditambahkan ke simulasi dengan `world.physics.add`.",

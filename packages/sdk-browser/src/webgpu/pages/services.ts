@@ -16,7 +16,7 @@ import { createImageRelevance } from '../residency/imageRelevance.ts';
 import { createWebgpuCutPublication } from '../cut/publication.ts';
 import { acceptPage, dropPage } from './io/pageApi.ts';
 import { readGeometryPageHeader } from '../../page/decode/geometryPageHeader.ts';
-import { awaitsPageBytes, pageAddress } from '../row/pageSlots.ts';
+import { awaitsPageBytes, pageAddress, readGeometryAhead } from '../row/pageSlots.ts';
 import { markWebgpuLost } from './io/lost.ts';
 import type { WebgpuPagesCore } from './runtime.ts';
 import { noteResidenceChange } from '../shadow/bounds.ts';
@@ -82,9 +82,9 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
   );
   /**
    * The bytes one pool slot holds for a cluster: its quantized geometry page, read from the
-   * host's page reader at the address the manifest gives it, or — for a transparent cluster and
-   * for a cache that carries no geometry page — the index page the arrival already left in
-   * memory. The slot is written from one of the two, never from both.
+   * host's page reader at the address the manifest gives it, or — for a cache that carries no
+   * geometry page — the index page the arrival already left in memory. The slot is written from
+   * one of the two, never from both.
    */
   const read = async (key: string) => {
     const geometryUrl = geometryUrls.get(key);
@@ -161,6 +161,7 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     traceEnabled: diag.traceEnabled,
     traceDiagnostic: diag.traceDiagnostic,
     lowerTiers: () => lowerTiers,
+    prefetch: context.readGeometryPage && readGeometryAhead(geometryUrls, context.readGeometryPage),
   });
   const residency = createWebgpuResidencyQueue({
     tracking,

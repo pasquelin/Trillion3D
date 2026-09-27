@@ -150,6 +150,7 @@ export function createExplorerApi(inputs: Inputs) {
     ...createExplorerMaterialApi({
       check,
       source: context.source,
+      associations: context.associations,
       backends,
       active: () => state.active,
     }),
