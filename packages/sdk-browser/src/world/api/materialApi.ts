@@ -6,7 +6,6 @@ import { tableRankOf } from '../../host/prepared/materials.ts';
 import { materialTextures, meshes } from '../../scene/meshes.ts';
 import { EngineError } from '../../../../sdk-core/src/index.ts';
 import { alphaModeOf } from '../../../../sdk-core/src/contracts/material.ts';
-import { alphaMoves } from '../../placement/backendSceneUpdates.ts';
 import {
   invalid,
   read,
@@ -95,9 +94,11 @@ export function createExplorerMaterialApi(inputs: Inputs) {
         mode = patch.alphaMode ?? from;
       // A masked material cut at zero is drawn as an opaque one.
       const to = mode === 'mask' && patch.alphaCutoff === 0 ? 'opaque' : mode;
-      const alpha = alphaMoves(from, to, patch.alphaCutoff !== undefined)
-        ? { surfaces: worn, from, to }
-        : undefined;
+      // Its alpha moved: another class, or a cutout's cutoff — what the shadow of a cutout reads.
+      const alpha =
+        to !== from || (to === 'mask' && patch.alphaCutoff !== undefined)
+          ? { surfaces: worn, from, to }
+          : undefined;
       if (alpha && to !== from)
         for (const backend of backends) {
           const why = backend.materialClassRefusal?.(alpha);
