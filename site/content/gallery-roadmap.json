@@ -391,8 +391,16 @@
     {
       "id": "brushed-metal",
       "theme": "materials",
-      "file": "",
-      "status": "needs-engine"
+      "file": "examples/brushed-metal.html",
+      "status": "waiting-engine",
+      "issue": 880
+    },
+    {
+      "id": "car-paint-under-clear-coat",
+      "theme": "materials",
+      "file": "examples/car-paint-under-clear-coat.html",
+      "status": "waiting-engine",
+      "issue": 880
     },
     {
       "id": "a-prism-that-disperses",

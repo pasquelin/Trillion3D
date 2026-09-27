@@ -1,4 +1,22 @@
 {
+  "brushed-metal": {
+    "banner": "Drag to inspect the brushed highlights. Change their strength and direction.",
+    "controls": {
+      "anisotropy": "Brush strength",
+      "direction": "Brush direction",
+      "roughness": "Roughness",
+      "spin": "Spin"
+    }
+  },
+  "car-paint-under-clear-coat": {
+    "banner": "Drag around the car. Change the paint and the clear coat above it.",
+    "controls": {
+      "paint": "Paint",
+      "clearCoat": "Clear coat",
+      "coatRoughness": "Coat roughness",
+      "turntable": "Turntable"
+    }
+  },
   "kit": {
     "panel": {
       "controls": "Controls"

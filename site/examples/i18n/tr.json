@@ -1,4 +1,22 @@
 {
+  "brushed-metal": {
+    "banner": "Fırçalanmış yansımaları inceleyin. Güçlerini ve yönlerini değiştirin.",
+    "controls": {
+      "anisotropy": "Fırça gücü",
+      "direction": "Fırça yönü",
+      "roughness": "Pürüzlülük",
+      "spin": "Döndür"
+    }
+  },
+  "car-paint-under-clear-coat": {
+    "banner": "Arabanın etrafında dönün. Boyayı ve şeffaf kaplamayı değiştirin.",
+    "controls": {
+      "paint": "Boya",
+      "clearCoat": "Şeffaf kaplama",
+      "coatRoughness": "Kaplama pürüzlülüğü",
+      "turntable": "Döner tabla"
+    }
+  },
   "kit": {
     "panel": {
       "controls": "Ayarlar"
