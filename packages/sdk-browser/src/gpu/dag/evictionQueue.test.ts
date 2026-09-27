@@ -28,19 +28,12 @@ async function residentCut(leaves = 256) {
   const holdAll = () => {
     for (let page = 0; page < packed.pageCount; page++) selection.notePool(page, true);
   };
-  return {
-    gpu,
-    packed,
-    selection,
-    holdAll,
-    keys,
-    cut,
-    levelOf: (p: number) => keys[p] >>> KEY_PAGE_BITS,
-  };
+  return { gpu, packed, selection, holdAll, keys, cut };
 }
 
 test('each key once, children before parents, never one the cut read by any placement', async () => {
-  const { holdAll, keys, levelOf, cut } = await residentCut();
+  const { holdAll, keys, cut } = await residentCut();
+  const levelOf = (page: number) => keys[page] >>> KEY_PAGE_BITS;
   holdAll();
   const { result, queue } = await cut();
   assert.ok(queue.length > 10, 'the cut must leave pages to evict');
