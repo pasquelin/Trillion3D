@@ -1330,8 +1330,9 @@
     {
       "id": "outline-the-selection",
       "theme": "effects",
-      "file": "",
-      "status": "needs-engine"
+      "file": "examples/outline-the-selection.html",
+      "status": "waiting-engine",
+      "issue": 757
     },
     {
       "id": "edges-by-sobel",

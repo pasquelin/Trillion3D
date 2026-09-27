@@ -2242,5 +2242,12 @@
       "snap": "スナップ",
       "home": "ホーム"
     }
+  },
+  "outline-the-selection": {
+    "banner": "形をクリックして選択します。床をクリックすると選択が解除されます。",
+    "controls": {
+      "color": "色",
+      "thickness": "太さ"
+    }
   }
 }

@@ -2242,5 +2242,12 @@
       "snap": "Scatto",
       "home": "Inizio"
     }
+  },
+  "outline-the-selection": {
+    "banner": "Fai clic su una forma per selezionarla. Fai clic sul pavimento per cancellare la selezione.",
+    "controls": {
+      "color": "Colore",
+      "thickness": "Spessore"
+    }
   }
 }

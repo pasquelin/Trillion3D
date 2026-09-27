@@ -2242,5 +2242,12 @@
       "snap": "Snap",
       "home": "Home"
     }
+  },
+  "outline-the-selection": {
+    "banner": "Click a shape to select it. Click the floor to clear the selection.",
+    "controls": {
+      "color": "Color",
+      "thickness": "Thickness"
+    }
   }
 }

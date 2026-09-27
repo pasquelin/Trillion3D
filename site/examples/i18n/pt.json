@@ -2242,5 +2242,12 @@
       "snap": "Ajustar",
       "home": "Início"
     }
+  },
+  "outline-the-selection": {
+    "banner": "Clique numa forma para selecioná-la. Clique no chão para limpar a seleção.",
+    "controls": {
+      "color": "Cor",
+      "thickness": "Espessura"
+    }
   }
 }
