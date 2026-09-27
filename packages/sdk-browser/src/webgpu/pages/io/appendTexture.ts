@@ -2,12 +2,7 @@ import { EngineError, type Texture } from '../../../../../sdk-core/src/index.ts'
 import { poolLayerBytes } from '../../../texture/tiles.ts';
 import { poolTaking } from '../../residency/memoryBudgets.ts';
 import { tileCatalogue } from '../../tile/catalogue.ts';
-import {
-  budgetBeside,
-  grantedTexturePool,
-  probed,
-  textureProbe,
-} from '../../residency/poolGrants.ts';
+import * as grants from '../../residency/poolGrants.ts';
 import { catalogueReport, laneDemand, laneTails, pageTablesReport } from '../prepare/textures.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 
@@ -61,22 +56,16 @@ async function appendNow(rt: WebgpuPagesRuntime, texture: Texture, kind: 'color'
     { kind, lane, resident, tails: tails[lane], streams: demand[lane] > tails[lane] },
     poolLayerBytes(encoding.texelBytes(lane)),
     {
-      budgetBytes: budgetBeside(setup.texturePoolBudget, streamer.sources.liveBytes).bytes,
+      budgetBytes: grants.budgetBeside(setup.texturePoolBudget, streamer.sources.liveBytes).bytes,
       maxLayers: device.limits.maxTextureArrayLayers,
     },
   );
   if (pool !== pools.pool) {
     // Out of memory, absorbed: the grown pool is probed before any pool moves, a refusal named.
-    const probe = textureProbe(device, encoding);
-    const granted = await probed(
-      grantedTexturePool(
-        device,
-        pool.budgetBytes,
-        { poolFor: () => pool },
-        diag.engineDiagnostic,
-        probe,
-      ),
-    );
+    const drawn = { poolFor: () => pool },
+      probe = grants.textureProbe(device, encoding);
+    const asked = grants.grantedTexturePool(device, 0, drawn, diag.engineDiagnostic, probe);
+    const granted = await grants.probed(asked);
     if (!granted)
       throw new EngineError('TEXTURE_BUDGET', 'the device refused the pool', { kind, lane });
     if (run.lost) throw new Error('WEBGPU_LOST');
