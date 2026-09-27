@@ -15,7 +15,8 @@ import {
   TEXTURE_PREVIEW_VERSION,
 } from '../../../../../sdk-core/src/index.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
-import type { TileTexture } from '../../tile/atlas.ts';
+import type { TileTexture } from '../../tile/tileTexture.ts';
+import type { WebgpuTileStreamer } from '../../tile/streamer.ts';
 
 /** Tiles each lane's textures would hold at full residency: their tails and streamed entries. */
 const laneDemand = (textures: TileTexture[]) => {
@@ -24,14 +25,14 @@ const laneDemand = (textures: TileTexture[]) => {
   return demand;
 };
 /** Textures per lane: the tails the pool keeps resident whole, one tile each. */
-const laneTails = (textures: TileTexture[]) => {
+const laneTails = (textures: readonly TileTexture[]) => {
   const tails = laneCounts();
   for (const texture of textures) tails[texture.lane]++;
   return tails;
 };
 
 /** What a diagnostic says of a catalogue: how many textures per source and per lane, their tiles. */
-const catalogueReport = (textures: TileTexture[]) => ({
+export const catalogueReport = (textures: readonly TileTexture[]) => ({
   count: textures.length - 1,
   baked: textures.filter((texture) => texture.source.kind === 'baked').length,
   tailOnly: textures.filter((texture) => texture.source.kind === 'bytes').length - 1,
@@ -39,6 +40,15 @@ const catalogueReport = (textures: TileTexture[]) => ({
   lanes: laneTails(textures),
   streamedTiles: textures.reduce((total, texture) => total + texture.layout.entries, 0),
 });
+
+/** What a diagnostic says of each atlas's page table: its textures and the bytes of its buffer. */
+export const pageTablesReport = ({ color, data }: Pick<WebgpuTileStreamer, 'color' | 'data'>) =>
+  Object.fromEntries(
+    [color, data].map(({ kind, textures, pages }) => [
+      kind,
+      { slots: textures.length, bytes: pages.buffer.size },
+    ]),
+  );
 
 /**
  * Inventories material textures over the geometry prepare concatenated (`prepareWebgpuGeometry`)
@@ -137,7 +147,7 @@ export async function prepareWebgpuTextures(rt: WebgpuPagesRuntime, gpuDevice: G
     stopped: () => rt.signal.aborted || run.lost,
   });
   if (!granted) throw new Error('WEBGPU_TEXTURE_POOL_REFUSED');
-  const pools = { choice, encoding, pool: granted.pool, poolFor };
+  const pools = { choice, encoding, pool: granted.pool, poolFor, demand, tails, coverage };
   rt.setup.texturePools = pools;
   // The budget recorded is the one granted, not the one asked.
   rt.setup.texturePoolBudget = granted.pool.budgetBytes;
@@ -162,6 +172,7 @@ export async function prepareWebgpuTextures(rt: WebgpuPagesRuntime, gpuDevice: G
       })),
       requestReduce: textures.requestReduce,
     },
+    pageTables: pageTablesReport(textures),
     progressiveLevels: { version: TEXTURE_PREVIEW_VERSION, base: PREVIEW_BASE },
     preparationMs: performance.now() - textureStarted,
     lighting: 'GGX direct + diffuse hemisphere; no environment map',

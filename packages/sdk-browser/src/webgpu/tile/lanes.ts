@@ -39,13 +39,13 @@ export function createTileLanes(
     layers,
   });
   const lanes = new Map<PoolLane, Lane>();
-  for (const lane of POOL_LANES)
-    if (options.layers[lane] > 0)
-      lanes.set(lane, {
-        pool: createWebgpuTilePool(device, shape(lane, options.layers[lane])),
-        resident: new Map(),
-        candidates: [],
-      });
+  const open = (lane: PoolLane, layers: number) =>
+    lanes.set(lane, {
+      pool: createWebgpuTilePool(device, shape(lane, layers)),
+      resident: new Map(),
+      candidates: [],
+    });
+  for (const lane of POOL_LANES) if (options.layers[lane] > 0) open(lane, options.layers[lane]);
   const standInTexture = device.createTexture({
     label: `Trillion3D texture pool ${kind} stand-in`,
     size: { width: 4, height: 4, depthOrArrayLayers: 1 },
@@ -64,8 +64,9 @@ export function createTileLanes(
       return lane;
     },
     views,
-    /** Every lane whose layers change gets a new pool that keeps its tiles; returns the evicted
-     *  tiles and how many pools were replaced — none when the layers are those already held. */
+    /** Every lane whose layers change gets a new pool that keeps its tiles, a lane that had none
+     *  its first — a texture appended after open took it; returns the evicted tiles and how many
+     *  pools were replaced — none when the layers are those already held. */
     resize(
       target: Pick<GPUDevice, 'createTexture' | 'createCommandEncoder' | 'queue'>,
       layers: LaneCounts,
@@ -73,6 +74,11 @@ export function createTileLanes(
     ) {
       let evicted = 0,
         replaced = 0;
+      for (const name of POOL_LANES)
+        if (!lanes.has(name) && layers[name] > 0) {
+          open(name, layers[name]);
+          replaced++;
+        }
       for (const [name, lane] of lanes) {
         if (layers[name] === lane.pool.layers) continue;
         replaced++;

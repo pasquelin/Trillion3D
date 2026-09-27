@@ -30,6 +30,7 @@ import { setWebgpuTransform } from './render/transform.ts';
 import { updateWebgpuPlacements } from '../../placement/webgpuPlacements.ts';
 import { disposeWebgpuPages, metricsOf } from './io/metrics.ts';
 import { setWebgpuMemoryBudgets } from './io/memory.ts';
+import { appendWebgpuTexture } from './io/appendTexture.ts';
 import { setWebgpuClearColor } from './io/clearColor.ts';
 import * as materials from './io/refreshMaterials.ts';
 import { installGpuDeviceLedger } from '../../gpu/core/deviceLedger.ts';
@@ -85,6 +86,7 @@ export const webgpuPagesBackend: BackendFactory = (context) => {
     materialClassRefusal: (alpha) => materials.webgpuMaterialClassRefusal(alpha, rt.setup.allPages),
     wearSurface: (assignment) => materials.wearWebgpuSurface(rt, assignment),
     setMemoryBudgets: (budgets) => setWebgpuMemoryBudgets(rt, budgets),
+    appendTexture: (texture, kind) => appendWebgpuTexture(rt, texture, kind),
     setClearColor: (hex) => setWebgpuClearColor(rt, hex),
     async prepare() {
       rt.signal.throwIfAborted();
@@ -138,9 +140,7 @@ export const webgpuPagesBackend: BackendFactory = (context) => {
     pendingUrls() {
       return pendingUrls(rt);
     },
-    pageUrls() {
-      return pageUrls(rt);
-    },
+    pageUrls: () => pageUrls(rt),
     retainedRanks() {
       return retainedRanks(rt);
     },

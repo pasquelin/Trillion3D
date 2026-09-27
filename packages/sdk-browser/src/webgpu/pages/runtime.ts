@@ -1,4 +1,4 @@
-import { BOUNCE_SETTINGS } from '../../../../sdk-core/src/index.ts';
+import { BOUNCE_SETTINGS, type Texture } from '../../../../sdk-core/src/index.ts';
 import { shadowPoolSide } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { MOTION_CAPABILITY, TAA_CAPABILITY } from '../../taa/capability.ts';
 import { BOUNCE_CAPABILITY } from './prepare/bounce.ts';
@@ -29,6 +29,8 @@ export type WebgpuPagesBackend = RenderBackend &
     rasterRgba(): Uint8Array;
     selectedPageIds(): string[];
     visibilityIds(): Uint32Array;
+    /** Internal: a texture taken by the atlas after open (`io/appendTexture.ts`); its slot. */
+    appendTexture(texture: Texture, kind: 'color' | 'data'): Promise<number>;
   };
 
 /** The runtime before its services exist: what the service factory and the draw helpers are handed. */

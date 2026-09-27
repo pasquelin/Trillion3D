@@ -6,7 +6,7 @@ import type { TextureLevelReader } from '../../texture/levelReader.ts';
 import type { CoverageReaders } from '../../texture/coverage.ts';
 import { tileLayout } from '../../texture/tiles.ts';
 import { sourceSize } from './live.ts';
-import type { TileTexture } from './atlas.ts';
+import type { TileTexture } from './tileTexture.ts';
 
 /**
  * Sidecar entries filed by the scene texture they cover and the atlas that samples them: the same
