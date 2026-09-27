@@ -30,7 +30,7 @@ type DisplayNode = Partial<SceneCopy> & {
   readonly renderOrder: number;
   readonly children: readonly DisplayNode[];
 };
-/** A drawn node: the engine's mesh, numbered in creation order (`serialOf`). */
+/** A drawn node: the engine's mesh. */
 type DrawnNode = DisplayNode;
 type DisplayScene = ClusterDrawScene & {
   readonly children: readonly DisplayNode[];
@@ -121,7 +121,7 @@ export function createSceneDraw(
       try {
         walk();
         multiplyMatrix4Typed(screen, drawCamera.projection, drawCamera.view);
-        order(opaque as DrawnNode[], seeThrough, screen);
+        order(opaque, seeThrough, screen);
         // A linear output is the effect chain's: its own program, which leaves the curve and the
         // encoding to the chain and marks the surfaces the curve skips.
         owner.draw(
