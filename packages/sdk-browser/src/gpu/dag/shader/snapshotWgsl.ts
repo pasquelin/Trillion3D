@@ -1,4 +1,5 @@
 import { REQUEST_PRIORITY_MAX } from '../request.ts';
+import { EVICTION_BURST } from '../layout.ts';
 
 /**
  * SNAPSHOT write: what the GPU reports to the CPU, and the ceiling that bounds it.
@@ -24,7 +25,7 @@ import { REQUEST_PRIORITY_MAX } from '../request.ts';
 export const DAG_RELEVE_WGSL = `fn emitOne(page:u32,pixels:f32){emitWord(page,quantizePriority(pixels),true);}
 /** Where the camera's request \`s\` waits for the sort: behind the eviction queue and its header
  *  (\`stagedRequestsWord\`, \`../layout.ts\`, counted from \`out\`'s first word). */
-fn stagedAt(s:u32)->u32{return 3u*views[0u].listCap+2u*HEAD+s;}
+fn stagedAt(s:u32)->u32{return 2u*views[0u].listCap+3u*HEAD+${EVICTION_BURST}u+s;}
 /** One request word in the sample; past the cap it is dropped, and \`declare\` says truncated. */
 fn emitWord(page:u32,priority:u32,declare:bool){
  let slot=atomicAdd(&out.count,1u);
