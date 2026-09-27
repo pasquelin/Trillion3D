@@ -1,53 +1,44 @@
 import { Badge } from '../ui/Badge.tsx';
-import { Card } from '../ui/Card.tsx';
-import { Cover } from '../ui/Thumbnail.tsx';
+import { showFallbackImage } from '../ui/Thumbnail.tsx';
 import { examplePlaceholder } from './list.ts';
 
 interface ExampleCardProps {
   title: string;
   href: string;
-  badge: string;
   /** The example's settled render. */
   thumbnail: string;
   /** A compact state/capability label for a written example parked on the engine. */
   state?: string;
 }
 
-/** A written example: its thumbnail or fallback, theme, state and title, opening the example. */
-export function ExampleCard({ title, href, badge, thumbnail, state }: ExampleCardProps) {
+/** A written example as the home's mosaic draws a tile: its render at 16:10, growing a little
+ * under the pointer, its parked state (if any) in a corner — its theme is the section's heading —
+ * and its title at the bottom over a dark gradient; the whole tile opens the example. */
+export function ExampleCard({ title, href, thumbnail, state }: ExampleCardProps) {
   return (
     <a
-      className="block h-full rounded-box focus-visible:outline-2 focus-visible:outline-primary"
+      className="group relative block aspect-[16/10] min-w-0 overflow-hidden rounded-box bg-base-300 focus-visible:outline-2 focus-visible:outline-primary"
       href={href}
-      title={title}
+      title={state ? `${title} — ${state}` : title}
     >
-      <Card
-        className="h-full overflow-hidden shadow-sm"
-        media={<Cover look="card" src={thumbnail} fallbackSrc={examplePlaceholder} />}
-        eyebrow={
-          <div className="grid h-28 grid-rows-[1.5rem_4.5rem] gap-2 overflow-hidden">
-            <Badge tone="primary" soft className="justify-self-start">
-              {badge}
-            </Badge>
-            {state && (
-              <Badge
-                tone="info"
-                soft
-                className="h-[4.5rem] max-w-full items-start whitespace-normal py-1 text-start"
-              >
-                <span className="line-clamp-3" title={state}>
-                  {state}
-                </span>
-              </Badge>
-            )}
-          </div>
-        }
-        title={<span className="line-clamp-2 h-14">{title}</span>}
-      >
-        <span className="mt-auto self-end text-xl text-primary" aria-hidden="true">
-          →
+      <img
+        className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+        loading="lazy"
+        decoding="async"
+        src={thumbnail}
+        alt=""
+        onError={(event) => showFallbackImage(event.currentTarget, examplePlaceholder)}
+      />
+      {state && (
+        <span className="absolute inset-x-2 top-2 flex min-w-0">
+          <Badge tone="info" size="sm" className="max-w-full truncate">
+            {state}
+          </Badge>
         </span>
-      </Card>
+      )}
+      <span className="absolute inset-x-0 bottom-0 bg-linear-to-t from-black/85 to-transparent px-3 pb-2 pt-8 text-sm font-medium text-white">
+        <span className="line-clamp-2">{title}</span>
+      </span>
     </a>
   );
 }
