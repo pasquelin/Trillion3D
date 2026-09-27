@@ -73,7 +73,8 @@ type ErreurPage =
   | { kind: 'pageerror'; message: string }
   | { kind: 'http'; status: number; url: string }
   | { kind: 'console'; message: string }
-  | { kind: 'cut-analysis'; message: string };
+  | { kind: 'cut-analysis'; message: string }
+  | { kind: 'black-capture'; message: string };
 
 /** A generic-rule light placement summary (`lamps.ts`), for `mesure.json` and `resume.md`. */
 export interface LightsSummary {
@@ -87,7 +88,7 @@ export interface LightsSummary {
   mobile: boolean;
 }
 
-/** Delta between two RGBA captures (`summary.ts::imageDiff`). */
+/** Delta between two RGBA captures (`imageDiff.ts::imageDiff`). */
 export type ImageDiff =
   null | { erreur: string } | { pixels: number; maxCanal: number; total: number };
 
