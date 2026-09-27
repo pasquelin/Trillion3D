@@ -50,13 +50,16 @@ export const lastFrameOf = (world: object) => worlds.get(world)?.last() ?? null;
  * picture (`image: false`): a world whose loop redraws every frame — a large world streaming, an
  * animated scene — never holds an image still long enough to read one back, and a wait that asked
  * for it never settled (#408). A capture reads its own image (`capture.buffer`). `onProgress`
- * hears `pages`: those the view reads, resident as each one it lacked lands (`lifecycle.ts`).
+ * hears `session` while the session that draws the view settles, then `pages`: those the view
+ * reads, resident as each one lands (`lifecycle.ts`).
  */
 export async function awaitViewPages(
   runtime: { settled(): Promise<void> },
   session: () => MeasuredWorld | null,
   onProgress?: (event: JobProgress) => void,
 ) {
+  // The session that draws the view opens — or opens again — before the pages it reads are known.
+  onProgress?.({ phase: 'session', completed: 0, total: 1, message: 'The view opens' });
   await runtime.settled();
   await session()?.awaitPages({ image: false, onProgress });
 }

@@ -34,6 +34,8 @@ async function heardPages(t: test.TestContext, drawnFirst: boolean) {
     () => session,
     (event) => heard.push(event),
   );
+  // The view's session is named first, then only its pages are heard.
+  assert.equal(heard.shift()?.phase, 'session');
   return { heard, lacks: lacks() };
 }
 

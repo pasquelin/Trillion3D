@@ -1965,6 +1965,7 @@
       "manifest": "manifesto letto",
       "tables": "tabelle della scena lette",
       "resources": "file della scena",
+      "session": "apertura della vista",
       "pages": "prime pagine",
       "ready": "pronto"
     }

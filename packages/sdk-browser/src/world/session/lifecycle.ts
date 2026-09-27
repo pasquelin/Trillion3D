@@ -117,50 +117,51 @@ export function createExplorerLifecycle(session: ExplorerSession, inputs: Inputs
     return held;
   };
   /** The pages the view reads, made resident; `image: false` takes no picture of them.
-   *  `onProgress` hears `pages` once the cut is read: `total` the pages the view reads — those it
-   *  holds and those the streamer reads for it —, `completed` those resident, rising as each lands
-   *  up to `completed === total`. */
+   *  `onProgress` hears `pages`: `total` the pages the view reads — those the streamer held already
+   *  and every page it reads while the wait runs, whoever asks it (`readWatch.ts`): the host for the
+   *  cut, or the engine itself, as the WebGPU residency does inside its flush —, `completed` those
+   *  resident, rising as each lands; the last event says `completed === total`. */
   const awaitPages = async (options: PageWait = {}) => {
     const { onProgress, ...wait } = options;
-    const pages = { completed: 0, total: 0 };
-    check();
-    if (streaming.promise) await streaming.promise;
-    for (const backend of backends) {
-      await awaitBackendPages(
-        backend,
-        camera,
-        async (missing) => {
-          // The pages the view reads the streamer already holds count as landed.
-          if (onProgress) {
-            const held = heldPages(backend, missing);
-            pages.completed += held;
-            pages.total += held;
-          }
-          const before = { ...pages };
-          await streamer.request(missing, {
-            onPage: (resident, requested) => {
-              pages.completed = before.completed + resident;
-              pages.total = before.total + requested;
-              onProgress?.({
-                phase: 'pages',
-                ...pages,
-                message: `${pages.completed} of ${pages.total} pages the view reads`,
-              });
-            },
-          });
-          for (const url of missing) {
-            if (geometryUrls.has(url)) {
-              const bytes = streamer.getBytes(url);
-              if (bytes) backend.acceptGeometryPage?.(url, await decodePageOffThread(bytes));
-            } else {
-              const array = streamer.get(url);
-              if (array) backend.acceptPage?.(url, array);
+    let held = 0,
+      reads = { landed: 0, asked: 0 },
+      said = '';
+    const report = (last = false) => {
+      const completed = held + reads.landed,
+        total = last ? completed : held + reads.asked;
+      if (!onProgress || `${completed}/${total}` === said) return;
+      said = `${completed}/${total}`;
+      const message = `${completed} of ${total} pages the view reads`;
+      onProgress({ phase: 'pages', completed, total, message });
+    };
+    const stop = onProgress ? streamer.watch((heard) => ((reads = heard), report())) : () => {};
+    try {
+      check();
+      if (streaming.promise) await streaming.promise;
+      for (const backend of backends) {
+        await awaitBackendPages(
+          backend,
+          camera,
+          async (missing) => {
+            if (onProgress) held += heldPages(backend, missing);
+            await streamer.request(missing);
+            for (const url of missing) {
+              if (geometryUrls.has(url)) {
+                const bytes = streamer.getBytes(url);
+                if (bytes) backend.acceptGeometryPage?.(url, await decodePageOffThread(bytes));
+              } else {
+                const array = streamer.get(url);
+                if (array) backend.acceptPage?.(url, array);
+              }
             }
-          }
-        },
-        wait,
-      );
-      retainVisiblePages(backend, streamer);
+          },
+          wait,
+        );
+        retainVisiblePages(backend, streamer);
+      }
+      report(true);
+    } finally {
+      stop();
     }
     state.loaded = streamer.stats().loaded;
     state.pageBytesRead = streamer.stats().bytesRead;
