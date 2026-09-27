@@ -7,6 +7,7 @@ import { ensurerOptions, lruCache, pageOf } from './residentEnsurer.fixture.ts';
 import { readGeometryAhead } from '../row/pageSlots.ts';
 import { createPageStreamer } from '../../streaming/pageStreamer.ts';
 import { servedPages } from '../../streaming/servedPages.fixture.ts';
+import { PRIORITY_PREFETCH, PRIORITY_VISIBLE } from '../../streaming/priority.ts';
 
 /** A random world: pages whose parents come before them, some without bytes, some resident, some
  *  wanted by the camera, the rest split between the two lower tiers. */
@@ -156,5 +157,42 @@ test('the admission joins the read under way; the job drops what nobody joined',
   await new Promise((resolve) => setTimeout(resolve, 10));
   assert.equal(fetched[0], 'http://cache/g0.bin');
   assert.ok(fetched.length <= 2 && !fetched.includes('http://cache/g2.bin'), String(fetched));
+  streamer.dispose();
+});
+
+test('the lower tiers read behind the camera; an admission joining one raises it', async () => {
+  const [seen, tier] = ['seen', 'tier'].map(pageOf);
+  const tracking = createWebgpuPageTracking([seen, tier]);
+  tracking.wanted.add(tracking.keyOf(seen), seen);
+  const asked: [string, number | undefined][] = [];
+  await createWebgpuResidentEnsurer({
+    ...ensurerOptions(tracking, lruCache(2)),
+    lowerTiers: () => [{ pages: [tier], has: (key) => key === tracking.keyOf(tier) }],
+    prefetch: (page, _signal, priority) => asked.push([page.url, priority]),
+  })([seen], 1, 1);
+  assert.deepEqual(asked, [
+    ['seen', undefined],
+    ['tier', PRIORITY_PREFETCH],
+  ]);
+  // One worker: g0 transfers; the tier's g1 and g2 wait behind a visible g3, until g2 is demanded.
+  const { pages, fetched } = await servedPages(['g0.bin', 'g1.bin', 'g2.bin', 'g3.bin']);
+  const streamer = createPageStreamer(pages, 'http://cache/', { workerCount: 1 });
+  const readAhead = readGeometryAhead(
+    new Map([1, 2].map((i) => [`p${i}`, `g${i}.bin`])),
+    streamer.readBytes,
+  );
+  const first = streamer.readBytes('g0.bin'),
+    reads = new AbortController();
+  for (const url of ['p1', 'p2']) readAhead(pageOf(url), reads.signal, PRIORITY_PREFETCH);
+  await Promise.all([
+    first,
+    streamer.request(['g3.bin'], { priority: PRIORITY_VISIBLE }),
+    streamer.readBytes('g2.bin'),
+    streamer.readBytes('g1.bin', undefined, PRIORITY_PREFETCH),
+  ]);
+  assert.deepEqual(
+    fetched.map((url) => url.slice(13)),
+    ['g0.bin', 'g2.bin', 'g3.bin', 'g1.bin'],
+  );
   streamer.dispose();
 });
