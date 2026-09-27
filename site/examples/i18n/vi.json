@@ -1708,6 +1708,19 @@
       "fourthLaneAnisotropy": "Dị hướng của làn thứ tư"
     }
   },
+  "the-home-pose": {
+    "banner": "Chọn một góc nhìn, di chuyển camera, rồi chọn Ban đầu để quay lại.",
+    "controls": {
+      "home": "Ban đầu",
+      "tower": "Tháp",
+      "square": "Quảng trường",
+      "hillside": "Sườn đồi"
+    }
+  },
+  "the-near-plane-cuts-a-wall": {
+    "banner": "Đẩy mặt phẳng gần về phía trước và xem nó cắt qua từng bức tường.",
+    "controls": { "nearPlane": "Mặt phẳng gần" }
+  },
   "the-material-family": {
     "banner": "Kéo để đi quanh. Chuyển ánh sáng sang đêm và xem thứ gì vẫn sáng.",
     "controls": {
@@ -2171,6 +2184,17 @@
     },
     "words": {
       "credit": "Lá cờ trên cột được dựng bằng mã cho ví dụ này, CC0 — xem assets/examples/CREDITS.md"
+    }
+  },
+  "a-dolly-along-the-canal": {
+    "banner": "Tạm dừng, phát lại hành trình hoặc đổi tốc độ khi máy quay trượt dọc theo kênh.",
+    "controls": {
+      "paused": "Tạm dừng",
+      "replay": "Phát lại",
+      "speed": "Tốc độ"
+    },
+    "readouts": {
+      "progress": "Tiến độ"
     }
   }
 }

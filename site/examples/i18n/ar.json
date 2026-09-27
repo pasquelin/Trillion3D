@@ -1708,6 +1708,14 @@
       "fourthLaneAnisotropy": "تباين اتجاه المسار الرابع"
     }
   },
+  "the-home-pose": {
+    "banner": "اختر عرضًا، وحرّك الكاميرا، ثم اختر البداية للعودة.",
+    "controls": { "home": "البداية", "tower": "البرج", "square": "الساحة", "hillside": "التل" }
+  },
+  "the-near-plane-cuts-a-wall": {
+    "banner": "حرّك المستوى القريب إلى الأمام وشاهده يقطع كل جدار.",
+    "controls": { "nearPlane": "المستوى القريب" }
+  },
   "the-material-family": {
     "banner": "اسحب لتمشي حولها. اجعل الضوء ليلًا وشاهد ما يزال يلمع.",
     "controls": {
@@ -2171,6 +2179,17 @@
     },
     "words": {
       "credit": "علم على سارية نُمذج بالشيفرة لهذا المثال، CC0 — انظر assets/examples/CREDITS.md"
+    }
+  },
+  "a-dolly-along-the-canal": {
+    "banner": "أوقف حركة الكاميرا مؤقتًا أو أعد الرحلة أو غيّر سرعتها أثناء سيرها على طول القناة.",
+    "controls": {
+      "paused": "متوقفة مؤقتًا",
+      "replay": "إعادة",
+      "speed": "السرعة"
+    },
+    "readouts": {
+      "progress": "التقدم"
     }
   }
 }

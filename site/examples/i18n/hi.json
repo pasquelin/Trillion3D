@@ -1708,6 +1708,14 @@
       "fourthLaneAnisotropy": "चौथी लेन की असमदैशिकता"
     }
   },
+  "the-home-pose": {
+    "banner": "एक दृश्य चुनें, कैमरा घुमाएँ, फिर लौटने के लिए होम चुनें।",
+    "controls": { "home": "होम", "tower": "मीनार", "square": "चौक", "hillside": "पहाड़ी" }
+  },
+  "the-near-plane-cuts-a-wall": {
+    "banner": "निकट तल को आगे बढ़ाएँ और उसे हर दीवार काटते देखें।",
+    "controls": { "nearPlane": "निकट तल" }
+  },
   "the-material-family": {
     "banner": "चारों ओर चलने के लिए खींचो। रोशनी को रात करो और देखो क्या अब भी चमकता है।",
     "controls": {
@@ -2171,6 +2179,17 @@
     },
     "words": {
       "credit": "इस उदाहरण के लिए कोड में बनाया गया खंभे पर झंडा, CC0 — देखें assets/examples/CREDITS.md"
+    }
+  },
+  "a-dolly-along-the-canal": {
+    "banner": "कैमरा नहर के साथ चलते समय डॉली को रोकें, यात्रा फिर चलाएँ या गति बदलें।",
+    "controls": {
+      "paused": "रुका हुआ",
+      "replay": "फिर चलाएँ",
+      "speed": "गति"
+    },
+    "readouts": {
+      "progress": "प्रगति"
     }
   }
 }

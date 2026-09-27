@@ -33,9 +33,9 @@
   "examples": {
     "lead": "예제는 모두 짧은 파일 하나로 되어 있습니다: 실행해 보고, 코드를 열어 보고, 직접 바꿔 보세요.",
     "jumpTo": "테마로 이동",
-    "inProgress": "제작 중",
     "waitsFor": "엔진을 기다리는 중:",
-    "waitingEngine": "엔진을 기다리는 중"
+    "partial": "부분 지원",
+    "coming": "예정: {{titles}}"
   },
   "gallery": {
     "themes": {
@@ -182,6 +182,8 @@
       "several-views-one-page": "한 페이지의 여러 시점",
       "before-and-after-slider": "전후 비교 슬라이더",
       "side-by-side-stereo": "나란히 놓인 스테레오",
+      "the-near-plane-cuts-a-wall": "근거리 평면이 벽을 자른다",
+      "the-home-pose": "홈 포즈와 관심 지점",
       "red-cyan-anaglyph": "빨강-청록 애너글리프",
       "camera-layers": "카메라 레이어",
       "a-robot-that-walks-and-waves": "섞인 로봇 동작",
@@ -327,7 +329,8 @@
       "ar-on-the-table": "탁자 위의 AR",
       "shadows-case-by-case": "그림자, 사례별로",
       "shadows-through-see-through-panes": "투명한 유리가 드리우는 그림자",
-      "a-walker-among-balls": "공 사이를 걷는 사람"
+      "a-walker-among-balls": "공 사이를 걷는 사람",
+      "a-dolly-along-the-canal": "운하를 따라가는 카메라 돌리"
     },
     "missing": {
       "floating-crates": "매 프레임 다시 쓰는 지오메트리",
