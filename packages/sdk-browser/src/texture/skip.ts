@@ -10,29 +10,20 @@ export const PLACEHOLDER_IMAGE =
   'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR42mP4DwQACfsD/Wj6HMwAAAAASUVORK5CYII=';
 
 /**
- * Addresses of images the loader can skip reading: those whose every sidecar entry carries
- * a whole chain — everything past the tail is baked — and that have at least one. An image
- * with no entry failed compiler decode, and an image whose one entry is not whole still needs
- * its source: those two are read as before.
- *
- * `resolve` writes the address as the reader of the prepared scene will fetch it
- * (`../host/prepared/images.ts`): the skip set and the fetch compare one string, so an image
- * is never read because the two spelled its address differently.
+ * Ranks of the images the loader can skip reading: those whose every sidecar entry carries a
+ * whole chain — everything past the tail is baked — and that have at least one. Where the image
+ * lives does not matter: an address beside the document, a `data:` address or a view of its
+ * binary, the baked chain stands in for it alike. An image with no entry failed compiler decode,
+ * and an image whose one entry is not whole still needs its source: those two are read as before.
+ * `count` is how many images the document holds; an entry past it names none.
  */
-export function bakedImageUrls(
-  metadata: ClusterManifest,
-  images: ReadonlyArray<{ uri: string | null }> | undefined,
-  resolve: (uri: string) => string,
-): Set<string> {
+export function bakedImages(metadata: ClusterManifest, count: number): Set<number> {
   const whole = new Map<number, boolean>();
   for (const preview of metadata.texturePreviews ?? []) {
     whole.set(preview.image, (whole.get(preview.image) ?? true) && previewIsWhole(preview));
   }
-  const urls = new Set<string>();
-  if (!metadata.textures || !images) return urls;
-  for (const [image, complete] of whole) {
-    const uri = images[image]?.uri;
-    if (complete && uri && !uri.startsWith('data:')) urls.add(resolve(uri));
-  }
-  return urls;
+  const ranks = new Set<number>();
+  if (!metadata.textures) return ranks;
+  for (const [image, complete] of whole) if (complete && image < count) ranks.add(image);
+  return ranks;
 }
