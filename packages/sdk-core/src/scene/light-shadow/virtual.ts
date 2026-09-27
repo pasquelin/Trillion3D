@@ -16,9 +16,6 @@ import { LIGHT_KIND, LIGHT_SETTINGS, MAX_SHADOW_SLICES, POINT_FACES } from '../l
  */
 /** Side of a shadow page, in texels: the unit of the pool, of the virtual maps and of invalidation. */
 export const SHADOW_PAGE: number = LIGHT_SETTINGS.shadowPage;
-/** Steps a texel of the pool's comparison filter: its weights' 8 bits, the subtexel precision of
- *  Direct3D and Metal. A shadow read snaps to their centres (`shadowCompare`). */
-export const SHADOW_SUBTEXELS = 256;
 /** Pages per side of a lamp face's finest mip. */
 export const LAMP_SIDE = Math.floor(LIGHT_SETTINGS.lampFaceSize / SHADOW_PAGE);
 export const SUN_LEVELS: number = LIGHT_SETTINGS.sunLevels;
@@ -104,6 +101,15 @@ export function shadowPoolShape(pages: number, layerSide = LAYER_SIDE) {
   const wanted = Math.min(Math.max(1, Math.ceil(pages)), PAGE_INDEX_MASK + 1);
   const layers = Math.ceil(wanted / layerSide ** 2);
   return { side: Math.ceil(Math.sqrt(wanted / layers)), layers };
+}
+/** Where physical page `phys` lies in a pool of `side²`-page layers: its first texel, its layer. */
+export function pageOrigin(phys: number, side: number) {
+  const local = phys % (side * side);
+  return {
+    x: (local % side) * SHADOW_PAGE,
+    y: Math.floor(local / side) * SHADOW_PAGE,
+    layer: Math.floor(phys / (side * side)),
+  };
 }
 /** Pages a layer side of the pool one shadowed light over a `width × height` screen asks. */
 export const shadowPoolSide = (width: number, height: number) =>
