@@ -36,7 +36,8 @@
       "engine CPU": "CPU do motor"
     },
     "failure": {
-      "title": "Este exemplo parou por causa de um erro"
+      "title": "Este exemplo parou por causa de um erro",
+      "missingCache": "O cache compilado está ausente: execute pnpm compile:caches"
     },
     "banner": {
       "close": "Fechar"
