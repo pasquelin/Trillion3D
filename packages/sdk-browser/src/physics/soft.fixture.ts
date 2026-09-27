@@ -17,7 +17,7 @@ import { body, startModule, type Module } from './module.fixture.ts';
 /** Generation 1 of an engine id. */
 export const GENERATION = 1 << GENERATION_SHIFT;
 /** The engine ids of the floor in slot 0, the soft body in slot 1, the box in slot 2. */
-export const FLOOR = GENERATION,
+export const FLOOR = 0 | GENERATION,
   CLOTH = 1 | GENERATION,
   BOX = 2 | GENERATION;
 
