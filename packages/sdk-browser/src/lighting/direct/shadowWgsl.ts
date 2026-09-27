@@ -1,4 +1,5 @@
 import { LIGHT_SETTINGS, MAX_SHADOW_SLICES, POINT_FACES } from '../../../../sdk-core/src/index.ts';
+import { SHADOW_OFFSET_WGSL } from './shadowOffsetWgsl.ts';
 import {
   LAMP_MIPS,
   PAGE_INDEX_MASK,
@@ -131,13 +132,7 @@ fn shadowPageWord(m:ShadowMap,p:vec2i)->u32{
  let word=shadows.table[u32(e)];
  return select(0u,word,(word&PAGE_VALID)!=0u);
 }
-/** Place of page \`p\`, held by physical page \`word\`: \`xy\` added to a texel coordinate of the
- *  map gives that texel's place in its layer, \`z\` is the layer (\`shadowPoolShape\`). */
-fn shadowOffset(word:u32,p:vec2i)->vec3f{
- let phys=word&PAGE_INDEX_MASK;let side=textureDimensions(shadowAtlas).x/u32(SHADOW_PAGE);
- let local=phys%(side*side);
- return vec3f((vec2f(f32(local%side),f32(local/side))-vec2f(p))*SHADOW_PAGE,f32(phys/(side*side)));
-}
+${SHADOW_OFFSET_WGSL}
 /** Texels a side of a layer of the pool, derived from the screen (\`shadowPoolSize\`). */
 fn shadowAtlasTexels()->f32{return f32(textureDimensions(shadowAtlas).x);}
 ${shadowThroughWgsl(transmittanceBinding)}
