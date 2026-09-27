@@ -22,7 +22,7 @@ function box(min: number[], max: number[], tag: number) {
 /** Splits `pages` with both implementations and asserts the same occluders and rest, by tag. */
 function assertSplitAgrees(
   pages: (HizPage & { tag: number })[],
-  cam: G.GraphCamera,
+  cam: G.Camera,
   viewport: [number, number],
 ) {
   const occluders: (HizPage & { tag: number })[] = [],

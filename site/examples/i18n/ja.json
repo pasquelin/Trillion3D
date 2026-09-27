@@ -500,6 +500,14 @@
       "balloon": "気球を追跡中"
     }
   },
+  "a-crane-that-swings": {
+    "banner": "クレーンの周りを回りながら、1つのクリップがジブを旋回し、台車を動かし、荷を上げて揺らします。",
+    "controls": {
+      "speed": "速さ",
+      "paused": "一時停止",
+      "replay": "再生し直す"
+    }
+  },
   "a-wave-across-a-grid": {
     "banner": "ドラッグして見回そう。立方体の波を高く、速くしよう。",
     "controls": {
@@ -1259,6 +1267,25 @@
       }
     }
   },
+  "a-walk-through-the-city": {
+    "banner": "画面をクリックし、W A S D で歩き、マウスで見回します。移動しながらメモリ予算を下げてください。",
+    "controls": {
+      "walkSpeed": "歩行速度",
+      "memory": "メモリ",
+      "view": "表示",
+      "home": "開始位置に戻る"
+    },
+    "choices": {
+      "view": {
+        "beauty": "仕上がり",
+        "lod": "詳細度",
+        "clusters": "クラスター"
+      }
+    },
+    "words": {
+      "credit": "この例のためにコードで作ったつぼの並木道、CC0 — assets/examples/CREDITS.md を見てね"
+    }
+  },
   "migrating-from-three": {
     "words": {
       "credit": "Marble Bust 01、作: Rico Cilliers、Poly Haven、CC0。木箱: W. Sitters、CC BY 3.0 — assets/examples/CREDITS.md を見てね"
@@ -1706,6 +1733,21 @@
     },
     "readouts": {
       "fourthLaneAnisotropy": "4番目のレーンの異方性"
+    }
+  },
+  "the-home-pose": {
+    "banner": "視点を選び、カメラを動かしてから、ホームを選んで戻ります。",
+    "controls": {
+      "home": "ホーム",
+      "tower": "塔",
+      "square": "広場",
+      "hillside": "丘"
+    }
+  },
+  "the-near-plane-cuts-a-wall": {
+    "banner": "ニアクリップ面を前へ動かし、壁を順に切る様子を見ます。",
+    "controls": {
+      "nearPlane": "ニアクリップ面"
     }
   },
   "the-material-family": {
@@ -2186,6 +2228,66 @@
         "right": "右側面",
         "rear": "背面"
       }
+    }
+  },
+  "a-dolly-along-the-canal": {
+    "banner": "運河沿いを進むカメラを一時停止したり、最初から再生したり、速度を変えたりできます。",
+    "controls": {
+      "paused": "一時停止",
+      "replay": "最初から再生",
+      "speed": "速度"
+    },
+    "readouts": {
+      "progress": "進行"
+    }
+  },
+  "a-folder-merged-into-one-scene": {
+    "banner": "ドラッグして街角を確認します。コンパイラーが1つのフォルダー内の3つのOBJファイルをこのシーンに統合しました。",
+    "controls": {
+      "visible": "表示",
+      "home": "ホーム"
+    },
+    "words": {
+      "credit": "W. Sitters による街灯のモデル、CC BY 3.0 — assets/examples/CREDITS.md を見てね"
+    }
+  },
+  "drag-a-crate": {
+    "banner": "木箱を床の上でドラッグします。スナップをオンにすると0.5メートル刻みで配置できます。",
+    "controls": {
+      "snap": "スナップ",
+      "home": "ホーム"
+    }
+  },
+  "outline-the-selection": {
+    "banner": "形をクリックして選択します。床をクリックすると選択が解除されます。",
+    "controls": {
+      "color": "色",
+      "thickness": "太さ"
+    }
+  },
+  "a-hundred-thousand-instances": {
+    "banner": "ドラッグしてフィールドを回り、数や表示を変更します。",
+    "controls": {
+      "count": "数",
+      "view": "表示"
+    },
+    "readouts": {
+      "objectsShown": "表示中のオブジェクト",
+      "objectsBuilt": "作成済みオブジェクト"
+    },
+    "choices": {
+      "view": {
+        "beauty": "仕上がり",
+        "clusters": "クラスター"
+      }
+    }
+  },
+  "inside-a-component": {
+    "banner": "ビューアーを取り付けたり外したりします。各取り付けは1つのワールドを所有し、取り外すと破棄します。",
+    "controls": {
+      "mount": "取り付ける",
+      "unmount": "外す",
+      "remount": "取り付け直す"
     }
   }
 }

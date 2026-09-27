@@ -6,6 +6,7 @@ import {
   type SceneEnvironment,
 } from '../core/environment.ts';
 import { finite, validateSceneFog } from '../core/fog.ts';
+import { hypot3 } from '../../math/primitives/hypot.ts';
 
 function vector(value: unknown, field: string, id: string): [number, number, number] {
   if (!Array.isArray(value) || value.length !== 3 || !value.every(finite))
@@ -16,7 +17,7 @@ function vector(value: unknown, field: string, id: string): [number, number, num
   return [value[0], value[1], value[2]];
 }
 function normalized(value: [number, number, number], id: string): [number, number, number] {
-  const length = Math.hypot(value[0], value[1], value[2]);
+  const length = hypot3(value[0], value[1], value[2]);
   if (!(length > 1e-6))
     throw new EngineError('INVALID_SCENE_LIGHT', `${id}: zero-length direction`, { value });
   return [value[0] / length, value[1] / length, value[2] / length];

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import * as G from '../../host/graph/graph.fixture.ts';
 import { createHostDrawCamera, readHostDrawCamera } from '../../camera/world.ts';
-import { GraphInstancedMesh } from '../../host/graph/mesh.ts';
+import { InstancedMesh } from '../../../../sdk-core/src/world/object/instancedMesh.ts';
 import { WebglClusterCopies } from './copyCulling.ts';
 
 const copyAt = (x: number, frustumCulled = true, material: G.GraphSurface = G.basicSurface()) => {
@@ -17,7 +17,7 @@ const copyAt = (x: number, frustumCulled = true, material: G.GraphSurface = G.ba
 
 test('a scene copy outside the frustum is skipped unless it declares itself never culled, and each kept copy takes the pass its material asks for', () => {
   const camera = G.perspectiveCamera(60, 1, 0.1, 10),
-    copies = new WebglClusterCopies<G.GraphMesh>(),
+    copies = new WebglClusterCopies<G.HostMesh>(),
     glass = G.physicalSurface({ transmission: 1 }),
     blend = G.basicSurface({ transparent: true }),
     inView = copyAt(0),
@@ -43,17 +43,17 @@ test('a scene copy outside the frustum is skipped unless it declares itself neve
 // its placements' bounds, never on its geometry's box alone.
 test('a copy is culled where its parent and its placements carry it', () => {
   const camera = readHostDrawCamera(createHostDrawCamera(), G.perspectiveCamera(60, 1, 0.1, 10)),
-    copies = new WebglClusterCopies<G.GraphMesh>();
+    copies = new WebglClusterCopies<G.HostMesh>();
   const carried = copyAt(0),
     parent = new G.Group();
   parent.position.set(100, 0, 0);
   parent.add(carried);
   parent.updateMatrixWorld();
   const source = copyAt(0),
-    placed = new GraphInstancedMesh(source.geometry, G.basicSurface(), 1);
+    placed = new InstancedMesh(source.geometry, G.basicSurface(), 1);
   placed.instanceMatrix.array.set(new G.Matrix4().makeTranslation(100, 0, 0).elements);
   placed.updateMatrixWorld();
-  const placedBack = new GraphInstancedMesh(source.geometry, G.basicSurface(), 1);
+  const placedBack = new InstancedMesh(source.geometry, G.basicSurface(), 1);
   placedBack.position.set(100, 0, 0);
   placedBack.instanceMatrix.array.set(new G.Matrix4().makeTranslation(-100, 0, 0).elements);
   placedBack.updateMatrixWorld();

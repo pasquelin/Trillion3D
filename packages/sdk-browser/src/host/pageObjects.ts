@@ -11,15 +11,17 @@
  * Nothing is decided here: the pose, the component counts, the box and the surface parameters
  * all arrive computed.
  */
+import { numbered } from './graph/serial.ts';
 import type { Material } from '../../../sdk-core/src/index.ts';
-import type { HostMaterial, HostMaterials } from './resources.ts';
+import type { HostInstancedMesh, HostMaterial, HostMaterials, HostMesh } from './resources.ts';
 import type { DecodedGeometryPage } from '../page/decode/geometryPage.ts';
 import type { MatrixElements } from '../math/matrixElements.ts';
 import { geometryBytes } from '../scene/meshes.ts';
 import { hostSide } from '../scene/materialSide.ts';
 import { setGeometryBounds } from './geometryBounds.ts';
-import { GraphScene } from './graph/scene.ts';
-import { GraphInstancedMesh, GraphMesh } from './graph/mesh.ts';
+import { Scene } from '../world/core/scene.ts';
+import { Mesh } from '../../../sdk-core/src/world/object/mesh.ts';
+import { InstancedMesh } from '../../../sdk-core/src/world/object/instancedMesh.ts';
 import { BufferAttribute } from '../../../sdk-core/src/world/buffer/attribute.ts';
 import { GraphSurface } from './graph/surface.ts';
 import { alphaModeFields } from './prepared/materials.ts';
@@ -30,8 +32,8 @@ type Surfaces = GraphSurface | GraphSurface[];
 
 /** The display graph the page path hangs its pages on, holding from the start the transparent
  *  copies it draws whole (`../cluster/blendCopyMesh.ts`). */
-export function hostPageScene(copies: readonly object[] = []): GraphScene {
-  const scene = new GraphScene();
+export function hostPageScene(copies: readonly object[] = []): Scene {
+  const scene = numbered(new Scene());
   for (const copy of copies) scene.add(copy as unknown as Object3D);
   return scene;
 }
@@ -47,8 +49,8 @@ export function hostPageMesh(
   geometry: Geometry,
   declaration: HostMaterials,
   renderOrder: number,
-): GraphMesh {
-  const mesh = new GraphMesh(geometry, declaration as unknown as Surfaces);
+): HostMesh {
+  const mesh = numbered(new Mesh(geometry, declaration as unknown as Surfaces));
   mesh.matrixAutoUpdate = false;
   mesh.frustumCulled = false;
   mesh.renderOrder = renderOrder;
@@ -65,8 +67,8 @@ export function hostPageInstances(
   declaration: HostMaterials,
   renderOrder: number,
   capacity: number,
-): GraphInstancedMesh {
-  const mesh = new GraphInstancedMesh(geometry, declaration as unknown as Surfaces, capacity);
+): HostInstancedMesh {
+  const mesh = numbered(new InstancedMesh(geometry, declaration as unknown as Surfaces, capacity));
   mesh.matrixAutoUpdate = false;
   mesh.frustumCulled = false;
   mesh.renderOrder = renderOrder;
@@ -74,28 +76,28 @@ export function hostPageInstances(
 }
 
 /** Placement `index` of an instanced page: the sixteen floats of its row. */
-export const setHostInstance = (mesh: GraphInstancedMesh, index: number, pose: MatrixElements) => {
+export const setHostInstance = (mesh: HostInstancedMesh, index: number, pose: MatrixElements) => {
   mesh.instanceMatrix.array.set(pose.elements, index * 16);
 };
 
 /** How many placements the instanced page draws this frame; its matrices go up once. */
-export const setHostInstanceCount = (mesh: GraphInstancedMesh, count: number) => {
+export const setHostInstanceCount = (mesh: HostInstancedMesh, count: number) => {
   mesh.count = count;
   mesh.instanceMatrix.needsUpdate = true;
 };
 
 /** Gives an instanced page's matrices back; its geometry and surface are released by theirs. */
-export const releaseHostInstances = (mesh: GraphInstancedMesh) => {
+export const releaseHostInstances = (mesh: HostInstancedMesh) => {
   mesh.dispose();
 };
 
 /** The pose a drawn page wears: the sixteen floats the engine composed for it. */
-export const setHostPose = (mesh: GraphMesh, pose: MatrixElements) => {
+export const setHostPose = (mesh: HostMesh, pose: MatrixElements) => {
   mesh.matrix.fromArray(pose.elements);
 };
 
 /** The surface a drawn page wears once its primitive has been repainted. */
-export const setHostSurface = (mesh: GraphMesh, declaration: HostMaterials) => {
+export const setHostSurface = (mesh: HostMesh, declaration: HostMaterials) => {
   mesh.material = declaration as unknown as Surfaces;
 };
 
@@ -138,17 +140,14 @@ export const releaseHostGeometry = (geometry: Geometry) => {
   geometry.dispose();
 };
 
-/** The standard (or physical) surface the engine's material parameters describe. The face
- *  constant is the engine's (`../scene/materialSide.ts`), the alpha mode drawn by the open's one
- *  rule (`alphaModeFields`); nothing else is converted. */
-export function hostPageSurface(
-  material: Material,
-  vertexColors: boolean,
-  family: 'standard' | 'physical' = 'standard',
-) {
+/** The standard surface the engine's material parameters describe; a world moves it to the
+ *  physical family (`../world/core/worldPhysicalSurface.ts`). The face constant is the engine's
+ *  (`../scene/materialSide.ts`), the alpha mode drawn by the open's one rule (`alphaModeFields`);
+ *  nothing else is converted. */
+export function hostPageSurface(material: Material, vertexColors: boolean) {
   const [r, g, b] = material.baseColor,
     [er, eg, eb] = material.emissive;
-  return new GraphSurface(family, {
+  return new GraphSurface('standard', {
     color: { r, g, b },
     emissive: { r: er, g: eg, b: eb },
     metalness: material.metalness,
@@ -164,12 +163,14 @@ export function hostPageSurface(
  * The vertex-coloured twin of a host surface — the same surface, reading the colour attribute a
  * decoded page carries —, cloned once, then read from the shared cache. The only place a twin is
  * built: a page that decodes a colour attribute and a primitive the host repaints ask the same
- * cache, so one surface never holds two of them.
+ * cache, so one surface never holds two of them. A surface that reads colours already — a
+ * coloured variant the open or an assignment gave (#847) — is its own twin, and nothing is cached.
  */
 export function colouredTwin(
   cache: Map<HostMaterial, HostMaterial>,
   original: HostMaterial,
 ): HostMaterial {
+  if ((original as unknown as GraphSurface).vertexColors) return original;
   let twin = cache.get(original);
   if (!twin) cache.set(original, (twin = colouredHostSurface(original)));
   return twin;

@@ -708,11 +708,18 @@ costs the subtree it starts from, never the other nodes of the hierarchy. The sc
 one hierarchy that holds none of them: a dropped object frees its slot when it is collected, and
 `destroy()` frees a subtree at once.
 
-The engine's graph is built of the same classes: a bare node is an `Object3D` and a group a
-`Group`, and every function of the browser facade that takes or returns a node of that graph names
-`Object3D`. `GraphNode` is abstract: it is only the base of the graph's nodes that draw, look or
-light (`GraphMesh`, and the camera and light classes the engine builds), which add a `kind` and a
-creation number.
+The engine's graph is built of the same classes: a bare node is an `Object3D`, a group a `Group`,
+a drawn node a `Mesh` (or the core's instanced mesh) wearing the engine's surfaces, its root a
+`Scene` and its eye a `Camera`, and every function of the browser facade that takes or returns a
+node of that graph names `Object3D`. `GraphNode` is abstract: it is only the base of the light
+classes the engine builds, which add a `kind` and a creation number; the engine numbers the
+scenes, cameras and meshes it builds in the same count, beside them, so a node a page builds
+carries none. A `Scene` built with no loader, as the engine builds its own, refuses `load`
+(`UNSUPPORTED_SCENE_UPDATE`); its `onBeforeRender` and `onAfterRender`, none by default, are
+called around each draw of it. A `Camera` gives the projection its optics compose in the
+reference's convention, finite far plane, as `projectionMatrix`, made at its first read and
+composed again at each optic write, and the inverse of its world matrix as
+`matrixWorldInverse`: what a renderer keeping that convention reads.
 
 `clone(recursive)` of an `Object3D` returns a node of the same class — a `Group` stays a `Group`, a
 `Light` a `Light`, a `Camera` a `Camera`, a graph node its own kind — holding the source's name,
@@ -1223,7 +1230,9 @@ crate.physics.on('contact', ({ other, impulse }) => console.log(other?.name, imp
   enabled; bodies set before then are queued.
 - **World.** `world.physics.enabled`, `gravity` (a live vector, or `'earth'`, `'moon'`, `'mars'`,
   `'none'`), `paused`, `timeScale` (0.25 is slow motion, 0 stands still; a negative or infinite
-  scale throws `RangeError`), `stats` and `error`. `world.physics.water = { level, waves, density,
+  scale throws `RangeError`), `simulationRange` (metres around the camera within which bodies
+  are simulated; `null`, the default, follows `camera.far`; anything but `null` or a finite
+  distance above 0 throws `RangeError`), `stats` and `error`. `world.physics.water = { level, waves, density,
 linearDrag, angularDrag, current }` (or `null`) is the water the bodies float in: each step, the
   worker fits a plane of the waves to every piece under water and pushes it by the weight of the
   water it displaces, so a body lighter than the water floats; the drags set how fast it settles,
@@ -1233,7 +1242,7 @@ linearDrag, angularDrag, current }` (or `null`) is the water the bodies float in
   `normal(x, z, out)`, and `wavesNow()`, the waves with their phases carried, so water set again
   goes on from where it is. Its example, floating crates, waits for geometry written every frame
   to be uploaded in place (#573).
-  `createWorld(canvas, { physics: { gravity, budget } })` sets them at creation.
+  `createWorld(canvas, { physics: { gravity, budget, simulationRange } })` sets them at creation.
 - **Bodies.** `mesh.physics = 'static' | 'dynamic' | 'kinematic'` or options `{ type, mass, shape,
 gravityScale, sensor, ccd, decorative, friction, restitution, damping }`. The shape is read from the
   geometry: a box, sphere, capsule or cylinder is that exact primitive (scaled); any other mesh is
@@ -1346,7 +1355,12 @@ bend }` simulates the mesh's vertices one by one on Jolt's soft bodies. A cloth 
   direct child of the scene; moved by the page, it is carried there with its vertices, its
   simulation kept; placed at another scale than it was made at, it is refused with
   `PHYSICS_FAILED` and leaves the simulation until it is back at that scale (Jolt scales no soft
-  body once made), as a compiled model's cooked one does; hidden, its vertices are not sent. It takes no velocity, impulse, joint or
+  body once made), as a compiled model's cooked one does; hidden, its vertices are not sent. A
+  pinned cloth that never stretches (`stretch` 0) keeps each free vertex within its rest distance
+  of the nearest pin (Jolt's long range attachments), so a large one never stretches without end;
+  one given stretch keeps its give. A body, soft or rigid, whose
+  vertices or pose go non-finite sends none of them: it keeps its last finite one on screen and
+  leaves the simulation with `PHYSICS_DIVERGED` (the mesh named). It takes no velocity, impulse, joint or
   vehicle. Rigid bodies and the character collide with its vertices: the
   character is turned aside or stopped, never pushing it; a rigid body much heavier than the skin
   it lands on can push between its vertices; soft bodies pass through each other (Jolt collides
@@ -1359,8 +1373,9 @@ bend }` simulates the mesh's vertices one by one on Jolt's soft bodies. A cloth 
   in place (#573).
 - **Stillness.** A body that sleeps sends nothing: once every body sleeps, the worker stops
   ticking and the world draws no frame.
-- **Distance and view.** Beyond the camera's draw distance (`camera.far`), a body is frozen with its
-  velocities kept, and thaws when it returns. Out of view, or hidden, it sends no pose and keeps
+- **Distance and view.** Beyond the simulation range (`world.physics.simulationRange`, else the
+  camera's draw distance `camera.far`), a body is frozen with its velocities kept, and thaws when
+  it returns. Out of view, or hidden, it sends no pose and keeps
   falling; the pose it has when it falls asleep is sent all the same. `decorative` bodies meet the
   static world only, are simulated only in range and in view, and leave the simulation once asleep:
   their mesh stays where it came to rest (set `physics` again to simulate it anew), and their
@@ -1370,7 +1385,8 @@ bend }` simulates the mesh's vertices one by one on Jolt's soft bodies. A cloth 
   collision, a static triangle mesh past it refused naming `memoryBytes`), body pairs
   and contacts per step, contact events per step, and threads (Jolt's thread pool, the worker's
   included, when the page is cross-origin isolated; never more than the logical cores minus the
-  page's own; one elsewhere). The defaults are `DEFAULT_PHYSICS_BUDGET`; a key that is no budget (the removed `triangles`) is refused by name, `PHYSICS_BUDGET` from `createWorld`, a `TypeError` when added to `world.budget.physics`. A request past one is
+  page's own; one elsewhere; the worker times its steps and splits them over fewer threads while
+  more only contend, and Jolt computes the same step on any count). The defaults are `DEFAULT_PHYSICS_BUDGET`; a key that is no budget (the removed `triangles`) is refused by name, `PHYSICS_BUDGET` from `createWorld`, a `TypeError` when added to `world.budget.physics`. A request past one is
   refused with `PHYSICS_BUDGET` on `world.physics.error`; a step that finds more pairs or contacts
   than its budget says so the same way, and an `enter` past the events budget is counted in
   `stats.droppedEvents` (its `leave` is then never sent). `softVertices` bounds the vertices of
@@ -1381,7 +1397,7 @@ bend }` simulates the mesh's vertices one by one on Jolt's soft bodies. A cloth 
 - **Compiled models.** A model loaded with `scene.load()` collides with its own triangles once the
   physics is on: the compiler cooked them (`physics.json`, [FORMAT.md](FORMAT.md)) and the physics
   streams its tiles in, restored from Jolt's binary state, around every moving body and around the
-  eye up to `camera.far`, nearest first, within half of `budget.physics.memoryBytes`, and releases
+  eye up to the simulation range, nearest first, within half of `budget.physics.memoryBytes`, and releases
   them as they move away (a tile stays until half as far again as it came in). A scene is never
   refused for its size: a tile that does not fit waits, the farthest leaving for it. A file of another format or cooked by
   another Jolt is refused (`PHYSICS_FORMAT`); a model compiled before the cook collides nowhere.
