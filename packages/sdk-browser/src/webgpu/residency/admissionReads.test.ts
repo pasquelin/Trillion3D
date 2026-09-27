@@ -193,9 +193,7 @@ test('a prefetch read waits behind the camera until an admission joining it rais
     streamer.readBytes('g2.bin'),
     streamer.readBytes('g1.bin', undefined, PRIORITY_PREFETCH),
   ]);
-  assert.deepEqual(
-    fetched,
-    ['g0.bin', 'g2.bin', 'g3.bin', 'g1.bin'].map((url) => 'http://cache/' + url),
-  );
+  const order = ['g0.bin', 'g2.bin', 'g3.bin', 'g1.bin'].map((url) => 'http://cache/' + url);
+  assert.deepEqual(fetched, order);
   streamer.dispose();
 });
