@@ -2242,5 +2242,29 @@
       "snap": "스냅",
       "home": "홈"
     }
+  },
+  "outline-the-selection": {
+    "banner": "도형을 클릭해 선택하세요. 바닥을 클릭하면 선택이 해제됩니다.",
+    "controls": {
+      "color": "색상",
+      "thickness": "두께"
+    }
+  },
+  "a-hundred-thousand-instances": {
+    "banner": "드래그해 필드를 둘러보고 개수나 보기를 바꾸세요.",
+    "controls": {
+      "count": "개수",
+      "view": "보기"
+    },
+    "readouts": {
+      "objectsShown": "표시된 객체",
+      "objectsBuilt": "생성된 객체"
+    },
+    "choices": {
+      "view": {
+        "beauty": "완성 화면",
+        "clusters": "클러스터"
+      }
+    }
   }
 }
