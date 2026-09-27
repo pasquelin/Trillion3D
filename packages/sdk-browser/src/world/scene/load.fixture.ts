@@ -6,6 +6,7 @@ import type { TestContext } from 'node:test';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { loadPreparedScene } from './scene.ts';
+import { decodingImages } from '../../host/prepared/decodedImages.fixture.ts';
 import type { ClusterManifest } from '../../../../sdk-core/src/index.ts';
 
 export const bust = new URL(
@@ -32,14 +33,8 @@ export function serve(t: TestContext, alter: (tables: string) => string = (table
     const body = await readFile(fileURLToPath(url));
     return new Response(url.endsWith('scene-tables.json') ? alter(body.toString('utf8')) : body);
   });
-  decodeStandIn(t);
+  decodingImages(t);
   return asked;
-}
-
-/** Images decode to a one-pixel stand-in for the test's length. */
-export function decodeStandIn(t: TestContext) {
-  Object.assign(globalThis, { createImageBitmap: async () => ({ width: 1, height: 1 }) });
-  t.after(() => delete (globalThis as { createImageBitmap?: unknown }).createImageBitmap);
 }
 
 export const load = async (metadata: ClusterManifest, textureSource?: 'host' | 'cache') =>
