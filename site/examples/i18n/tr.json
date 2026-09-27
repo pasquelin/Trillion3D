@@ -2147,5 +2147,22 @@
     "words": {
       "credit": "Direkteki bayrak bu örnek için kodla modellendi, CC0 — bkz. assets/examples/CREDITS.md"
     }
+  },
+  "a-hundred-thousand-instances": {
+    "banner": "Alanı çevrelemek için sürükleyin. Sayıyı veya görünümü değiştirin.",
+    "controls": {
+      "count": "Sayı",
+      "view": "Görünüm"
+    },
+    "readouts": {
+      "objectsShown": "Gösterilen nesneler",
+      "objectsBuilt": "Oluşturulan nesneler"
+    },
+    "choices": {
+      "view": {
+        "beauty": "görüntü",
+        "clusters": "kümeler"
+      }
+    }
   }
 }

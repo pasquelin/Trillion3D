@@ -2147,5 +2147,22 @@
     "words": {
       "credit": "Lá cờ trên cột được dựng bằng mã cho ví dụ này, CC0 — xem assets/examples/CREDITS.md"
     }
+  },
+  "a-hundred-thousand-instances": {
+    "banner": "Kéo để xoay quanh trường. Thay đổi số lượng hoặc chế độ xem.",
+    "controls": {
+      "count": "Số lượng",
+      "view": "Chế độ xem"
+    },
+    "readouts": {
+      "objectsShown": "Đối tượng hiển thị",
+      "objectsBuilt": "Đối tượng đã tạo"
+    },
+    "choices": {
+      "view": {
+        "beauty": "ảnh hoàn chỉnh",
+        "clusters": "cụm"
+      }
+    }
   }
 }

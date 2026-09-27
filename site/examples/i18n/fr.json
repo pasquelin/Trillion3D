@@ -2147,5 +2147,22 @@
     "words": {
       "credit": "Drapeau sur un mât modélisé en code pour cet exemple, CC0 — voir assets/examples/CREDITS.md"
     }
+  },
+  "a-hundred-thousand-instances": {
+    "banner": "Fais glisser pour tourner autour du champ. Change le nombre ou la vue.",
+    "controls": {
+      "count": "Nombre",
+      "view": "Vue"
+    },
+    "readouts": {
+      "objectsShown": "Objets affichés",
+      "objectsBuilt": "Objets créés"
+    },
+    "choices": {
+      "view": {
+        "beauty": "rendu",
+        "clusters": "clusters"
+      }
+    }
   }
 }
