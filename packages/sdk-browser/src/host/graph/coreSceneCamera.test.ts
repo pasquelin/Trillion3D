@@ -71,12 +71,9 @@ test('a core scene is lit: the contract lights hang on it and its fog lands on i
   });
   contract.apply();
   assert.deepEqual(sceneFogOf(scene.fog), fog, 'the lights read the fog the contract holds');
-  const lights: Object3D[] = [];
-  scene.traverseVisible((node) => isLightNode(node) && lights.push(node));
-  assert.deepEqual(
-    lights.map((light) => (light as { kind: string }).kind),
-    ['point'],
-  );
+  const kinds: string[] = [];
+  scene.traverseVisible((node) => isLightNode(node) && kinds.push(node.kind));
+  assert.deepEqual(kinds, ['point']);
   store.setEnvironment({ exposure: 1 });
   contract.apply();
   assert.equal(scene.fog, null, 'a fog taken away leaves the scene');

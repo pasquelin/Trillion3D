@@ -54,19 +54,19 @@ export function light(declared: TableLight, name: string) {
 }
 
 export function camera(declared: TableCamera) {
-  if (declared.type === 'perspective')
-    return numbered(
-      new Camera('perspective', {
-        fov: (declared.yfov ?? 0) * RAD_TO_DEG,
-        aspect: declared.aspectRatio || 1,
-        near: declared.znear || 1,
-        far: declared.zfar || 2e6,
-      }),
-    );
   const [x, y] = [declared.xmag ?? 0, declared.ymag ?? 0];
-  const box = { left: -x, right: x, top: y, bottom: -y };
   return numbered(
-    new Camera('orthographic', { near: declared.znear ?? 0, far: declared.zfar ?? 0, ...box }),
+    declared.type === 'perspective'
+      ? new Camera('perspective', {
+          fov: (declared.yfov ?? 0) * RAD_TO_DEG,
+          aspect: declared.aspectRatio || 1,
+          near: declared.znear || 1,
+          far: declared.zfar || 2e6,
+        })
+      : new Camera('orthographic', {
+          ...{ near: declared.znear ?? 0, far: declared.zfar ?? 0 },
+          ...{ left: -x, right: x, top: y, bottom: -y },
+        }),
   );
 }
 

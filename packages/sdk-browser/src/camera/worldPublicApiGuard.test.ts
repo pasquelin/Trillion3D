@@ -1,7 +1,7 @@
 // WHAT THESE TWO PUBLIC APIS EXPECT, AND WHAT THEY REFUSE.
 //
-// BEFORE (develop, fe285470): `cameraSelectionUniforms(camera: G.Camera, …)` and
-// `rasterVisibility(pages, camera: G.Camera, viewport)`.
+// BEFORE (develop, fe285470): `cameraSelectionUniforms(camera: G.GraphCamera, …)` and
+// `rasterVisibility(pages, camera: G.GraphCamera, viewport)`.
 // AFTER (M3b): `cameraSelectionUniforms(cam: EngineCamera, …)` (../gpu/core/selection.ts) and
 // `rasterVisibility(pages, cam: EngineCamera, viewport)` (../visibility/raster.ts) — both read
 // `cam.planes`/`cam.view`/`cam.viewProjection`, absent from a raw host camera.
