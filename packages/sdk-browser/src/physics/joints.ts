@@ -46,8 +46,8 @@ export function createPhysicsJoints(
     joint._host = null;
     joint._id = -1;
   };
-  /** The `physics` of the bodies out for good (asleep decorative), until set anew: a joint on one
-   *  breaks. */
+  /** The `physics` of the bodies out for good (asleep decorative, or diverged), until set anew:
+   *  a joint on one breaks. */
   const gone = new WeakSet<object>();
   const out = (node: Object3D | null) => !!node && hasBody(node) && gone.has(node.physics);
   /** Out of the simulation, and told it broke. */
@@ -97,8 +97,8 @@ export function createPhysicsJoints(
       }
     },
     /** The body made with `physics` (not one the page set since) leaves the simulation for good,
-     *  asleep decorative: each joint of `joints` made on it breaks now, one added later at
-     *  `reconcile`; one the page removed since only leaves. */
+     *  asleep decorative or diverged: each joint of `joints` made on it breaks now, one added
+     *  later at `reconcile`; one the page removed since only leaves. */
     retired(physics: Bodied['physics'] | null, joints: ReadonlySet<Joint>) {
       if (!physics) return;
       gone.add(physics);
