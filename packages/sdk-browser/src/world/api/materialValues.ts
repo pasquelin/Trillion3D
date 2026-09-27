@@ -77,10 +77,10 @@ export function validate(id: number, patch: SceneMaterialPatch) {
   vector('tiling', 2, (n) => Number.isFinite(n) && n !== 0);
 }
 
-/** Writes the patch into one surface in place, drawn in alpha mode `mode` from now on, and bumps
- *  its version: every reader takes it again at its next read, as a World's live edit does
- *  (`../core/worldSurface.ts`, #335). */
-export function write(surface: GraphSurface, patch: SceneMaterialPatch, mode: AlphaMode) {
+/** Writes the patch into one surface in place — drawn in alpha mode `mode` from now on when its
+ *  alpha moved — and bumps its version: every reader takes it again at its next read, as a World's
+ *  live edit does (`../core/worldSurface.ts`, #335). */
+export function write(surface: GraphSurface, patch: SceneMaterialPatch, mode?: AlphaMode) {
   if (patch.baseColor) (surface.color as Color).setRGB(...patch.baseColor);
   if (patch.opacity !== undefined) surface.opacity = patch.opacity;
   if (patch.metalness !== undefined && typeof surface.metalness === 'number')
@@ -93,7 +93,7 @@ export function write(surface: GraphSurface, patch: SceneMaterialPatch, mode: Al
   }
   // As the open draws a table entry: the cutoff kept, or the page's, or glTF's for a new cutout.
   const cutoff = patch.alphaCutoff ?? (surface.alphaTest || MASK_CUTOFF);
-  Object.assign(surface, alphaModeFields(mode.toUpperCase() as Uppercase<AlphaMode>, cutoff));
+  if (mode) Object.assign(surface, alphaModeFields(mode, cutoff));
   if (patch.tiling) {
     for (const texture of materialTextures(surface)) texture.repeat.set(...patch.tiling);
     // A placement is followed only once a write is announced: unsaid, no engine would see it.

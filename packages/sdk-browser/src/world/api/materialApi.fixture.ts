@@ -1,9 +1,10 @@
 // The scene the material API tests open: five table materials worn by six surfaces, and one
-// engine that counts its refreshes and says whether each one moved a draw class.
+// engine that lists its refreshes and the alpha change each one carried.
 import type { TableMaterial, TableTextureSlot } from '../../../../sdk-core/src/index.ts';
 import * as G from '../../host/graph/graph.fixture.ts';
 import { preparedMaterials } from '../../host/prepared/materials.ts';
 import type { RenderBackend } from '../../backend/types.ts';
+import type { AlphaChange } from '../../placement/backendSceneUpdates.ts';
 import { createExplorerMaterialApi } from './materialApi.ts';
 import { webgpuMaterialClassRefusal } from '../../webgpu/pages/io/refreshMaterials.ts';
 
@@ -68,13 +69,13 @@ export async function scene(refresh = true, materialClassRefusal = webgpuMateria
     ...(await Promise.all([1, 2, 3, 4].map((r) => materialOf(r, plain)))),
   ])
     source.add(G.mesh(undefined, surface));
-  let refreshed = 0;
-  const reclassed: boolean[] = [];
+  // One entry per refresh: the alpha change it carried, `undefined` for values alone.
+  const refreshes: (AlphaChange | undefined)[] = [];
   const backend = {
     id: 'webgpu-page-raster',
     materialClassRefusal,
     ...(refresh && {
-      refreshMaterials: (_: boolean, moved: boolean) => void (refreshed++, reclassed.push(moved)),
+      refreshMaterials: (_: boolean, alpha?: AlphaChange) => void refreshes.push(alpha),
     }),
   } as unknown as RenderBackend;
   const api = createExplorerMaterialApi({
@@ -83,7 +84,7 @@ export async function scene(refresh = true, materialClassRefusal = webgpuMateria
     backends: [backend],
     active: () => backend,
   });
-  return { api, floor, textures, refreshed: () => refreshed, reclassed };
+  return { api, floor, textures, refreshes };
 }
 
 export const refusal = (code: string) => (error: unknown) =>

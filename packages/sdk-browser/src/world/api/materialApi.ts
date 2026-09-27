@@ -94,15 +94,21 @@ export function createExplorerMaterialApi(inputs: Inputs) {
         mode = patch.alphaMode ?? from;
       // A masked material cut at zero is drawn as an opaque one.
       const to = mode === 'mask' && patch.alphaCutoff === 0 ? 'opaque' : mode;
-      for (const backend of to === from ? [] : backends) {
-        const why = backend.materialClassRefusal?.(from, to);
-        if (why)
-          throw new EngineError(
-            'MATERIAL_CLASS_CHANGE',
-            `${backend.id} cannot move material ${id} from ${from} to ${to}: ${why}`,
-            { id, from, to, engine: backend.id },
-          );
-      }
+      if (to !== from)
+        for (const backend of backends) {
+          const why = backend.materialClassRefusal?.(from, to);
+          if (why)
+            throw new EngineError(
+              'MATERIAL_CLASS_CHANGE',
+              `${backend.id} cannot move material ${id} from ${from} to ${to}: ${why}`,
+              { id, from, to, engine: backend.id },
+            );
+        }
+      // Its alpha moved: another class, or a cutout's cutoff — what the shadow of a cutout reads.
+      const alpha =
+        to !== from || (to === 'mask' && patch.alphaCutoff !== undefined)
+          ? { surfaces: worn, from, to }
+          : undefined;
       if (patch.tiling) {
         const textures = worn.flatMap((surface) => [...materialTextures(surface)]);
         if (!textures.length) throw invalid(rank, 'tiling', patch.tiling);
@@ -122,11 +128,10 @@ export function createExplorerMaterialApi(inputs: Inputs) {
           `${engine.id} does not repaint materials in place`,
           { id },
         );
-      for (const surface of worn) write(surface, patch, to);
+      for (const surface of worn) write(surface, patch, alpha?.to);
       // An engine that cannot reread its surfaces has not taken the change (`setClearColor`).
       return backends.every(
-        (backend) =>
-          !!backend.refreshMaterials && backend.refreshMaterials(true, to !== from) !== false,
+        (backend) => !!backend.refreshMaterials && backend.refreshMaterials(true, alpha) !== false,
       );
     },
   };
