@@ -9,7 +9,7 @@ import { createExplorerCameraApi } from './cameraApi.ts';
 import type { MeasuredWorldOptions, RenderBackend } from '../../backend/types.ts';
 
 /** The explorer's camera API on `camera`, one WebGPU backend behind it, nothing else live. */
-function cameraApiOn(camera: G.GraphCamera, center: G.Vector3) {
+function cameraApiOn(camera: G.Camera, center: G.Vector3) {
   return createExplorerCameraApi({
     check: () => {},
     options: {} as MeasuredWorldOptions,
