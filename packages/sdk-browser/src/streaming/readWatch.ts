@@ -6,10 +6,6 @@ export type PageReads = { landed: number; asked: number };
 type Watch = { reading: Map<string, number>; landed: Set<string>; heard: () => void };
 /** One watch as its watcher holds it (`watch`'s return). */
 export type PageWatch = { reads: () => PageReads; hold: (url: string) => void; stop: () => void };
-const counted = ({ landed, reading }: Watch): PageReads => ({
-  landed: landed.size,
-  asked: landed.size + reading.size,
-});
 
 /**
  * Every page read of a streamer passes here (`read`), whoever asks it: the host's own batches and
@@ -36,17 +32,17 @@ export function createReadWatch(
   const read = (url: string, signal?: AbortSignal, priority?: number) => {
     const reading = subscribe(url, signal, priority);
     if (!watches.size || (priority ?? PRIORITY_VISIBLE) > PRIORITY_VISIBLE) return reading;
-    const askedBy: Watch[] = [];
+    let askedBy: Watch[] | undefined;
     for (const watch of watches)
       if (!watch.landed.has(url)) {
-        askedBy.push(watch);
+        (askedBy ??= []).push(watch);
         watch.reading.set(url, (watch.reading.get(url) ?? 0) + 1);
       }
     // A page every watch counts as landed already changes no count: nothing to hear of it.
-    if (!askedBy.length) return reading;
+    if (!askedBy) return reading;
     hear();
     const settle = (landed: boolean) => {
-      for (const watch of askedBy) {
+      for (const watch of askedBy!) {
         const left = (watch.reading.get(url) ?? 1) - 1;
         if (landed) watch.landed.add(url);
         if (landed || !left) watch.reading.delete(url);
@@ -66,7 +62,7 @@ export function createReadWatch(
     const entry: Watch = { reading: new Map(), landed: new Set(), heard };
     watches.add(entry);
     return {
-      reads: () => counted(entry),
+      reads: () => ({ landed: entry.landed.size, asked: entry.landed.size + entry.reading.size }),
       hold: (url: string) => void (entry.reading.delete(url), entry.landed.add(url)),
       stop: () => void watches.delete(entry),
     };
