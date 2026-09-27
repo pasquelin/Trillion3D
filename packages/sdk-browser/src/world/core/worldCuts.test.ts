@@ -22,8 +22,8 @@ test('a dashed line is read with its distance along the line, a solid one withou
 });
 
 // #875: a blended surface draws from its pages what it drew from its floats. Its pages take the
-// finest grid a page holds (2^23 steps across the widest axis); an opaque wearer of the same
-// geometry keeps the 2^16 steps its image was proved on, in a resource of its own.
+// finest grids a page holds (2^23 steps across the widest span); an opaque wearer of the same
+// geometry keeps the grids its image was proved on, in a resource of its own.
 test('a blended wearer is cut on the finest page grid, an opaque one keeps its grid', async () => {
   const cuts = createWorldCuts();
   const sphere = geometry.sphere(1, 16, 12);
@@ -37,5 +37,8 @@ test('a blended wearer is cut on the finest page grid, an opaque one keeps its g
   assert.equal(grid(blended).positionExponent, 1 - 23);
   assert.ok(grid(blended).maxPositionError <= 2 ** -22);
   assert.ok(grid(opaque).maxPositionError > grid(blended).maxPositionError);
+  // Its texture coordinates too, a unit wide: 2^-23 where the format keeps 2^-14.
+  assert.equal(grid(opaque).uvExponent, -14);
+  assert.equal(grid(blended).uvExponent, -23);
   cuts.dispose();
 });

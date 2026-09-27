@@ -20,8 +20,9 @@ pub(super) struct DagResult {
     pub culling_report: Value,
     pub structure_report: Value,
     pub stream_report: Value,
-    /// Grid the primitive's pages were quantized on.
+    /// Grids the primitive's pages were quantized on.
     pub position_exponent: i32,
+    pub uv_exponent: i32,
     /// The primitive's cooked collision (`physics_cook::cook_primitive`).
     pub collision: Value,
 }
@@ -55,7 +56,8 @@ pub(super) fn build_dag_primitive(
     carried: &[&geometry_page::Attribute],
     index_values: &[u32],
     proxy_demand: crate::proxy::cut::CutDemand,
-    store_packed: &(impl Fn(&[u32], i32) -> Result<(Value, bool)> + Sync),
+    blended: bool,
+    store_packed: &(impl Fn(&[u32], i32, i32) -> Result<(Value, bool)> + Sync),
 ) -> Result<DagResult> {
     let strategy = crate::dag::DagStrategy::named(&o.simplification);
     let attributes = crate::dag::DagAttributes { carried };
@@ -87,7 +89,9 @@ pub(super) fn build_dag_primitive(
     let position_exponent = crate::geometry_page_quant::primitive_exponent(
         pos,
         dag.iter().filter(|c| c.level > 0).map(|c| c.lod_error),
+        blended,
     );
+    let uv_exponent = crate::geometry_page_quant::primitive_uv_exponent(carried, blended);
     let (pages, reused, stream_report) = bundle_dag_pages(
         o,
         &dag,
@@ -95,7 +99,7 @@ pub(super) fn build_dag_primitive(
         &order,
         base_id,
         pos,
-        &|slice: &[u32]| store_packed(slice, position_exponent),
+        &|slice: &[u32]| store_packed(slice, position_exponent, uv_exponent),
     )?;
     laps.lap("pagesMs");
     // One plane test per cluster, on the triangles it already holds: cheap next to the DAG itself,
@@ -166,6 +170,7 @@ pub(super) fn build_dag_primitive(
         structure_report,
         stream_report,
         position_exponent,
+        uv_exponent,
         collision,
     })
 }
