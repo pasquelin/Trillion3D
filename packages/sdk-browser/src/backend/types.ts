@@ -76,7 +76,8 @@ export interface RenderBackend extends BackendSceneUpdates, BackendHostDraw {
     import('../webgpu/transparent/occlusionAudit.ts').TransparentOcclusionAudit | null
   >;
   pendingUrls?(): string[];
-  /** Bundles a finer cut needs, read while the network idles: a small move finds them resident. */
+  /** Bundles a finer cut would need. Fetched at low priority while the network is otherwise idle,
+   *  so a small camera move finds them already resident. */
   prefetchUrls?(): string[];
   pageUrls?(): string[];
   /** The same pins as `pageUrls`, spoken as a difference of request ranks: the host no longer has

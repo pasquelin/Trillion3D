@@ -100,24 +100,28 @@ export function createPageStreamerWith(
   const loadOne = createStreamingFetcher(context, touch);
   const { subscribe } = createStreamingQueue(context, loadOne, touch, evict);
   const asIndices = createIndexViews();
-  const getBytes = (url: string) => {
-    const array = cache.get(url);
-    if (array) touch(url, array);
-    return array;
-  };
   return {
     /** The catalogue a mounted resource's pages join, then leave (`PageCatalogue`). */
     admit: (more: readonly StreamPage[]) => more.forEach((page) => catalog.set(page.url, page)),
     forget: (urls: readonly string[]) =>
       urls.forEach((url) => catalog.delete(url) && store.drop(url)),
     get(url: string) {
-      const array = getBytes(url);
-      return array && asIndices(array);
+      const array = cache.get(url);
+      if (array) touch(url, array);
+      return array ? asIndices(array) : undefined;
     },
-    getBytes,
+    getBytes(url: string) {
+      const array = cache.get(url);
+      if (array) touch(url, array);
+      return array;
+    },
     has: (url: string) => cache.has(url),
-    loading: (url: string) => jobs.has(url),
-    failed: (url: string) => failures.has(url),
+    loading(url: string) {
+      return jobs.has(url);
+    },
+    failed(url: string) {
+      return failures.has(url);
+    },
     read(url: string, requestSignal?: AbortSignal) {
       state.requested++;
       return subscribe(url, requestSignal, 0).then(asIndices);
