@@ -6,11 +6,17 @@ import {
   EVENT_WORDS,
   HIT_WORDS,
   MODULE_ERROR,
+  PLANE_WORDS,
   WATER_PIECE_WORDS,
   POSE_WORDS,
   type PhysicsBudget,
 } from '../../../sdk-core/src/physics/index.ts';
+import type { Waves } from '../../../sdk-core/src/fluids/index.ts';
 import { joltImports, type SpawnJoltThread } from './joltThreads.ts';
+
+/** Doubles of one wave the module's planes read (`jolt_wave_buffer`, `waterPlanes.cpp`):
+ *  `direction x, z, wave number, amplitude, lateral amplitude, phase` at the step's time. */
+export const WAVE_DOUBLES = 6;
 
 /** The flat C API of `joltPhysics.wasm` (`packages/physics-jolt-wasm/src/world.cpp`). */
 interface JoltExports {
@@ -34,6 +40,8 @@ interface JoltExports {
   jolt_owed_leaves(): number;
   jolt_water_query(top: number, sliceLength: number): number;
   jolt_water_pieces(): number;
+  jolt_wave_buffer(count: number): number;
+  jolt_water_planes(pieces: number, count: number, level: number, sample: number): number;
   jolt_cast_buffer(count: number): number;
   jolt_cast(count: number): number;
   jolt_character(): number;
@@ -151,6 +159,23 @@ export function startJolt({ exports, memory }: OpenedJolt, budget: PhysicsBudget
     water(top: number, sliceLength: number) {
       const count = jolt.jolt_water_query(top, sliceLength);
       return new Float32Array(memory.buffer, jolt.jolt_water_pieces(), count * WATER_PIECE_WORDS);
+    },
+    /** The planes (`PLANE_WORDS` each) of the `count` pieces `water` listed last, on `waves` at
+     *  their time over water at `level`, each square at least `sample` wide (`waterPlanes.cpp`);
+     *  valid until the next step. */
+    planes(waves: Waves, level: number, sample: number, count: number) {
+      const at = jolt.jolt_wave_buffer(waves.count);
+      const out = new Float64Array(memory.buffer, at, waves.count * WAVE_DOUBLES);
+      for (let i = 0, o = 0; i < waves.count; i++, o += WAVE_DOUBLES) {
+        out[o] = waves.dirX[i];
+        out[o + 1] = waves.dirZ[i];
+        out[o + 2] = waves.k[i];
+        out[o + 3] = waves.amplitude[i];
+        out[o + 4] = waves.lateral[i];
+        out[o + 5] = waves.phase[i];
+      }
+      const planes = jolt.jolt_water_planes(jolt.jolt_water_pieces(), count, level, sample);
+      return new Uint32Array(memory.buffer, planes, count * PLANE_WORDS);
     },
     /** Answers scene queries (`CAST_WORDS` each) against the last step; a copy of their hits. */
     cast(queries: Uint32Array) {
