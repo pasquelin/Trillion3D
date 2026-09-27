@@ -105,8 +105,9 @@ export class GraphSurface extends Releasable {
   /** Whether it casts a shadow while blended; unsaid, it casts none. */
   declare transparentShadow: boolean;
   [field: string]: unknown;
-  /** The family it belongs to. */
-  readonly family: GraphSurfaceFamily;
+  /** The family it belongs to; a world moves a surface between standard and physical in place
+   *  (`world/core/worldSurface.ts`), which every reader takes at the next version. */
+  family: GraphSurfaceFamily;
   constructor(family: GraphSurfaceFamily, parameters: Record<string, unknown> = {}) {
     super();
     this.family = family;
@@ -123,7 +124,8 @@ export class GraphSurface extends Releasable {
   get needsUpdate() {
     return false;
   }
-  /** Takes every parameter of `source`, colours and vectors copied, textures shared. */
+  /** Takes every parameter of `source` and its family, colours and vectors copied, textures
+   *  shared. */
   copy(source: GraphSurface) {
     for (const [key, value] of Object.entries(source))
       if (!SKIPPED.has(key)) assign(this, key, Array.isArray(value) ? value.slice() : value);
@@ -135,5 +137,5 @@ export class GraphSurface extends Releasable {
   }
 }
 
-/** The fields a copy leaves as they are: identity, bookkeeping, family. */
-const SKIPPED = new Set(['uuid', 'version', 'released', 'kind', 'family', 'userData']);
+/** The fields a copy leaves as they are: identity and bookkeeping. */
+const SKIPPED = new Set(['uuid', 'version', 'released', 'kind', 'userData']);
