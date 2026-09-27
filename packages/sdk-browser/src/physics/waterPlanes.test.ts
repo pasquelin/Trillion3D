@@ -6,10 +6,9 @@ import type { Waves } from '../../../sdk-core/src/fluids/waves.ts';
 import { OCEAN } from '../../../sdk-core/src/fluids/waves.fixture.ts';
 import { PLANE_WORDS, WATER_PIECE_WORDS } from '../../../sdk-core/src/physics/index.ts';
 import { random } from '../page/cut/cutRuleChecks.fixture.ts';
-import { WAVE_DOUBLES } from './joltModule.ts';
 import { startModule, type Module } from './module.fixture.ts';
 
-/** `wavePatch` as the page computed it before the module did: the frozen oracle. */
+/** `wavePatch` as the page computed it before the module did: the frozen oracle, never edited. */
 function patch(
   waves: Waves,
   px: number,
@@ -70,24 +69,14 @@ function oracle(water: ReturnType<typeof createWater>, pieces: Float32Array) {
   return out;
 }
 
-/** The module's planes for `pieces` (written into its command buffer) on `water`'s waves. */
+/** The module's planes for `pieces` (written into its command buffer) on `water`'s waves, through
+ *  the worker's own call. */
 function planes(jolt: Module, water: ReturnType<typeof createWater>, pieces: Float32Array) {
-  const e = jolt.raw.exports as unknown as Record<string, (...a: number[]) => number>;
-  const at = e.jolt_buffer(0, Math.max(1, pieces.length));
+  const at = (jolt.raw.exports as unknown as { jolt_buffer(a: number, b: number): number })
+    .jolt_buffer(0, Math.max(1, pieces.length));
   new Float32Array(jolt.raw.memory.buffer, at, pieces.length).set(pieces);
-  const waves = water.waves,
-    to = new Float64Array(
-      jolt.raw.memory.buffer,
-      e.jolt_wave_buffer(waves.count),
-      waves.count * WAVE_DOUBLES,
-    );
-  for (let i = 0; i < waves.count; i++)
-    to.set([waves.dirX[i], waves.dirZ[i], waves.k[i], waves.amplitude[i]], i * WAVE_DOUBLES);
-  for (let i = 0; i < waves.count; i++)
-    to.set([waves.lateral[i], waves.phase[i]], i * WAVE_DOUBLES + 4);
   const count = pieces.length / WATER_PIECE_WORDS;
-  const out = e.jolt_water_planes(at, count, water.level, water.sample);
-  return new Uint32Array(jolt.raw.memory.buffer, out, count * PLANE_WORDS).slice();
+  return jolt.planes(water.waves, water.level, water.sample, count, at).slice();
 }
 
 /** Word for word, a NaN matching any NaN (its payload is the platform's). */

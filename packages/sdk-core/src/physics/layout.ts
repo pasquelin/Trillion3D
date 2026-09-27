@@ -161,6 +161,9 @@ export const WATER_PIECE_WORDS = 6;
  */
 export const BUOYANCY_WORDS = 8;
 export const PLANE_WORDS = 8;
+/** Doubles of one wave the module's planes read (`jolt_wave_buffer`, `waterPlanes.cpp`):
+ *  `direction x, z, wave number, amplitude, lateral amplitude, phase` at the step's time. */
+export const WAVE_DOUBLES = 6;
 
 /**
  * Words of one pose record: `engine id | asleep bit, px, py, pz, qx, qy, qz, qw, vx, vy, vz, wx, wy,

@@ -9,14 +9,14 @@
 #include <vector>
 
 using trillion::f32;
+using trillion::PIECE_WORDS;
+using trillion::PLANE_WORDS;
 
 namespace {
 
 /// Doubles of one wave, as `jolt_wave_buffer` takes them: direction x, z, wave number, amplitude,
 /// lateral amplitude, phase at the step's time.
 constexpr uint32_t WAVE_DOUBLES = 6;
-/// Words of one piece (layout.ts WATER_PIECE_WORDS) and of one plane (PLANE_WORDS).
-constexpr uint32_t PIECE_WORDS = 6, PLANE_WORDS = 8;
 /// Newton iterations of the rest point (`surface.ts` HEIGHT_ITERATIONS).
 constexpr int HEIGHT_ITERATIONS = 3;
 
@@ -106,11 +106,6 @@ double hypot3(double x, double y, double z) {
 /// `Math.max(value, floor)`: a NaN value stays NaN.
 double atLeast(double value, double floor) { return std::isnan(value) || value > floor ? value : floor; }
 
-void put(uint32_t *w, double value) {
-  float single = float(value);
-  std::memcpy(w, &single, 4);
-}
-
 }  // namespace
 
 extern "C" {
@@ -144,12 +139,12 @@ uint32_t *jolt_water_planes(const uint32_t *pieces, uint32_t count, double level
     double length = hypot3(nx, ny, nz);
     to[0] = from[0];
     to[1] = from[1];
-    put(to + 2, x);
-    put(to + 3, level + y);
-    put(to + 4, z);
-    put(to + 5, nx / length);
-    put(to + 6, ny / length);
-    put(to + 7, nz / length);
+    trillion::putF32(to + 2, float(x));
+    trillion::putF32(to + 3, float(level + y));
+    trillion::putF32(to + 4, float(z));
+    trillion::putF32(to + 5, float(nx / length));
+    trillion::putF32(to + 6, float(ny / length));
+    trillion::putF32(to + 7, float(nz / length));
   }
   return planes.data();
 }
