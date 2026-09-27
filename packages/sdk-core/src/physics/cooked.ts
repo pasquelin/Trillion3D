@@ -7,7 +7,9 @@ import type { PhysicsOption } from './options.ts';
  * names are Jolt binary state, readable only by the Jolt that wrote them: the file names that
  * commit, and a reader refuses another.
  */
-const PHYSICS_FORMAT_VERSION = 2;
+/** The formats read: 2, and 3, whose bodies may carry the pieces a breakable one is cut into at
+ *  cook time, carried unused: the body is drawn and collides as one. */
+const PHYSICS_FORMAT_VERSIONS: readonly unknown[] = [2, 3];
 /** The Jolt commit the engine's physics module is built from: the pin of the submodule
  *  `packages/physics-jolt-wasm/JoltPhysics`, which the compiler's cook reads (`build.rs`). A test
  *  fails while the two differ (`physics.test.ts`). */
@@ -152,10 +154,10 @@ export interface CookedPhysics {
  */
 export function readCookedPhysics(file: unknown, jolt = JOLT_COMMIT): CookedPhysics {
   const cooked = file as Partial<CookedPhysics> | null;
-  if (!cooked || cooked.formatVersion !== PHYSICS_FORMAT_VERSION)
+  if (!cooked || !PHYSICS_FORMAT_VERSIONS.includes(cooked.formatVersion))
     throw new EngineError(
       'PHYSICS_FORMAT',
-      `physics.json format ${cooked?.formatVersion} is not ${PHYSICS_FORMAT_VERSION}: recompile the model.`,
+      `physics.json format ${cooked?.formatVersion} is not ${PHYSICS_FORMAT_VERSIONS.join(' or ')}: recompile the model.`,
       { formatVersion: cooked?.formatVersion ?? null },
     );
   if (cooked.jolt !== jolt)

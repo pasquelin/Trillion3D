@@ -64,9 +64,9 @@ fn mesh_triangles(g: &Value, bin: &[u8], mesh: usize) -> Result<(Vec<f32>, Vec<u
 /// Mesh `mesh` as a body collides by it: its positions, its triangles welded, and the `cooked`
 /// hull Jolt built around them, once for every scale its bodies are weighed at.
 pub(super) struct Hull {
-    mesh: usize,
-    pos: Vec<f32>,
-    welded: Vec<u32>,
+    pub(super) mesh: usize,
+    pub(super) pos: Vec<f32>,
+    pub(super) welded: Vec<u32>,
     shape: Value,
 }
 

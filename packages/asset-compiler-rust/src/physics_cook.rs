@@ -9,7 +9,7 @@
 //! field (`height.rs`). Per scene: `physics.json` (`stage.rs`), each placement carrying the matter its
 //! source declares through `KHR_physics_rigid_bodies` (`declared.rs`); the rigid bodies its nodes
 //! declare, a shapeless one given one convex hull (`hull.rs`) and the exact mass of its closed mesh
-//! (`mass.rs`); and the soft bodies its nodes declare, each Jolt's `SoftBodySharedSettings` as the
+//! (`mass.rs`), a breakable one also cut into weighed convex pieces (`pieces.rs`, `voronoi.rs`); and the soft bodies its nodes declare, each Jolt's `SoftBodySharedSettings` as the
 //! physics worker would build them (`soft.rs`).
 use crate::dag::{CullingNode, DagCluster};
 use crate::{CompilerError, Options, Result};
@@ -27,6 +27,9 @@ mod hull;
 mod mass;
 #[cfg(test)]
 mod mass_tests;
+mod pieces;
+#[cfg(test)]
+mod pieces_tests;
 #[cfg(test)]
 mod small_tests;
 mod soft;
@@ -36,6 +39,7 @@ mod soft_tests;
 mod stage;
 #[cfg(test)]
 mod tests;
+mod voronoi;
 
 pub(crate) use stage::stage_physics;
 
@@ -44,6 +48,9 @@ pub const PHYSICS_COOK_STAGE: &str = "physics-cook";
 pub const PHYSICS_COOK_VERSION: u32 = 7;
 /// Version of `physics.json`, its own: a reader refuses any other.
 pub const PHYSICS_FORMAT_VERSION: u32 = 2;
+/// Version of a `physics.json` whose bodies carry pieces (`pieces.rs`): a reader of format 2 alone
+/// refuses it rather than lose them; one without pieces stays format 2, byte for byte.
+pub const PIECES_FORMAT_VERSION: u32 = 3;
 /// The Jolt commit the cook links: shapes are Jolt's binary state, readable by this Jolt alone.
 pub const JOLT_COMMIT: &str = env!("JOLT_COMMIT");
 /// Name of the product beside the manifest.
