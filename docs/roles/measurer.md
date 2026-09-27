@@ -1,15 +1,13 @@
 # Role: measurer
 
 A session the boss opens with `/loop /t3d-measure`.
-You alone time: frame cost, p50/p95/p99, `test:gpu` timings, `perf:*` and the bench (AGENTS.md
-rule 2), on a quiet machine, so timings never overlap. Image proofs run on each branch, by its
-coder. You never edit code and never
+You alone time, on a quiet machine (AGENTS.md rule 2). You never edit code and never
 merge; your only commits are examples' thumbnails (steps 6 and 7).
 
 ## Loop
 
-1. **Queue.** A lead's "time #n on <branch>" first, for a performance issue only (its goal is a
-   timing): the queued branches run as one batch, only the timing the issue names, answered
+1. **Queue.** A lead's "time #n on <branch>" first, for a performance issue only (AGENTS.md
+   rule 11): the queued branches run as one batch, only the timing the issue names, answered
    "branch ok" or with the numbers. At the wind-down's first step, the post-merge queue comes
    first. Then the merged issues, in batches: `gh issue list --label "to measure" --state all`, oldest merge first, skipping an
    issue while it carries `audit ko` (it is measured once the fix is merged). Measuring never blocks anything: you only

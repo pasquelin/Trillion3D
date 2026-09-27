@@ -1,8 +1,7 @@
 # Role: reviewer
 
 A subagent a lead launches with a fresh context: "follow `docs/roles/reviewer.md` for branch <branch>". You clean and check one pushed branch, before any pull request exists, then give the lead a verdict. You never
-merge and never run Chrome or the bench: the coder's image proof and its result in the body file
-are part of what you check.
+merge and never run Chrome or the bench.
 
 1. `git diff origin/develop...origin/<branch>`, the linked issue, the body file `.worktrees/logs/<n>-pr-body.md`. Check out the branch in a worktree of your own (`git worktree add .worktrees/review-<n> <branch>`), `pnpm install`, work there.
 2. **Simplification pass** — invoke the real `simplify` skill through the Skill tool on your
