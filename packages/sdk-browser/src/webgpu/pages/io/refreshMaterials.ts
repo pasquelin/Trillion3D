@@ -12,10 +12,10 @@ import { surfaceOf } from '../../../page/surface.ts';
  * the census missed compiling at its first draw (`../../core/materialPasses.ts`): a material moves
  * between them in place. Blended clusters are laid out at open — after the opaque ones in the
  * cluster catalogue, with no geometry page, in the transparent table and its forward copies — and
- * no cluster enters or leaves them inside the session.
+ * no cluster enters or leaves them inside the session, nor takes another surface (`meshes`, #847).
  */
 export const webgpuMaterialClassRefusal = (alpha: AlphaChange) =>
-  blendMoves(alpha)
+  blendMoves(alpha) || (alpha.meshes && alpha.to === 'blend')
     ? 'its blended clusters are laid out in their forward pass when the session opens'
     : undefined;
 
@@ -51,3 +51,26 @@ export function refreshWebgpuMaterials(rt: WebgpuPagesRuntime, values = true, al
     }),
   );
 }
+
+/** The records of `alpha.meshes` point to the surface they wear now (`wearSurface`, #847); false
+ *  when rows draw none of them, or one is drawn forward, off the surface its copy took at open. */
+function wearWebgpuSurface(rt: WebgpuPagesRuntime, { meshes, surfaces }: AlphaChange) {
+  const declaration = surfaces[0] as HostMaterials;
+  const worn = rt.setup.allPages.filter(
+    (rec) => rec.sourceMesh && meshes!.includes(rec.sourceMesh),
+  );
+  if (!worn.length || worn.some((rec) => rec.transparent)) return false;
+  for (const rec of worn) {
+    rec.declaration = declaration;
+    rec.material = surfaceOf(declaration);
+  }
+  return true;
+}
+
+/** What the session takes of a material change in place (`BackendSceneUpdates`). */
+export const webgpuMaterialUpdates = (rt: WebgpuPagesRuntime) => ({
+  refreshMaterials: (values?: boolean, alpha?: AlphaChange) =>
+    refreshWebgpuMaterials(rt, values, alpha),
+  materialClassRefusal: webgpuMaterialClassRefusal,
+  wearSurface: (alpha: AlphaChange) => wearWebgpuSurface(rt, alpha),
+});

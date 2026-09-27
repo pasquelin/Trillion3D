@@ -4,8 +4,15 @@ import type { DecodedGeometryPage } from '../page/decode/geometryPage.ts';
 import type { PlacementRows } from './rows.ts';
 
 /** How a material's alpha moved (`world/api/materialApi.ts`, #846): the host surfaces written,
- *  and the modes before and after — equal when only a cutout's cutoff moved. */
-export type AlphaChange = { surfaces: readonly object[]; from: AlphaMode; to: AlphaMode };
+ *  and the modes before and after — equal when only a cutout's cutoff moved. `meshes` when a
+ *  material is assigned (#847): those source meshes wear `surfaces[0]` from now on, `from` the
+ *  mode of the one they wore; their records follow it at this refresh. */
+export type AlphaChange = {
+  surfaces: readonly object[];
+  from: AlphaMode;
+  to: AlphaMode;
+  meshes?: readonly object[];
+};
 
 /** A change into or out of blended: the one that moves drawables between draw families. */
 export const blendMoves = ({ from, to }: AlphaChange) =>
@@ -47,6 +54,10 @@ export interface BackendSceneUpdates {
   /** Why the engine cannot move these surfaces from `from` to `to` inside the session, `undefined`
    *  when it can; asked before any write. Absent, it moves every one (`alpha`). */
   materialClassRefusal?(alpha: AlphaChange): string | undefined;
+  /** The source meshes `alpha.meshes` wear the host surface `alpha.surfaces[0]` from now on, a
+   *  surface their owner keeps (#847): their records follow it, before `refreshMaterials(true,
+   *  alpha)`. False when no record of theirs takes it in place; absent, only a new session will. */
+  wearSurface?(alpha: AlphaChange): boolean;
   /** Repaints a primitive from the engine's material parameters: no shader, no program hook. */
   updateMaterial?(primitive: string, material: Material): void;
 }

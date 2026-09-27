@@ -6,21 +6,32 @@ import { tableRankOf } from '../../host/prepared/materials.ts';
 import { materialTextures, meshes } from '../../scene/meshes.ts';
 import { EngineError } from '../../../../sdk-core/src/index.ts';
 import { alphaModeOf } from '../../../../sdk-core/src/contracts/material.ts';
+import type { BackendContext } from '../../backend/types.ts';
+import { firstMaterial } from '../../scene/materialSide.ts';
+import { materialEngines } from './materialEngines.ts';
 import {
+  createdSurface,
   invalid,
   read,
   validate,
   write,
+  type CreatedMaterial,
   type SceneMaterial,
   type SceneMaterialPatch,
 } from './materialValues.ts';
 
-export type { SceneMaterial, SceneMaterialPatch } from './materialValues.ts';
+export type { CreatedMaterial, SceneMaterial, SceneMaterialPatch } from './materialValues.ts';
+
+/** Most materials a page creates in one session (`createMaterial`), refused above by name before
+ *  anything is built (`MATERIAL_CEILING`). */
+export const RUNTIME_MATERIAL_CEILING = 256;
 
 type Inputs = {
   check: () => void;
   /** The scene the session draws: its prepared surfaces are the scene's materials. */
   source: Object3D;
+  /** The source meshes and the manifest primitive each draws: a drawable is named by it. */
+  associations: BackendContext['associations'];
   backends: RenderBackend[];
   active: () => RenderBackend;
 };
@@ -32,10 +43,13 @@ type Inputs = {
  * and the active engine reads them again at the next frame (`refreshMaterials`), no second upload
  * path and no new GPU memory. Moved to another draw class, opaque, masked or blended, its
  * drawables go where the open would put them (#846); an engine that lays that class out at open
- * refuses it by name (`MATERIAL_CLASS_CHANGE`), before any write.
+ * refuses it by name (`MATERIAL_CLASS_CHANGE`), before any write. A page creates materials too
+ * (#847), each a host surface of its own a drawable is given to wear (`assignMaterial`).
  */
 export function createExplorerMaterialApi(inputs: Inputs) {
-  const { check, source, backends, active } = inputs;
+  const { check, source, associations, backends, active } = inputs;
+  /** The materials the page created, by id: a namespace no table rank takes. */
+  const created = new Map<string, GraphSurface>();
   /** Built at the first call, not at open: most pages never ask. Before any write, so the values
    *  it keeps as imported are the file's. */
   let held: ReturnType<typeof index> | undefined;
@@ -58,18 +72,22 @@ export function createExplorerMaterialApi(inputs: Inputs) {
   };
   const scene = () => (held ??= index());
   const required = (id: string) => {
+    const made = created.get(id);
+    if (made) return { rank: id, worn: [made] };
     const rank = Number(id);
     // An id is the rank as listed: '', ' 1' or '1.0' would name a rank by accident.
     const worn = String(rank) === id ? scene().surfaces.get(rank) : undefined;
     if (!worn) throw new EngineError('UNKNOWN_MATERIAL', `the scene has no material ${id}`, { id });
     return { rank, worn };
   };
+  const { refuseClass, repaints, refreshed } = materialEngines(backends, active);
   return {
     /** The scene's materials as they are now, in table order; each a detached copy. */
     materials(): SceneMaterial[] {
       check();
       const { ranks, surfaces } = scene();
-      return ranks.map((rank) => read(rank, surfaces.get(rank)![0]));
+      const listed = ranks.map((rank) => read(rank, surfaces.get(rank)![0]));
+      return [...listed, ...[...created].map(([id, surface]) => read(id, surface))];
     },
     /** One material as it is now, a detached copy; an unknown id is refused by name. */
     material(id: string): SceneMaterial {
@@ -99,16 +117,7 @@ export function createExplorerMaterialApi(inputs: Inputs) {
         to !== from || (to === 'mask' && patch.alphaCutoff !== undefined)
           ? { surfaces: worn, from, to }
           : undefined;
-      if (alpha && to !== from)
-        for (const backend of backends) {
-          const why = backend.materialClassRefusal?.(alpha);
-          if (why)
-            throw new EngineError(
-              'MATERIAL_CLASS_CHANGE',
-              `${backend.id} cannot move material ${id} from ${from} to ${to}: ${why}`,
-              { id, from, to, engine: backend.id },
-            );
-        }
+      if (alpha) refuseClass(id, alpha);
       if (patch.tiling) {
         const textures = worn.flatMap((surface) => [...materialTextures(surface)]);
         if (!textures.length) throw invalid(rank, 'tiling', patch.tiling);
@@ -121,18 +130,58 @@ export function createExplorerMaterialApi(inputs: Inputs) {
             { id, texture: shared.name, materials: [...wearers.get(shared)!].map(String) },
           );
       }
-      const engine = active();
-      if (!engine.refreshMaterials)
-        throw new EngineError(
-          'UNSUPPORTED_SCENE_UPDATE',
-          `${engine.id} does not repaint materials in place`,
-          { id },
-        );
+      repaints(id);
       for (const surface of worn) write(surface, patch, alpha?.to);
-      // An engine that cannot reread its surfaces has not taken the change (`setClearColor`).
-      return backends.every(
-        (backend) => !!backend.refreshMaterials && backend.refreshMaterials(true, alpha) !== false,
-      );
+      return refreshed(alpha);
+    },
+    /**
+     * A material of the page's own, without maps for now, drawn by no drawable until one is
+     * assigned it; every check runs before anything is built, the ceiling first.
+     */
+    createMaterial(props: CreatedMaterial = {}): SceneMaterial {
+      check();
+      const id = `created-${created.size}`;
+      if (created.size >= RUNTIME_MATERIAL_CEILING)
+        throw new EngineError(
+          'MATERIAL_CEILING',
+          `the page holds ${created.size} created materials, the ceiling`,
+          { ceiling: RUNTIME_MATERIAL_CEILING },
+        );
+      if (props.map !== undefined)
+        throw new EngineError('UNSUPPORTED_SCENE_UPDATE', 'a created material takes no map yet', {
+          id,
+        });
+      validate(id, props);
+      const surface = createdSurface(props);
+      created.set(id, surface);
+      return read(id, surface);
+    },
+    /**
+     * Drawable `primitive`, named as the manifest does (`mesh/primitive`), wears created material
+     * `id` from the next frame, in the draw class its alpha mode gives it (#846); refused by name
+     * before any write. False when an engine can only draw it in a new session.
+     */
+    assignMaterial(primitive: string, id: string) {
+      check();
+      const surface = created.get(id);
+      if (!surface)
+        throw new EngineError('UNKNOWN_MATERIAL', `the page created no material ${id}`, { id });
+      const named = (link?: { meshes?: number; primitives?: number }) =>
+        !!link && `${link.meshes}/${link.primitives ?? 0}` === primitive;
+      const drawn = meshes(source).filter((mesh) => named(associations.get(mesh)));
+      if (!drawn.length)
+        throw new EngineError('UNKNOWN_SCENE_NODE', `the scene draws no primitive ${primitive}`, {
+          primitive,
+        });
+      const from = alphaModeOf(firstMaterial(drawn[0].material)!);
+      const alpha = { surfaces: [surface], meshes: drawn, from, to: alphaModeOf(surface) };
+      refuseClass(id, alpha);
+      repaints(id);
+      scene(); // the table's wearers indexed as imported, before a mesh wears another
+      for (const mesh of drawn) mesh.material = surface;
+      // Every engine follows, or none draws it before a new session: the refresh runs for all.
+      const worn = backends.map((backend) => !!backend.wearSurface?.(alpha));
+      return refreshed(alpha) && !worn.includes(false);
     },
   };
 }

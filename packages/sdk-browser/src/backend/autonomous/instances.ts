@@ -75,6 +75,19 @@ export function createAutonomousInstances(env: InstanceEnvironment) {
     }
     releaseHostSurface(painted);
   };
+  /** Records wear `painted`, or the vertex-coloured twin a page with a colour attribute draws
+   *  with, taken from the shared cache the decoded pages read. */
+  const wear = (records: readonly PageRec[], painted: HostMaterial) => {
+    const coloured = records.some((rec) => rec.attributes.color)
+      ? colouredTwin(colorMaterials, painted)
+      : painted;
+    for (const rec of records) {
+      baseMaterials.set(rec, painted);
+      rec.declaration = rec.attributes.color ? coloured : painted;
+      rec.material = surfaceOf(rec.declaration);
+      if (rec.mesh) setHostSurface(rec.mesh, rec.declaration);
+    }
+  };
   return {
     /** Why a move into or out of blended takes the cover past the host ceiling, before any write
      *  (#846): rows are one instanced mesh while opaque, one mesh a row once blended. */
@@ -164,22 +177,19 @@ export function createAutonomousInstances(env: InstanceEnvironment) {
           rec.clusterId.startsWith(`${primitive}/`) || rec.clusterId.includes(`/${primitive}/`),
       );
       if (!records.length) throw new Error('AUTONOMOUS_PRIMITIVE_MISSING');
-      // Two host materials at most, built once for the whole primitive: the plain one, and the
-      // vertex-coloured twin a page with a colour attribute draws with, taken from the shared
-      // cache the decoded pages read. The paint this one replaces is freed below.
+      // Built once for the whole primitive; the paint this one replaces is freed below.
       const previous = owned.get(primitive);
       const painted = hostPageSurface(material, false);
       owned.set(primitive, painted);
-      const coloured = records.some((rec) => rec.attributes.color)
-        ? colouredTwin(colorMaterials, painted)
-        : painted;
-      for (const rec of records) {
-        baseMaterials.set(rec, painted);
-        rec.declaration = rec.attributes.color ? coloured : painted;
-        rec.material = surfaceOf(rec.declaration);
-        if (rec.mesh) setHostSurface(rec.mesh, rec.declaration);
-      }
+      wear(records, painted);
       if (previous) releasePaint(previous);
+    },
+    /** The records of `alpha.meshes` wear the surface they were given (`wearSurface`, #847);
+     *  false when pages draw none of them — a blended copy's, laid out at open. */
+    wearSurface({ meshes, surfaces }: AlphaChange) {
+      const records = allPages.filter((rec) => rec.sourceMesh && meshes!.includes(rec.sourceMesh));
+      wear(records, surfaces[0] as HostMaterial);
+      return records.length > 0;
     },
   };
 }
