@@ -62,15 +62,17 @@ test("each quad covers exactly its page's texels, on any pool side", () => {
   // The corner lines `page_quad_vs` runs, restated below.
   assert.ok(PAGE_QUAD_SHADER.includes('return vec4f(corner*rect.zw+rect.xy,0.0,1.0);'));
   assert.ok(PAGE_QUAD_SHADER.includes('emitter:vec4f,@size(160) rect:vec4f,}'));
-  for (const side of [1, 3, 4, 37, 64, 71, 74]) {
+  // The pool's texels, and the transmittance layer's, half as many a side (#867).
+  for (const [side, scale] of [1, 3, 4, 37, 64, 71, 74].flatMap((s) => [1, 2].map((k) => [s, k]))) {
     const pack = createShadowRecordPack(SHADOW_FACE_STRIDE, side),
-      size = side * SHADOW_PAGE;
+      size = (side * SHADOW_PAGE) / scale,
+      page = SHADOW_PAGE / scale;
     for (const phys of [0, side * side - 1, Math.floor((side * side) / 2), side * side + 1]) {
       pack.writePage(0, new Float32Array(16), 0, phys, undefined, 0);
       const [ox, oy, sx, sy] = pack.facePacked.subarray(24, 28);
       const local = phys % (side * side),
-        x0 = (local % side) * SHADOW_PAGE,
-        y0 = Math.floor(local / side) * SHADOW_PAGE;
+        x0 = (local % side) * page,
+        y0 = Math.floor(local / side) * page;
       // Framebuffer edges of the quad: the atlas viewport of `(ndc + 1) * size / 2`, y flipped.
       const edge = (ndc: number, flip: boolean) => f(f(flip ? 1 - ndc : ndc + 1) * (size / 2));
       const xs = [f(f(-sx) + ox), f(sx + ox)].map((n) => edge(n, false)),
@@ -78,11 +80,14 @@ test("each quad covers exactly its page's texels, on any pool side", () => {
       // Texel centres lie half a texel inside: an edge nearer than that keeps exactly the page.
       for (const [got, want] of [
         [xs[0], x0],
-        [xs[1], x0 + SHADOW_PAGE],
+        [xs[1], x0 + page],
         [ys[0], y0],
-        [ys[1], y0 + SHADOW_PAGE],
+        [ys[1], y0 + page],
       ])
-        assert.ok(Math.abs(got - want) < 0.5, `side ${side}, page ${phys}: ${got} for ${want}`);
+        assert.ok(
+          Math.abs(got - want) < 0.5,
+          `side ${side}, scale ${scale}, page ${phys}: ${got} for ${want}`,
+        );
     }
   }
 });
