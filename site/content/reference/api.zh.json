@@ -7153,6 +7153,7 @@
       "gravity": "重力，单位 m/s²，一个实时向量；可设预设（`'earth'`、`'moon'`、`'mars'`、`'none'`）或向量。",
       "paused": "时间是否静止；写入仍会到达物体。",
       "timeScale": "每真实秒的模拟秒数：0.25 为慢动作。",
+      "simulationRange": "相机周围模拟物体的范围（米）；超出范围的物体保持原状冻结，也不加载碰撞图块；`null` 跟随 `camera.far`。",
       "water": "物体漂浮其中的水：水位、波浪、密度和阻力。比水轻的物体会漂浮，被它排开的水的重量托起。",
       "waterSurface": "模拟时刻的水面,用于绘制:与浮力读取的相同波浪、相同数值(`height`、`point`、`normal`)。",
       "stats": "计数与两个时钟：worker 每步毫秒数，页面每帧毫秒数。",
@@ -7359,6 +7360,7 @@
       "gravity": "重力，单位 m/s²，一个实时向量；可设预设（`'earth'`、`'moon'`、`'mars'`、`'none'`）或向量。",
       "paused": "时间是否静止；写入仍会到达物体。",
       "timeScale": "每真实秒的模拟秒数：0.25 为慢动作。",
+      "simulationRange": "相机周围模拟物体的范围（米）；超出范围的物体保持原状冻结，也不加载碰撞图块；`null` 跟随 `camera.far`。",
       "water": "物体漂浮其中的水：水位、波浪、密度和阻力。比水轻的物体会漂浮，被它排开的水的重量托起。",
       "waterSurface": "模拟时刻的水面,用于绘制:与浮力读取的相同波浪、相同数值(`height`、`point`、`normal`)。",
       "stats": "计数与两个时钟：worker 每步毫秒数，页面每帧毫秒数。",
@@ -7371,6 +7373,7 @@
     "summary": "`createWorld(canvas, { physics })` 除 `true` 外接受的内容。",
     "members": {
       "budget": "固定上限，物理启动时读取一次。",
+      "simulationRange": "相机周围模拟物体的范围（米，`world.physics.simulationRange`）；`null` 跟随 `camera.far`。",
       "gravity": "世界的重力：预设或向量。"
     }
   },

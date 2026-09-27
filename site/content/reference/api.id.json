@@ -7154,6 +7154,7 @@
       "gravity": "Gravitasi dalam m/s², vektor hidup; isi preset (`'earth'`, `'moon'`, `'mars'`, `'none'`) atau vektor.",
       "paused": "Apakah waktu berhenti; penulisan tetap sampai ke benda.",
       "timeScale": "Detik simulasi per detik nyata: 0.25 adalah gerak lambat.",
+      "simulationRange": "Meter di sekitar kamera tempat benda disimulasikan (di luarnya dibekukan seperti semula, dan tidak ada ubin tabrakan yang dimuat); `null` mengikuti `camera.far`.",
       "water": "Air tempat benda-benda mengapung: permukaannya, gelombangnya, massa jenisnya, dan hambatannya. Benda yang lebih ringan dari air mengapung, didorong oleh berat air yang dipindahkannya.",
       "waterSurface": "Permukaan air pada waktu simulasi, untuk digambar: gelombang yang dibaca daya apung, angka yang sama (`height`, `point`, `normal`).",
       "stats": "Hitungan dan kedua jam: milidetik worker per langkah, milidetik halaman per bingkai.",
@@ -7360,6 +7361,7 @@
       "gravity": "Gravitasi dalam m/s², vektor hidup; isi preset (`'earth'`, `'moon'`, `'mars'`, `'none'`) atau vektor.",
       "paused": "Apakah waktu berhenti; penulisan tetap sampai ke benda.",
       "timeScale": "Detik simulasi per detik nyata: 0.25 adalah gerak lambat.",
+      "simulationRange": "Meter di sekitar kamera tempat benda disimulasikan (di luarnya dibekukan seperti semula, dan tidak ada ubin tabrakan yang dimuat); `null` mengikuti `camera.far`.",
       "water": "Air tempat benda-benda mengapung: permukaannya, gelombangnya, massa jenisnya, dan hambatannya. Benda yang lebih ringan dari air mengapung, didorong oleh berat air yang dipindahkannya.",
       "waterSurface": "Permukaan air pada waktu simulasi, untuk digambar: gelombang yang dibaca daya apung, angka yang sama (`height`, `point`, `normal`).",
       "stats": "Hitungan dan kedua jam: milidetik worker per langkah, milidetik halaman per bingkai.",
@@ -7372,6 +7374,7 @@
     "summary": "Apa yang diterima `createWorld(canvas, { physics })` selain `true`.",
     "members": {
       "budget": "Batas tetap, dibaca sekali saat fisika mulai.",
+      "simulationRange": "Meter di sekitar kamera tempat benda disimulasikan (`world.physics.simulationRange`); `null` mengikuti `camera.far`.",
       "gravity": "Gravitasi dunia: preset atau vektor."
     }
   },
