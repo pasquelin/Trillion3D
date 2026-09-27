@@ -1708,6 +1708,14 @@
       "fourthLaneAnisotropy": "네 번째 길의 비등방성"
     }
   },
+  "the-home-pose": {
+    "banner": "보기를 선택하고 카메라를 움직인 다음 홈을 선택해 돌아갑니다.",
+    "controls": { "home": "홈", "tower": "탑", "square": "광장", "hillside": "언덕" }
+  },
+  "the-near-plane-cuts-a-wall": {
+    "banner": "근거리 평면을 앞으로 움직여 벽을 차례로 자르는 모습을 확인하세요.",
+    "controls": { "nearPlane": "근거리 평면" }
+  },
   "the-material-family": {
     "banner": "끌어서 주위를 걸어 봐. 빛을 밤으로 바꾸고 아직 빛나는 걸 봐.",
     "controls": {
