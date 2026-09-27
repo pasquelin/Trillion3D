@@ -67,3 +67,39 @@ export function createPageAdmission(options: {
   };
   return admit;
 }
+
+/**
+ * The reads an admission pass is about to wait for, started before it admits anything: each page of
+ * `pages` that `admits` accepts and the pool does not hold, after the parents its admission would
+ * bring, at most `limit` of them, under `signal`. The walk is `admit`'s and stops where `admit`
+ * would give up (a parent without its bytes). The reads overlap on the network; the pass after them
+ * is not touched — the same pages in the same order, each load joining the read under way.
+ */
+export function createAdmissionReads(options: {
+  hasBytes: (rec: PageRec) => boolean;
+  parentsOf: (rec: PageRec) => readonly PageRec[];
+  prefetch: (rec: PageRec, signal: AbortSignal) => void;
+}) {
+  const { hasBytes, parentsOf, prefetch } = options;
+  return (
+    pages: readonly PageRec[],
+    limit: number,
+    admits: (rec: PageRec) => boolean,
+    pool: Pick<PoolCache, 'get'>,
+    signal: AbortSignal,
+  ) => {
+    const asked = new Set<string>();
+    const walk = (rec: PageRec): boolean => {
+      const address = pageAddress(rec);
+      if (pool.get(address) || asked.has(address)) return true;
+      if (!hasBytes(rec)) return false;
+      for (const parent of parentsOf(rec)) if (!walk(parent)) return false;
+      if (asked.size >= limit) return false;
+      asked.add(address);
+      prefetch(rec, signal);
+      return true;
+    };
+    for (let i = 0; i < pages.length && asked.size < limit; i++)
+      if (admits(pages[i])) walk(pages[i]);
+  };
+}

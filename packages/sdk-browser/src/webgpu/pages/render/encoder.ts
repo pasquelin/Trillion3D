@@ -91,19 +91,27 @@ export function submitColorCopy(
     timing.frameSelection = undefined;
     settle?.(true);
   }
-  rt.diag.traceDiagnostic('encoding-submit', 'Commandes WebGPU soumises', () => ({
-    frame: run.frame,
-    submission: run.imageRevision,
-    pose: run.lastCamera ? enginePose(run.gate.cam) : null,
-    width,
-    height,
-    drawCalls: run.gpuDrawCalls,
-    // Synchronous cut count, held where the hole is: nothing here waits for the GPU count readback,
-    // so the guard that hid it covered nothing.
-    drawnTriangles: run.drawnTriangles,
-    transparent: { drawCalls: run.blendDrawCalls, submittedTriangles: run.blendSubmittedTriangles },
-    presentation: capture.capturing ? 'surface-capture' : context.gpuCanvas ? 'direct' : 'composed',
-  }));
+  if (rt.diag.traceEnabled)
+    rt.diag.traceDiagnostic('encoding-submit', 'Commandes WebGPU soumises', () => ({
+      frame: run.frame,
+      submission: run.imageRevision,
+      pose: run.lastCamera ? enginePose(run.gate.cam) : null,
+      width,
+      height,
+      drawCalls: run.gpuDrawCalls,
+      // Synchronous cut count, held where the hole is: nothing here waits for the GPU count readback,
+      // so the guard that hid it covered nothing.
+      drawnTriangles: run.drawnTriangles,
+      transparent: {
+        drawCalls: run.blendDrawCalls,
+        submittedTriangles: run.blendSubmittedTriangles,
+      },
+      presentation: capture.capturing
+        ? 'surface-capture'
+        : context.gpuCanvas
+          ? 'direct'
+          : 'composed',
+    }));
   if (timing.gpuTiming?.isSampled(encoder))
     timing.gpuTiming.submitted(encoder, {
       submission: run.imageRevision,
