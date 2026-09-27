@@ -88,7 +88,7 @@ export interface LightsSummary {
   mobile: boolean;
 }
 
-/** Delta between two RGBA captures (`summary.ts::imageDiff`). */
+/** Delta between two RGBA captures (`imageDiff.ts::imageDiff`). */
 export type ImageDiff =
   null | { erreur: string } | { pixels: number; maxCanal: number; total: number };
 
