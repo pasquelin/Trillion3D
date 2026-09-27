@@ -1,18 +1,19 @@
 // #572: a clearcoat written on car-paint-under-clear-coat was no value (#335 named a few), so its
 // material became a new entry, its meshes a new batch, and the session was opened again — a black
 // frame, then the scene loaded anew. Every field a session does not lay out at opening is a value
-// now, written in place, the family of a physical kind included; a cutoff is laid out (`LAYOUT`).
+// now, written in place, the family of a physical kind and an opaque surface's cutoff included.
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { object } from '../../../../sdk-core/src/world/object/index.ts';
 import { geometry } from '../../../../sdk-core/src/world/geometry/index.ts';
 import { material } from '../../../../sdk-core/src/world/material/index.ts';
+import type { AlphaChange } from '../../placement/backendSceneUpdates.ts';
 import { createWorldMaterials } from './worldMaterials.ts';
 import { hostSurface, repaintHostSurface } from './worldSurface.ts';
 import { Scene } from './scene.ts';
 import { runtimeOf, sessionStandIn, type Open } from './worldRuntime.fixture.ts';
 
-test('a physical extension, a shininess or an opacity repaints its entry, a cutoff never', () => {
+test('a physical extension, a shininess, an opacity or a cutoff repaints its entry', () => {
   const table = createWorldMaterials();
   const paint = material.meshPhysical({ color: 0xb31324, clearcoat: 1 });
   const entry = table.entryOf(paint);
@@ -30,6 +31,20 @@ test('a physical extension, a shininess or an opacity repaints its entry, a cuto
     assert.deepEqual(table.takeRepainted(), [{ entry, values: true }], field);
     assert.equal(entry.material[field], value, `${field}: the value follows`);
   }
+  paint.alphaTest = 0.5;
+  paint.alphaTest = 0.6;
+  table.entryOf(paint);
+  paint.alphaTest = 0;
+  table.entryOf(paint);
+  const [{ alpha }] = table.takeRepainted();
+  assert.deepEqual(
+    alpha,
+    { from: 'opaque', to: 'opaque' },
+    'a cutout and back, its shadow redrawn',
+  );
+  paint.alphaTest = 0.5;
+  table.entryOf(paint);
+  assert.deepEqual(table.takeRepainted()[0]!.alpha, { from: 'opaque', to: 'mask' });
   const shine = material.meshPhong({ shininess: 30 });
   const phong = table.entryOf(shine);
   shine.shininess = 90;
@@ -38,18 +53,8 @@ test('a physical extension, a shininess or an opacity repaints its entry, a cuto
   assert.equal(table.entryOf(shine), phong, 'a colour it did not hold is a value');
   assert.notEqual(phong.material.specular, shine.specular, 'copied, not shared');
   assert.deepEqual(phong.material.specular, shine.specular);
-  paint.alphaTest = 0.5;
-  const cut = table.entryOf(paint);
-  assert.notEqual(cut, entry, 'a cutoff is laid out: a new entry');
-  paint.alphaTest = 0.3;
-  assert.notEqual(table.entryOf(paint), cut, 'and so is every other cutoff');
-  assert.deepEqual(
-    table.takeRepainted().map(({ entry: painted }) => painted),
-    [phong],
-    'only the Phong entry was repainted',
-  );
   paint.transmission = 1;
-  assert.notEqual(table.entryOf(paint), cut, 'a transmission moves the pass: a new entry');
+  assert.notEqual(table.entryOf(paint), entry, 'a transmission moves the pass: a new entry');
 });
 
 test('a repaint moves a physical kind between the standard and the physical family in place', () => {
@@ -76,8 +81,11 @@ test('a clearcoat changed for 60 frames never opens the session again', async ()
   const scene = new Scene(() => Promise.reject(new Error('no loader')));
   const { session } = sessionStandIn();
   let opened = 0;
-  const refreshed: (boolean | undefined)[] = [];
-  Object.assign(session, { refreshMaterials: (values?: boolean) => refreshed.push(values) > 0 });
+  const refreshed: [boolean | undefined, AlphaChange | undefined][] = [];
+  Object.assign(session, {
+    refreshMaterials: (values?: boolean, alpha?: AlphaChange) =>
+      refreshed.push([values, alpha]) > 0,
+  });
   const open = (async () => (opened++, session)) as unknown as Open;
   const runtime = runtimeOf(scene, ready, (error) => assert.fail(String(error)), open);
   const paint = material.meshPhysical({ color: 0xb31324, metalness: 0.72, clearcoat: 1 });
@@ -91,7 +99,12 @@ test('a clearcoat changed for 60 frames never opens the session again', async ()
     await runtime.settled();
     runtime.render();
   }
+  paint.alphaTest = 0.5;
+  await runtime.settled();
+  runtime.render();
   runtime.dispose();
   assert.equal(opened, 1, 'one session for every value');
-  assert.deepEqual(refreshed, Array(60).fill(true), 'its values read again once a frame');
+  assert.equal(refreshed.length, 61, 'refreshed once a frame, the cutout with its values');
+  assert.deepEqual(refreshed.at(-1)![0], true);
+  assert.deepEqual(refreshed.at(-1)![1]!.to, 'mask');
 });
