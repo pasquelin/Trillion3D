@@ -10,11 +10,11 @@ import type { BackendContext } from '../../backend/types.ts';
 import { checked } from '../../cluster/pages.ts';
 import { unmetered, type ByteMeter } from '../../cluster/byteMeter.ts';
 import { sceneDocument } from '../../scene/tables.ts';
-import { bakedImageUrls } from '../../texture/skip.ts';
+import { bakedImages } from '../../texture/skip.ts';
 import type { HostTexture } from '../resources.ts';
 import { preparedGeometries } from './geometry.ts';
 import { preparedGraph } from './graph.ts';
-import { imageAddress, preparedImages } from './images.ts';
+import { preparedImages } from './images.ts';
 import { preparedMaterials } from './materials.ts';
 import { preparedTextures, type TextureRanks } from './textures.ts';
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
@@ -48,10 +48,7 @@ export async function buildPreparedScene(inputs: Inputs) {
         ),
       )
     : null;
-  const skipped =
-    skipBaked && metadata.textures
-      ? bakedImageUrls(metadata, document.images, (uri) => imageAddress(uri, documentUrl))
-      : new Set<string>();
+  const skipped = skipBaked ? bakedImages(metadata, document.images.length) : new Set<number>();
   const images = preparedImages({ document, documentUrl, binary, skipped, signal, track, meter });
   const ranks: TextureRanks = new Map();
   const slot = preparedTextures(tables, document, images, ranks);

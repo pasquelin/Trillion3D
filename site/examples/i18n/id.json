@@ -1,4 +1,22 @@
 {
+  "brushed-metal": {
+    "banner": "Seret untuk melihat pantulan logam disikat. Ubah kekuatan dan arahnya.",
+    "controls": {
+      "anisotropy": "Kekuatan sikatan",
+      "direction": "Arah sikatan",
+      "roughness": "Kekasaran",
+      "spin": "Putar"
+    }
+  },
+  "car-paint-under-clear-coat": {
+    "banner": "Bergeraklah mengitari mobil. Ubah cat dan lapisan bening di atasnya.",
+    "controls": {
+      "paint": "Cat",
+      "clearCoat": "Lapisan bening",
+      "coatRoughness": "Kekasaran lapisan",
+      "spin": "Putar"
+    }
+  },
   "kit": {
     "panel": {
       "controls": "Pengaturan"
