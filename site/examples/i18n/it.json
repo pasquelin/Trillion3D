@@ -2240,6 +2240,12 @@
       "credit": "Bandiera su un'asta modellata in codice per questo esempio, CC0 — vedi assets/examples/CREDITS.md"
     }
   },
+  "hover-to-highlight": {
+    "banner": "Passa sopra le parti del carrello per evidenziarle una alla volta, oppure disattiva l’evidenziazione nel pannello.",
+    "controls": {
+      "highlightEnabled": "Attiva evidenziazione"
+    }
+  },
   "a-dolly-along-the-canal": {
     "banner": "Metti in pausa la carrellata, ripeti il percorso o cambia la velocità mentre la camera segue il canale.",
     "controls": {

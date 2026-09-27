@@ -2240,6 +2240,12 @@
       "credit": "この例のためにコードでモデリングしたポールの旗、CC0 — assets/examples/CREDITS.md を参照"
     }
   },
+  "hover-to-highlight": {
+    "banner": "カートの各部品にポインターを合わせて強調するか、パネルで強調表示をオフにします。",
+    "controls": {
+      "highlightEnabled": "強調表示を有効化"
+    }
+  },
   "a-dolly-along-the-canal": {
     "banner": "運河沿いを進むカメラを一時停止したり、最初から再生したり、速度を変えたりできます。",
     "controls": {
