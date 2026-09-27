@@ -502,7 +502,11 @@
   },
   "a-crane-that-swings": {
     "banner": "Tek bir klip bomu döndürürken, arabayı hareket ettirirken, yükü kaldırıp sallarken vincin etrafında dönün.",
-    "controls": { "speed": "Hız", "paused": "Duraklatıldı", "replay": "Yeniden oynat" }
+    "controls": {
+      "speed": "Hız",
+      "paused": "Duraklatıldı",
+      "replay": "Yeniden oynat"
+    }
   },
   "a-wave-across-a-grid": {
     "banner": "Etrafa bakmak için sürükle. Küp dalgasını daha yüksek ya da hızlı yap.",
@@ -1272,7 +1276,11 @@
       "home": "Başa dön"
     },
     "choices": {
-      "view": { "beauty": "görüntü", "lod": "ayrıntı düzeyleri", "clusters": "kümeler" }
+      "view": {
+        "beauty": "görüntü",
+        "lod": "ayrıntı düzeyleri",
+        "clusters": "kümeler"
+      }
     },
     "words": {
       "credit": "Bu örnek için kodla modellenmiş vazolar caddesi, CC0 — bkz. assets/examples/CREDITS.md"
@@ -2226,6 +2234,13 @@
     },
     "words": {
       "credit": "Sokak lambası modeli: W. Sitters, CC BY 3.0 — bkz. assets/examples/CREDITS.md"
+    }
+  },
+  "drag-a-crate": {
+    "banner": "Sandığı zeminde sürükleyin. Yarım metrelik adımlarla yerleştirmek için ızgarayı açın.",
+    "controls": {
+      "snap": "Izgara",
+      "home": "Başlangıç"
     }
   }
 }

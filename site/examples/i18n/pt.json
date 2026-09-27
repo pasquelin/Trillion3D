@@ -502,7 +502,11 @@
   },
   "a-crane-that-swings": {
     "banner": "Gire à volta do guindaste enquanto um clipe roda a lança, move o carro, eleva a carga e a deixa balançar.",
-    "controls": { "speed": "Velocidade", "paused": "Em pausa", "replay": "Repetir" }
+    "controls": {
+      "speed": "Velocidade",
+      "paused": "Em pausa",
+      "replay": "Repetir"
+    }
   },
   "a-wave-across-a-grid": {
     "banner": "Arraste para olhar em volta. Deixe a onda de cubos mais alta ou mais rápida.",
@@ -1272,7 +1276,11 @@
       "home": "Voltar ao início"
     },
     "choices": {
-      "view": { "beauty": "imagem", "lod": "níveis de detalhe", "clusters": "clusters" }
+      "view": {
+        "beauty": "imagem",
+        "lod": "níveis de detalhe",
+        "clusters": "clusters"
+      }
     },
     "words": {
       "credit": "Avenida de urnas modelada em código para este exemplo, CC0 — veja assets/examples/CREDITS.md"
@@ -2226,6 +2234,13 @@
     },
     "words": {
       "credit": "Modelo de poste de W. Sitters, CC BY 3.0 — veja assets/examples/CREDITS.md"
+    }
+  },
+  "drag-a-crate": {
+    "banner": "Arraste a caixa pelo chão. Ative o ajuste para posicioná-la em passos de meio metro.",
+    "controls": {
+      "snap": "Ajustar",
+      "home": "Início"
     }
   }
 }
