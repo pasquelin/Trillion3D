@@ -12,9 +12,9 @@ import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 
 /**
  * Bind group of a blend pass: vertex buffers, item records, atlases and lighting. A paged item
- * reads the page cache — its quantized pages, or the concatenated geometry of a cache without
- * them —, so ALL paged items share this group; an
- * unpaged item carries its own buffers and keeps its own.
+ * reads its quantized pages in the page cache, or the concatenated geometry of a cache without
+ * them, so ALL paged items share this group; an unpaged item carries its own buffers and keeps
+ * its own.
  */
 function blendBindGroup(
   rt: WebgpuPagesRuntime,

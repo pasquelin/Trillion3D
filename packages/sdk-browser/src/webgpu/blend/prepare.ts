@@ -43,7 +43,7 @@ export function prepareWebgpuBlend(
     // them, in place in the page cache (`../../visibility/shader/pageGeometryWgsl.ts`): it owns no
     // buffer at all. One without reads the concatenated source geometry, and keeps its positions
     // only for the fallback pass (`fallback.ts`).
-    const fromPages = paged && !!copy.userData.pageGeometry;
+    const fromPages = !!copy.userData.pageGeometry;
     const position = fromPages
       ? undefined
       : ensureWebgpuPositionBuffer(device, copy.geometry.attributes, gpu.positionBuffers, gpu)!;
