@@ -10,7 +10,6 @@ export function evictResident(
   const { resident, pins, changeKeys, changeSlots, state } = context;
   resident.delete(page.key);
   pins.delete(page.key);
-  context.eviction.touched.delete(page.key);
   changeKeys.push(page.key);
   changeSlots.push(-1);
   state.evictions++;
@@ -28,12 +27,12 @@ export function evictResident(
 /** The order's first resident, unpinned page; a pinned entry waits for its unpin, never spent. A
  *  page a lower tier touched since the last order (`touch`) goes after every other (#483 rule 1). */
 function orderedVictim({ eviction, resident, pins }: GpuPageContext) {
-  const { order, epoch, touched } = eviction;
+  const { order, epoch } = eviction;
   for (const lower of [false, true])
     for (let at = eviction.at; at < order!.count; at++) {
       const key = order!.keyAt(at),
         page = resident.get(key),
-        held = pins.has(key) || (!lower && epoch - (touched.get(key) ?? -2) <= 1);
+        held = pins.has(key) || (!lower && epoch - (page?.touched ?? -2) <= 1);
       if (!lower && at === eviction.at && !(page && held)) eviction.at++;
       if (page && !held) return page;
     }
