@@ -58,9 +58,10 @@
         horse.add(part);
       };
       const horses = [],
-        rest = 1.45;
-      for (let index = 0; index < 8; index++) {
-        const angle = (index / 8) * Math.PI * 2,
+        count = 8,
+        rest = 1.7;
+      for (let index = 0; index < count; index++) {
+        const angle = (index / count) * Math.PI * 2,
           radius = index % 2 ? 3.25 : 2.25,
           coat = index % 2 ? cream : blue;
         const x = Math.sin(angle) * radius,
@@ -90,13 +91,13 @@
       }
       world.scene.add(carousel);
 
-      // Keys every quarter second: the tracks are linear between keys, so the bob stays a sine.
+      // Keys every quarter second: the tracks are linear between keys, so the bob follows a sine closely.
       const duration = 8,
         times = Array.from({ length: duration * 4 + 1 }, (_, key) => key / 4);
       // A negative turn is clockwise seen from above, the way the horses face.
       const tracks = [animation.numberTrack('.rotation.y', [0, duration], [0, -Math.PI * 2])];
       horses.forEach((horse, index) => {
-        const phase = (index / horses.length) * Math.PI * 2;
+        const phase = (index / count) * Math.PI * 2;
         tracks.push(
           animation.numberTrack(
             `${horse.name}.position.y`,
@@ -111,8 +112,8 @@
         { running: true, speed: [0.2, 2, 0.8], direction: ['clockwise', 'counterclockwise'] },
         (values) => {
           action.timeScale = values.speed * (values.direction === 'clockwise' ? 1 : -1);
-          if (values.running && !action.playingNow) action.play();
-          if (!values.running) action.playingNow = false;
+          if (values.running) action.play();
+          else action.playingNow = false;
           world.invalidate();
         },
         world,
