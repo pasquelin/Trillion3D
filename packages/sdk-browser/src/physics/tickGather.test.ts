@@ -6,9 +6,9 @@ import {
   DEFAULT_PHYSICS_BUDGET,
   POSE_WORDS,
 } from '../../../sdk-core/src/physics/index.ts';
-import type { JoltModule } from './joltModule.ts';
 import { resultWords } from './protocol.ts';
 import { createTickResults } from './tickResults.ts';
+import { tickModule } from './tickResults.fixture.ts';
 
 /** NaN, -NaN, ±0, ±Inf and the largest finite float, as words a pose can carry. */
 const EDGES = [0x7fc00000, 0xffc00001, 0, 0x80000000, 0x7f800000, 0xff800000, 0x7f7fffff];
@@ -58,16 +58,10 @@ function recordByRecord(steps: Uint32Array[], bodies: number) {
 function gathered(ticks: Uint32Array[][], bodies: number, staged: boolean) {
   const budget = { ...DEFAULT_PHYSICS_BUDGET, bodies, contactEvents: 4 };
   let step: Uint32Array = new Uint32Array(0);
-  const jolt = {
-    poses: () => step,
-    events: () => new Uint32Array(0),
-    dropped: () => 0,
-    refused: () => [],
-    broken: () => [],
-    overflow: () => [],
-    vehicles: () => new Uint32Array(0),
-    soft: () => new Uint32Array(0),
-  } as unknown as JoltModule;
+  const jolt = tickModule(
+    () => step,
+    () => new Uint32Array(0),
+  );
   const buffers = staged ? [] : [new ArrayBuffer(resultWords(budget) * 4)];
   const posted: Uint32Array[] = [];
   const results = createTickResults(jolt, budget, buffers, (message) => {
