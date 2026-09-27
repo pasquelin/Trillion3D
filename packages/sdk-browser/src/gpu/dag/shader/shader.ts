@@ -51,6 +51,9 @@ const FAR_PLANE:u32=4u;
  *  (\`frustum.ts\`, zero normal normalized), which no comparison satisfies, and a NaN stays NaN
  *  through \`dagPrepare\`'s product. Read at the bit on the uniform, a NaN test no compiler folds. */
 fn farless()->bool{return (bitcast<u32>(views[vi].planes[FAR_PLANE].x)&0x7fffffffu)>0x7f800000u;}
+/** \`plane\` in a primitive's space, \`m\` its transposed world; a primitive a camera never culls
+ *  (\`open\`, \`unculledOf\`) takes a plane no box leaves. */
+fn planeIn(m:mat4x4f,plane:vec4f,open:bool)->vec4f{return select(m*plane,vec4f(0.0,0.0,0.0,1.0),open);}
 /** True when the box lies wholly behind the plane: its corner furthest along the normal is. */
 fn outsidePlane(plane:vec4f,bmin:vec3f,bmax:vec3f)->bool{
  let px=select(bmin.x,bmax.x,plane.x>0.0);let py=select(bmin.y,bmax.y,plane.y>0.0);let pz=select(bmin.z,bmax.z,plane.z>0.0);
@@ -87,11 +90,10 @@ fn dagPrepare(@builtin(global_invocation_id) id:vec3u){
  // light cut opens none on a primitive that casts no shadow (\`markOf\`, \`castsNoShadow\`).
  let root=select(rootOf(w),0xffffffffu,isLightCut()&&(markOf(w)&${CASTS_NO_SHADOW}u)!=0u);
  flags[queueBase(0u)+t]=select(packEntry(vi,root),root,root==0xffffffffu);
- let m=transpose(worlds[w]);let base=slot*FRAME;
- // A primitive a camera never culls (\`unculledOf\`) takes six planes no box leaves.
+ let pose=worlds[w];let m=transpose(pose);let base=slot*FRAME;
  let open=!isLightCut()&&unculledOf(w);
- for(var i=0u;i<6u;i++){frames[base+i]=select(m*views[vi].planes[i],vec4f(0.0,0.0,0.0,1.0),open);}
- if(!isLightCut()){preparePrimitive(w);}
+ for(var i=0u;i<6u;i++){frames[base+i]=planeIn(m,views[vi].planes[i],open);}
+ if(!isLightCut()){preparePrimitive(w,pose,m,open);}
 }
 @compute @workgroup_size(64)
 fn dagMask(@builtin(global_invocation_id) id:vec3u,@builtin(local_invocation_index) lid:u32){

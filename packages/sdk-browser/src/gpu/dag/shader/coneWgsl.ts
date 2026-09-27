@@ -31,10 +31,11 @@ fn viewPoint()->vec4f{
  return vec4f(back*(1.0-views[vi].perspective),views[vi].perspective);
 }
 /** \`w\` names the primitive whose conformity and normal matrix \`dagPrepare\` prepared
- *  (\`primitiveWgsl.ts\`): the same verdict and the same \`inverseTranspose3\` as on \`world\`'s 3x3. */
-fn coneRejectsBox(cone:vec4f,bmin:vec3f,bmax:vec3f,world:mat4x4f,w:u32)->bool{
+ *  (\`primitiveWgsl.ts\`): the same verdict and the same \`inverseTranspose3\` as on its world's 3x3. */
+fn coneRejectsBox(cone:vec4f,bmin:vec3f,bmax:vec3f,w:u32)->bool{
  if(cone.w>=${HALF_PI_WGSL}){return false;}
  if(!conformalOf(w)){return false;}
+ let world=worlds[w];
  let c=0.5*(bmin+bmax);let e=0.5*(bmax-bmin);
  let center=(world*vec4f(c,1.0)).xyz;
  let we=abs(world[0].xyz)*e.x+abs(world[1].xyz)*e.y+abs(world[2].xyz)*e.z;
@@ -61,7 +62,7 @@ fn coneRejectsBox(cone:vec4f,bmin:vec3f,bmax:vec3f,world:mat4x4f,w:u32)->bool{
 }
 fn coneRejects(r:u32,w:u32)->bool{
  if(hasBox(r)==0.0){return false;}
- return coneRejectsBox(coneOf(r),boxMin(r),boxMax(r),worlds[w],w);
+ return coneRejectsBox(coneOf(r),boxMin(r),boxMax(r),w);
 }
 /** Cone reject depends only on the page, its world and the camera: it is therefore the same for
  *  the passes of one frame. \`dagWanted\` computes it once per live page and stores it behind the

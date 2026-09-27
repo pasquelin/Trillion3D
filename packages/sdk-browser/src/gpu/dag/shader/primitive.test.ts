@@ -61,7 +61,7 @@ test('every site reads the prepared values; only a light view still multiplies',
     DAG_SELECTION_SHADER,
     /fn outsideAhead\([^)]*\)->bool\{return outsideFrustum\(aheadPlanes\(w\),/,
   );
-  assert.ok(DAG_SELECTION_SHADER.includes('if(!isLightCut()){preparePrimitive(w);}'));
+  assert.ok(DAG_SELECTION_SHADER.includes('if(!isLightCut()){preparePrimitive(w,pose,m,open);}'));
 });
 
 test("a never-culled primitive's open planes ahead keep every box, as its early exit did", () => {
