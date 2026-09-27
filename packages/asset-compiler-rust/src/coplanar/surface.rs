@@ -58,19 +58,10 @@ fn priority_of(node: &Value, mesh: Option<&Value>) -> i64 {
         .unwrap_or(0)
 }
 
-/// Every opaque surface of the selected scene. Bounded work: a primitive instance keeps at most
-/// `max_planes_per_primitive` planes, the largest ones by area, and reports what it dropped.
+/// Every opaque surface of the selected scene, placed by the world matrices the step built once.
+/// Bounded work: a primitive instance keeps at most `max_planes_per_primitive` planes, the largest
+/// ones by area, and reports what it dropped.
 pub fn collect(
-    inputs: &CoplanarInputs<'_>,
-    bounds: &CoplanarBounds,
-    dropped: &mut usize,
-) -> Result<Vec<Surface>> {
-    let world = crate::compiler_world::world_matrices(inputs.g)?;
-    collect_with_world(inputs, bounds, dropped, &world)
-}
-
-/// Same collection, with world matrices already built by the step.
-pub fn collect_with_world(
     inputs: &CoplanarInputs<'_>,
     bounds: &CoplanarBounds,
     dropped: &mut usize,

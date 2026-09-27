@@ -1,8 +1,8 @@
-use super::geometry::{albedo_of, normalise, surface_at};
+use super::geometry::{albedo_of, surface_at};
 use super::scene::World;
 use super::trace::{direct, scene_reach, trace};
 use super::OracleJob;
-use crate::shared_math::{cross, sub};
+use crate::shared_math::{cross, normalized_or, sub};
 use std::f64::consts::PI;
 
 /// Secondary bounce rays, relative to primary ones: variance that matters is first bounce,
@@ -28,14 +28,16 @@ fn cosine_direction(n: [f64; 3], u1: f64, u2: f64) -> [f64; 3] {
     } else {
         [1.0, 0.0, 0.0]
     };
-    let tangent = normalise(cross(up, n));
+    let tangent = cross(up, n);
+    let tangent = normalized_or(tangent, tangent);
     let bitangent = cross(n, tangent);
     let z = (1.0 - u1).max(0.0).sqrt();
-    normalise([
+    let direction = [
         tangent[0] * radius * angle.cos() + bitangent[0] * radius * angle.sin() + n[0] * z,
         tangent[1] * radius * angle.cos() + bitangent[1] * radius * angle.sin() + n[1] * z,
         tangent[2] * radius * angle.cos() + bitangent[2] * radius * angle.sin() + n[2] * z,
-    ])
+    ];
+    normalized_or(direction, direction)
 }
 
 /// Indirect irradiance at a point: what arrives after at least one surface bounce.
@@ -103,18 +105,21 @@ pub fn indirect(
 /// field of view, y up, pixel targeted at its center.
 fn camera_ray(job: &OracleJob, x: usize, y: usize) -> [f64; 3] {
     let camera = &job.camera;
-    let forward = normalise(sub(camera.target, camera.position));
-    let right = normalise(cross(forward, camera.up));
+    let forward = sub(camera.target, camera.position);
+    let forward = normalized_or(forward, forward);
+    let right = cross(forward, camera.up);
+    let right = normalized_or(right, right);
     let up = cross(right, forward);
     let half = (camera.fov_degrees.to_radians() * 0.5).tan();
     let aspect = job.width as f64 / job.height as f64;
     let sx = ((x as f64 + 0.5) / job.width as f64 * 2.0 - 1.0) * half * aspect;
     let sy = (1.0 - (y as f64 + 0.5) / job.height as f64 * 2.0) * half;
-    normalise([
+    let ray = [
         forward[0] + right[0] * sx + up[0] * sy,
         forward[1] + right[1] * sx + up[1] * sy,
         forward[2] + right[2] * sx + up[2] * sy,
-    ])
+    ];
+    normalized_or(ray, ray)
 }
 
 /// Image row: one primary ray per pixel, then indirect irradiance of what it
