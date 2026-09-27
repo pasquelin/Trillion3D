@@ -102,7 +102,6 @@ export function createWebgpuCutPublication(
   /** Adopts the readback and says whether the IMAGE changed: whether the displayed lists were
    *  rewritten. A fresh readback republishing the same identifiers in the same order rewrites none. */
   const adoptGpuCut = () => {
-    residencySets.decideBy(false);
     const adopted = cutAdopter.adopt(),
       metrics = cutAdopter.metrics;
     run.cutHeld = metrics.cutHeld;
@@ -152,7 +151,6 @@ export function createWebgpuCutPublication(
     adoptCpuCut(wanted: readonly PageRec[], shown: readonly PageRec[]) {
       // The CPU cut evaluates no view ahead: what the last readback asked for ahead is let go.
       ahead.offerIds(NO_IDS);
-      residencySets.decideBy(true);
       cutDelta.adoptRecords(wanted);
       publishCut();
       drawnDelta.adoptRecords(shown);

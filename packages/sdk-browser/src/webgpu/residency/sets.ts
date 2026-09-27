@@ -15,10 +15,9 @@ export type WebgpuResidencySets = ReturnType<typeof createWebgpuResidencySets>;
  * The sets an image decides residency with, carried from one image to the next instead of rebuilt.
  *
  * `desired` is what the image asks the cache for — the pinned cover and the cut — and `keep` adds
- * what the image draws, which the cache must not reclaim under it. The cut arrives as a DELTA,
- * whether from the GPU sample or the CPU cut: one contract for both, so a moving camera costs the
- * pages that changed and a still camera nothing at all. `tracking.wanted` is what the upload queue walks: the desired set itself, unless the
- * page budget forces the coarser subset `applyBudget` computes.
+ * what the image draws, which the cache must not reclaim under it. The cut arrives as a DELTA from
+ * either cut, so a moving camera costs the pages that changed and a still camera nothing at all.
+ * `tracking.wanted`, what the upload queue walks, is the desired set unless the budget cuts it.
  */
 export function createWebgpuResidencySets(options: {
   tracking: Tracking;
@@ -38,7 +37,6 @@ export function createWebgpuResidencySets(options: {
   const desiredPages: PageRec[] = [];
   const desired = createDenseKeySet(desiredPages);
   const ranking = createBudgetRanking({ bootstrapKey, keyOf });
-  let ranked = true;
   let followsDesired = true;
   const requested = createKeyUnion({
     members: desired,
@@ -80,19 +78,16 @@ export function createWebgpuResidencySets(options: {
     keyOf: keyOfId,
     retain: (key, id) => requested.retain(key, packedPages[id]),
     release: (key) => requested.release(key),
-    onEnter: (id) => ranked && ranking.add(packedPages[id]),
-    onExit: (id) => ranked && ranking.remove(packedPages[id]),
+    onEnter: (id) => feed.cpuCut && ranking.add(packedPages[id]),
+    onExit: (id) => feed.cpuCut && ranking.remove(packedPages[id]),
   });
   const drawnKeys = createHeldKeys({
     keyOf: keyOfId,
     retain: (key: number, id: number) => keep.retain(key, packedPages[id]),
     release: (key: number) => keep.release(key),
   });
-  /**
-   * Makes the queue the first `count` of `keys`, beside their records: the new holds are taken
-   * before the old queue's are let go of, so a key in both never leaves `keep`, and a queue rebuilt
-   * past the budget image after image moves, for the pin step, only the keys that changed (#477).
-   */
+  /** Makes the queue the first `count` of `keys`, beside their records: the new holds are taken
+   *  before the old ones are let go of, so a key in both never leaves `keep` (#477). */
   const refill = (keys: Int32Array, pages: readonly PageRec[], count: number) => {
     for (let i = 0; i < count; i++) keep.retain(keys[i], pages[i]);
     for (let i = wanted.count - 1; i >= 0; i--) {
@@ -103,18 +98,25 @@ export function createWebgpuResidencySets(options: {
     acceptedRevision++;
     for (let i = 0; i < count; i++) if (wanted.add(keys[i], pages[i])) feed.wanted(keys[i], true);
   };
+  /** The queue follows the cut whole: every page it asks for fits the pool. */
   const followDesired = () => {
     if (followsDesired) return;
     followsDesired = true;
     refill(desired.list, desiredPages, desired.count);
   };
-  /** Makes the queue the first `count` of `keys`, unless it already is exactly that. */
+  /** Makes the queue the first `count` of `keys`; the same keys reordered hold nothing anew. */
   const admit = (keys: Int32Array, pages: readonly PageRec[], count: number) => {
     followsDesired = false;
-    let same = count === wanted.count;
-    for (let i = 0; same && i < count; i++)
-      same = wanted.list[i] === keys[i] && wantedPages[i] === pages[i];
-    if (!same) refill(keys, pages, count);
+    let same = count === wanted.count,
+      inOrder = same;
+    for (let i = 0; same && i < count; i++) {
+      same = wanted.has(keys[i]);
+      inOrder &&= wanted.list[i] === keys[i] && wantedPages[i] === pages[i];
+    }
+    if (!same) return refill(keys, pages, count);
+    if (inOrder) return;
+    wanted.clear();
+    for (let i = 0; i < count; i++) wanted.add(keys[i], pages[i]);
   };
   return {
     entering,
@@ -125,16 +127,13 @@ export function createWebgpuResidencySets(options: {
     get desiredCount() {
       return desired.count;
     },
-    /** The cut that decides from now on. Back on the CPU cut, the ranking is refilled from what the
-     *  cut closes over. */
+    /** The cut that decides; true on a switch. The CPU cut's ranking refills from the closed cut. */
     decideBy(cpu: boolean) {
-      if (!feed.decideBy(cpu)) return;
-      ranked = cpu;
-      if (!cpu) return;
-      ranking.clear();
-      options.heldIds?.((id) => ranking.add(packedPages[id]));
+      if (!feed.decideBy(cpu)) return false;
+      if (cpu) ranking.clear();
+      if (cpu) options.heldIds?.((id) => ranking.add(packedPages[id]));
+      return true;
     },
-    /** The queue follows the cut whole: every page it asks for fits the pool. */
     followDesired,
     admit,
     /** Keys this image asks the cache for, the pinned cover included. */
