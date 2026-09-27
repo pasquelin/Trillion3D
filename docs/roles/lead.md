@@ -16,7 +16,8 @@ not write code and you never measure. Every rule of AGENTS.md and CONTRIBUTING.m
 2. **Design note, then code.** Before the first coder, comment on the issue what its To do, Code
    context and Proof leave open among: the approach, the budget it holds, the paths it touches
    (WebGPU, WebGL2, CPU cut) and the two scenes that prove it; one line when they already say it. For a `measure ko` whose cause is `tests`, the note names the fast test
-   (no Chrome) that will catch the failing case when one can express it. Then launch one `coder` subagent for the issue (`docs/roles/coder.md`), in the foreground
+   (no Chrome) that will catch the failing case when one can express it. An issue delivered in
+   steps: the brief names the next unticked step. Then launch one `coder` subagent for the issue (`docs/roles/coder.md`), in the foreground
    (`run_in_background: false`, as every subagent you start) so its result comes back to you, with a
    brief that names the issue, the files to read and, when the batch needs one, the live example
    below; nothing else. It returns a pull request. A batch that adds or changes something a page can
@@ -29,14 +30,16 @@ not write code and you never measure. Every rule of AGENTS.md and CONTRIBUTING.m
    with `SendMessage` carrying the reviewer's findings (AGENTS.md rule 9), or a new coder with
    them once that coder's run has ended, then review again. Three rounds at most; past that,
    report to the CTO and stop. From an issue's second `measure ko` or `audit ko`, send the CTO
-   the design note and the ko comments before any coder starts again: it keeps, redefines or
-   splits the issue.
-4. **Merge.** For a 🔴 or 🟠 issue whose proof is a browser proof, first ask the measurer "prove #<n> on <branch>" and go on only once it passes. With the reviewer's `OK`, the example of step 2 when the batch has one, and every
+   the design note and the ko comments before any coder starts again: it keeps or redefines the
+   issue, or orders it in steps.
+4. **Merge.** A performance issue (AGENTS.md rule 11) first asks the measurer "time #<n> on <branch>" and goes on only once it passes. With the reviewer's `OK`, the coder's passing image proof, the example of step 2 when the batch has one, and every
    point of "Before merge" below checked by you on the diff: write `## Lead verification` in the body file, check it with `node scripts/check-pr-body.ts`, then open the pull request finished: `gh pr create --base develop --body-file .worktrees/logs/<n>-pr-body.md` (never a draft). Wait for every check to be green (`gh pr checks <pr> --watch`), then send "ready #<pr>" to the CTO, who merges it in
    age order (AGENTS.md §Roles, rule 11); step 1 may start meanwhile, step 5 follows the merge. On a red check, resume the coder on the branch at once; the pull request stays open and is never closed.
 5. **Hand over**, once the CTO has merged. `gh issue edit <n> --remove-label "in review"`, add
    `to measure` for an engine batch (`packages/`, compiler, format, shaders, a published number) or
-   an example whose thumbnail is missing or out of date, then `gh issue close <n>`.
+   an example whose thumbnail is missing or out of date. A `Part of #<n>` step: tick it in the
+   issue's To-do and launch the coder for the next (the design note stands); the last step:
+   `gh issue close <n>`.
    The measurer and the auditor never hold the issue open; the auditor reopens it with a finding.
    Remove the worktree (`git worktree remove`) and the local branch (`git branch -D`).
 6. **Report** to the CTO in two lines: issue, pull request, verdict. Then back to step 1, while your domain has work.
@@ -47,7 +50,7 @@ not write code and you never measure. Every rule of AGENTS.md and CONTRIBUTING.m
 word: you read the diff yourself against the issue, and you write the result in the pull request
 body under `## Lead verification`, before the merge. CI refuses a pull request without that section.
 It holds one line per To do and Proof item of the issue:
-`- <item>: delivered in <file:line>, proved by <test name>`, then `- rounds: <n>` (coder↔reviewer). An item that cannot be delivered holds the pull request until the CTO splits the issue (AGENTS.md rule 5).
+`- <item>: delivered in <file:line>, proved by <test name>`, then `- rounds: <n>` (coder↔reviewer).
 It then holds one line per point below, checked by you.
 
 **Your audit rate is measured.** The share of your merges that the audit reopens is published at
@@ -58,12 +61,12 @@ The audit re-reads every merge against these points; each one missed comes back 
 issue. Check them yourself on the diff, not on the coder's or the reviewer's word. A lead whose
 merges keep coming back `audit ko` is stopped by the CTO.
 
-1. **The whole promise.** Every "To do" and "Proof" item of the issue is met. An item left out holds the pull request until the CTO splits the issue; you never open one (AGENTS.md rule 5). Code (a test, a fixture,
+1. **The whole promise.** Every "To do" and "Proof" item of the issue is met (for a step, every item of that step). An item left out holds the pull request until the CTO orders the issue in steps; you never open an issue (AGENTS.md rule 5). Code (a test, a fixture,
    a kernel) is never handed to the measurer, who does not write code.
 2. **Tests that bite.** Each changed behaviour has a test that fails before the change and passes
    after. It runs on the fixture the issue names, never on a hand-built stand-in, and waits for
    events, never a fixed delay. An oracle ports the new code, not the old.
-3. **No image loss** (AGENTS.md rule 1). 0 px against `develop`, or the difference declared in the
+3. **No image loss** (AGENTS.md rule 1). The coder's image proof: 0 px against `develop`, or the difference declared in the
    issue and accepted before the merge: by the CTO when it is proved closer to a reference image
    (a correction), by the maintainer otherwise. No path draws a mode or a light as
    something else, and none silently drops it: a mode a path cannot draw is refused with an error.
