@@ -28,7 +28,10 @@ export type TileScratch = {
   fill(): void;
   /** Builds its mips again from the picture it holds, under its readers' rule now (#42). */
   reduce(): void;
-  /** What `reduce` hands `generateMaterialMips`, for a batch that reduces several at once. */
+  /** Its mips not built since its first picture: `reduce`, or a batch taking its `chain`. */
+  readonly stale: boolean;
+  /** What `reduce` hands `generateMaterialMips`, for a batch that reduces several at once: the
+   *  mips are then built, no longer `stale`. */
   chain(): MipChain;
   destroy(): void;
 };
@@ -43,8 +46,6 @@ export function createTileScratch(
     errorCode: string;
     /** The colour census's readers, whose rule each reduction asks; none for a data texture. */
     coverage?: CoverageReaders;
-    /** Its first mips left to the caller's batch (`chain`). */
-    batched?: boolean;
   },
 ): TileScratch {
   const { width, height, format } = options;
@@ -63,10 +64,11 @@ export function createTileScratch(
   /** The texels as uploaded, when they differ from the source's: one array kept for every fill —
    *  a live texture refills at each video frame, and its size never changes. */
   let staged: Uint8Array | undefined;
-  /** Sends the picture as it is now and builds its mips again, in the same texture. `flipY` and
+  let stale = true;
+  /** Sends the picture as it is now, in the same texture, its mips not built. `flipY` and
    *  `premultiplyAlpha` as the WebGL2 upload (`UNPACK_FLIP_Y_WEBGL`,
    *  `UNPACK_PREMULTIPLY_ALPHA_WEBGL`): the picture's last row lands at v = 0 (#362). */
-  const fill = (reduced = true) => {
+  const upload = () => {
     const { map } = options;
     const rgba = textureRgba(map);
     if (rgba) {
@@ -88,15 +90,15 @@ export function createTileScratch(
         [width, height],
       );
     }
-    if (reduced) reduce();
   };
   const chain = (): MipChain => {
+    stale = false;
     const cutoff = options.coverage?.cutoff(options.map);
     return { texture, format, width, height, weighted: cutoff !== undefined, cutoff };
   };
   const reduce = () => generateMaterialMips(device, [chain()]);
   try {
-    fill(!options.batched);
+    upload();
   } catch (error) {
     // A picture refused at its first fill leaves no texture behind: its tile asks again.
     texture.destroy();
@@ -105,8 +107,14 @@ export function createTileScratch(
   return {
     texture,
     bytes: textureBytesOf(descriptor) ?? 0,
-    fill,
+    fill: () => {
+      upload();
+      reduce();
+    },
     reduce,
+    get stale() {
+      return stale;
+    },
     chain,
     destroy: () => texture.destroy(),
   };
