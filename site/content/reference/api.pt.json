@@ -941,6 +941,7 @@
       "UNKNOWN_MATERIAL": "Uma mudança de material é desconhecida, está fora do intervalo, o moveria para uma classe de desenho que um motor fixa ao abrir a cena, ou repetiria um mapa que ele compartilha.",
       "MATERIAL_CLASS_CHANGE": "Uma mudança de material é desconhecida, está fora do intervalo, o moveria para uma classe de desenho que um motor fixa ao abrir a cena, ou repetiria um mapa que ele compartilha.",
       "MATERIAL_TEXTURE_SHARED": "Uma mudança de material é desconhecida, está fora do intervalo, o moveria para uma classe de desenho que um motor fixa ao abrir a cena, ou repetiria um mapa que ele compartilha.",
+      "MATERIAL_CEILING": "Uma página criaria mais materiais do que `RUNTIME_MATERIAL_CEILING` numa sessão; nada foi criado.",
       "INVALID_TRANSFORM": "O posicionamento de um nó não é uma matriz utilizável, ou um nó seria seu próprio ancestral.",
       "NON_FINITE_TRANSFORM": "O posicionamento de um nó não é uma matriz utilizável, ou um nó seria seu próprio ancestral.",
       "SINGULAR_PARENT_TRANSFORM": "O posicionamento de um nó não é uma matriz utilizável, ou um nó seria seu próprio ancestral.",
@@ -2042,7 +2043,11 @@
       "geometry": "A forma do mesh; defina outra geometria para mudá-la.",
       "material": "O material do mesh, ou um por grupo; defina outro para mudá-lo.",
       "localBounds": "A caixa do próprio conteúdo desse nó, referencial local; um nó simples não contém nenhum.",
-      "physics": "A malha como corpo da física do mundo, `null` quando não é. Define `'static'`, `'dynamic'`, `'kinematic'` ou opções; a forma é deduzida da geometria."
+      "physics": "A malha como corpo da física do mundo, `null` quando não é. Define `'static'`, `'dynamic'`, `'kinematic'` ou opções; a forma é deduzida da geometria.",
+      "morphTargetInfluences": "O peso de cada alvo de morph, quando a geometria declara algum.",
+      "morphTargetDictionary": "A posição de cada alvo de morph pelo seu nome.",
+      "updateMorphTargets": "Um peso zero por alvo de morph do primeiro atributo deformado, nomeado pela posição.",
+      "copy": "Toma os valores de `source`, e cópias dos seus filhos salvo indicação em contrário."
     }
   },
   "Mixer": {
@@ -7464,20 +7469,8 @@
     },
     "summary": "Uma imagem e o estado de amostragem com que é lida, e a transformação das suas coordenadas."
   },
-  "GraphMesh": {
-    "summary": "Um nó desenhado: uma geometria e a sua superfície, ou uma superfície por grupo da geometria.",
-    "members": {
-      "kind": "Desenhada numa colocação, ou em várias (`GraphInstancedMesh`).",
-      "morphTargetInfluences": "O peso de cada alvo de morph, quando a geometria declara algum.",
-      "morphTargetDictionary": "A posição de cada alvo de morph pelo seu nome.",
-      "geometry": "A sua forma.",
-      "material": "A sua superfície, ou uma por grupo da geometria.",
-      "updateMorphTargets": "Um peso zero por alvo de morph do primeiro atributo deformado, nomeado pela posição.",
-      "copy": "Toma os valores de `source`, e cópias dos seus filhos salvo indicação em contrário."
-    }
-  },
   "GraphNodeKind": {
-    "summary": "O que um nó do grafo é: a raiz, uma malha desenhada (numa colocação ou em várias), um olho, ou uma das luzes que uma cena declara."
+    "summary": "O que um nó do grafo é: a raiz, um olho, ou uma das luzes que uma cena declara."
   },
   "Joint": {
     "summary": "Uma junta entre dois corpos, ou entre um corpo e o mundo (`b` null), criada com `joint.*` e adicionada à simulação com `world.physics.add`.",
