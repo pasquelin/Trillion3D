@@ -27,15 +27,12 @@ import roadmap from '../site/content/gallery-roadmap.json' with { type: 'json' }
 
 const site = new URL('../site/', import.meta.url);
 const written = roadmapEntries.filter(({ file }) => file);
+const parked = written.filter(({ status }) => status === 'waiting-engine');
 await loadDictionary('fr');
 
 test('no Markdown page links an example parked until the engine draws it', () => {
-  const parked = new Set(
-    written
-      .filter(({ status }) => status === 'waiting-engine')
-      .map(({ file }) => fileURLToPath(new URL(file, site))),
-  );
-  const links = markdownLinks().local.filter(({ dest }) => parked.has(dest));
+  const parkedFiles = new Set(parked.map(({ file }) => fileURLToPath(new URL(file, site))));
+  const links = markdownLinks().local.filter(({ dest }) => parkedFiles.has(dest));
   assert.deepEqual(
     links.map(({ file, target }) => `${file}: ${target}`),
     [],
@@ -168,8 +165,9 @@ test('an example is its file, live, on the demo page; the index shows what is re
   }
   // A parked example has no render yet: its card shows no picture, so none can break.
   const cards = index.split('<section class="card').slice(1);
-  for (const { id } of written.filter(({ status }) => status === 'waiting-engine')) {
-    const card = cards.find((markup) => markup.includes(`>${exampleTitle(id, 'en')}</h2>`));
+  for (const { id } of parked) {
+    const title = `>${exampleTitle(id, 'en')}</h2>`;
+    const card = cards.find((markup) => markup.includes(title));
     assert.ok(card && !card.includes('<img'), id);
   }
   const count = (pattern: RegExp) => (index.match(pattern) ?? []).length;
