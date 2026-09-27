@@ -168,7 +168,7 @@ test('an example is its file, live, on the demo page; the index shows what is re
   for (const entry of roadmapEntries) {
     const isWritten = Boolean(entry.file);
     assert.equal(
-      index.includes(`>${exampleTitle(entry.id, 'en')}</span></h2>`),
+      index.includes(`>${exampleTitle(entry.id, 'en')}</span></span></a>`),
       isWritten,
       entry.id,
     );
@@ -182,7 +182,7 @@ test('an example is its file, live, on the demo page; the index shows what is re
   assert.equal(thumbnailOf('no-such-example'), examplePlaceholder);
   for (const { ready: complete, parked: partial, coming } of themedEntries) {
     const positions = [...complete, ...partial].map(({ id }) =>
-      index.indexOf(`>${exampleTitle(id, 'en')}</span></h2>`),
+      index.indexOf(`>${exampleTitle(id, 'en')}</span></span></a>`),
     );
     assert.deepEqual(
       positions,
