@@ -104,7 +104,7 @@ void leaveSoft() {
     }
     // Both maps hold a soft pair until it ends: here, or in `leaveAll` when a body of it leaves.
     if (auto pair = w.pairs.find(at->first); pair != w.pairs.end()) {
-      if (pair->second & ENTERED) pushLeave(pair->first);
+      if (pair->second.count & ENTERED) pushLeave(pair->first);
       w.pairs.erase(pair);
     }
     at = w.softPairs.erase(at);
