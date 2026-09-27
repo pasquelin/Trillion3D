@@ -41,11 +41,12 @@ if ('error' in result) assert.fail(result.error);
 const { isolated, threads, alone, pooled } = result;
 assert.ok(isolated, 'the page is cross-origin isolated: its memory can be shared');
 assert.equal(threads, THREADS, 'the threaded module runs its pool');
-assert.ok(eventCount(alone) > 200, `the pile sends enters and leaves: ${eventCount(alone)}`);
+const sent = eventCount(alone);
+assert.ok(sent > 200, `the pile sends enters and leaves: ${sent}`);
 assert.deepEqual(settled(pooled), settled(alone));
 assert.deepEqual(pairOrder(pooled), pairOrder(alone));
 const inOrder = pooled.filter((step, s) => step.events.join() === alone[s].events.join()).length;
 console.log(
-  `${eventCount(pooled)} events over ${pooled.length} steps on ${threads} threads: the single ` +
+  `${sent} events over ${pooled.length} steps on ${threads} threads: the single ` +
     `thread's at every step, every pair in its order; ${inOrder} steps in the single thread's order`,
 );

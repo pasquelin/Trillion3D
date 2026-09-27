@@ -20,6 +20,9 @@ import { body, FLAT } from './records.fixture.ts';
 
 const GENERATION = 1 << GENERATION_SHIFT;
 
+/** The pile's budget: its 42 bodies within 64, every step's enters within 256. */
+export const PILE_BUDGET = { bodies: 64, contactEvents: 256 };
+
 /** One step of the pile: the enters dropped, the poses sorted (a pool's threads list the active
  *  bodies in the order they ran), the events in the order the module sent them; words joined. */
 export interface PileStep {
@@ -64,7 +67,8 @@ export function pile(jolt: JoltModule, steps: number, bound = (_step: number) =>
   for (let s = 0; s < steps; s++) {
     if (s === 90) for (let i = 1; i <= 40; i += 7) writer.velocity(i, [0, 8, 1]);
     if (s === 130) for (let i = 2; i <= 40; i += 9) writer.remove(i);
-    if (bound(s)) jolt.concurrency(bound(s));
+    const jobs = bound(s);
+    if (jobs) jolt.concurrency(jobs);
     const count = jolt.step(writer.length ? writer.take() : null, 1 / 60);
     const poses = records(jolt.poses(count), POSE_WORDS).sort();
     out.push({ dropped: jolt.dropped(), poses, events: records(jolt.events(), EVENT_WORDS) });
@@ -85,7 +89,9 @@ export function pairOrder(steps: PileStep[]) {
     events.forEach((words) => {
       const [type, a, b, impulse] = words.split(',');
       const key = `${a},${b}`;
-      pairs.set(key, [...(pairs.get(key) ?? []), `${s}:${type}:${impulse}`]);
+      let list = pairs.get(key);
+      if (!list) pairs.set(key, (list = []));
+      list.push(`${s}:${type}:${impulse}`);
     }),
   );
   return Object.fromEntries([...pairs].sort(([x], [y]) => (x < y ? -1 : 1)));
