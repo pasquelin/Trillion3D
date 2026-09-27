@@ -154,7 +154,7 @@ test('the admission joins the read under way; the job drops what nobody joined',
   // The job ends: the reads still queued that nobody joined leave the queue, never transferred.
   reads.abort();
   await new Promise((resolve) => setTimeout(resolve, 10));
-  assert.deepEqual(fetched, ['http://cache/g0.bin', ...fetched.slice(1)]);
+  assert.equal(fetched[0], 'http://cache/g0.bin');
   assert.ok(fetched.length <= 2 && !fetched.includes('http://cache/g2.bin'), String(fetched));
   streamer.dispose();
 });
