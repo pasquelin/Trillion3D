@@ -73,7 +73,7 @@ const config: KnipConfig = {
   // Rust is a platform tool; DaisyUI is loaded by Tailwind; the site build copies SVG files of
   // flag-icons by path (`scripts/docs/build-flags.ts`), importing no module of it.
   ignoreDependencies: ['daisyui', 'flag-icons'],
-  ignoreBinaries: ['rustc', 'emcmake', 'cmake', 'em-config', 'brotli'],
+  ignoreBinaries: ['rustc', 'emcmake', 'cmake', 'em-config'],
 };
 
 export default config;
