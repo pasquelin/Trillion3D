@@ -3,7 +3,7 @@ import type {
   HostDiagnosticMaterial,
   HostMaterials,
 } from '../../../packages/sdk-browser/src/host/resources.ts';
-import type { GraphMesh } from '../../../packages/sdk-browser/src/host/graph/mesh.ts';
+import type { HostMesh } from '../../../packages/sdk-browser/src/host/resources.ts';
 import { GraphSurface } from '../../../packages/sdk-browser/src/host/graph/surface.ts';
 import { Color } from '../../../packages/sdk-core/src/world/math/color.ts';
 import { pageDiagnostics } from '../../../packages/sdk-browser/src/host/pageDiagnostics.ts';
@@ -19,7 +19,7 @@ import type { DiagnosticMode } from '../../../packages/sdk-core/src/index.ts';
 import type { Geometry } from '../../../packages/sdk-core/src/world/geometry/geometry.ts';
 
 type MaterialsOptions = {
-  blendCopies: GraphMesh[];
+  blendCopies: HostMesh[];
   viewport: readonly [number, number] | undefined;
   readonly diagnostic: DiagnosticMode;
   /** Engine camera of the last frame, absent as long as no frame has been rendered. */
@@ -86,7 +86,7 @@ export function createExactPagesMaterials(options: MaterialsOptions) {
     }
     return material as GraphSurface;
   };
-  const paint = (mesh: GraphMesh, sourceGeometry: Geometry, material: HostMaterials, salt = 0) => {
+  const paint = (mesh: HostMesh, sourceGeometry: Geometry, material: HostMaterials, salt = 0) => {
     mesh.material = material;
     mesh.geometry =
       options.diagnostic === 'wireframe'

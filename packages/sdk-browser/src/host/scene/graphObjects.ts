@@ -10,7 +10,7 @@
 import { Box3 } from '../../../../sdk-core/src/world/math/box3.ts';
 import { Vector3 } from '../../../../sdk-core/src/world/math/vector3.ts';
 import { GraphCamera } from '../graph/camera.ts';
-import { GraphMesh } from '../graph/mesh.ts';
+import { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts';
 import type { GraphSurface } from '../graph/surface.ts';
 import type { HostBox } from '../resources.ts';
 import type { HostCamera } from '../../camera/world.ts';
@@ -36,7 +36,7 @@ export const hostBox = (flat: ArrayLike<number>): HostBox =>
 /** A copy of `mesh` sharing its geometry and its surface, posed by whoever asked for it:
  *  replication copies transforms alone, and a resource is never rebuilt. */
 export const hostMeshCopy = (mesh: HostGraphMesh): HostGraphMesh =>
-  new GraphMesh(
+  new Mesh(
     mesh.geometry as unknown as Geometry,
     mesh.material as unknown as GraphSurface | GraphSurface[],
   );

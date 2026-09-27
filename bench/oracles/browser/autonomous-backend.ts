@@ -1,4 +1,4 @@
-import { GraphMesh } from '../../../packages/sdk-browser/src/host/graph/mesh.ts';
+import { Mesh } from '../../../packages/sdk-core/src/world/object/mesh.ts';
 import type { GraphScene } from '../../../packages/sdk-browser/src/host/graph/scene.ts';
 import type { GraphSurface } from '../../../packages/sdk-browser/src/host/graph/surface.ts';
 import { asHostLibrary } from '../../../packages/sdk-browser/src/host/resources.ts';
@@ -30,7 +30,7 @@ export function referenceAutonomousSync({
   const attach = (rec: PageRec) => {
     if (!rec.geometry) return;
     if (!rec.mesh) {
-      const mesh = new GraphMesh(
+      const mesh = new Mesh(
         asHostLibrary<Geometry>(rec.geometry),
         asHostLibrary<GraphSurface>(rec.material),
       );

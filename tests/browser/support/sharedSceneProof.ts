@@ -43,7 +43,7 @@ export function batisseur() {
     materials: G.GraphSurface[] = [];
   return {
     source,
-    ajoute(mesh: G.GraphMesh, pass: string, demi: number) {
+    ajoute(mesh: G.HostMesh, pass: string, demi: number) {
       const rang = primitives.length,
         rayon = demi * Math.SQRT2;
       const pages: Page[] = [0, 1].map((id) => ({
