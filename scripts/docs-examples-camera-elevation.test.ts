@@ -41,16 +41,10 @@ test('the house elevations use parallel rays and keep their scale across camera 
   const previousResizeObserver = globalThis.ResizeObserver;
   const previousAddEventListener = globalThis.addEventListener;
   globalThis.ResizeObserver = class {
-    private readonly callback: ResizeObserverCallback;
-    constructor(callback: ResizeObserverCallback) {
-      this.callback = callback;
-    }
-    observe() {
-      this.callback([], this as never);
-    }
+    observe() {}
     disconnect() {}
     unobserve() {}
-  };
+  } as never;
   globalThis.addEventListener = ((type: string, listener: (event: Event) => void) => {
     if (type === 'pagehide') pagehide = listener;
   }) as typeof globalThis.addEventListener;
