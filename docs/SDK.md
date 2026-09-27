@@ -124,6 +124,18 @@ page once), the last event with
 `completed === total`. One callback given to both drives a progress bar from the first byte to
 the first pages (example `watch-a-world-load`).
 
+A model's vertices stay on the server until something reads them: `scene.load` reads no vertex
+buffer (`source.bin`), the pages draw the model. The buffer is read once, on the first need: a
+cluster no geometry page covers, a see-through copy drawn whole, a witness renderer. A page that
+reads a loaded mesh's vertices itself awaits `geometry.loadVertices()` first; before it, `array`,
+`getX` and every synchronous read of them throw `VERTICES_NOT_LOADED`, never an empty array.
+`count` is known at once.
+
+```ts
+await geometry.loadVertices(); // reads the model's buffer once, whichever mesh asks first
+const x = geometry.attributes.position.getX(0);
+```
+
 A host that probes a cache before opening it — to enable a button, to tell a user to recompile —
 calls `assertCachePointer(pointer, scope)` and `assertCacheRoot(root, scope)` on the pointer and on
 `clusters.json`: the first returns the cache URL the pointer names, and both raise an `EngineError`
