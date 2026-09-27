@@ -12,14 +12,11 @@ import type { DagRoot } from './types.ts';
 
 /**
  * The EVICTION QUEUE the GPU cut publishes on its readback (#872, `shader/evictWgsl.ts`). The cache
- * evicts per content key (`pageAddress`), the GPU stamps per placement: each page's word in the key
- * column names its address's first page, its CANONICAL page, where every placement stamps — so that
- * stamp is the key's last use — and whose word carries the key's coarsest level (#824). Order: finer
- * level first, so a child leaves before its parent (#477), then oldest use first; a key the latest
- * cut read is never listed; at most the pool's slots.
+ * evicts per content key (`pageAddress`), the GPU stamps per placement: a page's key word, shaped
+ * as a request word, names its address's first page — its CANONICAL page, where every placement
+ * stamps — and carries the key's coarsest level (#824). Finer level first, so a child leaves before
+ * its parent (#477), then oldest use; a key the latest cut read is never listed.
  */
-
-/** A key word is a request word (`request.ts`): the canonical page below, the level above. */
 export { KEY_PAGE_BITS };
 /** Levels and age steps the rank tells apart: the two halves of the request word's rank field. */
 export const EVICT_LEVELS = 32,
