@@ -1,6 +1,15 @@
 import type { Material } from '../../../sdk-core/src/index.ts';
+import type { AlphaMode } from '../../../sdk-core/src/contracts/material.ts';
 import type { DecodedGeometryPage } from '../page/decode/geometryPage.ts';
 import type { PlacementRows } from './rows.ts';
+
+/** How a material's alpha moved (`world/api/materialApi.ts`, #846): the host surfaces written,
+ *  and the modes before and after — equal when only a cutout's cutoff moved. */
+export type AlphaChange = { surfaces: readonly object[]; from: AlphaMode; to: AlphaMode };
+
+/** A change into or out of blended: the one that moves drawables between draw families. */
+export const blendMoves = ({ from, to }: AlphaChange) =>
+  from !== to && (from === 'blend' || to === 'blend');
 
 /** What an engine lets a host change in the scene it prepared, without preparing it again. */
 export interface BackendSceneUpdates {
@@ -30,8 +39,14 @@ export interface BackendSceneUpdates {
    *  again at the next frame, no table rebuilt. Absent, or false for this change — a map whose
    *  picture changed size where its layout is fixed (#362) —, the owner opens the session again.
    *  `values` false when only their textures moved — a picture, a sampling, a placement —: the
-   *  frame follows those itself, and nothing a value feeds, a page-table row, is written again. */
-  refreshMaterials?(values?: boolean): boolean | void;
+   *  frame follows those itself, and nothing a value feeds, a page-table row, is written again.
+   *  `alpha` when surfaces changed alpha mode or cutoff, a class change the engine said it takes
+   *  (`materialClassRefusal`): their drawables go to the family the open would give them, and
+   *  what their cutout shadowed is drawn again. */
+  refreshMaterials?(values?: boolean, alpha?: AlphaChange): boolean | void;
+  /** Why the engine cannot move these surfaces from `from` to `to` inside the session, `undefined`
+   *  when it can; asked before any write. Absent, it moves every one (`alpha`). */
+  materialClassRefusal?(alpha: AlphaChange): string | undefined;
   /** Repaints a primitive from the engine's material parameters: no shader, no program hook. */
   updateMaterial?(primitive: string, material: Material): void;
 }

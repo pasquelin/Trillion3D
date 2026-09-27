@@ -1,5 +1,5 @@
-// Refuses a pull request body that does not start with "Closes #<issue>" or that says
-// "Part of #<issue>" (one pull request closes one issue, AGENTS.md rule 5), or whose
+// Refuses a pull request body that does not start with "Closes #<issue>" or "Part of #<issue>",
+// or that says both (AGENTS.md rule 5), or whose
 // "Local review before push" section lacks its simplification and correctness lines once HTML
 // comments are removed. "Lead verification" is required unless PR_DRAFT=true: a draft waits for
 // its lead. Usage: [PR_DRAFT=true] node scripts/check-pr-body.ts < body  (the CI feeds it the
@@ -21,9 +21,10 @@ function section(lines: string[], title: string): string[] {
 /** The first rule the body breaks, or undefined when it passes. */
 export function bodyProblem(raw: string, draft: boolean): string | undefined {
   const body = raw.replace(/<!--[\s\S]*?-->/g, '');
-  if (/Part of #\d+/.test(body))
-    return 'The body says "Part of #<issue>": one pull request closes one issue; an issue too big for one goes back to the CTO, who splits it (AGENTS.md rule 5).';
-  if (!/^Closes #\d+/m.test(body)) return 'The body must start with "Closes #<issue>".';
+  if (!/^(Closes|Part of) #\d+/m.test(body))
+    return 'The body must start with "Closes #<issue>", or "Part of #<issue>" for a step.';
+  if (/Closes #\d+/.test(body) && /Part of #\d+/.test(body))
+    return 'The body says both "Closes" and "Part of"; a step says "Part of" (AGENTS.md rule 5).';
   const lines = body.split('\n');
   const review = section(lines, 'Local review before push');
   if (!review.join('').trim())
