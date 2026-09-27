@@ -1,7 +1,7 @@
 /**
  * Buoyancy in the physics worker: with a body of water declared, every step first asks the module
- * which pieces of the awake bodies reach the water, gives each its water plane from the wave
- * model, and runs the BUOYANCY command before the page's commands and the step. All of it runs in
+ * which pieces of the awake bodies reach the water and their water planes from the wave model,
+ * and runs the BUOYANCY command before the page's commands and the step. All of it runs in
  * the physics thread; the page thread only declares the water.
  */
 import {
@@ -47,8 +47,10 @@ export function createWaterStep() {
       if (!water || dt <= 0) return jolt.step(queued, dt);
       water.waves.setTime(time);
       time += dt;
-      const pieces = jolt.water(water.level + water.waves.crest, cut);
-      const count = words.write(water, pieces, pieces.length / WATER_PIECE_WORDS, queued);
+      const pieces = jolt.water(water.level + water.waves.crest, cut).length / WATER_PIECE_WORDS;
+      const planes = jolt.planes(water.waves, water.level, water.sample, pieces);
+      // Written first: a step larger than the last grows `words.words`.
+      const count = words.write(water, planes, queued);
       return jolt.step(words.words, dt, count);
     },
   };
