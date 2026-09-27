@@ -4,10 +4,11 @@ import { createDrawOrder, type OrderedNode } from './drawOrder.ts';
 import { depthOf } from './meshDepth.ts';
 import { serialOf } from '../../host/graph/serial.ts';
 import { random } from '../../page/cut/cutRuleChecks.fixture.ts';
+import { IDENTITY_ELEMENTS } from '../../math/matrixElements.ts';
 
 /** The screen the depths are read through: the identity, so a node's depth is its centre's z
  *  over its matrix's w (`node` below). */
-const SCREEN = new Float64Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);
+const SCREEN = IDENTITY_ELEMENTS;
 const EDGES = [NaN, 0, -0, Infinity, -Infinity, 1e308, -1e308, 5e-324];
 
 /** A test's node: its own bounding sphere, which its depth reads first, and maybe a number. */
