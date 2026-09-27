@@ -2059,7 +2059,12 @@
       "geometry": "Hình dạng của mesh; đặt một hình học khác để thay đổi nó.",
       "material": "Vật liệu của mesh, hoặc một cho mỗi nhóm; đặt một cái khác để thay đổi nó.",
       "localBounds": "Hộp của nội dung riêng của node này, khung cục bộ; một node thông thường không chứa cái nào cả.",
-      "physics": "Lưới như một vật của vật lý thế giới, `null` nếu không phải. Đặt `'static'`, `'dynamic'`, `'kinematic'` hoặc tùy chọn; hình được suy ra từ hình học."
+      "physics": "Lưới như một vật của vật lý thế giới, `null` nếu không phải. Đặt `'static'`, `'dynamic'`, `'kinematic'` hoặc tùy chọn; hình được suy ra từ hình học.",
+      "serial": "Số của nút, duy nhất trong phiên.",
+      "morphTargetInfluences": "Trọng số của mỗi mục tiêu morph, khi hình học khai báo.",
+      "morphTargetDictionary": "Thứ hạng của mỗi mục tiêu morph theo tên.",
+      "updateMorphTargets": "Một trọng số bằng không cho mỗi mục tiêu morph của thuộc tính biến dạng đầu tiên, đặt tên theo thứ hạng.",
+      "copy": "Lấy các giá trị của `source`, và bản sao các con của nó trừ khi được bảo không."
     }
   },
   "Mixer": {
@@ -7393,18 +7398,6 @@
       "handbrake": "Phanh tay có đang kéo không."
     }
   },
-  "GraphMesh": {
-    "summary": "Một nút được vẽ: một hình học và bề mặt của nó, hoặc một bề mặt cho mỗi nhóm hình học.",
-    "members": {
-      "kind": "Vẽ tại một vị trí đặt, hoặc tại nhiều vị trí (`GraphInstancedMesh`).",
-      "morphTargetInfluences": "Trọng số của mỗi mục tiêu morph, khi hình học khai báo.",
-      "morphTargetDictionary": "Thứ hạng của mỗi mục tiêu morph theo tên.",
-      "geometry": "Hình dạng của nó.",
-      "material": "Bề mặt của nó, hoặc một bề mặt cho mỗi nhóm hình học.",
-      "updateMorphTargets": "Một trọng số bằng không cho mỗi mục tiêu morph của thuộc tính biến dạng đầu tiên, đặt tên theo thứ hạng.",
-      "copy": "Lấy các giá trị của `source`, và bản sao các con của nó trừ khi được bảo không."
-    }
-  },
   "GraphNode": {
     "summary": "Một nút của đồ thị: nút của lõi, phân biệt bằng `kind` của nó, được sao chép bằng `clone` của lõi.",
     "members": {
@@ -7413,7 +7406,7 @@
     }
   },
   "GraphNodeKind": {
-    "summary": "Một nút của đồ thị là gì: gốc, một lưới được vẽ (tại một vị trí hoặc nhiều), một con mắt, hoặc một trong các nguồn sáng mà cảnh khai báo."
+    "summary": "Một nút của đồ thị là gì: gốc, một con mắt, hoặc một trong các nguồn sáng mà cảnh khai báo."
   },
   "GraphSurface": {
     "summary": "Một bề mặt: các tham số của một họ, theo giá trị của bản tham chiếu trừ khi cảnh nói khác.",

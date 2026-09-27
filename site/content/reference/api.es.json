@@ -4071,7 +4071,12 @@
       "geometry": "La forma de la malla; da otra geometría para cambiarla.",
       "material": "El material de la malla, o uno por grupo; da otro para cambiarlo.",
       "localBounds": "La caja del contenido propio de este nodo, en su sistema local; un nodo simple no tiene ninguna.",
-      "physics": "La malla como cuerpo de la física del mundo, `null` si no lo es. Pon `'static'`, `'dynamic'`, `'kinematic'` u opciones; la forma se deduce de la geometría."
+      "physics": "La malla como cuerpo de la física del mundo, `null` si no lo es. Pon `'static'`, `'dynamic'`, `'kinematic'` u opciones; la forma se deduce de la geometría.",
+      "serial": "El número del nodo, único en la sesión.",
+      "morphTargetInfluences": "El peso de cada objetivo de morph, cuando la geometría declara alguno.",
+      "morphTargetDictionary": "El rango de cada objetivo de morph por su nombre.",
+      "updateMorphTargets": "Un peso cero por objetivo de morph del primer atributo deformado, nombrado por su rango.",
+      "copy": "Toma los valores de `source`, y copias de sus hijos salvo que se indique lo contrario."
     }
   },
   "metric": {
@@ -7462,20 +7467,8 @@
     },
     "summary": "Una imagen y el estado de muestreo con el que se lee, y la transformación de sus coordenadas."
   },
-  "GraphMesh": {
-    "summary": "Un nodo dibujado: una geometría y su superficie, o una superficie por grupo de la geometría.",
-    "members": {
-      "kind": "Dibujada en una colocación, o en varias (`GraphInstancedMesh`).",
-      "morphTargetInfluences": "El peso de cada objetivo de morph, cuando la geometría declara alguno.",
-      "morphTargetDictionary": "El rango de cada objetivo de morph por su nombre.",
-      "geometry": "Su forma.",
-      "material": "Su superficie, o una por grupo de la geometría.",
-      "updateMorphTargets": "Un peso cero por objetivo de morph del primer atributo deformado, nombrado por su rango.",
-      "copy": "Toma los valores de `source`, y copias de sus hijos salvo que se indique lo contrario."
-    }
-  },
   "GraphNodeKind": {
-    "summary": "Qué es un nodo del grafo: la raíz, una malla dibujada (en una colocación o en varias), un ojo, o una de las luces que declara una escena."
+    "summary": "Qué es un nodo del grafo: la raíz, un ojo, o una de las luces que declara una escena."
   },
   "Joint": {
     "summary": "Una unión entre dos cuerpos, o entre un cuerpo y el mundo (`b` null), creada con `joint.*` y añadida a la simulación con `world.physics.add`.",

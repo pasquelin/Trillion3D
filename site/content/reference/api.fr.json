@@ -4079,7 +4079,12 @@
       "geometry": "La forme du maillage ; donne une autre géométrie pour la changer.",
       "material": "Le matériau du maillage, ou un par groupe ; donnes-en un autre pour le changer.",
       "localBounds": "La boîte du contenu propre à ce nœud, dans son repère local ; un simple nœud n’en a pas.",
-      "physics": "Le maillage comme corps de la physique du monde, `null` s’il n’en est pas un. Mets `'static'`, `'dynamic'`, `'kinematic'` ou des options ; la forme est déduite de la géométrie."
+      "physics": "Le maillage comme corps de la physique du monde, `null` s’il n’en est pas un. Mets `'static'`, `'dynamic'`, `'kinematic'` ou des options ; la forme est déduite de la géométrie.",
+      "serial": "Le numéro du nœud, unique dans la session.",
+      "morphTargetInfluences": "Le poids de chaque cible de morphose, quand la géométrie en déclare.",
+      "morphTargetDictionary": "Le rang de chaque cible de morphose, par son nom.",
+      "updateMorphTargets": "Un poids nul par cible de morphose du premier attribut déformé, nommée par son rang.",
+      "copy": "Prend les valeurs de `source`, et des copies de ses enfants sauf avis contraire."
     }
   },
   "metric": {
@@ -7462,20 +7467,8 @@
     },
     "summary": "Une image et l’état d’échantillonnage avec lequel elle est lue, et la transformation de ses coordonnées."
   },
-  "GraphMesh": {
-    "summary": "Un nœud dessiné : une géométrie et sa surface, ou une surface par groupe de la géométrie.",
-    "members": {
-      "kind": "Dessiné à un emplacement, ou à plusieurs (`GraphInstancedMesh`).",
-      "morphTargetInfluences": "Le poids de chaque cible de morphose, quand la géométrie en déclare.",
-      "morphTargetDictionary": "Le rang de chaque cible de morphose, par son nom.",
-      "geometry": "Sa forme.",
-      "material": "Sa surface, ou une par groupe de la géométrie.",
-      "updateMorphTargets": "Un poids nul par cible de morphose du premier attribut déformé, nommée par son rang.",
-      "copy": "Prend les valeurs de `source`, et des copies de ses enfants sauf avis contraire."
-    }
-  },
   "GraphNodeKind": {
-    "summary": "Ce qu’est un nœud du graphe : la racine, un maillage dessiné (à un emplacement ou plusieurs), un œil, ou l’une des lumières qu’une scène déclare."
+    "summary": "Ce qu’est un nœud du graphe : la racine, un œil, ou l’une des lumières qu’une scène déclare."
   },
   "Joint": {
     "summary": "Une liaison entre deux corps, ou entre un corps et le monde (`b` à null), créée par `joint.*` et ajoutée à la simulation par `world.physics.add`.",
