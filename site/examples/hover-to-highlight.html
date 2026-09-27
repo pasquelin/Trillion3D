@@ -92,9 +92,24 @@
 
       world.scene.add(
         light.hemisphere({ color: '#dbeeff', groundColor: '#29323a', intensity: 1.2 }),
-        light.directional({ color: '#fff0cf', intensity: 3, position: [-5, 9, 7] }),
+        light.directional({
+          color: '#fff0cf',
+          intensity: 3,
+          position: [-5, 9, 7],
+          castShadow: true,
+        }),
       );
-      world.camera.position.set(7, 5, 8);
+      // The floor the cart stands on: not a part, so the ray never picks it.
+      const floor = object.mesh(
+        geometry.box(16, 0.2, 12),
+        material.meshStandard({ color: '#34414e', roughness: 0.9 }),
+      );
+      floor.name = 'floor';
+      floor.position.y = 0.05;
+      floor.receiveShadow = true;
+      floor.castShadow = false;
+      world.scene.add(floor);
+      world.camera.position.set(6, 4.2, 7);
       world.camera.lookAt(0, 1.5, 0);
       world.controls.target.set(0, 1.5, 0);
       world.invalidate();
