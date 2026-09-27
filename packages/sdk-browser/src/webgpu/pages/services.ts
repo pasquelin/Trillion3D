@@ -167,7 +167,7 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     getCache: () => gpu.cache,
     getFrame: () => run.frame,
     updatePins: pins.cpu,
-    admitRequests: createRequestAdmission(residencySets, tracking.keyOf, bootstrapKey, closure),
+    admitRequests: createRequestAdmission(residencySets, tracking, bootstrapKey, closure),
     followRequestPins: pins.gpu,
     ensureResident,
     markLost: (error) => markWebgpuLost(rt, { reason: 'residency', message: String(error) }),

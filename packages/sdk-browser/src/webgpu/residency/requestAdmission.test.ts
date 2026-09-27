@@ -21,7 +21,7 @@ function gpuCut() {
   for (const page of w.packed)
     Object.defineProperty(page, 'level', { get: () => (levelReads++, 0), configurable: true });
   const closure = createGroupClosure([root], w.packed);
-  const admit = createRequestAdmission(w.sets, w.tracking.keyOf, w.bootstrapKey, closure);
+  const admit = createRequestAdmission(w.sets, w.tracking, w.bootstrapKey, closure);
   const pending = createCutPending(
     w.packed,
     closure.delta,
@@ -114,4 +114,6 @@ test('what the image draws outside the queue, with the groups it needs, holds it
   cut.image(5, ['x0', 'x1', 'x2', 'x3']);
   assert.deepEqual(cut.queue(), ['x0', 'x1'], 'five slots, three held: two admitted');
   assert.equal(cut.sets.cutFits, false, 'the lower tiers get nothing');
+  cut.image(5, ['a', 'x0', 'x1', 'x2']);
+  assert.deepEqual(cut.queue(), ['a', 'b', 'm', 'x0', 'x1'], 'a held page takes no new slot');
 });
