@@ -27,9 +27,6 @@ struct Soft {
 };
 
 std::vector<Soft> softs;
-/// Each slot's place in `softs`, kept in step with it by `addSoft` and `writeSoft`'s compaction:
-/// a teleport finds its body without a scan (PHY-22, #975). Stale for a slot no soft body holds.
-std::vector<uint32_t> softAt;
 std::vector<uint32_t> state;
 
 /// The settings a SOFT command carries into `shared`: restored from the cooked bytes it holds
@@ -95,18 +92,15 @@ bool addSoft(const uint32_t *w) {
   slot.engine = engine;
   slot.used = slot.soft = true;
   world.engineOf[body->GetID().GetIndex()] = engine;
+  slot.softAt = uint32_t(softs.size());
   softs.push_back({index, engine, vec3(w + 2), Vec3::sReplicate(1) / vec3(w + 9), quat(w + 5).Conjugated()});
-  if (softAt.size() < world.slots.size()) softAt.resize(world.slots.size());
-  softAt[index] = uint32_t(softs.size() - 1);
   return true;
 }
 
 void teleportSoft(const Slot &slot, Vec3 position, Quat rotation) {
   World &world = trillion::world();
-  const uint32_t index = slot.engine & INDEX_MASK;
-  if (index >= softAt.size() || softAt[index] >= softs.size()) return;
-  Soft &soft = softs[softAt[index]];
-  if (soft.engine != slot.engine) return;
+  // Found by its slot, not by a scan (PHY-22, #975): `addSoft` and `writeSoft` keep it in step.
+  Soft &soft = softs[slot.softAt];
   // Jolt keeps the body at the centre of its vertices, not at the place it was made: the turn
   // from the old place to the new one carries the body, and its vertices with it.
   BodyInterface &bodies = world.system->GetBodyInterfaceNoLock();
@@ -125,9 +119,9 @@ void writeSoft() {
   // Bodies removed since are dropped from the list; the others keep their order.
   size_t kept = 0;
   for (Soft &soft : softs) {
-    const Slot &slot = world.slots[soft.index];
+    Slot &slot = world.slots[soft.index];
     if (!slot.used || !slot.soft || slot.engine != soft.engine) continue;
-    softAt[soft.index] = uint32_t(kept);
+    slot.softAt = uint32_t(kept);
     softs[kept++] = soft;
     // Hidden by the page, it sends no vertex; shown again, it is written once, asleep or not.
     if (slot.flags & HIDDEN) {
