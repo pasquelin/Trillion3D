@@ -128,34 +128,14 @@ pub(super) fn compile_primitive(
     let mesh = *mesh_map
         .get(old)
         .ok_or_else(|| invalid("Missing mesh mapping"))?;
-    let mut attributes = Vec::<geometry_page::Attribute>::new();
-    if !unsplit {
-        for &(name, width, flag) in &geometry_page::PAGE_ATTRIBUTES {
-            if let Some(id) = p
-                .get("attributes")
-                .and_then(Value::as_object)
-                .and_then(|attributes| attributes.get(name))
-            {
-                let a = accessor(g, bin, required_index(Some(id), name)?, Some(validated))?;
-                if a.count != positions.count
-                    || (a.width != width && !(name == "COLOR_0" && a.width == 3))
-                {
-                    return Err(CompilerError::new(
-                        "INVALID_PAGE_ATTRIBUTE",
-                        format!("{name} count or width differs from POSITION"),
-                    ));
-                }
-                attributes.push(geometry_page::Attribute {
-                    flag,
-                    width: a.width,
-                    values: a.collect_f32()?,
-                });
-            }
-        }
-    }
+    let attributes = if unsplit {
+        Vec::new()
+    } else {
+        compiler_page_object::page_attributes(g, bin, p, positions.count, validated)?
+    };
     let carried = carried_attributes(&attributes, material);
-    let store_packed = |slice: &[u32], position_exponent: i32| -> Result<(Value, bool)> {
-        compiler_page_object::store_page(o, slice, &pos, &carried, position_exponent)
+    let store = |slice: &[u32], position_exponent: i32, uv_exponent: i32| {
+        compiler_page_object::store_page(o, slice, &pos, &carried, position_exponent, uv_exponent)
     };
     // Transparent primitives join the DAG too: their draw order is restored at runtime from the
     // recorded source rank, so spatial clustering no longer scrambles the blend order.
@@ -180,15 +160,25 @@ pub(super) fn compile_primitive(
         structure_report,
         stream_report,
         position_exponent,
+        uv_exponent,
         collision,
     } = if dag_primitive {
-        build_dag_primitive(o, &pos, &carried, &index_values, demand, &store_packed)?
+        build_dag_primitive(
+            o,
+            &pos,
+            &carried,
+            &index_values,
+            demand,
+            clustered_blend,
+            &store,
+        )?
     } else {
         DagResult::default()
     };
     let event = primitive_event(mesh, *primitive, pages.len(), timings, warnings);
     progress(event);
-    let quantization = compiler_page_object::quantization_report(&pages, position_exponent);
+    let quantization =
+        compiler_page_object::quantization_report(&pages, position_exponent, uv_exponent);
     Ok(CompiledPrimitive {
         cluster_planes,
         proxy_cut,
