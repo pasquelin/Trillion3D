@@ -112,7 +112,7 @@
         world,
       );
       world.invalidate();
-      world.onPageHide(() => world.dispose());
+      addEventListener('pagehide', () => world.dispose(), { once: true });
     </script>
   </body>
 </html>
