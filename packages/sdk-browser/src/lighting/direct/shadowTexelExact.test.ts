@@ -14,11 +14,6 @@ import {
 
 type Pair = [number, number];
 const f = Math.fround;
-/** WGSL's `round`: half-way cases to even. */
-const roundEven = (v: number) => {
-  const r = Math.round(v);
-  return r - v === 0.5 && r % 2 !== 0 ? r - 1 : r;
-};
 const hash = (x: number) => {
   let h = Math.imul(x ^ 0x9e3779b9, 0x85ebca6b);
   h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35);
@@ -57,12 +52,13 @@ function sampleCompare(at: Placed, uv: Pair, reference: number) {
     w[1] * ((1 - w[0]) * lit(0, 1) + w[0] * lit(1, 1))
   );
 }
-/** `shadowCompare` now: `t` snapped to its weight step's centre, then the integer offset. */
+/** `shadowCompare` now: `t` snapped to its weight step's centre (half-way up, `Math.round`),
+ *  then the integer offset. */
 const compareNow = (at: Placed, t: Pair, reference: number) =>
   sampleCompare(
     at,
     t.map((v, a) =>
-      f(f(at.offset[a] + roundEven(f(v * SHADOW_SUBTEXELS)) / SHADOW_SUBTEXELS) / at.texels),
+      f(f(at.offset[a] + Math.round(f(v * SHADOW_SUBTEXELS)) / SHADOW_SUBTEXELS) / at.texels),
     ) as Pair,
     reference,
   );
@@ -102,7 +98,7 @@ function* receivers(count: number) {
 test('the shadow read snaps its texel to the filter step, then adds the page’s integer offset', () => {
   const wgsl = directShadowWgsl(8, null, 18);
   for (const line of [
-    ' let at=offset.xy+round(t*SHADOW_SUBTEXELS)/SHADOW_SUBTEXELS;',
+    ' let at=offset.xy+floor(t*SHADOW_SUBTEXELS+0.5)/SHADOW_SUBTEXELS;',
     ' return textureSampleCompareLevel(shadowAtlas,shadowSampler,at/f32(textureDimensions(shadowAtlas).x),i32(offset.z),reference);',
     '  for(var tap=0u;tap<PCF_TAPS;tap++){lit+=shadowCompare(offset,t+POISSON[tap],reference);}',
     ' return lit*shadowThrough(offset+vec3f(first,0.0),t-first,reference);',
@@ -131,11 +127,11 @@ test('one page gives bit-identical PCF results at any place, layer and pool side
 });
 
 test('at develop’s pool size the read is develop’s arithmetic, done exactly', () => {
-  // Develop's weights without its sum's rounding: `t + tap − 0.5` on its nearest step, ties to even.
+  // Develop's weights without its sum's rounding: `t + tap − 0.5` on its nearest step, half-way up.
   const exact = (at: Placed, t: Pair, reference: number) =>
     POISSON_16.reduce((lit, tap) => {
       const x = [0, 1].map(
-        (a) => roundEven(f(t[a] + tap[a]) * SHADOW_SUBTEXELS) / SHADOW_SUBTEXELS - 0.5,
+        (a) => Math.round(f(t[a] + tap[a]) * SHADOW_SUBTEXELS) / SHADOW_SUBTEXELS - 0.5,
       );
       const i = x.map(Math.floor),
         w = x.map((v, a) => v - i[a]);
