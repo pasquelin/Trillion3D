@@ -26,7 +26,6 @@ import {
 } from '../site/app/examples/list.ts';
 import { loadDictionary } from '../site/content/i18n/dictionary.ts';
 import roadmap from '../site/content/gallery-roadmap.json' with { type: 'json' };
-
 const site = new URL('../site/', import.meta.url);
 const written = roadmapEntries.filter(({ file }) => file);
 const parked = written.filter(({ status }) => status === 'waiting-engine');
@@ -68,10 +67,12 @@ test('every example is one standalone HTML file that imports the built engine', 
     const html = await readFile(new URL(entry.file, site), 'utf8');
     if (entry.issue) assert.match(html, new RegExp(`// Waits for #${entry.issue}: `), entry.id);
     assert.match(html, /^<!doctype html>/);
-    assert.match(html, /<canvas id="view"><\/canvas>/);
+    assert.ok(
+      /<canvas id="view"><\/canvas>/.test(html) || /world\.canvas\.id = ['"]view['"]/.test(html),
+      entry.id,
+    );
     assert.match(html, /import \{ createWorld[^}]*\} from '\.\.\/runtime\/engine\.js'/);
     assert.doesNotMatch(html, /setDiagnostic|localhost|127\.0\.0\.1/);
-    // The kit, when used, is the one served beside the engine, and the thumbnail moment is valid.
     if (/runtime\/kit\.js/.test(html))
       assert.match(html, /import \{[^}]*\} from '\.\.\/runtime\/kit\.js'/, entry.id);
     thumbnailDelay(html);
@@ -168,7 +169,7 @@ test('an example is its file, live, on the demo page; the index shows what is re
   for (const entry of roadmapEntries) {
     const isWritten = Boolean(entry.file);
     assert.equal(
-      index.includes(`>${exampleTitle(entry.id, 'en')}</span></h2>`),
+      index.includes(`>${exampleTitle(entry.id, 'en')}</span></span></a>`),
       isWritten,
       entry.id,
     );
@@ -182,16 +183,15 @@ test('an example is its file, live, on the demo page; the index shows what is re
   assert.equal(thumbnailOf('no-such-example'), examplePlaceholder);
   for (const { ready: complete, parked: partial, coming } of themedEntries) {
     const positions = [...complete, ...partial].map(({ id }) =>
-      index.indexOf(`>${exampleTitle(id, 'en')}</span></h2>`),
+      index.indexOf(`>${exampleTitle(id, 'en')}</span></span></a>`),
     );
     assert.deepEqual(
       positions,
       [...positions].sort((a, b) => a - b),
     );
-    if (coming.length) {
-      const line = `Coming: ${coming.map(({ id }) => exampleTitle(id, 'en')).join(' · ')}`;
-      assert.ok(index.includes(line));
-      assert.ok(index.indexOf(line) > Math.max(-1, ...positions));
+    for (const { id } of coming) {
+      const tile = index.indexOf(`title="${exampleTitle(id, 'en')} — Coming"`);
+      assert.ok(tile > Math.max(-1, ...positions), id);
     }
   }
   const count = (pattern: RegExp) => (index.match(pattern) ?? []).length;

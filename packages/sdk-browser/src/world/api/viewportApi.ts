@@ -1,4 +1,5 @@
 import type { CameraPose } from '../../../../sdk-core/src/index.ts';
+import { numbered } from '../../host/graph/serial.ts';
 import { devicePixels, pixelRatioOf } from '../../backend/common.ts';
 import type { MeasuredWorldOptions, RenderBackend } from '../../backend/types.ts';
 import type { HostCamera } from '../../camera/world.ts';
@@ -40,7 +41,7 @@ export function createExplorerViewportApi(inputs: Inputs) {
       check();
       const active = getActive();
       if (!active.captureSurfaceView) throw new Error('SURFACE_CAPTURE_UNSUPPORTED');
-      const view = camera.clone();
+      const view = numbered(camera.clone());
       view.position.fromArray(pose.position);
       view.fov = pose.fov;
       view.near = pose.near;

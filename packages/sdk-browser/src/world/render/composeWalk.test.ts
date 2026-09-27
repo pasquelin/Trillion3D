@@ -7,7 +7,7 @@ import * as G from '../../host/graph/graph.fixture.ts';
 import { EffectChain } from '../../../../sdk-core/src/world/effect/chain.ts';
 import { effect } from '../../../../sdk-core/src/world/effect/index.ts';
 import { Group } from '../../../../sdk-core/src/world/object/object3d.ts';
-import { GraphScene } from '../../host/graph/scene.ts';
+import { Scene } from '../core/scene.ts';
 import { GraphSurface } from '../../host/graph/surface.ts';
 import { HOST_BLENDING_MULTIPLY } from '../../host/surfaceConstants.ts';
 import { session } from './composeSession.fixture.ts';
@@ -16,7 +16,7 @@ const FRAMES = 5;
 
 /** A nested graph drawn with `chain`, each read of a node's children counted in `visits()`. */
 function counted(chain: EffectChain) {
-  const scene = new GraphScene(),
+  const scene = new Scene(),
     group = new Group();
   group.add(G.triangleMesh(new GraphSurface('standard')));
   group.add(G.triangleMesh(new GraphSurface('standard', { transparent: true, opacity: 0.5 })));
@@ -64,7 +64,7 @@ test('a held frame walks nothing, with or without a chain', () => {
 });
 
 test('a surface the engine writes after its render is read by the refusal and the draw', () => {
-  const scene = new GraphScene().add(G.triangleMesh(new GraphSurface('standard')));
+  const scene = new Scene().add(G.triangleMesh(new GraphSurface('standard')));
   const view = session(scene, new EffectChain().add(effect.bloom()));
   const glass = G.triangleMesh(
     new GraphSurface('standard', {

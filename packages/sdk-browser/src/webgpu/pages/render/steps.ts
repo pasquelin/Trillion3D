@@ -1,5 +1,4 @@
 import type { PageRec } from '../../../page/selection/selection.ts';
-import { urlsOf } from '../helpers.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 
 /** The residency traces of the CPU path, each stamped with the time its step took. */
@@ -11,6 +10,7 @@ export function traceAdmission(
 ) {
   const { run, diag } = rt,
     { tracking, slots } = rt.setup;
+  if (!diag.traceEnabled) return;
   diag.traceDiagnostic('residency-admission', 'Admission of the requested sets', () => ({
     frame: run.frame,
     scope: 'cpu/residency-admission',
@@ -18,8 +18,8 @@ export function traceAdmission(
     requested: tracking.traceSet('admission.requested', [...requested]),
     // The cut admission weighs is the one just chosen; `run.desired` still carries the one the previous
     // image published, and therefore does not describe this pass.
-    wanted: tracking.traceSet('admission.wanted', urlsOf(wanted)),
-    loaded: tracking.traceSet('admission.loaded', urlsOf(run.drawn)),
+    wanted: tracking.traceRecs('admission.wanted', wanted),
+    loaded: tracking.traceRecs('admission.loaded', run.drawn),
     slots,
     limited: run.coverageBudgetLimited,
   }));
@@ -29,12 +29,13 @@ export function traceQueueReconstruct(rt: WebgpuPagesRuntime, elapsedMs: number)
   const { run, diag } = rt,
     { tracking } = rt.setup,
     { residency } = rt.services;
+  if (!diag.traceEnabled) return;
   diag.traceDiagnostic('residency-queue-reconstruct', 'Residency sets rebuilt', () => ({
     frame: run.frame,
     scope: 'cpu/residency-queue-reconstruct',
     elapsedMs,
-    requested: tracking.traceSet('reconstruct.requested', urlsOf(run.desired)),
-    queued: tracking.traceSet('reconstruct.queued', urlsOf(residency.items)),
+    requested: tracking.traceRecs('reconstruct.requested', run.desired),
+    queued: tracking.traceRecs('reconstruct.queued', residency.items),
     job: residency.job,
   }));
 }
@@ -42,13 +43,14 @@ export function traceQueueReconstruct(rt: WebgpuPagesRuntime, elapsedMs: number)
 export function traceDrawnVerify(rt: WebgpuPagesRuntime, elapsedMs: number) {
   const { run, diag, services } = rt,
     { tracking } = rt.setup;
+  if (!diag.traceEnabled) return;
   diag.traceDiagnostic('residency-drawn-verify', 'Resident coverage checked before encode', () => ({
     frame: run.frame,
     scope: 'cpu/residency-drawn-copy',
     elapsedMs,
-    shown: tracking.traceSet('drawn.shown', urlsOf(run.shown)),
-    drawn: tracking.traceSet('drawn', urlsOf(run.drawn)),
-    loaded: tracking.traceSet('drawn.loaded', urlsOf(run.drawn.filter(services.poolHolds))),
+    shown: tracking.traceRecs('drawn.shown', run.shown),
+    drawn: tracking.traceRecs('drawn', run.drawn),
+    loaded: tracking.traceRecs('drawn.loaded', run.drawn.filter(services.poolHolds)),
   }));
 }
 
