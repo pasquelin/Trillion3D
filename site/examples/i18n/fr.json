@@ -1,4 +1,22 @@
 {
+  "brushed-metal": {
+    "banner": "Tournez autour des reflets brossés. Changez leur force et leur direction.",
+    "controls": {
+      "anisotropy": "Force du brossage",
+      "direction": "Direction du brossage",
+      "roughness": "Rugosité",
+      "spin": "Rotation"
+    }
+  },
+  "car-paint-under-clear-coat": {
+    "banner": "Tournez autour de la voiture. Changez la peinture et le vernis qui la recouvre.",
+    "controls": {
+      "paint": "Peinture",
+      "clearCoat": "Vernis",
+      "coatRoughness": "Rugosité du vernis",
+      "spin": "Rotation"
+    }
+  },
   "kit": {
     "panel": {
       "controls": "Réglages"
