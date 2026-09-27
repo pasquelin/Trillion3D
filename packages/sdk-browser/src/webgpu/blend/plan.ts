@@ -133,6 +133,8 @@ export function buildBlendStatics(blendState: BlendState) {
   blendState.maxPlanEntries = entries;
   blendState.planRegions = planRegions(entries);
   blendState.runs = [new Uint32Array(entries * RUN_WORDS), new Uint32Array(entries * RUN_WORDS)];
+  // New runs buffers hold none of the old runs: the next ranking slices them whole.
+  blendState.runCount.fill(0);
 }
 
 /** First pipeline rank of an item's blend mode (`drawnBlending`, which refuses by name). */
@@ -186,6 +188,8 @@ export function refreshBlendPlan(blendState: BlendState) {
   // unranked plan: nobody rereads it, and a second copy of the same list would have to be kept in
   // agreement with the one that is painted.
   blendState.orders = [Uint32Array.from(blend), Uint32Array.from(transmission)];
+  // The old runs describe the old orders: the next ranking slices the new ones whole.
+  blendState.runCount.fill(0);
   blendState.orderMoved[0] = true;
   blendState.orderMoved[1] = true;
   blendState.blendTriangles = blendTriangles;

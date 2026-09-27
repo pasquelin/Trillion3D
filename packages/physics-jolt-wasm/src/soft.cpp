@@ -8,6 +8,7 @@
 #include <Jolt/Physics/SoftBody/SoftBodyCreationSettings.h>
 #include <Jolt/Physics/SoftBody/SoftBodyMotionProperties.h>
 
+#include <cmath>
 #include <cstring>
 
 using namespace JPH;
@@ -134,14 +135,22 @@ void writeSoft() {
     softs[kept - 1].awake = body.IsActive();
     const auto &motion = *static_cast<const SoftBodyMotionProperties *>(body.GetMotionProperties());
     RMat44 com = body.GetCenterOfMassTransform();
+    const size_t start = state.size();
     state.push_back(soft.engine);
     state.push_back(uint32_t(motion.GetVertices().size()));
+    bool finite = true;
     for (const SoftBodyVertex &v : motion.GetVertices()) {
       Vec3 local = soft.inverse * (Vec3(com * v.mPosition) - soft.origin) * soft.inverseScale;
       float xyz[3] = {local.GetX(), local.GetY(), local.GetZ()};
+      finite = finite && std::isfinite(xyz[0]) && std::isfinite(xyz[1]) && std::isfinite(xyz[2]);
       uint32_t words[3];
       std::memcpy(words, xyz, sizeof(words));
       state.insert(state.end(), words, words + 3);
+    }
+    // A diverged body sends no vertex: it leaves the simulation after the step (`jolt_step`).
+    if (!finite) {
+      state.resize(start);
+      world.diverged.push_back(soft.engine);
     }
   }
   softs.resize(kept);
