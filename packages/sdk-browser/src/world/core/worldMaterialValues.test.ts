@@ -37,7 +37,11 @@ test('a physical extension, a shininess, an opacity or a cutoff repaints its ent
   paint.alphaTest = 0;
   table.entryOf(paint);
   const [{ alpha }] = table.takeRepainted();
-  assert.deepEqual(alpha, { from: 'opaque', to: 'opaque' }, 'a cutout and back, its shadow redrawn');
+  assert.deepEqual(
+    alpha,
+    { from: 'opaque', to: 'opaque' },
+    'a cutout and back, its shadow redrawn',
+  );
   paint.alphaTest = 0.5;
   table.entryOf(paint);
   assert.deepEqual(table.takeRepainted()[0]!.alpha, { from: 'opaque', to: 'mask' });
@@ -75,7 +79,8 @@ test('a clearcoat changed for 60 frames never opens the session again', async ()
   let opened = 0;
   const refreshed: [boolean | undefined, AlphaChange | undefined][] = [];
   Object.assign(session, {
-    refreshMaterials: (values?: boolean, alpha?: AlphaChange) => refreshed.push([values, alpha]) > 0,
+    refreshMaterials: (values?: boolean, alpha?: AlphaChange) =>
+      refreshed.push([values, alpha]) > 0,
   });
   const open = (async () => (opened++, session)) as unknown as Open;
   const runtime = runtimeOf(scene, ready, (error) => assert.fail(String(error)), open);
