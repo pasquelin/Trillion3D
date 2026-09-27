@@ -35,7 +35,7 @@
     "jumpTo": "テーマへ移動",
     "waitsFor": "エンジンを待っています:",
     "partial": "一部対応",
-    "coming": "近日公開：{{titles}}"
+    "coming": "近日公開"
   },
   "gallery": {
     "themes": {
