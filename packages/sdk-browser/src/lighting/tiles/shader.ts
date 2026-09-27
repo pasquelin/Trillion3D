@@ -31,7 +31,7 @@ const WORDS = LIGHT_SETTINGS.tileSize ** 2 / 32; // one mask bit per thread, a t
  * zero, and the far plane is infinite — the background has no depth to unproject, so the
  * column's planes are read at a finite depth, which gives the same planes at any depth.
  */
-export const lightTilesShader = (subgroups: boolean) => `${subgroups ? 'enable subgroups;' : ''}
+const lightTilesShader = (subgroups: boolean) => `${subgroups ? 'enable subgroups;' : ''}
 struct TileView{inverseViewProjection:mat4x4f,viewport:vec4f,origin:vec4f,}
 @group(0) @binding(0) var depth:texture_depth_2d;
 @group(0) @binding(1) var<uniform> view:TileView;
