@@ -70,7 +70,8 @@ sha2 = "0.10"
 
 # The dev profile, which `cargo test` inherits, keeps file and line tables only (backtraces still
 # name file:line, dependencies included) and no incremental cache, so the build folder stays small
-# (#737); an edit rebuilds the crate whole. Every script builds with `--release`.
+# (#737); an edit rebuilds the crate whole, `cargo check` included. Every script builds with
+# `--release`, so this profile only reaches cargo run by hand and the editor.
 [profile.dev]
 debug = "line-tables-only"
 incremental = false
