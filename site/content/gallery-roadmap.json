@@ -970,6 +970,11 @@
       "file": "examples/ten-thousand-objects.html"
     },
     {
+      "id": "a-hundred-thousand-instances",
+      "theme": "streaming",
+      "file": "examples/a-hundred-thousand-instances.html"
+    },
+    {
       "id": "compressed-textures",
       "theme": "streaming",
       "file": "examples/compressed-textures.html"
@@ -1330,8 +1335,9 @@
     {
       "id": "outline-the-selection",
       "theme": "effects",
-      "file": "",
-      "status": "needs-engine"
+      "file": "examples/outline-the-selection.html",
+      "status": "waiting-engine",
+      "issue": 757
     },
     {
       "id": "edges-by-sobel",

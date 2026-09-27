@@ -32,7 +32,7 @@ function pictureOf(rgba: Uint8Array) {
  *  canvas (`materialImages.ts`), on the squares `sceneOf` places. */
 export function truthOf(
   fixture: Fixture,
-  camera: G.GraphCamera,
+  camera: G.Camera,
   reference: ArrayLike<number>,
   engine: ArrayLike<number>,
 ): { reading: TruthReading; images: { truth: string } } | undefined {

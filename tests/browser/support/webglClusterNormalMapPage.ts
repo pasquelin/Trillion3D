@@ -43,7 +43,7 @@ export function normalMapFrames(
 ) {
   const previous = mesh.material,
     previousUv = mesh.geometry.attributes.uv,
-    scene = new G.GraphScene(),
+    scene = new G.Scene(),
     sun = G.directionalLight(0xffffff, 1),
     texel: [number, number, number] = [160, 210, 230],
     tilt = decoded(...texel),
