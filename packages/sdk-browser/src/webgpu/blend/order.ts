@@ -1,7 +1,7 @@
 import { frustumExcludesBox } from '../../../../sdk-core/src/index.ts';
 import { blendFootprintHeld, holdBlendRanking } from './footprint.ts';
 import { resliceBlendRuns } from './runs.ts';
-import { planKeys, sortPlanFarToNear } from './sortPlan.ts';
+import { precedes, sortPlanFarToNear } from './sortPlan.ts';
 import { notDrawn } from '../../placement/hidden.ts';
 import type { BlendGpuItem, createWebgpuBlendState } from './state.ts';
 type BlendState = ReturnType<typeof createWebgpuBlendState>;
@@ -36,25 +36,24 @@ function eyeKey(item: BlendGpuItem, ex: number, ey: number, ez: number) {
 }
 
 /**
- * Sets each item's key and source rank, and copies the key into the flat array the plan sort reads
- * (`planKeys`). Nothing is allocated. False when a key is NaN: the sort then keeps to insertion.
+ * Sets each item's key and source rank, and copies the key into the scene's flat array the plan
+ * sort reads (`orderKeys`), grown only when the scene has more items.
  */
 function refreshEyeKeys(blendState: BlendState, eye: ArrayLike<number>) {
   const items = blendState.blendGpu,
-    keys = planKeys(items.length),
     ex = eye[0],
     ey = eye[1],
     ez = eye[2];
-  let ordered = true;
+  if (blendState.orderKeys.length < items.length)
+    blendState.orderKeys = new Float64Array(items.length);
+  const keys = blendState.orderKeys;
   for (let i = 0; i < items.length; i++) {
     const item = items[i],
       key = eyeKey(item, ex, ey, ez);
     item.orderRank = i;
     item.orderKey = key;
     keys[i] = key;
-    if (key !== key) ordered = false;
   }
-  return ordered;
 }
 
 /**
@@ -109,20 +108,6 @@ function rejectByFrustum(blendState: BlendState) {
 }
 
 /**
- * Total order both paths produce: decreasing key, then increasing source rank (`sortPlan.ts`).
- *
- * Rank breaks equal keys, so the result depends neither on the previous frame, nor on arrival
- * order, nor on the machine — two overlapping items cannot swap from one frame to the next, so
- * the image does not flicker. `true` says the already-placed entry must recede.
- */
-const precedes = (keyA: number, rankA: number, keyB: number, rankB: number) =>
-  keyA < keyB || (keyA === keyB && rankA > rankB);
-
-/** The order each runs buffer was last sliced from: a reseeded plan or a resized runs buffer is a
- *  new array, and a pair not on record is sliced whole. */
-const slicedFrom = new WeakMap<Uint32Array, Uint32Array>();
-
-/**
  * Ranking of the production path, and the run slicing it commands.
  *
  * Runs depend only on order: a ranking that moved nothing leaves them as they are, and the GPU
@@ -144,20 +129,19 @@ export function orderBlendPasses(blendState: BlendState, eye: ArrayLike<number> 
   }
   // Inputs bit-identical to the last ranking: it stands, mask and runs included (`footprint.ts`).
   if (blendFootprintHeld(blendState, eye)) return blendState.footprint.rejected;
-  const ordered = refreshEyeKeys(blendState, eye);
+  refreshEyeKeys(blendState, eye);
   const rejected = rejectByFrustum(blendState);
   const { orders, orderMoved, runs, runCount } = blendState;
   for (let pass = 0; pass < orders.length; pass++) {
     const order = orders[pass];
     // Runs a frame without an eye emptied are sliced again, even when the order held still.
     const voided = !runCount[pass] && order.length;
-    const first = sortPlanFarToNear(order, ordered);
+    const first = sortPlanFarToNear(order, blendState.orderKeys);
     if (first === order.length && !voided && !orderMoved[pass]) continue;
     orderMoved[pass] = true;
-    // Runs wholly before the first entry the sort rewrote are kept, when they are this order's.
-    const kept = slicedFrom.get(runs[pass]) === order ? runCount[pass] : 0;
-    runCount[pass] = resliceBlendRuns(order, runs[pass], kept, first);
-    slicedFrom.set(runs[pass], order);
+    // Runs wholly before the first entry the sort rewrote are kept: a new plan or runs buffer
+    // zeroes the count (`plan.ts`), and is then sliced whole.
+    runCount[pass] = resliceBlendRuns(order, runs[pass], runCount[pass], first);
   }
   holdBlendRanking(blendState.footprint, rejected);
   return rejected;

@@ -3,10 +3,8 @@ import { planItem } from './plan.ts';
 /**
  * FAR-TO-NEAR SORT OF A PASS'S PLAN, on the buffer the previous frame left (`order.ts`).
  *
- * The order is decreasing key, then increasing source rank: the rank breaks equal keys, so two
- * overlapping items cannot swap from one frame to the next. Both entries of a double-sided item
- * drawn in two passes carry the same rank: they never overtake each other, and the back stays in
- * front of the face.
+ * The order is `precedes`. Both entries of a double-sided item drawn in two passes carry the same
+ * rank: they never overtake each other, and the back stays in front of the face.
  *
  * A camera that moves little leaves the list almost sorted: insertion takes it back in one walk
  * and a few shifts. A camera jump (a teleport, a cut, a respawn) makes insertion quadratic: past a
@@ -22,19 +20,21 @@ import { planItem } from './plan.ts';
 const SHIFT_BUDGET_PER_ENTRY = 8,
   SHIFT_BUDGET_FLOOR = 256;
 
-/** Key of each ITEM, by source rank: written by the key walk, read by the gather below. */
-let itemKeys = new Float64Array(0);
+/**
+ * Total order both paths produce (`order.ts`): decreasing key, then increasing source rank.
+ *
+ * Rank breaks equal keys, so the result depends neither on the previous frame, nor on arrival
+ * order, nor on the machine — two overlapping items cannot swap from one frame to the next, so
+ * the image does not flicker. `true` says the already-placed entry must recede.
+ */
+export const precedes = (keyA: number, rankA: number, keyB: number, rankB: number) =>
+  keyA < keyB || (keyA === keyB && rankA > rankB);
+
 let sortKeys = new Float64Array(0),
   sortRanks = new Uint32Array(0),
   mergeKeys = new Float64Array(0),
   mergeRanks = new Uint32Array(0),
   mergeEntries = new Uint32Array(0);
-
-/** The per-item key array, at least `count` long: the key walk fills it before a sort. */
-export function planKeys(count: number) {
-  if (itemKeys.length < count) itemKeys = new Float64Array(Math.max(count, itemKeys.length * 2));
-  return itemKeys;
-}
 
 function growSortScratch(n: number) {
   if (sortKeys.length >= n) return;
@@ -63,9 +63,7 @@ function mergeSortPlan(order: Uint32Array, n: number) {
         k = lo;
       while (i < mid && j < hi) {
         // Right goes first only when it strictly precedes left: equal entries keep their order.
-        const kl = srcK[i],
-          kr = srcK[j];
-        const from = kl < kr || (kl === kr && srcR[i] > srcR[j]) ? j++ : i++;
+        const from = precedes(srcK[i], srcR[i], srcK[j], srcR[j]) ? j++ : i++;
         dstE[k] = srcE[from];
         dstK[k] = srcK[from];
         dstR[k++] = srcR[from];
@@ -95,41 +93,43 @@ function mergeSortPlan(order: Uint32Array, n: number) {
 }
 
 /**
- * Sorts `order` in place by the keys `planKeys` holds; `ordered` false (a NaN key) keeps pure
- * insertion. Returns the first position the sort rewrote, `order.length` when nothing moved: the
- * runs before it still describe the list (`runs.ts`).
+ * Sorts `order` in place by `keys`, one per item by source rank; a NaN key keeps pure insertion.
+ * Returns the first position the sort rewrote, `order.length` when nothing moved: the runs before
+ * it still describe the list (`runs.ts`).
  */
-export function sortPlanFarToNear(order: Uint32Array, ordered: boolean) {
+export function sortPlanFarToNear(order: Uint32Array, keys: Float64Array) {
   const n = order.length;
   if (n < 2) return n;
   growSortScratch(n);
-  const keys = sortKeys,
-    ranks = sortRanks,
-    byItem = itemKeys;
+  const sorted = sortKeys,
+    ranks = sortRanks;
+  let ordered = true;
   for (let k = 0; k < n; k++) {
-    const rank = planItem(order[k]);
-    keys[k] = byItem[rank];
+    const rank = planItem(order[k]),
+      key = keys[rank];
+    sorted[k] = key;
     ranks[k] = rank;
+    if (key !== key) ordered = false;
   }
   let budget = ordered ? SHIFT_BUDGET_PER_ENTRY * n + SHIFT_BUDGET_FLOOR : Infinity;
   let first = n;
   for (let i = 1; i < n; i++) {
     const entry = order[i],
-      movedKey = keys[i],
+      movedKey = sorted[i],
       movedRank = ranks[i];
     let j = i - 1;
     while (j >= 0) {
-      const heldKey = keys[j];
-      if (!(heldKey < movedKey || (heldKey === movedKey && ranks[j] > movedRank))) break;
+      const heldKey = sorted[j];
+      if (!precedes(heldKey, ranks[j], movedKey, movedRank)) break;
       order[j + 1] = order[j];
-      keys[j + 1] = heldKey;
+      sorted[j + 1] = heldKey;
       ranks[j + 1] = ranks[j];
       j--;
     }
     // One question per entry, not one write per shift.
     if (j + 1 === i) continue;
     order[j + 1] = entry;
-    keys[j + 1] = movedKey;
+    sorted[j + 1] = movedKey;
     ranks[j + 1] = movedRank;
     if (j + 1 < first) first = j + 1;
     budget -= i - j - 1;

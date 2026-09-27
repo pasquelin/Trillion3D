@@ -7,7 +7,7 @@ import { orderBlendPasses } from './order.ts';
 import { buildBlendStatics, planItem, refreshBlendPlan } from './plan.ts';
 import { blendSceneOf } from './plan.fixture.ts';
 import { buildBlendRuns, resliceBlendRuns, RUN_WORDS } from './runs.ts';
-import { planKeys, sortPlanFarToNear } from './sortPlan.ts';
+import { precedes, sortPlanFarToNear } from './sortPlan.ts';
 import type { BlendGpuItem } from './state.ts';
 
 type BlendState = ReturnType<typeof blendSceneOf>;
@@ -24,10 +24,7 @@ function developRanking(previous: Uint32Array, items: readonly BlendGpuItem[]) {
     let j = i - 1;
     for (; j >= 0; j--) {
       const held = items[planItem(order[j])];
-      const recedes =
-        held.orderKey < moved.orderKey ||
-        (held.orderKey === moved.orderKey && held.orderRank > moved.orderRank);
-      if (!recedes) break;
+      if (!precedes(held.orderKey, held.orderRank, moved.orderKey, moved.orderRank)) break;
       order[j + 1] = order[j];
     }
     order[j + 1] = entry;
@@ -156,12 +153,10 @@ test('runs resliced from any entry equal runs sliced whole', () => {
 
 test('the sort names an entry at or before the first it changed, merge fallback included', () => {
   const check = (keys: number[], order: number[], what: string) => {
-    const planned = planKeys(keys.length);
-    keys.forEach((key, rank) => (planned[rank] = key));
     const items = keys.map((orderKey, orderRank) => ({ orderKey, orderRank }) as BlendGpuItem);
     const before = Uint32Array.from(order, (rank) => rank << 6),
       after = before.slice();
-    const first = sortPlanFarToNear(after, true);
+    const first = sortPlanFarToNear(after, Float64Array.from(keys));
     assert.deepEqual(Array.from(after), developRanking(before, items).order, what);
     const changed = after.findIndex((entry, i) => entry !== before[i]);
     assert.ok(first <= (changed < 0 ? after.length : changed), `${what}: ${first} > ${changed}`);
