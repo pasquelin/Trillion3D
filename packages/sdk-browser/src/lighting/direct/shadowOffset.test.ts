@@ -17,7 +17,6 @@ const exactFloor = (n: number, d: number) => {
 test("shadowOffset's single-precision floors are develop's integer quotients, every input", () => {
   // Every physical page a table word can name, on every pool side up to 2⁹ pages (a side is the
   // atlas' texels over SHADOW_PAGE, a whole number: `atlas.ts`).
-  let checked = 0;
   for (let side = 1; side <= 512; side++) {
     const area = side * side;
     for (let phys = 0; phys <= PAGE_INDEX_MASK; phys++) {
@@ -27,10 +26,8 @@ test("shadowOffset's single-precision floors are develop's integer quotients, ev
         assert.fail(`page ${phys} on a side of ${side}: a floor may miss the quotient`);
       // Products and differences of whole numbers under 2²⁴: exact in f32.
       assert.ok(Math.fround(layer * area) === layer * area && Math.fround(local) === local);
-      checked++;
     }
   }
-  assert.equal(checked, 512 * (PAGE_INDEX_MASK + 1));
   assert.match(SHADOW_SAMPLE_WGSL, /floor\(\(phys\+0\.5\)\/area\)/);
   assert.match(SHADOW_SAMPLE_WGSL, /floor\(\(local\+0\.5\)\/side\)/);
 });

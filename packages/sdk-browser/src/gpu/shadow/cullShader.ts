@@ -51,7 +51,7 @@ fn keepCaster(face:u32,row:u32,capacity:u32){
    // β, sin β = r / d (#OMB-07): compared by cosines, cos(h + β)·d = cos h·√(d² − r²) − sin h·r,
    // with no inverse trigonometry. Only while h + β < π (sin(h + β) > 0); the margin keeps the test
    // conservative — a sphere it drops, the angles dropped too.
-   let h=volume.halfAngle;let ch=cos(h);let sh=sin(h);
+   let ch=cos(volume.halfAngle);let sh=sin(volume.halfAngle);
    let tangent=sqrt(max(distance*distance-sphere.radius*sphere.radius,0.0));
    let along=dot(delta,volume.axis);
    let limit=ch*tangent-sh*sphere.radius;
