@@ -16,6 +16,9 @@ import { LIGHT_KIND, LIGHT_SETTINGS, MAX_SHADOW_SLICES, POINT_FACES } from '../l
  */
 /** Side of a shadow page, in texels: the unit of the pool, of the virtual maps and of invalidation. */
 export const SHADOW_PAGE: number = LIGHT_SETTINGS.shadowPage;
+/** Steps a texel of the pool's comparison filter: its weights' 8 bits, the subtexel precision of
+ *  Direct3D and Metal. A shadow read snaps to their centres (`shadowCompare`). */
+export const SHADOW_SUBTEXELS = 256;
 /** Pages per side of a lamp face's finest mip. */
 export const LAMP_SIDE = Math.floor(LIGHT_SETTINGS.lampFaceSize / SHADOW_PAGE);
 export const SUN_LEVELS: number = LIGHT_SETTINGS.sunLevels;

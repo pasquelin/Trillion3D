@@ -4,6 +4,7 @@ import {
   PAGE_INDEX_MASK,
   PAGE_VALID,
   SHADOW_PAGE,
+  SHADOW_SUBTEXELS,
   SHADOW_TABLE_ENTRIES,
   SUN_LEVELS,
   lampMipOffset,
@@ -97,6 +98,7 @@ const PCF_TAPS:u32=${LIGHT_SETTINGS.pcfTaps}u;
 const SHADOW_NORMAL_TEXELS:f32=${LIGHT_SETTINGS.shadowNormalOffsetTexels};
 const SHADOW_PCF_REACH:f32=${PCF_REACH};
 const SHADOW_PAGE:f32=${SHADOW_PAGE}.0;
+const SHADOW_SUBTEXELS:f32=${SHADOW_SUBTEXELS}.0;
 const PAGE_VALID:u32=${PAGE_VALID}u;
 const PAGE_INDEX_MASK:u32=${PAGE_INDEX_MASK}u;
 const LAMP_MIP_OFFSET:array<u32,${LAMP_MIPS}>=array<u32,${LAMP_MIPS}>(${Array.from({ length: LAMP_MIPS }, (_, mip) => `${lampMipOffset(mip)}u`).join(',')});
@@ -138,11 +140,12 @@ fn shadowOffset(word:u32,p:vec2i)->vec3f{
  let local=phys%(side*side);
  return vec3f((vec2f(f32(local%side),f32(local/side))-vec2f(p))*SHADOW_PAGE,f32(phys/(side*side)));
 }
-/** Texels a side of a layer of the pool, derived from the screen (\`shadowPoolSize\`). */
-fn shadowAtlasTexels()->f32{return f32(textureDimensions(shadowAtlas).x);}
 ${shadowThroughWgsl(transmittanceBinding)}
+/** The comparison at map texel \`t\` of the page placed by \`offset\`, snapped to its weight step's
+ *  centre: exact plus the offset, it reads the page's content alone, wherever the pool puts it. */
 fn shadowCompare(offset:vec3f,t:vec2f,reference:f32)->f32{
- return textureSampleCompareLevel(shadowAtlas,shadowSampler,(offset.xy+t)/shadowAtlasTexels(),i32(offset.z),reference);
+ let at=offset.xy+round(t*SHADOW_SUBTEXELS)/SHADOW_SUBTEXELS;
+ return textureSampleCompareLevel(shadowAtlas,shadowSampler,at/f32(textureDimensions(shadowAtlas).x),i32(offset.z),reference);
 }
 /** Offset of the neighbour page \`p\` and 1 when it is readable; else the home page's and 0. */
 fn shadowNeighbour(m:ShadowMap,p:vec2i,home:vec3f)->vec4f{
@@ -169,11 +172,8 @@ fn shadowPcf(m:ShadowMap,t:vec2f,reference:f32,home:vec2i,homeWord:u32,side:f32)
  let offset=shadowOffset(homeWord,home);
  var lit=0.0;
  if(!any(edge)){
-  let texels=shadowAtlasTexels();let uv=(offset.xy+t)/texels;let layer=i32(offset.z);
-  for(var tap=0u;tap<PCF_TAPS;tap++){
-   lit+=textureSampleCompareLevel(shadowAtlas,shadowSampler,uv+POISSON[tap]/texels,layer,reference);
-  }
-  return shadowThroughLit(offset+vec3f(t,0.0),reference,lit/f32(PCF_TAPS));
+  for(var tap=0u;tap<PCF_TAPS;tap++){lit+=shadowCompare(offset,t+POISSON[tap],reference);}
+  return shadowThroughLit(offset,first,t,reference,lit/f32(PCF_TAPS));
  }
  let up=t-first>=vec2f(0.5*SHADOW_PAGE);
  let step=select(vec2i(-1),vec2i(1),up);
@@ -195,6 +195,6 @@ fn shadowPcf(m:ShadowMap,t:vec2f,reference:f32,home:vec2i,homeWord:u32,side:f32)
   if(all(edge)){sum+=(1.0-w.x)*(1.0-w.y)*shadowCompare(nd.xyz,select(h,n,nd.w>0.0),reference);}
   lit+=sum;
  }
- return shadowThroughLit(offset+vec3f(t,0.0),reference,lit/f32(PCF_TAPS));
+ return shadowThroughLit(offset,first,t,reference,lit/f32(PCF_TAPS));
 }
 ${SHADOW_FACTOR_WGSL}`;
