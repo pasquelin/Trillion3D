@@ -21,9 +21,16 @@
   <body>
     <canvas id="view"></canvas>
     <script type="module">
-      import { createWorld, animation } from '../runtime/engine.js';
-      import { geometry, light, material, math, object } from '../runtime/engine.js';
-      import { announceWhatToDo, controls } from '../runtime/kit.js';
+      import {
+        animation,
+        createWorld,
+        geometry,
+        light,
+        material,
+        math,
+        object,
+      } from '../runtime/engine.js';
+      import { controls } from '../runtime/kit.js';
 
       const world = createWorld('view', { controls: 'orbit' });
       world.scene.background = math.color('#172337');
@@ -57,27 +64,23 @@
         part.rotation.set(...rotation);
         horse.add(part);
       };
-      const horses = [];
+      const horses = [],
+        rest = 1.45;
       for (let index = 0; index < 8; index++) {
         const angle = (index / 8) * Math.PI * 2,
-          radius = index % 2 ? 3.25 : 2.25;
+          radius = index % 2 ? 3.25 : 2.25,
+          coat = index % 2 ? cream : blue;
         const x = Math.sin(angle) * radius,
           z = Math.cos(angle) * radius;
         const pole = object.mesh(poleShape, gold);
         pole.position.set(x, 2.15, z);
         const horse = object.group();
         horse.name = `horse${index}`;
-        horse.position.set(x, 1.45, z);
+        horse.position.set(x, rest, z);
         horse.rotation.set(0, angle + Math.PI / 2, 0);
-        addHorsePart(horse, bodyShape, index % 2 ? cream : blue, [0, 0, 0], [Math.PI / 2, 0, 0]);
-        addHorsePart(horse, neckShape, index % 2 ? cream : blue, [0, 0.42, -0.38], [0.4, 0, 0]);
-        addHorsePart(
-          horse,
-          headShape,
-          index % 2 ? cream : blue,
-          [0, 0.72, -0.58],
-          [Math.PI / 2, 0, 0],
-        );
+        addHorsePart(horse, bodyShape, coat, [0, 0, 0], [Math.PI / 2, 0, 0]);
+        addHorsePart(horse, neckShape, coat, [0, 0.42, -0.38], [0.4, 0, 0]);
+        addHorsePart(horse, headShape, coat, [0, 0.72, -0.58], [Math.PI / 2, 0, 0]);
         for (const side of [-1, 1])
           for (const front of [-1, 1]) {
             addHorsePart(
@@ -94,16 +97,18 @@
       }
       world.scene.add(carousel);
 
+      // Keys every quarter second: the tracks are linear between keys, so the bob stays a sine.
       const duration = 8,
-        times = Array.from({ length: duration + 1 }, (_, time) => time);
-      const tracks = [animation.numberTrack('.rotation.y', [0, duration], [0, Math.PI * 2])];
+        times = Array.from({ length: duration * 4 + 1 }, (_, key) => key / 4);
+      // A negative turn is clockwise seen from above, the way the horses face.
+      const tracks = [animation.numberTrack('.rotation.y', [0, duration], [0, -Math.PI * 2])];
       horses.forEach((horse, index) => {
         const phase = (index / horses.length) * Math.PI * 2;
         tracks.push(
           animation.numberTrack(
             `${horse.name}.position.y`,
             times,
-            times.map((time) => 1.45 + Math.sin((time / 2) * Math.PI + phase) * 0.42),
+            times.map((time) => rest + Math.sin((time / 2) * Math.PI + phase) * 0.42),
           ),
         );
       });
@@ -122,8 +127,7 @@
 
       const ground = object.mesh(geometry.cylinder(13, 13, 0.15, 64), paint('#52633f', 0.95));
       ground.position.y = -0.08;
-      ground.receiveShadow = true;
-      carousel.traverse((part) => (part.castShadow = true));
+      ground.receiveShadow = floor.receiveShadow = true;
       world.scene.add(
         ground,
         light.directional({
@@ -140,7 +144,6 @@
       world.controls.minDistance = 7;
       world.controls.maxDistance = 26;
       world.controls.maxPolarAngle = Math.PI / 2 - 0.04;
-      announceWhatToDo();
       world.invalidate();
       addEventListener('pagehide', () => world.dispose());
     </script>
