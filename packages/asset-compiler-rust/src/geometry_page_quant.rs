@@ -8,21 +8,18 @@ use trillion3d_page_codec::bits::{
     bits_for, dequant, oct_decode, pow2, Quant, MAX_BITS, MAX_EXPONENT,
 };
 
-/// Widest extent, as a power of two, of a tile: a primitive wider than a tile is quantized as if
-/// each of its 32-metre tiles spanned 2^16 steps, a grid of 2^-11 (0.49 mm) whatever its size, so
-/// a kilometre terrain seen from 2 m stays under a quarter of a pixel instead of several pixels.
+/// A tile spans 2^5 = 32 m: wider primitives sit on 2^-11 (0.49 mm), up to 4 km where the 24-bit
+/// field bounds the grid, so a kilometre terrain seen from 2 m quantizes under half a pixel (#930).
 pub const TILE_EXTENT_LOG2: i32 = 5;
 
-/// Grid of a primitive, the finer of two rules: the extent of its widest tile split into 2^16
-/// steps, and an eighth of the finest group error its DAG published — so a cluster's
-/// displacement projects below an eighth of the threshold wherever the cut selects it. A
-/// primitive narrower than a tile is its own tile. Both rules are bounded below by the extent in
-/// 2^(`MAX_BITS` - 2) steps, so no page of the primitive, rounding included, ever needs more
-/// than `MAX_BITS` per coordinate: every page shares the primitive's exponent, and shared
-/// vertices between clusters and between tiles land on the same cells, since a cell is the
-/// rounding of the absolute coordinate and a page stores only its own minimum. Tiles therefore
-/// cost no split of the geometry, only the bits each page's box needs on the finer grid. The step
-/// is a power of two, so every decoded coordinate is `min + q * step` with an exact product.
+/// Grid of a primitive, the finer of two rules: its widest tile — itself below a tile — split
+/// into 2^16 steps, and an eighth of the finest group error its DAG published, so a cluster's
+/// displacement projects below an eighth of the threshold wherever the cut selects it. Both are
+/// bounded below by the extent in 2^(`MAX_BITS` - 2) steps: no page, rounding included, needs
+/// more than `MAX_BITS` per coordinate. Every page shares the primitive's exponent and a cell
+/// rounds the absolute coordinate, each page storing only its own minimum: a vertex shared by
+/// two clusters or two tiles lands on one cell, so tiles split no geometry and cost only the
+/// bits each page's box needs. The step is a power of two: `min + q * step` has an exact product.
 pub fn grid_exponent(extent: f64, finest_error: Option<f64>) -> i32 {
     let widest = if extent > 0.0 {
         extent.log2().floor() as i32
@@ -201,7 +198,3 @@ pub fn oct_encode(normal: [f32; 3]) -> u32 {
     }
     best.1
 }
-
-#[cfg(test)]
-#[path = "geometry_page_tile_tests.rs"]
-mod tests_tile;

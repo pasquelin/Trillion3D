@@ -5,7 +5,9 @@
 use crate::compute_bench::inputs::Xorshift;
 use crate::dag::{build_dag_tallied, DagAttributes, DagStrategy};
 use crate::geometry_page::encode;
-use crate::geometry_page_quant::{grid_exponent, primitive_exponent, TILE_EXTENT_LOG2};
+use crate::geometry_page_quant::{
+    grid_exponent, primitive_exponent, TILE_EXTENT_LOG2, UV_EXPONENT,
+};
 use trillion3d_page_codec::bits::{MAX_BITS, MAX_EXPONENT};
 
 /// The grid rule before tiles, kept as the witness the tiled rule is compared with: the finest
@@ -56,6 +58,13 @@ fn a_primitive_narrower_than_a_tile_keeps_its_grid() {
             grid_exponent(extent, error),
             untiled(extent, error),
             "{extent} {error:?}"
+        );
+    }
+    // An empty primitive and a single point: no extent, the grid they had.
+    for positions in [&[][..], &[3.0, -4.0, 5.0]] {
+        assert_eq!(
+            primitive_exponent(positions, [].into_iter(), false),
+            untiled(0.0, None)
         );
     }
     for extent in EDGES.into_iter().filter(|e| e.is_nan() || *e < tile) {
@@ -115,8 +124,9 @@ fn terrain(size: f32, quads: usize) -> (Vec<f32>, Vec<u32>) {
 
 #[test]
 fn a_kilometre_terrain_seen_from_two_metres_quantizes_under_the_display_quantum() {
-    // Half a pixel at 2 m on 1080 lines under a 60° vertical field: 1.07 mm.
-    let quantum = 0.5 * 2.0 * 2.0 * (30f64).to_radians().tan() / 1080.0;
+    // Half a pixel at 2 m on the reference display, 1117 lines at DPR 2, under a 60° vertical
+    // field: 0.52 mm.
+    let quantum = 0.5 * 2.0 * 2.0 * (30f64).to_radians().tan() / 2234.0;
     let (positions, indices) = terrain(1024.0, 128);
     let (dag, ..) = build_dag_tallied(
         &positions,
@@ -127,14 +137,14 @@ fn a_kilometre_terrain_seen_from_two_metres_quantizes_under_the_display_quantum(
     )
     .expect("dag");
     let errors = || dag.iter().filter(|c| c.level > 0).map(|c| c.lod_error);
-    let exponent = primitive_exponent(&positions, errors());
+    let exponent = primitive_exponent(&positions, errors(), false);
     assert_eq!(exponent, TILE_EXTENT_LOG2 - 16);
     let finest = errors().filter(|e| *e > 0.0).min_by(f64::total_cmp);
     let before = untiled(1024.0, finest);
     let mut worst = [0f64; 2];
     for cluster in &dag {
         for (slot, grid) in [exponent, before].into_iter().enumerate() {
-            let page = encode(&cluster.indices, &positions, &[], grid).expect("page");
+            let page = encode(&cluster.indices, &positions, &[], grid, UV_EXPONENT).expect("page");
             worst[slot] = worst[slot].max(f64::from(page.header.quantization_error));
         }
     }
