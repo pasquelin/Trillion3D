@@ -80,14 +80,15 @@ export function createAutonomousInstances(env: InstanceEnvironment) {
     releaseHostSurface(painted);
   };
   /** Records wear `painted`, or the vertex-coloured twin a page with a colour attribute draws
-   *  with, taken from the shared cache the decoded pages read. */
+   *  with, taken from the shared cache the decoded pages read — none for a surface that reads
+   *  vertex colours already (a created material's variant). */
   const wear = (records: readonly PageRec[], painted: HostMaterial) => {
-    const coloured = records.some((rec) => rec.attributes.color)
-      ? colouredTwin(colorMaterials, painted)
-      : painted;
+    const twin = (painted as unknown as { vertexColors: boolean }).vertexColors
+      ? () => painted
+      : () => colouredTwin(colorMaterials, painted);
     for (const rec of records) {
       baseMaterials.set(rec, painted);
-      wearDeclaration(rec, rec.attributes.color ? coloured : painted);
+      wearDeclaration(rec, rec.attributes.color ? twin() : painted);
       if (rec.mesh) setHostSurface(rec.mesh, rec.declaration);
     }
   };
@@ -95,9 +96,9 @@ export function createAutonomousInstances(env: InstanceEnvironment) {
     /** Why a move into or out of blended takes the cover past the host ceiling, before any write
      *  (#846): rows are one instanced mesh while opaque, one mesh a row once blended. */
     materialClassRefusal(alpha: AlphaChange) {
-      const instanced = (rec: PageRec) => drawnInstanced(rec, blendOf(rec, alpha));
       const unpaged = unpagedRefusal(allPages, alpha);
       if (unpaged) return unpaged;
+      const instanced = (rec: PageRec) => drawnInstanced(rec, blendOf(rec, alpha));
       if (blendMoves(alpha) && overCeiling(0, attachedPages(bootstrap, instanced)))
         return 'AUTONOMOUS_ROOT_BUDGET: the cover would hang more meshes than the host allows';
     },
