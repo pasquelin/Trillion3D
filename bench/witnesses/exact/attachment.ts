@@ -1,7 +1,6 @@
 import { Mesh } from '../../../packages/sdk-core/src/world/object/mesh.ts';
-import type { HostMesh } from '../../../packages/sdk-browser/src/host/resources.ts';
 import { BufferAttribute } from '../../../packages/sdk-core/src/world/buffer/attribute.ts';
-import type { HostMaterials } from '../../../packages/sdk-browser/src/host/resources.ts';
+import type { HostMaterials, HostMesh } from '../../../packages/sdk-browser/src/host/resources.ts';
 import { setGeometryBounds } from '../../../packages/sdk-browser/src/host/geometryBounds.ts';
 import type { PageRec } from '../../../packages/sdk-browser/src/page/selection/selection.ts';
 import { hashId } from '../../../packages/sdk-browser/src/diagnostic/colors.ts';

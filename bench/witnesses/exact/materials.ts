@@ -2,8 +2,8 @@ import type { EngineCamera } from '../../../packages/sdk-browser/src/camera/worl
 import type {
   HostDiagnosticMaterial,
   HostMaterials,
+  HostMesh,
 } from '../../../packages/sdk-browser/src/host/resources.ts';
-import type { HostMesh } from '../../../packages/sdk-browser/src/host/resources.ts';
 import { GraphSurface } from '../../../packages/sdk-browser/src/host/graph/surface.ts';
 import { Color } from '../../../packages/sdk-core/src/world/math/color.ts';
 import { pageDiagnostics } from '../../../packages/sdk-browser/src/host/pageDiagnostics.ts';

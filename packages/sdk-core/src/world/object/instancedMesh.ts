@@ -26,6 +26,7 @@ export class InstancedMesh<M extends object = Material> extends Mesh<M> {
   /** The reference's copy: the placements' matrices and their count come along. */
   override copy(source: Object3D, recursive = true) {
     super.copy(source, recursive);
+    if (!(source instanceof InstancedMesh)) return this;
     const instanced = source as InstancedMesh<M>;
     const from = instanced.instanceMatrix.array;
     this.instanceMatrix.array.set(from.subarray(0, this.instanceMatrix.array.length));
