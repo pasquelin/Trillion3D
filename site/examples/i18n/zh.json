@@ -500,6 +500,24 @@
       "balloon": "追踪气球"
     }
   },
+  "a-recorded-fly-through": {
+    "banner": "观看穿过公园的录制路线。可以重播、停止或接管相机。",
+    "controls": {
+      "replay": "重播",
+      "stop": "停止"
+    },
+    "readouts": {
+      "currentPart": "当前部分"
+    },
+    "words": {
+      "entrance": "入口",
+      "pond": "池塘",
+      "bridge": "桥",
+      "pavilion": "凉亭",
+      "overview": "全景",
+      "complete": "完成"
+    }
+  },
   "a-wave-across-a-grid": {
     "banner": "拖动四处看看。让方块波浪更高或更快。",
     "controls": {

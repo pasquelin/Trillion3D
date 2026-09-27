@@ -500,6 +500,24 @@
       "balloon": "SEGUE IL PALLONE"
     }
   },
+  "a-recorded-fly-through": {
+    "banner": "Guarda il percorso registrato nel parco. Riproducilo, fermalo o prendi il controllo della telecamera.",
+    "controls": {
+      "replay": "Riproduci",
+      "stop": "Ferma"
+    },
+    "readouts": {
+      "currentPart": "Parte attuale"
+    },
+    "words": {
+      "entrance": "Ingresso",
+      "pond": "Laghetto",
+      "bridge": "Ponte",
+      "pavilion": "Padiglione",
+      "overview": "Panoramica",
+      "complete": "Completato"
+    }
+  },
   "a-wave-across-a-grid": {
     "banner": "Trascina per guardarti intorno. Rendi l'onda di cubi più alta o più veloce.",
     "controls": {
