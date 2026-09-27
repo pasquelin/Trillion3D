@@ -7,13 +7,13 @@ import {
   normalMatrix3Batch,
 } from '../../../packages/sdk-core/src/math/index.ts';
 import { rapport } from '../../core/index.ts';
-import type { Mesure } from '../../core/index.ts';
+import type { Measurement } from '../../core/index.ts';
 import { duel, points, quaternion } from '../../oracles/core/three-duel.ts';
 import { N, prepareBatchData } from '../../oracles/core/batch-duel.ts';
 
 const BATCH = 'packages/sdk-core/src/math/batch/batch.ts';
 const { mats, outMats, outMatViews, outThreeMats, oracleMats } = prepareBatchData();
-const lines: Mesure[] = [];
+const lines: Measurement[] = [];
 
 // 1. Matrix4.invert batch
 lines.push(

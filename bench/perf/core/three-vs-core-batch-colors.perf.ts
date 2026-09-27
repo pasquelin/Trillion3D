@@ -2,7 +2,7 @@
 import * as THREE from 'three';
 import { linearToSrgbBatch, srgbToLinearBatch } from '../../../packages/sdk-core/src/math/index.ts';
 import { rapport } from '../../core/index.ts';
-import type { Mesure } from '../../core/index.ts';
+import type { Measurement } from '../../core/index.ts';
 import {
   N,
   SRGB_REFERENCE_GAP,
@@ -27,7 +27,7 @@ const oracle = () => {
   for (let i = 0; i < N; i++) outputColors[i].toArray(reference, i * 3);
   return reference;
 };
-const lines: Mesure[] = [];
+const lines: Measurement[] = [];
 lines.push(
   await duel({
     name: 'Color.convertSRGBToLinear batch',

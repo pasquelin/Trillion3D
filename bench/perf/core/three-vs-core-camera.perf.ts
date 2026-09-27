@@ -11,7 +11,7 @@ import {
   frustumPlanesFromMatrix,
 } from '../../../packages/sdk-core/src/math/frustum/frustum.ts';
 import { rapport } from '../../core/index.ts';
-import type { Mesure } from '../../core/index.ts';
+import type { Measurement } from '../../core/index.ts';
 import { N, duel, rnd, trsMatrices } from '../../oracles/core/three-duel.ts';
 
 const ASPECT = 1.5,
@@ -24,7 +24,7 @@ const projection = new Float64Array(16);
 const xy = new Float64Array(N * 4),
   xyThree = new Float64Array(N * 4);
 
-const lines: Mesure[] = [];
+const lines: Measurement[] = [];
 lines.push(
   await duel({
     name: 'Matrix4.makePerspective',
