@@ -1,4 +1,5 @@
 import type { EngineCamera } from './engineCamera.ts';
+import { hypot3 } from '../../../sdk-core/src/math/primitives/hypot.ts';
 
 /** Last eye position and way back, kept from frame to frame to derive the eye's velocity (world
  *  units per second) and the rate it turns at (radians per second). `ahead` is the velocity the
@@ -63,7 +64,7 @@ export function readCameraMotion(cam: EngineCamera, motion: CameraMotion, now: n
       x = view[2],
       y = view[6],
       z = view[10];
-    const sin = Math.hypot(
+    const sin = hypot3(
       back[1] * z - back[2] * y,
       back[2] * x - back[0] * z,
       back[0] * y - back[1] * x,
@@ -77,7 +78,7 @@ export function readCameraMotion(cam: EngineCamera, motion: CameraMotion, now: n
   back[1] = view[6];
   back[2] = view[10];
   motion.lastMs = now;
-  return Math.hypot(velocity[0], velocity[1], velocity[2]);
+  return hypot3(velocity[0], velocity[1], velocity[2]);
 }
 
 /**

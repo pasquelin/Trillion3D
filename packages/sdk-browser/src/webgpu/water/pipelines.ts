@@ -5,10 +5,13 @@ import { makeFullscreenPipeline } from '../../lighting/deferred/fullscreen.ts';
 import { readOnly } from '../core/bindLayout.ts';
 import { ALPHA_BLEND, blendStagePipelines } from '../blend/stagePipelines.ts';
 import { WATER_BINDINGS, WATER_COMPOSITE_SHADER } from './compositeWgsl.ts';
+import { WATER_WORD_FORMAT } from './surfaceWgsl.ts';
 
-/** The five targets of the surface stage: the surface buffer, then the virtual-texture feedback. */
+/** The five targets of the surface stage: the three material surfaces, the water word in place of
+ *  the flags, then the virtual-texture feedback. */
 const SURFACE_TARGETS: GPUColorTargetState[] = [
-  ...SURFACE_FORMATS.map((format) => ({ format })),
+  ...SURFACE_FORMATS.slice(0, 3).map((format) => ({ format })),
+  { format: WATER_WORD_FORMAT },
   { format: FEEDBACK_FORMAT },
 ];
 
