@@ -9,7 +9,6 @@ import {
   evictionWord,
   keyBase,
   poolBase,
-  residentWords,
   selectionListCap,
 } from '../../../packages/sdk-browser/src/gpu/dag/layout.ts';
 import { words } from './mockComputeBlend.ts';
@@ -44,7 +43,7 @@ export function listPoolEvictions(byBinding: Bound, packed: PackedDag) {
     pool = poolBase(pageCount),
     stampOf = (page: number) => flags[stampAt(page)];
   const queue = listEvictions({
-    pool: cold.subarray(pool, pool + residentWords(pageCount)),
+    pool: cold.subarray(pool + 1, pool + 1 + cold[pool]),
     keys: cold.subarray(keys),
     stampOf,
     now: work[frame],
