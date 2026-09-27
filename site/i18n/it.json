@@ -33,9 +33,9 @@
   "examples": {
     "lead": "Ogni esempio è un file breve: guardalo funzionare, apri il suo codice, cambialo.",
     "jumpTo": "Vai a un tema",
-    "inProgress": "In corso",
     "waitsFor": "In attesa del motore:",
-    "waitingEngine": "In attesa del motore"
+    "partial": "Parziale",
+    "coming": "In arrivo: {{titles}}"
   },
   "gallery": {
     "themes": {
@@ -121,10 +121,10 @@
       "a-refracting-pane": "Un vetro che rifrange",
       "a-light-map": "Una light map",
       "two-materials-one-mesh": "Due materiali, una mesh",
-      "clearcoat-paint": "Vernice trasparente",
       "velvet-sheen": "Riflesso di velluto",
       "soap-bubble-iridescence": "Iridescenza",
       "brushed-metal": "Metallo spazzolato",
+      "car-paint-under-clear-coat": "Vernice per auto sotto uno strato trasparente",
       "a-prism-that-disperses": "Un prisma che disperde",
       "retroreflective-paint": "Retroriflessione",
       "light-through-skin": "Luce sotto la pelle",
@@ -153,7 +153,7 @@
       "flat-shadows-on-the-floor": "Ombre proiettate piatte",
       "a-softbox-panel": "Un pannello a luce morbida",
       "light-from-a-probe": "Luce da una sonda",
-      "soft-shadow-edges": "Bordi d'ombra morbidi",
+      "soft-shadows-from-a-wide-lamp": "Ombre morbide da una lampada larga",
       "contact-shadow-under-a-car": "Ombra di contatto",
       "coloured-shadows-through-glass": "Ombre attraverso il vetro",
       "shadows-in-the-corners": "Ombre negli angoli",
@@ -357,10 +357,10 @@
       "a-refracting-pane": "rendering su texture",
       "a-light-map": "slot per light map",
       "two-materials-one-mesh": "mesh multi-materiale",
-      "clearcoat-paint": "strati del materiale fisico: vernice trasparente",
       "velvet-sheen": "strati del materiale fisico: lucentezza",
       "soap-bubble-iridescence": "strati del materiale fisico: iridescenza",
       "brushed-metal": "strati del materiale fisico: anisotropia",
+      "car-paint-under-clear-coat": "strati del materiale fisico: strato trasparente",
       "a-prism-that-disperses": "strati del materiale fisico: dispersione",
       "retroreflective-paint": "materiali con shader su misura",
       "light-through-skin": "diffusione sotto la superficie",
@@ -375,7 +375,7 @@
       "a-stack-of-texture-layers": "texture dati, array e 3D",
       "wide-gamut-colour": "uscita a gamma estesa",
       "energy-conservation-test": "illuminazione d'ambiente (IBL)",
-      "soft-shadow-edges": "filtraggio delle ombre morbide (penombra)",
+      "soft-shadows-from-a-wide-lamp": "ombre morbide secondo la larghezza della lampada",
       "contact-shadow-under-a-car": "rendering su texture",
       "coloured-shadows-through-glass": "oggetti trasparenti che proiettano ombra",
       "shadows-in-the-corners": "ambient occlusion in spazio schermo",

@@ -1,4 +1,22 @@
 {
+  "brushed-metal": {
+    "banner": "Rode para observar os reflexos escovados. Altere a força e a direção.",
+    "controls": {
+      "anisotropy": "Força da escovagem",
+      "direction": "Direção da escovagem",
+      "roughness": "Rugosidade",
+      "spin": "Rodar"
+    }
+  },
+  "car-paint-under-clear-coat": {
+    "banner": "Rode em volta do carro. Altere a pintura e o verniz.",
+    "controls": {
+      "paint": "Pintura",
+      "clearCoat": "Verniz",
+      "coatRoughness": "Rugosidade do verniz",
+      "spin": "Rodar"
+    }
+  },
   "kit": {
     "panel": {
       "controls": "Ajustes"
@@ -308,6 +326,13 @@
       "hour": "Hora",
       "wind": "Vento",
       "roof": "Telhado"
+    }
+  },
+  "soft-shadows-from-a-wide-lamp": {
+    "banner": "Arraste para girar. Mude a largura da lâmpada e observe as bordas das sombras.",
+    "controls": {
+      "lampWidth": "Largura da lâmpada",
+      "moveSubject": "Mover objeto"
     }
   },
   "a-softbox-panel": {

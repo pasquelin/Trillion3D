@@ -1,4 +1,22 @@
 {
+  "brushed-metal": {
+    "banner": "Fırçalanmış yansımaları inceleyin. Güçlerini ve yönlerini değiştirin.",
+    "controls": {
+      "anisotropy": "Fırça gücü",
+      "direction": "Fırça yönü",
+      "roughness": "Pürüzlülük",
+      "spin": "Döndür"
+    }
+  },
+  "car-paint-under-clear-coat": {
+    "banner": "Arabanın etrafında dönün. Boyayı ve şeffaf kaplamayı değiştirin.",
+    "controls": {
+      "paint": "Boya",
+      "clearCoat": "Şeffaf kaplama",
+      "coatRoughness": "Kaplama pürüzlülüğü",
+      "spin": "Döndür"
+    }
+  },
   "kit": {
     "panel": {
       "controls": "Ayarlar"
@@ -308,6 +326,13 @@
       "hour": "Saat",
       "wind": "Rüzgâr",
       "roof": "Çatı"
+    }
+  },
+  "soft-shadows-from-a-wide-lamp": {
+    "banner": "Etrafında dönmek için sürükle. Lamba genişliğini değiştirip gölge kenarlarını izle.",
+    "controls": {
+      "lampWidth": "Lamba genişliği",
+      "moveSubject": "Nesneyi hareket ettir"
     }
   },
   "a-softbox-panel": {
