@@ -149,8 +149,8 @@ export function createPhysicsSession(
       dirty = placeBodies(node, bodies, writer, failed) || dirty;
       tiles.moved(node);
     },
-    /** The frame's physics: bodies reconciled, poses drawn, the view and the commands sent. */
-    frame(camera: Camera) {
+    /** The frame's physics: bodies reconciled, poses drawn, the view (`range`), commands sent. */
+    frame(camera: Camera, range: number | null) {
       touched.eye = camera;
       if (dirty) {
         bodies.reconcile(stale, (error) => failed(error as EngineError));
@@ -164,8 +164,8 @@ export function createPhysicsSession(
       const moving = poses.apply(bodies);
       stats.mainMs = received;
       received = 0;
-      view(camera, writer);
-      tiles.update(resolveCameraWorld(camera).matrixWorld.elements.slice(12, 15), camera.far);
+      const reach = view(camera, writer, range);
+      tiles.update(resolveCameraWorld(camera).matrixWorld.elements.slice(12, 15), reach);
       flush();
       if (ready) character.flush();
       return moving;

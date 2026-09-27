@@ -7154,6 +7154,7 @@
       "gravity": "Trọng lực tính bằng m/s², một vectơ sống; đặt một thiết lập sẵn (`'earth'`, `'moon'`, `'mars'`, `'none'`) hoặc vectơ.",
       "paused": "Thời gian có dừng không; việc ghi vẫn đến được các vật.",
       "timeScale": "Giây mô phỏng trên mỗi giây thực: 0.25 là chuyển động chậm.",
+      "simulationRange": "Số mét quanh camera trong đó các vật thể được mô phỏng (ngoài phạm vi đó bị đóng băng như cũ, và không tải ô va chạm nào); `null` theo `camera.far`.",
       "water": "Nước nơi các vật nổi: mực nước, sóng, khối lượng riêng và lực cản. Vật nhẹ hơn nước sẽ nổi, được đẩy lên bởi trọng lượng của phần nước nó chiếm chỗ.",
       "waterSurface": "Mặt nước tại thời điểm mô phỏng, để vẽ: cùng các sóng lực nổi đọc, cùng những con số (`height`, `point`, `normal`).",
       "stats": "Số đếm và cả hai đồng hồ: mili giây worker mỗi bước, mili giây trang mỗi khung.",
@@ -7360,6 +7361,7 @@
       "gravity": "Trọng lực tính bằng m/s², một vectơ sống; đặt thiết lập sẵn (`'earth'`, `'moon'`, `'mars'`, `'none'`) hoặc vectơ.",
       "paused": "Thời gian có dừng không; việc ghi vẫn đến được các vật.",
       "timeScale": "Giây mô phỏng trên mỗi giây thực: 0.25 là chuyển động chậm.",
+      "simulationRange": "Số mét quanh camera trong đó các vật thể được mô phỏng (ngoài phạm vi đó bị đóng băng như cũ, và không tải ô va chạm nào); `null` theo `camera.far`.",
       "water": "Nước nơi các vật nổi: mực nước, sóng, khối lượng riêng và lực cản. Vật nhẹ hơn nước sẽ nổi, được đẩy lên bởi trọng lượng của phần nước nó chiếm chỗ.",
       "waterSurface": "Mặt nước tại thời điểm mô phỏng, để vẽ: cùng các sóng lực nổi đọc, cùng những con số (`height`, `point`, `normal`).",
       "stats": "Số đếm và cả hai đồng hồ: mili giây worker mỗi bước, mili giây trang mỗi khung.",
@@ -7372,6 +7374,7 @@
     "summary": "Những gì `createWorld(canvas, { physics })` nhận ngoài `true`.",
     "members": {
       "budget": "Giới hạn cố định, đọc một lần khi vật lý bắt đầu.",
+      "simulationRange": "Số mét quanh camera trong đó các vật thể được mô phỏng (`world.physics.simulationRange`); `null` theo `camera.far`.",
       "gravity": "Trọng lực của thế giới: thiết lập sẵn hoặc vectơ."
     }
   },
