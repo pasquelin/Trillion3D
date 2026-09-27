@@ -43,5 +43,8 @@ test('DAG warnings from cache surface as a diagnostic on open', () => {
     stalled: [row],
   });
   // A primitive whose stall kept no level-0 root is not in the compiler's table: nothing is said.
-  assert.equal(dagWarningsDiagnostic({ primitives: primitives.slice(0, 1), worstStalls: [] }), null);
+  assert.equal(
+    dagWarningsDiagnostic({ primitives: primitives.slice(0, 1), worstStalls: [] }),
+    null,
+  );
 });
