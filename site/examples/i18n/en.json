@@ -510,6 +510,21 @@
       "outer": "Outer"
     }
   },
+
+  "a-carousel": {
+    "banner": "Orbit the carousel. Pause it or send the wooden horses the other way.",
+    "controls": {
+      "running": "Running",
+      "speed": "Speed",
+      "direction": "Direction"
+    },
+    "choices": {
+      "direction": {
+        "clockwise": "clockwise",
+        "counterclockwise": "counterclockwise"
+      }
+    }
+  },
   "a-world-of-blocks": {
     "banner": "Drag to fly around the island. Raise the sea to flood the valleys.",
     "controls": {
