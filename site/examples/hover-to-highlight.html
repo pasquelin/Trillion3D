@@ -40,10 +40,14 @@
         makePart(geometry.box(4.8, 0.65, 2.4), '#4f7ca8', [0, 1.2, 0]),
         makePart(geometry.box(2.8, 1.65, 2.15), '#d6a24a', [-0.65, 2.35, 0]),
         makePart(geometry.box(1.15, 1.35, 2.05), '#78a6b8', [1.35, 2.2, 0]),
-        makePart(geometry.cylinder(0.55, 0.55, 0.38, 20), '#29313b', [-1.55, 0.7, 1.2]),
-        makePart(geometry.cylinder(0.55, 0.55, 0.38, 20), '#29313b', [1.55, 0.7, 1.2]),
       ];
-      parts.slice(3).forEach((wheel) => (wheel.rotation.x = Math.PI / 2));
+      const wheelShape = geometry.cylinder(0.55, 0.55, 0.38, 20);
+      for (const x of [-1.55, 1.55])
+        for (const z of [-1.2, 1.2]) {
+          const wheel = makePart(wheelShape, '#29313b', [x, 0.7, z]);
+          wheel.rotation.x = Math.PI / 2;
+          parts.push(wheel);
+        }
       const originals = new Map(
         parts.map((part) => [
           part,
