@@ -15,8 +15,8 @@ const QUANTIZED = `(page.flags&${FLAG_CLUSTER_PAGE}u)!=0u`;
  * decodes its corners and its vertices from those words in place, with the shared routines of
  * `../../cluster/decodeWgsl.ts`: nothing of that cluster is ever uploaded as floats. A primitive the
  * compiler gave no geometry page — a cache that predates the format — keeps the source buffers it
- * always read, and its rows carry the bit at zero. Both
- * paths are written here once, so no pass can read one geometry and another pass the other.
+ * always read, and its rows carry the bit at zero. Both paths are written here once, so no pass
+ * can read one geometry and another pass the other.
  *
  * The header is decoded once per invocation and passed down: it is twenty-one words of the page
  * and a handful of shifts, and a vertex stage that read it per corner would pay it three times a
