@@ -24,21 +24,15 @@ test('the house elevations use parallel rays and keep their scale across camera 
   );
   const scene = new Scene(() => Promise.reject(new Error('the page loads no model')));
   const canvas = { clientWidth: 1600, clientHeight: 900 } as HTMLCanvasElement;
-  let active = new Camera('perspective');
   let values = {} as Values;
   let change = (_next: Values, _key?: keyof Values) => {};
   let watched: unknown;
   let disposed = 0;
-  let pagehide: EventListenerOrEventListenerObject | undefined;
+  let pagehide: ((event: Event) => void) | undefined;
   const world = {
     scene,
     canvas,
-    get camera() {
-      return active;
-    },
-    set camera(next: Camera) {
-      active = next;
-    },
+    camera: new Camera('perspective'),
     invalidate() {},
     dispose() {
       disposed++;
@@ -57,7 +51,7 @@ test('the house elevations use parallel rays and keep their scale across camera 
     disconnect() {}
     unobserve() {}
   };
-  globalThis.addEventListener = ((type: string, listener: EventListenerOrEventListenerObject) => {
+  globalThis.addEventListener = ((type: string, listener: (event: Event) => void) => {
     if (type === 'pagehide') pagehide = listener;
   }) as typeof globalThis.addEventListener;
   try {
@@ -82,6 +76,7 @@ test('the house elevations use parallel rays and keep their scale across camera 
     globalThis.addEventListener = previousAddEventListener;
   }
 
+  const active = world.camera;
   assert.equal(active.projection, 'orthographic');
   assert.equal(watched, world);
   const span = () => {
@@ -101,7 +96,6 @@ test('the house elevations use parallel rays and keep their scale across camera 
   change(values, 'zoom');
   assert.ok(span() < nearSpan, 'zoom changes the drawing scale deliberately');
   assert.ok(pagehide, 'the page registers its lifecycle cleanup');
-  if (typeof pagehide === 'function') pagehide(new Event('pagehide'));
-  else pagehide.handleEvent(new Event('pagehide'));
+  pagehide(new Event('pagehide'));
   assert.equal(disposed, 1);
 });
