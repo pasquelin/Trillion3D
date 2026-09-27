@@ -2266,5 +2266,13 @@
         "clusters": "clústeres"
       }
     }
+  },
+  "inside-a-component": {
+    "banner": "Monta o desmonta el visor. Cada montaje posee un mundo y cada retirada lo libera.",
+    "controls": {
+      "mount": "Montar",
+      "unmount": "Desmontar",
+      "remount": "Volver a montar"
+    }
   }
 }

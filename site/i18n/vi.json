@@ -1414,6 +1414,7 @@
       "what-hides-what": "Cái gì che khuất cái gì",
       "create-and-dispose": "Tạo và hủy",
       "no-hitch-on-first-draw": "Không giật ở lần vẽ đầu",
+      "inside-a-component": "Bên trong một thành phần",
       "inside-the-g-buffer": "Bên trong G-buffer",
       "reading-pixels-back": "Đọc lại các pixel",
       "a-city-from-3d-tiles": "Thành phố từ 3D Tiles",
@@ -1522,6 +1523,7 @@
       "drag-a-crate": "Kéo thùng hàng"
     },
     "missing": {
+      "inside-a-component": "dọn canvas do bộ máy tạo khi hủy thế giới",
       "floating-crates": "hình học được ghi lại mỗi khung hình",
       "thick-lines": "đường rộng",
       "a-line-that-draws-itself": "phạm vi vẽ hình học",

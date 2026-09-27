@@ -2266,5 +2266,13 @@
         "clusters": "clusters"
       }
     }
+  },
+  "inside-a-component": {
+    "banner": "Mount or unmount the viewer. Each attachment owns one world and each removal disposes it.",
+    "controls": {
+      "mount": "Mount",
+      "unmount": "Unmount",
+      "remount": "Remount"
+    }
   }
 }

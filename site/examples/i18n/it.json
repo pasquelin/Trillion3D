@@ -2266,5 +2266,13 @@
         "clusters": "cluster"
       }
     }
+  },
+  "inside-a-component": {
+    "banner": "Monta o smonta il visore. Ogni montaggio possiede un mondo e ogni rimozione lo elimina.",
+    "controls": {
+      "mount": "Monta",
+      "unmount": "Smonta",
+      "remount": "Rimonta"
+    }
   }
 }

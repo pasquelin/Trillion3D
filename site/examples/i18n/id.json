@@ -2266,5 +2266,13 @@
         "clusters": "klaster"
       }
     }
+  },
+  "inside-a-component": {
+    "banner": "Pasang atau lepas penampil. Setiap pemasangan memiliki satu dunia dan setiap pelepasan membuangnya.",
+    "controls": {
+      "mount": "Pasang",
+      "unmount": "Lepas",
+      "remount": "Pasang ulang"
+    }
   }
 }

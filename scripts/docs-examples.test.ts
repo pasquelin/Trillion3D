@@ -26,7 +26,6 @@ import {
 } from '../site/app/examples/list.ts';
 import { loadDictionary } from '../site/content/i18n/dictionary.ts';
 import roadmap from '../site/content/gallery-roadmap.json' with { type: 'json' };
-
 const site = new URL('../site/', import.meta.url);
 const written = roadmapEntries.filter(({ file }) => file);
 const parked = written.filter(({ status }) => status === 'waiting-engine');
@@ -68,10 +67,12 @@ test('every example is one standalone HTML file that imports the built engine', 
     const html = await readFile(new URL(entry.file, site), 'utf8');
     if (entry.issue) assert.match(html, new RegExp(`// Waits for #${entry.issue}: `), entry.id);
     assert.match(html, /^<!doctype html>/);
-    assert.match(html, /<canvas id="view"><\/canvas>/);
+    assert.ok(
+      /<canvas id="view"><\/canvas>/.test(html) || /world\.canvas\.id = ['"]view['"]/.test(html),
+      entry.id,
+    );
     assert.match(html, /import \{ createWorld[^}]*\} from '\.\.\/runtime\/engine\.js'/);
     assert.doesNotMatch(html, /setDiagnostic|localhost|127\.0\.0\.1/);
-    // The kit, when used, is the one served beside the engine, and the thumbnail moment is valid.
     if (/runtime\/kit\.js/.test(html))
       assert.match(html, /import \{[^}]*\} from '\.\.\/runtime\/kit\.js'/, entry.id);
     thumbnailDelay(html);
