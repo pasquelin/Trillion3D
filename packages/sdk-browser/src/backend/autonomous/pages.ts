@@ -1,8 +1,8 @@
 import { colouredHostSurface, hostPageScene, releaseHostSurface } from '../../host/pageObjects.ts';
 import { pageDiagnostics } from '../../host/pageDiagnostics.ts';
 import { attachedPages, autonomousPlacements } from '../../placement/autonomousPlacements.ts';
-import { collectClusterPages, reassignPageBlend } from '../../page/selection/collect.ts';
-import { indexPagesByUrl, type PageRec } from '../../page/selection/selection.ts';
+import { collectClusterPages, indexPagesByUrl } from '../../page/selection/selection.ts';
+import type { PageRec } from '../../page/selection/selection.ts';
 import { createAutonomousRender, createAutonomousRenderState } from './render.ts';
 import { autonomousCapabilities, publishAutonomousCapabilities } from './capabilities.ts';
 import { createWebglFrameGate } from '../../webgl/core/frameGate.ts';
@@ -22,7 +22,7 @@ import type { HostMaterial } from '../../host/resources.ts';
 /** WebGL2 path backed only by independently decoded prepared geometry pages. */
 export const autonomousPagesBackend: BackendFactory = (context) => {
   const { metadata, descriptors } = prepareAutonomousManifest(context.metadata);
-  const { roots, allPages, worlds, blendCopies } = collectClusterPages(
+  const { roots, allPages, worlds, blendCopies, reassignBlend } = collectClusterPages(
     context.source,
     metadata,
     new Map(),
@@ -165,10 +165,10 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
       gate.resourcesChanged();
       sync();
     },
-    refreshMaterials(values = true, reclassed = false) {
+    refreshMaterials(values = true, alpha) {
       // Values reach the twins, clones; a picture alone (#362), shared, only lets the image go.
       if (values) colorMaterials.forEach((twin, original) => colouredHostSurface(original, twin));
-      if (reclassed) reassignPageBlend(allPages, metadata, context.associations, heldFloor.changed);
+      if (alpha && reassignBlend(allPages, alpha)) heldFloor.changed();
       (values ? gate.sceneChanged : gate.resourcesChanged)();
     },
     metrics() {
