@@ -93,7 +93,9 @@
         if (key === 'paint' || key === 'beads' || key === 'speed') return world.invalidate();
         for (const { bead } of beads) bead.scale.setScalar(values.radius * 1.5 + 0.05);
         curve = paths[values.path]();
+        const previous = tube.geometry;
         tube.geometry = geometry.tube(curve, values.slices, values.radius, values.sides, values.path !== 'spiral');
+        previous.dispose();
         placeBeads(values.path);
         triangles?.((values.slices * values.sides * 2).toLocaleString(language()));
         world.invalidate();

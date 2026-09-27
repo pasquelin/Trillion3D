@@ -140,7 +140,11 @@
           // Every surface is built again from its formula, once the slider rests.
           clearTimeout(waiting);
           waiting = setTimeout(() => {
-            for (const piece of pieces) piece.sculpture.geometry = build(piece.surface, values.grid);
+            for (const piece of pieces) {
+              const previous = piece.sculpture.geometry;
+              piece.sculpture.geometry = build(piece.surface, values.grid);
+              previous.dispose();
+            }
             count(values.grid);
             world.invalidate();
           }, 120);

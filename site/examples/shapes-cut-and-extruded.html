@@ -123,7 +123,9 @@
             });
           // The solid is centred on its thickness, so it turns about its middle.
           solid.translate(0, 0, -values.depth / 2);
+          const previous = pieces[index].geometry;
           pieces[index].geometry = solid;
+          previous.dispose();
           count += solid.index ? solid.index.count / 3 : solid.attributes.position.count / 3;
         });
         triangles(count.toLocaleString(language()));

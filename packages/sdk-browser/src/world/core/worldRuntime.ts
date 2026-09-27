@@ -183,8 +183,8 @@ export function createWorldRuntime(inputs: Inputs) {
       while (resolving || reopens.running) await (resolving ?? reopens.running);
     },
     render() {
-      if (!explorer) return null;
       beforeFrame();
+      if (!explorer) return null;
       const metrics = explorer.render();
       inputs.frame(metrics);
       return metrics;

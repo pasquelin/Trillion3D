@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import { PrimitiveIndex } from '../../../../../bench/witnesses/exact/batches/batchPrimitive.ts';
 import { WebglClusterGeometry } from './geometry.ts';
 import { attributes } from '../../../../../bench/witnesses/exact/batches/batches.fixture.ts';
+import { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts';
+import { BufferAttribute } from '../../../../sdk-core/src/world/buffer/attribute.ts';
 
 type Upload = { kind: 'data' | 'sub'; bytes: number; offset: number };
 
@@ -10,7 +12,9 @@ type Upload = { kind: 'data' | 'sub'; bytes: number; offset: number };
 function stubContext() {
   const uploads: Upload[] = [];
   const ELEMENT_ARRAY_BUFFER = 34963;
-  let bound = 0;
+  let bound = 0,
+    buffers = 0,
+    vaos = 0;
   const gl = {
     ELEMENT_ARRAY_BUFFER,
     ARRAY_BUFFER: 34962,
@@ -18,8 +22,10 @@ function stubContext() {
     STATIC_DRAW: 35044,
     FLOAT: 5126,
     UNSIGNED_INT: 5125,
-    createBuffer: () => ({}),
-    createVertexArray: () => ({}),
+    createBuffer: () => (buffers++, {}),
+    deleteBuffer: () => void buffers--,
+    createVertexArray: () => (vaos++, {}),
+    deleteVertexArray: () => void vaos--,
     bindVertexArray() {},
     bindBuffer(target: number) {
       bound = target;
@@ -44,7 +50,11 @@ function stubContext() {
     vertexAttrib2f() {},
     vertexAttrib4f() {},
   };
-  return { gl: gl as unknown as WebGL2RenderingContext, uploads };
+  return {
+    gl: gl as unknown as WebGL2RenderingContext,
+    uploads,
+    live: () => ({ buffers, vaos }),
+  };
 }
 
 const LOCATIONS = { position: 0, normal: -1, uv: -1, uv1: -1, color: -1 };
@@ -93,4 +103,28 @@ test('a growth of the resident index drops the pending ranges: the next bind upl
   assert.deepEqual(uploads.at(-1), { kind: 'data', bytes: 12 * 4, offset: 0 });
   assert.deepEqual(primitive.updateRanges, []);
   assert.deepEqual([...primitive.array], [1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 0, 0]);
+});
+
+// #411: `dispose` already announces the release; repeated replacement proves the renderer gives
+// every corresponding GPU object back. The examples must still call it after their assignment.
+test('repeated geometry replacement keeps one set of WebGL buffers and vertex arrays', () => {
+  const { gl, live } = stubContext();
+  const cache = new WebglClusterGeometry(gl, LOCATIONS);
+  const shapeOf = (size: number) =>
+    new Geometry()
+      .setAttribute('position', new BufferAttribute(new Float32Array([0, 0, 0, size, 0, 0]), 3))
+      .setIndex([0, 1]);
+  let shape = shapeOf(1);
+  cache.bind(shape);
+  const baseline = live();
+  for (let replacement = 0; replacement < 20; replacement++) {
+    const previous = shape;
+    shape = shapeOf(2 + replacement);
+    cache.bind(shape);
+    previous.dispose();
+    assert.deepEqual(live(), baseline);
+  }
+  shape.dispose();
+  assert.deepEqual(live(), { buffers: 0, vaos: 0 });
+  cache.dispose();
 });

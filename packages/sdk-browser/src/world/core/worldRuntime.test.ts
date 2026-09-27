@@ -91,3 +91,38 @@ test('a scene change with nothing to draw does not stop the next one from openin
   runtime.dispose();
   assert.equal(openings.length, 1, 'the mesh asks for a session');
 });
+
+// #411: source-geometry disposal is independent; this proves the world releases every old page
+// session after repeated replacement, which is what owns its GPU pages.
+test('repeated geometry replacement keeps one page session alive', async () => {
+  const ready = Promise.resolve();
+  const scene = new Scene(worldModelLoader(ready, undefined, () => 'webgpu'));
+  let opened = 0,
+    disposed = 0,
+    live = 0,
+    peak = 0;
+  const open = (async () => {
+    opened++;
+    peak = Math.max(peak, ++live);
+    const { session } = sessionStandIn();
+    return { ...session, dispose: () => void (disposed++, live--) };
+  }) as unknown as Open;
+  const runtime = runtimeOf(scene, ready, () => assert.fail('world failed'), open);
+  const mesh = object.mesh(geometry.box());
+  scene.add(mesh);
+  await runtime.settled();
+  for (let replacement = 0; replacement < 20; replacement++) {
+    const previous = mesh.geometry;
+    mesh.geometry = geometry.box(2 + replacement / 10, 1, 1);
+    previous.dispose();
+    await runtime.settled();
+    runtime.render();
+    await runtime.settled();
+    assert.equal(live, 1);
+  }
+  runtime.dispose();
+  assert.deepEqual(
+    { opened, disposed, live, peak },
+    { opened: 21, disposed: 21, live: 0, peak: 1 },
+  );
+});

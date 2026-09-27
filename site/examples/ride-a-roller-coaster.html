@@ -242,9 +242,11 @@
           post.visible = true;
         }
         supports.forEach((post, k) => (post.visible = k < used));
+        const previous = [rails.geometry, spine.geometry, ties.geometry];
         rails.geometry = built(railList);
         spine.geometry = built(spineList);
         ties.geometry = built(tieList);
+        previous.forEach((shape) => shape.dispose());
         if (rail) world.physics.remove(rail);
         plan = ride(track);
         const { p, t } = poseAt(track, s);

@@ -111,9 +111,11 @@
         if (key === 'colour' || key === undefined) heart.color.set(values.colour);
         if (key !== 'colour' && key !== 'spin') {
           // A new geometry for every mesh that wears it: the world reads the swap.
+          const previous = big.geometry;
           shape = gem(values.points, values.waist, values.height, values.sharpFacets);
           big.geometry = shape;
           for (const small of ring) small.geometry = shape;
+          previous.dispose();
           count();
         }
         world.invalidate();

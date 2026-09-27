@@ -87,7 +87,11 @@
           piece.edges.visible = view.endsWith('edges');
           piece.wire.visible = view.endsWith('wireframe');
           // The edges are rebuilt from the shape when the threshold moves.
-          if (key === 'threshold') piece.edges.geometry = geometry.edges(piece.shape, values.threshold);
+          if (key === 'threshold') {
+            const previous = piece.edges.geometry;
+            piece.edges.geometry = geometry.edges(piece.shape, values.threshold);
+            previous.dispose();
+          }
         }
         ink.color.set(values.lines);
         edgeCount?.(String(segments(pieces.map(({ edges }) => edges))));
