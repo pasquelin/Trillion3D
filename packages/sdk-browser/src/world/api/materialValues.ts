@@ -9,9 +9,17 @@ import { sideOf } from '../../scene/materialSide.ts';
 import { importHostSurface } from '../../host/surfaceImport.ts';
 import { hostTextureWritten } from '../../host/textureImport.ts';
 import { alphaModeFields } from '../../host/prepared/materials.ts';
+import { hostPageSurface } from '../../host/pageObjects.ts';
 
 /** The cutoff a material turned masked takes when the page names none: glTF's default. */
 const MASK_CUTOFF = 0.5;
+
+/** What `createMaterial` takes: a patch's values but tiling, a name, and a map — refused until
+ *  the texture atlas takes one after open (#847). */
+export type CreatedMaterial = Omit<SceneMaterialPatch, 'tiling'> & {
+  name?: string;
+  map?: ImageBitmap;
+};
 
 /** A material of the scene as a page reads it: the engine's parameters, the id it is set by — its
  *  rank in the cache's material table — its name, and how many times its maps repeat across and
@@ -32,7 +40,7 @@ export type SceneMaterialPatch = Partial<
 
 /** A material as the engine draws it now, read where every engine path reads a host surface
  *  (`importHostSurface`), so a family without metal or glow lists what is drawn. */
-export function read(id: number, surface: GraphSurface): SceneMaterial {
+export function read(id: number | string, surface: GraphSurface): SceneMaterial {
   const drawn = importHostSurface(surface)!;
   const map = materialTextures(surface).next().value;
   return {
@@ -50,7 +58,7 @@ export function read(id: number, surface: GraphSurface): SceneMaterial {
   };
 }
 
-export const invalid = (id: number, field: string, value: unknown) =>
+export const invalid = (id: number | string, field: string, value: unknown) =>
   new EngineError('INVALID_MATERIAL', `material ${id}: ${field} is out of its range`, {
     id,
     field,
@@ -58,7 +66,7 @@ export const invalid = (id: number, field: string, value: unknown) =>
   });
 
 /** Every value of the patch in its range, or a named refusal before anything is written. */
-export function validate(id: number, patch: SceneMaterialPatch) {
+export function validate(id: number | string, patch: SceneMaterialPatch) {
   const unit = (n: number) => Number.isFinite(n) && n >= 0 && n <= 1;
   for (const field of ['opacity', 'metalness', 'roughness', 'alphaCutoff'] as const) {
     const value = patch[field];
@@ -80,6 +88,25 @@ export function validate(id: number, patch: SceneMaterialPatch) {
   vector('emissive', 3, (n) => Number.isFinite(n) && n >= 0);
   vector('tiling', 2, (n) => Number.isFinite(n) && n !== 0);
 }
+
+/** The host surface of a created material: what the page named, glTF's default elsewhere, drawn
+ *  as a repainted primitive is (`hostPageSurface`). */
+export function createdSurface(props: CreatedMaterial) {
+  const values = { ...CREATED_DEFAULTS, alphaCutoff: MASK_CUTOFF, ...props };
+  const surface = hostPageSurface(values, false) as unknown as GraphSurface;
+  if (props.name) surface.name = props.name;
+  return surface;
+}
+
+const CREATED_DEFAULTS = {
+  baseColor: [1, 1, 1],
+  opacity: 1,
+  metalness: 1,
+  roughness: 1,
+  emissive: [0, 0, 0],
+  side: 'front',
+  alphaMode: 'opaque',
+} as const;
 
 /** Writes the patch into one surface in place — drawn in alpha mode `mode` from now on when its
  *  alpha moved — and bumps its version: every reader takes it again at its next read, as a World's
