@@ -10,7 +10,7 @@ interface ThumbnailProps {
 }
 
 /** Replaces a missing capture once, leaving the shared placeholder failure inert. */
-function showFallbackImage(
+export function showFallbackImage(
   image: Pick<HTMLImageElement, 'getAttribute' | 'src'>,
   fallbackSrc: string,
 ) {
