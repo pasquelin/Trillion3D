@@ -14,7 +14,6 @@ import type { createAutonomousGeometry } from './geometry.ts';
 import { composedPose, deplaceInstance } from './instancePose.ts';
 import { attachedPages, drawnInstanced } from '../../placement/autonomousPlacements.ts';
 import type { HeldFloor } from './heldFloor.ts';
-import type { collectClusterPages } from '../../page/selection/collect.ts';
 import { blendMoves, type AlphaChange } from '../../placement/backendSceneUpdates.ts';
 
 type InstanceEnvironment = {
@@ -37,7 +36,7 @@ type InstanceEnvironment = {
   /** Notified when an instance adds or removes the copies of its root cover. */
   coverChanged: () => void;
   /** The open's blended-or-not rule for a record once a material moved (`collectClusterPages`). */
-  blendOf: ReturnType<typeof collectClusterPages>['blendOf'];
+  blendOf: (rec: PageRec, alpha: AlphaChange) => boolean | undefined;
 };
 
 export function createAutonomousInstances(env: InstanceEnvironment) {
@@ -77,11 +76,8 @@ export function createAutonomousInstances(env: InstanceEnvironment) {
     releaseHostSurface(painted);
   };
   return {
-    /**
-     * Why a material moved into or out of blended would take the cover past the host ceiling,
-     * before any write (#846): records placed by rows are one instanced mesh while opaque, one mesh
-     * a row once blended. The cover is counted as the open counts it, with the flags the move gives.
-     */
+    /** Why a move into or out of blended takes the cover past the host ceiling, before any write
+     *  (#846): rows are one instanced mesh while opaque, one mesh a row once blended. */
     materialClassRefusal(alpha: AlphaChange) {
       const instanced = (rec: PageRec) => drawnInstanced(rec, blendOf(rec, alpha));
       if (blendMoves(alpha) && overCeiling(0, attachedPages(bootstrap, instanced)))
@@ -98,10 +94,8 @@ export function createAutonomousInstances(env: InstanceEnvironment) {
       if (instances.has(id) || !id) throw new Error('AUTONOMOUS_INSTANCE_ID');
       // Without a host ceiling the cover is always drawn: nothing is counted.
       if (hostCeiling < Infinity) {
-        // The meshes it adds to the cover: one per record drawn on its own. Its rowed records join
-        // the model's own instanced meshes (`attachedPages`), which the cover already counts.
-        // Counted now, not at the first instance: a class change moves records between the two
-        // (`../../page/selection/collect.ts`, #846); a walk of the cover an instance copies anyway.
+        // The meshes it adds: one per record drawn on its own, its rows joining the cover's instanced
+        // ones (`attachedPages`); counted now, as a class change moves records between them (#846).
         const ownMeshes = baseBootstrap.filter((rec) => !drawnInstanced(rec)).length;
         if (overCeiling(ownMeshes)) throw new Error('AUTONOMOUS_ROOT_BUDGET');
       }
