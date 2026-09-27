@@ -1,9 +1,8 @@
 import { followHostTexture } from '../../../host/textureImport.ts';
 import { pictureFits } from '../../tile/live.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
-import type { AlphaMode } from '../../../../../sdk-core/src/contracts/material.ts';
 import { shadowsFollowSurfaces } from '../prepare/lightResources.ts';
-import type { AlphaChange } from '../../../placement/backendSceneUpdates.ts';
+import { blendMoves, type AlphaChange } from '../../../placement/backendSceneUpdates.ts';
 import type { HostMaterials } from '../../../host/resources.ts';
 import { surfaceOf } from '../../../page/surface.ts';
 
@@ -15,8 +14,8 @@ import { surfaceOf } from '../../../page/surface.ts';
  * cluster catalogue, with no geometry page, in the transparent table and its forward copies — and
  * no cluster enters or leaves them inside the session.
  */
-export const webgpuMaterialClassRefusal = (from: AlphaMode, to: AlphaMode) =>
-  from === 'blend' || to === 'blend'
+export const webgpuMaterialClassRefusal = (alpha: AlphaChange) =>
+  blendMoves(alpha)
     ? 'its blended clusters are laid out in their forward pass when the session opens'
     : undefined;
 

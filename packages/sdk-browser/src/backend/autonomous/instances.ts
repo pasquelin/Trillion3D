@@ -13,6 +13,9 @@ import type { PageRec, ClusterRoot } from '../../page/selection/selection.ts';
 import type { createAutonomousGeometry } from './geometry.ts';
 import { composedPose, deplaceInstance } from './instancePose.ts';
 import { drawnInstanced } from '../../placement/autonomousPlacements.ts';
+import { blendCeilingRefusal, checkRootBudget } from './rootBudget.ts';
+import type { collectClusterPages } from '../../page/selection/collect.ts';
+import type { AlphaChange } from '../../placement/backendSceneUpdates.ts';
 
 type InstanceEnvironment = {
   roots: ClusterRoot<PageRec>[];
@@ -33,6 +36,8 @@ type InstanceEnvironment = {
   sceneChanged: () => void;
   /** Notified when an instance adds or removes the copies of its root cover. */
   coverChanged: () => void;
+  /** The open's blended-or-not assignment, run again on records (`collectClusterPages`). */
+  reassignBlend: ReturnType<typeof collectClusterPages>['reassignBlend'];
 };
 
 export function createAutonomousInstances(env: InstanceEnvironment) {
@@ -71,6 +76,8 @@ export function createAutonomousInstances(env: InstanceEnvironment) {
     releaseHostSurface(painted);
   };
   return {
+    /** A class change the host ceiling cannot take, refused before any write (#846). */
+    materialClassRefusal: (alpha: AlphaChange) => blendCeilingRefusal(env, alpha),
     /** Classic instances held: each holds its own copy of every page geometry. */
     instanceCount: () => instances.size,
     disposeOwnedMaterials() {
@@ -87,7 +94,7 @@ export function createAutonomousInstances(env: InstanceEnvironment) {
         // Counted now, not at the first instance: a class change moves records between the two
         // (`../../page/selection/collect.ts`, #846); a walk of the cover an instance copies anyway.
         const ownMeshes = baseBootstrap.filter((rec) => !drawnInstanced(rec)).length;
-        if (coverMeshes() + ownMeshes > hostCeiling) throw new Error('AUTONOMOUS_ROOT_BUDGET');
+        checkRootBudget(coverMeshes() + ownMeshes, hostCeiling);
       }
       const mapped = new Map<PageRec, PageRec>();
       for (const base of basePages) {
