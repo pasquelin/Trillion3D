@@ -1708,6 +1708,14 @@
       "fourthLaneAnisotropy": "Anisotropia da quarta pista"
     }
   },
+  "the-home-pose": {
+    "banner": "Escolha uma vista, mova a câmera e depois escolha Início para voltar.",
+    "controls": { "home": "Início", "tower": "Torre", "square": "Praça", "hillside": "Encosta" }
+  },
+  "the-near-plane-cuts-a-wall": {
+    "banner": "Avance o plano próximo e veja-o cortar cada parede.",
+    "controls": { "nearPlane": "Plano próximo" }
+  },
   "the-material-family": {
     "banner": "Arraste para andar em volta. Ponha a luz de noite e veja o que ainda brilha.",
     "controls": {
@@ -2171,6 +2179,17 @@
     },
     "words": {
       "credit": "Bandeira num mastro modelada em código para este exemplo, CC0 — ver assets/examples/CREDITS.md"
+    }
+  },
+  "a-dolly-along-the-canal": {
+    "banner": "Pause o travelling, repita o percurso ou mude a velocidade enquanto a câmera segue pelo canal.",
+    "controls": {
+      "paused": "Pausado",
+      "replay": "Repetir",
+      "speed": "Velocidade"
+    },
+    "readouts": {
+      "progress": "Progresso"
     }
   }
 }

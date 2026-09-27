@@ -1,10 +1,7 @@
-import { useWords } from '../i18n.ts';
 import { Badge } from '../ui/Badge.tsx';
 import { Card } from '../ui/Card.tsx';
 import { Cover } from '../ui/Thumbnail.tsx';
-import { Note, TextLink } from '../ui/Text.tsx';
-import { issueUrl } from '../../content/model.ts';
-import type { Locale } from '../../content/locale.ts';
+import { examplePlaceholder } from './list.ts';
 
 interface ExampleCardProps {
   title: string;
@@ -12,71 +9,45 @@ interface ExampleCardProps {
   badge: string;
   /** The example's settled render. */
   thumbnail: string;
+  /** A compact state/capability label for a written example parked on the engine. */
+  state?: string;
 }
 
-/** A ready example: its thumbnail, its theme and its title, opening the example. */
-export function ExampleCard({ title, href, badge, thumbnail }: ExampleCardProps) {
+/** A written example: its thumbnail or fallback, theme, state and title, opening the example. */
+export function ExampleCard({ title, href, badge, thumbnail, state }: ExampleCardProps) {
   return (
     <a
       className="block h-full rounded-box focus-visible:outline-2 focus-visible:outline-primary"
       href={href}
+      title={title}
     >
       <Card
         className="h-full overflow-hidden shadow-sm"
-        media={<Cover look="card" src={thumbnail} />}
+        media={<Cover look="card" src={thumbnail} fallbackSrc={examplePlaceholder} />}
         eyebrow={
-          <Badge tone="primary" soft>
-            {badge}
-          </Badge>
+          <div className="grid h-28 grid-rows-[1.5rem_4.5rem] gap-2 overflow-hidden">
+            <Badge tone="primary" soft className="justify-self-start">
+              {badge}
+            </Badge>
+            {state && (
+              <Badge
+                tone="info"
+                soft
+                className="h-[4.5rem] max-w-full items-start whitespace-normal py-1 text-start"
+              >
+                <span className="line-clamp-3" title={state}>
+                  {state}
+                </span>
+              </Badge>
+            )}
+          </div>
         }
-        title={title}
+        title={<span className="line-clamp-2 h-14">{title}</span>}
       >
-        <span className="self-end text-xl text-primary" aria-hidden="true">
+        <span className="mt-auto self-end text-xl text-primary" aria-hidden="true">
           →
         </span>
       </Card>
     </a>
-  );
-}
-
-interface PendingProps {
-  title: string;
-  locale: Locale;
-  /** The engine feature the example waits for, when it waits for one. */
-  missing?: string;
-  /** The issue that delivers it, for an example already written and waiting for the engine. */
-  issue?: number;
-}
-
-/** An example still to come: its title, "in progress" — or "waiting for the engine" and its issue
- * when it is written already —, and the feature it waits for. It opens nothing. A parked one shows
- * no picture: it has no render yet, and no thumbnail to break. */
-export function PendingExampleCard({ title, locale, missing, issue }: PendingProps) {
-  const t = useWords(locale);
-  return (
-    <div aria-disabled="true" className="h-full opacity-75">
-      <Card
-        className="h-full overflow-hidden shadow-sm"
-        media={!issue && <Cover look="placeholder" src="./assets/example-in-progress.svg" />}
-        eyebrow={
-          <Badge tone="info" soft>
-            {t(issue ? 'examples.waitingEngine' : 'examples.inProgress')}
-          </Badge>
-        }
-        title={title}
-      >
-        {missing && (
-          <Note>
-            {`${t('examples.waitsFor')} ${missing}`}
-            {issue && (
-              <>
-                {' — '}
-                <TextLink href={issueUrl(issue)}>#{issue}</TextLink>
-              </>
-            )}
-          </Note>
-        )}
-      </Card>
-    </div>
   );
 }
