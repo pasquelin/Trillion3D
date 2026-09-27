@@ -1163,7 +1163,7 @@
       "theme": "interaction",
       "file": "examples/inside-a-component.html",
       "status": "waiting-engine",
-      "issue": 880
+      "issue": 412
     },
     {
       "id": "labels-that-follow",
