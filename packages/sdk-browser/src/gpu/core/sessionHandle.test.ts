@@ -4,7 +4,7 @@ import { claimGpuDevice } from './deviceOwners.ts';
 import { namesNoSession, sharedGpuDevice, tagsIn } from './sessionHandle.ts';
 import { installGpuDeviceLedger } from './deviceLedger.ts';
 import { validated } from './errorScope.ts';
-import { generateMaterialMips } from '../../texture/mips.ts';
+import { generateMaterialMips } from '../../texture/mipBatch.ts';
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
 import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts';
 import { deviceOwner, untag } from '../../../../../tests/kit/gpu/webgpuDevice.ts';
