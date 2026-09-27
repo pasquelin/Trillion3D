@@ -131,13 +131,16 @@ export function createExplorerLifecycle(session: ExplorerSession, inputs: Inputs
         camera,
         async (missing) => {
           // The pages the view reads the streamer already holds count as landed.
-          const held = onProgress ? heldPages(backend, missing) : 0;
-          const done = pages.completed + held,
-            all = pages.total + held;
+          if (onProgress) {
+            const held = heldPages(backend, missing);
+            pages.completed += held;
+            pages.total += held;
+          }
+          const before = { ...pages };
           await streamer.request(missing, {
             onPage: (resident, requested) => {
-              pages.completed = done + resident;
-              pages.total = all + requested;
+              pages.completed = before.completed + resident;
+              pages.total = before.total + requested;
               onProgress?.({
                 phase: 'pages',
                 ...pages,

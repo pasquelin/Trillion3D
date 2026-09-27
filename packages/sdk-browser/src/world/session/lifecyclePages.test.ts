@@ -83,31 +83,34 @@ test('awaitPages with every page resident still closes its count', async () => {
   streamer.dispose();
 });
 
-test('awaitPages counts the pages the view already holds: never 0 of 0 on a drawn view', async () => {
-  const { lifecycle, streamer } = await lackingPages(['b.bin'], ['a.bin', 'c.bin']);
-  const heard: JobProgress[] = [];
-  await lifecycle.awaitPages({ onProgress: (event) => heard.push(event) });
-  assert.deepEqual(
-    heard.map(({ completed, total }) => [completed, total]),
-    [
+const held = [
+  // Frames drawn before the wait may have read every page but one: never 0 of 0 on a drawn view.
+  {
+    name: 'counts the pages the view already holds',
+    resident: undefined,
+    heard: [
       [2, 3],
       [3, 3],
     ],
-  );
-  streamer.dispose();
-});
-
-test('awaitPages leaves out a page the view pins but no one reads: resident means held', async () => {
+  },
   // Past the page budget a view pins pages it draws through an ancestor and never reads.
-  const { lifecycle, streamer } = await lackingPages(['b.bin'], ['a.bin', 'c.bin'], ['a.bin']);
-  const heard: JobProgress[] = [];
-  await lifecycle.awaitPages({ onProgress: (event) => heard.push(event) });
-  assert.deepEqual(
-    heard.map(({ completed, total }) => [completed, total]),
-    [
+  {
+    name: 'leaves out a page the view pins but no one reads',
+    resident: ['a.bin'],
+    heard: [
       [1, 2],
       [2, 2],
     ],
-  );
-  streamer.dispose();
-});
+  },
+];
+for (const { name, resident, heard: counts } of held)
+  test(`awaitPages ${name} (#408)`, async () => {
+    const { lifecycle, streamer } = await lackingPages(['b.bin'], ['a.bin', 'c.bin'], resident);
+    const heard: JobProgress[] = [];
+    await lifecycle.awaitPages({ onProgress: (event) => heard.push(event) });
+    assert.deepEqual(
+      heard.map(({ completed, total }) => [completed, total]),
+      counts,
+    );
+    streamer.dispose();
+  });
