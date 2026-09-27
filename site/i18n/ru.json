@@ -330,7 +330,8 @@
       "shadows-case-by-case": "Тени, случай за случаем",
       "shadows-through-see-through-panes": "Тени сквозь прозрачные стёкла",
       "a-walker-among-balls": "Ходок среди мячей",
-      "a-dolly-along-the-canal": "Проезд камеры вдоль канала"
+      "a-dolly-along-the-canal": "Проезд камеры вдоль канала",
+      "a-folder-merged-into-one-scene": "Папка, объединённая в одну сцену"
     },
     "missing": {
       "floating-crates": "геометрия, перезаписываемая в каждом кадре",

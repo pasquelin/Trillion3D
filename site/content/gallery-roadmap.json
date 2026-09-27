@@ -850,6 +850,11 @@
       "file": "examples/a-model-from-obj.html"
     },
     {
+      "id": "a-folder-merged-into-one-scene",
+      "theme": "loaders",
+      "file": "examples/a-folder-merged-into-one-scene.html"
+    },
+    {
       "id": "a-model-from-usdz",
       "theme": "loaders",
       "file": "examples/a-model-from-usdz.html"

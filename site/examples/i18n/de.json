@@ -1710,11 +1710,18 @@
   },
   "the-home-pose": {
     "banner": "Wähle eine Ansicht, bewege die Kamera und kehre dann mit Ausgang zurück.",
-    "controls": { "home": "Ausgang", "tower": "Turm", "square": "Platz", "hillside": "Hang" }
+    "controls": {
+      "home": "Ausgang",
+      "tower": "Turm",
+      "square": "Platz",
+      "hillside": "Hang"
+    }
   },
   "the-near-plane-cuts-a-wall": {
     "banner": "Schiebe die Nahgrenze vor und sieh zu, wie sie jede Wand schneidet.",
-    "controls": { "nearPlane": "Nahgrenze" }
+    "controls": {
+      "nearPlane": "Nahgrenze"
+    }
   },
   "the-material-family": {
     "banner": "Ziehe, um herumzugehen. Stell das Licht auf Nacht und sieh, was noch leuchtet.",
@@ -2190,6 +2197,16 @@
     },
     "readouts": {
       "progress": "Fortschritt"
+    }
+  },
+  "a-folder-merged-into-one-scene": {
+    "banner": "Ziehen Sie, um die Straßenecke anzusehen. Der Compiler hat drei OBJ-Dateien aus einem Ordner zu dieser Szene vereint.",
+    "controls": {
+      "visible": "Sichtbar",
+      "home": "Startansicht"
+    },
+    "words": {
+      "credit": "Straßenlaternenmodell von W. Sitters, CC BY 3.0 — siehe assets/examples/CREDITS.md"
     }
   }
 }
