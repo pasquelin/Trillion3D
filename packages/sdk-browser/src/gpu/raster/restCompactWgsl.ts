@@ -48,12 +48,20 @@ fn countWord(n:u32)->u32{return uni.copyWords+n;}
 /** Word of \`work\` holding tile \`t\` of tested slot \`n\`: its survivors, then its offset. */
 fn tileWord(n:u32,t:u32)->u32{return uni.copyWords+uni.restSlots+n*uni.tiles+t;}
 var<workgroup> tileKept:atomic<u32>;
+var<workgroup> slotCount:u32;
+/** Tested slot \`n\`'s count, broadcast so an empty tile can leave from uniform control flow. */
+fn sharedCount(lane:u32,count:u32)->u32{
+ if(lane==0u){slotCount=count;}
+ return workgroupUniformLoad(&slotCount);
+}
 @compute @workgroup_size(${REST_COMPACT_WORKGROUP})
 fn restCount(@builtin(workgroup_id) wg:vec3u,@builtin(local_invocation_index) lane:u32){
  let n=wg.y;let t=wg.x;
  if(n>=uni.restSlots){return;}
  let slot=restSlotAt(n);
- let count=min(indirect[slot*4u+1u],uni.tiles*${REST_COMPACT_WORKGROUP}u);
+ let count=sharedCount(lane,min(indirect[slot*4u+1u],uni.tiles*${REST_COMPACT_WORKGROUP}u));
+ // Tiles past the count are never scanned; tile 0 still records the count.
+ if(t>0u&&t*${REST_COMPACT_WORKGROUP}u>=count){return;}
  let x=t*${REST_COMPACT_WORKGROUP}u+lane;
  if(x<count){
   let at=slotOffsets[slot]+x;
@@ -67,20 +75,16 @@ fn restCount(@builtin(workgroup_id) wg:vec3u,@builtin(local_invocation_index) la
   if(t==0u){work[countWord(n)]=count;}
  }
 }
-${LANE_SCAN_WGSL}var<workgroup> slotCount:u32;
-@compute @workgroup_size(64)
+${LANE_SCAN_WGSL}@compute @workgroup_size(64)
 fn restScan(@builtin(local_invocation_index) lane:u32){
  for(var n=0u;n<uni.restSlots;n++){
-  if(lane==0u){slotCount=work[countWord(n)];}
-  let tiles=(workgroupUniformLoad(&slotCount)+${REST_COMPACT_WORKGROUP - 1}u)/${REST_COMPACT_WORKGROUP}u;
-  let run=(tiles+63u)/64u;
-  let first=min(lane*run,tiles);let last=min(first+run,tiles);
+  let tiles=(sharedCount(lane,work[countWord(n)])+${REST_COMPACT_WORKGROUP - 1}u)/${REST_COMPACT_WORKGROUP}u;
+  let span=laneRun(lane,tiles);
   var sum=0u;
-  for(var t=first;t<last;t++){sum=sum+work[tileWord(n,t)];}
+  for(var t=span.x;t<span.y;t++){sum=sum+work[tileWord(n,t)];}
   // Inclusive scan of the run totals over the lanes.
-  let inclusive=laneScan(lane,sum);
-  var cursor=inclusive-sum;
-  for(var t=first;t<last;t++){
+  var cursor=laneScan(lane,sum)-sum;
+  for(var t=span.x;t<span.y;t++){
    let kept=work[tileWord(n,t)];
    work[tileWord(n,t)]=cursor;
    cursor=cursor+kept;
@@ -93,11 +97,13 @@ fn restScan(@builtin(local_invocation_index) lane:u32){
 fn restScatter(@builtin(workgroup_id) wg:vec3u,@builtin(local_invocation_index) lane:u32){
  let n=wg.y;let t=wg.x;
  if(n>=uni.restSlots){return;}
- let slot=restSlotAt(n);
- let start=slotOffsets[slot];
+ let count=sharedCount(lane,work[countWord(n)]);
  let x=t*${REST_COMPACT_WORKGROUP}u+lane;
+ // A tile past the count moves nothing: it leaves before the scan.
+ if(t*${REST_COMPACT_WORKGROUP}u>=count){return;}
+ let start=slotOffsets[restSlotAt(n)];
  var row=0u;var kept=0u;
- if(x<work[countWord(n)]){row=work[start+x];kept=select(0u,1u,survives(row));}
+ if(x<count){row=work[start+x];kept=select(0u,1u,survives(row));}
  // Its rank among the earlier survivors of its tile: the exclusive scan of the kept flags.
  let rank=laneScan(lane,kept)-kept;
  if(kept!=0u){instances[start+work[tileWord(n,t)]+rank]=row;}

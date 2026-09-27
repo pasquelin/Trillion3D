@@ -31,6 +31,15 @@ test('compaction scatters the survivors from a copy and only rewrites the instan
   assert.doesNotMatch(REST_COMPACT_SHADER, /indirect\[[^\]]*\*4u\]=/);
 });
 
+// Behaviour 2b: a tile past its slot's count leaves at once, from uniform control flow (the count
+// is broadcast by \`workgroupUniformLoad\`), so its lanes run no scan; tile 0 still records it.
+test('a tile past its slot count runs no scan', () => {
+  assert.match(REST_COMPACT_SHADER, /return workgroupUniformLoad\(&slotCount\);/);
+  assert.match(REST_COMPACT_SHADER, /if\(t>0u&&t\*64u>=count\)\{return;\}/);
+  const scatter = REST_COMPACT_SHADER.slice(REST_COMPACT_SHADER.indexOf('fn restScatter'));
+  assert.ok(scatter.indexOf('if(t*64u>=count){return;}') < scatter.indexOf('laneScan('));
+});
+
 // Behaviour 3: the rank of tested slot number n follows the `slotOf` convention — three face
 // modes per layer, the tested half after the occluders.
 test('visited slots are those of the tested half', () => {

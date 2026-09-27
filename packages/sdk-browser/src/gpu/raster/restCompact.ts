@@ -75,7 +75,7 @@ export async function createGpuRestCompact(
     const uniData = new Uint32Array(4);
     let disposed = false,
       work: GPUBuffer | undefined,
-      boundPages: GPUBuffer | undefined,
+      bound: { pages: GPUBuffer; work: GPUBuffer } | undefined,
       bindGroup!: GPUBindGroup;
     return {
       encode(encoder, restSlots, rows, pages) {
@@ -91,10 +91,9 @@ export async function createGpuRestCompact(
             usage: GPUBufferUsage.STORAGE,
           });
           owned = [uniforms, work];
-          boundPages = undefined;
         }
-        if (boundPages !== pages) {
-          boundPages = pages;
+        if (bound?.pages !== pages || bound.work !== work) {
+          bound = { pages, work };
           bindGroup = bounceGroup(device, layout, [
             buffers.instances,
             buffers.indirect,

@@ -59,23 +59,15 @@ function compact(f: Frame) {
       work[tileWord(n, t)] = kept;
       if (t === 0) work[countWord(n)] = count;
     }
+  // The scan over the lanes is a serial exclusive sum of the slot's tile counts, term for term.
   for (let n = 0; n < f.restSlots; n++) {
-    const tiles = Math.ceil(work[countWord(n)] / TILE),
-      run = Math.ceil(tiles / 64);
-    const sums = Array.from({ length: 64 }, (_, lane) => {
-      let sum = 0;
-      for (let t = Math.min(lane * run, tiles); t < Math.min(lane * run + run, tiles); t++)
-        sum += work[tileWord(n, t)];
-      return sum;
-    });
     let cursor = 0;
-    for (let lane = 0; lane < 64; lane++)
-      for (let t = Math.min(lane * run, tiles); t < Math.min(lane * run + run, tiles); t++) {
-        const kept = work[tileWord(n, t)];
-        work[tileWord(n, t)] = cursor;
-        cursor += kept;
-      }
-    f.indirect[restSlotAt(n) * 4 + 1] = sums.reduce((a, b) => a + b, 0);
+    for (let t = 0; t < Math.ceil(work[countWord(n)] / TILE); t++) {
+      const kept = work[tileWord(n, t)];
+      work[tileWord(n, t)] = cursor;
+      cursor += kept;
+    }
+    f.indirect[restSlotAt(n) * 4 + 1] = cursor;
   }
   // Tiles in reverse: each reads the copy, so no order between them can change what they write.
   for (let n = 0; n < f.restSlots; n++)

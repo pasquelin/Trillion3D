@@ -109,23 +109,24 @@ fn prefixGroups(@builtin(local_invocation_index) lane:u32){
   for(var slot=lane;slot<${slots}u;slot+=64u){writeCmd(slot,0u);}
   return;
  }
- let run=(uni.groupCount+63u)/64u;
- let first=min(lane*run,uni.groupCount);let last=min(first+run,uni.groupCount);
+ let span=laneRun(lane,uni.groupCount);
  var start=0u;
  for(var slot=0u;slot<${slots}u;slot++){
-  let used=slotUsed[slot]!=0u;
+  // \`slotUsed\` is read-only storage, uniform over the workgroup: an unused slot skips the scan.
+  if(slotUsed[slot]==0u){
+   if(lane==0u){writeCmd(slot,0u);}
+   continue;
+  }
   var sum=0u;
-  if(used){for(var group=first;group<last;group++){sum=sum+groupCounts[group*${slots}u+slot];}}
+  for(var group=span.x;group<span.y;group++){sum=sum+groupCounts[group*${slots}u+slot];}
   // Inclusive scan of the run totals over the lanes.
   let inclusive=laneScan(lane,sum);
   let total=laneSums[63u];
-  if(used){
-   var cursor=start+inclusive-sum;
-   for(var group=first;group<last;group++){
-    let entry=group*${slots}u+slot;
-    groupOffsets[entry]=cursor;
-    cursor=cursor+groupCounts[entry];
-   }
+  var cursor=start+inclusive-sum;
+  for(var group=span.x;group<span.y;group++){
+   let entry=group*${slots}u+slot;
+   groupOffsets[entry]=cursor;
+   cursor=cursor+groupCounts[entry];
   }
   if(lane==0u){writeCmd(slot,total);}
   start=start+total;

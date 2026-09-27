@@ -27,13 +27,9 @@ test('drawShader(k) reads each item once when counting, and guards the prefix pa
     );
 
     // The prefix reads no group of an empty slot: its run totals and offsets are guarded.
-    assert.ok(shader.includes('let used=slotUsed[slot]!=0u;'), 'prefixGroups reads slotUsed');
     assert.ok(
-      shader.includes(
-        'if(used){for(var group=first;group<last;group++){sum=sum+groupCounts[group*',
-      ),
-      'the run total of an empty slot reads nothing',
+      shader.includes('if(slotUsed[slot]==0u){\n   if(lane==0u){writeCmd(slot,0u);}\n   continue;'),
+      'an empty slot is written zero and its groups are never read',
     );
-    assert.ok(shader.includes('if(used){\n   var cursor='), 'nor do its offsets');
   }
 });

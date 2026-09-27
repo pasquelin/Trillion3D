@@ -1,15 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { slotCount } from './draw.ts';
 import {
-  prefixParallel,
   prefixScan,
   prefixSerial,
 } from '../../../../../bench/oracles/browser/gpuDrawPrefixOracle.ts';
 
-// D3's per-slot parallel prefix and the multi-lane scan shader.ts carries since #923 produce
-// exactly the same totals (indirect[slot*4+1]) and groupOffsets as the serial prefix
-// (workgroup_size(1)) they replaced. This file keeps the equivalence proof on hostile
-// inputs: that is what authorizes the shipped kernel to decide the indirect draw.
+// The multi-lane scan shader.ts carries since #923 produces exactly the same totals
+// (indirect[slot*4+1]) and groupOffsets as the serial prefix (workgroup_size(1)) it replaced. This
+// file keeps the equivalence proof on hostile inputs: that is what authorizes the shipped kernel to
+// decide the indirect draw.
 
 function assertSameResult(
   overflow: boolean,
@@ -19,11 +19,9 @@ function assertSameResult(
   slots: number,
 ) {
   const serial = prefixSerial(overflow, slotUsed, groupCounts, groupCount, slots);
-  for (const kernel of [prefixParallel, prefixScan]) {
-    const result = kernel(overflow, slotUsed, groupCounts, groupCount, slots);
-    assert.deepEqual([...result.totals], [...serial.totals], 'totals (indirect count) differ');
-    assert.deepEqual([...result.offsets], [...serial.offsets], 'groupOffsets differ');
-  }
+  const scan = prefixScan(overflow, slotUsed, groupCounts, groupCount, slots);
+  assert.deepEqual([...scan.totals], [...serial.totals], 'totals (indirect count) differ');
+  assert.deepEqual([...scan.offsets], [...serial.offsets], 'groupOffsets differ');
   return serial;
 }
 
@@ -97,10 +95,29 @@ test('hand-computed explicit case: two used slots, two groups', () => {
     groupCount = 2;
   const slotUsed = new Uint32Array([1, 1]);
   const groupCounts = new Uint32Array([3, 1, 2, 4]); // [g0s0,g0s1,g1s0,g1s1]
-  const serial = prefixSerial(false, slotUsed, groupCounts, groupCount, slots);
-  const parallel = prefixParallel(false, slotUsed, groupCounts, groupCount, slots);
-  assert.deepEqual([...serial.totals], [5, 5]);
-  assert.deepEqual([...serial.offsets], [0, 5, 3, 6]);
-  assert.deepEqual([...parallel.totals], [5, 5]);
-  assert.deepEqual([...parallel.offsets], [0, 5, 3, 6]);
+  const result = assertSameResult(false, slotUsed, groupCounts, groupCount, slots);
+  assert.deepEqual([...result.totals], [5, 5]);
+  assert.deepEqual([...result.offsets], [0, 5, 3, 6]);
+});
+
+test('on a thousand random inputs: sparse empty slots, fewer groups than lanes, long runs', () => {
+  let seed = 20260915;
+  const rand = (bound: number) => ((seed = (seed * 1103515245 + 12345) >>> 0) % bound) as number;
+  for (let trial = 0; trial < 1000; trial++) {
+    const slots = slotCount(1 + rand(4));
+    const groupCount = 1 + (trial % 3 === 0 ? rand(400) : rand(64));
+    const slotUsed = new Uint32Array(slots);
+    for (let s = 0; s < slots; s++) slotUsed[s] = rand(3) === 0 ? 0 : 1;
+    const groupCounts = new Uint32Array(groupCount * slots);
+    for (let g = 0; g < groupCount; g++)
+      for (let s = 0; s < slots; s++) groupCounts[g * slots + s] = slotUsed[s] ? rand(97) : 0;
+    assertSameResult(trial % 97 === 0, slotUsed, groupCounts, groupCount, slots);
+  }
+});
+
+test('the scan wraps at 2³² as the serial walk does', () => {
+  const slots = 6,
+    groupCount = 130;
+  const groupCounts = new Uint32Array(groupCount * slots).fill(0x7fffffff);
+  assertSameResult(false, new Uint32Array(slots).fill(1), groupCounts, groupCount, slots);
 });
