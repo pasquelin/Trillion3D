@@ -35,7 +35,7 @@
     "jumpTo": "테마로 이동",
     "waitsFor": "엔진을 기다리는 중:",
     "partial": "부분 지원",
-    "coming": "예정: {{titles}}"
+    "coming": "예정"
   },
   "gallery": {
     "themes": {
@@ -74,6 +74,7 @@
       "a-tube-along-a-spline": "곡선을 따라가는 관",
       "curved-surfaces": "곡면",
       "instances-in-colour": "색이 있는 인스턴스",
+      "a-hundred-thousand-instances": "십만 개의 인스턴스",
       "copies-along-a-path": "경로를 따라가는 복제본",
       "scattered-on-a-surface": "표면에 흩뿌리기",
       "a-world-of-blocks": "블록으로 만든 세계",
@@ -187,6 +188,7 @@
       "red-cyan-anaglyph": "빨강-청록 애너글리프",
       "camera-layers": "카메라 레이어",
       "a-robot-that-walks-and-waves": "섞인 로봇 동작",
+      "a-crane-that-swings": "짐을 흔드는 크레인",
       "a-wave-across-a-grid": "큐브의 물결",
       "keyframes-by-hand": "손으로 만든 키프레임",
       "one-clip-many-objects": "하나의 클립, 여러 물체",
@@ -228,6 +230,7 @@
       "what-hides-what": "무엇이 무엇을 가리는가",
       "create-and-dispose": "만들고 해제하기",
       "no-hitch-on-first-draw": "첫 프레임도 끊김 없이",
+      "inside-a-component": "컴포넌트 안에서",
       "inside-the-g-buffer": "G버퍼 안",
       "reading-pixels-back": "픽셀 다시 읽기",
       "a-city-from-3d-tiles": "3D Tiles로 만든 도시",
@@ -332,9 +335,11 @@
       "shadows-through-see-through-panes": "투명한 유리가 드리우는 그림자",
       "a-walker-among-balls": "공 사이를 걷는 사람",
       "a-dolly-along-the-canal": "운하를 따라가는 카메라 돌리",
-      "a-folder-merged-into-one-scene": "하나의 장면으로 병합된 폴더"
+      "a-folder-merged-into-one-scene": "하나의 장면으로 병합된 폴더",
+      "drag-a-crate": "상자 드래그"
     },
     "missing": {
+      "inside-a-component": "월드 폐기 시 엔진이 만든 캔버스 정리",
       "floating-crates": "매 프레임 다시 쓰는 지오메트리",
       "thick-lines": "굵은 선",
       "a-line-that-draws-itself": "지오메트리의 그리기 범위",

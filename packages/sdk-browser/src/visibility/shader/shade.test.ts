@@ -14,7 +14,7 @@ import { asHostLibrary } from '../../host/resources.ts';
 const oracleShade = (
   ids: Uint32Array,
   pages: Parameters<typeof referenceShadeVisibility>[1],
-  cam: G.GraphCamera,
+  cam: G.Camera,
   size: [number, number],
 ) =>
   referenceShadeVisibility(
