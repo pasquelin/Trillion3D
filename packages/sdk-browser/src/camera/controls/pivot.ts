@@ -5,6 +5,7 @@ import { dollyDistance, panOffset, pixelWorldScale } from './math.ts';
 import { clampNumber, RADIUS_EPSILON } from '../../../../sdk-core/src/world/math/spherical.ts';
 import { rotateByQuaternion } from '../../../../sdk-core/src/math/matrix/quaternion.ts';
 import type { ControlCamera, PivotCameraControls } from './types.ts';
+import { hypot3 } from '../../../../sdk-core/src/math/primitives/hypot.ts';
 
 /**
  * THE PIVOT CORE, shared by the trackball and the planar pan-zoom: a camera, a point it keeps
@@ -51,7 +52,7 @@ export function createPivotControls(camera: ControlCamera, surface: HTMLElement)
     for (let i = 0; i < 3; i++) offset[i] = position[i] - center[i];
   };
   const apply = () => {
-    let radius = Math.hypot(offset[0], offset[1], offset[2]);
+    let radius = hypot3(offset[0], offset[1], offset[2]);
     // A pivot reached exactly is no direction at all: back off along what the camera faces.
     if (radius <= RADIUS_EPSILON) {
       rotateByQuaternion(offset, orientation, 0, 0, 1);
@@ -84,7 +85,7 @@ export function createPivotControls(camera: ControlCamera, surface: HTMLElement)
     panBy(dx, dy) {
       if (!api.enablePan) return;
       sample();
-      const distance = Math.hypot(offset[0], offset[1], offset[2]);
+      const distance = hypot3(offset[0], offset[1], offset[2]);
       panOffset(
         pan,
         orientation,
@@ -98,7 +99,7 @@ export function createPivotControls(camera: ControlCamera, surface: HTMLElement)
     dolly(steps) {
       if (!api.enableZoom) return;
       sample();
-      const distance = Math.hypot(offset[0], offset[1], offset[2]) || 1;
+      const distance = hypot3(offset[0], offset[1], offset[2]) || 1;
       const kept = dollyDistance(distance, steps, api.zoomSpeed);
       for (let i = 0; i < 3; i++) offset[i] = (offset[i] * kept) / distance;
       apply();

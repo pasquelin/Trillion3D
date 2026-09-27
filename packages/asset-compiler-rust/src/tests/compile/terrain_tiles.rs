@@ -77,7 +77,14 @@ fn defects_with_a_vertex_moved(
     let source = page_indices(&scene.objects, page);
     let mut moved = positions.to_vec();
     moved[source[0] as usize * 3 + 1] += up;
-    let encoded = crate::geometry_page::encode(&source, &moved, &[], exponent).expect("encode");
+    let encoded = crate::geometry_page::encode(
+        &source,
+        &moved,
+        &[],
+        exponent,
+        crate::geometry_page_quant::UV_EXPONENT,
+    )
+    .expect("encode");
     let digest = hash(&encoded.bytes);
     fs::write(scene.objects.join(format!("{digest}.bin")), &encoded.bytes).expect("page");
     page["geometry"]["sha256"] = json!(digest);

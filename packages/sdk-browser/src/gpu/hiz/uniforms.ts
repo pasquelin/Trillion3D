@@ -7,23 +7,24 @@ export function pyramidBytes(width: number, height: number) {
   return { sizes, bytes: Math.max(4, texels * 4) };
 }
 
-export function writeUni(
+/**
+ * The test slot at `byteOffset`: `[width, height, rows, depth bias]`, the rest zero. `words` is the
+ * caller's, zeroed at creation and reused every frame; only the first three words ever change, the
+ * bias staying +0 (its bits, 0) — no array is allocated per frame.
+ */
+export function writeHizTestUniforms(
   device: GPUDevice,
   buffer: GPUBuffer,
-  packed: Float32Array,
-  ints: number[],
-  byteOffset = 0,
+  words: Uint32Array<ArrayBuffer>,
+  byteOffset: number,
+  width: number,
+  height: number,
+  rows: number,
 ) {
-  packed.fill(0);
-  const u32 = new Uint32Array(packed.buffer, packed.byteOffset, packed.length);
-  for (let i = 0; i < ints.length; i++) u32[i] = ints[i];
-  device.queue.writeBuffer(
-    buffer,
-    byteOffset,
-    packed.buffer as ArrayBuffer,
-    packed.byteOffset,
-    packed.byteLength,
-  );
+  words[0] = width;
+  words[1] = height;
+  words[2] = rows;
+  device.queue.writeBuffer(buffer, byteOffset, words);
 }
 
 /**
