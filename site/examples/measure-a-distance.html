@@ -66,6 +66,8 @@
       world.controls.target.set(0, 1, 0);
       world.camera.lookAt(world.controls.target);
 
+      // Readouts join the panel, so the panel comes first; its button calls `clear` below.
+      controls({ clear: () => clear() }, world);
       const pointA = readout('pointA'),
         pointB = readout('pointB'),
         distance = readout('distance');
@@ -85,7 +87,6 @@
         pointB('—');
         distance('—');
       };
-      controls({ clear }, world);
       clear();
 
       const measure = (x, y) => {
