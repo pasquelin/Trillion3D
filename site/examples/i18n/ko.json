@@ -1710,11 +1710,18 @@
   },
   "the-home-pose": {
     "banner": "보기를 선택하고 카메라를 움직인 다음 홈을 선택해 돌아갑니다.",
-    "controls": { "home": "홈", "tower": "탑", "square": "광장", "hillside": "언덕" }
+    "controls": {
+      "home": "홈",
+      "tower": "탑",
+      "square": "광장",
+      "hillside": "언덕"
+    }
   },
   "the-near-plane-cuts-a-wall": {
     "banner": "근거리 평면을 앞으로 움직여 벽을 차례로 자르는 모습을 확인하세요.",
-    "controls": { "nearPlane": "근거리 평면" }
+    "controls": {
+      "nearPlane": "근거리 평면"
+    }
   },
   "the-material-family": {
     "banner": "끌어서 주위를 걸어 봐. 빛을 밤으로 바꾸고 아직 빛나는 걸 봐.",
@@ -2179,6 +2186,12 @@
     },
     "words": {
       "credit": "이 예제를 위해 코드로 만든 깃대의 깃발, CC0 — assets/examples/CREDITS.md 참고"
+    }
+  },
+  "hover-to-highlight": {
+    "banner": "카트의 각 부품에 마우스를 올려 강조하거나 패널에서 강조 표시를 끄세요.",
+    "controls": {
+      "highlightEnabled": "강조 표시 켜기"
     }
   }
 }

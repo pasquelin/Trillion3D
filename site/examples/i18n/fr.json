@@ -1710,11 +1710,18 @@
   },
   "the-home-pose": {
     "banner": "Choisissez une vue, déplacez la caméra, puis choisissez Accueil pour revenir.",
-    "controls": { "home": "Accueil", "tower": "Tour", "square": "Place", "hillside": "Colline" }
+    "controls": {
+      "home": "Accueil",
+      "tower": "Tour",
+      "square": "Place",
+      "hillside": "Colline"
+    }
   },
   "the-near-plane-cuts-a-wall": {
     "banner": "Avancez le plan proche et regardez-le couper chaque mur.",
-    "controls": { "nearPlane": "Plan proche" }
+    "controls": {
+      "nearPlane": "Plan proche"
+    }
   },
   "the-material-family": {
     "banner": "Glisse pour tourner autour. Passe à la nuit et vois ce qui brille encore.",
@@ -2179,6 +2186,12 @@
     },
     "words": {
       "credit": "Drapeau sur un mât modélisé en code pour cet exemple, CC0 — voir assets/examples/CREDITS.md"
+    }
+  },
+  "hover-to-highlight": {
+    "banner": "Survolez les pièces du chariot pour les mettre en évidence, ou désactivez le surlignage dans le panneau.",
+    "controls": {
+      "highlightEnabled": "Activer la mise en évidence"
     }
   }
 }

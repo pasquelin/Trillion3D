@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Hover to highlight a part</title>
+    <meta name="thumbnail" content="1.5" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #18212c;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <script type="module">
+      import { createWorld } from '../runtime/engine.js';
+      import { geometry, material, object, light, math } from '../runtime/engine.js';
+      import { controls } from '../runtime/kit.js';
+
+      const world = createWorld('view', { controls: 'orbit' });
+      world.scene.background = math.color('#18212c');
+      const makePart = (shape, color, at) => {
+        const matter = material.meshStandard({ color, roughness: 0.55, emissive: '#000000' });
+        const part = object.mesh(shape, matter);
+        part.position.set(...at);
+        world.scene.add(part);
+        return part;
+      };
+
+      // A small service cart is assembled from individually pickable public primitives.
+      const parts = [
+        makePart(geometry.box(4.8, 0.65, 2.4), '#4f7ca8', [0, 1.2, 0]),
+        makePart(geometry.box(2.8, 1.65, 2.15), '#d6a24a', [-0.65, 2.35, 0]),
+        makePart(geometry.box(1.15, 1.35, 2.05), '#78a6b8', [1.35, 2.2, 0]),
+        makePart(geometry.cylinder(0.55, 0.55, 0.38, 20), '#29313b', [-1.55, 0.7, 1.2]),
+        makePart(geometry.cylinder(0.55, 0.55, 0.38, 20), '#29313b', [1.55, 0.7, 1.2]),
+      ];
+      parts.slice(3).forEach((wheel) => (wheel.rotation.x = Math.PI / 2));
+      const originals = new Map(
+        parts.map((part) => [
+          part,
+          { color: part.material.color.clone(), emissive: part.material.emissive.clone() },
+        ]),
+      );
+      let hovered = null;
+      const show = (part) => {
+        if (part === hovered) return;
+        if (hovered) {
+          const original = originals.get(hovered);
+          hovered.material.color.copy(original.color);
+          hovered.material.emissive.copy(original.emissive);
+        }
+        hovered = part;
+        if (hovered) {
+          hovered.material.color.set('#ffd166');
+          hovered.material.emissive.set('#5b3100');
+        }
+        world.invalidate();
+      };
+
+      const values = controls(
+        { highlightEnabled: true },
+        (next, key) => {
+          if (key === 'highlightEnabled' && !next.highlightEnabled) show(null);
+        },
+        world,
+      );
+      world.canvas.addEventListener('pointermove', (event) => {
+        if (!values.highlightEnabled) return;
+        show(
+          world.raycast({ x: event.offsetX, y: event.offsetY }, { objects: parts })?.object ?? null,
+        );
+      });
+      world.canvas.addEventListener('pointerleave', () => show(null));
+
+      world.scene.add(
+        light.hemisphere({ color: '#dbeeff', groundColor: '#29323a', intensity: 1.2 }),
+        light.directional({ color: '#fff0cf', intensity: 3, position: [-5, 9, 7] }),
+      );
+      world.camera.position.set(7, 5, 8);
+      world.camera.lookAt(0, 1.5, 0);
+      world.controls.target.set(0, 1.5, 0);
+      world.invalidate();
+      addEventListener('pagehide', () => world.dispose(), { once: true });
+    </script>
+  </body>
+</html>

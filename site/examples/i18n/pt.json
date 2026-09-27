@@ -1710,11 +1710,18 @@
   },
   "the-home-pose": {
     "banner": "Escolha uma vista, mova a câmera e depois escolha Início para voltar.",
-    "controls": { "home": "Início", "tower": "Torre", "square": "Praça", "hillside": "Encosta" }
+    "controls": {
+      "home": "Início",
+      "tower": "Torre",
+      "square": "Praça",
+      "hillside": "Encosta"
+    }
   },
   "the-near-plane-cuts-a-wall": {
     "banner": "Avance o plano próximo e veja-o cortar cada parede.",
-    "controls": { "nearPlane": "Plano próximo" }
+    "controls": {
+      "nearPlane": "Plano próximo"
+    }
   },
   "the-material-family": {
     "banner": "Arraste para andar em volta. Ponha a luz de noite e veja o que ainda brilha.",
@@ -2179,6 +2186,12 @@
     },
     "words": {
       "credit": "Bandeira num mastro modelada em código para este exemplo, CC0 — ver assets/examples/CREDITS.md"
+    }
+  },
+  "hover-to-highlight": {
+    "banner": "Passe o cursor sobre as peças do carrinho para realçar cada uma, ou desative o realce no painel.",
+    "controls": {
+      "highlightEnabled": "Ativar realce"
     }
   }
 }

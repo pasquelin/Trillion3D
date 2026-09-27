@@ -1710,11 +1710,18 @@
   },
   "the-home-pose": {
     "banner": "Elige una vista, mueve la cámara y luego elige Inicio para volver.",
-    "controls": { "home": "Inicio", "tower": "Torre", "square": "Plaza", "hillside": "Ladera" }
+    "controls": {
+      "home": "Inicio",
+      "tower": "Torre",
+      "square": "Plaza",
+      "hillside": "Ladera"
+    }
   },
   "the-near-plane-cuts-a-wall": {
     "banner": "Avanza el plano cercano y observa cómo corta cada pared.",
-    "controls": { "nearPlane": "Plano cercano" }
+    "controls": {
+      "nearPlane": "Plano cercano"
+    }
   },
   "the-material-family": {
     "banner": "Arrastra para dar la vuelta. Pon la luz de noche y mira qué sigue brillando.",
@@ -2179,6 +2186,12 @@
     },
     "words": {
       "credit": "Bandera en un mástil modelada en código para este ejemplo, CC0 — ver assets/examples/CREDITS.md"
+    }
+  },
+  "hover-to-highlight": {
+    "banner": "Pasa el cursor sobre las piezas del carro para resaltar cada una, o desactiva el resaltado en el panel.",
+    "controls": {
+      "highlightEnabled": "Activar resaltado"
     }
   }
 }
