@@ -48,8 +48,8 @@ type Inputs = {
   document: TableDocument;
   /** Address of the published document: relative image addresses resolve against it. */
   documentUrl: string;
-  /** The document's binary, which embedded images are views of. */
-  binary: ArrayBuffer | null;
+  /** Reads the document's binary, which embedded images are views of, once. */
+  binary: () => Promise<ArrayBuffer>;
   /** Ranks of the images whose chain the cache baked. */
   skipped: ReadonlySet<number>;
   signal: AbortSignal | undefined;
@@ -73,9 +73,9 @@ export function preparedImages(inputs: Inputs) {
       const url = new URL(image.uri, documentUrl).href;
       return track(url, decodeAddress(url, signal, meter));
     }
-    if (image.view === null || !binary) throw new Error(`image ${rank} names no source`);
+    if (image.view === null) throw new Error(`image ${rank} names no source`);
     const view = document.views[image.view];
-    const bytes = new Uint8Array(binary, view.offset, view.length);
+    const bytes = new Uint8Array(await binary(), view.offset, view.length);
     return decodeBytes(bytes, image.mimeType ?? '');
   };
   const held = new Map<number, Promise<unknown>>();
