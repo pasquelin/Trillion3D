@@ -29,18 +29,6 @@ test('a published order evicts in its order, and never a page it leaves out', as
   assert.ok(!cache.get('read'));
 });
 
-test('a page a lower tier reads goes after every other page of the order', async () => {
-  const cache = await cacheOf(['caster', 'old']);
-  // Only a light cut reads `caster`: the camera never stamped it, so it heads the order.
-  cache.evictInOrder(orderOf(['caster', 'old']));
-  cache.touch('caster', true);
-  await cache.load('a');
-  assert.ok(cache.get('caster') && !cache.get('old'));
-  // Never pinned: a camera page still takes its slot once nothing else is left.
-  await cache.load('b');
-  assert.ok(!cache.get('caster'));
-});
-
 test('each entry of the order is read once, however many a lower tier holds', async () => {
   const keys = Array.from({ length: 64 }, (_, i) => `k${i}`);
   const cache = await cacheOf(keys);
@@ -48,7 +36,9 @@ test('each entry of the order is read once, however many a lower tier holds', as
   cache.evictInOrder({ count: keys.length, keyAt: (at) => (reads++, keys[at]) });
   for (const key of keys.slice(0, 60)) cache.touch(key, true);
   for (let i = 0; i < 8; i++) await cache.load(`new${i}`);
-  // The four camera pages go first, then the lower tier's in order; no entry is read twice.
+  // A page only a light cut reads is touched by the lower tier: the four camera pages go first,
+  // then the lower tier's in order — never pinned, a camera page still takes them; no entry is
+  // read twice.
   const gone = keys.filter((key) => !cache.get(key));
   assert.deepEqual(gone, [...keys.slice(0, 4), ...keys.slice(60)]);
   assert.equal(reads, keys.length);
