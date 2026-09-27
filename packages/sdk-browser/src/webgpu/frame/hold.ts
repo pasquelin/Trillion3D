@@ -153,9 +153,9 @@ export function holdWebgpuFrame(rt: WebgpuPagesRuntime, device: GPUDevice) {
     // full cycle of those frames before one of them can be held (`TAA_STILL_FRAMES`).
     const quiet = run.gate.held() && unsettledMask(rt) === 0;
     // Guides or an effect chain the page changed, or a chain the last image lacked while its
-    // programs compiled, are drawn by a full image; the accumulation stays still for it. Only an
-    // image that is drawn enters the accumulation (`taaSettled`).
+    // programs compiled, are drawn by a full image; the accumulation stays still for it.
     if (!quiet || !taaSettled(rt) || guidesMoved(rt) || effectsMoved(rt) || particlesMoved(rt)) {
+      // Only an image that is drawn enters the accumulation: a held one leaves it as is (#26).
       beginTaaFrame(rt, run.gate.cam, quiet);
       run.frameHeld = false;
       return false;
