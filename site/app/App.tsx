@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useMemo } from 'react';
 import { Entry } from './Entry.tsx';
 import { Chapter } from './course/Chapter.tsx';
-import { readyExampleIds } from './examples/list.ts';
+import { writtenExampleIds } from './examples/list.ts';
 import { resolvePage } from './portal/routes.ts';
 import { ApiIndex } from './portal/ApiIndex.tsx';
 import { NotFound } from './portal/NotFound.tsx';
@@ -63,7 +63,7 @@ export function App() {
     return { route: { ...route, id }, entries };
   }, [entries, route]);
   const page = useMemo(
-    () => resolvePage(portal.route, entries, readyExampleIds),
+    () => resolvePage(portal.route, entries, writtenExampleIds),
     [portal.route, entries],
   );
   return (

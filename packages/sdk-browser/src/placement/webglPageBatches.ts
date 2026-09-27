@@ -5,13 +5,17 @@ import {
   setHostInstance,
   setHostInstanceCount,
 } from '../host/pageObjects.ts';
-import type { HostMaterials } from '../host/resources.ts';
-import type { GraphInstancedMesh } from '../host/graph/mesh.ts';
+import type { HostInstancedMesh, HostMaterials } from '../host/resources.ts';
 import type { PageRec } from '../page/selection/types.ts';
 import { grownCapacity } from './rows.ts';
 import type { Geometry } from '../../../sdk-core/src/world/geometry/geometry.ts';
 
-type Group = { mesh: GraphInstancedMesh | null; capacity: number; count: number; first: PageRec };
+type Group = {
+  mesh: HostInstancedMesh | null;
+  capacity: number;
+  count: number;
+  first: PageRec;
+};
 
 /**
  * The pages the WebGL2 path draws at the rows of an instance buffer: one instanced mesh per

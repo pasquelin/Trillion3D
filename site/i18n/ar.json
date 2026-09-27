@@ -33,9 +33,9 @@
   "examples": {
     "lead": "كل مثال هو ملف قصير واحد: شاهده يعمل، افتح شيفرته، وغيّرها.",
     "jumpTo": "انتقل إلى موضوع",
-    "inProgress": "قيد الإنجاز",
     "waitsFor": "ينتظر المحرك:",
-    "waitingEngine": "في انتظار المحرك"
+    "partial": "جزئي",
+    "coming": "قريبًا: {{titles}}"
   },
   "api": {
     "title": "مرجع المحرك",
@@ -696,7 +696,9 @@
     },
     "IDENTITY_MATRIX4": {
       "description": "مصفوفة الوحدة (identity) بترتيب الأعمدة (column-major)، تُقرأ ولا تُكتب أبدًا: وضعية عقدة، أو جذر بلا وضعية.",
-      "values": ["ستة عشر عددًا، بترتيب الأعمدة."]
+      "values": [
+        "ستة عشر عددًا، بترتيب الأعمدة."
+      ]
     },
     "DiagnosticMode": {
       "description": "ما يرسمه إطار. تصف الإتاحة نواتج خط الأنابيب الفعلية، لا طبقات وهمية أبدًا: يعطي `DIAGNOSTICS`، لكل نمط، ما إذا كان محرّك العرض النشط قادرًا على إنتاجه ولماذا لا.",
@@ -757,7 +759,10 @@
     },
     "GpuTimingMethod": {
       "description": "كيف أُخذت مدد بطاقة الرسوميات لملف مرحلة ما. تحدّد المدة لكل مرحلة أين، لا أبدًا كم: على بطاقة رسوميات قائمة على البلاطات تتداخل المراحل وتمتص مرحلة ما جارتها. إجمالي الإطار هو `gpuImageMs`، أي النطاق — لا تُجمَع مدد المراحل فيه.",
-      "values": ["استعلامات الطابع الزمني الأصلية لـ WebGPU.", "امتداد WebGL2، لذلك المسار."]
+      "values": [
+        "استعلامات الطابع الزمني الأصلية لـ WebGPU.",
+        "امتداد WebGL2، لذلك المسار."
+      ]
     },
     "ColumnKind": {
       "description": "تخزين عمود واحد من البيان الثنائي (binary manifest). يربط `COLUMN_KIND` كل اسم عمود بنوعه، فيعرف القارئ الرؤية التي يتخذها فوق بايتات الملحق (sidecar).",
@@ -1305,10 +1310,10 @@
       "a-refracting-pane": "لوح كاسر للضوء",
       "a-light-map": "خريطة إضاءة",
       "two-materials-one-mesh": "مادتان، شبكة واحدة",
-      "clearcoat-paint": "طلاء clearcoat",
       "velvet-sheen": "لمعان مخملي",
       "soap-bubble-iridescence": "تلوّن قزحي",
       "brushed-metal": "معدن مصقول بالفرشاة",
+      "car-paint-under-clear-coat": "طلاء سيارة تحت طبقة شفافة",
       "a-prism-that-disperses": "منشور مُشتِّت",
       "retroreflective-paint": "طلاء عاكس رجعي",
       "light-through-skin": "الضوء عبر الجلد",
@@ -1337,7 +1342,7 @@
       "flat-shadows-on-the-floor": "ظلال مسطحة على الأرض",
       "a-softbox-panel": "لوح إضاءة ناعمة (softbox)",
       "light-from-a-probe": "ضوء من مسبار",
-      "soft-shadow-edges": "حواف ظل ناعمة",
+      "soft-shadows-from-a-wide-lamp": "ظلال ناعمة من مصباح عريض",
       "contact-shadow-under-a-car": "ظل تماس",
       "coloured-shadows-through-glass": "ظلال ملوّنة عبر الزجاج",
       "shadows-in-the-corners": "ظلال في الزوايا",
@@ -1366,9 +1371,12 @@
       "several-views-one-page": "عدة مناظر، صفحة واحدة",
       "before-and-after-slider": "شريط قبل/بعد",
       "side-by-side-stereo": "ستيريو جنبًا إلى جنب",
+      "the-near-plane-cuts-a-wall": "المستوى القريب يقطع جدارًا",
+      "the-home-pose": "وضعية البداية ونقاط الاهتمام",
       "red-cyan-anaglyph": "أنجليف أحمر-سماوي",
       "camera-layers": "طبقات الكاميرا",
       "a-robot-that-walks-and-waves": "مزج حركات روبوت",
+      "a-crane-that-swings": "رافعة تتأرجح حمولتها",
       "a-wave-across-a-grid": "موجة من المكعبات",
       "keyframes-by-hand": "إطارات مفتاحية يدوية",
       "one-clip-many-objects": "مقطع واحد، أشياء كثيرة",
@@ -1402,6 +1410,7 @@
       "observatory-streamed": "عناقيد مبثوثة",
       "health-check": "فحص السلامة",
       "memory-on-a-budget": "ميزانية الذاكرة",
+      "a-walk-through-the-city": "جولة سيرًا في المدينة",
       "detail-by-pixel-error": "التفاصيل حسب خطأ البكسل",
       "watch-a-world-load": "شاهد عالمًا يُحمَّل",
       "ten-thousand-objects": "عشرة آلاف كائن",
@@ -1512,6 +1521,8 @@
       "shadows-case-by-case": "الظلال، حالةً بحالة",
       "shadows-through-see-through-panes": "ظلال عبر ألواح شفافة",
       "a-walker-among-balls": "ماشٍ بين الكرات",
+      "a-dolly-along-the-canal": "حركة كاميرا على طول القناة",
+      "a-folder-merged-into-one-scene": "مجلد مدمج في مشهد واحد",
       "drag-a-crate": "سحب صندوق"
     },
     "missing": {
@@ -1540,10 +1551,10 @@
       "a-refracting-pane": "الرسم إلى نسيج",
       "a-light-map": "فتحة خريطة إضاءة",
       "two-materials-one-mesh": "شبكات متعددة المواد",
-      "clearcoat-paint": "طبقات المواد الفيزيائية: clearcoat",
       "velvet-sheen": "طبقات المواد الفيزيائية: sheen",
       "soap-bubble-iridescence": "طبقات المواد الفيزيائية: iridescence",
       "brushed-metal": "طبقات المواد الفيزيائية: anisotropy",
+      "car-paint-under-clear-coat": "طبقات المواد الفيزيائية: طبقة شفافة",
       "a-prism-that-disperses": "طبقات المواد الفيزيائية: dispersion",
       "retroreflective-paint": "مواد بتظليل مخصّص",
       "light-through-skin": "التشتت تحت السطح",
@@ -1558,7 +1569,7 @@
       "a-stack-of-texture-layers": "نُسُج بيانات ومصفوفات وثلاثية الأبعاد",
       "wide-gamut-colour": "إخراج بألوان واسعة النطاق",
       "energy-conservation-test": "إضاءة البيئة (IBL)",
-      "soft-shadow-edges": "ترشيح الظل الناعم (penumbra)",
+      "soft-shadows-from-a-wide-lamp": "ظلال ناعمة بحسب عرض المصباح",
       "contact-shadow-under-a-car": "الرسم إلى نسيج",
       "coloured-shadows-through-glass": "أجسام تُلقي ظلالًا شفافة",
       "shadows-in-the-corners": "الحجب المحيطي بفضاء الشاشة",
