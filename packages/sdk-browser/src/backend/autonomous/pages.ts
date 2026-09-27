@@ -128,9 +128,8 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
       if (!context.readGeometryPage) throw new Error('AUTONOMOUS_PAGE_READER_MISSING');
       if (heldFloor.overCeiling()) throw new Error('AUTONOMOUS_ROOT_BUDGET');
       const urls = [...bootstrapUrls];
-      // The copies the display graph draws whole are its only host vertices, read here (#876).
-      await loadHostVertices(blendCopies);
-      (await readPages(context, urls)).forEach((data, i) => acceptGeometryPage(urls[i], data));
+      const read = Promise.all([readPages(context, urls), loadHostVertices(blendCopies)]); // #876
+      (await read)[0].forEach((data, i) => acceptGeometryPage(urls[i], data));
       heldFloor.changed();
       ready = true;
       for (const page of bootstrap) lists.shown.push(page); // a spread overflows the stack
