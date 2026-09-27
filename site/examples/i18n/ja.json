@@ -2147,5 +2147,12 @@
     "words": {
       "credit": "この例のためにコードでモデリングしたポールの旗、CC0 — assets/examples/CREDITS.md を参照"
     }
+  },
+  "drag-a-crate": {
+    "banner": "木箱を床の上でドラッグします。スナップをオンにすると0.5メートル刻みで配置できます。",
+    "controls": {
+      "snap": "スナップ",
+      "home": "ホーム"
+    }
   }
 }

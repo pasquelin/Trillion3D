@@ -2147,5 +2147,12 @@
     "words": {
       "credit": "Bendera pada tiang dimodelkan dalam kode untuk contoh ini, CC0 — lihat assets/examples/CREDITS.md"
     }
+  },
+  "drag-a-crate": {
+    "banner": "Seret peti di atas lantai. Aktifkan kisi untuk menempatkannya setiap setengah meter.",
+    "controls": {
+      "snap": "Kisi",
+      "home": "Awal"
+    }
   }
 }
