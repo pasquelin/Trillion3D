@@ -1965,6 +1965,7 @@
       "manifest": "清单已读",
       "tables": "场景表已读",
       "resources": "场景文件",
+      "session": "正在打开视图",
       "pages": "首批页面",
       "ready": "就绪"
     }

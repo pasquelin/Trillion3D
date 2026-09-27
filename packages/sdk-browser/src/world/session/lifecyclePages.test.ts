@@ -36,7 +36,7 @@ async function lackingPages(missing: string[], pinned: string[] = [], resident =
     geometryUrls: new Set<string>(),
   } as unknown as Inputs;
   const session = { scope: 'slice' } as unknown as Session;
-  return { lifecycle: createExplorerLifecycle(session, inputs), accepted, streamer };
+  return { lifecycle: createExplorerLifecycle(session, inputs), accepted, streamer, backend };
 }
 
 test('awaitPages reports each page the view lacked as it lands, then completed === total', async () => {
@@ -114,3 +114,28 @@ for (const { name, resident, heard: counts } of held)
     );
     streamer.dispose();
   });
+
+// The WebGPU residency reads the pages of its first cut itself, inside its flush, through the
+// streamer: the host lacks none of them after it, yet they are the first pages the view waits on.
+test('awaitPages hears the pages a backend reads itself while it flushes, as they land (#408)', async () => {
+  const { lifecycle, streamer, backend } = await lackingPages([]);
+  const heard: number[][] = [];
+  let flushed = false;
+  Object.assign(backend, {
+    flush: async () => {
+      if (flushed) return;
+      flushed = true;
+      await Promise.all(['a.bin', 'b.bin', 'a.bin'].map((url) => streamer.readBytes(url)));
+      assert.deepEqual(heard.at(-1), [2, 2], 'heard while the flush runs');
+    },
+  });
+  await lifecycle.awaitPages({
+    onProgress: ({ completed, total }) => heard.push([completed!, total!]),
+  });
+  assert.deepEqual(heard, [
+    [0, 2],
+    [1, 2],
+    [2, 2],
+  ]);
+  streamer.dispose();
+});
