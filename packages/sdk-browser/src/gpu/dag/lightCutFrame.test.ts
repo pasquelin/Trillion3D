@@ -9,7 +9,7 @@ import assert from 'node:assert/strict';
 import { fakeDevice, type FakeBuffer } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 import { sunRun } from '../../webgpu/shadow/runs.fixture.ts';
 import { createDagLightCut } from './lightCut.ts';
-import { FRAME_VEC4 } from './types.ts';
+import { FRAME_VEC4, PRIMITIVE_VEC4 } from './types.ts';
 import { OUT_COUNT, OUT_FLAGS, SELECTION_HEADER_WORDS } from './layout.ts';
 import { packRequest } from './request.ts';
 import { COARSER_VIEWS, DAG_UNIFORM_BYTES, LIST_FULL } from './shader/viewsWgsl.ts';
@@ -54,7 +54,8 @@ function lightCutFrame() {
     levelPipelines: [{}],
     outputBytes,
     readbackBytes: outputBytes,
-    frameData: new Float32Array(FRAME_VEC4 * 4),
+    // A camera's frame words, its derived values behind: the light cut copies the first row only.
+    frameData: new Float32Array((FRAME_VEC4 + PRIMITIVE_VEC4) * 4),
     frameWrites: { count: 0 },
     buffers: [],
   } as unknown as Parameters<typeof createDagLightCut>[0]);

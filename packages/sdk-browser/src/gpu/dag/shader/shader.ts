@@ -18,6 +18,8 @@ import { DAG_RECORD_WGSL } from './recordWgsl.ts';
 import { DAG_AHEAD_WGSL } from './aheadWgsl.ts';
 import { CUT_RULE_WGSL } from '../../../page/cut/rule.ts';
 import { DAG_CONE_WGSL } from './coneWgsl.ts';
+import { DAG_PRIMITIVE_WGSL } from './primitiveWgsl.ts';
+import { FRAME_VEC4 } from '../types.ts';
 
 export const DAG_SELECTION_SHADER = `struct Cluster{sphere:vec4f,parentSphere:vec4f,lodError:f32,parentError:f32,flags:u32,}
 struct CullNode{minimum:vec3f,firstChild:u32,maximum:vec3f,maxParentError:f32,sphere:vec4f,worldIndex:u32,firstPage:u32,pageCount:u32,childCount:u32,floorSphere:vec4f,errorFloor:f32,open:u32,pad0:u32,pad1:u32,}
@@ -33,7 +35,8 @@ ${DAG_BINDINGS_WGSL}
 /** A WGSL const-expression may not be infinite, so the unreachable band uses the largest f32:
  *  every comparison below behaves exactly as the CPU cut's Infinity for any finite threshold. */
 const INF:f32=3.4e38;
-const FRAME:u32=7u;
+/** Vec4s per slot of \`frames\`: six planes, then the primitive's words (\`../worlds.ts\`). */
+const FRAME:u32=${FRAME_VEC4}u;
 /** Frustum planes live in the primitive's own space, so no box is ever transformed.
  *  GPU mirror of \`frustumExcludesBox\` (sdk-core, packages/sdk-core/src/math/frustum/box.ts): same corners, same sum.
  *  An infinite far plane is not tested (\`farless\`): it rejects no box. */
@@ -61,7 +64,8 @@ fn visible(r:u32,w:u32,cluster:Cluster)->bool{
 }
 fn stretchOf(world:u32)->f32{return frames[world*FRAME+6u].x*views[vi].cameraStretch;}
 /** Reset and per-primitive planes in a single dispatch: the output counters and block counts
- *  \`dagMask\` accumulates, and the frustum planes only the descent reads.
+ *  \`dagMask\` accumulates, the frustum planes only the descent reads, and what a camera cut
+ *  derives once per primitive (\`primitiveWgsl.ts\`).
  *  One thread per SLOT, view after view (\`viewsWgsl.ts\`): a camera's slot is its primitive. */
 @compute @workgroup_size(64)
 fn dagPrepare(@builtin(global_invocation_id) id:vec3u){
@@ -87,6 +91,7 @@ fn dagPrepare(@builtin(global_invocation_id) id:vec3u){
  // A primitive a camera never culls (\`unculledOf\`) takes six planes no box leaves.
  let open=!isLightCut()&&unculledOf(w);
  for(var i=0u;i<6u;i++){frames[base+i]=select(m*views[vi].planes[i],vec4f(0.0,0.0,0.0,1.0),open);}
+ if(!isLightCut()){preparePrimitive(w);}
 }
 @compute @workgroup_size(64)
 fn dagMask(@builtin(global_invocation_id) id:vec3u,@builtin(local_invocation_index) lid:u32){
@@ -106,7 +111,7 @@ fn dagMask(@builtin(global_invocation_id) id:vec3u,@builtin(local_invocation_ind
    let all=views[0u].residentCut==0u;
    if(isLightCut()){
     let cluster=clusters[r];
-    let e=views[vi].view*worlds[w];let stretch=stretchOf(w);let focal=focalPixels();
+    let e=viewWorld(w);let stretch=stretchOf(w);let focal=focalPixels();
     draw=drawsCluster(all||isResident(i),projected(cluster.parentError,cluster.parentSphere,e,stretch,focal),projected(cluster.lodError,cluster.sphere,e,stretch,focal),all||childResident(i),views[vi].pixelError);
    }else{
     // Camera cut: the rule on the two comparisons \`dagWanted\` made this frame, on the same
@@ -127,6 +132,7 @@ fn dagMask(@builtin(global_invocation_id) id:vec3u,@builtin(local_invocation_ind
  verseTotaux(lid);
 }
 ${DAG_CONE_WGSL}
+${DAG_PRIMITIVE_WGSL}
 ${DAG_ERROR_WGSL}
 ${CUT_RULE_WGSL}
 ${INVERSE_TRANSPOSE_WGSL}

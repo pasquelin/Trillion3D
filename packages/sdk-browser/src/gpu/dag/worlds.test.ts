@@ -4,7 +4,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { maxStretch } from '../../../../sdk-core/src/index.ts';
-import { FRAME_VEC4 } from './types.ts';
+import { FRAME_VEC4, PRIMITIVE_VEC4 } from './types.ts';
 import {
   primitiveFrameWords,
   primitiveWordAt,
@@ -90,7 +90,8 @@ test('the frame words carry each primitive stretch, root and record shift, as th
   };
   const frames = primitiveFrameWords(packed),
     ints = new Uint32Array(frames.buffer);
-  assert.equal(frames.length, 3 * FRAME_VEC4 * 4);
+  // The first row, then what a camera cut's `dagPrepare` derives per primitive.
+  assert.equal(frames.length, 3 * (FRAME_VEC4 + PRIMITIVE_VEC4) * 4);
   for (let w = 0; w < 3; w++) {
     const at = primitiveWordAt(w);
     assert.equal(frames[at], packed.worldStretch[w]);

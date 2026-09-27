@@ -6,6 +6,7 @@ import { encodeDagKernels, type DagView } from './encode.ts';
 import { dagWorkLayout } from './shader/floorWgsl.ts';
 import { dagFlagsWords } from './shader/lastUseWgsl.ts';
 import { lightCutCapacity, lightQueueCap } from './lightCutCapacity.ts';
+import { firstFrameRow } from './worlds.ts';
 import { DAG_UNIFORM_BYTES, DAG_VIEW_WORDS } from './shader/viewsWgsl.ts';
 import type { createDagResources } from './resources.ts';
 import { DAG_BINDING } from './shader/bindings.ts';
@@ -68,7 +69,8 @@ export function createDagLightCut(resources: DagResources) {
     size: capacity * worldCount * FRAME_VEC4 * 16,
     usage: storage,
   });
-  device.queue.writeBuffer(frames, 0, resources.frameData);
+  const row = firstFrameRow(resources.frameData, worldCount);
+  device.queue.writeBuffer(frames, 0, row);
   let frameWrites = resources.frameWrites.count;
   const output = own({
     label: 'Trillion3D light cut output',
@@ -152,7 +154,7 @@ export function createDagLightCut(resources: DagResources) {
       // A placement's stretch or a parked root changed on the camera's side: the first row follows.
       if (frameWrites !== resources.frameWrites.count) {
         frameWrites = resources.frameWrites.count;
-        encoder.copyBufferToBuffer(resources.frames, 0, frames, 0, resources.frameData.byteLength);
+        encoder.copyBufferToBuffer(resources.frames, 0, frames, 0, row.byteLength);
       }
       encodeDagKernels(encoder, view);
     },

@@ -1,5 +1,5 @@
 import { maxStretch } from '../../../../sdk-core/src/index.ts';
-import { FRAME_VEC4, type PackedDag } from './types.ts';
+import { FRAME_VEC4, PRIMITIVE_VEC4, type PackedDag } from './types.ts';
 
 /**
  * Indices of the linear part of a column-major world matrix, and the only indices `maxStretch`
@@ -57,18 +57,24 @@ export function worldsChanged(previous: Float32Array, next: Float32Array) {
   return false;
 }
 
+/** The first row of slots of `frameData`, the part the host writes and a light cut copies: behind
+ *  it, a camera cut's `dagPrepare` writes what it derives per primitive (`shader/primitiveWgsl.ts`). */
+export const firstFrameRow = (frameData: Float32Array<ArrayBuffer>, worldCount: number) =>
+  frameData.subarray(0, worldCount * FRAME_VEC4 * 4);
+
 /**
- * Per-primitive frame words, behind the six planes of its first row: the stretch, the root the
- * descent starts from, the record shift that leads its pages to their shared records
- * (`layout.ts`), and the primitive's root mark (`PackedDag.mark`). Four words the
- * kernel reads without one more storage buffer bound to the stage.
+ * A camera cut's `frames`: per-primitive frame words, behind the six planes of its first row — the
+ * stretch, the root the descent starts from, the record shift that leads its pages to their shared
+ * records (`layout.ts`), and the primitive's root mark (`PackedDag.mark`), four words the kernel
+ * reads without one more storage buffer bound to the stage —, then room for what `dagPrepare`
+ * derives per primitive (`PRIMITIVE_VEC4`).
  */
 export function primitiveFrameWords(
   packed: Pick<PackedDag, 'worldCount' | 'worldStretch' | 'rootNodes' | 'recordShift'> &
     Partial<Pick<PackedDag, 'mark'>>,
 ) {
   const worldCount = Math.max(1, packed.worldCount);
-  const frameData = new Float32Array(worldCount * FRAME_VEC4 * 4),
+  const frameData = new Float32Array(worldCount * (FRAME_VEC4 + PRIMITIVE_VEC4) * 4),
     frameInts = new Uint32Array(frameData.buffer);
   for (let w = 0; w < packed.worldCount; w++) {
     const at = primitiveWordAt(w);
