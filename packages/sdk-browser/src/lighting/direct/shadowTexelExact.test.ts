@@ -75,8 +75,8 @@ const RECEIVERS = Array.from({ length: 400 }, (_, n) => {
 test('the shadow read snaps its texel to the filter step, then adds the page’s integer offset', () => {
   const wgsl = directShadowWgsl(8, null, 18);
   for (const line of [
-    ' return shadowSample(offset.xy+floor(t*SHADOW_SUBTEXELS+0.5)/SHADOW_SUBTEXELS,i32(offset.z),shadowAtlasTexels(),reference);',
-    '   lit+=shadowSample(offset.xy+floor(steps+POISSON_STEPS[tap]+0.5)/SHADOW_SUBTEXELS,layer,texels,reference);',
+    ' return shadowSample(offset.xy+floor(t*SHADOW_SUBTEXELS+0.5)*SHADOW_SUBTEXEL,i32(offset.z),shadowAtlasTexels(),reference);',
+    '   lit+=shadowSample(offset.xy+floor(steps+POISSON_STEPS[tap]+0.5)*SHADOW_SUBTEXEL,layer,texels,reference);',
     ' return textureSampleCompareLevel(shadowAtlas,shadowSampler,at/texels,layer,reference);',
   ])
     assert.ok(wgsl.includes(line), line);
