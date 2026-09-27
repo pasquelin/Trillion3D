@@ -4,15 +4,14 @@ import { SELECTION_WORKGROUP } from '../../../packages/sdk-browser/src/gpu/core/
 import { dagWorkLayout } from '../../../packages/sdk-browser/src/gpu/dag/shader/floorWgsl.ts';
 import { dagFlagsWords } from '../../../packages/sdk-browser/src/gpu/dag/shader/lastUseWgsl.ts';
 import { canonicalPage, listEvictions } from '../../../packages/sdk-browser/src/gpu/dag/evict.ts';
-import { POOL_SLOTS_WORD } from '../../../packages/sdk-browser/src/gpu/dag/uniforms.ts';
 import * as L from '../../../packages/sdk-browser/src/gpu/dag/layout.ts';
 import { words } from './mockComputeBlend.ts';
 
 /** The camera cut's last-use clock and `dagListEvictions`, replayed on the words the kernels read
  *  (`shader/lastUseWgsl.ts`, `shader/evictWgsl.ts`). */
 export function mockEvictions(byBinding: Map<number, { data: Uint8Array }>, packed: PackedDag) {
-  const [flags, work, cold, views, out] = (['flags', 'work', 'cold', 'views', 'out'] as const).map(
-    (name) => words(byBinding.get(DAG_BINDING[name])!.data),
+  const [flags, work, cold, out] = (['flags', 'work', 'cold', 'out'] as const).map((name) =>
+    words(byBinding.get(DAG_BINDING[name])!.data),
   );
   const { pageCount } = packed,
     frame = dagWorkLayout(Math.ceil(pageCount / SELECTION_WORKGROUP)).frame,
@@ -26,14 +25,14 @@ export function mockEvictions(byBinding: Map<number, { data: Uint8Array }>, pack
       const now = ++work[frame];
       for (const page of used) flags[stamps + canonicalPage(keys[page])] = now;
     },
-    /** The queue behind the drawn list, bounded by `poolSlots`. */
+    /** The queue behind the drawn list, at most one entry per listed key. */
     list() {
       const queue = listEvictions({
         pool: cold.subarray(pool + 1, pool + 1 + cold[pool]),
         keys,
         stampOf: (page) => flags[stamps + page],
         now: work[frame],
-        cap: Math.min(views[POOL_SLOTS_WORD], listCap),
+        cap: listCap,
       });
       out[L.evictionWord(listCap)] = queue.length;
       out.set(queue, L.evictionWord(listCap) + L.SELECTION_HEADER_WORDS);

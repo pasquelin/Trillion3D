@@ -68,7 +68,7 @@ export function createGpuPageCache(
     abort,
     fetches,
     state,
-    eviction: { order: undefined, at: 0, epoch: 0, lower: new Map() },
+    eviction: { at: 0, epoch: 0, lower: new Map(), held: [], late: [], lateAt: 0 },
     changeKeys,
     changeSlots,
     reader,
@@ -98,16 +98,12 @@ export function createGpuPageCache(
     get(key: string) {
       return resident.get(key);
     },
-    /** Slots of the pool, after any resize. */
-    get slots() {
-      return context.slots;
-    },
     /** Evicts in `order` from now on: an arrival takes the slot of its first resident, unpinned page
      *  not taken yet, never of a page it leaves out. `undefined` goes back to the least recent. */
     evictInOrder(order: EvictionOrder | undefined) {
-      context.eviction.order = order;
-      context.eviction.at = 0;
+      Object.assign(context.eviction, { order, at: 0, lateAt: 0 });
       context.eviction.epoch++;
+      context.eviction.held.length = context.eviction.late.length = 0;
     },
     /**
      * Strictly increases on every membership change of the residency and on nothing else: an arrival
