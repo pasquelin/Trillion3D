@@ -20,6 +20,18 @@ void pushLeave(uint64_t key);
 bool wantsEvents(uint32_t engine);
 /// The engine id of a body a contact names, or `~0u` when that body was removed since.
 uint32_t live(const JPH::BodyID &id);
+/// What a contact callback saw during `Update`: a rigid pair's sub-shape contact added or removed,
+/// or a soft body's touch; `order` is the global order the callbacks ran in.
+struct ContactRecord {
+  enum Kind : uint32_t { ADDED, REMOVED, SOFT } kind;
+  uint32_t a, b;
+  float impulse;
+  JPH::Float3 point;
+  uint64_t order;
+};
+/// Keeps `record` in the calling thread's own list, next in the global order: during `Update` the
+/// callbacks only read the pairs, and take no lock.
+void deferContact(ContactRecord record);
 /// A body's inverse mass, 0 unless it is dynamic.
 inline float inverseMass(const JPH::Body &body) {
   return body.IsDynamic() ? body.GetMotionProperties()->GetInverseMass() : 0.0f;
