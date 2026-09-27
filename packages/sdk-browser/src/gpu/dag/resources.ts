@@ -41,8 +41,8 @@ export async function createDagResources(
     drawnGroupsOffset = travail.drawnGroups * 4,
     // A resident cut adds its drawn list and its eviction queue, sized for the widest pool.
     readbackBytes = residentCut ? residentReadbackBytes(listCap, listCap) : outputBytes,
-    // Behind the drawn list, the requests wait for their sort, outside what the frame copies
-    // (`shader/snapshotWgsl.ts`): the readback stays the size it was.
+    // Behind the eviction queue, the requests wait for their sort, outside what the frame copies
+    // (`shader/snapshotWgsl.ts`).
     stagedBytes = stagedOutputBytes(listCap);
   // The camera's block, then the view ahead's (`shader/aheadWgsl.ts`).
   const uniformData = new Float32Array((AHEAD_VIEW + 1) * DAG_VIEW_WORDS);
