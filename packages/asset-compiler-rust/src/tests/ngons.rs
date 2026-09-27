@@ -61,7 +61,7 @@ pub(crate) fn cut_area(ring: &[[f64; 3]], triangles: &[[usize; 3]]) -> f64 {
 }
 
 /// Bytes of an accessor in the scene binary, with its component type.
-fn accessor<'a>(gltf: &Value, bin: &'a [u8], rank: usize) -> (&'a [u8], u64) {
+pub(crate) fn accessor<'a>(gltf: &Value, bin: &'a [u8], rank: usize) -> (&'a [u8], u64) {
     let accessor = &gltf["accessors"][rank];
     let rank = accessor["bufferView"].as_u64().expect("buffer view") as usize;
     let view = &gltf["bufferViews"][rank];
