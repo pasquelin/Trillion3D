@@ -17,7 +17,7 @@ test('a published order evicts in its order, and never a page it leaves out', as
   assert.ok(!cache.get('older') && cache.get('old') && cache.get('read'));
   await cache.load('b');
   assert.ok(!cache.get('old') && cache.get('read'));
-  // The order is spent: the pool is full for this frame, the least recent page stays.
+  // The order is spent: the burst stops, the page left out stays.
   await assert.rejects(cache.load('c'), /ALL_PAGES_PINNED/);
   assert.ok(cache.get('read'));
   // Without a GPU cut, the least recent page goes first again.

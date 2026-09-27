@@ -13,6 +13,7 @@ import {
   selectionListCap,
 } from '../../../packages/sdk-browser/src/gpu/dag/layout.ts';
 import { words } from './mockComputeBlend.ts';
+import { POOL_SLOTS_WORD } from '../../../packages/sdk-browser/src/gpu/dag/uniforms.ts';
 
 type Bound = Map<number, { data: Uint8Array }>;
 
@@ -35,15 +36,17 @@ export function stampCameraCut(byBinding: Bound, packed: PackedDag, used: Iterab
 }
 
 /** `dagListEvictions`, through its mirror: the queue behind the drawn list, bounded by `poolSlots`. */
-export function listPoolEvictions(byBinding: Bound, packed: PackedDag, poolSlots: number) {
+export function listPoolEvictions(byBinding: Bound, packed: PackedDag) {
   const { flags, work, cold, frame, stampAt, keys } = clockOf(byBinding, packed);
-  const pageCount = packed.pageCount,
+  const poolSlots = words(byBinding.get(DAG_BINDING.views)!.data)[POOL_SLOTS_WORD];
+  const { pageCount } = packed,
     listCap = selectionListCap(pageCount),
-    pool = poolBase(pageCount);
+    pool = poolBase(pageCount),
+    stampOf = (page: number) => flags[stampAt(page)];
   const queue = listEvictions({
     pool: cold.subarray(pool, pool + residentWords(pageCount)),
-    keys: cold.subarray(keys, keys + pageCount),
-    stampOf: (page) => flags[stampAt(page)],
+    keys: cold.subarray(keys),
+    stampOf,
     now: work[frame],
     cap: Math.min(poolSlots, listCap),
   });
