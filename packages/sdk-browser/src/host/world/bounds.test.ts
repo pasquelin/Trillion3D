@@ -81,7 +81,7 @@ test('geometry carried by a node that is not a mesh counts, like expandByObject'
 
 test("an object's own box (object.boundingBox) wins over its geometry's, like expandByObject", () => {
   const source = new G.Group();
-  const mesh: G.GraphMesh & { boundingBox?: G.Box3 | null } = G.mesh(
+  const mesh: G.HostMesh & { boundingBox?: G.Box3 | null } = G.mesh(
     G.boxGeometry(100, 100, 100),
     G.basicSurface(),
   );
