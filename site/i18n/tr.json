@@ -33,9 +33,9 @@
   "examples": {
     "lead": "Her örnek kısa bir dosyadır: çalışırken izleyin, kodunu açın, değiştirin.",
     "jumpTo": "Bir temaya git",
-    "inProgress": "Yapım aşamasında",
     "waitsFor": "Motoru bekliyor:",
-    "waitingEngine": "Motor bekleniyor"
+    "partial": "Kısmi",
+    "coming": "Yakında: {{titles}}"
   },
   "gallery": {
     "themes": {
@@ -153,7 +153,7 @@
       "flat-shadows-on-the-floor": "Düz izdüşüm gölgeleri",
       "a-softbox-panel": "Bir softbox paneli",
       "light-from-a-probe": "Bir probdan gelen ışık",
-      "soft-shadow-edges": "Yumuşak gölge kenarları",
+      "soft-shadows-from-a-wide-lamp": "Geniş bir lambadan yumuşak gölgeler",
       "contact-shadow-under-a-car": "Temas gölgesi",
       "coloured-shadows-through-glass": "Camdan geçen gölgeler",
       "shadows-in-the-corners": "Köşelerdeki gölgeler",
@@ -373,7 +373,7 @@
       "a-stack-of-texture-layers": "veri, dizi ve 3D dokular",
       "wide-gamut-colour": "geniş renk gamlı çıktı",
       "energy-conservation-test": "ortam aydınlatması (IBL)",
-      "soft-shadow-edges": "yumuşak gölge filtreleme (yarı gölge)",
+      "soft-shadows-from-a-wide-lamp": "lamba genişliğine göre yumuşak gölgeler",
       "contact-shadow-under-a-car": "dokuya render",
       "coloured-shadows-through-glass": "gölge düşüren saydam nesneler",
       "shadows-in-the-corners": "ekran uzayında ortam gölgelemesi",
