@@ -79,5 +79,5 @@ export function triangleBackend(
   camera.position.z = 5;
   camera.lookAt(0, 0, 0);
   const encoded = paged.encoded.get('triangle-geometry.bin')!;
-  return { backend, camera, encoded, geometry, material, mesh, source };
+  return { backend, camera, encoded, geometry, material, mesh, source, paged };
 }
