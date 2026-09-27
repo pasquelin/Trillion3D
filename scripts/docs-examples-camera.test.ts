@@ -77,9 +77,17 @@ test('Home restores its exact pose after every point of interest and a manual mo
       target: target.toArray(),
       fov: camera.fov,
     });
+    const forward = math.vector3(),
+      toward = math.vector3();
+    const assertTargeted = () => {
+      camera.getWorldDirection(forward);
+      toward.copy(target).sub(camera.position).normalize();
+      assert.ok(forward.distanceTo(toward) < 1e-12);
+    };
     const home = snapshot();
     for (const name of ['tower', 'square', 'hillside'] as const) {
       buttons[name]();
+      assertTargeted();
       assert.notDeepEqual(snapshot(), home);
       buttons.home();
       assert.deepEqual(snapshot(), home);
