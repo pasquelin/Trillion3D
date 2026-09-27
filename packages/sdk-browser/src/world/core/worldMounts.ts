@@ -39,10 +39,8 @@ export function createWorldMounts(
     },
     /** Unmounts the vacant batches from `session`, and mounts the new ones. */
     apply(source: Source, session: Mounting) {
-      console.warn("MOUNTAPPLY", session.mountsPlacements());
       if (!session.mountsPlacements()) return;
       for (const batch of contents.vacant()) {
-        console.warn('UNMOUNT', batch.key.slice(0, 20));
         session.unmountPlacements(batch.rows!);
         source.unmount(batch);
         if (contents.wears(batch.cut)) continue;
@@ -52,14 +50,12 @@ export function createWorldMounts(
       for (const batch of contents.mountable()) {
         held.add(batch.cut);
         cuts.hold(batch.cut, true);
-        console.warn('MOUNTSTART', batch.key.slice(0, 20));
         session.mountPlacements(source.mount(batch)).then(
           () => {
-            console.warn('MOUNTDONE', batch.key.slice(0, 20));
             contents.mounted(batch);
             if (open() === session) schedule();
           },
-          (e) => (console.warn("MOUNTFAIL", e?.stack ?? e), open() === session && reopen()),
+          () => open() === session && reopen(),
         );
       }
     },
