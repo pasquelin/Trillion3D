@@ -3,7 +3,7 @@
 use super::*;
 use crate::dag::{DagCluster, DagStall, DagStrategy, GroupTally, StallCause};
 
-/// The summary's fields, in the order `StallSummary::json` writes them.
+/// The summary's fields, the keys `StallSummary::json` writes, copied into each stall table row.
 const SUMMARY_FIELDS: [&str; 5] = [
     "rootTriangles",
     "cause",
@@ -53,15 +53,13 @@ impl StallSummary {
     }
     /// The fields the report, the warning and the stall table carry, named by `SUMMARY_FIELDS`.
     pub fn json(&self) -> Value {
-        let values = [
-            json!(self.root_triangles),
-            json!(self.cause.map(StallCause::name)),
-            json!(self.seam),
-            json!(self.locked),
-            json!(self.islands),
-        ];
-        let fields = SUMMARY_FIELDS.iter().map(|f| f.to_string());
-        Value::Object(fields.zip(values).collect())
+        json!({
+            "rootTriangles": self.root_triangles,
+            "cause": self.cause.map(StallCause::name),
+            "seamVertices": self.seam,
+            "lockedVertices": self.locked,
+            "uvIslands": self.islands,
+        })
     }
 }
 
@@ -131,7 +129,7 @@ pub(super) fn worst_stalls(primitives: &[Value]) -> Value {
             p["dag"]["stalls"].as_array().is_some_and(|s| !s.is_empty()) && roots(p) > 0
         })
         .collect();
-    stalled.sort_by_cached_key(|(_, p)| std::cmp::Reverse(roots(p)));
+    stalled.sort_by_key(|(_, p)| std::cmp::Reverse(roots(p)));
     stalled
         .iter()
         .take(WORST)
@@ -166,5 +164,21 @@ mod tests {
         assert_eq!(rows[0]["cause"], "seam-locked");
         assert!(rows.iter().all(|r| r["mesh"] != 0 && r["mesh"] != 1));
         assert_eq!(worst_stalls(&[primitive(1, 0, 1)]), json!([]));
+    }
+
+    // Behaviour: a table row carries every key of the summary the report writes, and no other.
+    #[test]
+    fn the_table_row_keys_are_the_summary_keys() {
+        let summary = StallSummary::of(&[], &[]).json();
+        let mut keys: Vec<&str> = summary
+            .as_object()
+            .expect("summary")
+            .keys()
+            .map(String::as_str)
+            .collect();
+        let mut fields = SUMMARY_FIELDS.to_vec();
+        keys.sort_unstable();
+        fields.sort_unstable();
+        assert_eq!(keys, fields);
     }
 }
