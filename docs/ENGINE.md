@@ -127,8 +127,12 @@ use; a key the latest cut read is never listed. The kernel sweeps the pool's lis
 page per held slot fed by the cache's arrivals and departures (`gpu/dag/poolList.ts`), never the
 catalogue. On the GPU-cut path the cache evicts only from that queue, skipping pinned pages and
 taking a page a lower tier touched since the last queue (a shadow caster) after every other; once
-spent (`eviction-queue-spent`) the burst waits for the next readback. The CPU cut evicts the least
-recent page; `budgetRanking` still chooses loads (#836).
+spent (`eviction-queue-spent`) the burst waits for the next readback. Admission on that path
+follows the readback's sorted requests (`webgpu/residency/requestAdmission.ts`, #836): past the
+pool, requests are admitted in rank, each with the groups it closes over, until one does not fit;
+the rest is drawn by its nearest resident ancestor and never awaited. The pins are the cover and
+that queue (`requestPins.ts`). The CPU cut evicts the least recent page, ranks loads coarsest first
+(`budgetRanking`) and pins by last use (`pinUpdater`) until #836 removes them.
 
 **Occlusion** is two-phase Hi-Z. Pass 1 draws the rows the previous frame drew that the previous
 frame's pyramid does not hide; a pyramid is built from that depth (background at the far plane, min

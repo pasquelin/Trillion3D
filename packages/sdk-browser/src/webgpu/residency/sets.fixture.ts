@@ -7,13 +7,17 @@ import { createWebgpuResidencySets } from './sets.ts';
 export const rec = (url: string, level: number) => ({ url, level }) as unknown as PageRec;
 
 /** The residency sets over `packed`, the catalogue in cut order, with `cover` pinned. */
-export function world(packed: PageRec[], cover: readonly PageRec[] = []) {
+export function world(
+  packed: PageRec[],
+  cover: readonly PageRec[] = [],
+  heldIds?: (visit: (id: number) => void) => void,
+) {
   // The page's rank travels on the page, as the engine catalogue posts it.
   packed.forEach((page, index) => (page.packedIndex = index));
   const tracking = createWebgpuPageTracking([...packed, ...cover]);
   const bootstrapKey = new Uint8Array(tracking.keyCount);
   for (const page of cover) bootstrapKey[tracking.keyOf(page)] = 1;
-  const sets = createWebgpuResidencySets({ tracking, bootstrapKey, packedPages: packed });
+  const sets = createWebgpuResidencySets({ tracking, bootstrapKey, packedPages: packed, heldIds });
   const pages: PageRec[] = [];
   const delta = createCutDelta(packed, pages);
   return { packed, tracking, bootstrapKey, sets, pages, delta };

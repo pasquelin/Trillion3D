@@ -128,7 +128,7 @@ export function banc(panne?: 'debordement' | 'envoi') {
           return desired.length;
         },
       },
-      queueCutResidency: () => {
+      queueGpuCutResidency: () => {
         comptes.queue++;
       },
       followEvictions: () => {},
