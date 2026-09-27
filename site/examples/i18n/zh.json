@@ -571,6 +571,17 @@
       "bricks": "砖块"
     }
   },
+  "measure-a-distance": {
+    "banner": "点击两个表面以测量它们之间的距离。第三次点击会开始新的测量。 一个单位代表一米。",
+    "controls": {
+      "clear": "清除"
+    },
+    "readouts": {
+      "pointA": "点 A",
+      "pointB": "点 B",
+      "distance": "距离"
+    }
+  },
   "click-to-pick": {
     "banner": "点一个形状。它会亮起来，面板会告诉你点中了哪里。",
     "readouts": {
