@@ -74,7 +74,7 @@ export function createSceneDraw(
     for (let i = copied.size; i < copies.length; i++) copied.add(copies[i] as DisplayNode);
   };
   // Reused from frame to frame: a draw allocates no list.
-  const opaque: WholeMesh[] = [],
+  const opaque: (WholeMesh & DrawnNode)[] = [],
     seeThrough: DrawnNode[] = [];
   let owner: WebglClusterOwner | undefined,
     opened = false,
@@ -88,7 +88,7 @@ export function createSceneDraw(
     if (isDrawnNode(node)) {
       if (copied.has(node) || firstMaterial(node.material!)?.transparent)
         seeThrough.push(node as DrawnNode);
-      else opaque.push(node as WholeMesh);
+      else opaque.push(node as WholeMesh & DrawnNode);
     }
     for (const child of node.children) collect(child);
   };
