@@ -17,6 +17,10 @@ import { SPRITE_WGSL } from '../../../visibility/shader/spriteWgsl.ts';
 export const FALLBACK_WIREFRAME = 1,
   FALLBACK_CLUSTER_PAGE = 2;
 
+/** The `mode` word of a fallback draw, from the image's diagnostic and where the slot's geometry is. */
+export const fallbackMode = (diagnostic: string | undefined, clusterPage: boolean) =>
+  (diagnostic === 'wireframe' ? FALLBACK_WIREFRAME : 0) | (clusterPage ? FALLBACK_CLUSTER_PAGE : 0);
+
 export const SHADER = `struct Uniforms{viewProj:mat4x4f,world:mat4x4f,color:vec4f,pageOffset:u32,indexCount:u32,mode:u32,pad1:u32,lineWidth:f32,pixelRatio:f32,viewport:vec2f,dash:vec2f,sprite:vec2f,}
 @group(0) @binding(0) var<storage, read> indices:array<u32>;
 @group(0) @binding(1) var<storage, read> positions:array<f32>;
