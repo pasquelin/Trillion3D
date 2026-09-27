@@ -1,39 +1,22 @@
 import { createHash } from 'node:crypto';
-import {
-  CommandWriter,
-  FLAG,
-  GENERATION_SHIFT,
-  softBodyOf,
-  writeSoft,
-  type SoftBodyOptions,
-} from '../../../sdk-core/src/physics/index.ts';
-import { softSettings } from '../../../sdk-core/src/physics/soft.ts';
+import { CommandWriter, FLAG } from '../../../sdk-core/src/physics/index.ts';
 import { plane, sphere } from '../../../sdk-core/src/world/geometry/basic.ts';
-import type { Geometry } from '../../../sdk-core/src/world/geometry/geometry.ts';
 import type { JoltModule } from './joltModule.ts';
 import { body } from './module.fixture.ts';
-import { FLAT, ropeLine } from './soft.fixture.ts';
+import { FLAT, GENERATION, ropeLine, writeSoftBody } from './soft.fixture.ts';
 
 /** Generation 1 of slot `slot`'s engine id. */
-const id = (slot: number) => slot | (1 << GENERATION_SHIFT);
+const id = (slot: number) => slot | GENERATION;
 
 /** Writes `geometry` as a soft body in slot `slot`, at `position` turned by `quaternion`. */
-function soft(
+const soft = (
   writer: CommandWriter,
   slot: number,
-  geometry: Geometry,
-  options: SoftBodyOptions,
+  geometry: Parameters<typeof writeSoftBody>[2],
+  options: Parameters<typeof writeSoftBody>[3],
   position: number[],
-  quaternion = [0, 0, 0, 1],
-) {
-  const settings = softSettings(options);
-  const record = softBodyOf(geometry, { x: 1, y: 1, z: 1 }, settings);
-  writeSoft(writer, {
-    ...{ id: id(slot), position, quaternion, scale: [1, 1, 1] },
-    ...{ friction: 0.5, restitution: 0, gravityScale: 1, linearDamping: 0.05 },
-    ...{ settings, record },
-  });
-}
+  quaternion?: number[],
+) => writeSoftBody(writer, id(slot), geometry, options, position, quaternion);
 
 /**
  * A scene of every body kind a pin's long range attachment leaves as it was — boxes piling up

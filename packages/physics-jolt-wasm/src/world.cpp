@@ -89,8 +89,9 @@ void removeBody(uint32_t index) {
   dropJoints(index);
   dropVehicles(index);
   slot = Slot{};
-  instance.system->GetBodyInterfaceNoLock().RemoveBody(id);
-  instance.system->GetBodyInterfaceNoLock().DestroyBody(id);
+  BodyInterface &bodies = instance.system->GetBodyInterfaceNoLock();
+  bodies.RemoveBody(id);
+  bodies.DestroyBody(id);
 }
 
 /// Takes out the bodies the step left with a non-finite pose or vertex: the page hears their ids
@@ -98,7 +99,8 @@ void removeBody(uint32_t index) {
 static void dropDiverged() {
   for (uint32_t engine : instance.diverged) {
     const uint32_t index = engine & INDEX_MASK;
-    if (!instance.slots[index].used || instance.slots[index].engine != engine) continue;
+    const Slot &slot = instance.slots[index];
+    if (!slot.used || slot.engine != engine) continue;
     removeBody(index);
     instance.slots[index].refused = true;
   }

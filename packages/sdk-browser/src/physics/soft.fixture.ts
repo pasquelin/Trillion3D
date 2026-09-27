@@ -15,7 +15,7 @@ import type { Geometry } from '../../../sdk-core/src/world/geometry/geometry.ts'
 import { body, startModule, type Module } from './module.fixture.ts';
 
 /** Generation 1 of an engine id. */
-const GENERATION = 1 << GENERATION_SHIFT;
+export const GENERATION = 1 << GENERATION_SHIFT;
 /** The engine ids of the floor in slot 0, the soft body in slot 1, the box in slot 2. */
 export const FLOOR = GENERATION,
   CLOTH = 1 | GENERATION,
@@ -42,6 +42,27 @@ export async function softWorld(quaternion = [0, 0, 0, 1]) {
   return jolt;
 }
 
+/** Writes `geometry` as a soft body of engine id `id`, at `position` turned by `quaternion`;
+ *  `words` override the record's. Its record. */
+export function writeSoftBody(
+  writer: CommandWriter,
+  id: number,
+  geometry: Geometry,
+  options: SoftBodyOptions,
+  position: number[],
+  quaternion = [0, 0, 0, 1],
+  words: Partial<SoftBodyRecord> = {},
+) {
+  const settings = softSettings(options);
+  const record = softBodyOf(geometry, { x: 1, y: 1, z: 1 }, settings);
+  writeSoft(writer, {
+    ...{ id, position, quaternion, scale: [1, 1, 1] },
+    ...{ friction: 0.5, restitution: 0, gravityScale: 1, linearDamping: 0.05 },
+    ...{ settings, record, ...words },
+  });
+  return record;
+}
+
 /** Adds `geometry` as a soft body in slot 1, at `position`; `words` override the record's. */
 export function addSoft(
   jolt: Module,
@@ -50,14 +71,8 @@ export function addSoft(
   position: number[],
   words: Partial<SoftBodyRecord> = {},
 ) {
-  const settings = softSettings(options);
-  const record = softBodyOf(geometry, { x: 1, y: 1, z: 1 }, settings);
   const writer = new CommandWriter();
-  writeSoft(writer, {
-    ...{ id: CLOTH, position, quaternion: [0, 0, 0, 1], scale: [1, 1, 1] },
-    ...{ friction: 0.5, restitution: 0, gravityScale: 1, linearDamping: 0.05 },
-    ...{ settings, record, ...words },
-  });
+  const record = writeSoftBody(writer, CLOTH, geometry, options, position, undefined, words);
   jolt.step(writer.take(), 0);
   return record;
 }
