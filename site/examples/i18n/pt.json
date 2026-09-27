@@ -2147,5 +2147,12 @@
     "words": {
       "credit": "Bandeira num mastro modelada em código para este exemplo, CC0 — ver assets/examples/CREDITS.md"
     }
+  },
+  "a-folder-merged-into-one-scene": {
+    "banner": "Arraste para examinar a esquina. O compilador reuniu três arquivos OBJ de uma pasta nesta cena.",
+    "controls": {
+      "spin": "Girar",
+      "visible": "Visível"
+    }
   }
 }

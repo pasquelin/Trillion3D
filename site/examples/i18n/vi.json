@@ -2147,5 +2147,12 @@
     "words": {
       "credit": "Lá cờ trên cột được dựng bằng mã cho ví dụ này, CC0 — xem assets/examples/CREDITS.md"
     }
+  },
+  "a-folder-merged-into-one-scene": {
+    "banner": "Kéo để xem góc phố. Trình biên dịch đã gộp ba tệp OBJ trong một thư mục thành cảnh này.",
+    "controls": {
+      "spin": "Xoay",
+      "visible": "Hiển thị"
+    }
   }
 }
