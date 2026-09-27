@@ -1,7 +1,6 @@
 import type { ResidencyChanges } from '../core/selection.ts';
 import { RESIDENCY_RANGE_MAX, coalesceResidencyRanges } from '../../webgpu/residency/ranges.ts';
-import { childBase, keyBase, poolBase, residentBase, residentWords } from './layout.ts';
-import { canonicalPage } from './evict.ts';
+import { childBase, residentBase, residentWords } from './layout.ts';
 import { grown } from '../../page/cut/sparseInts.ts';
 import { DAG_NODE_FLOATS, type PackedDag } from './types.ts';
 import { createDagReadiness } from './readiness.ts';
@@ -90,7 +89,7 @@ export function createDagResidencyUpload(resources: {
       );
     }
   };
-  // Nothing is resident yet: the bit sets and every node count are written whole, once, from the
+  // Nothing is resident yet: both bit sets and every node count are written whole, once, from the
   // readiness's state with nothing resident; from then on only what moves is.
   const words = new Int32Array(Math.max(1, residentWords(pageCount)));
   for (const { values, base } of sets)
@@ -103,28 +102,11 @@ export function createDagResidencyUpload(resources: {
       source.byteOffset + from * 4,
       words * 4,
     );
-  whole(pageCones, packed.pageCones, residentBase(pageCount), 3 * residentWords(pageCount));
+  whole(pageCones, packed.pageCones, residentBase(pageCount), 2 * residentWords(pageCount));
   whole(nodes, packed.nodes, 0, packed.nodeCount * DAG_NODE_FLOATS);
-  /** The pool's own residency, on each key's canonical page (`evict.ts`): what evictions list. */
-  const applyPool = (next: ArrayLike<number>, changes?: ResidencyChanges) => {
-    const base = poolBase(pageCount),
-      keys = keyBase(pageCount),
-      inPool = (page: number) => next[page] !== 0 && canonicalPage(bits[keys + page]) === page;
-    // No change list: every word compared, the whole set written.
-    if (!changes?.sorted) {
-      if (!updateResidencyBits(inPool, pageCount, bits, base, undefined, words)) return false;
-      whole(pageCones, packed.pageCones, base, residentWords(pageCount));
-      return true;
-    }
-    if (touched.length < changes.count) touched = grown(touched, changes.count);
-    const count = updateResidencyBits(inPool, pageCount, bits, base, changes, touched);
-    upload(pageCones, packed.pageCones, base, 1, count);
-    return count > 0;
-  };
   const apply = (next: ArrayLike<number>, changes?: ResidencyChanges) => {
-    const pooled = applyPool(next, changes);
     const settled = readiness.apply(next, changes);
-    if (!settled.pages.length && !settled.nodes.length) return pooled;
+    if (!settled.pages.length && !settled.nodes.length) return false;
     const most = Math.max(settled.pages.length, settled.nodes.length);
     if (changed.pages.length < most) changed.pages = grown(changed.pages, most);
     if (touched.length < most) touched = grown(touched, most);

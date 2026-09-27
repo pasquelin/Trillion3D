@@ -57,10 +57,10 @@ export function evictionRank(keyWord: number, age: number) {
   return ((EVICT_LEVELS - 1 - level) * EVICT_AGES) | step;
 }
 
-/** CPU mirror of `dagListEvictions`: the canonical pages in `pool` not stamped `now`, sorted by
+/** CPU mirror of `dagListEvictions`: the pool's listed pages (`poolList.ts`) not stamped `now`, by
  *  `evictionRank` through `sortRequestWords`, the first `cap`; within a rank, page order. */
 export function listEvictions(options: {
-  pool: Uint32Array;
+  pool: Iterable<number>;
   keys: Uint32Array;
   stampOf: (page: number) => number;
   now: number;
@@ -68,12 +68,10 @@ export function listEvictions(options: {
 }) {
   const { pool, keys, stampOf, now, cap } = options;
   const words: number[] = [];
-  for (let w = 0; w < pool.length; w++)
-    for (let bits = pool[w]; bits !== 0; bits &= bits - 1) {
-      const page = w * 32 + (31 - Math.clz32(bits & -bits)),
-        used = stampOf(page);
-      if (used === now) continue;
+  for (const page of pool) {
+    const used = stampOf(page);
+    if (used !== now)
       words.push(packRequest(page, evictionRank(keys[page], now - used) ^ REQUEST_AHEAD));
-    }
+  }
   return Array.from(sortRequestWords(words).subarray(0, Math.max(0, cap)), requestPage);
 }
