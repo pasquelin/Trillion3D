@@ -7,7 +7,7 @@ import {
   VERDICT_REJECTED,
 } from '../partition/contract.ts';
 import { HIZ_HIDES_WGSL } from './rectWgsl.ts';
-import { HIZ_BUILD_SIDE, HIZ_PASS_LEVELS } from './uniforms.ts';
+import { HIZ_BUILD_SIDE as S, HIZ_PASS_LEVELS } from './uniforms.ts';
 import { PAGE_INFO_STRUCT_WGSL } from '../../visibility/shader/pageWgsl.ts';
 
 /**
@@ -55,7 +55,7 @@ export const HIZ_TEST_PAGES_ENTRIES: GPUBindGroupLayoutEntry[] = [
  * texel zero.
  */
 export const HIZ_SHADER = `${PAGE_INFO_STRUCT_WGSL}
-struct Uni{a:u32,b:u32,c:u32,d:u32,e:u32,f:u32,g:u32,h:u32,dst:array<vec4u,${HIZ_PASS_LEVELS}>,}
+struct Uni{a:u32,b:u32,c:u32,d:u32,g:u32,pad0:u32,pad1:u32,pad2:u32,dst:array<vec4u,${HIZ_PASS_LEVELS}>,}
 struct Bounds{minX:i32,minY:i32,maxX:i32,maxY:i32,nearest:f32,rowAndClip:u32,fineOffset:u32,fineWidth:u32,triangles:u32,coarseOffset:u32,coarseWidth:u32,coarseShift:u32,}
 @group(0) @binding(0) var<storage, read_write> pyramid:array<f32>;
 @group(0) @binding(1) var level0:texture_2d<f32>;
@@ -64,59 +64,59 @@ struct Bounds{minX:i32,minY:i32,maxX:i32,maxY:i32,nearest:f32,rowAndClip:u32,fin
 @group(0) @binding(4) var<storage, read_write> flags:array<u32>;
 @group(0) @binding(5) var<storage, read_write> state:array<atomic<u32>>;
 @group(1) @binding(0) var<storage, read> pages:array<PageInfo>;
-var<workgroup> hizTile:array<f32,${HIZ_BUILD_SIDE ** 2}>;
-/** A texel of the pass's source level: the level-0 texture, copied into the pyramid on the way,
- *  or the pyramid level the previous pass wrote last. */
-fn hizSource(z:u32,x:u32,y:u32)->f32{
- let at=uni.a+z*uni.g+y*uni.b+x;
- if(uni.e==0u){return pyramid[at];}
- var origin=vec2i(0);
- if(uni.g!=0u){origin=vec2i(bounds[z].minX,bounds[z].minY);}
+var<workgroup> hizTile:array<f32,${S ** 2}>;
+/** A texel of the pass's source level at \`at\`: the level-0 texture, copied into the pyramid on
+ *  the way, when the source sits at offset zero; else the level the previous pass wrote. */
+fn hizSource(at:u32,origin:vec2i,x:u32,y:u32)->f32{
+ let i=at+y*uni.b+x;
+ if(uni.a!=0u){return pyramid[i];}
  let depth=textureLoad(level0,origin+vec2i(i32(x),i32(y)),0).r;
- pyramid[at]=depth;
+ pyramid[i]=depth;
  return depth;
 }
-/** The farthest of the square at (x0, y0) of the level held in \`hizTile\`, whose local texel
- *  (lx, ly) it is, over the texels of a w × h level that exist. */
-fn hizTileFar(lx:u32,ly:u32,x0:u32,y0:u32,w:u32,h:u32)->f32{
- var far=hizTile[ly*${HIZ_BUILD_SIDE}u+lx];
- if(x0+1u<w){far=min(far,hizTile[ly*${HIZ_BUILD_SIDE}u+lx+1u]);}
- if(y0+1u<h){
-  far=min(far,hizTile[(ly+1u)*${HIZ_BUILD_SIDE}u+lx]);
-  if(x0+1u<w){far=min(far,hizTile[(ly+1u)*${HIZ_BUILD_SIDE}u+lx+1u]);}
+/** The farthest of a 2 × 2 square read clamped to its level: the right column counts when \`dx\`
+ *  is 1, the bottom row when \`dy\` is 1, in the order of the per-level reduction.
+ *  Reverse-Z: the FARTHEST is the MINIMUM. */
+fn hizFar4(v00:f32,v10:f32,v01:f32,v11:f32,dx:u32,dy:u32)->f32{
+ var far=v00;
+ if(dx!=0u){far=min(far,v10);}
+ if(dy!=0u){
+  far=min(far,v01);
+  if(dx!=0u){far=min(far,v11);}
  }
  return far;
 }
-@compute @workgroup_size(${HIZ_BUILD_SIDE}, ${HIZ_BUILD_SIDE})
+@compute @workgroup_size(${S}, ${S})
 fn buildHiz(@builtin(workgroup_id) wg:vec3u,@builtin(local_invocation_id) lid:vec3u){
- // uni: a the source level's offset, b × c its size, d the levels this pass writes (dst), e
- // whether the source is the level-0 texture, g the stride between two pyramids.
- let z=wg.z;
- // Reverse-Z: the FARTHEST of a square is the MINIMUM, over the texels of the source that exist.
- let x=wg.x*${HIZ_BUILD_SIDE}u+lid.x;let y=wg.y*${HIZ_BUILD_SIDE}u+lid.y;let x0=x*2u;let y0=y*2u;
+ // uni: a the source level's offset, b × c its size, d the levels this pass writes (dst), g the
+ // stride between two pyramids.
+ let z=wg.z;let at=uni.a+z*uni.g;
+ var origin=vec2i(0);
+ if(uni.a==0u&&uni.g!=0u){origin=vec2i(bounds[z].minX,bounds[z].minY);}
+ let x=wg.x*${S}u+lid.x;let y=wg.y*${S}u+lid.y;let x0=x*2u;let y0=y*2u;
  var far=0.0;
  if(x0<uni.b&&y0<uni.c){
-  far=hizSource(z,x0,y0);
-  if(x0+1u<uni.b){far=min(far,hizSource(z,x0+1u,y0));}
-  if(y0+1u<uni.c){
-   far=min(far,hizSource(z,x0,y0+1u));
-   if(x0+1u<uni.b){far=min(far,hizSource(z,x0+1u,y0+1u));}
-  }
+  let dx=select(0u,1u,x0+1u<uni.b);let dy=select(0u,1u,y0+1u<uni.c);
+  far=hizFar4(hizSource(at,origin,x0,y0),hizSource(at,origin,x0+dx,y0),hizSource(at,origin,x0,y0+dy),hizSource(at,origin,x0+dx,y0+dy),dx,dy);
   if(uni.d>0u){pyramid[uni.dst[0].x+z*uni.g+y*uni.dst[0].y+x]=far;}
  }
- hizTile[lid.y*${HIZ_BUILD_SIDE}u+lid.x]=far;
+ hizTile[lid.y*${S}u+lid.x]=far;
  // Each further level halves the threads at work; the one the tile holds is read, then replaced.
- var side=${HIZ_BUILD_SIDE}u;
- for(var k=1u;k<${HIZ_PASS_LEVELS}u;k++){
+ var side=${S}u;
+ for(var k=1u;k<min(uni.d,${HIZ_PASS_LEVELS}u);k++){
   side=side>>1u;
   workgroupBarrier();
   let src=uni.dst[k-1u];let dst=uni.dst[k];
   let tx=wg.x*side+lid.x;let ty=wg.y*side+lid.y;
-  let live=k<uni.d&&lid.x<side&&lid.y<side&&tx<dst.y&&ty<dst.z;
-  if(live){far=hizTileFar(lid.x*2u,lid.y*2u,tx*2u,ty*2u,src.y,src.z);}
+  let live=lid.x<side&&lid.y<side&&tx<dst.y&&ty<dst.z;
+  if(live){
+   let i=lid.y*${2 * S}u+lid.x*2u;
+   let dx=select(0u,1u,tx*2u+1u<src.y);let dy=select(0u,1u,ty*2u+1u<src.z);
+   far=hizFar4(hizTile[i],hizTile[i+dx],hizTile[i+dy*${S}u],hizTile[i+dy*${S}u+dx],dx,dy);
+  }
   workgroupBarrier();
   if(live){
-   hizTile[lid.y*${HIZ_BUILD_SIDE}u+lid.x]=far;
+   hizTile[lid.y*${S}u+lid.x]=far;
    pyramid[dst.x+z*uni.g+ty*dst.y+tx]=far;
   }
  }

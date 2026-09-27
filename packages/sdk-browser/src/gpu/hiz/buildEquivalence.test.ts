@@ -2,14 +2,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { hizLevelSizes } from './oracle.ts';
 import { HIZ_SHADER } from './shader.ts';
-import { hizBuildPasses, hizBuildSlots } from './uniforms.ts';
 import {
-  buildAfter,
-  buildBefore,
-  layout,
-  LEVEL_CAP,
-  type Scene,
-} from './buildTranscripts.fixture.ts';
+  HIZ_BUILD_SIDE as S,
+  HIZ_MAX_LEVELS,
+  HIZ_PASS_LEVELS,
+  hizBuildPasses,
+} from './uniforms.ts';
+import { buildAfter, buildBefore, layout, lcg, type Scene } from './buildTranscripts.fixture.ts';
 
 // The pyramid used to be a copy of the level-0 texture then one dispatch per mip, each reading
 // the level above from the buffer. `buildHiz` reads the texture once, copies it on the way and
@@ -40,7 +39,7 @@ function scene(rand: () => number, hostile: boolean): Scene {
           ] as [number, number],
       )
     : undefined;
-  const maxLevels = rand() < 0.2 ? pick(6) : LEVEL_CAP;
+  const maxLevels = rand() < 0.2 ? pick(6) : HIZ_MAX_LEVELS;
   return { texture, textureWidth, width, height, maxLevels, origins };
 }
 
@@ -54,32 +53,26 @@ function assertSamePyramid(s: Scene, rand: () => number, label: string) {
   assert.deepEqual(new Uint32Array(after.buffer), new Uint32Array(before.buffer), label);
 }
 
-function lcg(seed: number) {
-  return () => ((seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 2 ** 32) as number;
-}
-
-test('four mips per dispatch through workgroup memory leave the pyramid of the per-level build', () => {
-  const rand = lcg(5);
-  for (let trial = 0; trial < 300; trial++)
-    assertSamePyramid(scene(rand, false), rand, `trial ${trial}`);
-});
-
-test('same pyramid, bit for bit, with NaN, ±0 and ±Inf depths', () => {
-  const rand = lcg(17);
-  for (let trial = 0; trial < 150; trial++)
-    assertSamePyramid(scene(rand, true), rand, `trial ${trial}`);
-});
+for (const [seed, hostile, trials] of [
+  [5, false, 300],
+  [17, true, 150],
+] as const)
+  test(`same pyramid, bit for bit, seed ${seed}${hostile ? ', with NaN, ±0 and ±Inf depths' : ''}`, () => {
+    const rand = lcg(seed);
+    for (let trial = 0; trial < trials; trial++)
+      assertSamePyramid(scene(rand, hostile), rand, `trial ${trial}`);
+  });
 
 test('edge sizes: one texel, one row, one column, a tile edge, 1080p, a capped mip count', () => {
   const rand = lcg(3);
   const sizes: Array<[number, number, number]> = [
-    [1, 1, LEVEL_CAP],
-    [1, 37, LEVEL_CAP],
-    [37, 1, LEVEL_CAP],
-    [16, 16, LEVEL_CAP],
-    [17, 33, LEVEL_CAP],
-    [128, 128, LEVEL_CAP],
-    [1920, 1080, LEVEL_CAP],
+    [1, 1, HIZ_MAX_LEVELS],
+    [1, 37, HIZ_MAX_LEVELS],
+    [37, 1, HIZ_MAX_LEVELS],
+    [16, 16, HIZ_MAX_LEVELS],
+    [17, 33, HIZ_MAX_LEVELS],
+    [128, 128, HIZ_MAX_LEVELS],
+    [1920, 1080, HIZ_MAX_LEVELS],
     [300, 200, 2],
   ];
   for (const [width, height, maxLevels] of sizes) {
@@ -91,40 +84,32 @@ test('edge sizes: one texel, one row, one column, a tile edge, 1080p, a capped m
     );
   }
   // 1080p: twelve mips in three dispatches, where the per-level build took twelve.
-  assert.deepEqual(hizBuildPasses(hizLevelSizes(1920, 1080), LEVEL_CAP), [
-    { source: 0, levels: 4 },
-    { source: 4, levels: 4 },
-    { source: 8, levels: 3 },
-  ]);
-  assert.deepEqual(hizBuildPasses([[1, 1]], LEVEL_CAP), [{ source: 0, levels: 0 }]);
-  // The uniform slots the host allocates hold the deepest pyramid's passes, and no more.
-  assert.equal(hizBuildPasses(hizLevelSizes(1 << 16, 1 << 16), LEVEL_CAP).length, 4);
-  assert.equal(hizBuildSlots(LEVEL_CAP), 4);
-  assert.equal(hizBuildSlots(8), hizBuildPasses(hizLevelSizes(128, 128), 8).length);
+  assert.deepEqual(
+    hizBuildPasses(hizLevelSizes(1920, 1080)).map(({ source, levels }) => [source, levels]),
+    [
+      [0, 4],
+      [4, 4],
+      [8, 3],
+    ],
+  );
+  assert.deepEqual(hizBuildPasses([[1, 1]]), [{ source: 0, width: 1, height: 1, levels: 0 }]);
 });
 
 test('the shipped build is one kernel over workgroup memory, with no copy kernel left', () => {
-  assert.match(HIZ_SHADER, /var<workgroup> hizTile:array<f32,64>;/);
-  assert.match(HIZ_SHADER, /@compute @workgroup_size\(8, 8\)\s*fn buildHiz\(/);
+  assert.match(HIZ_SHADER, new RegExp(`var<workgroup> hizTile:array<f32,${S * S}>;`));
+  assert.match(HIZ_SHADER, new RegExp(`@workgroup_size\\(${S}, ${S}\\)\\s*fn buildHiz\\(`));
+  assert.match(HIZ_SHADER, new RegExp(`dst:array<vec4u,${HIZ_PASS_LEVELS}>,`));
   assert.doesNotMatch(HIZ_SHADER, /fn copyDepth|fn reduceHiz/);
-  assert.match(HIZ_SHADER, /dst:array<vec4u,4>,\}/);
   // The lines the transcript follows, pinned: a slip in the WGSL alone shows here.
   const build = HIZ_SHADER.slice(
     HIZ_SHADER.indexOf('fn hizSource'),
     HIZ_SHADER.indexOf('fn texelsHide'),
   );
   for (const line of [
-    'if(uni.e==0u){return pyramid[at];}',
-    'pyramid[at]=depth;',
-    'var far=hizTile[ly*8u+lx];',
-    'if(x0+1u<w){far=min(far,hizTile[ly*8u+lx+1u]);}',
-    'far=min(far,hizTile[(ly+1u)*8u+lx]);',
-    'if(x0+1u<w){far=min(far,hizTile[(ly+1u)*8u+lx+1u]);}',
-    'if(x0+1u<uni.b){far=min(far,hizSource(z,x0+1u,y0));}',
-    'far=min(far,hizSource(z,x0,y0+1u));',
+    'if(uni.a!=0u){return pyramid[i];}',
     'if(uni.d>0u){pyramid[uni.dst[0].x+z*uni.g+y*uni.dst[0].y+x]=far;}',
-    'let live=k<uni.d&&lid.x<side&&lid.y<side&&tx<dst.y&&ty<dst.z;',
-    'if(live){far=hizTileFar(lid.x*2u,lid.y*2u,tx*2u,ty*2u,src.y,src.z);}',
+    `for(var k=1u;k<min(uni.d,${HIZ_PASS_LEVELS}u);k++){`,
+    `far=hizFar4(hizTile[i],hizTile[i+dx],hizTile[i+dy*${S}u],hizTile[i+dy*${S}u+dx],dx,dy);`,
     'pyramid[dst.x+z*uni.g+ty*dst.y+tx]=far;',
   ])
     assert.ok(build.includes(line), line);

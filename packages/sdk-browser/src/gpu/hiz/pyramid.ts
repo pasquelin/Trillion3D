@@ -1,4 +1,4 @@
-import { HIZ_BUILD_SIDE, type HizBuildPass } from './uniforms.ts';
+import { HIZ_BUILD_SIDE, HIZ_UNIFORM_BYTES, type HizBuildPass } from './uniforms.ts';
 
 /** Source texels one build workgroup covers per side: each thread reduces a 2 × 2 square. */
 const TILE = 2 * HIZ_BUILD_SIDE;
@@ -12,17 +12,18 @@ export function encodeHizPyramid(
   label: string,
   bindGroup: GPUBindGroup,
   buildPipeline: GPUComputePipeline,
-  sizes: Array<[number, number]>,
   passes: HizBuildPass[],
-  uniformBytes: number,
   count = 1,
 ) {
   const pass = encoder.beginComputePass({ label });
   pass.setPipeline(buildPipeline);
-  passes.forEach(({ source }, i) => {
-    const [width, height] = sizes[source];
-    pass.setBindGroup(0, bindGroup, [i * uniformBytes]);
-    pass.dispatchWorkgroups(Math.ceil(width / TILE), Math.ceil(height / TILE), count);
-  });
+  for (let i = 0; i < passes.length; i++) {
+    pass.setBindGroup(0, bindGroup, [i * HIZ_UNIFORM_BYTES]);
+    pass.dispatchWorkgroups(
+      Math.ceil(passes[i].width / TILE),
+      Math.ceil(passes[i].height / TILE),
+      count,
+    );
+  }
   pass.end();
 }

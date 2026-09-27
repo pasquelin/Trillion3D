@@ -1,16 +1,35 @@
 import { encodeHizPyramid } from './pyramid.ts';
+import { evaluateHizReduce, pyramidBytes } from './oracle.ts';
 import {
   HIZ_BUILD_SIDE as S,
   HIZ_PASS_LEVELS,
+  HIZ_UNIFORM_BYTES,
   hizBuildPasses,
   hizBuildWords,
-  pyramidBytes,
 } from './uniforms.ts';
 
-// The pyramid build of develop (`copyDepth`, then one `reduceHiz` per mip) and `buildHiz`,
-// transcribed line by line for `buildEquivalence.test.ts`.
-const SLOT_WORDS = 64;
-export const LEVEL_CAP = 16;
+// The pyramid build of develop (a copy of level 0, then the per-level reduction the oracle
+// states) and `buildHiz` transcribed line by line, for `buildEquivalence.test.ts`.
+const SLOT_WORDS = HIZ_UNIFORM_BYTES / 4;
+
+/** The tests' seeded random: the same sequence on every run. */
+export function lcg(seed: number) {
+  return () => (seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 2 ** 32;
+}
+
+/** A compute encoder that records each dispatch as its uniform slot's first word, then its grid. */
+export function recordingEncoder() {
+  const dispatches: number[][] = [];
+  let slot = 0;
+  const pass = {
+    setPipeline() {},
+    setBindGroup: (_: number, __: unknown, offsets: number[]) => (slot = offsets[0] / 4),
+    dispatchWorkgroups: (...grid: number[]) => dispatches.push([slot, ...grid]),
+    end() {},
+  };
+  const encoder = { beginComputePass: () => pass } as unknown as GPUCommandEncoder;
+  return { encoder, dispatches };
+}
 
 export type Scene = {
   texture: Float32Array;
@@ -29,38 +48,35 @@ export function layout(scene: Scene) {
   return { sizes, offsets, count, stride, words: words * count };
 }
 
-const origin = (scene: Scene, z: number) => (scene.origins ? scene.origins[z] : [0, 0]);
 const texel = (scene: Scene, z: number, x: number, y: number) => {
-  const [ox, oy] = origin(scene, z);
+  const [ox, oy] = scene.origins ? scene.origins[z] : [0, 0];
   return scene.texture[(oy + y) * scene.textureWidth + ox + x];
 };
 
-/** `copyDepth` then one `reduceHiz` per mip, as develop encoded them. */
+/** The copy of level 0, then the oracle's reduction of each mip from the one above. */
 export function buildBefore(scene: Scene, pyramid: Float32Array) {
   const { sizes, offsets, count, stride } = layout(scene);
-  for (let z = 0; z < count; z++)
+  for (let z = 0; z < count; z++) {
     for (let y = 0; y < scene.height; y++)
       for (let x = 0; x < scene.width; x++)
         pyramid[z * stride + y * scene.width + x] = texel(scene, z, x, y);
-  for (let i = 0; i < sizes.length - 1 && i + 1 < scene.maxLevels; i++) {
-    const [srcW, srcH] = sizes[i],
-      [dstW, dstH] = sizes[i + 1];
-    for (let z = 0; z < count; z++) {
-      const src = offsets[i] + z * stride;
-      for (let y = 0; y < dstH; y++)
-        for (let x = 0; x < dstW; x++) {
-          const x0 = x * 2,
-            y0 = y * 2;
-          let far = pyramid[src + y0 * srcW + x0];
-          if (x0 + 1 < srcW) far = Math.min(far, pyramid[src + y0 * srcW + x0 + 1]);
-          if (y0 + 1 < srcH) {
-            far = Math.min(far, pyramid[src + (y0 + 1) * srcW + x0]);
-            if (x0 + 1 < srcW) far = Math.min(far, pyramid[src + (y0 + 1) * srcW + x0 + 1]);
-          }
-          pyramid[offsets[i + 1] + z * stride + y * dstW + x] = far;
-        }
+    for (let i = 0; i < sizes.length - 1 && i + 1 < scene.maxLevels; i++) {
+      const [w, h] = sizes[i],
+        src = pyramid.subarray(z * stride + offsets[i], z * stride + offsets[i] + w * h);
+      pyramid.set(evaluateHizReduce(src, w, h).data, z * stride + offsets[i + 1]);
     }
   }
+}
+
+/** `hizFar4`: the farthest of a clamped 2 × 2 square, in the per-level order. */
+function far4(v00: number, v10: number, v01: number, v11: number, dx: number, dy: number) {
+  let far = v00;
+  if (dx) far = Math.min(far, v10);
+  if (dy) {
+    far = Math.min(far, v01);
+    if (dx) far = Math.min(far, v11);
+  }
+  return far;
 }
 
 /** One `buildHiz` workgroup: S × S lanes, the barriers as phases, stale workgroup memory kept. */
@@ -71,14 +87,12 @@ function workgroup(
   wg: number[],
   tile: Float32Array,
 ) {
-  const [a, b, c, d, e, , g] = u;
+  const [a, b, c, d, g] = u;
   const dst = (k: number) => u.subarray(8 + 4 * k, 12 + 4 * k);
-  const z = wg[2];
-  const source = (x: number, y: number) => {
-    const at = a + z * g + y * b + x;
-    if (e === 0) return pyramid[at];
-    return (pyramid[at] = texel(scene, z, x, y));
-  };
+  const z = wg[2],
+    at = a + z * g;
+  const source = (x: number, y: number) =>
+    a !== 0 ? pyramid[at + y * b + x] : (pyramid[at + y * b + x] = texel(scene, z, x, y));
   const far = new Float32Array(S * S);
   for (let lane = 0; lane < S * S; lane++) {
     const x = wg[0] * S + (lane % S),
@@ -87,17 +101,21 @@ function workgroup(
       y0 = y * 2;
     far[lane] = 0;
     if (x0 < b && y0 < c) {
-      far[lane] = source(x0, y0);
-      if (x0 + 1 < b) far[lane] = Math.min(far[lane], source(x0 + 1, y0));
-      if (y0 + 1 < c) {
-        far[lane] = Math.min(far[lane], source(x0, y0 + 1));
-        if (x0 + 1 < b) far[lane] = Math.min(far[lane], source(x0 + 1, y0 + 1));
-      }
+      const dx = x0 + 1 < b ? 1 : 0,
+        dy = y0 + 1 < c ? 1 : 0;
+      far[lane] = far4(
+        source(x0, y0),
+        source(x0 + dx, y0),
+        source(x0, y0 + dy),
+        source(x0 + dx, y0 + dy),
+        dx,
+        dy,
+      );
       if (d > 0) pyramid[dst(0)[0] + z * g + y * dst(0)[1] + x] = far[lane];
     }
     tile[lane] = far[lane];
   }
-  for (let k = 1, side = S >> 1; k < HIZ_PASS_LEVELS; k++, side >>= 1) {
+  for (let k = 1, side = S >> 1; k < Math.min(d, HIZ_PASS_LEVELS); k++, side >>= 1) {
     const [, w, h] = dst(k - 1),
       [offset, dstW, dstH] = dst(k);
     const live: number[] = [];
@@ -106,15 +124,11 @@ function workgroup(
         ly = Math.floor(lane / S),
         tx = wg[0] * side + lx,
         ty = wg[1] * side + ly;
-      if (!(k < d && lx < side && ly < side && tx < dstW && ty < dstH)) continue;
-      const at = ly * 2 * S + lx * 2;
-      let v = tile[at];
-      if (tx * 2 + 1 < w) v = Math.min(v, tile[at + 1]);
-      if (ty * 2 + 1 < h) {
-        v = Math.min(v, tile[at + S]);
-        if (tx * 2 + 1 < w) v = Math.min(v, tile[at + S + 1]);
-      }
-      far[lane] = v;
+      if (!(lx < side && ly < side && tx < dstW && ty < dstH)) continue;
+      const i = ly * 2 * S + lx * 2,
+        dx = tx * 2 + 1 < w ? 1 : 0,
+        dy = ty * 2 + 1 < h ? 1 : 0;
+      far[lane] = far4(tile[i], tile[i + dx], tile[i + dy * S], tile[i + dy * S + dx], dx, dy);
       live.push(lane);
     }
     // workgroupBarrier(): every read of the level is done before any lane overwrites the tile.
@@ -127,31 +141,14 @@ function workgroup(
   }
 }
 
+/** `buildHiz` driven by the uniform words and the dispatches the host really encodes. */
 export function buildAfter(scene: Scene, pyramid: Float32Array, rand: () => number) {
   const { sizes, offsets, count, stride } = layout(scene);
   const passes = hizBuildPasses(sizes, scene.maxLevels);
-  const words = hizBuildWords(
-    new Uint32Array(LEVEL_CAP * SLOT_WORDS),
-    sizes,
-    offsets,
-    passes,
-    SLOT_WORDS * 4,
-    stride,
-  );
-  // The grid and the uniform slot of each dispatch are the ones the host encodes.
-  let slot = 0;
-  const grids: number[][] = [];
-  const pass = {
-    setPipeline() {},
-    setBindGroup: (_: number, __: unknown, offsets: number[]) => (slot = offsets[0] / 4),
-    dispatchWorkgroups: (...grid: number[]) => grids.push([slot, ...grid]),
-    end() {},
-  };
-  const encoder = { beginComputePass: () => pass } as unknown as GPUCommandEncoder;
-  const group = {} as GPUBindGroup,
-    pipeline = {} as GPUComputePipeline;
-  encodeHizPyramid(encoder, '', group, pipeline, sizes, passes, SLOT_WORDS * 4, count);
-  for (const [at, gx, gy, gz] of grids) {
+  const words = hizBuildWords(sizes, offsets, passes, stride);
+  const { encoder, dispatches } = recordingEncoder();
+  encodeHizPyramid(encoder, '', {} as GPUBindGroup, {} as GPUComputePipeline, passes, count);
+  for (const [at, gx, gy, gz] of dispatches) {
     const u = words.subarray(at, at + SLOT_WORDS);
     for (let z = 0; z < gz; z++)
       for (let y = 0; y < gy; y++)

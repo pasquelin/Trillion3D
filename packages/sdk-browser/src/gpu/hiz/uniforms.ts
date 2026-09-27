@@ -1,17 +1,3 @@
-import { hizLevelSizes } from './oracle.ts';
-
-/** A packed pyramid's mip sizes, each mip's first texel and its whole size in bytes. */
-export function pyramidBytes(width: number, height: number) {
-  const sizes = hizLevelSizes(width, height);
-  const offsets: number[] = [];
-  let texels = 0;
-  for (const [w, h] of sizes) {
-    offsets.push(texels);
-    texels += w * h;
-  }
-  return { sizes, offsets, texels, bytes: Math.max(4, texels * 4) };
-}
-
 /**
  * The test slot at `byteOffset`: `[width, height, rows, depth bias]`, the rest zero. `words` is the
  * caller's, zeroed at creation and reused every frame; only the first three words ever change, the
@@ -32,6 +18,9 @@ export function writeHizTestUniforms(
   device.queue.writeBuffer(buffer, byteOffset, words);
 }
 
+/** Bytes of one uniform slot, and the deepest pyramid the camera builds. */
+export const HIZ_UNIFORM_BYTES = 256;
+export const HIZ_MAX_LEVELS = 16;
 /** Mips one build pass reduces in workgroup memory: an 8 × 8 workgroup reduces a 16 × 16 source
  *  tile down to one texel. */
 export const HIZ_PASS_LEVELS = 4;
@@ -41,23 +30,22 @@ export const HIZ_BUILD_SIDE = 1 << (HIZ_PASS_LEVELS - 1);
 /** Words of one pass's uniform: the source level, then one `vec4u` per level it writes. */
 const PASS_HEADER_WORDS = 8;
 
-export type HizBuildPass = { source: number; levels: number };
-
-/** The most build passes a pyramid at most `maxLevels` deep takes: its uniform slots. */
-export const hizBuildSlots = (maxLevels: number) =>
-  Math.max(1, Math.ceil((maxLevels - 1) / HIZ_PASS_LEVELS));
+/** One build pass: the level it reads, its size, and the count of levels it writes. */
+export type HizBuildPass = { source: number; width: number; height: number; levels: number };
 
 /**
  * The build passes of a pyramid of `sizes`, at most `maxLevels` deep: each pass reads one level
  * and reduces the next `HIZ_PASS_LEVELS` from it through workgroup memory. The first reads the
  * level-0 texture, copying it into the pyramid on the way, even when there is nothing to reduce.
  */
-export function hizBuildPasses(sizes: Array<[number, number]>, maxLevels: number) {
+export function hizBuildPasses(sizes: Array<[number, number]>, maxLevels = HIZ_MAX_LEVELS) {
   const last = Math.min(sizes.length, maxLevels) - 1;
   const passes: HizBuildPass[] = [];
   let source = 0;
-  do passes.push({ source, levels: Math.min(HIZ_PASS_LEVELS, last - source) });
-  while ((source += HIZ_PASS_LEVELS) < last);
+  do {
+    const [width, height] = sizes[source];
+    passes.push({ source, width, height, levels: Math.min(HIZ_PASS_LEVELS, last - source) });
+  } while ((source += HIZ_PASS_LEVELS) < last);
   return passes;
 }
 
@@ -65,41 +53,24 @@ export function hizBuildPasses(sizes: Array<[number, number]>, maxLevels: number
  * Every pass's source and destinations are a function of the target size alone, so the whole
  * uniform array is written once per allocation and no image uploads a byte to build the pyramid.
  * Slot `i` holds pass `i`: its source level's offset and size, the count of levels it writes,
- * whether it reads the level-0 texture, `stride` — the words between two pyramids built in one
- * dispatch, zero for the camera's single pyramid (`shader.ts`) — then each written level's
- * offset and size.
+ * `stride` — the words between two pyramids built in one dispatch, zero for the camera's single
+ * pyramid (`shader.ts`) — then each written level's offset and size. The source at offset zero
+ * is level 0, read from the texture.
  */
 export function hizBuildWords(
-  words: Uint32Array,
   sizes: Array<[number, number]>,
   offsets: number[],
   passes: HizBuildPass[],
-  uniformBytes: number,
   stride = 0,
 ) {
-  words.fill(0);
-  passes.forEach(({ source, levels }, i) => {
-    const base = i * (uniformBytes / 4),
-      [width, height] = sizes[source];
-    words.set([offsets[source], width, height, levels, source === 0 ? 1 : 0, 0, stride], base);
+  const slot = HIZ_UNIFORM_BYTES / 4,
+    words = new Uint32Array(passes.length * slot);
+  passes.forEach(({ source, width, height, levels }, i) => {
+    words.set([offsets[source], width, height, levels, stride], i * slot);
     for (let k = 0; k < levels; k++) {
       const level = source + 1 + k;
-      words.set([offsets[level], ...sizes[level]], base + PASS_HEADER_WORDS + 4 * k);
+      words.set([offsets[level], ...sizes[level]], i * slot + PASS_HEADER_WORDS + 4 * k);
     }
   });
   return words;
-}
-
-export function writeHizBuildUniforms(
-  device: GPUDevice,
-  uniforms: GPUBuffer,
-  words: Uint32Array<ArrayBuffer>,
-  sizes: Array<[number, number]>,
-  offsets: number[],
-  passes: HizBuildPass[],
-  uniformBytes: number,
-  stride = 0,
-) {
-  hizBuildWords(words, sizes, offsets, passes, uniformBytes, stride);
-  device.queue.writeBuffer(uniforms, 0, words);
 }
