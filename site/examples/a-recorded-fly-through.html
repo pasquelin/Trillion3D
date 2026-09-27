@@ -26,8 +26,7 @@
 
       const world = createWorld('view', { controls: 'orbit' });
       world.scene.background = math.color('#91b7d1');
-      const paint = (color, roughness = 0.8, metalness = 0) =>
-        material.meshStandard({ color, roughness, metalness });
+      const paint = (color, roughness = 0.8) => material.meshStandard({ color, roughness });
       const grass = paint('#668c4d', 0.95),
         stone = paint('#c4b89d', 0.9);
       const wood = paint('#70472d'),
@@ -122,16 +121,27 @@
         { name: 'pavilion', position: [14, 4, -1], target: [8, 2, -7], seconds: 2.4, hold: 1 },
         { name: 'overview', position: [17, 15, 18], target: [0, 1, 0], seconds: 3, hold: 1.5 },
       ]);
-      controls({ replay: () => route.restart(), stop: () => route.stop() }, world);
+      // The readout skips a write that changes nothing; Stop, or a press or wheel that moves
+      // nothing, draws no frame, so each shows the part itself.
+      const showPart = () => current(say(route.part ?? 'complete'));
+      controls(
+        {
+          replay: () => route.restart(),
+          stop: () => {
+            route.stop();
+            showPart();
+          },
+        },
+        world,
+      );
       const current = readout('currentPart');
-      let shown;
-      const showPart = () => {
-        const part = route.part ?? 'complete';
-        if (part !== shown) current(say((shown = part)));
-      };
       world.onFrame(showPart);
       showPart();
+      const takeovers = ['pointerdown', 'wheel'];
+      for (const type of takeovers)
+        world.canvas.addEventListener(type, showPart, { passive: true });
       addEventListener('pagehide', () => {
+        for (const type of takeovers) world.canvas.removeEventListener(type, showPart);
         route.dispose();
         world.dispose();
       });
