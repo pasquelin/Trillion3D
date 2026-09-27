@@ -83,12 +83,15 @@ export function boxCornersInto(
   }
 }
 
-const corners = new Float64Array(24);
-
 /**
  * Bounding box enclosing the image by `m` of `box`: union of its eight transformed corners. An
  * empty box stays as is, bounds included. `out` can be `box`: bounds are read
  * before the first write.
+ *
+ * Each corner is computed into locals and folded at once into the six bounds, with the
+ * `Math.min`/`Math.max` of `boxExpandByPoint`, corners in the order of `boxCornersInto`, from an
+ * empty box: the bits of the union of `boxCornersInto`'s corners, with no scratch buffer
+ * (`box.test.ts`).
  */
 export function boxTransform(
   out: Float64Array,
@@ -112,10 +115,49 @@ export function boxTransform(
     out[o + 5] = maxZ;
     return;
   }
-  boxCornersInto(corners, 0, minX, minY, minZ, maxX, maxY, maxZ, m);
-  boxEmpty(out, o);
-  for (let at = 0; at < 24; at += 3)
-    boxExpandByPoint(out, o, corners[at], corners[at + 1], corners[at + 2]);
+  const m0 = m[0],
+    m1 = m[1],
+    m2 = m[2],
+    m3 = m[3],
+    m4 = m[4],
+    m5 = m[5],
+    m6 = m[6],
+    m7 = m[7],
+    m8 = m[8],
+    m9 = m[9],
+    m10 = m[10],
+    m11 = m[11],
+    m12 = m[12],
+    m13 = m[13],
+    m14 = m[14],
+    m15 = m[15];
+  let loX = Infinity,
+    loY = Infinity,
+    loZ = Infinity,
+    hiX = -Infinity,
+    hiY = -Infinity,
+    hiZ = -Infinity;
+  for (let i = 0; i < 8; i++) {
+    const lx = i & 1 ? maxX : minX,
+      ly = i & 2 ? maxY : minY,
+      lz = i & 4 ? maxZ : minZ;
+    const mw = 1 / (m3 * lx + m7 * ly + m11 * lz + m15);
+    const x = (m0 * lx + m4 * ly + m8 * lz + m12) * mw,
+      y = (m1 * lx + m5 * ly + m9 * lz + m13) * mw,
+      z = (m2 * lx + m6 * ly + m10 * lz + m14) * mw;
+    loX = Math.min(loX, x);
+    loY = Math.min(loY, y);
+    loZ = Math.min(loZ, z);
+    hiX = Math.max(hiX, x);
+    hiY = Math.max(hiY, y);
+    hiZ = Math.max(hiZ, z);
+  }
+  out[o] = loX;
+  out[o + 1] = loY;
+  out[o + 2] = loZ;
+  out[o + 3] = hiX;
+  out[o + 4] = hiY;
+  out[o + 5] = hiZ;
 }
 
 /** Distance from the point `(x, y, z)` to the box, 0 inside it: the gap past each face, as Box3's

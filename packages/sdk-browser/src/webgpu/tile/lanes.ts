@@ -9,8 +9,8 @@ import {
 } from '../../texture/blockFormats.ts';
 import { resizeTileAtlas } from './atlasResize.ts';
 
-/** A lane's pool, the tiles resident in it by id, and the eviction candidates of the image. */
-export type Lane = { pool: WebgpuTilePool; resident: Map<number, number>; candidates: VictimQueue };
+/** A lane's pool, the tiles resident in it by id, and its eviction victims of the image. */
+export type Lane = { pool: WebgpuTilePool; resident: Map<number, number>; victims: VictimQueue };
 
 /**
  * The pools of an atlas, one per lane its textures take: the lossless RGBA8 lane, the RGBA block
@@ -45,7 +45,7 @@ export function createTileLanes(
       lanes.set(lane, {
         pool: createWebgpuTilePool(device, shape(lane, options.layers[lane])),
         resident: new Map(),
-        candidates: NO_VICTIMS,
+        victims: NO_VICTIMS,
       });
   const standInTexture = device.createTexture({
     label: `Trillion3D texture pool ${kind} stand-in`,
