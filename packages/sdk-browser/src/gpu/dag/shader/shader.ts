@@ -77,7 +77,7 @@ fn dagPrepare(@builtin(global_invocation_id) id:vec3u){
   else{atomicAnd(&out.overflow,${LIST_FULL}u);}
   atomicStore(&out.frustumRejected,0u);atomicStore(&out.lodLevel,0u);resetTotaux();resetCounters();
  }
- if(t<blockCount()){atomicStore(&work[blockBase()+t],0u);atomicStore(&work[drawMaskBase()+2u*t],0u);atomicStore(&work[drawMaskBase()+2u*t+1u],0u);}
+ if(t<blockCount()){atomicStore(&work[blockBase()+t],0u);atomicStore(&work[drawMaskWord(t*BLOCK)],0u);atomicStore(&work[drawMaskWord(t*BLOCK+32u)],0u);}
  if(t<views[0u].viewCount){atomicStore(&work[viewWord(0u,t)],0u);atomicStore(&work[viewWord(2u,t)],0u);}
  if(t==0u){atomicStore(&work[drawnGroupsMax()],0u);countFrame();}
  let world=views[0u].worldCount;

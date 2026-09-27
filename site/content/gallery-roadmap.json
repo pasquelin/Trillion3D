@@ -753,6 +753,11 @@
       "file": "examples/a-robot-that-walks-and-waves.html"
     },
     {
+      "id": "a-crane-that-swings",
+      "theme": "animation",
+      "file": "examples/a-crane-that-swings.html"
+    },
+    {
       "id": "a-wave-across-a-grid",
       "theme": "animation",
       "file": "examples/a-wave-across-a-grid.html"
@@ -963,6 +968,11 @@
       "id": "ten-thousand-objects",
       "theme": "streaming",
       "file": "examples/ten-thousand-objects.html"
+    },
+    {
+      "id": "a-hundred-thousand-instances",
+      "theme": "streaming",
+      "file": "examples/a-hundred-thousand-instances.html"
     },
     {
       "id": "compressed-textures",
@@ -1187,6 +1197,13 @@
       "status": "needs-engine"
     },
     {
+      "id": "inside-a-component",
+      "theme": "interaction",
+      "file": "examples/inside-a-component.html",
+      "status": "waiting-engine",
+      "issue": 412
+    },
+    {
       "id": "labels-that-follow",
       "theme": "interaction",
       "file": "examples/labels-that-follow.html"
@@ -1205,6 +1222,11 @@
       "id": "click-to-pick",
       "theme": "interaction",
       "file": "examples/click-to-pick.html"
+    },
+    {
+      "id": "drag-a-crate",
+      "theme": "interaction",
+      "file": "examples/drag-a-crate.html"
     },
     {
       "id": "hover-over-triangles",
@@ -1320,8 +1342,9 @@
     {
       "id": "outline-the-selection",
       "theme": "effects",
-      "file": "",
-      "status": "needs-engine"
+      "file": "examples/outline-the-selection.html",
+      "status": "waiting-engine",
+      "issue": 757
     },
     {
       "id": "edges-by-sobel",

@@ -1,4 +1,4 @@
-import type { Fog } from '../core/sceneFog.ts';
+import { fogOf, type Fog } from '../core/sceneFog.ts';
 import { BufferAttribute } from '../../../../sdk-core/src/world/buffer/index.ts';
 import { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts';
 import { RECIPES } from '../../../../sdk-core/src/world/geometry/recipes.ts';
@@ -131,6 +131,6 @@ export async function readScene(scene: Target, json: unknown, camera?: Camera) {
   if (before.length) scene.remove(...before);
   if (children.length) scene.add(...children);
   scene.background = json.background && new Color().setRGB(...json.background);
-  scene.fog = json.fog && { ...json.fog, color: new Color().setRGB(...json.fog.color) };
+  scene.fog = fogOf(json.fog);
   if (camera && json.camera) readCamera(json.camera, camera);
 }

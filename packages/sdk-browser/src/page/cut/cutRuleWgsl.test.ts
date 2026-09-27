@@ -6,6 +6,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { ruleDag } from './cutRule.fixture.ts';
 import { wgslBackend, wgslLightBackend } from './cutRuleBackends.fixture.ts';
+import { coneWord } from './cutRuleWord.fixture.ts';
 import { ruleChecks } from './cutRuleChecks.fixture.ts';
 import { CUT_RULE_WGSL } from './rule.ts';
 import { DAG_SELECTION_SHADER } from '../../gpu/dag/shader/shader.ts';
@@ -59,4 +60,34 @@ for (const [path, backend] of Object.entries(PATHS)) {
 test('camera: a call site reading the wrong comparison of the cone word is caught', () => {
   const swapped = edited('(word&OWN_WITHIN)!=0u', '(word&PARENT_ABOVE)!=0u');
   assert.throws(() => randomFrames(wgslBackend(dag, THRESHOLD, swapped)), FAULT);
+});
+
+const EDGES = [NaN, -Infinity, -0, 0, 0.1, 0.1000001, 1, 3.4e38, Infinity];
+
+/** Whether `word` keeps, for every operand, the comparisons of the rule, stops a cone-rejected
+ *  page at `dagMask`'s guard, and leaves a light cut's word clear (a light never cone-rejects). */
+function keepsTheRule(word: ReturnType<typeof coneWord>) {
+  const f32 = Math.fround;
+  for (const parent of EDGES)
+    for (const own of EDGES)
+      for (const t of EDGES) {
+        const bits = (f32(parent) > f32(t) ? 2 : 0) | (f32(own) <= f32(t) ? 4 : 0);
+        const seen = word(false, parent, own, t),
+          rejected = word(true, parent, own, t),
+          light = word(true, parent, own, t, true);
+        if (seen.word !== bits || !seen.open || rejected.open || light.word !== 0 || !light.open)
+          return false;
+      }
+  return true;
+}
+
+test('camera: the cone word holds the rule comparisons, and a cone-rejected page never passes', () => {
+  assert.equal(keepsTheRule(coneWord()), true);
+  for (const [from, to] of [
+    ['select(0u,CONE_REJECTED,rejected)', 'select(0u,OWN_WITHIN,rejected)'],
+    ['if((word&CONE_REJECTED)==0u){', 'if((word&OWN_WITHIN)==0u){'],
+    ['pixels.own<=t', 'pixels.own<t'],
+    ['),0u,light)', '),0u,t<t)'],
+  ])
+    assert.equal(keepsTheRule(coneWord(edited(from, to))), false, `${from} → ${to}`);
 });

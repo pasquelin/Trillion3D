@@ -79,13 +79,16 @@ export function createDagRuntime(resources: DagResources): GpuSelection {
     get worldRevision() {
       return state.worldRevision;
     },
-    updateWorlds(next, posesMoved = true) {
+    updateWorlds(next, posesMoved = true, translationsOnly = false) {
       if (state.disposed || state.dead) return false;
       if (next.byteLength !== packed.worlds.byteLength)
         throw new Error('GPU_SCENE_WORLD_COUNT_CHANGED');
       if (!worldsChanged(previousWorlds, next)) return false;
       // Stretch reads the linear part alone, which a moving origin leaves: read before the copy.
-      const stretched = refreshWorldStretch(previousWorlds, next, packed, frameData);
+      // Only translations rewritten, the scan could find no linear part that moved: skipped.
+      const stretched = translationsOnly
+        ? 0
+        : refreshWorldStretch(previousWorlds, next, packed, frameData);
       previousWorlds.set(next);
       packed.worlds.set(next);
       device.queue.writeBuffer(
