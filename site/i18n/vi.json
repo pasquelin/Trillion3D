@@ -1515,6 +1515,7 @@
       "a-walker-among-balls": "Người đi bộ giữa những quả bóng"
     },
     "missing": {
+      "inside-a-component": "dọn canvas do bộ máy tạo khi hủy thế giới",
       "floating-crates": "hình học được ghi lại mỗi khung hình",
       "thick-lines": "đường rộng",
       "a-line-that-draws-itself": "phạm vi vẽ hình học",

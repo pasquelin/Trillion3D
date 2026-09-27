@@ -331,6 +331,7 @@
       "a-walker-among-balls": "A walker among balls"
     },
     "missing": {
+      "inside-a-component": "engine-owned canvas cleanup when a world is disposed",
       "floating-crates": "geometry rewritten every frame",
       "thick-lines": "wide lines",
       "a-line-that-draws-itself": "geometry draw range",
