@@ -4,6 +4,8 @@ import { PRIORITY_VISIBLE } from './priority.ts';
 export type PageReads = { landed: number; asked: number };
 
 type Watch = { reading: Map<string, number>; landed: Set<string>; heard: () => void };
+/** One watch as its watcher holds it (`watch`'s return). */
+export type PageWatch = { reads: () => PageReads; hold: (url: string) => void; stop: () => void };
 const counted = ({ landed, reading }: Watch): PageReads => ({
   landed: landed.size,
   asked: landed.size + reading.size,
@@ -40,6 +42,8 @@ export function createReadWatch(
         askedBy.push(watch);
         watch.reading.set(url, (watch.reading.get(url) ?? 0) + 1);
       }
+    // A page every watch counts as landed already changes no count: nothing to hear of it.
+    if (!askedBy.length) return reading;
     hear();
     const settle = (landed: boolean) => {
       for (const watch of askedBy) {
@@ -56,14 +60,10 @@ export function createReadWatch(
     );
     return reading;
   };
-  /** Hears `onReads` as pages are read and land, until `stop`; `reads` counts them now, `hold`
+  /** Calls `heard` as pages are read and land, until `stop`; `reads` counts them now, `hold`
    *  counts a page resident already as landed, once. */
-  const watch = (onReads: (reads: PageReads) => void) => {
-    const entry: Watch = {
-      reading: new Map(),
-      landed: new Set(),
-      heard: () => onReads(counted(entry)),
-    };
+  const watch = (heard: () => void): PageWatch => {
+    const entry: Watch = { reading: new Map(), landed: new Set(), heard };
     watches.add(entry);
     return {
       reads: () => counted(entry),

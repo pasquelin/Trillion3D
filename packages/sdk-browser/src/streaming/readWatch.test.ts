@@ -22,7 +22,7 @@ function reads() {
 test('a watch hears the reads the view waits on: each page once, a dropped one taken back (#408)', async () => {
   const { read, watch, settle } = reads();
   const heard: PageReads[] = [];
-  const { stop, hold, reads: now } = watch((event) => heard.push(event));
+  const { stop, hold, reads: now } = watch(() => heard.push(now()));
   const caught = (url: string, priority?: number) =>
     void read(url, undefined, priority).catch(() => {});
   ['a', 'b', 'c', 'a'].forEach((url) => caught(url));
