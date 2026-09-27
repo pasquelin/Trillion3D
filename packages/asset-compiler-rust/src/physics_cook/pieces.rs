@@ -1,14 +1,12 @@
 //! The pieces a breakable body is cut into at cook time: a node whose `extras.physics` declares
-//! `breakable` (its threshold, as `obj.physics` takes it) has the closed mesh it collides by cut
-//! into Voronoi cells (`voronoi.rs`) around seeds drawn inside it by a generator seeded from the
-//! node, so the same source cooks the same bytes. Each piece is a convex hull Jolt builds for
-//! contact (`hull.rs`), weighed exactly (`mass.rs`) at the body's scale. The pieces together weigh
-//! what the mesh does, or the body is refused: only a convex mesh is cut, until a concave one is
-//! decomposed into volumes.
+//! `breakable` has the closed mesh it collides by cut into Voronoi cells (`voronoi.rs`) around seeds
+//! drawn by a generator seeded from the node, the same source the same bytes; each piece is Jolt's
+//! hull (`hull.rs`) weighed exactly (`mass.rs`). Pieces that do not weigh the mesh refuse the body:
+//! only a convex mesh is cut, until a concave one is decomposed into volumes.
 use super::hull::cooked_shape;
 use super::mass::solid_mass;
 use super::refused;
-use super::voronoi::{cells, face_planes, supporting, welded};
+use super::voronoi::{cells, face_planes, welded};
 use crate::shared_math::{dot, extend_aabb, length, point, sub};
 use crate::{Options, Result};
 use rayon::prelude::*;
@@ -53,11 +51,6 @@ pub(super) fn pieces(
     seed: u64,
     scale: [f64; 3],
 ) -> Result<Vec<Value>> {
-    let not_convex = || {
-        refused(format!(
-            "Mesh {mesh} is not convex: a breakable body is cut from a convex mesh."
-        ))
-    };
     let weight = |mass: &Value| mass["mass"].as_f64().unwrap_or_default();
     let whole = weight(&solid_mass(pos, triangles, scale, mesh)?);
     let corners = (pos.len() / 3) as u32;
@@ -66,7 +59,7 @@ pub(super) fn pieces(
         extend_aabb(&mut low, &mut high, point(pos, i));
     }
     let eps = length(sub(high, low)) * 1e-6;
-    let planes = supporting(face_planes(pos, triangles), pos, triangles, eps);
+    let planes = face_planes(pos, triangles, eps);
     let (mut state, mut seeds) = (seed, Vec::new());
     // A seed is a random mean of four corners: inside a convex mesh, whatever its shape.
     for _ in 0..ATTEMPTS {
@@ -84,9 +77,6 @@ pub(super) fn pieces(
             break;
         }
     }
-    if seeds.len() < 2 {
-        return Err(not_convex());
-    }
     let out: Vec<Value> = cells(&seeds, (low, high), &planes)
         .par_iter()
         .map(|faces| {
@@ -97,8 +87,10 @@ pub(super) fn pieces(
         })
         .collect::<Result<_>>()?;
     let total: f64 = out.iter().map(|piece| weight(&piece["mass"])).sum();
+    // No seed inside, or cells that miss part of the mesh: its planes bound less than it.
     if (total - whole).abs() > whole * MASS_TOLERANCE {
-        return Err(not_convex());
+        let reason = "is not convex: a breakable body is cut from a convex mesh";
+        return Err(refused(format!("Mesh {mesh} {reason}.")));
     }
     Ok(out)
 }
