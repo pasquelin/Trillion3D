@@ -1,9 +1,5 @@
 import type { ResidencyChanges } from '../core/selection.ts';
-import {
-  RESIDENCY_RANGE_GAP,
-  RESIDENCY_RANGE_MAX,
-  coalesceRanges,
-} from '../../webgpu/residency/ranges.ts';
+import { RESIDENCY_RULE, coalesceRanges } from '../../webgpu/residency/ranges.ts';
 import { childBase, residentBase, residentWords } from './layout.ts';
 import { grown } from '../../page/cut/sparseInts.ts';
 import { DAG_NODE_FLOATS, type PackedDag } from './types.ts';
@@ -42,9 +38,6 @@ export function updateResidencyBits(
   return count;
 }
 
-/** Past its cap, a residency flush writes everything at once. */
-const RESIDENCY_RULE = { gap: RESIDENCY_RANGE_GAP, cap: RESIDENCY_RANGE_MAX };
-
 /**
  * The kernel's residency, kept by difference: the pool's per-page residency goes in, the cut
  * rule's two bit sets and the nodes' open counts come out (`readiness.ts`), and only the word and
@@ -68,7 +61,7 @@ export function createDagResidencyUpload(resources: {
   );
   /** Words or nodes the last apply changed, and the ranges that cover them. */
   let touched = new Int32Array(8);
-  const ranges = new Int32Array(RESIDENCY_RANGE_MAX * 2);
+  const ranges = new Int32Array(RESIDENCY_RULE.cap * 2);
   const changed = { pages: new Int32Array(8), count: 0, sorted: true };
   const sets = [
     { values: readiness.isReady, base: residentBase(pageCount) },

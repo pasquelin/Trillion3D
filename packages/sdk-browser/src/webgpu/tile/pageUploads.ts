@@ -1,5 +1,5 @@
 import { grown } from '../../page/cut/sparseInts.ts';
-import { coalesceRanges } from '../residency/ranges.ts';
+import { coalesceRanges, type RangeRule } from '../residency/ranges.ts';
 
 /**
  * Writes a page table sends at its next flush: the words that changed, in runs, never a
@@ -17,7 +17,12 @@ export function createPageUploads(size: number) {
   // The changed words, and the steps between them at a flush: both reused, grown together.
   let changed = new Int32Array(64),
     count = 0;
-  const rule = { gap: JOIN_GAP, cap: MAX_WRITES, steps: new Int32Array(64) };
+  const rule = {
+    gap: JOIN_GAP,
+    cap: MAX_WRITES,
+    overflow: 'narrowest',
+    steps: new Int32Array(64),
+  } satisfies RangeRule;
   return {
     /** Word `index` changed since the last flush. */
     mark(index: number) {
@@ -33,7 +38,7 @@ export function createPageUploads(size: number) {
     flush(queue: GPUQueue, buffer: GPUBuffer, words: Uint32Array<ArrayBuffer>) {
       if (!count) return;
       const sorted = changed.subarray(0, count).sort();
-      for (const index of sorted) marked[index] = 0;
+      for (let i = 0; i < count; i++) marked[sorted[i]] = 0;
       const writes = coalesceRanges(sorted, count, runs, rule);
       for (let r = 0; r < writes; r++) {
         const from = runs[r * 2];

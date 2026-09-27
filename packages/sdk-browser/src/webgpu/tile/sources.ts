@@ -5,6 +5,7 @@ import { writeTileFromBlocks } from './writeBlocks.ts';
 import type { WebgpuTileAtlas } from './atlas.ts';
 import { createWebgpuTileLevels, type LevelKey } from './levels.ts';
 import { createTileScratch, type TileScratch } from './scratch.ts';
+import { generateMaterialMips } from '../../texture/mipBatch.ts';
 import { copyLiveTexture, pictureFits } from './live.ts';
 import type { TileKey } from './pageTable.ts';
 import type { TileCounters } from './counters.ts';
@@ -56,7 +57,7 @@ export function createTileSources(options: {
   /** Working textures of the live host textures, kept from pass to pass, and their bytes (#362). */
   const live = new Map<number, TileScratch>();
   let liveBytes = 0;
-  const build = (atlas: WebgpuTileAtlas, slot: number) => {
+  const build = (atlas: WebgpuTileAtlas, slot: number, batched = false) => {
     const { layout, source } = atlas.textures[slot];
     if (source.kind !== 'host') throw new Error('TEXTURE_SOURCE_NOT_HOST');
     counters.scratches++;
@@ -70,21 +71,16 @@ export function createTileSources(options: {
           ? 'MATERIAL_COLOR_TEXTURE_UNAVAILABLE'
           : 'MATERIAL_DATA_TEXTURE_UNAVAILABLE',
       coverage: source.coverage,
+      batched,
     });
   };
-  const scratchOf = (atlas: WebgpuTileAtlas, slot: number) => {
+  const scratchOf = (atlas: WebgpuTileAtlas, slot: number, batched = false) => {
     const id = scratchId(atlas, slot);
     let scratch = live.get(id) ?? scratches.get(id);
     if (scratch) return scratch;
-    if (atlas.textures[slot].source.kind !== 'host') throw new Error('TEXTURE_SOURCE_NOT_HOST');
     if (scratches.size >= MAX_SCRATCHES) return undefined;
-    scratches.set(id, (scratch = build(atlas, slot)));
+    scratches.set(id, (scratch = build(atlas, slot, batched)));
     return scratch;
-  };
-  const copyIntoPlaces = (atlas: WebgpuTileAtlas, slot: number, scratch: TileScratch) => {
-    const encoder = device.createCommandEncoder({ label: 'Trillion3D live texture' });
-    copyLiveTexture(encoder, atlas, slot, scratch.texture);
-    device.queue.submit([encoder.finish()]);
   };
   const dropScratches = () => {
     for (const scratch of scratches.values()) scratch.destroy();
@@ -129,7 +125,7 @@ export function createTileSources(options: {
         return 'served';
       }
       if (source.kind !== 'host') throw new Error('TEXTURE_TILE_WITHOUT_SOURCE');
-      const scratch = scratchOf(atlas, key.slot);
+      const scratch = scratchOf(atlas, key.slot, true);
       if (!scratch) return 'waiting';
       const place = atlas.place(key, frame);
       if (!place) return 'refused';
@@ -168,7 +164,7 @@ export function createTileSources(options: {
         live.set(id, (scratch = build(atlas, slot)));
         liveBytes += scratch.bytes;
       }
-      copyIntoPlaces(atlas, slot, scratch);
+      copyLiveTexture(device, atlas, slot, scratch.texture);
       return true;
     },
     /** A host texture whose readers' coverage rule moved (#42): its mips reduced again, copied. */
@@ -177,7 +173,7 @@ export function createTileSources(options: {
       const kept = live.get(scratchId(atlas, slot)) ?? scratches.get(scratchId(atlas, slot)),
         scratch = kept ?? build(atlas, slot);
       kept?.reduce();
-      copyIntoPlaces(atlas, slot, scratch);
+      copyLiveTexture(device, atlas, slot, scratch.texture);
       if (!kept) scratch.destroy();
       return true;
     },
@@ -185,8 +181,14 @@ export function createTileSources(options: {
     get liveBytes() {
       return liveBytes;
     },
-    /** End of pass, after its submit: working textures are returned, the live ones kept. */
-    endPass: dropScratches,
+    /** End of pass: the working textures it built — `scratchOf`'s batched ones — reduced in one
+     *  batch (OMB-29, #961), its copies submitted, then those returned, the live ones kept. */
+    endPass(encoder?: GPUCommandEncoder) {
+      const chains = [...scratches.values()].map((scratch) => scratch.chain());
+      generateMaterialMips(device, chains);
+      if (encoder) device.queue.submit([encoder.finish()]);
+      dropScratches();
+    },
     settled: () => levels?.settled() ?? Promise.resolve(),
     destroy() {
       dropScratches();
