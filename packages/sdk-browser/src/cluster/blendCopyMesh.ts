@@ -5,7 +5,7 @@ import type { PageSurface } from '../page/surface.ts';
 import { placementWorld, type PlacementOf, type PlacementRows } from '../placement/rows.ts';
 import { notDrawn } from '../placement/hidden.ts';
 import { growPlaced } from '../placement/growth.ts';
-import { GraphMesh } from '../host/graph/mesh.ts';
+import { hostMeshCopy } from '../host/scene/graphObjects.ts';
 
 /**
  * The transparent draw copy of an engine that draws its display graph whole — the WebGL2 page
@@ -36,11 +36,10 @@ export function createBlendCopy(
   surface: PageSurface,
   placement?: PlacementOf,
 ): BlendCopy {
-  const source = mesh as unknown as GraphMesh;
-  const copy = new GraphMesh(source.geometry, source.material);
+  const copy = hostMeshCopy(mesh);
   copy.matrixAutoUpdate = false;
   copy.matrix.elements = world.elements as Float64Array;
-  copy.frustumCulled = source.frustumCulled;
+  copy.frustumCulled = mesh.frustumCulled;
   copy.renderOrder = renderOrder;
   copy.userData.sourceMesh = mesh;
   // The engine reads the surface off the record the collection built; the declaration stays on
@@ -54,7 +53,7 @@ export function createBlendCopy(
 
 /** Shows `copy` unless its source node is hidden or its row parked. */
 export const showBlendCopy = (copy: BlendCopy) => {
-  (copy as unknown as GraphMesh).visible = !notDrawn(copy);
+  (copy as unknown as HostMesh).visible = !notDrawn(copy);
 };
 
 /**
@@ -86,11 +85,11 @@ export function growBlendCopies(
   copies: BlendCopy[],
   from: PlacementRows,
   to: PlacementRows,
-  add: (copy: GraphMesh) => void,
+  add: (copy: HostMesh) => void,
 ) {
   const rebind = (copy: BlendCopy, placement: PlacementOf) => {
     const { elements } = placementWorld(placement.rows, placement.index);
-    (copy as unknown as GraphMesh).matrix.elements = elements as Float64Array;
+    (copy as unknown as HostMesh).matrix.elements = elements as Float64Array;
     Object.assign(copy, { placement });
   };
   const clone = (template: BlendCopy, placement: PlacementOf) => {
@@ -110,6 +109,6 @@ export function growBlendCopies(
   };
   for (const { item } of growPlaced(copies, from, to, rebind, clone)) {
     copies.push(item);
-    add(item as unknown as GraphMesh);
+    add(item as unknown as HostMesh);
   }
 }
