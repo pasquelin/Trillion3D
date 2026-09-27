@@ -19,13 +19,13 @@ import type { TileTexture } from '../../tile/tileTexture.ts';
 import type { WebgpuTileStreamer } from '../../tile/streamer.ts';
 
 /** Tiles each lane's textures would hold at full residency: their tails and streamed entries. */
-const laneDemand = (textures: TileTexture[]) => {
+export const laneDemand = (textures: readonly TileTexture[]) => {
   const demand = laneCounts();
   for (const texture of textures) demand[texture.lane] += 1 + texture.layout.entries;
   return demand;
 };
 /** Textures per lane: the tails the pool keeps resident whole, one tile each. */
-const laneTails = (textures: readonly TileTexture[]) => {
+export const laneTails = (textures: readonly TileTexture[]) => {
   const tails = laneCounts();
   for (const texture of textures) tails[texture.lane]++;
   return tails;
