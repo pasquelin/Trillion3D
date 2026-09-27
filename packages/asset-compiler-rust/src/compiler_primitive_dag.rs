@@ -76,6 +76,9 @@ pub(super) fn build_dag_primitive(
         crate::dag::build_culling_bvh(pos, &dag)
     };
     laps.lap("cullingMs");
+    let collision =
+        crate::physics_cook::cook_primitive(o, &dag, &order, &culling, pos, index_values)?;
+    laps.lap("physicsMs");
     let base_id = 0usize;
     let mut page_of = vec![0usize; dag.len()];
     for (rank, &slot) in order.iter().enumerate() {
@@ -85,19 +88,16 @@ pub(super) fn build_dag_primitive(
         pos,
         dag.iter().filter(|c| c.level > 0).map(|c| c.lod_error),
     );
-    // The collision and the pages read the same DAG and write objects of their own: cooked side
-    // by side, each makes the bytes it makes alone, and the collision's error is still told first.
-    let (collision, bundled) = laps.join(
-        ("physicsMs", || {
-            crate::physics_cook::cook_primitive(o, &dag, &order, &culling, pos, index_values)
-        }),
-        ("pagesMs", || {
-            let store = |slice: &[u32]| store_packed(slice, position_exponent);
-            bundle_dag_pages(o, &dag, &groups, &order, base_id, pos, &store)
-        }),
-    );
-    let collision = collision?;
-    let (pages, reused, stream_report) = bundled?;
+    let (pages, reused, stream_report) = bundle_dag_pages(
+        o,
+        &dag,
+        &groups,
+        &order,
+        base_id,
+        pos,
+        &|slice: &[u32]| store_packed(slice, position_exponent),
+    )?;
+    laps.lap("pagesMs");
     // One plane test per cluster, on the triangles it already holds: cheap next to the DAG itself,
     // and the only place the partition and the positions are both in hand.
     let cluster_planes: Vec<Option<crate::coplanar::ClusterPlane>> = order

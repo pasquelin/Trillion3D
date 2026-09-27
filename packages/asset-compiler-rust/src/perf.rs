@@ -149,28 +149,7 @@ impl Laps {
         self.laps.insert(label.into(), json!(ms));
         self.last = now;
     }
-    /// Runs two stages side by side on the pool and closes each under its label with its own
-    /// elapsed time: they overlap, so neither is charged the other's wait. The next stage opens
-    /// once both are done.
-    pub fn join<A: Send, B: Send>(
-        &mut self,
-        (first, a): (&str, impl FnOnce() -> A + Send),
-        (second, b): (&str, impl FnOnce() -> B + Send),
-    ) -> (A, B) {
-        let ((a, a_ms), (b, b_ms)) = rayon::join(|| timed(a), || timed(b));
-        self.laps.insert(first.into(), json!(a_ms));
-        self.laps.insert(second.into(), json!(b_ms));
-        self.last = Instant::now();
-        (a, b)
-    }
     pub fn report(self) -> Value {
         Value::Object(self.laps)
     }
-}
-
-/// What `stage` returns, and its elapsed milliseconds.
-fn timed<T>(stage: impl FnOnce() -> T) -> (T, f64) {
-    let start = Instant::now();
-    let out = stage();
-    (out, start.elapsed().as_secs_f64() * 1000.0)
 }
