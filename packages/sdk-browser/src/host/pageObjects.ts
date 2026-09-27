@@ -22,6 +22,7 @@ import { GraphScene } from './graph/scene.ts';
 import { GraphInstancedMesh, GraphMesh } from './graph/mesh.ts';
 import { BufferAttribute } from '../../../sdk-core/src/world/buffer/attribute.ts';
 import { GraphSurface } from './graph/surface.ts';
+import { alphaModeFields } from './prepared/materials.ts';
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
 import { Geometry } from '../../../sdk-core/src/world/geometry/geometry.ts';
 
@@ -138,7 +139,8 @@ export const releaseHostGeometry = (geometry: Geometry) => {
 };
 
 /** The standard (or physical) surface the engine's material parameters describe. The face
- *  constant is the engine's (`../scene/materialSide.ts`); nothing else is converted. */
+ *  constant is the engine's (`../scene/materialSide.ts`), the alpha mode drawn by the open's one
+ *  rule (`alphaModeFields`); nothing else is converted. */
 export function hostPageSurface(
   material: Material,
   vertexColors: boolean,
@@ -152,8 +154,7 @@ export function hostPageSurface(
     metalness: material.metalness,
     roughness: material.roughness,
     opacity: material.opacity,
-    transparent: material.alphaMode === 'blend',
-    alphaTest: material.alphaMode === 'mask' ? material.alphaCutoff : 0,
+    ...alphaModeFields(material.alphaMode, material.alphaCutoff),
     side: hostSide(material.side),
     vertexColors,
   }) as unknown as GraphSurface & HostMaterial;
