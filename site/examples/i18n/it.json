@@ -36,7 +36,8 @@
       "engine CPU": "CPU del motore"
     },
     "failure": {
-      "title": "Questo esempio si è fermato per un errore"
+      "title": "Questo esempio si è fermato per un errore",
+      "missingCache": "Manca la cache compilata: esegui pnpm compile:caches"
     },
     "banner": {
       "close": "Chiudi"
