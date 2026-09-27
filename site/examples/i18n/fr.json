@@ -2147,5 +2147,12 @@
     "words": {
       "credit": "Drapeau sur un mât modélisé en code pour cet exemple, CC0 — voir assets/examples/CREDITS.md"
     }
+  },
+  "a-folder-merged-into-one-scene": {
+    "banner": "Faites glisser pour examiner le coin de rue. Le compilateur a fusionné trois fichiers OBJ d’un dossier dans cette scène.",
+    "controls": {
+      "spin": "Tourner",
+      "visible": "Visible"
+    }
   }
 }

@@ -2147,5 +2147,12 @@
     "words": {
       "credit": "この例のためにコードでモデリングしたポールの旗、CC0 — assets/examples/CREDITS.md を参照"
     }
+  },
+  "a-folder-merged-into-one-scene": {
+    "banner": "ドラッグして街角を確認します。コンパイラーが1つのフォルダー内の3つのOBJファイルをこのシーンに統合しました。",
+    "controls": {
+      "spin": "回転",
+      "visible": "表示"
+    }
   }
 }
