@@ -32,7 +32,7 @@ test('a missing thumbnail falls back once and leaves a missing placeholder alone
   assert.equal(assignments, 1);
 });
 
-test("every language names each theme's unwritten examples in its coming line", async () => {
+test("every language draws each theme's unwritten examples as coming tiles", async () => {
   const { Examples } = (await loadReactComponents('site/app/examples/Examples.tsx')) as {
     Examples: typeof ExamplesComponent;
   };
@@ -41,10 +41,11 @@ test("every language names each theme's unwritten examples in its coming line", 
     const page = renderToStaticMarkup(createElement(Examples, { locale: code }));
     for (const { coming } of themedEntries) {
       if (!coming.length) continue;
-      const titles = coming.map(({ id }) => exampleTitle(id, code)).join(' · ');
-      const line = dictionaryOf(code).examples.coming.replace('{{titles}}', titles);
-      const escaped = renderToStaticMarkup(createElement('span', null, line)).slice(6, -7);
-      assert.ok(page.includes(escaped), `${code}: ${line}`);
+      for (const { id } of coming) {
+        const label = `${exampleTitle(id, code)} — ${dictionaryOf(code).examples.coming}`;
+        const escaped = renderToStaticMarkup(createElement('span', { title: label })).slice(13, -9);
+        assert.ok(page.includes(`title="${escaped}"`), `${code}: ${label}`);
+      }
     }
   }
 });

@@ -76,6 +76,8 @@ export const DECLARATION: Record<string, string> = {
   'backend/autonomous/geometry': 'WebGL2 page path: it repaints its pages with host materials',
   'backend/autonomous/instances': 'WebGL2 page path: it repaints its instances with host materials',
   'backend/autonomous/pages': 'WebGL2 page path: it keeps the base paint of each page',
+  'placement/autonomousPlacements':
+    'WebGL2 page path: it keeps the base paint of each mounted page',
   'placement/webglPageBatches':
     'WebGL2 page path: the pages rows place are drawn instanced, one mesh per page and declaration',
   'host/pageObjects': 'boundary: the declaration it gives back to the library that draws it',

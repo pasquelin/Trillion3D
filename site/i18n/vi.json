@@ -35,7 +35,7 @@
     "jumpTo": "Chuyển đến chủ đề",
     "waitsFor": "Đang chờ bộ máy:",
     "partial": "Một phần",
-    "coming": "Sắp có: {{titles}}"
+    "coming": "Sắp có"
   },
   "api": {
     "title": "Tài liệu tham khảo bộ máy",
@@ -1258,6 +1258,7 @@
       "a-tube-along-a-spline": "Ống dọc theo đường spline",
       "curved-surfaces": "Bề mặt cong",
       "instances-in-colour": "Thực thể màu sắc",
+      "a-hundred-thousand-instances": "Một trăm nghìn bản thể",
       "copies-along-a-path": "Bản sao dọc đường đi",
       "scattered-on-a-surface": "Rải trên bề mặt",
       "a-world-of-blocks": "Thế giới khối vuông",
@@ -1371,6 +1372,7 @@
       "red-cyan-anaglyph": "Anaglyph đỏ-lam",
       "camera-layers": "Các lớp camera",
       "a-robot-that-walks-and-waves": "Pha trộn chuyển động robot",
+      "a-crane-that-swings": "Cần cẩu đung đưa tải",
       "a-wave-across-a-grid": "Sóng khối lập phương",
       "keyframes-by-hand": "Khung khóa thủ công",
       "one-clip-many-objects": "Một clip, nhiều đối tượng",
@@ -1412,6 +1414,7 @@
       "what-hides-what": "Cái gì che khuất cái gì",
       "create-and-dispose": "Tạo và hủy",
       "no-hitch-on-first-draw": "Không giật ở lần vẽ đầu",
+      "inside-a-component": "Bên trong một thành phần",
       "inside-the-g-buffer": "Bên trong G-buffer",
       "reading-pixels-back": "Đọc lại các pixel",
       "a-city-from-3d-tiles": "Thành phố từ 3D Tiles",
@@ -1516,9 +1519,11 @@
       "shadows-through-see-through-panes": "Bóng đổ qua những tấm kính trong",
       "a-walker-among-balls": "Người đi bộ giữa những quả bóng",
       "a-dolly-along-the-canal": "Máy quay trượt dọc kênh",
-      "a-folder-merged-into-one-scene": "Thư mục được gộp thành một cảnh"
+      "a-folder-merged-into-one-scene": "Thư mục được gộp thành một cảnh",
+      "drag-a-crate": "Kéo thùng hàng"
     },
     "missing": {
+      "inside-a-component": "dọn canvas do bộ máy tạo khi hủy thế giới",
       "floating-crates": "hình học được ghi lại mỗi khung hình",
       "thick-lines": "đường rộng",
       "a-line-that-draws-itself": "phạm vi vẽ hình học",

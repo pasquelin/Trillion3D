@@ -71,7 +71,7 @@ export function prepared() {
     copy(eau(1), 1),
     copy(G.standardSurface({ transparent: true, opacity: 0.2 }), 2),
   ];
-  blendState.transmissive = prepareWebgpuBlend(device, copies, gpu, blendState, new G.GraphScene());
+  blendState.transmissive = prepareWebgpuBlend(device, copies, gpu, blendState, new G.Scene());
   // The scene's transparent list IS the draw list: static tables and the encode plan are built with
   // it, as `prepareBlendResources` does.
   buildBlendStatics(blendState);
