@@ -2151,8 +2151,8 @@
   "a-folder-merged-into-one-scene": {
     "banner": "Trascina per osservare l’angolo della strada. Il compilatore ha unito tre file OBJ di una cartella in questa scena.",
     "controls": {
-      "spin": "Ruota",
-      "visible": "Visibile"
+      "visible": "Visibile",
+      "home": "Vista iniziale"
     },
     "words": {
       "credit": "Modello di lampione di W. Sitters, CC BY 3.0 — vedi assets/examples/CREDITS.md"

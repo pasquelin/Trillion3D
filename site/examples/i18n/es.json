@@ -2151,8 +2151,8 @@
   "a-folder-merged-into-one-scene": {
     "banner": "Arrastra para examinar la esquina. El compilador fusionó tres archivos OBJ de una carpeta en esta escena.",
     "controls": {
-      "spin": "Girar",
-      "visible": "Visible"
+      "visible": "Visible",
+      "home": "Inicio"
     },
     "words": {
       "credit": "Modelo de farola de W. Sitters, CC BY 3.0 — ver assets/examples/CREDITS.md"

@@ -2151,8 +2151,8 @@
   "a-folder-merged-into-one-scene": {
     "banner": "اسحب لتفحص زاوية الشارع. دمج المصرّف ثلاثة ملفات OBJ من مجلد واحد في هذا المشهد.",
     "controls": {
-      "spin": "تدوير",
-      "visible": "مرئي"
+      "visible": "مرئي",
+      "home": "المنزل"
     },
     "words": {
       "credit": "نموذج عمود إنارة من W. Sitters، CC BY 3.0 — انظر assets/examples/CREDITS.md"

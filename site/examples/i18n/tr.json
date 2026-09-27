@@ -2151,8 +2151,8 @@
   "a-folder-merged-into-one-scene": {
     "banner": "Sokak köşesini incelemek için sürükleyin. Derleyici bir klasördeki üç OBJ dosyasını bu sahnede birleştirdi.",
     "controls": {
-      "spin": "Döndür",
-      "visible": "Görünür"
+      "visible": "Görünür",
+      "home": "Başlangıç"
     },
     "words": {
       "credit": "Sokak lambası modeli: W. Sitters, CC BY 3.0 — bkz. assets/examples/CREDITS.md"
