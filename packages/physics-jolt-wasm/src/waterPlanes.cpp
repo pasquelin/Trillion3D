@@ -54,7 +54,7 @@ void restPoint(uint32_t count, double x, double z, double &px, double &pz) {
   }
 }
 
-/// `surface.ts` `wavePatch`: the points the rest square `(px ± hx, pz ± hz)` is carried to, into
+/// The former `surface.ts` `wavePatch` (frozen in `waterPlanes.test.ts`): the points the rest square `(px ± hx, pz ± hz)` is carried to, into
 /// `corners` ((−,−), (+,−), (−,+), (+,+)), and the height of its centre, returned.
 double patch(uint32_t count, double px, double pz, double hx, double hz, double corners[12]) {
   double y = 0;
