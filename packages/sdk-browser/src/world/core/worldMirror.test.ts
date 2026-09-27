@@ -48,6 +48,12 @@ test('one material worn with and without colours gets one surface per case, both
   assert.notEqual(a.material, b.material);
   const versions = [a, b].map((mesh) => worn(mesh).version);
   paint.color.set(0xff0000);
-  assert.equal(repaint(paint), true);
+  const entry = { id: 0, key: '', material: paint };
+  const refreshed: boolean[] = [];
+  assert.equal(
+    repaint([{ entry, values: true }], (values) => refreshed.push(values) > 0),
+    true,
+  );
+  assert.deepEqual(refreshed, [true], 'the session reads them again once');
   [a, b].forEach((mesh, i) => assert.ok(worn(mesh).version > versions[i]!));
 });
