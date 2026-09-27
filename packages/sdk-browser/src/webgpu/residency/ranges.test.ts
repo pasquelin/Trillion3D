@@ -5,6 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { random } from '../../page/cut/cutRuleChecks.fixture.ts';
 import { RESIDENCY_RULE, coalesceRanges } from './ranges.ts';
+import { PAGE_TABLE_RULE } from '../tile/pageUploads.ts';
 
 /** develop's `coalesceResidencyRanges`: past the cap, one range covers everything. */
 function developResidency(sorted: Int32Array, count: number) {
@@ -66,7 +67,7 @@ test('the shared coalescer gives develop’s residency and page-table ranges, 0 
     cases.push(indices(next, Math.floor(next() * 300), 1 + Math.floor(next() * 200)));
   for (const sorted of cases) {
     const steps = new Int32Array(sorted.length);
-    const pages = { gap: 16, cap: 64, overflow: 'narrowest', steps } as const;
+    const pages = { ...PAGE_TABLE_RULE, steps };
     const r = coalesceRanges(sorted, sorted.length, into, RESIDENCY_RULE);
     assert.deepEqual(pairs(into, r), developResidency(sorted, sorted.length), `${sorted}`);
     const p = coalesceRanges(sorted, sorted.length, into, pages);
