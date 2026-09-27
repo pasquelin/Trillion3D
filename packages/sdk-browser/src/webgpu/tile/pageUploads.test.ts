@@ -11,12 +11,15 @@ import {
 import { random } from '../../page/cut/cutRuleChecks.fixture.ts';
 import { createWebgpuTilePageTable, type TileKey } from './pageTable.ts';
 
-/** develop's table edits over a copy of the words, re-placing a tile included: the frozen oracle. */
+/** develop's table edits over a copy of the words, its full descent: the frozen oracle. */
 function oracle(words: Uint32Array, layouts: TileLayout[]) {
   const levelsAt = words[3];
   const start = (slot: number, level: number) => words[levelsAt + slot * 16 + level];
-  const at = ({ slot, level, tx, ty }: TileKey) =>
-    start(slot, level) + ty * tilesAt(layouts[slot].width, layouts[slot].height, level)[0] + tx;
+  const at = ({ slot, level, tx, ty }: TileKey) => {
+    const [tw, th] = tilesAt(layouts[slot].width, layouts[slot].height, level);
+    if (tx >= tw || ty >= th) throw new Error('TEXTURE_TILE_OUT_OF_LEVEL');
+    return start(slot, level) + ty * tw + tx;
+  };
   const descend = (key: TileKey, visit: (index: number) => void) => {
     const layout = layouts[key.slot];
     for (let level = key.level - 1; level >= 0; level--) {
@@ -27,7 +30,7 @@ function oracle(words: Uint32Array, layouts: TileLayout[]) {
         for (let x = key.tx << shift; x < x1; x++) visit(start(key.slot, level) + y * tw + x);
     }
   };
-  return {
+  const edits = {
     setTile(key: TileKey, word: number) {
       words[at(key)] = word;
       descend(key, (i) => {
@@ -50,7 +53,18 @@ function oracle(words: Uint32Array, layouts: TileLayout[]) {
         if (words[i] === leaving) words[i] = replacement;
       });
     },
+    /** A resident tile placed again — an atlas resize moves it —: its entry and every entry it
+     *  served take the new place (#961); develop left those at the old one. */
+    place(key: TileKey, word: number) {
+      const old = words[at(key)];
+      if (old === 0 || entryLevel(old) !== key.level) return edits.setTile(key, word);
+      words[at(key)] = word;
+      descend(key, (i) => {
+        if (words[i] === old) words[i] = word;
+      });
+    },
   };
+  return edits;
 }
 
 /** A device whose buffer is a copy the flushes write into, and the writes each flush made. */
@@ -75,6 +89,9 @@ function shadowDevice() {
   return { device, shadow: () => shadow, writes: () => writes, reset: () => (writes = 0) };
 }
 
+// #961: the capped descent prunes a subtree already served at the tile's level or finer. The
+// table stays develop's, word for word, on arrivals, departures and moves, over layouts whose
+// last tiles have no parent (769, 2049): an orphan's departure refuses on both sides.
 test('flushing only the changed words keeps the GPU table develop’s, word for word, in at most 64 writes', () => {
   for (let seed = 1; seed <= 30; seed++) {
     const next = random(seed);
@@ -83,6 +100,7 @@ test('flushing only the changed words keeps the GPU table develop’s, word for 
       tileLayout(4096, 4096),
       tileLayout(2048, 700),
       tileLayout(512, 512),
+      tileLayout(769, 2049),
     ];
     const gpu = shadowDevice();
     const table = createWebgpuTilePageTable(gpu.device, layouts, {
@@ -93,7 +111,7 @@ test('flushing only the changed words keeps the GPU table develop’s, word for 
       develop = oracle(expected, layouts);
     const placed: TileKey[] = [];
     for (let op = 0; op < 400; op++) {
-      const slot = 1 + Math.floor(next() * 3),
+      const slot = 1 + Math.floor(next() * 4),
         layout = layouts[slot];
       const level = Math.floor(next() * layout.tail);
       const [tw, th] = tilesAt(layout.width, layout.height, level);
@@ -102,8 +120,14 @@ test('flushing only the changed words keeps the GPU table develop’s, word for 
       const roll = next();
       if (roll < 0.3 && placed.length) {
         key = placed.splice(Math.floor(next() * placed.length), 1)[0];
-        table.clearTile(key);
-        develop.clearTile(key);
+        let refused = false;
+        try {
+          develop.clearTile(key);
+        } catch {
+          refused = true;
+        }
+        if (refused) assert.throws(() => table.clearTile(key), /TEXTURE_TILE_OUT_OF_LEVEL/);
+        else table.clearTile(key);
       } else {
         if (roll < 0.4 && placed.length) key = placed[Math.floor(next() * placed.length)];
         const place = {
@@ -112,7 +136,7 @@ test('flushing only the changed words keeps the GPU table develop’s, word for 
           layer: Math.floor(next() * 8),
         };
         table.setTile(key, place);
-        develop.setTile(key, packEntry(place, key.level));
+        develop.place(key, packEntry(place, key.level));
         placed.push(key);
       }
       assert.deepEqual(table.words, expected, `seed ${seed}, operation ${op}`);
