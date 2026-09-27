@@ -1,4 +1,22 @@
 {
+  "brushed-metal": {
+    "banner": "ब्रश किए हुए प्रतिबिंब देखें और उनकी ताकत व दिशा बदलें।",
+    "controls": {
+      "anisotropy": "ब्रश की ताकत",
+      "direction": "ब्रश की दिशा",
+      "roughness": "खुरदरापन",
+      "spin": "घुमाएँ"
+    }
+  },
+  "car-paint-under-clear-coat": {
+    "banner": "कार के चारों ओर देखें और पेंट व उसके ऊपर की साफ़ परत बदलें।",
+    "controls": {
+      "paint": "पेंट",
+      "clearCoat": "साफ़ परत",
+      "coatRoughness": "परत का खुरदरापन",
+      "turntable": "घूमता मंच"
+    }
+  },
   "kit": {
     "panel": {
       "controls": "सेटिंग्स"

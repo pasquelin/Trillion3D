@@ -1,4 +1,22 @@
 {
+  "brushed-metal": {
+    "banner": "Kéo để xem phản chiếu kim loại chải xước. Đổi độ mạnh và hướng.",
+    "controls": {
+      "anisotropy": "Độ chải xước",
+      "direction": "Hướng chải xước",
+      "roughness": "Độ nhám",
+      "spin": "Xoay"
+    }
+  },
+  "car-paint-under-clear-coat": {
+    "banner": "Di chuyển quanh xe. Đổi màu sơn và lớp phủ trong bên trên.",
+    "controls": {
+      "paint": "Sơn",
+      "clearCoat": "Lớp phủ trong",
+      "coatRoughness": "Độ nhám lớp phủ",
+      "turntable": "Bàn xoay"
+    }
+  },
   "kit": {
     "panel": {
       "controls": "Cài đặt"

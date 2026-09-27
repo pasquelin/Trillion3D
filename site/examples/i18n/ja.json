@@ -1,4 +1,22 @@
 {
+  "brushed-metal": {
+    "banner": "ドラッグしてヘアラインの反射を観察し、強さと方向を変えます。",
+    "controls": {
+      "anisotropy": "ヘアラインの強さ",
+      "direction": "ヘアラインの方向",
+      "roughness": "粗さ",
+      "spin": "回転"
+    }
+  },
+  "car-paint-under-clear-coat": {
+    "banner": "車の周りを回り、塗装とその上のクリアコートを変えます。",
+    "controls": {
+      "paint": "塗装",
+      "clearCoat": "クリアコート",
+      "coatRoughness": "コートの粗さ",
+      "turntable": "ターンテーブル"
+    }
+  },
   "kit": {
     "panel": {
       "controls": "設定"

@@ -1,4 +1,22 @@
 {
+  "brushed-metal": {
+    "banner": "드래그하여 헤어라인 반사를 살펴보고 강도와 방향을 바꿔 보세요.",
+    "controls": {
+      "anisotropy": "헤어라인 강도",
+      "direction": "헤어라인 방향",
+      "roughness": "거칠기",
+      "spin": "회전"
+    }
+  },
+  "car-paint-under-clear-coat": {
+    "banner": "자동차 주위를 돌며 도장과 그 위의 클리어 코트를 바꿔 보세요.",
+    "controls": {
+      "paint": "도장",
+      "clearCoat": "클리어 코트",
+      "coatRoughness": "코트 거칠기",
+      "turntable": "회전판"
+    }
+  },
   "kit": {
     "panel": {
       "controls": "설정"
