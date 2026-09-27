@@ -8,6 +8,7 @@ import {
   normalMatrix3,
 } from '../../../../sdk-core/src/index.ts';
 import type { MatrixElements } from '../../math/matrixElements.ts';
+import { hypot3 } from '../../../../sdk-core/src/math/primitives/hypot.ts';
 
 export type NormalCone = { axis: [number, number, number]; angle: number };
 /** Never rejects. */
@@ -99,7 +100,7 @@ export function coneContextFor(into: ConeContext, world: MatrixElements, eye: Ar
   into.ready = true;
   into.conformal = isConformal(e);
   if (!into.conformal) return into;
-  into.scale = Math.hypot(e[0], e[1], e[2]);
+  into.scale = hypot3(e[0], e[1], e[2]);
   normalMatrix3(into.normal, e);
   // The view point comes from the engine camera (`cam.viewPoint`): the frame sets it once.
   into.camX = eye[0];
