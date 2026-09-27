@@ -7,6 +7,7 @@
 #include <Jolt/Physics/Collision/BroadPhase/BroadPhaseLayer.h>
 #include <Jolt/RegisterTypes.h>
 
+#include <algorithm>
 #include <cstdlib>
 
 using namespace JPH;
@@ -51,6 +52,31 @@ BroadPhaseLayers broadPhaseLayers;
 ObjectVsBroadPhase objectVsBroadPhase;
 ObjectPairs objectPairs;
 World instance;
+
+/// Jolt's pool behind a bound on the jobs a step splits its work into (`jolt_concurrency`): the
+/// threads stay, and those the bound leaves out wait idle instead of contending. The jobs are the
+/// pool's, which queues and frees them itself.
+class BoundedPool final : public JobSystem {
+public:
+  explicit BoundedPool(int threads) : pool(cMaxPhysicsJobs, cMaxPhysicsBarriers, threads - 1), bound(threads) {}
+  int GetMaxConcurrency() const override { return bound; }
+  JobHandle CreateJob(const char *name, ColorArg color, const JobFunction &function, uint32 dependencies) override {
+    return pool.CreateJob(name, color, function, dependencies);
+  }
+  Barrier *CreateBarrier() override { return pool.CreateBarrier(); }
+  void DestroyBarrier(Barrier *barrier) override { pool.DestroyBarrier(barrier); }
+  void WaitForJobs(Barrier *barrier) override { pool.WaitForJobs(barrier); }
+
+  JobSystemThreadPool pool;
+  int bound;
+
+protected:
+  void QueueJob(Job *) override { JPH_ASSERT(false); }
+  void QueueJobs(Job **, uint) override { JPH_ASSERT(false); }
+  void FreeJob(Job *) override { JPH_ASSERT(false); }
+};
+
+BoundedPool *bounded = nullptr;
 
 }  // namespace
 
@@ -99,7 +125,7 @@ uint32_t jolt_init(uint32_t maxBodies, uint32_t bodyPairs, uint32_t contactConst
   // Jolt's own pool: its threads are started through `pthread_create`, which the loader answers
   // with one worker per thread on the module's shared memory (`joltModule.ts`).
   if (threads > 1)
-    w.jobs = new JobSystemThreadPool(cMaxPhysicsJobs, cMaxPhysicsBarriers, int(threads - 1));
+    w.jobs = trillion::bounded = new trillion::BoundedPool(int(threads));
   else
     w.jobs = new JobSystemSingleThreaded(cMaxPhysicsJobs);
   w.system = new PhysicsSystem();
@@ -156,6 +182,15 @@ uint32_t jolt_step(uint32_t commandWords, float dt) {
   const uint32_t posed = trillion::writePoses();
   trillion::dropDiverged();
   return posed;
+}
+
+/// Bounds the jobs a step splits its work into at `count`, from 1 to the threads the world was
+/// made with: Jolt computes the same step on any count, only split otherwise. Returns the bound.
+uint32_t jolt_concurrency(uint32_t count) {
+  trillion::BoundedPool *pool = trillion::bounded;
+  if (!pool) return 1;
+  pool->bound = std::clamp(int(count), 1, pool->pool.GetMaxConcurrency());
+  return uint32_t(pool->bound);
 }
 
 uint32_t jolt_event_count() { return world().eventWords / trillion::EVENT_WORDS; }

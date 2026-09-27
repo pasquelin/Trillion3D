@@ -45,6 +45,7 @@ interface JoltExports {
   jolt_vehicle_words(): number;
   jolt_soft(): number;
   jolt_soft_words(): number;
+  jolt_concurrency(count: number): number;
 }
 
 /** Bytes of Jolt's per-step scratch allocator, taken from the memory budget. */
@@ -144,6 +145,8 @@ export function startJolt({ exports, memory }: OpenedJolt, budget: PhysicsBudget
     /** The ids of the joints the last step broke. */
     broken: () => Array.from({ length: jolt.jolt_broken_count() }, (_, i) => jolt.jolt_broken(i)),
     active: () => jolt.jolt_active_count(),
+    /** Bounds the jobs a step splits its work into (`createThreadTuner`); returns the bound. */
+    concurrency: (count: number) => jolt.jolt_concurrency(count),
     /** The vehicles' state after the last step (`vehicleLayout.ts`), valid until the next. */
     vehicles: () => new Uint32Array(memory.buffer, jolt.jolt_vehicles(), jolt.jolt_vehicle_words()),
     /** The soft bodies the last step moved (`softLayout.ts`), valid until the next. */
