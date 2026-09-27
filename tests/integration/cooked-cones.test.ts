@@ -31,10 +31,7 @@ async function checkScene(pointer: string) {
     'source.gltf',
     pathToFileURL(`${dir}/`).href,
   );
-  const geometryOf = preparedGeometries(
-    document,
-    bufferUrl ? bytesOf(fileURLToPath(bufferUrl)) : null,
-  );
+  const geometryOf = preparedGeometries(document, async () => bytesOf(fileURLToPath(bufferUrl!)));
   // A streaming bundle holds dozens of index pages: each is read once, and a page viewed in it.
   const bundles = new Map<string, ArrayBuffer>();
   const bundle = (url: string) =>
@@ -43,7 +40,8 @@ async function checkScene(pointer: string) {
   let pages = 0;
   for (const primitive of manifest.primitives) {
     if (!primitive.pages.length) continue;
-    const position = geometryOf(primitive.mesh, primitive.primitive).attributes.position;
+    const geometry = await geometryOf(primitive.mesh, primitive.primitive).loadVertices();
+    const position = geometry.attributes.position;
     // The copy the prepare made before it read cones from the cache: every accessor, element by element.
     const xyz = new Float32Array(position.count * 3);
     for (let i = 0; i < position.count; i++) {
