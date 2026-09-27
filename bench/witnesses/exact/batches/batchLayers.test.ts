@@ -92,7 +92,7 @@ test('everyGroup walks the layer-0 groups and every one of their twins', () => {
 });
 
 test('a layered cluster draws the source material on a record that carries the layer bias', () => {
-  const scene = new G.GraphScene();
+  const scene = new G.Scene();
   const original = G.basicSurface();
   const shared = attributes(6);
   const pages: BatchPage[] = [

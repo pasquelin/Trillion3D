@@ -1,3 +1,4 @@
+import { isInstancedNode } from '../../host/graph/kinds.ts';
 import type { GpuBuffer, WholeMesh } from '../../cluster/batchMesh.ts';
 import { glType, upload, type CachedAttribute } from './buffers.ts';
 import { WebglClusterPlacements } from './placements.ts';
@@ -36,7 +37,7 @@ export class WebglClusterGeometry {
     this.placements = new WebglClusterPlacements(gl, locations.instanceMatrix);
   }
   /** Binds `geometry`, and the placement matrices of an instanced mesh when `mesh` is one. */
-  bind(geometry: Geometry, mesh?: Pick<WholeMesh, 'kind' | 'instanceMatrix' | 'released'>) {
+  bind(geometry: Geometry, mesh?: Pick<WholeMesh, 'instanceMatrix' | 'released'>) {
     const gl = this.gl;
     let cached = this.cache.get(geometry);
     if (!cached) {
@@ -69,7 +70,7 @@ export class WebglClusterGeometry {
     if (!this.generics) this.setGenerics();
     cached.instances = this.placements.bind(
       cached.instances,
-      mesh?.kind === 'instancedMesh' ? mesh : undefined,
+      mesh && isInstancedNode(mesh) ? mesh : undefined,
     );
   }
   /** Whether the vertex array still describes `geometry`: the same index and attributes, at the

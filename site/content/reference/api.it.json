@@ -674,7 +674,9 @@
       "bottom": "Bordo inferiore del riquadro ortografico.",
       "projection": "`'perspective'` rimpicciolisce ciò che è lontano; `'orthographic'` mantiene tutte le dimensioni.",
       "copy": "Prende i valori di nodo di `source` e, da una camera, la sua ottica; la propria `projection` resta.",
-      "updateProjectionMatrix": "Mantenuto per le pagine scritte per un motore di rendering che ne ha bisogno: ogni scrittura di ottica già ridisegna.",
+      "updateProjectionMatrix": "Ricompone `projectionMatrix`; ogni scrittura dell’ottica lo fa già, e ridisegna.",
+      "projectionMatrix": "La proiezione che compone l’ottica, nella convenzione di profondità del riferimento con un piano lontano finito, per un renderer che disegna con essa; ogni scrittura dell’ottica la ricompone. Il mondo disegna con la propria (`engineCamera.ts`).",
+      "matrixWorldInverse": "L’inversa della matrice del mondo come composta per ultima: la vista che legge un renderer.",
       "rayThrough": "Il raggio del mondo che passa per un punto dell'immagine, secondo la proiezione propria del motore (`engineCamera.ts`): dall'occhio lungo la vista per una telecamera prospettica, dritto lungo la vista dalla scatola per una ortografica. La sua direzione è un vettore unitario.",
       "set": "Posiziona l'occhio a `pose.position`, rivolto verso `pose.target`, con il campo indicato."
     }
@@ -835,6 +837,7 @@
       "totalNodes": "Nodi totali.",
       "autonomousScene": "La sua scena integrata.",
       "primitives": "Le sue primitive.",
+      "worstStalls": "La tabella dei blocchi del compilatore: al massimo dieci primitive con un gruppo bloccato che ha tenuto radici al livello 0, la peggiore per prima. Assente da una cache compilata prima di essa.",
       "texturePreviews": "Una voce per coppia (texture, atlante) decodificata, disposta per texture poi per atlante; vuota senza immagine decodificabile.",
       "textures": "Modello dei livelli cotti, relativo al manifesto: {sha} l'impronta dell'immagine sorgente, {kind} il nome dell'atlante (PREVIEW_ATLAS_NAMES), {level} il rango del livello. Assente in una cache compilata prima dei livelli cotti, che questo lettore rifiuta in base alla versione del file separato.",
       "proxy": "Dove leggere il proxy di scena residente e il suo BVH: la geometria toccata dai raggi. Assente in una cache compilata prima del rimbalzo, che resta leggibile così com'è."
@@ -1338,7 +1341,7 @@
     }
   },
   "dagWarningsDiagnostic": {
-    "summary": "La diagnostica `dag-warnings` di una cache: le primitive segnalate dal compilatore, e ogni primitiva con un gruppo bloccato — l'insieme che il compilatore classifica su stderr alla fine di una cottura."
+    "summary": "La diagnostica `dag-warnings` di una cache: le primitive segnalate dal compilatore, e la tabella dei blocchi del compilatore (`worstStalls`), le righe che scrive su stderr alla fine di una cottura, nel suo ordine."
   },
   "DecodedGeometryPage": {
     "summary": "Una pagina decodificata: `indices` e ogni attributo sono viste su un unico buffer di `decodedBytes` (`geometryPageBlock.ts`).",
@@ -1584,6 +1587,7 @@
       "UNKNOWN_MATERIAL": "Una modifica del materiale è sconosciuta, fuori intervallo, lo sposterebbe in una classe di disegno che un motore fissa all’apertura della scena, o ripeterebbe una mappa che condivide.",
       "MATERIAL_CLASS_CHANGE": "Una modifica del materiale è sconosciuta, fuori intervallo, lo sposterebbe in una classe di disegno che un motore fissa all’apertura della scena, o ripeterebbe una mappa che condivide.",
       "MATERIAL_TEXTURE_SHARED": "Una modifica del materiale è sconosciuta, fuori intervallo, lo sposterebbe in una classe di disegno che un motore fissa all’apertura della scena, o ripeterebbe una mappa che condivide.",
+      "MATERIAL_CEILING": "Una pagina creerebbe più materiali di `RUNTIME_MATERIAL_CEILING` in una sessione; non è stato creato nulla.",
       "INVALID_TRANSFORM": "Il posizionamento di un nodo non è una matrice utilizzabile, oppure un nodo sarebbe un proprio antenato.",
       "NON_FINITE_TRANSFORM": "Il posizionamento di un nodo non è una matrice utilizzabile, oppure un nodo sarebbe un proprio antenato.",
       "SINGULAR_PARENT_TRANSFORM": "Il posizionamento di un nodo non è una matrice utilizzabile, oppure un nodo sarebbe un proprio antenato.",
@@ -4071,7 +4075,11 @@
       "geometry": "La forma della mesh; fornisci un'altra geometria per cambiarla.",
       "material": "Il materiale della mesh, o uno per gruppo; fornisci un altro per cambiarlo.",
       "localBounds": "La scatola del contenuto proprio di questo nodo, nel suo sistema locale; un semplice nodo non ne ha una.",
-      "physics": "La mesh come corpo della fisica del mondo, `null` se non lo è. Imposta `'static'`, `'dynamic'`, `'kinematic'` o opzioni; la forma è dedotta dalla geometria."
+      "physics": "La mesh come corpo della fisica del mondo, `null` se non lo è. Imposta `'static'`, `'dynamic'`, `'kinematic'` o opzioni; la forma è dedotta dalla geometria.",
+      "morphTargetInfluences": "Il peso di ogni target di morph, quando la geometria ne dichiara.",
+      "morphTargetDictionary": "Il rango di ogni target di morph per nome.",
+      "updateMorphTargets": "Un peso zero per target di morph del primo attributo deformato, nominato per rango.",
+      "copy": "Prende i valori di `source`, e copie dei suoi figli salvo indicazione contraria."
     }
   },
   "metric": {
@@ -5180,6 +5188,8 @@
       "environment": "Un'immagine dell'ambiente riflessa dalle superfici brillanti; `null` per nessuna.",
       "background": "Ciò che riempie l’immagine dietro ogni oggetto: un colore, o `null` per quello predefinito. Una modifica appare al fotogramma successivo, mantenendo la sessione: un nuovo colore assegnato qui, o quello attuale scritto con i suoi metodi (`set`, `setRGB`, `setHex`, `setHSL`...). Una scrittura diretta di `.r`, `.g` o `.b` non viene rilevata: riassegna `background` dopo. Un’immagine, o qualsiasi valore senza `getHex`, viene rifiutata (`UNSUPPORTED_SCENE_UPDATE`): nessun percorso la disegna.",
       "fog": "Nebbia su ogni superficie, opaca o trasparente, su entrambi i renderer; `null`, il predefinito, per nessuna, senza costo. `{ color, near, far }` sfuma gli oggetti in `color` da `near` a `far`, distanze dalla telecamera; `{ color, density }` si infittisce di `density` per unità di distanza; aggiungi `heightFalloff` (e `baseHeight`, 0 per impostazione predefinita) e si posa a terra, diradandosi sopra `baseHeight` — divisa per e ogni `1 / heightFalloff` unità verso l’alto. Un cambiamento si vede al fotogramma successivo: una nuova nebbia impostata qui, o il suo colore scritto con i suoi metodi. Una scrittura diretta di `near`, `far`, `density`... non viene sentita: reimposta `fog` dopo. Una nebbia fuori intervallo — `far` non oltre `near`, una densità negativa — è rifiutata (`INVALID_SCENE_ENVIRONMENT`).",
+      "onBeforeRender": "Chiamato da un renderer prima di disegnare la scena; nessuno per impostazione predefinita.",
+      "onAfterRender": "Chiamato da un renderer dopo aver disegnato la scena; nessuno per impostazione predefinita.",
       "load": "Carica un modello compilato — l'URL del suo manifesto — e lo aggiunge a questa scena.",
       "toJSON": "La scena come JSON semplice e versionato: i suoi oggetti, le forme tramite la chiamata che le ha costruite, i materiali, le luci, il corpo di ogni mesh come è stato dichiarato e i modelli caricati tramite indirizzo; anche la posa di `camera` quando ne viene data una.",
       "fromJSON": "Sostituisce il contenuto della scena con una scena salvata da `toJSON`, mantenendo i suoi segni `helper`; si risolve quando i suoi modelli sono caricati. Un altro formato o un'altra versione viene rifiutato (`UNSUPPORTED_SCENE_FORMAT`). Le chiamate fatte mentre se ne legge una vengono eseguite una dopo l'altra, in ordine, ciascuna su ciò che ha lasciato la precedente: due scene salvate non si mescolano mai."
@@ -5584,7 +5594,8 @@
       "textures": "Modello dei livelli cotti, relativo al manifesto: {sha} l'impronta dell'immagine sorgente, {kind} il nome dell'atlante (PREVIEW_ATLAS_NAMES), {level} il rango del livello. Assente in una cache compilata prima dei livelli cotti, che questo lettore rifiuta in base alla versione del file separato.",
       "proxy": "Dove leggere il proxy di scena residente e il suo BVH: la geometria toccata dai raggi. Assente in una cache compilata prima del rimbalzo, che resta leggibile così com'è.",
       "binary": "Il file binario.",
-      "primitives": "Le sue primitive."
+      "primitives": "Le sue primitive.",
+      "worstStalls": "La tabella dei blocchi del compilatore: al massimo dieci primitive con un gruppo bloccato che ha tenuto radici al livello 0, la peggiore per prima. Assente da una cache compilata prima di essa."
     }
   },
   "SlimCulling": {
@@ -7462,20 +7473,8 @@
     },
     "summary": "Un’immagine e lo stato di campionamento con cui è letta, e la trasformazione delle sue coordinate."
   },
-  "GraphMesh": {
-    "summary": "Un nodo disegnato: una geometria e la sua superficie, o una superficie per gruppo della geometria.",
-    "members": {
-      "kind": "Disegnata in una collocazione, o in più (`GraphInstancedMesh`).",
-      "morphTargetInfluences": "Il peso di ogni target di morph, quando la geometria ne dichiara.",
-      "morphTargetDictionary": "Il rango di ogni target di morph per nome.",
-      "geometry": "La sua forma.",
-      "material": "La sua superficie, o una per gruppo della geometria.",
-      "updateMorphTargets": "Un peso zero per target di morph del primo attributo deformato, nominato per rango.",
-      "copy": "Prende i valori di `source`, e copie dei suoi figli salvo indicazione contraria."
-    }
-  },
   "GraphNodeKind": {
-    "summary": "Che cosa è un nodo del grafo: la radice, una mesh disegnata (in una collocazione o in più), un occhio, o una delle luci che una scena dichiara."
+    "summary": "Che cos’è una luce del grafo: una delle luci che una scena dichiara."
   },
   "Joint": {
     "summary": "Un giunto tra due corpi, o tra un corpo e il mondo (`b` null), creato con `joint.*` e aggiunto alla simulazione con `world.physics.add`.",
