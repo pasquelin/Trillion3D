@@ -121,19 +121,22 @@ export function createBudgetRanking(options: {
         file(key, page, level);
       }
     },
+    /** Forgets every weighed page: the GPU cut does not feed the ranking (#836), and the CPU cut
+     *  that takes the image back refills it from the pages its cut closes over. */
+    clear() {
+      refs.clear();
+      slotOf.clear();
+      levelOfKey.clear();
+      held.fill(0);
+      for (const pages of pageLists) if (pages) pages.length = 0;
+      weighed = length = 0;
+    },
     /** One placement leaves it; the page leaves only with its last placement. */
     remove(page: PageRec) {
       const key = keyOf(page);
       if (bootstrapKey[key] || refs.get(key) <= 0 || refs.add(key, -1) > 0) return;
       unfile(key);
       weighed--;
-    },
-    /** True when the queue already holds exactly the ranked prefix, in the same order. */
-    matches(list: Int32Array, count: number, pages: readonly PageRec[]) {
-      if (count !== length) return false;
-      for (let i = 0; i < length; i++)
-        if (list[i] !== keys[i] || pages[i] !== ranked[i]) return false;
-      return true;
     },
     /**
      * Counts the pages the budget weighs and, when that overruns `room`, writes the prefix it keeps
