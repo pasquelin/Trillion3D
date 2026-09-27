@@ -36,7 +36,8 @@
       "engine CPU": "इंजन CPU"
     },
     "failure": {
-      "title": "यह उदाहरण एक गड़बड़ी पर रुक गया"
+      "title": "यह उदाहरण एक गड़बड़ी पर रुक गया",
+      "missingCache": "संकलित कैश मौजूद नहीं है: pnpm compile:caches चलाएँ"
     },
     "banner": {
       "close": "बंद करो"

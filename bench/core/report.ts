@@ -7,17 +7,17 @@ import { join } from 'node:path';
 import { chargeBaseline, cleDeLigne, ecartRelatif } from './baseline.ts';
 import { FRAGMENTS, RACINE, cheminFragment } from './paths.ts';
 import { ligneMd } from './table.ts';
-import type { Mesure } from './measureTypes.ts';
+import type { Measurement } from '../../site/examples/kit/measureTypes.ts';
 
 /** A domain fragment deposited under `.mesure/perf/`, for the report's two readers. */
 export interface Fragment {
   version: 3;
   domaine: string;
-  mesures: Mesure[];
+  mesures: Measurement[];
 }
 
 /** Measured paths must exist: a row citing a dead file measures nothing. */
-function verifieFichiers(mesures: Mesure[]) {
+function verifieFichiers(mesures: Measurement[]) {
   for (const m of mesures) {
     const chemins = Array.isArray(m.fichier) ? m.fichier : [m.fichier];
     for (const chemin of chemins)
@@ -31,7 +31,7 @@ function verifieFichiers(mesures: Mesure[]) {
  * pair: two benchmarks touching the same source file no longer overwrite each other. Nothing is mutated —
  * what goes to disk is not what the benchmark still holds.
  */
-function confronteBaseline(domaine: string, mesures: Mesure[]): Mesure[] {
+function confronteBaseline(domaine: string, mesures: Measurement[]): Measurement[] {
   const baseline = chargeBaseline(domaine);
   const connus = new Map((baseline?.resultats ?? []).map((r) => [r.cle, r] as const));
   return mesures.map((m) => ({
@@ -47,7 +47,11 @@ function confronteBaseline(domaine: string, mesures: Mesure[]): Mesure[] {
  * Stores domain fragment and verifies its description under `node:test`: a single false line
  * fails the benchmark.
  */
-export function rapport(domaine: string, mesures: Mesure | Mesure[], intitule?: string): void {
+export function rapport(
+  domaine: string,
+  mesures: Measurement | Measurement[],
+  intitule?: string,
+): void {
   const brutes = Array.isArray(mesures) ? mesures : [mesures];
   verifieFichiers(brutes);
   const tous = confronteBaseline(domaine, brutes);
