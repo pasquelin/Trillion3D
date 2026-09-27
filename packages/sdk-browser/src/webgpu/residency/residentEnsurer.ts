@@ -1,6 +1,7 @@
 import { STREAMING_FRAME_MS } from '../../backend/common.ts';
 import { createFrameBudget, yieldToEventLoop } from '../../page/integration/frameBudget.ts';
 import { pageAddress } from '../row/pageSlots.ts';
+import { PRIORITY_PREFETCH } from '../../streaming/priority.ts';
 import { createAdmissionReads, createPageAdmission } from './admission.ts';
 import { mergeLowerTiers, type LowerList } from './lowerTier.ts';
 import type { PageRec } from '../../page/selection/selection.ts';
@@ -26,8 +27,8 @@ type EnsureOptions = {
    *  with the keys it names (`lowerTier.ts`). */
   lowerTiers: () => readonly LowerList[];
   /** Starts the read of a page's bytes ahead of its admission, dropped with `signal` if nothing
-   *  joined it; absent, each page is read when its admission reaches it. */
-  prefetch?: (page: PageRec, signal: AbortSignal) => void;
+   *  joined it; the lower tiers' behind every camera read. Absent, a page is read at admission. */
+  prefetch?: (page: PageRec, signal: AbortSignal, priority?: number) => void;
 };
 
 /** Loads newly wanted pages without acting on a stale camera cut. */
@@ -85,7 +86,7 @@ export function createWebgpuResidentEnsurer({
     for (let i = 0; i < lower.length; i++)
       if (!skip(lower[i]) && cache.touch(pageAddress(lower[i]), true)) held++;
     let spare = cache.unpinnedSlots() - held;
-    readAhead?.(lower, spare, (rec) => !skip(rec), cache, reads);
+    readAhead?.(lower, spare, (rec) => !skip(rec), cache, reads, PRIORITY_PREFETCH);
     // The share, as the camera's burst: past it the job yields — and leaves if a camera cut asked
     // for pages meanwhile: the queue serves the camera first and runs the tiers again. A job only
     // ends on a tier pass nobody interrupted, so every wait on it finds the tiers posted (#281).

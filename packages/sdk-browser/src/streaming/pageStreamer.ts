@@ -122,9 +122,9 @@ export function createPageStreamerWith(
       state.requested++;
       return subscribe(url, requestSignal, 0).then(asIndices);
     },
-    readBytes(url: string, requestSignal?: AbortSignal) {
+    readBytes(url: string, requestSignal?: AbortSignal, priority = 0) {
       state.requested++;
-      return subscribe(url, requestSignal, 0);
+      return subscribe(url, requestSignal, priority);
     },
     /** Texture levels held beside the pages: its world's, kept across a device loss, or its own. */
     textureLevels: store.levels,
