@@ -58,6 +58,7 @@ export class Scene extends Object3D {
   declare onBeforeRender?: () => void;
   /** Called by a renderer once it has drawn the scene; none by default. */
   declare onAfterRender?: () => void;
+  // Written only when used, as `reading` is: a scene the engine builds holds neither.
   declare private readonly loader?: (url: string, options: LoadOptions) => Promise<LoadedModel>;
   /** A scene; `loader` reads the models `load` adds, and a scene built without one loads none. */
   constructor(loader?: (url: string, options: LoadOptions) => Promise<LoadedModel>) {

@@ -1,32 +1,18 @@
 import type { Matrix4 } from '../math/matrix4.ts';
+import type { Camera } from './camera.ts';
+import { orthographicView, perspectiveSlope } from '../../math/primitives/camera.ts';
 
-/** The optics a projection is composed from: a camera's. */
-export interface ProjectionOptics {
-  /** `'orthographic'` keeps every size; any other value is a perspective. */
-  readonly projection: string;
-  /** Field of view top to bottom, in degrees. */ readonly fov: number;
-  /** Width over height. */ readonly aspect: number;
-  /** Nearest distance drawn. */ readonly near: number;
-  /** Farthest distance drawn. */ readonly far: number;
-  /** Magnification. */ readonly zoom: number;
-  /** Left edge of the orthographic box. */ readonly left: number;
-  /** Right edge. */ readonly right: number;
-  /** Top edge. */ readonly top: number;
-  /** Bottom edge. */ readonly bottom: number;
-}
+const view = new Float64Array(4);
 
 /**
- * Writes into `out` the projection a renderer drawing with `optics` composes, in the reference's
- * depth convention with a finite far plane, number for number. The world composes its own
- * (`engineCamera.ts`): this one is for a draw that keeps the reference's convention.
+ * Writes into `out` the projection a renderer drawing with `camera`'s optics composes, in the
+ * reference's depth convention with a finite far plane, number for number. The world composes
+ * its own (`engineCamera.ts`): this one is for a draw that keeps the reference's convention.
  */
-export function referenceProjection(out: Matrix4, optics: ProjectionOptics) {
-  const { near, far, zoom } = optics;
-  if (optics.projection === 'orthographic') {
-    const dx = (optics.right - optics.left) / (2 * zoom),
-      dy = (optics.top - optics.bottom) / (2 * zoom);
-    const cx = (optics.right + optics.left) / 2,
-      cy = (optics.top + optics.bottom) / 2;
+export function referenceProjection(out: Matrix4, camera: Camera) {
+  const { near, far, zoom } = camera;
+  if (camera.projection === 'orthographic') {
+    const [cx, cy, dx, dy] = orthographicView(camera, zoom, view);
     const left = cx - dx,
       right = cx + dx,
       top = cy + dy,
@@ -42,9 +28,9 @@ export function referenceProjection(out: Matrix4, optics: ProjectionOptics) {
       0, 0, 0, 1,
     );
   }
-  const top = (near * Math.tan((Math.PI / 180) * 0.5 * optics.fov)) / zoom;
+  const top = (near * perspectiveSlope(camera.fov)) / zoom;
   const height = 2 * top,
-    width = optics.aspect * height;
+    width = camera.aspect * height;
   const left = -0.5 * width;
   const right = left + width,
     bottom = top - height;

@@ -117,7 +117,8 @@ export class Camera extends Object3D {
   get projectionMatrix(): Matrix4 {
     return (this._projectionMatrix ??= referenceProjection(new Matrix4(), this));
   }
-  /** The inverse of the world matrix as last composed: the view a renderer reads. */
+  /** The inverse of the world matrix as last composed, taken at each read: the view a renderer
+   *  reads. */
   get matrixWorldInverse(): Matrix4 {
     return (this._matrixWorldInverse ??= new Matrix4()).copy(this.matrixWorld).invert();
   }
@@ -157,6 +158,7 @@ for (const optic of OPTICS)
       return this._optics[optic];
     },
     set(this: Camera, value: number) {
+      if (this._optics[optic] === value) return;
       this._optics[optic] = value;
       this.updateProjectionMatrix();
     },
