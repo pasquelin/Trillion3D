@@ -44,7 +44,11 @@ test('the GPU cut pins what the image holds: a page it lets go is unpinned at on
   admit(['x0', 'x1']);
   draw(['d']);
   pins(cache as never, true, (url) => drops.push(url));
-  assert.deepEqual(pinned(), ['c', 'd', 'x0', 'x1'], 'taking over: the queue, the drawn, the cover');
+  assert.deepEqual(
+    pinned(),
+    ['c', 'd', 'x0', 'x1'],
+    'taking over: the queue, the drawn, the cover',
+  );
   assert.deepEqual(drops, ['e'], 'a deferred drop the image no longer holds goes');
   admit(['x1', 'x2']);
   pins(cache as never, false, () => {});

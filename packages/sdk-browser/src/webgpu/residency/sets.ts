@@ -27,15 +27,13 @@ export function createWebgpuResidencySets(options: {
 }) {
   const { tracking, bootstrapKey, packedPages } = options;
   const { keyCount, keyOf, wanted, wantedPages } = tracking;
-  /** A packed page's cache key, cached on its record by the tracking (`PageRec.keyIndex`). */
   const keyOfId = (id: number) => keyOf(packedPages[id]);
   /** What joined and left `keep` since the pin step last ran, each joining key beside the record
    *  it joined by (none for the pinned cover): the pin step reads its parents there. */
   const enteringPages: (PageRec | undefined)[] = [];
   const entering = createDenseKeySet(enteringPages),
     leaving = createDenseKeySet();
-  /** The CPU cut ranks by level; the GPU cut admits by its requests (`requestAdmission.ts`) and
-   *  feeds no ranking (#836). */
+  /** The CPU cut ranks by level; the GPU cut feeds no ranking (`requestAdmission.ts`, #836). */
   let cpuCut = true;
   const desiredPages: PageRec[] = [];
   const desired = createDenseKeySet(desiredPages);
@@ -64,13 +62,8 @@ export function createWebgpuResidencySets(options: {
       leaving.add(key);
     },
   });
-  let cover = 0;
-  for (let key = 0; key < keyCount; key++)
-    if (bootstrapKey[key]) {
-      keep.retain(key);
-      cover++;
-    }
-  /** Entering the upload queue is what makes the image hold a page; leaving it lets the page go. */
+  for (let key = 0; key < keyCount; key++) if (bootstrapKey[key]) keep.retain(key);
+  const cover = tracking.keep.count;
   /** Bumped whenever the upload queue changes, so what `accepts` answers may have changed. */
   let acceptedRevision = 0;
   const enqueue = (key: number, page?: PageRec) => {
@@ -98,9 +91,14 @@ export function createWebgpuResidencySets(options: {
     retain: (key: number, id: number) => keep.retain(key, packedPages[id]),
     release: (key: number) => keep.release(key),
   });
-  /** Makes the queue the first `count` of `keys`, beside their records: the new holds are taken
-   *  before the old ones are let go of, so a key in both never leaves `keep` (#477). */
-  const refill = (keys: Int32Array, pages: readonly PageRec[], count: number) => {
+  /** Makes the queue the first `count` of `keys`, beside their records, unless it already is: new
+   *  holds are taken before old ones are let go of, so a key in both never leaves `keep` (#477). */
+  const admit = (keys: Int32Array, pages: readonly PageRec[], count: number) => {
+    followsDesired = false;
+    let same = count === wanted.count;
+    for (let i = 0; same && i < count; i++)
+      same = wanted.list[i] === keys[i] && wantedPages[i] === pages[i];
+    if (same) return;
     for (let i = 0; i < count; i++) keep.retain(keys[i], pages[i]);
     for (let i = wanted.count - 1; i >= 0; i--) keep.release(wanted.list[i]);
     wanted.clear();
@@ -110,22 +108,8 @@ export function createWebgpuResidencySets(options: {
   /** The queue follows the cut whole: every page it asks for fits the pool. */
   const followDesired = () => {
     if (followsDesired) return;
+    admit(desired.list, desiredPages, desired.count);
     followsDesired = true;
-    refill(desired.list, desiredPages, desired.count);
-  };
-  /** Makes the queue the first `count` of `keys`; the same keys reordered hold nothing anew. */
-  const admit = (keys: Int32Array, pages: readonly PageRec[], count: number) => {
-    followsDesired = false;
-    let same = count === wanted.count,
-      inOrder = same;
-    for (let i = 0; same && i < count; i++) {
-      same = wanted.has(keys[i]);
-      inOrder &&= wanted.list[i] === keys[i] && wantedPages[i] === pages[i];
-    }
-    if (!same) return refill(keys, pages, count);
-    if (inOrder) return;
-    wanted.clear();
-    for (let i = 0; i < count; i++) wanted.add(keys[i], pages[i]);
   };
   return {
     entering,
@@ -143,18 +127,16 @@ export function createWebgpuResidencySets(options: {
     get heldOutsideQueue() {
       return tracking.keep.count - wanted.count - cover;
     },
-    /** The cut that decides; true on a switch. The CPU cut's ranking refills from the closed cut,
-     *  and its pin step, started afresh, sees every kept key join. */
+    /** The cut that decides; true on a switch, the CPU cut's ranking and pin feed then refilled. */
     decideBy(cpu: boolean) {
       if (cpu === cpuCut) return false;
       cpuCut = cpu;
       entering.clear();
       leaving.clear();
       ranking.clear();
-      if (!cpu) return true;
       const { list, count } = tracking.keep;
-      for (let i = 0; i < count; i++) entering.add(list[i], tracking.keepPages[i]);
-      options.heldIds?.((id) => ranking.add(packedPages[id]));
+      if (cpu) for (let i = 0; i < count; i++) entering.add(list[i], tracking.keepPages[i]);
+      if (cpu) options.heldIds?.((id) => ranking.add(packedPages[id]));
       return true;
     },
     followDesired,
@@ -203,12 +185,8 @@ export function createWebgpuResidencySets(options: {
     applyDrawn(delta: IdDelta) {
       drawnKeys.apply(delta);
     },
-    /**
-     * The CPU cut's budget: the upload queue holds `room` records. A cut that fits is the queue, and
-     * the incremental set already is that queue. One that does not is ranked coarsest first and cut
-     * to `room`: a complete cover plus as much detail as fits. Ranking reads the keys filed by
-     * level, walking the budget, never the cut.
-     */
+    /** The CPU cut's budget: a cut that fits `room` is the queue; one that does not is ranked
+     *  coarsest first and cut to `room`, walking the budget, never the cut. */
     applyBudget(room: number) {
       if (ranking.rank(room) <= room) {
         followDesired();
