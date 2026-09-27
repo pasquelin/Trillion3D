@@ -7153,6 +7153,7 @@
       "gravity": "Gravità in m/s², un vettore vivo; imposta una preimpostazione (`'earth'`, `'moon'`, `'mars'`, `'none'`) o un vettore.",
       "paused": "Se il tempo è fermo; le scritture raggiungono comunque i corpi.",
       "timeScale": "Secondi simulati per secondo reale: 0.25 è il rallentatore.",
+      "simulationRange": "Metri attorno alla camera entro cui i corpi sono simulati (congelati oltre, così com’erano, e nessuna tessera di collisione caricata); `null` segue `camera.far`.",
       "water": "L’acqua in cui galleggiano i corpi: livello, onde, densità e resistenze. Un corpo più leggero dell’acqua galleggia, spinto dal peso dell’acqua che sposta.",
       "waterSurface": "La superficie dell’acqua all’ora della simulazione, per disegnarla: le onde lette dal galleggiamento, gli stessi numeri (`height`, `point`, `normal`).",
       "stats": "Conteggi ed entrambi gli orologi: millisecondi del worker per passo, millisecondi della pagina per fotogramma.",
@@ -7359,6 +7360,7 @@
       "gravity": "Gravità in m/s², un vettore vivo; imposta una preimpostazione (`'earth'`, `'moon'`, `'mars'`, `'none'`) o un vettore.",
       "paused": "Se il tempo è fermo; le scritture raggiungono comunque i corpi.",
       "timeScale": "Secondi simulati per secondo reale: 0.25 è il rallentatore.",
+      "simulationRange": "Metri attorno alla camera entro cui i corpi sono simulati (congelati oltre, così com’erano, e nessuna tessera di collisione caricata); `null` segue `camera.far`.",
       "water": "L’acqua in cui galleggiano i corpi: livello, onde, densità e resistenze. Un corpo più leggero dell’acqua galleggia, spinto dal peso dell’acqua che sposta.",
       "waterSurface": "La superficie dell’acqua all’ora della simulazione, per disegnarla: le onde lette dal galleggiamento, gli stessi numeri (`height`, `point`, `normal`).",
       "stats": "Conteggi ed entrambi gli orologi: millisecondi del worker per passo, millisecondi della pagina per fotogramma.",
@@ -7371,6 +7373,7 @@
     "summary": "Ciò che `createWorld(canvas, { physics })` accetta oltre a `true`.",
     "members": {
       "budget": "Limiti fissi, letti una volta all’avvio della fisica.",
+      "simulationRange": "Metri attorno alla camera entro cui i corpi sono simulati (`world.physics.simulationRange`); `null` segue `camera.far`.",
       "gravity": "La gravità del mondo: una preimpostazione o un vettore."
     }
   },
