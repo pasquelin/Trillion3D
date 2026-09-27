@@ -387,14 +387,14 @@
       "theme": "materials",
       "file": "examples/brushed-metal.html",
       "status": "waiting-engine",
-      "issue": 880
+      "issue": 33
     },
     {
       "id": "car-paint-under-clear-coat",
       "theme": "materials",
       "file": "examples/car-paint-under-clear-coat.html",
       "status": "waiting-engine",
-      "issue": 880
+      "issue": 33
     },
     {
       "id": "a-prism-that-disperses",
@@ -561,10 +561,11 @@
       "file": "examples/light-from-a-probe.html"
     },
     {
-      "id": "soft-shadow-edges",
+      "id": "soft-shadows-from-a-wide-lamp",
       "theme": "lights",
-      "file": "",
-      "status": "needs-engine"
+      "file": "examples/soft-shadows-from-a-wide-lamp.html",
+      "status": "waiting-engine",
+      "issue": 33
     },
     {
       "id": "contact-shadow-under-a-car",

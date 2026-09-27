@@ -33,9 +33,9 @@
   "examples": {
     "lead": "كل مثال هو ملف قصير واحد: شاهده يعمل، افتح شيفرته، وغيّرها.",
     "jumpTo": "انتقل إلى موضوع",
-    "inProgress": "قيد الإنجاز",
     "waitsFor": "ينتظر المحرك:",
-    "waitingEngine": "في انتظار المحرك"
+    "partial": "جزئي",
+    "coming": "قريبًا: {{titles}}"
   },
   "api": {
     "title": "مرجع المحرك",
@@ -1337,7 +1337,7 @@
       "flat-shadows-on-the-floor": "ظلال مسطحة على الأرض",
       "a-softbox-panel": "لوح إضاءة ناعمة (softbox)",
       "light-from-a-probe": "ضوء من مسبار",
-      "soft-shadow-edges": "حواف ظل ناعمة",
+      "soft-shadows-from-a-wide-lamp": "ظلال ناعمة من مصباح عريض",
       "contact-shadow-under-a-car": "ظل تماس",
       "coloured-shadows-through-glass": "ظلال ملوّنة عبر الزجاج",
       "shadows-in-the-corners": "ظلال في الزوايا",
@@ -1557,7 +1557,7 @@
       "a-stack-of-texture-layers": "نُسُج بيانات ومصفوفات وثلاثية الأبعاد",
       "wide-gamut-colour": "إخراج بألوان واسعة النطاق",
       "energy-conservation-test": "إضاءة البيئة (IBL)",
-      "soft-shadow-edges": "ترشيح الظل الناعم (penumbra)",
+      "soft-shadows-from-a-wide-lamp": "ظلال ناعمة بحسب عرض المصباح",
       "contact-shadow-under-a-car": "الرسم إلى نسيج",
       "coloured-shadows-through-glass": "أجسام تُلقي ظلالًا شفافة",
       "shadows-in-the-corners": "الحجب المحيطي بفضاء الشاشة",

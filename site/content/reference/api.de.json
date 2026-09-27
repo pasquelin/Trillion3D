@@ -835,6 +835,7 @@
       "totalNodes": "Knoten insgesamt.",
       "autonomousScene": "Ihre eingebettete Szene.",
       "primitives": "Ihre Primitive.",
+      "worstStalls": "Die Blockadetabelle des Compilers: höchstens zehn Primitive mit einer blockierten Gruppe, die Wurzeln auf Stufe 0 behielt, die schlimmste zuerst. Fehlt in einem Cache, der davor kompiliert wurde.",
       "texturePreviews": "Ein Eintrag pro dekodiertem Paar (Textur, Atlas), angeordnet nach Textur dann nach Atlas; leer ohne dekodierbares Bild.",
       "textures": "Modell der gebackenen Stufen, relativ zum Manifest: {sha} der Fingerabdruck des Quellbildes, {kind} der Name des Atlas (PREVIEW_ATLAS_NAMES), {level} der Rang der Stufe. Fehlt bei einem vor den gebackenen Stufen kompilierten Cache, den dieser Leser über die Version der Begleitdatei ablehnt.",
       "proxy": "Wo der residente Szenen-Proxy und sein BVH zu lesen sind: die Geometrie, die die Strahlen berühren. Fehlt bei einem vor der indirekten Beleuchtung kompilierten Cache, der so wie er ist lesbar bleibt."
@@ -1338,7 +1339,7 @@
     }
   },
   "dagWarningsDiagnostic": {
-    "summary": "Die `dag-warnings`-Diagnose eines Caches: die vom Compiler gemeldeten Primitive, und jede Primitive mit einer blockierten Gruppe — die Menge, die der Compiler am Ende einer Kochung auf stderr einordnet."
+    "summary": "Die `dag-warnings`-Diagnose eines Caches: die vom Compiler gemeldeten Primitive und die Blockadetabelle des Compilers (`worstStalls`), die Zeilen, die er am Ende einer Kochung auf stderr ausgibt, in seiner Reihenfolge."
   },
   "DecodedGeometryPage": {
     "summary": "Eine dekodierte Seite: `indices` und jedes Attribut sind Sichten auf einen einzigen Puffer aus `decodedBytes` (`geometryPageBlock.ts`).",
@@ -5589,7 +5590,8 @@
       "textures": "Modell der gebackenen Stufen, relativ zum Manifest: {sha} der Fingerabdruck des Quellbildes, {kind} der Name des Atlas (PREVIEW_ATLAS_NAMES), {level} der Rang der Stufe. Fehlt bei einem vor den gebackenen Stufen kompilierten Cache, den dieser Leser über die Version der Begleitdatei ablehnt.",
       "proxy": "Wo der residente Szenen-Proxy und sein BVH zu lesen sind: die Geometrie, die die Strahlen berühren. Fehlt bei einem vor der indirekten Beleuchtung kompilierten Cache, der so wie er ist lesbar bleibt.",
       "binary": "Die Binärdatei.",
-      "primitives": "Ihre Primitive."
+      "primitives": "Ihre Primitive.",
+      "worstStalls": "Die Blockadetabelle des Compilers: höchstens zehn Primitive mit einer blockierten Gruppe, die Wurzeln auf Stufe 0 behielt, die schlimmste zuerst. Fehlt in einem Cache, der davor kompiliert wurde."
     }
   },
   "SlimCulling": {

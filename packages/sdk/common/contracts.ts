@@ -39,12 +39,10 @@ export type {
   DagStallCause,
   DagStallSummary,
   DagWarning,
-} from '../../sdk-core/src/contracts/dag.ts';
-export { dagWarningsDiagnostic } from '../../sdk-core/src/contracts/dagWarnings.ts';
-export type {
   PrimitiveDagStall,
   PrimitiveDagWarning,
-} from '../../sdk-core/src/contracts/dagWarnings.ts';
+} from '../../sdk-core/src/contracts/dag.ts';
+export { dagWarningsDiagnostic } from '../../sdk-core/src/contracts/dagWarnings.ts';
 export type {
   GeometryPageDescriptor,
   GeometryPageFormat,
