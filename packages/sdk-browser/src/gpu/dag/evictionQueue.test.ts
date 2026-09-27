@@ -6,10 +6,10 @@ import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts';
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
 import { createGpuDagSelection } from './selection.ts';
 import { requestScene } from './requestScene.fixture.ts';
-import { KEY_PAGE_BITS, canonicalPage, evictionRank, listEvictions } from './evict.ts';
+import { KEY_PAGE_BITS, canonicalPage, listEvictions } from './evict.ts';
 import { keyBase } from './layout.ts';
 
-/** Four placements of one page set, every page in the pool; `cut(slots)` cuts and reads back. */
+/** Four placements of one page set, every page resident for the rule; `cut()` cuts, reads back. */
 async function residentCut() {
   installGpuGlobals();
   const scene = requestScene(4, 256, 4),
@@ -18,22 +18,23 @@ async function residentCut() {
   const selection = await createGpuDagSelection(gpu.device, packed, { residentCut: true });
   assert.ok(selection);
   selection.updateResidency(new Uint32Array(packed.pageCount).fill(1));
-  for (let page = 0; page < packed.pageCount; page++) selection.notePool(page, true);
   const keys = new Uint32Array(packed.pageCones.buffer).subarray(keyBase(packed.pageCount));
-  const cut = async (slots: number) => {
-    selection.setPoolSlots(slots);
+  const cut = async () => {
     selection.dispatch(scene.uni);
     const result = await selection.flush();
     assert.ok(result?.evictPageIds);
     return { result, queue: [...result.evictPageIds] };
   };
-  return { selection, keys, cut, levelOf: (page: number) => keys[page] >>> KEY_PAGE_BITS };
+  const holdAll = () => {
+    for (let page = 0; page < packed.pageCount; page++) selection.notePool(page, true);
+  };
+  return { selection, holdAll, keys, cut, levelOf: (page: number) => keys[page] >>> KEY_PAGE_BITS };
 }
-const WIDE = 1 << 20;
 
 test('each key once, children before parents, never one the cut read by any placement', async () => {
-  const { keys, levelOf, cut } = await residentCut();
-  const { result, queue } = await cut(WIDE);
+  const { holdAll, keys, levelOf, cut } = await residentCut();
+  holdAll();
+  const { result, queue } = await cut();
   assert.ok(queue.length > 10, 'the cut must leave pages to evict');
   assert.equal(new Set(queue).size, queue.length);
   for (const page of queue) assert.equal(canonicalPage(keys[page]), page);
@@ -49,19 +50,17 @@ test('each key once, children before parents, never one the cut read by any plac
   for (const page of read) assert.ok(!queue.includes(canonicalPage(keys[page])), `${page} listed`);
 });
 
-test('the queue lists what the pool holds, up to its slots, whatever the rule reads', async () => {
-  const { selection, keys, cut } = await residentCut();
-  const bounded = (await cut(3)).queue,
-    listed = (await cut(WIDE)).queue;
-  assert.equal(bounded.length, 3);
-  // Within a rank the threads' order is free: compare ranks. No listed page was ever used.
-  const rankOf = (page: number) => evictionRank(keys[page], 1);
-  assert.deepEqual(bounded.map(rankOf), listed.slice(0, 3).map(rankOf));
-  // The pool gives half the listed keys back; the rule still reads every page resident.
-  const back = new Set(listed.filter((_, i) => i % 2));
-  for (const page of back) selection.notePool(page, false);
-  const queue = (await cut(WIDE)).queue;
-  assert.deepEqual(new Set(queue), new Set(listed.filter((page) => !back.has(page))));
+test('the queue lists what the pool holds, whatever the rule reads, and no more', async () => {
+  const { selection, holdAll, cut } = await residentCut();
+  // The rule reads every page resident; the pool holds three keys the cut leaves: three listed.
+  assert.deepEqual((await cut()).queue, []);
+  holdAll();
+  const listed = (await cut()).queue;
+  for (const page of listed.slice(3)) selection.notePool(page, false);
+  assert.deepEqual(new Set((await cut()).queue), new Set(listed.slice(0, 3)));
+  // The pool gives one back and takes it again: the list follows each move.
+  selection.notePool(listed[0], false);
+  assert.deepEqual(new Set((await cut()).queue), new Set(listed.slice(1, 3)));
 });
 
 test('the mirror ranks finer first, then older first, and skips the pages used now', () => {

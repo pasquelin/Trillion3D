@@ -3,11 +3,11 @@ import type { GpuSelection } from '../../gpu/core/selection.ts';
 import type { createGpuPageCache } from '../../gpu/page/pages.ts';
 import { pageAddress } from '../row/pageSlots.ts';
 
-type Cache = Pick<ReturnType<typeof createGpuPageCache>, 'slots' | 'evictInOrder'>;
+type Cache = Pick<ReturnType<typeof createGpuPageCache>, 'evictInOrder'>;
 
 /**
- * Hands the GPU cut's eviction queue (`../../gpu/dag/evict.ts`) to the cache once per readback, and
- * the pool's slots to the cut. Addresses are read on a page's record as each victim is taken, never
+ * Hands the GPU cut's eviction queue (`../../gpu/dag/evict.ts`) to the cache once per readback.
+ * Addresses are read on a page's record as each victim is taken, never
  * the catalogue. A CPU cut's image (`null`) evicts the least recent page (`budgetRanking` stays, #836).
  */
 export function createEvictionFeed(
@@ -21,7 +21,6 @@ export function createEvictionFeed(
     const cache = getCache();
     if (!cache) return;
     const cut = selection?.peek();
-    selection?.setPoolSlots(cache.slots);
     // A residency change voids the cut until the next readback: the last order holds meanwhile.
     if (cut === last || (selection && !cut)) return;
     last = cut;

@@ -40,3 +40,16 @@ test('a page a lower tier reads goes after every other page of the order', async
   await cache.load('b');
   assert.ok(!cache.get('caster'));
 });
+
+test('each entry of the order is read once, however many a lower tier holds', async () => {
+  const keys = Array.from({ length: 64 }, (_, i) => `k${i}`);
+  const cache = await cacheOf(keys);
+  let reads = 0;
+  cache.evictInOrder({ count: keys.length, keyAt: (at) => (reads++, keys[at]) });
+  for (const key of keys.slice(0, 60)) cache.touch(key, true);
+  for (let i = 0; i < 8; i++) await cache.load(`new${i}`);
+  // The four camera pages go first, then the lower tier's in order; no entry is read twice.
+  const gone = keys.filter((key) => !cache.get(key));
+  assert.deepEqual(gone, [...keys.slice(0, 4), ...keys.slice(60)]);
+  assert.equal(reads, keys.length);
+});

@@ -10,21 +10,16 @@ test('the queue reaches the cache as addresses, reading only the listed records'
   const catalogue = Array.from({ length: 10_000 }, (_, id) => ({ url: `p${id}` }) as PageRec);
   let reads = 0;
   const pages = new Proxy(catalogue, { get: (target, key) => (reads++, target[key as never]) });
-  const orders: (EvictionOrder | undefined)[] = [],
-    slots: number[] = [];
-  const cache = { slots: 4, evictInOrder: (order?: EvictionOrder) => orders.push(order) };
+  const orders: (EvictionOrder | undefined)[] = [];
+  const cache = { evictInOrder: (order?: EvictionOrder) => orders.push(order) };
   const feed = createEvictionFeed(pages, () => cache);
   let cut: GpuCut | null = { result: { evictPageIds: [7, 3, 9000] } } as GpuCut;
-  const selection = {
-    peek: () => cut,
-    setPoolSlots: (n: number) => slots.push(n),
-  } as unknown as GpuSelection;
+  const selection = { peek: () => cut } as unknown as GpuSelection;
   feed(selection);
   feed(selection);
   assert.equal(orders.length, 1, 'once per readback');
   assert.equal(reads, 0, 'nothing resolved before a victim is taken');
   assert.deepEqual([orders[0]!.count, orders[0]!.keyAt(1), reads], [3, 'p3', 1]);
-  assert.deepEqual(slots, [4, 4], 'the cut follows the pool slots');
   cut = null; // A residency change voided the cut: the order holds until the next readback.
   feed(selection);
   assert.equal(orders.length, 1, 'a voided cut keeps the order');

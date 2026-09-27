@@ -25,21 +25,23 @@ export function evictResident(
   }));
 }
 
-/** The order's first resident, unpinned page; a pinned entry waits for its unpin, never spent. A
- *  page a lower tier touched since the last order (`touch`) goes after every other (#483 rule 1). */
+/** The order's next resident, unpinned page, each entry passed once: one pinned when passed waits
+ *  in `held` for its unpin; one a lower tier touched since the last order (`touch`) goes in `late`,
+ *  taken after every other (#483 rules 1 and 7). */
 function orderedVictim({ eviction, resident, pins }: GpuPageContext) {
-  const { epoch, lower } = eviction,
-    order = eviction.order!;
-  let spare: ResidentPage | undefined;
-  for (let at = eviction.at; at < order.count; at++) {
-    const key = order.keyAt(at),
-      page = resident.get(key),
-      late = epoch - (lower.get(key) ?? -Infinity) <= 1;
-    if (at === eviction.at && !(page && (pins.has(key) || late))) eviction.at++;
-    if (page && !pins.has(key) && !late) return page;
-    if (page && !pins.has(key)) spare ??= page;
+  const { order, epoch, lower, held, late } = eviction;
+  const free = (key: string) => (pins.has(key) ? undefined : resident.get(key));
+  while (eviction.at < order!.count) {
+    const key = order!.keyAt(eviction.at++);
+    if (!resident.has(key)) continue;
+    if (pins.has(key)) held.push(key);
+    else if ((lower.get(key) ?? -2) >= epoch - 1) late.push(key);
+    else return resident.get(key);
   }
-  return spare;
+  let page: ResidentPage | undefined;
+  for (let i = 0; i < held.length && !page; i++) page = free(held[i]);
+  while (!page && eviction.lateAt < late.length) page = free(late[eviction.lateAt++]);
+  return page;
 }
 
 /** The least recently loaded or touched unpinned page; everything pinned is stated in O(1). */
