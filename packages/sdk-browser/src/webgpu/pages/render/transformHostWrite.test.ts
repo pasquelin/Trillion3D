@@ -40,3 +40,18 @@ test('B moved alone: the next image walks nothing, and only its rows travel', ()
   setWebgpuTransform(rt, 'B', moved);
   assert.equal(run.gate.updateWorlds(worlds), false);
 });
+
+test('before the first image, A written by the host then B moved: A stands where the host put it', () => {
+  const source = new G.Group(),
+    a = G.mesh(),
+    b = G.mesh();
+  a.name = 'A';
+  b.name = 'B';
+  source.add(a, b);
+  const worlds = hostWorldPlacements(source),
+    { rt } = runtime(source, [], worlds);
+  // Nothing is hooked yet: no watch announces the write, the move walks the whole index (#915).
+  a.position.x = 100;
+  setWebgpuTransform(rt, 'B', moved);
+  assert.equal(worlds.of(a).elements[12], 100);
+});

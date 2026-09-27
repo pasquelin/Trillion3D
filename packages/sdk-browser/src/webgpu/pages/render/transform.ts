@@ -105,7 +105,7 @@ export function setWebgpuTransform(rt: WebgpuPagesRuntime, nodeName: string, mat
   // same requested world pose, and the request is therefore not judged as no-effect.
   if (!node.matrixAutoUpdate && sameElements(node.matrix.elements, local)) return;
   // A host pose written in this same task is read before the engine's own write hides it.
-  const hostPending = run.gate.engineWriting();
+  const wholePass = run.gate.engineWriting();
   // The moved roots are those whose mesh lies in the node's subtree: the subtree is walked once,
   // and the roots are visited in increasing rank, as the loop over every root visited them.
   const roots = layout.selectionRoots;
@@ -135,11 +135,12 @@ export function setWebgpuTransform(rt: WebgpuPagesRuntime, nodeName: string, mat
   // selection roots, transparent copies — carries the new place at that instant, with no snapshot
   // to retake. The host scene, itself, is not climbed: the engine no longer reads its world
   // matrices.
-  // With no hooked host pose unread, only the moved subtree and its ancestors can have new inputs,
-  // and the pass on them alone yields the bits of the whole pass there (`refreshFrom`,
-  // `../../../host/world/tree.ts`). A matrix the host set by hand elsewhere is no hooked write:
-  // the next image's scan announces it, and its walk completes the index before anything draws.
-  if (hostPending) setup.worlds.refresh();
+  // With no hooked host pose unread, and a watch that hooks the current scene's nodes, only the
+  // moved subtree and its ancestors can have new inputs: the pass on them alone yields the bits
+  // of the whole pass there (`refreshFrom`, `../../../host/world/tree.ts`). A matrix the host set
+  // by hand elsewhere is no hooked write: the next image's scan announces it, and its walk
+  // completes the index before anything draws.
+  if (wholePass) setup.worlds.refresh();
   else setup.worlds.refreshFrom(node);
   // World boxes of the moved roots reproject IN BATCH, through the governor, in the buffer
   // reserved at prepare. A missing or released buffer hands over to the box-by-box computation,
