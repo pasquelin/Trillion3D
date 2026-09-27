@@ -1234,6 +1234,22 @@
       }
     }
   },
+  "a-walk-through-the-city": {
+    "banner": "Klik tampilan, berjalan dengan W A S D, dan melihat dengan tetikus. Kurangi memori sambil bergerak.",
+    "controls": {
+      "walk": "Berjalan",
+      "walkSpeed": "Kecepatan jalan",
+      "memory": "Memori",
+      "view": "Tampilan",
+      "home": "Kembali ke awal"
+    },
+    "choices": {
+      "view": { "beauty": "tampilan", "lod": "tingkat detail", "clusters": "klaster" }
+    },
+    "words": {
+      "credit": "Jalan guci dimodelkan dengan kode untuk contoh ini, CC0 — lihat assets/examples/CREDITS.md"
+    }
+  },
   "migrating-from-three": {
     "words": {
       "credit": "Marble Bust 01 oleh Rico Cilliers, Poly Haven, CC0; peti oleh W. Sitters, CC BY 3.0 — lihat assets/examples/CREDITS.md"
