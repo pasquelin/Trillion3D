@@ -6,10 +6,10 @@ import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.t
 import type { HostCamera } from '../../../packages/sdk-browser/src/camera/world.ts';
 import { pixel } from './webglClusterPixels.ts';
 import { mountExplorerProof } from './webglClusterExplorerMount.ts';
-
-type ExplorerProof = NonNullable<ReturnType<typeof mountExplorerProof>>;
 import { transmissionCamera, transmissionScene } from './webglClusterTransmissionScene.ts';
 import { listenMaterialDegraded } from './materialDegradedNotices.ts';
+
+type ExplorerProof = NonNullable<ReturnType<typeof mountExplorerProof>>;
 
 const anyMesh = (object: G.Object3D) => object instanceof G.Mesh;
 /** Two frames of `mounted` on its canvas: a refusal throws, and the proof reports it. */
