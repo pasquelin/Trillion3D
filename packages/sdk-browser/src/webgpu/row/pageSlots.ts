@@ -15,7 +15,8 @@ import type { PageRec } from '../../page/selection/selection.ts';
  * opaque record of the same primitive keeps its page at that page's own address. Neither gives
  * anything up for the two to coexist.
  */
-export const pageAddress = (rec: PageRec) => rec.geometryPage?.url ?? rec.url;
+export const pageAddress = (rec: Pick<PageRec, 'url' | 'geometryPage'>) =>
+  rec.geometryPage?.url ?? rec.url;
 
 /**
  * What the geometry pool holds for the scene, walked once from the catalogue.
