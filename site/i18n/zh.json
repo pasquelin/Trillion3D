@@ -33,9 +33,9 @@
   "examples": {
     "lead": "每个示例都只是一个简短的文件:看它运行,打开它的代码,动手改一改。",
     "jumpTo": "跳转到主题",
-    "inProgress": "制作中",
     "waitsFor": "等待引擎:",
-    "waitingEngine": "正在等待引擎"
+    "partial": "部分可用",
+    "coming": "即将推出：{{titles}}"
   },
   "gallery": {
     "themes": {
