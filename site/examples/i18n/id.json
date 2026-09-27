@@ -1685,10 +1685,7 @@
   },
   "the-home-pose": {
     "banner": "Pilih tampilan, gerakkan kamera, lalu pilih Awal untuk kembali.",
-    "controls": { "view": "Tampilan" },
-    "choices": {
-      "view": { "home": "Awal", "tower": "Menara", "square": "Alun-alun", "hillside": "Lereng" }
-    }
+    "controls": { "home": "Awal", "tower": "Menara", "square": "Alun-alun", "hillside": "Lereng" }
   },
   "the-near-plane-cuts-a-wall": {
     "banner": "Majukan bidang dekat dan lihat bidang itu memotong setiap dinding.",

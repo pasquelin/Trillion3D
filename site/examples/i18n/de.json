@@ -1685,10 +1685,7 @@
   },
   "the-home-pose": {
     "banner": "Wähle eine Ansicht, bewege die Kamera und kehre dann mit Ausgang zurück.",
-    "controls": { "view": "Ansicht" },
-    "choices": {
-      "view": { "home": "Ausgang", "tower": "Turm", "square": "Platz", "hillside": "Hang" }
-    }
+    "controls": { "home": "Ausgang", "tower": "Turm", "square": "Platz", "hillside": "Hang" }
   },
   "the-near-plane-cuts-a-wall": {
     "banner": "Schiebe die Nahgrenze vor und sieh zu, wie sie jede Wand schneidet.",

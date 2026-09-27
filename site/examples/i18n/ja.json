@@ -1685,8 +1685,7 @@
   },
   "the-home-pose": {
     "banner": "視点を選び、カメラを動かしてから、ホームを選んで戻ります。",
-    "controls": { "view": "視点" },
-    "choices": { "view": { "home": "ホーム", "tower": "塔", "square": "広場", "hillside": "丘" } }
+    "controls": { "home": "ホーム", "tower": "塔", "square": "広場", "hillside": "丘" }
   },
   "the-near-plane-cuts-a-wall": {
     "banner": "ニアクリップ面を前へ動かし、壁を順に切る様子を見ます。",

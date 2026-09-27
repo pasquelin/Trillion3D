@@ -29,14 +29,15 @@
 
       // Four arches cross the camera's view at known distances. Moving the real camera near
       // plane through them cuts their geometry; the page never hides or fades a wall itself.
-      const colours = ['#d45f45', '#e3a536', '#3f9a78', '#477bb8'];
-      const depths = [5, 2, -1, -4];
-      const sizes = [3.8, 3.4, 3, 2.6];
+      const ARCHES = [
+        { colour: '#d45f45', depth: 5, opening: 3.8 },
+        { colour: '#e3a536', depth: 2, opening: 3.4 },
+        { colour: '#3f9a78', depth: -1, opening: 3 },
+        { colour: '#477bb8', depth: -4, opening: 2.6 },
+      ];
       const side = geometry.box(2.2, 5, 0.35);
-      for (let index = 0; index < depths.length; index++) {
-        const z = depths[index],
-          opening = sizes[index];
-        const stone = material.meshStandard({ color: colours[index], roughness: 0.75 });
+      for (const { colour, depth, opening } of ARCHES) {
+        const stone = material.meshStandard({ color: colour, roughness: 0.75 });
         const parts = [
           [side, -opening - 1.1, 2.5],
           [side, opening + 1.1, 2.5],
@@ -44,7 +45,7 @@
         ];
         for (const [shape, x, y] of parts) {
           const wall = object.mesh(shape, stone);
-          wall.position.set(x, y, z);
+          wall.position.set(x, y, depth);
           world.scene.add(wall);
         }
       }
@@ -58,9 +59,9 @@
       world.scene.add(floor);
       const stripeShape = geometry.box(18, 0.03, 0.18);
       const stripePaint = material.meshStandard({ color: '#755d47', roughness: 0.8 });
-      for (const z of depths) {
+      for (const { depth } of ARCHES) {
         const stripe = object.mesh(stripeShape, stripePaint);
-        stripe.position.set(0, 0.02, z);
+        stripe.position.set(0, 0.02, depth);
         world.scene.add(stripe);
       }
 
