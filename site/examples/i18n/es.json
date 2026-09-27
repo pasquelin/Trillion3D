@@ -518,6 +518,20 @@
       "outer": "Exterior"
     }
   },
+  "doors-that-open": {
+    "banner": "Acerca la cámara a las puertas. Se abren cuando te aproximas.",
+    "controls": {
+      "mode": "Modo",
+      "openingDistance": "Distancia de apertura",
+      "openness": "Apertura"
+    },
+    "choices": {
+      "mode": {
+        "proximity": "proximidad",
+        "manual": "manual"
+      }
+    }
+  },
   "a-world-of-blocks": {
     "banner": "Arrastra para volar alrededor de la isla. Sube el mar para inundar los valles.",
     "controls": {

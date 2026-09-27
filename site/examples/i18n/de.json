@@ -518,6 +518,20 @@
       "outer": "Außen"
     }
   },
+  "doors-that-open": {
+    "banner": "Bewege die Kamera auf die Türen zu. Sie öffnen sich beim Nähern.",
+    "controls": {
+      "mode": "Modus",
+      "openingDistance": "Öffnungsabstand",
+      "openness": "Öffnung"
+    },
+    "choices": {
+      "mode": {
+        "proximity": "Nähe",
+        "manual": "manuell"
+      }
+    }
+  },
   "a-world-of-blocks": {
     "banner": "Ziehe, um um die Insel zu fliegen. Heb das Meer, um die Täler zu fluten.",
     "controls": {
