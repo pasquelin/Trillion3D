@@ -1515,6 +1515,7 @@
       "a-walker-among-balls": "Pejalan di antara bola"
     },
     "missing": {
+      "inside-a-component": "pembersihan kanvas buatan mesin saat dunia dibuang",
       "floating-crates": "geometri yang ditulis ulang setiap bingkai",
       "thick-lines": "garis lebar",
       "a-line-that-draws-itself": "rentang gambar geometri",

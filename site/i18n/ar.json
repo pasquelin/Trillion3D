@@ -1515,6 +1515,7 @@
       "a-walker-among-balls": "ماشٍ بين الكرات"
     },
     "missing": {
+      "inside-a-component": "إزالة اللوحة التي أنشأها المحرك عند التخلّص من العالم",
       "floating-crates": "هندسة يُعاد كتابتها في كل إطار",
       "thick-lines": "خطوط عريضة",
       "a-line-that-draws-itself": "نطاق رسم الهندسة",
