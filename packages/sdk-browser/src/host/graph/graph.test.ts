@@ -10,7 +10,7 @@ import * as THREE from 'three';
 import { Group, Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 import { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts';
 import { InstancedMesh } from '../../../../sdk-core/src/world/object/instancedMesh.ts';
-import { GraphCamera } from './camera.ts';
+import { Camera } from '../../../../sdk-core/src/world/camera/camera.ts';
 import { GraphAmbientLight, GraphLight, GraphLightProbe, GraphRectLight } from './light.ts';
 import { BufferAttribute } from '../../../../sdk-core/src/world/buffer/attribute.ts';
 import { GraphSurface } from './surface.ts';
@@ -19,7 +19,11 @@ import { hookHostNode } from '../scene/hooks.ts';
 import { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts';
 
 test('a posed chain resolves to the reference world matrices, aim and decomposition included', () => {
-  const [a, b, c] = [new Group(), new Object3D(), new GraphCamera({ fov: 47, aspect: 1.6 })];
+  const [a, b, c] = [
+    new Group(),
+    new Object3D(),
+    new Camera('perspective', { fov: 47, aspect: 1.6 }),
+  ];
   const [ta, tb, tc] = [
     new THREE.Group(),
     new THREE.Object3D(),
