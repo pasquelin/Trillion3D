@@ -29,25 +29,19 @@ fn dagWanted(@builtin(global_invocation_id) id:vec3u){
  let rejected=!light&&coneRejects(r,w);
  let e=views[vi].view*worlds[w];let stretch=stretchOf(w);let focal=focalPixels();
  // The two screen errors \`selects\` compares, computed ONCE: the request's priority reuses them
- // (\`replacementPixels\` is one of the two), and a camera cut keeps the two comparisons of the cut
- // rule behind the cone bit, for \`dagMask\` — same operands, same frame, so the same bits.
- let parentPixels=projected(cluster.parentError,cluster.parentSphere,e,stretch,focal);
- let ownPixels=projected(cluster.lodError,cluster.sphere,e,stretch,focal);
- let t=views[vi].pixelError;
+ // (\`replacementPixels\`), and a camera cut keeps the two comparisons of the cut rule behind the
+ // cone bit, for \`dagMask\` — same operands, same frame, so the same bits.
+ let pixels=clusterPixels(cluster,e,stretch,focal);let t=views[vi].pixelError;
  // A light cut's views share the page index: its word stays the lone cone bit, zero, as before.
- flags[coneCache(i)]=select(select(0u,CONE_REJECTED,rejected)|select(0u,PARENT_ABOVE,parentPixels>t)|select(0u,OWN_WITHIN,ownPixels<=t),0u,light);
- if(!drawsCluster(true,parentPixels,ownPixels,true,t)||rejected){wantAhead(i,w,r,cluster);return;}
+ flags[coneCache(i)]=select(select(0u,CONE_REJECTED,rejected)|select(0u,PARENT_ABOVE,pixels.x>t)|select(0u,OWN_WITHIN,pixels.y<=t),0u,light);
+ if(!selects(pixels,t)||rejected){wantAhead(i,w,r,cluster);return;}
  atomicMax(&out.lodLevel,cluster.flags>>${CLUSTER_LEVEL_SHIFT}u);
- // \`replacementPixels\`: the replacement's error, or the cluster's own when nothing replaces it.
- emitOne(i,select(parentPixels,ownPixels,cluster.parentError<0.0));
+ emitOne(i,replacementPixels(cluster,pixels));
  stampUse(i);
  if(views[0u].residentCut!=0u&&!isResident(i)){noteCoarser();}
 }
 /** The REPLACEMENT's error, what the eye would see if this cluster were missing: that is what
  *  ranks a request, as \`orderPendingUrls\` (../../../streaming/priority.ts) does on the other path.
  *  A cluster nothing replaces falls back on its own, as that path does. */
-fn replacementPixels(cluster:Cluster,e:mat4x4f,stretch:f32,focal:f32)->f32{
- if(cluster.parentError<0.0){return projected(cluster.lodError,cluster.sphere,e,stretch,focal);}
- return projected(cluster.parentError,cluster.parentSphere,e,stretch,focal);
-}
+fn replacementPixels(cluster:Cluster,pixels:vec2f)->f32{return select(pixels.x,pixels.y,cluster.parentError<0.0);}
 `;

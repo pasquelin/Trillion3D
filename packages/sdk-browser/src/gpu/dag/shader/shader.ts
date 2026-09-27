@@ -105,9 +105,8 @@ fn dagMask(@builtin(global_invocation_id) id:vec3u,@builtin(local_invocation_ind
   if((word&CONE_REJECTED)==0u){
    let all=views[0u].residentCut==0u;
    if(isLightCut()){
-    let cluster=clusters[r];
-    let e=views[vi].view*worlds[w];let stretch=stretchOf(w);let focal=focalPixels();
-    draw=drawsCluster(all||isResident(i),projected(cluster.parentError,cluster.parentSphere,e,stretch,focal),projected(cluster.lodError,cluster.sphere,e,stretch,focal),all||childResident(i),views[vi].pixelError);
+    let pixels=clusterPixels(clusters[r],views[vi].view*worlds[w],stretchOf(w),focalPixels());
+    draw=drawsCluster(all||isResident(i),pixels.x,pixels.y,all||childResident(i),views[vi].pixelError);
    }else{
     // Camera cut: the rule on the two comparisons \`dagWanted\` made this frame, on the same
     // projections — no matrix product, no projection, no sphere read again.
