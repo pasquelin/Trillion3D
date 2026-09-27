@@ -1,9 +1,9 @@
 /**
  * Oracle of a tile's world bounds, a line-by-line port of `tileCorner`, `tileBox`,
  * `inwardPlane`, `tileColumn`, `tileSlab` and the sphere tests in
- * packages/sdk-browser/src/lighting/tiles/boundsWgsl.ts. Every operation is rounded to f32 as the
- * shader's is; `inverseViewProjection` is column-major, like the uniform; depth is reversed with
- * an infinite far plane.
+ * packages/sdk-browser/src/lighting/tiles/{shader,boundsWgsl}.ts. Every operation is rounded to
+ * f32 as the shader's is; `inverseViewProjection` is column-major, like the uniform; depth is
+ * reversed with an infinite far plane.
  */
 import { LIGHT_SETTINGS } from '../../../packages/sdk-core/src/index.ts';
 import { DEPTH_NEAR } from '../../../packages/sdk-browser/src/camera/depthConvention.ts';
