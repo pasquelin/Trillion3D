@@ -37,13 +37,14 @@
         const mesh = object.mesh(shape, matter);
         mesh.position.set(...position);
         mesh.rotation.y = turn;
-        mesh.castShadow = true;
         world.scene.add(mesh);
         return mesh;
       };
 
       const ground = put(geometry.box(42, 0.3, 34), grass, [0, -0.15, 0]);
+      // The lowest surface: nothing under it would show its shadow.
       ground.receiveShadow = true;
+      ground.castShadow = false;
       const pathShape = geometry.box(3.2, 0.08, 8);
       for (let step = -2; step <= 2; step++)
         put(pathShape, stone, [step * 3.1, 0.04, 3], step * 0.38);
@@ -72,26 +73,27 @@
       const roof = object.mesh(geometry.cone(4.2, 1.8, 8), paint('#a64737', 0.75));
       roof.position.y = 4.7;
       pavilion.add(roof);
+      const postShape = geometry.cylinder(0.16, 0.2, 4, 12);
       for (const [x, z] of [
         [-2.5, -2.5],
         [-2.5, 2.5],
         [2.5, -2.5],
         [2.5, 2.5],
       ]) {
-        const post = object.mesh(geometry.cylinder(0.16, 0.2, 4, 12), stone);
+        const post = object.mesh(postShape, stone);
         post.position.set(x, 2, z);
         pavilion.add(post);
       }
       const deck = object.mesh(geometry.cylinder(3.5, 3.5, 0.3, 8), wood);
       deck.position.y = 0.15;
       pavilion.add(deck);
-      pavilion.traverse((part) => (part.castShadow = true));
       world.scene.add(pavilion);
 
       const bridge = object.group();
       bridge.position.set(-7, 0.55, -7);
+      const plankShape = geometry.box(0.75, 0.12, 3);
       for (let plank = -4; plank <= 4; plank++) {
-        const board = object.mesh(geometry.box(0.75, 0.12, 3), wood);
+        const board = object.mesh(plankShape, wood);
         board.position.x = plank * 0.72;
         bridge.add(board);
       }
@@ -113,17 +115,20 @@
       world.controls.maxDistance = 35;
       world.controls.maxPolarAngle = Math.PI / 2 - 0.03;
       const say = words();
-      let route;
-      controls({ replay: () => route?.restart(), stop: () => route?.stop() }, world);
-      const current = readout('currentPart');
-      route = tour(world, [
+      const route = tour(world, [
         { name: 'entrance', position: [15, 5, 16], target: [0, 1, 5], seconds: 2.5, hold: 0.8 },
         { name: 'pond', position: [-13, 4, -1], target: [-7, 0, -7], seconds: 2.2, hold: 1 },
         { name: 'bridge', position: [-7, 2.2, 1], target: [-7, 0.8, -7], seconds: 1.8, hold: 0.8 },
         { name: 'pavilion', position: [14, 4, -1], target: [8, 2, -7], seconds: 2.4, hold: 1 },
         { name: 'overview', position: [17, 15, 18], target: [0, 1, 0], seconds: 3, hold: 1.5 },
       ]);
-      const showPart = () => current(say(route.part ?? 'complete'));
+      controls({ replay: () => route.restart(), stop: () => route.stop() }, world);
+      const current = readout('currentPart');
+      let shown;
+      const showPart = () => {
+        const part = route.part ?? 'complete';
+        if (part !== shown) current(say((shown = part)));
+      };
       world.onFrame(showPart);
       showPart();
       addEventListener('pagehide', () => {
