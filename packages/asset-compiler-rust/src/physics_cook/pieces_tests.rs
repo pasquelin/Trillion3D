@@ -10,15 +10,18 @@ use crate::compiler_coplanar::DepthLayerScene;
 use serde_json::{json, Value};
 use std::collections::{BTreeMap, BTreeSet};
 
+/// Share of a solid its cells may miss or overlap: their corners are rounded to 32 bits.
+const TILED: f64 = 1e-6;
+
 /// The volume the polytope `faces` bounds; 0 for none or a flat one.
 fn volume(faces: &[Vec<[f64; 3]>]) -> f64 {
     let (pos, triangles) = welded(faces);
     solid_mass(&pos, &triangles, [1.0; 3], 0).map_or(0.0, |m| m["mass"].as_f64().unwrap() / DENSITY)
 }
 
-// Behaviour: the Voronoi cells of seeds inside a convex solid — a box, and a pyramid leaning over
-// one corner of its base — tile it: their volumes sum to the solid's within 1e-6 of it, and no two cells
-// overlap by more than 1e-6 of it: their corners are rounded to 32 bits, as the pieces cooked.
+// Behaviour: the Voronoi cells of seeds inside a convex solid — a box, a pyramid leaning over one
+// corner of its base, and a prism of many faces — tile it: their volumes sum to the solid's, and no two cells overlap,
+// within `TILED` of it.
 #[test]
 fn voronoi_cells_tile_a_convex_solid_without_gap_or_overlap() {
     let pyramid = (
@@ -27,7 +30,24 @@ fn voronoi_cells_tile_a_convex_solid_without_gap_or_overlap() {
         ],
         vec![0, 2, 1, 1, 2, 4, 0, 1, 3, 1, 4, 3, 4, 2, 3, 2, 0, 3],
     );
-    for (pos, triangles) in [(cube([0.0; 3], [2.0, 1.0, 0.5]), FACES.to_vec()), pyramid] {
+    // A 24-sided prism about (1, 0.5), radius 1.2, 0.5 high: 48 corners, 92 face triangles.
+    let (mut prism, mut sides) = (Vec::new(), Vec::new());
+    for k in 0..24u32 {
+        let turn = k as f32 * std::f32::consts::TAU / 24.0;
+        let (x, y) = (1.0 + 1.2 * turn.cos(), 0.5 + 1.2 * turn.sin());
+        prism.extend([x, y, 0.0, x, y, 0.5]);
+        let [a, b, c, d] = [2 * k, 2 * k + 1, (2 * k + 2) % 48, (2 * k + 3) % 48];
+        sides.extend([a, c, b, b, c, d]);
+        if k > 1 {
+            sides.extend([0, 2 * k, 2 * k - 2, 1, 2 * k - 1, 2 * k + 1]);
+        }
+    }
+    let solids = [
+        (cube([0.0; 3], [2.0, 1.0, 0.5]), FACES.to_vec()),
+        pyramid,
+        (prism, sides),
+    ];
+    for (pos, triangles) in solids {
         let whole = solid_mass(&pos, &triangles, [1.0; 3], 0).unwrap()["mass"]
             .as_f64()
             .unwrap()
@@ -39,10 +59,10 @@ fn voronoi_cells_tile_a_convex_solid_without_gap_or_overlap() {
             [0.5, 0.7, 0.3],
             [1.6, 0.3, 0.15],
         ];
-        let bounds = ([0.0; 3], [3.0, 2.0, 1.5]);
+        let bounds = ([-1.0; 3], [3.0, 2.0, 1.5]);
         let pieces = cells(&seeds, bounds, &planes);
         let total: f64 = pieces.iter().map(|faces| volume(faces)).sum();
-        assert!((total - whole).abs() <= whole * 1e-6, "{total} of {whole}");
+        assert!((total - whole).abs() <= whole * TILED, "{total} of {whole}");
         for (i, a) in pieces.iter().enumerate() {
             assert!(volume(a) > 0.0, "cell {i} is empty");
             for b in &pieces[i + 1..] {
@@ -51,7 +71,7 @@ fn voronoi_cells_tile_a_convex_solid_without_gap_or_overlap() {
                     .into_iter()
                     .fold(a.clone(), |faces, plane| clip(faces, plane, 1e-12));
                 assert!(
-                    volume(&shared) <= whole * 1e-6,
+                    volume(&shared) <= whole * TILED,
                     "overlap {}",
                     volume(&shared)
                 );
@@ -70,11 +90,13 @@ fn cooked(name: &str, nodes: Value) -> (Vec<u8>, BTreeSet<String>) {
     for offset in [0, 8, 16] {
         bin.extend(FACES.iter().flat_map(|i| (i + offset).to_le_bytes()));
     }
+    let (vertices, faces) = (pos.len() * 4, FACES.len() * 4);
     let g = json!({
-        "bufferViews":[{"buffer":0,"byteLength":288},{"buffer":0,"byteOffset":288,"byteLength":432}],
-        "accessors":[{"bufferView":0,"componentType":5126,"type":"VEC3","count":24},
-            {"bufferView":1,"componentType":5125,"type":"SCALAR","count":36},
-            {"bufferView":1,"byteOffset":144,"componentType":5125,"type":"SCALAR","count":72}],
+        "bufferViews":[{"buffer":0,"byteLength":vertices},
+            {"buffer":0,"byteOffset":vertices,"byteLength":faces * 3}],
+        "accessors":[{"bufferView":0,"componentType":5126,"type":"VEC3","count":pos.len() / 3},
+            {"bufferView":1,"componentType":5125,"type":"SCALAR","count":FACES.len()},
+            {"bufferView":1,"byteOffset":faces,"componentType":5125,"type":"SCALAR","count":FACES.len() * 2}],
         "meshes":[{"primitives":[{"attributes":{"POSITION":0},"indices":1}]},
             {"primitives":[{"attributes":{"POSITION":0},"indices":2}]}],
         "extensions":{"KHR_implicit_shapes":{"shapes":[{"type":"box","box":{"size":[1, 1, 1]}}]}},
