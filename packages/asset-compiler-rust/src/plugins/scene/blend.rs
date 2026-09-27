@@ -15,7 +15,10 @@
 //! objects they hold and their world matrix — position, rotation (quaternion, six Euler orders,
 //! axis-angle), scale, deferred values, parent chain and parenting matrix —, meshes by their named
 //! attributes (`position`, `.corner_vert`, face offsets, `material_index`, `sharp_face`, the
-//! author's first UV layer, whose V coordinate is flipped for glTF's origin), fan-triangulated;
+//! author's first UV layer, whose V coordinate is flipped for glTF's origin), whichever layout
+//! the file's SDNA says they are stored in — the attribute store of Blender 5, the `CustomData`
+//! layers of 3.5 to 4.x, or the `MVert`/`MEdge`/`MPoly`/`MLoop` structures and `MLoopUV` layers of
+//! 2.8 to 3.4 —, all through the one mesh path, fan-triangulated;
 //! materials by their `Principled BSDF` node — base colour, metallic, roughness, alpha, emission,
 //! normal — reached from the graph's active output, and the images they link, including **packed**
 //! ones, whose bytes go into the scene binary untouched. Several objects that share a mesh share
@@ -27,9 +30,7 @@
 //! **What it refuses, by name.** A file with 32-bit pointers or big-endian, a block-header variant
 //! it does not describe, a truncated file, a wrapped file that unpacks past the job's RAM budget,
 //! a block index, packed images or meshes that would go past it, an unreadable `DNA1`, a
-//! mesh outside the attribute layout — that of Blender 4.4 and beyond; older files, which stored
-//! their geometry in `MPoly`/`MLoop` and `CustomData`, are not read, for lack of a file of that
-//! era to prove it.
+//! mesh that carries none of those layouts.
 //!
 //! **What it counts on the report without returning it.** Objects that are not meshes (curves,
 //! texts, metaballs, armatures, cameras), instanced collections, unapplied modifiers — the base
@@ -59,6 +60,7 @@ mod dna;
 mod envelope;
 mod file;
 mod images;
+mod layers;
 mod light;
 mod material;
 mod mesh;
@@ -97,7 +99,7 @@ impl Plugin for Blend {
     /// The version names the layout read and the two decompressors: changing it invalidates
     /// caches, so every already-compiled `.blend` is reread.
     fn version(&self) -> &'static str {
-        "blend-sdna-attributes-flate2-1.1.10-ruzstd-0.7.3-gltf-10"
+        "blend-sdna-layouts-scoped-flate2-1.1.10-ruzstd-0.7.3-gltf-11"
     }
     fn extensions(&self) -> &'static [&'static str] {
         &["blend"]

@@ -1,4 +1,4 @@
-//! Named attributes of a mesh.
+//! Named attributes of a mesh, whatever layout the file stores them in.
 //!
 //! Since Blender 5, a mesh no longer holds its arrays in dedicated fields: it holds an attribute
 //! store — a name, a domain (vertex, edge, face, corner), a type and values. `position`,
@@ -9,6 +9,7 @@
 //! Type and domain identifiers are those the format writes; this reader crosses them with the
 //! actual stride of the values, and drops the attribute when the two do not agree.
 use super::*;
+use std::borrow::Cow;
 
 /// Attribute types this driver keeps, with the number of bytes each occupies.
 pub(super) const BOOLEAN: i64 = 0;
@@ -21,13 +22,14 @@ pub(super) const EDGE: i64 = 1;
 pub(super) const FACE: i64 = 2;
 pub(super) const CORNER: i64 = 3;
 /// Ceiling of the number of attributes read in a mesh: beyond it, the store is not one.
-const MAX_ATTRIBUTES: usize = 4096;
+pub(super) const MAX_ATTRIBUTES: usize = 4096;
 
 /// An attribute of the mesh, as it is read.
 pub(super) struct Attr<'a> {
     pub(super) domain: i64,
     pub(super) kind: i64,
-    pub(super) values: &'a [u8],
+    /// Borrowed from the file, or repacked from the structures of an older layout.
+    pub(super) values: Cow<'a, [u8]>,
     /// The element count: one for a single attribute, which the caller repeats.
     pub(super) count: usize,
     pub(super) single: bool,
@@ -47,16 +49,16 @@ impl Attr<'_> {
     /// The float values of the attribute, repeated when it is single.
     pub(super) fn floats(&self, repeat: usize, stride: usize) -> Vec<f32> {
         if self.single {
-            return bytes::floats(self.values, stride).repeat(repeat);
+            return bytes::floats(&self.values, stride).repeat(repeat);
         }
-        bytes::floats(self.values, self.count * stride)
+        bytes::floats(&self.values, self.count * stride)
     }
     /// The integers of the attribute, repeated the same way.
     pub(super) fn ints(&self, repeat: usize) -> Vec<i32> {
         if !self.single {
-            return bytes::ints(self.values, self.count);
+            return bytes::ints(&self.values, self.count);
         }
-        vec![bytes::ints(self.values, 1).first().copied().unwrap_or(0); repeat]
+        vec![bytes::ints(&self.values, 1).first().copied().unwrap_or(0); repeat]
     }
     /// The booleans of the attribute, one byte each.
     pub(super) fn bools(&self, repeat: usize) -> Vec<bool> {
@@ -71,29 +73,24 @@ impl Attr<'_> {
     }
 }
 
-/// The attributes of a mesh, by name, in the order the store declares them. An absent store
-/// yields an empty table: it is the caller that decides the mesh is then unreadable.
+/// The attributes of a mesh, by name: those of the attribute store in the order it declares them,
+/// then those of the `CustomData` layers. Each decoder reads only what the file's SDNA describes,
+/// so the layout is the file's own; a mesh that holds none yields an empty table, and it is the
+/// caller that decides the mesh is then unreadable.
 pub(super) fn attributes<'a>(mesh: &At<'a>) -> Vec<(String, Attr<'a>)> {
     let mut out = Vec::new();
+    stored(mesh, &mut out);
+    layers::attributes(mesh, &mut out);
+    out
+}
+
+/// The attributes of the store Blender 5 writes.
+fn stored<'a>(mesh: &At<'a>, out: &mut Vec<(String, Attr<'a>)>) {
     let Some(storage) = mesh.inner("attribute_storage") else {
-        return out;
+        return;
     };
-    let announced = storage.int("dna_attributes_num", 0).max(0) as usize;
-    let pointer = storage.pointer("dna_attributes");
-    let Some(held) = mesh.file.at(pointer).map(|block| block.count) else {
-        return out;
-    };
-    let Some(head) = storage.follow("dna_attributes") else {
-        return out;
-    };
-    for rank in 0..announced.min(held).min(MAX_ATTRIBUTES) {
-        let Some(entry) = head.item(rank) else {
-            break;
-        };
-        let name = entry
-            .file
-            .text_at(entry.pointer("name"))
-            .unwrap_or_default();
+    for entry in layers::items(&storage, "dna_attributes_num", "dna_attributes") {
+        let name = entry.text("name");
         let kind = entry.int("data_type", -1);
         let Some(width) = Attr::width(kind) else {
             continue;
@@ -119,11 +116,10 @@ pub(super) fn attributes<'a>(mesh: &At<'a>) -> Vec<(String, Attr<'a>)> {
             Attr {
                 domain: entry.int("domain", -1),
                 kind,
-                values,
+                values: Cow::Borrowed(values),
                 count,
                 single,
             },
         ));
     }
-    out
 }

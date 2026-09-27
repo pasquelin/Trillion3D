@@ -92,7 +92,7 @@ export function createWebgpuResidentEnsurer({
     };
     let held = 0;
     for (let i = 0; i < lower.length; i++)
-      if (!skip(lower[i]) && cache.touch(pageAddress(lower[i]))) held++;
+      if (!skip(lower[i]) && cache.touch(pageAddress(lower[i]), true)) held++;
     let spare = cache.unpinnedSlots() - held;
     // The share, as the camera's burst: past it the job yields — and leaves if a camera cut asked
     // for pages meanwhile: the queue serves the camera first and runs the tiers again. A job only

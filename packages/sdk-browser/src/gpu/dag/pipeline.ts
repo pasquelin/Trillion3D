@@ -42,7 +42,8 @@ export function createDagPipeline(device: GPUDevice, buffers: DagBuffers) {
     const drawPrefixPipeline = stage('dagDrawPrefix'),
       drawScatterPipeline = stage('dagDrawScatter'),
       viewOffsetsPipeline = stage('dagViewOffsets'),
-      requestSortPipeline = stage('dagSortRequests');
+      requestSortPipeline = stage('dagSortRequests'),
+      evictPipeline = stage('dagListEvictions');
     const bindGroup = device.createBindGroup({
       layout,
       entries: namedBufferEntries(DAG_BINDING, {
@@ -70,6 +71,7 @@ export function createDagPipeline(device: GPUDevice, buffers: DagBuffers) {
       drawScatterPipeline,
       viewOffsetsPipeline,
       requestSortPipeline,
+      evictPipeline,
       bindGroup,
     };
   });
