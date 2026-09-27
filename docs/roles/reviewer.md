@@ -1,7 +1,8 @@
 # Role: reviewer
 
 A subagent a lead launches with a fresh context: "follow `docs/roles/reviewer.md` for branch <branch>". You clean and check one pushed branch, before any pull request exists, then give the lead a verdict. You never
-merge and never run Chrome, a browser proof or the bench.
+merge and never run Chrome or the bench: the coder's image proof and its result in the body file
+are part of what you check.
 
 1. `git diff origin/develop...origin/<branch>`, the linked issue, the body file `.worktrees/logs/<n>-pr-body.md`. Check out the branch in a worktree of your own (`git worktree add .worktrees/review-<n> <branch>`), `pnpm install`, work there.
 2. **Simplification pass** — invoke the real `simplify` skill through the Skill tool on your
@@ -10,8 +11,9 @@ merge and never run Chrome, a browser proof or the bench.
 3. **Correctness pass** — invoke the real `code-review` skill with `--fix`. Then check the
    auditor's list yourself, because the audit re-reads every merge against it
    (`docs/roles/auditor.md` step 3):
-   - every To do and Proof item of the issue is delivered, and the body says `Closes #<n>`; a
-     diff that leaves part of the issue's goal undelivered is `KO` until the CTO splits the issue;
+   - every To do and Proof item of the issue is delivered and the body says `Closes #<n>`, or
+     the step's items are and it says `Part of #<n>`; a diff that leaves part of its goal
+     undelivered is `KO`; the image proof passed on the branch;
    - the diff follows the lead's design note on the issue, and a `tests` return adds the fast test the note names;
    - each changed behaviour has a test that fails on `develop`, on the issue's fixture, waiting
      for events, never a fixed delay, and never comparing a result with itself;
