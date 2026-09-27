@@ -2153,6 +2153,9 @@
     "controls": {
       "spin": "Drehen",
       "visible": "Sichtbar"
+    },
+    "words": {
+      "credit": "Straßenlaternenmodell von W. Sitters, CC BY 3.0 — siehe assets/examples/CREDITS.md"
     }
   }
 }

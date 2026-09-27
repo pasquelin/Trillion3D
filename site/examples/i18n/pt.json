@@ -2153,6 +2153,9 @@
     "controls": {
       "spin": "Girar",
       "visible": "Visível"
+    },
+    "words": {
+      "credit": "Modelo de poste de W. Sitters, CC BY 3.0 — veja assets/examples/CREDITS.md"
     }
   }
 }

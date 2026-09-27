@@ -2153,6 +2153,9 @@
     "controls": {
       "spin": "Вращать",
       "visible": "Видимость"
+    },
+    "words": {
+      "credit": "Модель фонаря: W. Sitters, CC BY 3.0 — см. assets/examples/CREDITS.md"
     }
   }
 }
