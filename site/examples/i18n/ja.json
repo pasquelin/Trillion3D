@@ -500,6 +500,10 @@
       "balloon": "気球を追跡中"
     }
   },
+  "a-crane-that-swings": {
+    "banner": "クレーンの周りを回りながら、1つのクリップがジブを旋回し、台車を動かし、荷を上げて揺らします。",
+    "controls": { "speed": "速さ", "paused": "一時停止", "replay": "再生し直す" }
+  },
   "a-wave-across-a-grid": {
     "banner": "ドラッグして見回そう。立方体の波を高く、速くしよう。",
     "controls": {
