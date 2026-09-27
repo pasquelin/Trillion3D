@@ -225,6 +225,7 @@
       "what-hides-what": "Ce qui cache quoi",
       "create-and-dispose": "Créer et libérer",
       "no-hitch-on-first-draw": "Pas d’à-coup au 1er rendu",
+      "inside-a-component": "Dans un composant",
       "inside-the-g-buffer": "Dans le G-buffer",
       "reading-pixels-back": "Relire les pixels",
       "a-city-from-3d-tiles": "Une ville en 3D Tiles",

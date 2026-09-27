@@ -2147,5 +2147,13 @@
     "words": {
       "credit": "この例のためにコードでモデリングしたポールの旗、CC0 — assets/examples/CREDITS.md を参照"
     }
+  },
+  "inside-a-component": {
+    "banner": "ビューアーを取り付けたり外したりします。各取り付けは1つのワールドを所有し、取り外すと破棄します。",
+    "controls": {
+      "mount": "取り付ける",
+      "unmount": "外す",
+      "remount": "取り付け直す"
+    }
   }
 }
