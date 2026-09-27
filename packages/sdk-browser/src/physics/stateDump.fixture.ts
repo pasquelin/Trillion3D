@@ -2,8 +2,8 @@ import { createHash } from 'node:crypto';
 import { CommandWriter, FLAG } from '../../../sdk-core/src/physics/index.ts';
 import { plane, sphere } from '../../../sdk-core/src/world/geometry/basic.ts';
 import type { JoltModule } from './joltModule.ts';
-import { body } from './module.fixture.ts';
-import { FLAT, id, ropeLine, softBodiesIn, writeSoftBody } from './soft.fixture.ts';
+import { id, ropeLine, softBodiesIn, writeSoftBody } from './soft.fixture.ts';
+import { FLAT, body } from './records.fixture.ts';
 
 /** Writes `geometry` as a soft body in slot `slot`, at `position` turned by `quaternion`. */
 const soft = (

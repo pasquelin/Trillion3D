@@ -12,10 +12,8 @@ import { softSettings } from '../../../sdk-core/src/physics/soft.ts';
 import { plane } from '../../../sdk-core/src/world/geometry/basic.ts';
 import { fromArrays } from '../../../sdk-core/src/world/geometry/builder.ts';
 import type { Geometry } from '../../../sdk-core/src/world/geometry/geometry.ts';
-import { body, startModule, type Module } from './module.fixture.ts';
-import { FLAT } from './records.fixture.ts';
-
-export { FLAT };
+import { startModule, type Module } from './module.fixture.ts';
+import { FLAT, body } from './records.fixture.ts';
 
 /** Generation 1 of an engine id. */
 const GENERATION = 1 << GENERATION_SHIFT;

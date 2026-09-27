@@ -61,8 +61,6 @@ export async function startThreaded(count: number, budget: Partial<PhysicsBudget
 /** A started test module. */
 export type Module = Awaited<ReturnType<typeof startModule>>;
 
-export { body } from './records.fixture.ts';
-
 /** The last step's events: `[type, a, b, impulse]` each. */
 export function events(jolt: Module) {
   const words = jolt.events(),
