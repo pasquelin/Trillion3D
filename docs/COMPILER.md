@@ -627,21 +627,16 @@ key, so a cache cooked by another Jolt is another key, never reused. The algorit
   (every edge meeting its reverse, positions welded) or bounds no volume, a hull Jolt refuses — is
   named in `report.bodiesRefused`; the compile goes on.
 - **Breakable bodies** (`pieces.rs`, `voronoi.rs`). A shapeless body whose node's `extras.physics`
-  declares `breakable` (its threshold, above 0, as `obj.physics` will take it) is also cut into
-  Voronoi pieces: up to 12 seeds, each a random mean of four corners of its mesh drawn by a
-  generator seeded from the node's index, so the same source cooks the same bytes. Each seed's
-  cell — the points nearer it than any other seed, inside the solid the mesh's face planes bound,
-  a plane some corner of the mesh lies beyond left out (a sliver's, tilted by 32-bit rounding) —
-  is a box clipped by its bisectors first, then by each face plane, so a plane meets a cell of a
-  twelfth of the solid (a sphere of 20 000 triangles cuts in about a second): a convex polytope
-  capped on each cut along the edges no touched face walks back, where a point on an edge is
-  computed from the edge's ends in one order so the faces sharing it meet exactly. Each piece gets Jolt's convex hull for contact
-  (`cook_hull`) and its exact mass, centre of mass and inertia (`mass.rs`) at the body's scale.
-  The cells of a convex mesh tile it: the pieces must weigh what the mesh weighs within 1e-5,
-  rounding their corners to 32 bits, or the body is refused — a mesh that is not convex, until
-  concave bodies are decomposed into volumes; so is a breakable body declaring an implicit shape,
-  or a threshold not above 0. The runtime carries the pieces unused: the body is still drawn and
-  collides as one.
+  declares `breakable` (a threshold above 0) is also cut into at most 12 Voronoi pieces around seeds
+  drawn inside its mesh by a generator seeded from the node's index: the same source cooks the same
+  bytes. Each seed's cell is a box clipped by its bisectors, then by the mesh's face planes (those
+  no corner lies beyond: a sliver's plane, tilted by 32-bit rounding, is left out), each cut capped
+  along the edges no touched face walks back; a point on an edge is computed from its ends in one
+  order, so the faces sharing it meet exactly and every piece is closed. Each piece gets Jolt's hull
+  (`cook_hull`) and its exact mass, centre and inertia (`mass.rs`) at the body's scale. The pieces
+  must weigh the mesh within 1e-5, or the body is refused: a mesh not convex, until concave bodies
+  are decomposed; so are a breakable body declaring a shape and a threshold not above 0. The runtime
+  carries the pieces unused: the body is drawn and collides as one.
 
 Primitives without a DAG (skinned, morphed, shared blend) cook no collider. A primitive whose shape Jolt
 still refuses (every triangle of zero area) cooks no collider either: `physics.json`'s
