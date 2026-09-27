@@ -34,9 +34,8 @@ export interface StreamPage {
   /** Fingerprint of its bytes. */
   sha256: string;
 }
-/** The pages a streamer reads beyond its catalogue: those a resource mounted into its session
- *  brings (#572), `admit`-ted before they are read and `forget`-ten, bytes and all, once none of
- *  its engines draws them. */
+/** The pages a resource mounted in the open session brings (#572): `admit`-ted before they are
+ *  read, `forget`-ten with their bytes once it is unmounted. */
 export type PageCatalogue = {
   admit(pages: readonly StreamPage[]): void;
   forget(urls: readonly string[]): void;

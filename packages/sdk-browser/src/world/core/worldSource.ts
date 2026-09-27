@@ -145,16 +145,16 @@ export function buildWorldSource(plan: WorldPlan) {
       nodes.set(batch, node);
       return { node, association, primitive: ranked.get(batch.cut)! };
     },
-    /** A batch the session no longer draws: its host mesh, and its primitive once no batch wears
-     *  its resource. */
+    /** A batch the session no longer draws: its host mesh, and its resource's primitive and
+     *  geometry once no other batch wears it. True when the resource left. */
     unmount(batch: Batch) {
-      const node = nodes.get(batch);
-      if (!node) return;
+      const node = nodes.get(batch)!;
       nodes.delete(batch);
-      mirror.unplace(node, batch.cut);
-      if ([...nodes.keys()].some((other) => other.cut === batch.cut)) return;
+      const worn = [...nodes.keys()].some((other) => other.cut === batch.cut);
+      mirror.unplace(node, worn ? undefined : batch.cut);
+      if (worn) return false;
       primitives.splice(primitives.indexOf(ranked.get(batch.cut)!), 1);
-      ranked.delete(batch.cut);
+      return ranked.delete(batch.cut);
     },
     source: {
       manifestUrl: first?.manifestUrl ?? base,
