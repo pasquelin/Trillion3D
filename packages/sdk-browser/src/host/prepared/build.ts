@@ -43,11 +43,17 @@ export async function buildPreparedScene(inputs: Inputs) {
   const { document, documentUrl, bufferUrl } = sceneDocument(tables, sceneFile, base);
   // The binary is read on the first need of a host vertex or an embedded image, once: most
   // sessions draw from the cache's pages and never read it. Read after the load has settled, it
-  // joins neither its progress nor its byte count.
+  // joins neither its progress nor its byte count. A failed read is not kept: the next need
+  // reads again.
   let reading: Promise<ArrayBuffer> | undefined;
   const binary = () =>
     (reading ??= bufferUrl
-      ? checked(bufferUrl, signal).then((response) => response.arrayBuffer())
+      ? checked(bufferUrl, signal)
+          .then((response) => response.arrayBuffer())
+          .catch((error: unknown) => {
+            reading = undefined;
+            throw error;
+          })
       : Promise.reject(
           new EngineError('PREPARED_SCENE_MISMATCH', 'the scene document names no binary'),
         ));
