@@ -2180,5 +2180,16 @@
     "words": {
       "credit": "इस उदाहरण के लिए कोड में बनाया गया खंभे पर झंडा, CC0 — देखें assets/examples/CREDITS.md"
     }
+  },
+  "a-dolly-along-the-canal": {
+    "banner": "कैमरा नहर के साथ चलते समय डॉली को रोकें, यात्रा फिर चलाएँ या गति बदलें।",
+    "controls": {
+      "paused": "रुका हुआ",
+      "replay": "फिर चलाएँ",
+      "speed": "गति"
+    },
+    "readouts": {
+      "progress": "प्रगति"
+    }
   }
 }
