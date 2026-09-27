@@ -17,16 +17,6 @@ fn holds(outer: [f64; 4], inner: [f64; 4]) -> bool {
     d + inner[3] <= outer[3]
 }
 
-/// A grid rolled onto a cylinder of radius 8: a smooth curved surface.
-fn cylinder(n: usize) -> (Vec<f32>, Vec<u32>) {
-    let (mut positions, indices) = grid(n);
-    for p in positions.chunks_exact_mut(3) {
-        let angle = p[0] / n as f32 * 3.0;
-        (p[0], p[2]) = (8.0 * angle.cos(), 8.0 * angle.sin() + p[2] * 0.1);
-    }
-    (positions, indices)
-}
-
 #[test]
 fn a_point_sphere_holds_every_vertex_and_is_never_larger_than_the_box_one() {
     let mut next = draws(0x51f1_5e11);

@@ -1,5 +1,5 @@
 /**
- * GPU cut of a cluster DAG (`errorModel: dag-group-qem-v2`).
+ * GPU cut of a cluster DAG (`errorModel: dag-group-qem-v3`).
  *
  * Every cluster carries its own screen-error band, so no cluster depends on another. One thread per
  * candidate cluster evaluates `parentErrorPx > pixelError >= lodErrorPx` with the same projection as
