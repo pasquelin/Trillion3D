@@ -1,4 +1,4 @@
-import type { DagReport } from './dag.ts';
+import type { DagReport, PrimitiveDagStall } from './dag.ts';
 import type { AssetScope } from './base.ts';
 import type { SceneProxyDescriptor } from './proxy.ts';
 import type {
@@ -167,6 +167,9 @@ export interface ClusterManifest {
   /** Nodes in all. */ totalNodes: number;
   /** Its built-in scene. */ autonomousScene?: string | null;
   /** Its primitives. */ primitives: Primitive[];
+  /** The compiler's stall table: at most ten primitives with a stalled group that kept level-0
+   *  roots, worst first. Absent from a cache compiled before it. */
+  worstStalls?: PrimitiveDagStall[];
   /** One entry per decoded (texture, atlas), sorted by texture then by atlas; empty without a
    *  decodable image. */
   texturePreviews?: TexturePreview[];
