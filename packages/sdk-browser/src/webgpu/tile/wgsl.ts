@@ -3,6 +3,7 @@ import type { AtlasBindings } from '../core/bindLayout.ts';
 import {
   MAX_LEVELS,
   POOL_LAYER_SIDE,
+  POOL_SUBTEXEL,
   TILE_BORDER,
   TILE_PITCH,
   TILE_SIZE,
@@ -64,6 +65,7 @@ const TEXEL_TILE:f32=${TILE_SIZE}.0;
 const TEXEL_PITCH:f32=${TILE_PITCH}.0;
 const TEXEL_BORDER:f32=${TILE_BORDER}.0;
 const POOL_SIDE:f32=${POOL_LAYER_SIDE}.0;
+const POOL_SUBTEXEL:f32=${POOL_SUBTEXEL}.0;
 const PAGE_HEADER:u32=${PAGE_HEADER_WORDS}u;
 const PAGE_SLOT:u32=${PAGE_SLOT_WORDS}u;
 const PAGE_LEVELS:u32=${MAX_LEVELS}u;
@@ -85,6 +87,10 @@ fn slotWrapped(s:TileSlot,uv:vec2f)->vec2f{
  if(!wrapRepete(s.wrap)){return wrapReplie(uv,s.wrap);}
  return wrapUv(uv,s.wrap,s.size).proche;
 }
+/** Pool coordinate of a texel at \`texel\` from a tile's \`origin\`, exact in f32 at every place
+ *  (\`POOL_LAYER_SIDE\`, \`../../texture/tiles.ts\`). */
+fn poolAxis(origin:f32,texel:f32)->f32{return (origin+round(texel*POOL_SUBTEXEL)/POOL_SUBTEXEL)/POOL_SIDE;}
+fn poolTap(origin:vec2f,texel:vec2f,layer:i32)->TileTap{return TileTap(vec2f(poolAxis(origin.x,texel.x),poolAxis(origin.y,texel.y)),layer);}
 fn tailOffset(rank:u32)->f32{return f32((${TILE_SIZE}u-(${TILE_SIZE}u>>rank)+3u)&~3u);}
 fn placeOrigin(word:u32)->vec2f{return vec2f(f32(word&0xffu),f32((word>>8u)&0xffu))*TEXEL_PITCH+TEXEL_BORDER;}
 fn placeLayer(word:u32)->i32{return i32((word>>16u)&0xffu);}
@@ -127,12 +133,12 @@ fn ${k}Place(s:TileSlot,uv:vec2f,level:u32,word:u32,nearest:bool)->TileTap{
   let res=max(level,s.tail);
   let rtexel=pickTexel(levelTexel(uv,levelSize(s.size,res)),nearest);
   let origin=placeOrigin(s.tailWord)+vec2f(tailOffset(res-s.tail),0.0);
-  return TileTap((origin+rtexel)/POOL_SIDE,placeLayer(s.tailWord));
+  return poolTap(origin,rtexel,placeLayer(s.tailWord));
  }
  let res=(word>>24u)&0x7fu;
  let rtexel=pickTexel(levelTexel(uv,levelSize(s.size,res)),nearest);
  let local=rtexel-floor(rtexel/TEXEL_TILE)*TEXEL_TILE;
- return TileTap((placeOrigin(word)+local)/POOL_SIDE,placeLayer(word));
+ return poolTap(placeOrigin(word),local,placeLayer(word));
 }
 fn ${k}Fetch(s:TileSlot,uv:vec2f,level:u32,finest:bool,nearest:bool)->vec4f{
  var word=0u;
