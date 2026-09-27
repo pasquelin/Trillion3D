@@ -2,7 +2,7 @@ import { LTC_UNIT, createLtcTexture } from './rectGlsl.ts';
 import { inReferenceOrder } from './lightOrder.ts';
 import { WebglClusterProbe } from './probe.ts';
 import { WebglClusterFog } from './fog.ts';
-import type { SceneFog } from '../../../../sdk-core/src/scene/core/fog.ts';
+import { sceneFogOf, type Fog } from '../../world/core/sceneFog.ts';
 import { isLightNode } from '../../host/graph/kinds.ts';
 import type { GraphLight, GraphRectLight } from '../../host/graph/light.ts';
 
@@ -24,7 +24,7 @@ export type WebglClusterScene = {
   /** Host background: a colour clears the transmission backdrop, anything else clears to black. */
   background?: SceneColour | object;
   /** The contract's fog, over every drawn surface; none when absent. */
-  fog?: SceneFog | null;
+  fog?: Fog | null;
 };
 
 const visibleThroughParents = (object: MatrixNode) => {
@@ -169,7 +169,7 @@ export class WebglClusterLights {
       write(base + 12, inner, outer, lamp!.decay ?? 2, 0);
     }
     this.probe.upload(view);
-    this.fog.upload(scene.fog, view);
+    this.fog.upload(sceneFogOf(scene.fog ?? null), view);
     const gl = this.gl;
     // The host's texture units are unknown at frame start: the lobe is bound again every frame.
     gl.activeTexture(gl.TEXTURE0 + LTC_UNIT);
