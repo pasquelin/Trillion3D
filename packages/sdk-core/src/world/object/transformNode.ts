@@ -10,6 +10,7 @@ import * as read from '../../math/transform-tree/read.ts';
 import { Matrix4 } from '../math/matrix4.ts';
 import { Quaternion } from '../math/quaternion.ts';
 import { Vector3 } from '../math/vector3.ts';
+import { noteObjectEdit } from './objectEdits.ts';
 
 // `matrix` and `matrixWorld` are views of the node's slot of the transform tree, whose flags answer
 // `matrixAutoUpdate` and `matrixWorldNeedsUpdate`; `updateMatrixWorld(force)` is the reference's
@@ -25,6 +26,28 @@ const inverse = new Matrix4(),
 
 /** A scene node read through the reference's matrices, kept in the engine's transform tree. */
 export class TransformNode extends SceneNode {
+  #name = '';
+  /** A name to find the node by. A change is counted (`objectEdits`). */
+  get name() {
+    return this.#name;
+  }
+  set name(value: string) {
+    if (value !== this.#name) noteObjectEdit();
+    this.#name = value;
+  }
+  /** Adds a child: counted, as every change of parent is (`objectEdits`). */
+  override add(child: SceneNode) {
+    noteObjectEdit();
+    return super.add(child);
+  }
+  /** Removes a child: counted. */ override remove(child: SceneNode) {
+    noteObjectEdit();
+    return super.remove(child);
+  }
+  /** Frees the node: counted, it leaves its parent. */ override destroy() {
+    noteObjectEdit();
+    super.destroy();
+  }
   private readonly local = this.owned(new Matrix4());
   private readonly world = this.owned(new Matrix4());
   /** The tree's view `matrix` last followed: a caller that re-pointed `elements` keeps its own. */
