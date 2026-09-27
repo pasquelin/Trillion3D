@@ -8,9 +8,11 @@ import {
   MISS,
   type PhysicsBudget,
 } from '../../../sdk-core/src/physics/index.ts';
+import { HUMAN_BODY } from '../../../sdk-core/src/collision/characterSettings.ts';
 import type { Ray } from '../../../sdk-core/src/world/math/volumes.ts';
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
 import type { createPhysicsBodies } from './bodies.ts';
+import { createCharacterDriver } from './characterDriver.ts';
 import { openJolt, startJolt } from './joltModule.ts';
 import { physicsRaycast, type PhysicsRaycastOptions } from './raycast.ts';
 import type { PhysicsSession } from './session.ts';
@@ -29,13 +31,16 @@ export async function startModule(
   const jolt = startJolt(opened, full, pool?.count ?? 1);
   /** A diagnostic count the module keeps since it started: the joints some work has visited. */
   const count = (name: string) => () => (opened.exports[name] as () => number)();
-  /** By the gear linking, the step's path carry and the step's breaking (`jolt_*_visits`). */
+  /** By the gear linking, the step's path carry, the step's breaking, and the bodies placed
+   *  against the view (`jolt_*_visits`). */
   const visits = {
     link: count('jolt_link_visits'),
     path: count('jolt_path_visits'),
     break: count('jolt_break_visits'),
+    place: count('jolt_place_visits'),
   };
-  return { ...jolt, visits };
+  /** The module's own exports and memory, for a test that writes its buffers itself. */
+  return { ...jolt, visits, raw: opened };
 }
 
 /** The threaded module stepped by `count` threads (Node workers); `close` stops them. */
@@ -102,4 +107,17 @@ export function moduleRaycast(jolt: Module, bodies: ReturnType<typeof createPhys
   };
   return (ray: Ray, options: PhysicsRaycastOptions) =>
     physicsRaycast(session as unknown as PhysicsSession, ray, options, 1000);
+}
+
+/** The human character made standing at `feet` in `jolt`, in the one step that adds the bodies
+ *  `words` writes: its driver, read once. */
+export function standCharacter(jolt: Module, words: Uint32Array, feet: number[]) {
+  const driver = createCharacterDriver();
+  const made = driver.configure({ ...HUMAN_BODY }, feet)!;
+  const all = new Uint32Array(words.length + made.length);
+  all.set(words);
+  all.set(made, words.length);
+  jolt.step(all, 0);
+  driver.read(jolt.character(), 0);
+  return driver;
 }

@@ -12,13 +12,10 @@ import type { CameraMotion, EngineCamera } from '../../camera/world.ts';
 import { aheadViewOf, copyAheadView, sameAheadView, type AheadView } from './aheadView.ts';
 
 const NONE = 0xffffffff,
-  UNIFORM_BYTES = 256,
   WORKGROUP = 64;
-/** Words per cluster of the shared cold record — cone, box, owning node, triangles.
- *  Public mirror of `COLD_WORDS` (`../dag/layout.ts`), which is its only source. */
+/** Words of the shared cold record (cone, box, owner, triangles): `COLD_WORDS`'s public mirror. */
 export const PAGE_CONE_FLOATS = 13,
   SELECTION_NONE = NONE,
-  SELECTION_UNIFORM_BYTES = UNIFORM_BYTES,
   SELECTION_WORKGROUP = WORKGROUP;
 
 /**
@@ -50,9 +47,10 @@ export type SelectionResult = {
   frustumRejected: number;
   lodLevel: number;
   drawablePageIds?: number[];
+  /** A resident cut's eviction queue (`../dag/evict.ts`): canonical pages, first evicted first. */
+  evictPageIds?: number[];
   /** Triangle totals HELD BY THE GPU, where the verdict is given: what the cut rule draws — one
-   *  counter, read as both `selected` and `drawn` — and its blend share. The only source of these
-   *  totals: the CPU sums none. */
+   *  counter, read as `selected` and `drawn` — and its blend share. The CPU sums none. */
   selectedTriangles: number;
   drawnTriangles: number;
   transparentTriangles: number;
@@ -81,18 +79,19 @@ export type GpuSelection = {
   /** Bytes of its host tables, sized by the resident pages: the CPU budget holds them. */
   readonly hostBytes: number;
   readonly worldRevision: number;
-  /** Advances `worldRevision` unless `posesMoved` is false: only the render origin moved. */
-  updateWorlds(worldMatrices: Float32Array, posesMoved?: boolean): boolean;
+  /** Advances `worldRevision` unless `posesMoved` is false: only the render origin moved.
+   *  `translationsOnly`: only translations changed since the last call, so no stretch did. */
+  updateWorlds(worlds: Float32Array, posesMoved?: boolean, translationsOnly?: boolean): boolean;
   /** Parks placement `world` — its root enters no descent queue — or takes it back. */
   parkWorld(world: number, parked: boolean): void;
   /** Writes placement `world`'s root mark (`ClusterRoot.mark`): whether a light cut opens it. */
   markWorld(world: number, mark: number): void;
   updateResidency(resident: Uint32Array, changes?: ResidencyChanges): boolean;
-  /**
-   * Encodes the selection. Given `shared`, the caller owns the command buffer — one image submits one
-   * buffer — and takes back the settlement it must call: `true` once that buffer is on the queue,
-   * `false` when the image abandons it. Nothing is read back before the settlement says submitted.
-   */
+  /** Each page the pool takes or gives back: the eviction queue lists what it holds. */
+  notePool(page: number, held: boolean): void;
+  /** Encodes the selection. Given `shared`, the caller owns the command buffer (one image, one
+   *  buffer) and calls the settlement it gets back: `true` once that buffer is on the queue, `false`
+   *  when the image abandons it. Nothing is read back before the settlement says submitted. */
   dispatch(
     uniforms: SelectionUniforms,
     shared?: GPUCommandEncoder,

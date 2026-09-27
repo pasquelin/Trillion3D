@@ -5,6 +5,7 @@ import type { WebglClusterScene } from './lights.ts';
 import type { SceneCopy } from './copyCulling.ts';
 import type { HostDrawCamera } from '../../camera/world.ts';
 import type { HostMaterials } from '../../host/resources.ts';
+import { readDegraded, type MaterialDegraded, type ReadDegraded } from './validation.ts';
 
 /**
  * The one draw owner of a session's paged clusters, diagnostic pages and scene copies. A draw
@@ -29,8 +30,11 @@ export class WebglClusterOwner {
     for (const { material } of meshes) this.display.textures.file(material);
     this.censused = true;
   }
-  constructor(context: WebGL2RenderingContext) {
+  /** Reads the surfaces drawn without a physical feature for `hear`, across context restores. */
+  private degraded: ReadDegraded | undefined;
+  constructor(context: WebGL2RenderingContext, hear?: MaterialDegraded) {
     this.context = context;
+    this.degraded = hear && readDegraded(hear);
     this.renderer = this.display = new WebglClusterRenderer(context);
     context.canvas.addEventListener('webglcontextrestored', this.restored);
   }
@@ -76,6 +80,7 @@ export class WebglClusterOwner {
       srgbDestination,
       diagnosticMeshes,
       copies,
+      this.degraded,
     );
   }
   private release() {

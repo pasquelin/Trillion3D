@@ -1,13 +1,10 @@
 import {
-  SCENE_ENVIRONMENT_FLOATS,
-  SCENE_LIGHT_BUFFER_FLOATS,
   createSceneLightStore,
   createShadowPlan,
   type SceneLightStore,
   type ShadowPlan,
 } from '../../../../../sdk-core/src/index.ts';
 import { MAX_SHADOW_REGIONS, type GpuShadowAtlas } from '../../../gpu/shadow/atlas.ts';
-import { ltcTable } from '../../../../../sdk-core/src/lighting/ltcTable.ts';
 import type { GpuShadowCull } from '../../../gpu/shadow/cull.ts';
 import type { GpuLightTiles } from '../../../lighting/tiles/tiles.ts';
 import { createShadowRuns, type ShadowRuns } from '../../shadow/runs.ts';
@@ -22,6 +19,7 @@ import { createShadowMobility, type ShadowMobility } from '../../shadow/mobility
 import type { ShadowStaticLayer } from '../../../gpu/shadow/staticLayer.ts';
 import type { ShadowPageHiz } from '../../../gpu/shadow/pageHiz.ts';
 import type { ShadowOcclusion } from '../../../gpu/shadow/occlusion.ts';
+import type { ShadowPageQuads } from '../../../gpu/shadow/pageQuads.ts';
 
 /**
  * Direct-lighting state of the contract: the light store (shared with the host), per-tile lists, the
@@ -54,6 +52,8 @@ export interface WebgpuLightState {
   sceneBox: ReturnType<typeof createShadowSceneBox>;
   /** Per-page cull and the world spheres it reads; absent while the pool does not exist. */
   cull: GpuShadowCull | undefined;
+  /** Each pass's clears and restores, two instanced draws; made with the atlas. */
+  pageQuads: ShadowPageQuads | undefined;
   spheres: { buffer: GPUBuffer; packed: Float32Array<ArrayBuffer>; rows: number } | undefined;
   /** Bind groups of shadow faces, and the resources they were built on. */
   shadowGroups: Array<GPUBindGroup | undefined>;
@@ -91,8 +91,12 @@ export interface WebgpuLightState {
   /** Pages drawn since the state was created, every frame and drain together. */
   shadowPagesTotal: number;
   shadowDraws: number;
-  /** Draw calls actually encoded by the shadow pass: a clear to far and an indirect draw per page. */
+  /** Draw calls actually encoded by the shadow pass: per render pass its clears and restores, then
+   *  an indirect draw per region. */
   shadowDrawCalls: number;
+  /** Render passes the shadow pass opened: static layer, pool and transmittance, one per layer
+   *  drawn, per batch. */
+  shadowRenderPasses: number;
   /** Why the shadow atlas does not exist, when it does not. */
   shadowReason: string | null;
   /** Configuration of the first image lit by the contract is logged only once. */
@@ -120,6 +124,7 @@ export function createWebgpuLightState(
     pageHiz: undefined,
     occlusion: undefined,
     cull: undefined,
+    pageQuads: undefined,
     spheres: undefined,
     shadowGroups: new Array(2 * MAX_SHADOW_REGIONS).fill(undefined),
     shadowGroupsKey: [],
@@ -141,35 +146,10 @@ export function createWebgpuLightState(
     shadowPagesTotal: 0,
     shadowDraws: 0,
     shadowDrawCalls: 0,
+    shadowRenderPasses: 0,
     shadowReason: null,
     firstFrameLogged: false,
   };
-}
-
-/** Contract light buffer, fixed size — every light slot, the environment's irradiance, then the
- *  fitted lobe of the rectangles, written here once: never reallocated, never indexed beyond. */
-export function createSceneLightContractBuffer(device: GPUDevice) {
-  const table = ltcTable(),
-    fixed = (SCENE_LIGHT_BUFFER_FLOATS + SCENE_ENVIRONMENT_FLOATS) * 4;
-  const buffer = device.createBuffer({
-    label: 'Trillion3D direct lights v1',
-    size: fixed + table.byteLength,
-    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-  });
-  device.queue.writeBuffer(buffer, fixed, table);
-  return buffer;
-}
-
-/** Pushes the store to the GPU if and only if its revision has changed since the last image. */
-export function uploadSceneLights(device: GPUDevice, lights: WebgpuLightState) {
-  const { store, buffer } = lights;
-  if (!buffer) return false;
-  if (lights.uploadedEpoch === store.epoch) return false;
-  lights.uploadedEpoch = store.epoch;
-  device.queue.writeBuffer(buffer, 0, store.packed);
-  // The environment's irradiance sits behind the last light slot (`DirectLights.environment`).
-  device.queue.writeBuffer(buffer, SCENE_LIGHT_BUFFER_FLOATS * 4, store.environmentPacked);
-  return true;
 }
 
 /** Closes the frame's shadow work: what its batches drew joins the cumulative total a host reads

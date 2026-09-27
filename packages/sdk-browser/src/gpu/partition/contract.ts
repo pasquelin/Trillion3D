@@ -41,8 +41,8 @@ export const FLAG_CLIP = 1,
 
 /**
  * Words per tested box: the rectangle already clipped to the viewport and expressed in texels of
- * the mip that covers it, the depth bound, the verdict row, the mip address, and the triangles
- * whose count weighs a reject.
+ * the mip that covers it, the depth bound, the verdict row, the mip address, the triangles
+ * whose count weighs a reject, and the address and shift of the coarse mip the test reads first.
  */
 export const TESTED_U32 = 12;
 
@@ -66,7 +66,7 @@ export const ST_TESTED = 0,
 
 /** Verdict of a row, one word per Hi-Z slot: the occluder half, the tested half the pyramid
  *  rejects, the tested half it keeps. The partition sets occluder and kept, the test brings some
- *  kept back to rejected; everything that draws — vertex stage, tested-half truncation, compute
+ *  kept back to rejected; everything that draws — vertex stage, tested-half compaction, compute
  *  raster — reads this word, and a reader that would read two values loses clusters. */
 export const VERDICT_OCCLUDER = 0,
   VERDICT_REJECTED = 1,

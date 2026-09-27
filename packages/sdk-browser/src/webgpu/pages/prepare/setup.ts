@@ -73,6 +73,8 @@ export function createWebgpuPagesSetup(context: BackendContext, diag: WebgpuDiag
         rec.placement,
       );
       copy.userData.pagedBlend = true;
+      // The compiler writes a geometry page for every cluster of a primitive, or for none.
+      copy.userData.pageGeometry = !!rec.geometryPage;
       pagedBlendCopies.set(rec.matrix, copy);
       blendCopies.push(copy);
     }

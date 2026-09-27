@@ -52,21 +52,18 @@ export async function prepareExplorerBackends(session: ExplorerSession, inputs: 
   let importedLightIds: string[] = [];
   if (options.importedLights !== false) {
     const imported = await loadImportedLights(base, signal);
-    const { declared, dropped } = declareImportedLights(sceneLights, imported.lights);
-    importedLightIds = declared;
-    if (declared.length || dropped || Object.keys(imported.rejected).length)
+    importedLightIds = declareImportedLights(sceneLights, imported.lights);
+    if (importedLightIds.length || Object.keys(imported.rejected).length)
       diagnose('imported-lights', 'Lights declared by the source file', {
         kind: 'preparation',
-        declared: declared.length,
-        dropped,
+        declared: importedLightIds.length,
         rejected: imported.rejected,
-        maxLights: sceneLights.settings.maxLights,
         scope,
       });
   }
   // What the compiler named without being able to fix it — a DAG that is not mounted — is
   // said at open, before the engine is chosen: it is a fact of the cache, not of an engine.
-  const dagWarnings = dagWarningsDiagnostic(metadata.primitives);
+  const dagWarnings = dagWarningsDiagnostic(metadata);
   if (dagWarnings)
     diagnose(dagWarnings.phase, dagWarnings.message, {
       kind: 'preparation',
@@ -77,7 +74,9 @@ export async function prepareExplorerBackends(session: ExplorerSession, inputs: 
     metadata,
     indices,
     readPage: (url) => streamer.read(url),
-    readGeometryPage: (url) => streamer.readBytes(url),
+    readGeometryPage: streamer.readBytes,
+    pageCatalogue: streamer,
+    pageRoundTripMs: streamer.roundTripMs,
     associations: associations,
     textureIndices,
     signal,
@@ -115,6 +114,8 @@ export async function prepareExplorerBackends(session: ExplorerSession, inputs: 
     sceneLighting: sceneLightingSource,
     guides: options.guides,
     particles: options.particles,
+    particlesRefused: options.particlesRefused,
+    materialDegraded: options.materialDegraded,
     // Bounced light stays off unless asked: its step holds 1.1 to 1.3 ms on Emerald, above 1 ms.
     bounce: options.bounce,
     bounceBudgetMs: options.bounceBudgetMs,

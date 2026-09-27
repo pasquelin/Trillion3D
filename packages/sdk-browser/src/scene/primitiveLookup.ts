@@ -20,3 +20,12 @@ export function primitiveFinder(primitives: readonly Primitive[]) {
     return byMesh.get(mesh)?.get(primitive);
   };
 }
+
+/** The name a page gives the primitive a mesh draws, `mesh/primitive` as in a cluster id; none
+ *  for a NaN key, as the finder finds none. */
+export function primitiveName(association: { meshes?: number; primitives?: number } | undefined) {
+  const mesh = association?.meshes,
+    primitive = association?.primitives ?? 0;
+  if (mesh === undefined || Number.isNaN(mesh) || Number.isNaN(primitive)) return undefined;
+  return `${mesh}/${primitive}`;
+}

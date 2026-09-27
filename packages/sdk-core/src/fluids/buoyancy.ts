@@ -1,13 +1,12 @@
 /**
- * The water planes of one physics step. The module lists the pieces of the bodies that reach the
- * water (`jolt_water_query`: `WATER_PIECE_WORDS` each); here each piece gets the wave model's
- * exact height at its centre and the slope of four surface points around it, and the step's
- * BUOYANCY command carries every plane to the module, which pushes the bodies in one batched call.
+ * The water of one physics step. The module lists the pieces of the bodies that reach the water
+ * (`jolt_water_query`) and gives each the wave model's exact height at its centre and the slope
+ * of four surface points around it (`jolt_water_planes`); the step's BUOYANCY command carries the
+ * water and every plane back to it, which pushes the bodies in one batched call.
  * A body floats on its own when its density is below the water's: the push is the water's weight
  * displaced, and Jolt measures the displaced volume exactly.
  */
-import { BUOYANCY_WORDS, OP, PLANE_WORDS, WATER_PIECE_WORDS } from '../physics/layout.ts';
-import { wavePatch, waveRest } from './surface.ts';
+import { BUOYANCY_WORDS, OP, PLANE_WORDS } from '../physics/layout.ts';
 import { Waves, type WaveSpec } from './waves.ts';
 
 /** Fresh water, kg/m³. */
@@ -82,14 +81,13 @@ export function sliceLength(water: Pick<Water, 'waves'>) {
 }
 
 /**
- * The words of a step: its BUOYANCY command, then the page's commands. Its buffer grows to the
- * largest step and is then reused: a steady step allocates nothing.
+ * The words of a step: its BUOYANCY command, the planes the module gave the pieces
+ * (`waterPlanes.cpp`), then the page's commands. Its buffer grows to the largest step and is then
+ * reused: a steady step allocates nothing.
  */
 export class StepWords {
   words = new Uint32Array(1024);
   private floats = new Float32Array(this.words.buffer);
-  private readonly point = new Float64Array(3);
-  private readonly corners = new Float64Array(12);
 
   private reserve(count: number) {
     if (count <= this.words.length) return;
@@ -97,54 +95,20 @@ export class StepWords {
     this.floats = new Float32Array(this.words.buffer);
   }
 
-  /** Writes the planes of `count` pieces (`read`, the module's list) at the waves' current
-   *  time, then `queued`; returns the word count. */
-  write(water: Water, read: Float32Array, count: number, queued: Uint32Array | null) {
-    this.reserve(BUOYANCY_WORDS + count * PLANE_WORDS + (queued?.length ?? 0));
+  /** Writes the BUOYANCY command of `water` over `planes` (`PLANE_WORDS` each), then `queued`;
+   *  returns the word count. */
+  write(water: Water, planes: Uint32Array, queued: Uint32Array | null) {
+    this.reserve(BUOYANCY_WORDS + planes.length + (queued?.length ?? 0));
     const w = this.words,
-      f = this.floats,
-      ids = new Uint32Array(read.buffer, read.byteOffset, read.length);
+      f = this.floats;
     w[0] = OP.buoyancy;
-    w[1] = count;
+    w[1] = planes.length / PLANE_WORDS;
     f[2] = water.density;
     f[3] = water.linearDrag;
     f[4] = water.angularDrag;
     f.set(water.current, 5);
-    for (let i = 0; i < count; i++) {
-      const from = i * WATER_PIECE_WORDS,
-        to = BUOYANCY_WORDS + i * PLANE_WORDS;
-      const x = read[from + 2],
-        z = read[from + 3],
-        hx = Math.max(read[from + 4], water.sample),
-        hz = Math.max(read[from + 5], water.sample);
-      // The exact height at the centre; the slope from the surface points the rest square
-      // around the centre's rest point is carried to (their two diagonals' cross product).
-      const waves = water.waves,
-        p = this.point,
-        corner = this.corners;
-      waveRest(waves, x, z, p);
-      const y = wavePatch(waves, p[0], p[2], hx, hz, corner);
-      // (P₂ − P₁) × (P₃ − P₀): upwards for the square (−,−), (+,−), (−,+), (+,+).
-      const ax = corner[6] - corner[3],
-        ay = corner[7] - corner[4],
-        az = corner[8] - corner[5],
-        bx = corner[9] - corner[0],
-        by = corner[10] - corner[1],
-        bz = corner[11] - corner[2];
-      const nx = ay * bz - az * by,
-        ny = az * bx - ax * bz,
-        nz = ax * by - ay * bx,
-        length = Math.hypot(nx, ny, nz);
-      w[to] = ids[from];
-      w[to + 1] = ids[from + 1];
-      f[to + 2] = x;
-      f[to + 3] = water.level + y;
-      f[to + 4] = z;
-      f[to + 5] = nx / length;
-      f[to + 6] = ny / length;
-      f[to + 7] = nz / length;
-    }
-    let length = BUOYANCY_WORDS + count * PLANE_WORDS;
+    w.set(planes, BUOYANCY_WORDS);
+    let length = BUOYANCY_WORDS + planes.length;
     if (queued) w.set(queued, (length += queued.length) - queued.length);
     return length;
   }

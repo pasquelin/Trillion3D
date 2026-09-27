@@ -68,6 +68,8 @@ function encodeOnce(
     drawPrefixPipeline,
     drawScatterPipeline,
     viewOffsetsPipeline,
+    requestSortPipeline,
+    evictPipeline,
     light,
   } = resources;
   // Every view's work items share each dispatch: a level's bound is its stage's nodes per view,
@@ -138,10 +140,21 @@ function encodeOnce(
   runLive(maskPipeline);
   // The drawable-page list is compacted here, in increasing order: the snapshot no longer
   // reports one flag per page but the count alone and its ranks.
-  if (residentCut && !light) {
-    live.setPipeline(drawPrefixPipeline);
+  // Then the camera's requests, staged by `dagWanted`, go into the snapshot sorted by rank: one
+  // workgroup, in the same pass (`shader/snapshotWgsl.ts`). A light cut sorts its own on the host.
+  // Last, once every page this cut uses is stamped, the eviction queue (`shader/evictWgsl.ts`).
+  if (!light) {
+    if (residentCut) {
+      live.setPipeline(drawPrefixPipeline);
+      live.dispatchWorkgroups(1);
+      runLive(drawScatterPipeline);
+    }
+    live.setPipeline(requestSortPipeline);
     live.dispatchWorkgroups(1);
-    runLive(drawScatterPipeline);
+    if (residentCut) {
+      live.setPipeline(evictPipeline);
+      live.dispatchWorkgroups(1);
+    }
   }
   live.end();
 }

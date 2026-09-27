@@ -1,4 +1,4 @@
-import type { GraphScene } from '../../host/graph/scene.ts';
+import type { Scene } from '../../world/core/scene.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as G from '../../host/graph/graph.fixture.ts';
@@ -40,7 +40,7 @@ test('an instance changed or removed leaves the model and the other instances as
       [rowed, {} as HostMaterial],
     ]);
   const geometryStore = createAutonomousGeometry({
-    scene: { add: () => {}, remove: () => {} } as unknown as GraphScene,
+    scene: { add: () => {}, remove: () => {} } as unknown as Scene,
     allPages,
     bootstrap: [],
     shown: [],
@@ -65,9 +65,10 @@ test('an instance changed or removed leaves the model and the other instances as
     baseMaterials,
     geometryStore,
     hostCeiling: 10,
-    coverMeshes: () => 0,
+    overCeiling: () => false,
     sceneChanged: () => {},
     coverChanged: () => {},
+    blendOf: () => false,
   });
   const before = state.allocationBytes;
   instances.addInstance('a', new G.Matrix4().elements.slice());
@@ -122,9 +123,10 @@ test('an instance of a world with 300,000 roots and bootstrap pages is added who
     baseMaterials: new Map(),
     geometryStore: {} as Parameters<typeof createAutonomousInstances>[0]['geometryStore'],
     hostCeiling: Infinity,
-    coverMeshes: () => 0,
+    overCeiling: () => false,
     sceneChanged: () => {},
     coverChanged: () => {},
+    blendOf: () => false,
   });
   instances.addInstance('a', new G.Matrix4().elements.slice());
   assert.equal(roots.length, count);

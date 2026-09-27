@@ -2,29 +2,47 @@ import { createShadowPlan } from '../../../../sdk-core/src/index.ts';
 import {
   SHADOW_PAGE,
   shadowPoolSide,
+  shadowPoolSize,
+  shadowPoolShape,
 } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
-import { anyCastsShadow } from '../../../../sdk-core/src/scene/light-shadow/casters.ts';
+import { shadowCasterLights } from '../../../../sdk-core/src/scene/light-shadow/casters.ts';
 import { shadowAtlasBytes } from '../../gpu/shadow/atlas.ts';
 import { grantedShadowPool } from '../residency/poolGrants.ts';
 import { startGrant } from '../../gpu/core/errorScope.ts';
 import type { PoolClamp } from '../../residency/pools.ts';
 import { createShadowRegionList } from './regions.ts';
+import { createShadowPageRequests } from './pageRequests.ts';
+import { SHADOW_ATLAS_BYTES } from '../../residency/memoryBudget.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
+import type { WebgpuLightState } from '../pages/state/lights.ts';
 
 /** The smallest shadow pool: the side a one-pixel screen asks (`shadowPoolSide`). */
 const FLOOR_SIDE = shadowPoolSide(1, 1);
 
-/** The shadow pool `budgetBytes` holds for a screen that asks `wanted` pages a side: the largest
- *  side that fits, never above `wanted`, never below the floor. */
-export const shadowPoolFor = (wanted: number) => (budgetBytes: number) => {
-  const fits = Math.floor(Math.sqrt(budgetBytes / 4) / SHADOW_PAGE);
-  const side = Math.max(Math.min(FLOOR_SIDE, wanted), Math.min(wanted, fits));
-  const clamp: PoolClamp = side <= FLOOR_SIDE ? 'minimum' : side < wanted ? 'device-limit' : null;
-  return { budgetBytes, side, allocatedBytes: shadowAtlasBytes(side), clamp };
+/** The shadow pool `budgetBytes` holds for a screen that asks `wanted` pages: the fewest layers
+ *  that hold what fits, of the largest side that fits, never below the floor. Short of `wanted`
+ *  at the memory budget's atlas bytes (`SHADOW_ATLAS_BYTES`), the budget holds it, not the device. */
+export const shadowPoolFor = (wanted: number, layerSide?: number) => (budgetBytes: number) => {
+  const pages = Math.min(wanted, Math.floor(budgetBytes / shadowAtlasBytes(1)));
+  const { side: full, layers } = shadowPoolShape(pages, layerSide),
+    fits = Math.floor(Math.sqrt(budgetBytes / shadowAtlasBytes(1, layers)));
+  const floor = Math.min(FLOOR_SIDE, shadowPoolShape(wanted, layerSide).side),
+    side = Math.max(floor, Math.min(full, fits));
+  const held = budgetBytes >= SHADOW_ATLAS_BYTES ? 'ceiling' : 'device-limit';
+  const clamp: PoolClamp =
+    side <= FLOOR_SIDE ? 'minimum' : side * side * layers < wanted ? held : null;
+  return { budgetBytes, side, layers, allocatedBytes: shadowAtlasBytes(side, layers), clamp };
 };
 
+/** GPU bytes the shadow pool holds: its buffers and depth pages, their transmittance and static
+ *  layers once made, and its request buffer. */
+export const shadowPoolHeld = ({ shadows, staticLayer, pageRequests }: WebgpuLightState) =>
+  (shadows?.allocationBytes ?? 0) + (staticLayer?.bytes ?? 0) + (pageRequests?.bytes ?? 0);
+
 /**
- * Sizes the shadow pool once, from the screen the first frame draws (`shadowPoolSide`): a world
+ * Sizes the shadow pool once, from the screen the first frame draws and the lights that cast a
+ * shadow then, each counted over the whole screen (`shadowPoolSize`), granted at most the memory
+ * budget's atlas bytes (`SHADOW_ATLAS_BYTES`): a world
  * may prepare on a canvas that is not laid out yet — the HTML default of 300 × 150, or the
  * session's default size — and only takes its real drawing buffer at its first frame. Until then
  * no shadow page exists, so the plan and the region list built at creation are replaced whole
@@ -46,15 +64,21 @@ export function sizeShadowPool(rt: WebgpuPagesRuntime) {
     atlas = lights.shadows,
     device = rt.gpu.device;
   if (!atlas || !device || atlas.texture || lights.shadowGrant) return;
-  if (capture.capturing || !anyCastsShadow(lights.store)) return;
+  const casters = capture.capturing ? 0 : shadowCasterLights(lights.store);
+  if (!casters) return;
   const viewport = [...rt.setup.viewport],
-    wanted = shadowPoolSide(viewport[0], viewport[1]);
+    wanted = shadowPoolSize(viewport[0], viewport[1], casters),
+    // One layer as wide as the device draws: a pool that fits it is one pass a batch, as before.
+    layerSide = Math.floor(device.limits.maxTextureDimension2D / SHADOW_PAGE),
+    rule = shadowPoolFor(wanted, layerSide),
+    asked = rule(SHADOW_ATLAS_BYTES).allocatedBytes;
+  // Granted from the budget itself: a pool it holds short of `wanted` stays named `ceiling`.
   const granting = grantedShadowPool(
     device,
-    shadowAtlasBytes(wanted),
-    shadowPoolFor(wanted),
+    SHADOW_ATLAS_BYTES,
+    rule,
     diag.engineDiagnostic,
-    (pool) => atlas.makePool(pool.side),
+    (pool) => atlas.makePool(pool.side, pool.layers),
   );
   const done = granting.then(
     (granted) => {
@@ -66,26 +90,28 @@ export function sizeShadowPool(rt: WebgpuPagesRuntime) {
         diag.engineDiagnostic('shadows-off', 'The device refused the smallest shadow pool', {
           kind: 'error',
           reason: 'gpu-out-of-memory',
-          requestedBytes: shadowAtlasBytes(wanted),
+          requestedBytes: asked,
         });
         return;
       }
       // A session closed, or a device lost, while the device answered keeps nothing.
       if (run.lost || rt.signal.aborted || lights.shadows !== atlas) return granted.made.destroy();
-      const { side, clamp } = granted.pool;
-      if (side !== lights.plan.pool.side) {
+      const { side, layers, clamp, allocatedBytes } = granted.pool;
+      if (side !== lights.plan.pool.side || layers !== lights.plan.pool.layers) {
         const before = lights.plan;
-        lights.plan = createShadowPlan(side);
+        lights.plan = createShadowPlan(side, layers);
         lights.plan.setPageInvalidation(before.pageInvalidation);
         lights.regions = createShadowRegionList(side);
       }
-      atlas.sizePool(side, granted.made);
+      atlas.sizePool(side, layers, granted.made);
+      lights.pageRequests = createShadowPageRequests(device, lights.plan.pool.pages);
       diag.engineDiagnostic('shadow-pool', 'Shadow pool sized from the first frame', {
         version: 1,
         viewport,
         side,
-        pages: side * side,
-        bytes: shadowAtlasBytes(side),
+        layers,
+        pages: lights.plan.pool.pages,
+        bytes: allocatedBytes,
         clamp,
       });
       run.gate.resourcesChanged();

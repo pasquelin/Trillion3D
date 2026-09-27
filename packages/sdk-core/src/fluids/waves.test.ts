@@ -2,10 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { StepWords, createWater, sliceLength } from './buoyancy.ts';
 import { OCEAN } from './waves.fixture.ts';
-import { waveHeight, waveRest } from './surface.ts';
+import { waveHeight } from './surface.ts';
 import { Waves } from './waves.ts';
 import { WaterSurface } from './waterSurface.ts';
-import { BUOYANCY_WORDS, OP } from '../physics/layout.ts';
+import { BUOYANCY_WORDS, OP, PLANE_WORDS } from '../physics/layout.ts';
 
 test('steepness is normalised so that Σ Qᵢ·Aᵢ·kᵢ stays at most 1', () => {
   assert.ok(Math.abs(new Waves(OCEAN).steepness - 1) < 1e-12, 'eight waves at 0.9 scaled to 1');
@@ -31,38 +31,22 @@ test('the height under a displaced point is that point’s height, at the steepe
   }
 });
 
-test('the step words carry one plane per piece, fitted to the waves, then the page’s commands', () => {
-  const water = createWater({ waves: OCEAN.slice(0, 2), level: 3 });
-  const piece = new Uint32Array([7, 1 << 16, 0, 0, 0, 0]);
-  const f = new Float32Array(piece.buffer);
-  f.set([10, -4, 0.5, 0.5], 2);
+test('the step words carry the water, the planes the module gave, then the page’s commands', () => {
+  const water = createWater({ waves: OCEAN.slice(0, 2), level: 3, density: 800 });
+  const planes = new Uint32Array(2 * PLANE_WORDS).map((_, i) => i + 1);
   const words = new StepWords();
-  const length = words.write(water, f, 1, new Uint32Array([OP.wake, 7]));
-  const out = new Float32Array(words.words.buffer);
-  assert.deepEqual(
-    [words.words[0], words.words[1], words.words[BUOYANCY_WORDS]],
-    [OP.buoyancy, 1, 7],
-  );
-  assert.ok(Math.abs(out[BUOYANCY_WORDS + 3] - 3 - waveHeight(water.waves, 10, -4)) < 1e-5);
-  // Over a 1 m square of 60 m and 31 m waves, the fitted plane is near the tangent plane.
-  const rest = waveRest(water.waves, 10, -4, [0, 0, 0]);
-  const normal = water.waves.normal(rest[0], rest[2], [0, 0, 0]);
-  normal.forEach((v, i) => assert.ok(Math.abs(v - out[BUOYANCY_WORDS + 5 + i]) < 0.02));
-  assert.deepEqual(Array.from(words.words.subarray(length - 2, length)), [OP.wake, 7]);
+  const length = words.write(water, planes, new Uint32Array([OP.wake, 7]));
+  assert.deepEqual([words.words[0], words.words[1]], [OP.buoyancy, 2]);
+  assert.equal(new Float32Array(words.words.buffer)[2], 800);
+  assert.deepEqual([...words.words.subarray(BUOYANCY_WORDS, length - 2)], [...planes]);
+  assert.deepEqual([...words.words.subarray(length - 2, length)], [OP.wake, 7]);
+  assert.equal(words.write(water, new Uint32Array(0), null), BUOYANCY_WORDS, 'no piece in water');
 });
 
-test('a thin piece is sampled over a square a slice fraction wide: its plane stays finite', () => {
+test('a thin piece is sampled over a square a slice fraction wide', () => {
   const water = createWater({ waves: OCEAN, level: 0 });
   assert.equal(water.sample, sliceLength(water) / 25);
   assert.equal(createWater({ waves: [], level: 0 }).sample, 1, 'level water: any square');
-  const piece = new Float32Array([0, 0, 5, 5, 0, 0]);
-  const words = new StepWords();
-  words.write(water, piece, 1, null);
-  const normal = new Float32Array(words.words.buffer).subarray(
-    BUOYANCY_WORDS + 5,
-    BUOYANCY_WORDS + 8,
-  );
-  assert.ok(normal.every(Number.isFinite) && normal[1] > 0.5, `normal ${normal}`);
 });
 
 test('the drawn surface is the waves buoyancy reads: its points lie at its heights', () => {

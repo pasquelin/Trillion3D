@@ -29,19 +29,18 @@ type Binding = {
   matrices: Matrix3UniformCache;
   textures: WebglClusterTextures;
   state: WebglClusterState;
-  /** The effect chain's linear program (`CLUSTER_LINEAR_FRAGMENT`), which reads `covering`. */
+  /** Draws into the effect chain's linear program: a transparent `none` surface also covers. */
   linear?: boolean;
 };
 
 /**
- * Whether a surface drawn into the effect chain's linear target, whose alpha is coverage
- * (`../../effects/webglOutput.ts`), covers its pixel whatever its alpha: an opaque one, and a
- * transparent one that replaces what is behind it (`none`), as the display path shows it. A mode
- * the target cannot hold (`refusesLinear`) never reaches here: the composer draws such a frame
- * without the chain (`linearRefusal`); a caller that skipped that read is refused by name.
+ * Whether a transparent surface drawn into the effect chain's linear target, whose alpha is
+ * coverage (`../../effects/webglOutput.ts`), covers its pixel whatever its alpha: one that
+ * replaces what is behind it (`none`), as the display path shows it. A mode the target
+ * cannot hold (`refusesLinear`) never reaches here: the composer draws such a frame without the
+ * chain (`linearRefusal`); a caller that skipped that read is refused by name.
  */
 function coversLinear(material: Material) {
-  if (!material.transparent) return true;
   const mode = drawnModeOf(material);
   if (refusesLinear(mode)) refuseCluster(`the WebGL2 effect chain cannot draw ${mode} blending`);
   return mode === 'none';
@@ -88,7 +87,8 @@ export function bindClusterMaterial(
   uniforms.i1(15, 'hasVertexColor', material.vertexColors ? 1 : 0);
   // A debug view, a normal or depth surface, is output untouched (`shownAsIs`).
   uniforms.i1(16, 'toneMapped', toneMapped && material.toneMapped && !shownAsIs(mat.model) ? 1 : 0);
-  if (linear) uniforms.i1(47, 'covering', coversLinear(material) ? 1 : 0);
+  // An opaque surface writes alpha 1 whatever it was cut at; into the chain, alpha is coverage.
+  uniforms.i1(47, 'covering', !material.transparent || (linear && coversLinear(material)) ? 1 : 0);
   const sharedMetalRough =
     !!mat.roughnessMap &&
     mat.roughnessMap === mat.metalnessMap &&

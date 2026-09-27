@@ -1,57 +1,18 @@
-import {
-  ADD_WORDS,
-  DAMPING,
-  JOINT_WORDS,
-  OP,
-  PART_WORDS,
-  VIEW_WORDS,
-  type SHAPE,
-} from './layout.ts';
+import { ADD_WORDS, DAMPING, JOINT_WORDS, OP, PART_WORDS, VIEW_WORDS } from './layout.ts';
+import type { BodyRecord } from './bodyRecord.ts';
 import type { JointRecord } from './jointRecord.ts';
-
-/** One primitive part of a compound body, placed in the body's frame (`PART_WORDS`). */
-export interface CompoundPart {
-  shape: (typeof SHAPE)['box' | 'sphere' | 'capsule' | 'cylinder'];
-  size: readonly [number, number, number];
-  position: ArrayLike<number>;
-  quaternion: ArrayLike<number>;
-}
-
-/** One body as the ADD command carries it (`layout.ts`). */
-export interface BodyRecord {
-  /** The body's engine id: its slot and the slot's generation (`BODY_INDEX`). */
-  id: number;
-  motion: number;
-  layer: number;
-  shape: (typeof SHAPE)[keyof typeof SHAPE];
-  flags: number;
-  position: ArrayLike<number>;
-  quaternion: ArrayLike<number>;
-  /** Primitive sizes, a cooked shape's scale; unused for triangles and hulls. */
-  size: readonly [number, number, number];
-  /** Kilograms; 0 takes `density × volume`. */ mass: number;
-  density: number;
-  friction: number;
-  restitution: number;
-  gravityScale: number;
-  /** Speed lost per second, linear then angular; left out, `DAMPING`. */
-  damping?: readonly [number, number];
-  vertices?: ArrayLike<number>;
-  indices?: ArrayLike<number>;
-  /** A compound's parts (shape `SHAPE.compound`). */
-  parts?: readonly CompoundPart[];
-  /** A primitive's or a cooked shape's mass frame, 3 or 12 floats (`ADD_WORDS`). */
-  massFrame?: readonly number[];
-}
+import { SpareBuffers } from './spareBuffers.ts';
 
 /**
  * A growable command buffer: the page writes a frame's commands, then hands the words over in one
- * message; the worker copies them into the module's memory before one step. Nothing allocates per
- * command once the buffer has grown to the frame's size.
+ * message; the worker copies them into the module's memory before one step and hands the buffer
+ * back (`recycle`). Nothing allocates per command once the buffer has grown to the frame's size,
+ * nor per frame once enough buffers go back and forth.
  */
 export class CommandWriter {
   private words = new Uint32Array(1024);
   private floats = new Float32Array(this.words.buffer);
+  private spare = new SpareBuffers();
   /** Words written since the last `take`. */
   length = 0;
 
@@ -191,10 +152,14 @@ export class CommandWriter {
     this.op(OP.motor, id, [0, 0, target, maxForce]);
     this.words.set([mode, axis], this.length - 4);
   }
-  /** The words written so far, copied out, and the writer emptied. */
-  take(): Uint32Array {
-    const out = this.words.slice(0, this.length);
+  /** The words written so far, in a buffer of their own (`SpareBuffers`); the writer emptied. */
+  take(): Uint32Array<ArrayBuffer> {
+    const out = this.spare.copy(this.words, this.length);
     this.length = 0;
     return out;
+  }
+  /** Buffers `take` gave out, handed back once the worker ran them. */
+  recycle(buffers: readonly ArrayBuffer[]) {
+    this.spare.recycle(buffers);
   }
 }
