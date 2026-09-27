@@ -14,6 +14,14 @@ export function meshes(node: Object3D) {
   });
   return found;
 }
+/** Reads the vertices of every geometry `meshes` wear, each once (`Geometry.loadVertices`): what a
+ *  path awaits before it reads host vertices, which no session fetches up front. */
+export const loadHostVertices = (meshes: Iterable<{ geometry: Geometry }>) =>
+  Promise.all(
+    Array.from(new Set(Array.from(meshes, (mesh) => mesh.geometry)), (geometry) =>
+      geometry.loadVertices(),
+    ),
+  );
 /** The textures a host material carries, whatever their slot: what its renderer would sample. */
 export function* materialTextures(material: HostGraphMaterial): Generator<HostGraphTexture> {
   for (const value of Object.values(material)) if (isGraphTexture(value)) yield value;

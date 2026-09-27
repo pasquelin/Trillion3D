@@ -1,7 +1,4 @@
-import { sharedGpuDevice } from '../gpu/core/sessionHandle.ts';
-import { levelSize, mipLevelCountFor } from './tiles.ts';
 import { COVERAGE_SCALE_WGSL } from './coverageRule.ts';
-import { countCoverage, LEVEL_BIN_BYTES, type CoverageChain } from './coverageMips.ts';
 
 /**
  * Layout and reduction program, built ONCE per device; its pipeline once per format and per
@@ -87,7 +84,7 @@ function mipProgram(device: GPUDevice): MipProgram {
 }
 
 /** The bind group layout and the pipeline of one format and one colour rule. */
-function mipPipeline(device: GPUDevice, format: GPUTextureFormat, weighted: boolean) {
+export function mipPipeline(device: GPUDevice, format: GPUTextureFormat, weighted: boolean) {
   const { layout, module, pipelineLayout, pipelines } = mipProgram(device);
   const byFormat = pipelines[Number(weighted)];
   const held = byFormat.get(format);
@@ -116,7 +113,7 @@ function mipPipeline(device: GPUDevice, format: GPUTextureFormat, weighted: bool
  */
 const heldBuffers = new WeakMap<GPUDevice, Map<string, GPUBuffer>>();
 
-function heldBuffer(device: GPUDevice, label: string, size: number, usage: number) {
+export function heldBuffer(device: GPUDevice, label: string, size: number, usage: number) {
   const kept = heldBuffers.get(device) ?? new Map<string, GPUBuffer>();
   heldBuffers.set(device, kept);
   const held = kept.get(label);
@@ -124,71 +121,4 @@ function heldBuffer(device: GPUDevice, label: string, size: number, usage: numbe
   const buffer = device.createBuffer({ label, size, usage: usage | GPUBufferUsage.COPY_DST });
   kept.set(label, buffer);
   return buffer;
-}
-
-/** Generates the mip chain of a 2D texture: averaged colour — weighted by alpha when `weighted`,
- * for a texture every reader takes for coverage, in straight alpha (`../webgpu/tile/scratch.ts`) —,
- * median alpha so that threshold coverage survives every level, scaled to keep level 0's share at
- * `cutoff` when the readers give one (`CoverageReaders.cutoff`).
- * Commands are submitted without being awaited: the device queue runs them in order, therefore
- * before any copy that will read a level. */
-export function generateMaterialMips(
-  device: GPUDevice,
-  texture: GPUTexture,
-  format: GPUTextureFormat,
-  width: number,
-  height: number,
-  weighted: boolean,
-  cutoff = 0,
-) {
-  const levels = mipLevelCountFor(width, height);
-  if (levels === 1) return;
-  const shared = sharedGpuDevice(device);
-  const { layout, pipeline } = mipPipeline(shared, format, weighted);
-  const stride = Math.max(256, device.limits.minUniformBufferOffsetAlignment ?? 256);
-  // One uniform block per level, its reduction's: the extent of the source level, so as not to read
-  // off the image, and the cutoff; for the counts, level 0's extent and the level. Block 0 is level
-  // 0's own count.
-  const packed = new Uint32Array((levels * stride) / 4);
-  for (let level = 0; level < levels; level++) {
-    const source = levelSize(width, height, Math.max(0, level - 1));
-    packed.set([...source, cutoff, 0, width, height, level], (level * stride) / 4);
-  }
-  const uniforms = heldBuffer(
-    shared,
-    'Trillion3D texture mips uniforms',
-    packed.byteLength,
-    GPUBufferUsage.UNIFORM,
-  );
-  device.queue.writeBuffer(uniforms, 0, packed);
-  const encoder = device.createCommandEncoder();
-  const views = Array.from({ length: levels }, (_, level) =>
-    texture.createView({ baseMipLevel: level, mipLevelCount: 1 }),
-  );
-  let chain: CoverageChain | undefined;
-  if (cutoff) {
-    const size = levels * LEVEL_BIN_BYTES,
-      usage = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC;
-    const bins = heldBuffer(shared, 'Trillion3D coverage bins', size, usage);
-    encoder.clearBuffer(bins, 0, size);
-    chain = { width, height, views, uniforms, stride, bins };
-  }
-  for (let level = 1; level < levels; level++) {
-    if (chain) countCoverage(device, encoder, chain, level);
-    const group = device.createBindGroup({
-      layout,
-      entries: [
-        { binding: 0, resource: views[level - 1] },
-        { binding: 1, resource: { buffer: uniforms, offset: level * stride, size: 16 } },
-      ],
-    });
-    const pass = encoder.beginRenderPass({
-      colorAttachments: [{ view: views[level], loadOp: 'clear', storeOp: 'store' }],
-    });
-    pass.setPipeline(pipeline);
-    pass.setBindGroup(0, group);
-    pass.draw(3);
-    pass.end();
-  }
-  device.queue.submit([encoder.finish()]);
 }
