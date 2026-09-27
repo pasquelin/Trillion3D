@@ -8,9 +8,9 @@ import { DAG_SELECTION_SHADER } from './shader.ts';
 import { DAG_CONE_WGSL } from './coneWgsl.ts';
 import { DAG_PRIMITIVE_WGSL } from './primitiveWgsl.ts';
 import { FRAME_VEC4, PRIMITIVE_VEC4 } from '../types.ts';
-import { firstFrameRow, primitiveFrameWords } from '../worlds.ts';
+import { cameraFramesBytes, primitiveFrameWords } from '../worlds.ts';
 import { wgslScope } from '../../../page/cut/wgslPredicate.fixture.ts';
-import { wgslConstants } from '../../../page/cut/cutRuleWord.fixture.ts';
+import { wgslConstants } from '../../../page/cut/cutRuleBackends.fixture.ts';
 import { random } from '../../../page/cut/cutRuleChecks.fixture.ts';
 import { frustumExcludesBox } from '../../../../../sdk-core/src/index.ts';
 
@@ -41,10 +41,21 @@ test("each primitive's values fill its share, behind the row the host writes", (
     const views = [{ worldCount }];
     const base = wgslScope(DAG_SELECTION_SHADER, { ...c, views }).fn('primitiveBase');
     const frames = primitiveFrameWords(packed(worldCount));
+    assert.equal(frames.length, worldCount * FRAME_VEC4 * 4, 'the host writes its row alone');
     assert.equal(base(0), worldCount * FRAME_VEC4, 'behind the first row');
-    assert.equal(((base(worldCount - 1) as number) + PRIMITIVE_VEC4) * 4, frames.length);
-    assert.equal(firstFrameRow(frames, worldCount).length, worldCount * FRAME_VEC4 * 4);
+    assert.equal(
+      ((base(worldCount - 1) as number) + PRIMITIVE_VEC4) * 16,
+      cameraFramesBytes(frames),
+    );
   }
+});
+
+test('frames never binds an empty buffer', () => {
+  assert.equal(cameraFramesBytes(new Float32Array(0)), 16);
+  assert.equal(
+    cameraFramesBytes(primitiveFrameWords(packed(0))),
+    (FRAME_VEC4 + PRIMITIVE_VEC4) * 16,
+  );
 });
 
 test('every site reads the prepared values; only a light view still multiplies', () => {
@@ -61,7 +72,7 @@ test('every site reads the prepared values; only a light view still multiplies',
     DAG_SELECTION_SHADER,
     /fn outsideAhead\([^)]*\)->bool\{return outsideFrustum\(aheadPlanes\(w\),/,
   );
-  assert.ok(DAG_SELECTION_SHADER.includes('if(!isLightCut()){preparePrimitive(w,pose,m,open);}'));
+  assert.ok(DAG_SELECTION_SHADER.includes('if(!isLightCut()){preparePrimitive(w,m,open);}'));
 });
 
 test("a never-culled primitive's open planes ahead keep every box, as its early exit did", () => {

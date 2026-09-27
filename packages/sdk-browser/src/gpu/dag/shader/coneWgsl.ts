@@ -20,18 +20,18 @@ fn isConformal(m:mat3x3f)->bool{
  let eps=maxl*${CONE_ORTHO_EPS_WGSL};
  return abs(dot(a,b))<=eps&&abs(dot(a,c))<=eps&&abs(dot(b,c))<=eps;
 }
-/** GPU mirror of \`coneCullsPageWith\` (../../../page/cone/cone.ts): same tolerances (packages/sdk-core/src/math/primitives/cone.ts), same operands.
- *  \`world\` is a world matrix of the RENDER FRAME, where the camera is the origin: the vector from
- *  the box centre to the eye is the opposite of that centre, and subtracting two distant positions
- *  no longer happens. Same geometry as the CPU mirror, which works in absolute world space. */
 /** The camera as one homogeneous point of the render frame (\`EngineCamera.viewPoint\`): the origin
  *  under a perspective projection, the way back — the view's third row — under an orthographic one. */
 fn viewPoint()->vec4f{
  let back=vec3f(views[vi].view[0].z,views[vi].view[1].z,views[vi].view[2].z);
  return vec4f(back*(1.0-views[vi].perspective),views[vi].perspective);
 }
-/** \`w\` names the primitive whose conformity and normal matrix \`dagPrepare\` prepared
- *  (\`primitiveWgsl.ts\`): the same verdict and the same \`inverseTranspose3\` as on its world's 3x3. */
+/** GPU mirror of \`coneCullsPageWith\` (../../../page/cone/cone.ts): same tolerances (packages/sdk-core/src/math/primitives/cone.ts), same operands.
+ *  \`worlds[w]\` is a world matrix of the RENDER FRAME, where the camera is the origin: the vector from
+ *  the box centre to the eye is the opposite of that centre, and subtracting two distant positions
+ *  no longer happens. Same geometry as the CPU mirror, which works in absolute world space.
+ *  Its conformity and normal matrix are the ones \`dagPrepare\` prepared for primitive \`w\`
+ *  (\`primitiveWgsl.ts\`): the same verdict and the same \`inverseTranspose3\` as on its 3x3. */
 fn coneRejectsBox(cone:vec4f,bmin:vec3f,bmax:vec3f,w:u32)->bool{
  if(cone.w>=${HALF_PI_WGSL}){return false;}
  if(!conformalOf(w)){return false;}

@@ -34,17 +34,17 @@ fn normalOf(w:u32)->InvT3{
 fn conformalOf(w:u32)->bool{return frames[primitiveBase(w)+NORMAL+2u].w!=0.0;}
 /** First of the view ahead's six planes in primitive \`w\`'s space. */
 fn aheadPlanes(w:u32)->u32{return primitiveBase(w)+AHEAD_PLANES;}
-/** \`dagPrepare\`'s share for primitive \`w\` of a camera cut, on the world, transposed world and
- *  \`open\` flag it already read: the planes ahead are brought in as the camera's own. */
-fn preparePrimitive(w:u32,world:mat4x4f,t:mat4x4f,open:bool){
- let at=primitiveBase(w);
+/** \`dagPrepare\`'s share for primitive \`w\` of a camera cut, on its transposed world \`t\`. A
+ *  primitive no camera culls (\`open\`) takes six planes ahead no box leaves, as its own. */
+fn preparePrimitive(w:u32,t:mat4x4f,open:bool){
+ let at=primitiveBase(w);let world=worlds[w];
  putMatrix(at+CAMERA_E,views[0u].view*world);
  let m=mat3x3f(world[0].xyz,world[1].xyz,world[2].xyz);let n=invTranspose3Prep(m);
- frames[at+NORMAL]=vec4f(n.adj[0],n.facteur);
- frames[at+NORMAL+1u]=vec4f(n.adj[1],select(0.0,1.0,n.regulier));
+ frames[at+NORMAL]=vec4f(n.adj[0],n.scale);
+ frames[at+NORMAL+1u]=vec4f(n.adj[1],select(0.0,1.0,n.regular));
  frames[at+NORMAL+2u]=vec4f(n.adj[2],select(0.0,1.0,isConformal(m)));
  if(!aheadOn()){return;}
  putMatrix(at+AHEAD_E,views[AHEAD_VIEW].view*world);
- for(var i=0u;i<6u;i++){frames[at+AHEAD_PLANES+i]=planeIn(t,views[AHEAD_VIEW].planes[i],open);}
+ putPlanes(at+AHEAD_PLANES,t,AHEAD_VIEW,open);
 }
 `;

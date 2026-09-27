@@ -5,7 +5,7 @@ import {
   type GpuSelection,
   type SelectionUniforms,
 } from '../core/selection.ts';
-import { firstFrameRow, primitiveWordAt, refreshWorldStretch, worldsChanged } from './worlds.ts';
+import { primitiveWordAt, refreshWorldStretch, worldsChanged } from './worlds.ts';
 import { createDagResidencyUpload } from './residencyUpload.ts';
 import { createDagPoolList } from './poolList.ts';
 import { createDagDispatch } from './dispatch.ts';
@@ -21,7 +21,6 @@ export function createDagRuntime(resources: DagResources): GpuSelection {
     residentCut,
     pageCount,
     nodeCount,
-    worldCount,
     frameData,
     buffers,
     flags,
@@ -99,8 +98,7 @@ export function createDagRuntime(resources: DagResources): GpuSelection {
         next.byteLength,
       );
       if (stretched) {
-        // The host's words alone: what `dagPrepare` derives behind them is its own.
-        device.queue.writeBuffer(frames, 0, firstFrameRow(frameData, worldCount));
+        device.queue.writeBuffer(frames, 0, frameData as Float32Array<ArrayBuffer>);
         resources.frameWrites.count++;
       }
       // Cuts in hand and in flight keep their revision and still name what to stream (#358).

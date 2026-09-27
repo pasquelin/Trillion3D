@@ -51,9 +51,9 @@ const FAR_PLANE:u32=4u;
  *  (\`frustum.ts\`, zero normal normalized), which no comparison satisfies, and a NaN stays NaN
  *  through \`dagPrepare\`'s product. Read at the bit on the uniform, a NaN test no compiler folds. */
 fn farless()->bool{return (bitcast<u32>(views[vi].planes[FAR_PLANE].x)&0x7fffffffu)>0x7f800000u;}
-/** \`plane\` in a primitive's space, \`m\` its transposed world; a primitive a camera never culls
- *  (\`open\`, \`unculledOf\`) takes a plane no box leaves. */
-fn planeIn(m:mat4x4f,plane:vec4f,open:bool)->vec4f{return select(m*plane,vec4f(0.0,0.0,0.0,1.0),open);}
+/** View \`v\`'s six planes, brought into a primitive's space by \`m\` (its transposed world), from
+ *  \`frames[at]\` on; \`open\`: six planes no box leaves. */
+fn putPlanes(at:u32,m:mat4x4f,v:u32,open:bool){for(var i=0u;i<6u;i++){frames[at+i]=select(m*views[v].planes[i],vec4f(0.0,0.0,0.0,1.0),open);}}
 /** True when the box lies wholly behind the plane: its corner furthest along the normal is. */
 fn outsidePlane(plane:vec4f,bmin:vec3f,bmax:vec3f)->bool{
  let px=select(bmin.x,bmax.x,plane.x>0.0);let py=select(bmin.y,bmax.y,plane.y>0.0);let pz=select(bmin.z,bmax.z,plane.z>0.0);
@@ -80,7 +80,7 @@ fn dagPrepare(@builtin(global_invocation_id) id:vec3u){
   else{atomicAnd(&out.overflow,${LIST_FULL}u);}
   atomicStore(&out.frustumRejected,0u);atomicStore(&out.lodLevel,0u);resetTotaux();resetCounters();
  }
- if(t<blockCount()){atomicStore(&work[blockBase()+t],0u);atomicStore(&work[drawMaskWord(t*BLOCK)],0u);atomicStore(&work[drawMaskWord(t*BLOCK+32u)],0u);}
+ if(t<blockCount()){atomicStore(&work[blockBase()+t],0u);atomicStore(&work[drawMaskBase()+2u*t],0u);atomicStore(&work[drawMaskBase()+2u*t+1u],0u);}
  if(t<views[0u].viewCount){atomicStore(&work[viewWord(0u,t)],0u);atomicStore(&work[viewWord(2u,t)],0u);}
  if(t==0u){atomicStore(&work[drawnGroupsMax()],0u);countFrame();}
  let world=views[0u].worldCount;
@@ -90,10 +90,11 @@ fn dagPrepare(@builtin(global_invocation_id) id:vec3u){
  // light cut opens none on a primitive that casts no shadow (\`markOf\`, \`castsNoShadow\`).
  let root=select(rootOf(w),0xffffffffu,isLightCut()&&(markOf(w)&${CASTS_NO_SHADOW}u)!=0u);
  flags[queueBase(0u)+t]=select(packEntry(vi,root),root,root==0xffffffffu);
- let pose=worlds[w];let m=transpose(pose);let base=slot*FRAME;
+ let m=transpose(worlds[w]);let base=slot*FRAME;
+ // A primitive a camera never culls (\`unculledOf\`) takes six planes no box leaves.
  let open=!isLightCut()&&unculledOf(w);
- for(var i=0u;i<6u;i++){frames[base+i]=planeIn(m,views[vi].planes[i],open);}
- if(!isLightCut()){preparePrimitive(w,pose,m,open);}
+ putPlanes(base,m,vi,open);
+ if(!isLightCut()){preparePrimitive(w,m,open);}
 }
 @compute @workgroup_size(64)
 fn dagMask(@builtin(global_invocation_id) id:vec3u,@builtin(local_invocation_index) lid:u32){
@@ -112,9 +113,8 @@ fn dagMask(@builtin(global_invocation_id) id:vec3u,@builtin(local_invocation_ind
   if((word&CONE_REJECTED)==0u){
    let all=views[0u].residentCut==0u;
    if(isLightCut()){
-    let cluster=clusters[r];
-    let e=viewWorld(w);let stretch=stretchOf(w);let focal=focalPixels();
-    draw=drawsCluster(all||isResident(i),projected(cluster.parentError,cluster.parentSphere,e,stretch,focal),projected(cluster.lodError,cluster.sphere,e,stretch,focal),all||childResident(i),views[vi].pixelError);
+    let pixels=clusterPixels(clusters[r],viewWorld(w),stretchOf(w),focalPixels());
+    draw=drawsCluster(all||isResident(i),pixels.x,pixels.y,all||childResident(i),views[vi].pixelError);
    }else{
     // Camera cut: the rule on the two comparisons \`dagWanted\` made this frame, on the same
     // projections — no matrix product, no projection, no sphere read again.
@@ -125,10 +125,10 @@ fn dagMask(@builtin(global_invocation_id) id:vec3u,@builtin(local_invocation_ind
   // A light cut keeps no draw flag — two views may draw the same cluster —, only its view's log.
   if(isLightCut()){if(draw){viewDrawnAppend(i);}}
   else{
-   let posee=select(0u,1u,draw);
-   flags[views[0u].queueCap+i]=posee;
+   let drawn=select(0u,1u,draw);
+   flags[views[0u].queueCap+i]=drawn;
    // Drawn count of this page's block, held here rather than reread later page by page.
-   if(posee!=0u){atomicAdd(&work[blockBase()+i/BLOCK],1u);atomicOr(&work[drawMaskWord(i)],drawBit(i));drawnAppend(i);stampUse(i);}
+   if(drawn!=0u){atomicAdd(&work[blockBase()+i/BLOCK],1u);atomicOr(&work[drawMaskWord(i)],drawBit(i));drawnAppend(i);stampUse(i);}
   }
  }
  verseTotaux(lid);

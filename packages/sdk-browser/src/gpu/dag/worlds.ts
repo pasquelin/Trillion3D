@@ -57,24 +57,24 @@ export function worldsChanged(previous: Float32Array, next: Float32Array) {
   return false;
 }
 
-/** The first row of slots of `frameData`, the part the host writes and a light cut copies: behind
- *  it, a camera cut's `dagPrepare` writes what it derives per primitive (`shader/primitiveWgsl.ts`). */
-export const firstFrameRow = (frameData: Float32Array<ArrayBuffer>, worldCount: number) =>
-  frameData.subarray(0, worldCount * FRAME_VEC4 * 4);
+/** Bytes of a camera cut's `frames`: the host's row (`frameData`), then room for what `dagPrepare`
+ *  derives per primitive (`shader/primitiveWgsl.ts`), which the host never writes. Never under
+ *  16 bytes: a scene without primitives still binds a valid storage buffer. */
+export const cameraFramesBytes = (frameData: Float32Array) =>
+  Math.max(16, (frameData.byteLength / FRAME_VEC4) * (FRAME_VEC4 + PRIMITIVE_VEC4));
 
 /**
- * A camera cut's `frames`: per-primitive frame words, behind the six planes of its first row — the
- * stretch, the root the descent starts from, the record shift that leads its pages to their shared
- * records (`layout.ts`), and the primitive's root mark (`PackedDag.mark`), four words the kernel
- * reads without one more storage buffer bound to the stage —, then room for what `dagPrepare`
- * derives per primitive (`PRIMITIVE_VEC4`).
+ * Per-primitive frame words, behind the six planes of its first row: the stretch, the root the
+ * descent starts from, the record shift that leads its pages to their shared records
+ * (`layout.ts`), and the primitive's root mark (`PackedDag.mark`). Four words the
+ * kernel reads without one more storage buffer bound to the stage.
  */
 export function primitiveFrameWords(
   packed: Pick<PackedDag, 'worldCount' | 'worldStretch' | 'rootNodes' | 'recordShift'> &
     Partial<Pick<PackedDag, 'mark'>>,
 ) {
   const worldCount = Math.max(1, packed.worldCount);
-  const frameData = new Float32Array(worldCount * (FRAME_VEC4 + PRIMITIVE_VEC4) * 4),
+  const frameData = new Float32Array(worldCount * FRAME_VEC4 * 4),
     frameInts = new Uint32Array(frameData.buffer);
   for (let w = 0; w < packed.worldCount; w++) {
     const at = primitiveWordAt(w);

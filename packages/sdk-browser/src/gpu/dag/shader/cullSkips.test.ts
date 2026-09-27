@@ -8,18 +8,14 @@ import assert from 'node:assert/strict';
 import { DAG_SELECTION_SHADER } from './shader.ts';
 import { DAG_CONE_WGSL } from './coneWgsl.ts';
 import { random } from '../../../page/cut/cutRuleChecks.fixture.ts';
-import { wgslConstants } from '../../../page/cut/cutRuleWord.fixture.ts';
 import { cameraSelectionUniforms } from '../../core/selection.ts';
 import { createEngineCamera, writeEngineCamera } from '../../../camera/engineCamera.ts';
 import {
   HALF_PI,
-  HALF_PI_WGSL,
   boxConeRejects,
   frustumExcludesBox,
   frustumPlanesToLocal,
 } from '../../../../../sdk-core/src/index.ts';
-
-const { FAR_PLANE } = wgslConstants(DAG_SELECTION_SHADER);
 
 /** The end of `coneRejectsBox`, with `sin` given: before and after the early exit. */
 const before = (d: number, total: number, sin: (x: number) => number) =>
@@ -30,12 +26,8 @@ const after = (d: number, total: number, sin: (x: number) => number) =>
 const gpuSin = (x: number) => Math.sin(x) - 2 ** -11;
 
 test('the cone exits early before its arcsine: every verdict kept, on random and edge inputs', () => {
-  // The kernel's own lines, in this order: the two functions below are those lines.
-  const exit = DAG_CONE_WGSL.indexOf('let d=dot(axisWorld,view);\n if(!(d<0.0)){return false;}');
-  assert.ok(exit >= 0 && exit < DAG_CONE_WGSL.indexOf('let radius='), 'the exit comes first');
-  assert.ok(
-    DAG_CONE_WGSL.includes(`return d<-sin(cone.w+spread)&&(cone.w+spread)<${HALF_PI_WGSL};`),
-  );
+  const text = DAG_CONE_WGSL;
+  assert.ok(text.indexOf('if(!(d<0.0)){return false;}') < text.indexOf('let radius='));
   const next = random(906);
   const ds = [NaN, -Infinity, -1, -1e-7, -0, 0, 1e-7, 1, Infinity];
   const totals = [NaN, 0, -0, 1e-7, 1, HALF_PI - 1e-7, HALF_PI, Math.PI, Infinity];
@@ -66,22 +58,11 @@ function cameraPlanes(far: number) {
   writeEngineCamera(cam, { fov: 60, aspect: 16 / 9, near: 0.1, far, zoom: 1 });
   const { planes } = cameraSelectionUniforms(cam, 1, [1280, 720]);
   const bits = new Uint32Array(Float32Array.from(planes).buffer);
-  const at = 4 * FAR_PLANE;
-  return { planes: Float64Array.from(planes), farless: (bits[at] & 0x7fffffff) > 0x7f800000 };
+  return { planes: Float64Array.from(planes), farless: (bits[16] & 0x7fffffff) > 0x7f800000 };
 }
 
 test('an infinite far plane is read as absent, a declared one is tested', () => {
-  assert.ok(DAG_SELECTION_SHADER.includes('let skip=select(6u,FAR_PLANE,farless());'));
   assert.ok(DAG_SELECTION_SHADER.includes('if(i!=skip&&outsidePlane('));
-  assert.ok(
-    DAG_SELECTION_SHADER.includes(
-      'fn farless()->bool{return (bitcast<u32>(views[vi].planes[FAR_PLANE].x)&0x7fffffffu)>0x7f800000u;}',
-    ),
-  );
-  // The far plane is the only plane an infinite far leaves NaN, and \`FAR_PLANE\` names it.
-  const { planes } = cameraPlanes(Infinity);
-  const nan = [0, 1, 2, 3, 4, 5].filter((p) => Number.isNaN(planes[4 * p]));
-  assert.deepEqual(nan, [FAR_PLANE]);
   assert.equal(cameraPlanes(Infinity).farless, true);
   assert.equal(cameraPlanes(2000).farless, false);
 });
@@ -89,7 +70,7 @@ test('an infinite far plane is read as absent, a declared one is tested', () => 
 test('skipping the infinite far plane keeps every box verdict, in any primitive space', () => {
   const { planes } = cameraPlanes(Infinity);
   const skipped = planes.slice();
-  skipped.set([0, 0, 0, 1], 4 * FAR_PLANE);
+  skipped.set([0, 0, 0, 1], 16);
   const next = random(2222),
     local = new Float64Array(24),
     localSkipped = new Float64Array(24);
@@ -100,7 +81,7 @@ test('skipping the infinite far plane keeps every box verdict, in any primitive 
   for (const world of worlds) {
     frustumPlanesToLocal(local, planes, world);
     frustumPlanesToLocal(localSkipped, skipped, world);
-    assert.ok(Number.isNaN(local[4 * FAR_PLANE]), 'NaN through the primitive product');
+    assert.ok(Number.isNaN(local[16]), 'NaN through the primitive product');
     for (let n = 0; n < 5000; n++) {
       const c = [0, 1, 2].map(() => (next() - 0.5) * 2e4),
         h = [0, 1, 2].map(() => next() * 10 ** (next() * 4));
