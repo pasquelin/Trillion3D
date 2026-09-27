@@ -387,7 +387,7 @@
       "theme": "materials",
       "file": "examples/brushed-metal.html",
       "status": "waiting-engine",
-      "issue": 33
+      "issue": 880
     },
     {
       "id": "car-paint-under-clear-coat",
@@ -565,7 +565,7 @@
       "theme": "lights",
       "file": "examples/soft-shadows-from-a-wide-lamp.html",
       "status": "waiting-engine",
-      "issue": 880
+      "issue": 33
     },
     {
       "id": "contact-shadow-under-a-car",
