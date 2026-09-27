@@ -18,8 +18,8 @@ pub mod tile;
 /// lands on one cell, so tiles split nothing. The step is a power of two: `q * step` is exact.
 pub fn grid_exponent(extent: f64, finest_error: Option<f64>, tile_log2: i32) -> i32 {
     let widest = (extent > 0.0)
-        .then(|| extent.log2().floor() as i32)
-        .unwrap_or(0);
+        .then_some(extent)
+        .map_or(0, |e| e.log2().floor() as i32);
     let by_extent = widest.min(tile_log2) - 16;
     let by_error = finest_error.map_or(by_extent, |e| (e / 8.0).log2().floor() as i32);
     let finest = widest - (MAX_BITS as i32 - 2);
