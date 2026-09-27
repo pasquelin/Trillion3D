@@ -35,7 +35,7 @@
     "jumpTo": "跳转到主题",
     "waitsFor": "等待引擎:",
     "partial": "部分可用",
-    "coming": "即将推出：{{titles}}"
+    "coming": "即将推出"
   },
   "gallery": {
     "themes": {
