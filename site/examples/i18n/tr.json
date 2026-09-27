@@ -2147,5 +2147,12 @@
     "words": {
       "credit": "Direkteki bayrak bu örnek için kodla modellendi, CC0 — bkz. assets/examples/CREDITS.md"
     }
+  },
+  "a-folder-merged-into-one-scene": {
+    "banner": "Sokak köşesini incelemek için sürükleyin. Derleyici bir klasördeki üç OBJ dosyasını bu sahnede birleştirdi.",
+    "controls": {
+      "spin": "Döndür",
+      "visible": "Görünür"
+    }
   }
 }

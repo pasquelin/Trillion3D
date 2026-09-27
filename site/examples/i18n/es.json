@@ -2147,5 +2147,12 @@
     "words": {
       "credit": "Bandera en un mástil modelada en código para este ejemplo, CC0 — ver assets/examples/CREDITS.md"
     }
+  },
+  "a-folder-merged-into-one-scene": {
+    "banner": "Arrastra para examinar la esquina. El compilador fusionó tres archivos OBJ de una carpeta en esta escena.",
+    "controls": {
+      "spin": "Girar",
+      "visible": "Visible"
+    }
   }
 }
