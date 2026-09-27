@@ -500,6 +500,10 @@
       "balloon": "SEGUE IL PALLONE"
     }
   },
+  "a-crane-that-swings": {
+    "banner": "Gira attorno alla gru mentre una clip ruota il braccio, muove il carrello, solleva il carico e lo fa oscillare.",
+    "controls": { "speed": "Velocità", "paused": "In pausa", "replay": "Ripeti" }
+  },
   "a-wave-across-a-grid": {
     "banner": "Trascina per guardarti intorno. Rendi l'onda di cubi più alta o più veloce.",
     "controls": {

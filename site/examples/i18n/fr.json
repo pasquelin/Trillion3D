@@ -500,6 +500,10 @@
       "balloon": "SUIT LE BALLON"
     }
   },
+  "a-crane-that-swings": {
+    "banner": "Tourne autour de la grue pendant qu’un clip pivote la flèche, déplace le chariot, lève la charge et la laisse se balancer.",
+    "controls": { "speed": "Vitesse", "paused": "En pause", "replay": "Rejouer" }
+  },
   "a-wave-across-a-grid": {
     "banner": "Glisse pour regarder autour. Rends la vague de cubes plus haute ou plus rapide.",
     "controls": {

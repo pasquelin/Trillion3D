@@ -500,6 +500,10 @@
       "balloon": "BALONU İZLİYOR"
     }
   },
+  "a-crane-that-swings": {
+    "banner": "Tek bir klip bomu döndürürken, arabayı hareket ettirirken, yükü kaldırıp sallarken vincin etrafında dönün.",
+    "controls": { "speed": "Hız", "paused": "Duraklatıldı", "replay": "Yeniden oynat" }
+  },
   "a-wave-across-a-grid": {
     "banner": "Etrafa bakmak için sürükle. Küp dalgasını daha yüksek ya da hızlı yap.",
     "controls": {
