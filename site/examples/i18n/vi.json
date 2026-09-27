@@ -1237,17 +1237,16 @@
   "a-walk-through-the-city": {
     "banner": "Nhấp vào khung nhìn, đi bằng W A S D và nhìn bằng chuột. Giảm bộ nhớ khi đang di chuyển.",
     "controls": {
-      "walk": "Đi bộ",
       "walkSpeed": "Tốc độ đi",
       "memory": "Bộ nhớ",
-      "view": "Khung nhìn",
+      "view": "Chế độ xem",
       "home": "Về điểm đầu"
     },
     "choices": {
-      "view": { "beauty": "hình ảnh", "lod": "mức chi tiết", "clusters": "cụm" }
+      "view": { "beauty": "ảnh hoàn chỉnh", "lod": "mức chi tiết", "clusters": "cụm" }
     },
     "words": {
-      "credit": "Đại lộ bình được dựng bằng mã cho ví dụ này, CC0 — xem assets/examples/CREDITS.md"
+      "credit": "Đại lộ bình được làm bằng mã cho ví dụ này, CC0 — xem assets/examples/CREDITS.md"
     }
   },
   "migrating-from-three": {
