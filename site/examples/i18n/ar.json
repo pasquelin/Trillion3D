@@ -1234,6 +1234,22 @@
       }
     }
   },
+  "a-walk-through-the-city": {
+    "banner": "انقر على المشهد، وامشِ بمفاتيح W A S D وانظر بالفأرة. خفّض ميزانية الذاكرة أثناء الحركة.",
+    "controls": {
+      "walk": "المشي",
+      "walkSpeed": "سرعة المشي",
+      "memory": "الذاكرة",
+      "view": "العرض",
+      "home": "العودة إلى البداية"
+    },
+    "choices": {
+      "view": { "beauty": "الصورة", "lod": "مستويات التفاصيل", "clusters": "العناقيد" }
+    },
+    "words": {
+      "credit": "شارع جرار صُمّم برمجيًا لهذا المثال، CC0 — راجع assets/examples/CREDITS.md"
+    }
+  },
   "migrating-from-three": {
     "words": {
       "credit": "Marble Bust 01 من Rico Cilliers، Poly Haven، CC0؛ الصندوق من W. Sitters، CC BY 3.0 — انظر assets/examples/CREDITS.md"
