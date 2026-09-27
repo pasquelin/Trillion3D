@@ -8,11 +8,11 @@ import * as THREE from 'three';
 import type { GraphCamera } from '../../../packages/sdk-browser/src/host/graph/camera.ts';
 import type { GraphLight } from '../../../packages/sdk-browser/src/host/graph/light.ts';
 import {
+  isDrawnNode,
   isInstancedNode,
   isPlacedLight,
   type GraphAnyLight,
 } from '../../../packages/sdk-browser/src/host/graph/kinds.ts';
-import type { GraphMesh } from '../../../packages/sdk-browser/src/host/graph/mesh.ts';
 import { resolveCameraWorld } from '../../../packages/sdk-browser/src/camera/world.ts';
 import type { HostMaterials } from '../../../packages/sdk-browser/src/host/resources.ts';
 import { threeGeometry, threeMaterials } from './fromGraph.ts';
@@ -97,20 +97,16 @@ function threeSurroundingLight(light: Exclude<GraphAnyLight, GraphLight>) {
   return probe;
 }
 
-/** A node of the library for one engine node, of the class its `kind` names, its children not
- *  included: the one place an engine kind is given a library's class. */
+/** A node of the library for one engine node, of the class its own class or `kind` names, its
+ *  children not included: the one place an engine node is given a library's class. */
 function threeNode(node: Object3D): THREE.Object3D {
+  if (isDrawnNode(node)) {
+    const mesh = threeMeshCopy(node);
+    if (node.morphTargetInfluences) mesh.morphTargetInfluences = node.morphTargetInfluences.slice();
+    if (node.morphTargetDictionary) mesh.morphTargetDictionary = { ...node.morphTargetDictionary };
+    return place(mesh, node);
+  }
   switch ((node as { kind?: GraphNodeKind }).kind) {
-    case 'mesh':
-    case 'instancedMesh': {
-      const source = node as GraphMesh;
-      const mesh = threeMeshCopy(source);
-      if (source.morphTargetInfluences)
-        mesh.morphTargetInfluences = source.morphTargetInfluences.slice();
-      if (source.morphTargetDictionary)
-        mesh.morphTargetDictionary = { ...source.morphTargetDictionary };
-      return place(mesh, node);
-    }
     case 'directional':
     case 'point':
     case 'spot':

@@ -19,6 +19,8 @@ export const ENGINE_ERROR_MEANINGS: Readonly<Record<string, string>> = {
   INVALID_SCENE_LIGHT: 'A light is malformed, doubled, unknown, or has nowhere to go.',
   INVALID_MATERIAL:
     'A material change is unknown, out of range, would move it to a draw class an engine lays out when the scene opens, or would tile a map it shares.',
+  MATERIAL_CEILING:
+    'A page would create more materials than `RUNTIME_MATERIAL_CEILING` in one session; nothing was created.',
   INVALID_SCENE_ENVIRONMENT: "The scene's exposure or surroundings are not valid numbers.",
   INVALID_TRANSFORM:
     "A node's placement is not a usable matrix, or a node would be its own ancestor.",
