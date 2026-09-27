@@ -1237,7 +1237,6 @@
   "a-walk-through-the-city": {
     "banner": "Görünüme tıklayın, W A S D ile yürüyün ve fareyle bakın. İlerlerken bellek bütçesini azaltın.",
     "controls": {
-      "walk": "Yürü",
       "walkSpeed": "Yürüme hızı",
       "memory": "Bellek",
       "view": "Görünüm",
@@ -1247,7 +1246,7 @@
       "view": { "beauty": "görüntü", "lod": "ayrıntı düzeyleri", "clusters": "kümeler" }
     },
     "words": {
-      "credit": "Bu örnek için kodla modellenmiş vazolar caddesi, CC0 — assets/examples/CREDITS.md dosyasına bakın"
+      "credit": "Bu örnek için kodla modellenmiş vazolar caddesi, CC0 — bkz. assets/examples/CREDITS.md"
     }
   },
   "migrating-from-three": {

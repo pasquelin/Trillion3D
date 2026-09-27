@@ -1237,7 +1237,6 @@
   "a-walk-through-the-city": {
     "banner": "Fai clic sulla vista, cammina con W A S D e guarda con il mouse. Riduci la memoria mentre ti muovi.",
     "controls": {
-      "walk": "Cammina",
       "walkSpeed": "Velocità",
       "memory": "Memoria",
       "view": "Vista",

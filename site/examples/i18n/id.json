@@ -1237,17 +1237,16 @@
   "a-walk-through-the-city": {
     "banner": "Klik tampilan, berjalan dengan W A S D, dan melihat dengan tetikus. Kurangi memori sambil bergerak.",
     "controls": {
-      "walk": "Berjalan",
       "walkSpeed": "Kecepatan jalan",
       "memory": "Memori",
       "view": "Tampilan",
       "home": "Kembali ke awal"
     },
     "choices": {
-      "view": { "beauty": "tampilan", "lod": "tingkat detail", "clusters": "klaster" }
+      "view": { "beauty": "hasil akhir", "lod": "tingkat detail", "clusters": "klaster" }
     },
     "words": {
-      "credit": "Jalan guci dimodelkan dengan kode untuk contoh ini, CC0 — lihat assets/examples/CREDITS.md"
+      "credit": "Jalan raya guci dibuat dengan kode untuk contoh ini, CC0 — lihat assets/examples/CREDITS.md"
     }
   },
   "migrating-from-three": {

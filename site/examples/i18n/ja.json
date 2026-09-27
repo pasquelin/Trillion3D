@@ -1237,17 +1237,16 @@
   "a-walk-through-the-city": {
     "banner": "画面をクリックし、W A S D で歩き、マウスで見回します。移動しながらメモリ予算を下げてください。",
     "controls": {
-      "walk": "歩く",
       "walkSpeed": "歩行速度",
       "memory": "メモリ",
       "view": "表示",
       "home": "開始位置に戻る"
     },
     "choices": {
-      "view": { "beauty": "画像", "lod": "詳細度", "clusters": "クラスター" }
+      "view": { "beauty": "仕上がり", "lod": "詳細度", "clusters": "クラスター" }
     },
     "words": {
-      "credit": "この例のためにコードで作られた壺の並木道、CC0 — assets/examples/CREDITS.md を参照"
+      "credit": "この例のためにコードで作ったつぼの並木道、CC0 — assets/examples/CREDITS.md を見てね"
     }
   },
   "migrating-from-three": {

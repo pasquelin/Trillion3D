@@ -1237,17 +1237,16 @@
   "a-walk-through-the-city": {
     "banner": "화면을 클릭하고 W A S D로 걸으며 마우스로 둘러보세요. 이동하면서 메모리 예산을 낮춰 보세요.",
     "controls": {
-      "walk": "걷기",
       "walkSpeed": "걷기 속도",
       "memory": "메모리",
       "view": "보기",
       "home": "시작점으로"
     },
     "choices": {
-      "view": { "beauty": "화면", "lod": "세부 단계", "clusters": "클러스터" }
+      "view": { "beauty": "완성 화면", "lod": "세부 수준", "clusters": "클러스터" }
     },
     "words": {
-      "credit": "이 예제를 위해 코드로 만든 항아리 거리, CC0 — assets/examples/CREDITS.md 참조"
+      "credit": "이 예제를 위해 코드로 만든 항아리 거리, CC0 — assets/examples/CREDITS.md 참고"
     }
   },
   "migrating-from-three": {
