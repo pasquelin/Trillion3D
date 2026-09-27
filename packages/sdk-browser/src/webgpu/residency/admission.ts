@@ -78,7 +78,7 @@ export function createPageAdmission(options: {
 export function createAdmissionReads(options: {
   hasBytes: (rec: PageRec) => boolean;
   parentsOf: (rec: PageRec) => readonly PageRec[];
-  prefetch: (rec: PageRec, signal: AbortSignal) => void;
+  prefetch: (rec: PageRec, signal: AbortSignal, priority?: number) => void;
 }) {
   const { hasBytes, parentsOf, prefetch } = options;
   return (
@@ -87,6 +87,7 @@ export function createAdmissionReads(options: {
     admits: (rec: PageRec) => boolean,
     pool: Pick<PoolCache, 'get'>,
     signal: AbortSignal,
+    priority?: number,
   ) => {
     // `refused`: a page whose walk stopped, so the pages under a shared ancestor walk it once.
     const asked = new Set<string>(),
@@ -100,7 +101,7 @@ export function createAdmissionReads(options: {
         return false;
       }
       asked.add(address);
-      prefetch(rec, signal);
+      prefetch(rec, signal, priority);
       return true;
     };
     for (let i = 0; i < pages.length && asked.size < limit; i++)

@@ -74,7 +74,7 @@ export async function prepareExplorerBackends(session: ExplorerSession, inputs: 
     metadata,
     indices,
     readPage: (url) => streamer.read(url),
-    readGeometryPage: (url, signal) => streamer.readBytes(url, signal),
+    readGeometryPage: streamer.readBytes,
     pageCatalogue: streamer,
     associations: associations,
     textureIndices,

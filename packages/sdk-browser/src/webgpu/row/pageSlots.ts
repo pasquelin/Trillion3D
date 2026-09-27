@@ -27,11 +27,11 @@ export const pageAddress = (rec: Pick<PageRec, 'url' | 'geometryPage'>) =>
 export const readGeometryAhead =
   (
     geometryUrls: ReadonlyMap<string, string>,
-    read: (url: string, signal?: AbortSignal) => Promise<Uint8Array>,
+    read: (url: string, signal?: AbortSignal, priority?: number) => Promise<Uint8Array>,
   ) =>
-  (rec: PageRec, signal: AbortSignal) => {
+  (rec: PageRec, signal: AbortSignal, priority?: number) => {
     const url = geometryUrls.get(pageAddress(rec));
-    if (url !== undefined) read(url, signal).catch(() => {});
+    if (url !== undefined) read(url, signal, priority).catch(() => {});
   };
 
 /**
