@@ -12,6 +12,7 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { dansPageWebgpu, empaquetePage } from './pageWebgpu.ts';
 import {
+  EVICTION_BURST,
   SELECTION_HEADER_WORDS,
   SELECTION_LIST_CAP,
 } from '../../../packages/sdk-browser/src/gpu/dag/layout.ts';
@@ -82,11 +83,13 @@ test('delivered readout stays under its cap regardless of catalog size', async (
       2,
     ),
   );
-  const capOctets = 2 * (SELECTION_HEADER_WORDS * 4 + PLAFOND * 4);
-  for (const ligne of table)
+  // The readback budget, independent of the catalogue: two lists, then one eviction burst.
+  const capOctets =
+    2 * (SELECTION_HEADER_WORDS + PLAFOND) * 4 + (SELECTION_HEADER_WORDS + EVICTION_BURST) * 4;
+  for (const ligne of mesurees)
     assert.ok(
-      ligne.moLivre <= mo(capOctets),
-      `at ${ligne.pages} pages, the delivered reading (${ligne.moLivre} MB) must stay under the ceiling (${mo(capOctets)} MB)`,
+      ligne.octetsLivre <= capOctets,
+      `at ${ligne.pages} pages, the delivered reading (${ligne.octetsLivre} B) must stay under the ceiling (${capOctets} B)`,
     );
   const plusGrande = table[table.length - 1];
   assert.ok(
