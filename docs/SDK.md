@@ -1115,7 +1115,7 @@ says the pool is too small for that view). A value that cannot be held as given 
 
 The texture pool's floor, `minimum`, holds every tail (one tile per texture, 900 a layer), as the
 geometry pool holds the root cover, and one tile more to stream into when the lane streams: a lane
-whose tails fill whole layers pays one layer more (63.5 MiB lossless, a quarter of that in a block
+whose tails fill whole layers pays one layer more (64 MiB lossless, a quarter of that in a block
 lane) rather than stay at its tails. A budget under the floor is raised to it; a shrink never
 displaces a tail.
 
