@@ -2,7 +2,7 @@ import type { PageRec } from '../../page/selection/selection.ts';
 import { createCutDelta } from './delta.ts';
 import { createCutPending, type CutPending } from './pending.ts';
 import { createWebgpuCutAdopter } from './adoption.ts';
-import type { GroupClosure } from '../../page/cut/groupClosure.ts';
+import { createGroupClosure, type GroupClosure } from '../../page/cut/groupClosure.ts';
 import { createHeldResidency, type HeldResidency } from '../../page/cut/held.ts';
 import { markDrawnMirrored } from '../pages/helpers.ts';
 import type { WebgpuResidencySets } from '../residency/sets.ts';
@@ -73,7 +73,13 @@ export function createWebgpuCutPublication(
     residencySets.applyCut(closure.delta);
     cutPending.apply();
   };
-  const publishDrawn = () => residencySets.applyDrawn(drawnDelta);
+  // What the image draws is held with what the cut rule needs to keep drawing it — its groups,
+  // closed upward: a group-mate or parent it does not draw is not reclaimed under it (#836).
+  const drawnClosure = createGroupClosure(rt.layout.selectionRoots, packedPages);
+  const publishDrawn = () => {
+    drawnClosure.apply(drawnDelta);
+    residencySets.applyDrawn(drawnClosure.delta);
+  };
   // Readback describes submitted work and future streaming requests. It never
   // decides the cut drawn for a moving camera; the current GPU mask does that.
   const cutAdopter = createWebgpuCutAdopter({
@@ -132,6 +138,7 @@ export function createWebgpuCutPublication(
      *  (#483 rule 6), each read in constant time, never by walking the placements (#483 rule 7). */
     hostTableBytes: () =>
       closure.hostBytes +
+      drawnClosure.hostBytes +
       (run.gpuSelection?.hostBytes ?? 0) +
       held.bytes +
       residencySets.hostBytes +

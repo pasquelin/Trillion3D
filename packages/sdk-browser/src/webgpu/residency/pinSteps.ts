@@ -17,12 +17,11 @@ export function createWebgpuPinSteps(
   parentsOf: (rec: PageRec) => readonly PageRec[],
 ) {
   const { run, gpu, diag } = rt,
-    { tracking, bootstrapUrls, bootstrapKey, byUrl } = rt.setup;
+    { tracking, bootstrapUrls, byUrl } = rt.setup;
   const options = {
     tracking,
     sets,
     bootstrapUrls,
-    bootstrapKey,
     deferredDrops: run.deferredDrops,
     byUrl,
     parentsOf,
