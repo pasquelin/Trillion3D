@@ -7,6 +7,7 @@ import type { RenderBackend } from '../../backend/types.ts';
 import type { AlphaChange } from '../../placement/backendSceneUpdates.ts';
 import { createExplorerMaterialApi } from './materialApi.ts';
 import { webgpuMaterialClassRefusal } from '../../webgpu/pages/io/refreshMaterials.ts';
+import type { PageRec } from '../../page/selection/selection.ts';
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 
 const slot = (texture: number): TableTextureSlot => ({
@@ -50,7 +51,10 @@ export const entry = (overrides: Partial<TableMaterial>): TableMaterial => ({
 
 /** Rank 0 opaque with its own map, worn in two geometry variants; rank 1 masked; ranks 2 and 3
  *  share one map; rank 4 blended. */
-export async function scene(refresh = true, materialClassRefusal = webgpuMaterialClassRefusal) {
+export async function scene(
+  refresh = true,
+  materialClassRefusal: typeof webgpuMaterialClassRefusal = webgpuMaterialClassRefusal,
+) {
   const textures = [new G.GraphTexture(), new G.GraphTexture()];
   const materialOf = preparedMaterials(
     [
@@ -77,9 +81,14 @@ export async function scene(refresh = true, materialClassRefusal = webgpuMateria
   }
   // One entry per refresh: the alpha change it carried, `undefined` for values alone.
   const refreshes: (AlphaChange | undefined)[] = [];
+  // One page record per mesh, as the open collects them: the glass one drawn blended.
+  const pages = [...associations.keys()].map((sourceMesh, at) => ({
+    sourceMesh,
+    transparent: at === 5,
+  })) as unknown as PageRec[];
   const backend = {
     id: 'webgpu-page-raster',
-    materialClassRefusal,
+    materialClassRefusal: (alpha: AlphaChange) => materialClassRefusal(alpha, pages),
     ...(refresh && {
       refreshMaterials: (_: boolean, alpha?: AlphaChange) => void refreshes.push(alpha),
       wearSurface: () => true,
@@ -92,7 +101,7 @@ export async function scene(refresh = true, materialClassRefusal = webgpuMateria
     backends: [backend],
     active: () => backend,
   });
-  return { api, floor, textures, refreshes, source };
+  return { api, associations, floor, textures, refreshes, source };
 }
 
 export const refusal = (code: string) => (error: unknown) =>

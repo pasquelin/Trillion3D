@@ -3,10 +3,11 @@
 // by name before any write.
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import * as G from '../../host/graph/graph.fixture.ts';
 import { meshes } from '../../scene/meshes.ts';
 import { RUNTIME_MATERIAL_CEILING } from './materialApi.ts';
 import { refusal, scene } from './materialApi.fixture.ts';
-import type { SurfaceAssignment } from '../../placement/backendSceneUpdates.ts';
+import type { AlphaChange, SurfaceAssignment } from '../../placement/backendSceneUpdates.ts';
 
 test('a created material reads back what the page named, glTF defaults elsewhere', async () => {
   const { api } = await scene();
@@ -47,7 +48,7 @@ test('a created material is worn by the drawable it is assigned to, every engine
   assert.equal(drawable.material, refreshes.at(-1)!.surfaces[0], 'the drawable wears it');
   assert.deepEqual(
     (refreshes.at(-1) as SurfaceAssignment).meshes,
-    new Set([drawable]),
+    new Map([[drawable, drawable.material]]),
     'the drawable alone',
   );
   assert.deepEqual(api.material('0'), floor, 'the material it wore is left as it was');
@@ -87,4 +88,34 @@ test('past the declared ceiling a created material is refused by name', async ()
       error.code === 'MATERIAL_CEILING' && error.details?.ceiling === RUNTIME_MATERIAL_CEILING,
   );
   assert.equal(api.materials().length, 5 + RUNTIME_MATERIAL_CEILING, 'nothing built above it');
+});
+
+test('a vertex-coloured drawable wears the coloured variant of a created material, written with it', async () => {
+  const { api, source } = await scene();
+  const drawable = meshes(source)[2];
+  drawable.geometry.setAttribute('color', new G.BufferAttribute(new Float32Array(3), 3));
+  const made = api.createMaterial({ baseColor: [0, 0, 1] });
+  assert.equal(api.assignMaterial('2/0', made.id), true);
+  const worn = drawable.material as G.GraphSurface;
+  assert.equal(worn.vertexColors, true, 'its colours kept, as the open kept them');
+  api.setMaterial(made.id, { baseColor: [0, 1, 0] });
+  const { r, g, b } = worn.color as G.Color;
+  assert.deepEqual([r, g, b], [0, 1, 0], 'no stale copy');
+});
+
+test('a drawable whose meshes wear several classes is asked about the one that moves', async () => {
+  const asked: AlphaChange[] = [];
+  const { api, associations, source } = await scene(true, (alpha) => void asked.push(alpha));
+  // The glass mesh, blended, names the floor's primitive too: an opaque material unblends it.
+  associations.set(meshes(source)[5], { meshes: 0 });
+  api.assignMaterial('0/0', api.createMaterial().id);
+  assert.deepEqual([asked[0].from, asked[0].to], ['blend', 'opaque']);
+});
+
+test('what a created material or a change does not take is refused by name, never dropped', async () => {
+  const { api } = await scene();
+  for (const props of [{ tiling: [2, 2] }, { side: 'double' }, { shininess: 1 }, { name: 7 }])
+    assert.throws(() => api.createMaterial(props as never), refusal('INVALID_MATERIAL'));
+  assert.throws(() => api.setMaterial('0', { side: 'back' } as never), refusal('INVALID_MATERIAL'));
+  assert.equal(api.materials().length, 5, 'nothing created');
 });

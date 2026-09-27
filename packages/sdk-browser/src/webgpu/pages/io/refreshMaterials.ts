@@ -9,7 +9,13 @@ import {
   type SurfaceAssignment,
 } from '../../../placement/backendSceneUpdates.ts';
 import type { HostMaterials } from '../../../host/resources.ts';
-import { recordsOfMeshes, surfaceOf, wearDeclaration } from '../../../page/surface.ts';
+import {
+  recordsBySurface,
+  recordsOfMeshes,
+  surfaceOf,
+  unpagedRefusal,
+  wearDeclaration,
+} from '../../../page/surface.ts';
 import type { PageRec } from '../../../page/selection/selection.ts';
 
 /**
@@ -21,9 +27,10 @@ import type { PageRec } from '../../../page/selection/selection.ts';
  * no cluster enters or leaves them inside the session, nor takes another surface (#847).
  */
 export const webgpuMaterialClassRefusal = (alpha: AlphaChange, pages: readonly PageRec[] = []) =>
-  blendMoves(alpha) || (isAssignment(alpha) && assignsBlended(alpha, pages))
+  unpagedRefusal(pages, isAssignment(alpha) ? alpha.meshes : undefined) ||
+  (blendMoves(alpha) || (isAssignment(alpha) && assignsBlended(alpha, pages))
     ? 'its blended clusters are laid out in their forward pass when the session opens'
-    : undefined;
+    : undefined);
 
 /** An assignment into or out of blended, or onto a drawable whose clusters are drawn blended
  *  whatever their surface (`clustered-blend`). */
@@ -65,10 +72,10 @@ export function refreshWebgpuMaterials(rt: WebgpuPagesRuntime, values = true, al
   );
 }
 
-/** The records of the assigned meshes point to the surface they wear now (`wearSurface`, #847);
- *  false when rows draw none of them. */
-export function wearWebgpuSurface(rt: WebgpuPagesRuntime, { meshes, surfaces }: SurfaceAssignment) {
-  const worn = recordsOfMeshes(rt.setup.allPages, meshes);
-  for (const rec of worn) wearDeclaration(rec, surfaces[0] as HostMaterials);
-  return worn.length > 0;
+/** The records of the assigned meshes point to the surface each wears now (`wearSurface`,
+ *  #847), its variant for their geometry: a vertex-coloured one keeps its colours. */
+export function wearWebgpuSurface(rt: WebgpuPagesRuntime, { meshes }: SurfaceAssignment) {
+  for (const [surface, records] of recordsBySurface(rt.setup.allPages, meshes))
+    for (const rec of records) wearDeclaration(rec, surface as HostMaterials);
+  return true;
 }
