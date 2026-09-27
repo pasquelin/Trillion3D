@@ -1,15 +1,22 @@
 /**
- * Oracle of a tile's world bounds, a line-by-line port of `tileCorner`, `tileBox`,
- * `inwardPlane`, `tileColumn`, `tileSlab` and the sphere tests in
- * packages/sdk-browser/src/lighting/tiles/{shader,boundsWgsl}.ts. Every operation is rounded to
- * f32 as the shader's is; `inverseViewProjection` is column-major, like the uniform; depth is
- * reversed with an infinite far plane.
+ * Oracle of a tile's bounds, a line-by-line port of `tileCorner`, `inwardPlane`, `tileColumn`,
+ * `sphereTouchesColumn` (packages/sdk-browser/src/lighting/tiles/shader.ts) and of `tileCorners`,
+ * `boxOf`, `tileSlab`, `sphereBehind`, `sphereInSides` and `sliceHits` (`boundsWgsl.ts` beside it).
+ * Every operation is rounded to f32 as the shader's is. `inverseViewProjection` is column-major,
+ * like the uniform, and maps to the frame of `origin` (`tileViewInverse`); depth is reversed with
+ * an infinite far plane. Points and centres given here are in that frame (`toTileFrame`).
  */
 import { LIGHT_SETTINGS } from '../../../packages/sdk-core/src/index.ts';
 import { DEPTH_NEAR } from '../../../packages/sdk-browser/src/camera/depthConvention.ts';
 
 type Vec3 = [number, number, number];
-export type TileView = { inverseViewProjection: ArrayLike<number>; width: number; height: number };
+type Corners = [Vec3, Vec3, Vec3, Vec3];
+export type TileView = {
+  inverseViewProjection: ArrayLike<number>;
+  origin: ArrayLike<number>;
+  width: number;
+  height: number;
+};
 export type Plane = { n: Vec3; w: number };
 export type Box = { lo: Vec3; hi: Vec3 };
 
@@ -25,9 +32,13 @@ const cross = (a: Vec3, b: Vec3): Vec3 => [
   f(f(a[0] * b[1]) - f(a[1] * b[0])),
 ];
 
+/** A world point, as the uniform and the light buffer hold it, in the pass's frame. */
+export const toTileFrame = (view: TileView, point: Vec3) =>
+  map((i) => f(f(point[i]) - f(view.origin[i])));
+
 function unproject(m: ArrayLike<number>, x: number, y: number, z: number): Vec3 {
   const row = (r: number) =>
-    f(f(f(f(m[r] * x) + f(m[r + 4] * y)) + f(m[r + 8] * z)) + f(m[r + 12]));
+    f(f(f(f(f(m[r]) * x) + f(f(m[r + 4]) * y)) + f(f(m[r + 8]) * z)) + f(m[r + 12]));
   const w = row(3);
   return map((r) => f(row(r) / w));
 }
@@ -41,13 +52,14 @@ export function tileCorner(view: TileView, tile: [number, number], corner: numbe
   return unproject(view.inverseViewProjection, f(f(x * 2) - 1), f(1 - f(y * 2)), f(z));
 }
 
-function tileBox(view: TileView, tile: [number, number], front: number, back: number) {
-  const corners = [...Array(8).keys()].map((c) =>
-    tileCorner(view, tile, c & 3, c & 4 ? back : front),
-  );
+const tileCorners = (view: TileView, tile: [number, number], z: number) =>
+  [0, 1, 2, 3].map((c) => tileCorner(view, tile, c, z)) as Corners;
+
+function boxOf(a: Corners, b: Corners): Box {
+  const all = [...a, ...b];
   return {
-    lo: map((a) => Math.min(...corners.map((p) => p[a]))),
-    hi: map((a) => Math.max(...corners.map((p) => p[a]))),
+    lo: map((i) => Math.min(...all.map((p) => p[i]))),
+    hi: map((i) => Math.max(...all.map((p) => p[i]))),
   };
 }
 
@@ -57,81 +69,66 @@ function inwardPlane(normal: Vec3, point: Vec3, inside: Vec3): Plane {
   return { n: facing, w: -dot(facing, point) };
 }
 
-export function tileColumn(view: TileView, tile: [number, number]) {
+function columnOf(near: Corners, deep: Corners) {
   const order = [0, 1, 3, 2];
-  const near = order.map((c) => tileCorner(view, tile, c, DEPTH_NEAR));
-  const deep = order.map((c) => tileCorner(view, tile, c, DEPTH_NEAR / 1024));
-  const inside = deep.reduce((s, p) => add(s, scale(p, 0.25)), [0, 0, 0] as Vec3);
-  const planes = order.map((_, i) =>
-    inwardPlane(cross(sub(deep[(i + 1) % 4], deep[i]), sub(deep[i], near[i])), near[i], inside),
-  );
-  planes.push(inwardPlane(cross(sub(deep[1], deep[0]), sub(deep[3], deep[0])), near[0], inside));
+  const inside = scale(add(add(add(deep[0], deep[1]), deep[2]), deep[3]), 0.25);
+  const planes = order.map((at, i) => {
+    const next = order[(i + 1) % 4];
+    return inwardPlane(cross(sub(deep[next], deep[at]), sub(deep[at], near[at])), near[at], inside);
+  });
+  planes.push(inwardPlane(cross(sub(deep[1], deep[0]), sub(deep[2], deep[0])), near[0], inside));
   return planes;
 }
 
-/** The opaque slice's front and back planes: the column's near normal through each depth. */
-function tileSlab(
-  view: TileView,
-  tile: [number, number],
-  column: Plane[],
-  front: number,
-  back: number,
-): Plane[] {
-  const away = column[4].n;
-  const at = (z: number) => dot(away, tileCorner(view, tile, 0, z));
-  return [
-    { n: away, w: -at(front) },
-    { n: scale(away, -1), w: at(back) },
-  ];
-}
+export const tileColumn = (view: TileView, tile: [number, number]) =>
+  columnOf(tileCorners(view, tile, DEPTH_NEAR), tileCorners(view, tile, DEPTH_NEAR / 1024));
+
+const sphereBehind = (plane: Plane, centre: Vec3, radius: number) =>
+  f(dot(plane.n, centre) + plane.w) < -radius;
+
+const sphereInSides = (column: Plane[], centre: Vec3, radius: number) =>
+  column.slice(0, 4).every((plane) => !sphereBehind(plane, centre, radius));
+
+export const sphereTouchesColumn = (column: Plane[], centre: Vec3, radius: number) =>
+  sphereInSides(column, centre, radius) && !sphereBehind(column[4], centre, radius);
 
 export function sphereTouchesBox(box: Box, centre: Vec3, radius: number) {
   const clamped = map((a) => Math.max(f(box.lo[a] - centre[a]), f(centre[a] - box.hi[a]), 0));
   return dot(clamped, clamped) <= f(radius * radius);
 }
 
-export function sphereTouchesColumn(column: Plane[], centre: Vec3, radius: number) {
-  return column.every((plane) => f(dot(plane.n, centre) + plane.w) >= -radius);
-}
-
-function sphereInFront(plane: Plane, centre: Vec3, radius: number) {
-  const side = dot(plane.n, centre);
-  const margin = f(f(radius + f(1e-5 * f(Math.abs(side) + Math.abs(plane.w)))) + f(1e-4));
-  return f(side + plane.w) >= -margin;
-}
-
-const inSides = (column: Plane[], centre: Vec3, radius: number) =>
-  column.slice(0, 4).every((plane) => sphereInFront(plane, centre, radius));
-
-export function sphereTouchesOpaqueSlice(bounds: TileBounds, centre: Vec3, radius: number) {
-  const { opaqueBox, column, slab } = bounds;
-  return (
-    sphereTouchesBox(opaqueBox, centre, radius) &&
-    inSides(column, centre, radius) &&
-    sphereInFront(slab[0], centre, radius) &&
-    sphereInFront(slab[1], centre, radius)
-  );
-}
-
-export function sphereTouchesBlendSlice(bounds: TileBounds, centre: Vec3, radius: number) {
-  const { blendBox, column, slab } = bounds;
-  return (
-    sphereTouchesBox(blendBox, centre, radius) &&
-    inSides(column, centre, radius) &&
-    sphereInFront(column[4], centre, radius) &&
-    sphereInFront(slab[1], centre, radius)
-  );
-}
-
 export type TileBounds = { opaqueBox: Box; blendBox: Box; column: Plane[]; slab: Plane[] };
 
-/** What thread zero builds for a tile whose opaque pixels span `front` to `back`, no sky pixel. */
+/** What thread zero builds for a tile whose opaque pixels span `front` to `back`. */
 export function tileBounds(view: TileView, tile: [number, number], front: number, back: number) {
-  const column = tileColumn(view, tile);
+  const near = tileCorners(view, tile, DEPTH_NEAR);
+  const column = columnOf(near, tileCorners(view, tile, DEPTH_NEAR / 1024));
+  const [frontCorners, backCorners] = [
+    tileCorners(view, tile, front),
+    tileCorners(view, tile, back),
+  ];
+  const away = column[4].n;
   return {
-    opaqueBox: tileBox(view, tile, front, back),
-    blendBox: tileBox(view, tile, DEPTH_NEAR, back),
+    opaqueBox: boxOf(frontCorners, backCorners),
+    blendBox: boxOf(near, backCorners),
     column,
-    slab: tileSlab(view, tile, column, front, back),
+    slab: [
+      { n: away, w: -dot(away, frontCorners[0]) },
+      { n: scale(away, -1), w: dot(away, backCorners[0]) },
+    ],
   };
+}
+
+/** `sliceHits` of a light other than the sun, `centre` in the pass's frame. */
+export function sliceHits(bounds: TileBounds, centre: Vec3, radius: number, seesSky: boolean) {
+  const { opaqueBox, blendBox, column, slab } = bounds;
+  const hit = { opaque: false, blend: seesSky && sphereTouchesColumn(column, centre, radius) };
+  if (sphereInSides(column, centre, radius) && !sphereBehind(slab[1], centre, radius)) {
+    hit.opaque =
+      sphereTouchesBox(opaqueBox, centre, radius) && !sphereBehind(slab[0], centre, radius);
+    if (!seesSky)
+      hit.blend =
+        sphereTouchesBox(blendBox, centre, radius) && !sphereBehind(column[4], centre, radius);
+  }
+  return hit;
 }

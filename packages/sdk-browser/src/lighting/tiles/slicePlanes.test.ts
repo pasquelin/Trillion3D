@@ -1,54 +1,67 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { LIGHT_SETTINGS } from '../../../../sdk-core/src/index.ts';
-import { mulberry32 } from '../../../../../site/examples/kit/random.ts';
 import {
-  sphereTouchesBlendSlice,
+  sliceHits,
   sphereTouchesBox,
-  sphereTouchesOpaqueSlice,
   tileBounds,
+  toTileFrame,
   type TileView,
 } from '../../../../../bench/oracles/browser/gpuLightTileColumnOracle.ts';
+import { random } from '../../page/cut/cutRuleChecks.fixture.ts';
 import { LIGHT_TILES_SHADER } from './shader.ts';
 import { NEAR, camera, pixelPoint, segmentDistance, type Vec3 } from './tileCamera.fixture.ts';
 
 // #924 (OMB-03): a light is kept in a slice only if its range sphere meets the slice's box AND
 // the six planes of the tile's frustum. A light term is exactly zero at or past its range
 // (`directIrradiance`), so the lists stay image-exact if every light that reaches one point of the
-// slice is kept: checked here against the box-only lists of before, on random views — from the
-// street to straight down from 2 km — and random lights near the tile's own pixels.
+// slice is kept: checked here in f64 against the box-only lists of before, on random views — from
+// the street to straight down from 2 km, kilometres from the world origin — and random lights
+// near the tile's own pixels.
 
 const SIZE = LIGHT_SETTINGS.tileSize;
 
-type Pixel = { near: Vec3; point: Vec3 };
+type Pixel = { z: number; near: Vec3; point: Vec3 };
 type Light = { centre: Vec3; radius: number };
+type Counts = Record<'opaqueBefore' | 'opaque' | 'blendBefore' | 'blend', number>;
+const noCounts = (): Counts => ({ opaqueBefore: 0, opaque: 0, blendBefore: 0, blend: 0 });
+/** Pixel `i` of the tile, row by row. */
+const tilePixel = (tile: number[], i: number) =>
+  [tile[0] * SIZE + (i % SIZE), tile[1] * SIZE + Math.floor(i / SIZE)] as const;
 
-/** Checks each light of a tile with no sky pixel; returns how many each list keeps, before and now. */
-function checkTile(view: TileView, tile: [number, number], depths: number[], lights: Light[]) {
+/** Checks each light of a tile with no sky pixel, adding to `counts` what each list keeps, before
+ *  and now. */
+function checkTile(
+  view: TileView,
+  tile: [number, number],
+  depths: number[],
+  lights: Light[],
+  counts = noCounts(),
+) {
   const pixels: Pixel[] = [];
   depths.forEach((z, i) => {
-    const px = tile[0] * SIZE + (i % SIZE),
-      py = tile[1] * SIZE + Math.floor(i / SIZE);
+    const [px, py] = tilePixel(tile, i);
     if (px < view.width && py < view.height)
-      pixels.push({ near: pixelPoint(view, px, py, 1), point: pixelPoint(view, px, py, z) });
+      pixels.push({ z, near: pixelPoint(view, px, py, 1), point: pixelPoint(view, px, py, z) });
   });
-  const kept = Math.fround,
-    front = kept(Math.max(...depths)),
-    back = kept(Math.min(...depths));
+  // The shader reduces the depths of the pixels inside the image only.
+  const seen = pixels.map((p) => p.z),
+    front = Math.fround(Math.max(...seen)),
+    back = Math.fround(Math.min(...seen));
   const bounds = tileBounds(view, tile, front, back);
-  const counts = { opaqueBefore: 0, opaque: 0, blendBefore: 0, blend: 0 };
   for (const { centre, radius } of lights) {
-    const opaqueBefore = sphereTouchesBox(bounds.opaqueBox, centre, radius),
-      blendBefore = sphereTouchesBox(bounds.blendBox, centre, radius);
-    const opaque = sphereTouchesOpaqueSlice(bounds, centre, radius),
-      blend = sphereTouchesBlendSlice(bounds, centre, radius);
-    const lit = pixels.some((p) => Math.hypot(...p.point.map((v, a) => v - centre[a])) < radius);
-    const litInFront = pixels.some((p) => segmentDistance(p.near, p.point, centre) < radius);
-    const at = `light ${centre} r ${radius}, tile ${tile}, depths ${front}..${back}`;
-    assert.ok(!lit || opaque, `an opaque pixel it reaches loses it: ${at}`);
-    assert.ok(!litInFront || blend, `a blend point it reaches loses it: ${at}`);
-    assert.ok(!opaque || opaqueBefore, `kept now, not before: ${at}`);
-    assert.ok(!blend || blendBefore, `kept now, not before: ${at}`);
+    const at = toTileFrame(view, centre);
+    const opaqueBefore = sphereTouchesBox(bounds.opaqueBox, at, radius),
+      blendBefore = sphereTouchesBox(bounds.blendBox, at, radius);
+    const { opaque, blend } = sliceHits(bounds, at, radius, false);
+    // Only a dropped light needs the scan of the pixels it could reach.
+    const reach = (from: 'near' | 'point') =>
+      pixels.some((p) => segmentDistance(p[from], p.point, centre) < radius);
+    const where = `light ${centre} r ${radius}, tile ${tile}, depths ${front}..${back}`;
+    assert.ok(opaque || !reach('point'), `an opaque pixel it reaches loses it: ${where}`);
+    assert.ok(blend || !reach('near'), `a blend point it reaches loses it: ${where}`);
+    assert.ok(!opaque || opaqueBefore, `kept now, not before: ${where}`);
+    assert.ok(!blend || blendBefore, `kept now, not before: ${where}`);
     counts.opaqueBefore += +opaqueBefore;
     counts.opaque += +opaque;
     counts.blendBefore += +blendBefore;
@@ -59,17 +72,18 @@ function checkTile(view: TileView, tile: [number, number], depths: number[], lig
 
 /** A random view, tile, depth field and lights near the tile's pixels. */
 function randomCase(seed: number, pitch: number) {
-  const r = mulberry32(seed),
+  const r = random(seed),
     u = (lo: number, hi: number) => lo + (hi - lo) * r();
   const [width, height] = [Math.round(u(320, 1920)), Math.round(u(240, 1080))];
-  const eye: Vec3 = [u(-5000, 5000), u(1.7, 2000), u(-5000, 5000)];
+  const far = seed % 4 === 0 ? 150_000 : 5000;
+  const eye: Vec3 = [u(-far, far), u(1.7, 2000), u(-far, far)];
   const view = camera(eye, u(-Math.PI, Math.PI), pitch, u(30, 100), width, height);
   const tile: [number, number] = [
     Math.floor(r() * Math.ceil(width / SIZE)),
     Math.floor(r() * Math.ceil(height / SIZE)),
   ];
   // A slanted surface, its distance growing across the tile, with a few pixels on nearer objects.
-  const [d0, dx, dy] = [Math.exp(u(Math.log(0.2), Math.log(3000))), u(-0.3, 0.3), u(-0.3, 0.3)];
+  const [d0, dx, dy] = [Math.exp(u(Math.log(0.12), Math.log(3000))), u(-0.3, 0.3), u(-0.3, 0.3)];
   const depths = [...Array(SIZE * SIZE).keys()].map((i) => {
     const d =
       d0 *
@@ -79,12 +93,7 @@ function randomCase(seed: number, pitch: number) {
   });
   const lights = [...Array(60).keys()].map(() => {
     const i = Math.floor(r() * depths.length);
-    const at = pixelPoint(
-      view,
-      tile[0] * SIZE + (i % SIZE),
-      tile[1] * SIZE + Math.floor(i / SIZE),
-      depths[i],
-    );
+    const at = pixelPoint(view, ...tilePixel(tile, i), depths[i]);
     const radius = Math.exp(u(Math.log(0.01), Math.log(200)));
     const reach = u(0, 2) * radius;
     const dir = [u(-1, 1), u(-1, 1), u(-1, 1)],
@@ -98,51 +107,15 @@ function randomCase(seed: number, pitch: number) {
 }
 
 test('random views: every light that reaches the slice is kept, none the box did not keep', () => {
-  const total = { opaqueBefore: 0, opaque: 0, blendBefore: 0, blend: 0 };
+  const total = noCounts();
   for (let seed = 1; seed <= 600; seed++) {
-    const pitch =
-      seed % 3 === 0 ? -Math.PI / 2 : (mulberry32(seed * 7)() * 120 - 90) * (Math.PI / 180);
+    const pitch = seed % 3 === 0 ? -Math.PI / 2 : (random(seed * 7)() * 120 - 90) * (Math.PI / 180);
     const { view, tile, depths, lights } = randomCase(seed, pitch);
-    const counts = checkTile(view, tile, depths, lights);
-    for (const key of Object.keys(total) as (keyof typeof total)[]) total[key] += counts[key];
+    checkTile(view, tile, depths, lights, total);
   }
   // The planes are the point: they drop lights the loose box kept.
   assert.ok(total.opaque < total.opaqueBefore, JSON.stringify(total));
   assert.ok(total.blend < total.blendBefore, JSON.stringify(total));
-});
-
-test('far from the origin, a leaf a hand away: no light reaching the wall behind is lost', () => {
-  // Kilometres from the origin a tile's corners 0.2 m away are a few f32 steps apart: a depth
-  // plane drawn through three of them points anywhere, and cuts off the wall behind the leaf.
-  for (let seed = 1; seed <= 200; seed++) {
-    const r = mulberry32(seed * 31),
-      u = (lo: number, hi: number) => lo + (hi - lo) * r();
-    const eye: Vec3 = [u(-30000, 30000), u(1.7, 30), u(-30000, 30000)];
-    const view = camera(eye, u(-Math.PI, Math.PI), u(-1.4, 0.3), u(30, 100), 3840, 2160);
-    const tile: [number, number] = [Math.floor(u(0, 240)), Math.floor(u(0, 135))];
-    // A leaf a hand away in front of a wall metres behind: the front plane runs through the leaf.
-    const [leaf, wall] = [NEAR / u(0.12, 1), NEAR / u(2, 500)];
-    const depths = Array.from({ length: SIZE * SIZE }, (_, i) =>
-      Math.fround(i % 37 === 0 ? leaf : wall * u(0.99, 1)),
-    );
-    const lights = Array.from({ length: 40 }, () => {
-      const i = Math.floor(u(0, SIZE * SIZE)),
-        radius = Math.fround(u(0.05, 20));
-      const at = pixelPoint(
-        view,
-        tile[0] * SIZE + (i % SIZE),
-        tile[1] * SIZE + (i >> 4),
-        depths[i],
-      );
-      const dir = [u(-1, 1), u(-1, 1), u(-1, 1)],
-        len = Math.hypot(...dir) || 1;
-      return {
-        centre: at.map((v, a) => Math.fround(v + (dir[a] / len) * radius * 0.99)) as Vec3,
-        radius,
-      };
-    });
-    checkTile(view, tile, depths, lights);
-  }
 });
 
 test('looking down from 150 m: the planes drop the lamps the blend box keeps', () => {
@@ -150,7 +123,7 @@ test('looking down from 150 m: the planes drop the lamps the blend box keeps', (
   const tile: [number, number] = [100, 10];
   // The ground y = 0 under each pixel: its view distance is affine along the pixel's ray.
   const depths = [...Array(SIZE * SIZE).keys()].map((i) => {
-    const [px, py] = [tile[0] * SIZE + (i % SIZE), tile[1] * SIZE + Math.floor(i / SIZE)];
+    const [px, py] = tilePixel(tile, i);
     const near = pixelPoint(view, px, py, 1),
       far = pixelPoint(view, px, py, NEAR / 1e5);
     const t = near[1] / (near[1] - far[1]);
@@ -167,11 +140,12 @@ test('looking down from 150 m: the planes drop the lamps the blend box keeps', (
 });
 
 test('edge cases: a flat tile, the near plane, the far distance, infinite and NaN ranges', () => {
-  const view = camera([12, 40, -7], 1, -0.7, 70, 1280, 720);
+  const view = camera([12, 40, -7], 1, -0.7, 70, 1270, 710);
   const tile: [number, number] = [79, 44]; // the last, cut tile on both axes
   for (const z of [1, 0.5, NEAR / 1e5]) {
     const depths = Array<number>(SIZE * SIZE).fill(Math.fround(z));
-    const at = pixelPoint(view, tile[0] * SIZE, tile[1] * SIZE, z);
+    // The light buffer holds f32 centres.
+    const at = pixelPoint(view, tile[0] * SIZE, tile[1] * SIZE, z).map(Math.fround) as Vec3;
     const lights: Light[] = [
       { centre: at, radius: 1e-3 },
       { centre: [at[0], at[1] + 1, at[2]], radius: 1.001 },
@@ -179,20 +153,29 @@ test('edge cases: a flat tile, the near plane, the far distance, infinite and Na
     ];
     checkTile(view, tile, depths, lights);
     const bounds = tileBounds(view, tile, Math.fround(z), Math.fround(z));
-    assert.ok(
-      sphereTouchesOpaqueSlice(bounds, [1e6, 0, 0], Infinity),
-      'an infinite range reaches all',
-    );
-    assert.ok(!sphereTouchesOpaqueSlice(bounds, at, NaN), 'a NaN range is dropped, as the box did');
-    assert.ok(!sphereTouchesBox(bounds.opaqueBox, at, NaN));
+    const hits = (centre: Vec3, radius: number) =>
+      sliceHits(bounds, toTileFrame(view, centre), radius, false);
+    assert.deepEqual(hits([1e6, 0, 0], Infinity), { opaque: true, blend: true }, 'reaches all');
+    assert.deepEqual(hits(at, NaN), { opaque: false, blend: false }, 'dropped, as the box did');
   }
 });
 
-test('the pass tests both slices against the planes, the sky column unchanged', () => {
-  assert.match(LIGHT_TILES_SHADER, /sun\|\|sphereTouchesOpaqueSlice\(centre,radius\)/);
-  assert.match(LIGHT_TILES_SHADER, /blendTouched=sphereTouchesBlendSlice\(centre,radius\);/);
-  assert.match(
-    LIGHT_TILES_SHADER,
-    /tileColumn\(tile\.xy\);\n\s*if\(atomicLoad\(&covered\)==1u\)\{[^\n]*tileSlab\(/,
-  );
+test('far from the world origin, an opaque near the eye keeps the lights that reach it', () => {
+  // 150 km out, the absolute corners of a tile 17 cm from the eye rounded to one f32 point: its
+  // planes, drawn in the eye's frame, keep every light, 90 m ranges included.
+  const view = camera([-152_000, 3_000, -102_000], 2, -0.4, 60, 1920, 1080);
+  const tile: [number, number] = [32, 1];
+  const depths = Array<number>(SIZE * SIZE).fill(Math.fround(NEAR / 0.17));
+  const at = pixelPoint(view, tile[0] * SIZE + 8, tile[1] * SIZE + 8, depths[0]);
+  const lights: Light[] = [30, 60, 90].map((radius) => ({
+    centre: [at[0], at[1] + radius / 2, at[2]].map(Math.fround) as Vec3,
+    radius,
+  }));
+  const counts = checkTile(view, tile, depths, lights);
+  assert.equal(counts.opaque, lights.length, JSON.stringify(counts));
+});
+
+test('the pass tests each light in the frame of its planes', () => {
+  const code = LIGHT_TILES_SHADER.replace(/\s+/g, '');
+  assert.ok(code.includes('sliceHits(light.positionRange.xyz-view.origin.xyz,'));
 });
