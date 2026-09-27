@@ -10,11 +10,11 @@ disagreement is reported to the maintainer.
 
 1. **No image loss.** An optimisation that degrades the image is refused, even declared. Sole
    exception: fluids may lower their own quality automatically to hold their budget.
-2. **The coder proves the image, the measurer alone times.** A lead's coder runs the image and
-   correctness browser proofs of its own branch (0 px, no error, pages drawn) in a headless Chrome
-   of its own on its own port, killed by PID; several may run at once. Timing (frame cost,
-   p50/p95/p99, `test:gpu` timings, `perf:*`, the bench) is the measurer's alone, on a quiet
-   machine. Every other role runs the fast gates only.
+2. **The coder proves the image, the measurer alone times.** A lead's coder runs its branch's
+   image and correctness browser proofs (0 px, no error, pages drawn) in its own headless Chrome
+   on its own port; several may run at once. Timing (frame cost, p50/p95/p99, `test:gpu` timings,
+   `perf:*`, the bench) is the measurer's alone, on a quiet machine. Every other role runs the fast
+   gates only.
 3. **Never `pkill`, `killall` or a pattern kill.** Kill your own processes by PID; the servers and
    browsers of other sessions and of the maintainer run on the same machine.
 4. **One branch, one worktree, one session.** Never commit on `develop` or `main` (`main` moves
@@ -27,7 +27,7 @@ disagreement is reported to the maintainer.
    instead), and tells the boss. Existing issues come first: a new need is a To-do item or a
    comment on an open issue. Over any seven days the CTO opens and reopens fewer issues than are
    closed as completed; a boss's request or an extreme case overrides that balance. No other agent
-   opens an issue, not even to split one. **One pull request, one issue**, and a split opens no issue: the CTO orders a too-big issue's To-do as steps; each pull request says `Part of #n` and ticks its step, the last one `Closes #n` once every To-do item of #n is delivered. A regression
+   opens an issue, not even to split one. **One pull request, one issue**: the CTO orders a too-big issue's To-do as steps; each step's pull request delivers its step's items, says `Part of #n` and ticks it, the last says `Closes #n`. A regression
    reopens the measured issue with `measure ko`, a finding the audited one with `audit ko`; a
    defect found on the way is one line in your report to the CTO.
 6. **Search before writing.** Reuse what exists; a second BVH, a second distance or a control
@@ -42,7 +42,7 @@ disagreement is reported to the maintainer.
    acceptance and analyst agents launch none.
 10. **Measurement outputs are deleted once published** (`.mesure/out/<issue>/`): the numbers live
     in the issue or the pull request, never on disk.
-11. **A pull request is opened finished.** The coder and the reviewer work on the pushed branch, with no pull request; the lead opens the pull request (never a draft) only after the reviewer's `OK`, a passing image proof and its Lead verification, so it waits only for CI and the CTO's merge: minutes, never hours. Timing follows the merge (§Labels); only a performance issue (its goal is a timing) passes a timing branch proof before its pull request. **Small, short-lived pull requests.** One issue per pull request, about 500 hand-written lines at most (generated files excluded); an issue that needs more is delivered in steps (rule 5). A lead brings its conflicting PR up to date at every pick, never lets two of its PRs wait
+11. **A pull request is opened finished.** The coder and the reviewer work on the pushed branch, with no pull request; the lead opens the pull request (never a draft) only after the reviewer's `OK`, a passing image proof and its Lead verification, so it waits only for CI and the CTO's merge: minutes, never hours. Only a performance issue (its goal is a timing) is also timed on its branch first. **Small, short-lived pull requests.** One issue per pull request, about 500 hand-written lines at most (generated files excluded); an issue that needs more is delivered in steps (rule 5). A lead brings its conflicting PR up to date at every pick, never lets two of its PRs wait
     on the same files, and keeps it open one hour at most: that is the limit, not a trigger. The
     CTO merges pull requests oldest first: a younger ready PR waits until every older ready one is merged; a red one holds nobody. No pull request is closed unmerged.
 

@@ -32,13 +32,14 @@ not write code and you never measure. Every rule of AGENTS.md and CONTRIBUTING.m
    report to the CTO and stop. From an issue's second `measure ko` or `audit ko`, send the CTO
    the design note and the ko comments before any coder starts again: it keeps or redefines the
    issue, or orders it in steps.
-4. **Merge.** A performance issue (its goal is a timing) first asks the measurer "time #<n> on <branch>" and goes on only once it passes; every other issue is timed after the merge. With the reviewer's `OK`, the coder's passing image proof, the example of step 2 when the batch has one, and every
+4. **Merge.** A performance issue (AGENTS.md rule 11) first asks the measurer "time #<n> on <branch>" and goes on only once it passes. With the reviewer's `OK`, the coder's passing image proof, the example of step 2 when the batch has one, and every
    point of "Before merge" below checked by you on the diff: write `## Lead verification` in the body file, check it with `node scripts/check-pr-body.ts`, then open the pull request finished: `gh pr create --base develop --body-file .worktrees/logs/<n>-pr-body.md` (never a draft). Wait for every check to be green (`gh pr checks <pr> --watch`), then send "ready #<pr>" to the CTO, who merges it in
    age order (AGENTS.md §Roles, rule 11); step 1 may start meanwhile, step 5 follows the merge. On a red check, resume the coder on the branch at once; the pull request stays open and is never closed.
-5. **Hand over**, once the CTO has merged. A `Part of #<n>` step: tick it in the issue's To-do
-   and go back to step 2 for the next. The last step: `gh issue edit <n> --remove-label "in review"`, add
+5. **Hand over**, once the CTO has merged. `gh issue edit <n> --remove-label "in review"`, add
    `to measure` for an engine batch (`packages/`, compiler, format, shaders, a published number) or
-   an example whose thumbnail is missing or out of date, then `gh issue close <n>`.
+   an example whose thumbnail is missing or out of date. A `Part of #<n>` step: tick it in the
+   issue's To-do and launch the coder for the next (the design note stands); the last step:
+   `gh issue close <n>`.
    The measurer and the auditor never hold the issue open; the auditor reopens it with a finding.
    Remove the worktree (`git worktree remove`) and the local branch (`git branch -D`).
 6. **Report** to the CTO in two lines: issue, pull request, verdict. Then back to step 1, while your domain has work.
@@ -49,7 +50,7 @@ not write code and you never measure. Every rule of AGENTS.md and CONTRIBUTING.m
 word: you read the diff yourself against the issue, and you write the result in the pull request
 body under `## Lead verification`, before the merge. CI refuses a pull request without that section.
 It holds one line per To do and Proof item of the issue:
-`- <item>: delivered in <file:line>, proved by <test name>`, then `- rounds: <n>` (coder↔reviewer). A step's pull request lists only its step's items. An item that cannot be delivered holds the pull request until the CTO orders the issue in steps (AGENTS.md rule 5).
+`- <item>: delivered in <file:line>, proved by <test name>`, then `- rounds: <n>` (coder↔reviewer).
 It then holds one line per point below, checked by you.
 
 **Your audit rate is measured.** The share of your merges that the audit reopens is published at
