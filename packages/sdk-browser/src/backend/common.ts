@@ -35,9 +35,22 @@ export const DEFAULT_FOV = 55,
    * queue that fills a stopped view in that time has it when the view does (`../gpu/core/aheadView.ts`).
    */
   PREFETCH_HORIZON_MS = 250,
+  /** The farthest the view ahead looks, in milliseconds, whatever the round trip: past a second,
+   *  the camera's velocity no longer says where it will be. */
+  MAX_PREFETCH_HORIZON_MS = 1000,
   PREFETCH_INTERVAL_MS = 250,
   DEFAULT_CACHED_PAGES = 16384,
   DEFAULT_CLEAR_COLOR = 0x171d28;
+/**
+ * How far ahead of a moving camera the cut requests pages, in milliseconds: the published horizon
+ * plus the pages' measured round trip (`../streaming/roundTrip.ts`) — a page asked for now lands a
+ * round trip later — at most `MAX_PREFETCH_HORIZON_MS`. No round trip measured, or none that reads
+ * as a duration: the published horizon, as before.
+ */
+export const prefetchHorizonMs = (roundTripMs?: number) =>
+  roundTripMs !== undefined && roundTripMs > 0
+    ? Math.min(PREFETCH_HORIZON_MS + roundTripMs, MAX_PREFETCH_HORIZON_MS)
+    : PREFETCH_HORIZON_MS;
 /**
  * Device pixels of a logical dimension, at the ratio the host has set. Canvas creation and
  * resize both compute it: two separate truncations would have ended up with a canvas of one

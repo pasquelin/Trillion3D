@@ -88,6 +88,8 @@ export type StreamContext = {
   maxTransferBytes: number;
   onEvict?: (url: string) => void;
   onDiagnostic?: (diagnostic: BackendDiagnostic) => void;
+  /** The reads' measured round trip (`roundTrip.ts`), what the view ahead adds to its horizon. */
+  roundTrip: ReturnType<typeof import('./roundTrip.ts').createRoundTrip>;
   state: {
     order: number;
     active: number;

@@ -6,7 +6,7 @@ export function createStreamingFetcher(
   context: StreamContext,
   touch: (url: string, bytes: Uint8Array, sha256: string) => void,
 ) {
-  const { catalog, cache, base, abort, onDiagnostic, emit, failures, state } = context;
+  const { catalog, cache, base, abort, onDiagnostic, emit, failures, state, roundTrip } = context;
   const loadOne = async (url: string, jobSignal: AbortSignal) => {
     const page = catalog.get(url);
     if (!page) throw new Error('Unknown page ' + url);
@@ -30,10 +30,12 @@ export function createStreamingFetcher(
           attempt,
           expectedBytes: page.bytes,
         }));
-        // One request per attempt: this loop is the retry, and it says so page by page.
-        let buffer = await (
-          await checked(new URL(url, base).href, combined, ONE_REQUEST)
-        ).arrayBuffer();
+        // One request per attempt: this loop is the retry, and it says so page by page. Its round
+        // trip is the wait for the headers: the body's transfer is the bandwidth's, not the latency's.
+        const sent = performance.now();
+        const response = await checked(new URL(url, base).href, combined, ONE_REQUEST);
+        roundTrip.note(performance.now() - sent);
+        let buffer = await response.arrayBuffer();
         // Size is taken before any verification: the buffer leaves transferred to the decode
         // worker, so the original reference is detached for the round trip.
         const byteLength = buffer.byteLength;

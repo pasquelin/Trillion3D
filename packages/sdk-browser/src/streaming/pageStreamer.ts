@@ -4,6 +4,7 @@ import type { StreamContext, Job, StreamPage, PageStreamerOptions } from './type
 import { createStreamingCache } from './cache.ts';
 import { createIndexViews } from './indexView.ts';
 import { createPageCache, manifestTableBytes, type PageCache } from './pageCache.ts';
+import { createRoundTrip } from './roundTrip.ts';
 /** Bounded, prioritized and deduplicated reads. A request still waiting in the queue is dropped once
  *  its last consumer leaves; one already transferring is allowed to land in the cache.
  *  The cache is a least-recently-used set bounded by both entries and bytes; pinned entries survive
@@ -76,6 +77,7 @@ export function createPageStreamerWith(
     maxTransferBytes,
     onEvict,
     onDiagnostic,
+    roundTrip: createRoundTrip(),
     state,
     emit,
     abortError,
@@ -118,6 +120,8 @@ export function createPageStreamerWith(
     has: (url: string) => cache.has(url),
     loading: (url: string) => jobs.has(url),
     failed: (url: string) => failures.has(url),
+    /** The reads' measured round trip in milliseconds, 0 before the first (`roundTrip.ts`). */
+    roundTripMs: () => context.roundTrip.ms,
     read(url: string, requestSignal?: AbortSignal) {
       state.requested++;
       return subscribe(url, requestSignal, 0).then(asIndices);
