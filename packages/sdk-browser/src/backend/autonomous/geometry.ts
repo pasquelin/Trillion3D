@@ -125,6 +125,7 @@ export function createAutonomousGeometry(env: GeometryEnvironment) {
       const list = byUrl.get(rec.url) ?? [],
         index = list.indexOf(rec);
       if (index >= 0) list.splice(index, 1);
+      if (!list.length && byUrl.delete(rec.url) && rec.array) state.residentPages--;
       release(rec, !!rec.placement && list.some((other) => other.geometry === rec.geometry));
       baseMaterials.delete(rec);
     }

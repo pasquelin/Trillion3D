@@ -115,8 +115,12 @@ export function createPageStreamerWith(
       return array;
     },
     has: (url: string) => cache.has(url),
-    loading: (url: string) => jobs.has(url),
-    failed: (url: string) => failures.has(url),
+    loading(url: string) {
+      return jobs.has(url);
+    },
+    failed(url: string) {
+      return failures.has(url);
+    },
     read(url: string, requestSignal?: AbortSignal) {
       state.requested++;
       return subscribe(url, requestSignal, 0).then(asIndices);
