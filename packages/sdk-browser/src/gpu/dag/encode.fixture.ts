@@ -95,5 +95,6 @@ export function ressources(residentCut: boolean, levelCount = 3, pageCount = 409
     drawScatterPipeline: etape('dagDrawScatter'),
     viewOffsetsPipeline: etape('dagViewOffsets'),
     requestSortPipeline: etape('dagSortRequests'),
+    evictPipeline: etape('dagListEvictions'),
   } as unknown as Parameters<typeof encodeDagKernels>[1];
 }
