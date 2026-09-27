@@ -20,6 +20,10 @@ export function createPinFeed(tracking: Pick<Tracking, 'keep' | 'keepPages'>) {
     left = createDenseKeySet();
   let cpuCut = true;
   return {
+    /** True while the CPU cut decides. */
+    get cpuCut() {
+      return cpuCut;
+    },
     entering,
     enteringPages,
     leaving,

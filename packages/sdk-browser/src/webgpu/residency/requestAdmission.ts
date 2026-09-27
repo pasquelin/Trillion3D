@@ -36,7 +36,6 @@ export function createRequestAdmission(
     whole = 0,
     room = 0,
     last: Requests | null = null,
-    lastRoom = -1,
     lastRevision = -1;
   const list = (_id: number, rec: PageRec) => {
     const key = keyOf(rec);
@@ -55,7 +54,7 @@ export function createRequestAdmission(
     if (sets.desiredCount <= slots) return sets.followDesired();
     // Before the first readback, the queue the image started with stands.
     if (!cut) return;
-    if (cut === last && slots === lastRoom && sets.acceptedRevision === lastRevision) return;
+    if (cut === last && slots === room && sets.acceptedRevision === lastRevision) return;
     room = slots;
     count = whole = 0;
     listed.clear();
@@ -64,7 +63,6 @@ export function createRequestAdmission(
     pages.length = count;
     sets.admit(keys, pages, count);
     last = cut;
-    lastRoom = slots;
     lastRevision = sets.acceptedRevision;
   };
 }

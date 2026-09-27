@@ -45,7 +45,6 @@ function banc() {
   const residencySets = {
     applyCut: (delta: CutDelta) => (remue.coupe += compte(delta)),
     applyDrawn: (delta: CutDelta) => (remue.dessinee += compte(delta)),
-    decideBy: () => {},
     hostBytes: 0,
   } as unknown as WebgpuResidencySets;
   const rt = {
