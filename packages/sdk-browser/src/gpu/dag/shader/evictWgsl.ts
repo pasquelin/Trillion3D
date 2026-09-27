@@ -1,15 +1,10 @@
 import { EVICT_AGES, EVICT_LEVELS, KEY_PAGE_BITS } from '../evict.ts';
 
 /**
- * `dagListEvictions`: the eviction queue, written into the frame's readback behind the drawn list
- * (`evictionWord`, `../layout.ts`) — a count, then the canonical pages in the order the cache gives
- * their slots back (`../evict.ts`, whose `listEvictions` is its mirror).
- *
- * One workgroup, as `dagSortRequests`, and the same counting sort without staging: a first sweep
- * counts each rank, `placeRanks` gives each rank its first place, a second sweep scatters. The
- * sweeps read the pool's bit set (`poolBase`, one word for thirty-two pages, set on each key's
- * canonical page alone), not a record per page: what they list is what the pool holds. The queue stops at the pool's slots (`poolSlots`, in
- * the uniforms), keeping the highest ranks.
+ * `dagListEvictions`: the eviction queue behind the drawn list (`evictionWord`, `../layout.ts`), a
+ * count then canonical pages (`../evict.ts`, `listEvictions` its mirror). One workgroup, the
+ * counting sort of `dagSortRequests` without staging: a sweep of the pool's bits counts each rank,
+ * `placeRanks` places them, a second sweep scatters, up to `poolSlots`, the highest ranks kept.
  */
 export const DAG_EVICT_WGSL = `const KEY_PAGE:u32=${(1 << KEY_PAGE_BITS) - 1}u;
 /** Word \`k\` of the eviction queue in \`out.pages\`: 0 its count, \`HEAD+j\` its entry \`j\`. */

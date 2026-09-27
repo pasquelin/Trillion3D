@@ -120,15 +120,12 @@ Fetching and decoding stay in workers. WebGL2 cuts by the same rule and holds pa
 residency, without the GPU cut or its readback (#490, #839).
 
 **Eviction queue.** A resident GPU cut also publishes, on the same readback, the order the cache
-gives its slots back in (`gpu/dag/evict.ts`, `dagListEvictions` in `gpu/dag/shader/evictWgsl.ts`):
-the pool's pages, finer level first — a parent after every child —, then the oldest last use first,
-at most the pool's slots (`poolSlots` in the cut's uniforms, following a resize). Last use is
-stamped per content key: every placement of a page stamps its key's canonical page, so the key's
-stamp is its last use over all placements, and the listing sweeps the pool's own residency bits,
-not the catalogue. A key the latest cut drew or asked for is never listed. On the GPU-cut path
-the cache evicts only from that queue, skipping pinned pages (`webgpu/residency/evictionFeed.ts`);
-once it is spent (`eviction-queue-spent`), the burst stops until the next readback. The CPU cut evicts the least recent
-page, and `budgetRanking` still chooses what either path loads past the budget until #836.
+gives slots back in (`gpu/dag/evict.ts`, `gpu/dag/shader/evictWgsl.ts`): the pool's keys, finer
+level first — a parent after its children —, then oldest last use, at most `poolSlots` (uniforms,
+following a resize). Every placement stamps its key's canonical page, so a key's stamp is its last
+use; a key the latest cut read is never listed. On the GPU-cut path the cache evicts only from that
+queue, skipping pinned pages; once spent (`eviction-queue-spent`) the burst waits for the next
+readback. The CPU cut evicts the least recent page; `budgetRanking` still chooses loads (#836).
 
 **Occlusion** is two-phase Hi-Z. Pass 1 draws the rows the previous frame drew that the previous
 frame's pyramid does not hide; a pyramid is built from that depth (background at the far plane, min

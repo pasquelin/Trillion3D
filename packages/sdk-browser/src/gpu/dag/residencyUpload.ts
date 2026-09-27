@@ -105,13 +105,12 @@ export function createDagResidencyUpload(resources: {
     );
   whole(pageCones, packed.pageCones, residentBase(pageCount), 3 * residentWords(pageCount));
   whole(nodes, packed.nodes, 0, packed.nodeCount * DAG_NODE_FLOATS);
-  /** The pool's own residency, whatever the rule's readiness, on each key's canonical page alone
-   *  (`evict.ts`): what the eviction queue lists. */
+  /** The pool's own residency, on each key's canonical page (`evict.ts`): what evictions list. */
   const applyPool = (next: ArrayLike<number>, changes?: ResidencyChanges) => {
     const base = poolBase(pageCount),
-      keys = keyBase(pageCount);
-    const inPool = (page: number) => next[page] !== 0 && canonicalPage(bits[keys + page]) === page;
-    // No change list: every word is compared, and the whole set written at once.
+      keys = keyBase(pageCount),
+      inPool = (page: number) => next[page] !== 0 && canonicalPage(bits[keys + page]) === page;
+    // No change list: every word compared, the whole set written.
     if (!changes?.sorted) {
       if (!updateResidencyBits(inPool, pageCount, bits, base, undefined, words)) return false;
       whole(pageCones, packed.pageCones, base, residentWords(pageCount));
