@@ -20,6 +20,7 @@ import {
   type VertexAttribute,
 } from '../../../../sdk-core/src/world/buffer/attribute.ts';
 import { normalisedUnit } from '../../../../sdk-core/src/world/buffer/elements.ts';
+import { readOnce } from '../../../../sdk-core/src/world/buffer/pending.ts';
 
 /** Storage of each glTF component type. */
 const COMPONENTS = {
@@ -79,7 +80,7 @@ async function substitute(
  *  Its numbers are read from the document's buffer only when a reader loads them
  *  (`Geometry.loadVertices`): `binary` reads the buffer, once, on that first need. */
 export function preparedAccessors(document: TableDocument, binary: () => Promise<ArrayBuffer>) {
-  const views = new Map<number, Promise<ArrayBuffer>>();
+  const views = new Map<number, () => Promise<ArrayBuffer>>();
   const attributes = new Map<number, Attribute>();
   const interleaved = new Map<string, InterleavedBuffer>();
 
@@ -88,18 +89,23 @@ export function preparedAccessors(document: TableDocument, binary: () => Promise
     let held = views.get(rank);
     if (!held) {
       const view = document.views[rank];
-      held = binary().then((bytes) => {
-        if (view.offset + view.length > bytes.byteLength)
-          throw new EngineError('PREPARED_SCENE_MISMATCH', `view ${rank} lies outside the binary`, {
-            view: rank,
-            bytes: bytes.byteLength,
-          });
-        return bytes.slice(view.offset, view.offset + view.length);
-      });
-      held.catch(() => views.delete(rank)); // a failed read is tried again at the next need
+      held = readOnce(() =>
+        binary().then((bytes) => {
+          if (view.offset + view.length > bytes.byteLength)
+            throw new EngineError(
+              'PREPARED_SCENE_MISMATCH',
+              `view ${rank} lies outside the binary`,
+              {
+                view: rank,
+                bytes: bytes.byteLength,
+              },
+            );
+          return bytes.slice(view.offset, view.offset + view.length);
+        }),
+      );
       views.set(rank, held);
     }
-    return held;
+    return held();
   };
 
   const build = (accessor: TableAccessor): Attribute => {
