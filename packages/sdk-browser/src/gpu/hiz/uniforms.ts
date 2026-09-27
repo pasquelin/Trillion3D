@@ -1,10 +1,15 @@
 import { hizLevelSizes } from './oracle.ts';
 
+/** A packed pyramid's mip sizes, each mip's first texel and its whole size in bytes. */
 export function pyramidBytes(width: number, height: number) {
   const sizes = hizLevelSizes(width, height);
+  const offsets: number[] = [];
   let texels = 0;
-  for (const [w, h] of sizes) texels += w * h;
-  return { sizes, bytes: Math.max(4, texels * 4) };
+  for (const [w, h] of sizes) {
+    offsets.push(texels);
+    texels += w * h;
+  }
+  return { sizes, offsets, texels, bytes: Math.max(4, texels * 4) };
 }
 
 export function writeUni(
@@ -33,6 +38,10 @@ export const HIZ_PASS_LEVELS = 4;
 const PASS_HEADER_WORDS = 8;
 
 export type HizBuildPass = { source: number; levels: number };
+
+/** The most build passes a pyramid at most `maxLevels` deep takes: its uniform slots. */
+export const hizBuildSlots = (maxLevels: number) =>
+  Math.max(1, Math.ceil((maxLevels - 1) / HIZ_PASS_LEVELS));
 
 /**
  * The build passes of a pyramid of `sizes`, at most `maxLevels` deep: each pass reads one level

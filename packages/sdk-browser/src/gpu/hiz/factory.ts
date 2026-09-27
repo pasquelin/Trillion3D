@@ -1,6 +1,7 @@
 import { encodeHizPyramid } from './pyramid.ts';
 import {
   hizBuildPasses,
+  hizBuildSlots,
   pyramidBytes,
   writeHizBuildUniforms,
   writeUni,
@@ -11,7 +12,9 @@ import { TESTED_U32 } from '../partition/contract.ts';
 import type { GpuHiz } from './types.ts';
 const TEST_WORKGROUP = 64,
   UNIFORM_BYTES = 256,
-  MAX_LEVELS = 16;
+  MAX_LEVELS = 16,
+  // The build passes' uniform slots, then the test's.
+  TEST_SLOT = hizBuildSlots(MAX_LEVELS);
 
 /** Frame Hi-Z: reverse-Z, reduce to the minimum. Without compute, returns `undefined`. */
 export async function createGpuHiz(
@@ -43,7 +46,7 @@ export async function createGpuHiz(
     if (!pipelines) return undefined;
     const { layout, buildPipeline, testPipeline, pagesGroup } = pipelines;
     const uniforms = device.createBuffer({
-      size: UNIFORM_BYTES * (MAX_LEVELS + 2),
+      size: UNIFORM_BYTES * (TEST_SLOT + 1),
       usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
     });
     // Tested boxes and the frame state belong to the GPU partition, which does not exist yet:
@@ -73,17 +76,11 @@ export async function createGpuHiz(
         ],
       });
     };
-    const levelWords = new Uint32Array((MAX_LEVELS + 1) * (UNIFORM_BYTES / 4));
+    const levelWords = new Uint32Array(TEST_SLOT * (UNIFORM_BYTES / 4));
     const alloc = (w: number, h: number) => {
       const packed = pyramidBytes(w, h);
-      sizes = packed.sizes;
-      offsets = [];
+      ({ sizes, offsets } = packed);
       levelTable = undefined;
-      let texels = 0;
-      for (const [levelWidth, levelHeight] of sizes) {
-        offsets.push(texels);
-        texels += levelWidth * levelHeight;
-      }
       level0?.destroy();
       pyramid?.destroy();
       level0 = device.createTexture({
@@ -142,19 +139,18 @@ export async function createGpuHiz(
         const rows = Math.min(maxRows, cap);
         if (flagRows > 0) encoder.clearBuffer(flags, 0, Math.min(cap, flagRows) * 4);
         const biasBits = new Uint32Array(new Float32Array([0]).buffer)[0];
-        const testSlot = MAX_LEVELS + 1;
         writeUni(
           queueDevice,
           uniforms,
           uniData,
           [gpu.width, gpu.height, rows, biasBits],
-          testSlot * UNIFORM_BYTES,
+          TEST_SLOT * UNIFORM_BYTES,
         );
         // The compacted box count lives in the state: the dispatch covers every drawable row
         // and threads past the count leave at the first test.
         const pass = encoder.beginComputePass({ label: 'Trillion3D HiZ test' });
         pass.setPipeline(testPipeline);
-        pass.setBindGroup(0, bindGroup, [testSlot * UNIFORM_BYTES]);
+        pass.setBindGroup(0, bindGroup, [TEST_SLOT * UNIFORM_BYTES]);
         pass.setBindGroup(1, pagesGroup(pages));
         pass.dispatchWorkgroups(Math.max(1, Math.ceil(rows / TEST_WORKGROUP)));
         pass.end();

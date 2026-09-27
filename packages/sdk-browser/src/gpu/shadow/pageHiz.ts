@@ -32,6 +32,8 @@ export async function createShadowPageHiz(device: GPUDevice, layer: GPUTextureVi
   const pipelines = await createHizPipelines(device, UNIFORM_BYTES);
   if (!pipelines) throw new Error('SHADOW_PAGE_HIZ_UNAVAILABLE');
   const storage = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST;
+  const sizes = hizLevelSizes(SHADOW_PAGE, SHADOW_PAGE),
+    passes = hizBuildPasses(sizes, PAGE_HIZ_LEVELS);
   const pyramid = device.createBuffer({
       label: 'Trillion3D shadow page pyramids v1',
       size: MAX_SHADOW_PAGES * PAGE_HIZ_WORDS * 4,
@@ -46,16 +48,14 @@ export async function createShadowPageHiz(device: GPUDevice, layer: GPUTextureVi
     idleFlags = device.createBuffer({ size: 16, usage: GPUBufferUsage.STORAGE }),
     idleState = device.createBuffer({ size: 16, usage: GPUBufferUsage.STORAGE }),
     uniforms = device.createBuffer({
-      size: PAGE_HIZ_LEVELS * UNIFORM_BYTES,
+      size: passes.length * UNIFORM_BYTES,
       usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
     });
-  const sizes = hizLevelSizes(SHADOW_PAGE, SHADOW_PAGE),
-    passes = hizBuildPasses(sizes, PAGE_HIZ_LEVELS);
   // Slot `i` holds build pass `i`; the first copies the page's level 0 on its way.
   writeHizBuildUniforms(
     device,
     uniforms,
-    new Uint32Array((PAGE_HIZ_LEVELS * UNIFORM_BYTES) / 4),
+    new Uint32Array((passes.length * UNIFORM_BYTES) / 4),
     sizes,
     PAGE_HIZ_OFFSETS,
     passes,

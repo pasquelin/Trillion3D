@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { hizLevelSizes } from './oracle.ts';
 import { HIZ_SHADER } from './shader.ts';
-import { hizBuildPasses } from './uniforms.ts';
+import { hizBuildPasses, hizBuildSlots } from './uniforms.ts';
 import {
   buildAfter,
   buildBefore,
@@ -97,6 +97,10 @@ test('edge sizes: one texel, one row, one column, a tile edge, 1080p, a capped m
     { source: 8, levels: 3 },
   ]);
   assert.deepEqual(hizBuildPasses([[1, 1]], LEVEL_CAP), [{ source: 0, levels: 0 }]);
+  // The uniform slots the host allocates hold the deepest pyramid's passes, and no more.
+  assert.equal(hizBuildPasses(hizLevelSizes(1 << 16, 1 << 16), LEVEL_CAP).length, 4);
+  assert.equal(hizBuildSlots(LEVEL_CAP), 4);
+  assert.equal(hizBuildSlots(8), hizBuildPasses(hizLevelSizes(128, 128), 8).length);
 });
 
 test('the shipped build is one kernel over workgroup memory, with no copy kernel left', () => {
