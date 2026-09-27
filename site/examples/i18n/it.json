@@ -2147,5 +2147,22 @@
     "words": {
       "credit": "Bandiera su un'asta modellata in codice per questo esempio, CC0 — vedi assets/examples/CREDITS.md"
     }
+  },
+  "a-hundred-thousand-instances": {
+    "banner": "Trascina per orbitare sul campo. Cambia il numero o la vista.",
+    "controls": {
+      "count": "Numero",
+      "view": "Vista"
+    },
+    "readouts": {
+      "objectsShown": "Oggetti mostrati",
+      "objectsBuilt": "Oggetti creati"
+    },
+    "choices": {
+      "view": {
+        "beauty": "immagine",
+        "clusters": "cluster"
+      }
+    }
   }
 }

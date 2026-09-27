@@ -2147,5 +2147,22 @@
     "words": {
       "credit": "이 예제를 위해 코드로 만든 깃대의 깃발, CC0 — assets/examples/CREDITS.md 참고"
     }
+  },
+  "a-hundred-thousand-instances": {
+    "banner": "드래그해 필드를 둘러보고 개수나 보기를 바꾸세요.",
+    "controls": {
+      "count": "개수",
+      "view": "보기"
+    },
+    "readouts": {
+      "objectsShown": "표시된 객체",
+      "objectsBuilt": "생성된 객체"
+    },
+    "choices": {
+      "view": {
+        "beauty": "완성 화면",
+        "clusters": "클러스터"
+      }
+    }
   }
 }

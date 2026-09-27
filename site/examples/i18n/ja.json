@@ -2147,5 +2147,22 @@
     "words": {
       "credit": "この例のためにコードでモデリングしたポールの旗、CC0 — assets/examples/CREDITS.md を参照"
     }
+  },
+  "a-hundred-thousand-instances": {
+    "banner": "ドラッグしてフィールドを回り、数や表示を変更します。",
+    "controls": {
+      "count": "数",
+      "view": "表示"
+    },
+    "readouts": {
+      "objectsShown": "表示中のオブジェクト",
+      "objectsBuilt": "作成済みオブジェクト"
+    },
+    "choices": {
+      "view": {
+        "beauty": "仕上がり",
+        "clusters": "クラスター"
+      }
+    }
   }
 }

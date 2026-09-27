@@ -937,6 +937,11 @@
       "file": "examples/ten-thousand-objects.html"
     },
     {
+      "id": "a-hundred-thousand-instances",
+      "theme": "streaming",
+      "file": "examples/a-hundred-thousand-instances.html"
+    },
+    {
       "id": "compressed-textures",
       "theme": "streaming",
       "file": "examples/compressed-textures.html"

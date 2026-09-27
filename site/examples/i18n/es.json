@@ -2147,5 +2147,22 @@
     "words": {
       "credit": "Bandera en un mástil modelada en código para este ejemplo, CC0 — ver assets/examples/CREDITS.md"
     }
+  },
+  "a-hundred-thousand-instances": {
+    "banner": "Arrastra para rodear el campo. Cambia la cantidad o la vista.",
+    "controls": {
+      "count": "Cantidad",
+      "view": "Vista"
+    },
+    "readouts": {
+      "objectsShown": "Objetos visibles",
+      "objectsBuilt": "Objetos creados"
+    },
+    "choices": {
+      "view": {
+        "beauty": "imagen",
+        "clusters": "clústeres"
+      }
+    }
   }
 }

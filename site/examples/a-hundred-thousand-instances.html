@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>A hundred thousand instances</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #101827;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <script type="module">
+      import { createWorld, geometry, light, material, math, object } from '../runtime/engine.js';
+      import { controls, language, readout, stats } from '../runtime/kit.js';
+
+      const COUNT = 100000;
+      const COLUMNS = 316;
+      const ROWS = Math.ceil(COUNT / COLUMNS);
+      const SPACING = 0.18;
+      const width = (COLUMNS - 1) * SPACING;
+      const depth = (ROWS - 1) * SPACING;
+      const span = Math.max(width, depth);
+
+      const world = createWorld('view', { controls: 'orbit' });
+      world.scene.background = math.color('#101827');
+      const shape = geometry.box(0.11, 1, 0.11);
+      const surface = material.meshStandard({ color: '#6fd3ff', roughness: 0.55, metalness: 0.15 });
+      const field = object.group();
+      const instances = Array.from({ length: COUNT }, (_, index) => {
+        const column = index % COLUMNS;
+        const row = Math.floor(index / COLUMNS);
+        const height = 0.18 + 0.75 * (0.5 + 0.5 * Math.sin(column * 0.17 + row * 0.11));
+        const instance = object.mesh(shape, surface);
+        instance.position.set(column * SPACING, height / 2, row * SPACING);
+        instance.scale.y = height;
+        field.add(instance);
+        return instance;
+      });
+      world.scene.add(field);
+      world.scene.add(
+        light.directional({ intensity: 3, color: '#e7f4ff', position: [-span, span, span] }),
+        light.hemisphere({ intensity: 0.8, color: '#91bfff', groundColor: '#18243a' }),
+      );
+
+      const centre = [width / 2, 0, depth / 2];
+      world.camera.position.set(centre[0], span * 0.72, centre[2] + span * 0.72);
+      world.camera.far = span * 4;
+      world.camera.lookAt(centre[0], 0, centre[2]);
+      world.controls.target.set(...centre);
+      world.controls.maxDistance = span * 2;
+
+      let visible = COUNT;
+      let shown = null;
+      const ui = controls(
+        { count: [10000, COUNT, COUNT, 1000], view: ['beauty', 'clusters'] },
+        (values, key) => {
+          const next = Math.round(values.count);
+          if (key === undefined || key === 'count') {
+            if (next < visible)
+              for (let index = next; index < visible; index++) instances[index].visible = false;
+            else for (let index = visible; index < next; index++) instances[index].visible = true;
+            visible = next;
+            shown?.(visible.toLocaleString(language()));
+          }
+          world.diagnostic.mode = values.view;
+          world.invalidate();
+        },
+        world,
+      );
+      shown = readout('objectsShown');
+      shown(ui.count.toLocaleString(language()));
+      readout('objectsBuilt')(COUNT.toLocaleString(language()));
+      stats(world);
+    </script>
+  </body>
+</html>
