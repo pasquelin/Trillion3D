@@ -1685,10 +1685,7 @@
   },
   "the-home-pose": {
     "banner": "Escolha uma vista, mova a câmera e depois escolha Início para voltar.",
-    "controls": { "view": "Vista" },
-    "choices": {
-      "view": { "home": "Início", "tower": "Torre", "square": "Praça", "hillside": "Encosta" }
-    }
+    "controls": { "home": "Início", "tower": "Torre", "square": "Praça", "hillside": "Encosta" }
   },
   "the-near-plane-cuts-a-wall": {
     "banner": "Avance o plano próximo e veja-o cortar cada parede.",

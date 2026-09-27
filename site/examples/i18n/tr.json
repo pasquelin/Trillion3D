@@ -1685,10 +1685,7 @@
   },
   "the-home-pose": {
     "banner": "Bir görünüm seçin, kamerayı hareket ettirin, sonra dönmek için Başlangıç'ı seçin.",
-    "controls": { "view": "Görünüm" },
-    "choices": {
-      "view": { "home": "Başlangıç", "tower": "Kule", "square": "Meydan", "hillside": "Yamaç" }
-    }
+    "controls": { "home": "Başlangıç", "tower": "Kule", "square": "Meydan", "hillside": "Yamaç" }
   },
   "the-near-plane-cuts-a-wall": {
     "banner": "Yakın düzlemi ilerletin ve her duvarı kesmesini izleyin.",
