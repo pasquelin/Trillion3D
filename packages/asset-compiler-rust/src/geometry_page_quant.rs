@@ -31,17 +31,38 @@ pub fn grid_exponent(extent: f64, finest_error: Option<f64>) -> i32 {
 }
 
 /// The grid of a primitive from its positions and the errors its DAG published; a zero error is
-/// a root's, not a rule.
-pub fn primitive_exponent(pos: &[f32], errors: impl Iterator<Item = f64>) -> i32 {
+/// a root's, not a rule. A `blended` primitive takes the finest grid its pages hold, as the
+/// runtime cut does (`runtimeCut.ts`): a coarser one shows through a transparent surface (#875).
+pub fn primitive_exponent(pos: &[f32], errors: impl Iterator<Item = f64>, blended: bool) -> i32 {
     let bounds = crate::proxy::bvh::extent(pos);
     let extent = (0..3)
         .map(|axis| bounds[axis + 3] - bounds[axis])
         .fold(0.0, f64::max);
-    grid_exponent(extent, errors.filter(|e| *e > 0.0).min_by(f64::total_cmp))
+    let finest_error = errors.filter(|e| *e > 0.0).min_by(f64::total_cmp);
+    grid_exponent(extent, if blended { Some(0.0) } else { finest_error })
 }
 
 /// Texture coordinates sit on a fixed grid of 2^-14: a quarter of a texel on a 4096 map.
 pub const UV_EXPONENT: i32 = -14;
+
+/// The texture grid of a primitive: the format's, or for a `blended` one the finest grid the
+/// widest span of its texture coordinates fits, never coarser than the format's (#875).
+pub fn primitive_uv_exponent(carried: &[&crate::geometry_page::Attribute], blended: bool) -> i32 {
+    let uvs = carried.iter().filter(|a| a.width == 2);
+    let span = uvs
+        .flat_map(|a| (0..2).map(move |c| a.values.iter().skip(c).step_by(2)))
+        .map(|axis| {
+            let (lo, hi) = axis.fold((f32::INFINITY, f32::NEG_INFINITY), |(lo, hi), &v| {
+                (lo.min(v), hi.max(v))
+            });
+            f64::from(hi) - f64::from(lo)
+        })
+        .fold(0.0, f64::max);
+    match blended {
+        true => grid_exponent(span, Some(0.0)).min(UV_EXPONENT),
+        false => UV_EXPONENT,
+    }
+}
 /// Colours sit on a grid of 2^-8: 0 and 1 exact, a constant channel free.
 pub const COLOR_EXPONENT: i32 = -8;
 
