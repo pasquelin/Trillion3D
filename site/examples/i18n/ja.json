@@ -510,6 +510,21 @@
       "outer": "外側"
     }
   },
+
+  "doors-that-open": {
+    "banner": "カメラを扉に近づけてください。近づくと扉が開きます。",
+    "controls": {
+      "mode": "モード",
+      "openingDistance": "開く距離",
+      "openness": "開き具合"
+    },
+    "choices": {
+      "mode": {
+        "proximity": "近接",
+        "manual": "手動"
+      }
+    }
+  },
   "a-world-of-blocks": {
     "banner": "ドラッグして島のまわりを飛ぼう。海を上げて谷を水びたしにしよう。",
     "controls": {
