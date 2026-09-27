@@ -32,7 +32,7 @@ const page = (id: number, url: string, start: number) => ({
 /** Three primitives, one per material class, the way the compiler classifies them. */
 function scene() {
   const source = new G.Group(),
-    meshes: G.GraphMesh[] = [],
+    meshes: G.HostMesh[] = [],
     associations = new Map<G.Object3D, { meshes: number; primitives: number }>();
   const materials = [
     // A cut-out: alphaMode MASK carries an alpha test and is not blended.

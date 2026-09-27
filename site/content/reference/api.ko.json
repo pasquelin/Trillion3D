@@ -2043,7 +2043,11 @@
       "geometry": "메시의 형태; 다른 지오메트리를 설정하면 바뀐다.",
       "material": "메시의 재질, 또는 그룹당 하나씩; 다른 것을 설정하면 바뀐다.",
       "localBounds": "이 노드 자체 콘텐츠가 차지하는 박스, 로컬 프레임; 일반 노드는 아무것도 담지 않는다.",
-      "physics": "월드 물리의 물체로서의 메시, 아니면 `null`. `'static'`, `'dynamic'`, `'kinematic'` 또는 옵션을 설정하세요. 모양은 지오메트리에서 추론됩니다."
+      "physics": "월드 물리의 물체로서의 메시, 아니면 `null`. `'static'`, `'dynamic'`, `'kinematic'` 또는 옵션을 설정하세요. 모양은 지오메트리에서 추론됩니다.",
+      "morphTargetInfluences": "지오메트리가 선언할 때 각 모프 타깃의 가중치.",
+      "morphTargetDictionary": "이름별 각 모프 타깃의 순위.",
+      "updateMorphTargets": "첫 번째 모프 속성의 모프 타깃마다 0 가중치 하나. 순위로 이름을 붙입니다.",
+      "copy": "`source`의 값과, 달리 말하지 않으면 그 자식의 복사본을 가져옵니다."
     }
   },
   "Mixer": {
@@ -7465,20 +7469,8 @@
     },
     "summary": "이미지와, 그것을 읽는 샘플러 상태, 그리고 좌표 변환."
   },
-  "GraphMesh": {
-    "summary": "그려지는 노드: 지오메트리와 그 표면, 또는 지오메트리 그룹마다 표면 하나.",
-    "members": {
-      "kind": "한 배치에서, 또는 여러 배치에서 그려집니다(`GraphInstancedMesh`).",
-      "morphTargetInfluences": "지오메트리가 선언할 때 각 모프 타깃의 가중치.",
-      "morphTargetDictionary": "이름별 각 모프 타깃의 순위.",
-      "geometry": "그 모양.",
-      "material": "그 표면, 또는 지오메트리 그룹마다 하나.",
-      "updateMorphTargets": "첫 번째 모프 속성의 모프 타깃마다 0 가중치 하나. 순위로 이름을 붙입니다.",
-      "copy": "`source`의 값과, 달리 말하지 않으면 그 자식의 복사본을 가져옵니다."
-    }
-  },
   "GraphNodeKind": {
-    "summary": "그래프의 노드가 무엇인지: 루트, 그려지는 메시(한 배치 또는 여러 배치), 눈, 또는 장면이 선언하는 조명 중 하나."
+    "summary": "그래프의 노드가 무엇인지: 루트, 눈, 또는 장면이 선언하는 조명 중 하나."
   },
   "Joint": {
     "summary": "두 물체, 또는 물체와 세계(`b`가 null) 사이의 관절. `joint.*`로 만들고 `world.physics.add`로 시뮬레이션에 추가합니다.",
