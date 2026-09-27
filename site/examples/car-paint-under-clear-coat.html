@@ -48,11 +48,13 @@
           wheel.rotation.x = Math.PI / 2;
           car.add(wheel);
         }
+      car.position.y = 0.06;
       world.scene.add(car);
       const floor = object.mesh(
         geometry.cylinder(5.5, 5.5, 0.18, 96),
         material.meshStandard({ color: '#28313a', roughness: 0.72 }),
       );
+      floor.receiveShadow = true;
       world.scene.add(floor);
       world.scene.add(
         light.directional({
