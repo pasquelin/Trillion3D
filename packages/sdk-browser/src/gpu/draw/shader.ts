@@ -1,4 +1,5 @@
 import { COMPUTE } from '../core/computeBindings.ts';
+import { LANE_SCAN_WGSL } from '../core/laneScanWgsl.ts';
 import { BASE_SLOTS, DRAW_ITEM_WGSL, slotCount } from './contract.ts';
 
 /**
@@ -103,8 +104,7 @@ fn countGroups(@builtin(workgroup_id) wg:vec3u,@builtin(local_invocation_index) 
   groupCounts[group*${slots}u+slot]=select(atomicLoad(&slotTally[slot]),0u,slotUsed[slot]==0u);
  }
 }
-var<workgroup> laneSums:array<u32,64>;
-@compute @workgroup_size(64)
+${LANE_SCAN_WGSL}@compute @workgroup_size(64)
 fn prefixGroups(@builtin(local_invocation_index) lane:u32){
  if(uni.count>uni.slotCap){
   for(var slot=lane;slot<${slots}u;slot+=64u){writeCmd(slot,0u);}
@@ -117,19 +117,11 @@ fn prefixGroups(@builtin(local_invocation_index) lane:u32){
   let used=slotUsed[slot]!=0u;
   var sum=0u;
   if(used){for(var group=first;group<last;group++){sum=sum+groupCounts[group*${slots}u+slot];}}
-  laneSums[lane]=sum;
-  // Inclusive scan of the run totals: each step adds the total \`step\` lanes below.
-  for(var step=1u;step<64u;step=step<<1u){
-   workgroupBarrier();
-   var below=0u;
-   if(lane>=step){below=laneSums[lane-step];}
-   workgroupBarrier();
-   laneSums[lane]=laneSums[lane]+below;
-  }
-  workgroupBarrier();
+  // Inclusive scan of the run totals over the lanes.
+  let inclusive=laneScan(lane,sum);
   let total=laneSums[63u];
   if(used){
-   var cursor=start+laneSums[lane]-sum;
+   var cursor=start+inclusive-sum;
    for(var group=first;group<last;group++){
     let entry=group*${slots}u+slot;
     groupOffsets[entry]=cursor;

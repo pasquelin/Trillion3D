@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { drawShader } from './shader.ts';
 import { slotCount } from './draw.ts';
+import { LANE_SCAN_WGSL } from '../core/laneScanWgsl.ts';
 import {
   prefixParallel,
   prefixScan,
@@ -25,7 +26,7 @@ const prefixKernel = (shader: string) => {
 test('the shipped prefix kernel scans each slot over the 64 threads in workgroup memory', () => {
   for (const k of [1, 2, 3, 5]) {
     const shader = drawShader(k);
-    assert.match(shader, /var<workgroup> laneSums:array<u32,64>;/);
+    assert.ok(shader.includes(LANE_SCAN_WGSL), 'the shared lane scan');
     assert.match(
       shader,
       /@compute @workgroup_size\(64\)\s*fn prefixGroups\(@builtin\(local_invocation_index\) lane:u32\)/,
@@ -37,8 +38,8 @@ test('the shipped prefix kernel scans each slot over the 64 threads in workgroup
       /let run=\(uni\.groupCount\+63u\)\/64u;/,
       'each lane owns a run of groups',
     );
-    assert.match(kernel, /for\(var step=1u;step<64u;step=step<<1u\)/, 'a scan over the lanes');
-    assert.match(kernel, /var cursor=start\+laneSums\[lane\]-sum;/, 'an exclusive prefix per run');
+    assert.match(kernel, /let inclusive=laneScan\(lane,sum\);/, 'a scan over the lanes');
+    assert.match(kernel, /var cursor=start\+inclusive-sum;/, 'an exclusive prefix per run');
     assert.doesNotMatch(kernel, /for\(var group=0u;group<uni\.groupCount;group\+\+\)/);
   }
 });

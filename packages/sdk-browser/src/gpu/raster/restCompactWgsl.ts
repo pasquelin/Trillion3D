@@ -1,6 +1,7 @@
 import { PAGE_INFO_STRUCT_WGSL } from '../../visibility/shader/pageWgsl.ts';
 import { BASE_SLOTS } from '../draw/contract.ts';
 import { HIZ_REJECTED_WGSL } from '../partition/contract.ts';
+import { LANE_SCAN_WGSL } from '../core/laneScanWgsl.ts';
 
 /** Instances of one tile: the threads of a count or scatter workgroup. */
 export const REST_COMPACT_WORKGROUP = 64;
@@ -66,8 +67,7 @@ fn restCount(@builtin(workgroup_id) wg:vec3u,@builtin(local_invocation_index) la
   if(t==0u){work[countWord(n)]=count;}
  }
 }
-var<workgroup> laneSums:array<u32,64>;
-var<workgroup> slotCount:u32;
+${LANE_SCAN_WGSL}var<workgroup> slotCount:u32;
 @compute @workgroup_size(64)
 fn restScan(@builtin(local_invocation_index) lane:u32){
  for(var n=0u;n<uni.restSlots;n++){
@@ -77,17 +77,9 @@ fn restScan(@builtin(local_invocation_index) lane:u32){
   let first=min(lane*run,tiles);let last=min(first+run,tiles);
   var sum=0u;
   for(var t=first;t<last;t++){sum=sum+work[tileWord(n,t)];}
-  laneSums[lane]=sum;
-  // Inclusive scan of the run totals: each step adds the total \`step\` lanes below.
-  for(var step=1u;step<64u;step=step<<1u){
-   workgroupBarrier();
-   var below=0u;
-   if(lane>=step){below=laneSums[lane-step];}
-   workgroupBarrier();
-   laneSums[lane]=laneSums[lane]+below;
-  }
-  workgroupBarrier();
-  var cursor=laneSums[lane]-sum;
+  // Inclusive scan of the run totals over the lanes.
+  let inclusive=laneScan(lane,sum);
+  var cursor=inclusive-sum;
   for(var t=first;t<last;t++){
    let kept=work[tileWord(n,t)];
    work[tileWord(n,t)]=cursor;
