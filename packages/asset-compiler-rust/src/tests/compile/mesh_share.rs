@@ -2,17 +2,14 @@
 //! the names, and one differing bit keeps two meshes apart.
 use super::*;
 use crate::compiler_mesh_share::share_identical_meshes;
+use crate::import::f32_bytes;
 
 const TRIANGLE: [f32; 9] = [0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0];
-
-fn bytes(values: &[f32]) -> Vec<u8> {
-    values.iter().flat_map(|v| v.to_le_bytes()).collect()
-}
 
 /// A scene of two meshes, one node each, whose positions are `first` then `second` (three
 /// vertices each, tightly packed), changed by `tweak`; the mesh each node names once shared.
 fn shared(first: &[f32], second: &[f32], tweak: impl FnOnce(&mut Value)) -> Vec<u64> {
-    let bin = [bytes(first), bytes(second)].concat();
+    let bin = [f32_bytes(first), f32_bytes(second)].concat();
     let view = |at: usize| json!({"buffer":0,"byteOffset":at,"byteLength":36});
     let accessor =
         |view: usize| json!({"bufferView":view,"componentType":5126,"type":"VEC3","count":3});
@@ -88,7 +85,12 @@ fn a_strided_copy_is_the_same_content_and_a_third_mesh_joins_the_first() {
         .chunks(3)
         .flat_map(|v| [v[0], v[1], v[2], 7.0])
         .collect();
-    let bin = [bytes(&TRIANGLE), bytes(&padded), bytes(&TRIANGLE)].concat();
+    let bin = [
+        f32_bytes(&TRIANGLE),
+        f32_bytes(&padded),
+        f32_bytes(&TRIANGLE),
+    ]
+    .concat();
     let accessors =
         [0, 1, 2].map(|v| json!({"bufferView":v,"componentType":5126,"type":"VEC3","count":3}));
     let meshes = [0, 1, 2].map(|a| json!({"primitives":[{"attributes":{"POSITION":a}}]}));

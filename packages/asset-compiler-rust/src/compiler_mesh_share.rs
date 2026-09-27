@@ -8,7 +8,8 @@
 //! stride, so two copies of a buffer in two views are one content, and a single differing bit
 //! (−0 against +0, another NaN payload) keeps two meshes apart. A sparse accessor, or one that
 //! cannot be read, is only ever equal to itself: validation further on reports it as before. A
-//! mesh a skinned node names is left alone, so no mesh becomes skinned by sharing.
+//! mesh a skinned node names is left alone, so no mesh becomes skinned by sharing. Whole meshes
+//! are compared: two meshes that share only some of their primitives are cooked apart.
 use super::*;
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
@@ -92,29 +93,25 @@ fn signature(mesh: &Value, accessor: &mut impl FnMut(usize) -> Value) -> Value {
     };
     let primitives = mesh.get_mut("primitives").and_then(Value::as_array_mut);
     for primitive in primitives.into_iter().flatten() {
-        if let Some(indices) = primitive.get_mut("indices") {
-            replace(indices);
-        }
-        for field in ["attributes", "targets"] {
-            let Some(slots) = primitive.get_mut(field) else {
-                continue;
+        for (field, value) in primitive.as_object_mut().into_iter().flatten() {
+            let slots: Vec<&mut Value> = match (field.as_str(), value) {
+                ("indices", slot) => vec![slot],
+                ("attributes", Value::Object(slots)) => slots.values_mut().collect(),
+                ("targets", Value::Array(targets)) => (targets.iter_mut())
+                    .filter_map(Value::as_object_mut)
+                    .flat_map(|slots| slots.values_mut())
+                    .collect(),
+                _ => vec![],
             };
-            let targets = match slots {
-                Value::Array(targets) => targets.iter_mut().collect(),
-                one => vec![one],
-            };
-            for target in targets {
-                for slot in target
-                    .as_object_mut()
-                    .into_iter()
-                    .flat_map(|t| t.values_mut())
-                {
-                    replace(slot);
-                }
-            }
+            slots.into_iter().for_each(&mut replace);
         }
     }
     mesh
+}
+
+/// Accessor `id` when it can be equal to no other: sparse, missing or unreadable.
+fn only(id: usize) -> Value {
+    json!({ "accessor": id })
 }
 
 /// The declared layout of accessor `id`; a sparse or missing one is only itself.
@@ -127,32 +124,35 @@ fn layout(g: &Value, id: usize) -> Value {
         Some(a) if a.get("sparse").is_none() => {
             LAYOUT.iter().map(|&f| json!([f, a.get(f)])).collect()
         }
-        _ => json!({ "accessor": id }),
+        _ => only(id),
     }
 }
 
 /// The layout of accessor `id` and the digest of its element bytes, or `id` alone when it is
 /// sparse or cannot be read.
 fn content(g: &Value, bin: &[u8], id: usize) -> Value {
-    let mut layout = layout(g, id);
-    match (&mut layout, element_digest(g, bin, id)) {
-        (Value::Array(fields), Some(digest)) => fields.push(json!(digest)),
-        _ => return json!({ "accessor": id }),
+    match (layout(g, id), element_digest(g, bin, id)) {
+        (Value::Array(mut fields), Some(digest)) => {
+            fields.push(json!(digest));
+            Value::Array(fields)
+        }
+        _ => only(id),
     }
-    layout
 }
 
-/// SHA-256 of the accessor's elements, each read through its view and stride.
+/// SHA-256 of the accessor's elements, each element's bytes read through its view and stride.
 fn element_digest(g: &Value, bin: &[u8], id: usize) -> Option<String> {
     let a = accessor(g, bin, id, None).ok()?;
-    if a.sparse.is_some() {
-        return None;
-    }
+    let size = a.width.checked_mul(a.bytes)?;
     let mut sha = Sha256::new();
-    for i in 0..a.count {
-        for c in 0..a.width {
-            sha.update(a.bytes_at(i, c).ok()?);
+    if a.has_buffer_view {
+        for i in 0..a.count {
+            let at = a.base.checked_add(i.checked_mul(a.stride)?)?;
+            sha.update(a.bin.get(at..at.checked_add(size)?)?);
         }
+    } else {
+        // No view reads as zeros: its count, in the layout, is its whole content.
+        sha.update([0u8]);
     }
     Some(format!("{:x}", sha.finalize()))
 }

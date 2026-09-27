@@ -2,13 +2,14 @@
 //! the same single primitive, the same pages, collision, proxy and depth layers, both nodes on it;
 //! one bit apart, they stay two primitives.
 use super::*;
+use crate::import::{f32_bytes, Bin};
 
 /// Vertices per side of the bumpy grid: enough triangles for a DAG with simplified levels.
 const SIDE: usize = 25;
 
 /// A bumpy grid, each row shifted off the lattice so it cooks as a triangle mesh and not a height
 /// field: its positions and triangles. Portable sines keep its bits the same on every platform.
-pub(in crate::tests) fn bumpy_grid() -> (Vec<f32>, Vec<u32>) {
+fn bumpy_grid() -> (Vec<f32>, Vec<u32>) {
     let mut positions = Vec::new();
     for (y, x) in (0..SIDE).flat_map(|y| (0..SIDE).map(move |x| (y, x))) {
         let (fx, fy) = (x as f32 * 0.2, y as f32 * 0.2);
@@ -22,28 +23,23 @@ pub(in crate::tests) fn bumpy_grid() -> (Vec<f32>, Vec<u32>) {
 /// The bumpy grid's positions and triangles as little-endian bytes.
 fn grid() -> (Vec<u8>, Vec<u8>) {
     let (positions, indices) = bumpy_grid();
-    let positions = positions.iter().flat_map(|p| p.to_le_bytes()).collect();
-    (
-        positions,
-        indices.iter().flat_map(|i| i.to_le_bytes()).collect(),
-    )
+    let indices = indices.iter().flat_map(|i| i.to_le_bytes()).collect();
+    (f32_bytes(&positions), indices)
 }
 
 /// A scene whose mesh `m` reads the `m`-th copy of the grid's bytes, a node on each copy the
 /// scene names in `nodes` (a node's mesh), compiled; its result and written source scene.
 fn compiled(tag: &str, copies: &[(Vec<u8>, Vec<u8>)], nodes: &[usize]) -> (Value, Value) {
-    let (mut bin, mut views, mut accessors, mut meshes) = (vec![], vec![], vec![], vec![]);
+    let (mut bin, mut accessors, mut meshes) = (Bin::default(), vec![], vec![]);
     for (positions, indices) in copies {
         for (bytes, component, kind, count) in [
             (positions, 5126, "VEC3", positions.len() / 12),
             (indices, 5125, "SCALAR", indices.len() / 4),
         ] {
-            views.push(json!({"buffer":0,"byteOffset":bin.len(),"byteLength":bytes.len()}));
-            let view = views.len() - 1;
+            let view = bin.view(bytes, None);
             accessors.push(
                 json!({"bufferView":view,"componentType":component,"type":kind,"count":count}),
             );
-            bin.extend_from_slice(bytes);
         }
         let at = accessors.len() - 2;
         let name = format!("rock.{at}");
@@ -54,10 +50,10 @@ fn compiled(tag: &str, copies: &[(Vec<u8>, Vec<u8>)], nodes: &[usize]) -> (Value
     let nodes: Vec<Value> = (nodes.iter().enumerate())
         .map(|(i, mesh)| json!({"mesh":mesh,"translation":[i as f64 * 7.0, 0.0, 0.0]}))
         .collect();
-    let gltf = json!({"asset":{"version":"2.0"},"buffers":[{"uri":format!("{tag}.bin"),"byteLength":bin.len()}],
-        "bufferViews":views,"accessors":accessors,"meshes":meshes,"nodes":nodes,
+    let gltf = json!({"asset":{"version":"2.0"},"buffers":[{"uri":format!("{tag}.bin"),"byteLength":bin.bytes.len()}],
+        "bufferViews":bin.views,"accessors":accessors,"meshes":meshes,"nodes":nodes,
         "scenes":[{"nodes":(0..nodes.len()).collect::<Vec<_>>()}],"materials":[],"images":[]});
-    let (root, options) = gltf_fixture(tag, &gltf, &bin);
+    let (root, options) = gltf_fixture(tag, &gltf, &bin.bytes);
     let result = compile(&options, |_| {}).expect("compile");
     let directory = options.key_directory(result["key"].as_str().expect("key"));
     let source = read_json(&directory.join("source.gltf"));
