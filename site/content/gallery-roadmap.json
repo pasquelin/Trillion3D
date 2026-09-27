@@ -922,6 +922,11 @@
       "file": "examples/memory-on-a-budget.html"
     },
     {
+      "id": "a-walk-through-the-city",
+      "theme": "streaming",
+      "file": "examples/a-walk-through-the-city.html"
+    },
+    {
       "id": "detail-by-pixel-error",
       "theme": "streaming",
       "file": "examples/detail-by-pixel-error.html"
