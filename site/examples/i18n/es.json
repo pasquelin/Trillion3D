@@ -2147,5 +2147,13 @@
     "words": {
       "credit": "Bandera en un mástil modelada en código para este ejemplo, CC0 — ver assets/examples/CREDITS.md"
     }
+  },
+  "inside-a-component": {
+    "banner": "Monta o desmonta el visor. Cada montaje posee un mundo y cada retirada lo libera.",
+    "controls": {
+      "mount": "Montar",
+      "unmount": "Desmontar",
+      "remount": "Volver a montar"
+    }
   }
 }

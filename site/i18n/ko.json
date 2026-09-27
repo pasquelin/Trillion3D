@@ -225,6 +225,7 @@
       "what-hides-what": "무엇이 무엇을 가리는가",
       "create-and-dispose": "만들고 해제하기",
       "no-hitch-on-first-draw": "첫 프레임도 끊김 없이",
+      "inside-a-component": "컴포넌트 안에서",
       "inside-the-g-buffer": "G버퍼 안",
       "reading-pixels-back": "픽셀 다시 읽기",
       "a-city-from-3d-tiles": "3D Tiles로 만든 도시",

@@ -2147,5 +2147,13 @@
     "words": {
       "credit": "Direkteki bayrak bu örnek için kodla modellendi, CC0 — bkz. assets/examples/CREDITS.md"
     }
+  },
+  "inside-a-component": {
+    "banner": "Görüntüleyiciyi bağlayın veya ayırın. Her bağlantı bir dünyaya sahip olur ve her ayırma onu yok eder.",
+    "controls": {
+      "mount": "Bağla",
+      "unmount": "Ayır",
+      "remount": "Yeniden bağla"
+    }
   }
 }

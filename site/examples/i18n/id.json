@@ -2147,5 +2147,13 @@
     "words": {
       "credit": "Bendera pada tiang dimodelkan dalam kode untuk contoh ini, CC0 — lihat assets/examples/CREDITS.md"
     }
+  },
+  "inside-a-component": {
+    "banner": "Pasang atau lepas penampil. Setiap pemasangan memiliki satu dunia dan setiap pelepasan membuangnya.",
+    "controls": {
+      "mount": "Pasang",
+      "unmount": "Lepas",
+      "remount": "Pasang ulang"
+    }
   }
 }
