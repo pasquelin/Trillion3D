@@ -35,7 +35,7 @@
     "jumpTo": "Chuyển đến chủ đề",
     "waitsFor": "Đang chờ bộ máy:",
     "partial": "Một phần",
-    "coming": "Sắp có: {{titles}}"
+    "coming": "Sắp có"
   },
   "api": {
     "title": "Tài liệu tham khảo bộ máy",
@@ -1371,6 +1371,7 @@
       "red-cyan-anaglyph": "Anaglyph đỏ-lam",
       "camera-layers": "Các lớp camera",
       "a-robot-that-walks-and-waves": "Pha trộn chuyển động robot",
+      "a-crane-that-swings": "Cần cẩu đung đưa tải",
       "a-wave-across-a-grid": "Sóng khối lập phương",
       "keyframes-by-hand": "Khung khóa thủ công",
       "one-clip-many-objects": "Một clip, nhiều đối tượng",
@@ -1404,6 +1405,7 @@
       "observatory-streamed": "Các cụm được truyền phát",
       "health-check": "Kiểm tra sức khỏe",
       "memory-on-a-budget": "Ngân sách bộ nhớ",
+      "a-walk-through-the-city": "Đi bộ qua thành phố",
       "detail-by-pixel-error": "Chi tiết theo sai số pixel",
       "watch-a-world-load": "Xem một thế giới tải lên",
       "ten-thousand-objects": "Mười nghìn đối tượng",
@@ -1513,7 +1515,10 @@
       "ar-on-the-table": "AR trên bàn",
       "shadows-case-by-case": "Bóng đổ, từng trường hợp",
       "shadows-through-see-through-panes": "Bóng đổ qua những tấm kính trong",
-      "a-walker-among-balls": "Người đi bộ giữa những quả bóng"
+      "a-walker-among-balls": "Người đi bộ giữa những quả bóng",
+      "a-dolly-along-the-canal": "Máy quay trượt dọc kênh",
+      "a-folder-merged-into-one-scene": "Thư mục được gộp thành một cảnh",
+      "drag-a-crate": "Kéo thùng hàng"
     },
     "missing": {
       "floating-crates": "hình học được ghi lại mỗi khung hình",

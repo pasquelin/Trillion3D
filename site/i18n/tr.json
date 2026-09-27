@@ -35,7 +35,7 @@
     "jumpTo": "Bir temaya git",
     "waitsFor": "Motoru bekliyor:",
     "partial": "Kısmi",
-    "coming": "Yakında: {{titles}}"
+    "coming": "Yakında"
   },
   "gallery": {
     "themes": {
@@ -187,6 +187,7 @@
       "red-cyan-anaglyph": "Kırmızı-camgöbeği anaglif",
       "camera-layers": "Kamera katmanları",
       "a-robot-that-walks-and-waves": "Karıştırılmış robot hareketleri",
+      "a-crane-that-swings": "Yükünü sallayan vinç",
       "a-wave-across-a-grid": "Küplerden bir dalga",
       "keyframes-by-hand": "Elle anahtar kareler",
       "one-clip-many-objects": "Bir klip, birçok nesne",
@@ -220,6 +221,7 @@
       "observatory-streamed": "Akışla gelen kümeler",
       "health-check": "Sağlık kontrolü",
       "memory-on-a-budget": "Bellek bütçesi",
+      "a-walk-through-the-city": "Şehirde bir yürüyüş",
       "detail-by-pixel-error": "Piksel hatasına göre detay",
       "watch-a-world-load": "Bir dünyanın yüklenişini izle",
       "ten-thousand-objects": "On bin nesne",
@@ -329,7 +331,10 @@
       "ar-on-the-table": "Masada AR",
       "shadows-case-by-case": "Gölgeler, durum durum",
       "shadows-through-see-through-panes": "Saydam camlardan düşen gölgeler",
-      "a-walker-among-balls": "Toplar arasında bir yürüyüşçü"
+      "a-walker-among-balls": "Toplar arasında bir yürüyüşçü",
+      "a-dolly-along-the-canal": "Kanal boyunca kamera kaydırma",
+      "a-folder-merged-into-one-scene": "Tek sahnede birleştirilen klasör",
+      "drag-a-crate": "Bir sandığı sürükleme"
     },
     "missing": {
       "floating-crates": "her karede yeniden yazılan geometri",

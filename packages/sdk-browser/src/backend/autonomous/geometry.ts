@@ -7,7 +7,7 @@ import {
   releaseHostGeometry,
   setHostPose,
 } from '../../host/pageObjects.ts';
-import { surfaceOf } from '../../page/surface.ts';
+import { wearDeclaration } from '../../page/surface.ts';
 import { EngineError, type GeometryPageDescriptor } from '../../../../sdk-core/src/index.ts';
 import type { HostMaterial, HostMaterials } from '../../host/resources.ts';
 import { createWebglPageBatches } from '../../placement/webglPageBatches.ts';
@@ -156,8 +156,7 @@ export function createAutonomousGeometry(env: GeometryEnvironment) {
       // Lazily: a page without a colour attribute must not make a vertex-coloured twin.
       const twin = (one: HostMaterial) => colouredTwin(colorMaterials, one);
       const paint = () => (Array.isArray(base) ? base.map(twin) : twin(base));
-      rec.declaration = data.attributes.color ? paint() : base;
-      rec.material = surfaceOf(rec.declaration);
+      wearDeclaration(rec, data.attributes.color ? paint() : base);
       setArray(rec, data.indices);
       rec.attributes = geometry.attributes;
       rec.geometry = geometry;

@@ -500,6 +500,14 @@
       "balloon": "SIGUIENDO EL GLOBO"
     }
   },
+  "a-crane-that-swings": {
+    "banner": "Gira alrededor de la grúa mientras un clip rota la pluma, mueve el carro, eleva la carga y la deja balancearse.",
+    "controls": {
+      "speed": "Velocidad",
+      "paused": "En pausa",
+      "replay": "Repetir"
+    }
+  },
   "a-wave-across-a-grid": {
     "banner": "Arrastra para mirar alrededor. Haz la ola de cubos más alta o más rápida.",
     "controls": {
@@ -1259,6 +1267,25 @@
       }
     }
   },
+  "a-walk-through-the-city": {
+    "banner": "Haz clic en la vista, camina con W A S D y mira con el ratón. Reduce la memoria mientras avanzas.",
+    "controls": {
+      "walkSpeed": "Velocidad",
+      "memory": "Memoria",
+      "view": "Vista",
+      "home": "Volver al inicio"
+    },
+    "choices": {
+      "view": {
+        "beauty": "imagen",
+        "lod": "niveles de detalle",
+        "clusters": "clústeres"
+      }
+    },
+    "words": {
+      "credit": "Avenida de urnas modelada en código para este ejemplo, CC0 — ver assets/examples/CREDITS.md"
+    }
+  },
   "migrating-from-three": {
     "words": {
       "credit": "Marble Bust 01 de Rico Cilliers, Poly Haven, CC0; caja de W. Sitters, CC BY 3.0 — ver assets/examples/CREDITS.md"
@@ -1710,11 +1737,18 @@
   },
   "the-home-pose": {
     "banner": "Elige una vista, mueve la cámara y luego elige Inicio para volver.",
-    "controls": { "home": "Inicio", "tower": "Torre", "square": "Plaza", "hillside": "Ladera" }
+    "controls": {
+      "home": "Inicio",
+      "tower": "Torre",
+      "square": "Plaza",
+      "hillside": "Ladera"
+    }
   },
   "the-near-plane-cuts-a-wall": {
     "banner": "Avanza el plano cercano y observa cómo corta cada pared.",
-    "controls": { "nearPlane": "Plano cercano" }
+    "controls": {
+      "nearPlane": "Plano cercano"
+    }
   },
   "the-material-family": {
     "banner": "Arrastra para dar la vuelta. Pon la luz de noche y mira qué sigue brillando.",
@@ -2179,6 +2213,34 @@
     },
     "words": {
       "credit": "Bandera en un mástil modelada en código para este ejemplo, CC0 — ver assets/examples/CREDITS.md"
+    }
+  },
+  "a-dolly-along-the-canal": {
+    "banner": "Pausa el travelling, repite el recorrido o cambia su velocidad mientras la cámara avanza por el canal.",
+    "controls": {
+      "paused": "En pausa",
+      "replay": "Repetir",
+      "speed": "Velocidad"
+    },
+    "readouts": {
+      "progress": "Progreso"
+    }
+  },
+  "a-folder-merged-into-one-scene": {
+    "banner": "Arrastra para examinar la esquina. El compilador fusionó tres archivos OBJ de una carpeta en esta escena.",
+    "controls": {
+      "visible": "Visible",
+      "home": "Inicio"
+    },
+    "words": {
+      "credit": "Modelo de farola de W. Sitters, CC BY 3.0 — ver assets/examples/CREDITS.md"
+    }
+  },
+  "drag-a-crate": {
+    "banner": "Arrastra la caja por el suelo. Activa el ajuste para colocarla en pasos de medio metro.",
+    "controls": {
+      "snap": "Ajustar",
+      "home": "Inicio"
     }
   }
 }
