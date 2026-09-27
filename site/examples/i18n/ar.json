@@ -1259,6 +1259,21 @@
       }
     }
   },
+  "a-walk-through-the-city": {
+    "banner": "انقر على المشهد، وامشِ بمفاتيح W A S D وانظر بالفأرة. خفّض ميزانية الذاكرة أثناء الحركة.",
+    "controls": {
+      "walkSpeed": "سرعة المشي",
+      "memory": "الذاكرة",
+      "view": "العرض",
+      "home": "العودة إلى البداية"
+    },
+    "choices": {
+      "view": { "beauty": "الصورة النهائية", "lod": "مستويات التفاصيل", "clusters": "العناقيد" }
+    },
+    "words": {
+      "credit": "شارع جرار صُمّم بالشيفرة لهذا المثال، CC0 — انظر assets/examples/CREDITS.md"
+    }
+  },
   "migrating-from-three": {
     "words": {
       "credit": "Marble Bust 01 من Rico Cilliers، Poly Haven، CC0؛ الصندوق من W. Sitters، CC BY 3.0 — انظر assets/examples/CREDITS.md"
@@ -1710,11 +1725,18 @@
   },
   "the-home-pose": {
     "banner": "اختر عرضًا، وحرّك الكاميرا، ثم اختر البداية للعودة.",
-    "controls": { "home": "البداية", "tower": "البرج", "square": "الساحة", "hillside": "التل" }
+    "controls": {
+      "home": "البداية",
+      "tower": "البرج",
+      "square": "الساحة",
+      "hillside": "التل"
+    }
   },
   "the-near-plane-cuts-a-wall": {
     "banner": "حرّك المستوى القريب إلى الأمام وشاهده يقطع كل جدار.",
-    "controls": { "nearPlane": "المستوى القريب" }
+    "controls": {
+      "nearPlane": "المستوى القريب"
+    }
   },
   "the-material-family": {
     "banner": "اسحب لتمشي حولها. اجعل الضوء ليلًا وشاهد ما يزال يلمع.",
@@ -2190,6 +2212,16 @@
     },
     "readouts": {
       "progress": "التقدم"
+    }
+  },
+  "a-folder-merged-into-one-scene": {
+    "banner": "اسحب لتفحص زاوية الشارع. دمج المصرّف ثلاثة ملفات OBJ من مجلد واحد في هذا المشهد.",
+    "controls": {
+      "visible": "مرئي",
+      "home": "العرض الأولي"
+    },
+    "words": {
+      "credit": "نموذج عمود إنارة من W. Sitters، CC BY 3.0 — انظر assets/examples/CREDITS.md"
     }
   }
 }

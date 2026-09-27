@@ -220,6 +220,7 @@
       "observatory-streamed": "ストリーミングされるクラスター",
       "health-check": "ヘルスチェック",
       "memory-on-a-budget": "メモリ予算",
+      "a-walk-through-the-city": "街を歩く",
       "detail-by-pixel-error": "ピクセル誤差による詳細度",
       "watch-a-world-load": "世界が読み込まれるのを見る",
       "ten-thousand-objects": "一万個の物体",
@@ -330,7 +331,8 @@
       "shadows-case-by-case": "影をケースごとに",
       "shadows-through-see-through-panes": "透けるガラスが落とす影",
       "a-walker-among-balls": "ボールの中を歩く人",
-      "a-dolly-along-the-canal": "運河沿いのカメラドリー"
+      "a-dolly-along-the-canal": "運河沿いのカメラドリー",
+      "a-folder-merged-into-one-scene": "1つのシーンに統合したフォルダー"
     },
     "missing": {
       "floating-crates": "毎フレーム書き換えるジオメトリ",

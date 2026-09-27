@@ -220,6 +220,7 @@
       "observatory-streamed": "Streamed clusters",
       "health-check": "Health check",
       "memory-on-a-budget": "Memory budget",
+      "a-walk-through-the-city": "A walk through the city",
       "detail-by-pixel-error": "Detail by pixel error",
       "watch-a-world-load": "Watch a world load",
       "ten-thousand-objects": "Ten thousand objects",
@@ -330,7 +331,8 @@
       "shadows-case-by-case": "Shadows, case by case",
       "shadows-through-see-through-panes": "Shadows through see-through panes",
       "a-walker-among-balls": "A walker among balls",
-      "a-dolly-along-the-canal": "A dolly along the canal"
+      "a-dolly-along-the-canal": "A dolly along the canal",
+      "a-folder-merged-into-one-scene": "A folder merged into one scene"
     },
     "missing": {
       "floating-crates": "geometry rewritten every frame",

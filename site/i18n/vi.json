@@ -1404,6 +1404,7 @@
       "observatory-streamed": "Các cụm được truyền phát",
       "health-check": "Kiểm tra sức khỏe",
       "memory-on-a-budget": "Ngân sách bộ nhớ",
+      "a-walk-through-the-city": "Đi bộ qua thành phố",
       "detail-by-pixel-error": "Chi tiết theo sai số pixel",
       "watch-a-world-load": "Xem một thế giới tải lên",
       "ten-thousand-objects": "Mười nghìn đối tượng",
@@ -1514,7 +1515,8 @@
       "shadows-case-by-case": "Bóng đổ, từng trường hợp",
       "shadows-through-see-through-panes": "Bóng đổ qua những tấm kính trong",
       "a-walker-among-balls": "Người đi bộ giữa những quả bóng",
-      "a-dolly-along-the-canal": "Máy quay trượt dọc kênh"
+      "a-dolly-along-the-canal": "Máy quay trượt dọc kênh",
+      "a-folder-merged-into-one-scene": "Thư mục được gộp thành một cảnh"
     },
     "missing": {
       "floating-crates": "hình học được ghi lại mỗi khung hình",
