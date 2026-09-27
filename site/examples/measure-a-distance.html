@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Measure a distance between two points</title>
+    <meta name="thumbnail" content="4" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #17212b;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <script type="module">
+      import { createWorld, geometry, light, material, math, object } from '../runtime/engine.js';
+      import { controls, readout } from '../runtime/kit.js';
+
+      const world = createWorld('view', { controls: 'orbit' });
+      world.scene.background = math.color('#17212b');
+      const exhibits = object.group();
+      const stone = material.meshStandard({ color: '#7893a8', roughness: 0.65 });
+      const copper = material.meshStandard({ color: '#b66b42', roughness: 0.35, metalness: 0.55 });
+      const plinth = object.mesh(
+        geometry.box(8, 0.3, 6),
+        material.meshStandard({ color: '#394653', roughness: 0.9 }),
+      );
+      plinth.position.y = -0.15;
+      exhibits.add(plinth);
+      const arch = object.mesh(geometry.torus(1.8, 0.32, 20, 64, Math.PI), copper);
+      // A half torus spans the XY plane from 0 to π: centred at the column tops, it crowns them.
+      arch.position.set(-1.5, 2.8, 0);
+      exhibits.add(arch);
+      const columnShape = geometry.cylinder(0.45, 0.6, 2.8, 24);
+      for (const x of [-3.3, 0.3]) {
+        const column = object.mesh(columnShape, stone);
+        column.position.set(x, 1.4, 0);
+        exhibits.add(column);
+      }
+      const sculpture = object.mesh(geometry.torusKnot(0.8, 0.24, 96, 16), copper);
+      sculpture.position.set(2.3, 1.25, 0.2);
+      sculpture.rotation.x = 0.35;
+      exhibits.add(sculpture);
+      exhibits.traverse((part) => (part.castShadow = true));
+      plinth.receiveShadow = true;
+      world.scene.add(
+        exhibits,
+        light.directional({
+          color: '#ffe1b8',
+          intensity: 3.5,
+          position: [-4, 8, 5],
+          castShadow: true,
+        }),
+        light.hemisphere({ color: '#aac7e4', groundColor: '#27313b', intensity: 0.8 }),
+      );
+      world.camera.position.set(7, 5, 8);
+      world.controls.target.set(0, 1, 0);
+      world.camera.lookAt(world.controls.target);
+
+      controls({ clear: () => clear() }, world);
+      const pointA = readout('pointA'),
+        pointB = readout('pointB'),
+        distance = readout('distance');
+      let first = null,
+        second = null,
+        marks = null,
+        segment = null;
+      const format = (point) =>
+        point
+          .toArray()
+          .map((value) => value.toFixed(2))
+          .join(', ');
+      const clear = () => {
+        first = second = null;
+        marks?.remove();
+        segment?.remove();
+        marks = segment = null;
+        pointA('—');
+        pointB('—');
+        distance('—');
+      };
+      clear();
+
+      world.canvas.addEventListener('click', (event) => {
+        const hit = world.raycast({ x: event.offsetX, y: event.offsetY }, { objects: [exhibits] });
+        if (!hit) return;
+        if (second) clear();
+        if (!first) {
+          first = hit.point.clone();
+          marks = world.guides.points({ positions: first.toArray(), color: '#ffd45c', size: 10 });
+          pointA(format(first));
+          return;
+        }
+        second = hit.point.clone();
+        marks?.remove();
+        marks = world.guides.points({
+          positions: [...first.toArray(), ...second.toArray()],
+          color: '#ffd45c',
+          size: 10,
+        });
+        segment = world.guides.lines({
+          positions: [...first.toArray(), ...second.toArray()],
+          color: '#ffd45c',
+          width: 3,
+        });
+        pointB(format(second));
+        distance(`${first.distanceTo(second).toFixed(2)} m`);
+      });
+
+      addEventListener('pagehide', () => {
+        world.guides.clear();
+        world.dispose();
+      });
+    </script>
+  </body>
+</html>
