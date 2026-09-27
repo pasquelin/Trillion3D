@@ -2240,6 +2240,12 @@
       "credit": "Flag on a pole modelled in code for this example, CC0 — see assets/examples/CREDITS.md"
     }
   },
+  "hover-to-highlight": {
+    "banner": "Move over the cart to highlight each part, or turn highlighting off in the panel.",
+    "controls": {
+      "highlightEnabled": "Enable highlighting"
+    }
+  },
   "a-dolly-along-the-canal": {
     "banner": "Pause the dolly, replay the journey or change its speed as the camera travels along the canal.",
     "controls": {

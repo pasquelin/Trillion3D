@@ -2240,6 +2240,12 @@
       "credit": "Flagge an einem Mast für dieses Beispiel im Code modelliert, CC0 — siehe assets/examples/CREDITS.md"
     }
   },
+  "hover-to-highlight": {
+    "banner": "Fahre über die Teile des Wagens, um sie einzeln hervorzuheben, oder schalte die Hervorhebung im Bedienfeld aus.",
+    "controls": {
+      "highlightEnabled": "Hervorhebung aktivieren"
+    }
+  },
   "a-dolly-along-the-canal": {
     "banner": "Pausiere die Kamerafahrt, starte sie neu oder ändere ihre Geschwindigkeit entlang des Kanals.",
     "controls": {

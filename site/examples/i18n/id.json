@@ -2240,6 +2240,12 @@
       "credit": "Bendera pada tiang dimodelkan dalam kode untuk contoh ini, CC0 — lihat assets/examples/CREDITS.md"
     }
   },
+  "hover-to-highlight": {
+    "banner": "Arahkan penunjuk ke bagian troli untuk menyorotnya satu per satu, atau matikan sorotan di panel.",
+    "controls": {
+      "highlightEnabled": "Aktifkan sorotan"
+    }
+  },
   "a-dolly-along-the-canal": {
     "banner": "Jeda dolly, ulangi perjalanan, atau ubah kecepatannya saat kamera menyusuri kanal.",
     "controls": {

@@ -1234,6 +1234,11 @@
       "file": "examples/measure-a-distance.html"
     },
     {
+      "id": "hover-to-highlight",
+      "theme": "interaction",
+      "file": "examples/hover-to-highlight.html"
+    },
+    {
       "id": "drag-a-crate",
       "theme": "interaction",
       "file": "examples/drag-a-crate.html"
