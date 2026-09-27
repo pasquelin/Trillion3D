@@ -25,6 +25,8 @@ import type { GraphSurface } from '../../host/graph/surface.ts';
 import type { GraphTexture } from '../../host/graph/texture.ts';
 import type { Cut } from './worldCuts.ts';
 import type { PosedTwin } from './worldPoses.ts';
+import type { createWorldMaterials } from './worldMaterials.ts';
+import type { AlphaChange } from '../../placement/backendSceneUpdates.ts';
 import { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts';
 
 /** The geometry of drawn triangles, under the attribute names a mesh reads. A sprite's quad is
@@ -48,6 +50,10 @@ function hostGeometry(drawn: DrawnTriangles) {
   }
   return geometry;
 }
+
+/** An entry repainted in place (`worldMaterials.ts`), and how a session reads it again. */
+type Repainted = ReturnType<ReturnType<typeof createWorldMaterials>['takeRepainted']>[number];
+type Refresh = (values: boolean, alpha?: AlphaChange) => boolean;
 
 /** What the mirror is built from: the resources placed by rows, the models drawn whole, and the
  *  mesh rank each geometry resource was given in the session's manifest. */
@@ -103,12 +109,18 @@ export function buildWorldMirror(input: MirrorInput) {
     root.add(twin);
     twins.set(node, twin);
   }
-  /** Writes a repainted material entry's values into the host surface built for it; false when
-   *  this mirror built none. */
-  const repaint = (material: Material) => {
-    const worn = surfaces.get(material);
-    for (const surface of worn ?? []) if (surface) repaintHostSurface(surface, material);
-    return !!worn;
+  /** Writes the repainted entries into the host surfaces built for them, then has `refresh` —
+   *  the open session, if any — read them again: once, and once more for each entry whose alpha
+   *  moved, what its cutout shadows (`AlphaChange`). False when the session cannot take them. */
+  const repaint = (painted: readonly Repainted[], refresh?: Refresh) => {
+    const done = painted.flatMap(({ entry, values, alpha }) => {
+      const worn = (surfaces.get(entry.material) ?? []).filter((surface) => !!surface);
+      for (const surface of worn) repaintHostSurface(surface, entry.material);
+      return worn.length ? [{ values, alpha, surfaces: worn }] : [];
+    });
+    if (!refresh || !done.length) return true;
+    const moved = done.flatMap(({ alpha, surfaces }) => (alpha ? [{ surfaces, ...alpha }] : []));
+    return refresh(done.some((each) => each.values)) && moved.every((alpha) => refresh(true, alpha));
   };
   return { root, twins, associations, repaint };
 }
