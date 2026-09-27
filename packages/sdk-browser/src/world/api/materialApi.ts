@@ -110,6 +110,12 @@ export function createExplorerMaterialApi(inputs: Inputs) {
         mode = patch.alphaMode ?? from;
       // A masked material cut at zero is drawn as an opaque one.
       const to = mode === 'mask' && patch.alphaCutoff === 0 ? 'opaque' : mode;
+      // A created material no drawable wears yet is written alone: no engine draws it.
+      if (created.has(id)) {
+        if (patch.tiling) throw invalid(rank, 'tiling', patch.tiling);
+        for (const surface of worn) write(surface, patch, to);
+        return true;
+      }
       // Its alpha moved: another class, or a cutout's cutoff — what the shadow of a cutout reads.
       const alpha =
         to !== from || (to === 'mask' && patch.alphaCutoff !== undefined)
@@ -138,13 +144,13 @@ export function createExplorerMaterialApi(inputs: Inputs) {
      */
     createMaterial(props: CreatedMaterial = {}): SceneMaterial {
       check();
-      const id = `created-${created.size}`;
       if (created.size >= RUNTIME_MATERIAL_CEILING)
         throw new EngineError(
           'MATERIAL_CEILING',
           `the page holds ${created.size} created materials, the ceiling`,
-          { ceiling: RUNTIME_MATERIAL_CEILING },
+          { held: created.size, asked: 1, ceiling: RUNTIME_MATERIAL_CEILING },
         );
+      const id = `created-${created.size}`;
       validateCreated(id, props);
       const surface = createdSurface(props);
       created.set(id, surface);

@@ -53,11 +53,13 @@ const CREATED_DEFAULTS = {
 
 /** The host surface of a created material: what the page named, glTF's default elsewhere, drawn
  *  as a repainted primitive is (`hostPageSurface`). */
-export function createdSurface(props: CreatedMaterial) {
+export function createdSurface({ name, map: _, ...props }: CreatedMaterial) {
   // A value named `undefined` is one the page did not name: glTF's default, not a hole.
   const named = Object.entries(props).filter(([, value]) => value !== undefined);
-  const values = { ...CREATED_DEFAULTS, ...Object.fromEntries(named) } as typeof CREATED_DEFAULTS;
-  const surface = hostPageSurface(values, false) as unknown as GraphSurface;
-  if (props.name) surface.name = props.name;
+  const surface = hostPageSurface(
+    { ...CREATED_DEFAULTS, ...Object.fromEntries(named) },
+    false,
+  ) as unknown as GraphSurface;
+  if (name) surface.name = name;
   return surface;
 }
