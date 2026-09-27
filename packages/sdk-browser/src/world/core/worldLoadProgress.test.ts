@@ -4,7 +4,7 @@ import type { JobProgress } from '../../../../sdk-core/src/index.ts';
 import { worldModelLoader } from './worldLoader.ts';
 import { Scene } from './scene.ts';
 import { HOST } from './worldRuntime.fixture.ts';
-import { decodeStandIn } from '../scene/load.fixture.ts';
+import { decodingImages } from '../../host/prepared/decodedImages.fixture.ts';
 
 const manifest = (example: string) =>
   `${HOST}assets/examples/${example}/cache/native/full/manifest.json`;
@@ -22,7 +22,7 @@ async function heardLoading(
 
 test('scene.load reports the manifest, the tables, then every resource the scene reads', async (t) => {
   // Images decode to a stand-in: what is heard is that each was read.
-  decodeStandIn(t);
+  decodingImages(t);
   const heard = await heardLoading('bust', 'webgl2');
   const phases = heard.map((event) => event.phase).filter((phase) => phase !== 'bytes');
   assert.equal(phases[0], 'manifest');

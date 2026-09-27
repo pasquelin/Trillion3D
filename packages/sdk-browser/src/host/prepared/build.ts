@@ -8,6 +8,7 @@
 import { EngineError, type ClusterManifest } from '../../../../sdk-core/src/index.ts';
 import type { PreparedSceneTables } from '../../../../sdk-core/src/scene/core/tableContracts.ts';
 import type { BackendContext } from '../../backend/types.ts';
+import { readOnce } from '../../../../sdk-core/src/world/buffer/pending.ts';
 import { checked } from '../../cluster/pages.ts';
 import { unmetered, type ByteMeter } from '../../cluster/byteMeter.ts';
 import { sceneDocument } from '../../scene/tables.ts';
@@ -45,18 +46,13 @@ export async function buildPreparedScene(inputs: Inputs) {
   // sessions draw from the cache's pages and never read it. Read after the load has settled, it
   // joins neither its progress nor its byte count. A failed read is not kept: the next need
   // reads again.
-  let reading: Promise<ArrayBuffer> | undefined;
-  const binary = () =>
-    (reading ??= bufferUrl
-      ? checked(bufferUrl, signal)
-          .then((response) => response.arrayBuffer())
-          .catch((error: unknown) => {
-            reading = undefined;
-            throw error;
-          })
+  const binary = readOnce(() =>
+    bufferUrl
+      ? checked(bufferUrl, signal).then((response) => response.arrayBuffer())
       : Promise.reject(
           new EngineError('PREPARED_SCENE_MISMATCH', 'the scene document names no binary'),
-        ));
+        ),
+  );
   const skipped = skipBaked ? bakedImages(metadata, document.images.length) : new Set<number>();
   const images = preparedImages({ document, documentUrl, binary, skipped, signal, track, meter });
   const ranks: TextureRanks = new Map();
