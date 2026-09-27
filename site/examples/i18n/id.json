@@ -36,7 +36,8 @@
       "engine CPU": "CPU mesin"
     },
     "failure": {
-      "title": "Contoh ini berhenti karena sebuah kesalahan"
+      "title": "Contoh ini berhenti karena sebuah kesalahan",
+      "missingCache": "Cache yang dikompilasi tidak ada: jalankan pnpm compile:caches"
     },
     "banner": {
       "close": "Tutup"

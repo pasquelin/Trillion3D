@@ -7,12 +7,12 @@ import {
   transformPointsByMatricesBatch,
 } from '../../../packages/sdk-core/src/math/index.ts';
 import { rapport } from '../../core/index.ts';
-import type { Mesure } from '../../core/index.ts';
+import type { Measurement } from '../../core/index.ts';
 import { duel } from '../../oracles/core/three-duel.ts';
 import { N, prepareBatchData } from '../../oracles/core/batch-duel.ts';
 
 const { mats, pts, outPts, outThreePts, oraclePts, boxes, threeBoxes } = prepareBatchData();
-const lines: Mesure[] = [];
+const lines: Measurement[] = [];
 lines.push(
   await duel({
     name: 'Vector3.applyMatrix4 per-instance batch',

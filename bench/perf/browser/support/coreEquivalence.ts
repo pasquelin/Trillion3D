@@ -12,7 +12,7 @@ import {
   transformAffinePoint,
   transformHomogeneousPoint,
 } from '../../../../packages/sdk-core/src/index.ts';
-import type { Mesure } from '../../../core/index.ts';
+import type { Measurement } from '../../../core/index.ts';
 import { chainesHostiles, lectureReference, lectureSocle } from './coreHierarchy.ts';
 import { f64, ligne, m4, normaleReference, trs, trsReference } from './coreLine.ts';
 import { affines, matrices, paires, paires32, points } from './scenesCore.ts';
@@ -24,7 +24,7 @@ const croise = <T>(liste: ArrayLike<number>[], fn: (m: ArrayLike<number>, p: num
   Array.from(liste).flatMap((m) => echantillon.map((p) => fn(m, p)));
 const fini = (p: ArrayLike<number>) => Number.isFinite(p[0] + p[1] + p[2]);
 
-async function lignesOperations(): Promise<Mesure[]> {
+async function lignesOperations(): Promise<Measurement[]> {
   return [
     await ligne(
       '4×4 product, double precision',
@@ -170,7 +170,7 @@ async function lignesOperations(): Promise<Mesure[]> {
 
 export const noeudsHierarchie = chainesHostiles();
 
-export async function lignesEquivalence(): Promise<Mesure[]> {
+export async function lignesEquivalence(): Promise<Measurement[]> {
   return [
     ...(await lignesOperations()),
     await ligne(
