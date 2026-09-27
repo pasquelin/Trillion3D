@@ -1294,7 +1294,7 @@
       "theme": "effects",
       "file": "examples/outline-the-selection.html",
       "status": "waiting-engine",
-      "issue": 880
+      "issue": 757
     },
     {
       "id": "edges-by-sobel",
