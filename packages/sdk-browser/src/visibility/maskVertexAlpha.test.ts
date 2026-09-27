@@ -88,7 +88,9 @@ test('both WebGPU rasters hand the interpolated vertex alpha to the cutout; shad
   const small = rasterSource(4, 16);
   assert.ok(small.includes('ua=vec3f(pageUv(page,h,ia),pageMaskAlpha(page,h,ia));'));
   assert.ok(small.includes('u:array<vec3f,4>'), 'the near clip carries it');
-  assert.ok(small.includes('if(!maskKeep(page,tc.xy,tc.z,vec2f(0.0),vec2f(0.0))){return;}'));
+  assert.ok(small.includes('if(cov.w>0.5){sb=t.c;sc=t.d;qb=t.cc;qc=t.cd;nb=t.uc;nc=t.ud;}'));
+  assert.ok(small.includes('uvGradients(t.a,sb,sc,sample,t.ua.xy,nb.xy,nc.xy,'));
+  assert.ok(small.includes('maskKeep(page,tc.xy,tc.z,gradients[0],gradients[1])'));
   assert.ok(SHADOW_DEPTH_SHADER.includes('maskKeep(pages[in.instance],in.uv,1.0,gx,gy)'));
 });
 

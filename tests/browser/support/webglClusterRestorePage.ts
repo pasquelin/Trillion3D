@@ -75,7 +75,7 @@ export async function heldRestore() {
     }),
     gl = surface.context,
     camera = G.perspectiveCamera(),
-    scene = new G.GraphScene(),
+    scene = new G.Scene(),
     fixture = texturedTriangle(),
     owner = new WebglClusterOwner(gl);
   let draws = 0;

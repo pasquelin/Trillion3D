@@ -1,8 +1,8 @@
 // what a frame used to rebuild for no reason.
-import { GraphMesh } from '../../../packages/sdk-browser/src/host/graph/mesh.ts';
+import { Mesh } from '../../../packages/sdk-core/src/world/object/mesh.ts';
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import { surfaceOf } from '../../../packages/sdk-browser/src/page/surface.ts';
-import { asHostLibrary } from '../../../packages/sdk-browser/src/host/resources.ts';
+import { asHostLibrary, type HostMesh } from '../../../packages/sdk-browser/src/host/resources.ts';
 import { surfaceColorAttachments } from '../../../packages/sdk-browser/src/webgpu/pages/prepare/attachments.ts';
 import { anneauFroid } from '../../../packages/sdk-browser/src/world/render/draw.ts';
 import { deplaceInstance } from '../../../packages/sdk-browser/src/backend/autonomous/instancePose.ts';
@@ -66,8 +66,8 @@ const redimensionnee = [petite, petite, grande, grande, petite, liberee, grande]
 /** Fields the instance displacement never reads: shared across every fixture record/root. */
 const DUMMY_ATTRIBUTES: G.Geometry['attributes'] = {};
 const DUMMY_BOUNDS: number[] = [0, 0, 0];
-const emptyMesh = () => new GraphMesh(new Geometry(), []);
-const pageOf = (matrix: G.Matrix4, mesh?: GraphMesh): PageRec => ({
+const emptyMesh = () => new Mesh(new Geometry(), []);
+const pageOf = (matrix: G.Matrix4, mesh?: HostMesh): PageRec => ({
   id: 0,
   url: '',
   clusterId: '',

@@ -11,6 +11,7 @@ import {
 } from './transmittance.ts';
 import { SHADOW_DEPTH_SHADER } from './shader.ts';
 import { POISSON_16, directShadowWgsl } from '../../lighting/direct/shadowWgsl.ts';
+import { throughAxis } from '../../lighting/direct/shadowPages.fixture.ts';
 import { LIGHT_SETTINGS } from '../../../../sdk-core/src/index.ts';
 import { SHADOW_PAGE } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { fromHalf, toHalf } from '../../../../sdk-core/src/lighting/ltcTable.ts';
@@ -38,11 +39,10 @@ function land(dst: Texel, coverage: number, depth: number): Texel {
 /** CPU oracle of `shadowThrough`: the four half-resolution texels around `a / 2`, kept in `a`'s
  *  page, each its transmittance where the reference lies behind its depth, filtered bilinearly. */
 function through(layerAt: (i: number, j: number) => Texel, ax: number, ay: number, ref: number) {
-  const half = SHADOW_PAGE / 2;
   const axis = (a: number) => {
-    const o = Math.floor(a / SHADOW_PAGE) * half;
-    const h = Math.min(Math.max(a / 2, o + 0.5), o + half - 0.5) - 0.5;
-    return [Math.floor(h), h - Math.floor(h)];
+    const first = Math.floor(a / SHADOW_PAGE) * SHADOW_PAGE,
+      [i, w] = throughAxis(a - first);
+    return [first / 2 + i, w];
   };
   const [i, fx] = axis(ax),
     [j, fy] = axis(ay);
@@ -96,10 +96,10 @@ test('the shadow read multiplies the PCF by the half-resolution layer once per f
   const wgsl = directShadowWgsl(8, null, 18);
   assert.match(wgsl, /@binding\(18\) var shadowTransmittance:texture_2d_array<f32>/);
   assert.match(wgsl, /@binding\(19\) var shadowTranslucentDepth:texture_depth_2d_array/);
-  assert.match(wgsl, /clamp\(0\.5\*a,o\+0\.5,o\+\(0\.5\*SHADOW_PAGE-0\.5\)\)/, 'kept in its page');
+  assert.match(wgsl, /clamp\(0\.5\*local,vec2f\(0\.5\),vec2f\(0\.5\*SHADOW_PAGE-/, 'in its page');
   assert.match(wgsl, /let behind=vec4f\(reference\)<d;/);
   assert.equal(
-    wgsl.match(/return shadowThroughLit\(offset\+vec3f\(t,0.0\),reference,lit\/f32\(PCF_TAPS\)\);/g)
+    wgsl.match(/return shadowThroughLit\(offset,first,t,reference,lit\/f32\(PCF_TAPS\)\);/g)
       ?.length,
     2,
     'away from a seam and along one',
