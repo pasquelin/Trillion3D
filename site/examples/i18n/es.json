@@ -510,6 +510,21 @@
       "outer": "Exterior"
     }
   },
+
+  "a-carousel": {
+    "banner": "Gira alrededor del carrusel. Páralo o mueve los caballos de madera en sentido contrario.",
+    "controls": {
+      "running": "En marcha",
+      "speed": "Velocidad",
+      "direction": "Dirección"
+    },
+    "choices": {
+      "direction": {
+        "clockwise": "sentido horario",
+        "counterclockwise": "sentido antihorario"
+      }
+    }
+  },
   "a-world-of-blocks": {
     "banner": "Arrastra para volar alrededor de la isla. Sube el mar para inundar los valles.",
     "controls": {

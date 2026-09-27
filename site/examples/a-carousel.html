@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>A carousel of wooden horses</title>
+    <meta name="thumbnail" content="3" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #172337;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <script type="module">
+      import { createWorld, animation } from '../runtime/engine.js';
+      import { geometry, light, material, math, object } from '../runtime/engine.js';
+      import { announceWhatToDo, controls } from '../runtime/kit.js';
+
+      const world = createWorld('view', { controls: 'orbit' });
+      world.scene.background = math.color('#172337');
+      const paint = (color, roughness = 0.7, metalness = 0) =>
+        material.meshStandard({ color, roughness, metalness });
+      const wood = paint('#7a4327'),
+        cream = paint('#f0dfbd'),
+        gold = paint('#dcae45', 0.3, 0.65);
+      const red = paint('#a52d37'),
+        blue = paint('#285a8e'),
+        dark = paint('#201713');
+      const platformShape = geometry.cylinder(4.4, 4.4, 0.35, 64);
+      const poleShape = geometry.cylinder(0.045, 0.045, 3.7, 12);
+      const bodyShape = geometry.capsule(0.32, 0.9, 8, 18);
+      const neckShape = geometry.capsule(0.14, 0.45, 6, 12);
+      const headShape = geometry.capsule(0.2, 0.32, 6, 14);
+      const legShape = geometry.capsule(0.08, 0.55, 5, 10);
+      const hoofShape = geometry.box(0.16, 0.12, 0.28);
+
+      const carousel = object.group();
+      carousel.name = 'carousel';
+      const floor = object.mesh(platformShape, wood),
+        canopy = object.mesh(geometry.cone(4.8, 1.8, 16), red);
+      floor.position.y = 0.18;
+      canopy.position.y = 4.6;
+      carousel.add(floor, canopy);
+
+      const addHorsePart = (horse, shape, matter, position, rotation = [0, 0, 0]) => {
+        const part = object.mesh(shape, matter);
+        part.position.set(...position);
+        part.rotation.set(...rotation);
+        horse.add(part);
+      };
+      const horses = [];
+      for (let index = 0; index < 8; index++) {
+        const angle = (index / 8) * Math.PI * 2,
+          radius = index % 2 ? 3.25 : 2.25;
+        const x = Math.sin(angle) * radius,
+          z = Math.cos(angle) * radius;
+        const pole = object.mesh(poleShape, gold);
+        pole.position.set(x, 2.15, z);
+        const horse = object.group();
+        horse.name = `horse${index}`;
+        horse.position.set(x, 1.45, z);
+        horse.rotation.set(0, angle + Math.PI / 2, 0);
+        addHorsePart(horse, bodyShape, index % 2 ? cream : blue, [0, 0, 0], [Math.PI / 2, 0, 0]);
+        addHorsePart(horse, neckShape, index % 2 ? cream : blue, [0, 0.42, -0.38], [0.4, 0, 0]);
+        addHorsePart(
+          horse,
+          headShape,
+          index % 2 ? cream : blue,
+          [0, 0.72, -0.58],
+          [Math.PI / 2, 0, 0],
+        );
+        for (const side of [-1, 1])
+          for (const front of [-1, 1]) {
+            addHorsePart(
+              horse,
+              legShape,
+              dark,
+              [side * 0.18, -0.5, front * 0.28],
+              [front * 0.18, 0, 0],
+            );
+            addHorsePart(horse, hoofShape, dark, [side * 0.18, -0.82, front * 0.33]);
+          }
+        carousel.add(pole, horse);
+        horses.push(horse);
+      }
+      world.scene.add(carousel);
+
+      const duration = 8,
+        times = Array.from({ length: duration + 1 }, (_, time) => time);
+      const tracks = [animation.numberTrack('.rotation.y', [0, duration], [0, Math.PI * 2])];
+      horses.forEach((horse, index) => {
+        const phase = (index / horses.length) * Math.PI * 2;
+        tracks.push(
+          animation.numberTrack(
+            `${horse.name}.position.y`,
+            times,
+            times.map((time) => 1.45 + Math.sin((time / 2) * Math.PI + phase) * 0.42),
+          ),
+        );
+      });
+      const mixer = animation.createMixer(carousel);
+      const action = mixer.play(animation.clip('round and round', duration, tracks));
+      controls(
+        { running: true, speed: [0.2, 2, 0.8], direction: ['clockwise', 'counterclockwise'] },
+        (values) => {
+          action.timeScale = values.speed * (values.direction === 'clockwise' ? 1 : -1);
+          if (values.running && !action.playingNow) action.play();
+          if (!values.running) action.playingNow = false;
+          world.invalidate();
+        },
+        world,
+      );
+
+      const ground = object.mesh(geometry.cylinder(13, 13, 0.15, 64), paint('#52633f', 0.95));
+      ground.position.y = -0.08;
+      ground.receiveShadow = true;
+      carousel.traverse((part) => (part.castShadow = true));
+      world.scene.add(
+        ground,
+        light.directional({
+          color: '#ffd6a1',
+          intensity: 3.5,
+          position: [-8, 12, 7],
+          castShadow: true,
+        }),
+        light.hemisphere({ color: '#8ba7d8', groundColor: '#3a2d26', intensity: 0.8 }),
+      );
+      world.camera.position.set(10, 7, 13);
+      world.camera.lookAt(0, 2, 0);
+      world.controls.target.set(0, 2, 0);
+      world.controls.minDistance = 7;
+      world.controls.maxDistance = 26;
+      world.controls.maxPolarAngle = Math.PI / 2 - 0.04;
+      announceWhatToDo();
+      world.invalidate();
+      addEventListener('pagehide', () => world.dispose());
+    </script>
+  </body>
+</html>
