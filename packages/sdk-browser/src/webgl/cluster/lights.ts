@@ -6,6 +6,7 @@ import { sceneFogOf, type Fog } from '../../world/core/sceneFog.ts';
 import type { SceneFog } from '../../../../sdk-core/src/scene/core/fog.ts';
 import { isLightNode } from '../../host/graph/kinds.ts';
 import type { GraphLight, GraphRectLight } from '../../host/graph/light.ts';
+import { hypot3 } from '../../../../sdk-core/src/math/primitives/hypot.ts';
 
 type MatrixNode = {
   visible: boolean;
@@ -98,7 +99,7 @@ export class WebglClusterLights {
       );
     /** Column `c` of a world matrix, unit, carried into view space and scaled by `s`. */
     const axis = (at: number, m: ArrayLike<number>, c: number, s: number, w: number) =>
-      toView(at, m[c], m[c + 1], m[c + 2], s / (Math.hypot(m[c], m[c + 1], m[c + 2]) || 1), w);
+      toView(at, m[c], m[c + 1], m[c + 2], s / (hypot3(m[c], m[c + 1], m[c + 2]) || 1), w);
     this.probe.reset();
     const lights = this.lights;
     lights.length = 0;

@@ -97,9 +97,13 @@ export function createPageStreamerWith(
     cpuBudgetBytes: store.cpuBytes,
     totalBytes: pages.reduce((sum, page) => sum + page.bytes, 0),
   }));
-  const loadOne = createStreamingFetcher(context, touch);
+  const { loadOne, roundTrip } = createStreamingFetcher(context, touch);
   const { subscribe } = createStreamingQueue(context, loadOne, touch, evict);
   const asIndices = createIndexViews();
+  const readBytes = (url: string, signal?: AbortSignal, priority = 0) => {
+    state.requested++;
+    return subscribe(url, signal, priority);
+  };
   return {
     admit: (more: readonly StreamPage[]) => more.forEach((page) => catalog.set(page.url, page)),
     forget: (urls: readonly string[]) =>
@@ -118,14 +122,10 @@ export function createPageStreamerWith(
     has: (url: string) => cache.has(url),
     loading: (url: string) => jobs.has(url),
     failed: (url: string) => failures.has(url),
-    read(url: string, requestSignal?: AbortSignal) {
-      state.requested++;
-      return subscribe(url, requestSignal, 0).then(asIndices);
-    },
-    readBytes(url: string, requestSignal?: AbortSignal, priority = 0) {
-      state.requested++;
-      return subscribe(url, requestSignal, priority);
-    },
+    /** The reads' measured round trip in milliseconds, 0 before the first (`roundTrip.ts`). */
+    roundTripMs: roundTrip.ms,
+    read: (url: string, signal?: AbortSignal) => readBytes(url, signal).then(asIndices),
+    readBytes,
     /** Texture levels held beside the pages: its world's, kept across a device loss, or its own. */
     textureLevels: store.levels,
     retain,

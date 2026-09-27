@@ -2,6 +2,7 @@ import { GeometryBuilder, fromArrays } from './builder.ts';
 import { flatGeometry } from './drawnFlat.ts';
 import { signedArea, triangulate } from './triangulate.ts';
 import type { Shape } from '../math/curves.ts';
+import { hypot2 } from '../../math/primitives/hypot.ts';
 
 type P = [number, number];
 
@@ -65,7 +66,7 @@ function offsetRing(ring: P[], by: number): P[] {
   });
 }
 const norm = ([x, y]: P): P => {
-  const l = Math.hypot(x, y) || 1;
+  const l = hypot2(x, y) || 1;
   return [x / l, y / l];
 };
 
