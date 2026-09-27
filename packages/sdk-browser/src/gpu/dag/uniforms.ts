@@ -18,8 +18,6 @@ import { AHEAD_VIEW } from './shader/aheadWgsl.ts';
 
 /** Word of view 0's block that says what kind of view the cut serves (`shader/pagesWgsl.ts`). */
 export const VIEW_FLAGS_WORD = 54;
-/** Word of view 0's block that bounds a camera cut's eviction queue (`shader/evictWgsl.ts`). */
-export const POOL_SLOTS_WORD = 64;
 
 /** A light cut's views: how many it runs, how many it holds, its queues' bound, and whether it
  *  appends to the requests an earlier batch of the frame listed (`VIEW_APPEND`). */
@@ -73,8 +71,6 @@ export function writeDagUniforms(
   uniforms: DagViewUniforms,
   residentCut: boolean,
   views?: DagCutViews,
-  /** The pool's slots: the eviction queue's bound, following a resize (`shader/evictWgsl.ts`). */
-  poolSlots = 0,
 ) {
   target.fill(0);
   target.set(uniforms.planes, 0);
@@ -104,7 +100,6 @@ export function writeDagUniforms(
   ints[60] = views?.count ?? 1;
   ints[61] = views?.capacity ?? 1;
   ints[62] = views?.queueCap ?? packed.nodeCount;
-  ints[POOL_SLOTS_WORD] = poolSlots;
   const light = uniforms.light;
   ints[VIEW_FLAGS_WORD] = light ? VIEW_LIGHT | VIEW_PAGES | (views?.append ? VIEW_APPEND : 0) : 0;
   writeAheadBlock(target, ints, uniforms);

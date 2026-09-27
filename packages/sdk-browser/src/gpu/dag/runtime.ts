@@ -42,7 +42,7 @@ export function createDagRuntime(resources: DagResources): GpuSelection {
     readbackWorldRevision: -1,
     mapped: new Array<boolean>(DAG_READBACK_SLOTS).fill(false),
     slot: 0,
-    poolSlots: 0,
+    poolHeld: 0,
   };
   /** Cuts in hand and in flight name pages the kernel may no longer choose: they are void. */
   const voidCuts = () => {
@@ -124,13 +124,10 @@ export function createDagRuntime(resources: DagResources): GpuSelection {
       voidCuts();
       return true;
     },
-    setPoolSlots(slots) {
-      if (state.poolSlots === slots) return;
-      state.poolSlots = slots;
-      recut();
-    },
     notePool(page, held) {
-      if (!state.disposed && !state.dead && poolList?.note(page, held)) recut();
+      if (state.disposed || state.dead || !poolList?.note(page, held)) return;
+      state.poolHeld += held ? 1 : -1;
+      recut();
     },
     dispatch,
     peek() {
