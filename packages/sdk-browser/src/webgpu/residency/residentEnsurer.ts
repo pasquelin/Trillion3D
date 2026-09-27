@@ -27,8 +27,7 @@ type EnsureOptions = {
    *  with the keys it names (`lowerTier.ts`). */
   lowerTiers: () => readonly LowerList[];
   /** Starts the read of a page's bytes ahead of its admission, dropped with `signal` if nothing
-   *  joined it; the lower tiers' reads at `priority` PRIORITY_PREFETCH, behind every camera read.
-   *  Absent, a page is read when its admission reaches it. */
+   *  joined it; the lower tiers' at PRIORITY_PREFETCH, behind the camera's. Absent, at admission. */
   prefetch?: (page: PageRec, signal: AbortSignal, priority?: number) => void;
 };
 
