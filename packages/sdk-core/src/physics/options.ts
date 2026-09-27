@@ -123,7 +123,8 @@ export interface PhysicsBudget {
   /**
    * Threads that step the simulation, the physics worker's included. Above 1 it needs a
    * cross-origin isolated page (shared memory); elsewhere the simulation steps on one. Never more
-   * than the machine's logical cores minus the page's own.
+   * than the machine's logical cores minus the page's own; a step splits its work over fewer while
+   * more are measured to only contend, with the same result.
    */
   threads: number;
   /**
