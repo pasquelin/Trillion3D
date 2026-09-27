@@ -8,22 +8,15 @@ type Cache = Pick<ReturnType<typeof createGpuPageCache>, 'slots' | 'evictInOrder
 /**
  * Hands the GPU cut's eviction queue (`../../gpu/dag/evict.ts`) to the cache once per readback, and
  * the pool's slots to the cut. Addresses are read on a page's record as each victim is taken, never
- * the catalogue. On a CPU cut the cache evicts its least recent page (`budgetRanking` stays, #836).
+ * the catalogue. A CPU cut's image (`null`) evicts the least recent page (`budgetRanking` stays, #836).
  */
 export function createEvictionFeed(
   packedPages: readonly PageRec[],
   getCache: () => Cache | undefined,
 ) {
   let last: unknown,
-    ids = new Int32Array(0),
-    count = 0;
-  const order = {
-    get count() {
-      return count;
-    },
-    keyAt: (at: number) => pageAddress(packedPages[ids[at]]),
-  };
-  /** `null` on a CPU cut's image. */
+    ids = new Int32Array(0);
+  const order = { count: 0, keyAt: (at: number) => pageAddress(packedPages[ids[at]]) };
   return (selection: GpuSelection | null) => {
     const cache = getCache();
     if (!cache) return;
@@ -37,7 +30,7 @@ export function createEvictionFeed(
     // Copied: the readback slot's list is rewritten two readbacks later, the cache may read on.
     if (ids.length < queue.length) ids = new Int32Array(queue.length);
     ids.set(queue);
-    count = queue.length;
+    order.count = queue.length;
     cache.evictInOrder(order);
   };
 }
