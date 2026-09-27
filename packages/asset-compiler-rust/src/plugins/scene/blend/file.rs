@@ -6,6 +6,11 @@
 //! the file —, the size of its data and the number of structures they carry. The old layout
 //! writes these fields on thirty-two bits, the recent one on sixty-four; the header says which.
 //!
+//! The `DATA` blocks after a block of another code are that one's data: since Blender 5, their
+//! addresses are unique only among them, and two meshes may each hold a block at the same address.
+//! A data pointer therefore resolves among the data of the block it is read from, as Blender
+//! resolves it; only a pointer to another ID block resolves across the file ([`BlendFile::reach`]).
+//!
 //! No announced size is trusted without being bounded by the file: any overrun is a truncated
 //! file, named as such.
 //!
@@ -17,8 +22,8 @@ use std::borrow::Cow;
 
 /// The header length of a sixty-four-bit-field block.
 const WIDE_HEADER: usize = 32;
-/// The least a block costs in memory once indexed: its entry, and its address in the index.
-pub(super) const INDEXED: usize = size_of::<Block>() + size_of::<(u64, usize)>();
+/// The least a block costs in memory once indexed: its entry, and its address in its index.
+pub(super) const INDEXED: usize = size_of::<Block>() + size_of::<((usize, u64), usize)>();
 
 /// A block of the file: its code, the structure that describes it, and where its bytes live.
 pub(super) struct Block {
@@ -29,6 +34,8 @@ pub(super) struct Block {
     pub(super) len: usize,
     /// The number of structures its bytes carry: the bound of a structure array.
     pub(super) count: usize,
+    /// The rank of the block whose data this one is — its own rank for a block that is not `DATA`.
+    pub(super) owner: usize,
 }
 
 /// An open Blender file: its bytes — borrowed when bare, unpacked when wrapped —, its SDNA, its
@@ -38,7 +45,10 @@ pub(super) struct BlendFile<'a> {
     pub(super) version: u32,
     pub(super) blocks: Vec<Block>,
     pub(super) dna: Dna,
+    /// The blocks that are not `DATA`, by their address.
     index: HashMap<u64, usize>,
+    /// The `DATA` blocks by their owner and their address.
+    scoped: HashMap<(usize, u64), usize>,
     /// The bytes of the buffer a wrapped file unpacked into; none for a bare file.
     unpacked: usize,
 }
@@ -60,11 +70,17 @@ impl<'a> BlendFile<'a> {
             .find(|block| &block.code == b"DNA1")
             .ok_or_else(|| refused("blend-dna-invalid", "blend: no DNA1 block in this file"))
             .and_then(|block| Dna::read(&bytes[block.start..block.start + block.len]))?;
-        let index = blocks
-            .iter()
-            .enumerate()
-            .filter(|(_, block)| block.old != 0)
+        let addressed = |data: bool| {
+            blocks
+                .iter()
+                .enumerate()
+                .filter(move |(_, block)| block.old != 0 && (&block.code == b"DATA") == data)
+        };
+        let index = addressed(false)
             .map(|(rank, block)| (block.old, rank))
+            .collect();
+        let scoped = addressed(true)
+            .map(|(rank, block)| ((block.owner, block.old), rank))
             .collect();
         Ok(BlendFile {
             bytes,
@@ -72,6 +88,7 @@ impl<'a> BlendFile<'a> {
             blocks,
             dna,
             index,
+            scoped,
             unpacked,
         })
     }
@@ -81,10 +98,19 @@ impl<'a> BlendFile<'a> {
         self.unpacked
             .saturating_add(self.blocks.len().saturating_mul(INDEXED))
     }
-    /// The block this original address designates. A null pointer, or one to a missing block,
+    /// The ID block this original address designates. A null pointer, or one to a missing block,
     /// designates none: it is the reader that decides what to say of it, never a panic.
     pub(super) fn at(&self, old: u64) -> Option<&Block> {
         self.index.get(&old).map(|rank| &self.blocks[*rank])
+    }
+    /// The block a pointer read in the data of block `owner` designates: one of that block's data,
+    /// or a block that is not `DATA` — never the data of another block, which may share its address.
+    pub(super) fn reach(&self, owner: usize, old: u64) -> Option<&Block> {
+        let rank = self
+            .scoped
+            .get(&(owner, old))
+            .or_else(|| self.index.get(&old))?;
+        Some(&self.blocks[*rank])
     }
     /// The blocks of a given code, in file order.
     pub(super) fn of(&self, code: [u8; 4]) -> impl Iterator<Item = &Block> {
@@ -127,6 +153,10 @@ fn walk(bytes: &[u8], shape: &envelope::Shape, room: usize) -> Result<Vec<Block>
                 format!("blend: indexing this file's blocks needs at least {indexed} bytes, past the {room} bytes of this job's RAM budget (ramBudgetMb) left after unpacking"),
             ));
         }
+        let owner = match blocks.last() {
+            Some(Block { owner, .. }) if &code == b"DATA" => *owner,
+            _ => blocks.len(),
+        };
         blocks.push(Block {
             code,
             sdna: sdna as usize,
@@ -134,6 +164,7 @@ fn walk(bytes: &[u8], shape: &envelope::Shape, room: usize) -> Result<Vec<Block>
             start,
             len,
             count: count as usize,
+            owner,
         });
         if done {
             return Ok(blocks);

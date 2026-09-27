@@ -9,6 +9,7 @@ import { DAG_WANTED_WGSL } from './wantedWgsl.ts';
 import { DAG_LIVE_WGSL } from './liveWgsl.ts';
 import { DAG_LEVEL_WGSL } from './levelWgsl.ts';
 import { DAG_LAST_USE_WGSL } from './lastUseWgsl.ts';
+import { DAG_EVICT_WGSL } from './evictWgsl.ts';
 import { DAG_FLOOR_WGSL } from './floorWgsl.ts';
 import { DAG_PAGES_WGSL } from './pagesWgsl.ts';
 import { CASTS_NO_SHADOW, SPRITE_UNCULLED } from '../../../visibility/shader/spriteWgsl.ts';
@@ -173,7 +174,7 @@ ${INVERSE_TRANSPOSE_WGSL}
 ${DAG_COMPACT_WGSL}${DAG_TOTALS_WGSL}${DAG_REQUEST_WGSL}${DAG_RELEVE_WGSL}${DAG_WANTED_WGSL}
 ${DAG_LIVE_WGSL}
 ${DAG_LEVEL_WGSL}
-${DAG_LAST_USE_WGSL}
+${DAG_LAST_USE_WGSL}${DAG_EVICT_WGSL}
 ${DAG_FLOOR_WGSL}
 ${DAG_PAGES_WGSL}
 ${DAG_VIEWS_WGSL}

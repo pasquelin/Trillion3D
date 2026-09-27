@@ -13,6 +13,8 @@ export interface ResidentPage {
   /** How many times its slot was reused. */
   generation: number;
 }
+/** An eviction order, its keys read one at a time as victims are taken. */
+export type EvictionOrder = { readonly count: number; keyAt(at: number): string };
 export type GpuPageContext = {
   device: GPUDevice;
   pageBytes: number;
@@ -31,6 +33,17 @@ export type GpuPageContext = {
     bytesRead: number;
     uploadedBytes: number;
     evictions: number;
+  };
+  /** The order slots are given back in, when a GPU cut publishes one (`../dag/evict.ts`), its next
+   *  entry and those set aside (`commit.ts`), and the orders published; else the least recent. */
+  eviction: {
+    order?: EvictionOrder;
+    at: number;
+    epoch: number;
+    lower: Map<string, number>;
+    held: string[];
+    late: string[];
+    lateAt: number;
   };
   changeKeys: string[];
   changeSlots: number[];

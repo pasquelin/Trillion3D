@@ -1,3 +1,4 @@
+import type { GeometryPageDescriptor } from '../../../../sdk-core/src/index.ts';
 import type { MatrixElements } from '../../math/matrixElements.ts';
 import type { NormalCone } from '../../page/cone/cone.ts';
 import type { PageSurface } from '../../page/surface.ts';
@@ -20,6 +21,8 @@ export const DAG_NODE_FLOATS = 24,
   CULL_STRIDE = 15;
 type DagCluster = {
   url: string;
+  /** Its quantized page: with `url`, the content key the pool holds it under (`evict.ts`). */
+  geometryPage?: GeometryPageDescriptor;
   lodError?: number;
   parentError?: number | null;
   sphere?: number[];
