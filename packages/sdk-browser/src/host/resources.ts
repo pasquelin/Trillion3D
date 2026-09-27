@@ -60,7 +60,7 @@ export type HostColour = {
 };
 
 /** The display graph an engine publishes, as a composition reads it: the clear colour, the
- *  children and the walk. It is the engine's own (`graph/scene.ts`) or the record of the
+ *  children and the walk. It is the core's `Scene` the engine builds or the record of the
  *  transparent copies (`../cluster/blendSceneRecord.ts`), whose nodes carry no `kind` and are
  *  skipped by every guard of `graph/kinds.ts`. */
 export type HostScene = {

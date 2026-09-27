@@ -2242,5 +2242,37 @@
       "snap": "Scatto",
       "home": "Inizio"
     }
+  },
+  "outline-the-selection": {
+    "banner": "Fai clic su una forma per selezionarla. Fai clic sul pavimento per cancellare la selezione.",
+    "controls": {
+      "color": "Colore",
+      "thickness": "Spessore"
+    }
+  },
+  "a-hundred-thousand-instances": {
+    "banner": "Trascina per orbitare sul campo. Cambia il numero o la vista.",
+    "controls": {
+      "count": "Numero",
+      "view": "Vista"
+    },
+    "readouts": {
+      "objectsShown": "Oggetti mostrati",
+      "objectsBuilt": "Oggetti creati"
+    },
+    "choices": {
+      "view": {
+        "beauty": "immagine",
+        "clusters": "cluster"
+      }
+    }
+  },
+  "inside-a-component": {
+    "banner": "Monta o smonta il visore. Ogni montaggio possiede un mondo e ogni rimozione lo elimina.",
+    "controls": {
+      "mount": "Monta",
+      "unmount": "Smonta",
+      "remount": "Rimonta"
+    }
   }
 }

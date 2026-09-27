@@ -1258,6 +1258,7 @@
       "a-tube-along-a-spline": "أنبوب على طول منحنى",
       "curved-surfaces": "أسطح منحنية",
       "instances-in-colour": "نسخ ملوّنة",
+      "a-hundred-thousand-instances": "مئة ألف نسخة",
       "copies-along-a-path": "نسخ على طول مسار",
       "scattered-on-a-surface": "مبعثرة على سطح",
       "a-world-of-blocks": "عالم من المكعبات",
@@ -1413,6 +1414,7 @@
       "what-hides-what": "ما الذي يحجب ماذا",
       "create-and-dispose": "الإنشاء والتخلّص",
       "no-hitch-on-first-draw": "بلا تعثّر عند أول رسم",
+      "inside-a-component": "داخل مكوّن",
       "inside-the-g-buffer": "داخل G-buffer",
       "reading-pixels-back": "إعادة قراءة البكسلات",
       "a-city-from-3d-tiles": "مدينة من 3D Tiles",
@@ -1521,6 +1523,7 @@
       "drag-a-crate": "سحب صندوق"
     },
     "missing": {
+      "inside-a-component": "إزالة اللوحة التي أنشأها المحرك عند التخلّص من العالم",
       "floating-crates": "هندسة يُعاد كتابتها في كل إطار",
       "thick-lines": "خطوط عريضة",
       "a-line-that-draws-itself": "نطاق رسم الهندسة",
