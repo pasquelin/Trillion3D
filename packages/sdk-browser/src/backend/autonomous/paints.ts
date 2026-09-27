@@ -37,16 +37,12 @@ export function createAutonomousPaints(env: PaintEnvironment) {
     releaseHostSurface(painted);
   };
   /** Records wear `painted`, or the vertex-coloured twin a page with a colour attribute draws
-   *  with, taken from the shared cache the decoded pages read; `dress` gives another rule. */
-  const wear = (
-    records: readonly PageRec[],
-    painted: HostMaterial,
-    dress = (rec: PageRec) =>
-      rec.attributes.color ? colouredTwin(colorMaterials, painted) : painted,
-  ) => {
+   *  with, taken from the shared cache the decoded pages read (`painted` itself when it reads
+   *  colours already). */
+  const wear = (records: readonly PageRec[], painted: HostMaterial) => {
     for (const rec of records) {
       baseMaterials.set(rec, painted);
-      wearDeclaration(rec, dress(rec));
+      wearDeclaration(rec, rec.attributes.color ? colouredTwin(colorMaterials, painted) : painted);
       if (rec.mesh) setHostSurface(rec.mesh, rec.declaration);
     }
   };
@@ -69,15 +65,15 @@ export function createAutonomousPaints(env: PaintEnvironment) {
       wear(records, painted);
       if (previous) releasePaint(previous);
     },
-    /** Each assigned mesh's records wear its surface as given, already the variant their
-     *  geometry asks for (`wearSurface`, #847); copies refused. A paint this engine owns that no
+    /** Each assigned mesh's records wear its surface, a page with colours its coloured twin
+     *  (`wearSurface`, #847); copies refused. A paint this engine owns that no
      *  record wears any more is freed with its twin, as a repaint frees it. */
     wearSurface({ meshes }: SurfaceAssignment) {
       sceneChanged();
       const replaced = new Set<HostMaterials | undefined>();
       for (const [surface, records] of recordsBySurface(allPages, meshes)) {
         for (const rec of records) replaced.add(baseMaterials.get(rec));
-        wear(records, surface as HostMaterial, () => surface as HostMaterial);
+        wear(records, surface as HostMaterial);
       }
       for (const [primitive, painted] of owned)
         if (replaced.has(painted) && !allPages.some((rec) => baseMaterials.get(rec) === painted)) {
