@@ -9,9 +9,10 @@ type Bounded = {
   boundingSphere?: { center: Centre; radius?: number } | null;
   computeBoundingSphere?(): void;
 };
+/** The placements of an instanced mesh (`isInstancedNode`): its matrices and how many are drawn. */
 type Instanced = {
-  readonly count?: number;
-  readonly instanceMatrix?: { readonly array: ArrayLike<number>; readonly version?: number };
+  readonly count: number;
+  readonly instanceMatrix: { readonly array: ArrayLike<number>; readonly version?: number };
 };
 
 /**
@@ -61,8 +62,8 @@ export function placementsSphere(
   mesh: Instanced,
   geometry: { center: Centre; radius?: number },
 ): PlacementSphere {
-  const matrices = mesh.instanceMatrix!,
-    count = mesh.count ?? 0,
+  const matrices = mesh.instanceMatrix,
+    count = mesh.count,
     version = matrices.version ?? 0;
   const kept = placementSpheres.get(mesh);
   if (kept && kept.version === version && kept.count === count) return kept;

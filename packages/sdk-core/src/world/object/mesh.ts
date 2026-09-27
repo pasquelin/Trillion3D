@@ -111,6 +111,8 @@ export class Mesh<M extends object = Material> extends Object3D {
   // The reference's copy: the morph weights copied, the geometry shared, the materials listed anew.
   override copy(source: Object3D, recursive = true) {
     super.copy(source, recursive);
+    // A bare node or a group gives its transform alone: it wears no shape and no matter.
+    if (!(source instanceof Mesh)) return this;
     const mesh = source as Mesh<M>;
     if (mesh.morphTargetInfluences) this.morphTargetInfluences = mesh.morphTargetInfluences.slice();
     if (mesh.morphTargetDictionary) this.morphTargetDictionary = { ...mesh.morphTargetDictionary };
