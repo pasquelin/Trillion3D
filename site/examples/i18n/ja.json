@@ -500,6 +500,14 @@
       "balloon": "気球を追跡中"
     }
   },
+  "a-crane-that-swings": {
+    "banner": "クレーンの周りを回りながら、1つのクリップがジブを旋回し、台車を動かし、荷を上げて揺らします。",
+    "controls": {
+      "speed": "速さ",
+      "paused": "一時停止",
+      "replay": "再生し直す"
+    }
+  },
   "a-wave-across-a-grid": {
     "banner": "ドラッグして見回そう。立方体の波を高く、速くしよう。",
     "controls": {
@@ -1268,7 +1276,11 @@
       "home": "開始位置に戻る"
     },
     "choices": {
-      "view": { "beauty": "仕上がり", "lod": "詳細度", "clusters": "クラスター" }
+      "view": {
+        "beauty": "仕上がり",
+        "lod": "詳細度",
+        "clusters": "クラスター"
+      }
     },
     "words": {
       "credit": "この例のためにコードで作ったつぼの並木道、CC0 — assets/examples/CREDITS.md を見てね"
@@ -2222,6 +2234,45 @@
     },
     "words": {
       "credit": "W. Sitters による街灯のモデル、CC BY 3.0 — assets/examples/CREDITS.md を見てね"
+    }
+  },
+  "drag-a-crate": {
+    "banner": "木箱を床の上でドラッグします。スナップをオンにすると0.5メートル刻みで配置できます。",
+    "controls": {
+      "snap": "スナップ",
+      "home": "ホーム"
+    }
+  },
+  "outline-the-selection": {
+    "banner": "形をクリックして選択します。床をクリックすると選択が解除されます。",
+    "controls": {
+      "color": "色",
+      "thickness": "太さ"
+    }
+  },
+  "a-hundred-thousand-instances": {
+    "banner": "ドラッグしてフィールドを回り、数や表示を変更します。",
+    "controls": {
+      "count": "数",
+      "view": "表示"
+    },
+    "readouts": {
+      "objectsShown": "表示中のオブジェクト",
+      "objectsBuilt": "作成済みオブジェクト"
+    },
+    "choices": {
+      "view": {
+        "beauty": "仕上がり",
+        "clusters": "クラスター"
+      }
+    }
+  },
+  "inside-a-component": {
+    "banner": "ビューアーを取り付けたり外したりします。各取り付けは1つのワールドを所有し、取り外すと破棄します。",
+    "controls": {
+      "mount": "取り付ける",
+      "unmount": "外す",
+      "remount": "取り付け直す"
     }
   }
 }

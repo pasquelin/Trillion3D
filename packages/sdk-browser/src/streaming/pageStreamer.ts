@@ -97,10 +97,18 @@ export function createPageStreamerWith(
     cpuBudgetBytes: store.cpuBytes,
     totalBytes: pages.reduce((sum, page) => sum + page.bytes, 0),
   }));
-  const loadOne = createStreamingFetcher(context, touch);
+  const { loadOne, roundTrip } = createStreamingFetcher(context, touch);
   const { subscribe } = createStreamingQueue(context, loadOne, touch, evict);
   const asIndices = createIndexViews();
+  const readBytes = (url: string, signal?: AbortSignal) => {
+    state.requested++;
+    return subscribe(url, signal, 0);
+  };
   return {
+    admit: (more: readonly StreamPage[]) => more.forEach((page) => catalog.set(page.url, page)),
+    forget: (urls: readonly string[]) =>
+      // A page in transfer stays catalogued: its job reads its size when it settles.
+      urls.forEach((url) => !jobs.has(url) && catalog.delete(url) && store.drop(url)),
     get(url: string) {
       const array = cache.get(url);
       if (array) touch(url, array);
@@ -112,20 +120,12 @@ export function createPageStreamerWith(
       return array;
     },
     has: (url: string) => cache.has(url),
-    loading(url: string) {
-      return jobs.has(url);
-    },
-    failed(url: string) {
-      return failures.has(url);
-    },
-    read(url: string, requestSignal?: AbortSignal) {
-      state.requested++;
-      return subscribe(url, requestSignal, 0).then(asIndices);
-    },
-    readBytes(url: string, requestSignal?: AbortSignal) {
-      state.requested++;
-      return subscribe(url, requestSignal, 0);
-    },
+    loading: (url: string) => jobs.has(url),
+    failed: (url: string) => failures.has(url),
+    /** The reads' measured round trip in milliseconds, 0 before the first (`roundTrip.ts`). */
+    roundTripMs: roundTrip.ms,
+    read: (url: string, signal?: AbortSignal) => readBytes(url, signal).then(asIndices),
+    readBytes,
     /** Texture levels held beside the pages: its world's, kept across a device loss, or its own. */
     textureLevels: store.levels,
     retain,

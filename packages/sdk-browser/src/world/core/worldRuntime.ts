@@ -7,12 +7,12 @@ import { buildWorldSource } from './worldSource.ts';
 import { createRequestLoop } from './requestLoop.ts';
 import { createWorldContents } from './worldContents.ts';
 import { releaseWorldMirror } from './worldMirror.ts';
+import { createWorldMounts } from './worldMounts.ts';
 import { createWorldLights } from './worldLights.ts';
 import { createWorldLink } from './worldLink.ts';
 import { createWorldBackground } from './worldBackground.ts';
 import { watchFirstFrame } from '../session/openWatch.ts';
 import { createCanvasFit, followPageCamera } from './worldCamera.ts';
-import type { Cut } from './worldCuts.ts';
 import type { PosedTwin } from './worldPoses.ts';
 import type { Scene } from './scene.ts';
 import type { worldDiagnostic } from './worldHandles.ts';
@@ -40,8 +40,8 @@ type Inputs = {
 
 /** The session drawing a world, fed by a per-frame change list: what the scene asks is resolved
  *  off the frame (`worldContents.ts`), applied once before each frame — rows taken, parked or grown
- *  (`placement/growth.ts`), poses, background —, and opened again, on the world's device, once per
- *  burst, only for what it lacks: resource, material, rows, model. */
+ *  (`placement/growth.ts`), resources mounted (`worldMounts.ts`), poses, background —, and opened
+ *  again once per burst for what it lacks: a model, or what its engine cannot take in place. */
 export function createWorldRuntime(inputs: Inputs) {
   const { canvas, scene, camera, open = openMeasuredWorld } = inputs;
   const contents = createWorldContents(scene, inputs.diagnostic.notices),
@@ -52,7 +52,6 @@ export function createWorldRuntime(inputs: Inputs) {
   let explorer: MeasuredWorld | null = null,
     mirror: NonNullable<ReturnType<typeof buildWorldSource>> | null = null,
     twins = new Map<Object3D, PosedTwin>(),
-    heldCuts = new Set<Cut>(),
     resolving: Promise<void> | null = null,
     structureChanged = false,
     seatWanted = false,
@@ -74,14 +73,12 @@ export function createWorldRuntime(inputs: Inputs) {
     seatWanted = false;
     const plan = contents.plan();
     const built = buildWorldSource(plan);
-    const held = new Set(plan.batches.map((item) => item.cut));
-    for (const cut of held) cuts.hold(cut, true);
+    const release = mounts.opening(plan.batches);
     explorer?.dispose();
     if (mirror) releaseWorldMirror(mirror.root);
     explorer = mirror = null;
     fit.reset();
-    for (const cut of heldCuts) if (!held.has(cut)) cuts.hold(cut, false);
-    heldCuts = held;
+    release();
     twins = (built?.twins ?? new Map()) as Map<Object3D, PosedTwin>;
     for (const [node, twin] of twins) poses.writeTwin(node, twin, contents.shown(node));
     lights.reset();
@@ -132,12 +129,14 @@ export function createWorldRuntime(inputs: Inputs) {
     structureChanged = true;
     resolving ??= inputs.ready().then(resolve, resolve);
   };
+  const mounts = createWorldMounts(contents, () => explorer, schedule, reopens.request);
   /** The change list, applied once before a frame: rows seated, poses written, lights stored. */
   const apply = () => {
     const session = explorer;
     if (seatWanted) {
       seatWanted = false;
       contents.seat(session?.growsPlacements() ? session.growPlacements : undefined);
+      if (session && mirror) mounts.apply(mirror, session);
       if (contents.reopenNeeded() || (!session && !reopens.running)) reopens.request();
       // Values or pictures alone repaint the built surface (#335, #362, #572); a reopened one is new.
       const painted = contents.repainted(),
@@ -184,7 +183,8 @@ export function createWorldRuntime(inputs: Inputs) {
     },
     render() {
       if (!explorer) return null;
-      beforeFrame();
+      beforeFrame(); // what it applies may close the session: that frame has no image
+      if (!explorer) return null;
       const metrics = explorer.render();
       inputs.frame(metrics);
       return metrics;
