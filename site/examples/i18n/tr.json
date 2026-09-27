@@ -2172,5 +2172,16 @@
     "words": {
       "credit": "Direkteki bayrak bu örnek için kodla modellendi, CC0 — bkz. assets/examples/CREDITS.md"
     }
+  },
+  "a-dolly-along-the-canal": {
+    "banner": "Kamera kanal boyunca ilerlerken hareketi duraklatın, baştan oynatın veya hızını değiştirin.",
+    "controls": {
+      "paused": "Duraklatıldı",
+      "replay": "Baştan oynat",
+      "speed": "Hız"
+    },
+    "readouts": {
+      "progress": "İlerleme"
+    }
   }
 }
