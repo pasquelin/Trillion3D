@@ -3,7 +3,6 @@
   <head>
     <meta charset="utf-8" />
     <title>Inside a component</title>
-    <!-- Waits for #880: disposing a world must remove the canvas createWorld(element) added. -->
     <style>
       html,
       body,
@@ -24,12 +23,14 @@
       import { createWorld, geometry, light, material, math, object } from '../runtime/engine.js';
       import { banner, controls } from '../runtime/kit.js';
 
+      // Waits for #880: disposing a world must remove the canvas createWorld(element) added.
       class TrillionViewer extends HTMLElement {
         world = null;
 
         connectedCallback() {
           if (this.world) return;
           const world = (this.world = createWorld(this, { controls: 'orbit' }));
+          world.canvas.id = 'view';
           world.scene.background = math.color('#182431');
           const gold = material.meshStandard({
             color: '#e5a93f',
