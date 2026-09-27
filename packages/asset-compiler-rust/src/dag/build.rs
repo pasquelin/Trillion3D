@@ -187,5 +187,6 @@ pub fn build_dag_tallied(
             break;
         }
     }
+    tight::tighten(&mut dag, &mut reductions_kept, positions);
     Ok((dag, reductions_kept, tallies, stalls))
 }
