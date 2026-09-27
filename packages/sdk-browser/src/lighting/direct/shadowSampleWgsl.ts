@@ -15,7 +15,7 @@ export const SHADOW_SAMPLE_WGSL = `/** Place of page \`p\`, held by physical pag
  *  2⁹, \`(n + ½) / d\` lies at least \`½ / d\` from any integer while a division a few ulps off stays
  *  far inside that, so each floor is the integer quotient (\`shadowOffset.test.ts\`, every input). */
 fn shadowOffset(word:u32,p:vec2i)->vec3f{
- let phys=f32(word&PAGE_INDEX_MASK);let side=f32(textureDimensions(shadowAtlas).x)/SHADOW_PAGE;
+ let phys=f32(word&PAGE_INDEX_MASK);let side=f32(textureDimensions(shadowAtlas).x/u32(SHADOW_PAGE));
  let area=side*side;
  let layer=floor((phys+0.5)/area);
  let local=phys-layer*area;
