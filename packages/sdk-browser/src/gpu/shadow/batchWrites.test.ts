@@ -1,6 +1,7 @@
 // The writes of a frame's shadow batches (#489): the first batch writes straight, as a single batch
 // always did; while staged, each write lands in the frame's command order — a staging slot of its
 // own and a copy into its target —, so a later batch never overwrites an earlier one before it ran.
+// The staged words reach the GPU in one upload per frame, whatever its batches (#344).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { fakeDevice, written } from '../../../../../tests/kit/gpu/fakeDevice.ts';
@@ -29,12 +30,13 @@ test('staged, two batches writing one buffer each land in command order', () => 
   batches.stage(encoder);
   batches.write(target, 0, Uint32Array.of(7, 8));
   batches.write(target, 0, Uint32Array.of(9, 10));
+  assert.equal(writes.length, 0, 'nothing uploaded before the batches end');
   batches.end();
-  assert.equal(writes.length, 2);
-  const [first, second] = writes;
-  assert.notEqual(first.buffer, target, 'staged apart');
-  assert.deepEqual([first.offset, second.offset], [0, 8], 'each its own slot');
-  assert.deepEqual([...written(first), ...written(second)], [7, 8, 9, 10]);
+  assert.equal(writes.length, 1, 'one upload');
+  const [upload] = writes;
+  assert.notEqual(upload.buffer, target, 'staged apart');
+  assert.equal(upload.offset, 0);
+  assert.deepEqual([...written(upload)], [7, 8, 9, 10], 'each its own slot');
   assert.deepEqual(
     copies.map(({ fromOffset, to, toOffset, size }) => [fromOffset, to, toOffset, size]),
     [
