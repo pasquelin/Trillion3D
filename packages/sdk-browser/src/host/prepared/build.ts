@@ -1,10 +1,11 @@
 /**
  * The prepared scene, built from the cache alone: the scene tables say what it is made of, the
- * document's binary holds its vertices, and its images are read from where the tables locate them.
+ * document's binary holds its vertices — read on their first load, never up front —, and its
+ * images are read from where the tables locate them.
  * No glTF is parsed and no loader runs — the host objects are made by the files beside this one,
  * each under the rules the host loader applied, so the scene is the one it built.
  */
-import type { ClusterManifest } from '../../../../sdk-core/src/index.ts';
+import { EngineError, type ClusterManifest } from '../../../../sdk-core/src/index.ts';
 import type { PreparedSceneTables } from '../../../../sdk-core/src/scene/core/tableContracts.ts';
 import type { BackendContext } from '../../backend/types.ts';
 import { checked } from '../../cluster/pages.ts';
@@ -40,14 +41,16 @@ export async function buildPreparedScene(inputs: Inputs) {
   const { tables, metadata, sceneFile, base, skipBaked, signal, track } = inputs;
   const meter = inputs.meter ?? unmetered;
   const { document, documentUrl, bufferUrl } = sceneDocument(tables, sceneFile, base);
-  const binary = bufferUrl
-    ? await track(
-        bufferUrl,
-        checked(bufferUrl, signal).then((response) =>
-          meter.read(response, bufferUrl).arrayBuffer(),
-        ),
-      )
-    : null;
+  // The binary is read on the first need of a host vertex or an embedded image, once: most
+  // sessions draw from the cache's pages and never read it. Read after the load has settled, it
+  // joins neither its progress nor its byte count.
+  let reading: Promise<ArrayBuffer> | undefined;
+  const binary = () =>
+    (reading ??= bufferUrl
+      ? checked(bufferUrl, signal).then((response) => response.arrayBuffer())
+      : Promise.reject(
+          new EngineError('PREPARED_SCENE_MISMATCH', 'the scene document names no binary'),
+        ));
   const skipped = skipBaked ? bakedImages(metadata, document.images.length) : new Set<number>();
   const images = preparedImages({ document, documentUrl, binary, skipped, signal, track, meter });
   const ranks: TextureRanks = new Map();

@@ -1,6 +1,6 @@
 /**
  * The host attributes of the prepared scene's accessors, viewed on the binary the scene tables
- * lay out, under the host loader's rules: an attribute is viewed inside a copy of its view; an
+ * lay out — read on first need, not at session start —, under the host loader's rules: an attribute is viewed inside a copy of its view; an
  * interleaved view is one host buffer per slice of vertices; a sparse accessor is a copy of its
  * base with the substituted elements written in; a run shared by two primitives is one attribute.
  */
@@ -14,6 +14,9 @@ import {
   InterleavedBufferAttribute,
   InterleavedBuffer,
   ownAttribute,
+  pendingAttribute,
+  pendingInterleaved,
+  type BufferTypedArray,
   type VertexAttribute,
 } from '../../../../sdk-core/src/world/buffer/attribute.ts';
 import { normalisedUnit } from '../../../../sdk-core/src/world/buffer/elements.ts';
@@ -34,20 +37,33 @@ export const normalisedScale = (componentType: number) =>
   normalisedUnit(COMPONENTS[componentType as keyof typeof COMPONENTS]);
 
 type Attribute = VertexAttribute;
+type Storage = (typeof COMPONENTS)[keyof typeof COMPONENTS];
+
+/** Numbers of `Storage` read from the binary on first need: `length` of them. */
+const later = (Storage: Storage, length: number, read: () => Promise<BufferTypedArray>) => ({
+  length,
+  type: Storage.name,
+  read,
+});
 
 /** Writes the substituted elements of a sparse accessor into a copy of its base's own elements
  *  (never the whole interleaved buffer it may view), as the loader does. */
-function substitute(
+async function substitute(
   base: Attribute,
   accessor: TableAccessor,
-  viewOf: (rank: number) => ArrayBuffer,
-): Attribute {
+  viewOf: (rank: number) => Promise<ArrayBuffer>,
+) {
   const sparse = accessor.sparse!;
   const width = base.itemSize;
   const Ranks = COMPONENTS[sparse.indices.componentType];
   const Values = COMPONENTS[accessor.componentType];
-  const ranks = new Ranks(viewOf(sparse.indices.view), sparse.indices.offset, sparse.count);
-  const values = new Values(viewOf(sparse.values.view), sparse.values.offset, sparse.count * width);
+  const [rankView, valueView] = await Promise.all([
+    viewOf(sparse.indices.view),
+    viewOf(sparse.values.view),
+    base._load(),
+  ]);
+  const ranks = new Ranks(rankView, sparse.indices.offset, sparse.count);
+  const values = new Values(valueView, sparse.values.offset, sparse.count * width);
   const out = accessor.view === null ? (base as BufferAttribute) : ownAttribute(base);
   out.normalized = false;
   for (let i = 0; i < ranks.length; i++) {
@@ -56,14 +72,14 @@ function substitute(
     if (width >= 3) out.setZ(ranks[i], values[i * width + 2]);
     if (width >= 4) out.setW(ranks[i], values[i * width + 3]);
   }
-  out.normalized = accessor.normalized;
-  return out;
+  return out.array;
 }
 
 /** The host attribute of each accessor of `document`, built on first request and shared after it.
- *  `binary` is the document's buffer; `null` only for a document that lays out no view. */
-export function preparedAccessors(document: TableDocument, binary: ArrayBuffer | null) {
-  const views = new Map<number, ArrayBuffer>();
+ *  Its numbers are read from the document's buffer only when a reader loads them
+ *  (`Geometry.loadVertices`): `binary` reads the buffer, once, on that first need. */
+export function preparedAccessors(document: TableDocument, binary: () => Promise<ArrayBuffer>) {
+  const views = new Map<number, Promise<ArrayBuffer>>();
   const attributes = new Map<number, Attribute>();
   const interleaved = new Map<string, InterleavedBuffer>();
 
@@ -72,12 +88,14 @@ export function preparedAccessors(document: TableDocument, binary: ArrayBuffer |
     let held = views.get(rank);
     if (!held) {
       const view = document.views[rank];
-      if (!binary || view.offset + view.length > binary.byteLength)
-        throw new EngineError('PREPARED_SCENE_MISMATCH', `view ${rank} lies outside the binary`, {
-          view: rank,
-          bytes: binary?.byteLength ?? 0,
-        });
-      held = binary.slice(view.offset, view.offset + view.length);
+      held = binary().then((bytes) => {
+        if (view.offset + view.length > bytes.byteLength)
+          throw new EngineError('PREPARED_SCENE_MISMATCH', `view ${rank} lies outside the binary`, {
+            view: rank,
+            bytes: bytes.byteLength,
+          });
+        return bytes.slice(view.offset, view.offset + view.length);
+      });
       views.set(rank, held);
     }
     return held;
@@ -86,39 +104,45 @@ export function preparedAccessors(document: TableDocument, binary: ArrayBuffer |
   const build = (accessor: TableAccessor): Attribute => {
     const Storage = COMPONENTS[accessor.componentType];
     const width = WIDTHS[accessor.type];
-    const stride = accessor.view === null ? null : document.views[accessor.view].stride;
-    const itemBytes = Storage.BYTES_PER_ELEMENT * width;
-    if (accessor.view === null)
-      return new BufferAttribute(new Storage(accessor.count * width), width, accessor.normalized);
-    const view = viewOf(accessor.view);
-    if (!stride || stride === itemBytes)
-      return new BufferAttribute(
-        new Storage(view, accessor.offset, accessor.count * width),
-        width,
-        accessor.normalized,
-      );
+    const { view: rank, normalized } = accessor;
+    const length = accessor.count * width;
+    if (rank === null) return new BufferAttribute(new Storage(length), width, normalized);
+    const stride = document.views[rank].stride;
+    if (!stride || stride === Storage.BYTES_PER_ELEMENT * width) {
+      const read = async () => new Storage(await viewOf(rank), accessor.offset, length);
+      return pendingAttribute(later(Storage, length, read), width, normalized);
+    }
     // Interleaved: one host buffer per slice of `count` vertices, shared by the runs it holds.
     const slice = Math.floor(accessor.offset / stride);
-    const key = `${accessor.view}:${accessor.componentType}:${slice}:${accessor.count}`;
+    const key = `${rank}:${accessor.componentType}:${slice}:${accessor.count}`;
     let buffer = interleaved.get(key);
     if (!buffer) {
       const elements = (accessor.count * stride) / Storage.BYTES_PER_ELEMENT;
-      buffer = new InterleavedBuffer(
-        new Storage(view, slice * stride, elements),
+      const read = async () => new Storage(await viewOf(rank), slice * stride, elements);
+      buffer = pendingInterleaved(
+        later(Storage, elements, read),
         stride / Storage.BYTES_PER_ELEMENT,
       );
       interleaved.set(key, buffer);
     }
     const offset = (accessor.offset % stride) / Storage.BYTES_PER_ELEMENT;
-    return new InterleavedBufferAttribute(buffer, width, offset, accessor.normalized);
+    return new InterleavedBufferAttribute(buffer, width, offset, normalized);
   };
 
   const attributeOf = (rank: number) => {
     let held = attributes.get(rank);
     if (!held) {
       const accessor = document.accessors[rank];
-      held = build(accessor);
-      if (accessor.sparse) held = substitute(held, accessor, viewOf);
+      const base = build(accessor);
+      held = accessor.sparse
+        ? pendingAttribute(
+            later(COMPONENTS[accessor.componentType], base.count * base.itemSize, () =>
+              substitute(base, accessor, viewOf),
+            ),
+            base.itemSize,
+            accessor.normalized,
+          )
+        : base;
       attributes.set(rank, held);
     }
     return held;
