@@ -1,3 +1,4 @@
+import { serialOf } from '../../host/graph/serial.ts';
 import type { GraphScene } from '../../host/graph/scene.ts';
 import { isDrawnNode } from '../../host/graph/kinds.ts';
 import {
@@ -30,8 +31,8 @@ type DisplayNode = Partial<SceneCopy> & {
   readonly renderOrder: number;
   readonly children: readonly DisplayNode[];
 };
-/** A drawn node: the engine's mesh, numbered in creation order (a group or a bare node is not). */
-type DrawnNode = DisplayNode & { readonly serial: number };
+/** A drawn node: the engine's mesh, numbered in creation order (`serialOf`). */
+type DrawnNode = DisplayNode;
 type DisplayScene = ClusterDrawScene & {
   readonly children: readonly DisplayNode[];
   onBeforeRender?(): void;
@@ -113,13 +114,15 @@ export function createSceneDraw(
     if (rank === undefined) ranks.set(surface, (rank = nextRank++));
     return rank;
   };
+  // A mesh the engine did not build (a test's) sorts as the first built.
+  const made = (node: DrawnNode) => serialOf(node) ?? 0;
   const frontToBack = (a: DrawnNode, b: DrawnNode) =>
     a.renderOrder - b.renderOrder ||
     rankOf(a as WholeMesh) - rankOf(b as WholeMesh) ||
     depth(a) - depth(b) ||
-    a.serial - b.serial;
+    made(a) - made(b);
   const backToFront = (a: DrawnNode, b: DrawnNode) =>
-    a.renderOrder - b.renderOrder || depth(b) - depth(a) || a.serial - b.serial;
+    a.renderOrder - b.renderOrder || depth(b) - depth(a) || made(a) - made(b);
   const host: Required<BackendHostDraw> = {
     // Only a see-through mesh can refuse: the walk's list of them, still in graph order.
     linearRefusal() {

@@ -7,6 +7,7 @@
  * with its controls, and a mesh copy sharing the geometry and the surface of the mesh it comes
  * from. Nothing else happens here: every number arrives computed.
  */
+import { numbered } from '../graph/serial.ts';
 import { Box3 } from '../../../../sdk-core/src/world/math/box3.ts';
 import { Vector3 } from '../../../../sdk-core/src/world/math/vector3.ts';
 import { GraphCamera } from '../graph/camera.ts';
@@ -32,4 +33,5 @@ export const hostBox = (flat: ArrayLike<number>): HostBox =>
 
 /** A copy of `mesh` sharing its geometry and its surface, posed by whoever asked for it:
  *  replication copies transforms alone, and a resource is never rebuilt. */
-export const hostMeshCopy = (mesh: HostMesh): HostMesh => new Mesh(mesh.geometry, mesh.material);
+export const hostMeshCopy = (mesh: HostMesh): HostMesh =>
+  numbered(new Mesh(mesh.geometry, mesh.material));

@@ -4073,7 +4073,6 @@
       "material": "Il materiale della mesh, o uno per gruppo; fornisci un altro per cambiarlo.",
       "localBounds": "La scatola del contenuto proprio di questo nodo, nel suo sistema locale; un semplice nodo non ne ha una.",
       "physics": "La mesh come corpo della fisica del mondo, `null` se non lo è. Imposta `'static'`, `'dynamic'`, `'kinematic'` o opzioni; la forma è dedotta dalla geometria.",
-      "serial": "Il numero del nodo, unico nella sessione.",
       "morphTargetInfluences": "Il peso di ogni target di morph, quando la geometria ne dichiara.",
       "morphTargetDictionary": "Il rango di ogni target di morph per nome.",
       "updateMorphTargets": "Un peso zero per target di morph del primo attributo deformato, nominato per rango.",

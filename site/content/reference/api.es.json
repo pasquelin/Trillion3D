@@ -4073,7 +4073,6 @@
       "material": "El material de la malla, o uno por grupo; da otro para cambiarlo.",
       "localBounds": "La caja del contenido propio de este nodo, en su sistema local; un nodo simple no tiene ninguna.",
       "physics": "La malla como cuerpo de la física del mundo, `null` si no lo es. Pon `'static'`, `'dynamic'`, `'kinematic'` u opciones; la forma se deduce de la geometría.",
-      "serial": "El número del nodo, único en la sesión.",
       "morphTargetInfluences": "El peso de cada objetivo de morph, cuando la geometría declara alguno.",
       "morphTargetDictionary": "El rango de cada objetivo de morph por su nombre.",
       "updateMorphTargets": "Un peso cero por objetivo de morph del primer atributo deformado, nombrado por su rango.",

@@ -4073,7 +4073,6 @@
       "material": "Das Material des Meshes, oder eines pro Gruppe; gib ein anderes an, um es zu ändern.",
       "localBounds": "Die Box des eigenen Inhalts dieses Knotens, in seinem lokalen Bezugssystem; ein einfacher Knoten hat keine.",
       "physics": "Das Mesh als Körper der Weltphysik, `null`, wenn es keiner ist. Setze `'static'`, `'dynamic'`, `'kinematic'` oder Optionen; die Form wird aus der Geometrie abgeleitet.",
-      "serial": "Die Nummer des Knotens, eindeutig in der Sitzung.",
       "morphTargetInfluences": "Das Gewicht jedes Morph-Ziels, wenn die Geometrie welche deklariert.",
       "morphTargetDictionary": "Der Rang jedes Morph-Ziels nach seinem Namen.",
       "updateMorphTargets": "Ein Nullgewicht pro Morph-Ziel des ersten verformten Attributs, nach Rang benannt.",

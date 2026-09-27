@@ -17,6 +17,7 @@ import { GraphCamera } from './camera.ts';
 import { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts';
 import { GraphSurface, type GraphSurfaceFamily } from './surface.ts';
 import { GraphTexture } from './texture.ts';
+import { numbered } from './serial.ts';
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 import { Vector3 } from '../../../../sdk-core/src/world/math/vector3.ts';
 
@@ -64,7 +65,7 @@ const hostGeometry = () => Object.assign(new Geometry(), { _owner: 'host' as con
 export const mesh = (
   geometry: Geometry = hostGeometry(),
   material: GraphSurface | GraphSurface[] = new GraphSurface('basic'),
-) => new Mesh(geometry, material);
+) => numbered(new Mesh(geometry, material));
 
 /** A drawn triangle — three indices, positions and normals — in `surface`, never culled: what a
  *  draw test submits once per pass. */
@@ -72,7 +73,7 @@ export function triangleMesh(surface: GraphSurface) {
   const geometry = new Geometry().setIndex(new BufferAttribute(new Uint32Array(3), 1));
   geometry.setAttribute('position', new BufferAttribute(new Float32Array(9), 3));
   geometry.setAttribute('normal', new BufferAttribute(new Float32Array(9), 3));
-  const made = new Mesh(geometry, surface);
+  const made = numbered(new Mesh(geometry, surface));
   made.frustumCulled = false;
   return made;
 }
@@ -183,3 +184,4 @@ export function byName(root: Object3D, name: string) {
   return found;
 }
 export * from './kinds.ts';
+export { numbered, serialOf } from './serial.ts';

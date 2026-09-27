@@ -1,3 +1,4 @@
+import { serialOf } from '../graph/serial.ts';
 import { hashId } from '../../diagnostic/colors.ts';
 import { materialSide } from '../../scene/materialSide.ts';
 import { triangleGeometry } from '../../diagnostic/triangleDiagnostic.ts';
@@ -45,7 +46,7 @@ export function repaintHostGraph(
     mesh.geometry = sourceGeometry;
     if (mode === 'beauty') return;
     if (mode === 'wireframe') {
-      const salt = hashId(String(mesh.userData.clusterId ?? mesh.serial ?? mesh.id));
+      const salt = hashId(String(mesh.userData.clusterId ?? serialOf(mesh) ?? mesh.id));
       mesh.geometry = triangleGeometry(sourceGeometry, host, salt, overlays);
       const material = host.triangleMaterial(materialSide(sourceMaterial));
       overlays.push(material);
