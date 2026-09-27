@@ -79,24 +79,18 @@ pub(super) fn build_dag_primitive(
     let collision =
         crate::physics_cook::cook_primitive(o, &dag, &order, &culling, pos, index_values)?;
     laps.lap("physicsMs");
-    let base_id = 0usize;
     let mut page_of = vec![0usize; dag.len()];
     for (rank, &slot) in order.iter().enumerate() {
-        page_of[slot] = base_id + rank;
+        page_of[slot] = rank;
     }
     let position_exponent = crate::geometry_page_quant::primitive_exponent(
         pos,
         dag.iter().filter(|c| c.level > 0).map(|c| c.lod_error),
     );
-    let (pages, reused, stream_report) = bundle_dag_pages(
-        o,
-        &dag,
-        &groups,
-        &order,
-        base_id,
-        pos,
-        &|slice: &[u32]| store_packed(slice, position_exponent),
-    )?;
+    let (pages, reused, stream_report) =
+        bundle_dag_pages(o, &dag, &groups, &order, pos, &|slice: &[u32]| {
+            store_packed(slice, position_exponent)
+        })?;
     laps.lap("pagesMs");
     // One plane test per cluster, on the triangles it already holds: cheap next to the DAG itself,
     // and the only place the partition and the positions are both in hand.
@@ -168,4 +162,31 @@ pub(super) fn build_dag_primitive(
         position_exponent,
         collision,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    // Edge cases of `level_error_stats`, moved from the retired compute bench: the statistics
+    // follow `f64::total_cmp`, so signed zeros, infinities and NaN each keep one place.
+    #[test]
+    fn level_error_stats_orders_hostile_errors_by_total_cmp() {
+        let mut errors = [
+            f64::NAN,
+            1.5,
+            f64::NEG_INFINITY,
+            0.0,
+            -0.0,
+            f64::INFINITY,
+            2.0,
+        ];
+        let (min, median, max) = super::level_error_stats(&mut errors);
+        assert_eq!(min, f64::NEG_INFINITY);
+        assert_eq!(median.to_bits(), 1.5f64.to_bits());
+        assert!(max.is_nan(), "a positive NaN sorts past +inf");
+        let (min, median, max) = super::level_error_stats(&mut [0.0, -0.0]);
+        assert_eq!(
+            [min, median, max].map(f64::to_bits),
+            [-0.0f64, 0.0, 0.0].map(f64::to_bits)
+        );
+    }
 }
