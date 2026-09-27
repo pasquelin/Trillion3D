@@ -99,11 +99,14 @@ test('drag-a-crate moves on the floor and restores the orbit state on every rele
   fire('pointermove', event(100, 100, 3));
   assert.deepEqual([crate.position.x, crate.position.y, crate.position.z], [1, 0.7, 1]);
   fire('pointermove', event(1000, -1000, 3));
-  assert.deepEqual([crate.position.x, crate.position.y, crate.position.z], [5.3, 0.7, -3.8]);
+  assert.deepEqual([crate.position.x, crate.position.y, crate.position.z], [5, 0.7, -3.5]);
   fire('pointercancel', event(100, 100, 3));
   assert.equal(orbit.enabled, true, 'cancel restores orbit');
+  ui.snap = false;
   orbit.enabled = false;
   fire('pointerdown', event(50, 50, 4, 0));
+  fire('pointermove', event(1000, -1000, 4));
+  assert.deepEqual([crate.position.x, crate.position.y, crate.position.z], [5.3, 0.7, -3.8]);
   captured.delete(4);
   fire('lostpointercapture', event(50, 50, 4));
   assert.equal(orbit.enabled, false, 'lost capture restores the prior orbit state');
@@ -111,5 +114,5 @@ test('drag-a-crate moves on the floor and restores the orbit state on every rele
   assert.deepEqual([crate.position.x, crate.position.z], [5.3, -3.8], 'lost capture ends the drag');
   ui.home();
   assert.deepEqual([crate.position.x, crate.position.y, crate.position.z], [0, 0.7, 0]);
-  assert.equal(invalidations, 4, 'three moves and Home redraw');
+  assert.equal(invalidations, 5, 'four moves and Home redraw');
 });
