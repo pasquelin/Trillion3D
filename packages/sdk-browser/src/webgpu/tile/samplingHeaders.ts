@@ -39,10 +39,12 @@ export const HEADERS_WRITTEN = 1,
 export function samplingHeaders(color: WebgpuTileAtlas, data: WebgpuTileAtlas) {
   const coverage = coverageRules(color);
   const atlasHeaders = (atlas: WebgpuTileAtlas, copied?: (slot: number) => void) => {
-    const { pages, textures } = atlas;
-    /** `sampling + placement` of each slot's record when its header was written: both monotonic. */
-    const seen = new Float64Array(textures.length).fill(-1);
-    /** The record's `version` each host-image slot's pool places were last written at. */
+    const { textures } = atlas;
+    /** `sampling + placement` of each slot's record when its header was written: both monotonic;
+     *  none yet for a slot appended after open. */
+    const seen: number[] = [];
+    /** The record's `version` each host-image slot's pool places were last written at: a slot
+     *  appended after open was pinned from the picture it has when first walked. */
     const pictures = textures.map(({ texture }) => texture?.version ?? 0);
     return (force: boolean, moved?: Set<number>, copies?: TileCopies) => {
       let result = 0;
@@ -50,6 +52,7 @@ export function samplingHeaders(color: WebgpuTileAtlas, data: WebgpuTileAtlas) {
         const { texture, source } = textures[slot];
         if (!texture) continue;
         followHostTexture(texture);
+        pictures[slot] ??= texture.version;
         if (source.kind === 'host' && pictures[slot] !== texture.version) {
           pictures[slot] = texture.version;
           if (copies?.refresh(atlas, slot)) {
@@ -61,6 +64,7 @@ export function samplingHeaders(color: WebgpuTileAtlas, data: WebgpuTileAtlas) {
         const revision = texture.sampling + texture.placement;
         if (!force && seen[slot] === revision) continue;
         seen[slot] = revision;
+        const { pages } = atlas;
         const was = slotSampled(pages, slot);
         if (!pages.setSampling(slot, texture, source.kind !== 'host')) continue;
         result |= HEADERS_WRITTEN | (was === slotSampled(pages, slot) ? 0 : HEADERS_SWITCHED);
@@ -87,16 +91,24 @@ export function samplingHeaders(color: WebgpuTileAtlas, data: WebgpuTileAtlas) {
 /** The rule each host colour map's chain was reduced under, followed at every image (#42): a map
  *  whose rule moved goes to `reduce`, its slot to `moved`; one just `copied` already carries it. */
 function coverageRules(atlas: WebgpuTileAtlas) {
-  let readers: CoverageReaders | undefined;
+  let readers: CoverageReaders | undefined,
+    walked = 0;
   const hosts = new Map<number, { map: Texture; rule?: number }>();
+  const maps: Texture[] = [];
   /** The chain's rule: its cutoff byte where it weighs by alpha (#748), none plain. */
   const ruleOf = (map: Texture) => readers?.cutoff(map);
-  for (const [slot, { source }] of atlas.textures.entries())
-    if (source.kind === 'host' && (readers ??= source.coverage))
-      hosts.set(slot, { map: source.map, rule: ruleOf(source.map) });
-  const maps = [...hosts.values()].map(({ map }) => map);
+  /** The host colour maps not walked yet: the atlas's at open, then any appended after it. */
+  const walk = () => {
+    for (; walked < atlas.textures.length; walked++) {
+      const { source } = atlas.textures[walked];
+      if (source.kind !== 'host' || !(readers ??= source.coverage)) continue;
+      hosts.set(walked, { map: source.map, rule: ruleOf(source.map) });
+      maps.push(source.map);
+    }
+  };
+  walk();
   return {
-    follow: () => readers?.follow(maps),
+    follow: () => (walk(), readers?.follow(maps)),
     copied(slot: number) {
       const host = hosts.get(slot);
       if (host) host.rule = ruleOf(host.map);

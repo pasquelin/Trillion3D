@@ -19,6 +19,9 @@ export const FEEDBACK_EVERY = FEEDBACK_STRIDE * FEEDBACK_STRIDE;
 export type WebgpuTileFeedback = {
   readonly buffer: GPUBuffer;
   readonly entries: number;
+  /** Counts `entries` ranks from now on, in new buffers: a page table grew (#847). What came
+   *  back, or is coming, counted the ranks before: dropped, never read. */
+  grow(entries: number): void;
   /** Word the uniform carries: the phase, or "every pixel" during a convergence. */
   phaseWord(every: boolean): number;
   /** Copies the counters to a free readback buffer and zeroes them, in the image. */
@@ -35,31 +38,49 @@ export type WebgpuTileFeedback = {
 type Device = Pick<GPUDevice, 'createBuffer'>;
 
 export function createWebgpuTileFeedback(device: Device, entries: number): WebgpuTileFeedback {
-  const bytes = Math.max(16, entries * 4);
-  const buffer = device.createBuffer({
-    label: 'Trillion3D texture feedback',
-    size: bytes,
-    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
-  });
-  const staging = [0, 1].map((rank) =>
-    device.createBuffer({
-      label: `Trillion3D texture feedback readback ${rank}`,
+  const allocate = (count: number) => {
+    const bytes = Math.max(16, count * 4);
+    const buffer = device.createBuffer({
+      label: 'Trillion3D texture feedback',
       size: bytes,
-      usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST,
-    }),
-  );
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+    });
+    const staging = [0, 1].map((rank) =>
+      device.createBuffer({
+        label: `Trillion3D texture feedback readback ${rank}`,
+        size: bytes,
+        usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST,
+      }),
+    );
+    // Counters that came back, one array per readback buffer: nothing is allocated per image.
+    return { count, bytes, buffer, staging, held: [0, 1].map(() => new Uint32Array(count)) };
+  };
+  let { count, bytes, buffer, staging, held } = allocate(entries);
   // Per readback buffer: a copy encoded but not submitted, or an in-flight mapping.
-  const copied = [false, false],
+  let copied = [false, false],
     busy = [false, false];
   const inFlight = new Set<Promise<void>>();
-  // Counters that came back, one array per readback buffer: nothing is allocated per image.
-  const held = [0, 1].map(() => new Uint32Array(entries));
   let next = 0,
     phase = 0,
     latest: Uint32Array | undefined;
+  const destroy = () => {
+    buffer.destroy();
+    for (const target of staging) target.destroy();
+  };
   return {
-    buffer,
-    entries,
+    get buffer() {
+      return buffer;
+    },
+    get entries() {
+      return count;
+    },
+    grow(ranks) {
+      destroy();
+      ({ count, bytes, buffer, staging, held } = allocate(ranks));
+      copied = [false, false];
+      busy = [false, false];
+      latest = undefined;
+    },
     phaseWord: (every) => (every ? FEEDBACK_EVERY : 0) | phase,
     encode(encoder) {
       if (busy[next] || copied[next]) return;
@@ -73,17 +94,19 @@ export function createWebgpuTileFeedback(device: Device, entries: number): Webgp
       const rank = next;
       copied[rank] = false;
       busy[rank] = true;
-      const target = staging[rank];
+      const target = staging[rank],
+        into = held[rank],
+        flags = busy;
       const read = target
         .mapAsync(GPUMapMode.READ)
         .then(() => {
-          held[rank].set(new Uint32Array(target.getMappedRange(), 0, entries));
+          into.set(new Uint32Array(target.getMappedRange(), 0, into.length));
           target.unmap();
-          latest = held[rank];
+          latest = into;
         })
         .catch(() => undefined)
         .finally(() => {
-          busy[rank] = false;
+          flags[rank] = false;
           inFlight.delete(read);
         });
       inFlight.add(read);
@@ -95,9 +118,6 @@ export function createWebgpuTileFeedback(device: Device, entries: number): Webgp
       return counts;
     },
     settled: () => Promise.all(inFlight).then(() => undefined),
-    destroy() {
-      buffer.destroy();
-      for (const target of staging) target.destroy();
-    },
+    destroy,
   };
 }

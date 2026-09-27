@@ -772,7 +772,11 @@ none. A texture takes the lane its chain was **kept** in by the compiler's quali
 reads from the lossless lane, so the engine never trades a pixel for memory on its own. Every lane
 with textures gets one layer, the rest of the budget by the bytes its tiles would take.
 `texturePoolFormat`, `texturePoolLayers` and `texturePoolBytes` publish the result, and the
-`material-textures-ready` diagnostic lists each pool.
+`material-textures-ready` diagnostic lists each pool and each atlas's page table. A texture an
+atlas takes after open grows its lane only by the layers its tail needs, under the texture budget:
+past it, or past the device's layers, it is refused by `TEXTURE_BUDGET` and nothing drawn is
+evicted. Its page table is regrown by copy into a buffer of its new size;
+`material-texture-appended` publishes the catalogue, the page tables and the pool bytes.
 
 ## Physics
 
@@ -860,7 +864,7 @@ limit and an explicit `diagnostic-loss` record on overflow (`createDiagnosticCha
 modules in its configuration event; a direct source import has `hash: null`.
 
 Phases carry `pipelineVersion: 1`: `gpu-presentation`, `frame-allocation`, `material-textures`,
-`material-textures-ready`, `material-classes-ready`, `material-surfaces-ready`, `scene-lighting`,
+`material-textures-ready`, `material-texture-appended`, `material-classes-ready`, `material-surfaces-ready`, `scene-lighting`,
 `render-capabilities`, `render-progress` (selected and resident pages, triangles, pending pages,
 transparent counters), surface-capture phases, `gpu-device-lost`, `gpu-closed-session-error`
 (`kind: 'warning'`: an error of a session already closed on the same device, never a loss). Observer exceptions cannot

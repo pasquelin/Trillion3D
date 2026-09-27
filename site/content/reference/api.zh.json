@@ -942,6 +942,7 @@
       "MATERIAL_CLASS_CHANGE": "材质更改未知、超出范围、会把它移到引擎在打开场景时就固定的绘制类别,或会平铺它与其他材质共享的贴图。",
       "MATERIAL_TEXTURE_SHARED": "材质更改未知、超出范围、会把它移到引擎在打开场景时就固定的绘制类别,或会平铺它与其他材质共享的贴图。",
       "MATERIAL_CEILING": "页面在一个会话中创建的材质将超过 `RUNTIME_MATERIAL_CEILING`；未创建任何材质。",
+      "TEXTURE_BUDGET": "场景打开后添加的纹理会使纹理池超过 `texturePoolBytes` 或设备可容纳的层数；未添加任何内容。",
       "INVALID_TRANSFORM": "某个节点的位置不是可用的矩阵,或者某个节点会成为自己的祖先。",
       "NON_FINITE_TRANSFORM": "某个节点的位置不是可用的矩阵,或者某个节点会成为自己的祖先。",
       "SINGULAR_PARENT_TRANSFORM": "某个节点的位置不是可用的矩阵,或者某个节点会成为自己的祖先。",

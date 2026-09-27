@@ -1,12 +1,14 @@
 import type { TextureLevelReader } from '../../texture/levelReader.ts';
 import type { AtlasLanes, PoolEncoding } from '../../texture/blockFormats.ts';
-import { createWebgpuTileAtlas, type TileTexture } from './atlas.ts';
+import { createWebgpuTileAtlas } from './atlas.ts';
+import type { TileTexture } from './tileTexture.ts';
 import { createFrameBudget } from '../../page/integration/frameBudget.ts';
 import { createWebgpuTileFeedback } from './feedback.ts';
 import { createTileSources } from './sources.ts';
 import { createWebgpuTileReduce } from './reduce.ts';
 import { createTileCounters } from './counters.ts';
 import { createTileRequests } from './requests.ts';
+import { createTileGrowth } from './growth.ts';
 import { HEADERS_SWITCHED, HEADERS_WRITTEN, samplingHeaders } from './samplingHeaders.ts';
 
 /**
@@ -170,15 +172,7 @@ export function createWebgpuTileStreamer(options: {
     get requestReduce() {
       return reduce !== undefined;
     },
-    /** Lane pools whose layers change are replaced, tiles kept; returns the evicted tiles. */
-    resize(layers: AtlasLanes) {
-      const results = [color.resize(device, layers.color), data.resize(device, layers.data)];
-      if (results.some((result) => result.replaced)) {
-        flushAll();
-        options.onColorChanged(-1);
-      }
-      return results.reduce((total, result) => total + result.evicted, 0);
-    },
+    ...createTileGrowth(options, { color, data, feedback, sources, flushAll, followHeaders }),
     metrics: () => counters.metrics(atlases, sources, encoding.name),
     /** True while a cooked level is being read: a missing tile can still arrive. */
     get reading() {
