@@ -36,9 +36,39 @@ export function ExampleCard({ title, href, thumbnail, state }: ExampleCardProps)
           </Badge>
         </span>
       )}
-      <span className="absolute inset-x-0 bottom-0 bg-linear-to-t from-black/85 to-transparent px-3 pb-2 pt-8 text-sm font-medium text-white">
-        <span className="line-clamp-2">{title}</span>
-      </span>
+      <TileTitle title={title} />
     </a>
+  );
+}
+
+/** The title at the bottom of a tile, over a dark gradient. */
+function TileTitle({ title }: { title: string }) {
+  return (
+    <span className="absolute inset-x-0 bottom-0 bg-linear-to-t from-black/85 to-transparent px-3 pb-2 pt-8 text-sm font-medium text-white">
+      <span className="line-clamp-2">{title}</span>
+    </span>
+  );
+}
+
+/** An example not written yet: a tile the size of the others, the shared placeholder render, a
+ * "coming" label in its corner and its title; it opens nothing. */
+export function ComingCard({ title, label }: { title: string; label: string }) {
+  return (
+    <div
+      className="relative aspect-[16/10] min-w-0 overflow-hidden rounded-box bg-base-300 opacity-70"
+      title={`${title} — ${label}`}
+    >
+      <img
+        className="h-full w-full object-cover"
+        loading="lazy"
+        decoding="async"
+        src={examplePlaceholder}
+        alt=""
+      />
+      <span className="absolute inset-x-2 top-2 flex min-w-0">
+        <Badge size="sm">{label}</Badge>
+      </span>
+      <TileTitle title={title} />
+    </div>
   );
 }

@@ -35,7 +35,7 @@
     "jumpTo": "Bir temaya git",
     "waitsFor": "Motoru bekliyor:",
     "partial": "Kısmi",
-    "coming": "Yakında: {{titles}}"
+    "coming": "Yakında"
   },
   "gallery": {
     "themes": {
