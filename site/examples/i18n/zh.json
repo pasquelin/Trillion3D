@@ -1683,6 +1683,15 @@
       "fourthLaneAnisotropy": "第四条跑道的各向异性"
     }
   },
+  "the-home-pose": {
+    "banner": "选择一个视角，移动相机，然后选择初始返回。",
+    "controls": { "view": "视角" },
+    "choices": { "view": { "home": "初始", "tower": "塔楼", "square": "广场", "hillside": "山坡" } }
+  },
+  "the-near-plane-cuts-a-wall": {
+    "banner": "向前移动近裁剪面，观察它依次切过每面墙。",
+    "controls": { "nearPlane": "近裁剪面" }
+  },
   "the-material-family": {
     "banner": "拖动四处走走。把光调成夜晚，看看什么还在发光。",
     "controls": {
