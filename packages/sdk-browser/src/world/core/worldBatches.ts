@@ -163,7 +163,7 @@ export function createWorldBatches(touched: (batch: Batch, row: number) => void)
       return found;
     },
     /** Whether `mesh` waits in a batch still mounting: it moves on once that one is drawn. */
-    mounting: (mesh: Mesh) => mounting.has(seats.get(mesh)?.batch as Batch),
+    mounting: (mesh: Mesh) => mounting.has(seats.get(mesh)?.batch!),
     /** `batch` is drawn by the session: its waiting wearers take rows at the next `growHeld`. */
     mounted: (batch: Batch) => mounting.delete(batch),
     /** The batches no mesh wears or leaves any more, taken out: those with rows, for the session
@@ -173,7 +173,7 @@ export function createWorldBatches(touched: (batch: Batch, row: number) => void)
       for (const batch of emptied) {
         if (mounting.has(batch)) continue;
         emptied.delete(batch);
-        if (batch.wearers.size || batch.owners.some(Boolean)) continue;
+        if (batch.wearers.size || batch.free.length < (batch.rows?.capacity ?? 0)) continue;
         batches.delete(batch.key);
         short.delete(batch);
         if (batch.rows) found.push(batch);
