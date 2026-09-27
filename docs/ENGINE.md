@@ -119,6 +119,17 @@ within it, and a hidden tab, where no frame comes, still loads.
 Fetching and decoding stay in workers. WebGL2 cuts by the same rule and holds pages by the same
 residency, without the GPU cut or its readback (#490, #839).
 
+**Eviction queue.** A resident GPU cut also publishes, on the same readback, the order the cache
+gives slots back in (`gpu/dag/evict.ts`, `gpu/dag/shader/evictWgsl.ts`): the pool's keys, finer
+level first — a parent after its children —, then oldest last use, its first `EVICTION_BURST`: the
+readback's budget is two lists plus one burst, whatever the catalogue. Every placement stamps its key's canonical page, so a key's stamp is its last
+use; a key the latest cut read is never listed. The kernel sweeps the pool's list, one canonical
+page per held slot fed by the cache's arrivals and departures (`gpu/dag/poolList.ts`), never the
+catalogue. On the GPU-cut path the cache evicts only from that queue, skipping pinned pages and
+taking a page a lower tier touched since the last queue (a shadow caster) after every other; once
+spent (`eviction-queue-spent`) the burst waits for the next readback. The CPU cut evicts the least
+recent page; `budgetRanking` still chooses loads (#836).
+
 **Occlusion** is two-phase Hi-Z. Pass 1 draws the rows the previous frame drew that the previous
 frame's pyramid does not hide; a pyramid is built from that depth (background at the far plane, min
 reduction in reverse-Z); pass 2 retests the withdrawn and previously rejected rows against it. The
