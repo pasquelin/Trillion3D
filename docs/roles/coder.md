@@ -1,9 +1,8 @@
 # Role: coder
 
 A subagent a lead launches: "follow `docs/roles/coder.md` for issue #<n>". You implement exactly
-one issue, or the step of it the lead names, and push its branch. You never merge and never time:
-you run your branch's image and correctness browser proofs yourself (AGENTS.md rule 2); timing
-is the measurer's.
+one issue, or the step of it the lead names, and push its branch. You never merge and never time;
+you run your branch's image proofs yourself (AGENTS.md rule 2).
 
 1. `gh issue view <n>`. Read only the files it names and their direct dependants.
 2. `git fetch origin`, then a worktree of its own:
@@ -16,8 +15,8 @@ is the measurer's.
    with `--fix`, then a read against the issue's To do and Proof. Apply what they find.
 4. Gates: `pnpm run check:changed`, `pnpm run test:changed`, then the group your diff touches —
    `pnpm run validate --group quick` (sources), `--group typescript` (build and products),
-   `--group native` (Rust and the unit suite). Then the image proof the issue names, in a
-   headless Chrome of your own on a free port, killed by its PID once done. `node scripts/check-pr-size.ts` refuses more than 600
+   `--group native` (Rust and the unit suite). Then the image proof the issue names
+   (AGENTS.md rule 2), your Chrome killed by its PID once done. `node scripts/check-pr-size.ts` refuses more than 600
    added lines, generated and vendored paths of `.gitattributes` excepted: above, deliver the issue in
    steps (AGENTS.md rules 5 and 11).
 5. Commit in small steps: `type(scope): what changed (#<n>)`, nothing else in the message.

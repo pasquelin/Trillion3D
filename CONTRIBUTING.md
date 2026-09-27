@@ -56,15 +56,12 @@
   campaign — every view, every scene, the run-to-run spread, the frame envelope — runs once, on the
   release pull request from `develop` to `main`, and its numbers are the ones published. The site
   keeps one report, the latest, each image stored once.
-- **Image proofs on the branch, timing after the merge.** A branch's image and correctness
-  browser proofs (0 px, no error, pages drawn) run before its pull request, in a headless Chrome of
-  its own on its own port, killed by PID; several may run at once. Timing (frame cost,
-  p50/p95/p99, GPU timings, `perf:*`, the bench) runs alone on a quiet machine, in one queue, on
-  merged batches, and never blocks a pull request: the issue closes at merge labelled
-  `to measure`, the queue times it against the merge's first parent and comments the numbers
-  (`measure ok`); a regression reopens the measured issue, labelled `measure ko`, with the numbers
-  in a comment. Only a performance issue (its goal is a timing) is timed on its branch before its
-  pull request. A pull request carries the fast gates and its image proof.
+- **Image proofs on the branch, timing after the merge** (AGENTS.md rules 2 and 11). Timing
+  runs alone, in one queue, on merged batches, and never blocks a pull request but a performance
+  issue's: a merged engine batch is labelled `to measure`, the queue times it against the merge's
+  first parent and comments the numbers (`measure ok`); a regression reopens the measured issue,
+  labelled `measure ko`, with the numbers in a comment. A pull request carries the fast gates and
+  its image proof.
 - **A campaign's outputs are deleted once published.** A cook, a bench or a proof writes under
   `.mesure/out/<batch>/` and nowhere else; the numbers, and any capture a claim rests on, go into
   the pull request body, and the folder is removed before the pull request is opened.

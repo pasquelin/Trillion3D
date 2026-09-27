@@ -1,5 +1,5 @@
-// Refuses a pull request body that does not start with "Closes #<issue>" or, for a step of an
-// issue delivered in several, "Part of #<issue>", or that says both (AGENTS.md rule 5), or whose
+// Refuses a pull request body that does not start with "Closes #<issue>" or "Part of #<issue>",
+// or that says both (AGENTS.md rule 5), or whose
 // "Local review before push" section lacks its simplification and correctness lines once HTML
 // comments are removed. "Lead verification" is required unless PR_DRAFT=true: a draft waits for
 // its lead. Usage: [PR_DRAFT=true] node scripts/check-pr-body.ts < body  (the CI feeds it the
@@ -24,7 +24,7 @@ export function bodyProblem(raw: string, draft: boolean): string | undefined {
   if (!/^(Closes|Part of) #\d+/m.test(body))
     return 'The body must start with "Closes #<issue>", or "Part of #<issue>" for a step.';
   if (/Closes #\d+/.test(body) && /Part of #\d+/.test(body))
-    return 'The body says both "Closes" and "Part of": a step says "Part of #<issue>", the last one "Closes #<issue>" (AGENTS.md rule 5).';
+    return 'The body says both "Closes" and "Part of"; a step says "Part of" (AGENTS.md rule 5).';
   const lines = body.split('\n');
   const review = section(lines, 'Local review before push');
   if (!review.join('').trim())
