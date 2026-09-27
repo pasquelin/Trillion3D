@@ -4,6 +4,7 @@
 //! engine's default matter); and, for a node declaring motion, the body it is: its motion and
 //! implicit shape as declared, else the hull of a mesh (`hull.rs`), weighed here, at cook time.
 use super::hull::{cooked_hull, Hull};
+use super::pieces::{declared_breakable, pieces};
 use super::stage::{place, trs};
 use super::{refused, PHYSICS_COOK_FAILED};
 use crate::compiler_nodes::scene_nodes;
@@ -53,7 +54,14 @@ fn body(
     let pose = trs(&world[index])
         .ok_or_else(|| refused("A body's node shears or has no scale.".into()))?;
     let field = |key: &str| declared.pointer(&format!("/collider/geometry/{key}"));
+    let breakable = declared_breakable(&nodes[index])?;
+    let mut cut = None;
     let shape = match field("shape").and_then(Value::as_u64) {
+        Some(_) if breakable.is_some() => {
+            return Err(refused(
+                "A breakable body is cut from its mesh: it declares no shape.".into(),
+            ))
+        }
         Some(id) => (source.0)
             .pointer(&format!("/extensions/KHR_implicit_shapes/shapes/{id}"))
             .cloned()
@@ -86,21 +94,29 @@ fn body(
             let kinematic = declared.pointer("/motion/isKinematic") == Some(&Value::Bool(true));
             let weigh = (!kinematic).then_some(s);
             let mesh = mesh as usize;
-            if frame.is_some() {
-                cooked_hull(o, source, (mesh, frame))?.weighed(weigh)?
-            } else {
-                let hull = match cooked.entry(mesh) {
-                    Entry::Occupied(shared) => shared.into_mut(),
-                    Entry::Vacant(slot) => slot.insert(cooked_hull(o, source, (mesh, None))?),
-                };
-                hull.weighed(weigh)?
+            let moved;
+            let hull: &Hull = match (frame, cooked.entry(mesh)) {
+                (Some(_), _) => {
+                    moved = cooked_hull(o, source, (mesh, frame))?;
+                    &moved
+                }
+                (None, Entry::Occupied(shared)) => shared.into_mut(),
+                (None, Entry::Vacant(slot)) => slot.insert(cooked_hull(o, source, (mesh, None))?),
+            };
+            if breakable.is_some() {
+                // A piece falls once broken, a kinematic body's too: every piece is weighed.
+                cut = Some(pieces(o, hull, index as u64, s)?);
             }
+            hull.weighed(weigh)?
         }
     };
     let mut entry = declared_matter(source.0, &nodes[index]);
     entry["node"] = json!(index);
     entry["motion"] = declared["motion"].clone();
     entry["shape"] = shape;
+    if let (Some(threshold), Some(cut)) = (breakable, cut) {
+        (entry["breakable"], entry["pieces"]) = (json!(threshold), json!(cut));
+    }
     place(&mut entry, pose);
     Ok(entry)
 }
