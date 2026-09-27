@@ -948,6 +948,7 @@
       "UNKNOWN_MATERIAL": "Perubahan material tidak dikenal, di luar rentang, akan memindahkannya ke kelas gambar yang ditetapkan sebuah mesin saat adegan dibuka, atau akan mengulang peta yang dibagikannya.",
       "MATERIAL_CLASS_CHANGE": "Perubahan material tidak dikenal, di luar rentang, akan memindahkannya ke kelas gambar yang ditetapkan sebuah mesin saat adegan dibuka, atau akan mengulang peta yang dibagikannya.",
       "MATERIAL_TEXTURE_SHARED": "Perubahan material tidak dikenal, di luar rentang, akan memindahkannya ke kelas gambar yang ditetapkan sebuah mesin saat adegan dibuka, atau akan mengulang peta yang dibagikannya.",
+      "MATERIAL_CEILING": "Sebuah halaman akan membuat lebih banyak material daripada `RUNTIME_MATERIAL_CEILING` dalam satu sesi; tidak ada yang dibuat.",
       "INVALID_TRANSFORM": "Penempatan sebuah node bukan matriks yang bisa dipakai, atau sebuah node akan jadi leluhurnya sendiri.",
       "NON_FINITE_TRANSFORM": "Penempatan sebuah node bukan matriks yang bisa dipakai, atau sebuah node akan jadi leluhurnya sendiri.",
       "SINGULAR_PARENT_TRANSFORM": "Penempatan sebuah node bukan matriks yang bisa dipakai, atau sebuah node akan jadi leluhurnya sendiri.",
@@ -2060,7 +2061,11 @@
       "geometry": "Bentuk mesh itu; atur geometri lain untuk mengubahnya.",
       "material": "Material mesh itu, atau satu per grup; atur yang lain untuk mengubahnya.",
       "localBounds": "Kotak konten node ini sendiri, kerangka lokal; sebuah node biasa tidak menyimpan satu pun.",
-      "physics": "Mesh sebagai benda fisika dunia, `null` jika bukan. Isi `'static'`, `'dynamic'`, `'kinematic'` atau opsi; bentuk disimpulkan dari geometri."
+      "physics": "Mesh sebagai benda fisika dunia, `null` jika bukan. Isi `'static'`, `'dynamic'`, `'kinematic'` atau opsi; bentuk disimpulkan dari geometri.",
+      "morphTargetInfluences": "Bobot setiap target morph, bila geometri mendeklarasikannya.",
+      "morphTargetDictionary": "Peringkat setiap target morph menurut namanya.",
+      "updateMorphTargets": "Satu bobot nol per target morph dari atribut ter-morph pertama, dinamai menurut peringkat.",
+      "copy": "Mengambil nilai `source`, dan salinan anak-anaknya kecuali diminta tidak."
     }
   },
   "Mixer": {
@@ -7465,20 +7470,8 @@
     },
     "summary": "Sebuah gambar dan keadaan sampler yang dipakai untuk membacanya, serta transformasi koordinatnya."
   },
-  "GraphMesh": {
-    "summary": "Node yang digambar: geometri dan permukaannya, atau satu permukaan per grup geometri.",
-    "members": {
-      "kind": "Digambar di satu penempatan, atau di beberapa (`GraphInstancedMesh`).",
-      "morphTargetInfluences": "Bobot setiap target morph, bila geometri mendeklarasikannya.",
-      "morphTargetDictionary": "Peringkat setiap target morph menurut namanya.",
-      "geometry": "Bentuknya.",
-      "material": "Permukaannya, atau satu per grup geometri.",
-      "updateMorphTargets": "Satu bobot nol per target morph dari atribut ter-morph pertama, dinamai menurut peringkat.",
-      "copy": "Mengambil nilai `source`, dan salinan anak-anaknya kecuali diminta tidak."
-    }
-  },
   "GraphNodeKind": {
-    "summary": "Apa sebuah node graf: akar, mesh yang digambar (di satu penempatan atau beberapa), mata, atau salah satu cahaya yang dideklarasikan adegan."
+    "summary": "Apa sebuah node graf: akar, mata, atau salah satu cahaya yang dideklarasikan adegan."
   },
   "Joint": {
     "summary": "Sambungan antara dua benda, atau antara benda dan dunia (`b` null), dibuat dengan `joint.*` dan ditambahkan ke simulasi dengan `world.physics.add`.",
