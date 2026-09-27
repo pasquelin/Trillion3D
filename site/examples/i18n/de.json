@@ -2151,8 +2151,8 @@
   "a-folder-merged-into-one-scene": {
     "banner": "Ziehen Sie, um die Straßenecke anzusehen. Der Compiler hat drei OBJ-Dateien aus einem Ordner zu dieser Szene vereint.",
     "controls": {
-      "spin": "Drehen",
-      "visible": "Sichtbar"
+      "visible": "Sichtbar",
+      "home": "Startansicht"
     },
     "words": {
       "credit": "Straßenlaternenmodell von W. Sitters, CC BY 3.0 — siehe assets/examples/CREDITS.md"
