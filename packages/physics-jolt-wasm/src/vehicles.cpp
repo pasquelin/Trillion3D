@@ -4,6 +4,7 @@
 // and each step's wheels are written back for the page to draw. Word layouts:
 // `packages/sdk-core/src/physics/vehicleLayout.ts` (VEHICLE, UNVEHICLE, DRIVE).
 #include "binding.h"
+#include "slotLists.h"
 #include "words.h"
 
 #include <Jolt/Physics/Body/BodyLock.h>
@@ -16,6 +17,7 @@
 #include <Jolt/Physics/Vehicle/VehicleConstraint.h>
 #include <Jolt/Physics/Vehicle/WheeledVehicleController.h>
 
+#include <algorithm>
 #include <cmath>
 
 using namespace JPH;
@@ -41,6 +43,9 @@ constexpr float LEAN_OMEGA = 12.5f, LEAN_DAMPING = 1.25f;
 /// A track's grip along and across itself on firm ground, and its share of the vehicle's mass,
 /// turning at its sprocket's radius (vehicleSpec.ts TRACKS).
 constexpr float TRACK_GRIP = 1.0f, TRACK_SLIDE = 0.5f, TRACK_MASS = 0.05f;
+/// Writes of a resting vehicle's state before it goes quiet until it moves: the step it fell
+/// asleep measured its wheels before, the next after; the page keeps the last one.
+constexpr uint32_t REST_WRITES = 2;
 
 struct Vehicle {
   Ref<VehicleConstraint> constraint;
@@ -56,9 +61,14 @@ struct Vehicle {
   std::vector<float> bars;
   /** The suspension's angular frequency and damping ratio, and the step the bars are set for. */
   float omega = 0, damping = 0, barStep = 0;
+  /** Steps its state was written since its body last rested (`REST_WRITES`). */
+  uint32_t restWrites = 0;
 };
 
 std::vector<Vehicle> vehicles;
+/** The vehicles (their index in `vehicles`) on each body slot: a body's removal takes out its own
+ *  without walking every vehicle (PHY-15). */
+SlotLists<uint32_t> onBody;
 /** After a step, the vehicles' state (`VEHICLE_STATE_WORDS`, `WHEEL_STATE_WORDS` per wheel). */
 std::vector<uint32_t> state;
 
@@ -247,6 +257,7 @@ void lower(Body &body, const uint32_t *w) {
 
 void remove(Vehicle &vehicle) {
   if (vehicle.constraint) {
+    onBody.remove(vehicle.body, uint32_t(&vehicle - vehicles.data()));
     world().system->RemoveStepListener(vehicle.constraint);
     world().system->RemoveConstraint(vehicle.constraint);
     reshape(*vehicle.constraint->GetVehicleBody(), vehicle.shape, vehicle.shape);
@@ -272,6 +283,7 @@ void add(const uint32_t *w) {
   // motorcycle sample casts it): leaned, it rolls on its shoulder rather than on an edge.
   else vehicle.constraint->SetVehicleCollisionTester(new VehicleCollisionTesterCastCylinder(MOVING, w[2] == MOTORCYCLE ? 1.0f : 0.1f));
   vehicle.id = id, vehicle.body = slotIndex, vehicle.kind = w[2];
+  onBody.add(slotIndex, index);
   float steerTime = f32(w + 5 + 29);
   vehicle.steerRate = steerTime > 0 ? 1.0f / steerTime : FLT_MAX;
   vehicle.trackTurn = Clamp(f32(w + 5 + 31), 0.01f, 1.0f);
@@ -345,8 +357,11 @@ uint32_t vehicleCommand(const uint32_t *w) {
 }
 
 void dropVehicles(uint32_t index) {
-  for (Vehicle &vehicle : vehicles)
-    if (vehicle.constraint && vehicle.body == index) remove(vehicle);
+  // A copy, since removing unlists; in the order of `vehicles`, as a walk over all of them went.
+  static std::vector<uint32_t> on;
+  on = onBody.at(index);
+  std::sort(on.begin(), on.end());
+  for (uint32_t v : on) remove(vehicles[v]);
 }
 
 void driveVehicles(float dt) {
@@ -356,6 +371,10 @@ void driveVehicles(float dt) {
     if (!vehicle.constraint) continue;
     setBars(vehicle, dt);
     applyInput(vehicle, dt);
+    // Past its rest writes, its wheels are not cast while inactive (0; Jolt's default 1 casts every
+    // step): the running gear is part of the body's own shape (`lower`), so what moves into the
+    // wheels meets the body and wakes it, and the wheels are cast again once it is awake.
+    vehicle.constraint->SetNumStepsBetweenCollisionTestInactive(vehicle.restWrites >= REST_WRITES ? 0 : 1);
     // A vehicle driven, or whose wheel still turns back, stays awake.
     if (vehicle.throttle > 0 || vehicle.brake > 0 || vehicle.handbrake > 0 || vehicle.steered != 0)
       bodies.ActivateBody(vehicle.constraint->GetVehicleBody()->GetID());
@@ -369,9 +388,13 @@ void writeVehicles() {
     std::memcpy(&word, &value, 4);
     state.push_back(word);
   };
-  for (const Vehicle &vehicle : vehicles) {
+  for (Vehicle &vehicle : vehicles) {
     if (!vehicle.constraint) continue;
     const Body &body = *vehicle.constraint->GetVehicleBody();
+    // At rest, its state is written `REST_WRITES` times, then not until it moves.
+    if (body.IsActive()) vehicle.restWrites = 0;
+    else if (vehicle.restWrites >= REST_WRITES) continue;
+    else ++vehicle.restWrites;
     const auto *controller = vehicle.constraint->GetController();
     const VehicleEngine &engine = vehicle.kind == TRACKED ? static_cast<const TrackedVehicleController *>(controller)->GetEngine() : static_cast<const WheeledVehicleController *>(controller)->GetEngine();
     const VehicleTransmission &gearbox = vehicle.kind == TRACKED ? static_cast<const TrackedVehicleController *>(controller)->GetTransmission() : static_cast<const WheeledVehicleController *>(controller)->GetTransmission();

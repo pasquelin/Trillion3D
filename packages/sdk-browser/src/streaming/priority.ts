@@ -6,6 +6,7 @@ import {
 } from '../../../sdk-core/src/index.ts';
 import { clipWeight } from '../../../sdk-core/src/math/primitives/camera.ts';
 import { copyElements, type MatrixElements } from '../math/matrixElements.ts';
+import { hypot3 } from '../../../sdk-core/src/math/primitives/hypot.ts';
 
 /** Everything the order needs from a cluster record; a superset of `PageRec`. */
 export interface PriorityRecord {
@@ -58,7 +59,7 @@ function boxSphere(
   out[at] = (x0 + x1) / 2;
   out[at + 1] = (y0 + y1) / 2;
   out[at + 2] = (z0 + z1) / 2;
-  out[at + 3] = Math.hypot(x1 - out[at], y1 - out[at + 1], z1 - out[at + 2]);
+  out[at + 3] = hypot3(x1 - out[at], y1 - out[at + 1], z1 - out[at + 2]);
   return out;
 }
 function boundsSphere(record: PriorityRecord, out: Float64Array) {
@@ -123,12 +124,12 @@ export function orderPendingUrls(
               near,
               perspective,
             );
-      distance = Math.hypot(centre[0], centre[1], centre[2]);
+      distance = hypot3(centre[0], centre[1], centre[2]);
     } else {
       // No cluster error: fall back on the screen footprint of the bounds, which orders the same way.
       const hull = boundsSphere(record, bounds);
       pixels = sphereScreenRadius(hull, frame.view, frame.stretch, focal, near, perspective);
-      distance = Math.hypot(centre[0], centre[1], centre[2]);
+      distance = hypot3(centre[0], centre[1], centre[2]);
     }
     const held = slots.get(key);
     if (!held) {
@@ -156,7 +157,7 @@ function sphereScreenRadius(
   perspective: number,
 ) {
   project(view, sphere, centre);
-  const distance = Math.hypot(centre[0], centre[1], centre[2]);
+  const distance = hypot3(centre[0], centre[1], centre[2]);
   const w = clipWeight(perspective, distance);
   return (centre[3] * stretch * focal) / Math.max(w, perspective * near);
 }

@@ -6,6 +6,40 @@ pub fn geometry_page_format() -> Value {
     json!({"formatVersion":trillion3d_page_codec::VERSION,"codec":"quantized"})
 }
 
+/// The attributes a page carries beside its positions, read from the primitive's accessors: each
+/// holds `count` vertices, the width the format expects, or three for a colour.
+pub(super) fn page_attributes(
+    g: &Value,
+    bin: &[u8],
+    p: &Value,
+    count: usize,
+    validated: &BTreeSet<usize>,
+) -> Result<Vec<geometry_page::Attribute>> {
+    let mut attributes = Vec::new();
+    for &(name, width, flag) in &geometry_page::PAGE_ATTRIBUTES {
+        let Some(id) = p
+            .get("attributes")
+            .and_then(Value::as_object)
+            .and_then(|attributes| attributes.get(name))
+        else {
+            continue;
+        };
+        let a = accessor(g, bin, required_index(Some(id), name)?, Some(validated))?;
+        if a.count != count || (a.width != width && !(name == "COLOR_0" && a.width == 3)) {
+            return Err(CompilerError::new(
+                "INVALID_PAGE_ATTRIBUTE",
+                format!("{name} count or width differs from POSITION"),
+            ));
+        }
+        attributes.push(geometry_page::Attribute {
+            flag,
+            width: a.width,
+            values: a.collect_f32()?,
+        });
+    }
+    Ok(attributes)
+}
+
 /// Writes a geometry page into the content-addressed store and returns its
 /// manifest entry.
 ///
@@ -18,11 +52,12 @@ pub(super) fn store_page(
     pos: &[f32],
     page_attributes: &[&geometry_page::Attribute],
     position_exponent: i32,
+    uv_exponent: i32,
 ) -> Result<(Value, bool)> {
     let geometry_page::Encoded {
         bytes: data,
         header,
-    } = geometry_page::encode(slice, pos, page_attributes, position_exponent)?;
+    } = geometry_page::encode(slice, pos, page_attributes, position_exponent, uv_exponent)?;
     let digest = hash(&data);
     let name = format!("../../objects/{}.bin", digest);
     let target = object_path(o, &digest);
@@ -36,10 +71,14 @@ pub(super) fn store_page(
     ))
 }
 
-/// What the primitive's grid cost, for the manifest: the grid exponent and the largest position
+/// What the primitive's grid cost, for the manifest: the grid exponents and the largest position
 /// displacement over every page, in object units; `null` on a primitive without pages, which
 /// was quantized on no grid.
-pub(super) fn quantization_report(pages: &[Value], position_exponent: i32) -> Value {
+pub(super) fn quantization_report(
+    pages: &[Value],
+    position_exponent: i32,
+    uv_exponent: i32,
+) -> Value {
     if pages.is_empty() {
         return Value::Null;
     }
@@ -51,7 +90,7 @@ pub(super) fn quantization_report(pages: &[Value], position_exponent: i32) -> Va
         });
     json!({
         "positionExponent": position_exponent,
-        "uvExponent": crate::geometry_page_quant::UV_EXPONENT,
+        "uvExponent": uv_exponent,
         "maxPositionError": worst,
     })
 }

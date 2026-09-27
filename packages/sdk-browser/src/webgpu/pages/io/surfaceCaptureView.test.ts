@@ -15,10 +15,10 @@ test('opaque materials are rendered before lighting into reusable GPU surface te
     backend.render(camera());
     await backend.flush?.();
     backend.render(camera());
-    // The four surfaces, then the virtual textures feedback target (`r32uint` as well).
+    // The four surfaces, the flags in `r8uint`, then the virtual textures feedback target.
     const surface = passes.findIndex(
       (pass) =>
-        pass.formats.length === 5 && pass.formats[3] === 'r32uint' && pass.formats[4] === 'r32uint',
+        pass.formats.length === 5 && pass.formats[3] === 'r8uint' && pass.formats[4] === 'r32uint',
     );
     const lighting = passes.findIndex(
       (pass, i) => i > surface && pass.formats.length === 1 && pass.formats[0] === 'rgba16float',

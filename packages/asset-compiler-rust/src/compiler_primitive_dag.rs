@@ -55,6 +55,7 @@ pub(super) fn build_dag_primitive(
     carried: &[&geometry_page::Attribute],
     index_values: &[u32],
     proxy_demand: crate::proxy::cut::CutDemand,
+    blended: bool,
     store_packed: &(impl Fn(&[u32], i32) -> Result<(Value, bool)> + Sync),
 ) -> Result<DagResult> {
     let strategy = crate::dag::DagStrategy::named(&o.simplification);
@@ -87,6 +88,7 @@ pub(super) fn build_dag_primitive(
     let position_exponent = crate::geometry_page_quant::primitive_exponent(
         pos,
         dag.iter().filter(|c| c.level > 0).map(|c| c.lod_error),
+        blended,
     );
     let (pages, reused, stream_report) = bundle_dag_pages(
         o,

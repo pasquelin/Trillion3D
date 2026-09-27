@@ -2,7 +2,7 @@ import { HIZ_SHADER, HIZ_TEST_PAGES_ENTRIES, hizBindEntries } from './shader.ts'
 import { validated } from '../core/errorScope.ts';
 import { shaderFailed } from '../core/shaderModule.ts';
 
-/** Compile the three Hi-Z kernels under one device validation scope. */
+/** Compile the two Hi-Z kernels, build and test, under one device validation scope. */
 export function createHizPipelines(device: GPUDevice, uniformBytes: number) {
   return validated(device, async () => {
     const layout = device.createBindGroupLayout({ entries: hizBindEntries(uniformBytes) });
@@ -17,8 +17,7 @@ export function createHizPipelines(device: GPUDevice, uniformBytes: number) {
     return {
       layout,
       pagesGroup: hizPagesGroup(device, pagesLayout),
-      copyPipeline: stage('copyDepth'),
-      reducePipeline: stage('reduceHiz'),
+      buildPipeline: stage('buildHiz'),
       testPipeline: stage('testHiz', [layout, pagesLayout]),
     };
   });
