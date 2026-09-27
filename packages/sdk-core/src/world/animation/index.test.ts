@@ -121,7 +121,9 @@ test('a rotation and its opposite sign blend to that rotation, not to zero', () 
 /** A mixer on `rig()` with one action sliding `arm` from x 0 to x 10 over one second. */
 function slide() {
   const { root, arm } = rig();
-  const clip = animation.clip('slide', 1, [animation.numberTrack('arm.position.x', [0, 1], [0, 10])]);
+  const clip = animation.clip('slide', 1, [
+    animation.numberTrack('arm.position.x', [0, 1], [0, 10]),
+  ]);
   return { root, arm, action: animation.createMixer(root).clipAction(clip) };
 }
 

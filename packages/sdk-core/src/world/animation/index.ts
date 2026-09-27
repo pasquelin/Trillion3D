@@ -29,7 +29,7 @@ const track =
 
 /** Every mixer with an action playing: what a world's loop advances each frame. */
 const playing = new Set<Mixer>();
-/** The actions a seek has their mixer's next update pose, playing or not. */
+/** The stopped actions a seek has their mixer's next update pose once. */
 const seeking = new WeakSet<Action>();
 
 /** `path` = `node.property[.property…]`; an empty node is the mixer's root. */
@@ -86,10 +86,10 @@ export class Action {
     return this;
   }
   /** Poses the clip at `time` seconds now, by its loop mode, playing or not: a playing action goes
-   *  on from there, a stopped one stays posed. */
+   *  on from there, a stopped one keeps the pose until a playing action of its mixer writes over it. */
   seek(time: number) {
     this.time = time;
-    seeking.add(this);
+    if (!this.playingNow) seeking.add(this);
     this.mixer.update(0);
     return this;
   }
@@ -130,7 +130,7 @@ export class Mixer {
     let active = false;
     const blends = this.#blends;
     for (const action of this.actions.values()) {
-      if (!seeking.delete(action) && !action.playingNow) continue;
+      if (!action.playingNow && !seeking.delete(action)) continue;
       action.time += seconds * action.timeScale;
       if (action.loop === 'once' && action.time >= action.clip.duration) action.playingNow = false;
       active ||= action.playingNow;
