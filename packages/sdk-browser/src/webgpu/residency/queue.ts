@@ -4,6 +4,7 @@ import type { createWebgpuDiagnostics } from '../pages/io/diagnostics.ts';
 import type { createWebgpuPageTracking } from '../row/pageTracking.ts';
 import type { WebgpuResidencySets } from './sets.ts';
 import { pageAddress } from '../row/pageSlots.ts';
+import type { GpuCut } from '../../gpu/core/selection.ts';
 
 type Cache = ReturnType<typeof createGpuPageCache>;
 type Diagnostics = ReturnType<typeof createWebgpuDiagnostics>;
@@ -15,7 +16,11 @@ type QueueOptions = {
   room: () => number;
   getCache: () => Cache | undefined;
   getFrame: () => number;
+  /** The CPU cut's pin step (`pinUpdater.ts`). */
   updatePins: () => void;
+  /** The GPU cut's admission and pin step (`requestAdmission.ts`, `requestPins.ts`). */
+  admitRequests: (room: number, cut: GpuCut | null) => void;
+  followRequestPins: () => void;
   ensureResident: (
     wanted: readonly PageRec[],
     frame: number,
@@ -39,11 +44,11 @@ export function createWebgpuResidencyQueue(options: QueueOptions) {
     running = false,
     job = 0;
 
-  const follow = () => {
+  const follow = (pins: () => void) => {
     const queuedAt = performance.now(),
       jobId = ++job,
       jobFrame = getFrame();
-    updatePins();
+    pins();
     scheduled = true;
     if (traceEnabled)
       traceDiagnostic('residency-queue', 'GPU residency queued', () => ({
@@ -107,15 +112,19 @@ export function createWebgpuResidencyQueue(options: QueueOptions) {
   return {
     items,
     /**
-     * The cut has already applied its delta; only the page budget remains to be enforced. `limited`
-     * says the requested coverage does not fit in the slots: the budget is then zero, the queue
-     * empties, and the image sticks to pinned coverage. The two cut paths do not say the same thing
-     * about it and each says it, with no default: the GPU cut keeps loading at full budget, the
-     * coarsest pages first, and the rest is drawn by its nearest resident ancestor.
+     * The CPU cut's: it has already applied its delta; only the page budget remains to be enforced.
+     * `limited` says the requested coverage does not fit in the slots: the budget is then zero, the
+     * queue empties, and the image sticks to pinned coverage.
      */
     queueCutResidency(limited: boolean) {
       sets.applyBudget(limited ? 0 : options.room());
-      follow();
+      follow(updatePins);
+    },
+    /** The GPU cut's: it keeps loading at full budget, admission following its sorted requests
+     *  and the pins what it admitted; the rest is drawn by its nearest resident ancestor. */
+    queueGpuCutResidency(cut: GpuCut | null) {
+      options.admitRequests(options.room(), cut);
+      follow(options.followRequestPins);
     },
     nextJobId: () => ++job,
     quietPending: () => {

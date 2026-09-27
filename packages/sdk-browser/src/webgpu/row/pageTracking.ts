@@ -30,7 +30,10 @@ export function createWebgpuPageTracking(allPages: PageRec[]) {
    */
   const wantedPages: PageRec[] = [];
   const wanted = createDenseKeySet(wantedPages);
-  const keep = createDenseKeySet();
+  /** The record each kept key joined by, none for the root cover: what a pin step started afresh
+   *  reads their parents on. */
+  const keepPages: (PageRec | undefined)[] = [];
+  const keep = createDenseKeySet(keepPages);
   const pinned = createDenseKeySet();
   /**
    * Keys something outside the residency path unpinned — a host page drop. The pin step drains this
@@ -98,6 +101,7 @@ export function createWebgpuPageTracking(allPages: PageRec[]) {
     wanted,
     wantedPages,
     keep,
+    keepPages,
     pinned,
     unpinned,
     markPinned,
