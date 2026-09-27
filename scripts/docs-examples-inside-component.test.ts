@@ -19,11 +19,12 @@ test('the component owns exactly one world for each attachment', async () => {
   let element: TestElement | undefined;
   let created = 0;
   let disposed = 0;
+  const canvases: { id: string }[] = [];
   let buttons = {} as Record<'mount' | 'unmount' | 'remount', () => void>;
 
   class TestElement {
     isConnected = true;
-    world?: { scene: { children: unknown[] } };
+    world?: { canvas: { id: string }; scene: { children: unknown[] } };
     connectedCallback?(): void;
     disconnectedCallback?(): void;
     remove() {
@@ -63,7 +64,10 @@ test('the component owns exactly one world for each attachment', async () => {
         createWorld(target: TestElement) {
           assert.equal(target, element);
           created++;
+          const canvas = { id: '' };
+          canvases.push(canvas);
           return {
+            canvas,
             scene: new Scene(() => Promise.reject(new Error('the component loads no asset'))),
             camera: new Camera('perspective'),
             controls: { target: math.vector3(), maxPolarAngle: 0 },
@@ -99,6 +103,11 @@ test('the component owns exactly one world for each attachment', async () => {
     assert.deepEqual([created, disposed], [3, 2], 'remount disposes before creating');
     assert.ok(element?.world);
     assert.equal(element.world.scene.children.length, 4, 'each world receives the same scene');
+    assert.deepEqual(
+      canvases.map(({ id }) => id),
+      ['view', 'view', 'view'],
+      'each engine-owned canvas keeps the capture name',
+    );
   } finally {
     Object.assign(globalThis, previous);
   }
