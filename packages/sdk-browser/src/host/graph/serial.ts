@@ -7,7 +7,7 @@
 import { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts';
 import { Camera } from '../../../../sdk-core/src/world/camera/camera.ts';
 import { Scene } from '../../world/core/scene.ts';
-import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
+import { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 
 let next = 1;
 /** A number no engine node has yet. */
@@ -20,11 +20,12 @@ const isNumbered = (node: Object3D) =>
   node instanceof Mesh || node instanceof Camera || node instanceof Scene;
 
 /** Numbers every mesh, camera and scene of `node`'s subtree not numbered yet, in the order a
- *  copy builds them. */
-export function numbered<T extends Object3D>(node: T): T {
-  node.traverse((part) => {
-    if (isNumbered(part) && !numbers.has(part)) numbers.set(part, takeSerial());
-  });
+ *  copy builds them; a host object that is no node of the core's is left as it is. */
+export function numbered<T extends object>(node: T): T {
+  if (node instanceof Object3D)
+    node.traverse((part) => {
+      if (isNumbered(part) && !numbers.has(part)) numbers.set(part, takeSerial());
+    });
   return node;
 }
 
