@@ -63,4 +63,5 @@ test('a copied instanced mesh keeps its placements, count, morph weights and dra
   assert.equal(copy.instanceMatrix.array[16], 7);
   assert.equal(copy.count, 1);
   assert.deepEqual(copy.morphTargetInfluences, [0.5]);
+  assert.equal(geometry._listeners.size, 0, 'a mesh in engine surfaces holds no listener');
 });

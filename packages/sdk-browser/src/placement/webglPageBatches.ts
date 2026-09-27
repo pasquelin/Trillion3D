@@ -5,15 +5,13 @@ import {
   setHostInstance,
   setHostInstanceCount,
 } from '../host/pageObjects.ts';
-import type { HostMaterials } from '../host/resources.ts';
-import type { InstancedMesh } from '../../../sdk-core/src/world/object/instancedMesh.ts';
-import type { GraphSurface } from '../host/graph/surface.ts';
+import type { HostInstancedMesh, HostMaterials } from '../host/resources.ts';
 import type { PageRec } from '../page/selection/types.ts';
 import { grownCapacity } from './rows.ts';
 import type { Geometry } from '../../../sdk-core/src/world/geometry/geometry.ts';
 
 type Group = {
-  mesh: InstancedMesh<GraphSurface> | null;
+  mesh: HostInstancedMesh | null;
   capacity: number;
   count: number;
   first: PageRec;

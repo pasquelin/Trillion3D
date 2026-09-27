@@ -5,7 +5,7 @@ import type { PageSurface } from '../page/surface.ts';
 import { placementWorld, type PlacementOf, type PlacementRows } from '../placement/rows.ts';
 import { notDrawn } from '../placement/hidden.ts';
 import { growPlaced } from '../placement/growth.ts';
-import { Mesh } from '../../../sdk-core/src/world/object/mesh.ts';
+import { hostMeshCopy } from '../host/scene/graphObjects.ts';
 
 /**
  * The transparent draw copy of an engine that draws its display graph whole — the WebGL2 page
@@ -36,11 +36,10 @@ export function createBlendCopy(
   surface: PageSurface,
   placement?: PlacementOf,
 ): BlendCopy {
-  const source = mesh as unknown as HostMesh;
-  const copy = new Mesh(source.geometry, source.material);
+  const copy = hostMeshCopy(mesh);
   copy.matrixAutoUpdate = false;
   copy.matrix.elements = world.elements as Float64Array;
-  copy.frustumCulled = source.frustumCulled;
+  copy.frustumCulled = mesh.frustumCulled;
   copy.renderOrder = renderOrder;
   copy.userData.sourceMesh = mesh;
   // The engine reads the surface off the record the collection built; the declaration stays on

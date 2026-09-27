@@ -5,6 +5,7 @@
 // The 4×4 pose is `MatrixElements` (`matrixElements.ts`).
 import type { VertexAttribute } from '../../../sdk-core/src/world/buffer/attribute.ts';
 import type { Mesh } from '../../../sdk-core/src/world/object/mesh.ts';
+import type { InstancedMesh } from '../../../sdk-core/src/world/object/instancedMesh.ts';
 import type { GraphSurface } from './graph/surface.ts';
 import type { GraphTexture } from './graph/texture.ts';
 
@@ -47,6 +48,8 @@ export type HostMaterials = GraphSurface | GraphSurface[];
 /** A drawn node of the graph, held by identity: the draw record, the transparent table and the
  *  selection sets name the mesh the engine placed. */
 export type HostMesh = Mesh<GraphSurface>;
+/** A drawn node of the graph at several placements, one matrix each. */
+export type HostInstancedMesh = InstancedMesh<GraphSurface>;
 
 /** A host colour: three linear components, read one by one and written the same way. The engine
  *  never converts here — a colour crosses as the host holds it. */
