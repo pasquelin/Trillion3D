@@ -106,6 +106,9 @@ a completely GPU-autonomous engine.
 the current and the predicted one, each side opened by the angle the camera turns over the horizon.
 It is one descent: what the camera rejects is tried against the view ahead, never drawn, only
 requested, in a lower request tier ranked after every visible request, at most half the readback.
+The cut sorts its requests by that rank on the GPU, visible tier first and the larger replacement
+error first within a tier (`dagSortRequests`, `gpu/dag/shader/snapshotWgsl.ts`); the host reads
+them in that order and ranks nothing.
 The host serves those pages through the one residency queue as a lower tier after the camera's and
 the light cuts' (`webgpu/residency/lowerTier.ts`): never pinned, never evicting a camera page, and
 replaced by an empty list once the camera stops. A still camera sends no view ahead and cuts as
@@ -113,7 +116,8 @@ before. Admission starts no page once it has held the main thread for the publis
 `STREAMING_FRAME_MS` (1 ms): it yields a task and resumes at once (`page/integration/frameBudget.ts`,
 the arrival queue's budget), so a due frame waits on it no longer than the share and the page begun
 within it, and a hidden tab, where no frame comes, still loads.
-Fetching and decoding stay in workers. WebGL2 keeps its own path (#490).
+Fetching and decoding stay in workers. WebGL2 cuts by the same rule and holds pages by the same
+residency, without the GPU cut or its readback (#490, #839).
 
 **Occlusion** is two-phase Hi-Z. Pass 1 draws the rows the previous frame drew that the previous
 frame's pyramid does not hide; a pyramid is built from that depth (background at the far plane, min
@@ -241,6 +245,19 @@ pass: measured on the frame envelope, not by its own timestamp.
 
 ## Direct lighting
 
+**Any number of lights.** The light table grows with the scene —
+doubled when full, the GPU light buffer with it, and every pass that binds it binds the new one —:
+`addLight` never refuses a light for its rank. The tile pass tests the lights 256 at a time, one
+per thread of a 16 × 16 tile, and keeps in each of its two lists those whose range reaches the
+tile's depth slice, in increasing rank, up to `tileLights` (64): the lists' memory follows the view
+alone, 4.2 MB at 1920 × 1080 and 15.7 MB at 3456 × 2234, whatever the scene holds. A tile reached
+by more than `tileLights` (64) lights keeps its true count, reads no list, and walks every light of the
+scene: those that miss it add an exact zero, so nothing is dropped and the sum is the same, only
+dearer on that tile. A pixel costs what the lamps reaching its tile cost while they are 64 or fewer,
+and what every lamp of the scene costs past that; a per-tile pool bounding that walk by the view is
+#849. A shadow caster past the 64 shadow slices lights without a shadow and is counted
+(`shadowCastersUnsliced`, #818). WebGL2 keeps its 64 slots until #835 and refuses more out loud.
+
 **A moving image shades a drawn subset of each pixel's lights.** A moving image weighs every light
 of its tile without its shadow (the cheap part) and shades in full, shadow included, four of them. A
 light worth a sample's share of the pixel's weight is shaded exactly and leaves the pool; the
@@ -269,9 +286,9 @@ WebGPU device offers (4 096 pages, 256 MiB, and 128 MiB of transmittance), reach
 the pool is the only limit on the pages a frame holds: what it cannot hold is refused at allocation
 and published as memory (`shadowPagesOverflow`, #542), read at the coarser level meanwhile, and
 pages are evicted least recently read first. A lamp face's finest mip is 32 × 32 pages (`lampFaceSize`).
-The table gives each of the 64 shadow slices (`maxLights`) a fixed window of the largest range a
+The table gives each of the 64 shadow slices (`MAX_SHADOW_SLICES`) a fixed window of the largest range a
 light needs, a whole sun's 16 × 64 × 64 words (`SHADOW_TABLE_STRIDE`): 2^22 words, 16 MiB
-(`SHADOW_TABLE_ENTRIES`), so every shadow-casting light the contract accepts holds its range.
+(`SHADOW_TABLE_ENTRIES`), so every shadow-casting light that holds a slice holds its range.
 The GPU total's shadow share counts it with the pool (`SHADOW_POOL_BYTES`). Its host mirror — the
 words, a change flag per word, the pool's page records and eviction bitset, and the frame's page
 list (`admit.ts`) at the largest pool, with the shadow batches' host lists
@@ -619,19 +636,31 @@ never comes before the pages it depends on (`backend/autonomous/requests.ts`). T
 list in its order while the copies it charges fit its slots, the root cover held beforehand
 (`backend/autonomous/pool.ts`); the rest is not asked for, and the cut draws its nearest resident
 ancestor instead. A smaller budget is therefore paid in detail, one DAG level at a time, from the
-finest down: the image that sees it asks for less, and just before the next cut the pages it drew
-but no longer asks for leave, so that cut draws their ancestors (`backend/autonomous/poolOrder.ts`).
+finest down: the image that sees it asks for less. What stays resident is decided by the engine's one
+residency, fed as WebGPU feeds it (`residency/lastUse.ts`): what the image asks for and what it draws
+are held, each holding the pages it depends on (`residency/pageParents.ts`), so the ancestor a surface
+falls back to never leaves under it. Just before a cut, what the last image drew but no longer asks
+for lets go, one DAG level per image, finest first; a page let go of is released at the next cut, or
+at once when the pool is short by that many slots, the window giving way as WebGPU's does under
+pressure (`backend/autonomous/poolOrder.ts`). Released pages leave by last use, oldest first
+(`evictOldest`). A budget cut is thus paid one level per image, and the residency's keys follow what
+is held, never every page once asked for (`backend/autonomous/pageKeys.ts`).
 `coverageBudgetLimited` says the wanted cut did not fit; a verdict change is queued and published as
 `coverage-budget` by `flush`, as on WebGPU, with `requiredSlots` the slots the whole request charges
-and `pixelError` the host's threshold. Between two cuts, what the image keeps — the root cover, the
-host's pages, what it asks for and what it drew — never leaves; over the slots, the rest leaves
-oldest first (`evictOldest`, the page streamer's order). A refinement may hold more for a while: a
-resident ancestor drawn in place of a missing page is kept while the pages that replace it arrive,
-and leaves with the cut that no longer draws it. Only
-the root cover and the pages the host replaced (`replaceGeometryPage`) stay above it; they are
+and `pixelError` the host's threshold. Between two cuts, what the image drew and every page that
+arrived since never leave: no hole, and a page is not evicted on arrival. Only
+the root cover and the pages the host replaced (`replaceGeometryPage`) stay above the slots; they are
 counted as the pages' bytes are, every geometry copy included. No pool is reserved:
 `geometryPoolAllocatedBytes` is `null`, and what the pages hold is `geometryAllocationBytes`.
 Backends without pools throw `UNSUPPORTED_MEMORY_BUDGETS`.
+
+**What WebGL2 declares it cannot carry.** WebGL2 keeps the cut rule, the residency and the budget
+above; what it lacks it names in `capabilities.unsupported` and in the `render-capabilities`
+diagnostic it publishes when it opens (`backend/autonomous/capabilities.ts`), never silently: no
+GPU-driven selection or indirect draw (the cut runs on the CPU), no occlusion culling, no cast
+shadows (neither the shadow atlas nor virtual shadow pages: its lights reach every surface,
+`webgl/cluster/lights.ts`), no global illumination, no temporal antialiasing, no physical VRAM
+reading. Each costs work or a feature, never coverage: no hole and no stale image.
 
 A region keeps a complete resident representation until every replacement page is uploaded: the
 cut rule below draws its nearest resident ancestor meanwhile, never the root cover in its place.
@@ -682,9 +711,16 @@ Shared URLs occupy one slot across instances. Two counters say different things:
 | `pagesDetached`  | clusters that left the drawn cut since the backend was created: cut churn, not memory pressure  | the WebGL page paths |
 | `cacheEvictions` | pages actually evicted from the cache that feeds the drawn geometry: the memory-pressure signal | every backend        |
 
-`coverageReady`, `coverageBudgetLimited` and `streamingError` report coverage;
-the `coverage-*` diagnostics trace bootstrap, budget, upload and streaming failures. A failed URL is
-retried at most three times per session; an initial cover read failure rejects preparation.
+`coverageReady`, `coverageBudgetLimited` and `streamingError` report coverage; the `coverage-*`
+diagnostics trace bootstrap, budget, upload and streaming failures. A failed URL is retried at
+most three times per session; an initial cover read failure rejects preparation.
+
+On WebGL2, `uncoveredTriangles` counts the holes of the image's cut (`page/cut/take.ts`): the
+triangles of the root-cover clusters in view the cut rule would draw but that are not resident,
+nothing coarser standing in for them. Zero is the only healthy value: once `prepare` holds the root
+cover, a non-zero reading means that floor broke. The WebGPU path reads `null` by design: its cuts
+draw what they select, so the no-hole proof is on the drawn set. WebGL2 also publishes
+`drawnTriangles` (`bench/runner/README.md`).
 
 ## Virtual textures
 
@@ -737,7 +773,9 @@ writes a pose buffer and an event buffer. No emscripten glue is kept; the engine
 
 - **Cooked shapes.** `RESTORE` carries a shape's Jolt binary state (`src/blob.h`, the stream the
   compiler's cook writes) under a handle, an `ADD` of kind `cooked` names the handle, and `RELEASE`
-  drops it: the body keeps the shape. `physics/tiles.ts` streams a compiled model's tiles this way,
+  drops it: the body keeps the shape. `physics/tiles.ts` streams a compiled model's tiles this way
+  (around the moving bodies, then the eye; nearest first within the collision share, `LOADS` a
+  frame, a resident tile kept half as far again),
   `physics/raycast.ts` asks `jolt_cast` (a batch of rays and shape sweeps, between two ticks) for
   `world.raycast(at, { exact: true })`.
 - **Worker.** `physics/physicsWorker.ts` steps at a fixed 60 Hz, at most four catch-up steps a
@@ -774,15 +812,21 @@ writes a pose buffer and an event buffer. No emscripten glue is kept; the engine
 - **Distance and view.** The page sends its eye, facing, view cone and range (`camera.far`) only
   when they change. In the module, a dynamic body beyond the range is deactivated with its
   velocities kept; a body out of the cone or hidden sends no pose until it is seen again.
-- **Budgets.** Bodies, static triangles and decorative bodies are counted on the page; memory is
-  enforced by the module's memory maximum; body pairs, contact constraints and events size the
+- **Budgets.** Bodies, static collision bytes (tiles as cooked, a triangle mesh at
+  `TRIANGLE_BYTES` a triangle, within half the module's memory: `collisionBytesOf`) and decorative
+  bodies are counted on the page; memory is enforced by the module's memory maximum; body pairs, contact constraints and events size the
   module's own buffers.
 - **Timing.** The `physics` stage of `WEBGPU_STAGES` / `WEBGL_STAGES` (host step `physicsMs`) is the
   page's share; the worker's per-step time is reported apart, in `world.physics.stats.stepMs`
   (the module's step alone, the clock `scripts/bench-physics.ts` reads in Node).
   Its GPU column is the particle step (`Trillion3D particles`, `particles/webgpuParticles.ts`).
-  On WebGL2 the same pools step in a 32-bit float ping-pong pass (`particles/webglParticles.ts`);
-  a context without `EXT_color_buffer_float` refuses them (`PARTICLES_UNSUPPORTED`).
+  Each pool is then one instanced disc draw over the lit image after the transparents
+  (`particles/webgpuParticleDraw.ts`), unsorted: `additive` in any order, `premultiplied` far to
+  near by origin, soft within `softness` of the opaque depth.
+  WebGL2 draws no particle yet (#844; its 32-bit float step, `particles/webglParticles.ts`,
+  waits for it): the frame composer refuses the pools by name (`PARTICLES_UNSUPPORTED`), heard
+  once as the world notice `particles-refused`, and the session draws on without them. WebGPU
+  without the visibility buffer refuses them on the same notice.
 - **Threads.** On a cross-origin isolated page the page loads `joltPhysicsThreads.wasm` (atomics,
   bulk memory, shared memory) and Jolt's own thread pool steps it: each pool thread starts in C
   through `pthread_create`, which the loader (`physics/joltThreads.ts`) answers with a worker that

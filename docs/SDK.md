@@ -931,8 +931,14 @@ light is a `SceneLight` (version 2) of one of three kinds. `point` and `spot` ca
 `range` in metres, `spot` also `direction` and a `coneAngle` half-angle; `directional` (sun,
 overcast sky) carries only `direction` — the propagation direction — and is refused if given a
 `position`, a `range` or a `coneAngle`. All three carry linear `color`, a positive radiometric
-`intensity` and `castsShadow`. Bounds: 64 lights, 32 per 16×16 screen tile, a 4096-square shadow
-atlas, and at most 24 shadow regions redrawn per frame.
+`intensity` and `castsShadow`. Bounds: none on the count — the light table grows with the scene;
+a 16×16 screen tile lists up to 64 lights reaching it and walks every light of the scene past
+that, a walk #849 bounds by the view —; 64 shadow slices,
+past which a caster lights without a shadow (`shadowCastersUnsliced`), and at most 24 shadow
+regions redrawn per frame. WebGL2 draws 64 lights and refuses more (#835). The shadow pool is sized
+once, at the first frame that casts a shadow, from its screen and its shadowed lights: layers of
+128² pages as wide as the device draws, within the budget's shadow share; `metric.frame(world)`
+publishes its `shadowPoolBytes` and `shadowPoolLayers`.
 
 `capability.lighting(world)` reports what the **active** renderer applies — `{ sceneLights,
 lightingView, shadows, transforms, reason? }` — not what the contract accepts: a call the light
@@ -998,8 +1004,8 @@ directional. A `point` or `spot` with no `range` gets `sqrt(I / 0.01 W·m⁻²)`
 A light that does not hold the contract is counted in the file's `rejected` map and left out.
 
 A light casts a shadow when the file says so (FBX carries the flag; glTF has none, so imported glTF
-lights cast one). Beyond 64 lights, the ones that carry furthest are kept — directionals first, then
-by peak channel intensity — and the rest are counted in the `imported-lights` diagnostic. A world
+lights cast one). Every light of the file is declared, however many: the `imported-lights`
+diagnostic counts them. A world
 reads them as `(await scene.load(url)).lights`, in cache order; each lamp is a child of the model,
 changed with `light.visible = false`, `model.remove(light)` or `light.intensity = …`. A cache
 without `lights.json` has none; one the server refuses otherwise fails the load
@@ -1028,16 +1034,16 @@ the next cut once they arrived (`geometryAllocationBytes` shows it; no pool is r
 `world.budget.cpu` what the world keeps in CPU memory. A fixed rule splits them, published
 as `world.budget.split`:
 
-- GPU: the shadow pool first, at its largest (the largest screen's side, its static layer and its
-  transmittance layer), then the bounce probes at their largest, then the effect chain's targets
+- GPU: the shadow pool first, as 3840 × 2160 under one sun takes it (two layers of 53² pages, its
+  static layer and its transmittance layer), then the bounce probes at their largest, then the effect chain's targets
   on the largest canvas the budget declares (`split.effectTargets`: 250.5 MiB on the default
   3840 × 2160 canvas); the rest in two halves, geometry and textures, each capped at its ceiling.
-  The default total is 1 937 MiB, and at the defaults the split gives each pool its own default
+  The default total is 2 179 MiB, and at the defaults the split gives each pool its own default
   (512 MiB each), so a page that sets nothing sees no change. The three fixed shares never shrink:
   a total under them is refused (`GPU_BUDGET_UNDER_SHADOW_POOL`), so no total below 913 MiB is
   taken on the default canvas. The pool a screen takes, its static layer and its fixed buffers always fit that
   share, whatever the screen.
-- CPU: the shadow page table's host mirror first (20.8 MiB, fixed whatever the screen), then the
+- CPU: the shadow page table's host mirror first (21.2 MiB, fixed whatever the screen), then the
   decoded-page cache takes the whole rest (`split.pageCache`); within it the session in place
   reserves its manifest tables (a fixed reckoning per catalogue entry, not a measured heap size)
   and its transfer queue, and the engine's cut tables (group closure, residency readiness, the
@@ -1359,11 +1365,12 @@ bend }` simulates the mesh's vertices one by one on Jolt's soft bodies. A cloth 
   static world only, are simulated only in range and in view, and leave the simulation once asleep:
   their mesh stays where it came to rest (set `physics` again to simulate it anew), and their
   joints break (`j.broken`, `'break'`).
-- **Budgets.** `world.budget.physics`, read when the physics starts: bodies, static triangles,
-  decorative bodies, memory (a hard ceiling: the module's memory cannot grow past it), body pairs
+- **Budgets.** `world.budget.physics`, read when the physics starts: bodies, decorative bodies,
+  memory (a hard ceiling: the module's memory cannot grow past it; half of it holds the static
+  collision, a static triangle mesh past it refused naming `memoryBytes`), body pairs
   and contacts per step, contact events per step, and threads (Jolt's thread pool, the worker's
   included, when the page is cross-origin isolated; never more than the logical cores minus the
-  page's own; one elsewhere). The defaults are `DEFAULT_PHYSICS_BUDGET`. A request past one is
+  page's own; one elsewhere). The defaults are `DEFAULT_PHYSICS_BUDGET`; a key that is no budget (the removed `triangles`) is refused by name, `PHYSICS_BUDGET` from `createWorld`, a `TypeError` when added to `world.budget.physics`. A request past one is
   refused with `PHYSICS_BUDGET` on `world.physics.error`; a step that finds more pairs or contacts
   than its budget says so the same way, and an `enter` past the events budget is counted in
   `stats.droppedEvents` (its `leave` is then never sent). `softVertices` bounds the vertices of
@@ -1373,9 +1380,10 @@ bend }` simulates the mesh's vertices one by one on Jolt's soft bodies. A cloth 
   own clock: the two are never added.
 - **Compiled models.** A model loaded with `scene.load()` collides with its own triangles once the
   physics is on: the compiler cooked them (`physics.json`, [FORMAT.md](FORMAT.md)) and the physics
-  streams its tiles in, restored from Jolt's binary state, around the eye up to `camera.far` and
-  around every moving body, nearest first, within `budget.physics.triangles`; past it, the nearest
-  stay and `PHYSICS_BUDGET` names the triangles asked. A file of another format or cooked by
+  streams its tiles in, restored from Jolt's binary state, around every moving body and around the
+  eye up to `camera.far`, nearest first, within half of `budget.physics.memoryBytes`, and releases
+  them as they move away (a tile stays until half as far again as it came in). A scene is never
+  refused for its size: a tile that does not fit waits, the farthest leaving for it. A file of another format or cooked by
   another Jolt is refused (`PHYSICS_FORMAT`); a model compiled before the cook collides nowhere.
   A tile or a soft body's settings the server refuses is `RESOURCE_HTTP_ERROR` on
   `world.physics.error` ([Files over HTTP](#files-over-http)); a model that leaves the scene lets
@@ -1405,6 +1413,13 @@ bend }` simulates the mesh's vertices one by one on Jolt's soft bodies. A cloth 
 - Specular environment-map IBL and screen-space reflections are not implemented; the
   bounce lighting exists but is off by default ([ENGINE.md](ENGINE.md#light-that-bounces)), and only
   with it on does a surface at the roughness floor reflect the scene, at the proxy's detail.
+- WebGL2 draws a physical material's transmission volume, as factors, and nothing else of its
+  extensions: clearcoat, sheen, iridescence, anisotropy, dispersion, a specular factor, an IOR
+  without transmission, their maps and the transmission and thickness maps. A surface declaring one
+  is drawn without it — the loop never stops — and the world's diagnostic channel says
+  `material-degraded` once per surface and feature (`context.material`, `context.feature`). The
+  WebGPU page raster lists material extensions among its unsupported capabilities and says nothing
+  per surface.
 - Transparent surfaces are lit from the source file's own light graph with a fixed ambient, not yet
   by the declared-light rule above.
 - A lost device is recovered, the page never reloaded: the world asks for a device again, reopens its

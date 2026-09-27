@@ -5,7 +5,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { shadowPoolSide } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { SUN } from '../../../../sdk-core/src/scene/light-shadow/lightShadow.fixture.ts';
-import { asWebgpuDevice } from '../../../../../tests/kit/gpu/webgpuDevice.ts';
+import { refusingDevice } from './poolDevice.fixture.ts';
+import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
 import { createWebgpuLightState } from '../pages/state/lights.ts';
 import { holdWebgpuFrame } from '../frame/hold.ts';
 import { settledRt } from '../frame/hold.fixture.ts';
@@ -17,27 +18,22 @@ import type { HostCamera } from '../../camera/world.ts';
  *  what `renderWebgpuPages` does around the pool: size it, hold or draw, wait for the next frame.
  *  `shown` records, per presented image, whether the shadow pass could draw in it. */
 function frames(limit = Infinity) {
+  installGpuGlobals();
   const rt = settledRt();
   const lights = createWebgpuLightState(shadowPoolSide(300, 150));
   let texture: object | undefined;
-  const gpu = asWebgpuDevice({
-    createTexture: ({ size }: { size: number[] }) => {
-      if (size[0] * size[1] * 4 > limit) gpu.raise('Out of memory');
-      return { destroy() {}, createView: () => ({}) };
-    },
-    queue: { onSubmittedWorkDone: async () => {} },
-  });
+  const gpu = refusingDevice(limit, { queue: { onSubmittedWorkDone: async () => {} } });
   lights.shadows = {
     get texture() {
       return texture;
     },
-    makePool: (side: number) =>
+    makePool: (side: number, layers: number) =>
       gpu.device.createTexture({
-        size: [side * 128, side * 128, 1],
+        size: [side * 128, side * 128, layers],
         format: 'depth32float',
         usage: 0,
       }),
-    sizePool: (_: number, made: object) => void (texture = made),
+    sizePool: (_: number, __: number, made: object) => void (texture = made),
   } as unknown as NonNullable<typeof lights.shadows>;
   lights.store.add({ ...SUN, id: 'shadow sun' });
   const shown: boolean[] = [],
