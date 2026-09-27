@@ -6,13 +6,18 @@ import assert from 'node:assert/strict';
 import * as G from '../../host/graph/graph.fixture.ts';
 import { FLAG_BLEND_CASTER, FLAG_MASK, PAGE_INFO_STRIDE } from '../../visibility/buffer.ts';
 import { ROW_FLAGS_WORD, ROW_MAP_LAYER_WORD } from '../row/pageRow.ts';
-import { shadowsFollowTextures } from '../pages/prepare/lightResources.ts';
+import { shadowsFollowSurfaces, shadowsFollowTextures } from '../pages/prepare/lightResources.ts';
+import type { PageSurface } from '../../page/surface.ts';
 import type { PageRec } from '../../page/selection/types.ts';
 
 const WORDS = PAGE_INFO_STRIDE / 4;
 
-function record(x: number) {
+const leaves = {} as PageSurface,
+  bark = {} as PageSurface;
+
+function record(x: number, material = bark) {
   return {
+    material,
     matrix: new G.Matrix4().makeTranslation(x, 0, 0),
     min: [-1, -1, -1],
     max: [1, 1, 1],
@@ -31,17 +36,21 @@ function table() {
   ints[2 * WORDS + ROW_MAP_LAYER_WORD] = 5;
   ints[3 * WORDS + ROW_FLAGS_WORD] = FLAG_BLEND_CASTER;
   ints[3 * WORDS + ROW_MAP_LAYER_WORD] = 7;
-  const packedRecs = [record(0), record(100), record(10), record(-20)];
+  const packedRecs = [record(0), record(100, leaves), record(10), record(-20, leaves)];
   return { rowCount: 3, blendFirst: 3, casterSlots: 4, pageTableInts: ints, packedRecs };
 }
 
 function lightsSpy() {
-  const boxes: number[][] = [];
+  const boxes: number[][] = [],
+    worlds: number[][] = [];
   const lights = {
     store: { count: 1 },
-    plan: { representationChanged: (min: number[], max: number[]) => boxes.push([...min, ...max]) },
+    plan: {
+      representationChanged: (min: number[], max: number[]) => boxes.push([...min, ...max]),
+      worldChanged: (min: number[], max: number[]) => worlds.push([...min, ...max]),
+    },
   } as unknown as Parameters<typeof shadowsFollowTextures>[0];
-  return { lights, boxes };
+  return { lights, boxes, worlds };
 }
 
 const r = Math.fround(Math.sqrt(3));
@@ -86,4 +95,15 @@ test('with no light declared, a tile stales nothing and leaves no change waiting
   (lights.store as { count: number }).count = 0;
   shadowsFollowTextures(lights, table(), -1);
   assert.equal(boxes.length, 0);
+});
+
+// A page moved a material's alpha (#846): its rows' shadow pages stale whatever their flags say —
+// an opaque surface turned masked has no cutout flag until its row is written again.
+test('an alpha change stales the rows of its surfaces at once, the opaque and blended ones too', () => {
+  const { lights, boxes, worlds } = lightsSpy();
+  shadowsFollowSurfaces(lights, table(), new Set([leaves]));
+  assert.deepEqual(worlds, [[-20 - r, -r, -r, 100 + r, r, r]], 'another world, not held');
+  assert.equal(boxes.length, 0, 'nothing waits for the camera to rest');
+  shadowsFollowSurfaces(lights, table(), new Set());
+  assert.equal(worlds.length, 1, 'no surface, no box');
 });
