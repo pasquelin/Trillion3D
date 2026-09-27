@@ -2249,5 +2249,22 @@
       "color": "Colore",
       "thickness": "Spessore"
     }
+  },
+  "a-hundred-thousand-instances": {
+    "banner": "Trascina per orbitare sul campo. Cambia il numero o la vista.",
+    "controls": {
+      "count": "Numero",
+      "view": "Vista"
+    },
+    "readouts": {
+      "objectsShown": "Oggetti mostrati",
+      "objectsBuilt": "Oggetti creati"
+    },
+    "choices": {
+      "view": {
+        "beauty": "immagine",
+        "clusters": "cluster"
+      }
+    }
   }
 }

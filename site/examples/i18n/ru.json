@@ -2249,5 +2249,22 @@
       "color": "Цвет",
       "thickness": "Толщина"
     }
+  },
+  "a-hundred-thousand-instances": {
+    "banner": "Перетаскивайте, чтобы осмотреть поле. Меняйте количество или вид.",
+    "controls": {
+      "count": "Количество",
+      "view": "Вид"
+    },
+    "readouts": {
+      "objectsShown": "Показано объектов",
+      "objectsBuilt": "Создано объектов"
+    },
+    "choices": {
+      "view": {
+        "beauty": "картинка",
+        "clusters": "кластеры"
+      }
+    }
   }
 }
