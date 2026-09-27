@@ -43,20 +43,30 @@
 
       // A complete small house: each elevation is distinct, so front, side and rear are useful
       // drawing views rather than three names for the same silhouette.
-      put(geometry.box(10, 6, 7), plaster, [0, 3.2, 0]);
-      // The gables close the attic under the roof panels, whose undersides meet the wall top
-      // 3.5 either side of the ridge.
-      const gable = math.shape([
-        [-3.5, 0],
-        [3.5, 0],
-        [0, 2.5],
+      // The walls and gables in one pentagon; the roof panels are derived from its slope so the
+      // wall top rises just into them (no wall corner pokes through, no sky shows under them).
+      const [half, eave, ridge, depth] = [5, 5.2, 8.8, 7];
+      const wall = math.shape([
+        [-half, 0.2],
+        [half, 0.2],
+        [half, eave],
+        [0, ridge],
+        [-half, eave],
       ]);
-      put(geometry.extrude(gable, { depth: 7, bevelEnabled: false }), plaster, [0, 6.2, -3.5]);
-      put(geometry.box(10.4, 0.55, 7.4), stone, [0, 0.3, 0]);
-      const roofShape = geometry.box(6.2, 0.35, 7.8);
+      put(geometry.extrude(wall, { depth, bevelEnabled: false }), plaster, [0, 0, -depth / 2]);
+      put(geometry.box(half * 2 + 0.4, 0.55, depth + 0.4), stone, [0, 0.3, 0]);
+      const [thick, embed, overhang] = [0.35, 0.08, 0.3];
+      const pitch = Math.atan2(ridge - eave, half),
+        [cos, sin] = [Math.cos(pitch), Math.sin(pitch)];
+      // Each panel runs past the ridge until its top face meets the other one at the peak.
+      const pastRidge = (thick - embed) * Math.tan(pitch),
+        length = pastRidge + Math.hypot(half, ridge - eave) + overhang,
+        along = length / 2 - pastRidge,
+        out = thick / 2 - embed;
+      const roofShape = geometry.box(length, thick, depth + 0.8);
       for (const side of [-1, 1]) {
-        const panel = put(roofShape, roof, [side * 2.45, 7.15, 0]);
-        panel.rotation.z = side * -0.62;
+        const at = [side * (along * cos + out * sin), ridge - along * sin + out * cos, 0];
+        put(roofShape, roof, at).rotation.z = side * -pitch;
       }
       // The chimney rises from inside the attic so its base meets the slope on its low side too.
       put(geometry.box(0.85, 3.2, 1.1), stone, [3.3, 7.7, -1.7]);
