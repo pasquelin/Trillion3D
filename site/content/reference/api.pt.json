@@ -12,7 +12,7 @@
       "bindingOf": "O que `tr` escreve, resolvido uma vez; null enquanto seu alvo não está sob a raiz.",
       "play": "Começa a tocar.",
       "stop": "Para, e volta ao início.",
-      "seek": "Põe o clip em `time` segundos agora, segundo o seu modo de repetição, esteja a tocar ou não: uma ação que toca continua dali, uma parada fica nessa pose.",
+      "seek": "Põe o clip em `time` segundos agora, segundo o seu modo de repetição, esteja a tocar ou não: uma ação que toca continua dali, uma parada mantém a pose até que uma ação a tocar no seu misturador a sobrescreva.",
       "clipTime": "Onde no clipe a ação está, conforme seu modo de repetição."
     }
   },
