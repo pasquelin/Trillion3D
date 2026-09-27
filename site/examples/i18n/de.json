@@ -571,6 +571,17 @@
       "bricks": "Ziegel"
     }
   },
+  "measure-a-distance": {
+    "banner": "Klicke auf zwei Oberflächen, um ihren Abstand zu messen. Ein dritter Klick beginnt eine neue Messung. Eine Einheit entspricht einem Meter.",
+    "controls": {
+      "clear": "Löschen"
+    },
+    "readouts": {
+      "pointA": "Punkt A",
+      "pointB": "Punkt B",
+      "distance": "Abstand"
+    }
+  },
   "click-to-pick": {
     "banner": "Klicke auf eine Form. Sie leuchtet auf und das Feld sagt, wo du sie getroffen hast.",
     "readouts": {
