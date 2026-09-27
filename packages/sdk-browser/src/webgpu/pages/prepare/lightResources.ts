@@ -66,14 +66,17 @@ export function shadowsFollowSurfaces(
   rows: ShadowRowTable,
   surfaces: ReadonlySet<PageSurface>,
 ) {
-  if (lights.store.count) shadowsFollowRows(lights, rows, (_, rec) => surfaces.has(rec.material));
+  if (lights.store.count)
+    shadowsFollowRows(lights, rows, (row) =>
+      surfaces.has(rows.packedRecs[row]?.material as PageSurface),
+    );
 }
 
 /** Stales the box of the rows, visibility then blended casters, that `stale` names; one box. */
 function shadowsFollowRows(
   lights: WebgpuLightState,
   rows: ShadowRowTable,
-  stale: (row: number, rec: PageRec) => boolean,
+  stale: (row: number) => boolean,
 ) {
   boxEmpty(changeBox, 0);
   let touched = false;
@@ -82,8 +85,8 @@ function shadowsFollowRows(
     [rows.blendFirst, rows.casterSlots],
   ])
     for (let row = from; row < to; row++) {
-      const rec = rows.packedRecs[row];
-      if (!rec || !stale(row, rec)) continue;
+      const rec = stale(row) && rows.packedRecs[row];
+      if (!rec) continue;
       growClusterBox(rec, changeBox);
       touched = true;
     }

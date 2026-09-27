@@ -22,7 +22,7 @@ import type { HostMaterial } from '../../host/resources.ts';
 /** WebGL2 path backed only by independently decoded prepared geometry pages. */
 export const autonomousPagesBackend: BackendFactory = (context) => {
   const { metadata, descriptors } = prepareAutonomousManifest(context.metadata);
-  const { roots, allPages, worlds, blendCopies, reassignBlend } = collectClusterPages(
+  const { roots, allPages, worlds, blendCopies, reassignBlend, blendOf } = collectClusterPages(
     context.source,
     metadata,
     new Map(),
@@ -63,8 +63,8 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
   });
   const { sync, acceptGeometryPage } = geometryStore;
   // The tables a placement enters: instances and instance-buffer rows append to the same.
-  const tables = { roots, allPages, bootstrap, byUrl, baseMaterials, reassignBlend };
-  const heldFloor = createHeldFloor({ bootstrap, modifiedPages, byUrl });
+  const tables = { roots, allPages, bootstrap, byUrl, baseMaterials, blendOf };
+  const heldFloor = createHeldFloor({ bootstrap, modifiedPages, byUrl, hostCeiling });
   const ceiling =
     hostCeiling < Infinity ? () => hostCeiling : () => Math.max(pageDefault, heldFloor.meshes());
   const { disposeOwnedMaterials, instanceCount, ...instances } = createAutonomousInstances({
@@ -74,7 +74,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
     baseBootstrap,
     geometryStore,
     hostCeiling,
-    coverMeshes: heldFloor.meshes,
+    overCeiling: heldFloor.overCeiling,
     sceneChanged: gate.sceneChanged,
     coverChanged: heldFloor.placed,
   });
@@ -126,7 +126,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
     },
     async prepare() {
       if (!context.readGeometryPage) throw new Error('AUTONOMOUS_PAGE_READER_MISSING');
-      if (heldFloor.meshes() > hostCeiling) throw new Error('AUTONOMOUS_ROOT_BUDGET');
+      if (heldFloor.overCeiling()) throw new Error('AUTONOMOUS_ROOT_BUDGET');
       await Promise.all(
         [...bootstrapUrls].map(async (url) => {
           context.signal?.throwIfAborted();

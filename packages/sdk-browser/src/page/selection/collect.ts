@@ -153,28 +153,32 @@ export function collectClusterPages(
     }
     order++;
   }
+  /** Whether a record is drawn blended once `alpha` moved its surfaces, before or after they are
+   *  written: the family this collection gives the class `alpha.to`, or the one it has. */
+  const blendOf = (rec: PageRec, alpha: AlphaChange) => {
+    const mesh = rec.sourceMesh,
+      worn = mesh && alpha.surfaces.includes(mesh.material as object),
+      primitive = worn && primitiveOf(associations.get(mesh));
+    return primitive
+      ? pagesBlend(primitive, { transparent: alpha.to === 'blend' })
+      : rec.transparent;
+  };
   return {
     roots,
     allPages,
     worlds,
     blendCopies,
+    blendOf,
     /**
      * The open's assignment, run again once a material moved into or out of blended inside the
-     * session (#846): each record takes the family this collection would give it now, read off
-     * its mesh's surface as above; true when one moved. An engine that sorts its meshes by surface
-     * at every draw — WebGL2's display graph — has only this left to follow: whether a record rows
-     * place is drawn instanced (`drawnInstanced`). `planned`, before the surfaces are written: the
-     * records wearing them take the family `alpha.to` would give them.
+     * session (#846): each record takes `blendOf`; true when one moved. An engine that sorts its
+     * meshes by surface at every draw — WebGL2's display graph — has only this left to follow:
+     * whether a record rows place is drawn instanced (`drawnInstanced`).
      */
-    reassignBlend(records: readonly PageRec[], alpha: AlphaChange, planned = false) {
+    reassignBlend(records: readonly PageRec[], alpha: AlphaChange) {
       let moved = false;
-      const as = { transparent: alpha.to === 'blend' };
       for (const rec of blendMoves(alpha) ? records : []) {
-        const mesh = rec.sourceMesh,
-          primitive = mesh && primitiveOf(associations.get(mesh));
-        if (!primitive) continue;
-        const worn = planned && alpha.surfaces.includes(mesh!.material as object);
-        const transparent = pagesBlend(primitive, worn ? as : meshSurface(mesh!));
+        const transparent = blendOf(rec, alpha);
         moved ||= transparent !== rec.transparent;
         rec.transparent = transparent;
       }
