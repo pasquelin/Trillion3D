@@ -33,9 +33,7 @@
   "examples": {
     "lead": "サンプルはどれも短いファイル1つ。動かして、コードを開いて、書きかえてみよう。",
     "jumpTo": "テーマへ移動",
-    "inProgress": "作成中",
     "waitsFor": "エンジンを待っています:",
-    "waitingEngine": "エンジンを待っています",
     "partial": "一部対応",
     "coming": "近日公開：{{titles}}"
   },

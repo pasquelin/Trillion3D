@@ -1,6 +1,7 @@
 import roadmap from '../../content/gallery-roadmap.json' with { type: 'json' };
 import { dictionaryOf, wordFor } from '../../content/i18n/dictionary.ts';
 import type { Locale } from '../../content/locale.ts';
+import { EXAMPLE_THUMBNAILS } from './thumbnails.inline.ts';
 
 /** One entry of the gallery roadmap. A ready example has a file and no status. One still to write
  *  is `buildable`, or `needs-engine` with the feature it lacks. One written against the intended
@@ -30,20 +31,21 @@ export const writtenEntries = roadmapEntries.filter(({ file }) => Boolean(file))
 
 export const writtenExampleIds = writtenEntries.map(({ id }) => id);
 
-/** Written examples in the sidebar, including parked pages whose source is useful to inspect. */
-export const writtenThemes = roadmap.themes
-  .map((theme) => ({ theme, entries: writtenEntries.filter((entry) => entry.theme === theme) }))
-  .filter(({ entries }) => entries.length > 0);
-
 /** Each theme's presentation: runnable work first, then parked source, then unwritten titles. */
-export const themedEntries = roadmap.themes.map((theme) => ({
-  theme,
-  ready: roadmapEntries.filter((entry) => entry.theme === theme && isReady(entry)),
-  parked: roadmapEntries.filter(
-    (entry) => entry.theme === theme && Boolean(entry.file) && !isReady(entry),
-  ),
-  coming: roadmapEntries.filter((entry) => entry.theme === theme && !entry.file),
-}));
+export const themedEntries = roadmap.themes.map((theme) => {
+  const entries = roadmapEntries.filter((entry) => entry.theme === theme);
+  return {
+    theme,
+    ready: entries.filter(isReady),
+    parked: entries.filter((entry) => Boolean(entry.file) && !isReady(entry)),
+    coming: entries.filter((entry) => !entry.file),
+  };
+});
+
+/** Written examples in the sidebar, complete first and then parked, as on the gallery page. */
+export const writtenThemes = themedEntries
+  .map(({ theme, ready, parked }) => ({ theme, entries: [...ready, ...parked] }))
+  .filter(({ entries }) => entries.length > 0);
 
 /** A theme's title in `locale`: `gallery.themes.<id>`. */
 export const themeTitle = (id: string, locale: Locale) =>
@@ -83,6 +85,9 @@ export const mosaicEntries = [
   ...others.slice(FLAGSHIPS.length * 4),
 ].map((entry) => ({ entry, large: FLAGSHIPS.includes(entry.id) }));
 
-/** The thumbnail an example's card and menu row show: its settled render. */
-export const thumbnailOf = (id: string) => `./assets/examples/thumbnails/${id}.png`;
 export const examplePlaceholder = './assets/example-in-progress.svg';
+const capturedExamples = new Set(EXAMPLE_THUMBNAILS);
+
+/** The example's captured render when present at build time, otherwise the shared placeholder. */
+export const thumbnailOf = (id: string) =>
+  capturedExamples.has(id) ? `./assets/examples/thumbnails/${id}.png` : examplePlaceholder;
