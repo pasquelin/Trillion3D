@@ -371,12 +371,6 @@
       "status": "needs-engine"
     },
     {
-      "id": "clearcoat-paint",
-      "theme": "materials",
-      "file": "",
-      "status": "needs-engine"
-    },
-    {
       "id": "velvet-sheen",
       "theme": "materials",
       "file": "",
