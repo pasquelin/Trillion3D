@@ -19,10 +19,10 @@
   "scene": {
     "formatVersion": 10,
     "manifestBinaryVersion": 10,
-    "primitives": 9,
+    "primitives": 3,
     "selectedNodes": 3,
     "selectedTriangles": 36,
-    "sidecarSha256": "2da6c040cce3290acee914df5eb8f17469e56e3732d0dc395d5acf0fe46c54db",
+    "sidecarSha256": "9042f219382b15bb0b7da19e193a89735db6dd51030213826e6fcf05018bef58",
     "sourceTriangles": 36,
     "totalNodes": 3
   },
