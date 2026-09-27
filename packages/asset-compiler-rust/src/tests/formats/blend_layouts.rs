@@ -13,23 +13,9 @@ fn words(gltf: &Value, bin: &[u8], accessor: &Value) -> Vec<u32> {
     let Some(rank) = accessor.as_u64() else {
         return Vec::new();
     };
-    let accessor = &gltf["accessors"][rank as usize];
-    let view = &gltf["bufferViews"][accessor["bufferView"].as_u64().expect("view") as usize];
-    let from =
-        view["byteOffset"].as_u64().unwrap_or(0) + accessor["byteOffset"].as_u64().unwrap_or(0);
-    let width = match accessor["type"].as_str().expect("type") {
-        "SCALAR" => 1,
-        "VEC2" => 2,
-        "VEC3" => 3,
-        other => panic!("unexpected accessor type {other}"),
-    };
-    let length = accessor["count"].as_u64().expect("count") * width * 4;
-    bin[from as usize..(from + length) as usize]
-        .as_chunks::<4>()
-        .0
-        .iter()
-        .map(|word| u32::from_le_bytes(*word))
-        .collect()
+    let (bytes, _) = crate::tests::ngons::accessor(gltf, bin, rank as usize);
+    let words = bytes.as_chunks::<4>().0;
+    words.iter().map(|word| u32::from_le_bytes(*word)).collect()
 }
 
 /// What the scene of one fixture comes out as: each node with its mesh and matrix, each primitive
