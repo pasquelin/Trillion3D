@@ -2147,5 +2147,12 @@
     "words": {
       "credit": "इस उदाहरण के लिए कोड में बनाया गया खंभे पर झंडा, CC0 — देखें assets/examples/CREDITS.md"
     }
+  },
+  "outline-the-selection": {
+    "banner": "किसी आकार को चुनने के लिए क्लिक करें। चयन हटाने के लिए फर्श पर क्लिक करें।",
+    "controls": {
+      "color": "रंग",
+      "thickness": "मोटाई"
+    }
   }
 }

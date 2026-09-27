@@ -2147,5 +2147,12 @@
     "words": {
       "credit": "علم على سارية نُمذج بالشيفرة لهذا المثال، CC0 — انظر assets/examples/CREDITS.md"
     }
+  },
+  "outline-the-selection": {
+    "banner": "انقر على شكل لتحديده. انقر على الأرض لمسح التحديد.",
+    "controls": {
+      "color": "اللون",
+      "thickness": "السماكة"
+    }
   }
 }
