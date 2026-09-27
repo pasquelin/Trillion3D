@@ -53,7 +53,11 @@ async function decoded(t: test.TestContext, previews: { image: number }[]) {
   const { document, binary } = await fixture;
   const metadata = { textures: { url: 'x' }, texturePreviews: previews } as ClusterManifest;
   const read = preparedImages({
-    ...{ document, documentUrl: folder.href, binary, signal: undefined, meter: unmetered },
+    document,
+    documentUrl: folder.href,
+    binary,
+    signal: undefined,
+    meter: unmetered,
     skipped: bakedImages(metadata, document.images.length),
     track: (_resource, image) => image,
   });
@@ -65,12 +69,13 @@ const placeholder = (async () => (await (await fetch(PLACEHOLDER_IMAGE)).blob())
 
 test('an embedded image with a baked twin decodes no byte of the binary (its fetch goes lazy in #876)', async (t) => {
   const { previews, document } = await fixture;
+  const size = await placeholder;
   const sizes = await decoded(t, previews);
   assert.deepEqual(
     sizes,
-    document.images.map(() => sizes[0]),
+    document.images.map(() => size),
+    'every image is the placeholder',
   );
-  assert.equal(sizes[0], await placeholder, 'every image is the placeholder');
 });
 
 test('an embedded image with no baked twin still decodes its view of the binary', async (t) => {
