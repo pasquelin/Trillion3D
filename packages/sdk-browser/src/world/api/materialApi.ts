@@ -178,8 +178,8 @@ export function createExplorerMaterialApi(inputs: Inputs) {
      */
     assignMaterial(primitive: string, id: string) {
       check();
-      const variants = created.get(id);
-      if (!variants)
+      const held = created.get(id);
+      if (!held)
         throw new EngineError('UNKNOWN_MATERIAL', `the page created no material ${id}`, { id });
       // The table's wearers are indexed as imported, before a mesh wears another.
       const drawn = scene().drawables.get(primitive);
@@ -187,9 +187,12 @@ export function createExplorerMaterialApi(inputs: Inputs) {
         throw new EngineError('UNKNOWN_SCENE_NODE', `the scene draws no primitive ${primitive}`, {
           primitive,
         });
+      // A variant built for this drawable is kept only once nothing refused it.
+      const variants = new Map(held);
       const alpha = assignment(variants, drawn);
       refuseClass(id, alpha);
       repaints(id);
+      created.set(id, variants);
       for (const [mesh, surface] of alpha.meshes) mesh.material = surface;
       // Every engine follows, or one draws it only in a new session: the refresh runs for all.
       for (const backend of backends) backend.wearSurface?.(alpha);

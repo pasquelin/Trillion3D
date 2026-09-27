@@ -77,7 +77,7 @@ export function validate(
   fields: readonly string[] = PATCH_FIELDS,
 ) {
   for (const [field, value] of Object.entries(patch))
-    if (!fields.includes(field)) throw invalid(id, field, value);
+    if (value !== undefined && !fields.includes(field)) throw invalid(id, field, value);
   const unit = (n: number) => Number.isFinite(n) && n >= 0 && n <= 1;
   for (const field of ['opacity', 'metalness', 'roughness', 'alphaCutoff'] as const) {
     const value = patch[field];
