@@ -11,11 +11,6 @@ import {
   type ResultatPagePreuve,
 } from '../support/enginePageProof.ts';
 
-interface Refusal {
-  code: string;
-  reason: string;
-}
-
 interface Resultat extends ResultatPagePreuve {
   withoutGlass: number;
   submissions: { clusters: number; backdrop: number; copies: number };
@@ -30,7 +25,6 @@ interface Resultat extends ResultatPagePreuve {
   lit: number[];
   subViewport: { inside: number[]; outside: number[] };
   offscreen: { clusters: number; backdrop: number; copies: number; pixel: number[] };
-  refused: Refusal | null;
   coatedPixel: number[];
   coatedNotice: DegradedNotice[];
   drawError: number;
@@ -82,7 +76,7 @@ assert.deepEqual(result.offscreen, {
   copies: 0,
   pixel: [255, 0, 0, 255],
 });
-assert.equal(result.refused, null, 'a clearcoat glass is drawn, not refused');
+// A clearcoat glass is drawn: a refusal would be the page's error.
 assert.ok(near(result.coatedPixel, [245, 0, 0, 255]), `drawn without clearcoat: ${result.coatedPixel}`);
 assert.deepEqual(
   result.coatedNotice,
