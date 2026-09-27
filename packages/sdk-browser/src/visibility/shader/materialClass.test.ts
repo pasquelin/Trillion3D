@@ -89,7 +89,15 @@ test('the resolve trusts the raster that kept the pixel: no second cutout', () =
   assert.doesNotMatch(SHADE_SHADER, /fn maskAlpha\(/);
   assert.ok(fragment.includes('rgb=rgb*colorSample(page.mapIndex,uv,ddx,ddy,HAS_SAMPLING).xyz;'));
   assert.doesNotMatch(fragment, /baseColor\.w/);
-  assert.doesNotMatch(fragment, /discard/);
+  assert.match(
+    fragment,
+    /if\(SINGLE_CLASS&&id==0u\)\{discard;\}\s*let pageIndex=\(id>>8u\)-1u;\s*if\(SINGLE_CLASS&&pageIndex>=uni\.pageCount\)\{discard;\}/,
+  );
+  assert.equal(
+    fragment.match(/discard;/g)?.length,
+    2,
+    'only the one-class visibility guards discard',
+  );
 });
 
 test('the resolve compiles one pipeline per class under equal depth, after the depth export', async () => {
@@ -118,6 +126,30 @@ test('the resolve compiles one pipeline per class under equal depth, after the d
     assert.equal(pipeline.depthStencil.format, depth.depthStencil.format);
     assert.equal(made.shadePipelines.get(key), pipeline as unknown as GPURenderPipeline);
   }
+});
+
+test('one production class also compiles a direct surface pipeline without material depth', async () => {
+  const { device, renderPipelines } = fakeDevice();
+  const made = await createWebgpuShadePipelines(device, {} as GPUShaderModule, [5]);
+  const direct = made.singleShadePipelines.get(5) as unknown as {
+    vertex: { constants?: Record<string, number> };
+    fragment: { entryPoint: string; constants?: Record<string, number>; targets: unknown[] };
+    depthStencil?: unknown;
+  };
+  assert.ok(renderPipelines.includes(direct as unknown as GPURenderPipelineDescriptor));
+  assert.equal(direct.fragment.entryPoint, 'shade_fs');
+  assert.deepEqual(direct.vertex.constants, { CLASS_KEY: 5, SINGLE_CLASS: 1 });
+  assert.deepEqual(direct.fragment.constants, { CLASS_KEY: 5, SINGLE_CLASS: 1 });
+  assert.equal(direct.fragment.targets.length, 5);
+  assert.equal(direct.depthStencil, undefined);
+
+  const diagnostic = await createWebgpuShadePipelines(
+    fakeDevice().device,
+    {} as GPUShaderModule,
+    [5],
+    'resolution-plate',
+  );
+  assert.equal(diagnostic.singleShadePipelines.size, 0);
 });
 
 test('the materials view colours a pixel by the class that resolved it, on the WebGPU path only', () => {
