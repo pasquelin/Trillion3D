@@ -24,7 +24,11 @@ function seated(count: number) {
   const batch = { rows: { matrices: new Float64Array(16 * count) } };
   const placed: number[] = [];
   scene._link = {
-    ...{ pose() {}, posed() {}, structure() {}, content() {}, seatEpoch: () => 0 },
+    pose() {},
+    posed() {},
+    structure() {},
+    content() {},
+    seatEpoch: () => 0,
     seat: (node) => ({ batch, row: meshes.indexOf(node as Bodied) }),
     placed: (_, from, to) => placed.push(to - from + 1),
   };
@@ -107,6 +111,22 @@ test('every row drawn is its body pose composed: short of the target, on it and 
   poses.apply(bodies);
   expect('on it, asleep');
   assert.equal(meshes[2].position.y, 6);
+});
+
+test('a record that meets a body on its way is its target, though it holds the drawn pose', (t) => {
+  let clock = 0;
+  t.mock.method(performance, 'now', () => clock);
+  const { scene, meshes, bodies } = seated(1);
+  const poses = createPhysicsPoses(1, scene);
+  poses.receive(records(1, 2, 0), 1, bodies, 16);
+  clock = 8;
+  poses.apply(bodies);
+  assert.equal(meshes[0].position.y, 1, 'halfway');
+  // The next record holds the pose drawn halfway: the body stops there, not at the old target.
+  poses.receive(records(1, 1, 0), 1, bodies, 16);
+  clock += 40;
+  poses.apply(bodies);
+  assert.equal(meshes[0].position.y, 1);
 });
 
 test('slow steps never cost the worker a step: the ceiling a tick, each one fixed, in order', async () => {
