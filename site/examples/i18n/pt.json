@@ -2147,5 +2147,13 @@
     "words": {
       "credit": "Bandeira num mastro modelada em código para este exemplo, CC0 — ver assets/examples/CREDITS.md"
     }
+  },
+  "inside-a-component": {
+    "banner": "Monte ou desmonte o visualizador. Cada montagem possui um mundo e cada remoção o descarta.",
+    "controls": {
+      "mount": "Montar",
+      "unmount": "Desmontar",
+      "remount": "Montar novamente"
+    }
   }
 }

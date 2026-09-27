@@ -1409,6 +1409,7 @@
       "what-hides-what": "Cái gì che khuất cái gì",
       "create-and-dispose": "Tạo và hủy",
       "no-hitch-on-first-draw": "Không giật ở lần vẽ đầu",
+      "inside-a-component": "Bên trong một thành phần",
       "inside-the-g-buffer": "Bên trong G-buffer",
       "reading-pixels-back": "Đọc lại các pixel",
       "a-city-from-3d-tiles": "Thành phố từ 3D Tiles",

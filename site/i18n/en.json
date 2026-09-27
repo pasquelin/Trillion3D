@@ -225,6 +225,7 @@
       "what-hides-what": "What hides what",
       "create-and-dispose": "Create and dispose",
       "no-hitch-on-first-draw": "No first-draw hitch",
+      "inside-a-component": "Inside a component",
       "inside-the-g-buffer": "Inside the G-buffer",
       "reading-pixels-back": "Reading pixels back",
       "a-city-from-3d-tiles": "A city from 3D Tiles",
