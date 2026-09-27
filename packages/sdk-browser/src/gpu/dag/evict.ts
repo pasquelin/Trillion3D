@@ -48,7 +48,7 @@ export const canonicalPage = requestPage;
 
 /** Rank of a key in the queue, highest evicted first: finer level, then older use. Integer only,
  *  as the kernel's: the age step is the bit length of the age, one step per doubling. */
-export function evictionRank(keyWord: number, age: number) {
+function evictionRank(keyWord: number, age: number) {
   const level = Math.min(EVICT_LEVELS - 1, requestPriority(keyWord)),
     step = Math.min(EVICT_AGES - 1, 32 - Math.clz32(age >>> 0));
   return ((EVICT_LEVELS - 1 - level) * EVICT_AGES) | step;
