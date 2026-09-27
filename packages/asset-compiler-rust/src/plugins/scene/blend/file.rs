@@ -8,8 +8,8 @@
 //!
 //! The `DATA` blocks after a block of another code are that one's data: since Blender 5, their
 //! addresses are unique only among them, and two meshes may each hold a block at the same address.
-//! A data pointer therefore resolves among the data of the block it is read from first, as
-//! Blender resolves it, and only then across the file ([`BlendFile::reach`]).
+//! A data pointer therefore resolves among the data of the block it is read from, as Blender
+//! resolves it; only a pointer to another ID block resolves across the file ([`BlendFile::reach`]).
 //!
 //! No announced size is trusted without being bounded by the file: any overrun is a truncated
 //! file, named as such.
@@ -105,14 +105,13 @@ impl<'a> BlendFile<'a> {
     pub(super) fn at(&self, old: u64) -> Option<&Block> {
         self.index.get(&old).map(|rank| &self.blocks[*rank])
     }
-    /// The block a pointer read in the data of block `owner` designates: among that block's data
-    /// first, then across the file — where the ID blocks, and the data of files older than Blender
-    /// 5, whose addresses are unique, are found.
+    /// The block a pointer read in the data of block `owner` designates: one of that block's data,
+    /// or a block that is not `DATA` — never the data of another block, which may share its address.
     pub(super) fn reach(&self, owner: usize, old: u64) -> Option<&Block> {
-        self.scoped
-            .get(&(owner, old))
-            .map(|rank| &self.blocks[*rank])
-            .or_else(|| self.at(old))
+        match self.scoped.get(&(owner, old)) {
+            Some(rank) => Some(&self.blocks[*rank]),
+            None => self.at(old).filter(|block| &block.code != b"DATA"),
+        }
     }
     /// The blocks of a given code, in file order.
     pub(super) fn of(&self, code: [u8; 4]) -> impl Iterator<Item = &Block> {

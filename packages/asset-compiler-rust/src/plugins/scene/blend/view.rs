@@ -28,21 +28,17 @@ pub(super) struct At<'a> {
 impl BlendFile<'_> {
     /// The view of a block, typed by the structure its header names.
     pub(super) fn view<'a>(&'a self, block: &Block) -> Option<At<'a>> {
-        Some(At {
-            file: self,
-            layout: self.dna.layout(block.sdna)?,
-            base: block.start,
-            limit: block.start.saturating_add(block.len),
-            old: block.old,
-            scope: block.owner,
-        })
+        self.typed(block, block.sdna)
     }
     /// The view of a block, forced to a named structure: that is how one reads what a `void *`
     /// designates, the pointed-to block then not carrying the useful type in its header.
     pub(super) fn view_as<'a>(&'a self, block: &Block, kind: &str) -> Option<At<'a>> {
+        self.typed(block, self.dna.index(kind)?)
+    }
+    fn typed<'a>(&'a self, block: &Block, sdna: usize) -> Option<At<'a>> {
         Some(At {
             file: self,
-            layout: self.dna.layout(self.dna.index(kind)?)?,
+            layout: self.dna.layout(sdna)?,
             base: block.start,
             limit: block.start.saturating_add(block.len),
             old: block.old,
@@ -142,10 +138,13 @@ impl<'a> At<'a> {
         let block = self.reach(self.pointer(name))?;
         self.file.view(block)
     }
-    /// The structure array a pointer field designates, and the number of structures its block holds.
+    /// The structure array a pointer field designates, and the number of structures its block
+    /// holds — as many as it announces, and as its bytes carry.
     pub(super) fn array(&self, name: &str) -> Option<(At<'a>, usize)> {
         let block = self.reach(self.pointer(name))?;
-        Some((self.file.view(block)?, block.count))
+        let view = self.file.view(block)?;
+        let held = block.count.min(block.len / view.layout.size.max(1));
+        Some((view, held))
     }
     /// The structure a pointer field designates, forced to a named type — the case of a `void *`.
     pub(super) fn follow_as(&self, name: &str, kind: &str) -> Option<At<'a>> {

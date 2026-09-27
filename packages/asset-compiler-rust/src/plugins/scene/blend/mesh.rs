@@ -156,14 +156,13 @@ fn named<'t, 'b>(
 
 /// Face offsets: an array of `faces + 1` increasing integers, bounded by the corners.
 fn offsets(mesh: &At<'_>, faces: usize, corners: usize) -> Option<Vec<u32>> {
-    let bytes = match ["poly_offset_indices", "face_offset_indices"]
+    let values = match ["poly_offset_indices", "face_offset_indices"]
         .into_iter()
         .find_map(|name| mesh.block(name))
     {
-        Some(bytes) => std::borrow::Cow::Borrowed(bytes),
-        None => std::borrow::Cow::Owned(layers::offsets(mesh, faces, corners)?),
+        Some(bytes) => bytes::ints(bytes, faces + 1),
+        None => layers::offsets(mesh, faces, corners)?,
     };
-    let values = bytes::ints(&bytes, faces + 1);
     if values.len() != faces + 1 {
         return None;
     }
