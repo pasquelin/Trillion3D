@@ -9,7 +9,7 @@ import {
   ROW_LINE_WIDTH_WORD,
   ROW_SPRITE_WORD,
 } from '../row/pageRow.ts';
-import { FALLBACK_CLUSTER_PAGE, FALLBACK_WIREFRAME } from '../pages/prepare/shaders.ts';
+import { fallbackMode } from '../pages/prepare/shaders.ts';
 import {
   bindGroupFor,
   pageRgb,
@@ -46,9 +46,7 @@ export function drawWebgpuFallback(rt: WebgpuPagesRuntime, device: GPUDevice) {
     uniformPacked[base + 35] = 1;
     packedInts[base + 36] = rows.pageTableInts![row * fallbackWords + 24];
     packedInts[base + 37] = rows.pageTableInts![row * fallbackWords + ROW_INDEX_WORDS];
-    packedInts[base + 38] =
-      (run.diagnostic === 'wireframe' ? FALLBACK_WIREFRAME : 0) |
-      (rec.geometryPage ? FALLBACK_CLUSTER_PAGE : 0);
+    packedInts[base + 38] = fallbackMode(run.diagnostic, !!rec.geometryPage);
     packedInts[base + 39] = clusterHash(rec.clusterId);
     // A line page widens on screen like in every raster (`lineClip`); zero draws triangles.
     uniformPacked[base + 40] = rows.pageTableFloats![row * fallbackWords + ROW_LINE_WIDTH_WORD];
