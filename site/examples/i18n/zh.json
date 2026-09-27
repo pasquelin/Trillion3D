@@ -1234,6 +1234,22 @@
       }
     }
   },
+  "a-walk-through-the-city": {
+    "banner": "点击画面，用 W A S D 行走并用鼠标环顾。移动时调低内存预算。",
+    "controls": {
+      "walk": "行走",
+      "walkSpeed": "行走速度",
+      "memory": "内存",
+      "view": "视图",
+      "home": "返回起点"
+    },
+    "choices": {
+      "view": { "beauty": "画面", "lod": "细节层级", "clusters": "簇" }
+    },
+    "words": {
+      "credit": "为本示例用代码建模的陶罐大道，CC0 — 见 assets/examples/CREDITS.md"
+    }
+  },
   "migrating-from-three": {
     "words": {
       "credit": "Marble Bust 01，作者 Rico Cilliers，Poly Haven，CC0；木箱作者 W. Sitters，CC BY 3.0 — 见 assets/examples/CREDITS.md"

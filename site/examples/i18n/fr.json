@@ -1234,6 +1234,22 @@
       }
     }
   },
+  "a-walk-through-the-city": {
+    "banner": "Clique la vue, puis marche avec Z Q S D et regarde avec la souris. Réduis le budget mémoire en avançant.",
+    "controls": {
+      "walk": "Marcher",
+      "walkSpeed": "Vitesse de marche",
+      "memory": "Mémoire",
+      "view": "Vue",
+      "home": "Retour au départ"
+    },
+    "choices": {
+      "view": { "beauty": "rendu", "lod": "niveaux de détail", "clusters": "clusters" }
+    },
+    "words": {
+      "credit": "Avenue d’urnes modélisée en code pour cet exemple, CC0 — voir assets/examples/CREDITS.md"
+    }
+  },
   "migrating-from-three": {
     "words": {
       "credit": "Marble Bust 01 par Rico Cilliers, Poly Haven, CC0 ; caisse par W. Sitters, CC BY 3.0 — voir assets/examples/CREDITS.md"

@@ -1234,6 +1234,22 @@
       }
     }
   },
+  "a-walk-through-the-city": {
+    "banner": "Click the view, then walk with W A S D and look with the mouse. Lower the memory budget while you move.",
+    "controls": {
+      "walk": "Walk",
+      "walkSpeed": "Walk speed",
+      "memory": "Memory",
+      "view": "View",
+      "home": "Return home"
+    },
+    "choices": {
+      "view": { "beauty": "beauty", "lod": "levels of detail", "clusters": "clusters" }
+    },
+    "words": {
+      "credit": "Avenue of urns modelled in code for this example, CC0 — see assets/examples/CREDITS.md"
+    }
+  },
   "migrating-from-three": {
     "words": {
       "credit": "Marble Bust 01 by Rico Cilliers, Poly Haven, CC0; crate by W. Sitters, CC BY 3.0 — see assets/examples/CREDITS.md"

@@ -1234,6 +1234,22 @@
       }
     }
   },
+  "a-walk-through-the-city": {
+    "banner": "दृश्य पर क्लिक करें, W A S D से चलें और माउस से देखें। चलते समय मेमोरी बजट घटाएँ।",
+    "controls": {
+      "walk": "चलना",
+      "walkSpeed": "चलने की गति",
+      "memory": "मेमोरी",
+      "view": "दृश्य",
+      "home": "आरंभ पर लौटें"
+    },
+    "choices": {
+      "view": { "beauty": "चित्र", "lod": "विस्तार स्तर", "clusters": "क्लस्टर" }
+    },
+    "words": {
+      "credit": "इस उदाहरण के लिए कोड में बनाया गया कलश मार्ग, CC0 — assets/examples/CREDITS.md देखें"
+    }
+  },
   "migrating-from-three": {
     "words": {
       "credit": "Marble Bust 01, Rico Cilliers द्वारा, Poly Haven, CC0; बक्सा W. Sitters द्वारा, CC BY 3.0 — देखो assets/examples/CREDITS.md"
