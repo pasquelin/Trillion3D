@@ -89,8 +89,9 @@ test('a member type, a case selector, a size attribute and code after a comment 
   assert.deepEqual(unresolvedNames('// a/*b\nfn f()->u32{return gone;}\n/* c */'), ['gone']);
 });
 
-test('an enable directive names an extension, never a value the module may use', () => {
-  assert.deepEqual(unresolvedNames('enable subgroups;\nfn f()->u32{return subgroupMax(1u);}'), []);
+test('a directive names an extension, never a value the module may use', () => {
+  const directives = 'enable subgroups;\nrequires packed_4x8_integer_dot_product;\n';
+  assert.deepEqual(unresolvedNames(`${directives}fn f()->u32{return subgroupMax(1u);}`), []);
   assert.deepEqual(unresolvedNames('enable subgroups,f16;\nfn f()->u32{return subgroups;}'), [
     'subgroups',
   ]);

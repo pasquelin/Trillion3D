@@ -40,14 +40,14 @@ function declaredNames(code: string) {
   return new Set([...code.matchAll(declares)].map((m) => m[1] ?? m[2]));
 }
 
-/** The names `source` uses and declares nowhere, sorted: comments, `enable` directives,
- *  attributes and structure member names left out (their types kept, and an attribute's
- *  argument unless it is a built-in's, an interpolation's or a diagnostic's word), a case
- *  selector never taken for a declaration, a member after a dot never taken for a name. */
+/** The names `source` uses and declares nowhere, sorted: comments, directives (`enable`,
+ *  `requires`), attributes and structure member names left out (their types kept, and an
+ *  attribute's argument unless it is a built-in's, an interpolation's or a diagnostic's word), a
+ *  case selector never taken for a declaration, a member after a dot never taken for a name. */
 export function unresolvedNames(source: string) {
   const code = source
     .replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, '')
-    .replace(/\benable\s[^;]*;/g, '')
+    .replace(/\b(?:enable|requires)\s[^;]*;/g, '')
     .replace(/@(?:builtin|interpolate|diagnostic)\s*\([^()]*\)|@\w+/g, '')
     .replace(/(\bstruct\s+\w+\s*\{)([^}]*)\}/g, (_, head: string, body: string) => {
       return `${head}${body.replace(/\w+\s*:/g, ':')}}`;
