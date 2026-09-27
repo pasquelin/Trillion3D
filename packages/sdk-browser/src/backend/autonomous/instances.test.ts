@@ -138,6 +138,7 @@ function primitivePeinte() {
     coverMeshes: () => 0,
     sceneChanged: () => {},
     coverChanged: () => {},
+    reassignBlend: () => false,
   });
   return { plain, coloured, colorMaterials, instances };
 }
