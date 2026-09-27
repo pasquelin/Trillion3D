@@ -1,5 +1,9 @@
 import type { ResidencyChanges } from '../core/selection.ts';
-import { RESIDENCY_RANGE_MAX, coalesceResidencyRanges } from '../../webgpu/residency/ranges.ts';
+import {
+  RESIDENCY_RANGE_GAP,
+  RESIDENCY_RANGE_MAX,
+  coalesceRanges,
+} from '../../webgpu/residency/ranges.ts';
 import { childBase, residentBase, residentWords } from './layout.ts';
 import { grown } from '../../page/cut/sparseInts.ts';
 import { DAG_NODE_FLOATS, type PackedDag } from './types.ts';
@@ -37,6 +41,9 @@ export function updateResidencyBits(
   else for (let j = 0; j < pageCount; j++) apply(j);
   return count;
 }
+
+/** Past its cap, a residency flush writes everything at once. */
+const RESIDENCY_RULE = { gap: RESIDENCY_RANGE_GAP, cap: RESIDENCY_RANGE_MAX };
 
 /**
  * The kernel's residency, kept by difference: the pool's per-page residency goes in, the cut
@@ -76,7 +83,7 @@ export function createDagResidencyUpload(resources: {
     stride: number,
     count: number,
   ) => {
-    const spans = coalesceResidencyRanges(touched, count, ranges);
+    const spans = coalesceRanges(touched, count, ranges, RESIDENCY_RULE);
     for (let r = 0; r < spans; r++) {
       const from = (base + ranges[r * 2] * stride) * 4,
         bytes = (ranges[r * 2 + 1] - ranges[r * 2] + 1) * stride * 4;
