@@ -56,12 +56,12 @@
   campaign — every view, every scene, the run-to-run spread, the frame envelope — runs once, on the
   release pull request from `develop` to `main`, and its numbers are the ones published. The site
   keeps one report, the latest, each image stored once.
-- **One measuring queue per machine.** Browser proofs, GPU probes and benchmarks never run
-  concurrently: two Chrome instances pollute each other's numbers and saturate the machine. They
-  run one at a time, in one queue, on merged batches, and never block a pull request: the issue
-  closes at merge labelled `to measure`, the queue measures it against the merge's first parent
-  and comments the numbers (`measure ok`); a regression reopens the measured issue, labelled
-  `measure ko`, with the numbers in a comment. A pull request carries the fast gates and names its proof.
+- **Image proofs on the branch, timing after the merge** (AGENTS.md rules 2 and 11). Timing
+  runs alone, in one queue, on merged batches, and never blocks a pull request but a performance
+  issue's: a merged engine batch is labelled `to measure`, the queue times it against the merge's
+  first parent and comments the numbers (`measure ok`); a regression reopens the measured issue,
+  labelled `measure ko`, with the numbers in a comment. A pull request carries the fast gates and
+  its image proof.
 - **A campaign's outputs are deleted once published.** A cook, a bench or a proof writes under
   `.mesure/out/<batch>/` and nowhere else; the numbers, and any capture a claim rests on, go into
   the pull request body, and the folder is removed before the pull request is opened.
@@ -118,8 +118,8 @@ The rules of #483, binding on every change to geometry, streaming, memory, shado
   duplicates and import-related unit tests; `pnpm run test:changed` runs only those tests. Also
   inspect dependants after deletions, public-export or configuration changes.
 - Before merge: `pnpm run validate` (format, JS/TS lint + Clippy, unused code/files/dependencies,
-  TS/native builds, structure, declarations, links, JS/TS/Rust tests). The browser proof follows
-  the merge, in the measuring queue.
+  TS/native builds, structure, declarations, links, JS/TS/Rust tests) and the branch's image
+  proof; timing follows the merge, in the measuring queue.
 - **All wording in the repository must be in English.** Comments, docstrings, documentation,
   commit messages and test descriptions are strictly written in English.
 - Every maintained JS/TS/Rust source file, including variants, must fit 200 physical lines; no legacy
@@ -202,16 +202,16 @@ its contents locally. Pulling a deletion can remove a previously tracked copy in
 3. Review the diff twice: first simplify duplicated or unnecessary work — in Claude Code
    `/simplify`, elsewhere a read of the whole diff for what is duplicated, needless or at the wrong
    depth —, then check correctness against the requirements above. Fix findings and run
-   `pnpm run check:changed`, `pnpm run test:changed` and `pnpm run validate`. Name the browser proof in the issue; the
-   measuring queue runs it after the merge.
+   `pnpm run check:changed`, `pnpm run test:changed` and `pnpm run validate`. Run the branch's image proof; the
+   measuring queue times it after the merge.
 4. Commit with a descriptive English message and push the branch; write the pull request body in a file, using
-   `.github/PULL_REQUEST_TEMPLATE.md` and beginning with `Closes #<issue>`: it delivers every To-do item of its issue (AGENTS.md rule 5). Describe what both local review passes found under "Local review before push". Replace `in progress` with `in review`. No pull request yet (AGENTS.md rule 11).
+   `.github/PULL_REQUEST_TEMPLATE.md` and beginning with `Closes #<issue>`, or `Part of #<issue>` for a step of an issue delivered in several (AGENTS.md rule 5). Describe what both local review passes found under "Local review before push". Replace `in progress` with `in review`. No pull request yet (AGENTS.md rule 11).
 5. Obtain an independent review and resolve its findings before integration. The maintainer, or
    whoever the maintainer entrusts with it, merges into `develop` once the review holds on the branch, the lead has opened the pull request with its "Lead verification" section, one line per To-do and Proof item, and `validate` is green on a head
    that merged `develop` and merges cleanly into it, oldest pull request first (AGENTS.md rule
    11); `main` moves only on the maintainer's word. Never push directly to `develop` or `main`, or
    rewrite published history.
-6. After merge, remove the worktree and merged branch, remove `in review` and close the issue;
+6. After merge, remove the worktree and merged branch, remove `in review` and close the issue once its last step is merged;
    an engine batch is labelled `to measure` first. Every merge into `develop` is then re-read
    against this file; a finding reopens the issue, labelled `audit ko`, with the findings in a
    comment.
