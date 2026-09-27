@@ -21,9 +21,8 @@
   <body>
     <canvas id="view"></canvas>
     <script type="module">
-      import { createWorld } from '../runtime/engine.js';
-      import { geometry, material, object, light, math } from '../runtime/engine.js';
-      import { controls } from '../runtime/kit.js';
+      import { createWorld, geometry, material, object, light, math } from '../runtime/engine.js';
+      import { controls, perFrame } from '../runtime/kit.js';
 
       const world = createWorld('view', { controls: 'orbit' });
       world.scene.background = math.color('#18212c');
@@ -70,20 +69,17 @@
       );
       // One ray a frame at the last pointer position, none while a button orbits the camera.
       const pointer = { x: 0, y: 0 };
-      let queued = false,
-        inside = false;
+      let inside = false;
+      const ray = perFrame(() => {
+        if (inside && values.highlightEnabled)
+          show(world.raycast(pointer, { objects: parts })?.object ?? null);
+      }, requestAnimationFrame);
       world.canvas.addEventListener('pointermove', (event) => {
         if (!values.highlightEnabled || event.buttons) return;
         inside = true;
         pointer.x = event.offsetX;
         pointer.y = event.offsetY;
-        if (queued) return;
-        queued = true;
-        requestAnimationFrame(() => {
-          queued = false;
-          if (inside && values.highlightEnabled)
-            show(world.raycast(pointer, { objects: parts })?.object ?? null);
-        });
+        ray();
       });
       world.canvas.addEventListener('pointerleave', () => {
         inside = false;
@@ -104,7 +100,6 @@
         geometry.box(16, 0.2, 12),
         material.meshStandard({ color: '#34414e', roughness: 0.9 }),
       );
-      floor.name = 'floor';
       floor.position.y = 0.05;
       floor.receiveShadow = true;
       floor.castShadow = false;

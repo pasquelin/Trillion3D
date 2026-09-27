@@ -12,6 +12,7 @@ import {
   type World,
 } from '../packages/sdk-browser/src/index.ts';
 import { describe, type ControlSpec } from '../site/examples/kit/controls.ts';
+import { perFrame } from '../site/examples/kit/perFrame.ts';
 import { runExampleModule } from './docs/examples/capture.ts';
 import type { Intersection } from '../packages/sdk-core/src/world/object/raycast.ts';
 
@@ -78,6 +79,7 @@ test('hover highlights one filtered part and restores it on transitions and clea
         math,
       },
       kit: {
+        perFrame,
         controls(specs: Record<string, ControlSpec>, callback: typeof change, watched: unknown) {
           assert.equal(watched, world);
           values = describe(specs).values as Values;
@@ -90,7 +92,7 @@ test('hover highlights one filtered part and restores it on transitions and clea
 
     type Part = ReturnType<typeof object.mesh>;
     const parts = scene.children.filter(
-      (child) => 'material' in child && child.name !== 'floor',
+      (child) => 'color' in child.userData,
     ) as Part[];
     assert.equal(parts.length, 7);
     assert.deepEqual(values, { highlightEnabled: true });
@@ -110,10 +112,10 @@ test('hover highlights one filtered part and restores it on transitions and clea
     const move = listeners.get('pointermove');
     const leave = listeners.get('pointerleave');
     assert.ok(move && leave);
-    const over = (part: Part | null, buttons = 0) => {
+    const over = (part: Part | null, buttons = 0, frame = true) => {
       hit = part && hitOn(part);
       move({ offsetX: 23, offsetY: 41, buttons } as unknown as Event);
-      flush();
+      if (frame) flush();
     };
 
     over(first);
@@ -131,8 +133,7 @@ test('hover highlights one filtered part and restores it on transitions and clea
     over(first);
     leave(new Event('pointerleave'));
     assert.deepEqual(paint(first), original[0]);
-    hit = hitOn(second);
-    move({ offsetX: 23, offsetY: 41, buttons: 0 } as unknown as Event);
+    over(second, 0, false);
     leave(new Event('pointerleave'));
     flush();
     assert.deepEqual(
