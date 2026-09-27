@@ -64,8 +64,8 @@ export const TILE_POOL_WGSL = `${WRAP_COORD_WGSL}
 const TEXEL_TILE:f32=${TILE_SIZE}.0;
 const TEXEL_PITCH:f32=${TILE_PITCH}.0;
 const TEXEL_BORDER:f32=${TILE_BORDER}.0;
-const POOL_SIDE:f32=${POOL_LAYER_SIDE}.0;
 const POOL_SUBTEXEL:f32=${POOL_SUBTEXEL}.0;
+const POOL_STEP:f32=1.0/${POOL_SUBTEXEL * POOL_LAYER_SIDE}.0;
 const PAGE_HEADER:u32=${PAGE_HEADER_WORDS}u;
 const PAGE_SLOT:u32=${PAGE_SLOT_WORDS}u;
 const PAGE_LEVELS:u32=${MAX_LEVELS}u;
@@ -87,9 +87,9 @@ fn slotWrapped(s:TileSlot,uv:vec2f)->vec2f{
  if(!wrapRepete(s.wrap)){return wrapReplie(uv,s.wrap);}
  return wrapUv(uv,s.wrap,s.size).proche;
 }
-/** Pool coordinate of a texel at \`texel\` from a tile's \`origin\`, exact in f32 at every place
- *  (\`POOL_LAYER_SIDE\`, \`../../texture/tiles.ts\`). */
-fn poolAxis(origin:f32,texel:f32)->f32{return (origin+round(texel*POOL_SUBTEXEL)/POOL_SUBTEXEL)/POOL_SIDE;}
+/** Pool coordinate of a texel at \`texel\` from a tile's \`origin\`, counted in 2^-24 steps: exact
+ *  in f32 at every place (\`POOL_LAYER_SIDE\`, \`../../texture/tiles.ts\`), with no division. */
+fn poolAxis(origin:f32,texel:f32)->f32{return (origin*POOL_SUBTEXEL+round(texel*POOL_SUBTEXEL))*POOL_STEP;}
 fn poolTap(origin:vec2f,texel:vec2f,layer:i32)->TileTap{return TileTap(vec2f(poolAxis(origin.x,texel.x),poolAxis(origin.y,texel.y)),layer);}
 fn tailOffset(rank:u32)->f32{return f32((${TILE_SIZE}u-(${TILE_SIZE}u>>rank)+3u)&~3u);}
 fn placeOrigin(word:u32)->vec2f{return vec2f(f32(word&0xffu),f32((word>>8u)&0xffu))*TEXEL_PITCH+TEXEL_BORDER;}

@@ -8,8 +8,8 @@ type PoolAxis = { poolAxis: (origin: number, texel: number) => number };
 
 test('a tap filters the same sub-texel position wherever the streamer placed its tile (#26)', () => {
   const { poolAxis } = shaderFunctions<PoolAxis>(TILE_POOL_WGSL, ['poolAxis'], {
-    POOL_SIDE: POOL_LAYER_SIDE,
     POOL_SUBTEXEL,
+    POOL_STEP: 1 / (POOL_SUBTEXEL * POOL_LAYER_SIDE),
   });
   // Every place of a row, from the first tile of a layer to the last.
   const origins = Array.from({ length: 30 }, (_, i) => i * TILE_PITCH + TILE_BORDER);
