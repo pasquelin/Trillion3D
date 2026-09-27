@@ -27,7 +27,7 @@ fn dagWanted(@builtin(global_invocation_id) id:vec3u){
  liveAppend(entry);
  let light=isLightCut();
  let rejected=!light&&coneRejects(r,w);
- let e=views[vi].view*worlds[w];let stretch=stretchOf(w);let focal=focalPixels();
+ let e=viewWorld(w);let stretch=stretchOf(w);let focal=focalPixels();
  // The two screen errors \`selects\` compares, computed ONCE: the request's priority reuses them
  // (\`replacementPixels\`), and a camera cut keeps the two comparisons of the cut rule behind the
  // cone bit, for \`dagMask\` — same operands, same frame, so the same bits.
