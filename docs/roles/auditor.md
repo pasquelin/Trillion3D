@@ -12,7 +12,8 @@ rule 2).
 2. Read `gh pr view <pr>`, its diff, its linked issue and its CI jobs. Read the code the diff
    calls only where a rule needs it; the graph first for cross-module questions.
 3. **Check**, most severe first:
-   - the issue's promise: does the merged diff do what the issue asked, and nothing it did not;
+   - the issue's promise: does the merged diff do what the issue asked (a `Part of` pull request,
+     its step), and nothing it did not;
    - no image loss (AGENTS.md rule 1), no tuning on a scene, numbers measured and never
      estimated;
    - reuse: nothing that duplicates an existing mechanism, even under another name;
