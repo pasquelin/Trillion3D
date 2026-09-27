@@ -166,6 +166,12 @@ test('an example is its file, live, on the demo page; the index shows what is re
     if (entry.issue)
       assert.ok(index.includes(`/issues/${entry.issue}">#${entry.issue}</a>`), entry.id);
   }
+  // A parked example has no render yet: its card shows no picture, so none can break.
+  const cards = index.split('<section class="card').slice(1);
+  for (const { id } of written.filter(({ status }) => status === 'waiting-engine')) {
+    const card = cards.find((markup) => markup.includes(`>${exampleTitle(id, 'en')}</h2>`));
+    assert.ok(card && !card.includes('<img'), id);
+  }
   const count = (pattern: RegExp) => (index.match(pattern) ?? []).length;
   assert.equal(count(/aria-disabled="true"/g), roadmapEntries.length - ready.length);
   assert.equal(count(/>In progress</g), roadmapEntries.length - written.length);
