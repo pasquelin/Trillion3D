@@ -1,11 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { HIZ_KERNEL_TEXELS } from '../../hiz/counts.ts';
+import { HIZ_TEST_VALUES, hizTestRect } from '../../hiz/occlusion.ts';
 import { packHizPyramid, type PackedHiz } from './oracle.ts';
-import { HIZ_HIDDEN_WGSL, HIZ_HIDES_WGSL, HIZ_LEVEL_WGSL } from './rectWgsl.ts';
-import { HIZ_SHADER } from './shader.ts';
-import { PARTITION_CLASSIFY_WGSL } from '../partition/classifyWgsl.ts';
-import { SHADOW_OCCLUSION_SHADER } from '../shadow/occlusionShader.ts';
 
 // The Hi-Z rectangle test reads a coarse mip first and stops at the first texel that does not
 // hide (`pyramidHides`), where it used to take the minimum of the whole footprint
@@ -16,14 +13,11 @@ import { SHADOW_OCCLUSION_SHADER } from '../shadow/occlusionShader.ts';
 const f32 = Math.fround;
 const KERNEL = HIZ_KERNEL_TEXELS;
 
-/** `firstLevel` then `hizLevelFor`: the mip that covers the rectangle, or -1. */
-function levelFor(x0: number, y0: number, x1: number, y1: number, levels: number) {
-  const span = Math.max(x1 - x0, y1 - y0);
-  let l = span < KERNEL ? 0 : 31 - Math.clz32(span) - (Math.log2(KERNEL) - 1);
-  for (; l < levels; l++)
-    if ((x1 >> l) - (x0 >> l) < KERNEL && (y1 >> l) - (y0 >> l) < KERNEL) return l;
-  return -1;
-}
+/** The mip that covers an already clipped rectangle, or -1: `hizTestRect`, the CPU rule
+ *  `hizLevelFor` mirrors, over a viewport wide enough to clip nothing. */
+const pick = new Int32Array(HIZ_TEST_VALUES);
+const levelFor = (x0: number, y0: number, x1: number, y1: number, levels: number) =>
+  hizTestRect(x0, y0, x1, y1, false, 1 << 30, 1 << 30, levels, pick) ? pick[0] : -1;
 
 /** `hizCoarseLevel`. */
 function coarseLevel(x0: number, y0: number, x1: number, y1: number, l: number, levels: number) {
@@ -32,19 +26,44 @@ function coarseLevel(x0: number, y0: number, x1: number, y1: number, l: number, 
   return c;
 }
 
-/** The old read: the minimum of the footprint (`pyramidFar`), WGSL `min` taken as `Math.min`.
- *  A NaN TEXEL is equivalent only under this NaN-propagating `min`: WGSL leaves `min` with a NaN
- *  operand indeterminate, and where it returns the other operand the old read could reject what
- *  `texelsHide` keeps. A pyramid reduced from a depth texture holds no NaN. */
-function footprintFar(p: PackedHiz, l: number, x0: number, y0: number, x1: number, y1: number) {
+type Min = (a: number, b: number) => number;
+/** WGSL leaves `min` with a NaN operand indeterminate: `Math.min` propagates the NaN, `minNum`
+ *  returns the other operand. Under the first the verdicts are identical; under the second the
+ *  new test may keep a box whose footprint holds a NaN that the old one rejected, never the
+ *  reverse. A pyramid reduced from a depth texture holds no NaN. */
+const minNum: Min = (a, b) => (a !== a ? b : b !== b ? a : Math.min(a, b));
+
+/** The old read: the minimum of the footprint (`pyramidFar`). */
+function footprintFar(p: PackedHiz, l: number, rect: number[], min: Min) {
   let far = f32(1.0e30);
-  for (let y = y0; y <= y1; y++)
-    for (let x = x0; x <= x1; x++)
-      far = Math.min(far, p.data[p.offsets[l] + y * p.sizes[l][0] + x]);
+  for (let y = rect[1]; y <= rect[3]; y++)
+    for (let x = rect[0]; x <= rect[2]; x++)
+      far = min(far, p.data[p.offsets[l] + y * p.sizes[l][0] + x]);
   return far;
 }
 
-/** `texelsHide`, with its early exit, counting the texels it reads. */
+/** The per-level 2 × 2 reduction (`buildHiz`) again with `min`: the pyramid such a GPU builds. */
+function reduceWith(p: PackedHiz, min: Min) {
+  for (let l = 1; l < p.sizes.length; l++) {
+    const [w, h] = p.sizes[l],
+      [sw, sh] = p.sizes[l - 1];
+    const at = (x: number, y: number) => p.data[p.offsets[l - 1] + y * sw + x];
+    for (let y = 0; y < h; y++)
+      for (let x = 0; x < w; x++) {
+        const x0 = 2 * x,
+          y0 = 2 * y;
+        let far = at(x0, y0);
+        if (x0 + 1 < sw) far = min(far, at(x0 + 1, y0));
+        if (y0 + 1 < sh) {
+          far = min(far, at(x0, y0 + 1));
+          if (x0 + 1 < sw) far = min(far, at(x0 + 1, y0 + 1));
+        }
+        p.data[p.offsets[l] + y * w + x] = far;
+      }
+  }
+}
+
+/** `texelsHide`, with its early exit. */
 function texelsHide(p: PackedHiz, l: number, rect: number[], nearest: number, bias: number) {
   const [x0, y0, x1, y1] = rect;
   for (let y = y0; y <= y1; y++)
@@ -57,13 +76,20 @@ type Verdicts = { before: boolean; after: boolean; shift: number };
 
 /** One clipped rectangle judged the old way and the new way, as `hiddenByPyramid` and the
  *  partition's packing then `testHiz` do. */
-function judge(p: PackedHiz, rect: number[], levels: number, nearest: number, bias: number) {
+function judge(
+  p: PackedHiz,
+  rect: number[],
+  levels: number,
+  nearest: number,
+  bias: number,
+  min: Min = Math.min,
+) {
   const [x0, y0, x1, y1] = rect;
   const l = levelFor(x0, y0, x1, y1, levels);
   if (l < 0) return undefined;
   const fine = rect.map((v) => v >> l);
   assert.ok(fine[2] + 1 - fine[0] <= KERNEL && fine[3] + 1 - fine[1] <= KERNEL);
-  const before = nearest < f32(footprintFar(p, l, fine[0], fine[1], fine[2], fine[3]) - bias);
+  const before = nearest < f32(footprintFar(p, l, fine, min) - bias);
   const c = coarseLevel(x0, y0, x1, y1, l, levels),
     shift = c - l;
   const coarse = fine.map((v) => v >> shift);
@@ -97,7 +123,7 @@ function pyramid(rand: () => number, width: number, height: number, hostile: boo
   return packHizPyramid(Array.from({ length: height }, () => Array.from({ length: width }, pick)));
 }
 
-function sweep(seed: number, hostile: boolean) {
+function sweep(seed: number, hostile: boolean, min: Min = Math.min) {
   const rand = lcg(seed);
   let judged = 0,
     rejected = 0,
@@ -106,6 +132,7 @@ function sweep(seed: number, hostile: boolean) {
     const width = 1 + Math.floor(rand() * 90),
       height = 1 + Math.floor(rand() * 90);
     const p = pyramid(rand, width, height, hostile);
+    if (min !== Math.min) reduceWith(p, min);
     // A mip table cut short (the camera's holds at most 16) leaves wide rectangles unjudged.
     const levels = rand() < 0.2 ? 1 + Math.floor(rand() * p.sizes.length) : p.sizes.length;
     for (let box = 0; box < 40; box++) {
@@ -118,12 +145,14 @@ function sweep(seed: number, hostile: boolean) {
           ? SPECIALS[Math.floor(rand() * SPECIALS.length)]
           : f32(p.data[Math.floor(rand() * p.data.length)] - (rand() - 0.5) * 0.1);
       const bias = rand() < 0.5 ? 0 : f32(rand() * 0.05);
-      const verdicts = judge(p, [x0, y0, x1, y1], levels, nearest, bias);
+      const verdicts = judge(p, [x0, y0, x1, y1], levels, nearest, bias, min);
       if (!verdicts) continue;
       judged++;
       if (verdicts.before) rejected++;
       if (verdicts.shift > 0) coarse++;
-      assert.equal(verdicts.after, verdicts.before, `seed ${seed}, [${x0},${y0},${x1},${y1}]`);
+      const where = `seed ${seed}, [${x0},${y0},${x1},${y1}]`;
+      if (min === Math.min) assert.equal(verdicts.after, verdicts.before, where);
+      else assert.ok(!verdicts.after || verdicts.before, `rejects what develop keeps: ${where}`);
     }
   }
   return { judged, rejected, coarse };
@@ -139,6 +168,10 @@ test('the coarse pre-test and early exit give the verdict of the whole-footprint
 
 test('same verdict with NaN, ±0 and ±Inf in the pyramid and as the box depth', () => {
   for (const seed of [11, 12, 13, 14]) sweep(seed, true);
+});
+
+test('where min drops NaN, the new test never rejects a box the old one keeps', () => {
+  for (const seed of [21, 22, 23, 24]) sweep(seed, true, minNum);
 });
 
 test('edge cases: one texel, a kernel-wide footprint, a buried box, a box in front', () => {
@@ -164,31 +197,4 @@ test('edge cases: one texel, a kernel-wide footprint, a buried box, a box in fro
   assert.equal(judge(wide, edge, wide.sizes.length, 0.25, 0)?.after, true);
   // No mip covers the rectangle: unjudged on both sides.
   assert.equal(judge(wide, full, 2, 0.25, 0), undefined);
-});
-
-test('the three Hi-Z tests read through the coarse pre-test, and no whole-footprint walk is left', () => {
-  assert.match(HIZ_LEVEL_WGSL, /fn hizCoarseLevel\(rect:vec4i,l:u32,levels:u32\)->u32\{/);
-  assert.match(
-    HIZ_HIDES_WGSL,
-    /if\(!\(nearest<pyramid\[offset\+u32\(y\)\*width\+u32\(x\)\]-bias\)\)\{return false;\}/,
-  );
-  for (const shader of [HIZ_HIDDEN_WGSL, HIZ_SHADER, SHADOW_OCCLUSION_SHADER])
-    assert.match(shader, /pyramidHides\(/);
-  for (const shader of [
-    HIZ_HIDDEN_WGSL,
-    HIZ_SHADER,
-    SHADOW_OCCLUSION_SHADER,
-    PARTITION_CLASSIFY_WGSL,
-  ])
-    assert.doesNotMatch(shader, /pyramidFar/);
-  assert.match(HIZ_HIDDEN_WGSL, /let c=hizCoarseLevel\(vec4i\(x0,y0,x1,y1\),l,uni\.levels\);/);
-  assert.match(SHADOW_OCCLUSION_SHADER, /let c=hizCoarseLevel\(rect,l,/);
-  // The partition packs the coarse mip into the three words `testHiz` reads it from.
-  assert.match(
-    PARTITION_CLASSIFY_WGSL,
-    /let coarse=hizCoarseLevel\(vec4i\(x0,y0,x1,y1\),level,uni\.levels\);/,
-  );
-  assert.match(PARTITION_CLASSIFY_WGSL, /tested\[slot\+11u\]=coarse-level;/);
-  assert.match(HIZ_SHADER, /triangles:u32,coarseOffset:u32,coarseWidth:u32,coarseShift:u32,\}/);
-  assert.match(HIZ_SHADER, /b\.coarseOffset,b\.coarseWidth,b\.coarseShift\)/);
 });

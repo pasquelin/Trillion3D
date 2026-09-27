@@ -1,7 +1,7 @@
-import type { HizBuildPass } from './uniforms.ts';
+import { HIZ_BUILD_SIDE, type HizBuildPass } from './uniforms.ts';
 
-/** Source texels one build workgroup covers per side: 8 × 8 threads, each a 2 × 2 square. */
-const TILE = 16;
+/** Source texels one build workgroup covers per side: each thread reduces a 2 × 2 square. */
+const TILE = 2 * HIZ_BUILD_SIDE;
 
 /**
  * The build passes of `count` pyramids, one per `z`, in one compute pass: consecutive dispatches

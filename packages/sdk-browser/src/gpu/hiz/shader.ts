@@ -7,7 +7,7 @@ import {
   VERDICT_REJECTED,
 } from '../partition/contract.ts';
 import { HIZ_HIDES_WGSL } from './rectWgsl.ts';
-import { HIZ_PASS_LEVELS } from './uniforms.ts';
+import { HIZ_BUILD_SIDE, HIZ_PASS_LEVELS } from './uniforms.ts';
 import { PAGE_INFO_STRUCT_WGSL } from '../../visibility/shader/pageWgsl.ts';
 
 /**
@@ -64,7 +64,7 @@ struct Bounds{minX:i32,minY:i32,maxX:i32,maxY:i32,nearest:f32,rowAndClip:u32,pad
 @group(0) @binding(4) var<storage, read_write> flags:array<u32>;
 @group(0) @binding(5) var<storage, read_write> state:array<atomic<u32>>;
 @group(1) @binding(0) var<storage, read> pages:array<PageInfo>;
-var<workgroup> hizTile:array<f32,64>;
+var<workgroup> hizTile:array<f32,${HIZ_BUILD_SIDE ** 2}>;
 /** A texel of the pass's source level: the level-0 texture, copied into the pyramid on the way,
  *  or the pyramid level the previous pass wrote last. */
 fn hizSource(z:u32,x:u32,y:u32)->f32{
@@ -79,19 +79,21 @@ fn hizSource(z:u32,x:u32,y:u32)->f32{
 /** The farthest of the square at (x0, y0) of the level held in \`hizTile\`, whose local texel
  *  (lx, ly) it is, over the texels of a w × h level that exist. */
 fn hizTileFar(lx:u32,ly:u32,x0:u32,y0:u32,w:u32,h:u32)->f32{
- var far=hizTile[ly*8u+lx];
- if(x0+1u<w){far=min(far,hizTile[ly*8u+lx+1u]);}
+ var far=hizTile[ly*${HIZ_BUILD_SIDE}u+lx];
+ if(x0+1u<w){far=min(far,hizTile[ly*${HIZ_BUILD_SIDE}u+lx+1u]);}
  if(y0+1u<h){
-  far=min(far,hizTile[(ly+1u)*8u+lx]);
-  if(x0+1u<w){far=min(far,hizTile[(ly+1u)*8u+lx+1u]);}
+  far=min(far,hizTile[(ly+1u)*${HIZ_BUILD_SIDE}u+lx]);
+  if(x0+1u<w){far=min(far,hizTile[(ly+1u)*${HIZ_BUILD_SIDE}u+lx+1u]);}
  }
  return far;
 }
-@compute @workgroup_size(8, 8)
+@compute @workgroup_size(${HIZ_BUILD_SIDE}, ${HIZ_BUILD_SIDE})
 fn buildHiz(@builtin(workgroup_id) wg:vec3u,@builtin(local_invocation_id) lid:vec3u){
+ // uni: a the source level's offset, b × c its size, d the levels this pass writes (dst), e
+ // whether the source is the level-0 texture, g the stride between two pyramids.
  let z=wg.z;
  // Reverse-Z: the FARTHEST of a square is the MINIMUM, over the texels of the source that exist.
- let x=wg.x*8u+lid.x;let y=wg.y*8u+lid.y;let x0=x*2u;let y0=y*2u;
+ let x=wg.x*${HIZ_BUILD_SIDE}u+lid.x;let y=wg.y*${HIZ_BUILD_SIDE}u+lid.y;let x0=x*2u;let y0=y*2u;
  var far=0.0;
  if(x0<uni.b&&y0<uni.c){
   far=hizSource(z,x0,y0);
@@ -102,9 +104,9 @@ fn buildHiz(@builtin(workgroup_id) wg:vec3u,@builtin(local_invocation_id) lid:ve
   }
   if(uni.d>0u){pyramid[uni.dst[0].x+z*uni.g+y*uni.dst[0].y+x]=far;}
  }
- hizTile[lid.y*8u+lid.x]=far;
+ hizTile[lid.y*${HIZ_BUILD_SIDE}u+lid.x]=far;
  // Each further level halves the threads at work; the one the tile holds is read, then replaced.
- var side=8u;
+ var side=${HIZ_BUILD_SIDE}u;
  for(var k=1u;k<${HIZ_PASS_LEVELS}u;k++){
   side=side>>1u;
   workgroupBarrier();
@@ -114,7 +116,7 @@ fn buildHiz(@builtin(workgroup_id) wg:vec3u,@builtin(local_invocation_id) lid:ve
   if(live){far=hizTileFar(lid.x*2u,lid.y*2u,tx*2u,ty*2u,src.y,src.z);}
   workgroupBarrier();
   if(live){
-   hizTile[lid.y*8u+lid.x]=far;
+   hizTile[lid.y*${HIZ_BUILD_SIDE}u+lid.x]=far;
    pyramid[dst.x+z*uni.g+ty*dst.y+tx]=far;
   }
  }

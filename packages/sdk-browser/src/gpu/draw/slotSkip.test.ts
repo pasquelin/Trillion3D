@@ -4,8 +4,8 @@ import { drawShader } from './shader.ts';
 
 // Indirect compact receives, per slot, the row count the GPU partition wrote there
 // (`classifyRows`, ../partition/classifyWgsl.ts). A slot that count says is empty has no reason
-// to be scanned by the shader: `slotUsed` carries that fact, and each pass's guard uses it to
-// return before scanning anything for that slot.
+// to be scanned by the shader: `slotUsed` carries that fact. The counting pass reads each item
+// once and writes such a slot a zero count; the prefix pass returns before scanning it.
 
 test('drawShader(k) reads each item once when counting, and guards the prefix pass by slotUsed', () => {
   for (const k of [1, 2, 3, 5]) {

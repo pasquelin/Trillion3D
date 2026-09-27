@@ -17,13 +17,14 @@ fn firstLevel(span:i32)->u32{
  let level=31u-countLeadingZeros(u32(span))-${Math.log2(HIZ_KERNEL_TEXELS) - 1}u;
  return select(level,0u,level>31u);
 }
+/** Whether the level-0 rectangle spans fewer than \`n\` texel steps per side in mip \`l\`. */
+fn fitsAt(rect:vec4i,l:u32,n:i32)->bool{return (rect.z>>l)-(rect.x>>l)<n&&(rect.w>>l)-(rect.y>>l)<n;}
 /** Coarse pre-test mip of \`pyramidHides\`: the first mip from \`l\` up where the level-0 rectangle
  *  spans at most two texels per side, capped at the last mip; \`l\` itself when it already does. */
 fn hizCoarseLevel(rect:vec4i,l:u32,levels:u32)->u32{
  var c=l;
  loop{
-  if(c+1u>=levels){break;}
-  if((rect.z>>c)-(rect.x>>c)<2&&(rect.w>>c)-(rect.y>>c)<2){break;}
+  if(c+1u>=levels||fitsAt(rect,c,2)){break;}
   c++;
  }
  return c;
@@ -34,9 +35,7 @@ fn hizLevelFor(rect:vec4i,levels:u32)->vec2u{
  var l=firstLevel(max(rect.z-rect.x,rect.w-rect.y));
  loop{
   if(l>=levels){break;}
-  if((rect.z>>l)-(rect.x>>l)<${HIZ_KERNEL_TEXELS}&&(rect.w>>l)-(rect.y>>l)<${HIZ_KERNEL_TEXELS}){
-   return vec2u(l,1u);
-  }
+  if(fitsAt(rect,l,${HIZ_KERNEL_TEXELS})){return vec2u(l,1u);}
   l++;
  }
  return vec2u(0u,0u);
@@ -79,8 +78,8 @@ fn pyramidHides(minX:i32,minY:i32,maxX:i32,maxY:i32,offset:u32,width:u32,nearest
  * Whether a pyramid hides a projected box: the unclipped rectangle is clipped to the viewport,
  * the mip that covers it is chosen, and the farthest depth read there is compared to the box's
  * nearest (`pyramidHides`, after its coarse pre-test) — reverse-Z, so hidden means SMALLER. A
- * rectangle outside the viewport, or one no mip covers, hides nothing. Reads the shared uniform (`PARTITION_UNI_WGSL`) and `pyramid`, which
- * the host kernel declares; the opaque main-pass cull and the transparent-cluster test are this
+ * rectangle outside the viewport, or one no mip covers, hides nothing. Reads the shared uniform
+ * (`PARTITION_UNI_WGSL`) and `pyramid`, which the host kernel declares; the opaque main-pass cull and the transparent-cluster test are this
  * same function on their own inputs, so the two rules cannot diverge.
  */
 export const HIZ_HIDDEN_WGSL = `${HIZ_LEVEL_WGSL}${HIZ_HIDES_WGSL}

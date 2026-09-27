@@ -80,6 +80,7 @@ export async function createGpuHiz(
     const alloc = (w: number, h: number) => {
       const packed = pyramidBytes(w, h);
       ({ sizes, offsets } = packed);
+      passes = hizBuildPasses(sizes, MAX_LEVELS);
       levelTable = undefined;
       level0?.destroy();
       pyramid?.destroy();
@@ -94,7 +95,6 @@ export async function createGpuHiz(
         usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
       });
       bind(pyramid, level0View);
-      passes = hizBuildPasses(sizes, MAX_LEVELS);
       writeHizBuildUniforms(device, uniforms, levelWords, sizes, offsets, passes, UNIFORM_BYTES);
       return true;
     };
