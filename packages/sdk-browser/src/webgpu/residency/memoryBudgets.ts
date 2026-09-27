@@ -57,6 +57,10 @@ export type TexturePools = {
   liveBytes?: number;
 };
 
+const layersFor = (tiles: number) => Math.ceil(tiles / TILES_PER_LAYER);
+/** A lane's floor: its tails, and one tile to stream into when the lane streams. */
+const laneFloor = (tails: number, streams: boolean) => layersFor(tails + Number(streams));
+
 /**
  * Layers of each lane pool that the texture-pool budget yields: half the budget per atlas; in an
  * atlas every lane that has textures gets its floor — the layers the tails of its textures take,
@@ -82,13 +86,11 @@ export function texturePoolFor(
   const limit = device?.limits?.maxTextureArrayLayers;
   const clamps = new Set<PoolClamp>();
   const layerBytes = (lane: PoolLane) => poolLayerBytes(texelBytes(lane));
-  const layersFor = (tiles: number) => Math.ceil(tiles / TILES_PER_LAYER);
   const atlas = (lanes: LaneCounts, kept: LaneCounts) => {
     const layers = laneCounts();
     const open = new Set(POOL_LANES.filter((lane) => lanes[lane] > 0));
     // The tails, and one slot to stream into when the lane streams: never frozen at its tails.
-    for (const lane of open)
-      layers[lane] = layersFor(kept[lane] + Number(lanes[lane] > kept[lane]));
+    for (const lane of open) layers[lane] = laneFloor(kept[lane], lanes[lane] > kept[lane]);
     const floor = { ...layers };
     let budget =
       budgetBytes / 2 - [...open].reduce((sum, lane) => sum + floor[lane] * layerBytes(lane), 0);
@@ -153,32 +155,30 @@ export type LaneTaking = {
  * The pool a live atlas takes one more texture in, after open (#847): its lane grown only by the
  * layers the texture's tail needs — a free place beside every tile the lane holds, so nothing drawn
  * is evicted, and the floor `texturePoolFor` keeps, its tails and one tile to stream into —, every
- * other lane as it is; the same pool when the lane has room. A growth that takes the pool, with
- * `heldBytes` beside it, past `budgetBytes`, or the lane past the device's layers, is refused by
- * name (`TEXTURE_BUDGET`): nothing is drawn for it.
+ * other lane as it is; the same pool when the lane has room. A growth that takes the pool past
+ * `budgetBytes` — what the budget leaves it beside the live textures (`budgetBeside`) —, or the
+ * lane past the device's layers, is refused by name (`TEXTURE_BUDGET`): nothing is drawn for it.
  */
 export function poolTaking(
   pool: TexturePool,
   taking: LaneTaking,
   layerBytes: number,
-  limits: { budgetBytes: number; heldBytes: number; maxLayers: number },
+  limits: { budgetBytes: number; maxLayers: number },
 ): TexturePool {
-  const { kind, lane } = taking,
-    layersFor = (tiles: number) => Math.ceil(tiles / TILES_PER_LAYER);
+  const { kind, lane } = taking;
   const current = pool.layers[kind][lane];
   const wanted = Math.max(
     current,
     layersFor(taking.resident + 1),
-    layersFor(taking.tails + Number(taking.streams)),
+    laneFloor(taking.tails, taking.streams),
   );
   if (wanted === current) return pool;
-  const allocatedBytes = pool.allocatedBytes + (wanted - current) * layerBytes,
-    askedBytes = allocatedBytes + limits.heldBytes;
-  if (askedBytes > limits.budgetBytes || wanted > limits.maxLayers)
+  const allocatedBytes = pool.allocatedBytes + (wanted - current) * layerBytes;
+  if (allocatedBytes > limits.budgetBytes || wanted > limits.maxLayers)
     throw new EngineError('TEXTURE_BUDGET', 'the texture does not fit the texture budget', {
       ...taking,
       layers: wanted,
-      askedBytes,
+      askedBytes: allocatedBytes,
       ...limits,
     });
   const layers = { ...pool.layers, [kind]: { ...pool.layers[kind], [lane]: wanted } };

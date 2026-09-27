@@ -21,7 +21,7 @@ export function createTileGrowth(
     followHeaders: (force: boolean) => number;
   },
 ) {
-  const { color, data, feedback, sources, flushAll } = parts;
+  const { color, data, feedback, sources, flushAll, followHeaders } = parts;
   return {
     /** Lane pools whose layers change are replaced, tiles kept; returns the evicted tiles. */
     resize(layers: AtlasLanes) {
@@ -41,7 +41,7 @@ export function createTileGrowth(
       if (data.pages.words[0] !== color.pages.entries) data.relayout(color.pages.entries);
       const ranks = color.pages.entries + data.pages.entries;
       if (ranks !== feedback.entries) feedback.grow(ranks);
-      parts.followHeaders(true);
+      followHeaders(true);
       flushAll();
       return slot;
     },
