@@ -25,16 +25,15 @@ class JointIndex {
   void remove(uint32_t slot, uint32_t kind, uint32_t joint) {
     auto found = ends.find(key(slot, kind));
     if (found == ends.end()) return;
-    drop(found->second, joint);
+    swapRemove(found->second, joint);
     if (found->second.empty()) ends.erase(found);
   }
   /// Every joint in `list`, whatever its bodies.
   const std::vector<uint32_t> &every(List list) const { return lists[list]; }
-  void mark(List list, uint32_t joint, bool in) { in ? lists[list].push_back(joint) : drop(lists[list], joint); }
+  void mark(List list, uint32_t joint, bool in) { in ? lists[list].push_back(joint) : swapRemove(lists[list], joint); }
 
  private:
   static uint64_t key(uint32_t slot, uint32_t kind) { return uint64_t(slot) << 8 | kind; }
-  static void drop(std::vector<uint32_t> &list, uint32_t joint) { swapRemove(list, joint); }
   std::unordered_map<uint64_t, std::vector<uint32_t>> ends;
   std::vector<uint32_t> lists[LISTS];
   const std::vector<uint32_t> none;
