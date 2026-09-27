@@ -4,7 +4,7 @@ import { createReadWatch, type PageReads } from './readWatch.ts';
 import { PRIORITY_PREFETCH } from './priority.ts';
 
 /** A watch over reads that settle when the test says: `land` or `drop` each url. */
-function reads() {
+function watchedReads() {
   const pending = new Map<string, { land: () => void; drop: () => void }[]>();
   const subscribe = (url: string) =>
     new Promise<Uint8Array>((resolve, reject) => {
@@ -20,9 +20,9 @@ function reads() {
 }
 
 test('a watch hears the reads the view waits on: each page once, a dropped one taken back (#408)', async () => {
-  const { read, watch, settle } = reads();
+  const { read, watch, settle } = watchedReads();
   const heard: PageReads[] = [];
-  const { stop, hold, reads: now } = watch(() => heard.push(now()));
+  const { stop, hold, reads } = watch(() => heard.push(reads()));
   const caught = (url: string, priority?: number) =>
     void read(url, undefined, priority).catch(() => {});
   ['a', 'b', 'c', 'a'].forEach((url) => caught(url));
@@ -42,10 +42,10 @@ test('a watch hears the reads the view waits on: each page once, a dropped one t
   await settle('c', 'land');
   hold('c');
   hold('held');
-  assert.deepEqual(now(), { landed: 3, asked: 3 }, 'a held page counts once, landed');
+  assert.deepEqual(reads(), { landed: 3, asked: 3 }, 'a held page counts once, landed');
   stop();
   caught('d');
   await settle('a', 'land');
   assert.equal(heard.length, 6, 'a stopped watch hears nothing more');
-  assert.deepEqual(now(), { landed: 3, asked: 3 });
+  assert.deepEqual(reads(), { landed: 3, asked: 3 });
 });
