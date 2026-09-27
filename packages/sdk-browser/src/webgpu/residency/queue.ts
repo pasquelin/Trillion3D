@@ -16,11 +16,12 @@ type QueueOptions = {
   room: () => number;
   getCache: () => Cache | undefined;
   getFrame: () => number;
-  /** The CPU cut's pin step (`pinUpdater.ts`). */
-  updatePins: () => void;
-  /** The GPU cut's admission and pin step (`requestAdmission.ts`, `requestPins.ts`). */
+  /** The CPU cut's pin step (`pinUpdater.ts`); `fresh` when it takes over from the GPU cut's. */
+  updatePins: (fresh: boolean) => void;
+  /** The GPU cut's admission and pin step (`requestAdmission.ts`, `requestPins.ts`); `resync`
+   *  when it takes over from the CPU cut's. */
   admitRequests: (room: number, cut: GpuCut | null) => void;
-  followRequestPins: () => void;
+  followRequestPins: (resync: boolean) => void;
   ensureResident: (
     wanted: readonly PageRec[],
     frame: number,
@@ -117,14 +118,16 @@ export function createWebgpuResidencyQueue(options: QueueOptions) {
      * queue empties, and the image sticks to pinned coverage.
      */
     queueCutResidency(limited: boolean) {
+      const fresh = sets.decideBy(true);
       sets.applyBudget(limited ? 0 : options.room());
-      follow(updatePins);
+      follow(() => updatePins(fresh));
     },
     /** The GPU cut's: it keeps loading at full budget, admission following its sorted requests
      *  and the pins what it admitted; the rest is drawn by its nearest resident ancestor. */
     queueGpuCutResidency(cut: GpuCut | null) {
+      const resync = sets.decideBy(false);
       options.admitRequests(options.room(), cut);
-      follow(options.followRequestPins);
+      follow(() => options.followRequestPins(resync));
     },
     nextJobId: () => ++job,
     quietPending: () => {
