@@ -29,7 +29,7 @@ export function explorerOptions(
     scope: 'full',
     width: options.width,
     height: options.height,
-    pixelRatio: 1,
+    pixelRatio: options.pixelRatio,
     // Validated to one of these four values by `options.ts` before it ever reaches the page.
     replicaCount: (options.instances ?? 1) as 1 | 4 | 9 | 12,
     detail: 'source',
