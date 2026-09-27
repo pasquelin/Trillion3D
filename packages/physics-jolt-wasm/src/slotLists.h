@@ -1,5 +1,5 @@
-// A list of values per body slot, dense by slot: what finds a body's own contact pairs
-// (`pairIndex.h`) and vehicles (`vehicles.cpp`) without walking every one in the world (PHY-15).
+// A list of values per body slot, dense by slot: what finds a body's own vehicles (`vehicles.cpp`)
+// without walking every one in the world (PHY-15); the body id's slot mask, shared with the pairs.
 #pragma once
 
 #include <cstdint>
