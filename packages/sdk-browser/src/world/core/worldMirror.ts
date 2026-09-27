@@ -26,6 +26,8 @@ import type { GraphSurface } from '../../host/graph/surface.ts';
 import type { GraphTexture } from '../../host/graph/texture.ts';
 import type { Cut } from './worldCuts.ts';
 import type { PosedTwin } from './worldPoses.ts';
+import type { RepaintedEntry } from './worldMaterials.ts';
+import type { AlphaChange } from '../../placement/backendSceneUpdates.ts';
 import { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts';
 
 /** The geometry of drawn triangles, under the attribute names a mesh reads. A sprite's quad is
@@ -50,10 +52,14 @@ function hostGeometry(drawn: DrawnTriangles) {
   return geometry;
 }
 
+/** How a session reads repainted surfaces again (`BackendSceneUpdates.refreshMaterials`). */
+type Refresh = (values: boolean, alpha?: AlphaChange) => boolean;
+
 /** What the mirror is built from: the resources placed by rows, the models drawn whole, and the
  *  mesh rank each geometry resource was given in the session's manifest. */
+type Placed = { cut: Cut; material: Material; rows: PlacementRows; name: string };
 type MirrorInput = {
-  placed: readonly { cut: Cut; material: Material; rows: PlacementRows; name: string }[];
+  placed: readonly Placed[];
   models: readonly { node: Object3D; graph: Object3D }[];
   rankOf: (cut: Cut) => number;
 };
@@ -89,12 +95,22 @@ export function buildWorldMirror(input: MirrorInput) {
     const surface = (worn[rank] ??= hostSurface(material, tinted, textures, reading));
     return numbered(new Mesh(geometry, surface));
   };
-  for (const { cut, material, rows, name } of input.placed) {
+  /** Hangs the host mesh of a resource placed by rows; returns it with its association. */
+  const place = ({ cut, material, rows, name }: Placed) => {
     const mesh = meshOf(cut, material);
     mesh.name = name;
-    associations.set(mesh, { meshes: input.rankOf(cut), primitives: 0, placements: rows });
+    const association = { meshes: input.rankOf(cut), primitives: 0, placements: rows };
+    associations.set(mesh, association);
     root.add(mesh);
-  }
+    return { node: mesh, association };
+  };
+  /** Takes down a placed host mesh, and its geometry with `cut`, the last one reading it. */
+  const unplace = (mesh: Mesh<GraphSurface>, cut?: Cut) => {
+    associations.delete(mesh);
+    root.remove(mesh);
+    if (cut && geometries.delete(cut)) mesh.geometry.dispose();
+  };
+  const placed = input.placed.map(place);
   for (const { node, graph } of input.models) {
     const twin = new Group();
     twin.add(graph);
@@ -104,14 +120,33 @@ export function buildWorldMirror(input: MirrorInput) {
     root.add(twin);
     twins.set(node, twin);
   }
-  /** Writes a repainted material entry's values into the host surface built for it; false when
-   *  this mirror built none. */
-  const repaint = (material: Material) => {
-    const worn = surfaces.get(material);
-    for (const surface of worn ?? []) if (surface) repaintHostSurface(surface, material);
-    return !!worn;
+  /** Writes the repainted entries into the host surfaces built for them, then has `refresh` —
+   *  the open session, if any — read them again: once, with the surfaces whose alpha moved the
+   *  same way, and once more, no value, for each other way (`AlphaChange`). False when the
+   *  session cannot. */
+  const repaint = (painted: readonly RepaintedEntry[], refresh?: Refresh) => {
+    let written = false,
+      values = false;
+    const moved = new Map<string, AlphaChange & { surfaces: GraphSurface[] }>();
+    for (const { entry, alpha, values: wrote } of painted) {
+      const worn = (surfaces.get(entry.material) ?? []).filter(
+        (surface): surface is GraphSurface => !!surface,
+      );
+      for (const surface of worn) repaintHostSurface(surface, entry.material);
+      if (!worn.length) continue;
+      written = true;
+      values ||= wrote;
+      if (!alpha) continue;
+      const way = `${alpha.from}>${alpha.to}`;
+      const change = moved.get(way);
+      if (change) change.surfaces.push(...worn);
+      else moved.set(way, { ...alpha, surfaces: worn });
+    }
+    if (!refresh || !written) return true;
+    const [first, ...others] = moved.values();
+    return refresh(values, first) && others.every((alpha) => refresh(false, alpha));
   };
-  return { root, twins, associations, repaint };
+  return { root, twins, associations, repaint, placed, place, unplace };
 }
 
 /** Gives back the geometries, surfaces and textures a mirror built, each once however many

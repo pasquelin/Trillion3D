@@ -4,6 +4,9 @@ import { drawBlendPass } from '../blend/draw.ts';
 import { orderBlendPasses } from '../blend/order.ts';
 import { createWaterPass, encodeWaterPass } from './pass.ts';
 import { WATER_COMPOSITE_PASS, WATER_SURFACE_PASS } from './frame.ts';
+import { WATER_BINDINGS } from './compositeWgsl.ts';
+import { createBackdrop } from '../transparent/transmission.ts';
+import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 import { device, mountDevice, prepared, replay, targets } from './pass.fixture.ts';
 import { createWebgpuBlendState } from '../blend/state.ts';
 import { createWebgpuVisState } from '../pages/state/vis.ts';
@@ -18,7 +21,7 @@ async function mounted() {
   targets(gpu);
   const mount = mountDevice();
   blendState.water = await createWaterPass(mount.device, {} as never, {} as never);
-  return { blendState, gpu, groups: mount.groups, ...replay(blendState, gpu) };
+  return { blendState, gpu, mount, groups: mount.groups, ...replay(blendState, gpu) };
 }
 
 test('the water pass follows the blends: frozen backdrop, surfaces, then one composite', async () => {
@@ -34,6 +37,22 @@ test('the water pass follows the blends: frozen backdrop, surfaces, then one com
   assert.equal(counters.copies, 2, 'the lit image, and the opaque depth the surface stage tests');
   assert.equal(rt.run.blendDrawCalls, 3, 'the surface draws count as transparent draws');
   assert.equal(rt.run.gpuDrawCalls, 4, 'plus the composite');
+});
+
+test('water keeps the surface flags temporal antialiasing and the composition read after it', async () => {
+  const { rt, encoder, passes, groups, gpu, mount } = await mounted();
+  assert.equal(encodeWaterPass(rt, encoder), true);
+  const flags = gpu.surfaces!.views()[3],
+    word = gpu.backdrop!.waterWordView;
+  for (const pass of passes)
+    assert.ok(!pass.writes.includes(flags), `${pass.label} writes over the surface flags`);
+  const surface = passes.find((pass) => pass.label === WATER_SURFACE_PASS)!;
+  assert.equal(surface.writes[3], word, 'the rank and opacity go to the water word');
+  assert.equal(surface.writes.length, 5, 'three material surfaces, the word, the feedback');
+  assert.equal(groups.last.get(WATER_BINDINGS.flags), word, 'the composite reads the word back');
+  // The stage's fourth target is the format the backdrop allocates the word in.
+  const { waterWord } = createBackdrop(fakeDevice().device, 8, 8, true);
+  assert.equal(mount.formats('fsWater')[3], waterWord.format);
 });
 
 test('a still frame binds nothing new: the group and the descriptors survive the image', async () => {

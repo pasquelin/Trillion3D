@@ -25,6 +25,7 @@ export const WATER_BINDINGS = {
   baseMetal: 0,
   normalRough: 1,
   emissiveAo: 2,
+  /** The water word the surface stage wrote (`surfaceWgsl.ts`), on the surface flags' number. */
   flags: 3,
   depth: 4,
   view: 5,

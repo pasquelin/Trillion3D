@@ -1,5 +1,6 @@
 /** Serve one built site tree with production paths and no framework dependency. */
 import { pathToFileURL } from 'node:url';
+import { isCacheObject } from './compress-cache-objects.ts';
 import { buildSite, SITE_OUTPUT } from './docs/site.ts';
 import { listen, staticServer, type StaticOptions } from './static-server.ts';
 
@@ -12,6 +13,7 @@ export function createDocsServer(
   return staticServer({
     ...extra,
     mounts: [{ prefix: '/', dir: root }],
+    compress: isCacheObject,
     headers: {
       'Cache-Control': 'no-store',
       // Cross-origin isolation, as the published site answers (checked by the deploy, pages.yml):

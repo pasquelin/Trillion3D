@@ -81,6 +81,7 @@ export function materialClassKey(flags: number, maps: MaterialClassMaps) {
  * — the module compiled alone — every feature is off.
  */
 export const MATERIAL_CLASS_WGSL = `override CLASS_KEY:u32=0u;
+override SINGLE_CLASS:bool=false;
 override CLASS_DEPTH:f32=f32(CLASS_KEY+1u)/${CLASS_DEPTH_UNITS}.0;
 ${Object.entries(CLASS_FEATURE)
   .map(([name, bit]) => `override ${name}:bool=(CLASS_KEY&${bit}u)!=0u;`)
