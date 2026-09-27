@@ -100,9 +100,9 @@ export function createPageStreamerWith(
   const { loadOne, roundTrip } = createStreamingFetcher(context, touch);
   const { subscribe } = createStreamingQueue(context, loadOne, touch, evict);
   const asIndices = createIndexViews();
-  const readBytes = (url: string, signal?: AbortSignal) => {
+  const readBytes = (url: string, signal?: AbortSignal, priority = 0) => {
     state.requested++;
-    return subscribe(url, signal, 0);
+    return subscribe(url, signal, priority);
   };
   return {
     admit: (more: readonly StreamPage[]) => more.forEach((page) => catalog.set(page.url, page)),

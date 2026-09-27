@@ -1,6 +1,6 @@
 import { SELECTION_WORKGROUP } from '../core/selection.ts';
 import type { PackedDag } from './types.ts';
-import { primitiveFrameWords } from './worlds.ts';
+import { cameraFramesBytes, primitiveFrameWords } from './worlds.ts';
 import { createDagPipeline } from './pipeline.ts';
 import { dagWorkLayout } from './shader/floorWgsl.ts';
 import { DAG_UNIFORM_BYTES, DAG_VIEW_WORDS } from './shader/viewsWgsl.ts';
@@ -98,7 +98,7 @@ export async function createDagResources(
       usage: STORAGE,
     });
     const frames = device.createBuffer({
-      size: Math.max(16, frameData.byteLength),
+      size: cameraFramesBytes(frameData),
       usage: STORAGE | GPUBufferUsage.COPY_SRC,
     });
     const pageCones = device.createBuffer({
@@ -149,7 +149,7 @@ export async function createDagResources(
     upload(clusters, Math.max(64, packed.clusters.byteLength), packed.clusters);
     upload(nodes, Math.max(64, packed.nodes.byteLength), packed.nodes);
     upload(worlds, Math.max(64, packed.worlds.byteLength), packed.worlds);
-    upload(frames, Math.max(16, frameData.byteLength), frameData);
+    upload(frames, Math.max(16, frameData.byteLength), frameData); // `dagPrepare` writes the rest
     upload(pageCones, Math.max(48, packed.pageCones.byteLength), packed.pageCones);
     return {
       device,
