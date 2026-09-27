@@ -33,7 +33,7 @@ test('a page a lower tier reads goes after every other page of the order', async
   const cache = await cacheOf(['caster', 'old']);
   // Only a light cut reads `caster`: the camera never stamped it, so it heads the order.
   cache.evictInOrder(orderOf(['caster', 'old']));
-  cache.touch('caster');
+  cache.touch('caster', true);
   await cache.load('a');
   assert.ok(cache.get('caster') && !cache.get('old'));
   // Never pinned: a camera page still takes its slot once nothing else is left.

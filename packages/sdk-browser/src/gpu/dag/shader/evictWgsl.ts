@@ -22,8 +22,9 @@ fn evictRank(i:u32,now:u32)->u32{
 /** One sweep of the pool's list, one entry per held slot (\`../poolList.ts\`): counts each rank,
  *  or, \`scatter\`, writes each page at its place. */
 fn sweepPool(lane:u32,now:u32,scatter:bool){
- for(var j=lane;j<cold[poolBase()];j+=SORT_LANES){
-  let i=cold[poolBase()+1u+j];let rank=evictRank(i,now);
+ let base=poolBase();let n=cold[base];
+ for(var j=lane;j<n;j+=SORT_LANES){
+  let i=cold[base+1u+j];let rank=evictRank(i,now);
   if(rank>=RANKS){continue;}
   let at=atomicAdd(&rankPlace[rank],1u);
   if(scatter&&at<evictionCap()){out.pages[evictAt(HEAD+at)]=i;}

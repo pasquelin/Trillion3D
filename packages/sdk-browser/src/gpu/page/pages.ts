@@ -68,7 +68,7 @@ export function createGpuPageCache(
     abort,
     fetches,
     state,
-    eviction: { order: undefined, at: 0, epoch: 0 },
+    eviction: { order: undefined, at: 0, epoch: 0, lower: new Map() },
     changeKeys,
     changeSlots,
     reader,
