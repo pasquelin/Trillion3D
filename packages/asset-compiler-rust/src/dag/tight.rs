@@ -12,7 +12,7 @@
 //! Every sphere is also kept no larger than the one it replaces, which falls back bit for bit.
 use super::bounds::{bounding_sphere, enclosing_sphere};
 use super::{DagCluster, DagGroup};
-use crate::shared_math::{length, point, sub};
+use crate::shared_math::{length, merge_aabb, point, sub};
 use trillion3d_page_codec::min_ball::min_ball;
 
 /// Iterations of the Bădoiu–Clarkson walk toward the farthest ball.
@@ -27,8 +27,9 @@ pub fn point_sphere(positions: &[f32], indices: &[u32]) -> [f64; 4] {
     let mut ids = indices.to_vec();
     ids.sort_unstable();
     ids.dedup();
-    let points: Vec<[f64; 3]> = ids.iter().map(|&v| point(positions, v)).collect();
-    let Some((c, _)) = min_ball(&mut points.clone()) else {
+    // `min_ball` reorders the points; the radius re-measured below does not depend on their order.
+    let mut points: Vec<[f64; 3]> = ids.iter().map(|&v| point(positions, v)).collect();
+    let Some((c, _)) = min_ball(&mut points) else {
         return base;
     };
     let radius = points
@@ -71,10 +72,11 @@ pub fn ball_of_balls(spheres: &[[f64; 4]]) -> [f64; 4] {
     consider([merged[0], merged[1], merged[2]], &mut best);
     let (mut lo, mut hi) = ([f64::INFINITY; 3], [f64::NEG_INFINITY; 3]);
     for s in &live {
-        for a in 0..3 {
-            lo[a] = lo[a].min(s[a] - s[3]);
-            hi[a] = hi[a].max(s[a] + s[3]);
-        }
+        let (low, high) = (
+            [0, 1, 2].map(|a| s[a] - s[3]),
+            [0, 1, 2].map(|a| s[a] + s[3]),
+        );
+        merge_aabb(&mut lo, &mut hi, low, high);
     }
     consider([0, 1, 2].map(|a| (lo[a] + hi[a]) * 0.5), &mut best);
     // Bădoiu–Clarkson on balls: each step moves toward the far point of the farthest ball.
