@@ -1,6 +1,7 @@
 import { hizLevelSizes } from '../hiz/oracle.ts';
 import { createHizPipelines } from '../hiz/pipelines.ts';
-import { writeHizLevelUniforms } from '../hiz/uniforms.ts';
+import { hizBuildPasses, writeHizBuildUniforms } from '../hiz/uniforms.ts';
+import { encodeHizPyramid } from '../hiz/pyramid.ts';
 import { SHADOW_PAGE } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { MAX_SHADOW_PAGES } from './recordPack.ts';
 import { shadowBatchWrites } from './batchWrites.ts';
@@ -21,7 +22,7 @@ export const PAGE_HIZ_WORDS = PAGE_HIZ_OFFSETS[PAGE_HIZ_LEVELS - 1] + 1;
  * THE DEPTH PYRAMIDS OF THE STATIC LAYER'S PAGES, built by the camera's own Hi-Z kernels
  * (`../hiz/shader.ts`): one pyramid per page a moving caster is drawn over, from the page's
  * 128 × 128 texels of the static layer down to one, each level the farthest of four. The copy
- * and the reduction run once for all the frame's pages, a page per `z`.
+ * and the reduction run once for all the frame's pages, a page per `z`, four mips per dispatch.
  *
  * The static layer holds the page's static casters, current — a page restored from it this frame
  * was drawn there in full earlier or now — so its pyramid is not a previous frame's guess: a
@@ -48,16 +49,16 @@ export async function createShadowPageHiz(device: GPUDevice, layer: GPUTextureVi
       size: PAGE_HIZ_LEVELS * UNIFORM_BYTES,
       usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
     });
-  // Slot 0 copies the page's level 0; slot `l` reduces level `l − 1` into level `l`.
-  writeHizLevelUniforms(
+  const sizes = hizLevelSizes(SHADOW_PAGE, SHADOW_PAGE),
+    passes = hizBuildPasses(sizes, PAGE_HIZ_LEVELS);
+  // Slot `i` holds build pass `i`; the first copies the page's level 0 on its way.
+  writeHizBuildUniforms(
     device,
     uniforms,
     new Uint32Array((PAGE_HIZ_LEVELS * UNIFORM_BYTES) / 4),
-    hizLevelSizes(SHADOW_PAGE, SHADOW_PAGE),
+    sizes,
     PAGE_HIZ_OFFSETS,
-    SHADOW_PAGE,
-    SHADOW_PAGE,
-    PAGE_HIZ_LEVELS,
+    passes,
     UNIFORM_BYTES,
     PAGE_HIZ_WORDS,
   );
@@ -84,17 +85,16 @@ export async function createShadowPageHiz(device: GPUDevice, layer: GPUTextureVi
       if (!count) return;
       for (let page = 0; page < count; page++) origin(page, originWords, page * PAGE_BOUNDS_WORDS);
       shadowBatchWrites(device).write(origins, 0, originWords, 0, count * PAGE_BOUNDS_WORDS);
-      const pass = encoder.beginComputePass({ label: 'Trillion3D shadow page pyramids' });
-      pass.setBindGroup(0, group, [0]);
-      pass.setPipeline(pipelines.copyPipeline);
-      pass.dispatchWorkgroups(SHADOW_PAGE / 8, SHADOW_PAGE / 8, count);
-      pass.setPipeline(pipelines.reducePipeline);
-      for (let level = 1; level < PAGE_HIZ_LEVELS; level++) {
-        pass.setBindGroup(0, group, [level * UNIFORM_BYTES]);
-        const groups = Math.max(1, Math.ceil((SHADOW_PAGE >> level) / 8));
-        pass.dispatchWorkgroups(groups, groups, count);
-      }
-      pass.end();
+      encodeHizPyramid(
+        encoder,
+        'Trillion3D shadow page pyramids',
+        group,
+        pipelines.buildPipeline,
+        sizes,
+        passes,
+        UNIFORM_BYTES,
+        count,
+      );
     },
     dispose() {
       for (const buffer of [pyramid, origins, idleFlags, idleState, uniforms]) buffer.destroy();

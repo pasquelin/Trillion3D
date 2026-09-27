@@ -7,6 +7,7 @@ import {
   VERDICT_REJECTED,
 } from '../partition/contract.ts';
 import { HIZ_HIDES_WGSL } from './rectWgsl.ts';
+import { HIZ_PASS_LEVELS } from './uniforms.ts';
 import { PAGE_INFO_STRUCT_WGSL } from '../../visibility/shader/pageWgsl.ts';
 
 /**
@@ -37,18 +38,24 @@ export const HIZ_TEST_PAGES_ENTRIES: GPUBindGroupLayoutEntry[] = [
 ];
 
 /**
- * The three Hi-Z pyramid kernels. The test no longer receives a count or bytes from the CPU: it
- * reads the box count and writes its own reject counters into the state the GPU partition holds,
- * and the boxes are those the partition packed in the same submission. No value is inferred
- * there: a verdict is written, or the row stays at zero.
+ * The Hi-Z kernels: the pyramid build and the test. The test no longer receives a count or bytes
+ * from the CPU: it reads the box count and writes its own reject counters into the state the GPU
+ * partition holds, and the boxes are those the partition packed in the same submission. No value
+ * is inferred there: a verdict is written, or the row stays at zero.
  *
- * The copy and the reduction also build several pyramids in one dispatch, one per `z`: `uni.g` is
- * then the stride between two pyramids and each one's level 0 starts at the texel its `bounds`
- * entry names — the shadow pages' pyramids (`../shadow/pageHiz.ts`). The camera's `g` is zero:
- * one pyramid, from texel zero.
+ * The build reduces `HIZ_PASS_LEVELS` mips per dispatch through workgroup memory (`buildHiz`):
+ * each thread reads one 2 × 2 square of the source level and the workgroup reduces its 8 × 8
+ * results down to one texel, each level the farthest of four taken in the same order as a
+ * per-level reduction, so every mip holds the same value. The first pass reads the level-0
+ * texture itself: it copies each texel into the pyramid — the tests and the next image's cull
+ * read level 0 there — and reduces level 1 from the texels it just read, never rereading the
+ * copy. It also builds several pyramids in one dispatch, one per `z`: `uni.g` is then the stride
+ * between two pyramids and each one's level 0 starts at the texel its `bounds` entry names — the
+ * shadow pages' pyramids (`../shadow/pageHiz.ts`). The camera's `g` is zero: one pyramid, from
+ * texel zero.
  */
 export const HIZ_SHADER = `${PAGE_INFO_STRUCT_WGSL}
-struct Uni{a:u32,b:u32,c:u32,d:u32,e:u32,f:u32,g:u32,h:u32,}
+struct Uni{a:u32,b:u32,c:u32,d:u32,e:u32,f:u32,g:u32,h:u32,dst:array<vec4u,${HIZ_PASS_LEVELS}>,}
 struct Bounds{minX:i32,minY:i32,maxX:i32,maxY:i32,nearest:f32,rowAndClip:u32,pad0:u32,pad1:u32,triangles:u32,coarseOffset:u32,coarseWidth:u32,coarseShift:u32,}
 @group(0) @binding(0) var<storage, read_write> pyramid:array<f32>;
 @group(0) @binding(1) var level0:texture_2d<f32>;
@@ -57,27 +64,60 @@ struct Bounds{minX:i32,minY:i32,maxX:i32,maxY:i32,nearest:f32,rowAndClip:u32,pad
 @group(0) @binding(4) var<storage, read_write> flags:array<u32>;
 @group(0) @binding(5) var<storage, read_write> state:array<atomic<u32>>;
 @group(1) @binding(0) var<storage, read> pages:array<PageInfo>;
-@compute @workgroup_size(8, 8)
-fn copyDepth(@builtin(global_invocation_id) id:vec3u){
- if(id.x>=uni.a||id.y>=uni.b){return;}
+var<workgroup> hizTile:array<f32,64>;
+/** A texel of the pass's source level: the level-0 texture, copied into the pyramid on the way,
+ *  or the pyramid level the previous pass wrote last. */
+fn hizSource(z:u32,x:u32,y:u32)->f32{
+ let at=uni.a+z*uni.g+y*uni.b+x;
+ if(uni.e==0u){return pyramid[at];}
  var origin=vec2i(0);
- if(uni.g!=0u){origin=vec2i(bounds[id.z].minX,bounds[id.z].minY);}
- let z=textureLoad(level0,origin+vec2i(i32(id.x),i32(id.y)),0).r;
- pyramid[uni.c+id.z*uni.g+id.y*uni.a+id.x]=z;
+ if(uni.g!=0u){origin=vec2i(bounds[z].minX,bounds[z].minY);}
+ let depth=textureLoad(level0,origin+vec2i(i32(x),i32(y)),0).r;
+ pyramid[at]=depth;
+ return depth;
+}
+/** The farthest of the square at (x0, y0) of the level held in \`hizTile\`, whose local texel
+ *  (lx, ly) it is, over the texels of a w × h level that exist. */
+fn hizTileFar(lx:u32,ly:u32,x0:u32,y0:u32,w:u32,h:u32)->f32{
+ var far=hizTile[ly*8u+lx];
+ if(x0+1u<w){far=min(far,hizTile[ly*8u+lx+1u]);}
+ if(y0+1u<h){
+  far=min(far,hizTile[(ly+1u)*8u+lx]);
+  if(x0+1u<w){far=min(far,hizTile[(ly+1u)*8u+lx+1u]);}
+ }
+ return far;
 }
 @compute @workgroup_size(8, 8)
-fn reduceHiz(@builtin(global_invocation_id) id:vec3u){
- if(id.x>=uni.e||id.y>=uni.f){return;}
- let x0=id.x*2u;let y0=id.y*2u;
- let src=uni.a+id.z*uni.g;
- // Reverse-Z: the FARTHEST of a square is the MINIMUM.
- var far=pyramid[src+y0*uni.b+x0];
- if(x0+1u<uni.b){far=min(far,pyramid[src+y0*uni.b+x0+1u]);}
- if(y0+1u<uni.c){
-  far=min(far,pyramid[src+(y0+1u)*uni.b+x0]);
-  if(x0+1u<uni.b){far=min(far,pyramid[src+(y0+1u)*uni.b+x0+1u]);}
+fn buildHiz(@builtin(workgroup_id) wg:vec3u,@builtin(local_invocation_id) lid:vec3u){
+ let z=wg.z;
+ // Reverse-Z: the FARTHEST of a square is the MINIMUM, over the texels of the source that exist.
+ let x=wg.x*8u+lid.x;let y=wg.y*8u+lid.y;let x0=x*2u;let y0=y*2u;
+ var far=0.0;
+ if(x0<uni.b&&y0<uni.c){
+  far=hizSource(z,x0,y0);
+  if(x0+1u<uni.b){far=min(far,hizSource(z,x0+1u,y0));}
+  if(y0+1u<uni.c){
+   far=min(far,hizSource(z,x0,y0+1u));
+   if(x0+1u<uni.b){far=min(far,hizSource(z,x0+1u,y0+1u));}
+  }
+  if(uni.d>0u){pyramid[uni.dst[0].x+z*uni.g+y*uni.dst[0].y+x]=far;}
  }
- pyramid[uni.d+id.z*uni.g+id.y*uni.e+id.x]=far;
+ hizTile[lid.y*8u+lid.x]=far;
+ // Each further level halves the threads at work; the one the tile holds is read, then replaced.
+ var side=8u;
+ for(var k=1u;k<${HIZ_PASS_LEVELS}u;k++){
+  side=side>>1u;
+  workgroupBarrier();
+  let src=uni.dst[k-1u];let dst=uni.dst[k];
+  let tx=wg.x*side+lid.x;let ty=wg.y*side+lid.y;
+  let live=k<uni.d&&lid.x<side&&lid.y<side&&tx<dst.y&&ty<dst.z;
+  if(live){far=hizTileFar(lid.x*2u,lid.y*2u,tx*2u,ty*2u,src.y,src.z);}
+  workgroupBarrier();
+  if(live){
+   hizTile[lid.y*8u+lid.x]=far;
+   pyramid[dst.x+z*uni.g+ty*dst.y+tx]=far;
+  }
+ }
 }
 ${HIZ_HIDES_WGSL}
 // Only boxes the frame tests travel this far, each carrying the verdict row it answers for;

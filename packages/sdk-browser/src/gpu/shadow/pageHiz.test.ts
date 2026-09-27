@@ -32,17 +32,31 @@ test('a page pyramid is 128² then every half down to one texel, one per page', 
   const { encoder, dispatches } = recordingEncoder();
   const hiz = await createShadowPageHiz(device, {} as GPUTextureView);
   const slots = new Uint32Array(writes[0].data.buffer),
-    slot = (l: number) => Array.from(slots.subarray(l * 64, l * 64 + 7));
-  assert.deepEqual(slot(0), [128, 128, 0, 0, 0, 0, PAGE_HIZ_WORDS], 'copy: 128², stride');
-  assert.deepEqual(slot(1), [0, 128, 128, 16384, 64, 64, PAGE_HIZ_WORDS]);
-  assert.deepEqual(slot(7), [PAGE_HIZ_OFFSETS[6], 2, 2, PAGE_HIZ_OFFSETS[7], 1, 1, PAGE_HIZ_WORDS]);
+    slot = (l: number) => Array.from(slots.subarray(l * 64, l * 64 + 20));
+  // Two build passes: level 0 read from the layer, copied, and reduced to levels 1 to 4; then
+  // level 4 reduced to levels 5 to 7. Each names its source, its levels, its texture, the stride.
+  const o = PAGE_HIZ_OFFSETS;
+  assert.deepEqual(slot(0), [
+    ...[0, 128, 128, 4, 1, 0, PAGE_HIZ_WORDS, 0],
+    ...[o[1], 64, 64, 0, o[2], 32, 32, 0, o[3], 16, 16, 0],
+  ]);
+  assert.deepEqual(slot(1), [
+    ...[o[4], 8, 8, 3, 0, 0, PAGE_HIZ_WORDS, 0],
+    ...[o[5], 4, 4, 0, o[6], 2, 2, 0, o[7], 1, 1, 0],
+  ]);
+  assert.deepEqual(Array.from(slots.subarray(128)).filter(Boolean), [], 'no third pass');
   hiz.encode(encoder, 3, (page, out, at) => {
     out[at] = page * 128;
     out[at + 1] = 256;
   });
-  assert.deepEqual(dispatches[0], [16, 16, 3], 'level 0 of three pages at once');
-  assert.deepEqual(dispatches.at(-1), [1, 1, 3]);
-  assert.equal(dispatches.length, PAGE_HIZ_LEVELS);
+  assert.deepEqual(
+    dispatches,
+    [
+      [8, 8, 3],
+      [1, 1, 3],
+    ],
+    'three pages at once, four mips per dispatch',
+  );
   const origins = new Int32Array(writes[1].data.buffer);
   assert.deepEqual([origins[12], origins[13]], [128, 256], "the second page's first texel");
 });
