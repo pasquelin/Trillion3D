@@ -80,6 +80,22 @@ test('a synchronous read of loaded vertices before their load is refused by name
   assert.equal(binaries(), 0);
 });
 
+test('a failed read of loaded vertices is not kept: the next need reads again', async (t) => {
+  const { geometries, binaries } = await loaded(t);
+  const served = globalThis.fetch;
+  let failures = 2; // `checked` tries twice before it fails
+  t.mock.method(globalThis, 'fetch', (input: string | URL | Request) =>
+    String(input).endsWith('/source.bin') && failures-- > 0
+      ? Promise.reject(new TypeError('offline'))
+      : served(input),
+  );
+  const [geometry] = geometries;
+  await assert.rejects(geometry.loadVertices());
+  await geometry.loadVertices();
+  assert.ok(geometry.attributes.position.array.length > 0, 'its vertices are loaded');
+  assert.equal(binaries(), 1, 'read again once the failure passed');
+});
+
 test('a late read of loaded vertices outlives the signal of the load that settled', async (t) => {
   const asked = serve(t);
   const control = new AbortController();
