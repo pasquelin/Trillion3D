@@ -142,17 +142,15 @@ fn content(g: &Value, bin: &[u8], id: usize) -> Value {
 
 /// SHA-256 of the accessor's elements, each element's bytes read through its view and stride.
 fn element_digest(g: &Value, bin: &[u8], id: usize) -> Option<String> {
-    let a = accessor(g, bin, id, None).ok()?;
+    // `accessor` refuses a view-less accessor unless it is sparse, and a sparse one is only itself.
+    let a = accessor(g, bin, id, None)
+        .ok()
+        .filter(|a| a.has_buffer_view)?;
     let size = a.width.checked_mul(a.bytes)?;
     let mut sha = Sha256::new();
-    if a.has_buffer_view {
-        for i in 0..a.count {
-            let at = a.base.checked_add(i.checked_mul(a.stride)?)?;
-            sha.update(a.bin.get(at..at.checked_add(size)?)?);
-        }
-    } else {
-        // No view reads as zeros: its count, in the layout, is its whole content.
-        sha.update([0u8]);
+    for i in 0..a.count {
+        let at = a.base.checked_add(i.checked_mul(a.stride)?)?;
+        sha.update(a.bin.get(at..at.checked_add(size)?)?);
     }
     Some(format!("{:x}", sha.finalize()))
 }
