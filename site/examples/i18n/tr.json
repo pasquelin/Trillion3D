@@ -2147,5 +2147,12 @@
     "words": {
       "credit": "Direkteki bayrak bu örnek için kodla modellendi, CC0 — bkz. assets/examples/CREDITS.md"
     }
+  },
+  "drag-a-crate": {
+    "banner": "Sandığı zeminde sürükleyin. Yarım metrelik adımlarla yerleştirmek için ızgarayı açın.",
+    "controls": {
+      "snap": "Izgara",
+      "home": "Başlangıç"
+    }
   }
 }

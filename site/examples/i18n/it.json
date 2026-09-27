@@ -2147,5 +2147,12 @@
     "words": {
       "credit": "Bandiera su un'asta modellata in codice per questo esempio, CC0 — vedi assets/examples/CREDITS.md"
     }
+  },
+  "drag-a-crate": {
+    "banner": "Trascina la cassa sul pavimento. Attiva lo scatto per posizionarla a passi di mezzo metro.",
+    "controls": {
+      "snap": "Scatto",
+      "home": "Inizio"
+    }
   }
 }

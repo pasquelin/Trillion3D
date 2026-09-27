@@ -1179,6 +1179,11 @@
       "file": "examples/click-to-pick.html"
     },
     {
+      "id": "drag-a-crate",
+      "theme": "interaction",
+      "file": "examples/drag-a-crate.html"
+    },
+    {
       "id": "hover-over-triangles",
       "theme": "interaction",
       "file": "",

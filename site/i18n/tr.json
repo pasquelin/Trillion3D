@@ -327,7 +327,8 @@
       "ar-on-the-table": "Masada AR",
       "shadows-case-by-case": "Gölgeler, durum durum",
       "shadows-through-see-through-panes": "Saydam camlardan düşen gölgeler",
-      "a-walker-among-balls": "Toplar arasında bir yürüyüşçü"
+      "a-walker-among-balls": "Toplar arasında bir yürüyüşçü",
+      "drag-a-crate": "Bir sandığı sürükleme"
     },
     "missing": {
       "floating-crates": "her karede yeniden yazılan geometri",

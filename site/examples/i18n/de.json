@@ -2147,5 +2147,12 @@
     "words": {
       "credit": "Flagge an einem Mast für dieses Beispiel im Code modelliert, CC0 — siehe assets/examples/CREDITS.md"
     }
+  },
+  "drag-a-crate": {
+    "banner": "Ziehen Sie die Kiste über den Boden. Mit Raster wird sie in Halbmeter-Schritten platziert.",
+    "controls": {
+      "snap": "Raster",
+      "home": "Start"
+    }
   }
 }
