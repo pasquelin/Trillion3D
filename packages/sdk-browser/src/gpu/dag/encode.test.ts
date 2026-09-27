@@ -58,11 +58,15 @@ test('every light view of a frame shares one traversal: the same commands as one
   assert.ok(noyaux.indexOf('dagViewOffsets') < noyaux.indexOf('dagMask'));
 });
 
-test('the camera cut sorts its requests once, last, in one workgroup of the live pass', () => {
+test('the camera cut sorts its requests once, then lists its evictions, one workgroup each', () => {
   for (const residentCut of [true, false]) {
     const { encoder, lancements } = encodeurTemoin();
     encodeDagKernels(encoder as unknown as GPUCommandEncoder, ressources(residentCut));
-    assert.deepEqual(lancements.at(-1), { noyau: 'dagSortRequests', groupes: 1 });
+    const last = residentCut ? ['dagSortRequests', 'dagListEvictions'] : ['dagSortRequests'];
+    assert.deepEqual(
+      lancements.slice(-last.length),
+      last.map((noyau) => ({ noyau, groupes: 1 })),
+    );
     assert.equal(lancements.filter((l) => l.noyau === 'dagSortRequests').length, 1);
   }
 });

@@ -2,6 +2,7 @@ use super::*;
 pub(in crate::tests) mod alembic_golden;
 pub(in crate::tests) mod blend_driver;
 pub(in crate::tests) mod blend_golden;
+pub(in crate::tests) mod blend_layouts;
 pub(in crate::tests) mod driver_uris;
 pub(in crate::tests) mod gltf_cycle;
 pub(in crate::tests) mod gltf_scenes;

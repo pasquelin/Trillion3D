@@ -40,16 +40,17 @@ test('each cut kernel dispatches over the list the previous one filled', () => {
     'dagLevel2',
     'dagDrawPrefix',
     'dagSortRequests',
+    'dagListEvictions',
   ]);
 });
 
 test('wait between launches depends only on depth, not on cluster count', () => {
   const { encoder, lancements } = encodeurTemoin();
   encodeDagKernels(encoder as unknown as GPUCommandEncoder, ressources(true));
-  // Log clear, prepare, one pass per level (three), candidates, mask, prefix, compaction and the
-  // request sort: the cut rule decides each cluster once, in the mask, with no round per
-  // primitive before it.
-  assert.equal(lancements.length, 10);
+  // Log clear, prepare, one pass per level (three), candidates, mask, prefix, compaction, the
+  // request sort and the eviction queue: the cut rule decides each cluster once, in the mask, with
+  // no round per primitive before it.
+  assert.equal(lancements.length, 11);
   const noyaux = lancements.map((l) => l.noyau);
   assert.ok(!noyaux.includes('dagArgs') && !noyaux.includes('dagDrawCount'));
   assert.equal(noyaux[0], 'dagClearDrawn');

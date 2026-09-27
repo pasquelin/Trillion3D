@@ -507,6 +507,7 @@
       "totalNodes": "Node secara keseluruhan.",
       "autonomousScene": "Scene bawaannya.",
       "primitives": "Primitifnya.",
+      "worstStalls": "Tabel macet dari kompiler: paling banyak sepuluh primitif dengan grup macet yang menyisakan akar di level 0, yang terburuk lebih dulu. Tidak ada pada cache yang dikompilasi sebelumnya.",
       "texturePreviews": "Satu entri per (tekstur, atlas) yang terurai, diurutkan menurut tekstur lalu atlas; kosong tanpa gambar yang bisa diurai.",
       "textures": "Templat untuk tingkat yang sudah dipanggang, relatif terhadap manifest: {sha} digest gambar sumber, {kind} nama atlas (PREVIEW_ATLAS_NAMES), {level} peringkat tingkat. Tidak ada pada cache yang dikompilasi sebelum tingkat panggang, yang ditolak pembaca ini lewat versi sidecar.",
       "proxy": "Di mana membaca proxy scene yang tersimpan dan BVH-nya: geometri yang dikenai sinar. Tidak ada pada cache yang dikompilasi sebelum pantulan, yang tetap bisa dibaca apa adanya."
@@ -3302,7 +3303,8 @@
       "textures": "Templat untuk tingkat yang sudah dipanggang, relatif terhadap manifest: {sha} digest gambar sumber, {kind} nama atlas (PREVIEW_ATLAS_NAMES), {level} peringkat tingkat. Tidak ada pada cache yang dikompilasi sebelum tingkat panggang, yang ditolak pembaca ini lewat versi sidecar.",
       "proxy": "Di mana membaca proxy scene yang tersimpan dan BVH-nya: geometri yang dikenai sinar. Tidak ada pada cache yang dikompilasi sebelum pantulan, yang tetap bisa dibaca apa adanya.",
       "binary": "Berkas binernya.",
-      "primitives": "Primitifnya."
+      "primitives": "Primitifnya.",
+      "worstStalls": "Tabel macet dari kompiler: paling banyak sepuluh primitif dengan grup macet yang menyisakan akar di level 0, yang terburuk lebih dulu. Tidak ada pada cache yang dikompilasi sebelumnya."
     }
   },
   "SlimCulling": {
@@ -4857,7 +4859,7 @@
     "summary": "`out[outAt..outAt + 2] = a × b`, operand dibaca di `aAt` dan `bAt`."
   },
   "dagWarningsDiagnostic": {
-    "summary": "Diagnostik `dag-warnings` sebuah cache: primitif yang ditandai kompiler, dan setiap primitif dengan grup yang tersendat — set yang diberi peringkat kompiler pada stderr di akhir sebuah cook."
+    "summary": "Diagnostik `dag-warnings` dari sebuah cache: primitif yang ditandai kompiler, dan tabel macet dari kompiler (`worstStalls`), baris yang ditulisnya ke stderr di akhir proses masak, dalam urutannya."
   },
   "decodeManifestBinary": {
     "summary": "Mengubah sebuah manifest biner kembali menjadi manifest penuh yang dibaca sebuah runtime."
