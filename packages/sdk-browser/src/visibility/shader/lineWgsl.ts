@@ -1,3 +1,5 @@
+import { hypot2 } from '../../../../sdk-core/src/math/primitives/hypot.ts';
+
 /**
  * THE SCREEN-SPACE LINE: how a corner of a line quad (`drawnTriangles`, sdk-core `drawn.ts`)
  * leaves its segment.
@@ -56,7 +58,7 @@ export function lineClip(
   for (let i = 0; i < 4; i++) out[i] = clip[i] - along[i] * k;
   const tx = (along[0] * out[3] - out[0] * along[3]) * viewport[0],
     ty = (along[1] * out[3] - out[1] * along[3]) * viewport[1];
-  const n = Math.hypot(tx, ty);
+  const n = hypot2(tx, ty);
   if (n === 0) return out;
   const s = (width * pixelRatio) / n;
   out[0] += ((-ty * s) / viewport[0]) * out[3];

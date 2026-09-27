@@ -26,9 +26,20 @@ export function mountDevice() {
     get pipelines() {
       return renderPipelines.map((pipeline) => pipeline.fragment!.entryPoint!);
     },
+    /** The target formats of the render pipeline of fragment entry `entry`. */
+    formats: (entry: string) =>
+      [
+        ...renderPipelines.find((pipeline) => pipeline.fragment!.entryPoint === entry)!.fragment!
+          .targets,
+      ].map((target) => target?.format),
     groups: {
       get created() {
         return bindGroups.length;
+      },
+      /** The resource each binding of the last group names. */
+      get last() {
+        const entries = bindGroups.at(-1)!.entries as GPUBindGroupEntry[];
+        return new Map(entries.map(({ binding, resource }) => [binding, resource]));
       },
     },
     device,
@@ -89,6 +100,7 @@ export function prepared() {
 /** Frame targets of the replay: the HDR image, the opaque depth and surfaces, the backdrop. */
 export function targets(gpu: WebgpuGpuState) {
   const placeholder = () => ({});
+  const views = [{}, {}, {}, {}];
   Object.assign(gpu, {
     hdrView: {},
     colorView: {},
@@ -97,8 +109,11 @@ export function targets(gpu: WebgpuGpuState) {
     hdrTexture: {},
     depthTexture: {},
     feedbackView: {},
-    surfaces: { views: () => [{}, {}, {}, {}] },
-    backdrop: { color: {}, colorView: {}, waterDepth: {}, waterDepthView: {}, active: true },
+    surfaces: { views: () => views },
+    backdrop: {
+      ...{ color: {}, colorView: {}, waterDepth: {}, waterDepthView: {} },
+      ...{ waterWord: {}, waterWordView: {}, active: true },
+    },
     deferred: {
       uniform: {},
       placeholders: Object.fromEntries(
@@ -120,16 +135,18 @@ export function targets(gpu: WebgpuGpuState) {
 /**
  * A frame to replay the transparent passes into: a runtime whose bind groups are already built
  * on the placeholders — the tests observe draw order, not group construction —, and a recording
- * encoder that keeps each pass's label and the items it set, and counts the texture copies.
+ * encoder that keeps each pass's label, the views it writes and the items it set, and counts the
+ * texture copies.
  */
 export function replay(blendState: ReturnType<typeof prepared>['blendState'], gpu: WebgpuGpuState) {
-  const passes: { label: string; drawn: number[] }[] = [];
+  const passes: { label: string; drawn: number[]; writes: unknown[] }[] = [];
   const items = blendState.blendGpu;
   const counters = { copies: 0 };
   const encoder = {
-    beginRenderPass: ({ label }: { label: string }) => {
+    beginRenderPass: ({ label, colorAttachments }: GPURenderPassDescriptor) => {
       const drawn: number[] = [];
-      passes.push({ label, drawn });
+      const writes = [...colorAttachments].map((attachment) => attachment?.view);
+      passes.push({ label: label!, drawn, writes });
       return {
         setViewport() {},
         setBindGroup(_slot: number, group: GPUBindGroup) {

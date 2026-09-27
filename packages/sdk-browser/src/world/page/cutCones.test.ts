@@ -16,7 +16,7 @@ await prepareSdkWasm(readFileSync(join(import.meta.dirname, '../../page/decode/p
 
 test('every cut page carries the cone triangle_cone builds on its own triangles', async () => {
   const drawn = drawnTriangles(geometry.sphere(1, 32, 16), 'triangles')!;
-  const cut = await cutDrawnTriangles(drawn, true);
+  const cut = await cutDrawnTriangles(drawn, true, false);
   assert.ok(cut.pages.length > 1, 'the sphere spans several clusters');
   for (const page of cut.pages) {
     const built = triangleCone(drawn.positions, new Uint32Array(page.index));
@@ -27,7 +27,7 @@ test('every cut page carries the cone triangle_cone builds on its own triangles'
 test('the served pages keep their cone, but those of line and sprite quads', async () => {
   const box = geometry.box(1, 1, 1);
   const serve = async (drawn: NonNullable<ReturnType<typeof drawnTriangles>>) => {
-    const { primitive, urls } = await cutRuntimePrimitive(packDrawn(drawn), drawn);
+    const { primitive, urls } = await cutRuntimePrimitive(packDrawn(drawn, false), drawn);
     urls.forEach((url) => URL.revokeObjectURL(url));
     return primitive.pages.map((page) => page.cone);
   };
