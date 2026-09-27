@@ -35,7 +35,7 @@
     "jumpTo": "Zu einem Thema springen",
     "waitsFor": "Wartet auf die Engine:",
     "partial": "Teilweise",
-    "coming": "Demnächst: {{titles}}"
+    "coming": "Demnächst"
   },
   "gallery": {
     "themes": {
