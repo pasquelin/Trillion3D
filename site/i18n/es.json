@@ -329,7 +329,8 @@
       "ar-on-the-table": "RA sobre la mesa",
       "shadows-case-by-case": "Las sombras, caso por caso",
       "shadows-through-see-through-panes": "Sombras a través de cristales",
-      "a-walker-among-balls": "Un caminante entre pelotas"
+      "a-walker-among-balls": "Un caminante entre pelotas",
+      "hover-to-highlight": "Pasa el cursor para resaltar una pieza"
     },
     "missing": {
       "floating-crates": "geometría reescrita en cada fotograma",
