@@ -24,6 +24,8 @@ export function streamCutResidency(
   // Never throttled: past the budget the queue keeps the coarsest pages, and the rest is drawn by
   // its nearest resident ancestor.
   services.queueCutResidency(false);
+  // The cache gives slots back in the order the GPU cut published (`../../residency/evictionFeed.ts`).
+  services.followEvictions(selection);
   // Enumerate the bounded resident candidates once. GPU selection and compaction
   // share their page indices; no CPU frustum/LOD traversal or regrouping follows.
   marks.queueEnd = performance.now();
