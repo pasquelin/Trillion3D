@@ -19,7 +19,9 @@ import { geometryBytes } from '../scene/meshes.ts';
 import { hostSide } from '../scene/materialSide.ts';
 import { setGeometryBounds } from './geometryBounds.ts';
 import { GraphScene } from './graph/scene.ts';
-import { GraphInstancedMesh, GraphMesh } from './graph/mesh.ts';
+import { Mesh } from '../../../sdk-core/src/world/object/mesh.ts';
+import { InstancedMesh } from '../../../sdk-core/src/world/object/instancedMesh.ts';
+import type { HostMesh } from './resources.ts';
 import { BufferAttribute } from '../../../sdk-core/src/world/buffer/attribute.ts';
 import { GraphSurface } from './graph/surface.ts';
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
@@ -46,8 +48,8 @@ export function hostPageMesh(
   geometry: Geometry,
   declaration: HostMaterials,
   renderOrder: number,
-): GraphMesh {
-  const mesh = new GraphMesh(geometry, declaration as unknown as Surfaces);
+): HostMesh {
+  const mesh = new Mesh(geometry, declaration as unknown as Surfaces);
   mesh.matrixAutoUpdate = false;
   mesh.frustumCulled = false;
   mesh.renderOrder = renderOrder;
@@ -64,8 +66,8 @@ export function hostPageInstances(
   declaration: HostMaterials,
   renderOrder: number,
   capacity: number,
-): GraphInstancedMesh {
-  const mesh = new GraphInstancedMesh(geometry, declaration as unknown as Surfaces, capacity);
+): InstancedMesh<GraphSurface> {
+  const mesh = new InstancedMesh(geometry, declaration as unknown as Surfaces, capacity);
   mesh.matrixAutoUpdate = false;
   mesh.frustumCulled = false;
   mesh.renderOrder = renderOrder;
@@ -73,28 +75,32 @@ export function hostPageInstances(
 }
 
 /** Placement `index` of an instanced page: the sixteen floats of its row. */
-export const setHostInstance = (mesh: GraphInstancedMesh, index: number, pose: MatrixElements) => {
+export const setHostInstance = (
+  mesh: InstancedMesh<GraphSurface>,
+  index: number,
+  pose: MatrixElements,
+) => {
   mesh.instanceMatrix.array.set(pose.elements, index * 16);
 };
 
 /** How many placements the instanced page draws this frame; its matrices go up once. */
-export const setHostInstanceCount = (mesh: GraphInstancedMesh, count: number) => {
+export const setHostInstanceCount = (mesh: InstancedMesh<GraphSurface>, count: number) => {
   mesh.count = count;
   mesh.instanceMatrix.needsUpdate = true;
 };
 
 /** Gives an instanced page's matrices back; its geometry and surface are released by theirs. */
-export const releaseHostInstances = (mesh: GraphInstancedMesh) => {
+export const releaseHostInstances = (mesh: InstancedMesh<GraphSurface>) => {
   mesh.dispose();
 };
 
 /** The pose a drawn page wears: the sixteen floats the engine composed for it. */
-export const setHostPose = (mesh: GraphMesh, pose: MatrixElements) => {
+export const setHostPose = (mesh: HostMesh, pose: MatrixElements) => {
   mesh.matrix.fromArray(pose.elements);
 };
 
 /** The surface a drawn page wears once its primitive has been repainted. */
-export const setHostSurface = (mesh: GraphMesh, declaration: HostMaterials) => {
+export const setHostSurface = (mesh: HostMesh, declaration: HostMaterials) => {
   mesh.material = declaration as unknown as Surfaces;
 };
 

@@ -14,7 +14,7 @@ import { resolveCameraWorld } from '../../camera/world.ts';
 import { HOST_FILTER_NEAREST, HOST_FORMAT_RGBA } from '../surfaceConstants.ts';
 import { BufferAttribute } from '../../../../sdk-core/src/world/buffer/attribute.ts';
 import { GraphCamera } from './camera.ts';
-import { GraphMesh } from './mesh.ts';
+import { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts';
 import { GraphSurface, type GraphSurfaceFamily } from './surface.ts';
 import { GraphTexture } from './texture.ts';
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
@@ -36,7 +36,9 @@ export {
 export { GraphCamera } from './camera.ts';
 export { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts';
 export { GraphLight } from './light.ts';
-export { GraphMesh } from './mesh.ts';
+export { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts';
+export { InstancedMesh } from '../../../../sdk-core/src/world/object/instancedMesh.ts';
+export type { HostMesh } from '../resources.ts';
 export { Group, Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 export { GraphNode } from './node.ts';
 export { GraphScene } from './scene.ts';
@@ -62,7 +64,7 @@ const hostGeometry = () => Object.assign(new Geometry(), { _owner: 'host' as con
 export const mesh = (
   geometry: Geometry = hostGeometry(),
   material: GraphSurface | GraphSurface[] = new GraphSurface('basic'),
-) => new GraphMesh(geometry, material);
+) => new Mesh(geometry, material);
 
 /** A drawn triangle — three indices, positions and normals — in `surface`, never culled: what a
  *  draw test submits once per pass. */
@@ -70,7 +72,7 @@ export function triangleMesh(surface: GraphSurface) {
   const geometry = new Geometry().setIndex(new BufferAttribute(new Uint32Array(3), 1));
   geometry.setAttribute('position', new BufferAttribute(new Float32Array(9), 3));
   geometry.setAttribute('normal', new BufferAttribute(new Float32Array(9), 3));
-  const made = new GraphMesh(geometry, surface);
+  const made = new Mesh(geometry, surface);
   made.frustumCulled = false;
   return made;
 }

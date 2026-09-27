@@ -15,7 +15,7 @@ test('mixed GPU and transparent pages wait for initial coverage before validatin
   mock.method(performance, 'now', () => 0);
   const fixture = quadScene(),
     blend = quadScene();
-  const mesh = blend.source.children[0] as G.GraphMesh;
+  const mesh = blend.source.children[0] as G.HostMesh;
   fixture.source.add(mesh);
   blend.material.transparent = true;
   blend.material.side = G.DOUBLE_SIDE;
@@ -83,8 +83,8 @@ test('cached clustered cuts keep visibility current and leave unchanged mesh ind
   fixture.material.transparent = true;
   fixture.material.side = G.DOUBLE_SIDE;
   fixture.metadata.primitives[0].pass = 'clustered-blend';
-  const mesh = fixture.source.children[0] as G.GraphMesh,
-    legacyMesh = legacy.source.children[0] as G.GraphMesh;
+  const mesh = fixture.source.children[0] as G.HostMesh,
+    legacyMesh = legacy.source.children[0] as G.HostMesh;
   legacy.material.transparent = true;
   legacy.material.side = G.DOUBLE_SIDE;
   legacy.metadata.primitives[0].mesh = 1;
@@ -92,7 +92,7 @@ test('cached clustered cuts keep visibility current and leave unchanged mesh ind
   fixture.source.add(legacyMesh);
   fixture.metadata.primitives.push(legacy.metadata.primitives[0]);
   fixture.associations.set(legacyMesh, { meshes: 1, primitives: 0 });
-  const otherMesh = other.source.children[0] as G.GraphMesh;
+  const otherMesh = other.source.children[0] as G.HostMesh;
   other.material.transparent = true;
   other.material.side = G.DOUBLE_SIDE;
   const otherPrimitive = other.metadata.primitives[0];

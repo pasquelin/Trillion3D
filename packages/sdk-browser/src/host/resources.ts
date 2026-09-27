@@ -4,7 +4,7 @@
 // box, the diagnostic factory — stays a shape.
 // The 4×4 pose is `MatrixElements` (`matrixElements.ts`).
 import type { VertexAttribute } from '../../../sdk-core/src/world/buffer/attribute.ts';
-import type { GraphMesh } from './graph/mesh.ts';
+import type { Mesh } from '../../../sdk-core/src/world/object/mesh.ts';
 import type { GraphSurface } from './graph/surface.ts';
 import type { GraphTexture } from './graph/texture.ts';
 
@@ -46,7 +46,7 @@ export type HostMaterials = GraphSurface | GraphSurface[];
 
 /** A drawn node of the graph, held by identity: the draw record, the transparent table and the
  *  selection sets name the mesh the engine placed. */
-export type HostMesh = GraphMesh;
+export type HostMesh = Mesh<GraphSurface>;
 
 /** A host colour: three linear components, read one by one and written the same way. The engine
  *  never converts here — a colour crosses as the host holds it. */

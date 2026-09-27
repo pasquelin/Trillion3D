@@ -1,4 +1,5 @@
 import type { GraphScene } from '../../host/graph/scene.ts';
+import { isDrawnNode } from '../../host/graph/kinds.ts';
 import {
   DEFAULT_TONE_MAPPING,
   TONE_MAPPING_RANK,
@@ -25,7 +26,6 @@ export type ClusterDrawScene = WebglClusterScene & { updateMatrixWorld(): void }
 /** A node of the display graph, read by shape: a mesh is drawn whole, anything else is walked. */
 type DisplayNode = Partial<SceneCopy> & {
   readonly matrixWorld: SceneCopy['matrixWorld'];
-  readonly kind?: string;
   readonly visible: boolean;
   readonly renderOrder: number;
   readonly children: readonly DisplayNode[];
@@ -86,7 +86,7 @@ export function createSceneDraw(
   const counters = { triangles: 0 };
   const collect = (node: DisplayNode) => {
     if (!node.visible) return;
-    if (node.kind === 'mesh' || node.kind === 'instancedMesh') {
+    if (isDrawnNode(node)) {
       if (copied.has(node) || firstMaterial(node.material!)?.transparent)
         seeThrough.push(node as DrawnNode);
       else opaque.push(node as WholeMesh);
