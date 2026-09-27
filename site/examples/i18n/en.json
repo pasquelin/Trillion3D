@@ -500,6 +500,14 @@
       "balloon": "TRACKING THE BALLOON"
     }
   },
+  "a-crane-that-swings": {
+    "banner": "Orbit the crane while one clip slews the jib, moves the trolley, hoists the load and lets it swing.",
+    "controls": {
+      "speed": "Speed",
+      "paused": "Paused",
+      "replay": "Replay"
+    }
+  },
   "a-wave-across-a-grid": {
     "banner": "Drag to look around. Make the wave of cubes higher or faster.",
     "controls": {
@@ -1268,7 +1276,11 @@
       "home": "Return home"
     },
     "choices": {
-      "view": { "beauty": "beauty", "lod": "lod", "clusters": "clusters" }
+      "view": {
+        "beauty": "beauty",
+        "lod": "lod",
+        "clusters": "clusters"
+      }
     },
     "words": {
       "credit": "Avenue of urns modelled in code for this example, CC0 — see assets/examples/CREDITS.md"
@@ -2222,6 +2234,45 @@
     },
     "words": {
       "credit": "Street lamp model by W. Sitters, CC BY 3.0 — see assets/examples/CREDITS.md"
+    }
+  },
+  "drag-a-crate": {
+    "banner": "Drag the crate across the floor. Turn snapping on to place it in half-metre steps.",
+    "controls": {
+      "snap": "Snap",
+      "home": "Home"
+    }
+  },
+  "outline-the-selection": {
+    "banner": "Click a shape to select it. Click the floor to clear the selection.",
+    "controls": {
+      "color": "Color",
+      "thickness": "Thickness"
+    }
+  },
+  "a-hundred-thousand-instances": {
+    "banner": "Drag to orbit the field. Change the count or view.",
+    "controls": {
+      "count": "Count",
+      "view": "View"
+    },
+    "readouts": {
+      "objectsShown": "Objects shown",
+      "objectsBuilt": "Objects built"
+    },
+    "choices": {
+      "view": {
+        "beauty": "beauty",
+        "clusters": "clusters"
+      }
+    }
+  },
+  "inside-a-component": {
+    "banner": "Mount or unmount the viewer. Each attachment owns one world and each removal disposes it.",
+    "controls": {
+      "mount": "Mount",
+      "unmount": "Unmount",
+      "remount": "Remount"
     }
   }
 }

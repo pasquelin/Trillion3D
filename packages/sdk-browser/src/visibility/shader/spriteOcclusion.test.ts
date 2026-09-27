@@ -146,7 +146,7 @@ test('a constant-size sprite blend item has no box, and the frustum keeps it', (
     return Object.assign(G.mesh(geometry, material), { surface: surfaceOf(material) });
   };
   const copies = [copy(false), copy(true)];
-  prepareWebgpuBlend(device, copies, createWebgpuGpuState([1, 1]), blendState, new G.GraphScene());
+  prepareWebgpuBlend(device, copies, createWebgpuGpuState([1, 1]), blendState, new G.Scene());
   assert.deepEqual(
     blendState.blendGpu.map((item) => item.bounds === undefined),
     [true, false],

@@ -36,7 +36,7 @@ function lire(gl: WebGL2RenderingContext) {
 
 /** Two planes of different colours, lit or not according to what the case asks. */
 function scene(eclairee: boolean) {
-  const scene = new G.GraphScene();
+  const scene = new G.Scene();
   scene.background = new G.Color(0x171d28);
   const materiau = (couleur: number) =>
     eclairee

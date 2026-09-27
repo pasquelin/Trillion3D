@@ -99,7 +99,7 @@ export function mountClusterRenderer() {
   return {
     gl,
     renderer: new WebglClusterRenderer(gl),
-    scene: new G.GraphScene(),
+    scene: new G.Scene(),
     camera,
     drawCamera: readHostDrawCamera(createHostDrawCamera(), camera),
   };
