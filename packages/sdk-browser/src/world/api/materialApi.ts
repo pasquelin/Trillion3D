@@ -14,8 +14,16 @@ import {
   type SceneMaterial,
   type SceneMaterialPatch,
 } from './materialValues.ts';
+import { materialEngines } from './materialEngines.ts';
+import {
+  createdSurface,
+  RUNTIME_MATERIAL_CEILING,
+  validateCreated,
+  type CreatedMaterial,
+} from './createdMaterials.ts';
 
 export type { SceneMaterial, SceneMaterialPatch } from './materialValues.ts';
+export { RUNTIME_MATERIAL_CEILING, type CreatedMaterial } from './createdMaterials.ts';
 
 type Inputs = {
   check: () => void;
@@ -32,10 +40,13 @@ type Inputs = {
  * and the active engine reads them again at the next frame (`refreshMaterials`), no second upload
  * path and no new GPU memory. Moved to another draw class, opaque, masked or blended, its
  * drawables go where the open would put them (#846); an engine that lays that class out at open
- * refuses it by name (`MATERIAL_CLASS_CHANGE`), before any write.
+ * refuses it by name (`MATERIAL_CLASS_CHANGE`), before any write. A page creates materials too
+ * (#847), each a host surface of its own, set and read as a scene material is.
  */
 export function createExplorerMaterialApi(inputs: Inputs) {
   const { check, source, backends, active } = inputs;
+  /** The materials the page created, by id: a namespace no table rank takes. */
+  const created = new Map<string, GraphSurface>();
   /** Built at the first call, not at open: most pages never ask. Before any write, so the values
    *  it keeps as imported are the file's. */
   let held: ReturnType<typeof index> | undefined;
@@ -57,7 +68,10 @@ export function createExplorerMaterialApi(inputs: Inputs) {
     return { surfaces, wearers, ranks, imported };
   };
   const scene = () => (held ??= index());
+  const { refuseClass, repaints, refreshed } = materialEngines(backends, active);
   const required = (id: string) => {
+    const made = created.get(id);
+    if (made) return { rank: id, worn: [made] };
     const rank = Number(id);
     // An id is the rank as listed: '', ' 1' or '1.0' would name a rank by accident.
     const worn = String(rank) === id ? scene().surfaces.get(rank) : undefined;
@@ -69,7 +83,9 @@ export function createExplorerMaterialApi(inputs: Inputs) {
     materials(): SceneMaterial[] {
       check();
       const { ranks, surfaces } = scene();
-      return ranks.map((rank) => read(rank, surfaces.get(rank)![0]));
+      const listed = ranks.map((rank) => read(rank, surfaces.get(rank)![0]));
+      for (const [id, surface] of created) listed.push(read(id, surface));
+      return listed;
     },
     /** One material as it is now, a detached copy; an unknown id is refused by name. */
     material(id: string): SceneMaterial {
@@ -99,16 +115,7 @@ export function createExplorerMaterialApi(inputs: Inputs) {
         to !== from || (to === 'mask' && patch.alphaCutoff !== undefined)
           ? { surfaces: worn, from, to }
           : undefined;
-      if (alpha && to !== from)
-        for (const backend of backends) {
-          const why = backend.materialClassRefusal?.(alpha);
-          if (why)
-            throw new EngineError(
-              'MATERIAL_CLASS_CHANGE',
-              `${backend.id} cannot move material ${id} from ${from} to ${to}: ${why}`,
-              { id, from, to, engine: backend.id },
-            );
-        }
+      if (alpha && to !== from) refuseClass(id, alpha);
       if (patch.tiling) {
         const textures = worn.flatMap((surface) => [...materialTextures(surface)]);
         if (!textures.length) throw invalid(rank, 'tiling', patch.tiling);
@@ -121,18 +128,27 @@ export function createExplorerMaterialApi(inputs: Inputs) {
             { id, texture: shared.name, materials: [...wearers.get(shared)!].map(String) },
           );
       }
-      const engine = active();
-      if (!engine.refreshMaterials)
-        throw new EngineError(
-          'UNSUPPORTED_SCENE_UPDATE',
-          `${engine.id} does not repaint materials in place`,
-          { id },
-        );
+      repaints(id);
       for (const surface of worn) write(surface, patch, alpha?.to);
-      // An engine that cannot reread its surfaces has not taken the change (`setClearColor`).
-      return backends.every(
-        (backend) => !!backend.refreshMaterials && backend.refreshMaterials(true, alpha) !== false,
-      );
+      return refreshed(alpha);
+    },
+    /**
+     * A material of the page's own, without maps for now: listed, read and set as a scene
+     * material is; every check runs before anything is built, the ceiling first.
+     */
+    createMaterial(props: CreatedMaterial = {}): SceneMaterial {
+      check();
+      const id = `created-${created.size}`;
+      if (created.size >= RUNTIME_MATERIAL_CEILING)
+        throw new EngineError(
+          'MATERIAL_CEILING',
+          `the page holds ${created.size} created materials, the ceiling`,
+          { ceiling: RUNTIME_MATERIAL_CEILING },
+        );
+      validateCreated(id, props);
+      const surface = createdSurface(props);
+      created.set(id, surface);
+      return read(id, surface);
     },
   };
 }
