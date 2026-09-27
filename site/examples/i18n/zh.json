@@ -1710,11 +1710,18 @@
   },
   "the-home-pose": {
     "banner": "选择一个视角，移动相机，然后选择初始返回。",
-    "controls": { "home": "初始", "tower": "塔楼", "square": "广场", "hillside": "山坡" }
+    "controls": {
+      "home": "初始",
+      "tower": "塔楼",
+      "square": "广场",
+      "hillside": "山坡"
+    }
   },
   "the-near-plane-cuts-a-wall": {
     "banner": "向前移动近裁剪面，观察它依次切过每面墙。",
-    "controls": { "nearPlane": "近裁剪面" }
+    "controls": {
+      "nearPlane": "近裁剪面"
+    }
   },
   "the-material-family": {
     "banner": "拖动四处走走。把光调成夜晚，看看什么还在发光。",
@@ -2190,6 +2197,16 @@
     },
     "readouts": {
       "progress": "进度"
+    }
+  },
+  "a-folder-merged-into-one-scene": {
+    "banner": "拖动查看街角。编译器将一个文件夹中的三个 OBJ 文件合并成了这个场景。",
+    "controls": {
+      "visible": "显示",
+      "home": "初始视图"
+    },
+    "words": {
+      "credit": "路灯模型作者 W. Sitters，CC BY 3.0 — 见 assets/examples/CREDITS.md"
     }
   }
 }
