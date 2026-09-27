@@ -41,7 +41,7 @@ pub(crate) use stage::stage_physics;
 
 /// The stage contract: its name and version, which enter `physics.json` and the cache key.
 pub const PHYSICS_COOK_STAGE: &str = "physics-cook";
-pub const PHYSICS_COOK_VERSION: u32 = 6;
+pub const PHYSICS_COOK_VERSION: u32 = 7;
 /// Version of `physics.json`, its own: a reader refuses any other.
 pub const PHYSICS_FORMAT_VERSION: u32 = 2;
 /// The Jolt commit the cook links: shapes are Jolt's binary state, readable by this Jolt alone.
