@@ -6,7 +6,6 @@ import type { Light } from '../../../../sdk-core/src/world/light/light.ts';
 import { lightFromRecord } from '../../../../sdk-core/src/world/light/lightRecord.ts';
 import { importedLightsUrl, loadImportedLights } from '../../lighting/importedLights.ts';
 import { sceneTablesUrl } from '../../scene/tables.ts';
-import type { PreparedSceneTables } from '../../../../sdk-core/src/scene/core/tableContracts.ts';
 import type { ClusterManifest, AssetScope, JobProgress } from '../../../../sdk-core/src/index.ts';
 import { loadClusterManifest } from '../../scene/manifestLoad.ts';
 import { byteMeter, unmetered } from '../../cluster/byteMeter.ts';
@@ -120,9 +119,7 @@ const SCENE_FILE = 'source.gltf';
  */
 function plannedFiles(declared: ReadonlyMap<string, number>, base: string) {
   const read = [sceneTablesUrl(base), importedLightsUrl(base)];
-  return new Map(
-    read.flatMap((url) => (url && declared.has(url) ? [[url, declared.get(url)!]] : [])),
-  );
+  return new Map(read.flatMap((url) => (declared.has(url) ? [[url, declared.get(url)!]] : [])));
 }
 
 /**
