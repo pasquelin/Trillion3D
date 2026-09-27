@@ -71,16 +71,27 @@ export function createTickResults(
     gather(count: number) {
       const words = jolt.poses(count),
         to = target();
-      for (let r = 0; r < count; r++) {
-        const at = r * POSE_WORDS,
-          index = words[at] & BODY_INDEX;
-        if (stamp[index] !== tick) {
+      // A step sends one record per body (`writePoses`), so a tick's first poses fill its slots in
+      // record order: one block copy, and only the slots are stamped.
+      if (poseCount === 0) {
+        to.set(words);
+        for (let r = 0; r < count; r++) {
+          const index = words[r * POSE_WORDS] & BODY_INDEX;
           stamp[index] = tick;
-          slotOf[index] = poseCount++;
+          slotOf[index] = r;
         }
-        const o = slotOf[index] * POSE_WORDS;
-        for (let k = 0; k < POSE_WORDS; k++) to[o + k] = words[at + k];
-      }
+        poseCount = count;
+      } else
+        for (let r = 0; r < count; r++) {
+          const at = r * POSE_WORDS,
+            index = words[at] & BODY_INDEX;
+          if (stamp[index] !== tick) {
+            stamp[index] = tick;
+            slotOf[index] = poseCount++;
+          }
+          const o = slotOf[index] * POSE_WORDS;
+          for (let k = 0; k < POSE_WORDS; k++) to[o + k] = words[at + k];
+        }
       const fresh = jolt.events();
       to.set(fresh, events + eventCount * EVENT_WORDS);
       eventCount += fresh.length / EVENT_WORDS;
@@ -90,13 +101,15 @@ export function createTickResults(
     },
     /** Whether one more step's events surely fit in the tick's results. */
     room: () => eventCount + budget.contactEvents <= budget.contactEvents * MAX_CATCH_UP_STEPS,
-    /** Hands the tick's results to the page, `water` the water's clock after them and its epoch;
-     *  false while it holds both buffers. */
+    /** Hands the tick's results to the page, `water` the water's clock after them and its epoch,
+     *  and the command buffers `spent` since the last results; false while it holds both
+     *  buffers. */
     post(
       { steps, stepMs, stepMaxMs }: { steps: number; stepMs: number; stepMaxMs: number },
       active: number,
       character: () => CharacterReport | null,
       water: { readonly time: number; readonly epoch: number },
+      spent: ArrayBuffer[],
     ) {
       if (!out || !(poseCount || eventCount || steps)) return false;
       if (!outBuffer) {
@@ -119,8 +132,9 @@ export function createTickResults(
         character: character(),
         vehicles: vehicles(jolt),
         soft: soft.take(),
+        spent: spent.splice(0),
       };
-      send({ type: 'results', buffer: outBuffer, ...message }, [outBuffer]);
+      send({ type: 'results', buffer: outBuffer, ...message }, [outBuffer, ...message.spent]);
       out = outBuffer = null;
       tick++;
       poseCount = eventCount = dropped = 0;

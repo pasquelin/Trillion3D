@@ -15,13 +15,21 @@ import { camera, quadScene } from '../pages/testScenes.fixture.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 
 /** A runtime reduced to what the resolve reads, and an encoder that records its passes. */
-function resolveFixture(classes: number[], compiled: number[]) {
+function resolveFixture(classes: number[], compiled: number[], single: number[] = []) {
   const stride = PAGE_INFO_STRIDE / 4,
     ints = new Uint32Array(stride * classes.length);
   classes.forEach((key, row) => (ints[row * stride + ROW_MATERIAL_CLASS_WORD] = key));
   const made: number[] = [],
-    passes: Array<{ label: string; pipelines: unknown[]; draws: number; depth: unknown }> = [];
-  const pipeline = (key: number) => ({ key });
+    passes: Array<{
+      label: string;
+      pipelines: unknown[];
+      draws: number;
+      depth: unknown;
+      colors: unknown[];
+    }> = [];
+  const pipeline = (key: number) => ({ key }),
+    ordinary = new Map(compiled.map((key) => [key, pipeline(key)])),
+    direct = new Map(single.map((key) => [key, pipeline(key)]));
   const rt = {
     gpu: {
       surfaces: { views: () => ['a', 'b', 'c', 'd'] },
@@ -34,18 +42,24 @@ function resolveFixture(classes: number[], compiled: number[]) {
       materialDepthView: 'material depth',
       materialDepthPipeline: 'depth pipeline',
       shadeBindGroup: 'bind group',
-      shadePipelines: new Map(compiled.map((key) => [key, pipeline(key)])),
+      shadePipelines: ordinary,
       shadePipelineFor: (key: number) => (made.push(key), pipeline(key)),
+      singleShadePipelines: direct,
       presentClasses: createPresentClasses(),
     },
   } as unknown as WebgpuPagesRuntime;
   const encoder = {
-    beginRenderPass: (desc: { label: string; depthStencilAttachment: unknown }) => {
+    beginRenderPass: (desc: {
+      label: string;
+      depthStencilAttachment?: unknown;
+      colorAttachments?: unknown[];
+    }) => {
       const pass = {
         label: desc.label,
         pipelines: [] as unknown[],
         draws: 0,
         depth: desc.depthStencilAttachment,
+        colors: desc.colorAttachments ?? [],
       };
       passes.push(pass);
       return {
@@ -57,19 +71,78 @@ function resolveFixture(classes: number[], compiled: number[]) {
       };
     },
   } as unknown as GPUCommandEncoder;
-  return { rt, encoder, passes, made };
+  return { rt, encoder, passes, made, ordinary, direct };
 }
+const passSummary = (passes: Array<{ label: string; draws: number }>) =>
+  passes.map(({ label, draws }) => [label, draws]);
+
+test('one present class shades directly into the cleared surfaces', () => {
+  const { rt, encoder, passes } = resolveFixture([5], [5], [5]);
+  encodeMaterialPasses(rt, encoder);
+  assert.deepEqual(passSummary(passes), [[MATERIAL_SURFACES_PASS, 1]]);
+  assert.equal(passes[0].depth, undefined);
+  const colors = passes[0].colors as Array<{
+    view: unknown;
+    loadOp: string;
+    storeOp: string;
+    clearValue?: unknown;
+  }>;
+  assert.deepEqual(
+    colors.map(({ view, loadOp, storeOp }) => [view, loadOp, storeOp]),
+    [
+      ['a', 'clear', 'store'],
+      ['b', 'clear', 'store'],
+      ['c', 'clear', 'store'],
+      ['d', 'clear', 'store'],
+      ['feedback', 'clear', 'store'],
+    ],
+  );
+  for (const { clearValue } of colors.slice(0, 4)) assert.deepEqual(clearValue, [0, 0, 0, 0]);
+  assert.equal(rt.run.feedbackWritten, true);
+  assert.equal(rt.run.gpuDrawCalls, 1);
+});
+
+test('a cached direct class is used only for that sole present class', () => {
+  const { rt, encoder, passes, made, ordinary, direct } = resolveFixture([5, 9], [5], [5]);
+  encodeMaterialPasses(rt, encoder);
+  assert.deepEqual(passSummary(passes), [
+    [MATERIAL_DEPTH_PASS, 1],
+    [MATERIAL_SURFACES_PASS, 2],
+  ]);
+  assert.deepEqual(passes[1].pipelines, [ordinary.get(5), ordinary.get(9)]);
+  assert.ok(!passes[1].pipelines.includes(direct.get(5)));
+  assert.deepEqual(made, [9]);
+  rt.layout.rows.pageTableInts![ROW_MATERIAL_CLASS_WORD] = 9;
+  rt.layout.rows.packedCount = 1;
+  passes.length = 0;
+  encodeMaterialPasses(rt, encoder);
+  assert.deepEqual(passSummary(passes), [
+    [MATERIAL_DEPTH_PASS, 1],
+    [MATERIAL_SURFACES_PASS, 1],
+  ]);
+  assert.equal(passes[1].pipelines[0], rt.vis.shadePipelines.get(9));
+  assert.notEqual(passes[1].pipelines[0], direct.get(5));
+  assert.deepEqual(passes[1].depth, { view: 'material depth', depthReadOnly: true });
+  assert.deepEqual(made, [9]);
+});
+
+test('an empty class census retains the clearing depth and surfaces passes', () => {
+  const { rt, encoder, passes } = resolveFixture([], []);
+  encodeMaterialPasses(rt, encoder);
+  assert.deepEqual(passSummary(passes), [
+    [MATERIAL_DEPTH_PASS, 1],
+    [MATERIAL_SURFACES_PASS, 0],
+  ]);
+  assert.equal(rt.run.gpuDrawCalls, 1);
+});
 
 test('an image draws each class of its rows once, compiling on the spot one the census missed', () => {
   const { rt, encoder, passes, made } = resolveFixture([5, 9, 5, 2], [5, 9]);
   encodeMaterialPasses(rt, encoder);
-  assert.deepEqual(
-    passes.map((pass) => [pass.label, pass.draws]),
-    [
-      [MATERIAL_DEPTH_PASS, 1],
-      [MATERIAL_SURFACES_PASS, 3],
-    ],
-  );
+  assert.deepEqual(passSummary(passes), [
+    [MATERIAL_DEPTH_PASS, 1],
+    [MATERIAL_SURFACES_PASS, 3],
+  ]);
   const [depth, surfaces] = passes;
   assert.deepEqual(depth.pipelines, ['depth pipeline']);
   assert.deepEqual(depth.depth, {

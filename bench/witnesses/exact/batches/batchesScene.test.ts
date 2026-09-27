@@ -5,7 +5,7 @@ import { ClusterBatches, type BatchPage } from './batches.ts';
 import { attributes, fixture, resident, drawOf, wears } from './batches.fixture.ts';
 
 test('instances of one primitive share a single resident index buffer written once per page', () => {
-  const scene = new G.GraphScene(),
+  const scene = new G.Scene(),
     data = fixture();
   const batches = new ClusterBatches(scene, data.pages);
   resident(batches, data, ['a', 'b', 'c', 'd']);
@@ -38,7 +38,7 @@ test('instances of one primitive share a single resident index buffer written on
   assert.equal(scene.children.length, 0, 'the host scene never receives a draw record');
 });
 test('a cut that changes every frame rewrites no index and drops the groups it no longer draws', () => {
-  const scene = new G.GraphScene(),
+  const scene = new G.Scene(),
     data = fixture();
   const batches = new ClusterBatches(scene, data.pages);
   resident(batches, data, ['a', 'b', 'c', 'd']);
@@ -67,7 +67,7 @@ test('a cut that changes every frame rewrites no index and drops the groups it n
   assert.equal(batches.metrics.drawCalls, 3);
 });
 test('an evicted page frees its range and the next residency reuses it', () => {
-  const scene = new G.GraphScene(),
+  const scene = new G.Scene(),
     data = fixture();
   const batches = new ClusterBatches(scene, data.pages);
   resident(batches, data, ['a', 'b', 'c']);
@@ -104,7 +104,7 @@ test('a transparent group draws its pages in source order whatever the order of 
     transparent: true,
     sourceOrder: [2, 0, 1][id],
   }));
-  const scene = new G.GraphScene();
+  const scene = new G.Scene();
   const batches = new ClusterBatches(scene, pages);
   for (const page of pages) {
     const array = Uint32Array.from([0, 1, 2]);
@@ -159,7 +159,7 @@ test('draw groups keep opaque first then transparent source rank and coplanar la
       depthLayer: 2,
     },
   ];
-  const batches = new ClusterBatches(new G.GraphScene(), pages);
+  const batches = new ClusterBatches(new G.Scene(), pages);
   for (const page of pages) {
     page.array = Uint32Array.from([0, 1, 2]);
     batches.acceptPage([page], page.array);
@@ -177,7 +177,7 @@ test('draw groups keep opaque first then transparent source rank and coplanar la
   );
 });
 test('page urls of a cut are listed once per page, instances included, and diagnostics can hide every batch', () => {
-  const scene = new G.GraphScene(),
+  const scene = new G.Scene(),
     data = fixture();
   const batches = new ClusterBatches(scene, data.pages);
   resident(batches, data, ['a', 'b', 'c', 'd']);

@@ -14,6 +14,7 @@ export interface BenchSettings {
   poolVivant: { geometryPoolBytes?: number | null; texturePoolBytes?: number | null } | null;
   width: number;
   height: number;
+  dpr: number;
   port: number;
   stageProfile: boolean;
   trace: boolean;

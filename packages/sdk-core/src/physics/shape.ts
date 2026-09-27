@@ -1,7 +1,7 @@
 import { EngineError } from '../contracts/cache.ts';
 import type { Geometry } from '../world/geometry/geometry.ts';
 import { readPoints } from '../world/geometry/bounds.ts';
-import type { CompoundPart } from './commands.ts';
+import type { CompoundPart } from './bodyRecord.ts';
 import { SHAPE } from './layout.ts';
 import type { PhysicsPart, PhysicsPrimitive, PhysicsShape, PhysicsType } from './options.ts';
 

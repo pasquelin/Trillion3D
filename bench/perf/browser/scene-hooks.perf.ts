@@ -43,7 +43,7 @@ function hooked() {
 }
 
 /** The world matrices of one mesh in two hundred, after a forced walk of the whole graph. */
-function walk({ root, meshes }: { root: G.Group; meshes: G.GraphMesh[] }) {
+function walk({ root, meshes }: { root: G.Group; meshes: G.HostMesh[] }) {
   root.updateMatrixWorld(true);
   const sample = new Float64Array((meshes.length / 200) * 16);
   for (let i = 0; i < meshes.length; i += 200)
