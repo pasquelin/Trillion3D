@@ -63,14 +63,14 @@ function variantOf(variants: Map<string, GraphSurface>, attributes: Record<strin
  *  `from` is one that moves across blended if any does. */
 export function assignment(variants: Map<string, GraphSurface>, drawn: ReadonlySet<HostGraphMesh>) {
   const meshes = new Map<HostGraphMesh, GraphSurface>(),
-    modes: AlphaMode[] = [];
+    to = alphaModeOf(variants.get(PLAIN)!);
+  let from: AlphaMode | undefined;
   for (const mesh of drawn) {
     meshes.set(mesh, variantOf(variants, mesh.geometry.attributes));
-    modes.push(alphaModeOf(firstMaterial(mesh.material)!));
+    const mode = alphaModeOf(firstMaterial(mesh.material)!);
+    if (from === undefined || (mode === 'blend') !== (to === 'blend')) from = mode;
   }
-  const to = alphaModeOf(variants.get(PLAIN)!);
-  const from = modes.find((mode) => (mode === 'blend') !== (to === 'blend')) ?? modes[0];
-  return { surfaces: [...new Set(meshes.values())], meshes, from, to };
+  return { surfaces: [...new Set(meshes.values())], meshes, from: from!, to };
 }
 
 /** A created material where the page names nothing: glTF's material defaults, metal 1 among
