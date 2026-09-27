@@ -2242,5 +2242,12 @@
       "snap": "Kisi",
       "home": "Awal"
     }
+  },
+  "outline-the-selection": {
+    "banner": "Klik bentuk untuk memilihnya. Klik lantai untuk menghapus pilihan.",
+    "controls": {
+      "color": "Warna",
+      "thickness": "Ketebalan"
+    }
   }
 }

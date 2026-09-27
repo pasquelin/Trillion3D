@@ -2242,5 +2242,12 @@
       "snap": "吸附",
       "home": "初始位置"
     }
+  },
+  "outline-the-selection": {
+    "banner": "单击形状以选择它。单击地面以清除选择。",
+    "controls": {
+      "color": "颜色",
+      "thickness": "粗细"
+    }
   }
 }
