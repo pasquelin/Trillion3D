@@ -1,4 +1,5 @@
 import { COMPUTE } from '../core/computeBindings.ts';
+import { LANE_SCAN_WGSL } from '../core/laneScanWgsl.ts';
 import { BASE_SLOTS, DRAW_ITEM_WGSL, slotCount } from './contract.ts';
 
 /**
@@ -19,14 +20,14 @@ import { BASE_SLOTS, DRAW_ITEM_WGSL, slotCount } from './contract.ts';
  * slot from workgroup memory too — the counts and the order of the per-(group, slot) walk, without
  * rereading the group's items from the storage buffer once per slot and per lane.
  *
- * The prefix spreads slots over the sixty-four threads of a single workgroup rather than walking
- * them one after another: each thread totals the slots that fall to it in steps of 64, a workgroup
- * barrier separates this phase from the offset computation, then each thread rebuilds its cursor
- * by re-summing the totals of the slots that precede it. The result is that of the serial walk
- * term for term — u32 addition is associative, and a slot's cursor depends only on the totals of
- * lower-index slots, which an unused slot leaves at zero.
- * `../../../../../bench/oracles/browser/gpuDrawPrefixOracle.ts` carries both kernels and `prefixEquivalence.test.ts`
- * the proof.
+ * The prefix walks the slots in order with all sixty-four threads of a single workgroup: each
+ * thread totals a contiguous run of groups, the sixty-four run totals are scanned in workgroup
+ * memory, and each thread writes the offsets of its run from its exclusive prefix. The result is
+ * that of the serial walk term for term — u32 addition is associative, and a slot starts where
+ * the totals of the slots before it end, an unused slot adding nothing. Where the slots used to
+ * fall one per thread, each walking every group alone, the groups are now spread over the lanes.
+ * `../../../../../bench/oracles/browser/gpuDrawPrefixOracle.ts` carries the kernels and
+ * `prefixEquivalence.test.ts` the proof.
  */
 /**
  * Group-0 bindings, published under the WGSL that declares them. The production layout and the
@@ -101,32 +102,34 @@ fn countGroups(@builtin(workgroup_id) wg:vec3u,@builtin(local_invocation_index) 
   groupCounts[group*${slots}u+slot]=select(atomicLoad(&slotTally[slot]),0u,slotUsed[slot]==0u);
  }
 }
-var<workgroup> slotTotals:array<u32,${slots}>;
-@compute @workgroup_size(64)
-fn prefixGroups(@builtin(local_invocation_id) lid:vec3u){
- let lane=lid.x;
- for(var slot=lane;slot<${slots}u;slot+=64u){slotTotals[slot]=0u;}
+${LANE_SCAN_WGSL}@compute @workgroup_size(64)
+fn prefixGroups(@builtin(local_invocation_index) lane:u32){
  if(uni.count>uni.slotCap){
   for(var slot=lane;slot<${slots}u;slot+=64u){writeCmd(slot,0u);}
   return;
  }
- for(var slot=lane;slot<${slots}u;slot+=64u){
-  if(slotUsed[slot]==0u){writeCmd(slot,0u);continue;}
-  var total=0u;
-  for(var group=0u;group<uni.groupCount;group++){total=total+groupCounts[group*${slots}u+slot];}
-  slotTotals[slot]=total;
-  writeCmd(slot,total);
- }
- workgroupBarrier();
- for(var slot=lane;slot<${slots}u;slot+=64u){
-  if(slotUsed[slot]==0u){continue;}
-  var cursor=0u;
-  for(var before=0u;before<slot;before++){cursor=cursor+slotTotals[before];}
-  for(var group=0u;group<uni.groupCount;group++){
+ let span=laneRun(lane,uni.groupCount);
+ var start=0u;
+ for(var slot=0u;slot<${slots}u;slot++){
+  // \`slotUsed\` is read-only storage, uniform over the workgroup: an unused slot skips the scan.
+  if(slotUsed[slot]==0u){
+   if(lane==0u){writeCmd(slot,0u);}
+   continue;
+  }
+  var sum=0u;
+  for(var group=span.x;group<span.y;group++){sum=sum+groupCounts[group*${slots}u+slot];}
+  // Inclusive scan of the run totals over the lanes.
+  let inclusive=laneScan(lane,sum);
+  let total=laneSums[63u];
+  var cursor=start+inclusive-sum;
+  for(var group=span.x;group<span.y;group++){
    let entry=group*${slots}u+slot;
    groupOffsets[entry]=cursor;
    cursor=cursor+groupCounts[entry];
   }
+  if(lane==0u){writeCmd(slot,total);}
+  start=start+total;
+  workgroupBarrier();
  }
 }
 @compute @workgroup_size(64)
