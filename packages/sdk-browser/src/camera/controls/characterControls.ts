@@ -14,6 +14,7 @@ import {
 } from '../../../../sdk-core/src/collision/characterSettings.ts';
 import type { CharacterCollision } from '../../../../sdk-core/src/collision/characterCollision.ts';
 import type { CameraControlBase, ControlCamera } from './types.ts';
+import { hypot2 } from '../../../../sdk-core/src/math/primitives/hypot.ts';
 
 /**
  * A CHARACTER, seen through its eyes: a body with mass that walks, runs, jumps and falls,
@@ -115,7 +116,7 @@ export function createCharacterCameraControls(
         advance = axisOf(keys, ...ADVANCE);
       const sin = Math.sin(yaw),
         cos = Math.cos(yaw),
-        length = Math.hypot(strafe, advance) || 1;
+        length = hypot2(strafe, advance) || 1;
       input.wishX = (cos * strafe - sin * advance) / length;
       input.wishZ = (-sin * strafe - cos * advance) / length;
       input.sprint = SPRINT.some((code) => keys.has(code));

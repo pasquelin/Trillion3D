@@ -21,7 +21,7 @@ rerun benchmarks.
 - Every run probes the browser limits first (`limits.ts`): WebGL2 half-float and float colour targets, `EXT_disjoint_timer_query_webgl2`, WebGPU `timestamp-query` and the WebGPU limits the adapter grants beyond the defaults, under `limits` in `mesure.json` and "Browser limits" in `resume.md`.
 - `--cache-avant` / `--cache-apres`: path to compiled cache output (`native/full`), to compare two compilers on the same scene. Omission reads the scene cache from assets.
 - `--ressources <dir>`: directory for glTF resources mounted under `/assets/`. Without it, un-based compiled caches yield 404 textures.
-- `--vues` among `generale`, `sol`, `rue`, `detail` (`poses.ts`, `PATH_VERSION` 5); `--pixelError` accepts a list; also `--chauffe`, `--largeur`, `--hauteur`, `--out`, and `--port`.
+- `--vues` among `generale`, `sol`, `rue`, `detail` (`poses.ts`, `PATH_VERSION` 5); `--pixelError` accepts a list; also `--chauffe`, `--largeur`, `--hauteur`, `--dpr` (positive, default 1), `--out`, and `--port`. The viewport keeps the requested CSS size while `--dpr 2` renders twice as many pixels on each axis.
 - `--rebond on|off` (default `off`): enables bounce lighting.
 - `--textures cache|host` (default `host`): whether the prepared scene reads the source images. `cache` skips every image whose chain the cache carries; `host` decodes them all, which the Three witnesses need. The engine reads the baked levels either way (#289), so the two sides render the same image and differ only in what the scene fetches — the harness keeps `host` by default because a side may be a witness, and a witness side reads its images whatever the flag says (the engine resolves `cache` back to `host` for a backend that draws the host scene).
 - `--budget-textures <ms>`: CPU milliseconds a frame may spend copying texture tiles into the pools (`maxTextureUploadMsPerFrame`). Without the option, the engine keeps its default (1.0 ms). Tiles beyond the budget wait for the next frame and show their coarser resident level meanwhile; the profile's "Textures" stage gives the pass's p50/p95 and the metrics its worst pass (`textureUploadPeakMs`) and what it deferred (`textureTilesDeferred`). A cold traversal (`--chauffe 0 --camera-mobile --textures cache`) is where it is read: on a still pose the barrier lifts it.
@@ -59,7 +59,9 @@ through the witness entry point (`bench/witnesses/measurement.ts`, bundled by `p
   Tokuyoshi and Kaplanyan, *Improved Geometric Specular Antialiasing* (2019). Transmissive meshes are
   composed after the clusters over a frozen backdrop of the frame. A material the program cannot
   preserve fails preparation with `CLUSTER_MATERIAL_UNSUPPORTED`, whose `details.reason` names the
-  input; `autonomousClusterDrawsTotal` counts the program's draws.
+  input; a physical extension beyond the transmission volume (clearcoat, sheen…) is no refusal: the
+  surface is drawn without it and the session's `materialDegraded` hears it once per surface and
+  feature. `autonomousClusterDrawsTotal` counts the program's draws.
 
 ### Contract lights on the witnesses
 

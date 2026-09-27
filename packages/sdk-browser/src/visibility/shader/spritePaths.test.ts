@@ -79,7 +79,7 @@ test('the transparent pass, the fallback and WebGL2 turn a sprite with the same 
   );
   assert.ok(
     BLEND_SHADER.includes(
-      ' if(it.sprite.y!=0.0){let s=spriteAt(uni.viewProj,it.world,vec2f(positions[id*3u],positions[id*3u+1u]),it.sprite);out.position=uni.viewProj*s;out.view=s.xyz;}',
+      ' if(it.sprite.y!=0.0){let s=spriteAt(uni.viewProj,it.world,p.xy,it.sprite);out.position=uni.viewProj*s;out.view=s.xyz;}',
     ),
   );
   assert.ok(FALLBACK_SHADER.includes(SPRITE_WGSL));
