@@ -18,6 +18,7 @@ async function residentCut() {
   const selection = await createGpuDagSelection(gpu.device, packed, { residentCut: true });
   assert.ok(selection);
   selection.updateResidency(new Uint32Array(packed.pageCount).fill(1));
+  for (let page = 0; page < packed.pageCount; page++) selection.notePool(page, true);
   const keys = new Uint32Array(packed.pageCones.buffer).subarray(keyBase(packed.pageCount));
   const cut = async (slots: number) => {
     selection.setPoolSlots(slots);
@@ -26,7 +27,7 @@ async function residentCut() {
     assert.ok(result?.evictPageIds);
     return { result, queue: [...result.evictPageIds] };
   };
-  return { keys, cut, levelOf: (page: number) => keys[page] >>> KEY_PAGE_BITS };
+  return { selection, keys, cut, levelOf: (page: number) => keys[page] >>> KEY_PAGE_BITS };
 }
 const WIDE = 1 << 20;
 
@@ -66,10 +67,21 @@ test('the queue stops at the pool slots, keeping its first ranks, and follows a 
   assert.deepEqual(bounded.map(rankOf), whole.slice(0, 3).map(rankOf));
 });
 
+test('the queue lists what the pool holds, whatever the cut rule reads resident', async () => {
+  const { selection, keys, cut } = await residentCut();
+  const listed = (await cut(WIDE)).queue;
+  // The pool gives half the listed keys back; the rule still reads every page resident.
+  const back = new Set(listed.filter((_, i) => i % 2));
+  for (const page of back) selection.notePool(page, false);
+  const queue = (await cut(WIDE)).queue;
+  assert.deepEqual(new Set(queue), new Set(listed.filter((page) => !back.has(page))));
+  for (const page of queue) assert.equal(canonicalPage(keys[page]), page);
+});
+
 test('the mirror ranks finer first, then older first, and skips the pages used now', () => {
   // Pages 0..3: level 1 used at 1, level 0 used at 6, level 0 used at 1, level 0 used now.
   const keys = Uint32Array.from([1 << KEY_PAGE_BITS, 1, 2, 3]),
     stampOf = (page: number) => [1, 6, 1, 9][page];
-  const order = listEvictions({ pool: Uint32Array.of(0b1111), keys, stampOf, now: 9, cap: 8 });
+  const order = listEvictions({ pool: [0, 1, 2, 3], keys, stampOf, now: 9, cap: 8 });
   assert.deepEqual(order, [2, 1, 0]);
 });

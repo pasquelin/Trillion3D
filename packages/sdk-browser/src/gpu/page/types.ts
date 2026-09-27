@@ -34,9 +34,15 @@ export type GpuPageContext = {
     uploadedBytes: number;
     evictions: number;
   };
-  /** The order slots are given back in, when a GPU cut publishes one (`../dag/evict.ts`), and the
-   *  first entry not taken yet; otherwise the least recently loaded or touched page goes first. */
-  eviction: { order: EvictionOrder | undefined; at: number };
+  /** The order slots are given back in, when a GPU cut publishes one (`../dag/evict.ts`), the first
+   *  entry not taken yet, the orders published, and the one each page was last touched under;
+   *  otherwise the least recently loaded or touched page goes first. */
+  eviction: {
+    order: EvictionOrder | undefined;
+    at: number;
+    epoch: number;
+    touched: Map<string, number>;
+  };
   changeKeys: string[];
   changeSlots: number[];
   reader: ReturnType<typeof createGpuPageReader>;

@@ -36,6 +36,7 @@ export function createGpuPagePins(context: GpuPageContext) {
       if (!page) return false;
       resident.delete(key);
       resident.set(key, page);
+      context.eviction.touched.set(key, context.eviction.epoch);
       return true;
     },
     /** Slots a load can take without evicting a pinned page: the free ones and the unpinned. */
