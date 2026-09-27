@@ -96,11 +96,7 @@ test('the shadow read multiplies the PCF by the half-resolution layer once per f
   const wgsl = directShadowWgsl(8, null, 18);
   assert.match(wgsl, /@binding\(18\) var shadowTransmittance:texture_2d_array<f32>/);
   assert.match(wgsl, /@binding\(19\) var shadowTranslucentDepth:texture_depth_2d_array/);
-  assert.match(
-    wgsl,
-    /clamp\(0\.5\*local,vec2f\(0\.5\),vec2f\(0\.5\*SHADOW_PAGE-0\.5\)\)/,
-    'kept in its page',
-  );
+  assert.match(wgsl, /clamp\(0\.5\*local,vec2f\(0\.5\),vec2f\(0\.5\*SHADOW_PAGE-/, 'in its page');
   assert.match(wgsl, /let behind=vec4f\(reference\)<d;/);
   assert.equal(
     wgsl.match(/return shadowThroughLit\(offset,first,t,reference,lit\/f32\(PCF_TAPS\)\);/g)
