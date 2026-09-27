@@ -49,6 +49,10 @@ test('a physical extension, a shininess, an opacity or a cutoff repaints its ent
   const phong = table.entryOf(shine);
   shine.shininess = 90;
   assert.equal(table.entryOf(shine), phong, 'a shininess is a value');
+  shine.specular = 0x222222;
+  assert.equal(table.entryOf(shine), phong, 'a colour it did not hold is a value');
+  assert.notEqual(phong.material.specular, shine.specular, 'copied, not shared');
+  assert.deepEqual(phong.material.specular, shine.specular);
   paint.transmission = 1;
   assert.notEqual(table.entryOf(paint), entry, 'a transmission moves the pass: a new entry');
 });
