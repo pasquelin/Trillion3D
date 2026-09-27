@@ -5,7 +5,8 @@ import { DAG_NODE_FLOATS, type DagCutLinks, type DagRoot, type PackedDag } from 
 import { linksFor } from '../../page/cut/links.ts';
 import { cullingBoundsFor, packCullingNodes } from './packNodes.ts';
 import { flatHierarchy, hierarchyLevelSizes } from './hierarchy.ts';
-import { CLUSTER_WORDS, COLD_WORDS, coldBase } from './layout.ts';
+import { CLUSTER_WORDS, COLD_WORDS, coldBase, keyBase } from './layout.ts';
+import { writeKeyColumn } from './evict.ts';
 import { createRecordTable } from './packRecords.ts';
 
 /**
@@ -121,6 +122,7 @@ export function packDagSelection(roots: readonly DagRoot[]): PackedDag {
   const clusters = new Float32Array(recordSlots * CLUSTER_WORDS),
     pageCones = new Float32Array(coldAt + recordSlots * COLD_WORDS);
   new Uint32Array(pageCones.buffer).set(pageWorlds);
+  writeKeyColumn(roots, new Uint32Array(pageCones.buffer), keyBase(clusterCount));
   records.finish(clusters, pageCones, coldAt);
   return {
     kind: 'dag',
