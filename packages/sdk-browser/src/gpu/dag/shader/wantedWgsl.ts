@@ -25,7 +25,7 @@ fn dagWanted(@builtin(global_invocation_id) id:vec3u){
  if(aheadOn()&&vi==AHEAD_VIEW){wantAhead(i,w,r,cluster);return;}
  if(!visible(r,w,cluster)){atomicAdd(&out.frustumRejected,1u);wantAhead(i,w,r,cluster);return;}
  liveAppend(entry);
- let light=(views[0u].viewFlags&VIEW_LIGHT)!=0u;
+ let light=isLightCut();
  let rejected=!light&&coneRejects(r,w);
  let e=views[vi].view*worlds[w];let stretch=stretchOf(w);let focal=focalPixels();
  // The two screen errors \`selects\` compares, computed ONCE: the request's priority reuses them
