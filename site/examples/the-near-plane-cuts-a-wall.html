@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>The near plane cuts a wall</title>
+    <meta name="thumbnail" content="2" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #c8d8e8;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <script type="module">
+      import { createWorld, geometry, material, object, light, math } from '../runtime/engine.js';
+      import { controls } from '../runtime/kit.js';
+
+      const world = createWorld('view');
+      world.scene.background = math.color('#c8d8e8');
+
+      // Four arches cross the camera's view at known distances. Moving the real camera near
+      // plane through them cuts their geometry; the page never hides or fades a wall itself.
+      const colours = ['#d45f45', '#e3a536', '#3f9a78', '#477bb8'];
+      const depths = [5, 2, -1, -4];
+      const sizes = [3.8, 3.4, 3, 2.6];
+      for (let index = 0; index < depths.length; index++) {
+        const z = depths[index],
+          opening = sizes[index];
+        const stone = material.meshStandard({ color: colours[index], roughness: 0.75 });
+        const parts = [
+          [geometry.box(2.2, 5, 0.35), -opening - 1.1, 2.5],
+          [geometry.box(2.2, 5, 0.35), opening + 1.1, 2.5],
+          [geometry.box(opening * 2, 1.2, 0.35), 0, 4.4],
+        ];
+        for (const [shape, x, y] of parts) {
+          const wall = object.mesh(shape, stone);
+          wall.position.set(x, y, z);
+          world.scene.add(wall);
+        }
+      }
+
+      // Floor stripes make the distance between the walls readable while the plane advances.
+      const floor = object.mesh(
+        geometry.box(18, 0.2, 24),
+        material.meshStandard({ color: '#d9c9aa', roughness: 0.9 }),
+      );
+      floor.position.set(0, -0.1, -1);
+      world.scene.add(floor);
+      const stripeShape = geometry.box(18, 0.03, 0.18);
+      const stripePaint = material.meshStandard({ color: '#755d47', roughness: 0.8 });
+      for (const z of depths) {
+        const stripe = object.mesh(stripeShape, stripePaint);
+        stripe.position.set(0, 0.02, z);
+        world.scene.add(stripe);
+      }
+
+      world.scene.add(
+        light.directional({
+          color: '#fff0d8',
+          intensity: 3,
+          position: [6, 10, 8],
+          castShadow: true,
+        }),
+        light.hemisphere({ color: '#dceaff', groundColor: '#6f604d', intensity: 0.8 }),
+      );
+      world.camera.position.set(0, 2.1, 9);
+      world.camera.lookAt(0, 2.1, -5);
+      world.camera.far = 100;
+
+      controls(
+        { nearPlane: [0.1, 14, 0.1, 0.1] },
+        ({ nearPlane }) => {
+          // Camera optics redraw on assignment; no projection matrix or clipping imitation is needed.
+          world.camera.near = nearPlane;
+        },
+        world,
+      );
+
+      addEventListener('pagehide', () => world.dispose(), { once: true });
+      world.invalidate();
+    </script>
+  </body>
+</html>
