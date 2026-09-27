@@ -7,16 +7,14 @@
  * with its controls, and a mesh copy sharing the geometry and the surface of the mesh it comes
  * from. Nothing else happens here: every number arrives computed.
  */
+import { numbered } from '../graph/serial.ts';
 import { Box3 } from '../../../../sdk-core/src/world/math/box3.ts';
 import { Vector3 } from '../../../../sdk-core/src/world/math/vector3.ts';
 import { GraphCamera } from '../graph/camera.ts';
-import { GraphMesh } from '../graph/mesh.ts';
-import type { GraphSurface } from '../graph/surface.ts';
-import type { HostBox } from '../resources.ts';
+import { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts';
 import type { HostCamera } from '../../camera/world.ts';
 import type { ControlVector } from '../../camera/controls/types.ts';
-import type { HostGraphMesh } from './graphNodes.ts';
-import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts';
+import type { HostBox, HostMesh } from '../resources.ts';
 
 /** The camera the explorer frames its scene with, at the optics the framing computed. */
 export const hostFramingCamera = (
@@ -35,8 +33,5 @@ export const hostBox = (flat: ArrayLike<number>): HostBox =>
 
 /** A copy of `mesh` sharing its geometry and its surface, posed by whoever asked for it:
  *  replication copies transforms alone, and a resource is never rebuilt. */
-export const hostMeshCopy = (mesh: HostGraphMesh): HostGraphMesh =>
-  new GraphMesh(
-    mesh.geometry as unknown as Geometry,
-    mesh.material as unknown as GraphSurface | GraphSurface[],
-  );
+export const hostMeshCopy = (mesh: HostMesh): HostMesh =>
+  numbered(new Mesh(mesh.geometry, mesh.material));

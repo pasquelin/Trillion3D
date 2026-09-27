@@ -74,7 +74,7 @@ test('createExplorerCamera (autonomous) yields the same bounds, centre and radiu
   const metadata = {
     primitives: [{ mesh: 0, primitive: 0, pages: [{ id: 0, min: [-1, -1, -1], max: [1, 1, 1] }] }],
   } as unknown as ClusterManifest;
-  const associations = new Map<G.GraphMesh, { meshes: number; primitives: number }>([
+  const associations = new Map<G.HostMesh, { meshes: number; primitives: number }>([
     [mesh, { meshes: 0, primitives: 0 }],
   ]);
   const rendu = createExplorerCamera(source, true, associations, metadata, canvas, {
