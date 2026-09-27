@@ -43,12 +43,7 @@ pub(super) fn attributes<'a>(mesh: &At<'a>, out: &mut Vec<(String, Attr<'a>)>) {
         let Some(data) = mesh.inner(field) else {
             continue;
         };
-        let Some((head, held)) = data.array("layers") else {
-            continue;
-        };
-        let announced = data.int("totlayer", 0).max(0) as usize;
-        for layer in (0..announced.min(held).min(MAX_ATTRIBUTES)).filter_map(|rank| head.item(rank))
-        {
+        for layer in layers(&data) {
             let name = layer.text("name");
             if let Some(kind) = property(layer.int("type", -1)) {
                 let span = Attr::width(kind).and_then(|width| width.checked_mul(count));
@@ -64,6 +59,14 @@ pub(super) fn attributes<'a>(mesh: &At<'a>, out: &mut Vec<(String, Attr<'a>)>) {
             }
         }
     }
+}
+
+/// The layers of a `CustomData` block, as many as it announces and its layer array holds.
+fn layers<'a>(data: &At<'a>) -> impl Iterator<Item = At<'a>> {
+    let announced = data.int("totlayer", 0).max(0) as usize;
+    let (head, held) = data.array("layers").unzip();
+    let total = announced.min(held.unwrap_or(0)).min(MAX_ATTRIBUTES);
+    (0..total).filter_map(move |rank| head.and_then(|head| head.item(rank)))
 }
 
 fn attr(domain: i64, kind: i64, values: Cow<'_, [u8]>, count: usize) -> Attr<'_> {
@@ -143,11 +146,13 @@ fn structures<'a>(view: &At<'a>, count: usize, name: String, out: &mut Vec<(Stri
 }
 
 /// The face offsets of a mesh that stores its faces as `MPoly`: the first corner of each face,
-/// then the end of the last. The caller checks that they rise and end at the corner count.
+/// then the end of the last. The caller checks that they rise and end at the corner count. The
+/// structures are read from the face layer, not from `Mesh.mpoly`, which Blender 3.4 no longer
+/// writes.
 pub(super) fn offsets(mesh: &At<'_>, faces: usize, corners: usize) -> Option<Vec<i32>> {
-    let (polygons, held) = mesh
-        .array("mpoly")
-        .filter(|(view, _)| view.layout.name == "MPoly")?;
+    let (polygons, held) = layers(&mesh.inner("pdata")?)
+        .filter_map(|layer| layer.array("data"))
+        .find(|(view, _)| view.layout.name == "MPoly")?;
     if faces > held {
         return None;
     }
