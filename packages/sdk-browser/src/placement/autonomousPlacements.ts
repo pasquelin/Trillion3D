@@ -70,6 +70,15 @@ export function autonomousPlacements(env: Placements) {
   const { roots, allPages, bootstrap, byUrl, baseMaterials, blendCopies, scene, gate } = env;
   const { context, descriptors, bootstrapUrls, geometryStore, coverChanged } = env,
     { rowsWritten } = geometryStore;
+  /** The pages a mount in flight admitted and still reads: an unmount keeps them catalogued. */
+  const reading = new Map<string, number>();
+  const count = (urls: readonly string[], by: number) => {
+    for (const url of urls) {
+      const n = (reading.get(url) ?? 0) + by;
+      if (n > 0) reading.set(url, n);
+      else reading.delete(url);
+    }
+  };
   /** The roots changed: their rows' index is built again, the cover counted, the frame drawn. */
   const changed = () => {
     rowsWritten();
@@ -112,8 +121,10 @@ export function autonomousPlacements(env: Placements) {
       });
       const cover = autonomousBootstrap(collected.roots);
       const urls = [...new Set(cover.map((rec) => rec.url))];
+      const admitted = [...read.descriptors.keys()];
       context.pageCatalogue?.admit([...read.descriptors.values()]);
-      const pages = await readPages(context, urls);
+      count(admitted, 1);
+      const pages = await readPages(context, urls).finally(() => count(admitted, -1));
       context.signal?.throwIfAborted();
       for (const [url, descriptor] of read.descriptors) descriptors.set(url, descriptor);
       // One by one: a spread of a large resource's records overflows the stack.
@@ -123,9 +134,10 @@ export function autonomousPlacements(env: Placements) {
         baseMaterials.set(rec, rec.declaration);
         (byUrl.get(rec.url) ?? byUrl.set(rec.url, []).get(rec.url)!).push(rec);
       }
-      for (const rec of cover) (bootstrap.push(rec), bootstrapUrls.add(rec.url));
-      for (const copy of collected.blendCopies)
-        (blendCopies.push(copy), scene.add(copy as unknown as Object3D));
+      for (const rec of cover) bootstrap.push(rec);
+      for (const rec of cover) bootstrapUrls.add(rec.url);
+      for (const copy of collected.blendCopies) blendCopies.push(copy);
+      for (const copy of collected.blendCopies) scene.add(copy as unknown as Object3D);
       urls.forEach((url, i) => geometryStore.storeGeometryPage(url, pages[i]));
       changed();
     },
@@ -147,12 +159,15 @@ export function autonomousPlacements(env: Placements) {
         if (placed(blendCopies[i]))
           scene.remove(blendCopies.splice(i, 1)[0] as unknown as Object3D);
       geometryStore.removeRecords(records);
-      const gone = [...urls].filter((url) => !byUrl.get(url)?.length);
-      for (const url of gone) {
+      const gone: string[] = [];
+      for (const url of urls) {
+        if (byUrl.get(url)?.length) continue;
         if (resident.has(url)) geometryStore.state.residentPages--;
         byUrl.delete(url);
+        if (reading.has(url)) continue; // a mount in flight reads it: it stays catalogued
         descriptors.delete(url);
         bootstrapUrls.delete(url);
+        gone.push(url);
       }
       context.pageCatalogue?.forget(gone);
       changed();

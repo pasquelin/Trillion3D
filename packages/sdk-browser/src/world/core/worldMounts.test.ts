@@ -50,7 +50,10 @@ function mountingSession(late: number) {
     let rows = 0,
       newest = -1;
     for (const [placed, at] of drawn)
-      for (const flag of placed.live) if (flag) (rows++, (newest = Math.max(newest, at)));
+      for (const flag of placed.live) {
+        rows += flag;
+        if (flag) newest = Math.max(newest, at);
+      }
     return { rows, newest };
   };
   return { open, drawn, frame, live, opened: () => opened, mounts: () => mounts };
