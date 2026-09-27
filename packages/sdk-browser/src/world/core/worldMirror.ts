@@ -57,8 +57,9 @@ type Refresh = (values: boolean, alpha?: AlphaChange) => boolean;
 
 /** What the mirror is built from: the resources placed by rows, the models drawn whole, and the
  *  mesh rank each geometry resource was given in the session's manifest. */
+type Placed = { cut: Cut; material: Material; rows: PlacementRows; name: string };
 type MirrorInput = {
-  placed: readonly { cut: Cut; material: Material; rows: PlacementRows; name: string }[];
+  placed: readonly Placed[];
   models: readonly { node: Object3D; graph: Object3D }[];
   rankOf: (cut: Cut) => number;
 };
@@ -94,12 +95,25 @@ export function buildWorldMirror(input: MirrorInput) {
     const surface = (worn[rank] ??= hostSurface(material, tinted, textures, reading));
     return numbered(new Mesh(geometry, surface));
   };
-  for (const { cut, material, rows, name } of input.placed) {
+  /** Hangs the host mesh of a resource placed by rows; returns it with its association. */
+  const place = ({ cut, material, rows, name }: Placed) => {
     const mesh = meshOf(cut, material);
     mesh.name = name;
-    associations.set(mesh, { meshes: input.rankOf(cut), primitives: 0, placements: rows });
+    const association = { meshes: input.rankOf(cut), primitives: 0, placements: rows };
+    associations.set(mesh, association);
     root.add(mesh);
-  }
+    return { node: mesh, association };
+  };
+  /** Takes down a placed host mesh, and its geometry once no other mesh reads it. */
+  const unplace = (mesh: Mesh<GraphSurface>, cut: Cut) => {
+    associations.delete(mesh);
+    root.remove(mesh);
+    if (root.children.some((other) => isDrawnNode(other) && other.geometry === mesh.geometry))
+      return;
+    geometries.delete(cut);
+    mesh.geometry.dispose();
+  };
+  const placed = input.placed.map(place);
   for (const { node, graph } of input.models) {
     const twin = new Group();
     twin.add(graph);
@@ -135,7 +149,7 @@ export function buildWorldMirror(input: MirrorInput) {
     const [first, ...others] = moved.values();
     return refresh(values, first) && others.every((alpha) => refresh(false, alpha));
   };
-  return { root, twins, associations, repaint };
+  return { root, twins, associations, repaint, placed, place, unplace };
 }
 
 /** Gives back the geometries, surfaces and textures a mirror built, each once however many

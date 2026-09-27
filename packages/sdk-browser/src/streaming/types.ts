@@ -34,6 +34,13 @@ export interface StreamPage {
   /** Fingerprint of its bytes. */
   sha256: string;
 }
+/** The pages a streamer reads beyond its catalogue: those a resource mounted into its session
+ *  brings (#572), `admit`-ted before they are read and `forget`-ten, bytes and all, once none of
+ *  its engines draws them. */
+export type PageCatalogue = {
+  admit(pages: readonly StreamPage[]): void;
+  forget(urls: readonly string[]): void;
+};
 /** How a page streamer reads (`createPageStreamer`). Beside its pages, its cache reserves its
  *  manifest tables and its transfer queue; every member has a default. */
 export interface PageStreamerOptions {
