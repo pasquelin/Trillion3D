@@ -166,9 +166,7 @@ pub(super) fn with_sharp_edges(hard: bool) -> Vec<u8> {
         let head = storage.follow("dna_attributes").expect("its attributes");
         let entry = (0..storage.int("dna_attributes_num", 0).max(0) as usize)
             .filter_map(|rank| head.item(rank))
-            .find(|entry| {
-                entry.file.text_at(entry.pointer("name")).as_deref() == Some("sharp_face")
-            })
+            .find(|entry| entry.text("name") == "sharp_face")
             .expect("the fixture's sharp_face attribute");
         let domain = entry.layout.field("domain").expect("the domain field");
         let data = entry.follow("data").expect("the value block");
