@@ -850,6 +850,11 @@
       "file": "examples/a-model-from-obj.html"
     },
     {
+      "id": "a-folder-merged-into-one-scene",
+      "theme": "loaders",
+      "file": "examples/a-folder-merged-into-one-scene.html"
+    },
+    {
       "id": "a-model-from-usdz",
       "theme": "loaders",
       "file": "examples/a-model-from-usdz.html"
@@ -938,6 +943,11 @@
       "id": "memory-on-a-budget",
       "theme": "streaming",
       "file": "examples/memory-on-a-budget.html"
+    },
+    {
+      "id": "a-walk-through-the-city",
+      "theme": "streaming",
+      "file": "examples/a-walk-through-the-city.html"
     },
     {
       "id": "detail-by-pixel-error",

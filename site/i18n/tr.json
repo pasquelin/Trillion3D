@@ -220,6 +220,7 @@
       "observatory-streamed": "Akışla gelen kümeler",
       "health-check": "Sağlık kontrolü",
       "memory-on-a-budget": "Bellek bütçesi",
+      "a-walk-through-the-city": "Şehirde bir yürüyüş",
       "detail-by-pixel-error": "Piksel hatasına göre detay",
       "watch-a-world-load": "Bir dünyanın yüklenişini izle",
       "ten-thousand-objects": "On bin nesne",
@@ -330,7 +331,8 @@
       "shadows-case-by-case": "Gölgeler, durum durum",
       "shadows-through-see-through-panes": "Saydam camlardan düşen gölgeler",
       "a-walker-among-balls": "Toplar arasında bir yürüyüşçü",
-      "a-dolly-along-the-canal": "Kanal boyunca kamera kaydırma"
+      "a-dolly-along-the-canal": "Kanal boyunca kamera kaydırma",
+      "a-folder-merged-into-one-scene": "Tek sahnede birleştirilen klasör"
     },
     "missing": {
       "floating-crates": "her karede yeniden yazılan geometri",

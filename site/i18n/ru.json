@@ -220,6 +220,7 @@
       "observatory-streamed": "Потоковые кластеры",
       "health-check": "Проверка здоровья",
       "memory-on-a-budget": "Бюджет памяти",
+      "a-walk-through-the-city": "Прогулка по городу",
       "detail-by-pixel-error": "Детализация по пиксельной ошибке",
       "watch-a-world-load": "Смотреть, как загружается мир",
       "ten-thousand-objects": "Десять тысяч объектов",
@@ -330,7 +331,8 @@
       "shadows-case-by-case": "Тени, случай за случаем",
       "shadows-through-see-through-panes": "Тени сквозь прозрачные стёкла",
       "a-walker-among-balls": "Ходок среди мячей",
-      "a-dolly-along-the-canal": "Проезд камеры вдоль канала"
+      "a-dolly-along-the-canal": "Проезд камеры вдоль канала",
+      "a-folder-merged-into-one-scene": "Папка, объединённая в одну сцену"
     },
     "missing": {
       "floating-crates": "геометрия, перезаписываемая в каждом кадре",

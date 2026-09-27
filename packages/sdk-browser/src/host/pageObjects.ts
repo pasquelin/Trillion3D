@@ -140,17 +140,14 @@ export const releaseHostGeometry = (geometry: Geometry) => {
   geometry.dispose();
 };
 
-/** The standard (or physical) surface the engine's material parameters describe. The face
- *  constant is the engine's (`../scene/materialSide.ts`), the alpha mode drawn by the open's one
- *  rule (`alphaModeFields`); nothing else is converted. */
-export function hostPageSurface(
-  material: Material,
-  vertexColors: boolean,
-  family: 'standard' | 'physical' = 'standard',
-) {
+/** The standard surface the engine's material parameters describe; a world moves it to the
+ *  physical family (`../world/core/worldPhysicalSurface.ts`). The face constant is the engine's
+ *  (`../scene/materialSide.ts`), the alpha mode drawn by the open's one rule (`alphaModeFields`);
+ *  nothing else is converted. */
+export function hostPageSurface(material: Material, vertexColors: boolean) {
   const [r, g, b] = material.baseColor,
     [er, eg, eb] = material.emissive;
-  return new GraphSurface(family, {
+  return new GraphSurface('standard', {
     color: { r, g, b },
     emissive: { r: er, g: eg, b: eb },
     metalness: material.metalness,
@@ -166,12 +163,14 @@ export function hostPageSurface(
  * The vertex-coloured twin of a host surface — the same surface, reading the colour attribute a
  * decoded page carries —, cloned once, then read from the shared cache. The only place a twin is
  * built: a page that decodes a colour attribute and a primitive the host repaints ask the same
- * cache, so one surface never holds two of them.
+ * cache, so one surface never holds two of them. A surface that reads colours already — a
+ * coloured variant the open or an assignment gave (#847) — is its own twin, and nothing is cached.
  */
 export function colouredTwin(
   cache: Map<HostMaterial, HostMaterial>,
   original: HostMaterial,
 ): HostMaterial {
+  if ((original as unknown as GraphSurface).vertexColors) return original;
   let twin = cache.get(original);
   if (!twin) cache.set(original, (twin = colouredHostSurface(original)));
   return twin;
