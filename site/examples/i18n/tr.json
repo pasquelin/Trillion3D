@@ -500,6 +500,14 @@
       "balloon": "BALONU İZLİYOR"
     }
   },
+  "a-crane-that-swings": {
+    "banner": "Tek bir klip bomu döndürürken, arabayı hareket ettirirken, yükü kaldırıp sallarken vincin etrafında dönün.",
+    "controls": {
+      "speed": "Hız",
+      "paused": "Duraklatıldı",
+      "replay": "Yeniden oynat"
+    }
+  },
   "a-wave-across-a-grid": {
     "banner": "Etrafa bakmak için sürükle. Küp dalgasını daha yüksek ya da hızlı yap.",
     "controls": {
@@ -1257,6 +1265,25 @@
         "lod": "ayrıntı düzeyleri",
         "clusters": "kümeler"
       }
+    }
+  },
+  "a-walk-through-the-city": {
+    "banner": "Görünüme tıklayın, W A S D ile yürüyün ve fareyle bakın. İlerlerken bellek bütçesini azaltın.",
+    "controls": {
+      "walkSpeed": "Yürüme hızı",
+      "memory": "Bellek",
+      "view": "Görünüm",
+      "home": "Başa dön"
+    },
+    "choices": {
+      "view": {
+        "beauty": "görüntü",
+        "lod": "ayrıntı düzeyleri",
+        "clusters": "kümeler"
+      }
+    },
+    "words": {
+      "credit": "Bu örnek için kodla modellenmiş vazolar caddesi, CC0 — bkz. assets/examples/CREDITS.md"
     }
   },
   "migrating-from-three": {
@@ -2192,6 +2219,66 @@
     "banner": "Arabanın parçalarını tek tek vurgulamak için üzerlerine gelin veya panelden vurgulamayı kapatın.",
     "controls": {
       "highlightEnabled": "Vurgulamayı etkinleştir"
+    }
+  },
+  "a-dolly-along-the-canal": {
+    "banner": "Kamera kanal boyunca ilerlerken hareketi duraklatın, baştan oynatın veya hızını değiştirin.",
+    "controls": {
+      "paused": "Duraklatıldı",
+      "replay": "Baştan oynat",
+      "speed": "Hız"
+    },
+    "readouts": {
+      "progress": "İlerleme"
+    }
+  },
+  "a-folder-merged-into-one-scene": {
+    "banner": "Sokak köşesini incelemek için sürükleyin. Derleyici bir klasördeki üç OBJ dosyasını bu sahnede birleştirdi.",
+    "controls": {
+      "visible": "Görünür",
+      "home": "Başlangıç"
+    },
+    "words": {
+      "credit": "Sokak lambası modeli: W. Sitters, CC BY 3.0 — bkz. assets/examples/CREDITS.md"
+    }
+  },
+  "drag-a-crate": {
+    "banner": "Sandığı zeminde sürükleyin. Yarım metrelik adımlarla yerleştirmek için ızgarayı açın.",
+    "controls": {
+      "snap": "Izgara",
+      "home": "Başlangıç"
+    }
+  },
+  "outline-the-selection": {
+    "banner": "Seçmek için bir şekle tıklayın. Seçimi temizlemek için zemine tıklayın.",
+    "controls": {
+      "color": "Renk",
+      "thickness": "Kalınlık"
+    }
+  },
+  "a-hundred-thousand-instances": {
+    "banner": "Alanı çevrelemek için sürükleyin. Sayıyı veya görünümü değiştirin.",
+    "controls": {
+      "count": "Sayı",
+      "view": "Görünüm"
+    },
+    "readouts": {
+      "objectsShown": "Gösterilen nesneler",
+      "objectsBuilt": "Oluşturulan nesneler"
+    },
+    "choices": {
+      "view": {
+        "beauty": "görüntü",
+        "clusters": "kümeler"
+      }
+    }
+  },
+  "inside-a-component": {
+    "banner": "Görüntüleyiciyi bağlayın veya ayırın. Her bağlantı bir dünyaya sahip olur ve her ayırma onu yok eder.",
+    "controls": {
+      "mount": "Bağla",
+      "unmount": "Ayır",
+      "remount": "Yeniden bağla"
     }
   }
 }

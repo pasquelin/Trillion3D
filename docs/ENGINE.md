@@ -145,12 +145,13 @@ untextured page raster remains and Hi-Z stays off.
 ## Material surfaces
 
 The opaque and masked path writes visibility, then reconstructs material properties into three
-`rgba16float` textures and one `r32uint` texture (28 logical bytes per pixel): base colour and
+`rgba16float` textures and one `r8uint` texture (25 logical bytes per pixel): base colour and
 metalness, world normal and roughness, emission and AO, surface flags. Depth is `depth32float`.
 Lighting consumes these surfaces and reconstructs world position from depth. Transparency is shaded
 separately into the HDR target; a transmissive material (`KHR_materials_transmission` with IOR and
 volume) is composed after it by one fullscreen pass on a frozen copy of the lit image, bounded by the
-opaque depth. ACES and sRGB conversion happen at final composition, which writes the display value
+opaque depth; its rank and opacity go to a target of its own, so the surface flags temporal
+antialiasing and composition read stay the opaque ones. ACES and sRGB conversion happen at final composition, which writes the display value
 to the capture target and the canvas in one pass.
 
 The reconstruction runs one pass per **material class**, the published visibility-buffer design,

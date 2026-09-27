@@ -58,13 +58,13 @@ export function writeCpuTransparentInstances(
   for (let i = 0; i < drawn.length; i++) {
     const rec = drawn[i];
     if (!rec.transparent) continue;
-    const item = blendState.pagedBlendGpu.get(rec.matrix);
-    if (!item || item.pagedIndex === undefined) continue;
     const entry = entryOf(rec);
     if (entry < 0) continue;
-    const base = table.itemRanges[item.pagedIndex * 2];
-    instances[base + counts[item.pagedIndex]++] = entry;
-    if (base + counts[item.pagedIndex] > highest) highest = base + counts[item.pagedIndex];
+    // The entry names its item: no search by placement per record.
+    const index = table.itemOfEntry[entry],
+      base = table.itemRanges[index * 2];
+    instances[base + counts[index]++] = entry;
+    if (base + counts[index] > highest) highest = base + counts[index];
   }
   for (const item of table.pagedItems) {
     const index = item.pagedIndex!,
