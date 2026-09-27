@@ -502,7 +502,11 @@
   },
   "a-crane-that-swings": {
     "banner": "크레인 주위를 돌며 하나의 클립이 지브를 돌리고, 트롤리를 움직이고, 짐을 들어 흔드는 모습을 보세요.",
-    "controls": { "speed": "속도", "paused": "일시 정지", "replay": "다시 재생" }
+    "controls": {
+      "speed": "속도",
+      "paused": "일시 정지",
+      "replay": "다시 재생"
+    }
   },
   "a-wave-across-a-grid": {
     "banner": "끌어서 둘러봐. 정육면체 파도를 더 높게, 더 빠르게 해 봐.",
@@ -1272,7 +1276,11 @@
       "home": "시작점으로"
     },
     "choices": {
-      "view": { "beauty": "완성 화면", "lod": "세부 수준", "clusters": "클러스터" }
+      "view": {
+        "beauty": "완성 화면",
+        "lod": "세부 수준",
+        "clusters": "클러스터"
+      }
     },
     "words": {
       "credit": "이 예제를 위해 코드로 만든 항아리 거리, CC0 — assets/examples/CREDITS.md 참고"
@@ -2226,6 +2234,13 @@
     },
     "words": {
       "credit": "W. Sitters의 가로등 모델, CC BY 3.0 — assets/examples/CREDITS.md 참고"
+    }
+  },
+  "drag-a-crate": {
+    "banner": "상자를 바닥 위로 드래그하세요. 스냅을 켜면 0.5미터 간격으로 배치됩니다.",
+    "controls": {
+      "snap": "스냅",
+      "home": "홈"
     }
   }
 }

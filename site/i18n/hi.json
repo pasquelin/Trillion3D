@@ -1517,7 +1517,8 @@
       "shadows-through-see-through-panes": "पारदर्शी शीशों से पड़ती छायाएँ",
       "a-walker-among-balls": "गेंदों के बीच चलने वाला",
       "a-dolly-along-the-canal": "नहर के किनारे कैमरा डॉली",
-      "a-folder-merged-into-one-scene": "एक दृश्य में मिला फ़ोल्डर"
+      "a-folder-merged-into-one-scene": "एक दृश्य में मिला फ़ोल्डर",
+      "drag-a-crate": "एक पेटी खींचें"
     },
     "missing": {
       "floating-crates": "हर फ़्रेम में फिर से लिखी गई ज्यामिति",

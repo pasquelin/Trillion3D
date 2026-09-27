@@ -502,7 +502,11 @@
   },
   "a-crane-that-swings": {
     "banner": "Putari derek saat satu klip memutar lengan, menggerakkan troli, mengangkat muatan, dan mengayunkannya.",
-    "controls": { "speed": "Kecepatan", "paused": "Dijeda", "replay": "Putar ulang" }
+    "controls": {
+      "speed": "Kecepatan",
+      "paused": "Dijeda",
+      "replay": "Putar ulang"
+    }
   },
   "a-wave-across-a-grid": {
     "banner": "Geser untuk melihat sekeliling. Buat gelombang kubus lebih tinggi atau lebih cepat.",
@@ -1272,7 +1276,11 @@
       "home": "Kembali ke awal"
     },
     "choices": {
-      "view": { "beauty": "hasil akhir", "lod": "tingkat detail", "clusters": "klaster" }
+      "view": {
+        "beauty": "hasil akhir",
+        "lod": "tingkat detail",
+        "clusters": "klaster"
+      }
     },
     "words": {
       "credit": "Jalan raya guci dibuat dengan kode untuk contoh ini, CC0 — lihat assets/examples/CREDITS.md"
@@ -2226,6 +2234,13 @@
     },
     "words": {
       "credit": "Model lampu jalan oleh W. Sitters, CC BY 3.0 — lihat assets/examples/CREDITS.md"
+    }
+  },
+  "drag-a-crate": {
+    "banner": "Seret peti di atas lantai. Aktifkan kisi untuk menempatkannya setiap setengah meter.",
+    "controls": {
+      "snap": "Kisi",
+      "home": "Awal"
     }
   }
 }
