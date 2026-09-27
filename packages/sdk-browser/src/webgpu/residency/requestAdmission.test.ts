@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import type { PageRec } from '../../page/selection/selection.ts';
 import { createGroupClosure } from '../../page/cut/groupClosure.ts';
 import { createCutPending } from '../cut/pending.ts';
+import { createCutDelta } from '../cut/delta.ts';
 import { keysOf, world } from './sets.fixture.ts';
 import { pageOf, placement } from './residentEnsurer.fixture.ts';
 import { createRequestAdmission } from './requestAdmission.ts';
@@ -41,7 +42,7 @@ function gpuCut() {
   const url = (key: number) => w.tracking.pageCatalog[key];
   const queue = () => Array.from(w.tracking.wanted.list.subarray(0, w.tracking.wanted.count), url);
   const accepted = (urls: string) => urls.split(' ').every((u) => w.sets.accepts(w.packed[id(u)]));
-  return { ...w, closure, image, queue, accepted, pending, id, levelReads: () => levelReads };
+  return { ...w, root, closure, image, queue, accepted, pending, id, levelReads: () => levelReads };
 }
 
 test('past the budget, the queue is the requests in the GPU rank, never the coarsest first', () => {
@@ -99,4 +100,18 @@ test('back on the CPU cut, the ranking weighs the cut the GPU cut left', () => {
   assert.equal(cut.tracking.wanted.count, 3);
   assert.equal(cut.sets.applyBudget(8), false, 'and the whole cut fits eight');
   assert.deepEqual(keysOf(cut.tracking.wanted).size, 5);
+});
+
+test('what the image draws outside the queue, with the groups it needs, holds its slots', () => {
+  const cut = gpuCut();
+  // The image draws `a`: its group-mate `b` and parent `m` are held with it, the cover `r` aside.
+  const drawn = createGroupClosure([cut.root], cut.packed),
+    delta = createCutDelta(cut.packed, []);
+  delta.apply([cut.id('a')]);
+  drawn.apply(delta);
+  cut.sets.applyDrawn(drawn.delta);
+  assert.equal(cut.sets.heldOutsideQueue, 3);
+  cut.image(5, ['x0', 'x1', 'x2', 'x3']);
+  assert.deepEqual(cut.queue(), ['x0', 'x1'], 'five slots, three held: two admitted');
+  assert.equal(cut.sets.cutFits, false, 'the lower tiers get nothing');
 });
