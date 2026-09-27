@@ -126,34 +126,45 @@ function heldBuffer(device: GPUDevice, label: string, size: number, usage: numbe
   return buffer;
 }
 
-/** Generates the mip chain of a 2D texture: averaged colour — weighted by alpha when `weighted`,
- * for a texture every reader takes for coverage, in straight alpha (`../webgpu/tile/scratch.ts`) —,
- * median alpha so that threshold coverage survives every level, scaled to keep level 0's share at
- * `cutoff` when the readers give one (`CoverageReaders.cutoff`).
+/** One texture of a batch: its size, its colour rule — weighted by alpha when every reader takes
+ *  alpha for coverage, in straight alpha (`../webgpu/tile/scratch.ts`) — and its readers' cutoff
+ *  (`CoverageReaders.cutoff`), 0 for none. */
+export type MipChain = {
+  texture: GPUTexture;
+  format: GPUTextureFormat;
+  width: number;
+  height: number;
+  weighted: boolean;
+  cutoff?: number;
+};
+
+/** Generates the mip chains of 2D textures: averaged colour, median alpha so that threshold
+ * coverage survives every level, scaled to keep level 0's share at the cutoff when there is one.
+ * A batch is one uniform write, one encoder and one submit (OMB-29, #961): each chain's passes are
+ * the ones it had alone, in order, so every level holds the same bytes.
  * Commands are submitted without being awaited: the device queue runs them in order, therefore
  * before any copy that will read a level. */
-export function generateMaterialMips(
-  device: GPUDevice,
-  texture: GPUTexture,
-  format: GPUTextureFormat,
-  width: number,
-  height: number,
-  weighted: boolean,
-  cutoff = 0,
-) {
-  const levels = mipLevelCountFor(width, height);
-  if (levels === 1) return;
+export function generateMaterialMips(device: GPUDevice, chains: MipChain[]) {
+  const reduced = chains.filter(({ width, height }) => mipLevelCountFor(width, height) > 1);
+  if (!reduced.length) return;
   const shared = sharedGpuDevice(device);
-  const { layout, pipeline } = mipPipeline(shared, format, weighted);
   const stride = Math.max(256, device.limits.minUniformBufferOffsetAlignment ?? 256);
   // One uniform block per level, its reduction's: the extent of the source level, so as not to read
   // off the image, and the cutoff; for the counts, level 0's extent and the level. Block 0 is level
-  // 0's own count.
-  const packed = new Uint32Array((levels * stride) / 4);
-  for (let level = 0; level < levels; level++) {
-    const source = levelSize(width, height, Math.max(0, level - 1));
-    packed.set([...source, cutoff, 0, width, height, level], (level * stride) / 4);
+  // 0's own count. Each chain's blocks follow the previous chain's.
+  const firsts: number[] = [];
+  let blocks = 0;
+  for (const { width, height } of reduced) {
+    firsts.push(blocks);
+    blocks += mipLevelCountFor(width, height);
   }
+  const packed = new Uint32Array((blocks * stride) / 4);
+  reduced.forEach(({ width, height, cutoff = 0 }, i) => {
+    for (let level = 0; level < mipLevelCountFor(width, height); level++) {
+      const source = levelSize(width, height, Math.max(0, level - 1));
+      packed.set([...source, cutoff, 0, width, height, level], ((firsts[i] + level) * stride) / 4);
+    }
+  });
   const uniforms = heldBuffer(
     shared,
     'Trillion3D texture mips uniforms',
@@ -162,6 +173,22 @@ export function generateMaterialMips(
   );
   device.queue.writeBuffer(uniforms, 0, packed);
   const encoder = device.createCommandEncoder();
+  reduced.forEach((chain, i) => encodeChain(device, encoder, chain, uniforms, firsts[i], stride));
+  device.queue.submit([encoder.finish()]);
+}
+
+/** One chain's passes into `encoder`, its uniform blocks from block `first`. */
+function encodeChain(
+  device: GPUDevice,
+  encoder: GPUCommandEncoder,
+  { texture, format, width, height, weighted, cutoff = 0 }: MipChain,
+  uniforms: GPUBuffer,
+  first: number,
+  stride: number,
+) {
+  const shared = sharedGpuDevice(device);
+  const { layout, pipeline } = mipPipeline(shared, format, weighted);
+  const levels = mipLevelCountFor(width, height);
   const views = Array.from({ length: levels }, (_, level) =>
     texture.createView({ baseMipLevel: level, mipLevelCount: 1 }),
   );
@@ -169,9 +196,10 @@ export function generateMaterialMips(
   if (cutoff) {
     const size = levels * LEVEL_BIN_BYTES,
       usage = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC;
+    // The bins are the device's: a batch clears them before each chain, in the encoder's order.
     const bins = heldBuffer(shared, 'Trillion3D coverage bins', size, usage);
     encoder.clearBuffer(bins, 0, size);
-    chain = { width, height, views, uniforms, stride, bins };
+    chain = { width, height, views, uniforms, first, stride, bins };
   }
   for (let level = 1; level < levels; level++) {
     if (chain) countCoverage(device, encoder, chain, level);
@@ -179,7 +207,7 @@ export function generateMaterialMips(
       layout,
       entries: [
         { binding: 0, resource: views[level - 1] },
-        { binding: 1, resource: { buffer: uniforms, offset: level * stride, size: 16 } },
+        { binding: 1, resource: { buffer: uniforms, offset: (first + level) * stride, size: 16 } },
       ],
     });
     const pass = encoder.beginRenderPass({
@@ -190,5 +218,4 @@ export function generateMaterialMips(
     pass.draw(3);
     pass.end();
   }
-  device.queue.submit([encoder.finish()]);
 }
