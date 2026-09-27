@@ -63,11 +63,13 @@ fn tileCorner(tile:vec2u,corner:u32,z:f32)->vec3f{
  return unproject(vec3f(x*2.0-1.0,1.0-y*2.0,z));
 }
 /** Thread \`lane\` below 16 de-projects its corner: the corners of the rows are independent,
- *  so sixteen threads do at once what thread zero did one after the other, to the same bits. */
+ *  so sixteen threads do at once what thread zero did one after the other, to the same bits.
+ *  The row's depth is selected, never indexed: no private array. */
 fn tileCornerOfLane(tile:vec2u,lane:u32,front:f32,back:f32){
  if(lane<16u){
-  let depths=array<f32,4>(${DEPTH_NEAR}.0,COLUMN_DEPTH,front,back);
-  corners[lane]=tileCorner(tile,lane%4u,depths[lane/4u]);
+  let row=lane/4u;
+  let z=select(select(${DEPTH_NEAR}.0,COLUMN_DEPTH,row==DEEP_ROW),select(front,back,row==BACK_ROW),row>=FRONT_ROW);
+  corners[lane]=tileCorner(tile,lane%4u,z);
  }
 }
 /** The opaque slice's depth planes, after \`tileColumn\`: a plane of one depth is parallel to

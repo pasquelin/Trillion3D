@@ -75,13 +75,18 @@ test('the corner table gives every box and plane the corners of before, to the b
 test('sixteen threads de-project the corners between two barriers; thread zero calls none', () => {
   const calls = LIGHT_TILES_SHADER.split('tileCorner(').length - 1;
   assert.equal(calls, 2, 'defined once, called once: by the thread that owns the corner');
-  assert.match(
-    LIGHT_TILES_SHADER,
-    /corners\[lane\]=tileCorner\(tile,lane%4u,depths\[lane\/4u\]\);/,
-  );
+  assert.match(LIGHT_TILES_SHADER, /corners\[lane\]=tileCorner\(tile,lane%4u,z\);/);
   assert.match(
     LIGHT_TILES_SHADER,
     / workgroupBarrier\(\);\n tileCornerOfLane\(tile\.xy,lane,[^\n]*\);\n workgroupBarrier\(\);\n if\(lane==0u\)\{/,
   );
-  assert.match(LIGHT_TILES_SHADER, /let depths=array<f32,4>\(1\.0,COLUMN_DEPTH,front,back\);/);
+  // The rows' depths, near, column, front, back: \`ROW\` and \`tileCorners\` of the oracle.
+  assert.match(
+    LIGHT_TILES_SHADER,
+    /let z=select\(select\(1\.0,COLUMN_DEPTH,row==DEEP_ROW\),select\(front,back,row==BACK_ROW\),row>=FRONT_ROW\);/,
+  );
+  assert.match(
+    LIGHT_TILES_SHADER,
+    /const DEEP_ROW:u32=1u;\nconst FRONT_ROW:u32=2u;\nconst BACK_ROW:u32=3u;/,
+  );
 });

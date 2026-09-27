@@ -93,9 +93,10 @@ fn sampledTileLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:
  var result=vec3f(0.0);
  for(var slot=0u;slot<used;slot++){
   let light=directLights.items[tileLights[base+TILE_OPAQUE_BASE+chosen[slot]]];
-  // An exact light counts once; a drawn one is divided by its probability.
+  // An exact light counts once; a drawn one — never exact, so its pool weight is its weight —
+  // is divided by its probability.
   var factor=1.0;
-  if(slot>=exact){factor=pool/(f32(samples)*pooledWeight(listedWeight(base,chosen[slot],N,P),total));}
+  if(slot>=exact){factor=pool/(f32(samples)*lightWeight(light,N,P));}
   result+=declaredLight(light,rgb,metal,rough,N,V,P,ao)*factor;
  }
  return result;

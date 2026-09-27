@@ -91,8 +91,9 @@ function recomputed(weightOf: (i: number) => number, kept: number, offset: numbe
       }
     }
   }
+  // A drawn light is never exact: its factor reads its own weight.
   const factors = chosen.map((index, slot) =>
-    slot < exact ? 1 : f(pool / f(samples * pooled(weightOf(index), total))),
+    slot < exact ? 1 : f(pool / f(samples * weightOf(index))),
   );
   return { chosen, factors };
 }

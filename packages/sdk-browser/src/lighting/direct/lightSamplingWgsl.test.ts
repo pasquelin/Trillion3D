@@ -34,7 +34,10 @@ test('the sample budget is the published setting, and a list within it is summed
   // A light worth a sample's share is shaded exactly and leaves the pool; the drawn ones are
   // divided by their probability, copies counted.
   assert.match(DIRECT_LIGHT_SAMPLING_WGSL, /if\(weight\*f32\(LIGHT_SAMPLES\)>=total\)/);
-  assert.match(DIRECT_LIGHT_SAMPLING_WGSL, /factor=pool\/\(f32\(samples\)\*pooledWeight\(/);
+  assert.match(
+    DIRECT_LIGHT_SAMPLING_WGSL,
+    /factor=pool\/\(f32\(samples\)\*lightWeight\(light,N,P\)\);/,
+  );
   // The offset depends on the pixel and the bounded rank only: a replayed image is the same image.
   assert.match(
     DIRECT_LIGHT_SAMPLING_WGSL,
@@ -53,8 +56,8 @@ test('up to TILE_LIGHTS lights a tile runs the loops of before, and past them th
   assert.doesNotMatch(DIRECT_LIGHT_SAMPLING_WGSL, /array<f32,/);
   assert.equal(
     occurrences(DIRECT_LIGHT_SAMPLING_WGSL, 'lightWeight('),
-    2,
-    'defined once, called by one reader',
+    3,
+    'defined once, read by the list and by the factor of a drawn light',
   );
   // Past the list, every light of the scene in rank order: those that miss add an exact zero.
   assert.match(
