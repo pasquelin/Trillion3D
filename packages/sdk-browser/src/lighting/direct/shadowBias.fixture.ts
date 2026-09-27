@@ -70,14 +70,16 @@ export const DEVELOP_BIAS: Bias = (texel, c) => [
 
 /** A hardware comparison at texel coordinate `(x, y)`: each of the four texel centres of the
  *  bilinear footprint is lit when `reference`, a distance along the light, is strictly nearer
- *  than its stored one — the `greater` comparison of reversed depth —, weighted bilinearly. */
-export function compare(x: number, y: number, stored: Stored, reference: number) {
+ *  than its stored one — the `greater` comparison of reversed depth —, weighted bilinearly, the
+ *  weights rounded to the nearest of `steps` a texel when given (the filter's 8 bits, #831). */
+export function compare(x: number, y: number, stored: Stored, reference: number, steps = 0) {
   const ax = x - 0.5,
     ay = y - 0.5,
     x0 = Math.floor(ax),
     y0 = Math.floor(ay);
-  const wx = [1 - (ax - x0), ax - x0],
-    wy = [1 - (ay - y0), ay - y0];
+  const step = (w: number) => (steps ? Math.round(w * steps) / steps : w);
+  const wx = [1 - step(ax - x0), step(ax - x0)],
+    wy = [1 - step(ay - y0), step(ay - y0)];
   let lit = 0;
   for (let i = 0; i < 2; i++)
     for (let j = 0; j < 2; j++)
@@ -88,12 +90,17 @@ export function compare(x: number, y: number, stored: Stored, reference: number)
 /** Sixteen taps' comparisons summed to a lit fraction, rounded off the sum's last bits. */
 export const litOf = (sum: number) => Math.round((sum / POISSON_16.length) * 1e9) / 1e9;
 
+/** The sampler a PCF reads through: the texel coordinate tap `tap` of the read at `t` lands on,
+ *  axis by axis (`t + tap` by default), and its weights' steps (`compare`). */
+export type Sampler = { at?: (t: number, tap: number, axis: number) => number; steps?: number };
+
 /** `shadowPcf` away from a page's edge, a lamp face's `side` clamping its taps at its edge. */
-export function pcf(t: Vec, stored: Stored, reference: number, side = 0) {
+export function pcf(t: Vec, stored: Stored, reference: number, side = 0, sampler: Sampler = {}) {
+  const { at = (v: number, d: number) => v + d, steps = 0 } = sampler;
   const edge = (v: number) => (side > 0 ? clamp(v, 0.5, side - 0.5) : v);
   let lit = 0;
   for (const [dx, dy] of POISSON_16)
-    lit += compare(edge(t[0] + dx), edge(t[1] + dy), stored, reference);
+    lit += compare(edge(at(t[0], dx, 0)), edge(at(t[1], dy, 1)), stored, reference, steps);
   return litOf(lit);
 }
 

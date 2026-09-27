@@ -107,9 +107,12 @@ function frame(rand: () => number): Frame {
     slotUsed: new Uint32Array(slotCount(layerSlots)),
   };
   // `slotUsed` counts every row before the selection mask, as the partition does, plus a few
-  // slots marked used with nothing in them.
+  // slots marked used with nothing in them, and a few cleared: those must still count zero.
   for (let i = 0; i < n; i++) f.slotUsed[slotOf(f, i)]++;
-  for (let s = 0; s < f.slotUsed.length; s++) if (rand() < 0.1) f.slotUsed[s]++;
+  for (let s = 0; s < f.slotUsed.length; s++) {
+    const r = rand();
+    f.slotUsed[s] = r < 0.1 ? f.slotUsed[s] + 1 : r < 0.15 ? 0 : f.slotUsed[s];
+  }
   return f;
 }
 
