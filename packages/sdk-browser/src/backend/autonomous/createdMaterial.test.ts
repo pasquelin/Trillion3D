@@ -20,7 +20,7 @@ test('WebGL2 draws a drawable in the material the page created and assigned it',
   const drawn = () => {
     backend.render(camera);
     // The page meshes of the display graph, beside its lights' group.
-    const surfaces = (backend.scene as G.Group).children.flatMap((child) =>
+    const surfaces = (backend.scene as unknown as G.Group).children.flatMap((child) =>
       'material' in child ? [child.material as G.GraphSurface] : [],
     );
     return { calls: backend.metrics().drawCalls, surfaces: new Set(surfaces) };
@@ -32,7 +32,8 @@ test('WebGL2 draws a drawable in the material the page created and assigned it',
     assert.equal(api.assignMaterial('0/0', made.id), true);
     const [worn, ...others] = drawn().surfaces;
     assert.equal(others.length, 0, 'every page wears one surface');
-    assert.deepEqual([worn.color.r, worn.color.g, worn.color.b], [0, 0, 1]);
+    const { r, g, b } = worn.color as G.Color;
+    assert.deepEqual([r, g, b], [0, 0, 1]);
     assert.equal(worn, mesh.material, 'the one the drawable was given');
     // Blended, each row is a mesh of its own: the family follows the created surface.
     assert.equal(api.setMaterial(made.id, { alphaMode: 'blend', opacity: 0.5 }), true);
