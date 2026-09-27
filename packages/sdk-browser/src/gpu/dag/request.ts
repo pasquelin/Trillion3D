@@ -22,7 +22,7 @@
  * before every request ahead — the deadline of the first is now, of the second the horizon —, then
  * the larger error first. The host reads the requests in that order and ranks nothing.
  */
-const REQUEST_PAGE_BITS = 22;
+export const REQUEST_PAGE_BITS = 22;
 export const REQUEST_PAGE_MAX = 1 << REQUEST_PAGE_BITS;
 /** The whole priority field: the ten bits above the page. */
 export const REQUEST_PRIORITY_MAX = (1 << (32 - REQUEST_PAGE_BITS)) - 1;
