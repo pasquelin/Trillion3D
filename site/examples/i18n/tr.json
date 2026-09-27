@@ -2147,5 +2147,12 @@
     "words": {
       "credit": "Direkteki bayrak bu örnek için kodla modellendi, CC0 — bkz. assets/examples/CREDITS.md"
     }
+  },
+  "outline-the-selection": {
+    "banner": "Seçmek için bir şekle tıklayın. Seçimi temizlemek için zemine tıklayın.",
+    "controls": {
+      "color": "Renk",
+      "thickness": "Kalınlık"
+    }
   }
 }

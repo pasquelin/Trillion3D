@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Outline the selection</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #18202c;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <script type="module">
+      // Waits for #880: effect.outline with mutable objects, color and thickness.
+      import {
+        createWorld,
+        effect,
+        geometry,
+        light,
+        material,
+        math,
+        object,
+      } from '../runtime/engine.js';
+      import { controls } from '../runtime/kit.js';
+
+      const world = createWorld('view', { controls: 'orbit' });
+      world.scene.background = math.color('#18202c');
+      const shapes = [
+        geometry.box(1, 1, 1),
+        geometry.sphere(0.62, 32, 20),
+        geometry.cone(0.62, 1.2, 32),
+        geometry.torus(0.48, 0.18, 20, 48),
+        geometry.cylinder(0.55, 0.55, 1.1, 32),
+      ];
+      const surfaces = ['#72a7ff', '#f29b64', '#77cf94', '#c58cff', '#f0cf61'].map((color) =>
+        material.meshStandard({ color, roughness: 0.42, metalness: 0.18 }),
+      );
+      const exhibits = shapes.map((shape, index) => {
+        const mesh = object.mesh(shape, surfaces[index]);
+        const angle = (index / shapes.length) * Math.PI * 2;
+        mesh.position.set(Math.cos(angle) * 2.1, 0.7, Math.sin(angle) * 2.1);
+        world.scene.add(mesh);
+        return mesh;
+      });
+      const floor = object.mesh(
+        geometry.cylinder(3.4, 3.4, 0.18, 64),
+        material.meshStandard({ color: '#303c4d', roughness: 0.8 }),
+      );
+      floor.position.y = -0.1;
+      floor.receiveShadow = true;
+      world.scene.add(
+        floor,
+        light.directional({
+          intensity: 3.4,
+          color: '#fff1dc',
+          position: [4, 7, 5],
+          castShadow: true,
+        }),
+        light.hemisphere({ intensity: 0.7, color: '#b8d3ff', groundColor: '#202738' }),
+      );
+      world.camera.position.set(0, 4.4, 6.2);
+      world.camera.lookAt(0, 0.6, 0);
+      world.controls.target.set(0, 0.6, 0);
+
+      const outline = effect.outline({ objects: [exhibits[0]], color: '#ffe36e', thickness: 3 });
+      world.effects.add(outline);
+      controls(
+        { color: '#ffe36e', thickness: [1, 8, 3, 0.5] },
+        (values) => {
+          outline.color = values.color;
+          outline.thickness = values.thickness;
+        },
+        world,
+      );
+
+      let down = null;
+      world.canvas.addEventListener(
+        'pointerdown',
+        (event) => (down = [event.offsetX, event.offsetY]),
+      );
+      world.canvas.addEventListener('pointerup', (event) => {
+        if (!down || Math.hypot(event.offsetX - down[0], event.offsetY - down[1]) > 3) return;
+        const hit = world.raycast({ x: event.offsetX, y: event.offsetY });
+        outline.objects = hit && exhibits.includes(hit.object) ? [hit.object] : [];
+        world.invalidate();
+      });
+    </script>
+  </body>
+</html>

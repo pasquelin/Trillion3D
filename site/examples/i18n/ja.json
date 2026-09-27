@@ -2147,5 +2147,12 @@
     "words": {
       "credit": "この例のためにコードでモデリングしたポールの旗、CC0 — assets/examples/CREDITS.md を参照"
     }
+  },
+  "outline-the-selection": {
+    "banner": "形をクリックして選択します。床をクリックすると選択が解除されます。",
+    "controls": {
+      "color": "色",
+      "thickness": "太さ"
+    }
   }
 }
