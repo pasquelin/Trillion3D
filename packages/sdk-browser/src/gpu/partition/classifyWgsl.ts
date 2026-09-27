@@ -66,11 +66,17 @@ fn classifyRows(@builtin(global_invocation_id) id:vec3u){
   tested[slot+5u]=i<<1u;
   tested[slot+6u]=uni.levelOffset[level>>2u][level&3u];
   tested[slot+7u]=uni.levelWidth[level>>2u][level&3u];
+  // Coarse pre-test mip of the Hi-Z test (\`pyramidHides\`): the box is read there first.
+  let coarse=hizCoarseLevel(vec4i(x0,y0,x1,y1),level,uni.levels);
+  tested[slot+9u]=uni.levelOffset[coarse>>2u][coarse&3u];
+  tested[slot+10u]=uni.levelWidth[coarse>>2u][coarse&3u];
+  tested[slot+11u]=coarse-level;
  }else{
   tested[slot]=0u;tested[slot+1u]=0u;tested[slot+2u]=0u;tested[slot+3u]=0u;
   tested[slot+5u]=(i<<1u)|1u;
   tested[slot+6u]=0u;
   tested[slot+7u]=uni.width;
+  tested[slot+9u]=0u;tested[slot+10u]=0u;tested[slot+11u]=0u;
  }
  tested[slot+4u]=rowData[base+${ROW_NEAREST}u];
  tested[slot+8u]=item.triangles;
