@@ -2240,6 +2240,12 @@
       "credit": "Lá cờ trên cột được dựng bằng mã cho ví dụ này, CC0 — xem assets/examples/CREDITS.md"
     }
   },
+  "hover-to-highlight": {
+    "banner": "Di chuột lên từng bộ phận của xe để làm nổi bật, hoặc tắt tính năng này trong bảng điều khiển.",
+    "controls": {
+      "highlightEnabled": "Bật làm nổi bật"
+    }
+  },
   "a-dolly-along-the-canal": {
     "banner": "Tạm dừng, phát lại hành trình hoặc đổi tốc độ khi máy quay trượt dọc theo kênh.",
     "controls": {

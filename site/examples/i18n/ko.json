@@ -2240,6 +2240,12 @@
       "credit": "이 예제를 위해 코드로 만든 깃대의 깃발, CC0 — assets/examples/CREDITS.md 참고"
     }
   },
+  "hover-to-highlight": {
+    "banner": "카트의 각 부품에 마우스를 올려 강조하거나 패널에서 강조 표시를 끄세요.",
+    "controls": {
+      "highlightEnabled": "강조 표시 켜기"
+    }
+  },
   "a-dolly-along-the-canal": {
     "banner": "카메라가 운하를 따라 이동하는 동안 일시 정지하거나 다시 재생하고 속도를 바꿔 보세요.",
     "controls": {
