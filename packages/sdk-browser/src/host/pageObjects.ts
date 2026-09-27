@@ -12,7 +12,7 @@
  * all arrive computed.
  */
 import type { Material } from '../../../sdk-core/src/index.ts';
-import type { HostMaterial, HostMaterials } from './resources.ts';
+import type { HostInstancedMesh, HostMaterial, HostMaterials, HostMesh } from './resources.ts';
 import type { DecodedGeometryPage } from '../page/decode/geometryPage.ts';
 import type { MatrixElements } from '../math/matrixElements.ts';
 import { geometryBytes } from '../scene/meshes.ts';
@@ -21,7 +21,6 @@ import { setGeometryBounds } from './geometryBounds.ts';
 import { GraphScene } from './graph/scene.ts';
 import { Mesh } from '../../../sdk-core/src/world/object/mesh.ts';
 import { InstancedMesh } from '../../../sdk-core/src/world/object/instancedMesh.ts';
-import type { HostMesh } from './resources.ts';
 import { BufferAttribute } from '../../../sdk-core/src/world/buffer/attribute.ts';
 import { GraphSurface } from './graph/surface.ts';
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
@@ -66,7 +65,7 @@ export function hostPageInstances(
   declaration: HostMaterials,
   renderOrder: number,
   capacity: number,
-): InstancedMesh<GraphSurface> {
+): HostInstancedMesh {
   const mesh = new InstancedMesh(geometry, declaration as unknown as Surfaces, capacity);
   mesh.matrixAutoUpdate = false;
   mesh.frustumCulled = false;
@@ -75,22 +74,18 @@ export function hostPageInstances(
 }
 
 /** Placement `index` of an instanced page: the sixteen floats of its row. */
-export const setHostInstance = (
-  mesh: InstancedMesh<GraphSurface>,
-  index: number,
-  pose: MatrixElements,
-) => {
+export const setHostInstance = (mesh: HostInstancedMesh, index: number, pose: MatrixElements) => {
   mesh.instanceMatrix.array.set(pose.elements, index * 16);
 };
 
 /** How many placements the instanced page draws this frame; its matrices go up once. */
-export const setHostInstanceCount = (mesh: InstancedMesh<GraphSurface>, count: number) => {
+export const setHostInstanceCount = (mesh: HostInstancedMesh, count: number) => {
   mesh.count = count;
   mesh.instanceMatrix.needsUpdate = true;
 };
 
 /** Gives an instanced page's matrices back; its geometry and surface are released by theirs. */
-export const releaseHostInstances = (mesh: InstancedMesh<GraphSurface>) => {
+export const releaseHostInstances = (mesh: HostInstancedMesh) => {
   mesh.dispose();
 };
 

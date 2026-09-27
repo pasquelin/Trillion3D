@@ -27,8 +27,7 @@ export function depthOf(mesh: DepthNode, screen: ArrayLike<number>) {
     const geometry = mesh.geometry as Bounded | undefined;
     if (geometry && !geometry.boundingSphere) geometry.computeBoundingSphere?.();
     const sphere = geometry?.boundingSphere;
-    const instanced = mesh as Instanced;
-    centre = isInstancedNode(mesh) && sphere ? placementsCentre(instanced, sphere) : sphere?.center;
+    centre = isInstancedNode(mesh) && sphere ? placementsCentre(mesh, sphere) : sphere?.center;
   }
   const c = centre ?? ORIGIN,
     m = mesh.matrixWorld.elements;

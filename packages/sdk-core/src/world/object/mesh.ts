@@ -1,4 +1,5 @@
 import { Object3D } from './object3d.ts';
+import { takeSerial } from './objectSpace.ts';
 import { Geometry } from '../geometry/geometry.ts';
 import { Material } from '../material/material.ts';
 import type { Box3 } from '../math/box3.ts';
@@ -8,11 +9,6 @@ import type { PhysicsOption } from '../../physics/options.ts';
 /** How the triangles a mesh draws are read from its geometry. */
 export type Primitive =
   'triangles' | 'points' | 'lineStrip' | 'lineSegments' | 'lineLoop' | 'sprite';
-
-/** The next node's number, from one: shared by every mesh and every node the engine builds. */
-let nextSerial = 1;
-/** A number no node has yet, in creation order. */
-export const takeSerial = () => nextSerial++;
 
 /** What a mesh hears: a holder whose changes it is told of, when the holder tells any. */
 type Heard = { readonly _listeners?: Set<() => void> };
@@ -55,6 +51,9 @@ export class Mesh<M extends object = Material> extends Object3D {
   }
   private hear(on: boolean) {
     const materials = Array.isArray(this._material) ? this._material : [this._material];
+    // A mesh wearing the engine's own surfaces, which tell nothing, is the engine's: never a
+    // world's, it hears nothing, and its shared geometry holds no listener of it.
+    if (materials.some((material) => !(material as Heard)._listeners)) return;
     for (const holder of [this._geometry, ...materials] as Heard[])
       if (on) holder._listeners?.add(this.heard);
       else holder._listeners?.delete(this.heard);
@@ -115,8 +114,10 @@ export class Mesh<M extends object = Material> extends Object3D {
     const mesh = source as Mesh<M>;
     if (mesh.morphTargetInfluences) this.morphTargetInfluences = mesh.morphTargetInfluences.slice();
     if (mesh.morphTargetDictionary) this.morphTargetDictionary = { ...mesh.morphTargetDictionary };
-    this.material = Array.isArray(mesh.material) ? mesh.material.slice() : mesh.material;
-    this.geometry = mesh.geometry;
+    const worn = mesh.material;
+    if (Array.isArray(worn) || worn !== this._material)
+      this.material = Array.isArray(worn) ? worn.slice() : worn;
+    if (mesh.geometry !== this._geometry) this.geometry = mesh.geometry;
     return this;
   }
   override localBounds(): Box3 | null {
