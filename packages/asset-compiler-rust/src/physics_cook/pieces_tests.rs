@@ -1,84 +1,11 @@
-//! The pieces a breakable body is cut into at cook time (`pieces.rs`, `voronoi.rs`): they tile the
-//! solid, weigh what it weighs, cook the same bytes from the same source, and leave a scene without
-//! a breakable body as it was.
-use super::mass::{solid_mass, DENSITY};
+//! The pieces a breakable body is cut into at cook time (`pieces.rs`): weighed beside its node,
+//! cooked the same bytes from the same source, a scene without a breakable body left as it was.
 use super::mass_tests::{cube, FACES};
 use super::pieces::{MASS_TOLERANCE, PIECES};
 use super::stage_physics;
-use super::voronoi::{cells, clip, face_planes, welded};
 use crate::compiler_coplanar::DepthLayerScene;
 use serde_json::{json, Value};
 use std::collections::{BTreeMap, BTreeSet};
-
-/// Share of a solid its cells may miss or overlap: their corners are rounded to 32 bits.
-const TILED: f64 = 1e-6;
-
-/// The volume the polytope `faces` bounds; 0 for none or a flat one.
-fn volume(faces: &[Vec<[f64; 3]>]) -> f64 {
-    let (pos, triangles) = welded(faces);
-    solid_mass(&pos, &triangles, [1.0; 3], 0).map_or(0.0, |m| m["mass"].as_f64().unwrap() / DENSITY)
-}
-
-// Behaviour: the Voronoi cells of seeds inside a convex solid — a box, a pyramid leaning over one
-// corner of its base, and a prism of many faces — tile it: their volumes sum to the solid's, and no two cells overlap,
-// within `TILED` of it.
-#[test]
-fn voronoi_cells_tile_a_convex_solid_without_gap_or_overlap() {
-    let pyramid = (
-        vec![
-            0.0, 0.0, 0.0, 3.0, 0.0, 0.0, 0.0, 2.0, 0.0, 0.0, 0.0, 1.5, 3.0, 2.0, 0.0,
-        ],
-        vec![0, 2, 1, 1, 2, 4, 0, 1, 3, 1, 4, 3, 4, 2, 3, 2, 0, 3],
-    );
-    // A 24-sided prism about (1, 0.5), radius 1.2, 0.5 high: 48 corners, 92 face triangles.
-    let (mut prism, mut sides) = (Vec::new(), Vec::new());
-    for k in 0..24u32 {
-        let turn = k as f32 * std::f32::consts::TAU / 24.0;
-        let (x, y) = (1.0 + 1.2 * turn.cos(), 0.5 + 1.2 * turn.sin());
-        prism.extend([x, y, 0.0, x, y, 0.5]);
-        let [a, b, c, d] = [2 * k, 2 * k + 1, (2 * k + 2) % 48, (2 * k + 3) % 48];
-        sides.extend([a, c, b, b, c, d]);
-        if k > 1 {
-            sides.extend([0, 2 * k, 2 * k - 2, 1, 2 * k - 1, 2 * k + 1]);
-        }
-    }
-    let solids = [
-        (cube([0.0; 3], [2.0, 1.0, 0.5]), FACES.to_vec()),
-        pyramid,
-        (prism, sides),
-    ];
-    for (pos, triangles) in solids {
-        let whole = solid_mass(&pos, &triangles, [1.0; 3], 0).unwrap()["mass"]
-            .as_f64()
-            .unwrap()
-            / DENSITY;
-        let planes = face_planes(&pos, &triangles);
-        let seeds = [
-            [0.3, 0.2, 0.1],
-            [1.1, 0.4, 0.2],
-            [0.5, 0.7, 0.3],
-            [1.6, 0.3, 0.15],
-        ];
-        let bounds = ([-1.0; 3], [3.0, 2.0, 1.5]);
-        let pieces = cells(&seeds, bounds, &planes);
-        let total: f64 = pieces.iter().map(|faces| volume(faces)).sum();
-        assert!((total - whole).abs() <= whole * TILED, "{total} of {whole}");
-        for (i, a) in pieces.iter().enumerate() {
-            assert!(volume(a) > 0.0, "cell {i} is empty");
-            for b in &pieces[i + 1..] {
-                let (pos, triangles) = welded(b);
-                let shared = face_planes(&pos, &triangles)
-                    .into_iter()
-                    .fold(a.clone(), |faces, plane| clip(faces, plane, 1e-12));
-                assert!(
-                    volume(&shared) <= whole * TILED,
-                    "overlap {}",
-                    volume(&shared)
-                );
-            }
-        }
-    }
-}
 
 /// `physics.json` of a scene of two unit cubes and an L of two boxes, the nodes as `nodes` declare
 /// them, cooked into `name`.
