@@ -1,12 +1,11 @@
 // The writes of a frame's shadow batches (#489): the first batch writes straight, as a single batch
 // always did; while staged, each write lands in the frame's command order — a staging slot of its
 // own and a copy into its target —, so a later batch never overwrites an earlier one before it ran.
-// The staged words reach the GPU in one upload per frame, whatever its batches (#344): the measured
-// 8-lamp frame spent 113 of its 130 ms in one `writeBuffer` per staged write.
+// The staged words reach the GPU in one upload per frame, whatever its batches (#344), not one
+// `writeBuffer` per staged write.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { fakeDevice, written } from '../../../../../tests/kit/gpu/fakeDevice.ts';
-import { bytesOf } from '../../../../../tests/kit/gpu/globals.ts';
 import { shadowBatchWrites } from './batchWrites.ts';
 import {
   MAX_SHADOW_BATCHES,
@@ -17,8 +16,10 @@ import {
 test('unstaged, a write goes straight to its target', () => {
   const { device, writes, copies } = fakeDevice();
   const target = device.createBuffer({ size: 16, usage: 0 });
-  shadowBatchWrites(device).write(target, 4, Uint32Array.of(1, 2, 3), 1, 2);
-  assert.equal(writes.length, 1);
+  const batches = shadowBatchWrites(device);
+  batches.write(target, 4, Uint32Array.of(1, 2, 3), 1, 2);
+  batches.end();
+  assert.equal(writes.length, 1, 'a frame of one batch uploads nothing more');
   assert.equal(writes[0].buffer, target);
   assert.deepEqual([...written(writes[0])], [2, 3]);
   assert.equal(copies.length, 0);
@@ -38,14 +39,14 @@ test('staged, two batches writing one buffer each land in command order', () => 
   const [upload] = writes;
   assert.notEqual(upload.buffer, target, 'staged apart');
   assert.equal(upload.offset, 0);
-  assert.deepEqual([...written(upload)], [7, 8, 9, 10], 'each its own slot');
+  assert.deepEqual([...written(upload)], [7, 8, 9, 10]);
   assert.deepEqual(
     copies.map(({ fromOffset, to, toOffset, size }) => [fromOffset, to, toOffset, size]),
     [
       [0, target, 0, 8],
       [8, target, 0, 8],
     ],
-    'copied into the target in the order written',
+    'each from its own slot, into the target in the order written',
   );
 });
 
@@ -104,7 +105,6 @@ function frame(batches: number, perBatch: (batch: number) => readonly number[]) 
 }
 
 for (const [name, batches, perBatch] of [
-  ['one batch', 1, () => [3, 5, 2]],
   ['several batches', 5, (b: number) => [3 + b, 1, 7, b + 1]],
   [
     'the most batches, each at its largest',
@@ -115,17 +115,15 @@ for (const [name, batches, perBatch] of [
   test(`${name}: one upload for every staged write, each copy reading its own words`, () => {
     const { writes, copies, targets, staged } = frame(batches, perBatch),
       direct = perBatch(0).length;
-    assert.equal(writes.length, direct + (batches > 1 ? 1 : 0), 'the first batch, then one upload');
+    assert.equal(writes.length, direct + 1, 'the first batch, then one upload');
     assert.ok(
       writes.slice(0, direct).every((w, k) => w.buffer === targets[k % 3]),
       'straight',
     );
     assert.equal(copies.length, staged.length, 'one copy per staged write');
-    if (batches === 1) return;
     const upload = writes[direct],
-      bytes = new Uint8Array(upload.buffer.size);
-    bytes.set(bytesOf(upload.data, upload.dataOffset, upload.size), upload.offset);
-    const words = new Uint32Array(bytes.buffer);
+      words = written(upload);
+    assert.equal(upload.offset, 0);
     copies.forEach(({ from, fromOffset, size }, k) => {
       assert.equal(from, upload.buffer);
       assert.deepEqual(words.subarray(fromOffset / 4, (fromOffset + size) / 4), staged[k], `${k}`);
