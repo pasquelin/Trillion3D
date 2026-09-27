@@ -117,16 +117,14 @@ export function createAutonomousGeometry(env: GeometryEnvironment) {
     rec.geometry = rec.mesh = undefined;
     setArray(rec, undefined);
   };
-  // An instance's records, or a mount's (#572): a geometry rows place is the page's, freed with
-  // the last record that draws the page.
+  // An instance's or a mount's records (#572): a rowed geometry is freed with its last reader.
   const removeRecords = (records: PageRec[]) => {
     const removed = new Set(records);
     for (const rec of records) {
       const list = byUrl.get(rec.url) ?? [],
         index = list.indexOf(rec);
       if (index >= 0) list.splice(index, 1);
-      // The page leaves residency with the last record holding it, not the last listed: a
-      // mount's record of it may still wait for its bytes.
+      // Resident until its last HOLDING record leaves: a mount's may still wait for its bytes.
       if (rec.array && !list.some((other) => other.array)) state.residentPages--;
       if (!list.length) byUrl.delete(rec.url);
       release(rec, !!rec.placement && list.some((other) => other.geometry === rec.geometry));
