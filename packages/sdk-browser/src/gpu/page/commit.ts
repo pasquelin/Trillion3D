@@ -34,8 +34,8 @@ function orderedVictim({ eviction, resident, pins }: GpuPageContext) {
   while (eviction.at < order!.count) {
     const key = order!.keyAt(eviction.at++);
     if (!resident.has(key)) continue;
-    if (pins.has(key)) held.push(key);
-    else if ((lower.get(key) ?? -2) >= epoch - 1) late.push(key);
+    if ((lower.get(key) ?? -2) >= epoch - 1) late.push(key);
+    else if (pins.has(key)) held.push(key);
     else return resident.get(key);
   }
   let page: ResidentPage | undefined;
