@@ -90,8 +90,7 @@ export function createDagDispatch(
       state.submittedWorldRevision = state.worldRevision;
     }
     if (copy) {
-      // Snapshot, compacted list and eviction queue follow each other in the same buffer: a single
-      // copy, as long as the pool's slots and never the catalogue.
+      // Snapshot, drawn list and eviction queue: one copy, bounded by the slots, not the catalogue.
       const bytes = residentCut ? residentReadbackBytes(listCap, state.poolSlots) : outputBytes;
       encoder.copyBufferToBuffer(output, 0, readback[i], 0, bytes);
     }
