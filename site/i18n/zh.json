@@ -33,9 +33,9 @@
   "examples": {
     "lead": "每个示例都只是一个简短的文件:看它运行,打开它的代码,动手改一改。",
     "jumpTo": "跳转到主题",
-    "inProgress": "制作中",
     "waitsFor": "等待引擎:",
-    "waitingEngine": "正在等待引擎"
+    "partial": "部分可用",
+    "coming": "即将推出：{{titles}}"
   },
   "gallery": {
     "themes": {
@@ -153,7 +153,7 @@
       "flat-shadows-on-the-floor": "平面投影的阴影",
       "a-softbox-panel": "一块柔光板",
       "light-from-a-probe": "来自探针的光",
-      "soft-shadow-edges": "柔和的阴影边缘",
+      "soft-shadows-from-a-wide-lamp": "宽灯产生的柔和阴影",
       "contact-shadow-under-a-car": "接触阴影",
       "coloured-shadows-through-glass": "透过玻璃的阴影",
       "shadows-in-the-corners": "角落里的阴影",
@@ -373,7 +373,7 @@
       "a-stack-of-texture-layers": "数据、数组与3D贴图",
       "wide-gamut-colour": "广色域输出",
       "energy-conservation-test": "环境光照(IBL)",
-      "soft-shadow-edges": "柔和阴影过滤(半影)",
+      "soft-shadows-from-a-wide-lamp": "随灯宽变化的柔和阴影",
       "contact-shadow-under-a-car": "渲染到贴图",
       "coloured-shadows-through-glass": "投射阴影的透明物体",
       "shadows-in-the-corners": "屏幕空间环境光遮蔽",

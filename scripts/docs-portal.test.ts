@@ -12,7 +12,7 @@ import {
 } from '../site/app/portal/routes.ts';
 import { search } from '../site/app/portal/search.ts';
 import { searchIndex } from '../site/app/portal/searchIndex.ts';
-import { exampleTitle, readyEntries } from '../site/app/examples/list.ts';
+import { exampleTitle, writtenEntries } from '../site/app/examples/list.ts';
 import { entriesIn, loadEntries } from '../site/app/portal/data.ts';
 import { canonicalEntryId, expandEntryLinks } from '../site/app/portal/entryLinks.ts';
 import type { PortalEntry } from '../site/content/model.ts';
@@ -106,15 +106,14 @@ test('search is accent-insensitive, requires every word, and ranks title matches
   assert.equal(search(items, 'texture').length, 0);
 });
 
-test('the site search reads every guide, API entry and ready example in the language', () => {
+test('the site search reads every guide, API entry and written example in the language', () => {
   const entries = entriesIn('fr');
   const index = searchIndex(entries, 'fr');
   assert.equal(new Set(index.map(({ key }) => key)).size, index.length);
   for (const entry of entries) assert.ok(index.some(({ key }) => key === `entry:${entry.id}`));
-  const [ready] = readyEntries;
-  const [example] = search(index, exampleTitle(ready.id, 'fr'));
-  assert.equal(example.href, `#/fr/examples/${ready.id}`);
-  assert.equal(example.kind, 'Exemple');
+  for (const entry of writtenEntries)
+    assert.equal(search(index, exampleTitle(entry.id, 'fr'))[0]?.href, `#/fr/examples/${entry.id}`);
+  assert.equal(search(index, exampleTitle(writtenEntries[0].id, 'fr'))[0]?.kind, 'Exemple');
 });
 
 test('page resolution distinguishes entries, examples, and unknown addresses', () => {

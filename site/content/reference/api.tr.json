@@ -500,6 +500,7 @@
       "totalNodes": "Toplam düğüm.",
       "autonomousScene": "Kendi yerleşik sahnesi.",
       "primitives": "Primitifleri.",
+      "worstStalls": "Derleyicinin takılma tablosu: düzey 0'da kök bırakan takılmış bir grubu olan en fazla on primitif, en kötüsü önce. Ondan önce derlenmiş bir önbellekte yoktur.",
       "texturePreviews": "Önce dokuya, sonra atlasa göre sıralanmış, çözülen her (doku, atlas) için bir giriş; çözülebilir bir görsel olmadan boş.",
       "textures": "Manifestoya göreli, önceden pişirilmiş seviyeler için şablon: {sha} kaynak görselin özeti, {kind} atlas adı (PREVIEW_ATLAS_NAMES), {level} seviye sırası. Bu okuyucunun yardımcı sürüm üzerinden reddettiği, önceden pişirilmiş seviyelerden önce derlenmiş bir önbellekte bulunmaz.",
       "proxy": "Yerleşik sahne proxy'sinin ve onun BVH'sinin nereden okunacağı: ışınların çarptığı geometri. Olduğu gibi okunabilir kalan, yansımadan önce derlenmiş bir önbellekte bulunmaz."
@@ -3224,7 +3225,8 @@
       "textures": "Manifestoya göreli, önceden pişirilmiş seviyeler için şablon: {sha} kaynak görselin özeti, {kind} atlas adı (PREVIEW_ATLAS_NAMES), {level} seviye sırası. Bu okuyucunun yardımcı sürüm üzerinden reddettiği, önceden pişirilmiş seviyelerden önce derlenmiş bir önbellekte bulunmaz.",
       "proxy": "Yerleşik sahne proxy'sinin ve onun BVH'sinin nereden okunacağı: ışınların çarptığı geometri. Olduğu gibi okunabilir kalan, yansımadan önce derlenmiş bir önbellekte bulunmaz.",
       "binary": "İkili dosya.",
-      "primitives": "Primitifleri."
+      "primitives": "Primitifleri.",
+      "worstStalls": "Derleyicinin takılma tablosu: düzey 0'da kök bırakan takılmış bir grubu olan en fazla on primitif, en kötüsü önce. Ondan önce derlenmiş bir önbellekte yoktur."
     }
   },
   "SlimCulling": {
@@ -4871,7 +4873,7 @@
     "summary": "`out[outAt..outAt + 2] = a × b`, işlenenler `aAt` ve `bAt`'te okunur."
   },
   "dagWarningsDiagnostic": {
-    "summary": "Bir önbelleğin `dag-warnings` tanısı: derleyici tarafından işaretlenen primitifler, ve duraklamış bir grubu olan her primitif — derleyicinin bir pişirmenin sonunda stderr'de sıraladığı küme."
+    "summary": "Bir önbelleğin `dag-warnings` tanısı: derleyicinin işaretlediği primitifler ve derleyicinin takılma tablosu (`worstStalls`), pişirmenin sonunda stderr'e yazdığı satırlar, kendi sırasıyla."
   },
   "decodeManifestBinary": {
     "summary": "İkili bir manifestoyu, bir çalışma zamanının okuduğu tam manifestoya geri dönüştürür."
