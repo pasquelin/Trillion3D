@@ -77,3 +77,26 @@ test('REMOVE takes out the vehicle on the body and leaves every pair it was in, 
   for (let s = 0; s < 30; s++) step();
   assert.deepEqual(vehicleIds(jolt), [1], 'still gone');
 });
+
+test("a floor's pairs, some ended in the middle of its list, all leave with the floor", async () => {
+  const jolt = await startModule();
+  const writer = new CommandWriter();
+  writer.gravity([0, -9.81, 0]);
+  writer.add({ ...body(0, 0, -50, 50, FLAG.events), position: [0, -50, 0] });
+  for (let n = 1; n <= 6; n++)
+    writer.add({ ...body(n, 2, 0, 0.5, FLAG.events), position: [3 * n, 0.5, 0] });
+  const left = () =>
+    events(jolt)
+      .filter(([type]) => type === 2)
+      .map(([, a, b]) => [a, b].sort((p, q) => p - q).join('-'));
+  // Before the cubes fall asleep (half a second), which ends their pairs.
+  for (let s = 0; s < 10; s++) jolt.step(writer.take(), 1 / 60);
+  // Cubes 2 and 4 leave: their pairs with the floor end before its list's last entry.
+  writer.remove(2);
+  writer.remove(4);
+  jolt.step(writer.take(), 1 / 60);
+  assert.deepEqual(left().sort(), ['0-2', '0-4']);
+  writer.remove(0);
+  jolt.step(writer.take(), 1 / 60);
+  assert.deepEqual(left().sort(), ['0-1', '0-3', '0-5', '0-6'], 'every pair the floor kept left');
+});
