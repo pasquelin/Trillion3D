@@ -56,8 +56,8 @@ export function createReadWatch(
     );
     return reading;
   };
-  /** Hears `onReads` as pages are read and land, until `stop`; `reads` counts them now, `landed`
-   *  says whether a page did. */
+  /** Hears `onReads` as pages are read and land, until `stop`; `reads` counts them now, `hold`
+   *  counts a page resident already as landed, once. */
   const watch = (onReads: (reads: PageReads) => void) => {
     const entry: Watch = {
       reading: new Map(),
@@ -67,7 +67,7 @@ export function createReadWatch(
     watches.add(entry);
     return {
       reads: () => counted(entry),
-      landed: (url: string) => entry.landed.has(url),
+      hold: (url: string) => void (entry.reading.delete(url), entry.landed.add(url)),
       stop: () => void watches.delete(entry),
     };
   };
