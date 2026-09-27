@@ -1,5 +1,5 @@
 import { LIGHT_SETTINGS } from '../../../../sdk-core/src/index.ts';
-import { DEPTH_CLEAR, DEPTH_NEAR } from '../../camera/depthConvention.ts';
+import { DEPTH_CLEAR } from '../../camera/depthConvention.ts';
 import { DIRECT_LIGHT_WGSL } from '../direct/lightWgsl.ts';
 import { TILE_BOUNDS_WGSL, tileDepthBoundsWgsl } from './boundsWgsl.ts';
 
@@ -90,13 +90,14 @@ fn lightTiles(@builtin(workgroup_id) tile:vec3u,@builtin(local_invocation_index)
  if(inside){z=textureLoad(depth,vec2i(pixel),0);}
 ${tileDepthBoundsWgsl(subgroups)}
  workgroupBarrier();
+ tileCornerOfLane(tile.xy,lane,bitcast<f32>(atomicLoad(&nearest)),bitcast<f32>(atomicLoad(&farthest)));
+ workgroupBarrier();
  if(lane==0u){
-  let back=bitcast<f32>(atomicLoad(&farthest));
   // The column's sides bound both slices: every tile builds it, before the depth planes.
-  tileColumn(tile.xy);
-  if(atomicLoad(&covered)==1u){let front=bitcast<f32>(atomicLoad(&nearest));opaqueBox=tileBox(tile.xy,front,back);tileSlab(tile.xy,front,back);}
+  tileColumn();
+  if(atomicLoad(&covered)==1u){opaqueBox=tileBox(FRONT_ROW,BACK_ROW);tileSlab();}
   // A pixel that sees the sky has no back to its blend slice: the whole column, never a box.
-  if(atomicLoad(&skyward)==0u){blendBox=tileBox(tile.xy,${DEPTH_NEAR}.0,back);}
+  if(atomicLoad(&skyward)==0u){blendBox=tileBox(NEAR_ROW,BACK_ROW);}
  }
  let count=workgroupUniformLoad(&lightCount);
  let base=(tile.y*u32(view.viewport.z)+tile.x)*TILE_STRIDE;

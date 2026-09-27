@@ -159,6 +159,6 @@ test('the pass tests both slices against the planes, the sky column unchanged', 
   assert.match(LIGHT_TILES_SHADER, /blendTouched=sphereTouchesBlendSlice\(centre,radius\);/);
   assert.match(
     LIGHT_TILES_SHADER,
-    /tileColumn\(tile\.xy\);\n\s*if\(atomicLoad\(&covered\)==1u\)\{[^\n]*tileSlab\(/,
+    /tileColumn\(\);\n\s*if\(atomicLoad\(&covered\)==1u\)\{[^\n]*tileSlab\(\)/,
   );
 });

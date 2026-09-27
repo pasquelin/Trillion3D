@@ -33,7 +33,8 @@ export const tileDepthBoundsWgsl = (subgroups: boolean) =>
   subgroups ? SUBGROUP_DEPTH_BOUNDS : ATOMIC_DEPTH_BOUNDS;
 
 /**
- * A tile's world bounds, built by thread zero, read by every thread: the boxes of its two slices,
+ * A tile's world bounds: sixteen threads de-project its corners at its four depths, one corner
+ * each, then thread zero builds from them, and every thread reads, the boxes of its two slices,
  * the column's five planes and the opaque slice's two depth planes. A light is kept in a slice
  * only if its range sphere meets both the slice's box and its planes: the planes are the tile's
  * own frustum, much tighter than a box once the tile is seen from above or at a slant.
@@ -52,6 +53,14 @@ var<workgroup> column:array<vec4f,5>;
 /** The opaque slice's front and back depth planes, facing each other: with the column's four
  *  sides, the six planes of the tile's frustum between its two depths. */
 var<workgroup> slab:array<vec4f,2>;
+/** The tile's corners, \`corners[row*4+corner]\`: one row per depth — the near plane, the
+ *  column's depth, the tile's front, its back —, the corner's bit 0 the right edge, bit 1 the
+ *  bottom. */
+const NEAR_ROW:u32=0u;
+const DEEP_ROW:u32=1u;
+const FRONT_ROW:u32=2u;
+const BACK_ROW:u32=3u;
+var<workgroup> corners:array<vec3f,16>;
 fn unproject(ndc:vec3f)->vec3f{
  let point=view.inverseViewProjection*vec4f(ndc,1.0);
  return point.xyz/point.w;
@@ -63,13 +72,21 @@ fn tileCorner(tile:vec2u,corner:u32,z:f32)->vec3f{
  let y=select(f32(tile.y*TILE_SIZE)/size.y,min(f32((tile.y+1u)*TILE_SIZE)/size.y,1.0),(corner&2u)!=0u);
  return unproject(vec3f(x*2.0-1.0,1.0-y*2.0,z));
 }
-/** World box of the tile between two depths: eight corners, never a radius. */
-fn tileBox(tile:vec2u,front:f32,back:f32)->Box{
+/** Thread \`lane\` below 16 de-projects its corner: the corners of the rows are independent,
+ *  so sixteen threads do at once what thread zero did one after the other, to the same bits. */
+fn tileCornerOfLane(tile:vec2u,lane:u32,front:f32,back:f32){
+ if(lane<16u){
+  let depths=array<f32,4>(${DEPTH_NEAR}.0,COLUMN_DEPTH,front,back);
+  corners[lane]=tileCorner(tile,lane%4u,depths[lane/4u]);
+ }
+}
+/** World box of the tile between two rows of corners: eight corners, never a radius. */
+fn tileBox(front:u32,back:u32)->Box{
  var box:Box;
  box.lo=vec3f(1e30);
  box.hi=vec3f(-1e30);
  for(var corner=0u;corner<8u;corner++){
-  let world=tileCorner(tile,corner&3u,select(front,back,(corner&4u)!=0u));
+  let world=corners[select(front,back,(corner&4u)!=0u)*4u+(corner&3u)];
   box.lo=min(box.lo,world);
   box.hi=max(box.hi,world);
  }
@@ -83,14 +100,14 @@ fn inwardPlane(normal:vec3f,point:vec3f,inside:vec3f)->vec4f{
 }
 /** The tile's column from the near plane to infinity: four side planes, each through two
  *  neighbouring corner rays, and the near plane, all facing the column's inside. */
-fn tileColumn(tile:vec2u){
+fn tileColumn(){
  var order=array<u32,4>(0u,1u,3u,2u);
  var near:array<vec3f,4>;
  var deep:array<vec3f,4>;
  var inside=vec3f(0.0);
  for(var i=0u;i<4u;i++){
-  near[i]=tileCorner(tile,order[i],${DEPTH_NEAR}.0);
-  deep[i]=tileCorner(tile,order[i],COLUMN_DEPTH);
+  near[i]=corners[NEAR_ROW*4u+order[i]];
+  deep[i]=corners[DEEP_ROW*4u+order[i]];
   inside+=deep[i]*0.25;
  }
  for(var i=0u;i<4u;i++){
@@ -101,10 +118,10 @@ fn tileColumn(tile:vec2u){
 /** The opaque slice's depth planes, each through three corners at its depth, after
  *  \`tileColumn\`. The near plane's normal points away from the eye: the front plane faces
  *  along it, the back plane against it — an orientation no thin or slanted slice can flip. */
-fn tileSlab(tile:vec2u,front:f32,back:f32){
+fn tileSlab(){
  let away=column[4].xyz;
- let f0=tileCorner(tile,0u,front);let f1=tileCorner(tile,1u,front);let f2=tileCorner(tile,2u,front);
- let b0=tileCorner(tile,0u,back);let b1=tileCorner(tile,1u,back);let b2=tileCorner(tile,2u,back);
+ let f0=corners[FRONT_ROW*4u];let f1=corners[FRONT_ROW*4u+1u];let f2=corners[FRONT_ROW*4u+2u];
+ let b0=corners[BACK_ROW*4u];let b1=corners[BACK_ROW*4u+1u];let b2=corners[BACK_ROW*4u+2u];
  slab[0]=inwardPlane(cross(f1-f0,f2-f0),f0,f0+away);
  slab[1]=inwardPlane(cross(b1-b0,b2-b0),b0,b0-away);
 }
