@@ -13,12 +13,7 @@ import { SHADE_SHADER } from '../visibility/shader/shadeWgsl.ts';
 import { BOUNCE_PROBE_SHADER } from './probeWgsl.ts';
 import { ROUGHNESS_FLOOR } from '../lighting/shaderConstants.ts';
 import { BOUNCE_SURFACE_BINDING, SURFACE_RAY_WGSL } from './reflectWgsl.ts';
-
-const body = (shader: string, name: string) => {
-  const start = shader.indexOf(`fn ${name}(`);
-  assert.ok(start >= 0, `${name} is declared`);
-  return shader.slice(start, shader.indexOf('\n}', start));
-};
+import { functionText as body } from './wgslBody.fixture.ts';
 
 test('with bounce, a smooth surface adds what its mirror direction meets in the proxy', () => {
   // The term is part of the lit sum, fed the pixel's own roughness.

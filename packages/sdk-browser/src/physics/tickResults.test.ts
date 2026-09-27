@@ -9,16 +9,26 @@ import { resultWords } from './protocol.ts';
 import { createTickResults } from './tickResults.ts';
 import { tickModule } from './tickResults.fixture.ts';
 
-test('a tick steps on only while one more step of events fits its results', () => {
-  const budget = { ...DEFAULT_PHYSICS_BUDGET, bodies: 4, contactEvents: 3 };
-  // A module whose every step fills the events budget, and moves nothing.
+const budget = { ...DEFAULT_PHYSICS_BUDGET, bodies: 4, contactEvents: 3 };
+
+/** A module whose every step fills the events budget, and moves nothing; `diverged` the bodies
+ *  each step leaves non-finite. The tick's results over it, and what they sent. */
+function tickOver(diverged: number[] = []) {
   const jolt = tickModule(
     () => new Uint32Array(0),
     () => new Uint32Array(budget.contactEvents * EVENT_WORDS),
+    diverged,
   );
   const buffers = [new ArrayBuffer(resultWords(budget) * 4)];
   const sent: unknown[] = [];
-  const results = createTickResults(jolt, budget, buffers, (message) => sent.push(message));
+  return {
+    results: createTickResults(jolt, budget, buffers, (message) => sent.push(message)),
+    sent,
+  };
+}
+
+test('a tick steps on only while one more step of events fits its results', () => {
+  const { results, sent } = tickOver();
   let steps = 0;
   while (results.room()) {
     results.gather(0);
@@ -34,4 +44,18 @@ test('a tick steps on only while one more step of events fits its results', () =
     [12, 7],
     'the tick carries its steps total and its slowest step apart',
   );
+});
+
+test('a step that leaves bodies non-finite names them to the page, which takes them out', () => {
+  const { results, sent } = tickOver([5, 7]);
+  results.gather(0);
+  assert.deepEqual(sent, [
+    {
+      type: 'error',
+      code: 'PHYSICS_DIVERGED',
+      message: 'Physics: 2 body(ies) went non-finite and left the simulation.',
+      fatal: false,
+      bodies: [5, 7],
+    },
+  ]);
 });

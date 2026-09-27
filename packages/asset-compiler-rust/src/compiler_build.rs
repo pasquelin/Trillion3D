@@ -32,8 +32,8 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
     };
     let mut loaded = load_runtime(o, &routed.scene)?;
     let bin = loaded.binary.bytes();
-    let g_bytes = &loaded.g_bytes;
     let manifest = &loaded.manifest;
+    let shared_nodes = compiler_mesh_share::share_identical_meshes(&mut loaded.g, bin);
     // A hierarchy that closes on itself is refused before any publication: world
     // matrix walk starts from parentless nodes, and would never see a closed cycle.
     compiler_nodes::check_acyclic(&loaded.g)?;
@@ -67,12 +67,12 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
         views,
         view_map,
         estimated_working_bytes,
-    } = plan_buffers(o, g, bin, g_bytes, &meshes)?;
+    } = plan_buffers(o, g, bin, &loaded.g_bytes, &meshes)?;
     let (directory, output_views, source_bin) = copy_source_bin(o, bin, view_values, &views, &key)?;
     let offset = source_bin.bytes as usize;
     let import_ms = shared_math::elapsed_ms(started);
     progress(
-        json!({"phase":"import","completed":1,"total":1,"ms":import_ms,"primitives":jobs.len(),"nodes":chosen.len()}),
+        json!({"phase":"import","completed":1,"total":1,"ms":import_ms,"primitives":jobs.len(),"nodes":chosen.len(),"sharedMeshNodes":shared_nodes}),
     );
     let cluster_start = Instant::now();
     // Compact per-page index storage is bounded independently from source size. Metadata is retained.

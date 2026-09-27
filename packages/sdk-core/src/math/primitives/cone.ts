@@ -1,4 +1,5 @@
 import { coneRejects } from '../projectionOracles.ts';
+import { hypot3 } from './hypot.ts';
 
 /**
  * Cone rejection tolerances, shared by the processor mirror (`packages/sdk-browser/src/page/cone/cone.ts`) and the shader
@@ -35,7 +36,7 @@ function sphereSpreadAngle(
   pz: number,
   pw: number,
 ) {
-  const d = Math.hypot(px - cx * pw, py - cy * pw, pz - cz * pw);
+  const d = hypot3(px - cx * pw, py - cy * pw, pz - cz * pw);
   if (!(d > radius * pw)) return Math.PI;
   const t = (radius * pw) / d;
   return Math.asin(t < 0 ? 0 : t > 1 ? 1 : t);
@@ -76,9 +77,6 @@ export function boxConeRejects(
   const cx = (e[0] * lx + e[4] * ly + e[8] * lz + e[12]) * w,
     cy = (e[1] * lx + e[5] * ly + e[9] * lz + e[13]) * w,
     cz = (e[2] * lx + e[6] * ly + e[10] * lz + e[14]) * w;
-  const radius =
-    Math.hypot((max[0] - min[0]) * 0.5, (max[1] - min[1]) * 0.5, (max[2] - min[2]) * 0.5) * scale;
-  const spread = sphereSpreadAngle(cx, cy, cz, radius, eyeX, eyeY, eyeZ, eyeW);
   const a0 = axis[0],
     a1 = axis[1],
     a2 = axis[2];
@@ -94,9 +92,19 @@ export function boxConeRejects(
   const vx = eyeX - cx * eyeW,
     vy = eyeY - cy * eyeW,
     vz = eyeZ - cz * eyeW;
-  const vl = Math.hypot(vx, vy, vz);
+  // A cluster whose axis does not point away from the camera is never rejected: `coneRejects`
+  // needs `dot < -sin(angle + spread) <= 0`, and `dot` has the sign of this very numerator
+  // (same operands, same order, divided by a positive length). The three lengths and the
+  // arcsine below are therefore only paid by clusters that can still be rejected: the verdict
+  // is the same, bit for bit, for every input (NaN included: it rejected nothing either).
+  const toward = ax * vx + ay * vy + az * vz;
+  if (!(toward < 0)) return false;
+  const vl = hypot3(vx, vy, vz);
   if (!(vl > 0)) return false;
-  const dot = Math.min(1, Math.max(-1, (ax * vx + ay * vy + az * vz) / vl));
+  const radius =
+    hypot3((max[0] - min[0]) * 0.5, (max[1] - min[1]) * 0.5, (max[2] - min[2]) * 0.5) * scale;
+  const spread = sphereSpreadAngle(cx, cy, cz, radius, eyeX, eyeY, eyeZ, eyeW);
+  const dot = Math.min(1, Math.max(-1, toward / vl));
   try {
     return coneRejects(dot, angle, spread);
   } catch {

@@ -60,7 +60,8 @@ export const rowHasGeometry = (rec: PageRec, position: GPUBuffer | undefined) =>
 /** Corners the row draws: the count the cluster's own geometry page declares, or the length of the
  *  index page for a cluster that still draws from one. A paged cluster never holds an index page —
  *  nothing fetches it — and this is the only number the row ever wanted from it. */
-const rowIndexCount = (rec: PageRec) => rec.geometryPage?.indexCount ?? rec.array?.length ?? 0;
+export const rowIndexCount = (rec: PageRec) =>
+  rec.geometryPage?.indexCount ?? rec.array?.length ?? 0;
 type PageRowResources = MaterialLayers & {
   geometryBlocks: Map<HostAttributes, GeometryBlock>;
   markRowDirty: (row: number) => void;
