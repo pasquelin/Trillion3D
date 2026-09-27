@@ -34,6 +34,9 @@
         material.meshStandard({ color: '#394653', roughness: 0.9 }),
       );
       plinth.position.y = -0.15;
+      // The lowest surface: nothing under it would show its shadow.
+      plinth.receiveShadow = true;
+      plinth.castShadow = false;
       exhibits.add(plinth);
       const arch = object.mesh(geometry.torus(1.8, 0.32, 20, 64, Math.PI), copper);
       // A half torus spans the XY plane from 0 to π: centred at the column tops, it crowns them.
@@ -49,9 +52,6 @@
       sculpture.position.set(2.3, 1.25, 0.2);
       sculpture.rotation.x = 0.35;
       exhibits.add(sculpture);
-      // The lowest surface: nothing under it would show its shadow.
-      plinth.receiveShadow = true;
-      plinth.castShadow = false;
       world.scene.add(
         exhibits,
         light.directional({
@@ -79,10 +79,13 @@
           .toArray()
           .map((value) => value.toFixed(2))
           .join(', ');
-      const clear = () => {
+      const drop = () => {
         for (const guide of shown) guide.remove();
-        picked = [];
         shown = [];
+      };
+      const clear = () => {
+        drop();
+        picked = [];
         pointA('—');
         pointB('—');
         distance('—');
@@ -94,7 +97,7 @@
         if (!hit) return;
         if (picked.length === 2) clear();
         picked.push(hit.point.clone());
-        for (const guide of shown) guide.remove();
+        drop();
         const positions = picked.flatMap((point) => point.toArray());
         shown = [world.guides.points({ positions, color: mark, size: 10 })];
         if (picked.length === 1) return pointA(format(picked[0]));
@@ -102,11 +105,12 @@
         pointB(format(picked[1]));
         distance(`${picked[0].distanceTo(picked[1]).toFixed(2)} m`);
       };
-      // A click that did not drag the camera: releasing an orbit drag measures nothing.
+      // A click that did not drag the camera: releasing an orbit drag or a two-finger pinch
+      // measures nothing.
       let down = null;
       world.canvas.addEventListener(
         'pointerdown',
-        (event) => (down = [event.offsetX, event.offsetY]),
+        (event) => (down = event.isPrimary ? [event.offsetX, event.offsetY] : null),
       );
       world.canvas.addEventListener('pointerup', (event) => {
         const start = down;
