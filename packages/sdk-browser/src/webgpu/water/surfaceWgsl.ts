@@ -7,9 +7,13 @@
  *
  * The fourth target carries the item's water rank — one-based so that zero means "no water
  * here", as the item record carries it above its flags — and the opacity in its high sixteen
- * bits: the composite reads the material volume at that rank and blends by that opacity.
+ * bits: the composite reads the material volume at that rank and blends by that opacity. That
+ * word is the water pass's own target (`WATER_WORD_FORMAT`), never the surface flags: temporal
+ * antialiasing and the composition read those after the pass, as the opaque resolve left them.
  */
 export const WATER_RANK_SHIFT = 16;
+/** Format of the water word: rank and opacity, sixteen bits each. */
+export const WATER_WORD_FORMAT: GPUTextureFormat = 'r32uint';
 /** Transmissive items a scene may carry: the rank counts them in sixteen bits. */
 export const WATER_MAX_ITEMS = (1 << WATER_RANK_SHIFT) - 1;
 /** The five targets of the stage: the surface buffer, then the virtual-texture feedback. */

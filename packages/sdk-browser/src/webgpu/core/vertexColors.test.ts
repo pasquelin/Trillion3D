@@ -98,8 +98,10 @@ test('a transparent item multiplies its colour by the vertex colour when its mat
   assert.deepEqual(coloured, [true, false, false]);
   // The vertex stage multiplies the item colour, alpha included, at the vertex it fetched.
   const stage = BLEND_SHADER.slice(BLEND_SHADER.indexOf('@vertex fn vs'));
-  const fetch = stage.indexOf('let id=it.vertexBase+indices[base+local];');
-  const multiply = stage.indexOf(`if((flags&${FLAG_HAS_COLOR}u)!=0u){out.color*=vertColor(id);}`);
+  const fetch = stage.indexOf('let v=pageCorner(page,h,local);');
+  const multiply = stage.indexOf(
+    `if((flags&${FLAG_HAS_COLOR}u)!=0u){out.color*=pageColor(page,h,v);}`,
+  );
   assert.ok(fetch > 0 && multiply > fetch);
   assert.ok(BLEND_SHADER.includes(VERTEX_COLOR_WGSL));
 });
