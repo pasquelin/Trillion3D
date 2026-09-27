@@ -7153,6 +7153,7 @@
       "gravity": "Schwerkraft in m/s², ein lebender Vektor; setze eine Vorgabe (`'earth'`, `'moon'`, `'mars'`, `'none'`) oder einen Vektor.",
       "paused": "Ob die Zeit stillsteht; Schreibvorgänge erreichen die Körper trotzdem.",
       "timeScale": "Simulierte Sekunden pro echter Sekunde: 0.25 ist Zeitlupe.",
+      "simulationRange": "Meter um die Kamera, innerhalb derer Körper simuliert werden (dahinter eingefroren, wie sie waren, und keine Kollisionskachel geladen); `null` folgt `camera.far`.",
       "water": "Das Wasser, in dem die Körper schwimmen: Pegel, Wellen, Dichte und Widerstände. Ein Körper, der leichter als das Wasser ist, schwimmt, getragen vom Gewicht des verdrängten Wassers.",
       "waterSurface": "Die Wasseroberfläche zur Zeit der Simulation, zum Zeichnen: die Wellen, die der Auftrieb liest, dieselben Zahlen (`height`, `point`, `normal`).",
       "stats": "Zählungen und beide Uhren: Worker-Millisekunden pro Schritt, Seiten-Millisekunden pro Bild.",
@@ -7359,6 +7360,7 @@
       "gravity": "Schwerkraft in m/s², ein lebender Vektor; setze eine Vorgabe (`'earth'`, `'moon'`, `'mars'`, `'none'`) oder einen Vektor.",
       "paused": "Ob die Zeit stillsteht; Schreibvorgänge erreichen die Körper trotzdem.",
       "timeScale": "Simulierte Sekunden pro echter Sekunde: 0.25 ist Zeitlupe.",
+      "simulationRange": "Meter um die Kamera, innerhalb derer Körper simuliert werden (dahinter eingefroren, wie sie waren, und keine Kollisionskachel geladen); `null` folgt `camera.far`.",
       "water": "Das Wasser, in dem die Körper schwimmen: Pegel, Wellen, Dichte und Widerstände. Ein Körper, der leichter als das Wasser ist, schwimmt, getragen vom Gewicht des verdrängten Wassers.",
       "waterSurface": "Die Wasseroberfläche zur Zeit der Simulation, zum Zeichnen: die Wellen, die der Auftrieb liest, dieselben Zahlen (`height`, `point`, `normal`).",
       "stats": "Zählungen und beide Uhren: Worker-Millisekunden pro Schritt, Seiten-Millisekunden pro Bild.",
@@ -7371,6 +7373,7 @@
     "summary": "Was `createWorld(canvas, { physics })` über `true` hinaus annimmt.",
     "members": {
       "budget": "Feste Grenzen, einmal beim Start der Physik gelesen.",
+      "simulationRange": "Meter um die Kamera, innerhalb derer Körper simuliert werden (`world.physics.simulationRange`); `null` folgt `camera.far`.",
       "gravity": "Die Schwerkraft der Welt: eine Vorgabe oder ein Vektor."
     }
   },
