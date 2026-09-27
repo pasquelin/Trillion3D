@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Soft shadows from a wide lamp</title>
+    <meta name="thumbnail" content="3" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #17191f;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <script type="module">
+      // Waits for #880: emitter-radius soft shadows; engine owner assignment pending.
+      import { createWorld, geometry, material, object, light, math } from '../runtime/engine.js';
+      import { controls } from '../runtime/kit.js';
+
+      const world = createWorld('view', { controls: 'orbit' });
+      world.scene.background = math.color('#17191f');
+
+      // A long floor makes the penumbra easy to compare close to and far from each caster.
+      const floor = object.mesh(
+        geometry.box(18, 0.3, 13),
+        material.meshStandard({ color: '#d9d1c3', roughness: 0.9 }),
+      );
+      floor.position.y = -0.15;
+      floor.receiveShadow = true;
+      world.scene.add(floor);
+
+      const clay = material.meshStandard({ color: '#bd664f', roughness: 0.62 });
+      const brass = material.meshStandard({ color: '#d6a744', roughness: 0.28, metalness: 0.72 });
+      const subject = object.group();
+      const pedestal = object.mesh(geometry.cylinder(1.55, 1.7, 0.35, 48), clay);
+      pedestal.position.y = 0.175;
+      const arch = object.mesh(geometry.torus(1.15, 0.28, 32, 96, Math.PI), brass);
+      arch.position.y = 0.65;
+      arch.rotation.z = Math.PI / 2;
+      const ball = object.mesh(geometry.sphere(0.52, 48, 24), clay);
+      ball.position.set(0, 1.48, 0);
+      for (const mesh of [pedestal, arch, ball]) {
+        mesh.castShadow = mesh.receiveShadow = true;
+        subject.add(mesh);
+      }
+      world.scene.add(subject);
+
+      // The visible globe follows the point light's emitting diameter. The public light radius is
+      // half that width; enlarging it should widen the penumbra without moving the light.
+      const lamp = light.point({
+        position: [-3.8, 5.4, 3.2],
+        color: '#ffe1ae',
+        intensity: 520,
+        distance: 24,
+        radius: 0.4,
+        castShadow: true,
+      });
+      const glow = object.mesh(
+        geometry.sphere(0.5, 32, 16),
+        material.meshBasic({ color: '#ffe1ae' }),
+      );
+      glow.position.copy(lamp.position);
+      world.scene.add(lamp, glow, light.hemisphere({ intensity: 0.35, color: '#8094ba', groundColor: '#382f2a' }));
+
+      world.camera.position.set(7.8, 5.2, 9.2);
+      world.camera.lookAt(0, 0.8, 0);
+      world.controls.target.set(0, 0.8, 0);
+      world.controls.maxPolarAngle = Math.PI / 2 - 0.04;
+
+      const ui = controls(
+        {
+          lampWidth: [0.1, 3, 0.8, 0.05],
+          moveSubject: true,
+        },
+        (values) => {
+          lamp.radius = values.lampWidth / 2;
+          glow.scale.setScalar(values.lampWidth);
+          world.invalidate();
+        },
+        world,
+      );
+
+      // Motion shows that the softness belongs to the lamp rather than to a painted floor edge.
+      let time = 0;
+      world.onFrame(({ delta }) => {
+        if (!ui.moveSubject) return;
+        time += Math.min(delta, 0.05);
+        subject.position.x = Math.sin(time * 0.7) * 1.25;
+        subject.rotation.y = time * 0.35;
+        world.invalidate();
+      });
+    </script>
+  </body>
+</html>

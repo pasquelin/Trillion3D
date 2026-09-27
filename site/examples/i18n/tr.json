@@ -310,6 +310,13 @@
       "roof": "Çatı"
     }
   },
+  "soft-shadows-from-a-wide-lamp": {
+    "banner": "Etrafında dönmek için sürükle. Lamba genişliğini değiştirip gölge kenarlarını izle.",
+    "controls": {
+      "lampWidth": "Lamba genişliği",
+      "moveSubject": "Nesneyi hareket ettir"
+    }
+  },
   "a-softbox-panel": {
     "banner": "Etrafta dolaşmak için sürükle. Parlamayı yumuşatmak için ışık panelini büyüt.",
     "controls": {

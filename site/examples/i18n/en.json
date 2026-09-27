@@ -310,6 +310,13 @@
       "roof": "Roof"
     }
   },
+  "soft-shadows-from-a-wide-lamp": {
+    "banner": "Drag to orbit. Change the lamp width and watch the shadow edges.",
+    "controls": {
+      "lampWidth": "Lamp width",
+      "moveSubject": "Move subject"
+    }
+  },
   "a-softbox-panel": {
     "banner": "Drag to walk around. Make the light panel bigger to soften the shine.",
     "controls": {
