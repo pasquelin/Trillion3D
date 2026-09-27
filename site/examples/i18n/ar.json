@@ -2153,6 +2153,9 @@
     "controls": {
       "spin": "تدوير",
       "visible": "مرئي"
+    },
+    "words": {
+      "credit": "نموذج عمود إنارة من W. Sitters، CC BY 3.0 — انظر assets/examples/CREDITS.md"
     }
   }
 }

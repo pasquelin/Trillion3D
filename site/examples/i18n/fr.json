@@ -2153,6 +2153,9 @@
     "controls": {
       "spin": "Tourner",
       "visible": "Visible"
+    },
+    "words": {
+      "credit": "Modèle de réverbère par W. Sitters, CC BY 3.0 — voir assets/examples/CREDITS.md"
     }
   }
 }

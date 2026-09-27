@@ -2153,6 +2153,9 @@
     "controls": {
       "spin": "Xoay",
       "visible": "Hiển thị"
+    },
+    "words": {
+      "credit": "Mô hình đèn đường của W. Sitters, CC BY 3.0 — xem assets/examples/CREDITS.md"
     }
   }
 }

@@ -2153,6 +2153,9 @@
     "controls": {
       "spin": "旋转",
       "visible": "显示"
+    },
+    "words": {
+      "credit": "路灯模型作者 W. Sitters，CC BY 3.0 — 见 assets/examples/CREDITS.md"
     }
   }
 }

@@ -2153,6 +2153,9 @@
     "controls": {
       "spin": "회전",
       "visible": "표시"
+    },
+    "words": {
+      "credit": "W. Sitters의 가로등 모델, CC BY 3.0 — assets/examples/CREDITS.md 참고"
     }
   }
 }

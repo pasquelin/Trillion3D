@@ -2153,6 +2153,9 @@
     "controls": {
       "spin": "घुमाएँ",
       "visible": "दिखाएँ"
+    },
+    "words": {
+      "credit": "W. Sitters का सड़क-लैंप मॉडल, CC BY 3.0 — देखो assets/examples/CREDITS.md"
     }
   }
 }
