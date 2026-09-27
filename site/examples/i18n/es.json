@@ -1,4 +1,22 @@
 {
+  "brushed-metal": {
+    "banner": "Gira para observar los reflejos cepillados. Cambia su fuerza y dirección.",
+    "controls": {
+      "anisotropy": "Fuerza del cepillado",
+      "direction": "Dirección del cepillado",
+      "roughness": "Rugosidad",
+      "spin": "Girar"
+    }
+  },
+  "car-paint-under-clear-coat": {
+    "banner": "Gira alrededor del coche. Cambia la pintura y la capa transparente.",
+    "controls": {
+      "paint": "Pintura",
+      "clearCoat": "Capa transparente",
+      "coatRoughness": "Rugosidad de la capa",
+      "spin": "Girar"
+    }
+  },
   "kit": {
     "panel": {
       "controls": "Ajustes"
