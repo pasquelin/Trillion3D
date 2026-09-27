@@ -1683,6 +1683,17 @@
       "fourthLaneAnisotropy": "Fourth lane anisotropy"
     }
   },
+  "the-home-pose": {
+    "banner": "Choose a view, move the camera, then choose Home to return.",
+    "controls": { "view": "View" },
+    "choices": {
+      "view": { "home": "Home", "tower": "Tower", "square": "Square", "hillside": "Hillside" }
+    }
+  },
+  "the-near-plane-cuts-a-wall": {
+    "banner": "Move the near plane forward and watch it cut through each wall.",
+    "controls": { "nearPlane": "Near plane" }
+  },
   "the-material-family": {
     "banner": "Drag to walk around. Turn the light to night and see what still shines.",
     "controls": {

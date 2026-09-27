@@ -1683,6 +1683,22 @@
       "fourthLaneAnisotropy": "Dị hướng của làn thứ tư"
     }
   },
+  "the-home-pose": {
+    "banner": "Chọn một góc nhìn, di chuyển camera, rồi chọn Ban đầu để quay lại.",
+    "controls": { "view": "Góc nhìn" },
+    "choices": {
+      "view": {
+        "home": "Ban đầu",
+        "tower": "Tháp",
+        "square": "Quảng trường",
+        "hillside": "Sườn đồi"
+      }
+    }
+  },
+  "the-near-plane-cuts-a-wall": {
+    "banner": "Đẩy mặt phẳng gần về phía trước và xem nó cắt qua từng bức tường.",
+    "controls": { "nearPlane": "Mặt phẳng gần" }
+  },
   "the-material-family": {
     "banner": "Kéo để đi quanh. Chuyển ánh sáng sang đêm và xem thứ gì vẫn sáng.",
     "controls": {

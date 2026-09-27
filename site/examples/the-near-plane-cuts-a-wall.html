@@ -32,13 +32,14 @@
       const colours = ['#d45f45', '#e3a536', '#3f9a78', '#477bb8'];
       const depths = [5, 2, -1, -4];
       const sizes = [3.8, 3.4, 3, 2.6];
+      const side = geometry.box(2.2, 5, 0.35);
       for (let index = 0; index < depths.length; index++) {
         const z = depths[index],
           opening = sizes[index];
         const stone = material.meshStandard({ color: colours[index], roughness: 0.75 });
         const parts = [
-          [geometry.box(2.2, 5, 0.35), -opening - 1.1, 2.5],
-          [geometry.box(2.2, 5, 0.35), opening + 1.1, 2.5],
+          [side, -opening - 1.1, 2.5],
+          [side, opening + 1.1, 2.5],
           [geometry.box(opening * 2, 1.2, 0.35), 0, 4.4],
         ];
         for (const [shape, x, y] of parts) {
