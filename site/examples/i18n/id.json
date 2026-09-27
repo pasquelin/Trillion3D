@@ -510,6 +510,21 @@
       "outer": "Luar"
     }
   },
+
+  "a-carousel": {
+    "banner": "Lihat sekeliling komidi putar. Jeda atau gerakkan kuda kayu ke arah sebaliknya.",
+    "controls": {
+      "running": "Berjalan",
+      "speed": "Kecepatan",
+      "direction": "Arah"
+    },
+    "choices": {
+      "direction": {
+        "clockwise": "searah jarum jam",
+        "counterclockwise": "berlawanan arah jarum jam"
+      }
+    }
+  },
   "a-world-of-blocks": {
     "banner": "Geser untuk terbang mengelilingi pulau. Naikkan laut untuk membanjiri lembah.",
     "controls": {

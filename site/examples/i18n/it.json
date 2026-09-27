@@ -510,6 +510,21 @@
       "outer": "Esterno"
     }
   },
+
+  "a-carousel": {
+    "banner": "Ruota attorno alla giostra. Fermala o manda i cavalli di legno nel verso opposto.",
+    "controls": {
+      "running": "In movimento",
+      "speed": "Velocità",
+      "direction": "Direzione"
+    },
+    "choices": {
+      "direction": {
+        "clockwise": "senso orario",
+        "counterclockwise": "senso antiorario"
+      }
+    }
+  },
   "a-world-of-blocks": {
     "banner": "Trascina per volare intorno all'isola. Alza il mare per allagare le valli.",
     "controls": {

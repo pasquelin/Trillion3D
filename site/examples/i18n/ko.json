@@ -510,6 +510,21 @@
       "outer": "바깥쪽"
     }
   },
+
+  "a-carousel": {
+    "banner": "회전목마 주위를 둘러보세요. 멈추거나 목마를 반대 방향으로 움직여 보세요.",
+    "controls": {
+      "running": "운행",
+      "speed": "속도",
+      "direction": "방향"
+    },
+    "choices": {
+      "direction": {
+        "clockwise": "시계 방향",
+        "counterclockwise": "시계 반대 방향"
+      }
+    }
+  },
   "a-world-of-blocks": {
     "banner": "끌어서 섬 주위를 날아 봐. 바다를 올려 골짜기를 잠기게 해 봐.",
     "controls": {

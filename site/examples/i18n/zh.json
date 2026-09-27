@@ -510,6 +510,21 @@
       "outer": "外圈"
     }
   },
+
+  "a-carousel": {
+    "banner": "环绕旋转木马观察。暂停它，或让木马反向运动。",
+    "controls": {
+      "running": "运行",
+      "speed": "速度",
+      "direction": "方向"
+    },
+    "choices": {
+      "direction": {
+        "clockwise": "顺时针",
+        "counterclockwise": "逆时针"
+      }
+    }
+  },
   "a-world-of-blocks": {
     "banner": "拖动绕着小岛飞。把海水升高，淹没山谷。",
     "controls": {

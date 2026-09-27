@@ -510,6 +510,21 @@
       "outer": "Extérieur"
     }
   },
+
+  "a-carousel": {
+    "banner": "Tournez autour du carrousel. Mettez-le en pause ou envoyez les chevaux de bois dans l’autre sens.",
+    "controls": {
+      "running": "En marche",
+      "speed": "Vitesse",
+      "direction": "Direction"
+    },
+    "choices": {
+      "direction": {
+        "clockwise": "sens horaire",
+        "counterclockwise": "sens antihoraire"
+      }
+    }
+  },
   "a-world-of-blocks": {
     "banner": "Glisse pour voler autour de l'île. Monte la mer pour inonder les vallées.",
     "controls": {
