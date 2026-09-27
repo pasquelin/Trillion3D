@@ -19,5 +19,5 @@ pub fn tile_log2(scale: Option<f64>) -> i32 {
 }
 
 #[cfg(test)]
-#[path = "geometry_page_tile_tests.rs"]
+#[path = "tile_tests.rs"]
 mod tests;

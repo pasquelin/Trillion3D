@@ -7,6 +7,7 @@ use crate::{CompilerError, Result};
 use trillion3d_page_codec::bits::{
     bits_for, dequant, oct_decode, pow2, Quant, MAX_BITS, MAX_EXPONENT,
 };
+pub mod tile;
 
 /// Grid of a primitive, the finer of two rules: its widest tile (`tile_log2`, a power of two; the
 /// primitive itself when narrower) split into 2^16 steps, and an eighth of the finest group error
@@ -52,7 +53,7 @@ pub fn primitive_exponent(
         return finest_exponent(extent);
     }
     let finest = errors.filter(|e| *e > 0.0).min_by(f64::total_cmp);
-    grid_exponent(extent, finest, crate::geometry_page_tile::tile_log2(scale))
+    grid_exponent(extent, finest, tile::tile_log2(scale))
 }
 
 /// Texture coordinates sit on a fixed grid of 2^-14: a quarter of a texel on a 4096 map.

@@ -7,7 +7,6 @@ mod dag;
 mod geometry_page;
 mod geometry_page_cells;
 mod geometry_page_quant;
-mod geometry_page_tile;
 pub mod import;
 mod join;
 mod manifest_binary;

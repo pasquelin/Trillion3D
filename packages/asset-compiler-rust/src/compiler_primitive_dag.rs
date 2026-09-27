@@ -50,7 +50,7 @@ pub(super) fn level_error_stats(errors: &mut [f64]) -> (f64, f64, f64) {
 }
 
 /// `scale` is the largest world scale placing the primitive: its pages' grid follows the tiles of
-/// the world (`geometry_page_tile`).
+/// the world (`geometry_page_quant::tile`).
 #[allow(clippy::too_many_arguments)]
 pub(super) fn build_dag_primitive(
     o: &Options,
