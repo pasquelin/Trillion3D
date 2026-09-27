@@ -18,7 +18,7 @@ type Opening = {
   opened?: (read: { bytes: number }) => void;
 };
 
-/** The world runtime holding `pointer`'s model, its session open; `read` counts the bytes fetched. */
+/** The world runtime holding `pointer`'s model, its session open. */
 export async function openedWorld(t: TestContext, pointer: URL, opening: Opening = {}) {
   const { read, canvas } = machine(t, pointer);
   const camera = opening.camera ?? new Camera('perspective');
@@ -42,5 +42,5 @@ export async function openedWorld(t: TestContext, pointer: URL, opening: Opening
   await runtime.settled();
   const session = runtime.explorer;
   assert.ok(session, `the session opened: ${String(failure)}`);
-  return { runtime, session, read };
+  return { runtime, session };
 }
