@@ -10,16 +10,14 @@ function black({ body }: NonNullable<Capture>) {
   return true;
 }
 
-/** Refuses every entirely black capture by its file name: an error of the report, and a line. */
+/** Refuses every entirely black capture by its file name: an error of the report. */
 export function refuseBlackCaptures(
   errors: Report['errors'],
   captures: ReadonlyMap<string, Capture>,
 ) {
   for (const [file, capture] of captures) {
     if (!capture || !black(capture)) continue;
-    const message = `${file}: RGB 0 everywhere`;
-    errors.push({ kind: 'black-capture', message });
-    process.stdout.write(`black capture ${message}\n`);
+    errors.push({ kind: 'black-capture', message: `${file}: RGB 0 everywhere` });
   }
 }
 

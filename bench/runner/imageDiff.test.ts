@@ -12,8 +12,7 @@ const capture = (rgba: number[]) => ({
 });
 
 test('two identical drawn captures differ by 0 px', () => {
-  const drawn = capture([12, 0, 0, 255]);
-  assert.deepEqual(imageDiff(drawn, capture([12, 0, 0, 255])), {
+  assert.deepEqual(imageDiff(capture([12, 0, 0, 255]), capture([12, 0, 0, 255])), {
     pixels: 0,
     maxCanal: 0,
     total: 4,
