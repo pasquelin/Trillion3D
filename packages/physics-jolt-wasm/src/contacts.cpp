@@ -53,14 +53,17 @@ void sendOwedLeaves() {
 }
 
 void leaveAll(uint32_t engine) {
-  for (auto at = world().pairs.begin(); at != world().pairs.end();) {
-    if (uint32_t(at->first >> 32) != engine && uint32_t(at->first) != engine) {
-      ++at;
-      continue;
-    }
-    if (at->second & ENTERED) pushLeave(at->first);
-    world().softPairs.erase(at->first);
-    at = world().pairs.erase(at);
+  World &w = world();
+  // Only the body's own pairs (PHY-15), a copy since leaving them unlists them, in key order so
+  // that the leaves are written in the same order every run.
+  static std::vector<uint64_t> keys;
+  keys = w.pairs.of(engine & INDEX_MASK);
+  std::sort(keys.begin(), keys.end());
+  for (uint64_t key : keys) {
+    auto at = w.pairs.find(key);
+    if (at->second.count & ENTERED) pushLeave(key);
+    w.softPairs.erase(key);
+    w.pairs.erase(at);
   }
 }
 
@@ -104,8 +107,8 @@ void added(World &w, const ContactRecord &r) {
 /// A rigid pair's contact removed: its last one sends the leave, once the enter was sent.
 void removed(World &w, const ContactRecord &r) {
   auto found = w.pairs.find(pairKey(r.a, r.b));
-  if (found == w.pairs.end() || (--found->second & ~ENTERED) != 0) return;
-  if (found->second & ENTERED) pushLeave(found->first);
+  if (found == w.pairs.end() || (--found->second.count & ~ENTERED) != 0) return;
+  if (found->second.count & ENTERED) pushLeave(found->first);
   w.pairs.erase(found);
 }
 

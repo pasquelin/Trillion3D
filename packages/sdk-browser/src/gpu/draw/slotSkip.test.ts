@@ -7,20 +7,12 @@ import { drawShader } from './shader.ts';
 // to be scanned by the shader: `slotUsed` carries that fact. The counting pass reads each item
 // once and writes such a slot a zero count; the prefix pass returns before scanning it.
 
-test('drawShader(k) reads each item once when counting, and guards the prefix pass by slotUsed', () => {
+test('drawShader(k) writes an empty slot a zero count and guards the prefix pass by slotUsed', () => {
   for (const k of [1, 2, 3, 5]) {
     const shader = drawShader(k);
 
-    // countGroups no longer scans items per slot: each lane reads its own item once, so there is
-    // no per-slot scan left to skip — an empty slot is only written zero.
-    assert.ok(
-      shader.includes('let s=slotAt(group*64u+lane,min(uni.count,uni.slotCap));'),
-      'countGroups reads each item once',
-    );
-    assert.ok(
-      !shader.includes('for(var i=begin;i<end;i++)'),
-      'no per-(group, slot) item scan remains',
-    );
+    // countGroups has no per-slot scan to skip (groupCompaction.test.ts pins its shape): an empty
+    // slot is only written zero.
     assert.ok(
       shader.includes('select(atomicLoad(&slotTally[slot]),0u,slotUsed[slot]==0u)'),
       'an empty slot still reports zero',
