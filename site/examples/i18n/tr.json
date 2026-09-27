@@ -1259,6 +1259,21 @@
       }
     }
   },
+  "a-walk-through-the-city": {
+    "banner": "Görünüme tıklayın, W A S D ile yürüyün ve fareyle bakın. İlerlerken bellek bütçesini azaltın.",
+    "controls": {
+      "walkSpeed": "Yürüme hızı",
+      "memory": "Bellek",
+      "view": "Görünüm",
+      "home": "Başa dön"
+    },
+    "choices": {
+      "view": { "beauty": "görüntü", "lod": "ayrıntı düzeyleri", "clusters": "kümeler" }
+    },
+    "words": {
+      "credit": "Bu örnek için kodla modellenmiş vazolar caddesi, CC0 — bkz. assets/examples/CREDITS.md"
+    }
+  },
   "migrating-from-three": {
     "words": {
       "credit": "Marble Bust 01: Rico Cilliers, Poly Haven, CC0; sandık: W. Sitters, CC BY 3.0 — bkz. assets/examples/CREDITS.md"

@@ -1259,6 +1259,21 @@
       }
     }
   },
+  "a-walk-through-the-city": {
+    "banner": "Щёлкните по виду, ходите клавишами W A S D и осматривайтесь мышью. Уменьшайте память на ходу.",
+    "controls": {
+      "walkSpeed": "Скорость ходьбы",
+      "memory": "Память",
+      "view": "Вид",
+      "home": "Вернуться в начало"
+    },
+    "choices": {
+      "view": { "beauty": "картинка", "lod": "уровни детализации", "clusters": "кластеры" }
+    },
+    "words": {
+      "credit": "Аллея урн смоделирована в коде для этого примера, CC0 — см. assets/examples/CREDITS.md"
+    }
+  },
   "migrating-from-three": {
     "words": {
       "credit": "Marble Bust 01: Rico Cilliers, Poly Haven, CC0; ящик: W. Sitters, CC BY 3.0 — см. assets/examples/CREDITS.md"
