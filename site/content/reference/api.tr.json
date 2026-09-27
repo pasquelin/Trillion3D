@@ -941,6 +941,7 @@
       "UNKNOWN_MATERIAL": "Bir malzeme değişikliği bilinmiyor, aralık dışında, onu bir motorun sahne açılırken sabitlediği bir çizim sınıfına taşıyacak ya da paylaştığı bir haritayı döşeyecek.",
       "MATERIAL_CLASS_CHANGE": "Bir malzeme değişikliği bilinmiyor, aralık dışında, onu bir motorun sahne açılırken sabitlediği bir çizim sınıfına taşıyacak ya da paylaştığı bir haritayı döşeyecek.",
       "MATERIAL_TEXTURE_SHARED": "Bir malzeme değişikliği bilinmiyor, aralık dışında, onu bir motorun sahne açılırken sabitlediği bir çizim sınıfına taşıyacak ya da paylaştığı bir haritayı döşeyecek.",
+      "MATERIAL_CEILING": "Bir sayfa tek oturumda `RUNTIME_MATERIAL_CEILING` sayısından fazla malzeme oluşturacaktı; hiçbir şey oluşturulmadı.",
       "INVALID_TRANSFORM": "Bir düğümün yerleşimi kullanılabilir bir matris değil, ya da bir düğüm kendi atası olurdu.",
       "NON_FINITE_TRANSFORM": "Bir düğümün yerleşimi kullanılabilir bir matris değil, ya da bir düğüm kendi atası olurdu.",
       "SINGULAR_PARENT_TRANSFORM": "Bir düğümün yerleşimi kullanılabilir bir matris değil, ya da bir düğüm kendi atası olurdu.",
@@ -2042,7 +2043,11 @@
       "geometry": "Mesh'in şekli; değiştirmek için başka bir geometri ayarlayın.",
       "material": "Mesh'in malzemesi, ya da grup başına bir tane; değiştirmek için başka bir tane ayarlayın.",
       "localBounds": "Bu düğümün kendi içeriğinin kutusu, yerel çerçeve; düz bir düğüm hiçbirini tutmaz.",
-      "physics": "Dünya fiziğinin bir cismi olarak mesh; değilse `null`. `'static'`, `'dynamic'`, `'kinematic'` ya da seçenekler ver; şekil geometriden çıkarılır."
+      "physics": "Dünya fiziğinin bir cismi olarak mesh; değilse `null`. `'static'`, `'dynamic'`, `'kinematic'` ya da seçenekler ver; şekil geometriden çıkarılır.",
+      "morphTargetInfluences": "Geometri bildirdiğinde her morf hedefinin ağırlığı.",
+      "morphTargetDictionary": "Her morf hedefinin adına göre sırası.",
+      "updateMorphTargets": "İlk biçim değiştiren özniteliğin morf hedefi başına sıfır ağırlık, sırasıyla adlandırılmış.",
+      "copy": "`source`'un değerlerini ve aksi söylenmedikçe çocuklarının kopyalarını alır."
     }
   },
   "Mixer": {
@@ -7394,18 +7399,6 @@
       "handbrake": "El freninin çekili olup olmadığı."
     }
   },
-  "GraphMesh": {
-    "summary": "Çizilen bir düğüm: bir geometri ve yüzeyi ya da geometri grubu başına bir yüzey.",
-    "members": {
-      "kind": "Tek bir yerleşimde ya da birkaçında çizilir (`GraphInstancedMesh`).",
-      "morphTargetInfluences": "Geometri bildirdiğinde her morf hedefinin ağırlığı.",
-      "morphTargetDictionary": "Her morf hedefinin adına göre sırası.",
-      "geometry": "Şekli.",
-      "material": "Yüzeyi ya da geometri grubu başına bir yüzey.",
-      "updateMorphTargets": "İlk biçim değiştiren özniteliğin morf hedefi başına sıfır ağırlık, sırasıyla adlandırılmış.",
-      "copy": "`source`'un değerlerini ve aksi söylenmedikçe çocuklarının kopyalarını alır."
-    }
-  },
   "GraphNode": {
     "summary": "Grafın bir düğümü: çekirdeğin düğümü, `kind` değeriyle ayırt edilir, çekirdeğin `clone` yöntemiyle kopyalanır.",
     "members": {
@@ -7414,7 +7407,7 @@
     }
   },
   "GraphNodeKind": {
-    "summary": "Grafın bir düğümünün ne olduğu: kök, çizilen bir ağ (tek yerleşimde ya da birkaçında), bir göz ya da bir sahnenin bildirdiği ışıklardan biri."
+    "summary": "Grafın bir düğümünün ne olduğu: kök, bir göz ya da bir sahnenin bildirdiği ışıklardan biri."
   },
   "GraphSurface": {
     "summary": "Bir yüzey: bir ailenin parametreleri, sahne aksini söylemedikçe referansın değerlerinde.",
