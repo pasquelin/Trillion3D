@@ -8,8 +8,9 @@ use crate::import::{f32_bytes, Bin};
 const SIDE: usize = 25;
 
 /// A bumpy grid, each row shifted off the lattice so it cooks as a triangle mesh and not a height
-/// field: its positions and triangles. Portable sines keep its bits the same on every platform.
-fn bumpy_grid() -> (Vec<f32>, Vec<u32>) {
+/// field: its positions and triangles as little-endian bytes. Portable sines keep its bits the
+/// same on every platform.
+fn grid() -> (Vec<u8>, Vec<u8>) {
     let mut positions = Vec::new();
     for (y, x) in (0..SIDE).flat_map(|y| (0..SIDE).map(move |x| (y, x))) {
         let (fx, fy) = (x as f32 * 0.2, y as f32 * 0.2);
@@ -17,12 +18,6 @@ fn bumpy_grid() -> (Vec<f32>, Vec<u32>) {
         positions.extend([fx + 0.03 * portable_sin(fy * 3.1), height, fy]);
     }
     let indices = grid_indices(SIDE - 1, SIDE - 1, |x, y| (y * SIDE + x) as u32);
-    (positions, indices)
-}
-
-/// The bumpy grid's positions and triangles as little-endian bytes.
-fn grid() -> (Vec<u8>, Vec<u8>) {
-    let (positions, indices) = bumpy_grid();
     let indices = indices.iter().flat_map(|i| i.to_le_bytes()).collect();
     (f32_bytes(&positions), indices)
 }

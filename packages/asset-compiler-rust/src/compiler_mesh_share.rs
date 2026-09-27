@@ -45,20 +45,19 @@ fn duplicates(g: &Value, bin: &[u8]) -> BTreeMap<usize, usize> {
     ) else {
         return BTreeMap::new();
     };
-    let named = |skinned: bool| -> BTreeSet<usize> {
-        nodes
-            .iter()
-            .filter(|node| node.get("skin").is_some() == skinned)
-            .filter_map(|node| node.get("mesh")?.as_u64())
-            .map(|mesh| mesh as usize)
-            .filter(|&mesh| mesh < meshes.len())
-            .collect()
-    };
-    let skinned = named(true);
+    let mesh_of = |node: &Value| Some(node.get("mesh")?.as_u64()? as usize);
+    let skinned: BTreeSet<usize> = (nodes.iter())
+        .filter(|node| node.get("skin").is_some())
+        .filter_map(mesh_of)
+        .collect();
+    let unskinned: BTreeSet<usize> = (nodes.iter())
+        .filter_map(mesh_of)
+        .filter(|mesh| *mesh < meshes.len() && !skinned.contains(mesh))
+        .collect();
     let mut by_layout: BTreeMap<String, Vec<usize>> = BTreeMap::new();
-    for mesh in named(false).difference(&skinned) {
-        let key = signature(&meshes[*mesh], &mut |id| layout(g, id)).to_string();
-        by_layout.entry(key).or_default().push(*mesh);
+    for mesh in unskinned {
+        let key = signature(&meshes[mesh], &mut |id| layout(g, id)).to_string();
+        by_layout.entry(key).or_default().push(mesh);
     }
     let mut contents: HashMap<usize, Value> = HashMap::new();
     let mut shared = BTreeMap::new();
@@ -94,16 +93,15 @@ fn signature(mesh: &Value, accessor: &mut impl FnMut(usize) -> Value) -> Value {
     let primitives = mesh.get_mut("primitives").and_then(Value::as_array_mut);
     for primitive in primitives.into_iter().flatten() {
         for (field, value) in primitive.as_object_mut().into_iter().flatten() {
-            let slots: Vec<&mut Value> = match (field.as_str(), value) {
-                ("indices", slot) => vec![slot],
-                ("attributes", Value::Object(slots)) => slots.values_mut().collect(),
+            match (field.as_str(), value) {
+                ("indices", slot) => replace(slot),
+                ("attributes", Value::Object(slots)) => slots.values_mut().for_each(&mut replace),
                 ("targets", Value::Array(targets)) => (targets.iter_mut())
                     .filter_map(Value::as_object_mut)
                     .flat_map(|slots| slots.values_mut())
-                    .collect(),
-                _ => vec![],
-            };
-            slots.into_iter().for_each(&mut replace);
+                    .for_each(&mut replace),
+                _ => {}
+            }
         }
     }
     mesh
@@ -148,9 +146,17 @@ fn element_digest(g: &Value, bin: &[u8], id: usize) -> Option<String> {
         .filter(|a| a.has_buffer_view)?;
     let size = a.width.checked_mul(a.bytes)?;
     let mut sha = Sha256::new();
-    for i in 0..a.count {
-        let at = a.base.checked_add(i.checked_mul(a.stride)?)?;
-        sha.update(a.bin.get(at..at.checked_add(size)?)?);
+    if a.stride == size {
+        // Tightly packed: the elements are one run of bytes, hashed in one update.
+        sha.update(
+            a.bin
+                .get(a.base..a.base.checked_add(a.count.checked_mul(size)?)?)?,
+        );
+    } else {
+        for i in 0..a.count {
+            let at = a.base.checked_add(i.checked_mul(a.stride)?)?;
+            sha.update(a.bin.get(at..at.checked_add(size)?)?);
+        }
     }
     Some(format!("{:x}", sha.finalize()))
 }
