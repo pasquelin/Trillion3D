@@ -35,7 +35,7 @@
     "jumpTo": "किसी विषय पर जाएँ",
     "waitsFor": "इंजन का इंतज़ार:",
     "partial": "आंशिक",
-    "coming": "जल्द आ रहा है: {{titles}}"
+    "coming": "जल्द आ रहा है"
   },
   "api": {
     "title": "इंजन संदर्भ",
@@ -1371,6 +1371,7 @@
       "red-cyan-anaglyph": "लाल-सियान एनाग्लिफ़",
       "camera-layers": "कैमरा लेयर",
       "a-robot-that-walks-and-waves": "रोबोट की चालों को मिलाना",
+      "a-crane-that-swings": "भार झुलाती क्रेन",
       "a-wave-across-a-grid": "क्यूब्स की लहर",
       "keyframes-by-hand": "हाथ से कीफ़्रेम",
       "one-clip-many-objects": "एक क्लिप, कई ऑब्जेक्ट",
@@ -1404,6 +1405,7 @@
       "observatory-streamed": "स्ट्रीम किए गए क्लस्टर",
       "health-check": "स्वास्थ्य जाँच",
       "memory-on-a-budget": "मेमोरी बजट",
+      "a-walk-through-the-city": "शहर में पैदल यात्रा",
       "detail-by-pixel-error": "पिक्सेल त्रुटि से डिटेल",
       "watch-a-world-load": "एक दुनिया को लोड होते देखो",
       "ten-thousand-objects": "दस हज़ार ऑब्जेक्ट",
@@ -1513,7 +1515,10 @@
       "ar-on-the-table": "मेज़ पर AR",
       "shadows-case-by-case": "छायाएँ, एक-एक स्थिति",
       "shadows-through-see-through-panes": "पारदर्शी शीशों से पड़ती छायाएँ",
-      "a-walker-among-balls": "गेंदों के बीच चलने वाला"
+      "a-walker-among-balls": "गेंदों के बीच चलने वाला",
+      "a-dolly-along-the-canal": "नहर के किनारे कैमरा डॉली",
+      "a-folder-merged-into-one-scene": "एक दृश्य में मिला फ़ोल्डर",
+      "drag-a-crate": "एक पेटी खींचें"
     },
     "missing": {
       "floating-crates": "हर फ़्रेम में फिर से लिखी गई ज्यामिति",

@@ -75,8 +75,8 @@ fn rasterPixel(t:Tri,pixel:vec2i,writeId:bool){
  let sample=vec2f(pixel)+vec2f(0.5);
  let cov=coverAt(t,sample);
  if(cov.w<0.0){return;}
- var qb=t.cb;var qc=t.cc;var nb=t.ub;var nc=t.uc;
- if(cov.w>0.5){qb=t.cc;qc=t.cd;nb=t.uc;nc=t.ud;}
+ var sb=t.b;var sc=t.c;var qb=t.cb;var qc=t.cc;var nb=t.ub;var nc=t.uc;
+ if(cov.w>0.5){sb=t.c;sc=t.d;qb=t.cc;qc=t.cd;nb=t.uc;nc=t.ud;}
  let wa=cov.x;let wb=cov.y;let wc=cov.z;
  let depth=wa*t.ca.z/t.ca.w+wb*qb.z/qb.w+wc*qc.z/qc.w;
  // The far plane is infinite: depth falls toward far without ever reaching it.
@@ -85,7 +85,8 @@ fn rasterPixel(t:Tri,pixel:vec2i,writeId:bool){
  if((page.flags&128u)!=0u){
   let inv=wa/t.ca.w+wb/qb.w+wc/qc.w;
   let tc=(t.ua*(wa/t.ca.w)+nb*(wb/qb.w)+nc*(wc/qc.w))/inv;
-  if(!maskKeep(page,tc.xy,tc.z,vec2f(0.0),vec2f(0.0))){return;}
+  let gradients=uvGradients(t.a,sb,sc,sample,t.ua.xy,nb.xy,nc.xy,vec3f(1.0/t.ca.w,1.0/qb.w,1.0/qc.w));
+  if(!maskKeep(page,tc.xy,tc.z,gradients[0],gradients[1])){return;}
  }
  let offset=u32(pixel.y)*u32(uni.viewport.x)+u32(pixel.x);
  let raw=bitcast<u32>(depth);
