@@ -13,6 +13,9 @@ import { plane } from '../../../sdk-core/src/world/geometry/basic.ts';
 import { fromArrays } from '../../../sdk-core/src/world/geometry/builder.ts';
 import type { Geometry } from '../../../sdk-core/src/world/geometry/geometry.ts';
 import { body, startModule, type Module } from './module.fixture.ts';
+import { FLAT } from './records.fixture.ts';
+
+export { FLAT };
 
 /** Generation 1 of an engine id. */
 const GENERATION = 1 << GENERATION_SHIFT;
@@ -29,9 +32,6 @@ export function addBox(jolt: Module, mass: number, y: number, flags = 0) {
   writer.add({ ...body(BOX, 2, y, 0.1, flags), mass });
   jolt.step(writer.take(), 0);
 }
-
-/** Laid flat: the plane's `+y` turned to the world's `−z`, so its `−z` is the world's down. */
-export const FLAT: [number, number, number, number] = [-Math.SQRT1_2, 0, 0, Math.SQRT1_2];
 
 /** A committed module with Earth's gravity and a floor in slot 0, its top at y = 0, turned by
  *  `quaternion` about its centre. */
