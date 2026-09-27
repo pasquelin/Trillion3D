@@ -33,9 +33,9 @@
   "examples": {
     "lead": "Her örnek kısa bir dosyadır: çalışırken izleyin, kodunu açın, değiştirin.",
     "jumpTo": "Bir temaya git",
-    "inProgress": "Yapım aşamasında",
     "waitsFor": "Motoru bekliyor:",
-    "waitingEngine": "Motor bekleniyor"
+    "partial": "Kısmi",
+    "coming": "Yakında: {{titles}}"
   },
   "gallery": {
     "themes": {
@@ -121,10 +121,10 @@
       "a-refracting-pane": "Kırılma yapan bir cam",
       "a-light-map": "Bir light map",
       "two-materials-one-mesh": "İki malzeme, bir ağ",
-      "clearcoat-paint": "Vernikli boya",
       "velvet-sheen": "Kadife parıltısı",
       "soap-bubble-iridescence": "Işıltı (irizasyon)",
       "brushed-metal": "Fırçalanmış metal",
+      "car-paint-under-clear-coat": "Şeffaf kaplama altındaki araç boyası",
       "a-prism-that-disperses": "Işığı dağıtan bir prizma",
       "retroreflective-paint": "Geri yansıma",
       "light-through-skin": "Ciltten geçen ışık",
@@ -153,7 +153,7 @@
       "flat-shadows-on-the-floor": "Düz izdüşüm gölgeleri",
       "a-softbox-panel": "Bir softbox paneli",
       "light-from-a-probe": "Bir probdan gelen ışık",
-      "soft-shadow-edges": "Yumuşak gölge kenarları",
+      "soft-shadows-from-a-wide-lamp": "Geniş bir lambadan yumuşak gölgeler",
       "contact-shadow-under-a-car": "Temas gölgesi",
       "coloured-shadows-through-glass": "Camdan geçen gölgeler",
       "shadows-in-the-corners": "Köşelerdeki gölgeler",
@@ -182,6 +182,8 @@
       "several-views-one-page": "Birden çok görünüm, tek sayfa",
       "before-and-after-slider": "Önce/sonra kaydırıcısı",
       "side-by-side-stereo": "Yan yana stereo",
+      "the-near-plane-cuts-a-wall": "Yakın düzlem bir duvarı kesiyor",
+      "the-home-pose": "Başlangıç pozu ve ilgi noktaları",
       "red-cyan-anaglyph": "Kırmızı-camgöbeği anaglif",
       "camera-layers": "Kamera katmanları",
       "a-robot-that-walks-and-waves": "Karıştırılmış robot hareketleri",
@@ -219,6 +221,7 @@
       "observatory-streamed": "Akışla gelen kümeler",
       "health-check": "Sağlık kontrolü",
       "memory-on-a-budget": "Bellek bütçesi",
+      "a-walk-through-the-city": "Şehirde bir yürüyüş",
       "detail-by-pixel-error": "Piksel hatasına göre detay",
       "watch-a-world-load": "Bir dünyanın yüklenişini izle",
       "ten-thousand-objects": "On bin nesne",
@@ -328,7 +331,9 @@
       "ar-on-the-table": "Masada AR",
       "shadows-case-by-case": "Gölgeler, durum durum",
       "shadows-through-see-through-panes": "Saydam camlardan düşen gölgeler",
-      "a-walker-among-balls": "Toplar arasında bir yürüyüşçü"
+      "a-walker-among-balls": "Toplar arasında bir yürüyüşçü",
+      "a-dolly-along-the-canal": "Kanal boyunca kamera kaydırma",
+      "a-folder-merged-into-one-scene": "Tek sahnede birleştirilen klasör"
     },
     "missing": {
       "floating-crates": "her karede yeniden yazılan geometri",
@@ -356,10 +361,10 @@
       "a-refracting-pane": "dokuya render",
       "a-light-map": "light map yuvası",
       "two-materials-one-mesh": "çok malzemeli ağlar",
-      "clearcoat-paint": "fiziksel malzeme katmanları: vernik (clearcoat)",
       "velvet-sheen": "fiziksel malzeme katmanları: parlaklık",
       "soap-bubble-iridescence": "fiziksel malzeme katmanları: ışıltı",
       "brushed-metal": "fiziksel malzeme katmanları: anizotropi",
+      "car-paint-under-clear-coat": "fiziksel malzeme katmanları: şeffaf kaplama",
       "a-prism-that-disperses": "fiziksel malzeme katmanları: dispersiyon",
       "retroreflective-paint": "özel shader'lı malzemeler",
       "light-through-skin": "yüzey altı saçılma",
@@ -374,7 +379,7 @@
       "a-stack-of-texture-layers": "veri, dizi ve 3D dokular",
       "wide-gamut-colour": "geniş renk gamlı çıktı",
       "energy-conservation-test": "ortam aydınlatması (IBL)",
-      "soft-shadow-edges": "yumuşak gölge filtreleme (yarı gölge)",
+      "soft-shadows-from-a-wide-lamp": "lamba genişliğine göre yumuşak gölgeler",
       "contact-shadow-under-a-car": "dokuya render",
       "coloured-shadows-through-glass": "gölge düşüren saydam nesneler",
       "shadows-in-the-corners": "ekran uzayında ortam gölgelemesi",

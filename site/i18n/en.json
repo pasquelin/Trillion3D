@@ -33,9 +33,9 @@
   "examples": {
     "lead": "Each example is one short file: watch it run, open its code, change it.",
     "jumpTo": "Jump to a theme",
-    "inProgress": "In progress",
-    "waitingEngine": "Waiting for the engine",
-    "waitsFor": "Waits for the engine:"
+    "waitsFor": "Waits for the engine:",
+    "partial": "Partial",
+    "coming": "Coming: {{titles}}"
   },
   "gallery": {
     "themes": {
@@ -121,10 +121,10 @@
       "a-refracting-pane": "A refracting pane",
       "a-light-map": "A light map",
       "two-materials-one-mesh": "Two materials, one mesh",
-      "clearcoat-paint": "Clearcoat paint",
       "velvet-sheen": "Velvet sheen",
       "soap-bubble-iridescence": "Iridescence",
       "brushed-metal": "Brushed metal",
+      "car-paint-under-clear-coat": "Car paint under a clear coat",
       "a-prism-that-disperses": "A dispersing prism",
       "retroreflective-paint": "Retroreflection",
       "light-through-skin": "Light through skin",
@@ -153,7 +153,7 @@
       "flat-shadows-on-the-floor": "Flat projected shadows",
       "a-softbox-panel": "A softbox panel",
       "light-from-a-probe": "Light from a probe",
-      "soft-shadow-edges": "Soft shadow edges",
+      "soft-shadows-from-a-wide-lamp": "Soft shadows from a wide lamp",
       "contact-shadow-under-a-car": "Contact shadow",
       "coloured-shadows-through-glass": "Shadows through glass",
       "shadows-in-the-corners": "Shadows in corners",
@@ -182,6 +182,8 @@
       "several-views-one-page": "Several views, one page",
       "before-and-after-slider": "Before/after slider",
       "side-by-side-stereo": "Side-by-side stereo",
+      "the-near-plane-cuts-a-wall": "The near plane cuts a wall",
+      "the-home-pose": "The home pose and points of interest",
       "red-cyan-anaglyph": "Red-cyan anaglyph",
       "camera-layers": "Camera layers",
       "a-robot-that-walks-and-waves": "Blending robot motions",
@@ -219,6 +221,7 @@
       "observatory-streamed": "Streamed clusters",
       "health-check": "Health check",
       "memory-on-a-budget": "Memory budget",
+      "a-walk-through-the-city": "A walk through the city",
       "detail-by-pixel-error": "Detail by pixel error",
       "watch-a-world-load": "Watch a world load",
       "ten-thousand-objects": "Ten thousand objects",
@@ -328,7 +331,9 @@
       "ar-on-the-table": "AR on the table",
       "shadows-case-by-case": "Shadows, case by case",
       "shadows-through-see-through-panes": "Shadows through see-through panes",
-      "a-walker-among-balls": "A walker among balls"
+      "a-walker-among-balls": "A walker among balls",
+      "a-dolly-along-the-canal": "A dolly along the canal",
+      "a-folder-merged-into-one-scene": "A folder merged into one scene"
     },
     "missing": {
       "floating-crates": "geometry rewritten every frame",
@@ -356,10 +361,10 @@
       "a-refracting-pane": "render to texture",
       "a-light-map": "light-map slot",
       "two-materials-one-mesh": "multi-material meshes",
-      "clearcoat-paint": "physical material layers: clearcoat",
       "velvet-sheen": "physical material layers: sheen",
       "soap-bubble-iridescence": "physical material layers: iridescence",
       "brushed-metal": "physical material layers: anisotropy",
+      "car-paint-under-clear-coat": "physical material layers: clear coat",
       "a-prism-that-disperses": "physical material layers: dispersion",
       "retroreflective-paint": "custom shader materials",
       "light-through-skin": "subsurface scattering",
@@ -374,7 +379,7 @@
       "a-stack-of-texture-layers": "data, array and 3D textures",
       "wide-gamut-colour": "wide-gamut output",
       "energy-conservation-test": "environment lighting (IBL)",
-      "soft-shadow-edges": "soft shadow filtering (penumbra)",
+      "soft-shadows-from-a-wide-lamp": "lamp-width soft shadows",
       "contact-shadow-under-a-car": "render to texture",
       "coloured-shadows-through-glass": "transparent shadow casters",
       "shadows-in-the-corners": "screen-space ambient occlusion",

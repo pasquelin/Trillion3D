@@ -1,4 +1,22 @@
 {
+  "brushed-metal": {
+    "banner": "Kéo để xem phản chiếu kim loại chải xước. Đổi độ mạnh và hướng.",
+    "controls": {
+      "anisotropy": "Độ chải xước",
+      "direction": "Hướng chải xước",
+      "roughness": "Độ nhám",
+      "spin": "Xoay"
+    }
+  },
+  "car-paint-under-clear-coat": {
+    "banner": "Di chuyển quanh xe. Đổi màu sơn và lớp phủ trong bên trên.",
+    "controls": {
+      "paint": "Sơn",
+      "clearCoat": "Lớp phủ trong",
+      "coatRoughness": "Độ nhám lớp phủ",
+      "spin": "Xoay"
+    }
+  },
   "kit": {
     "panel": {
       "controls": "Cài đặt"
@@ -308,6 +326,13 @@
       "hour": "Giờ",
       "wind": "Gió",
       "roof": "Mái nhà"
+    }
+  },
+  "soft-shadows-from-a-wide-lamp": {
+    "banner": "Kéo để xoay quanh. Thay đổi độ rộng đèn và quan sát mép bóng.",
+    "controls": {
+      "lampWidth": "Độ rộng đèn",
+      "moveSubject": "Di chuyển vật thể"
     }
   },
   "a-softbox-panel": {
@@ -1238,6 +1263,21 @@
       }
     }
   },
+  "a-walk-through-the-city": {
+    "banner": "Nhấp vào khung nhìn, đi bằng W A S D và nhìn bằng chuột. Giảm bộ nhớ khi đang di chuyển.",
+    "controls": {
+      "walkSpeed": "Tốc độ đi",
+      "memory": "Bộ nhớ",
+      "view": "Chế độ xem",
+      "home": "Về điểm đầu"
+    },
+    "choices": {
+      "view": { "beauty": "ảnh hoàn chỉnh", "lod": "mức chi tiết", "clusters": "cụm" }
+    },
+    "words": {
+      "credit": "Đại lộ bình được làm bằng mã cho ví dụ này, CC0 — xem assets/examples/CREDITS.md"
+    }
+  },
   "migrating-from-three": {
     "words": {
       "credit": "Marble Bust 01 của Rico Cilliers, Poly Haven, CC0; thùng gỗ của W. Sitters, CC BY 3.0 — xem assets/examples/CREDITS.md"
@@ -1685,6 +1725,21 @@
     },
     "readouts": {
       "fourthLaneAnisotropy": "Dị hướng của làn thứ tư"
+    }
+  },
+  "the-home-pose": {
+    "banner": "Chọn một góc nhìn, di chuyển camera, rồi chọn Ban đầu để quay lại.",
+    "controls": {
+      "home": "Ban đầu",
+      "tower": "Tháp",
+      "square": "Quảng trường",
+      "hillside": "Sườn đồi"
+    }
+  },
+  "the-near-plane-cuts-a-wall": {
+    "banner": "Đẩy mặt phẳng gần về phía trước và xem nó cắt qua từng bức tường.",
+    "controls": {
+      "nearPlane": "Mặt phẳng gần"
     }
   },
   "the-material-family": {
@@ -2150,6 +2205,27 @@
     },
     "words": {
       "credit": "Lá cờ trên cột được dựng bằng mã cho ví dụ này, CC0 — xem assets/examples/CREDITS.md"
+    }
+  },
+  "a-dolly-along-the-canal": {
+    "banner": "Tạm dừng, phát lại hành trình hoặc đổi tốc độ khi máy quay trượt dọc theo kênh.",
+    "controls": {
+      "paused": "Tạm dừng",
+      "replay": "Phát lại",
+      "speed": "Tốc độ"
+    },
+    "readouts": {
+      "progress": "Tiến độ"
+    }
+  },
+  "a-folder-merged-into-one-scene": {
+    "banner": "Kéo để xem góc phố. Trình biên dịch đã gộp ba tệp OBJ trong một thư mục thành cảnh này.",
+    "controls": {
+      "visible": "Hiển thị",
+      "home": "Góc nhìn ban đầu"
+    },
+    "words": {
+      "credit": "Mô hình đèn đường của W. Sitters, CC BY 3.0 — xem assets/examples/CREDITS.md"
     }
   }
 }

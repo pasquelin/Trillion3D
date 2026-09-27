@@ -24,3 +24,14 @@ export function copyObject<T extends Object3D>(into: T, source: Object3D, recurs
   if (recursive) for (const child of source.children) into.add(child.clone());
   return into;
 }
+
+/** `Object3D.getObjectByName`: `node` when it bears `name`, else the first node below that does,
+ *  depth first. */
+export function findByName(node: Object3D, name: string): Object3D | undefined {
+  if (node.name === name) return node;
+  for (const child of node.children) {
+    const found = child.getObjectByName(name);
+    if (found) return found;
+  }
+  return undefined;
+}
