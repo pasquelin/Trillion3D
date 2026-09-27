@@ -37,11 +37,8 @@ export function tileViewInverse(
 export async function createGpuLightTiles(device: GPUDevice) {
   // Granted `subgroups`, the depth bounds reduce per subgroup: the same words, fewer atomics.
   const subgroups = device.features.has('subgroups');
-  const module = await createCheckedShaderModule(
-    device,
-    LIGHT_TILES_SHADERS[+subgroups][1],
-    LIGHT_TILES_SHADERS[+subgroups][0],
-  );
+  const label = subgroups ? 'LIGHT_TILES_SUBGROUP_SHADER' : 'LIGHT_TILES_SHADER';
+  const module = await createCheckedShaderModule(device, LIGHT_TILES_SHADERS[label], label);
   const layout = device.createBindGroupLayout({
     entries: [
       { binding: 0, visibility: GPUShaderStage.COMPUTE, texture: { sampleType: 'depth' } },

@@ -176,8 +176,8 @@ ${tileDepthBoundsWgsl(subgroups)}
 
 /** The pass as every device runs it: per-thread atomics, no feature asked. */
 export const LIGHT_TILES_SHADER = lightTilesShader(false);
-/** Each variant under its one label, indexed by whether the device granted `subgroups`. */
-export const LIGHT_TILES_SHADERS = [
-  ['LIGHT_TILES_SHADER', LIGHT_TILES_SHADER],
-  ['LIGHT_TILES_SUBGROUP_SHADER', lightTilesShader(true)],
-] as const;
+/** Each variant under its label: the second where the device granted `subgroups`. */
+export const LIGHT_TILES_SHADERS = {
+  LIGHT_TILES_SHADER,
+  LIGHT_TILES_SUBGROUP_SHADER: lightTilesShader(true),
+};

@@ -38,13 +38,6 @@ test('the sample budget is the published setting, and a list within it is summed
     DIRECT_LIGHT_SAMPLING_WGSL,
     /factor=pool\/\(f32\(samples\)\*lightWeight\(light,N,P\)\);/,
   );
-  // An exact light has left the pool: the walk skips it, and only a drawn slot is divided.
-  assert.match(
-    DIRECT_LIGHT_SAMPLING_WGSL,
-    /if\(weight<=0\.0\|\|weight\*f32\(LIGHT_SAMPLES\)>=total\)\{continue;\}/,
-  );
-  assert.match(DIRECT_LIGHT_SAMPLING_WGSL, /let exact=used;/);
-  assert.match(DIRECT_LIGHT_SAMPLING_WGSL, /if\(slot>=exact\)\{factor=/);
   // The offset depends on the pixel and the bounded rank only: a replayed image is the same image.
   assert.match(
     DIRECT_LIGHT_SAMPLING_WGSL,

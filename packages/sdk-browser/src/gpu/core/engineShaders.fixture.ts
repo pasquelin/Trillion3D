@@ -76,7 +76,7 @@ export const ENGINE_SHADERS: Record<string, string> = {
   BOUNCE_LIGHTING_SHADER,
   ...compositions('COMPOSE', COMPOSE_SHADERS),
   ...compositions('UNLIT_COMPOSE', UNLIT_COMPOSE_SHADERS),
-  ...Object.fromEntries(LIGHT_TILES_SHADERS),
+  ...LIGHT_TILES_SHADERS,
   TAA_SHADER,
   MIP_SHADER,
   COVERAGE_WGSL,

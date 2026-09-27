@@ -17,12 +17,13 @@ const ATOMIC_DEPTH_BOUNDS = ` if(inside){
  * The same bounds reduced in each subgroup first: one atomic per subgroup and per word, not one
  * per thread. A maximum and a minimum are exact in any order, so the words written are those of
  * `ATOMIC_DEPTH_BOUNDS`, to the bit. Every thread takes part — the reductions sit in uniform
- * control flow —, a thread outside the image with the neutral values.
+ * control flow —, a thread outside the image with the neutral values. A lit depth is positive, so
+ * its bits are not zero: a subgroup lit anywhere has a nearest word above zero.
  */
 const SUBGROUP_DEPTH_BOUNDS = ` let lit=inside&&z>${DEPTH_CLEAR}.0;
  let near=subgroupMax(select(0u,bitcast<u32>(z),lit));
  let far=subgroupMin(select(0xffffffffu,bitcast<u32>(z),lit));
- let anyLit=subgroupAny(lit);let anySky=subgroupAny(inside&&!lit);
+ let anyLit=near!=0u;let anySky=subgroupAny(inside&&!lit);
  if(subgroupElect()){
   if(anyLit){atomicMax(&nearest,near);atomicMin(&farthest,far);atomicStore(&covered,1u);}
   if(anySky){atomicStore(&skyward,1u);}
