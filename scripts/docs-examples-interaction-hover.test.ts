@@ -91,9 +91,7 @@ test('hover highlights one filtered part and restores it on transitions and clea
     });
 
     type Part = ReturnType<typeof object.mesh>;
-    const parts = scene.children.filter(
-      (child) => 'color' in child.userData,
-    ) as Part[];
+    const parts = scene.children.filter((child) => 'color' in child.userData) as Part[];
     assert.equal(parts.length, 7);
     assert.deepEqual(values, { highlightEnabled: true });
     const [first, second] = parts as [Part, Part];
