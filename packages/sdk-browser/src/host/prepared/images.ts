@@ -4,8 +4,9 @@
  * loader decoded them: an `ImageBitmap` with neither premultiplication nor colour conversion where
  * the platform offers one, an image element otherwise.
  *
- * An image whose whole mip chain the cache baked is not read: a one-pixel placeholder stands in its
- * place, and the engine reads the baked levels instead (`../../texture/skip.ts`). An image that
+ * An image whose whole mip chain the cache baked is not read, whether it lives at an address or in
+ * the binary: a one-pixel placeholder stands in its place, and the engine reads the baked levels
+ * instead (`../../texture/skip.ts`). An image that
  * cannot be read or decoded is no image — its textures are left empty — as the loader left them.
  */
 import type { TableDocument } from '../../../../sdk-core/src/scene/core/tableDocuments.ts';
@@ -49,17 +50,14 @@ type Inputs = {
   documentUrl: string;
   /** The document's binary, which embedded images are views of. */
   binary: ArrayBuffer | null;
-  /** Resolved addresses of the images whose chain the cache baked. */
-  skipped: ReadonlySet<string>;
+  /** Ranks of the images whose chain the cache baked. */
+  skipped: ReadonlySet<number>;
   signal: AbortSignal | undefined;
   /** Wraps each read the way the session counts resources for its progress. */
   track: <T>(resource: string, read: Promise<T>) => Promise<T>;
   /** Counts the bytes of each image read as they arrive. */
   meter: ByteMeter;
 };
-
-/** The resolved address of an image's `uri`, as the skip set and the fetch both write it. */
-export const imageAddress = (uri: string, documentUrl: string) => new URL(uri, documentUrl).href;
 
 /**
  * The decoded image of each rank of the document, read on first request — only the images a worn
@@ -68,11 +66,12 @@ export const imageAddress = (uri: string, documentUrl: string) => new URL(uri, d
 export function preparedImages(inputs: Inputs) {
   const { document, documentUrl, binary, skipped, signal, track, meter } = inputs;
   const read = async (rank: number): Promise<unknown> => {
+    if (skipped.has(rank))
+      return track(PLACEHOLDER_IMAGE, decodeAddress(PLACEHOLDER_IMAGE, signal, meter));
     const image = document.images[rank];
     if (image.uri !== null) {
-      const url = imageAddress(image.uri, documentUrl);
-      const address = skipped.has(url) ? PLACEHOLDER_IMAGE : url;
-      return track(address, decodeAddress(address, signal, meter));
+      const url = new URL(image.uri, documentUrl).href;
+      return track(url, decodeAddress(url, signal, meter));
     }
     if (image.view === null || !binary) throw new Error(`image ${rank} names no source`);
     const view = document.views[image.view];
