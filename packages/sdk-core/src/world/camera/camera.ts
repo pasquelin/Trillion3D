@@ -1,6 +1,8 @@
 import { Object3D } from '../object/object3d.ts';
 import { readVec3, type Vec3Input } from '../math/vector3.ts';
 import { Ray } from '../math/volumes.ts';
+import { Matrix4 } from '../math/matrix4.ts';
+import { referenceProjection } from './referenceProjection.ts';
 import { orthographicView, perspectiveSlope } from '../../math/primitives/camera.ts';
 
 const view = new Float64Array(4);
@@ -71,6 +73,9 @@ export class Camera extends Object3D {
 
   /** `'perspective'` makes far things small; `'orthographic'` keeps every size. */
   readonly projection: 'perspective' | 'orthographic';
+  /** The matrices a renderer reads, made at their first read (`projectionMatrix`). */
+  declare private _projectionMatrix?: Matrix4;
+  declare private _matrixWorldInverse?: Matrix4;
   constructor(projection: 'perspective' | 'orthographic', p: CameraParameters = {}) {
     super();
     this.projection = projection;
@@ -101,9 +106,20 @@ export class Camera extends Object3D {
     this.updateProjectionMatrix();
     return this;
   }
-  /** Kept for pages written against a renderer that needs it: every optic write already redraws. */
+  /** Composes `projectionMatrix` again; every optic write already does, and redraws. */
   updateProjectionMatrix() {
+    if (this._projectionMatrix) referenceProjection(this._projectionMatrix, this);
     this._link?.pose(this);
+  }
+  /** The projection the optics compose, in the reference's depth convention with a finite far
+   *  plane, for a renderer that draws with it; every optic write composes it again. The world
+   *  draws with its own (`engineCamera.ts`). */
+  get projectionMatrix(): Matrix4 {
+    return (this._projectionMatrix ??= referenceProjection(new Matrix4(), this));
+  }
+  /** The inverse of the world matrix as last composed: the view a renderer reads. */
+  get matrixWorldInverse(): Matrix4 {
+    return (this._matrixWorldInverse ??= new Matrix4()).copy(this.matrixWorld).invert();
   }
   /**
    * The world ray through a point of the picture, in the engine's own projection
