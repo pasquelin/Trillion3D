@@ -1237,14 +1237,13 @@
   "a-walk-through-the-city": {
     "banner": "Clique na vista, caminhe com W A S D e olhe com o rato. Reduza a memória enquanto avança.",
     "controls": {
-      "walk": "Caminhar",
       "walkSpeed": "Velocidade",
       "memory": "Memória",
       "view": "Vista",
       "home": "Voltar ao início"
     },
     "choices": {
-      "view": { "beauty": "imagem", "lod": "níveis de detalhe", "clusters": "grupos" }
+      "view": { "beauty": "imagem", "lod": "níveis de detalhe", "clusters": "clusters" }
     },
     "words": {
       "credit": "Avenida de urnas modelada em código para este exemplo, CC0 — veja assets/examples/CREDITS.md"

@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import { Camera } from '../packages/sdk-core/src/world/camera/camera.ts';
 import { light, math } from '../packages/sdk-browser/src/index.ts';
+import { describe } from '../site/examples/kit/controls.ts';
 import { runExampleModule } from './docs/examples/capture.ts';
 
 type Values = { walkSpeed: number; memory: number; view: string };
@@ -20,16 +21,10 @@ test('city walk uses the native pages and applies its public navigation and memo
   );
   const camera = new Camera('perspective');
   const loaded: string[] = [];
-  const controls = {
-    movementSpeed: 0,
-    followCalls: 0,
-    follow() {
-      this.followCalls++;
-    },
-  };
+  const controls = { movementSpeed: 0 };
   const budget = { geometryPool: 0 };
   const diagnostic = { mode: '' };
-  let change = (_values: Values) => {};
+  let change = (_values: Values, _key?: keyof Values) => {};
   let buttons = {} as Pick<Specs, 'home'>;
   let createdWith = '';
   await runExampleModule(html, {
@@ -58,11 +53,7 @@ test('city walk uses the native pages and applies its public navigation and memo
       controls(specs: Specs, callback: typeof change) {
         buttons = specs;
         change = callback;
-        callback({
-          walkSpeed: specs.walkSpeed[2],
-          memory: specs.memory[2],
-          view: specs.view[0],
-        });
+        callback(describe(specs).values as Values);
       },
     },
   });
@@ -79,9 +70,17 @@ test('city walk uses the native pages and applies its public navigation and memo
     quaternion: camera.quaternion.toArray(),
   };
 
-  change({ walkSpeed: 1.25, memory: 128, view: 'lod' });
+  change({ walkSpeed: 1.25, memory: 128, view: 'lod' }, 'walkSpeed');
   assert.equal(controls.movementSpeed, 1.25);
+  assert.equal(budget.geometryPool, 768 * 1024, 'speed leaves the memory budget alone');
+  assert.equal(diagnostic.mode, 'beauty', 'speed leaves the diagnostic alone');
+  change({ walkSpeed: 0.2, memory: 128, view: 'lod' }, 'memory');
+  assert.equal(controls.movementSpeed, 1.25, 'memory leaves speed alone');
   assert.equal(budget.geometryPool, 128 * 1024);
+  assert.equal(diagnostic.mode, 'beauty', 'memory leaves the diagnostic alone');
+  change({ walkSpeed: 0.2, memory: 256, view: 'lod' }, 'view');
+  assert.equal(controls.movementSpeed, 1.25, 'view leaves speed alone');
+  assert.equal(budget.geometryPool, 128 * 1024, 'view leaves the memory budget alone');
   assert.equal(diagnostic.mode, 'lod');
   camera.position.set(9, 8, 7);
   camera.quaternion.set(0, 1, 0, 0);
@@ -90,5 +89,4 @@ test('city walk uses the native pages and applies its public navigation and memo
     { position: camera.position.toArray(), quaternion: camera.quaternion.toArray() },
     home,
   );
-  assert.equal(controls.followCalls, 2, 'initial pose and repeated Home both reach the controller');
 });
