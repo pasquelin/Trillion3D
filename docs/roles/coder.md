@@ -16,7 +16,8 @@ you run your branch's image proofs yourself (AGENTS.md rule 2).
 4. Gates: `pnpm run check:changed`, `pnpm run test:changed`, then the group your diff touches —
    `pnpm run validate --group quick` (sources), `--group typescript` (build and products),
    `--group native` (Rust and the unit suite). Then the image proof the issue names
-   (AGENTS.md rule 2), your Chrome killed by its PID once done. `node scripts/check-pr-size.ts` refuses more than 600
+   (AGENTS.md rule 2), with `TRILLION3D_ASSETS` pointing at the primary checkout's
+   `.mesure/assets/` (`docs/TESTS.md`), your Chrome killed by its PID once done. `node scripts/check-pr-size.ts` refuses more than 600
    added lines, generated and vendored paths of `.gitattributes` excepted: above, deliver the issue in
    steps (AGENTS.md rules 5 and 11).
 5. Commit in small steps: `type(scope): what changed (#<n>)`, nothing else in the message.
