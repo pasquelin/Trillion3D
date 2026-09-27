@@ -324,18 +324,13 @@ body; another node its collider names keeps its own, still static ground. Each e
 `report.bodies` counts them; `report.bodiesRefused` lists each declaring node the cook refused
 (`node`, `reason`): it has no body, and stays static ground.
 
-A body whose node's `extras.physics` declares `breakable` also carries ([COMPILER.md](COMPILER.md#physicsjson--the-cooked-colliders-stage-physics-cook)):
-
-- `breakable`: the threshold as declared, above 0.
-- `pieces`: at most 12 convex pieces the cook cut its mesh into, each a shape as a `cooked` body's
-  (`type`, `url`, `sha256`, `bytes`) in the body's frame at unit scale, with its own `mass`
-  weighed at the body's `scale`, a kinematic body's too. Together they fill the mesh: their masses
-  sum to its own within 1e-5 of it, no two overlapping.
-
-A file whose bodies carry pieces is format 3, which a reader of format 2 alone refuses by name
-rather than lose them; a file without is format 2, the bytes it had before. The runtime reads
-format 3 and leaves the pieces unused: the body is drawn and collides as one, and nothing breaks
-yet (#519).
+A body whose node's `extras.physics` declares `breakable` also carries `breakable`, the threshold
+as declared, and `pieces`: at most 12 convex pieces cut from its mesh
+([COMPILER.md](COMPILER.md#physicsjson--the-cooked-colliders-stage-physics-cook)), each a shape as a
+`cooked` body's, in the body's frame at unit scale, with its own `mass` at the body's `scale` (a
+kinematic body's too); together they weigh the mesh within 1e-5, none overlapping. Such a file is
+format 3, which a reader of format 2 alone refuses by name; a file without pieces is format 2, the
+bytes it had. The runtime reads format 3 and leaves the pieces unused: nothing breaks yet (#519).
 
 ### `softBodies` — cooked soft bodies
 
