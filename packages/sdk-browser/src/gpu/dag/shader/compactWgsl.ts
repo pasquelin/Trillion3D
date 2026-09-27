@@ -29,7 +29,7 @@ fn drawFlag(i:u32)->u32{return flags[views[0u].queueCap+i];}
 fn blockCount()->u32{return (views[0u].clusterCount+BLOCK-1u)/BLOCK;}
 /** First word of the block zone in \`work\`, after the thresholds and coverage flags. */
 fn blockBase()->u32{return 0u;}
-/** Two words per block behind the block offsets: bit \`i & 63\` of block \`i / 64\` is page \`i\`'s draw
+/** Two words per block behind the block offsets: bit \`i & 31\` of word \`i >> 5\` is page \`i\`'s draw
  *  flag, set by \`dagMask\` with the flag itself, cleared by \`dagPrepare\` with the block count. */
 fn drawMaskBase()->u32{return blockCount()*2u;}
 /** The mask word that holds page \`i\`'s bit, and that bit. */

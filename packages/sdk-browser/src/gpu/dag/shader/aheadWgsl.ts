@@ -48,7 +48,8 @@ fn wantAhead(i:u32,w:u32,r:u32,cluster:Cluster){
  vi=AHEAD_VIEW;
  if((cluster.flags&2u)!=0u||outsideAhead(w,boxMin(r),boxMax(r))){return;}
  let e=views[vi].view*worlds[w];let stretch=stretchOf(w);let focal=focalPixels();
- if(!selects(cluster,e,stretch,focal,views[vi].pixelError)){return;}
- emitAhead(i,replacementPixels(cluster,e,stretch,focal));
+ let pixels=pixelsOf(cluster,e,stretch,focal);
+ if(!selects(pixels,views[vi].pixelError)){return;}
+ emitAhead(i,replacementPixels(cluster,pixels));
 }
 `;

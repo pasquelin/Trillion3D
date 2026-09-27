@@ -25,29 +25,24 @@ fn dagWanted(@builtin(global_invocation_id) id:vec3u){
  if(aheadOn()&&vi==AHEAD_VIEW){wantAhead(i,w,r,cluster);return;}
  if(!visible(r,w,cluster)){atomicAdd(&out.frustumRejected,1u);wantAhead(i,w,r,cluster);return;}
  liveAppend(entry);
- let light=(views[0u].viewFlags&VIEW_LIGHT)!=0u;
+ let light=isLightCut();
  let rejected=!light&&coneRejects(r,w);
  let e=views[vi].view*worlds[w];let stretch=stretchOf(w);let focal=focalPixels();
- // The two screen errors \`selects\` compares, computed ONCE: the request's priority reuses them
- // (\`replacementPixels\` is one of the two), and a camera cut keeps the two comparisons of the cut
- // rule behind the cone bit, for \`dagMask\` — same operands, same frame, so the same bits.
- let parentPixels=projected(cluster.parentError,cluster.parentSphere,e,stretch,focal);
- let ownPixels=projected(cluster.lodError,cluster.sphere,e,stretch,focal);
+ // The two screen errors \`selects\` compares, projected ONCE: the request's priority reuses them
+ // (\`replacementPixels\`), and a camera cut keeps the two comparisons of the cut rule behind the
+ // cone bit, for \`dagMask\` — same operands, same frame, so the same bits.
+ let pixels=pixelsOf(cluster,e,stretch,focal);
  let t=views[vi].pixelError;
  // A light cut's views share the page index: its word stays the lone cone bit, zero, as before.
- flags[coneCache(i)]=select(select(0u,CONE_REJECTED,rejected)|select(0u,PARENT_ABOVE,parentPixels>t)|select(0u,OWN_WITHIN,ownPixels<=t),0u,light);
- if(!drawsCluster(true,parentPixels,ownPixels,true,t)||rejected){wantAhead(i,w,r,cluster);return;}
+ flags[coneCache(i)]=select(select(0u,CONE_REJECTED,rejected)|select(0u,PARENT_ABOVE,pixels.parent>t)|select(0u,OWN_WITHIN,pixels.own<=t),0u,light);
+ if(!selects(pixels,t)||rejected){wantAhead(i,w,r,cluster);return;}
  atomicMax(&out.lodLevel,cluster.flags>>${CLUSTER_LEVEL_SHIFT}u);
- // \`replacementPixels\`: the replacement's error, or the cluster's own when nothing replaces it.
- emitOne(i,select(parentPixels,ownPixels,cluster.parentError<0.0));
+ emitOne(i,replacementPixels(cluster,pixels));
  stampUse(i);
  if(views[0u].residentCut!=0u&&!isResident(i)){noteCoarser();}
 }
 /** The REPLACEMENT's error, what the eye would see if this cluster were missing: that is what
  *  ranks a request, as \`orderPendingUrls\` (../../../streaming/priority.ts) does on the other path.
  *  A cluster nothing replaces falls back on its own, as that path does. */
-fn replacementPixels(cluster:Cluster,e:mat4x4f,stretch:f32,focal:f32)->f32{
- if(cluster.parentError<0.0){return projected(cluster.lodError,cluster.sphere,e,stretch,focal);}
- return projected(cluster.parentError,cluster.parentSphere,e,stretch,focal);
-}
+fn replacementPixels(cluster:Cluster,p:Pixels)->f32{return select(p.parent,p.own,cluster.parentError<0.0);}
 `;
