@@ -968,6 +968,7 @@
       "PHYSICS_BUDGET": "物理がいずれかの上限を超えて求められた（`world.budget.physics`：物体、装飾物体、メモリ）、動的な物体がシーンの直接の子でなかった（`PHYSICS_NESTED`）、または物理モジュールが失敗した（`PHYSICS_FAILED`）：`world.physics.error` に出る。",
       "PHYSICS_NESTED": "物理がいずれかの上限を超えて求められた（`world.budget.physics`：物体、装飾物体、メモリ）、動的な物体がシーンの直接の子でなかった（`PHYSICS_NESTED`）、または物理モジュールが失敗した（`PHYSICS_FAILED`）：`world.physics.error` に出る。",
       "PHYSICS_FAILED": "物理がいずれかの上限を超えて求められた（`world.budget.physics`：物体、装飾物体、メモリ）、動的な物体がシーンの直接の子でなかった（`PHYSICS_NESTED`）、または物理モジュールが失敗した（`PHYSICS_FAILED`）：`world.physics.error` に出る。",
+      "PHYSICS_DIVERGED": "物理がいずれかの上限を超えて求められた（`world.budget.physics`：物体、装飾物体、メモリ）、動的な物体がシーンの直接の子でなかった（`PHYSICS_NESTED`）、または物理モジュールが失敗した（`PHYSICS_FAILED`）：`world.physics.error` に出る。",
       "PHYSICS_FORMAT": "コンパイル済みモデルの事前処理された物理（`physics.json`）が別の形式か、エンジンとは別の Jolt で処理されています（`PHYSICS_FORMAT`）：再コンパイルしてください。物理がオフのまま正確なレイキャストが求められました（`PHYSICS_OFF`）。",
       "PHYSICS_OFF": "コンパイル済みモデルの事前処理された物理（`physics.json`）が別の形式か、エンジンとは別の Jolt で処理されています（`PHYSICS_FORMAT`）：再コンパイルしてください。物理がオフのまま正確なレイキャストが求められました（`PHYSICS_OFF`）。",
       "NO_VEHICLE": "`world.controls.vehicle` が `null` のまま `world.controls.kind` に `'vehicle'` が設定された：運転するものがない。",

@@ -975,6 +975,7 @@
       "PHYSICS_BUDGET": "طُلب من الفيزياء تجاوز أحد حدودها (`world.budget.physics`: الأجسام، الأجسام الزخرفية، الذاكرة)، أو لم يكن جسم ديناميكي ابنًا مباشرًا للمشهد (`PHYSICS_NESTED`)، أو فشلت وحدة الفيزياء (`PHYSICS_FAILED`): على `world.physics.error`.",
       "PHYSICS_NESTED": "طُلب من الفيزياء تجاوز أحد حدودها (`world.budget.physics`: الأجسام، الأجسام الزخرفية، الذاكرة)، أو لم يكن جسم ديناميكي ابنًا مباشرًا للمشهد (`PHYSICS_NESTED`)، أو فشلت وحدة الفيزياء (`PHYSICS_FAILED`): على `world.physics.error`.",
       "PHYSICS_FAILED": "طُلب من الفيزياء تجاوز أحد حدودها (`world.budget.physics`: الأجسام، الأجسام الزخرفية، الذاكرة)، أو لم يكن جسم ديناميكي ابنًا مباشرًا للمشهد (`PHYSICS_NESTED`)، أو فشلت وحدة الفيزياء (`PHYSICS_FAILED`): على `world.physics.error`.",
+      "PHYSICS_DIVERGED": "طُلب من الفيزياء تجاوز أحد حدودها (`world.budget.physics`: الأجسام، الأجسام الزخرفية، الذاكرة)، أو لم يكن جسم ديناميكي ابنًا مباشرًا للمشهد (`PHYSICS_NESTED`)، أو فشلت وحدة الفيزياء (`PHYSICS_FAILED`): على `world.physics.error`.",
       "PHYSICS_FORMAT": "الفيزياء المُعدّة لنموذج مُترجَم (`physics.json`) بصيغة أخرى، أو أعدّها Jolt غير الذي في المحرك (`PHYSICS_FORMAT`): أعد ترجمته. طُلب تتبع شعاع دقيق والفيزياء مطفأة (`PHYSICS_OFF`).",
       "PHYSICS_OFF": "الفيزياء المُعدّة لنموذج مُترجَم (`physics.json`) بصيغة أخرى، أو أعدّها Jolt غير الذي في المحرك (`PHYSICS_FORMAT`): أعد ترجمته. طُلب تتبع شعاع دقيق والفيزياء مطفأة (`PHYSICS_OFF`).",
       "NO_VEHICLE": "عُيّن `world.controls.kind` إلى `'vehicle'` بينما `world.controls.vehicle` يساوي `null`: لا شيء لقيادته.",
