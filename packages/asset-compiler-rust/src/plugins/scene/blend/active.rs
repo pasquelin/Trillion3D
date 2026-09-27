@@ -28,13 +28,13 @@ pub(super) fn objects(file: &BlendFile<'_>) -> Option<HashSet<u64>> {
     Some(held)
 }
 
-/// The collections the active view layer removes from the scene.
+/// The collections the active view layer removes: the global block names it, among scene data.
 fn excluded(global: &At<'_>) -> HashSet<u64> {
-    let mut out = HashSet::new();
-    let Some(layer) = global.follow("cur_view_layer") else {
-        return out;
-    };
-    layers(&layer.list("layer_collections"), &mut out, 0);
+    let (mut out, wanted) = (HashSet::new(), global.pointer("cur_view_layer"));
+    let held = global.follow("curscene").map(|it| it.list("view_layers"));
+    if let Some(layer) = held.into_iter().flatten().find(|it| it.old == wanted) {
+        layers(&layer.list("layer_collections"), &mut out, 0);
+    }
     out
 }
 
