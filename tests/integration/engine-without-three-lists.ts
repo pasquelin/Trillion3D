@@ -79,6 +79,7 @@ export const DECLARATION: Record<string, string> = {
   'placement/webglPageBatches':
     'WebGL2 page path: the pages rows place are drawn instanced, one mesh per page and declaration',
   'host/pageObjects': 'boundary: the declaration it gives back to the library that draws it',
+  'page/surface': 'boundary: a record wears a new declaration, its surface read with it',
   'bench/witnesses/exact/batches/batchUpdate':
     'exact witness: its draw record hands the declaration to the host renderer',
   'bench/witnesses/exact/batches/batches.fixture': 'batch-witness mount',
