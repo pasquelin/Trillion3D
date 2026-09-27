@@ -2,6 +2,7 @@ import { encodeHizPyramid } from './pyramid.ts';
 import { pyramidBytes } from './oracle.ts';
 import {
   HIZ_MAX_LEVELS,
+  HIZ_PASS_LEVELS,
   HIZ_UNIFORM_BYTES as UNIFORM_BYTES,
   hizBuildPasses,
   hizBuildWords,
@@ -43,8 +44,8 @@ export async function createGpuHiz(
     if (!pipelines) return undefined;
     const { layout, buildPipeline, testPipeline, pagesGroup } = pipelines;
     const uniforms = device.createBuffer({
-      // The build passes' slots, then the test's: never more than one per level.
-      size: UNIFORM_BYTES * HIZ_MAX_LEVELS,
+      // The deepest pyramid's build passes, then the test's slot.
+      size: UNIFORM_BYTES * (Math.ceil((HIZ_MAX_LEVELS - 1) / HIZ_PASS_LEVELS) + 1),
       usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
     });
     // Tested boxes and the frame state belong to the GPU partition, which does not exist yet:
