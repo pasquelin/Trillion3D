@@ -76,3 +76,14 @@ test('a cutoff moved on a masked material reaches the engines as an alpha change
   assert.equal(refreshes.at(-1), undefined);
   assert.equal(api.material('1').alphaCutoff, 0.25);
 });
+
+test('an unknown alpha mode is refused by name, nothing written', async () => {
+  const { api, floor, refreshes } = await scene(true, () => undefined);
+  const version = floor[0].version;
+  assert.throws(
+    () => api.setMaterial('0', { alphaMode: 'MASK' as never }),
+    (error: { code?: string }) => error.code === 'INVALID_MATERIAL',
+  );
+  assert.equal(floor[0].version, version);
+  assert.equal(refreshes.length, 0);
+});
