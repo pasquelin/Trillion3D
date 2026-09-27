@@ -7,7 +7,7 @@
  *  truncating filter's steps, half a step off, changed 20–30 % of the samples between pool sides. */
 export const SHADOW_SUBTEXELS = 256;
 
-/** The page reads. Requires `shadowAtlas`, `shadowSampler`, `SHADOW_PAGE`, `SHADOW_SUBTEXELS` and
+/** The page reads. Requires `shadowAtlas`, `shadowSampler`, `SHADOW_PAGE`, `SHADOW_SUBTEXELS`, `SHADOW_SUBTEXEL` and
  *  `PAGE_INDEX_MASK`. */
 export const SHADOW_SAMPLE_WGSL = `/** Place of page \`p\`, held by physical page \`word\`: \`xy\` added to a texel coordinate of the
  *  map gives that texel's place in its layer, \`z\` is the layer (\`shadowPoolShape\`). */
@@ -25,5 +25,5 @@ fn shadowSample(at:vec2f,layer:i32,texels:f32,reference:f32)->f32{
 }
 /** \`shadowSample\` at map texel \`t\` of the page placed by \`offset\`. */
 fn shadowCompare(offset:vec3f,t:vec2f,reference:f32)->f32{
- return shadowSample(offset.xy+floor(t*SHADOW_SUBTEXELS+0.5)/SHADOW_SUBTEXELS,i32(offset.z),shadowAtlasTexels(),reference);
+ return shadowSample(offset.xy+floor(t*SHADOW_SUBTEXELS+0.5)*SHADOW_SUBTEXEL,i32(offset.z),shadowAtlasTexels(),reference);
 }`;
