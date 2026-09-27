@@ -13,12 +13,13 @@
  * - a node's pose is set from what it declares: a matrix decomposed, or its translation, rotation
  *   and scale as they are — so the engine composes the same world matrices from them.
  */
+import { numbered } from '../graph/serial.ts';
 import type { PreparedSceneTables } from '../../../../sdk-core/src/scene/core/tableContracts.ts';
 import type { TableDocument } from '../../../../sdk-core/src/scene/core/tableDocuments.ts';
 import { camera, light, pose, uniqueNames, weigh } from './nodes.ts';
 import type { SurfaceVariant } from './materials.ts';
 import type { GraphSurface } from '../graph/surface.ts';
-import { GraphMesh } from '../graph/mesh.ts';
+import { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts';
 import { isDrawnNode } from '../graph/kinds.ts';
 import { Group, Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 import { type GraphCamera } from '../graph/camera.ts';
@@ -56,7 +57,7 @@ export async function preparedGraph({ tables, meshes, geometryOf, materialOf }: 
   /** The object a node names, or its copy when several nodes name it. */
   const reference = (kind: keyof typeof counts, rank: number, made: Object3D) => {
     if ((counts[kind].get(rank) ?? 0) <= 1) return made;
-    const copy = made.clone();
+    const copy = numbered(made.clone());
     const walk = (from: Object3D, to: Object3D) => {
       const held = ranks.get(from);
       if (held) ranks.set(to, held);
@@ -121,7 +122,7 @@ export async function preparedGraph({ tables, meshes, geometryOf, materialOf }: 
     order.map((rank, at) =>
       Promise.all(drawn[at].map(({ material }) => material)).then((surfaces) =>
         drawn[at].map(({ geometry }, p) => {
-          const mesh = new GraphMesh(geometry, surfaces[p]);
+          const mesh = numbered(new Mesh(geometry, surfaces[p]));
           if (Object.keys(geometry.morphAttributes).length) weigh(mesh, meshes[rank].weights);
           mesh.name = unique(meshes[rank].name || `mesh_${rank}`);
           return mesh;

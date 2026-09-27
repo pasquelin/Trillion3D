@@ -1,3 +1,4 @@
+import { isInstancedNode } from '../host/graph/kinds.ts';
 import { IDENTITY_MATRIX4, type Side } from '../../../sdk-core/src/index.ts';
 import type { HostAttributes, HostMaterials, HostMesh } from '../host/resources.ts';
 import type { DrawRanges } from './batchRange.ts';
@@ -23,8 +24,7 @@ export type WholeMesh = {
   /** Its world placement, the one the graph resolves through its parents: what it is drawn,
    *  sorted and culled at. */
   matrixWorld: { elements: ArrayLike<number> };
-  /** Set on a mesh drawn at `count` placements, one matrix each in `instanceMatrix`. */
-  readonly kind?: string;
+  /** Set on a mesh drawn at `count` placements, one matrix each (`isInstancedNode`). */
   readonly instanceMatrix?: GpuBuffer;
   readonly count?: number;
 } & Partial<Released>;
@@ -79,7 +79,7 @@ export function recordTriangles(record: ClusterDrawMesh) {
 /** Triangles a whole page mesh submits, indexed or not. */
 export const wholeMeshTriangles = (mesh: WholeMesh) =>
   ((mesh.geometry.index?.count ?? mesh.geometry.attributes.position.count) / 3) *
-  (mesh.kind === 'instancedMesh' ? mesh.count! : 1);
+  (isInstancedNode(mesh) ? mesh.count : 1);
 /** Triangles one pass of a submission draws, a batch record or a whole mesh. */
 export const drawTriangles = (draw: ClusterDraw) =>
   isClusterDrawMesh(draw) ? recordTriangles(draw) : wholeMeshTriangles(draw);
