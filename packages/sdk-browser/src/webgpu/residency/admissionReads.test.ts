@@ -160,7 +160,7 @@ test('the admission joins the read under way; the job drops what nobody joined',
   streamer.dispose();
 });
 
-test('the lower tiers read behind the camera; an admission joining one raises it', async () => {
+test('the lower tiers read ahead at prefetch priority, the camera at its own', async () => {
   const [seen, tier] = ['seen', 'tier'].map(pageOf);
   const tracking = createWebgpuPageTracking([seen, tier]);
   tracking.wanted.add(tracking.keyOf(seen), seen);
@@ -174,6 +174,9 @@ test('the lower tiers read behind the camera; an admission joining one raises it
     ['seen', undefined],
     ['tier', PRIORITY_PREFETCH],
   ]);
+});
+
+test('a prefetch read waits behind the camera until an admission joining it raises it', async () => {
   // One worker: g0 transfers; the tier's g1 and g2 wait behind a visible g3, until g2 is demanded.
   const { pages, fetched } = await servedPages(['g0.bin', 'g1.bin', 'g2.bin', 'g3.bin']);
   const streamer = createPageStreamer(pages, 'http://cache/', { workerCount: 1 });
@@ -191,8 +194,8 @@ test('the lower tiers read behind the camera; an admission joining one raises it
     streamer.readBytes('g1.bin', undefined, PRIORITY_PREFETCH),
   ]);
   assert.deepEqual(
-    fetched.map((url) => url.slice(13)),
-    ['g0.bin', 'g2.bin', 'g3.bin', 'g1.bin'],
+    fetched,
+    ['g0.bin', 'g2.bin', 'g3.bin', 'g1.bin'].map((url) => 'http://cache/' + url),
   );
   streamer.dispose();
 });
