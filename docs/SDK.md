@@ -118,11 +118,13 @@ reads adds to `completed`, whatever the server says of its length or compression
 dropped, has `completed === total`; a manifest that declares no file is heard once, whole, at the end. Between them come `{ phase: 'manifest' }` once the manifest is read,
 `{ phase: 'tables' }` once the scene tables are, then `{ phase: 'resources', completed, total }`
 as each file the scene reads lands. The first pages follow the load:
-`await world.awaitPages({ onProgress })` settles once the pages the view reads are resident, and
-reports `{ phase: 'pages', completed, total }` once the view's cut is read: `total` counts each page
-the view reads once, those it already holds — the frames drawn before the wait may have read them
-all — as well as those it lacks, `completed` those resident, rising as each lacking one lands; the
-last event has `completed === total`, above 0 on a world that draws something. One callback given to both drives a progress bar from the first byte to
+`await world.awaitPages({ onProgress })` settles once the pages the view reads are resident. It
+reports `{ phase: 'session' }` first, while the session that draws the view opens, then
+`{ phase: 'pages', completed, total }`: `total` counts each page the view reads once — those the
+engine already holds, since the frames drawn before the wait may have read them all, and every page
+read while the wait runs, whether the host reads it for the cut or the WebGPU engine for its own
+residency —, `completed` those resident, rising as each lands; the last event has
+`completed === total`. One callback given to both drives a progress bar from the first byte to
 the first pages (example `watch-a-world-load`).
 
 A host that probes a cache before opening it — to enable a button, to tell a user to recompile —
