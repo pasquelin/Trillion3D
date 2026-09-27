@@ -2147,5 +2147,12 @@
     "words": {
       "credit": "이 예제를 위해 코드로 만든 깃대의 깃발, CC0 — assets/examples/CREDITS.md 참고"
     }
+  },
+  "drag-a-crate": {
+    "banner": "상자를 바닥 위로 드래그하세요. 스냅을 켜면 0.5미터 간격으로 배치됩니다.",
+    "controls": {
+      "snap": "스냅",
+      "home": "홈"
+    }
   }
 }

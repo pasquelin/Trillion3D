@@ -2147,5 +2147,12 @@
     "words": {
       "credit": "Bandeira num mastro modelada em código para este exemplo, CC0 — ver assets/examples/CREDITS.md"
     }
+  },
+  "drag-a-crate": {
+    "banner": "Arraste a caixa pelo chão. Ative o ajuste para posicioná-la em passos de meio metro.",
+    "controls": {
+      "snap": "Ajustar",
+      "home": "Início"
+    }
   }
 }

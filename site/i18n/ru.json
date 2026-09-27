@@ -327,7 +327,8 @@
       "ar-on-the-table": "AR на столе",
       "shadows-case-by-case": "Тени, случай за случаем",
       "shadows-through-see-through-panes": "Тени сквозь прозрачные стёкла",
-      "a-walker-among-balls": "Ходок среди мячей"
+      "a-walker-among-balls": "Ходок среди мячей",
+      "drag-a-crate": "Перетащить ящик"
     },
     "missing": {
       "floating-crates": "геометрия, перезаписываемая в каждом кадре",
