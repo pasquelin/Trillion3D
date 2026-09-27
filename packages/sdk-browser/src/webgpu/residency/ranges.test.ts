@@ -46,28 +46,17 @@ const pairs = (into: Int32Array, n: number) =>
 
 /** Sorted distinct indices: `count` of them, steps drawn up to `spread`. */
 function indices(next: () => number, count: number, spread: number) {
-  const out = new Int32Array(count);
-  for (
-    let i = 0, at = Math.floor(next() * spread);
-    i < count;
-    i++, at += 1 + Math.floor(next() * spread)
-  )
-    out[i] = at;
-  return out;
+  let at = Math.floor(next() * spread) - 1;
+  return Int32Array.from({ length: count }, () => (at += 1 + Math.floor(next() * spread)));
 }
 
-const edges = [
-  new Int32Array(0),
-  Int32Array.of(0),
-  Int32Array.of(2 ** 31 - 1),
-  Int32Array.from({ length: 500 }, (_, i) => i * 3),
-  Int32Array.from({ length: 32 }, (_, i) => i * 1000),
-  Int32Array.from({ length: 33 }, (_, i) => i * 1000),
-  Int32Array.from({ length: 64 }, (_, i) => i * 1000),
-  Int32Array.from({ length: 65 }, (_, i) => i * 1000),
-  Int32Array.from({ length: 200 }, (_, i) => i * 100 + (i % 3) * 17),
-  Int32Array.from({ length: 90 }, (_, i) => 2 ** 31 - 1 - (89 - i) * 65),
-];
+/** `count` indices `step` apart, from `from`. */
+const run = (count: number, step: number, from = 0) =>
+  Int32Array.from({ length: count }, (_, i) => from + i * step);
+// None, one, the largest, every step joined, exactly each cap and one past it, ties at the cut.
+const edges = [run(0, 1), run(1, 1), run(1, 1, 2 ** 31 - 1), run(500, 3)];
+edges.push(...[32, 33, 64, 65].map((n) => run(n, 1000)), run(90, 65, 2 ** 31 - 1 - 89 * 65));
+edges.push(Int32Array.from({ length: 200 }, (_, i) => i * 100 + (i % 3) * 17));
 
 test('the shared coalescer gives develop’s residency and page-table ranges, 0 divergence', () => {
   const into = new Int32Array(128);
