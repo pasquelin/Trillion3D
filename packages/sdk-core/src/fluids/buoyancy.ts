@@ -9,6 +9,7 @@
 import { BUOYANCY_WORDS, OP, PLANE_WORDS, WATER_PIECE_WORDS } from '../physics/layout.ts';
 import { wavePatch, waveRest } from './surface.ts';
 import { Waves, type WaveSpec } from './waves.ts';
+import { hypot3 } from '../math/primitives/hypot.ts';
 
 /** Fresh water, kg/m³. */
 const WATER_DENSITY = 1000;
@@ -134,7 +135,7 @@ export class StepWords {
       const nx = ay * bz - az * by,
         ny = az * bx - ax * bz,
         nz = ax * by - ay * bx,
-        length = Math.hypot(nx, ny, nz);
+        length = hypot3(nx, ny, nz);
       w[to] = ids[from];
       w[to + 1] = ids[from + 1];
       f[to + 2] = x;

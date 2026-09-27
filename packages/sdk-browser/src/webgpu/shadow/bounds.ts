@@ -3,6 +3,7 @@ import { forEachDirtyRun } from '../row/dirty.ts';
 import type { PageRec } from '../../page/selection/selection.ts';
 import type { WebgpuLightState } from '../pages/state/lights.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
+import { hypot3 } from '../../../../sdk-core/src/math/primitives/hypot.ts';
 
 /** Floats of a cluster world sphere: centre then radius. */
 const CLUSTER_SPHERE_FLOATS = 4;
@@ -22,7 +23,7 @@ function writeClusterSphere(rec: PageRec, out: Float32Array, base: number) {
     hy = (rec.max[1] - rec.min[1]) / 2,
     hz = (rec.max[2] - rec.min[2]) / 2;
   transformAffinePoint(out, e, cx, cy, cz, base);
-  out[base + 3] = Math.hypot(
+  out[base + 3] = hypot3(
     Math.abs(e[0]) * hx + Math.abs(e[4]) * hy + Math.abs(e[8]) * hz,
     Math.abs(e[1]) * hx + Math.abs(e[5]) * hy + Math.abs(e[9]) * hz,
     Math.abs(e[2]) * hx + Math.abs(e[6]) * hy + Math.abs(e[10]) * hz,
