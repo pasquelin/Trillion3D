@@ -15,12 +15,18 @@ import { camera, quadScene } from '../pages/testScenes.fixture.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 
 /** A runtime reduced to what the resolve reads, and an encoder that records its passes. */
-function resolveFixture(classes: number[], compiled: number[]) {
+function resolveFixture(classes: number[], compiled: number[], single: number[] = []) {
   const stride = PAGE_INFO_STRIDE / 4,
     ints = new Uint32Array(stride * classes.length);
   classes.forEach((key, row) => (ints[row * stride + ROW_MATERIAL_CLASS_WORD] = key));
   const made: number[] = [],
-    passes: Array<{ label: string; pipelines: unknown[]; draws: number; depth: unknown }> = [];
+    passes: Array<{
+      label: string;
+      pipelines: unknown[];
+      draws: number;
+      depth: unknown;
+      colors: unknown[];
+    }> = [];
   const pipeline = (key: number) => ({ key });
   const rt = {
     gpu: {
@@ -36,16 +42,22 @@ function resolveFixture(classes: number[], compiled: number[]) {
       shadeBindGroup: 'bind group',
       shadePipelines: new Map(compiled.map((key) => [key, pipeline(key)])),
       shadePipelineFor: (key: number) => (made.push(key), pipeline(key)),
+      singleShadePipelines: new Map(single.map((key) => [key, pipeline(key)])),
       presentClasses: createPresentClasses(),
     },
   } as unknown as WebgpuPagesRuntime;
   const encoder = {
-    beginRenderPass: (desc: { label: string; depthStencilAttachment: unknown }) => {
+    beginRenderPass: (desc: {
+      label: string;
+      depthStencilAttachment?: unknown;
+      colorAttachments?: unknown[];
+    }) => {
       const pass = {
         label: desc.label,
         pipelines: [] as unknown[],
         draws: 0,
         depth: desc.depthStencilAttachment,
+        colors: desc.colorAttachments ?? [],
       };
       passes.push(pass);
       return {
@@ -59,6 +71,70 @@ function resolveFixture(classes: number[], compiled: number[]) {
   } as unknown as GPUCommandEncoder;
   return { rt, encoder, passes, made };
 }
+
+test('one present class shades directly into the cleared surfaces', () => {
+  const { rt, encoder, passes } = resolveFixture([5], [5], [5]);
+  encodeMaterialPasses(rt, encoder);
+  assert.deepEqual(
+    passes.map((pass) => [pass.label, pass.draws]),
+    [[MATERIAL_SURFACES_PASS, 1]],
+  );
+  assert.equal(passes[0].depth, undefined);
+  const colors = passes[0].colors as Array<{
+    view: unknown;
+    loadOp: string;
+    storeOp: string;
+    clearValue?: unknown;
+  }>;
+  assert.deepEqual(
+    colors.map(({ view, loadOp, storeOp }) => [view, loadOp, storeOp]),
+    [
+      ['a', 'clear', 'store'],
+      ['b', 'clear', 'store'],
+      ['c', 'clear', 'store'],
+      ['d', 'clear', 'store'],
+      ['feedback', 'clear', 'store'],
+    ],
+  );
+  assert.deepEqual(
+    colors.slice(0, 4).map(({ clearValue }) => clearValue),
+    [
+      [0, 0, 0, 0],
+      [0, 0, 0, 0],
+      [0, 0, 0, 0],
+      [0, 0, 0, 0],
+    ],
+  );
+  assert.equal(rt.run.feedbackWritten, true);
+  assert.equal(rt.run.gpuDrawCalls, 1);
+});
+
+test('one class keeps material depth when direct shading is unavailable', () => {
+  const { rt, encoder, passes } = resolveFixture([5], [5]);
+  encodeMaterialPasses(rt, encoder);
+  assert.deepEqual(
+    passes.map((pass) => [pass.label, pass.draws]),
+    [
+      [MATERIAL_DEPTH_PASS, 1],
+      [MATERIAL_SURFACES_PASS, 1],
+    ],
+  );
+  assert.deepEqual(passes[1].depth, { view: 'material depth', depthReadOnly: true });
+  assert.equal(rt.run.gpuDrawCalls, 2);
+});
+
+test('an empty class census retains the clearing depth and surfaces passes', () => {
+  const { rt, encoder, passes } = resolveFixture([], []);
+  encodeMaterialPasses(rt, encoder);
+  assert.deepEqual(
+    passes.map((pass) => [pass.label, pass.draws]),
+    [
+      [MATERIAL_DEPTH_PASS, 1],
+      [MATERIAL_SURFACES_PASS, 0],
+    ],
+  );
+  assert.equal(rt.run.gpuDrawCalls, 1);
+});
 
 test('an image draws each class of its rows once, compiling on the spot one the census missed', () => {
   const { rt, encoder, passes, made } = resolveFixture([5, 9, 5, 2], [5, 9]);
