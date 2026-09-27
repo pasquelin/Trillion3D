@@ -36,7 +36,8 @@
       "engine CPU": "엔진 CPU"
     },
     "failure": {
-      "title": "이 예제는 오류로 멈췄어"
+      "title": "이 예제는 오류로 멈췄어",
+      "missingCache": "컴파일된 캐시가 없습니다: pnpm compile:caches를 실행하세요"
     },
     "banner": {
       "close": "닫기"

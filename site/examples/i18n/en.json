@@ -36,7 +36,8 @@
       "engine CPU": "engine CPU"
     },
     "failure": {
-      "title": "This example stopped on an error"
+      "title": "This example stopped on an error",
+      "missingCache": "The cooked cache is missing: run pnpm compile:caches"
     },
     "banner": {
       "close": "Close"

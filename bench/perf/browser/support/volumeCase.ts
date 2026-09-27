@@ -4,7 +4,7 @@
 // in `volumes.perf.ts` stays a single type without erasing what each case measures, and the
 // timed call itself only fires when `volumes.perf.ts` awaits it, in the same order as before.
 import { mesure } from '../../../core/index.ts';
-import type { Mesure, MesureCas } from '../../../core/index.ts';
+import type { Measurement, MesureCas } from '../../../core/index.ts';
 
 /** Settings `mesure` times under; `volumes.perf.ts` passes the same ones to every case. */
 interface ReglagesVolume {
@@ -14,7 +14,7 @@ interface ReglagesVolume {
 }
 
 export interface CasVolume {
-  run: (options: ReglagesVolume) => Promise<Mesure>;
+  run: (options: ReglagesVolume) => Promise<Measurement>;
 }
 
 export function casVolume<Entree, Sortie>(item: {
