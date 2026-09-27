@@ -19,24 +19,25 @@ import {
 export type ThreadedContacts =
   { isolated: boolean; threads: number; alone: PileStep[]; pooled: PileStep[] } | { error: string };
 
+/** A pool thread's start, or the proof's order. */
+type Order = JoltThreadStart | { type: 'proof'; threads: number; steps: number };
+
 const scope = globalThis as unknown as {
-  onmessage:
-    | ((
-        event: MessageEvent<JoltThreadStart | { type: 'proof'; threads: number; steps: number }>,
-      ) => void)
-    | null;
+  onmessage: ((event: MessageEvent<Order>) => void) | null;
   postMessage(message: ThreadedContacts | 'loaded'): void;
 };
 
 const MODULES = '../../../packages/sdk-browser/src/physics/';
-/** The Node proof's budget: the pile's, in 64 MB (`startModule`). */
-const BUDGET = { ...DEFAULT_PHYSICS_BUDGET, memoryBytes: 64 << 20, ...PILE_BUDGET };
+/** The Node proof's budget (`startModule`). */
+const BUDGET = { ...DEFAULT_PHYSICS_BUDGET, ...PILE_BUDGET };
+
+/** A module's bytes. */
+const bytesOf = async (file: string) =>
+  (await fetch(new URL(MODULES + file, import.meta.url))).arrayBuffer();
 
 /** A module stepped by `threads` threads, the threaded module's when more than one, once each
  *  of its threads has loaded. */
-async function started(threads: number) {
-  const file = threads > 1 ? 'joltPhysicsThreads.wasm' : 'joltPhysics.wasm';
-  const bytes = await (await fetch(new URL(MODULES + file, import.meta.url))).arrayBuffer();
+async function started(threads: number, bytes: ArrayBuffer) {
   const loaded: Promise<void>[] = [];
   const spawn = (start: JoltThreadStart) => {
     const thread = new Worker(import.meta.url, { type: 'module' });
@@ -56,8 +57,10 @@ scope.onmessage = async ({ data }) => {
     return runJoltThread(data);
   }
   try {
-    const alone = pile(await started(1), data.steps);
-    const jolt = await started(data.threads);
+    // Both modules fetched at once: the threaded one's bytes arrive while the first pile runs.
+    const [one, many] = [bytesOf('joltPhysics.wasm'), bytesOf('joltPhysicsThreads.wasm')];
+    const alone = pile(await started(1, await one), data.steps);
+    const jolt = await started(data.threads, await many);
     const threads = jolt.concurrency(data.threads);
     scope.postMessage({
       isolated: crossOriginIsolated,
