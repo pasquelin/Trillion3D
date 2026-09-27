@@ -16,7 +16,7 @@ test('the pool allocates its layers once, at the fixed size, and counts its tile
     layers: 2,
   });
   assert.equal(created.length, 1);
-  assert.deepEqual(created[0].size, { width: 4080, height: 4080, depthOrArrayLayers: 2 });
+  assert.deepEqual(created[0].size, { width: 4096, height: 4096, depthOrArrayLayers: 2 });
   assert.equal(created[0].format, 'rgba8unorm-srgb');
   assert.equal(pool.tiles, 2 * TILES_PER_LAYER);
   assert.equal(pool.bytes, 2 * poolLayerBytes(4));
