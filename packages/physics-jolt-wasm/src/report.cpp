@@ -16,21 +16,53 @@ namespace trillion {
 namespace {
 
 constexpr uint32_t ASLEEP_BIT = 0x80000000u;
+/** The bodies `place` has measured since the module started: a diagnostic, read by the tests only
+ *  (`jolt_place_visits`), so its cost is counted, never timed. */
+uint32_t placeVisits = 0;
 
 struct Placement {
   bool far, seen;
+  /** How far the eye may travel before a far body could be in range: a lower bound (the float
+   *  rounding of its distance taken off), negative when not far. */
+  double slack;
 };
 
+/// Whether a body `radius` around a centre `to` from the eye (`distance` away) reaches into the
+/// view cone: `acos(cos angle) - asin(radius / distance) <= halfCone`. Decided without inverse
+/// trigonometry, `cos angle >= cos(halfCone + asin(r / d))`, away from the cone's edge; within
+/// `EDGE` of it (in cosine, hence at least as much in angle), by the exact formula, so that every
+/// answer is the one the exact formula gives.
+bool inCone(const View &v, Vec3 to, float radius, float distance) {
+  constexpr float EDGE = 1e-4f;
+  float c = std::clamp(to.Dot(v.facing) / distance, -1.0f, 1.0f);
+  float s = std::min(1.0f, radius / distance);
+  // Below a right angle, halfCone + asin(s) stays within [0, pi], where the cosine decreases.
+  if (v.halfCone < 0.5f * JPH_PI) {
+    float margin = c - (v.cosHalf * std::sqrt(std::max(0.0f, 1.0f - s * s)) - v.sinHalf * s);
+    if (margin > EDGE) return true;
+    if (margin < -EDGE) return false;
+  }
+  return std::acos(c) - std::asin(s) <= v.halfCone;
+}
+
 Placement place(const World &w, const Slot &slot, const Body &body) {
+  ++placeVisits;
   const View &v = w.view;
   AABox bounds = body.GetWorldSpaceBounds();
   Vec3 to = Vec3(bounds.GetCenter()) - v.eye;
   float radius = bounds.GetExtent().Length(), distance = to.Length();
   bool far = v.range > 0 && distance - radius > v.range;
-  bool inCone = v.halfCone <= 0 || distance <= radius ||
-                std::acos(std::clamp(to.Dot(v.facing) / distance, -1.0f, 1.0f)) -
-                        std::asin(std::min(1.0f, radius / distance)) <= v.halfCone;
-  return {far, !far && inCone && !(slot.flags & HIDDEN)};
+  // The cone is measured only when it decides something: not for a body far or hidden.
+  bool seen = !far && !(slot.flags & HIDDEN) &&
+              (v.halfCone <= 0 || distance <= radius || inCone(v, to, radius, distance));
+  double slack = double(distance - radius - v.range) - 1e-3 - 1e-5 * double(distance + radius + v.range);
+  return {far, seen, far ? slack : -1.0};
+}
+
+/// Notes how far the eye may travel before the frozen body of `slot` must be measured again.
+void noteFar(const World &w, Slot &slot, const Placement &at) {
+  slot.farUntil = at.far && at.slack > 0 ? w.travel + at.slack : -1;
+  slot.farEpoch = w.viewEpoch;
 }
 
 void put(uint32_t *record, uint32_t engine, const Body &body) {
@@ -46,6 +78,15 @@ void put(uint32_t *record, uint32_t engine, const Body &body) {
 }
 
 }  // namespace
+
+void setView(View next) {
+  World &w = world();
+  next.cosHalf = std::cos(next.halfCone);
+  next.sinHalf = std::sin(next.halfCone);
+  w.travel += double((next.eye - w.view.eye).Length());
+  if (next.range != w.view.range) ++w.viewEpoch;
+  w.view = next;
+}
 
 uint32_t writePoses() {
   World &w = world();
@@ -73,6 +114,7 @@ uint32_t writePoses() {
     bool frozen = false;
     if (!asleep && (at.far || (decorative && !at.seen))) {
       slot.frozen = frozen = true;
+      noteFar(w, slot, at);
       slot.linear = body.GetLinearVelocity();
       slot.angular = body.GetAngularVelocity();
       bodies.DeactivateBody(slot.id);
@@ -85,7 +127,8 @@ uint32_t writePoses() {
     if (frozen || (asleep && slot.withheld)) wait(slot, index);
   };
   // Waiting bodies first: a thawed one joins the active list below in this same step's order.
-  std::vector<uint32_t> waiting;
+  static std::vector<uint32_t> waiting;
+  waiting.clear();
   waiting.swap(w.waiting);
   for (uint32_t index : waiting) {
     Slot &slot = w.slots[index];
@@ -95,9 +138,16 @@ uint32_t writePoses() {
     if (!slot.used || !(slot.withheld || slot.frozen)) continue;
     BodyLockRead lock(locks, slot.id);
     if (!lock.Succeeded() || lock.GetBody().IsActive()) continue;
+    // Frozen beyond the range, and the eye has not travelled its margin since: still beyond it,
+    // so still frozen, unseen and waiting — what measuring it again would conclude.
+    if (slot.frozen && slot.farEpoch == w.viewEpoch && w.travel < slot.farUntil) {
+      wait(slot, index);
+      continue;
+    }
     const Body &body = lock.GetBody();
     Placement at = place(w, slot, body);
     bool decorative = body.GetObjectLayer() == DECORATIVE;
+    if (slot.frozen) noteFar(w, slot, at);
     if (slot.frozen && !at.far && (!decorative || at.seen)) {
       slot.frozen = false;
       bodies.ActivateBody(slot.id);
@@ -127,3 +177,6 @@ uint32_t writePoses() {
 }
 
 }  // namespace trillion
+
+/// The bodies placed against the view since the module started: the tests' measure of its cost.
+extern "C" uint32_t jolt_place_visits() { return trillion::placeVisits; }
