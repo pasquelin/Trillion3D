@@ -116,7 +116,7 @@ pub(super) fn read(mesh: &At<'_>, name: &str) -> Result<Geometry> {
 /// The hard edge of each corner. Blender marks hardness on the edge, and `.corner_edge` says
 /// which edge leaves each corner: a mesh without `sharp_edge` yields an empty array, which marks
 /// nothing, rather than an array of falses as long as its corners.
-fn hard(table: &[(String, attrs::Attr<'_>)], corners: &[i32], edges: usize) -> Vec<bool> {
+fn hard(table: &Table<'_>, corners: &[i32], edges: usize) -> Vec<bool> {
     let Some(sharp) = named(table, "sharp_edge", attrs::EDGE, attrs::BOOLEAN)
         .map(|attr| attr.bools(edges))
         .filter(|values| values.iter().any(|edge| *edge))
@@ -154,14 +154,11 @@ fn named<'t, 'b>(
         .map(|(_, attr)| attr)
 }
 
-/// Face offsets: an array of `faces + 1` increasing integers, bounded by the corners — stored as
-/// such, or as the first corner of each face (`.face_start`), then the corner count.
-fn offsets(
-    mesh: &At<'_>,
-    table: &[(String, attrs::Attr<'_>)],
-    faces: usize,
-    corners: usize,
-) -> Option<Vec<u32>> {
+/// The attributes of a mesh, by name.
+type Table<'a> = [(String, attrs::Attr<'a>)];
+
+/// Face offsets: `faces + 1` increasing integers bounded by the corners, or each face's first.
+fn offsets(mesh: &At<'_>, table: &Table<'_>, faces: usize, corners: usize) -> Option<Vec<u32>> {
     let values = match ["poly_offset_indices", "face_offset_indices"]
         .into_iter()
         .find_map(|name| mesh.block(name))
@@ -191,7 +188,7 @@ fn offsets(
 
 /// The UV layer kept: the first two-component float layer held by the corners and named by the
 /// author. Blender's internal layers start with a dot, and are not one.
-fn uv(table: &[(String, attrs::Attr<'_>)], corners: usize) -> Vec<f32> {
+fn uv(table: &Table<'_>, corners: usize) -> Vec<f32> {
     table
         .iter()
         .find(|(name, attr)| {
