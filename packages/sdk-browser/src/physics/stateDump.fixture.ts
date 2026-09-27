@@ -3,10 +3,7 @@ import { CommandWriter, FLAG } from '../../../sdk-core/src/physics/index.ts';
 import { plane, sphere } from '../../../sdk-core/src/world/geometry/basic.ts';
 import type { JoltModule } from './joltModule.ts';
 import { body } from './module.fixture.ts';
-import { FLAT, GENERATION, ropeLine, softBodiesIn, writeSoftBody } from './soft.fixture.ts';
-
-/** Generation 1 of slot `slot`'s engine id. */
-const id = (slot: number) => slot | GENERATION;
+import { FLAT, id, ropeLine, softBodiesIn, writeSoftBody } from './soft.fixture.ts';
 
 /** Writes `geometry` as a soft body in slot `slot`, at `position` turned by `quaternion`. */
 const soft = (

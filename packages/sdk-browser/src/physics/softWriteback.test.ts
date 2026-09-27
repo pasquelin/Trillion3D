@@ -9,8 +9,9 @@ import {
 } from '../../../sdk-core/src/physics/index.ts';
 import { plane } from '../../../sdk-core/src/world/geometry/basic.ts';
 import { startModule } from './module.fixture.ts';
-import { GENERATION, softBodiesIn, writeSoftBody } from './soft.fixture.ts';
-import { WRITEBACK_BOUND as BOUND, seeded, writebackScene } from './softWriteback.fixture.ts';
+import { lcg } from '../gpu/hiz/buildTranscripts.fixture.ts';
+import { id, softBodiesIn, WRITEBACK_BOUND as BOUND, writeSoftBody } from './soft.fixture.ts';
+import { writebackScene } from './softWriteback.fixture.ts';
 
 /** Each step's words in `bytes` (`u32` step count, then per step its word count and words). */
 function stepsOf(bytes: Uint8Array) {
@@ -59,10 +60,17 @@ async function restingCloths(segments: number, poses: [Triple, number[], Triple]
   assert.equal(jolt.soft().length, 0, 'no soft body, no word');
   const made = poses.map(([position, quaternion, scale], i) => {
     const geometry = plane(1, 1, segments, segments);
-    const id = (i + 1) | GENERATION;
-    const record = writeSoftBody(writer, id, geometry, { type: 'cloth' }, position, quaternion, {
-      scale,
-    });
+    const record = writeSoftBody(
+      writer,
+      id(i + 1),
+      geometry,
+      { type: 'cloth' },
+      position,
+      quaternion,
+      {
+        scale,
+      },
+    );
     return 'vertices' in record ? record.vertices : new Float32Array();
   });
   jolt.step(writer.take(), 0);
@@ -70,7 +78,7 @@ async function restingCloths(segments: number, poses: [Triple, number[], Triple]
   const words = jolt.soft();
   const written = new Float32Array(words.buffer, words.byteOffset, words.length);
   return [...softBodiesIn(words)].map(({ engine, count, from }, i) => {
-    assert.equal(engine, (i + 1) | GENERATION);
+    assert.equal(engine, id(i + 1));
     let worst = 0;
     for (let v = 0; v < count * 3; v++) {
       const c = v % 3,
@@ -82,7 +90,7 @@ async function restingCloths(segments: number, poses: [Triple, number[], Triple]
 }
 
 test('a resting soft body writes back its own vertices, at random places, turns and scales', async () => {
-  const random = seeded(975);
+  const random = lcg(975);
   const draw = (reach: number) => (random() * 2 - 1) * reach;
   const poses = Array.from({ length: 24 }, (_, n): [Triple, number[], Triple] => {
     const q = [draw(1), draw(1), draw(1), draw(1)];
