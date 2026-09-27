@@ -1,4 +1,22 @@
 {
+  "brushed-metal": {
+    "banner": "Kéo để xem phản chiếu kim loại chải xước. Đổi độ mạnh và hướng.",
+    "controls": {
+      "anisotropy": "Độ chải xước",
+      "direction": "Hướng chải xước",
+      "roughness": "Độ nhám",
+      "spin": "Xoay"
+    }
+  },
+  "car-paint-under-clear-coat": {
+    "banner": "Di chuyển quanh xe. Đổi màu sơn và lớp phủ trong bên trên.",
+    "controls": {
+      "paint": "Sơn",
+      "clearCoat": "Lớp phủ trong",
+      "coatRoughness": "Độ nhám lớp phủ",
+      "spin": "Xoay"
+    }
+  },
   "kit": {
     "panel": {
       "controls": "Cài đặt"
@@ -308,6 +326,13 @@
       "hour": "Giờ",
       "wind": "Gió",
       "roof": "Mái nhà"
+    }
+  },
+  "soft-shadows-from-a-wide-lamp": {
+    "banner": "Kéo để xoay quanh. Thay đổi độ rộng đèn và quan sát mép bóng.",
+    "controls": {
+      "lampWidth": "Độ rộng đèn",
+      "moveSubject": "Di chuyển vật thể"
     }
   },
   "a-softbox-panel": {
