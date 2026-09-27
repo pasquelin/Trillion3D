@@ -510,6 +510,21 @@
       "outer": "바깥쪽"
     }
   },
+
+  "doors-that-open": {
+    "banner": "카메라를 문 쪽으로 움직이세요. 가까이 가면 문이 열립니다.",
+    "controls": {
+      "mode": "모드",
+      "openingDistance": "열림 거리",
+      "openness": "열림 정도"
+    },
+    "choices": {
+      "mode": {
+        "proximity": "근접",
+        "manual": "수동"
+      }
+    }
+  },
   "a-world-of-blocks": {
     "banner": "끌어서 섬 주위를 날아 봐. 바다를 올려 골짜기를 잠기게 해 봐.",
     "controls": {

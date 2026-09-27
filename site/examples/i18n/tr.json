@@ -510,6 +510,21 @@
       "outer": "Dış"
     }
   },
+
+  "doors-that-open": {
+    "banner": "Kamerayı kapılara yaklaştırın. Yaklaştığınızda açılırlar.",
+    "controls": {
+      "mode": "Mod",
+      "openingDistance": "Açılma mesafesi",
+      "openness": "Açıklık"
+    },
+    "choices": {
+      "mode": {
+        "proximity": "yakınlık",
+        "manual": "elle"
+      }
+    }
+  },
   "a-world-of-blocks": {
     "banner": "Adanın etrafında uçmak için sürükle. Vadileri su basması için denizi yükselt.",
     "controls": {

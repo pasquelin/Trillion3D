@@ -510,6 +510,21 @@
       "outer": "Extérieur"
     }
   },
+
+  "doors-that-open": {
+    "banner": "Rapprochez la caméra des portes. Elles s’ouvrent à votre approche.",
+    "controls": {
+      "mode": "Mode",
+      "openingDistance": "Distance d’ouverture",
+      "openness": "Ouverture"
+    },
+    "choices": {
+      "mode": {
+        "proximity": "proximité",
+        "manual": "manuel"
+      }
+    }
+  },
   "a-world-of-blocks": {
     "banner": "Glisse pour voler autour de l'île. Monte la mer pour inonder les vallées.",
     "controls": {
