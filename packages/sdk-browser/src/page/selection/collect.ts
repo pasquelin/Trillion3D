@@ -157,7 +157,8 @@ export function collectClusterPages(
    *  written: the family this collection gives the class `alpha.to`, or the one it has. */
   const blendOf = (rec: PageRec, alpha: AlphaChange) => {
     const mesh = rec.sourceMesh,
-      worn = mesh && alpha.surfaces.includes(mesh.material as object),
+      worn =
+        mesh && (alpha.meshes?.includes(mesh) ?? alpha.surfaces.includes(mesh.material as object)),
       primitive = worn && primitiveOf(associations.get(mesh));
     return primitive
       ? pagesBlend(primitive, { transparent: alpha.to === 'blend' })

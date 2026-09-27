@@ -7,6 +7,7 @@ import type { RenderBackend } from '../../backend/types.ts';
 import type { AlphaChange } from '../../placement/backendSceneUpdates.ts';
 import { createExplorerMaterialApi } from './materialApi.ts';
 import { webgpuMaterialClassRefusal } from '../../webgpu/pages/io/refreshMaterials.ts';
+import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 
 const slot = (texture: number): TableTextureSlot => ({
   texture,
@@ -64,11 +65,16 @@ export async function scene(refresh = true, materialClassRefusal = webgpuMateria
   const plain = { vertexColors: false, flatShading: false };
   const source = new G.Group();
   const floor = [await materialOf(0, plain), await materialOf(0, { ...plain, vertexColors: true })];
+  // Each mesh draws manifest primitive `i/0`: the drawable a created material is assigned to.
+  const associations = new Map<Object3D, { meshes: number }>();
   for (const surface of [
     ...floor,
     ...(await Promise.all([1, 2, 3, 4].map((r) => materialOf(r, plain)))),
-  ])
-    source.add(G.mesh(undefined, surface));
+  ]) {
+    const mesh = G.mesh(undefined, surface);
+    source.add(mesh);
+    associations.set(mesh, { meshes: associations.size });
+  }
   // One entry per refresh: the alpha change it carried, `undefined` for values alone.
   const refreshes: (AlphaChange | undefined)[] = [];
   const backend = {
@@ -76,15 +82,17 @@ export async function scene(refresh = true, materialClassRefusal = webgpuMateria
     materialClassRefusal,
     ...(refresh && {
       refreshMaterials: (_: boolean, alpha?: AlphaChange) => void refreshes.push(alpha),
+      wearSurface: () => true,
     }),
   } as unknown as RenderBackend;
   const api = createExplorerMaterialApi({
     check: () => {},
     source,
+    associations,
     backends: [backend],
     active: () => backend,
   });
-  return { api, floor, textures, refreshes };
+  return { api, floor, textures, refreshes, source };
 }
 
 export const refusal = (code: string) => (error: unknown) =>
