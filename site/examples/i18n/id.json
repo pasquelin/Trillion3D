@@ -1259,6 +1259,21 @@
       }
     }
   },
+  "a-walk-through-the-city": {
+    "banner": "Klik tampilan, berjalan dengan W A S D, dan melihat dengan tetikus. Kurangi memori sambil bergerak.",
+    "controls": {
+      "walkSpeed": "Kecepatan jalan",
+      "memory": "Memori",
+      "view": "Tampilan",
+      "home": "Kembali ke awal"
+    },
+    "choices": {
+      "view": { "beauty": "hasil akhir", "lod": "tingkat detail", "clusters": "klaster" }
+    },
+    "words": {
+      "credit": "Jalan raya guci dibuat dengan kode untuk contoh ini, CC0 — lihat assets/examples/CREDITS.md"
+    }
+  },
   "migrating-from-three": {
     "words": {
       "credit": "Marble Bust 01 oleh Rico Cilliers, Poly Haven, CC0; peti oleh W. Sitters, CC BY 3.0 — lihat assets/examples/CREDITS.md"
@@ -1710,11 +1725,18 @@
   },
   "the-home-pose": {
     "banner": "Pilih tampilan, gerakkan kamera, lalu pilih Awal untuk kembali.",
-    "controls": { "home": "Awal", "tower": "Menara", "square": "Alun-alun", "hillside": "Lereng" }
+    "controls": {
+      "home": "Awal",
+      "tower": "Menara",
+      "square": "Alun-alun",
+      "hillside": "Lereng"
+    }
   },
   "the-near-plane-cuts-a-wall": {
     "banner": "Majukan bidang dekat dan lihat bidang itu memotong setiap dinding.",
-    "controls": { "nearPlane": "Bidang dekat" }
+    "controls": {
+      "nearPlane": "Bidang dekat"
+    }
   },
   "the-material-family": {
     "banner": "Geser untuk berkeliling. Ubah cahaya ke malam dan lihat apa yang masih bersinar.",
@@ -2190,6 +2212,16 @@
     },
     "readouts": {
       "progress": "Kemajuan"
+    }
+  },
+  "a-folder-merged-into-one-scene": {
+    "banner": "Seret untuk memeriksa sudut jalan. Kompiler menggabungkan tiga berkas OBJ dari satu folder ke adegan ini.",
+    "controls": {
+      "visible": "Terlihat",
+      "home": "Awal"
+    },
+    "words": {
+      "credit": "Model lampu jalan oleh W. Sitters, CC BY 3.0 — lihat assets/examples/CREDITS.md"
     }
   }
 }
