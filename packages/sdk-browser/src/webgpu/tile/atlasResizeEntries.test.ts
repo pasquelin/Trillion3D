@@ -29,11 +29,9 @@ test('a tile moved by a shrink takes the finer entries it served to its new plac
   const { pool: next } = resizeTileAtlas(gpu, { ...options, layers: 1 }, 0, pool, pages, resident);
   const moved = packEntry(next.placeOf(resident.get(id)!), 1);
   assert.equal(pages.entryOf(coarse), moved);
-  for (const [tx, ty] of [
-    [2, 0],
-    [3, 0],
-    [3, 1],
-  ])
-    assert.equal(pages.entryOf({ slot: 0, level: 0, tx, ty }), moved, `level 0, ${tx},${ty}`);
-  assert.equal(pages.entryOf(fine), packEntry({ x: 3, y: 0, layer: 0 }, 0), 'a finer tile stays');
+  // Level 0 under it: the finer tile at 2,1 stays; the three it served follow it.
+  const finer = packEntry({ x: 3, y: 0, layer: 0 }, 0);
+  for (let ty = 0; ty < 2; ty++)
+    for (let tx = 2; tx < 4; tx++)
+      assert.equal(pages.entryOf({ ...fine, tx, ty }), tx === 2 && ty === 1 ? finer : moved);
 });
