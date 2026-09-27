@@ -29,7 +29,7 @@ const local = new Float64Array(16),
   moved = new Float64Array(BOX_VALUES),
   movedMin = moved.subarray(0, 3),
   movedMax = moved.subarray(3, 6);
-/** One flag per selection root: under the moved node or not. Grown once, never per move. */
+/** One flag per selection root, for the box lot: under the moved node or not. Grown once. */
 let underNode = new Uint8Array(0);
 /** Ranks of the roots under the moved node, increasing. Reused from move to move. */
 const movedList: number[] = [];
@@ -109,10 +109,7 @@ export function setWebgpuTransform(rt: WebgpuPagesRuntime, nodeName: string, mat
   // The moved roots are those whose mesh lies in the node's subtree: the subtree is walked once,
   // and the roots are visited in increasing rank, as the loop over every root visited them.
   const roots = layout.selectionRoots;
-  if (underNode.length < roots.length) underNode = new Uint8Array(roots.length);
-  underNode.fill(0, 0, roots.length);
   rootsUnder(roots, node, movedList);
-  for (const i of movedList) underNode[i] = 1;
   boxEmpty(moved, 0);
   let promoted = false;
   for (const i of movedList) {
@@ -147,10 +144,15 @@ export function setWebgpuTransform(rt: WebgpuPagesRuntime, nodeName: string, mat
   // World boxes of the moved roots reproject IN BATCH, through the governor, in the buffer
   // reserved at prepare. A missing or released buffer hands over to the box-by-box computation,
   // which yields the same bits — the same `boxTransform` on the same inputs.
-  const enLot =
-    movedList.length * LOT_SHARE >= roots.length &&
-    !!layout.rootBoxes &&
-    transformRootBoxes(layout.rootBoxes, roots, underNode);
+  const lot = movedList.length * LOT_SHARE >= roots.length ? layout.rootBoxes : null;
+  let enLot = false;
+  if (lot) {
+    // The flags stay all clear between moves: only the moved ones are set, then cleared again.
+    if (underNode.length < roots.length) underNode = new Uint8Array(roots.length);
+    for (const i of movedList) underNode[i] = 1;
+    enLot = transformRootBoxes(lot, roots, underNode);
+    for (const i of movedList) underNode[i] = 0;
+  }
   for (const i of movedList) {
     const root = roots[i];
     moveRootRows(rt, root);
