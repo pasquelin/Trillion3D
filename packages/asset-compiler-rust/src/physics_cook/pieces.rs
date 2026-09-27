@@ -41,7 +41,8 @@ fn draw(state: &mut u64) -> f64 {
     let mut z = *state;
     z = (z ^ (z >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
     z = (z ^ (z >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
-    (z ^ (z >> 31)) as f64 / (u64::MAX as f64 + 1.0)
+    // The top 53 bits, exact in an f64: the whole 64 would round up to 1 near `u64::MAX`.
+    ((z ^ (z >> 31)) >> 11) as f64 / (1u64 << 53) as f64
 }
 
 /// The pieces of mesh `mesh`'s welded `triangles` over `pos`, seeded by `seed` and weighed at
