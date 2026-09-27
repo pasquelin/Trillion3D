@@ -170,7 +170,7 @@ pub(super) fn compile_primitive(
             &index_values,
             demand,
             clustered_blend,
-            scale,
+            crate::geometry_page_quant::tile::tile_log2(scale),
             &store,
         )?
     } else {

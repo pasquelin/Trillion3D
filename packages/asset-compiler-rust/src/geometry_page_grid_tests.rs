@@ -3,6 +3,7 @@
 //! beyond that grid is refused.
 
 use crate::geometry_page::{encode, Attribute, FLAG_COLOR};
+use crate::geometry_page_quant::tile::TILE_EXTENT_LOG2 as TILE;
 use crate::geometry_page_quant::{primitive_exponent, primitive_uv_exponent, UV_EXPONENT};
 use trillion3d_page_codec as codec;
 
@@ -27,21 +28,21 @@ fn a_constant_colour_costs_no_bits_and_the_primitive_grid_follows_the_finest_err
     );
     // A primitive one unit wide: 2^-16 by extent; an error of 2^-15 asks for 2^-18, the finer.
     assert_eq!(
-        primitive_exponent(&positions, [0.5f64].into_iter(), false, None),
+        primitive_exponent(&positions, [0.5f64].into_iter(), false, TILE),
         -16
     );
     assert_eq!(
-        primitive_exponent(&positions, [0.0, 2f64.powi(-15)].into_iter(), false, None),
+        primitive_exponent(&positions, [0.0, 2f64.powi(-15)].into_iter(), false, TILE),
         -18
     );
     assert_eq!(
-        primitive_exponent(&[0.0; 3], [].into_iter(), false, None),
+        primitive_exponent(&[0.0; 3], [].into_iter(), false, TILE),
         -16
     );
     // #875: blended, whatever its errors, the finest grid a page holds: 2^23 steps across it;
     // its texture coordinates, two units wide, take 2^-22, an opaque one's the format's 2^-14.
     assert_eq!(
-        primitive_exponent(&positions, [0.5f64].into_iter(), true, None),
+        primitive_exponent(&positions, [0.5f64].into_iter(), true, TILE),
         -23
     );
     let uv = Attribute {
@@ -82,7 +83,7 @@ fn every_page_of_a_primitive_shares_its_exponent_and_a_page_beyond_the_grid_is_r
     // A primitive 1000 units wide whose DAG asks for a 2^-33 grid: the extent bounds it at
     // 2^-13 (2^22 steps), so its widest page still fits, on the primitive's own exponent.
     let corners = [0.0, 0.0, 0.0, 1000.0, 0.0, 0.0, 0.0, 1000.0, 0.0];
-    let exponent = primitive_exponent(&corners, [1e-9f64].into_iter(), false, None);
+    let exponent = primitive_exponent(&corners, [1e-9f64].into_iter(), false, TILE);
     assert_eq!(exponent, -13);
     let near = [0.0, 0.0, 0.0, 0.5, 0.0, 0.0, 0.0, 0.5, 0.0];
     for page in [&corners, &near] {
@@ -100,7 +101,7 @@ fn every_page_of_a_primitive_shares_its_exponent_and_a_page_beyond_the_grid_is_r
         "PAGE_ATTRIBUTE_RANGE"
     );
     let beyond = [-f32::MAX, 0.0, 0.0, f32::MAX, 0.0, 0.0, 0.0, 0.0, 0.0];
-    let grid = primitive_exponent(&beyond, [].into_iter(), false, None);
+    let grid = primitive_exponent(&beyond, [].into_iter(), false, TILE);
     assert_eq!(
         encode(&[0, 1, 2], &beyond, &[], grid, UV_EXPONENT)
             .unwrap_err()

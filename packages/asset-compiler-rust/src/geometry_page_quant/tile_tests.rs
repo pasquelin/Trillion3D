@@ -7,6 +7,7 @@ use crate::compute_bench::inputs::Xorshift;
 use crate::dag::{build_dag_tallied, DagAttributes, DagStrategy};
 use crate::geometry_page::encode;
 use crate::geometry_page_quant::{grid_exponent, primitive_exponent, UV_EXPONENT};
+use crate::tests::fixtures::grid_indices;
 use trillion3d_page_codec::bits::{MAX_BITS, MAX_EXPONENT};
 
 /// The grid rule before tiles: a tile no primitive reaches leaves the extent rule whole.
@@ -33,9 +34,10 @@ const EDGES: [f64; 12] = [
 #[test]
 fn a_primitive_narrower_than_a_tile_keeps_its_grid() {
     let mut rng = Xorshift::new(930);
-    let tile = 2f64.powi(TILE_EXTENT_LOG2 + 1);
+    // 2^6: the first extent whose floor(log2) the tile clamps.
+    let bound = 2f64.powi(TILE_EXTENT_LOG2 + 1);
     for _ in 0..100_000 {
-        let extent = f64::from(rng.unit()) * tile;
+        let extent = f64::from(rng.unit()) * bound;
         let error = match rng.below(3) {
             0 => None,
             1 => Some(f64::from(rng.unit()) * 4.0),
@@ -50,11 +52,11 @@ fn a_primitive_narrower_than_a_tile_keeps_its_grid() {
     // An empty primitive and a single point: no extent, the grid they had.
     for positions in [&[][..], &[3.0, -4.0, 5.0]] {
         assert_eq!(
-            primitive_exponent(positions, [].into_iter(), false, None),
+            primitive_exponent(positions, [].into_iter(), false, TILE_EXTENT_LOG2),
             untiled(0.0, None)
         );
     }
-    for extent in EDGES.into_iter().filter(|e| e.is_nan() || *e < tile) {
+    for extent in EDGES.into_iter().filter(|e| e.is_nan() || *e < bound) {
         for error in EDGES.into_iter().map(Some).chain([None]) {
             assert_eq!(
                 grid_exponent(extent, error, TILE_EXTENT_LOG2),
@@ -68,10 +70,12 @@ fn a_primitive_narrower_than_a_tile_keeps_its_grid() {
 #[test]
 fn a_wider_primitive_is_never_coarser_and_its_widest_page_still_fits() {
     let mut rng = Xorshift::new(913);
-    let extents: Vec<f64> = (0..100_000)
-        .map(|_| 2f64.powf(f64::from(rng.unit()) * 40.0 - 8.0))
-        .collect();
-    for extent in extents.into_iter().chain(EDGES) {
+    for i in 0..100_000 + EDGES.len() {
+        let random = 2f64.powf(f64::from(rng.unit()) * 40.0 - 8.0);
+        let extent = EDGES
+            .get(i.wrapping_sub(100_000))
+            .copied()
+            .unwrap_or(random);
         let error = (rng.below(2) == 0).then(|| f64::from(rng.unit()) * 16.0);
         let tiled = grid_exponent(extent, error, TILE_EXTENT_LOG2);
         assert!(tiled <= untiled(extent, error), "{extent} {error:?}");
@@ -104,7 +108,7 @@ fn the_tile_is_measured_in_metres_of_the_world() {
     // A hall modelled in centimetres-like units, 3,720 of them at a scale of 0.008 (Sponza).
     let hall = [0.0, 0.0, 0.0, 3720.0, 1550.0, 2290.0];
     assert_eq!(
-        primitive_exponent(&hall, [].into_iter(), false, Some(0.008)),
+        primitive_exponent(&hall, [].into_iter(), false, tile_log2(Some(0.008))),
         untiled(3720.0, None)
     );
     // A kilometre terrain modelled in kilometres: the same world step as one modelled in metres.
@@ -113,15 +117,20 @@ fn the_tile_is_measured_in_metres_of_the_world() {
         &terrain,
         [].into_iter(),
         false,
-        Some(1e3),
+        tile_log2(Some(1e3)),
     )) * 1e3;
     assert!(step <= 2f64.powi(TILE_EXTENT_LOG2 - 16), "{step}");
     // A scale that places nothing measurable leaves object units as metres; an extreme one still
     // yields a grid the field holds.
-    for scale in [None, Some(f64::NAN), Some(0.0), Some(-0.0), Some(-1.0)]
-        .into_iter()
-        .chain([Some(f64::INFINITY), Some(f64::NEG_INFINITY)])
-    {
+    for scale in [
+        None,
+        Some(f64::NAN),
+        Some(0.0),
+        Some(-0.0),
+        Some(-1.0),
+        Some(f64::INFINITY),
+        Some(f64::NEG_INFINITY),
+    ] {
         assert_eq!(tile_log2(scale), TILE_EXTENT_LOG2, "{scale:?}");
     }
     for scale in [5e-324, f64::MIN_POSITIVE, f64::MAX] {
@@ -144,14 +153,7 @@ fn terrain(size: f32, quads: usize) -> (Vec<f32>, Vec<u32>) {
             positions.extend([fx, fy, relief + rng.unit() * 0.3]);
         }
     }
-    let row = quads as u32 + 1;
-    let mut indices = Vec::with_capacity(quads * quads * 6);
-    for y in 0..quads as u32 {
-        for x in 0..quads as u32 {
-            let a = y * row + x;
-            indices.extend([a, a + 1, a + row, a + 1, a + row + 1, a + row]);
-        }
-    }
+    let indices = grid_indices(quads, quads, |x, y| (y * (quads + 1) + x) as u32);
     (positions, indices)
 }
 
@@ -170,17 +172,21 @@ fn a_kilometre_terrain_seen_from_two_metres_quantizes_under_the_display_quantum(
     )
     .expect("dag");
     let errors = || dag.iter().filter(|c| c.level > 0).map(|c| c.lod_error);
-    let exponent = primitive_exponent(&positions, errors(), false, None);
+    let exponent = primitive_exponent(&positions, errors(), false, TILE_EXTENT_LOG2);
     assert_eq!(exponent, TILE_EXTENT_LOG2 - 16);
-    let finest = errors().filter(|e| *e > 0.0).min_by(f64::total_cmp);
-    let before = untiled(1024.0, finest);
-    let mut worst = [0f64; 2];
-    for cluster in &dag {
-        for (slot, grid) in [exponent, before].into_iter().enumerate() {
-            let page = encode(&cluster.indices, &positions, &[], grid, UV_EXPONENT).expect("page");
-            worst[slot] = worst[slot].max(f64::from(page.header.quantization_error));
-        }
-    }
-    assert!(worst[0] < quantum, "tiled: {worst:?} against {quantum}");
-    assert!(worst[1] > quantum, "untiled was an image loss: {worst:?}");
+    let before = primitive_exponent(&positions, errors(), false, i32::MAX);
+    let worst = |grid| {
+        dag.iter()
+            .map(|cluster| {
+                let page = encode(&cluster.indices, &positions, &[], grid, UV_EXPONENT);
+                f64::from(page.expect("page").header.quantization_error)
+            })
+            .fold(0.0, f64::max)
+    };
+    let (tiled, untiled) = (worst(exponent), worst(before));
+    assert!(tiled < quantum, "tiled: {tiled} against {quantum}");
+    assert!(
+        untiled > quantum,
+        "untiled was an image loss: {untiled} against {quantum}"
+    );
 }

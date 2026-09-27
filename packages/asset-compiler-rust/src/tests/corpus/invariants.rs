@@ -131,7 +131,7 @@ pub(super) fn check_pages(case: &Case, built: &Built, label: &str) {
             .filter(|c| c.level > 0)
             .map(|c| c.lod_error),
         false,
-        None,
+        crate::geometry_page_quant::tile::TILE_EXTENT_LOG2,
     );
     for cluster in &built.dag {
         let encoded = geometry_page::encode(
