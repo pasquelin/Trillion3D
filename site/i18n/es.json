@@ -33,9 +33,9 @@
   "examples": {
     "lead": "Cada ejemplo es un archivo corto: míralo funcionar, abre su código, cámbialo.",
     "jumpTo": "Ir a un tema",
-    "inProgress": "En curso",
     "waitsFor": "Espera al motor:",
-    "waitingEngine": "Esperando al motor"
+    "partial": "Parcial",
+    "coming": "Próximamente: {{titles}}"
   },
   "gallery": {
     "themes": {
@@ -121,10 +121,10 @@
       "a-refracting-pane": "Un cristal que refracta",
       "a-light-map": "Un light map",
       "two-materials-one-mesh": "Dos materiales, una malla",
-      "clearcoat-paint": "Pintura con barniz",
       "velvet-sheen": "Brillo de terciopelo",
       "soap-bubble-iridescence": "Iridiscencia",
       "brushed-metal": "Metal cepillado",
+      "car-paint-under-clear-coat": "Pintura de coche bajo una capa transparente",
       "a-prism-that-disperses": "Un prisma que dispersa",
       "retroreflective-paint": "Retrorreflexión",
       "light-through-skin": "Luz bajo la piel",
@@ -153,7 +153,7 @@
       "flat-shadows-on-the-floor": "Sombras proyectadas planas",
       "a-softbox-panel": "Un panel de luz suave",
       "light-from-a-probe": "Luz desde una sonda",
-      "soft-shadow-edges": "Bordes de sombra suaves",
+      "soft-shadows-from-a-wide-lamp": "Sombras suaves de una lámpara ancha",
       "contact-shadow-under-a-car": "Sombra de contacto",
       "coloured-shadows-through-glass": "Sombras a través del vidrio",
       "shadows-in-the-corners": "Sombras en las esquinas",
@@ -357,10 +357,10 @@
       "a-refracting-pane": "render a una textura",
       "a-light-map": "ranura para light map",
       "two-materials-one-mesh": "mallas multimaterial",
-      "clearcoat-paint": "capas del material físico: barniz",
       "velvet-sheen": "capas del material físico: brillo",
       "soap-bubble-iridescence": "capas del material físico: iridiscencia",
       "brushed-metal": "capas del material físico: anisotropía",
+      "car-paint-under-clear-coat": "capas del material físico: capa transparente",
       "a-prism-that-disperses": "capas del material físico: dispersión",
       "retroreflective-paint": "materiales con shader a medida",
       "light-through-skin": "dispersión bajo la superficie",
@@ -375,7 +375,7 @@
       "a-stack-of-texture-layers": "texturas de datos, en array y 3D",
       "wide-gamut-colour": "salida de gama amplia",
       "energy-conservation-test": "iluminación por entorno (IBL)",
-      "soft-shadow-edges": "filtrado de sombras suaves (penumbra)",
+      "soft-shadows-from-a-wide-lamp": "sombras suaves según el ancho de la lámpara",
       "contact-shadow-under-a-car": "render a una textura",
       "coloured-shadows-through-glass": "objetos transparentes que proyectan sombra",
       "shadows-in-the-corners": "oclusión ambiental en espacio pantalla",

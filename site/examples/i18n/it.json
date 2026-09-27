@@ -1,4 +1,22 @@
 {
+  "brushed-metal": {
+    "banner": "Ruota intorno ai riflessi spazzolati. Cambiane forza e direzione.",
+    "controls": {
+      "anisotropy": "Forza spazzolatura",
+      "direction": "Direzione spazzolatura",
+      "roughness": "Ruvidità",
+      "spin": "Rotazione"
+    }
+  },
+  "car-paint-under-clear-coat": {
+    "banner": "Ruota intorno all'auto. Cambia la vernice e lo strato trasparente.",
+    "controls": {
+      "paint": "Vernice",
+      "clearCoat": "Strato trasparente",
+      "coatRoughness": "Ruvidità dello strato",
+      "spin": "Rotazione"
+    }
+  },
   "kit": {
     "panel": {
       "controls": "Impostazioni"
@@ -308,6 +326,13 @@
       "hour": "Ora",
       "wind": "Vento",
       "roof": "Tetto"
+    }
+  },
+  "soft-shadows-from-a-wide-lamp": {
+    "banner": "Trascina per ruotare. Cambia la larghezza della lampada e osserva i bordi delle ombre.",
+    "controls": {
+      "lampWidth": "Larghezza lampada",
+      "moveSubject": "Muovi soggetto"
     }
   },
   "a-softbox-panel": {
