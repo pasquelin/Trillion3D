@@ -17,14 +17,13 @@ function batchViews(rt: WebgpuPagesRuntime) {
   return light ? light.redraws.viewLimit : MAX_SHADOW_PAGES;
 }
 
-/** The batches this frame may draw and the staging they take, from the current pool, the views
- *  a batch runs and the device's buffer limit (`shadowBatchCapacity`). */
-export const frameBatchCapacity = (rt: WebgpuPagesRuntime) =>
-  shadowBatchCapacity(
-    rt.lights.plan.pool.pages,
-    batchViews(rt),
-    rt.gpu.device?.limits.maxBufferSize ?? Infinity,
-  );
+/** The views a batch of this frame runs, the batches it may draw and the staging they take, from
+ *  the current pool, those views and the device's buffer limit (`shadowBatchCapacity`). */
+export function frameBatchCapacity(rt: WebgpuPagesRuntime) {
+  const views = batchViews(rt),
+    maxBufferSize = rt.gpu.device?.limits.maxBufferSize ?? Infinity;
+  return { views, ...shadowBatchCapacity(rt.lights.plan.pool.pages, views, maxBufferSize) };
+}
 
 /**
  * Hands every batch of the frame's pages to `visit` — pages `[from, to)` of the plan's list, and
@@ -39,12 +38,11 @@ export const frameBatchCapacity = (rt: WebgpuPagesRuntime) =>
 export function forEachShadowBatch(
   rt: WebgpuPagesRuntime,
   visit: (from: number, to: number, runBase: number) => boolean,
+  { views, batches } = frameBatchCapacity(rt),
 ) {
   const { plan, runs } = rt.lights,
     { admission } = plan,
-    count = admission.count,
-    views = batchViews(rt),
-    { batches } = frameBatchCapacity(rt);
+    count = admission.count;
   let runBase = 0,
     from = 0;
   for (let batch = 0; from < count && batch < batches; batch++) {
@@ -75,18 +73,23 @@ export function encodeShadowBatches(
   const { lights } = rt,
     { plan } = lights,
     count = plan.admission.count,
-    writes = shadowBatchWrites(device);
-  writes.reserve(frameBatchCapacity(rt).stagingBytes);
+    writes = shadowBatchWrites(device),
+    capacity = frameBatchCapacity(rt);
+  writes.reserve(capacity.stagingBytes);
   let drawn: number;
   try {
-    drawn = forEachShadowBatch(rt, (from, to, runBase) => {
-      if (from) writes.stage(encoder);
-      const regions = writeShadowPages(lights, eye, from, to);
-      if (!encodeShadowAtlas(rt, device, encoder, regions, from, to, runBase)) return false;
-      lights.shadowFaces += lights.runs.count;
-      plan.commit(pageModes, from, to);
-      return true;
-    });
+    drawn = forEachShadowBatch(
+      rt,
+      (from, to, runBase) => {
+        if (from) writes.stage(encoder);
+        const regions = writeShadowPages(lights, eye, from, to);
+        if (!encodeShadowAtlas(rt, device, encoder, regions, from, to, runBase)) return false;
+        lights.shadowFaces += lights.runs.count;
+        plan.commit(pageModes, from, to);
+        return true;
+      },
+      capacity,
+    );
   } finally {
     writes.end();
     encodeShadowRequests(rt, encoder);

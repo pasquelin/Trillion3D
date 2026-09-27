@@ -8,7 +8,7 @@ import assert from 'node:assert/strict';
 import { directShadowWgsl } from './shadowWgsl.ts';
 import { SHADOW_SUBTEXELS as STEPS } from './shadowSampleWgsl.ts';
 import { pcf, type Sampler, type Stored } from './shadowBias.fixture.ts';
-import { throughAxis } from './shadowPages.fixture.ts';
+import { throughAxis, type Pair } from './shadowPages.fixture.ts';
 import {
   SHADOW_PAGE as S,
   pageOrigin,
@@ -16,7 +16,6 @@ import {
   shadowPoolSize,
 } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 
-type Pair = [number, number];
 const f = Math.fround;
 const hash = (x: number) => {
   let h = Math.imul(x ^ 0x9e3779b9, 0x85ebca6b);
