@@ -2,7 +2,10 @@ import { followHostTexture } from '../../../host/textureImport.ts';
 import { pictureFits } from '../../tile/live.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import type { AlphaMode } from '../../../../../sdk-core/src/contracts/material.ts';
-import { shadowsFollowTextures } from '../prepare/lightResources.ts';
+import { shadowsFollowSurfaces } from '../prepare/lightResources.ts';
+import type { AlphaChange } from '../../../placement/backendSceneUpdates.ts';
+import type { HostMaterials } from '../../../host/resources.ts';
+import { surfaceOf } from '../../../page/surface.ts';
 
 /**
  * Opaque and masked clusters are drawn by the same visibility passes, told apart by the flag and
@@ -25,11 +28,15 @@ export const webgpuMaterialClassRefusal = (from: AlphaMode, to: AlphaMode) =>
  * row reads them: the render follows the headers and copies a moved picture into the pool itself
  * (`../render/render.ts`, `../../tile/live.ts`, #362), which releases a held image, and the row
  * table is left as it is. A picture whose size changed cannot be copied: its tiles were laid out
- * at the old one, and false asks the owner for a new session. A material moved between opaque and
- * masked (`reclassed`) now cuts its shadow, or no longer does: every shadow page is drawn again.
+ * at the old one, and false asks the owner for a new session. Surfaces whose alpha moved (`alpha`)
+ * — between opaque and masked, or to another cutoff — cut their shadow otherwise: the shadow pages
+ * over their rows are drawn again.
  */
-export function refreshWebgpuMaterials(rt: WebgpuPagesRuntime, values = true, reclassed = false) {
-  if (reclassed) shadowsFollowTextures(rt.lights, rt.layout.rows, -1);
+export function refreshWebgpuMaterials(rt: WebgpuPagesRuntime, values = true, alpha?: AlphaChange) {
+  if (alpha) {
+    const surfaces = alpha.surfaces.map((surface) => surfaceOf(surface as HostMaterials));
+    shadowsFollowSurfaces(rt.lights, rt.layout.rows, new Set(surfaces));
+  }
   if (values) {
     rt.layout.rows.tableEpoch++;
     // The scene revision moved: the next image writes the transparent records again, once
