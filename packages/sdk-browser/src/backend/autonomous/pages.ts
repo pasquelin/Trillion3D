@@ -6,10 +6,9 @@ import type { PageRec } from '../../page/selection/selection.ts';
 import { createAutonomousRender, createAutonomousRenderState } from './render.ts';
 import { autonomousCapabilities, publishAutonomousCapabilities } from './capabilities.ts';
 import { createWebglFrameGate } from '../../webgl/core/frameGate.ts';
-import { decodePageOffThread } from '../../page/decode/host.ts';
 import { createAutonomousGeometry } from './geometry.ts';
 import { createAutonomousInstances } from './instances.ts';
-import { prepareAutonomousManifest, autonomousBootstrap } from './manifest.ts';
+import { prepareAutonomousManifest, autonomousBootstrap, readPages } from './manifest.ts';
 import { createAutonomousResidency } from './residency.ts';
 import { createAutonomousPool } from './poolApi.ts';
 import { createHeldFloor } from './heldFloor.ts';
@@ -127,14 +126,8 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
     async prepare() {
       if (!context.readGeometryPage) throw new Error('AUTONOMOUS_PAGE_READER_MISSING');
       if (heldFloor.overCeiling()) throw new Error('AUTONOMOUS_ROOT_BUDGET');
-      await Promise.all(
-        [...bootstrapUrls].map(async (url) => {
-          context.signal?.throwIfAborted();
-          const bytes = await context.readGeometryPage!(url);
-          context.signal?.throwIfAborted();
-          acceptGeometryPage(url, await decodePageOffThread(bytes, context.signal));
-        }),
-      );
+      const urls = [...bootstrapUrls];
+      (await readPages(context, urls)).forEach((data, i) => acceptGeometryPage(urls[i], data));
       heldFloor.changed();
       ready = true;
       for (const page of bootstrap) lists.shown.push(page); // a spread overflows the stack
@@ -150,10 +143,13 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
     ...instances,
     ...autonomousPlacements({
       ...tables,
+      context,
+      descriptors,
+      bootstrapUrls,
       blendCopies,
       scene,
       gate,
-      rowsWritten: geometryStore.rowsWritten,
+      geometryStore,
       coverChanged: heldFloor.placed,
     }),
     ...lightingApi,
