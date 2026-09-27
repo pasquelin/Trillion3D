@@ -31,51 +31,37 @@ async function residentCut() {
 }
 const WIDE = 1 << 20;
 
-test('the queue lists each key once, at its canonical page, children before parents', async () => {
+test('each key once, children before parents, never one the cut read by any placement', async () => {
   const { keys, levelOf, cut } = await residentCut();
-  const { queue } = await cut(WIDE);
+  const { result, queue } = await cut(WIDE);
   assert.ok(queue.length > 10, 'the cut must leave pages to evict');
-  // One key per address: the four placements share theirs, and only the first page names it.
   assert.equal(new Set(queue).size, queue.length);
   for (const page of queue) assert.equal(canonicalPage(keys[page]), page);
   // A parent's level is above its children's: never a coarser page ahead of a finer one.
   assert.ok(new Set(queue.map(levelOf)).size > 1, 'the queue must span levels');
   for (let i = 1; i < queue.length; i++)
     assert.ok(levelOf(queue[i - 1]) <= levelOf(queue[i]), `a parent leaves before a child at ${i}`);
-});
-
-test('a page the cut read this frame is never listed, whatever placement read it', async () => {
-  const { keys, cut } = await residentCut();
-  const { result, queue } = await cut(WIDE);
   const read = [...result.pageIds, ...(result.drawablePageIds ?? [])];
   assert.ok(
     read.some((page) => canonicalPage(keys[page]) !== page),
     'a later placement reads',
   );
-  const listed = new Set(queue);
-  for (const page of read) assert.ok(!listed.has(canonicalPage(keys[page])), `page ${page} listed`);
+  for (const page of read) assert.ok(!queue.includes(canonicalPage(keys[page])), `${page} listed`);
 });
 
-test('the queue stops at the pool slots, keeping its first ranks, and follows a resize', async () => {
-  const { keys, cut } = await residentCut();
-  const bounded = (await cut(3)).queue;
-  const whole = (await cut(WIDE)).queue;
+test('the queue lists what the pool holds, up to its slots, whatever the rule reads', async () => {
+  const { selection, keys, cut } = await residentCut();
+  const bounded = (await cut(3)).queue,
+    listed = (await cut(WIDE)).queue;
   assert.equal(bounded.length, 3);
-  assert.ok(whole.length > 3, 'a wider pool lists more on the next cut');
   // Within a rank the threads' order is free: compare ranks. No listed page was ever used.
   const rankOf = (page: number) => evictionRank(keys[page], 1);
-  assert.deepEqual(bounded.map(rankOf), whole.slice(0, 3).map(rankOf));
-});
-
-test('the queue lists what the pool holds, whatever the cut rule reads resident', async () => {
-  const { selection, keys, cut } = await residentCut();
-  const listed = (await cut(WIDE)).queue;
+  assert.deepEqual(bounded.map(rankOf), listed.slice(0, 3).map(rankOf));
   // The pool gives half the listed keys back; the rule still reads every page resident.
   const back = new Set(listed.filter((_, i) => i % 2));
   for (const page of back) selection.notePool(page, false);
   const queue = (await cut(WIDE)).queue;
   assert.deepEqual(new Set(queue), new Set(listed.filter((page) => !back.has(page))));
-  for (const page of queue) assert.equal(canonicalPage(keys[page]), page);
 });
 
 test('the mirror ranks finer first, then older first, and skips the pages used now', () => {

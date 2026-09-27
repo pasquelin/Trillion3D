@@ -4,53 +4,39 @@ import { SELECTION_WORKGROUP } from '../../../packages/sdk-browser/src/gpu/core/
 import { dagWorkLayout } from '../../../packages/sdk-browser/src/gpu/dag/shader/floorWgsl.ts';
 import { dagFlagsWords } from '../../../packages/sdk-browser/src/gpu/dag/shader/lastUseWgsl.ts';
 import { canonicalPage, listEvictions } from '../../../packages/sdk-browser/src/gpu/dag/evict.ts';
-import {
-  SELECTION_HEADER_WORDS,
-  evictionWord,
-  keyBase,
-  poolBase,
-  selectionListCap,
-} from '../../../packages/sdk-browser/src/gpu/dag/layout.ts';
-import { words } from './mockComputeBlend.ts';
 import { POOL_SLOTS_WORD } from '../../../packages/sdk-browser/src/gpu/dag/uniforms.ts';
+import * as L from '../../../packages/sdk-browser/src/gpu/dag/layout.ts';
+import { words } from './mockComputeBlend.ts';
 
-type Bound = Map<number, { data: Uint8Array }>;
-
-/** The words a camera cut's last-use stamps and clock live in, as the kernel lays them out. */
-function clockOf(byBinding: Bound, packed: PackedDag) {
-  const flags = words(byBinding.get(DAG_BINDING.flags)!.data),
-    work = words(byBinding.get(DAG_BINDING.work)!.data),
-    cold = words(byBinding.get(DAG_BINDING.cold)!.data),
-    frame = dagWorkLayout(Math.ceil(packed.pageCount / SELECTION_WORKGROUP)).frame,
-    stampAt = (page: number) => dagFlagsWords(packed.nodeCount, packed.pageCount, false) + page;
-  return { flags, work, cold, frame, stampAt, keys: keyBase(packed.pageCount) };
-}
-
-/** `dagPrepare`'s `countFrame`, then `stampUse` on every page the camera cut drew or asked for:
- *  each stamp at its key's canonical page (`shader/lastUseWgsl.ts`). */
-export function stampCameraCut(byBinding: Bound, packed: PackedDag, used: Iterable<number>) {
-  const { flags, work, cold, frame, stampAt, keys } = clockOf(byBinding, packed);
-  const now = ++work[frame];
-  for (const page of used) flags[stampAt(canonicalPage(cold[keys + page]))] = now;
-}
-
-/** `dagListEvictions`, through its mirror: the queue behind the drawn list, bounded by `poolSlots`. */
-export function listPoolEvictions(byBinding: Bound, packed: PackedDag) {
-  const { flags, work, cold, frame, stampAt, keys } = clockOf(byBinding, packed);
-  const poolSlots = words(byBinding.get(DAG_BINDING.views)!.data)[POOL_SLOTS_WORD];
+/** The camera cut's last-use clock and `dagListEvictions`, replayed on the words the kernels read
+ *  (`shader/lastUseWgsl.ts`, `shader/evictWgsl.ts`). */
+export function mockEvictions(byBinding: Map<number, { data: Uint8Array }>, packed: PackedDag) {
+  const [flags, work, cold, views, out] = (['flags', 'work', 'cold', 'views', 'out'] as const).map(
+    (name) => words(byBinding.get(DAG_BINDING[name])!.data),
+  );
   const { pageCount } = packed,
-    listCap = selectionListCap(pageCount),
-    pool = poolBase(pageCount),
-    stampOf = (page: number) => flags[stampAt(page)];
-  const queue = listEvictions({
-    pool: cold.subarray(pool + 1, pool + 1 + cold[pool]),
-    keys: cold.subarray(keys),
-    stampOf,
-    now: work[frame],
-    cap: Math.min(poolSlots, listCap),
-  });
-  const out = words(byBinding.get(DAG_BINDING.out)!.data),
-    at = evictionWord(listCap);
-  out[at] = queue.length;
-  out.set(queue, at + SELECTION_HEADER_WORDS);
+    frame = dagWorkLayout(Math.ceil(pageCount / SELECTION_WORKGROUP)).frame,
+    stamps = dagFlagsWords(packed.nodeCount, pageCount, false),
+    keys = cold.subarray(L.keyBase(pageCount)),
+    pool = L.poolBase(pageCount),
+    listCap = L.selectionListCap(pageCount);
+  return {
+    /** `countFrame`, then `stampUse` on each page the cut drew or asked for, at its canonical page. */
+    stamp(used: Iterable<number>) {
+      const now = ++work[frame];
+      for (const page of used) flags[stamps + canonicalPage(keys[page])] = now;
+    },
+    /** The queue behind the drawn list, bounded by `poolSlots`. */
+    list() {
+      const queue = listEvictions({
+        pool: cold.subarray(pool + 1, pool + 1 + cold[pool]),
+        keys,
+        stampOf: (page) => flags[stamps + page],
+        now: work[frame],
+        cap: Math.min(views[POOL_SLOTS_WORD], listCap),
+      });
+      out[L.evictionWord(listCap)] = queue.length;
+      out.set(queue, L.evictionWord(listCap) + L.SELECTION_HEADER_WORDS);
+    },
+  };
 }
