@@ -127,12 +127,12 @@ export function createWebgpuResidencySets(options: {
     get heldOutsideQueue() {
       return tracking.keep.count - wanted.count - cover;
     },
-    /** The cut that decides; true on a switch, the CPU cut's ranking and pin feed then refilled. */
+    /** The cut that decides; true on a switch, the CPU's ranking and pin feed refilled, `leaving` kept. */
     decideBy(cpu: boolean) {
       if (cpu === cpuCut) return false;
       cpuCut = cpu;
       entering.clear();
-      leaving.clear();
+      if (!cpu) leaving.clear();
       ranking.clear();
       const { list, count } = tracking.keep;
       if (cpu) for (let i = 0; i < count; i++) entering.add(list[i], tracking.keepPages[i]);
