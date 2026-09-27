@@ -177,7 +177,11 @@ test('a created material assigned over a paint frees the pair the paint owned', 
   });
   assert.equal(plain.declaration, created as unknown as HostMaterial, 'the page wears it');
   const twin = coloured.declaration as unknown as GraphSurface;
-  assert.equal(twin.vertexColors, true, 'a page with colours keeps them in a plain created surface');
+  assert.equal(
+    twin.vertexColors,
+    true,
+    'a page with colours keeps them in a plain created surface',
+  );
   assert.equal(disposed, 2, 'the paint and its twin are freed as the page stops wearing them');
   assert.equal(colorMaterials.size, 1, "only the created material's twin is cached");
   instances.disposeOwnedMaterials();
