@@ -75,6 +75,9 @@ test('the canal dolly is scene-driven and its controls pause, replay and change 
   assert.equal(advanceMixers(scene, 1), true);
   assert.ok(camera.position.z < paused.z - 10);
 
+  assert.equal(advanceMixers(scene, 20), false);
+  assert.ok(camera.position.z < -38, 'the one-way journey stays at the far quay');
+
   values.paused = true;
   change(values, 'paused');
   (specs.replay as () => void)();
