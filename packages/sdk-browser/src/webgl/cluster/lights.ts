@@ -3,6 +3,7 @@ import { inReferenceOrder } from './lightOrder.ts';
 import { WebglClusterProbe } from './probe.ts';
 import { WebglClusterFog } from './fog.ts';
 import { sceneFogOf, type Fog } from '../../world/core/sceneFog.ts';
+import type { SceneFog } from '../../../../sdk-core/src/scene/core/fog.ts';
 import { isLightNode } from '../../host/graph/kinds.ts';
 import type { GraphLight, GraphRectLight } from '../../host/graph/light.ts';
 
@@ -62,6 +63,9 @@ export class WebglClusterLights {
   private ltc: WebGLTexture;
   private probe: WebglClusterProbe;
   private fog: WebglClusterFog;
+  /** The scene's fog last read, and the lighting's form of it: read again when it is replaced. */
+  private heldFog: Fog | null | undefined = null;
+  private readFog: SceneFog | undefined;
   private gl: WebGL2RenderingContext;
   constructor(gl: WebGL2RenderingContext, program: WebGLProgram) {
     this.gl = gl;
@@ -169,7 +173,8 @@ export class WebglClusterLights {
       write(base + 12, inner, outer, lamp!.decay ?? 2, 0);
     }
     this.probe.upload(view);
-    this.fog.upload(sceneFogOf(scene.fog ?? null), view);
+    if (scene.fog !== this.heldFog) this.readFog = sceneFogOf((this.heldFog = scene.fog) ?? null);
+    this.fog.upload(this.readFog, view);
     const gl = this.gl;
     // The host's texture units are unknown at frame start: the lobe is bound again every frame.
     gl.activeTexture(gl.TEXTURE0 + LTC_UNIT);
