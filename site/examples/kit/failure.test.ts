@@ -14,13 +14,16 @@ test('a missing cooked cache names the command that builds it; any other error k
   const refused = (url: string, status: number) =>
     new EngineError('RESOURCE_HTTP_ERROR', `${url}: HTTP ${status}, type absent`, { url, status });
   const hint = 'The cooked cache is missing: run pnpm compile:caches';
-  const manifest = refused('/assets/examples/hall/cache/hall/manifest.json', 404);
-  assert.equal(failureText(manifest, manifest.message), hint);
+  for (const url of [
+    '../assets/examples/hall/cache/native/full/manifest.json',
+    '../assets/examples/terrain-tiles/cache-none/native/full/manifest.json',
+  ])
+    assert.equal(failureText(refused(url, 404)), hint, url);
   for (const other of [
-    refused('/assets/examples/hall/cache/hall/manifest.json', 500),
-    refused('/assets/examples/hall/cache/hall/pages/0.bin', 404),
+    refused('../assets/examples/hall/cache/native/full/manifest.json', 500),
+    refused('../assets/examples/hall/cache/native/full/pages/0.bin', 404),
     refused('/models/hall.glb', 404),
     new Error('the model did not load'),
   ])
-    assert.equal(failureText(other, other.message), other.message);
+    assert.equal(failureText(other), other.message);
 });
