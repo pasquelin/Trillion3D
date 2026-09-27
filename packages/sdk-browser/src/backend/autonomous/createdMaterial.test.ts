@@ -12,7 +12,7 @@ async function withTriangle(
   opened: ReturnType<typeof triangleBackend>,
   body: (
     api: ReturnType<typeof createExplorerMaterialApi>,
-    drawn: () => { calls: number; surfaces: G.GraphSurface[] },
+    drawn: () => { calls: number | undefined; surfaces: G.GraphSurface[] },
   ) => void,
 ) {
   const { backend, camera, geometry, material, mesh, source } = opened;
