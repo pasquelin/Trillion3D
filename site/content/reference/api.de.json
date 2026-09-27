@@ -1585,6 +1585,7 @@
       "UNKNOWN_MATERIAL": "Eine Materialänderung ist unbekannt, außerhalb ihres Bereichs, würde es in eine Zeichenklasse verschieben, die ein Renderer beim Öffnen der Szene festlegt, oder eine Textur kacheln, die es teilt.",
       "MATERIAL_CLASS_CHANGE": "Eine Materialänderung ist unbekannt, außerhalb ihres Bereichs, würde es in eine Zeichenklasse verschieben, die ein Renderer beim Öffnen der Szene festlegt, oder eine Textur kacheln, die es teilt.",
       "MATERIAL_TEXTURE_SHARED": "Eine Materialänderung ist unbekannt, außerhalb ihres Bereichs, würde es in eine Zeichenklasse verschieben, die ein Renderer beim Öffnen der Szene festlegt, oder eine Textur kacheln, die es teilt.",
+      "MATERIAL_CEILING": "Eine Seite würde in einer Sitzung mehr Materialien erzeugen als `RUNTIME_MATERIAL_CEILING`; nichts wurde erzeugt.",
       "INVALID_TRANSFORM": "Die Platzierung eines Knotens ist keine nutzbare Matrix, oder ein Knoten wäre sein eigener Vorfahr.",
       "NON_FINITE_TRANSFORM": "Die Platzierung eines Knotens ist keine nutzbare Matrix, oder ein Knoten wäre sein eigener Vorfahr.",
       "SINGULAR_PARENT_TRANSFORM": "Die Platzierung eines Knotens ist keine nutzbare Matrix, oder ein Knoten wäre sein eigener Vorfahr.",
@@ -4072,7 +4073,11 @@
       "geometry": "Die Form des Meshes; gib eine andere Geometrie an, um sie zu ändern.",
       "material": "Das Material des Meshes, oder eines pro Gruppe; gib ein anderes an, um es zu ändern.",
       "localBounds": "Die Box des eigenen Inhalts dieses Knotens, in seinem lokalen Bezugssystem; ein einfacher Knoten hat keine.",
-      "physics": "Das Mesh als Körper der Weltphysik, `null`, wenn es keiner ist. Setze `'static'`, `'dynamic'`, `'kinematic'` oder Optionen; die Form wird aus der Geometrie abgeleitet."
+      "physics": "Das Mesh als Körper der Weltphysik, `null`, wenn es keiner ist. Setze `'static'`, `'dynamic'`, `'kinematic'` oder Optionen; die Form wird aus der Geometrie abgeleitet.",
+      "morphTargetInfluences": "Das Gewicht jedes Morph-Ziels, wenn die Geometrie welche deklariert.",
+      "morphTargetDictionary": "Der Rang jedes Morph-Ziels nach seinem Namen.",
+      "updateMorphTargets": "Ein Nullgewicht pro Morph-Ziel des ersten verformten Attributs, nach Rang benannt.",
+      "copy": "Übernimmt die Werte von `source` und Kopien seiner Kinder, sofern nicht anders gesagt."
     }
   },
   "metric": {
@@ -7464,20 +7469,8 @@
     },
     "summary": "Ein Bild, der Sampler-Zustand, mit dem es gelesen wird, und die Transformation seiner Koordinaten."
   },
-  "GraphMesh": {
-    "summary": "Ein gezeichneter Knoten: eine Geometrie und ihre Oberfläche, oder eine Oberfläche pro Geometriegruppe.",
-    "members": {
-      "kind": "An einer Platzierung gezeichnet oder an mehreren (`GraphInstancedMesh`).",
-      "morphTargetInfluences": "Das Gewicht jedes Morph-Ziels, wenn die Geometrie welche deklariert.",
-      "morphTargetDictionary": "Der Rang jedes Morph-Ziels nach seinem Namen.",
-      "geometry": "Seine Form.",
-      "material": "Seine Oberfläche, oder eine pro Geometriegruppe.",
-      "updateMorphTargets": "Ein Nullgewicht pro Morph-Ziel des ersten verformten Attributs, nach Rang benannt.",
-      "copy": "Übernimmt die Werte von `source` und Kopien seiner Kinder, sofern nicht anders gesagt."
-    }
-  },
   "GraphNodeKind": {
-    "summary": "Was ein Knoten des Graphen ist: die Wurzel, ein gezeichnetes Mesh (an einer Platzierung oder mehreren), ein Auge oder eines der Lichter, die eine Szene deklariert."
+    "summary": "Was ein Knoten des Graphen ist: die Wurzel, ein Auge oder eines der Lichter, die eine Szene deklariert."
   },
   "Joint": {
     "summary": "Ein Gelenk zwischen zwei Körpern oder einem Körper und der Welt (`b` null), erzeugt mit `joint.*` und der Simulation mit `world.physics.add` hinzugefügt.",

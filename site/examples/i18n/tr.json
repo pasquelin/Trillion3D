@@ -1708,6 +1708,14 @@
       "fourthLaneAnisotropy": "Dördüncü şeridin anizotropisi"
     }
   },
+  "the-home-pose": {
+    "banner": "Bir görünüm seçin, kamerayı hareket ettirin, sonra dönmek için Başlangıç'ı seçin.",
+    "controls": { "home": "Başlangıç", "tower": "Kule", "square": "Meydan", "hillside": "Yamaç" }
+  },
+  "the-near-plane-cuts-a-wall": {
+    "banner": "Yakın düzlemi ilerletin ve her duvarı kesmesini izleyin.",
+    "controls": { "nearPlane": "Yakın düzlem" }
+  },
   "the-material-family": {
     "banner": "Etrafta dolaşmak için sürükle. Işığı geceye çevir ve hâlâ neyin parladığını gör.",
     "controls": {

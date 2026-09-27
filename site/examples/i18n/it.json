@@ -1708,6 +1708,14 @@
       "fourthLaneAnisotropy": "Anisotropia della quarta corsia"
     }
   },
+  "the-home-pose": {
+    "banner": "Scegli una vista, muovi la camera, poi scegli Inizio per tornare.",
+    "controls": { "home": "Inizio", "tower": "Torre", "square": "Piazza", "hillside": "Collina" }
+  },
+  "the-near-plane-cuts-a-wall": {
+    "banner": "Avanza il piano vicino e guardalo tagliare ogni muro.",
+    "controls": { "nearPlane": "Piano vicino" }
+  },
   "the-material-family": {
     "banner": "Trascina per girare intorno. Metti la luce di notte e guarda cosa brilla ancora.",
     "controls": {
