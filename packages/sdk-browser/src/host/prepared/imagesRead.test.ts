@@ -15,7 +15,7 @@ const document = {
 const images = () =>
   preparedImages({
     ...{ document, documentUrl: 'https://cache.test/model/source.gltf', binary: null },
-    ...{ skipped: new Set<string>(), signal: undefined, meter: unmetered },
+    ...{ skipped: new Set<number>(), signal: undefined, meter: unmetered },
     track: (_resource, read) => read,
   });
 
