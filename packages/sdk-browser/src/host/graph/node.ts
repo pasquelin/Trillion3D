@@ -1,8 +1,8 @@
 /**
  * THE ENGINE'S OWN SCENE GRAPH: the nodes a prepared scene, a world and the explorer are built
- * of. A bare node and a group are the core's own `Object3D` and `Group`; the classes here add
- * only what the engine reads of the nodes that draw, look or light — their `kind`, their number
- * and how an empty one is made, which the core's `clone` fills.
+ * of. A bare node, a group, a mesh, a scene and a camera are the core's own classes; the lights
+ * here add only what the engine reads of them — their `kind`, their number and how an empty one
+ * is made, which the core's `clone` fills.
  *
  * The engine READS a host graph by shape (`../scene/graphNodes.ts`, `../resources.ts`), and any
  * object of that shape satisfies it: these are the objects the engine BUILDS to that shape, so no
@@ -18,8 +18,8 @@ export type { GraphLightKind, GraphNodeKind } from './nodeKind.ts';
 
 /** A node of the graph: the core's node, told apart by its `kind`, copied by the core's `clone`. */
 export abstract class GraphNode extends Object3D {
-  // In creation order, one count with the meshes': a diagnostic seeds a colour with it, a draw
-  // breaks ties with it.
+  // In creation order, one count with the core nodes the engine numbers (`./serial.ts`): a
+  // diagnostic seeds a colour with it, a draw breaks ties with it.
   /** The node's number, unique in the session. */
   readonly serial = takeSerial();
   /** What the node is: what every reader of the graph narrows on. */
