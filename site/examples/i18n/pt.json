@@ -2249,5 +2249,22 @@
       "color": "Cor",
       "thickness": "Espessura"
     }
+  },
+  "a-hundred-thousand-instances": {
+    "banner": "Arraste para orbitar o campo. Altere a quantidade ou a vista.",
+    "controls": {
+      "count": "Quantidade",
+      "view": "Vista"
+    },
+    "readouts": {
+      "objectsShown": "Objetos exibidos",
+      "objectsBuilt": "Objetos criados"
+    },
+    "choices": {
+      "view": {
+        "beauty": "imagem",
+        "clusters": "clusters"
+      }
+    }
   }
 }

@@ -2249,5 +2249,22 @@
       "color": "Farbe",
       "thickness": "Stärke"
     }
+  },
+  "a-hundred-thousand-instances": {
+    "banner": "Ziehe, um das Feld zu umrunden. Ändere Anzahl oder Ansicht.",
+    "controls": {
+      "count": "Anzahl",
+      "view": "Ansicht"
+    },
+    "readouts": {
+      "objectsShown": "Angezeigt",
+      "objectsBuilt": "Erstellt"
+    },
+    "choices": {
+      "view": {
+        "beauty": "Bild",
+        "clusters": "Cluster"
+      }
+    }
   }
 }
