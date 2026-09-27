@@ -1,5 +1,5 @@
-import type { PrimitiveDagStall, PrimitiveDagWarning } from './dag.ts';
-import type { Primitive } from './geometry.ts';
+import type { PrimitiveDagWarning } from './dag.ts';
+import type { ClusterManifest } from './geometry.ts';
 
 /**
  * The `dag-warnings` diagnostic of a cache: the primitives flagged by the compiler, and the
@@ -8,21 +8,17 @@ import type { Primitive } from './geometry.ts';
  */
 export function dagWarningsDiagnostic({
   primitives,
-  worstStalls,
-}: {
-  primitives: readonly Primitive[];
-  worstStalls?: readonly PrimitiveDagStall[];
-}) {
+  worstStalls: stalled = [],
+}: Pick<ClusterManifest, 'primitives' | 'worstStalls'>) {
   const warnings: PrimitiveDagWarning[] = primitives.flatMap((p, index) =>
     (p.dag?.warnings ?? []).map((w) => ({ ...w, index, mesh: p.mesh, primitive: p.primitive })),
   );
-  const stalled = worstStalls ?? [];
   if (!warnings.length && !stalled.length) return null;
   return {
     phase: 'dag-warnings',
     message:
       `${warnings.length} primitive(s) without unique root: flagged by compiler; ` +
-      `${stalled.length} with a stall that kept level-0 roots`,
+      `${stalled.length} in the compiler's stall table`,
     context: { count: warnings.length, primitives: warnings, stalled },
   };
 }
