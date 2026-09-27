@@ -67,8 +67,7 @@ export function beginTaaFrame(rt: WebgpuPagesRuntime, cam: EngineCamera, quiet: 
   const temporal = rt.gpu.temporal;
   if (!temporal) return;
   const state = temporal.frame;
-  // Switched off, the pass is kept but nothing accumulates (`setWebgpuTemporalAntialiasing`).
-  state.active = rt.gpu.temporalWanted && !rt.capture.capturing && rt.run.diagnostic === 'beauty';
+  state.active = accumulates(rt);
   if (!state.active) return;
   // A convergence image remakes the last ordinary image, it does not accumulate it further.
   if (rt.run.textureConverging) quiet = temporal.replay();
@@ -179,9 +178,19 @@ export function taaSampledRank(rt: WebgpuPagesRuntime) {
   return temporal?.frame.active ? temporal.frame.sampledRank : 0;
 }
 
-/** True when the image can be held without freezing an accumulation in progress: without
- *  temporal antialiasing, switched off, or after a full cycle of quiet images. */
+/** Switched off, the pass is kept but nothing accumulates (`setWebgpuTemporalAntialiasing`). */
+const accumulates = (rt: WebgpuPagesRuntime) =>
+  rt.gpu.temporalWanted && !rt.capture.capturing && rt.run.diagnostic === 'beauty';
+
+/**
+ * True when a quiet image can be held without freezing an accumulation in progress: without
+ * temporal antialiasing, switched off, or when it closes a full cycle of quiet images. Read before
+ * the image's entry: a held image never enters (`beginTaaFrame`), so the accumulation stays where
+ * the last encoded image left it, and a barrier's convergence image replays that image — the one
+ * the hold shows —, to the bit, however many images were held before it (#26).
+ */
 export function taaSettled(rt: WebgpuPagesRuntime) {
   const temporal = rt.gpu.temporal;
-  return !temporal || !rt.gpu.temporalWanted || temporal.frame.stillFrames >= TAA_STILL_FRAMES;
+  if (!temporal || !rt.gpu.temporalWanted) return true;
+  return temporal.frame.stillFrames + (accumulates(rt) ? 1 : 0) >= TAA_STILL_FRAMES;
 }
