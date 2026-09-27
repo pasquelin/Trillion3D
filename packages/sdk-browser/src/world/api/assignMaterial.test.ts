@@ -46,6 +46,18 @@ test('a drawable whose meshes wear several classes is asked about the one that m
   assert.deepEqual([asked[0].from, asked[0].to], ['blend', 'opaque']);
 });
 
+test('a created material its drawables left is written alone again', async () => {
+  const { api, refreshes } = await scene();
+  const first = api.createMaterial().id,
+    second = api.createMaterial().id;
+  api.assignMaterial('1/0', first);
+  api.assignMaterial('1/0', second);
+  const told = refreshes.length;
+  // Worn by nothing: WebGPU's blended layout is not asked, no engine told.
+  assert.equal(api.setMaterial(first, { alphaMode: 'blend', opacity: 0.5 }), true);
+  assert.equal(refreshes.length, told);
+});
+
 test('an assignment is refused by name before any write, and builds nothing', async () => {
   const { api, refreshes, source } = await scene();
   const blended = api.createMaterial({ alphaMode: 'blend', opacity: 0.5 }).id,
