@@ -191,6 +191,9 @@ const accumulates = (rt: WebgpuPagesRuntime) =>
  */
 export function taaSettled(rt: WebgpuPagesRuntime) {
   const temporal = rt.gpu.temporal;
-  if (!temporal || !rt.gpu.temporalWanted) return true;
-  return temporal.frame.stillFrames + (accumulates(rt) ? 1 : 0) >= TAA_STILL_FRAMES;
+  return (
+    !temporal ||
+    !rt.gpu.temporalWanted ||
+    temporal.frame.stillFrames >= TAA_STILL_FRAMES - (accumulates(rt) ? 1 : 0)
+  );
 }
