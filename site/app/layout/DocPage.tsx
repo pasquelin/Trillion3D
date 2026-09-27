@@ -15,7 +15,16 @@ interface DocPageProps extends Omit<ComponentPropsWithoutRef<'article'>, 'title'
    * row wrapping under the title on a narrow screen: for a header that reads as one line (the
    * home), not the usual stack of a page that is read top to bottom. */
   inlineActions?: boolean;
+  /** Keeps the header pinned to the top of the content area while the body scrolls under it:
+   * for a long page whose actions (a jump menu) must stay in reach. */
+  stickyHeader?: boolean;
 }
+
+/** A pinned header covers the content area's own padding (`p-4 sm:p-6` in the shell) so the body
+ * never shows above or beside it; the page's section headings keep their distance from it
+ * (`scroll-mt-40` on the article) when a jump brings them to the top. */
+const STICKY =
+  'sticky top-0 z-10 bg-base-100 -mx-4 -mt-4 px-4 pt-4 pb-4 sm:-mx-6 sm:-mt-6 sm:px-6 sm:pt-6 border-b border-base-300';
 
 /** The reading page: a header (eyebrow, title, lead, actions), then the body in one column the
  * width of the content area — running text keeps its own readable measure. Every page that is
@@ -26,6 +35,7 @@ export function DocPage({
   lead,
   actions,
   inlineActions = false,
+  stickyHeader = false,
   children,
   ...props
 }: DocPageProps) {
@@ -41,17 +51,22 @@ export function DocPage({
     </>
   );
   return (
-    <article className="grid w-full min-w-0 grid-cols-1 gap-8" {...props}>
+    <article
+      className={`grid w-full min-w-0 grid-cols-1 gap-8 ${stickyHeader ? '[&_h2]:scroll-mt-40' : ''}`}
+      {...props}
+    >
       {typeof title === 'string' && (
         <title>{title === SITE_NAME ? title : `${title} · ${SITE_NAME}`}</title>
       )}
       {inlineActions ? (
-        <header className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
+        <header
+          className={`flex flex-wrap items-center justify-between gap-x-6 gap-y-3 ${stickyHeader ? STICKY : ''}`}
+        >
           <div className="grid min-w-0 grid-cols-1 gap-3">{heading}</div>
           {actions && <div className="flex flex-wrap items-center gap-3">{actions}</div>}
         </header>
       ) : (
-        <header className="grid grid-cols-1 gap-3">
+        <header className={`grid grid-cols-1 gap-3 ${stickyHeader ? STICKY : ''}`}>
           {heading}
           {actions && <div className="flex flex-wrap gap-3 pt-2">{actions}</div>}
         </header>

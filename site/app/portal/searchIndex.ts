@@ -1,7 +1,7 @@
 import { kindName } from '../../content/i18n/dictionary.ts';
 import type { Locale } from '../../content/locale.ts';
 import type { PortalEntry } from '../../content/model.ts';
-import { exampleTitle, readyEntries } from '../examples/list.ts';
+import { exampleTitle, writtenEntries } from '../examples/list.ts';
 import { entryRoute, routeHref } from './routes.ts';
 import type { SearchItem } from './search.ts';
 import type { BadgeTone } from '../ui/Badge.tsx';
@@ -17,7 +17,7 @@ const TONES: Record<string, BadgeTone> = {
   Chapter: 'accent',
 };
 
-/** Everything the site search reads, in `locale`: every guide and API entry, and every ready
+/** Everything the site search reads, in `locale`: every guide and API entry, and every written
  * example. */
 export function searchIndex(entries: PortalEntry[], locale: Locale): SearchItem[] {
   const t = wordsOf(locale);
@@ -29,7 +29,7 @@ export function searchIndex(entries: PortalEntry[], locale: Locale): SearchItem[
     tone: TONES[entry.kind] ?? 'neutral',
     href: entryRoute(entry, locale),
   }));
-  const examples = readyEntries.map((entry) => ({
+  const examples = writtenEntries.map((entry) => ({
     key: `example:${entry.id}`,
     title: exampleTitle(entry.id, locale),
     text: entry.id,
