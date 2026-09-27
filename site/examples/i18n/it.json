@@ -2180,5 +2180,16 @@
     "words": {
       "credit": "Bandiera su un'asta modellata in codice per questo esempio, CC0 — vedi assets/examples/CREDITS.md"
     }
+  },
+  "a-dolly-along-the-canal": {
+    "banner": "Metti in pausa la carrellata, ripeti il percorso o cambia la velocità mentre la camera segue il canale.",
+    "controls": {
+      "paused": "In pausa",
+      "replay": "Ripeti",
+      "speed": "Velocità"
+    },
+    "readouts": {
+      "progress": "Avanzamento"
+    }
   }
 }

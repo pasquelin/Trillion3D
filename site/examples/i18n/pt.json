@@ -2180,5 +2180,16 @@
     "words": {
       "credit": "Bandeira num mastro modelada em código para este exemplo, CC0 — ver assets/examples/CREDITS.md"
     }
+  },
+  "a-dolly-along-the-canal": {
+    "banner": "Pause o travelling, repita o percurso ou mude a velocidade enquanto a câmera segue pelo canal.",
+    "controls": {
+      "paused": "Pausado",
+      "replay": "Repetir",
+      "speed": "Velocidade"
+    },
+    "readouts": {
+      "progress": "Progresso"
+    }
   }
 }
