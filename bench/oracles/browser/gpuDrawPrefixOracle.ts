@@ -1,16 +1,15 @@
 /**
- * Oracle: two faithful, line-by-line ports of the `prefixGroups` kernel of packages/sdk-browser/src/gpu/draw/shader.ts.
+ * Oracle: faithful, line-by-line ports of the `prefixGroups` kernel of packages/sdk-browser/src/gpu/draw/shader.ts.
  *
  * `prefixSerial` is the kernel from before the visibility batch (one thread, `@workgroup_size(1)`):
- * it walks slots in order and advances a single cursor. `prefixParallel` is the D3 kernel
- * (`@workgroup_size(64)`), the one `packages/sdk-browser/src/gpu/draw/shader.ts` has carried since that batch: each thread
- * (lane) totals the slots that fall to it in steps of 64; a workgroup barrier separates this
- * phase from the offset computation, then each thread rebuilds its cursor by resumming the
- * totals of the slots that precede it. Both compute in u32 (`>>> 0`), as WGSL does.
+ * it walks slots in order and advances a single cursor. `prefixScan` is the kernel shader.ts
+ * carries since #923: the slots in order, an unused one skipped, each used one's groups spread over
+ * the 64 lanes in contiguous runs whose totals are scanned in workgroup memory. All compute in u32
+ * (`>>> 0`), as WGSL does.
  *
  * This file depends on no real GPU run: `tests/kit/gpu/mockCompute.ts` does not replay
  * `prefixGroups` (it short-circuits the whole compaction with the CPU oracle `evaluateDrawCompact`),
- * so equivalence of the two kernels is proved here by direct transcription and comparison.
+ * so equivalence of the kernels is proved here by direct transcription and comparison.
  */
 
 const WORKGROUP = 64;
@@ -49,7 +48,7 @@ export function prefixSerial(
   return { totals, offsets };
 }
 
-export function prefixParallel(
+export function prefixScan(
   overflow: boolean,
   slotUsed: Uint32Array,
   groupCounts: Uint32Array,
@@ -59,31 +58,33 @@ export function prefixParallel(
   const totals = new Uint32Array(slots);
   const offsets = new Uint32Array(groupCount * slots);
   if (overflow) return { totals, offsets };
-  const slotTotals = new Uint32Array(slots);
-  // Phase 1: one thread per slot, in steps of 64; lane order does not matter, u32 addition
-  // is associative and commutative — lanes are walked in reverse on purpose to prove it.
-  for (let lane = WORKGROUP - 1; lane >= 0; lane--) {
-    for (let slot = lane; slot < slots; slot += WORKGROUP) {
-      if (slotUsed[slot] === 0) continue;
-      let total = 0;
-      for (let group = 0; group < groupCount; group++)
-        total = U32(total + groupCounts[group * slots + slot]);
-      slotTotals[slot] = total;
-      totals[slot] = total;
+  const run = Math.floor((groupCount + WORKGROUP - 1) / WORKGROUP);
+  const first = (lane: number) => Math.min(lane * run, groupCount);
+  const last = (lane: number) => Math.min(first(lane) + run, groupCount);
+  let start = 0;
+  for (let slot = 0; slot < slots; slot++) {
+    if (slotUsed[slot] === 0) continue;
+    const sums = new Uint32Array(WORKGROUP);
+    for (let lane = 0; lane < WORKGROUP; lane++)
+      for (let group = first(lane); group < last(lane); group++)
+        sums[lane] = U32(sums[lane] + groupCounts[group * slots + slot]);
+    const lanes = Uint32Array.from(sums);
+    // Hillis-Steele: every lane reads `step` below, a barrier, then every lane adds.
+    for (let step = 1; step < WORKGROUP; step <<= 1) {
+      const below = lanes.map((_, lane) => (lane >= step ? lanes[lane - step] : 0));
+      for (let lane = 0; lane < WORKGROUP; lane++) lanes[lane] = U32(lanes[lane] + below[lane]);
     }
-  }
-  // workgroupBarrier(): all slotTotals are set before anyone resums them.
-  for (let lane = WORKGROUP - 1; lane >= 0; lane--) {
-    for (let slot = lane; slot < slots; slot += WORKGROUP) {
-      if (slotUsed[slot] === 0) continue;
-      let cursor = 0;
-      for (let before = 0; before < slot; before++) cursor = U32(cursor + slotTotals[before]);
-      for (let group = 0; group < groupCount; group++) {
+    const total = lanes[WORKGROUP - 1];
+    for (let lane = 0; lane < WORKGROUP; lane++) {
+      let cursor = U32(start + lanes[lane] - sums[lane]);
+      for (let group = first(lane); group < last(lane); group++) {
         const entry = group * slots + slot;
         offsets[entry] = cursor;
         cursor = U32(cursor + groupCounts[entry]);
       }
     }
+    totals[slot] = total;
+    start = U32(start + total);
   }
   return { totals, offsets };
 }
