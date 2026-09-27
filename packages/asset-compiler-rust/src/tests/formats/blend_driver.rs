@@ -11,7 +11,7 @@ fn source() -> PathBuf {
 }
 
 /// Passes the source through the router then the driver it picks, and returns what it wrote.
-fn converted(from: &Path, cache: &Path) -> PathBuf {
+pub(super) fn converted(from: &Path, cache: &Path) -> PathBuf {
     let prepared = match route(from).expect("routing") {
         Routed::Driver(plugin, inputs) => {
             assert_eq!(plugin.name(), "blend", "{}", from.display());
@@ -34,7 +34,7 @@ fn converted(from: &Path, cache: &Path) -> PathBuf {
     }
 }
 
-fn scene_gltf(directory: &Path) -> Value {
+pub(super) fn scene_gltf(directory: &Path) -> Value {
     serde_json::from_slice(&fs::read(directory.join("model.gltf")).expect("model.gltf"))
         .expect("model.gltf is valid JSON")
 }
