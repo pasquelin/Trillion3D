@@ -99,7 +99,7 @@ export function assertOccluderImage(
     visibilityIds(): Uint32Array;
   },
   shown: PageRec[],
-  camera: G.GraphCamera,
+  camera: G.Camera,
   viewport: [number, number],
 ) {
   const cam = readCameraWorld(createEngineCamera(), camera);
