@@ -475,6 +475,10 @@
       "balloon": "VERFOLGT DEN BALLON"
     }
   },
+  "a-crane-that-swings": {
+    "banner": "Kreise um den Kran, während ein Clip den Ausleger dreht, die Laufkatze bewegt, die Last hebt und schwingen lässt.",
+    "controls": { "speed": "Tempo", "paused": "Pausiert", "replay": "Neu starten" }
+  },
   "a-wave-across-a-grid": {
     "banner": "Ziehe, um dich umzusehen. Mach die Würfelwelle höher oder schneller.",
     "controls": {

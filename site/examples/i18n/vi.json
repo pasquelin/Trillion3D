@@ -475,6 +475,10 @@
       "balloon": "ĐANG THEO KHINH KHÍ CẦU"
     }
   },
+  "a-crane-that-swings": {
+    "banner": "Xoay quanh cần cẩu khi một clip quay cần, di chuyển xe con, nâng tải và làm tải đung đưa.",
+    "controls": { "speed": "Tốc độ", "paused": "Tạm dừng", "replay": "Phát lại" }
+  },
   "a-wave-across-a-grid": {
     "banner": "Kéo để nhìn quanh. Làm con sóng khối lập phương cao hơn hoặc nhanh hơn.",
     "controls": {

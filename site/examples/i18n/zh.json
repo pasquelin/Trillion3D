@@ -475,6 +475,10 @@
       "balloon": "追踪气球"
     }
   },
+  "a-crane-that-swings": {
+    "banner": "环绕起重机观察一个动画片段如何转动吊臂、移动小车、提升并摆动吊物。",
+    "controls": { "speed": "速度", "paused": "已暂停", "replay": "重新播放" }
+  },
   "a-wave-across-a-grid": {
     "banner": "拖动四处看看。让方块波浪更高或更快。",
     "controls": {
