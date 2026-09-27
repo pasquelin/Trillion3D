@@ -26,7 +26,7 @@ type Gltf = {
 };
 
 /** The fixture's images as the scene tables lay them out, its binary, and the compiler's entries. */
-async function fixture() {
+const fixture = (async () => {
   const gltf = (await json('atlas-couleur.gltf')) as Gltf;
   const document = {
     images: gltf.images.map((image) => ({
@@ -45,12 +45,12 @@ async function fixture() {
     previews,
     embedded: gltf.images.findIndex((i) => i.bufferView !== undefined),
   };
-}
+})();
 
 /** The byte length of each image decoded when `previews` are the sidecar's entries. */
 async function decoded(t: test.TestContext, previews: { image: number }[]) {
   decodingImages(t);
-  const { document, binary } = await fixture();
+  const { document, binary } = await fixture;
   const metadata = { textures: { url: 'x' }, texturePreviews: previews } as ClusterManifest;
   const read = preparedImages({
     ...{ document, documentUrl: folder.href, binary, signal: undefined, meter: unmetered },
@@ -63,8 +63,8 @@ async function decoded(t: test.TestContext, previews: { image: number }[]) {
 
 const placeholder = (async () => (await (await fetch(PLACEHOLDER_IMAGE)).blob()).size)();
 
-test('an embedded image with a baked twin reads no byte of the binary', async (t) => {
-  const { previews, document } = await fixture();
+test('an embedded image with a baked twin decodes no byte of the binary (its fetch goes lazy in #876)', async (t) => {
+  const { previews, document } = await fixture;
   const sizes = await decoded(t, previews);
   assert.deepEqual(
     sizes,
@@ -74,7 +74,7 @@ test('an embedded image with a baked twin reads no byte of the binary', async (t
 });
 
 test('an embedded image with no baked twin still decodes its view of the binary', async (t) => {
-  const { previews, document, embedded } = await fixture();
+  const { previews, document, embedded } = await fixture;
   const sizes = await decoded(
     t,
     previews.filter((entry) => entry.image !== embedded),
