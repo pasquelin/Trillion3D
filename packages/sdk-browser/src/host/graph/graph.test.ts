@@ -8,7 +8,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { Group, Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
-import { GraphInstancedMesh, GraphMesh } from './mesh.ts';
+import { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts';
+import { InstancedMesh } from '../../../../sdk-core/src/world/object/instancedMesh.ts';
 import { GraphCamera } from './camera.ts';
 import { GraphAmbientLight, GraphLight, GraphLightProbe, GraphRectLight } from './light.ts';
 import { BufferAttribute } from '../../../../sdk-core/src/world/buffer/attribute.ts';
@@ -127,7 +128,7 @@ test('a texture transform, a surface family and a copied light hold the referenc
     [spot.angle, spot.penumbra, spot.decay, spot.distance, spot.position.x, spot.position.y],
   );
   assert.notEqual(copy.target, light.target, 'a copied light aims at a copy of the target');
-  const mesh = new GraphMesh(new Geometry(), surface);
+  const mesh = new Mesh(new Geometry(), surface);
   assert.equal(mesh.clone().material, surface, 'a copied mesh shares its surface');
 });
 
@@ -171,7 +172,7 @@ test('the ambient, rectangle and probe lights copy themselves whole', () => {
 });
 
 test('an instanced mesh holds one matrix per placement and gives them back once', () => {
-  const mesh = new GraphInstancedMesh(new Geometry(), new GraphSurface('standard'), 3);
+  const mesh = new InstancedMesh(new Geometry(), new GraphSurface('standard'), 3);
   assert.equal(mesh.instanceMatrix.array.length, 48);
   assert.equal(mesh.count, 3);
   let released = 0;

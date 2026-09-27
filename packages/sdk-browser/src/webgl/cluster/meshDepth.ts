@@ -1,3 +1,4 @@
+import { isInstancedNode } from '../../host/graph/kinds.ts';
 /** A drawn mesh as its depth reads it: its own sphere or its geometry's, and its world matrix. */
 type DepthNode = {
   readonly geometry?: unknown;
@@ -8,10 +9,10 @@ type Bounded = {
   boundingSphere?: { center: Centre; radius?: number } | null;
   computeBoundingSphere?(): void;
 };
+/** The placements of an instanced mesh (`isInstancedNode`): its matrices and how many are drawn. */
 type Instanced = {
-  readonly kind?: string;
-  readonly count?: number;
-  readonly instanceMatrix?: { readonly array: ArrayLike<number>; readonly version?: number };
+  readonly count: number;
+  readonly instanceMatrix: { readonly array: ArrayLike<number>; readonly version?: number };
 };
 
 /**
@@ -27,11 +28,7 @@ export function depthOf(mesh: DepthNode, screen: ArrayLike<number>) {
     const geometry = mesh.geometry as Bounded | undefined;
     if (geometry && !geometry.boundingSphere) geometry.computeBoundingSphere?.();
     const sphere = geometry?.boundingSphere;
-    const instanced = mesh as Instanced;
-    centre =
-      instanced.kind === 'instancedMesh' && instanced.instanceMatrix && sphere
-        ? placementsCentre(instanced, sphere)
-        : sphere?.center;
+    centre = isInstancedNode(mesh) && sphere ? placementsCentre(mesh, sphere) : sphere?.center;
   }
   const c = centre ?? ORIGIN,
     m = mesh.matrixWorld.elements;
@@ -65,8 +62,8 @@ export function placementsSphere(
   mesh: Instanced,
   geometry: { center: Centre; radius?: number },
 ): PlacementSphere {
-  const matrices = mesh.instanceMatrix!,
-    count = mesh.count ?? 0,
+  const matrices = mesh.instanceMatrix,
+    count = mesh.count,
     version = matrices.version ?? 0;
   const kept = placementSpheres.get(mesh);
   if (kept && kept.version === version && kept.count === count) return kept;
