@@ -518,6 +518,20 @@
       "outer": "Luar"
     }
   },
+  "doors-that-open": {
+    "banner": "Gerakkan kamera menuju pintu. Pintu terbuka saat Anda mendekat.",
+    "controls": {
+      "mode": "Mode",
+      "openingDistance": "Jarak pembukaan",
+      "openness": "Bukaan"
+    },
+    "choices": {
+      "mode": {
+        "proximity": "kedekatan",
+        "manual": "manual"
+      }
+    }
+  },
   "a-world-of-blocks": {
     "banner": "Geser untuk terbang mengelilingi pulau. Naikkan laut untuk membanjiri lembah.",
     "controls": {
