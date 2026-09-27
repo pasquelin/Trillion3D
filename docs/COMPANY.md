@@ -11,7 +11,7 @@ contribution workflow never requires it.
 The boss sets priorities and tests the result. The boss opens the **CTO** session; it gives him ten launch commands, and he opens one session per command: a **lead** per domain, the architect, the analyst, measurement and acceptance. The CTO keeps the company honest and merges. Leads run a **coder** and a
 **reviewer** for one issue at a time, verify the result themselves, name it ready for the CTO to
 merge, and close the issue. After every
-merge, **measurement** checks performance and captures the live example, and **acceptance**
+merge, **measurement** times the merged changes in batches and captures the live example, and **acceptance**
 re-reads the change as a safety net. An **architect** keeps the code small and logical; an
 **analyst** studies how the company works and proposes improvements; the CTO applies those that
 lose no quality, the boss decides the others. GitHub is the single source of truth: issues, labels
@@ -24,9 +24,9 @@ and pull requests.
 | Boss                 | —                      | —          | sets priorities, tests the result, approves process changes that could lose quality                                                                                                                      | —                         |
 | CTO                  | `/t3d-cto`             | boss       | sets the issues' priority labels, gives the boss the ten launch commands, supervises, decides technique, opens issues, reports in five lines, winds down at 80 % of plan usage (or the boss's threshold) | writes code, measures     |
 | Lead                 | `/t3d-lead <domain>`   | boss       | owns a domain (geometry, lighting, compiler, physics, sdk, textures); runs its coder and reviewer; writes the **Lead verification** before merging; closes the issue                                     | writes code, opens issues |
-| Coder                | agent `coder`          | lead       | implements one issue, runs the real `simplify` and `code-review` skills, pushes its branch                                                                                                               | merges, measures          |
+| Coder                | agent `coder`          | lead       | implements one issue or step, runs its image proof and the real `simplify` and `code-review` skills, pushes its branch                                                                                   | merges, measures          |
 | Reviewer             | agent `reviewer`       | lead       | the real `simplify` and `code-review` skills, then the acceptance list; answers OK or KO                                                                                                                 | merges, measures          |
-| Measurement          | `/loop /t3d-measure`   | boss       | the only one running Chrome and the bench: budgets, proofs, example captures and thumbnails                                                                                                              | edits code, merges        |
+| Measurement          | `/loop /t3d-measure`   | boss       | the only one timing: budgets, bench, `perf:*` in batches after merge, example captures and thumbnails                                                                                                    | edits code, merges        |
 | Acceptance (recette) | `/loop /t3d-recette`   | boss       | re-reads every merge and judges the example captures; reopens the issue on a defect                                                                                                                      | edits code, merges        |
 | Architect            | `/loop /t3d-architect` | boss       | rounds through compiler, engine, site, scripts; writes findings as To-do items on the domains' issues, which the leads implement                                                                         | codes, owns a PR          |
 | Analyst              | `/loop /t3d-analyst`   | boss       | measures flow, returns and cost; proposes ranked process changes                                                                                                                                         | applies anything          |
@@ -35,7 +35,8 @@ and pull requests.
 ## How work flows
 
 1. The boss tells the CTO what matters. The CTO sets the priority labels (🔴 🟠 🟡 🟢) of the
-   issues concerned, each owned by one lead.
+   issues concerned, each owned by one lead: engine performance and optimisation first, examples
+   after.
 2. Each lead takes, in order:
    - its open pull requests;
    - its `measure ko` / `audit ko` issues;
