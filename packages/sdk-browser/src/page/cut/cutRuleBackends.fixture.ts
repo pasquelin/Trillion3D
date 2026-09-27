@@ -87,8 +87,8 @@ export function wgslConstants(source: string) {
  * - `camera`: the cut a camera runs — `dagWanted` keeps the rule's two comparisons in the page's
  *   cone word (`flags[coneCache(i)]=…;`), then `dagMask`'s `let all=…;` and
  *   `draw=drawsCompared(…);` decide on that word.
- * - `light`: a light cut's `dagMask` call site, `let all=…;` then `draw=drawsCluster(…);`, where
- *   `projected(…)` returns the model's screen error, bound to `cluster`'s errors.
+ * - `light`: a light cut's `dagMask` call site, `let all=…;` then `draw=drawsCluster(…);`, on the
+ *   model's two screen errors as `clusterPixels` returns them (`x` the parent's, `y` its own).
  */
 export function wgslBackend(
   dag: RuleDag,
@@ -114,35 +114,24 @@ export function wgslBackend(
       views,
       cold,
       vi: 0,
-      e: 0,
-      stretch: 0,
-      focal: 0,
-      projected: (error: number) => error,
       select: (no: unknown, yes: unknown, condition: unknown) => (condition ? yes : no),
     });
     const held = scope.expression(all[1]);
     if (path === 'light') {
-      const draw = scope.expression(light[1], ['all', 'i', 'cluster']);
+      const draw = scope.expression(light[1], ['all', 'i', 'pixels']);
       return (_ready, parentPixels, ownPixels, _childReady, t, page) => {
         views[0].pixelError = t;
-        const cluster = {
-          parentError: parentPixels,
-          lodError: ownPixels,
-          parentSphere: 0,
-          sphere: 0,
-        };
-        return draw({ all: held(), i: page, cluster }) === true;
+        return draw({ all: held(), i: page, pixels: { x: parentPixels, y: ownPixels } }) === true;
       };
     }
-    const kept = scope.expression(word[1], ['rejected', 'parentPixels', 'ownPixels', 't', 'light']),
+    const kept = scope.expression(word[1], ['rejected', 'pixels', 't', 'light']),
       draw = scope.expression(camera[1], ['all', 'i', 'word']);
     return (_ready, parentPixels, ownPixels, _childReady, t, page) => {
       const f32 = Math.fround;
       const bits = kept({
         rejected: false,
         light: false,
-        parentPixels: f32(parentPixels),
-        ownPixels: f32(ownPixels),
+        pixels: { x: f32(parentPixels), y: f32(ownPixels) },
         t: f32(t),
       });
       return draw({ all: held(), i: page, word: bits }) === true;
