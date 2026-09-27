@@ -75,6 +75,7 @@ export const DECLARATION: Record<string, string> = {
   'page/selection/collect': 'the collection sets it, once, beside the record it built',
   'backend/autonomous/geometry': 'WebGL2 page path: it repaints its pages with host materials',
   'backend/autonomous/instances': 'WebGL2 page path: it repaints its instances with host materials',
+  'backend/autonomous/mounts': 'WebGL2 page path: it keeps the base paint of each mounted page',
   'backend/autonomous/pages': 'WebGL2 page path: it keeps the base paint of each page',
   'placement/webglPageBatches':
     'WebGL2 page path: the pages rows place are drawn instanced, one mesh per page and declaration',

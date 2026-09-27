@@ -35,6 +35,7 @@ export function createStreamingQueue(
       const job = queue.splice(at, 1)[0];
       if (job.consumers.size === 0 || job.controller.signal.aborted) continue;
       job.state = 'active';
+      if (job.url.startsWith('blob')) console.warn('Q admit', state.active, queue.length);
       state.active++;
       state.activeBytes += catalog.get(job.url)!.bytes;
       emit('page-transfer-start', 'Page transfer admitted', () => ({
@@ -47,6 +48,7 @@ export function createStreamingQueue(
       void loadOne(job.url, job.controller.signal)
         .then(job.resolve, job.reject)
         .finally(() => {
+          if (job.url.startsWith('blob')) console.warn('Q done', state.active);
           state.active--;
           state.activeBytes -= catalog.get(job.url)!.bytes;
           if (jobs.get(job.url) === job) jobs.delete(job.url);
@@ -163,6 +165,7 @@ export function createStreamingQueue(
       if (combined.aborted) onAbort();
     });
     pump();
+    if (url.startsWith('blob')) console.warn('Q sub', state.active, queue.length, limit);
     return result;
   };
   return { pump, subscribe };
