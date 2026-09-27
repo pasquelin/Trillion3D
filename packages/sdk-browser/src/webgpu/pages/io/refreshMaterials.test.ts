@@ -88,14 +88,15 @@ test('an opaque surface turned masked cuts every row of its material', async () 
 test('an alpha move asks for a new session once a light casts, never before', () => {
   const { material } = quadScene();
   const alpha = { surfaces: [material], from: 'opaque', to: 'mask' } as const;
-  const runtime = (shadows: object | undefined) =>
+  const runtime = (shadows: object | undefined, count = 1) =>
     ({
-      lights: { store: { count: 0 }, shadows },
+      lights: { store: { count }, shadows },
       layout: { rows: { tableEpoch: 1 } },
       run: { gate: { sceneMoved() {} } },
       vis: {},
     }) as unknown as Parameters<typeof refreshWebgpuMaterials>[0];
   assert.equal(refreshWebgpuMaterials(runtime(undefined), true, alpha), true, 'nothing casts');
+  assert.equal(refreshWebgpuMaterials(runtime({}, 0), true, alpha), true, 'an atlas, no light');
   assert.equal(refreshWebgpuMaterials(runtime({}), true, alpha), false, 'a light casts');
   assert.equal(refreshWebgpuMaterials(runtime({}), true), true, 'values alone stay in place');
 });
