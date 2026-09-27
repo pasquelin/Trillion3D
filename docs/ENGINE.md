@@ -121,8 +121,8 @@ residency, without the GPU cut or its readback (#490, #839).
 
 **Eviction queue.** A resident GPU cut also publishes, on the same readback, the order the cache
 gives slots back in (`gpu/dag/evict.ts`, `gpu/dag/shader/evictWgsl.ts`): the pool's keys, finer
-level first — a parent after its children —, then oldest last use, its first `EVICTION_BURST` (a
-fixed readback). Every placement stamps its key's canonical page, so a key's stamp is its last
+level first — a parent after its children —, then oldest last use, its first `EVICTION_BURST`: the
+readback's budget is two lists plus one burst, whatever the catalogue. Every placement stamps its key's canonical page, so a key's stamp is its last
 use; a key the latest cut read is never listed. The kernel sweeps the pool's list, one canonical
 page per held slot fed by the cache's arrivals and departures (`gpu/dag/poolList.ts`), never the
 catalogue. On the GPU-cut path the cache evicts only from that queue, skipping pinned pages and
