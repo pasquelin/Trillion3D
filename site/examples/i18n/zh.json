@@ -2266,5 +2266,13 @@
         "clusters": "簇"
       }
     }
+  },
+  "inside-a-component": {
+    "banner": "挂载或卸载查看器。每次挂载拥有一个世界，每次移除都会释放它。",
+    "controls": {
+      "mount": "挂载",
+      "unmount": "卸载",
+      "remount": "重新挂载"
+    }
   }
 }

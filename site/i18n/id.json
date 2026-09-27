@@ -1414,6 +1414,7 @@
       "what-hides-what": "Apa menyembunyikan apa",
       "create-and-dispose": "Buat dan buang",
       "no-hitch-on-first-draw": "Tanpa tersendat di gambar pertama",
+      "inside-a-component": "Di dalam komponen",
       "inside-the-g-buffer": "Di dalam G-buffer",
       "reading-pixels-back": "Membaca kembali piksel",
       "a-city-from-3d-tiles": "Kota dari 3D Tiles",
@@ -1522,6 +1523,7 @@
       "drag-a-crate": "Seret peti"
     },
     "missing": {
+      "inside-a-component": "pembersihan kanvas buatan mesin saat dunia dibuang",
       "floating-crates": "geometri yang ditulis ulang setiap bingkai",
       "thick-lines": "garis lebar",
       "a-line-that-draws-itself": "rentang gambar geometri",

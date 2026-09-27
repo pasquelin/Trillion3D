@@ -2266,5 +2266,13 @@
         "clusters": "cụm"
       }
     }
+  },
+  "inside-a-component": {
+    "banner": "Gắn hoặc tháo trình xem. Mỗi lần gắn sở hữu một thế giới và mỗi lần tháo sẽ giải phóng nó.",
+    "controls": {
+      "mount": "Gắn",
+      "unmount": "Tháo",
+      "remount": "Gắn lại"
+    }
   }
 }

@@ -230,6 +230,7 @@
       "what-hides-what": "谁挡住了谁",
       "create-and-dispose": "创建与释放",
       "no-hitch-on-first-draw": "首次绘制不卡顿",
+      "inside-a-component": "组件内部",
       "inside-the-g-buffer": "G缓冲区内部",
       "reading-pixels-back": "回读像素",
       "a-city-from-3d-tiles": "用3D Tiles搭建的城市",
@@ -338,6 +339,7 @@
       "drag-a-crate": "拖动木箱"
     },
     "missing": {
+      "inside-a-component": "销毁世界时移除引擎创建的画布",
       "floating-crates": "每帧重写的几何体",
       "thick-lines": "宽线",
       "a-line-that-draws-itself": "几何体的绘制范围",
