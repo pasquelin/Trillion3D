@@ -21,6 +21,8 @@ pub(super) struct At<'a> {
     /// The original address of the reached block: it is by this that the file's pointers compare
     /// with each other. Zero for a nested structure, which has none.
     pub(super) old: u64,
+    /// The data block the view's pointers resolve in first ([`BlendFile::reach`]).
+    scope: usize,
 }
 
 impl BlendFile<'_> {
@@ -32,6 +34,7 @@ impl BlendFile<'_> {
             base: block.start,
             limit: block.start.saturating_add(block.len),
             old: block.old,
+            scope: block.owner,
         })
     }
     /// The view of a block, forced to a named structure: that is how one reads what a `void *`
@@ -43,21 +46,12 @@ impl BlendFile<'_> {
             base: block.start,
             limit: block.start.saturating_add(block.len),
             old: block.old,
+            scope: block.owner,
         })
     }
-    /// The bytes of a block designated by an original address.
-    pub(super) fn bytes_at(&self, pointer: u64) -> Option<&[u8]> {
-        let block = self.at(pointer)?;
+    /// The bytes of a block.
+    pub(super) fn bytes_of(&self, block: &Block) -> Option<&[u8]> {
         self.bytes.get(block.start..block.start + block.len)
-    }
-    /// The string a block designated by a `char *` carries, without its terminating zero.
-    pub(super) fn text_at(&self, pointer: u64) -> Option<String> {
-        let bytes = self.bytes_at(pointer)?;
-        let end = bytes
-            .iter()
-            .position(|byte| *byte == 0)
-            .unwrap_or(bytes.len());
-        Some(String::from_utf8_lossy(&bytes[..end]).into_owned())
     }
 }
 
@@ -108,14 +102,17 @@ impl<'a> At<'a> {
         }
         u64::from_le_bytes(bytes[..POINTER].try_into().unwrap_or_default())
     }
-    /// A string written in place in a character array, without its terminating zero.
+    /// A string written in place in a character array, or in the block a `char *` designates,
+    /// without its terminating zero.
     pub(super) fn text(&self, name: &str) -> String {
         let Some((field, bytes)) = self.raw(name) else {
             return String::new();
         };
-        if field.pointer {
-            return self.file.text_at(self.pointer(name)).unwrap_or_default();
-        }
+        let bytes = if field.pointer {
+            self.block(name).unwrap_or_default()
+        } else {
+            bytes
+        };
         let end = bytes
             .iter()
             .position(|byte| *byte == 0)
@@ -132,21 +129,32 @@ impl<'a> At<'a> {
             base: self.base.checked_add(field.offset)?,
             limit: self.limit,
             old: 0,
+            scope: self.scope,
         })
+    }
+    /// The block an original address designates, resolved where the reader of this view resolves
+    /// it ([`BlendFile::reach`]).
+    pub(super) fn reach(&self, pointer: u64) -> Option<&'a Block> {
+        self.file.reach(self.scope, pointer)
     }
     /// The structure a pointer field designates, typed by the header of the reached block.
     pub(super) fn follow(&self, name: &str) -> Option<At<'a>> {
-        let block = self.file.at(self.pointer(name))?;
+        let block = self.reach(self.pointer(name))?;
         self.file.view(block)
+    }
+    /// The structure array a pointer field designates, and the number of structures its block holds.
+    pub(super) fn array(&self, name: &str) -> Option<(At<'a>, usize)> {
+        let block = self.reach(self.pointer(name))?;
+        Some((self.file.view(block)?, block.count))
     }
     /// The structure a pointer field designates, forced to a named type — the case of a `void *`.
     pub(super) fn follow_as(&self, name: &str, kind: &str) -> Option<At<'a>> {
-        let block = self.file.at(self.pointer(name))?;
+        let block = self.reach(self.pointer(name))?;
         self.file.view_as(block, kind)
     }
     /// The bytes of the block a pointer field designates.
     pub(super) fn block(&self, name: &str) -> Option<&'a [u8]> {
-        self.file.bytes_at(self.pointer(name))
+        self.file.bytes_of(self.reach(self.pointer(name))?)
     }
     /// The view of an element of a structure array: the pointed-to block holds `count` structures
     /// in a row, and it is the size the SDNA declares that gives the stride.
@@ -157,6 +165,7 @@ impl<'a> At<'a> {
             base: self.base.checked_add(rank.checked_mul(self.layout.size)?)?,
             limit: self.limit,
             old: self.old,
+            scope: self.scope,
         })
     }
     /// The name of an identified data block: Blender stores it in its `id` sub-structure, with
@@ -174,7 +183,7 @@ impl<'a> At<'a> {
             return out;
         };
         let mut pointer = head.pointer("first");
-        while let Some(block) = self.file.at(pointer) {
+        while let Some(block) = self.reach(pointer) {
             let Some(item) = self.file.view(block) else {
                 break;
             };
