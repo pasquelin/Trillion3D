@@ -16,10 +16,18 @@
         width: 100%;
         height: 100%;
       }
+      p {
+        position: absolute;
+        top: 0;
+        margin: 0.5rem;
+        color: #cbd5e1;
+        font: 12px system-ui;
+      }
     </style>
   </head>
   <body>
     <canvas id="view"></canvas>
+    <p data-words="credit"></p>
     <script type="module">
       import { createWorld, light, math } from '../runtime/engine.js';
       import { controls } from '../runtime/kit.js';
@@ -30,9 +38,8 @@
       // The compiler read corner.obj, windows.obj and lantaarn.obj from one source folder, merged
       // them into one compiled scene, and wrote the single manifest loaded here. The page never
       // joins nodes or guesses which source file produced one: that work belongs to the compiler.
-      const model = await world.scene.load(
-        '../assets/examples/street-corner/cache/native/full/manifest.json',
-      );
+      // prettier-ignore
+      const model = await world.scene.load('../assets/examples/street-corner/cache/native/full/manifest.json');
 
       world.scene.add(
         light.directional({ intensity: 3, color: '#fff0d6', position: [5, 9, 6] }),
@@ -55,7 +62,6 @@
         model.rotation.y += delta * 0.15;
         world.invalidate();
       });
-      world.invalidate();
     </script>
   </body>
 </html>

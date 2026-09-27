@@ -2153,6 +2153,9 @@
     "controls": {
       "spin": "Putar",
       "visible": "Terlihat"
+    },
+    "words": {
+      "credit": "Model lampu jalan oleh W. Sitters, CC BY 3.0 — lihat assets/examples/CREDITS.md"
     }
   }
 }

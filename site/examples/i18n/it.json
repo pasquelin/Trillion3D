@@ -2153,6 +2153,9 @@
     "controls": {
       "spin": "Ruota",
       "visible": "Visibile"
+    },
+    "words": {
+      "credit": "Modello di lampione di W. Sitters, CC BY 3.0 — vedi assets/examples/CREDITS.md"
     }
   }
 }

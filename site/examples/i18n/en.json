@@ -2153,6 +2153,9 @@
     "controls": {
       "spin": "Spin",
       "visible": "Visible"
+    },
+    "words": {
+      "credit": "Street lamp model by W. Sitters, CC BY 3.0 — see assets/examples/CREDITS.md"
     }
   }
 }
