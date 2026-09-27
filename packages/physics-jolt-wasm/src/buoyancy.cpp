@@ -1,5 +1,5 @@
 // Buoyancy, batched: `jolt_water_query` lists the pieces of the awake bodies that reach the water,
-// the worker gives each piece its own water plane from the wave model, and one BUOYANCY command
+// the module fits each piece its own water plane from the waves (`waterPlanes.cpp`), and one BUOYANCY command
 // pushes every body at its pieces' centre of buoyancy. A piece is a compound's sub-shape, a slice
 // of a single primitive longer than the slice length, or the whole body. Word layouts:
 // `packages/sdk-core/src/physics/layout.ts` (WATER_PIECE_WORDS, BUOYANCY_WORDS, PLANE_WORDS).
@@ -19,7 +19,7 @@ namespace trillion {
 
 namespace {
 
-constexpr uint32_t PIECE_WORDS = 6, HEADER_WORDS = 8, PLANE_WORDS = 8, MAX_SLICES = 4;
+constexpr uint32_t HEADER_WORDS = 8, MAX_SLICES = 4;
 
 /** A piece of a body: its shape, its transform from the body's centre of mass, its scale. */
 struct Piece {

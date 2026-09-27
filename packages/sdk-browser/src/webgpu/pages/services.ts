@@ -161,7 +161,7 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     traceEnabled: diag.traceEnabled,
     traceDiagnostic: diag.traceDiagnostic,
     lowerTiers: () => lowerTiers,
-    prefetch: readGeometryAhead(geometryUrls, context.readGeometryPage),
+    prefetch: context.readGeometryPage && readGeometryAhead(geometryUrls, context.readGeometryPage),
   });
   const residency = createWebgpuResidencyQueue({
     tracking,

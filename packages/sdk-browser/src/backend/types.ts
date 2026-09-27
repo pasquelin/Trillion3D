@@ -190,7 +190,7 @@ export interface BackendContext {
   readSceneProxy?: () => Promise<import('../../../sdk-core/src/index.ts').SceneProxy>;
   /** Host-owned, validated page reader for the initial complete GPU fallback. */
   readPage?: (url: string) => Promise<Uint32Array>;
-  readGeometryPage?: (url: string, signal?: AbortSignal) => Promise<Uint8Array>;
+  readGeometryPage?: (url: string, signal?: AbortSignal, priority?: number) => Promise<Uint8Array>;
   pageCatalogue?: PageCatalogue; // what a mount reads (#572)
   pageRoundTripMs?: () => number; // the reads' measured round trip (`../streaming/roundTrip.ts`)
   /** The session's one integration budget per frame (`frameBudget.ts`); absent, nothing bounds it. */
