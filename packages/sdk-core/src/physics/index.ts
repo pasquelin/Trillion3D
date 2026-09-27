@@ -1,6 +1,7 @@
 export * from './layout.ts';
 export * from './options.ts';
-export { CommandWriter, type BodyRecord, type CompoundPart } from './commands.ts';
+export { CommandWriter } from './commands.ts';
+export type { BodyRecord, CompoundPart } from './bodyRecord.ts';
 export { resolveShape } from './shape.ts';
 export { physicsMatterOf } from './matter.ts';
 export * from './cooked.ts';

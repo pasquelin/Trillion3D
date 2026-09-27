@@ -392,7 +392,9 @@
       "bottom": "正交视野盒的下边界。",
       "projection": "`'perspective'` 会让远处的物体变小;`'orthographic'` 则保持所有尺寸不变。",
       "copy": "取 `source` 的节点值，若为相机则取其光学参数；自身的 `projection` 保持不变。",
-      "updateProjectionMatrix": "为了兼容那些针对需要它的渲染器而写的页面而保留:任何光学参数的写入本身就已经会触发重绘。",
+      "updateProjectionMatrix": "重新组成 `projectionMatrix`；每次写入光学参数都已这样做，并会重绘。",
+      "projectionMatrix": "光学参数组成的投影，采用参考的深度约定和有限远平面，供用它绘制的渲染器使用；每次写入光学参数都会重新组成它。世界用自己的投影绘制（`engineCamera.ts`）。",
+      "matrixWorldInverse": "最近一次组成的世界矩阵的逆矩阵：渲染器读取的视图。",
       "rayThrough": "穿过画面上某一点的世界射线，按引擎自己的投影计算（`engineCamera.ts`）：透视相机从眼睛出发沿视线方向，正交相机从盒子出发笔直沿视线方向。它的方向是单位向量。",
       "set": "把眼睛放在 `pose.position`,朝向 `pose.target` 看,并使用指定的视场角。"
     }
@@ -941,6 +943,7 @@
       "UNKNOWN_MATERIAL": "材质更改未知、超出范围、会把它移到引擎在打开场景时就固定的绘制类别,或会平铺它与其他材质共享的贴图。",
       "MATERIAL_CLASS_CHANGE": "材质更改未知、超出范围、会把它移到引擎在打开场景时就固定的绘制类别,或会平铺它与其他材质共享的贴图。",
       "MATERIAL_TEXTURE_SHARED": "材质更改未知、超出范围、会把它移到引擎在打开场景时就固定的绘制类别,或会平铺它与其他材质共享的贴图。",
+      "MATERIAL_CEILING": "页面在一个会话中创建的材质将超过 `RUNTIME_MATERIAL_CEILING`；未创建任何材质。",
       "INVALID_TRANSFORM": "某个节点的位置不是可用的矩阵,或者某个节点会成为自己的祖先。",
       "NON_FINITE_TRANSFORM": "某个节点的位置不是可用的矩阵,或者某个节点会成为自己的祖先。",
       "SINGULAR_PARENT_TRANSFORM": "某个节点的位置不是可用的矩阵,或者某个节点会成为自己的祖先。",
@@ -962,9 +965,10 @@
       "WEBGPU_LOST": "WebGPU 丢失了它的设备，或设备上的错误留下了无法再绘制的状态：由 `render`、`flush` 以及需要设备的读取抛出，由诊断 `gpu-device-lost` 以此命名，并在会话因此无法打开时出现在 `world.diagnostic.error` 上。",
       "UNSUPPORTED_SCENE_FORMAT": "保存的场景是另一种格式或版本，或者包含保存的场景无法存储的内容。",
       "SCENE_NOT_SAVABLE": "保存的场景是另一种格式或版本，或者包含保存的场景无法存储的内容。",
-      "PHYSICS_BUDGET": "物理被要求超出其某个上限（`world.budget.physics`：物体、装饰物体、内存），或动态物体不是场景的直接子节点（`PHYSICS_NESTED`），或物理模块失败（`PHYSICS_FAILED`）：见 `world.physics.error`。",
-      "PHYSICS_NESTED": "物理被要求超出其某个上限（`world.budget.physics`：物体、装饰物体、内存），或动态物体不是场景的直接子节点（`PHYSICS_NESTED`），或物理模块失败（`PHYSICS_FAILED`）：见 `world.physics.error`。",
-      "PHYSICS_FAILED": "物理被要求超出其某个上限（`world.budget.physics`：物体、装饰物体、内存），或动态物体不是场景的直接子节点（`PHYSICS_NESTED`），或物理模块失败（`PHYSICS_FAILED`）：见 `world.physics.error`。",
+      "PHYSICS_BUDGET": "物理被要求超出其某个上限（`world.budget.physics`：物体、装饰物体、内存），或动态物体不是场景的直接子节点（`PHYSICS_NESTED`），或物理模块失败（`PHYSICS_FAILED`），或物体的位姿或顶点变为非有限值而离开了模拟（`PHYSICS_DIVERGED`）：见 `world.physics.error`。",
+      "PHYSICS_NESTED": "物理被要求超出其某个上限（`world.budget.physics`：物体、装饰物体、内存），或动态物体不是场景的直接子节点（`PHYSICS_NESTED`），或物理模块失败（`PHYSICS_FAILED`），或物体的位姿或顶点变为非有限值而离开了模拟（`PHYSICS_DIVERGED`）：见 `world.physics.error`。",
+      "PHYSICS_FAILED": "物理被要求超出其某个上限（`world.budget.physics`：物体、装饰物体、内存），或动态物体不是场景的直接子节点（`PHYSICS_NESTED`），或物理模块失败（`PHYSICS_FAILED`），或物体的位姿或顶点变为非有限值而离开了模拟（`PHYSICS_DIVERGED`）：见 `world.physics.error`。",
+      "PHYSICS_DIVERGED": "物理被要求超出其某个上限（`world.budget.physics`：物体、装饰物体、内存），或动态物体不是场景的直接子节点（`PHYSICS_NESTED`），或物理模块失败（`PHYSICS_FAILED`），或物体的位姿或顶点变为非有限值而离开了模拟（`PHYSICS_DIVERGED`）：见 `world.physics.error`。",
       "PHYSICS_FORMAT": "已编译模型的预制物理（`physics.json`）格式不同，或由与引擎不同的 Jolt 预制（`PHYSICS_FORMAT`）：请重新编译。物理关闭时请求了精确射线检测（`PHYSICS_OFF`）。",
       "PHYSICS_OFF": "已编译模型的预制物理（`physics.json`）格式不同，或由与引擎不同的 Jolt 预制（`PHYSICS_FORMAT`）：请重新编译。物理关闭时请求了精确射线检测（`PHYSICS_OFF`）。",
       "NO_VEHICLE": "在 `world.controls.vehicle` 为 `null` 时把 `world.controls.kind` 设为了 `'vehicle'`：没有可驾驶的东西。",
@@ -2042,7 +2046,11 @@
       "geometry": "该网格的形状;设置另一个几何体即可改变它。",
       "material": "该网格的材质,或每个分组各一个;设置另一个即可改变它。",
       "localBounds": "该节点自身内容所占据的包围盒,局部坐标系;一个普通节点不含任何内容。",
-      "physics": "网格作为世界物理中的物体，不是时为 `null`。设为 `'static'`、`'dynamic'`、`'kinematic'` 或选项；形状由几何体推断。"
+      "physics": "网格作为世界物理中的物体，不是时为 `null`。设为 `'static'`、`'dynamic'`、`'kinematic'` 或选项；形状由几何体推断。",
+      "morphTargetInfluences": "几何体声明变形目标时，每个变形目标的权重。",
+      "morphTargetDictionary": "按名称给出的每个变形目标的序号。",
+      "updateMorphTargets": "为第一个变形属性的每个变形目标设一个零权重，按序号命名。",
+      "copy": "取用 `source` 的值，并复制其子节点，除非另有指示。"
     }
   },
   "Mixer": {
@@ -2909,6 +2917,8 @@
       "environment": "光滑表面所反射的周围环境图像;没有时为 `null`。",
       "background": "填充每个对象背后画面的内容：一种颜色，或表示默认值的 `null`。更改会在下一帧显示，会话保持不变：在这里设置的新颜色，或通过其方法（`set`、`setRGB`、`setHex`、`setHSL`...）写入的当前颜色。直接写入 `.r`、`.g` 或 `.b` 不会被察觉：之后请重新设置 `background`。图片或任何没有 `getHex` 的值都会被拒绝（`UNSUPPORTED_SCENE_UPDATE`）：没有路径会绘制它。",
       "fog": "覆盖每个表面的雾，不透明和透明表面都有，两种渲染器都支持；默认 `null` 表示无雾，没有任何开销。`{ color, near, far }` 让物体从 `near` 到 `far` 融入 `color`，距离从相机算起；`{ color, density }` 每单位距离变浓 `density`；加上 `heightFalloff`（以及默认为 0 的 `baseHeight`），雾就贴在地面上，在 `baseHeight` 之上变淡——每向上 `1 / heightFalloff` 个单位除以 e。修改在下一帧显示：在这里设置的新雾，或通过其方法写入的颜色。直接写 `near`、`far`、`density`... 不会被察觉：写完后请重新设置 `fog`。超出范围的雾——`far` 不在 `near` 之外、密度为负——会被拒绝（`INVALID_SCENE_ENVIRONMENT`）。",
+      "onBeforeRender": "渲染器绘制场景之前调用；默认没有。",
+      "onAfterRender": "渲染器绘制完场景之后调用；默认没有。",
       "load": "加载一个已编译模型——通过它的清单 URL——并把它添加到这个场景中。",
       "toJSON": "场景的纯 JSON 表示，带版本号：它的物体、按构建它们的调用记录的形状、材质、光源、按声明记录的每个网格的物理物体，以及按地址记录的已加载模型；给出 `camera` 时，也包括它的位姿。",
       "fromJSON": "用 `toJSON` 保存的场景替换场景当前的内容，保留其 `helper` 标记；模型加载完后完成。其他格式或版本会被拒绝（`UNSUPPORTED_SCENE_FORMAT`）。读取期间发起的调用会按顺序一个接一个执行，每个都基于前一个留下的结果：两个保存的场景绝不会混在一起。"
@@ -7144,6 +7154,7 @@
       "gravity": "重力，单位 m/s²，一个实时向量；可设预设（`'earth'`、`'moon'`、`'mars'`、`'none'`）或向量。",
       "paused": "时间是否静止；写入仍会到达物体。",
       "timeScale": "每真实秒的模拟秒数：0.25 为慢动作。",
+      "simulationRange": "相机周围模拟物体的范围（米）；超出范围的物体保持原状冻结，也不加载碰撞图块；`null` 跟随 `camera.far`。",
       "water": "物体漂浮其中的水：水位、波浪、密度和阻力。比水轻的物体会漂浮，被它排开的水的重量托起。",
       "waterSurface": "模拟时刻的水面,用于绘制:与浮力读取的相同波浪、相同数值(`height`、`point`、`normal`)。",
       "stats": "计数与两个时钟：worker 每步毫秒数，页面每帧毫秒数。",
@@ -7350,6 +7361,7 @@
       "gravity": "重力，单位 m/s²，一个实时向量；可设预设（`'earth'`、`'moon'`、`'mars'`、`'none'`）或向量。",
       "paused": "时间是否静止；写入仍会到达物体。",
       "timeScale": "每真实秒的模拟秒数：0.25 为慢动作。",
+      "simulationRange": "相机周围模拟物体的范围（米）；超出范围的物体保持原状冻结，也不加载碰撞图块；`null` 跟随 `camera.far`。",
       "water": "物体漂浮其中的水：水位、波浪、密度和阻力。比水轻的物体会漂浮，被它排开的水的重量托起。",
       "waterSurface": "模拟时刻的水面,用于绘制:与浮力读取的相同波浪、相同数值(`height`、`point`、`normal`)。",
       "stats": "计数与两个时钟：worker 每步毫秒数，页面每帧毫秒数。",
@@ -7362,6 +7374,7 @@
     "summary": "`createWorld(canvas, { physics })` 除 `true` 外接受的内容。",
     "members": {
       "budget": "固定上限，物理启动时读取一次。",
+      "simulationRange": "相机周围模拟物体的范围（米，`world.physics.simulationRange`）；`null` 跟随 `camera.far`。",
       "gravity": "世界的重力：预设或向量。"
     }
   },
@@ -7394,18 +7407,6 @@
       "handbrake": "手刹是否拉起。"
     }
   },
-  "GraphMesh": {
-    "summary": "被绘制的节点：一个几何体及其表面，或每个几何分组一个表面。",
-    "members": {
-      "kind": "在一个放置处绘制，或在多个放置处绘制（`GraphInstancedMesh`）。",
-      "morphTargetInfluences": "几何体声明变形目标时，每个变形目标的权重。",
-      "morphTargetDictionary": "按名称给出的每个变形目标的序号。",
-      "geometry": "它的形状。",
-      "material": "它的表面，或每个几何分组一个。",
-      "updateMorphTargets": "为第一个变形属性的每个变形目标设一个零权重，按序号命名。",
-      "copy": "取用 `source` 的值，并复制其子节点，除非另有指示。"
-    }
-  },
   "GraphNode": {
     "summary": "图的一个节点：核心的节点，以其 `kind` 区分，由核心的 `clone` 复制。",
     "members": {
@@ -7414,7 +7415,7 @@
     }
   },
   "GraphNodeKind": {
-    "summary": "图的节点是什么：根、被绘制的网格（一个或多个放置处）、眼睛，或场景声明的某种光源。"
+    "summary": "图中的光源是什么：场景声明的光源之一。"
   },
   "GraphSurface": {
     "summary": "表面：一个族的参数，除非场景另有说明，取参考实现的值。",

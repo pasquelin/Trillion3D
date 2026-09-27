@@ -8,7 +8,7 @@ import {
   SHADOW_RECORD_INFO,
   SHADOW_RECORD_ORIGINS,
 } from '../../../../sdk-core/src/scene/light-shadow/faces.ts';
-import { SHADOW_PAGE } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
+import { SHADOW_PAGE, pageOrigin } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import type { SunLevels } from '../../../../sdk-core/src/scene/light-shadow/sunLevels.ts';
 
 /** Pages one GPU batch draws: the size of the per-batch buffers. A frame draws every page it
@@ -65,9 +65,7 @@ export function createShadowRecordPack(faceStride: number, poolSide: number) {
     ) {
       const uniform = (index * faceStride) / 4;
       for (let i = 0; i < 16; i++) facePacked[uniform + i] = matrices[matrixBase + i];
-      const local = phys % (side * side),
-        x = (local % side) * SHADOW_PAGE,
-        y = Math.floor(local / side) * SHADOW_PAGE;
+      const { x, y } = pageOrigin(phys, side);
       facePacked[uniform + 16] = x / size;
       facePacked[uniform + 17] = y / size;
       facePacked[uniform + 18] = SHADOW_PAGE / size;

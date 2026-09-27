@@ -176,3 +176,15 @@ test('the opaque visibility tables are the same with or without blended casters'
   assert.deepEqual(withCasters, without);
   assert.deepEqual(without.rowOfPage, [0, -1], 'the blended page holds no visibility row');
 });
+
+// #875: a blended cluster drawn from its geometry page never fetches an index page; it still casts.
+test('a blended caster read from its geometry page takes its row without an index page', () => {
+  const pages = catalogue(0.4);
+  Object.assign(pages[1], {
+    array: undefined,
+    geometryPage: { url: 'g1', sha256: 'g', bytes: 64, vertexCount: 3, indexCount: 3, flags: 0 },
+  });
+  const { rows, casters } = mount(pages, 1);
+  casters.refresh();
+  assert.equal(rows.blendRowOf[1], rows.blendFirst);
+});
