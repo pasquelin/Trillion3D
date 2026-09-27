@@ -2,8 +2,8 @@ import { CommandWriter, FLAG, GENERATION_SHIFT } from '../../../sdk-core/src/phy
 import { axisAngleQuaternion } from '../../../sdk-core/src/math/matrix/quaternion.ts';
 import { plane, sphere } from '../../../sdk-core/src/world/geometry/basic.ts';
 import type { JoltModule } from './joltModule.ts';
-import { id, ropeLine, writeSoftBody } from './soft.fixture.ts';
-import { FLAT, body } from './records.fixture.ts';
+import { ropeLine, writeSoftBody } from './soft.fixture.ts';
+import { FLAT, body, id } from './records.fixture.ts';
 
 /** The steps whose soft words `writebackScene` keeps: after each change of its list. */
 const KEPT = new Set([1, 20, 21, 22, 35, 41, 46, 51, 56, 90]);
