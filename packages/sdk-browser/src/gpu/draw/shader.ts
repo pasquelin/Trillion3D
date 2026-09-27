@@ -11,9 +11,13 @@ import { BASE_SLOTS, DRAW_ITEM_WGSL, slotCount } from './contract.ts';
  *
  * `slotUsed` is what the CPU counted for each slot before this pass: a slot it counted at zero holds
  * nothing here either, because the only thing this shader adds is the selection mask, which can just
- * remove items. Such a slot leaves the counting pass at once and is skipped by the prefix too, so
- * a coplanar layer that no cluster of the batch — or of this half of the image — reaches costs the
- * compaction nothing at all.
+ * remove items. Such a slot is written a zero count and skipped by the prefix, so a coplanar layer
+ * that no cluster of the batch — or of this half of the image — reaches costs the prefix nothing.
+ *
+ * Counting and scattering run one workgroup per group of 64 items: each lane reads its own item
+ * once, tallies its slot in workgroup memory, and ranks itself among the earlier lanes of the same
+ * slot from workgroup memory too — the counts and the order of the per-(group, slot) walk, without
+ * rereading the group's items from the storage buffer once per slot and per lane.
  *
  * The prefix spreads slots over the sixty-four threads of a single workgroup rather than walking
  * them one after another: each thread totals the slots that fall to it in steps of 64, a workgroup
@@ -68,7 +72,6 @@ fn selected(item:DrawItem)->bool{
 }
 /** GPU mirror of \`slotOf\` (cpu.ts): same product, same sum, same layer ceiling. */
 fn slotOf(i:u32,item:DrawItem)->u32{return restAt(i)*3u+item.bin+${BASE_SLOTS}u*min(item.layer,${top}u);}
-fn matches(i:u32,slot:u32)->bool{let item=items[i];return slotOf(i,item)==slot&&selected(item);}
 fn writeCmd(slot:u32,count:u32){
  let o=slot*4u;
  indirect[o]=uni.maxVertexCount;
@@ -76,16 +79,27 @@ fn writeCmd(slot:u32,count:u32){
  indirect[o+2u]=0u;
  indirect[o+3u]=0u;
 }
+/** No slot: the lane is past the frame's items, or its item is not selected. */
+const NO_SLOT:u32=0xffffffffu;
+var<workgroup> laneSlots:array<u32,64>;
+var<workgroup> slotTally:array<atomic<u32>,${slots}>;
+/** The slot item \`i\` draws in, or \`NO_SLOT\` when it lies at or past \`end\` or is not selected. */
+fn slotAt(i:u32,end:u32)->u32{
+ if(i>=end){return NO_SLOT;}
+ let item=items[i];
+ if(!selected(item)){return NO_SLOT;}
+ return slotOf(i,item);
+}
 @compute @workgroup_size(64)
-fn countGroups(@builtin(global_invocation_id) id:vec3u){
- let entry=id.x;
- if(entry>=uni.groupCount*${slots}u){return;}
- let group=entry/${slots}u;let slot=entry%${slots}u;
- if(slotUsed[slot]==0u){groupCounts[entry]=0u;return;}
- var count=0u;
- let begin=group*64u;let end=min(begin+64u,min(uni.count,uni.slotCap));
- for(var i=begin;i<end;i++){if(matches(i,slot)){count=count+1u;}}
- groupCounts[entry]=count;
+fn countGroups(@builtin(workgroup_id) wg:vec3u,@builtin(local_invocation_index) lane:u32){
+ let group=wg.x;
+ // \`slotTally\` starts at zero: WGSL zero-initializes workgroup memory for each workgroup.
+ let s=slotAt(group*64u+lane,min(uni.count,uni.slotCap));
+ if(s!=NO_SLOT){atomicAdd(&slotTally[s],1u);}
+ workgroupBarrier();
+ for(var slot=lane;slot<${slots}u;slot+=64u){
+  groupCounts[group*${slots}u+slot]=select(atomicLoad(&slotTally[slot]),0u,slotUsed[slot]==0u);
+ }
 }
 var<workgroup> slotTotals:array<u32,${slots}>;
 @compute @workgroup_size(64)
@@ -116,14 +130,18 @@ fn prefixGroups(@builtin(local_invocation_id) lid:vec3u){
  }
 }
 @compute @workgroup_size(64)
-fn scatterGroups(@builtin(global_invocation_id) id:vec3u){
- let i=id.x;
- if(i>=uni.count||uni.count>uni.slotCap){return;}
- let item=items[i];if(!selected(item)){return;}let slot=slotOf(i,item);
- let group=i/64u;let begin=group*64u;
+fn scatterGroups(@builtin(workgroup_id) wg:vec3u,@builtin(local_invocation_index) lane:u32){
+ if(uni.count>uni.slotCap){return;}
+ let group=wg.x;let i=group*64u+lane;
+ // The rank is the count of EARLIER lanes of the group in the same slot: the item's place in
+ // the group's stable order.
+ let s=slotAt(i,uni.count);
+ laneSlots[lane]=s;
+ workgroupBarrier();
+ if(s==NO_SLOT){return;}
  var rank=0u;
- for(var j=begin;j<i;j++){if(matches(j,slot)){rank=rank+1u;}}
- instances[groupOffsets[group*${slots}u+slot]+rank]=item.pageIndex;
+ for(var j=0u;j<lane;j++){if(laneSlots[j]==s){rank=rank+1u;}}
+ instances[groupOffsets[group*${slots}u+s]+rank]=items[i].pageIndex;
 }
 `;
 };
