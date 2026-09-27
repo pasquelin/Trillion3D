@@ -2152,7 +2152,7 @@
     "banner": "Kéo để xem góc phố. Trình biên dịch đã gộp ba tệp OBJ trong một thư mục thành cảnh này.",
     "controls": {
       "visible": "Hiển thị",
-      "home": "Trang chủ"
+      "home": "Góc nhìn ban đầu"
     },
     "words": {
       "credit": "Mô hình đèn đường của W. Sitters, CC BY 3.0 — xem assets/examples/CREDITS.md"
