@@ -30,7 +30,7 @@ type DisplayNode = Partial<SceneCopy> & {
   readonly renderOrder: number;
   readonly children: readonly DisplayNode[];
 };
-/** A drawn node: the engine's mesh, numbered in creation order (`serialOf`). */
+/** A drawn node: the engine's mesh. */
 type DrawnNode = DisplayNode;
 type DisplayScene = ClusterDrawScene & {
   readonly children: readonly DisplayNode[];
@@ -74,7 +74,7 @@ export function createSceneDraw(
     for (let i = copied.size; i < copies.length; i++) copied.add(copies[i] as DisplayNode);
   };
   // Reused from frame to frame: a draw allocates no list.
-  const opaque: WholeMesh[] = [],
+  const opaque: (WholeMesh & DrawnNode)[] = [],
     seeThrough: DrawnNode[] = [];
   let owner: WebglClusterOwner | undefined,
     opened = false,
@@ -88,7 +88,7 @@ export function createSceneDraw(
     if (isDrawnNode(node)) {
       if (copied.has(node) || firstMaterial(node.material!)?.transparent)
         seeThrough.push(node as DrawnNode);
-      else opaque.push(node as WholeMesh);
+      else opaque.push(node as WholeMesh & DrawnNode);
     }
     for (const child of node.children) collect(child);
   };
@@ -121,7 +121,7 @@ export function createSceneDraw(
       try {
         walk();
         multiplyMatrix4Typed(screen, drawCamera.projection, drawCamera.view);
-        order(opaque as DrawnNode[], seeThrough, screen);
+        order(opaque, seeThrough, screen);
         // A linear output is the effect chain's: its own program, which leaves the curve and the
         // encoding to the chain and marks the surfaces the curve skips.
         owner.draw(

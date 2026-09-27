@@ -164,6 +164,16 @@ export function packedWorldsToRenderOrigin(
   return packed;
 }
 
+/** The loop itself: each root, sixteen floats, rebased to `origin` in `worlds`. */
+export function rootWorldsToRenderOrigin(
+  worlds: Float32Array,
+  roots: readonly DagRoot[],
+  origin: ArrayLike<number>,
+) {
+  for (let w = 0; w < roots.length; w++)
+    worldToRenderOrigin(worlds, roots[w].world.elements, origin, w * 16);
+}
+
 /**
  * The same loop when only the origin moved since the last `rootWorldsToRenderOrigin` into
  * `worlds`, the roots unchanged: the three translation numbers of each root, the only ones that
@@ -177,14 +187,4 @@ export function rootTranslationsToRenderOrigin(
 ) {
   for (let w = 0; w < roots.length; w++)
     translationToRenderOrigin(worlds, roots[w].world.elements, origin, w * 16);
-}
-
-/** The loop itself: each root, sixteen floats, rebased to `origin` in `worlds`. */
-export function rootWorldsToRenderOrigin(
-  worlds: Float32Array,
-  roots: readonly DagRoot[],
-  origin: ArrayLike<number>,
-) {
-  for (let w = 0; w < roots.length; w++)
-    worldToRenderOrigin(worlds, roots[w].world.elements, origin, w * 16);
 }

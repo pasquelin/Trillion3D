@@ -44,11 +44,11 @@ export function uploadWorlds(rt: WebgpuPagesRuntime, cam: EngineCamera) {
   rt.timing.worldCounts.racinesRebasees = rebased ? selectionRoots.length : 0;
   let posted: boolean | undefined;
   if (rebased) {
-    run.worldUploadRevision = run.gate.revisions.scene;
-    run.worldUploadOrigin.set(cam.eye);
-    // The subtraction is done in double, the single-precision rounding comes after it.
     const scene = run.gate.revisions.scene;
+    run.worldUploadRevision = scene;
+    run.worldUploadOrigin.set(cam.eye);
     const translationsOnly = !worldsMoved && fullyRebased.get(worldUpdates) === scene;
+    // The subtraction is done in double, the single-precision rounding comes after it.
     if (translationsOnly) rootTranslationsToRenderOrigin(worldUpdates, selectionRoots, cam.eye);
     else rootWorldsToRenderOrigin(worldUpdates, selectionRoots, cam.eye);
     posted = run.gpuSelection?.updateWorlds(worldUpdates, worldsMoved, translationsOnly);
