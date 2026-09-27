@@ -2151,8 +2151,8 @@
   "a-folder-merged-into-one-scene": {
     "banner": "Arraste para examinar a esquina. O compilador reuniu três arquivos OBJ de uma pasta nesta cena.",
     "controls": {
-      "spin": "Girar",
-      "visible": "Visível"
+      "visible": "Visível",
+      "home": "Início"
     },
     "words": {
       "credit": "Modelo de poste de W. Sitters, CC BY 3.0 — veja assets/examples/CREDITS.md"

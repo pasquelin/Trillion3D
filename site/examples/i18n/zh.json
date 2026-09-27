@@ -2151,8 +2151,8 @@
   "a-folder-merged-into-one-scene": {
     "banner": "拖动查看街角。编译器将一个文件夹中的三个 OBJ 文件合并成了这个场景。",
     "controls": {
-      "spin": "旋转",
-      "visible": "显示"
+      "visible": "显示",
+      "home": "初始视图"
     },
     "words": {
       "credit": "路灯模型作者 W. Sitters，CC BY 3.0 — 见 assets/examples/CREDITS.md"

@@ -2151,8 +2151,8 @@
   "a-folder-merged-into-one-scene": {
     "banner": "Faites glisser pour examiner le coin de rue. Le compilateur a fusionné trois fichiers OBJ d’un dossier dans cette scène.",
     "controls": {
-      "spin": "Tourner",
-      "visible": "Visible"
+      "visible": "Visible",
+      "home": "Accueil"
     },
     "words": {
       "credit": "Modèle de réverbère par W. Sitters, CC BY 3.0 — voir assets/examples/CREDITS.md"

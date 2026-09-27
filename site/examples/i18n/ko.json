@@ -2151,8 +2151,8 @@
   "a-folder-merged-into-one-scene": {
     "banner": "드래그하여 거리 모퉁이를 살펴보세요. 컴파일러가 한 폴더의 OBJ 파일 세 개를 이 장면으로 병합했습니다.",
     "controls": {
-      "spin": "회전",
-      "visible": "표시"
+      "visible": "표시",
+      "home": "홈"
     },
     "words": {
       "credit": "W. Sitters의 가로등 모델, CC BY 3.0 — assets/examples/CREDITS.md 참고"

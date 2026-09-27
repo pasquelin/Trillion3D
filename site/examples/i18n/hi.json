@@ -2151,8 +2151,8 @@
   "a-folder-merged-into-one-scene": {
     "banner": "सड़क के कोने को देखने के लिए खींचें। कंपाइलर ने एक फ़ोल्डर की तीन OBJ फ़ाइलों को इस दृश्य में मिला दिया।",
     "controls": {
-      "spin": "घुमाएँ",
-      "visible": "दिखाएँ"
+      "visible": "दिखाएँ",
+      "home": "आरंभिक दृश्य"
     },
     "words": {
       "credit": "W. Sitters का सड़क-लैंप मॉडल, CC BY 3.0 — देखो assets/examples/CREDITS.md"

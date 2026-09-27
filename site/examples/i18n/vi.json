@@ -2151,8 +2151,8 @@
   "a-folder-merged-into-one-scene": {
     "banner": "Kéo để xem góc phố. Trình biên dịch đã gộp ba tệp OBJ trong một thư mục thành cảnh này.",
     "controls": {
-      "spin": "Xoay",
-      "visible": "Hiển thị"
+      "visible": "Hiển thị",
+      "home": "Trang chủ"
     },
     "words": {
       "credit": "Mô hình đèn đường của W. Sitters, CC BY 3.0 — xem assets/examples/CREDITS.md"

@@ -2151,8 +2151,8 @@
   "a-folder-merged-into-one-scene": {
     "banner": "ドラッグして街角を確認します。コンパイラーが1つのフォルダー内の3つのOBJファイルをこのシーンに統合しました。",
     "controls": {
-      "spin": "回転",
-      "visible": "表示"
+      "visible": "表示",
+      "home": "ホーム"
     },
     "words": {
       "credit": "W. Sitters による街灯のモデル、CC BY 3.0 — assets/examples/CREDITS.md を見てね"

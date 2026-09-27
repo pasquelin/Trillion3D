@@ -45,23 +45,28 @@
         light.directional({ intensity: 3, color: '#fff0d6', position: [5, 9, 6] }),
         light.hemisphere({ intensity: 1.1, color: '#b9d5ff', groundColor: '#55483d' }),
       );
-      world.camera.position.set(4.5, 3.2, 5.5);
-      world.camera.lookAt(0, 1.5, 0);
-      world.controls.target.set(0, 1.5, 0);
+      const HOME = { eye: [2.15, 2.5, 4.1], target: [0.75, 1.6, 1] };
+      const home = () => {
+        world.camera.position.set(...HOME.eye);
+        world.controls.target.set(...HOME.target);
+        world.camera.lookAt(...HOME.target);
+        world.controls.update();
+        world.invalidate();
+      };
+      world.controls.maxDistance = 3.6;
+      world.controls.minPolarAngle = 0.5;
+      world.controls.maxPolarAngle = Math.PI / 2 - 0.05;
+      world.controls.enablePan = false;
+      home();
 
-      const ui = controls(
-        { spin: true, visible: true },
+      controls(
+        { visible: true, home },
         (values) => {
           model.visible = values.visible;
           world.invalidate();
         },
         world,
       );
-      world.onFrame(({ delta }) => {
-        if (!ui.spin || !model.visible) return;
-        model.rotation.y += delta * 0.15;
-        world.invalidate();
-      });
     </script>
   </body>
 </html>

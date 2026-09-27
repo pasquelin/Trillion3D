@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import { runExampleModule } from './docs/examples/capture.ts';
 
-type Values = { spin: boolean; visible: boolean };
+type Values = { visible: boolean };
 
 test('the folder example loads the merged cache and its controls drive the whole model', async () => {
   const html = await readFile(
@@ -11,11 +11,19 @@ test('the folder example loads the merged cache and its controls drive the whole
     'utf8',
   );
   const loaded: string[] = [],
-    frames: ((frame: { delta: number }) => void)[] = [];
-  const model = { visible: true, rotation: { y: 0 } };
-  let values: Values = { spin: true, visible: true },
+    eye: number[][] = [],
+    aimed: number[][] = [],
+    target: number[][] = [];
+  const model = { visible: true };
+  let values: Values = { visible: true },
     changed = (_values: Values) => {},
-    invalidations = 0;
+    home = () => {},
+    invalidations = 0,
+    updates = 0;
+  const orbit: Record<string, unknown> & { target: { set: (...at: number[]) => number } } = {
+    target: { set: (...at: number[]) => target.push(at) },
+    update: () => updates++,
+  };
   await runExampleModule(html, {
     engine: {
       createWorld: () => ({
@@ -27,37 +35,48 @@ test('the folder example loads the merged cache and its controls drive the whole
             return model;
           },
         },
-        camera: { position: { set() {} }, lookAt() {} },
-        controls: { target: { set() {} } },
-        onFrame: (frame: (value: { delta: number }) => void) => frames.push(frame),
+        camera: {
+          position: { set: (...at: number[]) => eye.push(at) },
+          lookAt: (...at: number[]) => aimed.push(at),
+        },
+        controls: orbit,
         invalidate: () => invalidations++,
       }),
       light: { directional: () => ({}), hemisphere: () => ({}) },
       math: { color: (value: string) => value },
     },
     kit: {
-      controls: (specs: Values, onChange: (next: Values) => void) => {
-        values = { ...specs };
+      controls: (specs: Values & { home: () => void }, onChange: (next: Values) => void) => {
+        values = { visible: specs.visible };
+        home = specs.home;
         changed = onChange;
         changed(values);
-        return values;
       },
     },
   });
 
   assert.deepEqual(loaded, ['../assets/examples/street-corner/cache/native/full/manifest.json']);
-  frames[0]({ delta: 2 });
-  assert.equal(model.rotation.y, 0.3, 'spin turns the merged model');
-  assert.equal(invalidations, 2, 'the spinning frame redraws');
-  values.spin = false;
-  frames[0]({ delta: 2 });
-  assert.equal(model.rotation.y, 0.3, 'spin off leaves the model still');
-  assert.equal(invalidations, 2, 'spin off schedules no redraw');
+  assert.deepEqual(eye, [[2.15, 2.5, 4.1]]);
+  assert.deepEqual(target, [[0.75, 1.6, 1]]);
+  assert.deepEqual(aimed, [[0.75, 1.6, 1]]);
+  assert.equal(orbit.maxDistance, 3.6);
+  assert.equal(orbit.minPolarAngle, 0.5);
+  assert.equal(orbit.maxPolarAngle, Math.PI / 2 - 0.05);
+  assert.equal(orbit.enablePan, false);
+  assert.equal(updates, 1);
   values.visible = false;
   changed(values);
   assert.equal(model.visible, false, 'visibility hides the whole merged model');
-  values.spin = true;
-  frames[0]({ delta: 2 });
-  assert.equal(model.rotation.y, 0.3, 'a hidden model remains still');
-  assert.equal(invalidations, 3, 'a hidden model schedules no frame redraw');
+  eye.length = target.length = aimed.length = 0;
+  home();
+  assert.deepEqual(
+    { eye, target, aimed },
+    {
+      eye: [[2.15, 2.5, 4.1]],
+      target: [[0.75, 1.6, 1]],
+      aimed: [[0.75, 1.6, 1]],
+    },
+  );
+  assert.equal(updates, 2, 'Home settles the orbit controller on the restored target');
+  assert.equal(invalidations, 4, 'initial view, controls, visibility and Home each redraw');
 });
