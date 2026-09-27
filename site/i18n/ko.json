@@ -33,9 +33,9 @@
   "examples": {
     "lead": "예제는 모두 짧은 파일 하나로 되어 있습니다: 실행해 보고, 코드를 열어 보고, 직접 바꿔 보세요.",
     "jumpTo": "테마로 이동",
-    "inProgress": "제작 중",
     "waitsFor": "엔진을 기다리는 중:",
-    "waitingEngine": "엔진을 기다리는 중"
+    "partial": "부분 지원",
+    "coming": "예정: {{titles}}"
   },
   "gallery": {
     "themes": {
@@ -121,10 +121,10 @@
       "a-refracting-pane": "빛을 굴절시키는 유리판",
       "a-light-map": "라이트맵",
       "two-materials-one-mesh": "두 재질, 하나의 메시",
-      "clearcoat-paint": "클리어코트 도장",
       "velvet-sheen": "벨벳 광택",
       "soap-bubble-iridescence": "무지갯빛",
       "brushed-metal": "헤어라인 금속",
+      "car-paint-under-clear-coat": "클리어 코트 아래의 자동차 도장",
       "a-prism-that-disperses": "빛을 분산시키는 프리즘",
       "retroreflective-paint": "재귀반사",
       "light-through-skin": "피부를 통과하는 빛",
@@ -153,7 +153,7 @@
       "flat-shadows-on-the-floor": "평평하게 투영된 그림자",
       "a-softbox-panel": "소프트박스 패널",
       "light-from-a-probe": "프로브에서 나오는 빛",
-      "soft-shadow-edges": "부드러운 그림자 가장자리",
+      "soft-shadows-from-a-wide-lamp": "넓은 램프의 부드러운 그림자",
       "contact-shadow-under-a-car": "접촉 그림자",
       "coloured-shadows-through-glass": "유리를 통과하는 그림자",
       "shadows-in-the-corners": "구석의 그림자",
@@ -355,10 +355,10 @@
       "a-refracting-pane": "텍스처로 렌더링",
       "a-light-map": "라이트맵 슬롯",
       "two-materials-one-mesh": "다중 재질 메시",
-      "clearcoat-paint": "물리 기반 재질 레이어: 클리어코트",
       "velvet-sheen": "물리 기반 재질 레이어: 광택",
       "soap-bubble-iridescence": "물리 기반 재질 레이어: 무지갯빛",
       "brushed-metal": "물리 기반 재질 레이어: 이방성",
+      "car-paint-under-clear-coat": "물리 기반 재질 레이어: 클리어 코트",
       "a-prism-that-disperses": "물리 기반 재질 레이어: 분산",
       "retroreflective-paint": "직접 만드는 셰이더 재질",
       "light-through-skin": "표면 하 산란",
@@ -373,7 +373,7 @@
       "a-stack-of-texture-layers": "데이터, 배열, 3D 텍스처",
       "wide-gamut-colour": "광색역 출력",
       "energy-conservation-test": "환경 조명(IBL)",
-      "soft-shadow-edges": "부드러운 그림자 필터링(반그림자)",
+      "soft-shadows-from-a-wide-lamp": "램프 너비에 따른 부드러운 그림자",
       "contact-shadow-under-a-car": "텍스처로 렌더링",
       "coloured-shadows-through-glass": "그림자를 드리우는 투명 물체",
       "shadows-in-the-corners": "화면 공간 앰비언트 오클루전",

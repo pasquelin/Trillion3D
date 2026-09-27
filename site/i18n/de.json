@@ -33,9 +33,9 @@
   "examples": {
     "lead": "Jedes Beispiel ist eine kurze Datei: sieh es dir laufen an, öffne den Code, verändere ihn.",
     "jumpTo": "Zu einem Thema springen",
-    "inProgress": "In Arbeit",
     "waitsFor": "Wartet auf die Engine:",
-    "waitingEngine": "Wartet auf die Engine"
+    "partial": "Teilweise",
+    "coming": "Demnächst: {{titles}}"
   },
   "gallery": {
     "themes": {
@@ -121,10 +121,10 @@
       "a-refracting-pane": "Eine lichtbrechende Scheibe",
       "a-light-map": "Eine Light Map",
       "two-materials-one-mesh": "Zwei Materialien, ein Netz",
-      "clearcoat-paint": "Klarlack-Farbe",
       "velvet-sheen": "Samtiger Glanz",
       "soap-bubble-iridescence": "Irisieren",
       "brushed-metal": "Gebürstetes Metall",
+      "car-paint-under-clear-coat": "Autolack unter Klarlack",
       "a-prism-that-disperses": "Ein zerstreuendes Prisma",
       "retroreflective-paint": "Rückstrahlung",
       "light-through-skin": "Licht unter der Haut",
@@ -153,7 +153,7 @@
       "flat-shadows-on-the-floor": "Flach projizierte Schatten",
       "a-softbox-panel": "Ein Softbox-Panel",
       "light-from-a-probe": "Licht aus einer Sonde",
-      "soft-shadow-edges": "Weiche Schattenkanten",
+      "soft-shadows-from-a-wide-lamp": "Weiche Schatten einer breiten Lampe",
       "contact-shadow-under-a-car": "Kontaktschatten",
       "coloured-shadows-through-glass": "Schatten durch Glas",
       "shadows-in-the-corners": "Schatten in den Ecken",
@@ -355,10 +355,10 @@
       "a-refracting-pane": "Rendern in eine Textur",
       "a-light-map": "Slot für Light Map",
       "two-materials-one-mesh": "Meshes mit mehreren Materialien",
-      "clearcoat-paint": "Schichten des physikalischen Materials: Klarlack",
       "velvet-sheen": "Schichten des physikalischen Materials: Glanz",
       "soap-bubble-iridescence": "Schichten des physikalischen Materials: Irisieren",
       "brushed-metal": "Schichten des physikalischen Materials: Anisotropie",
+      "car-paint-under-clear-coat": "Schichten des physikalischen Materials: Klarlack",
       "a-prism-that-disperses": "Schichten des physikalischen Materials: Dispersion",
       "retroreflective-paint": "Materialien mit eigenem Shader",
       "light-through-skin": "Streuung unter der Oberfläche",
@@ -373,7 +373,7 @@
       "a-stack-of-texture-layers": "Daten-, Array- und 3D-Texturen",
       "wide-gamut-colour": "Ausgabe mit großem Farbraum",
       "energy-conservation-test": "Umgebungslicht (IBL)",
-      "soft-shadow-edges": "Filterung weicher Schatten (Halbschatten)",
+      "soft-shadows-from-a-wide-lamp": "weiche Schatten durch die Lampenbreite",
       "contact-shadow-under-a-car": "Rendern in eine Textur",
       "coloured-shadows-through-glass": "schattenwerfende transparente Objekte",
       "shadows-in-the-corners": "Ambient Occlusion im Bildraum",

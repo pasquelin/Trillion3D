@@ -30,12 +30,12 @@ export function materialEngines(backends: RenderBackend[], active: () => RenderB
     },
     /** Every engine rereads its surfaces, each asked even once one has refused; one that cannot
      *  has not taken the change (`setClearColor`). */
-    refreshed: (alpha?: AlphaChange) =>
-      backends
-        .map(
-          (backend) =>
-            !!backend.refreshMaterials && backend.refreshMaterials(true, alpha) !== false,
-        )
-        .every(Boolean),
+    refreshed(alpha?: AlphaChange) {
+      let taken = true;
+      for (const backend of backends)
+        taken =
+          !!backend.refreshMaterials && backend.refreshMaterials(true, alpha) !== false && taken;
+      return taken;
+    },
   };
 }
