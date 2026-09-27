@@ -1,4 +1,4 @@
-import { ligne, type LigneResultat, type Mesure } from '../../../bench/core/measureTypes.ts';
+import { resultRow, type Measurement, type ResultRow } from './measureTypes.ts';
 import { failures } from './failure.ts';
 import { spread } from './profile.ts';
 import { statsCard } from './stats.ts';
@@ -16,7 +16,7 @@ const BUDGETS = { fps: 60, gpuFrameMs: 1000 / 60, gpuShadowsMs: 2 };
  *  is `flagged`: red, `until #<issue>`, and counts against no verdict. Its pull request drops it. */
 export const UNTIL: Partial<Record<keyof typeof BUDGETS, number>> = { gpuShadowsMs: 525 };
 
-export const flagged = ({ name, motif }: LigneResultat) =>
+export const flagged = ({ name, motif }: ResultRow) =>
   name !== 'refused' && /, until #\d+$/.test(motif ?? '');
 
 /** The engine's counters of a drawn frame the verdict reads, `null` when not measured. */
@@ -31,7 +31,7 @@ export interface Counters {
 type Frame = Counters & { at: number };
 
 /** The health check's verdict: `measure.ts`'s shape, and whether no line is red. */
-export type HealthVerdict = Mesure & { correct: boolean };
+export type HealthVerdict = Measurement & { correct: boolean };
 
 const measured = (frames: Frame[], key: keyof Counters) =>
   frames.map((frame) => frame[key]).filter((value): value is number => typeof value === 'number');
@@ -42,10 +42,10 @@ function line(name: string, values: number[], key?: keyof typeof BUDGETS) {
   const value = spread(values),
     until = key && UNTIL[key] ? `, until #${UNTIL[key]}` : '';
   const row = !value
-    ? ligne({ name, motif: '—' })
+    ? resultRow({ name, motif: '—' })
     : !key
-      ? ligne({ name, motif: String(value.p95) })
-      : ligne({
+      ? resultRow({ name, motif: String(value.p95) })
+      : resultRow({
           name,
           correct: value.p95 <= BUDGETS[key],
           motif: `${ms(value.p95)} ≤ ${ms(BUDGETS[key])}${until}`,
@@ -55,7 +55,7 @@ function line(name: string, values: number[], key?: keyof typeof BUDGETS) {
 
 /** The lines of a part, `<part>: <quantity>`: its rate from the gaps between its frames, the p95
  *  of its GPU and shadow times and of its shadow pages drawn a frame, the pages refetched in it. */
-function partLines(part: string, frames: Frame[]): LigneResultat[] {
+function partLines(part: string, frames: Frame[]): ResultRow[] {
   const at = frames.map((frame) => frame.at),
     gaps = spread(at.slice(1).map((time, k) => time - at[k])),
     [fps, mean] = [Math.round(1000 / (gaps?.p50 ?? NaN)), Math.round(rate(at) ?? 0)];
@@ -63,7 +63,7 @@ function partLines(part: string, frames: Frame[]): LigneResultat[] {
     pages = refetched.length ? [refetched.at(-1)! - refetched[0]] : [];
   return [
     {
-      ...ligne({ name: `${part}: FPS`, motif: '—' }),
+      ...resultRow({ name: `${part}: FPS`, motif: '—' }),
       // The median gap judges, a late frame is no slow part; one frame gives no rate, no red line.
       ...(gaps && { correct: fps >= BUDGETS.fps, motif: `${fps} ≥ ${BUDGETS.fps}, mean ${mean}` }),
       medianeMs: gaps?.p50 ?? null,
@@ -112,8 +112,12 @@ export function healthCheck(
       unhook();
       const resultats = [
         ...[...parts].flatMap(([name, frames]) => partLines(name, frames)),
-        ligne({ name: `refused: ${world.renderer}`, motif: [...byDesign].join('; ') || '—' }),
-        ligne({ name: 'refused', correct: !failures.size, motif: [...failures].join('; ') || '—' }),
+        resultRow({ name: `refused: ${world.renderer}`, motif: [...byDesign].join('; ') || '—' }),
+        resultRow({
+          name: 'refused',
+          correct: !failures.size,
+          motif: [...failures].join('; ') || '—',
+        }),
       ];
       const correct = resultats.every((line) => line.correct !== false || flagged(line)),
         name = exampleId();

@@ -7,7 +7,7 @@ import {
   normalizedLinearDeterminant,
 } from '../../../../packages/sdk-core/src/math/matrix/singular.ts';
 import { compare } from '../../../core/index.ts';
-import type { Mesure } from '../../../core/index.ts';
+import type { Measurement } from '../../../core/index.ts';
 
 const options = { chauffe: 1, tours: 5, budgetMs: 200 };
 
@@ -19,7 +19,7 @@ export const ligne = <Entree extends ArrayLike<unknown>, Sortie>(
   input: Entree,
   reference: (input: Entree) => Sortie | Promise<Sortie>,
   optimisee: (input: Entree) => Sortie | Promise<Sortie>,
-): Promise<Mesure> =>
+): Promise<Measurement> =>
   compare({
     name: libelle,
     fichier,
