@@ -48,7 +48,7 @@ test('without the pass, the transmission slice draws as one more blend', () => {
   assert.equal(composed, false);
   assert.equal(counters.copies, 0, 'no backdrop copy without the pass');
   assert.deepEqual(
-    passes,
+    passes.map(({ label, drawn }) => ({ label, drawn })),
     [{ label: 'Trillion3D transmission', drawn: [1] }],
     'the slice, as a blend',
   );

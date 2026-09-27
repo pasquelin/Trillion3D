@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>A walk through the city</title>
+    <meta name="thumbnail" content="3" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #a9c6e4;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+      p {
+        position: absolute;
+        top: 0;
+        margin: 0.5rem;
+        color: #1d2a3a;
+        font: 12px system-ui;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <p data-words="credit"></p>
+    <script type="module">
+      import { createWorld, light, math } from '../runtime/engine.js';
+      import { controls } from '../runtime/kit.js';
+
+      // First person is the engine's own pointer-lock controller: click, look with the mouse,
+      // and walk with W/A/S/D. The scene beneath it is the compiler's native paged avenue.
+      const world = createWorld('view', { controls: 'firstPerson' });
+      world.scene.background = math.color('#a9c6e4');
+      world.scene.add(
+        light.directional({ intensity: 3.2, color: '#ffe4bd', position: [5, 7, 4] }),
+        light.hemisphere({ intensity: 0.9, color: '#d2e4ff', groundColor: '#6f7a4a' }),
+      );
+      // Kept on one line so the shared example proof checks this published manifest and its credit.
+      // prettier-ignore
+      await world.scene.load('../assets/examples/detail-by-pixel-error/cache/native/full/manifest.json');
+
+      world.camera.near = 0.01;
+      world.camera.far = 60;
+      const HOME = { position: [0.45, 0.32, 5.4], target: [0, 0.14, 1.2] };
+      const home = () => world.camera.set(HOME);
+      home();
+
+      const KiB = 1024;
+      controls(
+        {
+          walkSpeed: [0.1, 1.5, 0.45, 0.05],
+          memory: [64, 2560, 768, 64],
+          view: ['beauty', 'lod', 'clusters'],
+          home,
+        },
+        (values, key) => {
+          if (key === undefined || key === 'walkSpeed')
+            world.controls.movementSpeed = values.walkSpeed;
+          if (key === undefined || key === 'memory')
+            world.budget.geometryPool = values.memory * KiB;
+          if (key === undefined || key === 'view') world.diagnostic.mode = values.view;
+          world.invalidate();
+        },
+        world,
+      );
+    </script>
+  </body>
+</html>

@@ -35,7 +35,7 @@
     "jumpTo": "Aller à un thème",
     "waitsFor": "Attend du moteur :",
     "partial": "Partiel",
-    "coming": "À venir : {{titles}}"
+    "coming": "À venir"
   },
   "gallery": {
     "themes": {
@@ -74,6 +74,7 @@
       "a-tube-along-a-spline": "Un tube sur une courbe",
       "curved-surfaces": "Surfaces courbes",
       "instances-in-colour": "Instances en couleur",
+      "a-hundred-thousand-instances": "Cent mille instances",
       "copies-along-a-path": "Copies le long d’un chemin",
       "scattered-on-a-surface": "Semés sur une surface",
       "a-world-of-blocks": "Un monde de cubes",
@@ -182,9 +183,12 @@
       "several-views-one-page": "Plusieurs vues, une page",
       "before-and-after-slider": "Curseur avant/après",
       "side-by-side-stereo": "Stéréo côte à côte",
+      "the-near-plane-cuts-a-wall": "Le plan proche coupe un mur",
+      "the-home-pose": "La pose initiale et les points d’intérêt",
       "red-cyan-anaglyph": "Anaglyphe rouge-cyan",
       "camera-layers": "Calques de caméra",
       "a-robot-that-walks-and-waves": "Robot aux gestes mêlés",
+      "a-crane-that-swings": "Une grue qui balance sa charge",
       "a-wave-across-a-grid": "Vague de cubes",
       "doors-that-open": "Des portes qui s’ouvrent à votre approche",
       "keyframes-by-hand": "Images clés à la main",
@@ -219,6 +223,7 @@
       "observatory-streamed": "Grappes streamées",
       "health-check": "Bilan de santé",
       "memory-on-a-budget": "Budget mémoire",
+      "a-walk-through-the-city": "Une promenade en ville",
       "detail-by-pixel-error": "Détail par erreur pixel",
       "watch-a-world-load": "Regarder un monde se charger",
       "ten-thousand-objects": "Dix mille objets",
@@ -226,6 +231,7 @@
       "what-hides-what": "Ce qui cache quoi",
       "create-and-dispose": "Créer et libérer",
       "no-hitch-on-first-draw": "Pas d’à-coup au 1er rendu",
+      "inside-a-component": "Dans un composant",
       "inside-the-g-buffer": "Dans le G-buffer",
       "reading-pixels-back": "Relire les pixels",
       "a-city-from-3d-tiles": "Une ville en 3D Tiles",
@@ -328,9 +334,13 @@
       "ar-on-the-table": "AR sur la table",
       "shadows-case-by-case": "Les ombres, cas par cas",
       "shadows-through-see-through-panes": "Des ombres à travers des vitres",
-      "a-walker-among-balls": "Un marcheur parmi les balles"
+      "a-walker-among-balls": "Un marcheur parmi les balles",
+      "a-dolly-along-the-canal": "Un travelling le long du canal",
+      "a-folder-merged-into-one-scene": "Un dossier fusionné en une scène",
+      "drag-a-crate": "Faire glisser une caisse"
     },
     "missing": {
+      "inside-a-component": "retrait du canvas créé par le moteur à la destruction du monde",
       "floating-crates": "géométrie réécrite à chaque image",
       "thick-lines": "lignes épaisses",
       "a-line-that-draws-itself": "plage de dessin d’une géométrie",

@@ -4,15 +4,16 @@ import { shadingNormal } from './shadingNormal.ts';
 import type { VisMaterial, VisPage } from '../types.ts';
 import type { EngineCamera } from '../../camera/world.ts';
 import { ROUGHNESS_FLOOR } from '../../lighting/shaderConstants.ts';
+import { hypot3 } from '../../../../sdk-core/src/math/primitives/hypot.ts';
 
 /** The roughness floor every shading path clamps to, read here as a number. */
 const FLOOR = Number(ROUGHNESS_FLOOR);
 
 /** Fixed hemispheric lighting of the CPU path: normalised sun, sky and ground. Nothing here
- *  depends on the pixel, yet everything was still recomputed — `Math.hypot` and the ground colour
+ *  depends on the pixel, yet everything was still recomputed — the lengths and the ground colour
  *  included — at each shaded pixel. Same operands, same divisions, once at module load. */
 const LRAW = [1, 3, 2] as const;
-const L_LEN = Math.hypot(LRAW[0], LRAW[1], LRAW[2]);
+const L_LEN = hypot3(LRAW[0], LRAW[1], LRAW[2]);
 const LX = LRAW[0] / L_LEN,
   LY = LRAW[1] / L_LEN,
   LZ = LRAW[2] / L_LEN;
@@ -58,7 +59,7 @@ export function shadeLit(
   const vx = eye[0] - world[0] * eye[3],
     vy = eye[1] - world[1] * eye[3],
     vz = eye[2] - world[2] * eye[3],
-    vLen = Math.hypot(vx, vy, vz) || 1;
+    vLen = hypot3(vx, vy, vz) || 1;
   const Vx = vx / vLen,
     Vy = vy / vLen,
     Vz = vz / vLen;
@@ -71,7 +72,7 @@ export function shadeLit(
   const hx = LX + Vx,
     hy = LY + Vy,
     hz = LZ + Vz,
-    hLen = Math.hypot(hx, hy, hz) || 1;
+    hLen = hypot3(hx, hy, hz) || 1;
   const Hx = hx / hLen,
     Hy = hy / hLen,
     Hz = hz / hLen;

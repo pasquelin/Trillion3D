@@ -1,4 +1,5 @@
 import type { DrawnTriangles } from './drawn.ts';
+import { hypot2 } from '../../math/primitives/hypot.ts';
 
 /**
  * A sprite's quad as every raster reads it (`spriteWgsl.ts` in sdk-browser): its corners moved in
@@ -18,7 +19,7 @@ export function drawnSprite(
   for (let i = 0; i + 2 < positions.length; i += 3) {
     positions[i] += 0.5 - center[0];
     positions[i + 1] += 0.5 - center[1];
-    radius = Math.max(radius, Math.hypot(positions[i], positions[i + 1]));
+    radius = Math.max(radius, hypot2(positions[i], positions[i + 1]));
   }
   return { ...drawn, positions, spriteRadius: radius };
 }

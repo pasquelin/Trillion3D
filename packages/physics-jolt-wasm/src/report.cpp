@@ -26,6 +26,8 @@ Placement place(const World &w, const Slot &slot, const Body &body) {
   AABox bounds = body.GetWorldSpaceBounds();
   Vec3 to = Vec3(bounds.GetCenter()) - v.eye;
   float radius = bounds.GetExtent().Length(), distance = to.Length();
+  // A body gone non-finite is placed nowhere: seen, so its pose is checked and it leaves (`put`).
+  if (!std::isfinite(distance - radius)) return {false, true};
   bool far = v.range > 0 && distance - radius > v.range;
   bool inCone = v.halfCone <= 0 || distance <= radius ||
                 std::acos(std::clamp(to.Dot(v.facing) / distance, -1.0f, 1.0f)) -
@@ -33,7 +35,8 @@ Placement place(const World &w, const Slot &slot, const Body &body) {
   return {far, !far && inCone && !(slot.flags & HIDDEN)};
 }
 
-void put(uint32_t *record, uint32_t engine, const Body &body) {
+/// Writes the body's pose record; false, writing nothing, when a value is not finite.
+bool put(uint32_t *record, uint32_t engine, const Body &body) {
   RVec3 p = body.GetPosition();
   Quat q = body.GetRotation();
   Vec3 v = body.GetLinearVelocity(), w = body.GetAngularVelocity();
@@ -41,8 +44,11 @@ void put(uint32_t *record, uint32_t engine, const Body &body) {
                                   q.GetY(),        q.GetZ(),        q.GetW(),        v.GetX(),
                                   v.GetY(),        v.GetZ(),        w.GetX(),        w.GetY(),
                                   w.GetZ()};
+  for (float value : values)
+    if (!std::isfinite(value)) return false;
   record[0] = engine;
   std::memcpy(record + 1, values, sizeof(values));
+  return true;
 }
 
 }  // namespace
@@ -57,7 +63,9 @@ uint32_t writePoses() {
     slot.withheld = false;
     if (slot.sent == w.step) return;
     slot.sent = w.step;
-    put(w.buffers[1] + count++ * POSE_WORDS, slot.engine | (asleep ? ASLEEP_BIT : 0), body);
+    // A diverged body sends no pose: it leaves the simulation after the step (`jolt_step`).
+    if (put(w.buffers[1] + count * POSE_WORDS, slot.engine | (asleep ? ASLEEP_BIT : 0), body)) ++count;
+    else w.diverged.push_back(slot.engine);
   };
   auto wait = [&](Slot &slot, uint32_t index) {
     if (slot.waiting) return;
