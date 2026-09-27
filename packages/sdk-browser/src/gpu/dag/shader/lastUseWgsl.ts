@@ -14,10 +14,6 @@ import { LEVEL_QUEUES } from './levelWgsl.ts';
  * `dagFlagsWords` sizes `flags`: the descent queues, four words per page, and the last-use word
  * per page unless the cut stamps none (`lastUse` false: a light cut).
  */
-/** Word of \`flags\` holding page \`page\`'s last use, the mirror of \`lastUseAt\`. */
-export const lastUseWord = (queueCap: number, pageCount: number, page: number) =>
-  queueCap * LEVEL_QUEUES + pageCount * 4 + page;
-
 export const dagFlagsWords = (queueCap: number, pageCount: number, lastUse = true) =>
   queueCap * LEVEL_QUEUES + pageCount * (lastUse ? 5 : 4);
 

@@ -13,7 +13,8 @@ import { aheadViewOf, copyAheadView, sameAheadView, type AheadView } from './ahe
 
 const NONE = 0xffffffff,
   WORKGROUP = 64;
-/** Words of the shared cold record (cone, box, owner, triangles): `COLD_WORDS`'s public mirror. */
+/** Words per cluster of the shared cold record — cone, box, owning node, triangles.
+ *  Public mirror of `COLD_WORDS` (`../dag/layout.ts`), which is its only source. */
 export const PAGE_CONE_FLOATS = 13,
   SELECTION_NONE = NONE,
   SELECTION_WORKGROUP = WORKGROUP;
@@ -50,12 +51,13 @@ export type SelectionResult = {
   /** A resident cut's eviction queue (`../dag/evict.ts`): canonical pages, first evicted first. */
   evictPageIds?: number[];
   /** Triangle totals HELD BY THE GPU, where the verdict is given: what the cut rule draws — one
-   *  counter, read as `selected` and `drawn` — and its blend share. The CPU sums none. */
+   *  counter, read as both `selected` and `drawn` — and its blend share. The only source of these
+   *  totals: the CPU sums none. */
   selectedTriangles: number;
   drawnTriangles: number;
   transparentTriangles: number;
-  /** The cut exceeded the sample cap: the lists are truncated, and the frame goes back through the
-   *  CPU cut rather than adopt them (`../dag/layout.ts`). */
+  /** True when the cut exceeded the sample cap: the lists are truncated, and the frame must go
+   *  back through the CPU cut rather than adopt them (`../dag/layout.ts`). */
   truncated?: boolean;
 };
 /** A readback and its uniforms (`../../webgpu/cut/adoption.ts`). */
@@ -65,8 +67,8 @@ export type GpuCut = {
   /** Pose revision it was cut under: behind the selection's, it streams, counts, holds no image. */
   worldRevision: number;
 };
-/** Pages whose residency flag just changed, in increasing order; `sorted` false: the list no
- *  longer describes the set, and the reader starts over from every page. */
+/** Pages whose residency flag just changed, in increasing order. `sorted` false means the list
+ *  no longer describes the set: the reader then starts over from every page. */
 export type ResidencyChanges = { pages: Int32Array; count: number; sorted: boolean };
 /** Told `true` when the shared command buffer reached the queue, `false` when the image dropped it. */
 export type SelectionSubmission = (submitted: boolean) => void;

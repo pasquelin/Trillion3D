@@ -110,13 +110,8 @@ export function createDagResidencyUpload(resources: {
     const base = poolBase(pageCount),
       keys = keyBase(pageCount),
       inPool = (page: number) => next[page] !== 0 && canonicalPage(bits[keys + page]) === page;
-    // No change list: every word compared, the whole set written.
-    if (!changes?.sorted) {
-      if (!updateResidencyBits(inPool, pageCount, bits, base, undefined, words)) return false;
-      whole(pageCones, packed.pageCones, base, residentWords(pageCount));
-      return true;
-    }
-    if (touched.length < changes.count) touched = grown(touched, changes.count);
+    const most = changes?.sorted ? changes.count : residentWords(pageCount);
+    if (touched.length < most) touched = grown(touched, most);
     const count = updateResidencyBits(inPool, pageCount, bits, base, changes, touched);
     upload(pageCones, packed.pageCones, base, 1, count);
     return count > 0;
