@@ -11,7 +11,12 @@ import type { DAG_BINDING } from '../../../packages/sdk-browser/src/gpu/dag/shad
 import { dagWorkLayout } from '../../../packages/sdk-browser/src/gpu/dag/shader/floorWgsl.ts';
 import { dagFlagsWords } from '../../../packages/sdk-browser/src/gpu/dag/shader/lastUseWgsl.ts';
 import { createDagReadiness } from '../../../packages/sdk-browser/src/gpu/dag/readiness.ts';
-import { childBase, residentBase } from '../../../packages/sdk-browser/src/gpu/dag/layout.ts';
+import {
+  childBase,
+  residentBase,
+  selectionListCap,
+  stagedOutputBytes,
+} from '../../../packages/sdk-browser/src/gpu/dag/layout.ts';
 
 const octets = (vue: ArrayBufferView): number[] =>
   Array.from(new Uint8Array(vue.buffer, vue.byteOffset, vue.byteLength));
@@ -53,6 +58,8 @@ export function versPage(
     travail: dagWorkLayout(blockCount),
     /** Words of `flags` as the engine sizes them: the page has no module to import. */
     flagsWords: dagFlagsWords(packed.nodeCount, packed.pageCount),
+    /** Bytes of `out` with the staged requests behind, as the engine sizes it. */
+    stagedBytes: stagedOutputBytes(selectionListCap(packed.pageCount)),
     pageCount: packed.pageCount,
     nodeCount: packed.nodeCount,
     worldCount: Math.max(1, packed.worldCount),
