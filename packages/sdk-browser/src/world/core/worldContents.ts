@@ -133,8 +133,6 @@ export function createWorldContents(scene: Object3D, notices: WorldNotices) {
     mountable: batches.mountable,
     mounted: batches.mounted,
     vacant: batches.vacant,
-    /** Whether a batch the session draws wears `cut`. */
-    wears: (cut: Cut) => [...batches.batches.values()].some((b) => b.cut === cut && b.rows),
     /** Sizes the batches and gathers what the next session opens on; marks it opened. */
     plan() {
       seatEpoch++;

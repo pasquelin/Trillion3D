@@ -9,13 +9,9 @@ type Source = NonNullable<ReturnType<typeof buildWorldSource>>;
 type Mounting = Pick<MeasuredWorld, 'mountsPlacements' | 'mountPlacements' | 'unmountPlacements'>;
 
 /**
- * THE MOUNT IN PLACE (#572): no content change opens the session again. After each seating, the
- * batches no mesh draws any more leave the open session — their resource released once no batch
- * it draws wears it —, and those it was not opened with enter it (`mountPlacements`): their pages
- * into its cache, their roots into its tables, their host mesh into its graph. Their meshes take
- * their rows once the session draws them, each keeping the row it left drawn until then
- * (`worldBatches.ts`): a mount drawn asks the runtime's next resolution (`schedule`), which seats
- * them, and one that failed its next opening (`reopen`), while `open` is the session it went to.
+ * THE MOUNT IN PLACE (#572): after each seating, the batches no mesh draws leave the open session
+ * and those it was not opened with enter it (`mountPlacements`). A mount drawn asks the next
+ * seating (`schedule`), a failed one the next opening (`reopen`), while `open` is its session.
  */
 export function createWorldMounts(
   contents: Contents,
@@ -27,8 +23,7 @@ export function createWorldMounts(
   /** The resources the open session reads: their pages stay served. */
   let held = new Set<Cut>();
   return {
-    /** A session is about to open on `batches`: their resources are held. The returned call,
-     *  once the session before it is closed, releases those it alone read. */
+    /** Holds the resources of `batches`; the call returned releases those only the last read. */
     opening(batches: readonly Batch[]) {
       const next = new Set(batches.map((batch) => batch.cut));
       for (const cut of next) cuts.hold(cut, true);
@@ -42,8 +37,7 @@ export function createWorldMounts(
       if (!session.mountsPlacements()) return;
       for (const batch of contents.vacant()) {
         session.unmountPlacements(batch.rows!);
-        source.unmount(batch);
-        if (contents.wears(batch.cut)) continue;
+        if (!source.unmount(batch)) continue;
         held.delete(batch.cut);
         cuts.hold(batch.cut, false);
       }

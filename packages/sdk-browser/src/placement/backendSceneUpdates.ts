@@ -49,9 +49,8 @@ export interface BackendSceneUpdates {
    *  (`growth.ts`). Absent, the owner opens the session again on `to`. */
   growPlacements?(from: PlacementRows, to: PlacementRows): void;
   /** A resource the session was not opened with enters it (#572): its pages join the same cache,
-   *  its roots the same tables, as if the session had been opened with `mount` (`PlacementMount`).
-   *  Settles once its root cover is resident and drawn from its rows, all parked until then.
-   *  Absent, the owner opens the session again. */
+   *  its roots the same tables. Settles once its root cover is resident; absent, the owner opens
+   *  the session again. */
   mountPlacements?(mount: PlacementMount): Promise<void>;
   /** The resource `rows` place leaves the session: its roots, pages and copies. */
   unmountPlacements?(rows: PlacementRows): void;

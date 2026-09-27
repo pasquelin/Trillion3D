@@ -1,7 +1,5 @@
-// #572: a mesh of a geometry or a material the session was not opened with made its batch wait,
-// and a waiting batch opened the session again: on floating-crates, whose water is written every
-// frame, every frame opened one, and drew only the clear colour meanwhile. A new batch is now
-// mounted in the open session, and one no mesh draws is unmounted from it.
+// #572: a batch the session was not opened with reopened it (floating-crates' water, every frame,
+// drew only the clear colour); it is now mounted in the open session, and unmounted once vacant.
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { object } from '../../../../sdk-core/src/world/object/index.ts';
@@ -29,7 +27,10 @@ function mountingSession(late: number) {
     mountPlacements: ({ association }: PlacementMount) =>
       new Promise<void>((done) => {
         mounts++;
-        pending.push({ at: now + late, done: () => (drawn.set(association.placements, now), done()) });
+        pending.push({
+          at: now + late,
+          done: () => (drawn.set(association.placements, now), done()),
+        });
       }),
     unmountPlacements: (rows: PlacementRows) => drawn.delete(rows),
   });
