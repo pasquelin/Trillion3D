@@ -79,8 +79,9 @@ export type GpuSelection = {
   /** Bytes of its host tables, sized by the resident pages: the CPU budget holds them. */
   readonly hostBytes: number;
   readonly worldRevision: number;
-  /** Advances `worldRevision` unless `posesMoved` is false: only the render origin moved. */
-  updateWorlds(worldMatrices: Float32Array, posesMoved?: boolean): boolean;
+  /** Advances `worldRevision` unless `posesMoved` is false: only the render origin moved.
+   *  `translationsOnly`: only translations changed since the last call, so no stretch did. */
+  updateWorlds(worlds: Float32Array, posesMoved?: boolean, translationsOnly?: boolean): boolean;
   /** Parks placement `world` — its root enters no descent queue — or takes it back. */
   parkWorld(world: number, parked: boolean): void;
   /** Writes placement `world`'s root mark (`ClusterRoot.mark`): whether a light cut opens it. */
