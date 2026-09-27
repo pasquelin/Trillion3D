@@ -2,9 +2,15 @@ import { followHostTexture } from '../../../host/textureImport.ts';
 import { pictureFits } from '../../tile/live.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import { shadowsFollowSurfaces } from '../prepare/lightResources.ts';
-import { blendMoves, type AlphaChange } from '../../../placement/backendSceneUpdates.ts';
+import {
+  blendMoves,
+  isAssignment,
+  type AlphaChange,
+  type SurfaceAssignment,
+} from '../../../placement/backendSceneUpdates.ts';
 import type { HostMaterials } from '../../../host/resources.ts';
-import { surfaceOf } from '../../../page/surface.ts';
+import { recordsOfMeshes, surfaceOf, wearDeclaration } from '../../../page/surface.ts';
+import type { PageRec } from '../../../page/selection/selection.ts';
 
 /**
  * Opaque and masked clusters are drawn by the same visibility passes, told apart by the flag and
@@ -12,12 +18,19 @@ import { surfaceOf } from '../../../page/surface.ts';
  * the census missed compiling at its first draw (`../../core/materialPasses.ts`): a material moves
  * between them in place. Blended clusters are laid out at open — after the opaque ones in the
  * cluster catalogue, with no geometry page, in the transparent table and its forward copies — and
- * no cluster enters or leaves them inside the session, nor takes another surface (`meshes`, #847).
+ * no cluster enters or leaves them inside the session, nor takes another surface (#847).
  */
-export const webgpuMaterialClassRefusal = (alpha: AlphaChange) =>
-  blendMoves(alpha) || (alpha.meshes && alpha.to === 'blend')
+export const webgpuMaterialClassRefusal = (alpha: AlphaChange, pages: readonly PageRec[] = []) =>
+  blendMoves(alpha) || (isAssignment(alpha) && assignsBlended(alpha, pages))
     ? 'its blended clusters are laid out in their forward pass when the session opens'
     : undefined;
+
+/** An assignment into or out of blended, or onto a drawable whose clusters are drawn blended
+ *  whatever their surface (`clustered-blend`). */
+const assignsBlended = (assignment: SurfaceAssignment, pages: readonly PageRec[]) =>
+  assignment.from === 'blend' ||
+  assignment.to === 'blend' ||
+  recordsOfMeshes(pages, assignment.meshes).some((rec) => rec.transparent);
 
 /**
  * Host surfaces rewritten in place (#335). When their values moved, every row is written again at
@@ -52,25 +65,10 @@ export function refreshWebgpuMaterials(rt: WebgpuPagesRuntime, values = true, al
   );
 }
 
-/** The records of `alpha.meshes` point to the surface they wear now (`wearSurface`, #847); false
- *  when rows draw none of them, or one is drawn forward, off the surface its copy took at open. */
-function wearWebgpuSurface(rt: WebgpuPagesRuntime, { meshes, surfaces }: AlphaChange) {
-  const declaration = surfaces[0] as HostMaterials;
-  const worn = rt.setup.allPages.filter(
-    (rec) => rec.sourceMesh && meshes!.includes(rec.sourceMesh),
-  );
-  if (!worn.length || worn.some((rec) => rec.transparent)) return false;
-  for (const rec of worn) {
-    rec.declaration = declaration;
-    rec.material = surfaceOf(declaration);
-  }
-  return true;
+/** The records of the assigned meshes point to the surface they wear now (`wearSurface`, #847);
+ *  false when rows draw none of them. */
+export function wearWebgpuSurface(rt: WebgpuPagesRuntime, { meshes, surfaces }: SurfaceAssignment) {
+  const worn = recordsOfMeshes(rt.setup.allPages, meshes);
+  for (const rec of worn) wearDeclaration(rec, surfaces[0] as HostMaterials);
+  return worn.length > 0;
 }
-
-/** What the session takes of a material change in place (`BackendSceneUpdates`). */
-export const webgpuMaterialUpdates = (rt: WebgpuPagesRuntime) => ({
-  refreshMaterials: (values?: boolean, alpha?: AlphaChange) =>
-    refreshWebgpuMaterials(rt, values, alpha),
-  materialClassRefusal: webgpuMaterialClassRefusal,
-  wearSurface: (alpha: AlphaChange) => wearWebgpuSurface(rt, alpha),
-});

@@ -8,6 +8,8 @@ import { EngineError } from '../../../../sdk-core/src/index.ts';
 import { alphaModeOf } from '../../../../sdk-core/src/contracts/material.ts';
 import type { BackendContext } from '../../backend/types.ts';
 import { firstMaterial } from '../../scene/materialSide.ts';
+import { primitiveName } from '../../scene/primitiveLookup.ts';
+import type { HostGraphMesh } from '../../host/scene/graphNodes.ts';
 import { materialEngines } from './materialEngines.ts';
 import {
   createdSurface,
@@ -56,7 +58,11 @@ export function createExplorerMaterialApi(inputs: Inputs) {
   const index = () => {
     const worn = new Map<number, Set<GraphSurface>>();
     const wearers = new Map<GraphTexture, Set<number>>();
-    for (const mesh of meshes(source))
+    // The drawables a created material is assigned to, by the primitive name a page gives.
+    const drawables = new Map<string, Set<HostGraphMesh>>();
+    for (const mesh of meshes(source)) {
+      const name = primitiveName(associations.get(mesh));
+      if (name) drawables.set(name, (drawables.get(name) ?? new Set()).add(mesh));
       for (const surface of [mesh.material as GraphSurface | GraphSurface[]].flat()) {
         const rank = tableRankOf(surface);
         if (rank === undefined) continue;
@@ -64,11 +70,12 @@ export function createExplorerMaterialApi(inputs: Inputs) {
         for (const texture of materialTextures(surface))
           wearers.set(texture, (wearers.get(texture) ?? new Set()).add(rank));
       }
+    }
     const surfaces = new Map([...worn].map(([rank, set]) => [rank, [...set]]));
     const ranks = [...surfaces.keys()].sort((a, b) => a - b);
     // What the scene file carried: a page resets a material from it.
     const imported = ranks.map((rank) => read(rank, surfaces.get(rank)![0]));
-    return { surfaces, wearers, ranks, imported };
+    return { surfaces, wearers, ranks, imported, drawables };
   };
   const scene = () => (held ??= index());
   const required = (id: string) => {
@@ -87,7 +94,8 @@ export function createExplorerMaterialApi(inputs: Inputs) {
       check();
       const { ranks, surfaces } = scene();
       const listed = ranks.map((rank) => read(rank, surfaces.get(rank)![0]));
-      return [...listed, ...[...created].map(([id, surface]) => read(id, surface))];
+      for (const [id, surface] of created) listed.push(read(id, surface));
+      return listed;
     },
     /** One material as it is now, a detached copy; an unknown id is refused by name. */
     material(id: string): SceneMaterial {
@@ -166,18 +174,17 @@ export function createExplorerMaterialApi(inputs: Inputs) {
       const surface = created.get(id);
       if (!surface)
         throw new EngineError('UNKNOWN_MATERIAL', `the page created no material ${id}`, { id });
-      const named = (link?: { meshes?: number; primitives?: number }) =>
-        !!link && `${link.meshes}/${link.primitives ?? 0}` === primitive;
-      const drawn = meshes(source).filter((mesh) => named(associations.get(mesh)));
-      if (!drawn.length)
+      // The table's wearers are indexed as imported, before a mesh wears another.
+      const drawn = scene().drawables.get(primitive);
+      if (!drawn)
         throw new EngineError('UNKNOWN_SCENE_NODE', `the scene draws no primitive ${primitive}`, {
           primitive,
         });
-      const from = alphaModeOf(firstMaterial(drawn[0].material)!);
+      const [first] = drawn;
+      const from = alphaModeOf(firstMaterial(first.material)!);
       const alpha = { surfaces: [surface], meshes: drawn, from, to: alphaModeOf(surface) };
       refuseClass(id, alpha);
       repaints(id);
-      scene(); // the table's wearers indexed as imported, before a mesh wears another
       for (const mesh of drawn) mesh.material = surface;
       // Every engine follows, or none draws it before a new session: the refresh runs for all.
       const worn = backends.map((backend) => !!backend.wearSurface?.(alpha));

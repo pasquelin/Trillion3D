@@ -120,3 +120,18 @@ export function refreshSurface(surface: PageSurface): PageSurface {
   refreshSide(surface);
   return materialRaster(material, surface);
 }
+
+/** The records of the source meshes a created material was assigned to (#847). */
+export const recordsOfMeshes = <T extends { sourceMesh?: object }>(
+  records: readonly T[],
+  meshes: ReadonlySet<object>,
+) => records.filter((rec) => !!rec.sourceMesh && meshes.has(rec.sourceMesh));
+
+/** A record wears `declaration` from now on, its surface record read at this boundary. */
+export function wearDeclaration(
+  rec: { declaration: HostMaterials; material: PageSurface },
+  declaration: HostMaterials,
+) {
+  rec.declaration = declaration;
+  rec.material = surfaceOf(declaration);
+}
