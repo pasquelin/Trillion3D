@@ -65,10 +65,10 @@ test('an instance changed or removed leaves the model and the other instances as
     baseMaterials,
     geometryStore,
     hostCeiling: 10,
-    coverMeshes: () => 0,
+    overCeiling: () => false,
     sceneChanged: () => {},
     coverChanged: () => {},
-    reassignBlend: () => false,
+    blendOf: () => false,
   });
   const before = state.allocationBytes;
   instances.addInstance('a', new G.Matrix4().elements.slice());
@@ -123,10 +123,10 @@ test('an instance of a world with 300,000 roots and bootstrap pages is added who
     baseMaterials: new Map(),
     geometryStore: {} as Parameters<typeof createAutonomousInstances>[0]['geometryStore'],
     hostCeiling: Infinity,
-    coverMeshes: () => 0,
+    overCeiling: () => false,
     sceneChanged: () => {},
     coverChanged: () => {},
-    reassignBlend: () => false,
+    blendOf: () => false,
   });
   instances.addInstance('a', new G.Matrix4().elements.slice());
   assert.equal(roots.length, count);
