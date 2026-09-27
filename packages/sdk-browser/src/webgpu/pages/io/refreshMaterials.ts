@@ -10,7 +10,6 @@ import {
 } from '../../../placement/backendSceneUpdates.ts';
 import type { HostMaterials } from '../../../host/resources.ts';
 import {
-  recordsBySurface,
   recordsOfMeshes,
   surfaceOf,
   unpagedRefusal,
@@ -28,7 +27,7 @@ import type { PageRec } from '../../../page/selection/selection.ts';
  */
 export const webgpuMaterialClassRefusal = (alpha: AlphaChange, pages: readonly PageRec[] = []) =>
   unpagedRefusal(pages, alpha) ||
-  (blendMoves(alpha) || (isAssignment(alpha) && assignsBlended(alpha, pages))
+  ((isAssignment(alpha) ? assignsBlended(alpha, pages) : blendMoves(alpha))
     ? 'its blended clusters are laid out in their forward pass when the session opens'
     : undefined);
 
@@ -75,6 +74,6 @@ export function refreshWebgpuMaterials(rt: WebgpuPagesRuntime, values = true, al
 /** The records of the assigned meshes point to the surface each wears now (`wearSurface`,
  *  #847), its variant for their geometry: a vertex-coloured one keeps its colours. */
 export function wearWebgpuSurface(rt: WebgpuPagesRuntime, { meshes }: SurfaceAssignment) {
-  for (const [surface, records] of recordsBySurface(rt.setup.allPages, meshes))
-    for (const rec of records) wearDeclaration(rec, surface as HostMaterials);
+  for (const rec of recordsOfMeshes(rt.setup.allPages, meshes))
+    wearDeclaration(rec, meshes.get(rec.sourceMesh!) as HostMaterials);
 }

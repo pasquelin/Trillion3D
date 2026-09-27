@@ -147,10 +147,10 @@ export function recordsBySurface<T extends { sourceMesh?: object }>(
  *  it is drawn as a forward copy the open laid out, off the surface the copy took then. */
 export function unpagedRefusal(records: readonly { sourceMesh?: object }[], alpha: AlphaChange) {
   if (!isAssignment(alpha)) return;
-  const paged = new Set(recordsOfMeshes(records, alpha.meshes).map((rec) => rec.sourceMesh));
-  for (const mesh of alpha.meshes.keys())
-    if (!paged.has(mesh))
-      return 'the drawable is drawn as a forward copy laid out when the session opens';
+  const unpaged = new Set(alpha.meshes.keys());
+  for (const rec of records) if (rec.sourceMesh) unpaged.delete(rec.sourceMesh);
+  if (unpaged.size)
+    return 'the drawable is drawn as a forward copy laid out when the session opens';
 }
 
 /** A record wears `declaration` from now on, its surface record read at this boundary. */

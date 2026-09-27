@@ -51,7 +51,10 @@ function variantOf(variants: Map<string, GraphSurface>, attributes: Record<strin
   const variant = surfaceVariantOf(attributes),
     key = variantKey(variant);
   let surface = variants.get(key);
-  if (!surface) variants.set(key, (surface = Object.assign(variants.get(PLAIN)!.clone(), variant)));
+  if (!surface) {
+    surface = Object.assign(variants.get(PLAIN)!.clone(), variant, { needsUpdate: true });
+    variants.set(key, surface);
+  }
   return surface;
 }
 
