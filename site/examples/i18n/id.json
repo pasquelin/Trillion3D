@@ -2147,5 +2147,12 @@
     "words": {
       "credit": "Bendera pada tiang dimodelkan dalam kode untuk contoh ini, CC0 — lihat assets/examples/CREDITS.md"
     }
+  },
+  "outline-the-selection": {
+    "banner": "Klik bentuk untuk memilihnya. Klik lantai untuk menghapus pilihan.",
+    "controls": {
+      "color": "Warna",
+      "thickness": "Ketebalan"
+    }
   }
 }
