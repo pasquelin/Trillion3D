@@ -145,14 +145,12 @@ export function autonomousPlacements(env: Placements) {
     unmountPlacements(rows: PlacementRows) {
       const placed = (item: { placement?: PlacementOf }) => item.placement?.rows === rows;
       const records: PageRec[] = [],
-        urls = new Set<string>(),
-        resident = new Set<string>();
+        urls = new Set<string>();
       for (let i = roots.length - 1; i >= 0; i--) {
         if (!placed(roots[i])) continue;
         for (const rec of roots.splice(i, 1)[0].pages) {
           records.push(rec);
           urls.add(rec.url);
-          if (rec.array) resident.add(rec.url);
         }
       }
       for (let i = blendCopies.length - 1; i >= 0; i--)
@@ -161,10 +159,8 @@ export function autonomousPlacements(env: Placements) {
       geometryStore.removeRecords(records);
       const gone: string[] = [];
       for (const url of urls) {
-        if (byUrl.get(url)?.length) continue;
-        if (resident.has(url)) geometryStore.state.residentPages--;
-        byUrl.delete(url);
-        if (reading.has(url)) continue; // a mount in flight reads it: it stays catalogued
+        // Still drawn, or read by a mount in flight: it stays catalogued.
+        if (byUrl.has(url) || reading.has(url)) continue;
         descriptors.delete(url);
         bootstrapUrls.delete(url);
         gone.push(url);
