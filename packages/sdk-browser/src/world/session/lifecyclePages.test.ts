@@ -139,3 +139,19 @@ test('awaitPages hears the pages a backend reads itself while it flushes, as the
   ]);
   streamer.dispose();
 });
+
+test('awaitPages counts a held page once when a backend reads it again after the cut (#408)', async () => {
+  const { lifecycle, streamer, backend } = await lackingPages([], ['c.bin']);
+  const heard: number[][] = [];
+  let flushes = 0;
+  Object.assign(backend, {
+    flush: async () => {
+      if (++flushes === 2) await streamer.readBytes('c.bin');
+    },
+  });
+  await lifecycle.awaitPages({
+    onProgress: ({ completed, total }) => heard.push([completed!, total!]),
+  });
+  assert.deepEqual(heard.at(-1), [1, 1]);
+  streamer.dispose();
+});
