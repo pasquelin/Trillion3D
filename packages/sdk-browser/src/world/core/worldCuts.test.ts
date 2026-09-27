@@ -35,8 +35,8 @@ test('a blended wearer is cut on the finest page grid, an opaque one keeps its g
   const grid = (cut: typeof opaque) => cut!.runtime.primitive.quantization!;
   assert.equal(grid(opaque).positionExponent, 1 - 16);
   assert.equal(grid(blended).positionExponent, 1 - 23);
-  assert.ok(grid(blended).maxPositionError <= 2 ** -22);
-  assert.ok(grid(opaque).maxPositionError > grid(blended).maxPositionError);
+  assert.ok(grid(blended).maxPositionError! <= 2 ** -22);
+  assert.ok(grid(opaque).maxPositionError! > grid(blended).maxPositionError!);
   // Its texture coordinates too, a unit wide: 2^-23 where the format keeps 2^-14.
   assert.equal(grid(opaque).uvExponent, -14);
   assert.equal(grid(blended).uvExponent, -23);
