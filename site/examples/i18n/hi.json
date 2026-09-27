@@ -1710,11 +1710,18 @@
   },
   "the-home-pose": {
     "banner": "एक दृश्य चुनें, कैमरा घुमाएँ, फिर लौटने के लिए होम चुनें।",
-    "controls": { "home": "होम", "tower": "मीनार", "square": "चौक", "hillside": "पहाड़ी" }
+    "controls": {
+      "home": "होम",
+      "tower": "मीनार",
+      "square": "चौक",
+      "hillside": "पहाड़ी"
+    }
   },
   "the-near-plane-cuts-a-wall": {
     "banner": "निकट तल को आगे बढ़ाएँ और उसे हर दीवार काटते देखें।",
-    "controls": { "nearPlane": "निकट तल" }
+    "controls": {
+      "nearPlane": "निकट तल"
+    }
   },
   "the-material-family": {
     "banner": "चारों ओर चलने के लिए खींचो। रोशनी को रात करो और देखो क्या अब भी चमकता है।",
@@ -2190,6 +2197,16 @@
     },
     "readouts": {
       "progress": "प्रगति"
+    }
+  },
+  "a-folder-merged-into-one-scene": {
+    "banner": "सड़क के कोने को देखने के लिए खींचें। कंपाइलर ने एक फ़ोल्डर की तीन OBJ फ़ाइलों को इस दृश्य में मिला दिया।",
+    "controls": {
+      "visible": "दिखाएँ",
+      "home": "आरंभिक दृश्य"
+    },
+    "words": {
+      "credit": "W. Sitters का सड़क-लैंप मॉडल, CC BY 3.0 — देखो assets/examples/CREDITS.md"
     }
   }
 }
