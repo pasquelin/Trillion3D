@@ -6,7 +6,7 @@ import {
   VERDICT_KEPT,
   VERDICT_REJECTED,
 } from '../partition/contract.ts';
-import { HIZ_FAR_WGSL } from './rectWgsl.ts';
+import { HIZ_HIDES_WGSL } from './rectWgsl.ts';
 import { PAGE_INFO_STRUCT_WGSL } from '../../visibility/shader/pageWgsl.ts';
 
 /**
@@ -49,7 +49,7 @@ export const HIZ_TEST_PAGES_ENTRIES: GPUBindGroupLayoutEntry[] = [
  */
 export const HIZ_SHADER = `${PAGE_INFO_STRUCT_WGSL}
 struct Uni{a:u32,b:u32,c:u32,d:u32,e:u32,f:u32,g:u32,h:u32,}
-struct Bounds{minX:i32,minY:i32,maxX:i32,maxY:i32,nearest:f32,rowAndClip:u32,pad0:u32,pad1:u32,triangles:u32,pad2:u32,pad3:u32,pad4:u32,}
+struct Bounds{minX:i32,minY:i32,maxX:i32,maxY:i32,nearest:f32,rowAndClip:u32,pad0:u32,pad1:u32,triangles:u32,coarseOffset:u32,coarseWidth:u32,coarseShift:u32,}
 @group(0) @binding(0) var<storage, read_write> pyramid:array<f32>;
 @group(0) @binding(1) var level0:texture_2d<f32>;
 @group(0) @binding(2) var<uniform> uni:Uni;
@@ -79,7 +79,7 @@ fn reduceHiz(@builtin(global_invocation_id) id:vec3u){
  }
  pyramid[uni.d+id.z*uni.g+id.y*uni.e+id.x]=far;
 }
-${HIZ_FAR_WGSL}
+${HIZ_HIDES_WGSL}
 // Only boxes the frame tests travel this far, each carrying the verdict row it answers for;
 // rows the frame does not test were cleared before this pass. The box count is the one the
 // partition compacted: the CPU does not know it.
@@ -92,11 +92,10 @@ fn testHiz(@builtin(global_invocation_id) id:vec3u){
  // raster draws occluders in its other mode. A row with no verdict slot (never culled) is not
  // judged either: no reject is counted for a row that draws.
  if(pages[row].hizSlot==0xffffffffu||(b.rowAndClip&1u)!=0u||b.maxX<b.minX||b.maxY<b.minY){flags[row]=${VERDICT_KEPT}u;return;}
- let far=pyramidFar(b.minX,b.minY,b.maxX,b.maxY,b.pad0,b.pad1);
  let bias=bitcast<f32>(uni.d);
  // Reverse-Z: a box is rejected when its NEAREST point stays behind the pyramid's farthest,
- // hence when it is SMALLER.
- let reject=select(0u,1u,b.nearest<far-bias);
+ // hence when it is SMALLER. The coarse mip the partition packed is read first (\`pyramidHides\`).
+ let reject=select(0u,1u,pyramidHides(b.minX,b.minY,b.maxX,b.maxY,b.pad0,b.pad1,b.nearest,bias,b.coarseOffset,b.coarseWidth,b.coarseShift));
  flags[row]=select(${VERDICT_KEPT}u,${VERDICT_REJECTED}u,reject!=0u);
  if(reject!=0u){
   atomicAdd(&state[${ST_REJECTED}u],1u);

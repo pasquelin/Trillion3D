@@ -7,7 +7,7 @@ import { PARTITION_WORKGROUP } from '../partition/contract.ts';
  *
  * This is the SAME rule as the opaques', to the letter: the same conservative projection
  * (`projectBox`), the same uniform — the buffer the partition wrote for this frame —, the same
- * mip choice (`hizLevelFor`) and the same pyramid walk (`pyramidFar`), on the Hi-Z pyramid the
+ * mip choice (`hizLevelFor`) and the same pyramid walk (`pyramidHides`), on the Hi-Z pyramid the
  * frame just built. Nothing is proper to transparents except what fidelity requires:
  *
  *  - the coplanar-layer bias is that of the HIGHEST layer the frame names, for every entry. A

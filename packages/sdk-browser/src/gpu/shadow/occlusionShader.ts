@@ -1,4 +1,4 @@
-import { HIZ_FAR_WGSL, HIZ_LEVEL_WGSL } from '../hiz/rectWgsl.ts';
+import { HIZ_HIDES_WGSL, HIZ_LEVEL_WGSL } from '../hiz/rectWgsl.ts';
 import { SHADOW_PAGE } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { PAGE_HIZ_LEVELS, PAGE_HIZ_OFFSETS, PAGE_HIZ_WORDS } from './pageHiz.ts';
 
@@ -28,7 +28,7 @@ struct Uni{regions:u32,capacity:u32,pad0:u32,pad1:u32,}
 @group(0) @binding(8) var<uniform> uni:Uni;
 const PAGE_TEXELS:f32=${SHADOW_PAGE}.0;
 const LEVEL_OFFSET:array<u32,${PAGE_HIZ_LEVELS}>=array<u32,${PAGE_HIZ_LEVELS}>(${PAGE_HIZ_OFFSETS.map((o) => `${o}u`).join(',')});
-${HIZ_LEVEL_WGSL}${HIZ_FAR_WGSL}
+${HIZ_LEVEL_WGSL}${HIZ_HIDES_WGSL}
 /** True when the page's pyramid in \`slot\` hides the box around \`s\`, projected by \`m\`. */
 fn hiddenInPage(s:Sphere,m:mat4x4f,slot:u32)->bool{
  var lo=vec2f(1.0e30);var hi=vec2f(-1.0e30);var nearest=-1.0e30;
@@ -44,8 +44,9 @@ fn hiddenInPage(s:Sphere,m:mat4x4f,slot:u32)->bool{
  let pick=hizLevelFor(rect,${PAGE_HIZ_LEVELS}u);
  if(pick.y==0u){return false;}
  let l=pick.x;
- let far=pyramidFar(rect.x>>l,rect.y>>l,rect.z>>l,rect.w>>l,slot*${PAGE_HIZ_WORDS}u+LEVEL_OFFSET[l],${SHADOW_PAGE}u>>l);
- return nearest<far;
+ let c=hizCoarseLevel(rect,l,${PAGE_HIZ_LEVELS}u);
+ return pyramidHides(rect.x>>l,rect.y>>l,rect.z>>l,rect.w>>l,slot*${PAGE_HIZ_WORDS}u+LEVEL_OFFSET[l],${SHADOW_PAGE}u>>l,nearest,0.0,
+  slot*${PAGE_HIZ_WORDS}u+LEVEL_OFFSET[c],${SHADOW_PAGE}u>>c,c-l);
 }
 @compute @workgroup_size(64)
 fn shadowHizTest(@builtin(global_invocation_id) id:vec3u){
