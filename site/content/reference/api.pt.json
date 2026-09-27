@@ -942,6 +942,7 @@
       "MATERIAL_CLASS_CHANGE": "Uma mudança de material é desconhecida, está fora do intervalo, o moveria para uma classe de desenho que um motor fixa ao abrir a cena, ou repetiria um mapa que ele compartilha.",
       "MATERIAL_TEXTURE_SHARED": "Uma mudança de material é desconhecida, está fora do intervalo, o moveria para uma classe de desenho que um motor fixa ao abrir a cena, ou repetiria um mapa que ele compartilha.",
       "MATERIAL_CEILING": "Uma página criaria mais materiais do que `RUNTIME_MATERIAL_CEILING` numa sessão; nada foi criado.",
+      "TEXTURE_BUDGET": "Uma textura adicionada após a abertura da cena levaria o pool de texturas além de `texturePoolBytes` ou das camadas que o dispositivo suporta; nada foi adicionado.",
       "INVALID_TRANSFORM": "O posicionamento de um nó não é uma matriz utilizável, ou um nó seria seu próprio ancestral.",
       "NON_FINITE_TRANSFORM": "O posicionamento de um nó não é uma matriz utilizável, ou um nó seria seu próprio ancestral.",
       "SINGULAR_PARENT_TRANSFORM": "O posicionamento de um nó não é uma matriz utilizável, ou um nó seria seu próprio ancestral.",

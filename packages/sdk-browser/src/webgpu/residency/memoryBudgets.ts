@@ -1,3 +1,4 @@
+import { EngineError } from '../../../../sdk-core/src/index.ts';
 import { poolLayerBytes, tileBytes, TILES_PER_LAYER } from '../../texture/tiles.ts';
 import {
   laneCounts,
@@ -9,6 +10,7 @@ import {
   type PoolLane,
 } from '../../texture/blockFormats.ts';
 import { checkTexturePoolBudget, type PoolClamp } from '../../residency/pools.ts';
+import type { CoverageReaders } from '../../texture/coverage.ts';
 
 /** 512 MiB, split equally between the colour atlas and the data atlas, in 63.5 MiB layers. */
 export const DEFAULT_TEXTURE_POOL_BUDGET = 512 * 1024 * 1024;
@@ -46,6 +48,11 @@ export type TexturePools = {
   encoding: PoolEncoding;
   pool: TexturePool;
   poolFor(budgetBytes: number): TexturePool;
+  /** What `poolFor` draws the lanes on — tiles and tails each lane's textures take —, grown in
+   *  place by a texture appended after open (#847), and the colour census's readers. */
+  demand: AtlasLanes;
+  tails: AtlasLanes;
+  coverage: CoverageReaders;
   /** Bytes of the live textures' working textures the pool was drawn without (#362). */
   liveBytes?: number;
 };
@@ -130,4 +137,50 @@ export function texturePoolFor(
   const clamp =
     (['device-limit', 'minimum', 'scene'] as const).find((name) => clamps.has(name)) ?? null;
   return { budgetBytes, layers, allocatedBytes, clamp };
+}
+
+/** A lane about to take one more texture: its atlas, its tiles held — tails and streamed —, its
+ *  textures' tails and whether any streams, the latter two with the new texture counted. */
+export type LaneTaking = {
+  kind: 'color' | 'data';
+  lane: PoolLane;
+  resident: number;
+  tails: number;
+  streams: boolean;
+};
+
+/**
+ * The pool a live atlas takes one more texture in, after open (#847): its lane grown only by the
+ * layers the texture's tail needs — a free place beside every tile the lane holds, so nothing drawn
+ * is evicted, and the floor `texturePoolFor` keeps, its tails and one tile to stream into —, every
+ * other lane as it is; the same pool when the lane has room. A growth that takes the pool, with
+ * `heldBytes` beside it, past `budgetBytes`, or the lane past the device's layers, is refused by
+ * name (`TEXTURE_BUDGET`): nothing is drawn for it.
+ */
+export function poolTaking(
+  pool: TexturePool,
+  taking: LaneTaking,
+  layerBytes: number,
+  limits: { budgetBytes: number; heldBytes: number; maxLayers: number },
+): TexturePool {
+  const { kind, lane } = taking,
+    layersFor = (tiles: number) => Math.ceil(tiles / TILES_PER_LAYER);
+  const current = pool.layers[kind][lane];
+  const wanted = Math.max(
+    current,
+    layersFor(taking.resident + 1),
+    layersFor(taking.tails + Number(taking.streams)),
+  );
+  if (wanted === current) return pool;
+  const allocatedBytes = pool.allocatedBytes + (wanted - current) * layerBytes,
+    askedBytes = allocatedBytes + limits.heldBytes;
+  if (askedBytes > limits.budgetBytes || wanted > limits.maxLayers)
+    throw new EngineError('TEXTURE_BUDGET', 'the texture does not fit the texture budget', {
+      ...taking,
+      layers: wanted,
+      askedBytes,
+      ...limits,
+    });
+  const layers = { ...pool.layers, [kind]: { ...pool.layers[kind], [lane]: wanted } };
+  return { ...pool, layers, allocatedBytes };
 }

@@ -1,33 +1,14 @@
-import type { Texture } from '../../../../sdk-core/src/index.ts';
-import type { CoverageReaders } from '../../texture/coverage.ts';
-import { entryLevel, type TileLayout, type TilePlace } from '../../texture/tiles.ts';
+import { entryLevel, type TilePlace } from '../../texture/tiles.ts';
+import type { TileTexture } from './tileTexture.ts';
 import type { WebgpuTilePool } from './pool.ts';
 import { createWebgpuTilePageTable, type TileKey, type WebgpuTilePageTable } from './pageTable.ts';
 import { writeTailFromBytes } from './write.ts';
 import { writeTailFromBlocks } from './writeBlocks.ts';
-import type { LaneCounts, PoolEncoding, PoolLane, TailBytes } from '../../texture/blockFormats.ts';
+import type { LaneCounts, PoolEncoding } from '../../texture/blockFormats.ts';
 import { createTileLanes, type Lane } from './lanes.ts';
 import { tailId, tileId } from './ids.ts';
 import { evictTile } from './atlasResize.ts';
-
-/**
- * Where a texture's texels come from. `bytes`: everything fits in the sidecar tail, nothing is
- * streamed. `baked`: the tail comes from the sidecar, streamed levels are read cooked from the
- * cache. `host`: neither, the host image goes through a working texture, mips weighted as its
- * `coverage` readers say (#42). A tail holds every encoding; the atlas pins its lane's.
- */
-type TileSource =
-  | { kind: 'bytes'; tail: TailBytes }
-  | { kind: 'baked'; sha256: string; atlas: number; tail: TailBytes }
-  | { kind: 'host'; map: Texture; coverage?: CoverageReaders };
-
-/** A texture of the atlas: tile geometry, pool lane, texels, and its record — none for the fill. */
-export type TileTexture = {
-  layout: TileLayout;
-  lane: PoolLane;
-  source: TileSource;
-  texture?: Texture;
-};
+import { regrownPageTable } from './regrow.ts';
 
 /**
  * A virtual-texture atlas: one pool per lane, its page table and its catalogue. It knows which
@@ -47,8 +28,19 @@ export type WebgpuTileAtlas = {
   readonly evictions: number;
   readonly refused: number;
   poolOf(slot: number): WebgpuTilePool;
-  /** Pins the tail of each texture; `fromHost` sets that of a texture with no tail in bytes. */
-  pinTails(queue: GPUQueue, fromHost: (slot: number, place: TilePlace) => void): void;
+  /** Pins the tail of each texture from slot `from` on; `fromHost` sets that of a texture with no
+   *  tail in bytes. */
+  pinTails(
+    queue: GPUQueue,
+    fromHost: (slot: number, place: TilePlace) => void,
+    from?: number,
+  ): void;
+  /** Takes a texture after open, its lane's pool already sized for its tail (`resize`): its slot
+   *  in a regrown table (`relayout`), its tail to pin (`pinTails`). Returns its slot. */
+  append(texture: TileTexture): number;
+  /** Lays the table out again at `feedbackOffset` (`regrownPageTable`), the views a new tuple:
+   *  every group naming the atlas is rebuilt once. */
+  relayout(feedbackOffset: number): void;
   /** Marks the tile seen if it resides; says whether that is so. */
   touch(key: TileKey, frame: number): boolean;
   /** A place for an arriving tile: free, or taken back from the least looked-at of its lane;
@@ -82,15 +74,16 @@ export function createWebgpuTileAtlas(
     onEvicted?: (slot: number) => void;
   },
 ): WebgpuTileAtlas {
-  const { kind, textures, encoding } = options;
+  const { kind, textures, encoding, feedbackOffset } = options;
   const lanes = createTileLanes(device, options);
   let views = lanes.views(),
     pools = lanes.pools();
-  const pages = createWebgpuTilePageTable(
-    device,
-    textures.map((texture) => texture.layout),
-    { kind, feedbackOffset: options.feedbackOffset },
-  );
+  const layouts = () => textures.map((texture) => texture.layout);
+  let pages = createWebgpuTilePageTable(device, layouts(), { kind, feedbackOffset });
+  const relayout = (offset: number) => {
+    pages = regrownPageTable(device, pages, layouts(), { kind, feedbackOffset: offset });
+    views = lanes.views();
+  };
   let evictions = 0,
     refused = 0,
     candidatesFrame = -1;
@@ -117,7 +110,9 @@ export function createWebgpuTileAtlas(
     get views() {
       return views;
     },
-    pages,
+    get pages() {
+      return pages;
+    },
     textures,
     get evictions() {
       return evictions;
@@ -126,9 +121,9 @@ export function createWebgpuTileAtlas(
       return refused;
     },
     poolOf: (slot) => lanes.of(slot).pool,
-    pinTails(queue, fromHost) {
-      textures.forEach((texture, slot) => {
-        const { layout, source, lane } = texture;
+    pinTails(queue, fromHost, from = 0) {
+      for (let slot = from; slot < textures.length; slot++) {
+        const { layout, source, lane } = textures[slot];
         const pool = lanes.of(slot).pool;
         // The floor holds every tail (`texturePoolFor`): a pool drawn under it refuses by name.
         const index = pool.acquire(tailId(slot), 0, true);
@@ -145,8 +140,14 @@ export function createWebgpuTileAtlas(
             encoding.tailOf(source.tail, lane),
           );
         pages.setTail(slot, place, encoding.tapOf(lane));
-      });
+      }
     },
+    append(texture) {
+      textures.push(texture);
+      relayout(pages.words[0]);
+      return textures.length - 1;
+    },
+    relayout,
     touch(key, frame) {
       const lane = lanes.of(key.slot),
         index = lane.resident.get(tileId(key));
