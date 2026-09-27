@@ -72,7 +72,8 @@ export interface PhysicsResults {
   active: number;
   /** The character after the tick, when it has one and it stepped. */
   character: CharacterReport | null;
-  /** The vehicles after the tick's last step (`vehicleLayout.ts`), or `null` without one. */
+  /** Each vehicle the tick wrote, where its last step left it (`vehicleLayout.ts`); a parked one
+   *  is not written: `null` when none. */
   vehicles: Uint32Array | null;
   /** The soft bodies the tick moved, each where its last step left it (`softLayout.ts`), or
    *  `null` when none moved. */
@@ -84,8 +85,8 @@ export interface PhysicsResults {
 
 /**
  * What the physics worker tells the page. An error names a code (`PHYSICS_BUDGET`,
- * `PHYSICS_FAILED`); a fatal one stopped the simulation, and one with `bodies` refused those
- * bodies alone (their engine ids).
+ * `PHYSICS_FAILED`, `PHYSICS_DIVERGED`); a fatal one stopped the simulation, and one with `bodies`
+ * refused those bodies alone (their engine ids).
  */
 export type FromPhysics =
   | { type: 'ready' }

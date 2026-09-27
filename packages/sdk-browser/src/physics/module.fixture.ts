@@ -31,13 +31,16 @@ export async function startModule(
   const jolt = startJolt(opened, full, pool?.count ?? 1);
   /** A diagnostic count the module keeps since it started: the joints some work has visited. */
   const count = (name: string) => () => (opened.exports[name] as () => number)();
-  /** By the gear linking, the step's path carry and the step's breaking (`jolt_*_visits`). */
+  /** By the gear linking, the step's path carry, the step's breaking, and the bodies placed
+   *  against the view (`jolt_*_visits`). */
   const visits = {
     link: count('jolt_link_visits'),
     path: count('jolt_path_visits'),
     break: count('jolt_break_visits'),
+    place: count('jolt_place_visits'),
   };
-  return { ...jolt, visits };
+  /** The module's own exports and memory, for a test that writes its buffers itself. */
+  return { ...jolt, visits, raw: opened };
 }
 
 /** The threaded module stepped by `count` threads (Node workers); `close` stops them. */

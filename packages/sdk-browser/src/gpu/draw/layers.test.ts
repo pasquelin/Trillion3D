@@ -57,7 +57,7 @@ test('drawShader(k) opens exactly 6k slots for several k', () => {
   for (const k of [1, 2, 3, 5]) {
     const shader = drawShader(k);
     const slots = slotCount(k);
-    assert.match(shader, new RegExp(`entry>=uni\\.groupCount\\*${slots}u`));
+    assert.match(shader, new RegExp(`groupCounts\\[group\\*${slots}u\\+slot\\]`));
     assert.match(shader, new RegExp(`slot<${slots}u`));
   }
 });
@@ -81,8 +81,9 @@ test('drawShader(1) matches the pre-layer shader: same slot count, same order, s
       indexes[0] < indexes[1] && indexes[1] < indexes[2],
       'count, prefix then scatter, in that order',
     );
-    assert.match(shader, /entry>=uni\.groupCount\*6u/, 'six slots, as before');
   }
+  assert.match(developShader, /entry>=uni\.groupCount\*6u/, 'six slots before');
+  assert.match(currentShader, /groupCounts\[group\*6u\+slot\]/, 'six slots, as before');
 
   // Same bin and rest arithmetic — the part of the slot that carries the sort semantics, not
   // field names nor the helper functions that wrap it. `develop` writes it inline in `matches`;

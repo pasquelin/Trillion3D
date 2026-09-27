@@ -14,6 +14,8 @@
 #include <Jolt/Physics/PhysicsSystem.h>
 #include <Jolt/Physics/SoftBody/SoftBodyContactListener.h>
 
+#include "pairIndex.h"
+
 #include <cstdint>
 #include <unordered_map>
 #include <vector>
@@ -29,10 +31,6 @@ enum Flag : uint32_t { SENSOR = 1, CCD = 2, EVENTS = 4, HIDDEN = 8, ASLEEP = 16 
 
 /// Error codes returned by `jolt_error` after a failed `jolt_step` (mirrored in layout.ts).
 enum Error : uint32_t { NONE = 0, BODY_LIMIT = 1, UNKNOWN_BODY = 2, BAD_SHAPE = 3, BAD_COMMAND = 4 };
-
-/// A body's engine id: its slot in the low bits, the slot's generation above (layout.ts BODY_INDEX),
-/// so a record naming a body that left is never read as the one that took its slot.
-constexpr uint32_t INDEX_MASK = 0x00FFFFFFu;
 
 struct Slot {
   JPH::BodyID id;
@@ -53,6 +51,10 @@ struct Slot {
   /** A soft body (`soft.cpp`): a teleport carries its vertices; it takes no kinematic move,
    *  velocity, impulse, joint or vehicle. */
   bool soft = false;
+  /** Frozen beyond the range: surely still beyond it while `World::travel` stays below this and
+   *  `World::viewEpoch` is `farEpoch` (the eye came no nearer than it travelled; `report.cpp`). */
+  double farUntil = -1;
+  uint32_t farEpoch = 0;
   JPH::Vec3 linear = JPH::Vec3::sZero(), angular = JPH::Vec3::sZero();
 };
 
@@ -63,6 +65,8 @@ struct View {
   float halfCone = 0;
   /** Beyond this distance, bodies are frozen; 0 is no range. */
   float range = 0;
+  /** cos and sin of `halfCone`, for the cone test without inverse trigonometry (`report.cpp`). */
+  float cosHalf = 1, sinHalf = 0;
 };
 
 class Listener final : public JPH::ContactListener,
@@ -97,14 +101,19 @@ struct World {
   /** Bodies whose pose is withheld while asleep, or frozen: examined again every step. */
   std::vector<uint32_t> waiting;
   View view;
+  /** Distance the eye has travelled, summed over the VIEW commands; `viewEpoch` counts range changes
+   *  and non-finite eyes. */
+  double travel = 0;
+  uint32_t viewEpoch = 1;
   /** Touching pairs by engine ids: sub-shape contacts counted, `ENTERED` once the page was told. */
-  std::unordered_map<uint64_t, uint32_t> pairs;
+  PairIndex pairs;
   /** The pairs of `pairs` a soft body is in, and the step that last saw each touch (`softContacts.cpp`). */
   std::unordered_map<uint64_t, uint32_t> softPairs;
   /** Leaves that found the event buffer full: written first at the next step, never lost. */
   std::vector<uint64_t> leaving;
-  /** This step's bodies whose shape was refused (engine ids), and its enters the buffer dropped. */
-  std::vector<uint32_t> refused;
+  /** This step's bodies (engine ids) whose shape was refused, and whose pose or vertices went
+   *  non-finite (sent nothing, taken out); then its enters the buffer dropped. */
+  std::vector<uint32_t> refused, diverged;
   uint32_t dropped = 0;
   std::unordered_map<uint64_t, JPH::RefConst<JPH::Shape>> primitives;
   uint32_t *buffers[3] = {nullptr, nullptr, nullptr};
@@ -127,6 +136,8 @@ constexpr uint32_t EVENT_WORDS = 7;
 bool runCommands(const uint32_t *words, uint32_t count);
 /// The page's leave for every pair a body being removed was in; its later removal is ignored.
 void leaveAll(uint32_t engine);
+/// Takes the body in slot `index` out of the simulation: its pairs left, its joints and vehicles.
+void removeBody(uint32_t index);
 /// The shape an ADD command (`w`, from its opcode) describes, or null when refused.
 JPH::RefConst<JPH::Shape> shapeOf(const uint32_t *w);
 /// An ADD command's mass frame — a primitive's 3 or 12 data words, a cooked shape's past its handle:
@@ -143,6 +154,8 @@ void replayContacts();
 uint32_t runBuoyancy(const uint32_t *w);
 /// Writes the poses of the dynamic bodies that moved during the step; returns their count.
 uint32_t writePoses();
+/// Takes the page's VIEW command (`report.cpp`): the eye's travel summed, a new range counted.
+void setView(View next);
 
 /// The character's commands and state (`character.cpp`, layout.ts).
 constexpr uint32_t CHARACTER = 13, CHARACTER_MOVE = 14;

@@ -1,6 +1,6 @@
 import { SELECTION_WORKGROUP } from '../core/selection.ts';
 import type { PackedDag } from './types.ts';
-import { primitiveFrameWords } from './worlds.ts';
+import { cameraFramesBytes, primitiveFrameWords } from './worlds.ts';
 import { createDagPipeline } from './pipeline.ts';
 import { dagWorkLayout } from './shader/floorWgsl.ts';
 import { DAG_UNIFORM_BYTES, DAG_VIEW_WORDS } from './shader/viewsWgsl.ts';
@@ -63,10 +63,11 @@ export async function createDagResources(
       size: DAG_UNIFORM_BYTES,
       usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
     });
-    // Descent queue 0, then draw flags, then the cone rejection kept by `dagWanted` for the four
-    // passes that reread it, then the live-cluster list, then the candidate list — which also
-    // serves as the previous frame's drawn journal —, then the remaining queues, then each page's
-    // last use (`shader/lastUseWgsl.ts`): never read by the CPU, which still only copies draw flags.
+    // Descent queue 0, then draw flags, then the cone word `dagWanted` keeps for `dagMask` (the
+    // cone verdict and the cut rule's two comparisons), then the live-cluster list, then the
+    // candidate list — which also serves as the previous frame's drawn journal —, then the
+    // remaining queues, then each page's last use (`shader/lastUseWgsl.ts`): never read by the
+    // CPU, which still only copies draw flags.
     const flags = device.createBuffer({
       label: 'Trillion3D DAG flags',
       size: Math.max(16, dagFlagsWords(nodeCount, pageCount) * 4),
@@ -97,7 +98,7 @@ export async function createDagResources(
       usage: STORAGE,
     });
     const frames = device.createBuffer({
-      size: Math.max(16, frameData.byteLength),
+      size: cameraFramesBytes(frameData),
       usage: STORAGE | GPUBufferUsage.COPY_SRC,
     });
     const pageCones = device.createBuffer({
@@ -148,7 +149,7 @@ export async function createDagResources(
     upload(clusters, Math.max(64, packed.clusters.byteLength), packed.clusters);
     upload(nodes, Math.max(64, packed.nodes.byteLength), packed.nodes);
     upload(worlds, Math.max(64, packed.worlds.byteLength), packed.worlds);
-    upload(frames, Math.max(16, frameData.byteLength), frameData);
+    upload(frames, Math.max(16, frameData.byteLength), frameData); // `dagPrepare` writes the rest
     upload(pageCones, Math.max(48, packed.pageCones.byteLength), packed.pageCones);
     return {
       device,
