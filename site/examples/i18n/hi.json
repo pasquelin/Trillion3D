@@ -1685,10 +1685,7 @@
   },
   "the-home-pose": {
     "banner": "एक दृश्य चुनें, कैमरा घुमाएँ, फिर लौटने के लिए होम चुनें।",
-    "controls": { "view": "दृश्य" },
-    "choices": {
-      "view": { "home": "होम", "tower": "मीनार", "square": "चौक", "hillside": "पहाड़ी" }
-    }
+    "controls": { "home": "होम", "tower": "मीनार", "square": "चौक", "hillside": "पहाड़ी" }
   },
   "the-near-plane-cuts-a-wall": {
     "banner": "निकट तल को आगे बढ़ाएँ और उसे हर दीवार काटते देखें।",

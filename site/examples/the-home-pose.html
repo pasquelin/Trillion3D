@@ -21,7 +21,15 @@
   <body>
     <canvas id="view"></canvas>
     <script type="module">
-      import { createWorld, geometry, material, object, light, math } from '../runtime/engine.js';
+      import {
+        createWorld,
+        geometry,
+        material,
+        object,
+        light,
+        math,
+        pose,
+      } from '../runtime/engine.js';
       import { controls } from '../runtime/kit.js';
 
       const world = createWorld('view', { controls: 'orbit' });
@@ -33,7 +41,6 @@
         const mesh = object.mesh(shape, matter);
         mesh.position.set(...position);
         world.scene.add(mesh);
-        return mesh;
       };
 
       // A small hill town gives each named view a recognisable subject.
@@ -78,24 +85,24 @@
 
       // A pose is application data: public Camera.set applies its position and orientation. The
       // orbit target is set beside it so the next drag continues around the same point.
-      const VIEWS = {
-        home: { position: [18, 11, 20], target: [0, 3, -1], fov: 50 },
-        tower: { position: [7, 7, 7], target: [0, 4, -2], fov: 42 },
-        square: { position: [-9, 4, 8], target: [-1, 1.5, 0], fov: 48 },
-        hillside: { position: [12, 5, -12], target: [-2, 2, -3], fov: 55 },
-      };
+      const VIEWS = [
+        pose.pointOfInterest('home', { position: [18, 11, 20], target: [0, 3, -1], fov: 50 }),
+        pose.pointOfInterest('tower', { position: [7, 7, 7], target: [0, 4, -2], fov: 42 }),
+        pose.pointOfInterest('square', { position: [-9, 4, 8], target: [-1, 1.5, 0], fov: 48 }),
+        pose.pointOfInterest('hillside', { position: [12, 5, -12], target: [-2, 2, -3], fov: 55 }),
+      ];
       const apply = (pose) => {
         world.camera.set(pose);
         world.controls.target.set(...pose.target);
         world.controls.update();
         world.invalidate();
       };
-      apply(VIEWS.home);
+      apply(VIEWS[0]);
       world.controls.minDistance = 3;
       world.controls.maxDistance = 55;
       world.controls.maxPolarAngle = Math.PI / 2 - 0.04;
 
-      controls({ view: Object.keys(VIEWS) }, ({ view }) => apply(VIEWS[view]), world);
+      controls(Object.fromEntries(VIEWS.map((view) => [view.name, () => apply(view)])), world);
       addEventListener('pagehide', () => world.dispose(), { once: true });
     </script>
   </body>
