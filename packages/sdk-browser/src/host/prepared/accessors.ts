@@ -96,6 +96,7 @@ export function preparedAccessors(document: TableDocument, binary: () => Promise
           });
         return bytes.slice(view.offset, view.offset + view.length);
       });
+      held.catch(() => views.delete(rank)); // a failed read is tried again at the next need
       views.set(rank, held);
     }
     return held;
