@@ -1,21 +1,20 @@
 // Toroidal storage of the bounce probes: `sampleLevel` wraps its corner cell once and derives
 // the seven neighbours' remainders from it. Run on the shader text itself, axis by axis — every
-// operation involved is component-wise — against develop's per-cell remainder.
+// operation involved is component-wise — against the per-cell remainder it replaces.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { BOUNCE_SETTINGS } from '../../../sdk-core/src/index.ts';
 import { random } from '../page/cut/cutRuleChecks.fixture.ts';
 import { BOUNCE_GRID_WGSL } from './gridWgsl.ts';
+import { functionText } from './wgslBody.fixture.ts';
 
 const I32_MIN = -(2 ** 31);
 const I32_MAX = 2 ** 31 - 1;
 
-/** The WGSL body between a header and the first line that closes it. */
-const bodyOf = (header: string) => {
-  const start = BOUNCE_GRID_WGSL.indexOf(header);
-  assert.ok(start >= 0, `missing ${header}`);
-  const from = start + header.length;
-  return BOUNCE_GRID_WGSL.slice(from, BOUNCE_GRID_WGSL.indexOf('\n}', from));
+/** The WGSL body of a function, its header left out. */
+const bodyOf = (name: string) => {
+  const text = functionText(BOUNCE_GRID_WGSL, name);
+  return text.slice(text.indexOf('{') + 1);
 };
 
 /** A `let` initialiser of the sampling loop, as the shader writes it. */
@@ -37,7 +36,7 @@ const scalar = (wgsl: string) =>
     .replace(/\bbounce\.counts\.x\b/g, 'S')
     .replace(/\blet /g, 'const ');
 
-const sample = bodyOf('fn sampleLevel(level:u32,P:vec3f,N:vec3f)->vec4f{');
+const sample = bodyOf('sampleLevel');
 const slot = sample.match(/let slot=probeSlotWrapped\(level,(.+)\);/);
 assert.ok(slot, 'sampleLevel reads its slot through probeSlotWrapped');
 
@@ -45,7 +44,7 @@ assert.ok(slot, 'sampleLevel reads its slot through probeSlotWrapped');
 const shaderRemainder = new Function(
   `const u32=(x)=>x>>>0,i32=(x)=>x|0,select=(f,t,c)=>c?t:f;
    return (S,corner,offset)=>{
-    function probeWrap(cell){${scalar(bodyOf('fn probeWrap(cell:vec3i)->vec3u{'))}}
+    function probeWrap(cell){${scalar(bodyOf('probeWrap'))}}
     const wrappedCorner=${scalar(initialiser(sample, 'wrappedCorner'))};
     const wrapAt=${scalar(initialiser(sample, 'wrapAt'))};
     const next=${scalar(initialiser(sample, 'next'))};
@@ -53,8 +52,8 @@ const shaderRemainder = new Function(
    };`,
 )() as (side: number, corner: number, offset: number) => number;
 
-/** Develop's remainder: the loop's i32 cell `corner + offset`, then `probeWrap` of that cell. */
-const developRemainder = (side: number, corner: number, offset: number) => {
+/** The per-cell remainder it replaces: the i32 cell `corner + offset`, then its `probeWrap`. */
+const perCellRemainder = (side: number, corner: number, offset: number) => {
   const cell = (corner + offset) | 0;
   return (((cell % side) + side) % side) >>> 0;
 };
@@ -67,7 +66,7 @@ const assertSameRemainders = (side: number, corners: Iterable<number>) => {
     for (const offset of [0, 1])
       assert.equal(
         shaderRemainder(side, corner, offset),
-        developRemainder(side, corner, offset),
+        perCellRemainder(side, corner, offset),
         `side ${side}, corner ${corner}, offset ${offset}`,
       );
 };
@@ -79,7 +78,7 @@ test('sampleLevel wraps its corner once, outside the corner loop', () => {
   assert.ok(!sample.includes('probeSlot('), 'no per-corner remainder is left in sampleLevel');
 });
 
-test('the hoisted remainder equals develop on every side, around zero and on random cells', () => {
+test('the hoisted remainder is the per-cell one on every side, near zero and at random', () => {
   const draw = random(927);
   const randomCorners = Array.from({ length: 512 }, () => (draw() * 2 ** 32) | 0);
   const around = Array.from({ length: 200 }, (_, index) => index - 100);
@@ -89,9 +88,9 @@ test('the hoisted remainder equals develop on every side, around zero and on ran
     assertSameRemainders(side, corners);
 });
 
-test('the hoisted remainder equals develop at the i32 wrap for a power-of-two side', () => {
+test('the hoisted remainder is the per-cell one at the i32 wrap, power-of-two sides', () => {
   // A power-of-two side divides 2^32: the i32 cell that wraps past the largest corner still
-  // has the next remainder, as develop computes it. The levels' cube side is one.
+  // has the next remainder, as the per-cell form computes it. The levels' cube side is one.
   const { cascadeSize } = BOUNCE_SETTINGS;
   assert.equal(cascadeSize & (cascadeSize - 1), 0, `cube side ${cascadeSize}`);
   for (let side = 1; side <= 2 ** 30; side *= 2) assertSameRemainders(side, [I32_MAX]);
