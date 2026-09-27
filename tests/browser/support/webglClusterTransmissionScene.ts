@@ -39,7 +39,7 @@ export function transmissionScene(glass = {}) {
   blend.position.x = 0.21;
   const source = new G.Group();
   source.add(opaque, copy, blend);
-  const primitive = (mesh: G.GraphMesh, primitiveIndex: number, pages: (typeof page)[]) => ({
+  const primitive = (mesh: G.HostMesh, primitiveIndex: number, pages: (typeof page)[]) => ({
     mesh: 0,
     primitive: primitiveIndex,
     pass: 'exact-clusters' as const,

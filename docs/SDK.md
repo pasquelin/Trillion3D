@@ -708,11 +708,18 @@ costs the subtree it starts from, never the other nodes of the hierarchy. The sc
 one hierarchy that holds none of them: a dropped object frees its slot when it is collected, and
 `destroy()` frees a subtree at once.
 
-The engine's graph is built of the same classes: a bare node is an `Object3D` and a group a
-`Group`, and every function of the browser facade that takes or returns a node of that graph names
-`Object3D`. `GraphNode` is abstract: it is only the base of the graph's nodes that draw, look or
-light (`GraphMesh`, and the camera and light classes the engine builds), which add a `kind` and a
-creation number.
+The engine's graph is built of the same classes: a bare node is an `Object3D`, a group a `Group`,
+a drawn node a `Mesh` (or the core's instanced mesh) wearing the engine's surfaces, its root a
+`Scene` and its eye a `Camera`, and every function of the browser facade that takes or returns a
+node of that graph names `Object3D`. `GraphNode` is abstract: it is only the base of the light
+classes the engine builds, which add a `kind` and a creation number; the engine numbers the
+scenes, cameras and meshes it builds in the same count, beside them, so a node a page builds
+carries none. A `Scene` built with no loader, as the engine builds its own, refuses `load`
+(`UNSUPPORTED_SCENE_UPDATE`); its `onBeforeRender` and `onAfterRender`, none by default, are
+called around each draw of it. A `Camera` gives the projection its optics compose in the
+reference's convention, finite far plane, as `projectionMatrix`, made at its first read and
+composed again at each optic write, and the inverse of its world matrix as
+`matrixWorldInverse`: what a renderer keeping that convention reads.
 
 `clone(recursive)` of an `Object3D` returns a node of the same class — a `Group` stays a `Group`, a
 `Light` a `Light`, a `Camera` a `Camera`, a graph node its own kind — holding the source's name,
