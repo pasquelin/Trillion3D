@@ -118,10 +118,14 @@ ${FACING_WGSL}
   count=span.y;
   clusterId=clusterDiagnostic[slot.y];
  }
- let h=pageHeader(page);
+ // A padding lane past the cluster's corners reads nothing, not even the page header.
+ var h:ClusterHeader;
  let triangle=(local/3u)*3u;
  var facing=0u;
- if(cull!=0u&&local<count){facing=vertexFacing(cull,it.world,page,h,triangle);}
+ if(local<count){
+  h=pageHeader(page);
+  if(cull!=0u){facing=vertexFacing(cull,it.world,page,h,triangle);}
+ }
  out.water=(it.flags>>${WATER_RANK_SHIFT}u)|(facing<<${FACING_SHIFT}u);
  if(local>=count||facing==${FACING_DROP}u){out.position=vec4f(0.0,0.0,2.0,1.0);out.color=vec4f(0.0);out.uv=vec2f(0.0);out.view=vec3f(0.0);out.normal=vec3f(0.0,0.0,1.0);out.tangent=vec3f(0.0);out.bitangent=vec3f(0.0);out.tri=0u;out.bary=vec3f(0.0);out.diagId=0u;return out;}
  let v=pageCorner(page,h,local);
