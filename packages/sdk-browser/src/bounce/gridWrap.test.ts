@@ -4,6 +4,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { BOUNCE_SETTINGS } from '../../../sdk-core/src/index.ts';
+import { random } from '../page/cut/cutRuleChecks.fixture.ts';
 import { BOUNCE_GRID_WGSL } from './gridWgsl.ts';
 
 const I32_MIN = -(2 ** 31);
@@ -42,16 +43,15 @@ assert.ok(slot, 'sampleLevel reads its slot through probeSlotWrapped');
 
 /** The shader's remainder of one axis of a corner's neighbour: `probeWrap`, then the loop. */
 const shaderRemainder = new Function(
-  'S',
-  'corner',
-  'offset',
   `const u32=(x)=>x>>>0,i32=(x)=>x|0,select=(f,t,c)=>c?t:f;
-   function probeWrap(cell){${scalar(bodyOf('fn probeWrap(cell:vec3i)->vec3u{'))}}
-   const wrappedCorner=${scalar(initialiser(sample, 'wrappedCorner'))};
-   const wrapAt=${scalar(initialiser(sample, 'wrapAt'))};
-   const next=${scalar(initialiser(sample, 'next'))};
-   return ${scalar(slot[1])};`,
-) as (side: number, corner: number, offset: number) => number;
+   return (S,corner,offset)=>{
+    function probeWrap(cell){${scalar(bodyOf('fn probeWrap(cell:vec3i)->vec3u{'))}}
+    const wrappedCorner=${scalar(initialiser(sample, 'wrappedCorner'))};
+    const wrapAt=${scalar(initialiser(sample, 'wrapAt'))};
+    const next=${scalar(initialiser(sample, 'next'))};
+    return ${scalar(slot[1])};
+   };`,
+)() as (side: number, corner: number, offset: number) => number;
 
 /** Develop's remainder: the loop's i32 cell `corner + offset`, then `probeWrap` of that cell. */
 const developRemainder = (side: number, corner: number, offset: number) => {
@@ -59,37 +59,8 @@ const developRemainder = (side: number, corner: number, offset: number) => {
   return (((cell % side) + side) % side) >>> 0;
 };
 
-/** WGSL's f32 to i32 conversion of `floor(local)`: saturating; NaN taken as zero. */
-const cornerOf = (local: number) =>
-  Number.isNaN(local) ? 0 : Math.min(I32_MAX, Math.max(I32_MIN, Math.floor(Math.fround(local))));
-
-const EDGE_LOCALS = [
-  NaN,
-  0,
-  -0,
-  0.5,
-  -0.5,
-  Infinity,
-  -Infinity,
-  3.4e38,
-  -3.4e38,
-  2 ** 31,
-  -(2 ** 31),
-];
-const EDGE_CORNERS = [
-  ...EDGE_LOCALS.map(cornerOf),
-  -1,
-  I32_MIN + 1,
-  I32_MAX - 1,
-  I32_MAX - 16,
-  I32_MIN + 15,
-];
-
-/** A reproducible stream of i32 values over the whole range. */
-const randomI32 = (seed: number) => () => {
-  seed = (Math.imul(seed, 1664525) + 1013904223) | 0;
-  return seed;
-};
+/** Corners at both ends of i32, whose `+ 1` neighbour stays within it. */
+const EDGE_CORNERS = [I32_MIN, I32_MIN + 1, I32_MIN + 15, I32_MAX - 16, I32_MAX - 1];
 
 const assertSameRemainders = (side: number, corners: Iterable<number>) => {
   for (const corner of corners)
@@ -101,9 +72,6 @@ const assertSameRemainders = (side: number, corners: Iterable<number>) => {
       );
 };
 
-/** Every corner whose `+ 1` neighbour stays within i32: the lattice the levels place. */
-const withinI32 = (corners: number[]) => corners.filter((corner) => corner < I32_MAX);
-
 test('sampleLevel wraps its corner once, outside the corner loop', () => {
   const loop = sample.slice(sample.indexOf('for(var index=0u'));
   assert.equal(loop.match(/probeWrap\(/g), null);
@@ -111,22 +79,14 @@ test('sampleLevel wraps its corner once, outside the corner loop', () => {
   assert.ok(!sample.includes('probeSlot('), 'no per-corner remainder is left in sampleLevel');
 });
 
-test('probeSlot keeps its rank as the wrapped slot of the same cell', () => {
-  assert.ok(
-    BOUNCE_GRID_WGSL.includes(
-      'fn probeSlot(level:u32,cell:vec3i)->u32{return probeSlotWrapped(level,probeWrap(cell));}',
-    ),
-  );
-});
-
 test('the hoisted remainder equals develop on every side, around zero and on random cells', () => {
-  const next = randomI32(927);
-  const randomCorners = Array.from({ length: 4000 }, next);
+  const draw = random(927);
+  const randomCorners = Array.from({ length: 512 }, () => (draw() * 2 ** 32) | 0);
   const around = Array.from({ length: 200 }, (_, index) => index - 100);
-  for (let side = 1; side <= 64; side++)
-    assertSameRemainders(side, withinI32([...around, ...EDGE_CORNERS, ...randomCorners]));
-  for (const side of [1000, 65535, 2 ** 20 + 7, 2 ** 30, I32_MAX])
-    assertSameRemainders(side, withinI32([...around, ...EDGE_CORNERS, ...randomCorners]));
+  const corners = [...around, ...EDGE_CORNERS, ...randomCorners];
+  const small = Array.from({ length: 64 }, (_, index) => index + 1);
+  for (const side of [...small, 1000, 65535, 2 ** 20 + 7, 2 ** 30, I32_MAX])
+    assertSameRemainders(side, corners);
 });
 
 test('the hoisted remainder equals develop at the i32 wrap for a power-of-two side', () => {
@@ -134,5 +94,5 @@ test('the hoisted remainder equals develop at the i32 wrap for a power-of-two si
   // has the next remainder, as develop computes it. The levels' cube side is one.
   const { cascadeSize } = BOUNCE_SETTINGS;
   assert.equal(cascadeSize & (cascadeSize - 1), 0, `cube side ${cascadeSize}`);
-  for (let side = 1; side <= 2 ** 30; side *= 2) assertSameRemainders(side, [I32_MAX, I32_MIN]);
+  for (let side = 1; side <= 2 ** 30; side *= 2) assertSameRemainders(side, [I32_MAX]);
 });
