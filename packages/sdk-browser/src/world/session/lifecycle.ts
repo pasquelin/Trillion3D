@@ -12,11 +12,10 @@ import type { createPageStreamer } from '../../streaming/pageStreamer.ts';
 import type { EngineProfiler } from '../../diagnostic/telemetry.ts';
 import type { WebglSurface } from '../../webgl/core/surface.ts';
 import type { JobProgress } from '../../../../sdk-core/src/runtime/jobs.ts';
-import type { createReadWatch } from '../../streaming/readWatch.ts';
+import type { PageWatch } from '../../streaming/readWatch.ts';
 
 /** How `awaitPages` waits: with or without a picture, and who hears the pages land. */
 type PageWait = { image?: boolean; onProgress?: (event: JobProgress) => void };
-type Read = ReturnType<ReturnType<typeof createReadWatch>['watch']>;
 
 type Inputs = {
   check: () => void;
@@ -113,7 +112,7 @@ export function createExplorerLifecycle(session: ExplorerSession, inputs: Inputs
   /** Counts as landed, once, the pages `backend`'s view reads that the streamer holds, `missing`
    *  aside: resident already. A page read again later — the WebGPU residency uploading it — or
    *  shared with another backend is not counted twice. */
-  const holdPages = (backend: RenderBackend, missing: readonly string[], read: Read) => {
+  const holdPages = (backend: RenderBackend, missing: readonly string[], read: PageWatch) => {
     const lacking = new Set(missing);
     for (const url of backend.pageUrls?.() ?? [])
       if (!lacking.has(url) && streamer.has(url)) read.hold(url);
@@ -126,14 +125,14 @@ export function createExplorerLifecycle(session: ExplorerSession, inputs: Inputs
    *  `completed === total`. */
   const awaitPages = async (options: PageWait = {}) => {
     const { onProgress, ...wait } = options;
-    let said = [-1, -1];
+    let said = '';
     const report = (last = false) => {
       const reads = read.reads(),
         completed = reads.landed,
         total = last ? completed : reads.asked;
-      if (completed === said[0] && total === said[1]) return;
-      said = [completed, total];
       const message = `${completed} of ${total} pages the view reads`;
+      if (message === said) return;
+      said = message;
       onProgress?.({ phase: 'pages', completed, total, message });
     };
     const read = streamer.watch(() => report());
@@ -146,7 +145,7 @@ export function createExplorerLifecycle(session: ExplorerSession, inputs: Inputs
           camera,
           async (missing) => {
             holdPages(backend, missing, read);
-            await streamer.request(missing);
+            if (missing.length) await streamer.request(missing);
             for (const url of missing) {
               if (geometryUrls.has(url)) {
                 const bytes = streamer.getBytes(url);
