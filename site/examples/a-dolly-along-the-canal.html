@@ -35,6 +35,12 @@
       const leaf = paint('#497149', 1);
       const trunk = paint('#6c4930', 1);
       const iron = paint('#30363b', 0.45, 0.7);
+      const glass = paint('#d7c47c', 0.55);
+      const windowShape = geometry.box(0.65, 0.9, 0.08);
+      const trunkShape = geometry.cylinder(0.14, 0.2, 2.2, 10);
+      const crownShape = geometry.sphere(1.15, 16, 12);
+      const pierShape = geometry.box(0.55, 3.2, 2.8);
+      const railShape = geometry.box(0.12, 1, 2.9);
       const put = (shape, matter, at, parent = world.scene) => {
         const mesh = object.mesh(shape, matter);
         mesh.position.set(...at);
@@ -49,25 +55,26 @@
         put(geometry.box(1.2, 1.3, 96), stone, [side * 5.6, 0.35, -4]);
         put(geometry.box(5, 0.35, 96), stone, [side * 8.7, 1.15, -4]);
         for (let z = 34; z >= -42; z -= 9) {
+          const tall = (z / 9) & 1;
           const building = put(
-            geometry.box(4.2, 4.2 + ((z / 9) & 1), 6.8),
-            (z / 9) & 1 ? brick : darkBrick,
+            geometry.box(4.2, 4.2 + tall, 6.8),
+            tall ? brick : darkBrick,
             [side * 9.2, 3.3, z],
           );
           building.rotation.y = side * 0.025;
           for (const floor of [2.5, 4])
             for (const offset of [-1.2, 1.2])
-              put(geometry.box(0.65, 0.9, 0.08), paint('#d7c47c', 0.55), [side * 7.05, floor, z + offset]);
+              put(windowShape, glass, [side * 7.05, floor, z + offset]);
         }
         for (let z = 30; z >= -40; z -= 14) {
-          put(geometry.cylinder(0.14, 0.2, 2.2, 10), trunk, [side * 6.9, 2.25, z]);
-          put(geometry.sphere(1.15, 16, 12), leaf, [side * 6.9, 4, z]);
+          put(trunkShape, trunk, [side * 6.9, 2.25, z]);
+          put(crownShape, leaf, [side * 6.9, 4, z]);
         }
       }
       for (const z of [15, -22]) {
         put(geometry.box(13, 0.65, 2.8), stone, [0, 3.1, z]);
-        for (const x of [-5.2, 5.2]) put(geometry.box(0.55, 3.2, 2.8), stone, [x, 1.45, z]);
-        for (const x of [-4, -2, 0, 2, 4]) put(geometry.box(0.12, 1, 2.9), iron, [x, 3.85, z]);
+        for (const x of [-5.2, 5.2]) put(pierShape, stone, [x, 1.45, z]);
+        for (const x of [-4, -2, 0, 2, 4]) put(railShape, iron, [x, 3.85, z]);
       }
       world.scene.add(
         light.hemisphere({ color: '#d9efff', groundColor: '#5b5548', intensity: 1.5 }),
@@ -83,6 +90,7 @@
         animation.vectorTrack('.position', [0, 3, 6, 9, 12], [0, 4.6, 39, 0, 4.4, 21, 0, 4.8, 2, 0, 4.3, -19, 0, 4.6, -39]),
       ]);
       const action = mixer.clipAction(journey);
+      action.loop = 'once';
       action.play();
 
       const values = controls(
