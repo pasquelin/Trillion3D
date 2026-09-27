@@ -56,7 +56,7 @@ export const HIZ_TEST_PAGES_ENTRIES: GPUBindGroupLayoutEntry[] = [
  */
 export const HIZ_SHADER = `${PAGE_INFO_STRUCT_WGSL}
 struct Uni{a:u32,b:u32,c:u32,d:u32,e:u32,f:u32,g:u32,h:u32,dst:array<vec4u,${HIZ_PASS_LEVELS}>,}
-struct Bounds{minX:i32,minY:i32,maxX:i32,maxY:i32,nearest:f32,rowAndClip:u32,pad0:u32,pad1:u32,triangles:u32,coarseOffset:u32,coarseWidth:u32,coarseShift:u32,}
+struct Bounds{minX:i32,minY:i32,maxX:i32,maxY:i32,nearest:f32,rowAndClip:u32,fineOffset:u32,fineWidth:u32,triangles:u32,coarseOffset:u32,coarseWidth:u32,coarseShift:u32,}
 @group(0) @binding(0) var<storage, read_write> pyramid:array<f32>;
 @group(0) @binding(1) var level0:texture_2d<f32>;
 @group(0) @binding(2) var<uniform> uni:Uni;
@@ -137,7 +137,7 @@ fn testHiz(@builtin(global_invocation_id) id:vec3u){
  let bias=bitcast<f32>(uni.d);
  // Reverse-Z: a box is rejected when its NEAREST point stays behind the pyramid's farthest,
  // hence when it is SMALLER. The coarse mip the partition packed is read first (\`pyramidHides\`).
- let reject=select(0u,1u,pyramidHides(b.minX,b.minY,b.maxX,b.maxY,b.pad0,b.pad1,b.nearest,bias,b.coarseOffset,b.coarseWidth,b.coarseShift));
+ let reject=select(0u,1u,pyramidHides(b.minX,b.minY,b.maxX,b.maxY,b.fineOffset,b.fineWidth,b.nearest,bias,b.coarseOffset,b.coarseWidth,b.coarseShift));
  flags[row]=select(${VERDICT_KEPT}u,${VERDICT_REJECTED}u,reject!=0u);
  if(reject!=0u){
   atomicAdd(&state[${ST_REJECTED}u],1u);

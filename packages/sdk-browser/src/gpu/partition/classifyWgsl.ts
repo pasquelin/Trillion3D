@@ -52,10 +52,10 @@ fn classifyRows(@builtin(global_invocation_id) id:vec3u){
   bitcast<i32>(rowData[base+2u]),bitcast<i32>(rowData[base+3u]));
  let x0=max(unclipped.x,0);let y0=max(unclipped.y,0);
  let x1=min(unclipped.z,i32(uni.width)-1);let y1=min(unclipped.w,i32(uni.height)-1);
- var level=0u;var found=false;
+ var level=0u;var coarse=0u;var found=false;
  if(!clips&&x1>=x0&&y1>=y0){
   let pick=hizLevelFor(vec4i(x0,y0,x1,y1),uni.levels);
-  level=pick.x;found=pick.y!=0u;
+  level=pick.x;coarse=pick.z;found=pick.y!=0u;
  }
  let slot=atomicAdd(&state[${ST_TESTED}u],1u)*${TESTED_U32}u;
  if(found){
@@ -67,7 +67,6 @@ fn classifyRows(@builtin(global_invocation_id) id:vec3u){
   tested[slot+6u]=uni.levelOffset[level>>2u][level&3u];
   tested[slot+7u]=uni.levelWidth[level>>2u][level&3u];
   // Coarse pre-test mip of the Hi-Z test (\`pyramidHides\`): the box is read there first.
-  let coarse=hizCoarseLevel(vec4i(x0,y0,x1,y1),level,uni.levels);
   tested[slot+9u]=uni.levelOffset[coarse>>2u][coarse&3u];
   tested[slot+10u]=uni.levelWidth[coarse>>2u][coarse&3u];
   tested[slot+11u]=coarse-level;
@@ -76,7 +75,6 @@ fn classifyRows(@builtin(global_invocation_id) id:vec3u){
   tested[slot+5u]=(i<<1u)|1u;
   tested[slot+6u]=0u;
   tested[slot+7u]=uni.width;
-  tested[slot+9u]=0u;tested[slot+10u]=0u;tested[slot+11u]=0u;
  }
  tested[slot+4u]=rowData[base+${ROW_NEAREST}u];
  tested[slot+8u]=item.triangles;

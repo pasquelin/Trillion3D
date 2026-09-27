@@ -29,16 +29,17 @@ fn hizCoarseLevel(rect:vec4i,l:u32,levels:u32)->u32{
  }
  return c;
 }
-/** The mip that covers the rectangle in fewer than sixteen texels, and whether one exists:
- *  \`(level, 1)\`, or \`(0, 0)\` when the pyramid holds none coarse enough. */
-fn hizLevelFor(rect:vec4i,levels:u32)->vec2u{
+/** The mip that covers the rectangle in fewer than sixteen texels, whether one exists, and the
+ *  coarse pre-test mip above it (\`hizCoarseLevel\`): \`(level, 1, coarse)\`, or \`(0, 0, 0)\` when
+ *  the pyramid holds none coarse enough. */
+fn hizLevelFor(rect:vec4i,levels:u32)->vec3u{
  var l=firstLevel(max(rect.z-rect.x,rect.w-rect.y));
  loop{
   if(l>=levels){break;}
-  if(fitsAt(rect,l,${HIZ_KERNEL_TEXELS})){return vec2u(l,1u);}
+  if(fitsAt(rect,l,${HIZ_KERNEL_TEXELS})){return vec3u(l,1u,hizCoarseLevel(rect,l,levels));}
   l++;
  }
- return vec2u(0u,0u);
+ return vec3u(0u,0u,0u);
 }
 `;
 
@@ -79,8 +80,9 @@ fn pyramidHides(minX:i32,minY:i32,maxX:i32,maxY:i32,offset:u32,width:u32,nearest
  * the mip that covers it is chosen, and the farthest depth read there is compared to the box's
  * nearest (`pyramidHides`, after its coarse pre-test) — reverse-Z, so hidden means SMALLER. A
  * rectangle outside the viewport, or one no mip covers, hides nothing. Reads the shared uniform
- * (`PARTITION_UNI_WGSL`) and `pyramid`, which the host kernel declares; the opaque main-pass cull and the transparent-cluster test are this
- * same function on their own inputs, so the two rules cannot diverge.
+ * (`PARTITION_UNI_WGSL`) and `pyramid`, which the host kernel declares; the opaque main-pass cull
+ * and the transparent-cluster test are this same function on their own inputs, so the two rules
+ * cannot diverge.
  */
 export const HIZ_HIDDEN_WGSL = `${HIZ_LEVEL_WGSL}${HIZ_HIDES_WGSL}
 fn hiddenByPyramid(rect:vec4i,nearest:f32)->bool{
@@ -89,8 +91,7 @@ fn hiddenByPyramid(rect:vec4i,nearest:f32)->bool{
  if(x1<x0||y1<y0){return false;}
  let pick=hizLevelFor(vec4i(x0,y0,x1,y1),uni.levels);
  if(pick.y==0u){return false;}
- let l=pick.x;
- let c=hizCoarseLevel(vec4i(x0,y0,x1,y1),l,uni.levels);
+ let l=pick.x;let c=pick.z;
  return pyramidHides(x0>>l,y0>>l,x1>>l,y1>>l,
   uni.levelOffset[l>>2u][l&3u],uni.levelWidth[l>>2u][l&3u],nearest,0.0,
   uni.levelOffset[c>>2u][c&3u],uni.levelWidth[c>>2u][c&3u],c-l);

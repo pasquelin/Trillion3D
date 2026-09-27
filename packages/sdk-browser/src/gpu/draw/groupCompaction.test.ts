@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { drawShader } from './shader.ts';
-import { slotCount } from './draw.ts';
+import { BASE_SLOTS, slotCount } from './contract.ts';
 import { prefixSerial } from '../../../../../bench/oracles/browser/gpuDrawPrefixOracle.ts';
 
 // The counting and scattering kernels moved from one thread per (group, slot) — each walking the
@@ -26,10 +26,10 @@ type Frame = {
 };
 
 const slotOf = (f: Frame, i: number) =>
-  f.rest[i] * 3 + f.bins[i] + 6 * Math.min(f.layers[i], Math.max(1, f.layerSlots) - 1);
+  f.rest[i] * 3 + f.bins[i] + BASE_SLOTS * Math.min(f.layers[i], Math.max(1, f.layerSlots) - 1);
 const selected = (f: Frame, i: number) => !f.mask || f.mask[i] !== 0;
 const matches = (f: Frame, i: number, slot: number) => slotOf(f, i) === slot && selected(f, i);
-/** `slotAt`. */
+/** Transcribes WGSL `slotAt`. */
 const slotAt = (f: Frame, i: number, end: number) =>
   i >= end || !selected(f, i) ? NO_SLOT : slotOf(f, i);
 
@@ -118,7 +118,7 @@ function frame(rand: () => number): Frame {
 
 test('grouped counting and scattering write the counts and draws of the per-slot walk', () => {
   let seed = 7;
-  const rand = () => ((seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 2 ** 32) as number;
+  const rand = () => (seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 2 ** 32;
   for (let trial = 0; trial < 600; trial++) {
     const f = frame(rand);
     const slots = slotCount(f.layerSlots);

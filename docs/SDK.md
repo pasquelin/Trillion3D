@@ -1355,7 +1355,12 @@ bend }` simulates the mesh's vertices one by one on Jolt's soft bodies. A cloth 
   direct child of the scene; moved by the page, it is carried there with its vertices, its
   simulation kept; placed at another scale than it was made at, it is refused with
   `PHYSICS_FAILED` and leaves the simulation until it is back at that scale (Jolt scales no soft
-  body once made), as a compiled model's cooked one does; hidden, its vertices are not sent. It takes no velocity, impulse, joint or
+  body once made), as a compiled model's cooked one does; hidden, its vertices are not sent. A
+  pinned cloth that never stretches (`stretch` 0) keeps each free vertex within its rest distance
+  of the nearest pin (Jolt's long range attachments), so a large one never stretches without end;
+  one given stretch keeps its give. A body, soft or rigid, whose
+  vertices or pose go non-finite sends none of them: it keeps its last finite one on screen and
+  leaves the simulation with `PHYSICS_DIVERGED` (the mesh named). It takes no velocity, impulse, joint or
   vehicle. Rigid bodies and the character collide with its vertices: the
   character is turned aside or stopped, never pushing it; a rigid body much heavier than the skin
   it lands on can push between its vertices; soft bodies pass through each other (Jolt collides

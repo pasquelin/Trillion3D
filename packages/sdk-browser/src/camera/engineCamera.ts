@@ -13,6 +13,7 @@ import {
   updateRenderOriginFrame,
   type RenderOriginFrame,
 } from './renderOrigin.ts';
+import { hypot3 } from '../../../sdk-core/src/math/primitives/hypot.ts';
 
 /**
  * The engine camera: the numbers of a frame, in owned buffers rewritten in place.
@@ -125,7 +126,7 @@ export function writeEngineCamera(into: EngineCamera, optics: CameraOptics): Eng
  *  camera's own +z — the way back toward it —, weighted by the projection. */
 function writeViewPoint(into: EngineCamera, perspective: number) {
   const w = into.world,
-    length = Math.hypot(w[8], w[9], w[10]) || 1,
+    length = hypot3(w[8], w[9], w[10]) || 1,
     flat = (1 - perspective) / length;
   into.perspective = perspective;
   for (let axis = 0; axis < 3; axis++)

@@ -23,14 +23,16 @@ test('the three Hi-Z tests read through the coarse pre-test, and no whole-footpr
     PARTITION_CLASSIFY_WGSL,
   ])
     assert.doesNotMatch(shader, /pyramidFar/);
-  assert.match(HIZ_HIDDEN_WGSL, /let c=hizCoarseLevel\(vec4i\(x0,y0,x1,y1\),l,uni\.levels\);/);
-  assert.match(SHADOW_OCCLUSION_SHADER, /let c=hizCoarseLevel\(rect,l,/);
+  // The mip pick returns the coarse mip too: every caller reads it from there.
+  assert.match(HIZ_LEVEL_WGSL, /return vec3u\(l,1u,hizCoarseLevel\(rect,l,levels\)\);/);
+  for (const shader of [HIZ_HIDDEN_WGSL, SHADOW_OCCLUSION_SHADER])
+    assert.match(shader, /let l=pick\.x;let c=pick\.z;/);
   // The partition packs the coarse mip into the three words `testHiz` reads it from.
-  assert.match(
-    PARTITION_CLASSIFY_WGSL,
-    /let coarse=hizCoarseLevel\(vec4i\(x0,y0,x1,y1\),level,uni\.levels\);/,
-  );
+  assert.match(PARTITION_CLASSIFY_WGSL, /coarse=pick\.z;/);
   assert.match(PARTITION_CLASSIFY_WGSL, /tested\[slot\+11u\]=coarse-level;/);
   assert.match(HIZ_SHADER, /triangles:u32,coarseOffset:u32,coarseWidth:u32,coarseShift:u32,\}/);
-  assert.match(HIZ_SHADER, /b\.coarseOffset,b\.coarseWidth,b\.coarseShift\)/);
+  assert.match(
+    HIZ_SHADER,
+    /b\.fineOffset,b\.fineWidth,b\.nearest,bias,b\.coarseOffset,b\.coarseWidth,b\.coarseShift\)/,
+  );
 });

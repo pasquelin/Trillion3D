@@ -43,8 +43,7 @@ fn hiddenInPage(s:Sphere,m:mat4x4f,slot:u32)->bool{
  let rect=vec4i(clamp(vec2i(floor(lo)),vec2i(0),vec2i(${SHADOW_PAGE - 1})),clamp(vec2i(floor(hi)),vec2i(0),vec2i(${SHADOW_PAGE - 1})));
  let pick=hizLevelFor(rect,${PAGE_HIZ_LEVELS}u);
  if(pick.y==0u){return false;}
- let l=pick.x;
- let c=hizCoarseLevel(rect,l,${PAGE_HIZ_LEVELS}u);
+ let l=pick.x;let c=pick.z;
  return pyramidHides(rect.x>>l,rect.y>>l,rect.z>>l,rect.w>>l,slot*${PAGE_HIZ_WORDS}u+LEVEL_OFFSET[l],${SHADOW_PAGE}u>>l,nearest,0.0,
   slot*${PAGE_HIZ_WORDS}u+LEVEL_OFFSET[c],${SHADOW_PAGE}u>>c,c-l);
 }

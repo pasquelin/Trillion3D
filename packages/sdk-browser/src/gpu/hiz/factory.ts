@@ -1,4 +1,5 @@
 import { encodeHizPyramid } from './pyramid.ts';
+<<<<<<< HEAD
 import {
   hizBuildPasses,
   hizBuildSlots,
@@ -7,6 +8,9 @@ import {
   writeUni,
   type HizBuildPass,
 } from './uniforms.ts';
+=======
+import { pyramidBytes, writeHizLevelUniforms, writeHizTestUniforms } from './uniforms.ts';
+>>>>>>> origin/923-hiz-compaction-s1
 import { cleanupFailedHiz, createHizPipelines } from './pipelines.ts';
 import { TESTED_U32 } from '../partition/contract.ts';
 import type { GpuHiz } from './types.ts';
@@ -29,7 +33,7 @@ export async function createGpuHiz(
   // `COPY_SRC` serves only the proof tools, which reread depth; no frame copies.
   const level0Usage =
     GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_SRC;
-  const uniData = new Float32Array(UNIFORM_BYTES / 4);
+  const testWords = new Uint32Array(UNIFORM_BYTES / 4);
   const buffers: GPUBuffer[] = [];
   let disposed = false,
     level0: GPUTexture | undefined,
@@ -138,6 +142,7 @@ export async function createGpuHiz(
         if (disposed || !bindGroup || bounds === idle) return 0;
         const rows = Math.min(maxRows, cap);
         if (flagRows > 0) encoder.clearBuffer(flags, 0, Math.min(cap, flagRows) * 4);
+<<<<<<< HEAD
         const biasBits = new Uint32Array(new Float32Array([0]).buffer)[0];
         writeUni(
           queueDevice,
@@ -146,11 +151,20 @@ export async function createGpuHiz(
           [gpu.width, gpu.height, rows, biasBits],
           TEST_SLOT * UNIFORM_BYTES,
         );
+=======
+        const testSlot = MAX_LEVELS + 1;
+        const at = testSlot * UNIFORM_BYTES;
+        writeHizTestUniforms(queueDevice, uniforms, testWords, at, gpu.width, gpu.height, rows);
+>>>>>>> origin/923-hiz-compaction-s1
         // The compacted box count lives in the state: the dispatch covers every drawable row
         // and threads past the count leave at the first test.
         const pass = encoder.beginComputePass({ label: 'Trillion3D HiZ test' });
         pass.setPipeline(testPipeline);
+<<<<<<< HEAD
         pass.setBindGroup(0, bindGroup, [TEST_SLOT * UNIFORM_BYTES]);
+=======
+        pass.setBindGroup(0, bindGroup, [at]);
+>>>>>>> origin/923-hiz-compaction-s1
         pass.setBindGroup(1, pagesGroup(pages));
         pass.dispatchWorkgroups(Math.max(1, Math.ceil(rows / TEST_WORKGROUP)));
         pass.end();

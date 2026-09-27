@@ -19,7 +19,7 @@ const pick = new Int32Array(HIZ_TEST_VALUES);
 const levelFor = (x0: number, y0: number, x1: number, y1: number, levels: number) =>
   hizTestRect(x0, y0, x1, y1, false, 1 << 30, 1 << 30, levels, pick) ? pick[0] : -1;
 
-/** `hizCoarseLevel`. */
+/** Transcribes WGSL `hizCoarseLevel`. */
 function coarseLevel(x0: number, y0: number, x1: number, y1: number, l: number, levels: number) {
   let c = l;
   while (c + 1 < levels && !((x1 >> c) - (x0 >> c) < 2 && (y1 >> c) - (y0 >> c) < 2)) c++;
@@ -72,8 +72,6 @@ function texelsHide(p: PackedHiz, l: number, rect: number[], nearest: number, bi
   return true;
 }
 
-type Verdicts = { before: boolean; after: boolean; shift: number };
-
 /** One clipped rectangle judged the old way and the new way, as `hiddenByPyramid` and the
  *  partition's packing then `testHiz` do. */
 function judge(
@@ -104,11 +102,11 @@ function judge(
   );
   const after =
     (shift > 0 && texelsHide(p, c, coarse, nearest, bias)) || texelsHide(p, l, fine, nearest, bias);
-  return { before, after, shift } satisfies Verdicts;
+  return { before, after, shift };
 }
 
 function lcg(seed: number) {
-  return () => ((seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 2 ** 32) as number;
+  return () => (seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 2 ** 32;
 }
 
 const SPECIALS = [0, -0, 1, Infinity, -Infinity, Number.NaN, f32(0.5), f32(1e-30)];

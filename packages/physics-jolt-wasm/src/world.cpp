@@ -82,6 +82,30 @@ BoundedPool *bounded = nullptr;
 
 World &world() { return instance; }
 
+void removeBody(uint32_t index) {
+  Slot &slot = instance.slots[index];
+  const BodyID id = slot.id;
+  leaveAll(slot.engine);
+  dropJoints(index);
+  dropVehicles(index);
+  slot = Slot{};
+  BodyInterface &bodies = instance.system->GetBodyInterfaceNoLock();
+  bodies.RemoveBody(id);
+  bodies.DestroyBody(id);
+}
+
+/// Takes out the bodies the step left with a non-finite pose or vertex: the page hears their ids
+/// and removes them; until then their slot skips the commands it wrote, as a refused shape's.
+static void dropDiverged() {
+  for (uint32_t engine : instance.diverged) {
+    const uint32_t index = engine & INDEX_MASK;
+    const Slot &slot = instance.slots[index];
+    if (!slot.used || slot.engine != engine) continue;
+    removeBody(index);
+    instance.slots[index].refused = true;
+  }
+}
+
 }  // namespace trillion
 
 using trillion::world;
@@ -137,6 +161,7 @@ uint32_t jolt_step(uint32_t commandWords, float dt) {
   trillion::World &w = world();
   w.eventWords = w.dropped = w.updateError = 0;
   w.refused.clear();
+  w.diverged.clear();
   w.dt = dt;
   ++w.step;
   trillion::sendOwedLeaves();
@@ -156,7 +181,9 @@ uint32_t jolt_step(uint32_t commandWords, float dt) {
   trillion::writeVehicles();
   trillion::writeCharacter();
   trillion::writeSoft();
-  return trillion::writePoses();
+  const uint32_t posed = trillion::writePoses();
+  trillion::dropDiverged();
+  return posed;
 }
 
 /// Bounds the jobs a step splits its work into at `count`, from 1 to the threads the world was
@@ -177,6 +204,9 @@ uint32_t jolt_update_error() { return world().updateError; }
 /// The last step's bodies whose shape was refused: their count, then each engine id.
 uint32_t jolt_refused_count() { return uint32_t(world().refused.size()); }
 uint32_t jolt_refused(uint32_t i) { return world().refused[i]; }
+/// The last step's bodies whose pose or vertices went non-finite, taken out: count, engine ids.
+uint32_t jolt_diverged_count() { return uint32_t(world().diverged.size()); }
+uint32_t jolt_diverged(uint32_t i) { return world().diverged[i]; }
 uint32_t jolt_error() { return world().error; }
 /// Leaves still owed from a step whose event buffer was full: the next step writes them first.
 uint32_t jolt_owed_leaves() { return uint32_t(world().leaving.size()); }
