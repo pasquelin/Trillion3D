@@ -80,7 +80,10 @@ test('an empty list visits no batch and stages nothing', () => {
   const { rt, lights } = frame(0);
   const { device, buffers, writes, copies } = fakeDevice();
   assert.equal(lights.plan.admission.count, 0);
-  assert.equal(forEachShadowBatch(rt, () => assert.fail('no batch')), 0);
+  assert.equal(
+    forEachShadowBatch(rt, () => assert.fail('no batch')),
+    0,
+  );
   assert.ok(encodeShadowBatches(rt, device, device.createCommandEncoder(), VIEW.position));
   assert.deepEqual([buffers.length, writes.length, copies.length], [0, 0, 0]);
 });
