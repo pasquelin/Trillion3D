@@ -1155,9 +1155,7 @@
     },
     "IDENTITY_MATRIX4": {
       "description": "Identité en ordre colonne, lue sans jamais être modifiée : pose d’un nœud ou d’une racine sans pose.",
-      "values": [
-        "Seize nombres, en ordre colonne."
-      ]
+      "values": ["Seize nombres, en ordre colonne."]
     },
     "DiagnosticMode": {
       "description": "Ce que dessine une image. La disponibilité décrit les sorties réelles du pipeline, jamais des surcouches artificielles.",

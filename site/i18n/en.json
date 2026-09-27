@@ -1155,9 +1155,7 @@
     },
     "IDENTITY_MATRIX4": {
       "description": "Column-major identity, read and never written: the pose of a node or of a root with no pose.",
-      "values": [
-        "Sixteen numbers, column-major."
-      ]
+      "values": ["Sixteen numbers, column-major."]
     },
     "DiagnosticMode": {
       "description": "What a frame draws. Availability describes real pipeline outputs, never synthetic overlays: `DIAGNOSTICS` gives, per mode, whether the active renderer can produce it and why not.",
@@ -1218,10 +1216,7 @@
     },
     "GpuTimingMethod": {
       "description": "How the GPU durations of a stage profile were taken. A per-pass duration says where, never how much: on a tile-based GPU passes overlap and a pass absorbs its neighbours. The frame total is `gpuImageMs`, the envelope — stage durations do not add into it.",
-      "values": [
-        "Native WebGPU timestamp queries.",
-        "The WebGL2 extension, for that path."
-      ]
+      "values": ["Native WebGPU timestamp queries.", "The WebGL2 extension, for that path."]
     },
     "ColumnKind": {
       "description": "Storage of one column of the binary manifest. `COLUMN_KIND` maps each column name to its kind, so a reader knows the view to take over the sidecar bytes.",
