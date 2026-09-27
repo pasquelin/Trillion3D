@@ -1,4 +1,22 @@
 {
+  "brushed-metal": {
+    "banner": "Drehen Sie sich um die gebürsteten Glanzlichter. Ändern Sie Stärke und Richtung.",
+    "controls": {
+      "anisotropy": "Bürstenstärke",
+      "direction": "Bürstenrichtung",
+      "roughness": "Rauheit",
+      "spin": "Drehen"
+    }
+  },
+  "car-paint-under-clear-coat": {
+    "banner": "Drehen Sie sich um das Auto. Ändern Sie Lack und Klarlack.",
+    "controls": {
+      "paint": "Lack",
+      "clearCoat": "Klarlack",
+      "coatRoughness": "Klarlackrauheit",
+      "spin": "Drehen"
+    }
+  },
   "kit": {
     "panel": {
       "controls": "Einstellungen"
@@ -36,7 +54,8 @@
       "engine CPU": "Engine-CPU"
     },
     "failure": {
-      "title": "Dieses Beispiel ist bei einem Fehler stehen geblieben"
+      "title": "Dieses Beispiel ist bei einem Fehler stehen geblieben",
+      "missingCache": "Der kompilierte Cache fehlt: führen Sie pnpm compile:caches aus"
     },
     "banner": {
       "close": "Schließen"
@@ -309,6 +328,13 @@
       "roof": "Dach"
     }
   },
+  "soft-shadows-from-a-wide-lamp": {
+    "banner": "Ziehe, um die Szene zu drehen. Ändere die Lampenbreite und beobachte die Schattenränder.",
+    "controls": {
+      "lampWidth": "Lampenbreite",
+      "moveSubject": "Objekt bewegen"
+    }
+  },
   "a-softbox-panel": {
     "banner": "Ziehe, um herumzugehen. Vergrößere das Lichtfeld, um den Glanz weicher zu machen.",
     "controls": {
@@ -474,6 +500,14 @@
       "balloon": "VERFOLGT DEN BALLON"
     }
   },
+  "a-crane-that-swings": {
+    "banner": "Kreise um den Kran, während ein Clip den Ausleger dreht, die Laufkatze bewegt, die Last hebt und schwingen lässt.",
+    "controls": {
+      "speed": "Tempo",
+      "paused": "Pausiert",
+      "replay": "Neu starten"
+    }
+  },
   "a-wave-across-a-grid": {
     "banner": "Ziehe, um dich umzusehen. Mach die Würfelwelle höher oder schneller.",
     "controls": {
@@ -482,6 +516,20 @@
       "ripples": "Wellenringe",
       "inner": "Innen",
       "outer": "Außen"
+    }
+  },
+  "doors-that-open": {
+    "banner": "Bewege die Kamera auf die Türen zu. Sie öffnen sich beim Nähern.",
+    "controls": {
+      "mode": "Modus",
+      "openingDistance": "Öffnungsabstand",
+      "openness": "Öffnung"
+    },
+    "choices": {
+      "mode": {
+        "proximity": "Nähe",
+        "manual": "manuell"
+      }
     }
   },
   "a-world-of-blocks": {
@@ -535,6 +583,17 @@
       "lamp": "Lampe",
       "colour": "Farbe",
       "bricks": "Ziegel"
+    }
+  },
+  "measure-a-distance": {
+    "banner": "Klicke auf zwei Oberflächen, um ihren Abstand zu messen. Ein dritter Klick beginnt eine neue Messung. Eine Einheit entspricht einem Meter.",
+    "controls": {
+      "clear": "Löschen"
+    },
+    "readouts": {
+      "pointA": "Punkt A",
+      "pointB": "Punkt B",
+      "distance": "Abstand"
     }
   },
   "click-to-pick": {
@@ -941,7 +1000,11 @@
     "banner": "Ziehen, um sich umzusehen. Auto fahren ankreuzen, um es zu nehmen: W oder ↑ gibt Gas, S oder ↓ bremst, A D oder ← → lenken. Erneut fallen lassen schickt Kisten und Bälle wieder hinab.",
     "words": {
       "credit": "Tal für dieses Beispiel im Code modelliert, CC0 — siehe assets/examples/CREDITS.md",
-      "refused": "Von diesem Backend abgelehnt"
+      "refused": "Von diesem Backend abgelehnt",
+      "close": "Nahaufnahme",
+      "far": "Fernsicht",
+      "pan": "Schneller Schwenk",
+      "still": "Stillstand"
     },
     "controls": {
       "drive": "Auto fahren",
@@ -1227,6 +1290,25 @@
         "lod": "Detailstufen",
         "clusters": "Cluster"
       }
+    }
+  },
+  "a-walk-through-the-city": {
+    "banner": "Klicke in die Ansicht, gehe mit W A S D und sieh dich mit der Maus um. Senke beim Gehen das Speicherbudget.",
+    "controls": {
+      "walkSpeed": "Gehgeschwindigkeit",
+      "memory": "Speicher",
+      "view": "Ansicht",
+      "home": "Zum Start"
+    },
+    "choices": {
+      "view": {
+        "beauty": "Bild",
+        "lod": "Detailstufen",
+        "clusters": "Cluster"
+      }
+    },
+    "words": {
+      "credit": "Urnenallee für dieses Beispiel im Code modelliert, CC0 — siehe assets/examples/CREDITS.md"
     }
   },
   "migrating-from-three": {
@@ -1676,6 +1758,21 @@
     },
     "readouts": {
       "fourthLaneAnisotropy": "Anisotropie der vierten Bahn"
+    }
+  },
+  "the-home-pose": {
+    "banner": "Wähle eine Ansicht, bewege die Kamera und kehre dann mit Ausgang zurück.",
+    "controls": {
+      "home": "Ausgang",
+      "tower": "Turm",
+      "square": "Platz",
+      "hillside": "Hang"
+    }
+  },
+  "the-near-plane-cuts-a-wall": {
+    "banner": "Schiebe die Nahgrenze vor und sieh zu, wie sie jede Wand schneidet.",
+    "controls": {
+      "nearPlane": "Nahgrenze"
     }
   },
   "the-material-family": {
@@ -2141,6 +2238,72 @@
     },
     "words": {
       "credit": "Flagge an einem Mast für dieses Beispiel im Code modelliert, CC0 — siehe assets/examples/CREDITS.md"
+    }
+  },
+  "hover-to-highlight": {
+    "banner": "Fahre über die Teile des Wagens, um sie einzeln hervorzuheben, oder schalte die Hervorhebung im Bedienfeld aus.",
+    "controls": {
+      "highlightEnabled": "Hervorhebung aktivieren"
+    }
+  },
+  "a-dolly-along-the-canal": {
+    "banner": "Pausiere die Kamerafahrt, starte sie neu oder ändere ihre Geschwindigkeit entlang des Kanals.",
+    "controls": {
+      "paused": "Pausiert",
+      "replay": "Neu starten",
+      "speed": "Tempo"
+    },
+    "readouts": {
+      "progress": "Fortschritt"
+    }
+  },
+  "a-folder-merged-into-one-scene": {
+    "banner": "Ziehen Sie, um die Straßenecke anzusehen. Der Compiler hat drei OBJ-Dateien aus einem Ordner zu dieser Szene vereint.",
+    "controls": {
+      "visible": "Sichtbar",
+      "home": "Startansicht"
+    },
+    "words": {
+      "credit": "Straßenlaternenmodell von W. Sitters, CC BY 3.0 — siehe assets/examples/CREDITS.md"
+    }
+  },
+  "drag-a-crate": {
+    "banner": "Ziehen Sie die Kiste über den Boden. Mit Raster wird sie in Halbmeter-Schritten platziert.",
+    "controls": {
+      "snap": "Raster",
+      "home": "Start"
+    }
+  },
+  "outline-the-selection": {
+    "banner": "Klicke eine Form an, um sie auszuwählen. Klicke auf den Boden, um die Auswahl zu löschen.",
+    "controls": {
+      "color": "Farbe",
+      "thickness": "Stärke"
+    }
+  },
+  "a-hundred-thousand-instances": {
+    "banner": "Ziehe, um das Feld zu umrunden. Ändere Anzahl oder Ansicht.",
+    "controls": {
+      "count": "Anzahl",
+      "view": "Ansicht"
+    },
+    "readouts": {
+      "objectsShown": "Angezeigt",
+      "objectsBuilt": "Erstellt"
+    },
+    "choices": {
+      "view": {
+        "beauty": "Bild",
+        "clusters": "Cluster"
+      }
+    }
+  },
+  "inside-a-component": {
+    "banner": "Hänge den Viewer ein oder aus. Jede Einbindung besitzt genau eine Welt und jede Entfernung gibt sie frei.",
+    "controls": {
+      "mount": "Einbinden",
+      "unmount": "Aushängen",
+      "remount": "Neu einbinden"
     }
   }
 }

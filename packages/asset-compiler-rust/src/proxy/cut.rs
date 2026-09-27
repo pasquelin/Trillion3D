@@ -98,10 +98,7 @@ pub fn cut_demand(
     triangles: usize,
     scene_triangles: usize,
 ) -> CutDemand {
-    let threshold = match scale {
-        Some(value) if value.is_finite() && value > 0.0 => PROXY_ERROR_METRES / value,
-        _ => PROXY_ERROR_METRES,
-    };
+    let threshold = super::object_units(PROXY_ERROR_METRES, scale);
     let share = if scene_triangles == 0 {
         budget
     } else {

@@ -55,12 +55,12 @@ impl Geometry {
 fn unsupported(mesh: &str, what: &str) -> CompilerError {
     refused(
         "blend-mesh-layout-unsupported",
-        format!("blend: mesh {mesh} carries no {what}; this reader reads the named-attribute layout of Blender 4.4 and later"),
+        format!("blend: mesh {mesh} carries no {what}; this reader reads the mesh layouts of Blender 2.8 and later"),
     )
 }
 
-/// Reads the geometry of a mesh. A mesh that does not carry the named-attribute layout is
-/// refused by name rather than guessed.
+/// Reads the geometry of a mesh, whichever layout `attrs` decoded it from. A mesh that carries
+/// none of them is refused by name rather than guessed.
 pub(super) fn read(mesh: &At<'_>, name: &str) -> Result<Geometry> {
     let vertices = mesh.int("totvert", 0).max(0) as usize;
     let corner_count = mesh.int("totloop", 0).max(0) as usize;
@@ -81,7 +81,7 @@ pub(super) fn read(mesh: &At<'_>, name: &str) -> Result<Geometry> {
         .map(|attr| attr.ints(corner_count))
         .filter(|values| values.len() == corner_count)
         .ok_or_else(|| unsupported(name, ".corner_vert attribute"))?;
-    let offsets = offsets(mesh, faces, corner_count)
+    let offsets = offsets(mesh, &table, faces, corner_count)
         .ok_or_else(|| unsupported(name, "readable face offsets"))?;
     if corners
         .iter()
@@ -116,7 +116,7 @@ pub(super) fn read(mesh: &At<'_>, name: &str) -> Result<Geometry> {
 /// The hard edge of each corner. Blender marks hardness on the edge, and `.corner_edge` says
 /// which edge leaves each corner: a mesh without `sharp_edge` yields an empty array, which marks
 /// nothing, rather than an array of falses as long as its corners.
-fn hard(table: &[(String, attrs::Attr<'_>)], corners: &[i32], edges: usize) -> Vec<bool> {
+fn hard(table: &Table<'_>, corners: &[i32], edges: usize) -> Vec<bool> {
     let Some(sharp) = named(table, "sharp_edge", attrs::EDGE, attrs::BOOLEAN)
         .map(|attr| attr.bools(edges))
         .filter(|values| values.iter().any(|edge| *edge))
@@ -154,12 +154,22 @@ fn named<'t, 'b>(
         .map(|(_, attr)| attr)
 }
 
-/// Face offsets: an array of `faces + 1` increasing integers, bounded by the corners.
-fn offsets(mesh: &At<'_>, faces: usize, corners: usize) -> Option<Vec<u32>> {
-    let bytes = ["poly_offset_indices", "face_offset_indices"]
+/// The attributes of a mesh, by name.
+type Table<'a> = [(String, attrs::Attr<'a>)];
+
+/// Face offsets: `faces + 1` increasing integers bounded by the corners, or each face's first.
+fn offsets(mesh: &At<'_>, table: &Table<'_>, faces: usize, corners: usize) -> Option<Vec<u32>> {
+    let values = match ["poly_offset_indices", "face_offset_indices"]
         .into_iter()
-        .find_map(|name| mesh.block(name))?;
-    let values = bytes::ints(bytes, faces + 1);
+        .find_map(|name| mesh.block(name))
+    {
+        Some(bytes) => bytes::ints(bytes, faces + 1),
+        None => named(table, ".face_start", attrs::FACE, attrs::INT32)?
+            .ints(faces)
+            .into_iter()
+            .chain([i32::try_from(corners).ok()?])
+            .collect(),
+    };
     if values.len() != faces + 1 {
         return None;
     }
@@ -178,7 +188,7 @@ fn offsets(mesh: &At<'_>, faces: usize, corners: usize) -> Option<Vec<u32>> {
 
 /// The UV layer kept: the first two-component float layer held by the corners and named by the
 /// author. Blender's internal layers start with a dot, and are not one.
-fn uv(table: &[(String, attrs::Attr<'_>)], corners: usize) -> Vec<f32> {
+fn uv(table: &Table<'_>, corners: usize) -> Vec<f32> {
     table
         .iter()
         .find(|(name, attr)| {

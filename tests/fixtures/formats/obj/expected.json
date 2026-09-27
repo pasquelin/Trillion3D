@@ -88,7 +88,7 @@
       "unitMeters": 1.0
     }
   ],
-  "formatVersion": 8,
+  "formatVersion": 10,
   "images": [
     {
       "mimeType": "image/png",
@@ -198,7 +198,7 @@
     "version": "obj-ufbx-0.11.3-gltf-7"
   },
   "selectedNodes": 1,
-  "sidecarSha256": "46276ebe4deb47b2f06d1b065713f2be95c9b4efe74b8096c905f6c1fe3c2358",
+  "sidecarSha256": "3650f6b314fb1df4672e11d16d94da8068ca889203ec07c2a4c9dbab50e8c5ae",
   "sourceTriangles": 5,
   "textures": [
     {

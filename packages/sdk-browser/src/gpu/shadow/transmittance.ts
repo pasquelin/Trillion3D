@@ -2,6 +2,7 @@ import { FLAG_HAS_MAP, FLAG_HAS_UV, FLAG_SAMPLED } from '../../visibility/types.
 import { DEPTH_CLEAR, DEPTH_COMPARE } from '../../camera/depthConvention.ts';
 import type { PageSurface } from '../../page/surface.ts';
 import { SHADOW_PAGE } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
+import { arrayView, layerPasses, layerViews } from './layers.ts';
 
 /**
  * THE TRANSMITTANCE LAYER of the shadow pool: what the translucent casters let through, at half
@@ -28,10 +29,10 @@ import { SHADOW_PAGE } from '../../../../sdk-core/src/scene/light-shadow/virtual
 export const SHADOW_TRANSMITTANCE_PASS = 'Trillion3D shadow transmittance pass v1';
 export const SHADOW_TRANSMITTANCE_FORMAT: GPUTextureFormat = 'rgba8unorm';
 export const SHADOW_TRANSLUCENT_DEPTH_FORMAT: GPUTextureFormat = 'depth32float';
-/** Bytes of a layer of `poolSide` pages a side: a quarter of the pool's texels, 4 bytes of
- *  transmittance and 4 of depth each. */
-export const shadowTransmittanceBytes = (poolSide: number) =>
-  ((poolSide * SHADOW_PAGE) / 2) ** 2 * 8;
+/** Bytes for a pool of `layers` of `poolSide` pages a side: a quarter of the pool's texels, 4
+ *  bytes of transmittance and 4 of depth each. */
+export const shadowTransmittanceBytes = (poolSide: number, layers = 1) =>
+  ((poolSide * SHADOW_PAGE) / 2) ** 2 * 8 * layers;
 /** What a texel holds where no translucent caster is: all the light. Its depth is `DEPTH_CLEAR`. */
 export const TRANSMITTANCE_CLEAR = { r: 1, g: 1, b: 1, a: 1 };
 export const TRANSMITTANCE_CLEAR_WGSL = `vec4f(${Object.values(TRANSMITTANCE_CLEAR).join(',')})`;
@@ -65,43 +66,46 @@ export const BLEND_TRANSMITTANCE_WGSL = `fn blendTransmittance(page:PageInfo,uv:
  */
 export const shadowThroughWgsl = (
   binding: number,
-) => `@group(0) @binding(${binding}) var shadowTransmittance:texture_2d<f32>;
-@group(0) @binding(${binding + 1}) var shadowTranslucentDepth:texture_depth_2d;
+) => `@group(0) @binding(${binding}) var shadowTransmittance:texture_2d_array<f32>;
+@group(0) @binding(${binding + 1}) var shadowTranslucentDepth:texture_depth_2d_array;
 /**
- * Light the translucent casters let through at atlas texel \`a\`, to a receiver at \`reference\`:
- * the layer's four texels around \`a / 2\` — kept within \`a\`'s page —, each its transmittance
- * where the receiver's reference lies behind its translucent depth and 1 elsewhere, filtered
- * bilinearly. Where the receiver is in front of all four, no transmittance is read.
+ * Light the translucent casters let through at texel \`local\` of the page whose first texel is
+ * \`page\` in the pool, to a receiver at \`reference\`: the layer's four texels around
+ * \`local / 2\` — kept within the page —, each its transmittance where the receiver's reference
+ * lies behind its translucent depth and 1 elsewhere, filtered bilinearly. Integer page origin plus
+ * page-local texels: the page's content alone decides, wherever the pool puts it (#831). Where
+ * the receiver is in front of all four, no transmittance is read.
  */
-fn shadowThrough(a:vec2f,reference:f32)->f32{
- let o=floor(a/SHADOW_PAGE)*(0.5*SHADOW_PAGE);
- let h=clamp(0.5*a,o+0.5,o+(0.5*SHADOW_PAGE-0.5))-0.5;
- let i=vec2i(floor(h));let f=h-floor(h);
+fn shadowThrough(page:vec3f,local:vec2f,reference:f32)->f32{
+ let h=clamp(0.5*local,vec2f(0.5),vec2f(0.5*SHADOW_PAGE-0.5))-0.5;
+ let i=vec2i(page.xy)/2+vec2i(floor(h));let f=h-floor(h);let l=i32(page.z);
  let x=vec2i(1,0);let y=vec2i(0,1);
- let d=vec4f(textureLoad(shadowTranslucentDepth,i,0),textureLoad(shadowTranslucentDepth,i+x,0),textureLoad(shadowTranslucentDepth,i+y,0),textureLoad(shadowTranslucentDepth,i+x+y,0));
+ let d=vec4f(textureLoad(shadowTranslucentDepth,i,l,0),textureLoad(shadowTranslucentDepth,i+x,l,0),textureLoad(shadowTranslucentDepth,i+y,l,0),textureLoad(shadowTranslucentDepth,i+x+y,l,0));
  let behind=vec4f(reference)<d;
  if(!any(behind)){return 1.0;}
- let t=vec4f(textureLoad(shadowTransmittance,i,0).r,textureLoad(shadowTransmittance,i+x,0).r,textureLoad(shadowTransmittance,i+y,0).r,textureLoad(shadowTransmittance,i+x+y,0).r);
+ let t=vec4f(textureLoad(shadowTransmittance,i,l,0).r,textureLoad(shadowTransmittance,i+x,l,0).r,textureLoad(shadowTransmittance,i+y,l,0).r,textureLoad(shadowTransmittance,i+x+y,l,0).r);
  let s=select(vec4f(1.0),t,behind);
  return mix(mix(s.x,s.y,f.x),mix(s.z,s.w,f.x),f.y);
 }
-/** The PCF's \`lit\` at \`a\` times the layer there, read once per footprint (its taps lie within a
- *  texel of \`a\`); \`lit\` itself, no texel read, with no layer (a one-texel stand-in) or no light. */
-fn shadowThroughLit(a:vec2f,reference:f32,lit:f32)->f32{
- if(lit==0.0||textureDimensions(shadowTransmittance).x==1u){return lit;}return lit*shadowThrough(a,reference);
+/** The PCF's \`lit\` at map texel \`t\` of the page whose first map texel is \`first\`, placed by
+ *  \`offset\` (\`shadowOffset\`), times the layer there, read once per footprint (its taps lie within
+ *  a texel of \`t\`); \`lit\` itself, no texel read, with no layer (a one-texel stand-in) or no light. */
+fn shadowThroughLit(offset:vec3f,first:vec2f,t:vec2f,reference:f32,lit:f32)->f32{
+ if(lit==0.0||textureDimensions(shadowTransmittance).x==1u){return lit;}
+ return lit*shadowThrough(offset+vec3f(first,0.0),t-first,reference);
 }`;
 
 /**
- * Creates the layer for a pool of `poolSide` pages a side whose depth is `poolView`, both
- * textures cleared by `encoder`, and the three pipelines of its pass: the page clear, the
- * depth-only draw and the colour-only draw. `layouts` are the shadow depth pass's groups 0 and 1;
- * group 2 is the pool's depth, which the blended fragments test against.
+ * Creates the layer for a pool of `poolSide` pages a side whose depth is `poolLayers`, both
+ * textures cleared by `encoder`, and the two draws of its pass: depth only, then colour only.
+ * `layouts` are the shadow depth pass's groups 0 and 1; group 2 is the pool's depth, which the
+ * blended fragments test against. Its pages are cleared by the page quads (`pageQuads.ts`).
  */
 export function createShadowTransmittance(
   device: GPUDevice,
   module: GPUShaderModule,
   layouts: GPUBindGroupLayout[],
-  poolView: GPUTextureView,
+  poolLayers: GPUTextureView[],
   poolSide: number,
   encoder: GPUCommandEncoder,
 ) {
@@ -109,40 +113,38 @@ export function createShadowTransmittance(
   const texture = (label: string, format: GPUTextureFormat) =>
     device.createTexture({
       label,
-      size: [size, size, 1],
+      size: [size, size, poolLayers.length],
       format,
       usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
     });
-  const colour = texture('Trillion3D shadow transmittance v1', SHADOW_TRANSMITTANCE_FORMAT);
-  const nearest = texture(
-    'Trillion3D shadow translucent depth v1',
-    SHADOW_TRANSLUCENT_DEPTH_FORMAT,
-  );
-  const view = colour.createView(),
-    depthView = nearest.createView();
-  encoder
-    .beginRenderPass({
-      label: 'Trillion3D shadow transmittance clear v1',
-      colorAttachments: [
-        { view, loadOp: 'clear', storeOp: 'store', clearValue: TRANSMITTANCE_CLEAR },
-      ],
-      depthStencilAttachment: {
-        view: depthView,
-        depthLoadOp: 'clear',
-        depthStoreOp: 'store',
-        depthClearValue: DEPTH_CLEAR,
-      },
-    })
-    .end();
+  const colour = texture('Trillion3D shadow transmittance v1', SHADOW_TRANSMITTANCE_FORMAT),
+    nearest = texture('Trillion3D shadow translucent depth v1', SHADOW_TRANSLUCENT_DEPTH_FORMAT);
+  const targets = layerViews(colour),
+    depthTargets = layerViews(nearest);
+  for (const [layer, view] of targets.entries())
+    encoder
+      .beginRenderPass({
+        label: 'Trillion3D shadow transmittance clear v1',
+        colorAttachments: [
+          { view, loadOp: 'clear', storeOp: 'store', clearValue: TRANSMITTANCE_CLEAR },
+        ],
+        depthStencilAttachment: {
+          view: depthTargets[layer],
+          depthLoadOp: 'clear',
+          depthStoreOp: 'store',
+          depthClearValue: DEPTH_CLEAR,
+        },
+      })
+      .end();
   const opaqueLayout = device.createBindGroupLayout({
     entries: [
       { binding: 0, visibility: GPUShaderStage.FRAGMENT, texture: { sampleType: 'depth' } },
     ],
   });
   const layout = device.createPipelineLayout({ bindGroupLayouts: [...layouts, opaqueLayout] });
+  // The blended casters' two draws, from the same entry points.
   const pipeline = (
     label: string,
-    [vertex, fragment]: [string, string],
     target: GPUColorTargetState,
     depthWriteEnabled: boolean,
     depthCompare: GPUCompareFunction,
@@ -150,43 +152,37 @@ export function createShadowTransmittance(
     device.createRenderPipeline({
       label,
       layout,
-      vertex: { module, entryPoint: vertex },
-      fragment: { module, entryPoint: fragment, targets: [target] },
+      vertex: { module, entryPoint: 'shadow_blend_vs' },
+      fragment: { module, entryPoint: 'shadow_blend_fs', targets: [target] },
       primitive: { topology: 'triangle-list', cullMode: 'none' },
       depthStencil: { format: SHADOW_TRANSLUCENT_DEPTH_FORMAT, depthWriteEnabled, depthCompare },
     });
-  const format = SHADOW_TRANSMITTANCE_FORMAT,
-    blended: [string, string] = ['shadow_blend_vs', 'shadow_blend_fs'];
+  const format = SHADOW_TRANSMITTANCE_FORMAT;
   return {
-    view,
-    depthView,
-    bytes: shadowTransmittanceBytes(poolSide),
-    /** The pool's depth, read by the blended fragments. */
-    opaqueGroup: device.createBindGroup({
-      layout: opaqueLayout,
-      entries: [{ binding: 0, resource: poolView }],
-    }),
-    clear: pipeline(
-      'Trillion3D shadow transmittance page clear v1',
-      ['shadow_clear_vs', 'shadow_clear_fs'],
-      { format },
-      true,
-      'always',
+    view: arrayView(colour),
+    depthView: arrayView(nearest),
+    /** Each layer's two views, drawn into by its pages. */
+    passes: layerPasses(SHADOW_TRANSMITTANCE_PASS, depthTargets, targets),
+    bytes: shadowTransmittanceBytes(poolSide, poolLayers.length),
+    /** Each layer of the pool's depth, read by the blended fragments. */
+    opaqueGroups: poolLayers.map((resource) =>
+      device.createBindGroup({ layout: opaqueLayout, entries: [{ binding: 0, resource }] }),
     ),
-    depth: pipeline(
-      'Trillion3D shadow translucent depth v1',
-      blended,
-      { format, writeMask: 0 },
-      true,
-      DEPTH_COMPARE,
-    ),
-    blend: pipeline(
-      'Trillion3D shadow transmittance v1',
-      blended,
-      { format, blend: TRANSMITTANCE_BLEND },
-      false,
-      'always',
-    ),
+    /** The depth-only draw, then the colour-only draw, of each region's list. */
+    draws: [
+      pipeline(
+        'Trillion3D shadow translucent depth v1',
+        { format, writeMask: 0 },
+        true,
+        DEPTH_COMPARE,
+      ),
+      pipeline(
+        'Trillion3D shadow transmittance v1',
+        { format, blend: TRANSMITTANCE_BLEND },
+        false,
+        'always',
+      ),
+    ] as const,
     dispose() {
       colour.destroy();
       nearest.destroy();

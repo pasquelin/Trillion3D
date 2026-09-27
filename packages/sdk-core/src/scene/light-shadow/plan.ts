@@ -1,10 +1,11 @@
 import { LIGHT_KIND, lightDirection, type ShadowViewpoint } from '../light/contracts.ts';
 import { LIGHT_FIELD, type SceneLightStore } from '../light/store.ts';
+import { baseOf } from '../light/fields.ts';
 import { createShadowChanges } from './changes.ts';
 import { createPageInvalidation } from './invalidate.ts';
 import { createShadowCounts } from './counts.ts';
 import { createShadowAdmission } from './admit.ts';
-import { baseOf, castsShadow } from './casters.ts';
+import { castsShadow } from './casters.ts';
 import { createShadowTable } from './table.ts';
 import { DRAW_ALL, createShadowPool } from './pool.ts';
 import { createSunLevels } from './sunLevels.ts';
@@ -26,9 +27,9 @@ export type ShadowPlan = ReturnType<typeof createShadowPlan>;
  *
  * All arrays are allocated once; `plan()` allocates nothing.
  */
-export function createShadowPlan(poolSide: number) {
-  const table = createShadowTable(poolSide * poolSide),
-    pool = createShadowPool(poolSide),
+export function createShadowPlan(poolSide: number, layers = 1) {
+  const pool = createShadowPool(poolSide, layers),
+    table = createShadowTable(pool.pages),
     sun = createSunLevels(),
     records = createShadowRecords(table, pool, sun),
     requests = createShadowRequests(table, pool, records, sun),
@@ -113,6 +114,11 @@ export function createShadowPlan(poolSide: number) {
         let slice = store.sliceOf(slot);
         if (slice < 0) {
           slice = records.claim();
+          // Every slice is held: this light lights unshadowed, and the frame counts it.
+          if (slice < 0) {
+            counts.unslicedCasters++;
+            continue;
+          }
           posed[slice] = frame;
         }
         records.fit(slice, rank);

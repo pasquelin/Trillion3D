@@ -1,4 +1,5 @@
 import type { ControlBase } from './base.ts';
+import { hypot2 } from '../../../../sdk-core/src/math/primitives/hypot.ts';
 
 /**
  * The input every camera controller reads: pointers, wheel, keys. Written once here so the
@@ -54,7 +55,7 @@ export function trackPointers(surface: HTMLElement, base: ControlBase, handlers:
   };
   const distance = () => {
     const [a, b] = [...pointers.values()];
-    return Math.hypot(a.x - b.x, a.y - b.y);
+    return hypot2(a.x - b.x, a.y - b.y);
   };
   const scrolling = surface.style.touchAction;
   surface.style.touchAction = 'none';

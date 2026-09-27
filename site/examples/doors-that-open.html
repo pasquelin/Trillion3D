@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Doors that open as you approach</title>
+    <meta name="thumbnail" content="3" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #17202b;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <script type="module">
+      import { createWorld, animation } from '../runtime/engine.js';
+      import { geometry, light, material, math, object } from '../runtime/engine.js';
+      import { controls } from '../runtime/kit.js';
+
+      const world = createWorld('view', { controls: 'orbit' });
+      world.scene.background = math.color('#17202b');
+      const paint = (color, roughness = 0.75, metalness = 0) =>
+        material.meshStandard({ color, roughness, metalness });
+      const brick = paint('#9b684d', 0.9),
+        stone = paint('#d2c4a7', 0.95);
+      const wood = paint('#714226', 0.7),
+        iron = paint('#282b30', 0.35, 0.8);
+      const put = (shape, matter, position) => {
+        const mesh = object.mesh(shape, matter);
+        mesh.position.set(...position);
+        world.scene.add(mesh);
+        return mesh;
+      };
+
+      // The light faces the wall: its shadow and the platform's fall where nothing shows them.
+      put(geometry.box(10, 5.5, 0.7), brick, [0, 2.75, -0.5]).castShadow = false;
+      put(geometry.box(3.5, 4.1, 0.9), stone, [0, 2.05, -0.25]);
+      put(geometry.box(3, 3.6, 1), iron, [0, 1.8, -0.15]);
+      const leafShape = geometry.box(1.42, 3.4, 0.16);
+      const braceShape = geometry.box(1.05, 0.12, 0.08);
+      for (const side of [-1, 1]) {
+        const hinge = object.group();
+        hinge.name = side < 0 ? 'leftDoor' : 'rightDoor';
+        hinge.position.set(side * 1.48, 1.75, 0.42);
+        const leaf = object.mesh(leafShape, wood);
+        leaf.position.x = -side * 0.71;
+        for (const y of [-1.1, 0, 1.1]) {
+          const brace = object.mesh(braceShape, iron);
+          brace.position.set(-side * 0.71, y, 0.1);
+          leaf.add(brace);
+        }
+        hinge.add(leaf);
+        world.scene.add(hinge);
+      }
+
+      const platform = put(geometry.box(8, 0.2, 7), stone, [0, -0.1, 3]);
+      platform.receiveShadow = true;
+      platform.castShadow = false;
+      const railShape = geometry.box(0.18, 1.1, 7),
+        stepShape = geometry.box(1.1, 0.18, 0.5);
+      for (const side of [-1, 1]) {
+        put(railShape, stone, [side * 3.9, 0.55, 3]);
+        for (let step = 0; step < 5; step++)
+          put(stepShape, stone, [side * 2.7, step * 0.18, 6 - step * 0.45]);
+      }
+      world.scene.add(
+        light.directional({
+          color: '#ffd7ad',
+          intensity: 3.5,
+          position: [-7, 10, 8],
+          castShadow: true,
+        }),
+        light.hemisphere({ color: '#91acd4', groundColor: '#40342a', intensity: 0.9 }),
+      );
+
+      const clip = animation.clip('open double doors', 1, [
+        animation.numberTrack('leftDoor.rotation.y', [0, 1], [0, -1.3]),
+        animation.numberTrack('rightDoor.rotation.y', [0, 1], [0, 1.3]),
+      ]);
+      const mixer = animation.createMixer(world.scene),
+        action = mixer.clipAction(clip);
+      // Played once: a repeating clip would wrap time 1 back to 0 and shut the open doors.
+      action.loop = 'once';
+      // The engine has no seek: pose the stopped action at a time with one zero-length update.
+      let shown;
+      const sample = (openness) => {
+        openness = math.clamp(openness, 0, 1);
+        if (openness === shown) return;
+        shown = openness;
+        action.time = openness;
+        action.playingNow = true;
+        mixer.update(0);
+        action.playingNow = false;
+      };
+
+      world.camera.position.set(7, 4.5, 11);
+      const entrance = math.vector3(0, 1.7, 0);
+      world.camera.lookAt(entrance);
+      world.controls.target.copy(entrance);
+      world.controls.minDistance = 1.5;
+      world.controls.maxDistance = 18;
+      world.controls.maxPolarAngle = Math.PI / 2 - 0.04;
+      const fullyOpen = 2;
+      const updateDoors = (settings = ui) => {
+        if (settings.mode === 'manual') return sample(settings.openness);
+        const distance = world.camera.position.distanceTo(entrance);
+        sample((settings.openingDistance - distance) / (settings.openingDistance - fullyOpen));
+      };
+      const ui = controls(
+        {
+          mode: ['proximity', 'manual'],
+          openingDistance: [3, 10, 6, 0.5],
+          openness: [0, 1, 0, 0.05],
+        },
+        updateDoors,
+        world,
+      );
+      // Before the draw, after the orbit moved the camera: the doors never lag a frame.
+      world.beforeFrame(() => updateDoors());
+      world.invalidate();
+      addEventListener('pagehide', () => world.dispose());
+    </script>
+  </body>
+</html>

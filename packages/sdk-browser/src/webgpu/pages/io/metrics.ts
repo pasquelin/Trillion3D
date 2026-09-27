@@ -6,6 +6,7 @@ import { directLightTimings } from '../../../stage/mapping.ts';
 import { taaSampledRank } from '../../../taa/frame.ts';
 import { gpuDeviceLedgerOf } from '../../../gpu/core/deviceLedger.ts';
 import { markWebgpuLost } from './lost.ts';
+import { shadowPoolHeld } from '../../shadow/poolSize.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 
 /**
@@ -97,10 +98,13 @@ export function metricsOf(rt: WebgpuPagesRuntime) {
     shadowsUpdated: lights.shadowsUpdated,
     shadowFacesDrawn: lights.shadowFaces,
     shadowDrawCalls: lights.shadowDrawCalls,
+    shadowRenderPasses: lights.shadowRenderPasses,
     shadowLightCuts: lights.lightRuns,
     shadowPagesRequested: lights.plan.requests.counts.requested,
     shadowPagesCached: lights.plan.counts.cachedPages,
     shadowPoolPages: lights.plan.counts.poolPages,
+    shadowPoolBytes: lights.shadows?.texture ? shadowPoolHeld(lights) : null,
+    shadowPoolLayers: lights.shadows?.texture ? lights.plan.pool.layers : null,
     shadowPagesRefetched: lights.plan.pool.refetched,
     shadowCastersKept: lights.cull?.counts.counts()?.kept ?? null,
     shadowCastersHidden: lights.occlusion?.counts.counts()?.kept ?? null,
@@ -131,7 +135,6 @@ export function disposeWebgpuPages(rt: WebgpuPagesRuntime) {
   blendState.compaction = undefined;
   blendState.table = undefined;
   blendState.blendGpu.length = 0;
-  blendState.pagedBlendGpu.clear();
   blendState.cpuSelectedPlacements.clear();
   blendState.dirtySpans.clear();
   pagedBlendCopies.clear();
@@ -168,6 +171,7 @@ export function disposeWebgpuPages(rt: WebgpuPagesRuntime) {
   rt.sunFar.gpu?.dispose();
   rt.sunFar.gpu = undefined;
   rt.lights.cull?.dispose();
+  rt.lights.pageQuads = undefined;
   rt.lights.cpuCasters?.source.destroy();
   rt.lights.cpuCasters?.indirect.destroy();
   rt.lights.cpuCasters = undefined;

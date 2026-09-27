@@ -6,7 +6,7 @@ import { POISSON_16 } from './shadowWgsl.ts';
 import { clampNumber as clamp } from '../../../../sdk-core/src/world/math/spherical.ts';
 import { compare, litOf, pcf, type Stored } from './shadowBias.fixture.ts';
 
-type Pair = [number, number];
+export type Pair = [number, number];
 
 /** `shadowPcf`'s split of a tap along a page seam: what `pagedPcf` restates. */
 export const SPLIT = [
@@ -16,9 +16,9 @@ export const SPLIT = [
   '  let n=select(min(at,seam-0.5),max(at,seam+0.5),up);',
   '  let w=saturate(0.5+(seam-at)*toward);',
   '  var sum=w.x*w.y*shadowCompare(offset,h,reference);',
-  '  if(edge.x){sum+=(1.0-w.x)*w.y*shadowCompare(nx.xy,vec2f(select(h.x,n.x,nx.z>0.0),h.y),reference);}',
-  '  if(edge.y){sum+=w.x*(1.0-w.y)*shadowCompare(ny.xy,vec2f(h.x,select(h.y,n.y,ny.z>0.0)),reference);}',
-  '  if(all(edge)){sum+=(1.0-w.x)*(1.0-w.y)*shadowCompare(nd.xy,select(h,n,nd.z>0.0),reference);}',
+  '  if(edge.x){sum+=(1.0-w.x)*w.y*shadowCompare(nx.xyz,vec2f(select(h.x,n.x,nx.w>0.0),h.y),reference);}',
+  '  if(edge.y){sum+=w.x*(1.0-w.y)*shadowCompare(ny.xyz,vec2f(h.x,select(h.y,n.y,ny.w>0.0)),reference);}',
+  '  if(all(edge)){sum+=(1.0-w.x)*(1.0-w.y)*shadowCompare(nd.xyz,select(h,n,nd.w>0.0),reference);}',
 ];
 
 /**
@@ -64,4 +64,13 @@ export function pagedPcf(
     lit += sum;
   }
   return litOf(lit);
+}
+
+/** `shadowThrough` on one axis at page-local texel `local`, in single precision as the GPU runs it:
+ *  the transmittance layer's texel from the page's half-resolution origin, and its weight. */
+export function throughAxis(local: number): Pair {
+  const h = Math.fround(
+    Math.min(Math.max(Math.fround(0.5 * local), 0.5), SHADOW_PAGE / 2 - 0.5) - 0.5,
+  );
+  return [Math.floor(h), Math.fround(h - Math.floor(h))];
 }

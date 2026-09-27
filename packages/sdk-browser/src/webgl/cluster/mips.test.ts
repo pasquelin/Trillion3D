@@ -109,7 +109,7 @@ test('a still scene files each surface once across frames, a hidden opaque one i
   const geometry = G.boxGeometry();
   const hidden = G.mesh(geometry, G.standardSurface({ map }));
   hidden.visible = false;
-  const scene = new G.GraphScene();
+  const scene = new G.Scene();
   scene.add(G.mesh(geometry, G.standardSurface({ map, alphaTest: 0.5 })), hidden);
   const gl = context();
   const draw = createSceneDraw(gl.gl, scene);
@@ -127,7 +127,7 @@ test('a still scene files each surface once across frames, a hidden opaque one i
 // WebGPU: uploaded as the bytes it holds, with the chain its filter reads (none: incomplete, black).
 test('a world texel map is uploaded as stored, with its box chain', () => {
   const pixels = new Uint8Array(4 * 4 * 4).fill(128);
-  const scene = new G.GraphScene();
+  const scene = new G.Scene();
   const surface = material.meshStandard({ normalMap: texture.data(pixels, 4, 4) });
   scene.add(G.mesh(G.boxGeometry(), hostSurface(surface, false, new Map())));
   const gl = context();
@@ -141,8 +141,8 @@ test('a world texel map is uploaded as stored, with its box chain', () => {
 });
 
 // #769: where float targets blend, a masked chain counts each level — level 0 first — as points,
-// picks its `t` into the scratch's row under the level it holds, then reduces it, and gives the
-// blend function back; a new cutoff reduces it again. Elsewhere it keeps the median alone.
+// four a texel (#43), picks its `t` into the scratch's row under the level it holds, then reduces
+// it, and gives the blend function back; a new cutoff reduces it again. Elsewhere it keeps the median alone.
 test('a masked chain is counted at its cutoff where float targets blend, else keeps the median', () => {
   for (const extension of [{}, null]) {
     const gl = context({ getExtension: () => extension });
@@ -155,13 +155,16 @@ test('a masked chain is counted at its cutoff where float targets blend, else ke
       .of('uniform1ui')
       .flatMap(([at, value]) => ((at as Named).uniform === 'cutoff' ? [value] : []));
     const draws = gl.of('drawArrays').map(([mode]) => mode);
+    const points = gl.of('drawArrays').flatMap(([mode, , n]) => (mode === 'POINTS' ? [n] : []));
     if (!extension) {
       assert.deepEqual([cutoffs, draws], [[0, 0], Array(4).fill('TRIANGLES')], 'the median alone');
       continue;
     }
     const level = ['POINTS', 'TRIANGLES', 'TRIANGLES'];
     assert.deepEqual(draws, [...['POINTS', ...level, ...level], ...['POINTS', ...level, ...level]]);
-    assert.deepEqual(cutoffs, [128, 128, 128, 64, 64, 64], 'the reduction and each pick');
+    const each = (cutoff: number) => Array<number>(5).fill(cutoff); // reduction, counts, picks
+    assert.deepEqual(cutoffs, [...each(128), ...each(64)]);
+    assert.deepEqual(points, [64, 16, 4, 64, 16, 4], 'four samples a texel, levels 0 to 2 of 4²');
     // Each pick on the row under the level the scratch holds (4, then 2), then level 2's 1 × 1.
     const picks = [
       [0, 4, 1, 1],

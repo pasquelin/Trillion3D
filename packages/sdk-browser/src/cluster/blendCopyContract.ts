@@ -37,6 +37,7 @@ export type BlendCopy = {
   hidden?: boolean;
   readonly frustumCulled: boolean;
   renderOrder: number;
-  /** Set by the engine itself: the source mesh the copy stands for, and whether it is paged. */
-  readonly userData: { pagedBlend?: boolean; sourceMesh?: HostMesh };
+  /** Set by the engine itself: the source mesh the copy stands for, whether it is paged, and
+   *  whether its pages carry quantized geometry it reads in place. */
+  readonly userData: { pagedBlend?: boolean; pageGeometry?: boolean; sourceMesh?: HostMesh };
 };

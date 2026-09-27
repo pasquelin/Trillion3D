@@ -172,7 +172,7 @@ test('Into the effect chain, a surface covers its pixel as the display path show
       code: 'CLUSTER_MATERIAL_UNSUPPORTED',
       details: { reason: `the WebGL2 effect chain cannot draw ${mode} blending` },
     });
-    assert.equal(flagOf(transparent(blending), 'covering'), undefined, 'drawn without a chain');
+    assert.equal(flagOf(transparent(blending), 'covering'), 0, 'drawn blended without a chain');
   }
   // A mode no path draws is refused here as by the display path, never drawn uncovered.
   assert.throws(() => flagOf(transparent(99), 'covering', true), /a surface declares a blending/);
@@ -191,5 +191,7 @@ test('A masked surface is cut at its opacity times its map alpha, as WebGPU cuts
     return alpha;
   };
   assert.equal(baseAlpha(G.standardSurface({ opacity: 0.4, alphaTest: 0.5 })), 0.4);
+  // Cut at that alpha, it still writes 1 as an opaque surface (#840: canvas alphas 128 and 191).
+  assert.equal(flagOf(G.standardSurface({ opacity: 0.4, alphaTest: 0.5 }), 'covering'), 1);
   assert.equal(baseAlpha(G.standardSurface({ opacity: 0.4 })), 1, 'opaque: its alpha is not read');
 });

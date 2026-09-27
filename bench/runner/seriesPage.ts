@@ -48,6 +48,7 @@ export function measurePayload(
     instances: settings.instances,
     width: settings.width,
     height: settings.height,
+    pixelRatio: settings.dpr,
     stageProfile: settings.stageProfile,
     // This side's diagnostic variant: it is what makes two sides two variants.
     variant: side.variant ?? null,

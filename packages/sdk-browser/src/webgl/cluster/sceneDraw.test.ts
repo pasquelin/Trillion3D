@@ -3,9 +3,10 @@ import assert from 'node:assert/strict';
 import { createSceneDraw } from './sceneDraw.ts';
 import { createTestContext } from '../core/testContext.fixture.ts';
 import { createHostDrawCamera, type HostCamera } from '../../camera/world.ts';
-import { GraphScene } from '../../host/graph/scene.ts';
-import { GraphInstancedMesh, GraphMesh } from '../../host/graph/mesh.ts';
-import { GraphCamera } from '../../host/graph/camera.ts';
+import { Scene } from '../../world/core/scene.ts';
+import { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts';
+import { InstancedMesh } from '../../../../sdk-core/src/world/object/instancedMesh.ts';
+import { Camera } from '../../../../sdk-core/src/world/camera/camera.ts';
 import { readHostDrawCamera } from '../../camera/world.ts';
 import { BufferAttribute } from '../../../../sdk-core/src/world/buffer/attribute.ts';
 import { GraphSurface } from '../../host/graph/surface.ts';
@@ -19,13 +20,13 @@ function mesh(corners: number, renderOrder: number, surface = new GraphSurface('
   const geometry = new Geometry().setIndex(new BufferAttribute(new Uint32Array(corners), 1));
   geometry.setAttribute('position', new BufferAttribute(new Float32Array(9), 3));
   geometry.setAttribute('normal', new BufferAttribute(new Float32Array(9), 3));
-  const made = new GraphMesh(geometry, surface);
+  const made = new Mesh(geometry, surface);
   made.renderOrder = renderOrder;
   made.frustumCulled = false;
   return made;
 }
 
-function drawn(scene: GraphScene) {
+function drawn(scene: Scene) {
   const context = createTestContext();
   const draw = createSceneDraw(context.gl, scene);
   assert.equal(draw.counters(), null, 'no count before the first frame');
@@ -39,7 +40,7 @@ function drawn(scene: GraphScene) {
 }
 
 test('the opaque meshes draw by order, the see-through ones after, a hidden one never', () => {
-  const scene = new GraphScene();
+  const scene = new Scene();
   const glass = mesh(9, 0, new GraphSurface('standard', { transparent: true, opacity: 0.5 }));
   const hidden = mesh(12, 0);
   hidden.visible = false;
@@ -54,9 +55,9 @@ test('the opaque meshes draw by order, the see-through ones after, a hidden one 
 });
 
 test('an instanced mesh is one submission of every placement it counts', () => {
-  const scene = new GraphScene();
+  const scene = new Scene();
   const source = mesh(6, 0);
-  const placed = new GraphInstancedMesh(source.geometry, source.material as GraphSurface, 4);
+  const placed = new InstancedMesh(source.geometry, source.material as GraphSurface, 4);
   placed.count = 3;
   scene.add(placed);
   const { context, draw } = drawn(scene);
@@ -70,7 +71,7 @@ test('an instanced mesh is one submission of every placement it counts', () => {
 });
 
 test('without a context the draw is refused by name', () => {
-  const draw = createSceneDraw(undefined, new GraphScene());
+  const draw = createSceneDraw(undefined, new Scene());
   draw.render({} as HostCamera);
   assert.throws(
     () => draw.host.drawHostGeometry(createHostDrawCamera(), OUTPUT),
@@ -93,7 +94,7 @@ test('a mesh under a translated and rotated group draws where the reference draw
     node.position.set(p[0], p[1], p[2]);
     node.rotation.set(r[0], r[1], r[2]);
   };
-  const scene = new GraphScene(),
+  const scene = new Scene(),
     group = new Group(),
     child = mesh(3, 0),
     witness = new three.Group(),
@@ -108,7 +109,7 @@ test('a mesh under a translated and rotated group draws where the reference draw
   witness.updateMatrixWorld();
   const context = createTestContext(),
     draw = createSceneDraw(context.gl, scene),
-    camera = new GraphCamera({ fov: 60, aspect: 1, near: 0.1, far: 100 });
+    camera = new Camera('perspective', { fov: 60, aspect: 1, near: 0.1, far: 100 });
   draw.render({} as HostCamera);
   draw.host.drawHostGeometry(readHostDrawCamera(createHostDrawCamera(), camera), OUTPUT);
   const uploaded = context
@@ -130,7 +131,7 @@ test('a transmissive copy draws over the backdrop the opaque meshes were drawn i
     },
   });
   const glass = mesh(9, 0, new GraphSurface('physical', { transmission: 1, roughness: 0 }));
-  const scene = new GraphScene();
+  const scene = new Scene();
   scene.add(mesh(6, 0), glass);
   const draw = createSceneDraw(context.gl, scene, [glass]);
   draw.render({} as HostCamera);
@@ -164,12 +165,12 @@ test('a transmissive copy draws over the backdrop the opaque meshes were drawn i
 // a dashed line's dash and gap reach the fragment stage, which discards its gaps.
 test('a line surface draws with its CSS width, the host pixel ratio and its dash', () => {
   const context = createTestContext(),
-    scene = new GraphScene(),
+    scene = new Scene(),
     lines = new GraphSurface('basic', { side: 2 });
   Object.assign(lines, { lineWidth: 3, dashSize: 0.25, gapSize: 0.5 });
   scene.add(mesh(6, 0, lines));
   let ratio = 2;
-  const draw = createSceneDraw(context.gl, scene, [], () => ratio);
+  const draw = createSceneDraw(context.gl, scene, [], { pixelRatio: () => ratio });
   const uniform = (name: string) =>
     context
       .of('uniform1f')

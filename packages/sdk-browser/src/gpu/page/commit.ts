@@ -10,6 +10,7 @@ export function evictResident(
   const { resident, pins, changeKeys, changeSlots, state } = context;
   resident.delete(page.key);
   pins.delete(page.key);
+  context.eviction.lower.delete(page.key);
   changeKeys.push(page.key);
   changeSlots.push(-1);
   state.evictions++;
@@ -22,6 +23,32 @@ export function evictResident(
     reason,
     drawDetached: false,
   }));
+}
+
+/** The order's next resident, unpinned page, each entry passed once: one pinned when passed waits
+ *  in `held` for its unpin; one a lower tier touched since the last order (`touch`) goes in `late`,
+ *  taken after every other (#483 rules 1 and 7). */
+function orderedVictim({ eviction, resident, pins }: GpuPageContext) {
+  const { order, epoch, lower, held, late } = eviction;
+  const free = (key: string) => (pins.has(key) ? undefined : resident.get(key));
+  while (eviction.at < order!.count) {
+    const key = order!.keyAt(eviction.at++);
+    if (!resident.has(key)) continue;
+    if ((lower.get(key) ?? -2) >= epoch - 1) late.push(key);
+    else if (pins.has(key)) held.push(key);
+    else return resident.get(key);
+  }
+  let page: ResidentPage | undefined;
+  for (let i = 0; i < held.length && !page; i++) page = free(held[i]);
+  while (!page && eviction.lateAt < late.length) page = free(late[eviction.lateAt++]);
+  return page;
+}
+
+/** The least recently loaded or touched unpinned page; everything pinned is stated in O(1). */
+function leastRecentVictim({ resident, pins }: GpuPageContext) {
+  if (pins.size < resident.size)
+    for (const page of resident.values()) if (!pins.has(page.key)) return page;
+  return undefined;
 }
 
 /** Reserves a slot, evicts only an unpinned page, and uploads one complete fixed-size GPU slot. */
@@ -37,21 +64,13 @@ export function commitGpuPage(
   state.bytesRead += bytes.byteLength;
   let slot = free.pop();
   if (slot === undefined) {
-    let victim: ResidentPage | undefined;
-    // Everything is pinned: stated in O(1), without walking residency — this is a pool full
-    // for the view, repeating every burst until the cut has grown.
-    if (pins.size < resident.size)
-      for (const page of resident.values()) {
-        if (!pins.has(page.key)) {
-          victim = page;
-          break;
-        }
-      }
+    const ordered = !!context.eviction.order;
+    const victim = ordered ? orderedVictim(context) : leastRecentVictim(context);
     if (!victim) {
       emit('gpu-page-admission-blocked', 'No evictable GPU slot', () => ({
         version: 1,
         key,
-        reason: 'all-pages-pinned',
+        reason: ordered ? 'eviction-queue-spent' : 'all-pages-pinned',
         resident: resident.size,
         slots,
         pinned: pins.size,

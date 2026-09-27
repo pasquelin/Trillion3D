@@ -17,25 +17,26 @@ import type { Examples as ExamplesComponent } from '../site/app/examples/Example
 import type { PortalRoute } from '../site/app/portal/routes.ts';
 import {
   exampleMissing,
+  examplePlaceholder,
   exampleTitle,
-  isReady,
   readyEntries as ready,
   roadmapEntries,
+  themedEntries,
+  thumbnailOf,
 } from '../site/app/examples/list.ts';
 import { loadDictionary } from '../site/content/i18n/dictionary.ts';
 import roadmap from '../site/content/gallery-roadmap.json' with { type: 'json' };
-
 const site = new URL('../site/', import.meta.url);
 const written = roadmapEntries.filter(({ file }) => file);
+const parked = written.filter(({ status }) => status === 'waiting-engine');
+const captured = new Set(
+  await readdir(new URL('../site/assets/examples/thumbnails/', import.meta.url)),
+);
 await loadDictionary('fr');
 
 test('no Markdown page links an example parked until the engine draws it', () => {
-  const parked = new Set(
-    written
-      .filter(({ status }) => status === 'waiting-engine')
-      .map(({ file }) => fileURLToPath(new URL(file, site))),
-  );
-  const links = markdownLinks().local.filter(({ dest }) => parked.has(dest));
+  const parkedFiles = new Set(parked.map(({ file }) => fileURLToPath(new URL(file, site))));
+  const links = markdownLinks().local.filter(({ dest }) => parkedFiles.has(dest));
   assert.deepEqual(
     links.map(({ file, target }) => `${file}: ${target}`),
     [],
@@ -61,16 +62,17 @@ test('every example is one standalone HTML file that imports the built engine', 
     assert.equal(issue !== undefined, status === 'waiting-engine', id);
   }
   assert.ok(ready.length >= 10);
-  // A written example follows the same rules whether the engine draws it yet or not.
   for (const entry of written) {
     assert.equal(entry.file, `examples/${entry.id}.html`);
     const html = await readFile(new URL(entry.file, site), 'utf8');
     if (entry.issue) assert.match(html, new RegExp(`// Waits for #${entry.issue}: `), entry.id);
     assert.match(html, /^<!doctype html>/);
-    assert.match(html, /<canvas id="view"><\/canvas>/);
+    assert.ok(
+      /<canvas id="view"><\/canvas>/.test(html) || /world\.canvas\.id = ['"]view['"]/.test(html),
+      entry.id,
+    );
     assert.match(html, /import \{ createWorld[^}]*\} from '\.\.\/runtime\/engine\.js'/);
     assert.doesNotMatch(html, /setDiagnostic|localhost|127\.0\.0\.1/);
-    // The kit, when used, is the one served beside the engine, and the thumbnail moment is valid.
     if (/runtime\/kit\.js/.test(html))
       assert.match(html, /import \{[^}]*\} from '\.\.\/runtime\/kit\.js'/, entry.id);
     thumbnailDelay(html);
@@ -135,7 +137,6 @@ test('an example is its file, live, on the demo page; the index shows what is re
     new RegExp(`<div class="render-frame[^"]*"[^>]*><iframe src="${entry.file}\\?lang=en"`),
   );
   assert.match(page, /role="status"[^>]*>.*Preparing the scene/s);
-  // One floating button carries the actions; the source waits behind Code, in its modal.
   assert.equal((page.match(/class="fab"/g) ?? []).length, 1);
   for (const action of ['Code', 'Share', 'Controls', 'Fullscreen', 'Restart'])
     assert.match(page, new RegExp(`aria-label="${action}"`), action);
@@ -143,8 +144,15 @@ test('an example is its file, live, on the demo page; the index shows what is re
   const route: PortalRoute = { locale: 'en', area: 'examples', id: entry.id };
   const sidebar = renderToStaticMarkup(createElement(ExampleList, { groups: examplesMenu(route) }));
   for (const entry of roadmapEntries) {
-    assert.equal(sidebar.includes(`href="#/en/examples/${entry.id}"`), isReady(entry), entry.id);
-    assert.equal(sidebar.includes(`thumbnails/${entry.id}.png`), isReady(entry), entry.id);
+    const isWritten = Boolean(entry.file);
+    assert.equal(sidebar.includes(`href="#/en/examples/${entry.id}"`), isWritten, entry.id);
+    if (isWritten) {
+      const thumbnail = captured.has(`${entry.id}.png`)
+        ? `./assets/examples/thumbnails/${entry.id}.png`
+        : examplePlaceholder;
+      assert.equal(thumbnailOf(entry.id), thumbnail, entry.id);
+      assert.ok(sidebar.includes(thumbnail), entry.id);
+    }
   }
   assert.match(
     sidebar,
@@ -152,22 +160,41 @@ test('an example is its file, live, on the demo page; the index shows what is re
   );
   const filtered = examplesMenu(route, exampleTitle(entry.id, 'en')).flatMap(({ items }) => items);
   assert.equal(filtered[0].key, entry.id);
+  assert.equal(
+    examplesMenu(route, exampleTitle(parked[0].id, 'en'))[0]?.items[0]?.key,
+    parked[0].id,
+  );
   assert.deepEqual(examplesMenu(route, 'no example is called this'), []);
   const index = renderToStaticMarkup(createElement(Examples, { locale: 'en' }));
-  // The index shows every entry: a ready one as a card that opens it, one still to come as an
-  // "in progress" card that opens nothing, with the engine feature it waits for; one written and
-  // waiting for the engine opens nothing either, and links its issue.
   for (const entry of roadmapEntries) {
-    assert.ok(index.includes(`>${exampleTitle(entry.id, 'en')}</h2>`), entry.id);
-    assert.equal(index.includes(`href="#/en/examples/${entry.id}"`), isReady(entry), entry.id);
-    assert.equal(index.includes(`thumbnails/${entry.id}.png`), isReady(entry), entry.id);
+    const isWritten = Boolean(entry.file);
+    assert.equal(
+      index.includes(`>${exampleTitle(entry.id, 'en')}</span></span></a>`),
+      isWritten,
+      entry.id,
+    );
+    assert.equal(index.includes(`href="#/en/examples/${entry.id}"`), isWritten, entry.id);
+    if (isWritten) assert.ok(index.includes(thumbnailOf(entry.id)), entry.id);
     const missing = exampleMissing(entry.id, 'en');
-    if (missing) assert.ok(index.includes(`Waits for the engine: ${missing}`), entry.id);
-    if (entry.issue)
-      assert.ok(index.includes(`/issues/${entry.issue}">#${entry.issue}</a>`), entry.id);
+    if (entry.status === 'waiting-engine')
+      assert.ok(index.includes(`Partial — Waits for the engine: ${missing}`), entry.id);
+    if (!isWritten) assert.ok(index.includes(exampleTitle(entry.id, 'en')), entry.id);
+  }
+  assert.equal(thumbnailOf('no-such-example'), examplePlaceholder);
+  for (const { ready: complete, parked: partial, coming } of themedEntries) {
+    const positions = [...complete, ...partial].map(({ id }) =>
+      index.indexOf(`>${exampleTitle(id, 'en')}</span></span></a>`),
+    );
+    assert.deepEqual(
+      positions,
+      [...positions].sort((a, b) => a - b),
+    );
+    for (const { id } of coming) {
+      const tile = index.indexOf(`title="${exampleTitle(id, 'en')} — Coming"`);
+      assert.ok(tile > Math.max(-1, ...positions), id);
+    }
   }
   const count = (pattern: RegExp) => (index.match(pattern) ?? []).length;
-  assert.equal(count(/aria-disabled="true"/g), roadmapEntries.length - ready.length);
-  assert.equal(count(/>In progress</g), roadmapEntries.length - written.length);
-  assert.equal(count(/>Waiting for the engine</g), written.length - ready.length);
+  assert.equal(count(/aria-disabled="true"/g), 0);
+  assert.equal(count(/>Partial —/g), parked.length);
 });

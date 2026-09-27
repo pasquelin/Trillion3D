@@ -2,11 +2,7 @@ import type { HostMesh } from '../../host/resources.ts';
 import type { PageSurface } from '../../page/surface.ts';
 import type { MatrixElements } from '../../math/matrixElements.ts';
 import type { PlacementOf } from '../../placement/rows.ts';
-import {
-  FRUSTUM_PLANE_VALUES,
-  type DiagnosticMode,
-  type Texture,
-} from '../../../../sdk-core/src/index.ts';
+import { FRUSTUM_PLANE_VALUES, type DiagnosticMode } from '../../../../sdk-core/src/index.ts';
 import { createWebgpuBindIdentity } from '../core/bindIdentity.ts';
 import type { BlendLighting } from '../core/bindEntries.ts';
 import type { BlendOverdraw } from './overdraw.ts';
@@ -22,7 +18,8 @@ import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.
 export type BlendGpuItem = {
   /** The material transmits: the item is drawn in the transmission pass, not in the blend. */
   transmissive?: boolean;
-  position: GPUBuffer;
+  /** Own positions; absent for a paged item that reads its quantized pages. */
+  position?: GPUBuffer;
   /** Own index buffer of an unpaged primitive; a paged one reads the page cache instead. */
   index?: GPUBuffer;
   uv?: GPUBuffer;
@@ -43,8 +40,6 @@ export type BlendGpuItem = {
    *  Absent, the item never has a box; present, `bounds` points at it or is `undefined` because
    *  the bounds obtained were not usable (`worlds.ts`). */
   worldBox?: Float64Array;
-  rgba: [number, number, number, number];
-  map?: Texture;
   /** Material flags (`../../visibility/types.ts`) in the low sixteen bits; above them the one-based water
    *  rank of a transmissive item, zero for a blend (`../water/surfaceWgsl.ts`). */
   flags: number;
@@ -69,12 +64,9 @@ export function createWebgpuBlendState() {
   /** Words of the view uniform, allocated once. */
   const view = new Float32Array(BLEND_VIEW_SIZE / 4);
   const blendGpu: BlendGpuItem[] = [];
-  /** Paged items by the world their clusters read: one per placement of a transparent mesh. */
-  const pagedBlendGpu = new Map<MatrixElements, BlendGpuItem>();
   const visibleBlend: BlendGpuItem[] = [];
   const state = {
     blendGpu,
-    pagedBlendGpu,
     visibleBlend,
     /** Normalised frustum planes of the frame, against which an item is rejected. */
     blendPlanes: new Float64Array(FRUSTUM_PLANE_VALUES),
@@ -156,7 +148,10 @@ export function createWebgpuBlendState() {
     orders: [new Uint32Array(0), new Uint32Array(0)] as Uint32Array<ArrayBuffer>[],
     /** Runs of each order, rebuilt — and rewritten to the GPU — when it has moved. */
     runs: [new Uint32Array(0), new Uint32Array(0)] as Uint32Array<ArrayBuffer>[],
+    /** Runs of each order still valid; `plan.ts` zeroes it with a new plan or runs buffer. */
     runCount: [0, 0],
+    /** Each item's sort key by source rank, rewritten every ranking (`order.ts`). */
+    orderKeys: new Float64Array(0),
     /** Has the order moved since the last write? A still pose writes nothing. */
     orderMoved: [true, true],
     /** Inputs of the last ranking: equal ones keep its order, mask and runs (`footprint.ts`). */
