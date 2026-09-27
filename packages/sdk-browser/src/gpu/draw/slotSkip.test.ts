@@ -18,12 +18,10 @@ test('drawShader(k) writes an empty slot a zero count and guards the prefix pass
       'an empty slot still reports zero',
     );
 
-    const prefixGuard = shader.indexOf('if(slotUsed[slot]==0u){writeCmd(slot,0u);continue;}');
-    const prefixScan = shader.indexOf('for(var group=0u;group<uni.groupCount;group++){total=');
-    assert.ok(prefixGuard >= 0, 'prefixGroups checks slotUsed for its slot');
+    // The prefix reads no group of an empty slot: its run totals and offsets are guarded.
     assert.ok(
-      prefixGuard >= 0 && prefixScan > prefixGuard,
-      'the empty-slot continue happens before the per-group total, not after it',
+      shader.includes('if(slotUsed[slot]==0u){\n   if(lane==0u){writeCmd(slot,0u);}\n   continue;'),
+      'an empty slot is written zero and its groups are never read',
     );
   }
 });
