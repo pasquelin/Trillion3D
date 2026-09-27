@@ -5,7 +5,8 @@ import {
 import { Color } from '../../../../sdk-core/src/world/math/color.ts';
 import type { Texture } from '../../../../sdk-core/src/world/texture/texture.ts';
 import { composesWithBackground } from '../../scene/materialBlending.ts';
-import { alphaModeOf, type AlphaMode } from '../../../../sdk-core/src/contracts/material.ts';
+import { alphaModeOf } from '../../../../sdk-core/src/contracts/material.ts';
+import type { AlphaChange } from '../../placement/backendSceneUpdates.ts';
 
 /** The parameters a session lays out when it opens, and so the only ones never written in place:
  *  `kind` its family, `transparent`, `blending` and `transmission` its pass, `side`, `depthTest`
@@ -73,7 +74,7 @@ const opaque = (material: Material) =>
 export type MaterialEntry = { readonly id: number; key: string; readonly material: Material };
 
 /** How an entry was repainted: its values written or its pictures alone, its alpha moved. */
-type Repaint = { values: boolean; alpha?: { from: AlphaMode; to: AlphaMode } };
+type Repaint = { values: boolean; alpha?: Omit<AlphaChange, 'surfaces'> };
 
 /**
  * The material table of a world. Materials of identical parameters are one entry, however many
