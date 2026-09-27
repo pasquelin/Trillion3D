@@ -68,6 +68,7 @@ test('an instance changed or removed leaves the model and the other instances as
     coverMeshes: () => 0,
     sceneChanged: () => {},
     coverChanged: () => {},
+    reassignBlend: () => false,
   });
   const before = state.allocationBytes;
   instances.addInstance('a', new G.Matrix4().elements.slice());
@@ -125,6 +126,7 @@ test('an instance of a world with 300,000 roots and bootstrap pages is added who
     coverMeshes: () => 0,
     sceneChanged: () => {},
     coverChanged: () => {},
+    reassignBlend: () => false,
   });
   instances.addInstance('a', new G.Matrix4().elements.slice());
   assert.equal(roots.length, count);
