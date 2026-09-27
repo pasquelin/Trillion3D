@@ -475,6 +475,10 @@
       "balloon": "MELACAK BALON"
     }
   },
+  "a-crane-that-swings": {
+    "banner": "Putari derek saat satu klip memutar lengan, menggerakkan troli, mengangkat muatan, dan mengayunkannya.",
+    "controls": { "speed": "Kecepatan", "paused": "Dijeda", "replay": "Putar ulang" }
+  },
   "a-wave-across-a-grid": {
     "banner": "Geser untuk melihat sekeliling. Buat gelombang kubus lebih tinggi atau lebih cepat.",
     "controls": {

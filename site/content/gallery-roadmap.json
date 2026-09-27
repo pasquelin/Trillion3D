@@ -735,6 +735,11 @@
       "file": "examples/a-robot-that-walks-and-waves.html"
     },
     {
+      "id": "a-crane-that-swings",
+      "theme": "animation",
+      "file": "examples/a-crane-that-swings.html"
+    },
+    {
       "id": "a-wave-across-a-grid",
       "theme": "animation",
       "file": "examples/a-wave-across-a-grid.html"
