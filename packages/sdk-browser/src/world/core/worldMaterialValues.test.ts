@@ -100,6 +100,7 @@ test('a clearcoat changed for 60 frames never opens the session again', async ()
   runtime.render();
   runtime.dispose();
   assert.equal(opened, 1, 'one session for every value');
-  assert.equal(refreshed.length, 62, 'refreshed once a frame, once more for the cutout');
+  assert.equal(refreshed.length, 61, 'refreshed once a frame, the cutout with its values');
+  assert.deepEqual(refreshed.at(-1)![0], true);
   assert.deepEqual(refreshed.at(-1)![1]!.to, 'mask');
 });
