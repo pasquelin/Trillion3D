@@ -82,10 +82,8 @@ ${TRIANGLE_PALETTE_WGSL}
 // that is not paged. The list plan expansion wrote says, for each, the item that carries it and
 // what it draws (expandWgsl.ts).
 //
-// Both read their geometry through the page functions every page-geometry pass shares
-// (\`pageGeometryWgsl.ts\`): a paged cluster decodes its quantized page in place, its slot in the
-// page cache named by its span; an unpaged piece reads its own index and vertex buffers, at the
-// index word its instance names, as a page with no quantized geometry does.
+// Both read through the shared page functions (\`pageGeometryWgsl.ts\`): a paged cluster decodes
+// its page at its span; an unpaged piece reads its own buffers, as a float page does.
 //
 // The rank of the first instance of the call is read in the high bits of the vertex index, and
 // the local rank of the vertex in the low: the indirect argument of a slice starts at vertex
@@ -107,9 +105,7 @@ ${FACING_WGSL}
  out.pbr=vec4f(it.roughness,it.metalness,it.normalScale);
  out.emissive=vec4f(it.emissive.xyz,0.0);
  var page:PageInfo;
- page.flags=flags;
- page.vertexBase=it.vertexBase;
- page.pageOffset=slot.y;
+ page.flags=flags;page.vertexBase=it.vertexBase;page.pageOffset=slot.y;
  var count=it.indexCount-slot.y;
  var clusterId=0u;
  if((flags&${FLAG_PAGED}u)!=0u){
