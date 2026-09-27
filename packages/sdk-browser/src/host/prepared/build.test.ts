@@ -20,7 +20,7 @@ import { assertSceneTables } from '../../../../sdk-core/src/scene/core/tableCont
 import { buildPreparedScene } from './build.ts';
 import { threeGraph } from '../../../../../bench/witnesses/three/fromGraphNodes.ts';
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
-import { isDrawnNode } from '../graph/kinds.ts';
+import { loadHostVertices, meshes as drawnMeshes } from '../../scene/meshes.ts';
 import { caches, describe, describeShape, serveFiles, type Ranks } from './scenes.fixture.ts';
 
 async function witness(folder: URL, document: string, text?: string) {
@@ -53,11 +53,7 @@ async function prepared(folder: URL, document: string, written?: unknown) {
   const ranks: Ranks = (object) =>
     textures.has(object) ? { textures: textures.get(object) } : meshes.get(object);
   const source = built.source as unknown as Object3D;
-  const loads: Promise<unknown>[] = [];
-  source.traverse((node) => {
-    if (isDrawnNode(node)) loads.push(node.geometry.loadVertices());
-  });
-  await Promise.all(loads);
+  await loadHostVertices(drawnMeshes(source));
   return {
     shape: describeShape(source, ranks),
     whole: describe(threeGraph(source), () => undefined),

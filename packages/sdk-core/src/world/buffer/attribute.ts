@@ -112,7 +112,7 @@ export class InterleavedBuffer {
   version = 0;
   /** The numbers, `null` while a loaded mesh's are still to be read (`pendingInterleaved`). */
   _numbers: BufferTypedArray | null;
-  _pending: { readonly length: number; read(): Promise<BufferTypedArray> } | null = null;
+  _pending: BufferAttribute['_pending'] = null;
   /** How many numbers each vertex takes. */
   readonly stride: number;
   constructor(array: BufferTypedArray, stride: number) {
