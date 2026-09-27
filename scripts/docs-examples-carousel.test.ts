@@ -48,7 +48,6 @@ test('carousel animates eight phased horses and its controls pause and reverse t
       object,
     },
     kit: {
-      announceWhatToDo() {},
       controls: (specs: Record<string, ControlSpec>, callback: (next: Values) => void) => {
         values = describe(specs).values as Values;
         change = callback;
@@ -60,37 +59,39 @@ test('carousel animates eight phased horses and its controls pause and reverse t
 
   const carousel = scene.getObjectByName('carousel');
   assert.ok(carousel);
-  const horses = Array.from({ length: 8 }, (_, index) => carousel.getObjectByName(`horse${index}`));
-  assert.ok(
-    horses.every((horse) => horse && horse.parent === carousel && horse.children.length === 11),
-  );
+  const horses = Array.from({ length: 8 }, (_, index) => {
+    const horse = carousel.getObjectByName(`horse${index}`);
+    assert.ok(horse && horse.parent === carousel && horse.children.length === 11);
+    return horse;
+  });
+  const snapshot = () => [carousel.rotation.y, ...horses.map((horse) => horse.position.y)];
 
   advanceMixers(scene, 0);
-  const starts = horses.map((horse) => horse?.position.y);
-  const low = [...starts] as number[],
-    high = [...starts] as number[];
+  const starts = horses.map((horse) => horse.position.y);
+  const low = [...starts],
+    high = [...starts];
   for (let step = 0; step < 20; step++) {
     advanceMixers(scene, 0.5);
     horses.forEach((horse, index) => {
-      low[index] = Math.min(low[index]!, horse!.position.y);
-      high[index] = Math.max(high[index]!, horse!.position.y);
+      low[index] = Math.min(low[index]!, horse.position.y);
+      high[index] = Math.max(high[index]!, horse.position.y);
     });
   }
   horses.forEach((horse, index) => {
-    const drift = Math.abs(horse!.position.y - starts[index]!);
-    assert.ok(drift < 1e-6, `${horse!.name} cycle drift ${drift}`);
-    assert.ok(high[index]! - low[index]! > 0.5, `${horse!.name} moves visibly`);
+    const drift = Math.abs(horse.position.y - starts[index]!);
+    assert.ok(drift < 1e-6, `${horse.name} cycle drift ${drift}`);
+    assert.ok(high[index]! - low[index]! > 0.5, `${horse.name} moves visibly`);
   });
   assert.ok(Math.abs(carousel.rotation.y) < 1e-6);
   const startTurn = carousel.rotation.y;
   advanceMixers(scene, 0.5);
-  assert.ok(carousel.rotation.y > startTurn);
+  assert.ok(carousel.rotation.y < startTurn, 'clockwise seen from above');
 
   values.running = false;
   change(values);
-  const paused = [carousel.rotation.y, ...horses.map((horse) => horse?.position.y)];
+  const paused = snapshot();
   advanceMixers(scene, 0.5);
-  assert.deepEqual([carousel.rotation.y, ...horses.map((horse) => horse?.position.y)], paused);
+  assert.deepEqual(snapshot(), paused);
 
   values.speed = 1.6;
   values.direction = 'counterclockwise';
@@ -100,7 +101,7 @@ test('carousel animates eight phased horses and its controls pause and reverse t
   values.running = true;
   change(values);
   advanceMixers(scene, 0.25);
-  assert.ok(carousel.rotation.y < paused[0]!);
+  assert.ok(carousel.rotation.y > paused[0]!, 'counterclockwise seen from above');
 
   values.running = false;
   change(values);
