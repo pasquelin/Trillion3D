@@ -35,7 +35,12 @@ function pile(jolt: Module, steps: number) {
   }
   const settings = softSettings({ type: 'cloth', pins: [0, 10, 110, 120] });
   const record = softBodyOf(plane(3, 3, 10, 10), { x: 1, y: 1, z: 1 }, settings);
-  const place = { id: 50 | GENERATION, position: [0, 0.8, 0], quaternion: FLAT, scale: [1, 1, 1] };
+  const place = {
+    id: 50 | GENERATION,
+    position: [0, 0.8, 0],
+    quaternion: FLAT,
+    scale: [1, 1, 1] as const,
+  };
   const matter = { friction: 0.5, restitution: 0, gravityScale: 1, linearDamping: 0.05 };
   writeSoft(writer, { ...place, ...matter, settings, record });
   writer.flags(50, FLAG.events);
