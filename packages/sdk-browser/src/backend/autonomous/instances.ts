@@ -12,10 +12,10 @@ import { surfaceOf } from '../../page/surface.ts';
 import type { PageRec, ClusterRoot } from '../../page/selection/selection.ts';
 import type { createAutonomousGeometry } from './geometry.ts';
 import { composedPose, deplaceInstance } from './instancePose.ts';
-import { drawnInstanced } from '../../placement/autonomousPlacements.ts';
-import { blendCeilingRefusal, checkRootBudget } from './rootBudget.ts';
+import { attachedPages, drawnInstanced } from '../../placement/autonomousPlacements.ts';
+import type { HeldFloor } from './heldFloor.ts';
 import type { collectClusterPages } from '../../page/selection/collect.ts';
-import type { AlphaChange } from '../../placement/backendSceneUpdates.ts';
+import { blendMoves, type AlphaChange } from '../../placement/backendSceneUpdates.ts';
 
 type InstanceEnvironment = {
   roots: ClusterRoot<PageRec>[];
@@ -30,14 +30,14 @@ type InstanceEnvironment = {
   /** The host's page ceiling, `Infinity` when it set none: the root cover an instance grows
    *  past it is refused by name. */
   hostCeiling: number;
-  /** The display meshes the root cover hangs now (`heldFloor.ts`). */
-  coverMeshes: () => number;
+  /** The host page ceiling's one rule (`heldFloor.ts`). */
+  overCeiling: HeldFloor['overCeiling'];
   /** Notified by every entry point that writes the scene: that is where the origin is. */
   sceneChanged: () => void;
   /** Notified when an instance adds or removes the copies of its root cover. */
   coverChanged: () => void;
-  /** The open's blended-or-not assignment, run again on records (`collectClusterPages`). */
-  reassignBlend: ReturnType<typeof collectClusterPages>['reassignBlend'];
+  /** The open's blended-or-not rule for a record once a material moved (`collectClusterPages`). */
+  blendOf: ReturnType<typeof collectClusterPages>['blendOf'];
 };
 
 export function createAutonomousInstances(env: InstanceEnvironment) {
@@ -52,7 +52,8 @@ export function createAutonomousInstances(env: InstanceEnvironment) {
     baseMaterials,
     geometryStore,
     hostCeiling,
-    coverMeshes,
+    overCeiling,
+    blendOf,
     sceneChanged,
     coverChanged,
   } = env;
@@ -76,8 +77,16 @@ export function createAutonomousInstances(env: InstanceEnvironment) {
     releaseHostSurface(painted);
   };
   return {
-    /** A class change the host ceiling cannot take, refused before any write (#846). */
-    materialClassRefusal: (alpha: AlphaChange) => blendCeilingRefusal(env, alpha),
+    /**
+     * Why a material moved into or out of blended would take the cover past the host ceiling,
+     * before any write (#846): records placed by rows are one instanced mesh while opaque, one mesh
+     * a row once blended. The cover is counted as the open counts it, with the flags the move gives.
+     */
+    materialClassRefusal(alpha: AlphaChange) {
+      const instanced = (rec: PageRec) => drawnInstanced(rec, blendOf(rec, alpha));
+      if (blendMoves(alpha) && overCeiling(0, attachedPages(bootstrap, instanced)))
+        return 'AUTONOMOUS_ROOT_BUDGET: the cover would hang more meshes than the host allows';
+    },
     /** Classic instances held: each holds its own copy of every page geometry. */
     instanceCount: () => instances.size,
     disposeOwnedMaterials() {
@@ -94,7 +103,7 @@ export function createAutonomousInstances(env: InstanceEnvironment) {
         // Counted now, not at the first instance: a class change moves records between the two
         // (`../../page/selection/collect.ts`, #846); a walk of the cover an instance copies anyway.
         const ownMeshes = baseBootstrap.filter((rec) => !drawnInstanced(rec)).length;
-        checkRootBudget(coverMeshes() + ownMeshes, hostCeiling);
+        if (overCeiling(ownMeshes)) throw new Error('AUTONOMOUS_ROOT_BUDGET');
       }
       const mapped = new Map<PageRec, PageRec>();
       for (const base of basePages) {
