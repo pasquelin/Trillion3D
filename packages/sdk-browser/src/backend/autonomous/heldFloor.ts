@@ -15,14 +15,21 @@ export function createHeldFloor(env: {
   bootstrap: readonly PageRec[];
   modifiedPages: ReadonlySet<string>;
   byUrl: ReadonlyMap<string, readonly PageRec[]>;
+  /** The host's page ceiling, `Infinity` when it set none. */
+  hostCeiling?: number;
 }) {
-  const { bootstrap, modifiedPages, byUrl } = env;
+  const { bootstrap, modifiedPages, byUrl, hostCeiling = Infinity } = env;
   let revision = 0,
     placements = 0,
     read = -1,
     bytes = 0,
     meshesRead = -1,
-    meshes = 0;
+    counted = 0;
+  function meshes() {
+    if (meshesRead === revision) return counted;
+    meshesRead = revision;
+    return (counted = attachedPages(bootstrap));
+  }
   return {
     /** What the root cover holds changed; the pool reads the same revision (`coverRevision`). */
     changed() {
@@ -57,11 +64,10 @@ export function createHeldFloor(env: {
     },
     /** The display meshes the root cover hangs (`attachedPages`), read again only after
      *  `changed`: a transparent page counts once per row that places it. */
-    meshes() {
-      if (meshesRead === revision) return meshes;
-      meshesRead = revision;
-      return (meshes = attachedPages(bootstrap));
-    },
+    meshes,
+    /** The host page ceiling's one rule — at open, at an instance, at a class change: the cover's
+     *  meshes, counted anew for a move tried, and `more` an instance adds, past the ceiling. */
+    overCeiling: (more = 0, cover = meshes()) => cover + more > hostCeiling,
   };
 }
 
