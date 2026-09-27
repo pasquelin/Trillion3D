@@ -27,15 +27,15 @@ export interface WaveSpec {
 const WAVE_GRAVITY = 9.81;
 const TAU = Math.PI * 2;
 
+/** Doubles of one wave the module's planes read (`jolt_wave_buffer`, `waterPlanes.cpp`):
+ *  `direction x, z, wave number, amplitude, lateral amplitude, phase` at the step's time. */
+export const WAVE_DOUBLES = 6;
+
 /**
  * A set of Gerstner waves, clocked by `setTime`. Per wave `i`: its direction `(dx, dz)`, its wave
  * number `k`, its amplitude `A` and its lateral amplitude `Q·A`, where the steepnesses are scaled
  * so that `Σ Qᵢ·Aᵢ·kᵢ ≤ 1` (crests never loop over).
  */
-/** Doubles of one wave the module's planes read (`jolt_wave_buffer`, `waterPlanes.cpp`):
- *  `direction x, z, wave number, amplitude, lateral amplitude, phase` at the step's time. */
-export const WAVE_DOUBLES = 6;
-
 export class Waves {
   readonly count: number;
   readonly dirX: Float64Array;
