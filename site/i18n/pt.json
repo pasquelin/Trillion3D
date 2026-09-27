@@ -33,9 +33,9 @@
   "examples": {
     "lead": "Cada exemplo é um arquivo curto: veja-o rodando, abra o código, mude-o.",
     "jumpTo": "Ir para um tema",
-    "inProgress": "Em construção",
     "waitsFor": "Espera pelo motor:",
-    "waitingEngine": "Esperando o motor"
+    "partial": "Parcial",
+    "coming": "Em breve: {{titles}}"
   },
   "gallery": {
     "themes": {
@@ -153,7 +153,7 @@
       "flat-shadows-on-the-floor": "Sombras projetadas planas",
       "a-softbox-panel": "Um painel de luz suave",
       "light-from-a-probe": "Luz de uma sonda",
-      "soft-shadow-edges": "Bordas de sombra suaves",
+      "soft-shadows-from-a-wide-lamp": "Sombras suaves de uma lâmpada larga",
       "contact-shadow-under-a-car": "Sombra de contato",
       "coloured-shadows-through-glass": "Sombras através do vidro",
       "shadows-in-the-corners": "Sombras nos cantos",
@@ -373,7 +373,7 @@
       "a-stack-of-texture-layers": "texturas de dados, em array e 3D",
       "wide-gamut-colour": "saída de gama ampla",
       "energy-conservation-test": "iluminação por ambiente (IBL)",
-      "soft-shadow-edges": "filtragem de sombras suaves (penumbra)",
+      "soft-shadows-from-a-wide-lamp": "sombras suaves conforme a largura da lâmpada",
       "contact-shadow-under-a-car": "renderização em textura",
       "coloured-shadows-through-glass": "objetos transparentes que projetam sombra",
       "shadows-in-the-corners": "oclusão de ambiente em espaço de tela",

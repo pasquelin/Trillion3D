@@ -33,9 +33,9 @@
   "examples": {
     "lead": "サンプルはどれも短いファイル1つ。動かして、コードを開いて、書きかえてみよう。",
     "jumpTo": "テーマへ移動",
-    "inProgress": "作成中",
     "waitsFor": "エンジンを待っています:",
-    "waitingEngine": "エンジンを待っています"
+    "partial": "一部対応",
+    "coming": "近日公開：{{titles}}"
   },
   "gallery": {
     "themes": {
@@ -153,7 +153,7 @@
       "flat-shadows-on-the-floor": "平らに映る影",
       "a-softbox-panel": "ソフトボックスのパネル",
       "light-from-a-probe": "プローブからの光",
-      "soft-shadow-edges": "やわらかい影のふち",
+      "soft-shadows-from-a-wide-lamp": "幅の広いランプの柔らかな影",
       "contact-shadow-under-a-car": "接地影",
       "coloured-shadows-through-glass": "ガラスを通る影",
       "shadows-in-the-corners": "隅の影",
@@ -373,7 +373,7 @@
       "a-stack-of-texture-layers": "データ・配列・3Dテクスチャ",
       "wide-gamut-colour": "広色域の出力",
       "energy-conservation-test": "環境光(IBL)",
-      "soft-shadow-edges": "やわらかい影のフィルタリング(半影)",
+      "soft-shadows-from-a-wide-lamp": "ランプ幅による柔らかな影",
       "contact-shadow-under-a-car": "テクスチャへの描画",
       "coloured-shadows-through-glass": "影を落とす透明な物体",
       "shadows-in-the-corners": "スクリーン空間のアンビエントオクルージョン",
