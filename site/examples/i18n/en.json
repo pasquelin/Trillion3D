@@ -571,6 +571,17 @@
       "bricks": "Bricks"
     }
   },
+  "measure-a-distance": {
+    "banner": "Click two surfaces to measure between them. A third click starts a new measurement. One unit represents one metre.",
+    "controls": {
+      "clear": "Clear"
+    },
+    "readouts": {
+      "pointA": "Point A",
+      "pointB": "Point B",
+      "distance": "Distance"
+    }
+  },
   "click-to-pick": {
     "banner": "Click a shape. It lights up and the panel says where you hit it.",
     "readouts": {
