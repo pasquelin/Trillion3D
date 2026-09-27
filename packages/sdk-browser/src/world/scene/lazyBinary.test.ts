@@ -8,7 +8,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { EngineError, type ClusterManifest } from '../../../../sdk-core/src/index.ts';
 import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts';
-import { isDrawnNode } from '../../host/graph/kinds.ts';
+import { meshes } from '../../scene/meshes.ts';
 import type { PageRec } from '../../page/selection/selection.ts';
 import type { BlendCopy } from '../../cluster/blendCopyContract.ts';
 import { loadUnpaged } from '../../webgpu/core/positions.ts';
@@ -23,8 +23,7 @@ type Tables = {
 async function loaded(t: TestContext, alter = (tables: Tables) => tables, metadata = plain) {
   const asked = serve(t, (text) => JSON.stringify(alter(JSON.parse(text) as Tables)));
   const { source } = await load(metadata);
-  const geometries: Geometry[] = [];
-  source.traverse((node) => void (isDrawnNode(node) && geometries.push(node.geometry)));
+  const geometries = meshes(source).map((mesh) => mesh.geometry);
   const binaries = () => asked.filter((url) => url.endsWith('/source.bin')).length;
   return { geometries, binaries };
 }

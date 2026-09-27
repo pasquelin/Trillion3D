@@ -5,6 +5,7 @@
  */
 import { EngineError } from '../../contracts/cache.ts';
 import type { BufferTypedArray } from './elements.ts';
+import type { BufferAttribute } from './attribute.ts';
 
 /** Numbers read on first need: a loaded mesh's vertices, which no session fetches up front
  *  (`Geometry.loadVertices`). `read` is called once, however many loads ask. */
@@ -15,10 +16,7 @@ export type PendingNumbers = {
 };
 
 /** Holder of numbers now or later: an attribute owning them, or an interleaved buffer. */
-type Held = {
-  _numbers: BufferTypedArray | null;
-  _pending: { readonly length: number; read(): Promise<BufferTypedArray> } | null;
-};
+type Held = Pick<BufferAttribute, '_numbers' | '_pending'>;
 
 /** The named refusal of a synchronous read before the numbers are loaded. */
 export function notLoaded(): never {
@@ -28,9 +26,11 @@ export function notLoaded(): never {
   );
 }
 
-/** Reads pending numbers into their holder; at once when they are there. */
+/** Reads pending numbers into their holder, then lets their reader go; at once when they are
+ *  there. */
 export async function load(held: Held) {
   held._numbers ??= await held._pending!.read();
+  held._pending = null;
 }
 
 /** `held` with `numbers` in place of its own, read once however many loads ask. */
