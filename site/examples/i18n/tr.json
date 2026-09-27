@@ -500,6 +500,24 @@
       "balloon": "BALONU İZLİYOR"
     }
   },
+  "a-recorded-fly-through": {
+    "banner": "Parktaki kayıtlı rotayı izleyin. Yeniden oynatın, durdurun veya kamerayı devralın.",
+    "controls": {
+      "replay": "Yeniden oynat",
+      "stop": "Durdur"
+    },
+    "readouts": {
+      "currentPart": "Geçerli bölüm"
+    },
+    "words": {
+      "entrance": "Giriş",
+      "pond": "Gölet",
+      "bridge": "Köprü",
+      "pavilion": "Köşk",
+      "overview": "Genel görünüm",
+      "complete": "Tamamlandı"
+    }
+  },
   "a-wave-across-a-grid": {
     "banner": "Etrafa bakmak için sürükle. Küp dalgasını daha yüksek ya da hızlı yap.",
     "controls": {

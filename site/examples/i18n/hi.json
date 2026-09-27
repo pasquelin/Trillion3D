@@ -500,6 +500,24 @@
       "balloon": "गुब्बारे का पीछा"
     }
   },
+  "a-recorded-fly-through": {
+    "banner": "पार्क में रिकॉर्ड किया गया मार्ग देखें। इसे दोबारा चलाएँ, रोकें या कैमरा संभालें।",
+    "controls": {
+      "replay": "दोबारा चलाएँ",
+      "stop": "रोकें"
+    },
+    "readouts": {
+      "currentPart": "वर्तमान भाग"
+    },
+    "words": {
+      "entrance": "प्रवेश",
+      "pond": "तालाब",
+      "bridge": "पुल",
+      "pavilion": "मंडप",
+      "overview": "समग्र दृश्य",
+      "complete": "पूर्ण"
+    }
+  },
   "a-wave-across-a-grid": {
     "banner": "चारों ओर देखने के लिए खींचो। घनों की लहर ऊँची या तेज़ करो।",
     "controls": {
