@@ -11,23 +11,28 @@ test('the wide-lamp control changes the public emitter radius', async () => {
     'utf8',
   );
   const scene = object.group();
-  let change: ((values: { lampWidth: number; moveSubject: boolean }) => void) | undefined;
+  let change: ((values: { lampWidth: number; moveSubject: boolean }) => void) | undefined,
+    frame: ((event: { delta: number }) => void) | undefined,
+    invalidations = 0;
   const world = {
     scene,
     camera: { position: { set() {} }, lookAt() {} },
     controls: { target: { set() {} }, maxPolarAngle: 0 },
-    onFrame() {},
-    invalidate() {},
+    onFrame: (hook: (event: { delta: number }) => void) => (frame = hook),
+    invalidate: () => void invalidations++,
   };
   await runExampleModule(html, {
     engine: { createWorld: () => world, geometry, light, material, math, object },
     kit: {
       controls: (
-        _spec: unknown,
+        spec: { lampWidth: number[] },
         onChange: (values: { lampWidth: number; moveSubject: boolean }) => void,
       ) => {
-        change = onChange;
-        const values = { lampWidth: 0.8, moveSubject: true };
+        const values = { lampWidth: spec.lampWidth[2], moveSubject: true };
+        change = (next) => {
+          Object.assign(values, next);
+          onChange(values);
+        };
         onChange(values);
         return values;
       },
@@ -36,7 +41,18 @@ test('the wide-lamp control changes the public emitter radius', async () => {
   const lamp = scene.children.find(
     (child): child is Light => child instanceof Light && child.kind === 'point',
   );
-  assert.equal(lamp?.radius, 0.4);
+  const subject = scene.children.find((child) => child.children.length === 3);
+  const width = 0.8;
+  assert.equal(lamp?.radius, width / 2);
   change?.({ lampWidth: 2.4, moveSubject: true });
   assert.equal(lamp?.radius, 1.2);
+  frame?.({ delta: 0.05 });
+  assert.notEqual(subject?.position.x, 0);
+
+  change?.({ lampWidth: 2.4, moveSubject: false });
+  const stoppedAt = subject?.position.x,
+    stoppedInvalidations = invalidations;
+  frame?.({ delta: 0.05 });
+  assert.equal(subject?.position.x, stoppedAt);
+  assert.equal(invalidations, stoppedInvalidations);
 });
