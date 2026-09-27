@@ -33,9 +33,9 @@
   "examples": {
     "lead": "Setiap contoh adalah satu berkas pendek: lihat cara kerjanya, buka kodenya, ubah isinya.",
     "jumpTo": "Lompat ke tema",
-    "inProgress": "Sedang dikerjakan",
     "waitsFor": "Menunggu mesin:",
-    "waitingEngine": "Menunggu mesin"
+    "partial": "Sebagian",
+    "coming": "Segera hadir: {{titles}}"
   },
   "api": {
     "title": "Referensi mesin",
