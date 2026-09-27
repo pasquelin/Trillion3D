@@ -15,7 +15,7 @@ const slot = (texture: number): TableTextureSlot => ({
   transform: null,
 });
 
-const entry = (overrides: Partial<TableMaterial>): TableMaterial => ({
+export const entry = (overrides: Partial<TableMaterial>): TableMaterial => ({
   name: 'surface',
   derivativeTangents: false,
   kind: 'standard',

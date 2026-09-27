@@ -63,7 +63,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
   });
   const { sync, acceptGeometryPage } = geometryStore;
   // The tables a placement enters: instances and instance-buffer rows append to the same.
-  const tables = { roots, allPages, bootstrap, byUrl, baseMaterials };
+  const tables = { roots, allPages, bootstrap, byUrl, baseMaterials, reassignBlend };
   const heldFloor = createHeldFloor({ bootstrap, modifiedPages, byUrl });
   const ceiling =
     hostCeiling < Infinity ? () => hostCeiling : () => Math.max(pageDefault, heldFloor.meshes());
