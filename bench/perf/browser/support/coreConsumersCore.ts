@@ -15,7 +15,7 @@ import type {
   Surface,
   Vec3,
 } from '../../../../packages/sdk-core/src/lighting/scene/experimentScene.ts';
-import type { Mesure } from '../../../core/index.ts';
+import type { Measurement } from '../../../core/index.ts';
 import * as ancien from '../../../oracles/browser/core-math.ts';
 import * as ombres from '../../../oracles/browser/core-math-shadows.ts';
 import { points } from './scenesCore.ts';
@@ -61,7 +61,7 @@ function faceAncienne(c: DirectionCase): [Float32Array, Float32Array] {
   return [matrice, Float32Array.from(cone)];
 }
 
-export async function lignesConsommateursCore(): Promise<Mesure[]> {
+export async function lignesConsommateursCore(): Promise<Measurement[]> {
   return [
     await ligne(
       'shadow faces: view, product and cone',
