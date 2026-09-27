@@ -156,7 +156,8 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     isLost: () => run.lost,
     traceEnabled: diag.traceEnabled,
     traceDiagnostic: diag.traceDiagnostic,
-    lowerTiers: () => lowerTiers,
+    // A camera cut the pool does not hold whole leaves the lower tiers nothing.
+    lowerTiers: () => (residencySets.cutFits ? lowerTiers : []),
     prefetch: readGeometryAhead(geometryUrls, context.readGeometryPage),
   });
   const residency = createWebgpuResidencyQueue({

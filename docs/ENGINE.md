@@ -130,8 +130,10 @@ taking a page a lower tier touched since the last queue (a shadow caster) after 
 spent (`eviction-queue-spent`) the burst waits for the next readback. Admission on that path
 follows the readback's sorted requests (`webgpu/residency/requestAdmission.ts`, #836): past the
 pool, requests are admitted in rank, each with the groups it closes over, until one does not fit;
-the rest is drawn by its nearest resident ancestor and never awaited. The pins are the cover and
-that queue (`requestPins.ts`). The CPU cut evicts the least recent page, ranks loads coarsest first
+the rest is drawn by its nearest resident ancestor and never awaited. The pins are what the image
+holds (`requestPins.ts`): the cover, that queue, and what it draws with the groups the cut rule needs
+to keep drawing it, counted against the pool before admission; a cut refused in part leaves the
+lower tiers nothing. The CPU cut evicts the least recent page, ranks loads coarsest first
 (`budgetRanking`) and pins by last use (`pinUpdater`) until #836 removes them.
 
 **Occlusion** is two-phase Hi-Z. Pass 1 draws the rows the previous frame drew that the previous
