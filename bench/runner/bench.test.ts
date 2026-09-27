@@ -9,6 +9,7 @@ test('readOptions parses command line arguments correctly', () => {
   // Test default engine (webgl)
   const result1 = readOptions([], root);
   assert.strictEqual(result1.settings.engine, 'webgl');
+  assert.strictEqual(result1.settings.dpr, 1);
 
   // Test setting engine to webgpu
   const result2 = readOptions(['--moteur=webgpu'], root);
@@ -27,6 +28,10 @@ test('readOptions parses command line arguments correctly', () => {
   // Test pixelError parsing
   const result5 = readOptions(['--pixelError=0.5,1.0,2.0'], root);
   assert.deepStrictEqual(result5.settings.pixelErrors, [0.5, 1.0, 2.0]);
+
+  assert.strictEqual(readOptions(['--dpr=2'], root).settings.dpr, 2);
+  for (const value of ['0', '-1', 'NaN'])
+    assert.throws(() => readOptions([`--dpr=${value}`], root), /--dpr/);
 });
 
 test('readOptions rejects unknown engine', () => {
