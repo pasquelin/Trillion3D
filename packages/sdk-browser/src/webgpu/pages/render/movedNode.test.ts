@@ -1,7 +1,7 @@
 // movedNode.ts: the name index and the roots under a node answer what the walks they replace
 // answered (#915) — the first node of that name in prefix order, and the roots whose mesh climbs
-// to the node — on random trees with repeated names, then after renames, removals, additions and
-// reparenting.
+// to the node — on random trees with repeated names, then after renames, removals, additions,
+// reparenting and freed nodes.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as G from '../../../host/graph/graph.fixture.ts';
@@ -27,22 +27,27 @@ function walkFor(source: Object3D, name: string) {
 }
 
 let fresh = 0;
-/** One edit the index cannot be told about: a rename to a new name, a removal, an addition, a
- *  reparenting — each keeping out of the one case the index does not see (`findNode`). */
-function edit(draw: Draw, source: Object3D, nodes: Object3D[]) {
+/** One edit the index is not told about: a rename, a removal, an addition, a reparenting, a
+ *  freed node — a name taken from another node half the time, so an edited node may come ahead
+ *  of the one the index held for that name. `kinds` 4 frees nothing. */
+function edit(draw: Draw, source: Object3D, nodes: Object3D[], kinds = 5) {
   const node = pick(draw, nodes.slice(1)),
-    kind = Math.floor(draw() * 4);
+    kind = Math.floor(draw() * kinds);
   if (!node) return;
-  if (kind === 0) node.name = `renamed${fresh++}`;
+  const name = draw() < 0.5 ? pick(draw, nodes).name : `fresh${fresh++}`;
+  if (kind === 0) node.name = name;
   else if (kind === 1) node.removeFromParent();
   else if (kind === 2) {
     const added = new G.Group();
-    added.name = `added${fresh++}`;
+    added.name = name;
     pick(draw, nodes).add(added);
     nodes.push(added);
-  } else {
+  } else if (kind === 3) {
     const parent = pick(draw, [source, ...nodes]);
     if (!isAncestor(node, parent)) parent.add(node);
+  } else {
+    node.traverse((below) => nodes.splice(nodes.indexOf(below), 1));
+    node.destroy();
   }
 }
 
@@ -52,7 +57,7 @@ function isAncestor(node: Object3D, of: Object3D) {
   return false;
 }
 
-test('findNode: the first node of that name in walk order, through edits', () => {
+test('findNode: the first node of that name in walk order, through every kind of edit', () => {
   for (let seed = 1; seed <= 30; seed++) {
     const draw = seeded(seed);
     const { source, nodes } = randomTree(draw, 10 + Math.floor(draw() * 80), 12);
@@ -103,7 +108,7 @@ test('rootsUnder: the roots whose mesh climbs to the node, in rank order, throug
     for (let round = 0; round < 10; round++) {
       for (const node of nodes)
         assert.deepEqual(rootsUnder(roots, node, out), climbUnder(roots, node), `seed ${seed}`);
-      edit(draw, source, nodes);
+      edit(draw, source, nodes, 4);
     }
   }
 });
