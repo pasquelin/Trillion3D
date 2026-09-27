@@ -172,6 +172,7 @@ pub(crate) mod reduce;
 mod tally;
 #[cfg(test)]
 mod tests;
+pub(crate) mod tight;
 pub(crate) mod vanished;
 
 pub use attributes::DagAttributes;
