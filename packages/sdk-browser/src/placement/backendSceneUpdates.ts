@@ -11,11 +11,6 @@ export type AlphaChange = { surfaces: readonly object[]; from: AlphaMode; to: Al
 export const blendMoves = ({ from, to }: AlphaChange) =>
   from !== to && (from === 'blend' || to === 'blend');
 
-/** Whether a surface's alpha moved from `from` to `to`: another mode, or a cutout whose cutoff
- *  moved — what the shadow of a cutout reads. */
-export const alphaMoves = (from: AlphaMode, to: AlphaMode, cutoffMoved: boolean) =>
-  to !== from || (to === 'mask' && cutoffMoved);
-
 /** What an engine lets a host change in the scene it prepared, without preparing it again. */
 export interface BackendSceneUpdates {
   replaceGeometryPage?(url: string, data: DecodedGeometryPage): void;
