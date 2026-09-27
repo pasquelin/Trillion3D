@@ -1,5 +1,4 @@
-import { hizLevelSizes } from './oracle.ts';
-import { HIZ_PASS_LEVELS, hizBuildPasses, hizBuildWords } from './uniforms.ts';
+import { HIZ_PASS_LEVELS, hizBuildPasses, hizBuildWords, pyramidBytes } from './uniforms.ts';
 
 // The pyramid build of develop (`copyDepth`, then one `reduceHiz` per mip) and `buildHiz`,
 // transcribed line by line for `buildEquivalence.test.ts`.
@@ -17,13 +16,7 @@ export type Scene = {
 };
 
 export function layout(scene: Scene) {
-  const sizes = hizLevelSizes(scene.width, scene.height);
-  const offsets: number[] = [];
-  let words = 0;
-  for (const [w, h] of sizes) {
-    offsets.push(words);
-    words += w * h;
-  }
+  const { sizes, offsets, texels: words } = pyramidBytes(scene.width, scene.height);
   const count = scene.origins?.length ?? 1;
   const stride = scene.origins ? words : 0;
   return { sizes, offsets, count, stride, words: words * count };
