@@ -3,6 +3,7 @@ import { PAGE_INFO_STRIDE } from '../../visibility/buffer.ts';
 import { castsBlendShadow } from '../../gpu/shadow/transmittance.ts';
 import { ROW_BLEND_COVERAGE_WORD, ROW_INDEX_WORDS, type createPageRowWriter } from './pageRow.ts';
 import type { createWebgpuRowState } from './state.ts';
+import { awaitsPageBytes } from './pageSlots.ts';
 
 type Rows = ReturnType<typeof createWebgpuRowState>;
 type Writer = ReturnType<typeof createPageRowWriter>;
@@ -84,8 +85,11 @@ export function createBlendCasterRows(
     const rec = packedPages[page];
     if (!rec.transparent || !rows.pageTableInts) return;
     const row = blendRowOf[page];
+    // A cluster drawn from its geometry page holds no index page: its slot is all it needs.
     const casts =
-      rows.residentOffsetWords[page] >= 0 && !!rec.array && castsBlendShadow(rec.material);
+      rows.residentOffsetWords[page] >= 0 &&
+      !awaitsPageBytes(rec) &&
+      castsBlendShadow(rec.material);
     if (!casts) {
       if (row < 0) return;
       release(page, row);

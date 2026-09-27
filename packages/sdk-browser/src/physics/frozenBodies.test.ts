@@ -95,7 +95,8 @@ test('frozen bodies thaw on the step the eye comes in range, on a random walk, r
         if (found.has(id)) frozen.delete(id);
         continue;
       }
-      const inRange = !(gap > 0) || range === 0;
+      // A non-finite gap places the body nowhere, so seen (`report.cpp` place).
+      const inRange = !(gap > 0 && gap < Infinity) || range === 0;
       assert.equal(found.has(id), inRange, `${label}: body ${id}, gap ${gap}`);
       if (inRange) frozen.delete(id);
     }
@@ -111,17 +112,20 @@ test('frozen bodies thaw on the step the eye comes in range, on a random walk, r
     if (next() < 0.03) range = 5 + Math.round(next() * 55);
     settle(step(jolt, writer, () => look(writer)).found, `step ${s}`);
   }
-  // Non-finite eyes: an infinite one is beyond every range, a NaN one within all of them.
+  // Non-finite eyes place every body nowhere, so thaw them all; back at the origin, the far ones freeze again.
   for (const [label, at] of [
     ['an infinite eye', [Infinity, 0, 0]],
-    ['back from infinity', [0, 0, 0]],
     ['a NaN eye', [NaN, 0, 0]],
   ] as const) {
     assert.ok(frozen.size > 0, `${label}: some bodies still frozen`);
     eye = [...at];
     settle(step(jolt, writer, () => look(writer)).found, label);
+    assert.equal(frozen.size, 0, `${label} thaws every body`);
+    eye = [0, 0, 0];
+    step(jolt, writer, () => look(writer));
+    for (const [id, [x, y, z]] of centres.entries())
+      if (Math.hypot(x, y, z) - RADIUS - range > 1e-3) frozen.add(id);
   }
-  assert.equal(frozen.size, 0, 'a NaN eye thaws every body');
 });
 
 test('a decorative body out of view is frozen and measured every step, then thaws and sends its pose once seen', async () => {

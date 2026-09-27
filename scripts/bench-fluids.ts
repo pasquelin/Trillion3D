@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 // The fluids spike bench (#419), in Node and natively, no browser: (1) the physics thread's buoyancy
 // for the floating scene (100 bodies: cubes, sliced planks, compound rafts, balls) in the
-// committed web modules, split into its TypeScript share (the module's pieces query and the
-// planes from the waves) and its C++ share (the BUOYANCY command); (2) the C++ share natively.
+// committed web modules, split into its share before the step (the module's pieces query and
+// their planes from the waves) and its C++ share (the BUOYANCY command); (2) the C++ share natively.
 // The C++ share in the module is the step with the command run twice, the second copy at density
 // 0 (every volume computed, no impulse), less the step with it once, on alternate steps.
 //   node scripts/bench-fluids.ts [--threads 1,8] [--steps 600] [--native <joltWaterBench>]
@@ -80,9 +80,9 @@ async function web(spec: WaterSpec, threads: number, steps: number) {
   for (let s = 0; s < steps; s++) {
     const t0 = performance.now();
     water.waves.setTime(s / 60);
-    const read = jolt.water(water.level + water.waves.crest, cut);
-    pieces = read.length / WATER_PIECE_WORDS;
-    let count = words.write(water, read, pieces, null);
+    pieces = jolt.water(water.level + water.waves.crest, cut).length / WATER_PIECE_WORDS;
+    const fitted = jolt.planes(water.waves, water.level, water.sample, pieces);
+    let count = words.write(water, fitted, null);
     const t1 = performance.now();
     if (s % 2) {
       // The same command again, at density 0: all its work, none of its effect.
@@ -97,7 +97,7 @@ async function web(spec: WaterSpec, threads: number, steps: number) {
   const apply = stats(twice).median - stats(once).median;
   const ts = stats(planes);
   console.log(
-    `  wasm ${threads} thread(s), ${pieces} pieces: TS query + planes median ${ms(ts.median)} p95 ${ms(ts.p95)}; ` +
+    `  wasm ${threads} thread(s), ${pieces} pieces: query + planes median ${ms(ts.median)} p95 ${ms(ts.p95)}; ` +
       `C++ BUOYANCY ${ms(apply)}; total ${ms(ts.median + apply)}`,
   );
 }

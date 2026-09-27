@@ -1,3 +1,5 @@
+import { hypot2, hypot3 } from '../math/primitives/hypot.ts';
+
 /**
  * The one wave model of the engine: a sum of Gerstner waves. Buoyancy reads it on the CPU (the
  * physics worker); the water surface's shader code will be generated from the same numbers
@@ -30,6 +32,10 @@ const TAU = Math.PI * 2;
  * number `k`, its amplitude `A` and its lateral amplitude `Q·A`, where the steepnesses are scaled
  * so that `Σ Qᵢ·Aᵢ·kᵢ ≤ 1` (crests never loop over).
  */
+/** Doubles of one wave the module's planes read (`jolt_wave_buffer`, `waterPlanes.cpp`):
+ *  `direction x, z, wave number, amplitude, lateral amplitude, phase` at the step's time. */
+export const WAVE_DOUBLES = 6;
+
 export class Waves {
   readonly count: number;
   readonly dirX: Float64Array;
@@ -52,7 +58,7 @@ export class Waves {
     this.phase = new Float64Array(n);
     let steep = 0;
     for (const spec of specs) {
-      const length = Math.hypot(spec.direction[0], spec.direction[1]);
+      const length = hypot2(spec.direction[0], spec.direction[1]);
       if (!(spec.wavelength > 0) || !(spec.amplitude >= 0) || !(length > 0))
         throw new RangeError('Waves: a wave needs a direction, a wavelength and an amplitude.');
       if (!(spec.steepness >= 0 && spec.steepness <= 1))
@@ -61,7 +67,7 @@ export class Waves {
     }
     const scale = steep > 1 ? 1 / steep : 1;
     specs.forEach((spec, i) => {
-      const length = Math.hypot(spec.direction[0], spec.direction[1]);
+      const length = hypot2(spec.direction[0], spec.direction[1]);
       this.dirX[i] = spec.direction[0] / length;
       this.dirZ[i] = spec.direction[1] / length;
       this.k[i] = TAU / spec.wavelength;
@@ -127,7 +133,7 @@ export class Waves {
       ny -= this.k[i] * this.lateral[i] * Math.sin(f);
       nz -= this.dirZ[i] * ka * c;
     }
-    const length = Math.hypot(nx, ny, nz);
+    const length = hypot3(nx, ny, nz);
     out[0] = nx / length;
     out[1] = ny / length;
     out[2] = nz / length;

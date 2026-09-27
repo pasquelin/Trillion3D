@@ -39,7 +39,8 @@ export async function startModule(
     break: count('jolt_break_visits'),
     place: count('jolt_place_visits'),
   };
-  return { ...jolt, visits };
+  /** The module's own exports and memory, for a test that writes its buffers itself. */
+  return { ...jolt, visits, raw: opened };
 }
 
 /** The threaded module stepped by `count` threads (Node workers); `close` stops them. */
