@@ -18,11 +18,21 @@ const soft = (
   quaternion?: number[],
 ) => writeSoftBody(writer, id(slot), geometry, options, position, quaternion);
 
+/** Each body a step's soft words name, and its vertex count (`softLayout.ts`). */
+function softHeads(words: Uint32Array) {
+  const heads: number[] = [];
+  for (let at = 0; at < words.length; at += 2 + words[at + 1] * 3)
+    heads.push(words[at], words[at + 1]);
+  return Uint32Array.from(heads);
+}
+
 /**
  * A scene of every body kind a pin's long range attachment leaves as it was — boxes piling up
  * with their contact events, an unpinned cloth falling on them, a cloth given stretch hanging from
- * its pins, a rope swinging from its pin, a volume bouncing — stepped `steps` times at 60 Hz: the SHA-256 of every step's pose, event and
- * soft-vertex words, in order. Two modules that simulate it alike give the same hash.
+ * its pins, a rope swinging from its pin, a volume bouncing — stepped `steps` times at 60 Hz: the SHA-256 of every step's pose and event
+ * words and of the bodies its soft words name, with their vertex counts, in order. Two modules that
+ * simulate it alike give the same hash; the vertices themselves, written back within float
+ * rounding, are compared within their bound (`softWriteback.test.ts`).
  */
 export function stateDump(
   jolt: Pick<JoltModule, 'step' | 'poses' | 'events' | 'soft'>,
@@ -44,7 +54,7 @@ export function stateDump(
   const hash = createHash('sha256');
   let posed = jolt.step(writer.take(), 0);
   for (let s = 0; s < steps; s++) {
-    hash.update(jolt.poses(posed)).update(jolt.events()).update(jolt.soft());
+    hash.update(jolt.poses(posed)).update(jolt.events()).update(softHeads(jolt.soft()));
     posed = jolt.step(null, 1 / 60);
   }
   return hash.digest('hex');
