@@ -1,4 +1,5 @@
 import { Thumbnail } from '../ui/Thumbnail.tsx';
+import { examplePlaceholder } from '../examples/list.ts';
 
 interface ExampleLink {
   key: string;
@@ -28,6 +29,7 @@ export function ExampleList({ groups }: { groups: ExampleGroup[] }) {
                 <Thumbnail
                   href={item.href}
                   src={item.thumbnail}
+                  fallbackSrc={examplePlaceholder}
                   label={item.label}
                   active={item.active}
                 />

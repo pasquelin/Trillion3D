@@ -57,7 +57,7 @@ export function projectBoxToScreen(
   min: number[],
   max: number[],
   matrix: G.Matrix4,
-  camera: G.GraphCamera | EngineCamera,
+  camera: G.Camera | EngineCamera,
   viewport: [number, number],
 ): HizBounds {
   projectBoxesFlat([{ min, max, matrix }], 1, cameraMoteur(camera), viewport, boxScratch);

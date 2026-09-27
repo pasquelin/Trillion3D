@@ -392,7 +392,9 @@
       "bottom": "Ortografik kutunun alt kenarı.",
       "projection": "`'perspective'` uzak şeyleri küçük yapar; `'orthographic'` her boyutu korur.",
       "copy": "`source` düğüm değerlerini ve, bir kameradan, optiğini alır; kendi `projection` değeri kalır.",
-      "updateProjectionMatrix": "Buna ihtiyaç duyan bir render motoruna karşı yazılmış sayfalar için tutulur: her optik yazma zaten yeniden çizer.",
+      "updateProjectionMatrix": "`projectionMatrix` değerini yeniden oluşturur; optiğe her yazma bunu zaten yapar ve yeniden çizer.",
+      "projectionMatrix": "Optiğin oluşturduğu izdüşüm, referansın derinlik kuralında ve sonlu uzak düzlemle, onunla çizen bir işleyici için; optiğe her yazma onu yeniden oluşturur. Dünya kendi izdüşümüyle çizer (`engineCamera.ts`).",
+      "matrixWorldInverse": "Son oluşturulduğu hâliyle dünya matrisinin tersi: bir işleyicinin okuduğu görünüm.",
       "rayThrough": "Resmin bir noktasından geçen dünya ışını, motorun kendi izdüşümünde (`engineCamera.ts`): perspektif kamerada gözden bakış yönünde, ortografik kamerada kutudan dümdüz bakış yönünde. Yönü birim vektördür.",
       "set": "Gözü `pose.position`'a koyar, adlandırdığı alanda `pose.target`'a bakacak şekilde."
     }
@@ -500,6 +502,7 @@
       "totalNodes": "Toplam düğüm.",
       "autonomousScene": "Kendi yerleşik sahnesi.",
       "primitives": "Primitifleri.",
+      "worstStalls": "Derleyicinin takılma tablosu: düzey 0'da kök bırakan takılmış bir grubu olan en fazla on primitif, en kötüsü önce. Ondan önce derlenmiş bir önbellekte yoktur.",
       "texturePreviews": "Önce dokuya, sonra atlasa göre sıralanmış, çözülen her (doku, atlas) için bir giriş; çözülebilir bir görsel olmadan boş.",
       "textures": "Manifestoya göreli, önceden pişirilmiş seviyeler için şablon: {sha} kaynak görselin özeti, {kind} atlas adı (PREVIEW_ATLAS_NAMES), {level} seviye sırası. Bu okuyucunun yardımcı sürüm üzerinden reddettiği, önceden pişirilmiş seviyelerden önce derlenmiş bir önbellekte bulunmaz.",
       "proxy": "Yerleşik sahne proxy'sinin ve onun BVH'sinin nereden okunacağı: ışınların çarptığı geometri. Olduğu gibi okunabilir kalan, yansımadan önce derlenmiş bir önbellekte bulunmaz."
@@ -940,6 +943,7 @@
       "UNKNOWN_MATERIAL": "Bir malzeme değişikliği bilinmiyor, aralık dışında, onu bir motorun sahne açılırken sabitlediği bir çizim sınıfına taşıyacak ya da paylaştığı bir haritayı döşeyecek.",
       "MATERIAL_CLASS_CHANGE": "Bir malzeme değişikliği bilinmiyor, aralık dışında, onu bir motorun sahne açılırken sabitlediği bir çizim sınıfına taşıyacak ya da paylaştığı bir haritayı döşeyecek.",
       "MATERIAL_TEXTURE_SHARED": "Bir malzeme değişikliği bilinmiyor, aralık dışında, onu bir motorun sahne açılırken sabitlediği bir çizim sınıfına taşıyacak ya da paylaştığı bir haritayı döşeyecek.",
+      "MATERIAL_CEILING": "Bir sayfa tek oturumda `RUNTIME_MATERIAL_CEILING` sayısından fazla malzeme oluşturacaktı; hiçbir şey oluşturulmadı.",
       "INVALID_TRANSFORM": "Bir düğümün yerleşimi kullanılabilir bir matris değil, ya da bir düğüm kendi atası olurdu.",
       "NON_FINITE_TRANSFORM": "Bir düğümün yerleşimi kullanılabilir bir matris değil, ya da bir düğüm kendi atası olurdu.",
       "SINGULAR_PARENT_TRANSFORM": "Bir düğümün yerleşimi kullanılabilir bir matris değil, ya da bir düğüm kendi atası olurdu.",
@@ -2041,7 +2045,11 @@
       "geometry": "Mesh'in şekli; değiştirmek için başka bir geometri ayarlayın.",
       "material": "Mesh'in malzemesi, ya da grup başına bir tane; değiştirmek için başka bir tane ayarlayın.",
       "localBounds": "Bu düğümün kendi içeriğinin kutusu, yerel çerçeve; düz bir düğüm hiçbirini tutmaz.",
-      "physics": "Dünya fiziğinin bir cismi olarak mesh; değilse `null`. `'static'`, `'dynamic'`, `'kinematic'` ya da seçenekler ver; şekil geometriden çıkarılır."
+      "physics": "Dünya fiziğinin bir cismi olarak mesh; değilse `null`. `'static'`, `'dynamic'`, `'kinematic'` ya da seçenekler ver; şekil geometriden çıkarılır.",
+      "morphTargetInfluences": "Geometri bildirdiğinde her morf hedefinin ağırlığı.",
+      "morphTargetDictionary": "Her morf hedefinin adına göre sırası.",
+      "updateMorphTargets": "İlk biçim değiştiren özniteliğin morf hedefi başına sıfır ağırlık, sırasıyla adlandırılmış.",
+      "copy": "`source`'un değerlerini ve aksi söylenmedikçe çocuklarının kopyalarını alır."
     }
   },
   "Mixer": {
@@ -2908,6 +2916,8 @@
       "environment": "Parlak yüzeylerin yansıttığı çevrenin bir resmi; hiçbiri için `null`.",
       "background": "Her nesnenin arkasındaki görüntüyü dolduran şey: bir renk ya da varsayılan için `null`. Bir değişiklik oturum korunarak sonraki karede görünür: burada atanan yeni bir renk ya da mevcut rengin yöntemleriyle (`set`, `setRGB`, `setHex`, `setHSL`...) yazılması. `.r`, `.g` veya `.b` alanına doğrudan yazma algılanmaz: ardından `background` değerini yeniden atayın. Bir resim ya da `getHex` içermeyen herhangi bir değer reddedilir (`UNSUPPORTED_SCENE_UPDATE`): hiçbir yol onu çizmez.",
       "fog": "Her yüzeyin üzerinde sis, opak ya da saydam, iki çizicide de; varsayılan `null` sis yok demektir, bedelsiz. `{ color, near, far }` nesneleri `near` ile `far` arasında `color` rengine eritir, kameradan uzaklıklar; `{ color, density }` uzaklık birimi başına `density` kadar koyulaşır; `heightFalloff` (ve varsayılanı 0 olan `baseHeight`) ekleyin, sis yere çöker ve `baseHeight` üzerinde incelir — yukarı doğru her `1 / heightFalloff` birimde e'ye bölünür. Bir değişiklik sonraki karede görünür: burada verilen yeni bir sis ya da yöntemleriyle yazılan rengi. `near`, `far`, `density`... alanlarına doğrudan yazmak duyulmaz: ardından `fog` alanını yeniden verin. Aralık dışı bir sis — `far` değeri `near` değerinin ötesinde değilse, negatif bir yoğunluk — reddedilir (`INVALID_SCENE_ENVIRONMENT`).",
+      "onBeforeRender": "Bir işleyici sahneyi çizmeden önce çağrılır; varsayılan olarak yoktur.",
+      "onAfterRender": "Bir işleyici sahneyi çizdikten sonra çağrılır; varsayılan olarak yoktur.",
       "load": "Derlenmiş bir modeli — manifesto URL'sini — yükler ve bu sahneye ekler.",
       "toJSON": "Sahne, sürümlü düz JSON olarak: nesneleri, şekiller onları yapan çağrıyla, malzemeler, ışıklar, her ağın fizik gövdesi bildirildiği gibi ve yüklenen modeller adresle; bir `camera` verilirse onun duruşu da.",
       "fromJSON": "Sahnenin içeriğini `toJSON` ile kaydedilmiş bir sahneyle değiştirir, `helper` işaretleri korunur; modelleri yüklenince tamamlanır. Başka bir biçim ya da sürüm reddedilir (`UNSUPPORTED_SCENE_FORMAT`). Biri okunurken yapılan çağrılar sırayla, birbiri ardına çalışır, her biri öncekinin bıraktığı üzerinde: iki kaydedilmiş sahne asla karışmaz."
@@ -3219,7 +3229,8 @@
       "textures": "Manifestoya göreli, önceden pişirilmiş seviyeler için şablon: {sha} kaynak görselin özeti, {kind} atlas adı (PREVIEW_ATLAS_NAMES), {level} seviye sırası. Bu okuyucunun yardımcı sürüm üzerinden reddettiği, önceden pişirilmiş seviyelerden önce derlenmiş bir önbellekte bulunmaz.",
       "proxy": "Yerleşik sahne proxy'sinin ve onun BVH'sinin nereden okunacağı: ışınların çarptığı geometri. Olduğu gibi okunabilir kalan, yansımadan önce derlenmiş bir önbellekte bulunmaz.",
       "binary": "İkili dosya.",
-      "primitives": "Primitifleri."
+      "primitives": "Primitifleri.",
+      "worstStalls": "Derleyicinin takılma tablosu: düzey 0'da kök bırakan takılmış bir grubu olan en fazla on primitif, en kötüsü önce. Ondan önce derlenmiş bir önbellekte yoktur."
     }
   },
   "SlimCulling": {
@@ -4866,7 +4877,7 @@
     "summary": "`out[outAt..outAt + 2] = a × b`, işlenenler `aAt` ve `bAt`'te okunur."
   },
   "dagWarningsDiagnostic": {
-    "summary": "Bir önbelleğin `dag-warnings` tanısı: derleyici tarafından işaretlenen primitifler, ve duraklamış bir grubu olan her primitif — derleyicinin bir pişirmenin sonunda stderr'de sıraladığı küme."
+    "summary": "Bir önbelleğin `dag-warnings` tanısı: derleyicinin işaretlediği primitifler ve derleyicinin takılma tablosu (`worstStalls`), pişirmenin sonunda stderr'e yazdığı satırlar, kendi sırasıyla."
   },
   "decodeManifestBinary": {
     "summary": "İkili bir manifestoyu, bir çalışma zamanının okuduğu tam manifestoya geri dönüştürür."
@@ -7392,18 +7403,6 @@
       "handbrake": "El freninin çekili olup olmadığı."
     }
   },
-  "GraphMesh": {
-    "summary": "Çizilen bir düğüm: bir geometri ve yüzeyi ya da geometri grubu başına bir yüzey.",
-    "members": {
-      "kind": "Tek bir yerleşimde ya da birkaçında çizilir (`GraphInstancedMesh`).",
-      "morphTargetInfluences": "Geometri bildirdiğinde her morf hedefinin ağırlığı.",
-      "morphTargetDictionary": "Her morf hedefinin adına göre sırası.",
-      "geometry": "Şekli.",
-      "material": "Yüzeyi ya da geometri grubu başına bir yüzey.",
-      "updateMorphTargets": "İlk biçim değiştiren özniteliğin morf hedefi başına sıfır ağırlık, sırasıyla adlandırılmış.",
-      "copy": "`source`'un değerlerini ve aksi söylenmedikçe çocuklarının kopyalarını alır."
-    }
-  },
   "GraphNode": {
     "summary": "Grafın bir düğümü: çekirdeğin düğümü, `kind` değeriyle ayırt edilir, çekirdeğin `clone` yöntemiyle kopyalanır.",
     "members": {
@@ -7412,7 +7411,7 @@
     }
   },
   "GraphNodeKind": {
-    "summary": "Grafın bir düğümünün ne olduğu: kök, çizilen bir ağ (tek yerleşimde ya da birkaçında), bir göz ya da bir sahnenin bildirdiği ışıklardan biri."
+    "summary": "Grafın bir ışığının ne olduğu: bir sahnenin bildirdiği ışıklardan biri."
   },
   "GraphSurface": {
     "summary": "Bir yüzey: bir ailenin parametreleri, sahne aksini söylemedikçe referansın değerlerinde.",
