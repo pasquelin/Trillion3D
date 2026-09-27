@@ -328,6 +328,13 @@
       "roof": "지붕"
     }
   },
+  "soft-shadows-from-a-wide-lamp": {
+    "banner": "드래그하여 둘러보세요. 램프 너비를 바꾸고 그림자 가장자리를 관찰하세요.",
+    "controls": {
+      "lampWidth": "램프 너비",
+      "moveSubject": "피사체 움직이기"
+    }
+  },
   "a-softbox-panel": {
     "banner": "끌어서 주위를 걸어 봐. 조명 판을 키우면 반짝임이 부드러워져.",
     "controls": {
