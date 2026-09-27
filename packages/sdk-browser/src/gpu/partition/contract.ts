@@ -66,7 +66,7 @@ export const ST_TESTED = 0,
 
 /** Verdict of a row, one word per Hi-Z slot: the occluder half, the tested half the pyramid
  *  rejects, the tested half it keeps. The partition sets occluder and kept, the test brings some
- *  kept back to rejected; everything that draws — vertex stage, tested-half truncation, compute
+ *  kept back to rejected; everything that draws — vertex stage, tested-half compaction, compute
  *  raster — reads this word, and a reader that would read two values loses clusters. */
 export const VERDICT_OCCLUDER = 0,
   VERDICT_REJECTED = 1,
