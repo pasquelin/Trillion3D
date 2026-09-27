@@ -3,27 +3,20 @@
 // draw owner, and no mesh ever enters the host scene. A physical feature WebGL2 cannot draw is
 // no refusal: the surface is drawn without it and the world says so once, by name.
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
-import { EngineError } from '../../../packages/sdk-core/src/index.ts';
+import type { HostCamera } from '../../../packages/sdk-browser/src/camera/world.ts';
 import { pixel } from './webglClusterPixels.ts';
 import { mountExplorerProof } from './webglClusterExplorerMount.ts';
+
+type ExplorerProof = NonNullable<ReturnType<typeof mountExplorerProof>>;
 import { transmissionCamera, transmissionScene } from './webglClusterTransmissionScene.ts';
 import { listenMaterialDegraded } from './materialDegradedNotices.ts';
 
 const anyMesh = (object: G.Object3D) => object instanceof G.Mesh;
-/** The owner refuses a scene it cannot draw by throwing `EngineError`; anything else stays
- *  code- and reason-less, since the proof only names what the engine itself declared. */
-const errorOf = (error: unknown) => ({
-  code: error instanceof EngineError ? error.code : null,
-  reason: error instanceof EngineError ? (error.details.reason ?? null) : null,
-});
-
-/** Runs `step`, returning what it threw as `errorOf` reads it, null when it drew. */
-const refusalOf = async (step: () => unknown) => {
-  try {
-    await step();
-    return null;
-  } catch (error) {
-    return errorOf(error);
+/** Two frames of `mounted` on its canvas: a refusal throws, and the proof reports it. */
+const twoFrames = (mounted: ExplorerProof, camera: HostCamera) => {
+  for (let frame = 0; frame < 2; frame++) {
+    mounted.backend.render(camera);
+    mounted.draw(mounted.backend, null);
   }
 };
 
@@ -65,12 +58,7 @@ export async function execute() {
   const glass = scene.copy.material as G.GraphSurface;
   glass.clearcoat = 0.5;
   glass.needsUpdate = true;
-  const mutationRefusal = await refusalOf(() => {
-    for (let frame = 0; frame < 2; frame++) {
-      backend.render(camera);
-      draw(backend, null);
-    }
-  });
+  twoFrames(mounted, camera);
   const mutationPixel = pixel(gl, 32, 32),
     mutationNotice = await mutationNotices.said();
   const meshesInHostPass = mounted.countedInHostPass,
@@ -87,13 +75,8 @@ export async function execute() {
       materialDegraded: sheenNotices.hear,
     });
   if (!sheen) return { unavailable: 'WebGL2 unavailable' };
-  const refusal = await refusalOf(() => sheen.backend.prepare());
-  const drawRefusal = await refusalOf(() => {
-    for (let frame = 0; frame < 2; frame++) {
-      sheen.backend.render(camera);
-      sheen.draw(sheen.backend, null);
-    }
-  });
+  await sheen.backend.prepare();
+  twoFrames(sheen, camera);
   const sheenPixel = pixel(sheen.gl, 32, 32),
     sheenNotice = await sheenNotices.said();
   sheen.dispose();
@@ -112,11 +95,8 @@ export async function execute() {
     meshesInHostPass,
     hostCalls,
     wireframe,
-    mutationRefusal,
     mutationPixel,
     mutationNotice,
-    refusal,
-    drawRefusal,
     sheenPixel,
     sheenNotice,
   };

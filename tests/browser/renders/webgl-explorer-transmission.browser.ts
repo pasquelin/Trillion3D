@@ -11,11 +11,6 @@ import {
   type ResultatPagePreuve,
 } from '../support/enginePageProof.ts';
 
-interface Refusal {
-  code: string;
-  reason: string;
-}
-
 interface Resultat extends ResultatPagePreuve {
   repeatPixel: number[];
   canvasPixel: number[];
@@ -30,11 +25,8 @@ interface Resultat extends ResultatPagePreuve {
   meshesInHostPass: number;
   hostCalls: number;
   wireframe: { copyDraws: number; drawCalls: number };
-  mutationRefusal: Refusal | null;
   mutationPixel: number[];
   mutationNotice: DegradedNotice[];
-  refusal: Refusal | null;
-  drawRefusal: Refusal | null;
   sheenPixel: number[];
   sheenNotice: DegradedNotice[];
 }
@@ -75,13 +67,10 @@ assert.deepEqual(
   { copyDraws: 2, drawCalls: 3 },
   'the painted copies are drawn as whole meshes, without a backdrop pass',
 );
-// A clearcoat set after the preparation: two frames drawn, no refusal, the glass drawn without it
-// over the red cluster as before, and one notice naming it.
-assert.equal(result.mutationRefusal, null, 'a mutation after the preparation is drawn');
+// A clearcoat set after the preparation: two frames drawn (a refusal would be the page's error),
+// the glass drawn without it over the red cluster as before, and one notice naming it.
 assert.deepEqual(result.mutationPixel, result.canvasPixel, 'the glass is drawn without clearcoat');
 assert.deepEqual(result.mutationNotice, degraded('glass', 'clearcoat'), 'said once, by name');
 // A sheen declared before the preparation: prepared, drawn twice, said once.
-assert.equal(result.refusal, null, 'the preparation is not refused');
-assert.equal(result.drawRefusal, null, 'the draw is not refused');
 assert.deepEqual(result.sheenPixel, result.canvasPixel, 'the glass is drawn without sheen');
 assert.deepEqual(result.sheenNotice, degraded('sheen glass', 'sheen'), 'said once, by name');
