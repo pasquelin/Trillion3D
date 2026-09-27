@@ -77,9 +77,8 @@ export { GraphSurface } from '../../sdk-browser/src/host/graph/surface.ts';
 export { GraphTexture } from '../../sdk-browser/src/host/graph/texture.ts';
 export type {
   GravityInput,
-  WorldPhysics,
   WorldPhysicsOptions,
-} from '../../sdk-browser/src/physics/worldPhysics.ts';
+} from '../../sdk-browser/src/physics/worldPhysicsOptions.ts';
 export { GUIDE_VERTEX_CEILING } from '../../sdk-browser/src/guides/guideSet.ts';
 export type {
   GuideHandle,
@@ -165,6 +164,7 @@ export type { VehicleSpec, VehicleSpecs } from '../../sdk-core/src/physics/vehic
 export type { WaterSpec } from '../../sdk-core/src/fluids/buoyancy.ts';
 export { WaterSurface } from '../../sdk-core/src/fluids/waterSurface.ts';
 export type { WaveSpec } from '../../sdk-core/src/fluids/waves.ts';
+export type { WorldPhysics } from '../../sdk-browser/src/physics/worldPhysics.ts';
 export {
   createEngineCamera,
   defaultEngineCamera,

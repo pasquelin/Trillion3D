@@ -7153,6 +7153,7 @@
       "gravity": "Gravidade em m/s², um vetor vivo; define uma predefinição (`'earth'`, `'moon'`, `'mars'`, `'none'`) ou um vetor.",
       "paused": "Se o tempo está parado; as escritas continuam a chegar aos corpos.",
       "timeScale": "Segundos simulados por segundo real: 0.25 é câmara lenta.",
+      "simulationRange": "Metros em torno da câmera dentro dos quais os corpos são simulados (congelados além disso, como estavam, e nenhum bloco de colisão carregado); `null` segue `camera.far`.",
       "water": "A água onde os corpos flutuam: o seu nível, as suas ondas, a sua densidade e os seus arrastos. Um corpo mais leve que a água flutua, empurrado pelo peso da água que desloca.",
       "waterSurface": "A superfície da água à hora da simulação, para a desenhar: as ondas que a flutuação lê, os mesmos números (`height`, `point`, `normal`).",
       "stats": "Contagens e os dois relógios: milissegundos do worker por passo, milissegundos da página por imagem.",
@@ -7359,6 +7360,7 @@
       "gravity": "Gravidade em m/s², um vetor vivo; define uma predefinição (`'earth'`, `'moon'`, `'mars'`, `'none'`) ou um vetor.",
       "paused": "Se o tempo está parado; as escritas continuam a chegar aos corpos.",
       "timeScale": "Segundos simulados por segundo real: 0.25 é câmara lenta.",
+      "simulationRange": "Metros em torno da câmera dentro dos quais os corpos são simulados (congelados além disso, como estavam, e nenhum bloco de colisão carregado); `null` segue `camera.far`.",
       "water": "A água onde os corpos flutuam: o seu nível, as suas ondas, a sua densidade e os seus arrastos. Um corpo mais leve que a água flutua, empurrado pelo peso da água que desloca.",
       "waterSurface": "A superfície da água à hora da simulação, para a desenhar: as ondas que a flutuação lê, os mesmos números (`height`, `point`, `normal`).",
       "stats": "Contagens e os dois relógios: milissegundos do worker por passo, milissegundos da página por imagem.",
@@ -7371,6 +7373,7 @@
     "summary": "O que `createWorld(canvas, { physics })` aceita além de `true`.",
     "members": {
       "budget": "Limites fixos, lidos uma vez no arranque da física.",
+      "simulationRange": "Metros em torno da câmera dentro dos quais os corpos são simulados (`world.physics.simulationRange`); `null` segue `camera.far`.",
       "gravity": "A gravidade do mundo: uma predefinição ou um vetor."
     }
   },
