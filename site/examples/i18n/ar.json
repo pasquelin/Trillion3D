@@ -2172,5 +2172,16 @@
     "words": {
       "credit": "علم على سارية نُمذج بالشيفرة لهذا المثال، CC0 — انظر assets/examples/CREDITS.md"
     }
+  },
+  "a-dolly-along-the-canal": {
+    "banner": "أوقف حركة الكاميرا مؤقتًا أو أعد الرحلة أو غيّر سرعتها أثناء سيرها على طول القناة.",
+    "controls": {
+      "paused": "متوقفة مؤقتًا",
+      "replay": "إعادة",
+      "speed": "السرعة"
+    },
+    "readouts": {
+      "progress": "التقدم"
+    }
   }
 }

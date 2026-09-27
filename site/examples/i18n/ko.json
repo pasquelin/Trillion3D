@@ -2172,5 +2172,16 @@
     "words": {
       "credit": "이 예제를 위해 코드로 만든 깃대의 깃발, CC0 — assets/examples/CREDITS.md 참고"
     }
+  },
+  "a-dolly-along-the-canal": {
+    "banner": "카메라가 운하를 따라 이동하는 동안 일시 정지하거나 다시 재생하고 속도를 바꿔 보세요.",
+    "controls": {
+      "paused": "일시 정지",
+      "replay": "다시 재생",
+      "speed": "속도"
+    },
+    "readouts": {
+      "progress": "진행률"
+    }
   }
 }
