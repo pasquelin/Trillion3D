@@ -6,7 +6,7 @@ import { tableRankOf } from '../../host/prepared/materials.ts';
 import { materialTextures, meshes } from '../../scene/meshes.ts';
 import type { BackendContext } from '../../backend/types.ts';
 import { primitiveName } from '../../scene/primitiveLookup.ts';
-import type { HostGraphMesh } from '../../host/scene/graphNodes.ts';
+import type { HostMesh } from '../../host/resources.ts';
 import { EngineError } from '../../../../sdk-core/src/index.ts';
 import { alphaModeOf } from '../../../../sdk-core/src/contracts/material.ts';
 import {
@@ -57,7 +57,7 @@ export function createExplorerMaterialApi(inputs: Inputs) {
    *  variant a drawable asked (`PLAIN` first): a write reaches them all (`preparedMaterials`). */
   const created = new Map<string, Map<string, GraphSurface>>();
   /** The created material each assigned mesh wears: a change to one worn reaches the engines. */
-  const wearing = new Map<HostGraphMesh, string>();
+  const wearing = new Map<HostMesh, string>();
   /** Built at the first call, not at open: most pages never ask. Before any write, so the values
    *  it keeps as imported are the file's. */
   let held: ReturnType<typeof index> | undefined;
@@ -65,7 +65,7 @@ export function createExplorerMaterialApi(inputs: Inputs) {
     const worn = new Map<number, Set<GraphSurface>>();
     const wearers = new Map<GraphTexture, Set<number>>();
     // The drawables a created material is assigned to, by the primitive name a page gives.
-    const drawables = new Map<string, Set<HostGraphMesh>>();
+    const drawables = new Map<string, Set<HostMesh>>();
     for (const mesh of meshes(source)) {
       const name = primitiveName(associations.get(mesh));
       if (name) drawables.set(name, (drawables.get(name) ?? new Set()).add(mesh));
