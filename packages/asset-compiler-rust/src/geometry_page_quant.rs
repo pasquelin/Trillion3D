@@ -7,21 +7,20 @@ use crate::{CompilerError, Result};
 use trillion3d_page_codec::bits::{
     bits_for, dequant, oct_decode, pow2, Quant, MAX_BITS, MAX_EXPONENT,
 };
+pub mod tile;
 
-/// Grid of a primitive, the finer of two rules: its widest extent split into 2^16 steps, and an
-/// eighth of the finest group error its DAG published — so a cluster's displacement projects
-/// below an eighth of the threshold wherever the cut selects it. The error rule is bounded below
-/// by the extent in 2^(`MAX_BITS` - 2) steps, so no page of the primitive, rounding included,
-/// ever needs more than `MAX_BITS` per coordinate: every page shares the primitive's exponent,
-/// and shared vertices between clusters land on the same cells. The step is a power of two, so
-/// every decoded coordinate is `min + q * step` with an exact product.
-pub fn grid_exponent(extent: f64, finest_error: Option<f64>) -> i32 {
+/// Grid of a primitive, the finer of two rules: its widest extent, capped at 2^`tile_log2`, split
+/// into 2^16 steps, and an eighth of the finest group error its DAG published. Both are
+/// bounded below by the extent in 2^(`MAX_BITS` - 2) steps, so no page needs more than `MAX_BITS`
+/// per coordinate. Every page shares that exponent and rounds absolute coordinates: a vertex two
+/// clusters or two tiles share lands on one cell. The step is a power of two: `q * step` is exact.
+pub fn grid_exponent(extent: f64, finest_error: Option<f64>, tile_log2: i32) -> i32 {
     let widest = if extent > 0.0 {
         extent.log2().floor() as i32
     } else {
         0
     };
-    let by_extent = widest - 16;
+    let by_extent = widest.min(tile_log2) - 16;
     let by_error = finest_error.map_or(by_extent, |e| (e / 8.0).log2().floor() as i32);
     let finest = widest - (MAX_BITS as i32 - 2);
     by_extent
@@ -39,8 +38,13 @@ pub fn finest_exponent(span: f64) -> i32 {
 
 /// The grid of a primitive from its positions and the errors its DAG published; a zero error is
 /// a root's, not a rule. A `blended` primitive takes the finest grid its pages hold: a coarser
-/// one shows through a transparent surface (#875).
-pub fn primitive_exponent(pos: &[f32], errors: impl Iterator<Item = f64>, blended: bool) -> i32 {
+/// one shows through a transparent surface (#875). `tile_log2` is its tile (`tile::tile_log2`).
+pub fn primitive_exponent(
+    pos: &[f32],
+    errors: impl Iterator<Item = f64>,
+    blended: bool,
+    tile_log2: i32,
+) -> i32 {
     let bounds = crate::proxy::bvh::extent(pos);
     let extent = (0..3)
         .map(|axis| bounds[axis + 3] - bounds[axis])
@@ -48,7 +52,8 @@ pub fn primitive_exponent(pos: &[f32], errors: impl Iterator<Item = f64>, blende
     if blended && extent > 0.0 {
         return finest_exponent(extent);
     }
-    grid_exponent(extent, errors.filter(|e| *e > 0.0).min_by(f64::total_cmp))
+    let finest = errors.filter(|e| *e > 0.0).min_by(f64::total_cmp);
+    grid_exponent(extent, finest, tile_log2)
 }
 
 /// Texture coordinates sit on a fixed grid of 2^-14: a quarter of a texel on a 4096 map.
