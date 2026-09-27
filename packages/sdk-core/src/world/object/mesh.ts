@@ -25,7 +25,8 @@ type Heard = { readonly _listeners?: Set<() => void> };
 export class Mesh<M extends object = Material> extends Object3D {
   /** Always `true`: tells a mesh apart from any other object. */
   readonly isMesh = true as const;
-  /** The mesh's number, unique in the session: a draw breaks ties with it, in creation order. */
+  // In creation order: a draw breaks ties with it, a diagnostic seeds a colour with it.
+  /** The node's number, unique in the session. */
   readonly serial = takeSerial();
   /** The weight of each morph target, when the geometry declares any. */
   morphTargetInfluences?: number[];
@@ -108,8 +109,7 @@ export class Mesh<M extends object = Material> extends Object3D {
   protected override blank(): this {
     return new Mesh(this.geometry, this.material, this.primitive) as this;
   }
-  /** The reference's copy: the pose and flags, the morph weights copied, the geometry shared and
-   *  the materials in a list of their own. */
+  // The reference's copy: the morph weights copied, the geometry shared, the materials listed anew.
   override copy(source: Object3D, recursive = true) {
     super.copy(source, recursive);
     const mesh = source as Mesh<M>;
