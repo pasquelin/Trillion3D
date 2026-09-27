@@ -9,7 +9,7 @@ import * as G from '../../host/graph/graph.fixture.ts';
 import { EffectChain } from '../../../../sdk-core/src/world/effect/chain.ts';
 import { effect } from '../../../../sdk-core/src/world/effect/index.ts';
 import { GraphScene } from '../../host/graph/scene.ts';
-import { GraphInstancedMesh } from '../../host/graph/mesh.ts';
+import { InstancedMesh } from '../../../../sdk-core/src/world/object/instancedMesh.ts';
 import { GraphSurface } from '../../host/graph/surface.ts';
 import {
   HOST_BLENDING_MULTIPLY,
@@ -89,7 +89,7 @@ for (const [name, blending] of MODES) {
 
 test('a multiply instanced mesh placed nowhere keeps the chain on until it is placed', async () => {
   const surface = blended(HOST_BLENDING_MULTIPLY),
-    pool = new GraphInstancedMesh(G.triangleMesh(surface).geometry, surface, 1);
+    pool = new InstancedMesh(G.triangleMesh(surface).geometry, surface, 1);
   pool.count = 0;
   pool.frustumCulled = false;
   const scene = new GraphScene().add(G.triangleMesh(new GraphSurface('standard')), pool);

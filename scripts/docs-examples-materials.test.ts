@@ -52,6 +52,17 @@ async function materialExample(id: string) {
   return { scene, frame, change, values, invalidations: () => invalidations };
 }
 
+test('parked physical-material examples name the engine issue that owns their rendering', async () => {
+  const roadmap = JSON.parse(
+    await readFile(new URL('../site/content/gallery-roadmap.json', import.meta.url), 'utf8'),
+  ) as { entries: { id: string; issue?: number }[] };
+  for (const id of ['brushed-metal', 'car-paint-under-clear-coat']) {
+    assert.equal(roadmap.entries.find((entry) => entry.id === id)?.issue, 33, id);
+    const html = await readFile(new URL(`../site/examples/${id}.html`, import.meta.url), 'utf8');
+    assert.match(html, /\/\/ Waits for #33: /, id);
+  }
+});
+
 test('brushed-metal controls the physical brush and spins every display disc', async () => {
   const run = await materialExample('brushed-metal');
   const discs = run.scene.children.filter(

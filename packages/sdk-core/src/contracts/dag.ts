@@ -56,3 +56,14 @@ export interface DagWarning extends DagStallSummary {
 export type DagReport = { warnings?: DagWarning[] } & (
   { stalls?: undefined } | ({ stalls: DagStall[] } & DagStallSummary)
 );
+/** A compiler warning attached to the primitive carrying it, and where it sits in the cache. */
+export type PrimitiveDagWarning = DagWarning & {
+  /** Its rank in the manifest. */
+  index: number;
+  /** Its mesh's number. */
+  mesh: number;
+  /** Its number in the mesh. */
+  primitive: number;
+};
+/** The stall summary of a primitive with at least one stalled group, warned about or not. */
+export type PrimitiveDagStall = DagStallSummary & Omit<PrimitiveDagWarning, keyof DagWarning>;

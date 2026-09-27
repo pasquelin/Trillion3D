@@ -1708,6 +1708,14 @@
       "fourthLaneAnisotropy": "Anisotropie der vierten Bahn"
     }
   },
+  "the-home-pose": {
+    "banner": "Wähle eine Ansicht, bewege die Kamera und kehre dann mit Ausgang zurück.",
+    "controls": { "home": "Ausgang", "tower": "Turm", "square": "Platz", "hillside": "Hang" }
+  },
+  "the-near-plane-cuts-a-wall": {
+    "banner": "Schiebe die Nahgrenze vor und sieh zu, wie sie jede Wand schneidet.",
+    "controls": { "nearPlane": "Nahgrenze" }
+  },
   "the-material-family": {
     "banner": "Ziehe, um herumzugehen. Stell das Licht auf Nacht und sieh, was noch leuchtet.",
     "controls": {
@@ -2171,6 +2179,17 @@
     },
     "words": {
       "credit": "Flagge an einem Mast für dieses Beispiel im Code modelliert, CC0 — siehe assets/examples/CREDITS.md"
+    }
+  },
+  "a-dolly-along-the-canal": {
+    "banner": "Pausiere die Kamerafahrt, starte sie neu oder ändere ihre Geschwindigkeit entlang des Kanals.",
+    "controls": {
+      "paused": "Pausiert",
+      "replay": "Neu starten",
+      "speed": "Tempo"
+    },
+    "readouts": {
+      "progress": "Fortschritt"
     }
   }
 }

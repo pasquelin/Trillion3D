@@ -33,9 +33,9 @@
   "examples": {
     "lead": "Each example is one short file: watch it run, open its code, change it.",
     "jumpTo": "Jump to a theme",
-    "inProgress": "In progress",
-    "waitingEngine": "Waiting for the engine",
-    "waitsFor": "Waits for the engine:"
+    "waitsFor": "Waits for the engine:",
+    "partial": "Partial",
+    "coming": "Coming: {{titles}}"
   },
   "gallery": {
     "themes": {
@@ -182,6 +182,8 @@
       "several-views-one-page": "Several views, one page",
       "before-and-after-slider": "Before/after slider",
       "side-by-side-stereo": "Side-by-side stereo",
+      "the-near-plane-cuts-a-wall": "The near plane cuts a wall",
+      "the-home-pose": "The home pose and points of interest",
       "red-cyan-anaglyph": "Red-cyan anaglyph",
       "camera-layers": "Camera layers",
       "a-robot-that-walks-and-waves": "Blending robot motions",
@@ -327,7 +329,8 @@
       "ar-on-the-table": "AR on the table",
       "shadows-case-by-case": "Shadows, case by case",
       "shadows-through-see-through-panes": "Shadows through see-through panes",
-      "a-walker-among-balls": "A walker among balls"
+      "a-walker-among-balls": "A walker among balls",
+      "a-dolly-along-the-canal": "A dolly along the canal"
     },
     "missing": {
       "floating-crates": "geometry rewritten every frame",
