@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { PAGE_INDEX_MASK } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
-import { SHADOW_OFFSET_WGSL } from './shadowOffsetWgsl.ts';
+import { SHADOW_SAMPLE_WGSL } from './shadowSampleWgsl.ts';
 
 /** Relative error a WGSL f32 division may carry, 2.5 ulp, taken as 3 ulp of the quotient. */
 const DIVISION = 3 * 2 ** -23;
@@ -31,8 +31,8 @@ test("shadowOffset's single-precision floors are develop's integer quotients, ev
     }
   }
   assert.equal(checked, 512 * (PAGE_INDEX_MASK + 1));
-  assert.match(SHADOW_OFFSET_WGSL, /floor\(\(phys\+0\.5\)\/area\)/);
-  assert.match(SHADOW_OFFSET_WGSL, /floor\(\(local\+0\.5\)\/side\)/);
+  assert.match(SHADOW_SAMPLE_WGSL, /floor\(\(phys\+0\.5\)\/area\)/);
+  assert.match(SHADOW_SAMPLE_WGSL, /floor\(\(local\+0\.5\)\/side\)/);
 });
 
 test('a floor without the half is not safe: the proof is not vacuous', () => {
