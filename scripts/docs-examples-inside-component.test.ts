@@ -11,6 +11,11 @@ test('the component owns exactly one world for each attachment', async () => {
     new URL('../site/examples/inside-a-component.html', import.meta.url),
     'utf8',
   );
+  const roadmap = JSON.parse(
+    await readFile(new URL('../site/content/gallery-roadmap.json', import.meta.url), 'utf8'),
+  ) as { entries: { id: string; issue?: number }[] };
+  assert.equal(roadmap.entries.find(({ id }) => id === 'inside-a-component')?.issue, 412);
+  assert.match(html, /\/\/ Waits for #412: /);
   const previous = {
     customElements: globalThis.customElements,
     document: globalThis.document,
