@@ -2,7 +2,14 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import { runExampleModule } from './docs/examples/capture.ts';
-import { geometry, light, material, math, object } from '../packages/sdk-browser/src/index.ts';
+import {
+  Color,
+  geometry,
+  light,
+  material,
+  math,
+  object,
+} from '../packages/sdk-browser/src/index.ts';
 import { Camera } from '../packages/sdk-core/src/world/camera/camera.ts';
 import { Scene } from '../packages/sdk-browser/src/world/core/scene.ts';
 import { describe, type ControlSpec } from '../site/examples/kit/controls.ts';
@@ -18,9 +25,10 @@ test('outline-the-selection states the expected public pass and drives it from c
     addEventListener: (name: string, listener: never) => listeners.set(name, listener),
   };
   let picked: object | null = null;
-  const pass: { objects: object[]; color: string; thickness: number } = {
+  let filtered: object[] = [];
+  const pass: { objects: object[]; color: Color; thickness: number } = {
     objects: [],
-    color: '',
+    color: new Color(),
     thickness: 0,
   };
   let change = (_values: Record<string, number | string>) => {};
@@ -33,11 +41,18 @@ test('outline-the-selection states the expected public pass and drives it from c
         camera: new Camera('perspective'),
         controls: { target: { set() {} } },
         effects: { add: (value: typeof pass) => value },
-        raycast: () => (picked ? { object: picked } : null),
-        invalidate() {},
+        raycast: (_point: object, options: { objects: object[] }) => {
+          filtered = options.objects;
+          return picked ? { object: picked } : null;
+        },
       }),
       effect: {
-        outline: (options: typeof pass) => Object.assign(pass, options),
+        outline: (options: { objects: object[]; color: string; thickness: number }) => {
+          pass.objects = options.objects;
+          pass.color.set(options.color);
+          pass.thickness = options.thickness;
+          return pass;
+        },
       },
       geometry,
       light,
@@ -54,15 +69,23 @@ test('outline-the-selection states the expected public pass and drives it from c
       },
     },
   });
-  assert.equal(pass.objects.length, 1);
+  const click = () => {
+    listeners.get('pointerdown')!({ offsetX: 10, offsetY: 12 });
+    listeners.get('pointerup')!({ offsetX: 10, offsetY: 12 });
+  };
+  assert.deepEqual(pass.objects, [scene.children[0]]);
+  listeners.get('pointerup')!({ offsetX: 10, offsetY: 12 });
+  assert.deepEqual(pass.objects, [scene.children[0]]);
   Object.assign(values, { color: '#44ccff', thickness: 5.5 });
   change(values);
-  assert.deepEqual([pass.color, pass.thickness], ['#44ccff', 5.5]);
+  assert.deepEqual([pass.color.getHexString(), pass.thickness], ['44ccff', 5.5]);
   picked = scene.children[2];
-  listeners.get('pointerdown')!({ offsetX: 10, offsetY: 12 });
+  click();
+  assert.deepEqual(pass.objects, [picked]);
+  assert.deepEqual(filtered, scene.children.slice(0, 5));
   listeners.get('pointerup')!({ offsetX: 10, offsetY: 12 });
   assert.deepEqual(pass.objects, [picked]);
   picked = null;
-  listeners.get('pointerup')!({ offsetX: 10, offsetY: 12 });
+  click();
   assert.deepEqual(pass.objects, []);
 });
