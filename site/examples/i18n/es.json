@@ -2147,5 +2147,12 @@
     "words": {
       "credit": "Bandera en un mástil modelada en código para este ejemplo, CC0 — ver assets/examples/CREDITS.md"
     }
+  },
+  "drag-a-crate": {
+    "banner": "Arrastra la caja por el suelo. Activa el ajuste para colocarla en pasos de medio metro.",
+    "controls": {
+      "snap": "Ajustar",
+      "home": "Inicio"
+    }
   }
 }

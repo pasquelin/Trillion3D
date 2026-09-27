@@ -2147,5 +2147,12 @@
     "words": {
       "credit": "Flag on a pole modelled in code for this example, CC0 — see assets/examples/CREDITS.md"
     }
+  },
+  "drag-a-crate": {
+    "banner": "Drag the crate across the floor. Turn snapping on to place it in half-metre steps.",
+    "controls": {
+      "snap": "Snap",
+      "home": "Home"
+    }
   }
 }

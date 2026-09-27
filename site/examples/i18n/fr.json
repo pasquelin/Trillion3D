@@ -2147,5 +2147,12 @@
     "words": {
       "credit": "Drapeau sur un mât modélisé en code pour cet exemple, CC0 — voir assets/examples/CREDITS.md"
     }
+  },
+  "drag-a-crate": {
+    "banner": "Faites glisser la caisse sur le sol. Activez l’alignement pour la placer par pas d’un demi-mètre.",
+    "controls": {
+      "snap": "Aligner",
+      "home": "Accueil"
+    }
   }
 }
