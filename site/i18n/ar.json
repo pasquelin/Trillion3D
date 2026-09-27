@@ -35,7 +35,9 @@
     "jumpTo": "انتقل إلى موضوع",
     "inProgress": "قيد الإنجاز",
     "waitsFor": "ينتظر المحرك:",
-    "waitingEngine": "في انتظار المحرك"
+    "waitingEngine": "في انتظار المحرك",
+    "partial": "جزئي",
+    "coming": "قريبًا: {{titles}}"
   },
   "api": {
     "title": "مرجع المحرك",

@@ -35,7 +35,9 @@
     "jumpTo": "Bir temaya git",
     "inProgress": "Yapım aşamasında",
     "waitsFor": "Motoru bekliyor:",
-    "waitingEngine": "Motor bekleniyor"
+    "waitingEngine": "Motor bekleniyor",
+    "partial": "Kısmi",
+    "coming": "Yakında: {{titles}}"
   },
   "gallery": {
     "themes": {

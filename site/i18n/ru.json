@@ -35,7 +35,9 @@
     "jumpTo": "Перейти к теме",
     "inProgress": "В работе",
     "waitsFor": "Ждёт движок:",
-    "waitingEngine": "Ожидание движка"
+    "waitingEngine": "Ожидание движка",
+    "partial": "Частично",
+    "coming": "Скоро: {{titles}}"
   },
   "gallery": {
     "themes": {
