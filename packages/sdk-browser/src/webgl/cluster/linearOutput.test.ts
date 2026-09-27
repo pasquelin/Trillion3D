@@ -9,13 +9,13 @@ import * as G from '../../host/graph/graph.fixture.ts';
 import { createSceneDraw } from './sceneDraw.ts';
 import { createTestContext } from '../core/testContext.fixture.ts';
 import { createHostDrawCamera, type HostCamera } from '../../camera/world.ts';
-import { GraphScene } from '../../host/graph/scene.ts';
+import { Scene } from '../../world/core/scene.ts';
 import { GraphSurface } from '../../host/graph/surface.ts';
 import { CLUSTER_FRAGMENT, CLUSTER_LINEAR_FRAGMENT, CLUSTER_VERTEX } from './shaders.ts';
 
 /** A standard surface, a transparent one and one the curve skips, drawn once per `linear`. */
 function draw(...linear: boolean[]) {
-  const scene = new GraphScene();
+  const scene = new Scene();
   scene.add(G.triangleMesh(new GraphSurface('standard')));
   scene.add(G.triangleMesh(new GraphSurface('standard', { transparent: true, opacity: 0.5 })));
   scene.add(G.triangleMesh(new GraphSurface('standard', { toneMapped: false })));
