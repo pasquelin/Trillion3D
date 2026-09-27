@@ -24,27 +24,27 @@ assert.ok(COVERAGE_WGSL.includes(SHARED), 'the shipped count reads its workgroup
 const develop = COVERAGE_WGSL.replace(SHARED, DEVELOP);
 
 const next = random(961);
-const sizes = [
-  [1, 1, 0],
-  [3, 5, 0],
-  [9, 17, 0],
-  [769, 33, 0],
-  [64, 64, 1],
-  [65, 7, 1],
-  [2049, 3, 1],
-];
+// Width, height and level: 1×1, odd, wide and tall, level 0 and reduced; then random ones.
+// prettier-ignore
+const sizes = [[1, 1, 0], [3, 5, 0], [9, 17, 0], [769, 33, 0], [64, 64, 1], [65, 7, 1], [2049, 3, 1]];
 for (let n = 0; n < 12; n++)
   sizes.push([1 + Math.floor(next() * 300), 1 + Math.floor(next() * 300), Math.floor(next() * 3)]);
 const cases = sizes.map(([width, height, level], n) => {
   const [w, h] = levelSize(width, height, Math.max(0, level - 1));
-  const flat = n % 5 === 1 ? 0 : n % 5 === 2 ? 255 : -1;
+  // Flat transparent, flat opaque, or random alphas.
+  const flat = [-1, 0, 255][n % 3];
   const texels = Array.from({ length: w * h * 4 }, () =>
     flat < 0 ? Math.floor(next() * 256) : flat,
   );
-  const cutoff = 1 + Math.floor(next() * 255),
-    bytes = (level + 1) * LEVEL_BIN_BYTES,
-    dispatch = levelSize(width, height, level);
-  return { width, height, level, w, h, cutoff, texels, bytes, dispatch };
+  const uniform = [w, h, 1 + Math.floor(next() * 255), 0, width, height, level, 0];
+  return {
+    w,
+    h,
+    texels,
+    uniform,
+    bytes: (level + 1) * LEVEL_BIN_BYTES,
+    dispatch: levelSize(width, height, level),
+  };
 });
 
 const lu = await dansPageWebgpu(
@@ -52,6 +52,7 @@ const lu = await dansPageWebgpu(
     const gpu = await globalThis.ouvrirAppareil();
     if (!gpu) return { indisponible: 'no WebGPU adapter' };
     const { device } = gpu;
+    const buffer = (size: number, usage: number) => device.createBuffer({ size, usage });
     const pipelines = await Promise.all(
       shaders.map(async (code) => {
         const { module, compilation } = await gpu.compile(code);
@@ -63,63 +64,38 @@ const lu = await dansPageWebgpu(
       }),
     );
     const bins: number[][][] = [];
-    for (const c of cases) {
-      const source = device.createTexture({
-        size: [c.w, c.h],
-        format: 'rgba8unorm',
-        usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
-      });
+    for (const { w, h, texels, uniform, bytes, dispatch } of cases) {
+      const usage = GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST;
+      const source = device.createTexture({ size: [w, h], format: 'rgba8unorm', usage });
       device.queue.writeTexture(
         { texture: source },
-        Uint8Array.from(c.texels),
-        { bytesPerRow: c.w * 4 },
-        [c.w, c.h],
+        Uint8Array.from(texels),
+        { bytesPerRow: w * 4 },
+        [w, h],
       );
-      const uniform = device.createBuffer({
-        size: 32,
-        usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-      });
-      device.queue.writeBuffer(
-        uniform,
-        0,
-        Uint32Array.of(c.w, c.h, c.cutoff, 0, c.width, c.height, c.level, 0),
-      );
-      const size = c.bytes,
-        [dw, dh] = c.dispatch;
-      bins.push(
-        await Promise.all(
-          pipelines.map(async (pipeline) => {
-            const cover = device.createBuffer({
-              size,
-              usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
-            });
-            const read = device.createBuffer({
-              size,
-              usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST,
-            });
-            const encoder = device.createCommandEncoder();
-            const pass = encoder.beginComputePass();
-            pass.setPipeline(pipeline);
-            pass.setBindGroup(
-              0,
-              device.createBindGroup({
-                layout: pipeline.getBindGroupLayout(0),
-                entries: [
-                  { binding: 0, resource: source.createView() },
-                  { binding: 1, resource: { buffer: uniform } },
-                  { binding: 2, resource: { buffer: cover } },
-                ],
-              }),
-            );
-            pass.dispatchWorkgroups(Math.ceil(dw / 8), Math.ceil(dh / 8));
-            pass.end();
-            encoder.copyBufferToBuffer(cover, 0, read, 0, size);
-            device.queue.submit([encoder.finish()]);
-            await read.mapAsync(GPUMapMode.READ);
-            return [...new Uint32Array(read.getMappedRange())];
-          }),
-        ),
-      );
+      const level = buffer(32, GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST);
+      device.queue.writeBuffer(level, 0, Uint32Array.from(uniform));
+      const read = async (pipeline: GPUComputePipeline) => {
+        const cover = buffer(bytes, GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC),
+          out = buffer(bytes, GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST);
+        const entries = [source.createView(), { buffer: level }, { buffer: cover }].map(
+          (resource, binding) => ({ binding, resource }),
+        );
+        const encoder = device.createCommandEncoder(),
+          pass = encoder.beginComputePass();
+        pass.setPipeline(pipeline);
+        pass.setBindGroup(
+          0,
+          device.createBindGroup({ layout: pipeline.getBindGroupLayout(0), entries }),
+        );
+        pass.dispatchWorkgroups(Math.ceil(dispatch[0] / 8), Math.ceil(dispatch[1] / 8));
+        pass.end();
+        encoder.copyBufferToBuffer(cover, 0, out, 0, bytes);
+        device.queue.submit([encoder.finish()]);
+        await out.mapAsync(GPUMapMode.READ);
+        return [...new Uint32Array(out.getMappedRange())];
+      };
+      bins.push(await Promise.all(pipelines.map(read)));
     }
     return { adaptateur: (await gpu.fermer()).court, erreurs: gpu.erreurs, bins };
   },
@@ -129,7 +105,7 @@ assert.equal(lu.indisponible ?? null, null);
 assert.deepEqual(lu.erreurs, []);
 console.log(JSON.stringify({ adaptateur: lu.adaptateur, cas: cases.length }));
 lu.bins!.forEach(([before, after], n) => {
-  const { width, height, level } = cases[n];
+  const [width, height, level] = sizes[n];
   assert.ok(before.some(Boolean), `case ${n}: develop counted nothing`);
   assert.deepEqual(after, before, `case ${n}, ${width}×${height} level ${level}: bins differ`);
 });
