@@ -72,6 +72,8 @@ test('after a stop, the pending set drains to full detail', async () => {
     getCache: () => b.cache as never,
     getFrame: () => 0,
     updatePins() {},
+    admitRequests() {},
+    followRequestPins() {},
     ensureResident: b.ensure,
     markLost() {},
     traceEnabled: false,
