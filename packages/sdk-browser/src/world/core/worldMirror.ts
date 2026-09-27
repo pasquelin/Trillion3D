@@ -12,6 +12,7 @@
  * (`drawn.ts`), the surface is the host family of the material's kind (`worldSurface.ts`), and
  * every node of the graph is one this file built, of the engine's own (`../../host/graph/`).
  */
+import { numbered } from '../../host/graph/serial.ts';
 import { isDrawnNode } from '../../host/graph/kinds.ts';
 import { Group, type Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 import type { Material } from '../../../../sdk-core/src/world/material/material.ts';
@@ -20,7 +21,7 @@ import type { PlacementRows } from '../../placement/rows.ts';
 import { hostSurface, repaintHostSurface } from './worldSurface.ts';
 import { HOST_MAPS, type HostTextures } from './worldTextures.ts';
 import { BufferAttribute } from '../../../../sdk-core/src/world/buffer/attribute.ts';
-import { GraphMesh } from '../../host/graph/mesh.ts';
+import { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts';
 import type { GraphSurface } from '../../host/graph/surface.ts';
 import type { GraphTexture } from '../../host/graph/texture.ts';
 import type { Cut } from './worldCuts.ts';
@@ -86,7 +87,7 @@ export function buildWorldMirror(input: MirrorInput) {
     if (!worn) surfaces.set(material, (worn = []));
     const rank = reading === 'lines' ? 2 : reading === 'sprite' ? 3 : +tinted;
     const surface = (worn[rank] ??= hostSurface(material, tinted, textures, reading));
-    return new GraphMesh(geometry, surface);
+    return numbered(new Mesh(geometry, surface));
   };
   for (const { cut, material, rows, name } of input.placed) {
     const mesh = meshOf(cut, material);
