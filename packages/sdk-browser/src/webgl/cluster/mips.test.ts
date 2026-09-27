@@ -109,7 +109,7 @@ test('a still scene files each surface once across frames, a hidden opaque one i
   const geometry = G.boxGeometry();
   const hidden = G.mesh(geometry, G.standardSurface({ map }));
   hidden.visible = false;
-  const scene = new G.GraphScene();
+  const scene = new G.Scene();
   scene.add(G.mesh(geometry, G.standardSurface({ map, alphaTest: 0.5 })), hidden);
   const gl = context();
   const draw = createSceneDraw(gl.gl, scene);
@@ -127,7 +127,7 @@ test('a still scene files each surface once across frames, a hidden opaque one i
 // WebGPU: uploaded as the bytes it holds, with the chain its filter reads (none: incomplete, black).
 test('a world texel map is uploaded as stored, with its box chain', () => {
   const pixels = new Uint8Array(4 * 4 * 4).fill(128);
-  const scene = new G.GraphScene();
+  const scene = new G.Scene();
   const surface = material.meshStandard({ normalMap: texture.data(pixels, 4, 4) });
   scene.add(G.mesh(G.boxGeometry(), hostSurface(surface, false, new Map())));
   const gl = context();
