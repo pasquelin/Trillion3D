@@ -38,7 +38,11 @@ async function bakedEmbedded() {
       Object.assign(image, { uri: null, view: 0 });
     return tables;
   };
-  const previews = Array.from({ length: count }, (_, image) => ({ image, firstLevel: 0, bakedLevels: 0 }));
+  const previews = Array.from({ length: count }, (_, image) => ({
+    image,
+    firstLevel: 0,
+    bakedLevels: 0,
+  }));
   const metadata = { primitives: [], textures: { url: 'v' }, texturePreviews: previews };
   return { embed, metadata: metadata as unknown as ClusterManifest };
 }
