@@ -1,4 +1,22 @@
 {
+  "brushed-metal": {
+    "banner": "Gira para observar los reflejos cepillados. Cambia su fuerza y dirección.",
+    "controls": {
+      "anisotropy": "Fuerza del cepillado",
+      "direction": "Dirección del cepillado",
+      "roughness": "Rugosidad",
+      "spin": "Girar"
+    }
+  },
+  "car-paint-under-clear-coat": {
+    "banner": "Gira alrededor del coche. Cambia la pintura y la capa transparente.",
+    "controls": {
+      "paint": "Pintura",
+      "clearCoat": "Capa transparente",
+      "coatRoughness": "Rugosidad de la capa",
+      "spin": "Girar"
+    }
+  },
   "kit": {
     "panel": {
       "controls": "Ajustes"
@@ -308,6 +326,13 @@
       "hour": "Hora",
       "wind": "Viento",
       "roof": "Tejado"
+    }
+  },
+  "soft-shadows-from-a-wide-lamp": {
+    "banner": "Arrastra para girar. Cambia el ancho de la lámpara y observa los bordes de las sombras.",
+    "controls": {
+      "lampWidth": "Ancho de la lámpara",
+      "moveSubject": "Mover objeto"
     }
   },
   "a-softbox-panel": {
@@ -1698,6 +1723,21 @@
       "fourthLaneAnisotropy": "Anisotropía del cuarto carril"
     }
   },
+  "the-home-pose": {
+    "banner": "Elige una vista, mueve la cámara y luego elige Inicio para volver.",
+    "controls": {
+      "home": "Inicio",
+      "tower": "Torre",
+      "square": "Plaza",
+      "hillside": "Ladera"
+    }
+  },
+  "the-near-plane-cuts-a-wall": {
+    "banner": "Avanza el plano cercano y observa cómo corta cada pared.",
+    "controls": {
+      "nearPlane": "Plano cercano"
+    }
+  },
   "the-material-family": {
     "banner": "Arrastra para dar la vuelta. Pon la luz de noche y mira qué sigue brillando.",
     "controls": {
@@ -2161,6 +2201,27 @@
     },
     "words": {
       "credit": "Bandera en un mástil modelada en código para este ejemplo, CC0 — ver assets/examples/CREDITS.md"
+    }
+  },
+  "a-dolly-along-the-canal": {
+    "banner": "Pausa el travelling, repite el recorrido o cambia su velocidad mientras la cámara avanza por el canal.",
+    "controls": {
+      "paused": "En pausa",
+      "replay": "Repetir",
+      "speed": "Velocidad"
+    },
+    "readouts": {
+      "progress": "Progreso"
+    }
+  },
+  "a-folder-merged-into-one-scene": {
+    "banner": "Arrastra para examinar la esquina. El compilador fusionó tres archivos OBJ de una carpeta en esta escena.",
+    "controls": {
+      "visible": "Visible",
+      "home": "Inicio"
+    },
+    "words": {
+      "credit": "Modelo de farola de W. Sitters, CC BY 3.0 — ver assets/examples/CREDITS.md"
     }
   }
 }

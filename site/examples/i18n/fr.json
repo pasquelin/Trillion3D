@@ -1,4 +1,22 @@
 {
+  "brushed-metal": {
+    "banner": "Tournez autour des reflets brossés. Changez leur force et leur direction.",
+    "controls": {
+      "anisotropy": "Force du brossage",
+      "direction": "Direction du brossage",
+      "roughness": "Rugosité",
+      "spin": "Rotation"
+    }
+  },
+  "car-paint-under-clear-coat": {
+    "banner": "Tournez autour de la voiture. Changez la peinture et le vernis qui la recouvre.",
+    "controls": {
+      "paint": "Peinture",
+      "clearCoat": "Vernis",
+      "coatRoughness": "Rugosité du vernis",
+      "spin": "Rotation"
+    }
+  },
   "kit": {
     "panel": {
       "controls": "Réglages"
@@ -308,6 +326,13 @@
       "hour": "Heure",
       "wind": "Vent",
       "roof": "Toit"
+    }
+  },
+  "soft-shadows-from-a-wide-lamp": {
+    "banner": "Glisse pour tourner autour. Change la largeur de la lampe et observe le bord des ombres.",
+    "controls": {
+      "lampWidth": "Largeur de la lampe",
+      "moveSubject": "Déplacer le sujet"
     }
   },
   "a-softbox-panel": {
@@ -1698,6 +1723,21 @@
       "fourthLaneAnisotropy": "Anisotropie de la quatrième piste"
     }
   },
+  "the-home-pose": {
+    "banner": "Choisissez une vue, déplacez la caméra, puis choisissez Accueil pour revenir.",
+    "controls": {
+      "home": "Accueil",
+      "tower": "Tour",
+      "square": "Place",
+      "hillside": "Colline"
+    }
+  },
+  "the-near-plane-cuts-a-wall": {
+    "banner": "Avancez le plan proche et regardez-le couper chaque mur.",
+    "controls": {
+      "nearPlane": "Plan proche"
+    }
+  },
   "the-material-family": {
     "banner": "Glisse pour tourner autour. Passe à la nuit et vois ce qui brille encore.",
     "controls": {
@@ -2161,6 +2201,27 @@
     },
     "words": {
       "credit": "Drapeau sur un mât modélisé en code pour cet exemple, CC0 — voir assets/examples/CREDITS.md"
+    }
+  },
+  "a-dolly-along-the-canal": {
+    "banner": "Mettez le travelling en pause, rejouez le trajet ou changez sa vitesse pendant que la caméra longe le canal.",
+    "controls": {
+      "paused": "En pause",
+      "replay": "Rejouer",
+      "speed": "Vitesse"
+    },
+    "readouts": {
+      "progress": "Progression"
+    }
+  },
+  "a-folder-merged-into-one-scene": {
+    "banner": "Faites glisser pour examiner le coin de rue. Le compilateur a fusionné trois fichiers OBJ d’un dossier dans cette scène.",
+    "controls": {
+      "visible": "Visible",
+      "home": "Accueil"
+    },
+    "words": {
+      "credit": "Modèle de réverbère par W. Sitters, CC BY 3.0 — voir assets/examples/CREDITS.md"
     }
   }
 }

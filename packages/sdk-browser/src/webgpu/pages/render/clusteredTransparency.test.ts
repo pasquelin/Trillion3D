@@ -153,7 +153,7 @@ test('a transparent switched to double-sided still expands all its instances', a
   // Single-sided at prepare: one plan entry, and half the room.
   fixture.material.side = G.FRONT_SIDE;
   fixture.metadata.primitives[0].pass = 'clustered-blend';
-  const mesh = fixture.source.children[0] as G.GraphMesh;
+  const mesh = fixture.source.children[0] as G.HostMesh;
   const backend = webgpuPagesBackend({
     ...fixture,
     gpuDevice: device,

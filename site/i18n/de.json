@@ -33,9 +33,9 @@
   "examples": {
     "lead": "Jedes Beispiel ist eine kurze Datei: sieh es dir laufen an, öffne den Code, verändere ihn.",
     "jumpTo": "Zu einem Thema springen",
-    "inProgress": "In Arbeit",
     "waitsFor": "Wartet auf die Engine:",
-    "waitingEngine": "Wartet auf die Engine"
+    "partial": "Teilweise",
+    "coming": "Demnächst: {{titles}}"
   },
   "gallery": {
     "themes": {
@@ -121,10 +121,10 @@
       "a-refracting-pane": "Eine lichtbrechende Scheibe",
       "a-light-map": "Eine Light Map",
       "two-materials-one-mesh": "Zwei Materialien, ein Netz",
-      "clearcoat-paint": "Klarlack-Farbe",
       "velvet-sheen": "Samtiger Glanz",
       "soap-bubble-iridescence": "Irisieren",
       "brushed-metal": "Gebürstetes Metall",
+      "car-paint-under-clear-coat": "Autolack unter Klarlack",
       "a-prism-that-disperses": "Ein zerstreuendes Prisma",
       "retroreflective-paint": "Rückstrahlung",
       "light-through-skin": "Licht unter der Haut",
@@ -153,7 +153,7 @@
       "flat-shadows-on-the-floor": "Flach projizierte Schatten",
       "a-softbox-panel": "Ein Softbox-Panel",
       "light-from-a-probe": "Licht aus einer Sonde",
-      "soft-shadow-edges": "Weiche Schattenkanten",
+      "soft-shadows-from-a-wide-lamp": "Weiche Schatten einer breiten Lampe",
       "contact-shadow-under-a-car": "Kontaktschatten",
       "coloured-shadows-through-glass": "Schatten durch Glas",
       "shadows-in-the-corners": "Schatten in den Ecken",
@@ -182,6 +182,8 @@
       "several-views-one-page": "Mehrere Ansichten, eine Seite",
       "before-and-after-slider": "Vorher/Nachher-Schieberegler",
       "side-by-side-stereo": "Stereo nebeneinander",
+      "the-near-plane-cuts-a-wall": "Die Nahgrenze schneidet eine Wand",
+      "the-home-pose": "Ausgangsansicht und Blickpunkte",
       "red-cyan-anaglyph": "Rot-Cyan-Anaglyphe",
       "camera-layers": "Kamera-Ebenen",
       "a-robot-that-walks-and-waves": "Vermischte Roboterbewegungen",
@@ -328,7 +330,9 @@
       "ar-on-the-table": "AR auf dem Tisch",
       "shadows-case-by-case": "Schatten, Fall für Fall",
       "shadows-through-see-through-panes": "Schatten durch durchsichtige Scheiben",
-      "a-walker-among-balls": "Ein Läufer zwischen Bällen"
+      "a-walker-among-balls": "Ein Läufer zwischen Bällen",
+      "a-dolly-along-the-canal": "Eine Kamerafahrt am Kanal",
+      "a-folder-merged-into-one-scene": "Ein Ordner als eine Szene"
     },
     "missing": {
       "floating-crates": "in jedem Bild neu geschriebene Geometrie",
@@ -356,10 +360,10 @@
       "a-refracting-pane": "Rendern in eine Textur",
       "a-light-map": "Slot für Light Map",
       "two-materials-one-mesh": "Meshes mit mehreren Materialien",
-      "clearcoat-paint": "Schichten des physikalischen Materials: Klarlack",
       "velvet-sheen": "Schichten des physikalischen Materials: Glanz",
       "soap-bubble-iridescence": "Schichten des physikalischen Materials: Irisieren",
       "brushed-metal": "Schichten des physikalischen Materials: Anisotropie",
+      "car-paint-under-clear-coat": "Schichten des physikalischen Materials: Klarlack",
       "a-prism-that-disperses": "Schichten des physikalischen Materials: Dispersion",
       "retroreflective-paint": "Materialien mit eigenem Shader",
       "light-through-skin": "Streuung unter der Oberfläche",
@@ -374,7 +378,7 @@
       "a-stack-of-texture-layers": "Daten-, Array- und 3D-Texturen",
       "wide-gamut-colour": "Ausgabe mit großem Farbraum",
       "energy-conservation-test": "Umgebungslicht (IBL)",
-      "soft-shadow-edges": "Filterung weicher Schatten (Halbschatten)",
+      "soft-shadows-from-a-wide-lamp": "weiche Schatten durch die Lampenbreite",
       "contact-shadow-under-a-car": "Rendern in eine Textur",
       "coloured-shadows-through-glass": "schattenwerfende transparente Objekte",
       "shadows-in-the-corners": "Ambient Occlusion im Bildraum",
