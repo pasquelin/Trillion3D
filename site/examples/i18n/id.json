@@ -1,4 +1,22 @@
 {
+  "brushed-metal": {
+    "banner": "Seret untuk melihat pantulan logam disikat. Ubah kekuatan dan arahnya.",
+    "controls": {
+      "anisotropy": "Kekuatan sikatan",
+      "direction": "Arah sikatan",
+      "roughness": "Kekasaran",
+      "spin": "Putar"
+    }
+  },
+  "car-paint-under-clear-coat": {
+    "banner": "Bergeraklah mengitari mobil. Ubah cat dan lapisan bening di atasnya.",
+    "controls": {
+      "paint": "Cat",
+      "clearCoat": "Lapisan bening",
+      "coatRoughness": "Kekasaran lapisan",
+      "spin": "Putar"
+    }
+  },
   "kit": {
     "panel": {
       "controls": "Pengaturan"
@@ -310,6 +328,13 @@
       "roof": "Atap"
     }
   },
+  "soft-shadows-from-a-wide-lamp": {
+    "banner": "Seret untuk mengitari. Ubah lebar lampu dan amati tepi bayangan.",
+    "controls": {
+      "lampWidth": "Lebar lampu",
+      "moveSubject": "Gerakkan objek"
+    }
+  },
   "a-softbox-panel": {
     "banner": "Geser untuk berkeliling. Perbesar panel cahaya untuk melembutkan kilaunya.",
     "controls": {
@@ -473,6 +498,14 @@
       "patrol": "PATROLI",
       "car": "MELACAK MOBIL",
       "balloon": "MELACAK BALON"
+    }
+  },
+  "a-crane-that-swings": {
+    "banner": "Putari derek saat satu klip memutar lengan, menggerakkan troli, mengangkat muatan, dan mengayunkannya.",
+    "controls": {
+      "speed": "Kecepatan",
+      "paused": "Dijeda",
+      "replay": "Putar ulang"
     }
   },
   "a-wave-across-a-grid": {
@@ -1234,6 +1267,25 @@
       }
     }
   },
+  "a-walk-through-the-city": {
+    "banner": "Klik tampilan, berjalan dengan W A S D, dan melihat dengan tetikus. Kurangi memori sambil bergerak.",
+    "controls": {
+      "walkSpeed": "Kecepatan jalan",
+      "memory": "Memori",
+      "view": "Tampilan",
+      "home": "Kembali ke awal"
+    },
+    "choices": {
+      "view": {
+        "beauty": "hasil akhir",
+        "lod": "tingkat detail",
+        "clusters": "klaster"
+      }
+    },
+    "words": {
+      "credit": "Jalan raya guci dibuat dengan kode untuk contoh ini, CC0 — lihat assets/examples/CREDITS.md"
+    }
+  },
   "migrating-from-three": {
     "words": {
       "credit": "Marble Bust 01 oleh Rico Cilliers, Poly Haven, CC0; peti oleh W. Sitters, CC BY 3.0 — lihat assets/examples/CREDITS.md"
@@ -1681,6 +1733,21 @@
     },
     "readouts": {
       "fourthLaneAnisotropy": "Anisotropi lajur keempat"
+    }
+  },
+  "the-home-pose": {
+    "banner": "Pilih tampilan, gerakkan kamera, lalu pilih Awal untuk kembali.",
+    "controls": {
+      "home": "Awal",
+      "tower": "Menara",
+      "square": "Alun-alun",
+      "hillside": "Lereng"
+    }
+  },
+  "the-near-plane-cuts-a-wall": {
+    "banner": "Majukan bidang dekat dan lihat bidang itu memotong setiap dinding.",
+    "controls": {
+      "nearPlane": "Bidang dekat"
     }
   },
   "the-material-family": {
@@ -2146,6 +2213,58 @@
     },
     "words": {
       "credit": "Bendera pada tiang dimodelkan dalam kode untuk contoh ini, CC0 — lihat assets/examples/CREDITS.md"
+    }
+  },
+  "a-dolly-along-the-canal": {
+    "banner": "Jeda dolly, ulangi perjalanan, atau ubah kecepatannya saat kamera menyusuri kanal.",
+    "controls": {
+      "paused": "Dijeda",
+      "replay": "Ulangi",
+      "speed": "Kecepatan"
+    },
+    "readouts": {
+      "progress": "Kemajuan"
+    }
+  },
+  "a-folder-merged-into-one-scene": {
+    "banner": "Seret untuk memeriksa sudut jalan. Kompiler menggabungkan tiga berkas OBJ dari satu folder ke adegan ini.",
+    "controls": {
+      "visible": "Terlihat",
+      "home": "Awal"
+    },
+    "words": {
+      "credit": "Model lampu jalan oleh W. Sitters, CC BY 3.0 — lihat assets/examples/CREDITS.md"
+    }
+  },
+  "drag-a-crate": {
+    "banner": "Seret peti di atas lantai. Aktifkan kisi untuk menempatkannya setiap setengah meter.",
+    "controls": {
+      "snap": "Kisi",
+      "home": "Awal"
+    }
+  },
+  "outline-the-selection": {
+    "banner": "Klik bentuk untuk memilihnya. Klik lantai untuk menghapus pilihan.",
+    "controls": {
+      "color": "Warna",
+      "thickness": "Ketebalan"
+    }
+  },
+  "a-hundred-thousand-instances": {
+    "banner": "Seret untuk mengitari bidang. Ubah jumlah atau tampilan.",
+    "controls": {
+      "count": "Jumlah",
+      "view": "Tampilan"
+    },
+    "readouts": {
+      "objectsShown": "Objek terlihat",
+      "objectsBuilt": "Objek dibuat"
+    },
+    "choices": {
+      "view": {
+        "beauty": "hasil akhir",
+        "clusters": "klaster"
+      }
     }
   },
   "inside-a-component": {
