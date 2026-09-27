@@ -116,8 +116,7 @@ export function writeDagUniforms(
   target[59] = light.clipPad;
 }
 
-/** `drawnWordOffset`: rank of the compacted-list count in the sample, 0 when there is none; the
- *  eviction queue then follows it (`evictionWord`, `layout.ts`). */
+/** `drawnWordOffset`: rank of the compacted-list count in the sample, 0 when there is none. */
 export function parseDagOutput(
   bytes: ArrayBufferLike,
   byteOffset: number,
