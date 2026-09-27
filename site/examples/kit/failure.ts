@@ -8,6 +8,23 @@ import { kitWord } from './words.ts';
 let shown: HTMLElement | undefined;
 export const failures = new Set<string>();
 
+/** A cooked cache the page asks for and the server lacks: the engine's `RESOURCE_HTTP_ERROR`, a
+ *  404 on a `…/cache/…/manifest.json`. */
+function missingCache(error: unknown) {
+  const { code, details } = (error ?? {}) as { code?: unknown; details?: Record<string, unknown> };
+  return (
+    code === 'RESOURCE_HTTP_ERROR' &&
+    details?.status === 404 &&
+    /\/cache\/.+\/manifest\.json$/.test(String(details.url))
+  );
+}
+
+/** What the card says of `error`: the command that builds a missing cooked cache, else its message. */
+export const failureText = (error: unknown, message: string) =>
+  missingCache(error)
+    ? kitWord('failure', 'missingCache', 'The cooked cache is missing: run pnpm compile:caches')
+    : message;
+
 /** The card, once (the first error stopped the page); every error joins `failures`. */
 function showFailure(error: unknown) {
   const message = error instanceof Error ? error.message : String(error);
@@ -20,7 +37,7 @@ function showFailure(error: unknown) {
   title.textContent = kitWord('failure', 'title', 'This example stopped on an error');
   const detail = document.createElement('p');
   detail.className = 'text-xs break-words';
-  detail.textContent = message;
+  detail.textContent = failureText(error, message);
   const text = document.createElement('div');
   text.append(title, detail);
   shown.append(text);

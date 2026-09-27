@@ -36,7 +36,8 @@
       "engine CPU": "motor CPU"
     },
     "failure": {
-      "title": "Bu örnek bir hata yüzünden durdu"
+      "title": "Bu örnek bir hata yüzünden durdu",
+      "missingCache": "Derlenmiş önbellek eksik: pnpm compile:caches komutunu çalıştırın"
     },
     "banner": {
       "close": "Kapat"
