@@ -1,8 +1,8 @@
-import type { GraphScene } from '../host/graph/scene.ts';
+import type { Scene } from '../world/core/scene.ts';
 
 /** What the view reads of the display graph: its meshes' surfaces, and the two hooks a draw
  *  wraps itself in. */
-type AlbedoScene = Pick<GraphScene, 'traverse' | 'onBeforeRender' | 'onAfterRender'>;
+type AlbedoScene = Pick<Scene, 'traverse' | 'onBeforeRender' | 'onAfterRender'>;
 
 /**
  * Factors that take a surface's response away from its albedo. Each is a material property —

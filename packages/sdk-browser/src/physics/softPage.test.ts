@@ -21,7 +21,7 @@ import { createPhysicsBodies, type Bodied } from './bodies.ts';
 import { createSessionHost } from './sessionHost.ts';
 import { createPhysicsPoses } from './poses.ts';
 import { receiveSoft } from './softBodies.ts';
-import { createSoftTick } from './softTick.ts';
+import { createSoftTick } from './recordTick.ts';
 
 /** A scene whose bodies are written to `writer`, `softVertices` soft vertices allowed. */
 function sceneOf(softVertices: number, host = {} as PhysicsHost) {

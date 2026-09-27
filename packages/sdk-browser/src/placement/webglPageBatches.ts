@@ -1,17 +1,21 @@
-import type { GraphScene } from '../host/graph/scene.ts';
+import type { Scene } from '../world/core/scene.ts';
 import {
   hostPageInstances,
   releaseHostInstances,
   setHostInstance,
   setHostInstanceCount,
 } from '../host/pageObjects.ts';
-import type { HostMaterials } from '../host/resources.ts';
-import type { GraphInstancedMesh } from '../host/graph/mesh.ts';
+import type { HostInstancedMesh, HostMaterials } from '../host/resources.ts';
 import type { PageRec } from '../page/selection/types.ts';
 import { grownCapacity } from './rows.ts';
 import type { Geometry } from '../../../sdk-core/src/world/geometry/geometry.ts';
 
-type Group = { mesh: GraphInstancedMesh | null; capacity: number; count: number; first: PageRec };
+type Group = {
+  mesh: HostInstancedMesh | null;
+  capacity: number;
+  count: number;
+  first: PageRec;
+};
 
 /**
  * The pages the WebGL2 path draws at the rows of an instance buffer: one instanced mesh per
@@ -21,7 +25,7 @@ type Group = { mesh: GraphInstancedMesh | null; capacity: number; count: number;
  * shown record and one count per mesh. A mesh whose page no placement shows leaves the graph. A
  * frame that shows the same records, on rows nobody wrote since, writes nothing.
  */
-export function createWebglPageBatches(scene: GraphScene) {
+export function createWebglPageBatches(scene: Scene) {
   const groups = new Map<Geometry, Map<HostMaterials, Group>>();
   const drop = (group: Group) => {
     if (!group.mesh) return;

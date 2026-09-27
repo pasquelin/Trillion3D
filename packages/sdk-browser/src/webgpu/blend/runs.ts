@@ -75,11 +75,9 @@ export function blendChunkWords(shift: number, indexCount: number) {
  * Writes the runs of the sorted plan and returns their count.
  *
  * `out` belongs to the scene and is `RUN_WORDS` words per plan entry — the worst case — so nothing
- * is allocated per frame.
+ * is allocated per frame. `runs` and `first` resume it at a run boundary (`resliceBlendRuns`).
  */
-export function buildBlendRuns(order: Uint32Array, out: Uint32Array) {
-  let runs = 0,
-    first = 0;
+export function buildBlendRuns(order: Uint32Array, out: Uint32Array, runs = 0, first = 0) {
   while (first < order.length) {
     const pipeline = planPipeline(order[first]);
     const shared = planShared(order[first]);
@@ -97,6 +95,23 @@ export function buildBlendRuns(order: Uint32Array, out: Uint32Array) {
     first = end;
   }
   return runs;
+}
+
+/**
+ * The runs of `order` sliced again from entry `at`, the first that moved; `out` holds the `count`
+ * runs it had before. A run reads only its entries and the one that stopped it: runs before the
+ * one holding `at - 1` stand, and that one resumes the slicing, as it may now extend.
+ */
+export function resliceBlendRuns(order: Uint32Array, out: Uint32Array, count: number, at: number) {
+  if (!count || at <= 0) return buildBlendRuns(order, out);
+  // Runs are stored by increasing first entry: the last one below `at`.
+  let lo = 0;
+  for (let hi = count - 1; lo < hi;) {
+    const mid = (lo + hi + 1) >> 1;
+    if (out[mid * RUN_WORDS] < at) lo = mid;
+    else hi = mid - 1;
+  }
+  return buildBlendRuns(order, out, lo, out[lo * RUN_WORDS]);
 }
 
 /**

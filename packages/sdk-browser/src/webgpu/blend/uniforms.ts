@@ -84,8 +84,11 @@ export function writeBlendView(rt: WebgpuPagesRuntime, device: GPUDevice) {
   // measures a triangle's area against the rasteriser's snapping there (`facing.ts`).
   packed[26] = rt.gpu.targetSize[0];
   packed[27] = rt.gpu.targetSize[1];
-  // The eye the fog is measured from, the opaque resolve's (`encodeLights.ts`).
-  packed.set(tiles.subarray(5, 8), 28);
+  // The eye the fog is measured from, the opaque resolve's (`encodeLights.ts`), written by value:
+  // no `subarray` view allocated per frame.
+  packed[28] = tiles[5];
+  packed[29] = tiles[6];
+  packed[30] = tiles[7];
   // Image pixels per CSS pixel: a line's width counts CSS pixels (`lineClip`).
   packed[32] = rt.setup.pixelRatio();
   device.queue.writeBuffer(

@@ -127,9 +127,11 @@ test('hold waits for a full cycle of still frames, averaged uniformly from a fix
   u = frame(true)!;
   assert.equal(u[37], 1);
   assert.equal(Math.fround(u[36]), Math.fround(1 / 2));
-  for (let k = 3; k < TAA_STILL_FRAMES; k++) u = frame(true)!;
+  for (let k = 3; k < TAA_STILL_FRAMES - 1; k++) frame(true);
+  assert.equal(taaSettled(rt), false, 'two frames before the full cycle, nothing is held');
+  u = frame(true)!;
   assert.equal(Math.fround(u[36]), Math.fround(1 / (TAA_STILL_FRAMES - 1)));
-  assert.equal(taaSettled(rt), false, 'one frame before the full cycle, nothing is held');
+  assert.equal(taaSettled(rt), true, 'read before entry: the next quiet image closes the cycle');
   u = frame(true)!;
   assert.equal(Math.fround(u[36]), Math.fround(1 / TAA_STILL_FRAMES));
   assert.equal(taaSettled(rt), true);

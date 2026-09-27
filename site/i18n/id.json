@@ -35,7 +35,7 @@
     "jumpTo": "Lompat ke tema",
     "waitsFor": "Menunggu mesin:",
     "partial": "Sebagian",
-    "coming": "Segera hadir: {{titles}}"
+    "coming": "Segera hadir"
   },
   "api": {
     "title": "Referensi mesin",
@@ -1258,6 +1258,7 @@
       "a-tube-along-a-spline": "Tabung sepanjang spline",
       "curved-surfaces": "Permukaan melengkung",
       "instances-in-colour": "Instance berwarna",
+      "a-hundred-thousand-instances": "Seratus ribu instans",
       "copies-along-a-path": "Salinan sepanjang jalur",
       "scattered-on-a-surface": "Tersebar di permukaan",
       "a-world-of-blocks": "Dunia balok",
@@ -1366,9 +1367,12 @@
       "several-views-one-page": "Beberapa tampilan, satu halaman",
       "before-and-after-slider": "Slider sebelum/sesudah",
       "side-by-side-stereo": "Stereo berdampingan",
+      "the-near-plane-cuts-a-wall": "Bidang dekat memotong dinding",
+      "the-home-pose": "Pose awal dan titik perhatian",
       "red-cyan-anaglyph": "Anaglyph merah-cyan",
       "camera-layers": "Layer kamera",
       "a-robot-that-walks-and-waves": "Mencampur gerakan robot",
+      "a-crane-that-swings": "Derek yang mengayunkan muatan",
       "a-wave-across-a-grid": "Gelombang kubus",
       "keyframes-by-hand": "Keyframe manual",
       "one-clip-many-objects": "Satu klip, banyak objek",
@@ -1402,6 +1406,7 @@
       "observatory-streamed": "Cluster di-stream",
       "health-check": "Pemeriksaan kesehatan",
       "memory-on-a-budget": "Anggaran memori",
+      "a-walk-through-the-city": "Berjalan melintasi kota",
       "detail-by-pixel-error": "Detail menurut galat piksel",
       "watch-a-world-load": "Melihat dunia dimuat",
       "ten-thousand-objects": "Sepuluh ribu objek",
@@ -1409,6 +1414,7 @@
       "what-hides-what": "Apa menyembunyikan apa",
       "create-and-dispose": "Buat dan buang",
       "no-hitch-on-first-draw": "Tanpa tersendat di gambar pertama",
+      "inside-a-component": "Di dalam komponen",
       "inside-the-g-buffer": "Di dalam G-buffer",
       "reading-pixels-back": "Membaca kembali piksel",
       "a-city-from-3d-tiles": "Kota dari 3D Tiles",
@@ -1512,9 +1518,13 @@
       "shadows-case-by-case": "Bayangan, kasus demi kasus",
       "shadows-through-see-through-panes": "Bayangan menembus kaca bening",
       "a-walker-among-balls": "Pejalan di antara bola",
-      "an-elevation-of-the-house": "Elevasi ortografis rumah"
+      "an-elevation-of-the-house": "Elevasi ortografis rumah",
+      "a-dolly-along-the-canal": "Dolly kamera di sepanjang kanal",
+      "a-folder-merged-into-one-scene": "Folder digabung menjadi satu adegan",
+      "drag-a-crate": "Seret peti"
     },
     "missing": {
+      "inside-a-component": "pembersihan kanvas buatan mesin saat dunia dibuang",
       "floating-crates": "geometri yang ditulis ulang setiap bingkai",
       "thick-lines": "garis lebar",
       "a-line-that-draws-itself": "rentang gambar geometri",

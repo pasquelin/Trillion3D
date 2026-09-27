@@ -9,9 +9,10 @@ import type {
   TableNode,
 } from '../../../../sdk-core/src/scene/core/tableContracts.ts';
 import { Color } from '../../../../sdk-core/src/world/math/color.ts';
-import { GraphCamera } from '../graph/camera.ts';
+import { Camera } from '../../../../sdk-core/src/world/camera/camera.ts';
+import { numbered } from '../graph/serial.ts';
 import { GraphLight } from '../graph/light.ts';
-import { type GraphMesh } from '../graph/mesh.ts';
+import type { HostMesh } from '../resources.ts';
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 
 /** The characters a node name may not hold, which the loader drops: the ones a path to an
@@ -53,23 +54,29 @@ export function light(declared: TableLight, name: string) {
 }
 
 export function camera(declared: TableCamera) {
-  if (declared.type === 'perspective')
-    return new GraphCamera({
-      fov: (declared.yfov ?? 0) * RAD_TO_DEG,
-      aspect: declared.aspectRatio || 1,
-      near: declared.znear || 1,
-      far: declared.zfar || 2e6,
-    });
   const [x, y] = [declared.xmag ?? 0, declared.ymag ?? 0];
-  return new GraphCamera(
-    { near: declared.znear ?? 0, far: declared.zfar ?? 0 },
-    { left: -x, right: x, top: y, bottom: -y },
+  return numbered(
+    declared.type === 'perspective'
+      ? new Camera('perspective', {
+          fov: (declared.yfov ?? 0) * RAD_TO_DEG,
+          aspect: declared.aspectRatio || 1,
+          near: declared.znear || 1,
+          far: declared.zfar || 2e6,
+        })
+      : new Camera('orthographic', {
+          near: declared.znear ?? 0,
+          far: declared.zfar ?? 0,
+          left: -x,
+          right: x,
+          top: y,
+          bottom: -y,
+        }),
   );
 }
 
 /** Morph weights set on a mesh, the first of them to the first targets; a mesh that morphs
  *  nothing is left alone, as the loader leaves it. */
-export function weigh(mesh: GraphMesh, weights: readonly number[] | null) {
+export function weigh(mesh: HostMesh, weights: readonly number[] | null) {
   if (!mesh.morphTargetInfluences) mesh.updateMorphTargets();
   if (!weights || !mesh.morphTargetInfluences) return;
   for (let i = 0; i < weights.length; i++) mesh.morphTargetInfluences[i] = weights[i];

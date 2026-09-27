@@ -50,7 +50,7 @@ test('transmissive materials stay as unsplit source meshes even when the cache p
   const witness = collectClusterPages(source, manifest, indices, associations, {
     blendCopy: createBlendCopy,
   });
-  assert.equal(asHostLibrary<G.GraphMesh>(witness.blendCopies[0]).material, material);
+  assert.equal(asHostLibrary<G.HostMesh>(witness.blendCopies[0]).material, material);
   geometry.dispose();
   material.dispose();
 });

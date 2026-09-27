@@ -9,6 +9,7 @@ import {
 import { readVec3, type Vec3Input } from '../../../sdk-core/src/world/math/vector3.ts';
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
 import { worldPoseOf } from './bodyFrame.ts';
+import { hypot3 } from '../../../sdk-core/src/math/primitives/hypot.ts';
 
 type Vec = [number, number, number];
 const turned = new Float64Array(3);
@@ -22,7 +23,7 @@ const unit = (v: Vec): Vec => {
   normalizeVector3(v);
   return v;
 };
-const between = (p: Vec, q: Vec) => Math.hypot(q[0] - p[0], q[1] - p[1], q[2] - p[2]);
+const between = (p: Vec, q: Vec) => hypot3(q[0] - p[0], q[1] - p[1], q[2] - p[2]);
 /** A unit vector square to `axis`: the direction a joint's angle 0 is read from. */
 const normalTo = ([x, y, z]: Vec): Vec => unit(Math.abs(x) < 0.9 ? [0, z, -y] : [-z, 0, x]);
 /** `near` squared to the unit `axis`, or any square to it when the two are nearly one. */

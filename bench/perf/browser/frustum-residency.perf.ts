@@ -1,7 +1,7 @@
 // Absolute selection measurement: frustum clip and autonomous residency. No oracle here: these
 // two computations have no prior implementation to confront; their correctness is held by
 // `packages/sdk-core/src/math/frustum/box.test.ts` and `packages/sdk-browser/src/backend/autonomous/residency.test.ts`. Each line says so rather than staying silent.
-import { GraphScene } from '../../../packages/sdk-browser/src/host/graph/scene.ts';
+import { Scene } from '../../../packages/sdk-browser/src/world/core/scene.ts';
 import * as THREE from 'three';
 import { clipPlanesFromMatrix, frustumClipBox } from '../../../packages/sdk-core/src/index.ts';
 import { collectPendingUrls } from '../../../packages/sdk-browser/src/page/selection/requests.ts';
@@ -85,7 +85,7 @@ function hote(nombre: number) {
     // What the image asks for holds one record per page (`requests.ts`).
     requested: [...new Map(pages.map((rec) => [rec.url, rec])).values()],
     geometryStore: createAutonomousGeometry({
-      scene: new GraphScene(),
+      scene: new Scene(),
       allPages: [],
       bootstrap: [],
       shown: [],
