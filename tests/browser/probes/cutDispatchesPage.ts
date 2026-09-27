@@ -14,7 +14,7 @@
  */
 import { createDagResources } from '../../../packages/sdk-browser/src/gpu/dag/resources.ts';
 import { encodeDagKernels } from '../../../packages/sdk-browser/src/gpu/dag/encode.ts';
-import { SELECTION_UNIFORM_BYTES } from '../../../packages/sdk-browser/src/gpu/core/selection.ts';
+import { DAG_VIEW_WORDS } from '../../../packages/sdk-browser/src/gpu/dag/shader/viewsWgsl.ts';
 import { writeDagUniforms } from '../../../packages/sdk-browser/src/gpu/dag/uniforms.ts';
 import { SELECTION_HEADER_WORDS } from '../../../packages/sdk-browser/src/gpu/dag/layout.ts';
 import { encodeAvant, ressourcesAvant } from '../../../bench/oracles/browser/cut-dispatches.ts';
@@ -52,7 +52,7 @@ export async function executer({
     packed as unknown as Parameters<typeof ressourcesAvant>[3],
   );
 
-  const uni = new Float32Array(SELECTION_UNIFORM_BYTES / 4);
+  const uni = new Float32Array(DAG_VIEW_WORDS);
   writeDagUniforms(uni, packed, uniforms, true);
   device.queue.writeBuffer(livre.uniforms, 0, uni);
   device.queue.writeBuffer(avant.uniforms, 0, uni);
