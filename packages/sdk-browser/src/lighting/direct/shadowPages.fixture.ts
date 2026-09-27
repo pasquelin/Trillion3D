@@ -65,3 +65,12 @@ export function pagedPcf(
   }
   return litOf(lit);
 }
+
+/** `shadowThrough` on one axis at page-local texel `local`, in single precision as the GPU runs it:
+ *  the transmittance layer's texel from the page's half-resolution origin, and its weight. */
+export function throughAxis(local: number): Pair {
+  const h = Math.fround(
+    Math.min(Math.max(Math.fround(0.5 * local), 0.5), SHADOW_PAGE / 2 - 0.5) - 0.5,
+  );
+  return [Math.floor(h), Math.fround(h - Math.floor(h))];
+}
