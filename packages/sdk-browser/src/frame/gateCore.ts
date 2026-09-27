@@ -135,9 +135,13 @@ export function createFrameGateCore(holdValues: number) {
      * Such a write is kept owed instead: `noteWorldsUpdated` no longer spares the next world pass,
      * which walks the index and reports it, exactly as after a host write alone. One comparison
      * of two integers when the host wrote nothing, which is every image a model moves.
+     * Returns true when such a write is owed: the one case where a pass on the moved subtree alone
+     * is not exact.
      */
     engineWriting() {
-      if (sceneWatch.pending()) hostPosesOwed = true;
+      const pending = sceneWatch.pending();
+      if (pending) hostPosesOwed = true;
+      return pending;
     },
     /** The hierarchy already carries the current revision's matrices: written by whoever just
      *  walked them itself, on the only subtree it moved — unless a host write is owed. */
