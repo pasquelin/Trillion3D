@@ -15,6 +15,7 @@ import { createTickResults } from './tickResults.ts';
 import { createCharacterDriver } from './characterDriver.ts';
 import { createWaterStep } from './water.ts';
 import { createStepClock } from './stepClock.ts';
+import { createThreadTuner } from './threadTuner.ts';
 
 const scope = globalThis as unknown as {
   location: { href: string };
@@ -23,7 +24,8 @@ const scope = globalThis as unknown as {
 };
 
 let jolt: JoltModule | null = null,
-  results: ReturnType<typeof createTickResults> | null = null;
+  results: ReturnType<typeof createTickResults> | null = null,
+  tuner: ReturnType<typeof createThreadTuner> | null = null;
 const buffers: ArrayBuffer[] = [];
 const water = createWaterStep();
 const clock = createStepClock(water);
@@ -51,7 +53,8 @@ function fail(error: unknown) {
 
 /** Runs the queued commands and one step; `stepMs` counts the step and its buoyancy, the clock
  *  the bench reads in Node (`scripts/bench-physics.ts`), not the copy of its results;
- *  `stepMaxMs` keeps the tick's slowest fixed step. */
+ *  `stepMaxMs` keeps the tick's slowest fixed step; each fixed step's time steers the threads the
+ *  next ones split over (`createThreadTuner`). */
 function run(dt: number) {
   const move = dt > 0 ? character.command(dt, jolt!.active() > 0) : null;
   if (move) queued.push(move);
@@ -61,6 +64,7 @@ function run(dt: number) {
   const ms = performance.now() - t;
   stepMs += ms;
   if (dt > 0) stepMaxMs = Math.max(stepMaxMs, ms);
+  if (dt > 0 && tuner) jolt!.concurrency(tuner.step(ms));
   for (const buffer of received) spent.push(buffer);
   received.length = 0;
   character.read(jolt!.character(), dt);
@@ -131,6 +135,7 @@ async function start(message: Extract<ToPhysics, { type: 'start' }>) {
   const threads = message.threads > 1 ? { count: message.threads, spawn } : null;
   const opened = await openJolt(await response.arrayBuffer(), budget.memoryBytes, threads);
   jolt = startJolt(opened, budget, message.threads);
+  if (message.threads > 1) tuner = createThreadTuner(message.threads);
   results = createTickResults(jolt, budget, buffers, scope.postMessage.bind(scope));
   buffers.push(...message.buffers);
   clock.start(performance.now());
