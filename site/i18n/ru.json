@@ -33,9 +33,9 @@
   "examples": {
     "lead": "Каждый пример — это один короткий файл: посмотрите, как он работает, откройте код, измените его.",
     "jumpTo": "Перейти к теме",
-    "inProgress": "В работе",
     "waitsFor": "Ждёт движок:",
-    "waitingEngine": "Ожидание движка"
+    "partial": "Частично",
+    "coming": "Скоро: {{titles}}"
   },
   "gallery": {
     "themes": {
@@ -121,10 +121,10 @@
       "a-refracting-pane": "Преломляющее стекло",
       "a-light-map": "Карта освещения",
       "two-materials-one-mesh": "Два материала, один меш",
-      "clearcoat-paint": "Краска с лаком",
       "velvet-sheen": "Бархатный блеск",
       "soap-bubble-iridescence": "Ирисация",
       "brushed-metal": "Шлифованный металл",
+      "car-paint-under-clear-coat": "Автомобильная краска под прозрачным лаком",
       "a-prism-that-disperses": "Рассеивающая призма",
       "retroreflective-paint": "Ретроотражение",
       "light-through-skin": "Свет сквозь кожу",
@@ -153,7 +153,7 @@
       "flat-shadows-on-the-floor": "Плоские проекционные тени",
       "a-softbox-panel": "Софтбокс-панель",
       "light-from-a-probe": "Свет от пробы",
-      "soft-shadow-edges": "Мягкие края тени",
+      "soft-shadows-from-a-wide-lamp": "Мягкие тени от широкой лампы",
       "contact-shadow-under-a-car": "Контактная тень",
       "coloured-shadows-through-glass": "Тени сквозь стекло",
       "shadows-in-the-corners": "Тени в углах",
@@ -182,6 +182,8 @@
       "several-views-one-page": "Несколько видов на одной странице",
       "before-and-after-slider": "Ползунок до/после",
       "side-by-side-stereo": "Стерео бок о бок",
+      "the-near-plane-cuts-a-wall": "Ближняя плоскость разрезает стену",
+      "the-home-pose": "Исходная поза и точки интереса",
       "red-cyan-anaglyph": "Красно-голубой анаглиф",
       "camera-layers": "Слои камеры",
       "a-robot-that-walks-and-waves": "Смешение движений робота",
@@ -328,7 +330,9 @@
       "ar-on-the-table": "AR на столе",
       "shadows-case-by-case": "Тени, случай за случаем",
       "shadows-through-see-through-panes": "Тени сквозь прозрачные стёкла",
-      "a-walker-among-balls": "Ходок среди мячей"
+      "a-walker-among-balls": "Ходок среди мячей",
+      "a-dolly-along-the-canal": "Проезд камеры вдоль канала",
+      "a-folder-merged-into-one-scene": "Папка, объединённая в одну сцену"
     },
     "missing": {
       "floating-crates": "геометрия, перезаписываемая в каждом кадре",
@@ -356,10 +360,10 @@
       "a-refracting-pane": "рендер в текстуру",
       "a-light-map": "слот для карты освещения",
       "two-materials-one-mesh": "меши с несколькими материалами",
-      "clearcoat-paint": "слои физического материала: лак",
       "velvet-sheen": "слои физического материала: блеск",
       "soap-bubble-iridescence": "слои физического материала: ирисация",
       "brushed-metal": "слои физического материала: анизотропия",
+      "car-paint-under-clear-coat": "слои физического материала: прозрачный лак",
       "a-prism-that-disperses": "слои физического материала: дисперсия",
       "retroreflective-paint": "материалы со своим шейдером",
       "light-through-skin": "подповерхностное рассеивание",
@@ -374,7 +378,7 @@
       "a-stack-of-texture-layers": "текстуры данных, массивы и 3D-текстуры",
       "wide-gamut-colour": "вывод в широком цветовом охвате",
       "energy-conservation-test": "освещение окружением (IBL)",
-      "soft-shadow-edges": "фильтрация мягких теней (полутень)",
+      "soft-shadows-from-a-wide-lamp": "мягкие тени в зависимости от ширины лампы",
       "contact-shadow-under-a-car": "рендер в текстуру",
       "coloured-shadows-through-glass": "прозрачные объекты, отбрасывающие тень",
       "shadows-in-the-corners": "фоновое затенение в экранном пространстве",

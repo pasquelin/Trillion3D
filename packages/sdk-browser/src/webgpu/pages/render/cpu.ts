@@ -137,6 +137,7 @@ export function renderCpuCut(
   // draws.
   services.adoptCpuCut(wanted, run.shown);
   services.queueCutResidency(run.coverageBudgetLimited);
+  services.followEvictions(null);
   const queueEnd = performance.now();
   traceQueueReconstruct(rt, queueEnd - queueStarted);
   const drawnVerifyStarted = performance.now();

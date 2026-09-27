@@ -33,9 +33,9 @@
   "examples": {
     "lead": "Chaque exemple est un court fichier : regardez-le tourner, ouvrez son code, modifiez-le.",
     "jumpTo": "Aller à un thème",
-    "inProgress": "En cours de création",
-    "waitingEngine": "En attente du moteur",
-    "waitsFor": "Attend du moteur :"
+    "waitsFor": "Attend du moteur :",
+    "partial": "Partiel",
+    "coming": "À venir : {{titles}}"
   },
   "gallery": {
     "themes": {
@@ -121,10 +121,10 @@
       "a-refracting-pane": "Une vitre qui réfracte",
       "a-light-map": "Une light map",
       "two-materials-one-mesh": "Deux matériaux, un maillage",
-      "clearcoat-paint": "Peinture vernie",
       "velvet-sheen": "Reflet de velours",
       "soap-bubble-iridescence": "Irisation",
       "brushed-metal": "Métal brossé",
+      "car-paint-under-clear-coat": "Peinture automobile sous vernis",
       "a-prism-that-disperses": "Un prisme dispersif",
       "retroreflective-paint": "Rétroréflexion",
       "light-through-skin": "Lumière sous la peau",
@@ -153,7 +153,7 @@
       "flat-shadows-on-the-floor": "Ombres projetées au sol",
       "a-softbox-panel": "Un panneau lumineux",
       "light-from-a-probe": "Lumière d’une sonde",
-      "soft-shadow-edges": "Ombres douces",
+      "soft-shadows-from-a-wide-lamp": "Ombres douces d’une lampe large",
       "contact-shadow-under-a-car": "Ombre de contact",
       "coloured-shadows-through-glass": "Ombres à travers le verre",
       "shadows-in-the-corners": "Ombres dans les coins",
@@ -182,6 +182,8 @@
       "several-views-one-page": "Plusieurs vues, une page",
       "before-and-after-slider": "Curseur avant/après",
       "side-by-side-stereo": "Stéréo côte à côte",
+      "the-near-plane-cuts-a-wall": "Le plan proche coupe un mur",
+      "the-home-pose": "La pose initiale et les points d’intérêt",
       "red-cyan-anaglyph": "Anaglyphe rouge-cyan",
       "camera-layers": "Calques de caméra",
       "a-robot-that-walks-and-waves": "Robot aux gestes mêlés",
@@ -328,7 +330,9 @@
       "ar-on-the-table": "AR sur la table",
       "shadows-case-by-case": "Les ombres, cas par cas",
       "shadows-through-see-through-panes": "Des ombres à travers des vitres",
-      "a-walker-among-balls": "Un marcheur parmi les balles"
+      "a-walker-among-balls": "Un marcheur parmi les balles",
+      "a-dolly-along-the-canal": "Un travelling le long du canal",
+      "a-folder-merged-into-one-scene": "Un dossier fusionné en une scène"
     },
     "missing": {
       "floating-crates": "géométrie réécrite à chaque image",
@@ -356,10 +360,10 @@
       "a-refracting-pane": "rendu vers une texture",
       "a-light-map": "emplacement de light map",
       "two-materials-one-mesh": "maillages multi-matériaux",
-      "clearcoat-paint": "couches du matériau physique : vernis",
       "velvet-sheen": "couches du matériau physique : lustre",
       "soap-bubble-iridescence": "couches du matériau physique : irisation",
       "brushed-metal": "couches du matériau physique : anisotropie",
+      "car-paint-under-clear-coat": "couches du matériau physique : vernis",
       "a-prism-that-disperses": "couches du matériau physique : dispersion",
       "retroreflective-paint": "matériaux à shader sur mesure",
       "light-through-skin": "diffusion sous la surface",
@@ -374,7 +378,7 @@
       "a-stack-of-texture-layers": "textures de données, en tableau et 3D",
       "wide-gamut-colour": "sortie à gamut étendu",
       "energy-conservation-test": "éclairage par l’environnement (IBL)",
-      "soft-shadow-edges": "filtrage des ombres douces (pénombre)",
+      "soft-shadows-from-a-wide-lamp": "ombres douces selon la largeur de la lampe",
       "contact-shadow-under-a-car": "rendu vers une texture",
       "coloured-shadows-through-glass": "ombres des objets transparents",
       "shadows-in-the-corners": "occlusion ambiante en espace écran",

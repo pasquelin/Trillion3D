@@ -124,12 +124,12 @@ test('check-pr-body: the untouched template is refused, a filled one accepted', 
   assert.match(problem(tooled), /no "Simplification pass:" line/);
 });
 
-test('check-pr-body: "Part of" is refused, alone or beside "Closes"', () => {
+test('check-pr-body: a step says "Part of", never beside "Closes"', () => {
   const filled = review(verify(linked));
+  assert.equal(problem(filled.replace('Closes #65', 'Part of #65')), '');
   const both = filled.replace('## What changed', 'Part of #65\n\n## What changed');
-  assert.match(problem(both), /says "Part of #<issue>".*back to the CTO/);
-  assert.match(problem(filled.replace('Closes #65', 'Part of #65')), /says "Part of #<issue>"/);
-  assert.match(problem(filled.replace('Closes #65', 'Closes #65 (Part of #483)')), /"Part of/);
+  assert.match(problem(both), /says both "Closes" and "Part of"/);
+  assert.match(problem(filled.replace('Closes #65', 'Closes #65 (Part of #483)')), /says both/);
 });
 
 test('check-pr-body: a draft passes without Lead verification, a ready pull request needs it', () => {
@@ -175,6 +175,5 @@ test("check-pr-size: more than 600 hand-written lines fail, with the base's attr
   const refused = checkSize(work);
   assert.equal(refused.status, 1);
   assert.match(refused.stdout, /added: 601 \(limit 600\)/);
-  assert.match(refused.stderr, /AGENTS\.md rule 11: the issue goes back to the CTO/);
-  assert.doesNotMatch(refused.stderr, /Part of/);
+  assert.match(refused.stderr, /AGENTS\.md rule 11: deliver the issue in steps/);
 });

@@ -52,7 +52,7 @@ test('texture queues are pinned at prepare, and a texture that fits in its queue
     roughnessMap: rough,
     emissiveMap: emissive,
   });
-  (fixture.source.children[0] as G.GraphMesh).material = material;
+  (fixture.source.children[0] as G.HostMesh).material = material;
   const backend = webgpuPagesBackend({
     ...fixture,
     gpuDevice: device,
