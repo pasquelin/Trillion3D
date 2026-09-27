@@ -25,6 +25,15 @@ const COLOUR_MAPS = new Set(['sheenColorMap', 'specularColorMap']);
 /** The extension factors that are colours. */
 const COLOURS = new Set(['sheenColor', 'specularColor']);
 
+/** How a surface draws its alpha mode, at open and when a page changes it
+ *  (`../../world/api/materialValues.ts`): blended, it composes and writes no depth; masked, it cuts
+ *  at `cutoff`; opaque, neither. */
+export const alphaModeFields = (mode: TableMaterial['alphaMode'], cutoff: number) => ({
+  transparent: mode === 'BLEND',
+  depthWrite: mode !== 'BLEND',
+  alphaTest: mode === 'MASK' ? cutoff : 0,
+});
+
 const isSlot = (value: unknown): value is TableTextureSlot =>
   typeof value === 'object' && value !== null && 'texture' in value;
 
@@ -95,9 +104,7 @@ async function build(
     params.attenuationColor = linearColour(entry.attenuationColor);
   }
   if (entry.doubleSided) params.side = hostSide('double');
-  params.transparent = entry.alphaMode === 'BLEND';
-  if (entry.alphaMode === 'BLEND') params.depthWrite = false;
-  if (entry.alphaMode === 'MASK') params.alphaTest = entry.alphaTest;
+  Object.assign(params, alphaModeFields(entry.alphaMode, entry.alphaTest));
   if (variant.vertexColors) params.vertexColors = true;
   if (variant.flatShading) params.flatShading = true;
   await Promise.all(pending);
