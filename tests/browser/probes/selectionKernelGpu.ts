@@ -74,7 +74,7 @@ async function executer({
       out: { buffer: tampon(octetsAttente) },
       work: { buffer: tampon(Math.max(8, travail.words * 4)) },
       worlds: { buffer: tampon(64, c.worlds) },
-      frames: { buffer: tampon(16, c.frames) },
+      frames: { buffer: tampon(c.framesBytes, c.frames) },
       cold: { buffer: tampon(48, c.pageCones) },
     };
     const lecture = device.createBuffer({
