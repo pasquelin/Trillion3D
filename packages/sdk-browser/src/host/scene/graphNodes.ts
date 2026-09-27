@@ -10,7 +10,7 @@
  * writes them on whatever pose it is handed.
  */
 import type { GraphAnyLight } from '../graph/kinds.ts';
-import type { GraphMesh } from '../graph/mesh.ts';
+import type { HostMesh } from '../resources.ts';
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 import type { HostBox } from '../resources.ts';
 import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts';
@@ -43,7 +43,7 @@ export type HostRotation = {
 };
 
 /** A drawn node of the graph: its geometry and its surface, or one per geometry group. */
-export type HostGraphMesh = GraphMesh;
+export type HostGraphMesh = HostMesh;
 
 /** A node that bounds itself, or whose geometry does: the two boxes the bounds rule reads
  *  (`../world/bounds.ts`), the node's own winning over its geometry's as the reference does. */

@@ -9,15 +9,30 @@ import type { PhysicsOption } from '../../physics/options.ts';
 export type Primitive =
   'triangles' | 'points' | 'lineStrip' | 'lineSegments' | 'lineLoop' | 'sprite';
 
+/** The next node's number, from one: shared by every mesh and every node the engine builds. */
+let nextSerial = 1;
+/** A number no node has yet, in creation order. */
+export const takeSerial = () => nextSerial++;
+
+/** What a mesh hears: a holder whose changes it is told of, when the holder tells any. */
+type Heard = { readonly _listeners?: Set<() => void> };
+
 /**
  * Shape and matter placed in the scene. Replacing either, or writing into either, reaches the
  * world: the geometry's and the material's changes are heard for as long as this mesh wears them.
+ * The engine draws its own meshes with its own surfaces (`M`); a page's wear a `Material`.
  */
-export class Mesh extends Object3D {
+export class Mesh<M extends object = Material> extends Object3D {
   /** Always `true`: tells a mesh apart from any other object. */
   readonly isMesh = true as const;
+  /** The mesh's number, unique in the session: a draw breaks ties with it, in creation order. */
+  readonly serial = takeSerial();
+  /** The weight of each morph target, when the geometry declares any. */
+  morphTargetInfluences?: number[];
+  /** The rank of each morph target by its name. */
+  morphTargetDictionary?: Record<string, number>;
   private _geometry: Geometry;
-  private _material: Material | Material[];
+  private _material: M | M[];
   private readonly heard = () => this._link?.content(this);
   private _physics: ObjectPhysics | null = null;
 
@@ -25,7 +40,7 @@ export class Mesh extends Object3D {
   readonly primitive: Primitive;
   constructor(
     geometry: Geometry = new Geometry(),
-    material: Material | Material[] = new Material('meshBasic'),
+    material: M | M[] = new Material('meshBasic') as unknown as M,
     primitive: Primitive = 'triangles',
   ) {
     super();
@@ -35,12 +50,25 @@ export class Mesh extends Object3D {
     this._geometry = geometry;
     this._material = material;
     this.hear(true);
+    this.updateMorphTargets();
   }
   private hear(on: boolean) {
     const materials = Array.isArray(this._material) ? this._material : [this._material];
-    for (const holder of [this._geometry, ...materials])
-      if (on) holder._listeners.add(this.heard);
-      else holder._listeners.delete(this.heard);
+    for (const holder of [this._geometry, ...materials] as Heard[])
+      if (on) holder._listeners?.add(this.heard);
+      else holder._listeners?.delete(this.heard);
+  }
+  /** One zero weight per morph target of the first morphed attribute, named by rank. */
+  updateMorphTargets() {
+    const morphs = this._geometry.morphAttributes;
+    const first = Object.keys(morphs)[0];
+    if (first === undefined) return;
+    const influences: number[] = (this.morphTargetInfluences = []);
+    const dictionary: Record<string, number> = (this.morphTargetDictionary = {});
+    morphs[first].forEach((target, rank) => {
+      influences.push(0);
+      dictionary[target.name || String(rank)] = rank;
+    });
   }
   /** The mesh's shape; set another geometry to change it. */
   get geometry() {
@@ -53,10 +81,10 @@ export class Mesh extends Object3D {
     this.heard();
   }
   /** The mesh's material, or one per group; set another to change it. */
-  get material() {
+  get material(): M | M[] {
     return this._material;
   }
-  set material(material: Material | Material[]) {
+  set material(material: M | M[]) {
     this.hear(false);
     this._material = material;
     this.hear(true);
@@ -79,6 +107,17 @@ export class Mesh extends Object3D {
   /** A shallow clone shares this mesh's geometry and material, and keeps its primitive. */
   protected override blank(): this {
     return new Mesh(this.geometry, this.material, this.primitive) as this;
+  }
+  /** The reference's copy: the pose and flags, the morph weights copied, the geometry shared and
+   *  the materials in a list of their own. */
+  override copy(source: Object3D, recursive = true) {
+    super.copy(source, recursive);
+    const mesh = source as Mesh<M>;
+    if (mesh.morphTargetInfluences) this.morphTargetInfluences = mesh.morphTargetInfluences.slice();
+    if (mesh.morphTargetDictionary) this.morphTargetDictionary = { ...mesh.morphTargetDictionary };
+    this.material = Array.isArray(mesh.material) ? mesh.material.slice() : mesh.material;
+    this.geometry = mesh.geometry;
+    return this;
   }
   override localBounds(): Box3 | null {
     return this._geometry.boundingBox ?? this._geometry.computeBoundingBox();

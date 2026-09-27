@@ -18,7 +18,7 @@ test('paged transparent commands disappear outside the view and return with both
     fixture.material.transparent = true;
     fixture.material.side = G.DOUBLE_SIDE;
     fixture.metadata.primitives[0].pass = 'clustered-blend';
-    const twin = fixture.source.children[0].clone() as G.GraphMesh;
+    const twin = fixture.source.children[0].clone() as G.HostMesh;
     fixture.source.add(twin);
     fixture.associations.set(twin, { meshes: 0, primitives: 0 });
     const roots = collectClusterPages(

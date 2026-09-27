@@ -1,3 +1,4 @@
+import { isInstancedNode } from '../../host/graph/kinds.ts';
 import {
   BOX_VALUES,
   boxTransform,
@@ -27,7 +28,6 @@ type CulledCopy = {
     boundingSphere?: { center: Centre; radius: number } | null;
     computeBoundingSphere?(): void;
   };
-  readonly kind?: string;
   readonly instanceMatrix?: { readonly array: ArrayLike<number>; readonly version?: number };
   readonly count?: number;
 };
@@ -55,7 +55,7 @@ class WebglClusterCopyCulling {
   visible(copy: CulledCopy) {
     if (!copy.frustumCulled || neverCulled(visMaterial(copy.material))) return true;
     const box = this.box;
-    if (copy.kind === 'instancedMesh' && copy.instanceMatrix) this.placementsBox(copy);
+    if (isInstancedNode(copy)) this.placementsBox(copy);
     else {
       if (!copy.geometry.boundingBox) copy.geometry.computeBoundingBox();
       readHostBox(box, copy.geometry.boundingBox!);

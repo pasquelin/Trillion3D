@@ -20,7 +20,7 @@ import type { PlacementRows } from '../../placement/rows.ts';
 import { hostSurface, repaintHostSurface } from './worldSurface.ts';
 import { HOST_MAPS, type HostTextures } from './worldTextures.ts';
 import { BufferAttribute } from '../../../../sdk-core/src/world/buffer/attribute.ts';
-import { GraphMesh } from '../../host/graph/mesh.ts';
+import { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts';
 import type { GraphSurface } from '../../host/graph/surface.ts';
 import type { GraphTexture } from '../../host/graph/texture.ts';
 import type { Cut } from './worldCuts.ts';
@@ -86,7 +86,7 @@ export function buildWorldMirror(input: MirrorInput) {
     if (!worn) surfaces.set(material, (worn = []));
     const rank = reading === 'lines' ? 2 : reading === 'sprite' ? 3 : +tinted;
     const surface = (worn[rank] ??= hostSurface(material, tinted, textures, reading));
-    return new GraphMesh(geometry, surface);
+    return new Mesh(geometry, surface);
   };
   for (const { cut, material, rows, name } of input.placed) {
     const mesh = meshOf(cut, material);
