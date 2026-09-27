@@ -7,10 +7,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { fakeDevice, written } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 import { shadowBatchWrites } from './batchWrites.ts';
+import { MAX_SHADOW_PAGES } from './recordPack.ts';
 import {
   MAX_SHADOW_BATCHES,
   SHADOW_BATCH_WRITE_BYTES,
   SHADOW_STAGING_BYTES,
+  shadowBatchCapacity,
 } from './batchBudget.ts';
 
 test('unstaged, a write goes straight to its target', () => {
@@ -30,6 +32,7 @@ test('staged, two batches writing one buffer each land in command order', () => 
   const target = device.createBuffer({ size: 16, usage: 0 }),
     encoder = device.createCommandEncoder(),
     batches = shadowBatchWrites(device);
+  batches.reserve(SHADOW_BATCH_WRITE_BYTES);
   batches.stage(encoder);
   batches.write(target, 0, Uint32Array.of(7, 8));
   batches.write(target, 0, Uint32Array.of(9, 10));
@@ -50,14 +53,23 @@ test('staged, two batches writing one buffer each land in command order', () => 
   );
 });
 
-// The staging buffer is sized once, from the most batches a frame draws (`batchBudget.ts`), and
-// counted in the memory budget: the largest frame fits it, and nothing is made at run time.
-test('the staging buffer is made once, at its largest, and holds the largest frame', () => {
-  const { device, buffers, writes } = fakeDevice();
+// The staging buffer is sized from the batches the current pool may draw (`shadowBatchCapacity`),
+// within the grant the memory budget counts: a smaller pool stages less, and a frame that reserves
+// no more than before makes nothing.
+test('the staging buffer is made at the reserved capacity, again only for a larger one', () => {
+  const { device, buffers, writes, destroyed } = fakeDevice();
   const target = device.createBuffer({ size: SHADOW_BATCH_WRITE_BYTES, usage: 0 }),
     batches = shadowBatchWrites(device),
-    batch = new Uint32Array(SHADOW_BATCH_WRITE_BYTES / 4);
+    batch = new Uint32Array(SHADOW_BATCH_WRITE_BYTES / 4),
+    small = shadowBatchCapacity(2601, MAX_SHADOW_PAGES, Infinity).stagingBytes;
+  batches.reserve(small);
+  batches.stage(device.createCommandEncoder());
+  batches.write(target, 0, batch);
+  batches.end();
+  batches.reserve(small / 2);
+  assert.equal(buffers.length, 2, 'a smaller frame keeps the staging');
   for (let frame = 0; frame < 2; frame++) {
+    batches.reserve(SHADOW_STAGING_BYTES);
     for (let k = 1; k < MAX_SHADOW_BATCHES; k++) {
       batches.stage(device.createCommandEncoder());
       batches.write(target, 0, batch);
@@ -67,9 +79,10 @@ test('the staging buffer is made once, at its largest, and holds the largest fra
   const staging = buffers.filter((buffer) => buffer !== (target as unknown));
   assert.deepEqual(
     staging.map(({ size }) => size),
-    [SHADOW_STAGING_BYTES],
-    'one buffer, for every batch of the largest frame but the first',
+    [small, SHADOW_STAGING_BYTES],
+    "the pool's, then one for every batch of the grant's frame but the first",
   );
+  assert.deepEqual(destroyed, [buffers[1]], 'the smaller one released');
   batches.stage(device.createCommandEncoder());
   batches.write(target, 0, batch);
   assert.throws(() => batches.write(target, 0, Uint32Array.of(1)), /SHADOW_BATCH_WRITES_OVERFLOW/);
@@ -91,6 +104,7 @@ function frame(batches: number, perBatch: (batch: number) => readonly number[]) 
     writer = shadowBatchWrites(device),
     encoder = device.createCommandEncoder(),
     staged: Uint32Array[] = [];
+  writer.reserve(SHADOW_STAGING_BYTES);
   let seed = 1;
   for (let batch = 0; batch < batches; batch++) {
     if (batch) writer.stage(encoder);
