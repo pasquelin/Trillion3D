@@ -2180,5 +2180,16 @@
     "words": {
       "credit": "Flagge an einem Mast für dieses Beispiel im Code modelliert, CC0 — siehe assets/examples/CREDITS.md"
     }
+  },
+  "a-dolly-along-the-canal": {
+    "banner": "Pausiere die Kamerafahrt, starte sie neu oder ändere ihre Geschwindigkeit entlang des Kanals.",
+    "controls": {
+      "paused": "Pausiert",
+      "replay": "Neu starten",
+      "speed": "Tempo"
+    },
+    "readouts": {
+      "progress": "Fortschritt"
+    }
   }
 }
