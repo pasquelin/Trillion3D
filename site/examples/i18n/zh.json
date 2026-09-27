@@ -328,6 +328,13 @@
       "roof": "屋顶"
     }
   },
+  "soft-shadows-from-a-wide-lamp": {
+    "banner": "拖动以环绕查看。改变灯的宽度并观察阴影边缘。",
+    "controls": {
+      "lampWidth": "灯宽",
+      "moveSubject": "移动物体"
+    }
+  },
   "a-softbox-panel": {
     "banner": "拖动四处走走。把灯板变大，反光就变柔和了。",
     "controls": {
