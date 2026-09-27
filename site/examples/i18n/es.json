@@ -2180,5 +2180,16 @@
     "words": {
       "credit": "Bandera en un mástil modelada en código para este ejemplo, CC0 — ver assets/examples/CREDITS.md"
     }
+  },
+  "a-dolly-along-the-canal": {
+    "banner": "Pausa el travelling, repite el recorrido o cambia su velocidad mientras la cámara avanza por el canal.",
+    "controls": {
+      "paused": "En pausa",
+      "replay": "Repetir",
+      "speed": "Velocidad"
+    },
+    "readouts": {
+      "progress": "Progreso"
+    }
   }
 }
