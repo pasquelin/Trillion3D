@@ -79,7 +79,7 @@
       world.camera.far = 100;
 
       controls(
-        { nearPlane: [0.1, 14, 0.1, 0.1] },
+        { nearPlane: [0.1, 14, 4, 0.1] },
         ({ nearPlane }) => {
           // Camera optics redraw on assignment; no projection matrix or clipping imitation is needed.
           world.camera.near = nearPlane;

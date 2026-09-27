@@ -31,12 +31,16 @@ test('the near-plane lesson writes every slider value and keeps valid optics', a
         math,
       },
       kit: {
-        controls(_specs: object, callback: typeof change) {
+        controls(
+          specs: { nearPlane: readonly [number, number, number, number] },
+          callback: typeof change,
+        ) {
           change = callback;
-          callback({ nearPlane: 0.1 });
+          callback({ nearPlane: specs.nearPlane[2] });
         },
       },
     });
+    assert.equal(camera.near, 4, 'the opening frame cuts the first wall');
     for (const nearPlane of [0.1, 7.3, 14]) {
       change({ nearPlane });
       assert.equal(camera.near, nearPlane);
