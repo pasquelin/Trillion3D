@@ -1,12 +1,17 @@
 // The hot-path math of sdk-core as it stood before #917, frozen: the oracles its rewrites must
-// match bit for bit (`packages/sdk-core/src/math/primitives/cone.test.ts`), with the seeded
-// inputs they are fed.
+// match bit for bit (`packages/sdk-core/src/math/primitives/{cone,box}.test.ts`,
+// `packages/sdk-core/src/math/frustum/box.test.ts`), with the seeded inputs they are fed.
 import { graine } from '../../core/measure.ts';
 import { HOSTILE_FLOATS } from '../../../tests/kit/assert/hostile.ts';
 import { coneRejects } from '../../../packages/sdk-core/src/math/projectionOracles.ts';
+import {
+  boxCornersInto,
+  boxEmpty,
+  boxExpandByPoint,
+} from '../../../packages/sdk-core/src/math/primitives/box.ts';
 
 /** Seeded floats: one in eight hostile or maximal, the others of every sign and scale. */
-function hostileFloats(seed: number) {
+export function hostileFloats(seed: number) {
   const next = graine(seed);
   const rare = [...HOSTILE_FLOATS, Number.MAX_VALUE, -Number.MAX_VALUE];
   return (scale = 10) =>
@@ -110,4 +115,30 @@ export function boxConeRejectsBefore(
   } catch {
     return false;
   }
+}
+
+/** `frustumClipBox` before #917: the bounds stored in an array the plane's sign indexes. */
+export function frustumClipBoxBefore(planes: ArrayLike<number>, box: ArrayLike<number>) {
+  const bounds = [box[0], box[3], box[1], box[4], box[2], box[5]];
+  const side = (p: number, forward: number) => {
+    const a = planes[p],
+      b = planes[p + 1],
+      c = planes[p + 2];
+    const f = (s: number) => (s > 0 ? forward : 1 - forward);
+    return a * bounds[f(a)] + b * bounds[2 + f(b)] + c * bounds[4 + f(c)] + planes[p + 3] < 0;
+  };
+  for (let p = 0; p < 24; p += 4) if (side(p, 1)) return 0;
+  for (let p = 0; p < 24; p += 4) if (side(p, 0)) return 1;
+  return 2;
+}
+
+/** `boxTransform` before #917 on a non-empty box: the corners written out, then folded. */
+export function boxTransformBefore(box: ArrayLike<number>, m: ArrayLike<number>) {
+  const corners = new Float64Array(24),
+    out = new Float64Array(6);
+  boxCornersInto(corners, 0, box[0], box[1], box[2], box[3], box[4], box[5], m);
+  boxEmpty(out, 0);
+  for (let at = 0; at < 24; at += 3)
+    boxExpandByPoint(out, 0, corners[at], corners[at + 1], corners[at + 2]);
+  return out;
 }
