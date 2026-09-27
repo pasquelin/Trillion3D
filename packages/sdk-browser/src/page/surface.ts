@@ -22,6 +22,7 @@
  */
 import type { Side } from '../../../sdk-core/src/index.ts';
 import type { HostMaterials } from '../host/resources.ts';
+import { isAssignment, type AlphaChange } from '../placement/backendSceneUpdates.ts';
 import type { HostShadedMaterial } from '../host/shadedMaterial.ts';
 import { unreadMapRefusal } from '../scene/surfaceModel.ts';
 import {
@@ -135,20 +136,21 @@ export function recordsBySurface<T extends { sourceMesh?: object }>(
   const by = new Map<object, T[]>();
   for (const rec of recordsOfMeshes(records, meshes)) {
     const surface = meshes.get(rec.sourceMesh!)!;
-    by.set(surface, [...(by.get(surface) ?? []), rec]);
+    let list = by.get(surface);
+    if (!list) by.set(surface, (list = []));
+    list.push(rec);
   }
   return by;
 }
 
 /** Why neither engine gives an assigned mesh another surface: none of its records is a page's,
  *  it is drawn as a forward copy the open laid out, off the surface the copy took then. */
-export function unpagedRefusal(
-  records: readonly { sourceMesh?: object }[],
-  meshes: ReadonlyMap<object, unknown> | undefined,
-) {
-  const paged = new Set(recordsOfMeshes(records, meshes ?? new Map()).map((rec) => rec.sourceMesh));
-  if ([...(meshes?.keys() ?? [])].some((mesh) => !paged.has(mesh)))
-    return 'the drawable is drawn as a forward copy laid out when the session opens';
+export function unpagedRefusal(records: readonly { sourceMesh?: object }[], alpha: AlphaChange) {
+  if (!isAssignment(alpha)) return;
+  const paged = new Set(recordsOfMeshes(records, alpha.meshes).map((rec) => rec.sourceMesh));
+  for (const mesh of alpha.meshes.keys())
+    if (!paged.has(mesh))
+      return 'the drawable is drawn as a forward copy laid out when the session opens';
 }
 
 /** A record wears `declaration` from now on, its surface record read at this boundary. */

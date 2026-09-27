@@ -19,17 +19,17 @@ import {
   type SceneMaterialPatch,
 } from './materialValues.ts';
 
-export type { SceneMaterial, SceneMaterialPatch } from './materialValues.ts';
-export { RUNTIME_MATERIAL_CEILING, type CreatedMaterial } from './createdMaterials.ts';
 import {
   assignment,
   CREATED_FIELDS,
   RUNTIME_MATERIAL_CEILING,
   createdSurface,
   PLAIN,
-  variantKey,
   type CreatedMaterial,
 } from './createdMaterials.ts';
+
+export type { SceneMaterial, SceneMaterialPatch } from './materialValues.ts';
+export { RUNTIME_MATERIAL_CEILING, type CreatedMaterial } from './createdMaterials.ts';
 
 type Inputs = {
   check: () => void;
@@ -99,7 +99,7 @@ export function createExplorerMaterialApi(inputs: Inputs) {
       check();
       const { ranks, surfaces } = scene();
       const listed = ranks.map((rank) => read(rank, surfaces.get(rank)![0]));
-      for (const [id, variants] of created) listed.push(read(id, variants.values().next().value!));
+      for (const [id, variants] of created) listed.push(read(id, variants.get(PLAIN)!));
       return listed;
     },
     /** One material as it is now, a detached copy; an unknown id is refused by name. */
@@ -165,8 +165,10 @@ export function createExplorerMaterialApi(inputs: Inputs) {
           id,
         });
       validate(id, props, CREATED_FIELDS);
+      if (props.name !== undefined && typeof props.name !== 'string')
+        throw invalid(id, 'name', props.name);
       const surface = createdSurface(props);
-      created.set(id, new Map([[variantKey(PLAIN), surface]]));
+      created.set(id, new Map([[PLAIN, surface]]));
       return read(id, surface);
     },
     /**
@@ -189,9 +191,9 @@ export function createExplorerMaterialApi(inputs: Inputs) {
       refuseClass(id, alpha);
       repaints(id);
       for (const [mesh, surface] of alpha.meshes) mesh.material = surface;
-      // Every engine follows, or none draws it before a new session: the refresh runs for all.
-      const taken = backends.map((backend) => !!backend.wearSurface?.(alpha));
-      return refreshed(alpha) && !taken.includes(false);
+      // Every engine follows, or one draws it only in a new session: the refresh runs for all.
+      for (const backend of backends) backend.wearSurface?.(alpha);
+      return refreshed(alpha) && backends.every((backend) => !!backend.wearSurface);
     },
   };
 }
