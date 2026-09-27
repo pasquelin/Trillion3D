@@ -125,15 +125,18 @@ export function createExplorerLifecycle(session: ExplorerSession, inputs: Inputs
    *  `completed === total`. */
   const awaitPages = async (options: PageWait = {}) => {
     const { onProgress, ...wait } = options;
-    let said = '';
+    let said = { completed: -1, total: -1 };
     const report = (last = false) => {
-      const reads = read.reads(),
-        completed = reads.landed,
-        total = last ? completed : reads.asked;
-      const message = `${completed} of ${total} pages the view reads`;
-      if (message === said) return;
-      said = message;
-      onProgress?.({ phase: 'pages', completed, total, message });
+      const { landed: completed, asked } = read.reads();
+      const total = last ? completed : asked;
+      if (completed === said.completed && total === said.total) return;
+      said = { completed, total };
+      onProgress?.({
+        phase: 'pages',
+        completed,
+        total,
+        message: `${completed} of ${total} pages the view reads`,
+      });
     };
     const read = streamer.watch(() => report());
     try {
@@ -145,6 +148,7 @@ export function createExplorerLifecycle(session: ExplorerSession, inputs: Inputs
           camera,
           async (missing) => {
             holdPages(backend, missing, read);
+            // `load` hears the cut even when it lacks nothing; an empty batch is not asked.
             if (missing.length) await streamer.request(missing);
             for (const url of missing) {
               if (geometryUrls.has(url)) {
