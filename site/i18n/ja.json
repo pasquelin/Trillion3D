@@ -327,7 +327,8 @@
       "ar-on-the-table": "テーブルの上のAR",
       "shadows-case-by-case": "影をケースごとに",
       "shadows-through-see-through-panes": "透けるガラスが落とす影",
-      "a-walker-among-balls": "ボールの中を歩く人"
+      "a-walker-among-balls": "ボールの中を歩く人",
+      "an-elevation-of-the-house": "家の正投影立面図"
     },
     "missing": {
       "floating-crates": "毎フレーム書き換えるジオメトリ",
