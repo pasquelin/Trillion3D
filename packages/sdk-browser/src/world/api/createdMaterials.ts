@@ -6,7 +6,14 @@ import { surfaceVariantOf, variantKey } from '../../host/prepared/materials.ts';
 import { alphaModeOf, type AlphaMode } from '../../../../sdk-core/src/contracts/material.ts';
 import { firstMaterial } from '../../scene/materialSide.ts';
 import type { HostGraphMesh } from '../../host/scene/graphNodes.ts';
-import { MASK_CUTOFF, PATCH_FIELDS, type SceneMaterialPatch } from './materialValues.ts';
+import { EngineError } from '../../../../sdk-core/src/index.ts';
+import {
+  invalid,
+  MASK_CUTOFF,
+  PATCH_FIELDS,
+  validate,
+  type SceneMaterialPatch,
+} from './materialValues.ts';
 
 /** What `createMaterial` takes: a patch's values but tiling, a name, and a map — refused until
  *  the texture atlas takes one after open (#847). */
@@ -21,7 +28,19 @@ export const RUNTIME_MATERIAL_CEILING = 256;
 
 /** What `createMaterial` takes, anything else refused by name: a change's values but tiling,
  *  and a name. */
-export const CREATED_FIELDS = [...PATCH_FIELDS.filter((field) => field !== 'tiling'), 'name'];
+const CREATED_FIELDS = [...PATCH_FIELDS.filter((field) => field !== 'tiling'), 'name'];
+
+/** Every value the page named for a created material, checked as a change's are, or a named
+ *  refusal before anything is built: a map is not taken yet (steps (b), (c) of #847). */
+export function validateCreated(id: string, props: CreatedMaterial) {
+  if (props.map !== undefined)
+    throw new EngineError('UNSUPPORTED_SCENE_UPDATE', 'a created material takes no map yet', {
+      id,
+    });
+  validate(id, props, CREATED_FIELDS);
+  if (props.name !== undefined && typeof props.name !== 'string')
+    throw invalid(id, 'name', props.name);
+}
 
 /** A created material's surfaces by variant (`variantKey`), the plain one under this key. */
 export const PLAIN = variantKey({ vertexColors: false, flatShading: false });
