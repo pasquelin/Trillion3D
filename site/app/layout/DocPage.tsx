@@ -24,7 +24,7 @@ interface DocPageProps extends Omit<ComponentPropsWithoutRef<'article'>, 'title'
  * never shows above or beside it; the page's section headings keep their distance from it
  * (`scroll-mt-40` on the article) when a jump brings them to the top. */
 const STICKY =
-  'sticky top-0 z-10 bg-base-100 -mx-4 -mt-4 px-4 pt-4 pb-4 sm:-mx-6 sm:-mt-6 sm:px-6 sm:pt-6 border-b border-base-300';
+  'sticky -top-4 sm:-top-6 z-10 bg-base-100 -mx-4 -mt-4 px-4 pt-4 pb-4 sm:-mx-6 sm:-mt-6 sm:px-6 sm:pt-6 border-b border-base-300';
 
 /** The reading page: a header (eyebrow, title, lead, actions), then the body in one column the
  * width of the content area — running text keeps its own readable measure. Every page that is
