@@ -25,12 +25,21 @@ fn dagWanted(@builtin(global_invocation_id) id:vec3u){
  if(aheadOn()&&vi==AHEAD_VIEW){wantAhead(i,w,r,cluster);return;}
  if(!visible(r,w,cluster)){atomicAdd(&out.frustumRejected,1u);wantAhead(i,w,r,cluster);return;}
  liveAppend(entry);
- let rejected=(views[0u].viewFlags&VIEW_LIGHT)==0u&&coneRejects(r,w);
- flags[coneCache(i)]=select(0u,1u,rejected);
+ let light=(views[0u].viewFlags&VIEW_LIGHT)!=0u;
+ let rejected=!light&&coneRejects(r,w);
  let e=views[vi].view*worlds[w];let stretch=stretchOf(w);let focal=focalPixels();
- if(!selects(cluster,e,stretch,focal,views[vi].pixelError)||rejected){wantAhead(i,w,r,cluster);return;}
+ // The two screen errors \`selects\` compares, computed ONCE: the request's priority reuses them
+ // (\`replacementPixels\` is one of the two), and a camera cut keeps the two comparisons of the cut
+ // rule behind the cone bit, for \`dagMask\` — same operands, same frame, so the same bits.
+ let parentPixels=projected(cluster.parentError,cluster.parentSphere,e,stretch,focal);
+ let ownPixels=projected(cluster.lodError,cluster.sphere,e,stretch,focal);
+ let t=views[vi].pixelError;
+ // A light cut's views share the page index: its word stays the lone cone bit, zero, as before.
+ flags[coneCache(i)]=select(select(0u,CONE_REJECTED,rejected)|select(0u,PARENT_ABOVE,parentPixels>t)|select(0u,OWN_WITHIN,ownPixels<=t),0u,light);
+ if(!drawsCluster(true,parentPixels,ownPixels,true,t)||rejected){wantAhead(i,w,r,cluster);return;}
  atomicMax(&out.lodLevel,cluster.flags>>${CLUSTER_LEVEL_SHIFT}u);
- emitOne(i,replacementPixels(cluster,e,stretch,focal));
+ // \`replacementPixels\`: the replacement's error, or the cluster's own when nothing replaces it.
+ emitOne(i,select(parentPixels,ownPixels,cluster.parentError<0.0));
  stampUse(i);
  if(views[0u].residentCut!=0u&&!isResident(i)){noteCoarser();}
 }
