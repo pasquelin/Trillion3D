@@ -36,7 +36,7 @@ test('the scene materials are listed by table rank, each a detached copy', async
 });
 
 test('setMaterial writes each listed value into every surface of the material, live', async () => {
-  const { api, floor, textures, refreshed } = await scene();
+  const { api, floor, textures, refreshes } = await scene();
   const versions = floor.map((surface) => surface.version);
   const record = importHostTexture(textures[0]);
   followHostTexture(record);
@@ -50,7 +50,7 @@ test('setMaterial writes each listed value into every surface of the material, l
     alphaMode: 'opaque',
     tiling: [4, 2],
   });
-  assert.equal(refreshed(), 1, 'the engine reads the surfaces again');
+  assert.equal(refreshes.length, 1, 'the engine reads the surfaces again');
   const read = api.material('0');
   assert.deepEqual(read.baseColor, [0.25, 0.5, 0.75]);
   assert.equal(read.opacity, 0.5);
