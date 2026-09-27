@@ -101,7 +101,7 @@ function cas(gl: WebGL2RenderingContext, eclairee: boolean) {
   compose.dispose();
   dessin.dispose();
   monde.traverse((objet) => {
-    if (!(objet instanceof G.GraphMesh)) return;
+    if (!(objet instanceof G.Mesh)) return;
     objet.geometry.dispose();
     (Array.isArray(objet.material) ? objet.material : [objet.material]).forEach((m) => m.dispose());
   });

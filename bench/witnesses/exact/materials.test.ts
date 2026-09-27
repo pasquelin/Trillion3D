@@ -25,7 +25,7 @@ function indexedQuad() {
   geometry.setIndex(G.indices([0, 1, 2, 0, 2, 3]));
   return geometry;
 }
-function materials(diagnostic: DiagnosticMode, blendCopies: G.GraphMesh[] = []) {
+function materials(diagnostic: DiagnosticMode, blendCopies: G.HostMesh[] = []) {
   const options = {
     blendCopies,
     viewport: [640, 400] as const,

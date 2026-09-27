@@ -11,7 +11,7 @@ import type {
 import { Color } from '../../../../sdk-core/src/world/math/color.ts';
 import { GraphCamera } from '../graph/camera.ts';
 import { GraphLight } from '../graph/light.ts';
-import { type GraphMesh } from '../graph/mesh.ts';
+import type { HostMesh } from '../resources.ts';
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 
 /** The characters a node name may not hold, which the loader drops: the ones a path to an
@@ -69,7 +69,7 @@ export function camera(declared: TableCamera) {
 
 /** Morph weights set on a mesh, the first of them to the first targets; a mesh that morphs
  *  nothing is left alone, as the loader leaves it. */
-export function weigh(mesh: GraphMesh, weights: readonly number[] | null) {
+export function weigh(mesh: HostMesh, weights: readonly number[] | null) {
   if (!mesh.morphTargetInfluences) mesh.updateMorphTargets();
   if (!weights || !mesh.morphTargetInfluences) return;
   for (let i = 0; i < weights.length; i++) mesh.morphTargetInfluences[i] = weights[i];

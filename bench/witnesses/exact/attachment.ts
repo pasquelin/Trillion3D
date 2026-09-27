@@ -1,6 +1,7 @@
-import { GraphMesh } from '../../../packages/sdk-browser/src/host/graph/mesh.ts';
+import { numbered } from '../../../packages/sdk-browser/src/host/graph/serial.ts';
+import { Mesh } from '../../../packages/sdk-core/src/world/object/mesh.ts';
 import { BufferAttribute } from '../../../packages/sdk-core/src/world/buffer/attribute.ts';
-import type { HostMaterials } from '../../../packages/sdk-browser/src/host/resources.ts';
+import type { HostMaterials, HostMesh } from '../../../packages/sdk-browser/src/host/resources.ts';
 import { setGeometryBounds } from '../../../packages/sdk-browser/src/host/geometryBounds.ts';
 import type { PageRec } from '../../../packages/sdk-browser/src/page/selection/selection.ts';
 import { hashId } from '../../../packages/sdk-browser/src/diagnostic/colors.ts';
@@ -28,7 +29,7 @@ export function disposePageGeometry(geometry: Geometry) {
 export function createExactPagesAttachment(
   indexByUrl: Map<string, BufferAttribute>,
   materialFor: (rec: PageRec) => HostMaterials,
-  paint: (mesh: GraphMesh, geometry: Geometry, material: HostMaterials, salt?: number) => void,
+  paint: (mesh: HostMesh, geometry: Geometry, material: HostMaterials, salt?: number) => void,
 ) {
   const attach = (rec: PageRec) => {
     if (!rec.array) return;
@@ -40,7 +41,7 @@ export function createExactPagesAttachment(
         geometry.setAttribute(name, attribute);
       geometry.setIndex(indexByUrl.get(rec.url)!);
       setGeometryBounds(geometry, rec.min, rec.max);
-      const copy = new GraphMesh(geometry, materialFor(rec));
+      const copy = numbered(new Mesh(geometry, materialFor(rec)));
       copy.matrixAutoUpdate = false;
       copy.matrix.fromArray(rec.matrix.elements);
       copy.frustumCulled = false;

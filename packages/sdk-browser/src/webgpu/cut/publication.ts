@@ -7,6 +7,7 @@ import { createHeldResidency, type HeldResidency } from '../../page/cut/held.ts'
 import { markDrawnMirrored } from '../pages/helpers.ts';
 import type { WebgpuResidencySets } from '../residency/sets.ts';
 import type { WebgpuPagesCore } from '../pages/runtime.ts';
+import { createEvictionFeed } from '../residency/evictionFeed.ts';
 
 /**
  * What the rank journal notifies when a page changes coverage: the pending set, and the CPU cut's
@@ -119,6 +120,7 @@ export function createWebgpuCutPublication(
     return metrics.listsRewritten;
   };
   return {
+    followEvictions: createEvictionFeed(packedPages, () => gpu.cache),
     /** Pages of the requested cut that are still waiting for their bytes. */
     cutPending,
     /** The CPU cut's residency, moved by the rank journal: the cache's changes reach it once the

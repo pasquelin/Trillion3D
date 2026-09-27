@@ -1,16 +1,15 @@
 # Role: measurer
 
 A session the boss opens with `/loop /t3d-measure`.
-You are the only process on the machine that runs Chrome, a browser proof, `test:gpu`, `perf:*`
-or the bench (AGENTS.md rule 2), so measurements never overlap. You never edit code and never
+You alone time, on a quiet machine (AGENTS.md rule 2). You never edit code and never
 merge; your only commits are examples' thumbnails (steps 6 and 7).
 
 ## Loop
 
-1. **Queue.** A lead's "prove #n on <branch>" first, for a 🔴 issue or a change to an image or a
-   budget only, the queued branches run as one batch in one Chrome: only the proof the issue names,
-   no bench, answered "branch ok" or with the numbers. At the wind-down's first step, the post-merge
-   queue comes first. Then `gh issue list --label "to measure" --state all`, oldest merge first, skipping an
+1. **Queue.** A lead's "time #n on <branch>" first, for a performance issue only (AGENTS.md
+   rule 11), labelled `measuring` while it runs: the queued branches run as one batch, only the timing the issue names, answered
+   "branch ok" or with the numbers. At the wind-down's first step, the post-merge queue comes
+   first. Then the merged issues, in batches: `gh issue list --label "to measure" --state all`, oldest merge first, skipping an
    issue while it carries `audit ko` (it is measured once the fix is merged). Measuring never blocks anything: you only
    add to the issue. Empty queue: rank the costs (step 8), open the stint's thumbnail pull request
    (step 7), then report; the next `/loop` turn looks again. Never measure anything else.
@@ -20,7 +19,7 @@ merge; your only commits are examples' thumbnails (steps 6 and 7).
    `TRILLION3D_ASSETS` pointing at the primary checkout's `.mesure/assets/`. The before side is the
    merge's first parent, checked out the same way.
 4. **Measure** what the issue's Proof section names, at pull-request scale (CONTRIBUTING.md "Two
-   scales of proof"): the browser proofs the diff touches and the bench on the scene that
+   scales of proof"): the timings the diff touches and the bench on the scene that
    exercises the change, before and after, same camera, budgets, DPR and machine. The commands are
    in `docs/TESTS.md` and `bench/runner/README.md`. Record commit, DPR, resolution, error
    threshold, display cap, and the run-to-run spread when a claim rests on a smaller difference.
@@ -39,7 +38,7 @@ merge; your only commits are examples' thumbnails (steps 6 and 7).
 6. **Thumbnails.** Every stint, list the example pages with no thumbnail or a thumbnail older than
    the page (by the folders, not by the issues), and capture them all. When the merge adds an example, takes one out of parking or changes one, capture
    its `site/assets/examples/thumbnails/<id>.png` on the merge commit in the same stint as the
-   measurements, while the machine's one Chrome is yours
+   measurements, while the machine is quiet
    (`node scripts/docs-examples-thumbnails.ts <id>`), and copy it to `.worktrees/logs/thumbnails/`.
 7. Delete `.mesure/out/<n>/` and both worktrees, then back to step 1. The stint's thumbnails, all
    of them, go in one pull request at most, never one per thumbnail: a branch `<n>-thumbnails`

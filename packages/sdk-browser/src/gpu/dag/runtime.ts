@@ -7,6 +7,7 @@ import {
 } from '../core/selection.ts';
 import { primitiveWordAt, refreshWorldStretch, worldsChanged } from './worlds.ts';
 import { createDagResidencyUpload } from './residencyUpload.ts';
+import { createDagPoolList } from './poolList.ts';
 import { createDagDispatch } from './dispatch.ts';
 import { DAG_READBACK_SLOTS } from './layout.ts';
 import type { createDagResources } from './resources.ts';
@@ -54,6 +55,9 @@ export function createDagRuntime(resources: DagResources): GpuSelection {
   // The cut rule's residency, derived from the pool's and uploaded by difference.
   const uploadResidency = residentCut ? createDagResidencyUpload(resources) : undefined;
   const dispatch = createDagDispatch(resources, state, fail);
+  const poolList = residentCut ? createDagPoolList(device, packed, resources.pageCones) : undefined;
+  /** The next dispatch cuts and reads back again, the eviction queue with it: the cut in hand stays. */
+  const recut = () => (state.submittedResidencyRevision = state.readbackResidencyRevision = -1);
   /** Writes word `slot` of primitive `w`'s frame words, one word up. The cut in hand holds pages
    *  the new word no longer lets through, or lacks some it does: another cut from here. */
   const writeFrameWord = (w: number, slot: number, value: number) => {
@@ -66,7 +70,7 @@ export function createDagRuntime(resources: DagResources): GpuSelection {
   const selection: GpuSelection = {
     residentCut,
     get hostBytes() {
-      return uploadResidency?.hostBytes ?? 0;
+      return (uploadResidency?.hostBytes ?? 0) + (poolList?.entries.byteLength ?? 0);
     },
     maskBuffer: flags,
     maskOffset: nodeCount,
@@ -118,6 +122,10 @@ export function createDagRuntime(resources: DagResources): GpuSelection {
       if (!uploadResidency(next, changes)) return false;
       voidCuts();
       return true;
+    },
+    notePool(page, held) {
+      if (state.disposed || state.dead || !poolList?.note(page, held)) return;
+      recut();
     },
     dispatch,
     peek() {
