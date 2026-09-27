@@ -19,7 +19,7 @@ import type { MatrixElements } from '../math/matrixElements.ts';
 import { geometryBytes } from '../scene/meshes.ts';
 import { hostSide } from '../scene/materialSide.ts';
 import { setGeometryBounds } from './geometryBounds.ts';
-import { GraphScene } from './graph/scene.ts';
+import { Scene } from '../world/core/scene.ts';
 import { Mesh } from '../../../sdk-core/src/world/object/mesh.ts';
 import { InstancedMesh } from '../../../sdk-core/src/world/object/instancedMesh.ts';
 import { BufferAttribute } from '../../../sdk-core/src/world/buffer/attribute.ts';
@@ -32,8 +32,8 @@ type Surfaces = GraphSurface | GraphSurface[];
 
 /** The display graph the page path hangs its pages on, holding from the start the transparent
  *  copies it draws whole (`../cluster/blendCopyMesh.ts`). */
-export function hostPageScene(copies: readonly object[] = []): GraphScene {
-  const scene = new GraphScene();
+export function hostPageScene(copies: readonly object[] = []): Scene {
+  const scene = numbered(new Scene());
   for (const copy of copies) scene.add(copy as unknown as Object3D);
   return scene;
 }

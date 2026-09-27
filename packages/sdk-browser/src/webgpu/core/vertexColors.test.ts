@@ -93,7 +93,7 @@ test('a transparent item multiplies its colour by the vertex colour when its mat
   };
   const red = [1, 0, 0, 1, 0, 0, 1, 0, 0];
   const copies = [copy(true, red), copy(false, red), copy(true)];
-  prepareWebgpuBlend(device, copies, gpu, blendState, new G.GraphScene());
+  prepareWebgpuBlend(device, copies, gpu, blendState, new G.Scene());
   const coloured = blendState.blendGpu.map((item) => (item.flags & FLAG_HAS_COLOR) !== 0);
   assert.deepEqual(coloured, [true, false, false]);
   // The vertex stage multiplies the item colour, alpha included, at the vertex it fetched.
