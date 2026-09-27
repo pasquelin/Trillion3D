@@ -510,6 +510,21 @@
       "outer": "الخارج"
     }
   },
+
+  "doors-that-open": {
+    "banner": "حرّك الكاميرا نحو الأبواب. تفتح عندما تقترب.",
+    "controls": {
+      "mode": "الوضع",
+      "openingDistance": "مسافة الفتح",
+      "openness": "مقدار الفتح"
+    },
+    "choices": {
+      "mode": {
+        "proximity": "القرب",
+        "manual": "يدوي"
+      }
+    }
+  },
   "a-world-of-blocks": {
     "banner": "اسحب لتطير حول الجزيرة. ارفع البحر ليغمر الوديان.",
     "controls": {

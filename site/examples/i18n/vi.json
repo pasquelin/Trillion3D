@@ -510,6 +510,21 @@
       "outer": "Bên ngoài"
     }
   },
+
+  "doors-that-open": {
+    "banner": "Di chuyển camera về phía cửa. Cửa sẽ mở khi bạn đến gần.",
+    "controls": {
+      "mode": "Chế độ",
+      "openingDistance": "Khoảng cách mở",
+      "openness": "Độ mở"
+    },
+    "choices": {
+      "mode": {
+        "proximity": "đến gần",
+        "manual": "thủ công"
+      }
+    }
+  },
   "a-world-of-blocks": {
     "banner": "Kéo để bay quanh hòn đảo. Dâng nước biển để làm ngập thung lũng.",
     "controls": {

@@ -510,6 +510,21 @@
       "outer": "Outer"
     }
   },
+
+  "doors-that-open": {
+    "banner": "Move the camera toward the doors. They open as you approach.",
+    "controls": {
+      "mode": "Mode",
+      "openingDistance": "Opening distance",
+      "openness": "Openness"
+    },
+    "choices": {
+      "mode": {
+        "proximity": "proximity",
+        "manual": "manual"
+      }
+    }
+  },
   "a-world-of-blocks": {
     "banner": "Drag to fly around the island. Raise the sea to flood the valleys.",
     "controls": {
