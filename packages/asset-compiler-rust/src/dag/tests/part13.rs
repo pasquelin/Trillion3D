@@ -26,6 +26,7 @@ fn a_bounded_distance_is_the_full_one_raised_to_its_floor_bit_for_bit() {
         for floor in [
             0.0,
             -0.0,
+            -1.0,
             full * 0.5,
             full,
             full * 2.0,
