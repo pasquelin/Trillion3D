@@ -14,6 +14,18 @@ export function hizLevelSizes(width: number, height: number): Array<[number, num
   return sizes;
 }
 
+/** A packed pyramid's mip sizes, each mip's first texel and its whole size in bytes. */
+export function pyramidBytes(width: number, height: number) {
+  const sizes = hizLevelSizes(width, height);
+  const offsets: number[] = [];
+  let texels = 0;
+  for (const [w, h] of sizes) {
+    offsets.push(texels);
+    texels += w * h;
+  }
+  return { sizes, offsets, texels, bytes: Math.max(4, texels * 4) };
+}
+
 function rowsOf(data: Float32Array, width: number, height: number) {
   const rows: number[][] = [];
   for (let y = 0; y < height; y++) {
@@ -27,14 +39,8 @@ function rowsOf(data: Float32Array, width: number, height: number) {
 /** Pack level-0 rows into the full ceil-max pyramid used by the GPU kernel. */
 export function packHizPyramid(level0: readonly (readonly number[])[]): PackedHiz {
   const levels = hizBuildPyramid(level0);
-  const sizes = levels.map((level) => [level[0].length, level.length] as [number, number]);
-  const offsets: number[] = [];
-  let total = 0;
-  for (const [w, h] of sizes) {
-    offsets.push(total);
-    total += w * h;
-  }
-  const data = new Float32Array(Math.max(1, total));
+  const { sizes, offsets, texels } = pyramidBytes(level0[0].length, level0.length);
+  const data = new Float32Array(texels);
   for (let i = 0; i < levels.length; i++) {
     const level = levels[i],
       [w] = sizes[i],

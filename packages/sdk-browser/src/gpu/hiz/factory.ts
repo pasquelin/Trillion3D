@@ -1,12 +1,18 @@
 import { encodeHizPyramid } from './pyramid.ts';
-import { pyramidBytes, writeHizLevelUniforms, writeHizTestUniforms } from './uniforms.ts';
+import { pyramidBytes } from './oracle.ts';
+import {
+  HIZ_MAX_LEVELS,
+  HIZ_PASS_LEVELS,
+  HIZ_UNIFORM_BYTES as UNIFORM_BYTES,
+  hizBuildPasses,
+  hizBuildWords,
+  writeHizTestUniforms,
+  type HizBuildPass,
+} from './uniforms.ts';
 import { cleanupFailedHiz, createHizPipelines } from './pipelines.ts';
 import { TESTED_U32 } from '../partition/contract.ts';
 import type { GpuHiz } from './types.ts';
-const WORKGROUP = 8,
-  TEST_WORKGROUP = 64,
-  UNIFORM_BYTES = 256,
-  MAX_LEVELS = 16;
+const TEST_WORKGROUP = 64;
 
 /** Frame Hi-Z: reverse-Z, reduce to the minimum. Without compute, returns `undefined`. */
 export async function createGpuHiz(
@@ -29,15 +35,17 @@ export async function createGpuHiz(
     pyramid: GPUBuffer | undefined,
     bindGroup: GPUBindGroup | undefined;
   let sizes: Array<[number, number]> = [],
-    offsets: number[] = [];
+    offsets: number[] = [],
+    passes: HizBuildPass[] = [];
   // The mip table depends only on the target size: built at allocation, reread as-is.
   let levelTable: Array<{ offset: number; width: number }> | undefined;
   try {
     const pipelines = await createHizPipelines(device, UNIFORM_BYTES);
     if (!pipelines) return undefined;
-    const { layout, copyPipeline, reducePipeline, testPipeline, pagesGroup } = pipelines;
+    const { layout, buildPipeline, testPipeline, pagesGroup } = pipelines;
     const uniforms = device.createBuffer({
-      size: UNIFORM_BYTES * (MAX_LEVELS + 2),
+      // The deepest pyramid's build passes, then the test's slot.
+      size: UNIFORM_BYTES * (Math.ceil((HIZ_MAX_LEVELS - 1) / HIZ_PASS_LEVELS) + 1),
       usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
     });
     // Tested boxes and the frame state belong to the GPU partition, which does not exist yet:
@@ -67,17 +75,11 @@ export async function createGpuHiz(
         ],
       });
     };
-    const levelWords = new Uint32Array((MAX_LEVELS + 1) * (UNIFORM_BYTES / 4));
     const alloc = (w: number, h: number) => {
       const packed = pyramidBytes(w, h);
-      sizes = packed.sizes;
-      offsets = [];
+      ({ sizes, offsets } = packed);
+      passes = hizBuildPasses(sizes);
       levelTable = undefined;
-      let texels = 0;
-      for (const [levelWidth, levelHeight] of sizes) {
-        offsets.push(texels);
-        texels += levelWidth * levelHeight;
-      }
       level0?.destroy();
       pyramid?.destroy();
       level0 = device.createTexture({
@@ -91,17 +93,7 @@ export async function createGpuHiz(
         usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
       });
       bind(pyramid, level0View);
-      writeHizLevelUniforms(
-        device,
-        uniforms,
-        levelWords,
-        sizes,
-        offsets,
-        w,
-        h,
-        MAX_LEVELS,
-        UNIFORM_BYTES,
-      );
+      device.queue.writeBuffer(uniforms, 0, hizBuildWords(sizes, offsets, passes));
       return true;
     };
     if (!alloc(width, height) || !level0 || !level0View || !pyramid || !bindGroup) {
@@ -116,22 +108,10 @@ export async function createGpuHiz(
       level0,
       level0View,
       flags,
-      // One compute pass builds the whole pyramid: consecutive dispatches inside a pass already see each
-      // other's writes, so a pass per mip bought nothing but its own submission cost.
+      // One compute pass builds the whole pyramid, four mips per dispatch (`buildHiz`).
       encodePyramid(encoder) {
         if (disposed || !bindGroup || !pyramid) return;
-        encodeHizPyramid(
-          encoder,
-          gpu.width,
-          gpu.height,
-          bindGroup,
-          copyPipeline,
-          reducePipeline,
-          sizes,
-          MAX_LEVELS,
-          UNIFORM_BYTES,
-          WORKGROUP,
-        );
+        encodeHizPyramid(encoder, 'Trillion3D HiZ pyramid', bindGroup, buildPipeline, passes);
       },
       /** Tested boxes and the frame state come from the GPU partition, mounted after us. */
       attach(nextBounds: GPUBuffer, nextState: GPUBuffer) {
@@ -148,8 +128,7 @@ export async function createGpuHiz(
         if (disposed || !bindGroup || bounds === idle) return 0;
         const rows = Math.min(maxRows, cap);
         if (flagRows > 0) encoder.clearBuffer(flags, 0, Math.min(cap, flagRows) * 4);
-        const testSlot = MAX_LEVELS + 1;
-        const at = testSlot * UNIFORM_BYTES;
+        const at = passes.length * UNIFORM_BYTES;
         writeHizTestUniforms(queueDevice, uniforms, testWords, at, gpu.width, gpu.height, rows);
         // The compacted box count lives in the state: the dispatch covers every drawable row
         // and threads past the count leave at the first test.
