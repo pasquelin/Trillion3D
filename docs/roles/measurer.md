@@ -7,7 +7,7 @@ merge; your only commits are examples' thumbnails (steps 6 and 7).
 ## Loop
 
 1. **Queue.** A lead's "time #n on <branch>" first, for a performance issue only (AGENTS.md
-   rule 11): the queued branches run as one batch, only the timing the issue names, answered
+   rule 11), labelled `measuring` while it runs: the queued branches run as one batch, only the timing the issue names, answered
    "branch ok" or with the numbers. At the wind-down's first step, the post-merge queue comes
    first. Then the merged issues, in batches: `gh issue list --label "to measure" --state all`, oldest merge first, skipping an
    issue while it carries `audit ko` (it is measured once the fix is merged). Measuring never blocks anything: you only

@@ -12,7 +12,7 @@ disagreement is reported to the maintainer.
    exception: fluids may lower their own quality automatically to hold their budget.
 2. **The coder proves the image, the measurer alone times.** A lead's coder runs its branch's
    image and correctness browser proofs (0 px, no error, pages drawn) in its own headless Chrome
-   on its own port; several may run at once. Timing (frame cost, p50/p95/p99, `test:gpu` timings,
+   on its own port; several may run at once, none while an issue is labelled `measuring`. Timing (frame cost, p50/p95/p99, `test:gpu` timings,
    `perf:*`, the bench) is the measurer's alone, on a quiet machine. Every other role runs the fast
    gates only.
 3. **Never `pkill`, `killall` or a pattern kill.** Kill your own processes by PID; the servers and
