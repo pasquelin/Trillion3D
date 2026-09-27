@@ -571,6 +571,17 @@
       "bricks": "Gạch nung"
     }
   },
+  "measure-a-distance": {
+    "banner": "Nhấp vào hai bề mặt để đo khoảng cách giữa chúng. Lần nhấp thứ ba bắt đầu phép đo mới. Một đơn vị tương ứng với một mét.",
+    "controls": {
+      "clear": "Xóa"
+    },
+    "readouts": {
+      "pointA": "Điểm A",
+      "pointB": "Điểm B",
+      "distance": "Khoảng cách"
+    }
+  },
   "click-to-pick": {
     "banner": "Bấm vào một hình. Nó sáng lên và bảng cho biết bạn chạm vào đâu.",
     "readouts": {

@@ -1229,6 +1229,11 @@
       "file": "examples/click-to-pick.html"
     },
     {
+      "id": "measure-a-distance",
+      "theme": "interaction",
+      "file": "examples/measure-a-distance.html"
+    },
+    {
       "id": "drag-a-crate",
       "theme": "interaction",
       "file": "examples/drag-a-crate.html"
