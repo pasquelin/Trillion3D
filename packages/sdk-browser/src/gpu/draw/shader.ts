@@ -94,8 +94,7 @@ fn slotAt(i:u32,end:u32)->u32{
 fn countGroups(@builtin(workgroup_id) wg:vec3u,@builtin(local_invocation_index) lane:u32){
  let group=wg.x;
  if(group>=uni.groupCount){return;}
- for(var slot=lane;slot<${slots}u;slot+=64u){atomicStore(&slotTally[slot],0u);}
- workgroupBarrier();
+ // \`slotTally\` starts at zero: WGSL zero-initializes workgroup memory for each workgroup.
  let s=slotAt(group*64u+lane,min(uni.count,uni.slotCap));
  if(s!=NO_SLOT){atomicAdd(&slotTally[s],1u);}
  workgroupBarrier();
