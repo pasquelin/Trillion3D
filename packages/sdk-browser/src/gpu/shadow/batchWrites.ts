@@ -1,4 +1,4 @@
-import { SHADOW_BATCH_WRITE_BYTES, SHADOW_STAGING_BYTES } from './batchBudget.ts';
+import { SHADOW_BATCH_WRITE_BYTES } from './batchBudget.ts';
 
 type Words = Uint32Array<ArrayBuffer> | Int32Array<ArrayBuffer> | Float32Array<ArrayBuffer>;
 
@@ -17,28 +17,40 @@ type Words = Uint32Array<ArrayBuffer> | Int32Array<ArrayBuffer> | Float32Array<A
  * write's words, and a frame of many batches pays one native call, not one per write (#344).
  *
  * A write while staged must come outside any pass: every caller writes before it opens its pass.
- * The staging buffer and its mirror are made once, at the first staged write, at their largest:
- * every batch of the largest frame but the first, each at most `SHADOW_BATCH_WRITE_BYTES`
- * (`batchBudget.ts`). They never grow; a batch that would write more is a defect, refused by name.
+ * The staging buffer and its mirror are made at the first staged write, at the capacity the frame
+ * reserved: every batch the current pool may draw but the first, each at most
+ * `SHADOW_BATCH_WRITE_BYTES` (`shadowBatchCapacity`, `batchBudget.ts`). A frame that reserves more
+ * — a larger pool, fewer views a batch — drops them, made again at its first staged write, never
+ * past the grant; a batch that writes past what was reserved is a defect, refused by name.
  */
 function createBatchWrites(device: GPUDevice) {
   let encoder: GPUCommandEncoder | undefined,
     staging: { buffer: GPUBuffer; words: Uint32Array<ArrayBuffer> } | undefined,
     at = 0,
-    batchStart = 0;
+    batchStart = 0,
+    reserved = 0;
   const room = (bytes: number) => {
-    if (at + bytes - batchStart > SHADOW_BATCH_WRITE_BYTES || at + bytes > SHADOW_STAGING_BYTES)
+    if (at + bytes - batchStart > SHADOW_BATCH_WRITE_BYTES || at + bytes > reserved)
       throw new Error(`SHADOW_BATCH_WRITES_OVERFLOW: ${bytes} bytes at ${at}`);
     return (staging ??= {
       buffer: device.createBuffer({
         label: 'Trillion3D shadow batch staging v1',
-        size: SHADOW_STAGING_BYTES,
+        size: reserved,
         usage: GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
       }),
-      words: new Uint32Array(SHADOW_STAGING_BYTES / 4),
+      words: new Uint32Array(reserved / 4),
     });
   };
   return {
+    /** Before a frame's batches: they stage at most `bytes` (`shadowBatchCapacity`). A staging
+     *  buffer too small for them is dropped, made again at their first staged write. */
+    reserve(bytes: number) {
+      reserved = bytes;
+      if (staging && staging.words.byteLength < bytes) {
+        staging.buffer.destroy();
+        staging = undefined;
+      }
+    },
     /** From now until `end`, writes land in `into`'s command order: one batch's writes. */
     stage(into: GPUCommandEncoder) {
       batchStart = at;

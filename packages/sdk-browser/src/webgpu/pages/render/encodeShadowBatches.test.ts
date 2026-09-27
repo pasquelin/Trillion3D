@@ -7,7 +7,11 @@ import { MAX_SHADOW_PAGES } from '../../../gpu/shadow/atlas.ts';
 import { MAX_SHADOW_BATCHES } from '../../../gpu/shadow/batchBudget.ts';
 import { SUN, VIEW } from '../../../../../sdk-core/src/scene/light-shadow/lightShadow.fixture.ts';
 import { createWebgpuLightState } from '../state/lights.ts';
-import { encodeShadowBatches, forEachShadowBatch } from './encodeShadowBatches.ts';
+import {
+  encodeShadowBatches,
+  forEachShadowBatch,
+  frameBatchCapacity,
+} from './encodeShadowBatches.ts';
 import { writeShadowPages, writeShadowRecords } from '../../shadow/pages.ts';
 import { SHADOW_CULL_FLOATS } from '../../../../../sdk-core/src/index.ts';
 import { MAX_SHADOW_REGIONS } from '../../../gpu/shadow/recordPack.ts';
@@ -20,7 +24,7 @@ function frame(suns: number) {
   for (let k = 0; k < suns; k++)
     lights.store.add({ ...SUN, id: `sun${k}`, direction: [k / 10, -1, 0] });
   const pages = lights.plan.plan(lights.store, VIEW, [-50, 0, -50], [50, 10, 50], 1, 0);
-  const rt = { lights, run: { gpuFrameActive: false, frame: 1 }, vis: {} };
+  const rt = { lights, run: { gpuFrameActive: false, frame: 1 }, vis: {}, gpu: {} };
   return { rt: rt as unknown as WebgpuPagesRuntime, lights, pages };
 }
 
@@ -52,12 +56,15 @@ test('a batch that cannot be encoded leaves its pages and the rest pending, none
   assert.equal(lights.plan.admission.count, 0, 'the list is closed');
 });
 
-// The batches' memory holds the largest pool in full batches (`batchBudget.ts`). Batches cut short —
-// a view limit bisected after a light cut dropped work — can need more: the frame draws
-// `MAX_SHADOW_BATCHES` of them, and the pages past the last are pending, drawn the next frame.
-test('a frame draws at most the batches its memory holds, the rest pending', () => {
+// A frame may draw the current pool's pages in full batches (`shadowBatchCapacity`), not the
+// grant's: a smaller pool stages less. Batches cut shorter than the views allow need more: the frame
+// draws its capacity, and the pages past the last are pending, drawn the next frame.
+test("a frame draws at most its pool's batches, the rest pending", () => {
   const { rt, lights, pages } = frame(64);
-  assert.ok(pages > MAX_SHADOW_BATCHES, `${pages} pages, more than the batches`);
+  const capacity = frameBatchCapacity(rt);
+  assert.equal(capacity.batches, Math.ceil(lights.plan.pool.pages / MAX_SHADOW_PAGES));
+  assert.ok(capacity.batches < MAX_SHADOW_BATCHES, 'the pool, not the grant');
+  assert.ok(pages > capacity.batches, `${pages} pages, more than the batches`);
   lights.plan.admission.batchEnd = (from) => from + 1;
   let batches = 0;
   const drawn = forEachShadowBatch(rt, () => {
@@ -65,8 +72,17 @@ test('a frame draws at most the batches its memory holds, the rest pending', () 
     lights.runs.reset();
     return true;
   });
-  assert.equal(batches, MAX_SHADOW_BATCHES);
-  assert.equal(drawn, MAX_SHADOW_BATCHES, 'where it stopped: the rest wait');
+  assert.equal(batches, capacity.batches);
+  assert.equal(drawn, capacity.batches, 'where it stopped: the rest wait');
+});
+
+test('an empty list visits no batch and stages nothing', () => {
+  const { rt, lights } = frame(0);
+  const { device, buffers, writes, copies } = fakeDevice();
+  assert.equal(lights.plan.admission.count, 0);
+  assert.equal(forEachShadowBatch(rt, () => assert.fail('no batch')), 0);
+  assert.ok(encodeShadowBatches(rt, device, device.createCommandEncoder(), VIEW.position));
+  assert.deepEqual([buffers.length, writes.length, copies.length], [0, 0, 0]);
 });
 
 // Under the CPU cut, the selection composes every batch to select its casters, then the depth pass
@@ -104,10 +120,11 @@ test('the batch composed last is not composed again in its image, any other is',
 test('at the cap, every sun turning every frame is drawn within the bound, none starved', () => {
   const { rt, lights, pages } = frame(64);
   const { plan, store } = lights;
-  assert.ok(pages > MAX_SHADOW_BATCHES, `${pages} pages, more than the batches`);
+  const { batches } = frameBatchCapacity(rt);
+  assert.ok(pages > batches, `${pages} pages, more than the batches`);
   const batchEnd = plan.admission.batchEnd;
   plan.admission.batchEnd = (from) => batchEnd(from, 1, 1);
-  const bound = Math.ceil(plan.pool.pages / MAX_SHADOW_BATCHES) + 1;
+  const bound = Math.ceil(plan.pool.pages / batches) + 1;
   const lastDrawn = new Int32Array(store.count).fill(1);
   for (let f = 2; f < 2 + 3 * bound; f++) {
     for (let k = 0; k < store.count; k++)
