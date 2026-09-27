@@ -1,5 +1,5 @@
 import { maxStretch } from '../../../../sdk-core/src/index.ts';
-import { FRAME_VEC4, type PackedDag } from './types.ts';
+import { FRAME_VEC4, PRIMITIVE_VEC4, type PackedDag } from './types.ts';
 
 /**
  * Indices of the linear part of a column-major world matrix, and the only indices `maxStretch`
@@ -56,6 +56,12 @@ export function worldsChanged(previous: Float32Array, next: Float32Array) {
   for (let j = 0; j < next.length; j++) if (previous[j] !== next[j]) return true;
   return false;
 }
+
+/** Bytes of a camera cut's `frames`: the host's row (`frameData`), then room for what `dagPrepare`
+ *  derives per primitive (`shader/primitiveWgsl.ts`), which the host never writes. Never under
+ *  16 bytes: a scene without primitives still binds a valid storage buffer. */
+export const cameraFramesBytes = (frameData: Float32Array) =>
+  Math.max(16, (frameData.byteLength / FRAME_VEC4) * (FRAME_VEC4 + PRIMITIVE_VEC4));
 
 /**
  * Per-primitive frame words, behind the six planes of its first row: the stretch, the root the
