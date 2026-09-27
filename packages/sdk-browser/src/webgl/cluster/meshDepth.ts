@@ -1,3 +1,4 @@
+import { isInstancedNode } from '../../host/graph/kinds.ts';
 /** A drawn mesh as its depth reads it: its own sphere or its geometry's, and its world matrix. */
 type DepthNode = {
   readonly geometry?: unknown;
@@ -9,7 +10,6 @@ type Bounded = {
   computeBoundingSphere?(): void;
 };
 type Instanced = {
-  readonly kind?: string;
   readonly count?: number;
   readonly instanceMatrix?: { readonly array: ArrayLike<number>; readonly version?: number };
 };
@@ -28,10 +28,7 @@ export function depthOf(mesh: DepthNode, screen: ArrayLike<number>) {
     if (geometry && !geometry.boundingSphere) geometry.computeBoundingSphere?.();
     const sphere = geometry?.boundingSphere;
     const instanced = mesh as Instanced;
-    centre =
-      instanced.kind === 'instancedMesh' && instanced.instanceMatrix && sphere
-        ? placementsCentre(instanced, sphere)
-        : sphere?.center;
+    centre = isInstancedNode(mesh) && sphere ? placementsCentre(instanced, sphere) : sphere?.center;
   }
   const c = centre ?? ORIGIN,
     m = mesh.matrixWorld.elements;

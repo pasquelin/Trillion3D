@@ -1,6 +1,7 @@
 /**
  * WHAT A NODE, A SURFACE OR A TEXTURE IS, read the same whichever library built it: the engine's
- * graph says it by its `kind` and its `family` (`../graph/kinds.ts`), the loader the scenes are
+ * graph says it by its `kind` and its `family` (`../graph/kinds.ts`), its meshes by the core's
+ * flags, the loader the scenes are
  * compared with says it by its library's flags and type names — named here, for the comparison
  * alone (`scenes.fixture.ts`).
  */

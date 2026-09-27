@@ -53,8 +53,8 @@ test('a page mesh built here is a node the host graph accepts, posed and ordered
   const declaration = hostPageSurface(CONTRACT, false);
   const mesh = hostPageMesh(geometry, declaration, 7);
   scene.add(mesh);
-  const [drawn] = scene.children as unknown as G.GraphMesh[];
-  assert.equal(drawn, mesh as unknown as G.GraphMesh, 'the host kept the node it was given');
+  const [drawn] = scene.children as unknown as G.HostMesh[];
+  assert.equal(drawn, mesh as unknown as G.HostMesh, 'the host kept the node it was given');
   assert.equal(drawn.material, declaration);
   assert.equal(drawn.renderOrder, 7);
   assert.equal(drawn.matrixAutoUpdate, false, 'the pose is written, never recomposed');

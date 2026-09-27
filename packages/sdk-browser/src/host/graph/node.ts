@@ -12,17 +12,16 @@
  * witnesses' `bench/witnesses/three/fromGraph.ts`), never one of these.
  */
 import { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
+import { takeSerial } from '../../../../sdk-core/src/world/object/mesh.ts';
 import type { GraphNodeKind } from './nodeKind.ts';
 export type { GraphLightKind, GraphNodeKind } from './nodeKind.ts';
 
-/** The next node's number, from one. */
-let nextSerial = 1;
-
 /** A node of the graph: the core's node, told apart by its `kind`, copied by the core's `clone`. */
 export abstract class GraphNode extends Object3D {
-  // In creation order: a diagnostic seeds a colour with it, a draw breaks ties with it.
+  // In creation order, one count with the meshes': a diagnostic seeds a colour with it, a draw
+  // breaks ties with it.
   /** The node's number, unique in the session. */
-  readonly serial = nextSerial++;
+  readonly serial = takeSerial();
   /** What the node is: what every reader of the graph narrows on. */
   abstract readonly kind: GraphNodeKind;
   /** An empty node of this kind, what `clone` fills. */

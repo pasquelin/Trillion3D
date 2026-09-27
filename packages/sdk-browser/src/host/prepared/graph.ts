@@ -18,7 +18,7 @@ import type { TableDocument } from '../../../../sdk-core/src/scene/core/tableDoc
 import { camera, light, pose, uniqueNames, weigh } from './nodes.ts';
 import type { SurfaceVariant } from './materials.ts';
 import type { GraphSurface } from '../graph/surface.ts';
-import { GraphMesh } from '../graph/mesh.ts';
+import { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts';
 import { isDrawnNode } from '../graph/kinds.ts';
 import { Group, Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 import { type GraphCamera } from '../graph/camera.ts';
@@ -121,7 +121,7 @@ export async function preparedGraph({ tables, meshes, geometryOf, materialOf }: 
     order.map((rank, at) =>
       Promise.all(drawn[at].map(({ material }) => material)).then((surfaces) =>
         drawn[at].map(({ geometry }, p) => {
-          const mesh = new GraphMesh(geometry, surfaces[p]);
+          const mesh = new Mesh(geometry, surfaces[p]);
           if (Object.keys(geometry.morphAttributes).length) weigh(mesh, meshes[rank].weights);
           mesh.name = unique(meshes[rank].name || `mesh_${rank}`);
           return mesh;
