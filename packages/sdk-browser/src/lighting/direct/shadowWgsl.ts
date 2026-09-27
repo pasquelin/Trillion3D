@@ -103,6 +103,8 @@ const SHADOW_NORMAL_TEXELS:f32=${LIGHT_SETTINGS.shadowNormalOffsetTexels};
 const SHADOW_PCF_REACH:f32=${PCF_REACH};
 const SHADOW_PAGE:f32=${SHADOW_PAGE}.0;
 const SHADOW_SUBTEXELS:f32=${SHADOW_SUBTEXELS}.0;
+/** One step: a multiply by it is exact, where WGSL lets a division err by 2.5 ulp. */
+const SHADOW_SUBTEXEL:f32=1.0/SHADOW_SUBTEXELS;
 const PAGE_VALID:u32=${PAGE_VALID}u;
 const PAGE_INDEX_MASK:u32=${PAGE_INDEX_MASK}u;
 const LAMP_MIP_OFFSET:array<u32,${LAMP_MIPS}>=array<u32,${LAMP_MIPS}>(${Array.from({ length: LAMP_MIPS }, (_, mip) => `${lampMipOffset(mip)}u`).join(',')});
@@ -166,7 +168,7 @@ fn shadowPcf(m:ShadowMap,t:vec2f,reference:f32,home:vec2i,homeWord:u32,side:f32)
   // \`shadowCompare\` per tap, in steps: \`(t + tap)·256\` is \`t·256 + tap·256\` to the bit.
   let texels=shadowAtlasTexels();let layer=i32(offset.z);let steps=t*SHADOW_SUBTEXELS;
   for(var tap=0u;tap<PCF_TAPS;tap++){
-   lit+=shadowSample(offset.xy+floor(steps+POISSON_STEPS[tap]+0.5)/SHADOW_SUBTEXELS,layer,texels,reference);
+   lit+=shadowSample(offset.xy+floor(steps+POISSON_STEPS[tap]+0.5)*SHADOW_SUBTEXEL,layer,texels,reference);
   }
   return shadowThroughLit(offset,first,t,reference,lit/f32(PCF_TAPS));
  }
