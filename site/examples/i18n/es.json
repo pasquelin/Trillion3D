@@ -502,7 +502,11 @@
   },
   "a-crane-that-swings": {
     "banner": "Gira alrededor de la grúa mientras un clip rota la pluma, mueve el carro, eleva la carga y la deja balancearse.",
-    "controls": { "speed": "Velocidad", "paused": "En pausa", "replay": "Repetir" }
+    "controls": {
+      "speed": "Velocidad",
+      "paused": "En pausa",
+      "replay": "Repetir"
+    }
   },
   "a-wave-across-a-grid": {
     "banner": "Arrastra para mirar alrededor. Haz la ola de cubos más alta o más rápida.",
@@ -1272,7 +1276,11 @@
       "home": "Volver al inicio"
     },
     "choices": {
-      "view": { "beauty": "imagen", "lod": "niveles de detalle", "clusters": "clústeres" }
+      "view": {
+        "beauty": "imagen",
+        "lod": "niveles de detalle",
+        "clusters": "clústeres"
+      }
     },
     "words": {
       "credit": "Avenida de urnas modelada en código para este ejemplo, CC0 — ver assets/examples/CREDITS.md"
@@ -2226,6 +2234,13 @@
     },
     "words": {
       "credit": "Modelo de farola de W. Sitters, CC BY 3.0 — ver assets/examples/CREDITS.md"
+    }
+  },
+  "drag-a-crate": {
+    "banner": "Arrastra la caja por el suelo. Activa el ajuste para colocarla en pasos de medio metro.",
+    "controls": {
+      "snap": "Ajustar",
+      "home": "Inicio"
     }
   }
 }
