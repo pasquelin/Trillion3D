@@ -8,13 +8,14 @@ import {
   setHostSurface,
   colouredTwin,
 } from '../../host/pageObjects.ts';
-import { surfaceOf } from '../../page/surface.ts';
+import { recordsBySurface, unpagedRefusal, wearDeclaration } from '../../page/surface.ts';
 import type { PageRec, ClusterRoot } from '../../page/selection/selection.ts';
 import type { createAutonomousGeometry } from './geometry.ts';
 import { composedPose, deplaceInstance } from './instancePose.ts';
 import { attachedPages, drawnInstanced } from '../../placement/autonomousPlacements.ts';
 import type { HeldFloor } from './heldFloor.ts';
 import { blendMoves, type AlphaChange } from '../../placement/backendSceneUpdates.ts';
+import type { SurfaceAssignment } from '../../placement/backendSceneUpdates.ts';
 
 type InstanceEnvironment = {
   roots: ClusterRoot<PageRec>[];
@@ -75,10 +76,21 @@ export function createAutonomousInstances(env: InstanceEnvironment) {
     }
     releaseHostSurface(painted);
   };
+  /** Records wear `painted`, or the vertex-coloured twin a page with a colour attribute draws
+   *  with, taken from the shared cache the decoded pages read (`painted` if it reads colours). */
+  const wear = (records: readonly PageRec[], painted: HostMaterial) => {
+    for (const rec of records) {
+      baseMaterials.set(rec, painted);
+      wearDeclaration(rec, rec.attributes.color ? colouredTwin(colorMaterials, painted) : painted);
+      if (rec.mesh) setHostSurface(rec.mesh, rec.declaration);
+    }
+  };
   return {
     /** Why a move into or out of blended takes the cover past the host ceiling, before any write
      *  (#846): rows are one instanced mesh while opaque, one mesh a row once blended. */
     materialClassRefusal(alpha: AlphaChange) {
+      const unpaged = unpagedRefusal(allPages, alpha);
+      if (unpaged) return unpaged;
       const instanced = (rec: PageRec) => drawnInstanced(rec, blendOf(rec, alpha));
       if (blendMoves(alpha) && overCeiling(0, attachedPages(bootstrap, instanced)))
         return 'AUTONOMOUS_ROOT_BUDGET: the cover would hang more meshes than the host allows';
@@ -164,22 +176,25 @@ export function createAutonomousInstances(env: InstanceEnvironment) {
           rec.clusterId.startsWith(`${primitive}/`) || rec.clusterId.includes(`/${primitive}/`),
       );
       if (!records.length) throw new Error('AUTONOMOUS_PRIMITIVE_MISSING');
-      // Two host materials at most, built once for the whole primitive: the plain one, and the
-      // vertex-coloured twin a page with a colour attribute draws with, taken from the shared
-      // cache the decoded pages read. The paint this one replaces is freed below.
+      // Built once for the whole primitive; the paint this one replaces is freed below.
       const previous = owned.get(primitive);
       const painted = hostPageSurface(material, false);
       owned.set(primitive, painted);
-      const coloured = records.some((rec) => rec.attributes.color)
-        ? colouredTwin(colorMaterials, painted)
-        : painted;
-      for (const rec of records) {
-        baseMaterials.set(rec, painted);
-        rec.declaration = rec.attributes.color ? coloured : painted;
-        rec.material = surfaceOf(rec.declaration);
-        if (rec.mesh) setHostSurface(rec.mesh, rec.declaration);
-      }
+      wear(records, painted);
       if (previous) releasePaint(previous);
+    },
+    /** Each assigned mesh's records wear its surface (`wearSurface`, #847); copies refused. A
+     *  paint of this engine's that no record wears any more is freed, as a repaint frees it. */
+    wearSurface({ meshes }: SurfaceAssignment) {
+      sceneChanged();
+      for (const [surface, records] of recordsBySurface(allPages, meshes))
+        wear(records, surface as HostMaterial);
+      // A page seldom repaints: `owned` is most often empty, and this walk runs for none.
+      for (const [primitive, painted] of owned)
+        if (!allPages.some((rec) => baseMaterials.get(rec) === painted)) {
+          owned.delete(primitive);
+          releasePaint(painted);
+        }
     },
   };
 }

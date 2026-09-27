@@ -1,7 +1,9 @@
 import { DEPTH_COMPARE } from '../../camera/depthConvention.ts';
 import { buildRenderPipeline } from '../../lighting/deferred/fullscreen.ts';
 import { BLEND_EQUATIONS, BLEND_MODES } from '../../scene/materialBlending.ts';
+import { refreshSurface } from '../../page/surface.ts';
 import type { Blending } from '../../../../sdk-core/src/world/constants/index.ts';
+import type { BlendGpuItem } from './state.ts';
 
 /** Source alpha over what the target holds: the normal mode, and the blend of the water surfaces
  *  and of their composite over the frozen backdrop. */
@@ -15,19 +17,42 @@ export type BlendPipelines = readonly [GPURenderPipeline, GPURenderPipeline, GPU
 export type RankedPipelines = { at(rank: number): GPURenderPipeline | undefined };
 
 /** What a transparent pass compiles per blending mode, kept by mode rank (`BLEND_MODES`): `byMode`
- *  holds those compiled so far; `at` compiles a mode not compiled up front on the first draw that
- *  asks for it, once, so a blending written later draws in its own mode at once. */
+ *  holds those compiled so far; `precompile` compiles modes off the frame, and `at` compiles a mode
+ *  not compiled up front on the first draw that asks for it, once, so a blending written later
+ *  draws in its own mode at once. */
 export interface ModePipelines<T> {
   readonly byMode: (T | undefined)[];
   at(mode: Blending): T;
+  precompile(modes: readonly Blending[]): Promise<void>;
 }
 
 /** The one lazy set of both transparent paths: the blend pass's three culls per mode, the fallback
- *  pass's one pipeline per mode (`pages/prepare/pipelines.ts`). */
-export function pipelinesByMode<T>(build: (mode: Blending) => T): ModePipelines<T> {
+ *  pass's one pipeline per mode (`pages/prepare/pipelines.ts`). `buildAsync` compiles the same
+ *  pipelines as `build` without blocking the thread; a draw that came first keeps its own. */
+export function pipelinesByMode<T>(
+  build: (mode: Blending) => T,
+  buildAsync: (mode: Blending) => Promise<T>,
+): ModePipelines<T> {
   const byMode: (T | undefined)[] = [];
-  return { byMode, at: (mode) => (byMode[BLEND_MODES.indexOf(mode)] ??= build(mode)) };
+  return {
+    byMode,
+    at: (mode) => (byMode[BLEND_MODES.indexOf(mode)] ??= build(mode)),
+    async precompile(modes) {
+      const missing = modes.filter((mode) => !byMode[BLEND_MODES.indexOf(mode)]);
+      const built = await Promise.all(missing.map(buildAsync));
+      missing.forEach((mode, at) => (byMode[BLEND_MODES.indexOf(mode)] ??= built[at]));
+    },
+  };
 }
+
+/** Normal always — a transmissive item draws in it —, then every mode a blend item declares: what
+ *  both transparent paths compile up front. A scene of plain glass compiles normal alone. */
+export const declaredBlendModes = (items: readonly BlendGpuItem[]) =>
+  BLEND_MODES.filter(
+    (mode, rank) =>
+      !rank ||
+      items.some((item) => !item.transmissive && refreshSurface(item.surface).blending === mode),
+  );
 
 /** The blend pass's pipelines by plan rank — mode rank × 3 + cull rank (`plan.ts`), read from its
  *  `ModePipelines`, whose `byMode` holds the three culls of each mode compiled so far. */
