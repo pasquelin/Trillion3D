@@ -20,7 +20,7 @@ const GENERATION = 1 << GENERATION_SHIFT;
 /** A pile of boxes and compounds, two in three wanting events, dropped on a floor under a cloth
  *  that wants them too; some thrown up, then some removed: every step's records, words joined,
  *  the poses sorted (a pool's threads list the active bodies in the order they ran). */
-function pile(jolt: Module, steps: number) {
+function pile(jolt: Module, steps: number, bound = (_step: number) => 0) {
   let seed = 42;
   const next = () => (seed = (Math.imul(seed, 1103515245) + 12345) >>> 0) / 2 ** 32;
   const writer = new CommandWriter();
@@ -49,6 +49,7 @@ function pile(jolt: Module, steps: number) {
   for (let s = 0; s < steps; s++) {
     if (s === 90) for (let i = 1; i <= 40; i += 7) writer.velocity(i, [0, 8, 1]);
     if (s === 130) for (let i = 2; i <= 40; i += 9) writer.remove(i);
+    if (bound(s)) jolt.concurrency(bound(s));
     const count = jolt.step(writer.length ? writer.take() : null, 1 / 60);
     const records = (words: Uint32Array, size: number) =>
       Array.from({ length: words.length / size }, (_, r) =>
@@ -76,6 +77,26 @@ test("a pool's contact records, replayed after the step, give the single thread'
         ...step.slice(step.indexOf('|')).sort(),
       ]);
     assert.deepEqual(unordered(pooled), unordered(alone));
+  } finally {
+    await close();
+  }
+});
+
+test('a step split over fewer threads than the pool has computes the same step', async () => {
+  const budget = { bodies: 64, contactEvents: 256 };
+  const alone = pile(await startModule(budget), 240);
+  const { jolt, close } = await startThreaded(4, budget);
+  try {
+    assert.equal(jolt.concurrency(9), 4, 'bounded by the pool');
+    assert.equal(jolt.concurrency(0), 1);
+    // A bound that changes at every step, as the tuner changes it between measures.
+    const bounded = pile(jolt, 240, (step) => [4, 1, 3, 2][step % 4]);
+    const settled = (steps: string[][]) =>
+      steps.map((step) => [
+        ...step.slice(0, step.indexOf('|')),
+        ...step.slice(step.indexOf('|')).sort(),
+      ]);
+    assert.deepEqual(settled(bounded), settled(alone));
   } finally {
     await close();
   }

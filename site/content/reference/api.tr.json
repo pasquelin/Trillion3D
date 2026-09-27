@@ -7153,6 +7153,7 @@
       "gravity": "m/s² cinsinden yerçekimi, canlı bir vektör; bir ön ayar (`'earth'`, `'moon'`, `'mars'`, `'none'`) ya da vektör ver.",
       "paused": "Zamanın durup durmadığı; yazmalar yine de cisimlere ulaşır.",
       "timeScale": "Gerçek saniye başına benzetilen saniye: 0.25 ağır çekimdir.",
+      "simulationRange": "Kameranın çevresinde cisimlerin simüle edildiği metre (ötesinde oldukları gibi dondurulur ve hiçbir çarpışma karosu yüklenmez); `null`, `camera.far` değerini izler.",
       "water": "Cisimlerin yüzdüğü su: seviyesi, dalgaları, yoğunluğu ve sürüklemeleri. Sudan hafif bir cisim, yer değiştirdiği suyun ağırlığıyla itilerek yüzer.",
       "waterSurface": "Simülasyon zamanındaki su yüzeyi, çizmek için: kaldırma kuvvetinin okuduğu dalgalar, aynı sayılar (`height`, `point`, `normal`).",
       "stats": "Sayımlar ve iki saat: adım başına worker milisaniyesi, kare başına sayfa milisaniyesi.",
@@ -7359,6 +7360,7 @@
       "gravity": "m/s² cinsinden yerçekimi, canlı bir vektör; bir ön ayar (`'earth'`, `'moon'`, `'mars'`, `'none'`) ya da vektör ver.",
       "paused": "Zamanın durup durmadığı; yazmalar yine de cisimlere ulaşır.",
       "timeScale": "Gerçek saniye başına benzetilen saniye: 0.25 ağır çekimdir.",
+      "simulationRange": "Kameranın çevresinde cisimlerin simüle edildiği metre (ötesinde oldukları gibi dondurulur ve hiçbir çarpışma karosu yüklenmez); `null`, `camera.far` değerini izler.",
       "water": "Cisimlerin yüzdüğü su: seviyesi, dalgaları, yoğunluğu ve sürüklemeleri. Sudan hafif bir cisim, yer değiştirdiği suyun ağırlığıyla itilerek yüzer.",
       "waterSurface": "Simülasyon zamanındaki su yüzeyi, çizmek için: kaldırma kuvvetinin okuduğu dalgalar, aynı sayılar (`height`, `point`, `normal`).",
       "stats": "Sayımlar ve iki saat: adım başına worker milisaniyesi, kare başına sayfa milisaniyesi.",
@@ -7371,6 +7373,7 @@
     "summary": "`createWorld(canvas, { physics })` işlevinin `true` dışında kabul ettiği.",
     "members": {
       "budget": "Sabit sınırlar, fizik başlarken bir kez okunur.",
+      "simulationRange": "Kameranın çevresinde cisimlerin simüle edildiği metre (`world.physics.simulationRange`); `null`, `camera.far` değerini izler.",
       "gravity": "Dünyanın yerçekimi: bir ön ayar ya da vektör."
     }
   },
