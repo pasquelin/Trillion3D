@@ -1,6 +1,8 @@
-use crate::geometry_page_cells::{grids, BitWriter, Cell, Grids};
+use crate::geometry_page_cells::{grids, Cell, Grids};
 use crate::{CompilerError, Result};
 use std::collections::HashMap;
+use trillion3d_page_codec::triangles::{self, corner_bits};
+use trillion3d_page_codec::writer::BitWriter;
 use trillion3d_page_codec::{Header, Layout};
 pub use trillion3d_page_codec::{FLAG_COLOR, FLAG_NORMAL, FLAG_UV, FLAG_UV1};
 
@@ -80,7 +82,7 @@ mod tests_grid;
 /**
  * A complete, independently decodable `WGP3` page: positions on the primitive grid of
  * `position_exponent`, texture coordinates on that of `uv_exponent`, octahedral normals, byte colours
- * and bit-packed local indices. Tangents are never stored — a reader rebuilds them from the
+ * and local indices coded by delta within blocks of triangles. Tangents are never stored — a reader rebuilds them from the
  * triangle's positions and texture coordinates.
  */
 pub fn encode(
@@ -139,6 +141,7 @@ pub fn encode(
             })
         })
         .collect();
+    let corners: Vec<u32> = local.iter().map(|&i| remap[i as usize]).collect();
     let header = Header {
         vertex_count: unique.len(),
         index_count: local.len(),
@@ -148,10 +151,11 @@ pub fn encode(
         uv1: uv_records[1],
         color: color_record,
         quantization_error,
+        corner_bits: corner_bits(&corners),
     };
     let layout = Layout::of(&header);
     let mut out = BitWriter::default();
-    out.stream(local.iter().map(|&i| remap[i as usize]), layout.index_bits);
+    triangles::write(&mut out, &corners, &layout.corners);
     for c in 0..3 {
         out.stream(unique.iter().map(|cell| cell.position[c]), position.bits[c]);
     }
