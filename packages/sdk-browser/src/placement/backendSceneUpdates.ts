@@ -44,9 +44,9 @@ export interface BackendSceneUpdates {
    *  (`materialClassRefusal`): their drawables go to the family the open would give them, and
    *  what their cutout shadowed is drawn again. */
   refreshMaterials?(values?: boolean, alpha?: AlphaChange): boolean | void;
-  /** Why the engine cannot move a material from `from` to `to` inside the session, `undefined`
+  /** Why the engine cannot move these surfaces from `from` to `to` inside the session, `undefined`
    *  when it can; asked before any write. Absent, it moves every one (`alpha`). */
-  materialClassRefusal?(from: AlphaMode, to: AlphaMode): string | undefined;
+  materialClassRefusal?(alpha: AlphaChange): string | undefined;
   /** Repaints a primitive from the engine's material parameters: no shader, no program hook. */
   updateMaterial?(primitive: string, material: Material): void;
 }

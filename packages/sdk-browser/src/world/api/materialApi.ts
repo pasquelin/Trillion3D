@@ -94,9 +94,14 @@ export function createExplorerMaterialApi(inputs: Inputs) {
         mode = patch.alphaMode ?? from;
       // A masked material cut at zero is drawn as an opaque one.
       const to = mode === 'mask' && patch.alphaCutoff === 0 ? 'opaque' : mode;
-      if (to !== from)
+      // Its alpha moved: another class, or a cutout's cutoff — what the shadow of a cutout reads.
+      const alpha =
+        to !== from || (to === 'mask' && patch.alphaCutoff !== undefined)
+          ? { surfaces: worn, from, to }
+          : undefined;
+      if (alpha && to !== from)
         for (const backend of backends) {
-          const why = backend.materialClassRefusal?.(from, to);
+          const why = backend.materialClassRefusal?.(alpha);
           if (why)
             throw new EngineError(
               'MATERIAL_CLASS_CHANGE',
@@ -104,11 +109,6 @@ export function createExplorerMaterialApi(inputs: Inputs) {
               { id, from, to, engine: backend.id },
             );
         }
-      // Its alpha moved: another class, or a cutout's cutoff — what the shadow of a cutout reads.
-      const alpha =
-        to !== from || (to === 'mask' && patch.alphaCutoff !== undefined)
-          ? { surfaces: worn, from, to }
-          : undefined;
       if (patch.tiling) {
         const textures = worn.flatMap((surface) => [...materialTextures(surface)]);
         if (!textures.length) throw invalid(rank, 'tiling', patch.tiling);

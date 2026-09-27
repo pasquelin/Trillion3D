@@ -163,14 +163,18 @@ export function collectClusterPages(
      * session (#846): each record takes the family this collection would give it now, read off
      * its mesh's surface as above; true when one moved. An engine that sorts its meshes by surface
      * at every draw — WebGL2's display graph — has only this left to follow: whether a record rows
-     * place is drawn instanced (`drawnInstanced`).
+     * place is drawn instanced (`drawnInstanced`). `planned`, before the surfaces are written: the
+     * records wearing them take the family `alpha.to` would give them.
      */
-    reassignBlend(records: readonly PageRec[], alpha: AlphaChange) {
+    reassignBlend(records: readonly PageRec[], alpha: AlphaChange, planned = false) {
       let moved = false;
+      const as = { transparent: alpha.to === 'blend' };
       for (const rec of blendMoves(alpha) ? records : []) {
-        const primitive = rec.sourceMesh && primitiveOf(associations.get(rec.sourceMesh));
+        const mesh = rec.sourceMesh,
+          primitive = mesh && primitiveOf(associations.get(mesh));
         if (!primitive) continue;
-        const transparent = pagesBlend(primitive, meshSurface(rec.sourceMesh!));
+        const worn = planned && alpha.surfaces.includes(mesh!.material as object);
+        const transparent = pagesBlend(primitive, worn ? as : meshSurface(mesh!));
         moved ||= transparent !== rec.transparent;
         rec.transparent = transparent;
       }
