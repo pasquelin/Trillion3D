@@ -4,21 +4,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as G from '../../host/graph/graph.fixture.ts';
-import { createPlacementRows } from '../../placement/rows.ts';
-import { triangleBackend } from './triangle.fixture.ts';
-
-/** Two live rows, side by side. */
-function twoRows() {
-  const rows = createPlacementRows(2);
-  for (const row of [0, 1]) {
-    rows.matrices.set(new G.Matrix4().makeTranslation(row, 0, 0).toArray(), row * 16);
-    rows.live[row] = 1;
-  }
-  return rows;
-}
+import { liveRows, triangleBackend } from './triangle.fixture.ts';
 
 test('WebGL2 draws the rows of a material turned blended one by one, and instanced once opaque again', async () => {
-  const { backend, camera, geometry, material } = triangleBackend({ placements: twoRows() });
+  const { backend, camera, geometry, material } = triangleBackend({ placements: liveRows(2) });
   const meshes = (to: 'blend' | 'opaque', classMoved = true) => {
     const from = material.transparent ? 'blend' : 'opaque';
     material.transparent = to === 'blend';
@@ -45,7 +34,7 @@ test('WebGL2 draws the rows of a material turned blended one by one, and instanc
 // Once the rows' material turned blended, each row's record is one, and an instance adds two.
 test('the page ceiling counts an instance of a material turned blended by its own meshes', async () => {
   const material = G.basicSurface({ side: G.DOUBLE_SIDE });
-  const { backend, camera, geometry } = triangleBackend({ placements: twoRows() }, material, {
+  const { backend, camera, geometry } = triangleBackend({ placements: liveRows(2) }, material, {
     maxResidentPages: 3,
   });
   const pose = new G.Matrix4().toArray() as unknown as Float64Array;
