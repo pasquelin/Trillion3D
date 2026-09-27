@@ -333,7 +333,8 @@
       "shadows-through-see-through-panes": "투명한 유리가 드리우는 그림자",
       "a-walker-among-balls": "공 사이를 걷는 사람",
       "a-dolly-along-the-canal": "운하를 따라가는 카메라 돌리",
-      "a-folder-merged-into-one-scene": "하나의 장면으로 병합된 폴더"
+      "a-folder-merged-into-one-scene": "하나의 장면으로 병합된 폴더",
+      "drag-a-crate": "상자 드래그"
     },
     "missing": {
       "floating-crates": "매 프레임 다시 쓰는 지오메트리",

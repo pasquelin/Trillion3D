@@ -1517,7 +1517,8 @@
       "shadows-through-see-through-panes": "ظلال عبر ألواح شفافة",
       "a-walker-among-balls": "ماشٍ بين الكرات",
       "a-dolly-along-the-canal": "حركة كاميرا على طول القناة",
-      "a-folder-merged-into-one-scene": "مجلد مدمج في مشهد واحد"
+      "a-folder-merged-into-one-scene": "مجلد مدمج في مشهد واحد",
+      "drag-a-crate": "سحب صندوق"
     },
     "missing": {
       "floating-crates": "هندسة يُعاد كتابتها في كل إطار",
