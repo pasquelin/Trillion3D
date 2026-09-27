@@ -1708,6 +1708,14 @@
       "fourthLaneAnisotropy": "चौथी लेन की असमदैशिकता"
     }
   },
+  "the-home-pose": {
+    "banner": "एक दृश्य चुनें, कैमरा घुमाएँ, फिर लौटने के लिए होम चुनें।",
+    "controls": { "home": "होम", "tower": "मीनार", "square": "चौक", "hillside": "पहाड़ी" }
+  },
+  "the-near-plane-cuts-a-wall": {
+    "banner": "निकट तल को आगे बढ़ाएँ और उसे हर दीवार काटते देखें।",
+    "controls": { "nearPlane": "निकट तल" }
+  },
   "the-material-family": {
     "banner": "चारों ओर चलने के लिए खींचो। रोशनी को रात करो और देखो क्या अब भी चमकता है।",
     "controls": {
