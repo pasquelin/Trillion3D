@@ -1,4 +1,22 @@
 {
+  "brushed-metal": {
+    "banner": "Fırçalanmış yansımaları inceleyin. Güçlerini ve yönlerini değiştirin.",
+    "controls": {
+      "anisotropy": "Fırça gücü",
+      "direction": "Fırça yönü",
+      "roughness": "Pürüzlülük",
+      "spin": "Döndür"
+    }
+  },
+  "car-paint-under-clear-coat": {
+    "banner": "Arabanın etrafında dönün. Boyayı ve şeffaf kaplamayı değiştirin.",
+    "controls": {
+      "paint": "Boya",
+      "clearCoat": "Şeffaf kaplama",
+      "coatRoughness": "Kaplama pürüzlülüğü",
+      "spin": "Döndür"
+    }
+  },
   "kit": {
     "panel": {
       "controls": "Ayarlar"
@@ -308,6 +326,13 @@
       "hour": "Saat",
       "wind": "Rüzgâr",
       "roof": "Çatı"
+    }
+  },
+  "soft-shadows-from-a-wide-lamp": {
+    "banner": "Etrafında dönmek için sürükle. Lamba genişliğini değiştirip gölge kenarlarını izle.",
+    "controls": {
+      "lampWidth": "Lamba genişliği",
+      "moveSubject": "Nesneyi hareket ettir"
     }
   },
   "a-softbox-panel": {
@@ -1238,6 +1263,21 @@
       }
     }
   },
+  "a-walk-through-the-city": {
+    "banner": "Görünüme tıklayın, W A S D ile yürüyün ve fareyle bakın. İlerlerken bellek bütçesini azaltın.",
+    "controls": {
+      "walkSpeed": "Yürüme hızı",
+      "memory": "Bellek",
+      "view": "Görünüm",
+      "home": "Başa dön"
+    },
+    "choices": {
+      "view": { "beauty": "görüntü", "lod": "ayrıntı düzeyleri", "clusters": "kümeler" }
+    },
+    "words": {
+      "credit": "Bu örnek için kodla modellenmiş vazolar caddesi, CC0 — bkz. assets/examples/CREDITS.md"
+    }
+  },
   "migrating-from-three": {
     "words": {
       "credit": "Marble Bust 01: Rico Cilliers, Poly Haven, CC0; sandık: W. Sitters, CC BY 3.0 — bkz. assets/examples/CREDITS.md"
@@ -1685,6 +1725,21 @@
     },
     "readouts": {
       "fourthLaneAnisotropy": "Dördüncü şeridin anizotropisi"
+    }
+  },
+  "the-home-pose": {
+    "banner": "Bir görünüm seçin, kamerayı hareket ettirin, sonra dönmek için Başlangıç'ı seçin.",
+    "controls": {
+      "home": "Başlangıç",
+      "tower": "Kule",
+      "square": "Meydan",
+      "hillside": "Yamaç"
+    }
+  },
+  "the-near-plane-cuts-a-wall": {
+    "banner": "Yakın düzlemi ilerletin ve her duvarı kesmesini izleyin.",
+    "controls": {
+      "nearPlane": "Yakın düzlem"
     }
   },
   "the-material-family": {
@@ -2150,6 +2205,27 @@
     },
     "words": {
       "credit": "Direkteki bayrak bu örnek için kodla modellendi, CC0 — bkz. assets/examples/CREDITS.md"
+    }
+  },
+  "a-dolly-along-the-canal": {
+    "banner": "Kamera kanal boyunca ilerlerken hareketi duraklatın, baştan oynatın veya hızını değiştirin.",
+    "controls": {
+      "paused": "Duraklatıldı",
+      "replay": "Baştan oynat",
+      "speed": "Hız"
+    },
+    "readouts": {
+      "progress": "İlerleme"
+    }
+  },
+  "a-folder-merged-into-one-scene": {
+    "banner": "Sokak köşesini incelemek için sürükleyin. Derleyici bir klasördeki üç OBJ dosyasını bu sahnede birleştirdi.",
+    "controls": {
+      "visible": "Görünür",
+      "home": "Başlangıç"
+    },
+    "words": {
+      "credit": "Sokak lambası modeli: W. Sitters, CC BY 3.0 — bkz. assets/examples/CREDITS.md"
     }
   }
 }

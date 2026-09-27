@@ -38,6 +38,7 @@ export interface MeasureViewOptions {
   instances: number;
   width: number;
   height: number;
+  pixelRatio: number;
   stageProfile: boolean;
   variant: string | null;
   errorMetric: ScreenErrorVariant | null;
