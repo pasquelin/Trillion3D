@@ -100,6 +100,8 @@ test('a camera cut queued during a long caster load is served before the tier en
       getCache: () => cache as never,
       getFrame: () => 0,
       updatePins() {},
+      admitRequests() {},
+      followRequestPins() {},
       ensureResident: tierEnsurer(tracking, cache, () => casters),
       markLost() {},
       traceEnabled: false,
