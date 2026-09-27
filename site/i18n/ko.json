@@ -35,7 +35,7 @@
     "jumpTo": "테마로 이동",
     "waitsFor": "엔진을 기다리는 중:",
     "partial": "부분 지원",
-    "coming": "예정: {{titles}}"
+    "coming": "예정"
   },
   "gallery": {
     "themes": {
@@ -187,6 +187,7 @@
       "red-cyan-anaglyph": "빨강-청록 애너글리프",
       "camera-layers": "카메라 레이어",
       "a-robot-that-walks-and-waves": "섞인 로봇 동작",
+      "a-crane-that-swings": "짐을 흔드는 크레인",
       "a-wave-across-a-grid": "큐브의 물결",
       "keyframes-by-hand": "손으로 만든 키프레임",
       "one-clip-many-objects": "하나의 클립, 여러 물체",
@@ -220,6 +221,7 @@
       "observatory-streamed": "스트리밍되는 클러스터",
       "health-check": "상태 점검",
       "memory-on-a-budget": "메모리 예산",
+      "a-walk-through-the-city": "도시 산책",
       "detail-by-pixel-error": "픽셀 오차에 따른 디테일",
       "watch-a-world-load": "세계가 로드되는 모습 보기",
       "ten-thousand-objects": "만 개의 물체",
@@ -329,7 +331,10 @@
       "ar-on-the-table": "탁자 위의 AR",
       "shadows-case-by-case": "그림자, 사례별로",
       "shadows-through-see-through-panes": "투명한 유리가 드리우는 그림자",
-      "a-walker-among-balls": "공 사이를 걷는 사람"
+      "a-walker-among-balls": "공 사이를 걷는 사람",
+      "a-dolly-along-the-canal": "운하를 따라가는 카메라 돌리",
+      "a-folder-merged-into-one-scene": "하나의 장면으로 병합된 폴더",
+      "drag-a-crate": "상자 드래그"
     },
     "missing": {
       "floating-crates": "매 프레임 다시 쓰는 지오메트리",

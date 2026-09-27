@@ -4,6 +4,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as G from '../../../host/graph/graph.fixture.ts';
 import { webgpuPagesBackend } from '../pages.ts';
+import { refreshWebgpuMaterials } from './refreshMaterials.ts';
 import { FLAG_MASK, PAGE_INFO_STRIDE } from '../../../visibility/buffer.ts';
 import { ROW_FLAGS_WORD, ROW_INDEX_WORDS } from '../../row/pageRow.ts';
 import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts';
@@ -79,4 +80,23 @@ test('an opaque surface turned masked cuts every row of its material', async () 
     fixture.geometry.dispose();
     fixture.material.dispose();
   }
+});
+
+// #572: under a light that casts, a cutoff moved in place leaves a few shadowed pixels off the
+// image a session opened on it draws once temporal antialiasing settles: the refresh asks the
+// owner for a new session there, and takes the move in place where nothing casts.
+test('an alpha move asks for a new session once a light casts, never before', () => {
+  const { material } = quadScene();
+  const alpha = { surfaces: [material], from: 'opaque', to: 'mask' } as const;
+  const runtime = (shadows: object | undefined, count = 1) =>
+    ({
+      lights: { store: { count }, shadows },
+      layout: { rows: { tableEpoch: 1 } },
+      run: { gate: { sceneMoved() {} } },
+      vis: {},
+    }) as unknown as Parameters<typeof refreshWebgpuMaterials>[0];
+  assert.equal(refreshWebgpuMaterials(runtime(undefined), true, alpha), true, 'nothing casts');
+  assert.equal(refreshWebgpuMaterials(runtime({}, 0), true, alpha), true, 'an atlas, no light');
+  assert.equal(refreshWebgpuMaterials(runtime({}), true, alpha), false, 'a light casts');
+  assert.equal(refreshWebgpuMaterials(runtime({}), true), true, 'values alone stay in place');
 });

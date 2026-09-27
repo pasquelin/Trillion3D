@@ -35,7 +35,7 @@
     "jumpTo": "Перейти к теме",
     "waitsFor": "Ждёт движок:",
     "partial": "Частично",
-    "coming": "Скоро: {{titles}}"
+    "coming": "Скоро"
   },
   "gallery": {
     "themes": {
@@ -187,6 +187,7 @@
       "red-cyan-anaglyph": "Красно-голубой анаглиф",
       "camera-layers": "Слои камеры",
       "a-robot-that-walks-and-waves": "Смешение движений робота",
+      "a-crane-that-swings": "Кран с раскачивающимся грузом",
       "a-wave-across-a-grid": "Волна из кубов",
       "keyframes-by-hand": "Ключевые кадры вручную",
       "one-clip-many-objects": "Один клип, много объектов",
@@ -220,6 +221,7 @@
       "observatory-streamed": "Потоковые кластеры",
       "health-check": "Проверка здоровья",
       "memory-on-a-budget": "Бюджет памяти",
+      "a-walk-through-the-city": "Прогулка по городу",
       "detail-by-pixel-error": "Детализация по пиксельной ошибке",
       "watch-a-world-load": "Смотреть, как загружается мир",
       "ten-thousand-objects": "Десять тысяч объектов",
@@ -329,7 +331,10 @@
       "ar-on-the-table": "AR на столе",
       "shadows-case-by-case": "Тени, случай за случаем",
       "shadows-through-see-through-panes": "Тени сквозь прозрачные стёкла",
-      "a-walker-among-balls": "Ходок среди мячей"
+      "a-walker-among-balls": "Ходок среди мячей",
+      "a-dolly-along-the-canal": "Проезд камеры вдоль канала",
+      "a-folder-merged-into-one-scene": "Папка, объединённая в одну сцену",
+      "drag-a-crate": "Перетащить ящик"
     },
     "missing": {
       "floating-crates": "геометрия, перезаписываемая в каждом кадре",

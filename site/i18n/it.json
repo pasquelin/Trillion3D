@@ -35,7 +35,7 @@
     "jumpTo": "Vai a un tema",
     "waitsFor": "In attesa del motore:",
     "partial": "Parziale",
-    "coming": "In arrivo: {{titles}}"
+    "coming": "In arrivo"
   },
   "gallery": {
     "themes": {
@@ -187,6 +187,7 @@
       "red-cyan-anaglyph": "Anaglifo rosso-ciano",
       "camera-layers": "Livelli di camera",
       "a-robot-that-walks-and-waves": "Movimenti di robot mescolati",
+      "a-crane-that-swings": "Una gru che fa oscillare il carico",
       "a-wave-across-a-grid": "Onda di cubi",
       "keyframes-by-hand": "Fotogrammi chiave a mano",
       "one-clip-many-objects": "Una clip, tanti oggetti",
@@ -220,6 +221,7 @@
       "observatory-streamed": "Cluster in streaming",
       "health-check": "Controllo di salute",
       "memory-on-a-budget": "Budget di memoria",
+      "a-walk-through-the-city": "Una passeggiata in città",
       "detail-by-pixel-error": "Dettaglio per errore in pixel",
       "watch-a-world-load": "Guardare un mondo che si carica",
       "ten-thousand-objects": "Diecimila oggetti",
@@ -329,7 +331,10 @@
       "ar-on-the-table": "AR sul tavolo",
       "shadows-case-by-case": "Le ombre, caso per caso",
       "shadows-through-see-through-panes": "Ombre attraverso vetri trasparenti",
-      "a-walker-among-balls": "Un camminatore tra le palline"
+      "a-walker-among-balls": "Un camminatore tra le palline",
+      "a-dolly-along-the-canal": "Una carrellata lungo il canale",
+      "a-folder-merged-into-one-scene": "Una cartella unita in una scena",
+      "drag-a-crate": "Trascinare una cassa"
     },
     "missing": {
       "floating-crates": "geometria riscritta a ogni fotogramma",

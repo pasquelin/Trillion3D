@@ -168,7 +168,7 @@ test('an example is its file, live, on the demo page; the index shows what is re
   for (const entry of roadmapEntries) {
     const isWritten = Boolean(entry.file);
     assert.equal(
-      index.includes(`>${exampleTitle(entry.id, 'en')}</span></h2>`),
+      index.includes(`>${exampleTitle(entry.id, 'en')}</span></span></a>`),
       isWritten,
       entry.id,
     );
@@ -182,16 +182,15 @@ test('an example is its file, live, on the demo page; the index shows what is re
   assert.equal(thumbnailOf('no-such-example'), examplePlaceholder);
   for (const { ready: complete, parked: partial, coming } of themedEntries) {
     const positions = [...complete, ...partial].map(({ id }) =>
-      index.indexOf(`>${exampleTitle(id, 'en')}</span></h2>`),
+      index.indexOf(`>${exampleTitle(id, 'en')}</span></span></a>`),
     );
     assert.deepEqual(
       positions,
       [...positions].sort((a, b) => a - b),
     );
-    if (coming.length) {
-      const line = `Coming: ${coming.map(({ id }) => exampleTitle(id, 'en')).join(' · ')}`;
-      assert.ok(index.includes(line));
-      assert.ok(index.indexOf(line) > Math.max(-1, ...positions));
+    for (const { id } of coming) {
+      const tile = index.indexOf(`title="${exampleTitle(id, 'en')} — Coming"`);
+      assert.ok(tile > Math.max(-1, ...positions), id);
     }
   }
   const count = (pattern: RegExp) => (index.match(pattern) ?? []).length;

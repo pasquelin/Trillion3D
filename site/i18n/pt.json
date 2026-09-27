@@ -35,7 +35,7 @@
     "jumpTo": "Ir para um tema",
     "waitsFor": "Espera pelo motor:",
     "partial": "Parcial",
-    "coming": "Em breve: {{titles}}"
+    "coming": "Em breve"
   },
   "gallery": {
     "themes": {
@@ -187,6 +187,7 @@
       "red-cyan-anaglyph": "Anaglifo vermelho-ciano",
       "camera-layers": "Camadas de câmera",
       "a-robot-that-walks-and-waves": "Movimentos de robô misturados",
+      "a-crane-that-swings": "Um guindaste que balança a carga",
       "a-wave-across-a-grid": "Onda de cubos",
       "keyframes-by-hand": "Quadros-chave à mão",
       "one-clip-many-objects": "Um clipe, vários objetos",
@@ -220,6 +221,7 @@
       "observatory-streamed": "Clusters em streaming",
       "health-check": "Verificação de saúde",
       "memory-on-a-budget": "Orçamento de memória",
+      "a-walk-through-the-city": "Um passeio pela cidade",
       "detail-by-pixel-error": "Detalhe por erro de pixel",
       "watch-a-world-load": "Ver um mundo carregar",
       "ten-thousand-objects": "Dez mil objetos",
@@ -329,7 +331,10 @@
       "ar-on-the-table": "RA sobre a mesa",
       "shadows-case-by-case": "As sombras, caso a caso",
       "shadows-through-see-through-panes": "Sombras através de vidros",
-      "a-walker-among-balls": "Um caminhante entre bolas"
+      "a-walker-among-balls": "Um caminhante entre bolas",
+      "a-dolly-along-the-canal": "Um travelling ao longo do canal",
+      "a-folder-merged-into-one-scene": "Uma pasta reunida numa cena",
+      "drag-a-crate": "Arrastar uma caixa"
     },
     "missing": {
       "floating-crates": "geometria reescrita a cada quadro",
