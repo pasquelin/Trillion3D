@@ -7,7 +7,7 @@ import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
 import { createGpuDagSelection } from './selection.ts';
 import { requestScene } from './requestScene.fixture.ts';
 import { KEY_PAGE_BITS, canonicalPage, listEvictions } from './evict.ts';
-import { EVICTION_BURST, keyBase } from './layout.ts';
+import * as L from './layout.ts';
 
 /** Four placements of one page set, every page resident for the rule; `cut()` cuts, reads back. */
 async function residentCut(leaves = 256) {
@@ -18,7 +18,7 @@ async function residentCut(leaves = 256) {
   const selection = await createGpuDagSelection(gpu.device, packed, { residentCut: true });
   assert.ok(selection);
   selection.updateResidency(new Uint32Array(packed.pageCount).fill(1));
-  const keys = new Uint32Array(packed.pageCones.buffer).subarray(keyBase(packed.pageCount));
+  const keys = new Uint32Array(packed.pageCones.buffer).subarray(L.keyBase(packed.pageCount));
   const cut = async () => {
     selection.dispatch(scene.uni);
     const result = await selection.flush();
@@ -28,14 +28,14 @@ async function residentCut(leaves = 256) {
   const holdAll = () => {
     for (let page = 0; page < packed.pageCount; page++) selection.notePool(page, true);
   };
-  const readbacks = () => gpu.buffers.filter((b) => b.usage & GPUMapMode.READ).map((b) => b.size);
   return {
+    gpu,
+    packed,
     selection,
     holdAll,
-    readbacks,
     keys,
     cut,
-    levelOf: (page: number) => keys[page] >>> KEY_PAGE_BITS,
+    levelOf: (p: number) => keys[p] >>> KEY_PAGE_BITS,
   };
 }
 
@@ -80,10 +80,11 @@ test('the mirror ranks finer first, then older first, and skips the pages used n
 });
 
 test('the readback is the same size whatever the pool holds: one burst per readback', async () => {
-  const { holdAll, readbacks, cut } = await residentCut(2048);
-  const empty = (await cut()).queue,
-    sizes = readbacks();
+  const { gpu, packed, holdAll, cut } = await residentCut(2048);
+  const empty = (await cut()).queue;
   holdAll();
-  assert.deepEqual([empty.length, (await cut()).queue.length], [0, EVICTION_BURST]);
-  assert.deepEqual(readbacks(), sizes);
+  assert.deepEqual([empty.length, (await cut()).queue.length], [0, L.EVICTION_BURST]);
+  // The copy is the readback's whole size, fixed at creation: two lists and one burst.
+  const bytes = L.residentReadbackBytes(L.selectionListCap(packed.pageCount));
+  for (const b of gpu.buffers) if (b.usage & GPUBufferUsage.MAP_READ) assert.equal(b.size, bytes);
 });
