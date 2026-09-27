@@ -78,6 +78,11 @@ function writeDash(surface: GraphSurface, material: Material) {
   surface.gapSize = solid ? 0 : ((material.gapSize as number | undefined) ?? 0) / scale;
 }
 
+/** A line's width in CSS pixels, 1 by default. A value, so a repaint writes it again. */
+function writeLineWidth(surface: GraphSurface, material: Material) {
+  surface.lineWidth = (material.linewidth as number | undefined) ?? 1;
+}
+
 /** Both sides in one pass, for a quad the rasters lay on screen (a line's, a sprite's): it has no
  *  face to cull, and a transparent one drawn back then front would take two entries of the
  *  transparent plan, whose per-frame ranking grows with the square of their count (#364). */
@@ -95,7 +100,7 @@ function drawBothSidesOnce(surface: GraphSurface) {
  * for its forward depth (nearer is smaller).
  */
 function drawLines(surface: GraphSurface, material: Material) {
-  surface.lineWidth = (material.linewidth as number | undefined) ?? 1;
+  writeLineWidth(surface, material);
   if (material.kind === 'lineDashed') writeDash(surface, material);
   drawBothSidesOnce(surface);
   surface.polygonOffset = true;
@@ -177,8 +182,7 @@ export function repaintHostSurface(surface: GraphSurface, material: Material) {
   const cut = family || alphaModeOf(material) === 'mask';
   surface.alphaTest = cut ? material.alphaTest : 0;
   if (!family) writePhysical(surface, material);
-  if (typeof surface.lineWidth === 'number')
-    surface.lineWidth = (material.linewidth as number | undefined) ?? 1;
+  if (typeof surface.lineWidth === 'number') writeLineWidth(surface, material);
   if (typeof surface.dashSize === 'number') writeDash(surface, material);
   if (surface.sprite === true) writeSpriteTurn(surface, material);
   surface.needsUpdate = true;

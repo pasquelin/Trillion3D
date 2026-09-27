@@ -106,7 +106,7 @@ export class GraphSurface extends Releasable {
   declare transparentShadow: boolean;
   [field: string]: unknown;
   /** The family it belongs to; a world moves a surface between standard and physical in place
-   *  (`world/core/worldSurface.ts`), which every reader takes at the next version. */
+   *  (`world/core/worldPhysicalSurface.ts`), which every reader takes at the next version. */
   family: GraphSurfaceFamily;
   constructor(family: GraphSurfaceFamily, parameters: Record<string, unknown> = {}) {
     super();

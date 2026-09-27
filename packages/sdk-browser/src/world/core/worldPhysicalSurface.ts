@@ -38,7 +38,7 @@ export function writePhysical(surface: GraphSurface, material: Material) {
 
 /** The surface of a physical kind, in the family its fields put it in. */
 export function physicalSurface(material: Material, vertexColors: boolean) {
-  const surface = hostPageSurface(material.surface(), vertexColors, physicalFamily(material));
+  const surface = hostPageSurface(material.surface(), vertexColors);
   writePhysical(surface, material);
   return surface;
 }
