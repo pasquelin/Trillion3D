@@ -7,9 +7,11 @@ import type { PlacementRows } from './rows.ts';
  *  and the modes before and after — equal when only a cutout's cutoff moved. */
 export type AlphaChange = { surfaces: readonly object[]; from: AlphaMode; to: AlphaMode };
 
-/** A created material given to drawables (`assignMaterial`, #847): the source meshes that wear
- *  `surfaces[0]` from now on, `from` the mode of the one they wore. */
-export type SurfaceAssignment = AlphaChange & { meshes: ReadonlySet<object> };
+/** A created material given to drawables (`assignMaterial`, #847): each source mesh and the
+ *  surface it wears from now on — the material's variant its geometry asks for —, `surfaces`
+ *  those variants, `from` a mode one of them leaves whose blended-or-not differs from `to`, if
+ *  any does. */
+export type SurfaceAssignment = AlphaChange & { meshes: ReadonlyMap<object, object> };
 
 /** Whether a change assigns a surface rather than rewrites one. */
 export const isAssignment = (alpha: AlphaChange): alpha is SurfaceAssignment => 'meshes' in alpha;

@@ -124,8 +124,32 @@ export function refreshSurface(surface: PageSurface): PageSurface {
 /** The records of the source meshes a created material was assigned to (#847). */
 export const recordsOfMeshes = <T extends { sourceMesh?: object }>(
   records: readonly T[],
-  meshes: ReadonlySet<object>,
+  meshes: ReadonlyMap<object, unknown>,
 ) => records.filter((rec) => !!rec.sourceMesh && meshes.has(rec.sourceMesh));
+
+/** The records of each surface an assignment gives (`SurfaceAssignment`): each mesh's own. */
+export function recordsBySurface<T extends { sourceMesh?: object }>(
+  records: readonly T[],
+  meshes: ReadonlyMap<object, object>,
+) {
+  const by = new Map<object, T[]>();
+  for (const rec of recordsOfMeshes(records, meshes)) {
+    const surface = meshes.get(rec.sourceMesh!)!;
+    by.set(surface, [...(by.get(surface) ?? []), rec]);
+  }
+  return by;
+}
+
+/** Why neither engine gives an assigned mesh another surface: none of its records is a page's,
+ *  it is drawn as a forward copy the open laid out, off the surface the copy took then. */
+export function unpagedRefusal(
+  records: readonly { sourceMesh?: object }[],
+  meshes: ReadonlyMap<object, unknown> | undefined,
+) {
+  const paged = new Set(recordsOfMeshes(records, meshes ?? new Map()).map((rec) => rec.sourceMesh));
+  if ([...(meshes?.keys() ?? [])].some((mesh) => !paged.has(mesh)))
+    return 'the drawable is drawn as a forward copy laid out when the session opens';
+}
 
 /** A record wears `declaration` from now on, its surface record read at this boundary. */
 export function wearDeclaration(
