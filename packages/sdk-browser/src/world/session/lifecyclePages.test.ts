@@ -87,7 +87,7 @@ const held = [
   // Frames drawn before the wait may have read every page but one: never 0 of 0 on a drawn view.
   {
     name: 'counts the pages the view already holds',
-    resident: undefined,
+    resident: ['a.bin', 'c.bin'],
     heard: [
       [2, 3],
       [3, 3],
