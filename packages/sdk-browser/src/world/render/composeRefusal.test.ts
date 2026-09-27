@@ -8,8 +8,8 @@ import assert from 'node:assert/strict';
 import * as G from '../../host/graph/graph.fixture.ts';
 import { EffectChain } from '../../../../sdk-core/src/world/effect/chain.ts';
 import { effect } from '../../../../sdk-core/src/world/effect/index.ts';
-import { GraphScene } from '../../host/graph/scene.ts';
-import { GraphInstancedMesh } from '../../host/graph/mesh.ts';
+import { Scene } from '../core/scene.ts';
+import { InstancedMesh } from '../../../../sdk-core/src/world/object/instancedMesh.ts';
 import { GraphSurface } from '../../host/graph/surface.ts';
 import {
   HOST_BLENDING_MULTIPLY,
@@ -29,7 +29,7 @@ const MODES = [
 
 for (const [name, blending] of MODES) {
   test(`a pass added while a ${name} surface is drawn: every frame drawn, said once`, async () => {
-    const scene = new GraphScene().add(
+    const scene = new Scene().add(
       G.triangleMesh(new GraphSurface('standard')),
       G.triangleMesh(blended(blending)),
     );
@@ -45,7 +45,7 @@ for (const [name, blending] of MODES) {
   });
 
   test(`a ${name} surface entering a world with a pass: drawn, said once`, async () => {
-    const scene = new GraphScene().add(G.triangleMesh(new GraphSurface('standard')));
+    const scene = new Scene().add(G.triangleMesh(new GraphSurface('standard')));
     const view = session(scene, new EffectChain().add(effect.bloom()));
     const glass = G.triangleMesh(blended(blending));
     const said = await heard(view, () => {
@@ -63,7 +63,7 @@ for (const [name, blending] of MODES) {
   test(`a surface switched to ${name} under a pass: drawn, said once`, async () => {
     const surface = blended(HOST_BLENDING_NORMAL);
     const view = session(
-      new GraphScene().add(G.triangleMesh(surface)),
+      new Scene().add(G.triangleMesh(surface)),
       new EffectChain().add(effect.bloom()),
     );
     const said = await heard(view, () => {
@@ -77,7 +77,7 @@ for (const [name, blending] of MODES) {
 
   test(`a WebGL2 session opened on a world with a pass and a ${name} surface`, async () => {
     // The world falling back to WebGL2 opens its session on what it already holds.
-    const scene = new GraphScene().add(G.triangleMesh(blended(blending)));
+    const scene = new Scene().add(G.triangleMesh(blended(blending)));
     const view = session(scene, new EffectChain().add(effect.bloom()));
     const said = await heard(view, () => {
       assert.deepEqual(view.frame(), { chained: false, submitted: 1 }, 'its first frame drawn');
@@ -89,10 +89,10 @@ for (const [name, blending] of MODES) {
 
 test('a multiply instanced mesh placed nowhere keeps the chain on until it is placed', async () => {
   const surface = blended(HOST_BLENDING_MULTIPLY),
-    pool = new GraphInstancedMesh(G.triangleMesh(surface).geometry, surface, 1);
+    pool = new InstancedMesh(G.triangleMesh(surface).geometry, surface, 1);
   pool.count = 0;
   pool.frustumCulled = false;
-  const scene = new GraphScene().add(G.triangleMesh(new GraphSurface('standard')), pool);
+  const scene = new Scene().add(G.triangleMesh(new GraphSurface('standard')), pool);
   const view = session(scene, new EffectChain().add(effect.bloom()));
   const said = await heard(view, () => {
     assert.equal(view.frame().chained, true, 'nothing submitted, nothing refused');
@@ -111,7 +111,7 @@ test('a transmissive multiply surface in the unlit view, which zeroes its transm
     transmission: 1,
     blending: HOST_BLENDING_MULTIPLY,
   });
-  const scene = new GraphScene().add(G.triangleMesh(glass));
+  const scene = new Scene().add(G.triangleMesh(glass));
   createUnlitAlbedo(scene).setEnabled(true);
   const view = session(scene, new EffectChain().add(effect.bloom()));
   const said = await heard(view, () => {

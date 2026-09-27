@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { material } from '../../../../sdk-core/src/world/material/index.ts';
 import type { DrawnTriangles } from '../../../../sdk-core/src/world/geometry/drawn.ts';
-import type { GraphMesh } from '../../host/graph/mesh.ts';
+import type { HostMesh } from '../../host/resources.ts';
 import type { GraphSurface } from '../../host/graph/surface.ts';
 import type { PlacementRows } from '../../placement/rows.ts';
 import { buildWorldMirror } from './worldMirror.ts';
@@ -20,13 +20,13 @@ const cut = (colors: boolean): Cut => {
 };
 
 /** The one surface a mirror mesh wears. */
-const worn = (mesh: GraphMesh) => mesh.material as GraphSurface;
+const worn = (mesh: HostMesh) => mesh.material as GraphSurface;
 
 const vertexColorsOf = (vertexColors: boolean, colors: boolean) => {
   const paint = material.meshStandard({ color: 0xffffff, vertexColors });
   const placed = [{ cut: cut(colors), material: paint, rows: {} as PlacementRows, name: 'm' }];
   const { root } = buildWorldMirror({ placed, models: [], rankOf: () => 0 });
-  return worn(root.children[0] as GraphMesh).vertexColors;
+  return worn(root.children[0] as HostMesh).vertexColors;
 };
 
 // #347: the material decides, as `material.vertexColors` does in the reference; a geometry's
@@ -43,11 +43,17 @@ test('one material worn with and without colours gets one surface per case, both
   const rows = {} as PlacementRows;
   const placed = [true, false, true].map((c) => ({ cut: cut(c), material: paint, rows, name: '' }));
   const { root, repaint } = buildWorldMirror({ placed, models: [], rankOf: () => 0 });
-  const [a, b, c] = root.children as GraphMesh[];
+  const [a, b, c] = root.children as HostMesh[];
   assert.equal(a.material, c.material, 'the coloured surface is shared');
   assert.notEqual(a.material, b.material);
   const versions = [a, b].map((mesh) => worn(mesh).version);
   paint.color.set(0xff0000);
-  assert.equal(repaint(paint), true);
+  const entry = { id: 0, key: '', material: paint };
+  const refreshed: boolean[] = [];
+  assert.equal(
+    repaint([{ entry, values: true }], (values) => refreshed.push(values) > 0),
+    true,
+  );
+  assert.deepEqual(refreshed, [true], 'the session reads them again once');
   [a, b].forEach((mesh, i) => assert.ok(worn(mesh).version > versions[i]!));
 });

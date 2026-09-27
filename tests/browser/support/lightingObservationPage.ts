@@ -40,7 +40,7 @@ const floatTexture = ({ data, width, height }: ObservationTexture) => {
 function witnessPixels(
   resources: ObservationResources,
   meshes: ObservationMeshes,
-  camera: G.GraphCamera,
+  camera: G.Camera,
 ) {
   const renderer = new THREE.WebGLRenderer({ canvas: canvas(), antialias: false });
   renderer.setSize(SIZE, SIZE, false);
