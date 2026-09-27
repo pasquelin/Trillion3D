@@ -15,20 +15,21 @@ const counted = new Set<string>();
 /**
  * True when a record is drawn instanced with the other rows of its page (`webglPageBatches.ts`).
  * A transparent record placed by a row is drawn on its own, like a blended copy: the host orders
- * blended meshes by depth, never the instances of one draw.
+ * blended meshes by depth, never the instances of one draw. `transparent`, the flag it would take.
  */
-export const drawnInstanced = (rec: PageRec) => !!rec.placement && !rec.transparent;
+export const drawnInstanced = (rec: PageRec, transparent = rec.transparent) =>
+  !!rec.placement && !transparent;
 
 /**
  * The host meshes `recs` hang on the WebGL2 path's display graph, which its page ceiling bounds:
  * one per record drawn on its own, one per PAGE for the records drawn instanced — ten thousand
  * opaque placements of a page are one mesh.
  */
-export function attachedPages(recs: readonly PageRec[]) {
+export function attachedPages(recs: readonly PageRec[], instanced = drawnInstanced) {
   counted.clear();
   let own = 0;
   for (const rec of recs)
-    if (drawnInstanced(rec)) counted.add(rec.url);
+    if (instanced(rec)) counted.add(rec.url);
     else own++;
   return own + counted.size;
 }
