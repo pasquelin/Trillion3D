@@ -3,6 +3,14 @@ import type { AlphaMode } from '../../../sdk-core/src/contracts/material.ts';
 import type { DecodedGeometryPage } from '../page/decode/geometryPage.ts';
 import type { PlacementRows } from './rows.ts';
 
+/** How a material's alpha moved (`world/api/materialApi.ts`, #846): the host surfaces written,
+ *  and the modes before and after — equal when only a cutout's cutoff moved. */
+export type AlphaChange = { surfaces: readonly object[]; from: AlphaMode; to: AlphaMode };
+
+/** A change into or out of blended: the one that moves drawables between draw families. */
+export const blendMoves = ({ from, to }: AlphaChange) =>
+  from !== to && (from === 'blend' || to === 'blend');
+
 /** What an engine lets a host change in the scene it prepared, without preparing it again. */
 export interface BackendSceneUpdates {
   replaceGeometryPage?(url: string, data: DecodedGeometryPage): void;
@@ -32,11 +40,12 @@ export interface BackendSceneUpdates {
    *  picture changed size where its layout is fixed (#362) —, the owner opens the session again.
    *  `values` false when only their textures moved — a picture, a sampling, a placement —: the
    *  frame follows those itself, and nothing a value feeds, a page-table row, is written again.
-   *  `reclassed` when a surface moved between opaque, masked and blended, which the engine said it
-   *  takes (`materialClassRefusal`): its drawables go to the family the open would give them. */
-  refreshMaterials?(values?: boolean, reclassed?: boolean): boolean | void;
+   *  `alpha` when surfaces changed alpha mode or cutoff, a class change the engine said it takes
+   *  (`materialClassRefusal`): their drawables go to the family the open would give them, and
+   *  what their cutout shadowed is drawn again. */
+  refreshMaterials?(values?: boolean, alpha?: AlphaChange): boolean | void;
   /** Why the engine cannot move a material from `from` to `to` inside the session, `undefined`
-   *  when it can; asked before any write. Absent, it moves every one (`reclassed`). */
+   *  when it can; asked before any write. Absent, it moves every one (`alpha`). */
   materialClassRefusal?(from: AlphaMode, to: AlphaMode): string | undefined;
   /** Repaints a primitive from the engine's material parameters: no shader, no program hook. */
   updateMaterial?(primitive: string, material: Material): void;

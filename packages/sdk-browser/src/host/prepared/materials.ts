@@ -11,6 +11,7 @@
  */
 import type { TableMaterial, TableTextureSlot } from '../../../../sdk-core/src/index.ts';
 import { Vector2 } from '../../../../sdk-core/src/world/math/vector2.ts';
+import type { AlphaMode } from '../../../../sdk-core/src/contracts/material.ts';
 import { GraphSurface } from '../graph/surface.ts';
 import { type GraphTexture } from '../graph/texture.ts';
 import { hostSide } from '../../scene/materialSide.ts';
@@ -28,10 +29,10 @@ const COLOURS = new Set(['sheenColor', 'specularColor']);
 /** How a surface draws its alpha mode, at open and when a page changes it
  *  (`../../world/api/materialValues.ts`): blended, it composes and writes no depth; masked, it cuts
  *  at `cutoff`; opaque, neither. */
-export const alphaModeFields = (mode: TableMaterial['alphaMode'], cutoff: number) => ({
-  transparent: mode === 'BLEND',
-  depthWrite: mode !== 'BLEND',
-  alphaTest: mode === 'MASK' ? cutoff : 0,
+export const alphaModeFields = (mode: AlphaMode, cutoff: number) => ({
+  transparent: mode === 'blend',
+  depthWrite: mode !== 'blend',
+  alphaTest: mode === 'mask' ? cutoff : 0,
 });
 
 const isSlot = (value: unknown): value is TableTextureSlot =>
@@ -104,7 +105,10 @@ async function build(
     params.attenuationColor = linearColour(entry.attenuationColor);
   }
   if (entry.doubleSided) params.side = hostSide('double');
-  Object.assign(params, alphaModeFields(entry.alphaMode, entry.alphaTest));
+  Object.assign(
+    params,
+    alphaModeFields(entry.alphaMode.toLowerCase() as AlphaMode, entry.alphaTest),
+  );
   if (variant.vertexColors) params.vertexColors = true;
   if (variant.flatShading) params.flatShading = true;
   await Promise.all(pending);
