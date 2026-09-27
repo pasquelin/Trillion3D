@@ -763,6 +763,11 @@
       "file": "examples/a-wave-across-a-grid.html"
     },
     {
+      "id": "doors-that-open",
+      "theme": "animation",
+      "file": "examples/doors-that-open.html"
+    },
+    {
       "id": "keyframes-by-hand",
       "theme": "animation",
       "file": "examples/keyframes-by-hand.html"
