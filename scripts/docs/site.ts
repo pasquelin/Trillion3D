@@ -115,10 +115,10 @@ export const SITE_STEPS: readonly SiteStep[] = [
   },
   {
     name: 'runtime',
-    // The engine's sources and the folders of `site/` the portal imports from.
     reads: [
       'packages',
       ...['app', 'content', 'demos', 'examples', 'i18n', 'reports'].map((name) => `site/${name}`),
+      'site/assets/examples/thumbnails',
     ],
     folder: 'runtime',
     run: async (root, runtime) => {
