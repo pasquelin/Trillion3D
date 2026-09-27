@@ -38,12 +38,13 @@ export function generateMaterialMips(device: GPUDevice, chains: MipChain[]) {
   // image, and the cutoff; for the counts, level 0's extent and the level. Block 0 is level 0's own
   // count.
   const packed = new Uint32Array((blocks * stride) / 4);
-  for (const { chain, levels, first } of reduced)
+  for (const { chain, levels, first } of reduced) {
+    const { width, height, cutoff = 0 } = chain;
     for (let level = 0; level < levels; level++) {
-      const { width, height, cutoff = 0 } = chain,
-        source = levelSize(width, height, Math.max(0, level - 1));
+      const source = levelSize(width, height, Math.max(0, level - 1));
       packed.set([...source, cutoff, 0, width, height, level], ((first + level) * stride) / 4);
     }
+  }
   const uniforms = heldBuffer(
     shared,
     'Trillion3D texture mips uniforms',

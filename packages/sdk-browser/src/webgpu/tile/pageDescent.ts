@@ -16,7 +16,7 @@ export function descendTile(
   visit: (index: number) => boolean,
 ) {
   // Each level's tiles, once per descent, as the full descent read them.
-  const grid = Array.from({ length: key.level + 1 }, (_, level) => tilesAt(width, height, level));
+  const grid = Array.from({ length: key.level }, (_, level) => tilesAt(width, height, level));
   const children = (level: number, x: number, y: number) => {
     const [tw, th] = grid[level];
     for (let cy = y * 2; cy < Math.min(th, y * 2 + 2); cy++)
