@@ -20,8 +20,8 @@ import type { Page } from '../contracts/geometry.ts';
 export const PAGE_DECODE_PROTOCOL = 6;
 
 /** `verify`: a page's SHA-256 digest. `decode`: its indices and per-vertex attributes. `cut`:
- *  drawn triangles, packed as five lengths, whether their pages keep a cone, then five four-byte
- *  arrays (`packDrawn`), cut into pages. */
+ *  drawn triangles, packed as five lengths, whether their pages keep a cone, whether a blended
+ *  material wears them, then five four-byte arrays (`packDrawn`), cut into pages. */
 export type PageDecodeOp = 'verify' | 'decode' | 'cut';
 
 /** One page a `cut` wrote: its index and geometry bytes, their digests, and its descriptor. */

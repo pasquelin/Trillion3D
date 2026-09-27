@@ -136,6 +136,7 @@ mod compiler_lights;
 mod compiler_lock;
 mod compiler_manifest_pages;
 mod compiler_materials;
+mod compiler_mesh_share;
 mod compiler_nodes;
 mod compiler_page_object;
 mod compiler_plan;

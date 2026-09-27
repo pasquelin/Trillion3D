@@ -1,7 +1,7 @@
 // Pure oracles for A3 and A4, side-effect free: `occlusion.bench.ts` measures them, unit tests
 // import them as reference.
 import * as THREE from 'three';
-import type { GraphCamera } from '../../../packages/sdk-browser/src/host/graph/camera.ts';
+import type { Camera } from '../../../packages/sdk-core/src/world/camera/camera.ts';
 import { threeCamera } from '../../witnesses/three/fromGraphNodes.ts';
 import { perspectiveProjection } from '../../../packages/sdk-core/src/index.ts';
 import {
@@ -52,7 +52,7 @@ function referenceProjectBoxToScreen(
  *  Reversed depth: nearest carries GREATER depth, so order is descending. */
 export function referenceSplitOccluders<T extends HizPage>(
   pages: T[],
-  camera: GraphCamera,
+  camera: Camera,
   viewport: [number, number],
 ) {
   const cam = threeCamera(camera) as THREE.PerspectiveCamera;
@@ -75,7 +75,7 @@ export function referenceSplitOccluders<T extends HizPage>(
 export function referenceCountUnoccluded<T extends HizPage & { array?: ArrayLike<number> }>(
   pages: T[],
   pyramid: HizPyramid,
-  camera: GraphCamera,
+  camera: Camera,
   viewport: [number, number],
   counts: HizCounts,
   bias = 0,

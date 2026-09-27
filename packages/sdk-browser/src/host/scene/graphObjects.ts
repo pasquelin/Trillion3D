@@ -10,7 +10,7 @@
 import { numbered } from '../graph/serial.ts';
 import { Box3 } from '../../../../sdk-core/src/world/math/box3.ts';
 import { Vector3 } from '../../../../sdk-core/src/world/math/vector3.ts';
-import { GraphCamera } from '../graph/camera.ts';
+import { Camera } from '../../../../sdk-core/src/world/camera/camera.ts';
 import { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts';
 import type { HostCamera } from '../../camera/world.ts';
 import type { ControlVector } from '../../camera/controls/types.ts';
@@ -22,7 +22,7 @@ export const hostFramingCamera = (
   aspect: number,
   near: number,
   far: number,
-): HostCamera => new GraphCamera({ fov, aspect, near, far });
+): HostCamera => numbered(new Camera('perspective', { fov, aspect, near, far }));
 
 /** A point the host reads and its controls aim at: the scene centre, the home offset. */
 export const hostPoint = (x: number, y: number, z: number): ControlVector => new Vector3(x, y, z);

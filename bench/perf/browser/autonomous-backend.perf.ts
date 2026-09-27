@@ -1,5 +1,5 @@
 // the autonomous backend detaches by cut delta instead of sweeping the whole DAG.
-import { GraphScene } from '../../../packages/sdk-browser/src/host/graph/scene.ts';
+import { Scene } from '../../../packages/sdk-browser/src/world/core/scene.ts';
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import { surfaceOf } from '../../../packages/sdk-browser/src/page/surface.ts';
 import { createAutonomousGeometry } from '../../../packages/sdk-browser/src/backend/autonomous/geometry.ts';
@@ -13,7 +13,7 @@ const geometrie = new G.Geometry();
 const materiau = G.basicSurface();
 
 interface Monde {
-  scene: GraphScene;
+  scene: Scene;
   allPages: PageRec[];
   shown: PageRec[];
   desired: PageRec[];
@@ -22,7 +22,7 @@ interface Monde {
 
 function monde(total: number, depart: number): Monde {
   const alea = graine(depart);
-  const scene = new GraphScene(),
+  const scene = new Scene(),
     allPages: PageRec[] = [];
   for (let i = 0; i < total; i++)
     allPages.push({
@@ -131,7 +131,7 @@ await stress({
   extremes: [
     {
       name: 'empty',
-      input: { scene: new GraphScene(), allPages: [], shown: [], desired: [], requested: [] },
+      input: { scene: new Scene(), allPages: [], shown: [], desired: [], requested: [] },
     },
   ],
 });

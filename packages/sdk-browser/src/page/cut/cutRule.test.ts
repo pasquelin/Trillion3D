@@ -1,8 +1,9 @@
 // One cut rule per cluster (#486): on a synthetic DAG whose pages leave at random, every backend
 // covers every leaf exactly once, by the cluster it wants or by that cluster's nearest resident
 // ancestor — never coarser, and never a whole primitive coarsened for one missing page. The kernel
-// model runs twice: with the TypeScript rule, and with the kernel's own `dagMask` call site run in
-// Node on the residency bits its host uploads. The CPU cut and the WebGL2 image's cut run the same
+// model runs three times: with the TypeScript rule, and with the kernel's own `dagMask` call
+// sites — a camera's, on the comparisons `dagWanted` kept, and a light's — run in Node on the
+// residency bits its host uploads. The CPU cut and the WebGL2 image's cut run the same
 // rule on the same DAG (#483 rules 1, 2 and 8).
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -11,6 +12,7 @@ import {
   floorPrunedPages,
   oracleBackend,
   wgslBackend,
+  wgslLightBackend,
   type CutBackend,
 } from './cutRuleBackends.fixture.ts';
 import { cpuBackend, webgl2Backend } from './cutRuleHosts.fixture.ts';
@@ -20,7 +22,8 @@ const THRESHOLD = 0.1;
 const dag = ruleDag(256);
 const backends: Record<string, (dag: RuleDag, threshold: number) => CutBackend> = {
   'GPU kernel model': oracleBackend,
-  'GPU kernel WGSL call site': wgslBackend,
+  'GPU kernel WGSL camera call site': wgslBackend,
+  'GPU kernel WGSL light call site': wgslLightBackend,
   'CPU cut': cpuBackend,
   'WebGL2 cut': webgl2Backend,
 };
