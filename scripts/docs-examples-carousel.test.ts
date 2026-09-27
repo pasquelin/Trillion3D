@@ -38,7 +38,6 @@ test('carousel animates eight phased horses and its controls pause and reverse t
   let values = {} as Values;
   await runExampleModule(html, {
     engine: {
-      advanceMixers,
       animation,
       createWorld: () => world,
       geometry,
@@ -52,7 +51,6 @@ test('carousel animates eight phased horses and its controls pause and reverse t
         values = describe(specs).values as Values;
         change = callback;
         callback(values);
-        return values;
       },
     },
   });
@@ -83,9 +81,8 @@ test('carousel animates eight phased horses and its controls pause and reverse t
     assert.ok(high[index]! - low[index]! > 0.5, `${horse.name} moves visibly`);
   });
   assert.ok(Math.abs(carousel.rotation.y) < 1e-6);
-  const startTurn = carousel.rotation.y;
   advanceMixers(scene, 0.5);
-  assert.ok(carousel.rotation.y < startTurn, 'clockwise seen from above');
+  assert.ok(carousel.rotation.y < 0, 'clockwise seen from above');
 
   values.running = false;
   change(values);
