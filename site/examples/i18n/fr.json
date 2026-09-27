@@ -2172,5 +2172,16 @@
     "words": {
       "credit": "Drapeau sur un mât modélisé en code pour cet exemple, CC0 — voir assets/examples/CREDITS.md"
     }
+  },
+  "a-dolly-along-the-canal": {
+    "banner": "Mettez le travelling en pause, rejouez le trajet ou changez sa vitesse pendant que la caméra longe le canal.",
+    "controls": {
+      "paused": "En pause",
+      "replay": "Rejouer",
+      "speed": "Vitesse"
+    },
+    "readouts": {
+      "progress": "Progression"
+    }
   }
 }
