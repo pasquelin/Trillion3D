@@ -32,10 +32,10 @@ test('recorded fly-through replays, stops, yields to the viewer and disposes', a
     removeEventListener: (type: string, listener: () => void) =>
       listeners.get(type)?.delete(listener),
   };
-  let disposed = false,
-    pagehide = () => {},
-    shown = '',
-    buttons = {} as Record<string, () => void>;
+  let disposed = false;
+  let pagehide = () => {};
+  let shown = '';
+  let buttons: Record<string, () => void> = {};
   const world = {
     scene,
     canvas,
