@@ -331,6 +331,7 @@
       "a-walker-among-balls": "Toplar arasında bir yürüyüşçü"
     },
     "missing": {
+      "inside-a-component": "dünya yok edilirken motorun oluşturduğu canvasın kaldırılması",
       "floating-crates": "her karede yeniden yazılan geometri",
       "thick-lines": "geniş çizgiler",
       "a-line-that-draws-itself": "bir geometrinin çizim aralığı",

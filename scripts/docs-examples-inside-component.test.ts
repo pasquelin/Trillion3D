@@ -34,7 +34,10 @@ test('the component owns exactly one world for each attachment', async () => {
   }
   const body = {
     append(node: TestElement) {
-      if (node.isConnected) return;
+      if (node.isConnected) {
+        node.isConnected = false;
+        node.disconnectedCallback?.();
+      }
       node.isConnected = true;
       node.connectedCallback?.();
     },
