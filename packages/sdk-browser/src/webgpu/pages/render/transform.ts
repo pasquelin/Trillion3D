@@ -1,5 +1,4 @@
 import { MOVE_PROMOTED } from '../../../placement/update.ts';
-import type { HostMesh } from '../../../host/resources.ts';
 import {
   BOX_VALUES,
   EngineError,
@@ -16,9 +15,9 @@ import { assertFiniteTransform } from '../../../host/world/matrices.ts';
 import { hostWorldChainInto } from '../../../host/world/chain.ts';
 import { copyElements, sameElements } from '../../../math/matrixElements.ts';
 import { moveRootRows } from './movedRoot.ts';
+import { findNode, rootsUnder } from './movedNode.ts';
 import { transformRootBoxes } from '../../../math/batchBoxes.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
-import type { Object3D } from '../../../../../sdk-core/src/world/object/object3d.ts';
 
 const local = new Float64Array(16),
   current = new Float64Array(16),
@@ -32,20 +31,16 @@ const local = new Float64Array(16),
   movedMax = moved.subarray(3, 6);
 /** One flag per selection root: under the moved node or not. Grown once, never per move. */
 let underNode = new Uint8Array(0);
+/** Ranks of the roots under the moved node, increasing. Reused from move to move. */
+const movedList: number[] = [];
+/** Below one moved root in this many, the moved boxes are transformed one by one rather than as
+ *  the lot, which transforms every root: the same `boxTransform` yields the same bits. */
+const LOT_SHARE = 8;
 
 /** True when `world`, rounded to single precision, is `matrix`. */
 function standsAt(world: Float64Array, matrix: Float32Array) {
   for (let i = 0; i < 16; i++) if (Math.fround(world[i]) !== matrix[i]) return false;
   return true;
-}
-
-/** The named node of the prepared scene, or `undefined`: the search is a walk, not an index. */
-function findNode(source: Object3D, nodeName: string) {
-  let found: Object3D | undefined;
-  source.traverse((node) => {
-    if (!found && node.name === nodeName) found = node;
-  });
-  return found;
 }
 
 /**
@@ -110,16 +105,19 @@ export function setWebgpuTransform(rt: WebgpuPagesRuntime, nodeName: string, mat
   // same requested world pose, and the request is therefore not judged as no-effect.
   if (!node.matrixAutoUpdate && sameElements(node.matrix.elements, local)) return;
   // A host pose written in this same task is read before the engine's own write hides it.
-  run.gate.engineWriting();
-  // The hierarchy is climbed once per root, here: the boxes and the rows below read the flags.
+  const hostPending = run.gate.engineWriting();
+  // The moved roots are those whose mesh lies in the node's subtree: the subtree is walked once,
+  // and the roots are visited in increasing rank, as the loop over every root visited them.
   const roots = layout.selectionRoots;
   if (underNode.length < roots.length) underNode = new Uint8Array(roots.length);
+  underNode.fill(0, 0, roots.length);
+  rootsUnder(roots, node, movedList);
+  for (const i of movedList) underNode[i] = 1;
   boxEmpty(moved, 0);
   let promoted = false;
-  for (let i = 0; i < roots.length; i++) {
+  for (const i of movedList) {
     const root = roots[i];
-    underNode[i] = isUnder(root.pages[0]?.sourceMesh, node) ? 1 : 0;
-    if (!underNode[i] || !root.worldBox) continue;
+    if (!root.worldBox) continue;
     boxUnionBatch(moved, root.worldBox, 1);
   }
   // The local matrix is authoritative, not the three fields: not every matrix is a
@@ -140,13 +138,20 @@ export function setWebgpuTransform(rt: WebgpuPagesRuntime, nodeName: string, mat
   // selection roots, transparent copies — carries the new place at that instant, with no snapshot
   // to retake. The host scene, itself, is not climbed: the engine no longer reads its world
   // matrices.
-  setup.worlds.refresh();
+  // With no hooked host pose unread, only the moved subtree and its ancestors can have new inputs,
+  // and the pass on them alone yields the bits of the whole pass there (`refreshFrom`,
+  // `../../../host/world/tree.ts`). A matrix the host set by hand elsewhere is no hooked write:
+  // the next image's scan announces it, and its walk completes the index before anything draws.
+  if (hostPending) setup.worlds.refresh();
+  else setup.worlds.refreshFrom(node);
   // World boxes of the moved roots reproject IN BATCH, through the governor, in the buffer
   // reserved at prepare. A missing or released buffer hands over to the box-by-box computation,
   // which yields the same bits — the same `boxTransform` on the same inputs.
-  const enLot = !!layout.rootBoxes && transformRootBoxes(layout.rootBoxes, roots, underNode);
-  for (let i = 0; i < roots.length; i++) {
-    if (!underNode[i]) continue;
+  const enLot =
+    movedList.length * LOT_SHARE >= roots.length &&
+    !!layout.rootBoxes &&
+    transformRootBoxes(layout.rootBoxes, roots, underNode);
+  for (const i of movedList) {
     const root = roots[i];
     moveRootRows(rt, root);
     if (!root.worldBox) continue;
@@ -165,14 +170,4 @@ export function setWebgpuTransform(rt: WebgpuPagesRuntime, nodeName: string, mat
   if (boxIsEmpty(moved, 0)) return;
   // A root's first move changes the static layer: the pages it crossed are staled whole.
   lights.plan.worldChanged(movedMin, movedMax, !promoted);
-}
-
-/** True when `mesh` is the moved node or one of its descendants. */
-function isUnder(mesh: HostMesh | undefined, node: Object3D) {
-  let walk: Object3D | null | undefined = mesh;
-  while (walk) {
-    if (walk === node) return true;
-    walk = walk.parent;
-  }
-  return false;
 }
