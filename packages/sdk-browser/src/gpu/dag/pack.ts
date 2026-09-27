@@ -1,4 +1,5 @@
 import { maxStretch, worldToRenderOrigin } from '../../../../sdk-core/src/index.ts';
+import { translationToRenderOrigin } from '../../../../sdk-core/src/math/primitives/renderOrigin.ts';
 import { REQUEST_PAGE_MAX } from './request.ts';
 import { SELECTION_NONE as NONE } from '../core/selection.ts';
 import { DAG_NODE_FLOATS, type DagCutLinks, type DagRoot, type PackedDag } from './types.ts';
@@ -161,6 +162,21 @@ export function packedWorldsToRenderOrigin(
 ) {
   rootWorldsToRenderOrigin(packed.worlds, roots, origin);
   return packed;
+}
+
+/**
+ * The same loop when only the origin moved since the last `rootWorldsToRenderOrigin` into
+ * `worlds`, the roots unchanged: the three translation numbers of each root, the only ones that
+ * depend on the origin, rewritten by the same subtraction — the buffer ends bit for bit as a full
+ * rebase would leave it.
+ */
+export function rootTranslationsToRenderOrigin(
+  worlds: Float32Array,
+  roots: readonly DagRoot[],
+  origin: ArrayLike<number>,
+) {
+  for (let w = 0; w < roots.length; w++)
+    translationToRenderOrigin(worlds, roots[w].world.elements, origin, w * 16);
 }
 
 /** The loop itself: each root, sixteen floats, rebased to `origin` in `worlds`. */
