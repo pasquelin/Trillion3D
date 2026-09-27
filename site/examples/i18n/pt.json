@@ -310,6 +310,13 @@
       "roof": "Telhado"
     }
   },
+  "soft-shadows-from-a-wide-lamp": {
+    "banner": "Arraste para girar. Mude a largura da lâmpada e observe as bordas das sombras.",
+    "controls": {
+      "lampWidth": "Largura da lâmpada",
+      "moveSubject": "Mover objeto"
+    }
+  },
   "a-softbox-panel": {
     "banner": "Arraste para andar em volta. Aumente o painel de luz para suavizar o brilho.",
     "controls": {
