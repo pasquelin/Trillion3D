@@ -55,9 +55,7 @@ export function createAutonomousMounts(env: PlacementTables) {
       const cover = autonomousBootstrap(collected.roots);
       const urls = [...new Set(cover.map((rec) => rec.url))];
       context.pageCatalogue?.admit([...read.descriptors.values()]);
-      console.warn('M1 admit', urls.length, urls[0]);
       const pages = await readPages(context, urls);
-      console.warn('M2 read', pages.length);
       context.signal?.throwIfAborted();
       for (const [url, descriptor] of read.descriptors) descriptors.set(url, descriptor);
       // One by one: a spread of a large resource's records overflows the stack.
