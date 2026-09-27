@@ -14,7 +14,8 @@ test('the folder example loads the merged cache and its controls drive the whole
     frames: ((frame: { delta: number }) => void)[] = [];
   const model = { visible: true, rotation: { y: 0 } };
   let values: Values = { spin: true, visible: true },
-    changed = (_values: Values) => {};
+    changed = (_values: Values) => {},
+    invalidations = 0;
   await runExampleModule(html, {
     engine: {
       createWorld: () => ({
@@ -29,7 +30,7 @@ test('the folder example loads the merged cache and its controls drive the whole
         camera: { position: { set() {} }, lookAt() {} },
         controls: { target: { set() {} } },
         onFrame: (frame: (value: { delta: number }) => void) => frames.push(frame),
-        invalidate() {},
+        invalidate: () => invalidations++,
       }),
       light: { directional: () => ({}), hemisphere: () => ({}) },
       math: { color: (value: string) => value },
@@ -47,10 +48,16 @@ test('the folder example loads the merged cache and its controls drive the whole
   assert.deepEqual(loaded, ['../assets/examples/street-corner/cache/native/full/manifest.json']);
   frames[0]({ delta: 2 });
   assert.equal(model.rotation.y, 0.3, 'spin turns the merged model');
+  assert.equal(invalidations, 2, 'the spinning frame redraws');
   values.spin = false;
   frames[0]({ delta: 2 });
   assert.equal(model.rotation.y, 0.3, 'spin off leaves the model still');
+  assert.equal(invalidations, 2, 'spin off schedules no redraw');
   values.visible = false;
   changed(values);
   assert.equal(model.visible, false, 'visibility hides the whole merged model');
+  values.spin = true;
+  frames[0]({ delta: 2 });
+  assert.equal(model.rotation.y, 0.3, 'a hidden model remains still');
+  assert.equal(invalidations, 3, 'a hidden model schedules no frame redraw');
 });

@@ -2153,6 +2153,9 @@
     "controls": {
       "spin": "回転",
       "visible": "表示"
+    },
+    "words": {
+      "credit": "W. Sitters による街灯のモデル、CC BY 3.0 — assets/examples/CREDITS.md を見てね"
     }
   }
 }
