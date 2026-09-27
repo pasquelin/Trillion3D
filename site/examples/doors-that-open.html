@@ -85,20 +85,14 @@
         animation.numberTrack('leftDoor.rotation.y', [0, 1], [0, -1.3]),
         animation.numberTrack('rightDoor.rotation.y', [0, 1], [0, 1.3]),
       ]);
-      const mixer = animation.createMixer(world.scene),
-        action = mixer.clipAction(clip);
+      const action = animation.createMixer(world.scene).clipAction(clip);
       // Played once: a repeating clip would wrap time 1 back to 0 and shut the open doors.
       action.loop = 'once';
-      // The engine has no seek: pose the stopped action at a time with one zero-length update.
+      // The stopped action is posed at the openness, only when it changes.
       let shown;
       const sample = (openness) => {
         openness = math.clamp(openness, 0, 1);
-        if (openness === shown) return;
-        shown = openness;
-        action.time = openness;
-        action.playingNow = true;
-        mixer.update(0);
-        action.playingNow = false;
+        if (openness !== shown) action.seek((shown = openness));
       };
 
       world.camera.position.set(7, 4.5, 11);
