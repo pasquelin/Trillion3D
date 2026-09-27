@@ -1,11 +1,5 @@
-// #26: a held frame leaves temporal accumulation where the last encoded frame left it.
-//
-// A barrier (`flush` → `settlePose`) re-renders the pose with convergence images that replay the
-// last ordinary image's checkpoint (`../../taa/frame.ts`), into the colour target a hold then shows
-// and a capture reads. Held frames used to enter the accumulation anyway: each one took a new
-// checkpoint and counted one more still frame, so the replay weighed its image 1/(16 + held frames)
-// and the capture depended on how many frames the page had held before the barrier — which run
-// order and machine load decide.
+// #26: a held frame leaves temporal accumulation where the last encoded frame left it, so the
+// convergence image a barrier replays is the image the hold shows, however many frames were held.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { holdWebgpuFrame, keepWebgpuFrame } from './hold.ts';
@@ -55,4 +49,16 @@ test('#26: the quiet frame that still accumulates enters, then the next one is h
   assert.equal(frame.stillFrames, TAA_STILL_FRAMES - 1);
   assert.equal(holdWebgpuFrame(rt, device), true, 'the cycle is closed: held');
   assert.equal(checkpoints(), 1);
+});
+
+test('#26: a view that does not accumulate holds on the count a settled beauty image left', () => {
+  const { rt, frame } = heldRuntime(TAA_STILL_FRAMES - 1);
+  const { device } = fakeDevice();
+  rt.run.diagnostic = 'wireframe';
+  assert.equal(
+    holdWebgpuFrame(rt, device),
+    true,
+    'the count it never moves already closes the cycle',
+  );
+  assert.equal(frame.stillFrames, TAA_STILL_FRAMES - 1);
 });
