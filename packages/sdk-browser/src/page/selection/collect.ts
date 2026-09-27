@@ -14,6 +14,36 @@ import { placementsOf } from '../../placement/roots.ts';
 import { rowShadowless, type PlacementRows } from '../../placement/rows.ts';
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 
+/** Whether a primitive's pages are drawn blended: the rule of the open, and of a material a page
+ *  moves between draw classes later (`reassignPageBlend`). */
+const pagesBlend = (primitive: { pass?: string }, surface: { transparent: boolean }) =>
+  primitive.pass === 'clustered-blend' || surface.transparent;
+
+/**
+ * Runs the open's assignment again once a surface changed draw class inside the session
+ * (`../../world/api/materialApi.ts`, #846): each record takes the family the collection would give
+ * it now, read off its mesh's surface as the collection reads it; `moved` hears that one did. An
+ * engine that sorts its meshes by surface at every draw — WebGL2's display graph — has only this
+ * left to follow: whether a record rows place is drawn instanced (`drawnInstanced`).
+ */
+export function reassignPageBlend(
+  records: readonly PageRec[],
+  metadata: ClusterManifest,
+  associations: Map<Object3D, { meshes?: number; primitives?: number }>,
+  moved: () => void,
+) {
+  const primitiveOf = primitiveFinder(metadata.primitives);
+  let changed = false;
+  for (const rec of records) {
+    const primitive = rec.sourceMesh && primitiveOf(associations.get(rec.sourceMesh));
+    if (!primitive) continue;
+    const transparent = pagesBlend(primitive, meshSurface(rec.sourceMesh!));
+    changed ||= transparent !== rec.transparent;
+    rec.transparent = transparent;
+  }
+  if (changed) moved();
+}
+
 export function collectClusterPages(
   source: Object3D,
   metadata: ClusterManifest,
@@ -55,7 +85,7 @@ export function collectClusterPages(
       continue;
     }
     const template = templates.pagesOf(primitive);
-    const transparent = primitive.pass === 'clustered-blend' || surface.transparent;
+    const transparent = pagesBlend(primitive, surface);
     // The grid moved every position of this primitive by at most this much: its clusters' boxes
     // grow by it, so culling still encloses the surface an engine draws from the pages.
     const slack = quantizationErrorOf(primitive);
