@@ -629,11 +629,12 @@ key, so a cache cooked by another Jolt is another key, never reused. The algorit
 - **Breakable bodies** (`pieces.rs`, `voronoi.rs`). A shapeless body whose node's `extras.physics`
   declares `breakable` (its threshold, above 0, as `obj.physics` will take it) is also cut into
   Voronoi pieces: up to 12 seeds, each a random mean of four corners of its mesh drawn by a
-  generator seeded from the node's index, so the same source cooks the same bytes. The solid the
-  mesh's face planes bound is clipped once from a box, then each seed's cell — the points nearer
-  it than any other seed — from that solid by its bisectors: a convex polytope capped on each cut
-  along the edges no kept face walks back, where a point on an edge is computed from the edge's
-  ends in one order so the faces sharing it meet exactly. Each piece gets Jolt's convex hull for contact
+  generator seeded from the node's index, so the same source cooks the same bytes. Each seed's
+  cell — the points nearer it than any other seed, inside the solid the mesh's face planes bound —
+  is a box clipped by its bisectors first, then by each face plane, so a plane meets a cell of a
+  twelfth of the solid (a sphere of 20 000 triangles cuts in about a second): a convex polytope
+  capped on each cut along the edges no touched face walks back, where a point on an edge is
+  computed from the edge's ends in one order so the faces sharing it meet exactly. Each piece gets Jolt's convex hull for contact
   (`cook_hull`) and its exact mass, centre of mass and inertia (`mass.rs`) at the body's scale.
   The cells of a convex mesh tile it: the pieces must weigh what the mesh weighs within 1e-5,
   rounding their corners to 32 bits, or the body is refused — a mesh that is not convex, until
