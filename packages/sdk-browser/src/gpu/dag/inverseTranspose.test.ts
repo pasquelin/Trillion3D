@@ -96,7 +96,7 @@ test('the shipped shader no longer carries an absolute threshold on the raw dete
   const corps = DAG_SELECTION_SHADER.split('fn invTranspose3Prep')[1].split('\n}')[0];
   assert.doesNotMatch(corps, /abs\(det\)<1e-20/, 'absolute threshold on the raw determinant');
   assert.match(corps, /let a=m\[0\]\/t;let b=m\[1\]\/t;let c=m\[2\]\/t;/, 'normalisation absente');
-  assert.match(corps, /fini&&abs\(det\)>1e-20/, 'garde relative absente');
+  assert.match(corps, /finite&&abs\(det\)>1e-20/, 'garde relative absente');
   // And this number is not written in the shader: it comes from the constant shared with
   // the CPU (`packages/sdk-core/src/math/matrix/singular.ts`), rendered as text. A threshold changed on one side only is
   // impossible.
@@ -107,22 +107,22 @@ test('the shipped shader no longer carries an absolute threshold on the raw dete
   );
   assert.match(
     corps,
-    new RegExp(`fini&&abs\\(det\\)>${SINGULAR_DETERMINANT_WGSL}`),
+    new RegExp(`finite&&abs\\(det\\)>${SINGULAR_DETERMINANT_WGSL}`),
     'shared threshold',
   );
   assert.match(
     corps,
-    /let fini=\(t>0\.0\)&&\(bitcast<u32>\(t\)&0x7f800000u\)!=0x7f800000u;/,
+    /let finite=\(t>0\.0\)&&\(bitcast<u32>\(t\)&0x7f800000u\)!=0x7f800000u;/,
     'null, infinite or NaN sum not rejected',
   );
   assert.match(
     DAG_SELECTION_SHADER,
-    /let porte=p\.adj\*v;\n return select\(porte,p\.facteur\*porte,p\.regulier\);/,
+    /let carried=p\.adj\*v;\n return select\(carried,p\.scale\*carried,p\.regular\);/,
     'a singular matrix must return the adjoint, not the local vector nor an infinite factor',
   );
   assert.match(
     corps,
-    /select\(z,cross\(b,c\),fini\),select\(z,cross\(c,a\),fini\),select\(z,cross\(a,b\),fini\)/,
+    /select\(z,cross\(b,c\),finite\),select\(z,cross\(c,a\),finite\),select\(z,cross\(a,b\),finite\)/,
     'a non-finite sum must zero the adjoint: `m/t` is then worthless',
   );
 });
@@ -147,9 +147,9 @@ test('the defect-6 reproduction form still carries the absolute threshold, and i
   // in the middle of the defect. Everything else is the same text, hence substituting
   // the whole block.
   const repli = (texte: string) =>
-    texte.split('let porte=p.adj*v;')[1].split(';')[0].replace('\n return select(', '');
-  assert.equal(repli(INVERSE_TRANSPOSE_BEFORE_WGSL), 'v,p.facteur*porte,p.regulier)');
-  assert.equal(repli(INVERSE_TRANSPOSE_WGSL), 'porte,p.facteur*porte,p.regulier)');
+    texte.split('let carried=p.adj*v;')[1].split(';')[0].replace('\n return select(', '');
+  assert.equal(repli(INVERSE_TRANSPOSE_BEFORE_WGSL), 'v,p.scale*carried,p.regular)');
+  assert.equal(repli(INVERSE_TRANSPOSE_WGSL), 'carried,p.scale*carried,p.regular)');
   const suite = (texte: string) => texte.slice(texte.indexOf('fn inverseTranspose3'));
   assert.equal(suite(INVERSE_TRANSPOSE_BEFORE_WGSL), suite(INVERSE_TRANSPOSE_WGSL));
 });
