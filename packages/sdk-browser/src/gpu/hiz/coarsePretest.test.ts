@@ -32,7 +32,10 @@ function coarseLevel(x0: number, y0: number, x1: number, y1: number, l: number, 
   return c;
 }
 
-/** The old read: the minimum of the footprint (`pyramidFar`), WGSL `min` taken as `Math.min`. */
+/** The old read: the minimum of the footprint (`pyramidFar`), WGSL `min` taken as `Math.min`.
+ *  A NaN TEXEL is equivalent only under this NaN-propagating `min`: WGSL leaves `min` with a NaN
+ *  operand indeterminate, and where it returns the other operand the old read could reject what
+ *  `texelsHide` keeps. A pyramid reduced from a depth texture holds no NaN. */
 function footprintFar(p: PackedHiz, l: number, x0: number, y0: number, x1: number, y1: number) {
   let far = f32(1.0e30);
   for (let y = y0; y <= y1; y++)
