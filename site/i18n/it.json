@@ -35,7 +35,7 @@
     "jumpTo": "Vai a un tema",
     "waitsFor": "In attesa del motore:",
     "partial": "Parziale",
-    "coming": "In arrivo: {{titles}}"
+    "coming": "In arrivo"
   },
   "gallery": {
     "themes": {

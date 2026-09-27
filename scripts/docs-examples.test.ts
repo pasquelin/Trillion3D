@@ -188,10 +188,9 @@ test('an example is its file, live, on the demo page; the index shows what is re
       positions,
       [...positions].sort((a, b) => a - b),
     );
-    if (coming.length) {
-      const line = `Coming: ${coming.map(({ id }) => exampleTitle(id, 'en')).join(' · ')}`;
-      assert.ok(index.includes(line));
-      assert.ok(index.indexOf(line) > Math.max(-1, ...positions));
+    for (const { id } of coming) {
+      const tile = index.indexOf(`title="${exampleTitle(id, 'en')} — Coming"`);
+      assert.ok(tile > Math.max(-1, ...positions), id);
     }
   }
   const count = (pattern: RegExp) => (index.match(pattern) ?? []).length;
