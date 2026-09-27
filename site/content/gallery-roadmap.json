@@ -721,6 +721,11 @@
       "file": "examples/side-by-side-stereo.html"
     },
     {
+      "id": "an-elevation-of-the-house",
+      "theme": "camera",
+      "file": "examples/an-elevation-of-the-house.html"
+    },
+    {
       "id": "red-cyan-anaglyph",
       "theme": "camera",
       "file": "",

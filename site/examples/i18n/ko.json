@@ -2172,5 +2172,20 @@
     "words": {
       "credit": "이 예제를 위해 코드로 만든 깃대의 깃발, CC0 — assets/examples/CREDITS.md 참고"
     }
+  },
+  "an-elevation-of-the-house": {
+    "banner": "집의 입면을 선택하세요. 카메라를 멀리 옮겨도 정투영 도면은 정확히 같은 축척을 유지합니다.",
+    "controls": {
+      "elevation": "입면",
+      "distance": "카메라 거리",
+      "zoom": "도면 축척"
+    },
+    "choices": {
+      "elevation": {
+        "front": "정면",
+        "right": "우측면",
+        "rear": "배면"
+      }
+    }
   }
 }
