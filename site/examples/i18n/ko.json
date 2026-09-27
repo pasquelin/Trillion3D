@@ -1710,11 +1710,18 @@
   },
   "the-home-pose": {
     "banner": "보기를 선택하고 카메라를 움직인 다음 홈을 선택해 돌아갑니다.",
-    "controls": { "home": "홈", "tower": "탑", "square": "광장", "hillside": "언덕" }
+    "controls": {
+      "home": "홈",
+      "tower": "탑",
+      "square": "광장",
+      "hillside": "언덕"
+    }
   },
   "the-near-plane-cuts-a-wall": {
     "banner": "근거리 평면을 앞으로 움직여 벽을 차례로 자르는 모습을 확인하세요.",
-    "controls": { "nearPlane": "근거리 평면" }
+    "controls": {
+      "nearPlane": "근거리 평면"
+    }
   },
   "the-material-family": {
     "banner": "끌어서 주위를 걸어 봐. 빛을 밤으로 바꾸고 아직 빛나는 걸 봐.",
@@ -2190,6 +2197,16 @@
     },
     "readouts": {
       "progress": "진행률"
+    }
+  },
+  "a-folder-merged-into-one-scene": {
+    "banner": "드래그하여 거리 모퉁이를 살펴보세요. 컴파일러가 한 폴더의 OBJ 파일 세 개를 이 장면으로 병합했습니다.",
+    "controls": {
+      "visible": "표시",
+      "home": "홈"
+    },
+    "words": {
+      "credit": "W. Sitters의 가로등 모델, CC BY 3.0 — assets/examples/CREDITS.md 참고"
     }
   }
 }
