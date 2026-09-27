@@ -1,6 +1,6 @@
 import type { GeometryPageDescriptor } from '../../../sdk-core/src/index.ts';
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
-import type { GraphScene } from '../host/graph/scene.ts';
+import type { Scene } from '../world/core/scene.ts';
 import {
   collectClusterPages,
   type PageRec,
@@ -58,7 +58,7 @@ type Placements = {
   baseMaterials: Map<PageRec, HostMaterials>;
   /** The host copies of blended and transmissive surfaces, and the graph that shows them. */
   blendCopies: BlendCopy[];
-  scene: GraphScene;
+  scene: Scene;
   gate: WebglFrameGate;
   geometryStore: ReturnType<typeof createAutonomousGeometry>;
   /** Notified when grown or mounted rows add records to the root cover, or unmounted ones remove. */
