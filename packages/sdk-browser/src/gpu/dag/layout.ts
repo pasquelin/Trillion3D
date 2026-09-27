@@ -81,15 +81,15 @@ export const selectionListCap = (pageCount: number) =>
 export const SELECTION_HEADER_WORDS = 8;
 /** Word of `out` where the eviction queue's header starts, behind the drawn list. */
 export const evictionWord = (listCap: number) => 2 * (SELECTION_HEADER_WORDS + listCap);
-/** Victims one readback hands the cache, more than one frame's admission share (`STREAMING_FRAME_MS`)
- *  ever commits: the next readback brings the next burst. Fixed, so is the readback's size. */
+/** Victims one readback hands the cache, a chosen margin over what one frame's 1 ms admission share
+ *  (`STREAMING_FRAME_MS`) commits; the next readback brings the next burst, whatever the pool. */
 export const EVICTION_BURST = 1024;
-/** Bytes a resident cut's frame copies, whatever the catalogue or the pool: the burst bounds it. */
-export const residentReadbackBytes = (listCap: number) =>
-  (evictionWord(listCap) + SELECTION_HEADER_WORDS + EVICTION_BURST) * 4;
-/** Word of `out` where the camera's requests wait for their sort, behind the eviction queue,
- *  outside what the frame copies (`stagedAt` of `shader/snapshotWgsl.ts`). */
-export const stagedRequestsWord = (listCap: number) => 3 * (SELECTION_HEADER_WORDS + listCap);
+/** Word of `out` where the camera's requests wait for their sort, behind the eviction queue's
+ *  burst, outside what the frame copies (`stagedAt` of `shader/snapshotWgsl.ts`). */
+export const stagedRequestsWord = (listCap: number) =>
+  evictionWord(listCap) + SELECTION_HEADER_WORDS + EVICTION_BURST;
+/** Bytes a resident cut's frame copies: everything before the staged requests. */
+export const residentReadbackBytes = (listCap: number) => stagedRequestsWord(listCap) * 4;
 /** Bytes of `out` with the staged requests behind: what the kernels write, more than the frame
  *  copies. */
 export const stagedOutputBytes = (listCap: number) => (stagedRequestsWord(listCap) + listCap) * 4;

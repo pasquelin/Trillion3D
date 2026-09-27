@@ -39,7 +39,7 @@ export async function createDagResources(
     liveGroupsOffset = travail.liveGroups * 4,
     candGroupsOffset = travail.candGroups * 4,
     drawnGroupsOffset = travail.drawnGroups * 4,
-    // A resident cut adds its drawn list and its eviction queue, sized for the widest pool.
+    // A resident cut adds its drawn list and one burst of its eviction queue (`EVICTION_BURST`).
     readbackBytes = residentCut ? residentReadbackBytes(listCap) : outputBytes,
     // Behind the eviction queue, the requests wait for their sort, outside what the frame copies
     // (`shader/snapshotWgsl.ts`).
@@ -159,7 +159,6 @@ export async function createDagResources(
       nodeCount,
       worldCount,
       blockCount,
-      listCap,
       outputBytes,
       readbackBytes,
       levelSizes: packed.levelSizes,

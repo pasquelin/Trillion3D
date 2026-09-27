@@ -25,7 +25,7 @@ fn sweepPool(lane:u32,now:u32,scatter:bool){
  let base=poolBase();let n=cold[base];
  for(var j=lane;j<n;j+=SORT_LANES){
   let i=cold[base+1u+j];let rank=evictRank(i,now);
-  if(rank>=RANKS){continue;}
+  if(rank>=RANKS||(scatter&&atomicLoad(&rankPlace[rank])>=${EVICTION_BURST}u)){continue;}
   let at=atomicAdd(&rankPlace[rank],1u);
   if(scatter&&at<${EVICTION_BURST}u){out.pages[evictAt(HEAD+at)]=i;}
  }
