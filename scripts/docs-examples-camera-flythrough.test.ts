@@ -81,9 +81,9 @@ test('recorded fly-through replays, stops, yields to the viewer and disposes', a
   assert.equal(shown, 'pond');
   const stoppedAt = world.camera.position.clone();
   buttons.stop();
+  assert.equal(shown, 'complete', 'Stop draws no frame: the readout updates at once');
   frame(20);
   assert.ok(world.camera.position.equals(stoppedAt));
-  assert.equal(shown, 'complete');
 
   buttons.replay();
   assert.equal(shown, 'complete');
@@ -91,9 +91,9 @@ test('recorded fly-through replays, stops, yields to the viewer and disposes', a
   assert.equal(shown, 'entrance');
   const interruptedAt = world.camera.position.clone();
   for (const listener of listeners.get('pointerdown') ?? []) listener();
+  assert.equal(shown, 'complete', 'a press that moves nothing draws no frame');
   frame(20);
   assert.ok(world.camera.position.equals(interruptedAt));
-  assert.equal(shown, 'complete');
 
   pagehide();
   assert.ok(disposed);
