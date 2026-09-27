@@ -4,12 +4,12 @@ import {
   PAGE_INDEX_MASK,
   PAGE_VALID,
   SHADOW_PAGE,
-  SHADOW_SUBTEXELS,
   SHADOW_TABLE_ENTRIES,
   SUN_LEVELS,
   lampMipOffset,
 } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { SHADOW_FACTOR_WGSL } from './shadowFactorWgsl.ts';
+import { SHADOW_SAMPLE_WGSL, SHADOW_SUBTEXELS } from './shadowSampleWgsl.ts';
 import { shadowThroughWgsl } from '../../gpu/shadow/transmittance.ts';
 
 /** The PCF's taps, in texels around the read point. */
@@ -37,6 +37,10 @@ export const POISSON_16 = [
 export const PCF_REACH = Math.max(
   ...POISSON_16.map(([x, y]) => Math.hypot(Math.abs(x) + 1, Math.abs(y) + 1)),
 );
+
+/** The PCF's taps as WGSL, in `scale`ths of a texel: a power of two, so exact. */
+const poissonWgsl = (name: string, scale: number) =>
+  `const ${name}:array<vec2f,${POISSON_16.length}>=array<vec2f,${POISSON_16.length}>(${POISSON_16.map(([x, y]) => `vec2f(${x * scale},${y * scale})`).join(',')});`;
 
 /** Words of the request buffer after the count and a list as long as the pool's (`shadowRequestCap`,
  *  read at run time): one bit per table entry — a page is listed once however many pixels read it. */
@@ -102,9 +106,8 @@ const SHADOW_SUBTEXELS:f32=${SHADOW_SUBTEXELS}.0;
 const PAGE_VALID:u32=${PAGE_VALID}u;
 const PAGE_INDEX_MASK:u32=${PAGE_INDEX_MASK}u;
 const LAMP_MIP_OFFSET:array<u32,${LAMP_MIPS}>=array<u32,${LAMP_MIPS}>(${Array.from({ length: LAMP_MIPS }, (_, mip) => `${lampMipOffset(mip)}u`).join(',')});
-const POISSON:array<vec2f,${LIGHT_SETTINGS.pcfTaps}>=array<vec2f,${LIGHT_SETTINGS.pcfTaps}>(${POISSON_16.map(
-  ([x, y]) => `vec2f(${x},${y})`,
-).join(',')});
+${poissonWgsl('POISSON', 1)}
+${poissonWgsl('POISSON_STEPS', SHADOW_SUBTEXELS)}
 /** Pixel footprint at the lit point, in metres: set by the pass before it lights a surface. */
 var<private> shadowFootprint:f32=0.0;
 /** Offset along the normal, in texels of the level read, of a receiver at incidence \`cosine\`:
@@ -133,20 +136,8 @@ fn shadowPageWord(m:ShadowMap,p:vec2i)->u32{
  let word=shadows.table[u32(e)];
  return select(0u,word,(word&PAGE_VALID)!=0u);
 }
-/** Place of page \`p\`, held by physical page \`word\`: \`xy\` added to a texel coordinate of the
- *  map gives that texel's place in its layer, \`z\` is the layer (\`shadowPoolShape\`). */
-fn shadowOffset(word:u32,p:vec2i)->vec3f{
- let phys=word&PAGE_INDEX_MASK;let side=textureDimensions(shadowAtlas).x/u32(SHADOW_PAGE);
- let local=phys%(side*side);
- return vec3f((vec2f(f32(local%side),f32(local/side))-vec2f(p))*SHADOW_PAGE,f32(phys/(side*side)));
-}
+${SHADOW_SAMPLE_WGSL}
 ${shadowThroughWgsl(transmittanceBinding)}
-/** The comparison at map texel \`t\` of the page placed by \`offset\`, snapped to its weight step's
- *  centre: exact plus the offset, it reads the page's content alone, wherever the pool puts it. */
-fn shadowCompare(offset:vec3f,t:vec2f,reference:f32)->f32{
- let at=offset.xy+floor(t*SHADOW_SUBTEXELS+0.5)/SHADOW_SUBTEXELS;
- return textureSampleCompareLevel(shadowAtlas,shadowSampler,at/f32(textureDimensions(shadowAtlas).x),i32(offset.z),reference);
-}
 /** Offset of the neighbour page \`p\` and 1 when it is readable; else the home page's and 0. */
 fn shadowNeighbour(m:ShadowMap,p:vec2i,home:vec3f)->vec4f{
  let word=shadowPageWord(m,p);
@@ -172,7 +163,11 @@ fn shadowPcf(m:ShadowMap,t:vec2f,reference:f32,home:vec2i,homeWord:u32,side:f32)
  let offset=shadowOffset(homeWord,home);
  var lit=0.0;
  if(!any(edge)){
-  for(var tap=0u;tap<PCF_TAPS;tap++){lit+=shadowCompare(offset,t+POISSON[tap],reference);}
+  // \`shadowCompare\` per tap, in steps: \`(t + tap)·256\` is \`t·256 + tap·256\` to the bit.
+  let texels=shadowAtlasTexels();let layer=i32(offset.z);let steps=t*SHADOW_SUBTEXELS;
+  for(var tap=0u;tap<PCF_TAPS;tap++){
+   lit+=shadowSample(offset.xy+floor(steps+POISSON_STEPS[tap]+0.5)/SHADOW_SUBTEXELS,layer,texels,reference);
+  }
   return shadowThroughLit(offset,first,t,reference,lit/f32(PCF_TAPS));
  }
  let up=t-first>=vec2f(0.5*SHADOW_PAGE);
