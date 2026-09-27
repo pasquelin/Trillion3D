@@ -29,9 +29,6 @@
       const steel = material.meshPhysical({
         color: '#b8c3cc',
         metalness: 1,
-        roughness: 0.32,
-        anisotropy: 0.85,
-        anisotropyRotation: 0,
       });
       const discs = [];
       const discShape = geometry.cylinder(0.82, 0.82, 0.18, 96);
@@ -47,6 +44,7 @@
         material.meshStandard({ color: '#403329', roughness: 0.88 }),
       );
       bench.position.y = -0.18;
+      bench.receiveShadow = true;
       world.scene.add(bench);
       world.scene.add(
         light.directional({

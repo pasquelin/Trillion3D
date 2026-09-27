@@ -61,7 +61,7 @@ test('brushed-metal controls the physical brush and spins every display disc', a
       node.material.kind === 'meshPhysical',
   );
   const steel = discs[0].material;
-  assert.ok(!Array.isArray(steel));
+  assert.ok(!Array.isArray(steel) && run.scene.children.some((node) => node.receiveShadow));
   Object.assign(run.values, { anisotropy: 0.4, direction: 1.7, roughness: 0.6 });
   run.change(run.values);
   assert.deepEqual([steel.anisotropy, steel.anisotropyRotation, steel.roughness], [0.4, 1.7, 0.6]);
@@ -93,7 +93,7 @@ test('car paint controls both physical layers and turns the complete car', async
       node.material.kind === 'meshPhysical',
   );
   const paint = painted[0].material;
-  assert.ok(!Array.isArray(paint));
+  assert.ok(!Array.isArray(paint) && run.scene.children.some((node) => node.receiveShadow));
   Object.assign(run.values, { paint: '#2457a6', clearCoat: 0.35, coatRoughness: 0.42 });
   run.change(run.values);
   assert.equal(paint.color.getHexString(), '2457a6');
