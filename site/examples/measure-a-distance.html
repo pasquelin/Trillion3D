@@ -49,8 +49,9 @@
       sculpture.position.set(2.3, 1.25, 0.2);
       sculpture.rotation.x = 0.35;
       exhibits.add(sculpture);
-      exhibits.traverse((part) => (part.castShadow = true));
+      // The lowest surface: nothing under it would show its shadow.
       plinth.receiveShadow = true;
+      plinth.castShadow = false;
       world.scene.add(
         exhibits,
         light.directional({
@@ -65,60 +66,55 @@
       world.controls.target.set(0, 1, 0);
       world.camera.lookAt(world.controls.target);
 
-      controls({ clear: () => clear() }, world);
       const pointA = readout('pointA'),
         pointB = readout('pointB'),
         distance = readout('distance');
-      let first = null,
-        second = null,
-        marks = null,
-        segment = null;
+      const mark = '#ffd45c';
+      let picked = [],
+        shown = [];
       const format = (point) =>
         point
           .toArray()
           .map((value) => value.toFixed(2))
           .join(', ');
       const clear = () => {
-        first = second = null;
-        marks?.remove();
-        segment?.remove();
-        marks = segment = null;
+        for (const guide of shown) guide.remove();
+        picked = [];
+        shown = [];
         pointA('—');
         pointB('—');
         distance('—');
       };
+      controls({ clear }, world);
       clear();
 
-      world.canvas.addEventListener('click', (event) => {
-        const hit = world.raycast({ x: event.offsetX, y: event.offsetY }, { objects: [exhibits] });
+      const measure = (x, y) => {
+        const hit = world.raycast({ x, y }, { objects: [exhibits] });
         if (!hit) return;
-        if (second) clear();
-        if (!first) {
-          first = hit.point.clone();
-          marks = world.guides.points({ positions: first.toArray(), color: '#ffd45c', size: 10 });
-          pointA(format(first));
-          return;
-        }
-        second = hit.point.clone();
-        marks?.remove();
-        marks = world.guides.points({
-          positions: [...first.toArray(), ...second.toArray()],
-          color: '#ffd45c',
-          size: 10,
-        });
-        segment = world.guides.lines({
-          positions: [...first.toArray(), ...second.toArray()],
-          color: '#ffd45c',
-          width: 3,
-        });
-        pointB(format(second));
-        distance(`${first.distanceTo(second).toFixed(2)} m`);
+        if (picked.length === 2) clear();
+        picked.push(hit.point.clone());
+        for (const guide of shown) guide.remove();
+        const positions = picked.flatMap((point) => point.toArray());
+        shown = [world.guides.points({ positions, color: mark, size: 10 })];
+        if (picked.length === 1) return pointA(format(picked[0]));
+        shown.push(world.guides.lines({ positions, color: mark, width: 3 }));
+        pointB(format(picked[1]));
+        distance(`${picked[0].distanceTo(picked[1]).toFixed(2)} m`);
+      };
+      // A click that did not drag the camera: releasing an orbit drag measures nothing.
+      let down = null;
+      world.canvas.addEventListener(
+        'pointerdown',
+        (event) => (down = [event.offsetX, event.offsetY]),
+      );
+      world.canvas.addEventListener('pointerup', (event) => {
+        const start = down;
+        down = null;
+        if (!start || Math.hypot(event.offsetX - start[0], event.offsetY - start[1]) > 3) return;
+        measure(event.offsetX, event.offsetY);
       });
 
-      addEventListener('pagehide', () => {
-        world.guides.clear();
-        world.dispose();
-      });
+      addEventListener('pagehide', () => world.dispose(), { once: true });
     </script>
   </body>
 </html>
