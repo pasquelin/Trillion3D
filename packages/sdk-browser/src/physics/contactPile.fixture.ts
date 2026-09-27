@@ -7,7 +7,6 @@ import {
   CommandWriter,
   EVENT_WORDS,
   FLAG,
-  GENERATION_SHIFT,
   POSE_WORDS,
   SHAPE,
   softBodyOf,
@@ -16,12 +15,10 @@ import {
 import { softSettings } from '../../../sdk-core/src/physics/soft.ts';
 import { plane } from '../../../sdk-core/src/world/geometry/basic.ts';
 import type { JoltModule } from './joltModule.ts';
-import { body, FLAT } from './records.fixture.ts';
+import { body, FLAT, id } from './records.fixture.ts';
 
-const GENERATION = 1 << GENERATION_SHIFT;
-
-/** The pile's budget: its 42 bodies within 64, every step's enters within 256. */
-export const PILE_BUDGET = { bodies: 64, contactEvents: 256 };
+/** The pile's budget: its 42 bodies within 64, every step's enters within 256, in 64 MB. */
+export const PILE_BUDGET = { bodies: 64, contactEvents: 256, memoryBytes: 64 << 20 };
 
 /** One step of the pile: the enters dropped, the poses sorted (a pool's threads list the active
  *  bodies in the order they ran), the events in the order the module sent them; words joined. */
@@ -32,16 +29,20 @@ export interface PileStep {
 }
 
 /** A pile of boxes and compounds, two in three wanting events, dropped on a floor under a cloth
- *  that wants them too; some thrown up, then some removed. `bound(step)`, when not 0, bounds the
- *  jobs of that step. */
-export function pile(jolt: JoltModule, steps: number, bound = (_step: number) => 0): PileStep[] {
+ *  that wants them too; some thrown up, then some removed. `bound(step)`, when given and not 0,
+ *  bounds the jobs of that step. */
+export function pile(
+  jolt: JoltModule,
+  steps: number,
+  bound?: (step: number) => number,
+): PileStep[] {
   let seed = 42;
   const next = () => (seed = (Math.imul(seed, 1103515245) + 12345) >>> 0) / 2 ** 32;
   const writer = new CommandWriter();
   writer.gravity([0, -9.81, 0]);
-  writer.add({ ...body(GENERATION, 0, -1, 1), size: [30, 1, 30] });
+  writer.add({ ...body(id(0), 0, -1, 1), size: [30, 1, 30] });
   for (let i = 1; i <= 40; i++) {
-    const b = { ...body(i | GENERATION, 2, 1, 0.2 + next() * 0.2, i % 3 ? FLAG.events : 0) };
+    const b = body(id(i), 2, 1, 0.2 + next() * 0.2, i % 3 ? FLAG.events : 0);
     b.position = [next() * 2 - 1, 1 + i * 0.35, next() * 2 - 1];
     const part = { shape: SHAPE.box, size: [0.2, 0.1, 0.2] as const, quaternion: [0, 0, 0, 1] };
     const parts = [0, 1, 2].map((k) => ({ ...part, position: [k * 0.3 - 0.3, 0, 0] }));
@@ -50,7 +51,7 @@ export function pile(jolt: JoltModule, steps: number, bound = (_step: number) =>
   const settings = softSettings({ type: 'cloth', pins: [0, 10, 110, 120] });
   const record = softBodyOf(plane(3, 3, 10, 10), { x: 1, y: 1, z: 1 }, settings);
   const place = {
-    id: 50 | GENERATION,
+    id: id(50),
     position: [0, 0.8, 0],
     quaternion: FLAT,
     scale: [1, 1, 1] as const,
@@ -67,7 +68,7 @@ export function pile(jolt: JoltModule, steps: number, bound = (_step: number) =>
   for (let s = 0; s < steps; s++) {
     if (s === 90) for (let i = 1; i <= 40; i += 7) writer.velocity(i, [0, 8, 1]);
     if (s === 130) for (let i = 2; i <= 40; i += 9) writer.remove(i);
-    const jobs = bound(s);
+    const jobs = bound?.(s);
     if (jobs) jolt.concurrency(jobs);
     const count = jolt.step(writer.length ? writer.take() : null, 1 / 60);
     const poses = records(jolt.poses(count), POSE_WORDS).sort();
