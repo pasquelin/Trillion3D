@@ -46,9 +46,8 @@ fn cooked(name: &str, nodes: Value) -> (Vec<u8>, BTreeSet<String>) {
     stage_physics(&scene, &[], &[], &root).unwrap();
     let written = std::fs::read(root.join("physics.json")).unwrap();
     let stored = std::fs::read_dir(o.cache.join("native/objects")).unwrap();
-    let stored = stored
-        .map(|e| e.unwrap().file_name().into_string().unwrap())
-        .collect();
+    let stored = stored.map(|e| e.unwrap().file_name().into_string().unwrap());
+    let stored = stored.collect();
     std::fs::remove_dir_all(root).unwrap();
     (written, stored)
 }
@@ -65,11 +64,9 @@ fn a_breakable_body_is_cut_into_weighed_pieces_beside_its_node() {
         "extensions":{"KHR_physics_rigid_bodies":{"motion":{}}}})
     };
     let (plain, _) = cooked("plain", json!([body(json!({}))]));
-    let (bytes, stored) = cooked("broken", json!([body(json!({"breakable":5}))]));
-    assert_eq!(
-        bytes,
-        cooked("again", json!([body(json!({"breakable":5}))])).0
-    );
+    let breakable = json!([body(json!({"breakable":5}))]);
+    let (bytes, stored) = cooked("broken", breakable.clone());
+    assert_eq!(bytes, cooked("again", breakable).0);
     let [plain, broken]: [Value; 2] = [plain, bytes].map(|b| serde_json::from_slice(&b).unwrap());
     assert_eq!(
         (&plain["formatVersion"], &broken["formatVersion"]),
@@ -78,21 +75,12 @@ fn a_breakable_body_is_cut_into_weighed_pieces_beside_its_node() {
     let mut entry = broken["bodies"][0].clone();
     assert_eq!(entry["breakable"], json!(5.0));
     let pieces = entry["pieces"].as_array().unwrap().clone();
-    assert!(
-        (2..=PIECES).contains(&pieces.len()),
-        "{} pieces",
-        pieces.len()
-    );
-    let mut total = 0.0;
-    for piece in &pieces {
-        assert_eq!(piece["type"], json!("cooked"));
-        assert!(stored.contains(&format!("{}.bin", piece["sha256"].as_str().unwrap())));
-        total += piece["mass"]["mass"].as_f64().unwrap();
-    }
-    assert!(
-        (total - 2000.0).abs() <= 2000.0 * MASS_TOLERANCE,
-        "{total} kg"
-    );
+    assert!((2..=PIECES).contains(&pieces.len()), "{}", pieces.len());
+    let stored = |p: &Value| stored.contains(&format!("{}.bin", p["sha256"].as_str().unwrap()));
+    assert!(pieces.iter().all(|p| p["type"] == "cooked" && stored(p)));
+    let kg = |p: &Value| p["mass"]["mass"].as_f64().unwrap();
+    let total: f64 = pieces.iter().map(kg).sum();
+    assert!((total / 2000.0 - 1.0).abs() <= MASS_TOLERANCE, "{total} kg");
     let map = entry.as_object_mut().unwrap();
     map.remove("breakable");
     map.remove("pieces");
@@ -102,14 +90,13 @@ fn a_breakable_body_is_cut_into_weighed_pieces_beside_its_node() {
         "extras":{"physics":{"breakable":breakable}},
         "extensions":{"KHR_physics_rigid_bodies":{"motion":{},"collider":collider}}})
     };
-    let (refusals, _) = cooked(
-        "refused",
-        json!([
-            rigid(1, json!({}), json!(5)),
-            rigid(0, json!({"geometry":{"shape":0}}), json!(5)),
-            rigid(0, json!({}), json!(0))
-        ]),
-    );
+    let shaped = rigid(0, json!({"geometry":{"shape":0}}), json!(5));
+    let nodes = json!([
+        rigid(1, json!({}), json!(5)),
+        shaped,
+        rigid(0, json!({}), json!(0))
+    ]);
+    let (refusals, _) = cooked("refused", nodes);
     let refusals: Value = serde_json::from_slice(&refusals).unwrap();
     assert_eq!(
         refusals["report"]["bodiesRefused"],
