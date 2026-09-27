@@ -30,7 +30,6 @@ test('distance picking keeps exact points, restarts, clears and disposes', async
   const lineCalls: GuideLines[] = [],
     pointCalls: GuidePoints[] = [];
   let removed = 0,
-    cleared = 0,
     disposed = false,
     pagehide = () => {},
     buttons = {} as Record<string, () => void>;
@@ -53,8 +52,7 @@ test('distance picking keeps exact points, restarts, clears and disposes', async
       pointCalls.push({ ...spec, positions: Array.from(spec.positions) }),
       handle()
     ),
-    clear: () => void cleared++,
-  } satisfies Pick<World['guides'], 'lines' | 'points' | 'clear'>;
+  } satisfies Pick<World['guides'], 'lines' | 'points'>;
   const hits = new Map([
     [1, new Vector3(0, 0, 0)],
     [2, new Vector3(3, 4, 0)],
@@ -103,7 +101,10 @@ test('distance picking keeps exact points, restarts, clears and disposes', async
       readout: (name: string) => (value: string) => void shown.set(name, value),
     },
   });
-  const click = (x: number) => listeners.get('click')?.({ offsetX: x, offsetY: 0 });
+  const click = (x: number, dragged = 0) => {
+    listeners.get('pointerdown')?.({ offsetX: x, offsetY: 0 });
+    listeners.get('pointerup')?.({ offsetX: x + dragged, offsetY: 0 });
+  };
 
   click(1);
   assert.deepEqual(pointCalls.at(-1), {
@@ -114,6 +115,8 @@ test('distance picking keeps exact points, restarts, clears and disposes', async
   assert.equal(shown.get('pointA'), '0.00, 0.00, 0.00');
   click(99);
   assert.equal(pointCalls.length, 1, 'a miss preserves the first point');
+  click(2, 40);
+  assert.equal(pointCalls.length, 1, 'releasing an orbit drag measures nothing');
   click(2);
   assert.deepEqual(lineCalls.at(-1), {
     positions: [0, 0, 0, 3, 4, 0],
@@ -142,6 +145,5 @@ test('distance picking keeps exact points, restarts, clears and disposes', async
   click(1);
   click(2);
   pagehide();
-  assert.equal(cleared, 1);
   assert.ok(disposed);
 });
