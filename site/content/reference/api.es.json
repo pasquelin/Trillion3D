@@ -12,6 +12,7 @@
       "bindingOf": "Lo que escribe `tr`, resuelto una vez; null mientras su objetivo no esté bajo la raíz.",
       "play": "Empieza a reproducirse.",
       "stop": "Se detiene y vuelve al principio.",
+      "seek": "Coloca el clip en `time` segundos ahora mismo, según su modo de bucle, se esté reproduciendo o no: una acción que se reproduce sigue desde ahí, una detenida se queda en esa pose.",
       "clipTime": "En qué punto del clip está la acción, según su modo de bucle."
     }
   },
