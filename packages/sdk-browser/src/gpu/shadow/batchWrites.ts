@@ -12,14 +12,19 @@ type Words = Uint32Array<ArrayBuffer> | Int32Array<ArrayBuffer> | Float32Array<A
  * follow it. The first batch writes straight, as a single batch always did: its writes land first,
  * and each later batch's copy replaces them in order.
  *
+ * The staged words gather in a host mirror of the staging buffer, and `end` uploads them with one
+ * `writeBuffer`, before the frame's command buffer is submitted: every copy still reads its own
+ * write's words, and a frame of many batches pays one native call, not one per write (#344).
+ *
  * A write while staged must come outside any pass: every caller writes before it opens its pass.
- * The staging buffer is made once, at the first staged write, at its largest: every batch of the
- * largest frame but the first, each at most `SHADOW_BATCH_WRITE_BYTES` (`batchBudget.ts`). It never
- * grows; a batch that would write more is a defect, refused by name.
+ * The staging buffer and its mirror are made once, at the first staged write, at their largest:
+ * every batch of the largest frame but the first, each at most `SHADOW_BATCH_WRITE_BYTES`
+ * (`batchBudget.ts`). They never grow; a batch that would write more is a defect, refused by name.
  */
 function createBatchWrites(device: GPUDevice) {
   let encoder: GPUCommandEncoder | undefined,
     staging: GPUBuffer | undefined,
+    mirror: Uint32Array<ArrayBuffer> | undefined,
     at = 0,
     batchStart = 0;
   const room = (bytes: number) => {
@@ -30,7 +35,8 @@ function createBatchWrites(device: GPUDevice) {
       size: SHADOW_STAGING_BYTES,
       usage: GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
     });
-    return staging;
+    mirror ??= new Uint32Array(SHADOW_STAGING_BYTES / 4);
+    return mirror;
   };
   return {
     /** From now until `end`, writes land in `into`'s command order: one batch's writes. */
@@ -39,8 +45,9 @@ function createBatchWrites(device: GPUDevice) {
       batchStart = at;
       encoder = into;
     },
-    /** Writes land before the command buffer again. */
+    /** Uploads the frame's staged words at once; writes land before the command buffer again. */
     end() {
+      if (encoder && at) device.queue.writeBuffer(staging!, 0, mirror!, 0, at / 4);
       encoder = undefined;
     },
     /** `count` words of `data` from word `from`, to `target` at byte `offset`. */
@@ -48,9 +55,8 @@ function createBatchWrites(device: GPUDevice) {
       if (!encoder) return device.queue.writeBuffer(target, offset, data, from, count);
       const bytes = count * 4;
       if (!bytes) return;
-      const buffer = room(bytes);
-      device.queue.writeBuffer(buffer, at, data, from, count);
-      encoder.copyBufferToBuffer(buffer, at, target, offset, bytes);
+      room(bytes).set(new Uint32Array(data.buffer, data.byteOffset + from * 4, count), at / 4);
+      encoder.copyBufferToBuffer(staging!, at, target, offset, bytes);
       at += bytes;
     },
   };
