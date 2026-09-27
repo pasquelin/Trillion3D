@@ -42,14 +42,13 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
       rows.touchPage(page),
       updateTransparentSpan(rt, page, words),
       blendCasters.follow(page),
-      rt.lights.residence.notePool(page, packedPages.length)
+      rt.lights.residence.notePool(page, packedPages.length),
+      run.gpuSelection?.notePool(page, words >= 0)
     ),
   });
-  /**
-   * Writes one page-table row. Called when a cluster claims a row, when its GPU slot moves, or when a
-   * shared input changes epoch — never once per frame: every field below belongs to the page, its
-   * material, its geometry block or its slot, none of them to the image.
-   */
+  /** Writes one page-table row: when a cluster claims a row, when its GPU slot moves, or when a
+   *  shared input changes epoch — never once per frame: every field below belongs to the page, its
+   *  material, its geometry block or its slot, none of them to the image. */
   const writePageRow = createPageRowWriter({
     geometryBlocks: rt.vis.geometryBlocks,
     mapLayer: rt.vis.mapLayer,

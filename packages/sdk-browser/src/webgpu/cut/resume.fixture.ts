@@ -131,6 +131,7 @@ export function banc(panne?: 'debordement' | 'envoi') {
       queueCutResidency: () => {
         comptes.queue++;
       },
+      followEvictions: () => {},
       syncRows: () => {
         comptes.sync++;
         // Residency follows the bytes: a decoded page becomes resident for selection.
