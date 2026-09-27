@@ -45,8 +45,9 @@
       // drawing views rather than three names for the same silhouette.
       put(geometry.box(10, 6, 7), plaster, [0, 3.2, 0]);
       put(geometry.box(10.4, 0.55, 7.4), stone, [0, 0.3, 0]);
+      const roofShape = geometry.box(6.2, 0.35, 7.8);
       for (const side of [-1, 1]) {
-        const panel = put(geometry.box(6.2, 0.35, 7.8), roof, [side * 2.45, 7.15, 0]);
+        const panel = put(roofShape, roof, [side * 2.45, 7.15, 0]);
         panel.rotation.z = side * -0.62;
       }
       put(geometry.box(0.85, 2.5, 1.1), stone, [3.3, 8.1, -1.7]);
@@ -65,7 +66,8 @@
       for (const x of [-2.8, 0, 2.8]) frameWindow(x, 3.7, -3.56);
       for (const side of [-1, 1])
         for (const z of [-1.8, 1.8]) frameWindow(side * 5.06, 3.8, z, true);
-      put(geometry.box(15, 0.18, 12), paint('#789164', 1), [0, 0, 0]);
+      // The lowest surface: nothing under it would show its shadow.
+      put(geometry.box(15, 0.18, 12), paint('#789164', 1), [0, 0, 0]).castShadow = false;
       world.scene.add(
         light.directional({
           color: '#fff1d5',
@@ -78,7 +80,7 @@
 
       const lens = camera.orthographic({ near: 0.1, far: 200 });
       world.camera = lens;
-      let halfHeight = 6.2;
+      const halfHeight = 6.2;
       const frame = () => {
         const aspect = world.canvas.clientWidth / Math.max(1, world.canvas.clientHeight);
         Object.assign(lens, {
@@ -88,8 +90,11 @@
           bottom: -halfHeight,
         });
       };
-      new ResizeObserver(frame).observe(world.canvas);
+      const resize = new ResizeObserver(frame);
+      resize.observe(world.canvas);
       frame();
+      const eye = 4.3,
+        sides = { front: [0, 1], right: [1, 0], rear: [0, -1] };
       controls(
         {
           elevation: ['front', 'right', 'rear'],
@@ -99,20 +104,22 @@
         (values, key) => {
           if (!key || key === 'zoom') lens.zoom = values.zoom;
           if (!key || key === 'elevation' || key === 'distance') {
-            const positions = {
-              front: [0, 4.3, values.distance],
-              right: [values.distance, 4.3, 0],
-              rear: [0, 4.3, -values.distance],
-            };
-            lens.position.set(...positions[values.elevation]);
-            lens.lookAt(0, 4.3, 0);
+            const [x, z] = sides[values.elevation];
+            lens.position.set(x * values.distance, eye, z * values.distance);
+            lens.lookAt(0, eye, 0);
           }
           world.invalidate();
         },
         world,
       );
-      world.invalidate();
-      addEventListener('pagehide', () => world.dispose(), { once: true });
+      addEventListener(
+        'pagehide',
+        () => {
+          resize.disconnect();
+          world.dispose();
+        },
+        { once: true },
+      );
     </script>
   </body>
 </html>
