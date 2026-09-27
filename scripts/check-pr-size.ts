@@ -29,7 +29,7 @@ const added = diff.stdout
 console.log(`Hand-written lines added: ${added} (limit ${limit}).`);
 if (added > limit) {
   console.error(
-    'Above the limit of AGENTS.md rule 11: the issue goes back to the CTO, who splits it into issues that each fit one pull request (AGENTS.md rule 5).',
+    'Above the limit of AGENTS.md rule 11: deliver the issue in steps, one pull request each (AGENTS.md rule 5).',
   );
   process.exitCode = 1;
 }

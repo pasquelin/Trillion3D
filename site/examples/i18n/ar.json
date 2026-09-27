@@ -1,4 +1,22 @@
 {
+  "brushed-metal": {
+    "banner": "اسحب لتفحّص انعكاسات المعدن المصقول وغيّر قوتها واتجاهها.",
+    "controls": {
+      "anisotropy": "قوة الصقل",
+      "direction": "اتجاه الصقل",
+      "roughness": "الخشونة",
+      "spin": "الدوران"
+    }
+  },
+  "car-paint-under-clear-coat": {
+    "banner": "تحرّك حول السيارة وغيّر الطلاء والطبقة الشفافة فوقه.",
+    "controls": {
+      "paint": "الطلاء",
+      "clearCoat": "الطبقة الشفافة",
+      "coatRoughness": "خشونة الطبقة",
+      "spin": "الدوران"
+    }
+  },
   "kit": {
     "panel": {
       "controls": "الإعدادات"
@@ -308,6 +326,13 @@
       "hour": "الساعة",
       "wind": "الريح",
       "roof": "السقف"
+    }
+  },
+  "soft-shadows-from-a-wide-lamp": {
+    "banner": "اسحب لتدور حول المشهد. غيّر عرض المصباح وشاهد حواف الظل.",
+    "controls": {
+      "lampWidth": "عرض المصباح",
+      "moveSubject": "حرّك المجسم"
     }
   },
   "a-softbox-panel": {

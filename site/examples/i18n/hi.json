@@ -1,4 +1,22 @@
 {
+  "brushed-metal": {
+    "banner": "ब्रश किए हुए प्रतिबिंब देखें और उनकी ताकत व दिशा बदलें।",
+    "controls": {
+      "anisotropy": "ब्रश की ताकत",
+      "direction": "ब्रश की दिशा",
+      "roughness": "खुरदरापन",
+      "spin": "घुमाएँ"
+    }
+  },
+  "car-paint-under-clear-coat": {
+    "banner": "कार के चारों ओर देखें और पेंट व उसके ऊपर की साफ़ परत बदलें।",
+    "controls": {
+      "paint": "पेंट",
+      "clearCoat": "साफ़ परत",
+      "coatRoughness": "परत का खुरदरापन",
+      "spin": "घुमाएँ"
+    }
+  },
   "kit": {
     "panel": {
       "controls": "सेटिंग्स"
@@ -308,6 +326,13 @@
       "hour": "समय",
       "wind": "हवा",
       "roof": "छत"
+    }
+  },
+  "soft-shadows-from-a-wide-lamp": {
+    "banner": "चारों ओर देखने के लिए खींचें। लैम्प की चौड़ाई बदलें और छाया के किनारे देखें।",
+    "controls": {
+      "lampWidth": "लैम्प की चौड़ाई",
+      "moveSubject": "वस्तु चलाएँ"
     }
   },
   "a-softbox-panel": {
