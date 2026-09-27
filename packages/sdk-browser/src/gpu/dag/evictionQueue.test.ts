@@ -7,12 +7,12 @@ import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
 import { createGpuDagSelection } from './selection.ts';
 import { requestScene } from './requestScene.fixture.ts';
 import { KEY_PAGE_BITS, canonicalPage, listEvictions } from './evict.ts';
-import { keyBase } from './layout.ts';
+import { EVICTION_BURST, keyBase } from './layout.ts';
 
 /** Four placements of one page set, every page resident for the rule; `cut()` cuts, reads back. */
-async function residentCut() {
+async function residentCut(leaves = 256) {
   installGpuGlobals();
-  const scene = requestScene(4, 256, 4),
+  const scene = requestScene(4, leaves, 4),
     { packed } = scene;
   const gpu = mockGpu({ packed });
   const selection = await createGpuDagSelection(gpu.device, packed, { residentCut: true });
@@ -28,7 +28,15 @@ async function residentCut() {
   const holdAll = () => {
     for (let page = 0; page < packed.pageCount; page++) selection.notePool(page, true);
   };
-  return { selection, holdAll, keys, cut, levelOf: (page: number) => keys[page] >>> KEY_PAGE_BITS };
+  const readbacks = () => gpu.buffers.filter((b) => b.usage & GPUMapMode.READ).map((b) => b.size);
+  return {
+    selection,
+    holdAll,
+    readbacks,
+    keys,
+    cut,
+    levelOf: (page: number) => keys[page] >>> KEY_PAGE_BITS,
+  };
 }
 
 test('each key once, children before parents, never one the cut read by any placement', async () => {
@@ -69,4 +77,13 @@ test('the mirror ranks finer first, then older first, and skips the pages used n
     stampOf = (page: number) => [1, 6, 1, 9][page];
   const order = listEvictions({ pool: [0, 1, 2, 3], keys, stampOf, now: 9, cap: 8 });
   assert.deepEqual(order, [2, 1, 0]);
+});
+
+test('the readback is the same size whatever the pool holds: one burst per readback', async () => {
+  const { holdAll, readbacks, cut } = await residentCut(2048);
+  const empty = (await cut()).queue,
+    sizes = readbacks();
+  holdAll();
+  assert.deepEqual([empty.length, (await cut()).queue.length], [0, EVICTION_BURST]);
+  assert.deepEqual(readbacks(), sizes);
 });
