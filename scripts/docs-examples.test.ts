@@ -64,7 +64,12 @@ test('every example is one standalone HTML file that imports the built engine', 
     const html = await readFile(new URL(entry.file, site), 'utf8');
     if (entry.issue) assert.match(html, new RegExp(`// Waits for #${entry.issue}: `), entry.id);
     assert.match(html, /^<!doctype html>/);
-    assert.match(html, /<canvas id="view"><\/canvas>/);
+    // A world targeting an element owns the canvas it appends; naming that public canvas keeps
+    // capture and measurement on the same `#view` contract as a caller-supplied canvas.
+    assert.ok(
+      /<canvas id="view"><\/canvas>/.test(html) || /world\.canvas\.id = ['"]view['"]/.test(html),
+      entry.id,
+    );
     assert.match(html, /import \{ createWorld[^}]*\} from '\.\.\/runtime\/engine\.js'/);
     assert.doesNotMatch(html, /setDiagnostic|localhost|127\.0\.0\.1/);
     // The kit, when used, is the one served beside the engine, and the thumbnail moment is valid.
