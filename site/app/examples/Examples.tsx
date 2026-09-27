@@ -8,7 +8,6 @@ import { JumpTo } from '../ui/JumpTo.tsx';
 import { Section } from '../ui/Text.tsx';
 import {
   exampleMissing,
-  examplePlaceholder,
   exampleTitle,
   isReady,
   themedEntries,
@@ -45,7 +44,6 @@ export function Examples({ locale }: { locale: Locale }) {
         <Section key={theme} id={themeAnchor(theme)} title={themeTitle(theme, locale)}>
           <Grid>
             {[...ready, ...parked].map((entry) => {
-              const missing = exampleMissing(entry.id, locale);
               return (
                 <ExampleCard
                   key={entry.id}
@@ -53,11 +51,10 @@ export function Examples({ locale }: { locale: Locale }) {
                   href={routeHref({ locale, area: 'examples', id: entry.id })}
                   badge={themeTitle(theme, locale)}
                   thumbnail={thumbnailOf(entry.id)}
-                  fallbackThumbnail={examplePlaceholder}
                   state={
                     isReady(entry)
                       ? undefined
-                      : `${t('examples.partial')} — ${t('examples.waitsFor')} ${missing}`
+                      : `${t('examples.partial')} — ${t('examples.waitsFor')} ${exampleMissing(entry.id, locale)}`
                   }
                 />
               );

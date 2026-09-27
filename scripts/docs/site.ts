@@ -119,6 +119,7 @@ export const SITE_STEPS: readonly SiteStep[] = [
     reads: [
       'packages',
       ...['app', 'content', 'demos', 'examples', 'i18n', 'reports'].map((name) => `site/${name}`),
+      'site/assets/examples/thumbnails',
     ],
     folder: 'runtime',
     run: async (root, runtime) => {
