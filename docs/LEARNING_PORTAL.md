@@ -152,7 +152,8 @@ and only from `main`:
 gh workflow run pages.yml -f deploy=true --ref main
 ```
 
-A deploying run builds the native compiler, then the scene caches (`pnpm run compile:caches`).
+A deploying run builds the native compiler, then the scene caches (`pnpm run compile:caches`), and
+writes each cache object's brotli sibling (`scripts/compress-cache-objects.ts`, #921).
 The deploy job refuses an output without `index.html` or `runtime/portal.js`, or with fewer files
 than the build copies, pre-compresses the text files beside their originals, sends the tree over
 SSH with `rsync --delete-delay --delay-updates` — excluding `openworld/`, which the open world's
@@ -164,7 +165,9 @@ than `require-corp` keeps the consent panel and its audience measurement loading
 origins. `scripts/docs-serve.ts` answers the same headers locally. The deploy job reads four
 repository secrets: `DEPLOY_SSH_KEY`, `DEPLOY_KNOWN_HOSTS`, `DEPLOY_TARGET` and `DEPLOY_SSH_PORT`.
 The server side — web server, HTTPS, the redirect of the bare domain to `www`, the isolation
-headers above, and the deploy key restricted to the web root — is set up by the maintainer.
+headers above, the pre-compressed siblings (`.gz`, and `.br` sent with `Content-Encoding: br` to a
+browser that accepts it), and the deploy key restricted to the web root — is set up by the
+maintainer.
 GitHub Pages is no longer deployed: its last deployment is removed by turning Pages off in the
 repository settings, which leaves https://www.trillion3d.com the one public address.
 
@@ -186,7 +189,7 @@ onChange)` gives sliders (`[min, max, value, step?]`), colour pickers (`'#rrggbb
    (marked `held` while the image stands still) and the last frame's measured counters, a line
    left out when the engine did not measure it; `stats(world)` opens it alone. `readout(key)`, declared after it, adds a live line to that panel and returns the
    function that writes it (a counter read every frame); `physicsReadouts(world, ['bodies',
-   'awake', 'step'])` adds the physics' lines, written each frame from `world.physics.stats`
+'awake', 'step'])` adds the physics' lines, written each frame from `world.physics.stats`
    (`page` adds the page's share of the frame). Name each control so that its label says
    what to try; there is no caption over the
    render. The page hosting the example hides or shows the panel by posting

@@ -2,7 +2,7 @@
 //! bit writer that packs them.
 
 use crate::geometry_page::Attribute;
-use crate::geometry_page_quant::{max_error, oct_encode, quantize, COLOR_EXPONENT, UV_EXPONENT};
+use crate::geometry_page_quant::{max_error, oct_encode, quantize, COLOR_EXPONENT};
 use crate::{CompilerError, Result};
 use trillion3d_page_codec::bits::Quant;
 use trillion3d_page_codec::{FLAG_COLOR, FLAG_NORMAL, FLAG_UV, FLAG_UV1};
@@ -44,12 +44,13 @@ pub struct Grids {
 }
 
 /// Every vertex of `original` on its grids: positions on `position_exponent`, texture
-/// coordinates and colours on the format's own, normals octahedral.
+/// coordinates on `uv_exponent`, colours on the format's own, normals octahedral.
 pub fn grids(
     original: &[u32],
     positions: &[f32],
     attributes: &[&Attribute],
     position_exponent: i32,
+    uv_exponent: i32,
 ) -> Result<Grids> {
     let by_flag = |flag: u32| attributes.iter().find(|a| a.flag == flag);
     let page_positions = gather(positions, 3, 3, original)?;
@@ -71,11 +72,11 @@ pub fn grids(
             cell.normal = oct_encode([normals[i * 3], normals[i * 3 + 1], normals[i * 3 + 2]]);
         }
     }
-    let mut uv_records = [Quant::<2>::flat(UV_EXPONENT); 2];
+    let mut uv_records = [Quant::<2>::flat(uv_exponent); 2];
     for (set, flag) in [FLAG_UV, FLAG_UV1].into_iter().enumerate() {
         if let Some(a) = by_flag(flag) {
             let (quant, uv_cells) =
-                quantize::<2>(&gather(&a.values, 2, 2, original)?, UV_EXPONENT)?;
+                quantize::<2>(&gather(&a.values, 2, 2, original)?, uv_exponent)?;
             uv_records[set] = quant;
             for (cell, q) in cells.iter_mut().zip(uv_cells) {
                 cell.uv[set] = q;

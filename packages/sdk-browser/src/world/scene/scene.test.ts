@@ -76,16 +76,16 @@ test('pagesBounds yields the same box as the reference, a « coarse » page excl
   const metadata = {
     primitives: [{ mesh: 0, primitive: 0, pages: [exact, grossiere] }],
   } as unknown as ClusterManifest;
-  const associations = new Map<G.GraphMesh, { meshes: number; primitives: number }>([
+  const associations = new Map<G.HostMesh, { meshes: number; primitives: number }>([
     [meshFound, { meshes: 0, primitives: 0 }],
   ]);
-  const manques: G.GraphMesh[] = [],
-    manquesRef: G.GraphMesh[] = [];
+  const manques: G.HostMesh[] = [],
+    manquesRef: G.HostMesh[] = [];
   const obtenu = pagesBounds(source, associations, metadata, (m) =>
-    manques.push(asHostLibrary<G.GraphMesh>(m)),
+    manques.push(asHostLibrary<G.HostMesh>(m)),
   );
   const attendu = referenceExactPagesBounds(asHostLibrary(source), associations, metadata, (m) =>
-    manquesRef.push(asHostLibrary<G.GraphMesh>(m)),
+    manquesRef.push(asHostLibrary<G.HostMesh>(m)),
   );
   assert.deepEqual(Array.from(obtenu), [...attendu.min.toArray(), ...attendu.max.toArray()]);
   assert.deepEqual(manques, manquesRef);
@@ -121,7 +121,7 @@ test('pagesBounds agrees with the reference on hostile matrices, depth-3 hierarc
       { mesh: 1, primitive: 0, pages: [page0] },
     ],
   } as unknown as ClusterManifest;
-  const associations = new Map<G.GraphMesh, { meshes: number; primitives: number }>([
+  const associations = new Map<G.HostMesh, { meshes: number; primitives: number }>([
     [singulier, { meshes: 0, primitives: 0 }],
     [nanMesh, { meshes: 1, primitives: 0 }],
   ]);
@@ -149,7 +149,7 @@ test('pagesBounds reuses the `into` output instead of allocating one per page', 
     return p;
   });
   const metadata = { primitives: [{ mesh: 0, primitive: 0, pages }] } as unknown as ClusterManifest;
-  const associations = new Map<G.GraphMesh, { meshes: number; primitives: number }>([
+  const associations = new Map<G.HostMesh, { meshes: number; primitives: number }>([
     [mesh, { meshes: 0, primitives: 0 }],
   ]);
   const into = emptyWorldBox();

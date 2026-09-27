@@ -41,6 +41,17 @@ const isSlot = (value: unknown): value is TableTextureSlot =>
 /** The variant of a surface a primitive asks for: what its geometry carries. */
 export type SurfaceVariant = { vertexColors: boolean; flatShading: boolean };
 
+/** A variant's key in a cache of surfaces by variant: the open's and a created material's. */
+export const variantKey = ({ vertexColors, flatShading }: SurfaceVariant) =>
+  `${vertexColors}:${flatShading}`;
+
+/** The variant a geometry asks for: vertex colours where it has some, flat shading where it has
+ *  no normal — at open (`graph.ts`) and for a created material assigned later (#847). */
+export const surfaceVariantOf = (attributes: Record<string, unknown>): SurfaceVariant => ({
+  vertexColors: attributes.color !== undefined,
+  flatShading: attributes.normal === undefined,
+});
+
 function extensionParams(
   entry: TableMaterial,
   params: Params,
@@ -127,7 +138,7 @@ async function build(
 export function preparedMaterials(materials: readonly TableMaterial[], slot: Slot) {
   const built = new Map<string, Promise<GraphSurface>>();
   return (rank: number, variant: SurfaceVariant) => {
-    const key = `${rank}:${variant.vertexColors}:${variant.flatShading}`;
+    const key = `${rank}:${variantKey(variant)}`;
     let material = built.get(key);
     if (!material) {
       material = build(materials, rank, variant, slot);

@@ -51,7 +51,8 @@ export {
   type JointOptions,
   type SixDofAxis,
 } from '../../sdk-core/src/physics/index.ts';
-export type { WorldPhysics, WorldPhysicsOptions, GravityInput } from './physics/worldPhysics.ts';
+export type { WorldPhysics } from './physics/worldPhysics.ts';
+export type { WorldPhysicsOptions, GravityInput } from './physics/worldPhysicsOptions.ts';
 export type { WaterSpec, WaveSpec, WaterSurface } from '../../sdk-core/src/fluids/index.ts';
 export type { PhysicsStats } from './physics/protocol.ts';
 export * from './world/metric/index.ts';
@@ -96,7 +97,6 @@ export type {
 export type { HostRotation, HostVector } from './host/scene/graphNodes.ts';
 /** The engine's own scene graph (`host/graph/`): the classes every `Host*` name above stands for,
  *  the nodes, geometries, surfaces and textures a loaded scene hands back. */
-export type { GraphMesh } from './host/graph/mesh.ts';
 export type { GraphNode } from './host/graph/node.ts';
 export type { GraphNodeKind } from './host/graph/nodeKind.ts';
 export type { GraphSurface } from './host/graph/surface.ts';
