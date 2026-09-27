@@ -1,10 +1,13 @@
-import { LIGHT_SETTINGS } from '../../../../sdk-core/src/index.ts';
 import type { ShadowRequestReport } from '../../../../sdk-core/src/scene/light-shadow/requests.ts';
+import { SHADOW_REQUEST_BITS } from '../../lighting/direct/shadowWgsl.ts';
+import { shadowRequestCap } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 
 /** Readback slots in flight at most: a frame whose three predecessors are still mapping asks
  *  again the next frame, which reads the same image. */
 const SLOTS = 3;
-const LIST_BYTES = (1 + LIGHT_SETTINGS.shadowRequestCap) * 4;
+/** Bytes of the request buffer of a pool of `pages`: the count, the list, one bit per table entry. */
+export const shadowRequestBytes = (pages: number) =>
+  (1 + shadowRequestCap(pages) + SHADOW_REQUEST_BITS) * 4;
 
 type Slot = {
   buffer: GPUBuffer;
@@ -20,14 +23,22 @@ type Slot = {
  * before the resolve of every image that lights — a held image lights nothing and asks for
  * nothing. Each copy carries the frame, the table layout and the plan stamp it was read under, so
  * the scheduler reads it against the right windows and knows whether it proves a settled state.
+ * The request buffer is made with the pool, its list as long as `shadowRequestCap` of its `pages`.
  */
-export function createShadowPageRequests(device: GPUDevice, requestBuffer: GPUBuffer) {
+export function createShadowPageRequests(device: GPUDevice, pages: number) {
+  const cap = shadowRequestCap(pages),
+    listBytes = (1 + cap) * 4;
+  const requestBuffer = device.createBuffer({
+    label: 'Trillion3D shadow requests v1',
+    size: shadowRequestBytes(pages),
+    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+  });
   const slots: Slot[] = [];
   for (let i = 0; i < SLOTS; i++)
     slots.push({
       buffer: device.createBuffer({
         label: 'Trillion3D shadow request readback',
-        size: LIST_BYTES,
+        size: listBytes,
         usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST,
       }),
       busy: false,
@@ -37,11 +48,15 @@ export function createShadowPageRequests(device: GPUDevice, requestBuffer: GPUBu
         layoutEpoch: -1,
         stamp: -1,
         count: 0,
-        entries: new Uint32Array(LIGHT_SETTINGS.shadowRequestCap),
+        entries: new Uint32Array(cap),
       },
     });
   let inFlight = 0;
   return {
+    /** What the shading records its requests in (`../../lighting/direct/shadowWgsl.ts`). */
+    buffer: requestBuffer,
+    /** GPU bytes of the request buffer, counted in the pool (`shadowRequestBytes`). */
+    bytes: requestBuffer.size,
     /** Copies waiting for their image to be read back: an image may not hold before they land. */
     get inFlight() {
       return inFlight;
@@ -72,7 +87,7 @@ export function createShadowPageRequests(device: GPUDevice, requestBuffer: GPUBu
       slot.report.frame = frame;
       slot.report.layoutEpoch = layoutEpoch;
       slot.report.stamp = stamp;
-      encoder.copyBufferToBuffer(requestBuffer, 0, slot.buffer, 0, LIST_BYTES);
+      encoder.copyBufferToBuffer(requestBuffer, 0, slot.buffer, 0, listBytes);
       return (submitted: boolean) => {
         const done = () => {
           slot.busy = false;
@@ -88,9 +103,7 @@ export function createShadowPageRequests(device: GPUDevice, requestBuffer: GPUBu
           .then(() => {
             const words = new Uint32Array(slot.buffer.getMappedRange());
             slot.report.count = words[0];
-            slot.report.entries.set(
-              words.subarray(1, 1 + Math.min(words[0], LIGHT_SETTINGS.shadowRequestCap)),
-            );
+            slot.report.entries.set(words.subarray(1, 1 + Math.min(words[0], cap)));
             slot.buffer.unmap();
             deliver(slot.report);
           })
@@ -99,6 +112,7 @@ export function createShadowPageRequests(device: GPUDevice, requestBuffer: GPUBu
       };
     },
     dispose() {
+      requestBuffer.destroy();
       for (const slot of slots) slot.buffer.destroy();
     },
   };

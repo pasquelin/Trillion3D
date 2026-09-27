@@ -9,7 +9,7 @@ import { LEVEL_QUEUES } from './levelWgsl.ts';
  * The words outlive the frame: a page not stamped keeps the cut it was last used in, never a
  * cleared flag. A light cut stamps nothing — its flags are its own and two views may draw one
  * page. The residency cache applies the same rule from the drawn list it reads back
- * (`../../../webgpu/residency/lastUse.ts`); the eviction queue of #478 reads these words.
+ * (`../../../residency/lastUse.ts`); the eviction queue of #478 reads these words.
  *
  * `dagFlagsWords` sizes `flags`: the descent queues, four words per page, and the last-use word
  * per page unless the cut stamps none (`lastUse` false: a light cut).

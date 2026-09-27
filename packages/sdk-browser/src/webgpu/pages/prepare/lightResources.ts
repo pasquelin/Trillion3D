@@ -133,9 +133,10 @@ const contractResources: DirectLightResources = {};
 export function directLightResources(rt: WebgpuPagesRuntime) {
   const { lights } = rt,
     active = wantsContractLighting(rt);
+  contractResources.lights = lights.buffer;
   contractResources.tiles = active ? lights.tiles?.buffer : undefined;
   contractResources.slices = active ? lights.shadows?.dataBuffer : undefined;
-  contractResources.requests = active ? lights.shadows?.requestBuffer : undefined;
+  contractResources.requests = active ? lights.pageRequests?.buffer : undefined;
   contractResources.atlas = active ? lights.shadows?.view : undefined;
   contractResources.transmittance = active ? lights.shadows?.transmittance : undefined;
   // The grid is bound only if it exists: without it, the deferred pass compiles and binds the

@@ -2,7 +2,7 @@ import { LIGHT_SETTINGS } from '../../../../../sdk-core/src/index.ts';
 import { createGpuLightTiles } from '../../../lighting/tiles/tiles.ts';
 import { createGpuShadowAtlas } from '../../../gpu/shadow/atlas.ts';
 import { createGpuShadowCull } from '../../../gpu/shadow/cull.ts';
-import { createShadowPageRequests } from '../../shadow/pageRequests.ts';
+import { createShadowPageQuads } from '../../../gpu/shadow/pageQuads.ts';
 import { grantCapability } from '../io/drops.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import { isCancelled } from '../../../backend/common.ts';
@@ -31,19 +31,20 @@ export async function prepareDirectLights(rt: WebgpuPagesRuntime, device: GPUDev
     return;
   }
   try {
-    lights.tiles = await createGpuLightTiles(device, lights.buffer);
+    lights.tiles = await createGpuLightTiles(device);
   } catch (error) {
     if (isCancelled(rt.signal)) throw error;
     lights.shadowReason = `light tiles unavailable: ${String(error)}`;
     diag.diagnosticFailure('light-tiles-unavailable', error);
     return;
   }
-  // The atlas and per-face cull go together: the shadow pass draws from the list cull produces.
-  // One without the other would light nothing, so failure of one yields both.
+  // The atlas, per-face cull and page quads go together: the shadow pass draws from the list cull
+  // produces, from pages the quads clear. One without the others would light nothing, so the
+  // failure of one yields all.
   try {
     lights.shadows = await createGpuShadowAtlas(device, vis.visBindGroupLayout);
     lights.cull = await createGpuShadowCull(device, casterSlots);
-    lights.pageRequests = createShadowPageRequests(device, lights.shadows.requestBuffer);
+    lights.pageQuads = await createShadowPageQuads(device, lights.shadows.faceUniform);
   } catch (error) {
     if (isCancelled(rt.signal)) throw error;
     lights.shadows?.dispose();
