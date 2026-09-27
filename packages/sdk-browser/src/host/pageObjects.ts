@@ -140,17 +140,14 @@ export const releaseHostGeometry = (geometry: Geometry) => {
   geometry.dispose();
 };
 
-/** The standard (or physical) surface the engine's material parameters describe. The face
- *  constant is the engine's (`../scene/materialSide.ts`), the alpha mode drawn by the open's one
- *  rule (`alphaModeFields`); nothing else is converted. */
-export function hostPageSurface(
-  material: Material,
-  vertexColors: boolean,
-  family: 'standard' | 'physical' = 'standard',
-) {
+/** The standard surface the engine's material parameters describe; a world moves it to the
+ *  physical family (`../world/core/worldPhysicalSurface.ts`). The face constant is the engine's
+ *  (`../scene/materialSide.ts`), the alpha mode drawn by the open's one rule (`alphaModeFields`);
+ *  nothing else is converted. */
+export function hostPageSurface(material: Material, vertexColors: boolean) {
   const [r, g, b] = material.baseColor,
     [er, eg, eb] = material.emissive;
-  return new GraphSurface(family, {
+  return new GraphSurface('standard', {
     color: { r, g, b },
     emissive: { r: er, g: eg, b: eb },
     metalness: material.metalness,
