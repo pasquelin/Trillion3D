@@ -134,7 +134,8 @@ pub(super) fn compile_primitive(
         compiler_page_object::page_attributes(g, bin, p, positions.count, validated)?
     };
     let carried = carried_attributes(&attributes, material);
-    let store = |slice: &[u32], position_exponent: i32, uv_exponent: i32| {
+    let uv_exponent = geometry_page_quant::primitive_uv_exponent(&carried, clustered_blend);
+    let store = |slice: &[u32], position_exponent: i32| {
         compiler_page_object::store_page(o, slice, &pos, &carried, position_exponent, uv_exponent)
     };
     // Transparent primitives join the DAG too: their draw order is restored at runtime from the
@@ -160,7 +161,6 @@ pub(super) fn compile_primitive(
         structure_report,
         stream_report,
         position_exponent,
-        uv_exponent,
         collision,
     } = if dag_primitive {
         build_dag_primitive(
