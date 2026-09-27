@@ -1710,11 +1710,18 @@
   },
   "the-home-pose": {
     "banner": "Scegli una vista, muovi la camera, poi scegli Inizio per tornare.",
-    "controls": { "home": "Inizio", "tower": "Torre", "square": "Piazza", "hillside": "Collina" }
+    "controls": {
+      "home": "Inizio",
+      "tower": "Torre",
+      "square": "Piazza",
+      "hillside": "Collina"
+    }
   },
   "the-near-plane-cuts-a-wall": {
     "banner": "Avanza il piano vicino e guardalo tagliare ogni muro.",
-    "controls": { "nearPlane": "Piano vicino" }
+    "controls": {
+      "nearPlane": "Piano vicino"
+    }
   },
   "the-material-family": {
     "banner": "Trascina per girare intorno. Metti la luce di notte e guarda cosa brilla ancora.",
@@ -2190,6 +2197,16 @@
     },
     "readouts": {
       "progress": "Avanzamento"
+    }
+  },
+  "a-folder-merged-into-one-scene": {
+    "banner": "Trascina per osservare l’angolo della strada. Il compilatore ha unito tre file OBJ di una cartella in questa scena.",
+    "controls": {
+      "visible": "Visibile",
+      "home": "Vista iniziale"
+    },
+    "words": {
+      "credit": "Modello di lampione di W. Sitters, CC BY 3.0 — vedi assets/examples/CREDITS.md"
     }
   }
 }
