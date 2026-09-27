@@ -1,11 +1,6 @@
 import { PRIORITY_VISIBLE } from './priority.ts';
 
-/** What a watcher hears: the pages read since it started watching, and those landed. */
-export type PageReads = { landed: number; asked: number };
-
 type Watch = { reading: Map<string, number>; landed: Set<string>; heard: () => void };
-/** One watch as its watcher holds it (`watch`'s return). */
-export type PageWatch = { reads: () => PageReads; hold: (url: string) => void; stop: () => void };
 
 /**
  * Every page read of a streamer passes here (`read`), whoever asks it: the host's own batches and
@@ -58,10 +53,11 @@ export function createReadWatch(
   };
   /** Calls `heard` as pages are read and land, until `stop`; `reads` counts them now, `hold`
    *  counts a page resident already as landed, once. */
-  const watch = (heard: () => void): PageWatch => {
+  const watch = (heard: () => void) => {
     const entry: Watch = { reading: new Map(), landed: new Set(), heard };
     watches.add(entry);
     return {
+      /** The pages read since the watch started, and those landed. */
       reads: () => ({ landed: entry.landed.size, asked: entry.landed.size + entry.reading.size }),
       hold: (url: string) => void (entry.reading.delete(url), entry.landed.add(url)),
       stop: () => void watches.delete(entry),
