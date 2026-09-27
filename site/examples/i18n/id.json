@@ -2151,8 +2151,8 @@
   "a-folder-merged-into-one-scene": {
     "banner": "Seret untuk memeriksa sudut jalan. Kompiler menggabungkan tiga berkas OBJ dari satu folder ke adegan ini.",
     "controls": {
-      "spin": "Putar",
-      "visible": "Terlihat"
+      "visible": "Terlihat",
+      "home": "Awal"
     },
     "words": {
       "credit": "Model lampu jalan oleh W. Sitters, CC BY 3.0 — lihat assets/examples/CREDITS.md"

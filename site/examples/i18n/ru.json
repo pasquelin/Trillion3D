@@ -2151,8 +2151,8 @@
   "a-folder-merged-into-one-scene": {
     "banner": "Перетаскивайте, чтобы осмотреть угол улицы. Компилятор объединил три OBJ-файла из одной папки в эту сцену.",
     "controls": {
-      "spin": "Вращать",
-      "visible": "Видимость"
+      "visible": "Видимость",
+      "home": "Исходный вид"
     },
     "words": {
       "credit": "Модель фонаря: W. Sitters, CC BY 3.0 — см. assets/examples/CREDITS.md"

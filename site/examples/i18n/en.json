@@ -2151,8 +2151,8 @@
   "a-folder-merged-into-one-scene": {
     "banner": "Drag to inspect the street corner. The compiler merged three OBJ files from one folder into this scene.",
     "controls": {
-      "spin": "Spin",
-      "visible": "Visible"
+      "visible": "Visible",
+      "home": "Home"
     },
     "words": {
       "credit": "Street lamp model by W. Sitters, CC BY 3.0 — see assets/examples/CREDITS.md"
