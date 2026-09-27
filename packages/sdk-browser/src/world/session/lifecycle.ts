@@ -12,7 +12,10 @@ import type { createPageStreamer } from '../../streaming/pageStreamer.ts';
 import type { EngineProfiler } from '../../diagnostic/telemetry.ts';
 import type { WebglSurface } from '../../webgl/core/surface.ts';
 import type { JobProgress } from '../../../../sdk-core/src/runtime/jobs.ts';
-import type { PageWatch } from '../../streaming/readWatch.ts';
+import type { createReadWatch } from '../../streaming/readWatch.ts';
+
+/** One watch over the streamer's reads (`readWatch.ts`), module-internal: no facade names it. */
+type PageWatch = ReturnType<ReturnType<typeof createReadWatch>['watch']>;
 
 /** How `awaitPages` waits: with or without a picture, and who hears the pages land. */
 type PageWait = { image?: boolean; onProgress?: (event: JobProgress) => void };

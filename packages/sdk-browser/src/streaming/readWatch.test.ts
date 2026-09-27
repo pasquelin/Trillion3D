@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createReadWatch, type PageReads } from './readWatch.ts';
+import { createReadWatch } from './readWatch.ts';
 import { PRIORITY_PREFETCH } from './priority.ts';
 
 /** A watch over reads that settle when the test says: `land` or `drop` each url. */
@@ -21,7 +21,7 @@ function watchedReads() {
 
 test('a watch hears the reads the view waits on: each page once, a dropped one taken back (#408)', async () => {
   const { read, watch, settle } = watchedReads();
-  const heard: PageReads[] = [];
+  const heard: { landed: number; asked: number }[] = [];
   const { stop, hold, reads } = watch(() => heard.push(reads()));
   const caught = (url: string, priority?: number) =>
     void read(url, undefined, priority).catch(() => {});
