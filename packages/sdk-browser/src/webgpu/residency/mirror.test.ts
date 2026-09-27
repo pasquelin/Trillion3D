@@ -33,5 +33,14 @@ test('a key the pool takes is noted for each placement at its arrival, before an
   });
   mirror.sync();
   mirror.sync();
-  assert.deepEqual(noted, [[0, 16], [2, 16], [0, -1], [2, -1]], 'arrival, then departure');
+  assert.deepEqual(
+    noted,
+    [
+      [0, 16],
+      [2, 16],
+      [0, -1],
+      [2, -1],
+    ],
+    'arrival, then departure',
+  );
 });
