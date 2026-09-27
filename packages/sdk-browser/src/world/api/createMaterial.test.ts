@@ -33,6 +33,9 @@ test('a created material reads back what the page named, glTF defaults elsewhere
   assert.deepEqual(api.material(made.id), made);
   assert.deepEqual(api.materials().at(-1), made, 'listed after the scene materials');
   assert.equal(api.createMaterial().id, 'created-1');
+  // A value named undefined is one not named: the default, not a hole in the surface.
+  const unnamed = api.createMaterial({ baseColor: undefined, opacity: undefined });
+  assert.deepEqual([unnamed.baseColor, unnamed.opacity], [[1, 1, 1], 1]);
 });
 
 test('a created material is worn by the drawable it is assigned to, every engine told', async () => {
