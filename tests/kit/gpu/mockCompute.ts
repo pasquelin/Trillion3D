@@ -25,6 +25,7 @@ import {
 import { sortRequestWords } from '../../../packages/sdk-browser/src/gpu/dag/request.ts';
 import { VIEW_FLAGS_WORD } from '../../../packages/sdk-browser/src/gpu/dag/uniforms.ts';
 import { VIEW_LIGHT } from '../../../packages/sdk-browser/src/gpu/dag/shader/pagesWgsl.ts';
+import { mockEvictions } from './mockEvict.ts';
 
 export type ComputeBind = {
   entries: Array<{ binding: number; resource: { buffer: { data: Uint8Array } } }>;
@@ -132,6 +133,8 @@ export function simulateComputeDispatch(
   );
   if (computePipeline?.entryPoint === 'dagSortRequests')
     return sortStagedRequests(byBinding.get(DAG_BINDING.out)!.data, packed.pageCount);
+  if (computePipeline?.entryPoint === 'dagListEvictions')
+    return mockEvictions(byBinding, packed).list();
   if (computePipeline?.entryPoint !== 'dagMask') return;
   const { uniforms, residentCut, light } = readDagUniforms(byBinding.get(DAG_BINDING.views)!.data);
   // The rule's residency lives in bits behind the cold records: the double rereads it through the
@@ -154,9 +157,11 @@ export function simulateComputeDispatch(
   const frames = words(byBinding.get(DAG_BINDING.frames)!.data);
   const rootNodes = packed.rootNodes.map((_, w) => frames[primitiveWordAt(w) + 1]);
   const result = evaluateDagSelectionKernel({ ...packed, worlds, rootNodes }, uniforms, resident);
+  if (!light)
+    mockEvictions(byBinding, packed).stamp([...result.pageIds, ...(result.drawablePageIds ?? [])]);
   if (residentCut) {
     const flags = new Uint32Array(byBinding.get(DAG_BINDING.flags)!.data.buffer);
-    flags.fill(0, packed.nodeCount);
+    flags.fill(0, packed.nodeCount, packed.nodeCount + packed.pageCount);
     for (const id of result.drawablePageIds ?? []) flags[packed.nodeCount + id] = 1;
     // The cut then compacts these flags: the sample reports only the count and its ranks.
     compactDrawnPages(
