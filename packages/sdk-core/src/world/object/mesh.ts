@@ -9,8 +9,9 @@ import type { PhysicsOption } from '../../physics/options.ts';
 export type Primitive =
   'triangles' | 'points' | 'lineStrip' | 'lineSegments' | 'lineLoop' | 'sprite';
 
-/** What a mesh in a world hears: a holder whose changes it is told of. */
-type Heard = { readonly _listeners: Set<() => void> };
+/** What a mesh in a world hears: a holder whose changes it is told of, when the holder tells any
+ *  (the engine's own surfaces tell nothing). */
+type Heard = { readonly _listeners?: Set<() => void> };
 
 /**
  * Shape and matter placed in the scene. Replacing either, or writing into either, reaches the
@@ -57,8 +58,8 @@ export class Mesh<M extends object = Material> extends Object3D {
     const heard = (this._heard ??= () => this.heard());
     const materials = Array.isArray(this._material) ? this._material : [this._material];
     for (const holder of [this._geometry, ...materials] as Heard[])
-      if (on) holder._listeners.add(heard);
-      else holder._listeners.delete(heard);
+      if (on) holder._listeners?.add(heard);
+      else holder._listeners?.delete(heard);
   }
   /** Only a mesh in a world is heard: out of one, nothing it holds keeps a reference to it. */
   protected override linked(inWorld: boolean) {

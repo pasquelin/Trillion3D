@@ -46,4 +46,17 @@ test('a mesh is heard by its geometry and materials only while it is in a world'
   assert.deepEqual([geometry._listeners.size, other._listeners.size], [0, 1], 'the new shape');
   scene.remove(mesh);
   assert.equal(other._listeners.size + material._listeners.size, 0, 'left the world: none');
+  scene.add(mesh);
+  scene.remove(mesh);
+  scene.add(mesh);
+  assert.deepEqual([other._listeners.size, material._listeners.size], [1, 1], 'relinked: once');
+});
+
+test('a mesh wearing matter that tells nothing enters and leaves a world', () => {
+  const scene = new Group(),
+    mesh = new Mesh<object>(new Geometry(), {});
+  scene._link = countingLink().link;
+  scene.add(mesh);
+  scene.remove(mesh);
+  assert.equal(mesh.geometry._listeners.size, 0);
 });
