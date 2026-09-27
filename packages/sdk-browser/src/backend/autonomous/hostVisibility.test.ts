@@ -103,7 +103,7 @@ test('a picture-only refresh releases the held image and walks no scene', async 
 test('the blended copy of a hidden node is not drawn, and is drawn again once shown', async () => {
   const glass = G.physicalSurface({ transmission: 1, thickness: 0.02, roughness: 0 });
   const { backend, camera, geometry, material, mesh, source } = triangleBackend({}, glass);
-  const scene = backend.scene as G.GraphScene;
+  const scene = backend.scene as G.Scene;
   const copy = scene.children.find((node) => node.userData.sourceMesh === mesh)!;
   try {
     await backend.prepare();

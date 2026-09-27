@@ -35,7 +35,7 @@
     "jumpTo": "Ir para um tema",
     "waitsFor": "Espera pelo motor:",
     "partial": "Parcial",
-    "coming": "Em breve: {{titles}}"
+    "coming": "Em breve"
   },
   "gallery": {
     "themes": {
@@ -74,6 +74,7 @@
       "a-tube-along-a-spline": "Um tubo ao longo de uma curva",
       "curved-surfaces": "Superfícies curvas",
       "instances-in-colour": "Instâncias coloridas",
+      "a-hundred-thousand-instances": "Cem mil instâncias",
       "copies-along-a-path": "Cópias ao longo de um caminho",
       "scattered-on-a-surface": "Espalhados sobre uma superfície",
       "a-world-of-blocks": "Um mundo de blocos",
@@ -187,6 +188,7 @@
       "red-cyan-anaglyph": "Anaglifo vermelho-ciano",
       "camera-layers": "Camadas de câmera",
       "a-robot-that-walks-and-waves": "Movimentos de robô misturados",
+      "a-crane-that-swings": "Um guindaste que balança a carga",
       "a-wave-across-a-grid": "Onda de cubos",
       "keyframes-by-hand": "Quadros-chave à mão",
       "one-clip-many-objects": "Um clipe, vários objetos",
@@ -228,6 +230,7 @@
       "what-hides-what": "O que esconde o quê",
       "create-and-dispose": "Criar e liberar",
       "no-hitch-on-first-draw": "Sem travada no primeiro quadro",
+      "inside-a-component": "Dentro de um componente",
       "inside-the-g-buffer": "Dentro do G-buffer",
       "reading-pixels-back": "Reler os pixels",
       "a-city-from-3d-tiles": "Uma cidade em 3D Tiles",
@@ -332,9 +335,11 @@
       "shadows-through-see-through-panes": "Sombras através de vidros",
       "a-walker-among-balls": "Um caminhante entre bolas",
       "a-dolly-along-the-canal": "Um travelling ao longo do canal",
-      "a-folder-merged-into-one-scene": "Uma pasta reunida numa cena"
+      "a-folder-merged-into-one-scene": "Uma pasta reunida numa cena",
+      "drag-a-crate": "Arrastar uma caixa"
     },
     "missing": {
+      "inside-a-component": "remoção do canvas criado pelo motor ao descartar o mundo",
       "floating-crates": "geometria reescrita a cada quadro",
       "thick-lines": "linhas largas",
       "a-line-that-draws-itself": "intervalo de desenho de uma geometria",
