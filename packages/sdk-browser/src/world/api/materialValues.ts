@@ -1,13 +1,17 @@
 /** The values of a scene material a page reads and sets, and how they cross a host surface
  *  (`materialApi.ts`). */
 import { EngineError, type Material } from '../../../../sdk-core/src/index.ts';
-import { alphaModeOf } from '../../../../sdk-core/src/contracts/material.ts';
+import { alphaModeOf, type AlphaMode } from '../../../../sdk-core/src/contracts/material.ts';
 import type { Color } from '../../../../sdk-core/src/world/math/color.ts';
 import type { GraphSurface } from '../../host/graph/surface.ts';
 import { materialTextures } from '../../scene/meshes.ts';
 import { sideOf } from '../../scene/materialSide.ts';
 import { importHostSurface } from '../../host/surfaceImport.ts';
 import { hostTextureWritten } from '../../host/textureImport.ts';
+import { alphaModeFields } from '../../host/prepared/materials.ts';
+
+/** The cutoff a material turned masked takes when the page names none: glTF's default. */
+const MASK_CUTOFF = 0.5;
 
 /** A material of the scene as a page reads it: the engine's parameters, the id it is set by — its
  *  rank in the cache's material table — its name, and how many times its maps repeat across and
@@ -73,9 +77,10 @@ export function validate(id: number, patch: SceneMaterialPatch) {
   vector('tiling', 2, (n) => Number.isFinite(n) && n !== 0);
 }
 
-/** Writes the patch into one surface in place and bumps its version: every reader takes it again
- *  at its next read, as a World's live edit does (`../core/worldSurface.ts`, #335). */
-export function write(surface: GraphSurface, patch: SceneMaterialPatch) {
+/** Writes the patch into one surface in place, drawn in alpha mode `mode` from now on, and bumps
+ *  its version: every reader takes it again at its next read, as a World's live edit does
+ *  (`../core/worldSurface.ts`, #335). */
+export function write(surface: GraphSurface, patch: SceneMaterialPatch, mode: AlphaMode) {
   if (patch.baseColor) (surface.color as Color).setRGB(...patch.baseColor);
   if (patch.opacity !== undefined) surface.opacity = patch.opacity;
   if (patch.metalness !== undefined && typeof surface.metalness === 'number')
@@ -86,9 +91,9 @@ export function write(surface: GraphSurface, patch: SceneMaterialPatch) {
     (surface.emissive as Color).setRGB(...patch.emissive);
     surface.emissiveIntensity = 1;
   }
-  // The cutoff of a masked surface only: written on another, it would move it into the masked class.
-  if (patch.alphaCutoff !== undefined && alphaModeOf(surface) === 'mask')
-    surface.alphaTest = patch.alphaCutoff;
+  // As the open draws a table entry: the cutoff kept, or the page's, or glTF's for a new cutout.
+  const cutoff = patch.alphaCutoff ?? (surface.alphaTest || MASK_CUTOFF);
+  Object.assign(surface, alphaModeFields(mode.toUpperCase() as Uppercase<AlphaMode>, cutoff));
   if (patch.tiling) {
     for (const texture of materialTextures(surface)) texture.repeat.set(...patch.tiling);
     // A placement is followed only once a write is announced: unsaid, no engine would see it.
