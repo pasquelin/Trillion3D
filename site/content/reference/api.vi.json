@@ -12,7 +12,7 @@
       "bindingOf": "Điều mà `tr` ghi, được giải quyết một lần; null khi đích của nó chưa nằm dưới gốc.",
       "play": "Bắt đầu phát.",
       "stop": "Dừng lại, và quay về điểm bắt đầu.",
-      "seek": "Đặt clip ngay tại `time` giây, theo chế độ lặp của nó, dù đang chạy hay không: hành động đang chạy tiếp tục từ đó, hành động đã dừng giữ nguyên tư thế.",
+      "seek": "Đặt clip ngay tại `time` giây, theo chế độ lặp của nó, dù đang chạy hay không: hành động đang chạy tiếp tục từ đó, hành động đã dừng giữ tư thế cho đến khi một hành động đang chạy của bộ trộn ghi đè lên.",
       "clipTime": "Vị trí của hành động trong clip, theo chế độ lặp của nó."
     }
   },
