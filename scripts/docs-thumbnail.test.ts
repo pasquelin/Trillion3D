@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { examplePlaceholder } from '../site/app/examples/list.ts';
+import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import type { Examples as ExamplesComponent } from '../site/app/examples/Examples.tsx';
+import { examplePlaceholder, exampleTitle, themedEntries } from '../site/app/examples/list.ts';
+import { dictionaryOf, LANGUAGES, loadDictionary } from '../site/content/i18n/dictionary.ts';
 import { loadReactComponents } from './docs/render-react.ts';
 
 test('a missing thumbnail falls back once and leaves a missing placeholder alone', async () => {
@@ -26,4 +30,21 @@ test('a missing thumbnail falls back once and leaves a missing placeholder alone
   onError({ currentTarget: image });
   assert.equal(source, examplePlaceholder);
   assert.equal(assignments, 1);
+});
+
+test("every language names each theme's unwritten examples in its coming line", async () => {
+  const { Examples } = (await loadReactComponents('site/app/examples/Examples.tsx')) as {
+    Examples: typeof ExamplesComponent;
+  };
+  await Promise.all(LANGUAGES.map(({ code }) => loadDictionary(code)));
+  for (const { code } of LANGUAGES) {
+    const page = renderToStaticMarkup(createElement(Examples, { locale: code }));
+    for (const { coming } of themedEntries) {
+      if (!coming.length) continue;
+      const titles = coming.map(({ id }) => exampleTitle(id, code)).join(' · ');
+      const line = dictionaryOf(code).examples.coming.replace('{{titles}}', titles);
+      const escaped = renderToStaticMarkup(createElement('span', null, line)).slice(6, -7);
+      assert.ok(page.includes(escaped), `${code}: ${line}`);
+    }
+  }
 });

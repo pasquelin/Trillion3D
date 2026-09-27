@@ -3,13 +3,7 @@ import type { Locale } from '../../content/locale.ts';
 import { entrySummary, SECTIONS } from '../../content/model.ts';
 import { REPORT_SECTIONS } from '../../reports/presentation.ts';
 import type { PortalEntry } from '../../content/model.ts';
-import {
-  examplePlaceholder,
-  exampleTitle,
-  themeTitle,
-  thumbnailOf,
-  writtenThemes,
-} from '../examples/list.ts';
+import { exampleTitle, themeTitle, thumbnailOf, writtenThemes } from '../examples/list.ts';
 import { expandEntryLinks } from '../portal/entryLinks.ts';
 import { entryRoute, LEARN_SECTIONS, routeHref } from '../portal/routes.ts';
 import type { PortalRoute } from '../portal/routes.ts';
@@ -98,7 +92,6 @@ export function examplesMenu(route: PortalRoute, query = ''): ExampleGroup[] {
         href: routeHref({ locale: route.locale, area: 'examples', id: entry.id }),
         active: entry.id === route.id,
         thumbnail: thumbnailOf(entry.id),
-        fallbackThumbnail: examplePlaceholder,
       })),
     }))
     .filter(({ items }) => items.length > 0);
