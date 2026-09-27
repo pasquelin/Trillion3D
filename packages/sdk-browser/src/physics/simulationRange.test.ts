@@ -41,7 +41,9 @@ test('createWorld takes the simulation range, and refuses one that is no distanc
   // Switched off at once: options turn the physics on, and no session is wanted here.
   const make = (simulationRange: number | null) => {
     const runtime = { invalidate() {}, explorer: null };
-    const world = createWorldPhysics(runtime, new Group(), () => new Camera(), { simulationRange });
+    const world = createWorldPhysics(runtime, new Group(), () => new Camera('perspective'), {
+      simulationRange,
+    });
     world.handle.enabled = false;
     return world;
   };
