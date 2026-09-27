@@ -330,7 +330,8 @@
       "shadows-case-by-case": "Las sombras, caso por caso",
       "shadows-through-see-through-panes": "Sombras a través de cristales",
       "a-walker-among-balls": "Un caminante entre pelotas",
-      "a-dolly-along-the-canal": "Un travelling por el canal"
+      "a-dolly-along-the-canal": "Un travelling por el canal",
+      "a-folder-merged-into-one-scene": "Una carpeta fusionada en una escena"
     },
     "missing": {
       "floating-crates": "geometría reescrita en cada fotograma",

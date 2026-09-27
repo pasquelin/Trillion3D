@@ -1710,11 +1710,18 @@
   },
   "the-home-pose": {
     "banner": "視点を選び、カメラを動かしてから、ホームを選んで戻ります。",
-    "controls": { "home": "ホーム", "tower": "塔", "square": "広場", "hillside": "丘" }
+    "controls": {
+      "home": "ホーム",
+      "tower": "塔",
+      "square": "広場",
+      "hillside": "丘"
+    }
   },
   "the-near-plane-cuts-a-wall": {
     "banner": "ニアクリップ面を前へ動かし、壁を順に切る様子を見ます。",
-    "controls": { "nearPlane": "ニアクリップ面" }
+    "controls": {
+      "nearPlane": "ニアクリップ面"
+    }
   },
   "the-material-family": {
     "banner": "ドラッグして歩き回ろう。光を夜にして、まだ光るものを見よう。",
@@ -2190,6 +2197,16 @@
     },
     "readouts": {
       "progress": "進行"
+    }
+  },
+  "a-folder-merged-into-one-scene": {
+    "banner": "ドラッグして街角を確認します。コンパイラーが1つのフォルダー内の3つのOBJファイルをこのシーンに統合しました。",
+    "controls": {
+      "visible": "表示",
+      "home": "ホーム"
+    },
+    "words": {
+      "credit": "W. Sitters による街灯のモデル、CC BY 3.0 — assets/examples/CREDITS.md を見てね"
     }
   }
 }

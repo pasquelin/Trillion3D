@@ -1710,11 +1710,18 @@
   },
   "the-home-pose": {
     "banner": "Elige una vista, mueve la cámara y luego elige Inicio para volver.",
-    "controls": { "home": "Inicio", "tower": "Torre", "square": "Plaza", "hillside": "Ladera" }
+    "controls": {
+      "home": "Inicio",
+      "tower": "Torre",
+      "square": "Plaza",
+      "hillside": "Ladera"
+    }
   },
   "the-near-plane-cuts-a-wall": {
     "banner": "Avanza el plano cercano y observa cómo corta cada pared.",
-    "controls": { "nearPlane": "Plano cercano" }
+    "controls": {
+      "nearPlane": "Plano cercano"
+    }
   },
   "the-material-family": {
     "banner": "Arrastra para dar la vuelta. Pon la luz de noche y mira qué sigue brillando.",
@@ -2190,6 +2197,16 @@
     },
     "readouts": {
       "progress": "Progreso"
+    }
+  },
+  "a-folder-merged-into-one-scene": {
+    "banner": "Arrastra para examinar la esquina. El compilador fusionó tres archivos OBJ de una carpeta en esta escena.",
+    "controls": {
+      "visible": "Visible",
+      "home": "Inicio"
+    },
+    "words": {
+      "credit": "Modelo de farola de W. Sitters, CC BY 3.0 — ver assets/examples/CREDITS.md"
     }
   }
 }
