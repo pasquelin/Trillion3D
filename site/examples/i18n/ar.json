@@ -2249,5 +2249,22 @@
       "color": "اللون",
       "thickness": "السماكة"
     }
+  },
+  "a-hundred-thousand-instances": {
+    "banner": "اسحب لتدور حول الحقل. غيّر العدد أو طريقة العرض.",
+    "controls": {
+      "count": "العدد",
+      "view": "العرض"
+    },
+    "readouts": {
+      "objectsShown": "المعروض",
+      "objectsBuilt": "المبني"
+    },
+    "choices": {
+      "view": {
+        "beauty": "الصورة النهائية",
+        "clusters": "العناقيد"
+      }
+    }
   }
 }

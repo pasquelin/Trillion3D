@@ -2249,5 +2249,22 @@
       "color": "Warna",
       "thickness": "Ketebalan"
     }
+  },
+  "a-hundred-thousand-instances": {
+    "banner": "Seret untuk mengitari bidang. Ubah jumlah atau tampilan.",
+    "controls": {
+      "count": "Jumlah",
+      "view": "Tampilan"
+    },
+    "readouts": {
+      "objectsShown": "Objek terlihat",
+      "objectsBuilt": "Objek dibuat"
+    },
+    "choices": {
+      "view": {
+        "beauty": "hasil akhir",
+        "clusters": "klaster"
+      }
+    }
   }
 }
