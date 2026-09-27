@@ -17,7 +17,7 @@ import type { WholeMesh } from '../../cluster/batchMesh.ts';
 
 type Centre = { x: number; y: number; z: number };
 /** What the cull reads of a scene copy: its declared culling, its surface, its local bounds,
- *  its world placement — and, drawn at several placements, the placements themselves. */
+ *  its world placement; the placements of an instanced one are read past `isInstancedNode`. */
 type CulledCopy = {
   frustumCulled: boolean;
   material: WholeMesh['material'];
@@ -28,8 +28,6 @@ type CulledCopy = {
     boundingSphere?: { center: Centre; radius: number } | null;
     computeBoundingSphere?(): void;
   };
-  readonly instanceMatrix?: { readonly array: ArrayLike<number>; readonly version?: number };
-  readonly count?: number;
 };
 /** A scene copy the owner draws: a host mesh drawn whole, culled as the host would. Its
  *  `material` is the HOST MESH's own field, not a page's `declaration`: a diagnostic mode
@@ -65,7 +63,7 @@ class WebglClusterCopyCulling {
   }
   /** The box around the union of the placements' spheres — the sphere the depth sorts on —
    *  never the geometry's box alone, which a placement carries elsewhere. */
-  private placementsBox(copy: CulledCopy) {
+  private placementsBox(copy: CulledCopy & Parameters<typeof placementsSphere>[0]) {
     const geometry = copy.geometry;
     if (!geometry.boundingSphere) geometry.computeBoundingSphere?.();
     const { centre: c, radius: r } = placementsSphere(copy, geometry.boundingSphere!);
