@@ -29,6 +29,7 @@ export function Examples({ locale }: { locale: Locale }) {
       title={t('nav.examples')}
       lead={t('examples.lead')}
       inlineActions
+      stickyHeader
       actions={
         <JumpTo
           aria-label={t('examples.jumpTo')}
