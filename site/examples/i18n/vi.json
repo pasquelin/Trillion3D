@@ -502,7 +502,11 @@
   },
   "a-crane-that-swings": {
     "banner": "Xoay quanh cần cẩu khi một clip quay cần, di chuyển xe con, nâng tải và làm tải đung đưa.",
-    "controls": { "speed": "Tốc độ", "paused": "Tạm dừng", "replay": "Phát lại" }
+    "controls": {
+      "speed": "Tốc độ",
+      "paused": "Tạm dừng",
+      "replay": "Phát lại"
+    }
   },
   "a-wave-across-a-grid": {
     "banner": "Kéo để nhìn quanh. Làm con sóng khối lập phương cao hơn hoặc nhanh hơn.",
@@ -1272,7 +1276,11 @@
       "home": "Về điểm đầu"
     },
     "choices": {
-      "view": { "beauty": "ảnh hoàn chỉnh", "lod": "mức chi tiết", "clusters": "cụm" }
+      "view": {
+        "beauty": "ảnh hoàn chỉnh",
+        "lod": "mức chi tiết",
+        "clusters": "cụm"
+      }
     },
     "words": {
       "credit": "Đại lộ bình được làm bằng mã cho ví dụ này, CC0 — xem assets/examples/CREDITS.md"
@@ -2226,6 +2234,13 @@
     },
     "words": {
       "credit": "Mô hình đèn đường của W. Sitters, CC BY 3.0 — xem assets/examples/CREDITS.md"
+    }
+  },
+  "drag-a-crate": {
+    "banner": "Kéo thùng hàng trên sàn. Bật căn lưới để đặt theo bước nửa mét.",
+    "controls": {
+      "snap": "Căn lưới",
+      "home": "Ban đầu"
     }
   }
 }

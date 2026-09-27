@@ -333,7 +333,8 @@
       "shadows-through-see-through-panes": "Тени сквозь прозрачные стёкла",
       "a-walker-among-balls": "Ходок среди мячей",
       "a-dolly-along-the-canal": "Проезд камеры вдоль канала",
-      "a-folder-merged-into-one-scene": "Папка, объединённая в одну сцену"
+      "a-folder-merged-into-one-scene": "Папка, объединённая в одну сцену",
+      "drag-a-crate": "Перетащить ящик"
     },
     "missing": {
       "floating-crates": "геометрия, перезаписываемая в каждом кадре",
