@@ -89,15 +89,8 @@ export function validate(id: number | string, patch: SceneMaterialPatch) {
   vector('tiling', 2, (n) => Number.isFinite(n) && n !== 0);
 }
 
-/** The host surface of a created material: what the page named, glTF's default elsewhere, drawn
- *  as a repainted primitive is (`hostPageSurface`). */
-export function createdSurface(props: CreatedMaterial) {
-  const values = { ...CREATED_DEFAULTS, alphaCutoff: MASK_CUTOFF, ...props };
-  const surface = hostPageSurface(values, false) as unknown as GraphSurface;
-  if (props.name) surface.name = props.name;
-  return surface;
-}
-
+/** A created material where the page names nothing: glTF's material defaults, metal 1 among
+ *  them (a host surface's own default, `metalRough`, is 0). */
 const CREATED_DEFAULTS = {
   baseColor: [1, 1, 1],
   opacity: 1,
@@ -106,7 +99,17 @@ const CREATED_DEFAULTS = {
   emissive: [0, 0, 0],
   side: 'front',
   alphaMode: 'opaque',
+  alphaCutoff: MASK_CUTOFF,
 } as const;
+
+/** The host surface of a created material: what the page named, glTF's default elsewhere, drawn
+ *  as a repainted primitive is (`hostPageSurface`). */
+export function createdSurface(props: CreatedMaterial) {
+  const values = { ...CREATED_DEFAULTS, ...props };
+  const surface = hostPageSurface(values, false) as unknown as GraphSurface;
+  if (props.name) surface.name = props.name;
+  return surface;
+}
 
 /** Writes the patch into one surface in place — drawn in alpha mode `mode` from now on when its
  *  alpha moved — and bumps its version: every reader takes it again at its next read, as a World's

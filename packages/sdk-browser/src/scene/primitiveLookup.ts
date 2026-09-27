@@ -13,10 +13,22 @@ export function primitiveFinder(primitives: readonly Primitive[]) {
     if (!byPrimitive) byMesh.set(item.mesh, (byPrimitive = new Map()));
     if (!byPrimitive.has(item.primitive)) byPrimitive.set(item.primitive, item);
   }
-  return (association: { meshes?: number; primitives?: number } | undefined) => {
-    const mesh = association?.meshes,
-      primitive = association?.primitives ?? 0;
-    if (Number.isNaN(mesh) || Number.isNaN(primitive)) return undefined;
-    return byMesh.get(mesh)?.get(primitive);
+  return (association: Association | undefined) => {
+    const key = keyOf(association);
+    return key && byMesh.get(key[0])?.get(key[1]);
   };
 }
+
+type Association = { meshes?: number; primitives?: number };
+/** The manifest mesh and primitive an association names; none for a NaN key, like `===`. */
+function keyOf(association: Association | undefined) {
+  const mesh = association?.meshes,
+    primitive = association?.primitives ?? 0;
+  return Number.isNaN(mesh) || Number.isNaN(primitive) ? undefined : ([mesh, primitive] as const);
+}
+
+/** The name a page gives the primitive a mesh draws, `mesh/primitive` as in a cluster id. */
+export const primitiveName = (association: Association | undefined) => {
+  const key = keyOf(association);
+  return key && key[0] !== undefined ? key.join('/') : undefined;
+};
