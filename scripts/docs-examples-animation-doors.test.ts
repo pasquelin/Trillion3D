@@ -47,7 +47,6 @@ test('door clip follows camera proximity once and manual control takes over', as
   let values = {} as Values;
   await runExampleModule(html, {
     engine: {
-      advanceMixers,
       animation,
       createWorld: () => world,
       geometry,
@@ -70,7 +69,7 @@ test('door clip follows camera proximity once and manual control takes over', as
     right = scene.getObjectByName('rightDoor');
   assert.ok(left && right);
   assert.equal(left.position.x, -right.position.x);
-  assert.equal(left.children[0]?.position.x, -right.children[0]!.position.x);
+  assert.equal(left.children[0]!.position.x, -right.children[0]!.position.x);
 
   camera.position.set(0, 1.7, 10);
   frame();
