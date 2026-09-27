@@ -128,7 +128,7 @@ bool runCommands(const uint32_t *w, uint32_t count) {
       continue;
     }
     if (op == VIEW) {
-      world.view = {vec3(w + 1), vec3(w + 4).NormalizedOr(Vec3(0, 0, -1)), f32(w + 7), f32(w + 8)};
+      setView({vec3(w + 1), vec3(w + 4).NormalizedOr(Vec3(0, 0, -1)), f32(w + 7), f32(w + 8)});
       w += 9;
       continue;
     }
