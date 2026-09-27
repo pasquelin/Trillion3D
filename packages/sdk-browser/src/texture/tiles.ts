@@ -34,6 +34,8 @@ const TILES_PER_ROW = 30;
 export const POOL_LAYER_SIDE = 2 ** Math.ceil(Math.log2(TILES_PER_ROW * TILE_PITCH));
 /** The finest grid f32's 24-bit significand holds at every place of a layer. */
 export const POOL_SUBTEXEL = 2 ** 24 / POOL_LAYER_SIDE;
+/** One step of that grid in pool coordinates: 2^-24. */
+export const POOL_STEP = 1 / (POOL_SUBTEXEL * POOL_LAYER_SIDE);
 export const TILES_PER_LAYER = TILES_PER_ROW * TILES_PER_ROW;
 /** Bytes of a tile and of a layer, for a pool whose texel costs `texelBytes` — four in RGBA8,
  *  one in a block format: memory follows the format, the tile geometry does not. */
