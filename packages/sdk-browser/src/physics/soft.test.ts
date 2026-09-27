@@ -4,8 +4,7 @@ import { plane, sphere } from '../../../sdk-core/src/world/geometry/basic.ts';
 import { softBodyOf, type SoftBodyOptions } from '../../../sdk-core/src/physics/index.ts';
 import { softSettings } from '../../../sdk-core/src/physics/soft.ts';
 import type { Geometry } from '../../../sdk-core/src/world/geometry/geometry.ts';
-import { addSoft, at, FLAT, ropeLine, settle, softWorld } from './soft.fixture.ts';
-import { WRITEBACK_BOUND } from './softWriteback.fixture.ts';
+import { addSoft, at, FLAT, ropeLine, settle, softWorld, WRITEBACK_BOUND } from './soft.fixture.ts';
 
 /** A cloth of 1 m, 10 × 10 squares, and its rows of 11 vertices from `y = −0.5`. */
 const cloth = () => plane(1, 1, 10, 10);
