@@ -40,5 +40,8 @@ test('a blended wearer is cut on the finest page grid, an opaque one keeps its g
   // Its texture coordinates too, a unit wide: 2^-23 where the format keeps 2^-14.
   assert.equal(grid(opaque).uvExponent, -14);
   assert.equal(grid(blended).uvExponent, -23);
+  // Added light blends whatever `transparent` says: the same finest grids.
+  const added = await cuts.of(object.mesh(sphere, material.meshBasic({ blending: 'additive' })));
+  assert.equal(grid(added).positionExponent, 1 - 23);
   cuts.dispose();
 });

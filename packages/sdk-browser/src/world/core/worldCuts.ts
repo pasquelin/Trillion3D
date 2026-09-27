@@ -9,6 +9,7 @@ import { Sprite } from '../../../../sdk-core/src/world/object/sprite.ts';
 import { sha256Hex } from '../../measurement/sha256Hex.ts';
 import { cutRuntimePrimitive, type RuntimePrimitive } from '../page/runtimePrimitive.ts';
 import { packDrawn } from '../page/runtimeCut.ts';
+import { composesWithBackground } from '../../scene/materialBlending.ts';
 
 /**
  * A geometry resource: triangles cut into pages once, whatever number of geometry objects carry
@@ -44,7 +45,9 @@ function readingOf(mesh: Mesh) {
     dashed: material.kind === 'lineDashed',
     center: center ? ([center.x, center.y] as const) : undefined,
   };
-  const blended = material.transparent === true;
+  // Drawn blended as its surface is (`worldSurface.ts`): a mode that composes with the background
+  // blends whatever `transparent` says.
+  const blended = material.transparent === true || composesWithBackground(material.blending);
   const key = [mesh.primitive, blended, ...Object.values(options)].join('|');
   return { key, options, blended };
 }
