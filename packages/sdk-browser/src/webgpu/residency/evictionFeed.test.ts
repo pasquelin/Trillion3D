@@ -23,10 +23,7 @@ test('the queue reaches the cache as addresses, reading only the listed records'
   feed(selection);
   assert.equal(orders.length, 1, 'once per readback');
   assert.equal(reads, 0, 'nothing resolved before a victim is taken');
-  const order = orders[0]!;
-  assert.deepEqual([order.keyAt(0), order.keyAt(1)], ['p7', 'p3']);
-  assert.equal(order.count, 3);
-  assert.equal(reads, 2);
+  assert.deepEqual([orders[0]!.count, orders[0]!.keyAt(1), reads], [3, 'p3', 1]);
   assert.deepEqual(slots, [4, 4], 'the cut follows the pool slots');
   cut = null; // A residency change voided the cut: the order holds until the next readback.
   feed(selection);

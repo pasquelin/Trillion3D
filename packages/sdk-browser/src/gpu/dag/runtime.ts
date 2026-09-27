@@ -56,7 +56,7 @@ export function createDagRuntime(resources: DagResources): GpuSelection {
   // The cut rule's residency, derived from the pool's and uploaded by difference.
   const uploadResidency = residentCut ? createDagResidencyUpload(resources) : undefined;
   const dispatch = createDagDispatch(resources, state, fail);
-  const poolList = residentCut ? createDagPoolList(resources) : undefined;
+  const poolList = residentCut ? createDagPoolList(device, packed, resources.pageCones) : undefined;
   /** The next dispatch cuts and reads back again, the eviction queue with it: the cut in hand stays. */
   const recut = () => (state.submittedResidencyRevision = state.readbackResidencyRevision = -1);
   /** Writes word `slot` of primitive `w`'s frame words, one word up. The cut in hand holds pages
@@ -71,7 +71,7 @@ export function createDagRuntime(resources: DagResources): GpuSelection {
   const selection: GpuSelection = {
     residentCut,
     get hostBytes() {
-      return (uploadResidency?.hostBytes ?? 0) + (poolList?.hostBytes ?? 0);
+      return (uploadResidency?.hostBytes ?? 0) + (poolList?.entries.byteLength ?? 0);
     },
     maskBuffer: flags,
     maskOffset: nodeCount,
@@ -130,7 +130,7 @@ export function createDagRuntime(resources: DagResources): GpuSelection {
       recut();
     },
     notePool(page, held) {
-      if (!state.disposed && !state.dead && poolList?.(page, held)) recut();
+      if (!state.disposed && !state.dead && poolList?.note(page, held)) recut();
     },
     dispatch,
     peek() {
