@@ -1685,10 +1685,7 @@
   },
   "the-home-pose": {
     "banner": "Choose a view, move the camera, then choose Home to return.",
-    "controls": { "view": "View" },
-    "choices": {
-      "view": { "home": "Home", "tower": "Tower", "square": "Square", "hillside": "Hillside" }
-    }
+    "controls": { "home": "Home", "tower": "Tower", "square": "Square", "hillside": "Hillside" }
   },
   "the-near-plane-cuts-a-wall": {
     "banner": "Move the near plane forward and watch it cut through each wall.",

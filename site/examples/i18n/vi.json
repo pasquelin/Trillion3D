@@ -1685,14 +1685,11 @@
   },
   "the-home-pose": {
     "banner": "Chọn một góc nhìn, di chuyển camera, rồi chọn Ban đầu để quay lại.",
-    "controls": { "view": "Góc nhìn" },
-    "choices": {
-      "view": {
-        "home": "Ban đầu",
-        "tower": "Tháp",
-        "square": "Quảng trường",
-        "hillside": "Sườn đồi"
-      }
+    "controls": {
+      "home": "Ban đầu",
+      "tower": "Tháp",
+      "square": "Quảng trường",
+      "hillside": "Sườn đồi"
     }
   },
   "the-near-plane-cuts-a-wall": {

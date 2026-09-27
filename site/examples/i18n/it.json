@@ -1685,10 +1685,7 @@
   },
   "the-home-pose": {
     "banner": "Scegli una vista, muovi la camera, poi scegli Inizio per tornare.",
-    "controls": { "view": "Vista" },
-    "choices": {
-      "view": { "home": "Inizio", "tower": "Torre", "square": "Piazza", "hillside": "Collina" }
-    }
+    "controls": { "home": "Inizio", "tower": "Torre", "square": "Piazza", "hillside": "Collina" }
   },
   "the-near-plane-cuts-a-wall": {
     "banner": "Avanza il piano vicino e guardalo tagliare ogni muro.",
