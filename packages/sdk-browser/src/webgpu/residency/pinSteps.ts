@@ -7,9 +7,9 @@ import type { WebgpuResidencySets } from './sets.ts';
 
 /**
  * The two pin steps, one per cut: the CPU cut's pins by last use (`pinUpdater.ts`), the GPU cut's
- * what it admitted (`requestPins.ts`, #836). The queue says when one takes over from the other
- * (`queue.ts`): the GPU cut's then sets the pins to its queue once, and the CPU cut's starts
- * afresh, every kept key joining (`pinFeed.ts`).
+ * what the image holds (`requestPins.ts`, #836). The queue says when one takes over from the other
+ * (`queue.ts`): the GPU cut's then sets the pins to what the image holds once, and the CPU
+ * cut's starts afresh, every kept key joining (`sets.ts`, `decideBy`).
  */
 export function createWebgpuPinSteps(
   rt: WebgpuPagesCore,

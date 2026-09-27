@@ -2,6 +2,9 @@ import type { PageRec } from '../../page/selection/selection.ts';
 import type { GroupClosure } from '../../page/cut/groupClosure.ts';
 import { createSparseInts, grown } from '../../page/cut/sparseInts.ts';
 import type { WebgpuResidencySets } from './sets.ts';
+import type { createWebgpuPageTracking } from '../row/pageTracking.ts';
+
+type Tracking = ReturnType<typeof createWebgpuPageTracking>;
 
 /** What admission reads of a GPU cut: its requests, sorted by the GPU (`../../gpu/dag/request.ts`). */
 type Requests = { readonly result: { readonly pageIds: ArrayLike<number> } };
@@ -24,7 +27,7 @@ type Requests = { readonly result: { readonly pageIds: ArrayLike<number> } };
  */
 export function createRequestAdmission(
   sets: WebgpuResidencySets,
-  keyOf: (page: PageRec) => number,
+  { keyOf, keep, wanted }: Pick<Tracking, 'keyOf' | 'keep' | 'wanted'>,
   bootstrapKey: Uint8Array,
   closure: Pick<GroupClosure, 'closeOver'>,
 ) {
@@ -36,20 +39,23 @@ export function createRequestAdmission(
     /** Pages listed before the request being walked: where a closure that overruns is cut back. */
     whole = 0,
     room = 0,
+    /** `room` and the held pages the walk listed: a page already held takes no new slot. */
+    limit = 0,
     last: Requests | null = null,
     lastRevision = -1;
   const list = (_id: number, rec: PageRec) => {
     const key = keyOf(rec);
     if (bootstrapKey[key] || listed.set(key, 1)) return;
+    if (keep.has(key) && !wanted.has(key)) limit++;
     if (count === keys.length) keys = grown(keys, count + 1, count);
     keys[count] = key;
     pages[count++] = rec;
   };
   /** Read before each request: the walk stops once the last closure overran, or the room is full. */
   const full = () => {
-    if (count > room) return true;
+    if (count > limit) return true;
     whole = count;
-    return count === room;
+    return count === limit;
   };
   return (pool: number, cut: Requests | null) => {
     // What the image draws outside the queue holds its slots (`requestPins.ts`): the queue has the
@@ -59,11 +65,11 @@ export function createRequestAdmission(
     // Before the first readback, the queue the image started with stands.
     if (!cut) return;
     if (cut === last && slots === room && sets.acceptedRevision === lastRevision) return;
-    room = slots;
+    room = limit = slots;
     count = whole = 0;
     listed.clear();
     closure.closeOver(cut.result.pageIds, list, full);
-    if (count > room) count = whole;
+    if (count > limit) count = whole;
     pages.length = count;
     sets.admit(keys, pages, count);
     last = cut;
