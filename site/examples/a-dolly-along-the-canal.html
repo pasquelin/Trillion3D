@@ -74,7 +74,7 @@
       for (const z of [15, -22]) {
         put(geometry.box(13, 0.65, 2.8), stone, [0, 3.1, z]);
         for (const x of [-5.2, 5.2]) put(pierShape, stone, [x, 1.45, z]);
-        for (const x of [-4, -2, 0, 2, 4]) put(railShape, iron, [x, 3.85, z]);
+        for (const x of [-4, -2, 2, 4]) put(railShape, iron, [x, 3.85, z]);
       }
       world.scene.add(
         light.hemisphere({ color: '#d9efff', groundColor: '#5b5548', intensity: 1.5 }),
@@ -100,6 +100,7 @@
           if (key === 'paused') next.paused ? (action.playingNow = false) : action.play();
           world.invalidate();
         },
+        world,
       );
       const progress = readout('progress');
       function replay() {
