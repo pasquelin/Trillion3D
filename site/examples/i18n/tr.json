@@ -571,6 +571,17 @@
       "bricks": "Tuğlalar"
     }
   },
+  "measure-a-distance": {
+    "banner": "Aralarındaki mesafeyi ölçmek için iki yüzeye tıklayın. Üçüncü tıklama yeni bir ölçüm başlatır. Bir birim bir metreyi temsil eder.",
+    "controls": {
+      "clear": "Temizle"
+    },
+    "readouts": {
+      "pointA": "A noktası",
+      "pointB": "B noktası",
+      "distance": "Mesafe"
+    }
+  },
   "click-to-pick": {
     "banner": "Bir şekle tıkla. Işıldar ve panel nereye dokunduğunu söyler.",
     "readouts": {
