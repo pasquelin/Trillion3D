@@ -1,25 +1,33 @@
 // Public exact-pages proof: the scene copies — one transmissive, one blended — compose over the
 // autonomous clusters on the host canvas and on a comparison target alike, through the same
-// draw owner, and no mesh ever enters the host scene. A scene the owner cannot draw in full is
-// refused by name.
+// draw owner, and no mesh ever enters the host scene. A physical feature WebGL2 cannot draw is
+// no refusal: the surface is drawn without it and the world says so once, by name.
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
-import { EngineError } from '../../../packages/sdk-core/src/index.ts';
+import type { HostCamera } from '../../../packages/sdk-browser/src/camera/world.ts';
 import { pixel } from './webglClusterPixels.ts';
 import { mountExplorerProof } from './webglClusterExplorerMount.ts';
 import { transmissionCamera, transmissionScene } from './webglClusterTransmissionScene.ts';
+import { listenMaterialDegraded } from './materialDegradedNotices.ts';
+
+type ExplorerProof = NonNullable<ReturnType<typeof mountExplorerProof>>;
 
 const anyMesh = (object: G.Object3D) => object instanceof G.Mesh;
-/** The owner refuses a scene it cannot draw by throwing `EngineError`; anything else stays
- *  code- and reason-less, since the proof only names what the engine itself declared. */
-const errorOf = (error: unknown) => ({
-  code: error instanceof EngineError ? error.code : null,
-  reason: error instanceof EngineError ? (error.details.reason ?? null) : null,
-});
+/** Two frames of `mounted` on its canvas: a refusal throws, and the proof reports it. */
+const twoFrames = (mounted: ExplorerProof, camera: HostCamera) => {
+  for (let frame = 0; frame < 2; frame++) {
+    mounted.backend.render(camera);
+    mounted.draw(mounted.backend, null);
+  }
+};
 
 export async function execute() {
-  const scene = transmissionScene(),
+  const scene = transmissionScene({ name: 'glass' }),
     camera = transmissionCamera(),
-    mounted = mountExplorerProof(scene, camera, anyMesh, { clearColor: 0x0000ff });
+    mutationNotices = listenMaterialDegraded(),
+    mounted = mountExplorerProof(scene, camera, anyMesh, {
+      clearColor: 0x0000ff,
+      materialDegraded: mutationNotices.hear,
+    });
   if (!mounted) return { unavailable: 'WebGL2 unavailable' };
   const { gl, backend, draw, target } = mounted;
   await backend.prepare();
@@ -45,39 +53,34 @@ export async function execute() {
     drawCalls: backend.metrics().drawCalls,
   };
   backend.setDiagnostic('beauty');
-  // A mutation the program cannot preserve is refused by name on the next frame, no image drawn.
-  (scene.copy.material as G.GraphSurface).clearcoat = 0.5;
-  let mutationRefusal = null;
-  try {
-    backend.render(camera);
-    draw(backend, null);
-  } catch (error) {
-    mutationRefusal = errorOf(error);
-  }
+  // A clearcoat set after the preparation, declared by `needsUpdate` as every change is, is drawn
+  // without on the next frame and said once by name.
+  const glass = scene.copy.material as G.GraphSurface;
+  glass.clearcoat = 0.5;
+  glass.needsUpdate = true;
+  twoFrames(mounted, camera);
+  const mutationPixel = pixel(gl, 32, 32),
+    mutationNotice = await mutationNotices.said();
   const meshesInHostPass = mounted.countedInHostPass,
     hostCalls = mounted.calls.length;
   mounted.dispose();
   scene.dispose();
 
-  // A physical extension beyond the transmission volume fails the preparation and every draw.
-  const refusedScene = transmissionScene({ sheen: 1 }),
-    refused = mountExplorerProof(refusedScene, camera, anyMesh, { clearColor: 0x0000ff });
-  if (!refused) return { unavailable: 'WebGL2 unavailable' };
-  let refusal = null,
-    drawRefusal = null;
-  try {
-    await refused.backend.prepare();
-  } catch (error) {
-    refusal = errorOf(error);
-  }
-  try {
-    refused.backend.render(camera);
-    refused.draw(refused.backend, null);
-  } catch (error) {
-    drawRefusal = errorOf(error);
-  }
-  refused.dispose();
-  refusedScene.dispose();
+  // A physical extension beyond the transmission volume is prepared and drawn without, from the
+  // first frame, and said once.
+  const sheenScene = transmissionScene({ name: 'sheen glass', sheen: 1 }),
+    sheenNotices = listenMaterialDegraded(),
+    sheen = mountExplorerProof(sheenScene, camera, anyMesh, {
+      clearColor: 0x0000ff,
+      materialDegraded: sheenNotices.hear,
+    });
+  if (!sheen) return { unavailable: 'WebGL2 unavailable' };
+  await sheen.backend.prepare();
+  twoFrames(sheen, camera);
+  const sheenPixel = pixel(sheen.gl, 32, 32),
+    sheenNotice = await sheenNotices.said();
+  sheen.dispose();
+  sheenScene.dispose();
   return {
     canvasPixel,
     blendedPixel,
@@ -92,8 +95,9 @@ export async function execute() {
     meshesInHostPass,
     hostCalls,
     wireframe,
-    mutationRefusal,
-    refusal,
-    drawRefusal,
+    mutationPixel,
+    mutationNotice,
+    sheenPixel,
+    sheenNotice,
   };
 }

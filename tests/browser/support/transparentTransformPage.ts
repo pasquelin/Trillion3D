@@ -27,7 +27,7 @@ function cisaillement(x: number, facteur: number) {
 function releve(
   name: string,
   backend: RenderBackend,
-  camera: G.GraphCamera,
+  camera: G.Camera,
   pixels: Uint8Array,
   metriques: ReturnType<RenderBackend['metrics']>,
   sondes: [number, number][],

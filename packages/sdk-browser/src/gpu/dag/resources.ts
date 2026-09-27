@@ -63,10 +63,11 @@ export async function createDagResources(
       size: DAG_UNIFORM_BYTES,
       usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
     });
-    // Descent queue 0, then draw flags, then the cone rejection kept by `dagWanted` for the four
-    // passes that reread it, then the live-cluster list, then the candidate list — which also
-    // serves as the previous frame's drawn journal —, then the remaining queues, then each page's
-    // last use (`shader/lastUseWgsl.ts`): never read by the CPU, which still only copies draw flags.
+    // Descent queue 0, then draw flags, then the cone word `dagWanted` keeps for `dagMask` (the
+    // cone verdict and the cut rule's two comparisons), then the live-cluster list, then the
+    // candidate list — which also serves as the previous frame's drawn journal —, then the
+    // remaining queues, then each page's last use (`shader/lastUseWgsl.ts`): never read by the
+    // CPU, which still only copies draw flags.
     const flags = device.createBuffer({
       label: 'Trillion3D DAG flags',
       size: Math.max(16, dagFlagsWords(nodeCount, pageCount) * 4),

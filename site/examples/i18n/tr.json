@@ -518,6 +518,14 @@
       "complete": "Tamamlandı"
     }
   },
+  "a-crane-that-swings": {
+    "banner": "Tek bir klip bomu döndürürken, arabayı hareket ettirirken, yükü kaldırıp sallarken vincin etrafında dönün.",
+    "controls": {
+      "speed": "Hız",
+      "paused": "Duraklatıldı",
+      "replay": "Yeniden oynat"
+    }
+  },
   "a-wave-across-a-grid": {
     "banner": "Etrafa bakmak için sürükle. Küp dalgasını daha yüksek ya da hızlı yap.",
     "controls": {
@@ -1277,6 +1285,25 @@
       }
     }
   },
+  "a-walk-through-the-city": {
+    "banner": "Görünüme tıklayın, W A S D ile yürüyün ve fareyle bakın. İlerlerken bellek bütçesini azaltın.",
+    "controls": {
+      "walkSpeed": "Yürüme hızı",
+      "memory": "Bellek",
+      "view": "Görünüm",
+      "home": "Başa dön"
+    },
+    "choices": {
+      "view": {
+        "beauty": "görüntü",
+        "lod": "ayrıntı düzeyleri",
+        "clusters": "kümeler"
+      }
+    },
+    "words": {
+      "credit": "Bu örnek için kodla modellenmiş vazolar caddesi, CC0 — bkz. assets/examples/CREDITS.md"
+    }
+  },
   "migrating-from-three": {
     "words": {
       "credit": "Marble Bust 01: Rico Cilliers, Poly Haven, CC0; sandık: W. Sitters, CC BY 3.0 — bkz. assets/examples/CREDITS.md"
@@ -1728,11 +1755,18 @@
   },
   "the-home-pose": {
     "banner": "Bir görünüm seçin, kamerayı hareket ettirin, sonra dönmek için Başlangıç'ı seçin.",
-    "controls": { "home": "Başlangıç", "tower": "Kule", "square": "Meydan", "hillside": "Yamaç" }
+    "controls": {
+      "home": "Başlangıç",
+      "tower": "Kule",
+      "square": "Meydan",
+      "hillside": "Yamaç"
+    }
   },
   "the-near-plane-cuts-a-wall": {
     "banner": "Yakın düzlemi ilerletin ve her duvarı kesmesini izleyin.",
-    "controls": { "nearPlane": "Yakın düzlem" }
+    "controls": {
+      "nearPlane": "Yakın düzlem"
+    }
   },
   "the-material-family": {
     "banner": "Etrafta dolaşmak için sürükle. Işığı geceye çevir ve hâlâ neyin parladığını gör.",
@@ -2197,6 +2231,66 @@
     },
     "words": {
       "credit": "Direkteki bayrak bu örnek için kodla modellendi, CC0 — bkz. assets/examples/CREDITS.md"
+    }
+  },
+  "a-dolly-along-the-canal": {
+    "banner": "Kamera kanal boyunca ilerlerken hareketi duraklatın, baştan oynatın veya hızını değiştirin.",
+    "controls": {
+      "paused": "Duraklatıldı",
+      "replay": "Baştan oynat",
+      "speed": "Hız"
+    },
+    "readouts": {
+      "progress": "İlerleme"
+    }
+  },
+  "a-folder-merged-into-one-scene": {
+    "banner": "Sokak köşesini incelemek için sürükleyin. Derleyici bir klasördeki üç OBJ dosyasını bu sahnede birleştirdi.",
+    "controls": {
+      "visible": "Görünür",
+      "home": "Başlangıç"
+    },
+    "words": {
+      "credit": "Sokak lambası modeli: W. Sitters, CC BY 3.0 — bkz. assets/examples/CREDITS.md"
+    }
+  },
+  "drag-a-crate": {
+    "banner": "Sandığı zeminde sürükleyin. Yarım metrelik adımlarla yerleştirmek için ızgarayı açın.",
+    "controls": {
+      "snap": "Izgara",
+      "home": "Başlangıç"
+    }
+  },
+  "outline-the-selection": {
+    "banner": "Seçmek için bir şekle tıklayın. Seçimi temizlemek için zemine tıklayın.",
+    "controls": {
+      "color": "Renk",
+      "thickness": "Kalınlık"
+    }
+  },
+  "a-hundred-thousand-instances": {
+    "banner": "Alanı çevrelemek için sürükleyin. Sayıyı veya görünümü değiştirin.",
+    "controls": {
+      "count": "Sayı",
+      "view": "Görünüm"
+    },
+    "readouts": {
+      "objectsShown": "Gösterilen nesneler",
+      "objectsBuilt": "Oluşturulan nesneler"
+    },
+    "choices": {
+      "view": {
+        "beauty": "görüntü",
+        "clusters": "kümeler"
+      }
+    }
+  },
+  "inside-a-component": {
+    "banner": "Görüntüleyiciyi bağlayın veya ayırın. Her bağlantı bir dünyaya sahip olur ve her ayırma onu yok eder.",
+    "controls": {
+      "mount": "Bağla",
+      "unmount": "Ayır",
+      "remount": "Yeniden bağla"
     }
   }
 }

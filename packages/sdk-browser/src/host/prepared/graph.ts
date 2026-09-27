@@ -17,12 +17,12 @@ import { numbered } from '../graph/serial.ts';
 import type { PreparedSceneTables } from '../../../../sdk-core/src/scene/core/tableContracts.ts';
 import type { TableDocument } from '../../../../sdk-core/src/scene/core/tableDocuments.ts';
 import { camera, light, pose, uniqueNames, weigh } from './nodes.ts';
-import type { SurfaceVariant } from './materials.ts';
+import { surfaceVariantOf, type SurfaceVariant } from './materials.ts';
 import type { GraphSurface } from '../graph/surface.ts';
 import { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts';
 import { isDrawnNode } from '../graph/kinds.ts';
 import { Group, Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
-import { type GraphCamera } from '../graph/camera.ts';
+import type { Camera } from '../../../../sdk-core/src/world/camera/camera.ts';
 import { type GraphLight } from '../graph/light.ts';
 import { placedMeshes } from './placed.ts';
 import type { RowLink } from '../../scene/partition/rows.ts';
@@ -72,7 +72,7 @@ export async function preparedGraph({ tables, meshes, geometryOf, materialOf }: 
   };
   // Names first, depth first: node, then its camera, then its light; each camera and each light
   // is built at its first use.
-  const cameras = new Map<number, GraphCamera>();
+  const cameras = new Map<number, Camera>();
   const lights = new Map<number, GraphLight>();
   const nodeNames = new Map<number, string>();
   const order: number[] = [];
@@ -108,10 +108,7 @@ export async function preparedGraph({ tables, meshes, geometryOf, materialOf }: 
   const drawn = order.map((rank) =>
     meshes[rank].primitives.map((primitive, p) => {
       const geometry = geometryOf(rank, p);
-      const variant = {
-        vertexColors: geometry.attributes.color !== undefined,
-        flatShading: geometry.attributes.normal === undefined,
-      };
+      const variant = surfaceVariantOf(geometry.attributes);
       return { geometry, material: materialOf(primitive.material, variant) };
     }),
   );

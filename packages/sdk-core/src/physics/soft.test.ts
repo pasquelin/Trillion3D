@@ -132,7 +132,7 @@ test('a cooked SOFT carries no vertex nor corner: its settings bytes, padded to 
   assert.equal(new Float32Array(words.buffer)[18], 7, 'the pressure word');
   assert.deepEqual([words[19], words[20], words[21]], [0, 0, 5]);
   assert.equal(words.length, SOFT_WORDS + 2);
-  assert.deepEqual([...new Uint8Array(words.buffer, SOFT_WORDS * 4)], [1, 2, 3, 4, 5, 0, 0, 0]);
+  assert.deepEqual([...new Uint8Array(words.buffer, SOFT_WORDS * 4, 8)], [1, 2, 3, 4, 5, 0, 0, 0]);
 });
 
 test('a cloth over an interleaved position reads its vertices, not the whole shared buffer', () => {

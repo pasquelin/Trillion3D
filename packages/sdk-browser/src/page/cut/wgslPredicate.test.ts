@@ -7,7 +7,7 @@ import { wgslPredicate } from './wgslPredicate.fixture.ts';
 
 test('the WGSL cut rule agrees with the TypeScript rule on every case', () => {
   const wgsl = wgslPredicate(CUT_RULE_WGSL, 'drawsCluster');
-  const pixels = [0, 0.1, 0.1000001, 0.5, 1, 3.4e38];
+  const pixels = [NaN, -Infinity, -0, 0, 0.1, 0.1000001, 0.5, 1, 3.4e38, Infinity];
   for (const resident of [false, true])
     for (const childResident of [false, true])
       for (const parent of pixels)
@@ -16,6 +16,12 @@ test('the WGSL cut rule agrees with the TypeScript rule on every case', () => {
             const args = [resident, parent, own, childResident, threshold] as const;
             assert.equal(wgsl(...args), drawsCluster(...args), JSON.stringify(args));
           }
+});
+
+test('integer division truncates, and by zero returns the dividend, as WGSL', () => {
+  const quotient = wgslPredicate('fn q(a:u32,b:u32)->u32{return a/b;}', 'q');
+  assert.equal(quotient(7, 2), 3);
+  assert.equal(quotient(7, 0), 7);
 });
 
 test('anything beyond the kernel subset is refused', () => {

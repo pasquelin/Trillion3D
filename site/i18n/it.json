@@ -35,7 +35,7 @@
     "jumpTo": "Vai a un tema",
     "waitsFor": "In attesa del motore:",
     "partial": "Parziale",
-    "coming": "In arrivo: {{titles}}"
+    "coming": "In arrivo"
   },
   "gallery": {
     "themes": {
@@ -74,6 +74,7 @@
       "a-tube-along-a-spline": "Un tubo lungo una curva",
       "curved-surfaces": "Superfici curve",
       "instances-in-colour": "Istanze colorate",
+      "a-hundred-thousand-instances": "Centomila istanze",
       "copies-along-a-path": "Copie lungo un percorso",
       "scattered-on-a-surface": "Sparsi su una superficie",
       "a-world-of-blocks": "Un mondo di blocchi",
@@ -188,6 +189,7 @@
       "camera-layers": "Livelli di camera",
       "a-robot-that-walks-and-waves": "Movimenti di robot mescolati",
       "a-recorded-fly-through": "Un sorvolo registrato e riprodotto",
+      "a-crane-that-swings": "Una gru che fa oscillare il carico",
       "a-wave-across-a-grid": "Onda di cubi",
       "keyframes-by-hand": "Fotogrammi chiave a mano",
       "one-clip-many-objects": "Una clip, tanti oggetti",
@@ -221,6 +223,7 @@
       "observatory-streamed": "Cluster in streaming",
       "health-check": "Controllo di salute",
       "memory-on-a-budget": "Budget di memoria",
+      "a-walk-through-the-city": "Una passeggiata in città",
       "detail-by-pixel-error": "Dettaglio per errore in pixel",
       "watch-a-world-load": "Guardare un mondo che si carica",
       "ten-thousand-objects": "Diecimila oggetti",
@@ -228,6 +231,7 @@
       "what-hides-what": "Cosa nasconde cosa",
       "create-and-dispose": "Creare e liberare",
       "no-hitch-on-first-draw": "Nessun scatto al primo fotogramma",
+      "inside-a-component": "Dentro un componente",
       "inside-the-g-buffer": "Dentro il G-buffer",
       "reading-pixels-back": "Rileggere i pixel",
       "a-city-from-3d-tiles": "Una città in 3D Tiles",
@@ -330,9 +334,13 @@
       "ar-on-the-table": "AR sul tavolo",
       "shadows-case-by-case": "Le ombre, caso per caso",
       "shadows-through-see-through-panes": "Ombre attraverso vetri trasparenti",
-      "a-walker-among-balls": "Un camminatore tra le palline"
+      "a-walker-among-balls": "Un camminatore tra le palline",
+      "a-dolly-along-the-canal": "Una carrellata lungo il canale",
+      "a-folder-merged-into-one-scene": "Una cartella unita in una scena",
+      "drag-a-crate": "Trascinare una cassa"
     },
     "missing": {
+      "inside-a-component": "rimozione del canvas creato dal motore quando il mondo viene eliminato",
       "floating-crates": "geometria riscritta a ogni fotogramma",
       "thick-lines": "linee larghe",
       "a-line-that-draws-itself": "intervallo di disegno di una geometria",
