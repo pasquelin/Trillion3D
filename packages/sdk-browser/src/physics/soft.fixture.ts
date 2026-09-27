@@ -113,3 +113,10 @@ export function flatCloth(jolt: Module, y: number, pins: number[], events = fals
   jolt.step(writer.take(), 0);
   return record;
 }
+
+/** Each body a step's soft words name (`softLayout.ts`): its engine id, its vertex count, and the
+ *  word its vertices start at. */
+export function* softBodiesIn(words: Uint32Array) {
+  for (let at = 0; at < words.length; at += SOFT_STATE_WORDS + words[at + 1] * 3)
+    yield { engine: words[at], count: words[at + 1], from: at + SOFT_STATE_WORDS };
+}

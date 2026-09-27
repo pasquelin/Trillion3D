@@ -1,4 +1,5 @@
 import { CommandWriter, FLAG, GENERATION_SHIFT } from '../../../sdk-core/src/physics/index.ts';
+import { axisAngleQuaternion } from '../../../sdk-core/src/math/matrix/quaternion.ts';
 import { plane, sphere } from '../../../sdk-core/src/world/geometry/basic.ts';
 import type { JoltModule } from './joltModule.ts';
 import { body } from './module.fixture.ts';
@@ -18,10 +19,8 @@ const id = (slot: number) => slot | GENERATION;
 const KEPT = new Set([1, 20, 21, 22, 35, 41, 46, 51, 56, 90]);
 
 /** A turn of `angle` about the unit axis `x, y, z`, as `x, y, z, w`. */
-const turn = (x: number, y: number, z: number, angle: number) => {
-  const s = Math.sin(angle / 2);
-  return [x * s, y * s, z * s, Math.cos(angle / 2)];
-};
+const turn = (x: number, y: number, z: number, angle: number) =>
+  Array.from(axisAngleQuaternion(new Float64Array(4), [x, y, z], angle));
 
 /**
  * Soft bodies made scaled and turned, then one removed (the list compacts), others teleported,
