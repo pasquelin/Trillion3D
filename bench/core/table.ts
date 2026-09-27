@@ -2,7 +2,7 @@
 // compose the exact same cells in the same order: they can no longer display two formats of
 // the same figure. Only regression icons distinguish the two outputs; the witness column has none.
 import { niveauEcart } from './baseline.ts';
-import type { LigneResultat } from './measureTypes.ts';
+import type { ResultRow } from '../../site/examples/kit/measureTypes.ts';
 
 const ms = (v: number | null) => (v === null ? 'null' : v.toFixed(3));
 const ns = (v: number | null) => (v === null ? '—' : v.toFixed(1));
@@ -36,7 +36,7 @@ function ecartTexte(v: number | null | undefined, pastilles: boolean) {
 
 /** Table row. `avant` holds left columns (domain, measurement) of the aggregate. */
 export function ligneMd(
-  r: LigneResultat,
+  r: ResultRow,
   { before = [], pastilles = false }: { before?: string[]; pastilles?: boolean } = {},
 ) {
   const cellules = [
