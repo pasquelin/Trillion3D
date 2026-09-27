@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>A crane that swings</title>
+    <meta name="thumbnail" content="4" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #b9d4ea;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <script type="module">
+      import {
+        createWorld,
+        animation,
+        geometry,
+        light,
+        material,
+        math,
+        object,
+      } from '../runtime/engine.js';
+      import { controls } from '../runtime/kit.js';
+
+      const world = createWorld('view', { controls: 'orbit' });
+      world.scene.background = math.color('#b9d4ea');
+      const yellow = material.meshStandard({ color: '#e5a928', roughness: 0.55, metalness: 0.25 });
+      const steel = material.meshStandard({ color: '#343b45', roughness: 0.4, metalness: 0.75 });
+      const loadPaint = material.meshStandard({ color: '#c94b3c', roughness: 0.7 });
+      const crane = object.group();
+      crane.name = 'crane';
+      const add = (parent, shape, paint, at) => {
+        const mesh = object.mesh(shape, paint);
+        mesh.position.set(...at);
+        parent.add(mesh);
+        return mesh;
+      };
+
+      // The tower stays still. The named groups above it are the parts the public clip addresses.
+      add(crane, geometry.box(0.65, 6, 0.65), yellow, [0, 3, 0]);
+      add(crane, geometry.box(2.4, 0.35, 2.4), steel, [0, 0.18, 0]);
+      const jib = object.group();
+      jib.name = 'jib';
+      jib.position.y = 6.1;
+      add(jib, geometry.box(7.5, 0.25, 0.3), yellow, [1.4, 0, 0]);
+      add(jib, geometry.box(2.3, 0.18, 0.25), steel, [-3.5, 0, 0]);
+      const trolley = object.group();
+      trolley.name = 'trolley';
+      trolley.position.set(2, -0.3, 0);
+      add(trolley, geometry.box(0.45, 0.25, 0.55), steel, [0, 0, 0]);
+      const cable = add(trolley, geometry.cylinder(0.025, 0.025, 2, 8), steel, [0, -1.1, 0]);
+      cable.name = 'cable';
+      const load = object.group();
+      load.name = 'load';
+      load.position.y = -2.2;
+      add(load, geometry.box(1.15, 0.75, 0.9), loadPaint, [0, -0.38, 0]);
+      trolley.add(load);
+      jib.add(trolley);
+      crane.add(jib);
+      world.scene.add(crane);
+
+      // One repeated clip coordinates the crane: slew, trolley travel, hoist and load swing.
+      const times = [0, 2, 4, 6, 8];
+      const motion = animation.clip('lift', 8, [
+        animation.numberTrack('jib.rotation.y', times, [0, 0.55, 0.15, -0.5, 0]),
+        animation.numberTrack('trolley.position.x', times, [1.5, 3.6, 3.6, 1.5, 1.5]),
+        animation.numberTrack('cable.scale.y', times, [1, 1, 0.55, 0.55, 1]),
+        animation.numberTrack('cable.position.y', times, [-1.1, -1.1, -0.65, -0.65, -1.1]),
+        animation.numberTrack('load.position.y', times, [-2.2, -2.2, -1.3, -1.3, -2.2]),
+        animation.numberTrack('load.rotation.z', times, [0, 0.28, -0.22, 0.16, 0]),
+      ]);
+      const action = animation.createMixer(crane).play(motion);
+
+      controls(
+        {
+          speed: [0.2, 2, 1, 0.1],
+          paused: false,
+          replay: () => action.stop().play(),
+        },
+        (values, key) => {
+          if (key === undefined || key === 'speed' || key === 'paused')
+            action.timeScale = values.paused ? 0 : values.speed;
+          world.invalidate();
+        },
+        world,
+      );
+
+      const ground = object.mesh(
+        geometry.box(30, 0.2, 24),
+        material.meshStandard({ color: '#8d9b8a', roughness: 0.95 }),
+      );
+      ground.position.y = -0.1;
+      world.scene.add(
+        ground,
+        light.directional({
+          intensity: 3,
+          color: '#fff2da',
+          position: [8, 12, 7],
+          castShadow: true,
+        }),
+        light.hemisphere({ intensity: 1, color: '#d8e8ff', groundColor: '#697061' }),
+      );
+      world.camera.position.set(10, 7, 13);
+      world.controls.target.set(0, 3, 0);
+      world.controls.maxPolarAngle = Math.PI / 2 - 0.05;
+    </script>
+  </body>
+</html>

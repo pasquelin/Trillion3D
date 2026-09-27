@@ -475,6 +475,10 @@
       "balloon": "TRACKING THE BALLOON"
     }
   },
+  "a-crane-that-swings": {
+    "banner": "Orbit the crane while one clip slews the jib, moves the trolley, hoists the load and lets it swing.",
+    "controls": { "speed": "Speed", "paused": "Paused", "replay": "Replay" }
+  },
   "a-wave-across-a-grid": {
     "banner": "Drag to look around. Make the wave of cubes higher or faster.",
     "controls": {

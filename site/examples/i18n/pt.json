@@ -475,6 +475,10 @@
       "balloon": "SEGUINDO O BALÃO"
     }
   },
+  "a-crane-that-swings": {
+    "banner": "Gire à volta do guindaste enquanto um clipe roda a lança, move o carro, eleva a carga e a deixa balançar.",
+    "controls": { "speed": "Velocidade", "paused": "Em pausa", "replay": "Repetir" }
+  },
   "a-wave-across-a-grid": {
     "banner": "Arraste para olhar em volta. Deixe a onda de cubos mais alta ou mais rápida.",
     "controls": {
