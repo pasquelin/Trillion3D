@@ -2,13 +2,14 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   prefixParallel,
+  prefixScan,
   prefixSerial,
 } from '../../../../../bench/oracles/browser/gpuDrawPrefixOracle.ts';
 
-// D3: the per-slot parallel prefix (workgroup_size(64)), in place in shader.ts since the
-// visibility batch, produces exactly the same totals (indirect[slot*4+1]) and groupOffsets as the
-// serial prefix (workgroup_size(1)) it replaces. This file keeps the equivalence proof on hostile
-// inputs: that is what authorizes the parallel kernel to decide the indirect draw.
+// D3's per-slot parallel prefix and the multi-lane scan shader.ts carries since #923 produce
+// exactly the same totals (indirect[slot*4+1]) and groupOffsets as the serial prefix
+// (workgroup_size(1)) they replaced. This file keeps the equivalence proof on hostile
+// inputs: that is what authorizes the shipped kernel to decide the indirect draw.
 
 function assertSameResult(
   overflow: boolean,
@@ -18,9 +19,11 @@ function assertSameResult(
   slots: number,
 ) {
   const serial = prefixSerial(overflow, slotUsed, groupCounts, groupCount, slots);
-  const parallel = prefixParallel(overflow, slotUsed, groupCounts, groupCount, slots);
-  assert.deepEqual([...parallel.totals], [...serial.totals], 'totals (indirect count) differ');
-  assert.deepEqual([...parallel.offsets], [...serial.offsets], 'groupOffsets differ');
+  for (const kernel of [prefixParallel, prefixScan]) {
+    const result = kernel(overflow, slotUsed, groupCounts, groupCount, slots);
+    assert.deepEqual([...result.totals], [...serial.totals], 'totals (indirect count) differ');
+    assert.deepEqual([...result.offsets], [...serial.offsets], 'groupOffsets differ');
+  }
   return serial;
 }
 
