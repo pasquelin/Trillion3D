@@ -96,7 +96,6 @@ export function prepareWebgpuBlend(
     };
     refreshBlendBounds(item);
     blendState.blendGpu.push(item);
-    if (paged) blendState.pagedBlendGpu.set(item.matrix, item);
     scene.remove(copy);
   }
   return transmissive;
