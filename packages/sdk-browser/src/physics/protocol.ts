@@ -30,7 +30,7 @@ export type ToPhysics =
       buffers: ArrayBuffer[];
     }
   /** A frame's commands, applied before the next step. */
-  | { type: 'commands'; words: Uint32Array }
+  | { type: 'commands'; words: Uint32Array<ArrayBuffer> }
   /** The clock: `timeScale` is above 0 unless `paused` (the page sends a scale of 0 as a pause). */
   | { type: 'clock'; paused: boolean; timeScale: number }
   /** The body of water the bodies float in (`fluids/buoyancy.ts`), or none; `epoch` counts the
@@ -77,6 +77,9 @@ export interface PhysicsResults {
   /** The soft bodies the tick moved, each where its last step left it (`softLayout.ts`), or
    *  `null` when none moved. */
   soft: Uint32Array | null;
+  /** Command buffers the worker ran since its last results, handed back for the page to fill
+   *  again (`CommandWriter.recycle`). */
+  spent: ArrayBuffer[];
 }
 
 /**
