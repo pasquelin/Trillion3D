@@ -35,7 +35,7 @@
     "jumpTo": "Chuyển đến chủ đề",
     "waitsFor": "Đang chờ bộ máy:",
     "partial": "Một phần",
-    "coming": "Sắp có: {{titles}}"
+    "coming": "Sắp có"
   },
   "api": {
     "title": "Tài liệu tham khảo bộ máy",
