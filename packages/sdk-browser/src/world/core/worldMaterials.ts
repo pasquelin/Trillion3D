@@ -6,7 +6,7 @@ import { Color } from '../../../../sdk-core/src/world/math/color.ts';
 import type { Texture } from '../../../../sdk-core/src/world/texture/texture.ts';
 import { composesWithBackground } from '../../scene/materialBlending.ts';
 import { alphaModeOf } from '../../../../sdk-core/src/contracts/material.ts';
-import type { AlphaChange } from '../../placement/backendSceneUpdates.ts';
+import { alphaMoves, type AlphaChange } from '../../placement/backendSceneUpdates.ts';
 
 /** The parameters a session lays out when it opens, and so the only ones never written in place:
  *  `kind` its family, `transparent`, `blending` and `transmission` its pass, `side`, `depthTest`
@@ -32,9 +32,12 @@ const LAYOUT = new Set([
   'size',
 ]);
 
-/** Whether `material`'s field `name` is a value, written in place (`LAYOUT`). */
+/** Whether `material`'s field `name` is a value, written in place: neither bookkeeping, nor
+ *  `LAYOUT`, nor a texture. */
 const isValue = (material: Material, name: string) =>
-  !LAYOUT.has(name) && !(material[name] as { isTexture?: boolean } | null)?.isTexture;
+  !MATERIAL_BOOKKEEPING.has(name) &&
+  !LAYOUT.has(name) &&
+  !(material[name] as { isTexture?: boolean } | null)?.isTexture;
 
 /** One parameter value as a key: a texture by identity and its three counters — its picture's
  *  `version` left out when `pictures` is false —, a colour or a vector by its numbers, anything
@@ -75,6 +78,8 @@ export type MaterialEntry = { readonly id: number; key: string; readonly materia
 
 /** How an entry was repainted: its values written or its pictures alone, its alpha moved. */
 type Repaint = { values: boolean; alpha?: Omit<AlphaChange, 'surfaces'> };
+/** An entry repainted since the last take, and how (`takeRepainted`). */
+export type RepaintedEntry = { entry: MaterialEntry } & Repaint;
 
 /**
  * The material table of a world. Materials of identical parameters are one entry, however many
@@ -106,7 +111,7 @@ export function createWorldMaterials() {
     if (materialKey(material, false) !== materialKey(entry.material, false)) return false;
     // Only the fields the material holds: a kind never gains a field it does not declare.
     for (const field of Object.keys(material)) {
-      if (MATERIAL_BOOKKEEPING.has(field) || !isValue(material, field)) continue;
+      if (!isValue(material, field)) continue;
       const value = material[field];
       if (value instanceof Color) (entry.material[field] as Color).copy(value);
       else entry.material[field] = value;
@@ -129,7 +134,7 @@ export function createWorldMaterials() {
       done: Repaint = { values: !pictures || !!before?.values };
     const to = alphaModeOf(entry.material);
     // Between opaque and masked, or a cutout's cutoff: what its shadow reads (`AlphaChange`).
-    if (before?.alpha || to !== from || (to === 'mask' && entry.material.alphaTest !== alphaTest))
+    if (before?.alpha || alphaMoves(from, to, entry.material.alphaTest !== alphaTest))
       done.alpha = { from: before?.alpha?.from ?? from, to };
     repainted.set(entry, done);
     return true;
@@ -158,7 +163,7 @@ export function createWorldMaterials() {
     /** The entries repainted since the last call, handed over once; `values` false when only
      *  their textures moved — a picture, a sampling, a placement —, which no value reads;
      *  `alpha` when their alpha mode or cutoff moved. */
-    takeRepainted() {
+    takeRepainted(): RepaintedEntry[] {
       const taken = [...repainted].map(([entry, done]) => ({ entry, ...done }));
       repainted.clear();
       return taken;
