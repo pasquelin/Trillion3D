@@ -7,15 +7,11 @@
 pub const TILE_EXTENT_LOG2: i32 = 5;
 
 /// A tile's width, as a power of two in object units, for a primitive the largest world `scale`
-/// places — the scale the proxy's cut maps its threshold by (`cut_demand`); a missing or invalid
-/// scale leaves object units as metres. Rounded down: a tile never spans more than 32 m.
+/// places — the scale the proxy's cut maps its threshold by (`object_units`). Rounded down: a
+/// tile never spans more than 32 m.
 pub fn tile_log2(scale: Option<f64>) -> i32 {
-    match scale {
-        Some(s) if s.is_finite() && s > 0.0 => {
-            (2f64.powi(TILE_EXTENT_LOG2) / s).log2().floor() as i32
-        }
-        _ => TILE_EXTENT_LOG2,
-    }
+    let tile = crate::proxy::cut::object_units(2f64.powi(TILE_EXTENT_LOG2), scale);
+    tile.log2().floor() as i32
 }
 
 #[cfg(test)]

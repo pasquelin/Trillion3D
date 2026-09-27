@@ -84,6 +84,15 @@ pub fn coarse_cut(dag: &[DagCluster], positions: &[f32], demand: CutDemand) -> (
     (threshold, out)
 }
 
+/// A length of `metres` in the object units of a primitive the largest world `scale` places; a
+/// missing, zero or non-finite scale leaves it as is, nothing guessed.
+pub fn object_units(metres: f64, scale: Option<f64>) -> f64 {
+    match scale {
+        Some(value) if value.is_finite() && value > 0.0 => metres / value,
+        _ => metres,
+    }
+}
+
 /// What primitive requests from cut, calculated once per primitive.
 ///
 /// Published world threshold mapped to object space by largest scale placing
@@ -98,10 +107,7 @@ pub fn cut_demand(
     triangles: usize,
     scene_triangles: usize,
 ) -> CutDemand {
-    let threshold = match scale {
-        Some(value) if value.is_finite() && value > 0.0 => PROXY_ERROR_METRES / value,
-        _ => PROXY_ERROR_METRES,
-    };
+    let threshold = object_units(PROXY_ERROR_METRES, scale);
     let share = if scene_triangles == 0 {
         budget
     } else {

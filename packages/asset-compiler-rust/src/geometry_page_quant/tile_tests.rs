@@ -9,21 +9,9 @@ use crate::geometry_page::encode;
 use crate::geometry_page_quant::{grid_exponent, primitive_exponent, UV_EXPONENT};
 use trillion3d_page_codec::bits::{MAX_BITS, MAX_EXPONENT};
 
-/// The grid rule before tiles, kept as the witness the tiled rule is compared with: the finest
-/// of the extent and error rules, bounded by the widest page the field holds.
+/// The grid rule before tiles: a tile no primitive reaches leaves the extent rule whole.
 fn untiled(extent: f64, finest_error: Option<f64>) -> i32 {
-    let widest = match extent > 0.0 {
-        true => extent.log2().floor() as i32,
-        false => 0,
-    };
-    let rules = [
-        Some(widest - 16),
-        finest_error.map(|e| (e / 8.0).log2().floor() as i32),
-    ];
-    let chosen = rules.into_iter().flatten().min().unwrap_or(widest - 16);
-    chosen
-        .max(widest + 2 - MAX_BITS as i32)
-        .clamp(-MAX_EXPONENT, MAX_EXPONENT)
+    grid_exponent(extent, finest_error, i32::MAX)
 }
 
 /// Extents and errors a primitive can publish, the hostile ones included.
