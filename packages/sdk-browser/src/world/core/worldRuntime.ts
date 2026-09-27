@@ -183,6 +183,8 @@ export function createWorldRuntime(inputs: Inputs) {
       while (resolving || reopens.running) await (resolving ?? reopens.running);
     },
     render() {
+      // No session, nothing applied: a session opening takes what resolved at its next frame.
+      if (!explorer) return null;
       beforeFrame(); // what it applies may close the session: that frame has no image
       if (!explorer) return null;
       const metrics = explorer.render();
