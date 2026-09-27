@@ -2172,5 +2172,16 @@
     "words": {
       "credit": "Flag on a pole modelled in code for this example, CC0 — see assets/examples/CREDITS.md"
     }
+  },
+  "a-dolly-along-the-canal": {
+    "banner": "Pause the dolly, replay the journey or change its speed as the camera travels along the canal.",
+    "controls": {
+      "paused": "Paused",
+      "replay": "Replay",
+      "speed": "Speed"
+    },
+    "readouts": {
+      "progress": "Progress"
+    }
   }
 }
