@@ -35,7 +35,7 @@
     "jumpTo": "Jump to a theme",
     "waitsFor": "Waits for the engine:",
     "partial": "Partial",
-    "coming": "Coming: {{titles}}"
+    "coming": "Coming"
   },
   "gallery": {
     "themes": {
@@ -187,6 +187,7 @@
       "red-cyan-anaglyph": "Red-cyan anaglyph",
       "camera-layers": "Camera layers",
       "a-robot-that-walks-and-waves": "Blending robot motions",
+      "a-crane-that-swings": "A crane that swings its load",
       "a-wave-across-a-grid": "Wave of cubes",
       "keyframes-by-hand": "Keyframes by hand",
       "one-clip-many-objects": "One clip, many objects",
@@ -220,6 +221,7 @@
       "observatory-streamed": "Streamed clusters",
       "health-check": "Health check",
       "memory-on-a-budget": "Memory budget",
+      "a-walk-through-the-city": "A walk through the city",
       "detail-by-pixel-error": "Detail by pixel error",
       "watch-a-world-load": "Watch a world load",
       "ten-thousand-objects": "Ten thousand objects",
@@ -329,7 +331,10 @@
       "ar-on-the-table": "AR on the table",
       "shadows-case-by-case": "Shadows, case by case",
       "shadows-through-see-through-panes": "Shadows through see-through panes",
-      "a-walker-among-balls": "A walker among balls"
+      "a-walker-among-balls": "A walker among balls",
+      "a-dolly-along-the-canal": "A dolly along the canal",
+      "a-folder-merged-into-one-scene": "A folder merged into one scene",
+      "drag-a-crate": "Drag a crate"
     },
     "missing": {
       "floating-crates": "geometry rewritten every frame",

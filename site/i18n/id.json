@@ -35,7 +35,7 @@
     "jumpTo": "Lompat ke tema",
     "waitsFor": "Menunggu mesin:",
     "partial": "Sebagian",
-    "coming": "Segera hadir: {{titles}}"
+    "coming": "Segera hadir"
   },
   "api": {
     "title": "Referensi mesin",
@@ -1371,6 +1371,7 @@
       "red-cyan-anaglyph": "Anaglyph merah-cyan",
       "camera-layers": "Layer kamera",
       "a-robot-that-walks-and-waves": "Mencampur gerakan robot",
+      "a-crane-that-swings": "Derek yang mengayunkan muatan",
       "a-wave-across-a-grid": "Gelombang kubus",
       "keyframes-by-hand": "Keyframe manual",
       "one-clip-many-objects": "Satu klip, banyak objek",
@@ -1404,6 +1405,7 @@
       "observatory-streamed": "Cluster di-stream",
       "health-check": "Pemeriksaan kesehatan",
       "memory-on-a-budget": "Anggaran memori",
+      "a-walk-through-the-city": "Berjalan melintasi kota",
       "detail-by-pixel-error": "Detail menurut galat piksel",
       "watch-a-world-load": "Melihat dunia dimuat",
       "ten-thousand-objects": "Sepuluh ribu objek",
@@ -1513,7 +1515,10 @@
       "ar-on-the-table": "AR di atas meja",
       "shadows-case-by-case": "Bayangan, kasus demi kasus",
       "shadows-through-see-through-panes": "Bayangan menembus kaca bening",
-      "a-walker-among-balls": "Pejalan di antara bola"
+      "a-walker-among-balls": "Pejalan di antara bola",
+      "a-dolly-along-the-canal": "Dolly kamera di sepanjang kanal",
+      "a-folder-merged-into-one-scene": "Folder digabung menjadi satu adegan",
+      "drag-a-crate": "Seret peti"
     },
     "missing": {
       "floating-crates": "geometri yang ditulis ulang setiap bingkai",

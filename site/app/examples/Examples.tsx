@@ -1,6 +1,6 @@
 import { useWords } from '../i18n.ts';
 import type { Locale } from '../../content/locale.ts';
-import { ExampleCard } from './ExampleCard.tsx';
+import { ComingCard, ExampleCard } from './ExampleCard.tsx';
 import { DocPage } from '../layout/DocPage.tsx';
 import { routeHref } from '../portal/routes.ts';
 import { Grid } from '../ui/Grid.tsx';
@@ -18,8 +18,8 @@ import {
 /** The heading a theme's section scrolls to. */
 const themeAnchor = (theme: string) => `theme-${theme}`;
 
-/** The Examples landing page, theme by theme: complete cards, then clickable parked source, then
- * one quiet line naming the examples still to write. */
+/** The Examples landing page, theme by theme: complete tiles, then clickable parked ones, then a
+ * tile per example still to write, opening nothing. */
 export function Examples({ locale }: { locale: Locale }) {
   const t = useWords(locale);
   return (
@@ -43,14 +43,13 @@ export function Examples({ locale }: { locale: Locale }) {
     >
       {themedEntries.map(({ theme, ready, parked, coming }) => (
         <Section key={theme} id={themeAnchor(theme)} title={themeTitle(theme, locale)}>
-          <Grid>
+          <Grid dense>
             {[...ready, ...parked].map((entry) => {
               return (
                 <ExampleCard
                   key={entry.id}
                   title={exampleTitle(entry.id, locale)}
                   href={routeHref({ locale, area: 'examples', id: entry.id })}
-                  badge={themeTitle(theme, locale)}
                   thumbnail={thumbnailOf(entry.id)}
                   state={
                     isReady(entry)
@@ -60,14 +59,10 @@ export function Examples({ locale }: { locale: Locale }) {
                 />
               );
             })}
+            {coming.map(({ id }) => (
+              <ComingCard key={id} title={exampleTitle(id, locale)} label={t('examples.coming')} />
+            ))}
           </Grid>
-          {coming.length > 0 && (
-            <p className="mt-3 text-sm text-base-content/65">
-              {t('examples.coming', {
-                titles: coming.map(({ id }) => exampleTitle(id, locale)).join(' · '),
-              })}
-            </p>
-          )}
         </Section>
       ))}
     </DocPage>

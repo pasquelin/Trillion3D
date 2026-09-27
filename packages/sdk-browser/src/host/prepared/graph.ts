@@ -17,7 +17,7 @@ import { numbered } from '../graph/serial.ts';
 import type { PreparedSceneTables } from '../../../../sdk-core/src/scene/core/tableContracts.ts';
 import type { TableDocument } from '../../../../sdk-core/src/scene/core/tableDocuments.ts';
 import { camera, light, pose, uniqueNames, weigh } from './nodes.ts';
-import type { SurfaceVariant } from './materials.ts';
+import { surfaceVariantOf, type SurfaceVariant } from './materials.ts';
 import type { GraphSurface } from '../graph/surface.ts';
 import { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts';
 import { isDrawnNode } from '../graph/kinds.ts';
@@ -108,10 +108,7 @@ export async function preparedGraph({ tables, meshes, geometryOf, materialOf }: 
   const drawn = order.map((rank) =>
     meshes[rank].primitives.map((primitive, p) => {
       const geometry = geometryOf(rank, p);
-      const variant = {
-        vertexColors: geometry.attributes.color !== undefined,
-        flatShading: geometry.attributes.normal === undefined,
-      };
+      const variant = surfaceVariantOf(geometry.attributes);
       return { geometry, material: materialOf(primitive.material, variant) };
     }),
   );

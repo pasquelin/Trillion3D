@@ -500,6 +500,14 @@
       "balloon": "SUIT LE BALLON"
     }
   },
+  "a-crane-that-swings": {
+    "banner": "Tourne autour de la grue pendant qu’un clip pivote la flèche, déplace le chariot, lève la charge et la laisse se balancer.",
+    "controls": {
+      "speed": "Vitesse",
+      "paused": "En pause",
+      "replay": "Rejouer"
+    }
+  },
   "a-wave-across-a-grid": {
     "banner": "Glisse pour regarder autour. Rends la vague de cubes plus haute ou plus rapide.",
     "controls": {
@@ -1259,6 +1267,25 @@
       }
     }
   },
+  "a-walk-through-the-city": {
+    "banner": "Clique sur la vue, puis marche avec W A S D (Z Q S D en AZERTY) et regarde avec la souris. Réduis le budget mémoire en avançant.",
+    "controls": {
+      "walkSpeed": "Vitesse de marche",
+      "memory": "Mémoire",
+      "view": "Vue",
+      "home": "Retour au départ"
+    },
+    "choices": {
+      "view": {
+        "beauty": "rendu",
+        "lod": "niveaux de détail",
+        "clusters": "clusters"
+      }
+    },
+    "words": {
+      "credit": "Avenue d’urnes modelée en code pour cet exemple, CC0 — voir assets/examples/CREDITS.md"
+    }
+  },
   "migrating-from-three": {
     "words": {
       "credit": "Marble Bust 01 par Rico Cilliers, Poly Haven, CC0 ; caisse par W. Sitters, CC BY 3.0 — voir assets/examples/CREDITS.md"
@@ -1710,11 +1737,18 @@
   },
   "the-home-pose": {
     "banner": "Choisissez une vue, déplacez la caméra, puis choisissez Accueil pour revenir.",
-    "controls": { "home": "Accueil", "tower": "Tour", "square": "Place", "hillside": "Colline" }
+    "controls": {
+      "home": "Accueil",
+      "tower": "Tour",
+      "square": "Place",
+      "hillside": "Colline"
+    }
   },
   "the-near-plane-cuts-a-wall": {
     "banner": "Avancez le plan proche et regardez-le couper chaque mur.",
-    "controls": { "nearPlane": "Plan proche" }
+    "controls": {
+      "nearPlane": "Plan proche"
+    }
   },
   "the-material-family": {
     "banner": "Glisse pour tourner autour. Passe à la nuit et vois ce qui brille encore.",
@@ -2179,6 +2213,34 @@
     },
     "words": {
       "credit": "Drapeau sur un mât modélisé en code pour cet exemple, CC0 — voir assets/examples/CREDITS.md"
+    }
+  },
+  "a-dolly-along-the-canal": {
+    "banner": "Mettez le travelling en pause, rejouez le trajet ou changez sa vitesse pendant que la caméra longe le canal.",
+    "controls": {
+      "paused": "En pause",
+      "replay": "Rejouer",
+      "speed": "Vitesse"
+    },
+    "readouts": {
+      "progress": "Progression"
+    }
+  },
+  "a-folder-merged-into-one-scene": {
+    "banner": "Faites glisser pour examiner le coin de rue. Le compilateur a fusionné trois fichiers OBJ d’un dossier dans cette scène.",
+    "controls": {
+      "visible": "Visible",
+      "home": "Accueil"
+    },
+    "words": {
+      "credit": "Modèle de réverbère par W. Sitters, CC BY 3.0 — voir assets/examples/CREDITS.md"
+    }
+  },
+  "drag-a-crate": {
+    "banner": "Faites glisser la caisse sur le sol. Activez l’alignement pour la placer par pas d’un demi-mètre.",
+    "controls": {
+      "snap": "Aligner",
+      "home": "Accueil"
     }
   }
 }

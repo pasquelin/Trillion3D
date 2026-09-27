@@ -11,13 +11,14 @@ import { liveRows, triangleBackend } from './triangle.fixture.ts';
 test('WebGL2 refuses a class change that would take the cover past the host ceiling', async () => {
   const plain = { vertexColors: false, flatShading: false };
   const surface = await preparedMaterials([entry({})], async () => null)(0, plain);
-  const { backend, camera, geometry, source } = triangleBackend(
+  const { backend, camera, geometry, mesh, source } = triangleBackend(
     { placements: liveRows(3) },
     surface,
   );
   const api = createExplorerMaterialApi({
     check: () => {},
     source,
+    associations: new Map([[mesh, { meshes: 0, primitives: 0 }]]),
     backends: [backend],
     active: () => backend,
   });
