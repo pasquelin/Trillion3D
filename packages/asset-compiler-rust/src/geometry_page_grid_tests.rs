@@ -35,18 +35,18 @@ fn a_constant_colour_costs_no_bits_and_the_primitive_grid_follows_the_finest_err
         -18
     );
     assert_eq!(primitive_exponent(&[0.0; 3], [].into_iter(), false), -16);
-    // #875: blended, whatever its errors, the finest grid a page holds: 2^22 steps across it;
-    // its texture coordinates, two units wide, take 2^-21, an opaque one's the format's 2^-14.
+    // #875: blended, whatever its errors, the finest grid a page holds: 2^23 steps across it;
+    // its texture coordinates, two units wide, take 2^-22, an opaque one's the format's 2^-14.
     assert_eq!(
         primitive_exponent(&positions, [0.5f64].into_iter(), true),
-        -22
+        -23
     );
     let uv = Attribute {
         flag: codec::FLAG_UV,
         width: 2,
         values: vec![0.0, 0.0, 2.0, 0.5, 1.0, 1.0],
     };
-    assert_eq!(primitive_uv_exponent(&[&uv, &colour], true), -21);
+    assert_eq!(primitive_uv_exponent(&[&uv, &colour], true), -22);
     assert_eq!(primitive_uv_exponent(&[&uv], false), UV_EXPONENT);
 }
 
