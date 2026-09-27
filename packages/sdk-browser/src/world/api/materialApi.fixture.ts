@@ -91,7 +91,7 @@ export async function scene(
     materialClassRefusal: (alpha: AlphaChange) => materialClassRefusal(alpha, pages),
     ...(refresh && {
       refreshMaterials: (_: boolean, alpha?: AlphaChange) => void refreshes.push(alpha),
-      wearSurface: () => true,
+      wearSurface: () => {},
     }),
   } as unknown as RenderBackend;
   const api = createExplorerMaterialApi({
