@@ -2147,5 +2147,12 @@
     "words": {
       "credit": "Flag on a pole modelled in code for this example, CC0 — see assets/examples/CREDITS.md"
     }
+  },
+  "outline-the-selection": {
+    "banner": "Click a shape to select it. Click the floor to clear the selection.",
+    "controls": {
+      "color": "Color",
+      "thickness": "Thickness"
+    }
   }
 }

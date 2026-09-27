@@ -2147,5 +2147,12 @@
     "words": {
       "credit": "Bandera en un mástil modelada en código para este ejemplo, CC0 — ver assets/examples/CREDITS.md"
     }
+  },
+  "outline-the-selection": {
+    "banner": "Haz clic en una forma para seleccionarla. Haz clic en el suelo para borrar la selección.",
+    "controls": {
+      "color": "Color",
+      "thickness": "Grosor"
+    }
   }
 }

@@ -2147,5 +2147,12 @@
     "words": {
       "credit": "Drapeau sur un mât modélisé en code pour cet exemple, CC0 — voir assets/examples/CREDITS.md"
     }
+  },
+  "outline-the-selection": {
+    "banner": "Clique sur une forme pour la sélectionner. Clique sur le sol pour vider la sélection.",
+    "controls": {
+      "color": "Couleur",
+      "thickness": "Épaisseur"
+    }
   }
 }
