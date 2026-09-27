@@ -2242,5 +2242,29 @@
       "snap": "स्नैप",
       "home": "आरंभ"
     }
+  },
+  "outline-the-selection": {
+    "banner": "किसी आकार को चुनने के लिए क्लिक करें। चयन हटाने के लिए फर्श पर क्लिक करें।",
+    "controls": {
+      "color": "रंग",
+      "thickness": "मोटाई"
+    }
+  },
+  "a-hundred-thousand-instances": {
+    "banner": "मैदान के चारों ओर घूमने के लिए खींचें। संख्या या दृश्य बदलें।",
+    "controls": {
+      "count": "संख्या",
+      "view": "दृश्य"
+    },
+    "readouts": {
+      "objectsShown": "दिखाई गई वस्तुएँ",
+      "objectsBuilt": "बनाई गई वस्तुएँ"
+    },
+    "choices": {
+      "view": {
+        "beauty": "तैयार चित्र",
+        "clusters": "क्लस्टर"
+      }
+    }
   }
 }
