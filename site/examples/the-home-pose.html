@@ -21,7 +21,8 @@
   <body>
     <canvas id="view"></canvas>
     <script type="module">
-      import { createWorld, geometry, material, object, light, math, pose } from '../runtime/engine.js';
+      import { createWorld } from '../runtime/engine.js';
+      import { geometry, material, object, light, math, pose } from '../runtime/engine.js';
       import { controls } from '../runtime/kit.js';
 
       const world = createWorld('view', { controls: 'orbit' });
