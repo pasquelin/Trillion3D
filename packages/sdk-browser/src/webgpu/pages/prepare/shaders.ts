@@ -14,7 +14,7 @@ import { SPRITE_WGSL } from '../../../visibility/shader/spriteWgsl.ts';
  *  `dash` above zero cuts a dashed line page's gaps (`lineDash`) at the distance its first
  *  coordinate carries. `sprite` turns a sprite's quad to face the camera (`spriteAt`), as every
  *  raster does; zero draws the triangles as they are. */
-export const FALLBACK_WIREFRAME = 1,
+const FALLBACK_WIREFRAME = 1,
   FALLBACK_CLUSTER_PAGE = 2;
 
 /** The `mode` word of a fallback draw, from the image's diagnostic and where the slot's geometry is. */
