@@ -35,7 +35,7 @@
     "jumpTo": "Bir temaya git",
     "waitsFor": "Motoru bekliyor:",
     "partial": "Kısmi",
-    "coming": "Yakında: {{titles}}"
+    "coming": "Yakında"
   },
   "gallery": {
     "themes": {
@@ -74,6 +74,7 @@
       "a-tube-along-a-spline": "Bir eğri boyunca tüp",
       "curved-surfaces": "Kavisli yüzeyler",
       "instances-in-colour": "Renkli kopyalar (instance)",
+      "a-hundred-thousand-instances": "Yüz bin örnek",
       "copies-along-a-path": "Bir yol boyunca kopyalar",
       "scattered-on-a-surface": "Bir yüzeye saçılmış",
       "a-world-of-blocks": "Bloklardan bir dünya",
@@ -187,6 +188,7 @@
       "red-cyan-anaglyph": "Kırmızı-camgöbeği anaglif",
       "camera-layers": "Kamera katmanları",
       "a-robot-that-walks-and-waves": "Karıştırılmış robot hareketleri",
+      "a-crane-that-swings": "Yükünü sallayan vinç",
       "a-wave-across-a-grid": "Küplerden bir dalga",
       "keyframes-by-hand": "Elle anahtar kareler",
       "one-clip-many-objects": "Bir klip, birçok nesne",
@@ -228,6 +230,7 @@
       "what-hides-what": "Ne neyi gizliyor",
       "create-and-dispose": "Oluşturmak ve serbest bırakmak",
       "no-hitch-on-first-draw": "İlk karede takılma yok",
+      "inside-a-component": "Bir bileşenin içinde",
       "inside-the-g-buffer": "G-buffer'ın içinde",
       "reading-pixels-back": "Pikselleri geri okumak",
       "a-city-from-3d-tiles": "3D Tiles'tan bir şehir",
@@ -332,9 +335,11 @@
       "shadows-through-see-through-panes": "Saydam camlardan düşen gölgeler",
       "a-walker-among-balls": "Toplar arasında bir yürüyüşçü",
       "a-dolly-along-the-canal": "Kanal boyunca kamera kaydırma",
-      "a-folder-merged-into-one-scene": "Tek sahnede birleştirilen klasör"
+      "a-folder-merged-into-one-scene": "Tek sahnede birleştirilen klasör",
+      "drag-a-crate": "Bir sandığı sürükleme"
     },
     "missing": {
+      "inside-a-component": "dünya yok edilirken motorun oluşturduğu canvasın kaldırılması",
       "floating-crates": "her karede yeniden yazılan geometri",
       "thick-lines": "geniş çizgiler",
       "a-line-that-draws-itself": "bir geometrinin çizim aralığı",

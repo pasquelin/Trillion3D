@@ -500,6 +500,14 @@
       "balloon": "SEGUE IL PALLONE"
     }
   },
+  "a-crane-that-swings": {
+    "banner": "Gira attorno alla gru mentre una clip ruota il braccio, muove il carrello, solleva il carico e lo fa oscillare.",
+    "controls": {
+      "speed": "Velocità",
+      "paused": "In pausa",
+      "replay": "Ripeti"
+    }
+  },
   "a-wave-across-a-grid": {
     "banner": "Trascina per guardarti intorno. Rendi l'onda di cubi più alta o più veloce.",
     "controls": {
@@ -1268,7 +1276,11 @@
       "home": "Torna all’inizio"
     },
     "choices": {
-      "view": { "beauty": "immagine", "lod": "livelli di dettaglio", "clusters": "cluster" }
+      "view": {
+        "beauty": "immagine",
+        "lod": "livelli di dettaglio",
+        "clusters": "cluster"
+      }
     },
     "words": {
       "credit": "Viale di urne modellato nel codice per questo esempio, CC0 — vedi assets/examples/CREDITS.md"
@@ -2222,6 +2234,45 @@
     },
     "words": {
       "credit": "Modello di lampione di W. Sitters, CC BY 3.0 — vedi assets/examples/CREDITS.md"
+    }
+  },
+  "drag-a-crate": {
+    "banner": "Trascina la cassa sul pavimento. Attiva lo scatto per posizionarla a passi di mezzo metro.",
+    "controls": {
+      "snap": "Scatto",
+      "home": "Inizio"
+    }
+  },
+  "outline-the-selection": {
+    "banner": "Fai clic su una forma per selezionarla. Fai clic sul pavimento per cancellare la selezione.",
+    "controls": {
+      "color": "Colore",
+      "thickness": "Spessore"
+    }
+  },
+  "a-hundred-thousand-instances": {
+    "banner": "Trascina per orbitare sul campo. Cambia il numero o la vista.",
+    "controls": {
+      "count": "Numero",
+      "view": "Vista"
+    },
+    "readouts": {
+      "objectsShown": "Oggetti mostrati",
+      "objectsBuilt": "Oggetti creati"
+    },
+    "choices": {
+      "view": {
+        "beauty": "immagine",
+        "clusters": "cluster"
+      }
+    }
+  },
+  "inside-a-component": {
+    "banner": "Monta o smonta il visore. Ogni montaggio possiede un mondo e ogni rimozione lo elimina.",
+    "controls": {
+      "mount": "Monta",
+      "unmount": "Smonta",
+      "remount": "Rimonta"
     }
   }
 }
