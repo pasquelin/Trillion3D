@@ -1719,7 +1719,9 @@
   },
   "the-near-plane-cuts-a-wall": {
     "banner": "Đẩy mặt phẳng gần về phía trước và xem nó cắt qua từng bức tường.",
-    "controls": { "nearPlane": "Mặt phẳng gần" }
+    "controls": {
+      "nearPlane": "Mặt phẳng gần"
+    }
   },
   "the-material-family": {
     "banner": "Kéo để đi quanh. Chuyển ánh sáng sang đêm và xem thứ gì vẫn sáng.",
@@ -2184,6 +2186,12 @@
     },
     "words": {
       "credit": "Lá cờ trên cột được dựng bằng mã cho ví dụ này, CC0 — xem assets/examples/CREDITS.md"
+    }
+  },
+  "hover-to-highlight": {
+    "banner": "Di chuột lên từng bộ phận của xe để làm nổi bật, hoặc tắt tính năng này trong bảng điều khiển.",
+    "controls": {
+      "highlightEnabled": "Bật làm nổi bật"
     }
   }
 }

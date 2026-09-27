@@ -1513,7 +1513,8 @@
       "ar-on-the-table": "मेज़ पर AR",
       "shadows-case-by-case": "छायाएँ, एक-एक स्थिति",
       "shadows-through-see-through-panes": "पारदर्शी शीशों से पड़ती छायाएँ",
-      "a-walker-among-balls": "गेंदों के बीच चलने वाला"
+      "a-walker-among-balls": "गेंदों के बीच चलने वाला",
+      "hover-to-highlight": "किसी भाग को उभारने के लिए उस पर होवर करें"
     },
     "missing": {
       "floating-crates": "हर फ़्रेम में फिर से लिखी गई ज्यामिति",
