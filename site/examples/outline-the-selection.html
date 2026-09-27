@@ -21,15 +21,8 @@
     <canvas id="view"></canvas>
     <script type="module">
       // Waits for #757: effect.outline({ objects, color: ColorInput, thickness }) with watched setters.
-      import {
-        createWorld,
-        effect,
-        geometry,
-        light,
-        material,
-        math,
-        object,
-      } from '../runtime/engine.js';
+      import { createWorld } from '../runtime/engine.js';
+      import { effect, geometry, light, material, math, object } from '../runtime/engine.js';
       import { controls } from '../runtime/kit.js';
 
       const world = createWorld('view', { controls: 'orbit' });
