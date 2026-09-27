@@ -3,26 +3,20 @@ import { coalesceRanges, type RangeRule } from '../residency/ranges.ts';
 
 /**
  * Writes a page table sends at its next flush: the words that changed, in runs, never a
- * texture's whole span between two far apart. Runs closer than `JOIN_GAP` words are sent as one,
- * and past `MAX_WRITES` runs the ones across the smallest gaps are joined, so a flush makes at
- * most that many `writeBuffer` calls. Both declared, not derived: they weigh a call against the
- * bytes a joined gap resends, and change no word the GPU reads.
+ * texture's whole span between two far apart. Runs closer than `gap` words are sent as one, and
+ * past `cap` runs the ones across the smallest gaps are joined, so a flush makes at most that many
+ * `writeBuffer` calls. Both declared, not derived: they weigh a call against the bytes a joined gap
+ * resends, and change no word the GPU reads.
  */
-const JOIN_GAP = 16,
-  MAX_WRITES = 64;
+export const PAGE_TABLE_RULE = { gap: 16, cap: 64, overflow: 'narrowest' } as const;
 
 export function createPageUploads(size: number) {
   const marked = new Uint8Array(size),
-    runs = new Int32Array(MAX_WRITES * 2);
+    runs = new Int32Array(PAGE_TABLE_RULE.cap * 2);
   // The changed words, and the steps between them at a flush: both reused, grown together.
   let changed = new Int32Array(64),
     count = 0;
-  const rule = {
-    gap: JOIN_GAP,
-    cap: MAX_WRITES,
-    overflow: 'narrowest',
-    steps: new Int32Array(64),
-  } satisfies RangeRule;
+  const rule = { ...PAGE_TABLE_RULE, steps: new Int32Array(64) } satisfies RangeRule;
   return {
     /** Word `index` changed since the last flush. */
     mark(index: number) {

@@ -57,7 +57,7 @@ export function createTileSources(options: {
   /** Working textures of the live host textures, kept from pass to pass, and their bytes (#362). */
   const live = new Map<number, TileScratch>();
   let liveBytes = 0;
-  const build = (atlas: WebgpuTileAtlas, slot: number, batched = false) => {
+  const build = (atlas: WebgpuTileAtlas, slot: number) => {
     const { layout, source } = atlas.textures[slot];
     if (source.kind !== 'host') throw new Error('TEXTURE_SOURCE_NOT_HOST');
     counters.scratches++;
@@ -71,15 +71,14 @@ export function createTileSources(options: {
           ? 'MATERIAL_COLOR_TEXTURE_UNAVAILABLE'
           : 'MATERIAL_DATA_TEXTURE_UNAVAILABLE',
       coverage: source.coverage,
-      batched,
     });
   };
-  const scratchOf = (atlas: WebgpuTileAtlas, slot: number, batched = false) => {
+  const scratchOf = (atlas: WebgpuTileAtlas, slot: number) => {
     const id = scratchId(atlas, slot);
     let scratch = live.get(id) ?? scratches.get(id);
     if (scratch) return scratch;
     if (scratches.size >= MAX_SCRATCHES) return undefined;
-    scratches.set(id, (scratch = build(atlas, slot, batched)));
+    scratches.set(id, (scratch = build(atlas, slot)));
     return scratch;
   };
   const dropScratches = () => {
@@ -125,7 +124,7 @@ export function createTileSources(options: {
         return 'served';
       }
       if (source.kind !== 'host') throw new Error('TEXTURE_TILE_WITHOUT_SOURCE');
-      const scratch = scratchOf(atlas, key.slot, true);
+      const scratch = scratchOf(atlas, key.slot);
       if (!scratch) return 'waiting';
       const place = atlas.place(key, frame);
       if (!place) return 'refused';
@@ -136,6 +135,7 @@ export function createTileSources(options: {
     tail(atlas: WebgpuTileAtlas, slot: number, place: TilePlace) {
       const { layout } = atlas.textures[slot];
       const scratch = scratchOf(atlas, slot)!;
+      if (scratch.stale) scratch.reduce();
       const encoder = device.createCommandEncoder({ label: 'Trillion3D texture tail' });
       copyTailFromTexture(
         encoder,
@@ -163,6 +163,7 @@ export function createTileSources(options: {
       else {
         live.set(id, (scratch = build(atlas, slot)));
         liveBytes += scratch.bytes;
+        scratch.reduce();
       }
       copyLiveTexture(device, atlas, slot, scratch.texture);
       return true;
@@ -172,7 +173,7 @@ export function createTileSources(options: {
       if (!pictureFits(atlas.textures[slot])) return false;
       const kept = live.get(scratchId(atlas, slot)) ?? scratches.get(scratchId(atlas, slot)),
         scratch = kept ?? build(atlas, slot);
-      kept?.reduce();
+      scratch.reduce();
       copyLiveTexture(device, atlas, slot, scratch.texture);
       if (!kept) scratch.destroy();
       return true;
@@ -181,10 +182,9 @@ export function createTileSources(options: {
     get liveBytes() {
       return liveBytes;
     },
-    /** End of pass: the working textures it built — `scratchOf`'s batched ones — reduced in one
-     *  batch (OMB-29, #961), its copies submitted, then those returned, the live ones kept. */
+    /** End of pass: its working textures reduced in one batch (#961), copies submitted, freed. */
     endPass(encoder?: GPUCommandEncoder) {
-      const chains = [...scratches.values()].map((scratch) => scratch.chain());
+      const chains = [...scratches.values()].filter((s) => s.stale).map((s) => s.chain());
       generateMaterialMips(device, chains);
       if (encoder) device.queue.submit([encoder.finish()]);
       dropScratches();
