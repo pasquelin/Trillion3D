@@ -1,7 +1,8 @@
-// What a camera cut's `dagPrepare` derives once per primitive (`primitiveWgsl.ts`, #922): the same
+// What a camera cut's `dagPrepare` derives once per primitive (`primitiveWgsl.ts`, #979): the same
 // expressions the visited nodes and pages computed, read back where they computed them. The GPU
-// run is the image proof's; here, the layout that holds them, the sites that read them, and the
-// one verdict that changed form — a never-culled primitive's planes ahead — on every box.
+// run against the per-site form is `tests/browser/probes/dag-prepare-gpu.ts`; here, the layout that
+// holds them, the sites that read them, and the one verdict that changed form — a never-culled
+// primitive's planes ahead — on every box.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { DAG_SELECTION_SHADER } from './shader.ts';
@@ -72,7 +73,7 @@ test('every site reads the prepared values; only a light view still multiplies',
     DAG_SELECTION_SHADER,
     /fn outsideAhead\([^)]*\)->bool\{return outsideFrustum\(aheadPlanes\(w\),/,
   );
-  assert.ok(DAG_SELECTION_SHADER.includes('if(!isLightCut()){preparePrimitive(w,m,open);}'));
+  assert.ok(DAG_SELECTION_SHADER.includes('if(!isLightCut()){preparePrimitive(w,pose,m,open);}'));
 });
 
 test("a never-culled primitive's open planes ahead keep every box, as its early exit did", () => {

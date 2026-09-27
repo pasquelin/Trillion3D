@@ -34,10 +34,10 @@ fn normalOf(w:u32)->InvT3{
 fn conformalOf(w:u32)->bool{return frames[primitiveBase(w)+NORMAL+2u].w!=0.0;}
 /** First of the view ahead's six planes in primitive \`w\`'s space. */
 fn aheadPlanes(w:u32)->u32{return primitiveBase(w)+AHEAD_PLANES;}
-/** \`dagPrepare\`'s share for primitive \`w\` of a camera cut, on its transposed world \`t\`. A
- *  primitive no camera culls (\`open\`) takes six planes ahead no box leaves, as its own. */
-fn preparePrimitive(w:u32,t:mat4x4f,open:bool){
- let at=primitiveBase(w);let world=worlds[w];
+/** \`dagPrepare\`'s share for primitive \`w\` of a camera cut, on the world and transposed world \`t\`
+ *  it already read. A primitive no camera culls (\`open\`) takes six planes ahead no box leaves. */
+fn preparePrimitive(w:u32,world:mat4x4f,t:mat4x4f,open:bool){
+ let at=primitiveBase(w);
  putMatrix(at+CAMERA_E,views[0u].view*world);
  let m=mat3x3f(world[0].xyz,world[1].xyz,world[2].xyz);let n=invTranspose3Prep(m);
  frames[at+NORMAL]=vec4f(n.adj[0],n.scale);
