@@ -10,6 +10,7 @@ pub(in crate::tests) mod inputs;
 pub(in crate::tests) mod job_measures;
 pub(in crate::tests) mod mesh_share;
 pub(in crate::tests) mod mesh_share_compile;
+pub(in crate::tests) mod physics_join;
 pub(in crate::tests) mod progress;
 pub(in crate::tests) mod root_cover;
 pub(in crate::tests) mod silhouette;
