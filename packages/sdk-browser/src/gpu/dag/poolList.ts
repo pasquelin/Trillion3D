@@ -9,25 +9,17 @@ import type { PackedDag } from './types.ts';
  * departure takes the last entry's place —, so the sweep is bounded by the slots, never the
  * catalogue (#483 rule 6). `note` returns whether the list moved.
  */
-export function createDagPoolList(r: {
-  device: GPUDevice;
-  packed: PackedDag;
-  pageCones: GPUBuffer;
-}) {
-  const { device, packed, pageCones } = r,
-    { buffer, byteOffset, length } = packed.pageCones,
+export function createDagPoolList(device: GPUDevice, packed: PackedDag, pageCones: GPUBuffer) {
+  const { buffer, byteOffset, length } = packed.pageCones,
     words = new Uint32Array(buffer, byteOffset, length),
-    base = poolBase(packed.pageCount),
-    keys = keyBase(packed.pageCount),
-    cap = selectionListCap(packed.pageCount);
+    [base, keys] = [poolBase(packed.pageCount), keyBase(packed.pageCount)];
   /** Each listed page's entry, 1 for the first. */
   const entry = createSparseInts();
   const write = (word: number) =>
     device.queue.writeBuffer(pageCones, word * 4, buffer as ArrayBuffer, byteOffset + word * 4, 4);
   const note = (page: number, held: boolean) => {
-    const full = held && words[base] >= cap;
-    if (canonicalPage(words[keys + page]) !== page || entry.has(page) === held || full)
-      return false;
+    if (canonicalPage(words[keys + page]) !== page || entry.has(page) === held) return false;
+    if (held && words[base] >= selectionListCap(packed.pageCount)) return false;
     const at = held ? ++words[base] : entry.set(page, 0),
       moved = held ? page : words[base + words[base]--];
     if (moved !== page || held) entry.set(moved, at);
@@ -36,5 +28,5 @@ export function createDagPoolList(r: {
     write(base);
     return true;
   };
-  return { note, entry };
+  return { note, entries: entry };
 }
