@@ -23,31 +23,31 @@ type Words = Uint32Array<ArrayBuffer> | Int32Array<ArrayBuffer> | Float32Array<A
  */
 function createBatchWrites(device: GPUDevice) {
   let encoder: GPUCommandEncoder | undefined,
-    staging: GPUBuffer | undefined,
-    mirror: Uint32Array<ArrayBuffer> | undefined,
+    staging: { buffer: GPUBuffer; words: Uint32Array<ArrayBuffer> } | undefined,
     at = 0,
     batchStart = 0;
   const room = (bytes: number) => {
     if (at + bytes - batchStart > SHADOW_BATCH_WRITE_BYTES || at + bytes > SHADOW_STAGING_BYTES)
       throw new Error(`SHADOW_BATCH_WRITES_OVERFLOW: ${bytes} bytes at ${at}`);
-    staging ??= device.createBuffer({
-      label: 'Trillion3D shadow batch staging v1',
-      size: SHADOW_STAGING_BYTES,
-      usage: GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+    return (staging ??= {
+      buffer: device.createBuffer({
+        label: 'Trillion3D shadow batch staging v1',
+        size: SHADOW_STAGING_BYTES,
+        usage: GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+      }),
+      words: new Uint32Array(SHADOW_STAGING_BYTES / 4),
     });
-    mirror ??= new Uint32Array(SHADOW_STAGING_BYTES / 4);
-    return mirror;
   };
   return {
     /** From now until `end`, writes land in `into`'s command order: one batch's writes. */
     stage(into: GPUCommandEncoder) {
-      if (!encoder) at = 0;
       batchStart = at;
       encoder = into;
     },
     /** Uploads the frame's staged words at once; writes land before the command buffer again. */
     end() {
-      if (encoder && at) device.queue.writeBuffer(staging!, 0, mirror!, 0, at / 4);
+      if (staging && at) device.queue.writeBuffer(staging.buffer, 0, staging.words, 0, at / 4);
+      at = 0;
       encoder = undefined;
     },
     /** `count` words of `data` from word `from`, to `target` at byte `offset`. */
@@ -55,8 +55,9 @@ function createBatchWrites(device: GPUDevice) {
       if (!encoder) return device.queue.writeBuffer(target, offset, data, from, count);
       const bytes = count * 4;
       if (!bytes) return;
-      room(bytes).set(new Uint32Array(data.buffer, data.byteOffset + from * 4, count), at / 4);
-      encoder.copyBufferToBuffer(staging!, at, target, offset, bytes);
+      const { buffer, words } = room(bytes);
+      words.set(new Uint32Array(data.buffer, data.byteOffset + from * 4, count), at / 4);
+      encoder.copyBufferToBuffer(buffer, at, target, offset, bytes);
       at += bytes;
     },
   };
