@@ -1,10 +1,26 @@
-import type { PageRec } from '../page/selection/types.ts';
-import { followPlacementRows } from './update.ts';
-import type { PlacementRows } from './rows.ts';
+import type { GeometryPageDescriptor } from '../../../sdk-core/src/index.ts';
+import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
+import type { GraphScene } from '../host/graph/scene.ts';
+import {
+  collectClusterPages,
+  type PageRec,
+  type ClusterRoot,
+} from '../page/selection/selection.ts';
+import type { WebglFrameGate } from '../webgl/core/frameGate.ts';
+import { followPlacementRows, forgetRowRoots } from './update.ts';
+import type { PlacementOf, PlacementRows } from './rows.ts';
 import { growRowRoots } from './growth.ts';
-import { followBlendCopies, growBlendCopies } from '../cluster/blendCopyMesh.ts';
-import { autonomousBootstrap } from '../backend/autonomous/manifest.ts';
-import { createAutonomousMounts, type PlacementTables } from '../backend/autonomous/mounts.ts';
+import type { BlendCopy } from '../cluster/blendCopyContract.ts';
+import { createBlendCopy, followBlendCopies, growBlendCopies } from '../cluster/blendCopyMesh.ts';
+import {
+  autonomousBootstrap,
+  prepareAutonomousManifest,
+  readPages,
+} from '../backend/autonomous/manifest.ts';
+import type { HostMaterials } from '../host/resources.ts';
+import type { BackendContext } from '../backend/types.ts';
+import type { createAutonomousGeometry } from '../backend/autonomous/geometry.ts';
+import type { PlacementMount } from './backendSceneUpdates.ts';
 
 /** Addresses already counted, reused across calls: nothing is allocated to count a frame. */
 const counted = new Set<string>();
@@ -31,13 +47,37 @@ export function attachedPages(recs: readonly PageRec[], instanced = drawnInstanc
   return own + counted.size;
 }
 
-/** The instance-buffer updates of the WebGL2 path, its mounts in place included (`mounts.ts`). */
-export function autonomousPlacements(env: PlacementTables) {
+type Placements = {
+  context: BackendContext;
+  roots: ClusterRoot<PageRec>[];
+  allPages: PageRec[];
+  bootstrap: PageRec[];
+  bootstrapUrls: Set<string>;
+  byUrl: Map<string, PageRec[]>;
+  descriptors: Map<string, GeometryPageDescriptor>;
+  baseMaterials: Map<PageRec, HostMaterials>;
+  /** The host copies of blended and transmissive surfaces, and the graph that shows them. */
+  blendCopies: BlendCopy[];
+  scene: GraphScene;
+  gate: WebglFrameGate;
+  geometryStore: ReturnType<typeof createAutonomousGeometry>;
+  /** Notified when grown or mounted rows add records to the root cover, or unmounted ones remove. */
+  coverChanged: () => void;
+};
+
+/** The instance-buffer updates of the WebGL2 path, its mounts in place included (#572). */
+export function autonomousPlacements(env: Placements) {
   const { roots, allPages, bootstrap, byUrl, baseMaterials, blendCopies, scene, gate } = env;
-  const { coverChanged } = env,
-    { rowsWritten } = env.geometryStore;
+  const { context, descriptors, bootstrapUrls, geometryStore, coverChanged } = env,
+    { rowsWritten } = geometryStore;
+  /** The roots changed: their rows' index is built again, the cover counted, the frame drawn. */
+  const changed = () => {
+    rowsWritten();
+    forgetRowRoots(roots);
+    coverChanged();
+    gate.sceneChanged();
+  };
   return {
-    ...createAutonomousMounts(env),
     /** The roots follow their rows, and a frame that moved something is not held. The instanced
      *  pages read the rows at the next frame's sync; the blended copies posed by rows read them in
      *  place and take their flag here (`blendCopyMesh.ts`). */
@@ -59,9 +99,63 @@ export function autonomousPlacements(env: PlacementTables) {
         bootstrap.push(...autonomousBootstrap([root]));
       }
       growBlendCopies(blendCopies, from, to, (copy) => scene.add(copy));
-      rowsWritten();
-      coverChanged();
-      gate.sceneChanged();
+      changed();
+    },
+    /** A resource is collected as the open collects one, its root cover read and decoded, and only
+     *  then appended to the open's tables: never drawn before its cover is resident. */
+    async mountPlacements({ node, association, primitive }: PlacementMount) {
+      const read = prepareAutonomousManifest({ ...context.metadata, primitives: [primitive] });
+      const associations = new Map<Object3D, PlacementMount['association']>([[node, association]]);
+      const collected = collectClusterPages(node, read.metadata, new Map(), associations, {
+        allowMissing: true,
+        blendCopy: createBlendCopy,
+      });
+      const cover = autonomousBootstrap(collected.roots);
+      const urls = [...new Set(cover.map((rec) => rec.url))];
+      context.pageCatalogue?.admit([...read.descriptors.values()]);
+      const pages = await readPages(context, urls);
+      context.signal?.throwIfAborted();
+      for (const [url, descriptor] of read.descriptors) descriptors.set(url, descriptor);
+      // One by one: a spread of a large resource's records overflows the stack.
+      for (const root of collected.roots) roots.push(root);
+      for (const rec of collected.allPages) {
+        allPages.push(rec);
+        baseMaterials.set(rec, rec.declaration);
+        (byUrl.get(rec.url) ?? byUrl.set(rec.url, []).get(rec.url)!).push(rec);
+      }
+      for (const rec of cover) (bootstrap.push(rec), bootstrapUrls.add(rec.url));
+      for (const copy of collected.blendCopies)
+        (blendCopies.push(copy), scene.add(copy as unknown as Object3D));
+      urls.forEach((url, i) => geometryStore.storeGeometryPage(url, pages[i]));
+      changed();
+    },
+    /** The resource `rows` place leaves: its roots, copies, and each page with its last record. */
+    unmountPlacements(rows: PlacementRows) {
+      const placed = (item: { placement?: PlacementOf }) => item.placement?.rows === rows;
+      const records: PageRec[] = [],
+        urls = new Set<string>(),
+        resident = new Set<string>();
+      for (let i = roots.length - 1; i >= 0; i--) {
+        if (!placed(roots[i])) continue;
+        for (const rec of roots.splice(i, 1)[0].pages) {
+          records.push(rec);
+          urls.add(rec.url);
+          if (rec.array) resident.add(rec.url);
+        }
+      }
+      for (let i = blendCopies.length - 1; i >= 0; i--)
+        if (placed(blendCopies[i]))
+          scene.remove(blendCopies.splice(i, 1)[0] as unknown as Object3D);
+      geometryStore.removeRecords(records);
+      const gone = [...urls].filter((url) => !byUrl.get(url)?.length);
+      for (const url of gone) {
+        if (resident.has(url)) geometryStore.state.residentPages--;
+        byUrl.delete(url);
+        descriptors.delete(url);
+        bootstrapUrls.delete(url);
+      }
+      context.pageCatalogue?.forget(gone);
+      changed();
     },
   };
 }

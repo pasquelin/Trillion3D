@@ -97,21 +97,10 @@ export function createExplorerSceneApi(inputs: Inputs) {
         );
       active.growPlacements(from, to);
     },
-    /** Whether the active path mounts a resource in the open session (`mountPlacements`). */
-    mountsPlacements: () => !!getActive().mountPlacements && !!getActive().unmountPlacements,
-    /** A resource enters the open session; settles once it is drawn (`BackendSceneUpdates`). */
-    async mountPlacements(mount: PlacementMount) {
-      check();
-      const active = getActive();
-      if (!active.mountPlacements)
-        throw new EngineError('UNSUPPORTED_SCENE_UPDATE', `${active.id} does not mount in place`);
-      await active.mountPlacements(mount);
-    },
-    /** The resource `rows` place leaves the open session. */
-    unmountPlacements(rows: PlacementRows) {
-      check();
-      getActive().unmountPlacements?.(rows);
-    },
+    /** Whether the active path mounts and unmounts resources in the open session (#572). */
+    mountsPlacements: () => !!getActive().mountPlacements,
+    mountPlacements: (mount: PlacementMount) => (check(), getActive().mountPlacements!(mount)),
+    unmountPlacements: (rows: PlacementRows) => (check(), getActive().unmountPlacements!(rows)),
     /** Bounced light on or off in the session; false when the active path cannot toggle it in
      *  place, and only a session opened with the other setting will have it. */
     setBounce(on: boolean) {
