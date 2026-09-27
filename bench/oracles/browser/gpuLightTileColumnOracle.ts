@@ -1,10 +1,7 @@
 /**
- * Oracle of a tile's bounds, a line-by-line port of `tileCorner`, `inwardPlane`, `tileColumn`,
- * `sphereTouchesColumn` (packages/sdk-browser/src/lighting/tiles/shader.ts) and of `tileCorners`,
- * `boxOf`, `tileSlab`, `sphereBehind`, `sphereInSides` and `sliceHits` (`boundsWgsl.ts` beside it).
- * Every operation is rounded to f32 as the shader's is. `inverseViewProjection` is column-major,
- * like the uniform, and maps to the frame of `origin` (`tileViewInverse`); depth is reversed with
- * an infinite far plane. Points and centres given here are in that frame (`toTileFrame`).
+ * Oracle of a tile's bounds, a line-by-line port of packages/sdk-browser/src/lighting/tiles/
+ * {shader,boundsWgsl}.ts, every operation rounded to f32. `inverseViewProjection` is column-major
+ * and maps to the frame of `origin` (`tileViewInverse`), where points are given (`toTileFrame`).
  */
 import { LIGHT_SETTINGS } from '../../../packages/sdk-core/src/index.ts';
 import { DEPTH_NEAR } from '../../../packages/sdk-browser/src/camera/depthConvention.ts';
@@ -32,7 +29,6 @@ const cross = (a: Vec3, b: Vec3): Vec3 => [
   f(f(a[0] * b[1]) - f(a[1] * b[0])),
 ];
 
-/** A world point, as the uniform and the light buffer hold it, in the pass's frame. */
 export const toTileFrame = (view: TileView, point: Vec3) =>
   map((i) => f(f(point[i]) - f(view.origin[i])));
 
@@ -97,16 +93,14 @@ export function sphereTouchesBox(box: Box, centre: Vec3, radius: number) {
   return dot(clamped, clamped) <= f(radius * radius);
 }
 
-export type TileBounds = { opaqueBox: Box; blendBox: Box; column: Plane[]; slab: Plane[] };
+type TileBounds = ReturnType<typeof tileBounds>;
 
 /** What thread zero builds for a tile whose opaque pixels span `front` to `back`. */
 export function tileBounds(view: TileView, tile: [number, number], front: number, back: number) {
   const near = tileCorners(view, tile, DEPTH_NEAR);
   const column = columnOf(near, tileCorners(view, tile, DEPTH_NEAR / 1024));
-  const [frontCorners, backCorners] = [
-    tileCorners(view, tile, front),
-    tileCorners(view, tile, back),
-  ];
+  const frontCorners = tileCorners(view, tile, front);
+  const backCorners = tileCorners(view, tile, back);
   const away = column[4].n;
   return {
     opaqueBox: boxOf(frontCorners, backCorners),
@@ -119,16 +113,14 @@ export function tileBounds(view: TileView, tile: [number, number], front: number
   };
 }
 
-/** `sliceHits` of a light other than the sun, `centre` in the pass's frame. */
-export function sliceHits(bounds: TileBounds, centre: Vec3, radius: number, seesSky: boolean) {
+/** `sliceHits` of a light other than the sun on a tile `tileBounds` built, with no sky pixel —
+ *  `hasOpaque` true, `seesSky` false —, `centre` in the pass's frame. */
+export function sliceHits(bounds: TileBounds, centre: Vec3, radius: number) {
   const { opaqueBox, blendBox, column, slab } = bounds;
-  const hit = { opaque: false, blend: seesSky && sphereTouchesColumn(column, centre, radius) };
-  if (sphereInSides(column, centre, radius) && !sphereBehind(slab[1], centre, radius)) {
-    hit.opaque =
-      sphereTouchesBox(opaqueBox, centre, radius) && !sphereBehind(slab[0], centre, radius);
-    if (!seesSky)
-      hit.blend =
-        sphereTouchesBox(blendBox, centre, radius) && !sphereBehind(column[4], centre, radius);
-  }
-  return hit;
+  const inSlices = sphereInSides(column, centre, radius) && !sphereBehind(slab[1], centre, radius);
+  const opaque =
+    sphereTouchesBox(opaqueBox, centre, radius) && !sphereBehind(slab[0], centre, radius);
+  const blend =
+    sphereTouchesBox(blendBox, centre, radius) && !sphereBehind(column[4], centre, radius);
+  return { opaque: inSlices && opaque, blend: inSlices && blend };
 }

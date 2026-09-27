@@ -15,10 +15,9 @@ export type GpuLightTiles = Awaited<ReturnType<typeof createGpuLightTiles>>;
 
 const atOrigin = new Float64Array(16);
 /**
- * The tile pass's frame (`sdk-core` `renderOrigin.ts`): `origin` is the eye rounded to f32, the
- * very words the shader subtracts from a light's f32 centre, and `out` the inverse of
- * `viewProjection · T(origin)`, both in f64. Corners, boxes and planes then carry numbers the size
- * of the visible scene, never of its distance to the world origin.
+ * The tile pass's frame (`sdk-core` `renderOrigin.ts`): `origin` the eye rounded to f32, the words
+ * the shader subtracts from a light's centre, and `out` the f64 inverse of `viewProjection ·
+ * T(origin)` — the jittered render matrix, not the camera's `viewProjectionRelative`.
  */
 export function tileViewInverse(
   out: Float64Array,
@@ -36,8 +35,7 @@ export function tileViewInverse(
  * encoding allocates nothing.
  */
 export async function createGpuLightTiles(device: GPUDevice) {
-  // A device granted `subgroups` reduces each tile's depth bounds per subgroup: the same words,
-  // one atomic per subgroup. Every other device keeps the per-thread atomics.
+  // Granted `subgroups`, the depth bounds reduce per subgroup: the same words, fewer atomics.
   const subgroups = device.features.has('subgroups');
   const module = await createCheckedShaderModule(
     device,

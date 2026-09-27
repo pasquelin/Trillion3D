@@ -33,16 +33,12 @@ export const tileDepthBoundsWgsl = (subgroups: boolean) =>
   subgroups ? SUBGROUP_DEPTH_BOUNDS : ATOMIC_DEPTH_BOUNDS;
 
 /**
- * The opaque slice's two depth planes and the slice tests, beside the tile's column (`./shader.ts`):
- * thread zero builds them, every thread reads them. A light is kept in a slice only if its range
- * sphere meets both the slice's box and its planes: the planes are the tile's own frustum, much
- * tighter than a box once the tile is seen from above or at a slant. Everything is in the pass's
- * eye frame (`tileViewInverse`), so a plane's terms are the size of the view, and a sphere is out
- * only when wholly behind a plane, with no margin, as the sky column always was.
- * `oracles/browser/gpuLightTileColumnOracle.ts` ports it line by line.
+ * The slice planes and tests, beside the tile's column (`./shader.ts`): a light is kept only if
+ * its range sphere meets the slice's box and the planes of the tile's frustum. In the pass's eye
+ * frame a plane's terms are the size of the view: a sphere is out only when wholly behind one, no
+ * margin. `oracles/browser/gpuLightTileColumnOracle.ts` ports it line by line.
  */
-export const TILE_BOUNDS_WGSL = `/** The opaque slice's front and back depth planes, facing each other: with the column's four
- *  sides, the six planes of the tile's frustum between its two depths. */
+export const TILE_BOUNDS_WGSL = `/** The opaque slice's front and back depth planes, facing each other. */
 var<workgroup> slab:array<vec4f,2>;
 /** The tile's four corners at depth z, in \`tileCorner\`'s order. */
 fn tileCorners(tile:vec2u,z:f32)->array<vec3f,4>{
@@ -71,13 +67,13 @@ fn sphereInSides(centre:vec3f,radius:f32)->bool{
  for(var i=0u;i<4u;i++){if(sphereBehind(column[i],centre,radius)){return false;}}
  return true;
 }
-/** The lists that keep a light other than the sun: \`x\` the opaque one, \`y\` the blend one. A tile
- *  that sees the sky blends over its whole column. Otherwise both slices lie within the column's
- *  sides and in front of the opaque slice's back plane, tested once: the opaque one behind its
- *  front plane, the blend one behind the near plane. */
+/** Whether the opaque (\`x\`) and blend (\`y\`) lists keep a light other than the sun. Both slices
+ *  lie within the column's sides, a sky tile's blend slice is the whole column, the others end at
+ *  the opaque slice's back plane. */
 fn sliceHits(centre:vec3f,radius:f32,hasOpaque:bool,seesSky:bool)->vec2<bool>{
- var hit=vec2<bool>(false,seesSky&&sphereTouchesColumn(centre,radius));
- if(hasOpaque&&sphereInSides(centre,radius)&&!sphereBehind(slab[1],centre,radius)){
+ let sides=sphereInSides(centre,radius);
+ var hit=vec2<bool>(false,seesSky&&sides&&!sphereBehind(column[4],centre,radius));
+ if(hasOpaque&&sides&&!sphereBehind(slab[1],centre,radius)){
   hit.x=sphereTouchesBox(opaqueBox,centre,radius)&&!sphereBehind(slab[0],centre,radius);
   if(!seesSky){hit.y=sphereTouchesBox(blendBox,centre,radius)&&!sphereBehind(column[4],centre,radius);}
  }

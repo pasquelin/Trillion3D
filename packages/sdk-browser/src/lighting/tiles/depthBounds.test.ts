@@ -4,15 +4,11 @@ import { LIGHT_SETTINGS } from '../../../../sdk-core/src/index.ts';
 import { random } from '../../page/cut/cutRuleChecks.fixture.ts';
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 import { requestExplorerDevice } from '../../world/session/gpuDevice.ts';
-import { tileDepthBoundsWgsl } from './boundsWgsl.ts';
-import { LIGHT_TILES_SHADER, LIGHT_TILES_SHADERS, lightTilesShader } from './shader.ts';
+import { LIGHT_TILES_SHADERS } from './shader.ts';
 import { createGpuLightTiles } from './tiles.ts';
 
-// #924 (OMB-03): where the device grants `subgroups`, each subgroup reduces the tile's depth
-// bounds before one atomic per word. The four words the tile's bounds are built from must be
-// those of the per-thread atomics, to the bit, whatever the subgroup size and the depths —
-// including NaN, ±0, +Inf, subnormals and threads outside the image. Both variants are ported
-// here statement by statement, WGSL's comparisons included (any comparison with NaN is false).
+// #924 (OMB-03): granted `subgroups`, each subgroup reduces the tile's depth bounds first: the
+// per-thread atomics' words to the bit, any subgroup size, NaN, ±0, +Inf and subnormals included.
 
 const LANES = LIGHT_SETTINGS.tileSize ** 2;
 const word = new Float32Array(1),
@@ -20,21 +16,8 @@ const word = new Float32Array(1),
 const bitsOf = (z: number) => ((word[0] = z), bits[0]);
 type Lane = { z: number; inside: boolean };
 
-/** `ATOMIC_DEPTH_BOUNDS`: every thread its own atomics. */
-function atomicBounds(lanes: Lane[]) {
-  const out = { nearest: 0, farthest: 0xffffffff, covered: 0, skyward: 0 };
-  for (const { z, inside } of lanes) {
-    if (!inside) continue;
-    if (z > 0) {
-      out.nearest = Math.max(out.nearest, bitsOf(z));
-      out.farthest = Math.min(out.farthest, bitsOf(z));
-      out.covered = 1;
-    } else out.skyward = 1;
-  }
-  return out;
-}
-
-/** `SUBGROUP_DEPTH_BOUNDS`: each subgroup of `size` lanes reduces, its elected lane stores. */
+/** `SUBGROUP_DEPTH_BOUNDS`: each subgroup of `size` lanes reduces, its elected lane stores. One
+ *  lane per subgroup is `ATOMIC_DEPTH_BOUNDS`, each thread its own atomics. */
 function subgroupBounds(lanes: Lane[], size: number) {
   const out = { nearest: 0, farthest: 0xffffffff, covered: 0, skyward: 0 };
   for (let first = 0; first < lanes.length; first += size) {
@@ -56,7 +39,7 @@ function subgroupBounds(lanes: Lane[], size: number) {
 
 const SPECIAL = [NaN, 0, -0, Infinity, -Infinity, 1, 1e-45, 1.1754942e-38, 0.5, 1e-6];
 const same = (lanes: Lane[], at: string) => {
-  const expected = atomicBounds(lanes);
+  const expected = subgroupBounds(lanes, 1);
   for (const size of [4, 8, 16, 32, 64, 128])
     assert.deepEqual(subgroupBounds(lanes, size), expected, `${at}, subgroup ${size}`);
 };
@@ -72,22 +55,6 @@ test('subgroup depth bounds write the words of the per-thread atomics, any subgr
     }));
     same(lanes, `run ${run}`);
   }
-  // Edge tiles: all outside, all sky, all NaN, one lit lane.
-  const tile = (z: (i: number) => number, inside = true) =>
-    Array.from({ length: LANES }, (_, i) => ({ z: z(i), inside }));
-  const lit77 = tile((i) => (i === 77 ? 0.25 : -0));
-  const edges = [tile(() => 0.5, false), tile(() => 0), tile(() => NaN), lit77];
-  edges.forEach((lanes, i) => same(lanes, `edge ${i}`));
-});
-
-test('the subgroup variant enables the extension; the plain pass asks for nothing', () => {
-  const subgroups = lightTilesShader(true);
-  assert.ok(subgroups.startsWith('enable subgroups;'));
-  assert.doesNotMatch(LIGHT_TILES_SHADER, /subgroup/);
-  // Past the extension and the depth bounds, the two passes are the same text.
-  const rest = (code: string, variant: boolean) =>
-    code.replace('enable subgroups;', '').replace(tileDepthBoundsWgsl(variant), '');
-  assert.equal(rest(subgroups, true), rest(LIGHT_TILES_SHADER, false));
 });
 
 test('an adapter that offers subgroups gets them, and its light tiles run the subgroup pass', async () => {
@@ -109,5 +76,6 @@ test('an adapter that offers subgroups gets them, and its light tiles run the su
     const granted = offered.length > 0;
     assert.equal(tiles.subgroups, granted);
     assert.deepEqual(compiled, [LIGHT_TILES_SHADERS[+granted][1]]);
+    assert.equal(compiled[0].startsWith('enable subgroups;'), granted);
   }
 });

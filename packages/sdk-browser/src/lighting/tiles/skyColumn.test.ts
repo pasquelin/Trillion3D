@@ -22,8 +22,7 @@ const width = 1920,
   height = 1080;
 const view = (eye: [number, number, number]) => camera(eye, 0, 0, 60, width, height);
 const tile: [number, number] = [37, 21];
-/** A point on the axis of the tile's column, `near / depth` metres away from the eye, in the
- *  pass's frame: the eye is its origin. */
+/** A point on the axis of the tile's column, `near / depth` metres from the eye, its origin. */
 function onAxis(v: TileView, depth: number) {
   const corners = [0, 1, 2, 3].map((c) => tileCorner(v, tile, c, depth));
   return [0, 1, 2].map((a) => corners.reduce((s, p) => s + p[a] / 4, 0)) as [
@@ -57,7 +56,6 @@ test('a tile with a sky pixel lights its blend list from the column, whatever op
   const code = LIGHT_TILES_SHADER.replace(/\s+/g, '');
   assert.ok(code.includes('atomicStore(&skyward,1u);'));
   assert.ok(code.includes('if(atomicLoad(&skyward)==0u){blendBox=boxOf(near,back);}'));
-  assert.ok(code.includes('varhit=vec2<bool>(false,seesSky&&sphereTouchesColumn(centre,radius));'));
   assert.ok(!code.includes('1.0e30'), 'never the whole world');
 });
 

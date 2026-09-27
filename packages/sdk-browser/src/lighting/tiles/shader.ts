@@ -80,7 +80,7 @@ fn inwardPlane(normal:vec3f,point:vec3f,inside:vec3f)->vec4f{
  *  neighbouring corner rays, and the near plane, all facing the column's inside. */
 fn tileColumn(nearCorners:array<vec3f,4>,deepCorners:array<vec3f,4>){
  var order=array<u32,4>(0u,1u,3u,2u);
- var near=nearCorners;
+ var near=nearCorners; // copies: an array indexed at run time is a variable
  var deep=deepCorners;
  let inside=(deep[0]+deep[1]+deep[2]+deep[3])*0.25;
  for(var i=0u;i<4u;i++){
@@ -93,10 +93,6 @@ fn sphereTouchesBox(box:Box,centre:vec3f,radius:f32)->bool{
  let outside=max(box.lo-centre,centre-box.hi);
  let clamped=max(outside,vec3f(0.0));
  return dot(clamped,clamped)<=radius*radius;
-}
-/** A sphere is out of the column only if it lies wholly behind one of its planes. */
-fn sphereTouchesColumn(centre:vec3f,radius:f32)->bool{
- return sphereInSides(centre,radius)&&!sphereBehind(column[4],centre,radius);
 }
 ${TILE_BOUNDS_WGSL}
 /** Rank of a kept light: the number of kept bits before it in the same slice. */
