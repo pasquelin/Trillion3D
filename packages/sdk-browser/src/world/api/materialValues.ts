@@ -66,7 +66,7 @@ export function validate(id: number, patch: SceneMaterialPatch) {
   }
   // An unknown mode would be written as an opaque surface (`alphaModeFields`), refused instead.
   const mode = patch.alphaMode;
-  if (mode !== undefined && mode !== 'opaque' && mode !== 'mask' && mode !== 'blend')
+  if (mode !== undefined && !['opaque', 'mask', 'blend'].includes(mode))
     throw invalid(id, 'alphaMode', mode);
   const vector = (
     field: 'baseColor' | 'emissive' | 'tiling',
