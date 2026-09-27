@@ -24,19 +24,19 @@ export function evictResident(
   }));
 }
 
-/** The published order's next resident, unpinned page, taken from it. */
+/** The order's first resident, unpinned page; a pinned entry waits for its unpin, never spent. */
 function orderedVictim({ eviction, resident, pins }: GpuPageContext) {
   const order = eviction.order!;
-  while (eviction.at < order.count) {
-    const key = order.keyAt(eviction.at++),
+  for (let at = eviction.at; at < order.count; at++) {
+    const key = order.keyAt(at),
       page = resident.get(key);
+    if (at === eviction.at && !(page && pins.has(key))) eviction.at++;
     if (page && !pins.has(key)) return page;
   }
   return undefined;
 }
 
-/** The least recently loaded or touched unpinned page. Everything pinned is stated in O(1),
- *  without walking residency: a pool full for the view, every burst until the cut has grown. */
+/** The least recently loaded or touched unpinned page; everything pinned is stated in O(1). */
 function leastRecentVictim({ resident, pins }: GpuPageContext) {
   if (pins.size < resident.size)
     for (const page of resident.values()) if (!pins.has(page.key)) return page;
