@@ -7,13 +7,8 @@ import type { PageRec } from '../../page/selection/selection.ts';
  * share one index-page url while each keeps a quantized geometry page of its own. The address is
  * therefore the geometry page's url wherever the record carries one, and the index page's url
  * otherwise — two such clusters take two slots and each decodes its own page, where one address
- * would have had one of them decode the other's bytes.
- *
- * A transparent placement carries no geometry page (`../../page/selection/collect.ts`) and its forward draw
- * reads INDEX words out of its slot (`../transparent/spans.ts`, then `indices[base+local]` in
- * `../blend/shader.ts`): it sits at the index address and is served the index page, while the
- * opaque record of the same primitive keeps its page at that page's own address. Neither gives
- * anything up for the two to coexist.
+ * would have had one of them decode the other's bytes. A transparent cluster is no exception: its
+ * forward draw decodes the same page (`../blend/shader.ts`).
  */
 export const pageAddress = (rec: Pick<PageRec, 'url' | 'geometryPage'>) =>
   rec.geometryPage?.url ?? rec.url;
