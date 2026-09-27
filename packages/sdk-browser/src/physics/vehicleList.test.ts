@@ -67,7 +67,14 @@ test('world.physics.add makes the vehicle with its body; driving it, its state a
       stepMaxMs: 0,
     };
     const buffer = new ArrayBuffer(4);
-    const results = { type: 'results', buffer, active: 1, character: null, vehicles: state };
+    const results = {
+      type: 'results',
+      buffer,
+      active: 1,
+      character: null,
+      vehicles: state,
+      spent: [],
+    };
     worker.onmessage({ data: { ...tick, ...results } });
     assert.deepEqual([car.speed, car.rpm, car.gear], [12, 4000, 3]);
     assert.equal(wheels[0].position.y.toFixed(3), '-0.350');

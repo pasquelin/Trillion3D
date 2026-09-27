@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { material } from '../../../../sdk-core/src/world/material/index.ts';
 import { object } from '../../../../sdk-core/src/world/object/index.ts';
 import { drawnTriangles } from '../../../../sdk-core/src/world/geometry/drawn.ts';
-import type { GraphMesh } from '../../host/graph/mesh.ts';
+import type { HostMesh } from '../../host/resources.ts';
 import type { GraphSurface } from '../../host/graph/surface.ts';
 import { clusterMaterialReason } from '../../host/surfaceGate.ts';
 import type { HostAttributes } from '../../host/resources.ts';
@@ -91,7 +91,7 @@ function spriteMesh() {
     models: [],
     rankOf: () => 0,
   });
-  return root.children[0] as GraphMesh;
+  return root.children[0] as HostMesh;
 }
 
 test("a sprite's host mesh wears the sprite surface and is bounded by its radius", () => {

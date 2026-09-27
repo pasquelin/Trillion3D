@@ -392,7 +392,9 @@
       "bottom": "Borda inferior da caixa ortográfica.",
       "projection": "`'perspective'` faz coisas distantes ficarem pequenas; `'orthographic'` mantém todo tamanho.",
       "copy": "Toma os valores de nó de `source` e, de uma câmera, sua óptica; sua própria `projection` permanece.",
-      "updateProjectionMatrix": "Mantido para páginas escritas contra um renderizador que precise dele: toda escrita de ótica já redesenha.",
+      "updateProjectionMatrix": "Recompõe `projectionMatrix`; cada escrita da óptica já o faz, e redesenha.",
+      "projectionMatrix": "A projeção que a óptica compõe, na convenção de profundidade da referência com um plano distante finito, para um renderizador que desenha com ela; cada escrita da óptica a recompõe. O mundo desenha com a sua (`engineCamera.ts`).",
+      "matrixWorldInverse": "A inversa da matriz do mundo como composta por último: a vista que um renderizador lê.",
       "rayThrough": "O raio do mundo que passa por um ponto da imagem, segundo a projeção própria do motor (`engineCamera.ts`): a partir do olho ao longo da vista para uma câmera em perspectiva, reto no eixo da vista a partir da caixa para uma ortográfica. Sua direção é um vetor unitário.",
       "set": "Coloca o olho em `pose.position`, olhando para `pose.target`, no campo que ela nomeia."
     }
@@ -500,6 +502,7 @@
       "totalNodes": "Nós ao todo.",
       "autonomousScene": "Sua cena embutida.",
       "primitives": "Suas primitivas.",
+      "worstStalls": "A tabela de bloqueios do compilador: no máximo dez primitivas com um grupo bloqueado que manteve raízes no nível 0, a pior primeiro. Ausente de um cache compilado antes dela.",
       "texturePreviews": "Uma entrada por (textura, atlas) decodificado, ordenada por textura e depois por atlas; vazia sem uma imagem decodificável.",
       "textures": "Modelo para os níveis pré-processados, relativo ao manifesto: {sha} o digest da imagem de origem, {kind} o nome do atlas (PREVIEW_ATLAS_NAMES), {level} o posto do nível. Ausente de um cache compilado antes dos níveis pré-processados, que este leitor recusa pela versão auxiliar.",
       "proxy": "Onde ler o proxy de cena residente e sua BVH: a geometria atingida por raios. Ausente de um cache compilado antes do rebote, que continua legível como está."
@@ -940,6 +943,7 @@
       "UNKNOWN_MATERIAL": "Uma mudança de material é desconhecida, está fora do intervalo, o moveria para uma classe de desenho que um motor fixa ao abrir a cena, ou repetiria um mapa que ele compartilha.",
       "MATERIAL_CLASS_CHANGE": "Uma mudança de material é desconhecida, está fora do intervalo, o moveria para uma classe de desenho que um motor fixa ao abrir a cena, ou repetiria um mapa que ele compartilha.",
       "MATERIAL_TEXTURE_SHARED": "Uma mudança de material é desconhecida, está fora do intervalo, o moveria para uma classe de desenho que um motor fixa ao abrir a cena, ou repetiria um mapa que ele compartilha.",
+      "MATERIAL_CEILING": "Uma página criaria mais materiais do que `RUNTIME_MATERIAL_CEILING` numa sessão; nada foi criado.",
       "INVALID_TRANSFORM": "O posicionamento de um nó não é uma matriz utilizável, ou um nó seria seu próprio ancestral.",
       "NON_FINITE_TRANSFORM": "O posicionamento de um nó não é uma matriz utilizável, ou um nó seria seu próprio ancestral.",
       "SINGULAR_PARENT_TRANSFORM": "O posicionamento de um nó não é uma matriz utilizável, ou um nó seria seu próprio ancestral.",
@@ -2041,7 +2045,11 @@
       "geometry": "A forma do mesh; defina outra geometria para mudá-la.",
       "material": "O material do mesh, ou um por grupo; defina outro para mudá-lo.",
       "localBounds": "A caixa do próprio conteúdo desse nó, referencial local; um nó simples não contém nenhum.",
-      "physics": "A malha como corpo da física do mundo, `null` quando não é. Define `'static'`, `'dynamic'`, `'kinematic'` ou opções; a forma é deduzida da geometria."
+      "physics": "A malha como corpo da física do mundo, `null` quando não é. Define `'static'`, `'dynamic'`, `'kinematic'` ou opções; a forma é deduzida da geometria.",
+      "morphTargetInfluences": "O peso de cada alvo de morph, quando a geometria declara algum.",
+      "morphTargetDictionary": "A posição de cada alvo de morph pelo seu nome.",
+      "updateMorphTargets": "Um peso zero por alvo de morph do primeiro atributo deformado, nomeado pela posição.",
+      "copy": "Toma os valores de `source`, e cópias dos seus filhos salvo indicação em contrário."
     }
   },
   "Mixer": {
@@ -2908,6 +2916,8 @@
       "environment": "Uma imagem dos arredores que superfícies brilhantes refletem; `null` para nenhuma.",
       "background": "O que preenche a imagem atrás de cada objeto: uma cor, ou `null` para o padrão. Uma mudança aparece no quadro seguinte, mantendo a sessão: uma nova cor atribuída aqui, ou a atual escrita pelos seus métodos (`set`, `setRGB`, `setHex`, `setHSL`...). Uma escrita direta de `.r`, `.g` ou `.b` não é detetada: atribua `background` de novo depois. Uma imagem, ou qualquer valor sem `getHex`, é recusada (`UNSUPPORTED_SCENE_UPDATE`): nenhum caminho a desenha.",
       "fog": "Névoa sobre cada superfície, opaca ou transparente, nos dois renderizadores; `null`, o padrão, para nenhuma, sem custo. `{ color, near, far }` esvai os objetos em `color` de `near` a `far`, distâncias a partir da câmera; `{ color, density }` se adensa `density` por unidade de distância; acrescente `heightFalloff` (e `baseHeight`, 0 por padrão) e ela assenta no chão, rareando acima de `baseHeight` — dividida por e a cada `1 / heightFalloff` unidades para cima. Uma mudança aparece no quadro seguinte: uma névoa nova dada aqui, ou sua cor escrita pelos seus métodos. Uma escrita direta de `near`, `far`, `density`... não é ouvida: dê `fog` de novo depois. Uma névoa fora do intervalo — `far` não além de `near`, uma densidade negativa — é recusada (`INVALID_SCENE_ENVIRONMENT`).",
+      "onBeforeRender": "Chamado por um renderizador antes de desenhar a cena; nenhum por padrão.",
+      "onAfterRender": "Chamado por um renderizador depois de desenhar a cena; nenhum por padrão.",
       "load": "Carrega um modelo compilado — a URL de seu manifesto — e o adiciona a esta cena.",
       "toJSON": "A cena como JSON simples e versionado: seus objetos, as formas pela chamada que as construiu, os materiais, as luzes, o corpo de cada malha como foi declarado e os modelos carregados por endereço; também a pose de `camera` quando uma é informada.",
       "fromJSON": "Substitui o que a cena contém por uma cena salva com `toJSON`, mantendo suas marcas `helper`; é resolvida quando seus modelos estão carregados. Outro formato ou outra versão é recusado (`UNSUPPORTED_SCENE_FORMAT`). Chamadas feitas enquanto uma está sendo lida rodam uma depois da outra, em ordem, cada uma sobre o que a anterior deixou: duas cenas salvas nunca se misturam."
@@ -3219,7 +3229,8 @@
       "textures": "Modelo para os níveis pré-processados, relativo ao manifesto: {sha} o digest da imagem de origem, {kind} o nome do atlas (PREVIEW_ATLAS_NAMES), {level} o posto do nível. Ausente de um cache compilado antes dos níveis pré-processados, que este leitor recusa pela versão auxiliar.",
       "proxy": "Onde ler o proxy de cena residente e sua BVH: a geometria atingida por raios. Ausente de um cache compilado antes do rebote, que continua legível como está.",
       "binary": "O arquivo binário.",
-      "primitives": "Suas primitivas."
+      "primitives": "Suas primitivas.",
+      "worstStalls": "A tabela de bloqueios do compilador: no máximo dez primitivas com um grupo bloqueado que manteve raízes no nível 0, a pior primeiro. Ausente de um cache compilado antes dela."
     }
   },
   "SlimCulling": {
@@ -4866,7 +4877,7 @@
     "summary": "`out[outAt..outAt + 2] = a × b`, operandos lidos em `aAt` e `bAt`."
   },
   "dagWarningsDiagnostic": {
-    "summary": "O diagnóstico `dag-warnings` de um cache: as primitivas sinalizadas pelo compilador, e cada primitiva com um grupo parado — o conjunto que o compilador classifica no stderr ao final de uma cozinha."
+    "summary": "O diagnóstico `dag-warnings` de um cache: as primitivas sinalizadas pelo compilador, e a tabela de bloqueios do compilador (`worstStalls`), as linhas que ele escreve no stderr ao fim de um cozimento, na sua ordem."
   },
   "decodeManifestBinary": {
     "summary": "Transforma um manifesto binário de volta no manifesto completo que um runtime lê."
@@ -7462,20 +7473,8 @@
     },
     "summary": "Uma imagem e o estado de amostragem com que é lida, e a transformação das suas coordenadas."
   },
-  "GraphMesh": {
-    "summary": "Um nó desenhado: uma geometria e a sua superfície, ou uma superfície por grupo da geometria.",
-    "members": {
-      "kind": "Desenhada numa colocação, ou em várias (`GraphInstancedMesh`).",
-      "morphTargetInfluences": "O peso de cada alvo de morph, quando a geometria declara algum.",
-      "morphTargetDictionary": "A posição de cada alvo de morph pelo seu nome.",
-      "geometry": "A sua forma.",
-      "material": "A sua superfície, ou uma por grupo da geometria.",
-      "updateMorphTargets": "Um peso zero por alvo de morph do primeiro atributo deformado, nomeado pela posição.",
-      "copy": "Toma os valores de `source`, e cópias dos seus filhos salvo indicação em contrário."
-    }
-  },
   "GraphNodeKind": {
-    "summary": "O que um nó do grafo é: a raiz, uma malha desenhada (numa colocação ou em várias), um olho, ou uma das luzes que uma cena declara."
+    "summary": "O que é uma luz do grafo: uma das luzes que uma cena declara."
   },
   "Joint": {
     "summary": "Uma junta entre dois corpos, ou entre um corpo e o mundo (`b` null), criada com `joint.*` e adicionada à simulação com `world.physics.add`.",
