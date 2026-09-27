@@ -1,10 +1,12 @@
 // The writes of a frame's shadow batches (#489): the first batch writes straight, as a single batch
 // always did; while staged, each write lands in the frame's command order — a staging slot of its
 // own and a copy into its target —, so a later batch never overwrites an earlier one before it ran.
-// The staged words reach the GPU in one upload per frame, whatever its batches (#344).
+// The staged words reach the GPU in one upload per frame, whatever its batches (#344): the measured
+// 8-lamp frame spent 113 of its 130 ms in one `writeBuffer` per staged write.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { fakeDevice, written } from '../../../../../tests/kit/gpu/fakeDevice.ts';
+import { bytesOf } from '../../../../../tests/kit/gpu/globals.ts';
 import { shadowBatchWrites } from './batchWrites.ts';
 import {
   MAX_SHADOW_BATCHES,
@@ -50,7 +52,7 @@ test('staged, two batches writing one buffer each land in command order', () => 
 // The staging buffer is sized once, from the most batches a frame draws (`batchBudget.ts`), and
 // counted in the memory budget: the largest frame fits it, and nothing is made at run time.
 test('the staging buffer is made once, at its largest, and holds the largest frame', () => {
-  const { device, buffers } = fakeDevice();
+  const { device, buffers, writes } = fakeDevice();
   const target = device.createBuffer({ size: SHADOW_BATCH_WRITE_BYTES, usage: 0 }),
     batches = shadowBatchWrites(device),
     batch = new Uint32Array(SHADOW_BATCH_WRITE_BYTES / 4);
@@ -70,5 +72,63 @@ test('the staging buffer is made once, at its largest, and holds the largest fra
   batches.stage(device.createCommandEncoder());
   batches.write(target, 0, batch);
   assert.throws(() => batches.write(target, 0, Uint32Array.of(1)), /SHADOW_BATCH_WRITES_OVERFLOW/);
+  const uploads = writes.length;
   batches.end();
+  assert.equal(writes.length, uploads + 1, 'what fit is uploaded, once');
+  batches.end();
+  assert.equal(writes.length, uploads + 1, 'an end with nothing staged uploads nothing');
 });
+
+/** Draws `batches` batches of writes of `perBatch` words each, of every word type and from a
+ *  window of their data; returns the device's record and the words each staged write was given. */
+function frame(batches: number, perBatch: (batch: number) => readonly number[]) {
+  const recorded = fakeDevice(),
+    { device } = recorded,
+    targets = [0, 1, 2].map(() =>
+      device.createBuffer({ size: SHADOW_BATCH_WRITE_BYTES, usage: 0 }),
+    ),
+    writer = shadowBatchWrites(device),
+    encoder = device.createCommandEncoder(),
+    staged: Uint32Array[] = [];
+  let seed = 1;
+  for (let batch = 0; batch < batches; batch++) {
+    if (batch) writer.stage(encoder);
+    perBatch(batch).forEach((count, k) => {
+      const data = new [Uint32Array, Int32Array, Float32Array][k % 3](count + 2).map(() => seed++);
+      writer.write(targets[k % 3], 4 * k, data, 1, count);
+      if (batch) staged.push(new Uint32Array(data.buffer, 4, count));
+    });
+  }
+  writer.end();
+  return { ...recorded, targets, staged };
+}
+
+for (const [name, batches, perBatch] of [
+  ['one batch', 1, () => [3, 5, 2]],
+  ['several batches', 5, (b: number) => [3 + b, 1, 7, b + 1]],
+  [
+    'the most batches, each at its largest',
+    MAX_SHADOW_BATCHES,
+    () => [SHADOW_BATCH_WRITE_BYTES / 4],
+  ],
+] as const) {
+  test(`${name}: one upload for every staged write, each copy reading its own words`, () => {
+    const { writes, copies, targets, staged } = frame(batches, perBatch),
+      direct = perBatch(0).length;
+    assert.equal(writes.length, direct + (batches > 1 ? 1 : 0), 'the first batch, then one upload');
+    assert.ok(
+      writes.slice(0, direct).every((w, k) => w.buffer === targets[k % 3]),
+      'straight',
+    );
+    assert.equal(copies.length, staged.length, 'one copy per staged write');
+    if (batches === 1) return;
+    const upload = writes[direct],
+      bytes = new Uint8Array(upload.buffer.size);
+    bytes.set(bytesOf(upload.data, upload.dataOffset, upload.size), upload.offset);
+    const words = new Uint32Array(bytes.buffer);
+    copies.forEach(({ from, fromOffset, size }, k) => {
+      assert.equal(from, upload.buffer);
+      assert.deepEqual(words.subarray(fromOffset / 4, (fromOffset + size) / 4), staged[k], `${k}`);
+    });
+  });
+}
