@@ -4,7 +4,7 @@
 // and each step's wheels are written back for the page to draw. Word layouts:
 // `packages/sdk-core/src/physics/vehicleLayout.ts` (VEHICLE, UNVEHICLE, DRIVE).
 #include "binding.h"
-#include "jointIndex.h"
+#include "slotLists.h"
 #include "words.h"
 
 #include <Jolt/Physics/Body/BodyLock.h>
@@ -66,9 +66,9 @@ struct Vehicle {
 };
 
 std::vector<Vehicle> vehicles;
-/** The vehicles (their index in `vehicles`) on each body slot, kind 0: a body's removal takes out
- *  its own without walking every vehicle (PHY-15). */
-JointIndex onBody;
+/** The vehicles (their index in `vehicles`) on each body slot: a body's removal takes out its own
+ *  without walking every vehicle (PHY-15). */
+SlotLists<uint32_t> onBody;
 /** After a step, the vehicles' state (`VEHICLE_STATE_WORDS`, `WHEEL_STATE_WORDS` per wheel). */
 std::vector<uint32_t> state;
 
@@ -257,7 +257,7 @@ void lower(Body &body, const uint32_t *w) {
 
 void remove(Vehicle &vehicle) {
   if (vehicle.constraint) {
-    onBody.remove(vehicle.body, 0, uint32_t(&vehicle - vehicles.data()));
+    onBody.remove(vehicle.body, uint32_t(&vehicle - vehicles.data()));
     world().system->RemoveStepListener(vehicle.constraint);
     world().system->RemoveConstraint(vehicle.constraint);
     reshape(*vehicle.constraint->GetVehicleBody(), vehicle.shape, vehicle.shape);
@@ -283,7 +283,7 @@ void add(const uint32_t *w) {
   // motorcycle sample casts it): leaned, it rolls on its shoulder rather than on an edge.
   else vehicle.constraint->SetVehicleCollisionTester(new VehicleCollisionTesterCastCylinder(MOVING, w[2] == MOTORCYCLE ? 1.0f : 0.1f));
   vehicle.id = id, vehicle.body = slotIndex, vehicle.kind = w[2];
-  onBody.add(slotIndex, 0, index);
+  onBody.add(slotIndex, index);
   float steerTime = f32(w + 5 + 29);
   vehicle.steerRate = steerTime > 0 ? 1.0f / steerTime : FLT_MAX;
   vehicle.trackTurn = Clamp(f32(w + 5 + 31), 0.01f, 1.0f);
@@ -359,7 +359,7 @@ uint32_t vehicleCommand(const uint32_t *w) {
 void dropVehicles(uint32_t index) {
   // A copy, since removing unlists; in the order of `vehicles`, as a walk over all of them went.
   static std::vector<uint32_t> on;
-  on = onBody.at(index, 0);
+  on = onBody.at(index);
   std::sort(on.begin(), on.end());
   for (uint32_t v : on) remove(vehicles[v]);
 }

@@ -125,6 +125,12 @@ test('frozen bodies thaw on the step the eye comes in range, on a random walk, r
     step(jolt, writer, () => look(writer));
     for (const [id, [x, y, z]] of centres.entries())
       if (Math.hypot(x, y, z) - RADIUS - range > 1e-3) frozen.add(id);
+    // The eye still: the far bodies, frozen again, are not measured again (the travel stayed finite).
+    const { placed } = step(jolt, writer, () => look(writer));
+    assert.ok(
+      placed < centres.length - frozen.size / 2,
+      `${label}: margins hold again (${placed})`,
+    );
   }
 });
 

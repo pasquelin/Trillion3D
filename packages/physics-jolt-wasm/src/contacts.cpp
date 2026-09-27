@@ -57,11 +57,10 @@ void leaveAll(uint32_t engine) {
   // Only the body's own pairs (PHY-15), a copy since leaving them unlists them, in key order so
   // that the leaves are written in the same order every run.
   static std::vector<uint64_t> keys;
-  keys = w.pairs.of(engine);
+  keys = w.pairs.of(engine & INDEX_MASK);
   std::sort(keys.begin(), keys.end());
   for (uint64_t key : keys) {
     auto at = w.pairs.find(key);
-    if (at == w.pairs.end()) continue;
     if (at->second & ENTERED) pushLeave(key);
     w.softPairs.erase(key);
     w.pairs.erase(at);

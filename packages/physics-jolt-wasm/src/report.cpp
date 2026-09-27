@@ -63,7 +63,8 @@ Placement place(const World &w, const Slot &slot, const Body &body) {
 
 /// Notes how far the eye may travel before the frozen body of `slot` must be measured again.
 void noteFar(const World &w, Slot &slot, const Placement &at) {
-  slot.farUntil = at.far && at.slack > 0 ? w.travel + at.slack : -1;
+  // A body not far has a negative slack (`place`): measured again at once.
+  slot.farUntil = at.slack > 0 ? w.travel + at.slack : -1;
   slot.farEpoch = w.viewEpoch;
 }
 
@@ -89,8 +90,11 @@ void setView(View next) {
   World &w = world();
   next.cosHalf = std::cos(next.halfCone);
   next.sinHalf = std::sin(next.halfCone);
-  w.travel += double((next.eye - w.view.eye).Length());
-  if (next.range != w.view.range) ++w.viewEpoch;
+  // A non-finite eye, or a way back from one, is a new view: every margin is dropped, and the
+  // travel stays finite, so margins taken after it hold again.
+  double moved = double((next.eye - w.view.eye).Length());
+  if (std::isfinite(moved)) w.travel += moved;
+  if (!std::isfinite(moved) || next.range != w.view.range) ++w.viewEpoch;
   w.view = next;
 }
 

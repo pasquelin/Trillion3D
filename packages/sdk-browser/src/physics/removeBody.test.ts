@@ -4,6 +4,8 @@ import {
   CommandWriter,
   FLAG,
   OP,
+  VEHICLE_STATE_WORDS,
+  WHEEL_STATE_WORDS,
   vehicle,
   writeVehicle,
 } from '../../../sdk-core/src/physics/index.ts';
@@ -31,7 +33,8 @@ function car() {
 function vehicleIds(jolt: Module) {
   const words = jolt.vehicles(),
     ids: number[] = [];
-  for (let at = 0; at < words.length; at += 5 + words[at + 1] * 7) ids.push(words[at]);
+  for (let at = 0; at < words.length; at += VEHICLE_STATE_WORDS + words[at + 1] * WHEEL_STATE_WORDS)
+    ids.push(words[at]);
   return ids;
 }
 
