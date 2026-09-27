@@ -9,6 +9,7 @@ import {
   math,
   Mesh,
   object,
+  Vector3,
 } from '../packages/sdk-browser/src/index.ts';
 import { Camera } from '../packages/sdk-core/src/world/camera/camera.ts';
 import { Scene } from '../packages/sdk-browser/src/world/core/scene.ts';
@@ -64,15 +65,18 @@ test('brushed-metal controls the physical brush and spins every display disc', a
   Object.assign(run.values, { anisotropy: 0.4, direction: 1.7, roughness: 0.6 });
   run.change(run.values);
   assert.deepEqual([steel.anisotropy, steel.anisotropyRotation, steel.roughness], [0.4, 1.7, 0.6]);
-  const turns = discs.map(({ rotation }) => rotation.z);
+  const turns = discs.map(({ rotation }) => rotation.y);
+  const normal = () => new Vector3(0, 1, 0).applyQuaternion(discs[0].quaternion);
+  const facing = normal();
   run.frame({ delta: 0.5 });
-  assert.ok(discs.every(({ rotation }, index) => rotation.z > turns[index]));
-  const moved = discs.map(({ rotation }) => rotation.z);
+  assert.ok(discs.every(({ rotation }, index) => rotation.y > turns[index]));
+  assert.ok(normal().dot(facing) > 1 - 1e-12);
+  const moved = discs.map(({ rotation }) => rotation.y);
   const invalidations = run.invalidations();
   run.values.spin = false;
   run.frame({ delta: 0.5 });
   assert.deepEqual(
-    discs.map(({ rotation }) => rotation.z),
+    discs.map(({ rotation }) => rotation.y),
     moved,
   );
   assert.equal(run.invalidations(), invalidations);
