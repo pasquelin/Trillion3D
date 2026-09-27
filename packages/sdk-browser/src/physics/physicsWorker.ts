@@ -28,6 +28,10 @@ const buffers: ArrayBuffer[] = [];
 const water = createWaterStep();
 const clock = createStepClock(water);
 const queued: Uint32Array[] = [];
+/** The page's command buffers: `received` until a step ran them, then `spent` until the next
+ *  results hand them back. The character's own words stay here. */
+const received: ArrayBuffer[] = [],
+  spent: ArrayBuffer[] = [];
 const character = createCharacterDriver();
 let timer: ReturnType<typeof setTimeout> | null = null,
   active = 0,
@@ -42,7 +46,7 @@ function fail(error: unknown) {
   const message = String((error as Error)?.message ?? error);
   scope.postMessage({ type: 'error', code, message, fatal: true });
   jolt = results = null;
-  queued.length = 0;
+  queued.length = received.length = 0;
 }
 
 /** Runs the queued commands and one step; `stepMs` counts the step and its buoyancy, the clock
@@ -54,9 +58,11 @@ function run(dt: number) {
   const words = queued.length ? concat(queued.splice(0)) : null;
   const t = performance.now();
   const count = water.step(jolt!, words, dt);
-  const spent = performance.now() - t;
-  stepMs += spent;
-  if (dt > 0) stepMaxMs = Math.max(stepMaxMs, spent);
+  const ms = performance.now() - t;
+  stepMs += ms;
+  if (dt > 0) stepMaxMs = Math.max(stepMaxMs, ms);
+  for (const buffer of received) spent.push(buffer);
+  received.length = 0;
   character.read(jolt!.character(), dt);
   results!.gather(count);
 }
@@ -94,7 +100,7 @@ function tick() {
 }
 
 function post() {
-  if (results?.post({ steps, stepMs, stepMaxMs }, active, character.report, water))
+  if (results?.post({ steps, stepMs, stepMaxMs }, active, character.report, water, spent))
     steps = stepMs = stepMaxMs = 0;
 }
 
@@ -159,6 +165,7 @@ scope.onmessage = ({ data: message }) => {
     // Only a running simulation queues them: the page sends none before `ready`.
     if (!jolt) return;
     queued.push(message.words);
+    received.push(message.words.buffer);
     wake();
   } else if (message.type === 'character') {
     // Kept before `ready` too: the module makes the body before its first step.

@@ -99,7 +99,7 @@ export function assertOccluderImage(
     visibilityIds(): Uint32Array;
   },
   shown: PageRec[],
-  camera: G.GraphCamera,
+  camera: G.Camera,
   viewport: [number, number],
 ) {
   const cam = readCameraWorld(createEngineCamera(), camera);
@@ -127,7 +127,7 @@ export function assertOccluderImage(
 export function twoCoarseQuadsScene() {
   const a = coarseQuadScene(),
     b = coarseQuadScene();
-  const mesh = b.source.children[0] as G.GraphMesh;
+  const mesh = b.source.children[0] as G.HostMesh;
   mesh.position.x = 100;
   a.source.add(mesh);
   const primitive = {

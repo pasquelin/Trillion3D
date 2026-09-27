@@ -28,7 +28,7 @@ function item(position: G.Vector3, cullable = true) {
     bounds: undefined,
     sourceMesh: mesh,
     sourceGeometry: geometry,
-  } as unknown as BlendGpuItem & { sourceMesh: G.GraphMesh };
+  } as unknown as BlendGpuItem & { sourceMesh: G.HostMesh };
   refreshBlendBounds(shaped);
   return Object.assign(shaped, { parent, worlds });
 }

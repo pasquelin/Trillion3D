@@ -67,3 +67,22 @@ export function createLowerTier(options: {
     },
   };
 }
+
+/** A tier as the residency ensurer reads it: its pages, and the keys it names. */
+export type LowerList = { pages: readonly PageRec[]; has: (key: number) => boolean };
+
+/** One job's lower tiers in order, each page once: a page an earlier tier names — a caster also
+ *  ahead of the camera — is counted and loaded once. A copy: a tier's list is rewritten in place
+ *  by every report taken while a job loads, and a loop resumed on another list keeps neither
+ *  its order nor its count of free slots. */
+export function mergeLowerTiers(tiers: readonly LowerList[], keyOf: (page: PageRec) => number) {
+  const list: PageRec[] = [];
+  for (let t = 0; t < tiers.length; t++)
+    for (const rec of tiers[t].pages) {
+      const key = keyOf(rec);
+      let named = false;
+      for (let earlier = 0; earlier < t && !named; earlier++) named = tiers[earlier].has(key);
+      if (!named) list.push(rec);
+    }
+  return list;
+}
