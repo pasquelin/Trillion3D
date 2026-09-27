@@ -190,10 +190,17 @@ export function createAutonomousInstances(env: InstanceEnvironment) {
       wear(records, painted);
       if (previous) releasePaint(previous);
     },
-    /** Each assigned mesh's records wear its surface (`wearSurface`, #847); copies refused. */
+    /** Each assigned mesh's records wear its surface (`wearSurface`, #847); copies refused. A
+     *  paint no record wears any more is freed with its twin, as a repaint frees it. */
     wearSurface({ meshes }: SurfaceAssignment) {
       for (const [surface, records] of recordsBySurface(allPages, meshes))
         wear(records, surface as HostMaterial);
+      const worn = new Set(allPages.map((rec) => baseMaterials.get(rec)));
+      for (const [primitive, painted] of owned)
+        if (!worn.has(painted)) {
+          owned.delete(primitive);
+          releasePaint(painted);
+        }
     },
   };
 }
