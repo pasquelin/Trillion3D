@@ -19,8 +19,8 @@ export function listenMaterialDegraded() {
   const notices = createWorldNotices(),
     channel = diagnostic.createChannel(),
     heard: DegradedNotice[] = [];
-  channel.observe((notice) => {
-    const { kind, context } = notice as DegradedNotice;
+  // The channel hands the whole notice, its `context` included, typed by its kind and message.
+  channel.observe(({ kind, context }: { kind: string; context?: unknown }) => {
     heard.push({ kind, context });
   });
   return {
