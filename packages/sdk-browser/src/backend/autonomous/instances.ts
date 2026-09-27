@@ -8,13 +8,17 @@ import {
   setHostSurface,
   colouredTwin,
 } from '../../host/pageObjects.ts';
-import { surfaceOf } from '../../page/surface.ts';
+import { recordsOfMeshes, wearDeclaration } from '../../page/surface.ts';
 import type { PageRec, ClusterRoot } from '../../page/selection/selection.ts';
 import type { createAutonomousGeometry } from './geometry.ts';
 import { composedPose, deplaceInstance } from './instancePose.ts';
 import { attachedPages, drawnInstanced } from '../../placement/autonomousPlacements.ts';
 import type { HeldFloor } from './heldFloor.ts';
-import { blendMoves, type AlphaChange } from '../../placement/backendSceneUpdates.ts';
+import {
+  blendMoves,
+  type AlphaChange,
+  type SurfaceAssignment,
+} from '../../placement/backendSceneUpdates.ts';
 
 type InstanceEnvironment = {
   roots: ClusterRoot<PageRec>[];
@@ -83,8 +87,7 @@ export function createAutonomousInstances(env: InstanceEnvironment) {
       : painted;
     for (const rec of records) {
       baseMaterials.set(rec, painted);
-      rec.declaration = rec.attributes.color ? coloured : painted;
-      rec.material = surfaceOf(rec.declaration);
+      wearDeclaration(rec, rec.attributes.color ? coloured : painted);
       if (rec.mesh) setHostSurface(rec.mesh, rec.declaration);
     }
   };
@@ -184,10 +187,10 @@ export function createAutonomousInstances(env: InstanceEnvironment) {
       wear(records, painted);
       if (previous) releasePaint(previous);
     },
-    /** The records of `alpha.meshes` wear the surface they were given (`wearSurface`, #847);
-     *  false when pages draw none of them — a blended copy's, laid out at open. */
-    wearSurface({ meshes, surfaces }: AlphaChange) {
-      const records = allPages.filter((rec) => rec.sourceMesh && meshes!.includes(rec.sourceMesh));
+    /** The records of the assigned meshes wear their surface (`wearSurface`, #847); false when
+     *  pages draw none of them — a blended copy's, laid out at open. */
+    wearSurface({ meshes, surfaces }: SurfaceAssignment) {
+      const records = recordsOfMeshes(allPages, meshes);
       wear(records, surfaces[0] as HostMaterial);
       return records.length > 0;
     },

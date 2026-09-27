@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import { meshes } from '../../scene/meshes.ts';
 import { RUNTIME_MATERIAL_CEILING } from './materialApi.ts';
 import { refusal, scene } from './materialApi.fixture.ts';
+import type { SurfaceAssignment } from '../../placement/backendSceneUpdates.ts';
 
 test('a created material reads back what the page named, glTF defaults elsewhere', async () => {
   const { api } = await scene();
@@ -41,7 +42,11 @@ test('a created material is worn by the drawable it is assigned to, every engine
     floor = api.material('0');
   assert.equal(api.assignMaterial('1/0', made.id), true, 'every engine took it');
   assert.equal(drawable.material, refreshes.at(-1)!.surfaces[0], 'the drawable wears it');
-  assert.deepEqual(refreshes.at(-1)!.meshes, [drawable], 'the drawable alone');
+  assert.deepEqual(
+    (refreshes.at(-1) as SurfaceAssignment).meshes,
+    new Set([drawable]),
+    'the drawable alone',
+  );
   assert.deepEqual(api.material('0'), floor, 'the material it wore is left as it was');
   assert.equal(api.setMaterial(made.id, { roughness: 0.25 }), true, 'then set as any other');
   assert.equal(api.material(made.id).roughness, 0.25);
