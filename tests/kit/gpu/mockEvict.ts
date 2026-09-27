@@ -19,8 +19,7 @@ export function mockEvictions(byBinding: Map<number, { data: Uint8Array }>, pack
     stamps = dagFlagsWords(packed.nodeCount, pageCount, false),
     keys = cold.subarray(L.keyBase(pageCount)),
     pool = L.poolBase(pageCount),
-    listCap = L.selectionListCap(pageCount),
-    at = L.evictionWord(listCap);
+    listCap = L.selectionListCap(pageCount);
   return {
     /** `countFrame`, then `stampUse` on each page the cut drew or asked for, at its canonical page. */
     stamp(used: Iterable<number>) {
@@ -36,8 +35,8 @@ export function mockEvictions(byBinding: Map<number, { data: Uint8Array }>, pack
         now: work[frame],
         cap: Math.min(views[POOL_SLOTS_WORD], listCap),
       });
-      out[at] = queue.length;
-      out.set(queue, at + L.SELECTION_HEADER_WORDS);
+      out[L.evictionWord(listCap)] = queue.length;
+      out.set(queue, L.evictionWord(listCap) + L.SELECTION_HEADER_WORDS);
     },
   };
 }
