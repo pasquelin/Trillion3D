@@ -12,9 +12,11 @@ import type { createPageStreamer } from '../../streaming/pageStreamer.ts';
 import type { EngineProfiler } from '../../diagnostic/telemetry.ts';
 import type { WebglSurface } from '../../webgl/core/surface.ts';
 import type { JobProgress } from '../../../../sdk-core/src/runtime/jobs.ts';
+import type { createReadWatch } from '../../streaming/readWatch.ts';
 
 /** How `awaitPages` waits: with or without a picture, and who hears the pages land. */
 type PageWait = { image?: boolean; onProgress?: (event: JobProgress) => void };
+type Read = ReturnType<ReturnType<typeof createReadWatch>['watch']>;
 
 type Inputs = {
   check: () => void;
@@ -108,33 +110,35 @@ export function createExplorerLifecycle(session: ExplorerSession, inputs: Inputs
     for (const backend of backends) await backend.flush?.();
     await diagnosticChannel.flush();
   };
-  /** The pages `backend`'s view reads that the streamer holds, `missing` aside: resident already. */
-  const heldPages = (backend: RenderBackend, missing: readonly string[]) => {
+  /** The pages `backend`'s view reads that the streamer holds, `missing` aside and those `read`
+   *  heard land aside: resident already. */
+  const heldPages = (backend: RenderBackend, missing: readonly string[], read: Read) => {
     const lacking = new Set(missing);
     let held = 0;
     for (const url of backend.pageUrls?.() ?? [])
-      if (!lacking.has(url) && streamer.has(url)) held++;
+      if (!lacking.has(url) && !read.landed(url) && streamer.has(url)) held++;
     return held;
   };
   /** The pages the view reads, made resident; `image: false` takes no picture of them.
    *  `onProgress` hears `pages`: `total` the pages the view reads — those the streamer held already
-   *  and every page it reads while the wait runs, whoever asks it (`readWatch.ts`): the host for the
-   *  cut, or the engine itself, as the WebGPU residency does inside its flush —, `completed` those
-   *  resident, rising as each lands; the last event says `completed === total`. */
+   *  and every page it reads for the view while the wait runs, a prefetch aside, whoever asks it
+   *  (`readWatch.ts`): the host for the cut, or the engine itself, as the WebGPU residency does
+   *  inside its flush —, `completed` those resident, rising as each lands; the last event says
+   *  `completed === total`. */
   const awaitPages = async (options: PageWait = {}) => {
     const { onProgress, ...wait } = options;
     let held = 0,
-      reads = { landed: 0, asked: 0 },
-      said = '';
+      said = [-1, -1];
     const report = (last = false) => {
-      const completed = held + reads.landed,
+      const reads = read.reads(),
+        completed = held + reads.landed,
         total = last ? completed : held + reads.asked;
-      if (!onProgress || `${completed}/${total}` === said) return;
-      said = `${completed}/${total}`;
+      if (completed === said[0] && total === said[1]) return;
+      said = [completed, total];
       const message = `${completed} of ${total} pages the view reads`;
-      onProgress({ phase: 'pages', completed, total, message });
+      onProgress?.({ phase: 'pages', completed, total, message });
     };
-    const stop = onProgress ? streamer.watch((heard) => ((reads = heard), report())) : () => {};
+    const read = streamer.watch(() => report());
     try {
       check();
       if (streaming.promise) await streaming.promise;
@@ -143,7 +147,7 @@ export function createExplorerLifecycle(session: ExplorerSession, inputs: Inputs
           backend,
           camera,
           async (missing) => {
-            if (onProgress) held += heldPages(backend, missing);
+            held += heldPages(backend, missing, read);
             await streamer.request(missing);
             for (const url of missing) {
               if (geometryUrls.has(url)) {
@@ -161,7 +165,7 @@ export function createExplorerLifecycle(session: ExplorerSession, inputs: Inputs
       }
       report(true);
     } finally {
-      stop();
+      read.stop();
     }
     state.loaded = streamer.stats().loaded;
     state.pageBytesRead = streamer.stats().bytesRead;
