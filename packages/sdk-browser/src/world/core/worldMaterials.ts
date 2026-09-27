@@ -112,9 +112,11 @@ export function createWorldMaterials() {
     // Only the fields the material holds: a kind never gains a field it does not declare.
     for (const field of Object.keys(material)) {
       if (!isValue(material, field)) continue;
-      const value = material[field];
-      if (value instanceof Color) (entry.material[field] as Color).copy(value);
-      else entry.material[field] = value;
+      const value = material[field],
+        into = entry.material[field];
+      // A colour the entry does not hold yet — a specular written after it was made — is a copy.
+      if (value instanceof Color && into instanceof Color) into.copy(value);
+      else entry.material[field] = value instanceof Color ? value.clone() : value;
     }
     return true;
   };
