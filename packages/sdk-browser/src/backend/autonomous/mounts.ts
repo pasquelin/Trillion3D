@@ -11,6 +11,7 @@ import {
 } from '../../page/selection/selection.ts';
 import type { PlacementMount } from '../../placement/backendSceneUpdates.ts';
 import type { PlacementOf, PlacementRows } from '../../placement/rows.ts';
+import { forgetRowRoots } from '../../placement/update.ts';
 import type { WebglFrameGate } from '../../webgl/core/frameGate.ts';
 import type { BackendContext } from '../types.ts';
 import type { createAutonomousGeometry } from './geometry.ts';
@@ -77,6 +78,7 @@ export function createAutonomousMounts(env: PlacementTables) {
       }
       urls.forEach((url, i) => geometryStore.storeGeometryPage(url, pages[i]));
       geometryStore.rowsWritten();
+      forgetRowRoots(roots);
       coverChanged();
       gate.sceneChanged();
     },
@@ -100,6 +102,7 @@ export function createAutonomousMounts(env: PlacementTables) {
         bootstrapUrls.delete(url);
       }
       context.pageCatalogue?.forget(gone);
+      forgetRowRoots(roots);
       coverChanged();
       gate.sceneChanged();
     },
