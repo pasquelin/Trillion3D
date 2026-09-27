@@ -45,7 +45,7 @@ test("a frame's batches follow its pool, its views and the device, within the gr
   assert.equal(full.stagingBytes, (full.batches - 1) * SHADOW_BATCH_WRITE_BYTES);
   assert.ok(full.stagingBytes < SHADOW_STAGING_BYTES, 'a smaller pool stages less');
   assert.equal(shadowBatchCapacity(pool, 1, large).batches, MAX_SHADOW_BATCHES, 'one view');
-  assert.equal(shadowBatchCapacity(600, 6, large).batches, 100, "six views: six pages a batch");
+  assert.equal(shadowBatchCapacity(600, 6, large).batches, 100, 'six views: six pages a batch');
   assert.equal(shadowBatchCapacity(1, DAG_MAX_VIEWS, large).stagingBytes, 0, 'one batch');
   assert.equal(shadowBatchCapacity(64 * 64, DAG_MAX_VIEWS, large).batches, MAX_SHADOW_BATCHES);
   const small = shadowBatchCapacity(pool, DAG_MAX_VIEWS, 10 * SHADOW_BATCH_WRITE_BYTES + 3);

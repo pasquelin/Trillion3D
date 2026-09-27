@@ -54,9 +54,9 @@ test('staged, two batches writing one buffer each land in command order', () => 
 });
 
 // The staging buffer is sized from the batches the current pool may draw (`shadowBatchCapacity`),
-// within the grant the memory budget counts: a smaller pool stages less, and a frame that reserves
-// no more than before makes nothing.
-test('the staging buffer is made at the reserved capacity, again only for a larger one', () => {
+// within the grant the memory budget counts: a smaller pool stages less, a frame that reserves no
+// more than before makes nothing, and one that reserves more makes the grant's, once.
+test('the staging buffer is made at the reserved capacity, then at the grant once', () => {
   const { device, buffers, writes, destroyed } = fakeDevice();
   const target = device.createBuffer({ size: SHADOW_BATCH_WRITE_BYTES, usage: 0 }),
     batches = shadowBatchWrites(device),
@@ -68,6 +68,10 @@ test('the staging buffer is made at the reserved capacity, again only for a larg
   batches.end();
   batches.reserve(small / 2);
   assert.equal(buffers.length, 2, 'a smaller frame keeps the staging');
+  batches.reserve(small + SHADOW_BATCH_WRITE_BYTES);
+  batches.stage(device.createCommandEncoder());
+  batches.write(target, 0, batch);
+  batches.end();
   for (let frame = 0; frame < 2; frame++) {
     batches.reserve(SHADOW_STAGING_BYTES);
     for (let k = 1; k < MAX_SHADOW_BATCHES; k++) {
@@ -80,7 +84,7 @@ test('the staging buffer is made at the reserved capacity, again only for a larg
   assert.deepEqual(
     staging.map(({ size }) => size),
     [small, SHADOW_STAGING_BYTES],
-    "the pool's, then one for every batch of the grant's frame but the first",
+    "the pool's, then, grown, the grant's: every batch of its frame but the first",
   );
   assert.deepEqual(destroyed, [buffers[1]], 'the smaller one released');
   batches.stage(device.createCommandEncoder());

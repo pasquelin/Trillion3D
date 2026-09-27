@@ -6,7 +6,7 @@ import { POISSON_16 } from './shadowWgsl.ts';
 import { clampNumber as clamp } from '../../../../sdk-core/src/world/math/spherical.ts';
 import { compare, litOf, pcf, type Stored } from './shadowBias.fixture.ts';
 
-type Pair = [number, number];
+export type Pair = [number, number];
 
 /** `shadowPcf`'s split of a tap along a page seam: what `pagedPcf` restates. */
 export const SPLIT = [
