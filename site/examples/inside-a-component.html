@@ -23,7 +23,7 @@
       import { createWorld, geometry, light, material, math, object } from '../runtime/engine.js';
       import { banner, controls } from '../runtime/kit.js';
 
-      // Waits for #880: disposing a world must remove the canvas createWorld(element) added.
+      // Waits for #412: disposing a world must remove the canvas createWorld(element) added.
       class TrillionViewer extends HTMLElement {
         world = null;
 
