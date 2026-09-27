@@ -118,7 +118,7 @@ function frame(rand: () => number): Frame {
 
 test('grouped counting and scattering write the counts and draws of the per-slot walk', () => {
   let seed = 7;
-  const rand = () => ((seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 2 ** 32) as number;
+  const rand = () => (seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 2 ** 32;
   for (let trial = 0; trial < 600; trial++) {
     const f = frame(rand);
     const slots = slotCount(f.layerSlots);

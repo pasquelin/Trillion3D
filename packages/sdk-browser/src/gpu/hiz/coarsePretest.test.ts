@@ -108,7 +108,7 @@ function judge(
 }
 
 function lcg(seed: number) {
-  return () => ((seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 2 ** 32) as number;
+  return () => (seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 2 ** 32;
 }
 
 const SPECIALS = [0, -0, 1, Infinity, -Infinity, Number.NaN, f32(0.5), f32(1e-30)];

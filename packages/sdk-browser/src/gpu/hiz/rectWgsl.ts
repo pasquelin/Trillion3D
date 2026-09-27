@@ -79,8 +79,9 @@ fn pyramidHides(minX:i32,minY:i32,maxX:i32,maxY:i32,offset:u32,width:u32,nearest
  * the mip that covers it is chosen, and the farthest depth read there is compared to the box's
  * nearest (`pyramidHides`, after its coarse pre-test) — reverse-Z, so hidden means SMALLER. A
  * rectangle outside the viewport, or one no mip covers, hides nothing. Reads the shared uniform
- * (`PARTITION_UNI_WGSL`) and `pyramid`, which the host kernel declares; the opaque main-pass cull and the transparent-cluster test are this
- * same function on their own inputs, so the two rules cannot diverge.
+ * (`PARTITION_UNI_WGSL`) and `pyramid`, which the host kernel declares; the opaque main-pass cull
+ * and the transparent-cluster test are this same function on their own inputs, so the two rules
+ * cannot diverge.
  */
 export const HIZ_HIDDEN_WGSL = `${HIZ_LEVEL_WGSL}${HIZ_HIDES_WGSL}
 fn hiddenByPyramid(rect:vec4i,nearest:f32)->bool{
