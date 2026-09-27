@@ -36,7 +36,8 @@
       "engine CPU": "CPU المحرك"
     },
     "failure": {
-      "title": "توقف هذا المثال بسبب خطأ"
+      "title": "توقف هذا المثال بسبب خطأ",
+      "missingCache": "ذاكرة التخزين المؤقت المُجمَّعة مفقودة: شغّل pnpm compile:caches"
     },
     "banner": {
       "close": "إغلاق"
