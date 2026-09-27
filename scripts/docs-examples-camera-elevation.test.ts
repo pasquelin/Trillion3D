@@ -8,6 +8,7 @@ import {
   material,
   math,
   object,
+  type World,
 } from '../packages/sdk-browser/src/index.ts';
 import { Camera } from '../packages/sdk-core/src/world/camera/camera.ts';
 import { Scene } from '../packages/sdk-browser/src/world/core/scene.ts';
@@ -22,11 +23,13 @@ test('the house elevations use parallel rays and keep their scale across camera 
     'utf8',
   );
   const scene = new Scene(() => Promise.reject(new Error('the page loads no model')));
-  const canvas = { clientWidth: 1600, clientHeight: 900 };
+  const canvas = { clientWidth: 1600, clientHeight: 900 } as HTMLCanvasElement;
   let active = new Camera('perspective');
   let values = {} as Values;
   let change = (_next: Values, _key?: keyof Values) => {};
   let watched: unknown;
+  let disposed = 0;
+  let pagehide: EventListenerOrEventListenerObject | undefined;
   const world = {
     scene,
     canvas,
@@ -37,10 +40,12 @@ test('the house elevations use parallel rays and keep their scale across camera 
       active = next;
     },
     invalidate() {},
-    onPageHide() {},
-    dispose() {},
-  };
-  const previous = globalThis.ResizeObserver;
+    dispose() {
+      disposed++;
+    },
+  } satisfies Pick<World, 'scene' | 'canvas' | 'camera' | 'invalidate' | 'dispose'>;
+  const previousResizeObserver = globalThis.ResizeObserver;
+  const previousAddEventListener = globalThis.addEventListener;
   globalThis.ResizeObserver = class {
     private readonly callback: ResizeObserverCallback;
     constructor(callback: ResizeObserverCallback) {
@@ -52,6 +57,9 @@ test('the house elevations use parallel rays and keep their scale across camera 
     disconnect() {}
     unobserve() {}
   };
+  globalThis.addEventListener = ((type: string, listener: EventListenerOrEventListenerObject) => {
+    if (type === 'pagehide') pagehide = listener;
+  }) as typeof globalThis.addEventListener;
   try {
     await runExampleModule(html, {
       engine: { createWorld: () => world, camera, geometry, material, object, light, math },
@@ -70,7 +78,8 @@ test('the house elevations use parallel rays and keep their scale across camera 
       },
     });
   } finally {
-    globalThis.ResizeObserver = previous;
+    globalThis.ResizeObserver = previousResizeObserver;
+    globalThis.addEventListener = previousAddEventListener;
   }
 
   assert.equal(active.projection, 'orthographic');
@@ -91,4 +100,8 @@ test('the house elevations use parallel rays and keep their scale across camera 
   values.zoom = 1.5;
   change(values, 'zoom');
   assert.ok(span() < nearSpan, 'zoom changes the drawing scale deliberately');
+  assert.ok(pagehide, 'the page registers its lifecycle cleanup');
+  if (typeof pagehide === 'function') pagehide(new Event('pagehide'));
+  else pagehide.handleEvent(new Event('pagehide'));
+  assert.equal(disposed, 1);
 });
