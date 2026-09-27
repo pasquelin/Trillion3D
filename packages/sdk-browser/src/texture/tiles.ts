@@ -12,8 +12,8 @@ import {
  *
  * A tile carries 128×128 useful texels and a 4-texel gutter on each side, copied from
  * neighbours of the same level: linear filtering at a tile edge thus reads neighbouring
- * texels, not those of the next tile in the pool. A pool layer stores 30×30 tiles in a 4096
- * side; the last 16 texels of each row and column are never written nor read. Every measure is a multiple of four: a block-compressed pool
+ * texels, not those of the next tile in the pool. A pool layer stores 30×30 tiles in a
+ * 4096 side, the rest unused. Every measure is a multiple of four: a block-compressed pool
  * (`blockFormats.ts`) copies whole 4×4 blocks, and its tiles land on block boundaries.
  *
  * A texture's levels split in two: STREAMED levels, from 0 through the last that exceeds
@@ -28,10 +28,8 @@ export const TILE_PITCH = TILE_SIZE + 2 * TILE_BORDER;
 const TILES_PER_ROW = 30;
 /**
  * The layer's side is the tile grid rounded up to a power of two, and a tap snaps its in-tile
- * position to `POOL_SUBTEXEL` steps per texel: a pool coordinate — place plus position, over the
- * side — is then exact in f32, so the sampler filters with the same weights wherever the streamer
- * placed the tile. Over a side of 4080 it was rounded differently at each place: a tile landing
- * elsewhere, from one run to the next, moved scattered pixels by one level (#26).
+ * position to `POOL_SUBTEXEL` steps per texel: a pool coordinate is then exact in f32, and the
+ * sampler filters with the same weights wherever the streamer placed the tile (#26).
  */
 export const POOL_LAYER_SIDE = 2 ** Math.ceil(Math.log2(TILES_PER_ROW * TILE_PITCH));
 /** The finest grid f32's 24-bit significand holds at every place of a layer. */
