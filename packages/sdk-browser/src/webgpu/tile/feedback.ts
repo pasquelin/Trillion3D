@@ -38,51 +38,55 @@ export type WebgpuTileFeedback = {
 type Device = Pick<GPUDevice, 'createBuffer'>;
 
 export function createWebgpuTileFeedback(device: Device, entries: number): WebgpuTileFeedback {
+  /** One generation of buffers: `count` counters, their two readbacks, and what came back. */
   const allocate = (count: number) => {
     const bytes = Math.max(16, count * 4);
-    const buffer = device.createBuffer({
-      label: 'Trillion3D texture feedback',
-      size: bytes,
-      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
-    });
-    const staging = [0, 1].map((rank) =>
-      device.createBuffer({
-        label: `Trillion3D texture feedback readback ${rank}`,
-        size: bytes,
-        usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST,
-      }),
-    );
-    // Counters that came back, one array per readback buffer: nothing is allocated per image.
-    return { count, bytes, buffer, staging, held: [0, 1].map(() => new Uint32Array(count)) };
+    const buffer = (label: string, usage: number) =>
+      device.createBuffer({ label, size: bytes, usage });
+    return {
+      count,
+      bytes,
+      buffer: buffer(
+        'Trillion3D texture feedback',
+        GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+      ),
+      staging: [0, 1].map((rank) =>
+        buffer(
+          `Trillion3D texture feedback readback ${rank}`,
+          GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST,
+        ),
+      ),
+      // Per readback buffer: a copy encoded but not submitted, or an in-flight mapping.
+      copied: [false, false],
+      busy: [false, false],
+      // Counters that came back, one array per readback buffer: nothing is allocated per image.
+      held: [0, 1].map(() => new Uint32Array(count)),
+    };
   };
-  let { count, bytes, buffer, staging, held } = allocate(entries);
-  // Per readback buffer: a copy encoded but not submitted, or an in-flight mapping.
-  let copied = [false, false],
-    busy = [false, false];
+  let gen = allocate(entries);
   const inFlight = new Set<Promise<void>>();
   let next = 0,
     phase = 0,
     latest: Uint32Array | undefined;
   const destroy = () => {
-    buffer.destroy();
-    for (const target of staging) target.destroy();
+    gen.buffer.destroy();
+    for (const target of gen.staging) target.destroy();
   };
   return {
     get buffer() {
-      return buffer;
+      return gen.buffer;
     },
     get entries() {
-      return count;
+      return gen.count;
     },
     grow(ranks) {
       destroy();
-      ({ count, bytes, buffer, staging, held } = allocate(ranks));
-      copied = [false, false];
-      busy = [false, false];
+      gen = allocate(ranks);
       latest = undefined;
     },
     phaseWord: (every) => (every ? FEEDBACK_EVERY : 0) | phase,
     encode(encoder) {
+      const { busy, copied, buffer, staging, bytes } = gen;
       if (busy[next] || copied[next]) return;
       encoder.copyBufferToBuffer(buffer, 0, staging[next], 0, bytes);
       encoder.clearBuffer(buffer);
@@ -90,26 +94,27 @@ export function createWebgpuTileFeedback(device: Device, entries: number): Webgp
     },
     submitted() {
       phase = (phase + 1) % FEEDBACK_EVERY;
-      if (!copied[next]) return;
-      const rank = next;
-      copied[rank] = false;
-      busy[rank] = true;
-      const target = staging[rank],
-        into = held[rank],
-        flags = busy;
-      const read = target
+      const read = gen;
+      if (!read.copied[next]) return;
+      const rank = next,
+        target = read.staging[rank];
+      read.copied[rank] = false;
+      read.busy[rank] = true;
+      const mapped = target
         .mapAsync(GPUMapMode.READ)
         .then(() => {
-          into.set(new Uint32Array(target.getMappedRange(), 0, into.length));
+          // A read of a generation grown past counted the ranks before: dropped, never read.
+          if (read !== gen) return;
+          read.held[rank].set(new Uint32Array(target.getMappedRange(), 0, read.count));
           target.unmap();
-          latest = into;
+          latest = read.held[rank];
         })
         .catch(() => undefined)
         .finally(() => {
-          flags[rank] = false;
-          inFlight.delete(read);
+          read.busy[rank] = false;
+          inFlight.delete(mapped);
         });
-      inFlight.add(read);
+      inFlight.add(mapped);
       next ^= 1;
     },
     take() {

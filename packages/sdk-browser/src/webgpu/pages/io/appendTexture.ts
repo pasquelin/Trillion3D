@@ -1,10 +1,14 @@
 import { EngineError, type Texture } from '../../../../../sdk-core/src/index.ts';
 import { poolLayerBytes } from '../../../texture/tiles.ts';
 import { poolTaking } from '../../residency/memoryBudgets.ts';
-import { deviceMade } from '../../../gpu/core/errorScope.ts';
 import { tileCatalogue } from '../../tile/catalogue.ts';
-import { textureProbe } from '../../residency/poolGrants.ts';
-import { catalogueReport, pageTablesReport } from '../prepare/textures.ts';
+import {
+  budgetBeside,
+  grantedTexturePool,
+  probed,
+  textureProbe,
+} from '../../residency/poolGrants.ts';
+import { catalogueReport, laneDemand, laneTails, pageTablesReport } from '../prepare/textures.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 
 /** The append each session runs last: the next one draws its lane from the pool that one left. */
@@ -46,32 +50,41 @@ async function appendNow(rt: WebgpuPagesRuntime, texture: Texture, kind: 'color'
   const [, entry] = tileCatalogue([texture], () => undefined, undefined, encoding, coverage);
   const { lane } = entry,
     atlas = streamer[kind],
+    taken = [...atlas.textures, entry];
+  // What each lane takes, by the open's own rule, the new texture counted.
+  const tails = laneTails(taken),
+    demand = laneDemand(taken),
     peer = atlas.textures.findIndex((each) => each.lane === lane);
-  const tails = pools.tails[kind][lane] + 1,
-    demand = pools.demand[kind][lane] + 1 + entry.layout.entries;
   const resident = peer < 0 ? 0 : atlas.poolOf(peer).resident;
   const pool = poolTaking(
     pools.pool,
-    { kind, lane, resident, tails, streams: demand > tails },
+    { kind, lane, resident, tails: tails[lane], streams: demand[lane] > tails[lane] },
     poolLayerBytes(encoding.texelBytes(lane)),
     {
-      budgetBytes: setup.texturePoolBudget,
-      heldBytes: streamer.sources.liveBytes,
+      budgetBytes: budgetBeside(setup.texturePoolBudget, streamer.sources.liveBytes).bytes,
       maxLayers: device.limits.maxTextureArrayLayers,
     },
   );
   if (pool !== pools.pool) {
-    // Out of memory, absorbed: the grown pool is probed under its scope before any pool moves.
-    const probe = await deviceMade(device, () => textureProbe(device, encoding)(pool));
-    const refused = { kind, lane, askedBytes: pool.allocatedBytes };
-    if (!probe) throw new EngineError('TEXTURE_BUDGET', 'the device refused the pool', refused);
-    probe.destroy();
+    // Out of memory, absorbed: the grown pool is probed before any pool moves, a refusal named.
+    const probe = textureProbe(device, encoding);
+    const granted = await probed(
+      grantedTexturePool(
+        device,
+        pool.budgetBytes,
+        { poolFor: () => pool },
+        diag.engineDiagnostic,
+        probe,
+      ),
+    );
+    if (!granted)
+      throw new EngineError('TEXTURE_BUDGET', 'the device refused the pool', { kind, lane });
     if (run.lost) throw new Error('WEBGPU_LOST');
     streamer.resize(pool.layers);
     pools.pool = pool;
   }
-  pools.tails[kind][lane] = tails;
-  pools.demand[kind][lane] = demand;
+  pools.tails[kind] = tails;
+  pools.demand[kind] = demand;
   const slot = streamer.append(kind, entry);
   slots.set(texture, slot);
   run.gate.resourcesChanged();

@@ -29,7 +29,7 @@ test('a lane takes a texture after open in a free place, else one layer more, el
     allocatedBytes: 20,
     clamp: null,
   };
-  const limits = { budgetBytes: 100, heldBytes: 0, maxLayers: 4 };
+  const limits = { budgetBytes: 100, maxLayers: 4 };
   const taking = (resident: number, lane: 'lossless' | 'rgba' = 'lossless') =>
     ({ kind: 'color', lane, resident, tails: 2, streams: true }) as const;
   assert.equal(poolTaking(pool, taking(899), 10, limits), pool, 'a free place: nothing grows');
@@ -41,7 +41,7 @@ test('a lane takes a texture after open in a free place, else one layer more, el
   const refused = (over: Partial<typeof limits>) => () =>
     poolTaking(pool, taking(900), 10, { ...limits, ...over });
   assert.throws(refused({ budgetBytes: 29 }), { code: 'TEXTURE_BUDGET' });
-  assert.throws(refused({ heldBytes: 71 }), { code: 'TEXTURE_BUDGET' }, 'live textures count');
   assert.throws(refused({ maxLayers: 1 }), { code: 'TEXTURE_BUDGET' }, "the device's layers");
+  // Nothing grows, nothing is allocated: the budget is not asked.
   assert.equal(poolTaking(pool, taking(899), 10, { ...limits, budgetBytes: 1 }), pool);
 });
