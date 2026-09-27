@@ -120,7 +120,9 @@ export function buildWorldMirror(input: MirrorInput) {
     });
     if (!refresh || !done.length) return true;
     const moved = done.flatMap(({ alpha, surfaces }) => (alpha ? [{ surfaces, ...alpha }] : []));
-    return refresh(done.some((each) => each.values)) && moved.every((alpha) => refresh(true, alpha));
+    return (
+      refresh(done.some((each) => each.values)) && moved.every((alpha) => refresh(true, alpha))
+    );
   };
   return { root, twins, associations, repaint };
 }
