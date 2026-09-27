@@ -70,7 +70,7 @@ export async function measureBlend() {
   const sharedIndex = sharedGeometry.index;
   if (!sharedIndex) throw new Error('blend perf geometry requires an indexed geometry');
   const own = new WebglClusterRenderer(gl),
-    ownScene = new G.GraphScene(),
+    ownScene = new G.Scene(),
     ownCamera = readHostDrawCamera(createHostDrawCamera(), camera),
     // The two-sided transparent record draws back faces then front faces, read at the draw.
     ownMesh = {

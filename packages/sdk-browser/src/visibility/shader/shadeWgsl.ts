@@ -11,9 +11,14 @@ import { AS_IS_FLAG, MODEL_FLAG, MODEL_SHIFT, SURFACE_MODEL } from '../../scene/
  */
 export const SHADE_SHADER = `${SHADE_DECL_WGSL}
 @fragment fn shade_fs(@builtin(position) pos:vec4f)->SurfaceOut{
- // The depth test admitted this pixel: its page exists and is of this class.
+ // Material depth admitted this pixel, unless the prepared one-class path guards it below.
  let id=textureLoad(vis,vec2<i32>(i32(pos.x),i32(pos.y)),0).r;
- let pageIndex=(id>>8u)-1u;let tri=id&0xffu;
+ // A one-class image skips the material-depth pass: make exactly its background and bounds
+ // rejection here, before touching the page table. The class is fixed by this pipeline.
+ if(SINGLE_CLASS&&id==0u){discard;}
+ let pageIndex=(id>>8u)-1u;
+ if(SINGLE_CLASS&&pageIndex>=uni.pageCount){discard;}
+ let tri=id&0xffu;
  let page=pages[pageIndex];
  if(tri*3u+2u>=page.indexCount){return emptySurface();}
  let h=pageHeader(page);

@@ -14,6 +14,22 @@ export const pageAddress = (rec: Pick<PageRec, 'url' | 'geometryPage'>) =>
   rec.geometryPage?.url ?? rec.url;
 
 /**
+ * Starts the read of a cluster's geometry page ahead of its admission (`../residency/admission.ts`)
+ * through the host's page reader, the one the admission's own read goes through, which joins it.
+ * A cluster without a geometry page is served from memory: nothing to start. A failed read is the
+ * admission's to report, when its own read meets it.
+ */
+export const readGeometryAhead =
+  (
+    geometryUrls: ReadonlyMap<string, string>,
+    read: ((url: string, signal?: AbortSignal) => Promise<Uint8Array>) | undefined,
+  ) =>
+  (rec: PageRec, signal: AbortSignal) => {
+    const url = geometryUrls.get(pageAddress(rec));
+    if (url !== undefined && read) read(url, signal).catch(() => {});
+  };
+
+/**
  * What the geometry pool holds for the scene, walked once from the catalogue.
  *
  * A slot holds a cluster's quantized geometry page where the cache carries one, its index page
