@@ -507,6 +507,7 @@
       "totalNodes": "Tổng số node.",
       "autonomousScene": "Cảnh tích hợp sẵn của nó.",
       "primitives": "Các nguyên thủy của nó.",
+      "worstStalls": "Bảng tắc nghẽn của trình biên dịch: tối đa mười primitive có một nhóm bị tắc giữ lại gốc ở cấp 0, tệ nhất trước. Không có trong bộ nhớ đệm biên dịch trước nó.",
       "texturePreviews": "Một mục cho mỗi cặp (kết cấu, atlas) đã giải mã, sắp theo kết cấu rồi theo atlas; rỗng nếu không có ảnh nào giải mã được.",
       "textures": "Mẫu cho các mức đã nướng sẵn, tương đối so với tệp kê khai: {sha} là mã băm ảnh nguồn, {kind} là tên atlas (PREVIEW_ATLAS_NAMES), {level} là thứ hạng mức. Không có trong bộ nhớ đệm được biên dịch trước khi có tính năng nướng mức, mà trình đọc này từ chối qua phiên bản tệp phụ.",
       "proxy": "Nơi để đọc proxy cảnh đang lưu trú và BVH của nó: hình học bị các tia va vào. Không có trong bộ nhớ đệm được biên dịch trước khi có tính năng dội lại, vẫn đọc được nguyên trạng."
@@ -3302,7 +3303,8 @@
       "textures": "Mẫu cho các mức đã nướng sẵn, tương đối so với tệp kê khai: {sha} là mã băm ảnh nguồn, {kind} là tên atlas (PREVIEW_ATLAS_NAMES), {level} là thứ hạng mức. Vắng mặt khỏi bộ nhớ đệm được biên dịch trước khi có tính năng nướng mức, mà trình đọc này từ chối qua phiên bản tệp phụ.",
       "proxy": "Nơi để đọc proxy cảnh đang lưu trú và BVH của nó: hình học bị các tia va vào. Vắng mặt khỏi bộ nhớ đệm được biên dịch trước khi có tính năng dội lại, vẫn đọc được nguyên trạng.",
       "binary": "Tệp nhị phân.",
-      "primitives": "Các nguyên thủy của nó."
+      "primitives": "Các nguyên thủy của nó.",
+      "worstStalls": "Bảng tắc nghẽn của trình biên dịch: tối đa mười primitive có một nhóm bị tắc giữ lại gốc ở cấp 0, tệ nhất trước. Không có trong bộ nhớ đệm biên dịch trước nó."
     }
   },
   "SlimCulling": {
@@ -4857,7 +4859,7 @@
     "summary": "`out[outAt..outAt + 2] = a × b`, các toán hạng được đọc tại `aAt` và `bAt`."
   },
   "dagWarningsDiagnostic": {
-    "summary": "Chẩn đoán `dag-warnings` của một bộ nhớ đệm: các đối tượng nguyên thủy bị trình biên dịch đánh dấu, và mọi đối tượng nguyên thủy có một nhóm bị đình trệ — tập hợp mà trình biên dịch xếp hạng trên stderr vào cuối một lần nấu (cook)."
+    "summary": "Chẩn đoán `dag-warnings` của một bộ nhớ đệm: các primitive được trình biên dịch đánh dấu, và bảng tắc nghẽn của trình biên dịch (`worstStalls`), các dòng nó ghi ra stderr cuối mỗi lần nấu, theo thứ tự của nó."
   },
   "decodeManifestBinary": {
     "summary": "Biến một tệp kê khai nhị phân trở lại thành tệp kê khai đầy đủ mà một thời gian chạy đọc."
