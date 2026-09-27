@@ -56,8 +56,7 @@ export const readPages = (context: BackendContext, urls: readonly string[]) =>
     urls.map(async (url) => {
       context.signal?.throwIfAborted();
       const bytes = await context.readGeometryPage!(url);
-      console.warn('R1 bytes', bytes.byteLength);
       context.signal?.throwIfAborted();
-      return decodePageOffThread(bytes, context.signal).then((d) => (console.warn('R2 decoded'), d));
+      return decodePageOffThread(bytes, context.signal);
     }),
   );
