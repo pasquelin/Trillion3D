@@ -22,9 +22,8 @@ use std::borrow::Cow;
 
 /// The header length of a sixty-four-bit-field block.
 const WIDE_HEADER: usize = 32;
-/// The least a block costs in memory once indexed: its entry, and its address in both indexes.
-pub(super) const INDEXED: usize =
-    size_of::<Block>() + size_of::<(u64, usize)>() + size_of::<((usize, u64), usize)>();
+/// The least a block costs in memory once indexed: its entry, and its address in its index.
+pub(super) const INDEXED: usize = size_of::<Block>() + size_of::<((usize, u64), usize)>();
 
 /// A block of the file: its code, the structure that describes it, and where its bytes live.
 pub(super) struct Block {
@@ -46,6 +45,7 @@ pub(super) struct BlendFile<'a> {
     pub(super) version: u32,
     pub(super) blocks: Vec<Block>,
     pub(super) dna: Dna,
+    /// The blocks that are not `DATA`, by their address.
     index: HashMap<u64, usize>,
     /// The `DATA` blocks by their owner and their address.
     scoped: HashMap<(usize, u64), usize>,
@@ -76,9 +76,7 @@ impl<'a> BlendFile<'a> {
                 .enumerate()
                 .filter(move |(_, block)| block.old != 0 && (&block.code == b"DATA") == data)
         };
-        // An address two blocks share names the ID block: it is inserted last.
-        let index = addressed(true)
-            .chain(addressed(false))
+        let index = addressed(false)
             .map(|(rank, block)| (block.old, rank))
             .collect();
         let scoped = addressed(true)
@@ -100,7 +98,7 @@ impl<'a> BlendFile<'a> {
         self.unpacked
             .saturating_add(self.blocks.len().saturating_mul(INDEXED))
     }
-    /// The block this original address designates. A null pointer, or one to a missing block,
+    /// The ID block this original address designates. A null pointer, or one to a missing block,
     /// designates none: it is the reader that decides what to say of it, never a panic.
     pub(super) fn at(&self, old: u64) -> Option<&Block> {
         self.index.get(&old).map(|rank| &self.blocks[*rank])
@@ -108,10 +106,11 @@ impl<'a> BlendFile<'a> {
     /// The block a pointer read in the data of block `owner` designates: one of that block's data,
     /// or a block that is not `DATA` — never the data of another block, which may share its address.
     pub(super) fn reach(&self, owner: usize, old: u64) -> Option<&Block> {
-        match self.scoped.get(&(owner, old)) {
-            Some(rank) => Some(&self.blocks[*rank]),
-            None => self.at(old).filter(|block| &block.code != b"DATA"),
-        }
+        let rank = self
+            .scoped
+            .get(&(owner, old))
+            .or_else(|| self.index.get(&old))?;
+        Some(&self.blocks[*rank])
     }
     /// The blocks of a given code, in file order.
     pub(super) fn of(&self, code: [u8; 4]) -> impl Iterator<Item = &Block> {

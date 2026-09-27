@@ -89,14 +89,7 @@ fn stored<'a>(mesh: &At<'a>, out: &mut Vec<(String, Attr<'a>)>) {
     let Some(storage) = mesh.inner("attribute_storage") else {
         return;
     };
-    let announced = storage.int("dna_attributes_num", 0).max(0) as usize;
-    let Some((head, held)) = storage.array("dna_attributes") else {
-        return;
-    };
-    for rank in 0..announced.min(held).min(MAX_ATTRIBUTES) {
-        let Some(entry) = head.item(rank) else {
-            break;
-        };
+    for entry in layers::items(&storage, "dna_attributes_num", "dna_attributes") {
         let name = entry.text("name");
         let kind = entry.int("data_type", -1);
         let Some(width) = Attr::width(kind) else {

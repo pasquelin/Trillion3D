@@ -81,7 +81,7 @@ pub(super) fn read(mesh: &At<'_>, name: &str) -> Result<Geometry> {
         .map(|attr| attr.ints(corner_count))
         .filter(|values| values.len() == corner_count)
         .ok_or_else(|| unsupported(name, ".corner_vert attribute"))?;
-    let offsets = offsets(mesh, faces, corner_count)
+    let offsets = offsets(mesh, &table, faces, corner_count)
         .ok_or_else(|| unsupported(name, "readable face offsets"))?;
     if corners
         .iter()
@@ -154,14 +154,24 @@ fn named<'t, 'b>(
         .map(|(_, attr)| attr)
 }
 
-/// Face offsets: an array of `faces + 1` increasing integers, bounded by the corners.
-fn offsets(mesh: &At<'_>, faces: usize, corners: usize) -> Option<Vec<u32>> {
+/// Face offsets: an array of `faces + 1` increasing integers, bounded by the corners — stored as
+/// such, or as the first corner of each face (`.face_start`), then the corner count.
+fn offsets(
+    mesh: &At<'_>,
+    table: &[(String, attrs::Attr<'_>)],
+    faces: usize,
+    corners: usize,
+) -> Option<Vec<u32>> {
     let values = match ["poly_offset_indices", "face_offset_indices"]
         .into_iter()
         .find_map(|name| mesh.block(name))
     {
         Some(bytes) => bytes::ints(bytes, faces + 1),
-        None => layers::offsets(mesh, faces, corners)?,
+        None => named(table, ".face_start", attrs::FACE, attrs::INT32)?
+            .ints(faces)
+            .into_iter()
+            .chain([i32::try_from(corners).ok()?])
+            .collect(),
     };
     if values.len() != faces + 1 {
         return None;
