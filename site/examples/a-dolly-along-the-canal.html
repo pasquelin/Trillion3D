@@ -21,7 +21,8 @@
   <body>
     <canvas id="view"></canvas>
     <script type="module">
-      import { createWorld, geometry, material, object, light, math, animation } from '../runtime/engine.js';
+      import { createWorld } from '../runtime/engine.js';
+      import { geometry, material, object, light, math, animation } from '../runtime/engine.js';
       import { controls, readout } from '../runtime/kit.js';
 
       const world = createWorld('view');
@@ -56,11 +57,11 @@
         put(geometry.box(5, 0.35, 96), stone, [side * 8.7, 1.15, -4]);
         for (let z = 34; z >= -42; z -= 9) {
           const tall = (z / 9) & 1;
-          const building = put(
-            geometry.box(4.2, 4.2 + tall, 6.8),
-            tall ? brick : darkBrick,
-            [side * 9.2, 3.3, z],
-          );
+          const building = put(geometry.box(4.2, 4.2 + tall, 6.8), tall ? brick : darkBrick, [
+            side * 9.2,
+            3.3,
+            z,
+          ]);
           building.rotation.y = side * 0.025;
           for (const floor of [2.5, 4])
             for (const offset of [-1.2, 1.2])
@@ -78,7 +79,12 @@
       }
       world.scene.add(
         light.hemisphere({ color: '#d9efff', groundColor: '#5b5548', intensity: 1.5 }),
-        light.directional({ color: '#fff1d2', intensity: 2.8, position: [-12, 20, 15], castShadow: true }),
+        light.directional({
+          color: '#fff1d2',
+          intensity: 2.8,
+          position: [-12, 20, 15],
+          castShadow: true,
+        }),
       );
 
       const DURATION = 12;
@@ -87,7 +93,11 @@
       world.scene.add(world.camera); // a scene descendant is advanced by the world's animation loop
       const mixer = animation.createMixer(world.camera);
       const journey = animation.clip('canal dolly', DURATION, [
-        animation.vectorTrack('.position', [0, 3, 6, 9, 12], [0, 4.6, 39, 0, 4.4, 21, 0, 4.8, 2, 0, 4.3, -19, 0, 4.6, -39]),
+        animation.vectorTrack(
+          '.position',
+          [0, 3, 6, 9, 12],
+          [0, 4.6, 39, 0, 4.4, 21, 0, 4.8, 2, 0, 4.3, -19, 0, 4.6, -39],
+        ),
       ]);
       const action = mixer.clipAction(journey);
       action.loop = 'once';
