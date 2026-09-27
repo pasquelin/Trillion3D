@@ -76,13 +76,15 @@ function gridLights(
 
 /**
  * Benchmark sun: a generic directional light, identical for any model. Its direction points
- * northeast at approximately 40° above the horizon — an arbitrary afternoon, chosen once and never
- * per scene —, its color is neutral, and it projects a shadow. No value here depends on the measurement set.
+ * northeast at 70° above the horizon — a midday, chosen once and never per scene —, its color is
+ * neutral, and it projects a shadow. At 40° a courtyard as deep as sponza's lay in full shadow and,
+ * with no other light, its inside views were drawn RGB 0 (#1016). No value here depends on the
+ * measurement set.
  */
 export const SUN: SceneLight = {
   id: 'banc-soleil',
   kind: 'directional',
-  direction: [-0.5, -0.64, -0.58],
+  direction: [-0.223, -0.94, -0.259],
   color: [1, 0.97, 0.92],
   intensity: 3,
   castsShadow: true,
