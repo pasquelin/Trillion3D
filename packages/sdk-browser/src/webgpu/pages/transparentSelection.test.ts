@@ -45,7 +45,7 @@ test('transparent frustum selection preserves intersections, transformed bounds 
   for (const item of cases) {
     const fixture = quadScene(),
       { device, draws } = mockGpu(),
-      mesh = fixture.source.children[0] as G.GraphMesh;
+      mesh = fixture.source.children[0] as G.HostMesh;
     fixture.metadata.primitives[0].pass = 'shared-blend';
     fixture.material.transparent = true;
     fixture.material.side = G.DOUBLE_SIDE;

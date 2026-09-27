@@ -1,4 +1,22 @@
 {
+  "brushed-metal": {
+    "banner": "Gira para observar los reflejos cepillados. Cambia su fuerza y dirección.",
+    "controls": {
+      "anisotropy": "Fuerza del cepillado",
+      "direction": "Dirección del cepillado",
+      "roughness": "Rugosidad",
+      "spin": "Girar"
+    }
+  },
+  "car-paint-under-clear-coat": {
+    "banner": "Gira alrededor del coche. Cambia la pintura y la capa transparente.",
+    "controls": {
+      "paint": "Pintura",
+      "clearCoat": "Capa transparente",
+      "coatRoughness": "Rugosidad de la capa",
+      "spin": "Girar"
+    }
+  },
   "kit": {
     "panel": {
       "controls": "Ajustes"
@@ -310,6 +328,13 @@
       "roof": "Tejado"
     }
   },
+  "soft-shadows-from-a-wide-lamp": {
+    "banner": "Arrastra para girar. Cambia el ancho de la lámpara y observa los bordes de las sombras.",
+    "controls": {
+      "lampWidth": "Ancho de la lámpara",
+      "moveSubject": "Mover objeto"
+    }
+  },
   "a-softbox-panel": {
     "banner": "Arrastra para rodear la escena. Agranda el panel de luz para suavizar el brillo.",
     "controls": {
@@ -473,6 +498,14 @@
       "patrol": "RONDA",
       "car": "SIGUIENDO EL COCHE",
       "balloon": "SIGUIENDO EL GLOBO"
+    }
+  },
+  "a-crane-that-swings": {
+    "banner": "Gira alrededor de la grúa mientras un clip rota la pluma, mueve el carro, eleva la carga y la deja balancearse.",
+    "controls": {
+      "speed": "Velocidad",
+      "paused": "En pausa",
+      "replay": "Repetir"
     }
   },
   "a-wave-across-a-grid": {
@@ -1234,6 +1267,25 @@
       }
     }
   },
+  "a-walk-through-the-city": {
+    "banner": "Haz clic en la vista, camina con W A S D y mira con el ratón. Reduce la memoria mientras avanzas.",
+    "controls": {
+      "walkSpeed": "Velocidad",
+      "memory": "Memoria",
+      "view": "Vista",
+      "home": "Volver al inicio"
+    },
+    "choices": {
+      "view": {
+        "beauty": "imagen",
+        "lod": "niveles de detalle",
+        "clusters": "clústeres"
+      }
+    },
+    "words": {
+      "credit": "Avenida de urnas modelada en código para este ejemplo, CC0 — ver assets/examples/CREDITS.md"
+    }
+  },
   "migrating-from-three": {
     "words": {
       "credit": "Marble Bust 01 de Rico Cilliers, Poly Haven, CC0; caja de W. Sitters, CC BY 3.0 — ver assets/examples/CREDITS.md"
@@ -1681,6 +1733,21 @@
     },
     "readouts": {
       "fourthLaneAnisotropy": "Anisotropía del cuarto carril"
+    }
+  },
+  "the-home-pose": {
+    "banner": "Elige una vista, mueve la cámara y luego elige Inicio para volver.",
+    "controls": {
+      "home": "Inicio",
+      "tower": "Torre",
+      "square": "Plaza",
+      "hillside": "Ladera"
+    }
+  },
+  "the-near-plane-cuts-a-wall": {
+    "banner": "Avanza el plano cercano y observa cómo corta cada pared.",
+    "controls": {
+      "nearPlane": "Plano cercano"
     }
   },
   "the-material-family": {
@@ -2146,6 +2213,34 @@
     },
     "words": {
       "credit": "Bandera en un mástil modelada en código para este ejemplo, CC0 — ver assets/examples/CREDITS.md"
+    }
+  },
+  "a-dolly-along-the-canal": {
+    "banner": "Pausa el travelling, repite el recorrido o cambia su velocidad mientras la cámara avanza por el canal.",
+    "controls": {
+      "paused": "En pausa",
+      "replay": "Repetir",
+      "speed": "Velocidad"
+    },
+    "readouts": {
+      "progress": "Progreso"
+    }
+  },
+  "a-folder-merged-into-one-scene": {
+    "banner": "Arrastra para examinar la esquina. El compilador fusionó tres archivos OBJ de una carpeta en esta escena.",
+    "controls": {
+      "visible": "Visible",
+      "home": "Inicio"
+    },
+    "words": {
+      "credit": "Modelo de farola de W. Sitters, CC BY 3.0 — ver assets/examples/CREDITS.md"
+    }
+  },
+  "drag-a-crate": {
+    "banner": "Arrastra la caja por el suelo. Activa el ajuste para colocarla en pasos de medio metro.",
+    "controls": {
+      "snap": "Ajustar",
+      "home": "Inicio"
     }
   },
   "outline-the-selection": {
