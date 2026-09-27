@@ -1,4 +1,4 @@
-import type { GraphScene } from '../host/graph/scene.ts';
+import type { Scene } from '../world/core/scene.ts';
 import type { PageRec, ClusterRoot } from '../page/selection/types.ts';
 import type { WebglFrameGate } from '../webgl/core/frameGate.ts';
 import { followPlacementRows } from './update.ts';
@@ -42,7 +42,7 @@ type Placements = {
   baseMaterials: Map<PageRec, HostMaterials>;
   /** The host copies of blended and transmissive surfaces, and the graph that shows them. */
   blendCopies: BlendCopy[];
-  scene: GraphScene;
+  scene: Scene;
   gate: WebglFrameGate;
   /** Tells the instanced pages their rows were written (`webglPageBatches.ts`). */
   rowsWritten: () => void;
