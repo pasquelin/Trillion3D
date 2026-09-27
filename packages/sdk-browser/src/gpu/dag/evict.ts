@@ -10,20 +10,12 @@ import {
 import type { DagRoot } from './types.ts';
 
 /**
- * The EVICTION QUEUE the GPU cut publishes (#872): the pool's pages in the order the cache gives
- * their slots back, on the frame's one readback (`shader/evictWgsl.ts`).
- *
- * The cache evicts per CONTENT KEY — one slot per page address (`pageAddress`) — while the GPU
- * stamps last use per placement (`shader/lastUseWgsl.ts`). The key column packed here reconciles
- * them: each page names the first page of its address, its CANONICAL page, and the cut stamps
- * there, so the canonical page's stamp is the last use of the key over all its placements, with
- * no reduction and no host walk. The canonical page's word also carries the key's level: the
- * coarsest any placement brings it at (#824).
- *
- * The order: finer level first — a parent's level is above its children's, so every child leaves
- * before its parent (#477) —, then the oldest last use first. A key the latest cut drew or asked
- * for is not listed: a page read this frame is never evicted. The queue holds at most the pool's
- * slots, the rank's first ones when more are listed.
+ * The EVICTION QUEUE the GPU cut publishes on its readback (#872, `shader/evictWgsl.ts`). The cache
+ * evicts per content key (`pageAddress`), the GPU stamps per placement: each page's word in the key
+ * column names its address's first page, its CANONICAL page, where every placement stamps — so that
+ * stamp is the key's last use — and whose word carries the key's coarsest level (#824). Order: finer
+ * level first, so a child leaves before its parent (#477), then oldest use first; a key the latest
+ * cut read is never listed; at most the pool's slots.
  */
 
 /** Bits of a key word below the level: the canonical page, as a request word names a page. */
@@ -68,12 +60,8 @@ export function evictionRank(keyWord: number, age: number) {
   return ((EVICT_LEVELS - 1 - level) * EVICT_AGES) | step;
 }
 
-/**
- * CPU mirror of `dagListEvictions`, what the Node device replays: the canonical pages the pool
- * holds (`pool`, one bit per canonical page), less those stamped `now`, sorted by `evictionRank` through
- * `dagSortRequests`' own mirror, the first `cap` of them. Within a rank, page order: one of the
- * orders the kernel's threads give.
- */
+/** CPU mirror of `dagListEvictions`: the canonical pages in `pool` not stamped `now`, sorted by
+ *  `evictionRank` through `sortRequestWords`, the first `cap`; within a rank, page order. */
 export function listEvictions(options: {
   pool: Uint32Array;
   keys: Uint32Array;
