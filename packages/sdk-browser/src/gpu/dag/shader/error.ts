@@ -39,10 +39,13 @@ fn projected(error:f32,sphere:vec4f,e:mat4x4f,stretch:f32,focal:f32)->f32{
  if(!(slant>=nearest&&slant<INF)){return INF;}
  return ((shift*focal)/nearest)*(slant/closest);
 }
-/** The cluster the cut wants at \`threshold\`: the cut rule with everything resident. */
-fn selects(cluster:Cluster,e:mat4x4f,stretch:f32,focal:f32,threshold:f32)->bool{
- return drawsCluster(true,projected(cluster.parentError,cluster.parentSphere,e,stretch,focal),projected(cluster.lodError,cluster.sphere,e,stretch,focal),true,threshold);
+/** The two screen errors the cut rule compares, projected once: its replacement's (\`x\`, the
+ *  parent's) and its own (\`y\`). */
+fn clusterPixels(cluster:Cluster,e:mat4x4f,stretch:f32,focal:f32)->vec2f{
+ return vec2f(projected(cluster.parentError,cluster.parentSphere,e,stretch,focal),projected(cluster.lodError,cluster.sphere,e,stretch,focal));
 }
+/** The cluster the cut wants at \`threshold\`, on its \`clusterPixels\`: the rule with everything resident. */
+fn selects(pixels:vec2f,threshold:f32)->bool{return drawsCluster(true,pixels.x,pixels.y,true,threshold);}
 fn focalPixels()->f32{return max(views[vi].pixelScale.x,views[vi].pixelScale.y);}
 `;
 
