@@ -1,7 +1,7 @@
 // WHAT THESE TWO PUBLIC APIS EXPECT, AND WHAT THEY REFUSE.
 //
-// BEFORE (develop, fe285470): `cameraSelectionUniforms(camera: G.GraphCamera, …)` and
-// `rasterVisibility(pages, camera: G.GraphCamera, viewport)`.
+// BEFORE (develop, fe285470): `cameraSelectionUniforms(camera: G.Camera, …)` and
+// `rasterVisibility(pages, camera: G.Camera, viewport)`.
 // AFTER (M3b): `cameraSelectionUniforms(cam: EngineCamera, …)` (../gpu/core/selection.ts) and
 // `rasterVisibility(pages, cam: EngineCamera, viewport)` (../visibility/raster.ts) — both read
 // `cam.planes`/`cam.view`/`cam.viewProjection`, absent from a raw host camera.
@@ -47,7 +47,7 @@ function pageTriangle(matrix: G.Matrix4): VisPage {
 
 test('cameraSelectionUniforms rejects the raw host camera: it does not convert at the boundary', () => {
   const rig = creeRig(),
-    camera = poseRig(rig, POSE, true) as G.GraphCamera;
+    camera = poseRig(rig, POSE, true) as G.Camera;
   // `camera` has neither `.planes` nor `.view` nor `.viewProjection`: what `test:gpu` found on
   // a real GPU is already visible here, without GPU or browser.
   assert.throws(
@@ -64,7 +64,7 @@ test('cameraSelectionUniforms rejects the raw host camera: it does not convert a
 
 test('rasterVisibility rejects the raw host camera: it does not convert at the boundary', () => {
   const rig = creeRig(),
-    camera = poseRig(rig, POSE, true) as G.GraphCamera;
+    camera = poseRig(rig, POSE, true) as G.Camera;
   assert.throws(
     () =>
       rasterVisibility(
@@ -79,8 +79,8 @@ test('rasterVisibility rejects the raw host camera: it does not convert at the b
 
 test('cameraSelectionUniforms(cameraMoteur(…)): the correct call under a rig throws nothing and follows the flattened pose', () => {
   const rig = creeRig(),
-    camera = poseRig(rig, POSE, true) as G.GraphCamera,
-    aplatie = cameraAplatie(POSE) as G.GraphCamera;
+    camera = poseRig(rig, POSE, true) as G.Camera,
+    aplatie = cameraAplatie(POSE) as G.Camera;
   const sousRig = cameraSelectionUniforms(cameraMoteur(camera), 0, [1000, 1000]);
   const attendu = cameraSelectionUniforms(cameraMoteur(aplatie), 0, [1000, 1000]);
   assert.deepEqual([...sousRig.planes], [...attendu.planes], 'frustum planes');
@@ -90,8 +90,8 @@ test('cameraSelectionUniforms(cameraMoteur(…)): the correct call under a rig t
 
 test('rasterVisibility(cameraMoteur(…)): the correct call under a rig throws nothing and yields the same image', () => {
   const rig = creeRig(),
-    camera = poseRig(rig, POSE, true) as G.GraphCamera,
-    aplatie = cameraAplatie(POSE) as G.GraphCamera,
+    camera = poseRig(rig, POSE, true) as G.Camera,
+    aplatie = cameraAplatie(POSE) as G.Camera,
     matrix = new G.Matrix4();
   const sousRig = rasterVisibility([pageTriangle(matrix)], cameraMoteur(camera), [64, 64]);
   const attendu = rasterVisibility([pageTriangle(matrix)], cameraMoteur(aplatie), [64, 64]);

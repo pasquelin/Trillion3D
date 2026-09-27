@@ -1,7 +1,7 @@
 // Pure A2 oracles, no side effects: `ombrage.bench.ts` measures them; unit tests import
 // them as reference.
 import * as THREE from 'three';
-import type { GraphCamera } from '../../../packages/sdk-browser/src/host/graph/camera.ts';
+import type { Camera } from '../../../packages/sdk-core/src/world/camera/camera.ts';
 import { threeCamera } from '../../witnesses/three/fromGraphNodes.ts';
 import { RASTER_BACKGROUND } from '../../../packages/sdk-browser/src/page/raster.ts';
 import {
@@ -86,7 +86,7 @@ function referenceShadePixel(
 export function referenceShadeVisibility(
   ids: Uint32Array,
   pages: readonly (VisPage | undefined)[],
-  cam: GraphCamera,
+  cam: Camera,
   viewport: [number, number],
   background = RASTER_BACKGROUND,
 ) {

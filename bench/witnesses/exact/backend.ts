@@ -10,7 +10,7 @@ import {
   contractLightingApi,
   installLighting,
   graphBackground,
-  GraphScene,
+  Scene,
   collectClusterPages,
   createBlendCopy,
   type PageRec,
@@ -45,7 +45,7 @@ export const exactPagesBackend: BackendFactory = (context) => {
   // the engine's contract copies go back to being its meshes.
   const blendCopies = collected.blendCopies.flatMap((copy) => (isDrawnNode(copy) ? [copy] : []));
   const cap = maxResidentPages ?? context.residentPagesDefault ?? Math.max(1024, prepared),
-    scene = new GraphScene();
+    scene = new Scene();
   const sceneLights = installLighting(scene, clearColor, context.sceneLighting ?? source);
   const shown: PageRec[] = [],
     desired: PageRec[] = [],
