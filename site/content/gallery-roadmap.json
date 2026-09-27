@@ -1161,7 +1161,9 @@
     {
       "id": "inside-a-component",
       "theme": "interaction",
-      "file": "examples/inside-a-component.html"
+      "file": "examples/inside-a-component.html",
+      "status": "waiting-engine",
+      "issue": 880
     },
     {
       "id": "labels-that-follow",

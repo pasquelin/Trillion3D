@@ -331,6 +331,7 @@
       "a-walker-among-balls": "Un marcheur parmi les balles"
     },
     "missing": {
+      "inside-a-component": "retrait du canvas créé par le moteur à la destruction du monde",
       "floating-crates": "géométrie réécrite à chaque image",
       "thick-lines": "lignes épaisses",
       "a-line-that-draws-itself": "plage de dessin d’une géométrie",
