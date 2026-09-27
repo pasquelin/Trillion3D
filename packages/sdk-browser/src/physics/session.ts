@@ -49,9 +49,9 @@ export function createPhysicsSession(
   const bodies = createPhysicsBodies(writer, budget, host, root, poses.state);
   const joints = createPhysicsJoints(writer, bodies, invalidate);
   const vehicles = createPhysicsVehicles(writer, bodies, invalidate);
-  /** A body leaving the simulation takes its joints and vehicles; asleep, its joints break now. */
-  const retire = (index: number, asleep = false) => {
-    if (asleep) joints.retired(bodies.slots.physicsAt(index), wanted.joints);
+  /** A body leaving takes its joints and vehicles; out for good (asleep, diverged), they break. */
+  const retire = (index: number, forGood = false) => {
+    if (forGood) joints.retired(bodies.slots.physicsAt(index), wanted.joints);
     bodies.retire(index);
     dirty = true;
   };
@@ -104,10 +104,10 @@ export function createPhysicsSession(
       casts.get(data.id)?.(data.hits);
       casts.delete(data.id);
     } else {
-      // Refused shapes leave, tiles and cooked soft bodies by their owner; a fatal error ends all.
+      // Refused shapes leave, tiles and cooked soft bodies by their owner; diverged, joints break.
       for (const id of data.bodies ?? []) tiles.refused(id);
       const refused = (data.bodies ?? []).map(bodies.meshOf).filter((mesh) => mesh !== null);
-      for (const mesh of refused) retire(mesh.physics._index);
+      for (const mesh of refused) retire(mesh.physics._index, data.code === 'PHYSICS_DIVERGED');
       const names = refused.map((mesh) => mesh.name);
       failed(new EngineError(data.code, data.message, names.length ? { names } : {}), data.fatal);
     }
