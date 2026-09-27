@@ -1,9 +1,9 @@
 /**
  * Oracle of a tile's world bounds, a line-by-line port of `tileCorner`, the corner table,
  * `tileBox`, `inwardPlane`, `tileColumn`, `tileSlab` and the sphere tests in
- * packages/sdk-browser/src/lighting/tiles/boundsWgsl.ts. Every operation is rounded to f32 as the
- * shader's is; `inverseViewProjection` is column-major, like the uniform; depth is reversed with
- * an infinite far plane.
+ * packages/sdk-browser/src/lighting/tiles/{shader,boundsWgsl}.ts. Every operation is rounded to
+ * f32 as the shader's is; `inverseViewProjection` is column-major, like the uniform; depth is
+ * reversed with an infinite far plane.
  */
 import { LIGHT_SETTINGS } from '../../../packages/sdk-core/src/index.ts';
 import { DEPTH_NEAR } from '../../../packages/sdk-browser/src/camera/depthConvention.ts';
@@ -77,14 +77,14 @@ export function tileColumn(corners: Vec3[]) {
   return planes;
 }
 
-/** The opaque slice's front and back planes, oriented by the column's near plane. */
-function tileSlab(corners: Vec3[], column: Plane[]) {
+/** The opaque slice's front and back planes: the column's near normal through each depth. */
+function tileSlab(corners: Vec3[], column: Plane[]): Plane[] {
   const away = column[4].n;
-  const plane = (row: number, toward: Vec3) => {
-    const [p0, p1, p2] = [0, 1, 2].map((c) => corners[row * 4 + c]);
-    return inwardPlane(cross(sub(p1, p0), sub(p2, p0)), p0, add(p0, toward));
-  };
-  return [plane(ROW.front, away), plane(ROW.back, scale(away, -1))];
+  const at = (row: number) => dot(away, corners[row * 4]);
+  return [
+    { n: away, w: -at(ROW.front) },
+    { n: scale(away, -1), w: at(ROW.back) },
+  ];
 }
 
 export function sphereTouchesBox(box: Box, centre: Vec3, radius: number) {

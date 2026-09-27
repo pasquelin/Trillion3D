@@ -38,7 +38,6 @@ const RESOLVENT: Record<string, string> = {
   'lighting/sceneLighting.ts': 'light target, not a camera',
   'webgpu/pages/render/transform.ts': 'scene subtree moved by the host, not a camera',
   'host/graph/node.ts': 'the engine’s own node: the resolution `resolveCameraWorld` calls on it',
-  'host/graph/camera.ts': 'the engine’s own camera: its resolution keeps the inverse beside it',
   'physics/bodies.ts': 'a body the page moved, not a camera',
   'guides/guideSet.ts': 'a helper the page draws as guides, not a camera',
 };
@@ -72,7 +71,6 @@ const POSE_LOCALE: Record<string, string> = {
 const LISENT_LA_POSE: Record<string, string> = {
   'camera/world.ts': 'the contract',
   'page/raster.ts': 'host-graph raster oracle — resolves (callable alone)',
-  'host/graph/camera.ts': 'the engine’s own camera: a copy keeps the world pose it was given',
   'physics/view.ts': 'the eye, facing and range the physics worker is sent, once they change',
 };
 
