@@ -15,7 +15,7 @@ import { createLowerTier } from '../residency/lowerTier.ts';
 import { createGroupClosure } from '../../page/cut/groupClosure.ts';
 import { createImageRelevance } from '../residency/imageRelevance.ts';
 import { createWebgpuCutPublication } from '../cut/publication.ts';
-import { acceptPage, dropPage } from './io/pageApi.ts';
+import { acceptPage } from './io/pageApi.ts';
 import { readGeometryPageHeader } from '../../page/decode/geometryPageHeader.ts';
 import { awaitsPageBytes, pageAddress } from '../row/pageSlots.ts';
 import { markWebgpuLost } from './io/lost.ts';
@@ -30,7 +30,7 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
   const { run, gpu, diag, context } = rt,
     { rows, packedPages, drawSlots } = rt.layout,
     { tracking, bootstrap, bootstrapUrls, bootstrapKey } = rt.setup,
-    { sourceBytes, byUrl, geometryUrls } = rt.setup;
+    { sourceBytes, geometryUrls } = rt.setup;
   const mirror = createWebgpuResidencyMirror({
     pageIndicesByUrl: rows.pageIndicesByUrl,
     residentOffsetWords: rows.residentOffsetWords,
