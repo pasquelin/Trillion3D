@@ -9,19 +9,10 @@ import {
 import { resultWords } from './protocol.ts';
 import { createTickResults } from './tickResults.ts';
 import { tickModule } from './tickResults.fixture.ts';
+import { random } from '../page/cut/cutRuleChecks.fixture.ts';
 
 /** NaN, -NaN, ±0, ±Inf and the largest finite float, as words a pose can carry. */
 const EDGES = [0x7fc00000, 0xffc00001, 0, 0x80000000, 0x7f800000, 0xff800000, 0x7f7fffff];
-
-/** A random generator the runs repeat (mulberry32). */
-function random(seed: number) {
-  return () => {
-    seed = (seed + 0x6d2b79f5) | 0;
-    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
 
 /** One step's records as the module writes them: each body once, in any order. */
 function stepRecords(next: () => number, bodies: number, count: number) {
