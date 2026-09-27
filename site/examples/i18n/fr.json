@@ -1708,6 +1708,14 @@
       "fourthLaneAnisotropy": "Anisotropie de la quatrième piste"
     }
   },
+  "the-home-pose": {
+    "banner": "Choisissez une vue, déplacez la caméra, puis choisissez Accueil pour revenir.",
+    "controls": { "home": "Accueil", "tower": "Tour", "square": "Place", "hillside": "Colline" }
+  },
+  "the-near-plane-cuts-a-wall": {
+    "banner": "Avancez le plan proche et regardez-le couper chaque mur.",
+    "controls": { "nearPlane": "Plan proche" }
+  },
   "the-material-family": {
     "banner": "Glisse pour tourner autour. Passe à la nuit et vois ce qui brille encore.",
     "controls": {
