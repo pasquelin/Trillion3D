@@ -35,8 +35,7 @@ and pull requests.
 ## How work flows
 
 1. The boss tells the CTO what matters. The CTO sets the priority labels (🔴 🟠 🟡 🟢) of the
-   issues concerned, each owned by one lead: engine performance and optimisation first, examples
-   after.
+   issues concerned, each owned by one lead.
 2. Each lead takes, in order:
    - its open pull requests;
    - its `measure ko` / `audit ko` issues;
