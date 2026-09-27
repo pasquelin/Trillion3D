@@ -1,4 +1,3 @@
-import { serialOf } from '../../host/graph/serial.ts';
 import type { Scene } from '../../world/core/scene.ts';
 import { isDrawnNode } from '../../host/graph/kinds.ts';
 import {
@@ -13,7 +12,7 @@ import { firstMaterial } from '../../scene/materialSide.ts';
 import type { WebglClusterScene } from './lights.ts';
 import type { SceneCopy } from './copyCulling.ts';
 import { WebglClusterOwner } from './owner.ts';
-import { depthOf } from './meshDepth.ts';
+import { createDrawOrder } from './drawOrder.ts';
 import { meshes } from '../../scene/meshes.ts';
 import { DEFAULT_PIXEL_RATIO } from '../../backend/common.ts';
 import type { BackendHostDraw } from '../../backend/hostDraw.ts';
@@ -80,10 +79,9 @@ export function createSceneDraw(
   let owner: WebglClusterOwner | undefined,
     opened = false,
     walked = false;
-  // The projection times the view, and each drawn mesh's depth, read once a frame.
+  // The projection times the view, read once a frame, and the order it sorts the draws in.
   const screen = new Float64Array(16),
-    depths = new Map<DisplayNode, number>();
-  const depth = (node: DisplayNode) => depths.get(node)!;
+    order = createDrawOrder();
   const counters = { triangles: 0 };
   const collect = (node: DisplayNode) => {
     if (!node.visible) return;
@@ -103,26 +101,6 @@ export function createSceneDraw(
     followCopies();
     for (const child of scene.children) collect(child);
   };
-  // Opaque meshes of one order are grouped by surface, numbered as first met, as the reference
-  // groups them by the surfaces it numbers as it meets them — a run of one surface binds it once
-  // —, then drawn from the nearest; a tie is broken by the node's number, as the reference's is.
-  const ranks = new WeakMap<object, number>();
-  let nextRank = 0;
-  const rankOf = (mesh: WholeMesh) => {
-    const surface = mesh.material as object;
-    let rank = ranks.get(surface);
-    if (rank === undefined) ranks.set(surface, (rank = nextRank++));
-    return rank;
-  };
-  // A mesh the engine did not build (a test's) sorts as the first built.
-  const made = (node: DrawnNode) => serialOf(node) ?? 0;
-  const frontToBack = (a: DrawnNode, b: DrawnNode) =>
-    a.renderOrder - b.renderOrder ||
-    rankOf(a as WholeMesh) - rankOf(b as WholeMesh) ||
-    depth(a) - depth(b) ||
-    made(a) - made(b);
-  const backToFront = (a: DrawnNode, b: DrawnNode) =>
-    a.renderOrder - b.renderOrder || depth(b) - depth(a) || made(a) - made(b);
   const host: Required<BackendHostDraw> = {
     // Only a see-through mesh can refuse: the walk's list of them, still in graph order.
     linearRefusal() {
@@ -142,12 +120,8 @@ export function createSceneDraw(
       scene.onBeforeRender?.();
       try {
         walk();
-        depths.clear();
         multiplyMatrix4Typed(screen, drawCamera.projection, drawCamera.view);
-        for (const node of opaque as DrawnNode[]) depths.set(node, depthOf(node, screen));
-        for (const node of seeThrough) depths.set(node, depthOf(node, screen));
-        (opaque as DrawnNode[]).sort(frontToBack);
-        seeThrough.sort(backToFront);
+        order(opaque as DrawnNode[], seeThrough, screen);
         // A linear output is the effect chain's: its own program, which leaves the curve and the
         // encoding to the chain and marks the surfaces the curve skips.
         owner.draw(

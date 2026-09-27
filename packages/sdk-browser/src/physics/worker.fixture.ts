@@ -43,7 +43,7 @@ export const loaded = () =>
 export const idleTick: PhysicsResults = {
   ...{ type: 'results', buffer: new ArrayBuffer(0), poses: 0, events: 0, dropped: 0, steps: 0 },
   ...{ seconds: 0, water: 0, waterEpoch: 0, stepMs: 0, stepMaxMs: 0, active: 0 },
-  ...{ character: null, vehicles: null, soft: null },
+  ...{ character: null, vehicles: null, soft: null, spent: [] },
 };
 
 /** One pose record for engine id `id`: position and quaternion, velocities zero. */

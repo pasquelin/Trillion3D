@@ -7,6 +7,7 @@ import {
   type TilePlace,
 } from '../../texture/tiles.ts';
 import type { PoolLane } from '../../texture/blockFormats.ts';
+import { createVictimHeap, type VictimQueue } from './victimHeap.ts';
 
 /**
  * Physical pool of an atlas: an array-texture of 30×30-tile layers, at the size the host budget
@@ -42,11 +43,11 @@ export type WebgpuTilePool = {
   lastUseOf(index: number): number;
   pinnedOf(index: number): boolean;
   /** Unpinned tiles that neither `frame` nor the previous image looked at, least recently looked
-   *  at first. A tile looked at on the previous image is very likely looked at on this one: giving
-   *  it up for another is asking for it again on the next — a full pool would spin on itself every
-   *  image. It refuses instead, and the coarse level holds; that is the age rule of the
-   *  reference's virtual-texture pool. */
-  candidates(frame: number): number[];
+   *  at first, as a queue built once per image. A tile looked at on the previous image is very
+   *  likely looked at on this one: giving it up for another is asking for it again on the next — a
+   *  full pool would spin on itself every image. It refuses instead, and the coarse level holds;
+   *  that is the age rule of the reference's virtual-texture pool. */
+  victims(frame: number): VictimQueue;
   /** Every occupied place, pinned included, in pool order. */
   occupied(): number[];
   placeOf(index: number): TilePlace;
@@ -100,6 +101,8 @@ export function createWebgpuTilePool(
   // Free places, the lowest on top of the stack: a half-empty pool stays compact. The stack is
   // rebuilt in one pass when an adopt has stale-dated it, at the next take.
   const free: number[] = [];
+  // The image's eviction victims, ordered by last use then index, in one reused buffer.
+  const heap = createVictimHeap(tiles);
   let freeStale = true,
     resident = 0;
   const settle = () => {
@@ -166,11 +169,12 @@ export function createWebgpuTilePool(
       check(index);
       return pinned[index] === 1;
     },
-    candidates(frame) {
-      const out: number[] = [];
+    victims(frame) {
+      heap.clear();
       for (let index = 0; index < tiles; index++)
-        if (owner[index] !== -1 && !pinned[index] && lastUse[index] < frame - 1) out.push(index);
-      return out.sort((a, b) => lastUse[a] - lastUse[b] || a - b);
+        if (owner[index] !== -1 && !pinned[index] && lastUse[index] < frame - 1)
+          heap.add(lastUse[index], index);
+      return heap.order();
     },
     occupied() {
       const out: number[] = [];

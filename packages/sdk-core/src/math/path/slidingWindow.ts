@@ -32,23 +32,30 @@ export function estimateClockResolutionMs(now: () => number) {
   return plusPetit;
 }
 
-/** A sliding median over the last `PATH_WINDOW` values, with no allocation per execution. */
+/**
+ * A sliding median over the last `PATH_WINDOW` values, with no allocation per execution. The median
+ * is kept until the next value arrives: an observation feeds one median and reads two, so only the
+ * one it fed sorts again, and a full set of values sorts in place, with no view of its start.
+ */
 export class Fenetre {
   private readonly valeurs = new Float64Array(PATH_WINDOW);
   private readonly triee = new Float64Array(PATH_WINDOW);
   private prochain = 0;
+  /** The median of the values as they stand; `undefined` once a value has arrived since. */
+  private held: number | null | undefined = null;
   count = 0;
   ajoute(valeur: number) {
     this.valeurs[this.prochain] = valeur;
     this.prochain = (this.prochain + 1) % PATH_WINDOW;
     if (this.count < PATH_WINDOW) this.count++;
+    this.held = undefined;
   }
   mediane() {
-    if (!this.count) return null;
+    if (this.held !== undefined) return this.held;
     const { triee, valeurs, count } = this;
     for (let i = 0; i < count; i++) triee[i] = valeurs[i];
-    triee.subarray(0, count).sort();
+    (count === PATH_WINDOW ? triee : triee.subarray(0, count)).sort();
     const milieu = count >> 1;
-    return count % 2 ? triee[milieu] : (triee[milieu - 1] + triee[milieu]) / 2;
+    return (this.held = count % 2 ? triee[milieu] : (triee[milieu - 1] + triee[milieu]) / 2);
   }
 }
