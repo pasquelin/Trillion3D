@@ -11,7 +11,7 @@ import { DEFAULT_CLEAR_COLOR } from '../../backend/common.ts';
 import type { DecodedGeometryPage } from '../../page/decode/geometryPage.ts';
 import type { MemoryBudgets } from '../../residency/pools.ts';
 import type { PlacementRows } from '../../placement/rows.ts';
-import type { AlphaChange } from '../../placement/backendSceneUpdates.ts';
+import type { AlphaChange, PlacementMount } from '../../placement/backendSceneUpdates.ts';
 import { TAA_CAPABILITY } from '../../taa/capability.ts';
 
 type Inputs = {
@@ -97,6 +97,10 @@ export function createExplorerSceneApi(inputs: Inputs) {
         );
       active.growPlacements(from, to);
     },
+    /** Whether the active path mounts and unmounts resources in the open session (#572). */
+    mountsPlacements: () => !!getActive().mountPlacements,
+    mountPlacements: (mount: PlacementMount) => (check(), getActive().mountPlacements!(mount)),
+    unmountPlacements: (rows: PlacementRows) => (check(), getActive().unmountPlacements!(rows)),
     /** Bounced light on or off in the session; false when the active path cannot toggle it in
      *  place, and only a session opened with the other setting will have it. */
     setBounce(on: boolean) {
