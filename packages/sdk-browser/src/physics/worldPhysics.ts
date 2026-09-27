@@ -1,11 +1,6 @@
 import { EngineError } from '../../../sdk-core/src/contracts/cache.ts';
 import { WaterSurface, type WaterSpec } from '../../../sdk-core/src/fluids/index.ts';
-import {
-  GRAVITY_PRESETS,
-  physicsBudgetOf,
-  type GravityPreset,
-  type PhysicsBudget,
-} from '../../../sdk-core/src/physics/index.ts';
+import { GRAVITY_PRESETS, physicsBudgetOf } from '../../../sdk-core/src/physics/index.ts';
 import type { Camera } from '../../../sdk-core/src/world/camera/camera.ts';
 import { listen } from '../../../sdk-core/src/world/math/observed.ts';
 import { Vector3 } from '../../../sdk-core/src/world/math/vector3.ts';
@@ -15,16 +10,11 @@ import { createJointList } from './jointList.ts';
 import { physicsLink } from './physicsLink.ts';
 import type { PhysicsSession } from './session.ts';
 import { emptyPhysicsStats, type PhysicsStats } from './protocol.ts';
-
-/** A gravity: a preset's name, or a vector in m/s². */
-export type GravityInput = GravityPreset | { x: number; y: number; z: number };
-
-/** What `createWorld(canvas, { physics })` accepts beyond `true`. */
-export interface WorldPhysicsOptions {
-  /** The world's gravity: a preset or a vector. @defaultValue 'earth' */ gravity?: GravityInput;
-  /** Fixed envelopes, read once when the physics starts. @defaultValue DEFAULT_PHYSICS_BUDGET */
-  budget?: Partial<PhysicsBudget>;
-}
+import {
+  simulationRangeOf,
+  type GravityInput,
+  type WorldPhysicsOptions,
+} from './worldPhysicsOptions.ts';
 
 /**
  * The world's physics, `world.physics`: off until enabled, and then Jolt Physics in a worker. The
@@ -46,6 +36,7 @@ export function createWorldPhysics(
     loading: Promise<typeof import('./session.ts')> | null = null,
     paused = false,
     timeScale = 1,
+    range = simulationRangeOf(settings.simulationRange ?? null),
     water: WaterSpec | null = null,
     surface: WaterSurface | null = null,
     error: EngineError | null = null,
@@ -132,6 +123,15 @@ export function createWorldPhysics(
       timeScale = scale;
       clock();
     },
+    /** Metres around the camera within which bodies are simulated (frozen past it, as they were,
+     *  and no collision tile fetched); `null` follows `camera.far`. @defaultValue null */
+    get simulationRange(): number | null {
+      return range;
+    },
+    set simulationRange(metres: number | null) {
+      range = simulationRangeOf(metres);
+      invalidate();
+    },
     /** The water the bodies float in: its level, its waves, its density and drags. A body
      *  lighter than the water floats, pushed by the weight of the water it displaces.
      *  @defaultValue null (no water) */
@@ -176,7 +176,7 @@ export function createWorldPhysics(
     frame() {
       if (!session) return false;
       const start = performance.now();
-      const moving = session.frame(camera());
+      const moving = session.frame(camera(), range);
       // The frame's own work, plus the ticks received since the last one (`session.frame`).
       session.stats.mainMs += performance.now() - start;
       (runtime.explorer as HostCpuProfile | null)?.cpuStep?.('physicsMs', session.stats.mainMs);
