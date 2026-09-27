@@ -27,7 +27,7 @@ import type { PageRec } from '../../../page/selection/selection.ts';
  * no cluster enters or leaves them inside the session, nor takes another surface (#847).
  */
 export const webgpuMaterialClassRefusal = (alpha: AlphaChange, pages: readonly PageRec[] = []) =>
-  unpagedRefusal(pages, isAssignment(alpha) ? alpha.meshes : undefined) ||
+  unpagedRefusal(pages, alpha) ||
   (blendMoves(alpha) || (isAssignment(alpha) && assignsBlended(alpha, pages))
     ? 'its blended clusters are laid out in their forward pass when the session opens'
     : undefined);
@@ -77,5 +77,4 @@ export function refreshWebgpuMaterials(rt: WebgpuPagesRuntime, values = true, al
 export function wearWebgpuSurface(rt: WebgpuPagesRuntime, { meshes }: SurfaceAssignment) {
   for (const [surface, records] of recordsBySurface(rt.setup.allPages, meshes))
     for (const rec of records) wearDeclaration(rec, surface as HostMaterials);
-  return true;
 }
