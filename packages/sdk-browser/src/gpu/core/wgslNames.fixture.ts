@@ -24,7 +24,7 @@ const WGSL_OWN = new Set(
     'degrees determinant distance dot dpdx dpdy exp exp2 extractBits faceForward firstLeadingBit ' +
     'floor fma fract fwidth insertBits inverseSqrt ldexp length log log2 max min mix normalize ' +
     'pack2x16float pack4x8unorm pow reflect refract reverseBits round saturate select sign sin ' +
-    'smoothstep sqrt step storageBarrier tan tanh textureDimensions textureGather textureLoad ' +
+    'smoothstep sqrt step storageBarrier subgroupAny subgroupElect subgroupMax subgroupMin subgroups tan tanh textureDimensions textureGather textureLoad ' +
     'textureNumLevels textureSample textureSampleBias textureSampleCompare ' +
     'textureSampleCompareLevel textureSampleGrad textureSampleLevel textureStore transpose ' +
     'trunc unpack2x16float unpack4x8unorm workgroupBarrier workgroupUniformLoad'

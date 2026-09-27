@@ -86,8 +86,9 @@ test('a tile with a sky pixel lights its blend list from the column, whatever op
   assert.match(LIGHT_TILES_SHADER, /atomicStore\(&skyward,1u\);/);
   assert.match(
     LIGHT_TILES_SHADER,
-    /if\(atomicLoad\(&skyward\)==1u\)\{tileColumn\(tile\.xy\);\}else\{blendBox=tileBox\(tile\.xy,1\.0,back\);\}/,
+    /if\(atomicLoad\(&skyward\)==0u\)\{blendBox=tileBox\(tile\.xy,1\.0,back\);\}/,
   );
+  assert.match(LIGHT_TILES_SHADER, /if\(!sun&&atomicLoad\(&skyward\)==1u\)\{blendTouched=/);
   assert.match(LIGHT_TILES_SHADER, /blendTouched=sphereTouchesColumn\(centre,radius\);/);
   assert.doesNotMatch(LIGHT_TILES_SHADER, /1\.0e30/, 'never the whole world');
 });

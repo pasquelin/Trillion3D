@@ -1,5 +1,5 @@
 import { LIGHT_SETTINGS } from '../../../../sdk-core/src/index.ts';
-import { LIGHT_TILES_SHADER } from './shader.ts';
+import { lightTilesShader } from './shader.ts';
 import { createCheckedShaderModule } from '../../gpu/core/shaderModule.ts';
 import { createWebgpuBindIdentity } from '../../webgpu/core/bindIdentity.ts';
 import { TILE_STRIDE_WORDS } from '../direct/lightWgsl.ts';
@@ -15,7 +15,14 @@ export type GpuLightTiles = Awaited<ReturnType<typeof createGpuLightTiles>>;
  * encoding allocates nothing.
  */
 export async function createGpuLightTiles(device: GPUDevice) {
-  const module = await createCheckedShaderModule(device, LIGHT_TILES_SHADER, 'LIGHT_TILES_SHADER');
+  // A device granted `subgroups` reduces each tile's depth bounds per subgroup: the same words,
+  // one atomic per subgroup. Every other device keeps the per-thread atomics.
+  const subgroups = device.features.has('subgroups');
+  const module = await createCheckedShaderModule(
+    device,
+    lightTilesShader(subgroups),
+    subgroups ? 'LIGHT_TILES_SUBGROUP_SHADER' : 'LIGHT_TILES_SHADER',
+  );
   const layout = device.createBindGroupLayout({
     entries: [
       { binding: 0, visibility: GPUShaderStage.COMPUTE, texture: { sampleType: 'depth' } },
