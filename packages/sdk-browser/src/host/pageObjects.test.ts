@@ -18,6 +18,7 @@ import {
   setHostSurface,
 } from './pageObjects.ts';
 import type { Material } from '../../../sdk-core/src/index.ts';
+import { alphaModeFields } from './prepared/materials.ts';
 import type { DecodedGeometryPage } from '../page/decode/geometryPage.ts';
 
 const CONTRACT: Material = {
@@ -53,8 +54,8 @@ test('a page mesh built here is a node the host graph accepts, posed and ordered
   const declaration = hostPageSurface(CONTRACT, false);
   const mesh = hostPageMesh(geometry, declaration, 7);
   scene.add(mesh);
-  const [drawn] = scene.children as unknown as G.GraphMesh[];
-  assert.equal(drawn, mesh as unknown as G.GraphMesh, 'the host kept the node it was given');
+  const [drawn] = scene.children as unknown as G.HostMesh[];
+  assert.equal(drawn, mesh as unknown as G.HostMesh, 'the host kept the node it was given');
   assert.equal(drawn.material, declaration);
   assert.equal(drawn.renderOrder, 7);
   assert.equal(drawn.matrixAutoUpdate, false, 'the pose is written, never recomposed');
@@ -68,6 +69,18 @@ test('a page mesh built here is a node the host graph accepts, posed and ordered
   scene.remove(mesh);
   assert.equal(scene.children.length, 0);
   releaseHostGeometry(geometry);
+});
+
+test('a repainted surface draws its alpha mode by the one rule the open draws a table entry by', () => {
+  for (const alphaMode of ['opaque', 'mask', 'blend'] as const) {
+    const surface = hostPageSurface({ ...CONTRACT, alphaMode }, false) as unknown as G.GraphSurface;
+    const { transparent, depthWrite, alphaTest } = surface;
+    assert.deepEqual(
+      { transparent, depthWrite, alphaTest },
+      alphaModeFields(alphaMode, CONTRACT.alphaCutoff),
+      alphaMode,
+    );
+  }
 });
 
 test('a page geometry carries the box the page declares, its index and its component counts', () => {

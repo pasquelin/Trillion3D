@@ -158,7 +158,7 @@ test('a constant-size sprite blend item has no box, and the frustum keeps it', (
 });
 
 test('a WebGL2 scene copy of a constant-size sprite is drawn with its box out of view', () => {
-  const copies = new WebglClusterCopies<G.GraphMesh>();
+  const copies = new WebglClusterCopies<G.HostMesh>();
   const away = (sizeAttenuation: boolean) => {
     const geometry = new G.Geometry();
     geometry.setAttribute('position', G.floatAttribute([-1, -1, -3, 1, -1, -3, 0, 1, -3], 3));
