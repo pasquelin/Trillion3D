@@ -103,8 +103,9 @@ struct World {
   std::unordered_map<uint64_t, uint32_t> softPairs;
   /** Leaves that found the event buffer full: written first at the next step, never lost. */
   std::vector<uint64_t> leaving;
-  /** This step's bodies whose shape was refused (engine ids), and its enters the buffer dropped. */
-  std::vector<uint32_t> refused;
+  /** This step's bodies (engine ids) whose shape was refused, and whose pose or vertices went
+   *  non-finite (sent nothing, taken out); then its enters the buffer dropped. */
+  std::vector<uint32_t> refused, diverged;
   uint32_t dropped = 0;
   std::unordered_map<uint64_t, JPH::RefConst<JPH::Shape>> primitives;
   uint32_t *buffers[3] = {nullptr, nullptr, nullptr};
@@ -127,6 +128,8 @@ constexpr uint32_t EVENT_WORDS = 7;
 bool runCommands(const uint32_t *words, uint32_t count);
 /// The page's leave for every pair a body being removed was in; its later removal is ignored.
 void leaveAll(uint32_t engine);
+/// Takes the body in slot `index` out of the simulation: its pairs left, its joints and vehicles.
+void removeBody(uint32_t index);
 /// The shape an ADD command (`w`, from its opcode) describes, or null when refused.
 JPH::RefConst<JPH::Shape> shapeOf(const uint32_t *w);
 /// An ADD command's mass frame — a primitive's 3 or 12 data words, a cooked shape's past its handle:
@@ -135,6 +138,10 @@ JPH::RefConst<JPH::Shape> shapeOf(const uint32_t *w);
 const uint32_t *massFrame(const uint32_t *w, uint32_t &words);
 /// Writes the leaves a full event buffer held back at the last step, before anything else.
 void sendOwedLeaves();
+/// After `Update`, the contact records of every thread in the order the callbacks ran
+/// (`contacts.cpp`): the pairs counted, the enters and leaves written as the callbacks wrote them
+/// while they held a lock.
+void replayContacts();
 /// Runs the BUOYANCY command at `w` (`buoyancy.cpp`); returns its word count.
 uint32_t runBuoyancy(const uint32_t *w);
 /// Writes the poses of the dynamic bodies that moved during the step; returns their count.

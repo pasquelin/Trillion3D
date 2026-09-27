@@ -4,6 +4,7 @@ import {
   type TransportOptions,
   type TransportProgress,
 } from './contracts.ts';
+import { hypot3 } from '../../math/primitives/hypot.ts';
 
 export function fail(code: string, message: string): never {
   throw new LightingTransportError(code, message);
@@ -64,7 +65,7 @@ export function validateScene(scene: Scene) {
     ) {
       fail('INVALID_SCENE', 'Albedo must be in [0, 1] and emission must be nonnegative');
     }
-    const norm = Math.hypot(patch.normal[0], patch.normal[1], patch.normal[2]);
+    const norm = hypot3(patch.normal[0], patch.normal[1], patch.normal[2]);
     if (Math.abs(norm - 1) > 1e-6) fail('INVALID_SCENE', 'Patch normals must be normalized');
   }
   if (scene.sphere) {

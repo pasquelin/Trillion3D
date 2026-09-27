@@ -1,7 +1,11 @@
-/** The materials a page creates (#847): what it may name, and the surface built from it
- *  (`materialApi.ts`). */
+/** The materials a page creates (#847): what it may name, the surface built from it, and that
+ *  surface in each geometry variant a drawable asks of it (`materialApi.ts`). */
 import type { GraphSurface } from '../../host/graph/surface.ts';
 import { hostPageSurface } from '../../host/pageObjects.ts';
+import { surfaceVariantOf, variantKey } from '../../host/prepared/materials.ts';
+import { alphaModeOf, type AlphaMode } from '../../../../sdk-core/src/contracts/material.ts';
+import { firstMaterial } from '../../scene/materialSide.ts';
+import type { HostMesh } from '../../host/resources.ts';
 import { EngineError } from '../../../../sdk-core/src/index.ts';
 import {
   invalid,
@@ -36,6 +40,37 @@ export function validateCreated(id: string, props: CreatedMaterial) {
   validate(id, props, CREATED_FIELDS);
   if (props.name !== undefined && typeof props.name !== 'string')
     throw invalid(id, 'name', props.name);
+}
+
+/** A created material's surfaces by variant (`variantKey`), the plain one under this key. */
+export const PLAIN = variantKey({ vertexColors: false, flatShading: false });
+
+/** A created material's surface in the variant `attributes` ask for, cloned from its plain one
+ *  the first time. */
+function variantOf(variants: Map<string, GraphSurface>, attributes: Record<string, unknown>) {
+  const variant = surfaceVariantOf(attributes),
+    key = variantKey(variant);
+  let surface = variants.get(key);
+  if (!surface) {
+    surface = Object.assign(variants.get(PLAIN)!.clone(), variant, { needsUpdate: true });
+    variants.set(key, surface);
+  }
+  return surface;
+}
+
+/** Created material `variants` given to the meshes `drawn`: each wears the variant its geometry
+ *  asks for, as the open gave it its own; the meshes may wear surfaces of several classes, and
+ *  `from` is one that moves across blended if any does. */
+export function assignment(variants: Map<string, GraphSurface>, drawn: ReadonlySet<HostMesh>) {
+  const meshes = new Map<HostMesh, GraphSurface>(),
+    to = alphaModeOf(variants.get(PLAIN)!);
+  let from: AlphaMode | undefined;
+  for (const mesh of drawn) {
+    meshes.set(mesh, variantOf(variants, mesh.geometry.attributes));
+    const mode = alphaModeOf(firstMaterial(mesh.material)!);
+    if (from === undefined || (mode === 'blend') !== (to === 'blend')) from = mode;
+  }
+  return { surfaces: [...new Set(meshes.values())], meshes, from: from!, to };
 }
 
 /** A created material where the page names nothing: glTF's material defaults, metal 1 among
