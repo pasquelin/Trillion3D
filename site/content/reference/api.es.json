@@ -674,7 +674,9 @@
       "bottom": "Borde inferior del cuadro ortográfico.",
       "projection": "`'perspective'` hace pequeño lo lejano; `'orthographic'` conserva todos los tamaños.",
       "copy": "Toma los valores de nodo de `source` y, de una cámara, su óptica; su propia `projection` se mantiene.",
-      "updateProjectionMatrix": "Conservado para las páginas escritas para un motor de renderizado que lo necesite: cada escritura de óptica ya vuelve a dibujar.",
+      "updateProjectionMatrix": "Vuelve a componer `projectionMatrix`; cada escritura de la óptica ya lo hace, y redibuja.",
+      "projectionMatrix": "La proyección que compone la óptica, en la convención de profundidad de la referencia con un plano lejano finito, para un renderizador que dibuja con ella; cada escritura de la óptica la vuelve a componer. El mundo dibuja con la suya (`engineCamera.ts`).",
+      "matrixWorldInverse": "La inversa de la matriz del mundo tal como se compuso por última vez: la vista que lee un renderizador.",
       "rayThrough": "El rayo del mundo que pasa por un punto de la imagen, según la propia proyección del motor (`engineCamera.ts`): desde el ojo a lo largo de la vista para una cámara en perspectiva, recto en el eje de la vista desde la caja para una ortográfica. Su dirección es un vector unitario.",
       "set": "Coloca el ojo en `pose.position`, mirando a `pose.target`, con el campo que indica."
     }
@@ -5186,6 +5188,8 @@
       "environment": "Una imagen del entorno que reflejan las superficies brillantes; `null` para ninguna.",
       "background": "Lo que llena la imagen detrás de cada objeto: un color, o `null` para el predeterminado. Un cambio se muestra en el siguiente fotograma, conservando la sesión: un color nuevo asignado aquí, o el actual escrito con sus métodos (`set`, `setRGB`, `setHex`, `setHSL`...). Una escritura directa de `.r`, `.g` o `.b` no se detecta: vuelve a asignar `background` después. Una imagen, o cualquier valor sin `getHex`, se rechaza (`UNSUPPORTED_SCENE_UPDATE`): ninguna ruta la dibuja.",
       "fog": "Niebla sobre cada superficie, opaca o transparente, en los dos renderizadores; `null`, el valor por defecto, para ninguna, sin coste. `{ color, near, far }` funde los objetos en `color` de `near` a `far`, distancias desde la cámara; `{ color, density }` se espesa `density` por unidad de distancia; añade `heightFalloff` (y `baseHeight`, 0 por defecto) y se posa en el suelo, aclarándose por encima de `baseHeight` — dividida por e cada `1 / heightFalloff` unidades hacia arriba. Un cambio se ve en la imagen siguiente: una niebla nueva dada aquí, o su color escrito con sus métodos. Una escritura directa de `near`, `far`, `density`... no se oye: vuelve a dar `fog` después. Una niebla fuera de rango — `far` no más allá de `near`, una densidad negativa — se rechaza (`INVALID_SCENE_ENVIRONMENT`).",
+      "onBeforeRender": "Lo llama un renderizador antes de dibujar la escena; ninguno por defecto.",
+      "onAfterRender": "Lo llama un renderizador una vez dibujada la escena; ninguno por defecto.",
       "load": "Carga un modelo compilado — la URL de su manifiesto — y lo añade a esta escena.",
       "toJSON": "La escena como JSON simple y versionado: sus objetos, las formas por la llamada que las construyó, los materiales, las luces, el cuerpo de cada malla tal como se declaró y los modelos cargados por dirección; también la pose de `camera` cuando se da una.",
       "fromJSON": "Reemplaza lo que contiene la escena por una escena guardada con `toJSON`, conservando sus marcas `helper`; se resuelve cuando sus modelos están cargados. Otro formato u otra versión se rechaza (`UNSUPPORTED_SCENE_FORMAT`). Las llamadas hechas mientras se lee una se ejecutan una tras otra, en orden, cada una sobre lo que dejó la anterior: dos escenas guardadas nunca se mezclan."
@@ -7149,6 +7153,7 @@
       "gravity": "Gravedad en m/s², un vector vivo; pon un preajuste (`'earth'`, `'moon'`, `'mars'`, `'none'`) o un vector.",
       "paused": "Si el tiempo está detenido; las escrituras siguen llegando a los cuerpos.",
       "timeScale": "Segundos simulados por segundo real: 0.25 es cámara lenta.",
+      "simulationRange": "Metros alrededor de la cámara dentro de los cuales se simulan los cuerpos (congelados más allá, tal como estaban, y sin cargar ninguna tesela de colisión); `null` sigue `camera.far`.",
       "water": "El agua en la que flotan los cuerpos: su nivel, sus olas, su densidad y sus arrastres. Un cuerpo más ligero que el agua flota, empujado por el peso del agua que desplaza.",
       "waterSurface": "La superficie del agua a la hora de la simulación, para dibujarla: las olas que lee la flotación, los mismos números (`height`, `point`, `normal`).",
       "stats": "Recuentos y los dos relojes: milisegundos del worker por paso, milisegundos de la página por fotograma.",
@@ -7355,6 +7360,7 @@
       "gravity": "Gravedad en m/s², un vector vivo; pon un preajuste (`'earth'`, `'moon'`, `'mars'`, `'none'`) o un vector.",
       "paused": "Si el tiempo está detenido; las escrituras siguen llegando a los cuerpos.",
       "timeScale": "Segundos simulados por segundo real: 0.25 es cámara lenta.",
+      "simulationRange": "Metros alrededor de la cámara dentro de los cuales se simulan los cuerpos (congelados más allá, tal como estaban, y sin cargar ninguna tesela de colisión); `null` sigue `camera.far`.",
       "water": "El agua en la que flotan los cuerpos: su nivel, sus olas, su densidad y sus arrastres. Un cuerpo más ligero que el agua flota, empujado por el peso del agua que desplaza.",
       "waterSurface": "La superficie del agua a la hora de la simulación, para dibujarla: las olas que lee la flotación, los mismos números (`height`, `point`, `normal`).",
       "stats": "Recuentos y los dos relojes: milisegundos del worker por paso, milisegundos de la página por fotograma.",
@@ -7367,6 +7373,7 @@
     "summary": "Lo que `createWorld(canvas, { physics })` acepta además de `true`.",
     "members": {
       "budget": "Límites fijos, leídos una vez al arrancar la física.",
+      "simulationRange": "Metros alrededor de la cámara dentro de los cuales se simulan los cuerpos (`world.physics.simulationRange`); `null` sigue `camera.far`.",
       "gravity": "La gravedad del mundo: un preajuste o un vector."
     }
   },
@@ -7470,7 +7477,7 @@
     "summary": "Una imagen y el estado de muestreo con el que se lee, y la transformación de sus coordenadas."
   },
   "GraphNodeKind": {
-    "summary": "Qué es un nodo del grafo: la raíz, un ojo, o una de las luces que declara una escena."
+    "summary": "Qué es una luz del grafo: una de las luces que declara una escena."
   },
   "Joint": {
     "summary": "Una unión entre dos cuerpos, o entre un cuerpo y el mundo (`b` null), creada con `joint.*` y añadida a la simulación con `world.physics.add`.",
