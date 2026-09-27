@@ -57,9 +57,9 @@ export interface BackendSceneUpdates {
    *  when it can; asked before any write. Absent, it moves every one (`alpha`). */
   materialClassRefusal?(alpha: AlphaChange): string | undefined;
   /** The source meshes of `assignment` wear its surface from now on, one their owner keeps
-   *  (#847): their records follow it, before `refreshMaterials(true, assignment)`. False when no
-   *  record of theirs takes it in place; absent, only a new session will. */
-  wearSurface?(assignment: SurfaceAssignment): boolean;
+   *  (#847): their records follow it, before `refreshMaterials(true, assignment)`; a mesh no
+   *  page draws was refused before (`materialClassRefusal`). Absent, only a new session will. */
+  wearSurface?(assignment: SurfaceAssignment): void;
   /** Repaints a primitive from the engine's material parameters: no shader, no program hook. */
   updateMaterial?(primitive: string, material: Material): void;
 }

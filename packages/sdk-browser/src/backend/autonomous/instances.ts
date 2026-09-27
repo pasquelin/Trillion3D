@@ -16,7 +16,6 @@ import { attachedPages, drawnInstanced } from '../../placement/autonomousPlaceme
 import type { HeldFloor } from './heldFloor.ts';
 import {
   blendMoves,
-  isAssignment,
   type AlphaChange,
   type SurfaceAssignment,
 } from '../../placement/backendSceneUpdates.ts';
@@ -97,7 +96,7 @@ export function createAutonomousInstances(env: InstanceEnvironment) {
      *  (#846): rows are one instanced mesh while opaque, one mesh a row once blended. */
     materialClassRefusal(alpha: AlphaChange) {
       const instanced = (rec: PageRec) => drawnInstanced(rec, blendOf(rec, alpha));
-      const unpaged = unpagedRefusal(allPages, isAssignment(alpha) ? alpha.meshes : undefined);
+      const unpaged = unpagedRefusal(allPages, alpha);
       if (unpaged) return unpaged;
       if (blendMoves(alpha) && overCeiling(0, attachedPages(bootstrap, instanced)))
         return 'AUTONOMOUS_ROOT_BUDGET: the cover would hang more meshes than the host allows';
@@ -194,7 +193,6 @@ export function createAutonomousInstances(env: InstanceEnvironment) {
     wearSurface({ meshes }: SurfaceAssignment) {
       for (const [surface, records] of recordsBySurface(allPages, meshes))
         wear(records, surface as HostMaterial);
-      return true;
     },
   };
 }

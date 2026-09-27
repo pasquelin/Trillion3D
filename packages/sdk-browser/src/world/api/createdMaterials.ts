@@ -2,11 +2,11 @@
  *  surface in each geometry variant a drawable asks of it (`materialApi.ts`). */
 import type { GraphSurface } from '../../host/graph/surface.ts';
 import { hostPageSurface } from '../../host/pageObjects.ts';
-import { surfaceVariantOf, type SurfaceVariant } from '../../host/prepared/materials.ts';
-import { alphaModeOf } from '../../../../sdk-core/src/contracts/material.ts';
+import { surfaceVariantOf, variantKey } from '../../host/prepared/materials.ts';
+import { alphaModeOf, type AlphaMode } from '../../../../sdk-core/src/contracts/material.ts';
 import { firstMaterial } from '../../scene/materialSide.ts';
 import type { HostGraphMesh } from '../../host/scene/graphNodes.ts';
-import { MASK_CUTOFF, type SceneMaterialPatch } from './materialValues.ts';
+import { MASK_CUTOFF, PATCH_FIELDS, type SceneMaterialPatch } from './materialValues.ts';
 
 /** What `createMaterial` takes: a patch's values but tiling, a name, and a map — refused until
  *  the texture atlas takes one after open (#847). */
@@ -19,20 +19,12 @@ export type CreatedMaterial = Omit<SceneMaterialPatch, 'tiling'> & {
  *  anything is built (`MATERIAL_CEILING`). */
 export const RUNTIME_MATERIAL_CEILING = 256;
 
-/** What `createMaterial` takes, anything else refused by name. */
-export const CREATED_FIELDS = [
-  'baseColor',
-  'opacity',
-  'metalness',
-  'roughness',
-  'emissive',
-  'alphaMode',
-  'alphaCutoff',
-  'name',
-] as const;
-export const PLAIN = { vertexColors: false, flatShading: false };
-export const variantKey = ({ vertexColors, flatShading }: SurfaceVariant) =>
-  `${vertexColors}:${flatShading}`;
+/** What `createMaterial` takes, anything else refused by name: a change's values but tiling,
+ *  and a name. */
+export const CREATED_FIELDS = [...PATCH_FIELDS.filter((field) => field !== 'tiling'), 'name'];
+
+/** A created material's surfaces by variant (`variantKey`), the plain one under this key. */
+export const PLAIN = variantKey({ vertexColors: false, flatShading: false });
 
 /** A created material's surface in the variant `attributes` ask for, cloned from its plain one
  *  the first time. */
@@ -40,10 +32,7 @@ function variantOf(variants: Map<string, GraphSurface>, attributes: Record<strin
   const variant = surfaceVariantOf(attributes),
     key = variantKey(variant);
   let surface = variants.get(key);
-  if (!surface) {
-    surface = Object.assign(variants.get(variantKey(PLAIN))!.clone(), variant);
-    variants.set(key, surface);
-  }
+  if (!surface) variants.set(key, (surface = Object.assign(variants.get(PLAIN)!.clone(), variant)));
   return surface;
 }
 
@@ -51,11 +40,13 @@ function variantOf(variants: Map<string, GraphSurface>, attributes: Record<strin
  *  asks for, as the open gave it its own; the meshes may wear surfaces of several classes, and
  *  `from` is one that moves across blended if any does. */
 export function assignment(variants: Map<string, GraphSurface>, drawn: ReadonlySet<HostGraphMesh>) {
-  const meshes = new Map(
-    [...drawn].map((mesh) => [mesh, variantOf(variants, mesh.geometry.attributes)] as const),
-  );
-  const to = alphaModeOf(variants.get(variantKey(PLAIN))!);
-  const modes = [...drawn].map((mesh) => alphaModeOf(firstMaterial(mesh.material)!));
+  const meshes = new Map<HostGraphMesh, GraphSurface>(),
+    modes: AlphaMode[] = [];
+  for (const mesh of drawn) {
+    meshes.set(mesh, variantOf(variants, mesh.geometry.attributes));
+    modes.push(alphaModeOf(firstMaterial(mesh.material)!));
+  }
+  const to = alphaModeOf(variants.get(PLAIN)!);
   const from = modes.find((mode) => (mode === 'blend') !== (to === 'blend')) ?? modes[0];
   return { surfaces: [...new Set(meshes.values())], meshes, from, to };
 }

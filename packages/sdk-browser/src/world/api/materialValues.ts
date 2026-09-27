@@ -58,7 +58,7 @@ export const invalid = (id: number | string, field: string, value: unknown) =>
   });
 
 /** What `setMaterial` takes, anything else refused by name. */
-const PATCH_FIELDS = [
+export const PATCH_FIELDS = [
   'baseColor',
   'opacity',
   'metalness',
@@ -73,13 +73,11 @@ const PATCH_FIELDS = [
  *  is written: a page in plain JavaScript can name what the types do not. */
 export function validate(
   id: number | string,
-  patch: SceneMaterialPatch & { name?: unknown },
+  patch: SceneMaterialPatch,
   fields: readonly string[] = PATCH_FIELDS,
 ) {
   for (const [field, value] of Object.entries(patch))
     if (!fields.includes(field)) throw invalid(id, field, value);
-  if (patch.name !== undefined && typeof patch.name !== 'string')
-    throw invalid(id, 'name', patch.name);
   const unit = (n: number) => Number.isFinite(n) && n >= 0 && n <= 1;
   for (const field of ['opacity', 'metalness', 'roughness', 'alphaCutoff'] as const) {
     const value = patch[field];
