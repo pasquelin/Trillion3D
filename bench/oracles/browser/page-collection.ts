@@ -1,7 +1,9 @@
 // Batch F oracles, loading side: `packages/sdk-browser/src/page/selection/collect.ts:34-153`, `packages/sdk-browser/src/world/scene/scene.ts:18-36` and
 // `packages/sdk-browser/src/world/session/pageSources.ts:20-49` from before batch F, copied as-is.
+import { numbered } from '../../../packages/sdk-browser/src/host/graph/serial.ts';
 import * as THREE from 'three';
-import { GraphMesh } from '../../../packages/sdk-browser/src/host/graph/mesh.ts';
+import { Mesh } from '../../../packages/sdk-core/src/world/object/mesh.ts';
+import type { HostMesh } from '../../../packages/sdk-browser/src/host/resources.ts';
 import {
   DAG_ERROR_MODEL,
   EngineError,
@@ -47,7 +49,7 @@ export function referenceCollectClusterPages(
 ) {
   const roots: ReferenceRoot[] = [],
     allPages: PageRec[] = [],
-    blendCopies: GraphMesh[] = [],
+    blendCopies: HostMesh[] = [],
     bootstrap: PageRec[] = [];
   const structures = new Map<Primitive, ReturnType<typeof structureIndex>>();
   let order = 0;
@@ -62,7 +64,7 @@ export function referenceCollectClusterPages(
       );
     if (!primitive) throw new Error(`Missing primitive association: ${mesh.name}`);
     if (primitive.pass === 'shared-blend' || isTransmissive(mesh.material)) {
-      const copy = new GraphMesh(mesh.geometry, mesh.material);
+      const copy = numbered(new Mesh(mesh.geometry, mesh.material));
       copy.matrixAutoUpdate = false;
       copy.matrix.copy(mesh.matrixWorld);
       copy.frustumCulled = mesh.frustumCulled;
