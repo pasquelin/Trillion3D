@@ -1,9 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { Server } from 'node:http';
-import { readFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { request } from 'node:http';
-import { resolve } from 'node:path';
+import { join, resolve } from 'node:path';
 import { brotliDecompressSync } from 'node:zlib';
 import { createDocsServer, isCacheObject } from './docs-serve.ts';
 import { installedServer, type RequestRecord } from './installed-package-server.ts';
@@ -93,4 +94,22 @@ test('a compressed file goes brotli to who accepts it, as is to anyone else', as
   }
   const text = await raw(staticServer({ mounts: [{ prefix: '/', dir: SITE }] }), '/', 'br');
   assert.equal(text.headers['content-encoding'], undefined, 'no compress option, no encoding');
+});
+
+test('the docs server sends a cache object brotli-encoded, any other file as is', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'docs-serve-')),
+    page = Buffer.alloc(4096, 7);
+  try {
+    mkdirSync(join(root, 'cache/objects'), { recursive: true });
+    writeFileSync(join(root, 'cache/objects/ab12.bin'), page);
+    writeFileSync(join(root, 'cache/page.bin'), page);
+    const object = await raw(createDocsServer(root), '/cache/objects/ab12.bin', 'br');
+    assert.equal(object.headers['content-encoding'], 'br');
+    assert.deepEqual(brotliDecompressSync(object.body), page);
+    const other = await raw(createDocsServer(root), '/cache/page.bin', 'br');
+    assert.equal(other.headers['content-encoding'], undefined);
+    assert.deepEqual(other.body, page);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });

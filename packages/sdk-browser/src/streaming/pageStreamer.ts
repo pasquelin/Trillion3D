@@ -4,7 +4,6 @@ import type { StreamContext, Job, StreamPage, PageStreamerOptions } from './type
 import { createStreamingCache } from './cache.ts';
 import { createIndexViews } from './indexView.ts';
 import { createPageCache, manifestTableBytes, type PageCache } from './pageCache.ts';
-import { createRoundTrip } from './roundTrip.ts';
 /** Bounded, prioritized and deduplicated reads. A request still waiting in the queue is dropped once
  *  its last consumer leaves; one already transferring is allowed to land in the cache.
  *  The cache is a least-recently-used set bounded by both entries and bytes; pinned entries survive
@@ -77,7 +76,6 @@ export function createPageStreamerWith(
     maxTransferBytes,
     onEvict,
     onDiagnostic,
-    roundTrip: createRoundTrip(),
     state,
     emit,
     abortError,
@@ -99,9 +97,13 @@ export function createPageStreamerWith(
     cpuBudgetBytes: store.cpuBytes,
     totalBytes: pages.reduce((sum, page) => sum + page.bytes, 0),
   }));
-  const loadOne = createStreamingFetcher(context, touch);
+  const { loadOne, roundTrip } = createStreamingFetcher(context, touch);
   const { subscribe } = createStreamingQueue(context, loadOne, touch, evict);
   const asIndices = createIndexViews();
+  const readBytes = (url: string, signal?: AbortSignal) => {
+    state.requested++;
+    return subscribe(url, signal, 0);
+  };
   return {
     admit: (more: readonly StreamPage[]) => more.forEach((page) => catalog.set(page.url, page)),
     forget: (urls: readonly string[]) =>
@@ -121,15 +123,9 @@ export function createPageStreamerWith(
     loading: (url: string) => jobs.has(url),
     failed: (url: string) => failures.has(url),
     /** The reads' measured round trip in milliseconds, 0 before the first (`roundTrip.ts`). */
-    roundTripMs: () => context.roundTrip.ms,
-    read(url: string, requestSignal?: AbortSignal) {
-      state.requested++;
-      return subscribe(url, requestSignal, 0).then(asIndices);
-    },
-    readBytes(url: string, requestSignal?: AbortSignal) {
-      state.requested++;
-      return subscribe(url, requestSignal, 0);
-    },
+    roundTripMs: () => roundTrip.ms,
+    read: (url: string, signal?: AbortSignal) => readBytes(url, signal).then(asIndices),
+    readBytes,
     /** Texture levels held beside the pages: its world's, kept across a device loss, or its own. */
     textureLevels: store.levels,
     retain,

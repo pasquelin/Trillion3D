@@ -1,12 +1,15 @@
 import { checked, corruptObject, ONE_REQUEST, retriableError } from '../cluster/pages.ts';
 import { verifyPageBytes } from '../page/decode/host.ts';
 import type { StreamContext } from './types.ts';
+import { createRoundTrip } from './roundTrip.ts';
 
 export function createStreamingFetcher(
   context: StreamContext,
   touch: (url: string, bytes: Uint8Array, sha256: string) => void,
 ) {
-  const { catalog, cache, base, abort, onDiagnostic, emit, failures, state, roundTrip } = context;
+  const { catalog, cache, base, abort, onDiagnostic, emit, failures, state } = context;
+  /** The reads' round trip, what the view ahead adds to its horizon (`roundTrip.ts`). */
+  const roundTrip = createRoundTrip();
   const loadOne = async (url: string, jobSignal: AbortSignal) => {
     const page = catalog.get(url);
     if (!page) throw new Error('Unknown page ' + url);
@@ -130,5 +133,5 @@ export function createStreamingFetcher(
     }));
     throw error;
   };
-  return loadOne;
+  return { loadOne, roundTrip };
 }

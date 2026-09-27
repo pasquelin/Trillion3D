@@ -185,8 +185,7 @@ export interface BackendContext {
   stageProfile?: boolean;
   /** DIAGNOSTIC variant kept by the host, checked (`../diagnostic/gpuVariant.ts`); absent in production. */
   diagnosticGpuVariant?: import('../diagnostic/gpuVariant.ts').DiagnosticGpuVariant;
-  /** Page-by-page shadow-map invalidation, on by default. */
-  shadowPageInvalidation?: boolean;
+  shadowPageInvalidation?: boolean; // page-by-page shadow-map invalidation, on by default
   /** Reads the cache's resident-proxy object once, at the first lit frame; absent without one. */
   readSceneProxy?: () => Promise<import('../../../sdk-core/src/index.ts').SceneProxy>;
   /** Host-owned, validated page reader for the initial complete GPU fallback. */
