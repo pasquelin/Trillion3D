@@ -1259,6 +1259,21 @@
       }
     }
   },
+  "a-walk-through-the-city": {
+    "banner": "Klicke in die Ansicht, gehe mit W A S D und sieh dich mit der Maus um. Senke beim Gehen das Speicherbudget.",
+    "controls": {
+      "walkSpeed": "Gehgeschwindigkeit",
+      "memory": "Speicher",
+      "view": "Ansicht",
+      "home": "Zum Start"
+    },
+    "choices": {
+      "view": { "beauty": "Bild", "lod": "Detailstufen", "clusters": "Cluster" }
+    },
+    "words": {
+      "credit": "Urnenallee für dieses Beispiel im Code modelliert, CC0 — siehe assets/examples/CREDITS.md"
+    }
+  },
   "migrating-from-three": {
     "words": {
       "credit": "Marble Bust 01 von Rico Cilliers, Poly Haven, CC0; Kiste von W. Sitters, CC BY 3.0 — siehe assets/examples/CREDITS.md"
