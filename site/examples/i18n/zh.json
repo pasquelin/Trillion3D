@@ -36,7 +36,8 @@
       "engine CPU": "引擎 CPU"
     },
     "failure": {
-      "title": "这个示例因为一个错误停下了"
+      "title": "这个示例因为一个错误停下了",
+      "missingCache": "缺少已编译的缓存：请运行 pnpm compile:caches"
     },
     "banner": {
       "close": "关闭"

@@ -4,7 +4,7 @@
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { RACINE, cheminBaseline, dossierBaselines } from './paths.ts';
-import type { Mesure } from './measureTypes.ts';
+import type { Measurement } from '../../site/examples/kit/measureTypes.ts';
 
 /** One stored baseline row, keyed by measurement/case pair. */
 interface BaselineRow {
@@ -60,7 +60,7 @@ export function chargeBaseline(domaine: string): BaselineFile | null {
 }
 
 /** Saves a domain baseline from the fragment that `rapport()` wrote. */
-export function sauveBaseline(domaine: string, mesures: Mesure[]) {
+export function sauveBaseline(domaine: string, mesures: Measurement[]) {
   const resultats: BaselineRow[] = mesures.flatMap((m) =>
     m.resultats.map((r) => ({
       cle: cleDeLigne(m.name, r.name),

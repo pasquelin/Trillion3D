@@ -36,7 +36,8 @@
       "engine CPU": "エンジンCPU"
     },
     "failure": {
-      "title": "この例はエラーで止まりました"
+      "title": "この例はエラーで止まりました",
+      "missingCache": "コンパイル済みキャッシュがありません: pnpm compile:caches を実行してください"
     },
     "banner": {
       "close": "閉じる"
