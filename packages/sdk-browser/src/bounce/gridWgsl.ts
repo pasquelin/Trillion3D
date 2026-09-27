@@ -45,12 +45,13 @@ fn probeWrap(cell:vec3i)->vec3u{
  let side=i32(bounce.counts.x);
  return vec3u(((cell%side)+side)%side);
 }
-/** A probe's rank in the buffer: its level, then its cell stored toroidally. */
-fn probeSlot(level:u32,cell:vec3i)->u32{
- let wrapped=probeWrap(cell);
+/** A probe's rank in the buffer: its level, then its cell's toroidal remainder \`wrapped\`. */
+fn probeSlotWrapped(level:u32,wrapped:vec3u)->u32{
  let side=bounce.counts.x;
  return (level*bounce.counts.z+wrapped.x+side*(wrapped.y+side*wrapped.z))*PROBE_VECTORS;
 }
+/** A probe's rank in the buffer: its level, then its cell stored toroidally. */
+fn probeSlot(level:u32,cell:vec3i)->u32{return probeSlotWrapped(level,probeWrap(cell));}
 /** World position of a cell: the global lattice, independent of the camera and of the level. */
 fn probeCentre(cell:vec3i,spacing:f32)->vec3f{return (vec3f(cell)+vec3f(0.5))*spacing;}
 /** The cell the probe says it carries. Different from the one sought: it knows nothing of here. */
@@ -96,10 +97,15 @@ fn sampleLevel(level:u32,P:vec3f,N:vec3f)->vec4f{
  let margin=BOUNCE_VISIBILITY*spacing;
  var sum=vec3f(0.0);
  var total=0.0;
+ // A corner's neighbour one cell further on an axis has the next remainder, wrapped once at
+ // the side: one remainder per axis for the eight corners, where each corner took its own.
+ let wrappedCorner=probeWrap(corner);
+ let wrapAt=vec3u(bounce.counts.x);
  for(var index=0u;index<8u;index++){
   let offset=vec3u(index&1u,(index>>1u)&1u,(index>>2u)&1u);
   let cell=corner+vec3i(offset);
-  let slot=probeSlot(level,cell);
+  let next=wrappedCorner+offset;
+  let slot=probeSlotWrapped(level,select(next,vec3u(0u),next>=wrapAt));
   if(any(probeCell(slot)!=cell)){continue;}
   if(probes[slot+PROBE_VALID].w<0.5){continue;}
   let toProbe=probeCentre(cell,spacing)-biased;
