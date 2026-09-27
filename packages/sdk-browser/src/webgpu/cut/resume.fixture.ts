@@ -98,6 +98,7 @@ export function banc(panne?: 'debordement' | 'envoi') {
     run: {
       gpuSelection: selection,
       selectionUniforms: uniforms,
+      motion: {}, // a still camera: no view ahead
       ...createWebgpuBudgetState(),
       gpuMetricsReady: false,
       desired,
@@ -109,6 +110,7 @@ export function banc(panne?: 'debordement' | 'envoi') {
     gpu: { device: fakeDevice().device, cache: {}, selectionFallback: false },
     capabilities: { gpuDriven: true, unsupported: [] },
     diag: {
+      traceEnabled: true,
       traceDiagnostic: () => {
         comptes.attentes++;
       },
@@ -131,6 +133,7 @@ export function banc(panne?: 'debordement' | 'envoi') {
       queueCutResidency: () => {
         comptes.queue++;
       },
+      followEvictions: () => {},
       syncRows: () => {
         comptes.sync++;
         // Residency follows the bytes: a decoded page becomes resident for selection.

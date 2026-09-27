@@ -9,14 +9,14 @@ import { createWebgpuPinUpdater } from '../residency/pinUpdater.ts';
 import { createWebgpuBootstrap } from '../frame/bootstrap.ts';
 import { createWebgpuResidentEnsurer } from '../residency/residentEnsurer.ts';
 import { createWebgpuResidencyQueue } from '../residency/queue.ts';
-import { createPageParents } from '../residency/admission.ts';
+import { createPageParents } from '../../residency/pageParents.ts';
 import { createLowerTier } from '../residency/lowerTier.ts';
 import { createGroupClosure } from '../../page/cut/groupClosure.ts';
 import { createImageRelevance } from '../residency/imageRelevance.ts';
 import { createWebgpuCutPublication } from '../cut/publication.ts';
 import { acceptPage, dropPage } from './io/pageApi.ts';
 import { readGeometryPageHeader } from '../../page/decode/geometryPageHeader.ts';
-import { awaitsPageBytes, pageAddress } from '../row/pageSlots.ts';
+import { awaitsPageBytes, pageAddress, readGeometryAhead } from '../row/pageSlots.ts';
 import { markWebgpuLost } from './io/lost.ts';
 import type { WebgpuPagesCore } from './runtime.ts';
 import { noteResidenceChange } from '../shadow/bounds.ts';
@@ -42,14 +42,13 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
       rows.touchPage(page),
       updateTransparentSpan(rt, page, words),
       blendCasters.follow(page),
-      rt.lights.residence.notePool(page, packedPages.length)
+      rt.lights.residence.notePool(page, packedPages.length),
+      run.gpuSelection?.notePool(page, words >= 0)
     ),
   });
-  /**
-   * Writes one page-table row. Called when a cluster claims a row, when its GPU slot moves, or when a
-   * shared input changes epoch — never once per frame: every field below belongs to the page, its
-   * material, its geometry block or its slot, none of them to the image.
-   */
+  /** Writes one page-table row: when a cluster claims a row, when its GPU slot moves, or when a
+   *  shared input changes epoch — never once per frame: every field below belongs to the page, its
+   *  material, its geometry block or its slot, none of them to the image. */
   const writePageRow = createPageRowWriter({
     geometryBlocks: rt.vis.geometryBlocks,
     mapLayer: rt.vis.mapLayer,
@@ -83,9 +82,9 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
   );
   /**
    * The bytes one pool slot holds for a cluster: its quantized geometry page, read from the
-   * host's page reader at the address the manifest gives it, or — for a transparent cluster and
-   * for a cache that carries no geometry page — the index page the arrival already left in
-   * memory. The slot is written from one of the two, never from both.
+   * host's page reader at the address the manifest gives it, or — for a cache that carries no
+   * geometry page — the index page the arrival already left in memory. The slot is written from
+   * one of the two, never from both.
    */
   const read = async (key: string) => {
     const geometryUrl = geometryUrls.get(key);
@@ -162,6 +161,7 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     traceEnabled: diag.traceEnabled,
     traceDiagnostic: diag.traceDiagnostic,
     lowerTiers: () => lowerTiers,
+    prefetch: context.readGeometryPage && readGeometryAhead(geometryUrls, context.readGeometryPage),
   });
   const residency = createWebgpuResidencyQueue({
     tracking,

@@ -1,4 +1,22 @@
 {
+  "brushed-metal": {
+    "banner": "Drag to inspect the brushed highlights. Change their strength and direction.",
+    "controls": {
+      "anisotropy": "Brush strength",
+      "direction": "Brush direction",
+      "roughness": "Roughness",
+      "spin": "Spin"
+    }
+  },
+  "car-paint-under-clear-coat": {
+    "banner": "Drag around the car. Change the paint and the clear coat above it.",
+    "controls": {
+      "paint": "Paint",
+      "clearCoat": "Clear coat",
+      "coatRoughness": "Coat roughness",
+      "spin": "Spin"
+    }
+  },
   "kit": {
     "panel": {
       "controls": "Controls"
@@ -36,7 +54,8 @@
       "engine CPU": "engine CPU"
     },
     "failure": {
-      "title": "This example stopped on an error"
+      "title": "This example stopped on an error",
+      "missingCache": "The cooked cache is missing: run pnpm compile:caches"
     },
     "banner": {
       "close": "Close"
@@ -309,6 +328,13 @@
       "roof": "Roof"
     }
   },
+  "soft-shadows-from-a-wide-lamp": {
+    "banner": "Drag to orbit. Change the lamp width and watch the shadow edges.",
+    "controls": {
+      "lampWidth": "Lamp width",
+      "moveSubject": "Move subject"
+    }
+  },
   "a-softbox-panel": {
     "banner": "Drag to walk around. Make the light panel bigger to soften the shine.",
     "controls": {
@@ -474,6 +500,14 @@
       "balloon": "TRACKING THE BALLOON"
     }
   },
+  "a-crane-that-swings": {
+    "banner": "Orbit the crane while one clip slews the jib, moves the trolley, hoists the load and lets it swing.",
+    "controls": {
+      "speed": "Speed",
+      "paused": "Paused",
+      "replay": "Replay"
+    }
+  },
   "a-wave-across-a-grid": {
     "banner": "Drag to look around. Make the wave of cubes higher or faster.",
     "controls": {
@@ -482,6 +516,20 @@
       "ripples": "Ripples",
       "inner": "Inner",
       "outer": "Outer"
+    }
+  },
+  "doors-that-open": {
+    "banner": "Move the camera toward the doors. They open as you approach.",
+    "controls": {
+      "mode": "Mode",
+      "openingDistance": "Opening distance",
+      "openness": "Openness"
+    },
+    "choices": {
+      "mode": {
+        "proximity": "proximity",
+        "manual": "manual"
+      }
     }
   },
   "a-world-of-blocks": {
@@ -535,6 +583,17 @@
       "lamp": "Lamp",
       "colour": "Colour",
       "bricks": "Bricks"
+    }
+  },
+  "measure-a-distance": {
+    "banner": "Click two surfaces to measure between them. A third click starts a new measurement. One unit represents one metre.",
+    "controls": {
+      "clear": "Clear"
+    },
+    "readouts": {
+      "pointA": "Point A",
+      "pointB": "Point B",
+      "distance": "Distance"
     }
   },
   "click-to-pick": {
@@ -941,7 +1000,11 @@
     "banner": "Drag to look around. Tick Drive the car to take it: W or ↑ accelerates, S or ↓ brakes, A D or ← → steer. Drop again sends the crates and balls down once more.",
     "words": {
       "credit": "Valley modelled in code for this example, CC0 — see assets/examples/CREDITS.md",
-      "refused": "Refused on this backend"
+      "refused": "Refused on this backend",
+      "close": "Close-up",
+      "far": "Far view",
+      "pan": "Fast pan",
+      "still": "Still"
     },
     "controls": {
       "drive": "Drive the car",
@@ -1227,6 +1290,25 @@
         "lod": "lod",
         "clusters": "clusters"
       }
+    }
+  },
+  "a-walk-through-the-city": {
+    "banner": "Click the view, then walk with W A S D and look with the mouse. Lower the memory budget while you move.",
+    "controls": {
+      "walkSpeed": "Walk speed",
+      "memory": "Memory",
+      "view": "View",
+      "home": "Return home"
+    },
+    "choices": {
+      "view": {
+        "beauty": "beauty",
+        "lod": "lod",
+        "clusters": "clusters"
+      }
+    },
+    "words": {
+      "credit": "Avenue of urns modelled in code for this example, CC0 — see assets/examples/CREDITS.md"
     }
   },
   "migrating-from-three": {
@@ -1676,6 +1758,21 @@
     },
     "readouts": {
       "fourthLaneAnisotropy": "Fourth lane anisotropy"
+    }
+  },
+  "the-home-pose": {
+    "banner": "Choose a view, move the camera, then choose Home to return.",
+    "controls": {
+      "home": "Home",
+      "tower": "Tower",
+      "square": "Square",
+      "hillside": "Hillside"
+    }
+  },
+  "the-near-plane-cuts-a-wall": {
+    "banner": "Move the near plane forward and watch it cut through each wall.",
+    "controls": {
+      "nearPlane": "Near plane"
     }
   },
   "the-material-family": {
@@ -2141,6 +2238,72 @@
     },
     "words": {
       "credit": "Flag on a pole modelled in code for this example, CC0 — see assets/examples/CREDITS.md"
+    }
+  },
+  "hover-to-highlight": {
+    "banner": "Move over the cart to highlight each part, or turn highlighting off in the panel.",
+    "controls": {
+      "highlightEnabled": "Enable highlighting"
+    }
+  },
+  "a-dolly-along-the-canal": {
+    "banner": "Pause the dolly, replay the journey or change its speed as the camera travels along the canal.",
+    "controls": {
+      "paused": "Paused",
+      "replay": "Replay",
+      "speed": "Speed"
+    },
+    "readouts": {
+      "progress": "Progress"
+    }
+  },
+  "a-folder-merged-into-one-scene": {
+    "banner": "Drag to inspect the street corner. The compiler merged three OBJ files from one folder into this scene.",
+    "controls": {
+      "visible": "Visible",
+      "home": "Home"
+    },
+    "words": {
+      "credit": "Street lamp model by W. Sitters, CC BY 3.0 — see assets/examples/CREDITS.md"
+    }
+  },
+  "drag-a-crate": {
+    "banner": "Drag the crate across the floor. Turn snapping on to place it in half-metre steps.",
+    "controls": {
+      "snap": "Snap",
+      "home": "Home"
+    }
+  },
+  "outline-the-selection": {
+    "banner": "Click a shape to select it. Click the floor to clear the selection.",
+    "controls": {
+      "color": "Color",
+      "thickness": "Thickness"
+    }
+  },
+  "a-hundred-thousand-instances": {
+    "banner": "Drag to orbit the field. Change the count or view.",
+    "controls": {
+      "count": "Count",
+      "view": "View"
+    },
+    "readouts": {
+      "objectsShown": "Objects shown",
+      "objectsBuilt": "Objects built"
+    },
+    "choices": {
+      "view": {
+        "beauty": "beauty",
+        "clusters": "clusters"
+      }
+    }
+  },
+  "inside-a-component": {
+    "banner": "Mount or unmount the viewer. Each attachment owns one world and each removal disposes it.",
+    "controls": {
+      "mount": "Mount",
+      "unmount": "Unmount",
+      "remount": "Remount"
     }
   }
 }

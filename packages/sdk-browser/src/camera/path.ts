@@ -1,4 +1,5 @@
 import { compareImages, frameStatistics, summarize } from '../../../sdk-core/src/index.ts';
+import { numbered } from '../host/graph/serial.ts';
 import type {
   CameraPose,
   FrameMetrics,
@@ -33,7 +34,7 @@ export async function runCameraPath(
     throw new Error('Select at least two unique available backends');
   const campaignSignal = options.signal ?? new AbortController().signal;
   const savedBackend = explorer.backend,
-    savedCamera = explorer.camera.clone();
+    savedCamera = numbered(explorer.camera.clone());
   explorer.setMeasurementSurface(true);
   try {
     const blocks: Array<{

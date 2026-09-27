@@ -132,3 +132,15 @@ test("attach gives the reference's pose to the bit: new parent's inverse × old 
     if (!node.matrixAutoUpdate) assert.equal(mismatch(node.matrix.elements, product, 0), null);
   }
 });
+
+test('a mesh copying a group takes its pose alone and keeps what it wears', () => {
+  const mesh = new Mesh(),
+    worn = mesh.material,
+    shape = mesh.geometry,
+    group = new Group();
+  group.position.set(1, 2, 3);
+  mesh.copy(group, false);
+  assert.deepEqual(mesh.position.toArray(), [1, 2, 3]);
+  assert.equal(mesh.material, worn);
+  assert.equal(mesh.geometry, shape);
+});

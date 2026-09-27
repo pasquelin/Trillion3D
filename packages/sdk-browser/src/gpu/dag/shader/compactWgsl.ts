@@ -18,9 +18,10 @@ import { SELECTION_HEADER_WORDS } from '../layout.ts';
  * accumulates it in its own page's block. One fewer dispatch, and two million fewer flags
  * reread — the sum remains that of the same terms, integer addition being commutative.
  *
- * No new buffer: a stage's ceiling is eight storage buffers, already reached. Block counts and
- * offsets live behind the `work` thresholds, the list behind the wanted pages of `out` — a
- * count, seven padding words, then the ranks — so the snapshot remains one contiguous copy.
+ * No new buffer: a stage's ceiling is eight storage buffers, already reached. Block counts, block
+ * offsets and draw masks live behind the `work` thresholds, the list behind the wanted pages of
+ * `out` — a count, seven padding words, then the ranks — so the snapshot remains one contiguous
+ * copy.
  */
 export const DAG_COMPACT_WGSL = `const BLOCK:u32=64u;
 const HEAD:u32=${SELECTION_HEADER_WORDS}u;
@@ -28,6 +29,14 @@ fn drawFlag(i:u32)->u32{return flags[views[0u].queueCap+i];}
 fn blockCount()->u32{return (views[0u].clusterCount+BLOCK-1u)/BLOCK;}
 /** First word of the block zone in \`work\`, after the thresholds and coverage flags. */
 fn blockBase()->u32{return 0u;}
+/** Two words per block behind the block offsets: bit \`i & 63\` of block \`i / 64\` is page \`i\`'s draw
+ *  flag, set by \`dagMask\` with the flag itself, cleared by \`dagPrepare\` with the block count. */
+fn drawMaskBase()->u32{return blockCount()*2u;}
+/** The mask word that holds page \`i\`'s bit, and that bit. */
+fn drawMaskWord(i:u32)->u32{return drawMaskBase()+(i>>5u);}
+fn drawBit(i:u32)->u32{return 1u<<(i&31u);}
+/** The drawn pages of \`mask\`, page \`i\`'s word, below page \`i\`. */
+fn drawnBefore(i:u32,mask:u32)->u32{return countOneBits(mask&(drawBit(i)-1u));}
 var<workgroup> laneTotals:array<u32,64>;
 @compute @workgroup_size(64)
 fn dagDrawPrefix(@builtin(local_invocation_id) lid:vec3u){
@@ -54,10 +63,13 @@ fn dagDrawScatter(@builtin(global_invocation_id) id:vec3u){
  // Only live clusters carry a non-zero draw flag; those of the block that are not in the list
  // are zero and add nothing to the rank, exactly as in yesterday's full walk.
  let i=entryIndex(liveAt(s));if(drawFlag(i)==0u){return;}
- let b=i/BLOCK;let begin=b*BLOCK;
- var rank=0u;
- for(var j=begin;j<i;j++){rank=rank+drawFlag(j);}
- let off=atomicLoad(&work[blockBase()+blockCount()+b]);
+ // Rank in the block: the drawn pages before \`i\`, read off the block's mask — the sum of the
+ // same 0/1 flags, in one or two words instead of up to sixty-three. A page of the block's second
+ // half counts the whole first word too.
+ let word=drawMaskWord(i);
+ var rank=drawnBefore(i,atomicLoad(&work[word]));
+ if((i&32u)!=0u){rank=rank+countOneBits(atomicLoad(&work[word-1u]));}
+ let off=atomicLoad(&work[blockBase()+blockCount()+i/BLOCK]);
  let at=off+rank;if(at>=views[0u].listCap){atomicOr(&out.overflow,1u);return;}
  out.pages[views[0u].listCap+HEAD+at]=i;
 }

@@ -1,30 +1,28 @@
-/** Consecutive dispatches in one pass build the whole pyramid without extra submissions. */
+import { HIZ_BUILD_SIDE, HIZ_UNIFORM_BYTES, type HizBuildPass } from './uniforms.ts';
+
+/** Source texels one build workgroup covers per side: each thread reduces a 2 × 2 square. */
+const TILE = 2 * HIZ_BUILD_SIDE;
+
+/**
+ * The build passes of `count` pyramids, one per `z`, in one compute pass: consecutive dispatches
+ * inside a pass already see each other's writes. Pass `i` reads uniform slot `i`.
+ */
 export function encodeHizPyramid(
   encoder: GPUCommandEncoder,
-  width: number,
-  height: number,
+  label: string,
   bindGroup: GPUBindGroup,
-  copyPipeline: GPUComputePipeline,
-  reducePipeline: GPUComputePipeline,
-  sizes: Array<[number, number]>,
-  maxLevels: number,
-  uniformBytes: number,
-  workgroup: number,
+  buildPipeline: GPUComputePipeline,
+  passes: HizBuildPass[],
+  count = 1,
 ) {
-  const pass = encoder.beginComputePass({ label: 'Trillion3D HiZ pyramid' });
-  pass.setPipeline(copyPipeline);
-  pass.setBindGroup(0, bindGroup, [0]);
-  pass.dispatchWorkgroups(
-    Math.max(1, Math.ceil(width / workgroup)),
-    Math.max(1, Math.ceil(height / workgroup)),
-  );
-  pass.setPipeline(reducePipeline);
-  for (let i = 0; i < sizes.length - 1 && i + 1 < maxLevels; i++) {
-    const [dstW, dstH] = sizes[i + 1];
-    pass.setBindGroup(0, bindGroup, [(i + 1) * uniformBytes]);
+  const pass = encoder.beginComputePass({ label });
+  pass.setPipeline(buildPipeline);
+  for (let i = 0; i < passes.length; i++) {
+    pass.setBindGroup(0, bindGroup, [i * HIZ_UNIFORM_BYTES]);
     pass.dispatchWorkgroups(
-      Math.max(1, Math.ceil(dstW / workgroup)),
-      Math.max(1, Math.ceil(dstH / workgroup)),
+      Math.ceil(passes[i].width / TILE),
+      Math.ceil(passes[i].height / TILE),
+      count,
     );
   }
   pass.end();

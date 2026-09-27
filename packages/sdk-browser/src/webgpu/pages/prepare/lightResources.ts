@@ -1,6 +1,7 @@
 import { FLAG_BLEND_CASTER, FLAG_MASK, PAGE_INFO_STRIDE } from '../../../visibility/buffer.ts';
 import type { DirectLightResources } from '../../../lighting/deferred/program.ts';
 import type { PageRec } from '../../../page/selection/selection.ts';
+import type { PageSurface } from '../../../page/surface.ts';
 import { ROW_FLAGS_WORD, ROW_MAP_LAYER_WORD } from '../../row/pageRow.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import type { WebgpuLightState } from '../state/lights.ts';
@@ -47,36 +48,54 @@ export function shadowsFollowTextures(
   }
   const ints = rows.pageTableInts;
   if (!ints || !slots.size) return;
-  boxEmpty(changeBox, 0);
-  const touched =
-    growAlphaReaders(ints, rows, slots, 0, rows.rowCount) |
-    growAlphaReaders(ints, rows, slots, rows.blendFirst, rows.casterSlots);
-  if (touched) lights.plan.representationChanged(changeMin, changeMax);
+  shadowsFollowRows(lights, rows, (row) => {
+    const base = row * ROW_WORDS;
+    return (
+      !!(ints[base + ROW_FLAGS_WORD] & ALPHA_READERS) && slots.has(ints[base + ROW_MAP_LAYER_WORD])
+    );
+  });
 }
 
-/** Grows the change box by rows `[from, to)` whose shadow reads the alpha of a map of `slots`;
- *  1 when one did. */
-function growAlphaReaders(
-  ints: Uint32Array,
+/**
+ * Surfaces whose alpha mode or cutoff a page changed (#846): the depth their rows cast is no longer
+ * the one drawn, whether they cut it before or not: the shadow pages over those rows alone are drawn
+ * again at once, as a node shown or hidden is (`../render/worldUpload.ts`), not when the camera rests.
+ */
+export function shadowsFollowSurfaces(
+  lights: WebgpuLightState,
   rows: ShadowRowTable,
-  slots: ReadonlySet<number>,
-  from: number,
-  to: number,
+  surfaces: ReadonlySet<PageSurface>,
 ) {
-  let touched = 0;
-  for (let row = from; row < to; row++) {
-    const base = row * ROW_WORDS;
-    if (
-      !(ints[base + ROW_FLAGS_WORD] & ALPHA_READERS) ||
-      !slots.has(ints[base + ROW_MAP_LAYER_WORD])
-    )
-      continue;
-    const rec = rows.packedRecs[row];
-    if (!rec) continue;
-    growClusterBox(rec, changeBox);
-    touched = 1;
-  }
-  return touched;
+  if (lights.store.count)
+    shadowsFollowRows(
+      lights,
+      rows,
+      (row) => surfaces.has(rows.packedRecs[row]?.material as PageSurface),
+      'worldChanged',
+    );
+}
+
+/** Stales the box of the rows, visibility then blended casters, that `stale` names; one box, as
+ *  the same world at another precision or, `worldChanged`, as another world. */
+function shadowsFollowRows(
+  lights: WebgpuLightState,
+  rows: ShadowRowTable,
+  stale: (row: number) => boolean,
+  change: 'representationChanged' | 'worldChanged' = 'representationChanged',
+) {
+  boxEmpty(changeBox, 0);
+  let touched = false;
+  for (const [from, to] of [
+    [0, rows.rowCount],
+    [rows.blendFirst, rows.casterSlots],
+  ])
+    for (let row = from; row < to; row++) {
+      const rec = stale(row) && rows.packedRecs[row];
+      if (!rec) continue;
+      growClusterBox(rec, changeBox);
+      touched = true;
+    }
+  if (touched) lights.plan[change](changeMin, changeMax);
 }
 
 /**
@@ -133,9 +152,10 @@ const contractResources: DirectLightResources = {};
 export function directLightResources(rt: WebgpuPagesRuntime) {
   const { lights } = rt,
     active = wantsContractLighting(rt);
+  contractResources.lights = lights.buffer;
   contractResources.tiles = active ? lights.tiles?.buffer : undefined;
   contractResources.slices = active ? lights.shadows?.dataBuffer : undefined;
-  contractResources.requests = active ? lights.shadows?.requestBuffer : undefined;
+  contractResources.requests = active ? lights.pageRequests?.buffer : undefined;
   contractResources.atlas = active ? lights.shadows?.view : undefined;
   contractResources.transmittance = active ? lights.shadows?.transmittance : undefined;
   // The grid is bound only if it exists: without it, the deferred pass compiles and binds the

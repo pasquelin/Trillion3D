@@ -29,13 +29,9 @@ test('the cutout is the hard threshold: the test of 9893b51d9, with the dash, ve
 
 test('every raster calls it as before the stipple, and no shader reads a stipple', () => {
   // The call sites themselves are pinned by `maskVertexAlpha.test.ts`. Camera: the fragment's own
-  // derivatives. Compute raster: none, level 0.
+  // derivatives. Compute raster: the shared analytic perspective-correct derivatives.
   assert.equal(VIS_SHADER.split('let gx=dpdx(in.tc.xy);let gy=dpdy(in.tc.xy);').length, 3);
-  assert.doesNotMatch(
-    ENGINE_SHADERS.RASTER!,
-    /uvGradients/,
-    'the compute raster computes no footprint',
-  );
+  assert.match(ENGINE_SHADERS.RASTER!, /uvGradients/);
   for (const [name, source] of Object.entries(ENGINE_SHADERS))
     assert.doesNotMatch(source, /stipple/i, name);
 });

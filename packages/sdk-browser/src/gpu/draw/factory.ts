@@ -97,7 +97,8 @@ export async function createGpuDraw(
         const pass = encoder.beginComputePass({ label: 'Trillion3D draw compaction' });
         pass.setBindGroup(0, bindGroup);
         pass.setPipeline(countPipeline);
-        pass.dispatchWorkgroups(Math.ceil((liveGroups * SLOTS) / WORKGROUP));
+        // One workgroup per group of items: each lane reads its own item once (`countGroups`).
+        pass.dispatchWorkgroups(liveGroups);
         pass.setPipeline(prefixPipeline);
         pass.dispatchWorkgroups(1);
         pass.setPipeline(scatterPipeline);

@@ -126,11 +126,10 @@ last event has `completed === total`, above 0 on a world that draws something. O
 the first pages (example `watch-a-world-load`).
 
 A host that probes a cache before opening it — to enable a button, to tell a user to recompile —
-calls `assertCachePointer(pointer, scope)` and `assertCacheReady(metadata, scope)` on the two JSON
-documents it fetched: the first returns the cache URL the pointer names, the second the selected
-triangle count, and both raise an `EngineError` (`INVALID_POINTER`, `CACHE_NOT_READY`,
-`SCOPE_MISMATCH`, `UNSUPPORTED_FORMAT`, `INVALID_CACHE`, `STALE_CACHE`) otherwise. They are the
-checks `scene.load` runs, and download no binary sidecar.
+calls `assertCachePointer(pointer, scope)` and `assertCacheRoot(root, scope)` on the pointer and on
+`clusters.json`: the first returns the cache URL the pointer names, and both raise an `EngineError`
+(`INVALID_POINTER`, `CACHE_NOT_READY`, `SCOPE_MISMATCH`, `UNSUPPORTED_FORMAT`, `INVALID_CACHE`)
+otherwise. They are the checks `scene.load` runs first, and download no page.
 
 ### Files over HTTP
 
@@ -710,11 +709,18 @@ costs the subtree it starts from, never the other nodes of the hierarchy. The sc
 one hierarchy that holds none of them: a dropped object frees its slot when it is collected, and
 `destroy()` frees a subtree at once.
 
-The engine's graph is built of the same classes: a bare node is an `Object3D` and a group a
-`Group`, and every function of the browser facade that takes or returns a node of that graph names
-`Object3D`. `GraphNode` is abstract: it is only the base of the graph's nodes that draw, look or
-light (`GraphMesh`, and the camera and light classes the engine builds), which add a `kind` and a
-creation number.
+The engine's graph is built of the same classes: a bare node is an `Object3D`, a group a `Group`,
+a drawn node a `Mesh` (or the core's instanced mesh) wearing the engine's surfaces, its root a
+`Scene` and its eye a `Camera`, and every function of the browser facade that takes or returns a
+node of that graph names `Object3D`. `GraphNode` is abstract: it is only the base of the light
+classes the engine builds, which add a `kind` and a creation number; the engine numbers the
+scenes, cameras and meshes it builds in the same count, beside them, so a node a page builds
+carries none. A `Scene` built with no loader, as the engine builds its own, refuses `load`
+(`UNSUPPORTED_SCENE_UPDATE`); its `onBeforeRender` and `onAfterRender`, none by default, are
+called around each draw of it. A `Camera` gives the projection its optics compose in the
+reference's convention, finite far plane, as `projectionMatrix`, made at its first read and
+composed again at each optic write, and the inverse of its world matrix as
+`matrixWorldInverse`: what a renderer keeping that convention reads.
 
 `clone(recursive)` of an `Object3D` returns a node of the same class — a `Group` stays a `Group`, a
 `Light` a `Light`, a `Camera` a `Camera`, a graph node its own kind — holding the source's name,
@@ -933,8 +939,14 @@ light is a `SceneLight` (version 2) of one of three kinds. `point` and `spot` ca
 `range` in metres, `spot` also `direction` and a `coneAngle` half-angle; `directional` (sun,
 overcast sky) carries only `direction` — the propagation direction — and is refused if given a
 `position`, a `range` or a `coneAngle`. All three carry linear `color`, a positive radiometric
-`intensity` and `castsShadow`. Bounds: 64 lights, 32 per 16×16 screen tile, a 4096-square shadow
-atlas, and at most 24 shadow regions redrawn per frame.
+`intensity` and `castsShadow`. Bounds: none on the count — the light table grows with the scene;
+a 16×16 screen tile lists up to 64 lights reaching it and walks every light of the scene past
+that, a walk #849 bounds by the view —; 64 shadow slices,
+past which a caster lights without a shadow (`shadowCastersUnsliced`), and at most 24 shadow
+regions redrawn per frame. WebGL2 draws 64 lights and refuses more (#835). The shadow pool is sized
+once, at the first frame that casts a shadow, from its screen and its shadowed lights: layers of
+128² pages as wide as the device draws, within the budget's shadow share; `metric.frame(world)`
+publishes its `shadowPoolBytes` and `shadowPoolLayers`.
 
 `capability.lighting(world)` reports what the **active** renderer applies — `{ sceneLights,
 lightingView, shadows, transforms, reason? }` — not what the contract accepts: a call the light
@@ -1000,8 +1012,8 @@ directional. A `point` or `spot` with no `range` gets `sqrt(I / 0.01 W·m⁻²)`
 A light that does not hold the contract is counted in the file's `rejected` map and left out.
 
 A light casts a shadow when the file says so (FBX carries the flag; glTF has none, so imported glTF
-lights cast one). Beyond 64 lights, the ones that carry furthest are kept — directionals first, then
-by peak channel intensity — and the rest are counted in the `imported-lights` diagnostic. A world
+lights cast one). Every light of the file is declared, however many: the `imported-lights`
+diagnostic counts them. A world
 reads them as `(await scene.load(url)).lights`, in cache order; each lamp is a child of the model,
 changed with `light.visible = false`, `model.remove(light)` or `light.intensity = …`. A cache
 without `lights.json` has none; one the server refuses otherwise fails the load
@@ -1030,16 +1042,16 @@ the next cut once they arrived (`geometryAllocationBytes` shows it; no pool is r
 `world.budget.cpu` what the world keeps in CPU memory. A fixed rule splits them, published
 as `world.budget.split`:
 
-- GPU: the shadow pool first, at its largest (the largest screen's side, its static layer and its
-  transmittance layer), then the bounce probes at their largest, then the effect chain's targets
+- GPU: the shadow pool first, as 3840 × 2160 under one sun takes it (two layers of 53² pages, its
+  static layer and its transmittance layer), then the bounce probes at their largest, then the effect chain's targets
   on the largest canvas the budget declares (`split.effectTargets`: 250.5 MiB on the default
   3840 × 2160 canvas); the rest in two halves, geometry and textures, each capped at its ceiling.
-  The default total is 1 937 MiB, and at the defaults the split gives each pool its own default
+  The default total is 2 179 MiB, and at the defaults the split gives each pool its own default
   (512 MiB each), so a page that sets nothing sees no change. The three fixed shares never shrink:
   a total under them is refused (`GPU_BUDGET_UNDER_SHADOW_POOL`), so no total below 913 MiB is
   taken on the default canvas. The pool a screen takes, its static layer and its fixed buffers always fit that
   share, whatever the screen.
-- CPU: the shadow page table's host mirror first (20.8 MiB, fixed whatever the screen), then the
+- CPU: the shadow page table's host mirror first (21.2 MiB, fixed whatever the screen), then the
   decoded-page cache takes the whole rest (`split.pageCache`); within it the session in place
   reserves its manifest tables (a fixed reckoning per catalogue entry, not a measured heap size)
   and its transfer queue, and the engine's cut tables (group closure, residency readiness, the
@@ -1184,7 +1196,7 @@ frame, and the capture reads its own image.
 - **Node**: `prepare`, `prepareMany`, `createCompilationJob`, or the `trillion3d-compile` CLI
   ([COMPILER.md](COMPILER.md#using-it-from-node)).
 - **Other languages**: spawn `trillion3d-compiler` and read the cache — JSON pointer,
-  `clusters.json` and its sidecar, SHA-256 objects, `source.gltf` ([FORMAT.md](FORMAT.md)). The
+  `clusters.json` and its pages, SHA-256 objects, `source.gltf` ([FORMAT.md](FORMAT.md)). The
   interface is the versioned manifest.
 
 ## Migration from Three.js
@@ -1219,7 +1231,9 @@ crate.physics.on('contact', ({ other, impulse }) => console.log(other?.name, imp
   enabled; bodies set before then are queued.
 - **World.** `world.physics.enabled`, `gravity` (a live vector, or `'earth'`, `'moon'`, `'mars'`,
   `'none'`), `paused`, `timeScale` (0.25 is slow motion, 0 stands still; a negative or infinite
-  scale throws `RangeError`), `stats` and `error`. `world.physics.water = { level, waves, density,
+  scale throws `RangeError`), `simulationRange` (metres around the camera within which bodies
+  are simulated; `null`, the default, follows `camera.far`; anything but `null` or a finite
+  distance above 0 throws `RangeError`), `stats` and `error`. `world.physics.water = { level, waves, density,
 linearDrag, angularDrag, current }` (or `null`) is the water the bodies float in: each step, the
   worker fits a plane of the waves to every piece under water and pushes it by the weight of the
   water it displaces, so a body lighter than the water floats; the drags set how fast it settles,
@@ -1229,7 +1243,7 @@ linearDrag, angularDrag, current }` (or `null`) is the water the bodies float in
   `normal(x, z, out)`, and `wavesNow()`, the waves with their phases carried, so water set again
   goes on from where it is. Its example, floating crates, waits for geometry written every frame
   to be uploaded in place (#573).
-  `createWorld(canvas, { physics: { gravity, budget } })` sets them at creation.
+  `createWorld(canvas, { physics: { gravity, budget, simulationRange } })` sets them at creation.
 - **Bodies.** `mesh.physics = 'static' | 'dynamic' | 'kinematic'` or options `{ type, mass, shape,
 gravityScale, sensor, ccd, decorative, friction, restitution, damping }`. The shape is read from the
   geometry: a box, sphere, capsule or cylinder is that exact primitive (scaled); any other mesh is
@@ -1342,7 +1356,12 @@ bend }` simulates the mesh's vertices one by one on Jolt's soft bodies. A cloth 
   direct child of the scene; moved by the page, it is carried there with its vertices, its
   simulation kept; placed at another scale than it was made at, it is refused with
   `PHYSICS_FAILED` and leaves the simulation until it is back at that scale (Jolt scales no soft
-  body once made), as a compiled model's cooked one does; hidden, its vertices are not sent. It takes no velocity, impulse, joint or
+  body once made), as a compiled model's cooked one does; hidden, its vertices are not sent. A
+  pinned cloth that never stretches (`stretch` 0) keeps each free vertex within its rest distance
+  of the nearest pin (Jolt's long range attachments), so a large one never stretches without end;
+  one given stretch keeps its give. A body, soft or rigid, whose
+  vertices or pose go non-finite sends none of them: it keeps its last finite one on screen and
+  leaves the simulation with `PHYSICS_DIVERGED` (the mesh named). It takes no velocity, impulse, joint or
   vehicle. Rigid bodies and the character collide with its vertices: the
   character is turned aside or stopped, never pushing it; a rigid body much heavier than the skin
   it lands on can push between its vertices; soft bodies pass through each other (Jolt collides
@@ -1355,17 +1374,20 @@ bend }` simulates the mesh's vertices one by one on Jolt's soft bodies. A cloth 
   in place (#573).
 - **Stillness.** A body that sleeps sends nothing: once every body sleeps, the worker stops
   ticking and the world draws no frame.
-- **Distance and view.** Beyond the camera's draw distance (`camera.far`), a body is frozen with its
-  velocities kept, and thaws when it returns. Out of view, or hidden, it sends no pose and keeps
+- **Distance and view.** Beyond the simulation range (`world.physics.simulationRange`, else the
+  camera's draw distance `camera.far`), a body is frozen with its velocities kept, and thaws when
+  it returns. Out of view, or hidden, it sends no pose and keeps
   falling; the pose it has when it falls asleep is sent all the same. `decorative` bodies meet the
   static world only, are simulated only in range and in view, and leave the simulation once asleep:
   their mesh stays where it came to rest (set `physics` again to simulate it anew), and their
   joints break (`j.broken`, `'break'`).
-- **Budgets.** `world.budget.physics`, read when the physics starts: bodies, static triangles,
-  decorative bodies, memory (a hard ceiling: the module's memory cannot grow past it), body pairs
+- **Budgets.** `world.budget.physics`, read when the physics starts: bodies, decorative bodies,
+  memory (a hard ceiling: the module's memory cannot grow past it; half of it holds the static
+  collision, a static triangle mesh past it refused naming `memoryBytes`), body pairs
   and contacts per step, contact events per step, and threads (Jolt's thread pool, the worker's
   included, when the page is cross-origin isolated; never more than the logical cores minus the
-  page's own; one elsewhere). The defaults are `DEFAULT_PHYSICS_BUDGET`. A request past one is
+  page's own; one elsewhere; the worker times its steps and splits them over fewer threads while
+  more only contend, and Jolt computes the same step on any count). The defaults are `DEFAULT_PHYSICS_BUDGET`; a key that is no budget (the removed `triangles`) is refused by name, `PHYSICS_BUDGET` from `createWorld`, a `TypeError` when added to `world.budget.physics`. A request past one is
   refused with `PHYSICS_BUDGET` on `world.physics.error`; a step that finds more pairs or contacts
   than its budget says so the same way, and an `enter` past the events budget is counted in
   `stats.droppedEvents` (its `leave` is then never sent). `softVertices` bounds the vertices of
@@ -1375,9 +1397,10 @@ bend }` simulates the mesh's vertices one by one on Jolt's soft bodies. A cloth 
   own clock: the two are never added.
 - **Compiled models.** A model loaded with `scene.load()` collides with its own triangles once the
   physics is on: the compiler cooked them (`physics.json`, [FORMAT.md](FORMAT.md)) and the physics
-  streams its tiles in, restored from Jolt's binary state, around the eye up to `camera.far` and
-  around every moving body, nearest first, within `budget.physics.triangles`; past it, the nearest
-  stay and `PHYSICS_BUDGET` names the triangles asked. A file of another format or cooked by
+  streams its tiles in, restored from Jolt's binary state, around every moving body and around the
+  eye up to the simulation range, nearest first, within half of `budget.physics.memoryBytes`, and releases
+  them as they move away (a tile stays until half as far again as it came in). A scene is never
+  refused for its size: a tile that does not fit waits, the farthest leaving for it. A file of another format or cooked by
   another Jolt is refused (`PHYSICS_FORMAT`); a model compiled before the cook collides nowhere.
   A tile or a soft body's settings the server refuses is `RESOURCE_HTTP_ERROR` on
   `world.physics.error` ([Files over HTTP](#files-over-http)); a model that leaves the scene lets
@@ -1407,6 +1430,13 @@ bend }` simulates the mesh's vertices one by one on Jolt's soft bodies. A cloth 
 - Specular environment-map IBL and screen-space reflections are not implemented; the
   bounce lighting exists but is off by default ([ENGINE.md](ENGINE.md#light-that-bounces)), and only
   with it on does a surface at the roughness floor reflect the scene, at the proxy's detail.
+- WebGL2 draws a physical material's transmission volume, as factors, and nothing else of its
+  extensions: clearcoat, sheen, iridescence, anisotropy, dispersion, a specular factor, an IOR
+  without transmission, their maps and the transmission and thickness maps. A surface declaring one
+  is drawn without it — the loop never stops — and the world's diagnostic channel says
+  `material-degraded` once per surface and feature (`context.material`, `context.feature`). The
+  WebGPU page raster lists material extensions among its unsupported capabilities and says nothing
+  per surface.
 - Transparent surfaces are lit from the source file's own light graph with a fixed ambient, not yet
   by the declared-light rule above.
 - A lost device is recovered, the page never reloaded: the world asks for a device again, reopens its
