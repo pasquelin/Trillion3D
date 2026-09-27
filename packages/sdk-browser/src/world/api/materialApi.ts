@@ -21,7 +21,7 @@ import {
 
 import {
   assignment,
-  CREATED_FIELDS,
+  validateCreated,
   RUNTIME_MATERIAL_CEILING,
   createdSurface,
   PLAIN,
@@ -160,13 +160,7 @@ export function createExplorerMaterialApi(inputs: Inputs) {
           `the page holds ${created.size} created materials, the ceiling`,
           { ceiling: RUNTIME_MATERIAL_CEILING },
         );
-      if (props.map !== undefined)
-        throw new EngineError('UNSUPPORTED_SCENE_UPDATE', 'a created material takes no map yet', {
-          id,
-        });
-      validate(id, props, CREATED_FIELDS);
-      if (props.name !== undefined && typeof props.name !== 'string')
-        throw invalid(id, 'name', props.name);
+      validateCreated(id, props);
       const surface = createdSurface(props);
       created.set(id, new Map([[PLAIN, surface]]));
       return read(id, surface);
