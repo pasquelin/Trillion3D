@@ -1,7 +1,7 @@
 // Batch F oracles, scene and page-source side: `packages/sdk-browser/src/world/scene/scene.ts:18-36` and
 // `packages/sdk-browser/src/world/session/pageSources.ts:20-49` from before batch F, copied as-is.
 import * as THREE from 'three';
-import type { GraphMesh } from '../../../packages/sdk-browser/src/host/graph/mesh.ts';
+import type { HostMesh } from '../../../packages/sdk-browser/src/host/resources.ts';
 import type {
   ClusterManifest,
   GeometryPageDescriptor,
@@ -20,7 +20,7 @@ export function referenceExactPagesBounds(
   source: Object3D,
   associations: BackendContext['associations'],
   metadata: ClusterManifest,
-  onMissing: (mesh: GraphMesh) => void,
+  onMissing: (mesh: HostMesh) => void,
   into = new THREE.Box3(),
 ) {
   // `meshes` resolved the host subtree before batch 8; the witness now resolves it

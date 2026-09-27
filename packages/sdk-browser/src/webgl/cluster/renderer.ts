@@ -7,6 +7,7 @@ import {
   type HostAttributes,
   type WholeMesh,
 } from '../../cluster/batchMesh.ts';
+import { isInstancedNode } from '../../host/graph/kinds.ts';
 import { WebglClusterGeometry } from './geometry.ts';
 import { WebglClusterTextures } from './textures.ts';
 import { unsupportedClusterLight, WebglClusterLights, type WebglClusterScene } from './lights.ts';
@@ -95,11 +96,10 @@ export class WebglClusterRenderer {
   /** One mesh, every pass its material asks for; a hidden material submits nothing. */
   private mesh(mesh: ClusterDrawMesh | WholeMesh, camera: HostDrawCamera, toneMapped: boolean) {
     const gl = this.gl,
-      material = mesh.material as Material;
-    if (!material.visible) return 0;
-    const record = isClusterDrawMesh(mesh) ? mesh : undefined,
-      instanced = !record && (mesh as WholeMesh).kind === 'instancedMesh';
-    if (instanced && !(mesh as WholeMesh).count) return 0;
+      material = mesh.material as Material,
+      record = isClusterDrawMesh(mesh) ? mesh : undefined,
+      instanced = !record && isInstancedNode(mesh);
+    if (!material.visible || (instanced && !mesh.count)) return 0;
     this.geometry.bind(mesh.geometry, record ? undefined : (mesh as WholeMesh));
     if (this.instanced !== instanced) gl.uniform1i(this.at('instanced'), instanced ? 1 : 0);
     this.instanced = instanced;

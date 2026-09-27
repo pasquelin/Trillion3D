@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>The home pose and points of interest</title>
+    <meta name="thumbnail" content="2" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #b9d5ea;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <script type="module">
+      import { createWorld } from '../runtime/engine.js';
+      import { geometry, material, object, light, math, pose } from '../runtime/engine.js';
+      import { controls } from '../runtime/kit.js';
+
+      const world = createWorld('view', { controls: 'orbit' });
+      world.scene.background = math.color('#b9d5ea');
+      const stone = material.meshStandard({ color: '#eee3cd', roughness: 0.8 });
+      const roof = material.meshStandard({ color: '#b94f3d', roughness: 0.65 });
+      const green = material.meshStandard({ color: '#4e813f', roughness: 0.9 });
+      const add = (shape, matter, position) => {
+        const mesh = object.mesh(shape, matter);
+        mesh.position.set(...position);
+        world.scene.add(mesh);
+      };
+
+      // A small hill town gives each named view a recognisable subject.
+      add(geometry.cylinder(13, 15, 1.4, 64), green, [0, -0.7, 0]);
+      add(geometry.cylinder(1.6, 2.1, 8, 32), stone, [0, 4, -2]);
+      add(geometry.cone(2, 2.4, 32), roof, [0, 9.2, -2]);
+      const houseBody = geometry.box(3.6, 2.8, 3.2);
+      const houseRoof = geometry.cone(2.8, 2.2, 4);
+      for (const [x, z, turn] of [
+        [-6, 1, -0.3],
+        [5, 3, 0.25],
+        [-4, -6, 0.15],
+      ]) {
+        const house = object.group();
+        house.position.set(x, 0, z);
+        house.rotation.y = turn;
+        const body = object.mesh(houseBody, stone);
+        body.position.y = 1.4;
+        const cap = object.mesh(houseRoof, roof);
+        cap.position.y = 3.6;
+        cap.rotation.y = Math.PI / 4;
+        house.add(body, cap);
+        world.scene.add(house);
+      }
+      const trunkShape = geometry.cylinder(0.12, 0.18, 2.2, 10);
+      const trunkPaint = material.meshStandard({ color: '#755137', roughness: 0.9 });
+      const crown = geometry.sphere(1.2, 20, 12);
+      for (let index = 0; index < 10; index++) {
+        const angle = (index / 10) * Math.PI * 2;
+        add(trunkShape, trunkPaint, [Math.cos(angle) * 10, 1.1, Math.sin(angle) * 10]);
+        add(crown, green, [Math.cos(angle) * 10, 3, Math.sin(angle) * 10]);
+      }
+      world.scene.add(
+        light.directional({
+          color: '#fff0d2',
+          intensity: 3.2,
+          position: [10, 16, 8],
+          castShadow: true,
+        }),
+        light.hemisphere({ color: '#dcecff', groundColor: '#6d6944', intensity: 0.8 }),
+      );
+
+      // A pose is application data: public Camera.set applies its position and orientation. The
+      // orbit target is set beside it so the next drag continues around the same point.
+      const VIEWS = [
+        pose.pointOfInterest('home', { position: [18, 11, 20], target: [0, 3, -1], fov: 50 }),
+        pose.pointOfInterest('tower', { position: [7, 7, 7], target: [0, 4, -2], fov: 42 }),
+        pose.pointOfInterest('square', { position: [-9, 4, 8], target: [-1, 1.5, 0], fov: 48 }),
+        pose.pointOfInterest('hillside', { position: [12, 5, -12], target: [-2, 2, -3], fov: 55 }),
+      ];
+      const apply = (pose) => {
+        world.camera.set(pose);
+        world.controls.target.set(...pose.target);
+        world.controls.update();
+        world.invalidate();
+      };
+      apply(VIEWS[0]);
+      world.controls.minDistance = 3;
+      world.controls.maxDistance = 55;
+      world.controls.maxPolarAngle = Math.PI / 2 - 0.04;
+
+      controls(Object.fromEntries(VIEWS.map((view) => [view.name, () => apply(view)])), world);
+      addEventListener('pagehide', () => world.dispose(), { once: true });
+    </script>
+  </body>
+</html>

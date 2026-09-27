@@ -11,6 +11,7 @@ import {
   VIS_UNIFORMS_WGSL,
 } from '../../visibility/shader/pageWgsl.ts';
 import { PAGE_GEOMETRY_WGSL, PAGE_SCREEN_WGSL } from '../../visibility/shader/pageGeometryWgsl.ts';
+import { UV_GRADIENTS_WGSL } from '../../visibility/shader/shadeDeclWgsl.ts';
 import { SMALL_BINDINGS } from '../../webgpu/core/bindLayout.ts';
 import { RASTER_TRI_WGSL } from './triWgsl.ts';
 import { COMPUTE_TAKES_WGSL } from './contract.ts';
@@ -26,9 +27,9 @@ import { wgslFloat } from '../partition/margins.ts';
  * texture, the depth and pyramid level zero that the hardware raster opened. Blend and
  * transmission surfaces keep their pass.
  *
- * A mask material does its alpha test HERE, on the finest already-resident tile — this raster
- * has no derivatives and passes null gradients to `maskKeep`, the same test as the frame and
- * shadows, at the same threshold, on the same coordinates.
+ * A mask material does its alpha test HERE, with analytical perspective-correct gradients for
+ * the covered sub-triangle. It therefore uses the colour sampler's existing LOD and anisotropy
+ * path, at the same threshold and coordinates as the hardware raster.
  */
 const PAGE_INFO = `${PAGE_INFO_STRUCT_WGSL}
 ${VIS_UNIFORMS_WGSL}`;
@@ -60,6 +61,7 @@ fn pageWinding(page:PageInfo)->f32{return determinant(mat3x3f(page.world[0].xyz,
 ${PAGE_GEOMETRY_WGSL}
 ${PAGE_SCREEN_WGSL}
 ${EDGE_WGSL}
+${UV_GRADIENTS_WGSL}
 ${COMPUTE_TAKES_WGSL}
 ${MASK_KEEP_WGSL}
 ${RASTER_TRI_WGSL}
