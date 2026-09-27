@@ -67,9 +67,8 @@ export function createPhysicsSession(
     onReady = () => {};
   const started = new Promise<void>((resolve) => (onReady = resolve));
   const flush = () => {
-    if (!ready || !writer.length) return;
-    const words = writer.take();
-    worker.postMessage({ type: 'commands', words }, [words.buffer]);
+    const words = ready && writer.length ? writer.take() : null;
+    if (words) worker.postMessage({ type: 'commands', words }, [words.buffer]);
   };
   /** Page milliseconds spent on ticks since the last frame: they count in its `physics` stage. */
   let received = 0;
@@ -90,6 +89,7 @@ export function createPhysicsSession(
     stats.bodies = bodies.count.bodies;
     if (m.steps) Object.assign(stats, { stepMs: m.stepMs / m.steps, stepMaxMs: m.stepMaxMs });
     worker.postMessage({ type: 'buffer', buffer: m.buffer }, [m.buffer]);
+    writer.recycle(m.spent);
     received += performance.now() - began;
     if (changed) invalidate();
   };
@@ -149,8 +149,8 @@ export function createPhysicsSession(
       dirty = placeBodies(node, bodies, writer, failed) || dirty;
       tiles.moved(node);
     },
-    /** The frame's physics: bodies reconciled, poses drawn, the view and the commands sent. */
-    frame(camera: Camera) {
+    /** The frame's physics: bodies reconciled, poses drawn, the view (`range`), commands sent. */
+    frame(camera: Camera, range: number | null) {
       touched.eye = camera;
       if (dirty) {
         bodies.reconcile(stale, (error) => failed(error as EngineError));
@@ -164,8 +164,8 @@ export function createPhysicsSession(
       const moving = poses.apply(bodies);
       stats.mainMs = received;
       received = 0;
-      view(camera, writer);
-      tiles.update(resolveCameraWorld(camera).matrixWorld.elements.slice(12, 15), camera.far);
+      const reach = view(camera, writer, range);
+      tiles.update(resolveCameraWorld(camera).matrixWorld.elements.slice(12, 15), reach);
       flush();
       if (ready) character.flush();
       return moving;

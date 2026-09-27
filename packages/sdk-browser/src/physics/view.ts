@@ -5,15 +5,16 @@ import { hypot2, hypot3 } from '../../../sdk-core/src/math/primitives/hypot.ts';
 
 /**
  * The page's view as the simulation needs it (`VIEW`, `layout.ts`): distance decides what is
- * simulated — the range is the camera's draw distance (`camera.far`), the scene's own, never a
- * constant —, the view cone decides what is sent back. The pose is read through the camera
- * contract (`camera/world.ts`), and written only when it changed.
+ * simulated — the range is `world.physics.simulationRange`, else the camera's draw distance
+ * (`camera.far`), the scene's own, never a constant —, the view cone decides what is sent back.
+ * The pose is read through the camera contract (`camera/world.ts`), and written only when it
+ * changed; the range in force is returned.
  */
 export function createPhysicsView() {
   /** Eye (3), facing (3), half cone, range: as last sent. */
   const last = new Float64Array(8).fill(NaN),
     now = new Float64Array(8);
-  return (camera: Camera, writer: CommandWriter) => {
+  return (camera: Camera, writer: CommandWriter, range: number | null) => {
     const w = resolveCameraWorld(camera).matrixWorld.elements;
     // The eye is the world matrix's translation; the camera looks down its own −z.
     const length = hypot3(w[8], w[9], w[10]) || 1;
@@ -25,11 +26,12 @@ export function createPhysicsView() {
       camera.projection === 'perspective'
         ? Math.atan(Math.tan((camera.fov * Math.PI) / 360) * hypot2(1, camera.aspect))
         : 0;
-    now[7] = camera.far;
+    now[7] = range ?? camera.far;
     let same = true;
     for (let k = 0; k < 8; k++) same &&= now[k] === last[k];
-    if (same) return;
+    if (same) return now[7];
     last.set(now);
     writer.view(now.subarray(0, 3), now.subarray(3, 6), now[6], now[7]);
+    return now[7];
   };
 }
