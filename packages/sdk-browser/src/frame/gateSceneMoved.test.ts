@@ -66,7 +66,7 @@ test('both announce the scene: a held frame is refused after either of them', ()
 
 test('a host write of its own is still taken after a move: the watch keeps listening', () => {
   const { source, drawn } = scene();
-  const mesh = (drawn[0] as { sourceMesh: G.GraphMesh }).sourceMesh;
+  const mesh = (drawn[0] as { sourceMesh: G.HostMesh }).sourceMesh;
   const gate = createFrameGateCore(1);
   gate.readScene(source, drawn);
   gate.sceneMoved();
@@ -80,7 +80,7 @@ test('a host write of its own is still taken after a move: the watch keeps liste
 
 test('a move announced before the first image still has the watched set built', () => {
   const { source, drawn } = scene();
-  const mesh = (drawn[0] as { sourceMesh: G.GraphMesh }).sourceMesh;
+  const mesh = (drawn[0] as { sourceMesh: G.HostMesh }).sourceMesh;
   const gate = createFrameGateCore(1);
   gate.sceneMoved();
   gate.readScene(source, drawn);

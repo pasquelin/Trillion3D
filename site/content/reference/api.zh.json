@@ -2043,7 +2043,11 @@
       "geometry": "该网格的形状;设置另一个几何体即可改变它。",
       "material": "该网格的材质,或每个分组各一个;设置另一个即可改变它。",
       "localBounds": "该节点自身内容所占据的包围盒,局部坐标系;一个普通节点不含任何内容。",
-      "physics": "网格作为世界物理中的物体，不是时为 `null`。设为 `'static'`、`'dynamic'`、`'kinematic'` 或选项；形状由几何体推断。"
+      "physics": "网格作为世界物理中的物体，不是时为 `null`。设为 `'static'`、`'dynamic'`、`'kinematic'` 或选项；形状由几何体推断。",
+      "morphTargetInfluences": "几何体声明变形目标时，每个变形目标的权重。",
+      "morphTargetDictionary": "按名称给出的每个变形目标的序号。",
+      "updateMorphTargets": "为第一个变形属性的每个变形目标设一个零权重，按序号命名。",
+      "copy": "取用 `source` 的值，并复制其子节点，除非另有指示。"
     }
   },
   "Mixer": {
@@ -7395,18 +7399,6 @@
       "handbrake": "手刹是否拉起。"
     }
   },
-  "GraphMesh": {
-    "summary": "被绘制的节点：一个几何体及其表面，或每个几何分组一个表面。",
-    "members": {
-      "kind": "在一个放置处绘制，或在多个放置处绘制（`GraphInstancedMesh`）。",
-      "morphTargetInfluences": "几何体声明变形目标时，每个变形目标的权重。",
-      "morphTargetDictionary": "按名称给出的每个变形目标的序号。",
-      "geometry": "它的形状。",
-      "material": "它的表面，或每个几何分组一个。",
-      "updateMorphTargets": "为第一个变形属性的每个变形目标设一个零权重，按序号命名。",
-      "copy": "取用 `source` 的值，并复制其子节点，除非另有指示。"
-    }
-  },
   "GraphNode": {
     "summary": "图的一个节点：核心的节点，以其 `kind` 区分，由核心的 `clone` 复制。",
     "members": {
@@ -7415,7 +7407,7 @@
     }
   },
   "GraphNodeKind": {
-    "summary": "图的节点是什么：根、被绘制的网格（一个或多个放置处）、眼睛，或场景声明的某种光源。"
+    "summary": "图的节点是什么：根、眼睛，或场景声明的某种光源。"
   },
   "GraphSurface": {
     "summary": "表面：一个族的参数，除非场景另有说明，取参考实现的值。",

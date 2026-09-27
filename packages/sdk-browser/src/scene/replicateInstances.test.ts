@@ -76,7 +76,7 @@ for (const count of [4, 9, 12] as const) {
     assert.equal(groupeObtenu.children.length, groupeAttendu.children.length);
     for (let i = 0; i < groupeObtenu.children.length; i++)
       assertBits(
-        (groupeObtenu.children[i] as G.GraphMesh).matrixWorld.elements,
+        (groupeObtenu.children[i] as G.HostMesh).matrixWorld.elements,
         (groupeAttendu.children[i] as THREE.Mesh).matrixWorld.elements,
       );
   });
@@ -85,7 +85,7 @@ for (const count of [4, 9, 12] as const) {
 test('replicateInstances flags each copy ENGINE_OWNED and freezes its matrix (matrixAutoUpdate to false)', () => {
   const { racine } = hostileSource();
   const groupe = replicateInstances(racine, new Map(), 4) as G.Group;
-  for (const copie of groupe.children as G.GraphMesh[]) {
+  for (const copie of groupe.children as G.HostMesh[]) {
     assert.equal(copie.userData[ENGINE_OWNED], true);
     assert.equal(copie.matrixAutoUpdate, false);
   }
@@ -98,7 +98,7 @@ test('replicateInstances transfers association of each source mesh onto its copi
     [b, { meshes: 1 }],
   ]);
   const groupe = replicateInstances(racine, associations, 4) as G.Group;
-  for (const copie of groupe.children as G.GraphMesh[])
+  for (const copie of groupe.children as G.HostMesh[])
     assert.ok(associations.get(copie), 'each copy carries association of its source mesh');
 });
 
@@ -118,8 +118,8 @@ test('replicateInstances uses `preparedBounds` as is, without recalculating boun
   const groupe = replicateInstances(racine, new Map(), 4, fausses) as G.Group;
   const attenduEspacement = fausses[3] - fausses[0];
   const reelEspacement = reelles[3] - reelles[0];
-  const premiere = (groupe.children[0] as G.GraphMesh).matrixWorld.elements[12];
-  const derniereColonne = (groupe.children[groupe.children.length - 2] as G.GraphMesh).matrixWorld
+  const premiere = (groupe.children[0] as G.HostMesh).matrixWorld.elements[12];
+  const derniereColonne = (groupe.children[groupe.children.length - 2] as G.HostMesh).matrixWorld
     .elements[12];
   assert.notEqual(attenduEspacement, reelEspacement, 'test must use different bounds');
   assert.ok(
