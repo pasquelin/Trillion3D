@@ -2242,5 +2242,12 @@
       "snap": "Raster",
       "home": "Start"
     }
+  },
+  "outline-the-selection": {
+    "banner": "Klicke eine Form an, um sie auszuwählen. Klicke auf den Boden, um die Auswahl zu löschen.",
+    "controls": {
+      "color": "Farbe",
+      "thickness": "Stärke"
+    }
   }
 }
