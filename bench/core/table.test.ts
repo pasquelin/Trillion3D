@@ -2,11 +2,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { entete, ligneMd } from './table.ts';
-import type { LigneResultat } from './measureTypes.ts';
+import type { ResultRow } from '../../site/examples/kit/measureTypes.ts';
 
 test('the table prints the witness gap after the baseline gap, without a regression icon', () => {
   assert.match(entete()[0], /\| vs baseline \| vs witness \| Oracle \|/);
-  const row: LigneResultat = {
+  const row: ResultRow = {
     name: 'r',
     size: null,
     medianeMs: null,
