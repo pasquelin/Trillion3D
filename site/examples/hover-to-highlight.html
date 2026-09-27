@@ -28,8 +28,8 @@
       const world = createWorld('view', { controls: 'orbit' });
       world.scene.background = math.color('#18212c');
       const makePart = (shape, color, at) => {
-        const matter = material.meshStandard({ color, roughness: 0.55, emissive: '#000000' });
-        const part = object.mesh(shape, matter);
+        const part = object.mesh(shape, material.meshStandard({ color, roughness: 0.55 }));
+        part.userData.color = color;
         part.position.set(...at);
         world.scene.add(part);
         return part;
@@ -48,25 +48,16 @@
           wheel.rotation.x = Math.PI / 2;
           parts.push(wheel);
         }
-      const originals = new Map(
-        parts.map((part) => [
-          part,
-          { color: part.material.color.clone(), emissive: part.material.emissive.clone() },
-        ]),
-      );
+      // A part's own colour and a black glow, or the highlight's.
+      const paint = (part, lit) => {
+        part?.material.color.set(lit ? '#ffd166' : part.userData.color);
+        part?.material.emissive.set(lit ? '#5b3100' : '#000000');
+      };
       let hovered = null;
       const show = (part) => {
         if (part === hovered) return;
-        if (hovered) {
-          const original = originals.get(hovered);
-          hovered.material.color.copy(original.color);
-          hovered.material.emissive.copy(original.emissive);
-        }
-        hovered = part;
-        if (hovered) {
-          hovered.material.color.set('#ffd166');
-          hovered.material.emissive.set('#5b3100');
-        }
+        paint(hovered, false);
+        paint((hovered = part), true);
         world.invalidate();
       };
 
@@ -77,13 +68,27 @@
         },
         world,
       );
+      // One ray a frame at the last pointer position, none while a button orbits the camera.
+      const pointer = { x: 0, y: 0 };
+      let queued = false,
+        inside = false;
       world.canvas.addEventListener('pointermove', (event) => {
-        if (!values.highlightEnabled) return;
-        show(
-          world.raycast({ x: event.offsetX, y: event.offsetY }, { objects: parts })?.object ?? null,
-        );
+        if (!values.highlightEnabled || event.buttons) return;
+        inside = true;
+        pointer.x = event.offsetX;
+        pointer.y = event.offsetY;
+        if (queued) return;
+        queued = true;
+        requestAnimationFrame(() => {
+          queued = false;
+          if (inside && values.highlightEnabled)
+            show(world.raycast(pointer, { objects: parts })?.object ?? null);
+        });
       });
-      world.canvas.addEventListener('pointerleave', () => show(null));
+      world.canvas.addEventListener('pointerleave', () => {
+        inside = false;
+        show(null);
+      });
 
       world.scene.add(
         light.hemisphere({ color: '#dbeeff', groundColor: '#29323a', intensity: 1.2 }),
