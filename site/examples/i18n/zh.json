@@ -518,6 +518,20 @@
       "outer": "外圈"
     }
   },
+  "doors-that-open": {
+    "banner": "将相机移向门。靠近时门会打开。",
+    "controls": {
+      "mode": "模式",
+      "openingDistance": "开启距离",
+      "openness": "开启程度"
+    },
+    "choices": {
+      "mode": {
+        "proximity": "接近",
+        "manual": "手动"
+      }
+    }
+  },
   "a-world-of-blocks": {
     "banner": "拖动绕着小岛飞。把海水升高，淹没山谷。",
     "controls": {

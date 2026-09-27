@@ -518,6 +518,20 @@
       "outer": "बाहर"
     }
   },
+  "doors-that-open": {
+    "banner": "कैमरे को दरवाज़ों की ओर ले जाएँ। पास आने पर वे खुलते हैं।",
+    "controls": {
+      "mode": "मोड",
+      "openingDistance": "खुलने की दूरी",
+      "openness": "खुलाव"
+    },
+    "choices": {
+      "mode": {
+        "proximity": "निकटता",
+        "manual": "मैन्युअल"
+      }
+    }
+  },
   "a-world-of-blocks": {
     "banner": "द्वीप के चारों ओर उड़ने के लिए खींचो। घाटियाँ डुबोने के लिए समुद्र ऊपर करो।",
     "controls": {
