@@ -14,6 +14,8 @@
 #include <Jolt/Physics/PhysicsSystem.h>
 #include <Jolt/Physics/SoftBody/SoftBodyContactListener.h>
 
+#include "pairIndex.h"
+
 #include <cstdint>
 #include <unordered_map>
 #include <vector>
@@ -107,7 +109,7 @@ struct World {
   double travel = 0;
   uint32_t viewEpoch = 1;
   /** Touching pairs by engine ids: sub-shape contacts counted, `ENTERED` once the page was told. */
-  std::unordered_map<uint64_t, uint32_t> pairs;
+  PairIndex pairs;
   /** The pairs of `pairs` a soft body is in, and the step that last saw each touch (`softContacts.cpp`). */
   std::unordered_map<uint64_t, uint32_t> softPairs;
   /** Leaves that found the event buffer full: written first at the next step, never lost. */
