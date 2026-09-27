@@ -328,6 +328,13 @@
       "roof": "Mái nhà"
     }
   },
+  "soft-shadows-from-a-wide-lamp": {
+    "banner": "Kéo để xoay quanh. Thay đổi độ rộng đèn và quan sát mép bóng.",
+    "controls": {
+      "lampWidth": "Độ rộng đèn",
+      "moveSubject": "Di chuyển vật thể"
+    }
+  },
   "a-softbox-panel": {
     "banner": "Kéo để đi quanh. Làm tấm đèn to hơn để ánh bóng dịu đi.",
     "controls": {
@@ -1700,6 +1707,19 @@
     "readouts": {
       "fourthLaneAnisotropy": "Dị hướng của làn thứ tư"
     }
+  },
+  "the-home-pose": {
+    "banner": "Chọn một góc nhìn, di chuyển camera, rồi chọn Ban đầu để quay lại.",
+    "controls": {
+      "home": "Ban đầu",
+      "tower": "Tháp",
+      "square": "Quảng trường",
+      "hillside": "Sườn đồi"
+    }
+  },
+  "the-near-plane-cuts-a-wall": {
+    "banner": "Đẩy mặt phẳng gần về phía trước và xem nó cắt qua từng bức tường.",
+    "controls": { "nearPlane": "Mặt phẳng gần" }
   },
   "the-material-family": {
     "banner": "Kéo để đi quanh. Chuyển ánh sáng sang đêm và xem thứ gì vẫn sáng.",

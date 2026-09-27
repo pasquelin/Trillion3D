@@ -835,6 +835,7 @@
       "totalNodes": "Nodos en total.",
       "autonomousScene": "Su escena integrada.",
       "primitives": "Sus primitivas.",
+      "worstStalls": "La tabla de bloqueos del compilador: como mucho diez primitivas con un grupo bloqueado que conservó raíces en el nivel 0, la peor primero. Ausente de una caché compilada antes de ella.",
       "texturePreviews": "Una entrada por par (textura, atlas) decodificado, dispuesta por textura y luego por atlas; vacía sin imagen decodificable.",
       "textures": "Modelo de los niveles horneados, relativo al manifiesto: {sha} la huella de la imagen fuente, {kind} el nombre del atlas (PREVIEW_ATLAS_NAMES), {level} el rango del nivel. Ausente en una caché compilada antes de los niveles horneados, que este lector rechaza por la versión del archivo aparte.",
       "proxy": "Dónde leer el proxy de escena residente y su BVH: la geometría que tocan los rayos. Ausente en una caché compilada antes del rebote, que sigue siendo legible tal cual."
@@ -1338,7 +1339,7 @@
     }
   },
   "dagWarningsDiagnostic": {
-    "summary": "El diagnóstico `dag-warnings` de una caché: las primitivas señaladas por el compilador, y cada primitiva con un grupo bloqueado — el conjunto que el compilador clasifica en stderr al final de una cocción."
+    "summary": "El diagnóstico `dag-warnings` de una caché: las primitivas señaladas por el compilador, y la tabla de bloqueos del compilador (`worstStalls`), las filas que escribe en stderr al final de una cocción, en su orden."
   },
   "DecodedGeometryPage": {
     "summary": "Una página decodificada: `indices` y cada atributo son vistas sobre un único búfer de `decodedBytes` (`geometryPageBlock.ts`).",
@@ -1584,6 +1585,7 @@
       "UNKNOWN_MATERIAL": "Un cambio de material es desconocido, está fuera de rango, lo movería a una clase de dibujo que un motor fija al abrir la escena, o repetiría un mapa que comparte.",
       "MATERIAL_CLASS_CHANGE": "Un cambio de material es desconocido, está fuera de rango, lo movería a una clase de dibujo que un motor fija al abrir la escena, o repetiría un mapa que comparte.",
       "MATERIAL_TEXTURE_SHARED": "Un cambio de material es desconocido, está fuera de rango, lo movería a una clase de dibujo que un motor fija al abrir la escena, o repetiría un mapa que comparte.",
+      "MATERIAL_CEILING": "Una página crearía más materiales que `RUNTIME_MATERIAL_CEILING` en una sesión; no se creó nada.",
       "INVALID_TRANSFORM": "La colocación de un nodo no es una matriz utilizable, o un nodo sería su propio ancestro.",
       "NON_FINITE_TRANSFORM": "La colocación de un nodo no es una matriz utilizable, o un nodo sería su propio ancestro.",
       "SINGULAR_PARENT_TRANSFORM": "La colocación de un nodo no es una matriz utilizable, o un nodo sería su propio ancestro.",
@@ -5584,7 +5586,8 @@
       "textures": "Modelo de los niveles horneados, relativo al manifiesto: {sha} la huella de la imagen fuente, {kind} el nombre del atlas (PREVIEW_ATLAS_NAMES), {level} el rango del nivel. Ausente en una caché compilada antes de los niveles horneados, que este lector rechaza por la versión del archivo aparte.",
       "proxy": "Dónde leer el proxy de escena residente y su BVH: la geometría que tocan los rayos. Ausente en una caché compilada antes del rebote, que sigue siendo legible tal cual.",
       "binary": "El archivo binario.",
-      "primitives": "Sus primitivas."
+      "primitives": "Sus primitivas.",
+      "worstStalls": "La tabla de bloqueos del compilador: como mucho diez primitivas con un grupo bloqueado que conservó raíces en el nivel 0, la peor primero. Ausente de una caché compilada antes de ella."
     }
   },
   "SlimCulling": {
