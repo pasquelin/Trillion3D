@@ -4,7 +4,7 @@ import { attachedPages, autonomousPlacements } from '../../placement/autonomousP
 import { collectClusterPages, indexPagesByUrl } from '../../page/selection/selection.ts';
 import type { PageRec } from '../../page/selection/selection.ts';
 import { createAutonomousRender, createAutonomousRenderState } from './render.ts';
-import { autonomousCapabilities } from './capabilities.ts';
+import { autonomousCapabilities, publishAutonomousCapabilities } from './capabilities.ts';
 import { createWebglFrameGate } from '../../webgl/core/frameGate.ts';
 import { decodePageOffThread } from '../../page/decode/host.ts';
 import { createAutonomousGeometry } from './geometry.ts';
@@ -39,17 +39,15 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
     pageDefault = context.residentPagesDefault ?? Math.max(1024, bootstrapUrls.size),
     cap = hostCeiling < Infinity ? hostCeiling : pageDefault,
     scene = hostPageScene(blendCopies);
-  // The cut drawn, the cut wanted, and what the image asks the pool for (`imageCut.ts`).
   const lists = { shown: [] as PageRec[], desired: [] as PageRec[], requested: [] as PageRec[] };
   const baseMaterials = new Map(allPages.map((rec) => [rec, rec.declaration] as const)),
     colorMaterials = new Map<HostMaterial, HostMaterial>();
   const modifiedPages = new Set<string>();
   const state = createAutonomousRenderState(),
     gate = createWebglFrameGate(),
-    hostDraw = createSceneDraw(context.webglContext, scene, blendCopies, context.pixelRatio);
-  // The engine's own lighting: the cache's radiometric light table where it declares one, the
-  // source graph's lights otherwise (`../../lighting/contractLightingApi.ts`). A transmissive
-  // surface is not paged: it is a copy the program draws whole (`hostPageScene`).
+    hostDraw = createSceneDraw(context.webglContext, scene, blendCopies, context);
+  // The engine's own lighting: the cache's light table, else the source graph's lights
+  // (`../../lighting/contractLightingApi.ts`). A transmissive surface is a copy drawn whole.
   const { lighting, api: lightingApi } = createContractLighting(scene, context, gate.sceneChanged);
   let ready = false;
   const geometryStore = createAutonomousGeometry({
@@ -87,7 +85,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
     geometryStore,
   });
   const pool = createAutonomousPool({
-    byUrl,
+    ...tables,
     context,
     descriptors,
     bootstrapUrls,
@@ -142,6 +140,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
       for (const page of bootstrap) lists.shown.push(page); // a spread overflows the stack
       sync();
       residency.keptChanged();
+      publishAutonomousCapabilities(context.onDiagnostic);
     },
     render(camera) {
       hostDraw.render(camera);
@@ -174,7 +173,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
     metrics() {
       return {
         clusters: state.visible,
-        selectedTriangles: state.selectedTriangles,
+        ...state.triangles,
         ...pool.metrics,
         cacheEvictions: residency.cacheEvictions,
         frustumRejected: state.frustumRejected,
