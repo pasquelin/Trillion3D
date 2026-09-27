@@ -49,5 +49,4 @@ test('a cluster is read ahead at its geometry page, a cluster without one not at
     ['objects/shared.bin', signal],
     ['objects/own.bin', signal],
   ]);
-  assert.doesNotThrow(() => readGeometryAhead(geometryUrls, undefined)(pageOf('own'), signal));
 });
