@@ -72,8 +72,9 @@ function oracle(water: ReturnType<typeof createWater>, pieces: Float32Array) {
 /** The module's planes for `pieces` (written into its command buffer) on `water`'s waves, through
  *  the worker's own call. */
 function planes(jolt: Module, water: ReturnType<typeof createWater>, pieces: Float32Array) {
-  const at = (jolt.raw.exports as unknown as { jolt_buffer(a: number, b: number): number })
-    .jolt_buffer(0, Math.max(1, pieces.length));
+  const at = (
+    jolt.raw.exports as unknown as { jolt_buffer(a: number, b: number): number }
+  ).jolt_buffer(0, Math.max(1, pieces.length));
   new Float32Array(jolt.raw.memory.buffer, at, pieces.length).set(pieces);
   const count = pieces.length / WATER_PIECE_WORDS;
   return jolt.planes(water.waves, water.level, water.sample, count, at).slice();
