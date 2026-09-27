@@ -4,6 +4,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { boxConeRejects, coneRejects } from '../../index.ts';
+import {
+  boxConeRejectsBefore,
+  coneCases,
+} from '../../../../../bench/oracles/core/hot-path-math.ts';
 
 /** `packages/sdk-browser/src/page/cone/cone.ts` before batch M2, copied with Three primitives (see ../../../../../bench/oracles/core/volumes.ts). */
 function reference(
@@ -162,4 +166,19 @@ test('tangent cone rejects exactly like reference, on both sides of tangency', (
       reference(c.axe, c.angle, c.min, c.max, world, normal, c.echelle, c.oeil),
     );
   }
+});
+
+test('boxConeRejects keeps the verdict it had before its early exit, on 300 000 cases', () => {
+  const cases = coneCases(917);
+  const seen = [0, 0];
+  for (let i = 0; i < 300_000; i++) {
+    const c = cases(i);
+    const { axis, angle, min, max, world, normal, scale, eye } = c;
+    const [ex, ey, ez, ew] = eye;
+    const verdict = boxConeRejects(axis, angle, min, max, world, normal, scale, ex, ey, ez, ew);
+    if (verdict !== boxConeRejectsBefore(axis, angle, min, max, world, normal, scale, eye))
+      assert.fail(JSON.stringify(c));
+    seen[+verdict]++;
+  }
+  assert.ok(seen[0] > 0 && seen[1] > 0, `both verdicts met: ${seen}`);
 });

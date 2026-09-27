@@ -25,7 +25,8 @@
  * `views` is the view capacity the buffer serves: one for a camera, one row each for a light cut.
  */
 export function dagWorkLayout(blockCount: number, views = 1) {
-  const base = blockCount * 2,
+  // Block counts, block offsets, then two draw-mask words per block (`compactWgsl.ts`).
+  const base = blockCount * 4,
     viewWords = base + 9,
     drawnGroupsMax = viewWords + VIEW_WORD_ROWS * views;
   return {

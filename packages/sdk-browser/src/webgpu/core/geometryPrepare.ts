@@ -6,10 +6,9 @@ type GeometryBlocks = Map<HostAttributes, GeometryBlock>;
 
 /**
  * Packs, once, the source geometry the passes still read as floats: that of the clusters no
- * quantized page covers — a transparent cluster, whose forward draw reads an index buffer, and a
- * cache that carries no geometry page. A cluster drawn from its page contributes no vertex here,
- * and its primitive contributes none unless another of its clusters needs one: that is the whole
- * point of reading a page in place. Vertex colours ride at the tail of the UV buffer
+ * quantized page covers, from a cache that carries no geometry page. A cluster drawn from its
+ * page contributes no vertex here, and its primitive contributes none unless another of its
+ * clusters needs one: that is the whole point of reading a page in place. Vertex colours ride at the tail of the UV buffer
  * (`vertexColors.ts`), which carries none when no packed geometry has any.
  */
 export function prepareWebgpuGeometry(

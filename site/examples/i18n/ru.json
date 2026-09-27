@@ -500,6 +500,14 @@
       "balloon": "СЛЕЖУ ЗА ШАРОМ"
     }
   },
+  "a-crane-that-swings": {
+    "banner": "Вращайте вид вокруг крана, пока один клип поворачивает стрелу, двигает тележку, поднимает и раскачивает груз.",
+    "controls": {
+      "speed": "Скорость",
+      "paused": "Пауза",
+      "replay": "Повторить"
+    }
+  },
   "a-wave-across-a-grid": {
     "banner": "Тяни, чтобы осмотреться. Сделай волну из кубиков выше или быстрее.",
     "controls": {
@@ -1270,6 +1278,25 @@
       }
     }
   },
+  "a-walk-through-the-city": {
+    "banner": "Щёлкните по виду, ходите клавишами W A S D и осматривайтесь мышью. Уменьшайте память на ходу.",
+    "controls": {
+      "walkSpeed": "Скорость ходьбы",
+      "memory": "Память",
+      "view": "Вид",
+      "home": "Вернуться в начало"
+    },
+    "choices": {
+      "view": {
+        "beauty": "картинка",
+        "lod": "уровни детализации",
+        "clusters": "кластеры"
+      }
+    },
+    "words": {
+      "credit": "Аллея урн смоделирована в коде для этого примера, CC0 — см. assets/examples/CREDITS.md"
+    }
+  },
   "migrating-from-three": {
     "words": {
       "credit": "Marble Bust 01: Rico Cilliers, Poly Haven, CC0; ящик: W. Sitters, CC BY 3.0 — см. assets/examples/CREDITS.md"
@@ -1721,11 +1748,18 @@
   },
   "the-home-pose": {
     "banner": "Выберите вид, переместите камеру, затем выберите Исходная, чтобы вернуться.",
-    "controls": { "home": "Исходная", "tower": "Башня", "square": "Площадь", "hillside": "Склон" }
+    "controls": {
+      "home": "Исходная",
+      "tower": "Башня",
+      "square": "Площадь",
+      "hillside": "Склон"
+    }
   },
   "the-near-plane-cuts-a-wall": {
     "banner": "Продвигайте ближнюю плоскость и смотрите, как она рассекает стены.",
-    "controls": { "nearPlane": "Ближняя плоскость" }
+    "controls": {
+      "nearPlane": "Ближняя плоскость"
+    }
   },
   "the-material-family": {
     "banner": "Тяни, чтобы обойти вокруг. Включи ночь и посмотри, что ещё светится.",
@@ -2190,6 +2224,66 @@
     },
     "words": {
       "credit": "Флаг на флагштоке смоделирован в коде для этого примера, CC0 — см. assets/examples/CREDITS.md"
+    }
+  },
+  "a-dolly-along-the-canal": {
+    "banner": "Приостановите проезд, запустите его заново или измените скорость движения камеры вдоль канала.",
+    "controls": {
+      "paused": "Пауза",
+      "replay": "Сначала",
+      "speed": "Скорость"
+    },
+    "readouts": {
+      "progress": "Прогресс"
+    }
+  },
+  "a-folder-merged-into-one-scene": {
+    "banner": "Перетаскивайте, чтобы осмотреть угол улицы. Компилятор объединил три OBJ-файла из одной папки в эту сцену.",
+    "controls": {
+      "visible": "Видимость",
+      "home": "Исходный вид"
+    },
+    "words": {
+      "credit": "Модель фонаря: W. Sitters, CC BY 3.0 — см. assets/examples/CREDITS.md"
+    }
+  },
+  "drag-a-crate": {
+    "banner": "Перетаскивайте ящик по полу. Включите привязку для шага в полметра.",
+    "controls": {
+      "snap": "Привязка",
+      "home": "Исходное"
+    }
+  },
+  "outline-the-selection": {
+    "banner": "Щёлкните по фигуре, чтобы выбрать её. Щёлкните по полу, чтобы снять выбор.",
+    "controls": {
+      "color": "Цвет",
+      "thickness": "Толщина"
+    }
+  },
+  "a-hundred-thousand-instances": {
+    "banner": "Перетаскивайте, чтобы осмотреть поле. Меняйте количество или вид.",
+    "controls": {
+      "count": "Количество",
+      "view": "Вид"
+    },
+    "readouts": {
+      "objectsShown": "Показано объектов",
+      "objectsBuilt": "Создано объектов"
+    },
+    "choices": {
+      "view": {
+        "beauty": "картинка",
+        "clusters": "кластеры"
+      }
+    }
+  },
+  "inside-a-component": {
+    "banner": "Подключайте и отключайте просмотр. Каждое подключение создаёт один мир, а отключение освобождает его.",
+    "controls": {
+      "mount": "Подключить",
+      "unmount": "Отключить",
+      "remount": "Переподключить"
     }
   }
 }

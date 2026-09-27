@@ -1,5 +1,6 @@
 import { invertMatrix4 } from '../../../../../sdk-core/src/index.ts';
 import {
+  SURFACE_BYTES_PER_PIXEL,
   checkSurfaceSize,
   createSurfaceBuffer,
   type SurfaceCapture,
@@ -101,9 +102,10 @@ export async function captureSurfaceView(
     throw new Error('SURFACE_CAPTURE_BUSY: dispose the previous capture first');
   if (run.lost || !gpuDevice || !rt.vis.visEnabled || !run.lastCamera)
     throw new Error('SURFACE_CAPTURE_UNAVAILABLE');
-  // Temporal-antialiasing history stays allocated during capture: it counts with it.
+  // The surfaces and their depth. Temporal-antialiasing history stays allocated during capture:
+  // it counts with it.
   const reserve =
-    checkSurfaceSize(gpuDevice, options.width, options.height, 32) +
+    checkSurfaceSize(gpuDevice, options.width, options.height, SURFACE_BYTES_PER_PIXEL + 4) +
     (rt.gpu.temporal?.historyBytes ?? 0);
   const saved: SavedView = {
     main: run.lastCamera,
