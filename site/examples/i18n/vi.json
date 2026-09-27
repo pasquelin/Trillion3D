@@ -310,6 +310,13 @@
       "roof": "Mái nhà"
     }
   },
+  "soft-shadows-from-a-wide-lamp": {
+    "banner": "Kéo để xoay quanh. Thay đổi độ rộng đèn và quan sát mép bóng.",
+    "controls": {
+      "lampWidth": "Độ rộng đèn",
+      "moveSubject": "Di chuyển vật thể"
+    }
+  },
   "a-softbox-panel": {
     "banner": "Kéo để đi quanh. Làm tấm đèn to hơn để ánh bóng dịu đi.",
     "controls": {
