@@ -1,4 +1,3 @@
-import { sharedGpuDevice } from '../gpu/core/sessionHandle.ts';
 import { COVERAGE_SCALE_WGSL } from './coverageRule.ts';
 
 /**
