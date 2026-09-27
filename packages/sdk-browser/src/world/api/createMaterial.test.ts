@@ -46,9 +46,12 @@ test('a created material is refused by name before anything is built, then set a
   // A created material is set as a scene material is, its values checked the same way.
   const made = api.createMaterial().id;
   assert.throws(() => api.setMaterial(made, { roughness: 2 }), refusal('INVALID_MATERIAL'));
-  assert.equal(api.setMaterial(made, { roughness: 0.25 }), true, 'every engine took it');
-  assert.equal(api.material(made).roughness, 0.25);
-  assert.equal(refreshes.length, 1, 'one change, the engines told once');
+  assert.equal(api.setMaterial(made, { roughness: 0.25, alphaMode: 'blend' }), true);
+  assert.deepEqual([api.material(made).roughness, api.material(made).alphaMode], [0.25, 'blend']);
+  assert.equal(refreshes.length, 0, 'worn by nothing: no engine repaints, none refuses it');
+  api.setMaterial(made, { alphaMode: 'mask' });
+  api.setMaterial(made, { alphaCutoff: 0.75 });
+  assert.equal(api.material(made).alphaCutoff, 0.75, 'a cutoff alone reaches the surface');
 });
 
 test('past the declared ceiling a created material is refused by name', async () => {
