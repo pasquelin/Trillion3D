@@ -14,10 +14,11 @@ function resourceAt(paged: ReturnType<typeof triangleBackend>['paged'], mesh: nu
 }
 
 test('a resource mounted in place is drawn once its cover is read, and unmounted leaves the rest', async () => {
-  const opened = triangleBackend({ placements: liveRows(1) });
-  const { backend, camera, geometry, material, paged } = opened;
+  const placements = liveRows(1);
+  const { backend, camera, geometry, material, paged } = triangleBackend({ placements });
   try {
     await backend.prepare();
+    backend.updatePlacements!(placements, 0, 0); // the rows' roots indexed, as a running session
     backend.render(camera);
     const held = backend.metrics();
     assert.equal(held.submittedTriangles, 1);
@@ -29,10 +30,14 @@ test('a resource mounted in place is drawn once its cover is read, and unmounted
       const association = { meshes: i + 1, primitives: 0, placements: rows };
       return { node, association, primitive: resourceAt(paged, i + 1, url) };
     });
+    const taken = mounts[1].association.placements;
+    taken.live.fill(0); // mounted parked, taken once drawn: the index must know its roots
     const mounting = mounts.map((mount) => backend.mountPlacements!(mount));
     backend.render(camera);
     assert.equal(backend.metrics().submittedTriangles, 1, 'nothing drawn before its cover is read');
     await Promise.all(mounting);
+    taken.live.fill(1);
+    backend.updatePlacements!(taken, 0, 2);
     backend.render(camera);
     assert.equal(backend.metrics().submittedTriangles, 6, 'every row of both resources drawn');
     assert.equal(backend.metrics().residentPages, 2, 'a page shared, a page of its own');
