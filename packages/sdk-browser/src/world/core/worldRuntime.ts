@@ -41,8 +41,7 @@ type Inputs = {
 /** The session drawing a world, fed by a per-frame change list: what the scene asks is resolved
  *  off the frame (`worldContents.ts`), applied once before each frame — rows taken, parked or grown
  *  (`placement/growth.ts`), resources mounted (`worldMounts.ts`), poses, background —, and opened
- *  again, on the world's device, once per burst, only for what it lacks: a model, or what an
- *  engine that cannot take it in place lacks. */
+ *  again once per burst for what it lacks: a model, or what its engine cannot take in place. */
 export function createWorldRuntime(inputs: Inputs) {
   const { canvas, scene, camera, open = openMeasuredWorld } = inputs;
   const contents = createWorldContents(scene, inputs.diagnostic.notices),
@@ -183,7 +182,6 @@ export function createWorldRuntime(inputs: Inputs) {
       while (resolving || reopens.running) await (resolving ?? reopens.running);
     },
     render() {
-      // No session, nothing applied: a session opening takes what resolved at its next frame.
       if (!explorer) return null;
       beforeFrame(); // what it applies may close the session: that frame has no image
       if (!explorer) return null;
