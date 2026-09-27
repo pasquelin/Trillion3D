@@ -1259,6 +1259,21 @@
       }
     }
   },
+  "a-walk-through-the-city": {
+    "banner": "Clique na vista, caminhe com W A S D e olhe com o rato. Reduza a memória enquanto avança.",
+    "controls": {
+      "walkSpeed": "Velocidade",
+      "memory": "Memória",
+      "view": "Vista",
+      "home": "Voltar ao início"
+    },
+    "choices": {
+      "view": { "beauty": "imagem", "lod": "níveis de detalhe", "clusters": "clusters" }
+    },
+    "words": {
+      "credit": "Avenida de urnas modelada em código para este exemplo, CC0 — veja assets/examples/CREDITS.md"
+    }
+  },
   "migrating-from-three": {
     "words": {
       "credit": "Marble Bust 01 de Rico Cilliers, Poly Haven, CC0; caixote de W. Sitters, CC BY 3.0 — veja assets/examples/CREDITS.md"
