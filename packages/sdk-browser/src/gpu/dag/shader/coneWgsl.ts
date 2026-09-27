@@ -27,13 +27,15 @@ fn viewPoint()->vec4f{
  return vec4f(back*(1.0-views[vi].perspective),views[vi].perspective);
 }
 /** GPU mirror of \`coneCullsPageWith\` (../../../page/cone/cone.ts): same tolerances (packages/sdk-core/src/math/primitives/cone.ts), same operands.
- *  \`world\` is a world matrix of the RENDER FRAME, where the camera is the origin: the vector from
+ *  \`worlds[w]\` is a world matrix of the RENDER FRAME, where the camera is the origin: the vector from
  *  the box centre to the eye is the opposite of that centre, and subtracting two distant positions
- *  no longer happens. Same geometry as the CPU mirror, which works in absolute world space. */
-fn coneRejectsBox(cone:vec4f,bmin:vec3f,bmax:vec3f,world:mat4x4f)->bool{
+ *  no longer happens. Same geometry as the CPU mirror, which works in absolute world space.
+ *  Its conformity and normal matrix are the ones \`dagPrepare\` prepared for primitive \`w\`
+ *  (\`primitiveWgsl.ts\`): the same verdict and the same \`inverseTranspose3\` as on its 3x3. */
+fn coneRejectsBox(cone:vec4f,bmin:vec3f,bmax:vec3f,w:u32)->bool{
  if(cone.w>=${HALF_PI_WGSL}){return false;}
- let m=mat3x3f(world[0].xyz,world[1].xyz,world[2].xyz);
- if(!isConformal(m)){return false;}
+ if(!conformalOf(w)){return false;}
+ let world=worlds[w];
  let c=0.5*(bmin+bmax);let e=0.5*(bmax-bmin);
  let center=(world*vec4f(c,1.0)).xyz;
  let we=abs(world[0].xyz)*e.x+abs(world[1].xyz)*e.y+abs(world[2].xyz)*e.z;
@@ -42,7 +44,7 @@ fn coneRejectsBox(cone:vec4f,bmin:vec3f,bmax:vec3f,world:mat4x4f)->bool{
  let dist=length(toCam);
  if(dist==0.0){return false;}
  let view=toCam/dist;
- let axis=inverseTranspose3(m,cone.xyz);
+ let axis=invTranspose3Apply(normalOf(w),cone.xyz);
  let al=length(axis);
  if(!(al>0.0)){return false;}
  let axisWorld=axis/al;
@@ -60,7 +62,7 @@ fn coneRejectsBox(cone:vec4f,bmin:vec3f,bmax:vec3f,world:mat4x4f)->bool{
 }
 fn coneRejects(r:u32,w:u32)->bool{
  if(hasBox(r)==0.0){return false;}
- return coneRejectsBox(coneOf(r),boxMin(r),boxMax(r),worlds[w]);
+ return coneRejectsBox(coneOf(r),boxMin(r),boxMax(r),w);
 }
 /** Cone reject depends only on the page, its world and the camera: it is therefore the same for
  *  the passes of one frame. \`dagWanted\` computes it once per live page and stores it behind the

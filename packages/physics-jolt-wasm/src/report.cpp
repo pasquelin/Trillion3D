@@ -159,6 +159,7 @@ uint32_t writePoses() {
     const Body &body = lock.GetBody();
     Placement at = place(w, slot, body);
     bool decorative = body.GetObjectLayer() == DECORATIVE;
+    if (slot.frozen) noteFar(w, slot, at);
     if (slot.frozen && !at.far && (!decorative || at.seen)) {
       slot.frozen = false;
       bodies.ActivateBody(slot.id);
