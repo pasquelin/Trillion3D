@@ -17,37 +17,14 @@ export function showFallbackImage(
   if (image.getAttribute('src') !== fallbackSrc) image.src = fallbackSrc;
 }
 
-/** A render as a list shows it, the width of its column at 16:10 and loaded when it scrolls
- *  near: `list` under a thumbnail's title, `card` framed atop a card. */
-export function Cover({
-  src,
-  fallbackSrc,
-  look = 'list',
-}: {
-  src: string;
-  fallbackSrc?: string;
-  look?: 'list' | 'card';
-}) {
+/** A render the width of its column at 16:10, loaded when it scrolls near. */
+function Cover({ src, fallbackSrc }: { src: string; fallbackSrc?: string }) {
   const fallback = fallbackSrc
     ? {
         onError: (event: SyntheticEvent<HTMLImageElement>) =>
           showFallbackImage(event.currentTarget, fallbackSrc),
       }
     : {};
-  if (look === 'card') {
-    return (
-      <div className="aspect-[16/10] overflow-hidden rounded-box bg-base-300">
-        <img
-          className="h-full w-full object-cover"
-          loading="lazy"
-          decoding="async"
-          src={src}
-          alt=""
-          {...fallback}
-        />
-      </div>
-    );
-  }
   return (
     <img
       className="aspect-[16/10] w-full rounded-lg bg-base-300 object-cover"
