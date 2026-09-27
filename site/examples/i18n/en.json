@@ -2249,5 +2249,22 @@
       "color": "Color",
       "thickness": "Thickness"
     }
+  },
+  "a-hundred-thousand-instances": {
+    "banner": "Drag to orbit the field. Change the count or view.",
+    "controls": {
+      "count": "Count",
+      "view": "View"
+    },
+    "readouts": {
+      "objectsShown": "Objects shown",
+      "objectsBuilt": "Objects built"
+    },
+    "choices": {
+      "view": {
+        "beauty": "beauty",
+        "clusters": "clusters"
+      }
+    }
   }
 }

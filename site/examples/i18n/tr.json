@@ -2249,5 +2249,22 @@
       "color": "Renk",
       "thickness": "Kalınlık"
     }
+  },
+  "a-hundred-thousand-instances": {
+    "banner": "Alanı çevrelemek için sürükleyin. Sayıyı veya görünümü değiştirin.",
+    "controls": {
+      "count": "Sayı",
+      "view": "Görünüm"
+    },
+    "readouts": {
+      "objectsShown": "Gösterilen nesneler",
+      "objectsBuilt": "Oluşturulan nesneler"
+    },
+    "choices": {
+      "view": {
+        "beauty": "görüntü",
+        "clusters": "kümeler"
+      }
+    }
   }
 }
