@@ -87,11 +87,16 @@ export function createWorldContents(scene: Object3D, notices: WorldNotices) {
    *  blended draw, ordered by depth. */
   function seat(grow?: Grow) {
     seatEpoch++;
+    growHeld(grow); // a mount drawn seats its meshes before any moves on: each shows every mount
     const seating = [...unseated];
     unseated.clear();
     for (const mesh of seating) {
       const entry = resolved.get(mesh);
       if (entry === undefined) continue;
+      if (batches.mounting(mesh)) {
+        unseated.add(mesh);
+        continue;
+      }
       if (!entry) {
         batches.unseat(mesh);
         continue;

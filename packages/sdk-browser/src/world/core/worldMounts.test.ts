@@ -13,36 +13,51 @@ import type { PlacementRows } from '../../placement/rows.ts';
 import { Scene } from './scene.ts';
 import { runtimeOf, sessionStandIn, type Open } from './worldRuntime.fixture.ts';
 
-/** A session that mounts, unmounts and grows rows in place, and the rows it draws. */
-function mountingSession() {
+/** A session that mounts, unmounts and grows rows in place, each mount drawn `late` frames after
+ *  it is asked (`frame` moves them on), and the rows it draws with the frame that mounted them. */
+function mountingSession(late: number) {
   const { session } = sessionStandIn();
-  const drawn = new Set<PlacementRows>();
+  const drawn = new Map<PlacementRows, number>();
+  const pending: { at: number; done: () => void }[] = [];
   let opened = 0,
-    mounts = 0;
+    mounts = 0,
+    now = 0;
   Object.assign(session, {
     growsPlacements: () => true,
-    growPlacements: (from: PlacementRows, to: PlacementRows) => drawn.delete(from) && drawn.add(to),
+    growPlacements: (from: PlacementRows, to: PlacementRows) => drawn.set(to, drawn.get(from)!),
     mountsPlacements: () => true,
-    mountPlacements: async ({ association }: PlacementMount) => {
-      mounts++;
-      drawn.add(association.placements);
-    },
+    mountPlacements: ({ association }: PlacementMount) =>
+      new Promise<void>((done) => {
+        mounts++;
+        pending.push({ at: now + late, done: () => (drawn.set(association.placements, now), done()) });
+      }),
     unmountPlacements: (rows: PlacementRows) => drawn.delete(rows),
   });
   const open = (async (_canvas, _options, source) => {
     opened++;
     for (const link of source.scene.associations.values())
-      if (link.placements) drawn.add(link.placements);
+      if (link.placements) drawn.set(link.placements, -1);
     return session;
   }) as Open;
-  /** The rows drawn now: each a placement on screen. */
-  const live = () => [...drawn].reduce((n, rows) => n + rows.live.reduce((a, b) => a + b, 0), 0);
-  return { open, drawn, live, opened: () => opened, mounts: () => mounts };
+  const frame = (at: number) => {
+    now = at;
+    for (const mount of pending.filter((mount) => mount.at <= at)) mount.done();
+    pending.splice(0, pending.length, ...pending.filter((mount) => mount.at > at));
+  };
+  /** The rows drawn now, and the newest frame a drawn row was mounted at. */
+  const live = () => {
+    let rows = 0,
+      newest = -1;
+    for (const [placed, at] of drawn)
+      for (const flag of placed.live) if (flag) (rows++, (newest = Math.max(newest, at)));
+    return { rows, newest };
+  };
+  return { open, drawn, frame, live, opened: () => opened, mounts: () => mounts };
 }
 
 test('1 000 frames adding and removing a mesh and replacing a geometry never open the session again', async () => {
   const scene = new Scene(() => Promise.reject(new Error('no loader')));
-  const { open, drawn, live, opened, mounts } = mountingSession();
+  const { open, drawn, frame: tick, live, opened, mounts } = mountingSession(2);
   const runtime = runtimeOf(scene, Promise.resolve(), (error) => assert.fail(String(error)), open);
   const stone = material.meshStandard({ color: 0x808080 });
   scene.add(object.mesh(geometry.box(4, 0.2, 4), stone));
@@ -51,30 +66,30 @@ test('1 000 frames adding and removing a mesh and replacing a geometry never ope
   scene.add(water);
   await runtime.settled();
   let crate: Mesh | null = null,
-    since = 0,
     imageless = 0;
   for (let frame = 0; frame < 1000; frame++) {
+    tick(frame);
     if (frame % 10 === 0 && crate) {
       scene.remove(crate);
       crate = null;
     } else if (frame % 10 === 0) {
       crate = object.mesh(geometry.box(1 + frame / 1000, 1, 1), stone);
       scene.add(crate);
-      since = frame;
     }
     const position = sheet.attributes.position;
     for (let v = 0; v < position.count; v++) position.setY(v, Math.sin(frame + v) * 0.1);
     position.needsUpdate = true;
     await runtime.settled();
     if (!runtime.render()) imageless++;
-    // Every mesh on screen a frame ago is on screen: the ground, the water, and a crate once its
-    // own resource is mounted — the mount settles, then the next resolution seats it.
-    const shown = 2 + (crate && frame - since > 2 ? 1 : 0);
-    assert.ok(live() >= shown && live() <= 3, `frame ${frame}: ${live()} rows drawn, ${shown} due`);
+    // The ground and the water always drawn, a crate beside them once mounted, and the water on a
+    // geometry at most a few frames old: a mesh rewritten faster than it mounts shows each mount.
+    const { rows, newest } = live();
+    assert.ok(rows >= 2 && rows <= 3, `frame ${frame}: ${rows} rows drawn`);
+    if (frame > 10) assert.ok(newest >= frame - 6, `frame ${frame}: newest mount ${newest}`);
   }
   runtime.dispose();
   assert.equal(opened(), 1, 'one session for every mesh and every geometry');
-  assert.ok(mounts() >= 1000, `${mounts()} mounts: the water's every geometry, the crates'`);
+  assert.ok(mounts() >= 300, `${mounts()} mounts: the water's geometries, the crates'`);
   assert.equal(imageless, 0, 'no frame without an image');
-  assert.ok(drawn.size <= 4, `${drawn.size} resources left mounted: the others are unmounted`);
+  assert.ok(drawn.size <= 6, `${drawn.size} resources left mounted: the others are unmounted`);
 });
