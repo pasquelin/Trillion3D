@@ -1,4 +1,4 @@
-import type { SceneLight, SceneLightStore } from '../../../sdk-core/src/index.ts';
+import type { SceneFog, SceneLight, SceneLightStore } from '../../../sdk-core/src/index.ts';
 import { GraphAmbientLight, GraphLight, GraphLightProbe } from '../host/graph/light.ts';
 import type { Scene } from '../world/core/scene.ts';
 import { Color } from '../../../sdk-core/src/world/math/color.ts';
@@ -47,6 +47,11 @@ function createContractLights(scene: Scene, store: SceneLightStore | undefined) 
   const lights = new Map<string, { light: ContractLight; kind: SceneLight['kind'] }>();
   let epoch = -1,
     governs = false;
+  // The store's fog the scene holds, converted once: a revision that keeps it rewrites nothing.
+  let heldFog: SceneFog | undefined;
+  const setFog = (fog: SceneFog | undefined) => {
+    if (fog !== heldFog) scene.fog = fogOf((heldFog = fog));
+  };
   const drop = (id: string) => {
     const entry = lights.get(id)!;
     group.remove(entry.light);
@@ -86,7 +91,7 @@ function createContractLights(scene: Scene, store: SceneLightStore | undefined) 
         albedo.setEnabled(false);
         if (governs) dropAll();
         governs = false;
-        if (scene.fog) scene.fog = null;
+        setFog(undefined);
         group.visible = false;
         epoch = store.epoch;
         return false;
@@ -101,7 +106,7 @@ function createContractLights(scene: Scene, store: SceneLightStore | undefined) 
       if (store.unlit) dropAll();
       else rebuild();
       const sh = store.unlit ? undefined : store.environment?.irradiance;
-      scene.fog = fogOf(store.unlit ? null : store.environment?.fog);
+      setFog(store.unlit ? undefined : store.environment?.fog);
       if ((probe.visible = !!sh)) probe.sh.fromArray(sh);
       return true;
     },

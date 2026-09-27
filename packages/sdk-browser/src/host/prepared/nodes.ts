@@ -64,8 +64,12 @@ export function camera(declared: TableCamera) {
           far: declared.zfar || 2e6,
         })
       : new Camera('orthographic', {
-          ...{ near: declared.znear ?? 0, far: declared.zfar ?? 0 },
-          ...{ left: -x, right: x, top: y, bottom: -y },
+          near: declared.znear ?? 0,
+          far: declared.zfar ?? 0,
+          left: -x,
+          right: x,
+          top: y,
+          bottom: -y,
         }),
   );
 }
