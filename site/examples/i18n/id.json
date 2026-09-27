@@ -500,6 +500,14 @@
       "balloon": "MELACAK BALON"
     }
   },
+  "a-crane-that-swings": {
+    "banner": "Putari derek saat satu klip memutar lengan, menggerakkan troli, mengangkat muatan, dan mengayunkannya.",
+    "controls": {
+      "speed": "Kecepatan",
+      "paused": "Dijeda",
+      "replay": "Putar ulang"
+    }
+  },
   "a-wave-across-a-grid": {
     "banner": "Geser untuk melihat sekeliling. Buat gelombang kubus lebih tinggi atau lebih cepat.",
     "controls": {
@@ -1257,6 +1265,25 @@
         "lod": "tingkat detail",
         "clusters": "klaster"
       }
+    }
+  },
+  "a-walk-through-the-city": {
+    "banner": "Klik tampilan, berjalan dengan W A S D, dan melihat dengan tetikus. Kurangi memori sambil bergerak.",
+    "controls": {
+      "walkSpeed": "Kecepatan jalan",
+      "memory": "Memori",
+      "view": "Tampilan",
+      "home": "Kembali ke awal"
+    },
+    "choices": {
+      "view": {
+        "beauty": "hasil akhir",
+        "lod": "tingkat detail",
+        "clusters": "klaster"
+      }
+    },
+    "words": {
+      "credit": "Jalan raya guci dibuat dengan kode untuk contoh ini, CC0 — lihat assets/examples/CREDITS.md"
     }
   },
   "migrating-from-three": {
@@ -2192,6 +2219,66 @@
     "banner": "Arahkan penunjuk ke bagian troli untuk menyorotnya satu per satu, atau matikan sorotan di panel.",
     "controls": {
       "highlightEnabled": "Aktifkan sorotan"
+    }
+  },
+  "a-dolly-along-the-canal": {
+    "banner": "Jeda dolly, ulangi perjalanan, atau ubah kecepatannya saat kamera menyusuri kanal.",
+    "controls": {
+      "paused": "Dijeda",
+      "replay": "Ulangi",
+      "speed": "Kecepatan"
+    },
+    "readouts": {
+      "progress": "Kemajuan"
+    }
+  },
+  "a-folder-merged-into-one-scene": {
+    "banner": "Seret untuk memeriksa sudut jalan. Kompiler menggabungkan tiga berkas OBJ dari satu folder ke adegan ini.",
+    "controls": {
+      "visible": "Terlihat",
+      "home": "Awal"
+    },
+    "words": {
+      "credit": "Model lampu jalan oleh W. Sitters, CC BY 3.0 — lihat assets/examples/CREDITS.md"
+    }
+  },
+  "drag-a-crate": {
+    "banner": "Seret peti di atas lantai. Aktifkan kisi untuk menempatkannya setiap setengah meter.",
+    "controls": {
+      "snap": "Kisi",
+      "home": "Awal"
+    }
+  },
+  "outline-the-selection": {
+    "banner": "Klik bentuk untuk memilihnya. Klik lantai untuk menghapus pilihan.",
+    "controls": {
+      "color": "Warna",
+      "thickness": "Ketebalan"
+    }
+  },
+  "a-hundred-thousand-instances": {
+    "banner": "Seret untuk mengitari bidang. Ubah jumlah atau tampilan.",
+    "controls": {
+      "count": "Jumlah",
+      "view": "Tampilan"
+    },
+    "readouts": {
+      "objectsShown": "Objek terlihat",
+      "objectsBuilt": "Objek dibuat"
+    },
+    "choices": {
+      "view": {
+        "beauty": "hasil akhir",
+        "clusters": "klaster"
+      }
+    }
+  },
+  "inside-a-component": {
+    "banner": "Pasang atau lepas penampil. Setiap pemasangan memiliki satu dunia dan setiap pelepasan membuangnya.",
+    "controls": {
+      "mount": "Pasang",
+      "unmount": "Lepas",
+      "remount": "Pasang ulang"
     }
   }
 }

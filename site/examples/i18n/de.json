@@ -500,6 +500,14 @@
       "balloon": "VERFOLGT DEN BALLON"
     }
   },
+  "a-crane-that-swings": {
+    "banner": "Kreise um den Kran, während ein Clip den Ausleger dreht, die Laufkatze bewegt, die Last hebt und schwingen lässt.",
+    "controls": {
+      "speed": "Tempo",
+      "paused": "Pausiert",
+      "replay": "Neu starten"
+    }
+  },
   "a-wave-across-a-grid": {
     "banner": "Ziehe, um dich umzusehen. Mach die Würfelwelle höher oder schneller.",
     "controls": {
@@ -1257,6 +1265,25 @@
         "lod": "Detailstufen",
         "clusters": "Cluster"
       }
+    }
+  },
+  "a-walk-through-the-city": {
+    "banner": "Klicke in die Ansicht, gehe mit W A S D und sieh dich mit der Maus um. Senke beim Gehen das Speicherbudget.",
+    "controls": {
+      "walkSpeed": "Gehgeschwindigkeit",
+      "memory": "Speicher",
+      "view": "Ansicht",
+      "home": "Zum Start"
+    },
+    "choices": {
+      "view": {
+        "beauty": "Bild",
+        "lod": "Detailstufen",
+        "clusters": "Cluster"
+      }
+    },
+    "words": {
+      "credit": "Urnenallee für dieses Beispiel im Code modelliert, CC0 — siehe assets/examples/CREDITS.md"
     }
   },
   "migrating-from-three": {
@@ -2192,6 +2219,66 @@
     "banner": "Fahre über die Teile des Wagens, um sie einzeln hervorzuheben, oder schalte die Hervorhebung im Bedienfeld aus.",
     "controls": {
       "highlightEnabled": "Hervorhebung aktivieren"
+    }
+  },
+  "a-dolly-along-the-canal": {
+    "banner": "Pausiere die Kamerafahrt, starte sie neu oder ändere ihre Geschwindigkeit entlang des Kanals.",
+    "controls": {
+      "paused": "Pausiert",
+      "replay": "Neu starten",
+      "speed": "Tempo"
+    },
+    "readouts": {
+      "progress": "Fortschritt"
+    }
+  },
+  "a-folder-merged-into-one-scene": {
+    "banner": "Ziehen Sie, um die Straßenecke anzusehen. Der Compiler hat drei OBJ-Dateien aus einem Ordner zu dieser Szene vereint.",
+    "controls": {
+      "visible": "Sichtbar",
+      "home": "Startansicht"
+    },
+    "words": {
+      "credit": "Straßenlaternenmodell von W. Sitters, CC BY 3.0 — siehe assets/examples/CREDITS.md"
+    }
+  },
+  "drag-a-crate": {
+    "banner": "Ziehen Sie die Kiste über den Boden. Mit Raster wird sie in Halbmeter-Schritten platziert.",
+    "controls": {
+      "snap": "Raster",
+      "home": "Start"
+    }
+  },
+  "outline-the-selection": {
+    "banner": "Klicke eine Form an, um sie auszuwählen. Klicke auf den Boden, um die Auswahl zu löschen.",
+    "controls": {
+      "color": "Farbe",
+      "thickness": "Stärke"
+    }
+  },
+  "a-hundred-thousand-instances": {
+    "banner": "Ziehe, um das Feld zu umrunden. Ändere Anzahl oder Ansicht.",
+    "controls": {
+      "count": "Anzahl",
+      "view": "Ansicht"
+    },
+    "readouts": {
+      "objectsShown": "Angezeigt",
+      "objectsBuilt": "Erstellt"
+    },
+    "choices": {
+      "view": {
+        "beauty": "Bild",
+        "clusters": "Cluster"
+      }
+    }
+  },
+  "inside-a-component": {
+    "banner": "Hänge den Viewer ein oder aus. Jede Einbindung besitzt genau eine Welt und jede Entfernung gibt sie frei.",
+    "controls": {
+      "mount": "Einbinden",
+      "unmount": "Aushängen",
+      "remount": "Neu einbinden"
     }
   }
 }

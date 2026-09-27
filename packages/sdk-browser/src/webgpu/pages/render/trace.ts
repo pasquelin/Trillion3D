@@ -46,13 +46,14 @@ export function traceCpuSelection(
 ) {
   const { run, diag } = rt,
     { tracking } = rt.setup;
+  if (!diag.traceEnabled) return;
   diag.traceDiagnostic('cpu-selection', 'CPU reference selection', () => ({
     frame: run.frame,
     submission: run.imageRevision,
     scope: 'cpu/selectVisiblePages',
     elapsedMs,
-    shown: tracking.traceSet('selection.shown', urlsOf(chosen.shown)),
-    wanted: tracking.traceSet('selection.wanted', urlsOf(chosen.wanted ?? chosen.shown)),
+    shown: tracking.traceRecs('selection.shown', chosen.shown),
+    wanted: tracking.traceRecs('selection.wanted', chosen.wanted ?? chosen.shown),
     visible: chosen.visible,
     selectedTriangles: chosen.selectedTriangles,
     frustumRejected: chosen.frustumRejected,
@@ -69,13 +70,14 @@ export function traceCpuFrameWaiting(
 ) {
   const { run, timing, diag } = rt,
     { tracking, bootstrap, slots } = rt.setup;
+  if (!diag.traceEnabled) return;
   diag.traceDiagnostic('frame', 'Snapshot de frame en attente de couverture GPU', () =>
     frameTraceSnapshot(rt, cam, cpuSelectionDecision(rt), {
       coverage: {
         loaded: tracking.traceSet('frame.loaded', []),
-        wanted: tracking.traceSet('frame.wanted', urlsOf(run.desired)),
+        wanted: tracking.traceRecs('frame.wanted', run.desired),
         shown: tracking.traceSet('frame.shown', []),
-        bootstrap: tracking.traceSet('frame.bootstrap', urlsOf(bootstrap)),
+        bootstrap: tracking.traceRecs('frame.bootstrap', bootstrap),
         ready: false,
       },
       budget: {
@@ -96,10 +98,10 @@ export function traceCpuFrame(rt: WebgpuPagesRuntime, cam: EngineCamera) {
   diag.traceDiagnostic('frame', 'Complete WebGPU frame snapshot', () =>
     frameTraceSnapshot(rt, cam, cpuSelectionDecision(rt), {
       coverage: {
-        loaded: tracking.traceSet('frame.loaded', urlsOf(run.drawn)),
-        wanted: tracking.traceSet('frame.wanted', urlsOf(run.desired)),
-        shown: tracking.traceSet('frame.shown', urlsOf(run.shown)),
-        bootstrap: tracking.traceSet('frame.bootstrap', urlsOf(bootstrap)),
+        loaded: tracking.traceRecs('frame.loaded', run.drawn),
+        wanted: tracking.traceRecs('frame.wanted', run.desired),
+        shown: tracking.traceRecs('frame.shown', run.shown),
+        bootstrap: tracking.traceRecs('frame.bootstrap', bootstrap),
         ready: rt.services.bootstrapState.ready,
       },
       budget: {

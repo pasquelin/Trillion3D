@@ -179,9 +179,13 @@ export function taaSampledRank(rt: WebgpuPagesRuntime) {
   return temporal?.frame.active ? temporal.frame.sampledRank : 0;
 }
 
-/** True when the image can be held without freezing an accumulation in progress: without
- *  temporal antialiasing, switched off, or after a full cycle of quiet images. */
+/**
+ * True when a quiet image can be held without freezing an accumulation in progress: without
+ * temporal antialiasing, switched off, or when it closes a full cycle of quiet images. Read before
+ * the image's entry, which a held image never makes: a barrier's convergence image then replays
+ * the image the hold shows, to the bit (#26). A view that does not accumulate keeps the count.
+ */
 export function taaSettled(rt: WebgpuPagesRuntime) {
   const temporal = rt.gpu.temporal;
-  return !temporal || !rt.gpu.temporalWanted || temporal.frame.stillFrames >= TAA_STILL_FRAMES;
+  return !temporal || !rt.gpu.temporalWanted || temporal.frame.stillFrames >= TAA_STILL_FRAMES - 1;
 }

@@ -500,6 +500,14 @@
       "balloon": "SIGUIENDO EL GLOBO"
     }
   },
+  "a-crane-that-swings": {
+    "banner": "Gira alrededor de la grúa mientras un clip rota la pluma, mueve el carro, eleva la carga y la deja balancearse.",
+    "controls": {
+      "speed": "Velocidad",
+      "paused": "En pausa",
+      "replay": "Repetir"
+    }
+  },
   "a-wave-across-a-grid": {
     "banner": "Arrastra para mirar alrededor. Haz la ola de cubos más alta o más rápida.",
     "controls": {
@@ -1257,6 +1265,25 @@
         "lod": "niveles de detalle",
         "clusters": "clústeres"
       }
+    }
+  },
+  "a-walk-through-the-city": {
+    "banner": "Haz clic en la vista, camina con W A S D y mira con el ratón. Reduce la memoria mientras avanzas.",
+    "controls": {
+      "walkSpeed": "Velocidad",
+      "memory": "Memoria",
+      "view": "Vista",
+      "home": "Volver al inicio"
+    },
+    "choices": {
+      "view": {
+        "beauty": "imagen",
+        "lod": "niveles de detalle",
+        "clusters": "clústeres"
+      }
+    },
+    "words": {
+      "credit": "Avenida de urnas modelada en código para este ejemplo, CC0 — ver assets/examples/CREDITS.md"
     }
   },
   "migrating-from-three": {
@@ -2192,6 +2219,66 @@
     "banner": "Pasa el cursor sobre las piezas del carro para resaltar cada una, o desactiva el resaltado en el panel.",
     "controls": {
       "highlightEnabled": "Activar resaltado"
+    }
+  },
+  "a-dolly-along-the-canal": {
+    "banner": "Pausa el travelling, repite el recorrido o cambia su velocidad mientras la cámara avanza por el canal.",
+    "controls": {
+      "paused": "En pausa",
+      "replay": "Repetir",
+      "speed": "Velocidad"
+    },
+    "readouts": {
+      "progress": "Progreso"
+    }
+  },
+  "a-folder-merged-into-one-scene": {
+    "banner": "Arrastra para examinar la esquina. El compilador fusionó tres archivos OBJ de una carpeta en esta escena.",
+    "controls": {
+      "visible": "Visible",
+      "home": "Inicio"
+    },
+    "words": {
+      "credit": "Modelo de farola de W. Sitters, CC BY 3.0 — ver assets/examples/CREDITS.md"
+    }
+  },
+  "drag-a-crate": {
+    "banner": "Arrastra la caja por el suelo. Activa el ajuste para colocarla en pasos de medio metro.",
+    "controls": {
+      "snap": "Ajustar",
+      "home": "Inicio"
+    }
+  },
+  "outline-the-selection": {
+    "banner": "Haz clic en una forma para seleccionarla. Haz clic en el suelo para borrar la selección.",
+    "controls": {
+      "color": "Color",
+      "thickness": "Grosor"
+    }
+  },
+  "a-hundred-thousand-instances": {
+    "banner": "Arrastra para rodear el campo. Cambia la cantidad o la vista.",
+    "controls": {
+      "count": "Cantidad",
+      "view": "Vista"
+    },
+    "readouts": {
+      "objectsShown": "Objetos visibles",
+      "objectsBuilt": "Objetos creados"
+    },
+    "choices": {
+      "view": {
+        "beauty": "imagen",
+        "clusters": "clústeres"
+      }
+    }
+  },
+  "inside-a-component": {
+    "banner": "Monta o desmonta el visor. Cada montaje posee un mundo y cada retirada lo libera.",
+    "controls": {
+      "mount": "Montar",
+      "unmount": "Desmontar",
+      "remount": "Volver a montar"
     }
   }
 }
