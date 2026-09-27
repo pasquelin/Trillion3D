@@ -5,13 +5,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as G from '../../host/graph/graph.fixture.ts';
 import { EffectChain } from '../../../../sdk-core/src/world/effect/chain.ts';
-import { GraphScene } from '../../host/graph/scene.ts';
+import { Scene } from '../core/scene.ts';
 import { GraphSurface } from '../../host/graph/surface.ts';
 import { heard, session } from './composeSession.fixture.ts';
 
 test('a clearcoat surface is drawn on WebGL2, said once, the loop never stopped', async () => {
   const coat = new GraphSurface('physical', { clearcoat: 1, clearcoatRoughness: 0.1 });
-  const scene = new GraphScene().add(G.triangleMesh(coat), G.triangleMesh(coat));
+  const scene = new Scene().add(G.triangleMesh(coat), G.triangleMesh(coat));
   const view = session(scene, new EffectChain());
   const said = await heard(view, () => {
     for (let frame = 0; frame < 3; frame++)
@@ -26,7 +26,7 @@ test('a clearcoat surface is drawn on WebGL2, said once, the loop never stopped'
 });
 
 test('a surface with no feature WebGL2 lacks says nothing', async () => {
-  const scene = new GraphScene().add(
+  const scene = new Scene().add(
     G.triangleMesh(new GraphSurface('physical')),
     G.triangleMesh(new GraphSurface('standard')),
   );

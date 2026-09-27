@@ -1,4 +1,4 @@
-import type { GraphScene } from '../../host/graph/scene.ts';
+import type { Scene } from '../../world/core/scene.ts';
 import {
   colouredTwin,
   hostPageBytes,
@@ -17,7 +17,7 @@ import type { DecodedGeometryPage } from '../../page/decode/geometryPage.ts';
 import { createHeldResidency } from '../../page/cut/held.ts';
 
 type GeometryEnvironment = {
-  scene: GraphScene;
+  scene: Scene;
   allPages: PageRec[];
   bootstrap: PageRec[];
   shown: PageRec[];
