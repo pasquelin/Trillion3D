@@ -1,6 +1,6 @@
 import type { Object3D } from '../object/object3d.ts';
-import { normalizeQuaternion } from '../../math/matrix/quaternion.ts';
 import { Blends } from './blend.ts';
+import { sample } from './sample.ts';
 
 /** What a track animates: a number, a vector, a rotation or a colour. */
 export type TrackKind = 'number' | 'vector' | 'quaternion' | 'color';
@@ -29,6 +29,8 @@ const track =
 
 /** Every mixer with an action playing: what a world's loop advances each frame. */
 const playing = new Set<Mixer>();
+/** The actions a seek has their mixer's next update pose, playing or not. */
+const seeking = new WeakSet<Action>();
 
 /** `path` = `node.property[.property…]`; an empty node is the mixer's root. */
 function resolve(root: Object3D, path: string) {
@@ -45,29 +47,6 @@ export type TrackBinding = {
   /** The key the last sample stood at. */ key: number;
   /** The numbers of one sample. */ value: Float64Array;
 };
-
-/** The track's value at `t` between its two keys, from the last key reached; quaternions on the arc. */
-function sample(tr: Track, t: number, bound: TrackBinding) {
-  const { times, values } = tr,
-    out = bound.value,
-    size = out.length;
-  let i = bound.key > 0 && times[bound.key] < t ? bound.key : 0;
-  while (i < times.length - 1 && times[i + 1] < t) i++;
-  bound.key = i;
-  const j = Math.min(i + 1, times.length - 1);
-  const span = times[j] - times[i],
-    w = span > 0 ? Math.min(1, Math.max(0, (t - times[i]) / span)) : 0;
-  let sign = 1;
-  if (tr.kind === 'quaternion') {
-    let dot = 0;
-    for (let c = 0; c < 4; c++) dot += values[i * 4 + c] * values[j * 4 + c];
-    sign = dot < 0 ? -1 : 1;
-  }
-  for (let c = 0; c < size; c++)
-    out[c] = values[i * size + c] * (1 - w) + sign * values[j * size + c] * w;
-  if (tr.kind === 'quaternion') normalizeQuaternion(out);
-  return out;
-}
 
 /** One clip playing on a mixer's root. */
 export class Action {
@@ -104,6 +83,14 @@ export class Action {
   /** Stops, and goes back to the start. */ stop() {
     this.playingNow = false;
     this.time = 0;
+    return this;
+  }
+  /** Poses the clip at `time` seconds now, by its loop mode, playing or not: a playing action goes
+   *  on from there, a stopped one stays posed. */
+  seek(time: number) {
+    this.time = time;
+    seeking.add(this);
+    this.mixer.update(0);
     return this;
   }
   /** Where in the clip the action stands, by its loop mode. */
@@ -143,7 +130,7 @@ export class Mixer {
     let active = false;
     const blends = this.#blends;
     for (const action of this.actions.values()) {
-      if (!action.playingNow) continue;
+      if (!seeking.delete(action) && !action.playingNow) continue;
       action.time += seconds * action.timeScale;
       if (action.loop === 'once' && action.time >= action.clip.duration) action.playingNow = false;
       active ||= action.playingNow;
