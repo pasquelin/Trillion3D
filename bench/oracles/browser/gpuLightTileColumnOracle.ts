@@ -41,7 +41,7 @@ export function tileCorner(view: TileView, tile: [number, number], corner: numbe
   return unproject(view.inverseViewProjection, f(f(x * 2) - 1), f(1 - f(y * 2)), f(z));
 }
 
-export function tileBox(view: TileView, tile: [number, number], front: number, back: number) {
+function tileBox(view: TileView, tile: [number, number], front: number, back: number) {
   const corners = [...Array(8).keys()].map((c) =>
     tileCorner(view, tile, c & 3, c & 4 ? back : front),
   );
@@ -70,7 +70,7 @@ export function tileColumn(view: TileView, tile: [number, number]) {
 }
 
 /** The opaque slice's front and back planes: the column's near normal through each depth. */
-export function tileSlab(
+function tileSlab(
   view: TileView,
   tile: [number, number],
   column: Plane[],
@@ -94,7 +94,7 @@ export function sphereTouchesColumn(column: Plane[], centre: Vec3, radius: numbe
   return column.every((plane) => f(dot(plane.n, centre) + plane.w) >= -radius);
 }
 
-export function sphereInFront(plane: Plane, centre: Vec3, radius: number) {
+function sphereInFront(plane: Plane, centre: Vec3, radius: number) {
   const side = dot(plane.n, centre);
   const margin = f(f(radius + f(1e-5 * f(Math.abs(side) + Math.abs(plane.w)))) + f(1e-4));
   return f(side + plane.w) >= -margin;
