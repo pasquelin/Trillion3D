@@ -11,6 +11,7 @@ import type { Batch } from './worldBatches.ts';
 import { buildWorldMirror } from './worldMirror.ts';
 import type { LoadedModel } from './loadedModel.ts';
 import type { ExplorerScene } from '../session/prepare.ts';
+import type { PlacementMount } from '../../placement/backendSceneUpdates.ts';
 
 /** A page's addresses made absolute against the manifest they were read from. */
 function absolutePrimitive(primitive: Primitive, base: string): Primitive {
@@ -85,26 +86,28 @@ export function buildWorldSource(plan: WorldPlan) {
     offset += Math.max(-1, ...metadata.primitives.map((p) => p.mesh)) + 1;
   }
   // One primitive per geometry resource, however many batches wear it and rows place it.
-  const ranks = new Map<Cut, number>();
+  const ranked = new Map<Cut, Primitive>();
   const rankOf = (cut: Cut) => {
-    let rank = ranks.get(cut);
-    if (rank === undefined) {
-      ranks.set(cut, (rank = offset++));
-      primitives.push({ ...cut.runtime.primitive, mesh: rank });
+    let primitive = ranked.get(cut);
+    if (!primitive) {
+      ranked.set(cut, (primitive = { ...cut.runtime.primitive, mesh: offset++ }));
+      primitives.push(primitive);
     }
-    return rank;
+    return primitive.mesh;
   };
   if (!primitives.length && !batches.length) return null;
+  const placedOf = (batch: Batch) => ({
+    cut: batch.cut,
+    material: batch.entry.material,
+    rows: batch.rows!,
+    name: batch.entry.material.name as string,
+  });
   const mirror = buildWorldMirror({
-    placed: batches.map((batch) => ({
-      cut: batch.cut,
-      material: batch.entry.material,
-      rows: batch.rows!,
-      name: batch.entry.material.name as string,
-    })),
+    placed: batches.map(placedOf),
     models: models.map((node) => ({ node, graph: modelGraph(node) })),
     rankOf,
   });
+  const nodes = new Map(batches.map((batch, i) => [batch, mirror.placed[i].node]));
   for (const [twin, link] of mirror.associations) associations.set(twin, link);
   const first = (models.find((model) => model.record.textureSource === 'cache') ?? models[0])
     ?.record;
@@ -135,6 +138,24 @@ export function buildWorldSource(plan: WorldPlan) {
     root: mirror.root,
     twins: mirror.twins,
     repaint: mirror.repaint,
+    /** A batch the session was not opened with, as it mounts it (`PlacementMount`): its host
+     *  mesh hung in the graph, its primitive listed in the manifest. */
+    mount(batch: Batch): PlacementMount {
+      const { node, association } = mirror.place(placedOf(batch));
+      nodes.set(batch, node);
+      return { node, association, primitive: ranked.get(batch.cut)! };
+    },
+    /** A batch the session no longer draws: its host mesh, and its resource's primitive and
+     *  geometry once no other batch wears it. True when the resource left. */
+    unmount(batch: Batch) {
+      const node = nodes.get(batch)!;
+      nodes.delete(batch);
+      const worn = [...nodes.keys()].some((other) => other.cut === batch.cut);
+      mirror.unplace(node, worn ? undefined : batch.cut);
+      if (worn) return false;
+      primitives.splice(primitives.indexOf(ranked.get(batch.cut)!), 1);
+      return ranked.delete(batch.cut);
+    },
     source: {
       manifestUrl: first?.manifestUrl ?? base,
       metadataUrl: first?.metadataUrl ?? base,
