@@ -139,6 +139,10 @@ export function wgslBackend(
   });
 }
 
+/** The light cut's call site of the same kernel text (`wgslBackend`). */
+export const wgslLightBackend = (dag: RuleDag, threshold: number, source = DAG_SELECTION_SHADER) =>
+  wgslBackend(dag, threshold, source, 'light');
+
 /** A world box behind `stripCamera`: the placement that wears it leaves the view. */
 export const AWAY = Float64Array.of(-1e5, -1, -1, -1e5 + 1, 1, 1);
 
@@ -174,7 +178,3 @@ export function floorPrunedPages(dag: RuleDag, threshold: number) {
       return node >= 0 && dagNodeFloor(frames, packed.nodes, ints, node) > threshold;
     });
 }
-
-/** The light cut's call site of the same kernel text (`wgslBackend`). */
-export const wgslLightBackend = (dag: RuleDag, threshold: number, source = DAG_SELECTION_SHADER) =>
-  wgslBackend(dag, threshold, source, 'light');
