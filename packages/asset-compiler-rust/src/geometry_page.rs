@@ -79,7 +79,7 @@ mod tests_grid;
 
 /**
  * A complete, independently decodable `WGP3` page: positions on the primitive grid of
- * `position_exponent`, texture coordinates on the format's grid, octahedral normals, byte colours
+ * `position_exponent`, texture coordinates on that of `uv_exponent`, octahedral normals, byte colours
  * and bit-packed local indices. Tangents are never stored — a reader rebuilds them from the
  * triangle's positions and texture coordinates.
  */
@@ -88,6 +88,7 @@ pub fn encode(
     positions: &[f32],
     attributes: &[&Attribute],
     position_exponent: i32,
+    uv_exponent: i32,
 ) -> Result<Encoded> {
     if indices.len() < 3 || !indices.len().is_multiple_of(3) || !positions.len().is_multiple_of(3) {
         return Err(CompilerError::new(
@@ -119,7 +120,13 @@ pub fn encode(
         uv: uv_records,
         color: color_record,
         quantization_error,
-    } = grids(&original, positions, attributes, position_exponent)?;
+    } = grids(
+        &original,
+        positions,
+        attributes,
+        position_exponent,
+        uv_exponent,
+    )?;
     // Vertices on the same grid cells decode to the same floats: one copy, indices remapped.
     let mut unique = Vec::<Cell>::with_capacity(cells.len());
     let mut rank = HashMap::<Cell, u32>::with_capacity(cells.len());

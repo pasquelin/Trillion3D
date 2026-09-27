@@ -80,12 +80,12 @@ export function unpackDrawn(buffer: ArrayBuffer): {
  * written as its index page and its quantized geometry page (`encodeGeometryPage`), with no
  * simplification — every cluster is a root, drawn as it is — and, when `cones` holds, with the
  * cone of its triangles' normals (`cutCones.ts`). Positions take 2^16 steps across the widest
- * axis, a `blended` primitive's the finest grid a page holds (2^23): the coarser grid shows
- * through a transparent surface (#875). Texture
- * coordinates sit on the format's 2^-14, or on the finest grid the widest cluster's range fits
- * when it does not — a dashed line's distance along it (`drawn.ts`) spans past 1024 units on a
- * long line: every page is cut, none refused, and each coordinate stays within a 32-bit float's
- * own step of that range.
+ * axis. Texture coordinates sit on the format's 2^-14, or on the finest grid the widest
+ * cluster's range fits when it does not — a dashed line's distance along it (`drawn.ts`) spans
+ * past 1024 units on a long line: every page is cut, none refused, and each coordinate stays
+ * within a 32-bit float's own step of that range. A `blended` primitive takes the finest grids
+ * a page holds for both (2^23 steps), as the compiler does: a coarser one shows through a
+ * transparent surface (#875).
  */
 export async function cutDrawnTriangles(
   drawn: DrawnTriangles,
@@ -99,9 +99,9 @@ export async function cutDrawnTriangles(
     boxExpandByPoint(bounds, 0, positions[i], positions[i + 1], positions[i + 2]);
   const extent = Math.max(bounds[3] - bounds[0], bounds[4] - bounds[1], bounds[5] - bounds[2]);
   const span = extent > 0 ? extent : 1;
-  const positionExponent = blended
-    ? gridExponentFor(span, -Infinity)
-    : Math.ceil(Math.log2(span)) - 16;
+  const finest = (range: number, grid: number) =>
+    blended && range > 0 ? Math.min(grid, gridExponentFor(range, -Infinity)) : grid;
+  const positionExponent = finest(span, Math.ceil(Math.log2(span)) - 16);
   const attributes: PageAttributes = {
     POSITION: { itemSize: 3, array: positions },
     NORMAL: { itemSize: 3, array: normals },
@@ -109,9 +109,8 @@ export async function cutDrawnTriangles(
     ...(colors ? { COLOR_0: { itemSize: 4, array: colors } } : {}),
   };
   const ranges = [...clusters(indices, positions.length / 3)];
-  const uvExponent = uvs
-    ? gridExponentFor(widestUvSpan(uvs, indices, ranges), UV_EXPONENT)
-    : UV_EXPONENT;
+  const uvSpan = uvs ? widestUvSpan(uvs, indices, ranges) : 0;
+  const uvExponent = finest(uvSpan, gridExponentFor(uvSpan, UV_EXPONENT));
   const built = cones ? await clusterCones(positions, indices, ranges) : null;
   const cut = [];
   let maxPositionError = 0;
