@@ -43,14 +43,13 @@ export function Examples({ locale }: { locale: Locale }) {
     >
       {themedEntries.map(({ theme, ready, parked, coming }) => (
         <Section key={theme} id={themeAnchor(theme)} title={themeTitle(theme, locale)}>
-          <Grid>
+          <Grid dense>
             {[...ready, ...parked].map((entry) => {
               return (
                 <ExampleCard
                   key={entry.id}
                   title={exampleTitle(entry.id, locale)}
                   href={routeHref({ locale, area: 'examples', id: entry.id })}
-                  badge={themeTitle(theme, locale)}
                   thumbnail={thumbnailOf(entry.id)}
                   state={
                     isReady(entry)
