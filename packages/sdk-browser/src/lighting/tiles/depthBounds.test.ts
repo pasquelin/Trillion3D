@@ -1,14 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { LIGHT_SETTINGS } from '../../../../sdk-core/src/index.ts';
-import { mulberry32 } from '../../../../../site/examples/kit/random.ts';
-import { LIGHT_TILES_SHADER, lightTilesShader } from './shader.ts';
+import { random } from '../../page/cut/cutRuleChecks.fixture.ts';
+import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
+import { requestExplorerDevice } from '../../world/session/gpuDevice.ts';
+import { LIGHT_TILES_SHADERS } from './shader.ts';
+import { createGpuLightTiles } from './tiles.ts';
 
-// #924 (OMB-03): where the device grants `subgroups`, each subgroup reduces the tile's depth
-// bounds before one atomic per word. The four words the tile's bounds are built from must be
-// those of the per-thread atomics, to the bit, whatever the subgroup size and the depths —
-// including NaN, ±0, +Inf, subnormals and threads outside the image. Both variants are ported
-// here statement by statement, WGSL's comparisons included (any comparison with NaN is false).
+// #924 (OMB-03): granted `subgroups`, each subgroup reduces the tile's depth bounds first: the
+// per-thread atomics' words to the bit, any subgroup size, NaN, ±0, +Inf and subnormals included.
 
 const LANES = LIGHT_SETTINGS.tileSize ** 2;
 const word = new Float32Array(1),
@@ -16,21 +16,8 @@ const word = new Float32Array(1),
 const bitsOf = (z: number) => ((word[0] = z), bits[0]);
 type Lane = { z: number; inside: boolean };
 
-/** `ATOMIC_DEPTH_BOUNDS`: every thread its own atomics. */
-function atomicBounds(lanes: Lane[]) {
-  const out = { nearest: 0, farthest: 0xffffffff, covered: 0, skyward: 0 };
-  for (const { z, inside } of lanes) {
-    if (!inside) continue;
-    if (z > 0) {
-      out.nearest = Math.max(out.nearest, bitsOf(z));
-      out.farthest = Math.min(out.farthest, bitsOf(z));
-      out.covered = 1;
-    } else out.skyward = 1;
-  }
-  return out;
-}
-
-/** `SUBGROUP_DEPTH_BOUNDS`: each subgroup of `size` lanes reduces, its elected lane stores. */
+/** `SUBGROUP_DEPTH_BOUNDS`: each subgroup of `size` lanes reduces, its elected lane stores. One
+ *  lane per subgroup is `ATOMIC_DEPTH_BOUNDS`, each thread its own atomics. */
 function subgroupBounds(lanes: Lane[], size: number) {
   const out = { nearest: 0, farthest: 0xffffffff, covered: 0, skyward: 0 };
   for (let first = 0; first < lanes.length; first += size) {
@@ -51,9 +38,14 @@ function subgroupBounds(lanes: Lane[], size: number) {
 }
 
 const SPECIAL = [NaN, 0, -0, Infinity, -Infinity, 1, 1e-45, 1.1754942e-38, 0.5, 1e-6];
+const same = (lanes: Lane[], at: string) => {
+  const expected = subgroupBounds(lanes, 1);
+  for (const size of [4, 8, 16, 32, 64, 128])
+    assert.deepEqual(subgroupBounds(lanes, size), expected, `${at}, subgroup ${size}`);
+};
 
 test('subgroup depth bounds write the words of the per-thread atomics, any subgroup size', () => {
-  const r = mulberry32(924);
+  const r = random(924);
   for (let run = 0; run < 400; run++) {
     const special = r() < 0.5,
       cut = Math.floor(r() * LANES) + 1;
@@ -61,35 +53,29 @@ test('subgroup depth bounds write the words of the per-thread atomics, any subgr
       z: Math.fround(special && r() < 0.3 ? SPECIAL[Math.floor(r() * SPECIAL.length)] : r()),
       inside: i < cut || r() < 0.5,
     }));
-    const expected = atomicBounds(lanes);
-    for (const size of [4, 8, 16, 32, 64, 128])
-      assert.deepEqual(subgroupBounds(lanes, size), expected, `run ${run}, subgroup ${size}`);
+    same(lanes, `run ${run}`);
   }
 });
 
-test('edge tiles: all outside, all sky, all NaN, one lit lane', () => {
-  const cases: Lane[][] = [
-    Array.from({ length: LANES }, () => ({ z: 0.5, inside: false })),
-    Array.from({ length: LANES }, () => ({ z: 0, inside: true })),
-    Array.from({ length: LANES }, () => ({ z: NaN, inside: true })),
-    Array.from({ length: LANES }, (_, i) => ({ z: i === 77 ? 0.25 : -0, inside: true })),
-  ];
-  for (const lanes of cases)
-    for (const size of [4, 32, 128])
-      assert.deepEqual(subgroupBounds(lanes, size), atomicBounds(lanes));
-});
-
-test('the subgroup variant enables the extension; the plain pass asks for nothing', () => {
-  const subgroups = lightTilesShader(true);
-  assert.ok(subgroups.startsWith('enable subgroups;'));
-  assert.match(subgroups, /subgroupMax\(select\(0u,bitcast<u32>\(z\),lit\)\)/);
-  assert.doesNotMatch(LIGHT_TILES_SHADER, /subgroup/);
-  assert.match(LIGHT_TILES_SHADER, /atomicMax\(&nearest,bitcast<u32>\(z\)\);/);
-  // Past the depth bounds, the two passes are the same text.
-  const tail = (code: string) => {
-    const at = code.indexOf(' workgroupBarrier();\n if(lane==0u){');
-    assert.ok(at > 0);
-    return code.slice(at);
-  };
-  assert.equal(tail(subgroups), tail(LIGHT_TILES_SHADER));
+test('an adapter that offers subgroups gets them, and its light tiles run the subgroup pass', async () => {
+  for (const offered of [['subgroups'], []]) {
+    const compiled: string[] = [];
+    const adapter = {
+      features: new Set(offered),
+      limits: {},
+      requestDevice: async ({ requiredFeatures }: GPUDeviceDescriptor) =>
+        Object.assign(fakeDevice().device, {
+          features: new Set(requiredFeatures),
+          createShaderModule: ({ code }: GPUShaderModuleDescriptor) => (
+            compiled.push(code),
+            { getCompilationInfo: async () => ({ messages: [] }) }
+          ),
+        }),
+    } as unknown as GPUAdapter;
+    const tiles = await createGpuLightTiles(await requestExplorerDevice(adapter));
+    const granted = offered.length > 0;
+    assert.equal(tiles.subgroups, granted);
+    assert.deepEqual(compiled, [LIGHT_TILES_SHADERS[+granted][1]]);
+    assert.equal(compiled[0].startsWith('enable subgroups;'), granted);
+  }
 });

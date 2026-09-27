@@ -1,5 +1,9 @@
-import { LIGHT_SETTINGS } from '../../../../sdk-core/src/index.ts';
-import { lightTilesShader } from './shader.ts';
+import {
+  LIGHT_SETTINGS,
+  invertMatrix4,
+  matrixAtRenderOrigin,
+} from '../../../../sdk-core/src/index.ts';
+import { LIGHT_TILES_SHADERS } from './shader.ts';
 import { createCheckedShaderModule } from '../../gpu/core/shaderModule.ts';
 import { createWebgpuBindIdentity } from '../../webgpu/core/bindIdentity.ts';
 import { TILE_STRIDE_WORDS } from '../direct/lightWgsl.ts';
@@ -9,19 +13,34 @@ export const LIGHT_TILES_PASS = 'Trillion3D light tiles v1';
 const tilesOn = (pixels: number) => Math.max(1, Math.ceil(pixels / LIGHT_SETTINGS.tileSize));
 export type GpuLightTiles = Awaited<ReturnType<typeof createGpuLightTiles>>;
 
+const atOrigin = new Float64Array(16);
+/**
+ * The tile pass's frame (`sdk-core` `renderOrigin.ts`): `origin` the eye rounded to f32, the words
+ * the shader subtracts from a light's centre, and `out` the f64 inverse of `viewProjection ·
+ * T(origin)` — the jittered render matrix, not the camera's `viewProjectionRelative`.
+ */
+export function tileViewInverse(
+  out: Float64Array,
+  origin: Float64Array,
+  viewProjection: ArrayLike<number>,
+  eye: ArrayLike<number>,
+) {
+  for (let axis = 0; axis < 3; axis++) origin[axis] = Math.fround(eye[axis]);
+  return invertMatrix4(out, matrixAtRenderOrigin(atOrigin, viewProjection, origin));
+}
+
 /**
  * Per-tile light-list pass. The tile buffer is allocated for the current target and reallocated
  * only when it changes size; the group follows the light buffer, which grows with the scene;
  * encoding allocates nothing.
  */
 export async function createGpuLightTiles(device: GPUDevice) {
-  // A device granted `subgroups` reduces each tile's depth bounds per subgroup: the same words,
-  // one atomic per subgroup. Every other device keeps the per-thread atomics.
+  // Granted `subgroups`, the depth bounds reduce per subgroup: the same words, fewer atomics.
   const subgroups = device.features.has('subgroups');
   const module = await createCheckedShaderModule(
     device,
-    lightTilesShader(subgroups),
-    subgroups ? 'LIGHT_TILES_SUBGROUP_SHADER' : 'LIGHT_TILES_SHADER',
+    LIGHT_TILES_SHADERS[+subgroups][1],
+    LIGHT_TILES_SHADERS[+subgroups][0],
   );
   const layout = device.createBindGroupLayout({
     entries: [
@@ -33,10 +52,12 @@ export async function createGpuLightTiles(device: GPUDevice) {
   });
   const uniform = device.createBuffer({
     label: 'Trillion3D light tile view v1',
-    size: 80,
+    size: 96,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
-  const packed = new Float32Array(20);
+  const packed = new Float32Array(24),
+    inverse = new Float64Array(16),
+    origin = new Float64Array(3);
   let pipeline: GPUComputePipeline | undefined;
   try {
     pipeline = device.createComputePipeline({
@@ -53,6 +74,8 @@ export async function createGpuLightTiles(device: GPUDevice) {
     tilesY = 0;
   const bound = createWebgpuBindIdentity();
   return {
+    /** True when the device granted `subgroups`: the depth bounds reduce per subgroup. */
+    subgroups,
     /** Buffer the deferred resolve rereads; never undefined after an `ensure()`. */
     get buffer() {
       return tiles;
@@ -93,12 +116,19 @@ export async function createGpuLightTiles(device: GPUDevice) {
       }
       return !!group;
     },
-    update(inverseViewProjection: ArrayLike<number>, width: number, height: number) {
-      packed.set(inverseViewProjection as number[], 0);
+    /** The render matrix (jitter included) and the eye, both absolute and in f64. */
+    update(
+      viewProjection: ArrayLike<number>,
+      eye: ArrayLike<number>,
+      width: number,
+      height: number,
+    ) {
+      packed.set(tileViewInverse(inverse, origin, viewProjection, eye), 0);
       packed[16] = width;
       packed[17] = height;
       packed[18] = tilesX;
       packed[19] = tilesY;
+      packed.set(origin, 20);
       device.queue.writeBuffer(uniform, 0, packed);
     },
     encode(encoder: GPUCommandEncoder) {

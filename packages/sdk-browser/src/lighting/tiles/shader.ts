@@ -24,12 +24,16 @@ const WORDS = LIGHT_SETTINGS.tileSize ** 2 / 32; // one mask bit per thread, a t
  * sky —, so the slice is the tile's whole column: bounded across by its four side planes and in
  * front by the near plane, unbounded in depth. One pass, one depth reduce, two compacts.
  *
+ * The pass works in the frame of the eye rounded to f32 (`tileViewInverse`, `./tiles.ts`): its
+ * corners and planes are unprojected there, and a light's centre is brought there by one
+ * subtraction.
+ *
  * Depth is REVERSE-Z (`../../camera/depthConvention.ts`): nearest is GREATEST, background is
  * zero, and the far plane is infinite — the background has no depth to unproject, so the
  * column's planes are read at a finite depth, which gives the same planes at any depth.
  */
-export const lightTilesShader = (subgroups: boolean) => `${subgroups ? 'enable subgroups;' : ''}
-struct TileView{inverseViewProjection:mat4x4f,viewport:vec4f,}
+const lightTilesShader = (subgroups: boolean) => `${subgroups ? 'enable subgroups;' : ''}
+struct TileView{inverseViewProjection:mat4x4f,viewport:vec4f,origin:vec4f,}
 @group(0) @binding(0) var depth:texture_depth_2d;
 @group(0) @binding(1) var<uniform> view:TileView;
 @group(0) @binding(2) var<storage,read> lights:DirectLights;
@@ -92,13 +96,6 @@ fn sphereTouchesBox(box:Box,centre:vec3f,radius:f32)->bool{
  let clamped=max(outside,vec3f(0.0));
  return dot(clamped,clamped)<=radius*radius;
 }
-/** A sphere is out of the column only if it lies wholly behind one of its planes. */
-fn sphereTouchesColumn(centre:vec3f,radius:f32)->bool{
- for(var i=0u;i<5u;i++){
-  if(dot(column[i].xyz,centre)+column[i].w< -radius){return false;}
- }
- return true;
-}
 ${TILE_BOUNDS_WGSL}
 /** Rank of a kept light: the number of kept bits before it in the same slice. */
 fn rankBefore(mask:u32,lane:u32)->u32{
@@ -148,6 +145,9 @@ ${tileDepthBoundsWgsl(subgroups)}
   if(atomicLoad(&skyward)==0u){blendBox=tileBox(NEAR_ROW,BACK_ROW);}
  }
  let count=workgroupUniformLoad(&lightCount);
+ // What the tile's pixels saw, read once: the barrier above made it final.
+ let hasOpaque=atomicLoad(&covered)==1u;
+ let seesSky=atomicLoad(&skyward)==1u;
  let base=(tile.y*u32(view.viewport.z)+tile.x)*TILE_STRIDE;
  // Up to 256 lights, one batch: the barriers and the work of a single pass, no more.
  for(var first=0u;first<count;first+=${WORDS * 32}u){
@@ -155,20 +155,12 @@ ${tileDepthBoundsWgsl(subgroups)}
   if(index<count){
    let light=lights.items[index];
    // A directional light reaches everywhere: no tile bound can reject it. The others are kept
-   // only if their range sphere touches the slice.
-   let sun=isSun(light);
-   let centre=light.positionRange.xyz;
-   let radius=light.positionRange.w;
+   // only if their range sphere, brought into the pass's frame, touches the slice.
+   var keep=vec2<bool>(hasOpaque,true);
+   if(!isSun(light)){keep=sliceHits(light.positionRange.xyz-view.origin.xyz,light.positionRange.w,hasOpaque,seesSky);}
    let bit=1u<<(lane%32u);
-   if(atomicLoad(&covered)==1u&&(sun||sphereTouchesOpaqueSlice(centre,radius))){
-    atomicOr(&hits[OPAQUE_MASK+lane/32u],bit);
-   }
-   var blendTouched=sun;
-   if(!sun&&atomicLoad(&skyward)==1u){blendTouched=sphereTouchesColumn(centre,radius);}
-   else if(!sun){blendTouched=sphereTouchesBlendSlice(centre,radius);}
-   if(blendTouched){
-    atomicOr(&hits[BLEND_MASK+lane/32u],bit);
-   }
+   if(keep.x){atomicOr(&hits[OPAQUE_MASK+lane/32u],bit);}
+   if(keep.y){atomicOr(&hits[BLEND_MASK+lane/32u],bit);}
   }
   workgroupBarrier();
   // Parallel compact, each light at its rank after what the batches before kept: increasing
@@ -184,3 +176,8 @@ ${tileDepthBoundsWgsl(subgroups)}
 
 /** The pass as every device runs it: per-thread atomics, no feature asked. */
 export const LIGHT_TILES_SHADER = lightTilesShader(false);
+/** Each variant under its one label, indexed by whether the device granted `subgroups`. */
+export const LIGHT_TILES_SHADERS = [
+  ['LIGHT_TILES_SHADER', LIGHT_TILES_SHADER],
+  ['LIGHT_TILES_SUBGROUP_SHADER', lightTilesShader(true)],
+] as const;

@@ -33,15 +33,13 @@ export const tileDepthBoundsWgsl = (subgroups: boolean) =>
   subgroups ? SUBGROUP_DEPTH_BOUNDS : ATOMIC_DEPTH_BOUNDS;
 
 /**
- * The tile's corner table, its opaque slice's two depth planes and the slice tests, beside the
- * tile's boxes and column (`./shader.ts`): sixteen threads de-project the corners, one each,
- * thread zero builds the bounds from them, every thread reads them. A light is kept in a slice
- * only if its range sphere meets both the slice's box and its planes: the planes are the tile's
- * own frustum, much tighter than a box once the tile is seen from above or at a slant.
+ * The tile's corner table, one corner per thread of the first sixteen, and the slice planes and
+ * tests, beside the tile's column (`./shader.ts`): a light is kept only if its range sphere meets
+ * the slice's box and the planes of the tile's frustum. In the pass's eye frame a plane's terms
+ * are the size of the view: a sphere is out only when wholly behind one, no margin.
  * `oracles/browser/gpuLightTileColumnOracle.ts` ports it line by line.
  */
-export const TILE_BOUNDS_WGSL = `/** The opaque slice's front and back depth planes, facing each other: with the column's four
- *  sides, the six planes of the tile's frustum between its two depths. */
+export const TILE_BOUNDS_WGSL = `/** The opaque slice's front and back depth planes, facing each other. */
 var<workgroup> slab:array<vec4f,2>;
 /** The tile's corners, \`corners[row*4+corner]\`: one row per depth — the near plane, the
  *  column's depth, the tile's front, its back —, the corner's bit 0 the right edge, bit 1 the
@@ -79,34 +77,31 @@ fn tileCornerOfLane(tile:vec2u,lane:u32){
 fn columnCorner(row:u32,i:u32)->vec3f{
  return corners[row*4u+(i^(i>>1u))];
 }
-/** The opaque slice's depth planes, after \`tileColumn\`: a plane of one depth is parallel to
- *  the near plane, so both take its normal — read from corners spread across the column, never
- *  from three corners a tile apart, which f32 rounds to any direction far from the world
- *  origin — through the tile's corner at their depth, facing each other. */
+/** The opaque slice's depth planes, after \`tileColumn\`. A plane of one depth is parallel to
+ *  the near plane — one depth is one distance along the view axis —, so both take its normal,
+ *  \`away\` from the eye, through a corner at their depth. */
 fn tileSlab(){
  let away=column[4].xyz;
  slab[0]=vec4f(away,-dot(away,corners[FRONT_ROW*4u]));
  slab[1]=vec4f(-away,dot(away,corners[BACK_ROW*4u]));
 }
-/** A sphere is out of a plane only when wholly behind it by more than the rounding of the
- *  plane's own terms: the margin keeps the test conservative, so a light it drops meets no
- *  pixel of the slice and its term would have been an exact zero. */
-fn sphereInFront(plane:vec4f,centre:vec3f,radius:f32)->bool{
- let side=dot(plane.xyz,centre);
- return side+plane.w>=-(radius+1e-5*(abs(side)+abs(plane.w))+1e-4);
+/** A sphere wholly behind a plane: out of every slice the plane bounds. */
+fn sphereBehind(plane:vec4f,centre:vec3f,radius:f32)->bool{
+ return dot(plane.xyz,centre)+plane.w< -radius;
 }
 fn sphereInSides(centre:vec3f,radius:f32)->bool{
- for(var i=0u;i<4u;i++){if(!sphereInFront(column[i],centre,radius)){return false;}}
+ for(var i=0u;i<4u;i++){if(sphereBehind(column[i],centre,radius)){return false;}}
  return true;
 }
-/** The opaque slice as a frustum: the column's four sides, then its two depth planes. */
-fn sphereTouchesOpaqueSlice(centre:vec3f,radius:f32)->bool{
- return sphereTouchesBox(opaqueBox,centre,radius)&&sphereInSides(centre,radius)
-  &&sphereInFront(slab[0],centre,radius)&&sphereInFront(slab[1],centre,radius);
-}
-/** The blend slice of a tile with no sky pixel: the column's sides and near plane, closed at the
- *  farthest opaque by the opaque slice's back plane. */
-fn sphereTouchesBlendSlice(centre:vec3f,radius:f32)->bool{
- return sphereTouchesBox(blendBox,centre,radius)&&sphereInSides(centre,radius)
-  &&sphereInFront(column[4],centre,radius)&&sphereInFront(slab[1],centre,radius);
+/** Whether the opaque (\`x\`) and blend (\`y\`) lists keep a light other than the sun. Both slices
+ *  lie within the column's sides, a sky tile's blend slice is the whole column, the others end at
+ *  the opaque slice's back plane. */
+fn sliceHits(centre:vec3f,radius:f32,hasOpaque:bool,seesSky:bool)->vec2<bool>{
+ let sides=sphereInSides(centre,radius);
+ var hit=vec2<bool>(false,seesSky&&sides&&!sphereBehind(column[4],centre,radius));
+ if(hasOpaque&&sides&&!sphereBehind(slab[1],centre,radius)){
+  hit.x=sphereTouchesBox(opaqueBox,centre,radius)&&!sphereBehind(slab[0],centre,radius);
+  if(!seesSky){hit.y=sphereTouchesBox(blendBox,centre,radius)&&!sphereBehind(column[4],centre,radius);}
+ }
+ return hit;
 }`;
