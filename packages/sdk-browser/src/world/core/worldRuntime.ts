@@ -139,10 +139,9 @@ export function createWorldRuntime(inputs: Inputs) {
       seatWanted = false;
       contents.seat(session?.growsPlacements() ? session.growPlacements : undefined);
       if (contents.reopenNeeded() || (!session && !reopens.running)) reopens.request();
-      // Values or pictures alone repaint the built surface (#335, #362); a reopened one is new.
-      const painted = contents.repainted().filter(({ entry }) => mirror?.repaint(entry.material));
-      const values = painted.some((each) => each.values);
-      if (painted.length && session && explorer === session && !session.refreshMaterials(values))
+      // Values or pictures alone repaint the built surface (#335, #362, #572); a reopened one is new.
+      const open = explorer === session ? session : null;
+      if (mirror && !mirror.repaint(contents.repainted(), open?.refreshMaterials.bind(open)))
         reopens.request();
     }
     if (!session || explorer !== session) return;
