@@ -38,8 +38,7 @@
       for (let column = -2; column <= 2; column++) {
         const disc = object.mesh(discShape, steel);
         disc.position.set(column * 1.75, 0.9, 0);
-        disc.rotation.set(Math.PI / 2, 0, column * 0.32);
-        disc.castShadow = true;
+        disc.rotation.set(Math.PI / 2, column * 0.32, 0);
         world.scene.add(disc);
         discs.push(disc);
       }
@@ -48,7 +47,6 @@
         material.meshStandard({ color: '#403329', roughness: 0.88 }),
       );
       bench.position.y = -0.18;
-      bench.receiveShadow = true;
       world.scene.add(bench);
       world.scene.add(
         light.directional({
@@ -80,7 +78,7 @@
       );
       world.onFrame(({ delta }) => {
         if (!ui.spin) return;
-        for (const disc of discs) disc.rotation.z += delta * 0.24;
+        for (const disc of discs) disc.rotation.y += delta * 0.24;
         world.invalidate();
       });
       world.invalidate();
