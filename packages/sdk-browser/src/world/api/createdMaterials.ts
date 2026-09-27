@@ -53,8 +53,9 @@ const CREATED_DEFAULTS = {
 
 /** The host surface of a created material: what the page named, glTF's default elsewhere, drawn
  *  as a repainted primitive is (`hostPageSurface`). */
-export function createdSurface({ name, map: _, ...props }: CreatedMaterial) {
-  // A value named `undefined` is one the page did not name: glTF's default, not a hole.
+export function createdSurface({ name, ...props }: CreatedMaterial) {
+  // A value named `undefined` is one the page did not name: glTF's default, not a hole; a map
+  // is refused before (`validateCreated`), so none reaches here.
   const named = Object.entries(props).filter(([, value]) => value !== undefined);
   const surface = hostPageSurface(
     { ...CREATED_DEFAULTS, ...Object.fromEntries(named) },
