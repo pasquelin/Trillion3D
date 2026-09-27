@@ -21,7 +21,7 @@
     <canvas id="view"></canvas>
     <script type="module">
       import { createWorld, geometry, light, material, math, object } from '../runtime/engine.js';
-      import { controls, language, readout, stats } from '../runtime/kit.js';
+      import { controls, language, readout } from '../runtime/kit.js';
 
       const COUNT = 100000;
       const COLUMNS = 316;
@@ -80,7 +80,6 @@
       shown = readout('objectsShown');
       shown(ui.count.toLocaleString(language()));
       readout('objectsBuilt')(COUNT.toLocaleString(language()));
-      stats(world);
     </script>
   </body>
 </html>
