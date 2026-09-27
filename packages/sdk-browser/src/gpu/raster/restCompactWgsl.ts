@@ -89,7 +89,6 @@ fn restScan(@builtin(local_invocation_index) lane:u32){
   workgroupBarrier();
  }
 }
-var<workgroup> laneKept:array<u32,${REST_COMPACT_WORKGROUP}>;
 @compute @workgroup_size(${REST_COMPACT_WORKGROUP})
 fn restScatter(@builtin(workgroup_id) wg:vec3u,@builtin(local_invocation_index) lane:u32){
  let n=wg.y;let t=wg.x;
@@ -99,11 +98,8 @@ fn restScatter(@builtin(workgroup_id) wg:vec3u,@builtin(local_invocation_index) 
  let x=t*${REST_COMPACT_WORKGROUP}u+lane;
  var row=0u;var kept=0u;
  if(x<work[countWord(n)]){row=work[start+x];kept=select(0u,1u,survives(row));}
- laneKept[lane]=kept;
- workgroupBarrier();
- if(kept==0u){return;}
- var rank=0u;
- for(var j=0u;j<lane;j++){rank=rank+laneKept[j];}
- instances[start+work[tileWord(n,t)]+rank]=row;
+ // Its rank among the earlier survivors of its tile: the exclusive scan of the kept flags.
+ let rank=laneScan(lane,kept)-kept;
+ if(kept!=0u){instances[start+work[tileWord(n,t)]+rank]=row;}
 }
 `;
