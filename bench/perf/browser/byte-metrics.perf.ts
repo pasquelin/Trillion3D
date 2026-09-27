@@ -39,7 +39,7 @@ function etat(pages: number, transparents: number, concats: boolean, depart: num
   const alea = graine(depart);
   const gpu = createWebgpuGpuState([1, 1]),
     blendState = createWebgpuBlendState(),
-    scene = new G.GraphScene();
+    scene = new G.Scene();
   for (let i = 0; i < pages; i++)
     ensureWebgpuPositionBuffer(
       appareil,
