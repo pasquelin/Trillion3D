@@ -144,7 +144,7 @@ ${shadowThroughWgsl(transmittanceBinding)}
 /** The comparison at map texel \`t\` of the page placed by \`offset\`, snapped to its weight step's
  *  centre: exact plus the offset, it reads the page's content alone, wherever the pool puts it. */
 fn shadowCompare(offset:vec3f,t:vec2f,reference:f32)->f32{
- let at=offset.xy+round(t*SHADOW_SUBTEXELS)/SHADOW_SUBTEXELS;
+ let at=offset.xy+floor(t*SHADOW_SUBTEXELS+0.5)/SHADOW_SUBTEXELS;
  return textureSampleCompareLevel(shadowAtlas,shadowSampler,at/f32(textureDimensions(shadowAtlas).x),i32(offset.z),reference);
 }
 /** Offset of the neighbour page \`p\` and 1 when it is readable; else the home page's and 0. */
