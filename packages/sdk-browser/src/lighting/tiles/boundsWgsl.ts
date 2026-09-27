@@ -42,15 +42,14 @@ export const tileDepthBoundsWgsl = (subgroups: boolean) =>
 export const TILE_BOUNDS_WGSL = `/** The opaque slice's front and back depth planes, facing each other: with the column's four
  *  sides, the six planes of the tile's frustum between its two depths. */
 var<workgroup> slab:array<vec4f,2>;
-/** The opaque slice's depth planes, each through three corners at its depth, after
- *  \`tileColumn\`. The near plane's normal points away from the eye: the front plane faces
- *  along it, the back plane against it — an orientation no thin or slanted slice can flip. */
+/** The opaque slice's depth planes, after \`tileColumn\`: a plane of one depth is parallel to
+ *  the near plane, so both take its normal — read from corners spread across the column, never
+ *  from three corners a tile apart, which f32 rounds to any direction far from the world
+ *  origin — through the tile's corner at their depth, facing each other. */
 fn tileSlab(tile:vec2u,front:f32,back:f32){
  let away=column[4].xyz;
- let f0=tileCorner(tile,0u,front);let f1=tileCorner(tile,1u,front);let f2=tileCorner(tile,2u,front);
- let b0=tileCorner(tile,0u,back);let b1=tileCorner(tile,1u,back);let b2=tileCorner(tile,2u,back);
- slab[0]=inwardPlane(cross(f1-f0,f2-f0),f0,f0+away);
- slab[1]=inwardPlane(cross(b1-b0,b2-b0),b0,b0-away);
+ slab[0]=vec4f(away,-dot(away,tileCorner(tile,0u,front)));
+ slab[1]=vec4f(-away,dot(away,tileCorner(tile,0u,back)));
 }
 /** A sphere is out of a plane only when wholly behind it by more than the rounding of the
  *  plane's own terms: the margin keeps the test conservative, so a light it drops meets no

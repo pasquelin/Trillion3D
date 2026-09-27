@@ -69,20 +69,20 @@ export function tileColumn(view: TileView, tile: [number, number]) {
   return planes;
 }
 
-/** The opaque slice's front and back planes, oriented by the column's near plane. */
+/** The opaque slice's front and back planes: the column's near normal through each depth. */
 export function tileSlab(
   view: TileView,
   tile: [number, number],
   column: Plane[],
   front: number,
   back: number,
-) {
+): Plane[] {
   const away = column[4].n;
-  const plane = (z: number, toward: Vec3) => {
-    const [p0, p1, p2] = [0, 1, 2].map((c) => tileCorner(view, tile, c, z));
-    return inwardPlane(cross(sub(p1, p0), sub(p2, p0)), p0, add(p0, toward));
-  };
-  return [plane(front, away), plane(back, scale(away, -1))];
+  const at = (z: number) => dot(away, tileCorner(view, tile, 0, z));
+  return [
+    { n: away, w: -at(front) },
+    { n: scale(away, -1), w: at(back) },
+  ];
 }
 
 export function sphereTouchesBox(box: Box, centre: Vec3, radius: number) {

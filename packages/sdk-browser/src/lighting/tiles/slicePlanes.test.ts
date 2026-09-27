@@ -111,6 +111,40 @@ test('random views: every light that reaches the slice is kept, none the box did
   assert.ok(total.blend < total.blendBefore, JSON.stringify(total));
 });
 
+test('far from the origin, a leaf a hand away: no light reaching the wall behind is lost', () => {
+  // Kilometres from the origin a tile's corners 0.2 m away are a few f32 steps apart: a depth
+  // plane drawn through three of them points anywhere, and cuts off the wall behind the leaf.
+  for (let seed = 1; seed <= 200; seed++) {
+    const r = mulberry32(seed * 31),
+      u = (lo: number, hi: number) => lo + (hi - lo) * r();
+    const eye: Vec3 = [u(-30000, 30000), u(1.7, 30), u(-30000, 30000)];
+    const view = camera(eye, u(-Math.PI, Math.PI), u(-1.4, 0.3), u(30, 100), 3840, 2160);
+    const tile: [number, number] = [Math.floor(u(0, 240)), Math.floor(u(0, 135))];
+    // A leaf a hand away in front of a wall metres behind: the front plane runs through the leaf.
+    const [leaf, wall] = [NEAR / u(0.12, 1), NEAR / u(2, 500)];
+    const depths = Array.from({ length: SIZE * SIZE }, (_, i) =>
+      Math.fround(i % 37 === 0 ? leaf : wall * u(0.99, 1)),
+    );
+    const lights = Array.from({ length: 40 }, () => {
+      const i = Math.floor(u(0, SIZE * SIZE)),
+        radius = Math.fround(u(0.05, 20));
+      const at = pixelPoint(
+        view,
+        tile[0] * SIZE + (i % SIZE),
+        tile[1] * SIZE + (i >> 4),
+        depths[i],
+      );
+      const dir = [u(-1, 1), u(-1, 1), u(-1, 1)],
+        len = Math.hypot(...dir) || 1;
+      return {
+        centre: at.map((v, a) => Math.fround(v + (dir[a] / len) * radius * 0.99)) as Vec3,
+        radius,
+      };
+    });
+    checkTile(view, tile, depths, lights);
+  }
+});
+
 test('looking down from 150 m: the planes drop the lamps the blend box keeps', () => {
   const view = camera([0, 150, 0], 0.3, -Math.PI / 2 + 0.6, 60, 1920, 1080);
   const tile: [number, number] = [100, 10];
