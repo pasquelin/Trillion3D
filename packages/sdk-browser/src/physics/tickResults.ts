@@ -9,7 +9,7 @@ import {
 import type { JoltModule } from './joltModule.ts';
 import type { CharacterReport } from './characterDriver.ts';
 import { eventsAt, resultWords, type FromPhysics } from './protocol.ts';
-import { createSoftTick, createVehicleTick } from './softTick.ts';
+import { createSoftTick, createVehicleTick } from './recordTick.ts';
 
 /**
  * One tick's results in the physics worker: the poses and events of every step it takes, written

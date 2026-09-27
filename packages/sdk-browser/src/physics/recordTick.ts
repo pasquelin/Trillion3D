@@ -4,27 +4,25 @@ import {
   WHEEL_STATE_WORDS,
 } from '../../../sdk-core/src/physics/index.ts';
 
-/**
- * The soft-body vertices of one tick in the physics worker (`SOFT_STATE_WORDS` records): each
- * step's records kept, a body's later record written over its earlier one, so the page hears
- * every body the tick moved once, where its last step left it. The words grow to the tick's size
- * once, and are reused.
- */
+/** The soft-body vertices of one tick (`SOFT_STATE_WORDS` records, 3 words a vertex). */
 export function createSoftTick() {
   return createRecordTick(SOFT_STATE_WORDS, 3);
 }
 
 /**
  * The vehicles' state of one tick (`vehicleLayout.ts`): a vehicle at rest is written by the module
- * only as it comes to rest (`vehicles.cpp`), so every step's records are kept, a vehicle's later
- * record written over its earlier one, and the page hears each vehicle the tick wrote once, where
- * its last step left it.
+ * only as it comes to rest (`vehicles.cpp`), so the tick holds only the vehicles that moved.
  */
 export function createVehicleTick() {
   return createRecordTick(VEHICLE_STATE_WORDS, WHEEL_STATE_WORDS);
 }
 
-/** Records of `head` words, `id, count, …`, then `count` items of `item` words: kept by id. */
+/**
+ * The records of one tick in the physics worker, `head` words (`id, count, …`) then `count` items
+ * of `item` words: each step's records kept, a record's later copy written over its earlier one
+ * by id, so the page hears every record the tick wrote once, where its last step left it. The
+ * words grow to the tick's size once, and are reused.
+ */
 function createRecordTick(head: number, item: number) {
   let words = new Uint32Array(0),
     length = 0;

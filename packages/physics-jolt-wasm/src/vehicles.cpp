@@ -41,9 +41,6 @@ constexpr float LEAN_OMEGA = 12.5f, LEAN_DAMPING = 1.25f;
 /// A track's grip along and across itself on firm ground, and its share of the vehicle's mass,
 /// turning at its sprocket's radius (vehicleSpec.ts TRACKS).
 constexpr float TRACK_GRIP = 1.0f, TRACK_SLIDE = 0.5f, TRACK_MASS = 0.05f;
-/// Steps between two wheel casts of a vehicle at rest past its last written state (Jolt's default
-/// is 1): none, until it wakes.
-constexpr uint32_t INACTIVE_WHEEL_TESTS = 0;
 /// Writes of a resting vehicle's state before it goes quiet.
 constexpr uint32_t REST_WRITES = 2;
 
@@ -368,10 +365,8 @@ void driveVehicles(float dt) {
     // gear is part of the body's own shape (`lower`), so what moves into the wheels meets the body
     // and wakes it; the contacts are extrapolated meanwhile (Jolt's `PredictContactProperties`),
     // and cast in full again as soon as it is awake. Until then (the steps whose state the page
-    // hears), every step, as Jolt's default.
-    uint32_t tests = vehicle.restWrites >= REST_WRITES ? INACTIVE_WHEEL_TESTS : 1;
-    if (vehicle.constraint->GetNumStepsBetweenCollisionTestInactive() != tests)
-      vehicle.constraint->SetNumStepsBetweenCollisionTestInactive(tests);
+    // hears), every step, as Jolt's default (0: never while inactive, 1: every step).
+    vehicle.constraint->SetNumStepsBetweenCollisionTestInactive(vehicle.restWrites >= REST_WRITES ? 0 : 1);
     // A vehicle driven, or whose wheel still turns back, stays awake.
     if (vehicle.throttle > 0 || vehicle.brake > 0 || vehicle.handbrake > 0 || vehicle.steered != 0)
       bodies.ActivateBody(vehicle.constraint->GetVehicleBody()->GetID());
