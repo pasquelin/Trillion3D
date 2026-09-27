@@ -2266,5 +2266,13 @@
         "clusters": "Cluster"
       }
     }
+  },
+  "inside-a-component": {
+    "banner": "Hänge den Viewer ein oder aus. Jede Einbindung besitzt genau eine Welt und jede Entfernung gibt sie frei.",
+    "controls": {
+      "mount": "Einbinden",
+      "unmount": "Aushängen",
+      "remount": "Neu einbinden"
+    }
   }
 }

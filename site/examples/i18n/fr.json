@@ -2266,5 +2266,13 @@
         "clusters": "clusters"
       }
     }
+  },
+  "inside-a-component": {
+    "banner": "Montez ou démontez la vue. Chaque montage possède un monde et chaque retrait le libère.",
+    "controls": {
+      "mount": "Monter",
+      "unmount": "Démonter",
+      "remount": "Remonter"
+    }
   }
 }

@@ -2266,5 +2266,13 @@
         "clusters": "클러스터"
       }
     }
+  },
+  "inside-a-component": {
+    "banner": "뷰어를 장착하거나 분리하세요. 장착할 때마다 월드 하나를 소유하고 분리하면 폐기합니다.",
+    "controls": {
+      "mount": "장착",
+      "unmount": "분리",
+      "remount": "다시 장착"
+    }
   }
 }

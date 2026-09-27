@@ -230,6 +230,7 @@
       "what-hides-what": "O que esconde o quê",
       "create-and-dispose": "Criar e liberar",
       "no-hitch-on-first-draw": "Sem travada no primeiro quadro",
+      "inside-a-component": "Dentro de um componente",
       "inside-the-g-buffer": "Dentro do G-buffer",
       "reading-pixels-back": "Reler os pixels",
       "a-city-from-3d-tiles": "Uma cidade em 3D Tiles",
@@ -338,6 +339,7 @@
       "drag-a-crate": "Arrastar uma caixa"
     },
     "missing": {
+      "inside-a-component": "remoção do canvas criado pelo motor ao descartar o mundo",
       "floating-crates": "geometria reescrita a cada quadro",
       "thick-lines": "linhas largas",
       "a-line-that-draws-itself": "intervalo de desenho de uma geometria",
