@@ -36,7 +36,8 @@
       "engine CPU": "Engine-CPU"
     },
     "failure": {
-      "title": "Dieses Beispiel ist bei einem Fehler stehen geblieben"
+      "title": "Dieses Beispiel ist bei einem Fehler stehen geblieben",
+      "missingCache": "Der kompilierte Cache fehlt: führen Sie pnpm compile:caches aus"
     },
     "banner": {
       "close": "Schließen"

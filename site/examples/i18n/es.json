@@ -36,7 +36,8 @@
       "engine CPU": "CPU del motor"
     },
     "failure": {
-      "title": "Este ejemplo se detuvo por un error"
+      "title": "Este ejemplo se detuvo por un error",
+      "missingCache": "Falta la caché compilada: ejecuta pnpm compile:caches"
     },
     "banner": {
       "close": "Cerrar"
